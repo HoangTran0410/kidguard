@@ -116,8 +116,8 @@ ck("at most 5 events pushed per sync",(await sentList()).length==11);
 j=await (await P3("push",{fcm:"good_"+"a".repeat(40),off:true})).json();ck("push off removes",j.devices==0);
 ck("push needs the kid token",(await fetch(`${B}/c/${id3}/push`,{method:"POST",headers:H(BAD),body:"{}"})).status==401);}
 {const id5=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),T5=Array.from({length:48},()=>"0123456789abcdef"[Math.random()*16|0]).join("");
-// the per-IP rate limit (150 / 10 s) can trip here on a fast runner: wait and retry a 429 so it never reads as "bound"
-const S5=async b=>{for(let i=0;;i++){const r=await fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:{"x-kg-token":T5,"content-type":"application/json"},body:b});if(r.status!=429||i>=20)return r;await new Promise(z=>setTimeout(z,1500));}};
+// the per-IP rate limit (150 / 10 s) can trip here on a fast runner (429), and wrangler dev can 503 while it starts a fresh Durable Object: retry both
+const S5=async b=>{for(let i=0;;i++){const r=await fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:{"x-kg-token":T5,"content-type":"application/json"},body:b});if((r.status!=429&&r.status!=503)||i>=20)return r;await new Promise(z=>setTimeout(z,1500));}};
 {const a=(await S5("{}")).status,c=(await S5("nope")).status;ck(`first sync without state does not bind (400) [got ${a}, ${c}]`,a==400&&c==400);}
 ck("first sync with state binds",(await S5(JSON.stringify({state:{t:1}}))).status==200);}
 // ---- v0.8 clearData: validated, deliver-once ----
