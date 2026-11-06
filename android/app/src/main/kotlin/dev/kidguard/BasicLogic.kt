@@ -23,6 +23,8 @@ object BasicLogic {
     fun reasonText(code: String): String = when (code) {
         "blocked" -> "bố mẹ đã chặn app này"
         "appLimit" -> "hết giờ dùng app này hôm nay"
+        "groupHours" -> "chưa tới giờ được dùng app này"
+        "groupLimit" -> "nhóm app này đã hết giờ hôm nay"
         "new" -> "app mới, chờ bố mẹ cho phép"
         "paused" -> "bố mẹ đang tạm dừng máy"
         "schedule" -> "đang trong giờ nghỉ"

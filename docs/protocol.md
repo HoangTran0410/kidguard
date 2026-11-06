@@ -32,7 +32,7 @@ shape, say so in your report instead of silently diverging.
 }
 ```
 
-Block reasons in `decide()` (priority): `blocked` > `appLimit` > `new` > `paused` > `schedule` > `bedtime` > `daily`.
+Block reasons in `decide()` (priority): `blocked` > `appLimit` > `groupHours` > `groupLimit` (v0.9.4) > `new` > `paused` > `schedule` > `bedtime` > `daily`.
 
 ## State JSON (phone -> parent). New fields marked NEW.
 
@@ -41,7 +41,7 @@ leftMs apps rules location lan relay log`), plus:
 
 ```jsonc
 {
-  "version": "0.9.3",
+  "version": "0.9.4",
   "acc": true,                     // NEW: accessibility service connected (live screen / remote control available)
   "accReEnable": true,             // NEW: the app holds WRITE_SECURE_SETTINGS (can re-enable acc itself)
   "locationOn": true,              // NEW: system location switch
@@ -358,6 +358,23 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
   Result `"ok"` | `"not owner"` | `"unsupported"` (Android < 9) | `"protected"` (never-clear set or KidGuard) | `"failed"`.
 - **Basic mode**: `hidden` is ignored and `preinstalled` is absent; the page shows the heaviest apps (`apps[].mb`) and
   says hiding preinstalled apps needs Device Owner.
+
+## v0.9.4: app groups, Authenticator unlock code
+- **Rules** `groups: [{"id","name","pkgs":[pkg…],"min":int,"hours":[{"days":[1..7],"start":"HH:MM","end":"HH:MM"}]}]`
+  (max 10 groups, 100 apps each, 5 windows; a group with no packages is kept but does nothing, so the page can save it while the parent picks apps). `min` = shared daily minutes
+  of all its apps (0 = none). `hours` empty = any time, else the apps work only inside a window (same crossing-midnight
+  rule as `schedules`). A group of one app = "this app only 19:00-20:00". `allow` does not exempt a group (like `appMin`).
+- **Rules** `unlockMin`: 15 | 30 | 60 | 120 (default 30), minutes one Authenticator code unlocks.
+- New block reasons `groupHours`, `groupLimit`, between `appLimit` and `new` (see priority above).
+- **Command** `totpSet {secret}`: base32 RFC 6238 secret (HMAC-SHA1, 30 s, 6 digits), made by the page
+  (`crypto.getRandomValues`, 20 bytes) and shown once as an `otpauth://totp/KidGuard:%20<name>?secret=…&issuer=KidGuard`
+  link + the key; `secret: ""` = off. Result `ok | bad secret`. In the worker whitelist (sits in the relay queue only until
+  the phone takes it). The phone keeps it in its own prefs and never sends it back; a new secret ends any unlock.
+- **Child screen** "Nhập mã mở khoá của bố mẹ" (only when a secret is set): a code within ±1 step that is newer than the
+  last used one sets `unlockUntil = max(now, unlockUntil) + unlockMin`. Until then `decide()` keeps only `blocked`
+  and `new`. Wrong codes: 5 free, then 5 min doubling (own counter, not the PIN's); the 5th wrong one sends a `tamper`
+  event. Each use sends event `unlock` "Con đã mở khoá bằng mã của bố mẹ: N phút" and a log line.
+- **State** `totpOn: bool`, `unlockUntil: ms` (0 = not unlocked). Missing `totpOn` = phone older than 0.9.4.
 
 ## v0.9.3 fixes
 - Relay rules carry `pinAt` (the rev of the PUT that set the PIN; kept by later PUTs). The phone takes a relay `pinHash`

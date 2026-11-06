@@ -64,6 +64,71 @@ data class Zone(val id: String, val name: String, val lat: Double, val lng: Doub
     }
 }
 
+/**
+ * Apps that share one daily limit ([min], 0 = none) and/or may only be used inside [hours] (empty = any time).
+ * A group of one app is how a single app gets "only 19:00-20:00".
+ */
+data class AppGroup(val id: String, val name: String, val pkgs: Set<String>, val min: Int, val hours: List<Schedule>) {
+    fun toJson(): JSONObject = JSONObject().put("id", id).put("name", name).put("pkgs", JSONArray(pkgs.sorted())).put("min", min)
+        .put("hours", JSONArray().apply { hours.forEach { put(it.toJson()) } })
+
+    /** Inside an allowed window now (or no windows set). */
+    fun open(minute: Int, dow: Int): Boolean = hours.isEmpty() || hours.any { it.active(minute, dow) }
+
+    companion object {
+        const val MAX = 10
+        const val MAX_PKGS = 100
+        private val ID = Regex("[\\w-]{1,16}")
+        fun fromJson(o: JSONObject): AppGroup? {
+            val id = o.optString("id", ""); val name = o.optString("name", "").trim().take(40)
+            if (!id.matches(ID) || name.isEmpty()) return null
+            val pkgs = o.optJSONArray("pkgs")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { Debloat.validPkg(it) } }
+                ?.take(MAX_PKGS)?.toSet() ?: emptySet()
+            val hours = o.optJSONArray("hours")?.let { a ->
+                (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(Schedule::fromJson)?.copy(name = "", on = true) }.take(5)
+            } ?: emptyList()
+            return AppGroup(id, name, pkgs, o.optInt("min", 0).coerceIn(0, 24 * 60), hours)
+        }
+    }
+}
+
+/** Google Authenticator style codes (RFC 6238: HMAC-SHA1, 30 s, 6 digits). Pure, unit tested. */
+object Totp {
+    private const val B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+
+    /** Base32 (no padding, spaces / case ignored) -> bytes, or null when invalid or shorter than 80 bits. */
+    fun decode(s: String): ByteArray? {
+        val c = s.uppercase().filter { it != ' ' && it != '=' && it != '-' }
+        if (c.isEmpty() || c.any { it !in B32 }) return null
+        var buf = 0; var bits = 0
+        val out = java.io.ByteArrayOutputStream()
+        for (ch in c) {
+            buf = (buf shl 5) or B32.indexOf(ch); bits += 5
+            if (bits >= 8) { out.write((buf shr (bits - 8)) and 0xff); bits -= 8 }
+        }
+        return out.toByteArray().takeIf { it.size >= 10 }
+    }
+
+    fun code(key: ByteArray, counter: Long): String {
+        val mac = javax.crypto.Mac.getInstance("HmacSHA1").apply { init(javax.crypto.spec.SecretKeySpec(key, "HmacSHA1")) }
+        val h = mac.doFinal(java.nio.ByteBuffer.allocate(8).putLong(counter).array())
+        val o = h[h.size - 1].toInt() and 0xf
+        val bin = ((h[o].toInt() and 0x7f) shl 24) or ((h[o + 1].toInt() and 0xff) shl 16) or ((h[o + 2].toInt() and 0xff) shl 8) or (h[o + 3].toInt() and 0xff)
+        return "%06d".format(bin % 1_000_000)
+    }
+
+    /**
+     * The time step [code] matches within +-1 step of [nowMs] and after [lastUsed] (a code works once), else -1.
+     */
+    fun check(secret: String, code: String, nowMs: Long, lastUsed: Long): Long {
+        val key = decode(secret) ?: return -1
+        if (code.length != 6 || !code.all { it.isDigit() }) return -1
+        val t = nowMs / 30_000
+        for (step in longArrayOf(t, t - 1, t + 1)) if (step > lastUsed && code(key, step) == code) return step
+        return -1
+    }
+}
+
 /** What the parent set. Plain data + JSON, so the same shape travels over LAN and the relay. */
 data class Rules(
     val rev: Long = 0,                       // ms of the last edit; the newer one wins
@@ -94,6 +159,8 @@ data class Rules(
     val chores: List<Chore> = emptyList(),   // max 20
     val zones: List<Zone> = emptyList(),     // max 10
     val hidden: Set<String> = emptySet(),    // preinstalled apps the parent hid (owner only), max Debloat.MAX_HIDDEN
+    val groups: List<AppGroup> = emptyList(), // max AppGroup.MAX
+    val unlockMin: Int = 30,                 // minutes an Authenticator code unlocks on the child phone: 15, 30, 60, 120
 ) {
     /** [persist] = true also writes pinHash/pinSalt (only for this phone's own storage). The default is safe to send to a parent: it has `pinSet` only. */
     fun toJson(persist: Boolean = false): JSONObject = JSONObject()
@@ -114,6 +181,7 @@ data class Rules(
         .put("chores", JSONArray().apply { chores.forEach { put(it.toJson()) } })
         .put("zones", JSONArray().apply { zones.forEach { put(it.toJson()) } })
         .put("hidden", JSONArray(hidden.sorted()))
+        .put("groups", JSONArray().apply { groups.forEach { put(it.toJson()) } }).put("unlockMin", unlockMin)
         .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
 
     /** True when [pin] matches the stored hash (legacy or salted). False when no PIN is set. */
@@ -169,6 +237,10 @@ data class Rules(
                     (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(Zone::fromJson) }.distinctBy { it.id }.take(Zone.MAX)
                 } ?: emptyList(),
                 hidden = o.optJSONArray("hidden").strings().filter { Debloat.validPkg(it) }.sorted().take(Debloat.MAX_HIDDEN).toSet(),
+                groups = o.optJSONArray("groups")?.let { a ->
+                    (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(AppGroup::fromJson) }.distinctBy { it.id }.take(AppGroup.MAX)
+                } ?: emptyList(),
+                unlockMin = o.optInt("unlockMin", 30).takeIf { it in UNLOCK_STEPS } ?: 30,
                 blockNew = o.optBoolean("blockNew", false),
                 approved = o.optJSONArray("approved").strings(),
                 lockLocation = o.optBoolean("lockLocation", true),
@@ -181,6 +253,7 @@ data class Rules(
         }
 
         val TRACK_STEPS = setOf(0, 5, 10, 15, 30, 60)
+        val UNLOCK_STEPS = setOf(15, 30, 60, 120)
         private val DNS_HOST = Regex("[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?")
 
         /** ISO weekday (1=Mon..7=Sun) of "yyyy-MM-dd", or 1 if unparsable. Pure, no java.time (old API levels). */
@@ -220,19 +293,28 @@ fun baseLimitMin(r: Rules, today: String): Int = if (r.dailyByDay.size == 7) r.d
 /**
  * Which launcher apps to suspend right now, and why. Pure, so it is unit-tested.
  * [usageMs]: foreground ms today per package. [launchable]: apps with a launcher icon. [protected]: never touched.
- * [newApps]: installed after setup (only looked at when blockNew). Priority: blocked > appLimit > new > paused > schedule > bedtime > daily.
+ * [newApps]: installed after setup (only looked at when blockNew). Priority: blocked > appLimit > groupHours > groupLimit > new > paused > schedule > bedtime > daily.
+ * [unlockUntil]: an Authenticator code was entered on the child phone; until then only "blocked" and "new" stay.
  */
 fun decide(
     r: Rules, usageMs: Map<String, Long>, minuteOfDay: Int, nowMs: Long, today: String,
-    launchable: Set<String>, protected: Set<String>, newApps: Set<String> = emptySet(),
+    launchable: Set<String>, protected: Set<String>, newApps: Set<String> = emptySet(), unlockUntil: Long = 0,
 ): Map<String, String> {
     val out = linkedMapOf<String, String>()
     val free = protected + r.allow
     for (p in r.blocked) if (p !in protected) out[p] = "blocked"
     for ((p, min) in r.appMin) if (p !in protected && p !in out && (usageMs[p] ?: 0) >= min * 60_000L) out[p] = "appLimit"
+    val dow = Rules.isoDow(today)
+    for (g in r.groups) {
+        val why = when {
+            !g.open(minuteOfDay, dow) -> "groupHours"
+            g.min > 0 && g.pkgs.sumOf { usageMs[it] ?: 0L } >= g.min * 60_000L -> "groupLimit"
+            else -> null
+        } ?: continue
+        for (p in g.pkgs) if (p !in protected && p !in out) out[p] = why
+    }
     if (r.blockNew) for (p in newApps) if (p !in free && p !in r.approved && p !in out) out[p] = "new"
 
-    val dow = Rules.isoDow(today)
     val bed = r.bedtimeOn && run {
         val s = Rules.parseHm(r.bedStart); val e = Rules.parseHm(r.bedEnd)
         s != null && e != null && Rules.inWindow(minuteOfDay, s, e)
@@ -245,6 +327,7 @@ fun decide(
     val overDaily = base > 0 && used >= limit * 60_000L
     val all = when { paused -> "paused"; sched -> "schedule"; bed -> "bedtime"; overDaily -> "daily"; else -> null }
     if (all != null) for (p in launchable) if (p !in free && p !in out) out[p] = all
+    if (unlockUntil > nowMs) out.entries.removeAll { it.value != "blocked" && it.value != "new" }
     return out
 }
 

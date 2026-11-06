@@ -112,6 +112,38 @@ class Store private constructor(ctx: Context) {
         get() = p.getLong("recoverAt", 0)
         set(v) { p.edit().putLong("recoverAt", v).apply() }
 
+    /** Base32 Authenticator secret set by a parent (`totpSet` command), "" = off. Never sent back to any parent. */
+    @get:Synchronized @set:Synchronized var totpSecret: String
+        get() = p.getString("totpSecret", "") ?: ""
+        set(v) { p.edit().putString("totpSecret", v).putLong("totpLast", 0).apply() }
+
+    /** Everything but "blocked" / "new" is lifted until this time (an Authenticator code was entered). */
+    @get:Synchronized @set:Synchronized var unlockUntil: Long
+        get() = p.getLong("unlockUntil", 0)
+        set(v) { p.edit().putLong("unlockUntil", v).apply() }
+
+    @Synchronized fun unlockLockLeft(): Long = maxOf(0, p.getLong("unlockLock", 0) - System.currentTimeMillis())
+
+    /** Child typed a parent's Authenticator code: minutes unlocked, or 0 (wrong / reused / locked, see [unlockLockLeft]). */
+    @Synchronized fun tryUnlock(code: String, now: Long = System.currentTimeMillis()): Int {
+        val secret = totpSecret
+        if (secret.isBlank() || unlockLockLeft() > 0) return 0
+        val step = Totp.check(secret, code.filter { it.isDigit() }, now, p.getLong("totpLast", 0))
+        if (step < 0) {
+            val f = p.getInt("unlockFails", 0) + 1
+            val lock = Safety.pinLockMs(f)
+            p.edit().putInt("unlockFails", f).putLong("unlockLock", if (lock > 0) now + lock else 0).commit()
+            if (f == 5) addEvent(Ev("tamper", "Nhập sai mã mở khoá 5 lần"))
+            return 0
+        }
+        val min = rules.unlockMin
+        p.edit().putLong("totpLast", step).putInt("unlockFails", 0).remove("unlockLock")
+            .putLong("unlockUntil", maxOf(now, p.getLong("unlockUntil", 0)) + min * 60_000L).commit()
+        log("Mở khoá bằng mã của bố mẹ: $min phút")
+        addEvent(Ev("unlock", "Con đã mở khoá bằng mã của bố mẹ: $min phút"))
+        return min
+    }
+
     /** `pinAt` of the last PIN hash taken from the relay (see Relay.sync). */
     @get:Synchronized @set:Synchronized var relayPinAt: Long
         get() = p.getLong("relayPinAt", 0)

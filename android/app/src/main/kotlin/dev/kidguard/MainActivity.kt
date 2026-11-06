@@ -94,6 +94,8 @@ class MainActivity : Activity() {
         col.addView(updBtn)
         moreBtn = u.button("Xin thêm giờ", R.drawable.li_timer, true) { askMore() }
         col.addView(moreBtn)
+        unlockBtn = u.button("Nhập mã mở khoá của bố mẹ", R.drawable.li_shield, false) { askUnlock() }
+        col.addView(unlockBtn)
         pairBtn = u.button("Ghép thêm máy của bố mẹ", R.drawable.li_link, false) { askPin() }
         col.addView(pairBtn)
         col.addView(u.button("Luật của con", R.drawable.li_shield, false) { showMyRules() })
@@ -150,6 +152,7 @@ class MainActivity : Activity() {
     private lateinit var sosBtn: View
     private lateinit var updBtn: View
     private lateinit var moreBtn: View
+    private lateinit var unlockBtn: Button
     private var qrFor: String? = null
 
     /** Black-on-white QR (white even in dark mode, so phone cameras read it), with the standard quiet zone. */
@@ -169,6 +172,9 @@ class MainActivity : Activity() {
         val usage = Usage.granted(this)
         // SOS / more time only reach someone once a parent has paired
         (if (s.everPaired) View.VISIBLE else View.GONE).let { sosBtn.visibility = it; moreBtn.visibility = it }
+        unlockBtn.visibility = if (s.totpSecret.isNotBlank()) View.VISIBLE else View.GONE
+        unlockBtn.text = s.unlockUntil.takeIf { it > System.currentTimeMillis() }?.let { "Đang mở khoá tới " + java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(it)) + " · nhập mã khác để thêm" }
+            ?: "Nhập mã mở khoá của bố mẹ"
         updBtn.visibility = if (!owner && Update.apk(this).exists() && UpdateLogic.newer(Update.stateJson(this).optString("latest"), Update.current())) View.VISIBLE else View.GONE
         selfBtn.visibility = if (owner || android.os.Build.VERSION.SDK_INT < 30) View.GONE else View.VISIBLE
         if (owner) basicList.box.visibility = View.GONE else basicList.update()
@@ -281,6 +287,11 @@ class MainActivity : Activity() {
         L += if (Acc.isOn(this)) "Xem màn hình: bố mẹ có thể xem khi bật" + (if (r.showWatching) " (con sẽ thấy thông báo)" else "")
             else "Xem màn hình: đang tắt"
         L += "Nghe âm thanh xung quanh: chỉ khi có tiếng bíp và thông báo cho con"
+        r.groups.forEach { g ->
+            val h = g.hours.joinToString { w -> w.start + "–" + w.end + if (w.days.size < 7) " (" + w.days.sorted().joinToString(",") { d -> if (d == 7) "CN" else "T" + (d + 1) } + ")" else "" }
+            L += "Nhóm " + g.name + ": " + listOfNotNull(g.min.takeIf { it > 0 }?.let { "cả nhóm $it phút/ngày" }, h.takeIf { it.isNotEmpty() }?.let { "chỉ dùng $it" }).ifEmpty { listOf("không giới hạn") }.joinToString(", ") +
+                " · " + g.pkgs.take(6).joinToString { Policy.labelOf(this, it) } + if (g.pkgs.size > 6) " …" else ""
+        }
         if (r.zones.isNotEmpty()) L += "Bố mẹ được báo khi con đến / rời: " + r.zones.joinToString { it.name }
         if (r.chores.isNotEmpty()) L += "Việc nhà đổi giờ: " + r.chores.joinToString { "${it.name} +${it.min} phút" }
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -314,6 +325,21 @@ class MainActivity : Activity() {
             }
             true
         }
+    }
+
+    /** A parent reads 6 digits from Google Authenticator (works with no network on either phone). */
+    private fun askUnlock() {
+        val s = Store.of(this)
+        fun lockText(left: Long) = "Nhập sai nhiều lần. Thử lại sau ${(left + 59_999) / 60_000} phút."
+        s.unlockLockLeft().takeIf { it > 0 }?.let { Modal(this, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, "Tạm khoá", lockText(it)); return }
+        val m = Modal(this, ui2)
+        val input = m.field("6 số", 6, pin = true).apply { inputType = android.text.InputType.TYPE_CLASS_NUMBER; hint = "6 số" }
+        m.show(R.drawable.li_shield, Modal.Tone.INFO, "Mã mở khoá", "Bố mẹ mở Google Authenticator, đọc 6 số của KidGuard. Mỗi mã dùng được một lần, mở khoá ${s.rules.unlockMin} phút (app bị chặn hẳn vẫn bị chặn).", input, ok = "Mở khoá", cancel = "Huỷ") {
+            val min = s.tryUnlock(input.text.toString())
+            if (min > 0) { Guard.poke(this); refresh(); ui.post { Modal(this, ui2).show(R.drawable.li_shield, Modal.Tone.OK, "Đã mở khoá", "Con dùng được thêm $min phút.") }; true }
+            else { input.setText(""); m.setError(s.unlockLockLeft().takeIf { it > 0 }?.let { lockText(it) } ?: "Sai mã hoặc mã đã dùng, thử lại"); false }
+        }
+        input.requestFocus()
     }
 
     /** The child asks for 15 / 30 / 60 more minutes, with an optional short note; the parent sees it in the state. */

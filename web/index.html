@@ -234,7 +234,7 @@ const TI = { ok: ["circle-check", "var(--ok)"], err: ["circle-x", "var(--bad)"],
 function toast(m) { const t = $("#toast"); const k = /^(ok|err|warn|send)\|/.exec(m); t.innerHTML = k ? `<span style="color:${TI[k[1]][1]}">${ic(TI[k[1]][0])}</span> ${esc(m.slice(k[0].length))}` : esc(m); t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", 2500); }
 function fmt(ms) { if (ms < 0) return "—"; const m = Math.round(ms / 60000); return m < 60 ? m + " phút" : Math.floor(m / 60) + " giờ " + (m % 60 ? m % 60 + " phút" : ""); }
 function ago(t) { const s = Math.max(0, Math.round((Date.now() - t) / 1000)); return s < 60 ? s + " giây trước" : s < 3600 ? Math.round(s / 60) + " phút trước" : Math.round(s / 3600) + " giờ trước"; }
-const REASON = { blocked: "Đã chặn", appLimit: "Hết giờ app", new: "Chờ duyệt", paused: "Tạm dừng", schedule: "Lịch", bedtime: "Giờ ngủ", daily: "Hết giờ ngày" };
+const REASON = { blocked: "Đã chặn", appLimit: "Hết giờ app", groupHours: "Ngoài giờ nhóm", groupLimit: "Hết giờ nhóm", new: "Chờ duyệt", paused: "Tạm dừng", schedule: "Lịch", bedtime: "Giờ ngủ", daily: "Hết giờ ngày" };
 const hhmm = t => new Date(t).toLocaleTimeString("vi", { hour: "2-digit", minute: "2-digit" });
 const DNS = [["", "Tắt"], ["family.adguard-dns.com", "AdGuard Family"], ["family.cloudflare-dns.com", "Cloudflare Family"], ["family-filter-dns.cleanbrowsing.org", "CleanBrowsing Family"]];
 // rules from older phones may lack v0.2 fields
@@ -245,6 +245,7 @@ function norm(e) {
   e.trackMin = e.trackMin === undefined ? 10 : +e.trackMin; e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.showWatching = e.showWatching !== false; e.autoUpdate = e.autoUpdate !== false; e.blockNew = !!e.blockNew;
   e.blocked = e.blocked || []; e.allow = e.allow || []; e.appMin = e.appMin || {};
   e.chores = Array.isArray(e.chores) ? e.chores : []; e.zones = Array.isArray(e.zones) ? e.zones : [];
+  e.groups = Array.isArray(e.groups) ? e.groups : []; e.unlockMin = [15, 30, 60, 120].includes(+e.unlockMin) ? +e.unlockMin : 30;
   return e;
 }
 // index 0 = Monday, from "YYYY-MM-DD"
@@ -544,7 +545,7 @@ async function refresh() {
   // redraw the tab only when what it shows changed and nobody is using a control (icons would reload, a select would close)
   const sig = st ? JSON.stringify([tab, st.rules && st.rules.rev, st.apps.map(a => [a.suspended, a.blocked, Math.floor(a.ms / 60000)]),
     st.location && st.location.t, (st.log || []).length, (st.track || []).length, Math.floor(st.usedMs / 60000), lastErr, cachedAt, viewDay,
-    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(",")]) : lastErr + (noState ? "|nostate" : "");
+    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, st.totpOn, st.unlockUntil, (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(",")]) : lastErr + (noState ? "|nostate" : "");
   if (tab === "screen") updateLive();   // never redraw the screen tab: the <img> updates by itself
   else if (sig !== lastSig && !busy) { lastSig = sig; render(); } else updateLive();
 }
@@ -625,8 +626,30 @@ async function cmd(c, okMsg, q) {
   } catch (e) { toast("err|Lỗi: " + e.message); }
 }
 
+// Authenticator (RFC 6238) secret: made here, sent once with `totpSet`, the phone never sends it back
+const gOpen = new Set();
+let totpShown = null;   // {k, html}: the new key stays on screen across redraws until "Đã thêm xong"
+function b32(bytes) {
+  const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"; let bits = 0, v = 0, out = "";
+  for (const x of bytes) { v = (v << 8) | x; bits += 8; while (bits >= 5) { out += A[(v >>> (bits - 5)) & 31]; bits -= 5; } }
+  return bits ? out + A[(v << (5 - bits)) & 31] : out;
+}
+async function totpSetup() {
+  const again = st && st.totpOn;
+  const secret = b32(crypto.getRandomValues(new Uint8Array(20)));
+  const r = await cmd({ type: "totpSet", secret }, again ? "Đã tạo mã mới" : "Đã bật mã mở khoá",
+    [again ? "Tạo mã mới? Mã cũ trong Google Authenticator (của mọi bố mẹ) sẽ không dùng được nữa." : "Bật mã mở khoá bằng Google Authenticator cho máy của con?", again ? "Tạo mã mới" : "Bật"]);
+  if (!r) return;
+  const label = "KidGuard: " + ((cur && cur.name) || "con"), uri = `otpauth://totp/${encodeURIComponent(label)}?secret=${secret}&issuer=KidGuard`;
+  totpShown = { k: cur, html: `<div class="alert warn" style="margin-top:10px"><b>${ic("key-round")} Thêm vào Google Authenticator ngay</b> (chỉ hiện 1 lần):
+    <p><a class="btn pri" href="${esc(uri)}">${ic("smartphone")} Mở Google Authenticator</a> (khi đang mở trang này trên điện thoại)</p>
+    <p>Hoặc trong app bấm <b>+</b> → <b>Nhập khoá thiết lập</b>: tên <b>${esc(label)}</b>, khoá <code style="user-select:all;word-break:break-all">${secret.replace(/(.{4})/g, "$1 ").trim()}</code>, loại <b>Dựa trên thời gian</b>.</p>
+    <p class="mute">Bố mẹ khác muốn dùng chung thì nhập cùng khoá này lúc nó còn hiện. Đóng trang là không xem lại được, phải tạo mã mới.</p>
+    <button id="totpDone">${ic("check")} Đã thêm xong</button></div>` };
+  document.activeElement && document.activeElement.blur(); render();
+}
 // ---- v0.6: events, chores, zones, templates ----
-const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert" };
+const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open" };
 const evHtml = e => `<div class="row" style="padding:3px 0">${ic(EV_IC[e.kind] || "bell")} <span class="sp">${esc(noEmoji(e.text))}</span><span class="mute">${ago(e.t)}</span></div>`;
 const zoneOk = z => z && Number.isFinite(+z.lat) && Number.isFinite(+z.lng) && z.lat !== "" && z.lng !== "" && z.lat !== null && z.lng !== null && Math.abs(+z.lat) <= 90 && Math.abs(+z.lng) <= 180;
 const newId = p => p + Math.random().toString(36).slice(2, 8);
@@ -1067,6 +1090,26 @@ function rulesTab(b) {
     : `<div class="row" style="margin-top:8px"><select id="f-daily">${[0, 30, 60, 90, 120, 150, 180, 240, 300].map(n => `<option value="${n}" ${r.dailyMin === n ? "selected" : ""}>${n ? fmt(n * 60000) : "Không giới hạn"}</option>`).join("")}
     ${[0, 30, 60, 90, 120, 150, 180, 240, 300].includes(r.dailyMin) ? "" : `<option selected value="${r.dailyMin}">${fmt(r.dailyMin * 60000)}</option>`}</select></div>`}
     <p class="mute">${ic("lightbulb")} Hết giờ thì mọi app (trừ "Luôn cho phép") bị tạm khoá tới 0h.</p></div>
+  <div class="card"><h2>${ic("layers")} Nhóm app (giới hạn chung, khung giờ)</h2>
+    ${r.groups.map((g, i) => { const h = (g.hours || [])[0], have = new Set(g.pkgs || []), list = (st.apps || []).map(a => [a.pkg, a.label]).concat((g.pkgs || []).filter(p => !(st.apps || []).some(a => a.pkg === p)).map(p => [p, p]));
+      return `<div class="sch" data-g="${i}"><div class="row"><input class="sp" id="f-gn${i}" maxlength="40" placeholder="Tên nhóm (vd: Game)" aria-label="Tên nhóm" value="${esc(g.name)}"><button class="bad" data-gdel="${i}" aria-label="Xoá nhóm">${ic("trash-2")}</button></div>
+      <label class="row" style="margin-top:8px">Cả nhóm tối đa <input type="number" id="f-gm${i}" min="0" max="1440" step="15" inputmode="numeric" style="width:5.5em" value="${+g.min || 0}"> phút/ngày <span class="mute">(0 = không giới hạn)</span></label>
+      <label class="row" style="margin-top:8px"><input type="checkbox" id="g-hon${i}" ${h ? "checked" : ""}><span class="sp">${ic("clock")} Chỉ cho dùng trong khung giờ</span></label>
+      ${h ? `<div class="chips" style="margin:8px 0">${["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((n, d) => `<button data-gday="${d + 1}" class="${(h.days || []).includes(d + 1) ? "on" : ""}">${n}</button>`).join("")}</div>
+      <span class="row tm">từ <input type="time" id="f-gs${i}" value="${esc(h.start)}"> tới <input type="time" id="f-ge${i}" value="${esc(h.end)}"></span>${g.hours.length > 1 ? `<p class="mute">+${g.hours.length - 1} khung giờ khác (giữ nguyên)</p>` : ""}` : ""}
+      <details data-gopen="${esc(g.id)}" ${gOpen.has(g.id) || !have.size ? "open" : ""} style="margin-top:8px"><summary>${have.size ? have.size + " app trong nhóm" : "Chưa chọn app nào"} · chọn app</summary>
+      <div style="max-height:260px;overflow:auto;margin-top:6px">${list.map(([p, l]) => `<label class="row"><input type="checkbox" data-gp="${esc(p)}" ${have.has(p) ? "checked" : ""}><span class="sp">${esc(l)}</span></label>`).join("") || `<p class="mute">Chưa có danh sách app (chờ máy con gửi).</p>`}</div></details>
+      ${have.size ? "" : `<p class="mute">${ic("triangle-alert")} Chưa chọn app nào: nhóm chưa có tác dụng.</p>`}</div>`; }).join("") || `<p class="mute">${ic("inbox")} Chưa có nhóm. Ví dụ: "Game" tối đa 60 phút/ngày, hoặc "YouTube" chỉ dùng 19:00–20:00.</p>`}
+    <button id="addGroup" ${r.groups.length >= 10 ? "disabled" : ""}>${ic("plus")} Thêm nhóm</button>
+    <p class="mute">${ic("lightbulb")} Hết phút của nhóm hoặc ngoài khung giờ thì mọi app trong nhóm bị tạm khoá. Muốn một app chỉ dùng được vào giờ nhất định: tạo nhóm chỉ có app đó. "Luôn cho phép" không miễn nhóm.</p></div>
+  <div class="card"><h2>${ic("key-round")} Mã mở khoá (Google Authenticator)</h2>
+    ${st.totpOn === undefined ? `<p class="mute">${ic("triangle-alert")} Máy con cần KidGuard 0.9.4 trở lên.</p>` : st.totpOn
+      ? `<p>${ic("circle-check")} Đang bật. Con bấm "Nhập mã mở khoá của bố mẹ" trên máy con, bạn đọc 6 số của KidGuard trong Google Authenticator.${st.unlockUntil > Date.now() ? ` Đang mở khoá tới ${new Date(st.unlockUntil).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}.` : ""}</p>
+        <div class="row"><button class="sp" id="totpNew">${ic("refresh-cw")} Tạo mã mới</button><button class="bad" id="totpOff">${ic("x")} Tắt</button></div>`
+      : `<p class="mute">Không cần mạng: bạn đọc 6 số từ Google Authenticator, con nhập trên máy con là mở khoá ngay.</p><button class="pri" id="totpNew">${ic("key-round")} Bật mã mở khoá</button>`}
+    <label class="row" style="margin-top:10px">Mỗi mã mở khoá <select id="f-um">${[15, 30, 60, 120].map(n => `<option value="${n}" ${+r.unlockMin === n ? "selected" : ""}>${fmt(n * 60000)}</option>`).join("")}</select></label>
+    <div id="totpOut">${totpShown && totpShown.k === cur ? totpShown.html : ""}</div>
+    <p class="mute">${ic("lightbulb")} Mở khoá mọi giới hạn (giờ ngủ, hết giờ, nhóm app…) trong thời gian đã chọn, trừ app bị chặn hẳn. Mỗi mã chỉ dùng được 1 lần, bạn nhận sự kiện khi con dùng.</p></div>
   <div class="card"><h2>${ic("star")} Việc nhà đổi thêm giờ</h2>
     ${r.chores.map((c, i) => `<div class="app" data-c="${i}"><input class="sp" id="f-cn${i}" data-f="name" maxlength="40" placeholder="Tên việc (vd: Rửa bát)" aria-label="Tên việc" value="${esc(c.name)}"><label class="row">+<input type="number" id="f-cm${i}" data-f="min" min="5" max="120" step="5" inputmode="numeric" aria-label="Số phút" style="width:5.5em" value="${+c.min || 20}"> phút</label><button class="bad" data-cdel="${i}" aria-label="Xoá việc">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} Chưa có việc nào. Ví dụ: Rửa bát +20 phút.</p>`}
     <button id="addChore" ${r.chores.length >= 20 ? "disabled" : ""}>${ic("plus")} Thêm việc</button>
@@ -1110,6 +1153,38 @@ function rulesTab(b) {
     if (!(await ask(`Xoá mẫu “${tcur.name}”?`, "Xoá", true))) return;
     saveTpl(userTpl().filter(t => t.name !== tcur.name)); tplSel = 0; render();
   };
+  b.querySelectorAll("[data-g]").forEach(box => {
+    const i = +box.dataset.g, g = r.groups[i];
+    $("#f-gn" + i).oninput = e => { g.name = e.target.value.slice(0, 40); changed(); };
+    $("#f-gm" + i).onchange = e => { g.min = clampN(e.target.value, 0, 1440, 0); e.target.value = g.min; changed(); };
+    $("#g-hon" + i).onchange = e => { g.hours = e.target.checked ? [{ days: [1, 2, 3, 4, 5, 6, 7], start: "19:00", end: "20:00" }] : []; changed(); document.activeElement.blur(); render(); };
+    const h = (g.hours || [])[0];
+    if (h) {
+      box.querySelectorAll("[data-gday]").forEach(d => d.onclick = () => { const n = +d.dataset.gday; h.days = h.days.includes(n) ? h.days.filter(v => v !== n) : h.days.concat(n).sort(); if (!h.days.length) { toast("warn|Chọn ít nhất 1 ngày"); h.days = [n]; } changed(); document.activeElement.blur(); render(); });
+      $("#f-gs" + i).onchange = e => { h.start = e.target.value || h.start; changed(); };
+      $("#f-ge" + i).onchange = e => { h.end = e.target.value || h.end; changed(); };
+    }
+    const det = box.querySelector("[data-gopen]");
+    det.ontoggle = () => { det.open ? gOpen.add(g.id) : gOpen.delete(g.id); };
+    box.querySelectorAll("[data-gp]").forEach(c => c.onchange = () => {
+      const p = c.dataset.gp, s = new Set(g.pkgs || []);
+      c.checked ? s.add(p) : s.delete(p);
+      if (s.size > 100) { c.checked = false; return toast("warn|Tối đa 100 app mỗi nhóm"); }
+      g.pkgs = [...s]; changed();
+      box.querySelector("summary").textContent = (s.size ? s.size + " app trong nhóm" : "Chưa chọn app nào") + " · chọn app";
+    });
+    box.querySelector("[data-gdel]").onclick = async () => { if (!(await ask(`Xoá nhóm “${g.name}”?`, "Xoá", true))) return; r.groups.splice(i, 1); changed(); render(); };
+  });
+  $("#addGroup").onclick = () => {
+    if (r.groups.length >= 10) return;
+    const g = { id: newId("g"), name: "Nhóm mới", pkgs: [], min: 60, hours: [] };
+    r.groups.push(g); gOpen.add(g.id); changed(); document.activeElement.blur(); render();
+    const n = $("#f-gn" + (r.groups.length - 1)); if (n) { n.focus(); n.select(); }
+  };
+  $("#f-um").onchange = e => { r.unlockMin = +e.target.value; changed(); };
+  if ($("#totpNew")) $("#totpNew").onclick = totpSetup;
+  if ($("#totpDone")) $("#totpDone").onclick = () => { totpShown = null; render(); };
+  if ($("#totpOff")) $("#totpOff").onclick = async () => { if (await cmd({ type: "totpSet", secret: "" }, "Đã tắt mã mở khoá", ["Tắt mã mở khoá? Mã trong Google Authenticator của mọi bố mẹ sẽ không dùng được nữa.", "Tắt", true])) { totpShown = null; render(); } };
   b.querySelectorAll("[data-c]").forEach(box => {
     const c = r.chores[+box.dataset.c], i = +box.dataset.c;
     $("#f-cn" + i).oninput = e => { c.name = e.target.value.slice(0, 40); changed(); };

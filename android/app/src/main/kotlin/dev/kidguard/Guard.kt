@@ -173,7 +173,7 @@ class Guard : Service() {
         Warn.due(r, dailyLeftMs(r, use.ms, today, apps.keys, prot), minute, today, store.warned(today))?.let { w ->
             store.markWarned(today, w.keys); notifyWarn(w.text)
         }
-        val want = decide(r, use.ms, minute, now, today, apps.keys, prot, newApps)
+        val want = decide(r, use.ms, minute, now, today, apps.keys, prot, newApps, store.unlockUntil)
         val had = store.suspendedByUs
         val nowSusp = Policy.suspendExactly(this, want.keys, had)
         if (nowSusp != had) {
@@ -268,6 +268,7 @@ class Guard : Service() {
             .put("id", store.id).put("t", now).put("day", today)
             .put("model", "${Build.MANUFACTURER} ${Build.MODEL}").put("android", Build.VERSION.RELEASE).put("version", BuildConfig.VERSION_NAME)
             .put("pairUntil", store.pairOpenUntil())
+            .put("totpOn", store.totpSecret.isNotBlank()).put("unlockUntil", store.unlockUntil.takeIf { it > now } ?: 0)
             .put("acc", Acc.isOn(this))
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
             .put("locationOn", locationOn())
@@ -387,6 +388,11 @@ class Guard : Service() {
             res
         }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
+        // the parent page made the secret and shows it as an Authenticator QR; "" turns codes off
+        "totpSet" -> c.optString("secret").let { s ->
+            if (s.isNotEmpty() && Totp.decode(s) == null) "bad secret"
+            else { store.totpSecret = s.uppercase().filter { it in 'A'..'Z' || it in '2'..'7' }; store.unlockUntil = 0; store.log(if (s.isEmpty()) "Đã tắt mã mở khoá" else "Đã bật mã mở khoá (Google Authenticator)"); "ok" }
+        }
         "release" -> release()
         else -> "unknown"
     }
