@@ -1,7 +1,6 @@
 package dev.kidguard
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -19,18 +18,12 @@ import android.widget.ImageView
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.text.InputFilter
-import android.text.InputType
 import android.text.SpannableStringBuilder
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.RadioButton
-import android.widget.RadioGroup
-import android.widget.Toast
 import android.widget.ScrollView
 import android.widget.TextView
 
@@ -161,46 +154,63 @@ class MainActivity : Activity() {
         val rules = s.rules
         if (rules.pinHash.isBlank()) {
             // already paired and no PIN: opening pairing would let the child pair their own browser
-            if (s.everPaired) { Toast.makeText(this, "Bố mẹ hãy đặt mã PIN trong trang quản lý trước khi ghép thêm máy", Toast.LENGTH_LONG).show(); return }
+            if (s.everPaired) { Modal(this, ui2).show(R.drawable.li_shield, Modal.Tone.WARN, "Cần mã PIN", "Bố mẹ hãy đặt mã PIN trong trang quản lý trước khi ghép thêm máy."); return }
             s.openPairing(); refresh(); return
         }
+        fun lockText(left: Long) = "Nhập sai PIN nhiều lần. Thử lại sau ${(left + 59_999) / 60_000} phút."
         s.pinLockLeft().takeIf { it > 0 }?.let { left ->
-            AlertDialog.Builder(this).setMessage("Nhập sai PIN nhiều lần. Thử lại sau ${(left + 59_999) / 60_000} phút.").setPositiveButton("OK", null).show(); return
+            Modal(this, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, "Tạm khoá", lockText(left)); return
         }
-        val input = EditText(this).apply { inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD; hint = "PIN của bố mẹ" }
-        AlertDialog.Builder(this).setTitle("Nhập PIN của bố mẹ").setView(input)
-            .setPositiveButton("OK") { _, _ ->
-                if (s.checkParentPin(input.text.toString().filter { it.isDigit() })) { s.openPairing(); refresh() }
-                else AlertDialog.Builder(this).setMessage("Sai PIN").setPositiveButton("OK", null).show()
-            }.setNegativeButton("Huỷ", null).show()
+        val m = Modal(this, ui2)
+        val input = m.field("PIN của bố mẹ", 12, pin = true)
+        m.show(R.drawable.li_shield, Modal.Tone.INFO, "Nhập PIN của bố mẹ", "Chỉ bố mẹ mới được ghép thêm máy.", input, ok = "Mở ghép", cancel = "Huỷ") {
+            if (s.checkParentPin(input.text.toString().filter { it.isDigit() })) { s.openPairing(); refresh(); true }
+            else {
+                input.setText("")
+                m.setError(s.pinLockLeft().takeIf { it > 0 }?.let { lockText(it) } ?: "Sai PIN, thử lại")
+                false
+            }
+        }
+        input.requestFocus()
     }
 
     /** SOS: one confirm (no pocket presses), then the state carries it to the parent with a fresh location. */
     private fun askSos() {
-        AlertDialog.Builder(this).setTitle("Gửi SOS cho bố mẹ?").setMessage("Bố mẹ sẽ nhận báo khẩn cấp kèm vị trí của con.")
-            .setPositiveButton("Gửi SOS") { _, _ ->
-                val g = Guard.running
-                val ok = if (g != null) g.sos() else { val o = Store.of(this).addSos(); if (o != null) Guard.start(this); o != null }
-                Toast.makeText(this, if (ok) "Đã báo cho bố mẹ" else "Vừa gửi rồi, bố mẹ sẽ thấy ngay khi có mạng", Toast.LENGTH_LONG).show()
-                refresh()
-            }.setNegativeButton("Huỷ", null).show()
+        Modal(this, ui2).show(R.drawable.li_siren, Modal.Tone.DANGER, "Gửi SOS cho bố mẹ?", "Bố mẹ sẽ nhận báo khẩn cấp kèm vị trí của con.",
+            ok = "Gửi SOS", cancel = "Huỷ") {
+            val g = Guard.running
+            val ok = if (g != null) g.sos() else { val o = Store.of(this).addSos(); if (o != null) Guard.start(this); o != null }
+            refresh()
+            ui.post {
+                if (ok) Modal(this, ui2).show(R.drawable.li_circle_check, Modal.Tone.OK, "Đã báo cho bố mẹ", "Bố mẹ sẽ thấy báo SOS và vị trí của con.")
+                else Modal(this, ui2).show(R.drawable.li_siren, Modal.Tone.WARN, "Vừa gửi rồi", "Bố mẹ sẽ thấy ngay khi máy có mạng.")
+            }
+            true
+        }
     }
 
     /** The child asks for 15 / 30 / 60 more minutes, with an optional short note; the parent sees it in the state. */
     private fun askMore() {
         val s = Store.of(this)
         val mins = intArrayOf(15, 30, 60)
-        val group = RadioGroup(this)
-        mins.forEachIndexed { i, m -> group.addView(RadioButton(this).apply { text = "$m phút"; id = i + 1; isChecked = i == 0 }) }
-        val note = EditText(this).apply { hint = "Lý do (không bắt buộc)"; filters = arrayOf(InputFilter.LengthFilter(100)) }
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0); addView(group); addView(note) }
-        AlertDialog.Builder(this).setTitle("Xin thêm giờ").setView(box)
-            .setPositiveButton("Gửi") { _, _ ->
-                val ok = s.addRequest(mins[(group.checkedRadioButtonId - 1).coerceIn(0, 2)], note.text.toString())
-                Toast.makeText(this, if (ok) "Đã gửi cho bố mẹ" else "Đang có quá nhiều yêu cầu chờ", Toast.LENGTH_LONG).show()
-                if (ok) { s.log("Con xin thêm giờ"); Guard.poke(this) }
-                refresh()
-            }.setNegativeButton("Huỷ", null).show()
+        val m = Modal(this, ui2)
+        val pick = m.choice(mins.map { "$it phút" })
+        val note = m.field("Lý do (không bắt buộc)", 100)
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(pick.view, LinearLayout.LayoutParams(-1, -2))
+            addView(note, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+        }
+        m.show(R.drawable.li_timer, Modal.Tone.INFO, "Xin thêm giờ", "Chọn số phút con muốn xin bố mẹ.", box, ok = "Gửi", cancel = "Huỷ") {
+            val ok = s.addRequest(mins[pick.selected.coerceIn(0, 2)], note.text.toString())
+            if (ok) { s.log("Con xin thêm giờ"); Guard.poke(this) }
+            refresh()
+            ui.post {
+                if (ok) Modal(this, ui2).show(R.drawable.li_send, Modal.Tone.OK, "Đã gửi cho bố mẹ", "Con sẽ nhận thông báo khi bố mẹ trả lời.")
+                else Modal(this, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, "Chưa gửi được", "Đang có quá nhiều yêu cầu chờ bố mẹ trả lời.")
+            }
+            true
+        }
     }
 
     /** Phone makers hide "autostart / no battery limits" in their own screens; try the known ones, else the app's page. */
