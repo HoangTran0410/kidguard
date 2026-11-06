@@ -35,8 +35,10 @@ import android.widget.TextView
 /** The child's screen: is the guard on, and (only while pairing is open) the 6-digit code for the parent. */
 class MainActivity : Activity() {
     private val ui = Handler(Looper.getMainLooper())
-    private lateinit var status: TextView
+    private lateinit var ui2: Ui
+    private lateinit var status: LinearLayout
     private lateinit var code: TextView
+    private lateinit var codeLabel: TextView
     private lateinit var hint: TextView
     private lateinit var pairBtn: Button
     private lateinit var checklist: LinearLayout
@@ -45,24 +47,46 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Guard.start(this)
+        val u = Ui(this); ui2 = u
         val pad = dp(20)
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad * 2, pad, pad) }
-        col.addView(TextView(this).apply { text = "KidGuard"; textSize = 28f; setTypeface(typeface, Typeface.BOLD); setTextColor(Color.parseColor("#111827")); Ic.lead(this, R.drawable.li_shield, Color.parseColor(Ic.INFO)) })
-        status = TextView(this).apply { textSize = 16f; setPadding(0, dp(12), 0, dp(12)); setTextColor(Color.parseColor("#374151")) }
-        col.addView(status)
-        code = TextView(this).apply { textSize = 48f; gravity = Gravity.CENTER; letterSpacing = 0.15f; setTypeface(Typeface.MONOSPACE, Typeface.BOLD); setTextColor(Color.parseColor("#2563eb")) }
-        col.addView(code)
-        hint = TextView(this).apply { textSize = 15f; setPadding(0, dp(8), 0, dp(16)); setTextColor(Color.parseColor("#374151")) }
-        col.addView(hint)
-        pairBtn = Button(this).apply { text = "Ghép thêm máy của bố mẹ"; Ic.lead(this, R.drawable.li_link); setOnClickListener { askPin() } }
-        col.addView(Button(this).apply { text = "Xin thêm giờ"; Ic.lead(this, R.drawable.li_timer); setOnClickListener { askMore() } })
-        col.addView(Button(this).apply { text = "Cài đặt pin / tự khởi động"; Ic.lead(this, R.drawable.li_battery_charging); setOnClickListener { openBatterySettings() } })
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, dp(36), pad, pad) }
+        // header: shield badge + name + friendly line
+        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        head.addView(android.widget.ImageView(this).apply {
+            background = u.shape(u.tint, 18); scaleType = android.widget.ImageView.ScaleType.CENTER
+            setImageDrawable(Ic.get(this@MainActivity, R.drawable.li_shield, u.accent, dp(30)))
+        }, LinearLayout.LayoutParams(dp(56), dp(56)))
+        val names = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        names.addView(u.label("KidGuard", 26f, u.text, true))
+        names.addView(u.label("Giúp con dùng điện thoại an toàn", 14f))
+        head.addView(names, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(14) })
+        col.addView(head)
+        // status card
+        val statusCard = u.cardBox(12).apply { setPadding(dp(16), dp(8), dp(16), dp(8)) }
+        status = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        statusCard.addView(status)
+        col.addView(statusCard)
+        // pairing card: label + code + hint
+        val pairCard = u.cardBox(18)
+        codeLabel = u.label("MÃ GHÉP ĐÔI", 12f, u.sub, true).apply { letterSpacing = 0.1f; gravity = Gravity.CENTER }
+        pairCard.addView(codeLabel, LinearLayout.LayoutParams(-1, -2))
+        code = TextView(this).apply { textSize = 46f; gravity = Gravity.CENTER; letterSpacing = 0.12f; setPadding(0, dp(6), 0, dp(10)); setTypeface(Typeface.MONOSPACE, Typeface.BOLD); setTextColor(u.accent) }
+        pairCard.addView(code)
+        hint = TextView(this).apply { textSize = 15f; setTextColor(u.sub); setLineSpacing(0f, 1.15f) }
+        pairCard.addView(hint)
+        col.addView(pairCard)
+        // actions: one primary, rest secondary
+        col.addView(u.button("Xin thêm giờ", R.drawable.li_timer, true) { askMore() }.apply { (layoutParams as LinearLayout.LayoutParams).topMargin = dp(18) })
+        pairBtn = u.button("Ghép thêm máy của bố mẹ", R.drawable.li_link, false) { askPin() }
         col.addView(pairBtn)
-        checklist = Checklist.build(this)
-        col.addView(checklist)
-        selfBtn = Button(this).apply { text = "Tự cài không cần máy tính (Android 11+)"; isAllCaps = false; Ic.lead(this, R.drawable.li_wifi); setOnClickListener { startActivity(Intent(this@MainActivity, SelfSetupActivity::class.java)) } }
+        col.addView(u.button("Cài đặt pin / tự khởi động", R.drawable.li_battery_charging, false) { openBatterySettings() })
+        selfBtn = u.button("Tự cài không cần máy tính (Android 11+)", R.drawable.li_wifi, false) { startActivity(Intent(this@MainActivity, SelfSetupActivity::class.java)) }
         col.addView(selfBtn)
-        setContentView(ScrollView(this).apply { setBackgroundColor(Color.WHITE); addView(col) })
+        checklist = Checklist.build(this, u)
+        col.addView(checklist)
+        setContentView(ScrollView(this).apply { setBackgroundColor(u.bg); isFillViewport = true; addView(col) })
+        window.statusBarColor = u.bg; window.navigationBarColor = u.bg
+        if (!u.dark) window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (android.os.Build.VERSION.SDK_INT >= 27) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
     }
 
     override fun onResume() { super.onResume(); refresh() }
@@ -75,27 +99,30 @@ class MainActivity : Activity() {
         selfBtn.visibility = if (owner) View.GONE else View.VISIBLE
         val lan = Guard.lanUrl()
         Checklist.update(this, checklist)
-        val sb = SpannableStringBuilder()
+        val u = ui2
+        status.removeAllViews()
+        fun line(icon: Int, tone: String, t: String) = status.addView(u.row(icon, tone, t))
         val ok = R.drawable.li_circle_check; val warn = R.drawable.li_triangle_alert
-        if (owner) Ic.line(sb, status, ok, Ic.OK, "Đang được bố mẹ quản lý") else Ic.line(sb, status, warn, Ic.WARN, "Chưa có quyền Device Owner: dùng nút \"Tự cài\" bên dưới hoặc setup.sh trên máy tính (xem README)")
-        if (!usage) Ic.line(sb, status, warn, Ic.WARN, "Chưa có quyền xem thời gian dùng app")
-        if (Guard.running != null) Ic.line(sb, status, ok, Ic.OK, "Đang chạy") else Ic.line(sb, status, R.drawable.li_loader, Ic.INFO, "Đang khởi động…")
-        if (Acc.isOn(this@MainActivity)) Ic.line(sb, status, R.drawable.li_accessibility, Ic.OK, "Trợ năng: bật") else Ic.line(sb, status, R.drawable.li_accessibility, Ic.WARN, "Trợ năng: tắt")
+        if (owner) line(ok, Ic.OK, "Đang được bố mẹ quản lý") else line(warn, Ic.WARN, "Chưa có quyền Device Owner: dùng nút \"Tự cài\" bên dưới hoặc setup.sh trên máy tính (xem README)")
+        if (!usage) line(warn, Ic.WARN, "Chưa có quyền xem thời gian dùng app")
+        if (Guard.running != null) line(ok, Ic.OK, "Đang chạy") else line(R.drawable.li_loader, Ic.INFO, "Đang khởi động…")
+        if (Acc.isOn(this@MainActivity)) line(R.drawable.li_accessibility, Ic.OK, "Trợ năng: bật") else line(R.drawable.li_accessibility, Ic.WARN, "Trợ năng: tắt")
         val locOn = runCatching { getSystemService(LocationManager::class.java).isLocationEnabled }.getOrDefault(false)
-        Ic.line(sb, status, R.drawable.li_map_pin, if (locOn) Ic.OK else Ic.WARN, if (locOn) "Vị trí: bật" else "Vị trí: tắt")
+        line(R.drawable.li_map_pin, if (locOn) Ic.OK else Ic.WARN, if (locOn) "Vị trí: bật" else "Vị trí: tắt")
         val pending = s.requests().length()
-        if (pending > 0) Ic.line(sb, status, R.drawable.li_message_circle, Ic.INFO, "Đang chờ bố mẹ trả lời: $pending yêu cầu")
-        if (s.relayUrl.isNotBlank()) Ic.line(sb, status, R.drawable.li_globe, Ic.INFO, "Điều khiển từ xa: bật")
-        status.text = sb
+        if (pending > 0) line(R.drawable.li_message_circle, Ic.INFO, "Đang chờ bố mẹ trả lời: $pending yêu cầu")
+        if (s.relayUrl.isNotBlank()) line(R.drawable.li_globe, Ic.INFO, "Điều khiển từ xa: bật")
         val c = s.pairCode()
         if (c != null) {
-            code.visibility = View.VISIBLE; code.text = c
-            hint.text = "Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n${lan ?: "(chưa có Wi-Fi)"}\nrồi nhập mã ở trên."; Ic.lead(hint, R.drawable.li_smartphone)
+            code.visibility = View.VISIBLE; codeLabel.visibility = View.VISIBLE; code.text = c
+            hint.gravity = Gravity.CENTER
+            hint.text = "Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n${lan ?: "(chưa có Wi-Fi)"}\nrồi nhập mã ở trên."; hint.setCompoundDrawablesRelative(null, null, null, null)
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             pairBtn.visibility = View.GONE
         } else {
-            code.visibility = View.GONE
-            hint.text = "Bố mẹ quản lý tại: ${lan ?: "(chưa có Wi-Fi)"}"; Ic.lead(hint, R.drawable.li_users)
+            code.visibility = View.GONE; codeLabel.visibility = View.GONE
+            hint.gravity = Gravity.START
+            hint.text = "Bố mẹ quản lý tại:\n${lan ?: "(chưa có Wi-Fi)"}"; Ic.lead(hint, R.drawable.li_users, ui2.sub)
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             pairBtn.visibility = View.VISIBLE
         }

@@ -11,25 +11,29 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>KidGuard</title>
 <style>
-:root{--bg:#f3f4f6;--card:#fff;--fg:#111827;--mute:#6b7280;--line:#e5e7eb;--pri:#2563eb;--pri-fg:#fff;--bad:#dc2626;--ok:#16a34a;--warn:#d97706;--chip:#eef2ff}
-@media (prefers-color-scheme:dark){:root{--bg:#0b0f17;--card:#151b26;--fg:#e5e7eb;--mute:#9ca3af;--line:#263041;--pri:#3b82f6;--chip:#1e293b}}
+:root{--bg:#f3f4f6;--card:#fff;--fg:#111827;--mute:#6b7280;--line:#e5e7eb;--pri:#2563eb;--btn:#2563eb;--pri-fg:#fff;--bad-bg:#fee2e2;--bad-fg:#991b1b;--ok-bg:#dcfce7;--ok-fg:#166534;--warn-bg:#fef3c7;--warn-fg:#92400e;--bad:#dc2626;--ok:#16a34a;--warn:#d97706;--chip:#eef2ff}
+@media (prefers-color-scheme:dark){:root{--bg:#0b0f17;--card:#151b26;--fg:#e5e7eb;--mute:#9ca3af;--line:#263041;--pri:#3b82f6;--chip:#1e293b;--btn:#2563eb;--bad-bg:#3b1519;--bad-fg:#fca5a5;--ok-bg:#12301d;--ok-fg:#86efac;--warn-bg:#3a2a0b;--warn-fg:#fcd34d}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:680px;margin:0 auto;padding:16px 16px 80px}
-h1{font-size:22px;margin:4px 0 12px}
+h1{font-size:22px;margin:4px 0 14px;display:flex;align-items:center;gap:8px}
 h2{font-size:15px;margin:0 0 10px;color:var(--mute);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:0 0 12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .sp{flex:1}
 .mute{color:var(--mute);font-size:13px}
 .big{font-size:30px;font-weight:700}
 button,select,input{font:inherit;color:inherit}
-button{background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:9px 12px;cursor:pointer}
-button.pri{background:var(--pri);color:var(--pri-fg);border-color:var(--pri)}
+button{background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:9px 14px;cursor:pointer}
+button:active{filter:brightness(.92)}
+:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+button.pri{background:var(--btn);color:var(--pri-fg);border-color:var(--btn);font-weight:600}
 button.bad{color:var(--bad)}
 button:disabled{opacity:.5}
-input,select{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
-input[type=checkbox]{width:20px;height:20px}
+input,select{max-width:100%;min-height:44px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+input[type=checkbox]{width:20px;height:20px;min-height:0}
+.pairf{display:flex;flex-direction:column;gap:10px;margin-top:10px}.pairf input,.pairf button{width:100%}
+#code{font-size:28px;text-align:center;letter-spacing:.35em;font-weight:700}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
 .bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:8px 0}
 .bar>i{display:block;height:100%;background:var(--pri)}
@@ -40,7 +44,7 @@ input[type=checkbox]{width:20px;height:20px}
 .app .nm{flex:1 1 110px;min-width:0}.app>button,.app>select{flex:none;margin-left:auto}.app .tag{white-space:nowrap}
 .app .nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
 .tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:999px;background:var(--chip);margin-left:4px}
-.tag.bad{background:#fee2e2;color:#991b1b}.tag.ok{background:#dcfce7;color:#166534}.tag.warn{background:#fef3c7;color:#92400e}
+.tag.bad{background:var(--bad-bg);color:var(--bad-fg)}.tag.ok{background:var(--ok-bg);color:var(--ok-fg)}.tag.warn{background:var(--warn-bg);color:var(--warn-fg)}
 .dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--mute)}
 .dot.on{background:var(--ok)}.dot.bad{background:var(--bad)}
 .si{width:1.15em;height:1.15em;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-0.2em;flex:none}
@@ -50,14 +54,14 @@ iframe{width:100%;height:220px;border:0;border-radius:10px}
 .tabs button{white-space:nowrap}
 .e{display:inline-block;width:1.4em;text-align:center;margin-right:2px}
 .empty{text-align:center;padding:14px 4px;color:var(--mute)}.empty .e{display:block;width:auto;font-size:28px;margin:0 0 4px}
-.tabs button.on{background:var(--pri);color:var(--pri-fg)}
+.tabs button.on{background:var(--btn);color:var(--pri-fg)}
 code{word-break:break-all;font-size:12px}
 button{min-height:44px}
-.alert{background:#fee2e2;color:#991b1b;border-radius:10px;padding:10px 12px;margin-top:8px;font-weight:600}
-.alert.warn{background:#fef3c7;color:#92400e}
+.alert{background:var(--bad-bg);color:var(--bad-fg);border-radius:10px;padding:10px 12px;margin-top:8px;font-weight:600}
+.alert.warn{background:var(--warn-bg);color:var(--warn-fg)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chips button{min-width:44px;padding:6px 8px}
-.chips button.on{background:var(--pri);color:var(--pri-fg);border-color:var(--pri)}
+.chips button.on{background:var(--btn);color:var(--pri-fg);border-color:var(--btn)}
 .sch{border-top:1px solid var(--line);padding:10px 0}
 .hist{display:flex;gap:6px;align-items:flex-end;height:130px;margin:6px 0}
 .hist button{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;padding:0 0 2px;background:none;border:0;border-radius:6px;font-size:12px;color:var(--mute)}
@@ -227,9 +231,10 @@ function pairScreen(hello) {
   $("#app").innerHTML = `<h1>${ic("shield")} KidGuard</h1><div class="card">
     <h2>${ic("link")} Ghép với máy của con</h2>
     ${hello.pairing ? `<p>${ic("hash")} Nhập mã 6 số đang hiện trên máy của con.</p>
-    <div class="row"><input id="code" inputmode="numeric" maxlength="6" placeholder="123456" style="font-size:24px;width:9em;letter-spacing:.2em">
-    <input id="nm" placeholder="Tên con" value="Con" style="width:8em"><button class="pri" id="go">${ic("link")} Ghép</button></div>
-    ${hello.pin ? `<div class="row" style="margin-top:8px"><input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="PIN của bố mẹ" style="width:12em"></div>` : ""}<p class="err" id="e"></p>`
+    <div class="pairf"><input id="code" inputmode="numeric" maxlength="6" placeholder="123456" aria-label="Mã 6 số">
+    <input id="nm" placeholder="Tên con" value="Con" aria-label="Tên con">
+    ${hello.pin ? `<input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="PIN của bố mẹ" aria-label="PIN của bố mẹ">` : ""}
+    <button class="pri" id="go">${ic("link")} Ghép</button></div><p class="err" id="e"></p>`
     : `<p>${ic("hourglass")} Máy của con chưa mở ghép. Trên máy con: mở app KidGuard → <b>Ghép thêm máy của bố mẹ</b> (cần PIN của bố mẹ nếu đã đặt).</p><button onclick="location.reload()">${ic("refresh-cw")} Thử lại</button>`}
     ${hello.owner ? "" : `<p class="err">${ic("triangle-alert")} Máy con chưa có quyền Device Owner: chạy setup.sh (xem README).</p>`}
   </div>`;

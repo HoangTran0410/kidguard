@@ -50,18 +50,19 @@ object Checklist {
     private fun hasSecure(ctx: Context) =
         ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == android.content.pm.PackageManager.PERMISSION_GRANTED
 
-    /** Builds the box; call [update] from onResume. Hidden when both permissions are on. */
-    fun build(act: Activity): LinearLayout {
-        val box = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; tag = "checklist" }
-        box.addView(TextView(act).apply { text = "Bước còn lại"; textSize = 18f; setTextColor(Color.parseColor("#111827")); setPadding(0, 16, 0, 8) })
-        for (r in rows) box.addView(Button(act).apply { text = r.label; setOnClickListener { runCatching { r.open(act) } } })
-        box.addView(TextView(act).apply { tag = "secure"; textSize = 14f; setTextColor(Color.parseColor("#6b7280")) })
+    /** Builds the card; call [update] from onResume. Hidden when both permissions are on. */
+    fun build(act: Activity, ui: Ui): LinearLayout {
+        val box = ui.cardBox().apply { tag = "checklist" }
+        box.addView(ui.label("Bước còn lại", 17f, ui.text, true))
+        box.addView(ui.label("Bật 2 quyền này để KidGuard chạy đầy đủ", 14f))
+        for (r in rows) box.addView(ui.button(r.label, null, false) { runCatching { r.open(act) } })
+        box.addView(ui.label("", 13f).apply { tag = "secure"; setPadding(0, ui.dp(12), 0, 0) })
         return box
     }
 
     fun update(act: Activity, box: LinearLayout) {
         val buttons = (0 until box.childCount).map { box.getChildAt(it) }.filterIsInstance<Button>()
-        rows.forEachIndexed { i, r -> buttons[i].text = (if (r.done(act)) "Đã xong: " else "") + r.label }
+        rows.forEachIndexed { i, r -> buttons[i].text = (if (r.done(act)) "Đã xong: " else "") + r.label; buttons[i].alpha = if (r.done(act)) 0.6f else 1f }
         val needed = !rows.all { r -> r.done(act) }
         box.visibility = if (needed) View.VISIBLE else View.GONE
         box.findViewWithTag<TextView>("secure").text =
