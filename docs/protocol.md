@@ -129,3 +129,21 @@ While frames are being taken (any capture in the last 5 s) the child sees an ong
 6. `adb shell dumpsys deviceidle whitelist +dev.kidguard`
 7. `adb shell am start -n dev.kidguard/.MainActivity`
 8. print the LAN URL (`http://<wlan0 ip>:8770`) and tell the parent to enter the 6-digit code.
+
+## v0.2.1 changes (after review)
+- **PIN hash never leaves the phone/worker to the parent.** `state.rules` and every worker response carry
+  `"pinSet": true|false` instead of `pinHash`. A rules PUT with neither `pin` nor `pinHash` keeps the old hash
+  (phone `Api.kt` and worker both). The child's "pair another device" button refuses while no PIN is set.
+- **Commands are idempotent.** Relay commands carry `id`; the phone remembers the last 100 executed ids in Store
+  (written with `commit()` before running `reboot`/`release`) and skips repeats but still acks them. Each command runs
+  in its own try/catch and is acked even if it fails. The worker drops `reboot`, `release`, `unpairAll` from the queue
+  as soon as it delivers them (deliver-once).
+- **State** adds `dnsError` (`""` or a short reason when the Private DNS host was rejected; the phone then falls back
+  to opportunistic DNS and clears the restriction so the child keeps internet) and keeps `usageAccess` (page warns when false).
+- **Relay sync**: the phone may omit `state` when nothing but `t` changed; it sends a full state at least every 5 min.
+  The worker writes `seen` at most once per minute.
+- **Live input**: the worker answers `POST /input` with `409 {"error":"not live"}` when `liveUntil < now`, and drops
+  queued inputs older than 5 s when delivering. Frame `seq` starts at `Date.now()` so it stays increasing across restarts.
+- **Release** also: removes our accessibility entry, clears paired tokens, unsuspends every launchable app, cancels the
+  watchdog, stops Guard; returns `"failed"` if still Device Owner afterwards.
+- **HTML pages** (worker `/`, `/install`, phone LAN `/`) send `X-Frame-Options: DENY` and a CSP with `frame-ancestors 'none'`.
