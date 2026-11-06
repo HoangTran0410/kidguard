@@ -101,7 +101,10 @@ td:first-child{font-weight:600}
 
 /* faq */
 details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0 18px;margin-top:10px}
-summary{cursor:pointer;font-weight:700;padding:14px 0;list-style-position:outside}
+summary{cursor:pointer;font-weight:700;padding:14px 0;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"";flex:none;width:8px;height:8px;margin:0 6px 4px 0;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .2s}
+details[open] summary::after{transform:rotate(-135deg);margin-bottom:-4px}
 details[open] summary{margin-bottom:2px}
 details p,details ul{color:var(--muted);padding-bottom:14px;font-size:15.5px}
 details ul{margin-left:20px}
@@ -127,3 +130,33 @@ footer a{color:var(--muted)}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 .cta.mid{justify-content:center}
+
+/* mobile menu without JS: #menu is a fixed, empty target (no scroll jump); any nav link or "#_" clears it */
+.menu-t{position:fixed;top:0;left:0;width:0;height:0}
+.burger{display:none}
+@media(max-width:760px){
+  header .wrap{flex-wrap:nowrap;position:relative}
+  .burger{margin-left:auto;width:44px;height:44px;border-radius:10px;align-items:center;justify-content:center;color:var(--text)}
+  .burger:hover{background:var(--card)}
+  .burger i,.burger i::before,.burger i::after{display:block;width:20px;height:2px;border-radius:2px;background:currentColor;position:relative;content:"";transition:transform .2s}
+  .burger i::before{position:absolute;top:-6px}.burger i::after{position:absolute;top:6px}
+  .burger.open{display:flex}
+  .menu-t:target~header .burger.open{display:none}
+  .menu-t:target~header .burger.shut{display:flex}
+  .burger.shut i{background:transparent}
+  .burger.shut i::before{top:0;transform:rotate(45deg)}.burger.shut i::after{top:0;transform:rotate(-45deg)}
+  nav{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;gap:0;margin:0;padding:6px 16px 12px;
+    background:var(--bg);border-bottom:1px solid var(--line);box-shadow:0 12px 24px rgba(0,0,0,.18);font-size:16px}
+  nav a{padding:12px 4px;border-bottom:1px solid var(--line)}nav a:last-child{border-bottom:0}
+  .menu-t:target~header nav{display:flex}
+}
+
+/* language switch + cross-promo card */
+nav a.lang{border:1px solid var(--line2);border-radius:8px;padding:3px 9px;font-weight:700;color:var(--text)}
+@media(max-width:760px){nav a.lang{border:0;border-radius:0;padding:12px 4px}}
+.xad{display:flex;align-items:center;gap:16px;max-width:780px;margin:0 auto;padding:18px 20px;background:var(--card);border:1px solid var(--line);border-radius:16px;color:var(--muted);font-size:15px}
+.xad:hover{text-decoration:none;border-color:var(--blue)}
+.xad img{flex:none;border-radius:14px}
+.xad small{display:block;color:var(--dim);font-size:12.5px;text-transform:uppercase;letter-spacing:.06em}
+.xad b{display:block;color:var(--text);font-size:18px;margin:2px 0 4px}
+.xad .go{margin-left:auto;padding-left:8px;font-size:22px;color:var(--blue)}

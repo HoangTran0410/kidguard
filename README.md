@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://kid-guard.pages.dev">Website</a> ·
+  <a href="https://kid-guard.pages.dev/en/">Website</a> ·
   <a href="#get-it">Get it</a> ·
   <a href="#install">Install</a> ·
   <a href="#features">Features</a> ·
@@ -35,6 +35,8 @@
 </table>
 
 KidGuard becomes the phone's **Device Owner**, the same Android role a company uses for work phones. That is what lets it lock apps, keep location on and stop itself from being removed, with no root. The parent page (in Vietnamese for now) is plain HTML served by the phone itself; nothing goes to a cloud unless you turn on [Away from home](#away-from-home).
+
+> **Also by the author:** [TV Remote](https://github.com/HoangTran0410/tv-remote) controls an Android TV / TV box from your phone or any browser: remote, the TV's picture, kids' time limits and bedtime, ad-free home screen. No cloud, no sign-up. [tvremote.pages.dev](https://tvremote.pages.dev/?lang=en)
 
 ## Get it
 
