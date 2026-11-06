@@ -51,10 +51,14 @@ class Api(private val g: Guard) {
             }
             p == "/input" && r.method == "POST" -> Res.json(JSONObject().put("result",
                 runCatching { Acc.input(JSONObject(r.text)) }.getOrDefault("bad input")).toString())
+            p == "/track" -> Res.json(JSONObject().put("track", track(((r.query["days"]?.toIntOrNull()) ?: 7).coerceIn(1, 7))).toString())
             p == "/icon" -> icon(r.query["pkg"] ?: "")
             else -> Res.text("not found", 404)
         }
     }
+
+    // TEMP stub: replace with store.track(days) (Store.track returns JSONArray [[t,lat,lon,acc],...]) when merging core.
+    private fun track(days: Int): org.json.JSONArray = org.json.JSONArray()
 
     private fun icon(pkg: String): Res {
         val d = runCatching { g.packageManager.getApplicationIcon(pkg) }.getOrNull() ?: return Res.text("no icon", 404)

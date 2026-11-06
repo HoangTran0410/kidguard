@@ -65,7 +65,7 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
         }
         val head = "HTTP/1.1 ${res.code} ${reason(res.code)}\r\nContent-Type: ${res.type}\r\nContent-Length: ${res.body.size}\r\n" +
             "Cache-Control: ${if (res.type == "image/png") "private, max-age=86400" else "no-store"}\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n" +
-            (if (res.type.startsWith("text/html")) "X-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'\r\n" else "") +
+            (if (res.type.startsWith("text/html")) "X-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'; img-src 'self' data: blob: https://tile.openstreetmap.org\r\n" else "") +
             res.headers.entries.joinToString("") { (k, v) -> "$k: $v\r\n" } + "\r\n"
         val out = it.getOutputStream()
         out.write(head.toByteArray()); out.write(res.body); out.flush()
