@@ -23,11 +23,12 @@ Refs: https://tailscale.com/kb/1315/mdm-keys · https://tailscale.com/kb/1384/an
 - Manifest: `<queries><package com.tailscale.ipn/>`.
 
 ## TODO
-- [ ] `./build.sh` passes (unit tests incl. TsLogicTest). Needs the real `app/signing.jks` copied in (gitignored); a missing key makes build.sh create a new one and change web/provision.json + web/qr.html — never commit that.
-- [ ] Parent page `web/index.html`: Cài đặt → card "Điều khiển từ xa qua Tailscale": key input, hostname, On/Off, show state/ip/err from `state.ts`.
+- [x] `./build.sh` passes (unit tests incl. TsLogicTest). Needs the real `app/signing.jks` copied in (gitignored); a missing key makes build.sh create a new one and change web/provision.json + web/qr.html — never commit that.
+- [x] Parent page `web/index.html`: Cài đặt → card "Điều khiển từ xa qua Tailscale": key input (LAN only), hostname, On/Off, state/ip/err from `state.ts`.
+- [x] Worker whitelist: `tailscaleOff` only (`tailscale` carries the key: LAN only). Protocol updated.
 - [ ] Emulator/real phone test: download + silent install, managed config picked up (does it log in without opening the UI?), always-on VPN takes, tailnet IP appears.
 - [ ] Does the tunnel survive `setPackagesSuspended`? (unknown; code falls back to visible).
 - [ ] Does Private DNS filter still work with the VPN up?
 - [ ] Release undo: VPN off, restrictions cleared, app uninstalled.
-- [ ] README.md / README.vi.md "Away from home": add this option.
+- [ ] README.md "Away from home": add this option.
 - [ ] Docs: VPN key icon in the status bar can't be hidden (Android shows it always).

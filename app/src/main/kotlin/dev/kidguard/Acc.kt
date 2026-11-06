@@ -184,14 +184,20 @@ class Acc : AccessibilityService() {
                 if (!viewing) {
                     viewing = true
                     Store.of(svc).log("Bố mẹ bắt đầu xem màn hình")
-                    val nm = svc.getSystemService(NotificationManager::class.java)
-                    nm.createNotificationChannel(NotificationChannel(CH, "Đang xem màn hình", NotificationManager.IMPORTANCE_DEFAULT))
-                    nm.notify(NID, Notification.Builder(svc, CH).setSmallIcon(android.R.drawable.ic_menu_view)
-                        .setContentTitle("Bố mẹ đang xem màn hình").setOngoing(true).setOnlyAlertOnce(true).build())
+                    notice(svc, "Bố mẹ đang xem màn hình")
                 }
                 main.removeCallbacks(hide)
                 main.postDelayed(hide, 5000)
             }
+        }
+
+        /** The child-visible notice; skipped when the parent turned it off (rule `showWatching`). Main thread. */
+        private fun notice(svc: Acc, title: String) {
+            if (!Store.of(svc).rules.showWatching) return
+            val nm = svc.getSystemService(NotificationManager::class.java)
+            nm.createNotificationChannel(NotificationChannel(CH, "Đang xem màn hình", NotificationManager.IMPORTANCE_DEFAULT))
+            nm.notify(NID, Notification.Builder(svc, CH).setSmallIcon(android.R.drawable.ic_menu_view)
+                .setContentTitle(title).setOngoing(true).setOnlyAlertOnce(true).build())
         }
 
         private fun hideNotice() {
@@ -243,7 +249,7 @@ class Acc : AccessibilityService() {
                 else -> "bad input"
             }
             if (res == "ok") main.post {
-                if (!controlled) { controlled = true; Store.of(svc).log("Bố mẹ điều khiển từ xa") }
+                if (!controlled) { controlled = true; Store.of(svc).log("Bố mẹ điều khiển từ xa"); notice(svc, "Bố mẹ đang điều khiển máy") }
             }
             return res
         }

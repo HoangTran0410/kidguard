@@ -40,7 +40,7 @@ input[type=checkbox]{width:20px;height:20px}
 .app .nm{flex:1 1 110px;min-width:0}.app>button,.app>select{flex:none;margin-left:auto}.app .tag{white-space:nowrap}
 .app .nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
 .tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:999px;background:var(--chip);margin-left:4px}
-.tag.bad{background:#fee2e2;color:#991b1b}
+.tag.bad{background:#fee2e2;color:#991b1b}.tag.ok{background:#dcfce7;color:#166534}.tag.warn{background:#fef3c7;color:#92400e}
 .dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--mute)}
 .dot.on{background:var(--ok)}.dot.bad{background:var(--bad)}
 .si{width:1.15em;height:1.15em;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-0.2em;flex:none}
@@ -182,7 +182,7 @@ const DNS = [["", "Tắt"], ["family.adguard-dns.com", "AdGuard Family"], ["fami
 function norm(e) {
   e.dailyByDay = Array.isArray(e.dailyByDay) && e.dailyByDay.length === 7 ? e.dailyByDay : [];
   e.schedules = e.schedules || []; e.approved = e.approved || []; e.safeDns = e.safeDns || "";
-  e.trackMin = e.trackMin === undefined ? 10 : +e.trackMin; e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.blockNew = !!e.blockNew;
+  e.trackMin = e.trackMin === undefined ? 10 : +e.trackMin; e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.showWatching = e.showWatching !== false; e.blockNew = !!e.blockNew;
   e.blocked = e.blocked || []; e.allow = e.allow || []; e.appMin = e.appMin || {};
   return e;
 }
@@ -615,7 +615,9 @@ function screenTab(b) {
     <div class="grid" id="s-btns"><button data-key="back">${ic("arrow-left")} Quay lại</button><button data-key="home">${ic("house")} Màn hình chính</button><button data-key="recents">${ic("layers")} Đa nhiệm</button>
       <button data-key="notifications">${ic("bell")} Thông báo</button><button data-key="lock">${ic("lock")} Khoá màn hình</button></div>
     <div class="row" style="margin-top:10px"><input id="f-stxt" class="sp" placeholder="Gõ chữ vào ô đang chọn trên máy con…"><button id="s-send" class="pri">${ic("send")} Gửi chữ</button></div>
-    <p class="mute">${ic("pointer")} Chạm vào ảnh để bấm, kéo để vuốt, giữ lâu để nhấn giữ. Máy con sẽ hiện thông báo khi bố mẹ đang xem.</p></div>`;
+    <label class="row" style="margin-top:10px"><input type="checkbox" id="f-sw" ${edit && edit.showWatching ? "checked" : ""}><span>${ic("bell")} Báo cho con "Bố mẹ đang xem / đang điều khiển"</span></label>
+    <p class="mute">${ic("pointer")} Chạm vào ảnh để bấm, kéo để vuốt, giữ lâu để nhấn giữ. Nhật ký luôn ghi lại lúc bố mẹ xem và điều khiển.</p></div>`;
+  $("#f-sw").onchange = e => { if (!edit) return; edit.showWatching = e.target.checked; changed(); };
   const box = $("#s-box"), img = $("#s-img");
   $("#s-view").onchange = e => { scr.view = e.target.checked; box.classList.toggle("view", scr.view); $("#s-btns").querySelectorAll("button").forEach(x => x.disabled = scr.view); $("#s-send").disabled = scr.view; };
   $("#s-btns").querySelectorAll("button").forEach(x => { x.disabled = scr.view; x.onclick = () => sendInput({ type: "key", key: x.dataset.key }); });
@@ -723,6 +725,24 @@ function whereTab(b) {
   }
 }
 
+// Remote access over Tailscale (state.ts). The auth key is only typed at home (LAN): it never goes through the relay.
+function tsCard(lan) {
+  const t = (st && st.ts) || { state: "off" };
+  const label = { off: "Đang tắt", installing: "Đang cài / đăng nhập…", on: "Đã kết nối", error: "Lỗi" }[t.state] || t.state;
+  const cls = { on: "ok", error: "bad", installing: "warn" }[t.state] || "";
+  const url = t.ip ? `http://${t.ip}:8770` : "";
+  return `<div class="card"><h2>${ic("globe")} Điều khiển từ xa qua Tailscale</h2>
+    <p class="mute">Không cần Cloudflare: máy con tự cài Tailscale và vào mạng riêng của bạn. Điện thoại bố mẹ cài Tailscale cùng tài khoản rồi mở địa chỉ bên dưới.</p>
+    <p><span class="tag ${cls}">${esc(label)}</span>${t.host ? ` · tên máy <b>${esc(t.host)}</b>` : ""}</p>
+    ${t.err ? `<div class="alert warn">${ic("triangle-alert")} ${esc(t.err)}</div>` : ""}
+    ${url ? `<p>${ic("link")} <code>${esc(url)}</code></p>` : ""}
+    ${lan ? `<p class="mute">Tạo khoá ở login.tailscale.com → Settings → Keys (Reusable, không Ephemeral). Khoá chỉ lưu trên máy con.</p>
+    <input id="f-ts-key" type="password" autocomplete="off" placeholder="tskey-auth-…">
+    <div class="row" style="margin-top:8px"><input id="f-ts-host" class="sp" placeholder="Tên máy (tuỳ chọn), vd kid-an" value="${esc(t.host || "")}"><button id="tsOn" class="pri">${ic("globe")} ${t.state === "off" ? "Bật" : "Bật lại"}</button></div>`
+      : `<p class="mute">Bật/đổi khoá chỉ làm được khi ở nhà (cùng Wi‑Fi với máy con).</p>`}
+    ${t.state !== "off" ? `<button id="tsOff" class="bad" style="margin-top:8px">${ic("x")} Tắt và gỡ Tailscale</button>` : ""}</div>`;
+}
+
 function setTab(b) {
   const lan = cur.via === "lan";
   b.innerHTML = `
@@ -734,6 +754,7 @@ function setTab(b) {
     <p class="mute">Cần một Cloudflare Worker của bạn (miễn phí, xem README). Dán địa chỉ:</p>
     <div class="row"><input id="relay" class="sp" placeholder="https://kidguard.ten-ban.workers.dev" value="${esc(st.relay || "")}"><button id="saveRelay" class="pri">${ic("globe")} Bật</button></div>
     <div id="relayOut"></div></div>` : `<div class="card"><h2>${ic("globe")} Kết nối</h2><p class="mute">Qua relay. Lệnh tới máy con trong khoảng 20 giây (màn hình tắt: 60 giây).</p></div>`}
+  ${tsCard(lan)}
   <div class="card"><h2>${ic("link")} Máy đã ghép</h2>
     <div class="grid"><button id="openPair">${ic("lock-open")} Mở ghép thêm (10 phút)</button><button id="unpair" class="bad">${ic("unlink")} Huỷ ghép tất cả</button><button id="forget">${ic("eraser")} Quên máy này ở trình duyệt</button></div></div>
   <div class="card"><h2>${ic("smartphone")} Thêm vào màn hình chính</h2><p class="mute">Để mở KidGuard như một app: iPhone (Safari) bấm nút Chia sẻ → "Thêm vào MH chính"; Android (Chrome) bấm ⋮ → "Thêm vào màn hình chính".</p></div>
@@ -752,6 +773,14 @@ function setTab(b) {
       $("#copy").onclick = () => { navigator.clipboard?.writeText(link).then(() => toast("Đã chép"), () => toast("Chép tay giúp nhé")); };
     }
   };
+  if ($("#tsOn")) $("#tsOn").onclick = async () => {
+    const authKey = $("#f-ts-key").value.trim();
+    if (!/^[A-Za-z0-9_-]{10,300}$/.test(authKey)) return toast("warn|Khoá Tailscale không hợp lệ (dạng tskey-auth-…)");
+    const r = await cmd({ type: "tailscale", authKey, hostname: $("#f-ts-host").value.trim() }, "Đang cài Tailscale trên máy con…");
+    if (r && r.result && r.result !== "ok") toast("err|Máy con trả lời: " + r.result);
+    $("#f-ts-key").value = "";
+  };
+  if ($("#tsOff")) $("#tsOff").onclick = async () => { if (confirm("Tắt điều khiển qua Tailscale và gỡ app Tailscale khỏi máy con?")) await cmd({ type: "tailscaleOff" }, "Đã tắt"); };
   $("#openPair").onclick = () => cmd({ type: "openPairing" }, "Mã ghép đang hiện trên máy con");
   $("#unpair").onclick = async () => { if (!confirm("Huỷ ghép mọi máy bố mẹ? Phải ghép lại bằng mã trên máy con (cần PIN).")) return; await cmd({ type: "unpairAll" }); };
   $("#forget").onclick = () => { screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); };
