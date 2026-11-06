@@ -37,6 +37,7 @@ class MainActivity : Activity() {
     private lateinit var hint: TextView
     private lateinit var pairBtn: Button
     private lateinit var checklist: LinearLayout
+    private lateinit var basicList: BasicChecklist
     private lateinit var selfBtn: Button
     private lateinit var revealBtn: Button
     private lateinit var recoverBtn: Button
@@ -63,6 +64,9 @@ class MainActivity : Activity() {
         status = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         statusCard.addView(status)
         col.addView(statusCard)
+        // basic mode (no Device Owner): the quick setup checklist, shown until every item is on
+        basicList = BasicChecklist(this, u) { openBatterySettings() }
+        col.addView(basicList.box)
         // pairing card: label + code + hint
         val pairCard = u.cardBox(18)
         codeLabel = u.label("MÃ GHÉP ĐÔI", 12f, u.sub, true).apply { letterSpacing = 0.1f; gravity = Gravity.CENTER }
@@ -96,7 +100,7 @@ class MainActivity : Activity() {
         }
         col.addView(recoverBtn)
         col.addView(u.button("Cài đặt pin / tự khởi động", R.drawable.li_battery_charging, false) { openBatterySettings() })
-        selfBtn = u.button("Tự cài không cần máy tính (Android 11+)", R.drawable.li_wifi, false) { startActivity(Intent(this@MainActivity, SelfSetupActivity::class.java)) }
+        selfBtn = u.button("Cài đầy đủ không cần máy tính (Android 11+)", R.drawable.li_wifi, false) { startActivity(Intent(this@MainActivity, SelfSetupActivity::class.java)) }
         col.addView(selfBtn)
         checklist = Checklist.build(this, u)
         col.addView(checklist)
@@ -136,14 +140,17 @@ class MainActivity : Activity() {
         val s = Store.of(this)
         val owner = Policy.isOwner(this)
         val usage = Usage.granted(this)
-        selfBtn.visibility = if (owner) View.GONE else View.VISIBLE
+        selfBtn.visibility = if (owner || android.os.Build.VERSION.SDK_INT < 30) View.GONE else View.VISIBLE
+        if (owner) basicList.box.visibility = View.GONE else basicList.update()
         val lan = Guard.lanUrl()
         Checklist.update(this, checklist)
+        if (!owner) checklist.visibility = View.GONE   // basic mode has its own, longer checklist
         val u = ui2
         status.removeAllViews()
         fun line(icon: Int, tone: String, t: String) = status.addView(u.row(icon, tone, t))
         val ok = R.drawable.li_circle_check; val warn = R.drawable.li_triangle_alert
-        if (owner) line(ok, Ic.OK, "Đang được bố mẹ quản lý") else line(warn, Ic.WARN, "Chưa có quyền Device Owner: dùng nút \"Tự cài\" bên dưới hoặc setup.sh trên máy tính (xem README)")
+        if (owner) line(ok, Ic.OK, "Đang được bố mẹ quản lý") else if (Basic.mode(this) == "basic") line(ok, Ic.OK, "Chế độ cơ bản: KidGuard đang bảo vệ")
+            else line(warn, Ic.WARN, "Chưa cài xong: làm lần lượt các bước trong khung \"Cài nhanh\" bên dưới")
         if (!usage) line(warn, Ic.WARN, "Chưa có quyền xem thời gian dùng app")
         if (Guard.running != null) line(ok, Ic.OK, "Đang chạy") else line(R.drawable.li_loader, Ic.INFO, "Đang khởi động…")
         if (Acc.isOn(this@MainActivity)) line(R.drawable.li_accessibility, Ic.OK, "Trợ năng: bật") else line(R.drawable.li_accessibility, Ic.WARN, "Trợ năng: tắt")

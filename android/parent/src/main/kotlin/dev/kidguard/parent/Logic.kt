@@ -116,20 +116,21 @@ object Logic {
     } catch (e: Exception) { emptyList() }
 
     /** Per kid, persisted between runs. */
-    class NotifyState(val seenIds: Set<String> = emptySet(), val lost: Boolean = false, val failSince: Long = 0L, val init: Boolean = false, val evInit: Boolean = false) {
-        fun toJson() = JSONObject().put("ids", JSONArray(seenIds.toList())).put("lost", lost).put("fail", failSince).put("init", init).put("ei", evInit).toString()
+    class NotifyState(val seenIds: Set<String> = emptySet(), val lost: Boolean = false, val failSince: Long = 0L, val init: Boolean = false, val evInit: Boolean = false, val accOff: Boolean = false) {
+        fun toJson() = JSONObject().put("ids", JSONArray(seenIds.toList())).put("lost", lost).put("fail", failSince).put("init", init).put("ei", evInit).put("acc", accOff).toString()
         companion object {
             fun fromJson(s: String?): NotifyState = try {
                 val o = JSONObject(s ?: "")
                 val a = o.optJSONArray("ids") ?: JSONArray()
-                NotifyState((0 until a.length()).map { a.getString(it) }.toSet(), o.optBoolean("lost"), o.optLong("fail"), o.optBoolean("init"), o.optBoolean("ei"))
+                NotifyState((0 until a.length()).map { a.getString(it) }.toSet(), o.optBoolean("lost"), o.optLong("fail"), o.optBoolean("init"), o.optBoolean("ei"), o.optBoolean("acc"))
             } catch (e: Exception) { NotifyState() }
         }
     }
 
     /** What one check saw for a kid. activityT = state.t (LAN) or relay `seen` (ms of the child's last sync), 0 = unknown. */
     class Ev(val id: String, val text: String, val t: Long)   // one state.events entry (v0.6)
-    class Seen(val fetchOk: Boolean, val requests: List<Pair<String, Int>>, val activityT: Long, val sos: List<Pair<String, Long>> = emptyList(), val events: List<Ev> = emptyList())
+    class Seen(val fetchOk: Boolean, val requests: List<Pair<String, Int>>, val activityT: Long, val sos: List<Pair<String, Long>> = emptyList(), val events: List<Ev> = emptyList(),
+               val accOff: Boolean = false)   // v0.7 basic mode: the child turned KidGuard's accessibility off (no blocking)
     class Event(val key: String, val text: String)   // key: unique per event, used as notification id
     class Outcome(val events: List<Event>, val state: NotifyState)
 
@@ -157,13 +158,14 @@ object Logic {
             val isLost = seen.activityT > 0 && now - seen.activityT > LOST_MS
             if (isLost && !lost) events.add(Event("lost", "Mất kết nối với máy của $name"))
             lost = isLost
+            if (seen.accOff && !st.accOff) events.add(Event("acc", "$name đã tắt Trợ năng của KidGuard: app không bị chặn nữa"))
         } else {
             if (failSince == 0L) failSince = now
             val isLost = now - failSince > LOST_MS
             if (isLost && !lost) events.add(Event("lost", "Mất kết nối với máy của $name"))
             if (isLost) lost = true
         }
-        return Outcome(events, NotifyState(ids, lost, failSince, true, st.evInit || seen.fetchOk))
+        return Outcome(events, NotifyState(ids, lost, failSince, true, st.evInit || seen.fetchOk, if (seen.fetchOk) seen.accOff else st.accOff))
     }
 
     /**
@@ -190,7 +192,7 @@ object Logic {
         else -> null
     }
 
-    fun withSeen(st: NotifyState, id: String) = NotifyState(st.seenIds + id, st.lost, st.failSince, st.init, st.evInit)
+    fun withSeen(st: NotifyState, id: String) = NotifyState(st.seenIds + id, st.lost, st.failSince, st.init, st.evInit, st.accOff)
 
     /** FCM {kind: "ev", kid, ...} means "check this kid now" (the check itself notifies "<name>: <text>" once per event id). */
     fun pushCheckKid(kids: List<KidCfg>, data: Map<String, String>): KidCfg? =

@@ -239,7 +239,7 @@ object Policy {
      * Call it on the Guard thread with the loop stopped. Returns "ok", "not owner" or "failed" (still Device Owner).
      */
     fun release(ctx: Context, s: Store): String {
-        if (!isOwner(ctx)) return "not owner"
+        if (!isOwner(ctx)) return releaseBasic(ctx, s)
         val d = dpm(ctx); val a = admin(ctx)
         runCatching { Ts.undo(ctx, s) }.onFailure { Log.w(TAG, "remote access undo", it) }
         // every launcher app, not just what we remember: the stored set may be stale
@@ -268,6 +268,27 @@ object Policy {
         runCatching { apply(ctx, s.rules) }.onFailure { Log.w(TAG, "re-apply after failed release", it) }
         Watchdog.schedule(ctx)
         return "failed"
+    }
+
+    /** Basic mode: stop blocking, drop the device admin (the app can be uninstalled again), forget the parents. "not owner" when there is no admin. */
+    private fun releaseBasic(ctx: Context, s: Store): String {
+        val d = dpm(ctx); val a = admin(ctx)
+        if (!runCatching { d.isAdminActive(a) }.getOrDefault(false)) return "not owner"
+        s.released = true          // Acc and Guard go quiet first (Basic.enforcing checks it)
+        Acc.blocked = emptyMap()
+        Watchdog.cancel(ctx)
+        runCatching { d.removeActiveAdmin(a) }.onFailure { Log.w(TAG, "removeActiveAdmin", it) }
+        // removeActiveAdmin returns before the system has finished: wait up to 3 s for it
+        var left = 15
+        while (left-- > 0 && runCatching { d.isAdminActive(a) }.getOrDefault(false)) Thread.sleep(200)
+        if (runCatching { d.isAdminActive(a) }.getOrDefault(false)) {
+            s.released = false; Watchdog.schedule(ctx); return "failed"
+        }
+        s.suspendedByUs = emptySet()
+        removeAccEntry(ctx)
+        runCatching { Acc.running?.disableSelf() }
+        s.clearTokens()
+        return "ok"
     }
 
     /** Takes our accessibility service out of enabled_accessibility_services (needs WRITE_SECURE_SETTINGS). */

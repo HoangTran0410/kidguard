@@ -94,7 +94,8 @@ class CheckJob : JobService() {
                     val id = x.optString("id"); val text = x.optString("text")
                     if (id.isEmpty() || text.isEmpty()) null else Logic.Ev(id, text.take(120), x.optLong("t"))
                 }
-                Logic.Seen(true, list, if (k.via == "lan") st.optLong("t") else o.optLong("seen"), sos, evs)
+                val accOff = st.optString("mode") == "basic" && st.optJSONObject("basic")?.optBoolean("acc", true) == false
+                Logic.Seen(true, list, if (k.via == "lan") st.optLong("t") else o.optLong("seen"), sos, evs, accOff)
             } catch (e: Exception) { Logic.Seen(false, emptyList(), 0) }
         }
 

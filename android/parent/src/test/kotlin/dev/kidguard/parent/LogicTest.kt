@@ -79,6 +79,21 @@ class LogicTest {
         assertEquals(1, Logic.evaluate("An", seen(act = now - 31 * 60_000), back.state, now).events.size)
     }
 
+    @Test fun accessibilityOffNotifiedOncePerTransition() {
+        val base = Logic.NotifyState(init = true)
+        val off = Logic.Seen(true, emptyList(), now, accOff = true)
+        val o1 = Logic.evaluate("An", off, base, now)
+        assertEquals(listOf("An đã tắt Trợ năng của KidGuard: app không bị chặn nữa"), o1.events.map { it.text })
+        assertTrue(Logic.evaluate("An", off, o1.state, now).events.isEmpty())
+        // a failed fetch keeps the flag; turning it back on re-arms
+        val failed = Logic.evaluate("An", seen(ok = false), o1.state, now)
+        assertTrue(failed.state.accOff)
+        val on = Logic.evaluate("An", seen(), o1.state, now)
+        assertFalse(on.state.accOff)
+        assertEquals(1, Logic.evaluate("An", off, on.state, now).events.size)
+        assertTrue(Logic.NotifyState.fromJson(o1.state.toJson()).accOff)
+    }
+
     @Test fun fetchFailureNeedsThirtyMinutes() {
         val f = seen(ok = false, act = 0)
         val o1 = Logic.evaluate("An", f, Logic.NotifyState(init = true), now)

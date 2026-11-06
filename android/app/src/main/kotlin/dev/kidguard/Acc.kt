@@ -36,6 +36,7 @@ class Acc : AccessibilityService() {
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {
         if (e?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = e.packageName?.toString() ?: return
+        if (pkg != packageName) basicGuard(pkg)
         if (pkg == lastPkg) return
         lastPkg = pkg
         val wait = 1000 - (System.currentTimeMillis() - lastPoke)
@@ -46,17 +47,105 @@ class Acc : AccessibilityService() {
         } else pokeNow()
     }
 
+    /** Basic mode (no Device Owner): bounce blocked apps and Settings pages that would remove KidGuard. Owner mode: no-op. */
+    private fun basicGuard(pkg: String) {
+        if (!basicOn()) return
+        val reason = BasicLogic.bounceReason(pkg, packageName, blocked, prot)
+        if (reason != null) { bounceApp(this, pkg, reason); return }
+        if (BasicLogic.isSettingsPkg(pkg)) {
+            // the page text is often not there yet when the event fires: look at 0.2 s, 0.8 s and 1.8 s
+            main.removeCallbacks(scan1); main.removeCallbacks(scan2); main.removeCallbacks(scan3)
+            scanPkg = pkg
+            main.postDelayed(scan1, 200); main.postDelayed(scan2, 800); main.postDelayed(scan3, 1800)
+        }
+    }
+
+    private var scanPkg = ""
+    private val scan1 = Runnable { scan() }
+    private val scan2 = Runnable { scan() }
+    private val scan3 = Runnable { scan() }
+    private var lastProtectLog = 0L
+
+    private fun scan() {
+        if (!basicOn()) return
+        val root = runCatching { rootInActiveWindow }.getOrNull() ?: return
+        val pkg = root.packageName?.toString() ?: return
+        if (pkg != scanPkg || !BasicLogic.isSettingsPkg(pkg)) return
+        val labels = listOf("KidGuard", runCatching { applicationInfo.loadLabel(packageManager).toString() }.getOrDefault("KidGuard"))
+        val nodes = collectNodes(root, 300)
+        if (BasicLogic.selfProtect(pkg, nodes, labels)) {
+            performGlobalAction(GLOBAL_ACTION_HOME)
+            val now = System.currentTimeMillis()
+            if (now - lastProtectLog > 30_000) {
+                lastProtectLog = now
+                runCatching { Store.of(this).log("Con mở trang gỡ / tắt KidGuard, đã đưa về màn hình chính") }
+            }
+        }
+    }
+
+    /** Breadth-first text of the window, at most [budget] nodes (so a huge list never stalls the service). */
+    private fun collectNodes(root: AccessibilityNodeInfo, budget: Int): List<BasicLogic.Node> {
+        val out = ArrayList<BasicLogic.Node>()
+        val q = ArrayDeque<Pair<AccessibilityNodeInfo, Boolean>>()
+        q.add(root to false)
+        var seen = 0
+        while (q.isNotEmpty() && seen < budget) {
+            val (n, parentClickable) = q.removeFirst(); seen++
+            val click = n.isClickable || parentClickable
+            n.text?.toString()?.takeIf { it.isNotBlank() }?.let { out += BasicLogic.Node(it, click) }
+            n.contentDescription?.toString()?.takeIf { it.isNotBlank() }?.let { out += BasicLogic.Node(it, click) }
+            for (i in 0 until n.childCount) n.getChild(i)?.let { q.add(it to click) }
+        }
+        return out
+    }
+
     private val trail = Runnable { pokeNow() }
     private fun pokeNow() { lastPoke = System.currentTimeMillis(); runCatching { Guard.poke(this) } }
 
     override fun onInterrupt() {}
     override fun onUnbind(intent: android.content.Intent?): Boolean { drop(); return super.onUnbind(intent) }
     override fun onDestroy() { drop(); super.onDestroy() }
-    private fun drop() { main.removeCallbacks(trail); if (running === this) running = null; lastError = "acc off"; hideNotice() }
+    private fun drop() { main.removeCallbacks(trail); main.removeCallbacks(scan1); main.removeCallbacks(scan2); main.removeCallbacks(scan3); if (running === this) running = null; lastError = "acc off"; hideNotice() }
 
     companion object {
         @Volatile var running: Acc? = null
         @Volatile var lastError: String = "acc off"
+        /** Basic mode: what the rules block right now (package -> reason code), set by Guard each tick; empty in owner mode. */
+        @Volatile var blocked: Map<String, String> = emptyMap()
+        @Volatile var prot: Set<String> = emptySet()
+        private var basicAt = 0L
+        private var basicVal = false
+        private val lastBounce = HashMap<String, Long>()
+
+        /** [Basic.enforcing] cached for 3 s (window events come in bursts). */
+        fun basicOn(): Boolean {
+            val ctx = running ?: return false
+            val now = System.currentTimeMillis()
+            if (now - basicAt > 3_000) { basicAt = now; basicVal = Basic.enforcing(ctx) }
+            return basicVal
+        }
+
+        /** Send the child HOME and tell them why (once per 10 s per app). Used by the window events and the guard tick. */
+        fun bounceApp(ctx: Context, pkg: String, code: String) {
+            val a = running
+            if (a?.performGlobalAction(GLOBAL_ACTION_HOME) != true) runCatching {
+                ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+            val now = System.currentTimeMillis()
+            synchronized(lastBounce) {
+                if (now - (lastBounce[pkg] ?: 0L) < 10_000) return
+                lastBounce[pkg] = now
+            }
+            runCatching {
+                val label = runCatching { ctx.packageManager.getApplicationInfo(pkg, 0).loadLabel(ctx.packageManager).toString() }.getOrDefault(pkg)
+                val nm = ctx.getSystemService(NotificationManager::class.java)
+                nm.createNotificationChannel(NotificationChannel("kg_block", "App đang bị khoá", NotificationManager.IMPORTANCE_HIGH))
+                nm.notify(7400 + (pkg.hashCode() and 0xff), Notification.Builder(ctx, "kg_block").setSmallIcon(android.R.drawable.ic_lock_lock)
+                    .setContentTitle("$label đang bị khoá: ${BasicLogic.reasonText(code)}").setContentText("KidGuard").setAutoCancel(true)
+                    .setCategory(Notification.CATEGORY_STATUS).build())
+            }
+        }
 
         private const val CH = "kg_watch"
         private const val NID = 7301

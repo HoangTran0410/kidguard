@@ -297,3 +297,33 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
 - Warnings: a notification 5 min and 1 min before the daily limit, bedtime or a schedule locks the phone.
 - Phone page CSP adds `connect-src 'self'`.
 - Version: `android/gradle.properties` `kg.version` / `kg.code`, read by both apps (`state.version` = `BuildConfig.VERSION_NAME`).
+
+## v0.7: basic mode (no Device Owner)
+
+For phones that can't become Device Owner without a computer (no QR on the welcome screen, Android < 11). Install the
+APK, open KidGuard and follow the checklist; no cable, no adb.
+- **Mode**: `state.mode` = `"owner"` (Device Owner, everything as before) | `"basic"` (device admin + accessibility on)
+  | `"setup"` (neither: rules are not enforced). `state.owner` unchanged. `state.basic` (basic/setup only):
+  `{"admin": bool, "acc": bool, "usage": bool, "location": bool, "notify": bool, "battery": bool}` = what the
+  checklist has (true = granted, false = still missing). `/api/hello` adds `mode`.
+- **Checklist (child screen)**, one button each, opens the system screen: Quản trị thiết bị
+  (`ACTION_ADD_DEVICE_ADMIN`), Trợ năng (`ACTION_ACCESSIBILITY_SETTINGS`), Truy cập dữ liệu sử dụng
+  (`ACTION_USAGE_ACCESS_SETTINGS`), Vị trí (runtime fine + background location; mic only when the parent first uses
+  Listen), Thông báo (API 33+ runtime), Pin (ignore battery optimizations / OEM autostart). Shown until every item is ok.
+- **Blocking**: the same `decide()` result. Instead of `setPackagesSuspended`, while a blocked app is in the
+  foreground (accessibility window event, plus the guard tick) KidGuard sends HOME and shows a heads-up
+  "<app> đang bị khoá: <reason>" (reasons as on the block screen). `apps[].suspended` = false, `apps[].blocked` as usual.
+- **Self-protection** (basic, until `release`): an active device admin can't be uninstalled until deactivated. The
+  accessibility service sends HOME when a Settings / package installer / OEM security window shows KidGuard together
+  with an uninstall / deactivate / force-stop / accessibility-off control (text match, Vietnamese + English).
+  KidGuard's own screen is never blocked.
+- **Not available in basic** (page hides or disables them, says "cần Device Owner"): app install / USB debugging
+  blocks, family DNS, airplane / location / clock / safe-mode / factory-reset locks, `reboot`, Tailscale, new-app lock
+  before first launch (still blocked on launch). `lock` uses the admin's force-lock. Live screen / remote control need
+  Android 11+ as before.
+- **Known gaps**: Safe Mode starts the phone without KidGuard; a child who disables accessibility from the quick
+  tile / OEM menu we don't recognise stops blocking (state `basic.acc: false`, the page shows a red warning, the
+  parent app notifies as for lost connection). The page says so plainly.
+- **release** in basic: stops blocking, removes the device admin (`removeActiveAdmin`), clears tokens -> "ok".
+- **Upgrade**: a basic phone can become Device Owner later (cable / setup.sh / self-setup on Android 11+) only after
+  every account is removed, like a fresh install; rules and pairing are kept.

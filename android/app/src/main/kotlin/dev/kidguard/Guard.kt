@@ -168,6 +168,10 @@ class Guard : Service() {
             (had - nowSusp).takeIf { it.isNotEmpty() }?.let { store.log("Mở lại: " + it.joinToString { p -> apps[p] ?: p }) }
             store.suspendedByUs = nowSusp
         }
+        // basic mode: no suspend, so the guard bounces instead (window events do the same instantly, see Acc)
+        val basic = Basic.enforcing(this)
+        Acc.blocked = if (basic) want else emptyMap(); Acc.prot = prot
+        if (basic) use.current?.let { cur -> BasicLogic.bounceReason(cur, packageName, want, prot)?.let { Acc.bounceApp(this, cur, it) } }
         // the app in front just got suspended: send the child home (the system's own "paused" dialog shows when they tap it again)
         if (use.current != null && use.current in nowSusp && use.current !in had) goHome()
         if (now - lastLocateAt > 15 * 60_000) { lastLocateAt = now; locate() }
@@ -207,7 +211,7 @@ class Guard : Service() {
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
             .put("locationOn", locationOn())
             .put("limitMin", baseLimitMin(r, today).let { if (it > 0) it + if (r.bonusDay == today) r.bonusMin else 0 else 0 })
-            .put("owner", Policy.isOwner(this)).put("usageAccess", Usage.granted(this)).put("dnsError", Policy.dnsError)
+            .put("owner", Policy.isOwner(this)).put("mode", Basic.mode(this)).put("usageAccess", Usage.granted(this)).put("dnsError", Policy.dnsError)
             .put("battery", bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1)
             .put("charging", bm?.isCharging == true).put("screenOn", pm?.isInteractive == true)
             .put("current", use.current?.let { apps[it] ?: it } ?: JSONObject.NULL)
@@ -226,6 +230,7 @@ class Guard : Service() {
             .put("sos", store.sos())
             .put("listen", Listen.state())
             .put("events", store.events())
+            .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)) }
     }
 
     private fun locationOn(): Boolean {

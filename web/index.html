@@ -213,6 +213,9 @@ const save = k => {
 let kids = load(), cur = null, st = null, pendingRules = null, timer = null, edit = null, tab = "home", lastErr = "", viewDay = null, histDays = null, cachedAt = 0, seenAt = 0, answered = new Set(), histSel = -1;
 const onLan = () => !location.pathname.startsWith("/c/") && !isRelayOrigin;
 let isRelayOrigin = false;
+// v0.7 basic mode: no Device Owner (old phones without mode = owner as before)
+const isBasic = () => !!(st && st.mode && st.mode !== "owner");
+const needOwner = (what = "mục này") => `<p class="mute">${ic("lock")} Cần Device Owner: máy con đang ở chế độ cơ bản nên ${what} không có tác dụng.</p>`;
 
 const ic = n => `<svg class="si" aria-hidden="true"><use href="#i-${n}"/></svg>`;
 const dot = c => `<i class="dot ${c}"></i>`;
@@ -339,7 +342,7 @@ function pairScreen(hello, target, prefill = "") {
     ${hello.pin ? `<input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="PIN của bố mẹ" aria-label="PIN của bố mẹ">` : ""}
     <button class="pri" id="go">${ic("link")} Ghép</button></div><p class="err" id="e"></p>`
     : `<p>${ic("hourglass")} Máy của con chưa mở ghép. Trên máy con: mở app KidGuard → <b>Ghép thêm máy của bố mẹ</b> (cần PIN của bố mẹ nếu đã đặt).</p><button id="retry" onclick="location.reload()">${ic("refresh-cw")} Thử lại</button>`}
-    ${hello.owner ? "" : `<p class="err">${ic("triangle-alert")} Máy con chưa có quyền Device Owner: chạy setup.sh (xem README).</p>`}
+    ${hello.owner || hello.mode === "basic" ? "" : `<p class="err">${ic("triangle-alert")} Máy con chưa cài xong: mở KidGuard trên máy con và làm theo danh sách trên màn hình.</p>`}
   </div>`;
   if (APP) {
     $("#app").insertAdjacentHTML("beforeend", `<button id="abk">${ic("list")} Quay lại</button>`);
@@ -708,7 +711,7 @@ function updateLive() {
     ${lost ? `<div class="alert">${ic("siren")} Mất liên lạc với máy con từ ${hhmm(lostFrom)} — máy tắt, mất mạng hoặc KidGuard bị tắt${lastErr && lan ? " (" + esc(lastErr) + ")" : ""}</div>` : ""}
     ${sosHtml()}
     ${st.listen && st.listen.on ? `<div class="alert warn">${ic("ear")} Micro máy con đang bật (bố mẹ đang nghe) từ ${hhmm(st.listen.since)}</div>` : ""}
-    ${!st.owner ? `<div class="alert">${ic("triangle-alert")} Chưa có Device Owner</div>` : ""}
+    ${modeHtml()}
     ${st.usageAccess === false ? `<div class="alert warn">${ic("triangle-alert")} Con đã tắt quyền theo dõi sử dụng — giới hạn giờ không hoạt động</div>` : ""}
     ${st.dnsError ? `<div class="alert warn">${ic("triangle-alert")} DNS an toàn bị từ chối: ${esc(st.dnsError)}</div>` : ""}
     ${st.acc === false ? `<div class="alert warn">${ic("triangle-alert")} Trợ năng đang tắt: không xem/điều khiển màn hình được</div>` : ""}
@@ -771,6 +774,14 @@ function earStop(msg) {
 }
 function fmtClock(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 
+function modeHtml() {
+  if (st.owner || !st.mode && st.owner !== false) return "";
+  const m = st.basic || {}, miss = [["acc", "Trợ năng (để chặn app)"], ["admin", "Quản trị thiết bị (chống gỡ app)"], ["usage", "Truy cập dữ liệu sử dụng (đếm giờ)"],
+    ["location", "Vị trí"], ["notify", "Thông báo"], ["battery", "Chạy nền / pin"]].filter(([k]) => m[k] === false).map(x => x[1]);
+  if (st.mode !== "basic") return `<div class="alert">${ic("triangle-alert")} Máy con chưa cài xong, luật chưa có tác dụng. Trên máy con mở KidGuard và bật: ${esc(miss.join(", ") || "các mục trong danh sách")}.</div>`;
+  return (m.acc === false ? `<div class="alert">${ic("siren")} Trợ năng của KidGuard đã bị tắt: app không bị chặn nữa. Bật lại trên máy con: Cài đặt → Trợ năng → KidGuard.</div>` : "")
+    + `<div class="alert warn">${ic("info")} Chế độ cơ bản (không có Device Owner): app bị khoá sẽ tự thoát ra màn hình chính. Con rành công nghệ vẫn có thể tắt KidGuard bằng Safe Mode.${miss.length ? " Còn thiếu: " + esc(miss.join(", ")) + "." : ""}</div>`;
+}
 function homeTab(b) {
   const r = edit || st.rules, today = st.day, limit = edit ? todayLimit(r, today) : (st.limitMin ?? r.dailyMin);
   const reqs = (st.requests || []).filter(q => !answered.has(q.id));
@@ -798,7 +809,7 @@ function homeTab(b) {
     <div class="grid">
       <button data-pause="30">${ic("pause")} Dừng 30 phút</button><button data-pause="60">${ic("pause")} Dừng 1 giờ</button><button data-pause="morning">${ic("pause")} Dừng tới 6h sáng</button>
       <button id="lock">${ic("lock")} Khoá màn hình</button><button id="ring">${ic("bell")} Đổ chuông</button><button id="loc">${ic("map-pin")} Lấy vị trí</button>${cur.via === "lan" && !viewDay ? `<button id="ear1">${ic("ear")} Nghe xung quanh</button>` : ""}
-      <button id="reboot" class="bad">${ic("refresh-cw")} Khởi động lại máy</button>
+      ${isBasic() ? "" : `<button id="reboot" class="bad">${ic("refresh-cw")} Khởi động lại máy</button>`}
     </div>
     <div class="row" style="margin-top:10px"><input id="msg" class="sp" placeholder="Nhắn cho con…" maxlength="300"><button id="send" class="pri">${ic("send")} Gửi</button></div>
   </div>
@@ -833,7 +844,7 @@ function homeTab(b) {
     if (await cmd({ type: "answer", id, ok: false, ...(note ? { note } : {}) }, "Đã từ chối", false)) { answered.add(id); doneReq(id); }
     render();
   });
-  $("#reboot").onclick = () => cmd({ type: "reboot" }, "Đã gửi lệnh khởi động lại");
+  if ($("#reboot")) $("#reboot").onclick = () => cmd({ type: "reboot" }, "Đã gửi lệnh khởi động lại");
   b.querySelectorAll("[data-bonus]").forEach(x => x.onclick = async () => {
     if (!(await ask(+x.dataset.bonus ? `Cho con thêm ${dur(+x.dataset.bonus * 60000).replace("m", " phút").replace("h00 phút", " giờ")} hôm nay?` : "Bỏ hết phút thưởng hôm nay?"))) return;
     const add = +x.dataset.bonus, cur0 = r.bonus && r.bonus.day === today ? r.bonus.min : 0;
@@ -995,14 +1006,15 @@ function rulesTab(b) {
   <div class="card"><h2>${ic("construction")} Chặn thêm</h2>
     <label class="row"><input type="checkbox" id="f-bn" ${r.blockNew ? "checked" : ""}><span>${ic("sparkles")} Chặn app mới cài cho tới khi duyệt</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-ll" ${r.lockLocation ? "checked" : ""}><span>${ic("map-pin")} Khoá vị trí: không cho tắt định vị</span></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span>${ic("plane")} Chế độ máy bay: không cho bật</span></label></div>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span>${ic("plane")} Chế độ máy bay: không cho bật</span></label>${isBasic() ? needOwner("khoá vị trí và máy bay") : ""}</div>
   <div class="card"><h2>${ic("shield")} DNS an toàn (chặn web người lớn)</h2>
     <select id="f-dns">${DNS.map(([v, n]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}</option>`).join("")}${DNS.some(d => d[0] === r.safeDns) ? "" : `<option selected value="${esc(r.safeDns)}">${esc(r.safeDns)}</option>`}</select>
-    <p class="mute">${ic("eye-off")} Chặn web người lớn, bật tìm kiếm an toàn. Áp dụng cho cả Wi-Fi và 4G (qua DNS riêng của Android).</p></div>
+    <p class="mute">${ic("eye-off")} Chặn web người lớn, bật tìm kiếm an toàn. Áp dụng cho cả Wi-Fi và 4G (qua DNS riêng của Android).</p>${isBasic() ? needOwner() : ""}</div>
   <div class="card"><h2>${ic("lock-keyhole")} Chống lách</h2>
     <label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span>${ic("package")} Chặn cài app mới</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span>${ic("code")} Chặn Tuỳ chọn nhà phát triển / ADB</span></label>
-    <p class="mute">${ic("lock")} Luôn bật sẵn: chặn gỡ KidGuard, chặn Force stop, chặn đặt lại máy trong Cài đặt, chặn Safe Mode, chặn tạo người dùng, khoá đổi giờ.</p></div>`;
+    ${isBasic() ? needOwner() + `<p class="mute">${ic("shield")} Chế độ cơ bản: KidGuard tự thoát khỏi màn hình gỡ app, tắt quyền quản trị, tắt Trợ năng và Buộc dừng của chính nó.</p>`
+      : `<p class="mute">${ic("lock")} Luôn bật sẵn: chặn gỡ KidGuard, chặn Force stop, chặn đặt lại máy trong Cài đặt, chặn Safe Mode, chặn tạo người dùng, khoá đổi giờ.</p>`}</div>`;
   b.querySelectorAll("[data-tpl]").forEach(x => x.onclick = () => { tplSel = +x.dataset.tpl; render(); });
   $("#tplGo").onclick = () => tplApply(tcur);
   if ($("#tplMulti")) $("#tplMulti").onclick = () => tplMulti(tcur);
@@ -1317,6 +1329,7 @@ function whereTab(b) {
 let relayOpen = false;   // the "advanced: relay" box survives re-renders
 // Remote access over Tailscale (state.ts). The auth key is only typed at home (LAN): it never goes through the relay.
 function tsCard(lan) {
+  if (isBasic()) return `<div class="card"><h2>${ic("route")} Điều khiển từ xa qua Tailscale</h2>${needOwner("Tailscale")}<p class="mute">Dùng relay (Cloudflare) trong mục bên dưới để quản lý khi con ra khỏi nhà.</p></div>`;
   const t = (st && st.ts) || { state: "off" };
   const label = { off: "Đang tắt", installing: "Đang cài / đăng nhập…", on: "Đã kết nối", error: "Lỗi" }[t.state] || t.state;
   const cls = { on: "ok", error: "bad", installing: "warn" }[t.state] || "";

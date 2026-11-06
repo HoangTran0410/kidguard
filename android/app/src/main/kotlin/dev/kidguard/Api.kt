@@ -18,7 +18,7 @@ class Api(private val g: Guard) {
         val p = r.path.removePrefix("/api")
         when {
             p == "/hello" -> return Res.json(JSONObject().put("id", store.id).put("pairing", store.pairCode() != null)
-                .put("pin", store.rules.pinHash.isNotBlank()).put("owner", Policy.isOwner(g)).toString())
+                .put("pin", store.rules.pinHash.isNotBlank()).put("owner", Policy.isOwner(g)).put("mode", Basic.mode(g)).toString())
             p == "/pair" && r.method == "POST" -> {
                 val o = runCatching { JSONObject(r.text) }.getOrDefault(JSONObject())
                 val t = store.tryPair(o.optString("code"), o.optString("pin").filter { it.isDigit() })

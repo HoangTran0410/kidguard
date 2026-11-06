@@ -1,0 +1,82 @@
+package dev.kidguard
+
+import java.text.Normalizer
+import java.util.Locale
+
+/**
+ * Basic mode (no Device Owner), pure part: no Android classes, unit-tested in BasicLogicTest.
+ * [bounceReason]: should a window of [pkg] be sent HOME because the rules block it?
+ * [selfProtect]: is this Settings-like window an attempt to uninstall / deactivate / stop KidGuard?
+ */
+object BasicLogic {
+    /** Never bounced, whatever the rules say (our own screen, the phone's plumbing, calls). The caller adds Policy.protectedApps. */
+    val NEVER = setOf("android", "com.android.systemui", "com.android.phone", "com.android.emergency", "com.android.server.telecom",
+        "com.android.settings", "com.google.android.dialer", "com.android.dialer", "com.samsung.android.dialer", "com.samsung.android.incallui")
+
+    /** The block reason for [pkg] when it must be bounced, else null. [blocked] is decide()'s result: package -> reason code. */
+    fun bounceReason(pkg: String?, self: String, blocked: Map<String, String>, prot: Set<String>): String? {
+        if (pkg == null || pkg == self || pkg in NEVER || pkg in prot) return null
+        return blocked[pkg]
+    }
+
+    /** Child-facing text for decide()'s reason codes. */
+    fun reasonText(code: String): String = when (code) {
+        "blocked" -> "bố mẹ đã chặn app này"
+        "appLimit" -> "hết giờ dùng app này hôm nay"
+        "new" -> "app mới, chờ bố mẹ cho phép"
+        "paused" -> "bố mẹ đang tạm dừng máy"
+        "schedule" -> "đang trong giờ nghỉ"
+        "bedtime" -> "đã đến giờ đi ngủ"
+        "daily" -> "đã hết giờ dùng máy hôm nay"
+        else -> code
+    }
+
+    /** Windows we watch for uninstall / deactivate attempts: AOSP Settings, package installers, OEM security centers. */
+    private val SETTINGS_EXACT = setOf(
+        "com.android.settings", "com.google.android.packageinstaller", "com.android.packageinstaller",
+        "com.google.android.permissioncontroller", "com.android.permissioncontroller",
+        "com.miui.securitycenter", "com.miui.packageinstaller", "com.huawei.systemmanager", "com.hihonor.systemmanager",
+        "com.vivo.permissionmanager", "com.iqoo.secure", "com.vivo.abe", "com.android.vending.packageinstaller",
+        "com.sec.android.app.safetymanager", "com.sec.android.app.sysscope",
+    )
+    private val SETTINGS_PREFIX = listOf("com.coloros.", "com.oppo.", "com.realme.", "com.heytap.", "com.oneplus.", "com.android.settings.",
+        "com.samsung.android.settings", "com.samsung.android.app.settings", "com.samsung.android.sm", "com.samsung.android.lool")
+
+    fun isSettingsPkg(pkg: String): Boolean =
+        pkg in SETTINGS_EXACT || SETTINGS_PREFIX.any { pkg.startsWith(it) } ||
+            (pkg.startsWith("com.samsung.android.") && pkg.contains("settings"))
+
+    /** One text node of the window; [clickable] = the node or a close ancestor is a button / switch. */
+    class Node(val text: String, val clickable: Boolean = false)
+
+    /** Buttons whose text starts like this: uninstall, deactivate admin, force stop, turn off the accessibility service. */
+    private val STRONG_PREFIX = listOf(
+        "gỡ cài đặt", "gỡ ứng dụng", "huỷ kích hoạt", "hủy kích hoạt", "tắt kích hoạt", "buộc dừng", "dừng ngay", "xoá ứng dụng", "xóa ứng dụng",
+        "uninstall", "deactivate", "force stop", "force-stop", "turn off kidguard", "disable kidguard", "stop kidguard", "dừng kidguard", "tắt kidguard",
+        "dùng kidguard", "use kidguard", "sử dụng kidguard", "dùng dịch vụ", "use service", "sử dụng dịch vụ",
+    )
+    /** Whole-text matches that are common words: counted as controls only when the node is clickable. */
+    private val WEAK_CLICK = setOf("gỡ", "tắt", "dừng", "stop", "turn off", "off", "disable", "xoá", "xóa", "remove", "delete")
+    /** Our accessibility service description, shown on its detail page where the child can switch it off. */
+    private val ACC_DESC = "cho bố mẹ xem màn hình"
+
+    private fun norm(s: String) = Normalizer.normalize(s.trim(), Normalizer.Form.NFC).lowercase(Locale.ROOT)
+
+    /**
+     * True when a window of [pkg] mentions KidGuard (one of [labels]) AND offers a destructive control.
+     * An app list that merely shows "KidGuard" has no such control and passes. KidGuard's own windows are never passed in.
+     */
+    fun selfProtect(pkg: String, nodes: List<Node>, labels: Collection<String> = listOf("KidGuard")): Boolean {
+        if (!isSettingsPkg(pkg)) return false
+        val ls = labels.map { norm(it) }.filter { it.isNotEmpty() }
+        var mentions = false; var control = false
+        for (n in nodes) {
+            val t = norm(n.text)
+            if (t.isEmpty()) continue
+            if (ls.any { t.contains(it) }) mentions = true
+            if (STRONG_PREFIX.any { t.startsWith(it) } || t.contains(ACC_DESC) || (n.clickable && t in WEAK_CLICK)) control = true
+            if (mentions && control) return true
+        }
+        return false
+    }
+}
