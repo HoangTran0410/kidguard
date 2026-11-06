@@ -10,8 +10,25 @@ const MAX_FRAME = 1024 * 1024;
 const KEYS = ["back", "home", "recents", "notifications", "quick", "lock", "power"];
 const limitFor = (action) => action === "frame" ? MAX_FRAME : MAX_BODY;
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
-  status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+  status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
+const ONCE = ["reboot", "release", "unpairAll"];   // deliver-once: dropped from the queue when handed to the phone
+const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "release", "answer", "reboot"];
+const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
+// inline scripts/styles are needed (single-file pages); the installer imports ESM from jsDelivr and downloads the APK
+const CSP = [
+  "default-src 'none'", "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net", "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://tile.openstreetmap.org", "font-src 'self' data:",
+  "connect-src 'self' https://cdn.jsdelivr.net https://github.com https://objects.githubusercontent.com",
+  "frame-src https://www.openstreetmap.org", "worker-src 'self' blob:", "object-src 'none'", "base-uri 'none'",
+  "form-action 'self'", "frame-ancestors 'none'",
+].join("; ");
+const stripPin = (r) => {
+  if (!isObj(r)) return r;
+  const { pinHash, pin, ...o } = r;
+  o.pinSet = !!pinHash || r.pinSet === true;
+  return o;
+};
 
 export default {
   async fetch(req, env) {
@@ -22,10 +39,13 @@ export default {
       return new Response(page, { headers: {
         "content-type": "text/html; charset=utf-8", "cache-control": "no-cache",
         "referrer-policy": "no-referrer", "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY", "content-security-policy": CSP,
       } });
     }
     const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input)$/);
     if (!m) return json({ error: "not found" }, 404);
+    // reject junk before waking a Durable Object
+    if (!/^[0-9a-f]{48}$/.test(req.headers.get("x-kg-token") || "")) return json({ error: "not paired" }, 401);
     const len = +(req.headers.get("content-length") || 0);
     if (len > limitFor(m[2])) return json({ error: "too big" }, 413);
     const stub = env.KIDS.get(env.KIDS.idFromName(m[1]));
@@ -41,7 +61,7 @@ async function sha256(s) {
 export class Kid {
   constructor(ctx) {
     this.ctx = ctx; this.s = ctx.storage;
-    this.liveUntil = 0; this.frame = null; this.seq = 0; this.inputs = []; this.waiters = new Set();
+    this.liveUntil = 0; this.frame = null; this.seq = Date.now(); this.seen = 0; this.seenWritten = 0; this.inputs = []; this.waiters = new Set();
   }
 
   async fetch(req) {
@@ -64,7 +84,7 @@ export class Kid {
         const jpeg = buf.byteLength ? buf : null;
         this.frame = { seq: ++this.seq, jpeg, w: +req.headers.get("x-kg-w") || 0, h: +req.headers.get("x-kg-h") || 0, at: now, err: jpeg ? "" : err || "no frame" };
         for (const w of this.waiters) w();
-        const inputs = this.inputs; this.inputs = [];
+        const inputs = this.inputs.filter(i => now - i.at <= 5000).map(({ at, ...i }) => i); this.inputs = [];
         return json({ inputs, live: this.liveUntil > now });
       }
       if (req.method === "GET") {
@@ -96,7 +116,7 @@ export class Kid {
       if (buf.byteLength > limitFor(action)) return json({ error: "too big" }, 413);
       body = (() => { try { return JSON.parse(new TextDecoder().decode(buf)); } catch { return null; } })();
     }
-    if (req.method !== "GET" && !body) return json({ error: "bad json" }, 400);
+    if (req.method !== "GET" && !isObj(body)) return json({ error: "bad json" }, 400);
 
     if (action === "live") {
       if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -111,8 +131,9 @@ export class Kid {
         : t === "key" ? KEYS.includes(body.key)
         : t === "text" ? typeof body.text === "string" && body.text.length <= 500 : false;
       if (!ok) return json({ error: "bad input" }, 400);
+      if (this.liveUntil < now) return json({ error: "not live" }, 409);
       if (this.inputs.length >= 50) return json({ error: "queue full" }, 429);
-      const o = { type: t };
+      const o = { type: t, at: now };
       for (const k of ["x", "y", "x1", "y1", "x2", "y2", "key", "text"]) if (k in body) o[k] = body[k];
       if (t === "swipe") o.ms = Math.min(Math.max(+body.ms || 300, 50), 2000);
       this.inputs.push(o);
@@ -121,38 +142,49 @@ export class Kid {
 
     if (action === "sync" && req.method === "POST") {
       const state = body.state && typeof body.state === "object" ? body.state : null;
+      if (state && JSON.stringify(state).length > 120e3) return json({ error: "state too big" }, 413);   // DO storage value limit is 128 KiB
       const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
-      let cmds = ((await this.s.get("cmds")) || []).filter(c => !acks.has(c.id) && Date.now() - c.at < 86400e3);
+      const stored = (await this.s.get("cmds")) || [];
+      const cmds = stored.filter(c => !acks.has(c.id) && now - c.at < 86400e3);
       const rules = await this.s.get("rules");
-      const puts = { cmds, seen: Date.now() };
+      const puts = {};
+      const keep = cmds.filter(c => !ONCE.includes(c.type));   // deliver-once commands leave the queue now
+      if (keep.length !== stored.length) puts.cmds = keep;
+      this.seen = now;
+      if (now - this.seenWritten >= 60e3) { puts.seen = now; this.seenWritten = now; }
       if (state && Object.keys(state).length) puts.state = state;
-      await this.s.put(puts);
+      if (Object.keys(puts).length) await this.s.put(puts);
       const out = { cmds };
       if (this.liveUntil > now) out.live = true;
-      const have = state && state.rules ? +state.rules.rev || 0 : 0;
+      const known = state || (await this.s.get("state"));   // the phone omits state when unchanged
+      const have = known && known.rules ? +known.rules.rev || 0 : 0;
       if (rules && rules.rev > have) out.rules = rules;
       return json(out);
     }
     if (action === "state" && req.method === "GET") {
       const [state, rules, seen, cmds] = await Promise.all(["state", "rules", "seen", "cmds"].map(k => this.s.get(k)));
-      return json({ state: state || null, rules: rules || null, seen: seen || 0, pending: (cmds || []).length });
+      const st = state ? { ...state, rules: stripPin(state.rules) } : null;
+      return json({ state: st, rules: rules ? stripPin(rules) : null, seen: Math.max(seen || 0, this.seen), pending: (cmds || []).length });
     }
     if (action === "rules" && req.method === "PUT") {
       const [state, old] = await Promise.all([this.s.get("state"), this.s.get("rules")]);
       const rev = Math.max(Date.now(), (old && old.rev || 0) + 1, (state && state.rules && state.rules.rev || 0) + 1);
       const rules = { ...body, rev };
-      // a new PIN arrives in plain: keep only the hash the phone uses (sha256 of "kg:" + PIN)
+      // a new PIN arrives in plain: keep only the hash the phone uses (sha256 of "kg:" + PIN). No PIN given: keep the old hash.
       const pin = String(rules.pin || "").replace(/\D/g, "");
       if (pin.length >= 4) rules.pinHash = await sha256("kg:" + pin);
-      delete rules.pin;
+      else if (typeof rules.pinHash === "string" && /^[0-9a-f]{64}$/.test(rules.pinHash)) { /* explicit hash */ }
+      else if (old && old.pinHash) rules.pinHash = old.pinHash;
+      else delete rules.pinHash;
+      delete rules.pin; delete rules.pinSet;
       await this.s.put("rules", rules);
-      return json(rules);
+      return json(stripPin(rules));
     }
     if (action === "cmd" && req.method === "POST") {
       const type = String(body.type || "");
-      if (!["lock", "locate", "message", "ring", "openPairing", "unpairAll", "release", "answer", "reboot"].includes(type)) return json({ error: "bad command" }, 400);
+      if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
       const cmds = ((await this.s.get("cmds")) || []).slice(-19);
-      cmds.push({ ...body, type, id: crypto.randomUUID(), at: Date.now() });
+      cmds.push({ ...body, type, id: typeof body.id === "string" && /^[\w.-]{1,64}$/.test(body.id) ? body.id : crypto.randomUUID(), at: now });
       await this.s.put("cmds", cmds);
       return json({ result: "queued" });
     }

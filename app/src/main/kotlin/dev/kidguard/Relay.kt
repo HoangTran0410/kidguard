@@ -20,31 +20,79 @@ class Relay(private val g: Guard) {
     @Volatile var lastOk = 0L; private set
     @Volatile var lastError = ""; private set
 
-    fun start() { h.post(::loop) }
+    // everything below is touched only on the relay thread
+    private var fails = 0
+    private var inSync = false
+    private var kickAgain = false
+    private var lastHash = 0
+    private var lastFull = 0L
+    private val loopRun = Runnable { loop() }
+
+    fun start() { schedule(0) }
     fun stop() { h.looper.quitSafely() }
-    fun kick() { h.removeCallbacksAndMessages(null); h.post(::loop) }
+    /** Sync now. Never starts a second chain: while a sync runs it only asks the running one to go again at once. */
+    fun kick() { h.post { if (inSync) kickAgain = true else schedule(0) } }
+
+    private fun schedule(ms: Long) { h.removeCallbacks(loopRun); h.postDelayed(loopRun, ms) }
 
     private fun loop() {
-        val url = store.relayUrl; val token = store.relayToken; val rid = store.relayId
+        inSync = true
+        val url = store.relayUrl.trim().trimEnd('/'); val token = store.relayToken; val rid = store.relayId
         var busy = false
-        if (url.isNotBlank() && token.isNotBlank() && rid.isNotBlank()) runCatching { busy = sync(url, rid, token) }.onFailure {
-            lastError = it.message ?: it.javaClass.simpleName; Log.w("KidGuard", "relay", it)
+        var delay = 0L
+        if (url.isNotBlank() && token.isNotBlank() && rid.isNotBlank()) {
+            if (!url.startsWith("https://", ignoreCase = true)) {
+                lastError = "relay needs https://"; delay = 60_000
+            } else runCatching { busy = sync(url, rid, token); fails = 0 }.onFailure {
+                lastError = it.message ?: it.javaClass.simpleName; Log.w("KidGuard", "relay", it)
+                fails++
+                // 401 / 409 / 5xx / network: exponential backoff up to 5 min; the next success resets it
+                delay = minOf(300_000L, 20_000L shl minOf(fails - 1, 4))
+            }
         }
-        val on = g.getSystemService(PowerManager::class.java)?.isInteractive == true
-        // right after a command: report back soon, so the parent sees the result
-        h.postDelayed(::loop, if (busy) 3_000 else if (on) 20_000 else 60_000)
+        inSync = false
+        if (delay == 0L) {
+            val on = g.getSystemService(PowerManager::class.java)?.isInteractive == true
+            // right after a command: report back soon, so the parent sees the result
+            delay = if (busy) 3_000 else if (on) 20_000 else 60_000
+        }
+        if (kickAgain) { kickAgain = false; delay = 0 }
+        schedule(delay)
+    }
+
+    private fun open(url: String, token: String, timeout: Int = 15_000) =
+        (URL(url).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"; connectTimeout = 10_000; readTimeout = timeout; doOutput = true
+            instanceFollowRedirects = false
+            setRequestProperty("X-KG-Token", token)
+        }
+
+    private fun readCapped(c: HttpURLConnection): String {
+        if (c.responseCode != 200) throw RuntimeException("HTTP ${c.responseCode}")
+        c.inputStream.use { ins ->
+            val out = java.io.ByteArrayOutputStream(); val buf = ByteArray(8192)
+            while (true) {
+                val n = ins.read(buf); if (n < 0) break
+                out.write(buf, 0, n)
+                if (out.size() > MAX_REPLY) throw RuntimeException("relay reply too big")
+            }
+            return out.toByteArray().toString(Charsets.UTF_8)
+        }
     }
 
     private fun sync(base: String, rid: String, token: String): Boolean {
-        val body = JSONObject().put("state", g.currentState()).put("acks", acks).toString().toByteArray()
-        val c = (URL("$base/c/$rid/sync").openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 15_000; doOutput = true
-            setRequestProperty("Content-Type", "application/json"); setRequestProperty("X-KG-Token", token)
-        }
+        val now = System.currentTimeMillis()
+        val state = g.currentState()
+        // unchanged except `t` => omit the state; a full one at least every 5 min
+        val hash = JSONObject(state.toString()).apply { remove("t") }.toString().hashCode()
+        val full = hash != lastHash || now - lastFull >= 5 * 60_000L
+        val req = JSONObject().put("acks", acks)
+        if (full) req.put("state", state)
+        val c = open("$base/c/$rid/sync", token).apply { setRequestProperty("Content-Type", "application/json") }
         try {
-            c.outputStream.use { it.write(body) }
-            if (c.responseCode != 200) throw RuntimeException("HTTP ${c.responseCode}")
-            val res = JSONObject(c.inputStream.use { it.readBytes().toString(Charsets.UTF_8) })
+            c.outputStream.use { it.write(req.toString().toByteArray()) }
+            val res = JSONObject(readCapped(c))
+            if (full) { lastHash = hash; lastFull = now }
             acks = JSONArray()
             res.optJSONObject("rules")?.let { r ->
                 val rules = Rules.fromJson(r)
@@ -52,9 +100,9 @@ class Relay(private val g: Guard) {
             }
             val cmds = res.optJSONArray("cmds") ?: JSONArray()
             for (i in 0 until cmds.length()) {
-                val cmd = cmds.getJSONObject(i)
-                if (cmd.optString("type") == "relay") { acks.put(cmd.optString("id")); continue }   // not over the relay itself
-                g.command(cmd)
+                val cmd = cmds.optJSONObject(i) ?: continue
+                // Guard de-dups by cmd "id"; we ack every command, even one that failed or throws
+                if (cmd.optString("type") != "relay") runCatching { g.command(cmd) }.onFailure { Log.w("KidGuard", "cmd", it) }
                 acks.put(cmd.optString("id"))
             }
             lastOk = System.currentTimeMillis(); lastError = ""
@@ -83,24 +131,23 @@ class Relay(private val g: Guard) {
             var gap = 0L
             try {
                 val f = Acc.capture(720, 50)
-                val c = (URL("$base/c/$rid/frame").openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 15_000; doOutput = true
-                    setRequestProperty("X-KG-Token", token)
+                val c = open("$base/c/$rid/frame", token).apply {
                     if (f != null) {
                         setRequestProperty("Content-Type", "image/jpeg")
                         setRequestProperty("X-KG-W", f.w.toString()); setRequestProperty("X-KG-H", f.h.toString())
                     } else {
-                        setRequestProperty("X-KG-Err", Acc.lastError.take(60).filter { it.code in 32..126 })
-                        gap = 1_000
+                        val err = Acc.lastError
+                        setRequestProperty("X-KG-Err", err.take(60).filter { it.code in 32..126 })
+                        // "busy" = another capture is running: try again at once; acc/screen off: long gap
+                        gap = if (err == "busy") 150 else 1_000
                     }
                 }
                 try {
                     c.outputStream.use { if (f != null) it.write(f.jpeg) }
-                    if (c.responseCode != 200) throw RuntimeException("HTTP ${c.responseCode}")
-                    val res = JSONObject(c.inputStream.use { it.readBytes().toString(Charsets.UTF_8) })
+                    val res = JSONObject(readCapped(c))
                     live = res.optBoolean("live")
                     val ins = res.optJSONArray("inputs") ?: JSONArray()
-                    for (i in 0 until ins.length()) runCatching { Acc.input(ins.getJSONObject(i)) }
+                    for (i in 0 until minOf(ins.length(), 50)) runCatching { Acc.input(ins.getJSONObject(i)) }
                 } finally { c.disconnect() }
                 errors = 0
             } catch (e: Exception) {
@@ -109,8 +156,10 @@ class Relay(private val g: Guard) {
                 gap = 1_000
             }
             if (!live) return
-            val wait = maxOf(gap, 333 - (System.currentTimeMillis() - t0))
+            val wait = maxOf(gap, if (gap == 150L) 0 else 333 - (System.currentTimeMillis() - t0))
             if (wait > 0) Thread.sleep(wait)
         }
     }
+
+    private companion object { const val MAX_REPLY = 256 * 1024 }
 }
