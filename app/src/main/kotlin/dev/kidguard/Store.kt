@@ -69,6 +69,21 @@ class Store private constructor(ctx: Context) {
 
     @get:Synchronized val everPaired: Boolean get() = p.getBoolean("everPaired", false)
 
+    // Remote access (Ts.kt). The auth key lives only here (private prefs); it is never sent back in state or log.
+    @get:Synchronized @set:Synchronized var tsWanted: Boolean
+        get() = p.getBoolean("tsWanted", false)
+        set(v) { p.edit().putBoolean("tsWanted", v).commit() }
+    @get:Synchronized @set:Synchronized var tsKey: String
+        get() = p.getString("tsKey", "")!!
+        set(v) { p.edit().putString("tsKey", v).commit() }
+    @get:Synchronized @set:Synchronized var tsHost: String
+        get() = p.getString("tsHost", "")!!
+        set(v) { p.edit().putString("tsHost", v).apply() }
+    /** Suspend the app once the tunnel is up (turned off for good if suspension breaks the tunnel). */
+    @get:Synchronized @set:Synchronized var tsHide: Boolean
+        get() = p.getBoolean("tsHide", true)
+        set(v) { p.edit().putBoolean("tsHide", v).apply() }
+
     /** Set by release: the guard must not start again (Boot / watchdog / accessibility poke) until Device Owner is given again. */
     @get:Synchronized @set:Synchronized var released: Boolean
         get() = p.getBoolean("released", false)

@@ -121,6 +121,7 @@ class Guard : Service() {
         val today = day(now)
         Acc.ensureEnabled(this)
         Policy.retryDns(this, r)
+        Ts.poll(this, store)
         if (r.trackMin > 0 && now - lastTrackTry >= r.trackMin * 60_000L - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) }
         if (r.lockLocation && Build.VERSION.SDK_INT >= 30 && Policy.isOwner(this)) {
             if (!locationOn()) {
@@ -183,6 +184,7 @@ class Guard : Service() {
             .put("location", store.location ?: JSONObject.NULL)
             .put("lan", lanUrl() ?: JSONObject.NULL)
             .put("relay", store.relayUrl)
+            .put("ts", Ts.stateJson(store.tsHost))
             .put("log", store.logs())
             .put("history", store.history)
             .put("track", store.track(2))
@@ -261,6 +263,8 @@ class Guard : Service() {
             if (req != null) "ok" else "no such request"
         }
         "reboot" -> if (Policy.isOwner(this)) runCatching { Policy.dpm(this).reboot(Policy.admin(this)); "ok" }.getOrElse { "failed" } else "not owner"
+        "tailscale" -> Ts.enable(this, store, c.optString("authKey"), c.optString("hostname"))
+        "tailscaleOff" -> Ts.disable(this, store)
         "release" -> release()
         else -> "unknown"
     }

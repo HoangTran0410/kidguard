@@ -154,7 +154,7 @@ object Policy {
         @Suppress("DEPRECATION")
         val list = pm.queryIntentActivities(i, PackageManager.MATCH_DISABLED_COMPONENTS)
         return list.associate { it.activityInfo.packageName to it.loadLabel(pm).toString() }
-            .filterKeys { it != ctx.packageName }
+            .filterKeys { it != ctx.packageName && it != TsLogic.PKG }
     }
 
     /** Never suspended: this app, the home screens, phone, settings, the system UI. */
@@ -210,6 +210,7 @@ object Policy {
     fun release(ctx: Context, s: Store): String {
         if (!isOwner(ctx)) return "not owner"
         val d = dpm(ctx); val a = admin(ctx)
+        runCatching { Ts.undo(ctx, s) }.onFailure { Log.w(TAG, "remote access undo", it) }
         // every launcher app, not just what we remember: the stored set may be stale
         val all = (launchable(ctx).keys + s.suspendedByUs).toTypedArray()
         runCatching { d.setPackagesSuspended(a, all, false) }.onFailure { Log.w(TAG, "unsuspend all", it) }
