@@ -175,7 +175,7 @@ export class Kid {
 
     if (action === "sync" && req.method === "POST") {
       const state = body.state && typeof body.state === "object" ? body.state : null;
-      if (state && JSON.stringify(state).length > 120e3) return json({ error: "state too big" }, 413);   // DO storage value limit is 128 KiB
+      if (state && new TextEncoder().encode(JSON.stringify(state)).length > 120e3) return json({ error: "state too big" }, 413);   // DO storage value limit is 128 KiB
       const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
       const stored = (await this.s.get("cmds")) || [];
       const cmds = stored.filter(c => !acks.has(c.id) && now - c.at < 86400e3);
@@ -208,10 +208,11 @@ export class Kid {
       const rules = { ...body, rev };
       // a new PIN arrives in plain: keep only the hash the phone uses (sha256 of "kg:" + PIN). No PIN given: keep the old hash.
       const pin = String(rules.pin || "").replace(/\D/g, "");
-      if (pin.length >= 4) rules.pinHash = await sha256("kg:" + pin);
-      else if (typeof rules.pinHash === "string" && /^[0-9a-f]{64}$/.test(rules.pinHash)) { /* explicit hash */ }
-      else if (old && old.pinHash) rules.pinHash = old.pinHash;
-      else delete rules.pinHash;
+      // pinAt: when the hash last changed, so the phone takes it once and a newer PIN set on LAN is not reverted
+      if (pin.length >= 4) { rules.pinHash = await sha256("kg:" + pin); rules.pinAt = rev; }
+      else if (typeof rules.pinHash === "string" && /^[0-9a-f]{64}$/.test(rules.pinHash)) rules.pinAt = rev;
+      else if (old && old.pinHash) { rules.pinHash = old.pinHash; rules.pinAt = old.pinAt || 1; }
+      else { delete rules.pinHash; delete rules.pinAt; }
       delete rules.pin; delete rules.pinSet;
       await this.s.put("rules", rules);
       return json(stripPin(rules));
@@ -228,7 +229,8 @@ export class Kid {
       const type = String(body.type || "");
       if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
       if (type === "clearData" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
-      const cmds = (await this.s.get("cmds")) || [];
+      // expired commands are only dropped on a phone sync: don't let them fill the queue
+      const cmds = ((await this.s.get("cmds")) || []).filter(c => now - (c.at || 0) < 86400e3);
       // full queue: refuse instead of silently dropping the oldest (it may be a pending release)
       if (cmds.length >= MAX_CMDS) return json({ error: "queue full" }, 429);
       const c = { ...body, type, id: typeof body.id === "string" && /^[\w.-]{1,64}$/.test(body.id) ? body.id : crypto.randomUUID(), at: now };

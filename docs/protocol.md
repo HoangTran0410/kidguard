@@ -41,7 +41,7 @@ leftMs apps rules location lan relay log`), plus:
 
 ```jsonc
 {
-  "version": "0.9.2",
+  "version": "0.9.3",
   "acc": true,                     // NEW: accessibility service connected (live screen / remote control available)
   "accReEnable": true,             // NEW: the app holds WRITE_SECURE_SETTINGS (can re-enable acc itself)
   "locationOn": true,              // NEW: system location switch
@@ -177,8 +177,9 @@ The first capture / first input of a session is logged in the phone log.
 - **SOS**: the child's KidGuard screen has a red "SOS" button (one confirm). The phone stores `{id, t}` (max 10;
   a second press within 30 s is ignored), logs "Con bấm SOS", takes a location fix (`locate`) and syncs the relay at
   once (and again 15 s later, for the fix). State adds `"sos": [{"id": "a1b2c3", "t": 1793940898493}]`.
-- Command `sosAck {id?}` (no `id` = all; `id` = one SOS id): removes it. Do not send `id:"all"`: a command `id` is also its
-  dedupe key (phone keeps the last 100), so a second `"all"` would be skipped as a duplicate. Result `ok | no such sos`. In the worker whitelist.
+- Command `sosAck {sos?}` (no `sos` = all; `sos` = one SOS id): removes it. v0.9.3: the SOS id moved from `id` to `sos`,
+  because `id` is the command's dedupe key and the relay fills in a random one (so a relay ack never matched anything).
+  Result `ok | no such sos`. In the worker whitelist.
 - Page: red banner on every tab while `sos` is not empty: time, "Xem vị trí", "Nghe xung quanh" (LAN only), "Đã xử lý" (= `sosAck` without `id`).
 - Parent app: an SOS id not seen before and younger than 6 h is notified on channel `kg_sos` (high importance),
   also on the first look at a kid. The background check runs ~every 15 min; relay kids also get FCM (below, seconds).
@@ -278,7 +279,8 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
   - `newApp`: "Đã cài <label>" when a new non-system app appears (also `apps[].new`).
   - `pairing` (v0.9.1): the child held "Mở ghép lại" on a paired phone with no PIN. Pairing opens 24 h later (state
     tick), unless a PIN is set before then.
-  - `clock`: "Giờ máy bị đổi" on `ACTION_TIME_CHANGED` with a jump > 2 min versus elapsed time.
+  - `clock`: "Giờ máy bị đổi" on `ACTION_TIME_CHANGED` with a jump > 2 min versus elapsed time. v0.9.3: also "Múi giờ máy bị đổi: <tz>" on `ACTION_TIMEZONE_CHANGED`.
+  - `tamper` (v0.9.3): usage access was switched off (daily / app limits can no longer count).
   The child sees the zone list in "Luật của con" (transparency).
 - **Rule-change log**: when rules change, the phone logs a readable diff instead of "Bố mẹ đổi luật", e.g.
   "Bố mẹ đổi luật: giới hạn 120 → 90 phút; giờ ngủ 21:30–06:30". Shown on the child screen ("Nhật ký") and in the page log.
@@ -356,6 +358,16 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
   Result `"ok"` | `"not owner"` | `"unsupported"` (Android < 9) | `"protected"` (never-clear set or KidGuard) | `"failed"`.
 - **Basic mode**: `hidden` is ignored and `preinstalled` is absent; the page shows the heaviest apps (`apps[].mb`) and
   says hiding preinstalled apps needs Device Owner.
+
+## v0.9.3 fixes
+- Relay rules carry `pinAt` (the rev of the PUT that set the PIN; kept by later PUTs). The phone takes a relay `pinHash`
+  only when `pinAt` is newer than the last one it took, so a PIN changed later on LAN / on the phone is not reverted.
+- Pairing (`/api/pair`) checks the code before the PIN: wrong PINs without the code no longer lock the PIN.
+- `release` that does not return `ok` (e.g. `failed: N app còn bị ẩn`) keeps enforcing and logs it.
+- Owner mode: an app the system refused to suspend is bounced home (like basic mode). Removing an app (not an update)
+  drops it from the "known" set, so a different app reinstalled under that name counts as new.
+- Safe DNS fallback (network can't validate) switches to opportunistic but keeps the Private DNS setting locked.
+- Relay `cmd` ignores commands older than 24 h when checking the queue limit; the state limit counts bytes.
 
 ## Self-update (v0.9)
 - **Source**: `HEAD https://github.com/HoangTran0410/kidguard/releases/latest` (no redirects followed): the `Location`

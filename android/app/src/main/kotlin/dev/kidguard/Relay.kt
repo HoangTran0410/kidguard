@@ -100,8 +100,13 @@ class Relay(private val g: Guard) {
             if (full) { lastHash = hash; lastFull = now }
             acks = JSONArray()
             res.optJSONObject("rules")?.let { r ->
-                val rules = Rules.fromJson(r)
-                if (rules.rev > store.rules.rev) g.setRules(rules)
+                // the worker re-sends the PIN hash it once got with every rules reply: take it only when it is newer
+                // (pinAt) than the last one taken, else a later PIN set on LAN / on this phone would be reverted
+                val pinAt = r.optLong("pinAt", 0)
+                val rules = Rules.fromJson(r).let { x ->
+                    if (x.pinHash.isNotBlank() && pinAt > store.relayPinAt) x else x.copy(pinHash = "", pinSalt = "")
+                }
+                if (rules.rev > store.rules.rev) { g.setRules(rules); if (rules.pinHash.isNotBlank()) store.relayPinAt = pinAt }
             }
             val cmds = res.optJSONArray("cmds") ?: JSONArray()
             for (i in 0 until cmds.length()) {
@@ -128,7 +133,9 @@ class Relay(private val g: Guard) {
         val c = open("$base/c/$rid/icons", token).apply { setRequestProperty("Content-Type", "application/json") }
         try {
             c.outputStream.use { it.write(body.toString().toByteArray()) }
-            if (c.responseCode == 200) { sent.addAll(todo); p.edit().putStringSet(key, sent).apply() }
+            // 4xx (old worker without /icons, too big) won't get better by retrying every sync; 429 / 5xx will
+            val code = c.responseCode
+            if (code == 200 || (code in 400..499 && code != 429)) { sent.addAll(todo); p.edit().putStringSet(key, sent).apply() }
         } finally { c.disconnect() }
     }
 

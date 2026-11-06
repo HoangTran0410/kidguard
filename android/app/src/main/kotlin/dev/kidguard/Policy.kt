@@ -134,7 +134,6 @@ object Policy {
         if (unvalidatedSince == 0L) { unvalidatedSince = now; return }
         if (now - unvalidatedSince < 90_000) return
         val d = dpm(ctx); val a = admin(ctx)
-        restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, false)
         runCatching { d.setGlobalPrivateDnsModeOpportunistic(a) }
         dnsError = "Mạng hiện tại không dùng được DNS an toàn, tạm tắt 30 phút để con không mất mạng"
         dnsTriedAt = now; retryAfter = 30 * 60_000L; unvalidatedSince = 0
@@ -364,6 +363,9 @@ object Policy {
         runCatching { d.setShortSupportMessage(a, null) }
         removeAccEntry(ctx)
         // the mic was granted by us, not by the child: take it back and hand the switch to the user
+        // the other grants (location, notifications) stay granted but the user can change them again
+        for (p in listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, "android.permission.ACCESS_BACKGROUND_LOCATION",
+            "android.permission.POST_NOTIFICATIONS")) runCatching { d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT) }
         runCatching {
             d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED)
             d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT)

@@ -64,12 +64,20 @@ class Guard : Service() {
     private val timeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val w = System.currentTimeMillis(); val e = android.os.SystemClock.elapsedRealtime()
-            if (Events.clockJumped(refWall, refElapsed, w, e)) runCatching { store.addEvent(Ev("clock", "Giờ máy bị đổi")); store.log("Giờ máy bị đổi"); relay?.kick() }
+            if (intent.action == Intent.ACTION_TIMEZONE_CHANGED) runCatching {
+                val tz = java.util.TimeZone.getDefault().id
+                store.addEvent(Ev("clock", "Múi giờ máy bị đổi: $tz")); store.log("Múi giờ bị đổi: $tz"); relay?.kick()
+            }
+            else if (Events.clockJumped(refWall, refElapsed, w, e)) runCatching { store.addEvent(Ev("clock", "Giờ máy bị đổi")); store.log("Giờ máy bị đổi"); relay?.kick() }
             refWall = w; refElapsed = e
         }
     }
     private val pkgReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) { Policy.invalidate(); kick() }
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_PACKAGE_REMOVED && !intent.getBooleanExtra(Intent.EXTRA_REPLACING, false))
+                intent.data?.schemeSpecificPart?.let { p -> runCatching { store.knownApps?.let { if (p in it) store.knownApps = it - p } } }
+            Policy.invalidate(); kick()
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -87,7 +95,7 @@ class Guard : Service() {
                 addAction(Intent.ACTION_PACKAGE_ADDED); addAction(Intent.ACTION_PACKAGE_REMOVED); addDataScheme("package")
             })
         }
-        runCatching { registerReceiver(timeReceiver, IntentFilter(Intent.ACTION_TIME_CHANGED)) }
+        runCatching { registerReceiver(timeReceiver, IntentFilter(Intent.ACTION_TIME_CHANGED).apply { addAction(Intent.ACTION_TIMEZONE_CHANGED) }) }
         http = Http(this, Api(this)).also { it.start(PORT) }
         relay = Relay(this).also { it.start() }
         work.post(loopRun)
@@ -144,7 +152,10 @@ class Guard : Service() {
             } else locFixLogged = false
         }
         if (!Usage.granted(this)) {
-            if (!usageLogged) { usageLogged = true; store.log("Quyền theo dõi sử dụng bị tắt") }
+            if (!usageLogged) {
+                usageLogged = true; store.log("Quyền theo dõi sử dụng bị tắt")
+                if (store.knownApps != null) runCatching { store.addEvent(Ev("tamper", "Quyền theo dõi giờ dùng bị tắt: giới hạn giờ không tính được")); relay?.kick() }
+            }
         } else usageLogged = false
         // first tick (with a real app list): everything installed now is "old"; while blockNew is off keep refreshing it
         val stored = store.knownApps
@@ -175,6 +186,8 @@ class Guard : Service() {
         val basic = Basic.enforcing(this)
         Acc.blocked = if (basic) want else emptyMap(); Acc.prot = prot
         if (basic) use.current?.let { cur -> BasicLogic.bounceReason(cur, packageName, want, prot)?.let { Acc.bounceApp(this, cur, it) } }
+        // owner mode: the system refused to suspend it (some OEMs protect their own apps): bounce it instead
+        else use.current?.takeIf { it in want && it !in nowSusp }?.let { cur -> BasicLogic.bounceReason(cur, packageName, want, prot)?.let { Acc.bounceApp(this, cur, it) } }
         // the app in front just got suspended: send the child home (the system's own "paused" dialog shows when they tap it again)
         if (use.current != null && use.current in nowSusp && use.current !in had) goHome()
         if (now - lastLocateAt > 15 * 60_000) { lastLocateAt = now; locate() }
@@ -363,7 +376,7 @@ class Guard : Service() {
             if (req != null) notifyChild(Events.answerText(c.optBoolean("ok"), c.optInt("min", req.optInt("min")), c.optString("note")))
             if (req != null) "ok" else "no such request"
         }
-        "sosAck" -> if (store.ackSos(c.optString("id").ifBlank { "all" }) > 0) "ok" else "no such sos"
+        "sosAck" -> if (store.ackSos(c.optString("sos").ifBlank { "all" }) > 0) "ok" else "no such sos"   // not "id": the relay fills that in
         "reboot" -> if (Policy.isOwner(this)) runCatching { Policy.dpm(this).reboot(Policy.admin(this)); "ok" }.getOrElse { "failed" } else "not owner"
         "tailscale" -> Ts.enable(this, store, c.optString("authKey"), c.optString("hostname"))
         "tailscaleOff" -> Ts.disable(this, store)
@@ -388,7 +401,8 @@ class Guard : Service() {
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
             Listen.stopAll()
             res = runCatching { Policy.release(this, store) }.getOrElse { Log.w("KidGuard", "release", it); "failed" }
-            if (res == "failed") { stopped = false; work.post(loopRun) }
+            // anything but "ok" (e.g. "failed: N app còn bị ẩn") means we are still in charge: keep enforcing
+            if (res != "ok") { stopped = false; work.post(loopRun); store.log("Gỡ quản lý chưa xong: $res") }
             else store.log("Đã gỡ quyền quản lý")
             done.countDown()
         }
@@ -405,7 +419,8 @@ class Guard : Service() {
             if (l == null) return
             val old = store.location
             if (old != null && old.optLong("t") > l.time) return
-            zoneFix(l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else 0f)
+            // an old cached fix (getLastKnownLocation after a long gap) must not fire zone in/out events
+            if (System.currentTimeMillis() - l.time < 10 * 60_000) zoneFix(l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else 0f)
             store.location = JSONObject().put("lat", l.latitude).put("lng", l.longitude).put("acc", l.accuracy.toDouble()).put("t", l.time).put("src", l.provider ?: "")
         }
         val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER).filter {

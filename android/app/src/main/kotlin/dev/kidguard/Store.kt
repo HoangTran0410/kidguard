@@ -83,11 +83,12 @@ class Store private constructor(ctx: Context) {
         val now = System.currentTimeMillis()
         if (p.getLong("pairBlock", 0) > now) { lastPairError = "wait"; return null }
         val want = pairCode() ?: run { lastPairError = "closed"; return null }
+        if (code.trim() != want) { pairFail(now); lastPairError = "wrong code"; return null }
+        // after the code: anyone could otherwise send wrong PINs and keep the PIN (and new pairings) locked
         if (rules.pinHash.isNotBlank()) {
             if (pinLockLeft() > 0) { lastPairError = "pin locked"; return null }
             if (!checkParentPin(pin)) { pairFail(now); lastPairError = if (pinLockLeft() > 0) "pin locked" else "wrong pin"; return null }
         }
-        if (code.trim() != want) { pairFail(now); lastPairError = "wrong code"; return null }
         val t = addToken()
         p.edit().putBoolean("everPaired", true).apply()
         closePairing()
@@ -110,6 +111,11 @@ class Store private constructor(ctx: Context) {
     @get:Synchronized @set:Synchronized var recoverAt: Long
         get() = p.getLong("recoverAt", 0)
         set(v) { p.edit().putLong("recoverAt", v).apply() }
+
+    /** `pinAt` of the last PIN hash taken from the relay (see Relay.sync). */
+    @get:Synchronized @set:Synchronized var relayPinAt: Long
+        get() = p.getLong("relayPinAt", 0)
+        set(v) { p.edit().putLong("relayPinAt", v).apply() }
 
     /** The code the child screen may show: before the first pairing only after the long-press reveal; later whenever pairing is open. */
     @Synchronized fun visiblePairCode(): String? {

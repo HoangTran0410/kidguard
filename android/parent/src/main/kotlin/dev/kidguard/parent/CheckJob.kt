@@ -59,7 +59,7 @@ class CheckJob : JobService() {
             val cm = c.getSystemService(ConnectivityManager::class.java)
             if (cm.activeNetwork == null) return   // our own phone is offline: nothing to conclude about the kid
             val now = System.currentTimeMillis()
-            val seen = fetch(k)
+            val seen = fetch(k) ?: return   // 401/403: unpaired, not offline
             val canPost = canNotify(c)
             val onWifi = onWifi(cm)
             val out = synchronized(Store) {   // a push may mark the same event seen meanwhile ([Push.handle])
@@ -72,9 +72,10 @@ class CheckJob : JobService() {
             if (canPost) for (e in out.events) post(c, k, e)
         }
 
-        private fun fetch(k: Logic.KidCfg): Logic.Seen {
+        private fun fetch(k: Logic.KidCfg): Logic.Seen? {
             val url = k.target + (if (k.via == "lan") "/api/state" else "/c/${k.id}/state")
             val r = Net.call("GET", url, mapOf("X-KG-Token" to k.token), null, 15_000)
+            if (r.status == 401 || r.status == 403) return null
             if (r.status != 200) return Logic.Seen(false, emptyList(), 0)
             return try {
                 val o = JSONObject(String(r.body, Charsets.UTF_8))

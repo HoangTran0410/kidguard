@@ -267,7 +267,7 @@ async function call(k, path, method = "GET", body) {
   let r;
   try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined }); }
   catch (e) { throw errVi("net", APP ? "mất kết nối" : null); }
-  if (APP && method === "GET" && path === "/state") cachedAt = +r.headers.get("X-KG-Cached") || 0;
+  if (APP && method === "GET" && path === "/state" && k === cur) cachedAt = +r.headers.get("X-KG-Cached") || 0;
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw errVi(APP && j.error === "offline" ? "offline" : j.error || ("HTTP " + r.status));
   return j;
@@ -561,6 +561,7 @@ async function putRules(k, e) {
     if (Array.isArray(body.zones)) body.zones = body.zones.filter(zoneOk);
     const r = await call(k, "/rules", "PUT", body); const hadPin = !!body.pin;
     if (k.via === "lan" && r && typeof r === "object") { for (const x of Object.keys(e)) delete e[x]; Object.assign(e, norm(r)); }
+    else if (r && r.rev) e.rev = r.rev;   // relay: else an older poll (rev of the previous save) looks newer and undoes this edit
     delete e.pin; if (hadPin) e.pinSet = true; delete e.pinHash;
     if (k === cur) saveFail(false);
   } finally { saveBusy--; }
@@ -625,7 +626,7 @@ async function cmd(c, okMsg, q) {
 }
 
 // ---- v0.6: events, chores, zones, templates ----
-const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link" };
+const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert" };
 const evHtml = e => `<div class="row" style="padding:3px 0">${ic(EV_IC[e.kind] || "bell")} <span class="sp">${esc(noEmoji(e.text))}</span><span class="mute">${ago(e.t)}</span></div>`;
 const zoneOk = z => z && Number.isFinite(+z.lat) && Number.isFinite(+z.lng) && z.lat !== "" && z.lng !== "" && z.lat !== null && z.lng !== null && Math.abs(+z.lat) <= 90 && Math.abs(+z.lng) <= 180;
 const newId = p => p + Math.random().toString(36).slice(2, 8);

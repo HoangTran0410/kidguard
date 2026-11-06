@@ -68,10 +68,12 @@ ck("bad cmd 400",(await P2("cmd",JSON.stringify({type:"rm"}))).status==400);
 ck("rules array 400",(await P2("rules","[1]",T,{},"PUT")).status==400);
 ck("rules string 400",(await P2("rules",'"x"',T,{},"PUT")).status==400);
 r=await P2("rules",JSON.stringify({dailyMin:60,pin:"1234"}),T,{},"PUT");j=await r.json();
+const pinAt0=j.rev;
 ck("PUT rules: pinSet, no pinHash/pin",j.pinSet===true&&!("pinHash" in j)&&!("pin" in j)&&j.dailyMin==60);
 r=await P2("rules",JSON.stringify({dailyMin:90}),T,{},"PUT");j=await r.json();ck("PUT without pin keeps pinSet",j.pinSet===true&&j.dailyMin==90);
 j=await (await P2("state",null,T,{},"GET")).json();ck("GET state: no pinHash",j.rules.pinSet===true&&!JSON.stringify(j).includes("pinHash"));
 j=await S({state:{rules:{rev:1}}});ck("phone gets pinHash (sha256 kg:1234)",j.rules&&j.rules.pinHash==="d371349c9ee42104a430ccbe28c7b26b6eea4541d3f42cb314fe208a325e3afd");
+ck("pinAt = rev of the PUT that set the PIN, kept by later PUTs",j.rules.pinAt===pinAt0&&j.rules.rev>pinAt0);
 j=await S({state:{rules:{rev:1,pinHash:"x".repeat(64)}}});ck("state with phone's rules never leaks pinHash to parent",!JSON.stringify(await (await P2("state",null,T,{},"GET")).json()).includes("xxxx"));
 j=await S();ck("state omitted: rules not resent when phone up to date",true);
 // 7: seen
