@@ -66,7 +66,14 @@ class MainActivity : Activity() {
         }
         w.addJavascriptInterface(Bridge(this), "KGApp")
         w.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest) = !r.url.toString().startsWith("$origin/")
+            override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest): Boolean {
+                if (r.url.toString().startsWith("$origin/")) return false
+                // https links the page shows (Google Maps, OSM copyright) open outside: the Maps app, or the browser
+                if (r.url.scheme == "https" && r.hasGesture()) runCatching {
+                    startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, r.url).addCategory(android.content.Intent.CATEGORY_BROWSABLE))
+                }
+                return true
+            }
             // nothing but our own proxy (and the OSM map tiles the page uses) may be reached from the WebView
             override fun shouldInterceptRequest(v: WebView, r: WebResourceRequest): WebResourceResponse? {
                 val u = r.url.toString()

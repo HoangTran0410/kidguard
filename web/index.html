@@ -25,6 +25,7 @@ h2{font-size:15px;margin:0 0 10px;color:var(--mute);font-weight:600;text-transfo
 .big{font-size:30px;font-weight:700}
 button,select,input{font:inherit;color:inherit}
 button{background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:9px 14px;cursor:pointer}
+a.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:9px 14px;color:inherit;text-decoration:none;box-sizing:border-box}
 button:active{filter:brightness(.92)}
 :focus-visible{outline:2px solid var(--pri);outline-offset:2px}
 button.pri{background:var(--btn);color:var(--pri-fg);border-color:var(--btn);font-weight:600}
@@ -400,7 +401,7 @@ function ovDraw() {
       ${lim ? `<div class="bar"><i style="width:${pct}%;background:${pct >= 100 ? "var(--bad)" : col(i)}"></i></div>` : ""}
       ${req ? `<div class="alert warn">${ic("hand")} Xin thêm giờ (${req})</div>` : ""}
       ${s.location ? `<div class="mute">${ic("map-pin")} vị trí ${ago(s.location.t)}</div>` : `<div class="mute">${ic("map-pin")} chưa có vị trí</div>`}
-      <button data-o="${i}" style="margin-top:8px">${ic("folder-open")} Mở</button></div>`;
+      <div class="row" style="margin-top:8px"><button data-o="${i}" class="sp">${ic("folder-open")} Mở</button>${s.location ? `<a class="btn sp" href="https://www.google.com/maps?q=${+s.location.lat},${+s.location.lng}" target="_blank" rel="noopener">${ic("map")} Google Maps</a>` : ""}</div></div>`;
   }).join("");
   document.querySelectorAll("#app [data-o]").forEach(b => b.onclick = () => { clearInterval(timer); const k = D[+b.dataset.o].k; ov = null; open(k); });
   // one map, the latest fix of every kid
