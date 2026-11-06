@@ -95,11 +95,34 @@ object Policy {
         }
     }
 
-    /** Called every tick: tries a rejected Private DNS host again, at most once a minute. */
+    private var unvalidatedSince = 0L
+    private var retryAfter = 60_000L
+
+    /**
+     * Called every tick. (1) Tries a rejected / fallen-back Private DNS host again later. (2) Keeps the child online:
+     * if strict Private DNS is on but the current network has not validated for 90 s (e.g. a Wi-Fi that blocks
+     * DNS-over-TLS port 853, which leaves the phone with no DNS at all), falls back to opportunistic DNS for 30 min.
+     */
     fun retryDns(ctx: Context, r: Rules) {
-        if (dnsError.isEmpty() || r.safeDns.isEmpty() || !isOwner(ctx)) return
-        if (System.currentTimeMillis() - dnsTriedAt < 60_000) return
-        applyDns(dpm(ctx), admin(ctx), r)
+        if (Build.VERSION.SDK_INT < 29 || r.safeDns.isEmpty() || !isOwner(ctx)) { unvalidatedSince = 0; return }
+        val now = System.currentTimeMillis()
+        if (dnsError.isNotEmpty()) {
+            if (now - dnsTriedAt >= retryAfter) { unvalidatedSince = 0; applyDns(dpm(ctx), admin(ctx), r) }
+            return
+        }
+        val cm = ctx.getSystemService(android.net.ConnectivityManager::class.java)
+        val caps = runCatching { cm.getNetworkCapabilities(cm.activeNetwork) }.getOrNull()
+        val online = caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        val validated = caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+        if (!online || validated) { unvalidatedSince = 0; retryAfter = 60_000L; return }
+        if (unvalidatedSince == 0L) { unvalidatedSince = now; return }
+        if (now - unvalidatedSince < 90_000) return
+        val d = dpm(ctx); val a = admin(ctx)
+        restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, false)
+        runCatching { d.setGlobalPrivateDnsModeOpportunistic(a) }
+        dnsError = "Mạng hiện tại không dùng được DNS an toàn, tạm tắt 30 phút để con không mất mạng"
+        dnsTriedAt = now; retryAfter = 30 * 60_000L; unvalidatedSince = 0
+        runCatching { Store.of(ctx).log("⚠️ DNS an toàn làm mất mạng, tạm tắt 30 phút") }
     }
 
     private var cacheAt = 0L
