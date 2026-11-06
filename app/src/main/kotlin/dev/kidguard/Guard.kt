@@ -381,7 +381,7 @@ class Guard : Service() {
     companion object {
         const val PORT = 8770
         const val TICK_MS = 10_000L
-        const val BuildConfigVersion = "0.2.1"
+        const val BuildConfigVersion = "0.4.0"
         @Volatile var running: Guard? = null
 
         fun start(ctx: Context) {

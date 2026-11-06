@@ -12,8 +12,8 @@ android {
         applicationId = "dev.kidguard"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2.1"
+        versionCode = 3
+        versionName = "0.4.0"
         // self-setup over Wireless debugging ships a native lib (conscrypt, spake2): phones + the emulator only
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }

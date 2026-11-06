@@ -1,4 +1,4 @@
-# KidGuard protocol (v0.2.1)
+# KidGuard protocol (v0.4)
 
 The child app, the relay worker, the parent page and the installer all follow this file. If you need to change a
 shape, say so in your report instead of silently diverging.
@@ -23,7 +23,7 @@ shape, say so in your report instead of silently diverging.
   "approved": ["com.new.game"],    // NEW: approved new apps
   "lockLocation": true,            // NEW (default true): location forced on, child cannot change location settings
   "noAirplane": true,              // NEW (default true): airplane mode disallowed
-  "showWatching": true,            // v0.3 (default true): child sees the "watching / controlling" notification
+  "showWatching": true,            // v0.4 (default true): child sees the "watching / controlling" notification
   "safeDns": "",                   // NEW: "" = off, else a Private DNS host, e.g. "family.adguard-dns.com",
                                    //      "family.cloudflare-dns.com", "family-filter-dns.cleanbrowsing.org"
   "noInstall": false, "noDebug": false,
@@ -50,7 +50,7 @@ leftMs apps rules location lan relay log`), plus:
   "history": [                     // NEW: last 7 days before today, newest first
     {"day": "2026-11-05", "ms": 5400000, "top": [{"pkg":"…","label":"…","ms":1200000}]}   // top: up to 5
   ],
-  "ts": {"state": "off|installing|on|error", "ip": "100.x.y.z", "host": "kid-an", "err": ""},  // v0.3: Tailscale (never the key)
+  "ts": {"state": "off|installing|on|error", "ip": "100.x.y.z", "host": "kid-an", "err": ""},  // v0.4: Tailscale (never the key)
   "requests": [                    // NEW: the child asked for more time (button on the child's KidGuard screen)
     {"id": "a1b2c3", "t": 1793940898493, "min": 30, "note": "con làm bài tập"}
   ]
@@ -65,7 +65,7 @@ v0.1: `lock locate message{text} ring relay{url} openPairing unpairAll release`.
 - `reboot`: DevicePolicyManager.reboot.
 `release` must also undo every v0.2 restriction (location, airplane, private DNS, accessibility allowlist).
 The worker's command whitelist must include `answer` and `reboot`.
-v0.3 (branch v4-ts):
+v0.4:
 - `tailscale {authKey, hostname?}`: phone downloads the official Tailscale APK (SHA-256 checked), installs it silently,
   sets managed config + always-on VPN (no lockdown) + uninstall block + `DISALLOW_CONFIG_VPN`, hides the app once the
   tunnel is up. Result `ok | bad key | busy | not owner`. **LAN only**: not in the worker whitelist, so the key never
