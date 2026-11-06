@@ -116,7 +116,8 @@ ck("at most 5 events pushed per sync",(await sentList()).length==11);
 j=await (await P3("push",{fcm:"good_"+"a".repeat(40),off:true})).json();ck("push off removes",j.devices==0);
 ck("push needs the kid token",(await fetch(`${B}/c/${id3}/push`,{method:"POST",headers:H(BAD),body:"{}"})).status==401);}
 {const id5=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),T5=Array.from({length:48},()=>"0123456789abcdef"[Math.random()*16|0]).join("");
-const S5=b=>fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:{"x-kg-token":T5,"content-type":"application/json"},body:b});
+// the per-IP rate limit (150 / 10 s) can trip here on a fast runner: wait and retry a 429 so it never reads as "bound"
+const S5=async b=>{for(let i=0;;i++){const r=await fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:{"x-kg-token":T5,"content-type":"application/json"},body:b});if(r.status!=429||i>=8)return r;await new Promise(z=>setTimeout(z,1500));}};
 ck("first sync without state does not bind (400)",(await S5("{}")).status==400&&(await S5("nope")).status==400);
 ck("first sync with state binds",(await S5(JSON.stringify({state:{t:1}}))).status==200);}
 // ---- tester additions: deliver-once, pinHash never leaves, oversized cmd ----
