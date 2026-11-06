@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>KidGuard: quản lý điện thoại Android của con từ trình duyệt</title>
-<meta name="description" content="KidGuard: ứng dụng quản lý điện thoại Android của con, miễn phí, mã nguồn mở. Giới hạn giờ, khóa ứng dụng, giờ đi ngủ, xem vị trí. Không cần tài khoản.">
-<meta name="theme-color" content="#2563eb">
+<meta name="description" content="KidGuard: ứng dụng quản lý điện thoại Android của con, miễn phí, mã nguồn mở. Giới hạn giờ, khóa ứng dụng, giờ đi ngủ, xem vị trí. Không cần tài khoản, dữ liệu ở trên máy con.">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f1e8">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14110d">
 <meta property="og:type" content="website">
 <meta property="og:title" content="KidGuard: quản lý điện thoại Android của con từ trình duyệt">
 <meta property="og:description" content="Giới hạn giờ, khóa ứng dụng, giờ đi ngủ, vị trí. Một file APK, không tài khoản, miễn phí, mã nguồn mở.">
@@ -22,7 +23,7 @@
 <meta property="og:image:alt" content="KidGuard: trang phụ huynh quản lý điện thoại Android của con">
 <meta name="twitter:image" content="https://kid-guard.pages.dev/img/og.jpg">
 <meta name="twitter:image:alt" content="KidGuard: trang phụ huynh quản lý điện thoại Android của con">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"KidGuard","applicationCategory":"UtilitiesApplication","operatingSystem":"Android 8.0+","description":"Ứng dụng quản lý điện thoại Android của con, miễn phí, mã nguồn mở: giới hạn giờ, khóa ứng dụng, giờ đi ngủ, vị trí.","inLanguage":"vi","url":"https://kid-guard.pages.dev/","image":"https://kid-guard.pages.dev/img/og.jpg","license":"https://github.com/HoangTran0410/kidguard/blob/main/LICENSE","downloadUrl":"https://github.com/HoangTran0410/kidguard/releases/download/v0.9.3/kidguard-0.9.3.apk","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","name":"KidGuard","applicationCategory":"UtilitiesApplication","operatingSystem":"Android 8.0+","description":"Ứng dụng quản lý điện thoại Android của con, miễn phí, mã nguồn mở: giới hạn giờ, khóa ứng dụng, giờ đi ngủ, vị trí. Không cần tài khoản.","inLanguage":"vi","url":"https://kid-guard.pages.dev/","image":"https://kid-guard.pages.dev/img/og.jpg","license":"https://github.com/HoangTran0410/kidguard/blob/main/LICENSE","downloadUrl":"https://github.com/HoangTran0410/kidguard/releases/download/v0.9.3/kidguard-0.9.3.apk","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Con có tự gỡ KidGuard được không?","acceptedAnswer":{"@type":"Answer","text":"Không gỡ được từ Cài đặt. Khôi phục gốc bằng phím cứng (recovery) thì vẫn được: KidGuard biến mất và trang phụ huynh báo mất kết nối. Ở Chế độ cơ bản, vào Safe Mode cũng làm hết chặn, nên dùng Device Owner khi có thể."}},{"@type":"Question","name":"Có cần root máy không?","acceptedAnswer":{"@type":"Answer","text":"Không. KidGuard dùng vai trò Device Owner có sẵn của Android, vai trò mà công ty dùng cho máy cấp cho nhân viên. Không root, không can thiệp hệ thống."}},{"@type":"Question","name":"Android cũ có dùng được không?","acceptedAnswer":{"@type":"Answer","text":"Android 8 trở lên. Xem và điều khiển màn hình cần Android 11+, cách tự cài ngay trên điện thoại cũng vậy. Trên Android 8 đến 10, con có thể buộc dừng KidGuard (nó chạy lại sau khi khởi động máy)."}},{"@type":"Question","name":"Dữ liệu có bị gửi đi đâu không?","acceptedAnswer":{"@type":"Answer","text":"Mặc định không: trang phụ huynh do chính điện thoại của con phục vụ, qua Wi-Fi nhà. Chỉ khi bạn bật Cloudflare Worker thì lệnh và trạng thái đi qua Worker của bạn. Không tài khoản, không quảng cáo, không thống kê."}},{"@type":"Question","name":"Con có biết mình đang bị quản lý không?","acceptedAnswer":{"@type":"Answer","text":"Có, và đó là chủ ý. Con xem được luật của mình ngay trên máy (mục Luật của con) và nhật ký bố mẹ đã đổi gì. Xem màn hình có dòng báo, nghe xung quanh luôn kêu bíp và hiện thông báo. KidGuard chỉ dành cho bố mẹ quản lý máy của con nhỏ."}},{"@type":"Question","name":"Bộ lọc DNS có làm con mất Internet không?","acceptedAnswer":{"@type":"Answer","text":"Không. Nếu máy chủ lọc lỗi hoặc mạng chặn nó quá 90 giây, KidGuard tự quay về DNS thường trong 30 phút và báo lý do trên trang phụ huynh."}},{"@type":"Question","name":"Vì sao có app hiện màn hình đen?","acceptedAnswer":{"@type":"Answer","text":"Các app đánh dấu màn hình là bảo mật (ngân hàng...) sẽ hiện đen khi xem từ xa."}},{"@type":"Question","name":"Có an toàn không?","acceptedAnswer":{"@type":"Answer","text":"Mỗi trình duyệt ghép một lần bằng mã 6 số trên máy của con, ghép thêm cần PIN phụ huynh. PIN được lưu dạng băm có muối và không gửi lại trang. Ở Wi-Fi nhà trang chạy HTTP thường, chỉ nên dùng ở mạng bạn tin tưởng."}},{"@type":"Question","name":"Gặp lỗi hoặc có ý tưởng?","acceptedAnswer":{"@type":"Answer","text":"Gửi tại GitHub Issues của dự án. Cách các phần nói chuyện với nhau nằm trong docs/protocol.md."}}]}]}</script>
 <link rel="icon" type="image/svg+xml" href="img/icon.svg">
 <link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/">
 <link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/">
@@ -34,14 +35,14 @@
 <span id="menu" class="menu-t" aria-hidden="true"></span>
 <header>
   <div class="wrap">
-    <a class="brand" href="#top"><img src="img/icon.svg" width="30" height="30" alt="">KidGuard</a>
+    <a class="brand" href="#top"><img src="img/icon.svg" width="26" height="26" alt="">KidGuard <small>v0.9.3</small></a>
     <a class="burger open" href="#menu" aria-label="Mở menu"><i></i></a>
     <a class="burger shut" href="#_" aria-label="Đóng menu"><i></i></a>
     <nav aria-label="Menu">
       <a href="#tinh-nang">Tính năng</a>
       <a href="#cai-dat">Cài đặt</a>
       <a href="#tu-xa">Từ xa</a>
-      <a href="#iphone">iPhone</a>
+      <a href="#so-sanh">So với Family Link</a>
       <a href="#hoi-dap">Hỏi đáp</a>
       <a href="https://github.com/HoangTran0410/kidguard">GitHub</a>
       <a class="lang" href="en/" hreflang="en" lang="en">EN</a>
@@ -54,162 +55,268 @@
 <section class="hero">
   <div class="wrap">
     <div>
-      <span class="pill">Android 8+ · miễn phí · mã nguồn mở</span>
-      <h1>Quản lý điện thoại của con, <em>ngay từ trình duyệt</em></h1>
-      <p class="lead">Đặt giờ dùng, khóa ứng dụng, xem con đang ở đâu. Một file APK, không tài khoản, không máy chủ. Luật chạy ngay trên máy của con, kể cả khi mất mạng.</p>
+      <p class="over"><span>Ứng dụng Android cho máy của con</span><span>Miễn phí</span><span>Mã nguồn mở</span></p>
+      <h1>Quản lý điện thoại Android của con, <em>ngay từ trình duyệt.</em></h1>
+      <p class="lead">Đặt giờ dùng, khóa ứng dụng, xem con đang ở đâu. Một file APK cài lên máy của con; bố mẹ mở trang web trên bất kỳ máy nào. Không tài khoản, không có máy chủ nào ở giữa. Luật chạy ngay trên máy con, mất mạng vẫn giữ.</p>
       <div class="cta">
         <a class="btn primary" href="https://github.com/HoangTran0410/kidguard/releases/download/v0.9.3/kidguard-0.9.3.apk">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14"/></svg>
-          <span>Tải KidGuard <span class="ver">v0.9.3</span> · 4&nbsp;MB</span>
+          <span>Tải KidGuard <span class="ver">v0.9.3</span> <small>· 4&nbsp;MB</small></span>
         </a>
-        <a class="btn" href="https://github.com/HoangTran0410/kidguard">Xem trên GitHub</a>
+        <a class="btn" href="#cai-dat">Xem cách cài</a>
       </div>
-      <p class="note">Tải trên máy của con, rồi <a href="#cai-dat">chọn một cách cài</a>. Cài xong mới có gì bị khóa.</p>
-      <ul class="trust">
-        <li>Gỡ sạch bất cứ lúc nào</li>
-        <li>Không gửi dữ liệu lên đám mây</li>
-      </ul>
+      <p class="note">Tải trên máy của con. Cài xong mới có gì bị khóa, và <a href="#go-sach">gỡ sạch</a> được bất cứ lúc nào.</p>
+      <dl class="spec">
+        <div><dt>Máy của con</dt><dd>Android 8 trở lên</dd></div>
+        <div><dt>Bố mẹ dùng</dt><dd>Trình duyệt bất kỳ</dd></div>
+        <div><dt>Giấy phép</dt><dd>MIT, mã nguồn mở</dd></div>
+        <div><dt>Thu thập</dt><dd>Không gì cả</dd></div>
+      </dl>
     </div>
-    <div class="phones">
-      <div class="phone"><img fetchpriority="high" decoding="async" src="img/parent-apps.webp" width="800" height="1720" alt="Trang phụ huynh: danh sách ứng dụng, giới hạn thời gian"></div>
-      <div class="phone"><img decoding="async" src="img/parent-today.webp" width="800" height="1720" alt="Trang phụ huynh: hôm nay còn bao nhiêu thời gian, yêu cầu của con"></div>
-      <div class="phone"><img decoding="async" src="img/parent-location.webp" width="800" height="1720" alt="Trang phụ huynh: lịch sử vị trí trên bản đồ"></div>
-    </div>
+    <figure>
+      <div class="phone"><img fetchpriority="high" decoding="async" src="img/parent-today.webp" width="800" height="1720" alt="Trang phụ huynh KidGuard, màn hình Hôm nay: giờ còn lại, yêu cầu xin thêm giờ của con, nút tạm dừng"></div>
+      <figcaption class="chip"><b>Trang phụ huynh</b>do chính máy của con phục vụ, mở trên Wi-Fi nhà<code>http://192.168.1.23:8770</code></figcaption>
+    </figure>
   </div>
 </section>
 
-<section class="alt">
+<section class="alt" id="cach-hoat-dong">
   <div class="wrap">
-    <div class="center">
-      <span class="eyebrow">Cách hoạt động</span>
-      <h2>3 bước là xong</h2>
+    <div class="sh">
+      <span class="num">01</span><span class="kicker">Cách hoạt động</span>
+      <h2>Hai thiết bị, không có gì ở giữa</h2>
+      <p>KidGuard trở thành <b>Device Owner</b> của máy con, vai trò Android dành cho máy công ty cấp cho nhân viên. Nhờ vậy nó khóa được ứng dụng, giữ định vị bật và không cho tự gỡ, mà không cần root.</p>
+    </div>
+    <div class="flow">
+      <div class="node">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+        <b>Máy của con</b>
+        <span class="role">KidGuard · Device Owner</span>
+        <p>Giữ luật và tự áp dụng, kể cả khi mất mạng. Tự phục vụ trang phụ huynh ở cổng 8770.</p>
+        <ul>
+          <li>Giới hạn giờ, giờ ngủ, giờ học</li>
+          <li>Khóa app, duyệt app mới</li>
+          <li>Vị trí, SOS, nút xin thêm giờ</li>
+        </ul>
+      </div>
+      <div class="link">
+        <div class="lk">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 4 4-4 4M20 7H4m4 6-4 4 4 4m-4-4h16"/></svg><b>Ở nhà: Wi-Fi</b>Nối thẳng, tức thì, không qua ai</span>
+        </div>
+        <div class="lk dash">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 4 4-4 4M20 7H4m4 6-4 4 4 4m-4-4h16"/></svg><b>Ra ngoài: tùy chọn</b>Tailscale hoặc một Cloudflare Worker của bạn</span>
+        </div>
+      </div>
+      <div class="node">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20M6 6.5h.01M9 6.5h.01"/></svg>
+        <b>Bố mẹ</b>
+        <span class="role">Trình duyệt, hoặc app bố mẹ</span>
+        <p>Safari, Chrome, máy tính hay điện thoại, iPhone cũng được. Ghép một lần bằng mã 6 số, bảo vệ bằng PIN.</p>
+        <ul>
+          <li>Đổi luật, máy con áp dụng ngay</li>
+          <li>Xem màn hình, vị trí, lịch sử</li>
+          <li>App Android thêm thông báo SOS</li>
+        </ul>
+      </div>
     </div>
     <ol class="steps">
-      <li><b>Cài lên máy của con</b><span>Tải file APK, chọn một cách cài bên dưới.</span></li>
-      <li><b>Mở trang phụ huynh</b><span>Quét mã QR hiện trên máy của con, bằng điện thoại của bạn.</span></li>
-      <li><b>Đặt luật</b><span>Đổi trên trang web, máy của con áp dụng ngay.</span></li>
+      <li><b>Cài lên máy của con</b><span>Tải file APK, chọn một trong năm cách cài bên dưới.</span></li>
+      <li><b>Mở trang phụ huynh</b><span>Quét mã QR hiện trên máy của con bằng camera điện thoại của bạn, cùng Wi-Fi.</span></li>
+      <li><b>Đặt luật</b><span>Đổi trên trang web, máy của con áp dụng ngay. Đặt PIN phụ huynh để không ai ghép thêm.</span></li>
     </ol>
-    <div class="callout"><b>App cho bố mẹ (Android, không bắt buộc).</b> Trình duyệt là đủ dùng. App thêm <b>thông báo</b> khi con bấm SOS, xin thêm giờ, tắt Trợ năng, và vẫn xem được dữ liệu gần nhất khi máy con mất mạng. Cài lên máy bố mẹ, bấm <b>Thêm máy của con</b>, nhập địa chỉ và mã 6 số hiện trên máy con. <a href="https://github.com/HoangTran0410/kidguard/releases/download/v0.9.3/kidguard-parent-0.9.3.apk">Tải app bố mẹ (APK)</a> · iPhone: dùng trình duyệt.</div>
   </div>
 </section>
 
 <section id="tinh-nang">
   <div class="wrap">
-    <div class="center">
-      <span class="eyebrow">Tính năng</span>
-      <h2>Đủ dùng cho việc hàng ngày</h2>
+    <div class="sh">
+      <span class="num">02</span><span class="kicker">Tính năng</span>
+      <h2>Đủ cho việc hàng ngày, không nhồi thêm</h2>
+      <p>Mọi thứ dưới đây có trong bản hiện tại. Không có gói trả phí, không có tính năng "sắp ra".</p>
     </div>
-    <div class="grid g3">
-      <div class="card"><span class="emo">⏱️</span><h3>Giới hạn giờ mỗi ngày</h3><p>Một con số chung hoặc riêng từng thứ. Hết giờ, ứng dụng bị khóa đến nửa đêm (trừ ứng dụng "Luôn cho phép"). Cộng thêm 15 / 30 / 60 phút khi cần.</p></div>
-      <div class="card"><span class="emo">🙋</span><h3>Con xin thêm giờ</h3><p>Con bấm xin 15 / 30 / 60 phút kèm lý do. Bạn chọn Đồng ý hoặc Từ chối.</p></div>
-      <div class="card"><span class="emo">📦</span><h3>Từng ứng dụng</h3><p>Bình thường, N phút mỗi ngày, Chặn hoặc Luôn cho phép. Ứng dụng mới có thể bị khóa đến khi bạn duyệt.</p></div>
-      <div class="card"><span class="emo">🌙</span><h3>Giờ đi ngủ, giờ học</h3><p>Khung giờ khóa theo ngày, kể cả qua nửa đêm. Có nút Tạm dừng ngay: 30 phút, 1 giờ, đến 6 giờ sáng.</p></div>
-      <div class="card"><span class="emo">📍</span><h3>Vị trí</h3><p>Định vị ngay, xem lịch sử 7 ngày và các điểm dừng trên bản đồ. Có thể ép bật định vị.</p></div>
-      <div class="card"><span class="emo">📊</span><h3>Lịch sử sử dụng</h3><p>Thời gian màn hình 7 ngày và ứng dụng dùng nhiều nhất.</p></div>
-      <div class="card"><span class="emo">👀</span><h3>Xem và điều khiển màn hình</h3><p>Xem trực tiếp, chạm, vuốt, gõ chữ (Android 11+). Con luôn thấy dòng "Phụ huynh đang xem màn hình".</p></div>
-      <div class="card"><span class="emo">🧹</span><h3>Dọn máy <span class="new">Mới</span></h3><p>Ẩn ứng dụng cài sẵn của hãng, xem ứng dụng nặng nhất, xóa dữ liệu ứng dụng ngay từ trang phụ huynh. Ẩn ứng dụng cần Device Owner.</p></div>
-      <div class="card"><span class="emo">🛡️</span><h3>Khó phá</h3><p>Chặn gỡ ứng dụng, buộc dừng, khôi phục gốc, Safe Mode, đổi giờ, chế độ máy bay. Tự khởi động lại nếu bị tắt. Có thêm: lọc DNS, khóa lệnh nhanh, khởi động lại máy.</p></div>
+    <div class="ledger">
+      <div>
+        <h3>Thời gian</h3>
+        <dl>
+          <div><dt>Giới hạn mỗi ngày</dt><dd>Một con số chung hoặc riêng từng thứ. Hết giờ, mọi ứng dụng khóa đến nửa đêm, trừ ứng dụng "Luôn cho phép". Cộng thêm 15 / 30 / 60 phút cho hôm nay khi cần.</dd></div>
+          <div><dt>Giờ ngủ, giờ học</dt><dd>Giờ đi ngủ mỗi ngày, cộng các khung giờ theo thứ (giờ học thứ Hai đến thứ Sáu), qua nửa đêm cũng được. Con được báo trước 5 phút và 1 phút.</dd></div>
+          <div><dt>Tạm dừng ngay</dt><dd>30 phút, 1 giờ, hoặc đến 6 giờ sáng.</dd></div>
+          <div><dt>Con xin thêm giờ</dt><dd>Con bấm xin 15 / 30 / 60 phút kèm lý do, hoặc chọn một việc nhà bạn đã treo thưởng ("Rửa bát, +20 phút"). Bạn Đồng ý hoặc Từ chối, có thể kèm lời nhắn.</dd></div>
+          <div><dt>Mẫu luật</dt><dd>Ngày đi học, Cuối tuần, Nghỉ hè, Mùa thi, hoặc lưu mẫu của mình. Áp cho một hay nhiều con cùng lúc.</dd></div>
+        </dl>
+        <h3>Ứng dụng</h3>
+        <dl>
+          <div><dt>Từng ứng dụng</dt><dd>Bình thường, N phút mỗi ngày, Chặn, hoặc Luôn cho phép. Chọn nhiều app để đổi một lần. App bị khóa chuyển xám, mở lên Android báo phụ huynh đã tạm dừng.</dd></div>
+          <div><dt>Ứng dụng mới</dt><dd>Có thể giữ khóa đến khi bạn duyệt.</dd></div>
+          <div><dt>Dọn máy</dt><dd>Ẩn app cài sẵn của hãng mà con không dùng (ngừng chạy, ngừng cập nhật; bỏ tick là trở lại), xem app nặng nhất, xóa dữ liệu một app. Không có "dọn RAM" giả.</dd></div>
+          <div><dt>Tự cập nhật</dt><dd>Mỗi ngày máy con xem GitHub có bản mới không, tải về, kiểm SHA-256 rồi tự cài. Tắt được trong Cài đặt.</dd></div>
+        </dl>
+        <h3>Nhìn lại</h3>
+        <dl>
+          <div><dt>Lịch sử</dt><dd>Thời gian màn hình 7 ngày, app dùng nhiều theo ngày, báo cáo tuần so với tuần trước. Nhiều con: màn hình <b>Tổng quan</b>, mỗi con một thẻ, một bản đồ chung.</dd></div>
+          <div><dt>Luật của con</dt><dd>Con xem được luật của mình ngay trên máy, và nhật ký bố mẹ đã đổi gì. Minh bạch là chủ ý, không phải lỗi.</dd></div>
+        </dl>
+      </div>
+      <div>
+        <h3>Vị trí và an toàn</h3>
+        <dl>
+          <div><dt>Vị trí</dt><dd>Định vị ngay, lịch sử 7 ngày với các điểm dừng trên bản đồ OpenStreetMap. Con không tắt được định vị.</dd></div>
+          <div><dt>Vùng</dt><dd>Nhà, Trường... với bán kính. Báo khi con đến hoặc rời.</dd></div>
+          <div><dt>SOS</dt><dd>Nút đỏ trên máy con. Trang phụ huynh hiện giờ bấm và vị trí mới nhất; app bố mẹ báo trong vài giây (qua Worker và Firebase) hoặc trong vòng 15 phút.</dd></div>
+          <div><dt>Xem và điều khiển màn hình</dt><dd>Màn hình con trực tiếp (khoảng 3 hình/giây), chạm, vuốt, gõ chữ. Cần Android 11+. Con luôn thấy dòng "Phụ huynh đang xem màn hình".</dd></div>
+          <div><dt>Nghe xung quanh</dt><dd>Tối đa 10 phút mỗi lần, chỉ qua Wi-Fi nhà hoặc Tailscale. Máy con kêu bíp, hiện thông báo và chấm micro của Android, không tắt được.</dd></div>
+          <div><dt>Cảnh báo</dt><dd>Đến hoặc rời vùng, pin còn 15 %, app mới cài, đổi giờ máy.</dd></div>
+        </dl>
+        <h3>Giữ chắc</h3>
+        <dl>
+          <div><dt>Khó phá</dt><dd>Chặn gỡ app, buộc dừng, khôi phục gốc từ Cài đặt, Safe Mode, thêm người dùng, đổi giờ, chế độ máy bay. Tự chạy lại nếu bị tắt. Tùy chọn: lọc DNS gia đình (AdGuard, Cloudflare, CleanBrowsing), chặn cài app, chặn gỡ lỗi USB.</dd></div>
+          <div><dt>Lệnh nhanh</dt><dd>Khóa màn hình, đổ chuông, nhắn toàn màn hình, khởi động lại máy.</dd></div>
+          <div id="go-sach"><dt>Gỡ sạch</dt><dd>Trang phụ huynh, Cài đặt, <b>Gỡ quyền quản lý</b>: mọi app mở khóa, mọi hạn chế dỡ bỏ, rồi gỡ KidGuard như app thường.</dd></div>
+        </dl>
+      </div>
     </div>
-    <div class="callout"><b>Gỡ hết bất cứ lúc nào.</b> Vào trang phụ huynh, Cài đặt, <b>Gỡ quyền quản lý</b>: mọi ứng dụng mở khóa, mọi hạn chế được dỡ, rồi gỡ KidGuard như app thường.</div>
   </div>
 </section>
 
 <section class="alt" id="anh">
   <div class="wrap">
-    <div class="center">
-      <span class="eyebrow">Giao diện</span>
-      <h2>Trang phụ huynh và máy của con</h2>
+    <div class="sh">
+      <span class="num">03</span><span class="kicker">Giao diện</span>
+      <h2>Ảnh chụp thật, không dựng</h2>
     </div>
-    <div class="shots">
-      <figure><div class="phone"><img loading="lazy" decoding="async" src="img/parent-today.webp" width="800" height="1720" alt="Màn hình Hôm nay"></div><figcaption>Hôm nay: giờ còn lại, yêu cầu</figcaption></figure>
-      <figure><div class="phone"><img loading="lazy" decoding="async" src="img/parent-apps.webp" width="800" height="1720" alt="Màn hình Ứng dụng"></div><figcaption>Ứng dụng: giới hạn, chặn, duyệt</figcaption></figure>
-      <figure><div class="phone"><img loading="lazy" decoding="async" src="img/parent-location.webp" width="800" height="1720" alt="Màn hình Vị trí"></div><figcaption>Con đã đi đâu</figcaption></figure>
-      <figure><div class="phone"><img loading="lazy" decoding="async" src="img/child-app.webp" width="540" height="1200" alt="Ứng dụng trên máy của con"></div><figcaption>Trên máy của con</figcaption></figure>
+    <div class="gallery">
+      <figure><div class="phone"><img loading="lazy" decoding="async" src="img/parent-today.webp" width="800" height="1720" alt="Màn hình Hôm nay của trang phụ huynh: giờ còn lại, yêu cầu xin thêm giờ, nút tạm dừng"></div><figcaption><b>Hôm nay</b>Giờ còn lại, yêu cầu của con, tạm dừng nhanh.</figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" decoding="async" src="img/parent-apps.webp" width="800" height="1720" alt="Màn hình Ứng dụng của trang phụ huynh: giới hạn từng app, chặn, duyệt app mới"></div><figcaption><b>Ứng dụng</b>Giới hạn từng app, chặn, duyệt app mới.</figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" decoding="async" src="img/parent-location.webp" width="800" height="1720" alt="Màn hình Vị trí của trang phụ huynh: lịch sử 7 ngày và các điểm dừng trên bản đồ"></div><figcaption><b>Vị trí</b>Con đã đi đâu, dừng ở đâu, trên bản đồ.</figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" decoding="async" src="img/child-app.webp" width="540" height="1200" alt="Ứng dụng KidGuard trên máy của con: giờ còn lại, nút xin thêm giờ, nút SOS"></div><figcaption><b>Trên máy của con</b>Giờ còn lại, xin thêm giờ, SOS, luật của con.</figcaption></figure>
     </div>
   </div>
 </section>
 
-<section id="cai-dat">
+<section id="so-sanh">
   <div class="wrap">
-    <div class="center">
-      <span class="eyebrow">Cài đặt</span>
-      <h2>Chọn cách cài hợp với bạn</h2>
-      <p class="lead">Không có máy tính, máy cũ? Dùng <b>Chế độ cơ bản</b>. Muốn khóa chắc nhất? Dùng <b>Device Owner</b> (quyền quản lý thiết bị, như máy công ty).</p>
+    <div class="sh">
+      <span class="num">04</span><span class="kicker">So sánh</span>
+      <h2>So với Google Family Link</h2>
+      <p>Family Link là lựa chọn mặc định của nhiều nhà, và hợp với nhiều nhà. Bảng này nói thật KidGuard khác ở đâu, kể cả chỗ thua.</p>
     </div>
-    <div class="grid g2">
-      <div class="card hl">
-        <span class="meta">Mọi máy Android 8+, không cần máy tính</span>
-        <h3>🟡 Chế độ cơ bản <span class="badge">Mới</span></h3>
-        <ol>
-          <li>Cài file APK và mở KidGuard.</li>
-          <li>Bấm <b>Cài nhanh không cần máy tính</b>.</li>
-          <li>Bật lần lượt từng mục trong danh sách (quản trị thiết bị, trợ năng, dữ liệu sử dụng, vị trí, pin). Không cần xóa tài khoản.</li>
-        </ol>
-        <p>Yếu hơn Device Owner: ứng dụng bị khóa sẽ bị đẩy về màn hình chính thay vì chuyển xám, và vào Safe Mode là hết chặn. Không có lọc DNS, khóa máy bay / giờ hệ thống. Có thể nâng lên Device Owner sau.</p>
-      </div>
-      <div class="card">
-        <span class="meta">Android 11+, có Wi-Fi</span>
-        <h3>📱 Device Owner ngay trên điện thoại</h3>
-        <ol>
-          <li>Xóa tài khoản trên máy của con (Google, Samsung...). Cài xong đăng nhập lại là về như cũ.</li>
-          <li>Mở KidGuard, bấm <b>Cài đầy đủ không cần máy tính (Android 11+)</b>.</li>
-          <li>Bật <b>Gỡ lỗi không dây</b>, chọn <i>Ghép nối bằng mã</i>, nhập 6 số vào thông báo của KidGuard. Nó tự làm phần còn lại.</li>
-        </ol>
-      </div>
-      <div class="card">
-        <span class="meta">Máy mới hoặc vừa khôi phục gốc</span>
-        <h3>🔳 Quét mã QR</h3>
-        <ol>
-          <li>Ở màn hình chào mừng, chạm 6 lần vào chỗ trống.</li>
-          <li>Quét <a href="https://kidguard.99-hoangtran.workers.dev/qr">mã QR</a>.</li>
-          <li>Máy tự tải và cài KidGuard. Mở ra, làm bảng kiểm ngắn.</li>
-        </ol>
-      </div>
-      <div class="card">
-        <span class="meta">Chrome hoặc Edge trên máy tính</span>
-        <h3>🌐 Trình duyệt và cáp USB</h3>
-        <ol>
-          <li>Bật <b>Gỡ lỗi USB</b> trên máy của con, cắm cáp vào máy tính.</li>
-          <li>Mở <a href="https://kidguard.99-hoangtran.workers.dev/install">trang cài đặt</a>, bấm Kết nối. Không cần cài adb.</li>
-        </ol>
-        <p>Dòng lệnh (macOS, Linux, Windows): <code>scripts/setup.sh</code> hoặc <code>scripts\setup.ps1</code> trong <a href="https://github.com/HoangTran0410/kidguard">kho mã nguồn</a>.</p>
-      </div>
+    <div class="cmpwrap">
+      <table class="tbl">
+        <thead><tr><th scope="col"></th><th scope="col">KidGuard</th><th scope="col">Google Family Link</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Giá</th><td data-l="KidGuard">Miễn phí, mã nguồn mở (MIT)</td><td data-l="Family Link">Miễn phí</td></tr>
+          <tr><th scope="row">Tài khoản</th><td data-l="KidGuard"><span class="yes">Không cần</span>, kể cả cho con</td><td data-l="Family Link">Cần tài khoản Google cho bố mẹ và cho con</td></tr>
+          <tr><th scope="row">Dữ liệu của con</th><td data-l="KidGuard">Nằm trên máy con. Chỉ đi qua relay khi bạn tự bật, và relay đó của bạn</td><td data-l="Family Link">Trên máy chủ Google</td></tr>
+          <tr><th scope="row">Xem màn hình, điều khiển từ xa</th><td data-l="KidGuard"><span class="yes">Có</span> (Android 11+), con luôn thấy dòng báo</td><td data-l="Family Link"><span class="no">Không</span></td></tr>
+          <tr><th scope="row">Nút SOS, việc nhà đổi giờ</th><td data-l="KidGuard"><span class="yes">Có</span></td><td data-l="Family Link"><span class="no">Không</span></td></tr>
+          <tr><th scope="row">Cài đặt</th><td data-l="KidGuard">Khó hơn: cần bước Device Owner (xóa tài khoản trước), hoặc Chế độ cơ bản yếu hơn</td><td data-l="Family Link">Tải từ Play Store, vài phút</td></tr>
+          <tr><th scope="row">Hỗ trợ</th><td data-l="KidGuard">Một tác giả, GitHub Issues</td><td data-l="Family Link">Google</td></tr>
+        </tbody>
+      </table>
     </div>
-    <div class="grid g2">
-      <div class="card">
+  </div>
+</section>
+
+<section class="alt" id="cai-dat">
+  <div class="wrap">
+    <div class="sh">
+      <span class="num">05</span><span class="kicker">Cài đặt</span>
+      <h2>Chọn cách cài theo thứ bạn đang có</h2>
+      <p>Android chỉ cho một app làm Device Owner khi máy <b>không có tài khoản nào</b> (Google, Samsung, Xiaomi...). Xóa tài khoản trước, cài xong đăng nhập lại là về như cũ. Chỉ Chế độ cơ bản (E) là không cần bước này.</p>
+    </div>
+    <div class="routes">
+      <article class="route">
+        <span class="id" aria-hidden="true">A</span>
+        <div>
+          <span class="need">Máy con Android 11+, có Wi-Fi</span>
+          <h3>Tự cài ngay trên điện thoại <span class="tag ok">Khuyên dùng</span></h3>
+          <ol>
+            <li>Xóa tài khoản trên máy của con. Cài file APK, mở KidGuard.</li>
+            <li>Bấm <b>Cài đầy đủ không cần máy tính (Android 11+)</b>.</li>
+            <li>Bật <b>Gỡ lỗi không dây</b> trong Tùy chọn nhà phát triển, chọn <i>Ghép nối bằng mã</i>, nhập 6 số vào thông báo của KidGuard. Nó tự làm phần còn lại rồi tắt gỡ lỗi không dây.</li>
+          </ol>
+        </div>
+      </article>
+      <article class="route">
+        <span class="id" aria-hidden="true">B</span>
+        <div>
+          <span class="need">Máy mới hoặc vừa khôi phục gốc</span>
+          <h3>Quét mã QR</h3>
+          <ol>
+            <li>Ở màn hình chào mừng, chạm 6 lần vào chỗ trống.</li>
+            <li>Quét <a href="https://kidguard.99-hoangtran.workers.dev/qr">mã QR</a> này.</li>
+            <li>Máy tự tải KidGuard qua Wi-Fi và cài. Mở ra, làm bảng kiểm ngắn.</li>
+          </ol>
+          <p>Một số máy không có màn hình chạm 6 lần (Oppo, Realme ColorOS trên Android 8–9): dùng cách C.</p>
+        </div>
+      </article>
+      <article class="route">
+        <span class="id" aria-hidden="true">C</span>
+        <div>
+          <span class="need">Có máy tính và cáp USB</span>
+          <h3>Trang cài đặt trong Chrome hoặc Edge</h3>
+          <ol>
+            <li>Bật <b>Gỡ lỗi USB</b> trên máy của con, cắm cáp vào máy tính.</li>
+            <li>Mở <a href="https://kidguard.99-hoangtran.workers.dev/install">trang cài đặt</a>, bấm Kết nối. Không cần cài adb.</li>
+          </ol>
+        </div>
+      </article>
+      <article class="route">
+        <span class="id" aria-hidden="true">D</span>
+        <div>
+          <span class="need">Quen dòng lệnh</span>
+          <h3>Script trên macOS, Linux, Windows</h3>
+          <p><code>scripts/setup.sh</code> (tự tải adb nếu thiếu) hoặc <code>scripts\setup.ps1</code> trong <a href="https://github.com/HoangTran0410/kidguard">kho mã nguồn</a>.</p>
+        </div>
+      </article>
+      <article class="route wide">
+        <span class="id" aria-hidden="true">E</span>
+        <div>
+          <span class="need">Mọi máy Android 8+, không cần máy tính</span>
+          <h3>Chế độ cơ bản, không Device Owner</h3>
+          <ol>
+            <li>Cài file APK, mở KidGuard, bấm <b>Cài nhanh không cần máy tính</b>.</li>
+            <li>Bật lần lượt từng mục trong danh sách: quản trị thiết bị, trợ năng, dữ liệu sử dụng, vị trí, pin. Tài khoản giữ nguyên.</li>
+          </ol>
+          <p><b>Yếu hơn Device Owner.</b> App bị khóa bị đẩy về màn hình chính thay vì chuyển xám. Không có lọc DNS, chặn cài app, khóa máy bay, giờ hệ thống, khởi động lại, Tailscale. Con vào Safe Mode hoặc tắt được trợ năng là hết chặn (trang phụ huynh hiện cảnh báo đỏ, app bố mẹ báo). Nâng lên Device Owner sau bằng cách A đến D.</p>
+        </div>
+      </article>
+    </div>
+    <div class="after">
+      <div>
         <h3>Sau khi cài</h3>
-        <p>Máy của con hiện <b>mã 6 số</b> và <b>mã QR</b>. Trên điện thoại của bạn (cùng Wi-Fi), quét QR bằng camera, hoặc mở <code>http://&lt;IP của máy&gt;:8770</code> rồi nhập mã. Vào <b>Cài đặt</b> đặt <b>mã PIN phụ huynh</b>.</p>
+        <p>Máy của con hiện <b>mã 6 số</b> và <b>mã QR</b>. Trên điện thoại của bạn, cùng Wi-Fi, quét QR bằng camera (mở trang với mã điền sẵn), hoặc mở <code>http://&lt;IP máy con&gt;:8770</code> rồi nhập mã. Vào <b>Cài đặt</b>, đặt <b>mã PIN phụ huynh</b>: không có PIN, máy từ chối ghép thêm trình duyệt.</p>
       </div>
-      <div class="card">
+      <div>
         <h3>Xiaomi, Oppo, Vivo, Samsung</h3>
-        <p>Trên máy của con bấm <b>Cài đặt pin / tự khởi động</b> và cho KidGuard chạy nền, nếu không hãng có thể tắt nó.</p>
+        <p>Trên máy của con bấm <b>Cài đặt pin / tự khởi động</b> và cho KidGuard chạy nền, nếu không hãng có thể tự tắt nó.</p>
       </div>
     </div>
-    <div class="callout"><b>Bị Google Play Protect chặn ("App blocked to protect your device")?</b> Play Protect chặn app cài từ trình duyệt hoặc trình quản lý file mà dùng trợ năng. Cách xử lý: Play Store, ảnh đại diện, Play Protect, biểu tượng ⚙, tắt <b>Quét ứng dụng bằng Play Protect</b>. Cài KidGuard, làm xong bước thiết lập, rồi bật lại. Cài bằng mã QR (Device Owner) không bị, vì chính điện thoại tự tải app.</div>
+    <div class="callout"><b>Bị Google Play Protect chặn ("App blocked to protect your device")?</b> Play Protect chặn app cài từ trình duyệt hay trình quản lý file mà dùng trợ năng (Chế độ cơ bản cần nó). Trên máy con: Play Store, ảnh đại diện, Play Protect, biểu tượng bánh răng, tắt <b>Quét ứng dụng bằng Play Protect</b>. Cài và thiết lập xong thì bật lại. Cài bằng QR không bị, vì chính điện thoại tự tải app.</div>
   </div>
 </section>
 
-<section class="alt" id="tu-xa">
+<section id="tu-xa">
   <div class="wrap">
-    <div class="center">
-      <span class="eyebrow">Khi không ở nhà</span>
-      <h2>Điều khiển từ xa</h2>
-      <p class="lead">Ở nhà, trang phụ huynh nối thẳng qua Wi-Fi. Ra ngoài, chọn Tailscale hoặc Cloudflare Worker.</p>
+    <div class="sh">
+      <span class="num">06</span><span class="kicker">Khi không ở nhà</span>
+      <h2>Ra khỏi nhà vẫn quản lý được</h2>
+      <p>Ở nhà, trang phụ huynh nối thẳng qua Wi-Fi. Ra ngoài, chọn một trong hai cách, hoặc dùng cả hai. Cả hai đều miễn phí.</p>
     </div>
-    <div class="grid g2">
-      <div class="card hl">
-        <h3>Tailscale <span class="badge">Khuyên dùng</span></h3>
-        <p>Mạng riêng, phản hồi tức thì, không phải dựng gì.</p>
+    <div class="two">
+      <div>
+        <h3>Tailscale <span class="tag ok">Khuyên dùng</span></h3>
+        <p>Mạng riêng giữa máy con và máy bạn. Tức thì, không phải dựng gì.</p>
         <ol>
-          <li>Tạo tài khoản miễn phí tại tailscale.com, tạo auth key (bật Reusable, <b>tắt</b> Ephemeral).</li>
-          <li>Trang phụ huynh (ở Wi-Fi nhà): <b>Cài đặt, Điều khiển từ xa qua Tailscale</b>, dán key, bấm <b>Bật</b>.</li>
+          <li>Tạo tài khoản miễn phí tại tailscale.com, tạo auth key: Reusable bật, Ephemeral <b>tắt</b>.</li>
+          <li>Trang phụ huynh (ở Wi-Fi nhà): <b>Cài đặt, Điều khiển từ xa qua Tailscale</b>, dán key, bấm <b>Bật</b>. Máy con tự tải Tailscale, vào mạng và ẩn app, khoảng một phút.</li>
           <li>Cài Tailscale trên điện thoại của bạn, đăng nhập cùng tài khoản, mở địa chỉ <code>http://100.x.y.z:8770</code>.</li>
         </ol>
-        <p>Con không tắt được VPN, chỉ thấy biểu tượng chìa khóa trên thanh trạng thái.</p>
+        <p>Con không tắt được VPN hay gỡ Tailscale, chỉ thấy biểu tượng chìa khóa trên thanh trạng thái. Key ở lại trên máy con, không đi qua Worker.</p>
       </div>
-      <div class="card">
-        <h3>Cloudflare Worker (nâng cao)</h3>
-        <p>Một Worker nhỏ, gói miễn phí, chuyển tiếp lệnh và trạng thái. Hình màn hình chỉ nằm trong bộ nhớ, không lưu. Mở bằng trình duyệt bất kỳ.</p>
+      <div>
+        <h3>Cloudflare Worker <span class="tag">Nâng cao</span></h3>
+        <p>Một Worker nhỏ của bạn, gói miễn phí, chuyển tiếp lệnh, trạng thái và màn hình. Hình màn hình chỉ nằm trong bộ nhớ, không lưu. Mở bằng trình duyệt bất kỳ.</p>
         <ol>
           <li>Triển khai Worker (cần Node): <code>cd worker &amp;&amp; npm install &amp;&amp; npx wrangler login &amp;&amp; npx wrangler deploy</code></li>
           <li>Trang phụ huynh (ở Wi-Fi nhà): <b>Cài đặt, Nâng cao: relay Cloudflare Worker</b>, dán địa chỉ Worker, bấm Bật.</li>
@@ -217,60 +324,55 @@
         </ol>
       </div>
     </div>
-    <div class="tablewrap">
-      <table>
-        <thead><tr><th></th><th>Tailscale</th><th>Cloudflare Worker</th></tr></thead>
-        <tbody>
-          <tr><td>Thiết lập</td><td>dán một key</td><td>triển khai một Worker (cần Node)</td></tr>
-          <tr><td>Tốc độ</td><td>tức thì</td><td>lệnh ~20 giây (~60 giây khi tắt màn hình)</td></tr>
-          <tr><td>Máy của bạn</td><td>cần app Tailscale</td><td>trình duyệt bất kỳ</td></tr>
-          <tr><td>Con thấy</td><td>biểu tượng chìa khóa</td><td>không gì cả</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
-
-<section id="iphone">
-  <div class="wrap">
-    <div class="center">
-      <span class="eyebrow">iPhone / iPad</span>
-      <h2>Con dùng iPhone thì sao?</h2>
-      <p class="lead">Apple không cho app bên thứ ba khóa ứng dụng hay xem màn hình, nên KidGuard không có bản cho máy của con trên iOS.</p>
-    </div>
-    <div class="grid g2">
-      <div class="card"><h3>Con dùng iPhone / iPad</h3><p>Dùng công cụ miễn phí của Apple: <b>Screen Time, Chia sẻ trong gia đình</b> và <b>Find My</b> để xem vị trí.</p></div>
-      <div class="card"><h3>Bạn dùng iPhone</h3><p>Dùng được: con dùng Android, bạn mở trang phụ huynh trên Safari. Ra ngoài thì cài Tailscale từ App Store, hoặc dùng Worker.</p></div>
-    </div>
+    <table class="tbl">
+      <thead><tr><th scope="col"></th><th scope="col">Tailscale</th><th scope="col">Cloudflare Worker</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Thiết lập</th><td data-l="Tailscale">Dán một key</td><td data-l="Worker">Triển khai một Worker, cần Node</td></tr>
+        <tr><th scope="row">Tốc độ</th><td data-l="Tailscale">Tức thì, trang nói thẳng với máy con</td><td data-l="Worker">Lệnh tới sau khoảng 20 giây, 60 giây khi tắt màn hình</td></tr>
+        <tr><th scope="row">Máy của bạn</th><td data-l="Tailscale">Cần app Tailscale (Android, iPhone)</td><td data-l="Worker">Trình duyệt bất kỳ</td></tr>
+        <tr><th scope="row">Con thấy</th><td data-l="Tailscale">Biểu tượng chìa khóa (Android luôn hiện khi có VPN)</td><td data-l="Worker">Không gì cả</td></tr>
+      </tbody>
+    </table>
+    <div class="callout" id="app-bo-me"><b>App cho bố mẹ (Android, không bắt buộc).</b> Trình duyệt là đủ dùng. App thêm <b>thông báo</b> khi con bấm SOS, xin thêm giờ, tắt trợ năng, và vẫn xem được dữ liệu gần nhất khi máy con mất mạng. Cài lên máy bố mẹ, bấm <b>Thêm máy của con</b>, nhập địa chỉ và mã 6 số hiện trên máy con (ra ngoài: dán liên kết Worker). <a href="https://github.com/HoangTran0410/kidguard/releases/download/v0.9.3/kidguard-parent-0.9.3.apk">Tải app bố mẹ (APK)</a>. iPhone: dùng trình duyệt.</div>
+    <div class="callout" id="iphone"><b>Con dùng iPhone / iPad?</b> Apple không cho app bên thứ ba khóa ứng dụng hay xem màn hình, nên KidGuard không có bản cho máy con trên iOS. Dùng công cụ miễn phí có sẵn: <b>Screen Time, Chia sẻ trong gia đình</b> và <b>Find My</b>. Còn bố mẹ dùng iPhone thì bình thường: mở trang phụ huynh trên Safari.</div>
   </div>
 </section>
 
 <section class="alt" id="hoi-dap">
   <div class="wrap">
-    <div class="center">
-      <span class="eyebrow">Hỏi đáp</span>
-      <h2>Những điều nên biết</h2>
+    <div class="sh">
+      <span class="num">07</span><span class="kicker">Hỏi đáp</span>
+      <h2>Những điều nên biết trước khi cài</h2>
     </div>
     <div class="faq">
       <details><summary>Con có tự gỡ KidGuard được không?</summary><p>Không gỡ được từ Cài đặt. Khôi phục gốc bằng phím cứng (recovery) thì vẫn được: KidGuard biến mất và trang phụ huynh báo "mất kết nối". Ở Chế độ cơ bản, vào Safe Mode cũng làm hết chặn, nên dùng Device Owner khi có thể.</p></details>
-      <details><summary>Android cũ có dùng được không?</summary><p>Android 8 trở lên. Xem và điều khiển màn hình cần Android 11+, cách "tự cài ngay trên điện thoại" cũng vậy. Trên Android 8 đến 10, con có thể buộc dừng KidGuard (nó chạy lại sau khi khởi động máy).</p></details>
+      <details><summary>Có cần root máy không?</summary><p>Không. KidGuard dùng vai trò Device Owner có sẵn của Android, vai trò mà công ty dùng cho máy cấp cho nhân viên. Không root, không can thiệp hệ thống.</p></details>
+      <details><summary>Android cũ có dùng được không?</summary><p>Android 8 trở lên. Xem và điều khiển màn hình cần Android 11+, cách tự cài ngay trên điện thoại cũng vậy. Trên Android 8 đến 10, con có thể buộc dừng KidGuard (nó chạy lại sau khi khởi động máy).</p></details>
+      <details><summary>Dữ liệu có bị gửi đi đâu không?</summary><p>Mặc định không: trang phụ huynh do chính điện thoại của con phục vụ, qua Wi-Fi nhà. Chỉ khi bạn bật Cloudflare Worker thì lệnh và trạng thái đi qua Worker của bạn. Không tài khoản, không quảng cáo, không thống kê. Chi tiết: <a href="https://github.com/HoangTran0410/kidguard/blob/main/PRIVACY.md">PRIVACY.md</a>.</p></details>
+      <details><summary>Con có biết mình đang bị quản lý không?</summary><p>Có, và đó là chủ ý. Con xem được luật của mình ngay trên máy (mục <b>Luật của con</b>) và nhật ký bố mẹ đã đổi gì. Xem màn hình có dòng báo, nghe xung quanh luôn kêu bíp và hiện thông báo. KidGuard chỉ dành cho bố mẹ quản lý máy của con nhỏ; cài lên máy người lớn là theo dõi lén, phạm luật ở hầu hết các nước.</p></details>
       <details><summary>Bộ lọc DNS có làm con mất Internet không?</summary><p>Không. Nếu máy chủ lọc lỗi hoặc mạng chặn nó quá 90 giây, KidGuard tự quay về DNS thường trong 30 phút và báo lý do trên trang phụ huynh.</p></details>
       <details><summary>Vì sao có app hiện màn hình đen?</summary><p>Các app đánh dấu màn hình là bảo mật (ngân hàng...) sẽ hiện đen khi xem từ xa.</p></details>
-      <details><summary>Dữ liệu có bị gửi đi đâu không?</summary><p>Mặc định không: trang phụ huynh do chính điện thoại của con phục vụ. Chỉ khi bạn bật Cloudflare Worker thì lệnh và trạng thái đi qua Worker của bạn. Khóa Tailscale không đi qua Worker.</p></details>
-      <details><summary>Có an toàn không?</summary><p>Mỗi trình duyệt ghép một lần bằng mã 6 số trên máy của con, ghép thêm cần PIN phụ huynh. PIN được lưu dạng băm và không gửi lại trang. Lưu ý: ở Wi-Fi nhà trang chạy HTTP thường, chỉ nên dùng ở mạng bạn tin tưởng.</p></details>
+      <details><summary>Có an toàn không?</summary><p>Mỗi trình duyệt ghép một lần bằng mã 6 số trên máy của con, ghép thêm cần PIN phụ huynh. PIN được lưu dạng băm có muối và không gửi lại trang. Lưu ý: ở Wi-Fi nhà trang chạy HTTP thường, chỉ nên dùng ở mạng bạn tin tưởng.</p></details>
       <details><summary>Gặp lỗi hoặc có ý tưởng?</summary><p>Gửi tại <a href="https://github.com/HoangTran0410/kidguard/issues">GitHub Issues</a>. Cách các phần nói chuyện với nhau nằm trong <a href="https://github.com/HoangTran0410/kidguard/blob/main/docs/protocol.md">docs/protocol.md</a>.</p></details>
     </div>
   </div>
 </section>
 
-<section>
-  <div class="wrap center">
-    <h2>Sẵn sàng thử?</h2>
-    <p class="lead">Tải về, cài lên máy của con, mở trang phụ huynh. Không hợp thì Gỡ quyền quản lý là xong.</p>
-    <div class="cta mid">
-      <a class="btn primary" href="https://github.com/HoangTran0410/kidguard/releases/download/v0.9.3/kidguard-0.9.3.apk"><span>Tải KidGuard <span class="ver">v0.9.3</span> (APK)</span></a>
-      <a class="btn" href="https://github.com/HoangTran0410/kidguard/releases/download/v0.9.3/kidguard-parent-0.9.3.apk"><span>App cho bố mẹ <span class="ver">v0.9.3</span> (APK)</span></a>
-      <a class="btn" href="https://github.com/HoangTran0410/kidguard/releases/latest">Các bản phát hành</a>
+<section class="end" id="tai">
+  <div class="wrap">
+    <div>
+      <div class="sh">
+        <span class="num">08</span><span class="kicker">Tải về</span>
+        <h2>Thử trên máy của con tối nay</h2>
+        <p>Tải về, cài theo một trong năm cách, mở trang phụ huynh. Không hợp thì <b>Gỡ quyền quản lý</b> là xong, máy về như cũ.</p>
+      </div>
+    </div>
+    <div>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/HoangTran0410/kidguard/releases/download/v0.9.3/kidguard-0.9.3.apk"><span>Tải KidGuard <span class="ver">v0.9.3</span> <small>· cho máy của con</small></span></a>
+        <a class="btn" href="https://github.com/HoangTran0410/kidguard/releases/download/v0.9.3/kidguard-parent-0.9.3.apk"><span>App bố mẹ <span class="ver">v0.9.3</span> <small>· Android, tùy chọn</small></span></a>
+      </div>
+      <p class="sub"><a href="https://github.com/HoangTran0410/kidguard/releases/latest">Các bản phát hành</a> · <a href="https://github.com/HoangTran0410/kidguard">Mã nguồn trên GitHub</a></p>
     </div>
   </div>
 </section>
@@ -280,7 +382,6 @@
     <a class="xad" href="https://tvremote.pages.dev/">
       <img loading="lazy" decoding="async" src="img/tvremote.png" width="56" height="56" alt="">
       <span><small>Cùng tác giả</small><b>TV Remote</b>Điều khiển Android TV / TV box từ điện thoại hay trình duyệt: remote, xem hình TV, giới hạn giờ cho trẻ, chặn quảng cáo. Miễn phí, không cần tài khoản.</span>
-      <span class="go" aria-hidden="true">→</span>
     </a>
   </div>
 </section>
@@ -289,8 +390,8 @@
 
 <footer>
   <div class="wrap">
-    <span>KidGuard · giấy phép <a href="https://github.com/HoangTran0410/kidguard/blob/main/LICENSE">MIT</a> · miễn phí, mã nguồn mở</span>
-    <span><a href="https://github.com/HoangTran0410/kidguard">GitHub</a> · <a href="https://github.com/HoangTran0410/kidguard/issues">Góp ý</a> · <a href="https://github.com/HoangTran0410/kidguard/releases/latest">Bản phát hành</a></span>
+    <span>KidGuard · giấy phép <a href="https://github.com/HoangTran0410/kidguard/blob/main/LICENSE">MIT</a> · miễn phí, mã nguồn mở · <a href="https://github.com/HoangTran0410/kidguard/blob/main/PRIVACY.md">Quyền riêng tư</a></span>
+    <span><a href="https://github.com/HoangTran0410/kidguard">GitHub</a> · <a href="https://github.com/HoangTran0410/kidguard/issues">Góp ý</a> · <a href="https://github.com/HoangTran0410/kidguard/releases/latest">Bản phát hành</a> · <a href="en/" hreflang="en" lang="en">English</a></span>
   </div>
 </footer>
 
