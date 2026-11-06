@@ -15,6 +15,13 @@ import android.util.Log
 
 class Admin : DeviceAdminReceiver() {
     override fun onEnabled(context: Context, intent: Intent) { Store.of(context).released = false; Guard.start(context) }
+
+    /** After QR provisioning: start the guard and open the app so the "Bước còn lại" checklist shows. */
+    override fun onProfileProvisioningComplete(context: Context, intent: Intent) {
+        Store.of(context).released = false
+        Guard.start(context)
+        runCatching { context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
 }
 
 /** Device Owner powers. Every call is guarded: off Device Owner it does nothing and says so. */

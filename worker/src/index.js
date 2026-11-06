@@ -4,6 +4,7 @@
 // Auth: the token in the parent's link; the first child sync binds its sha256 to the id.
 import html from "../../web/index.html";
 import install from "../../web/install.html";
+import qr from "../../web/qr.html";
 
 const MAX_BODY = 256 * 1024;
 const MAX_FRAME = 1024 * 1024;
@@ -34,7 +35,8 @@ export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     const page = req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html") ? html
-      : req.method === "GET" && url.pathname === "/install" ? install : null;
+      : req.method === "GET" && url.pathname === "/install" ? install
+      : req.method === "GET" && url.pathname === "/qr" ? qr : null;
     if (page) {
       return new Response(page, { headers: {
         "content-type": "text/html; charset=utf-8", "cache-control": "no-cache",
