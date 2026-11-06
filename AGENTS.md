@@ -33,7 +33,7 @@ Root: `android/` (Gradle project: `app/` child app, `parent/` parent app), `web/
 - Don't read `web/install.html` / `web/qr.html` whole: they contain huge inline bundles (lines of 13–25k chars). Use grep.
 - `android/app/signing.jks` (shared by both apps) is git-ignored and auto-made by `scripts/build.sh` (password `kidguard`). The QR checksum is tied to it:
   a different key ⇒ provisioning fails. Never regenerate/delete it without asking.
-- App version lives in 2 places, bump both: `versionName`/`versionCode` in `android/app/build.gradle.kts` and `Guard.kt` `BuildConfigVersion` (sent in state).
+- App version: `kg.version` / `kg.code` in `android/gradle.properties` (both apps; state sends `BuildConfig.VERSION_NAME`). `kg.code` must go up every release: the self-updater refuses an equal versionCode.
 - `release` command must undo every restriction we add. A new restriction ⇒ also handle it in release.
 - New relay command ⇒ add to the worker whitelist + protocol. Destructive ones (`reboot`, `release`, `unpairAll`) are deliver-once.
 - HTML responses need `X-Frame-Options: DENY` + CSP; new external origins (e.g. tiles) must be added to CSP on both phone and worker.

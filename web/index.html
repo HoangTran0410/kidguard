@@ -105,7 +105,11 @@ button{min-height:44px}
 .map .pin{position:absolute;transform:translate(-50%,-100%);background:var(--card);color:var(--fg);border:2px solid;border-radius:10px;padding:2px 8px;font-size:12px;font-weight:600;white-space:nowrap;pointer-events:none}
 #saveBar{position:fixed;left:0;right:0;bottom:0;z-index:50;display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--bad,#b91c1c);color:#fff}
 #saveBar button{margin-left:auto}
-#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;display:none;max-width:90vw}
+body.sb #toast{bottom:76px}
+.row.tm{flex-wrap:nowrap}.row.tm input[type=time]{width:7em;padding:8px 6px}
+a{color:var(--pri)}
+a.lnkbtn{display:inline-flex;align-items:center;gap:6px;background:var(--chip);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:9px 14px;text-decoration:none}
+#toast{position:fixed;z-index:80;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;display:none;max-width:90vw}
 </style>
 </head>
 <body>
@@ -216,7 +220,7 @@ const save = k => {
   try { localStorage.setItem(KEY, JSON.stringify(k)); } catch {}
   if (APP) kgCall("setKids", JSON.stringify(k.filter(x => x.target).map(x => ({ name: x.name, target: x.target, via: x.via, id: x.id, token: x.token }))));
 };
-let kids = load(), cur = null, st = null, pendingRules = null, timer = null, edit = null, tab = "home", lastErr = "", viewDay = null, histDays = null, cachedAt = 0, seenAt = 0, answered = new Set(), histSel = -1;
+let kids = load(), cur = null, st = null, pendingRules = null, timer = null, edit = null, tab = "home", lastErr = "", viewDay = null, histDays = null, cachedAt = 0, seenAt = 0, answered = new Set(), histSel = -1, lastNet = false;
 const onLan = () => !location.pathname.startsWith("/c/") && !isRelayOrigin;
 let isRelayOrigin = false;
 // v0.7 basic mode: no Device Owner (old phones without mode = owner as before)
@@ -249,16 +253,23 @@ function baseLimit(r, day) { return r.dailyByDay && r.dailyByDay.length === 7 &&
 function todayLimit(r, day) { const b = baseLimit(r, day); return b ? b + (r.bonus && r.bonus.day === day ? r.bonus.min || 0 : 0) : 0; }
 
 function base(k) { return (APP ? "/k/" + b64u(k.target) : "") + (k.via === "lan" ? "/api" : "/c/" + encodeURIComponent(k.id)); }
+// Error with a Vietnamese message; .raw keeps the original code for logic ("not live", "not paired"), .net = our own network failed
+const ERR_VI = { net: "Không có mạng hoặc không tới được máy con", offline: "mất kết nối, chưa có dữ liệu", "queue full": "Hàng đợi lệnh đầy, thử lại sau", "too big": "Dữ liệu quá lớn", "state too big": "Dữ liệu quá lớn", "bad host": "Địa chỉ máy con không hợp lệ", "not live": "Màn hình chưa bật chia sẻ", "slow down": "Gửi quá nhanh, thử lại sau vài giây", "bad token": "Mã ghép không đúng hoặc đã bị huỷ", "not paired": "Thiết bị này đã bị huỷ ghép", "waiting for the phone": "Đang chờ máy con", "bad command": "Lệnh không hợp lệ", "bad json": "Dữ liệu gửi đi không hợp lệ", "not found": "Không tìm thấy" };
+function errVi(raw, vi) {
+  let m = vi || ERR_VI[raw];
+  if (!m) { const h = /^HTTP (\d+)$/.exec(raw); m = h ? "Máy chủ lỗi (" + h[1] + "), thử lại sau" : raw; }
+  const e = new Error(m); e.raw = raw; e.net = raw === "net"; return e;
+}
 async function call(k, path, method = "GET", body) {
   // app mode: a cached snapshot means the phone/relay is unreachable, so commands cannot be delivered
   if (APP && method !== "GET" && viewDay && k === cur) throw new Error("đang xem lịch sử, chỉ xem");
   if (APP && method !== "GET" && cachedAt && k === cur) throw new Error("đang mất kết nối, chưa gửi được");
   let r;
   try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined }); }
-  catch (e) { throw new Error(APP ? "mất kết nối" : e.message); }
+  catch (e) { throw errVi("net", APP ? "mất kết nối" : null); }
   if (APP && method === "GET" && path === "/state") cachedAt = +r.headers.get("X-KG-Cached") || 0;
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(APP && j.error === "offline" ? "mất kết nối, chưa có dữ liệu" : j.error || ("HTTP " + r.status));
+  if (!r.ok) throw errVi(APP && j.error === "offline" ? "offline" : j.error || ("HTTP " + r.status));
   return j;
 }
 
@@ -516,11 +527,12 @@ async function refresh() {
     noState = j.state === null;
     pendingRules = j.state !== undefined ? j.rules : null;
     seenAt = j.state !== undefined ? +j.seen || 0 : 0;
-    lastErr = "";
+    lastErr = ""; lastNet = false;
   } catch (e) {
     if (k !== cur) return;
     lastErr = e.message;
-    if (/not paired/.test(e.message)) { gen++; clearInterval(timer); cur = null; kids = kids.filter(x => x !== k); save(kids); navDown(0); toast("Thiết bị này đã bị huỷ ghép"); return setTimeout(boot, 1000); }
+    lastNet = !!e.net;
+    if (e.raw === "not paired" || /not paired/.test(e.message)) { gen++; clearInterval(timer); cur = null; kids = kids.filter(x => x !== k); save(kids); navDown(0); toast("Thiết bị này đã bị huỷ ghép"); return setTimeout(boot, 1000); }
   }
   const busy = document.activeElement && /^(SELECT|INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
   if (st && st.rules) {
@@ -539,7 +551,7 @@ async function refresh() {
 let lastSig = "";
 
 let saveT = null, saveBusy = 0, saveFailed = false;
-function saveFail(on) { saveFailed = on; const b = $("#saveBar"); if (b) b.style.display = on ? "flex" : "none"; }
+function saveFail(on) { saveFailed = on; const b = $("#saveBar"); if (b) b.style.display = on ? "flex" : "none"; document.body.classList.toggle("sb", !!on); }
 $("#saveRetry").onclick = () => changed();
 // PUT the rules; throws on failure. Used by changed() (debounced) and by approve (needs the result before it answers).
 async function putRules(k, e) {
@@ -573,7 +585,7 @@ function ask(text, ok = "Đồng ý", danger = false, typed = "", extra = "", co
   pop.innerHTML = `<div class="dp"><h2 id="askT" style="margin:0 0 8px">${ic(danger ? "triangle-alert" : "circle-help")} Xác nhận</h2>
     <div style="white-space:pre-line;margin-bottom:12px">${esc(text)}</div>
     ${extra}
-    ${typed ? `<input id="askIn" autocomplete="off" placeholder='Gõ "${esc(typed)}"' style="width:100%;margin-bottom:12px">` : ""}
+    ${typed ? `<input id="askIn" autocomplete="off" placeholder='Gõ "${esc(typed)}" (hoặc GO) để xác nhận' aria-label='Gõ ${esc(typed)} để xác nhận' style="width:100%;margin-bottom:12px">` : ""}
     <div class="row"><button id="askNo" class="sp">${ic("x")} Huỷ</button><button id="askOk" class="sp ${danger ? "bad" : "pri"}" ${typed ? "disabled" : ""}>${ic("check")} ${esc(ok)}</button></div></div>`;
   pop.style.display = "flex";
   return new Promise(res => {
@@ -581,7 +593,8 @@ function ask(text, ok = "Đồng ý", danger = false, typed = "", extra = "", co
     askDone = done;
     $("#askNo").onclick = () => done(false); $("#askOk").onclick = () => { if (collect && !collect()) return; done(true); };
     if (collect) { const upd = () => { $("#askOk").disabled = !collect(); }; pop.querySelectorAll("input").forEach(c => { c.oninput = c.onchange = upd; }); upd(); }
-    if (typed) { const i = $("#askIn"); i.oninput = () => { $("#askOk").disabled = i.value.trim() !== typed; }; i.focus(); } else $(danger ? "#askNo" : "#askOk").focus();   // Enter must not confirm a reboot / unpair
+    if (typed) { const i = $("#askIn"); const flat = v => String(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();   // "GỠ" = "GO" = "go": any keyboard works
+      i.oninput = () => { $("#askOk").disabled = flat(i.value) !== flat(typed); }; i.focus(); } else $(danger ? "#askNo" : "#askOk").focus();   // Enter must not confirm a reboot / unpair
   });
 }
 $("#askPop").addEventListener("click", e => { if (e.target.id === "askPop" && askDone) askDone(false); });
@@ -603,12 +616,16 @@ async function cmd(c, okMsg, q) {
   try {
     const r = await call(cur, "/cmd", "POST", c);
     if (r && r.result && !["ok", "queued", "no such sos"].includes(r.result) && !(c.type === "tailscale" || c.type === "openPairing")) { toast("err|Máy con trả lời: " + r.result); return; }
-    toast("ok|" + (okMsg || "Đã gửi")); return r || {};
+    if (r && r.result === "queued") {   // relay: only stored, the phone runs it on its next poll
+      const on = cur && Date.now() - lastSeen() < (cur.via === "lan" ? 30000 : 120000);
+      toast(on ? "send|Đã gửi, máy con sẽ làm khi nhận lệnh (thường dưới 20 giây)" : "warn|Đã gửi nhưng máy con đang offline, sẽ làm khi máy kết nối lại");
+    } else toast("ok|" + (okMsg || "Đã gửi"));
+    return r || {};
   } catch (e) { toast("err|Lỗi: " + e.message); }
 }
 
 // ---- v0.6: events, chores, zones, templates ----
-const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock" };
+const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link" };
 const evHtml = e => `<div class="row" style="padding:3px 0">${ic(EV_IC[e.kind] || "bell")} <span class="sp">${esc(noEmoji(e.text))}</span><span class="mute">${ago(e.t)}</span></div>`;
 const zoneOk = z => z && Number.isFinite(+z.lat) && Number.isFinite(+z.lng) && z.lat !== "" && z.lng !== "" && z.lat !== null && z.lng !== null && Math.abs(+z.lat) <= 90 && Math.abs(+z.lng) <= 180;
 const newId = p => p + Math.random().toString(36).slice(2, 8);
@@ -692,7 +709,7 @@ function render(tabClick) {
   const online = st && Date.now() - lastSeen() < (cur.via === "lan" ? 30000 : 120000);
   a.innerHTML = `
   <div class="row"><h1 class="sp">${ic("user")} ${esc(cur.name)}</h1>${APP || kids.length > 1 || cur.via === "relay" ? `<button id="back">${ic("list")} Danh sách</button>` : ""}</div>
-  ${viewDay ? `<div class="alert warn row">${ic("history")} <span class="sp">Dữ liệu ngày ${viewDay.split("-").reverse().join("/")} · chỉ xem</span><button id="goLive" class="pri">${ic("zap")} Về dữ liệu mới nhất</button></div>` : ""}
+  ${viewDay ? `<div class="alert warn row" style="position:sticky;top:0;z-index:20">${ic("history")} <span class="sp">Dữ liệu ngày ${viewDay.split("-").reverse().join("/")} · chỉ xem</span><button id="goLive" class="pri">${ic("zap")} Về dữ liệu mới nhất</button></div>` : ""}
   <div class="card" id="live"></div>
   <div class="tabs">${[["home", ic("house") + " Hôm nay"], ["screen", ic("smartphone") + " Màn hình"], ["apps", ic("puzzle") + " Ứng dụng"], ["rules", ic("ruler") + " Luật"], ["where", ic("map-pin") + " Vị trí"], ["set", ic("settings") + " Cài đặt"]].filter(t => !(viewDay && t[0] === "screen")).concat(APP ? [["hist", ic("history") + " Lịch sử"]] : []).map(([id, n]) => `<button data-tab="${id}" class="${tab === id ? "on" : ""}">${n}</button>`).join("")}</div>
   <div id="body"></div>`;
@@ -723,7 +740,8 @@ function updateLive() {
     <span class="mute">· ${ic("clock")} cập nhật ${ago(lastSeen())}</span><span class="sp"></span><span>${ic("battery-full")} ${+st.battery}%${st.charging ? ic("zap") : ""}</span></div>
     <div class="mute">${ic("smartphone")} ${esc(st.model)} · Android ${esc(st.android)} · ${st.screenOn ? "màn hình bật" + (st.current ? ": <b>" + esc(st.current) + "</b>" : "") : "màn hình tắt"}</div>
     ${pendingRules && st.rules && pendingRules.rev > st.rules.rev ? `<div class="mute">${ic("hourglass")} Luật mới đang chờ máy con nhận</div>` : ""}
-    ${lost ? `<div class="alert">${ic("siren")} Mất liên lạc với máy con từ ${hhmm(lostFrom)} — máy tắt, mất mạng hoặc KidGuard bị tắt${lastErr && lan ? " (" + esc(lastErr) + ")" : ""}</div>` : ""}
+    ${!lan && lastNet ? `<div class="alert warn">${ic("wifi-off")} Điện thoại/máy tính này đang mất mạng, chưa biết tình trạng máy con</div>` : ""}
+    ${lost && !(!lan && lastNet) ? `<div class="alert">${ic("siren")} Mất liên lạc với máy con từ ${hhmm(lostFrom)} — máy tắt, mất mạng hoặc KidGuard bị tắt${lastErr && lan ? " (" + esc(lastErr) + ")" : ""}</div>` : ""}
     ${sosHtml()}
     ${st.listen && st.listen.on ? `<div class="alert warn">${ic("ear")} Micro máy con đang bật (bố mẹ đang nghe) từ ${hhmm(st.listen.since)}</div>` : ""}
     ${modeHtml()}
@@ -815,7 +833,7 @@ function homeTab(b) {
   <div class="card"><h2>${ic("timer")} Hôm nay</h2>
     <div class="row"><span class="big">${fmt(used)}</span><span class="mute">đã dùng${limit ? " / " + fmt(limit * 60000) + (r.bonus && r.bonus.day === today && r.bonus.min ? " (gồm " + r.bonus.min + " phút thêm)" : "") : " (không giới hạn)"}</span></div>
     ${limit ? `<div class="bar"><i style="width:${pct}%"></i></div><div class="mute">Còn ${fmt(left)}</div>` : ""}
-    <div class="row" style="margin-top:10px"><button data-bonus="15">${ic("plus")} 15 phút</button><button data-bonus="30">${ic("plus")} 30 phút</button><button data-bonus="60">${ic("plus")} 1 giờ</button>
+    <div class="row" style="margin-top:10px">${limit ? `<button data-bonus="15">${ic("plus")} 15 phút</button><button data-bonus="30">${ic("plus")} 30 phút</button><button data-bonus="60">${ic("plus")} 1 giờ</button>` : `<span class="mute">Chưa đặt giới hạn mỗi ngày, nên không cần thêm giờ</span>`}
     ${r.bonus && r.bonus.day === today && r.bonus.min ? `<button data-bonus="0">${ic("undo-2")} Bỏ thêm giờ</button>` : ""}</div>
   </div>
   ${(st.events || []).length ? `<div class="card"><h2>${ic("bell")} Sự kiện</h2>${(st.events || []).slice(-10).reverse().map(evHtml).join("")}</div>` : ""}
@@ -831,7 +849,7 @@ function homeTab(b) {
   ${blockedNow.length ? `<div class="card"><h2>${ic("ban")} Đang khoá (${blockedNow.length})</h2>${blockedNow.slice(0, 50).map(x => `<span class="tag bad">${esc(x.label)}</span>`).join(" ")}</div>` : ""}
   <div class="card"><h2>${ic("chart-column")} 7 ngày qua</h2><div id="histPick" style="margin-bottom:8px"></div><div class="hist" id="hist"></div><div id="histTop" class="mute"></div></div>
   <div class="card"><h2>${ic("flame")} Dùng nhiều nhất</h2>${st.apps.filter(x => x.ms > 60000).slice(0, 8).map(appRow).join("") || `<div class="empty"><span class="e">${ic("sprout")}</span>Chưa có</div>`}</div>
-  <div class="card"><h2>${ic("notebook-pen")} Nhật ký</h2>${(st.log || []).slice(-12).reverse().map(l => `<div class="mute">${new Date(l.t).toLocaleTimeString("vi", { hour: "2-digit", minute: "2-digit" })} · ${esc(noEmoji(l.m))}</div>`).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>Trống</div>`}</div>`;
+  <div class="card"><h2>${ic("notebook-pen")} Nhật ký</h2>${(st.log || []).slice(-12).reverse().map(l => `<div class="mute">${new Date(l.t).toLocaleTimeString("vi", { hour: "2-digit", minute: "2-digit" })} · ${esc(logVi(noEmoji(l.m)))}</div>`).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>Trống</div>`}</div>`;
   drawHist();
   b.querySelectorAll("[data-rn]").forEach(i => i.oninput = () => { reqNote[i.dataset.rn] = i.value; });
   b.querySelectorAll("[data-rm]").forEach(c => c.onclick = () => {
@@ -876,9 +894,13 @@ function homeTab(b) {
   $("#ring").onclick = () => cmd({ type: "ring" }, "Đang đổ chuông 20 giây");
   $("#loc").onclick = () => cmd({ type: "locate" }, "Đang lấy vị trí, xem tab Vị trí");
   if ($("#ear1")) $("#ear1").onclick = earStart;
-  $("#send").onclick = () => { const t = $("#msg").value.trim(); if (!t) return; cmd({ type: "message", text: t }, "Đã nhắn"); $("#msg").value = ""; };
+  $("#send").onclick = () => { const t = $("#msg").value.trim(); if (!t) return; cmd({ type: "message", text: t }, "Đã nhắn").then(r => { if (r && $("#msg") && $("#msg").value.trim() === t) $("#msg").value = ""; }); };
 }
 
+// device log lines "Lệnh: <type> → <result>" come from the phone in English codes
+const CMD_VI = { lock: "Khoá màn hình", locate: "Lấy vị trí", message: "Tin nhắn", ring: "Đổ chuông", openPairing: "Mở ghép máy", unpairAll: "Huỷ ghép mọi máy", release: "Gỡ quản lý", answer: "Trả lời xin thêm giờ", reboot: "Khởi động lại", tailscale: "Cài Tailscale", tailscaleOff: "Tắt Tailscale", sosAck: "Đã xem SOS", clearData: "Xoá dữ liệu app", update: "Cập nhật", relay: "Cấu hình relay", listen: "Nghe xung quanh" };
+const RES_VI = { ok: "xong", queued: "đã xếp hàng", "no such sos": "không có SOS này", "set PIN first": "cần đặt PIN trước" };
+function logVi(m) { const x = /^Lệnh: (\S+) → (.+)$/.exec(m); return x ? "Lệnh: " + (CMD_VI[x[1]] || x[1]) + " → " + (RES_VI[x[2]] || x[2]) : m; }
 function drawHist() {
   const days = (st.history || []).slice().reverse().concat([{ day: st.day, ms: st.usedMs, top: st.apps.filter(x => x.ms > 0).slice(0, 5) }]);
   const mx = Math.max(60000, ...days.map(d => d.ms)), WD = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
@@ -1015,6 +1037,15 @@ function cleanWire(b) {
   });
 }
 
+// warning under a time range (bedtime / schedule) that would never block anything
+function timeWarn(x, on, sch) {
+  if (!on) return "";
+  const m = [];
+  if (!x.start || !x.end) m.push("Chưa chọn đủ giờ bắt đầu và kết thúc, luật này không có tác dụng");
+  else if (x.start === x.end) m.push("Giờ bắt đầu và kết thúc trùng nhau, luật này không có tác dụng");
+  if (sch && !(x.days || []).length) m.push("Chưa chọn ngày nào, lịch này không có tác dụng");
+  return m.map(t => `<div class="alert warn" style="margin-top:8px">${ic("triangle-alert")} ${t}</div>`).join("");
+}
 function rulesTab(b) {
   const r = edit;
   const T = allTpl(); if (tplSel >= T.length) tplSel = 0;
@@ -1039,32 +1070,33 @@ function rulesTab(b) {
     <p class="mute">${ic("lightbulb")} Con chọn việc đã làm khi xin thêm giờ; bố mẹ vẫn là người bấm Đồng ý (tối đa 20 việc, 5–120 phút).</p></div>
   <div class="card"><h2>${ic("moon")} Giờ ngủ</h2>
     <div class="row"><label class="row"><input type="checkbox" id="f-bed" ${r.bedtime.on ? "checked" : ""}> ${ic("moon")} Bật</label>
-    <span class="sp"></span>từ <input type="time" id="f-bs" value="${esc(r.bedtime.start)}"> tới <input type="time" id="f-be" value="${esc(r.bedtime.end)}"></div></div>
+    <span class="sp"></span><span class="row tm">từ <input type="time" id="f-bs" value="${esc(r.bedtime.start)}"> tới <input type="time" id="f-be" value="${esc(r.bedtime.end)}"></span></div>
+    <div id="bedW">${timeWarn(r.bedtime, r.bedtime.on)}</div></div>
   <div class="card"><h2>${ic("book-open")} Lịch học</h2>
     ${r.schedules.map((x, i) => `<div class="sch" data-s="${i}">
       <div class="row"><input id="f-sn${i}" class="sp" data-f="name" placeholder="Tên (vd: Giờ học)" value="${esc(x.name)}"><label class="row"><input type="checkbox" data-f="on" ${x.on ? "checked" : ""}> Bật</label></div>
       <div class="chips" style="margin:8px 0">${["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((n, d) => `<button data-day="${d + 1}" class="${(x.days || []).includes(d + 1) ? "on" : ""}">${n}</button>`).join("")}</div>
-      <div class="row">từ <input type="time" id="f-ss${i}" data-f="start" value="${esc(x.start)}"> tới <input type="time" id="f-se${i}" data-f="end" value="${esc(x.end)}"><span class="sp"></span><button class="bad" data-del="${i}">${ic("trash-2")} Xoá</button></div></div>`).join("") || `<p class="mute">${ic("inbox")} Chưa có lịch. Ví dụ: khoá giờ học 7:00–11:30 các ngày T2–T6.</p>`}
+      <div class="row"><span class="row tm">từ <input type="time" id="f-ss${i}" data-f="start" value="${esc(x.start)}"> tới <input type="time" id="f-se${i}" data-f="end" value="${esc(x.end)}"></span><span class="sp"></span><button class="bad" data-del="${i}">${ic("trash-2")} Xoá</button></div><div data-sw>${timeWarn(x, x.on, true)}</div></div>`).join("") || `<p class="mute">${ic("inbox")} Chưa có lịch. Ví dụ: khoá giờ học 7:00–11:30 các ngày T2–T6.</p>`}
     <button id="addSch">${ic("plus")} Thêm lịch</button></div>
   <div class="card"><h2>${ic("map-pin")} Vùng (nhà, trường…)</h2>
     ${r.zones.map((z, i) => `<div class="sch" data-z="${i}"><div class="row"><input class="sp" id="f-zn${i}" maxlength="40" placeholder="Tên vùng (vd: Nhà)" aria-label="Tên vùng" value="${esc(z.name)}"><label class="row">bán kính <input type="number" id="f-zr${i}" min="50" max="2000" step="50" inputmode="numeric" style="width:6em" value="${+z.r || 150}"> m</label></div>
       <div class="row" style="margin-top:8px"><input id="f-zla${i}" inputmode="decimal" placeholder="Vĩ độ" aria-label="Vĩ độ" style="width:8.5em" value="${zoneOk(z) ? +z.lat : ""}"><input id="f-zlo${i}" inputmode="decimal" placeholder="Kinh độ" aria-label="Kinh độ" style="width:8.5em" value="${zoneOk(z) ? +z.lng : ""}"></div>
       <div class="row" style="margin-top:8px"><button data-zhere="${i}" class="sp" ${st.location ? "" : "disabled"}>${ic("map-pin")} Dùng vị trí hiện tại của con</button><button class="bad" data-zdel="${i}">${ic("trash-2")} Xoá</button></div></div>`).join("") || `<p class="mute">${ic("inbox")} Chưa có vùng nào. Ví dụ: Nhà, Trường (bán kính 50–2000 m).</p>`}
-    <button id="addZone" ${r.zones.length >= 10 ? "disabled" : ""}>${ic("plus")} Thêm vùng</button>
+    <button id="addZone" ${r.zones.length >= 10 || !st.location ? "disabled" : ""}>${ic("plus")} Thêm vùng</button>${st.location ? "" : `<p class="mute">${ic("triangle-alert")} Chưa có vị trí của con, chưa thêm vùng được (chờ máy con báo vị trí).</p>`}
     <p class="mute">${ic("lightbulb")} Máy con đến / rời vùng thì bạn nhận thông báo (mục Sự kiện, tab Hôm nay). Con thấy danh sách vùng trong "Luật của con". Vùng hiện trên bản đồ ở tab Vị trí.</p></div>
   <div class="card"><h2>${ic("map-pin")} Ghi vị trí mỗi …</h2>
     <select id="f-tm">${[[0, "Tắt"], [5, "5 phút"], [10, "10 phút"], [15, "15 phút"], [30, "30 phút"], [60, "1 giờ"]].map(([v, n]) => `<option value="${v}" ${r.trackMin === v ? "selected" : ""}>${n}</option>`).join("")}${[0, 5, 10, 15, 30, 60].includes(r.trackMin) ? "" : `<option selected value="${r.trackMin}">${r.trackMin} phút</option>`}</select>
     <p class="mute">${ic("map")} Dùng để vẽ lịch sử di chuyển trong tab Vị trí. Ghi thường xuyên hơn thì tốn pin hơn.</p></div>
   <div class="card"><h2>${ic("construction")} Chặn thêm</h2>
-    <label class="row"><input type="checkbox" id="f-bn" ${r.blockNew ? "checked" : ""}><span>${ic("sparkles")} Chặn app mới cài cho tới khi duyệt</span></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-ll" ${r.lockLocation ? "checked" : ""}><span>${ic("map-pin")} Khoá vị trí: không cho tắt định vị</span></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span>${ic("plane")} Chế độ máy bay: không cho bật</span></label>${isBasic() ? needOwner("khoá vị trí và máy bay") : ""}</div>
+    <label class="row"><input type="checkbox" id="f-bn" ${r.blockNew ? "checked" : ""}><span class="sp">${ic("sparkles")} Chặn app mới cài cho tới khi duyệt</span></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-ll" ${r.lockLocation ? "checked" : ""}><span class="sp">${ic("map-pin")} Khoá vị trí: không cho tắt định vị</span></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span class="sp">${ic("plane")} Chế độ máy bay: không cho bật</span></label>${isBasic() ? needOwner("khoá vị trí và máy bay") : ""}</div>
   <div class="card"><h2>${ic("shield")} DNS an toàn (chặn web người lớn)</h2>
     <select id="f-dns">${DNS.map(([v, n]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}</option>`).join("")}${DNS.some(d => d[0] === r.safeDns) ? "" : `<option selected value="${esc(r.safeDns)}">${esc(r.safeDns)}</option>`}</select>
     <p class="mute">${ic("eye-off")} Chặn web người lớn, bật tìm kiếm an toàn. Áp dụng cho cả Wi-Fi và 4G (qua DNS riêng của Android).</p>${isBasic() ? needOwner() : ""}</div>
   <div class="card"><h2>${ic("lock-keyhole")} Chống lách</h2>
-    <label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span>${ic("package")} Chặn cài app mới</span></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span>${ic("code")} Chặn Tuỳ chọn nhà phát triển / ADB</span></label>
+    <label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span class="sp">${ic("package")} Chặn cài app mới</span></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} Chặn Tuỳ chọn nhà phát triển / ADB</span></label>
     ${isBasic() ? needOwner() + `<p class="mute">${ic("shield")} Chế độ cơ bản: KidGuard tự thoát khỏi màn hình gỡ app, tắt quyền quản trị, tắt Trợ năng và Buộc dừng của chính nó.</p>`
       : `<p class="mute">${ic("lock")} Luôn bật sẵn: chặn gỡ KidGuard, chặn Force stop, chặn đặt lại máy trong Cài đặt, chặn Safe Mode, chặn tạo người dùng, khoá đổi giờ.</p>`}</div>`;
   b.querySelectorAll("[data-tpl]").forEach(x => x.onclick = () => { tplSel = +x.dataset.tpl; render(); });
@@ -1100,17 +1132,20 @@ function rulesTab(b) {
     box.querySelector("[data-zdel]").onclick = async () => { if (!(await ask(`Xoá vùng “${z.name}”?`, "Xoá", true))) return; r.zones.splice(i, 1); changed(); render(); };
   });
   $("#addZone").onclick = () => {
+    const l = st.location;
     if (r.zones.length >= 10) return;
-    const l = st.location, z = { id: newId("z"), name: "Vùng mới", lat: l ? +l.lat : null, lng: l ? +l.lng : null, r: 150 };
-    r.zones.push(z); if (l) changed(); else toast("warn|Chưa có vị trí của con: nhập vĩ độ / kinh độ");
+    if (!l) return toast("warn|Chưa có vị trí của con, chưa thêm vùng được");   // a zone without coordinates is dropped on save
+    const z = { id: newId("z"), name: "Vùng mới", lat: +l.lat, lng: +l.lng, r: 150 };
+    r.zones.push(z); changed();
     render(); const n = $("#f-zn" + (r.zones.length - 1)); if (n) { n.focus(); n.select(); }
   };
   $("#f-dmode").onchange = e => { r.dailyByDay = e.target.value === "by" ? Array(7).fill(r.dailyMin || 0) : []; changed(); document.activeElement.blur(); render(); };
   if ($("#f-daily")) $("#f-daily").onchange = e => { r.dailyMin = +e.target.value; changed(); };
-  b.querySelectorAll("[data-d]").forEach(x => x.oninput = () => { r.dailyByDay[+x.dataset.d] = Math.max(0, Math.round(+x.value || 0)); changed(); });
+  b.querySelectorAll("[data-d]").forEach(x => x.oninput = () => { const v = Math.min(1440, Math.max(0, Math.round(+x.value || 0))); r.dailyByDay[+x.dataset.d] = v; if (x.value !== "" && +x.value !== v) x.value = v; changed(); });
   b.querySelectorAll("[data-s]").forEach(box => {
     const x = r.schedules[+box.dataset.s];
-    box.querySelectorAll("[data-f]").forEach(f => f.onchange = f.oninput = () => { x[f.dataset.f] = f.type === "checkbox" ? f.checked : f.value; changed(); });
+    const sw = () => { box.querySelector("[data-sw]").innerHTML = timeWarn(x, x.on, true); };
+    box.querySelectorAll("[data-f]").forEach(f => f.onchange = f.oninput = () => { x[f.dataset.f] = f.type === "checkbox" ? f.checked : f.value; sw(); changed(); });
     box.querySelectorAll("[data-day]").forEach(d => d.onclick = () => { const n = +d.dataset.day; x.days = (x.days || []).includes(n) ? x.days.filter(v => v !== n) : (x.days || []).concat(n).sort(); changed(); render(); });
     box.querySelector("[data-del]").onclick = async () => { if (!(await ask("Xoá lịch này?", "Xoá", true))) return; r.schedules.splice(+box.dataset.s, 1); changed(); render(); };
   });
@@ -1120,9 +1155,10 @@ function rulesTab(b) {
   $("#f-ll").onchange = e => { r.lockLocation = e.target.checked; changed(); };
   $("#f-na").onchange = e => { r.noAirplane = e.target.checked; changed(); };
   $("#f-dns").onchange = e => { r.safeDns = e.target.value; changed(); };
-  $("#f-bed").onchange = e => { r.bedtime.on = e.target.checked; changed(); };
-  $("#f-bs").onchange = e => { r.bedtime.start = e.target.value; changed(); };
-  $("#f-be").onchange = e => { r.bedtime.end = e.target.value; changed(); };
+  const bw = () => { $("#bedW").innerHTML = timeWarn(r.bedtime, r.bedtime.on); };
+  $("#f-bed").onchange = e => { r.bedtime.on = e.target.checked; bw(); changed(); };
+  $("#f-bs").onchange = e => { r.bedtime.start = e.target.value; bw(); changed(); };
+  $("#f-be").onchange = e => { r.bedtime.end = e.target.value; bw(); changed(); };
   $("#f-ni").onchange = e => { r.noInstall = e.target.checked; changed(); };
   $("#f-nd").onchange = e => { r.noDebug = e.target.checked; changed(); };
 }
@@ -1197,7 +1233,7 @@ async function sendInput(o) {
   try {
     let r;
     try { r = await call(cur, "/input", "POST", o); }
-    catch (e) { if (cur.via !== "relay" || e.message !== "not live") throw e; await call(cur, "/live", "POST", {}); r = await call(cur, "/input", "POST", o); } if (r.result && r.result !== "ok" && r.result !== "queued") toast(errText(r.result)); }
+    catch (e) { if (cur.via !== "relay" || e.raw !== "not live") throw e; await call(cur, "/live", "POST", {}); r = await call(cur, "/input", "POST", o); } if (r.result && r.result !== "ok" && r.result !== "queued") toast(errText(r.result)); }
   catch (e) { toast("err|Lỗi: " + e.message); }
 }
 
@@ -1386,6 +1422,7 @@ function tsCard(lan) {
   const label = { off: "Đang tắt", installing: "Đang cài / đăng nhập…", on: "Đã kết nối", error: "Lỗi" }[t.state] || t.state;
   const cls = { on: "ok", error: "bad", installing: "warn" }[t.state] || "";
   const url = t.ip ? `http://${t.ip}:8770` : "";
+  if (!lan && t.state === "off") return "";   // relay page: it can only be enabled at home, so an "off" row says nothing
   return `<div class="card"><h2>${ic("route")} Điều khiển từ xa qua Tailscale</h2>
     <p class="mute">Không cần Cloudflare: máy con tự cài Tailscale và vào mạng riêng của bạn. Điện thoại bố mẹ cài Tailscale cùng tài khoản rồi mở địa chỉ bên dưới.</p>
     <p><span class="tag ${cls}">${esc(label)}</span>${t.host ? ` · tên máy <b>${esc(t.host)}</b>` : ""}</p>
@@ -1418,7 +1455,8 @@ function setTab(b) {
   <div class="card"><h2>${ic("user")} Tên</h2><div class="row"><input id="f-name" class="sp" value="${esc(cur.name)}"><button id="saveName">${ic("save")} Lưu</button></div></div>
   <div class="card"><h2>${ic("key-round")} PIN của bố mẹ</h2><p class="mute">Cần PIN này để mở ghép thêm máy ngay trên máy con.</p>
     ${edit.pinSet ? "" : `<div class="alert warn">${ic("triangle-alert")} Chưa đặt PIN — nên đặt để con không tự ghép máy</div>`}
-    <div class="row"><input id="f-pin" inputmode="numeric" type="password" placeholder="${edit.pinSet ? "Đã đặt PIN" : "Chưa đặt PIN"} (nhập 4–8 số để đổi)" maxlength="8" autocomplete="new-password"><button id="savePin">${ic("key-round")} ${edit.pinSet ? "Đổi PIN" : "Đặt PIN"}</button></div></div>
+    <p class="mute">${edit.pinSet ? "Đã đặt PIN. Nhập 4–8 số mới để đổi." : "Nhập 4–8 số để đặt PIN."}</p>
+    <div class="row"><input class="sp" style="min-width:8em" id="f-pin" inputmode="numeric" type="password" placeholder="4–8 số" aria-label="PIN mới" maxlength="8" autocomplete="new-password"><button id="savePin">${ic("key-round")} ${edit.pinSet ? "Đổi PIN" : "Đặt PIN"}</button></div></div>
   ${APP ? `<div class="card"><h2>${ic("bell")} Thông báo</h2><label class="row"><input type="checkbox" id="f-notify" ${kgCall("getNotify") === "false" || kgCall("canNotify") === "false" ? "" : "checked"}><span class="sp">Thông báo trên máy này (con xin thêm giờ, mất kết nối)</span></label>${kgCall("getNotify") !== "false" && kgCall("canNotify") === "false" ? `<p class="mute">${ic("triangle-alert")} Android đang chặn thông báo của KidGuard: bật lại trong Cài đặt > Ứng dụng > KidGuard Parent > Thông báo.</p>` : ""}</div>` : ""}
   ${APP ? `<div class="card"><h2>${ic("history")} Lưu lịch sử trên máy này</h2><select id="f-days" aria-label="Lưu lịch sử">${[["0", "Không giới hạn"], ["30", "30 ngày"], ["90", "90 ngày"], ["365", "365 ngày"]].map(([v, n]) => `<option value="${v}" ${String(kgCall("getHistoryDays") || "0") === v ? "selected" : ""}>${n}</option>`).join("")}</select>
     <p class="mute">Mặc định không giới hạn; tự xoá ngày cũ nhất khi máy gần hết bộ nhớ.</p></div>` : ""}
@@ -1445,7 +1483,7 @@ function setTab(b) {
     if (r && r.token) {
       const link = `${url}/#c=${encodeURIComponent(r.id)}&k=${encodeURIComponent(r.token)}&n=${encodeURIComponent(cur.name)}`;
       $("#relayOut").innerHTML = `<p>${ic("smartphone")} Mở link này trên điện thoại bố mẹ (lưu lại, đừng gửi cho ai):</p><code>${esc(link)}</code>
-        <div class="row" style="margin-top:8px"><button id="copy">${ic("clipboard-copy")} Chép link</button><a href="${esc(link)}" target="_blank" rel="noopener"><button>${ic("link")} Mở</button></a></div>`;
+        <div class="row" style="margin-top:8px"><button id="copy">${ic("clipboard-copy")} Chép link</button><a class="lnkbtn" href="${esc(link)}" target="_blank" rel="noopener">${ic("link")} Mở</a></div>`;
       $("#copy").onclick = () => { navigator.clipboard?.writeText(link).then(() => toast("Đã chép"), () => toast("Chép tay giúp nhé")); };
     }
   };
@@ -1468,7 +1506,7 @@ function setTab(b) {
   if ($("#f-au")) $("#f-au").onchange = e => { if (!edit) return; edit.autoUpdate = e.target.checked; changed(); };
   if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, "Đã gửi: máy con kiểm tra bản mới", ["Cho máy con kiểm tra và cài bản KidGuard mới nhất từ GitHub? KidGuard tắt vài giây khi cài.", "Cập nhật"]).then(() => setTimeout(refresh, 4000));
   $("#release").onclick = async () => {
-    await cmd({ type: "release" }, "Đã gỡ quản lý", ["Gỡ quyền quản lý: máy con sẽ hết mọi giới hạn và KidGuard không điều khiển được nữa.", "Gỡ quản lý", true, "GO"]);
+    await cmd({ type: "release" }, "Đã gỡ quản lý", ["Gỡ quyền quản lý: máy con sẽ hết mọi giới hạn và KidGuard không điều khiển được nữa.", "Gỡ quản lý", true, "GỠ"]);
   };
 }
 

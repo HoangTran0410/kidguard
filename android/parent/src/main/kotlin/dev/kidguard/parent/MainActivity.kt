@@ -85,6 +85,13 @@ class MainActivity : Activity() {
                 return if (u.startsWith("$origin/") || u.startsWith("https://tile.openstreetmap.org/") || u.startsWith("data:") || u.startsWith("blob:")) null
                 else WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), java.io.ByteArrayInputStream(ByteArray(0)))
             }
+            // Android killed the page renderer (low memory, cheap phones): without this the whole app dies with it
+            override fun onRenderProcessGone(v: WebView, d: android.webkit.RenderProcessGoneDetail): Boolean {
+                if (web === v) web = null
+                runCatching { (v.parent as? android.view.ViewGroup)?.removeView(v); v.destroy() }
+                recreate()
+                return true
+            }
         }
         setContentView(w)
         // never restoreState: the cookie secret changes with the process, page state lives in JS/localStorage

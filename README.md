@@ -21,7 +21,7 @@
   <a href="https://github.com/HoangTran0410/kidguard/releases/latest"><img src="https://img.shields.io/github/v/release/HoangTran0410/kidguard?style=flat-square&label=release&color=2563eb&labelColor=15181e" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/Android-8%2B-2563eb?style=flat-square&labelColor=15181e" alt="Android 8+">
   <img src="https://img.shields.io/badge/parents-any%20browser-2563eb?style=flat-square&labelColor=15181e" alt="Any browser">
-  <img src="https://img.shields.io/badge/APK-4%20MB-2563eb?style=flat-square&labelColor=15181e" alt="7 MB">
+  <img src="https://img.shields.io/badge/APK-4%20MB-2563eb?style=flat-square&labelColor=15181e" alt="4 MB">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square&labelColor=15181e" alt="MIT"></a>
 </p>
 
@@ -43,11 +43,11 @@ KidGuard becomes the phone's **Device Owner**, the same Android role a company u
 
 | You need | Where |
 |---|---|
-| The app for the child's phone | [kidguard.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.0/kidguard-0.9.0.apk) |
+| The app for the child's phone | [kidguard.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.1/kidguard-0.9.1.apk) |
 | QR code for a new or factory-reset phone | [kidguard.99-hoangtran.workers.dev/qr](https://kidguard.99-hoangtran.workers.dev/qr) |
 | Install from a computer's browser (USB, no adb) | [kidguard.99-hoangtran.workers.dev/install](https://kidguard.99-hoangtran.workers.dev/install) |
 | The parent page | the phone shows its address after setup: `http://<phone IP>:8770` |
-| The parent app (Android, optional) | [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.0/kidguard-parent-0.9.0.apk) |
+| The parent app (Android, optional) | [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.1/kidguard-parent-0.9.1.apk) |
 
 ## Install
 
@@ -55,7 +55,7 @@ Android only lets an app become Device Owner while the phone has **no accounts**
 
 | Way | Needs | Steps |
 |---|---|---|
-| 📱 **On the phone itself** | Android 11+, Wi-Fi | Install the APK, open KidGuard, tap **Tự cài không cần máy tính** (set up without a computer). Turn on Developer options → **Wireless debugging** → *Pair with code*, type the 6 digits into KidGuard's notification. It does the rest and turns wireless debugging off again. |
+| 📱 **On the phone itself** | Android 11+, Wi-Fi | Install the APK, open KidGuard, tap **Cài đầy đủ không cần máy tính (Android 11+)** (full setup without a computer). Turn on Developer options → **Wireless debugging** → *Pair with code*, type the 6 digits into KidGuard's notification. It does the rest and turns wireless debugging off again. |
 | 🔳 **Scan a QR** | a new or factory-reset phone, stock-like Android (Pixel, Samsung, Nokia…). Some skins drop the 6-tap screen (e.g. Oppo / Realme ColorOS on Android 8–9): use the USB way | On the welcome screen tap 6 times on an empty spot, scan the [QR](https://kidguard.99-hoangtran.workers.dev/qr). The phone downloads KidGuard over Wi-Fi and sets it up; open it and finish the short checklist. |
 | 🌐 **Browser + USB cable** | Chrome or Edge on a computer | Turn on **USB debugging**, plug in, open [/install](https://kidguard.99-hoangtran.workers.dev/install), press Connect. No adb needed. |
 | ⌨️ **Command line** | macOS, Linux or Windows | `scripts/setup.sh` (downloads adb if missing, `-y` skips questions) or `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1` |
@@ -70,7 +70,7 @@ when you can; a basic phone can be switched later with any of the ways above.
 Then the child's phone shows a **6-digit code** and a **QR code**. On the parent's phone (same Wi-Fi) scan the QR with the camera (it opens the page with the code filled in), or open `http://<phone IP>:8770` and type the code, and in **Cài đặt** (Settings) set a **parent PIN** (without it the phone refuses to pair another browser).
 
 **Parent app (Android, optional).** The browser is enough, but the app adds notifications (SOS, time requests, accessibility
-turned off) and shows the last data when the child's phone is offline. Install [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.0/kidguard-parent-0.9.0.apk) on the
+turned off) and shows the last data when the child's phone is offline. Install [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.1/kidguard-parent-0.9.1.apk) on the
 parent's phone, open it, tap **Thêm máy của con** (add the child's phone), type the address shown on the child's phone and then
 the 6-digit code (away from home: paste the Worker link from the child's Settings). iPhone: use the browser ([below](#iphone--ipad)).
 
@@ -141,7 +141,7 @@ The parent page works the same through a small **Cloudflare Worker** (free plan)
 cd worker && npm install && npx wrangler login && npx wrangler deploy
 ```
 
-In the parent page (on home Wi-Fi): **Cài đặt → Điều khiển khi khác mạng** (Settings → control away from home), paste the Worker address, press On, open the link it shows on the parent's phone. Commands reach the phone in about 20 s (about 60 s with the screen off).
+In the parent page (on home Wi-Fi): **Cài đặt → Nâng cao: relay Cloudflare Worker** (Settings → advanced: relay), paste the Worker address, press On, open the link it shows on the parent's phone. Commands reach the phone in about 20 s (about 60 s with the screen off).
 
 ### Instant SOS notifications (optional)
 

@@ -28,6 +28,9 @@ import android.widget.ScrollView
 import android.widget.TextView
 
 /** The child's screen: is the guard on, and (only while pairing is open) the 6-digit code for the parent. */
+/** "Mở ghép lại" from the child's screen waits this long (see Store.recoverAt). */
+private const val RECOVER_MS = 24 * 3_600_000L
+
 class MainActivity : Activity() {
     private val ui = Handler(Looper.getMainLooper())
     private lateinit var ui2: Ui
@@ -100,9 +103,17 @@ class MainActivity : Activity() {
         col.addView(revealBtn)
         recoverBtn = u.button("Bố mẹ mất liên kết? Mở ghép lại (giữ 10 giây)", R.drawable.li_link, false) {}
         holdToRun(recoverBtn, 10_000) {
-            // only reachable while no PIN is set (see refresh); the parent sees this line in the log
+            // only reachable while no PIN is set (see refresh). Not at once: a child could pair their own browser and
+            // release. Pairing opens in 24 h, the parents are told now and can cancel by setting a PIN.
             val s = Store.of(this)
-            if (s.rules.pinHash.isBlank()) { s.openPairing(); s.log("Mở ghép lại từ máy con"); Guard.poke(this) }
+            if (s.rules.pinHash.isBlank() && s.recoverAt == 0L) {
+                s.recoverAt = System.currentTimeMillis() + RECOVER_MS
+                s.log("Máy con yêu cầu mở ghép lại (mở sau 24 giờ)")
+                s.addEvent(Ev("pairing", "Máy con yêu cầu mở ghép lại: sẽ mở sau 24 giờ. Đặt PIN để huỷ."))
+                Guard.poke(this)
+                Modal(this, ui2).show(R.drawable.li_link, Modal.Tone.INFO, "Sẽ mở ghép sau 24 giờ",
+                    "Để an toàn, mã ghép hiện sau 24 giờ và bố mẹ được báo ngay. Nếu bố mẹ vẫn còn quản lý được, hãy đặt mã PIN để huỷ.")
+            }
             refresh()
         }
         col.addView(recoverBtn)
@@ -119,11 +130,17 @@ class MainActivity : Activity() {
     /** Fires [action] after the button is held for [ms]; releasing early cancels. A tap does nothing (no pocket / child accidents). */
     @android.annotation.SuppressLint("ClickableViewAccessibility")
     private fun holdToRun(b: Button, ms: Long, action: () -> Unit) {
-        val run = Runnable { action() }
+        var fired = false; var downAt = 0L
+        val run = Runnable { fired = true; action() }
         b.setOnTouchListener { _, e ->
             when (e.actionMasked) {
-                android.view.MotionEvent.ACTION_DOWN -> ui.postDelayed(run, ms)
-                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> ui.removeCallbacks(run)
+                android.view.MotionEvent.ACTION_DOWN -> { fired = false; downAt = e.eventTime; ui.postDelayed(run, ms) }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    ui.removeCallbacks(run)
+                    // a short tap did nothing: say why, or the parent thinks the button is broken
+                    if (!fired && e.actionMasked == android.view.MotionEvent.ACTION_UP && e.eventTime - downAt < ms)
+                        android.widget.Toast.makeText(this, "Giữ nút ${ms / 1000} giây", android.widget.Toast.LENGTH_SHORT).show()
+                }
             }
             false
         }
@@ -184,6 +201,8 @@ class MainActivity : Activity() {
         val hidden = c == null && s.pairCode() != null     // first pairing, code not revealed yet
         revealBtn.visibility = if (hidden) View.VISIBLE else View.GONE
         recoverBtn.visibility = if (s.everPaired && c == null && s.rules.pinHash.isBlank()) View.VISIBLE else View.GONE
+        recoverBtn.text = s.recoverAt.takeIf { it > 0 }?.let { "Mã ghép sẽ hiện lúc " + java.text.SimpleDateFormat("HH:mm dd/MM", java.util.Locale.ROOT).format(java.util.Date(it)) }
+            ?: "Bố mẹ mất liên kết? Mở ghép lại (giữ 10 giây)"
         if (c != null) {
             code.visibility = View.VISIBLE; codeLabel.visibility = View.VISIBLE; code.text = c
             hint.gravity = Gravity.CENTER
@@ -203,8 +222,9 @@ class MainActivity : Activity() {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             pairBtn.visibility = if (hidden) View.GONE else View.VISIBLE
         }
-        ui.postDelayed(::refresh, 3000)
+        ui.removeCallbacks(refreshLoop); ui.postDelayed(refreshLoop, 3000)   // one loop, however often refresh() is called
     }
+    private val refreshLoop = Runnable { refresh() }
 
     /** Opening pairing on the child needs the parent's PIN, once one is set; else a child could pair their own browser. */
     private fun askPin() {

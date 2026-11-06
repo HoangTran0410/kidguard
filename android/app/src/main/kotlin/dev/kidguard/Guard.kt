@@ -150,7 +150,9 @@ class Guard : Service() {
         val stored = store.knownApps
         val known = stored ?: emptySet<String>().also { if (apps.isNotEmpty()) store.knownApps = apps.keys }
         val fresh = if (stored == null) emptySet() else apps.keys - known - r.approved - r.allow - prot
-        if (!r.blockNew && apps.isNotEmpty() && known != apps.keys) store.knownApps = apps.keys
+        // apps we hid ("Dọn máy") leave the launcher list: keep them known, or un-hiding one reads as "Cài mới"
+        val nowKnown = apps.keys + store.hiddenByUs
+        if (!r.blockNew && apps.isNotEmpty() && known != nowKnown) store.knownApps = nowKnown
         (fresh - store.loggedNew).takeIf { it.isNotEmpty() }?.let { n ->
             n.forEach { store.log("Cài mới: ${apps[it] ?: it}"); store.addEvent(Ev("newApp", "Đã cài ${apps[it] ?: it}")) }
             store.loggedNew = (store.loggedNew + n).intersect(apps.keys)
@@ -176,6 +178,10 @@ class Guard : Service() {
         // the app in front just got suspended: send the child home (the system's own "paused" dialog shows when they tap it again)
         if (use.current != null && use.current in nowSusp && use.current !in had) goHome()
         if (now - lastLocateAt > 15 * 60_000) { lastLocateAt = now; locate() }
+        store.recoverAt.takeIf { it > 0 }?.let { at ->   // child's "lost the link" request (MainActivity): a PIN cancels it
+            if (store.rules.pinHash.isNotBlank()) store.recoverAt = 0
+            else if (now >= at) { store.recoverAt = 0; store.openPairing(); store.log("Đã mở ghép lại (yêu cầu từ máy con hôm qua)") }
+        }
         if (now - store.historyAt > 3_600_000) store.saveHistory(history(now, apps.keys, prot, apps), now)
         Update.maybe(this, r, now)
         lastState = state(r, apps, prot, use, want, nowSusp, today, now, newApps)

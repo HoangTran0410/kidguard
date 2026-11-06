@@ -57,8 +57,17 @@ class BasicChecklist(private val act: Activity, private val ui: Ui, private val 
     private fun open(vararg i: Intent) { for (x in i) if (runCatching { act.startActivity(x.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return }
 
     /** True when something is still missing (the card stays visible). */
+    private var lastKey = ""
+    private var lastMissing = false
+
     fun update(): Boolean {
         val c = act
+        // called every 3 s: rebuild only when a step changed, or a tap on a button being redrawn gets lost
+        val key = listOf(Basic.adminActive(c), Acc.isOn(c), Usage.granted(c), Basic.locationOk(c),
+            c.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED,
+            Basic.notifyOk(c), Basic.batteryOk(c)).joinToString()
+        if (key == lastKey) return lastMissing
+        lastKey = key
         items.removeAllViews()
         fun add(t: String, why: String, go: () -> Unit) {
             items.addView(ui.button(t, null, true) { runCatching { go() } })
@@ -108,6 +117,7 @@ class BasicChecklist(private val act: Activity, private val ui: Ui, private val 
         }
         if (missing) items.addView(ui.label("Bị Google Play Protect chặn (\"App blocked to protect your device\")? Mở CH Play → ảnh đại diện → Play Protect → ⚙ → tắt \"Quét ứng dụng bằng Play Protect\", làm xong các bước ở đây rồi bật lại.", 13f).apply { setPadding(ui.dp(4), ui.dp(12), ui.dp(4), 0) })
         box.visibility = if (missing) View.VISIBLE else View.GONE
+        lastMissing = missing
         return missing
     }
 }

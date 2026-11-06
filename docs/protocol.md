@@ -41,7 +41,7 @@ leftMs apps rules location lan relay log`), plus:
 
 ```jsonc
 {
-  "version": "0.2.0",
+  "version": "0.9.1",
   "acc": true,                     // NEW: accessibility service connected (live screen / remote control available)
   "accReEnable": true,             // NEW: the app holds WRITE_SECURE_SETTINGS (can re-enable acc itself)
   "locationOn": true,              // NEW: system location switch
@@ -141,7 +141,8 @@ The first capture / first input of a session is logged in the phone log.
 ## v0.2.1 changes (after review)
 - **PIN hash never leaves the phone/worker to the parent.** `state.rules` and every worker response carry
   `"pinSet": true|false` instead of `pinHash`. A rules PUT with neither `pin` nor `pinHash` keeps the old hash
-  (phone `Api.kt` and worker both). The child's "pair another device" button refuses while no PIN is set.
+  (phone `Api.kt` and worker both). Once paired, the child's "pair another device" button refuses while no PIN is set (before the first pairing it
+  opens pairing; "Mở ghép lại" recovery waits 24 h, see `pairing` events).
 - **Commands are idempotent.** Relay commands carry `id`; the phone remembers the last 100 executed ids in Store
   (written with `commit()` before running `reboot`/`release`) and skips repeats but still acks them. Each command runs
   in its own try/catch and is acked even if it fails. The worker drops `reboot`, `release`, `unpairAll` from the queue
@@ -268,12 +269,14 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
   "Bố mẹ đã đồng ý / chưa đồng ý" notification ("… Bố mẹ nhắn: <note>").
 - **Zones / events**: the phone checks each new location fix against `zones` (inside = distance <= r; leaving needs
   distance > r + 50 m so a fix at the edge doesn't flap); fixes with accuracy > 300 m are ignored and appends events. State NEW:
-  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock", "text": "Đã đến Nhà"}]`,
+  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing", "text": "Đã đến Nhà"}]`,
   newest last, at most 50, older than 7 days dropped. Kinds:
   - `zoneIn` / `zoneOut`: "Đã đến <zone>" / "Đã rời <zone>" (`zone` field = zone id). First fix after a rules change
     only records where the phone is (no event).
   - `battery`: "Pin còn <n>%" once when it drops to <= 15 % while not charging (re-armed after charging to >= 30 %).
   - `newApp`: "Đã cài <label>" when a new non-system app appears (also `apps[].new`).
+  - `pairing` (v0.9.1): the child held "Mở ghép lại" on a paired phone with no PIN. Pairing opens 24 h later (state
+    tick), unless a PIN is set before then.
   - `clock`: "Giờ máy bị đổi" on `ACTION_TIME_CHANGED` with a jump > 2 min versus elapsed time.
   The child sees the zone list in "Luật của con" (transparency).
 - **Rule-change log**: when rules change, the phone logs a readable diff instead of "Bố mẹ đổi luật", e.g.
@@ -358,6 +361,8 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
   header ends in `/tag/v<x.y.z>`. Then `releases/download/v<x.y.z>/kidguard.apk` and `kidguard.apk.sha256` (first
   token = hex SHA-256). The APK must hash to it, have package `dev.kidguard` and a higher versionCode; Android itself
   refuses an update signed with another key, so a fork's or a tampered release can't replace the app.
+  A tag whose APK fails that check is remembered and skipped until a newer tag. `release` aborts (`"failed: N app còn
+  bị ẩn"`, still Device Owner) if an app hidden by "Dọn máy" can't be un-hidden, and drops a waiting download.
 - **When**: rule `autoUpdate` (default true) = once a day from the guard loop (after a failure: retry in 1 h), or the
   command `update` (deliver-once; result `"ok"` = started, `"busy"` = a check is already running; runs even with
   `autoUpdate` off).

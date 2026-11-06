@@ -55,6 +55,8 @@ object Update {
     @Volatile var latest = ""; private set
     @Volatile var status = ""; private set      // "", "checking", "downloading", "installing", "ready" (basic: waits for the child), "failed"
     @Volatile var err = ""; private set
+    /** True while the owner install session runs: [Policy.apply] then leaves the install restrictions lifted. */
+    @Volatile var installing = false; private set
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("update", Context.MODE_PRIVATE)
     fun apk(ctx: Context) = File(ctx.filesDir, "update.apk")
@@ -63,7 +65,10 @@ object Update {
     fun stateJson(ctx: Context): JSONObject {
         val p = prefs(ctx)
         if (latest.isEmpty()) latest = p.getString("latest", "") ?: ""
-        if (status.isEmpty() && apk(ctx).exists() && UpdateLogic.newer(latest, current())) status = "ready"
+        // left over from an install that replaced this process (or an older download): not needed any more
+        if (!busy.get() && apk(ctx).exists() && !UpdateLogic.newer(p.getString("apkTag", "") ?: "", current())) apk(ctx).delete()
+        // "ready" = basic mode waiting for the child's tap; an owner phone installs on its own
+        if (status.isEmpty() && apk(ctx).exists() && UpdateLogic.newer(latest, current()) && !Policy.isOwner(ctx)) status = "ready"
         return JSONObject().put("latest", latest).put("status", status).put("err", err).put("checkedAt", p.getLong("at", 0))
     }
 
@@ -80,7 +85,7 @@ object Update {
         if (!busy.compareAndSet(false, true)) return false
         val app = ctx.applicationContext
         Thread({
-            try { run(app, force) } catch (e: Exception) { Log.e(TAG, "update", e); status = "failed"; err = (e.message ?: "lỗi").take(120) }
+            try { run(app, force) } catch (e: Throwable) { Log.e(TAG, "update", e); status = "failed"; err = (e.message ?: "lỗi").take(120) }
             finally { busy.set(false) }
         }, "update").start()
         return true
@@ -89,17 +94,22 @@ object Update {
     private fun run(ctx: Context, force: Boolean) {
         status = "checking"; err = ""
         val tag = check()
-        prefs(ctx).edit().putLong("at", System.currentTimeMillis()).putString("latest", tag).apply()
+        prefs(ctx).edit().putString("latest", tag).apply()
         latest = tag
-        if (!UpdateLogic.newer(tag, current())) { status = ""; apk(ctx).delete(); return }
+        // "at" (the once-a-day mark) only after a full success: a failed download/install retries in an hour (triedAt)
+        val done = { prefs(ctx).edit().putLong("at", System.currentTimeMillis()).apply() }
+        if (!UpdateLogic.newer(tag, current())) { status = ""; apk(ctx).delete(); done(); return }
+        // a release whose APK we already rejected (wrong package / versionCode): don't download it again every day
+        if (prefs(ctx).getString("badTag", "") == tag) { status = "failed"; err = "bản $tag không hợp lệ"; done(); return }
         val f = apk(ctx)
         if (!f.exists() || prefs(ctx).getString("apkTag", "") != tag) {
             status = "downloading"
             download(tag, f); prefs(ctx).edit().putString("apkTag", tag).apply()
         }
-        verifyPackage(ctx, f)
+        try { verifyPackage(ctx, f) } catch (e: IllegalStateException) { prefs(ctx).edit().putString("badTag", tag).apply(); done(); throw e }
         if (Policy.isOwner(ctx)) { status = "installing"; installSilently(ctx, f) }
-        else { status = "ready"; notifyChild(ctx, tag) }
+        else { status = "ready"; if (force || prefs(ctx).getString("notified", "") != tag) { notifyChild(ctx, tag); prefs(ctx).edit().putString("notified", tag).apply() } }
+        done()
         if (force) Log.i(TAG, "update to $tag requested by parent")
     }
 
@@ -116,7 +126,7 @@ object Update {
     private fun get(url: String): HttpURLConnection {
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 15_000; c.readTimeout = 60_000; c.instanceFollowRedirects = true
-        if (c.responseCode != 200) throw IllegalStateException("tải lỗi HTTP ${c.responseCode}")
+        if (c.responseCode != 200) { val code = c.responseCode; c.disconnect(); throw IllegalStateException("tải lỗi HTTP $code") }
         return c
     }
 
@@ -124,10 +134,12 @@ object Update {
         val want = TsLogic.sha256Of(get(UpdateLogic.apkUrl(tag, "kidguard.apk.sha256")).inputStream.use { String(it.readBytes()) })
             ?: throw IllegalStateException("mã SHA-256 không đọc được")
         val tmp = File(f.parentFile, "update.part"); val md = MessageDigest.getInstance("SHA-256")
-        get(UpdateLogic.apkUrl(tag, "kidguard.apk")).inputStream.use { i -> tmp.outputStream().use { o ->
-            val buf = ByteArray(64 * 1024)
-            while (true) { val n = i.read(buf); if (n < 0) break; md.update(buf, 0, n); o.write(buf, 0, n) }
-        } }
+        try {
+            get(UpdateLogic.apkUrl(tag, "kidguard.apk")).inputStream.use { i -> tmp.outputStream().use { o ->
+                val buf = ByteArray(64 * 1024)
+                while (true) { val n = i.read(buf); if (n < 0) break; md.update(buf, 0, n); o.write(buf, 0, n) }
+            } }
+        } catch (e: Throwable) { tmp.delete(); throw e }
         if (md.digest().joinToString("") { "%02x".format(it) } != want) { tmp.delete(); throw IllegalStateException("sai SHA-256 của bản cập nhật") }
         if (!tmp.renameTo(f)) throw IllegalStateException("không lưu được bản cập nhật")
     }
@@ -146,7 +158,8 @@ object Update {
         val pi = ctx.packageManager.packageInstaller
         val p = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply { setAppPackageName(ctx.packageName) }
         val id = pi.createSession(p)
-        pi.openSession(id).use { s -> f.inputStream().use { i -> s.openWrite("kg", 0, f.length()).use { o -> i.copyTo(o); s.fsync(o) } } }
+        try { pi.openSession(id).use { s -> f.inputStream().use { i -> s.openWrite("kg", 0, f.length()).use { o -> i.copyTo(o); s.fsync(o) } } } }
+        catch (e: Throwable) { runCatching { pi.abandonSession(id) }; throw e }
         return pi to id
     }
 
@@ -154,6 +167,7 @@ object Update {
         val d = Policy.dpm(ctx); val a = Policy.admin(ctx)
         // as for Tailscale: the owner's own session is refused while "no installs" is set; the policy comes back in
         // finally, or (the usual case: this process is replaced) when the new Guard starts
+        installing = true
         listOf(UserManager.DISALLOW_INSTALL_APPS, UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES).forEach { runCatching { d.clearUserRestriction(a, it) } }
         try {
             val (pi, id) = session(ctx, f)
@@ -162,7 +176,7 @@ object Update {
                 if (res != null) throw IllegalStateException("cài lỗi: $res")
             }
             status = ""
-        } finally { runCatching { Policy.apply(ctx, Store.of(ctx).rules) } }
+        } finally { installing = false; runCatching { Policy.apply(ctx, Store.of(ctx).rules) } }
     }
 
     /** Basic mode, from the child's tap: needs "install unknown apps" for KidGuard, then the system asks to confirm. */
@@ -172,11 +186,12 @@ object Update {
             runCatching { ctx.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + ctx.packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             return false
         }
+        val app = ctx.applicationContext   // the thread must not hold the Activity
         Thread({
             runCatching {
-                val (pi, id) = session(ctx, f)
+                val (pi, id) = session(app, f)
                 pi.openSession(id).use { s ->
-                    val pend = PendingIntent.getBroadcast(ctx, 7, Intent(ACTION).setClass(ctx, UpdateReceiver::class.java),
+                    val pend = PendingIntent.getBroadcast(app, 7, Intent(ACTION).setClass(app, UpdateReceiver::class.java),
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
                     s.commit(pend.intentSender)
                 }
@@ -194,6 +209,12 @@ object Update {
     }
 
     fun failed(msg: String) { status = "failed"; err = msg.take(120) }
+
+    /** Release / unpair: drop a waiting download and its notification. */
+    fun forget(ctx: Context) {
+        apk(ctx).delete(); File(ctx.filesDir, "update.part").delete()
+        runCatching { ctx.getSystemService(NotificationManager::class.java).cancel(8) }
+    }
 }
 
 /** Status of the child-confirmed install: opens the system "Update this app?" screen. */
@@ -205,6 +226,7 @@ class UpdateReceiver : BroadcastReceiver() {
                 runCatching { ctx.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             }
             PackageInstaller.STATUS_SUCCESS -> {}
+            PackageInstaller.STATUS_FAILURE_ABORTED -> {}   // the child closed the confirm screen: still "ready", not an error
             else -> Update.failed(i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "đã huỷ")
         }
     }

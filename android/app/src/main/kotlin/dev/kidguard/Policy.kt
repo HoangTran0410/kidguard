@@ -47,7 +47,8 @@ object Policy {
         val d = dpm(ctx); val a = admin(ctx)
         runCatching {
             BASE.forEach { d.addUserRestriction(a, it) }
-            INSTALL.forEach { if (r.noInstall) d.addUserRestriction(a, it) else d.clearUserRestriction(a, it) }
+            // a rules save during a self-update session must not put "no installs" back under it (Update.installing)
+            INSTALL.forEach { if (r.noInstall && !Update.installing) d.addUserRestriction(a, it) else d.clearUserRestriction(a, it) }
             if (r.noDebug) d.addUserRestriction(a, UserManager.DISALLOW_DEBUGGING_FEATURES)
             else d.clearUserRestriction(a, UserManager.DISALLOW_DEBUGGING_FEATURES)
         }.onFailure { Log.w(TAG, "restrictions", it) }
@@ -235,7 +236,7 @@ object Policy {
     }
 
     /** Never hidden / cleared here: Debloat's static set plus [protectedApps] (launcher, keyboards, dialer, self…). */
-    fun neverHide(ctx: Context, prot: Set<String> = protectedApps(ctx)): Set<String> = prot + ctx.packageName
+    fun neverHide(ctx: Context, prot: Set<String> = protectedApps(ctx)): Set<String> = prot + ctx.packageName + TsLogic.PKG   // remote access
 
     /**
      * Hides exactly [want] among the apps we hid (setApplicationHidden). Owner only; never touches the never-hide set.
@@ -347,6 +348,14 @@ object Policy {
         runCatching { d.setPackagesSuspended(a, all, false) }.onFailure { Log.w(TAG, "unsuspend all", it) }
         s.suspendedByUs.forEach { runCatching { d.setPackagesSuspended(a, arrayOf(it), false) } }
         runCatching { unhideAll(ctx, s, d, a) }.onFailure { Log.w(TAG, "unhide all", it) }
+        // setApplicationHidden(false) can refuse without throwing: once Device Owner is gone nobody can un-hide, so stop here
+        val stuck = (s.hiddenByUs + s.rules.hidden).filter { isHidden(ctx, it) }
+        if (stuck.isNotEmpty()) {
+            Log.w(TAG, "release: still hidden $stuck")
+            runCatching { apply(ctx, s.rules) }; Watchdog.schedule(ctx)
+            return "failed: ${stuck.size} app còn bị ẩn"
+        }
+        Update.forget(ctx)
         (BASE + INSTALL + UserManager.DISALLOW_DEBUGGING_FEATURES + UserManager.DISALLOW_APPS_CONTROL).forEach { runCatching { d.clearUserRestriction(a, it) } }
         runCatching { d.setUninstallBlocked(a, ctx.packageName, false) }
         applyNet(ctx, d, a, Rules(lockLocation = false, noAirplane = false, safeDns = ""))

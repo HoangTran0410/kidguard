@@ -102,6 +102,11 @@ class Store private constructor(ctx: Context) {
 
     /** Until this time the child screen shows the first-pairing code (revealed by a parent's 5 s long-press). Memory only. */
     @Volatile var codeRevealUntil = 0L
+    /** "Lost the link" recovery from the child's screen (no PIN set): pairing opens only at this time, a day after the
+     *  request, and the parents get an event at once; setting a PIN meanwhile cancels it. 0 = none. */
+    @get:Synchronized @set:Synchronized var recoverAt: Long
+        get() = p.getLong("recoverAt", 0)
+        set(v) { p.edit().putLong("recoverAt", v).apply() }
 
     /** The code the child screen may show: before the first pairing only after the long-press reveal; later whenever pairing is open. */
     @Synchronized fun visiblePairCode(): String? {
