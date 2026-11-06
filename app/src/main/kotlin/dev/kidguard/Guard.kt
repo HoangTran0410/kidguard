@@ -10,9 +10,11 @@ import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.location.Location
+import android.location.LocationListener
 import android.location.LocationManager
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -21,6 +23,7 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Bundle
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
@@ -34,7 +37,7 @@ import java.util.Date
 import java.util.Locale
 
 class Boot : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) { Guard.start(context); Watchdog.schedule(context) }
+    override fun onReceive(context: Context, intent: Intent) { Guard.start(context); Watchdog.schedule(context) }   // BOOT_COMPLETED, LOCKED_BOOT_COMPLETED, MY_PACKAGE_REPLACED
 }
 
 /**
@@ -48,6 +51,17 @@ class Guard : Service() {
     private var relay: Relay? = null
     @Volatile private var lastState: JSONObject = JSONObject()
     private var lastLocateAt = 0L
+    private var lastFullTick = 0L
+    private var lastTrackTry = 0L
+    private var trackBusy = false
+    private var stopped = false
+    private var locFixLogged = false
+    private var usageLogged = false
+    private val loopRun = Runnable { loop() }
+    private val pokeRun = Runnable { kick() }
+    private val pkgReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) { Policy.invalidate(); kick() }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -58,10 +72,15 @@ class Guard : Service() {
         work = Handler(HandlerThread("guard").apply { start() }.looper)
         running = this
         Watchdog.schedule(this)
-        Policy.apply(this, store.rules)
+        work.post { runCatching { Policy.apply(this, store.rules) } }   // off the main thread: DPM calls can block
+        runCatching {
+            registerReceiver(pkgReceiver, IntentFilter().apply {
+                addAction(Intent.ACTION_PACKAGE_ADDED); addAction(Intent.ACTION_PACKAGE_REMOVED); addDataScheme("package")
+            })
+        }
         http = Http(this, Api(this)).also { it.start(PORT) }
         relay = Relay(this).also { it.start() }
-        work.post(::loop)
+        work.post(loopRun)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int { kick(); return START_STICKY }
@@ -71,31 +90,52 @@ class Guard : Service() {
 
     override fun onDestroy() {
         running = null
+        runCatching { unregisterReceiver(pkgReceiver) }
         http?.stop(); relay?.stop()
         work.looper.quitSafely()
         super.onDestroy()
     }
 
     private fun loop() {
-        runCatching { tick() }.onFailure { Log.e("KidGuard", "tick", it) }
-        work.postDelayed(::loop, TICK_MS)
+        if (stopped) return
+        runCatching { tick(false) }.onFailure { Log.e("KidGuard", "tick", it) }
+        work.postDelayed(loopRun, TICK_MS)
     }
 
     /** Runs the rules again now (rules changed, a command came). */
-    fun kick() { if (::work.isInitialized) work.post { runCatching { tick() } } }
+    fun kick() { if (::work.isInitialized) work.post { if (!stopped) runCatching { tick(true) }.onFailure { Log.e("KidGuard", "kick", it) } } }
 
-    private fun tick() {
+    /** Many pokes in a burst (accessibility events) become one tick 300 ms after the last. */
+    fun pokeSoft() { if (::work.isInitialized) { work.removeCallbacks(pokeRun); work.postDelayed(pokeRun, 300) } }
+
+    private fun tick(force: Boolean) {
         val now = System.currentTimeMillis()
+        // screen off: nothing is being used, a full pass once a minute is enough
+        if (!force && getSystemService(PowerManager::class.java)?.isInteractive == false && now - lastFullTick < 60_000) return
+        lastFullTick = now
         val r = store.rules
-        val apps = Policy.launchable(this)
-        val prot = Policy.protectedApps(this)
+        val (apps, prot) = Policy.cached(this)
         val use = Usage.today(this, now)
         val cal = Calendar.getInstance().apply { timeInMillis = now }
         val minute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         val today = day(now)
         Acc.ensureEnabled(this)
-        val known = store.knownApps ?: apps.keys.also { store.knownApps = it }   // first tick: everything installed now is "old"
-        val fresh = apps.keys - known - r.approved - r.allow - prot
+        Policy.retryDns(this, r)
+        if (r.trackMin > 0 && now - lastTrackTry >= r.trackMin * 60_000L - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) }
+        if (r.lockLocation && Build.VERSION.SDK_INT >= 30 && Policy.isOwner(this)) {
+            if (!locationOn()) {
+                runCatching { Policy.dpm(this).setLocationEnabled(Policy.admin(this), true) }
+                if (!locFixLogged) { locFixLogged = true; store.log("Vị trí bị tắt, đã bật lại") }
+            } else locFixLogged = false
+        }
+        if (!Usage.granted(this)) {
+            if (!usageLogged) { usageLogged = true; store.log("Quyền theo dõi sử dụng bị tắt") }
+        } else usageLogged = false
+        // first tick (with a real app list): everything installed now is "old"; while blockNew is off keep refreshing it
+        val stored = store.knownApps
+        val known = stored ?: emptySet<String>().also { if (apps.isNotEmpty()) store.knownApps = apps.keys }
+        val fresh = if (stored == null) emptySet() else apps.keys - known - r.approved - r.allow - prot
+        if (!r.blockNew && apps.isNotEmpty() && known != apps.keys) store.knownApps = apps.keys
         (fresh - store.loggedNew).takeIf { it.isNotEmpty() }?.let { n ->
             n.forEach { store.log("Cài mới: ${apps[it] ?: it}") }
             store.loggedNew = (store.loggedNew + n).intersect(apps.keys)
@@ -132,7 +172,7 @@ class Guard : Service() {
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
             .put("locationOn", locationOn())
             .put("limitMin", baseLimitMin(r, today).let { if (it > 0) it + if (r.bonusDay == today) r.bonusMin else 0 else 0 })
-            .put("owner", Policy.isOwner(this)).put("usageAccess", Usage.granted(this))
+            .put("owner", Policy.isOwner(this)).put("usageAccess", Usage.granted(this)).put("dnsError", Policy.dnsError)
             .put("battery", bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1)
             .put("charging", bm?.isCharging == true).put("screenOn", pm?.isInteractive == true)
             .put("current", use.current?.let { apps[it] ?: it } ?: JSONObject.NULL)
@@ -145,6 +185,7 @@ class Guard : Service() {
             .put("relay", store.relayUrl)
             .put("log", store.logs())
             .put("history", store.history)
+            .put("track", store.track(2))
             .put("requests", store.requests())
     }
 
@@ -174,46 +215,72 @@ class Guard : Service() {
         nm.createNotificationChannel(NotificationChannel("answer", "Bố mẹ trả lời", NotificationManager.IMPORTANCE_HIGH))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         nm.notify(2, Notification.Builder(this, "answer").setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentTitle("KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
+            .setContentTitle("🛡️ KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
     }
 
     fun currentState(): JSONObject = lastState
 
-    fun setRules(r: Rules) {
+    fun setRules(incoming: Rules) {
         val old = store.rules
-        if (r.rev < old.rev) return
+        if (incoming.rev < old.rev) return
+        // a rules PUT without pin / pinHash keeps the old PIN
+        val r = if (incoming.pinHash.isBlank()) incoming.copy(pinHash = old.pinHash, pinSalt = old.pinSalt) else incoming
         store.rules = r
-        Policy.apply(this, r)
-        if (r.toJson().toString() != old.toJson().toString()) store.log("Bố mẹ đổi luật")
+        if (::work.isInitialized) work.post { runCatching { Policy.apply(this, r) } }
+        if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log("Bố mẹ đổi luật")
         kick()
     }
 
-    /** A command from the parent. Returns a short result. */
+    /** A command from the parent. Never throws; returns a short result. A repeated relay command [id] is skipped but still answered "ok". */
     fun command(c: JSONObject): String {
         val t = c.optString("type")
-        val res = when (t) {
-            "lock" -> if (Policy.lockNow(this)) "ok" else "not owner"
-            "locate" -> { locate(); "ok" }
-            "message" -> { MessageActivity.show(this, c.optString("text").take(500)); "ok" }
-            "ring" -> { ring(); "ok" }
-            "relay" -> {
-                store.relayUrl = c.optString("url")
-                if (store.relayToken.isBlank() || store.relayId.isBlank()) { store.relayToken = store.addToken(); store.relayId = Store.randomHex(8) }
-                relay?.kick(); "ok"
-            }
-            "openPairing" -> { store.openPairing(); "ok" }
-            "unpairAll" -> { store.clearTokens(); "ok" }
-            "answer" -> {
-                val req = store.removeRequest(c.optString("id"))
-                if (req != null) notifyChild(if (c.optBoolean("ok")) "Bố mẹ đã đồng ý thêm ${c.optInt("min", req.optInt("min")).coerceIn(0, 24 * 60)} phút" else "Bố mẹ chưa đồng ý")
-                if (req != null) "ok" else "no such request"
-            }
-            "reboot" -> if (Policy.isOwner(this)) runCatching { Policy.dpm(this).reboot(Policy.admin(this)); "ok" }.getOrElse { "failed" } else "not owner"
-            "release" -> { Policy.release(this, store); store.log("Đã gỡ quyền quản lý"); "ok" }
-            else -> "unknown"
-        }
-        if (t != "relay" && t != "release") store.log("Lệnh: $t → $res")
+        val id = c.optString("id")
+        // written with commit() before anything runs (a reboot / release must not run twice after a restart)
+        if (id.isNotBlank() && !store.markCmd(id)) { Log.i("KidGuard", "duplicate command $id ($t)"); return "ok" }
+        val res = runCatching { run(t, c) }.getOrElse { Log.w("KidGuard", "command $t", it); "failed" }
+        if (t != "relay" && t != "release") runCatching { store.log("Lệnh: $t → $res") }
         kick()
+        return res
+    }
+
+    private fun run(t: String, c: JSONObject): String = when (t) {
+        "lock" -> if (Policy.lockNow(this)) "ok" else "not owner"
+        "locate" -> { locate(); "ok" }
+        "message" -> { MessageActivity.show(this, c.optString("text").take(500)); "ok" }
+        "ring" -> { ring(); "ok" }
+        "relay" -> {
+            store.relayUrl = c.optString("url")
+            if (store.relayToken.isBlank() || store.relayId.isBlank()) { store.relayToken = store.addToken(); store.relayId = Store.randomHex(8) }
+            relay?.kick(); "ok"
+        }
+        "openPairing" -> { store.openPairing(); "ok" }
+        "unpairAll" -> { store.clearTokens(); "ok" }
+        "answer" -> {
+            val req = store.removeRequest(c.optString("id"))
+            if (req != null) notifyChild(if (c.optBoolean("ok")) "👍 Bố mẹ đã đồng ý thêm ${c.optInt("min", req.optInt("min")).coerceIn(0, 24 * 60)} phút" else "🙅 Bố mẹ chưa đồng ý")
+            if (req != null) "ok" else "no such request"
+        }
+        "reboot" -> if (Policy.isOwner(this)) runCatching { Policy.dpm(this).reboot(Policy.admin(this)); "ok" }.getOrElse { "failed" } else "not owner"
+        "release" -> release()
+        else -> "unknown"
+    }
+
+    /** On the Guard thread, loop stopped first so no tick races with it. */
+    private fun release(): String {
+        if (!::work.isInitialized) return "failed"
+        var res = "failed"
+        val done = java.util.concurrent.CountDownLatch(1)
+        work.postAtFrontOfQueue {
+            stopped = true
+            work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
+            res = runCatching { Policy.release(this, store) }.getOrElse { Log.w("KidGuard", "release", it); "failed" }
+            if (res == "failed") { stopped = false; work.post(loopRun) }
+            else store.log("Đã gỡ quyền quản lý")
+            done.countDown()
+        }
+        if (!done.await(20, java.util.concurrent.TimeUnit.SECONDS)) return "failed"
+        // let the HTTP answer go out, then go away
+        if (res == "ok") Handler(mainLooper).postDelayed({ stopSelf() }, 2_000)
         return res
     }
 
@@ -232,8 +299,52 @@ class Guard : Service() {
         for (p in providers) runCatching { save(lm.getLastKnownLocation(p)) }
         for (p in providers) runCatching {
             if (Build.VERSION.SDK_INT >= 30) lm.getCurrentLocation(p, null, mainExecutor) { save(it); kick() }
-            else @Suppress("DEPRECATION") lm.requestSingleUpdate(p, { l: Location -> save(l); kick() }, mainLooper)
+            else @Suppress("DEPRECATION") lm.requestSingleUpdate(p, object : LocationListener {
+                override fun onLocationChanged(l: Location) { save(l); kick() }
+                @Deprecated("old API levels still call it") override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                override fun onProviderEnabled(provider: String) {}
+                override fun onProviderDisabled(provider: String) {}
+            }, mainLooper)
         }.onFailure { Log.w("KidGuard", "locate $p", it) }
+    }
+
+    /** One location fix for the history: 30 s timeout, then the last known one if it is younger than 2 x [everyMin]. */
+    @SuppressLint("MissingPermission")
+    private fun trackFix(everyMin: Int) {
+        if (trackBusy) return
+        val lm = getSystemService(LocationManager::class.java) ?: return
+        trackBusy = true
+        var done = false
+        fun finish(l: Location?) {
+            if (done) return
+            done = true; trackBusy = false
+            if (l != null) store.addTrack(l.time.takeIf { it > 0 } ?: System.currentTimeMillis(), l.latitude, l.longitude, l.accuracy.toInt())
+        }
+        fun fallback(): Location? = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER)
+            .mapNotNull { p -> runCatching { lm.getLastKnownLocation(p) }.getOrNull() }
+            .filter { System.currentTimeMillis() - it.time < 2L * everyMin * 60_000 }.maxByOrNull { it.time }
+        val providers = listOf(LocationManager.FUSED_PROVIDER, LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER).filter {
+            runCatching { lm.isProviderEnabled(it) }.getOrDefault(false)
+        }
+        val p = providers.firstOrNull()
+        if (p == null) { finish(fallback()); return }
+        val cancel = android.os.CancellationSignal()
+        val listener = object : LocationListener {
+            override fun onLocationChanged(l: Location) { work.post { finish(l) } }
+            @Deprecated("old API levels still call it") override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+            override fun onProviderEnabled(provider: String) {}
+            override fun onProviderDisabled(provider: String) {}
+        }
+        val timeout = Runnable {
+            cancel.cancel()
+            if (Build.VERSION.SDK_INT < 30) runCatching { lm.removeUpdates(listener) }
+            finish(fallback())
+        }
+        work.postDelayed(timeout, 30_000)
+        runCatching {
+            if (Build.VERSION.SDK_INT >= 30) lm.getCurrentLocation(p, cancel, mainExecutor) { l -> work.post { work.removeCallbacks(timeout); finish(l ?: fallback()) } }
+            else @Suppress("DEPRECATION") lm.requestSingleUpdate(p, listener, mainLooper)
+        }.onFailure { Log.w("KidGuard", "track $p", it); work.removeCallbacks(timeout); finish(fallback()) }
     }
 
     private fun ring() {
@@ -246,8 +357,12 @@ class Guard : Service() {
         work.postDelayed({ runCatching { rt.stop() } }, 20_000)
     }
 
-    private fun goHome() = runCatching {
-        startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    private fun goHome() {
+        // the accessibility service can press Home from the background; starting an activity may be blocked there
+        if (Acc.running?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) == true) return
+        runCatching {
+            startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
     }
 
     private fun foreground() {
@@ -255,7 +370,7 @@ class Guard : Service() {
         nm.createNotificationChannel(NotificationChannel("guard", "KidGuard", NotificationManager.IMPORTANCE_MIN))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val n = Notification.Builder(this, "guard").setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentTitle("KidGuard đang bật").setContentText("Bố mẹ quản lý thời gian dùng máy").setOngoing(true).setContentIntent(open).build()
+            .setContentTitle("🛡️ KidGuard đang bật").setContentText("👨‍👩‍👧 Bố mẹ quản lý thời gian dùng máy").setOngoing(true).setContentIntent(open).build()
         if (Build.VERSION.SDK_INT >= 34) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE) else startForeground(1, n)
     }
 
@@ -266,11 +381,12 @@ class Guard : Service() {
         @Volatile var running: Guard? = null
 
         fun start(ctx: Context) {
+            if (Store.of(ctx).released) return   // after "release" nothing may bring us back
             runCatching { ctx.startForegroundService(Intent(ctx, Guard::class.java)) }.onFailure { Log.e("KidGuard", "start", it) }
         }
 
         /** Re-run the rules now (e.g. the accessibility service saw another app come to the front). */
-        fun poke(ctx: Context) { running?.kick() ?: start(ctx) }
+        fun poke(ctx: Context) { running?.pokeSoft() ?: start(ctx) }
 
         fun day(ms: Long): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(ms))
 

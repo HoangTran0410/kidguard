@@ -15,11 +15,17 @@ class Watchdog : BroadcastReceiver() {
     companion object {
         private const val EVERY = 15 * 60_000L
 
+        private fun pi(ctx: Context) = PendingIntent.getBroadcast(ctx, 7, Intent(ctx, Watchdog::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+
+        fun cancel(ctx: Context) {
+            runCatching { ctx.getSystemService(AlarmManager::class.java).cancel(pi(ctx)) }
+        }
+
         fun schedule(ctx: Context) {
+            if (Store.of(ctx).released) return
             runCatching {
-                val pi = PendingIntent.getBroadcast(ctx, 7, Intent(ctx, Watchdog::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-                ctx.getSystemService(AlarmManager::class.java)
-                    .setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + EVERY, pi)
+                                ctx.getSystemService(AlarmManager::class.java)
+                    .setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + EVERY, pi(ctx))
             }.onFailure { Log.w("KidGuard", "watchdog", it) }
         }
     }
