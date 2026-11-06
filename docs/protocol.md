@@ -109,6 +109,8 @@ The first capture / first input of a session is logged in the phone log.
 - `POST /api/input` body = input object -> `{"result": "ok"}` or `{"result": "<error>"}`.
 
 ### Relay (worker), token header `X-KG-Token`, id = 16 hex
+- Limits: `POST /c/<id>/cmd` -> 429 `queue full` with 20 commands waiting, 413 `too big` over 4 KB of JSON; `PUT /c/<id>/rules`
+  -> 413 over 64 KB (the sync reply carries both, and the phone refuses replies over 256 KB).
 - Parent `POST /c/<id>/live` `{}` -> `{"ok":true, "phone": <ms since the phone's last frame or -1>}`; sets
   `liveUntil = now + 20 s`. The page calls it every 10 s while the viewer is open.
 - `POST /c/<id>/sync` reply gets `"live": true` while `liveUntil > now`.
@@ -145,7 +147,8 @@ The first capture / first input of a session is logged in the phone log.
   as soon as it delivers them (deliver-once).
 - **State** adds `dnsError` (`""` or a short reason when the Private DNS host was rejected; the phone then falls back
   to opportunistic DNS and clears the restriction so the child keeps internet) and keeps `usageAccess` (page warns when false).
-- **Relay sync**: the phone may omit `state` when nothing but `t` changed; it sends a full state at least every 5 min.
+- **Relay sync**: the phone may omit `state` when nothing but `t` and sub-minute time counters (`usedMs`, `leftMs`, `apps[].ms`)
+  changed; it sends a full state at least every 5 min. So on the relay `state.t` can be minutes old: "online" = `seen`, not `t`.
   The worker writes `seen` at most once per minute.
 - **Live input**: the worker answers `POST /input` with `409 {"error":"not live"}` when `liveUntil < now`, and drops
   queued inputs older than 5 s when delivering. Frame `seq` starts at `Date.now()` so it stays increasing across restarts.
@@ -171,8 +174,9 @@ The first capture / first input of a session is logged in the phone log.
 - **SOS**: the child's KidGuard screen has a red "SOS" button (one confirm). The phone stores `{id, t}` (max 10;
   a second press within 30 s is ignored), logs "Con bấm SOS", takes a location fix (`locate`) and syncs the relay at
   once (and again 15 s later, for the fix). State adds `"sos": [{"id": "a1b2c3", "t": 1793940898493}]`.
-- Command `sosAck {id}` (`id` = one id or `"all"`): removes it. Result `ok | no such sos`. In the worker whitelist.
-- Page: red banner on every tab while `sos` is not empty: time, "Xem vị trí", "Nghe xung quanh" (LAN only), "Đã xử lý" (= `sosAck all`).
+- Command `sosAck {id?}` (no `id` = all; `id` = one SOS id): removes it. Do not send `id:"all"`: a command `id` is also its
+  dedupe key (phone keeps the last 100), so a second `"all"` would be skipped as a duplicate. Result `ok | no such sos`. In the worker whitelist.
+- Page: red banner on every tab while `sos` is not empty: time, "Xem vị trí", "Nghe xung quanh" (LAN only), "Đã xử lý" (= `sosAck` without `id`).
 - Parent app: an SOS id not seen before and younger than 6 h is notified on channel `kg_sos` (high importance),
   also on the first look at a kid. The background check runs ~every 15 min; relay kids also get FCM (below, seconds).
 - **Listen around** (one way, LAN / Tailscale only, the relay has no audio route):

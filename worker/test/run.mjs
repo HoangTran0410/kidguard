@@ -1,10 +1,12 @@
 // npm test: starts `wrangler dev` on a free-ish port, waits until it answers, runs relay.test.mjs, stops wrangler.
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
 import { generateKeyPairSync, verify } from "node:crypto";
-import { writeFileSync, mkdtempSync } from "node:fs";
+import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+// contract test first (plain node, no wrangler)
+if (spawnSync(process.execPath, [new URL("./contract.test.mjs", import.meta.url).pathname], { stdio: "inherit" }).status) process.exit(1);
 const PORT = process.env.PORT || "8793", MOCK = 8794;
 
 // Fake Google: a throwaway RSA service account, an OAuth token endpoint that checks the JWT signature, and an FCM
@@ -33,6 +35,8 @@ createServer((q, s) => {
 const envFile = join(mkdtempSync(join(tmpdir(), "kg-")), ".env");
 writeFileSync(envFile, `FCM_SA='${JSON.stringify(sa)}'\nFCM_URL=http://127.0.0.1:${MOCK}\n`);
 
+// fresh local Durable Object storage every run: tests with fixed kid ids must not see the last run's queue / rules
+rmSync(".wrangler/state", { recursive: true, force: true });
 const dev = spawn("npx", ["wrangler", "dev", "--port", PORT, "--ip", "127.0.0.1", "--env-file", envFile], { stdio: ["ignore", "pipe", "pipe"], detached: true });
 let log = "";
 dev.stdout.on("data", d => (log += d));

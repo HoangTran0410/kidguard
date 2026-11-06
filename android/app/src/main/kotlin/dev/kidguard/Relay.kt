@@ -83,8 +83,13 @@ class Relay(private val g: Guard) {
     private fun sync(base: String, rid: String, token: String): Boolean {
         val now = System.currentTimeMillis()
         val state = g.currentState()
-        // unchanged except `t` => omit the state; a full one at least every 5 min
-        val hash = JSONObject(state.toString()).apply { remove("t") }.toString().hashCode()
+        // unchanged except time counters => omit the state; a full one at least every 5 min.
+        // Per-app ms and usedMs/leftMs tick every sync while an app is open: hash them per minute (one state a minute, not 3).
+        val hash = JSONObject(state.toString()).apply {
+            remove("t")
+            for (k in arrayOf("usedMs", "leftMs")) if (has(k)) put(k, optLong(k) / 60_000)
+            optJSONArray("apps")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { it.put("ms", it.optLong("ms") / 60_000) } }
+        }.toString().hashCode()
         val full = hash != lastHash || now - lastFull >= 5 * 60_000L
         val req = JSONObject().put("acks", acks)
         if (full) req.put("state", state)

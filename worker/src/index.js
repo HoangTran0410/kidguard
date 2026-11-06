@@ -8,6 +8,7 @@ import qr from "../../web/qr.html";
 
 const MAX_BODY = 256 * 1024;
 const MAX_FRAME = 1024 * 1024;
+const MAX_RULES = 64 * 1024, MAX_CMD = 4096, MAX_CMDS = 20;   // 64 KB + 20 x 4 KB stays far below the phone's 256 KB reply cap
 const KEYS = ["back", "home", "recents", "notifications", "quick", "lock", "power"];
 const PKG = /^[A-Za-z0-9._]{1,200}$/, MAX_ICONS = 400;
 // <img> can't send headers: only the icon GET may carry the token in ?k=
@@ -199,6 +200,8 @@ export class Kid {
     if (action === "rules" && req.method === "PUT") {
       const [state, old] = await Promise.all([this.s.get("state"), this.s.get("rules")]);
       const rev = Math.max(Date.now(), (old && old.rev || 0) + 1, (state && state.rules && state.rules.rev || 0) + 1);
+      // the sync reply carries rules + queued commands and the phone refuses replies over 256 KB: keep both small
+      if (JSON.stringify(body).length > MAX_RULES) return json({ error: "too big" }, 413);
       const rules = { ...body, rev };
       // a new PIN arrives in plain: keep only the hash the phone uses (sha256 of "kg:" + PIN). No PIN given: keep the old hash.
       const pin = String(rules.pin || "").replace(/\D/g, "");
@@ -221,8 +224,12 @@ export class Kid {
     if (action === "cmd" && req.method === "POST") {
       const type = String(body.type || "");
       if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
-      const cmds = ((await this.s.get("cmds")) || []).slice(-19);
-      cmds.push({ ...body, type, id: typeof body.id === "string" && /^[\w.-]{1,64}$/.test(body.id) ? body.id : crypto.randomUUID(), at: now });
+      const cmds = (await this.s.get("cmds")) || [];
+      // full queue: refuse instead of silently dropping the oldest (it may be a pending release)
+      if (cmds.length >= MAX_CMDS) return json({ error: "queue full" }, 429);
+      const c = { ...body, type, id: typeof body.id === "string" && /^[\w.-]{1,64}$/.test(body.id) ? body.id : crypto.randomUUID(), at: now };
+      if (JSON.stringify(c).length > MAX_CMD) return json({ error: "too big" }, 413);
+      cmds.push(c);
       await this.s.put("cmds", cmds);
       return json({ result: "queued" });
     }

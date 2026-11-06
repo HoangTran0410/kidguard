@@ -366,19 +366,20 @@ function listScreen(list) {
 const KC = ["#2563eb", "#db2777", "#16a34a", "#d97706", "#7c3aed", "#0891b2"];
 let ov = null;   // {list, back, data: [{k, st, seen, err}]}
 async function overview(list, back) {
-  clearInterval(timer); cur = null; mv = null;
+  const g = ++gen; clearInterval(timer); cur = null; mv = null;
   ov = { list, back, data: list.map(k => ({ k, st: null, seen: 0, err: "" })) };
   $("#app").innerHTML = `<div class="row"><h1 class="sp">${ic("layout-grid")} Tổng quan</h1><button id="ovBack">${ic("list")} Danh sách</button></div>
     <div id="ovSos"></div><div class="ovk" id="ovKids"></div>
     <div class="card" style="margin-top:12px"><h2>${ic("map-pin")} Các con đang ở đâu</h2><div id="ovMapBox"></div></div>
     <div class="card"><h2>${ic("chart-column")} Thời gian dùng 7 ngày</h2><div id="ovBars"></div></div>`;
-  $("#ovBack").onclick = () => { clearInterval(timer); ov = null; back(); };
+  $("#ovBack").onclick = () => { gen++; clearInterval(timer); ov = null; back(); };
   ovDraw();
   await ovLoad();
-  timer = setInterval(ovLoad, 15000);
+  if (g !== gen) return;
+  clearInterval(timer); timer = setInterval(ovLoad, 15000);
 }
 async function ovLoad() {
-  const o = ov; if (!o) return;
+  const o = ov; if (!o || document.hidden) return;
   await Promise.all(o.data.map(async d => {
     try { const j = await call(d.k, "/state"); d.st = j.state !== undefined ? j.state : j; d.seen = j.state !== undefined ? +j.seen || 0 : 0; d.err = ""; }
     catch (e) { d.err = e.message; }
@@ -395,7 +396,7 @@ function ovDraw() {
     if (!s) return `<div class="card"><div class="nm"><i class="sw" style="background:${col(i)}"></i><b class="sp">${esc(d.k.name)}</b></div><p class="mute">${d.err ? ic("triangle-alert") + " " + esc(d.err) : ic("hourglass") + " Đang tải…"}</p><button data-o="${i}">${ic("folder-open")} Mở</button></div>`;
     const lim = s.limitMin || 0, pct = lim ? Math.min(100, s.usedMs / (lim * 600)) : 0, req = (s.requests || []).length;
     return `<div class="card"><div class="nm"><i class="sw" style="background:${col(i)}"></i><b class="sp">${esc(d.k.name)}</b>${dot(on ? "on" : "bad")}<span class="mute">${on ? "đang kết nối" : "mất kết nối · " + ago(d.k.via === "lan" ? s.t : d.seen || s.t)}</span></div>
-      <div class="mute" style="margin-top:6px">${ic("battery-full")} ${s.battery}%${s.charging ? ic("zap") : ""} · ${ic("smartphone")} ${esc(s.model)} · Android ${esc(s.android)}</div>
+      <div class="mute" style="margin-top:6px">${ic("battery-full")} ${+s.battery}%${s.charging ? ic("zap") : ""} · ${ic("smartphone")} ${esc(s.model)} · Android ${esc(s.android)}</div>
       <div class="mute">${s.screenOn ? ic("eye") + " đang dùng" + (s.current ? ": <b>" + esc(s.current) + "</b>" : "") : ic("moon") + " màn hình tắt"}</div>
       <div style="margin-top:8px"><b>${fmt(s.usedMs)}</b> <span class="mute">${lim ? "/ " + fmt(lim * 60000) : "· không giới hạn"}</span></div>
       ${lim ? `<div class="bar"><i style="width:${pct}%;background:${pct >= 100 ? "var(--bad)" : col(i)}"></i></div>` : ""}
@@ -442,20 +443,26 @@ function ovMap(pins) {
 }
 
 // --- one child ------------------------------------------------------------
-async function open(k) { screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); render(); await refresh(); clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
+let gen = 0;   // bumped by every screen change; async work started for an older screen drops its result
+// relay: the phone sends the state only when it changed, so its sync time (seen) says "online", not state.t
+function lastSeen() { return cur && cur.via !== "lan" && seenAt ? Math.max(seenAt, st ? st.t : 0) : (st ? st.t : 0); }
+async function open(k) { const g = ++gen; screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); render(); clearInterval(timer); await refresh(); if (g !== gen) return; clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
 
 async function refresh() {
-  if (!cur || viewDay) return;
+  if (!cur || viewDay || document.hidden) return;
+  const k = cur;
   try {
-    const j = await call(cur, "/state");
+    const j = await call(k, "/state");
+    if (k !== cur || viewDay) return;
     // LAN: the state itself; relay: {state, rules (sent, not yet taken), seen}
     st = j.state !== undefined ? j.state : j;
     pendingRules = j.state !== undefined ? j.rules : null;
     seenAt = j.state !== undefined ? +j.seen || 0 : 0;
     lastErr = "";
   } catch (e) {
+    if (k !== cur) return;
     lastErr = e.message;
-    if (/not paired/.test(e.message)) { kids = kids.filter(x => x !== cur); save(kids); toast("Thiết bị này đã bị huỷ ghép"); return setTimeout(boot, 1000); }
+    if (/not paired/.test(e.message)) { gen++; clearInterval(timer); cur = null; kids = kids.filter(x => x !== k); save(kids); toast("Thiết bị này đã bị huỷ ghép"); return setTimeout(boot, 1000); }
   }
   if (!edit && st && st.rules) edit = norm(structuredClone(pendingRules && pendingRules.rev > st.rules.rev ? pendingRules : st.rules));
   // redraw the tab only when what it shows changed and nobody is using a control (icons would reload, a select would close)
@@ -471,9 +478,13 @@ let lastSig = "";
 let saveT = null;
 function changed() {
   clearTimeout(saveT);
+  const k = cur, e = edit;
+  if (!k || !e) return;
   saveT = setTimeout(async () => {
-    try { const body = { ...edit }; delete body.pinHash; delete body.pinSet; if (!body.pin) delete body.pin;
-      const r = await call(cur, "/rules", "PUT", body); const hadPin = !!body.pin; if (cur.via === "lan") edit = norm(r); delete edit.pin; if (hadPin) edit.pinSet = true; delete edit.pinHash; toast(cur.via === "lan" ? "ok|Đã lưu" : "send|Đã gửi, máy con nhận trong ~20 giây"); }
+    try { const body = { ...e }; delete body.pinHash; delete body.pinSet; if (!body.pin) delete body.pin;
+      const r = await call(k, "/rules", "PUT", body); const hadPin = !!body.pin;
+      if (k.via === "lan" && r && typeof r === "object") { for (const x of Object.keys(e)) delete e[x]; Object.assign(e, norm(r)); }
+      delete e.pin; if (hadPin) e.pinSet = true; delete e.pinHash; toast(k.via === "lan" ? "ok|Đã lưu" : "send|Đã gửi, máy con nhận trong ~20 giây"); }
     catch (e) { toast("err|Lỗi: " + e.message); }
   }, 500);
 }
@@ -493,7 +504,7 @@ function ask(text, ok = "Đồng ý", danger = false, typed = "") {
     const done = v => { if (askDone !== done) return; askDone = null; pop.style.display = "none"; pop.innerHTML = ""; res(v); };
     askDone = done;
     $("#askNo").onclick = () => done(false); $("#askOk").onclick = () => done(true);
-    if (typed) { const i = $("#askIn"); i.oninput = () => { $("#askOk").disabled = i.value.trim() !== typed; }; i.focus(); } else $("#askOk").focus();
+    if (typed) { const i = $("#askIn"); i.oninput = () => { $("#askOk").disabled = i.value.trim() !== typed; }; i.focus(); } else $(danger ? "#askNo" : "#askOk").focus();   // Enter must not confirm a reboot / unpair
   });
 }
 $("#askPop").addEventListener("click", e => { if (e.target.id === "askPop" && askDone) askDone(false); });
@@ -512,7 +523,11 @@ const ASK = {
 async function cmd(c, okMsg, q) {
   const a = q || ASK[c.type] || (c.type === "message" ? ["Hiện tin nhắn này trên màn hình máy con?\n\n“" + c.text + "”", "Gửi"] : null);
   if (a && !(await ask(...a))) return;
-  try { const r = await call(cur, "/cmd", "POST", c); toast("ok|" + (okMsg || "Đã gửi")); return r; } catch (e) { toast("err|Lỗi: " + e.message); }
+  try {
+    const r = await call(cur, "/cmd", "POST", c);
+    if (r && r.result && !["ok", "queued", "no such sos"].includes(r.result) && !(c.type === "tailscale" || c.type === "openPairing")) { toast("err|Máy con trả lời: " + r.result); return; }
+    toast("ok|" + (okMsg || "Đã gửi")); return r;
+  } catch (e) { toast("err|Lỗi: " + e.message); }
 }
 
 function render() {
@@ -521,7 +536,7 @@ function render() {
   const focus = document.activeElement && document.activeElement.id;   // keep the field being typed in
   if (focus && /^(f-|msg|relay)/.test(focus)) { updateLive(); return; }
   if (tab !== "screen") screenStop();
-  const online = st && Date.now() - st.t < (cur.via === "lan" ? 30000 : 120000);
+  const online = st && Date.now() - lastSeen() < (cur.via === "lan" ? 30000 : 120000);
   a.innerHTML = `
   <div class="row"><h1 class="sp">${ic("user")} ${esc(cur.name)}</h1>${APP || kids.length > 1 || cur.via === "relay" ? `<button id="back">${ic("list")} Danh sách</button>` : ""}</div>
   ${viewDay ? `<div class="alert warn row">${ic("history")} <span class="sp">Dữ liệu ngày ${viewDay.split("-").reverse().join("/")} · chỉ xem</span><button id="goLive" class="pri">${ic("zap")} Về dữ liệu mới nhất</button></div>` : ""}
@@ -540,14 +555,14 @@ function render() {
 function updateLive() {
   const el = $("#live"); if (!el) return;
   if (!st) { el.innerHTML = `<span class="mute">${lastErr ? ic("triangle-alert") + " " + esc(lastErr) : ic("hourglass") + " Đang kết nối…"}</span>`; return; }
-  if (viewDay) { el.innerHTML = `<div class="mute">${ic("clock")} Ảnh chụp lúc ${hhmm(st.t)} · ${ic("smartphone")} ${esc(st.model)} · ${ic("battery-full")} ${st.battery}%</div>`; return; }
+  if (viewDay) { el.innerHTML = `<div class="mute">${ic("clock")} Ảnh chụp lúc ${hhmm(st.t)} · ${ic("smartphone")} ${esc(st.model)} · ${ic("battery-full")} ${+st.battery}%</div>`; return; }
   const lan = cur.via === "lan";
-  const online = Date.now() - st.t < (lan ? 30000 : 120000);
+  const online = Date.now() - lastSeen() < (lan ? 30000 : 120000);
   
   const lost = lan ? (lastErr || Date.now() - st.t > 300000) : (seenAt && Date.now() - seenAt > 300000);
   const lostFrom = lan ? st.t : seenAt;
   el.innerHTML = `${APP && cachedAt ? `<div class="alert warn">${ic("wifi-off")} Mất kết nối · dữ liệu lúc ${hhmm(cachedAt)}</div>` : ""}<div class="row"><span>${online ? dot("on") : dot("bad")}</span><b>${online ? "Đang kết nối" : "Mất kết nối"}</b>
-    <span class="mute">· ${ic("clock")} cập nhật ${ago(st.t)}</span><span class="sp"></span><span>${ic("battery-full")} ${st.battery}%${st.charging ? ic("zap") : ""}</span></div>
+    <span class="mute">· ${ic("clock")} cập nhật ${ago(lastSeen())}</span><span class="sp"></span><span>${ic("battery-full")} ${+st.battery}%${st.charging ? ic("zap") : ""}</span></div>
     <div class="mute">${ic("smartphone")} ${esc(st.model)} · Android ${esc(st.android)} · ${st.screenOn ? "màn hình bật" + (st.current ? ": <b>" + esc(st.current) + "</b>" : "") : "màn hình tắt"}</div>
     ${pendingRules && st.rules && pendingRules.rev > st.rules.rev ? `<div class="mute">${ic("hourglass")} Luật mới đang chờ máy con nhận</div>` : ""}
     ${lost ? `<div class="alert">${ic("siren")} Mất liên lạc với máy con từ ${hhmm(lostFrom)} — máy tắt, mất mạng hoặc KidGuard bị tắt${lastErr && lan ? " (" + esc(lastErr) + ")" : ""}</div>` : ""}
@@ -576,7 +591,7 @@ function wireSos(el) {
     const w = b.dataset.sos;
     if (w === "where") { tab = "where"; render(); }
     else if (w === "ear") earStart();
-    else if (await cmd({ type: "sosAck", id: "all" }, "Đã xoá báo SOS", ["Đánh dấu SOS đã xử lý? Báo trên máy con sẽ tắt.", "Đã xử lý"])) { st.sos = []; updateLive(); }
+    else if (await cmd({ type: "sosAck" }, "Đã xoá báo SOS", ["Đánh dấu SOS đã xử lý? Báo trên máy con sẽ tắt.", "Đã xử lý"])) { st.sos = []; updateLive(); }
   });
 }
 
@@ -887,7 +902,8 @@ function screenStart() {
     })();
   }
 }
-document.addEventListener("visibilitychange", () => { if (document.hidden) screenStop(); else if (cur && tab === "screen") screenStart(); });
+// hidden page (tab in background, parent app paused): the poll timers skip their fetch; catch up at once when shown again
+document.addEventListener("visibilitychange", () => { if (document.hidden) screenStop(); else { if (cur && tab === "screen") screenStart(); if (cur) refresh(); else if (ov) ovLoad(); } });
 
 async function sendInput(o) {
   if (scr.view || !cur) return;
@@ -1058,9 +1074,9 @@ function whereTab(b) {
     ${pts.length ? `<div class="map" id="map"></div><div class="mute" id="mapInfo" style="margin:4px 0">${ic("pointer")} Chạm vào chấm để xem giờ · ${dot("on")} bắt đầu · ${dot("bad")} mới nhất</div>
       <div class="row"><b>${ic("route")} ${(dist / 1000).toFixed(1)} km</b><span class="mute">· ${pts.length} điểm · ${hhmm(pts[0][0])}–${hhmm(pts[pts.length - 1][0])}</span></div>
       <h2 style="margin:12px 0 4px">${ic("pause")} Điểm dừng</h2>
-      ${sp.map(s => `<div class="row" style="padding:3px 0">${home && hav(home[1], home[2], s.lat, s.lon) < 150 ? ic("house") : ic("map-pin")} <b>${hhmm(s.start)}–${hhmm(s.end)}</b> · ${dur(s.end - s.start)} <a class="sp" href="https://www.google.com/maps?q=${s.lat},${s.lon}" target="_blank" rel="noopener">${ic("map")}</a></div>`).join("") || `<div class="mute">Không có điểm dừng nào ≥ 5 phút</div>`}`
+      ${sp.map(s => `<div class="row" style="padding:3px 0">${home && hav(home[1], home[2], s.lat, s.lon) < 150 ? ic("house") : ic("map-pin")} <b>${hhmm(s.start)}–${hhmm(s.end)}</b> · ${dur(s.end - s.start)} <a class="sp" href="https://www.google.com/maps?q=${+s.lat},${+s.lon}" target="_blank" rel="noopener">${ic("map")}</a></div>`).join("") || `<div class="mute">Không có điểm dừng nào ≥ 5 phút</div>`}`
     : `<div class="empty"><span class="e">${ic("map")}</span>Chưa có điểm nào — bật ${ic("map-pin")} Ghi vị trí trong Luật</div>`}</div>
-  <div class="card"><h2>${ic("pin")} Vị trí gần nhất</h2>${l ? `<p>${ic("clock")} ${ago(l.t)} · sai số ~${Math.round(l.acc)} m · <a href="https://www.google.com/maps?q=${l.lat},${l.lng}" target="_blank" rel="noopener">${ic("map")} Mở Google Maps</a></p>`
+  <div class="card"><h2>${ic("pin")} Vị trí gần nhất</h2>${l ? `<p>${ic("clock")} ${ago(l.t)} · sai số ~${Math.round(l.acc)} m · <a href="https://www.google.com/maps?q=${+l.lat},${+l.lng}" target="_blank" rel="noopener">${ic("map")} Mở Google Maps</a></p>`
     : `<div class="empty"><span class="e">${ic("map")}</span>Chưa có vị trí. Bật Vị trí trên máy con rồi bấm Lấy vị trí.</div>`}
     <button id="loc2" class="pri">${ic("map-pin")} Lấy vị trí mới</button><p class="mute">${ic("refresh-cw")} Máy con tự ghi vị trí theo chu kỳ đặt trong tab Luật.</p></div>`;
   $("#loc2").onclick = () => cmd({ type: "locate" }, "Đang lấy vị trí…");

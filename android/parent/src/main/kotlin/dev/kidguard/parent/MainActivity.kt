@@ -94,6 +94,9 @@ class MainActivity : Activity() {
         if (w != null && w.canGoBack()) w.goBack() else super.onBackPressed()
     }
 
+    // in the background the page is hidden: its poll timers skip their fetches (relay quota, battery); notifications come from CheckJob / FCM
+    override fun onPause() { web?.onPause(); super.onPause() }
+    override fun onResume() { super.onResume(); web?.onResume() }
     override fun onDestroy() { web?.destroy(); web = null; super.onDestroy() }
 
     companion object { @Volatile var proxy: Proxy? = null }

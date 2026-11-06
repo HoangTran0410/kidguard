@@ -228,12 +228,16 @@ object Policy {
             d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED)
             d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT)
         }.onFailure { Log.w(TAG, "mic revoke", it) }
-        s.clearTokens()
         s.released = true
         Watchdog.cancel(ctx)
         @Suppress("DEPRECATION") runCatching { d.clearDeviceOwnerApp(ctx.packageName) }
         s.suspendedByUs = emptySet()
-        return if (isOwner(ctx)) { s.released = false; "failed" } else "ok"
+        if (!isOwner(ctx)) { s.clearTokens(); return "ok" }
+        // still Device Owner: put the protection back (the loop re-suspends apps) and keep the parents' tokens
+        s.released = false
+        runCatching { apply(ctx, s.rules) }.onFailure { Log.w(TAG, "re-apply after failed release", it) }
+        Watchdog.schedule(ctx)
+        return "failed"
     }
 
     /** Takes our accessibility service out of enabled_accessibility_services (needs WRITE_SECURE_SETTINGS). */

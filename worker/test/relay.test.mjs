@@ -111,6 +111,34 @@ await P3("sync",{state:{sos:[{id:"s2",t:now}]}});await sleep(500);ms=await sentL
 ck("next sos only to the live token",ms.length==5&&ms[4].data.eid=="s:s2"&&ms[4].token.startsWith("good"));
 j=await (await P3("push",{fcm:"good_"+"a".repeat(40),off:true})).json();ck("push off removes",j.devices==0);
 ck("push needs the kid token",(await fetch(`${B}/c/${id3}/push`,{method:"POST",headers:H(BAD),body:"{}"})).status==401);}
+// ---- tester additions: deliver-once, pinHash never leaves, oversized cmd ----
+{const id4=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),P4=(p,o,m="POST")=>fetch(`${B}/c/${id4}/${p}`,{method:m,headers:H(),body:o===undefined?undefined:JSON.stringify(o)});
+const G4=async p=>await (await fetch(`${B}/c/${id4}/${p}`,{headers:H()})).text();
+await P4("sync",{state:{rules:{rev:1,pinHash:"f".repeat(64),pinSalt:"abc"}}});
+await P4("cmd",{type:"reboot",id:"rb1"});await P4("cmd",{type:"lock",id:"lk1"});
+let a=await (await P4("sync",{})).json();
+ck("reboot delivered once",a.cmds.some(c=>c.type=="reboot"));
+let b2=await (await P4("sync",{})).json();
+ck("reboot NOT delivered again on 2nd sync",!b2.cmds.some(c=>c.type=="reboot"));
+ck("non-once cmd (lock) re-delivered until acked",b2.cmds.some(c=>c.type=="lock"));
+b2=await (await P4("sync",{acks:["lk1"]})).json();ck("acked lock dropped",!b2.cmds.some(c=>c.type=="lock"));
+await P4("rules",{dailyMin:60,pin:"1234"},"PUT");
+const st=await G4("state"),ru=await G4("rules");
+ck("GET state has no pinHash",!st.includes("pinHash")&&!st.includes("f".repeat(64)));
+const putR=await (await P4("rules",{dailyMin:61,pin:"1234"},"PUT")).text();
+ck("PUT rules reply has no pinHash",!putR.includes("pinHash"));
+// GET /rules may not exist (405/404); then it must still not leak
+ck("GET rules never returns pinHash",!ru.includes("pinHash"));
+ck("GET state shows rules via stripPin (pinSet or nothing)",JSON.parse(st).rules!==undefined);
+// oversized command: 256KB body limit gives 413 (tested above); since the MAX_CMD fix a 4KB+ command is refused too
+const big=await P4("cmd",{type:"message",text:"a".repeat(200000)});
+ck("200KB cmd refused 413 (was a known gap: accepted, then 500s once the queue value passed the storage limit)",big.status==413);
+ck("small cmd still accepted",(await (await P4("cmd",{type:"message",text:"hi"})).json()).result=="queued");
+{let st=0;for(let i=0;i<25&&st!=429;i++)st=(await P4("cmd",{type:"ring"})).status;
+ck("full queue (20) refuses with 429 instead of dropping the oldest",st==429);
+const s3=await (await P4("sync",{})).json();
+ck("queued commands (incl. oldest) survive a full queue",s3.cmds.length==20&&s3.cmds.some(c=>c.type=="lock"||c.type=="message"));}
+ck("sync works after all that",(await P4("sync",{})).status==200);}
 // last: per-IP rate limit (150 / 10 s) on /c/*; the page itself is not limited
 {const rs=[];for(let i=0;i<11&&!rs.includes(429);i++)rs.push(...await Promise.all(Array.from({length:20},()=>fetch(`${B}/c/${id}/state`,{headers:H(BAD)}).then(r=>r.status,()=>0))));
 ck("rate limit: burst of 220 gets some 429",rs.includes(429));ck("rate limit: page / still 200",(await fetch(`${B}/`)).status==200);}
