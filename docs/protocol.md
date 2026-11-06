@@ -1,20 +1,7 @@
-# KidGuard protocol (v0.2)
+# KidGuard protocol (v0.2.1)
 
 The child app, the relay worker, the parent page and the installer all follow this file. If you need to change a
 shape, say so in your report instead of silently diverging.
-
-## Who owns which file (v0.2 work)
-
-| Branch | Files |
-|---|---|
-| core | `Rules.kt`, `DecideTest.kt`, `Store.kt`, `Guard.kt`, `Policy.kt`, `Usage.kt`, `Watchdog.kt`, `MainActivity.kt` |
-| acc | `Acc.kt`, `Api.kt`, `res/xml/accessibility.xml`, `res/values/strings.xml` |
-| relay | `Relay.kt`, `worker/**` |
-| web | `web/index.html` |
-| installer | `web/install.html`, `setup.sh`, `setup.ps1` (new) |
-
-`AndroidManifest.xml`, `Http.kt`, `build.sh`, `README.md`, this file: nobody (ask the lead).
-Stubs already exist for `Acc` (companion API below) and `Watchdog`; `Guard.poke(ctx)` exists.
 
 ## Rules JSON (parent -> phone). New fields in v0.2 marked NEW. Unknown fields are ignored.
 
@@ -118,7 +105,7 @@ While frames are being taken (any capture in the last 5 s) the child sees an ong
 - `GET /c/<id>/state` already returns `seen` (ms of the phone's last sync): the page warns when `now - seen > 5 min`.
 - The worker also serves `GET /install` -> `web/install.html`.
 
-## Setup steps (setup.sh, setup.ps1 and the web installer do the same, in this order)
+## Setup steps (setup.sh, setup.ps1, the web installer and the in-app self-setup `SelfSetup.kt` do the same, in this order)
 1. `adb install -r -g kidguard.apk`
 2. `adb shell dpm set-device-owner dev.kidguard/.Admin` (verify with `dumpsys device_policy`)
 3. `adb shell appops set dev.kidguard GET_USAGE_STATS allow`

@@ -1,89 +1,132 @@
-# KidGuard
+<p align="center"><img src="docs/img/icon.svg" width="88" alt="KidGuard"></p>
 
-Quản lý điện thoại Android của con từ xa. Cài 1 APK (tự cài trên máy, quét QR, hoặc cắm USB 1 lần), không tài khoản, không máy chủ bắt buộc.
+<h1 align="center">KidGuard</h1>
 
-- **Máy con**: app KidGuard làm *Device Owner*. Luật chạy ngay trên máy con, mất mạng vẫn chạy.
-- **Bố mẹ**: mở trình duyệt bất kỳ (Android, iPhone, máy tính).
-  - Cùng Wi-Fi: `http://<IP máy con>:8770`, đi thẳng, 0 máy chủ.
-  - Khác mạng: qua một Cloudflare Worker của bạn (gói miễn phí). Cùng một trang web.
+<p align="center">
+  <b>Manage your child's Android phone from any browser. One APK, no account, no server you must run.</b><br>
+  Android 8+ &nbsp;·&nbsp; rules run on the phone, even offline &nbsp;·&nbsp; every change undoable
+</p>
 
-## Làm được gì
+<p align="center">
+  <a href="#get-it">Get it</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#away-from-home">Away from home</a> ·
+  <a href="#iphone--ipad">iPhone / iPad</a> ·
+  <a href="#help">Help</a>
+</p>
 
-| | |
+<p align="center">
+  <a href="https://github.com/HoangTran0410/kidguard/releases/latest"><img src="https://img.shields.io/github/v/release/HoangTran0410/kidguard?style=flat-square&label=release&color=2563eb&labelColor=15181e" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/Android-8%2B-2563eb?style=flat-square&labelColor=15181e" alt="Android 8+">
+  <img src="https://img.shields.io/badge/parents-any%20browser-2563eb?style=flat-square&labelColor=15181e" alt="Any browser">
+  <img src="https://img.shields.io/badge/APK-7%20MB-2563eb?style=flat-square&labelColor=15181e" alt="7 MB">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square&labelColor=15181e" alt="MIT"></a>
+</p>
+
+<table>
+<tr>
+<td align="center"><img src="docs/img/parent-today.webp" height="400" alt="Today"><br><sub>Today: time left, requests, quick actions</sub></td>
+<td align="center"><img src="docs/img/parent-apps.webp" height="400" alt="Apps"><br><sub>Apps: limits, block, approve new</sub></td>
+<td align="center"><img src="docs/img/parent-location.webp" height="400" alt="Location"><br><sub>Where they went, on a map</sub></td>
+<td align="center"><img src="docs/img/child-app.webp" height="400" alt="Child's phone"><br><sub>On the child's phone</sub></td>
+</tr>
+</table>
+
+KidGuard becomes the phone's **Device Owner**, the same Android role a company uses for work phones. That is what lets it lock apps, keep location on and stop itself from being removed, with no root. The parent page (in Vietnamese for now) is plain HTML served by the phone itself; nothing goes to a cloud unless you turn on [Away from home](#away-from-home).
+
+## Get it
+
+| You need | Where |
 |---|---|
-| ⏱ Giới hạn mỗi ngày | Một số chung, hoặc riêng từng thứ trong tuần. Hết giờ: mọi app (trừ "Luôn cho phép") khoá tới 0h. +15/+30/+60 phút cho hôm nay |
-| 🙋 Con xin thêm giờ | Nút trên máy con (15/30/60 phút + lý do), bố mẹ bấm ✅ Đồng ý / ❌ Từ chối |
-| 📱 Theo từng app | Bình thường / N phút mỗi ngày / Chặn / Luôn cho phép. **Chọn nhiều app** để làm hàng loạt |
-| 🆕 App mới cài | Tự khoá tới khi bố mẹ duyệt (tuỳ chọn) |
-| 🌙 Giờ ngủ, 📚 Lịch | Giờ ngủ hằng ngày + các khung giờ theo thứ (ví dụ giờ học T2–T6), qua nửa đêm được |
-| ⏸ Tạm dừng ngay | 30 phút, 1 giờ, tới 6h sáng |
-| 👀 Xem màn hình | Màn hình máy con trực tiếp trên trang (Android 11+, ~3 hình/giây). Con thấy thông báo "Bố mẹ đang xem màn hình" |
-| 🕹 Điều khiển từ xa | Chạm, vuốt, nhấn giữ, Quay lại / Home / Đa nhiệm, gõ chữ vào ô đang chọn |
-| 📍 Vị trí | Lấy ngay, bật vị trí bắt buộc (con không tắt được), **lịch sử di chuyển** 7 ngày vẽ trên bản đồ OpenStreetMap |
-| 📊 Lịch sử | Giờ dùng 7 ngày, top app mỗi ngày |
-| 🛡 Chống lách | Chặn gỡ app, Force stop, đặt lại máy, Safe Mode, tạo người dùng, đổi giờ, chế độ máy bay. Watchdog tự dậy lại nếu bị tắt, Trợ năng bị tắt thì tự bật lại. Tuỳ chọn: DNS lọc web (AdGuard/Cloudflare/CleanBrowsing Family), chặn cài app, chặn ADB |
-| 🔒 Lệnh | Khoá màn hình, đổ chuông, nhắn tin toàn màn hình, khởi động lại máy |
-| ↩️ Gỡ được | Trang bố mẹ > Cài đặt > Gỡ quyền quản lý: mở lại mọi app, bỏ mọi hạn chế, rồi gỡ app như thường |
+| The app for the child's phone | [kidguard.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk) |
+| QR code for a new or factory-reset phone | [kidguard.99-hoangtran.workers.dev/qr](https://kidguard.99-hoangtran.workers.dev/qr) |
+| Install from a computer's browser (USB, no adb) | [kidguard.99-hoangtran.workers.dev/install](https://kidguard.99-hoangtran.workers.dev/install) |
+| The parent page | the phone shows its address after setup: `http://<phone IP>:8770` |
 
-App bị khoá dùng `setPackagesSuspended` của Android: icon xám, bấm vào hiện "Bố mẹ đang tạm khoá ứng dụng này".
+## Install
 
-## Cài (chọn 1 trong 4)
+Android only lets an app become Device Owner while the phone has **no accounts** (Google, Samsung, Xiaomi…). Remove them first, install, then sign back in: everything comes back.
 
-Android chỉ cho đặt Device Owner khi máy **không có tài khoản** (Google, Samsung, Xiaomi…); cài xong đăng nhập lại bình thường.
+| Way | Needs | Steps |
+|---|---|---|
+| 📱 **On the phone itself** | Android 11+, Wi-Fi | Install the APK, open KidGuard, tap **Tự cài không cần máy tính** (set up without a computer). Turn on Developer options → **Wireless debugging** → *Pair with code*, type the 6 digits into KidGuard's notification. It does the rest and turns wireless debugging off again. |
+| 🔳 **Scan a QR** | a new or factory-reset phone | On the welcome screen tap 6 times on an empty spot, scan the [QR](https://kidguard.99-hoangtran.workers.dev/qr). The phone downloads KidGuard over Wi-Fi and sets it up; open it and finish the short checklist. |
+| 🌐 **Browser + USB cable** | Chrome or Edge on a computer | Turn on **USB debugging**, plug in, open [/install](https://kidguard.99-hoangtran.workers.dev/install), press Connect. No adb needed. |
+| ⌨️ **Command line** | macOS, Linux or Windows | `./setup.sh` (downloads adb if missing, `-y` skips questions) or `powershell -ExecutionPolicy Bypass -File setup.ps1` |
 
-**Không cần máy tính**
+Then the child's phone shows a **6-digit code**. On the parent's phone (same Wi-Fi) open `http://<phone IP>:8770`, type the code, and in **Cài đặt** (Settings) set a **parent PIN** (without it the phone refuses to pair another browser).
 
-1. **Máy tự cài (Android 11+)**: xoá hết tài khoản, cài `kidguard.apk` lên máy con, mở app, bấm **Tự cài không cần máy tính**.
-   App dẫn từng bước: bật Tuỳ chọn nhà phát triển > **Gỡ lỗi không dây** > "Ghép nối bằng mã", gõ mã 6 số vào thông báo của KidGuard.
-   App tự làm các bước như setup.sh rồi tắt Gỡ lỗi không dây. Cần Wi-Fi (không cần Internet).
-2. **Quét QR (máy mới / vừa khôi phục cài đặt gốc)**: mở `https://<worker của bạn>/qr` (hoặc file `web/qr.html`) trên máy khác,
-   ở màn hình chào mừng của máy con chạm 6 lần vào chỗ trống, quét mã. Máy tự tải APK qua Wi-Fi và cài làm Device Owner.
-   Sau đó mở KidGuard, làm nốt các bước trong danh sách "Bước còn lại" (Trợ năng, thời gian dùng app).
-   Lưu ý: mã QR chứa checksum chữ ký APK. APK ở link tải phải ký bằng **đúng** `app/signing.jks` dùng lúc build trang QR, khác key máy sẽ từ chối.
+Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự khởi động** (battery / autostart) and let KidGuard run in the background.
 
-**Có máy tính** (bật **Gỡ lỗi USB** trên máy con, cắm cáp)
+## Features
 
-3. **Trình duyệt**: Chrome/Edge mở `https://<worker của bạn>/install` (hoặc file `web/install.html`), bấm Kết nối, cho phép trên máy con. Không cần cài adb.
-4. **Dòng lệnh**: macOS/Linux `./setup.sh` (tự tải adb nếu thiếu; `-y` bỏ câu hỏi), Windows `powershell -ExecutionPolicy Bypass -File setup.ps1`.
+| Feature | What it does |
+|---|---|
+| ⏱️ **Daily limit** | One number, or one per weekday. When time is up every app (except "Always allowed") locks until midnight. +15 / +30 / +60 min for today |
+| 🙋 **Ask for more time** | A button on the child's phone (15 / 30 / 60 min + a reason); the parent taps Approve or Decline |
+| 📦 **Per app** | Normal, N minutes a day, Block, or Always allowed. **Select many** to change them at once |
+| 🆕 **New apps** | Optionally locked until a parent approves them |
+| 🌙 **Bedtime and schedules** | Bedtime every day, plus windows on chosen days (school hours Mon–Fri); can cross midnight |
+| ⏸️ **Pause now** | 30 min, 1 h, until 6 am |
+| 👀 **See the screen** | The child's screen live in the page (Android 11+, ~3 fps). The child sees "Your parent is viewing the screen" |
+| 🕹️ **Remote control** | Tap, swipe, long press, Back / Home / Recents, type into the focused field |
+| 📍 **Location** | Locate now, location forced on (the child cannot turn it off), **7-day history** on an OpenStreetMap map with stops |
+| 📊 **History** | Screen time for 7 days, top apps per day |
+| 🛡️ **Tamper-proof** | Blocks uninstall, force stop, factory reset from Settings, Safe Mode, new users, changing the clock, airplane mode. A watchdog restarts it; accessibility turns itself back on. Optional: family DNS filter (AdGuard / Cloudflare / CleanBrowsing), block installs, block USB debugging |
+| 🔒 **Commands** | Lock the screen, ring, full-screen message, restart the phone |
+| ↩️ **Undo everything** | Parent page → Settings → **Gỡ quyền quản lý** (remove management): every app unlocked, every restriction lifted, then uninstall like any app |
 
-Sau đó máy con hiện mã 6 số. Điện thoại bố mẹ cùng Wi-Fi mở `http://<IP máy con>:8770`, nhập mã.
-Tab **Cài đặt**: đặt **PIN của bố mẹ** (chưa có PIN thì máy con không cho ghép thêm trình duyệt).
+Locked apps use Android's own `setPackagesSuspended`: the icon turns grey and opening it says the parent paused it.
 
-Xiaomi/Oppo/Vivo/Samsung: trên máy con bấm **Cài đặt pin / tự khởi động** và cho KidGuard chạy nền.
+<details>
+<summary><b>Can the DNS filter cut the Internet?</b></summary>
 
-### Điều khiển khi khác mạng (tuỳ chọn)
+It uses Android's Private DNS. If the filter's host is refused, or the network has Internet but DNS-over-TLS is blocked for 90 seconds, KidGuard falls back to normal DNS for 30 minutes and the parent page says why, so the child does not lose the Internet because of it.
+</details>
+
+## Away from home
+
+The parent page works the same through a small **Cloudflare Worker** (free plan) that relays commands, state and the live screen. Frames stay in the Worker's memory only, never stored.
 
 ```bash
 cd worker && npm install && npx wrangler login && npx wrangler deploy
 ```
 
-Ra `https://kidguard.<tên>.workers.dev`. Trên trang (LAN): Cài đặt > **Điều khiển khi khác mạng**, dán địa chỉ, bấm Bật, mở link hiện ra trên điện thoại bố mẹ.
-Lệnh tới máy con trong ~20 giây (màn hình tắt: ~60 giây). Xem màn hình qua relay: ảnh chỉ nằm trong bộ nhớ Worker, không lưu.
+In the parent page (on home Wi-Fi): **Cài đặt → Điều khiển khi khác mạng** (Settings → control away from home), paste the Worker address, press On, open the link it shows on the parent's phone. Commands reach the phone in about 20 s (about 60 s with the screen off).
 
 ## iPhone / iPad
 
-Không làm được app kiểu này cho iOS: Apple không cho app bên thứ ba xem màn hình, điều khiển từ xa hay khoá app khác.
-Khuyên dùng đồ có sẵn, miễn phí:
-- **Thời gian sử dụng (Screen Time) + Chia sẻ trong gia đình**: giới hạn giờ, giờ nghỉ, giới hạn app, chặn web người lớn, duyệt mua app, xin thêm giờ — quản lý từ iPhone của bố mẹ.
-- **Tìm (Find My)**: vị trí của con.
-- Thêm: hồ sơ DNS lọc (AdGuard Family) — con có thể gỡ nếu không khoá bằng Screen Time.
+An app like this cannot exist on iOS: Apple does not let third-party apps see the screen, control the phone or lock other apps. Use what is built in and free:
 
-Tự làm app iOS cần tài khoản Apple Developer 99 USD/năm + quyền Family Controls khó xin, mà vẫn không xem màn hình được. MDM (giám sát) cần xoá máy + máy Mac — không đáng cho gia đình.
+- **Screen Time + Family Sharing**: limits, downtime, app limits, adult-site filter, purchase approval, "ask for more time", managed from the parent's iPhone.
+- **Find My**: the child's location.
 
-## Build
+## Help
+
+| Need | Go to |
+|---|---|
+| How the parts talk to each other | [docs/protocol.md](docs/protocol.md) |
+| A bug or an idea | [Issues](https://github.com/HoangTran0410/kidguard/issues) |
+
+**Known limits**
+
+- A factory reset from the hardware keys (recovery) still works; KidGuard is then gone and the parent page shows "disconnected".
+- Live screen and remote control need Android 11+. On Android 8–10 the child can force stop KidGuard (it starts again on reboot).
+- Apps that mark their screen secure (banking…) show black.
+- On home Wi-Fi the page is plain HTTP (the token travels in a header): use it only on networks you trust.
+
+**Security:** each browser pairs once with the 6-digit code on the child's phone; pairing more needs the parent PIN. The PIN is stored as a salted hash and never sent back to the page.
+
+## For developers
 
 ```bash
-./build.sh                              # build/kidguard.apk, chạy cả unit test
-TRUSTSTORE=/path/trust.jks ./build.sh   # sau proxy chặn TLS
+./build.sh                              # build/kidguard.apk, runs the unit tests
+TRUSTSTORE=/path/trust.jks ./build.sh   # behind a TLS-intercepting proxy
 ```
 
-JDK 17, Android SDK 35. Trang bố mẹ: `web/index.html`. Trang cài: `web/install.html`, `web/qr.html` (thư viện ADB WebUSB Tango đã đóng gói sẵn, `web/vendor/build.sh` để build lại).
-Giao thức giữa các phần: `docs/protocol.md`.
+JDK 17, Android SDK 35. Parent page: `web/index.html`. Installers: `web/install.html`, `web/qr.html` (the WebUSB ADB library is bundled, rebuild with `web/vendor/build.sh`). Worker tests: `npx wrangler dev --port 8793`, then `node worker/test/relay.test.mjs`.
 
-## Giới hạn đã biết
+**Signing key:** the QR code carries the checksum of the APK's signing certificate. Every release must be signed with the same `app/signing.jks` (not in git; back it up), or phones set up by QR refuse the update.
 
-- Đặt lại máy bằng phím cứng (recovery) vẫn làm được; sau đó KidGuard mất, bố mẹ thấy "mất kết nối".
-- Xem màn hình / điều khiển cần Android 11+. Android 8–10: con có thể Force stop (tự chạy lại khi khởi động máy).
-- Ứng dụng có cờ bảo mật (ngân hàng…) hiện màn hình đen khi xem.
-- Tự cài dùng thư viện libadb-android (GPL-3/Apache-2) + Conscrypt nên APK ~7 MB.
-- LAN là HTTP thường (token trong header). Chỉ dùng trong mạng nhà.
+Credits: [libadb-android](https://github.com/MuntashirAkon/libadb-android) (Apache-2.0 / GPL-3.0), [Conscrypt](https://github.com/google/conscrypt) (Apache-2.0), [Tango](https://github.com/yume-chan/ya-webadb) (MIT), [Lucide](https://lucide.dev) icons (ISC), map tiles © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors. License: [MIT](LICENSE).
