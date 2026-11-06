@@ -1,0 +1,16 @@
+name = "kidguard"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+# web/index.html is bundled as text (one page for the APK and the relay)
+rules = [{ type = "Text", globs = ["**/*.html"], fallthrough = false }]
+
+[[durable_objects.bindings]]
+name = "KIDS"
+class_name = "Kid"
+
+# SQLite-backed Durable Objects run on the Workers free plan
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Kid"]

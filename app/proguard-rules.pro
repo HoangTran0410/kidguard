@@ -1,0 +1,2 @@
+-keep class dev.kidguard.Admin { *; }
+-keepattributes SourceFile,LineNumberTable

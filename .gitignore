@@ -1,0 +1,11 @@
+.gradle/
+build/
+local.properties
+*.jks
+.idea/
+*.iml
+node_modules/
+.wrangler/
+.dev.vars
+.DS_Store
+.kotlin/
