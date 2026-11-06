@@ -47,12 +47,35 @@ object Policy {
             runCatching { d.setAutoTimeEnabled(a, true) }
         } else @Suppress("DEPRECATION") runCatching { d.setAutoTimeRequired(a, true) }
         runCatching { d.setShortSupportMessage(a, "Bố mẹ đang tạm khoá ứng dụng này.") }
+        applyNet(ctx, d, a, r)
         val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
         if (Build.VERSION.SDK_INT >= 29) perms += Manifest.permission.ACCESS_BACKGROUND_LOCATION
         if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
         for (p in perms) runCatching {
             d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
         }.onFailure { Log.w(TAG, "grant $p", it) }
+    }
+
+    private fun restrict(d: DevicePolicyManager, a: ComponentName, key: String, on: Boolean) = runCatching {
+        if (on) d.addUserRestriction(a, key) else d.clearUserRestriction(a, key)
+    }.onFailure { Log.w(TAG, "restriction $key", it) }
+
+    /** Location, airplane mode and Private DNS (the "safe DNS" filter). Each piece is separate so one failing doesn't stop the rest. */
+    private fun applyNet(ctx: Context, d: DevicePolicyManager, a: ComponentName, r: Rules) {
+        if (r.lockLocation) {
+            if (Build.VERSION.SDK_INT >= 30) runCatching { d.setLocationEnabled(a, true) }.onFailure { Log.w(TAG, "location on", it) }
+            restrict(d, a, UserManager.DISALLOW_CONFIG_LOCATION, true)
+        } else restrict(d, a, UserManager.DISALLOW_CONFIG_LOCATION, false)
+        if (Build.VERSION.SDK_INT >= 28) restrict(d, a, UserManager.DISALLOW_AIRPLANE_MODE, r.noAirplane)
+        if (Build.VERSION.SDK_INT >= 29) {
+            if (r.safeDns.isNotEmpty()) {
+                runCatching { d.setGlobalPrivateDnsModeSpecifiedHost(a, r.safeDns) }.onFailure { Log.w(TAG, "private dns", it) }
+                restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, true)
+            } else {
+                restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, false)
+                runCatching { d.setGlobalPrivateDnsModeOpportunistic(a) }.onFailure { Log.w(TAG, "private dns off", it) }
+            }
+        }
     }
 
     /** Apps with a launcher icon, package -> label. */
@@ -111,6 +134,7 @@ object Policy {
         runCatching { d.setPackagesSuspended(a, s.suspendedByUs.toTypedArray(), false) }
         (BASE + INSTALL + UserManager.DISALLOW_DEBUGGING_FEATURES).forEach { runCatching { d.clearUserRestriction(a, it) } }
         runCatching { d.setUninstallBlocked(a, ctx.packageName, false) }
+        applyNet(ctx, d, a, Rules(lockLocation = false, noAirplane = false, safeDns = ""))
         if (Build.VERSION.SDK_INT >= 30) runCatching { d.setUserControlDisabledPackages(a, emptyList()) }
         else @Suppress("DEPRECATION") runCatching { d.setAutoTimeRequired(a, false) }
         @Suppress("DEPRECATION") runCatching { d.clearDeviceOwnerApp(ctx.packageName) }

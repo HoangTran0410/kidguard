@@ -1,5 +1,6 @@
 package dev.kidguard
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
@@ -9,6 +10,7 @@ import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.location.Location
 import android.location.LocationManager
@@ -32,7 +34,7 @@ import java.util.Date
 import java.util.Locale
 
 class Boot : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) { Guard.start(context) }
+    override fun onReceive(context: Context, intent: Intent) { Guard.start(context); Watchdog.schedule(context) }
 }
 
 /**
@@ -55,6 +57,7 @@ class Guard : Service() {
         foreground()
         work = Handler(HandlerThread("guard").apply { start() }.looper)
         running = this
+        Watchdog.schedule(this)
         Policy.apply(this, store.rules)
         http = Http(this, Api(this)).also { it.start(PORT) }
         relay = Relay(this).also { it.start() }
@@ -62,6 +65,9 @@ class Guard : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int { kick(); return START_STICKY }
+
+    /** Swiped away from recents: come straight back. */
+    override fun onTaskRemoved(rootIntent: Intent?) { start(this); super.onTaskRemoved(rootIntent) }
 
     override fun onDestroy() {
         running = null
@@ -87,7 +93,15 @@ class Guard : Service() {
         val cal = Calendar.getInstance().apply { timeInMillis = now }
         val minute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         val today = day(now)
-        val want = decide(r, use.ms, minute, now, today, apps.keys, prot)
+        Acc.ensureEnabled(this)
+        val known = store.knownApps ?: apps.keys.also { store.knownApps = it }   // first tick: everything installed now is "old"
+        val fresh = apps.keys - known - r.approved - r.allow - prot
+        (fresh - store.loggedNew).takeIf { it.isNotEmpty() }?.let { n ->
+            n.forEach { store.log("Cài mới: ${apps[it] ?: it}") }
+            store.loggedNew = (store.loggedNew + n).intersect(apps.keys)
+        }
+        val newApps = if (r.blockNew) fresh else emptySet()
+        val want = decide(r, use.ms, minute, now, today, apps.keys, prot, newApps)
         val had = store.suspendedByUs
         val nowSusp = Policy.suspendExactly(this, want.keys, had)
         if (nowSusp != had) {
@@ -98,21 +112,26 @@ class Guard : Service() {
         // the app in front just got suspended: send the child home (the system's own "paused" dialog shows when they tap it again)
         if (use.current != null && use.current in nowSusp && use.current !in had) goHome()
         if (now - lastLocateAt > 15 * 60_000) { lastLocateAt = now; locate() }
-        lastState = state(r, apps, prot, use, want, nowSusp, today, now)
+        if (now - store.historyAt > 3_600_000) store.saveHistory(history(now, apps.keys, prot, apps), now)
+        lastState = state(r, apps, prot, use, want, nowSusp, today, now, newApps)
     }
 
     private fun state(r: Rules, apps: Map<String, String>, prot: Set<String>, use: Usage.Today, want: Map<String, String>,
-                      susp: Set<String>, today: String, now: Long): JSONObject {
+                      susp: Set<String>, today: String, now: Long, newApps: Set<String>): JSONObject {
         val list = JSONArray()
         apps.entries.sortedByDescending { use.ms[it.key] ?: 0 }.forEach { (p, label) ->
             list.put(JSONObject().put("pkg", p).put("label", label).put("ms", use.ms[p] ?: 0)
-                .put("blocked", want[p] ?: JSONObject.NULL).put("suspended", p in susp).put("protected", p in prot))
+                .put("blocked", want[p] ?: JSONObject.NULL).put("suspended", p in susp).put("protected", p in prot).put("new", p in newApps))
         }
         val bm = getSystemService(BatteryManager::class.java)
         val pm = getSystemService(PowerManager::class.java)
         return JSONObject()
             .put("id", store.id).put("t", now).put("day", today)
             .put("model", "${Build.MANUFACTURER} ${Build.MODEL}").put("android", Build.VERSION.RELEASE).put("version", BuildConfigVersion)
+            .put("acc", Acc.isOn(this))
+            .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
+            .put("locationOn", locationOn())
+            .put("limitMin", baseLimitMin(r, today).let { if (it > 0) it + if (r.bonusDay == today) r.bonusMin else 0 else 0 })
             .put("owner", Policy.isOwner(this)).put("usageAccess", Usage.granted(this))
             .put("battery", bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1)
             .put("charging", bm?.isCharging == true).put("screenOn", pm?.isInteractive == true)
@@ -125,6 +144,37 @@ class Guard : Service() {
             .put("lan", lanUrl() ?: JSONObject.NULL)
             .put("relay", store.relayUrl)
             .put("log", store.logs())
+            .put("history", store.history)
+            .put("requests", store.requests())
+    }
+
+    private fun locationOn(): Boolean {
+        val lm = getSystemService(LocationManager::class.java) ?: return false
+        return runCatching { if (Build.VERSION.SDK_INT >= 28) lm.isLocationEnabled else true }.getOrDefault(false)
+    }
+
+    /** Last 7 days before today, newest first: total of the countable apps and the top 5. */
+    private fun history(now: Long, apps: Set<String>, prot: Set<String>, labels: Map<String, String>): JSONArray {
+        val out = JSONArray()
+        if (!Usage.granted(this)) return out
+        for (k in 1..7) {
+            val from = Usage.midnightAgo(k, now)
+            val ms = Usage.range(this, from, Usage.midnightAgo(k - 1, now)).ms.filterKeys { it in apps && it !in prot }
+            val top = JSONArray()
+            ms.entries.sortedByDescending { it.value }.take(5).filter { it.value > 0 }.forEach {
+                top.put(JSONObject().put("pkg", it.key).put("label", labels[it.key] ?: it.key).put("ms", it.value))
+            }
+            out.put(JSONObject().put("day", day(from)).put("ms", ms.values.sum()).put("top", top))
+        }
+        return out
+    }
+
+    private fun notifyChild(text: String) {
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(NotificationChannel("answer", "Bố mẹ trả lời", NotificationManager.IMPORTANCE_HIGH))
+        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        nm.notify(2, Notification.Builder(this, "answer").setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setContentTitle("KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
     }
 
     fun currentState(): JSONObject = lastState
@@ -153,6 +203,12 @@ class Guard : Service() {
             }
             "openPairing" -> { store.openPairing(); "ok" }
             "unpairAll" -> { store.clearTokens(); "ok" }
+            "answer" -> {
+                val req = store.removeRequest(c.optString("id"))
+                if (req != null) notifyChild(if (c.optBoolean("ok")) "Bố mẹ đã đồng ý thêm ${c.optInt("min", req.optInt("min")).coerceIn(0, 24 * 60)} phút" else "Bố mẹ chưa đồng ý")
+                if (req != null) "ok" else "no such request"
+            }
+            "reboot" -> if (Policy.isOwner(this)) runCatching { Policy.dpm(this).reboot(Policy.admin(this)); "ok" }.getOrElse { "failed" } else "not owner"
             "release" -> { Policy.release(this, store); store.log("Đã gỡ quyền quản lý"); "ok" }
             else -> "unknown"
         }
@@ -206,7 +262,7 @@ class Guard : Service() {
     companion object {
         const val PORT = 8770
         const val TICK_MS = 10_000L
-        const val BuildConfigVersion = "0.1.0"
+        const val BuildConfigVersion = "0.2.0"
         @Volatile var running: Guard? = null
 
         fun start(ctx: Context) {

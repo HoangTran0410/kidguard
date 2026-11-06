@@ -76,6 +76,36 @@ class Store private constructor(ctx: Context) {
         get() = p.getString("loc", null)?.let { runCatching { JSONObject(it) }.getOrNull() }
         set(v) { p.edit().putString("loc", v?.toString()).apply() }
 
+    /** Launchable apps seen on the first tick; anything not in here (and not approved) is a "new" app. Null until first tick. */
+    @get:Synchronized @set:Synchronized var knownApps: Set<String>?
+        get() = p.getStringSet("known", null)?.toSet()
+        set(v) { p.edit().putStringSet("known", v).apply() }
+    @get:Synchronized @set:Synchronized var loggedNew: Set<String>
+        get() = p.getStringSet("loggedNew", emptySet())!!.toSet()
+        set(v) { p.edit().putStringSet("loggedNew", v).apply() }
+
+    /** Last 7 days of use, computed at most hourly (queryEvents over a week is not free). */
+    @get:Synchronized val historyAt: Long get() = p.getLong("histAt", 0)
+    @get:Synchronized val history: JSONArray get() = runCatching { JSONArray(p.getString("hist", "[]")) }.getOrDefault(JSONArray())
+    @Synchronized fun saveHistory(a: JSONArray, at: Long) { p.edit().putString("hist", a.toString()).putLong("histAt", at).apply() }
+
+    /** "More time, please" from the child, max 5. */
+    @Synchronized fun requests(): JSONArray = runCatching { JSONArray(p.getString("reqs", "[]")) }.getOrDefault(JSONArray())
+    @Synchronized fun addRequest(min: Int, note: String): Boolean {
+        val a = requests()
+        if (a.length() >= 5) return false
+        a.put(JSONObject().put("id", randomHex(3)).put("t", System.currentTimeMillis()).put("min", min).put("note", note.trim().take(100)))
+        p.edit().putString("reqs", a.toString()).apply()
+        return true
+    }
+    /** Removes request [id]; returns it (for the notification) or null. */
+    @Synchronized fun removeRequest(id: String): JSONObject? {
+        val a = requests(); val keep = JSONArray(); var hit: JSONObject? = null
+        for (i in 0 until a.length()) { val o = a.getJSONObject(i); if (o.optString("id") == id) hit = o else keep.put(o) }
+        if (hit != null) p.edit().putString("reqs", keep.toString()).apply()
+        return hit
+    }
+
     /** Recent events for the parent: commands done, apps paused. Last 50. */
     @Synchronized fun log(msg: String) {
         val a = runCatching { JSONArray(p.getString("log", "[]")) }.getOrDefault(JSONArray())

@@ -24,9 +24,14 @@ object Usage {
         timeInMillis = now; set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
     }.timeInMillis
 
-    fun today(ctx: Context, now: Long = System.currentTimeMillis()): Today {
+    fun today(ctx: Context, now: Long = System.currentTimeMillis()): Today = range(ctx, midnight(now), now)
+
+    /** Midnight [days] days before the midnight of [now] (calendar arithmetic, so DST days keep the right edge). */
+    fun midnightAgo(days: Int, now: Long = System.currentTimeMillis()): Long =
+        Calendar.getInstance().apply { timeInMillis = midnight(now); add(Calendar.DAY_OF_YEAR, -days) }.timeInMillis
+
+    fun range(ctx: Context, from: Long, now: Long): Today {
         val um = ctx.getSystemService(UsageStatsManager::class.java) ?: return Today(emptyMap(), null)
-        val from = midnight(now)
         val ev = um.queryEvents(from, now) ?: return Today(emptyMap(), null)
         val total = HashMap<String, Long>()
         val open = HashMap<String, Long>()          // package -> resumed at

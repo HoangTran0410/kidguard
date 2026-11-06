@@ -2,13 +2,18 @@ package dev.kidguard
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
+import android.location.LocationManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
+import android.text.InputFilter
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -16,6 +21,9 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.Toast
 import android.widget.ScrollView
 import android.widget.TextView
 
@@ -40,6 +48,8 @@ class MainActivity : Activity() {
         hint = TextView(this).apply { textSize = 15f; setPadding(0, dp(8), 0, dp(16)); setTextColor(Color.parseColor("#374151")) }
         col.addView(hint)
         pairBtn = Button(this).apply { text = "Ghép thêm máy của bố mẹ"; setOnClickListener { askPin() } }
+        col.addView(Button(this).apply { text = "Xin thêm giờ"; setOnClickListener { askMore() } })
+        col.addView(Button(this).apply { text = "Cài đặt pin / tự khởi động"; setOnClickListener { openBatterySettings() } })
         col.addView(pairBtn)
         setContentView(ScrollView(this).apply { setBackgroundColor(Color.WHITE); addView(col) })
     }
@@ -56,6 +66,10 @@ class MainActivity : Activity() {
             append(if (owner) "✅ Đang được bố mẹ quản lý\n" else "⚠️ Chưa có quyền Device Owner: chạy setup.sh trên máy tính (xem README)\n")
             if (!usage) append("⚠️ Chưa có quyền xem thời gian dùng app (setup.sh cấp)\n")
             append(if (Guard.running != null) "✅ Đang chạy\n" else "⏳ Đang khởi động…\n")
+            append(if (Acc.isOn(this@MainActivity)) "✅ Trợ năng: bật\n" else "⚠️ Trợ năng: tắt\n")
+            append(if (runCatching { getSystemService(LocationManager::class.java).isLocationEnabled }.getOrDefault(false)) "✅ Vị trí: bật\n" else "⚠️ Vị trí: tắt\n")
+            val pending = s.requests().length()
+            if (pending > 0) append("⏳ Đang chờ bố mẹ trả lời: $pending yêu cầu\n")
             if (s.relayUrl.isNotBlank()) append("🌐 Điều khiển từ xa: bật\n")
         }
         val c = s.pairCode()
@@ -84,6 +98,36 @@ class MainActivity : Activity() {
                 if (Store.sha256("kg:" + input.text.toString()) == hash) { s.openPairing(); refresh() }
                 else AlertDialog.Builder(this).setMessage("Sai PIN").setPositiveButton("OK", null).show()
             }.setNegativeButton("Huỷ", null).show()
+    }
+
+    /** The child asks for 15 / 30 / 60 more minutes, with an optional short note; the parent sees it in the state. */
+    private fun askMore() {
+        val s = Store.of(this)
+        val mins = intArrayOf(15, 30, 60)
+        val group = RadioGroup(this)
+        mins.forEachIndexed { i, m -> group.addView(RadioButton(this).apply { text = "$m phút"; id = i + 1; isChecked = i == 0 }) }
+        val note = EditText(this).apply { hint = "Lý do (không bắt buộc)"; filters = arrayOf(InputFilter.LengthFilter(100)) }
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0); addView(group); addView(note) }
+        AlertDialog.Builder(this).setTitle("Xin thêm giờ").setView(box)
+            .setPositiveButton("Gửi") { _, _ ->
+                val ok = s.addRequest(mins[(group.checkedRadioButtonId - 1).coerceIn(0, 2)], note.text.toString())
+                Toast.makeText(this, if (ok) "Đã gửi cho bố mẹ" else "Đang có quá nhiều yêu cầu chờ", Toast.LENGTH_LONG).show()
+                if (ok) { s.log("Con xin thêm giờ"); Guard.poke(this) }
+                refresh()
+            }.setNegativeButton("Huỷ", null).show()
+    }
+
+    /** Phone makers hide "autostart / no battery limits" in their own screens; try the known ones, else the app's page. */
+    private fun openBatterySettings() {
+        val known = listOf(
+            "com.miui.securitycenter" to "com.miui.permcenter.autostart.AutoStartManagementActivity",
+            "com.coloros.safecenter" to "com.coloros.safecenter.startupapp.StartupAppListActivity",
+            "com.vivo.permissionmanager" to "com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
+            "com.huawei.systemmanager" to "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+            "com.samsung.android.lool" to "com.samsung.android.sm.battery.ui.BatteryActivity",
+        )
+        for ((pkg, cls) in known) if (runCatching { startActivity(Intent().setComponent(ComponentName(pkg, cls))); true }.getOrDefault(false)) return
+        runCatching { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
