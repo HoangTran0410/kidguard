@@ -24,6 +24,12 @@ cp android/app/build/outputs/apk/release/app-release.apk build/kidguard.apk
 cp android/parent/build/outputs/apk/release/parent-release.apk build/kidguard-parent.apk
 # release assets: the child self-update (Update.kt) needs kidguard.apk.sha256 next to the APK
 (cd build && for f in kidguard.apk kidguard-parent.apk; do shasum -a 256 "$f" > "$f.sha256"; done)
+# versioned copies for people downloading by hand (Chrome otherwise saves "kidguard (1).apk"); the fixed names above
+# stay for QR provisioning, setup scripts and the updater. Site + README link the versioned ones and show the version.
+V=$(sed -n 's/^kg.version=//p' android/gradle.properties)
+cp build/kidguard.apk "build/kidguard-$V.apk"; cp build/kidguard-parent.apk "build/kidguard-parent-$V.apk"
+perl -pi -e 's#releases/(?:latest/download|download/v[0-9.]+)/kidguard(-parent)?(?:-[0-9.]+)?\.apk#releases/download/v'"$V"'/kidguard$1-'"$V"'.apk#g; s#<span class="ver">v[0-9.]*</span>#<span class="ver">v'"$V"'</span>#g' \
+  site/index.html site/en/index.html README.md
 
 # QR provisioning: SHA-256 of the signing certificate, URL-safe base64 without padding -> web/provision.json + web/qr.html defaults
 APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)

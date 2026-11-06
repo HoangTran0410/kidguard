@@ -200,7 +200,8 @@ object Logic {
 
     // --- app update (same rules as the child's UpdateLogic) ---
     const val RELEASES = "https://github.com/HoangTran0410/kidguard/releases/latest"
-    const val PARENT_APK = "$RELEASES/download/kidguard-parent.apk"
+    /** The versioned asset, so the browser saves "kidguard-parent-0.9.1.apk", not a second "kidguard-parent (1).apk". */
+    fun parentApk(tag: String) = "https://github.com/HoangTran0410/kidguard/releases/download/v$tag/kidguard-parent-$tag.apk"
 
     /** "0.9.0" from a `Location: …/releases/tag/v0.9.0` redirect, or null. */
     fun tagFromLocation(loc: String?): String? =

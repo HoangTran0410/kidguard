@@ -48,6 +48,7 @@ nav a{color:var(--muted);padding:4px 0;margin-left:16px;white-space:nowrap}nav a
 /* buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 22px;border-radius:12px;font-weight:700;font-size:16px;border:1px solid var(--line2);background:var(--card);color:var(--text);max-width:100%;text-align:center}
 .btn:hover{text-decoration:none;border-color:var(--blue)}
+.ver{font-weight:600;opacity:.75}
 .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-size:18px;padding:15px 28px;box-shadow:0 10px 30px -12px var(--blue)}
 .btn.primary:hover{background:var(--blue2)}
 .btn svg{width:20px;height:20px;flex:none;margin-right:8px}

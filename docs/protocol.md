@@ -368,4 +368,7 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
   "err": string, "checkedAt": epoch ms|0}`. `ready` = basic mode, downloaded and verified, waiting for the child's tap.
   Absent on children older than 0.9 (the page hides its card).
 - **Parent app**: once a day the same `HEAD` from `CheckJob`; a newer tag than its own version gives one notification
-  per version, the tap opens `releases/latest/download/kidguard-parent.apk` in the browser (no install permission).
+  per version, the tap opens `releases/download/v<tag>/kidguard-parent-<tag>.apk` in the browser (no install permission).
+- **Release assets**: `kidguard.apk`, `kidguard-parent.apk` + their `.sha256` (fixed names: QR provisioning, setup
+  scripts and the child updater use `kidguard.apk`/`kidguard.apk.sha256`; never rename them) and versioned copies
+  `kidguard-<v>.apk`, `kidguard-parent-<v>.apk` for people downloading by hand (site/README link these).
