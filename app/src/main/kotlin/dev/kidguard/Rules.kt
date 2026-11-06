@@ -46,7 +46,8 @@ data class Rules(
     val bonusMin: Int = 0,
     val noInstall: Boolean = false,
     val noDebug: Boolean = false,
-    val pinHash: String = "",                // sha256 of the parent PIN, guards "pair another device" on the child
+    val pinHash: String = "",                // hash of the parent PIN, guards "pair another device" on the child (never sent to the parent)
+    val pinSalt: String = "",                // "" = legacy sha256("kg:"+pin); else iterated sha256 with this salt
     val dailyByDay: List<Int> = emptyList(), // Monday..Sunday minutes, or empty; replaces dailyMin when present
     val schedules: List<Schedule> = emptyList(),
     val blockNew: Boolean = false,           // apps installed after setup stay blocked until approved
@@ -54,8 +55,10 @@ data class Rules(
     val lockLocation: Boolean = true,
     val noAirplane: Boolean = true,
     val safeDns: String = "",                // Private DNS host, "" = off
+    val trackMin: Int = 10,                  // location history every N minutes: 0 (off), 5, 10, 15, 30, 60
 ) {
-    fun toJson(): JSONObject = JSONObject()
+    /** [persist] = true also writes pinHash/pinSalt (only for this phone's own storage). The default is safe to send to a parent: it has `pinSet` only. */
+    fun toJson(persist: Boolean = false): JSONObject = JSONObject()
         .put("rev", rev).put("dailyMin", dailyMin)
         .put("appMin", JSONObject().apply { appMin.forEach { (k, v) -> put(k, v) } })
         .put("blocked", JSONArray(blocked.sorted()))
@@ -64,18 +67,37 @@ data class Rules(
         .put("pausedUntil", pausedUntil)
         .put("bonus", JSONObject().put("day", bonusDay).put("min", bonusMin))
         .put("noInstall", noInstall).put("noDebug", noDebug)
-        .put("pinHash", pinHash)
+        .put("pinSet", pinHash.isNotBlank())
         .put("dailyByDay", JSONArray(dailyByDay))
         .put("schedules", JSONArray().apply { schedules.forEach { put(it.toJson()) } })
         .put("blockNew", blockNew).put("approved", JSONArray(approved.sorted()))
-        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns)
+        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("trackMin", trackMin)
+        .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
+
+    /** True when [pin] matches the stored hash (legacy or salted). False when no PIN is set. */
+    fun checkPin(pin: String): Boolean =
+        pinHash.isNotBlank() && java.security.MessageDigest.isEqual(hashPin(pin, pinSalt).toByteArray(), pinHash.toByteArray())
 
     companion object {
+        private fun salt8() = ByteArray(8).also { java.security.SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
+        fun sha256(s: String): String = java.security.MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
+
+        /** Salt "" = the old unsalted form; else sha256 iterated 10 000 times. */
+        fun hashPin(pin: String, salt: String): String {
+            if (salt.isEmpty()) return sha256("kg:$pin")
+            var h = sha256("$salt:$pin")
+            repeat(9_999) { h = sha256(h + salt) }
+            return h
+        }
+
         fun fromJson(o: JSONObject): Rules {
             val bed = o.optJSONObject("bedtime") ?: JSONObject()
             val bonus = o.optJSONObject("bonus") ?: JSONObject()
             val appMin = mutableMapOf<String, Int>()
             o.optJSONObject("appMin")?.let { m -> m.keys().forEach { k -> m.optInt(k, 0).takeIf { it > 0 }?.let { appMin[k] = it } } }
+            // the page sends a new PIN in plain ("pin"); only a salted hash is kept
+            val newPin = o.optString("pin", "").filter { it.isDigit() }.takeIf { it.length >= 4 }
+            val salt = if (newPin != null) salt8() else o.optString("pinSalt", "").filter { it.isLetterOrDigit() }
             return Rules(
                 rev = o.optLong("rev", 0),
                 dailyMin = o.optInt("dailyMin", 0).coerceIn(0, 24 * 60),
@@ -90,11 +112,10 @@ data class Rules(
                 bonusMin = bonus.optInt("min", 0).coerceIn(0, 24 * 60),
                 noInstall = o.optBoolean("noInstall", false),
                 noDebug = o.optBoolean("noDebug", false),
-                // the page sends a new PIN in plain ("pin"); only its hash is kept
-                pinHash = o.optString("pin", "").filter { it.isDigit() }.takeIf { it.length >= 4 }?.let { Store.sha256("kg:$it") }
-                    ?: o.optString("pinHash", ""),
+                pinHash = if (newPin != null) hashPin(newPin, salt) else o.optString("pinHash", ""),
+                pinSalt = if (newPin != null || o.optString("pinHash", "").isNotEmpty()) salt else "",
                 dailyByDay = o.optJSONArray("dailyByDay")?.let { a ->
-                    (0 until a.length()).map { a.optInt(it, -1) }.takeIf { l -> l.size == 7 && l.all { it in 0..24 * 60 } }
+                    (0 until a.length()).map { a.optInt(it, 0).coerceIn(0, 24 * 60) }.takeIf { l -> l.size == 7 }
                 } ?: emptyList(),
                 schedules = o.optJSONArray("schedules")?.let { a ->
                     (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(Schedule::fromJson) }.take(20)
@@ -103,10 +124,12 @@ data class Rules(
                 approved = o.optJSONArray("approved").strings(),
                 lockLocation = o.optBoolean("lockLocation", true),
                 noAirplane = o.optBoolean("noAirplane", true),
+                trackMin = o.optInt("trackMin", 10).takeIf { it in TRACK_STEPS } ?: 10,
                 safeDns = o.optString("safeDns", "").trim().lowercase().takeIf { it.matches(DNS_HOST) } ?: "",
             )
         }
 
+        val TRACK_STEPS = setOf(0, 5, 10, 15, 30, 60)
         private val DNS_HOST = Regex("[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?")
 
         /** ISO weekday (1=Mon..7=Sun) of "yyyy-MM-dd", or 1 if unparsable. Pure, no java.time (old API levels). */
@@ -182,4 +205,24 @@ fun dailyLeftMs(r: Rules, usageMs: Map<String, Long>, today: String, launchable:
     val used = usageMs.filterKeys { it in launchable && it !in free }.values.sum()
     val limit = (base + if (r.bonusDay == today) r.bonusMin else 0) * 60_000L
     return (limit - used).coerceAtLeast(0)
+}
+
+/** Location history filter, pure so it is unit-tested. */
+object Track {
+    const val MIN_MOVE_M = 30.0
+    const val MAX_GAP_MS = 60 * 60_000L
+    const val KEEP_MS = 7 * 24 * 3_600_000L
+    const val MAX_POINTS = 2000
+
+    /** Metres between two points (haversine). */
+    fun meters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val r = 6_371_000.0
+        val p1 = Math.toRadians(lat1); val p2 = Math.toRadians(lat2)
+        val a = Math.sin((p2 - p1) / 2).let { it * it } + Math.cos(p1) * Math.cos(p2) * Math.sin(Math.toRadians(lon2 - lon1) / 2).let { it * it }
+        return 2 * r * Math.asin(Math.sqrt(a))
+    }
+
+    /** Store a new point? Yes when there is none yet, it moved >= 30 m from the last stored one, or >= 60 min passed. */
+    fun shouldStore(lastT: Long?, lastLat: Double, lastLon: Double, t: Long, lat: Double, lon: Double): Boolean =
+        lastT == null || t - lastT >= MAX_GAP_MS || meters(lastLat, lastLon, lat, lon) >= MIN_MOVE_M
 }

@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
-import java.security.MessageDigest
 import java.security.SecureRandom
 
 /** Everything the child keeps. Device-protected storage, so the guard runs right after a reboot, before the first unlock. */
@@ -17,7 +16,7 @@ class Store private constructor(ctx: Context) {
 
     @get:Synchronized @set:Synchronized var rules: Rules
         get() = p.getString("rules", null)?.let { runCatching { Rules.fromJson(JSONObject(it)) }.getOrNull() } ?: Rules()
-        set(v) { p.edit().putString("rules", v.toJson().toString()).apply() }
+        set(v) { p.edit().putString("rules", v.toJson(persist = true).toString()).apply() }
 
     /** Tokens of paired parent browsers. Kept as sha256, the token itself only lives in the parent's browser. */
     @Synchronized fun tokenOk(t: String?): Boolean = !t.isNullOrBlank() && sha256(t) in tokenHashes()
@@ -66,6 +65,47 @@ class Store private constructor(ctx: Context) {
         p.edit().putBoolean("everPaired", true).apply()
         closePairing()
         return t
+    }
+
+    @get:Synchronized val everPaired: Boolean get() = p.getBoolean("everPaired", false)
+
+    /** Set by release: the guard must not start again (Boot / watchdog / accessibility poke) until Device Owner is given again. */
+    @get:Synchronized @set:Synchronized var released: Boolean
+        get() = p.getBoolean("released", false)
+        set(v) { p.edit().putBoolean("released", v).commit() }
+
+    /** Remembers command [id] (last 100). False if it was already executed. Written with commit(): it must survive a reboot / release. */
+    @Synchronized fun markCmd(rawId: String): Boolean {
+        val id = rawId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }.ifEmpty { return true }
+        val l = (p.getString("cmds", "") ?: "").split(',').filter { it.isNotEmpty() }
+        if (id in l) return false
+        p.edit().putString("cmds", (l + id).takeLast(100).joinToString(",")).commit()
+        return true
+    }
+
+    /** Location history, points [t, lat, lon, acc]. */
+    @Synchronized private fun trackAll(): JSONArray = runCatching { JSONArray(p.getString("track", "[]")) }.getOrDefault(JSONArray())
+
+    /** Adds a point if [Track.shouldStore]; keeps 7 days and at most 2000 points. Returns true if stored. */
+    @Synchronized fun addTrack(t: Long, lat: Double, lon: Double, acc: Int): Boolean {
+        val a = trackAll()
+        val last = if (a.length() > 0) a.optJSONArray(a.length() - 1) else null
+        if (!Track.shouldStore(last?.optLong(0), last?.optDouble(1) ?: 0.0, last?.optDouble(2) ?: 0.0, t, lat, lon)) return false
+        val keep = JSONArray()
+        val from = maxOf(0, a.length() - (Track.MAX_POINTS - 1))
+        for (i in from until a.length()) { val q = a.optJSONArray(i) ?: continue; if (t - q.optLong(0) <= Track.KEEP_MS) keep.put(q) }
+        keep.put(JSONArray().put(t).put(Math.round(lat * 1e5) / 1e5).put(Math.round(lon * 1e5) / 1e5).put(acc))
+        p.edit().putString("track", keep.toString()).apply()
+        return true
+    }
+    @get:Synchronized val lastTrackAt: Long get() = trackAll().let { if (it.length() > 0) it.optJSONArray(it.length() - 1)?.optLong(0) ?: 0 else 0 }
+
+    /** Points since local midnight [days]-1 days ago: track(1) = today, track(2) = since yesterday's midnight, track(7) = a week. */
+    @Synchronized fun track(days: Int): JSONArray {
+        val from = Usage.midnightAgo((days.coerceIn(1, 7)) - 1)
+        val out = JSONArray(); val a = trackAll()
+        for (i in 0 until a.length()) { val q = a.optJSONArray(i) ?: continue; if (q.optLong(0) >= from) out.put(q) }
+        return out
     }
 
     @get:Synchronized @set:Synchronized var suspendedByUs: Set<String>
@@ -122,6 +162,6 @@ class Store private constructor(ctx: Context) {
         fun of(ctx: Context): Store = inst ?: synchronized(this) { inst ?: Store(ctx.applicationContext).also { inst = it } }
 
         fun randomHex(bytes: Int): String = ByteArray(bytes).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
-        fun sha256(s: String): String = MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
+        fun sha256(s: String): String = Rules.sha256(s)
     }
 }

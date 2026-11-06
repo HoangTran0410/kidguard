@@ -56,7 +56,7 @@ class DecideTest {
     @Test fun jsonRoundTrip() {
         val r = Rules(rev = 5, dailyMin = 90, appMin = mapOf("yt" to 20), blocked = setOf("game"), bedtimeOn = true,
             allow = setOf("chrome"), pausedUntil = 9, bonusDay = "2026-11-06", bonusMin = 15, noInstall = true, pinHash = "x")
-        assertEquals(r, Rules.fromJson(JSONObject(r.toJson().toString())))
+        assertEquals(r, Rules.fromJson(JSONObject(r.toJson(true).toString())))
     }
 
     @Test fun badTimeFallsBack() = assertEquals("21:30", Rules.fromJson(JSONObject("""{"bedtime":{"start":"25:99"}}""")).bedStart)
@@ -102,7 +102,7 @@ class DecideTest {
 
     @Test fun dailyByDayValidation() {
         assertTrue(Rules.fromJson(JSONObject("""{"dailyByDay":[1,2,3]}""")).dailyByDay.isEmpty())
-        assertTrue(Rules.fromJson(JSONObject("""{"dailyByDay":[1,2,3,4,5,6,1441]}""")).dailyByDay.isEmpty())
+        assertEquals(1440, Rules.fromJson(JSONObject("""{"dailyByDay":[1,2,3,4,5,6,1441]}""")).dailyByDay[6])   // clamped, not discarded
         assertEquals(7, Rules.fromJson(JSONObject("""{"dailyByDay":[1,2,3,4,5,6,1440]}""")).dailyByDay.size)
     }
 
@@ -137,7 +137,7 @@ class DecideTest {
     @Test fun newFieldsRoundTrip() {
         val r = Rules(dailyByDay = listOf(1, 2, 3, 4, 5, 6, 7), schedules = listOf(sch(setOf(1, 2), "07:00", "08:00")), blockNew = true,
             approved = setOf("a"), lockLocation = false, noAirplane = false, safeDns = "family.adguard-dns.com")
-        assertEquals(r, Rules.fromJson(JSONObject(r.toJson().toString())))
+        assertEquals(r, Rules.fromJson(JSONObject(r.toJson(true).toString())))
         val dflt = Rules.fromJson(JSONObject("{}"))
         assertTrue(dflt.lockLocation && dflt.noAirplane && !dflt.blockNew)
     }

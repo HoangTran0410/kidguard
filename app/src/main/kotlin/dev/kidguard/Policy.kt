@@ -14,7 +14,7 @@ import android.telecom.TelecomManager
 import android.util.Log
 
 class Admin : DeviceAdminReceiver() {
-    override fun onEnabled(context: Context, intent: Intent) { Guard.start(context) }
+    override fun onEnabled(context: Context, intent: Intent) { Store.of(context).released = false; Guard.start(context) }
 }
 
 /** Device Owner powers. Every call is guarded: off Device Owner it does nothing and says so. */
@@ -67,15 +67,54 @@ object Policy {
             restrict(d, a, UserManager.DISALLOW_CONFIG_LOCATION, true)
         } else restrict(d, a, UserManager.DISALLOW_CONFIG_LOCATION, false)
         if (Build.VERSION.SDK_INT >= 28) restrict(d, a, UserManager.DISALLOW_AIRPLANE_MODE, r.noAirplane)
-        if (Build.VERSION.SDK_INT >= 29) {
-            if (r.safeDns.isNotEmpty()) {
-                runCatching { d.setGlobalPrivateDnsModeSpecifiedHost(a, r.safeDns) }.onFailure { Log.w(TAG, "private dns", it) }
-                restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, true)
-            } else {
-                restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, false)
-                runCatching { d.setGlobalPrivateDnsModeOpportunistic(a) }.onFailure { Log.w(TAG, "private dns off", it) }
-            }
+        applyDns(d, a, r)
+    }
+
+    /** "" while Private DNS is fine, else a short reason (the host was rejected; then the phone runs opportunistic DNS). */
+    @Volatile var dnsError: String = ""
+    private var dnsTriedAt = 0L
+
+    private fun applyDns(d: DevicePolicyManager, a: ComponentName, r: Rules) {
+        if (Build.VERSION.SDK_INT < 29) return
+        dnsTriedAt = System.currentTimeMillis()
+        if (r.safeDns.isEmpty()) {
+            restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, false)
+            runCatching { d.setGlobalPrivateDnsModeOpportunistic(a) }.onFailure { Log.w(TAG, "private dns off", it) }
+            dnsError = ""
+            return
         }
+        val code = runCatching { d.setGlobalPrivateDnsModeSpecifiedHost(a, r.safeDns) }.getOrElse { Log.w(TAG, "private dns", it); -1 }
+        if (code == DevicePolicyManager.PRIVATE_DNS_SET_NO_ERROR) {
+            restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, true)
+            dnsError = ""
+        } else {
+            // keep the child online: opportunistic DNS and let the system settings change it
+            restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, false)
+            runCatching { d.setGlobalPrivateDnsModeOpportunistic(a) }
+            dnsError = "DNS ${r.safeDns} bị từ chối (mã $code)"
+        }
+    }
+
+    /** Called every tick: tries a rejected Private DNS host again, at most once a minute. */
+    fun retryDns(ctx: Context, r: Rules) {
+        if (dnsError.isEmpty() || r.safeDns.isEmpty() || !isOwner(ctx)) return
+        if (System.currentTimeMillis() - dnsTriedAt < 60_000) return
+        applyDns(dpm(ctx), admin(ctx), r)
+    }
+
+    private var cacheAt = 0L
+    private var cacheApps: Map<String, String> = emptyMap()
+    private var cacheProt: Set<String> = emptySet()
+    /** The package list changed (install / uninstall): list again on the next call. */
+    fun invalidate() { cacheAt = 0 }
+
+    /** [launchable] and [protectedApps] kept for 60 s (they ask the package manager, which is not free every 10 s). */
+    @Synchronized fun cached(ctx: Context): Pair<Map<String, String>, Set<String>> {
+        val now = System.currentTimeMillis()
+        if (now - cacheAt > 60_000 || cacheApps.isEmpty()) {
+            cacheApps = launchable(ctx); cacheProt = protectedApps(ctx); cacheAt = now
+        }
+        return cacheApps to cacheProt
     }
 
     /** Apps with a launcher icon, package -> label. */
@@ -92,7 +131,10 @@ object Policy {
     fun protectedApps(ctx: Context): Set<String> {
         val pm = ctx.packageManager
         val out = mutableSetOf(ctx.packageName, "com.android.systemui", "com.android.settings", "com.android.phone",
-            "com.android.emergency", "com.google.android.dialer",
+            "com.android.emergency", "com.google.android.dialer", "com.android.dialer", "com.samsung.android.dialer", "com.samsung.android.incallui",
+            "com.android.server.telecom", "com.android.contacts", "com.google.android.contacts",
+            // the alarm clock must always ring and be openable
+            "com.google.android.deskclock", "com.android.deskclock", "com.sec.android.app.clockpackage",
             // the system's own plumbing, which some phones give a launcher icon: suspending it breaks the phone
             "com.google.android.gms", "com.google.android.gsf", "com.android.stk", "com.android.cellbroadcastreceiver",
             "com.google.android.cellbroadcastreceiver", "com.google.android.apps.safetyhub")
@@ -102,6 +144,10 @@ object Policy {
         }
         @Suppress("DEPRECATION")
         pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0).forEach { out += it.activityInfo.packageName }
+        @Suppress("DEPRECATION")
+        runCatching { pm.queryIntentActivities(Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS), 0).forEach { out += it.activityInfo.packageName } }
+        @Suppress("DEPRECATION")
+        runCatching { pm.queryIntentActivities(Intent(Intent.ACTION_DIAL), 0).forEach { out += it.activityInfo.packageName } }
         runCatching { ctx.getSystemService(TelecomManager::class.java)?.defaultDialerPackage?.let { out += it } }
         runCatching { Settings.Secure.getString(ctx.contentResolver, "sms_default_application")?.let { out += it } }
         return out
@@ -127,17 +173,39 @@ object Policy {
 
     fun lockNow(ctx: Context) = runCatching { dpm(ctx).lockNow() }.isSuccess
 
-    /** Undo everything and stop being Device Owner. After this the app can be uninstalled like any other. */
-    fun release(ctx: Context, s: Store) {
-        if (!isOwner(ctx)) return
+    /**
+     * Undo everything and stop being Device Owner. After this the app can be uninstalled like any other.
+     * Call it on the Guard thread with the loop stopped. Returns "ok", "not owner" or "failed" (still Device Owner).
+     */
+    fun release(ctx: Context, s: Store): String {
+        if (!isOwner(ctx)) return "not owner"
         val d = dpm(ctx); val a = admin(ctx)
-        runCatching { d.setPackagesSuspended(a, s.suspendedByUs.toTypedArray(), false) }
+        // every launcher app, not just what we remember: the stored set may be stale
+        val all = (launchable(ctx).keys + s.suspendedByUs).toTypedArray()
+        runCatching { d.setPackagesSuspended(a, all, false) }.onFailure { Log.w(TAG, "unsuspend all", it) }
+        s.suspendedByUs.forEach { runCatching { d.setPackagesSuspended(a, arrayOf(it), false) } }
         (BASE + INSTALL + UserManager.DISALLOW_DEBUGGING_FEATURES).forEach { runCatching { d.clearUserRestriction(a, it) } }
         runCatching { d.setUninstallBlocked(a, ctx.packageName, false) }
         applyNet(ctx, d, a, Rules(lockLocation = false, noAirplane = false, safeDns = ""))
         if (Build.VERSION.SDK_INT >= 30) runCatching { d.setUserControlDisabledPackages(a, emptyList()) }
         else @Suppress("DEPRECATION") runCatching { d.setAutoTimeRequired(a, false) }
+        runCatching { d.setShortSupportMessage(a, null) }
+        removeAccEntry(ctx)
+        s.clearTokens()
+        s.released = true
+        Watchdog.cancel(ctx)
         @Suppress("DEPRECATION") runCatching { d.clearDeviceOwnerApp(ctx.packageName) }
         s.suspendedByUs = emptySet()
+        return if (isOwner(ctx)) { s.released = false; "failed" } else "ok"
     }
+
+    /** Takes our accessibility service out of enabled_accessibility_services (needs WRITE_SECURE_SETTINGS). */
+    private fun removeAccEntry(ctx: Context) = runCatching {
+        val cr = ctx.contentResolver
+        val me = "${ctx.packageName}/${Acc::class.java.name}"
+        val cur = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: ""
+        val left = cur.split(':').filter { it.isNotEmpty() && !it.equals(me, true) && !it.equals("${ctx.packageName}/.Acc", true) }
+        Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, left.joinToString(":"))
+        if (left.isEmpty()) Settings.Secure.putInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 0)
+    }.onFailure { Log.w(TAG, "acc entry", it) }
 }
