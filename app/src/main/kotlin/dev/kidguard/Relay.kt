@@ -58,7 +58,59 @@ class Relay(private val g: Guard) {
                 acks.put(cmd.optString("id"))
             }
             lastOk = System.currentTimeMillis(); lastError = ""
+            if (res.optBoolean("live")) startLive(base, rid, token)
             return acks.length() > 0 || res.has("rules")
         } finally { c.disconnect() }
+    }
+
+    // ---- live screen: one loop at a time, on its own thread, <= 3 fps, <= 10 min ----
+    private val liveOn = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    private fun startLive(base: String, rid: String, token: String) {
+        if (!liveOn.compareAndSet(false, true)) return
+        Thread({
+            try { liveLoop(base, rid, token) } catch (e: Throwable) { Log.w("KidGuard", "live", e) }
+            finally { liveOn.set(false) }
+        }, "relay-live").start()
+    }
+
+    private fun liveLoop(base: String, rid: String, token: String) {
+        val end = System.currentTimeMillis() + 10 * 60_000L
+        var errors = 0
+        while (System.currentTimeMillis() < end) {
+            val t0 = System.currentTimeMillis()
+            var live = false
+            var gap = 0L
+            try {
+                val f = Acc.capture(720, 50)
+                val c = (URL("$base/c/$rid/frame").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"; connectTimeout = 10_000; readTimeout = 15_000; doOutput = true
+                    setRequestProperty("X-KG-Token", token)
+                    if (f != null) {
+                        setRequestProperty("Content-Type", "image/jpeg")
+                        setRequestProperty("X-KG-W", f.w.toString()); setRequestProperty("X-KG-H", f.h.toString())
+                    } else {
+                        setRequestProperty("X-KG-Err", Acc.lastError.take(60).filter { it.code in 32..126 })
+                        gap = 1_000
+                    }
+                }
+                try {
+                    c.outputStream.use { if (f != null) it.write(f.jpeg) }
+                    if (c.responseCode != 200) throw RuntimeException("HTTP ${c.responseCode}")
+                    val res = JSONObject(c.inputStream.use { it.readBytes().toString(Charsets.UTF_8) })
+                    live = res.optBoolean("live")
+                    val ins = res.optJSONArray("inputs") ?: JSONArray()
+                    for (i in 0 until ins.length()) runCatching { Acc.input(ins.getJSONObject(i)) }
+                } finally { c.disconnect() }
+                errors = 0
+            } catch (e: Exception) {
+                lastError = e.message ?: e.javaClass.simpleName
+                if (++errors >= 3) return
+                gap = 1_000
+            }
+            if (!live) return
+            val wait = maxOf(gap, 333 - (System.currentTimeMillis() - t0))
+            if (wait > 0) Thread.sleep(wait)
+        }
     }
 }
