@@ -169,7 +169,7 @@ $("connect").onclick = async () => {
   let device = null;
   try {
     device = await manager.requestDevice();
-    if (!device) { setMsg("connmsg", "Chưa chọn điện thoại nào. Bấm lại và chọn máy.", "bad"); return; }
+    if (!device) { setMsg("connmsg", "Chưa chọn điện thoại nào. Bấm lại và chọn máy. Không thấy máy trong danh sách? Rút cáp, cắm lại, trên điện thoại chọn chế độ USB \"Truyền tệp\" và kiểm tra đã bật Gỡ lỗi USB.", "bad"); $("connect").disabled = false; return; }
     const connection = await device.connect();
     const transport = await AdbDaemonTransport.authenticate({
       serial: device.serial,
