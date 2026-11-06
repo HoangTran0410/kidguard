@@ -90,6 +90,11 @@ button{min-height:44px}
 .map .attr{position:absolute;right:0;bottom:0;background:rgba(255,255,255,.8);color:#333;font-size:11px;padding:1px 5px}.map .attr a{color:#333}
 #ear{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);width:min(380px,calc(100vw - 32px));box-sizing:border-box;background:var(--card);color:var(--fg);border:2px solid var(--warn);border-radius:12px;padding:8px 12px;display:none;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:20}
 .sos{border:2px solid var(--bad)}
+.ovk{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}.ovk .card{margin:0}
+.ovk .nm{display:flex;align-items:center;gap:8px}.ovk .sw{width:12px;height:12px;border-radius:50%;flex:none}
+.ovb{display:flex;gap:6px;align-items:flex-end;height:130px;padding-top:6px}.ovb>div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.ovb .g{display:flex;gap:2px;align-items:flex-end;height:104px;width:100%;justify-content:center}.ovb .g i{flex:1;max-width:14px;border-radius:3px 3px 0 0;min-height:2px}
+.map .pin{position:absolute;transform:translate(-50%,-100%);background:var(--card);color:var(--fg);border:2px solid;border-radius:10px;padding:2px 8px;font-size:12px;font-weight:600;white-space:nowrap;pointer-events:none}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;display:none;max-width:90vw}
 </style>
 </head>
@@ -170,6 +175,7 @@ button{min-height:44px}
 <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></symbol>
 <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
 <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+<symbol id="i-layout-grid" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></symbol>
 <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></symbol>
 <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M12 20h.01" /><path d="M2 8.82a15 15 0 0 1 20 0" /><path d="M5 12.859a10 10 0 0 1 14 0" /><path d="M8.5 16.429a5 5 0 0 1 7 0" /></symbol>
 <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01" /><path d="M8.5 16.429a5 5 0 0 1 7 0" /><path d="M5 12.859a10 10 0 0 1 5.17-2.69" /><path d="M13.41 10.2a15 15 0 0 1 5.59 2.66" /><path d="M2 8.82a15 15 0 0 1 4.17-2.65" /><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76" /><path d="m2 2 20 20" /></symbol>
@@ -274,9 +280,10 @@ function appBoot() {
   $("#app").innerHTML = `<h1>${ic("shield")} KidGuard</h1>` + (list.length ? list.map((k, i) =>
     `<div class="card row"><b class="sp">${ic("user")} ${esc(k.name)} <span class="mute">· ${k.via === "lan" ? "mạng nhà / Tailscale" : "relay"}</span></b><button class="pri" data-i="${i}">${ic("folder-open")} Mở</button></div>`).join("")
     : `<div class="card empty"><span class="e">${ic("inbox")}</span><p>Chưa có máy nào. Bấm "Thêm máy của con" để bắt đầu.</p></div>`) +
-    `<button class="pri" id="addKid">${ic("plus")} Thêm máy của con</button>`;
+    `<div class="row">${list.length > 1 ? `<button class="pri sp" id="ovGo">${ic("layout-grid")} Tổng quan ${list.length} con</button>` : ""}<button class="${list.length > 1 ? "" : "pri "}sp" id="addKid">${ic("plus")} Thêm máy của con</button></div>`;
   $("#app").querySelectorAll("[data-i]").forEach(b => b.onclick = () => open(list[+b.dataset.i]));
   $("#addKid").onclick = addScreen;
+  if ($("#ovGo")) $("#ovGo").onclick = () => overview(list, appBoot);
 }
 function addScreen() {
   $("#app").innerHTML = `<h1>${ic("shield")} Thêm máy của con</h1>
@@ -348,8 +355,89 @@ function pairScreen(hello, target, prefill = "") {
 function listScreen(list) {
   $("#app").innerHTML = `<h1>${ic("shield")} KidGuard</h1>` + (list.length ? list.map((k, i) =>
     `<div class="card row"><b class="sp">${ic("user")} ${esc(k.name)}</b><button class="pri" data-i="${i}">${ic("folder-open")} Mở</button></div>`).join("")
-    : `<div class="card empty"><span class="e">${ic("inbox")}</span><p>Chưa có máy nào. Mở link "điều khiển từ xa" từ trang của con (khi ở nhà, tab Cài đặt) để thêm.</p></div>`);
+    : `<div class="card empty"><span class="e">${ic("inbox")}</span><p>Chưa có máy nào. Mở link "điều khiển từ xa" từ trang của con (khi ở nhà, tab Cài đặt) để thêm.</p></div>`)
+    + (list.length > 1 ? `<button class="pri" id="ovGo">${ic("layout-grid")} Tổng quan ${list.length} con</button>` : "");
   $("#app").querySelectorAll("[data-i]").forEach(b => b.onclick = () => open(list[+b.dataset.i]));
+  if ($("#ovGo")) $("#ovGo").onclick = () => overview(list, () => listScreen(list));
+}
+
+// --- all kids at once: cards, one map, 7 days side by side ------------------------
+const KC = ["#2563eb", "#db2777", "#16a34a", "#d97706", "#7c3aed", "#0891b2"];
+let ov = null;   // {list, back, data: [{k, st, seen, err}]}
+async function overview(list, back) {
+  clearInterval(timer); cur = null; mv = null;
+  ov = { list, back, data: list.map(k => ({ k, st: null, seen: 0, err: "" })) };
+  $("#app").innerHTML = `<div class="row"><h1 class="sp">${ic("layout-grid")} Tổng quan</h1><button id="ovBack">${ic("list")} Danh sách</button></div>
+    <div id="ovSos"></div><div class="ovk" id="ovKids"></div>
+    <div class="card" style="margin-top:12px"><h2>${ic("map-pin")} Các con đang ở đâu</h2><div id="ovMapBox"></div></div>
+    <div class="card"><h2>${ic("chart-column")} Thời gian dùng 7 ngày</h2><div id="ovBars"></div></div>`;
+  $("#ovBack").onclick = () => { clearInterval(timer); ov = null; back(); };
+  ovDraw();
+  await ovLoad();
+  timer = setInterval(ovLoad, 15000);
+}
+async function ovLoad() {
+  const o = ov; if (!o) return;
+  await Promise.all(o.data.map(async d => {
+    try { const j = await call(d.k, "/state"); d.st = j.state !== undefined ? j.state : j; d.seen = j.state !== undefined ? +j.seen || 0 : 0; d.err = ""; }
+    catch (e) { d.err = e.message; }
+  }));
+  if (ov === o) ovDraw();
+}
+function ovOnline(d) { return d.st && (d.k.via === "lan" ? !d.err && Date.now() - d.st.t < 30000 : d.seen && Date.now() - d.seen < 120000); }
+function ovDraw() {
+  const D = ov.data, col = i => KC[i % KC.length];
+  const sos = D.filter(d => d.st && (d.st.sos || []).length);
+  $("#ovSos").innerHTML = sos.map(d => `<div class="alert bad sos row">${ic("siren")} <b class="sp">${esc(d.k.name)} bấm SOS lúc ${hhmm(d.st.sos[d.st.sos.length - 1].t)}</b><button class="pri" data-o="${D.indexOf(d)}">${ic("folder-open")} Mở</button></div>`).join("");
+  $("#ovKids").innerHTML = D.map((d, i) => {
+    const s = d.st, on = ovOnline(d);
+    if (!s) return `<div class="card"><div class="nm"><i class="sw" style="background:${col(i)}"></i><b class="sp">${esc(d.k.name)}</b></div><p class="mute">${d.err ? ic("triangle-alert") + " " + esc(d.err) : ic("hourglass") + " Đang tải…"}</p><button data-o="${i}">${ic("folder-open")} Mở</button></div>`;
+    const lim = s.limitMin || 0, pct = lim ? Math.min(100, s.usedMs / (lim * 600)) : 0, req = (s.requests || []).length;
+    return `<div class="card"><div class="nm"><i class="sw" style="background:${col(i)}"></i><b class="sp">${esc(d.k.name)}</b>${dot(on ? "on" : "bad")}<span class="mute">${on ? "đang kết nối" : "mất kết nối · " + ago(d.k.via === "lan" ? s.t : d.seen || s.t)}</span></div>
+      <div class="mute" style="margin-top:6px">${ic("battery-full")} ${s.battery}%${s.charging ? ic("zap") : ""} · ${ic("smartphone")} ${esc(s.model)} · Android ${esc(s.android)}</div>
+      <div class="mute">${s.screenOn ? ic("eye") + " đang dùng" + (s.current ? ": <b>" + esc(s.current) + "</b>" : "") : ic("moon") + " màn hình tắt"}</div>
+      <div style="margin-top:8px"><b>${fmt(s.usedMs)}</b> <span class="mute">${lim ? "/ " + fmt(lim * 60000) : "· không giới hạn"}</span></div>
+      ${lim ? `<div class="bar"><i style="width:${pct}%;background:${pct >= 100 ? "var(--bad)" : col(i)}"></i></div>` : ""}
+      ${req ? `<div class="alert warn">${ic("hand")} Xin thêm giờ (${req})</div>` : ""}
+      ${s.location ? `<div class="mute">${ic("map-pin")} vị trí ${ago(s.location.t)}</div>` : `<div class="mute">${ic("map-pin")} chưa có vị trí</div>`}
+      <button data-o="${i}" style="margin-top:8px">${ic("folder-open")} Mở</button></div>`;
+  }).join("");
+  document.querySelectorAll("#app [data-o]").forEach(b => b.onclick = () => { clearInterval(timer); const k = D[+b.dataset.o].k; ov = null; open(k); });
+  // one map, the latest fix of every kid
+  const pins = D.map((d, i) => d.st && d.st.location ? { lat: d.st.location.lat, lng: d.st.location.lng, t: d.st.location.t, name: d.k.name, c: col(i) } : null).filter(Boolean);
+  const mb = $("#ovMapBox");
+  if (!pins.length) mb.innerHTML = `<div class="empty"><span class="e">${ic("map-pin")}</span>Chưa có vị trí của con nào</div>`;
+  else {
+    if (!$("#map")) mb.innerHTML = `<div class="map" id="map"></div><div class="mute" style="margin-top:4px">${pins.map(p => `<span style="color:${p.c}">●</span> ${esc(p.name)} ${ago(p.t)}`).join(" · ")}</div>`;
+    else mb.lastElementChild.innerHTML = pins.map(p => `<span style="color:${p.c}">●</span> ${esc(p.name)} ${ago(p.t)}`).join(" · ");
+    const pts = pins.map(p => [p.t, p.lat, p.lng]);
+    if (!mv) { mv = fitView(pts, $("#map").clientWidth || 340, 260); mv.z = Math.min(mv.z, 15); }
+    const draw = () => ovMap(pins); draw(); mapDrag(pts, draw);
+  }
+  // 7 days, one bar per kid per day
+  const today = dkey(Date.now()), days = [];
+  for (let i = 6; i >= 0; i--) days.push(dkey(Date.now() - i * 86400e3));
+  const msOf = (s, day) => !s ? 0 : day === s.day ? s.usedMs : ((s.history || []).find(h => h.day === day) || {}).ms || 0;
+  const mx = Math.max(60000, ...days.flatMap(day => D.map(d => msOf(d.st, day)))), WD = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+  $("#ovBars").innerHTML = `<div class="ovb">${days.map(day => `<div><div class="g">${D.map((d, i) => { const ms = msOf(d.st, day);
+      return `<i title="${esc(d.k.name)} ${esc(day.slice(8))}/${esc(day.slice(5, 7))}: ${fmt(ms)}" aria-label="${esc(d.k.name)} ${esc(day)}: ${fmt(ms)}" style="height:${Math.max(2, Math.round(ms / mx * 104))}px;background:${col(i)}${ms ? "" : ";opacity:.25"}"></i>`; }).join("")}</div>
+      <span class="mute"${day === today ? ' style="font-weight:700;color:var(--fg)"' : ""}>${WD[dayIdx(day)]}</span></div>`).join("")}</div>
+    <div class="mute" style="margin-top:8px">${D.map((d, i) => `<span style="color:${col(i)}">■</span> ${esc(d.k.name)}: hôm nay ${d.st ? fmt(d.st.usedMs) : "—"}, 7 ngày ${d.st ? fmt(days.reduce((a, day) => a + msOf(d.st, day), 0)) : "—"}`).join("<br>")}</div>`;
+}
+function ovMap(pins) {
+  const box = $("#map"); if (!box) return;
+  const w = box.clientWidth || 340, h = 260, S = 256 * 2 ** mv.z, left = mv.fx * S - w / 2, top = mv.fy * S - h / 2, n = 2 ** mv.z;
+  let tiles = "";
+  for (let ty = Math.floor(top / 256); ty <= Math.floor((top + h) / 256); ty++) for (let tx = Math.floor(left / 256); tx <= Math.floor((left + w) / 256); tx++) {
+    if (ty < 0 || ty >= n) continue;
+    tiles += `<img alt="" draggable="false" src="https://tile.openstreetmap.org/${mv.z}/${((tx % n) + n) % n}/${ty}.png" style="left:${Math.round(tx * 256 - left)}px;top:${Math.round(ty * 256 - top)}px">`;
+  }
+  const xy = pins.map(p => [wx(p.lng) * S - left, wy(p.lat) * S - top]);
+  box.innerHTML = `<div class="layer" id="mlayer">${tiles}<svg width="${w}" height="${h}" style="left:0;top:0">${xy.map((q, i) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="8" fill="${pins[i].c}" stroke="#fff" stroke-width="3"/>`).join("")}</svg>
+    ${xy.map((q, i) => `<span class="pin" style="left:${q[0].toFixed(0)}px;top:${(q[1] - 12).toFixed(0)}px;border-color:${pins[i].c}">${esc(pins[i].name)}</span>`).join("")}</div>
+    <div class="mz"><button id="mzi" aria-label="Phóng to">${ic("plus")}</button><button id="mzo" aria-label="Thu nhỏ">${ic("minus")}</button></div><div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>`;
+  $("#mzi").onclick = () => { mv.z = Math.min(18, mv.z + 1); ovMap(pins); };
+  $("#mzo").onclick = () => { mv.z = Math.max(2, mv.z - 1); ovMap(pins); };
 }
 
 // --- one child ------------------------------------------------------------
@@ -910,7 +998,7 @@ function drawMap(pts) {
   $("#mzo").onclick = () => { mv.z = Math.max(2, mv.z - 1); drawMap(pts); };
   box.querySelectorAll("circle").forEach(c => c.onclick = () => { if (box._moved) return; const p = pts[+c.dataset.i]; $("#mapInfo").textContent = `${hhmm(p[0])} · sai số ±${Math.round(p[3] || 0)} m`; });
 }
-function mapDrag(pts) {
+function mapDrag(pts, draw = () => drawMap(pts)) {
   const box = $("#map"); let d = null;
   box.onpointerdown = e => { if (e.target.closest("button,a")) return; d = { x: e.clientX, y: e.clientY, id: e.pointerId }; box._moved = false; };
   box.onpointermove = e => {
@@ -920,7 +1008,7 @@ function mapDrag(pts) {
   };
   const end = e => {
     if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; d = null;
-    if (box._moved) { const S = 256 * 2 ** mv.z; mv.fx -= dx / S; mv.fy -= dy / S; drawMap(pts); setTimeout(() => box._moved = false, 50); }
+    if (box._moved) { const S = 256 * 2 ** mv.z; mv.fx -= dx / S; mv.fy -= dy / S; draw(); setTimeout(() => box._moved = false, 50); }
   };
   box.onpointerup = end; box.onpointercancel = end;
 }

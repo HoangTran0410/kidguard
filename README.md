@@ -78,6 +78,7 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự k
 | 🕹️ **Remote control** | Tap, swipe, long press, Back / Home / Recents, type into the focused field |
 | 📍 **Location** | Locate now, location forced on (the child cannot turn it off), **7-day history** on an OpenStreetMap map with stops |
 | 📊 **History** | Screen time for 7 days, top apps per day |
+| 👨‍👩‍👧 **All kids at once** | With 2+ kids, **Tổng quan** (overview): a card per kid (online, battery, phone, app in use, time used / limit, requests, SOS), every kid's latest location on one map, 7 days of screen time side by side. Parent app, or the Worker page with several relay kids |
 | 🛡️ **Tamper-proof** | Blocks uninstall, force stop, factory reset from Settings, Safe Mode, new users, changing the clock, airplane mode. A watchdog restarts it; accessibility turns itself back on. Optional: family DNS filter (AdGuard / Cloudflare / CleanBrowsing), block installs, block USB debugging |
 | 🔒 **Commands** | Lock the screen, ring, full-screen message, restart the phone |
 | ↩️ **Undo everything** | Parent page → Settings → **Gỡ quyền quản lý** (remove management): every app unlocked, every restriction lifted, then uninstall like any app |
