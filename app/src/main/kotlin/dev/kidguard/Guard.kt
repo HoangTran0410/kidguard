@@ -213,6 +213,9 @@ class Guard : Service() {
             runCatching { ctx.startForegroundService(Intent(ctx, Guard::class.java)) }.onFailure { Log.e("KidGuard", "start", it) }
         }
 
+        /** Re-run the rules now (e.g. the accessibility service saw another app come to the front). */
+        fun poke(ctx: Context) { running?.kick() ?: start(ctx) }
+
         fun day(ms: Long): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(ms))
 
         fun lanIp(): String? = runCatching {
