@@ -34,16 +34,47 @@
   .big { font-size:24px; font-weight:700; word-break:break-all }
   .hide { display:none }
   .warn { background:rgba(197,34,31,.08); border:1px solid var(--bad); border-radius:10px; padding:12px; white-space:pre-wrap }
+  .si { width:1.15em; height:1.15em; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; vertical-align:-0.2em; flex:none }
+  .run .si { animation:kgspin 1s linear infinite }
+  @keyframes kgspin { to { transform:rotate(360deg) } }
+  @media (prefers-reduced-motion: reduce) { .run .si { animation:none } }
   code { background:rgba(128,128,128,.18); padding:1px 5px; border-radius:5px }
 </style>
 </head>
 <body>
 <main>
-  <h1>🛡️ Cài KidGuard</h1>
-  <p class="sub">Cài lên điện thoại của con, làm từng bước. ⏱️ Mất khoảng 3 phút.<br>Máy mới hoặc vừa khôi phục cài đặt gốc, không có máy tính? <a href="qr" style="color:var(--pri)">Cài bằng mã QR</a>.</p>
+<!-- Icons: Lucide (https://lucide.dev), ISC License, Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT); all other copyright (c) Lucide Contributors 2022. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M4.929 4.929 19.07 19.071" /></symbol>
+<symbol id="i-bug" viewBox="0 0 24 24"><path d="M12 20v-9" /> <path d="M14 7a4 4 0 0 1 4 4v3a6 6 0 0 1-12 0v-3a4 4 0 0 1 4-4z" /> <path d="M14.12 3.88 16 2" /> <path d="M21 21a4 4 0 0 0-3.81-4" /> <path d="M21 5a4 4 0 0 1-3.55 3.97" /> <path d="M22 13h-4" /> <path d="M3 21a4 4 0 0 1 3.81-4" /> <path d="M3 5a4 4 0 0 0 3.55 3.97" /> <path d="M6 13H2" /> <path d="m8 2 1.88 1.88" /> <path d="M9 7.13V6a3 3 0 1 1 6 0v1.13" /></symbol>
+<symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="m16 9-5.5 5.5L8 12" /></symbol>
+<symbol id="i-circle-dashed" viewBox="0 0 24 24"><path d="M10.1 2.182a10 10 0 0 1 3.8 0" /><path d="M13.9 21.818a10 10 0 0 1-3.8 0" /><path d="M17.609 3.721a10 10 0 0 1 2.69 2.7" /><path d="M2.182 13.9a10 10 0 0 1 0-3.8" /><path d="M20.279 17.609a10 10 0 0 1-2.7 2.69" /><path d="M21.818 10.1a10 10 0 0 1 0 3.8" /><path d="M3.721 6.391a10 10 0 0 1 2.7-2.69" /><path d="M6.391 20.279a10 10 0 0 1-2.69-2.7" /></symbol>
+<symbol id="i-circle-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="m15 9-6 6" /><path d="m9 9 6 6" /></symbol>
+<symbol id="i-folder-open" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></symbol>
+<symbol id="i-hash" viewBox="0 0 24 24"><line x1="4" x2="20" y1="9" y2="9" /><line x1="4" x2="20" y1="15" y2="15" /><line x1="10" x2="8" y1="3" y2="21" /><line x1="16" x2="14" y1="3" y2="21" /></symbol>
+<symbol id="i-key-round" viewBox="0 0 24 24"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" /><circle cx="16.5" cy="7.5" r=".5" fill="currentColor" /></symbol>
+<symbol id="i-loader" viewBox="0 0 24 24"><path d="M12 2v4" /> <path d="m16.2 7.8 2.9-2.9" /> <path d="M18 12h4" /> <path d="m16.2 16.2 2.9 2.9" /> <path d="M12 18v4" /> <path d="m4.9 19.1 2.9-2.9" /> <path d="M2 12h4" /> <path d="m4.9 4.9 2.9 2.9" /></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
+<symbol id="i-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" /><path d="M12 22V12" /><polyline points="3.29 7 12 12 20.71 7" /><path d="m7.5 4.27 9 5.15" /></symbol>
+<symbol id="i-party-popper" viewBox="0 0 24 24"><path d="M5.8 11.3 2 22l10.7-3.79" /> <path d="M4 3h.01" /> <path d="M22 8h.01" /> <path d="M15 2h.01" /> <path d="M22 20h.01" /> <path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10" /> <path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17" /> <path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7" /> <path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z" /></symbol>
+<symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5" /> <path d="M15 8V2" /> <path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z" /> <path d="M9 8V2" /></symbol>
+<symbol id="i-rocket" viewBox="0 0 24 24"><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" /> <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09" /> <path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z" /> <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05" /></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34" /> <circle cx="11" cy="11" r="8" /></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /><circle cx="12" cy="12" r="3" /></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></symbol>
+<symbol id="i-smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" /></symbol>
+<symbol id="i-timer" viewBox="0 0 24 24"><line x1="10" x2="14" y1="2" y2="2" /><line x1="12" x2="15" y1="14" y2="11" /><circle cx="12" cy="14" r="8" /></symbol>
+<symbol id="i-trash-2" viewBox="0 0 24 24"><path d="M10 11v6" /><path d="M14 11v6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
+<symbol id="i-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></symbol>
+<symbol id="i-undo-2" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></symbol>
+<symbol id="i-wifi" viewBox="0 0 24 24"><path d="M12 20h.01" /> <path d="M2 8.82a15 15 0 0 1 20 0" /> <path d="M5 12.859a10 10 0 0 1 14 0" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /></symbol>
+<symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z" /></symbol>
+</defs></svg>
+  <h1><svg class="si" aria-hidden="true"><use href="#i-shield"/></svg> Cài KidGuard</h1>
+  <p class="sub">Cài lên điện thoại của con, làm từng bước. <svg class="si" aria-hidden="true"><use href="#i-timer"/></svg> Mất khoảng 3 phút.<br>Máy mới hoặc vừa khôi phục cài đặt gốc, không có máy tính? <a href="qr" style="color:var(--pri)">Cài bằng mã QR</a>.</p>
 
   <div id="nowebusb" class="card hide">
-    <h2>🚫 Trình duyệt này chưa cài được</h2>
+    <h2><svg class="si" aria-hidden="true"><use href="#i-ban"/></svg> Trình duyệt này chưa cài được</h2>
     <p>Trang này cần <b>Chrome</b> hoặc <b>Edge</b> trên máy tính (hoặc Chrome trên điện thoại Android có dây OTG).
     Safari, Firefox và iPhone không dùng được.</p>
     <p>Hoặc chạy file cài trên máy tính: <code>setup.sh</code> (Mac/Linux) hay
@@ -51,49 +82,49 @@
   </div>
 
   <section id="s1" class="card">
-    <h2>📱 1. Chuẩn bị điện thoại của con</h2>
+    <h2><svg class="si" aria-hidden="true"><use href="#i-smartphone"/></svg> 1. Chuẩn bị điện thoại của con</h2>
     <ul class="chk">
-      <li>🗑️ <b>Xoá hết tài khoản</b>: Cài đặt &gt; Tài khoản (Google, Samsung, Xiaomi…). Cài xong đăng nhập lại được.</li>
-      <li>🛠️ Bật <b>Tuỳ chọn nhà phát triển</b>: Cài đặt &gt; Giới thiệu điện thoại, chạm 7 lần vào "Số bản dựng".</li>
-      <li>🐞 Trong Tuỳ chọn nhà phát triển, bật <b>Gỡ lỗi USB</b>.</li>
-      <li>🟠 Xiaomi/Redmi/POCO: bật thêm <b>Gỡ lỗi USB (Cài đặt bảo mật)</b> và <b>Cài qua USB</b>.</li>
-      <li>🔌 Cắm cáp USB từ điện thoại của con vào máy này.</li>
+      <li><svg class="si" aria-hidden="true"><use href="#i-trash-2"/></svg> <b>Xoá hết tài khoản</b>: Cài đặt &gt; Tài khoản (Google, Samsung, Xiaomi…). Cài xong đăng nhập lại được.</li>
+      <li><svg class="si" aria-hidden="true"><use href="#i-wrench"/></svg> Bật <b>Tuỳ chọn nhà phát triển</b>: Cài đặt &gt; Giới thiệu điện thoại, chạm 7 lần vào "Số bản dựng".</li>
+      <li><svg class="si" aria-hidden="true"><use href="#i-bug"/></svg> Trong Tuỳ chọn nhà phát triển, bật <b>Gỡ lỗi USB</b>.</li>
+      <li><svg class="si" aria-hidden="true"><use href="#i-triangle-alert"/></svg> Xiaomi/Redmi/POCO: bật thêm <b>Gỡ lỗi USB (Cài đặt bảo mật)</b> và <b>Cài qua USB</b>.</li>
+      <li><svg class="si" aria-hidden="true"><use href="#i-plug"/></svg> Cắm cáp USB từ điện thoại của con vào máy này.</li>
     </ul>
-    <label class="msg"><input type="checkbox" id="ready"> ✅ Tôi đã làm xong các việc trên</label>
+    <label class="msg"><input type="checkbox" id="ready"> <svg class="si" aria-hidden="true"><use href="#i-circle-check"/></svg> Tôi đã làm xong các việc trên</label>
   </section>
 
   <section id="s2" class="card off">
-    <h2>🔌 2. Kết nối điện thoại</h2>
+    <h2><svg class="si" aria-hidden="true"><use href="#i-plug"/></svg> 2. Kết nối điện thoại</h2>
     <p class="msg">Bấm nút, chọn điện thoại trong hộp hiện ra. Rồi nhìn màn hình điện thoại và bấm <b>"Cho phép"</b> (tick "Luôn cho phép máy tính này").</p>
-    <button id="connect">🔌 Kết nối điện thoại</button>
+    <button id="connect"><svg class="si" aria-hidden="true"><use href="#i-plug"/></svg> Kết nối điện thoại</button>
     <div id="connmsg" class="msg"></div>
   </section>
 
   <section id="s3" class="card off">
-    <h2>📦 3. File ứng dụng</h2>
-    <div id="apkmsg" class="msg">🔎 Đang tìm kidguard.apk…</div>
+    <h2><svg class="si" aria-hidden="true"><use href="#i-package"/></svg> 3. File ứng dụng</h2>
+    <div id="apkmsg" class="msg"><svg class="si" aria-hidden="true"><use href="#i-search"/></svg> Đang tìm kidguard.apk…</div>
     <input type="file" id="apkfile" accept=".apk" class="hide">
-    <button id="pick" class="alt hide">📂 Chọn file kidguard.apk</button>
-    <button id="install" disabled>🚀 Bắt đầu cài</button>
+    <button id="pick" class="alt hide"><svg class="si" aria-hidden="true"><use href="#i-folder-open"/></svg> Chọn file kidguard.apk</button>
+    <button id="install" disabled><svg class="si" aria-hidden="true"><use href="#i-rocket"/></svg> Bắt đầu cài</button>
   </section>
 
   <section id="s4" class="card hide">
-    <h2>⚙️ 4. Đang cài</h2>
+    <h2><svg class="si" aria-hidden="true"><use href="#i-settings"/></svg> 4. Đang cài</h2>
     <ol class="steps" id="steps"></ol>
     <div id="fail" class="warn hide"></div>
-    <details><summary class="msg">🔍 Xem chi tiết</summary><pre id="log"></pre></details>
+    <details><summary class="msg"><svg class="si" aria-hidden="true"><use href="#i-search"/></svg> Xem chi tiết</summary><pre id="log"></pre></details>
   </section>
 
   <section id="done" class="card hide">
-    <h2>🎉 Xong rồi</h2>
-    <p>📶 Trên <b>điện thoại của bố mẹ</b> (cùng Wi-Fi), mở trình duyệt vào địa chỉ:</p>
+    <h2><svg class="si" aria-hidden="true"><use href="#i-party-popper"/></svg> Xong rồi</h2>
+    <p><svg class="si" aria-hidden="true"><use href="#i-wifi"/></svg> Trên <b>điện thoại của bố mẹ</b> (cùng Wi-Fi), mở trình duyệt vào địa chỉ:</p>
     <div class="big" id="lan"></div>
     <ol>
-      <li>🔢 Nhập <b>mã 6 số</b> đang hiện trên điện thoại của con.</li>
-      <li>🔐 Vào tab <b>Cài đặt</b>, đặt <b>PIN của bố mẹ</b>.</li>
-      <li>🔑 Giờ có thể đăng nhập lại tài khoản trên máy con và rút cáp.</li>
+      <li><svg class="si" aria-hidden="true"><use href="#i-hash"/></svg> Nhập <b>mã 6 số</b> đang hiện trên điện thoại của con.</li>
+      <li><svg class="si" aria-hidden="true"><use href="#i-lock"/></svg> Vào tab <b>Cài đặt</b>, đặt <b>PIN của bố mẹ</b>.</li>
+      <li><svg class="si" aria-hidden="true"><use href="#i-key-round"/></svg> Giờ có thể đăng nhập lại tài khoản trên máy con và rút cáp.</li>
     </ol>
-    <p class="msg">↩️ Gỡ: trang bố mẹ &gt; Cài đặt &gt; "Gỡ quyền quản lý", rồi gỡ app như thường.</p>
+    <p class="msg"><svg class="si" aria-hidden="true"><use href="#i-undo-2"/></svg> Gỡ: trang bố mẹ &gt; Cài đặt &gt; "Gỡ quyền quản lý", rồi gỡ app như thường.</p>
   </section>
 </main>
 
@@ -109,6 +140,7 @@ const { Adb, AdbDaemonTransport, AdbDaemonWebUsbDeviceManager, AdbDaemonWebUsbDe
 
 const PKG = "dev.kidguard";
 const ACC = PKG + "/" + PKG + ".Acc";
+const ic = (n) => `<svg class="si" aria-hidden="true"><use href="#i-${n}"/></svg>`;
 const $ = (id) => document.getElementById(id);
 const enable = (id, on) => $(id).classList.toggle("off", !on);
 const setMsg = (id, text, cls) => { const e = $(id); e.textContent = text; e.className = "msg" + (cls ? " " + cls : ""); };
@@ -133,11 +165,11 @@ $("ready").onchange = (e) => enable("s2", e.target.checked);
 // ---- 2. connect ----
 $("connect").onclick = async () => {
   $("connect").disabled = true;
-  setMsg("connmsg", "⏳ Đang kết nối… nhìn màn hình điện thoại, bấm \"Cho phép\".");
+  setMsg("connmsg", "Đang kết nối… nhìn màn hình điện thoại, bấm \"Cho phép\".");
   let device = null;
   try {
     device = await manager.requestDevice();
-    if (!device) { setMsg("connmsg", "⚠️ Chưa chọn điện thoại nào. Bấm lại và chọn máy.", "bad"); return; }
+    if (!device) { setMsg("connmsg", "Chưa chọn điện thoại nào. Bấm lại và chọn máy.", "bad"); return; }
     const connection = await device.connect();
     const transport = await AdbDaemonTransport.authenticate({
       serial: device.serial,
@@ -145,7 +177,7 @@ $("connect").onclick = async () => {
       credentialStore: new AdbWebCredentialStore("KidGuard"),
     });
     adb = new Adb(transport);
-    setMsg("connmsg", "✅ Đã kết nối: " + (device.name || device.serial), "ok");
+    setMsg("connmsg", "Đã kết nối: " + (device.name || device.serial), "ok");
     $("connect").classList.add("hide");
     enable("s3", true);
     loadApk();
@@ -154,9 +186,9 @@ $("connect").onclick = async () => {
     // release the USB interface so a retry (or adb on this PC) is not blocked
     try { await (device && device.raw && device.raw.close && device.raw.close()); } catch (_) {}
     if (e instanceof AdbDaemonWebUsbDevice.DeviceBusyError) {
-      setMsg("connmsg", "❌ Máy đang bị chương trình khác giữ (thường là adb trên máy tính). Mở cửa sổ lệnh, gõ: adb kill-server, rồi rút cáp, cắm lại, tải lại trang (F5).", "bad");
+      setMsg("connmsg", "Máy đang bị chương trình khác giữ (thường là adb trên máy tính). Mở cửa sổ lệnh, gõ: adb kill-server, rồi rút cáp, cắm lại, tải lại trang (F5).", "bad");
     } else {
-      setMsg("connmsg", "❌ Không kết nối được: " + (e && e.message || e) + ". Hãy rút cáp USB, cắm lại, tải lại trang (F5) rồi làm lại. Kiểm tra đã bật Gỡ lỗi USB và bấm \"Cho phép\" trên điện thoại.", "bad");
+      setMsg("connmsg", "Không kết nối được: " + (e && e.message || e) + ". Hãy rút cáp USB, cắm lại, tải lại trang (F5) rồi làm lại. Kiểm tra đã bật Gỡ lỗi USB và bấm \"Cho phép\" trên điện thoại.", "bad");
     }
     $("connect").disabled = false;
   }
@@ -177,11 +209,11 @@ async function loadApk() {
   } catch (_) { /* fall through to picker */ }
   if (apkBytes && !isApk(apkBytes)) apkBytes = null;
   if (apkBytes && apkBytes.length > 1000) {
-    setMsg("apkmsg", "✅ Đã có kidguard.apk (" + (apkBytes.length / 1048576).toFixed(1) + " MB).", "ok");
+    setMsg("apkmsg", "Đã có kidguard.apk (" + (apkBytes.length / 1048576).toFixed(1) + " MB).", "ok");
     $("install").disabled = false;
   } else {
     apkBytes = null;
-    setMsg("apkmsg", "📂 Chưa có sẵn file ứng dụng. Chọn file kidguard.apk đã tải về.");
+    setMsg("apkmsg", "Chưa có sẵn file ứng dụng. Chọn file kidguard.apk đã tải về.");
     $("pick").classList.remove("hide");
   }
 }
@@ -190,9 +222,9 @@ $("apkfile").onchange = async (e) => {
   const f = e.target.files[0];
   if (!f) return;
   const b = new Uint8Array(await f.arrayBuffer());
-  if (!isApk(b)) { apkBytes = null; $("install").disabled = true; setMsg("apkmsg", "❌ " + f.name + " không phải file APK hợp lệ. Chọn lại kidguard.apk.", "bad"); return; }
+  if (!isApk(b)) { apkBytes = null; $("install").disabled = true; setMsg("apkmsg", f.name + " không phải file APK hợp lệ. Chọn lại kidguard.apk.", "bad"); return; }
   apkBytes = b;
-  setMsg("apkmsg", "✅ Đã chọn " + f.name + " (" + (apkBytes.length / 1048576).toFixed(1) + " MB).", "ok");
+  setMsg("apkmsg", "Đã chọn " + f.name + " (" + (apkBytes.length / 1048576).toFixed(1) + " MB).", "ok");
   $("install").disabled = false;
 };
 
@@ -222,24 +254,24 @@ async function pushApk(remote) {
 }
 
 const STEPS = [
-  ["📦 Cài app", async () => {
+  ["Cài app", async () => {
     await pushApk("/data/local/tmp/kidguard.apk");
     const out = await sh("pm install -r -g /data/local/tmp/kidguard.apk");
     await sh("rm -f /data/local/tmp/kidguard.apk");
     if (!/Success/.test(out)) throw new Error(out.trim() || "pm install thất bại");
   }],
-  ["🛡️ Đặt KidGuard làm Device Owner", async () => {
+  ["Đặt KidGuard làm Device Owner", async () => {
     const out = await sh("dpm set-device-owner " + PKG + "/.Admin");
     const dump = await sh("dumpsys device_policy");
     if (!dump.includes("admin=ComponentInfo{" + PKG + "/" + PKG + ".Admin}")) {
       const e = new Error(out.trim()); e.help = DO_HELP; throw e;
     }
   }],
-  ["📊 Cấp quyền xem thời gian dùng app", async () => { await must("appops set " + PKG + " GET_USAGE_STATS allow"); }],
-  ["🔑 Cấp quyền ghi cài đặt bảo mật", async () => {
+  ["Cấp quyền xem thời gian dùng app", async () => { await must("appops set " + PKG + " GET_USAGE_STATS allow"); }],
+  ["Cấp quyền ghi cài đặt bảo mật", async () => {
     await must("pm grant " + PKG + " android.permission.WRITE_SECURE_SETTINGS");
   }],
-  ["♿ Bật dịch vụ Trợ năng", async () => {
+  ["Bật dịch vụ Trợ năng", async () => {
     let cur = (await sh("settings get secure enabled_accessibility_services")).split("\n")[0].trim();
     if (cur === "null") cur = "";
     const list = cur ? cur.split(":") : [];
@@ -250,12 +282,12 @@ const STEPS = [
     await must("settings put secure enabled_accessibility_services '" + val + "'");
     await must("settings put secure accessibility_enabled 1");
   }],
-  ["🔋 Cho chạy nền, không bị tiết kiệm pin", async () => { await must("dumpsys deviceidle whitelist +" + PKG); }],
-  ["▶️ Mở app", async () => {
+  ["Cho chạy nền, không bị tiết kiệm pin", async () => { await must("dumpsys deviceidle whitelist +" + PKG); }],
+  ["Mở app", async () => {
     await must("am start -n " + PKG + "/.MainActivity");
     await new Promise((r) => setTimeout(r, 3000));
   }],
-  ["📶 Lấy địa chỉ cho bố mẹ", async () => {
+  ["Lấy địa chỉ cho bố mẹ", async () => {
     let m = (await sh("ip -4 addr show wlan0")).match(/inet (\d+\.\d+\.\d+\.\d+)/);
     if (!m) m = (await sh("ip route get 1.1.1.1")).match(/\bsrc (\d+\.\d+\.\d+\.\d+)/);
     window.__ip = m ? m[1] : "";
@@ -270,23 +302,23 @@ $("install").onclick = async () => {
   ol.innerHTML = "";
   const rows = STEPS.map(([name], i) => {
     const li = document.createElement("li");
-    li.innerHTML = '<span class="mark">⏺️</span>' + (i + 1) + "/" + STEPS.length + " " + name;
+    li.innerHTML = '<span class="mark"><svg class="si" aria-hidden="true"><use href="#i-circle-dashed"/></svg></span>' + (i + 1) + "/" + STEPS.length + " " + name;
     ol.appendChild(li);
     return li;
   });
-  const mark = (i, cls, ch) => { rows[i].className = cls; rows[i].firstChild.textContent = ch; };
+  const mark = (i, cls, ch) => { rows[i].className = cls; rows[i].firstChild.innerHTML = ic(ch); };
   let failed = false;
   try {
     for (let i = 0; i < STEPS.length; i++) {
-      mark(i, "run", "⏳");
+      mark(i, "run", "loader");
       try {
         await STEPS[i][1]();
-        mark(i, "ok", "✅");
+        mark(i, "ok", "circle-check");
       } catch (e) {
-        mark(i, "bad", "❌");
+        mark(i, "bad", "circle-x");
         log("LỖI: " + (e && e.message || e));
         const f = $("fail");
-        f.textContent = (e.help ? e.help + "\n\n" : "❌ Bước \"" + STEPS[i][0] + "\" lỗi: ") + (e.help ? "" : (e && e.message || e) + "\n") +
+        f.textContent = (e.help ? e.help + "\n\n" : "Bước \"" + STEPS[i][0] + "\" lỗi: ") + (e.help ? "" : (e && e.message || e) + "\n") +
           "\nSửa xong bấm lại \"Bắt đầu cài\" (cài lại không mất gì).";
         f.classList.remove("hide");
         failed = true;
@@ -302,7 +334,7 @@ $("install").onclick = async () => {
     // Connection is closed: ask the parent to reconnect before retrying.
     $("connect").classList.remove("hide");
     $("connect").disabled = false;
-    setMsg("connmsg", "🔁 Nếu lỗi lặp lại: rút cáp, cắm lại, tải lại trang (F5). Hoặc bấm \"Kết nối điện thoại\" lại để thử lần nữa.");
+    setMsg("connmsg", "Nếu lỗi lặp lại: rút cáp, cắm lại, tải lại trang (F5). Hoặc bấm \"Kết nối điện thoại\" lại để thử lần nữa.");
     $("s4").querySelector("details").open = true;
     return;
   }
