@@ -38,16 +38,21 @@ class Acc : AccessibilityService() {
         val pkg = e.packageName?.toString() ?: return
         if (pkg == lastPkg) return
         lastPkg = pkg
-        val now = System.currentTimeMillis()
-        if (now - lastPoke < 1000) return
-        lastPoke = now
-        runCatching { Guard.poke(this) }
+        val wait = 1000 - (System.currentTimeMillis() - lastPoke)
+        if (wait > 0) {
+            // inside the throttle window: poke once more when it ends so the last app is never missed
+            main.removeCallbacks(trail)
+            main.postDelayed(trail, wait + 20)
+        } else pokeNow()
     }
+
+    private val trail = Runnable { pokeNow() }
+    private fun pokeNow() { lastPoke = System.currentTimeMillis(); runCatching { Guard.poke(this) } }
 
     override fun onInterrupt() {}
     override fun onUnbind(intent: android.content.Intent?): Boolean { drop(); return super.onUnbind(intent) }
     override fun onDestroy() { drop(); super.onDestroy() }
-    private fun drop() { if (running === this) running = null; lastError = "acc off"; hideNotice() }
+    private fun drop() { main.removeCallbacks(trail); if (running === this) running = null; lastError = "acc off"; hideNotice() }
 
     companion object {
         @Volatile var running: Acc? = null
@@ -65,26 +70,55 @@ class Acc : AccessibilityService() {
         private var viewing = false
         private var controlled = false
         private var lastReEnableLog = 0L
+        private var misses = 0
+        private var rebind = false
         private val hide = Runnable { hideNotice() }
 
         /** Enabled in Settings and connected right now. */
         fun isOn(ctx: Context): Boolean = running != null
 
-        /** Turns our service back on if the child turned it off (needs WRITE_SECURE_SETTINGS from setup). True if on. */
+        /**
+         * Turns our service back on if the child turned it off (needs WRITE_SECURE_SETTINGS from setup).
+         * True only when the service is connected now. If our entry is present but never connects (crashed service),
+         * after 3 misses the entry is removed; the next call re-adds it, which forces a rebind.
+         */
         fun ensureEnabled(ctx: Context): Boolean {
-            if (running != null) return true
+            if (running != null) { misses = 0; return true }
+            if (ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") != PackageManager.PERMISSION_GRANTED) return false
             val cr = ctx.contentResolver
             val me = "${ctx.packageName}/${Acc::class.java.name}"
             val cur = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: ""
             val has = cur.split(':').any { it.equals(me, true) }
-            if (ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") != PackageManager.PERMISSION_GRANTED) return false
-            return runCatching {
-                if (!has) Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, if (cur.isEmpty()) me else "$cur:$me")
-                Settings.Secure.putInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
-                val now = System.currentTimeMillis()
-                if (now - lastReEnableLog > 3_600_000) { lastReEnableLog = now; Store.of(ctx).log("Trợ năng bị tắt, đã bật lại") }
-                true
-            }.getOrDefault(false)
+            runCatching {
+                if (has) {
+                    if (++misses > 2) {
+                        misses = 0; rebind = true
+                        Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, without(cur, me))
+                        Store.of(ctx).log("Trợ năng không kết nối, thử bind lại")
+                    }
+                } else {
+                    Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, if (cur.isEmpty()) me else "$cur:$me")
+                    Settings.Secure.putInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
+                    if (rebind) rebind = false
+                    else {
+                        val now = System.currentTimeMillis()
+                        if (now - lastReEnableLog > 3_600_000) { lastReEnableLog = now; Store.of(ctx).log("Trợ năng bị tắt, đã bật lại") }
+                    }
+                }
+            }
+            return running != null
+        }
+
+        private fun without(cur: String, me: String) = cur.split(':').filter { it.isNotEmpty() && !it.equals(me, true) }.joinToString(":")
+
+        /** Removes our entry from the enabled accessibility services, keeping the others. Used by release. */
+        fun release(ctx: Context) {
+            runCatching {
+                val cr = ctx.contentResolver
+                val me = "${ctx.packageName}/${Acc::class.java.name}"
+                val cur = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: ""
+                Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, without(cur, me))
+            }
         }
 
         /** One JPEG of the screen, longest side <= [maxSide]. Blocks up to 3 s. Null + [lastError] when it cannot. */
@@ -111,10 +145,13 @@ class Acc : AccessibilityService() {
                 override fun onSuccess(r: AccessibilityService.ScreenshotResult) {
                     try {
                         val hb = r.hardwareBuffer
-                        try { bmp = Bitmap.wrapHardwareBuffer(hb, r.colorSpace)?.copy(Bitmap.Config.ARGB_8888, false) } finally { hb.close() }
+                        try {
+                            val hw = Bitmap.wrapHardwareBuffer(hb, r.colorSpace)
+                            try { bmp = hw?.copy(Bitmap.Config.ARGB_8888, false) } finally { hw?.recycle() }
+                        } finally { hb.close() }
                         if (bmp == null) err = "capture failed"
-                    } catch (e: Exception) { err = "capture failed" }
-                    latch.countDown()
+                    } catch (e: Throwable) { err = "capture failed" }
+                    finally { latch.countDown() }
                 }
                 override fun onFailure(code: Int) {
                     err = if (code == AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT) "busy" else "capture failed ($code)"
@@ -123,14 +160,14 @@ class Acc : AccessibilityService() {
             })
             if (!latch.await(3, TimeUnit.SECONDS)) { lastError = "timeout"; return null }
             val b = bmp ?: run { lastError = err.ifEmpty { "capture failed" }; return null }
-            val (w, h) = realSize(svc)
-            val k = maxSide.toFloat() / maxOf(b.width, b.height)
-            val s = if (k < 1f) Bitmap.createScaledBitmap(b, (b.width * k).toInt().coerceAtLeast(1), (b.height * k).toInt().coerceAtLeast(1), true) else b
-            val out = ByteArrayOutputStream()
-            s.compress(Bitmap.CompressFormat.JPEG, quality, out)
-            if (s !== b) s.recycle()
-            b.recycle()
-            return Frame(out.toByteArray(), w, h)
+            try {
+                val (w, h) = realSize(svc)
+                val k = maxSide.toFloat() / maxOf(b.width, b.height)
+                val s = if (k < 1f) Bitmap.createScaledBitmap(b, (b.width * k).toInt().coerceAtLeast(1), (b.height * k).toInt().coerceAtLeast(1), true) else b
+                val out = ByteArrayOutputStream()
+                try { s.compress(Bitmap.CompressFormat.JPEG, quality, out) } finally { if (s !== b) s.recycle() }
+                return Frame(out.toByteArray(), w, h)
+            } catch (e: Throwable) { lastError = "capture failed"; return null } finally { b.recycle() }
         }
 
         @Suppress("DEPRECATION")
@@ -150,7 +187,7 @@ class Acc : AccessibilityService() {
                     val nm = svc.getSystemService(NotificationManager::class.java)
                     nm.createNotificationChannel(NotificationChannel(CH, "Đang xem màn hình", NotificationManager.IMPORTANCE_DEFAULT))
                     nm.notify(NID, Notification.Builder(svc, CH).setSmallIcon(android.R.drawable.ic_menu_view)
-                        .setContentTitle("Bố mẹ đang xem màn hình").setOngoing(true).setOnlyAlertOnce(true).build())
+                        .setContentTitle("👀 Bố mẹ đang xem màn hình").setOngoing(true).setOnlyAlertOnce(true).build())
                 }
                 main.removeCallbacks(hide)
                 main.postDelayed(hide, 5000)
@@ -168,6 +205,7 @@ class Acc : AccessibilityService() {
         fun input(o: JSONObject): String {
             val svc = running ?: return "acc off"
             val type = o.optString("type")
+            noteViewing(svc)
             val (w, h) = realSize(svc)
             fun fx(k: String) = (o.optDouble(k, Double.NaN)).takeIf { !it.isNaN() }?.coerceIn(0.0, 1.0)
             val res: String = when (type) {

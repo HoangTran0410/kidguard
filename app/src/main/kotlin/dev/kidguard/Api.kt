@@ -30,10 +30,12 @@ class Api(private val g: Guard) {
         return when {
             p == "/state" -> Res.json(g.currentState().toString())
             p == "/rules" && r.method == "PUT" -> {
-                val incoming = Rules.fromJson(JSONObject(r.text))
+                val body = JSONObject(r.text)
+                var incoming = Rules.fromJson(body)
+                if (!body.has("pin") && !body.has("pinHash")) incoming = incoming.copy(pinHash = store.rules.pinHash)
                 val rev = maxOf(store.rules.rev + 1, System.currentTimeMillis())
                 g.setRules(incoming.copy(rev = rev))
-                Res.json(store.rules.toJson().toString())
+                Res.json(store.rules.toJson().also { it.put("pinSet", store.rules.pinHash.isNotEmpty()); it.remove("pinHash") }.toString())
             }
             p == "/cmd" && r.method == "POST" -> {
                 val c = JSONObject(r.text)
