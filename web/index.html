@@ -710,6 +710,7 @@ function render(tabClick) {
   a.innerHTML = `
   <div class="row"><h1 class="sp">${ic("user")} ${esc(cur.name)}</h1>${APP || kids.length > 1 || cur.via === "relay" ? `<button id="back">${ic("list")} Danh sách</button>` : ""}</div>
   ${viewDay ? `<div class="alert warn row" style="position:sticky;top:0;z-index:20">${ic("history")} <span class="sp">Dữ liệu ngày ${viewDay.split("-").reverse().join("/")} · chỉ xem</span><button id="goLive" class="pri">${ic("zap")} Về dữ liệu mới nhất</button></div>` : ""}
+  ${st && edit && !viewDay && !edit.pinSet && tab !== "set" ? `<div class="alert warn row">${ic("key-round")} <span class="sp">Chưa đặt PIN. Không có PIN, con có thể tự ghép máy của mình để gỡ quản lý.</span><button id="goPin" class="pri">Đặt PIN ngay</button></div>` : ""}
   <div class="card" id="live"></div>
   <div class="tabs">${[["home", ic("house") + " Hôm nay"], ["screen", ic("smartphone") + " Màn hình"], ["apps", ic("puzzle") + " Ứng dụng"], ["rules", ic("ruler") + " Luật"], ["where", ic("map-pin") + " Vị trí"], ["set", ic("settings") + " Cài đặt"]].filter(t => !(viewDay && t[0] === "screen")).concat(APP ? [["hist", ic("history") + " Lịch sử"]] : []).map(([id, n]) => `<button data-tab="${id}" class="${tab === id ? "on" : ""}">${n}</button>`).join("")}</div>
   <div id="body"></div>`;
@@ -718,6 +719,7 @@ function render(tabClick) {
   const on = tabsEl.querySelector(".on"); if (tabClick && on) { const l = on.offsetLeft - tabsEl.offsetLeft, r = l + on.offsetWidth; if (l < tabsEl.scrollLeft) tabsEl.scrollLeft = l - 24; else if (r > tabsEl.scrollLeft + tabsEl.clientWidth) tabsEl.scrollLeft = r - tabsEl.clientWidth + 24; tabFade(tabsEl); }
   if ($("#goLive")) $("#goLive").onclick = () => { tab = "home"; open(cur); navDown(1); };
   if ($("#back")) $("#back").onclick = () => { goList(); navDown(0); };
+  if ($("#goPin")) $("#goPin").onclick = () => { tab = "set"; render(true); const f = $("#f-pin"); if (f) { f.scrollIntoView({ block: "center" }); f.focus(); } };
   updateLive();
   const body = $("#body");
   if (!st) { body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " Không kết nối được: " + esc(lastErr) : noState ? ic("hourglass") + " Máy con chưa kết nối relay lần nào" : ic("hourglass") + " Đang tải…"}</div>`; return; }
