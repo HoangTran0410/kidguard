@@ -26,9 +26,17 @@ Refs: https://tailscale.com/kb/1315/mdm-keys · https://tailscale.com/kb/1384/an
 - [x] `./build.sh` passes (unit tests incl. TsLogicTest). Needs the real `app/signing.jks` copied in (gitignored); a missing key makes build.sh create a new one and change web/provision.json + web/qr.html — never commit that.
 - [x] Parent page `web/index.html`: Cài đặt → card "Điều khiển từ xa qua Tailscale": key input (LAN only), hostname, On/Off, state/ip/err from `state.ts`.
 - [x] Worker whitelist: `tailscaleOff` only (`tailscale` carries the key: LAN only). Protocol updated.
-- [ ] Emulator/real phone test: download + silent install, managed config picked up (does it log in without opening the UI?), always-on VPN takes, tailnet IP appears.
-- [ ] Does the tunnel survive `setPackagesSuspended`? (unknown; code falls back to visible).
-- [ ] Does Private DNS filter still work with the VPN up?
-- [ ] Release undo: VPN off, restrictions cleared, app uninstalled.
+- [x] Emulator test (AVD Android 34, Tailscale 1.104.5, 2026-11-06): silent install ~15 s, managed config read
+      (`Start: setting opts.AuthKey by syspolicy`), logs in with no tap, tailnet IP after ~20 s, always-on VPN,
+      DISALLOW_CONFIG_VPN, uninstall blocked (`DELETE_FAILED_OWNER_BLOCKED`). Bad key → `error` after ~2 min.
+- [x] Tunnel survives `setPackagesSuspended` (emulator): app suspended, IP kept, parent page + API reachable from
+      another tailnet device at `http://<ip>:8770`.
+- [x] Private DNS filter works with the VPN up: tun network also uses the Private DNS host (family filter → 127.0.0.1).
+- [x] `tailscaleOff` undo (emulator): VPN off, restriction cleared, app uninstalled, internet still fine.
+- [ ] The Tailscale UI ("Log in") is in front of the child for ~10–20 s until it gets suspended. Try without the launch
+      intent, or send HOME right after.
+- [ ] After uninstall the node stays in the admin console (no logout). Use an ephemeral key, or document "remove the
+      device in the admin console".
+- [ ] Real phone test (OEM ROMs: Samsung/Xiaomi may differ on always-on VPN + suspended VPN app).
 - [ ] README.md "Away from home": add this option.
 - [ ] Docs: VPN key icon in the status bar can't be hidden (Android shows it always).
