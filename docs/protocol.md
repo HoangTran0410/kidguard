@@ -147,3 +147,17 @@ While frames are being taken (any capture in the last 5 s) the child sees an ong
 - **Release** also: removes our accessibility entry, clears paired tokens, unsuspends every launchable app, cancels the
   watchdog, stops Guard; returns `"failed"` if still Device Owner afterwards.
 - **HTML pages** (worker `/`, `/install`, phone LAN `/`) send `X-Frame-Options: DENY` and a CSP with `frame-ancestors 'none'`.
+
+## Location history (v0.2.1)
+- Rules: `"trackMin": 10` (0 = off, allowed 0/5/10/15/30/60; default 10).
+- Phone (Guard): every `trackMin` minutes takes one fix (getCurrentLocation API 30+, else requestSingleUpdate,
+  timeout 30 s, else lastKnown if < 2× trackMin old). Store a point only if moved ≥ 30 m from the last stored point OR
+  ≥ 60 min since the last stored point. Keep 7 days, max 2000 points (drop oldest). Point = `[t, lat, lon, acc]`
+  (t ms, lat/lon 5 decimals, acc m int). Permissions: manifest declares ACCESS_BACKGROUND_LOCATION; as Device Owner
+  call `setPermissionGrantState(GRANTED)` for FINE/COARSE/BACKGROUND location.
+- State: `"track": [[t,lat,lon,acc], …]` = points since local midnight of YESTERDAY (keeps state small).
+- LAN: `GET /api/track?days=7` -> `{"track": [...]}` (all stored points, max 7 days).
+- Page "Vị trí" tab: map of the chosen day (Hôm nay / Hôm qua; via LAN also older days) drawn WITHOUT external
+  scripts: OSM tiles `https://tile.openstreetmap.org/{z}/{x}/{y}.png` as <img> + an SVG polyline/dots, auto-fit zoom,
+  point list with times, tap a dot -> time + accuracy. CSP of HTML pages must allow `img-src 'self' data: blob:
+  https://tile.openstreetmap.org`.
