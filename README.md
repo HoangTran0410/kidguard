@@ -56,7 +56,7 @@ Android only lets an app become Device Owner while the phone has **no accounts**
 | 📱 **On the phone itself** | Android 11+, Wi-Fi | Install the APK, open KidGuard, tap **Tự cài không cần máy tính** (set up without a computer). Turn on Developer options → **Wireless debugging** → *Pair with code*, type the 6 digits into KidGuard's notification. It does the rest and turns wireless debugging off again. |
 | 🔳 **Scan a QR** | a new or factory-reset phone | On the welcome screen tap 6 times on an empty spot, scan the [QR](https://kidguard.99-hoangtran.workers.dev/qr). The phone downloads KidGuard over Wi-Fi and sets it up; open it and finish the short checklist. |
 | 🌐 **Browser + USB cable** | Chrome or Edge on a computer | Turn on **USB debugging**, plug in, open [/install](https://kidguard.99-hoangtran.workers.dev/install), press Connect. No adb needed. |
-| ⌨️ **Command line** | macOS, Linux or Windows | `./setup.sh` (downloads adb if missing, `-y` skips questions) or `powershell -ExecutionPolicy Bypass -File setup.ps1` |
+| ⌨️ **Command line** | macOS, Linux or Windows | `scripts/setup.sh` (downloads adb if missing, `-y` skips questions) or `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1` |
 
 Then the child's phone shows a **6-digit code** and a **QR code**. On the parent's phone (same Wi-Fi) scan the QR with the camera (it opens the page with the code filled in), or open `http://<phone IP>:8770` and type the code, and in **Cài đặt** (Settings) set a **parent PIN** (without it the phone refuses to pair another browser).
 
@@ -125,7 +125,7 @@ In the parent page (on home Wi-Fi): **Cài đặt → Điều khiển khi khác 
 
 Without this the parent app checks every ~15 minutes. With it, SOS and "more time" requests from a kid connected through the Worker arrive in seconds (Firebase Cloud Messaging, free). Only an id, a time and the minutes go through Google; names, notes and locations do not.
 
-1. [console.firebase.google.com](https://console.firebase.google.com): add a project, then **Add app → Android**, package `dev.kidguard.parent`. Download `google-services.json` into `parent/` and build (`./build.sh`).
+1. [console.firebase.google.com](https://console.firebase.google.com): add a project, then **Add app → Android**, package `dev.kidguard.parent`. Download `google-services.json` into `android/parent/` and build (`scripts/build.sh`).
 2. **Project settings → Service accounts → Generate new private key**, then: `cd worker && npx wrangler secret put FCM_SA < /path/key.json && npx wrangler deploy`. Delete the key file afterwards.
 3. Open the parent app once: it registers itself with every kid that uses the Worker. The parent's phone needs Google Play services.
 
@@ -155,12 +155,14 @@ An app like this cannot exist on iOS: Apple does not let third-party apps see th
 ## For developers
 
 ```bash
-./build.sh                              # build/kidguard.apk, runs the unit tests
-TRUSTSTORE=/path/trust.jks ./build.sh   # behind a TLS-intercepting proxy
+scripts/build.sh                              # build/kidguard.apk + build/kidguard-parent.apk, runs the unit tests
+TRUSTSTORE=/path/trust.jks scripts/build.sh   # behind a TLS-intercepting proxy
 ```
+
+Layout: `android/` (Gradle: `app/` child, `parent/` parent app), `web/` (pages shared by both apps and the Worker), `worker/`, `site/`, `docs/`, `scripts/`.
 
 JDK 17, Android SDK 35. Parent page: `web/index.html`. Installers: `web/install.html`, `web/qr.html` (the WebUSB ADB library is bundled, rebuild with `web/vendor/build.sh`). Worker tests: `npx wrangler dev --port 8793`, then `node worker/test/relay.test.mjs`.
 
-**Signing key:** the QR code carries the checksum of the APK's signing certificate. Every release must be signed with the same `app/signing.jks` (not in git; back it up), or phones set up by QR refuse the update.
+**Signing key:** the QR code carries the checksum of the APK's signing certificate. Every release must be signed with the same `android/app/signing.jks` (not in git; back it up), or phones set up by QR refuse the update.
 
 Credits: [libadb-android](https://github.com/MuntashirAkon/libadb-android) (Apache-2.0 / GPL-3.0), [Conscrypt](https://github.com/google/conscrypt) (Apache-2.0), [Tango](https://github.com/yume-chan/ya-webadb) (MIT), [Lucide](https://lucide.dev) icons (ISC), map tiles © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors. License: [MIT](LICENSE).

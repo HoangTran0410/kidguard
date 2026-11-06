@@ -9,5 +9,5 @@ node_modules/
 .dev.vars
 .DS_Store
 .kotlin/
-parent/google-services.json
+android/parent/google-services.json
 *firebase-adminsdk*.json

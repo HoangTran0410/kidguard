@@ -123,7 +123,7 @@ The first capture / first input of a session is logged in the phone log.
 - `GET /c/<id>/state` already returns `seen` (ms of the phone's last sync): the page warns when `now - seen > 5 min`.
 - The worker also serves `GET /install` -> `web/install.html`.
 
-## Setup steps (setup.sh, setup.ps1, the web installer and the in-app self-setup `SelfSetup.kt` do the same, in this order)
+## Setup steps (scripts/setup.sh, scripts/setup.ps1, the web installer and the in-app self-setup `SelfSetup.kt` do the same, in this order)
 1. `adb install -r -g kidguard.apk`
 2. `adb shell dpm set-device-owner dev.kidguard/.Admin` (verify with `dumpsys device_policy`)
 3. `adb shell appops set dev.kidguard GET_USAGE_STATS allow`
@@ -200,7 +200,7 @@ The first capture / first input of a session is logged in the phone log.
 - Parent app: registers its token with every relay kid on start, on `setKids` (removed kids: `off`) and on
   `setNotify` (off = unregister). A message for a known relay kid whose id the background check has not seen yet is
   posted with the same key as the check would use (`sos:<id>` / `req:<id>`, same notification id) and marked seen,
-  so the two never double-notify. Build: `parent/google-services.json` (git-ignored) present = FCM on; Gradle turns
+  so the two never double-notify. Build: `android/parent/google-services.json` (git-ignored) present = FCM on; Gradle turns
   it into the `google_app_id` / `gcm_defaultSenderId` / `google_api_key` / `project_id` resources (no google-services
   plugin). Needs Google Play services on the parent's phone.
 
@@ -215,7 +215,7 @@ The first capture / first input of a session is logged in the phone log.
 - The page uses `${base}/icon?pkg=..&k=..` in all modes (LAN, relay, parent-app proxy `/k/<target>/...`).
 
 ## Parent app (v0.5, module `:parent`, `dev.kidguard.parent`)
-Shows the same `web/index.html` in a WebView (`./build.sh` -> `build/kidguard-parent.apk`). The page only uses same-origin
+Shows the same `web/index.html` in a WebView (`scripts/build.sh` -> `build/kidguard-parent.apk`). The page only uses same-origin
 URLs, so the app runs a small HTTP server on `127.0.0.1:<port>` (cleartext is allowed app-wide because the proxy calls
 the child over plain http; the WebView itself may only reach `127.0.0.1:<port>` and the OSM tiles).
 - **Port**: random free port chosen once and stored; reused while free. localStorage is per origin, so if the port

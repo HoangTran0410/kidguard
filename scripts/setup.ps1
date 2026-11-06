@@ -20,7 +20,7 @@ $Acc = "$Pkg/$Pkg.Acc"
 
 # --- APK ---
 if (-not $Apk) {
-    foreach ($c in @("kidguard.apk", "build\kidguard.apk")) { if (Test-Path $c) { $Apk = $c; break } }
+    foreach ($c in @("kidguard.apk", "..\build\kidguard.apk")) { if (Test-Path $c) { $Apk = $c; break } }
 }
 if (-not $Apk -or -not (Test-Path $Apk)) {
     Write-Host "[..] Không thấy file kidguard.apk, tải bản mới nhất…"

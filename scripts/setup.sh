@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs KidGuard on the child's phone over ADB and makes it the Device Owner (macOS / Linux).
-#   ./setup.sh [-y|--yes] [path/to/kidguard.apk]   (default: kidguard.apk or build/kidguard.apk here, else the latest release)
+#   ./setup.sh [-y|--yes] [path/to/kidguard.apk]   (default: kidguard.apk next to this script or ../build/kidguard.apk, else the latest release)
 # Before: on the phone, remove every account (Settings > Accounts: Google, Samsung, Xiaomi...), turn on
 # USB debugging, plug it in. After setup you can sign in to the accounts again.
 # Undo: from the parent's page, Settings > "Gỡ quyền quản lý", then uninstall the app.
@@ -16,7 +16,7 @@ if [ "${1:-}" = "-y" ] || [ "${1:-}" = "--yes" ]; then YES=1; shift; fi
 # --- APK ---
 APK="${1:-}"
 if [ -z "$APK" ]; then
-  for c in kidguard.apk build/kidguard.apk; do [ -f "$c" ] && APK=$c && break; done
+  for c in kidguard.apk ../build/kidguard.apk; do [ -f "$c" ] && APK=$c && break; done
 fi
 if [ -z "$APK" ] || [ ! -f "$APK" ]; then
   echo "[..] Không thấy file kidguard.apk, tải bản mới nhất…"

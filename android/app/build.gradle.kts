@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val keystore = file("signing.jks")   // git-ignored; setup.sh / build.sh creates one
+val keystore = file("signing.jks")   // git-ignored; scripts/build.sh creates one
 
 android {
     namespace = "dev.kidguard"
@@ -34,7 +34,7 @@ android {
         debug { if (keystore.exists()) signingConfig = signingConfigs.getByName("release") }
     }
     // one UI file for the APK (LAN) and the worker (away): web/index.html
-    sourceSets["main"].assets.srcDirs("../web")
+    sourceSets["main"].assets.srcDirs("../../web")
     lint { checkReleaseBuilds = false }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_11; targetCompatibility = JavaVersion.VERSION_11 }
     kotlinOptions { jvmTarget = "11" }

@@ -3,9 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val keystore = file("../app/signing.jks")   // shared with :app, git-ignored; ./build.sh creates it. Never regenerate.
+val keystore = file("../app/signing.jks")   // shared with :app, git-ignored; scripts/build.sh creates it. Never regenerate.
 
-// Optional FCM (instant SOS): parent/google-services.json from the Firebase console, git-ignored. Its values become the
+// Optional FCM (instant SOS): android/parent/google-services.json from the Firebase console, git-ignored. Its values become the
 // resources the Firebase SDK auto-initialises from (what the google-services plugin would generate). Missing = FCM off.
 val fcm: Map<String, String> = file("google-services.json").takeIf { it.exists() }?.let { f ->
     @Suppress("UNCHECKED_CAST")
@@ -52,7 +52,7 @@ android {
         debug { if (keystore.exists()) signingConfig = signingConfigs.getByName("release") }
     }
     // the same single-file parent page the child phone and the worker serve
-    sourceSets["main"].assets.srcDirs("../web")
+    sourceSets["main"].assets.srcDirs("../../web")
     lint { checkReleaseBuilds = false }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_11; targetCompatibility = JavaVersion.VERSION_11 }
     kotlinOptions { jvmTarget = "11" }
