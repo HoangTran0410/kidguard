@@ -51,7 +51,12 @@ input[type=checkbox]{width:20px;height:20px;min-height:0}
 .si{width:1.15em;height:1.15em;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-0.2em;flex:none}
 .err{color:var(--bad)}
 iframe{width:100%;height:220px;border:0;border-radius:10px}
-.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+/* fade the edge that still has tabs behind it (toggled by tabFade) */
+.tabs.fr{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent)}
+.tabs.fl{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 36px),transparent)}
+.tabs.fl.fr{-webkit-mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent)}
 .tabs button{white-space:nowrap}
 .e{display:inline-block;width:1.4em;text-align:center;margin-right:2px}
 .empty{text-align:center;padding:14px 4px;color:var(--mute)}.empty .e{display:block;width:auto;font-size:28px;margin:0 0 4px}
@@ -675,7 +680,10 @@ async function tplSave() {
   tplSel = PRESETS.length + Math.min(u.length, 12) - 1; toast("ok|Đã lưu mẫu “" + name + "”"); render();
 }
 
-function render() {
+// The tab bar is rebuilt on every render: keep its horizontal scroll and the page scroll, fade edges with more tabs.
+function tabFade(t) { const m = t.scrollWidth - t.clientWidth; t.classList.toggle("fl", t.scrollLeft > 2); t.classList.toggle("fr", m - t.scrollLeft > 2); }
+function render(tabClick) {
+  const oldTabs = document.querySelector("#app .tabs"), tabX = oldTabs ? oldTabs.scrollLeft : 0, pageY = window.scrollY;
   if (!cur) return;
   const a = $("#app");
   const focus = document.activeElement && document.activeElement.id;   // keep the field being typed in
@@ -688,13 +696,18 @@ function render() {
   <div class="card" id="live"></div>
   <div class="tabs">${[["home", ic("house") + " Hôm nay"], ["screen", ic("smartphone") + " Màn hình"], ["apps", ic("puzzle") + " Ứng dụng"], ["rules", ic("ruler") + " Luật"], ["where", ic("map-pin") + " Vị trí"], ["set", ic("settings") + " Cài đặt"]].filter(t => !(viewDay && t[0] === "screen")).concat(APP ? [["hist", ic("history") + " Lịch sử"]] : []).map(([id, n]) => `<button data-tab="${id}" class="${tab === id ? "on" : ""}">${n}</button>`).join("")}</div>
   <div id="body"></div>`;
-  a.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; if (tab === "hist") histDays = null; render(); });
+  a.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; if (tab === "hist") histDays = null; render(true); });
+  const tabsEl = a.querySelector(".tabs"); tabsEl.scrollLeft = tabX; tabsEl.onscroll = () => tabFade(tabsEl); tabFade(tabsEl);
+  const on = tabsEl.querySelector(".on"); if (tabClick && on) { const l = on.offsetLeft - tabsEl.offsetLeft, r = l + on.offsetWidth; if (l < tabsEl.scrollLeft) tabsEl.scrollLeft = l - 24; else if (r > tabsEl.scrollLeft + tabsEl.clientWidth) tabsEl.scrollLeft = r - tabsEl.clientWidth + 24; tabFade(tabsEl); }
   if ($("#goLive")) $("#goLive").onclick = () => { tab = "home"; open(cur); navDown(1); };
   if ($("#back")) $("#back").onclick = () => { goList(); navDown(0); };
   updateLive();
   const body = $("#body");
   if (!st) { body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " Không kết nối được: " + esc(lastErr) : noState ? ic("hourglass") + " Máy con chưa kết nối relay lần nào" : ic("hourglass") + " Đang tải…"}</div>`; return; }
   ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, set: setTab, hist: histTab })[tab](body);
+  // a refresh keeps the page where it was; a tab switch from below the tab bar lands on the top of the new tab
+  const barY = tabsEl.getBoundingClientRect().top + window.scrollY - 8;
+  if (oldTabs) window.scrollTo(0, tabClick ? Math.min(pageY, barY) : pageY);
 }
 
 function updateLive() {
@@ -1435,7 +1448,9 @@ function setTab(b) {
     if (r && r.result === "set PIN first") toast("warn|Đặt PIN của bố mẹ trước (ngay phía trên), rồi mới mở ghép thêm");
   };
   $("#unpair").onclick = async () => { await cmd({ type: "unpairAll" }); };
-  $("#forget").onclick = () => { screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); navDown(0); };
+  $("#forget").onclick = async () => {
+    if (!(await ask(`${APP ? "Xoá" : "Quên"} máy “${cur.name}” ${APP ? "khỏi app" : "ở trình duyệt này"}?\n\nMuốn xem lại phải ghép lại bằng mã trên máy con.`, APP ? "Xoá" : "Quên", true))) return;
+    screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); navDown(0); };
   $("#release").onclick = async () => {
     await cmd({ type: "release" }, "Đã gỡ quản lý", ["Gỡ quyền quản lý: máy con sẽ hết mọi giới hạn và KidGuard không điều khiển được nữa.", "Gỡ quản lý", true, "GO"]);
   };

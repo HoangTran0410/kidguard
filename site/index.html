@@ -5,13 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>KidGuard: quản lý điện thoại Android của con từ trình duyệt</title>
-<meta name="description" content="KidGuard là ứng dụng quản lý điện thoại Android của con, miễn phí, mã nguồn mở. Giới hạn giờ, khóa ứng dụng, giờ đi ngủ, xem vị trí. Phụ huynh dùng bất kỳ trình duyệt nào, không cần tài khoản.">
+<meta name="description" content="KidGuard: ứng dụng quản lý điện thoại Android của con, miễn phí, mã nguồn mở. Giới hạn giờ, khóa ứng dụng, giờ đi ngủ, xem vị trí. Không cần tài khoản.">
 <meta name="theme-color" content="#2563eb">
 <meta property="og:type" content="website">
 <meta property="og:title" content="KidGuard: quản lý điện thoại Android của con từ trình duyệt">
 <meta property="og:description" content="Giới hạn giờ, khóa ứng dụng, giờ đi ngủ, vị trí. Một file APK, không tài khoản, miễn phí, mã nguồn mở.">
 <meta property="og:site_name" content="KidGuard">
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://kid-guard.pages.dev/">
+<meta property="og:url" content="https://kid-guard.pages.dev/">
+<meta property="og:locale" content="vi_VN">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:image" content="https://kid-guard.pages.dev/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="KidGuard: trang phụ huynh quản lý điện thoại Android của con">
+<meta name="twitter:image" content="https://kid-guard.pages.dev/img/og.jpg">
+<meta name="twitter:image:alt" content="KidGuard: trang phụ huynh quản lý điện thoại Android của con">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"KidGuard","applicationCategory":"UtilitiesApplication","operatingSystem":"Android 8.0+","description":"Ứng dụng quản lý điện thoại Android của con, miễn phí, mã nguồn mở: giới hạn giờ, khóa ứng dụng, giờ đi ngủ, vị trí.","inLanguage":"vi","url":"https://kid-guard.pages.dev/","image":"https://kid-guard.pages.dev/img/og.jpg","license":"https://github.com/HoangTran0410/kidguard/blob/main/LICENSE","downloadUrl":"https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
 <link rel="icon" type="image/svg+xml" href="img/icon.svg">
 <link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/">
 <link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/">
@@ -60,9 +71,9 @@
       </ul>
     </div>
     <div class="phones">
-      <div class="phone"><img src="img/parent-apps.webp" width="800" height="1720" alt="Trang phụ huynh: danh sách ứng dụng, giới hạn thời gian"></div>
-      <div class="phone"><img src="img/parent-today.webp" width="800" height="1720" alt="Trang phụ huynh: hôm nay còn bao nhiêu thời gian, yêu cầu của con"></div>
-      <div class="phone"><img src="img/parent-location.webp" width="800" height="1720" alt="Trang phụ huynh: lịch sử vị trí trên bản đồ"></div>
+      <div class="phone"><img fetchpriority="high" decoding="async" src="img/parent-apps.webp" width="800" height="1720" alt="Trang phụ huynh: danh sách ứng dụng, giới hạn thời gian"></div>
+      <div class="phone"><img decoding="async" src="img/parent-today.webp" width="800" height="1720" alt="Trang phụ huynh: hôm nay còn bao nhiêu thời gian, yêu cầu của con"></div>
+      <div class="phone"><img decoding="async" src="img/parent-location.webp" width="800" height="1720" alt="Trang phụ huynh: lịch sử vị trí trên bản đồ"></div>
     </div>
   </div>
 </section>
@@ -78,6 +89,7 @@
       <li><b>Mở trang phụ huynh</b><span>Quét mã QR hiện trên máy của con, bằng điện thoại của bạn.</span></li>
       <li><b>Đặt luật</b><span>Đổi trên trang web, máy của con áp dụng ngay.</span></li>
     </ol>
+    <div class="callout"><b>App cho bố mẹ (Android, không bắt buộc).</b> Trình duyệt là đủ dùng. App thêm <b>thông báo</b> khi con bấm SOS, xin thêm giờ, tắt Trợ năng, và vẫn xem được dữ liệu gần nhất khi máy con mất mạng. Cài lên máy bố mẹ, bấm <b>Thêm máy của con</b>, nhập địa chỉ và mã 6 số hiện trên máy con. <a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk">Tải app bố mẹ (APK)</a> · iPhone: dùng trình duyệt.</div>
   </div>
 </section>
 
@@ -109,10 +121,10 @@
       <h2>Trang phụ huynh và máy của con</h2>
     </div>
     <div class="shots">
-      <figure><div class="phone"><img loading="lazy" src="img/parent-today.webp" width="800" height="1720" alt="Màn hình Hôm nay"></div><figcaption>Hôm nay: giờ còn lại, yêu cầu</figcaption></figure>
-      <figure><div class="phone"><img loading="lazy" src="img/parent-apps.webp" width="800" height="1720" alt="Màn hình Ứng dụng"></div><figcaption>Ứng dụng: giới hạn, chặn, duyệt</figcaption></figure>
-      <figure><div class="phone"><img loading="lazy" src="img/parent-location.webp" width="800" height="1720" alt="Màn hình Vị trí"></div><figcaption>Con đã đi đâu</figcaption></figure>
-      <figure><div class="phone"><img loading="lazy" src="img/child-app.webp" width="540" height="1200" alt="Ứng dụng trên máy của con"></div><figcaption>Trên máy của con</figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" decoding="async" src="img/parent-today.webp" width="800" height="1720" alt="Màn hình Hôm nay"></div><figcaption>Hôm nay: giờ còn lại, yêu cầu</figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" decoding="async" src="img/parent-apps.webp" width="800" height="1720" alt="Màn hình Ứng dụng"></div><figcaption>Ứng dụng: giới hạn, chặn, duyệt</figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" decoding="async" src="img/parent-location.webp" width="800" height="1720" alt="Màn hình Vị trí"></div><figcaption>Con đã đi đâu</figcaption></figure>
+      <figure><div class="phone"><img loading="lazy" decoding="async" src="img/child-app.webp" width="540" height="1200" alt="Ứng dụng trên máy của con"></div><figcaption>Trên máy của con</figcaption></figure>
     </div>
   </div>
 </section>
@@ -257,6 +269,7 @@
     <p class="lead">Tải về, cài lên máy của con, mở trang phụ huynh. Không hợp thì Gỡ quyền quản lý là xong.</p>
     <div class="cta mid">
       <a class="btn primary" href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk">Tải KidGuard (APK)</a>
+      <a class="btn" href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk">App cho bố mẹ (APK)</a>
       <a class="btn" href="https://github.com/HoangTran0410/kidguard/releases/latest">Các bản phát hành</a>
     </div>
   </div>
@@ -265,7 +278,7 @@
 <section class="alt" id="cung-tac-gia">
   <div class="wrap">
     <a class="xad" href="https://tvremote.pages.dev/">
-      <img src="img/tvremote.png" width="56" height="56" alt="">
+      <img loading="lazy" decoding="async" src="img/tvremote.png" width="56" height="56" alt="">
       <span><small>Cùng tác giả</small><b>TV Remote</b>Điều khiển Android TV / TV box từ điện thoại hay trình duyệt: remote, xem hình TV, giới hạn giờ cho trẻ, chặn quảng cáo. Miễn phí, không cần tài khoản.</span>
       <span class="go" aria-hidden="true">→</span>
     </a>

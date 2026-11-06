@@ -21,7 +21,7 @@
   <a href="https://github.com/HoangTran0410/kidguard/releases/latest"><img src="https://img.shields.io/github/v/release/HoangTran0410/kidguard?style=flat-square&label=release&color=2563eb&labelColor=15181e" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/Android-8%2B-2563eb?style=flat-square&labelColor=15181e" alt="Android 8+">
   <img src="https://img.shields.io/badge/parents-any%20browser-2563eb?style=flat-square&labelColor=15181e" alt="Any browser">
-  <img src="https://img.shields.io/badge/APK-7%20MB-2563eb?style=flat-square&labelColor=15181e" alt="7 MB">
+  <img src="https://img.shields.io/badge/APK-4%20MB-2563eb?style=flat-square&labelColor=15181e" alt="7 MB">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2563eb?style=flat-square&labelColor=15181e" alt="MIT"></a>
 </p>
 
@@ -29,6 +29,7 @@
 <tr>
 <td align="center"><img src="docs/img/parent-today.webp" height="400" alt="Today"><br><sub>Today: time left, requests, quick actions</sub></td>
 <td align="center"><img src="docs/img/parent-apps.webp" height="400" alt="Apps"><br><sub>Apps: limits, block, approve new</sub></td>
+<td align="center"><img src="docs/img/parent-clean.webp" height="400" alt="Clean up"><br><sub>Clean up: hide OEM apps, heaviest apps</sub></td>
 <td align="center"><img src="docs/img/parent-location.webp" height="400" alt="Location"><br><sub>Where they went, on a map</sub></td>
 <td align="center"><img src="docs/img/child-app.webp" height="400" alt="Child's phone"><br><sub>On the child's phone</sub></td>
 </tr>
@@ -46,6 +47,7 @@ KidGuard becomes the phone's **Device Owner**, the same Android role a company u
 | QR code for a new or factory-reset phone | [kidguard.99-hoangtran.workers.dev/qr](https://kidguard.99-hoangtran.workers.dev/qr) |
 | Install from a computer's browser (USB, no adb) | [kidguard.99-hoangtran.workers.dev/install](https://kidguard.99-hoangtran.workers.dev/install) |
 | The parent page | the phone shows its address after setup: `http://<phone IP>:8770` |
+| The parent app (Android, optional) | [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk) |
 
 ## Install
 
@@ -66,6 +68,11 @@ accessibility off stops the blocking (the parent page shows a red warning and th
 when you can; a basic phone can be switched later with any of the ways above.
 
 Then the child's phone shows a **6-digit code** and a **QR code**. On the parent's phone (same Wi-Fi) scan the QR with the camera (it opens the page with the code filled in), or open `http://<phone IP>:8770` and type the code, and in **Cài đặt** (Settings) set a **parent PIN** (without it the phone refuses to pair another browser).
+
+**Parent app (Android, optional).** The browser is enough, but the app adds notifications (SOS, time requests, accessibility
+turned off) and shows the last data when the child's phone is offline. Install [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk) on the
+parent's phone, open it, tap **Thêm máy của con** (add the child's phone), type the address shown on the child's phone and then
+the 6-digit code (away from home: paste the Worker link from the child's Settings). iPhone: use the browser ([below](#iphone--ipad)).
 
 Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự khởi động** (battery / autostart) and let KidGuard run in the background.
 
