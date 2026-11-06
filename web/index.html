@@ -3,7 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2563eb">
+<meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KidGuard">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>KidGuard</title>
 <style>
 :root{--bg:#f3f4f6;--card:#fff;--fg:#111827;--mute:#6b7280;--line:#e5e7eb;--pri:#2563eb;--pri-fg:#fff;--bad:#dc2626;--ok:#16a34a;--warn:#d97706;--chip:#eef2ff}
@@ -43,6 +48,25 @@ iframe{width:100%;height:220px;border:0;border-radius:10px}
 .tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px}
 .tabs button.on{background:var(--pri);color:var(--pri-fg)}
 code{word-break:break-all;font-size:12px}
+button{min-height:44px}
+.alert{background:#fee2e2;color:#991b1b;border-radius:10px;padding:10px 12px;margin-top:8px;font-weight:600}
+.alert.warn{background:#fef3c7;color:#92400e}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{min-width:44px;padding:6px 8px}
+.chips button.on{background:var(--pri);color:var(--pri-fg);border-color:var(--pri)}
+.sch{border-top:1px solid var(--line);padding:10px 0}
+.hist{display:flex;gap:6px;align-items:flex-end;height:130px;margin:6px 0}
+.hist button{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;padding:0 0 2px;background:none;border:0;border-radius:6px;font-size:12px;color:var(--mute)}
+.hist button i{display:block;width:70%;background:var(--pri);opacity:.45;border-radius:5px 5px 0 0;min-height:2px}
+.hist button.on i{opacity:1}.hist button.on{color:var(--fg);font-weight:700;background:var(--chip)}
+.scr{position:relative;background:#000;border-radius:10px;overflow:hidden;min-height:200px;display:grid;place-items:center}
+.scr img{display:block;width:100%;max-height:75vh;object-fit:contain;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.scr img:not([src]){display:none}
+.scr.view img{touch-action:auto}
+.scr-msg{position:absolute;left:0;right:0;bottom:0;padding:8px 10px;background:rgba(0,0,0,.65);color:#fff;font-size:13px;text-align:center;pointer-events:none}
+.scr-msg:empty{display:none}
+.tap{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:rgba(59,130,246,.6);pointer-events:none;animation:tp .5s forwards}
+@keyframes tp{to{transform:scale(1.8);opacity:0}}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;display:none;max-width:90vw}
 </style>
 </head>
@@ -56,14 +80,28 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 const KEY = "kg.kids";
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; } };
 const save = k => { try { localStorage.setItem(KEY, JSON.stringify(k)); } catch {} };
-let kids = load(), cur = null, st = null, pendingRules = null, timer = null, edit = null, tab = "home", lastErr = "";
+let kids = load(), cur = null, st = null, pendingRules = null, timer = null, edit = null, tab = "home", lastErr = "", seenAt = 0, answered = new Set(), histSel = -1;
 const onLan = () => !location.pathname.startsWith("/c/") && !isRelayOrigin;
 let isRelayOrigin = false;
 
 function toast(m) { const t = $("#toast"); t.textContent = m; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", 2500); }
 function fmt(ms) { if (ms < 0) return "—"; const m = Math.round(ms / 60000); return m < 60 ? m + " phút" : Math.floor(m / 60) + " giờ " + (m % 60 ? m % 60 + " phút" : ""); }
 function ago(t) { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? s + " giây trước" : s < 3600 ? Math.round(s / 60) + " phút trước" : Math.round(s / 3600) + " giờ trước"; }
-const REASON = { blocked: "chặn", appLimit: "hết giờ app", daily: "hết giờ hôm nay", bedtime: "giờ ngủ", paused: "tạm dừng" };
+const REASON = { blocked: "Đã chặn", appLimit: "Hết giờ app", new: "Chờ duyệt", paused: "Tạm dừng", schedule: "Lịch", bedtime: "Giờ ngủ", daily: "Hết giờ ngày" };
+const hhmm = t => new Date(t).toLocaleTimeString("vi", { hour: "2-digit", minute: "2-digit" });
+const DNS = [["", "Tắt"], ["family.adguard-dns.com", "AdGuard Family"], ["family.cloudflare-dns.com", "Cloudflare Family"], ["family-filter-dns.cleanbrowsing.org", "CleanBrowsing Family"]];
+// rules from older phones may lack v0.2 fields
+function norm(e) {
+  e.dailyByDay = Array.isArray(e.dailyByDay) && e.dailyByDay.length === 7 ? e.dailyByDay : [];
+  e.schedules = e.schedules || []; e.approved = e.approved || []; e.safeDns = e.safeDns || "";
+  e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.blockNew = !!e.blockNew;
+  e.blocked = e.blocked || []; e.allow = e.allow || []; e.appMin = e.appMin || {};
+  return e;
+}
+// index 0 = Monday, from "YYYY-MM-DD"
+function dayIdx(day) { const [y, m, d] = String(day).split("-").map(Number); return (new Date(y, m - 1, d).getDay() + 6) % 7; }
+function baseLimit(r, day) { return r.dailyByDay && r.dailyByDay.length === 7 && day ? +r.dailyByDay[dayIdx(day)] || 0 : r.dailyMin || 0; }
+function todayLimit(r, day) { const b = baseLimit(r, day); return b ? b + (r.bonus && r.bonus.day === day ? r.bonus.min || 0 : 0) : 0; }
 
 function base(k) { return k.via === "lan" ? "/api" : "/c/" + encodeURIComponent(k.id); }
 async function call(k, path, method = "GET", body) {
@@ -126,7 +164,7 @@ function listScreen(list) {
 }
 
 // --- one child ------------------------------------------------------------
-async function open(k) { cur = k; st = null; edit = null; render(); await refresh(); clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
+async function open(k) { screenStop(); cur = k; st = null; edit = null; render(); await refresh(); clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
 
 async function refresh() {
   if (!cur) return;
@@ -135,17 +173,20 @@ async function refresh() {
     // LAN: the state itself; relay: {state, rules (sent, not yet taken), seen}
     st = j.state !== undefined ? j.state : j;
     pendingRules = j.state !== undefined ? j.rules : null;
+    seenAt = j.state !== undefined ? +j.seen || 0 : 0;
     lastErr = "";
   } catch (e) {
     lastErr = e.message;
     if (/not paired/.test(e.message)) { kids = kids.filter(x => x !== cur); save(kids); toast("Thiết bị này đã bị huỷ ghép"); return setTimeout(boot, 1000); }
   }
-  if (!edit && st && st.rules) edit = structuredClone(pendingRules && pendingRules.rev > st.rules.rev ? pendingRules : st.rules);
+  if (!edit && st && st.rules) edit = norm(structuredClone(pendingRules && pendingRules.rev > st.rules.rev ? pendingRules : st.rules));
   // redraw the tab only when what it shows changed and nobody is using a control (icons would reload, a select would close)
   const sig = st ? JSON.stringify([tab, st.rules && st.rules.rev, st.apps.map(a => [a.suspended, a.blocked, Math.floor(a.ms / 60000)]),
-    st.location && st.location.t, (st.log || []).length, Math.floor(st.usedMs / 60000), lastErr]) : lastErr;
+    st.location && st.location.t, (st.log || []).length, Math.floor(st.usedMs / 60000), lastErr,
+    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, (st.apps || []).filter(a => a.new).length]) : lastErr;
   const busy = document.activeElement && /^(SELECT|INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
-  if (sig !== lastSig && !busy) { lastSig = sig; render(); } else updateLive();
+  if (tab === "screen") updateLive();   // never redraw the screen tab: the <img> updates by itself
+  else if (sig !== lastSig && !busy) { lastSig = sig; render(); } else updateLive();
 }
 let lastSig = "";
 
@@ -167,40 +208,50 @@ function render() {
   const a = $("#app");
   const focus = document.activeElement && document.activeElement.id;   // keep the field being typed in
   if (focus && /^(f-|msg|relay)/.test(focus)) { updateLive(); return; }
+  if (tab !== "screen") screenStop();
   const online = st && Date.now() - st.t < (cur.via === "lan" ? 30000 : 120000);
   a.innerHTML = `
   <div class="row"><h1 class="sp">${esc(cur.name)}</h1>${kids.length > 1 || cur.via === "relay" ? `<button id="back">Danh sách</button>` : ""}</div>
   <div class="card" id="live"></div>
-  <div class="tabs">${[["home", "Hôm nay"], ["apps", "Ứng dụng"], ["rules", "Luật"], ["where", "Vị trí"], ["set", "Cài đặt"]].map(([id, n]) => `<button data-tab="${id}" class="${tab === id ? "on" : ""}">${n}</button>`).join("")}</div>
+  <div class="tabs">${[["home", "Hôm nay"], ["screen", "Màn hình"], ["apps", "Ứng dụng"], ["rules", "Luật"], ["where", "Vị trí"], ["set", "Cài đặt"]].map(([id, n]) => `<button data-tab="${id}" class="${tab === id ? "on" : ""}">${n}</button>`).join("")}</div>
   <div id="body"></div>`;
   a.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
-  if ($("#back")) $("#back").onclick = () => { cur = null; clearInterval(timer); listScreen(kids.filter(k => k.via === (onLan() ? "lan" : "relay"))); };
+  if ($("#back")) $("#back").onclick = () => { screenStop(); cur = null; clearInterval(timer); listScreen(kids.filter(k => k.via === (onLan() ? "lan" : "relay"))); };
   updateLive();
   const body = $("#body");
   if (!st) { body.innerHTML = `<div class="card mute">${lastErr ? "Không kết nối được: " + esc(lastErr) : "Đang tải…"}</div>`; return; }
-  ({ home: homeTab, apps: appsTab, rules: rulesTab, where: whereTab, set: setTab })[tab](body);
+  ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, set: setTab })[tab](body);
 }
 
 function updateLive() {
   const el = $("#live"); if (!el) return;
   if (!st) { el.innerHTML = `<span class="mute">${lastErr ? "⚠️ " + esc(lastErr) : "Đang kết nối…"}</span>`; return; }
-  const online = Date.now() - st.t < (cur.via === "lan" ? 30000 : 120000);
+  const lan = cur.via === "lan";
+  const online = Date.now() - st.t < (lan ? 30000 : 120000);
   const warn = [!st.owner && "Chưa có Device Owner", !st.usageAccess && "Chưa có quyền xem thời gian dùng"].filter(Boolean);
+  const lost = lan ? (lastErr || Date.now() - st.t > 300000) : (seenAt && Date.now() - seenAt > 300000);
+  const lostFrom = lan ? st.t : seenAt;
   el.innerHTML = `<div class="row"><span class="dot ${online ? "on" : ""}"></span><b>${online ? "Đang kết nối" : "Mất kết nối"}</b>
     <span class="mute">· cập nhật ${ago(st.t)}</span><span class="sp"></span><span>🔋 ${st.battery}%${st.charging ? "⚡" : ""}</span></div>
     <div class="mute">${esc(st.model)} · Android ${esc(st.android)} · ${st.screenOn ? "màn hình bật" + (st.current ? ": <b>" + esc(st.current) + "</b>" : "") : "màn hình tắt"}</div>
     ${pendingRules && st.rules && pendingRules.rev > st.rules.rev ? `<div class="mute">⏳ Luật mới đang chờ máy con nhận</div>` : ""}
-    ${warn.length ? `<div class="err">⚠️ ${warn.join(" · ")}</div>` : ""}`;
+    ${lost ? `<div class="alert">Mất liên lạc với máy con từ ${hhmm(lostFrom)} — máy tắt, mất mạng hoặc KidGuard bị tắt${lastErr && lan ? " (" + esc(lastErr) + ")" : ""}</div>` : ""}
+    ${warn.length ? `<div class="err">⚠️ ${warn.join(" · ")}</div>` : ""}
+    ${st.acc === false ? `<div class="alert warn">Trợ năng đang tắt: không xem/điều khiển màn hình được</div>` : ""}
+    ${st.locationOn === false ? `<div class="alert warn">Định vị đang tắt</div>` : ""}`;
 }
 
 function homeTab(b) {
-  const r = edit || st.rules, limit = r.dailyMin, today = st.day;
+  const r = edit || st.rules, today = st.day, limit = edit ? todayLimit(r, today) : (st.limitMin ?? r.dailyMin);
+  const reqs = (st.requests || []).filter(q => !answered.has(q.id));
   const used = st.usedMs, left = st.leftMs, pct = limit ? Math.min(100, used / (limit * 600)) : 0;
   const pausedLeft = r.pausedUntil - Date.now();
   const blockedNow = st.apps.filter(x => x.suspended);
   b.innerHTML = `
+  ${reqs.map(q => `<div class="card" style="border-color:var(--warn)"><b>Con xin thêm ${+q.min} phút${q.note ? ": " + esc(q.note) : ""}</b>
+    <div class="row" style="margin-top:8px"><button class="pri" data-yes="${esc(q.id)}" data-min="${+q.min}">Đồng ý</button><button data-no="${esc(q.id)}">Không</button></div></div>`).join("")}
   <div class="card"><h2>Hôm nay</h2>
-    <div class="row"><span class="big">${fmt(used)}</span><span class="mute">đã dùng${limit ? " / " + fmt(limit * 60000) + (r.bonus && r.bonus.day === today && r.bonus.min ? " + " + r.bonus.min + " phút thêm" : "") : " (không giới hạn)"}</span></div>
+    <div class="row"><span class="big">${fmt(used)}</span><span class="mute">đã dùng${limit ? " / " + fmt(limit * 60000) + (r.bonus && r.bonus.day === today && r.bonus.min ? " (gồm " + r.bonus.min + " phút thêm)" : "") : " (không giới hạn)"}</span></div>
     ${limit ? `<div class="bar"><i style="width:${pct}%"></i></div><div class="mute">Còn ${fmt(left)}</div>` : ""}
     <div class="row" style="margin-top:10px"><button data-bonus="15">+15 phút</button><button data-bonus="30">+30 phút</button><button data-bonus="60">+1 giờ</button>
     ${r.bonus && r.bonus.day === today && r.bonus.min ? `<button data-bonus="0">Bỏ thêm giờ</button>` : ""}</div>
@@ -210,12 +261,22 @@ function homeTab(b) {
     <div class="grid">
       <button data-pause="30">⏸ Dừng 30 phút</button><button data-pause="60">⏸ Dừng 1 giờ</button><button data-pause="morning">⏸ Dừng tới 6h sáng</button>
       <button id="lock">🔒 Khoá màn hình</button><button id="ring">🔔 Đổ chuông</button><button id="loc">📍 Lấy vị trí</button>
+      <button id="reboot" class="bad">🔄 Khởi động lại máy</button>
     </div>
     <div class="row" style="margin-top:10px"><input id="msg" class="sp" placeholder="Nhắn cho con…" maxlength="300"><button id="send" class="pri">Gửi</button></div>
   </div>
   ${blockedNow.length ? `<div class="card"><h2>Đang khoá (${blockedNow.length})</h2>${blockedNow.slice(0, 50).map(x => `<span class="tag bad">${esc(x.label)}</span>`).join(" ")}</div>` : ""}
+  <div class="card"><h2>7 ngày qua</h2><div class="hist" id="hist"></div><div id="histTop" class="mute"></div></div>
   <div class="card"><h2>Dùng nhiều nhất</h2>${st.apps.filter(x => x.ms > 60000).slice(0, 8).map(appRow).join("") || `<span class="mute">Chưa có</span>`}</div>
   <div class="card"><h2>Nhật ký</h2>${(st.log || []).slice(-12).reverse().map(l => `<div class="mute">${new Date(l.t).toLocaleTimeString("vi", { hour: "2-digit", minute: "2-digit" })} · ${esc(l.m)}</div>`).join("") || `<span class="mute">Trống</span>`}</div>`;
+  drawHist();
+  b.querySelectorAll("[data-yes]").forEach(x => x.onclick = () => {
+    const n = +x.dataset.min, cur0 = edit.bonus && edit.bonus.day === today ? edit.bonus.min : 0;
+    edit.bonus = { day: today, min: cur0 + n }; changed(); answered.add(x.dataset.yes);
+    cmd({ type: "answer", id: x.dataset.yes, ok: true, min: n }, "Đã đồng ý thêm " + n + " phút"); render();
+  });
+  b.querySelectorAll("[data-no]").forEach(x => x.onclick = () => { answered.add(x.dataset.no); cmd({ type: "answer", id: x.dataset.no, ok: false }, "Đã từ chối"); render(); });
+  $("#reboot").onclick = () => { if (confirm("Khởi động lại máy của con? Máy sẽ tắt vài phút.")) cmd({ type: "reboot" }, "Đã gửi lệnh khởi động lại"); };
   b.querySelectorAll("[data-bonus]").forEach(x => x.onclick = () => {
     const add = +x.dataset.bonus, cur0 = r.bonus && r.bonus.day === today ? r.bonus.min : 0;
     edit.bonus = { day: today, min: add ? cur0 + add : 0 }; changed(); render();
@@ -232,12 +293,26 @@ function homeTab(b) {
   $("#send").onclick = () => { const t = $("#msg").value.trim(); if (!t) return; cmd({ type: "message", text: t }, "Đã nhắn"); $("#msg").value = ""; };
 }
 
+function drawHist() {
+  const days = (st.history || []).slice().reverse().concat([{ day: st.day, ms: st.usedMs, top: st.apps.filter(x => x.ms > 0).slice(0, 5) }]);
+  const mx = Math.max(60000, ...days.map(d => d.ms)), WD = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+  if (histSel < 0 || histSel >= days.length) histSel = days.length - 1;
+  const show = () => {
+    const d = days[histSel];
+    $("#hist").querySelectorAll("button").forEach((x, i) => x.classList.toggle("on", i === histSel));
+    $("#histTop").innerHTML = `<b>${esc(d.day.slice(8))}/${esc(d.day.slice(5, 7))}: ${fmt(d.ms)}</b>` + ((d.top || []).length ? (d.top || []).map(t => `<div>${esc(t.label || t.pkg)} · ${fmt(t.ms)}</div>`).join("") : "<div>Không có dữ liệu app</div>");
+  };
+  $("#hist").innerHTML = days.map((d, i) => `<button data-h="${i}" aria-label="${esc(d.day)}: ${fmt(d.ms)}"><i style="height:${Math.max(2, Math.round(d.ms / mx * 90))}px"></i>${WD[dayIdx(d.day)]}</button>`).join("");
+  $("#hist").querySelectorAll("button").forEach(x => x.onclick = () => { histSel = +x.dataset.h; show(); });
+  show();
+}
+
 function icon(x) {
   const letter = esc((x.label || "?").trim()[0] || "?");
   return cur.via === "lan" ? `<span class="ic"><img src="/api/icon?pkg=${encodeURIComponent(x.pkg)}&k=${encodeURIComponent(cur.token)}" onerror="this.replaceWith('${letter}')"></span>` : `<span class="ic">${letter}</span>`;
 }
 function appRow(x) {
-  return `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${fmt(x.ms)}${x.suspended ? `<span class="tag bad">${REASON[x.blocked] || "khoá"}</span>` : ""}</span></div></div>`;
+  return `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${fmt(x.ms)}${x.suspended || x.blocked ? `<span class="tag bad">${REASON[x.blocked] || "Đã khoá"}</span>` : ""}</span></div></div>`;
 }
 
 function appsTab(b) {
@@ -250,7 +325,8 @@ function appsTab(b) {
     const q = ($("#f-q").value || "").toLowerCase();
     $("#list").innerHTML = st.apps.filter(x => !x.protected && (!q || x.label.toLowerCase().includes(q) || x.pkg.includes(q))).map(x => {
       const m = mode(x.pkg);
-      return `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${fmt(x.ms)} hôm nay${x.suspended ? `<span class="tag bad">${REASON[x.blocked] || "khoá"}</span>` : ""}</span></div>
+      return `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${fmt(x.ms)} hôm nay${x.suspended || x.blocked ? `<span class="tag bad">${REASON[x.blocked] || "Đã khoá"}</span>` : ""}${x.new && !r.approved.includes(x.pkg) ? `<span class="tag" style="background:#fef3c7;color:#92400e">Mới cài</span>` : ""}</span></div>
+      ${x.new && !r.approved.includes(x.pkg) ? `<button class="pri" data-ok="${esc(x.pkg)}">Cho phép</button>` : ""}
       <select data-p="${esc(x.pkg)}">
         <option value="normal" ${m === "normal" ? "selected" : ""}>Bình thường</option>
         ${[15, 30, 45, 60, 90, 120].map(n => `<option value="${n}" ${m === "limit" && r.appMin[x.pkg] === n ? "selected" : ""}>${n} phút/ngày</option>`).join("")}
@@ -259,6 +335,7 @@ function appsTab(b) {
         <option value="allow" ${m === "allow" ? "selected" : ""}>Luôn cho phép</option>
       </select></div>`;
     }).join("");
+    $("#list").querySelectorAll("[data-ok]").forEach(bt => bt.onclick = () => { r.approved.push(bt.dataset.ok); changed(); draw(); toast("Đã cho phép"); });
     $("#list").querySelectorAll("select").forEach(s => s.onchange = () => {
       const p = s.dataset.p, v = s.value;
       r.blocked = r.blocked.filter(x => x !== p); r.allow = r.allow.filter(x => x !== p); delete r.appMin[p];
@@ -273,22 +350,151 @@ function rulesTab(b) {
   const r = edit;
   b.innerHTML = `
   <div class="card"><h2>Giới hạn mỗi ngày</h2>
-    <div class="row"><select id="f-daily">${[0, 30, 60, 90, 120, 150, 180, 240, 300].map(n => `<option value="${n}" ${r.dailyMin === n ? "selected" : ""}>${n ? fmt(n * 60000) : "Không giới hạn"}</option>`).join("")}
-    ${[0, 30, 60, 90, 120, 150, 180, 240, 300].includes(r.dailyMin) ? "" : `<option selected value="${r.dailyMin}">${fmt(r.dailyMin * 60000)}</option>`}</select></div>
+    <div class="row"><select id="f-dmode"><option value="same" ${r.dailyByDay.length ? "" : "selected"}>Giống nhau mỗi ngày</option><option value="by" ${r.dailyByDay.length ? "selected" : ""}>Khác nhau theo ngày</option></select></div>
+    ${r.dailyByDay.length ? `<div class="grid" style="margin-top:8px">${["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"].map((n, i) => `<label class="mute">${n} (phút, 0 = không giới hạn)<input type="number" min="0" max="1440" step="15" inputmode="numeric" data-d="${i}" id="f-d${i}" value="${+r.dailyByDay[i] || 0}" style="width:100%"></label>`).join("")}</div>`
+    : `<div class="row" style="margin-top:8px"><select id="f-daily">${[0, 30, 60, 90, 120, 150, 180, 240, 300].map(n => `<option value="${n}" ${r.dailyMin === n ? "selected" : ""}>${n ? fmt(n * 60000) : "Không giới hạn"}</option>`).join("")}
+    ${[0, 30, 60, 90, 120, 150, 180, 240, 300].includes(r.dailyMin) ? "" : `<option selected value="${r.dailyMin}">${fmt(r.dailyMin * 60000)}</option>`}</select></div>`}
     <p class="mute">Hết giờ thì mọi app (trừ "Luôn cho phép") bị tạm khoá tới 0h.</p></div>
   <div class="card"><h2>Giờ đi ngủ</h2>
     <div class="row"><label class="row"><input type="checkbox" id="f-bed" ${r.bedtime.on ? "checked" : ""}> Bật</label>
     <span class="sp"></span>từ <input type="time" id="f-bs" value="${esc(r.bedtime.start)}"> tới <input type="time" id="f-be" value="${esc(r.bedtime.end)}"></div></div>
+  <div class="card"><h2>Lịch khoá theo ngày</h2>
+    ${r.schedules.map((x, i) => `<div class="sch" data-s="${i}">
+      <div class="row"><input id="f-sn${i}" class="sp" data-f="name" placeholder="Tên (vd: Giờ học)" value="${esc(x.name)}"><label class="row"><input type="checkbox" data-f="on" ${x.on ? "checked" : ""}> Bật</label></div>
+      <div class="chips" style="margin:8px 0">${["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((n, d) => `<button data-day="${d + 1}" class="${(x.days || []).includes(d + 1) ? "on" : ""}">${n}</button>`).join("")}</div>
+      <div class="row">từ <input type="time" id="f-ss${i}" data-f="start" value="${esc(x.start)}"> tới <input type="time" id="f-se${i}" data-f="end" value="${esc(x.end)}"><span class="sp"></span><button class="bad" data-del="${i}">Xoá</button></div></div>`).join("") || `<p class="mute">Chưa có lịch. Ví dụ: khoá giờ học 7:00–11:30 các ngày T2–T6.</p>`}
+    <button id="addSch">+ Thêm lịch</button></div>
+  <div class="card"><h2>Chặn thêm</h2>
+    <label class="row"><input type="checkbox" id="f-bn" ${r.blockNew ? "checked" : ""}><span>Chặn app mới cài cho tới khi duyệt</span></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-ll" ${r.lockLocation ? "checked" : ""}><span>Không cho tắt định vị</span></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span>Không cho bật chế độ máy bay</span></label></div>
+  <div class="card"><h2>Chặn web người lớn (DNS an toàn)</h2>
+    <select id="f-dns">${DNS.map(([v, n]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}</option>`).join("")}${DNS.some(d => d[0] === r.safeDns) ? "" : `<option selected value="${esc(r.safeDns)}">${esc(r.safeDns)}</option>`}</select>
+    <p class="mute">Chặn web người lớn, bật tìm kiếm an toàn. Áp dụng cho cả Wi-Fi và 4G (qua DNS riêng của Android).</p></div>
   <div class="card"><h2>Chống lách</h2>
     <label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span>Chặn cài app mới</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span>Chặn Tuỳ chọn nhà phát triển / ADB</span></label>
     <p class="mute">Luôn bật sẵn: chặn gỡ KidGuard, chặn Force stop, chặn đặt lại máy trong Cài đặt, chặn Safe Mode, chặn tạo người dùng, khoá đổi giờ.</p></div>`;
-  $("#f-daily").onchange = e => { r.dailyMin = +e.target.value; changed(); };
+  $("#f-dmode").onchange = e => { r.dailyByDay = e.target.value === "by" ? Array(7).fill(r.dailyMin || 0) : []; changed(); document.activeElement.blur(); render(); };
+  if ($("#f-daily")) $("#f-daily").onchange = e => { r.dailyMin = +e.target.value; changed(); };
+  b.querySelectorAll("[data-d]").forEach(x => x.oninput = () => { r.dailyByDay[+x.dataset.d] = Math.max(0, Math.round(+x.value || 0)); changed(); });
+  b.querySelectorAll("[data-s]").forEach(box => {
+    const x = r.schedules[+box.dataset.s];
+    box.querySelectorAll("[data-f]").forEach(f => f.onchange = f.oninput = () => { x[f.dataset.f] = f.type === "checkbox" ? f.checked : f.value; changed(); });
+    box.querySelectorAll("[data-day]").forEach(d => d.onclick = () => { const n = +d.dataset.day; x.days = (x.days || []).includes(n) ? x.days.filter(v => v !== n) : (x.days || []).concat(n).sort(); changed(); render(); });
+    box.querySelector("[data-del]").onclick = () => { if (!confirm("Xoá lịch này?")) return; r.schedules.splice(+box.dataset.s, 1); changed(); render(); };
+  });
+  $("#addSch").onclick = () => { r.schedules.push({ name: "Giờ học", on: true, days: [1, 2, 3, 4, 5], start: "07:00", end: "11:30" }); changed(); render(); };
+  $("#f-bn").onchange = e => { r.blockNew = e.target.checked; changed(); };
+  $("#f-ll").onchange = e => { r.lockLocation = e.target.checked; changed(); };
+  $("#f-na").onchange = e => { r.noAirplane = e.target.checked; changed(); };
+  $("#f-dns").onchange = e => { r.safeDns = e.target.value; changed(); };
   $("#f-bed").onchange = e => { r.bedtime.on = e.target.checked; changed(); };
   $("#f-bs").onchange = e => { r.bedtime.start = e.target.value; changed(); };
   $("#f-be").onchange = e => { r.bedtime.end = e.target.value; changed(); };
   $("#f-ni").onchange = e => { r.noInstall = e.target.checked; changed(); };
   $("#f-nd").onchange = e => { r.noDebug = e.target.checked; changed(); };
+}
+
+// --- live screen + remote control -------------------------------------------
+// Runs independently of the 4 s state poll (refresh() never redraws the screen tab).
+const scr = { gen: 0, url: null, seq: 0, frames: [], lat: 0, liveT: null, view: false, err: "", msg: "" };
+const ERRS = { "acc off": "Chưa bật Trợ năng — chạy lại cài đặt", "screen off": "Màn hình máy con đang tắt", "unsupported": "Máy con dùng Android cũ, chưa hỗ trợ xem màn hình (cần Android 11+)", "busy": "Máy con đang bận, thử lại…" };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const errText = e => ERRS[e] || (e ? "Lỗi: " + e : "");
+
+function screenMsg(t) { scr.msg = t; const m = $("#s-msg"); if (m) m.textContent = t; }
+function screenStat() {
+  const el = $("#s-stat"); if (!el) return;
+  const now = performance.now(); scr.frames = scr.frames.filter(t => now - t < 5000);
+  const fps = scr.frames.length > 1 ? (scr.frames.length - 1) / ((scr.frames[scr.frames.length - 1] - scr.frames[0]) / 1000) : 0;
+  el.textContent = scr.frames.length ? `${fps.toFixed(1)} khung/giây · trễ ${Math.round(scr.lat)} ms` : "";
+}
+function showFrame(blob, lat) {
+  const old = scr.url; scr.url = URL.createObjectURL(blob);
+  const img = $("#s-img"); if (img) img.src = scr.url;
+  if (old) URL.revokeObjectURL(old);
+  scr.lat = lat; scr.frames.push(performance.now()); screenMsg(""); screenStat();
+}
+function screenStop() {
+  scr.gen++; clearInterval(scr.liveT); scr.liveT = null;
+  if (scr.url) { URL.revokeObjectURL(scr.url); scr.url = null; }
+  scr.frames = []; scr.seq = 0; scr.msg = "";
+}
+function screenStart() {
+  if (!cur || document.hidden) return;
+  const gen = ++scr.gen, k = cur; clearInterval(scr.liveT);
+  const img = $("#s-img"); if (img && scr.url) img.src = scr.url;
+  screenMsg(scr.msg || "Đang kết nối…");
+  const alive = () => scr.gen === gen && tab === "screen";
+  if (k.via === "lan") (async () => {
+    while (alive()) {
+      const t0 = performance.now();
+      try {
+        const r = await fetch("/api/screen?max=720&q=50", { headers: { "X-KG-Token": k.token }, cache: "no-store" });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); if (alive()) screenMsg(errText(j.error) || "Chưa xem được màn hình"); await sleep(1500); continue; }
+        const blob = await r.blob(); if (!alive()) break;
+        showFrame(blob, performance.now() - t0);
+      } catch { if (alive()) screenMsg("Mất kết nối tới máy con"); await sleep(2000); continue; }
+      await sleep(Math.max(0, 400 - (performance.now() - t0)));   // ~2.5 fps
+    }
+  })();
+  else {
+    const ping = () => call(k, "/live", "POST", {}).catch(e => { if (alive()) screenMsg("Lỗi: " + e.message); });
+    ping(); scr.liveT = setInterval(ping, 10000);
+    (async () => {
+      screenMsg("Đang chờ máy con kết nối (tối đa ~20 giây)…");
+      while (alive()) {
+        try {
+          const r = await fetch(base(k) + "/frame?after=" + scr.seq, { headers: { "X-KG-Token": k.token }, cache: "no-store" });
+          if (!alive()) break;
+          if (r.status === 204) { const e = r.headers.get("X-KG-Err"); screenMsg(e ? errText(e) : scr.frames.length ? "" : "Đang chờ máy con kết nối (tối đa ~20 giây)…"); await sleep(200); continue; }
+          if (!r.ok) { const j = await r.json().catch(() => ({})); screenMsg("Lỗi: " + (j.error || "HTTP " + r.status)); await sleep(2000); continue; }
+          const blob = await r.blob(); if (!alive()) break;
+          scr.seq = +r.headers.get("X-KG-Seq") || scr.seq;
+          showFrame(blob, +r.headers.get("X-KG-Age") || 0);
+        } catch { if (alive()) screenMsg("Mất kết nối, đang thử lại…"); await sleep(2000); }
+      }
+    })();
+  }
+}
+document.addEventListener("visibilitychange", () => { if (document.hidden) screenStop(); else if (cur && tab === "screen") screenStart(); });
+
+async function sendInput(o) {
+  if (scr.view || !cur) return;
+  try { const r = await call(cur, "/input", "POST", o); if (r.result && r.result !== "ok" && r.result !== "queued") toast(errText(r.result)); }
+  catch (e) { toast("Lỗi: " + e.message); }
+}
+
+function screenTab(b) {
+  b.innerHTML = `<div class="card"><div class="row"><h2 class="sp" style="margin:0">Màn hình máy con</h2>
+    <label class="row"><input type="checkbox" id="s-view" ${scr.view ? "checked" : ""}> Chỉ xem</label></div>
+    <div class="scr ${scr.view ? "view" : ""}" id="s-box" style="margin-top:10px"><img id="s-img" alt="Màn hình máy con" draggable="false"><div class="scr-msg" id="s-msg"></div></div>
+    <div class="mute" id="s-stat" style="margin:4px 0"></div>
+    <div class="grid" id="s-btns"><button data-key="back">◀ Quay lại</button><button data-key="home">⚪ Màn hình chính</button><button data-key="recents">▢ Đa nhiệm</button>
+      <button data-key="notifications">🔔 Thông báo</button><button data-key="lock">🔒 Khoá màn hình</button></div>
+    <div class="row" style="margin-top:10px"><input id="f-stxt" class="sp" placeholder="Gõ chữ vào ô đang chọn trên máy con…"><button id="s-send" class="pri">Gửi chữ</button></div>
+    <p class="mute">Chạm vào ảnh để bấm, kéo để vuốt, giữ lâu để nhấn giữ. Máy con sẽ hiện thông báo khi bố mẹ đang xem.</p></div>`;
+  const box = $("#s-box"), img = $("#s-img");
+  $("#s-view").onchange = e => { scr.view = e.target.checked; box.classList.toggle("view", scr.view); $("#s-btns").querySelectorAll("button").forEach(x => x.disabled = scr.view); $("#s-send").disabled = scr.view; };
+  $("#s-btns").querySelectorAll("button").forEach(x => { x.disabled = scr.view; x.onclick = () => sendInput({ type: "key", key: x.dataset.key }); });
+  $("#s-send").disabled = scr.view;
+  $("#s-send").onclick = () => { const t = $("#f-stxt").value; if (!t) return; sendInput({ type: "text", text: t }); $("#f-stxt").value = ""; };
+  let down = null;
+  const frac = (e, r) => ({ x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) });
+  img.addEventListener("pointerdown", e => { if (scr.view || !img.src) return; e.preventDefault(); img.setPointerCapture(e.pointerId); down = { px: e.clientX, py: e.clientY, t: performance.now(), r: img.getBoundingClientRect() }; });
+  img.addEventListener("contextmenu", e => e.preventDefault());
+  img.addEventListener("pointercancel", () => { down = null; });
+  img.addEventListener("pointerup", e => {
+    if (!down) return; const d = down; down = null;
+    const dur = performance.now() - d.t, dist = Math.hypot(e.clientX - d.px, e.clientY - d.py);
+    const a = frac({ clientX: d.px, clientY: d.py }, d.r), z = frac(e, d.r);
+    const dot = document.createElement("div"); dot.className = "tap"; const br = box.getBoundingClientRect();
+    dot.style.left = (e.clientX - br.left) + "px"; dot.style.top = (e.clientY - br.top) + "px"; box.appendChild(dot); setTimeout(() => dot.remove(), 600);
+    if (dist < 12) sendInput({ type: dur > 500 ? "long" : "tap", x: +a.x.toFixed(4), y: +a.y.toFixed(4) });
+    else sendInput({ type: "swipe", x1: +a.x.toFixed(4), y1: +a.y.toFixed(4), x2: +z.x.toFixed(4), y2: +z.y.toFixed(4), ms: Math.round(Math.min(1500, Math.max(100, dur))) });
+  });
+  screenStart();
 }
 
 function whereTab(b) {
@@ -313,6 +519,7 @@ function setTab(b) {
     <div id="relayOut"></div></div>` : `<div class="card"><h2>Kết nối</h2><p class="mute">Qua relay. Lệnh tới máy con trong khoảng 20 giây (màn hình tắt: 60 giây).</p></div>`}
   <div class="card"><h2>Máy đã ghép</h2>
     <div class="grid"><button id="openPair">Mở ghép thêm (10 phút)</button><button id="unpair" class="bad">Huỷ ghép tất cả</button><button id="forget">Quên máy này ở trình duyệt</button></div></div>
+  <div class="card"><h2>Thêm vào màn hình chính</h2><p class="mute">Để mở KidGuard như một app: iPhone (Safari) bấm nút Chia sẻ → "Thêm vào MH chính"; Android (Chrome) bấm ⋮ → "Thêm vào màn hình chính".</p></div>
   <div class="card"><h2>Gỡ quản lý</h2><p class="mute">Mở lại mọi app, bỏ mọi giới hạn, bỏ quyền Device Owner. Sau đó gỡ KidGuard như app thường.</p>
     <button id="release" class="bad">Gỡ quyền quản lý…</button></div>`;
   $("#saveName").onclick = () => { cur.name = $("#f-name").value || "Con"; save(kids); render(); };
@@ -330,7 +537,7 @@ function setTab(b) {
   };
   $("#openPair").onclick = () => cmd({ type: "openPairing" }, "Mã ghép đang hiện trên máy con");
   $("#unpair").onclick = async () => { if (!confirm("Huỷ ghép mọi máy bố mẹ? Phải ghép lại bằng mã trên máy con (cần PIN).")) return; await cmd({ type: "unpairAll" }); };
-  $("#forget").onclick = () => { kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); };
+  $("#forget").onclick = () => { screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); };
   $("#release").onclick = async () => {
     if (prompt('Gõ "GO" để gỡ quản lý khỏi máy con') !== "GO") return;
     await cmd({ type: "release" }, "Đã gỡ quản lý");
