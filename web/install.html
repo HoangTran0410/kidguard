@@ -1,3 +1,296 @@
 <!doctype html>
-<meta charset="utf-8"><title>Cài KidGuard</title>
-<p>STUB: the installer branch replaces this page.</p>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cài KidGuard</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --fg:#1b1f24; --mut:#5d6672; --pri:#1a73e8; --ok:#188038; --bad:#c5221f; --line:#dfe3e8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171a; --card:#1e2226; --fg:#eceff3; --mut:#9aa4af; --pri:#6aa6ff; --ok:#5fcf80; --bad:#ff7b72; --line:#323940; }
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--fg); font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:16px; }
+  h1 { font-size:26px; margin:8px 0 4px }
+  .sub { color:var(--mut); margin:0 0 16px }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin:12px 0 }
+  .card h2 { font-size:19px; margin:0 0 8px }
+  .card.off { opacity:.45; pointer-events:none }
+  ul.chk { padding-left:22px; margin:8px 0 }
+  ul.chk li { margin:6px 0 }
+  button, .btn { display:block; width:100%; font:inherit; font-size:19px; font-weight:600; padding:16px; margin-top:12px;
+    border:0; border-radius:12px; background:var(--pri); color:#fff; cursor:pointer; text-align:center; text-decoration:none }
+  button.alt { background:transparent; color:var(--pri); border:2px solid var(--pri) }
+  button:disabled { opacity:.5; cursor:default }
+  .msg { margin-top:10px; color:var(--mut) }
+  .msg.bad { color:var(--bad) } .msg.ok { color:var(--ok) }
+  ol.steps { list-style:none; padding:0; margin:8px 0 }
+  ol.steps li { padding:6px 0; border-bottom:1px solid var(--line) }
+  ol.steps li:last-child { border:0 }
+  .mark { display:inline-block; width:1.5em; font-weight:700 }
+  .ok .mark { color:var(--ok) } .bad .mark { color:var(--bad) } .run .mark { color:var(--pri) }
+  pre#log { background:#0d1117; color:#c9d1d9; border-radius:10px; padding:10px; font-size:13px; max-height:220px; overflow:auto; white-space:pre-wrap; word-break:break-all }
+  .big { font-size:24px; font-weight:700; word-break:break-all }
+  .hide { display:none }
+  .warn { background:rgba(197,34,31,.08); border:1px solid var(--bad); border-radius:10px; padding:12px; white-space:pre-wrap }
+  code { background:rgba(128,128,128,.18); padding:1px 5px; border-radius:5px }
+</style>
+</head>
+<body>
+<main>
+  <h1>Cài KidGuard</h1>
+  <p class="sub">Cài lên điện thoại của con, làm từng bước. Mất khoảng 3 phút.</p>
+
+  <div id="nowebusb" class="card hide">
+    <h2>Trình duyệt này chưa cài được</h2>
+    <p>Trang này cần <b>Chrome</b> hoặc <b>Edge</b> trên máy tính (hoặc Chrome trên điện thoại Android có dây OTG).
+    Safari, Firefox và iPhone không dùng được.</p>
+    <p>Hoặc chạy file cài trên máy tính: <code>setup.sh</code> (Mac/Linux) hay
+    <code>powershell -ExecutionPolicy Bypass -File setup.ps1</code> (Windows).</p>
+  </div>
+
+  <section id="s1" class="card">
+    <h2>1. Chuẩn bị điện thoại của con</h2>
+    <ul class="chk">
+      <li><b>Xoá hết tài khoản</b>: Cài đặt &gt; Tài khoản (Google, Samsung, Xiaomi…). Cài xong đăng nhập lại được.</li>
+      <li>Bật <b>Tuỳ chọn nhà phát triển</b>: Cài đặt &gt; Giới thiệu điện thoại, chạm 7 lần vào "Số bản dựng".</li>
+      <li>Trong Tuỳ chọn nhà phát triển, bật <b>Gỡ lỗi USB</b>.</li>
+      <li>Xiaomi/Redmi/POCO: bật thêm <b>Gỡ lỗi USB (Cài đặt bảo mật)</b> và <b>Cài qua USB</b>.</li>
+      <li>Cắm cáp USB từ điện thoại của con vào máy này.</li>
+    </ul>
+    <label class="msg"><input type="checkbox" id="ready"> Tôi đã làm xong các việc trên</label>
+  </section>
+
+  <section id="s2" class="card off">
+    <h2>2. Kết nối điện thoại</h2>
+    <p class="msg">Bấm nút, chọn điện thoại trong hộp hiện ra. Rồi nhìn màn hình điện thoại và bấm <b>"Cho phép"</b> (tick "Luôn cho phép máy tính này").</p>
+    <button id="connect">Kết nối điện thoại</button>
+    <div id="connmsg" class="msg"></div>
+  </section>
+
+  <section id="s3" class="card off">
+    <h2>3. File ứng dụng</h2>
+    <div id="apkmsg" class="msg">Đang tìm kidguard.apk…</div>
+    <input type="file" id="apkfile" accept=".apk" class="hide">
+    <button id="pick" class="alt hide">Chọn file kidguard.apk</button>
+    <button id="install" disabled>Bắt đầu cài</button>
+  </section>
+
+  <section id="s4" class="card hide">
+    <h2>4. Đang cài</h2>
+    <ol class="steps" id="steps"></ol>
+    <div id="fail" class="warn hide"></div>
+    <details><summary class="msg">Xem chi tiết</summary><pre id="log"></pre></details>
+  </section>
+
+  <section id="done" class="card hide">
+    <h2>Xong rồi</h2>
+    <p>Trên <b>điện thoại của bố mẹ</b> (cùng Wi-Fi), mở trình duyệt vào địa chỉ:</p>
+    <div class="big" id="lan"></div>
+    <ol>
+      <li>Nhập <b>mã 6 số</b> đang hiện trên điện thoại của con.</li>
+      <li>Vào tab <b>Cài đặt</b>, đặt <b>PIN của bố mẹ</b>.</li>
+      <li>Giờ có thể đăng nhập lại tài khoản trên máy con và rút cáp.</li>
+    </ol>
+    <p class="msg">Gỡ: trang bố mẹ &gt; Cài đặt &gt; "Gỡ quyền quản lý", rồi gỡ app như thường.</p>
+  </section>
+</main>
+
+<script type="module">
+import { Adb, AdbDaemonTransport } from "https://cdn.jsdelivr.net/npm/@yume-chan/adb@2.6.4/+esm";
+import { AdbDaemonWebUsbDeviceManager, AdbDaemonWebUsbDevice } from "https://cdn.jsdelivr.net/npm/@yume-chan/adb-daemon-webusb@2.3.2/+esm";
+import AdbWebCredentialStore from "https://cdn.jsdelivr.net/npm/@yume-chan/adb-credential-web@2.1.0/+esm";
+
+const PKG = "dev.kidguard";
+const ACC = PKG + "/" + PKG + ".Acc";
+const $ = (id) => document.getElementById(id);
+const enable = (id, on) => $(id).classList.toggle("off", !on);
+const setMsg = (id, text, cls) => { const e = $(id); e.textContent = text; e.className = "msg" + (cls ? " " + cls : ""); };
+const log = (t) => { const p = $("log"); p.textContent += t + "\n"; p.scrollTop = p.scrollHeight; };
+
+const DO_HELP = `Không đặt được Device Owner. Thường là vì:
+  - Máy còn tài khoản: Cài đặt > Tài khoản, xoá hết (Google, Samsung, Xiaomi…), chạy lại.
+  - Máy có nhiều người dùng / Không gian thứ hai / Thư mục bảo mật: xoá đi.
+  - Xiaomi: bật thêm "Gỡ lỗi USB (Cài đặt bảo mật)" trong Tuỳ chọn nhà phát triển.
+  - Đã có app quản lý khác (Device Owner): gỡ nó trước.`;
+
+const manager = AdbDaemonWebUsbDeviceManager.BROWSER;
+if (!manager) {
+  $("nowebusb").classList.remove("hide");
+  for (const id of ["s1", "s2", "s3"]) $(id).classList.add("hide");
+}
+
+let adb = null, apkBytes = null;
+
+$("ready").onchange = (e) => enable("s2", e.target.checked);
+
+// ---- 2. connect ----
+$("connect").onclick = async () => {
+  $("connect").disabled = true;
+  setMsg("connmsg", "Đang kết nối… nhìn màn hình điện thoại, bấm \"Cho phép\".");
+  try {
+    const device = await manager.requestDevice();
+    if (!device) { setMsg("connmsg", "Chưa chọn điện thoại nào. Bấm lại và chọn máy.", "bad"); return; }
+    const connection = await device.connect();
+    const transport = await AdbDaemonTransport.authenticate({
+      serial: device.serial,
+      connection,
+      credentialStore: new AdbWebCredentialStore("KidGuard"),
+    });
+    adb = new Adb(transport);
+    setMsg("connmsg", "✓ Đã kết nối: " + (device.name || device.serial), "ok");
+    $("connect").classList.add("hide");
+    enable("s3", true);
+    loadApk();
+  } catch (e) {
+    adb = null;
+    if (e instanceof AdbDaemonWebUsbDevice.DeviceBusyError) {
+      setMsg("connmsg", "Máy đang bị chương trình khác giữ (thường là adb trên máy tính). Mở cửa sổ lệnh, gõ: adb kill-server, rồi rút cắm cáp và bấm lại.", "bad");
+    } else {
+      setMsg("connmsg", "Không kết nối được: " + (e && e.message || e) + ". Kiểm tra đã bật Gỡ lỗi USB, đã bấm \"Cho phép\" trên điện thoại; thử rút cắm cáp rồi bấm lại.", "bad");
+    }
+    $("connect").disabled = false;
+  }
+};
+
+// ---- 3. APK ----
+async function loadApk() {
+  if (apkBytes) { $("install").disabled = false; return; }
+  try {
+    const r = await fetch("kidguard.apk", { cache: "no-store" });
+    const ct = r.headers.get("content-type") || "";
+    if (r.ok && !ct.includes("text/html")) {
+      apkBytes = new Uint8Array(await r.arrayBuffer());
+    }
+  } catch (_) { /* fall through to picker */ }
+  if (apkBytes && apkBytes.length > 1000) {
+    setMsg("apkmsg", "✓ Đã có kidguard.apk (" + (apkBytes.length / 1048576).toFixed(1) + " MB).", "ok");
+    $("install").disabled = false;
+  } else {
+    apkBytes = null;
+    setMsg("apkmsg", "Chưa có sẵn file ứng dụng. Chọn file kidguard.apk đã tải về.");
+    $("pick").classList.remove("hide");
+  }
+}
+$("pick").onclick = () => $("apkfile").click();
+$("apkfile").onchange = async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  apkBytes = new Uint8Array(await f.arrayBuffer());
+  setMsg("apkmsg", "✓ Đã chọn " + f.name + " (" + (apkBytes.length / 1048576).toFixed(1) + " MB).", "ok");
+  $("install").disabled = false;
+};
+
+// ---- 4. run the 8 setup steps (docs/protocol.md) ----
+const sh = async (cmd) => {
+  const out = (await adb.subprocess.noneProtocol.spawnWaitText(cmd)).replace(/\r/g, "");
+  log("$ " + cmd + (out.trim() ? "\n" + out.trim() : ""));
+  return out;
+};
+
+async function pushApk(remote) {
+  const sync = await adb.sync();
+  try {
+    const bytes = apkBytes;
+    await sync.write({
+      filename: remote,
+      file: new ReadableStream({ start(c) { c.enqueue(bytes); c.close(); } }),
+      permission: 0o644,
+    });
+  } finally {
+    await sync.dispose();
+  }
+  log("push " + remote + " (" + apkBytes.length + " bytes)");
+}
+
+const STEPS = [
+  ["Cài app", async () => {
+    await pushApk("/data/local/tmp/kidguard.apk");
+    const out = await sh("pm install -r -g /data/local/tmp/kidguard.apk");
+    await sh("rm -f /data/local/tmp/kidguard.apk");
+    if (!/Success/.test(out)) throw new Error(out.trim() || "pm install thất bại");
+  }],
+  ["Đặt KidGuard làm Device Owner", async () => {
+    const out = await sh("dpm set-device-owner " + PKG + "/.Admin");
+    const dump = await sh("dumpsys device_policy");
+    if (!dump.includes("admin=ComponentInfo{" + PKG + "/" + PKG + ".Admin}")) {
+      const e = new Error(out.trim()); e.help = DO_HELP; throw e;
+    }
+  }],
+  ["Cấp quyền xem thời gian dùng app", async () => { await sh("appops set " + PKG + " GET_USAGE_STATS allow"); }],
+  ["Cấp quyền ghi cài đặt bảo mật", async () => {
+    const out = await sh("pm grant " + PKG + " android.permission.WRITE_SECURE_SETTINGS");
+    if (/Exception|Error|denied/i.test(out)) throw new Error(out.trim());
+  }],
+  ["Bật dịch vụ Trợ năng", async () => {
+    let cur = (await sh("settings get secure enabled_accessibility_services")).split("\n")[0].trim();
+    if (cur === "null") cur = "";
+    const list = cur ? cur.split(":") : [];
+    if (!list.includes(ACC)) list.push(ACC);
+    await sh("settings put secure enabled_accessibility_services " + list.join(":"));
+    await sh("settings put secure accessibility_enabled 1");
+  }],
+  ["Cho chạy nền, không bị tiết kiệm pin", async () => { await sh("dumpsys deviceidle whitelist +" + PKG).catch(() => {}); }],
+  ["Mở app", async () => {
+    await sh("am start -n " + PKG + "/.MainActivity");
+    await new Promise((r) => setTimeout(r, 3000));
+  }],
+  ["Lấy địa chỉ cho bố mẹ", async () => {
+    const out = await sh("ip -4 addr show wlan0");
+    const m = out.match(/inet (\d+\.\d+\.\d+\.\d+)/);
+    window.__ip = m ? m[1] : "";
+  }],
+];
+
+$("install").onclick = async () => {
+  $("install").disabled = true;
+  $("s4").classList.remove("hide");
+  $("s4").scrollIntoView({ behavior: "smooth" });
+  const ol = $("steps");
+  ol.innerHTML = "";
+  const rows = STEPS.map(([name], i) => {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="mark">·</span>' + (i + 1) + "/" + STEPS.length + " " + name;
+    ol.appendChild(li);
+    return li;
+  });
+  const mark = (i, cls, ch) => { rows[i].className = cls; rows[i].firstChild.textContent = ch; };
+  let failed = false;
+  try {
+    for (let i = 0; i < STEPS.length; i++) {
+      mark(i, "run", "…");
+      try {
+        await STEPS[i][1]();
+        mark(i, "ok", "✓");
+      } catch (e) {
+        mark(i, "bad", "✗");
+        log("LỖI: " + (e && e.message || e));
+        const f = $("fail");
+        f.textContent = (e.help ? e.help + "\n\n" : "Bước \"" + STEPS[i][0] + "\" lỗi: ") + (e.help ? "" : (e && e.message || e) + "\n") +
+          "\nSửa xong bấm lại \"Bắt đầu cài\" (cài lại không mất gì).";
+        f.classList.remove("hide");
+        failed = true;
+        break;
+      }
+    }
+  } finally {
+    // Close the ADB connection so the phone/USB interface is released.
+    try { await adb.close(); } catch (_) {}
+    adb = null;
+  }
+  if (failed) {
+    // Connection is closed: ask the parent to reconnect before retrying.
+    $("connect").classList.remove("hide");
+    $("connect").disabled = false;
+    setMsg("connmsg", "Bấm \"Kết nối điện thoại\" lại để thử lần nữa.");
+    $("s4").querySelector("details").open = true;
+    return;
+  }
+  $("lan").textContent = "http://" + (window.__ip || "<IP của máy con>") + ":8770";
+  $("done").classList.remove("hide");
+  $("done").scrollIntoView({ behavior: "smooth" });
+};
+</script>
+</body>
+</html>
