@@ -16,7 +16,7 @@ if [ -n "${TRUSTSTORE:-}" ]; then
   export JAVA_OPTS="$T"
   OPTS=(-Dorg.gradle.jvmargs="-Xmx2g $T")
 fi
-./gradlew -q "${OPTS[@]}" testDebugUnitTest assembleRelease
+./gradlew -q ${OPTS[@]+"${OPTS[@]}"} testDebugUnitTest assembleRelease
 mkdir -p build
 cp app/build/outputs/apk/release/app-release.apk build/kidguard.apk
 

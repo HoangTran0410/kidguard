@@ -55,7 +55,7 @@ class DecideTest {
 
     @Test fun jsonRoundTrip() {
         val r = Rules(rev = 5, dailyMin = 90, appMin = mapOf("yt" to 20), blocked = setOf("game"), bedtimeOn = true,
-            allow = setOf("chrome"), pausedUntil = 9, bonusDay = "2026-11-06", bonusMin = 15, noInstall = true, pinHash = "x")
+            allow = setOf("chrome"), pausedUntil = 9, bonusDay = "2026-11-06", bonusMin = 15, noInstall = true, pinHash = "x", showWatching = false)
         assertEquals(r, Rules.fromJson(JSONObject(r.toJson(true).toString())))
     }
 

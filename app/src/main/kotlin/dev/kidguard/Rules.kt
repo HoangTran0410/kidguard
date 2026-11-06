@@ -56,6 +56,7 @@ data class Rules(
     val noAirplane: Boolean = true,
     val safeDns: String = "",                // Private DNS host, "" = off
     val trackMin: Int = 10,                  // location history every N minutes: 0 (off), 5, 10, 15, 30, 60
+    val showWatching: Boolean = true,        // child sees "parent is watching / controlling" while the screen is viewed
 ) {
     /** [persist] = true also writes pinHash/pinSalt (only for this phone's own storage). The default is safe to send to a parent: it has `pinSet` only. */
     fun toJson(persist: Boolean = false): JSONObject = JSONObject()
@@ -72,6 +73,7 @@ data class Rules(
         .put("schedules", JSONArray().apply { schedules.forEach { put(it.toJson()) } })
         .put("blockNew", blockNew).put("approved", JSONArray(approved.sorted()))
         .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("trackMin", trackMin)
+        .put("showWatching", showWatching)
         .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
 
     /** True when [pin] matches the stored hash (legacy or salted). False when no PIN is set. */
@@ -124,6 +126,7 @@ data class Rules(
                 approved = o.optJSONArray("approved").strings(),
                 lockLocation = o.optBoolean("lockLocation", true),
                 noAirplane = o.optBoolean("noAirplane", true),
+                showWatching = o.optBoolean("showWatching", true),
                 trackMin = o.optInt("trackMin", 10).takeIf { it in TRACK_STEPS } ?: 10,
                 safeDns = o.optString("safeDns", "").trim().lowercase().takeIf { it.matches(DNS_HOST) } ?: "",
             )
