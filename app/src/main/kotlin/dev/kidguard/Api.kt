@@ -57,8 +57,7 @@ class Api(private val g: Guard) {
         }
     }
 
-    // TEMP stub: replace with store.track(days) (Store.track returns JSONArray [[t,lat,lon,acc],...]) when merging core.
-    private fun track(days: Int): org.json.JSONArray = org.json.JSONArray()
+    private fun track(days: Int): org.json.JSONArray = store.track(days)
 
     private fun icon(pkg: String): Res {
         val d = runCatching { g.packageManager.getApplicationIcon(pkg) }.getOrNull() ?: return Res.text("no icon", 404)
