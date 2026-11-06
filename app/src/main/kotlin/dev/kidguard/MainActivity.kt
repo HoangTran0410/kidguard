@@ -111,10 +111,13 @@ class MainActivity : Activity() {
             if (s.everPaired) { Toast.makeText(this, "Bố mẹ hãy đặt mã PIN trong trang quản lý trước khi ghép thêm máy", Toast.LENGTH_LONG).show(); return }
             s.openPairing(); refresh(); return
         }
+        s.pinLockLeft().takeIf { it > 0 }?.let { left ->
+            AlertDialog.Builder(this).setMessage("Nhập sai PIN nhiều lần. Thử lại sau ${(left + 59_999) / 60_000} phút.").setPositiveButton("OK", null).show(); return
+        }
         val input = EditText(this).apply { inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD; hint = "PIN của bố mẹ" }
         AlertDialog.Builder(this).setTitle("Nhập PIN của bố mẹ").setView(input)
             .setPositiveButton("OK") { _, _ ->
-                if (rules.checkPin(input.text.toString().filter { it.isDigit() })) { s.openPairing(); refresh() }
+                if (s.checkParentPin(input.text.toString().filter { it.isDigit() })) { s.openPairing(); refresh() }
                 else AlertDialog.Builder(this).setMessage("Sai PIN").setPositiveButton("OK", null).show()
             }.setNegativeButton("Huỷ", null).show()
     }

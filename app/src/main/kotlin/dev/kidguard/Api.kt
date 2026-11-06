@@ -10,6 +10,7 @@ class Api(private val g: Guard) {
     private val store = Store.of(g)
 
     fun handle(r: Req): Res {
+        if (!Safety.hostOk(r.header("host"))) return Res.text("bad host", 403)   // DNS rebinding
         if (r.method == "GET" && (r.path == "/" || r.path == "/index.html")) {
             return Res(200, "text/html; charset=utf-8", g.assets.open("index.html").use { it.readBytes() })
         }
@@ -17,10 +18,12 @@ class Api(private val g: Guard) {
         val p = r.path.removePrefix("/api")
         when {
             p == "/hello" -> return Res.json(JSONObject().put("id", store.id).put("pairing", store.pairCode() != null)
-                .put("owner", Policy.isOwner(g)).toString())
+                .put("pin", store.rules.pinHash.isNotBlank()).put("owner", Policy.isOwner(g)).toString())
             p == "/pair" && r.method == "POST" -> {
-                val code = runCatching { JSONObject(r.text).optString("code") }.getOrDefault("")
-                val t = store.tryPair(code) ?: return Res.json("""{"error":"wrong code"}""", 403)
+                val o = runCatching { JSONObject(r.text) }.getOrDefault(JSONObject())
+                val t = store.tryPair(o.optString("code"), o.optString("pin").filter { it.isDigit() })
+                    ?: return Res.json(JSONObject().put("error", store.lastPairError).put("wait", store.pinLockLeft()).toString(),
+                        if (store.lastPairError == "wait" || store.lastPairError == "pin locked") 429 else 403)
                 store.log("Đã ghép một thiết bị của bố mẹ")
                 return Res.json(JSONObject().put("token", t).put("id", store.id).toString())
             }

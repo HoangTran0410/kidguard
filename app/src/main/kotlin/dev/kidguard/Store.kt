@@ -46,25 +46,53 @@ class Store private constructor(ctx: Context) {
         if (!open) return null
         return p.getString("pairCode", null) ?: newPairCode()
     }
-    @Synchronized fun openPairing() { newPairCode(); p.edit().putLong("pairUntil", System.currentTimeMillis() + 10 * 60_000).apply() }
-    @Synchronized fun closePairing() { p.edit().remove("pairUntil").remove("pairCode").putInt("wrong", 0).apply() }
+    @Synchronized fun openPairing() { newPairCode(); p.edit().putLong("pairUntil", System.currentTimeMillis() + 10 * 60_000).putInt("wrong", 0).remove("pairBlock").apply() }
+    @Synchronized fun closePairing() { p.edit().remove("pairUntil").remove("pairCode").putInt("wrong", 0).remove("pairBlock").apply() }
     @Synchronized fun newPairCode(): String {
         val c = (SecureRandom().nextInt(900_000) + 100_000).toString()
-        p.edit().putString("pairCode", c).putInt("wrong", 0).apply()
+        p.edit().putString("pairCode", c).apply()
         return c
     }
-    /** Returns a token, or null. 5 wrong codes make a new code. */
-    @Synchronized fun tryPair(code: String): String? {
-        val want = pairCode() ?: return null
-        if (code.trim() != want) {
-            val w = p.getInt("wrong", 0) + 1
-            if (w >= 5) newPairCode() else p.edit().putInt("wrong", w).apply()
-            return null
+
+    /** ms until the parent PIN may be tried again (0 = now). Shared by the child screen and `/api/pair`. */
+    @Synchronized fun pinLockLeft(): Long = maxOf(0, p.getLong("pinLock", 0) - System.currentTimeMillis())
+
+    /** Checks the parent PIN with the lockout: true = right; false = wrong or locked (see [pinLockLeft]). */
+    @Synchronized fun checkParentPin(pin: String): Boolean {
+        if (pinLockLeft() > 0) return false
+        if (rules.checkPin(pin)) { p.edit().putInt("pinFails", 0).remove("pinLock").commit(); return true }
+        val f = p.getInt("pinFails", 0) + 1
+        val lock = Safety.pinLockMs(f)
+        p.edit().putInt("pinFails", f).putLong("pinLock", if (lock > 0) System.currentTimeMillis() + lock else 0).commit()
+        if (lock > 0) log("Nhập sai PIN $f lần, khoá ${lock / 60_000} phút")
+        return false
+    }
+
+    /**
+     * Pairing a parent browser. Needs the code shown on the child's screen, and the parent PIN once one is set
+     * (the child can see the code, never the PIN). Every 3rd wrong guess makes a new code and blocks for a while.
+     * Returns the token, or null with [lastPairError] = closed | wait | pin locked | wrong pin | wrong code.
+     */
+    @Synchronized fun tryPair(code: String, pin: String): String? {
+        val now = System.currentTimeMillis()
+        if (p.getLong("pairBlock", 0) > now) { lastPairError = "wait"; return null }
+        val want = pairCode() ?: run { lastPairError = "closed"; return null }
+        if (rules.pinHash.isNotBlank()) {
+            if (pinLockLeft() > 0) { lastPairError = "pin locked"; return null }
+            if (!checkParentPin(pin)) { pairFail(now); lastPairError = if (pinLockLeft() > 0) "pin locked" else "wrong pin"; return null }
         }
+        if (code.trim() != want) { pairFail(now); lastPairError = "wrong code"; return null }
         val t = addToken()
         p.edit().putBoolean("everPaired", true).apply()
         closePairing()
         return t
+    }
+    @Volatile var lastPairError = ""; private set
+    private fun pairFail(now: Long) {
+        val f = p.getInt("wrong", 0) + 1
+        val block = Safety.pairBlockMs(f)
+        p.edit().putInt("wrong", f).apply()
+        if (block > 0) { newPairCode(); p.edit().putLong("pairBlock", now + block).apply() }
     }
 
     @get:Synchronized val everPaired: Boolean get() = p.getBoolean("everPaired", false)

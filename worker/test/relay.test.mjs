@@ -85,4 +85,7 @@ ck("CSP allows OSM tiles",(await fetch(`${B}/`)).headers.get("content-security-p
 const track=Array.from({length:700},(_,i)=>[1.7e12+i,10.123456,106.123456,12.5]);
 r=await P2("sync",JSON.stringify({state:{track}}));ck("sync with ~700-point track (<120KB) ok",r.status==200);
 r=await P2("sync",JSON.stringify({state:{big:"a".repeat(125000)}}));ck("state >120KB -> 413",r.status==413);
+// last: per-IP rate limit (150 / 10 s) on /c/*; the page itself is not limited
+{const rs=[];for(let i=0;i<11&&!rs.includes(429);i++)rs.push(...await Promise.all(Array.from({length:20},()=>fetch(`${B}/c/${id}/state`,{headers:H(BAD)}).then(r=>r.status,()=>0))));
+ck("rate limit: burst of 220 gets some 429",rs.includes(429));ck("rate limit: page / still 200",(await fetch(`${B}/`)).status==200);}
 console.log(pass,"pass",fail,"fail");process.exit(fail?1:0);

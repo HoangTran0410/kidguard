@@ -229,3 +229,33 @@ object Track {
     fun shouldStore(lastT: Long?, lastLat: Double, lastLon: Double, t: Long, lat: Double, lon: Double): Boolean =
         lastT == null || t - lastT >= MAX_GAP_MS || meters(lastLat, lastLon, lat, lon) >= MIN_MOVE_M
 }
+
+/** Pure guards for the LAN server and the PIN / pairing brute-force limits (unit tested). */
+object Safety {
+    /** 0 while [fails] < [free]; then [baseMs], doubling per extra failure, capped at 64x. */
+    fun backoffMs(fails: Int, free: Int, baseMs: Long): Long =
+        if (fails < free) 0 else baseMs shl minOf(fails - free, 6)
+
+    /** PIN: 5 free tries, then 5 min, 10 min, … */
+    fun pinLockMs(fails: Int): Long = backoffMs(fails, 5, 5 * 60_000L)
+
+    /** Pairing: every 3rd wrong guess (code or PIN) makes a new code and blocks for 30 s, 60 s, … */
+    fun pairBlockMs(fails: Int): Long = if (fails > 0 && fails % 3 == 0) backoffMs(fails / 3, 1, 30_000L) else 0
+
+    private fun portOk(p: String) = p.isEmpty() || (p.startsWith(":") && p.length in 2..6 && p.drop(1).all { it.isDigit() })
+    private val V4 = Regex("""\d{1,3}(\.\d{1,3}){3}""")
+    private val LABEL = Regex("[a-z0-9-]{1,63}")
+
+    /**
+     * Host header check against DNS rebinding: a web page can only reach us under a name its attacker controls,
+     * i.e. a public dotted domain. Allowed: IP literals, localhost, single-label LAN / MagicDNS names, *.ts.net.
+     */
+    fun hostOk(raw: String?): Boolean {
+        val h0 = raw?.trim()?.lowercase() ?: return true    // HTTP/1.0 clients send none
+        if (h0.isEmpty()) return true
+        if (h0.startsWith("[")) return h0.substringBefore("]").drop(1).matches(Regex("[0-9a-z:.%]+")) && portOk(h0.substringAfter("]", ""))
+        if (!portOk(h0.substring(h0.indexOf(':').let { if (it < 0) h0.length else it }))) return false
+        val h = h0.substringBefore(":").trimEnd('.')
+        return h == "localhost" || h.matches(V4) || h.matches(LABEL) || (h.endsWith(".ts.net") && h.split('.').all { it.matches(LABEL) })
+    }
+}

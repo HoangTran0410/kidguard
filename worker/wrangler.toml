@@ -14,3 +14,10 @@ class_name = "Kid"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Kid"]
+
+# Per-IP rate limit on /c/* (free plan). Stops a single client looping random ids to burn the daily quota;
+# one family (phone sync every 20 s + a parent watching the live screen) stays far below it.
+[[ratelimits]]
+name = "RL"
+namespace_id = "1001"
+simple = { limit = 150, period = 10 }

@@ -255,7 +255,8 @@ class Guard : Service() {
             if (store.relayToken.isBlank() || store.relayId.isBlank()) { store.relayToken = store.addToken(); store.relayId = Store.randomHex(8) }
             relay?.kick(); "ok"
         }
-        "openPairing" -> { store.openPairing(); "ok" }
+        // no PIN yet: the code shows on the child's screen and nothing else would stop the child pairing first
+        "openPairing" -> if (store.everPaired && store.rules.pinHash.isBlank()) "set PIN first" else { store.openPairing(); "ok" }
         "unpairAll" -> { store.clearTokens(); "ok" }
         "answer" -> {
             val req = store.removeRequest(c.optString("id"))

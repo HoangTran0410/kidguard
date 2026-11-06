@@ -228,16 +228,18 @@ function pairScreen(hello) {
     <h2>${ic("link")} Ghép với máy của con</h2>
     ${hello.pairing ? `<p>${ic("hash")} Nhập mã 6 số đang hiện trên máy của con.</p>
     <div class="row"><input id="code" inputmode="numeric" maxlength="6" placeholder="123456" style="font-size:24px;width:9em;letter-spacing:.2em">
-    <input id="nm" placeholder="Tên con" value="Con" style="width:8em"><button class="pri" id="go">${ic("link")} Ghép</button></div><p class="err" id="e"></p>`
+    <input id="nm" placeholder="Tên con" value="Con" style="width:8em"><button class="pri" id="go">${ic("link")} Ghép</button></div>
+    ${hello.pin ? `<div class="row" style="margin-top:8px"><input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="PIN của bố mẹ" style="width:12em"></div>` : ""}<p class="err" id="e"></p>`
     : `<p>${ic("hourglass")} Máy của con chưa mở ghép. Trên máy con: mở app KidGuard → <b>Ghép thêm máy của bố mẹ</b> (cần PIN của bố mẹ nếu đã đặt).</p><button onclick="location.reload()">${ic("refresh-cw")} Thử lại</button>`}
     ${hello.owner ? "" : `<p class="err">${ic("triangle-alert")} Máy con chưa có quyền Device Owner: chạy setup.sh (xem README).</p>`}
   </div>`;
   const go = $("#go"); if (!go) return;
   go.onclick = async () => {
     try {
-      const r = await fetch("/api/pair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: $("#code").value }) });
+      const r = await fetch("/api/pair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: $("#code").value, pin: $("#pin") ? $("#pin").value : "" }) });
       const j = await r.json();
-      if (!r.ok) throw new Error("Sai mã, thử lại");
+      if (!r.ok) throw new Error({ "wrong code": "Sai mã, thử lại", "wrong pin": "Sai PIN", "pin locked": `Sai PIN nhiều lần, thử lại sau ${Math.ceil((j.wait || 60000) / 60000)} phút`,
+        wait: "Sai nhiều lần: máy con đã đổi mã mới, đợi một lát rồi nhập mã mới", closed: "Máy con đã đóng ghép, mở lại trên máy con" }[j.error] || "Không ghép được");
       const k = { id: j.id, token: j.token, name: $("#nm").value || "Con", via: "lan" };
       kids = kids.filter(x => !(x.id === k.id && x.via === "lan")).concat(k); save(kids); open(k);
     } catch (e) { $("#e").textContent = e.message; }
@@ -725,6 +727,7 @@ function whereTab(b) {
   }
 }
 
+let relayOpen = false;   // the "advanced: relay" box survives re-renders
 // Remote access over Tailscale (state.ts). The auth key is only typed at home (LAN): it never goes through the relay.
 function tsCard(lan) {
   const t = (st && st.ts) || { state: "off" };
@@ -751,16 +754,17 @@ function setTab(b) {
   <div class="card"><h2>${ic("key-round")} PIN của bố mẹ</h2><p class="mute">Cần PIN này để mở ghép thêm máy ngay trên máy con.</p>
     ${edit.pinSet ? "" : `<div class="alert warn">${ic("triangle-alert")} Chưa đặt PIN — nên đặt để con không tự ghép máy</div>`}
     <div class="row"><input id="f-pin" inputmode="numeric" type="password" placeholder="${edit.pinSet ? "Đã đặt PIN" : "Chưa đặt PIN"} (nhập 4–8 số để đổi)" maxlength="8" autocomplete="new-password"><button id="savePin">${ic("key-round")} ${edit.pinSet ? "Đổi PIN" : "Đặt PIN"}</button></div></div>
-  ${lan ? `<div class="card"><h2>${ic("globe")} Điều khiển khi khác mạng</h2>
-    <p class="mute">Cần một Cloudflare Worker của bạn (miễn phí, xem README). Dán địa chỉ:</p>
-    <div class="row"><input id="relay" class="sp" placeholder="https://kidguard.ten-ban.workers.dev" value="${esc(st.relay || "")}"><button id="saveRelay" class="pri">${ic("globe")} Bật</button></div>
-    <div id="relayOut"></div></div>` : `<div class="card"><h2>${ic("globe")} Kết nối</h2><p class="mute">Qua relay. Lệnh tới máy con trong khoảng 20 giây (màn hình tắt: 60 giây).</p></div>`}
   ${tsCard(lan)}
+  ${lan ? `<details class="card" id="relayBox"${st.relay || relayOpen ? " open" : ""}><summary><h2 style="display:inline">${ic("globe")} Nâng cao: relay Cloudflare Worker</h2></summary>
+    <p class="mute">Không muốn cài Tailscale trên điện thoại bố mẹ? Dùng một Cloudflare Worker của bạn (miễn phí, cần deploy, xem README). Lệnh tới máy con chậm hơn (~20 giây). Dán địa chỉ:</p>
+    <div class="row"><input id="relay" class="sp" placeholder="https://kidguard.ten-ban.workers.dev" value="${esc(st.relay || "")}"><button id="saveRelay" class="pri">${ic("globe")} Bật</button></div>
+    <div id="relayOut"></div></details>` : `<div class="card"><h2>${ic("globe")} Kết nối</h2><p class="mute">Qua relay. Lệnh tới máy con trong khoảng 20 giây (màn hình tắt: 60 giây).</p></div>`}
   <div class="card"><h2>${ic("link")} Máy đã ghép</h2>
     <div class="grid"><button id="openPair">${ic("lock-open")} Mở ghép thêm (10 phút)</button><button id="unpair" class="bad">${ic("unlink")} Huỷ ghép tất cả</button><button id="forget">${ic("eraser")} Quên máy này ở trình duyệt</button></div></div>
   <div class="card"><h2>${ic("smartphone")} Thêm vào màn hình chính</h2><p class="mute">Để mở KidGuard như một app: iPhone (Safari) bấm nút Chia sẻ → "Thêm vào MH chính"; Android (Chrome) bấm ⋮ → "Thêm vào màn hình chính".</p></div>
   <div class="card"><h2>${ic("octagon-x")} Gỡ quản lý</h2><p class="mute">Mở lại mọi app, bỏ mọi giới hạn, bỏ quyền Device Owner. Sau đó gỡ KidGuard như app thường.</p>
     <button id="release" class="bad">${ic("octagon-x")} Gỡ quyền quản lý…</button></div>`;
+  if ($("#relayBox")) $("#relayBox").ontoggle = e => { relayOpen = e.target.open; };
   $("#saveName").onclick = () => { cur.name = $("#f-name").value || "Con"; save(kids); render(); };
   $("#savePin").onclick = () => { const p = $("#f-pin").value; if (!/^\d{4,8}$/.test(p)) return toast("warn|PIN 4–8 số"); edit.pin = p; changed(); $("#f-pin").value = ""; };
   if (lan) $("#saveRelay").onclick = async () => {
@@ -782,7 +786,10 @@ function setTab(b) {
     $("#f-ts-key").value = "";
   };
   if ($("#tsOff")) $("#tsOff").onclick = async () => { if (confirm("Tắt điều khiển qua Tailscale và gỡ app Tailscale khỏi máy con?")) await cmd({ type: "tailscaleOff" }, "Đã tắt"); };
-  $("#openPair").onclick = () => cmd({ type: "openPairing" }, "Mã ghép đang hiện trên máy con");
+  $("#openPair").onclick = async () => {
+    const r = await cmd({ type: "openPairing" }, "Mã ghép đang hiện trên máy con");
+    if (r && r.result === "set PIN first") toast("warn|Đặt PIN của bố mẹ trước (ngay phía trên), rồi mới mở ghép thêm");
+  };
   $("#unpair").onclick = async () => { if (!confirm("Huỷ ghép mọi máy bố mẹ? Phải ghép lại bằng mã trên máy con (cần PIN).")) return; await cmd({ type: "unpairAll" }); };
   $("#forget").onclick = () => { screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); };
   $("#release").onclick = async () => {

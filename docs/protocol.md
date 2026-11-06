@@ -66,6 +66,13 @@ v0.1: `lock locate message{text} ring relay{url} openPairing unpairAll release`.
 `release` must also undo every v0.2 restriction (location, airplane, private DNS, accessibility allowlist).
 The worker's command whitelist must include `answer` and `reboot`.
 v0.4:
+- `openPairing` returns `set PIN first` (and does nothing) when a parent was already paired and no PIN is set.
+- LAN `GET /api/hello` adds `pin: bool`. `POST /api/pair {code, pin?}`: `pin` is required once a PIN is set (the child
+  can see the code, never the PIN). Errors `{error, wait}`: 403 `wrong code | wrong pin`, 429 `wait | pin locked`,
+  403 `closed`. Every 3rd wrong guess makes a new code and blocks pairing for 30 s, doubling (cap 32 min).
+  The PIN (child screen and /pair share one counter): 5 free tries, then locked 5 min, doubling (cap 320 min).
+- The LAN server answers 403 `bad host` unless `Host` is an IP literal, `localhost`, a single-label name or `*.ts.net`
+  (DNS rebinding).
 - `tailscale {authKey, hostname?}`: phone downloads the official Tailscale APK (SHA-256 checked), installs it silently,
   sets managed config + always-on VPN (no lockdown) + uninstall block + `DISALLOW_CONFIG_VPN`, hides the app once the
   tunnel is up. Result `ok | bad key | busy | not owner`. **LAN only**: not in the worker whitelist, so the key never

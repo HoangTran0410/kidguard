@@ -46,6 +46,10 @@ export default {
     }
     const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input)$/);
     if (!m) return json({ error: "not found" }, 404);
+    if (env.RL) {
+      const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
+      if (!success) return json({ error: "slow down" }, 429);
+    }
     // reject junk before waking a Durable Object
     if (!/^[0-9a-f]{48}$/.test(req.headers.get("x-kg-token") || "")) return json({ error: "not paired" }, 401);
     const len = +(req.headers.get("content-length") || 0);
