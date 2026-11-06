@@ -55,6 +55,14 @@
         </activity>
 
         <activity
+            android:name=".SelfSetupActivity"
+            android:exported="false" />
+
+        <receiver
+            android:name=".PairCodeReceiver"
+            android:exported="false" />
+
+        <activity
             android:name=".MessageActivity"
             android:excludeFromRecents="true"
             android:exported="false"

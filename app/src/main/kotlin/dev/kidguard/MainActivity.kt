@@ -38,6 +38,7 @@ class MainActivity : Activity() {
     private lateinit var code: TextView
     private lateinit var hint: TextView
     private lateinit var pairBtn: Button
+    private lateinit var selfBtn: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +56,8 @@ class MainActivity : Activity() {
         col.addView(Button(this).apply { text = "⏰ Xin thêm giờ"; setOnClickListener { askMore() } })
         col.addView(Button(this).apply { text = "🔋 Cài đặt pin / tự khởi động"; setOnClickListener { openBatterySettings() } })
         col.addView(pairBtn)
+        selfBtn = Button(this).apply { text = "Tự cài không cần máy tính (Android 11+)"; isAllCaps = false; setOnClickListener { startActivity(Intent(this@MainActivity, SelfSetupActivity::class.java)) } }
+        col.addView(selfBtn)
         setContentView(ScrollView(this).apply { setBackgroundColor(Color.WHITE); addView(col) })
     }
 
@@ -65,6 +68,7 @@ class MainActivity : Activity() {
         val s = Store.of(this)
         val owner = Policy.isOwner(this)
         val usage = Usage.granted(this)
+        selfBtn.visibility = if (owner) View.GONE else View.VISIBLE
         val lan = Guard.lanUrl()
         status.text = buildString {
             append(if (owner) "✅ Đang được bố mẹ quản lý\n" else "⚠️ Chưa có quyền Device Owner: chạy setup.sh trên máy tính (xem README) 💻\n")
