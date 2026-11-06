@@ -176,6 +176,11 @@ class Store private constructor(ctx: Context) {
         get() = p.getStringSet("susp", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("susp", v).commit() }   // must survive a crash: it is what release / the loop undo
 
+    /** Apps we hid with setApplicationHidden (what release / the loop undo). */
+    @get:Synchronized @set:Synchronized var hiddenByUs: Set<String>
+        get() = p.getStringSet("hid", emptySet())!!.toSet()
+        set(v) { p.edit().putStringSet("hid", v).commit() }
+
     @get:Synchronized @set:Synchronized var location: JSONObject?
         get() = p.getString("loc", null)?.let { runCatching { JSONObject(it) }.getOrNull() }
         set(v) { p.edit().putString("loc", v?.toString()).apply() }

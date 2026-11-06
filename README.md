@@ -74,6 +74,7 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự k
 | Feature | What it does |
 |---|---|
 | ⏱️ **Daily limit** | One number, or one per weekday. When time is up every app (except "Always allowed") locks until midnight. +15 / +30 / +60 min for today |
+| 🪶 **Lighter phone** ("Dọn máy") | Hide the maker's preinstalled apps the child doesn't use (they stop running and updating; untick to bring back), see the heaviest apps, clear an app's data. Hiding and clearing need Device Owner. No fake "RAM cleaner" |
 | 🙋 **Ask for more time** | A button on the child's phone (15 / 30 / 60 min + a reason); the parent taps Approve or Decline |
 | 🧹 **Chores** | The parent lists chores ("Wash the dishes +20 min"); the child picks one when asking for time. The parent approves, optionally with a note the child sees |
 | ⚠️ **Heads-up before locking** | The child gets a notification 5 min and 1 min before the limit, bedtime or a schedule locks the phone |
@@ -155,6 +156,11 @@ An app like this cannot exist on iOS: Apple does not let third-party apps see th
 |---|---|
 | How the parts talk to each other | [docs/protocol.md](docs/protocol.md) |
 | A bug or an idea | [Issues](https://github.com/HoangTran0410/kidguard/issues) |
+
+**"App blocked to protect your device" (Google Play Protect)?** Play Protect blocks apps installed from a browser
+or file manager when they use accessibility (basic mode needs it). On the child's phone: Play Store → your avatar →
+**Play Protect** → ⚙ → turn off *Scan apps with Play Protect*, install and set up KidGuard, then turn it back on. QR
+setup is not affected (the phone downloads the app itself).
 
 **Known limits**
 

@@ -13,6 +13,8 @@ import android.os.UserManager
 import android.provider.Settings
 import android.telecom.TelecomManager
 import android.util.Log
+import org.json.JSONArray
+import org.json.JSONObject
 
 class Admin : DeviceAdminReceiver() {
     override fun onEnabled(context: Context, intent: Intent) { Store.of(context).released = false; Guard.start(context) }
@@ -232,6 +234,104 @@ object Policy {
         return now
     }
 
+    /** Never hidden / cleared here: Debloat's static set plus [protectedApps] (launcher, keyboards, dialer, self…). */
+    fun neverHide(ctx: Context, prot: Set<String> = protectedApps(ctx)): Set<String> = prot + ctx.packageName
+
+    /**
+     * Hides exactly [want] among the apps we hid (setApplicationHidden). Owner only; never touches the never-hide set.
+     * Returns what is hidden by us now ([had] changed by what worked).
+     */
+    fun hideExactly(ctx: Context, want: Set<String>, had: Set<String>, never: Set<String> = neverHide(ctx)): Set<String> {
+        if (!isOwner(ctx)) return had
+        val d = dpm(ctx); val a = admin(ctx)
+        val df = Debloat.diff(want, had, never)
+        var now = had
+        for (p in df.show) if (runCatching { d.setApplicationHidden(a, p, false) }.getOrElse { Log.w(TAG, "unhide $p", it); false } || !installed(ctx, p)) now = now - p
+        for (p in df.hide) if (runCatching { d.setApplicationHidden(a, p, true) }.getOrElse { Log.w(TAG, "hide $p", it); false }) now = now + p
+        return now
+    }
+
+    /** True when [pkg] is present, hidden apps included. */
+    fun installed(ctx: Context, pkg: String): Boolean = runCatching {
+        @Suppress("DEPRECATION") ctx.packageManager.getApplicationInfo(pkg, PackageManager.MATCH_UNINSTALLED_PACKAGES); true
+    }.getOrDefault(false)
+
+    private fun isHidden(ctx: Context, pkg: String): Boolean = runCatching { dpm(ctx).isApplicationHidden(admin(ctx), pkg) }.getOrDefault(false)
+
+    /** Un-hides everything we hid plus anything still hidden that the rules list. Part of release. */
+    private fun unhideAll(ctx: Context, s: Store, d: DevicePolicyManager, a: ComponentName) {
+        val rulesHidden = s.rules.hidden
+        val now = rulesHidden.filter { isHidden(ctx, it) }.toSet()
+        for (p in Debloat.toUnhideOnRelease(s.hiddenByUs, rulesHidden, now)) runCatching { d.setApplicationHidden(a, p, false) }.onFailure { Log.w(TAG, "unhide $p", it) }
+    }
+
+    /**
+     * Clears an app's data (DevicePolicyManager.clearApplicationUserData, Android 9+). "ok" | "not owner" | "unsupported" | "protected" | "failed".
+     * Blocks up to 5 s for the system's answer, so call it off the main thread.
+     */
+    fun clearData(ctx: Context, pkg: String): String {
+        if (!isOwner(ctx)) return "not owner"
+        if (Build.VERSION.SDK_INT < 28) return "unsupported"
+        if (!Debloat.validPkg(pkg) || !Debloat.canClear(pkg, ctx.packageName, neverHide(ctx))) return "protected"
+        val latch = java.util.concurrent.CountDownLatch(1)
+        var ok = false
+        val started = runCatching {
+            dpm(ctx).clearApplicationUserData(admin(ctx), pkg, { it.run() }) { _, success -> ok = success; latch.countDown() }
+        }.onFailure { Log.w(TAG, "clearData $pkg", it) }.isSuccess
+        if (!started) return "failed"
+        return if (latch.await(5, java.util.concurrent.TimeUnit.SECONDS) && ok) "ok" else "failed"
+    }
+
+    /** Label of any installed package, hidden ones included; the package name when unknown. */
+    fun labelOf(ctx: Context, pkg: String): String = runCatching {
+        val pm = ctx.packageManager
+        @Suppress("DEPRECATION") pm.getApplicationInfo(pkg, PackageManager.MATCH_UNINSTALLED_PACKAGES).loadLabel(pm).toString()
+    }.getOrDefault(pkg)
+
+    /**
+     * Rows for state.preinstalled: system apps with a launcher icon, curated suggestions that are installed, and anything hidden.
+     * Never lists the never-hide set. Sorted suggest first, then label.
+     */
+    fun preinstalled(ctx: Context, s: Store, never: Set<String>, mb: (String) -> Int?): JSONArray {
+        if (!isOwner(ctx)) return JSONArray()
+        val pm = ctx.packageManager
+        val flags = PackageManager.MATCH_UNINSTALLED_PACKAGES or PackageManager.MATCH_DISABLED_COMPONENTS
+        @Suppress("DEPRECATION")
+        val withIcon = runCatching {
+            pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), flags).map { it.activityInfo.packageName }.toSet()
+        }.getOrDefault(emptySet())
+        val ours = s.hiddenByUs + s.rules.hidden
+        data class C(val ai: ApplicationInfo, val hidden: Boolean, val row: Debloat.Row)
+        val out = mutableListOf<C>()
+        @Suppress("DEPRECATION")
+        for (ai in pm.getInstalledApplications(PackageManager.MATCH_UNINSTALLED_PACKAGES)) {
+            val p = ai.packageName
+            if (!Debloat.canHide(p, never)) continue
+            val sys = ai.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+            val sug = Debloat.suggested(sys, p)
+            if (!Debloat.listed(sys, p in withIcon, p, p in ours)) continue
+            val hidden = isHidden(ctx, p)
+            val label = runCatching { ai.loadLabel(pm).toString() }.getOrDefault(p).take(40)
+            out += C(ai, hidden, Debloat.Row(p, label, sug))
+        }
+        val order = Debloat.sortRows(out.map { it.row }).map { it.pkg }
+        val by = out.associateBy { it.row.pkg }
+        return JSONArray().also { arr ->
+            order.forEach { p ->
+                val c = by.getValue(p)
+                arr.put(JSONObject().put("pkg", p).put("label", c.row.label).put("hidden", c.hidden).put("suggest", c.row.suggest)
+                    .put("mb", mb(p) ?: JSONObject.NULL))
+            }
+        }
+    }
+
+    /** app + data + cache in MB, or null (no usage access, hidden app, old Android…). */
+    fun sizeMb(ctx: Context, pkg: String): Int? = runCatching {
+        val ss = ctx.getSystemService(android.app.usage.StorageStatsManager::class.java)
+        val st = ss.queryStatsForPackage(android.os.storage.StorageManager.UUID_DEFAULT, pkg, android.os.Process.myUserHandle())
+        ((st.appBytes + st.dataBytes + st.cacheBytes) / 1_048_576L).toInt()
+    }.getOrNull()
+
     fun lockNow(ctx: Context) = runCatching { dpm(ctx).lockNow() }.isSuccess
 
     /**
@@ -246,6 +346,7 @@ object Policy {
         val all = (launchable(ctx).keys + s.suspendedByUs).toTypedArray()
         runCatching { d.setPackagesSuspended(a, all, false) }.onFailure { Log.w(TAG, "unsuspend all", it) }
         s.suspendedByUs.forEach { runCatching { d.setPackagesSuspended(a, arrayOf(it), false) } }
+        runCatching { unhideAll(ctx, s, d, a) }.onFailure { Log.w(TAG, "unhide all", it) }
         (BASE + INSTALL + UserManager.DISALLOW_DEBUGGING_FEATURES + UserManager.DISALLOW_APPS_CONTROL).forEach { runCatching { d.clearUserRestriction(a, it) } }
         runCatching { d.setUninstallBlocked(a, ctx.packageName, false) }
         applyNet(ctx, d, a, Rules(lockLocation = false, noAirplane = false, safeDns = ""))
@@ -261,7 +362,7 @@ object Policy {
         s.released = true
         Watchdog.cancel(ctx)
         @Suppress("DEPRECATION") runCatching { d.clearDeviceOwnerApp(ctx.packageName) }
-        s.suspendedByUs = emptySet()
+        s.suspendedByUs = emptySet(); s.hiddenByUs = emptySet()
         if (!isOwner(ctx)) { s.clearTokens(); return "ok" }
         // still Device Owner: put the protection back (the loop re-suspends apps) and keep the parents' tokens
         s.released = false

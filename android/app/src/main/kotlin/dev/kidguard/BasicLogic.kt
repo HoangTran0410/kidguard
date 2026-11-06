@@ -46,8 +46,9 @@ object BasicLogic {
         pkg in SETTINGS_EXACT || SETTINGS_PREFIX.any { pkg.startsWith(it) } ||
             (pkg.startsWith("com.samsung.android.") && pkg.contains("settings"))
 
-    /** One text node of the window; [clickable] = the node or a close ancestor is a button / switch. */
-    class Node(val text: String, val clickable: Boolean = false)
+    /** One text node of the window; [clickable] = the node or a close ancestor is a button / switch.
+     * [checkable] = the node itself is a switch / checkbox: its "TẮT"/"OFF" text (Android 8 switches) is a state, not a button. */
+    class Node(val text: String, val clickable: Boolean = false, val checkable: Boolean = false)
 
     /** Buttons whose text starts like this: uninstall, deactivate admin, force stop, turn off the accessibility service. */
     private val STRONG_PREFIX = listOf(
@@ -74,7 +75,7 @@ object BasicLogic {
             val t = norm(n.text)
             if (t.isEmpty()) continue
             if (ls.any { t.contains(it) }) mentions = true
-            if (STRONG_PREFIX.any { t.startsWith(it) } || t.contains(ACC_DESC) || (n.clickable && t in WEAK_CLICK)) control = true
+            if (STRONG_PREFIX.any { t.startsWith(it) } || t.contains(ACC_DESC) || (n.clickable && !n.checkable && t in WEAK_CLICK)) control = true
             if (mentions && control) return true
         }
         return false

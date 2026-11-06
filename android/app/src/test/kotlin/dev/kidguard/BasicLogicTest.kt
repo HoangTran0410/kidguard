@@ -61,6 +61,14 @@ class BasicLogicTest {
         assertTrue(BasicLogic.selfProtect("com.android.settings", listOf(Node("KidGuard"), Node("Tắt", clickable = true))))
     }
 
+    @Test fun oemAutostartSwitchListPasses() {
+        // ColorOS "Startup manager" on Android 8: each row is a label + a switch whose text is "TẮT"/"BẬT"
+        val rows = listOf(Node("Quản lý tự khởi động"), Node("KidGuard"), Node("TẮT", clickable = true, checkable = true), Node("Zalo"), Node("BẬT", clickable = true, checkable = true))
+        assertFalse(BasicLogic.selfProtect("com.coloros.safecenter", rows))
+        // a real "Tắt" button next to KidGuard still bounces
+        assertTrue(BasicLogic.selfProtect("com.coloros.safecenter", listOf(Node("KidGuard"), Node("Tắt", clickable = true))))
+    }
+
     @Test fun settingsAppListWithoutControlPasses() {
         assertFalse(BasicLogic.selfProtect("com.android.settings", n("Ứng dụng", "Chrome", "KidGuard", "Maps", "Zalo")))
         assertFalse(BasicLogic.selfProtect("com.android.settings", n("Trợ năng", "KidGuard", "Tắt")))                 // status text, not a button

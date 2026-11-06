@@ -120,6 +120,13 @@ ck("push needs the kid token",(await fetch(`${B}/c/${id3}/push`,{method:"POST",h
 const S5=async b=>{for(let i=0;;i++){const r=await fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:{"x-kg-token":T5,"content-type":"application/json"},body:b});if(r.status!=429||i>=8)return r;await new Promise(z=>setTimeout(z,1500));}};
 ck("first sync without state does not bind (400)",(await S5("{}")).status==400&&(await S5("nope")).status==400);
 ck("first sync with state binds",(await S5(JSON.stringify({state:{t:1}}))).status==200);}
+// ---- v0.8 clearData: validated, deliver-once ----
+{const idc=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),PC=(p,o)=>fetch(`${B}/c/${idc}/${p}`,{method:"POST",headers:H(),body:JSON.stringify(o)});
+await PC("sync",{state:{t:1}});
+ck("clearData bad pkg 400",(await PC("cmd",{type:"clearData",pkg:"a b;rm"})).status==400&&(await PC("cmd",{type:"clearData"})).status==400&&(await PC("cmd",{type:"clearData",pkg:"a".repeat(201)})).status==400);
+ck("clearData queued",(await (await PC("cmd",{type:"clearData",pkg:"com.heytap.market",id:"cd1"})).json()).result=="queued");
+const c1=await (await PC("sync",{})).json();ck("clearData delivered with pkg",c1.cmds.some(c=>c.type=="clearData"&&c.pkg=="com.heytap.market"));
+const c2=await (await PC("sync",{})).json();ck("clearData NOT delivered twice",!c2.cmds.some(c=>c.type=="clearData"));}
 // ---- tester additions: deliver-once, pinHash never leaves, oversized cmd ----
 {const id4=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),P4=(p,o,m="POST")=>fetch(`${B}/c/${id4}/${p}`,{method:m,headers:H(),body:o===undefined?undefined:JSON.stringify(o)});
 const G4=async p=>await (await fetch(`${B}/c/${id4}/${p}`,{headers:H()})).text();

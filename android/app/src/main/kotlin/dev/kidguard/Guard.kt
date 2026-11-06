@@ -168,6 +168,7 @@ class Guard : Service() {
             (had - nowSusp).takeIf { it.isNotEmpty() }?.let { store.log("Mở lại: " + it.joinToString { p -> apps[p] ?: p }) }
             store.suspendedByUs = nowSusp
         }
+        applyHidden(r, prot, now)
         // basic mode: no suspend, so the guard bounces instead (window events do the same instantly, see Acc)
         val basic = Basic.enforcing(this)
         Acc.blocked = if (basic) want else emptyMap(); Acc.prot = prot
@@ -177,6 +178,45 @@ class Guard : Service() {
         if (now - lastLocateAt > 15 * 60_000) { lastLocateAt = now; locate() }
         if (now - store.historyAt > 3_600_000) store.saveHistory(history(now, apps.keys, prot, apps), now)
         lastState = state(r, apps, prot, use, want, nowSusp, today, now, newApps)
+    }
+
+    private var hideKey = ""; private var hideAt = 0L
+    private var preCache: JSONArray = JSONArray(); private var preAt = 0L
+    private var mbCache = HashMap<String, Int>(); private var mbAt = 0L   // -1 = unknown
+
+    /** Owner only: hide / un-hide per rules.hidden when the rules or the never-hide set changed (or every 10 min, an app may have been installed). */
+    private fun applyHidden(r: Rules, prot: Set<String>, now: Long) {
+        if (!Policy.isOwner(this)) return
+        val had = store.hiddenByUs
+        val never = Policy.neverHide(this, prot)
+        val key = r.hidden.sorted().joinToString(",") + "|" + had.sorted().joinToString(",") + "|" + never.hashCode()
+        if (key == hideKey && now - hideAt < 10 * 60_000L) return
+        hideKey = key; hideAt = now
+        if (r.hidden.isEmpty() && had.isEmpty()) return
+        val nowHid = Policy.hideExactly(this, r.hidden, had, never)
+        if (nowHid != had) {
+            (nowHid - had).takeIf { it.isNotEmpty() }?.let { store.log("Ẩn app: " + it.joinToString { p -> Policy.labelOf(this, p) }) }
+            (had - nowHid).takeIf { it.isNotEmpty() }?.let { store.log("Hiện lại app: " + it.joinToString { p -> Policy.labelOf(this, p) }) }
+            store.hiddenByUs = nowHid
+            hideKey = ""   // re-evaluate next tick with the new set (cheap), and pick up Policy.cached app list changes
+            Policy.invalidate(); preAt = 0
+        }
+    }
+
+    /** MB per package, refreshed hourly; null when unknown. */
+    private fun sizeMb(pkg: String, now: Long): Int? {
+        if (now - mbAt > 3_600_000L) { mbCache = HashMap(); mbAt = now }
+        if (!Usage.granted(this)) return null   // not cached: sizes show as soon as usage access is granted
+        return mbCache.getOrPut(pkg) { Policy.sizeMb(this, pkg) ?: -1 }.takeIf { it >= 0 }
+    }
+
+    private fun preinstalled(prot: Set<String>, now: Long): JSONArray {
+        if (now - preAt > 10 * 60_000L) {
+            preAt = now
+            preCache = runCatching { Policy.preinstalled(this, store, Policy.neverHide(this, prot)) { sizeMb(it, now) } }
+                .onFailure { Log.w("KidGuard", "preinstalled", it) }.getOrDefault(preCache)
+        }
+        return preCache
     }
 
     /** Battery <= 15 % unplugged: one event, armed again at >= 30 %. */
@@ -199,7 +239,7 @@ class Guard : Service() {
                       susp: Set<String>, today: String, now: Long, newApps: Set<String>): JSONObject {
         val list = JSONArray()
         apps.entries.sortedByDescending { use.ms[it.key] ?: 0 }.forEach { (p, label) ->
-            list.put(JSONObject().put("pkg", p).put("label", label).put("ms", use.ms[p] ?: 0)
+            list.put(JSONObject().put("pkg", p).put("label", label.take(40)).put("ms", use.ms[p] ?: 0).put("mb", sizeMb(p, now) ?: JSONObject.NULL)
                 .put("blocked", want[p] ?: JSONObject.NULL).put("suspended", p in susp).put("protected", p in prot).put("new", p in newApps))
         }
         val bm = getSystemService(BatteryManager::class.java)
@@ -230,12 +270,11 @@ class Guard : Service() {
             .put("sos", store.sos())
             .put("listen", Listen.state())
             .put("events", store.events())
-            .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)) }
+            .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)) else it.put("preinstalled", preinstalled(prot, now)) }
     }
 
     private fun locationOn(): Boolean {
-        val lm = getSystemService(LocationManager::class.java) ?: return false
-        return runCatching { if (Build.VERSION.SDK_INT >= 28) lm.isLocationEnabled else true }.getOrDefault(false)
+        return Basic.locationOn(this)
     }
 
     /** Last 7 days before today, newest first: total of the countable apps and the top 5. */
@@ -319,6 +358,12 @@ class Guard : Service() {
         "reboot" -> if (Policy.isOwner(this)) runCatching { Policy.dpm(this).reboot(Policy.admin(this)); "ok" }.getOrElse { "failed" } else "not owner"
         "tailscale" -> Ts.enable(this, store, c.optString("authKey"), c.optString("hostname"))
         "tailscaleOff" -> Ts.disable(this, store)
+        "clearData" -> {
+            val pkg = c.optString("pkg")
+            val res = Policy.clearData(this, pkg)
+            if (res == "ok") store.log("Bố mẹ xoá dữ liệu: " + Policy.labelOf(this, pkg))
+            res
+        }
         "release" -> release()
         else -> "unknown"
     }

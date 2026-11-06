@@ -68,6 +68,8 @@ class Acc : AccessibilityService() {
 
     private fun scan() {
         if (!basicOn()) return
+        // nothing to protect before a parent pairs, and setup itself happens on these Settings pages (accessibility detail, autostart…)
+        if (!Store.of(this).everPaired) return
         val root = runCatching { rootInActiveWindow }.getOrNull() ?: return
         val pkg = root.packageName?.toString() ?: return
         if (pkg != scanPkg || !BasicLogic.isSettingsPkg(pkg)) return
@@ -92,8 +94,8 @@ class Acc : AccessibilityService() {
         while (q.isNotEmpty() && seen < budget) {
             val (n, parentClickable) = q.removeFirst(); seen++
             val click = n.isClickable || parentClickable
-            n.text?.toString()?.takeIf { it.isNotBlank() }?.let { out += BasicLogic.Node(it, click) }
-            n.contentDescription?.toString()?.takeIf { it.isNotBlank() }?.let { out += BasicLogic.Node(it, click) }
+            n.text?.toString()?.takeIf { it.isNotBlank() }?.let { out += BasicLogic.Node(it, click, n.isCheckable) }
+            n.contentDescription?.toString()?.takeIf { it.isNotBlank() }?.let { out += BasicLogic.Node(it, click, n.isCheckable) }
             for (i in 0 until n.childCount) n.getChild(i)?.let { q.add(it to click) }
         }
         return out

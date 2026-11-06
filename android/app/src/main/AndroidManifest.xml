@@ -48,7 +48,7 @@
 
     <application
         android:allowBackup="false"
-        android:icon="@android:drawable/ic_lock_lock"
+        android:icon="@mipmap/ic_launcher"
         android:label="KidGuard"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
@@ -57,6 +57,7 @@
         <activity
             android:name=".MainActivity"
             android:theme="@style/AppMain"
+            android:excludeFromRecents="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

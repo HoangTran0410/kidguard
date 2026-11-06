@@ -79,11 +79,13 @@ class MainActivity : Activity() {
         pairCard.addView(hint)
         col.addView(pairCard)
         // actions: one primary, rest secondary
-        col.addView(u.button("SOS: báo bố mẹ ngay", R.drawable.li_siren, true) { askSos() }.apply {
+        sosBtn = u.button("SOS: báo bố mẹ ngay", R.drawable.li_siren, true) { askSos() }.apply {
             background = android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(Color.argb(60, 255, 255, 255)), u.shape(Color.parseColor("#dc2626"), 16), null)
-            (layoutParams as LinearLayout.LayoutParams).topMargin = dp(18)
-        })
-        col.addView(u.button("Xin thêm giờ", R.drawable.li_timer, true) { askMore() })
+        }
+        col.addView(sosBtn)
+        (sosBtn.layoutParams as LinearLayout.LayoutParams).topMargin = dp(18)
+        moreBtn = u.button("Xin thêm giờ", R.drawable.li_timer, true) { askMore() }
+        col.addView(moreBtn)
         pairBtn = u.button("Ghép thêm máy của bố mẹ", R.drawable.li_link, false) { askPin() }
         col.addView(pairBtn)
         col.addView(u.button("Luật của con", R.drawable.li_shield, false) { showMyRules() })
@@ -123,6 +125,8 @@ class MainActivity : Activity() {
     }
 
     private lateinit var qr: ImageView
+    private lateinit var sosBtn: View
+    private lateinit var moreBtn: View
     private var qrFor: String? = null
 
     /** Black-on-white QR (white even in dark mode, so phone cameras read it), with the standard quiet zone. */
@@ -140,6 +144,8 @@ class MainActivity : Activity() {
         val s = Store.of(this)
         val owner = Policy.isOwner(this)
         val usage = Usage.granted(this)
+        // SOS / more time only reach someone once a parent has paired
+        (if (s.everPaired) View.VISIBLE else View.GONE).let { sosBtn.visibility = it; moreBtn.visibility = it }
         selfBtn.visibility = if (owner || android.os.Build.VERSION.SDK_INT < 30) View.GONE else View.VISIBLE
         if (owner) basicList.box.visibility = View.GONE else basicList.update()
         val lan = Guard.lanUrl()
@@ -154,7 +160,7 @@ class MainActivity : Activity() {
         if (!usage) line(warn, Ic.WARN, "Chưa có quyền xem thời gian dùng app")
         if (Guard.running != null) line(ok, Ic.OK, "Đang chạy") else line(R.drawable.li_loader, Ic.INFO, "Đang khởi động…")
         if (Acc.isOn(this@MainActivity)) line(R.drawable.li_accessibility, Ic.OK, "Trợ năng: bật") else line(R.drawable.li_accessibility, Ic.WARN, "Trợ năng: tắt")
-        val locOn = runCatching { getSystemService(LocationManager::class.java).isLocationEnabled }.getOrDefault(false)
+        val locOn = Basic.locationOn(this)
         line(R.drawable.li_map_pin, if (locOn) Ic.OK else Ic.WARN, if (locOn) "Vị trí: bật" else "Vị trí: tắt")
         val pending = s.requests().length()
         if (pending > 0) line(R.drawable.li_message_circle, Ic.INFO, "Đang chờ bố mẹ trả lời: $pending yêu cầu")
@@ -319,8 +325,10 @@ class MainActivity : Activity() {
             "com.huawei.systemmanager" to "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
             "com.samsung.android.lool" to "com.samsung.android.sm.battery.ui.BatteryActivity",
         )
-        for ((pkg, cls) in known) if (runCatching { startActivity(Intent().setComponent(ComponentName(pkg, cls))); true }.getOrDefault(false)) return
-        runCatching { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
+        for ((pkg, cls) in known) if (runCatching { startActivity(Intent().setComponent(ComponentName(pkg, cls)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return
+        // App info has "Force stop": basic mode bounces it (self-protection), so it opens the battery list there
+        if (!Policy.isOwner(this) && runCatching { startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return
+        runCatching { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()

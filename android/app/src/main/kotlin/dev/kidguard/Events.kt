@@ -67,6 +67,10 @@ object Events {
         if (o.schedules != n.schedules) p += if (o.schedules.size != n.schedules.size) "lịch nghỉ ${o.schedules.size} → ${n.schedules.size}" else "sửa lịch nghỉ"
         if (o.blocked != n.blocked) p += "chặn ${o.blocked.size} → ${n.blocked.size} app"
         if (o.allow != n.allow) p += "luôn cho dùng ${o.allow.size} → ${n.allow.size} app"
+        if (o.hidden != n.hidden) {
+            (n.hidden - o.hidden).sorted().take(3).forEach { p += "Ẩn app: $it" }
+            (o.hidden - n.hidden).sorted().take(3).forEach { p += "Hiện lại app: $it" }
+        }
         if (o.pausedUntil != n.pausedUntil) p += if (n.pausedUntil > 0) "tạm dừng máy" else "bỏ tạm dừng"
         if (o.bonusDay != n.bonusDay || o.bonusMin != n.bonusMin) p += if (n.bonusMin > 0) "thưởng +${n.bonusMin} phút" else "bỏ thưởng giờ"
         if (o.chores != n.chores) p += if (o.chores.size != n.chores.size) "việc nhà ${o.chores.size} → ${n.chores.size}" else "sửa việc nhà"

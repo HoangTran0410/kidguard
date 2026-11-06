@@ -31,6 +31,11 @@ object Basic {
     private fun granted(ctx: Context, p: String) = ctx.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
     fun locationOk(ctx: Context) = granted(ctx, Manifest.permission.ACCESS_FINE_LOCATION) &&
         (Build.VERSION.SDK_INT < 29 || granted(ctx, Manifest.permission.ACCESS_BACKGROUND_LOCATION))
+    /** Device location switch. LocationManager.isLocationEnabled is API 28+; older phones use the secure setting. */
+    fun locationOn(ctx: Context): Boolean = runCatching {
+        if (Build.VERSION.SDK_INT >= 28) ctx.getSystemService(android.location.LocationManager::class.java).isLocationEnabled
+        else Settings.Secure.getInt(ctx.contentResolver, Settings.Secure.LOCATION_MODE, Settings.Secure.LOCATION_MODE_OFF) != Settings.Secure.LOCATION_MODE_OFF
+    }.getOrDefault(false)
     fun notifyOk(ctx: Context) = Build.VERSION.SDK_INT < 33 || granted(ctx, Manifest.permission.POST_NOTIFICATIONS)
     fun batteryOk(ctx: Context) = runCatching { ctx.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(ctx.packageName) }.getOrDefault(false)
 
@@ -49,7 +54,7 @@ class BasicChecklist(private val act: Activity, private val ui: Ui, private val 
     private val items = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
     init { box.addView(items) }
 
-    private fun open(vararg i: Intent) { for (x in i) if (runCatching { act.startActivity(x); true }.getOrDefault(false)) return }
+    private fun open(vararg i: Intent) { for (x in i) if (runCatching { act.startActivity(x.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return }
 
     /** True when something is still missing (the card stays visible). */
     fun update(): Boolean {
@@ -69,7 +74,7 @@ class BasicChecklist(private val act: Activity, private val ui: Ui, private val 
         }
         if (!Acc.isOn(c)) { missing = true
             add("2. Bật Trợ năng cho KidGuard", "Vào Trợ năng, chọn KidGuard, bật. Dùng để chặn app bị khoá và giữ KidGuard không bị tắt.") {
-                c.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                c.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
         }
         if (!Usage.granted(c)) { missing = true
@@ -101,6 +106,7 @@ class BasicChecklist(private val act: Activity, private val ui: Ui, private val 
             }
             items.addView(ui.button("Cho phép tự khởi động (Oppo, Xiaomi, Vivo…)", null, false) { runCatching { autostart() } })
         }
+        if (missing) items.addView(ui.label("Bị Google Play Protect chặn (\"App blocked to protect your device\")? Mở CH Play → ảnh đại diện → Play Protect → ⚙ → tắt \"Quét ứng dụng bằng Play Protect\", làm xong các bước ở đây rồi bật lại.", 13f).apply { setPadding(ui.dp(4), ui.dp(12), ui.dp(4), 0) })
         box.visibility = if (missing) View.VISIBLE else View.GONE
         return missing
     }

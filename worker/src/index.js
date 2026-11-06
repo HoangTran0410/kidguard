@@ -17,8 +17,8 @@ const limitFor = (action) => action === "frame" ? MAX_FRAME : MAX_BODY;
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
-const ONCE = ["reboot", "release", "unpairAll"];   // deliver-once: dropped from the queue when handed to the phone
-const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "release", "answer", "reboot", "tailscaleOff", "sosAck"];
+const ONCE = ["reboot", "release", "unpairAll", "clearData"];   // deliver-once: dropped from the queue when handed to the phone
+const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
 // inline scripts/styles are needed (single-file pages); the installer imports ESM from jsDelivr and downloads the APK
 const CSP = [
@@ -227,6 +227,7 @@ export class Kid {
     if (action === "cmd" && req.method === "POST") {
       const type = String(body.type || "");
       if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
+      if (type === "clearData" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
       const cmds = (await this.s.get("cmds")) || [];
       // full queue: refuse instead of silently dropping the oldest (it may be a pending release)
       if (cmds.length >= MAX_CMDS) return json({ error: "queue full" }, 429);

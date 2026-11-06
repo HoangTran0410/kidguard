@@ -92,6 +92,7 @@ data class Rules(
     val showWatching: Boolean = true,        // child sees "parent is watching / controlling" while the screen is viewed
     val chores: List<Chore> = emptyList(),   // max 20
     val zones: List<Zone> = emptyList(),     // max 10
+    val hidden: Set<String> = emptySet(),    // preinstalled apps the parent hid (owner only), max Debloat.MAX_HIDDEN
 ) {
     /** [persist] = true also writes pinHash/pinSalt (only for this phone's own storage). The default is safe to send to a parent: it has `pinSet` only. */
     fun toJson(persist: Boolean = false): JSONObject = JSONObject()
@@ -111,6 +112,7 @@ data class Rules(
         .put("showWatching", showWatching)
         .put("chores", JSONArray().apply { chores.forEach { put(it.toJson()) } })
         .put("zones", JSONArray().apply { zones.forEach { put(it.toJson()) } })
+        .put("hidden", JSONArray(hidden.sorted()))
         .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
 
     /** True when [pin] matches the stored hash (legacy or salted). False when no PIN is set. */
@@ -165,6 +167,7 @@ data class Rules(
                 zones = o.optJSONArray("zones")?.let { a ->
                     (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(Zone::fromJson) }.distinctBy { it.id }.take(Zone.MAX)
                 } ?: emptyList(),
+                hidden = o.optJSONArray("hidden").strings().filter { Debloat.validPkg(it) }.sorted().take(Debloat.MAX_HIDDEN).toSet(),
                 blockNew = o.optBoolean("blockNew", false),
                 approved = o.optJSONArray("approved").strings(),
                 lockLocation = o.optBoolean("lockLocation", true),

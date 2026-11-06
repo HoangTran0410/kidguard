@@ -42,7 +42,7 @@ input[type=checkbox]{width:20px;height:20px;min-height:0}
 .app:first-child{border-top:0}
 .ic{width:36px;height:36px;border-radius:9px;background:var(--chip);flex:none;display:grid;place-items:center;font-weight:700;overflow:hidden}
 .ic img{width:100%;height:100%}
-.app .nm{flex:1 1 110px;min-width:0}.app>button,.app>select{flex:none;margin-left:auto}.app .tag{white-space:nowrap}
+.app .nm{flex:1 1 50px;min-width:0}.app>button,.app>select{flex:none;margin-left:auto}.app>select{max-width:54%;padding-left:8px;padding-right:2px}.app .tag{white-space:nowrap}
 .app .nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
 .tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:999px;background:var(--chip);margin-left:4px}
 .tag.bad{background:var(--bad-bg);color:var(--bad-fg)}.tag.ok{background:var(--ok-bg);color:var(--ok-fg)}.tag.warn{background:var(--warn-bg);color:var(--warn-fg)}
@@ -173,6 +173,7 @@ button{min-height:44px}
 <symbol id="i-star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></symbol>
 <symbol id="i-thumbs-up" viewBox="0 0 24 24"><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" /><path d="M7 10v12" /></symbol>
 <symbol id="i-timer" viewBox="0 0 24 24"><line x1="10" x2="14" y1="2" y2="2" /><line x1="12" x2="15" y1="14" y2="11" /><circle cx="12" cy="14" r="8" /></symbol>
+<symbol id="i-hard-drive" viewBox="0 0 24 24"><line x1="22" x2="2" y1="12" y2="12" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /><line x1="6" x2="6.01" y1="16" y2="16" /><line x1="10" x2="10.01" y1="16" y2="16" /></symbol>
 <symbol id="i-trash-2" viewBox="0 0 24 24"><path d="M10 11v6" /><path d="M14 11v6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
 <symbol id="i-circle-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></symbol><symbol id="i-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></symbol>
 <symbol id="i-undo-2" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></symbol>
@@ -229,6 +230,7 @@ const hhmm = t => new Date(t).toLocaleTimeString("vi", { hour: "2-digit", minute
 const DNS = [["", "Tắt"], ["family.adguard-dns.com", "AdGuard Family"], ["family.cloudflare-dns.com", "Cloudflare Family"], ["family-filter-dns.cleanbrowsing.org", "CleanBrowsing Family"]];
 // rules from older phones may lack v0.2 fields
 function norm(e) {
+  e.hidden = Array.isArray(e.hidden) ? e.hidden : [];   // v0.8 preinstalled apps hidden by the parent
   e.dailyByDay = Array.isArray(e.dailyByDay) && e.dailyByDay.length === 7 ? e.dailyByDay : [];
   e.schedules = e.schedules || []; e.approved = e.approved || []; e.safeDns = e.safeDns || "";
   e.trackMin = e.trackMin === undefined ? 10 : +e.trackMin; e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.showWatching = e.showWatching !== false; e.blockNew = !!e.blockNew;
@@ -901,7 +903,7 @@ function appsTab(b) {
     <div class="chips" id="flt">${FILT.map(([v, n]) => `<button data-f="${v}" class="${sel.f === v ? "on" : ""}">${n}</button>`).join("")}</div>
     ${sel.on ? `<div class="row" style="margin-top:8px"><button id="selAll">${ic("square-check")} Chọn tất cả</button><button id="selNone">${ic("square")} Bỏ chọn</button></div>` : ""}
     <div id="list"></div><p class="mute">${ic("lightbulb")} "Luôn cho phép": không bị khoá bởi giới hạn ngày, giờ ngủ, tạm dừng, và không tính vào giờ dùng. Điện thoại, Cài đặt và màn hình chính luôn được giữ (app hệ thống được bảo vệ không nằm trong danh sách và bị bỏ qua khi chọn hàng loạt).</p></div>
-    ${sel.on ? `<div class="bulk" id="bulk"></div>` : ""}`;
+    ${sel.on ? `<div class="bulk" id="bulk"></div>` : ""}${cleanHtml()}`;
   const drawBar = () => {
     const bar = $("#bulk"); if (!bar) return;
     const n = sel.set.size, dis = n ? "" : "disabled";
@@ -960,7 +962,44 @@ function appsTab(b) {
   b.querySelectorAll("#flt [data-f]").forEach(x => x.onclick = () => { sel.f = x.dataset.f; appsTab(b); });
   if ($("#selAll")) $("#selAll").onclick = () => { visible().forEach(x => sel.set.add(x.pkg)); draw(); };
   if ($("#selNone")) $("#selNone").onclick = () => { sel.set.clear(); draw(); };
-  draw();
+  draw(); cleanWire(b);
+}
+
+// v0.8 "Dọn máy": hide preinstalled bloat (owner), clear an app's data (owner, Android 9+), heaviest apps (both modes)
+let cleanAll = false;
+const mbTxt = m => m >= 1024 ? (m / 1024).toFixed(1).replace(".", ",") + " GB" : m + " MB";
+function cleanHtml() {
+  const heavy = (st.apps || []).filter(x => x.mb > 0).sort((a, b) => b.mb - a.mb).slice(0, 8);
+  const pre = st.preinstalled || [], owner = !isBasic() && st.owner !== false;
+  const hid = p => edit.hidden.includes(p);
+  const list = cleanAll ? pre : pre.filter(x => x.suggest || hid(x.pkg) || x.hidden);
+  const nHid = pre.filter(x => hid(x.pkg)).length;
+  return `<div class="card"><h2>${ic("sparkles")} Dọn máy cho nhẹ</h2>
+    ${owner && st.preinstalled ? `<p class="mute">${ic("eye-off")} Ẩn app cài sẵn của hãng mà con không dùng: app bị ẩn không chạy nền, không tốn RAM, không tự cập nhật. Bỏ tích là hiện lại ngay, không mất gì. Đang ẩn: <b>${nHid}</b>.</p>
+      <div id="pre">${list.map(x => `<label class="app"><input type="checkbox" data-h="${esc(x.pkg)}" ${hid(x.pkg) ? "checked" : ""}><div class="nm"><b>${esc(x.label)}</b><span class="mute">${esc(x.pkg)}${x.mb ? " · " + mbTxt(x.mb) : ""}${x.suggest ? `<span class="tag warn">nên ẩn</span>` : ""}</span></div></label>`).join("") || `<p class="mute">Không thấy app cài sẵn nào nên ẩn.</p>`}</div>
+      <div class="row" style="margin-top:8px">${pre.some(x => x.suggest && !hid(x.pkg)) ? `<button id="hideSug">${ic("eye-off")} Ẩn hết app "nên ẩn"</button>` : ""}<button id="preAll">${cleanAll ? "Chỉ hiện app nên ẩn" : "Xem tất cả app hệ thống (" + pre.length + ")"}</button></div>`
+      : owner ? `<p class="mute">${ic("hourglass")} Máy con chưa gửi danh sách app cài sẵn (cần KidGuard 0.8 trở lên).</p>` : needOwner("ẩn app cài sẵn của hãng")}
+    <h2 style="margin-top:14px">${ic("hard-drive")} App nặng nhất</h2>
+    ${heavy.length ? heavy.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${mbTxt(x.mb)}</span></div>${owner && !x.protected ? `<button data-clr="${esc(x.pkg)}" class="bad">${ic("trash-2")} Xoá dữ liệu</button>` : ""}</div>`).join("")
+      : `<p class="mute">Chưa có số liệu dung lượng (cần quyền "Truy cập dữ liệu sử dụng" trên máy con, KidGuard 0.8+).</p>`}
+    <p class="mute">${ic("lightbulb")} ${owner ? "Xoá dữ liệu = app về như mới cài (mất đăng nhập, tin nhắn, file lưu trong app). " : "Trên máy con: Cài đặt → Ứng dụng → chọn app → Gỡ cài đặt / Tắt. "}Không có nút "dọn RAM": Android tự quản lý, tắt app chạy nền chỉ làm nó mở lại và tốn pin hơn.</p></div>`;
+}
+function cleanWire(b) {
+  b.querySelectorAll("[data-h]").forEach(c => c.onchange = () => {
+    const p = c.dataset.h; edit.hidden = edit.hidden.filter(x => x !== p); if (c.checked) edit.hidden.push(p);
+    changed(); toast("ok|" + (c.checked ? "Đã ẩn" : "Đã hiện lại")); setTimeout(refresh, 1500);
+  });
+  if ($("#hideSug")) $("#hideSug").onclick = async () => {
+    const add = (st.preinstalled || []).filter(x => x.suggest && !edit.hidden.includes(x.pkg));
+    if (!(await ask(`Ẩn ${add.length} app cài sẵn nên ẩn?\n\n${add.map(x => x.label).join(", ")}\n\nBỏ tích là hiện lại.`, "Ẩn"))) return;
+    add.forEach(x => edit.hidden.push(x.pkg)); changed(); toast("ok|Đã ẩn " + add.length + " app"); appsTab(b); setTimeout(refresh, 1500);
+  };
+  if ($("#preAll")) $("#preAll").onclick = () => { cleanAll = !cleanAll; appsTab(b); };
+  b.querySelectorAll("[data-clr]").forEach(x => x.onclick = () => {
+    const a = (st.apps || []).find(y => y.pkg === x.dataset.clr); if (!a) return;
+    cmd({ type: "clearData", pkg: a.pkg }, "Đã xoá dữ liệu " + a.label,
+      [`Xoá toàn bộ dữ liệu của ${a.label}?\n\nApp sẽ như mới cài: mất đăng nhập và mọi thứ lưu trong app. Không hoàn tác được.`, "Xoá", true]).then(() => setTimeout(refresh, 2000));
+  });
 }
 
 function rulesTab(b) {

@@ -327,3 +327,27 @@ APK, open KidGuard and follow the checklist; no cable, no adb.
 - **release** in basic: stops blocking, removes the device admin (`removeActiveAdmin`), clears tokens -> "ok".
 - **Upgrade**: a basic phone can become Device Owner later (cable / setup.sh / self-setup on Android 11+) only after
   every account is removed, like a fresh install; rules and pairing are kept.
+
+## v0.8: "Dọn máy" (debloat)
+
+Real gains only: hiding preinstalled OEM apps (they stop running, use no RAM, don't update) and clearing an app's
+data. No "RAM cleaner" / killing background apps (they restart; costs battery) and no clearing other apps' cache
+(system-only since Android 8).
+- **Rules** `hidden: ["pkg", …]` (owner only): preinstalled apps the parent hid. The phone calls
+  `setApplicationHidden(true)` on each (skipping the never-hide set) and un-hides what it hid before and is no longer
+  listed (it remembers its own set, like suspend). Unknown / not installed entries are kept and ignored.
+  **release** un-hides every app KidGuard hid.
+- **State** `preinstalled: [{"pkg","label","hidden":bool,"suggest":bool,"mb":int|null}]` (owner only; refreshed at
+  most every 10 min): system apps the parent may hide = system / preinstalled packages with a launcher activity, plus
+  any in the suggest list that are installed, plus anything currently hidden. Never lists the never-hide set.
+  `suggest` = on the curated bloat list (OEM stores, browsers, music / video, game helpers, ads / analytics, preinstalled
+  Facebook / Netflix stubs…). Sorted: suggest first, then label.
+- **State** `apps[].mb`: app + data + cache size in MB (StorageStatsManager, needs usage access; refreshed hourly), null
+  if unknown. Both modes.
+- **Never hide / never clear**: KidGuard, `android`, systemui, Settings, phone / dialer / telecom / contacts providers,
+  the default launcher and every enabled keyboard, Google Play services / framework, Play Store, WebView, package
+  installer / permission controller, `com.android.providers.*`, Bluetooth / NFC / keychain, and `Policy`'s protected apps.
+- **Command** `clearData {pkg}` (owner, Android 9+, deliver-once): `DevicePolicyManager.clearApplicationUserData`.
+  Result `"ok"` | `"not owner"` | `"unsupported"` (Android < 9) | `"protected"` (never-clear set or KidGuard) | `"failed"`.
+- **Basic mode**: `hidden` is ignored and `preinstalled` is absent; the page shows the heaviest apps (`apps[].mb`) and
+  says hiding preinstalled apps needs Device Owner.
