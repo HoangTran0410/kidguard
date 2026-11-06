@@ -70,6 +70,13 @@ button{min-height:44px}
 .scr-msg:empty{display:none}
 .tap{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:rgba(59,130,246,.6);pointer-events:none;animation:tp .5s forwards}
 @keyframes tp{to{transform:scale(1.8);opacity:0}}
+.bulk{position:sticky;bottom:8px;background:var(--card);border:1px solid var(--pri);border-radius:14px;padding:10px;box-shadow:0 4px 18px rgba(0,0,0,.35);margin-top:8px}
+.app input[type=checkbox]{flex:none}label.app{cursor:pointer}
+.map{position:relative;height:260px;border-radius:10px;overflow:hidden;background:var(--chip);touch-action:none;user-select:none;-webkit-user-select:none;margin-top:10px}
+.map .layer{position:absolute;inset:0}.map img{position:absolute;width:256px;height:256px;max-width:none;pointer-events:none}
+.map svg{position:absolute;overflow:visible}.map circle{cursor:pointer}
+.map .mz{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}.map .mz button{min-height:36px;width:36px;padding:0;background:var(--card)}
+.map .attr{position:absolute;right:0;bottom:0;background:rgba(255,255,255,.8);color:#333;font-size:11px;padding:1px 5px}.map .attr a{color:#333}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;display:none;max-width:90vw}
 </style>
 </head>
@@ -97,7 +104,7 @@ const DNS = [["", "Tắt"], ["family.adguard-dns.com", "AdGuard Family"], ["fami
 function norm(e) {
   e.dailyByDay = Array.isArray(e.dailyByDay) && e.dailyByDay.length === 7 ? e.dailyByDay : [];
   e.schedules = e.schedules || []; e.approved = e.approved || []; e.safeDns = e.safeDns || "";
-  e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.blockNew = !!e.blockNew;
+  e.trackMin = e.trackMin === undefined ? 10 : +e.trackMin; e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.blockNew = !!e.blockNew;
   e.blocked = e.blocked || []; e.allow = e.allow || []; e.appMin = e.appMin || {};
   return e;
 }
@@ -167,7 +174,7 @@ function listScreen(list) {
 }
 
 // --- one child ------------------------------------------------------------
-async function open(k) { screenStop(); cur = k; st = null; edit = null; render(); await refresh(); clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
+async function open(k) { screenStop(); cur = k; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); render(); await refresh(); clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
 
 async function refresh() {
   if (!cur) return;
@@ -185,7 +192,7 @@ async function refresh() {
   if (!edit && st && st.rules) edit = norm(structuredClone(pendingRules && pendingRules.rev > st.rules.rev ? pendingRules : st.rules));
   // redraw the tab only when what it shows changed and nobody is using a control (icons would reload, a select would close)
   const sig = st ? JSON.stringify([tab, st.rules && st.rules.rev, st.apps.map(a => [a.suspended, a.blocked, Math.floor(a.ms / 60000)]),
-    st.location && st.location.t, (st.log || []).length, Math.floor(st.usedMs / 60000), lastErr,
+    st.location && st.location.t, (st.log || []).length, (st.track || []).length, Math.floor(st.usedMs / 60000), lastErr,
     (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, (st.apps || []).filter(a => a.new).length]) : lastErr;
   const busy = document.activeElement && /^(SELECT|INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
   if (tab === "screen") updateLive();   // never redraw the screen tab: the <img> updates by itself
@@ -322,35 +329,77 @@ function appRow(x) {
   return `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${fmt(x.ms)}${x.suspended || x.blocked ? `<span class="tag bad">${REASON[x.blocked] || "Đã khoá"}</span>` : ""}</span></div></div>`;
 }
 
+const sel = { on: false, set: new Set(), f: "all", limOpen: false };
 function appsTab(b) {
-  const r = edit;
-  const mode = p => r.blocked.includes(p) ? "block" : r.allow.includes(p) ? "allow" : r.appMin[p] ? "limit" : "normal";
-  b.innerHTML = `<div class="card"><h2>🧩 Ứng dụng (${st.apps.length})</h2>
-    <input id="f-q" placeholder="🔍 Tìm app…" style="width:100%;margin-bottom:6px">
-    <div id="list"></div><p class="mute">💡 "Luôn cho phép": không bị khoá bởi giới hạn ngày, giờ ngủ, tạm dừng, và không tính vào giờ dùng. Điện thoại, Cài đặt và màn hình chính luôn được giữ.</p></div>`;
+  const mode = p => edit.blocked.includes(p) ? "block" : edit.allow.includes(p) ? "allow" : edit.appMin[p] ? "limit" : "normal";
+  const isNew = x => x.new && !edit.approved.includes(x.pkg);
+  const FILT = [["all", "Tất cả"], ["new", "🆕 Mới"], ["blocked", "⛔ Đang chặn"], ["limited", "⏱ Có giới hạn"]];
+  const pass = x => { const m = mode(x.pkg); return sel.f === "all" || (sel.f === "new" && isNew(x)) || (sel.f === "blocked" && (m === "block" || x.suspended)) || (sel.f === "limited" && m === "limit"); };
+  const visible = () => { const q = ($("#f-q").value || "").toLowerCase(); return st.apps.filter(x => !x.protected && pass(x) && (!q || x.label.toLowerCase().includes(q) || x.pkg.includes(q))); };
+  b.innerHTML = `<div class="card"><div class="row"><h2 class="sp" style="margin:0">🧩 Ứng dụng (${st.apps.length})</h2><button id="selTog" class="${sel.on ? "pri" : ""}">${sel.on ? "✖️ Thoát chọn" : "☑️ Chọn nhiều"}</button></div>
+    <input id="f-q" placeholder="🔍 Tìm app…" style="width:100%;margin:10px 0 6px">
+    <div class="chips" id="flt">${FILT.map(([v, n]) => `<button data-f="${v}" class="${sel.f === v ? "on" : ""}">${n}</button>`).join("")}</div>
+    ${sel.on ? `<div class="row" style="margin-top:8px"><button id="selAll">☑️ Chọn tất cả</button><button id="selNone">⬜ Bỏ chọn</button></div>` : ""}
+    <div id="list"></div><p class="mute">💡 "Luôn cho phép": không bị khoá bởi giới hạn ngày, giờ ngủ, tạm dừng, và không tính vào giờ dùng. Điện thoại, Cài đặt và màn hình chính luôn được giữ (app hệ thống được bảo vệ không nằm trong danh sách và bị bỏ qua khi chọn hàng loạt).</p></div>
+    ${sel.on ? `<div class="bulk" id="bulk"></div>` : ""}`;
+  const drawBar = () => {
+    const bar = $("#bulk"); if (!bar) return;
+    const n = sel.set.size, dis = n ? "" : "disabled";
+    bar.innerHTML = `<div class="row"><b class="sp">✔️ Đã chọn ${n}</b></div>
+      <div class="row" style="margin-top:6px"><button ${dis} data-a="block" class="bad">⛔ Chặn</button><button ${dis} data-a="unblock">✅ Bỏ chặn</button><button ${dis} data-a="allow">⭐ Luôn cho phép</button><button ${dis} data-a="lim">⏱ Giới hạn…</button><button ${dis} data-a="unlim">🗑 Bỏ giới hạn</button><button ${dis} data-a="approve">👍 Duyệt</button></div>
+      ${sel.limOpen ? `<div class="row" style="margin-top:6px"><input id="f-lim" type="number" min="1" max="1440" step="5" inputmode="numeric" placeholder="phút/ngày" style="width:8em"><button id="limOk" class="pri" ${dis}>✅ Áp dụng</button></div>` : ""}`;
+    const clr = p => { edit.blocked = edit.blocked.filter(x => x !== p); edit.allow = edit.allow.filter(x => x !== p); delete edit.appMin[p]; };
+    const apply = (msg, fn) => {
+      const pk = [...sel.set].filter(p => { const a = st.apps.find(x => x.pkg === p); return a && !a.protected; });
+      if (!pk.length) return toast("⚠️ Chưa chọn app nào");
+      pk.forEach(fn); changed(); toast("✅ " + msg + ": " + pk.length + " app"); sel.set.clear(); sel.limOpen = false; draw(); setTimeout(refresh, 1200);   // one PUT (debounced), then refresh
+    };
+    bar.querySelectorAll("[data-a]").forEach(x => x.onclick = () => {
+      const a = x.dataset.a;
+      if (a === "block") apply("Đã chặn", p => { clr(p); edit.blocked.push(p); });
+      else if (a === "unblock") apply("Đã bỏ chặn", p => { edit.blocked = edit.blocked.filter(v => v !== p); });
+      else if (a === "allow") apply("Luôn cho phép", p => { clr(p); edit.allow.push(p); });
+      else if (a === "unlim") apply("Đã bỏ giới hạn", p => { delete edit.appMin[p]; });
+      else if (a === "approve") apply("Đã duyệt", p => { if (!edit.approved.includes(p)) edit.approved.push(p); });
+      else if (a === "lim") { sel.limOpen = !sel.limOpen; drawBar(); const i = $("#f-lim"); if (i) i.focus(); }
+    });
+    if ($("#limOk")) $("#limOk").onclick = () => {
+      const m = Math.round(+$("#f-lim").value); if (!(m >= 1 && m <= 1440)) return toast("⚠️ Nhập 1–1440 phút");
+      apply("Giới hạn " + m + " phút", p => { edit.blocked = edit.blocked.filter(v => v !== p); edit.allow = edit.allow.filter(v => v !== p); edit.appMin[p] = m; });
+    };
+  };
   const draw = () => {
-    const q = ($("#f-q").value || "").toLowerCase();
-    $("#list").innerHTML = st.apps.filter(x => !x.protected && (!q || x.label.toLowerCase().includes(q) || x.pkg.includes(q))).map(x => {
-      const m = mode(x.pkg);
-      return `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${fmt(x.ms)} hôm nay${x.suspended || x.blocked ? `<span class="tag bad">${REASON[x.blocked] || "Đã khoá"}</span>` : ""}${x.new && !r.approved.includes(x.pkg) ? `<span class="tag" style="background:#fef3c7;color:#92400e">🆕 Mới cài</span>` : ""}</span></div>
-      ${x.new && !r.approved.includes(x.pkg) ? `<button class="pri" data-ok="${esc(x.pkg)}">✅ Cho phép</button>` : ""}
+    const vis = visible();
+    $("#list").innerHTML = vis.map(x => {
+      const m = mode(x.pkg), nw = isNew(x);
+      const info = `<div class="nm"><b>${esc(x.label)}</b><span class="mute">${fmt(x.ms)} hôm nay${x.suspended || x.blocked ? `<span class="tag bad">${REASON[x.blocked] || "Đã khoá"}</span>` : ""}${nw ? `<span class="tag" style="background:#fef3c7;color:#92400e">🆕 Mới cài</span>` : ""}${m === "block" ? `<span class="tag bad">⛔ Chặn</span>` : m === "allow" ? `<span class="tag">⭐</span>` : m === "limit" ? `<span class="tag">⏱ ${edit.appMin[x.pkg]} phút</span>` : ""}</span></div>`;
+      if (sel.on) return `<label class="app"><input type="checkbox" data-c="${esc(x.pkg)}" ${sel.set.has(x.pkg) ? "checked" : ""}>${icon(x)}${info}</label>`;
+      return `<div class="app">${icon(x)}${info}
+      ${nw ? `<button class="pri" data-ok="${esc(x.pkg)}">✅ Cho phép</button>` : ""}
       <select data-p="${esc(x.pkg)}">
         <option value="normal" ${m === "normal" ? "selected" : ""}>✅ Bình thường</option>
-        ${[15, 30, 45, 60, 90, 120].map(n => `<option value="${n}" ${m === "limit" && r.appMin[x.pkg] === n ? "selected" : ""}>⏳ ${n} phút/ngày</option>`).join("")}
-        ${m === "limit" && ![15, 30, 45, 60, 90, 120].includes(r.appMin[x.pkg]) ? `<option value="${r.appMin[x.pkg]}" selected>⏳ ${r.appMin[x.pkg]} phút/ngày</option>` : ""}
+        ${[15, 30, 45, 60, 90, 120].map(n => `<option value="${n}" ${m === "limit" && edit.appMin[x.pkg] === n ? "selected" : ""}>⏳ ${n} phút/ngày</option>`).join("")}
+        ${m === "limit" && ![15, 30, 45, 60, 90, 120].includes(edit.appMin[x.pkg]) ? `<option value="${edit.appMin[x.pkg]}" selected>⏳ ${edit.appMin[x.pkg]} phút/ngày</option>` : ""}
         <option value="block" ${m === "block" ? "selected" : ""}>🚫 Chặn</option>
         <option value="allow" ${m === "allow" ? "selected" : ""}>⭐ Luôn cho phép</option>
       </select></div>`;
-    }).join("");
-    $("#list").querySelectorAll("[data-ok]").forEach(bt => bt.onclick = () => { r.approved.push(bt.dataset.ok); changed(); draw(); toast("Đã cho phép"); });
+    }).join("") || `<div class="empty"><span class="e">🫥</span>Không có app nào</div>`;
+    $("#list").querySelectorAll("[data-ok]").forEach(bt => bt.onclick = () => { edit.approved.push(bt.dataset.ok); changed(); draw(); toast("✅ Đã cho phép"); });
+    $("#list").querySelectorAll("[data-c]").forEach(c => c.onchange = () => { c.checked ? sel.set.add(c.dataset.c) : sel.set.delete(c.dataset.c); drawBar(); });
     $("#list").querySelectorAll("select").forEach(s => s.onchange = () => {
       const p = s.dataset.p, v = s.value;
-      r.blocked = r.blocked.filter(x => x !== p); r.allow = r.allow.filter(x => x !== p); delete r.appMin[p];
-      if (v === "block") r.blocked.push(p); else if (v === "allow") r.allow.push(p); else if (v !== "normal") r.appMin[p] = +v;
+      edit.blocked = edit.blocked.filter(x => x !== p); edit.allow = edit.allow.filter(x => x !== p); delete edit.appMin[p];
+      if (v === "block") edit.blocked.push(p); else if (v === "allow") edit.allow.push(p); else if (v !== "normal") edit.appMin[p] = +v;
       changed();
     });
+    drawBar();
   };
-  $("#f-q").oninput = draw; draw();
+  $("#f-q").oninput = draw;
+  $("#selTog").onclick = () => { sel.on = !sel.on; sel.set.clear(); sel.limOpen = false; appsTab(b); };
+  b.querySelectorAll("#flt [data-f]").forEach(x => x.onclick = () => { sel.f = x.dataset.f; appsTab(b); });
+  if ($("#selAll")) $("#selAll").onclick = () => { visible().forEach(x => sel.set.add(x.pkg)); draw(); };
+  if ($("#selNone")) $("#selNone").onclick = () => { sel.set.clear(); draw(); };
+  draw();
 }
 
 function rulesTab(b) {
@@ -371,6 +420,9 @@ function rulesTab(b) {
       <div class="chips" style="margin:8px 0">${["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((n, d) => `<button data-day="${d + 1}" class="${(x.days || []).includes(d + 1) ? "on" : ""}">${n}</button>`).join("")}</div>
       <div class="row">từ <input type="time" id="f-ss${i}" data-f="start" value="${esc(x.start)}"> tới <input type="time" id="f-se${i}" data-f="end" value="${esc(x.end)}"><span class="sp"></span><button class="bad" data-del="${i}">🗑 Xoá</button></div></div>`).join("") || `<p class="mute">📭 Chưa có lịch. Ví dụ: khoá giờ học 7:00–11:30 các ngày T2–T6.</p>`}
     <button id="addSch">➕ Thêm lịch</button></div>
+  <div class="card"><h2>📍 Ghi vị trí mỗi …</h2>
+    <select id="f-tm">${[[0, "Tắt"], [5, "5 phút"], [10, "10 phút"], [15, "15 phút"], [30, "30 phút"], [60, "1 giờ"]].map(([v, n]) => `<option value="${v}" ${r.trackMin === v ? "selected" : ""}>${n}</option>`).join("")}${[0, 5, 10, 15, 30, 60].includes(r.trackMin) ? "" : `<option selected value="${r.trackMin}">${r.trackMin} phút</option>`}</select>
+    <p class="mute">🗺️ Dùng để vẽ lịch sử di chuyển trong tab Vị trí. Ghi thường xuyên hơn thì tốn pin hơn.</p></div>
   <div class="card"><h2>🚧 Chặn thêm</h2>
     <label class="row"><input type="checkbox" id="f-bn" ${r.blockNew ? "checked" : ""}><span>🆕 Chặn app mới cài cho tới khi duyệt</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-ll" ${r.lockLocation ? "checked" : ""}><span>📍 Khoá vị trí: không cho tắt định vị</span></label>
@@ -392,6 +444,7 @@ function rulesTab(b) {
     box.querySelector("[data-del]").onclick = () => { if (!confirm("Xoá lịch này?")) return; r.schedules.splice(+box.dataset.s, 1); changed(); render(); };
   });
   $("#addSch").onclick = () => { r.schedules.push({ name: "Giờ học", on: true, days: [1, 2, 3, 4, 5], start: "07:00", end: "11:30" }); changed(); render(); };
+  $("#f-tm").onchange = e => { r.trackMin = +e.target.value; changed(); };
   $("#f-bn").onchange = e => { r.blockNew = e.target.checked; changed(); };
   $("#f-ll").onchange = e => { r.lockLocation = e.target.checked; changed(); };
   $("#f-na").onchange = e => { r.noAirplane = e.target.checked; changed(); };
@@ -507,14 +560,89 @@ function screenTab(b) {
   screenStart();
 }
 
+// --- location history map (no external scripts: OSM tiles as <img> + SVG overlay) -----------
+let trk = [], trkLoaded = 0, trkDay = "", mv = null;
+const dkey = t => { const d = new Date(t); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+const hav = (a, b, c, d) => { const R = 6371000, r = Math.PI / 180, dl = (c - a) * r, dn = (d - b) * r, x = Math.sin(dl / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dn / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
+const wx = lon => (lon + 180) / 360, wy = lat => { const s = Math.sin(lat * Math.PI / 180); return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI); };   // world fraction 0..1
+const dur = ms => { const m = Math.round(ms / 60000); return m < 60 ? m + "m" : Math.floor(m / 60) + "h" + String(m % 60).padStart(2, "0") + "m"; };
+function allTrack() { const m = new Map(); trk.concat(st.track || []).forEach(p => m.set(p[0], p)); return [...m.values()].sort((a, b) => a[0] - b[0]); }
+function stopsOf(pts) {
+  const out = []; let c = null;
+  for (const p of pts) {
+    if (c && hav(c.lat, c.lon, p[1], p[2]) < 100) { c.n++; c.end = p[0]; c.lat += (p[1] - c.lat) / c.n; c.lon += (p[2] - c.lon) / c.n; }
+    else { if (c) out.push(c); c = { start: p[0], end: p[0], lat: p[1], lon: p[2], n: 1 }; }
+  }
+  if (c) out.push(c);
+  return out.filter(s => s.n >= 2 && s.end - s.start >= 5 * 60000);
+}
+function fitView(pts, w, h) {
+  const xs = pts.map(p => wx(p[2])), ys = pts.map(p => wy(p[1])), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  let z = 17; while (z > 2 && ((x1 - x0) * 256 * 2 ** z > w - 70 || (y1 - y0) * 256 * 2 ** z > h - 70)) z--;
+  return { z, fx: (x0 + x1) / 2, fy: (y0 + y1) / 2 };
+}
+function drawMap(pts) {
+  const box = $("#map"); if (!box) return;
+  const w = box.clientWidth || 340, h = 260, S = 256 * 2 ** mv.z, left = mv.fx * S - w / 2, top = mv.fy * S - h / 2, n = 2 ** mv.z;
+  let tiles = "";
+  for (let ty = Math.floor(top / 256); ty <= Math.floor((top + h) / 256); ty++) for (let tx = Math.floor(left / 256); tx <= Math.floor((left + w) / 256); tx++) {
+    if (ty < 0 || ty >= n) continue;
+    tiles += `<img alt="" draggable="false" src="https://tile.openstreetmap.org/${mv.z}/${((tx % n) + n) % n}/${ty}.png" style="left:${Math.round(tx * 256 - left)}px;top:${Math.round(ty * 256 - top)}px">`;
+  }
+  const xy = pts.map(p => [wx(p[2]) * S - left, wy(p[1]) * S - top]);
+  const line = xy.map(q => q.map(v => v.toFixed(1)).join(",")).join(" ");
+  const last = pts.length - 1;
+  const dots = xy.map((q, i) => `<circle data-i="${i}" cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${i === 0 || i === last ? 8 : 5}" fill="${i === 0 ? "#16a34a" : i === last ? "#dc2626" : "#2563eb"}" stroke="#fff" stroke-width="2"/>`).join("");
+  box.innerHTML = `<div class="layer" id="mlayer">${tiles}<svg width="${w}" height="${h}" style="left:0;top:0"><polyline points="${line}" fill="none" stroke="#2563eb" stroke-width="3" stroke-opacity=".7" stroke-linejoin="round"/>${dots}</svg></div>
+    <div class="mz"><button id="mzi" aria-label="Phóng to">➕</button><button id="mzo" aria-label="Thu nhỏ">➖</button></div><div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>`;
+  $("#mzi").onclick = () => { mv.z = Math.min(18, mv.z + 1); drawMap(pts); };
+  $("#mzo").onclick = () => { mv.z = Math.max(2, mv.z - 1); drawMap(pts); };
+  box.querySelectorAll("circle").forEach(c => c.onclick = () => { if (box._moved) return; const p = pts[+c.dataset.i]; $("#mapInfo").textContent = `🕐 ${hhmm(p[0])} · sai số ±${Math.round(p[3] || 0)} m`; });
+}
+function mapDrag(pts) {
+  const box = $("#map"); let d = null;
+  box.onpointerdown = e => { if (e.target.closest("button,a")) return; d = { x: e.clientX, y: e.clientY, id: e.pointerId }; box._moved = false; };
+  box.onpointermove = e => {
+    if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (!box._moved && Math.hypot(dx, dy) > 5) { box._moved = true; try { box.setPointerCapture(d.id); } catch {} }
+    if (box._moved) { const l = $("#mlayer"); if (l) l.style.transform = `translate(${dx}px,${dy}px)`; }
+  };
+  const end = e => {
+    if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; d = null;
+    if (box._moved) { const S = 256 * 2 ** mv.z; mv.fx -= dx / S; mv.fy -= dy / S; drawMap(pts); setTimeout(() => box._moved = false, 50); }
+  };
+  box.onpointerup = end; box.onpointercancel = end;
+}
+
 function whereTab(b) {
-  const l = st.location;
-  b.innerHTML = `<div class="card"><h2>📍 Vị trí</h2>${l ? `
-    <iframe src="https://www.openstreetmap.org/export/embed.html?bbox=${l.lng - 0.006},${l.lat - 0.004},${l.lng + 0.006},${l.lat + 0.004}&layer=mapnik&marker=${l.lat},${l.lng}"></iframe>
-    <p>${ago(l.t)} · sai số ~${Math.round(l.acc)} m · <a href="https://www.google.com/maps?q=${l.lat},${l.lng}" target="_blank" rel="noopener">🗺️ Mở Google Maps</a></p>`
+  const l = st.location, lan = cur.via === "lan";
+  if (lan && Date.now() - trkLoaded > 60000) {
+    trkLoaded = Date.now();
+    call(cur, "/track?days=7").then(j => { trk = j.track || []; if (tab === "where" && $("#body")) whereTab($("#body")); }).catch(() => {});
+  }
+  const all = allTrack(), today = dkey(Date.now()), yest = dkey(Date.now() - 864e5);
+  const keys = [...new Set([today, yest].concat(all.map(p => dkey(p[0]))))].sort().reverse();
+  if (!trkDay || !keys.includes(trkDay)) trkDay = today;
+  const label = k => k === today ? "Hôm nay" : k === yest ? "Hôm qua" : k.slice(8) + "/" + k.slice(5, 7);
+  const pts = all.filter(p => dkey(p[0]) === trkDay);
+  let dist = 0; for (let i = 1; i < pts.length; i++) dist += hav(pts[i - 1][1], pts[i - 1][2], pts[i][1], pts[i][2]);
+  const sp = stopsOf(pts), home = pts.length ? pts[0] : null;
+  b.innerHTML = `<div class="card"><h2>📍 Lịch sử di chuyển</h2>
+    <div class="chips" id="days">${keys.map(k => `<button data-k="${k}" class="${k === trkDay ? "on" : ""}">${label(k)}</button>`).join("")}</div>
+    ${pts.length ? `<div class="map" id="map"></div><div class="mute" id="mapInfo" style="margin:4px 0">👆 Chạm vào chấm để xem giờ · 🟢 bắt đầu · 🔴 mới nhất</div>
+      <div class="row"><b>🛣️ ${(dist / 1000).toFixed(1)} km</b><span class="mute">· ${pts.length} điểm · ${hhmm(pts[0][0])}–${hhmm(pts[pts.length - 1][0])}</span></div>
+      <h2 style="margin:12px 0 4px">⏸ Điểm dừng</h2>
+      ${sp.map(s => `<div class="row" style="padding:3px 0">${home && hav(home[1], home[2], s.lat, s.lon) < 150 ? "🏠" : "📍"} <b>${hhmm(s.start)}–${hhmm(s.end)}</b> · ${dur(s.end - s.start)} <a class="sp" href="https://www.google.com/maps?q=${s.lat},${s.lon}" target="_blank" rel="noopener">🗺️</a></div>`).join("") || `<div class="mute">Không có điểm dừng nào ≥ 5 phút</div>`}`
+    : `<div class="empty"><span class="e">🗺️</span>Chưa có điểm nào — bật 📍 Ghi vị trí trong Luật</div>`}</div>
+  <div class="card"><h2>📌 Vị trí gần nhất</h2>${l ? `<p>🕐 ${ago(l.t)} · sai số ~${Math.round(l.acc)} m · <a href="https://www.google.com/maps?q=${l.lat},${l.lng}" target="_blank" rel="noopener">🗺️ Mở Google Maps</a></p>`
     : `<div class="empty"><span class="e">🗺️</span>Chưa có vị trí. Bật Vị trí trên máy con rồi bấm Lấy vị trí.</div>`}
-    <button id="loc2" class="pri">📍 Lấy vị trí mới</button><p class="mute">🔄 Máy con tự gửi vị trí mỗi 15 phút.</p></div>`;
+    <button id="loc2" class="pri">📍 Lấy vị trí mới</button><p class="mute">🔄 Máy con tự ghi vị trí theo chu kỳ đặt trong tab Luật.</p></div>`;
   $("#loc2").onclick = () => cmd({ type: "locate" }, "Đang lấy vị trí…");
+  b.querySelectorAll("#days [data-k]").forEach(x => x.onclick = () => { trkDay = x.dataset.k; mv = null; whereTab(b); });
+  if (pts.length) {
+    if (!mv) mv = fitView(pts, $("#map").clientWidth || 340, 260);
+    drawMap(pts); mapDrag(pts);
+  }
 }
 
 function setTab(b) {
