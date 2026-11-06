@@ -38,6 +38,7 @@ class MainActivity : Activity() {
     private lateinit var code: TextView
     private lateinit var hint: TextView
     private lateinit var pairBtn: Button
+    private lateinit var checklist: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +56,8 @@ class MainActivity : Activity() {
         col.addView(Button(this).apply { text = "⏰ Xin thêm giờ"; setOnClickListener { askMore() } })
         col.addView(Button(this).apply { text = "🔋 Cài đặt pin / tự khởi động"; setOnClickListener { openBatterySettings() } })
         col.addView(pairBtn)
+        checklist = Checklist.build(this)
+        col.addView(checklist)
         setContentView(ScrollView(this).apply { setBackgroundColor(Color.WHITE); addView(col) })
     }
 
@@ -66,6 +69,7 @@ class MainActivity : Activity() {
         val owner = Policy.isOwner(this)
         val usage = Usage.granted(this)
         val lan = Guard.lanUrl()
+        Checklist.update(this, checklist)
         status.text = buildString {
             append(if (owner) "✅ Đang được bố mẹ quản lý\n" else "⚠️ Chưa có quyền Device Owner: chạy setup.sh trên máy tính (xem README) 💻\n")
             if (!usage) append("⚠️ ⏱️ Chưa có quyền xem thời gian dùng app (setup.sh cấp)\n")
