@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The proxy (HttpURLConnection) itself calls the child over plain http (LAN / Tailscale), and the platform applies this
+     policy to it too, so cleartext must stay on app-wide. The WebView is locked down separately: Main.kt blocks every
+     WebView request except http://127.0.0.1:<port> and the OSM tiles, and the page CSP only allows 'self'. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

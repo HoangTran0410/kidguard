@@ -45,6 +45,7 @@ dependencies {
     implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
     implementation("com.github.MuntashirAkon:sun-security-android:1.1")   // X509 cert for the adb TLS key
     implementation("org.conscrypt:conscrypt-android:2.5.3")
+    implementation("com.google.zxing:core:3.5.3")   // pairing QR on the child screen
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
 }

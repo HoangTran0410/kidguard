@@ -9,6 +9,9 @@ import qr from "../../web/qr.html";
 const MAX_BODY = 256 * 1024;
 const MAX_FRAME = 1024 * 1024;
 const KEYS = ["back", "home", "recents", "notifications", "quick", "lock", "power"];
+const PKG = /^[A-Za-z0-9._]{1,200}$/, MAX_ICONS = 400;
+// <img> can't send headers: only the icon GET may carry the token in ?k=
+const tokenOf = (req, url) => req.headers.get("x-kg-token") || (req.method === "GET" && url.pathname.endsWith("/icon") ? url.searchParams.get("k") || "" : "");
 const limitFor = (action) => action === "frame" ? MAX_FRAME : MAX_BODY;
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
@@ -44,14 +47,14 @@ export default {
         "x-frame-options": "DENY", "content-security-policy": CSP,
       } });
     }
-    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input)$/);
+    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon)$/);
     if (!m) return json({ error: "not found" }, 404);
     if (env.RL) {
       const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
       if (!success) return json({ error: "slow down" }, 429);
     }
     // reject junk before waking a Durable Object
-    if (!/^[0-9a-f]{48}$/.test(req.headers.get("x-kg-token") || "")) return json({ error: "not paired" }, 401);
+    if (!/^[0-9a-f]{48}$/.test(tokenOf(req, url))) return json({ error: "not paired" }, 401);
     const len = +(req.headers.get("content-length") || 0);
     if (len > limitFor(m[2])) return json({ error: "too big" }, 413);
     const stub = env.KIDS.get(env.KIDS.idFromName(m[1]));
@@ -71,8 +74,8 @@ export class Kid {
   }
 
   async fetch(req) {
-    const action = new URL(req.url).pathname.split("/").pop();
-    const token = req.headers.get("x-kg-token") || "";
+    const url = new URL(req.url), action = url.pathname.split("/").pop();
+    const token = tokenOf(req, url);
     if (!/^[0-9a-f]{48}$/.test(token)) return json({ error: "not paired" }, 401);
     const h = await sha256(token);
     let bound = await this.s.get("tokenHash");
@@ -82,6 +85,26 @@ export class Kid {
     }
     if (h !== bound) return json({ error: "not paired" }, 401);
     const now = Date.now();
+    if (action === "icons" && req.method === "POST") {   // phone: {pkg: base64 webp}, each app once
+      let o; try { o = await req.json(); } catch { return json({ error: "bad json" }, 400); }
+      if (!o || typeof o !== "object" || Array.isArray(o)) return json({ error: "bad json" }, 400);
+      const list = new Set((await this.s.get("iconList")) || []), puts = {};
+      for (const [pkg, b64] of Object.entries(o)) {
+        if (!PKG.test(pkg) || typeof b64 !== "string" || b64.length > 16000 || !/^[A-Za-z0-9+/=]+$/.test(b64)) continue;
+        if (!list.has(pkg) && list.size >= MAX_ICONS) continue;
+        list.add(pkg); puts["icon:" + pkg] = b64;
+      }
+      puts.iconList = [...list];
+      await this.s.put(puts);
+      return json({ have: list.size });
+    }
+    if (action === "icon" && req.method === "GET") {   // parent page <img>: token in ?k=
+      const pkg = url.searchParams.get("pkg") || "";
+      const b64 = PKG.test(pkg) ? await this.s.get("icon:" + pkg) : null;
+      if (!b64) return json({ error: "no icon" }, 404);
+      return new Response(Uint8Array.from(atob(b64), c => c.charCodeAt(0)), { headers: {
+        "content-type": "image/webp", "cache-control": "private, max-age=86400", "x-content-type-options": "nosniff" } });
+    }
     if (action === "frame") {
       if (req.method === "POST") {
         const buf = await req.arrayBuffer();

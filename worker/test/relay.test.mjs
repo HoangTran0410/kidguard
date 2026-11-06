@@ -85,6 +85,13 @@ ck("CSP allows OSM tiles",(await fetch(`${B}/`)).headers.get("content-security-p
 const track=Array.from({length:700},(_,i)=>[1.7e12+i,10.123456,106.123456,12.5]);
 r=await P2("sync",JSON.stringify({state:{track}}));ck("sync with ~700-point track (<120KB) ok",r.status==200);
 r=await P2("sync",JSON.stringify({state:{big:"a".repeat(125000)}}));ck("state >120KB -> 413",r.status==413);
+// icons: phone uploads base64 webp once, <img> reads with ?k=
+{const b64=Buffer.from("RIFF0000WEBPVP8 ").toString("base64");
+r=await P2("icons",JSON.stringify({"com.example.game":b64,"bad pkg!":b64,"x.y":"not base64 !!"}));j=await r.json();ck("icons: valid one stored, junk skipped",r.status==200&&j.have==1);
+r=await fetch(`${B}/c/${id2}/icon?pkg=com.example.game&k=${T}`);ck("icon GET with ?k= -> webp",r.status==200&&r.headers.get("content-type")=="image/webp"&&Buffer.from(await r.arrayBuffer()).toString("base64")==b64);
+ck("icon GET wrong k -> 401",(await fetch(`${B}/c/${id2}/icon?pkg=com.example.game&k=${BAD}`)).status==401);
+ck("icon GET unknown pkg -> 404",(await fetch(`${B}/c/${id2}/icon?pkg=a.b&k=${T}`)).status==404);
+ck("?k= only works for icon",(await fetch(`${B}/c/${id2}/state?k=${T}`)).status==401);}
 // last: per-IP rate limit (150 / 10 s) on /c/*; the page itself is not limited
 {const rs=[];for(let i=0;i<11&&!rs.includes(429);i++)rs.push(...await Promise.all(Array.from({length:20},()=>fetch(`${B}/c/${id}/state`,{headers:H(BAD)}).then(r=>r.status,()=>0))));
 ck("rate limit: burst of 220 gets some 429",rs.includes(429));ck("rate limit: page / still 200",(await fetch(`${B}/`)).status==200);}

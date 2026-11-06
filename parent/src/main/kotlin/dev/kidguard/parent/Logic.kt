@@ -1,0 +1,145 @@
+package dev.kidguard.parent
+
+import org.json.JSONArray
+import org.json.JSONObject
+import java.time.Instant
+import java.time.ZoneId
+import java.util.Base64
+
+// Pure logic of the parent app. No Android classes (org.json is available on the JVM via the test dependency).
+
+object Logic {
+    const val LOST_MS = 30 * 60_000L
+    const val MIN_FREE = 200L * 1024 * 1024
+    const val MIN_KEEP_DAYS = 7
+
+    /** base64url (no padding) of a target such as http://192.168.1.5:8770 or https://relay.example.workers.dev */
+    fun encodeTarget(target: String): String =
+        Base64.getUrlEncoder().withoutPadding().encodeToString(target.toByteArray(Charsets.UTF_8))
+
+    private val HOST = Regex("^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$")
+
+    /** Decodes + validates a target: only http/https, a plain host (no userinfo/path/query), optional port. Null if invalid. */
+    fun decodeTarget(t: String): String? {
+        if (t.isEmpty() || t.length > 300) return null
+        val s = try { String(Base64.getUrlDecoder().decode(t), Charsets.UTF_8) } catch (e: IllegalArgumentException) { return null }
+        val scheme = when {
+            s.startsWith("http://") -> "http"
+            s.startsWith("https://") -> "https"
+            else -> return null
+        }
+        val rest = s.substring(scheme.length + 3)
+        if (rest.isEmpty() || rest.any { it == '/' || it == '?' || it == '#' || it == '@' || it == '\\' || it.isWhitespace() }) return null
+        val host = rest.substringBefore(":")
+        val port = if (rest.contains(":")) rest.substringAfter(":") else null
+        if (!HOST.matches(host) || host.length > 253) return null
+        if (port != null) {
+            if (port.isEmpty() || port.length > 5 || !port.all { it.isDigit() }) return null
+            if (port.toInt() !in 1..65535) return null
+        }
+        return s
+    }
+
+    /** "/k/<t>/<rest>" -> (target, rest-with-leading-slash-and-query-stripped-by-caller). Null when malformed/invalid target. */
+    fun parseKidPath(path: String): Pair<String, String>? {
+        if (!path.startsWith("/k/")) return null
+        val body = path.substring(3)
+        val slash = body.indexOf('/')
+        if (slash <= 0) return null
+        val target = decodeTarget(body.substring(0, slash)) ?: return null
+        return target to body.substring(slash)   // rest starts with "/"
+    }
+
+    private val STATE_PATHS = Regex("^/(api/state|c/[0-9a-f]{16}/state)$")
+    /** Only the state snapshot of a kid is cached (LAN /api/state, relay /c/<id>/state). */
+    fun isStatePath(method: String, rest: String) = method == "GET" && STATE_PATHS.matches(rest)
+
+    /** Serve the stored snapshot when the live request failed: network error / timeout / 5xx. */
+    fun useCache(status: Int?, networkError: Boolean) = networkError || status == null || status >= 500
+
+    /** Local calendar day of an epoch ms, "2026-11-06". */
+    fun dayKey(ms: Long, zone: ZoneId = ZoneId.systemDefault()): String = Instant.ofEpochMilli(ms).atZone(zone).toLocalDate().toString()
+
+    /** Retention setting (0 = unlimited): days older than [keepDays] before [today] (inclusive window of keepDays days). */
+    fun retentionDrop(days: Collection<String>, keepDays: Int, today: String): List<String> {
+        if (keepDays <= 0) return emptyList()
+        val oldest = java.time.LocalDate.parse(today).minusDays(keepDays.toLong() - 1).toString()
+        return days.filter { it < oldest }
+    }
+
+    /**
+     * Storage guard. [days] = (day, bytes that day uses across all kids). While free space < [minFree], drop the oldest
+     * day, until enough is freed or only [minKeep] days remain. Returns the days to delete (oldest first).
+     */
+    fun storageDrop(days: List<Pair<String, Long>>, freeBytes: Long, minFree: Long = MIN_FREE, minKeep: Int = MIN_KEEP_DAYS): List<String> {
+        val asc = days.sortedBy { it.first }
+        val out = ArrayList<String>()
+        var free = freeBytes
+        var left = asc.size
+        for ((d, bytes) in asc) {
+            if (free >= minFree || left <= minKeep) break
+            out.add(d); free += bytes; left--
+        }
+        return out
+    }
+
+    /** The page sends the state path with or without the leading slash. */
+    fun normRest(p: String) = if (p.startsWith("/")) p else "/$p"
+
+    // ---- background notifications ----
+
+    class KidCfg(val name: String, val target: String, val via: String, val id: String, val token: String) {
+        val key get() = "$target|$id"
+    }
+
+    fun parseKids(json: String): List<KidCfg> = try {
+        val a = JSONArray(json)
+        (0 until a.length()).mapNotNull {
+            val o = a.optJSONObject(it) ?: return@mapNotNull null
+            val target = decodeTarget(encodeTarget(o.optString("target"))) ?: return@mapNotNull null
+            val via = o.optString("via")
+            if (via != "lan" && via != "relay") return@mapNotNull null
+            KidCfg(o.optString("name", "").ifEmpty { "con" }, target, via, o.optString("id"), o.optString("token"))
+        }
+    } catch (e: Exception) { emptyList() }
+
+    /** Per kid, persisted between runs. */
+    class NotifyState(val seenIds: Set<String> = emptySet(), val lost: Boolean = false, val failSince: Long = 0L, val init: Boolean = false) {
+        fun toJson() = JSONObject().put("ids", JSONArray(seenIds.toList())).put("lost", lost).put("fail", failSince).put("init", init).toString()
+        companion object {
+            fun fromJson(s: String?): NotifyState = try {
+                val o = JSONObject(s ?: "")
+                val a = o.optJSONArray("ids") ?: JSONArray()
+                NotifyState((0 until a.length()).map { a.getString(it) }.toSet(), o.optBoolean("lost"), o.optLong("fail"), o.optBoolean("init"))
+            } catch (e: Exception) { NotifyState() }
+        }
+    }
+
+    /** What one check saw for a kid. activityT = state.t (LAN) or relay `seen` (ms of the child's last sync), 0 = unknown. */
+    class Seen(val fetchOk: Boolean, val requests: List<Pair<String, Int>>, val activityT: Long)
+    class Event(val key: String, val text: String)   // key: unique per event, used as notification id
+    class Outcome(val events: List<Event>, val state: NotifyState)
+
+    /** Notify once per event: a new child request id, and the transition to "lost > 30 min". */
+    fun evaluate(name: String, seen: Seen, st: NotifyState, now: Long): Outcome {
+        val events = ArrayList<Event>()
+        var ids = st.seenIds
+        var lost = st.lost
+        var failSince = st.failSince
+        if (seen.fetchOk) {
+            failSince = 0L
+            // the first look at a kid only records what is already there (no burst of old requests)
+            if (st.init) for ((id, min) in seen.requests) if (id !in ids) events.add(Event("req:$id", "$name xin thêm $min phút"))
+            ids = (ids + seen.requests.map { it.first }).let { all -> if (all.size > 200) seen.requests.map { it.first }.toSet() else all }
+            val isLost = seen.activityT > 0 && now - seen.activityT > LOST_MS
+            if (isLost && !lost) events.add(Event("lost", "Mất kết nối với máy của $name"))
+            lost = isLost
+        } else {
+            if (failSince == 0L) failSince = now
+            val isLost = now - failSince > LOST_MS
+            if (isLost && !lost) events.add(Event("lost", "Mất kết nối với máy của $name"))
+            if (isLost) lost = true
+        }
+        return Outcome(events, NotifyState(ids, lost, failSince, true))
+    }
+}

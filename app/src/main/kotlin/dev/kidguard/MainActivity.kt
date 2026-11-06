@@ -14,6 +14,8 @@ import android.graphics.Typeface
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Bundle
+import android.graphics.Bitmap
+import android.widget.ImageView
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -72,6 +74,8 @@ class MainActivity : Activity() {
         pairCard.addView(codeLabel, LinearLayout.LayoutParams(-1, -2))
         code = TextView(this).apply { textSize = 46f; gravity = Gravity.CENTER; letterSpacing = 0.12f; setPadding(0, dp(6), 0, dp(10)); setTypeface(Typeface.MONOSPACE, Typeface.BOLD); setTextColor(u.accent) }
         pairCard.addView(code)
+        qr = ImageView(this).apply { visibility = View.GONE; contentDescription = "Mã QR để bố mẹ quét" }
+        pairCard.addView(qr, LinearLayout.LayoutParams(dp(208), dp(208)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(10) })
         hint = TextView(this).apply { textSize = 15f; setTextColor(u.sub); setLineSpacing(0f, 1.15f) }
         pairCard.addView(hint)
         col.addView(pairCard)
@@ -87,6 +91,17 @@ class MainActivity : Activity() {
         setContentView(ScrollView(this).apply { setBackgroundColor(u.bg); isFillViewport = true; addView(col) })
         window.statusBarColor = u.bg; window.navigationBarColor = u.bg
         if (!u.dark) window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (android.os.Build.VERSION.SDK_INT >= 27) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
+    }
+
+    private lateinit var qr: ImageView
+    private var qrFor: String? = null
+
+    /** Black-on-white QR (white even in dark mode, so phone cameras read it), with the standard quiet zone. */
+    private fun qrBitmap(text: String, px: Int): Bitmap {
+        val m = com.google.zxing.qrcode.QRCodeWriter().encode(text, com.google.zxing.BarcodeFormat.QR_CODE, px, px,
+            mapOf(com.google.zxing.EncodeHintType.MARGIN to 2))
+        val pixels = IntArray(m.width * m.height) { if (m.get(it % m.width, it / m.width)) Color.BLACK else Color.WHITE }
+        return Bitmap.createBitmap(pixels, m.width, m.height, Bitmap.Config.ARGB_8888)
     }
 
     override fun onResume() { super.onResume(); refresh() }
@@ -116,11 +131,16 @@ class MainActivity : Activity() {
         if (c != null) {
             code.visibility = View.VISIBLE; codeLabel.visibility = View.VISIBLE; code.text = c
             hint.gravity = Gravity.CENTER
-            hint.text = "Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n${lan ?: "(chưa có Wi-Fi)"}\nrồi nhập mã ở trên."; hint.setCompoundDrawablesRelative(null, null, null, null)
+            val link = lan?.let { "$it/#pair=$c" }
+            if (link != qrFor) { qrFor = link; link?.let { qr.setImageBitmap(qrBitmap(it, dp(208))) } }
+            qr.visibility = if (link != null) View.VISIBLE else View.GONE
+            hint.text = if (link != null) "Trên máy bố mẹ (cùng Wi-Fi): quét mã QR bằng camera, hoặc mở trình duyệt:\n$lan\nrồi nhập mã ở trên."
+                else "Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n(chưa có Wi-Fi)\nrồi nhập mã ở trên."
+            hint.setCompoundDrawablesRelative(null, null, null, null)
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             pairBtn.visibility = View.GONE
         } else {
-            code.visibility = View.GONE; codeLabel.visibility = View.GONE
+            code.visibility = View.GONE; codeLabel.visibility = View.GONE; qr.visibility = View.GONE; qrFor = null
             hint.gravity = Gravity.START
             hint.text = "Bố mẹ quản lý tại:\n${lan ?: "(chưa có Wi-Fi)"}"; Ic.lead(hint, R.drawable.li_users, ui2.sub)
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

@@ -1,0 +1,2 @@
+-keepattributes SourceFile,LineNumberTable
+-keepclassmembers class dev.kidguard.parent.Bridge { @android.webkit.JavascriptInterface <methods>; }

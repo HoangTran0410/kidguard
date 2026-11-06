@@ -16,9 +16,10 @@ if [ -n "${TRUSTSTORE:-}" ]; then
   export JAVA_OPTS="$T"
   OPTS=(-Dorg.gradle.jvmargs="-Xmx2g $T")
 fi
-./gradlew -q ${OPTS[@]+"${OPTS[@]}"} testDebugUnitTest assembleRelease
+./gradlew -q ${OPTS[@]+"${OPTS[@]}"} testDebugUnitTest assembleRelease :parent:testDebugUnitTest :parent:assembleRelease
 mkdir -p build
 cp app/build/outputs/apk/release/app-release.apk build/kidguard.apk
+cp parent/build/outputs/apk/release/parent-release.apk build/kidguard-parent.apk
 
 # QR provisioning: SHA-256 of the signing certificate, URL-safe base64 without padding -> web/provision.json + web/qr.html defaults
 APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)

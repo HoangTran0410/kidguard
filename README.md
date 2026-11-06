@@ -58,7 +58,7 @@ Android only lets an app become Device Owner while the phone has **no accounts**
 | 🌐 **Browser + USB cable** | Chrome or Edge on a computer | Turn on **USB debugging**, plug in, open [/install](https://kidguard.99-hoangtran.workers.dev/install), press Connect. No adb needed. |
 | ⌨️ **Command line** | macOS, Linux or Windows | `./setup.sh` (downloads adb if missing, `-y` skips questions) or `powershell -ExecutionPolicy Bypass -File setup.ps1` |
 
-Then the child's phone shows a **6-digit code**. On the parent's phone (same Wi-Fi) open `http://<phone IP>:8770`, type the code, and in **Cài đặt** (Settings) set a **parent PIN** (without it the phone refuses to pair another browser).
+Then the child's phone shows a **6-digit code** and a **QR code**. On the parent's phone (same Wi-Fi) scan the QR with the camera (it opens the page with the code filled in), or open `http://<phone IP>:8770` and type the code, and in **Cài đặt** (Settings) set a **parent PIN** (without it the phone refuses to pair another browser).
 
 Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự khởi động** (battery / autostart) and let KidGuard run in the background.
 

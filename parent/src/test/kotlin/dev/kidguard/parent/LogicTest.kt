@@ -1,0 +1,129 @@
+package dev.kidguard.parent
+
+import org.junit.Assert.*
+import org.junit.Test
+
+class LogicTest {
+    private fun t(s: String) = Logic.encodeTarget(s)
+
+    @Test fun targetRoundTrip() {
+        assertEquals("http://192.168.1.5:8770", Logic.decodeTarget(t("http://192.168.1.5:8770")))
+        assertEquals("https://kg.example.workers.dev", Logic.decodeTarget(t("https://kg.example.workers.dev")))
+        assertEquals("http://kid-an.tail123.ts.net:8770", Logic.decodeTarget(t("http://kid-an.tail123.ts.net:8770")))
+        assertFalse(Logic.encodeTarget("http://a:1").contains("="))
+    }
+
+    @Test fun targetRejects() {
+        for (bad in listOf("ftp://a:1", "file:///etc/passwd", "http://", "http://a/b", "http://a:8770/x", "http://u@a:1", "http://a:99999",
+            "http://a:", "http://a b:1", "javascript:alert(1)", "http://a:1?x=1", "http://-bad:1"))
+            assertNull(bad, Logic.decodeTarget(t(bad)))
+        assertNull(Logic.decodeTarget(""))
+        assertNull(Logic.decodeTarget("!!!notbase64"))
+        assertNull(Logic.decodeTarget("a".repeat(400)))
+    }
+
+    @Test fun kidPath() {
+        val p = Logic.parseKidPath("/k/${t("http://10.0.0.2:8770")}/api/state")
+        assertEquals("http://10.0.0.2:8770" to "/api/state", p)
+        assertNull(Logic.parseKidPath("/k/${t("gopher://x")}/api/state"))
+        assertNull(Logic.parseKidPath("/k/${t("http://10.0.0.2:8770")}"))
+        assertNull(Logic.parseKidPath("/x/abc/def"))
+    }
+
+    @Test fun statePaths() {
+        assertTrue(Logic.isStatePath("GET", "/api/state"))
+        assertTrue(Logic.isStatePath("GET", "/c/0123456789abcdef/state"))
+        assertFalse(Logic.isStatePath("POST", "/api/state"))
+        assertFalse(Logic.isStatePath("GET", "/api/rules"))
+        assertFalse(Logic.isStatePath("GET", "/c/xyz/state"))
+        assertEquals("/api/state", Logic.normRest("api/state"))
+        assertEquals("/api/state", Logic.normRest("/api/state"))
+    }
+
+    @Test fun cacheFallback() {
+        assertTrue(Logic.useCache(null, true))
+        assertTrue(Logic.useCache(502, false))
+        assertTrue(Logic.useCache(500, false))
+        assertFalse(Logic.useCache(200, false))
+        assertFalse(Logic.useCache(401, false))
+        assertFalse(Logic.useCache(404, false))
+    }
+
+    private val now = 1_800_000_000_000L
+    private fun seen(vararg r: Pair<String, Int>, ok: Boolean = true, act: Long = now) = Logic.Seen(ok, r.toList(), act)
+
+    @Test fun firstLookOnlyRecords() {
+        val o = Logic.evaluate("An", seen("a" to 30), Logic.NotifyState(), now)
+        assertTrue(o.events.isEmpty())
+        assertTrue(o.state.init && "a" in o.state.seenIds)
+    }
+
+    @Test fun requestNotifiedOnce() {
+        var st = Logic.evaluate("An", seen("a" to 30), Logic.NotifyState(), now).state
+        val o1 = Logic.evaluate("An", seen("a" to 30, "b" to 15), st, now)
+        assertEquals(listOf("An xin thêm 15 phút"), o1.events.map { it.text })
+        val o2 = Logic.evaluate("An", seen("a" to 30, "b" to 15), o1.state, now)
+        assertTrue(o2.events.isEmpty())
+        // survives JSON persistence
+        val o3 = Logic.evaluate("An", seen("a" to 30, "b" to 15), Logic.NotifyState.fromJson(o1.state.toJson()), now)
+        assertTrue(o3.events.isEmpty())
+    }
+
+    @Test fun lostNotifiedOnceThenResets() {
+        val base = Logic.NotifyState(init = true)
+        val o1 = Logic.evaluate("An", seen(act = now - 31 * 60_000), base, now)
+        assertEquals(listOf("Mất kết nối với máy của An"), o1.events.map { it.text })
+        assertTrue(Logic.evaluate("An", seen(act = now - 40 * 60_000), o1.state, now).events.isEmpty())
+        val back = Logic.evaluate("An", seen(act = now), o1.state, now)
+        assertFalse(back.state.lost)
+        assertEquals(1, Logic.evaluate("An", seen(act = now - 31 * 60_000), back.state, now).events.size)
+    }
+
+    @Test fun fetchFailureNeedsThirtyMinutes() {
+        val f = seen(ok = false, act = 0)
+        val o1 = Logic.evaluate("An", f, Logic.NotifyState(init = true), now)
+        assertTrue(o1.events.isEmpty()); assertEquals(now, o1.state.failSince)
+        val o2 = Logic.evaluate("An", f, o1.state, now + 29 * 60_000)
+        assertTrue(o2.events.isEmpty())
+        val o3 = Logic.evaluate("An", f, o2.state, now + 31 * 60_000)
+        assertEquals(1, o3.events.size)
+        assertTrue(Logic.evaluate("An", f, o3.state, now + 50 * 60_000).events.isEmpty())
+        val ok = Logic.evaluate("An", seen(act = now + 60 * 60_000), o3.state, now + 60 * 60_000)
+        assertFalse(ok.state.lost); assertEquals(0L, ok.state.failSince)
+    }
+
+    @Test fun parseKids() {
+        val j = """[{"name":"An","target":"http://10.0.0.2:8770","via":"lan","id":"x","token":"tk"},
+            {"name":"Bad","target":"ftp://x","via":"lan"},{"name":"R","target":"https://w.dev","via":"relay","id":"0123456789abcdef","token":"t"}]"""
+        assertEquals(listOf("An", "R"), Logic.parseKids(j).map { it.name })
+        assertTrue(Logic.parseKids("garbage").isEmpty())
+    }
+
+    // ---- history pruning ----
+    private val MB = 1024L * 1024
+
+    @Test fun retention() {
+        val days = listOf("2026-11-06", "2026-11-05", "2026-10-08", "2026-10-07", "2026-01-01")
+        assertTrue(Logic.retentionDrop(days, 0, "2026-11-06").isEmpty())            // unlimited
+        // 30 days = today and the 29 before (oldest kept 2026-10-08)
+        assertEquals(setOf("2026-10-07", "2026-01-01"), Logic.retentionDrop(days, 30, "2026-11-06").toSet())
+        assertTrue(Logic.retentionDrop(days, 365, "2026-11-06").isEmpty())
+    }
+
+    @Test fun storageGuard() {
+        val days = (1..20).map { "2026-10-%02d".format(it) to 10 * MB }
+        assertTrue(Logic.storageDrop(days, 500 * MB).isEmpty())                     // enough space
+        // 195 MB free, need 200: dropping the oldest day (10 MB) is enough
+        assertEquals(listOf("2026-10-01"), Logic.storageDrop(days, 195 * MB))
+        // 150 MB free: 5 days
+        assertEquals((1..5).map { "2026-10-%02d".format(it) }, Logic.storageDrop(days, 150 * MB))
+        // nothing helps: stop at 7 days left (drop 13)
+        val d = Logic.storageDrop(days, 0)
+        assertEquals(13, d.size); assertEquals("2026-10-13", d.last())
+        assertTrue(Logic.storageDrop(days.take(7), 0).isEmpty())                     // only 7 left: never delete
+    }
+
+    @Test fun dayKeyAndOrder() {
+        assertEquals("2026-11-06", Logic.dayKey(java.time.LocalDate.of(2026, 11, 6).atTime(12, 0).atZone(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli(), java.time.ZoneId.of("UTC")))
+    }
+}

@@ -10,3 +10,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "kidguard"
 include(":app")
+include(":parent")

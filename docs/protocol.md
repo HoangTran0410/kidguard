@@ -66,6 +66,8 @@ v0.1: `lock locate message{text} ring relay{url} openPairing unpairAll release`.
 `release` must also undo every v0.2 restriction (location, airplane, private DNS, accessibility allowlist).
 The worker's command whitelist must include `answer` and `reboot`.
 v0.4:
+- While pairing is open the child screen also shows a QR of `http://<ip>:8770/#pair=<code>`; the page prefills the code
+  from `#pair=` (6 digits) and drops the hash.
 - `openPairing` returns `set PIN first` (and does nothing) when a parent was already paired and no PIN is set.
 - LAN `GET /api/hello` adds `pin: bool`. `POST /api/pair {code, pin?}`: `pin` is required once a PIN is set (the child
   can see the code, never the PIN). Errors `{error, wait}`: 403 `wrong code | wrong pin`, 429 `wait | pin locked`,
@@ -164,3 +166,43 @@ The first capture / first input of a session is logged in the phone log.
   scripts: OSM tiles `https://tile.openstreetmap.org/{z}/{x}/{y}.png` as <img> + an SVG polyline/dots, auto-fit zoom,
   point list with times, tap a dot -> time + accuracy. CSP of HTML pages must allow `img-src 'self' data: blob:
   https://tile.openstreetmap.org`.
+
+## App icons (v0.5)
+- LAN: `GET /api/icon?pkg=<pkg>&k=<token>` -> 96 px PNG drawn by the phone.
+- Relay: after each successful sync the phone sends up to 30 not-yet-sent icons:
+  `POST /c/<id>/icons` (token header) body `{"<pkg>": "<base64 48 px WebP>", ...}` -> `{"have": n}`.
+  pkg must match `[A-Za-z0-9._]{1,200}`, junk entries are skipped, max 400 icons per kid (`icon:<pkg>` in DO storage).
+  Sent pkgs are remembered per relay url+id (prefs `relayIcons`), so each icon goes up once.
+- `GET /c/<id>/icon?pkg=<pkg>&k=<token>` -> `image/webp`, `cache-control: private, max-age=86400`; 404 if unknown.
+  The `?k=` token is accepted only on this GET (an `<img>` can't send headers); every other route needs the header.
+- The page uses `${base}/icon?pkg=..&k=..` in all modes (LAN, relay, parent-app proxy `/k/<target>/...`).
+
+## Parent app (v0.5, module `:parent`, `dev.kidguard.parent`)
+Shows the same `web/index.html` in a WebView (`./build.sh` -> `build/kidguard-parent.apk`). The page only uses same-origin
+URLs, so the app runs a small HTTP server on `127.0.0.1:<port>` (cleartext is allowed app-wide because the proxy calls
+the child over plain http; the WebView itself may only reach `127.0.0.1:<port>` and the OSM tiles).
+- **Port**: random free port chosen once and stored; reused while free. localStorage is per origin, so if the port
+  changes the page loses its kid list: the app mirrors it via `KGApp.setKids` (the page should restore from it).
+- **Access**: the WebView first loads `/s/<secret>` (secret random per app start) which sets cookie
+  `kgs=<secret>` (HttpOnly, SameSite=Strict) and 302s to `/`. Without the cookie or with a `Host` other than
+  `127.0.0.1:<port>`: 403.
+- `GET /` -> index.html (same headers as the phone, CSP also `connect-src 'self'`).
+- **Proxy** `ANY /k/<t>/<rest>` -> `<target>/<rest>`; `t` = base64url (no padding) of `http://<host>:<port>` (LAN /
+  Tailscale) or `https://<worker host>` (relay); other schemes, userinfo, paths -> 400. Forwards method, query, body and
+  `X-KG-Token`, `X-KG-W`, `X-KG-H`, `Content-Type`; returns status, body, `Content-Type` and all `X-KG-*` headers.
+  Timeouts: connect 6 s, read 40 s. Network error with no snapshot -> `502 {"error":"offline"}`.
+- **Snapshot cache**: a 200 JSON `GET /api/state` (LAN) or `GET /c/<id>/state` (relay) is stored per target+path. If the
+  same request later fails (network error / timeout / 5xx) the stored body is returned with status 200 and
+  `X-KG-Cached: <epoch ms stored>`.
+- **History**: one file per kid per day (`files/history/<sha256(target+path)>/<yyyy-mm-dd>.json`, last snapshot of the
+  day). Retention is a setting (default unlimited; 30 / 90 / 365). Storage guard: before writing, if free space < 200 MB
+  the oldest days (all kids) are deleted until >= 200 MB or only 7 days remain.
+  - `GET /app/history/days?k=<t>&p=<rest>` -> `["2026-11-06","2026-11-05",...]` newest first (`<rest>` = `api/state` or `c/<id>/state`).
+  - `GET /app/history/day?k=<t>&p=<rest>&d=2026-11-05` -> `{"day","t","body"}`, 404 if none.
+- **JS bridge** `window.KGApp` (strings): `version()` -> `"1"`; `setKids(json)` json = `[{name,target,via:"lan"|"relay",id,token}]`
+  (called whenever the list changes); `getNotify()` / `setNotify("true"|"false")` (default true);
+  `getHistoryDays()` -> `"0"` (unlimited) | `"30"` ...; `setHistoryDays(n)`.
+- **Background**: JobScheduler job every ~15 min (+ once at app start) fetches each kid's state with its token and
+  notifies once per event: new entry in `requests` ("<name> xin thêm <min> phút"; the first look at a kid only records
+  existing ones) and lost connection > 30 min ("Mất kết nối với máy của <name>"; LAN: `state.t` old or fetch failing
+  for > 30 min, relay: `seen` old). Skipped when the parent phone itself has no network. Tapping opens the app.

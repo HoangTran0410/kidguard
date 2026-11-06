@@ -43,7 +43,7 @@ class Relay(private val g: Guard) {
         if (url.isNotBlank() && token.isNotBlank() && rid.isNotBlank()) {
             if (!url.startsWith("https://", ignoreCase = true)) {
                 lastError = "relay needs https://"; delay = 60_000
-            } else runCatching { busy = sync(url, rid, token); fails = 0 }.onFailure {
+            } else runCatching { busy = sync(url, rid, token); fails = 0; runCatching { uploadIcons(url, rid, token) } }.onFailure {
                 lastError = it.message ?: it.javaClass.simpleName; Log.w("KidGuard", "relay", it)
                 fails++
                 // 401 / 409 / 5xx / network: exponential backoff up to 5 min; the next success resets it
@@ -109,6 +109,31 @@ class Relay(private val g: Guard) {
             if (res.optBoolean("live")) startLive(base, rid, token)
             return acks.length() > 0 || res.has("rules")
         } finally { c.disconnect() }
+    }
+
+    // ---- app icons: the relay keeps a 48 px WebP per app so the parent page can show them; each app sent once ----
+    private fun uploadIcons(base: String, rid: String, token: String) {
+        val apps = g.currentState().optJSONArray("apps") ?: return
+        val p = g.getSharedPreferences("relayIcons", 0)
+        val key = "$base|$rid"; val sent = p.getStringSet(key, emptySet())!!.toMutableSet()
+        val todo = (0 until apps.length()).mapNotNull { apps.optJSONObject(it)?.optString("pkg")?.takeIf { s -> s.isNotEmpty() && s !in sent } }.take(30)
+        if (todo.isEmpty()) return
+        val body = JSONObject()
+        for (pkg in todo) iconWebp(pkg)?.let { body.put(pkg, android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP)) }
+        val c = open("$base/c/$rid/icons", token).apply { setRequestProperty("Content-Type", "application/json") }
+        try {
+            c.outputStream.use { it.write(body.toString().toByteArray()) }
+            if (c.responseCode == 200) { sent.addAll(todo); p.edit().putStringSet(key, sent).apply() }
+        } finally { c.disconnect() }
+    }
+
+    private fun iconWebp(pkg: String): ByteArray? {
+        val d = runCatching { g.packageManager.getApplicationIcon(pkg) }.getOrNull() ?: return null
+        val bmp = android.graphics.Bitmap.createBitmap(48, 48, android.graphics.Bitmap.Config.ARGB_8888)
+        d.setBounds(0, 0, 48, 48); d.draw(android.graphics.Canvas(bmp))
+        @Suppress("DEPRECATION")
+        val fmt = if (android.os.Build.VERSION.SDK_INT >= 30) android.graphics.Bitmap.CompressFormat.WEBP_LOSSY else android.graphics.Bitmap.CompressFormat.WEBP
+        return java.io.ByteArrayOutputStream().also { bmp.compress(fmt, 80, it) }.toByteArray()
     }
 
     // ---- live screen: one loop at a time, on its own thread, <= 3 fps, <= 10 min ----
