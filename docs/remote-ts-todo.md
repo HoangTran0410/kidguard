@@ -33,8 +33,9 @@ Refs: https://tailscale.com/kb/1315/mdm-keys · https://tailscale.com/kb/1384/an
       another tailnet device at `http://<ip>:8770`.
 - [x] Private DNS filter works with the VPN up: tun network also uses the Private DNS host (family filter → 127.0.0.1).
 - [x] `tailscaleOff` undo (emulator): VPN off, restriction cleared, app uninstalled, internet still fine.
-- [ ] The Tailscale UI ("Log in") is in front of the child for ~10–20 s until it gets suspended. Try without the launch
-      intent, or send HOME right after.
+- [x] No Tailscale UI in front of the child: setup no longer opens the app. The always-on VPN bind alone reads the managed
+      config and logs in (emulator: tailnet IP 3.5 s after the policy, app never in front, sampled every 1 s). Fallback if
+      no address in 30 s: open the app once, HOME after 3 s.
 - [ ] After uninstall the node stays in the admin console (no logout). Use an ephemeral key, or document "remove the
       device in the admin console".
 - [ ] Real phone test (OEM ROMs: Samsung/Xiaomi may differ on always-on VPN + suspended VPN app).

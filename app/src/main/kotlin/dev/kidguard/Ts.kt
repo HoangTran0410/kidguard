@@ -151,11 +151,22 @@ object Ts {
         applyPolicy(ctx, s, suspend = false)
         asserted = true
         since = System.currentTimeMillis()
-        // the app needs one start to read its managed configuration and log in; the always-on VPN also binds it
+        s.log("Điều khiển từ xa: đã cài, đang đăng nhập")
+        // the always-on VPN binds the app's VPN service, which reads the managed config and logs in without any UI.
+        // Only if no tailnet address shows up: open the app once (so the child sees it), then go back home.
+        if (waitIp(30_000)) { Log.i(TAG, "remote access: up without opening the app"); return }
+        Log.i(TAG, "remote access: no address after 30 s, opening the app once")
         runCatching {
             ctx.packageManager.getLaunchIntentForPackage(TsLogic.PKG)?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)?.let { ctx.startActivity(it) }
+            Thread.sleep(3_000)
+            ctx.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
-        s.log("Điều khiển từ xa: đã cài, đang đăng nhập")
+    }
+
+    private fun waitIp(ms: Long): Boolean {
+        val end = System.currentTimeMillis() + ms
+        while (System.currentTimeMillis() < end) { if (findIp().isNotEmpty()) return true; Thread.sleep(1_000) }
+        return false
     }
 
     private fun httpGet(url: String): HttpURLConnection {
