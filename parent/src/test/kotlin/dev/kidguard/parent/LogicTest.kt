@@ -135,4 +135,25 @@ class LogicTest {
     @Test fun dayKeyAndOrder() {
         assertEquals("2026-11-06", Logic.dayKey(java.time.LocalDate.of(2026, 11, 6).atTime(12, 0).atZone(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli(), java.time.ZoneId.of("UTC")))
     }
+
+    @Test fun pushEventMapsAndDedupes() {
+        val kids = Logic.parseKids("""[{"name":"An","target":"https://w.example.dev","via":"relay","id":"0123456789abcdef","token":"t"},
+            {"name":"Bo","target":"http://192.168.1.5:8770","via":"lan","id":"","token":"t"}]""")
+        val none = { _: Logic.KidCfg -> Logic.NotifyState() }
+        val sos = Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "0123456789abcdef", "eid" to "s:a1", "t" to "0"), none)!!
+        assertEquals("An", sos.first.name); assertEquals("sos:a1", sos.second.key)
+        val req = Logic.pushEvent(kids, mapOf("kind" to "req", "kid" to "0123456789abcdef", "eid" to "r:q9", "min" to "30"), none)!!
+        assertEquals("req:q9", req.second.key); assertEquals("An xin thêm 30 phút", req.second.text)
+        // same keys as the background check -> same notification id; already seen -> nothing
+        val seen = { _: Logic.KidCfg -> Logic.NotifyState(setOf("s:a1", "q9")) }
+        assertNull(Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "0123456789abcdef", "eid" to "s:a1"), seen))
+        assertNull(Logic.pushEvent(kids, mapOf("kind" to "req", "kid" to "0123456789abcdef", "eid" to "r:q9"), seen))
+        assertNull(Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "ffffffffffffffff", "eid" to "s:a1"), none))
+        assertNull(Logic.pushEvent(kids, mapOf("kind" to "zap", "kid" to "0123456789abcdef", "eid" to "s:a1"), none))
+        assertEquals(setOf("x", "q9"), Logic.withSeen(Logic.NotifyState(setOf("x")), Logic.seenIdOf("r:q9")!!).seenIds)
+        // what the check stores must match what the push marks, or both would notify
+        val after = Logic.evaluate("An", Logic.Seen(true, listOf("q9" to 30), System.currentTimeMillis(), listOf("a1" to System.currentTimeMillis())),
+            Logic.NotifyState(setOf("s:a1", "q9"), init = true), System.currentTimeMillis())
+        assertTrue(after.events.isEmpty())
+    }
 }

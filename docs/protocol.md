@@ -174,7 +174,7 @@ The first capture / first input of a session is logged in the phone log.
 - Command `sosAck {id}` (`id` = one id or `"all"`): removes it. Result `ok | no such sos`. In the worker whitelist.
 - Page: red banner on every tab while `sos` is not empty: time, "Xem vị trí", "Nghe xung quanh" (LAN only), "Đã xử lý" (= `sosAck all`).
 - Parent app: an SOS id not seen before and younger than 6 h is notified on channel `kg_sos` (high importance),
-  also on the first look at a kid. The background check runs ~every 15 min, so this is not instant.
+  also on the first look at a kid. The background check runs ~every 15 min; relay kids also get FCM (below, seconds).
 - **Listen around** (one way, LAN / Tailscale only, the relay has no audio route):
   `GET /api/listen?k=<token>` -> `200 audio/aac` (ADTS, AAC-LC 16 kHz mono 32 kbit/s, ~14 MB/h), no Content-Length,
   streamed until the client closes or 10 min pass (the page can start again). Errors: `409 {"error":"busy"}` (one
@@ -186,6 +186,23 @@ The first capture / first input of a session is logged in the phone log.
 - The phone gets RECORD_AUDIO through `setPermissionGrantState` (with the location ones) and adds the `microphone` type to
   its foreground service only while listening. `release` revokes RECORD_AUDIO (DENIED, then DEFAULT) and stops a session.
 - Parent-app proxy: `GET /k/<t>/api/listen` is passed through as a stream (never cached).
+
+## Instant push via FCM (v0.5, optional, relay kids only)
+- Worker secret `FCM_SA` = the Firebase service-account JSON (`project_id`, `client_email`, `private_key`, `token_uri`).
+  Not set = push off; everything else works. `FCM_URL` (var, tests only) overrides `https://fcm.googleapis.com`.
+- `POST /c/<id>/push` (kid token header) `{"fcm": "<FCM registration token>"}` registers, `{"fcm": "...", "off": true}`
+  removes -> `{"ok": true, "enabled": <FCM_SA set>, "devices": n}`. Max 5 tokens per kid (oldest dropped); token
+  `^[\w:.-]{20,400}$` else 400.
+- On every `sync` with a state: each `sos` younger than 6 h and each `requests` entry younger than 1 h whose event id
+  (`s:<id>` / `r:<id>`) is not in the last 50 pushed is sent once to every token, as an FCM HTTP v1 **data-only**
+  message, `android.priority: HIGH`, ttl 6 h: `{"kind": "sos"|"req", "kid": "<relay id>", "eid": "s:a1b2c3", "t": "<ms>", "min": "30"|""}`.
+  No names, notes or locations go to Google. An FCM 404 / 400 for a token removes it.
+- Parent app: registers its token with every relay kid on start, on `setKids` (removed kids: `off`) and on
+  `setNotify` (off = unregister). A message for a known relay kid whose id the background check has not seen yet is
+  posted with the same key as the check would use (`sos:<id>` / `req:<id>`, same notification id) and marked seen,
+  so the two never double-notify. Build: `parent/google-services.json` (git-ignored) present = FCM on; Gradle turns
+  it into the `google_app_id` / `gcm_defaultSenderId` / `google_api_key` / `project_id` resources (no google-services
+  plugin). Needs Google Play services on the parent's phone.
 
 ## App icons (v0.5)
 - LAN: `GET /api/icon?pkg=<pkg>&k=<token>` -> 96 px PNG drawn by the phone.

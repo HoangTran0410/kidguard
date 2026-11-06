@@ -14,7 +14,7 @@ import android.net.ConnectivityManager
 import android.os.Build
 import org.json.JSONObject
 
-/** Background check (~15 min via JobScheduler, no extra libraries): new "more time" requests and lost connection. */
+/** Background check (~15 min via JobScheduler): SOS, new "more time" requests, lost connection. Relay kids also get FCM ([Push]). */
 class CheckJob : JobService() {
     override fun onStartJob(p: JobParameters): Boolean {
         Thread({
@@ -54,9 +54,10 @@ class CheckJob : JobService() {
             val now = System.currentTimeMillis()
             for (k in Logic.parseKids(Store.kids(c))) {
                 val seen = fetch(k)
-                val old = Logic.NotifyState.fromJson(Store.notifyState(c, k.key))
-                val out = Logic.evaluate(k.name, seen, old, now)
-                Store.setNotifyState(c, k.key, out.state.toJson())
+                val out = synchronized(Store) {   // a push may mark the same event seen meanwhile ([Push.handle])
+                    val old = Logic.NotifyState.fromJson(Store.notifyState(c, k.key))
+                    Logic.evaluate(k.name, seen, old, now).also { Store.setNotifyState(c, k.key, it.state.toJson()) }
+                }
                 for (e in out.events) post(c, k, e)
             }
         }
@@ -82,7 +83,7 @@ class CheckJob : JobService() {
             } catch (e: Exception) { Logic.Seen(false, emptyList(), 0) }
         }
 
-        private fun post(c: Context, k: Logic.KidCfg, e: Logic.Event) {
+        fun post(c: Context, k: Logic.KidCfg, e: Logic.Event) {
             if (Build.VERSION.SDK_INT >= 33 && c.checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) return
             channel(c)
             val pi = PendingIntent.getActivity(c, 0, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),

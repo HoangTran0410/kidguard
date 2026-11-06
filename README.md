@@ -73,7 +73,7 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự k
 | 🌙 **Bedtime and schedules** | Bedtime every day, plus windows on chosen days (school hours Mon–Fri); can cross midnight |
 | ⏸️ **Pause now** | 30 min, 1 h, until 6 am |
 | 👀 **See the screen** | The child's screen live in the page (Android 11+, ~3 fps). The child sees "Your parent is viewing the screen" |
-| 🆘 **SOS** | A red button on the child's phone: the parent page shows a banner with the time and a fresh location; the parent app notifies (background check, up to ~15 min) |
+| 🆘 **SOS** | A red button on the child's phone: the parent page shows a banner with the time and a fresh location; the parent app notifies in seconds through the Worker + [Firebase push](#instant-sos-notifications-optional), else within ~15 min |
 | 👂 **Listen around** | The parent hears the child's microphone, one way, at most 10 min at a time. **Home Wi-Fi or Tailscale only** (not through the Worker). The child is always told: a beep, a notification "Your parent is listening" and Android's mic dot; this cannot be turned off |
 | 🕹️ **Remote control** | Tap, swipe, long press, Back / Home / Recents, type into the focused field |
 | 📍 **Location** | Locate now, location forced on (the child cannot turn it off), **7-day history** on an OpenStreetMap map with stops |
@@ -119,6 +119,14 @@ cd worker && npm install && npx wrangler login && npx wrangler deploy
 ```
 
 In the parent page (on home Wi-Fi): **Cài đặt → Điều khiển khi khác mạng** (Settings → control away from home), paste the Worker address, press On, open the link it shows on the parent's phone. Commands reach the phone in about 20 s (about 60 s with the screen off).
+
+### Instant SOS notifications (optional)
+
+Without this the parent app checks every ~15 minutes. With it, SOS and "more time" requests from a kid connected through the Worker arrive in seconds (Firebase Cloud Messaging, free). Only an id, a time and the minutes go through Google; names, notes and locations do not.
+
+1. [console.firebase.google.com](https://console.firebase.google.com): add a project, then **Add app → Android**, package `dev.kidguard.parent`. Download `google-services.json` into `parent/` and build (`./build.sh`).
+2. **Project settings → Service accounts → Generate new private key**, then: `cd worker && npx wrangler secret put FCM_SA < /path/key.json && npx wrangler deploy`. Delete the key file afterwards.
+3. Open the parent app once: it registers itself with every kid that uses the Worker. The parent's phone needs Google Play services.
 
 ## iPhone / iPad
 

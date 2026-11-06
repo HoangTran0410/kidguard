@@ -22,10 +22,14 @@ class Bridge(private val a: Activity) {
     @JavascriptInterface fun getKids(): String = Store.kids(a)
     @JavascriptInterface fun setKids(json: String) {
         if (json.length > 100_000) return
+        val old = Logic.parseKids(Store.kids(a))
         Store.setKids(a, org.json.JSONArray(json).toString())   // throws (ignored by WebView) on invalid JSON
+        val now = Logic.parseKids(Store.kids(a)).map { it.key }.toSet()
+        Push.sync(a.applicationContext, old.filter { it.key !in now })
     }
     @JavascriptInterface fun setNotify(v: String) {
         Store.setNotify(a, v == "true")
+        Push.sync(a.applicationContext)   // notify off = unregister from the relay too
         if (v == "true" && Build.VERSION.SDK_INT >= 33 && a.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
             a.runOnUiThread { a.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1) }
     }
@@ -48,6 +52,7 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= 33 && Store.notify(this) && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
         CheckJob.schedule(this)
+        Push.sync(applicationContext)
 
         val origin = "http://127.0.0.1:${proxy.port}"
         val w = WebView(this)

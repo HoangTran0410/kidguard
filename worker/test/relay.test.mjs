@@ -92,6 +92,25 @@ r=await fetch(`${B}/c/${id2}/icon?pkg=com.example.game&k=${T}`);ck("icon GET wit
 ck("icon GET wrong k -> 401",(await fetch(`${B}/c/${id2}/icon?pkg=com.example.game&k=${BAD}`)).status==401);
 ck("icon GET unknown pkg -> 404",(await fetch(`${B}/c/${id2}/icon?pkg=a.b&k=${T}`)).status==404);
 ck("?k= only works for icon",(await fetch(`${B}/c/${id2}/state?k=${T}`)).status==401);}
+// v0.5: FCM push (fake Google from run.mjs on $MOCK)
+if(process.env.MOCK){const id3=[...crypto.getRandomValues(new Uint8Array(8))].map(b=>b.toString(16).padStart(2,"0")).join(""),P3=(p,o)=>fetch(`${B}/c/${id3}/${p}`,{method:"POST",headers:H(),body:JSON.stringify(o)});
+const sentList=async()=>(await (await fetch(`http://127.0.0.1:${process.env.MOCK}/_sent`)).json()).filter(m=>m.data.kid==id3);
+await P3("sync",{state:{}});
+ck("push bad token 400",(await P3("push",{fcm:"x"})).status==400);
+j=await (await P3("push",{fcm:"good_"+"a".repeat(40)})).json();ck("push register: enabled, 1 device",j.ok&&j.enabled===true&&j.devices==1);
+j=await (await P3("push",{fcm:"good_"+"a".repeat(40)})).json();ck("push register twice: still 1",j.devices==1);
+await P3("push",{fcm:"dead_"+"b".repeat(40)});
+const now=Date.now();await P3("sync",{state:{sos:[{id:"s1",t:now},{id:"old",t:now-7*3600e3}],requests:[{id:"r1",t:now,min:30,note:"bí mật"}]}});
+await sleep(800);let ms=await sentList();
+ck("sos + request pushed to both tokens, old sos skipped",ms.length==4&&ms.filter(m=>m.data.eid=="s:s1").length==2&&ms.filter(m=>m.data.eid=="r:r1").length==2&&!ms.some(m=>m.data.eid=="s:old"));
+ck("push is data-only, high priority, no note text",ms.every(m=>m.android.priority=="HIGH"&&!m.notification&&m.data.kind&&!JSON.stringify(m).includes("bí mật"))&&ms.find(m=>m.data.kind=="req").data.min=="30");
+await P3("sync",{state:{sos:[{id:"s1",t:now}],requests:[{id:"r1",t:now,min:30}]}});await sleep(500);
+ck("same ids not pushed again",(await sentList()).length==4);
+j=await (await P3("push",{fcm:"good_"+"a".repeat(40)})).json();ck("dead token (404) removed",j.devices==1);
+await P3("sync",{state:{sos:[{id:"s2",t:now}]}});await sleep(500);ms=await sentList();
+ck("next sos only to the live token",ms.length==5&&ms[4].data.eid=="s:s2"&&ms[4].token.startsWith("good"));
+j=await (await P3("push",{fcm:"good_"+"a".repeat(40),off:true})).json();ck("push off removes",j.devices==0);
+ck("push needs the kid token",(await fetch(`${B}/c/${id3}/push`,{method:"POST",headers:H(BAD),body:"{}"})).status==401);}
 // last: per-IP rate limit (150 / 10 s) on /c/*; the page itself is not limited
 {const rs=[];for(let i=0;i<11&&!rs.includes(429);i++)rs.push(...await Promise.all(Array.from({length:20},()=>fetch(`${B}/c/${id}/state`,{headers:H(BAD)}).then(r=>r.status,()=>0))));
 ck("rate limit: burst of 220 gets some 429",rs.includes(429));ck("rate limit: page / still 200",(await fetch(`${B}/`)).status==200);}

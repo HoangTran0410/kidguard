@@ -148,4 +148,30 @@ object Logic {
         }
         return Outcome(events, NotifyState(ids, lost, failSince, true))
     }
+
+    /**
+     * FCM data message from the relay ({kind: sos|req, kid, eid: "s:<id>"|"r:<id>", t, min}) -> the same event the
+     * background check would post (same key, so the same notification id), or null if unknown / already notified.
+     */
+    fun pushEvent(kids: List<KidCfg>, data: Map<String, String>, st: (KidCfg) -> NotifyState): Pair<KidCfg, Event>? {
+        val k = kids.firstOrNull { it.via == "relay" && it.id == data["kid"] } ?: return null
+        val eid = data["eid"] ?: return null
+        val seenId = seenIdOf(eid) ?: return null
+        if (seenId in st(k).seenIds) return null
+        val t = data["t"]?.toLongOrNull() ?: 0L
+        return when (data["kind"]) {
+            "sos" -> k to Event("sos:" + eid.removePrefix("s:"), "${k.name} bấm SOS lúc ${hhmm(t)}")
+            "req" -> k to Event("req:" + eid.removePrefix("r:"), "${k.name} xin thêm ${data["min"]?.toIntOrNull() ?: 0} phút")
+            else -> null
+        }
+    }
+
+    /** The id the background check stores in [NotifyState.seenIds] for a push eid ("s:x" stays, "r:x" -> "x"). */
+    fun seenIdOf(eid: String): String? = when {
+        eid.startsWith("s:") && eid.length > 2 -> eid
+        eid.startsWith("r:") && eid.length > 2 -> eid.substring(2)
+        else -> null
+    }
+
+    fun withSeen(st: NotifyState, id: String) = NotifyState(st.seenIds + id, st.lost, st.failSince, st.init)
 }
