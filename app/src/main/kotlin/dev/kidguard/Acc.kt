@@ -187,7 +187,7 @@ class Acc : AccessibilityService() {
                     val nm = svc.getSystemService(NotificationManager::class.java)
                     nm.createNotificationChannel(NotificationChannel(CH, "Đang xem màn hình", NotificationManager.IMPORTANCE_DEFAULT))
                     nm.notify(NID, Notification.Builder(svc, CH).setSmallIcon(android.R.drawable.ic_menu_view)
-                        .setContentTitle("👀 Bố mẹ đang xem màn hình").setOngoing(true).setOnlyAlertOnce(true).build())
+                        .setContentTitle("Bố mẹ đang xem màn hình").setOngoing(true).setOnlyAlertOnce(true).build())
                 }
                 main.removeCallbacks(hide)
                 main.postDelayed(hide, 5000)

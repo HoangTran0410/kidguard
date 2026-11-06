@@ -23,7 +23,7 @@ if (-not $Apk) {
     foreach ($c in @("kidguard.apk", "build\kidguard.apk")) { if (Test-Path $c) { $Apk = $c; break } }
 }
 if (-not $Apk -or -not (Test-Path $Apk)) {
-    Write-Host "⬇️  Không thấy file kidguard.apk, tải bản mới nhất…"
+    Write-Host "[..] Không thấy file kidguard.apk, tải bản mới nhất…"
     $rel = "https://github.com/HoangTran0410/kidguard/releases/latest/download"
     $Apk = Join-Path $env:TEMP "kidguard.apk"
     Invoke-WebRequest -UseBasicParsing -Uri "$rel/kidguard.apk" -OutFile $Apk
@@ -31,10 +31,10 @@ if (-not $Apk -or -not (Test-Path $Apk)) {
     try { $want = ((Invoke-WebRequest -UseBasicParsing -Uri "$rel/kidguard.apk.sha256").Content -split "\s+")[0].Trim().ToLower() } catch { }
     if ($want) {
         $got = (Get-FileHash -Algorithm SHA256 -Path $Apk).Hash.ToLower()
-        if ($got -ne $want) { Write-Host "❌ Sai mã kiểm tra SHA-256 của kidguard.apk (muốn $want, được $got). Dừng."; exit 1 }
-        Write-Host "✅ Đã kiểm tra SHA-256 của kidguard.apk"
+        if ($got -ne $want) { Write-Host "LỖI: Sai mã kiểm tra SHA-256 của kidguard.apk (muốn $want, được $got). Dừng."; exit 1 }
+        Write-Host "OK Đã kiểm tra SHA-256 của kidguard.apk"
     } else {
-        Write-Host "⚠️  Không có kidguard.apk.sha256 trên bản phát hành, không kiểm tra được tính toàn vẹn."
+        Write-Host "[!] Không có kidguard.apk.sha256 trên bản phát hành, không kiểm tra được tính toàn vẹn."
     }
 }
 
@@ -72,7 +72,7 @@ if ($devs.Count -ne 1) {
 
 $model = (Adb shell getprop ro.product.model).Trim()
 $ver = (Adb shell getprop ro.build.version.release).Trim()
-Write-Host "📱 Máy đang cắm: $model (Android $ver)"
+Write-Host "[*] Máy đang cắm: $model (Android $ver)"
 if (-not $Yes) {
     $ans = Read-Host "Đây là máy của con? [y/N]"
     if ($ans -notmatch '^[yY]') { Write-Host "Đã huỷ."; exit 1 }
@@ -81,13 +81,13 @@ if (-not $Yes) {
 # adb shell often exits 0 on failure: run a command, stop if the output looks like an error.
 function Chk {
     $o = Adb shell @args
-    if ($o -match "Error|Exception|denied|Failure") { Write-Host "❌ Lỗi: $o"; exit 1 }
+    if ($o -match "Error|Exception|denied|Failure") { Write-Host "LỖI: $o"; exit 1 }
 }
 
-Write-Host "📦 1/8 Cài app"
+Write-Host "[1/8] Cài app"
 $r = Adb install -r -g $Apk
 if ($r -notmatch "Success") {
-    Write-Host "❌ $r"
+    Write-Host "LỖI: $r"
     if ($r -match "INSTALL_FAILED_UPDATE_INCOMPATIBLE") { Write-Host "→ Máy đã có bản KidGuard ký khác. Gỡ app cũ trước (Cài đặt > Ứng dụng > KidGuard > Gỡ), rồi chạy lại." }
     elseif ($r -match "INSTALL_FAILED_USER_RESTRICTED|INSTALL_FAILED_ABORTED") { Write-Host "→ Máy chặn cài qua USB. Xiaomi: bật `"Cài qua USB`" và `"Gỡ lỗi USB (Cài đặt bảo mật)`"; rồi bấm Cho phép trên máy." }
     elseif ($r -match "INSTALL_FAILED_OLDER_SDK") { Write-Host "→ Android của máy quá cũ cho bản KidGuard này." }
@@ -96,7 +96,7 @@ if ($r -notmatch "Success") {
     exit 1
 }
 
-Write-Host "🛡️  2/8 Đặt KidGuard làm Device Owner"
+Write-Host "[2/8] Đặt KidGuard làm Device Owner"
 $out = Adb shell dpm set-device-owner "$Pkg/.Admin"
 if ((Adb shell dumpsys device_policy) -notmatch [regex]::Escape("admin=ComponentInfo{$Pkg/$Pkg.Admin}")) {
     Write-Host $out
@@ -111,35 +111,35 @@ Không đặt được Device Owner. Thường là vì:
     exit 1
 }
 
-Write-Host "📊 3/8 Cấp quyền xem thời gian dùng app"
+Write-Host "[3/8] Cấp quyền xem thời gian dùng app"
 Chk appops set $Pkg GET_USAGE_STATS allow
 
-Write-Host "🔑 4/8 Cấp quyền ghi cài đặt bảo mật"
+Write-Host "[4/8] Cấp quyền ghi cài đặt bảo mật"
 Chk pm grant $Pkg android.permission.WRITE_SECURE_SETTINGS
 
-Write-Host "♿ 5/8 Bật dịch vụ Trợ năng"
+Write-Host "[5/8] Bật dịch vụ Trợ năng"
 $cur = ((Adb shell settings get secure enabled_accessibility_services) -split "`n")[0].Trim()
 if ($cur -eq "null") { $cur = "" }
 if ((":$cur:") -notlike "*:${Acc}:*") {
     if ($cur) { $cur = "${cur}:${Acc}" } else { $cur = $Acc }
 }
-if ($cur.Contains("'")) { Write-Host "❌ Danh sách trợ năng có ký tự lạ: $cur"; exit 1 }
+if ($cur.Contains("'")) { Write-Host "LỖI: Danh sách trợ năng có ký tự lạ: $cur"; exit 1 }
 # adb shell re-parses the line on the phone: single-quote the value so "$" in old entries is not expanded
 Chk "settings put secure enabled_accessibility_services '$cur'"
 Chk settings put secure accessibility_enabled 1
 
-Write-Host "🔋 6/8 Cho chạy nền, không bị tiết kiệm pin"
+Write-Host "[6/8] Cho chạy nền, không bị tiết kiệm pin"
 Chk dumpsys deviceidle whitelist "+$Pkg"
 
-Write-Host "▶️  7/8 Mở app"
+Write-Host "[7/8] Mở app"
 Chk am start -n "$Pkg/.MainActivity"
 Start-Sleep -Seconds 3
 
-Write-Host "📶 8/8 Địa chỉ cho bố mẹ"
+Write-Host "[8/8] Địa chỉ cho bố mẹ"
 $ip = ""
 if ((Adb shell ip -4 addr show wlan0) -match "inet (\d+\.\d+\.\d+\.\d+)") { $ip = $Matches[1] }
 if (-not $ip -and (Adb shell ip route get 1.1.1.1) -match "\bsrc (\d+\.\d+\.\d+\.\d+)") { $ip = $Matches[1] }
 if (-not $ip) { $ip = "<IP của máy con>" }
 Write-Host ""
-Write-Host "🎉 Xong. Trên điện thoại bố mẹ (cùng Wi-Fi), mở: http://${ip}:8770"
-Write-Host "🔢 rồi nhập mã 6 số đang hiện trên máy con. Giờ có thể đăng nhập lại tài khoản trên máy con."
+Write-Host "OK Xong. Trên điện thoại bố mẹ (cùng Wi-Fi), mở: http://${ip}:8770"
+Write-Host "-> rồi nhập mã 6 số đang hiện trên máy con. Giờ có thể đăng nhập lại tài khoản trên máy con."

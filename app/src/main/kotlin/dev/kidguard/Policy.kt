@@ -122,7 +122,7 @@ object Policy {
         runCatching { d.setGlobalPrivateDnsModeOpportunistic(a) }
         dnsError = "Mạng hiện tại không dùng được DNS an toàn, tạm tắt 30 phút để con không mất mạng"
         dnsTriedAt = now; retryAfter = 30 * 60_000L; unvalidatedSince = 0
-        runCatching { Store.of(ctx).log("⚠️ DNS an toàn làm mất mạng, tạm tắt 30 phút") }
+        runCatching { Store.of(ctx).log("DNS an toàn làm mất mạng, tạm tắt 30 phút") }
     }
 
     private var cacheAt = 0L

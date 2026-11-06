@@ -215,7 +215,7 @@ class Guard : Service() {
         nm.createNotificationChannel(NotificationChannel("answer", "Bố mẹ trả lời", NotificationManager.IMPORTANCE_HIGH))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         nm.notify(2, Notification.Builder(this, "answer").setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentTitle("🛡️ KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
+            .setContentTitle("KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
     }
 
     fun currentState(): JSONObject = lastState
@@ -257,7 +257,7 @@ class Guard : Service() {
         "unpairAll" -> { store.clearTokens(); "ok" }
         "answer" -> {
             val req = store.removeRequest(c.optString("id"))
-            if (req != null) notifyChild(if (c.optBoolean("ok")) "👍 Bố mẹ đã đồng ý thêm ${c.optInt("min", req.optInt("min")).coerceIn(0, 24 * 60)} phút" else "🙅 Bố mẹ chưa đồng ý")
+            if (req != null) notifyChild(if (c.optBoolean("ok")) "Bố mẹ đã đồng ý thêm ${c.optInt("min", req.optInt("min")).coerceIn(0, 24 * 60)} phút" else "Bố mẹ chưa đồng ý")
             if (req != null) "ok" else "no such request"
         }
         "reboot" -> if (Policy.isOwner(this)) runCatching { Policy.dpm(this).reboot(Policy.admin(this)); "ok" }.getOrElse { "failed" } else "not owner"
@@ -370,7 +370,7 @@ class Guard : Service() {
         nm.createNotificationChannel(NotificationChannel("guard", "KidGuard", NotificationManager.IMPORTANCE_MIN))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val n = Notification.Builder(this, "guard").setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentTitle("🛡️ KidGuard đang bật").setContentText("👨‍👩‍👧 Bố mẹ quản lý thời gian dùng máy").setOngoing(true).setContentIntent(open).build()
+            .setContentTitle("KidGuard đang bật").setContentText("Bố mẹ quản lý thời gian dùng máy").setOngoing(true).setContentIntent(open).build()
         if (Build.VERSION.SDK_INT >= 34) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE) else startForeground(1, n)
     }
 
