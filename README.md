@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://kidguard-56k.pages.dev">Website</a> ·
+  <a href="https://kid-guard.pages.dev">Website</a> ·
   <a href="#get-it">Get it</a> ·
   <a href="#install">Install</a> ·
   <a href="#features">Features</a> ·
