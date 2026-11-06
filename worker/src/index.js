@@ -17,7 +17,7 @@ const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
 const ONCE = ["reboot", "release", "unpairAll"];   // deliver-once: dropped from the queue when handed to the phone
-const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "release", "answer", "reboot", "tailscaleOff"];
+const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "release", "answer", "reboot", "tailscaleOff", "sosAck"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
 // inline scripts/styles are needed (single-file pages); the installer imports ESM from jsDelivr and downloads the APK
 const CSP = [

@@ -19,7 +19,9 @@ class Req(val method: String, val path: String, val query: Map<String, String>, 
     fun header(n: String) = headers[n.lowercase()]
 }
 
-class Res(val code: Int, val type: String, val body: ByteArray, val headers: Map<String, String> = emptyMap()) {
+/** [stream] set: no Content-Length, the body is whatever [stream] writes until it returns (the connection then closes). */
+class Res(val code: Int, val type: String, val body: ByteArray, val headers: Map<String, String> = emptyMap(),
+          val stream: ((java.io.OutputStream) -> Unit)? = null) {
     companion object {
         fun json(s: String, code: Int = 200) = Res(code, "application/json; charset=utf-8", s.toByteArray())
         fun text(s: String, code: Int) = Res(code, "text/plain; charset=utf-8", s.toByteArray())
@@ -63,12 +65,18 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
         } catch (e: TooBig) { Res.text("too big", 413) } catch (e: Exception) {
             Log.w("KidGuard", "req", e); Res.text("error", 500)
         }
-        val head = "HTTP/1.1 ${res.code} ${reason(res.code)}\r\nContent-Type: ${res.type}\r\nContent-Length: ${res.body.size}\r\n" +
+        val head = "HTTP/1.1 ${res.code} ${reason(res.code)}\r\nContent-Type: ${res.type}\r\n" +
+            (if (res.stream == null) "Content-Length: ${res.body.size}\r\n" else "") +
             "Cache-Control: ${if (res.type == "image/png") "private, max-age=86400" else "no-store"}\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n" +
             (if (res.type.startsWith("text/html")) "X-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'; img-src 'self' data: blob: https://tile.openstreetmap.org\r\n" else "") +
             res.headers.entries.joinToString("") { (k, v) -> "$k: $v\r\n" } + "\r\n"
         val out = it.getOutputStream()
-        out.write(head.toByteArray()); out.write(res.body); out.flush()
+        val s = res.stream
+        if (s == null) { out.write(head.toByteArray()); out.write(res.body); out.flush(); return }
+        // a stream owns something (the mic): it must run even if the client is already gone, so it can clean up
+        val sink = try { it.tcpNoDelay = true; out.write(head.toByteArray()); out.flush(); out }
+            catch (e: java.io.IOException) { object : java.io.OutputStream() { override fun write(b: Int) = throw java.io.IOException("closed") } }
+        s(sink)
     }
 
     private class TooBig : Exception()
@@ -109,5 +117,5 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
         return Req(parts[0].uppercase(), path, query, headers, body)
     }
 
-    private fun reason(c: Int) = when (c) { 200 -> "OK"; 204 -> "No Content"; 400 -> "Bad Request"; 401 -> "Unauthorized"; 403 -> "Forbidden"; 404 -> "Not Found"; 413 -> "Payload Too Large"; 503 -> "Service Unavailable"; else -> "Error" }
+    private fun reason(c: Int) = when (c) { 200 -> "OK"; 204 -> "No Content"; 400 -> "Bad Request"; 401 -> "Unauthorized"; 403 -> "Forbidden"; 404 -> "Not Found"; 409 -> "Conflict"; 413 -> "Payload Too Large"; 503 -> "Service Unavailable"; else -> "Error" }
 }

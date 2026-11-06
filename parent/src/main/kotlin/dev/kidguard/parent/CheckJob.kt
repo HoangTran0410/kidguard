@@ -27,6 +27,7 @@ class CheckJob : JobService() {
 
     companion object {
         const val CHANNEL = "kg_events"
+        const val SOS_CHANNEL = "kg_sos"
         private const val PERIODIC = 1
         private const val ONCE = 2
 
@@ -43,6 +44,7 @@ class CheckJob : JobService() {
         fun channel(c: Context) {
             val nm = c.getSystemService(NotificationManager::class.java)
             nm.createNotificationChannel(NotificationChannel(CHANNEL, "Thông báo từ máy của con", NotificationManager.IMPORTANCE_DEFAULT))
+            nm.createNotificationChannel(NotificationChannel(SOS_CHANNEL, "SOS từ con", NotificationManager.IMPORTANCE_HIGH))
         }
 
         fun run(c: Context) {
@@ -71,7 +73,12 @@ class CheckJob : JobService() {
                     val x = rq!!.optJSONObject(i) ?: return@mapNotNull null
                     x.optString("id").takeIf { it.isNotEmpty() }?.let { it to x.optInt("min") }
                 }
-                Logic.Seen(true, list, if (k.via == "lan") st.optLong("t") else o.optLong("seen"))
+                val sa = st.optJSONArray("sos")
+                val sos = (0 until (sa?.length() ?: 0)).mapNotNull { i ->
+                    val x = sa!!.optJSONObject(i) ?: return@mapNotNull null
+                    x.optString("id").takeIf { it.isNotEmpty() }?.let { it to x.optLong("t") }
+                }
+                Logic.Seen(true, list, if (k.via == "lan") st.optLong("t") else o.optLong("seen"), sos)
             } catch (e: Exception) { Logic.Seen(false, emptyList(), 0) }
         }
 
@@ -80,7 +87,7 @@ class CheckJob : JobService() {
             channel(c)
             val pi = PendingIntent.getActivity(c, 0, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            val n = android.app.Notification.Builder(c, CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle("KidGuard")
+            val n = android.app.Notification.Builder(c, if (e.key.startsWith("sos:")) SOS_CHANNEL else CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle("KidGuard")
                 .setContentText(e.text).setContentIntent(pi).setAutoCancel(true).build()
             c.getSystemService(NotificationManager::class.java).notify((k.key + e.key).hashCode(), n)
         }

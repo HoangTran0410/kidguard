@@ -10,6 +10,10 @@ import java.util.Base64
 
 object Logic {
     const val LOST_MS = 30 * 60_000L
+    const val SOS_FRESH_MS = 6 * 3600_000L
+
+    fun hhmm(ms: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+        Instant.ofEpochMilli(ms).atZone(zone).toLocalTime().let { "%02d:%02d".format(it.hour, it.minute) }
     const val MIN_FREE = 200L * 1024 * 1024
     const val MIN_KEEP_DAYS = 7
 
@@ -116,7 +120,7 @@ object Logic {
     }
 
     /** What one check saw for a kid. activityT = state.t (LAN) or relay `seen` (ms of the child's last sync), 0 = unknown. */
-    class Seen(val fetchOk: Boolean, val requests: List<Pair<String, Int>>, val activityT: Long)
+    class Seen(val fetchOk: Boolean, val requests: List<Pair<String, Int>>, val activityT: Long, val sos: List<Pair<String, Long>> = emptyList())
     class Event(val key: String, val text: String)   // key: unique per event, used as notification id
     class Outcome(val events: List<Event>, val state: NotifyState)
 
@@ -130,7 +134,9 @@ object Logic {
             failSince = 0L
             // the first look at a kid only records what is already there (no burst of old requests)
             if (st.init) for ((id, min) in seen.requests) if (id !in ids) events.add(Event("req:$id", "$name xin thêm $min phút"))
-            ids = (ids + seen.requests.map { it.first }).let { all -> if (all.size > 200) seen.requests.map { it.first }.toSet() else all }
+            // SOS: also on the first look, unless it is old (the child may have pressed it before the app was set up)
+            for ((id, t) in seen.sos) if ("s:$id" !in ids && now - t < SOS_FRESH_MS) events.add(Event("sos:$id", "$name bấm SOS lúc ${hhmm(t)}"))
+            ids = (ids + seen.sos.map { "s:" + it.first } + seen.requests.map { it.first }).let { all -> if (all.size > 200) (seen.sos.map { "s:" + it.first } + seen.requests.map { it.first }).toSet() else all }
             val isLost = seen.activityT > 0 && now - seen.activityT > LOST_MS
             if (isLost && !lost) events.add(Event("lost", "Mất kết nối với máy của $name"))
             lost = isLost

@@ -91,6 +91,7 @@ class Guard : Service() {
     override fun onDestroy() {
         running = null
         runCatching { unregisterReceiver(pkgReceiver) }
+        Listen.stopAll()
         http?.stop(); relay?.stop()
         work.looper.quitSafely()
         super.onDestroy()
@@ -189,6 +190,8 @@ class Guard : Service() {
             .put("history", store.history)
             .put("track", store.track(2))
             .put("requests", store.requests())
+            .put("sos", store.sos())
+            .put("listen", Listen.state())
     }
 
     private fun locationOn(): Boolean {
@@ -263,6 +266,7 @@ class Guard : Service() {
             if (req != null) notifyChild(if (c.optBoolean("ok")) "Bố mẹ đã đồng ý thêm ${c.optInt("min", req.optInt("min")).coerceIn(0, 24 * 60)} phút" else "Bố mẹ chưa đồng ý")
             if (req != null) "ok" else "no such request"
         }
+        "sosAck" -> if (store.ackSos(c.optString("id").ifBlank { "all" }) > 0) "ok" else "no such sos"
         "reboot" -> if (Policy.isOwner(this)) runCatching { Policy.dpm(this).reboot(Policy.admin(this)); "ok" }.getOrElse { "failed" } else "not owner"
         "tailscale" -> Ts.enable(this, store, c.optString("authKey"), c.optString("hostname"))
         "tailscaleOff" -> Ts.disable(this, store)
@@ -278,6 +282,7 @@ class Guard : Service() {
         work.postAtFrontOfQueue {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
+            Listen.stopAll()
             res = runCatching { Policy.release(this, store) }.getOrElse { Log.w("KidGuard", "release", it); "failed" }
             if (res == "failed") { stopped = false; work.post(loopRun) }
             else store.log("Đã gỡ quyền quản lý")
@@ -370,19 +375,38 @@ class Guard : Service() {
         }
     }
 
-    private fun foreground() {
+    /** SOS from the child's screen: remember it, take a fresh location, tell the relay now. */
+    fun sos(): Boolean {
+        store.addSos() ?: return false
+        store.log("Con bấm SOS")
+        runCatching { locate() }
+        kick(); relay?.kick()
+        // once more when the location fix has had time to come in
+        if (::work.isInitialized) work.postDelayed({ relay?.kick() }, 15_000)
+        return true
+    }
+
+    /** Adds / drops the microphone type of our foreground service (Android 14 needs it before using the mic). */
+    fun micForeground(on: Boolean): Boolean = runCatching { foreground(on); true }.getOrElse {
+        Log.w("KidGuard", "mic foreground", it); if (on) runCatching { foreground(false) }; false
+    }
+
+    private fun foreground(mic: Boolean = false) {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel("guard", "KidGuard", NotificationManager.IMPORTANCE_MIN))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val n = Notification.Builder(this, "guard").setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentTitle("KidGuard đang bật").setContentText("Bố mẹ quản lý thời gian dùng máy").setOngoing(true).setContentIntent(open).build()
-        if (Build.VERSION.SDK_INT >= 34) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE) else startForeground(1, n)
+        val type = ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or (if (mic) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0)
+        if (Build.VERSION.SDK_INT >= 34) startForeground(1, n, type)
+        else if (Build.VERSION.SDK_INT >= 30 && mic) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        else startForeground(1, n)
     }
 
     companion object {
         const val PORT = 8770
         const val TICK_MS = 10_000L
-        const val BuildConfigVersion = "0.4.0"
+        const val BuildConfigVersion = "0.5.0"
         @Volatile var running: Guard? = null
 
         fun start(ctx: Context) {

@@ -58,6 +58,7 @@ object Policy {
         val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
         if (Build.VERSION.SDK_INT >= 29) perms += Manifest.permission.ACCESS_BACKGROUND_LOCATION
         if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
+        perms += Manifest.permission.RECORD_AUDIO   // "listen around"; the child is always told when it is used (Listen.kt)
         for (p in perms) runCatching {
             d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
         }.onFailure { Log.w(TAG, "grant $p", it) }
@@ -222,6 +223,11 @@ object Policy {
         else @Suppress("DEPRECATION") runCatching { d.setAutoTimeRequired(a, false) }
         runCatching { d.setShortSupportMessage(a, null) }
         removeAccEntry(ctx)
+        // the mic was granted by us, not by the child: take it back and hand the switch to the user
+        runCatching {
+            d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED)
+            d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT)
+        }.onFailure { Log.w(TAG, "mic revoke", it) }
         s.clearTokens()
         s.released = true
         Watchdog.cancel(ctx)

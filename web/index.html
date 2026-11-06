@@ -88,6 +88,8 @@ button{min-height:44px}
 .map svg{position:absolute;overflow:visible}.map circle{cursor:pointer}
 .map .mz{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}.map .mz button{min-height:36px;width:36px;padding:0;background:var(--card)}
 .map .attr{position:absolute;right:0;bottom:0;background:rgba(255,255,255,.8);color:#333;font-size:11px;padding:1px 5px}.map .attr a{color:#333}
+#ear{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);width:min(380px,calc(100vw - 32px));box-sizing:border-box;background:var(--card);color:var(--fg);border:2px solid var(--warn);border-radius:12px;padding:8px 12px;display:none;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:20}
+.sos{border:2px solid var(--bad)}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;display:none;max-width:90vw}
 </style>
 </head>
@@ -150,6 +152,7 @@ button{min-height:44px}
 <symbol id="i-send" viewBox="0 0 24 24"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" /><path d="m21.854 2.147-10.94 10.939" /></symbol>
 <symbol id="i-settings" viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /><circle cx="12" cy="12" r="3" /></symbol>
 <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></symbol>
+<symbol id="i-ear" viewBox="0 0 24 24"><path d="M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 1 1-7 0" /><path d="M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 1 0 4" /></symbol>
 <symbol id="i-siren" viewBox="0 0 24 24"><path d="M7 18v-6a5 5 0 1 1 10 0v6" /><path d="M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z" /><path d="M21 12h1" /><path d="M18.5 4.5 18 5" /><path d="M2 12h1" /><path d="M12 2v1" /><path d="m4.929 4.929.707.707" /><path d="M12 12v6" /></symbol>
 <symbol id="i-smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" /></symbol>
 <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" /><path d="M20 2v4" /><path d="M22 4h-4" /><circle cx="4" cy="20" r="2" /></symbol>
@@ -350,7 +353,7 @@ function listScreen(list) {
 }
 
 // --- one child ------------------------------------------------------------
-async function open(k) { screenStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); render(); await refresh(); clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
+async function open(k) { screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); render(); await refresh(); clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
 
 async function refresh() {
   if (!cur || viewDay) return;
@@ -438,7 +441,7 @@ function render() {
   <div id="body"></div>`;
   a.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; if (tab === "hist") histDays = null; render(); });
   if ($("#goLive")) $("#goLive").onclick = () => { tab = "home"; open(cur); };
-  if ($("#back")) $("#back").onclick = () => { screenStop(); cur = null; clearInterval(timer); if (APP) return appBoot(); listScreen(kids.filter(k => k.via === (onLan() ? "lan" : "relay"))); };
+  if ($("#back")) $("#back").onclick = () => { screenStop(); earStop(); cur = null; clearInterval(timer); if (APP) return appBoot(); listScreen(kids.filter(k => k.via === (onLan() ? "lan" : "relay"))); };
   updateLive();
   const body = $("#body");
   if (!st) { body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " Không kết nối được: " + esc(lastErr) : ic("hourglass") + " Đang tải…"}</div>`; return; }
@@ -459,12 +462,70 @@ function updateLive() {
     <div class="mute">${ic("smartphone")} ${esc(st.model)} · Android ${esc(st.android)} · ${st.screenOn ? "màn hình bật" + (st.current ? ": <b>" + esc(st.current) + "</b>" : "") : "màn hình tắt"}</div>
     ${pendingRules && st.rules && pendingRules.rev > st.rules.rev ? `<div class="mute">${ic("hourglass")} Luật mới đang chờ máy con nhận</div>` : ""}
     ${lost ? `<div class="alert">${ic("siren")} Mất liên lạc với máy con từ ${hhmm(lostFrom)} — máy tắt, mất mạng hoặc KidGuard bị tắt${lastErr && lan ? " (" + esc(lastErr) + ")" : ""}</div>` : ""}
+    ${sosHtml()}
+    ${st.listen && st.listen.on ? `<div class="alert warn">${ic("ear")} Micro máy con đang bật (bố mẹ đang nghe) từ ${hhmm(st.listen.since)}</div>` : ""}
     ${!st.owner ? `<div class="alert">${ic("triangle-alert")} Chưa có Device Owner</div>` : ""}
     ${st.usageAccess === false ? `<div class="alert warn">${ic("triangle-alert")} Con đã tắt quyền theo dõi sử dụng — giới hạn giờ không hoạt động</div>` : ""}
     ${st.dnsError ? `<div class="alert warn">${ic("triangle-alert")} DNS an toàn bị từ chối: ${esc(st.dnsError)}</div>` : ""}
     ${st.acc === false ? `<div class="alert warn">${ic("triangle-alert")} Trợ năng đang tắt: không xem/điều khiển màn hình được</div>` : ""}
     ${st.locationOn === false ? `<div class="alert warn">${ic("triangle-alert")} Định vị đang tắt</div>` : ""}`;
+  wireSos(el);
 }
+
+// ---- SOS (child pressed the button) ----
+function sosHtml() {
+  const list = (st && st.sos) || [];
+  if (!list.length || viewDay) return "";
+  const last = list[list.length - 1];
+  return `<div class="alert sos">${ic("siren")} SOS: con bấm nút khẩn cấp lúc ${hhmm(last.t)}${list.length > 1 ? ` (${list.length} lần)` : ""}
+    <div class="row" style="margin-top:8px;font-weight:400"><button data-sos="where">${ic("map-pin")} Xem vị trí</button>
+    ${cur.via === "lan" ? `<button data-sos="ear">${ic("ear")} Nghe xung quanh</button>` : ""}
+    <button data-sos="ack" class="pri">${ic("check")} Đã xử lý</button></div></div>`;
+}
+function wireSos(el) {
+  el.querySelectorAll("[data-sos]").forEach(b => b.onclick = async () => {
+    const w = b.dataset.sos;
+    if (w === "where") { tab = "where"; render(); }
+    else if (w === "ear") earStart();
+    else if (await cmd({ type: "sosAck", id: "all" }, "Đã xoá báo SOS", ["Đánh dấu SOS đã xử lý? Báo trên máy con sẽ tắt.", "Đã xử lý"])) { st.sos = []; updateLive(); }
+  });
+}
+
+// ---- Listen around (LAN / Tailscale only; the child always hears a beep and sees a notification) ----
+const EAR_ERR = { busy: "Một máy bố mẹ khác đang nghe", "no mic permission": "Máy con chưa có quyền micro (cần Device Owner)",
+  "mic blocked": "Android trên máy con chặn micro khi chạy nền", "mic failed": "Micro máy con đang bận (đang gọi điện?)" };
+let earT = 0;
+function earBar() {
+  let e = $("#ear");
+  if (!e) {
+    e = document.createElement("div"); e.id = "ear"; e.setAttribute("role", "status");
+    e.innerHTML = `<span style="color:var(--warn)">${ic("ear")}</span><span id="earTxt" class="sp">Đang kết nối…</span><button id="earStop" class="bad">${ic("square")} Dừng</button><audio id="earAudio" preload="none"></audio>`;
+    document.body.appendChild(e);
+    $("#earStop").onclick = () => earStop();
+    const au = $("#earAudio");
+    au.onplaying = () => { earT = earT || Date.now(); };
+    au.onended = () => earStop("Đã dừng (tối đa 10 phút mỗi lần)");
+    au.onerror = async () => { if (!au.getAttribute("src")) return; earStop(); await refresh().catch(() => {}); const er = st && st.listen && st.listen.err; toast("err|Không nghe được: " + (EAR_ERR[er] || er || "mất kết nối")); };
+  }
+  return e;
+}
+async function earStart() {
+  if (!cur || cur.via !== "lan") return toast("warn|Chỉ nghe được qua mạng nhà hoặc Tailscale");
+  if (!(await ask("Bật micro máy con để nghe xung quanh?\n\nMáy con sẽ kêu bíp và hiện thông báo “Bố mẹ đang nghe”. Tự dừng sau tối đa 10 phút.", "Bật micro"))) return;
+  const e = earBar(), au = $("#earAudio");
+  earT = 0; e.style.display = "flex"; $("#earTxt").textContent = "Đang kết nối…";
+  au.src = `${base(cur)}/listen?k=${encodeURIComponent(cur.token)}&t=${Date.now()}`;
+  au.play().catch(() => {});
+  clearInterval(earStart.i);
+  earStart.i = setInterval(() => { if (earT) $("#earTxt").textContent = "Đang nghe máy con · " + fmtClock(Date.now() - earT); }, 1000);
+}
+function earStop(msg) {
+  clearInterval(earStart.i); earT = 0;
+  const au = $("#earAudio"); if (au) { au.pause(); au.removeAttribute("src"); au.load(); }
+  const e = $("#ear"); if (e) e.style.display = "none";
+  if (msg) toast("ok|" + msg);
+}
+function fmtClock(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 
 function homeTab(b) {
   const r = edit || st.rules, today = st.day, limit = edit ? todayLimit(r, today) : (st.limitMin ?? r.dailyMin);
@@ -485,7 +546,7 @@ function homeTab(b) {
     ${pausedLeft > 0 ? `<p><b>${ic("pause")} Đang tạm dừng</b>, còn ${fmt(pausedLeft)} <button id="unpause" class="pri">${ic("play")} Mở lại</button></p>` : ""}
     <div class="grid">
       <button data-pause="30">${ic("pause")} Dừng 30 phút</button><button data-pause="60">${ic("pause")} Dừng 1 giờ</button><button data-pause="morning">${ic("pause")} Dừng tới 6h sáng</button>
-      <button id="lock">${ic("lock")} Khoá màn hình</button><button id="ring">${ic("bell")} Đổ chuông</button><button id="loc">${ic("map-pin")} Lấy vị trí</button>
+      <button id="lock">${ic("lock")} Khoá màn hình</button><button id="ring">${ic("bell")} Đổ chuông</button><button id="loc">${ic("map-pin")} Lấy vị trí</button>${cur.via === "lan" && !viewDay ? `<button id="ear1">${ic("ear")} Nghe xung quanh</button>` : ""}
       <button id="reboot" class="bad">${ic("refresh-cw")} Khởi động lại máy</button>
     </div>
     <div class="row" style="margin-top:10px"><input id="msg" class="sp" placeholder="Nhắn cho con…" maxlength="300"><button id="send" class="pri">${ic("send")} Gửi</button></div>
@@ -518,6 +579,7 @@ function homeTab(b) {
   $("#lock").onclick = () => cmd({ type: "lock" }, "Đã khoá màn hình");
   $("#ring").onclick = () => cmd({ type: "ring" }, "Đang đổ chuông 20 giây");
   $("#loc").onclick = () => cmd({ type: "locate" }, "Đang lấy vị trí, xem tab Vị trí");
+  if ($("#ear1")) $("#ear1").onclick = earStart;
   $("#send").onclick = () => { const t = $("#msg").value.trim(); if (!t) return; cmd({ type: "message", text: t }, "Đã nhắn"); $("#msg").value = ""; };
 }
 

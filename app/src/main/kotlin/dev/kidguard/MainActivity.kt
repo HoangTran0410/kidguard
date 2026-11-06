@@ -80,7 +80,11 @@ class MainActivity : Activity() {
         pairCard.addView(hint)
         col.addView(pairCard)
         // actions: one primary, rest secondary
-        col.addView(u.button("Xin thêm giờ", R.drawable.li_timer, true) { askMore() }.apply { (layoutParams as LinearLayout.LayoutParams).topMargin = dp(18) })
+        col.addView(u.button("SOS: báo bố mẹ ngay", R.drawable.li_siren, true) { askSos() }.apply {
+            background = android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(Color.argb(60, 255, 255, 255)), u.shape(Color.parseColor("#dc2626"), 16), null)
+            (layoutParams as LinearLayout.LayoutParams).topMargin = dp(18)
+        })
+        col.addView(u.button("Xin thêm giờ", R.drawable.li_timer, true) { askMore() })
         pairBtn = u.button("Ghép thêm máy của bố mẹ", R.drawable.li_link, false) { askPin() }
         col.addView(pairBtn)
         col.addView(u.button("Cài đặt pin / tự khởi động", R.drawable.li_battery_charging, false) { openBatterySettings() })
@@ -126,6 +130,8 @@ class MainActivity : Activity() {
         line(R.drawable.li_map_pin, if (locOn) Ic.OK else Ic.WARN, if (locOn) "Vị trí: bật" else "Vị trí: tắt")
         val pending = s.requests().length()
         if (pending > 0) line(R.drawable.li_message_circle, Ic.INFO, "Đang chờ bố mẹ trả lời: $pending yêu cầu")
+        if (Listen.active) line(R.drawable.li_mic, Ic.WARN, "Bố mẹ đang nghe âm thanh xung quanh máy")
+        if (s.sos().length() > 0) line(R.drawable.li_siren, Ic.WARN, "Đã gửi SOS, đang chờ bố mẹ xem")
         if (s.relayUrl.isNotBlank()) line(R.drawable.li_globe, Ic.INFO, "Điều khiển từ xa: bật")
         val c = s.pairCode()
         if (c != null) {
@@ -166,6 +172,17 @@ class MainActivity : Activity() {
             .setPositiveButton("OK") { _, _ ->
                 if (s.checkParentPin(input.text.toString().filter { it.isDigit() })) { s.openPairing(); refresh() }
                 else AlertDialog.Builder(this).setMessage("Sai PIN").setPositiveButton("OK", null).show()
+            }.setNegativeButton("Huỷ", null).show()
+    }
+
+    /** SOS: one confirm (no pocket presses), then the state carries it to the parent with a fresh location. */
+    private fun askSos() {
+        AlertDialog.Builder(this).setTitle("Gửi SOS cho bố mẹ?").setMessage("Bố mẹ sẽ nhận báo khẩn cấp kèm vị trí của con.")
+            .setPositiveButton("Gửi SOS") { _, _ ->
+                val g = Guard.running
+                val ok = if (g != null) g.sos() else { val o = Store.of(this).addSos(); if (o != null) Guard.start(this); o != null }
+                Toast.makeText(this, if (ok) "Đã báo cho bố mẹ" else "Vừa gửi rồi, bố mẹ sẽ thấy ngay khi có mạng", Toast.LENGTH_LONG).show()
+                refresh()
             }.setNegativeButton("Huỷ", null).show()
     }
 

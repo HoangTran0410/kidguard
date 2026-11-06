@@ -123,6 +123,15 @@ class LogicTest {
         assertTrue(Logic.storageDrop(days.take(7), 0).isEmpty())                     // only 7 left: never delete
     }
 
+    @Test fun sosNotifiesOnceEvenOnFirstLook() {
+        val s = Logic.Seen(true, emptyList(), now, listOf("x1" to now - 60_000, "old" to now - 7 * 3600_000L))
+        val o1 = Logic.evaluate("An", s, Logic.NotifyState(), now)
+        assertEquals(listOf("sos:x1"), o1.events.map { it.key })
+        assertTrue(o1.events[0].text.startsWith("An bấm SOS lúc "))
+        val o2 = Logic.evaluate("An", s, o1.state, now + 60_000)
+        assertTrue(o2.events.isEmpty())
+    }
+
     @Test fun dayKeyAndOrder() {
         assertEquals("2026-11-06", Logic.dayKey(java.time.LocalDate.of(2026, 11, 6).atTime(12, 0).atZone(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli(), java.time.ZoneId.of("UTC")))
     }

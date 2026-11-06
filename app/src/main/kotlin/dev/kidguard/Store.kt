@@ -189,6 +189,27 @@ class Store private constructor(ctx: Context) {
         return hit
     }
 
+    /** SOS presses from the child, newest last, max 10; the parent clears them with `sosAck`. */
+    @Synchronized fun sos(): JSONArray = runCatching { JSONArray(p.getString("sos", "[]")) }.getOrDefault(JSONArray())
+    @Synchronized fun addSos(): JSONObject? {
+        val a = sos()
+        val now = System.currentTimeMillis()
+        // a double tap is one alarm
+        if (a.length() > 0 && now - a.getJSONObject(a.length() - 1).optLong("t") < 30_000) return null
+        val o = JSONObject().put("id", randomHex(3)).put("t", now)
+        a.put(o)
+        val keep = JSONArray(); for (i in maxOf(0, a.length() - 10) until a.length()) keep.put(a.get(i))
+        p.edit().putString("sos", keep.toString()).commit()
+        return o
+    }
+    /** Clears SOS [id], or all of them for "all". Returns how many were removed. */
+    @Synchronized fun ackSos(id: String): Int {
+        val a = sos(); val keep = JSONArray()
+        for (i in 0 until a.length()) { val o = a.getJSONObject(i); if (id != "all" && o.optString("id") != id) keep.put(o) }
+        p.edit().putString("sos", keep.toString()).apply()
+        return a.length() - keep.length()
+    }
+
     /** Recent events for the parent: commands done, apps paused. Last 50. */
     @Synchronized fun log(msg: String) {
         val a = runCatching { JSONArray(p.getString("log", "[]")) }.getOrDefault(JSONArray())

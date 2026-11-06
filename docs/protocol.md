@@ -167,6 +167,26 @@ The first capture / first input of a session is logged in the phone log.
   point list with times, tap a dot -> time + accuracy. CSP of HTML pages must allow `img-src 'self' data: blob:
   https://tile.openstreetmap.org`.
 
+## SOS and "listen around" (v0.5)
+- **SOS**: the child's KidGuard screen has a red "SOS" button (one confirm). The phone stores `{id, t}` (max 10;
+  a second press within 30 s is ignored), logs "Con bấm SOS", takes a location fix (`locate`) and syncs the relay at
+  once (and again 15 s later, for the fix). State adds `"sos": [{"id": "a1b2c3", "t": 1793940898493}]`.
+- Command `sosAck {id}` (`id` = one id or `"all"`): removes it. Result `ok | no such sos`. In the worker whitelist.
+- Page: red banner on every tab while `sos` is not empty: time, "Xem vị trí", "Nghe xung quanh" (LAN only), "Đã xử lý" (= `sosAck all`).
+- Parent app: an SOS id not seen before and younger than 6 h is notified on channel `kg_sos` (high importance),
+  also on the first look at a kid. The background check runs ~every 15 min, so this is not instant.
+- **Listen around** (one way, LAN / Tailscale only, the relay has no audio route):
+  `GET /api/listen?k=<token>` -> `200 audio/aac` (ADTS, AAC-LC 16 kHz mono 32 kbit/s, ~14 MB/h), no Content-Length,
+  streamed until the client closes or 10 min pass (the page can start again). Errors: `409 {"error":"busy"}` (one
+  listener at a time), `503 {"error": "no mic permission" | "mic blocked" | "mic failed"}`.
+- The child is **always** told; it does not depend on `showWatching`: a beep, an ongoing high-importance notification
+  "Bố mẹ đang nghe âm thanh xung quanh máy", a status line on the KidGuard screen, and log lines at start and stop.
+  Android itself also shows its mic indicator.
+- State adds `"listen": {"on": bool, "since": ms, "err": "<last error or empty>"}`.
+- The phone gets RECORD_AUDIO through `setPermissionGrantState` (with the location ones) and adds the `microphone` type to
+  its foreground service only while listening. `release` revokes RECORD_AUDIO (DENIED, then DEFAULT) and stops a session.
+- Parent-app proxy: `GET /k/<t>/api/listen` is passed through as a stream (never cached).
+
 ## App icons (v0.5)
 - LAN: `GET /api/icon?pkg=<pkg>&k=<token>` -> 96 px PNG drawn by the phone.
 - Relay: after each successful sync the phone sends up to 30 not-yet-sent icons:

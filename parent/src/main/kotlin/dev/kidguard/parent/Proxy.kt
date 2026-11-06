@@ -23,7 +23,9 @@ class Req(val method: String, val path: String, val rawQuery: String, val query:
     fun header(n: String) = headers[n.lowercase()]
 }
 
-class Res(val code: Int, val type: String, val body: ByteArray, val headers: Map<String, String> = emptyMap(), val html: Boolean = false) {
+/** [stream] set: no Content-Length; the body is what [stream] writes (the connection then closes). */
+class Res(val code: Int, val type: String, val body: ByteArray, val headers: Map<String, String> = emptyMap(), val html: Boolean = false,
+          val stream: ((java.io.OutputStream) -> Unit)? = null) {
     companion object {
         fun json(s: String, code: Int = 200) = Res(code, "application/json; charset=utf-8", s.toByteArray())
         fun text(s: String, code: Int) = Res(code, "text/plain; charset=utf-8", s.toByteArray())
@@ -88,6 +90,7 @@ class Proxy(private val ctx: Context, val port: Int) {
         val url = target + rest + (if (r.rawQuery.isNotEmpty()) "?" + r.rawQuery else "")
         val fwd = HashMap<String, String>()
         for (h in listOf("X-KG-Token", "X-KG-W", "X-KG-H", "Content-Type")) r.header(h)?.let { fwd[h] = it }
+        if (r.method == "GET" && rest == "/api/listen") return listen(url, fwd)
         val cacheable = Logic.isStatePath(r.method, rest)
         // state answers in < 1 s; a hung phone or half-dead Wi-Fi accepts the TCP connect and then stalls,
         // so don't wait the long-poll timeout (40 s, for screen frames) before falling back to the snapshot
@@ -102,6 +105,25 @@ class Proxy(private val ctx: Context, val port: Int) {
         if (res.status == null) return Res.json("{\"error\":\"offline\"}", 502)
         val h = HashMap(res.headers)
         return Res(res.status, res.type, res.body, h)
+    }
+
+    /** The child's mic stream (LAN / Tailscale): passed through as it comes, never cached. */
+    private fun listen(url: String, fwd: Map<String, String>): Res {
+        val c = try {
+            (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
+                connectTimeout = 6_000; readTimeout = 20_000; instanceFollowRedirects = false; useCaches = false
+                fwd.forEach { (k, v) -> setRequestProperty(k, v) }
+            }.also { it.responseCode }
+        } catch (e: Exception) { return Res.json("{\"error\":\"offline\"}", 502) }
+        if (c.responseCode != 200) {
+            val b = runCatching { c.errorStream?.use { it.readBytes() } }.getOrNull() ?: ByteArray(0)
+            c.disconnect()
+            return Res(c.responseCode, c.contentType ?: "application/json", b)
+        }
+        return Res(200, c.contentType ?: "audio/aac", ByteArray(0), stream = { out ->
+            try { c.inputStream.use { ins -> val buf = ByteArray(4096); while (true) { val n = ins.read(buf); if (n < 0) break; out.write(buf, 0, n); out.flush() } } }
+            catch (e: Exception) { /* either side closed */ } finally { runCatching { c.disconnect() } }
+        })
     }
 
     private fun isJson(b: ByteArray) = try { JSONObject(String(b, Charsets.UTF_8)); true } catch (e: Exception) { false }
@@ -174,12 +196,18 @@ class Proxy(private val ctx: Context, val port: Int) {
         } catch (e: TooBig) { Res.text("too big", 413) } catch (e: Exception) {
             Log.w("KGParent", "req", e); Res.text("error", 500)
         }
-        val head = "HTTP/1.1 ${res.code} ${reason(res.code)}\r\nContent-Type: ${res.type}\r\nContent-Length: ${res.body.size}\r\n" +
+        val head = "HTTP/1.1 ${res.code} ${reason(res.code)}\r\nContent-Type: ${res.type}\r\n" +
+            (if (res.stream == null) "Content-Length: ${res.body.size}\r\n" else "") +
             "Cache-Control: no-store\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n" +
             (if (res.html) "X-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'; connect-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org\r\n" else "") +
             res.headers.entries.joinToString("") { (k, v) -> "$k: ${v.replace('\r', ' ').replace('\n', ' ')}\r\n" } + "\r\n"
         val out = it.getOutputStream()
-        out.write(head.toByteArray()); out.write(res.body); out.flush()
+        val s = res.stream
+        if (s == null) { out.write(head.toByteArray()); out.write(res.body); out.flush(); return }
+        // the stream holds an upstream connection: run it even if the WebView already left, so it closes that
+        val sink = try { out.write(head.toByteArray()); out.flush(); out }
+            catch (e: java.io.IOException) { object : java.io.OutputStream() { override fun write(b: Int) = throw java.io.IOException("closed") } }
+        s(sink)
     }
 
     private class TooBig : Exception()

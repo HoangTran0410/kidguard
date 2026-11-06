@@ -73,6 +73,8 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự k
 | 🌙 **Bedtime and schedules** | Bedtime every day, plus windows on chosen days (school hours Mon–Fri); can cross midnight |
 | ⏸️ **Pause now** | 30 min, 1 h, until 6 am |
 | 👀 **See the screen** | The child's screen live in the page (Android 11+, ~3 fps). The child sees "Your parent is viewing the screen" |
+| 🆘 **SOS** | A red button on the child's phone: the parent page shows a banner with the time and a fresh location; the parent app notifies (background check, up to ~15 min) |
+| 👂 **Listen around** | The parent hears the child's microphone, one way, at most 10 min at a time. **Home Wi-Fi or Tailscale only** (not through the Worker). The child is always told: a beep, a notification "Your parent is listening" and Android's mic dot; this cannot be turned off |
 | 🕹️ **Remote control** | Tap, swipe, long press, Back / Home / Recents, type into the focused field |
 | 📍 **Location** | Locate now, location forced on (the child cannot turn it off), **7-day history** on an OpenStreetMap map with stops |
 | 📊 **History** | Screen time for 7 days, top apps per day |

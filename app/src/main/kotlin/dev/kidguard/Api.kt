@@ -56,6 +56,12 @@ class Api(private val g: Guard) {
                 runCatching { Acc.input(JSONObject(r.text)) }.getOrDefault("bad input")).toString())
             p == "/track" -> Res.json(JSONObject().put("track", track(((r.query["days"]?.toIntOrNull()) ?: 7).coerceIn(1, 7))).toString())
             p == "/icon" -> icon(r.query["pkg"] ?: "")
+            // LAN / Tailscale only (the relay has no audio route): AAC stream of the mic; the child is always told
+            p == "/listen" && r.method == "GET" -> {
+                val s = Listen.open(g)
+                if (s == null) Res.json(JSONObject().put("error", Listen.lastError).toString(), if (Listen.lastError == "busy") 409 else 503)
+                else Res(200, "audio/aac", ByteArray(0), stream = s::pump)
+            }
             else -> Res.text("not found", 404)
         }
     }
