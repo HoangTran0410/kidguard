@@ -22,6 +22,8 @@ fi
 mkdir -p build
 cp android/app/build/outputs/apk/release/app-release.apk build/kidguard.apk
 cp android/parent/build/outputs/apk/release/parent-release.apk build/kidguard-parent.apk
+# release assets: the child self-update (Update.kt) needs kidguard.apk.sha256 next to the APK
+(cd build && for f in kidguard.apk kidguard-parent.apk; do shasum -a 256 "$f" > "$f.sha256"; done)
 
 # QR provisioning: SHA-256 of the signing certificate, URL-safe base64 without padding -> web/provision.json + web/qr.html defaults
 APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)
