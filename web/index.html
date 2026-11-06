@@ -60,8 +60,8 @@ button{min-height:44px}
 .alert{background:var(--bad-bg);color:var(--bad-fg);border-radius:10px;padding:10px 12px;margin-top:8px;font-weight:600}
 .alert.warn{background:var(--warn-bg);color:var(--warn-fg)}
 .dpb{display:inline-flex;align-items:center;gap:6px;font-weight:600}
-#dpPop{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px}
-#dpPop .dp{background:var(--card);color:var(--fg,inherit);border:1px solid var(--line);border-radius:16px;padding:14px;width:100%;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+#dpPop,#askPop{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px}
+#dpPop .dp,#askPop .dp{background:var(--card);color:var(--fg,inherit);border:1px solid var(--line);border-radius:16px;padding:14px;width:100%;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
 .dpg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
 .dpg button{min-height:38px;padding:2px;min-width:0}.dpg span{text-align:center;padding:9px 0;font-size:14px}
 .dpg button.sel{outline:2px solid var(--ok);outline-offset:1px}
@@ -160,7 +160,7 @@ button{min-height:44px}
 <symbol id="i-thumbs-up" viewBox="0 0 24 24"><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" /><path d="M7 10v12" /></symbol>
 <symbol id="i-timer" viewBox="0 0 24 24"><line x1="10" x2="14" y1="2" y2="2" /><line x1="12" x2="15" y1="14" y2="11" /><circle cx="12" cy="14" r="8" /></symbol>
 <symbol id="i-trash-2" viewBox="0 0 24 24"><path d="M10 11v6" /><path d="M14 11v6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
-<symbol id="i-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></symbol>
+<symbol id="i-circle-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></symbol><symbol id="i-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></symbol>
 <symbol id="i-undo-2" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></symbol>
 <symbol id="i-unlink" viewBox="0 0 24 24"><path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71" /><path d="m5.17 11.75-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71" /><line x1="8" x2="8" y1="2" y2="5" /><line x1="2" x2="5" y1="8" y2="8" /><line x1="16" x2="16" y1="19" y2="22" /><line x1="19" x2="22" y1="16" y2="16" /></symbol>
 <symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></symbol>
@@ -174,6 +174,7 @@ button{min-height:44px}
 <symbol id="i-zap" viewBox="0 0 24 24"><path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z" /></symbol>
 </defs></svg>
 <div id="dpPop" role="dialog" aria-modal="true" aria-label="Chọn ngày"></div>
+<div id="askPop" role="alertdialog" aria-modal="true" aria-labelledby="askT"></div>
 <script>
 // One page for both: served by the child phone on the LAN (/api/...) and by the relay worker (/c/<id>/...).
 const $ = (s, el = document) => el.querySelector(s);
@@ -385,7 +386,40 @@ function changed() {
   }, 500);
 }
 
-async function cmd(c, okMsg) {
+// Every action that changes something on the child's phone asks first (custom modal: native confirm() looks off in the app).
+// typed: the user must type this word (release). Resolves true/false; Esc / backdrop = false.
+let askDone = null;
+function ask(text, ok = "Đồng ý", danger = false, typed = "") {
+  if (askDone) askDone(false);
+  const pop = $("#askPop");
+  pop.innerHTML = `<div class="dp"><h2 id="askT" style="margin:0 0 8px">${ic(danger ? "triangle-alert" : "circle-help")} Xác nhận</h2>
+    <div style="white-space:pre-line;margin-bottom:12px">${esc(text)}</div>
+    ${typed ? `<input id="askIn" autocomplete="off" placeholder='Gõ "${esc(typed)}"' style="width:100%;margin-bottom:12px">` : ""}
+    <div class="row"><button id="askNo" class="sp">${ic("x")} Huỷ</button><button id="askOk" class="sp ${danger ? "bad" : "pri"}" ${typed ? "disabled" : ""}>${ic("check")} ${esc(ok)}</button></div></div>`;
+  pop.style.display = "flex";
+  return new Promise(res => {
+    const done = v => { if (askDone !== done) return; askDone = null; pop.style.display = "none"; pop.innerHTML = ""; res(v); };
+    askDone = done;
+    $("#askNo").onclick = () => done(false); $("#askOk").onclick = () => done(true);
+    if (typed) { const i = $("#askIn"); i.oninput = () => { $("#askOk").disabled = i.value.trim() !== typed; }; i.focus(); } else $("#askOk").focus();
+  });
+}
+$("#askPop").addEventListener("click", e => { if (e.target.id === "askPop" && askDone) askDone(false); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && askDone) askDone(false); });
+const ASK = {
+  lock: ["Khoá màn hình máy của con ngay?", "Khoá"],
+  ring: ["Đổ chuông máy của con 20 giây (kêu cả khi đang để im lặng)?", "Đổ chuông"],
+  locate: ["Lấy vị trí hiện tại của máy con?", "Lấy vị trí"],
+  reboot: ["Khởi động lại máy của con? Máy sẽ tắt vài phút.", "Khởi động lại", true],
+  openPairing: ["Hiện mã ghép trên máy con trong 10 phút để ghép thêm máy bố mẹ?", "Mở ghép"],
+  unpairAll: ["Huỷ ghép mọi máy bố mẹ? Phải ghép lại bằng mã trên máy con (cần PIN).", "Huỷ ghép", true],
+  tailscaleOff: ["Tắt điều khiển qua Tailscale và gỡ app Tailscale khỏi máy con?", "Tắt", true],
+  tailscale: ["Cài Tailscale lên máy con và vào mạng riêng của bạn?", "Cài"],
+  relay: ["Bật điều khiển từ xa qua relay này trên máy con?", "Bật"],
+};
+async function cmd(c, okMsg, q) {
+  const a = q || ASK[c.type] || (c.type === "message" ? ["Hiện tin nhắn này trên màn hình máy con?\n\n“" + c.text + "”", "Gửi"] : null);
+  if (a && !(await ask(...a))) return;
   try { const r = await call(cur, "/cmd", "POST", c); toast("ok|" + (okMsg || "Đã gửi")); return r; } catch (e) { toast("err|Lỗi: " + e.message); }
 }
 
@@ -461,23 +495,26 @@ function homeTab(b) {
   <div class="card"><h2>${ic("flame")} Dùng nhiều nhất</h2>${st.apps.filter(x => x.ms > 60000).slice(0, 8).map(appRow).join("") || `<div class="empty"><span class="e">${ic("sprout")}</span>Chưa có</div>`}</div>
   <div class="card"><h2>${ic("notebook-pen")} Nhật ký</h2>${(st.log || []).slice(-12).reverse().map(l => `<div class="mute">${new Date(l.t).toLocaleTimeString("vi", { hour: "2-digit", minute: "2-digit" })} · ${esc(noEmoji(l.m))}</div>`).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>Trống</div>`}</div>`;
   drawHist();
-  b.querySelectorAll("[data-yes]").forEach(x => x.onclick = () => {
+  b.querySelectorAll("[data-yes]").forEach(x => x.onclick = async () => {
+    if (!(await ask(`Đồng ý cho con thêm ${+x.dataset.min} phút hôm nay?`))) return;
     const n = +x.dataset.min, cur0 = edit.bonus && edit.bonus.day === today ? edit.bonus.min : 0;
     edit.bonus = { day: today, min: cur0 + n }; changed(); answered.add(x.dataset.yes);
-    cmd({ type: "answer", id: x.dataset.yes, ok: true, min: n }, "Đã đồng ý thêm " + n + " phút"); render();
+    cmd({ type: "answer", id: x.dataset.yes, ok: true, min: n }, "Đã đồng ý thêm " + n + " phút", false); render();
   });
-  b.querySelectorAll("[data-no]").forEach(x => x.onclick = () => { answered.add(x.dataset.no); cmd({ type: "answer", id: x.dataset.no, ok: false }, "Đã từ chối"); render(); });
-  $("#reboot").onclick = () => { if (confirm("Khởi động lại máy của con? Máy sẽ tắt vài phút.")) cmd({ type: "reboot" }, "Đã gửi lệnh khởi động lại"); };
-  b.querySelectorAll("[data-bonus]").forEach(x => x.onclick = () => {
+  b.querySelectorAll("[data-no]").forEach(x => x.onclick = async () => { if (!(await ask("Từ chối yêu cầu của con?", "Từ chối", true))) return; answered.add(x.dataset.no); cmd({ type: "answer", id: x.dataset.no, ok: false }, "Đã từ chối", false); render(); });
+  $("#reboot").onclick = () => cmd({ type: "reboot" }, "Đã gửi lệnh khởi động lại");
+  b.querySelectorAll("[data-bonus]").forEach(x => x.onclick = async () => {
+    if (!(await ask(+x.dataset.bonus ? `Cho con thêm ${dur(+x.dataset.bonus * 60000).replace("m", " phút").replace("h00 phút", " giờ")} hôm nay?` : "Bỏ hết phút thưởng hôm nay?"))) return;
     const add = +x.dataset.bonus, cur0 = r.bonus && r.bonus.day === today ? r.bonus.min : 0;
     edit.bonus = { day: today, min: add ? cur0 + add : 0 }; changed(); render();
   });
-  b.querySelectorAll("[data-pause]").forEach(x => x.onclick = () => {
+  b.querySelectorAll("[data-pause]").forEach(x => x.onclick = async () => {
+    if (!(await ask(x.dataset.pause === "morning" ? "Dừng máy của con tới 6h sáng?" : `Dừng máy của con ${dur(x.dataset.pause * 60000).replace("m", " phút").replace("h00 phút", " giờ")}?`, "Dừng"))) return;
     let until; if (x.dataset.pause === "morning") { const d = new Date(); if (d.getHours() >= 6) d.setDate(d.getDate() + 1); d.setHours(6, 0, 0, 0); until = d.getTime(); }
     else until = Date.now() + x.dataset.pause * 60000;
     edit.pausedUntil = until; changed(); render();
   });
-  if ($("#unpause")) $("#unpause").onclick = () => { edit.pausedUntil = 0; changed(); render(); };
+  if ($("#unpause")) $("#unpause").onclick = async () => { if (!(await ask("Bỏ dừng, cho con dùng máy lại?"))) return; edit.pausedUntil = 0; changed(); render(); };
   $("#lock").onclick = () => cmd({ type: "lock" }, "Đã khoá màn hình");
   $("#ring").onclick = () => cmd({ type: "ring" }, "Đang đổ chuông 20 giây");
   $("#loc").onclick = () => cmd({ type: "locate" }, "Đang lấy vị trí, xem tab Vị trí");
@@ -529,9 +566,10 @@ function appsTab(b) {
       <div class="row" style="margin-top:6px"><button ${dis} data-a="block" class="bad">${ic("octagon-x")} Chặn</button><button ${dis} data-a="unblock">${ic("circle-check")} Bỏ chặn</button><button ${dis} data-a="allow">${ic("star")} Luôn cho phép</button><button ${dis} data-a="lim">${ic("timer")} Giới hạn…</button><button ${dis} data-a="unlim">${ic("trash-2")} Bỏ giới hạn</button><button ${dis} data-a="approve">${ic("thumbs-up")} Duyệt</button></div>
       ${sel.limOpen ? `<div class="row" style="margin-top:6px"><input id="f-lim" type="number" min="1" max="1440" step="5" inputmode="numeric" placeholder="phút/ngày" style="width:8em"><button id="limOk" class="pri" ${dis}>${ic("circle-check")} Áp dụng</button></div>` : ""}`;
     const clr = p => { edit.blocked = edit.blocked.filter(x => x !== p); edit.allow = edit.allow.filter(x => x !== p); delete edit.appMin[p]; };
-    const apply = (msg, fn) => {
+    const apply = async (msg, fn) => {
       const pk = [...sel.set].filter(p => { const a = st.apps.find(x => x.pkg === p); return a && !a.protected; });
       if (!pk.length) return toast("warn|Chưa chọn app nào");
+      if (!(await ask(`${msg.replace(/^Đã /, "")} ${pk.length} app?`))) return;
       pk.forEach(fn); changed(); toast("ok|" + msg + ": " + pk.length + " app"); sel.set.clear(); sel.limOpen = false; draw(); setTimeout(refresh, 1200);   // one PUT (debounced), then refresh
     };
     bar.querySelectorAll("[data-a]").forEach(x => x.onclick = () => {
@@ -621,7 +659,7 @@ function rulesTab(b) {
     const x = r.schedules[+box.dataset.s];
     box.querySelectorAll("[data-f]").forEach(f => f.onchange = f.oninput = () => { x[f.dataset.f] = f.type === "checkbox" ? f.checked : f.value; changed(); });
     box.querySelectorAll("[data-day]").forEach(d => d.onclick = () => { const n = +d.dataset.day; x.days = (x.days || []).includes(n) ? x.days.filter(v => v !== n) : (x.days || []).concat(n).sort(); changed(); render(); });
-    box.querySelector("[data-del]").onclick = () => { if (!confirm("Xoá lịch này?")) return; r.schedules.splice(+box.dataset.s, 1); changed(); render(); };
+    box.querySelector("[data-del]").onclick = async () => { if (!(await ask("Xoá lịch này?", "Xoá", true))) return; r.schedules.splice(+box.dataset.s, 1); changed(); render(); };
   });
   $("#addSch").onclick = () => { r.schedules.push({ name: "Giờ học", on: true, days: [1, 2, 3, 4, 5], start: "07:00", end: "11:30" }); changed(); render(); };
   $("#f-tm").onchange = e => { r.trackMin = +e.target.value; changed(); };
@@ -945,16 +983,15 @@ function setTab(b) {
     if (r && r.result && r.result !== "ok") toast("err|Máy con trả lời: " + r.result);
     $("#f-ts-key").value = "";
   };
-  if ($("#tsOff")) $("#tsOff").onclick = async () => { if (confirm("Tắt điều khiển qua Tailscale và gỡ app Tailscale khỏi máy con?")) await cmd({ type: "tailscaleOff" }, "Đã tắt"); };
+  if ($("#tsOff")) $("#tsOff").onclick = async () => { await cmd({ type: "tailscaleOff" }, "Đã tắt"); };
   $("#openPair").onclick = async () => {
     const r = await cmd({ type: "openPairing" }, "Mã ghép đang hiện trên máy con");
     if (r && r.result === "set PIN first") toast("warn|Đặt PIN của bố mẹ trước (ngay phía trên), rồi mới mở ghép thêm");
   };
-  $("#unpair").onclick = async () => { if (!confirm("Huỷ ghép mọi máy bố mẹ? Phải ghép lại bằng mã trên máy con (cần PIN).")) return; await cmd({ type: "unpairAll" }); };
+  $("#unpair").onclick = async () => { await cmd({ type: "unpairAll" }); };
   $("#forget").onclick = () => { screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); };
   $("#release").onclick = async () => {
-    if (prompt('Gõ "GO" để gỡ quản lý khỏi máy con') !== "GO") return;
-    await cmd({ type: "release" }, "Đã gỡ quản lý");
+    await cmd({ type: "release" }, "Đã gỡ quản lý", ["Gỡ quyền quản lý: máy con sẽ hết mọi giới hạn và KidGuard không điều khiển được nữa.", "Gỡ quản lý", true, "GO"]);
   };
 }
 
