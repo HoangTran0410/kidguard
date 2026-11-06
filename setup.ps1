@@ -2,17 +2,19 @@
 Installs KidGuard on the child's phone over ADB and makes it the Device Owner (Windows PowerShell 5+).
 
 How to run (right-click setup.ps1 is NOT enough; open PowerShell in this folder and run):
-    powershell -ExecutionPolicy Bypass -File setup.ps1 [path\to\kidguard.apk]
+    powershell -ExecutionPolicy Bypass -File setup.ps1 [-Yes] [path\to\kidguard.apk]
 
 Before: on the phone, remove every account (Settings > Accounts: Google, Samsung, Xiaomi...), turn on
 USB debugging, plug it in. After setup you can sign in to the accounts again.
 Undo: from the parent's page, Settings > "Gỡ quyền quản lý", then uninstall the app.
 Steps are the same as docs/protocol.md "Setup steps" (setup.sh and web/install.html do the same).
 #>
-param([string]$Apk = "")
+param([string]$Apk = "", [Alias("y")][switch]$Yes)
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-Set-Location -Path $PSScriptRoot
+$ProgressPreference = "SilentlyContinue"
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+if ($PSScriptRoot) { Set-Location -Path $PSScriptRoot } else { Set-Location -Path (Get-Location).Path }
 $Pkg = "dev.kidguard"
 $Acc = "$Pkg/$Pkg.Acc"
 
@@ -21,10 +23,19 @@ if (-not $Apk) {
     foreach ($c in @("kidguard.apk", "build\kidguard.apk")) { if (Test-Path $c) { $Apk = $c; break } }
 }
 if (-not $Apk -or -not (Test-Path $Apk)) {
-    Write-Host "Không thấy file kidguard.apk, tải bản mới nhất…"
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Write-Host "⬇️  Không thấy file kidguard.apk, tải bản mới nhất…"
+    $rel = "https://github.com/HoangTran0410/kidguard/releases/latest/download"
     $Apk = Join-Path $env:TEMP "kidguard.apk"
-    Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk" -OutFile $Apk
+    Invoke-WebRequest -UseBasicParsing -Uri "$rel/kidguard.apk" -OutFile $Apk
+    $want = $null
+    try { $want = ((Invoke-WebRequest -UseBasicParsing -Uri "$rel/kidguard.apk.sha256").Content -split "\s+")[0].Trim().ToLower() } catch { }
+    if ($want) {
+        $got = (Get-FileHash -Algorithm SHA256 -Path $Apk).Hash.ToLower()
+        if ($got -ne $want) { Write-Host "❌ Sai mã kiểm tra SHA-256 của kidguard.apk (muốn $want, được $got). Dừng."; exit 1 }
+        Write-Host "✅ Đã kiểm tra SHA-256 của kidguard.apk"
+    } else {
+        Write-Host "⚠️  Không có kidguard.apk.sha256 trên bản phát hành, không kiểm tra được tính toàn vẹn."
+    }
 }
 
 # --- adb (offer to download platform-tools if missing) ---
@@ -37,7 +48,6 @@ if (-not $adb) {
         $ans = Read-Host "Tải về $dir ? [y/N]"
         if ($ans -notmatch '^[yY]') { Write-Host "Đã huỷ. Cài adb rồi chạy lại."; exit 1 }
         New-Item -ItemType Directory -Force -Path $dir | Out-Null
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         $zip = Join-Path $dir "pt.zip"
         Invoke-WebRequest -UseBasicParsing -Uri "https://dl.google.com/android/repository/platform-tools-latest-windows.zip" -OutFile $zip
         Expand-Archive -Path $zip -DestinationPath $dir -Force
@@ -60,11 +70,33 @@ if ($devs.Count -ne 1) {
     exit 1
 }
 
-Write-Host "1/8 Cài app"
-$r = Adb install -r -g $Apk
-if ($r -notmatch "Success") { Write-Host $r; exit 1 }
+$model = (Adb shell getprop ro.product.model).Trim()
+$ver = (Adb shell getprop ro.build.version.release).Trim()
+Write-Host "📱 Máy đang cắm: $model (Android $ver)"
+if (-not $Yes) {
+    $ans = Read-Host "Đây là máy của con? [y/N]"
+    if ($ans -notmatch '^[yY]') { Write-Host "Đã huỷ."; exit 1 }
+}
 
-Write-Host "2/8 Đặt KidGuard làm Device Owner"
+# adb shell often exits 0 on failure: run a command, stop if the output looks like an error.
+function Chk {
+    $o = Adb shell @args
+    if ($o -match "Error|Exception|denied|Failure") { Write-Host "❌ Lỗi: $o"; exit 1 }
+}
+
+Write-Host "📦 1/8 Cài app"
+$r = Adb install -r -g $Apk
+if ($r -notmatch "Success") {
+    Write-Host "❌ $r"
+    if ($r -match "INSTALL_FAILED_UPDATE_INCOMPATIBLE") { Write-Host "→ Máy đã có bản KidGuard ký khác. Gỡ app cũ trước (Cài đặt > Ứng dụng > KidGuard > Gỡ), rồi chạy lại." }
+    elseif ($r -match "INSTALL_FAILED_USER_RESTRICTED|INSTALL_FAILED_ABORTED") { Write-Host "→ Máy chặn cài qua USB. Xiaomi: bật `"Cài qua USB`" và `"Gỡ lỗi USB (Cài đặt bảo mật)`"; rồi bấm Cho phép trên máy." }
+    elseif ($r -match "INSTALL_FAILED_OLDER_SDK") { Write-Host "→ Android của máy quá cũ cho bản KidGuard này." }
+    elseif ($r -match "INSTALL_FAILED_INSUFFICIENT_STORAGE") { Write-Host "→ Máy hết bộ nhớ. Xoá bớt ứng dụng/ảnh rồi chạy lại." }
+    elseif ($r -match "INSTALL_FAILED_VERSION_DOWNGRADE") { Write-Host "→ Máy có bản KidGuard mới hơn. Gỡ app cũ trước rồi chạy lại." }
+    exit 1
+}
+
+Write-Host "🛡️  2/8 Đặt KidGuard làm Device Owner"
 $out = Adb shell dpm set-device-owner "$Pkg/.Admin"
 if ((Adb shell dumpsys device_policy) -notmatch [regex]::Escape("admin=ComponentInfo{$Pkg/$Pkg.Admin}")) {
     Write-Host $out
@@ -79,32 +111,35 @@ Không đặt được Device Owner. Thường là vì:
     exit 1
 }
 
-Write-Host "3/8 Cấp quyền xem thời gian dùng app"
-Adb shell appops set $Pkg GET_USAGE_STATS allow | Out-Null
+Write-Host "📊 3/8 Cấp quyền xem thời gian dùng app"
+Chk appops set $Pkg GET_USAGE_STATS allow
 
-Write-Host "4/8 Cấp quyền ghi cài đặt bảo mật"
-Adb shell pm grant $Pkg android.permission.WRITE_SECURE_SETTINGS | Out-Null
+Write-Host "🔑 4/8 Cấp quyền ghi cài đặt bảo mật"
+Chk pm grant $Pkg android.permission.WRITE_SECURE_SETTINGS
 
-Write-Host "5/8 Bật dịch vụ Trợ năng"
+Write-Host "♿ 5/8 Bật dịch vụ Trợ năng"
 $cur = ((Adb shell settings get secure enabled_accessibility_services) -split "`n")[0].Trim()
 if ($cur -eq "null") { $cur = "" }
 if ((":$cur:") -notlike "*:${Acc}:*") {
     if ($cur) { $cur = "${cur}:${Acc}" } else { $cur = $Acc }
 }
-Adb shell settings put secure enabled_accessibility_services $cur | Out-Null
-Adb shell settings put secure accessibility_enabled 1 | Out-Null
+if ($cur.Contains("'")) { Write-Host "❌ Danh sách trợ năng có ký tự lạ: $cur"; exit 1 }
+# adb shell re-parses the line on the phone: single-quote the value so "$" in old entries is not expanded
+Chk "settings put secure enabled_accessibility_services '$cur'"
+Chk settings put secure accessibility_enabled 1
 
-Write-Host "6/8 Cho chạy nền, không bị tiết kiệm pin"
-Adb shell dumpsys deviceidle whitelist +$Pkg | Out-Null
+Write-Host "🔋 6/8 Cho chạy nền, không bị tiết kiệm pin"
+Chk dumpsys deviceidle whitelist "+$Pkg"
 
-Write-Host "7/8 Mở app"
-Adb shell am start -n "$Pkg/.MainActivity" | Out-Null
+Write-Host "▶️  7/8 Mở app"
+Chk am start -n "$Pkg/.MainActivity"
 Start-Sleep -Seconds 3
 
-Write-Host "8/8 Địa chỉ cho bố mẹ"
+Write-Host "📶 8/8 Địa chỉ cho bố mẹ"
 $ip = ""
 if ((Adb shell ip -4 addr show wlan0) -match "inet (\d+\.\d+\.\d+\.\d+)") { $ip = $Matches[1] }
+if (-not $ip -and (Adb shell ip route get 1.1.1.1) -match "\bsrc (\d+\.\d+\.\d+\.\d+)") { $ip = $Matches[1] }
 if (-not $ip) { $ip = "<IP của máy con>" }
 Write-Host ""
-Write-Host "Xong. Trên điện thoại bố mẹ (cùng Wi-Fi), mở: http://${ip}:8770"
-Write-Host "rồi nhập mã 6 số đang hiện trên máy con. Giờ có thể đăng nhập lại tài khoản trên máy con."
+Write-Host "🎉 Xong. Trên điện thoại bố mẹ (cùng Wi-Fi), mở: http://${ip}:8770"
+Write-Host "🔢 rồi nhập mã 6 số đang hiện trên máy con. Giờ có thể đăng nhập lại tài khoản trên máy con."
