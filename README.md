@@ -13,8 +13,7 @@
   <a href="#features">Features</a> ·
   <a href="#away-from-home">Away from home</a> ·
   <a href="#iphone--ipad">iPhone / iPad</a> ·
-  <a href="#help">Help</a> ·
-  <a href="README.vi.md">Tiếng Việt</a>
+  <a href="#help">Help</a>
 </p>
 
 <p align="center">

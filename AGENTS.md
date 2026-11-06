@@ -1,7 +1,7 @@
 # KidGuard: notes for agents (AGENTS.md)
 
 Android parental control. Child phone runs the app as **Device Owner**; parents use a browser page (LAN direct, or via a
-Cloudflare Worker relay). User-facing docs: `README.md` (Vietnamese). Wire formats: `docs/protocol.md`. **That file is
+Cloudflare Worker relay). User-facing docs: `README.md` (English). Wire formats: `docs/protocol.md`. **That file is
 the contract**: change it in the same commit as any JSON / endpoint / command shape you change.
 
 ## Layout
