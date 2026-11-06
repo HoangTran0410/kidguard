@@ -42,6 +42,13 @@ class Api(private val g: Guard) {
                     Res.json(JSONObject().put("result", res).put("id", store.relayId).put("token", store.relayToken).put("url", store.relayUrl).toString())
                 } else Res.json(JSONObject().put("result", g.command(c)).toString())
             }
+            p == "/screen" -> {
+                val f = Acc.capture((r.query["max"]?.toIntOrNull() ?: 720).coerceIn(320, 1600), (r.query["q"]?.toIntOrNull() ?: 50).coerceIn(20, 90))
+                if (f == null) Res.json(JSONObject().put("error", Acc.lastError).toString(), 503)
+                else Res(200, "image/jpeg", f.jpeg, mapOf("X-KG-W" to f.w.toString(), "X-KG-H" to f.h.toString()))
+            }
+            p == "/input" && r.method == "POST" -> Res.json(JSONObject().put("result",
+                runCatching { Acc.input(JSONObject(r.text)) }.getOrDefault("bad input")).toString())
             p == "/icon" -> icon(r.query["pkg"] ?: "")
             else -> Res.text("not found", 404)
         }
