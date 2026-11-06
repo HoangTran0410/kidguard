@@ -205,6 +205,8 @@ class MainActivity : Activity() {
             ?: "Bố mẹ mất liên kết? Mở ghép lại (giữ 10 giây)"
         if (c != null) {
             code.visibility = View.VISIBLE; codeLabel.visibility = View.VISIBLE; code.text = c
+            val left = s.pairOpenUntil() - System.currentTimeMillis()
+            codeLabel.text = if (left > 0) "MÃ GHÉP ĐÔI · CÒN " + (if (left < 60_000) "DƯỚI 1 PHÚT" else "${(left + 59_999) / 60_000} PHÚT") else "MÃ GHÉP ĐÔI"
             hint.gravity = Gravity.CENTER
             val link = lan?.let { "$it/#pair=$c" }
             if (link != qrFor) { qrFor = link; link?.let { qr.setImageBitmap(qrBitmap(it, dp(208))) } }

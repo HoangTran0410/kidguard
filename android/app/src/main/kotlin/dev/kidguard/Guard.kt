@@ -254,6 +254,7 @@ class Guard : Service() {
         return JSONObject()
             .put("id", store.id).put("t", now).put("day", today)
             .put("model", "${Build.MANUFACTURER} ${Build.MODEL}").put("android", Build.VERSION.RELEASE).put("version", BuildConfig.VERSION_NAME)
+            .put("pairUntil", store.pairOpenUntil())
             .put("acc", Acc.isOn(this))
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
             .put("locationOn", locationOn())

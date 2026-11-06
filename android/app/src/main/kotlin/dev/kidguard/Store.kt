@@ -50,6 +50,9 @@ class Store private constructor(ctx: Context) {
         return p.getString("pairCode", null) ?: newPairCode()
     }
     @Synchronized fun openPairing() { newPairCode(); p.edit().putLong("pairUntil", System.currentTimeMillis() + 10 * 60_000).putInt("wrong", 0).remove("pairBlock").apply() }
+    /** When an opened pairing window (after the first pairing) closes; 0 = closed or never paired. */
+    @Synchronized fun pairOpenUntil(): Long =
+        if (!p.getBoolean("everPaired", false)) 0 else p.getLong("pairUntil", 0).takeIf { it > System.currentTimeMillis() } ?: 0
     @Synchronized fun closePairing() { p.edit().remove("pairUntil").remove("pairCode").putInt("wrong", 0).remove("pairBlock").apply() }
     @Synchronized fun newPairCode(): String {
         val c = (SecureRandom().nextInt(900_000) + 100_000).toString()

@@ -41,11 +41,12 @@ leftMs apps rules location lan relay log`), plus:
 
 ```jsonc
 {
-  "version": "0.9.1",
+  "version": "0.9.2",
   "acc": true,                     // NEW: accessibility service connected (live screen / remote control available)
   "accReEnable": true,             // NEW: the app holds WRITE_SECURE_SETTINGS (can re-enable acc itself)
   "locationOn": true,              // NEW: system location switch
   "limitMin": 120,                 // NEW: today's limit in minutes incl. bonus (0 = none)
+  "pairUntil": 1793940898493,      // v0.9.2: an opened pairing window (openPairing / PIN on the child) closes at this ms; 0 = closed (also before the first pairing)
   "apps": [{"pkg":"…","label":"…","ms":0,"blocked":"new|…|null","suspended":true,"protected":false,
             "new": true}],         // NEW "new": installed after setup and not approved
   "history": [                     // NEW: last 7 days before today, newest first

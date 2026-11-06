@@ -514,7 +514,7 @@ let noState = false;   // relay answered {state: null}: the child never synced
 let gen = 0;   // bumped by every screen change; async work started for an older screen drops its result
 // relay: the phone sends the state only when it changed, so its sync time (seen) says "online", not state.t
 function lastSeen() { return cur && cur.via !== "lan" && seenAt ? Math.max(seenAt, st ? st.t : 0) : (st ? st.t : 0); }
-async function open(k) { const g = ++gen; screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); noState = false; saveFail(false); render(); if ($("#back")) navTo(1); clearInterval(timer); await refresh(); if (g !== gen) return; clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
+async function open(k) { const g = ++gen; pairLocal = null; screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); noState = false; saveFail(false); render(); if ($("#back")) navTo(1); clearInterval(timer); await refresh(); if (g !== gen) return; clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
 
 async function refresh() {
   if (!cur || viewDay || document.hidden) return;
@@ -604,8 +604,8 @@ const ASK = {
   ring: ["Đổ chuông máy của con 20 giây (kêu cả khi đang để im lặng)?", "Đổ chuông"],
   locate: ["Lấy vị trí hiện tại của máy con?", "Lấy vị trí"],
   reboot: ["Khởi động lại máy của con? Máy sẽ tắt vài phút.", "Khởi động lại", true],
-  openPairing: ["Hiện mã ghép trên máy con trong 10 phút để ghép thêm máy bố mẹ?", "Mở ghép"],
-  unpairAll: ["Huỷ ghép mọi máy bố mẹ? Phải ghép lại bằng mã trên máy con (cần PIN).", "Huỷ ghép", true],
+  openPairing: ["Hiện mã ghép trên máy con để ghép thêm máy bố mẹ?\n\nMã chỉ dùng được 10 phút. Máy ghép xong thì kết nối lâu dài, không hết hạn.", "Hiện mã"],
+  unpairAll: ["Huỷ ghép mọi máy bố mẹ, kể cả máy này? Phải ghép lại bằng mã trên máy con (cần PIN).", "Huỷ ghép", true],
   tailscaleOff: ["Tắt điều khiển qua Tailscale và gỡ app Tailscale khỏi máy con?", "Tắt", true],
   tailscale: ["Cài Tailscale lên máy con và vào mạng riêng của bạn?", "Cài"],
   relay: ["Bật điều khiển từ xa qua relay này trên máy con?", "Bật"],
@@ -840,9 +840,9 @@ function homeTab(b) {
   </div>
   ${(st.events || []).length ? `<div class="card"><h2>${ic("bell")} Sự kiện</h2>${(st.events || []).slice(-10).reverse().map(evHtml).join("")}</div>` : ""}
   <div class="card"><h2>${ic("zap")} Ngay bây giờ</h2>
-    ${pausedLeft > 0 ? `<p><b>${ic("pause")} Đang tạm dừng</b>, còn ${fmt(pausedLeft)} <button id="unpause" class="pri">${ic("play")} Mở lại</button></p>` : ""}
+    ${pausedLeft > 0 ? `<p><b>${ic("pause")} Đang cấm dùng máy</b> (trừ app luôn cho phép), còn ${fmt(pausedLeft)} <button id="unpause" class="pri">${ic("play")} Mở lại</button></p>` : ""}
     <div class="grid">
-      <button data-pause="30">${ic("pause")} Dừng 30 phút</button><button data-pause="60">${ic("pause")} Dừng 1 giờ</button><button data-pause="morning">${ic("pause")} Dừng tới 6h sáng</button>
+      <button data-pause="30">${ic("pause")} Cấm dùng máy 30 phút</button><button data-pause="60">${ic("pause")} Cấm dùng 1 giờ</button><button data-pause="morning">${ic("pause")} Cấm dùng tới 6h sáng</button>
       <button id="lock">${ic("lock")} Khoá màn hình</button><button id="ring">${ic("bell")} Đổ chuông</button><button id="loc">${ic("map-pin")} Lấy vị trí</button>${cur.via === "lan" && !viewDay ? `<button id="ear1">${ic("ear")} Nghe xung quanh</button>` : ""}
       ${isBasic() ? "" : `<button id="reboot" class="bad">${ic("refresh-cw")} Khởi động lại máy</button>`}
     </div>
@@ -886,7 +886,7 @@ function homeTab(b) {
     edit.bonus = { day: today, min: add ? cur0 + add : 0 }; changed(); render();
   });
   b.querySelectorAll("[data-pause]").forEach(x => x.onclick = async () => {
-    if (!(await ask(x.dataset.pause === "morning" ? "Dừng máy của con tới 6h sáng?" : `Dừng máy của con ${dur(x.dataset.pause * 60000).replace("m", " phút").replace("h00 phút", " giờ")}?`, "Dừng"))) return;
+    if (!(await ask((x.dataset.pause === "morning" ? "Cấm con dùng máy tới 6h sáng?" : `Cấm con dùng máy ${dur(x.dataset.pause * 60000).replace("m", " phút").replace("h00 phút", " giờ")}?`) + "\n\nMọi app bị khoá, trừ app luôn cho phép. Gọi điện vẫn được. Hết giờ thì tự mở lại.", "Cấm dùng"))) return;
     let until; if (x.dataset.pause === "morning") { const d = new Date(); if (d.getHours() >= 6) d.setDate(d.getDate() + 1); d.setHours(6, 0, 0, 0); until = d.getTime(); }
     else until = Date.now() + x.dataset.pause * 60000;
     edit.pausedUntil = until; changed(); render();
@@ -1439,6 +1439,14 @@ function tsCard(lan) {
 }
 
 // Self-update of the child app (state.update, v0.9): status line, "update now", rule autoUpdate.
+// Countdown under "Ghép thêm máy bố mẹ": from the child's state, or from our own command until a newer state arrives.
+let pairLocal = null;
+function pairTick() {
+  const el = $("#pairOut"); if (!el || !st) { clearInterval(pairTick.i); return; }
+  const end = pairLocal && st.t < pairLocal.at ? pairLocal.end : (st.pairUntil || 0), left = end - Date.now();
+  el.innerHTML = left > 0 ? `${ic("hourglass")} Mã ghép đang hiện trên máy con, còn <b>${fmtClock(left)}</b>. Máy ghép xong thì kết nối lâu dài.`
+    : "Để ghép điện thoại của bố hoặc mẹ còn lại: bấm nút trên, mã sẽ hiện trên máy con.";
+}
 function updCard() {
   const u = st.update; if (!u) return "";   // child older than 0.9: no self-update
   const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0; } return false; };
@@ -1469,7 +1477,7 @@ function setTab(b) {
     <div id="relayOut"></div></details>` : `<div class="card"><h2>${ic("globe")} Kết nối</h2><p class="mute">Qua relay. Lệnh tới máy con trong khoảng 20 giây (màn hình tắt: 60 giây).</p></div>`}
   ${updCard()}
   <div class="card"><h2>${ic("link")} Máy đã ghép</h2>
-    <div class="grid"><button id="openPair">${ic("lock-open")} Mở ghép thêm (10 phút)</button><button id="unpair" class="bad">${ic("unlink")} Huỷ ghép tất cả</button><button id="forget">${ic("eraser")} ${APP ? "Xoá máy này khỏi app" : "Quên máy này ở trình duyệt"}</button></div></div>
+    <div class="grid"><button id="openPair">${ic("lock-open")} Ghép thêm máy bố mẹ</button><button id="unpair" class="bad">${ic("unlink")} Huỷ ghép tất cả</button><button id="forget">${ic("eraser")} ${APP ? "Xoá máy này khỏi app" : "Quên máy này ở trình duyệt"}</button></div><div id="pairOut" class="mute" style="margin-top:8px"></div></div>
   ${APP ? "" : `<div class="card"><h2>${ic("smartphone")} Thêm vào màn hình chính</h2><p class="mute">Để mở KidGuard như một app: iPhone (Safari) bấm nút Chia sẻ → "Thêm vào MH chính"; Android (Chrome) bấm ⋮ → "Thêm vào màn hình chính".</p></div>`}
   <div class="card"><h2>${ic("octagon-x")} Gỡ quản lý</h2><p class="mute">Mở lại mọi app, bỏ mọi giới hạn, bỏ quyền Device Owner. Sau đó gỡ KidGuard như app thường.</p>
     <button id="release" class="bad">${ic("octagon-x")} Gỡ quyền quản lý…</button></div>`;
@@ -1499,8 +1507,10 @@ function setTab(b) {
   if ($("#tsOff")) $("#tsOff").onclick = async () => { await cmd({ type: "tailscaleOff" }, "Đã tắt"); };
   $("#openPair").onclick = async () => {
     const r = await cmd({ type: "openPairing" }, "Mã ghép đang hiện trên máy con");
+    if (r && (r.result === "ok" || r.result === "queued")) { pairLocal = { at: Date.now(), end: Date.now() + 600000 }; pairTick(); }
     if (r && r.result === "set PIN first") toast("warn|Đặt PIN của bố mẹ trước (ngay phía trên), rồi mới mở ghép thêm");
   };
+  clearInterval(pairTick.i); pairTick.i = setInterval(pairTick, 1000); pairTick();
   $("#unpair").onclick = async () => { await cmd({ type: "unpairAll" }); };
   $("#forget").onclick = async () => {
     if (!(await ask(`${APP ? "Xoá" : "Quên"} máy “${cur.name}” ${APP ? "khỏi app" : "ở trình duyệt này"}?\n\nMuốn xem lại phải ghép lại bằng mã trên máy con.`, APP ? "Xoá" : "Quên", true))) return;
