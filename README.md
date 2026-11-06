@@ -1,6 +1,6 @@
 # KidGuard
 
-Quản lý điện thoại Android của con từ xa. Cài 1 APK, cắm USB 1 lần, không tài khoản, không máy chủ bắt buộc.
+Quản lý điện thoại Android của con từ xa. Cài 1 APK (tự cài trên máy, quét QR, hoặc cắm USB 1 lần), không tài khoản, không máy chủ bắt buộc.
 
 - **Máy con**: app KidGuard làm *Device Owner*. Luật chạy ngay trên máy con, mất mạng vẫn chạy.
 - **Bố mẹ**: mở trình duyệt bất kỳ (Android, iPhone, máy tính).
@@ -27,20 +27,29 @@ Quản lý điện thoại Android của con từ xa. Cài 1 APK, cắm USB 1 l�
 
 App bị khoá dùng `setPackagesSuspended` của Android: icon xám, bấm vào hiện "Bố mẹ đang tạm khoá ứng dụng này".
 
-## Cài (chọn 1 trong 3)
+## Cài (chọn 1 trong 4)
 
-Chuẩn bị máy con: **xoá hết tài khoản** (Cài đặt > Tài khoản), bật **Gỡ lỗi USB**, cắm vào máy tính.
-Android chỉ cho đặt Device Owner khi máy không có tài khoản; cài xong đăng nhập lại bình thường.
+Android chỉ cho đặt Device Owner khi máy **không có tài khoản** (Google, Samsung, Xiaomi…); cài xong đăng nhập lại bình thường.
 
-1. **Trình duyệt (dễ nhất)**: Chrome/Edge trên máy tính mở `https://<worker của bạn>/install` (hoặc mở file `web/install.html`),
-   bấm 🔌 Kết nối, cho phép trên máy con, xong. Không cần cài adb.
-2. **macOS/Linux**: `./setup.sh` (tự tải adb nếu thiếu; `-y` để bỏ câu hỏi xác nhận).
-3. **Windows**: `powershell -ExecutionPolicy Bypass -File setup.ps1`.
+**Không cần máy tính**
+
+1. **Máy tự cài (Android 11+)**: xoá hết tài khoản, cài `kidguard.apk` lên máy con, mở app, bấm **Tự cài không cần máy tính**.
+   App dẫn từng bước: bật Tuỳ chọn nhà phát triển > **Gỡ lỗi không dây** > "Ghép nối bằng mã", gõ mã 6 số vào thông báo của KidGuard.
+   App tự làm các bước như setup.sh rồi tắt Gỡ lỗi không dây. Cần Wi-Fi (không cần Internet).
+2. **Quét QR (máy mới / vừa khôi phục cài đặt gốc)**: mở `https://<worker của bạn>/qr` (hoặc file `web/qr.html`) trên máy khác,
+   ở màn hình chào mừng của máy con chạm 6 lần vào chỗ trống, quét mã. Máy tự tải APK qua Wi-Fi và cài làm Device Owner.
+   Sau đó mở KidGuard, làm nốt các bước trong danh sách "Bước còn lại" (Trợ năng, thời gian dùng app).
+   Lưu ý: mã QR chứa checksum chữ ký APK. APK ở link tải phải ký bằng **đúng** `app/signing.jks` dùng lúc build trang QR, khác key máy sẽ từ chối.
+
+**Có máy tính** (bật **Gỡ lỗi USB** trên máy con, cắm cáp)
+
+3. **Trình duyệt**: Chrome/Edge mở `https://<worker của bạn>/install` (hoặc file `web/install.html`), bấm Kết nối, cho phép trên máy con. Không cần cài adb.
+4. **Dòng lệnh**: macOS/Linux `./setup.sh` (tự tải adb nếu thiếu; `-y` bỏ câu hỏi), Windows `powershell -ExecutionPolicy Bypass -File setup.ps1`.
 
 Sau đó máy con hiện mã 6 số. Điện thoại bố mẹ cùng Wi-Fi mở `http://<IP máy con>:8770`, nhập mã.
 Tab **Cài đặt**: đặt **PIN của bố mẹ** (chưa có PIN thì máy con không cho ghép thêm trình duyệt).
 
-Xiaomi/Oppo/Vivo/Samsung: trên máy con bấm **🔋 Cài đặt pin / tự khởi động** và cho KidGuard chạy nền.
+Xiaomi/Oppo/Vivo/Samsung: trên máy con bấm **Cài đặt pin / tự khởi động** và cho KidGuard chạy nền.
 
 ### Điều khiển khi khác mạng (tuỳ chọn)
 
@@ -68,7 +77,7 @@ Tự làm app iOS cần tài khoản Apple Developer 99 USD/năm + quyền Famil
 TRUSTSTORE=/path/trust.jks ./build.sh   # sau proxy chặn TLS
 ```
 
-JDK 17, Android SDK 35. Trang bố mẹ: `web/index.html`. Trang cài: `web/install.html` (thư viện ADB WebUSB Tango đã đóng gói sẵn, `web/vendor/build.sh` để build lại).
+JDK 17, Android SDK 35. Trang bố mẹ: `web/index.html`. Trang cài: `web/install.html`, `web/qr.html` (thư viện ADB WebUSB Tango đã đóng gói sẵn, `web/vendor/build.sh` để build lại).
 Giao thức giữa các phần: `docs/protocol.md`.
 
 ## Giới hạn đã biết
@@ -76,4 +85,5 @@ Giao thức giữa các phần: `docs/protocol.md`.
 - Đặt lại máy bằng phím cứng (recovery) vẫn làm được; sau đó KidGuard mất, bố mẹ thấy "mất kết nối".
 - Xem màn hình / điều khiển cần Android 11+. Android 8–10: con có thể Force stop (tự chạy lại khi khởi động máy).
 - Ứng dụng có cờ bảo mật (ngân hàng…) hiện màn hình đen khi xem.
+- Tự cài dùng thư viện libadb-android (GPL-3/Apache-2) + Conscrypt nên APK ~7 MB.
 - LAN là HTTP thường (token trong header). Chỉ dùng trong mạng nhà.

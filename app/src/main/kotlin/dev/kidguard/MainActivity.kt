@@ -19,6 +19,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.text.InputFilter
 import android.text.InputType
+import android.text.SpannableStringBuilder
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -39,25 +40,28 @@ class MainActivity : Activity() {
     private lateinit var hint: TextView
     private lateinit var pairBtn: Button
     private lateinit var checklist: LinearLayout
+    private lateinit var selfBtn: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Guard.start(this)
         val pad = dp(20)
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad * 2, pad, pad) }
-        col.addView(TextView(this).apply { text = "🛡️ KidGuard"; textSize = 28f; setTypeface(typeface, Typeface.BOLD); setTextColor(Color.parseColor("#111827")) })
+        col.addView(TextView(this).apply { text = "KidGuard"; textSize = 28f; setTypeface(typeface, Typeface.BOLD); setTextColor(Color.parseColor("#111827")); Ic.lead(this, R.drawable.li_shield, Color.parseColor(Ic.INFO)) })
         status = TextView(this).apply { textSize = 16f; setPadding(0, dp(12), 0, dp(12)); setTextColor(Color.parseColor("#374151")) }
         col.addView(status)
         code = TextView(this).apply { textSize = 48f; gravity = Gravity.CENTER; letterSpacing = 0.15f; setTypeface(Typeface.MONOSPACE, Typeface.BOLD); setTextColor(Color.parseColor("#2563eb")) }
         col.addView(code)
         hint = TextView(this).apply { textSize = 15f; setPadding(0, dp(8), 0, dp(16)); setTextColor(Color.parseColor("#374151")) }
         col.addView(hint)
-        pairBtn = Button(this).apply { text = "🔗 Ghép thêm máy của bố mẹ"; setOnClickListener { askPin() } }
-        col.addView(Button(this).apply { text = "⏰ Xin thêm giờ"; setOnClickListener { askMore() } })
-        col.addView(Button(this).apply { text = "🔋 Cài đặt pin / tự khởi động"; setOnClickListener { openBatterySettings() } })
+        pairBtn = Button(this).apply { text = "Ghép thêm máy của bố mẹ"; Ic.lead(this, R.drawable.li_link); setOnClickListener { askPin() } }
+        col.addView(Button(this).apply { text = "Xin thêm giờ"; Ic.lead(this, R.drawable.li_timer); setOnClickListener { askMore() } })
+        col.addView(Button(this).apply { text = "Cài đặt pin / tự khởi động"; Ic.lead(this, R.drawable.li_battery_charging); setOnClickListener { openBatterySettings() } })
         col.addView(pairBtn)
         checklist = Checklist.build(this)
         col.addView(checklist)
+        selfBtn = Button(this).apply { text = "Tự cài không cần máy tính (Android 11+)"; isAllCaps = false; Ic.lead(this, R.drawable.li_wifi); setOnClickListener { startActivity(Intent(this@MainActivity, SelfSetupActivity::class.java)) } }
+        col.addView(selfBtn)
         setContentView(ScrollView(this).apply { setBackgroundColor(Color.WHITE); addView(col) })
     }
 
@@ -68,27 +72,30 @@ class MainActivity : Activity() {
         val s = Store.of(this)
         val owner = Policy.isOwner(this)
         val usage = Usage.granted(this)
+        selfBtn.visibility = if (owner) View.GONE else View.VISIBLE
         val lan = Guard.lanUrl()
         Checklist.update(this, checklist)
-        status.text = buildString {
-            append(if (owner) "✅ Đang được bố mẹ quản lý\n" else "⚠️ Chưa có quyền Device Owner: chạy setup.sh trên máy tính (xem README) 💻\n")
-            if (!usage) append("⚠️ ⏱️ Chưa có quyền xem thời gian dùng app (setup.sh cấp)\n")
-            append(if (Guard.running != null) "✅ Đang chạy\n" else "⏳ Đang khởi động…\n")
-            append(if (Acc.isOn(this@MainActivity)) "✅ ♿ Trợ năng: bật\n" else "⚠️ ♿ Trợ năng: tắt\n")
-            append(if (runCatching { getSystemService(LocationManager::class.java).isLocationEnabled }.getOrDefault(false)) "✅ 📍 Vị trí: bật\n" else "⚠️ 📍 Vị trí: tắt\n")
-            val pending = s.requests().length()
-            if (pending > 0) append("⏳ 💬 Đang chờ bố mẹ trả lời: $pending yêu cầu\n")
-            if (s.relayUrl.isNotBlank()) append("🌐 Điều khiển từ xa: bật\n")
-        }
+        val sb = SpannableStringBuilder()
+        val ok = R.drawable.li_circle_check; val warn = R.drawable.li_triangle_alert
+        if (owner) Ic.line(sb, status, ok, Ic.OK, "Đang được bố mẹ quản lý") else Ic.line(sb, status, warn, Ic.WARN, "Chưa có quyền Device Owner: dùng nút \"Tự cài\" bên dưới hoặc setup.sh trên máy tính (xem README)")
+        if (!usage) Ic.line(sb, status, warn, Ic.WARN, "Chưa có quyền xem thời gian dùng app")
+        if (Guard.running != null) Ic.line(sb, status, ok, Ic.OK, "Đang chạy") else Ic.line(sb, status, R.drawable.li_loader, Ic.INFO, "Đang khởi động…")
+        if (Acc.isOn(this@MainActivity)) Ic.line(sb, status, R.drawable.li_accessibility, Ic.OK, "Trợ năng: bật") else Ic.line(sb, status, R.drawable.li_accessibility, Ic.WARN, "Trợ năng: tắt")
+        val locOn = runCatching { getSystemService(LocationManager::class.java).isLocationEnabled }.getOrDefault(false)
+        Ic.line(sb, status, R.drawable.li_map_pin, if (locOn) Ic.OK else Ic.WARN, if (locOn) "Vị trí: bật" else "Vị trí: tắt")
+        val pending = s.requests().length()
+        if (pending > 0) Ic.line(sb, status, R.drawable.li_message_circle, Ic.INFO, "Đang chờ bố mẹ trả lời: $pending yêu cầu")
+        if (s.relayUrl.isNotBlank()) Ic.line(sb, status, R.drawable.li_globe, Ic.INFO, "Điều khiển từ xa: bật")
+        status.text = sb
         val c = s.pairCode()
         if (c != null) {
             code.visibility = View.VISIBLE; code.text = c
-            hint.text = "📱 Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n${lan ?: "(chưa có Wi-Fi)"}\nrồi nhập mã ở trên. 🔢"
+            hint.text = "Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n${lan ?: "(chưa có Wi-Fi)"}\nrồi nhập mã ở trên."; Ic.lead(hint, R.drawable.li_smartphone)
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             pairBtn.visibility = View.GONE
         } else {
             code.visibility = View.GONE
-            hint.text = "👨‍👩‍👧 Bố mẹ quản lý tại: ${lan ?: "(chưa có Wi-Fi)"}"
+            hint.text = "Bố mẹ quản lý tại: ${lan ?: "(chưa có Wi-Fi)"}"; Ic.lead(hint, R.drawable.li_users)
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             pairBtn.visibility = View.VISIBLE
         }
@@ -101,14 +108,14 @@ class MainActivity : Activity() {
         val rules = s.rules
         if (rules.pinHash.isBlank()) {
             // already paired and no PIN: opening pairing would let the child pair their own browser
-            if (s.everPaired) { Toast.makeText(this, "🔒 Bố mẹ hãy đặt mã PIN trong trang quản lý trước khi ghép thêm máy", Toast.LENGTH_LONG).show(); return }
+            if (s.everPaired) { Toast.makeText(this, "Bố mẹ hãy đặt mã PIN trong trang quản lý trước khi ghép thêm máy", Toast.LENGTH_LONG).show(); return }
             s.openPairing(); refresh(); return
         }
-        val input = EditText(this).apply { inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD; hint = "🔑 PIN của bố mẹ" }
-        AlertDialog.Builder(this).setTitle("🔐 Nhập PIN của bố mẹ").setView(input)
+        val input = EditText(this).apply { inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD; hint = "PIN của bố mẹ" }
+        AlertDialog.Builder(this).setTitle("Nhập PIN của bố mẹ").setView(input)
             .setPositiveButton("OK") { _, _ ->
                 if (rules.checkPin(input.text.toString().filter { it.isDigit() })) { s.openPairing(); refresh() }
-                else AlertDialog.Builder(this).setMessage("❌ Sai PIN").setPositiveButton("OK", null).show()
+                else AlertDialog.Builder(this).setMessage("Sai PIN").setPositiveButton("OK", null).show()
             }.setNegativeButton("Huỷ", null).show()
     }
 
@@ -117,13 +124,13 @@ class MainActivity : Activity() {
         val s = Store.of(this)
         val mins = intArrayOf(15, 30, 60)
         val group = RadioGroup(this)
-        mins.forEachIndexed { i, m -> group.addView(RadioButton(this).apply { text = "⏱️ $m phút"; id = i + 1; isChecked = i == 0 }) }
-        val note = EditText(this).apply { hint = "✏️ Lý do (không bắt buộc)"; filters = arrayOf(InputFilter.LengthFilter(100)) }
+        mins.forEachIndexed { i, m -> group.addView(RadioButton(this).apply { text = "$m phút"; id = i + 1; isChecked = i == 0 }) }
+        val note = EditText(this).apply { hint = "Lý do (không bắt buộc)"; filters = arrayOf(InputFilter.LengthFilter(100)) }
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0); addView(group); addView(note) }
-        AlertDialog.Builder(this).setTitle("⏰ Xin thêm giờ").setView(box)
-            .setPositiveButton("📨 Gửi") { _, _ ->
+        AlertDialog.Builder(this).setTitle("Xin thêm giờ").setView(box)
+            .setPositiveButton("Gửi") { _, _ ->
                 val ok = s.addRequest(mins[(group.checkedRadioButtonId - 1).coerceIn(0, 2)], note.text.toString())
-                Toast.makeText(this, if (ok) "📨 Đã gửi cho bố mẹ" else "⚠️ Đang có quá nhiều yêu cầu chờ", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, if (ok) "Đã gửi cho bố mẹ" else "Đang có quá nhiều yêu cầu chờ", Toast.LENGTH_LONG).show()
                 if (ok) { s.log("Con xin thêm giờ"); Guard.poke(this) }
                 refresh()
             }.setNegativeButton("Huỷ", null).show()
@@ -151,9 +158,9 @@ class MessageActivity : Activity() {
         super.onCreate(savedInstanceState)
         val pad = (24 * resources.displayMetrics.density).toInt()
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(pad, pad, pad, pad); setBackgroundColor(Color.parseColor("#1e3a8a")) }
-        col.addView(TextView(this).apply { text = "💌 Bố mẹ nhắn"; textSize = 18f; setTextColor(Color.parseColor("#bfdbfe")); gravity = Gravity.CENTER })
+        col.addView(TextView(this).apply { text = "Bố mẹ nhắn"; textSize = 18f; setTextColor(Color.parseColor("#bfdbfe")); gravity = Gravity.CENTER; Ic.lead(this, R.drawable.li_mail) })
         col.addView(TextView(this).apply { text = intent.getStringExtra("text") ?: ""; textSize = 30f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; setPadding(0, pad, 0, pad) })
-        col.addView(Button(this).apply { text = "👍 Con đã đọc"; setOnClickListener { finish() } })
+        col.addView(Button(this).apply { text = "Con đã đọc"; Ic.lead(this, R.drawable.li_thumbs_up); setOnClickListener { finish() } })
         setContentView(col)
     }
 
@@ -167,7 +174,7 @@ class MessageActivity : Activity() {
                 val nm = ctx.getSystemService(NotificationManager::class.java)
                 nm.createNotificationChannel(NotificationChannel("msg", "Tin nhắn từ bố mẹ", NotificationManager.IMPORTANCE_HIGH))
                 val pi = PendingIntent.getActivity(ctx, 3, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-                nm.notify(3, Notification.Builder(ctx, "msg").setSmallIcon(android.R.drawable.ic_lock_lock).setContentTitle("💌 Bố mẹ nhắn")
+                nm.notify(3, Notification.Builder(ctx, "msg").setSmallIcon(android.R.drawable.ic_lock_lock).setContentTitle("Bố mẹ nhắn")
                     .setContentText(text).setStyle(Notification.BigTextStyle().bigText(text)).setCategory(Notification.CATEGORY_MESSAGE)
                     .setAutoCancel(true).setContentIntent(pi).setFullScreenIntent(pi, true).build())
             }

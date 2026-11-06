@@ -14,6 +14,8 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
+        // self-setup over Wireless debugging ships a native lib (conscrypt, spake2): phones + the emulator only
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     }
     signingConfigs {
         create("release") {
@@ -39,6 +41,10 @@ android {
 }
 
 dependencies {
+    // self-setup: the phone runs adb against itself over Wireless debugging (SelfSetupActivity)
+    implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
+    implementation("com.github.MuntashirAkon:sun-security-android:1.1")   // X509 cert for the adb TLS key
+    implementation("org.conscrypt:conscrypt-android:2.5.3")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
 }
