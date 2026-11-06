@@ -4,11 +4,15 @@ import android.util.Log
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
+import java.net.BindException
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 import java.net.URLDecoder
-import java.util.concurrent.Executors
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 class Req(val method: String, val path: String, val query: Map<String, String>, val headers: Map<String, String>, val body: ByteArray) {
     val text get() = String(body, Charsets.UTF_8)
@@ -25,34 +29,43 @@ class Res(val code: Int, val type: String, val body: ByteArray, val headers: Map
 /** A tiny HTTP/1.1 server (one request per connection), enough for the parent's page on the LAN. */
 class Http(private val tag: Any, private val handler: (Req) -> Res) {
     private var server: ServerSocket? = null
-    private val pool = Executors.newFixedThreadPool(4)
+    @Volatile private var stopped = false
+    private val pool = ThreadPoolExecutor(4, 4, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(16))
 
     constructor(g: Guard, api: Api) : this(g, api::handle)
 
     fun start(port: Int) {
         Thread({
-            try {
-                val s = ServerSocket(port).also { server = it }
-                while (!s.isClosed) {
-                    val c = s.accept()
-                    pool.execute { serve(c) }
-                }
-            } catch (e: SocketException) { /* stopped */ } catch (e: Exception) { Log.e("KidGuard", "http", e) }
+            while (!stopped) {
+                try {
+                    val s = ServerSocket(port).also { server = it }
+                    while (!s.isClosed) {
+                        val c = s.accept()
+                        try { pool.execute { serve(c) } } catch (e: RejectedExecutionException) { runCatching { c.close() } }
+                    }
+                } catch (e: BindException) {
+                    Log.w("KidGuard", "http bind $port failed, retry in 2s", e)
+                    try { Thread.sleep(2000) } catch (_: InterruptedException) { return@Thread }
+                } catch (e: SocketException) { /* stopped */ } catch (e: Exception) { Log.e("KidGuard", "http", e) }
+            }
         }, "http").start()
     }
 
-    fun stop() { runCatching { server?.close() }; pool.shutdownNow() }
+    fun stop() { stopped = true; runCatching { server?.close() }; pool.shutdownNow() }
 
     private fun serve(c: Socket) = c.use {
         it.soTimeout = 15_000
+        // total deadline for receiving the request (slow-drip guard); soTimeout alone resets on every byte
+        val killer = Thread({ try { Thread.sleep(10_000); runCatching { it.close() } } catch (_: InterruptedException) {} }, "http-deadline").apply { isDaemon = true; start() }
         val res = try {
-            val req = read(BufferedInputStream(it.getInputStream())) ?: return
+            val req = try { read(BufferedInputStream(it.getInputStream())) } finally { killer.interrupt() } ?: return
             handler(req)
         } catch (e: TooBig) { Res.text("too big", 413) } catch (e: Exception) {
             Log.w("KidGuard", "req", e); Res.text("error", 500)
         }
         val head = "HTTP/1.1 ${res.code} ${reason(res.code)}\r\nContent-Type: ${res.type}\r\nContent-Length: ${res.body.size}\r\n" +
             "Cache-Control: ${if (res.type == "image/png") "private, max-age=86400" else "no-store"}\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n" +
+            (if (res.type.startsWith("text/html")) "X-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'; img-src 'self' data: blob: https://tile.openstreetmap.org\r\n" else "") +
             res.headers.entries.joinToString("") { (k, v) -> "$k: $v\r\n" } + "\r\n"
         val out = it.getOutputStream()
         out.write(head.toByteArray()); out.write(res.body); out.flush()

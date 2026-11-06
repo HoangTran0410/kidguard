@@ -30,10 +30,12 @@ class Api(private val g: Guard) {
         return when {
             p == "/state" -> Res.json(g.currentState().toString())
             p == "/rules" && r.method == "PUT" -> {
-                val incoming = Rules.fromJson(JSONObject(r.text))
+                val body = JSONObject(r.text)
+                var incoming = Rules.fromJson(body)
+                if (!body.has("pin") && !body.has("pinHash")) incoming = incoming.copy(pinHash = store.rules.pinHash)
                 val rev = maxOf(store.rules.rev + 1, System.currentTimeMillis())
                 g.setRules(incoming.copy(rev = rev))
-                Res.json(store.rules.toJson().toString())
+                Res.json(store.rules.toJson().also { it.put("pinSet", store.rules.pinHash.isNotEmpty()); it.remove("pinHash") }.toString())
             }
             p == "/cmd" && r.method == "POST" -> {
                 val c = JSONObject(r.text)
@@ -49,10 +51,14 @@ class Api(private val g: Guard) {
             }
             p == "/input" && r.method == "POST" -> Res.json(JSONObject().put("result",
                 runCatching { Acc.input(JSONObject(r.text)) }.getOrDefault("bad input")).toString())
+            p == "/track" -> Res.json(JSONObject().put("track", track(((r.query["days"]?.toIntOrNull()) ?: 7).coerceIn(1, 7))).toString())
             p == "/icon" -> icon(r.query["pkg"] ?: "")
             else -> Res.text("not found", 404)
         }
     }
+
+    // TEMP stub: replace with store.track(days) (Store.track returns JSONArray [[t,lat,lon,acc],...]) when merging core.
+    private fun track(days: Int): org.json.JSONArray = org.json.JSONArray()
 
     private fun icon(pkg: String): Res {
         val d = runCatching { g.packageManager.getApplicationIcon(pkg) }.getOrNull() ?: return Res.text("no icon", 404)
