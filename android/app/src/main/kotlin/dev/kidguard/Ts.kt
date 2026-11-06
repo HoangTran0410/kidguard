@@ -210,7 +210,7 @@ object Ts {
     }
 
     /** Commits and waits for the status broadcast. Null = success, else a short reason. */
-    private fun commitAndWait(ctx: Context, ses: PackageInstaller.Session, action: String): String? {
+    internal fun commitAndWait(ctx: Context, ses: PackageInstaller.Session, action: String): String? {
         val done = CountDownLatch(1)
         var out: String? = "hết giờ chờ"
         val r = object : BroadcastReceiver() {

@@ -238,7 +238,7 @@ function norm(e) {
   e.hidden = Array.isArray(e.hidden) ? e.hidden : [];   // v0.8 preinstalled apps hidden by the parent
   e.dailyByDay = Array.isArray(e.dailyByDay) && e.dailyByDay.length === 7 ? e.dailyByDay : [];
   e.schedules = e.schedules || []; e.approved = e.approved || []; e.safeDns = e.safeDns || "";
-  e.trackMin = e.trackMin === undefined ? 10 : +e.trackMin; e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.showWatching = e.showWatching !== false; e.blockNew = !!e.blockNew;
+  e.trackMin = e.trackMin === undefined ? 10 : +e.trackMin; e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.showWatching = e.showWatching !== false; e.autoUpdate = e.autoUpdate !== false; e.blockNew = !!e.blockNew;
   e.blocked = e.blocked || []; e.allow = e.allow || []; e.appMin = e.appMin || {};
   e.chores = Array.isArray(e.chores) ? e.chores : []; e.zones = Array.isArray(e.zones) ? e.zones : [];
   return e;
@@ -1399,6 +1399,19 @@ function tsCard(lan) {
     <p class="mute">Sau khi tắt: vào login.tailscale.com → Machines xoá máy "${esc(t.host || "kid")}" (app đã gỡ không tự đăng xuất được). Biểu tượng chìa khoá trên thanh trạng thái của con là do Android, không ẩn được.</p>` : ""}</div>`;
 }
 
+// Self-update of the child app (state.update, v0.9): status line, "update now", rule autoUpdate.
+function updCard() {
+  const u = st.update; if (!u) return "";   // child older than 0.9: no self-update
+  const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0; } return false; };
+  const has = u.latest && newer(u.latest, st.version);
+  const line = u.status === "checking" ? "Đang kiểm tra…" : u.status === "downloading" ? `Đang tải bản ${esc(u.latest)}…` : u.status === "installing" ? `Đang cài bản ${esc(u.latest)}…`
+    : u.status === "ready" ? `Bản ${esc(u.latest)} đã tải về, chờ con bấm "Cập nhật" trên máy con (chế độ cơ bản không tự cài được)`
+    : u.status === "failed" ? `${ic("triangle-alert")} Lỗi: ${esc(u.err || "không rõ")}` : has ? `Có bản mới ${esc(u.latest)}` : "Đang dùng bản mới nhất";
+  return `<div class="card"><h2>${ic("refresh-cw")} Phiên bản KidGuard</h2>
+    <p>Máy con: <b>${esc(st.version || "?")}</b> · ${line}${u.checkedAt ? ` <span class="mute">· kiểm tra ${ago(u.checkedAt)}</span>` : ""}</p>
+    <label class="row"><input type="checkbox" id="f-au" ${edit && edit.autoUpdate ? "checked" : ""}><span class="sp">Tự cập nhật mỗi ngày (Device Owner: tự cài, con không phải bấm)</span></label>
+    <div class="row" style="margin-top:8px"><button id="updNow" ${u.status === "downloading" || u.status === "installing" || u.status === "checking" ? "disabled" : ""}>${ic("refresh-cw")} Kiểm tra và cập nhật ngay</button></div></div>`;
+}
 function setTab(b) {
   const lan = cur.via === "lan";
   b.innerHTML = `
@@ -1414,6 +1427,7 @@ function setTab(b) {
     <p class="mute">Không muốn cài Tailscale trên điện thoại bố mẹ? Dùng một Cloudflare Worker của bạn (miễn phí, cần deploy, xem README). Lệnh tới máy con chậm hơn (~20 giây). Dán địa chỉ:</p>
     <div class="row"><input id="relay" class="sp" placeholder="https://kidguard.ten-ban.workers.dev" value="${esc(st.relay || "")}"><button id="saveRelay" class="pri">${ic("globe")} Bật</button></div>
     <div id="relayOut"></div></details>` : `<div class="card"><h2>${ic("globe")} Kết nối</h2><p class="mute">Qua relay. Lệnh tới máy con trong khoảng 20 giây (màn hình tắt: 60 giây).</p></div>`}
+  ${updCard()}
   <div class="card"><h2>${ic("link")} Máy đã ghép</h2>
     <div class="grid"><button id="openPair">${ic("lock-open")} Mở ghép thêm (10 phút)</button><button id="unpair" class="bad">${ic("unlink")} Huỷ ghép tất cả</button><button id="forget">${ic("eraser")} ${APP ? "Xoá máy này khỏi app" : "Quên máy này ở trình duyệt"}</button></div></div>
   ${APP ? "" : `<div class="card"><h2>${ic("smartphone")} Thêm vào màn hình chính</h2><p class="mute">Để mở KidGuard như một app: iPhone (Safari) bấm nút Chia sẻ → "Thêm vào MH chính"; Android (Chrome) bấm ⋮ → "Thêm vào màn hình chính".</p></div>`}
@@ -1451,6 +1465,8 @@ function setTab(b) {
   $("#forget").onclick = async () => {
     if (!(await ask(`${APP ? "Xoá" : "Quên"} máy “${cur.name}” ${APP ? "khỏi app" : "ở trình duyệt này"}?\n\nMuốn xem lại phải ghép lại bằng mã trên máy con.`, APP ? "Xoá" : "Quên", true))) return;
     screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); navDown(0); };
+  if ($("#f-au")) $("#f-au").onchange = e => { if (!edit) return; edit.autoUpdate = e.target.checked; changed(); };
+  if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, "Đã gửi: máy con kiểm tra bản mới", ["Cho máy con kiểm tra và cài bản KidGuard mới nhất từ GitHub? KidGuard tắt vài giây khi cài.", "Cập nhật"]).then(() => setTimeout(refresh, 4000));
   $("#release").onclick = async () => {
     await cmd({ type: "release" }, "Đã gỡ quản lý", ["Gỡ quyền quản lý: máy con sẽ hết mọi giới hạn và KidGuard không điều khiển được nữa.", "Gỡ quản lý", true, "GO"]);
   };

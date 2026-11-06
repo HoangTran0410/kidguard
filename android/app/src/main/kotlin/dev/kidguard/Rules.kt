@@ -90,6 +90,7 @@ data class Rules(
     val safeDns: String = "",                // Private DNS host, "" = off
     val trackMin: Int = 10,                  // location history every N minutes: 0 (off), 5, 10, 15, 30, 60
     val showWatching: Boolean = true,        // child sees "parent is watching / controlling" while the screen is viewed
+    val autoUpdate: Boolean = true,          // daily check of GitHub releases; owner installs silently, basic asks the child
     val chores: List<Chore> = emptyList(),   // max 20
     val zones: List<Zone> = emptyList(),     // max 10
     val hidden: Set<String> = emptySet(),    // preinstalled apps the parent hid (owner only), max Debloat.MAX_HIDDEN
@@ -109,7 +110,7 @@ data class Rules(
         .put("schedules", JSONArray().apply { schedules.forEach { put(it.toJson()) } })
         .put("blockNew", blockNew).put("approved", JSONArray(approved.sorted()))
         .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("trackMin", trackMin)
-        .put("showWatching", showWatching)
+        .put("showWatching", showWatching).put("autoUpdate", autoUpdate)
         .put("chores", JSONArray().apply { chores.forEach { put(it.toJson()) } })
         .put("zones", JSONArray().apply { zones.forEach { put(it.toJson()) } })
         .put("hidden", JSONArray(hidden.sorted()))
@@ -173,6 +174,7 @@ data class Rules(
                 lockLocation = o.optBoolean("lockLocation", true),
                 noAirplane = o.optBoolean("noAirplane", true),
                 showWatching = o.optBoolean("showWatching", true),
+                autoUpdate = o.optBoolean("autoUpdate", true),
                 trackMin = o.optInt("trackMin", 10).takeIf { it in TRACK_STEPS } ?: 10,
                 safeDns = o.optString("safeDns", "").trim().lowercase().takeIf { it.matches(DNS_HOST) } ?: "",
             )

@@ -18,6 +18,10 @@ object Store {
     fun setTpl(c: Context, json: String) { if (json.length <= 50_000) p(c).edit().putString("tpl", json).apply() }
     fun historyDays(c: Context): Int = p(c).getInt("historyDays", 0)
     fun setHistoryDays(c: Context, n: Int) { p(c).edit().putInt("historyDays", n.coerceIn(0, 3650)).apply() }
+    fun updateAt(c: Context): Long = p(c).getLong("updAt", 0)
+    fun setUpdateAt(c: Context, t: Long) { p(c).edit().putLong("updAt", t).apply() }
+    fun updateNotified(c: Context): String = p(c).getString("updTag", "") ?: ""
+    fun setUpdateNotified(c: Context, tag: String) { p(c).edit().putString("updTag", tag).apply() }
     fun notifyState(c: Context, key: String): String? = p(c).getString("ns:" + sha(key), null)
     fun setNotifyState(c: Context, key: String, json: String) { p(c).edit().putString("ns:" + sha(key), json).apply() }
 

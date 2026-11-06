@@ -177,6 +177,7 @@ class Guard : Service() {
         if (use.current != null && use.current in nowSusp && use.current !in had) goHome()
         if (now - lastLocateAt > 15 * 60_000) { lastLocateAt = now; locate() }
         if (now - store.historyAt > 3_600_000) store.saveHistory(history(now, apps.keys, prot, apps), now)
+        Update.maybe(this, r, now)
         lastState = state(r, apps, prot, use, want, nowSusp, today, now, newApps)
     }
 
@@ -270,6 +271,7 @@ class Guard : Service() {
             .put("sos", store.sos())
             .put("listen", Listen.state())
             .put("events", store.events())
+            .put("update", Update.stateJson(this))
             .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)) else it.put("preinstalled", preinstalled(prot, now)) }
     }
 
@@ -364,6 +366,7 @@ class Guard : Service() {
             if (res == "ok") store.log("Bố mẹ xoá dữ liệu: " + Policy.labelOf(this, pkg))
             res
         }
+        "update" -> if (Update.start(this, true)) "ok" else "busy"
         "release" -> release()
         else -> "unknown"
     }

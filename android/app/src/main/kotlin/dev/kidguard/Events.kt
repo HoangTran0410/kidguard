@@ -77,6 +77,7 @@ object Events {
         if (o.zones != n.zones) p += if (o.zones.size != n.zones.size) "vùng ${o.zones.size} → ${n.zones.size}" else "sửa vùng"
         if (o.trackMin != n.trackMin) p += if (n.trackMin > 0) "lưu vị trí mỗi ${n.trackMin} phút" else "tắt lưu vị trí"
         if (o.lockLocation != n.lockLocation) p += if (n.lockLocation) "khoá bật vị trí" else "bỏ khoá vị trí"
+        if (o.autoUpdate != n.autoUpdate) p += if (n.autoUpdate) "bật tự cập nhật KidGuard" else "tắt tự cập nhật KidGuard"
         if (o.showWatching != n.showWatching) p += if (n.showWatching) "báo con khi xem màn hình" else "không báo con khi xem màn hình"
         if (o.pinHash != n.pinHash) p += "đổi PIN"
         if (p.isEmpty()) p += "cài đặt khác"

@@ -197,4 +197,19 @@ object Logic {
     /** FCM {kind: "ev", kid, ...} means "check this kid now" (the check itself notifies "<name>: <text>" once per event id). */
     fun pushCheckKid(kids: List<KidCfg>, data: Map<String, String>): KidCfg? =
         if (data["kind"] == "ev") kids.firstOrNull { it.via == "relay" && it.id == data["kid"] } else null
+
+    // --- app update (same rules as the child's UpdateLogic) ---
+    const val RELEASES = "https://github.com/HoangTran0410/kidguard/releases/latest"
+    const val PARENT_APK = "$RELEASES/download/kidguard-parent.apk"
+
+    /** "0.9.0" from a `Location: …/releases/tag/v0.9.0` redirect, or null. */
+    fun tagFromLocation(loc: String?): String? =
+        loc?.substringAfterLast("/tag/", "")?.takeIf { Regex("v?\\d{1,4}(\\.\\d{1,4}){1,3}").matches(it) }?.removePrefix("v")
+
+    /** True when [a] is a higher dotted version than [b]. */
+    fun newer(a: String, b: String): Boolean {
+        val x = a.split('.').map { it.toIntOrNull() ?: 0 }; val y = b.split('.').map { it.toIntOrNull() ?: 0 }
+        for (i in 0 until maxOf(x.size, y.size)) { val d = x.getOrElse(i) { 0 } - y.getOrElse(i) { 0 }; if (d != 0) return d > 0 }
+        return false
+    }
 }

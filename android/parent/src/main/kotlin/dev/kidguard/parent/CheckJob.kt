@@ -49,6 +49,7 @@ class CheckJob : JobService() {
         }
 
         fun run(c: Context) {
+            runCatching { checkUpdate(c) }.onFailure { android.util.Log.w("KGParent", "update check", it) }
             if (!Store.notify(c)) return
             for (k in Logic.parseKids(Store.kids(c))) runKid(c, k)
         }
@@ -106,6 +107,23 @@ class CheckJob : JobService() {
         }
 
         /** Permission granted and notifications not turned off in system settings. */
+        /** Once a day: is there a newer release? Notifies once per version; the tap downloads the APK in the browser. */
+        fun checkUpdate(c: Context) {
+            val now = System.currentTimeMillis()
+            if (now - Store.updateAt(c) < 24 * 3_600_000L) return
+            val u = java.net.URL(Logic.RELEASES).openConnection() as java.net.HttpURLConnection
+            u.instanceFollowRedirects = false; u.requestMethod = "HEAD"; u.connectTimeout = 15_000; u.readTimeout = 15_000
+            val tag = try { Logic.tagFromLocation(u.getHeaderField("Location")) } finally { u.disconnect() } ?: return
+            Store.setUpdateAt(c, now)
+            if (!Logic.newer(tag, BuildConfig.VERSION_NAME) || Store.updateNotified(c) == tag || !canNotify(c)) return
+            Store.setUpdateNotified(c, tag)
+            channel(c)
+            val pi = PendingIntent.getActivity(c, 9, Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Logic.PARENT_APK)), PendingIntent.FLAG_IMMUTABLE)
+            val n = android.app.Notification.Builder(c, CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle("Có bản KidGuard Phụ huynh mới ($tag)")
+                .setContentText("Bấm để tải về rồi cài đè lên bản cũ").setContentIntent(pi).setAutoCancel(true).build()
+            c.getSystemService(NotificationManager::class.java).notify(0x6b67, n)
+        }
+
         fun canNotify(c: Context): Boolean {
             if (Build.VERSION.SDK_INT >= 33 && c.checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) return false
             return c.getSystemService(NotificationManager::class.java).areNotificationsEnabled()

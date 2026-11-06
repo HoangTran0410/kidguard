@@ -84,6 +84,11 @@ class MainActivity : Activity() {
         }
         col.addView(sosBtn)
         (sosBtn.layoutParams as LinearLayout.LayoutParams).topMargin = dp(18)
+        // basic mode can't update silently: a downloaded, verified update waits for this tap (owner installs by itself)
+        updBtn = u.button("Cập nhật KidGuard (bản mới)", R.drawable.li_shield, true) {
+            if (!Update.installInteractive(this)) android.widget.Toast.makeText(this, "Bật \"Cho phép từ nguồn này\" cho KidGuard rồi bấm lại", android.widget.Toast.LENGTH_LONG).show()
+        }
+        col.addView(updBtn)
         moreBtn = u.button("Xin thêm giờ", R.drawable.li_timer, true) { askMore() }
         col.addView(moreBtn)
         pairBtn = u.button("Ghép thêm máy của bố mẹ", R.drawable.li_link, false) { askPin() }
@@ -126,6 +131,7 @@ class MainActivity : Activity() {
 
     private lateinit var qr: ImageView
     private lateinit var sosBtn: View
+    private lateinit var updBtn: View
     private lateinit var moreBtn: View
     private var qrFor: String? = null
 
@@ -146,6 +152,7 @@ class MainActivity : Activity() {
         val usage = Usage.granted(this)
         // SOS / more time only reach someone once a parent has paired
         (if (s.everPaired) View.VISIBLE else View.GONE).let { sosBtn.visibility = it; moreBtn.visibility = it }
+        updBtn.visibility = if (!owner && Update.apk(this).exists() && UpdateLogic.newer(Update.stateJson(this).optString("latest"), Update.current())) View.VISIBLE else View.GONE
         selfBtn.visibility = if (owner || android.os.Build.VERSION.SDK_INT < 30) View.GONE else View.VISIBLE
         if (owner) basicList.box.visibility = View.GONE else basicList.update()
         val lan = Guard.lanUrl()

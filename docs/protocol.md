@@ -24,6 +24,7 @@ shape, say so in your report instead of silently diverging.
   "lockLocation": true,            // NEW (default true): location forced on, child cannot change location settings
   "noAirplane": true,              // NEW (default true): airplane mode disallowed
   "showWatching": true,            // v0.4 (default true): child sees the "watching / controlling" notification
+  "autoUpdate": true,              // v0.9 (default true): daily self-update from GitHub releases (see "Self-update")
   "safeDns": "",                   // NEW: "" = off, else a Private DNS host, e.g. "family.adguard-dns.com",
                                    //      "family.cloudflare-dns.com", "family-filter-dns.cleanbrowsing.org"
   "noInstall": false, "noDebug": false,
@@ -351,3 +352,20 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
   Result `"ok"` | `"not owner"` | `"unsupported"` (Android < 9) | `"protected"` (never-clear set or KidGuard) | `"failed"`.
 - **Basic mode**: `hidden` is ignored and `preinstalled` is absent; the page shows the heaviest apps (`apps[].mb`) and
   says hiding preinstalled apps needs Device Owner.
+
+## Self-update (v0.9)
+- **Source**: `HEAD https://github.com/HoangTran0410/kidguard/releases/latest` (no redirects followed): the `Location`
+  header ends in `/tag/v<x.y.z>`. Then `releases/download/v<x.y.z>/kidguard.apk` and `kidguard.apk.sha256` (first
+  token = hex SHA-256). The APK must hash to it, have package `dev.kidguard` and a higher versionCode; Android itself
+  refuses an update signed with another key, so a fork's or a tampered release can't replace the app.
+- **When**: rule `autoUpdate` (default true) = once a day from the guard loop (after a failure: retry in 1 h), or the
+  command `update` (deliver-once; result `"ok"` = started, `"busy"` = a check is already running; runs even with
+  `autoUpdate` off).
+- **Install**: Device Owner = silent `PackageInstaller` session (lifts `no_install_apps` / `no_install_unknown_sources`
+  for the session; the new process re-applies the policy on start). Basic mode can't: the child gets a notification and
+  a **Cập nhật KidGuard** button that asks for "install unknown apps" once, then shows the system confirm screen.
+- **State** `update: {"latest": "0.9.1"|"" , "status": ""|"checking"|"downloading"|"installing"|"ready"|"failed",
+  "err": string, "checkedAt": epoch ms|0}`. `ready` = basic mode, downloaded and verified, waiting for the child's tap.
+  Absent on children older than 0.9 (the page hides its card).
+- **Parent app**: once a day the same `HEAD` from `CheckJob`; a newer tag than its own version gives one notification
+  per version, the tap opens `releases/latest/download/kidguard-parent.apk` in the browser (no install permission).
