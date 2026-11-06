@@ -87,6 +87,26 @@ It uses Android's Private DNS. If the filter's host is refused, or the network h
 
 ## Away from home
 
+Two options. Pick one, or use both.
+
+| | Tailscale | Cloudflare Worker |
+|---|---|---|
+| Setup | paste one key, nothing to deploy | deploy a Worker (needs Node) |
+| Speed | instant, the page talks to the phone directly | commands in ~20 s (~60 s screen off) |
+| Parent's phone | needs the Tailscale app (Android / iPhone) | any browser |
+| Child sees | a key icon in the status bar (Android always shows it for a VPN) | nothing |
+
+### Tailscale (private network)
+
+1. Make a free account at [tailscale.com](https://tailscale.com), then **Settings → Keys → Generate auth key**: Reusable on, Ephemeral **off** (an ephemeral device is deleted when the phone is off for a while, and its address changes).
+2. In the parent page (on home Wi-Fi): **Cài đặt → Điều khiển từ xa qua Tailscale**, paste the key, optional device name, press **Bật**.
+3. The child's phone downloads the official Tailscale app (SHA-256 checked), installs it silently, joins your network and hides the app. About a minute; the card then shows **Đã kết nối** and an address like `http://100.x.y.z:8770`.
+4. On the parent's phone install Tailscale, log in with the same account, open that address.
+
+The key is only accepted on home Wi-Fi and stays on the child's phone (never sent through the Worker). The child cannot turn the VPN off, change VPN settings or uninstall Tailscale; KidGuard's safe-DNS filter keeps working. **Tắt và gỡ Tailscale** (or Release) removes it all; then delete the device in the Tailscale admin console (**Machines**), since an uninstalled app cannot log itself out.
+
+### Cloudflare Worker (relay)
+
 The parent page works the same through a small **Cloudflare Worker** (free plan) that relays commands, state and the live screen. Frames stay in the Worker's memory only, never stored.
 
 ```bash

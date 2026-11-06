@@ -731,16 +731,17 @@ function tsCard(lan) {
   const label = { off: "Đang tắt", installing: "Đang cài / đăng nhập…", on: "Đã kết nối", error: "Lỗi" }[t.state] || t.state;
   const cls = { on: "ok", error: "bad", installing: "warn" }[t.state] || "";
   const url = t.ip ? `http://${t.ip}:8770` : "";
-  return `<div class="card"><h2>${ic("globe")} Điều khiển từ xa qua Tailscale</h2>
+  return `<div class="card"><h2>${ic("route")} Điều khiển từ xa qua Tailscale</h2>
     <p class="mute">Không cần Cloudflare: máy con tự cài Tailscale và vào mạng riêng của bạn. Điện thoại bố mẹ cài Tailscale cùng tài khoản rồi mở địa chỉ bên dưới.</p>
     <p><span class="tag ${cls}">${esc(label)}</span>${t.host ? ` · tên máy <b>${esc(t.host)}</b>` : ""}</p>
     ${t.err ? `<div class="alert warn">${ic("triangle-alert")} ${esc(t.err)}</div>` : ""}
     ${url ? `<p>${ic("link")} <code>${esc(url)}</code></p>` : ""}
     ${lan ? `<p class="mute">Tạo khoá ở login.tailscale.com → Settings → Keys (Reusable, không Ephemeral). Khoá chỉ lưu trên máy con.</p>
-    <input id="f-ts-key" type="password" autocomplete="off" placeholder="tskey-auth-…">
-    <div class="row" style="margin-top:8px"><input id="f-ts-host" class="sp" placeholder="Tên máy (tuỳ chọn), vd kid-an" value="${esc(t.host || "")}"><button id="tsOn" class="pri">${ic("globe")} ${t.state === "off" ? "Bật" : "Bật lại"}</button></div>`
+    <div class="row"><input id="f-ts-key" class="sp" type="password" autocomplete="off" placeholder="tskey-auth-…"></div>
+    <div class="row" style="margin-top:8px"><input id="f-ts-host" class="sp" placeholder="Tên máy (tuỳ chọn), vd kid-an" value="${esc(t.host || "")}"><button id="tsOn" class="pri">${ic("route")} ${t.state === "off" ? "Bật" : "Bật lại"}</button></div>`
       : `<p class="mute">Bật/đổi khoá chỉ làm được khi ở nhà (cùng Wi‑Fi với máy con).</p>`}
-    ${t.state !== "off" ? `<button id="tsOff" class="bad" style="margin-top:8px">${ic("x")} Tắt và gỡ Tailscale</button>` : ""}</div>`;
+    ${t.state !== "off" ? `<button id="tsOff" class="bad" style="margin-top:8px">${ic("x")} Tắt và gỡ Tailscale</button>
+    <p class="mute">Sau khi tắt: vào login.tailscale.com → Machines xoá máy "${esc(t.host || "kid")}" (app đã gỡ không tự đăng xuất được). Biểu tượng chìa khoá trên thanh trạng thái của con là do Android, không ẩn được.</p>` : ""}</div>`;
 }
 
 function setTab(b) {
