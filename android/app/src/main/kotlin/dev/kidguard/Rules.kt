@@ -31,6 +31,39 @@ data class Schedule(val name: String, val on: Boolean, val days: Set<Int>, val s
     }
 }
 
+/** A chore the child can offer in "Xin thêm giờ": +[min] minutes if the parent agrees. */
+data class Chore(val id: String, val name: String, val min: Int) {
+    fun toJson(): JSONObject = JSONObject().put("id", id).put("name", name).put("min", min)
+
+    companion object {
+        const val MAX = 20
+        private val ID = Regex("[\\w-]{1,16}")
+        fun fromJson(o: JSONObject): Chore? {
+            val id = o.optString("id", ""); val name = o.optString("name", "").trim()
+            val min = o.optInt("min", 0)
+            if (!id.matches(ID) || name.isEmpty() || name.length > 40 || min !in 5..120) return null
+            return Chore(id, name, min)
+        }
+    }
+}
+
+/** A place the parent is told about when the child arrives / leaves (circle of [r] metres). */
+data class Zone(val id: String, val name: String, val lat: Double, val lng: Double, val r: Int) {
+    fun toJson(): JSONObject = JSONObject().put("id", id).put("name", name).put("lat", lat).put("lng", lng).put("r", r)
+
+    companion object {
+        const val MAX = 10
+        private val ID = Regex("[\\w-]{1,16}")
+        fun fromJson(o: JSONObject): Zone? {
+            val id = o.optString("id", ""); val name = o.optString("name", "").trim().take(40)
+            val lat = o.optDouble("lat", Double.NaN); val lng = o.optDouble("lng", Double.NaN)
+            val r = o.optInt("r", 0)
+            if (!id.matches(ID) || name.isEmpty() || lat.isNaN() || lng.isNaN() || lat !in -90.0..90.0 || lng !in -180.0..180.0 || r !in 50..2000) return null
+            return Zone(id, name, lat, lng, r)
+        }
+    }
+}
+
 /** What the parent set. Plain data + JSON, so the same shape travels over LAN and the relay. */
 data class Rules(
     val rev: Long = 0,                       // ms of the last edit; the newer one wins
@@ -57,6 +90,8 @@ data class Rules(
     val safeDns: String = "",                // Private DNS host, "" = off
     val trackMin: Int = 10,                  // location history every N minutes: 0 (off), 5, 10, 15, 30, 60
     val showWatching: Boolean = true,        // child sees "parent is watching / controlling" while the screen is viewed
+    val chores: List<Chore> = emptyList(),   // max 20
+    val zones: List<Zone> = emptyList(),     // max 10
 ) {
     /** [persist] = true also writes pinHash/pinSalt (only for this phone's own storage). The default is safe to send to a parent: it has `pinSet` only. */
     fun toJson(persist: Boolean = false): JSONObject = JSONObject()
@@ -74,6 +109,8 @@ data class Rules(
         .put("blockNew", blockNew).put("approved", JSONArray(approved.sorted()))
         .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("trackMin", trackMin)
         .put("showWatching", showWatching)
+        .put("chores", JSONArray().apply { chores.forEach { put(it.toJson()) } })
+        .put("zones", JSONArray().apply { zones.forEach { put(it.toJson()) } })
         .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
 
     /** True when [pin] matches the stored hash (legacy or salted). False when no PIN is set. */
@@ -121,6 +158,12 @@ data class Rules(
                 } ?: emptyList(),
                 schedules = o.optJSONArray("schedules")?.let { a ->
                     (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(Schedule::fromJson) }.take(20)
+                } ?: emptyList(),
+                chores = o.optJSONArray("chores")?.let { a ->
+                    (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(Chore::fromJson) }.distinctBy { it.id }.take(Chore.MAX)
+                } ?: emptyList(),
+                zones = o.optJSONArray("zones")?.let { a ->
+                    (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(Zone::fromJson) }.distinctBy { it.id }.take(Zone.MAX)
                 } ?: emptyList(),
                 blockNew = o.optBoolean("blockNew", false),
                 approved = o.optJSONArray("approved").strings(),

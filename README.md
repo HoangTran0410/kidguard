@@ -68,6 +68,9 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự k
 |---|---|
 | ⏱️ **Daily limit** | One number, or one per weekday. When time is up every app (except "Always allowed") locks until midnight. +15 / +30 / +60 min for today |
 | 🙋 **Ask for more time** | A button on the child's phone (15 / 30 / 60 min + a reason); the parent taps Approve or Decline |
+| 🧹 **Chores** | The parent lists chores ("Wash the dishes +20 min"); the child picks one when asking for time. The parent approves, optionally with a note the child sees |
+| ⚠️ **Heads-up before locking** | The child gets a notification 5 min and 1 min before the limit, bedtime or a schedule locks the phone |
+| 🧒 **Luật của con** | The child can see their own rules: time left, bedtime, schedules, allowed apps, zones, and whether location, screen view and listening are on. Plus a log of what the parents changed |
 | 📦 **Per app** | Normal, N minutes a day, Block, or Always allowed. **Select many** to change them at once |
 | 🆕 **New apps** | Optionally locked until a parent approves them |
 | 🌙 **Bedtime and schedules** | Bedtime every day, plus windows on chosen days (school hours Mon–Fri); can cross midnight |
@@ -77,7 +80,10 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự k
 | 👂 **Listen around** | The parent hears the child's microphone, one way, at most 10 min at a time. **Home Wi-Fi or Tailscale only** (not through the Worker). The child is always told: a beep, a notification "Your parent is listening" and Android's mic dot; this cannot be turned off |
 | 🕹️ **Remote control** | Tap, swipe, long press, Back / Home / Recents, type into the focused field |
 | 📍 **Location** | Locate now, location forced on (the child cannot turn it off), **7-day history** on an OpenStreetMap map with stops |
-| 📊 **History** | Screen time for 7 days, top apps per day |
+| 🗺️ **Zones** | Places like Home or School with a radius: the parent is told when the child arrives or leaves |
+| 🔔 **Alerts** | Arrived / left a zone, battery at 15 %, a new app installed, the clock changed |
+| 📊 **History** | Screen time for 7 days, top apps per day; **weekly report** per kid (total, daily average, top apps, versus the week before) |
+| 📋 **Rule templates** | School day, Weekend, Summer holiday, Exams, or save your own; apply to one kid or several at once |
 | 👨‍👩‍👧 **All kids at once** | With 2+ kids, **Tổng quan** (overview): a card per kid (online, battery, phone, app in use, time used / limit, requests, SOS), every kid's latest location on one map, 7 days of screen time side by side. Parent app, or the Worker page with several relay kids |
 | 🛡️ **Tamper-proof** | Blocks uninstall, force stop, factory reset from Settings, Safe Mode, new users, changing the clock, airplane mode. A watchdog restarts it; accessibility turns itself back on. Optional: family DNS filter (AdGuard / Cloudflare / CleanBrowsing), block installs, block USB debugging |
 | 🔒 **Commands** | Lock the screen, ring, full-screen message, restart the phone |
@@ -150,6 +156,8 @@ An app like this cannot exist on iOS: Apple does not let third-party apps see th
 - Apps that mark their screen secure (banking…) show black.
 - On home Wi-Fi the page is plain HTTP (the token travels in a header): use it only on networks you trust.
 
+**Privacy:** what is stored where and how to remove it all: [PRIVACY.md](PRIVACY.md).
+
 **Security:** each browser pairs once with the 6-digit code on the child's phone; pairing more needs the parent PIN. The PIN is stored as a salted hash and never sent back to the page.
 
 ## For developers
@@ -161,7 +169,7 @@ TRUSTSTORE=/path/trust.jks scripts/build.sh   # behind a TLS-intercepting proxy
 
 Layout: `android/` (Gradle: `app/` child, `parent/` parent app), `web/` (pages shared by both apps and the Worker), `worker/`, `site/`, `docs/`, `scripts/`.
 
-JDK 17, Android SDK 35. Parent page: `web/index.html`. Installers: `web/install.html`, `web/qr.html` (the WebUSB ADB library is bundled, rebuild with `web/vendor/build.sh`). Worker tests: `npx wrangler dev --port 8793`, then `node worker/test/relay.test.mjs`.
+JDK 17, Android SDK 35. Parent page: `web/index.html`. Installers: `web/install.html`, `web/qr.html` (the WebUSB ADB library is bundled, rebuild with `web/vendor/build.sh`). Tests: `cd android && ./gradlew testDebugUnitTest :parent:testDebugUnitTest`, `cd worker && npm ci && npm test` (starts `wrangler dev` itself). CI runs both on every push (`.github/workflows/ci.yml`, no signing key there).
 
 **Signing key:** the QR code carries the checksum of the APK's signing certificate. Every release must be signed with the same `android/app/signing.jks` (not in git; back it up), or phones set up by QR refuse the update.
 

@@ -12,10 +12,8 @@ android {
         applicationId = "dev.kidguard"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.5.0"
-        // self-setup over Wireless debugging ships a native lib (conscrypt, spake2): phones + the emulator only
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+        versionCode = (property("kg.code") as String).toInt()
+        versionName = property("kg.version") as String
     }
     signingConfigs {
         create("release") {
@@ -30,11 +28,21 @@ android {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (keystore.exists()) signingConfig = signingConfigs.getByName("release")
+            // self-setup ships a native lib (conscrypt, spake2): real phones are ARM; x86_64 (-2.5 MB) only for debug on an x86 emulator
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         }
-        debug { if (keystore.exists()) signingConfig = signingConfigs.getByName("release") }
+        debug {
+            if (keystore.exists()) signingConfig = signingConfigs.getByName("release")
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+        }
     }
     // one UI file for the APK (LAN) and the worker (away): web/index.html
     sourceSets["main"].assets.srcDirs("../../web")
+    // the apps serve only index.html; the installer pages + their bundle are for the worker / a browser
+    androidResources { ignoreAssetsPatterns += listOf("!install.html", "!qr.html", "!provision.json", "!vendor") }
+    // BouncyCastle (via libadb) ships 1.2 MB of Picnic post-quantum tables; adb pairing never uses them
+    packaging { resources { excludes += "org/bouncycastle/pqc/**" } }
+    buildFeatures { buildConfig = true }
     lint { checkReleaseBuilds = false }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_11; targetCompatibility = JavaVersion.VERSION_11 }
     kotlinOptions { jvmTarget = "11" }

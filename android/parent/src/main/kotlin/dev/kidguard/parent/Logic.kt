@@ -11,6 +11,7 @@ import java.util.Base64
 object Logic {
     const val LOST_MS = 30 * 60_000L
     const val SOS_FRESH_MS = 6 * 3600_000L
+    const val EV_FRESH_MS = 6 * 3600_000L
 
     fun hhmm(ms: Long, zone: ZoneId = ZoneId.systemDefault()): String =
         Instant.ofEpochMilli(ms).atZone(zone).toLocalTime().let { "%02d:%02d".format(it.hour, it.minute) }
@@ -43,6 +44,13 @@ object Logic {
         }
         return s
     }
+
+    /** Only a target saved in the kid list (LAN address or relay host) may be forwarded to. */
+    fun allowedTarget(kidsJson: String, target: String) = parseKids(kidsJson).any { it.target == target }
+
+    /** Pairing needs a not-yet-saved LAN target: only its hello probe and the pair call, nothing else. */
+    fun allowedRequest(kidsJson: String, target: String, method: String, rest: String) =
+        allowedTarget(kidsJson, target) || (target.startsWith("http://") && ((method == "GET" && rest == "/api/hello") || (method == "POST" && rest == "/api/pair")))
 
     /** "/k/<t>/<rest>" -> (target, rest-with-leading-slash-and-query-stripped-by-caller). Null when malformed/invalid target. */
     fun parseKidPath(path: String): Pair<String, String>? {
@@ -108,24 +116,29 @@ object Logic {
     } catch (e: Exception) { emptyList() }
 
     /** Per kid, persisted between runs. */
-    class NotifyState(val seenIds: Set<String> = emptySet(), val lost: Boolean = false, val failSince: Long = 0L, val init: Boolean = false) {
-        fun toJson() = JSONObject().put("ids", JSONArray(seenIds.toList())).put("lost", lost).put("fail", failSince).put("init", init).toString()
+    class NotifyState(val seenIds: Set<String> = emptySet(), val lost: Boolean = false, val failSince: Long = 0L, val init: Boolean = false, val evInit: Boolean = false) {
+        fun toJson() = JSONObject().put("ids", JSONArray(seenIds.toList())).put("lost", lost).put("fail", failSince).put("init", init).put("ei", evInit).toString()
         companion object {
             fun fromJson(s: String?): NotifyState = try {
                 val o = JSONObject(s ?: "")
                 val a = o.optJSONArray("ids") ?: JSONArray()
-                NotifyState((0 until a.length()).map { a.getString(it) }.toSet(), o.optBoolean("lost"), o.optLong("fail"), o.optBoolean("init"))
+                NotifyState((0 until a.length()).map { a.getString(it) }.toSet(), o.optBoolean("lost"), o.optLong("fail"), o.optBoolean("init"), o.optBoolean("ei"))
             } catch (e: Exception) { NotifyState() }
         }
     }
 
     /** What one check saw for a kid. activityT = state.t (LAN) or relay `seen` (ms of the child's last sync), 0 = unknown. */
-    class Seen(val fetchOk: Boolean, val requests: List<Pair<String, Int>>, val activityT: Long, val sos: List<Pair<String, Long>> = emptyList())
+    class Ev(val id: String, val text: String, val t: Long)   // one state.events entry (v0.6)
+    class Seen(val fetchOk: Boolean, val requests: List<Pair<String, Int>>, val activityT: Long, val sos: List<Pair<String, Long>> = emptyList(), val events: List<Ev> = emptyList())
     class Event(val key: String, val text: String)   // key: unique per event, used as notification id
     class Outcome(val events: List<Event>, val state: NotifyState)
 
+    /** A failed fetch of a LAN kid says nothing while this phone is off Wi-Fi (mobile data cannot reach 192.168.x.x). */
+    fun failCounts(via: String, onWifi: Boolean) = via != "lan" || onWifi
+
     /** Notify once per event: a new child request id, and the transition to "lost > 30 min". */
-    fun evaluate(name: String, seen: Seen, st: NotifyState, now: Long): Outcome {
+    fun evaluate(name: String, seen: Seen, st: NotifyState, now: Long, failCounts: Boolean = true): Outcome {
+        if (!seen.fetchOk && !failCounts) return Outcome(emptyList(), st)   // unreachable for a reason that says nothing about the kid
         val events = ArrayList<Event>()
         var ids = st.seenIds
         var lost = st.lost
@@ -136,7 +149,11 @@ object Logic {
             if (st.init) for ((id, min) in seen.requests) if (id !in ids) events.add(Event("req:$id", "$name xin thêm $min phút"))
             // SOS: also on the first look, unless it is old (the child may have pressed it before the app was set up)
             for ((id, t) in seen.sos) if ("s:$id" !in ids && now - t < SOS_FRESH_MS) events.add(Event("sos:$id", "$name bấm SOS lúc ${hhmm(t)}"))
-            ids = (ids + seen.sos.map { "s:" + it.first } + seen.requests.map { it.first }).let { all -> if (all.size > 200) (seen.sos.map { "s:" + it.first } + seen.requests.map { it.first }).toSet() else all }
+            // events (zones, battery, new app, clock): same rule as requests, plus a one-time silent look per kid so an app
+            // update does not replay the 50 events a phone already holds; stale ones are recorded but not shown
+            if (st.evInit) for (e in seen.events) if ("e:${e.id}" !in ids && now - e.t < EV_FRESH_MS) events.add(Event("ev:${e.id}", "$name: ${e.text}"))
+            val current = seen.sos.map { "s:" + it.first } + seen.requests.map { it.first } + seen.events.map { "e:" + it.id }
+            ids = (ids + current).let { all -> if (all.size > 300) current.toSet() else all }
             val isLost = seen.activityT > 0 && now - seen.activityT > LOST_MS
             if (isLost && !lost) events.add(Event("lost", "Mất kết nối với máy của $name"))
             lost = isLost
@@ -146,19 +163,19 @@ object Logic {
             if (isLost && !lost) events.add(Event("lost", "Mất kết nối với máy của $name"))
             if (isLost) lost = true
         }
-        return Outcome(events, NotifyState(ids, lost, failSince, true))
+        return Outcome(events, NotifyState(ids, lost, failSince, true, st.evInit || seen.fetchOk))
     }
 
     /**
      * FCM data message from the relay ({kind: sos|req, kid, eid: "s:<id>"|"r:<id>", t, min}) -> the same event the
      * background check would post (same key, so the same notification id), or null if unknown / already notified.
      */
-    fun pushEvent(kids: List<KidCfg>, data: Map<String, String>, st: (KidCfg) -> NotifyState): Pair<KidCfg, Event>? {
+    fun pushEvent(kids: List<KidCfg>, data: Map<String, String>, st: (KidCfg) -> NotifyState, now: Long = System.currentTimeMillis()): Pair<KidCfg, Event>? {
         val k = kids.firstOrNull { it.via == "relay" && it.id == data["kid"] } ?: return null
         val eid = data["eid"] ?: return null
         val seenId = seenIdOf(eid) ?: return null
         if (seenId in st(k).seenIds) return null
-        val t = data["t"]?.toLongOrNull() ?: 0L
+        val t = data["t"]?.toLongOrNull()?.takeIf { it > 0 } ?: now
         return when (data["kind"]) {
             "sos" -> k to Event("sos:" + eid.removePrefix("s:"), "${k.name} bấm SOS lúc ${hhmm(t)}")
             "req" -> k to Event("req:" + eid.removePrefix("r:"), "${k.name} xin thêm ${data["min"]?.toIntOrNull() ?: 0} phút")
@@ -173,5 +190,9 @@ object Logic {
         else -> null
     }
 
-    fun withSeen(st: NotifyState, id: String) = NotifyState(st.seenIds + id, st.lost, st.failSince, st.init)
+    fun withSeen(st: NotifyState, id: String) = NotifyState(st.seenIds + id, st.lost, st.failSince, st.init, st.evInit)
+
+    /** FCM {kind: "ev", kid, ...} means "check this kid now" (the check itself notifies "<name>: <text>" once per event id). */
+    fun pushCheckKid(kids: List<KidCfg>, data: Map<String, String>): KidCfg? =
+        if (data["kind"] == "ev") kids.firstOrNull { it.via == "relay" && it.id == data["kid"] } else null
 }

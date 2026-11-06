@@ -38,6 +38,8 @@ class MainActivity : Activity() {
     private lateinit var pairBtn: Button
     private lateinit var checklist: LinearLayout
     private lateinit var selfBtn: Button
+    private lateinit var revealBtn: Button
+    private lateinit var recoverBtn: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +82,19 @@ class MainActivity : Activity() {
         col.addView(u.button("Xin thêm giờ", R.drawable.li_timer, true) { askMore() })
         pairBtn = u.button("Ghép thêm máy của bố mẹ", R.drawable.li_link, false) { askPin() }
         col.addView(pairBtn)
+        col.addView(u.button("Luật của con", R.drawable.li_shield, false) { showMyRules() })
+        col.addView(u.button("Nhật ký: bố mẹ đã đổi gì", R.drawable.li_shield, false) { showLog() })
+        revealBtn = u.button("Bố mẹ: hiện mã ghép (giữ 5 giây)", R.drawable.li_link, false) {}
+        holdToRun(revealBtn, 5_000) { Store.of(this).codeRevealUntil = System.currentTimeMillis() + 10 * 60_000; refresh() }
+        col.addView(revealBtn)
+        recoverBtn = u.button("Bố mẹ mất liên kết? Mở ghép lại (giữ 10 giây)", R.drawable.li_link, false) {}
+        holdToRun(recoverBtn, 10_000) {
+            // only reachable while no PIN is set (see refresh); the parent sees this line in the log
+            val s = Store.of(this)
+            if (s.rules.pinHash.isBlank()) { s.openPairing(); s.log("Mở ghép lại từ máy con"); Guard.poke(this) }
+            refresh()
+        }
+        col.addView(recoverBtn)
         col.addView(u.button("Cài đặt pin / tự khởi động", R.drawable.li_battery_charging, false) { openBatterySettings() })
         selfBtn = u.button("Tự cài không cần máy tính (Android 11+)", R.drawable.li_wifi, false) { startActivity(Intent(this@MainActivity, SelfSetupActivity::class.java)) }
         col.addView(selfBtn)
@@ -88,6 +103,19 @@ class MainActivity : Activity() {
         setContentView(ScrollView(this).apply { setBackgroundColor(u.bg); isFillViewport = true; addView(col) })
         window.statusBarColor = u.bg; window.navigationBarColor = u.bg
         if (!u.dark) window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (android.os.Build.VERSION.SDK_INT >= 27) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
+    }
+
+    /** Fires [action] after the button is held for [ms]; releasing early cancels. A tap does nothing (no pocket / child accidents). */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private fun holdToRun(b: Button, ms: Long, action: () -> Unit) {
+        val run = Runnable { action() }
+        b.setOnTouchListener { _, e ->
+            when (e.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> ui.postDelayed(run, ms)
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> ui.removeCallbacks(run)
+            }
+            false
+        }
     }
 
     private lateinit var qr: ImageView
@@ -126,7 +154,16 @@ class MainActivity : Activity() {
         if (Listen.active) line(R.drawable.li_mic, Ic.WARN, "Bố mẹ đang nghe âm thanh xung quanh máy")
         if (s.sos().length() > 0) line(R.drawable.li_siren, Ic.WARN, "Đã gửi SOS, đang chờ bố mẹ xem")
         if (s.relayUrl.isNotBlank()) line(R.drawable.li_globe, Ic.INFO, "Điều khiển từ xa: bật")
-        val c = s.pairCode()
+        s.lastListen?.let { (t, ms) ->
+            val fmt = if (Guard.day(t) == Guard.day(System.currentTimeMillis())) "HH:mm" else "dd/MM HH:mm"
+            val at = java.text.SimpleDateFormat(fmt, java.util.Locale.US).format(java.util.Date(t))
+            val min = (ms + 30_000) / 60_000
+            line(R.drawable.li_mic, Ic.INFO, "Lần nghe gần nhất: $at (${if (min < 1) "dưới 1 phút" else "$min phút"})")
+        }
+        val c = s.visiblePairCode()
+        val hidden = c == null && s.pairCode() != null     // first pairing, code not revealed yet
+        revealBtn.visibility = if (hidden) View.VISIBLE else View.GONE
+        recoverBtn.visibility = if (s.everPaired && c == null && s.rules.pinHash.isBlank()) View.VISIBLE else View.GONE
         if (c != null) {
             code.visibility = View.VISIBLE; codeLabel.visibility = View.VISIBLE; code.text = c
             hint.gravity = Gravity.CENTER
@@ -141,9 +178,10 @@ class MainActivity : Activity() {
         } else {
             code.visibility = View.GONE; codeLabel.visibility = View.GONE; qr.visibility = View.GONE; qrFor = null
             hint.gravity = Gravity.START
-            hint.text = "Bố mẹ quản lý tại:\n${lan ?: "(chưa có Wi-Fi)"}"; Ic.lead(hint, R.drawable.li_users, ui2.sub)
+            hint.text = if (hidden) "Chưa ghép với máy bố mẹ. Bố mẹ giữ nút \"hiện mã ghép\" bên dưới 5 giây để bắt đầu ghép."
+                else "Bố mẹ quản lý tại:\n${lan ?: "(chưa có Wi-Fi)"}"; Ic.lead(hint, R.drawable.li_users, ui2.sub)
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            pairBtn.visibility = View.VISIBLE
+            pairBtn.visibility = if (hidden) View.GONE else View.VISIBLE
         }
         ui.postDelayed(::refresh, 3000)
     }
@@ -174,6 +212,53 @@ class MainActivity : Activity() {
         input.requestFocus()
     }
 
+    /** Read-only view of what the parent set, so the child knows the rules (and what is watched). */
+    private fun showMyRules() {
+        val r = Store.of(this).rules
+        val now = System.currentTimeMillis()
+        val today = Guard.day(now)
+        val (apps, prot) = Policy.cached(this)
+        fun name(p: String) = apps[p] ?: p
+        val days = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
+        val L = mutableListOf<String>()
+        val base = baseLimitMin(r, today)
+        if (base <= 0) L += "Hôm nay con không bị giới hạn giờ"
+        else {
+            val left = dailyLeftMs(r, Usage.today(this, now).ms, today, apps.keys, prot)
+            val limit = base + if (r.bonusDay == today) r.bonusMin else 0
+            L += "Hôm nay: còn ${(left + 59_999) / 60_000} / $limit phút"
+        }
+        L += if (r.bedtimeOn) "Giờ ngủ: ${r.bedStart} - ${r.bedEnd}" else "Giờ ngủ: không đặt"
+        val sch = r.schedules.filter { it.on }
+        if (sch.isEmpty()) L += "Giờ nghỉ theo lịch: không có"
+        else sch.forEach { L += "Giờ nghỉ${if (it.name.isBlank()) "" else " \"${it.name}\""}: ${it.start} - ${it.end} (${it.days.sorted().joinToString(", ") { d -> days[d - 1] }})" }
+        L += if (r.allow.isEmpty()) "App luôn dùng được: chỉ các app hệ thống (điện thoại, đồng hồ…)"
+            else "App luôn dùng được: " + r.allow.joinToString { name(it) }
+        L += "App đang bị chặn: ${r.blocked.size}"
+        L += if (r.trackMin > 0) "Vị trí: bố mẹ xem được, lưu lịch sử mỗi ${r.trackMin} phút" else "Vị trí: bố mẹ chỉ xem khi bấm tìm máy"
+        L += if (Acc.isOn(this)) "Xem màn hình: bố mẹ có thể xem khi bật" + (if (r.showWatching) " (con sẽ thấy thông báo)" else "")
+            else "Xem màn hình: đang tắt"
+        L += "Nghe âm thanh xung quanh: chỉ khi có tiếng bíp và thông báo cho con"
+        if (r.zones.isNotEmpty()) L += "Bố mẹ được báo khi con đến / rời: " + r.zones.joinToString { it.name }
+        if (r.chores.isNotEmpty()) L += "Việc nhà đổi giờ: " + r.chores.joinToString { "${it.name} +${it.min} phút" }
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        L.forEach { box.addView(ui2.label("• $it", 15f, ui2.text).apply { setPadding(0, dp(4), 0, dp(4)) }) }
+        Modal(this, ui2).show(R.drawable.li_shield, Modal.Tone.INFO, "Luật của con", "Chỉ để xem, bố mẹ là người thay đổi.", ScrollView(this).apply { addView(box) }, ok = "Đóng")
+    }
+
+    /** The last 20 log lines: what the parent changed and what the guard did. */
+    private fun showLog() {
+        val a = Store.of(this).logs()
+        val fmt = java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.US)
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        if (a.length() == 0) box.addView(ui2.label("Chưa có gì.", 15f, ui2.sub))
+        for (i in a.length() - 1 downTo maxOf(0, a.length() - 20)) {
+            val o = a.optJSONObject(i) ?: continue
+            box.addView(ui2.label("${fmt.format(java.util.Date(o.optLong("t")))}  ${o.optString("m")}", 14f, ui2.text).apply { setPadding(0, dp(4), 0, dp(4)) })
+        }
+        Modal(this, ui2).show(R.drawable.li_shield, Modal.Tone.INFO, "Nhật ký", "20 dòng gần nhất, mới nhất ở trên.", ScrollView(this).apply { addView(box) }, ok = "Đóng")
+    }
+
     /** SOS: one confirm (no pocket presses), then the state carries it to the parent with a fresh location. */
     private fun askSos() {
         Modal(this, ui2).show(R.drawable.li_siren, Modal.Tone.DANGER, "Gửi SOS cho bố mẹ?", "Bố mẹ sẽ nhận báo khẩn cấp kèm vị trí của con.",
@@ -193,16 +278,21 @@ class MainActivity : Activity() {
     private fun askMore() {
         val s = Store.of(this)
         val mins = intArrayOf(15, 30, 60)
+        val chores = s.rules.chores
         val m = Modal(this, ui2)
         val pick = m.choice(mins.map { "$it phút" })
         val note = m.field("Lý do (không bắt buộc)", 100)
+        // chores first, the last entry is the free form (minutes row below)
+        val chorePick = if (chores.isEmpty()) null else m.choice(chores.map { "${it.name} +${it.min} phút" } + "Khác: tự chọn số phút", chores.size, vertical = true)
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            if (chorePick != null) addView(chorePick.view, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
             addView(pick.view, LinearLayout.LayoutParams(-1, -2))
             addView(note, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
         }
-        m.show(R.drawable.li_timer, Modal.Tone.INFO, "Xin thêm giờ", "Chọn số phút con muốn xin bố mẹ.", box, ok = "Gửi", cancel = "Huỷ") {
-            val ok = s.addRequest(mins[pick.selected.coerceIn(0, 2)], note.text.toString())
+        m.show(R.drawable.li_timer, Modal.Tone.INFO, "Xin thêm giờ", if (chores.isEmpty()) "Chọn số phút con muốn xin bố mẹ." else "Làm việc nhà để xin thêm giờ, hoặc tự chọn số phút. Bố mẹ sẽ quyết định.", if (chores.isEmpty()) box else ScrollView(this).apply { addView(box) }, ok = "Gửi", cancel = "Huỷ") {
+            val chore = chorePick?.selected?.let { chores.getOrNull(it) }
+            val ok = if (chore != null) s.addRequest(chore.min, note.text.toString(), chore.id) else s.addRequest(mins[pick.selected.coerceIn(0, 2)], note.text.toString())
             if (ok) { s.log("Con xin thêm giờ"); Guard.poke(this) }
             refresh()
             ui.post {

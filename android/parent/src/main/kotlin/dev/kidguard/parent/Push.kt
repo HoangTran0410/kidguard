@@ -44,10 +44,12 @@ object Push {
 
     /** Called for every incoming data message. Marks the event seen so the background check does not repeat it. */
     fun handle(c: Context, data: Map<String, String>) {
-        if (!Store.notify(c)) return
+        if (!Store.notify(c) || !CheckJob.canNotify(c)) return   // not shown = not marked seen: the background check retries
+        // "ev" carries no text (privacy): run the check for that kid now, it notifies each new event once
+        Logic.pushCheckKid(Logic.parseKids(Store.kids(c)), data)?.let { k -> runCatching { CheckJob.runKid(c, k) }.onFailure { Log.w("KGParent", "ev check", it) }; return }
         val hit = synchronized(Store) {
             val kids = Logic.parseKids(Store.kids(c))
-            val ev = Logic.pushEvent(kids, data) { Logic.NotifyState.fromJson(Store.notifyState(c, it.key)) } ?: return
+            val ev = Logic.pushEvent(kids, data, { Logic.NotifyState.fromJson(Store.notifyState(c, it.key)) }) ?: return
             val st = Logic.NotifyState.fromJson(Store.notifyState(c, ev.first.key))
             Store.setNotifyState(c, ev.first.key, Logic.withSeen(st, Logic.seenIdOf(data["eid"]!!)!!).toJson())
             ev

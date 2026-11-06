@@ -7,6 +7,8 @@ cd "$(dirname "$0")/.."   # repo root; the Gradle project is android/
 : "${ANDROID_HOME:=$HOME/Library/Android/sdk}"
 [ -f android/local.properties ] || echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 if [ ! -f android/app/signing.jks ]; then
+  # a new key = phones with the old build can't update and the QR checksum changes: never make one silently on CI
+  if [ -n "${CI:-}" ]; then echo "android/app/signing.jks missing (CI won't generate a new release key)" >&2; exit 1; fi
   keytool -genkeypair -keystore android/app/signing.jks -storepass kidguard -keypass kidguard -alias kidguard \
     -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=KidGuard" >/dev/null
 fi

@@ -35,7 +35,12 @@ class Bridge(private val a: Activity) {
     }
     @JavascriptInterface fun getHistoryDays() = Store.historyDays(a).toString()
     @JavascriptInterface fun setHistoryDays(n: String) { Store.setHistoryDays(a, n.toIntOrNull() ?: 0) }
+    /** Rule templates (page "Mẫu luật"); same reason as getKids. */
+    @JavascriptInterface fun getTpl(): String = Store.tpl(a)
+    @JavascriptInterface fun setTpl(json: String) = Store.setTpl(a, json)
     @JavascriptInterface fun getNotify() = Store.notify(a).toString()
+    /** "true" when the OS lets us show notifications (permission + not disabled in settings). */
+    @JavascriptInterface fun canNotify() = CheckJob.canNotify(a.applicationContext).toString()
 }
 
 class MainActivity : Activity() {
@@ -82,11 +87,10 @@ class MainActivity : Activity() {
             }
         }
         setContentView(w)
-        if (b != null) w.restoreState(b) else w.loadUrl("$origin/s/${proxy.secret}")
+        // never restoreState: the cookie secret changes with the process, page state lives in JS/localStorage
+        w.loadUrl("$origin/s/${proxy.secret}")
         Log.i("KGParent", "page $origin")
     }
-
-    override fun onSaveInstanceState(o: Bundle) { super.onSaveInstanceState(o); web?.saveState(o) }
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {

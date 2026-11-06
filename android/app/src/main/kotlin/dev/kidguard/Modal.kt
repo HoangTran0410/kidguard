@@ -107,9 +107,9 @@ class Modal(private val act: Activity, private val u: Ui = Ui(act)) {
     /** Segmented choice (e.g. 15 / 30 / 60 phút). [selected] reads the current index. */
     class Choice(val view: LinearLayout, private val get: () -> Int) { val selected get() = get() }
 
-    fun choice(items: List<String>, start: Int = 0): Choice {
+    fun choice(items: List<String>, start: Int = 0, vertical: Boolean = false): Choice {
         var sel = start
-        val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL }
+        val row = LinearLayout(act).apply { orientation = if (vertical) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL }
         val views = ArrayList<TextView>()
         fun paint() = views.forEachIndexed { i, v ->
             val on = i == sel
@@ -123,7 +123,8 @@ class Modal(private val act: Activity, private val u: Ui = Ui(act)) {
                 setOnClickListener { sel = i; paint() }
             }
             views += v
-            row.addView(v, LinearLayout.LayoutParams(0, -2, 1f).apply { if (i > 0) marginStart = u.dp(8) })
+            if (vertical) row.addView(v, LinearLayout.LayoutParams(-1, -2).apply { if (i > 0) topMargin = u.dp(8) })
+            else row.addView(v, LinearLayout.LayoutParams(0, -2, 1f).apply { if (i > 0) marginStart = u.dp(8) })
         }
         paint()
         return Choice(row) { sel }

@@ -6,6 +6,7 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.UserManager
@@ -52,7 +53,11 @@ object Policy {
         if (Build.VERSION.SDK_INT >= 30) {
             runCatching { d.setUserControlDisabledPackages(a, listOf(ctx.packageName)) }   // no Force stop / Clear data
             runCatching { d.setAutoTimeEnabled(a, true) }
-        } else @Suppress("DEPRECATION") runCatching { d.setAutoTimeRequired(a, true) }
+        } else {
+            // no setUserControlDisabledPackages before 11: block Force stop / Clear data for every app (undone in release)
+            restrict(d, a, UserManager.DISALLOW_APPS_CONTROL, true)
+            @Suppress("DEPRECATION") runCatching { d.setAutoTimeRequired(a, true) }
+        }
         runCatching { d.setShortSupportMessage(a, "Bố mẹ đang tạm khoá ứng dụng này.") }
         applyNet(ctx, d, a, r)
         val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -148,14 +153,31 @@ object Policy {
         return cacheApps to cacheProt
     }
 
-    /** Apps with a launcher icon, package -> label. */
+    private fun isSystem(pm: PackageManager, pkg: String): Boolean = runCatching {
+        pm.getApplicationInfo(pkg, 0).flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+    }.getOrDefault(true)
+
+    /**
+     * Apps we count and limit, package -> label: every app with a launcher icon, plus every installed non-system app
+     * that has any activity (an app can hide its icon and still be opened by a shortcut or another app).
+     * Never system apps without an icon, and never what [protectedApps] lists (the caller filters those).
+     */
     fun launchable(ctx: Context): Map<String, String> {
         val pm = ctx.packageManager
         val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         @Suppress("DEPRECATION")
         val list = pm.queryIntentActivities(i, PackageManager.MATCH_DISABLED_COMPONENTS)
-        return list.associate { it.activityInfo.packageName to it.loadLabel(pm).toString() }
-            .filterKeys { it != ctx.packageName && it != TsLogic.PKG }
+        val out = LinkedHashMap(list.associate { it.activityInfo.packageName to it.loadLabel(pm).toString() })
+        runCatching {
+            @Suppress("DEPRECATION")
+            for (ai in pm.getInstalledApplications(0)) {
+                val pkg = ai.packageName
+                if (pkg in out || !ai.enabled || ai.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0) continue
+                val hasActivity = runCatching { pm.getPackageInfo(pkg, PackageManager.GET_ACTIVITIES).activities?.isNotEmpty() == true }.getOrDefault(false)
+                if (hasActivity) out[pkg] = ai.loadLabel(pm).toString()
+            }
+        }
+        return out.filterKeys { it != ctx.packageName && it != TsLogic.PKG }
     }
 
     /** Never suspended: this app, the home screens, phone, settings, the system UI. */
@@ -173,12 +195,20 @@ object Policy {
         runCatching {
             ctx.getSystemService(android.view.inputmethod.InputMethodManager::class.java)?.enabledInputMethodList?.forEach { out += it.packageName }
         }
-        @Suppress("DEPRECATION")
-        pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0).forEach { out += it.activityInfo.packageName }
-        @Suppress("DEPRECATION")
-        runCatching { pm.queryIntentActivities(Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS), 0).forEach { out += it.activityInfo.packageName } }
-        @Suppress("DEPRECATION")
-        runCatching { pm.queryIntentActivities(Intent(Intent.ACTION_DIAL), 0).forEach { out += it.activityInfo.packageName } }
+        // home / dialer / alarm handlers: only system apps, or the one the user really picked as default
+        // (an app that merely declares a HOME / DIAL filter must not escape the limits)
+        fun sys(intent: Intent) = runCatching {
+            @Suppress("DEPRECATION")
+            pm.queryIntentActivities(intent, 0).forEach { if (isSystem(pm, it.activityInfo.packageName)) out += it.activityInfo.packageName }
+        }
+        fun default(intent: Intent) = runCatching {
+            pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
+                ?.takeIf { it != "android" && !it.contains("resolver") }?.let { out += it }
+        }
+        val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        sys(home); default(home)
+        sys(Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS))
+        val dial = Intent(Intent.ACTION_DIAL); sys(dial); default(dial)
         runCatching { ctx.getSystemService(TelecomManager::class.java)?.defaultDialerPackage?.let { out += it } }
         runCatching { Settings.Secure.getString(ctx.contentResolver, "sms_default_application")?.let { out += it } }
         return out
@@ -216,7 +246,7 @@ object Policy {
         val all = (launchable(ctx).keys + s.suspendedByUs).toTypedArray()
         runCatching { d.setPackagesSuspended(a, all, false) }.onFailure { Log.w(TAG, "unsuspend all", it) }
         s.suspendedByUs.forEach { runCatching { d.setPackagesSuspended(a, arrayOf(it), false) } }
-        (BASE + INSTALL + UserManager.DISALLOW_DEBUGGING_FEATURES).forEach { runCatching { d.clearUserRestriction(a, it) } }
+        (BASE + INSTALL + UserManager.DISALLOW_DEBUGGING_FEATURES + UserManager.DISALLOW_APPS_CONTROL).forEach { runCatching { d.clearUserRestriction(a, it) } }
         runCatching { d.setUninstallBlocked(a, ctx.packageName, false) }
         applyNet(ctx, d, a, Rules(lockLocation = false, noAirplane = false, safeDns = ""))
         if (Build.VERSION.SDK_INT >= 30) runCatching { d.setUserControlDisabledPackages(a, emptyList()) }

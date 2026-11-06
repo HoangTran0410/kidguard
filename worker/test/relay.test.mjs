@@ -109,8 +109,16 @@ ck("same ids not pushed again",(await sentList()).length==4);
 j=await (await P3("push",{fcm:"good_"+"a".repeat(40)})).json();ck("dead token (404) removed",j.devices==1);
 await P3("sync",{state:{sos:[{id:"s2",t:now}]}});await sleep(500);ms=await sentList();
 ck("next sos only to the live token",ms.length==5&&ms[4].data.eid=="s:s2"&&ms[4].token.startsWith("good"));
+await P3("sync",{state:{events:[{id:"e1",t:now,kind:"zoneIn",text:"Đã đến Trường"}]}});await sleep(500);ms=await sentList();
+ck("event pushed as ev, kind only, no text",ms.length==6&&ms[5].data.kind=="ev"&&ms[5].data.eid=="e:e1"&&ms[5].data.ek=="zoneIn"&&!JSON.stringify(ms[5]).includes("Trường"));
+await P3("sync",{state:{events:Array.from({length:9},(_,i)=>({id:"b"+i,t:now,kind:"battery"}))}});await sleep(800);
+ck("at most 5 events pushed per sync",(await sentList()).length==11);
 j=await (await P3("push",{fcm:"good_"+"a".repeat(40),off:true})).json();ck("push off removes",j.devices==0);
 ck("push needs the kid token",(await fetch(`${B}/c/${id3}/push`,{method:"POST",headers:H(BAD),body:"{}"})).status==401);}
+{const id5=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),T5=Array.from({length:48},()=>"0123456789abcdef"[Math.random()*16|0]).join("");
+const S5=b=>fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:{"x-kg-token":T5,"content-type":"application/json"},body:b});
+ck("first sync without state does not bind (400)",(await S5("{}")).status==400&&(await S5("nope")).status==400);
+ck("first sync with state binds",(await S5(JSON.stringify({state:{t:1}}))).status==200);}
 // ---- tester additions: deliver-once, pinHash never leaves, oversized cmd ----
 {const id4=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),P4=(p,o,m="POST")=>fetch(`${B}/c/${id4}/${p}`,{method:m,headers:H(),body:o===undefined?undefined:JSON.stringify(o)});
 const G4=async p=>await (await fetch(`${B}/c/${id4}/${p}`,{headers:H()})).text();

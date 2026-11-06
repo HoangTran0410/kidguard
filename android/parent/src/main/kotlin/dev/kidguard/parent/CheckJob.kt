@@ -11,10 +11,11 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import org.json.JSONObject
 
-/** Background check (~15 min via JobScheduler): SOS, new "more time" requests, lost connection. Relay kids also get FCM ([Push]). */
+/** Background check (~15 min via JobScheduler): SOS, new "more time" requests, events (zones, battery, ...), lost connection. Relay kids also get FCM ([Push]). */
 class CheckJob : JobService() {
     override fun onStartJob(p: JobParameters): Boolean {
         Thread({
@@ -49,17 +50,25 @@ class CheckJob : JobService() {
 
         fun run(c: Context) {
             if (!Store.notify(c)) return
+            for (k in Logic.parseKids(Store.kids(c))) runKid(c, k)
+        }
+
+        /** The check for one kid (also called by an FCM "ev" push, [Push.handle]). */
+        fun runKid(c: Context, k: Logic.KidCfg) {
             val cm = c.getSystemService(ConnectivityManager::class.java)
             if (cm.activeNetwork == null) return   // our own phone is offline: nothing to conclude about the kid
             val now = System.currentTimeMillis()
-            for (k in Logic.parseKids(Store.kids(c))) {
-                val seen = fetch(k)
-                val out = synchronized(Store) {   // a push may mark the same event seen meanwhile ([Push.handle])
-                    val old = Logic.NotifyState.fromJson(Store.notifyState(c, k.key))
-                    Logic.evaluate(k.name, seen, old, now).also { Store.setNotifyState(c, k.key, it.state.toJson()) }
-                }
-                for (e in out.events) post(c, k, e)
+            val seen = fetch(k)
+            val canPost = canNotify(c)
+            val onWifi = onWifi(cm)
+            val out = synchronized(Store) {   // a push may mark the same event seen meanwhile ([Push.handle])
+                val old = Logic.NotifyState.fromJson(Store.notifyState(c, k.key))
+                val o = Logic.evaluate(k.name, seen, old, now, Logic.failCounts(k.via, onWifi))
+                // can't show notifications: keep the events unseen so they fire once the permission is back
+                if (o.events.isEmpty() || canPost) Store.setNotifyState(c, k.key, o.state.toJson())
+                o
             }
+            if (canPost) for (e in out.events) post(c, k, e)
         }
 
         private fun fetch(k: Logic.KidCfg): Logic.Seen {
@@ -79,12 +88,30 @@ class CheckJob : JobService() {
                     val x = sa!!.optJSONObject(i) ?: return@mapNotNull null
                     x.optString("id").takeIf { it.isNotEmpty() }?.let { it to x.optLong("t") }
                 }
-                Logic.Seen(true, list, if (k.via == "lan") st.optLong("t") else o.optLong("seen"), sos)
+                val ea = st.optJSONArray("events")
+                val evs = (0 until (ea?.length() ?: 0)).mapNotNull { i ->
+                    val x = ea!!.optJSONObject(i) ?: return@mapNotNull null
+                    val id = x.optString("id"); val text = x.optString("text")
+                    if (id.isEmpty() || text.isEmpty()) null else Logic.Ev(id, text.take(120), x.optLong("t"))
+                }
+                Logic.Seen(true, list, if (k.via == "lan") st.optLong("t") else o.optLong("seen"), sos, evs)
             } catch (e: Exception) { Logic.Seen(false, emptyList(), 0) }
         }
 
+        /** Wi-Fi or Ethernet is the active network (a LAN kid is only reachable from there). */
+        fun onWifi(cm: ConnectivityManager): Boolean {
+            val caps = cm.getNetworkCapabilities(cm.activeNetwork ?: return false) ?: return false
+            return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+        }
+
+        /** Permission granted and notifications not turned off in system settings. */
+        fun canNotify(c: Context): Boolean {
+            if (Build.VERSION.SDK_INT >= 33 && c.checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) return false
+            return c.getSystemService(NotificationManager::class.java).areNotificationsEnabled()
+        }
+
         fun post(c: Context, k: Logic.KidCfg, e: Logic.Event) {
-            if (Build.VERSION.SDK_INT >= 33 && c.checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+            if (!canNotify(c)) return
             channel(c)
             val pi = PendingIntent.getActivity(c, 0, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)

@@ -29,8 +29,8 @@ android {
         applicationId = "dev.kidguard.parent"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.5.0"
+        versionCode = (property("kg.code") as String).toInt()
+        versionName = property("kg.version") as String
         fcm.forEach { (k, v) -> resValue("string", k, v) }
         buildConfigField("String", "FCM_APP_ID", "\"" + (fcm["google_app_id"] ?: "") + "\"")
     }
@@ -53,6 +53,7 @@ android {
     }
     // the same single-file parent page the child phone and the worker serve
     sourceSets["main"].assets.srcDirs("../../web")
+    androidResources { ignoreAssetsPatterns += listOf("!install.html", "!qr.html", "!provision.json", "!vendor") }
     lint { checkReleaseBuilds = false }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_11; targetCompatibility = JavaVersion.VERSION_11 }
     kotlinOptions { jvmTarget = "11" }

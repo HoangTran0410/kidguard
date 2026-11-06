@@ -54,22 +54,27 @@ object Listen {
             closed = true
             runCatching { rec.stop() }; runCatching { rec.release() }
             runCatching { write.close() }; runCatching { read.close() }
-            val min = (System.currentTimeMillis() - since + 30_000) / 60_000
+            val start = since
+            val ms = System.currentTimeMillis() - start
+            val min = (ms + 30_000) / 60_000
             val took = if (min < 1) "dưới 1 phút" else "khoảng $min phút"
             since = 0L; current = null
+            runCatching { Store.of(g).lastListen = longArrayOf(start, ms) }
             g.micForeground(false)
             g.getSystemService(NotificationManager::class.java)?.cancel(NID)
-            runCatching { Store.of(g).log("Bố mẹ dừng nghe âm thanh xung quanh ($took)") }
+            runCatching { Store.of(g).log("Bố mẹ đã nghe âm thanh xung quanh từ ${java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(start))} ($took)") }
             g.kick()
         }
     }
 
     @Volatile private var current: Session? = null
 
-    /** Starts the mic, or returns null with [lastError] = "busy" | "no mic permission" | "mic blocked" | "mic failed". */
+    /** Starts the mic, or returns null with [lastError] = "busy" | "no mic permission" | "notice blocked" | "mic blocked" | "mic failed". */
     @Synchronized fun open(g: Guard): Session? {
         if (current != null) { lastError = "busy"; return null }
         if (g.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) { lastError = "no mic permission"; return null }
+        // the child must be able to see the notice: refuse when notifications or this channel are off / silent
+        if (!noticeVisible(g)) { lastError = "notice blocked"; return null }
         // Android 14: the mic may only be used from a foreground service that declares it
         if (!g.micForeground(true)) { lastError = "mic blocked"; return null }
         tell(g)
@@ -94,6 +99,15 @@ object Listen {
             g.getSystemService(NotificationManager::class.java)?.cancel(NID)
             lastError = "mic failed"; null
         }
+    }
+
+    /** True when the "listening" notice can show: notifications on and the channel at least DEFAULT importance. */
+    private fun noticeVisible(g: Guard): Boolean {
+        val nm = g.getSystemService(NotificationManager::class.java) ?: return false
+        nm.createNotificationChannel(NotificationChannel(CH, "Bố mẹ đang nghe", NotificationManager.IMPORTANCE_HIGH))
+        if (!nm.areNotificationsEnabled()) return false
+        val imp = nm.getNotificationChannel(CH)?.importance ?: return false
+        return imp >= NotificationManager.IMPORTANCE_DEFAULT
     }
 
     /** Release / service stop. */

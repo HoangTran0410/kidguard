@@ -18,6 +18,8 @@ class RulesJsonTest {
         ),
         blockNew = true, approved = setOf("com.ok"), lockLocation = false, noAirplane = false,
         safeDns = "family.cloudflare-dns.com", trackMin = 30, showWatching = false,
+        chores = listOf(Chore("c1", "Rửa bát", 20), Chore("c-2", "Dọn phòng", 45)),
+        zones = listOf(Zone("z1", "Nhà", 21.03, 105.85, 150), Zone("z2", "Trường", 21.0, 105.8, 2000)),
     )
 
     @Test fun roundTripPersist() = assertEquals(rich, Rules.fromJson(rich.toJson(persist = true)))
@@ -40,5 +42,20 @@ class RulesJsonTest {
     @Test fun badValuesFallBackToDefaults() {
         val r = Rules.fromJson(JSONObject("""{"dailyMin":99999,"trackMin":7,"safeDns":"bad host!","bedtime":{"start":"25:99"}}"""))
         assertEquals(24 * 60, r.dailyMin); assertEquals(10, r.trackMin); assertEquals("", r.safeDns); assertEquals("21:30", r.bedStart)
+    }
+
+    @Test fun badChoresAndZonesAreDropped() {
+        val r = Rules.fromJson(JSONObject("""{"chores":[{"id":"ok","name":"A","min":5},{"id":"bad id","name":"B","min":20},
+            {"id":"c","name":"","min":20},{"id":"d","name":"D","min":4},{"id":"e","name":"E","min":121},{"id":"f","name":"${"x".repeat(41)}","min":20}],
+            "zones":[{"id":"z","name":"N","lat":1,"lng":2,"r":50},{"id":"y","name":"N","lat":1,"lng":2,"r":49},{"id":"x","name":"N","lat":91,"lng":2,"r":100},
+            {"id":"w","name":"N","lat":1,"lng":2,"r":2001},{"id":"v","name":"N","lat":1,"r":100}]}"""))
+        assertEquals(listOf("ok"), r.chores.map { it.id }); assertEquals(listOf("z"), r.zones.map { it.id })
+    }
+
+    @Test fun choreAndZoneLimits() {
+        val c = (1..30).joinToString(",") { """{"id":"c$it","name":"n","min":10}""" }
+        val z = (1..15).joinToString(",") { """{"id":"z$it","name":"n","lat":1,"lng":1,"r":100}""" }
+        val r = Rules.fromJson(JSONObject("""{"chores":[$c],"zones":[$z]}"""))
+        assertEquals(20, r.chores.size); assertEquals(10, r.zones.size)
     }
 }

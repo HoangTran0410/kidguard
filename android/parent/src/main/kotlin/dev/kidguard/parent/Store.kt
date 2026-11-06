@@ -14,6 +14,8 @@ object Store {
     fun notify(c: Context): Boolean = p(c).getBoolean("notify", true)
     fun setNotify(c: Context, v: Boolean) { p(c).edit().putBoolean("notify", v).apply() }
     /** History retention in days, 0 = unlimited (default). */
+    fun tpl(c: Context): String = p(c).getString("tpl", "[]") ?: "[]"
+    fun setTpl(c: Context, json: String) { if (json.length <= 50_000) p(c).edit().putString("tpl", json).apply() }
     fun historyDays(c: Context): Int = p(c).getInt("historyDays", 0)
     fun setHistoryDays(c: Context, n: Int) { p(c).edit().putInt("historyDays", n.coerceIn(0, 3650)).apply() }
     fun notifyState(c: Context, key: String): String? = p(c).getString("ns:" + sha(key), null)

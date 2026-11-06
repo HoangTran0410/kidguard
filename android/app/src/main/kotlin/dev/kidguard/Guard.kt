@@ -37,7 +37,7 @@ import java.util.Date
 import java.util.Locale
 
 class Boot : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) { Guard.start(context); Watchdog.schedule(context) }   // BOOT_COMPLETED, LOCKED_BOOT_COMPLETED, MY_PACKAGE_REPLACED
+    override fun onReceive(context: Context, intent: Intent) { Guard.start(context); Watchdog.schedule(context) }   // BOOT_COMPLETED, MY_PACKAGE_REPLACED
 }
 
 /**
@@ -59,6 +59,15 @@ class Guard : Service() {
     private var usageLogged = false
     private val loopRun = Runnable { loop() }
     private val pokeRun = Runnable { kick() }
+    private var refWall = System.currentTimeMillis()
+    private var refElapsed = android.os.SystemClock.elapsedRealtime()
+    private val timeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val w = System.currentTimeMillis(); val e = android.os.SystemClock.elapsedRealtime()
+            if (Events.clockJumped(refWall, refElapsed, w, e)) runCatching { store.addEvent(Ev("clock", "Giờ máy bị đổi")); store.log("Giờ máy bị đổi"); relay?.kick() }
+            refWall = w; refElapsed = e
+        }
+    }
     private val pkgReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) { Policy.invalidate(); kick() }
     }
@@ -78,6 +87,7 @@ class Guard : Service() {
                 addAction(Intent.ACTION_PACKAGE_ADDED); addAction(Intent.ACTION_PACKAGE_REMOVED); addDataScheme("package")
             })
         }
+        runCatching { registerReceiver(timeReceiver, IntentFilter(Intent.ACTION_TIME_CHANGED)) }
         http = Http(this, Api(this)).also { it.start(PORT) }
         relay = Relay(this).also { it.start() }
         work.post(loopRun)
@@ -91,6 +101,7 @@ class Guard : Service() {
     override fun onDestroy() {
         running = null
         runCatching { unregisterReceiver(pkgReceiver) }
+        runCatching { unregisterReceiver(timeReceiver) }
         Listen.stopAll()
         http?.stop(); relay?.stop()
         work.looper.quitSafely()
@@ -111,6 +122,8 @@ class Guard : Service() {
 
     private fun tick(force: Boolean) {
         val now = System.currentTimeMillis()
+        // reference for the clock-jump check (see timeReceiver)
+        refWall = now; refElapsed = android.os.SystemClock.elapsedRealtime()
         // screen off: nothing is being used, a full pass once a minute is enough
         if (!force && getSystemService(PowerManager::class.java)?.isInteractive == false && now - lastFullTick < 60_000) return
         lastFullTick = now
@@ -139,10 +152,14 @@ class Guard : Service() {
         val fresh = if (stored == null) emptySet() else apps.keys - known - r.approved - r.allow - prot
         if (!r.blockNew && apps.isNotEmpty() && known != apps.keys) store.knownApps = apps.keys
         (fresh - store.loggedNew).takeIf { it.isNotEmpty() }?.let { n ->
-            n.forEach { store.log("Cài mới: ${apps[it] ?: it}") }
+            n.forEach { store.log("Cài mới: ${apps[it] ?: it}"); store.addEvent(Ev("newApp", "Đã cài ${apps[it] ?: it}")) }
             store.loggedNew = (store.loggedNew + n).intersect(apps.keys)
         }
+        batteryCheck()
         val newApps = if (r.blockNew) fresh else emptySet()
+        Warn.due(r, dailyLeftMs(r, use.ms, today, apps.keys, prot), minute, today, store.warned(today))?.let { w ->
+            store.markWarned(today, w.keys); notifyWarn(w.text)
+        }
         val want = decide(r, use.ms, minute, now, today, apps.keys, prot, newApps)
         val had = store.suspendedByUs
         val nowSusp = Policy.suspendExactly(this, want.keys, had)
@@ -158,6 +175,22 @@ class Guard : Service() {
         lastState = state(r, apps, prot, use, want, nowSusp, today, now, newApps)
     }
 
+    /** Battery <= 15 % unplugged: one event, armed again at >= 30 %. */
+    private fun batteryCheck() {
+        val bm = getSystemService(BatteryManager::class.java) ?: return
+        val pct = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        val (armed, fire) = Events.batteryStep(store.batteryArmed, pct, bm.isCharging)
+        if (armed != store.batteryArmed) store.batteryArmed = armed
+        if (fire) { store.addEvent(Ev("battery", "Pin còn $pct%")); relay?.kick() }
+    }
+
+    /** A new location fix: zone in / out events. */
+    private fun zoneFix(lat: Double, lng: Double, acc: Float) {
+        val z = store.rules.zones
+        if (z.isEmpty() || acc > 300f) return   // a cell-tower fix (km off) would fake "left Home"
+        if (store.zoneFix(z, lat, lng).isNotEmpty()) { store.log("Vùng: sự kiện mới"); relay?.kick() }
+    }
+
     private fun state(r: Rules, apps: Map<String, String>, prot: Set<String>, use: Usage.Today, want: Map<String, String>,
                       susp: Set<String>, today: String, now: Long, newApps: Set<String>): JSONObject {
         val list = JSONArray()
@@ -169,7 +202,7 @@ class Guard : Service() {
         val pm = getSystemService(PowerManager::class.java)
         return JSONObject()
             .put("id", store.id).put("t", now).put("day", today)
-            .put("model", "${Build.MANUFACTURER} ${Build.MODEL}").put("android", Build.VERSION.RELEASE).put("version", BuildConfigVersion)
+            .put("model", "${Build.MANUFACTURER} ${Build.MODEL}").put("android", Build.VERSION.RELEASE).put("version", BuildConfig.VERSION_NAME)
             .put("acc", Acc.isOn(this))
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
             .put("locationOn", locationOn())
@@ -192,6 +225,7 @@ class Guard : Service() {
             .put("requests", store.requests())
             .put("sos", store.sos())
             .put("listen", Listen.state())
+            .put("events", store.events())
     }
 
     private fun locationOn(): Boolean {
@@ -223,6 +257,15 @@ class Guard : Service() {
             .setContentTitle("KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
     }
 
+    /** Heads-up before a lock (daily limit, bedtime, schedule): the child gets time to save what they are doing. */
+    private fun notifyWarn(text: String) = runCatching {
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(NotificationChannel("warn", "Báo trước khi hết giờ", NotificationManager.IMPORTANCE_HIGH))
+        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        nm.notify(6, Notification.Builder(this, "warn").setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
+    }
+
     fun currentState(): JSONObject = lastState
 
     fun setRules(incoming: Rules) {
@@ -232,7 +275,8 @@ class Guard : Service() {
         val r = if (incoming.pinHash.isBlank()) incoming.copy(pinHash = old.pinHash, pinSalt = old.pinSalt) else incoming
         store.rules = r
         if (::work.isInitialized) work.post { runCatching { Policy.apply(this, r) } }
-        if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log("Bố mẹ đổi luật")
+        if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r))
+        if (r.zones != old.zones) store.zoneBaseline = true
         kick()
     }
 
@@ -263,7 +307,7 @@ class Guard : Service() {
         "unpairAll" -> { store.clearTokens(); "ok" }
         "answer" -> {
             val req = store.removeRequest(c.optString("id"))
-            if (req != null) notifyChild(if (c.optBoolean("ok")) "Bố mẹ đã đồng ý thêm ${c.optInt("min", req.optInt("min")).coerceIn(0, 24 * 60)} phút" else "Bố mẹ chưa đồng ý")
+            if (req != null) notifyChild(Events.answerText(c.optBoolean("ok"), c.optInt("min", req.optInt("min")), c.optString("note")))
             if (req != null) "ok" else "no such request"
         }
         "sosAck" -> if (store.ackSos(c.optString("id").ifBlank { "all" }) > 0) "ok" else "no such sos"
@@ -301,6 +345,7 @@ class Guard : Service() {
             if (l == null) return
             val old = store.location
             if (old != null && old.optLong("t") > l.time) return
+            zoneFix(l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else 0f)
             store.location = JSONObject().put("lat", l.latitude).put("lng", l.longitude).put("acc", l.accuracy.toDouble()).put("t", l.time).put("src", l.provider ?: "")
         }
         val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER).filter {
@@ -328,6 +373,7 @@ class Guard : Service() {
         fun finish(l: Location?) {
             if (done) return
             done = true; trackBusy = false
+            if (l != null) zoneFix(l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else 0f)
             if (l != null) store.addTrack(l.time.takeIf { it > 0 } ?: System.currentTimeMillis(), l.latitude, l.longitude, l.accuracy.toInt())
         }
         fun fallback(): Location? = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER)
@@ -406,7 +452,6 @@ class Guard : Service() {
     companion object {
         const val PORT = 8770
         const val TICK_MS = 10_000L
-        const val BuildConfigVersion = "0.5.0"
         @Volatile var running: Guard? = null
 
         fun start(ctx: Context) {

@@ -87,6 +87,7 @@ class Proxy(private val ctx: Context, val port: Int) {
 
     private fun forward(r: Req): Res {
         val (target, rest) = Logic.parseKidPath(r.path) ?: return Res.json("{\"error\":\"bad target\"}", 400)
+        if (!Logic.allowedRequest(Store.kids(ctx), target, r.method, rest)) return Res.json("{\"error\":\"unknown target\"}", 403)
         val url = target + rest + (if (r.rawQuery.isNotEmpty()) "?" + r.rawQuery else "")
         val fwd = HashMap<String, String>()
         for (h in listOf("X-KG-Token", "X-KG-W", "X-KG-H", "Content-Type")) r.header(h)?.let { fwd[h] = it }
@@ -168,6 +169,7 @@ class Proxy(private val ctx: Context, val port: Int) {
 
     private fun history(r: Req, one: Boolean): Res {
         val target = Logic.decodeTarget(r.query["k"] ?: "") ?: return Res.json("{\"error\":\"bad target\"}", 400)
+        if (!Logic.allowedTarget(Store.kids(ctx), target)) return Res.json("{\"error\":\"unknown target\"}", 403)
         val rest = Logic.normRest(r.query["p"] ?: "api/state")
         if (!Logic.isStatePath("GET", rest)) return Res.json("{\"error\":\"bad path\"}", 400)
         val d = File(histDir, Store.sha(target + rest))

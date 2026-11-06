@@ -6,7 +6,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.security.SecureRandom
 
-/** Everything the child keeps. Device-protected storage, so the guard runs right after a reboot, before the first unlock. */
+/**
+ * Everything the child keeps, in device-protected storage. No component is directBootAware, so the guard starts on
+ * BOOT_COMPLETED (after the first unlock), not before.
+ */
 class Store private constructor(ctx: Context) {
     private val p: SharedPreferences =
         ctx.createDeviceProtectedStorageContext().getSharedPreferences("kg", Context.MODE_PRIVATE)
@@ -97,6 +100,24 @@ class Store private constructor(ctx: Context) {
 
     @get:Synchronized val everPaired: Boolean get() = p.getBoolean("everPaired", false)
 
+    /** Until this time the child screen shows the first-pairing code (revealed by a parent's 5 s long-press). Memory only. */
+    @Volatile var codeRevealUntil = 0L
+
+    /** The code the child screen may show: before the first pairing only after the long-press reveal; later whenever pairing is open. */
+    @Synchronized fun visiblePairCode(): String? {
+        val c = pairCode() ?: return null
+        return if (everPaired || codeRevealUntil > System.currentTimeMillis()) c else null
+    }
+
+    /** Last "listen around" session: [start, ms], or null. */
+    @get:Synchronized @set:Synchronized var lastListen: LongArray?
+        get() = p.getString("lastListen", null)?.split(',')?.mapNotNull { it.toLongOrNull() }?.takeIf { it.size == 2 }?.toLongArray()
+        set(v) { p.edit().putString("lastListen", v?.joinToString(",")).commit() }
+
+    /** Warning keys already shown today (see [Warn]); keys of other days are dropped. */
+    @Synchronized fun warned(today: String): Set<String> = p.getStringSet("warned", emptySet())!!.filter { it.startsWith("$today:") }.toSet()
+    @Synchronized fun markWarned(today: String, keys: Set<String>) { p.edit().putStringSet("warned", warned(today) + keys).apply() }
+
     // Remote access (Ts.kt). The auth key lives only here (private prefs); it is never sent back in state or log.
     @get:Synchronized @set:Synchronized var tsWanted: Boolean
         get() = p.getBoolean("tsWanted", false)
@@ -153,7 +174,7 @@ class Store private constructor(ctx: Context) {
 
     @get:Synchronized @set:Synchronized var suspendedByUs: Set<String>
         get() = p.getStringSet("susp", emptySet())!!.toSet()
-        set(v) { p.edit().putStringSet("susp", v).apply() }
+        set(v) { p.edit().putStringSet("susp", v).commit() }   // must survive a crash: it is what release / the loop undo
 
     @get:Synchronized @set:Synchronized var location: JSONObject?
         get() = p.getString("loc", null)?.let { runCatching { JSONObject(it) }.getOrNull() }
@@ -174,10 +195,13 @@ class Store private constructor(ctx: Context) {
 
     /** "More time, please" from the child, max 5. */
     @Synchronized fun requests(): JSONArray = runCatching { JSONArray(p.getString("reqs", "[]")) }.getOrDefault(JSONArray())
-    @Synchronized fun addRequest(min: Int, note: String): Boolean {
+    /** [chore]: id of a parent's chore (then [min] is that chore's minutes); the parent still decides. */
+    @Synchronized fun addRequest(min: Int, note: String, chore: String? = null): Boolean {
         val a = requests()
         if (a.length() >= 5) return false
-        a.put(JSONObject().put("id", randomHex(3)).put("t", System.currentTimeMillis()).put("min", min).put("note", note.trim().take(100)))
+        val o = JSONObject().put("id", randomHex(3)).put("t", System.currentTimeMillis()).put("min", min).put("note", note.trim().take(100))
+        if (!chore.isNullOrBlank()) o.put("chore", chore)
+        a.put(o)
         p.edit().putString("reqs", a.toString()).apply()
         return true
     }
@@ -218,6 +242,34 @@ class Store private constructor(ctx: Context) {
         p.edit().putString("log", keep.toString()).apply()
     }
     @Synchronized fun logs(): JSONArray = runCatching { JSONArray(p.getString("log", "[]")) }.getOrDefault(JSONArray())
+
+    // Events for the parent (Events.kt): newest last, 50, 7 days.
+    @Synchronized fun events(): JSONArray = Events.prune(runCatching { JSONArray(p.getString("events", "[]")) }.getOrDefault(JSONArray()), System.currentTimeMillis())
+    @Synchronized fun addEvent(e: Ev) {
+        val now = System.currentTimeMillis()
+        val o = JSONObject().put("id", randomHex(3)).put("t", now).put("kind", e.kind).put("text", e.text)
+        if (e.zone != null) o.put("zone", e.zone)
+        p.edit().putString("events", Events.prune(events().put(o), now).toString()).apply()
+    }
+
+    /** Zones: the next location fix only records where the child is (set after the zone list changed). */
+    @get:Synchronized @set:Synchronized var zoneBaseline: Boolean
+        get() = p.getBoolean("zoneBase", false)
+        set(v) { p.edit().putBoolean("zoneBase", v).apply() }
+
+    /** One new location fix against the zones: stores the events, returns them. */
+    @Synchronized fun zoneFix(zones: List<Zone>, lat: Double, lng: Double): List<Ev> {
+        val inside = p.getStringSet("zin", emptySet())!!.toSet()
+        val (now, evs) = Events.zoneStep(zones, inside, lat, lng, record = zoneBaseline || p.getStringSet("zin", null) == null)
+        p.edit().putStringSet("zin", now).putBoolean("zoneBase", false).apply()
+        evs.forEach { addEvent(it) }
+        return evs
+    }
+
+    /** Battery event armed (false after it fired, until the level is back at >= 30 %). */
+    @get:Synchronized @set:Synchronized var batteryArmed: Boolean
+        get() = p.getBoolean("batArmed", true)
+        set(v) { p.edit().putBoolean("batArmed", v).apply() }
 
     @Synchronized fun wipe() { p.edit().clear().apply() }
 

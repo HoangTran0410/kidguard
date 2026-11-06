@@ -156,4 +156,64 @@ class LogicTest {
             Logic.NotifyState(setOf("s:a1", "q9"), init = true), System.currentTimeMillis())
         assertTrue(after.events.isEmpty())
     }
+
+    @Test fun allowedRequestOnlySavedTargetsOrPairing() {
+        val kids = """[{"name":"An","target":"http://192.168.1.5:8770","via":"lan","id":"a","token":"t"},{"name":"Bo","target":"https://r.example.workers.dev","via":"relay","id":"0123456789abcdef","token":"t"}]"""
+        assertTrue(Logic.allowedRequest(kids, "http://192.168.1.5:8770", "POST", "/api/rules"))
+        assertTrue(Logic.allowedRequest(kids, "https://r.example.workers.dev", "GET", "/c/0123456789abcdef/state"))
+        assertFalse(Logic.allowedRequest(kids, "http://10.0.0.1:80", "GET", "/api/state"))
+        assertFalse(Logic.allowedRequest(kids, "https://evil.example", "GET", "/api/hello"))
+        assertTrue(Logic.allowedRequest(kids, "http://10.0.0.9:8770", "GET", "/api/hello"))
+        assertTrue(Logic.allowedRequest("[]", "http://10.0.0.9:8770", "POST", "/api/pair"))
+        assertFalse(Logic.allowedRequest("[]", "http://10.0.0.9:8770", "POST", "/api/rules"))
+    }
+
+    @Test fun lanFailuresIgnoredOffWifi() {
+        assertFalse(Logic.failCounts("lan", false)); assertTrue(Logic.failCounts("lan", true)); assertTrue(Logic.failCounts("relay", false))
+        val f = Logic.Seen(false, emptyList(), 0)
+        val s0 = Logic.NotifyState(init = true, failSince = 0L)
+        val o = Logic.evaluate("An", f, s0, now + 60 * 60_000, failCounts = false)
+        assertTrue(o.events.isEmpty()); assertEquals(0L, o.state.failSince)
+    }
+
+    @Test fun pushWithoutTimeUsesNow() {
+        val kids = listOf(Logic.KidCfg("An", "https://r.example", "relay", "0123456789abcdef", "t"))
+        val e = Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "0123456789abcdef", "eid" to "s:a1"), { Logic.NotifyState() }, 1_700_000_000_000L)!!
+        assertEquals("An bấm SOS lúc " + Logic.hhmm(1_700_000_000_000L), e.second.text)
+    }
+
+    private fun evs(vararg e: Pair<String, String>, t: Long = now - 60_000) = e.map { Logic.Ev(it.first, it.second, t) }
+    private fun seenEv(e: List<Logic.Ev>) = Logic.Seen(true, emptyList(), now, emptyList(), e)
+
+    @Test fun eventsFirstLookOnlyRecordsThenNotifyOnce() {
+        val o0 = Logic.evaluate("An", seenEv(evs("e1" to "Đã đến Nhà")), Logic.NotifyState(init = true, evInit = false), now)
+        assertTrue(o0.events.isEmpty())   // also for a kid that already had init=true before events existed
+        assertTrue(o0.state.evInit && "e:e1" in o0.state.seenIds)
+        val o1 = Logic.evaluate("An", seenEv(evs("e1" to "Đã đến Nhà", "e2" to "Pin còn 14%")), o0.state, now)
+        assertEquals(listOf("ev:e2"), o1.events.map { it.key })
+        assertEquals("An: Pin còn 14%", o1.events[0].text)
+        val o2 = Logic.evaluate("An", seenEv(evs("e1" to "Đã đến Nhà", "e2" to "Pin còn 14%")), Logic.NotifyState.fromJson(o1.state.toJson()), now)
+        assertTrue(o2.events.isEmpty())
+    }
+
+    @Test fun staleEventsAreRecordedNotShown() {
+        val st = Logic.NotifyState(init = true, evInit = true)
+        val o = Logic.evaluate("An", seenEv(evs("old" to "Đã rời Nhà", t = now - 7 * 3600_000L)), st, now)
+        assertTrue(o.events.isEmpty())
+        assertTrue("e:old" in o.state.seenIds)
+    }
+
+    @Test fun eventIdsDontClashWithRequests() {
+        val st = Logic.NotifyState(setOf("x"), init = true, evInit = true)   // request id "x" already seen
+        val o = Logic.evaluate("An", seenEv(evs("x" to "Đã cài Game")), st, now)
+        assertEquals(1, o.events.size)
+    }
+
+    @Test fun pushEvCheckKid() {
+        val kids = listOf(Logic.KidCfg("An", "https://r.dev", "relay", "0123456789abcdef", "tok"), Logic.KidCfg("Bo", "http://10.0.0.2:8770", "lan", "ffff", "t"))
+        assertEquals("An", Logic.pushCheckKid(kids, mapOf("kind" to "ev", "kid" to "0123456789abcdef", "eid" to "e:abc"))?.name)
+        assertNull(Logic.pushCheckKid(kids, mapOf("kind" to "ev", "kid" to "ffff")))   // LAN kids have no push
+        assertNull(Logic.pushCheckKid(kids, mapOf("kind" to "sos", "kid" to "0123456789abcdef")))
+        assertNull(Logic.pushEvent(kids, mapOf("kind" to "ev", "kid" to "0123456789abcdef", "eid" to "e:abc"), { Logic.NotifyState() }))   // not a notification by itself
+    }
 }

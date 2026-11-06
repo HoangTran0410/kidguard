@@ -182,7 +182,9 @@ The first capture / first input of a session is logged in the phone log.
 - **Listen around** (one way, LAN / Tailscale only, the relay has no audio route):
   `GET /api/listen?k=<token>` -> `200 audio/aac` (ADTS, AAC-LC 16 kHz mono 32 kbit/s, ~14 MB/h), no Content-Length,
   streamed until the client closes or 10 min pass (the page can start again). Errors: `409 {"error":"busy"}` (one
-  listener at a time), `503 {"error": "no mic permission" | "mic blocked" | "mic failed"}`.
+  listener at a time), `503 {"error": "no mic permission" | "mic blocked" | "mic failed" | "notice blocked"}` (v0.6: refused when
+  the child's notifications or the `kg_listen` channel are off, so listening can never be silent). Each session is logged
+  ("Bố mẹ đã nghe âm thanh xung quanh từ HH:mm (…)") and the child screen shows "Lần nghe gần nhất".
 - The child is **always** told; it does not depend on `showWatching`: a beep, an ongoing high-importance notification
   "Bố mẹ đang nghe âm thanh xung quanh máy", a status line on the KidGuard screen, and log lines at start and stop.
   Android itself also shows its mic indicator.
@@ -200,7 +202,8 @@ The first capture / first input of a session is logged in the phone log.
 - On every `sync` with a state: each `sos` younger than 6 h and each `requests` entry younger than 1 h whose event id
   (`s:<id>` / `r:<id>`) is not in the last 50 pushed is sent once to every token, as an FCM HTTP v1 **data-only**
   message, `android.priority: HIGH`, ttl 6 h: `{"kind": "sos"|"req", "kid": "<relay id>", "eid": "s:a1b2c3", "t": "<ms>", "min": "30"|""}`.
-  No names, notes or locations go to Google. An FCM 404 / 400 for a token removes it.
+  No names, notes or locations go to Google. An FCM 404 for a token removes it (a 400 may be our config: kept).
+  At most 5 events per sync. Binding: the first `sync` for an id must carry a `state` object, else 400.
 - Parent app: registers its token with every relay kid on start, on `setKids` (removed kids: `off`) and on
   `setNotify` (off = unregister). A message for a known relay kid whose id the background check has not seen yet is
   posted with the same key as the check would use (`sos:<id>` / `req:<id>`, same notification id) and marked seen,
@@ -247,3 +250,50 @@ the child over plain http; the WebView itself may only reach `127.0.0.1:<port>` 
   notifies once per event: new entry in `requests` ("<name> xin thêm <min> phút"; the first look at a kid only records
   existing ones) and lost connection > 30 min ("Mất kết nối với máy của <name>"; LAN: `state.t` old or fetch failing
   for > 30 min, relay: `seen` old). Skipped when the parent phone itself has no network. Tapping opens the app.
+
+## v0.6: chores, notes, zones, events, rule-change log, templates
+
+Rules, NEW optional fields (phone ignores bad entries; limits enforced on the phone):
+```jsonc
+{
+  "chores": [{"id": "c1", "name": "Rửa bát", "min": 20}],   // max 20; id [\w-]{1,16}; name <= 40 chars; min 5..120
+  "zones":  [{"id": "z1", "name": "Nhà", "lat": 21.03, "lng": 105.85, "r": 150}]  // max 10; r 50..2000 m
+}
+```
+- **Chores**: the child's "Xin thêm giờ" dialog offers the parent's chores ("Rửa bát +20 phút") besides the free form.
+  The request then carries `"chore": "c1"` and `min` = that chore's minutes. The parent still approves; nothing is
+  granted automatically. Request shape: `{"id","t","min","note"?, "chore"?}`.
+- **Note with an answer**: `answer {id, ok, min?, note?}`; `note` <= 200 chars, shown to the child in the
+  "Bố mẹ đã đồng ý / chưa đồng ý" notification ("… Bố mẹ nhắn: <note>").
+- **Zones / events**: the phone checks each new location fix against `zones` (inside = distance <= r; leaving needs
+  distance > r + 50 m so a fix at the edge doesn't flap); fixes with accuracy > 300 m are ignored and appends events. State NEW:
+  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock", "text": "Đã đến Nhà"}]`,
+  newest last, at most 50, older than 7 days dropped. Kinds:
+  - `zoneIn` / `zoneOut`: "Đã đến <zone>" / "Đã rời <zone>" (`zone` field = zone id). First fix after a rules change
+    only records where the phone is (no event).
+  - `battery`: "Pin còn <n>%" once when it drops to <= 15 % while not charging (re-armed after charging to >= 30 %).
+  - `newApp`: "Đã cài <label>" when a new non-system app appears (also `apps[].new`).
+  - `clock`: "Giờ máy bị đổi" on `ACTION_TIME_CHANGED` with a jump > 2 min versus elapsed time.
+  The child sees the zone list in "Luật của con" (transparency).
+- **Rule-change log**: when rules change, the phone logs a readable diff instead of "Bố mẹ đổi luật", e.g.
+  "Bố mẹ đổi luật: giới hạn 120 → 90 phút; giờ ngủ 21:30–06:30". Shown on the child screen ("Nhật ký") and in the page log.
+- **Push (relay)**: events younger than 1 h are pushed like SOS, event id `e:<id>`, data
+  `{"kind": "ev", "kid", "eid", "t", "ek": "<event kind>"}` (no text, no zone name, no location to Google). The parent
+  app treats `ev` as "check this kid now": it runs the background check for that kid, which notifies
+  "<name>: <text>" once per event id (`ev:<id>`). The background check also notifies new `events` for LAN kids.
+- **Templates (page only)**: `localStorage["kg.tpl"]` (parent app: bridge `KGApp.getTpl()` / `setTpl(json)`, <= 50 KB) = `[{name, rules: {dailyMin, dailyByDay, bedtime, schedules}}]`,
+  presets "Ngày đi học", "Cuối tuần", "Nghỉ hè", "Thi cử". Applying sends one rules PUT per chosen kid with only those
+  fields replaced (PIN, blocked apps, allow list, DNS kept).
+- **Weekly report (page only)**: the overview has "Báo cáo tuần": per kid total and daily average over the last 7 days
+  (`history`), top 3 apps, requests count, compared with the 7 days before when available (needs 14 days of history: rare, the phone keeps 7). Requests are
+  counted from the log, so approximate.
+
+## v0.6 other changes
+- Before the first pairing the child screen hides the code and QR; a parent reveals them with a 5 s long-press (10 min).
+  `/api/hello` still says `pairing: true`. Paired with no PIN set: a 10 s long-press on the child screen opens pairing
+  (10 min, logged "Mở ghép lại từ máy con") so a parent who lost every token is not locked out.
+- `state.apps` also lists installed non-system apps without a launcher icon (they can be suspended too).
+- Android 8–10: `DISALLOW_APPS_CONTROL` (no force stop / clear data), lifted by `release`.
+- Warnings: a notification 5 min and 1 min before the daily limit, bedtime or a schedule locks the phone.
+- Phone page CSP adds `connect-src 'self'`.
+- Version: `android/gradle.properties` `kg.version` / `kg.code`, read by both apps (`state.version` = `BuildConfig.VERSION_NAME`).

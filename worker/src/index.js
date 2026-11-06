@@ -82,6 +82,9 @@ export class Kid {
     let bound = await this.s.get("tokenHash");
     if (!bound) {
       if (action !== "sync") return json({ error: "waiting for the phone" }, 409);   // only the phone may bind
+      // ...and only with a real first sync (it always carries a state): a random POST must not claim / create storage
+      let first = null; try { first = await req.clone().json(); } catch {}
+      if (!first || typeof first.state !== "object" || !first.state) return json({ error: "bad first sync" }, 400);
       await this.s.put("tokenHash", h); bound = h;
     }
     if (h !== bound) return json({ error: "not paired" }, 401);
@@ -241,16 +244,19 @@ export class Kid {
     const now = Date.now(), ev = [];
     for (const s of Array.isArray(state.sos) ? state.sos : []) if (s && now - +s.t < 6 * 3600e3) ev.push({ kind: "sos", eid: "s:" + s.id, t: +s.t });
     for (const r of Array.isArray(state.requests) ? state.requests : []) if (r && now - +r.t < 3600e3) ev.push({ kind: "req", eid: "r:" + r.id, t: +r.t, min: +r.min || 0 });
+    for (const e of Array.isArray(state.events) ? state.events : []) if (e && now - +e.t < 3600e3 && /^[\w-]{1,24}$/.test(String(e.id)))
+      ev.push({ kind: "ev", eid: "e:" + e.id, t: +e.t, ek: String(e.kind || "").slice(0, 12) });   // no text / zone name to Google
     if (!ev.length || !this.env.FCM_SA) return;
-    const sent = (await this.s.get("pushed")) || [], fresh = ev.filter(e => !sent.includes(e.eid));
+    // at most 5 events a sync (x 5 devices = 25 FCM calls, under the 50 subrequests a request may make)
+    const sent = (await this.s.get("pushed")) || [], fresh = ev.filter(e => !sent.includes(e.eid)).slice(0, 5);
     if (!fresh.length) return;
     const tokens = (await this.s.get("push")) || [];
     await this.s.put("pushed", [...sent, ...fresh.map(e => e.eid)].slice(-50));   // before sending: a retry must not double-notify
     if (!tokens.length) return;
     const dead = new Set();
     for (const e of fresh) for (const t of tokens) {
-      const st = await fcmSend(this.env, t, { kind: e.kind, kid: id, eid: e.eid, t: String(e.t), min: String(e.min || "") });
-      if (st === 404 || st === 400) dead.add(t);   // UNREGISTERED / INVALID_ARGUMENT: the app was removed or re-installed
+      const st = await fcmSend(this.env, t, { kind: e.kind, kid: id, eid: e.eid, t: String(e.t), ...(e.kind === "ev" ? { ek: e.ek } : { min: String(e.min || "") }) });
+      if (st === 404) dead.add(t);   // UNREGISTERED: the app was removed or re-installed (a 400 may be our own config: keep the token)
     }
     if (dead.size) await this.s.put("push", tokens.filter(t => !dead.has(t)));
   }
