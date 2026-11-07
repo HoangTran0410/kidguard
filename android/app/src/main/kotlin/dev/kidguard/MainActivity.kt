@@ -698,37 +698,10 @@ class MainActivity : Activity() {
         if (note.isNotEmpty() && locked) line(R.drawable.li_message_circle, Ic.INFO, getString(R.string.policy_note, note))
     }
 
-    /** One confirm (no accidental taps; not an alarm), then send. A second send within a minute says "already sent". */
-    private fun askCheckin(ck: String) {
-        val icon = if (ck == "pickup") R.drawable.li_car else R.drawable.li_map_pin
-        Modal(this, ui2).show(icon, Modal.Tone.INFO, getString(if (ck == "pickup") R.string.ci_q_pickup else R.string.ci_q_arrived), getString(R.string.ci_q_body),
-            ok = getString(R.string.ci_send), cancel = getString(R.string.cancel)) { ui.post { sendCheckin(ck) }; true }
-    }
-
-    private fun sendCheckin(ck: String) {
-        val s = Store.of(this)
-        val g = Guard.running
-        val ok = if (g != null) g.checkin(ck) else Guard.checkinNow(this, s, ck).also { if (it) Guard.start(this) }
-        val hasLoc = Checkin.fresh(s.location, System.currentTimeMillis()) != null
-        refresh()
-        if (ok) Modal(this, ui2).show(R.drawable.li_circle_check, Modal.Tone.OK, getString(R.string.ci_done), getString(if (hasLoc) R.string.ci_done_loc else R.string.ci_done_noloc))
-        else Modal(this, ui2).show(R.drawable.li_timer, Modal.Tone.INFO, getString(R.string.ci_again), getString(R.string.ci_again_body))
-    }
-
-    /** SOS: one confirm (no pocket presses), then the state carries it to the parent with a fresh location. */
-    private fun askSos() {
-        Modal(this, ui2).show(R.drawable.li_siren, Modal.Tone.DANGER, getString(R.string.sos_q), getString(R.string.sos_q_body),
-            ok = getString(R.string.sos_send), cancel = getString(R.string.cancel)) {
-            val g = Guard.running
-            val ok = if (g != null) g.sos() else { val o = Store.of(this).addSos(); if (o != null) Guard.start(this); o != null }
-            refresh()
-            ui.post {
-                if (ok) Modal(this, ui2).show(R.drawable.li_circle_check, Modal.Tone.OK, getString(R.string.sos_done), getString(R.string.sos_done_body))
-                else Modal(this, ui2).show(R.drawable.li_siren, Modal.Tone.WARN, getString(R.string.sos_again), getString(R.string.sos_again_body))
-            }
-            true
-        }
-    }
+    private val acts by lazy { KidActions(this, ui2) { refresh() } }
+    private fun askCheckin(ck: String) = acts.askCheckin(ck)
+    private fun askSos() = acts.askSos()
+    private fun askMore() = acts.askMore()
 
     /** A parent reads 6 digits from Google Authenticator (works with no network on either phone). */
     private fun askUnlock() {
@@ -744,51 +717,6 @@ class MainActivity : Activity() {
         }
         input.requestFocus()
     }
-
-    /** The child asks for 15 / 30 / 60 more minutes, with an optional short note; the parent sees it in the state. */
-    private fun askMore() {
-        val s = Store.of(this)
-        val mins = intArrayOf(15, 30, 60)
-        val chores = s.rules.chores
-        val m = Modal(this, ui2)
-        val pick = m.choice(mins.map { resources.getQuantityString(R.plurals.min_n, it, it) })
-        val note = m.field(getString(R.string.more_note), 100)
-        // chores first, the last entry is the free form (minutes row below)
-        val chorePick = if (chores.isEmpty()) null else m.choice(chores.map { getString(R.string.chore_item, it.name, it.min) } + getString(R.string.more_other), chores.size, vertical = true)
-        // v0.9.7 one-tap templates: a tap sends at once (typed note is added), the dialog closes
-        var dlg: android.app.Dialog? = null
-        val tplBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        tplBox.addView(ui2.label(getString(R.string.more_quick), 13f), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
-        for (tp in ReqTpl.ALL) tplBox.addView(ui2.button(getString(tplLabel(tp.id)), R.drawable.li_send, false) {
-            val ok = s.addRequest(tp.min, ReqTpl.note(getString(tplLabel(tp.id)), note.text.toString()), tpl = tp.id)
-            if (ok) { s.log(R.string.log_more); Guard.poke(this) }
-            dlg?.dismiss(); refresh()
-            ui.post {
-                if (ok) Modal(this, ui2).show(R.drawable.li_send, Modal.Tone.OK, getString(R.string.more_sent), getString(R.string.more_sent_body))
-                else Modal(this, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, getString(R.string.more_fail), getString(R.string.more_fail_body))
-            }
-        }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(tplBox, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
-            if (chorePick != null) addView(chorePick.view, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
-            addView(pick.view, LinearLayout.LayoutParams(-1, -2))
-            addView(note, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
-        }
-        dlg = m.show(R.drawable.li_timer, Modal.Tone.INFO, getString(R.string.main_more), getString(if (chores.isEmpty()) R.string.more_body else R.string.more_body_chores), ScrollView(this).apply { addView(box) }, ok = getString(R.string.send), cancel = getString(R.string.cancel)) {
-            val chore = chorePick?.selected?.let { chores.getOrNull(it) }
-            val ok = if (chore != null) s.addRequest(chore.min, note.text.toString(), chore.id) else s.addRequest(mins[pick.selected.coerceIn(0, 2)], note.text.toString())
-            if (ok) { s.log(R.string.log_more); Guard.poke(this) }
-            refresh()
-            ui.post {
-                if (ok) Modal(this, ui2).show(R.drawable.li_send, Modal.Tone.OK, getString(R.string.more_sent), getString(R.string.more_sent_body))
-                else Modal(this, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, getString(R.string.more_fail), getString(R.string.more_fail_body))
-            }
-            true
-        }
-    }
-
-    private fun tplLabel(id: String) = when (id) { "homework" -> R.string.tpl_homework; "play" -> R.string.tpl_play; else -> R.string.tpl_study }
 
     /** Phone makers hide "autostart / no battery limits" in their own screens; try the known ones, else the app's page. */
     private fun openBatterySettings() {

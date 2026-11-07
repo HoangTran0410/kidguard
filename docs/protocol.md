@@ -360,7 +360,7 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
   "Bố mẹ đã đồng ý / chưa đồng ý" notification ("… Bố mẹ nhắn: <note>").
 - **Zones / events**: the phone checks each new location fix against `zones` (inside = distance <= r; leaving needs
   distance > r + 50 m so a fix at the edge doesn't flap); fixes with accuracy > 300 m are ignored and appends events. State NEW:
-  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing|checkin", "text": "Đã đến Nhà"}]`,
+  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing|checkin|launcher", "text": "Đã đến Nhà"}]`,
   newest last, at most 50, older than 7 days dropped. `text` is free text for people, in the child app's language
   (English or Vietnamese, from the phone / per-app language; the examples here are the Vietnamese ones). The same goes for
   log lines (`log[].m`) and error strings (`dnsError`, `update.err`, `ts.err`). Code must switch on `kind`, never parse `text`. Kinds:
@@ -661,3 +661,39 @@ Code: `Files.kt` (Android), `FilesLogic.kt` (pure: names, caps, listing JSON; `F
 ### Release
 `release` deletes the outbox and the index; files the kid received stay in `Download/KidGuard` (they are the kid's).
 The `WRITE_EXTERNAL_STORAGE` grant (API 26-28) goes back to default with the other grants.
+
+## v0.9.9: kid launcher
+
+Optional home screen on the kid's phone (`HomeActivity`, category HOME). Device Owner only; off by default.
+
+### Rule `launcher` (in `PUT /api/rules`)
+`{"on": false, "settings": false, "notes": true, "lockCustom": false, "style": ""}`. Missing = all defaults (off).
+- `on`: enable the `.HomeActivity` component (manifest default: disabled) + `addPersistentPreferredActivity(HOME)` so Home
+  opens it with no chooser. `on:false`, `release` (before `clearDeviceOwnerApp`) and `releaseBasic` clear the preferred
+  activity and disable the component; the stock launcher comes back. Not Device Owner ⇒ treated as off.
+- `settings`: show the system Settings app (hidden by default). `notes`: show `blockNote` in the "app tạm nghỉ" sheet.
+- `lockCustom`: reserved (part 2: lock the kid's own layout changes). `style`: `""|"be"|"teen"|"gon"`, the preset used only
+  when `home.json` is first made (unknown values ⇒ `""` = teen).
+
+What shows: every launcher activity passes through the Guard's `decide()`: reasons `blocked` / `new` (and parent-hidden or
+suspended-by-KidGuard plumbing) are never shown, in grid, dock, drawer or search; any other reason (`daily`, `app`, `group`,
+`bedtime`, `schedule`, `paused`…) shows the app greyed with a clock badge; tapping it opens a sheet with the reason,
+"Mở lại …", the note, Xin thêm giờ (same request as the main screen) and Để sau. The dock slot 1 is always the dialer
+(`@phone`, `ACTION_DIAL`; long press: SOS / 112 / 113 / 114 / 115), never removable.
+
+### State `launcher` (in `GET /api/state`, relay state too)
+`{"on": bool, "home": "<pkg>", "err": ""|"not owner"|"crash"|"home", "style": "be|teen|gon", "locked": bool, "pages": n, "safeUntil": ms}`
+- `on`: the component is enabled now. `home`: the package Home resolves to (`dev.kidguard` when ours). `err`: `crash` = safe mode (below), `home` = the rule is on
+  but Home opens something else (re-applied every minute). Absent = older app.
+
+### Crash fallback
+Uncaught exceptions while `HomeActivity` is alive are counted (device-protected prefs). 2nd crash within 5 min: the layout is
+reset to the preset. 3rd within 5 min: the launcher is turned off for 24 h (`safeUntil`), the stock launcher returns and an
+event `{"kind": "launcher", "text": "…đã tắt 24 giờ (HH:mm)"}` is sent. After 24 h the rule applies again.
+
+### `home.json` (phone only, app files dir)
+`{"v":1, "cols":3-5, "rows":4-6, "pages":[[item…]…], "dock":["@phone", pkg|"", "", ""], "style":{…}, "seen":[pkg…]}`,
+item `{"id","kind":"app|widget|folder","x","y","w","h","pkg"?,"cls"?,"type":"clock|time|quick"?,"name"?,"apps"?}`.
+Written atomically (tmp + rename). An unreadable file is moved to `home.json.bad` and a fresh one made; bad items are
+repaired or dropped on load. New installs go to the first free cell; apps the kid removed (`seen`) are not re-added.
+Not sent to the parent in this version.

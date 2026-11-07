@@ -621,6 +621,7 @@ vi: {
   "zone.tip": "Máy con đến / rời vùng thì bạn nhận thông báo (mục Sự kiện, tab Hôm nay). Con thấy danh sách vùng trong \"Luật của con\". Vùng hiện trên bản đồ ở tab Vị trí.",
   "zone.badCoord": "Toạ độ không hợp lệ", "zone.askDel": "Xoá vùng “{0}”?", "zone.newName": "Vùng mới",
   "trk.h": "Ghi vị trí mỗi …", "trk.tip": "Dùng để vẽ lịch sử di chuyển trong tab Vị trí. Ghi thường xuyên hơn thì tốn pin hơn.",
+  "hm.h": "Màn hình chính của bé", "sd.home": "KidGuard thay màn hình chính: chỉ hiện app con được dùng", "hm.on": "Bật màn hình chính KidGuard", "hm.style": "Kiểu ban đầu", "hm.sAuto": "Mặc định (Thiếu niên)", "hm.sBe": "Bé (6–10 tuổi)", "hm.sTeen": "Thiếu niên", "hm.sGon": "Gọn", "hm.settings": "Hiện app Cài đặt", "hm.notes": "Hiện lời nhắn của bố mẹ khi app tạm nghỉ", "hm.tip": "App bị chặn và app mới chưa duyệt không hiện; app hết giờ bị làm mờ, con chạm vào thì thấy lý do và nút Xin thêm giờ. Gọi điện luôn ở ô đầu thanh dưới (giữ để gọi 112–115). Tắt là màn hình cũ của máy quay lại. Kiểu chỉ áp dụng lần đầu; con tự đổi sau.", "hm.owner": "màn hình chính của bé", "hm.stOn": "Đang chạy trên máy con", "hm.stWait": "Chờ máy con áp dụng…", "hm.stCrash": "Đã tự tắt 24 giờ vì lỗi liên tục", "hm.stHome": "Nút Home đang mở màn hình khác", "hm.stNoOwner": "Cần Device Owner", "hm.stOld": "Máy con cần bản KidGuard mới hơn",
   "more.h": "Chặn thêm", "more.new": "Chặn app mới cài cho tới khi duyệt", "more.loc": "Khoá vị trí: không cho tắt định vị", "more.air": "Chế độ máy bay: không cho bật",
   "dns.h": "DNS an toàn (chặn web người lớn)", "dns.tip": "Chặn web người lớn, bật tìm kiếm an toàn. Áp dụng cho cả Wi-Fi và 4G (qua DNS riêng của Android).",
   "anti.h": "Chống lách", "anti.install": "Chặn cài app mới", "anti.debug": "Chặn Tuỳ chọn nhà phát triển / ADB",
@@ -969,6 +970,7 @@ en: {
   "zone.tip": "You get a notice when the kid's phone arrives at or leaves a place (Events, Today tab). Your kid sees the list in \"My rules\". Places show on the map in the Location tab.",
   "zone.badCoord": "Invalid coordinates", "zone.askDel": "Delete the place “{0}”?", "zone.newName": "New place",
   "trk.h": "Record location every …", "trk.tip": "Used to draw the movement history in the Location tab. Recording more often uses more battery.",
+  "hm.h": "Kid home screen", "sd.home": "KidGuard replaces the home screen: only apps your kid may use show up", "hm.on": "Turn on the KidGuard home screen", "hm.style": "Starting style", "hm.sAuto": "Default (Teen)", "hm.sBe": "Kid (6–10)", "hm.sTeen": "Teen", "hm.sGon": "Compact", "hm.settings": "Show the Settings app", "hm.notes": "Show your note when an app is paused", "hm.tip": "Blocked apps and new apps waiting for approval don't show; apps out of time are greyed, and tapping one shows why plus a More time button. Phone is always the first dock slot (hold it for 112–115). Turning it off brings the phone's own home screen back. The style only applies the first time; your kid can change it later.", "hm.owner": "the kid home screen", "hm.stOn": "Running on the kid's phone", "hm.stWait": "Waiting for the kid's phone…", "hm.stCrash": "Turned itself off for 24 h after repeated crashes", "hm.stHome": "Home opens another app", "hm.stNoOwner": "Needs Device Owner", "hm.stOld": "The kid's phone needs a newer KidGuard",
   "more.h": "More blocking", "more.new": "Block newly installed apps until approved", "more.loc": "Lock location: can't turn off location", "more.air": "Airplane mode: can't turn on",
   "dns.h": "Safe DNS (blocks adult sites)", "dns.tip": "Blocks adult sites and turns on safe search. Works on both Wi-Fi and mobile data (via Android's Private DNS).",
   "anti.h": "Anti-bypass", "anti.install": "Block installing new apps", "anti.debug": "Block Developer options / ADB",
@@ -1181,6 +1183,8 @@ function norm(e) {
   const wd = e.windDown || {}, li = e.lockInfo || {};   // v0.9.7
   e.windDown = { gray: !!wd.gray, min: WD_STEPS.includes(+wd.min) ? +wd.min : 30, nudge: !!wd.nudge };
   e.lockInfo = { msg: String(li.msg || ""), contact: String(li.contact || "") }; e.blockNote = String(e.blockNote || "");
+  const la = e.launcher || {};   // v0.9.9 kid launcher
+  e.launcher = { on: !!la.on, settings: !!la.settings, notes: la.notes !== false, lockCustom: !!la.lockCustom, style: ["", "be", "teen", "gon"].includes(la.style) ? la.style : "" };
   return e;
 }
 // index 0 = Monday, from "YYYY-MM-DD"
@@ -1636,7 +1640,7 @@ const totpHtml = s => `<div class="alert warn" style="margin-top:10px"><b>${ic("
     <p class="mute">${t("totp.share")}</p>
     <button id="totpDone">${ic("check")} ${t("totp.done")}</button></div>`;
 // ---- v0.6: events, chores, zones, templates ----
-const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand" };
+const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand", launcher: "house" };
 const evHtml = e => `<div class="row" style="padding:3px 0">${ic(EV_IC[e.kind] || "bell")} <span class="sp">${esc(noEmoji(e.text))}</span><span class="mute">${ago(e.t)}</span></div>`;
 const zoneOk = z => z && Number.isFinite(+z.lat) && Number.isFinite(+z.lng) && z.lat !== "" && z.lng !== "" && z.lat !== null && z.lng !== null && Math.abs(+z.lat) <= 90 && Math.abs(+z.lng) <= 180;
 const newId = p => p + Math.random().toString(36).slice(2, 8);
@@ -2889,13 +2893,31 @@ function ruleChips(r) {
     dns: r.safeDns ? on(esc(dns ? dns[1] : r.safeDns), basic) : off,
     anti: anti ? on(anti + "/2", basic) : off,
     wind: windChip(r),
+    home: r.launcher.on ? on(t({ be: "hm.sBe", teen: "hm.sTeen", gon: "hm.sGon" }[r.launcher.style] || "hm.sAuto"), basic || !!(st.launcher && st.launcher.err)) : off,
     kind: (n => n.length ? [n.join(" · "), "ok"] : off)([(r.lockInfo.msg || r.lockInfo.contact) && t("chip.lock"), r.blockNote && t("chip.note")].filter(Boolean)),
   };
 }
 // Rules: two sub-tabs (time / blocking & safety). Zones + location log live in the "Vị trí" tab, the Authenticator in
 // "Cài đặt"; the same section HTML (ruleSecs) and wiring (rulesWire) serve all three, wiring only what is on screen.
 let rseg = (() => { try { return localStorage.getItem("kg.rseg") === "safe" ? "safe" : "time"; } catch { return "time"; } })();
-const RSEG = { time: ["daily", "grp", "bed", "wind", "sch", "chore"], safe: ["more", "dns", "anti", "kind"] };
+const RSEG = { time: ["daily", "grp", "bed", "wind", "sch", "chore"], safe: ["more", "dns", "anti", "home", "kind"] };
+// v0.9.9 kid launcher: the phone answers with state.launcher {on, home, err, style, locked, pages}
+function homeStatus(r) {
+  const L = st.launcher;
+  if (!r.launcher.on && !(L && L.on)) return "";
+  const [k, w] = !L ? ["hm.stOld", 1] : L.err === "not owner" ? ["hm.stNoOwner", 1] : L.err === "crash" ? ["hm.stCrash", 1] : L.err === "home" ? ["hm.stHome", 1]
+    : L.on && r.launcher.on ? ["hm.stOn", 0] : ["hm.stWait", 0];
+  return `<p class="${w ? "" : "mute"}" id="hmSt">${ic(w ? "triangle-alert" : k === "hm.stOn" ? "circle-check" : "loader")} ${t(k)}</p>`;
+}
+function homeBody(r) {
+  const L = r.launcher, opt = (v, k) => `<option value="${v}" ${L.style === v ? "selected" : ""}>${t(k)}</option>`;
+  return `    <label class="row"><input type="checkbox" id="f-hm" ${L.on ? "checked" : ""}><span class="sp">${ic("house")} ${t("hm.on")}</span></label>
+    <label class="row" style="margin-top:8px">${t("hm.style")} <select id="f-hms" aria-label="${esc(t("hm.style"))}">${opt("", "hm.sAuto")}${opt("be", "hm.sBe")}${opt("teen", "hm.sTeen")}${opt("gon", "hm.sGon")}</select></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmset" ${L.settings ? "checked" : ""}><span class="sp">${ic("settings")} ${t("hm.settings")}</span></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmn" ${L.notes ? "checked" : ""}><span class="sp">${ic("message-square")} ${t("hm.notes")}</span></label>
+    ${homeStatus(r)}
+    <p class="mute">${ic("lightbulb")} ${t("hm.tip")}</p>${isBasic() ? needOwner(t("hm.owner")) : ""}`;
+}
 function ruleSecs(r) {
   const C = ruleChips(r);
   return {
@@ -2930,6 +2952,7 @@ function ruleSecs(r) {
     <div id="bedW">${timeWarn(r.bedtime, r.bedtime.on)}</div>`),
     wind: sec("r-wind", "moon", t("wd.h"), t("sd.wind"), C.wind, windBody(r)),
     kind: sec("r-kind", "notebook-pen", t("kn.h"), t("sd.kind"), C.kind, kindBody(r)),
+    home: sec("r-home", "house", t("hm.h"), t("sd.home"), C.home, homeBody(r)),
     sch: sec("r-sch", "book-open", t("sch.h"), t("sd.sch"), C.sch, `    ${r.schedules.map((x, i) => `<div class="sch" data-s="${i}">
       <div class="row"><input id="f-sn${i}" class="sp" data-f="name" placeholder="${esc(t("sch.namePh"))}" aria-label="${esc(t("sch.name"))}" value="${esc(x.name)}"><label class="row"><input type="checkbox" data-f="on" ${x.on ? "checked" : ""}> ${t("on")}</label></div>
       <div class="chips" style="margin:8px 0">${t("wd").map((n, d) => `<button data-day="${d + 1}" class="${(x.days || []).includes(d + 1) ? "on" : ""}" aria-pressed="${(x.days || []).includes(d + 1)}">${n}</button>`).join("")}</div>
@@ -3078,6 +3101,10 @@ function rulesWire(b, r) {
   $("#f-be").onchange = e => { r.bedtime.end = e.target.value; bw(); changed(); };
   wireComfort(b, r);
   $("#f-ni").onchange = e => { r.noInstall = e.target.checked; changed(); };
+  $("#f-hm").onchange = e => { r.launcher.on = e.target.checked; changed(); };
+  $("#f-hms").onchange = e => { r.launcher.style = e.target.value; changed(); };
+  $("#f-hmset").onchange = e => { r.launcher.settings = e.target.checked; changed(); };
+  $("#f-hmn").onchange = e => { r.launcher.notes = e.target.checked; changed(); };
   $("#f-nd").onchange = e => { r.noDebug = e.target.checked; changed(); };
 }
 

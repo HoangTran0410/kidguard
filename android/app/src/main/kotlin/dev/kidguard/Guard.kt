@@ -207,7 +207,21 @@ class Guard : Service() {
         }
         if (now - store.historyAt > 3_600_000) store.saveHistory(history(now, apps.keys, prot, apps), now)
         Update.maybe(this, r, now)
+        launcherTick(r, now)
+        snap = Snap(r, want, use.ms, leftMs, minute, now, Rules.isoDow(today), apps.keys, prot)
+        listeners.forEach { l -> main.post { runCatching { l() } } }
         lastState = state(r, apps, prot, use, want, nowSusp, today, now, newApps)
+    }
+
+    private var launcherAt = 0L
+
+    /** Once a minute: HOME still ours (or back to stock after the 24 h safe mode), and the crash event. */
+    private fun launcherTick(r: Rules, now: Long) {
+        LauncherSafe.pendingEvent(this)?.let { why -> runCatching { store.event("launcher", R.string.ev_launcher_crash, why); store.log(R.string.ev_launcher_crash, why); relay?.kick() } }
+        if (now - launcherAt < 60_000) return
+        launcherAt = now
+        if (LauncherSafe.wanted(this, r) != LauncherSafe.enabled(this) || (LauncherSafe.enabled(this) && !LauncherSafe.homeIsOurs(this)))
+            runCatching { LauncherSafe.apply(this, r) }.onFailure { Log.w("KidGuard", "launcher", it) }
     }
 
     private var hideKey = ""; private var hideAt = 0L
@@ -310,6 +324,7 @@ class Guard : Service() {
             .put("events", store.events())
             .put("windDown", GrayFx.state(this, r, windActive))
             .put("update", Update.stateJson(this))
+            .put("launcher", runCatching { LauncherSafe.state(this, r, HomeFile.styleId(this), HomeFile.pages(this)) }.getOrDefault(JSONObject()))
             .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)) else it.put("preinstalled", preinstalled(prot, now)) }
     }
 
@@ -591,6 +606,13 @@ class Guard : Service() {
         const val PORT = 8770
         const val TICK_MS = 10_000L
         @Volatile var running: Guard? = null
+
+        /** What the last tick decided, for the kid launcher (HomeActivity): it filters with the same decide() result. */
+        class Snap(val r: Rules, val want: Map<String, String>, val usageMs: Map<String, Long>, val leftMs: Long, val minute: Int,
+                   val now: Long, val dow: Int, val apps: Set<String>, val prot: Set<String>)
+        @Volatile var snap: Snap? = null
+        val listeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
+        private val main by lazy { Handler(android.os.Looper.getMainLooper()) }
 
         /** Stores a check-in event (+ log line). The running Guard also locates and syncs; else starting it does. */
         fun checkinNow(ctx: Context, s: Store, ck: String): Boolean {

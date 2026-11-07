@@ -1,0 +1,133 @@
+package dev.kidguard
+
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.util.Log
+
+/**
+ * Turns the kid launcher (HomeActivity) on and off, and keeps it safe: a launcher that crashes in a loop would leave
+ * the child with no home screen, so 2 crashes in 5 min reset the layout and 3 turn it off for 24 h (LauncherLogic.crash).
+ * Crash times go to their own prefs with commit(): the process dies right after the handler runs.
+ */
+object LauncherSafe {
+    private const val TAG = "KidGuard"
+    private const val PREFS = "kgcrash"
+
+    fun comp(ctx: Context) = ComponentName(ctx, HomeActivity::class.java)
+
+    private fun prefs(ctx: Context) = ctx.createDeviceProtectedStorageContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    fun enabled(ctx: Context): Boolean =
+        ctx.packageManager.getComponentEnabledSetting(comp(ctx)) == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+
+    fun safeUntil(ctx: Context): Long = prefs(ctx).getLong("safeUntil", 0)
+    fun inSafeMode(ctx: Context): Boolean = System.currentTimeMillis() < safeUntil(ctx)
+
+    /** The launcher should be the home screen now. */
+    fun wanted(ctx: Context, r: Rules): Boolean = r.launcher.on && Policy.isOwner(ctx) && !inSafeMode(ctx) && !Store.of(ctx).released
+
+    private fun homeFilter() = IntentFilter(Intent.ACTION_MAIN).apply {
+        addCategory(Intent.CATEGORY_HOME); addCategory(Intent.CATEGORY_DEFAULT)
+    }
+
+    /** Called from Policy.apply (Guard thread) and the minute check. Starts HOME only when the state really changed. */
+    @Synchronized fun apply(ctx: Context, r: Rules) {
+        if (wanted(ctx, r)) on(ctx) else off(ctx, goHome = true)
+    }
+
+    private fun on(ctx: Context) {
+        val was = enabled(ctx)
+        val pm = ctx.packageManager
+        if (!was) runCatching { pm.setComponentEnabledSetting(comp(ctx), PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP) }
+            .onFailure { Log.w(TAG, "launcher enable", it) }
+        // re-added every time: cheap, and it fixes a HOME the user re-picked in Settings
+        if (!homeIsOurs(ctx)) runCatching { Policy.dpm(ctx).addPersistentPreferredActivity(Policy.admin(ctx), homeFilter(), comp(ctx)) }
+            .onFailure { Log.w(TAG, "launcher preferred", it) }
+        if (!was) home(ctx)
+    }
+
+    /** Undo: clear our preferred HOME and disable the component. Used by rule off, safe mode and release. */
+    fun off(ctx: Context, goHome: Boolean) {
+        val was = enabled(ctx)
+        if (Policy.isOwner(ctx)) runCatching { Policy.dpm(ctx).clearPackagePersistentPreferredActivities(Policy.admin(ctx), ctx.packageName) }
+            .onFailure { Log.w(TAG, "launcher clear preferred", it) }
+        // manifest default = disabled: only a component we enabled needs it
+        if (was) runCatching { ctx.packageManager.setComponentEnabledSetting(comp(ctx), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP) }
+            .onFailure { Log.w(TAG, "launcher disable", it) }
+        if (was && goHome) home(ctx)
+    }
+
+    /** Which activity HOME opens now. */
+    fun homeIsOurs(ctx: Context): Boolean = runCatching {
+        ctx.packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), PackageManager.MATCH_DEFAULT_ONLY)
+            ?.activityInfo?.let { it.packageName == ctx.packageName && it.name == HomeActivity::class.java.name } == true
+    }.getOrDefault(false)
+
+    private fun home(ctx: Context) = runCatching {
+        ctx.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    fun err(ctx: Context, r: Rules): String = LauncherLogic.err(r.launcher.on, Policy.isOwner(ctx), inSafeMode(ctx), homeIsOurs(ctx))
+
+    // ---- crash fallback ----
+
+    /** Installed by HomeActivity.onCreate. Chains to the old handler (the process still dies). */
+    fun watch(ctx: Context) {
+        val app = ctx.applicationContext
+        val old = Thread.getDefaultUncaughtExceptionHandler()
+        if (old is Handler) return
+        Thread.setDefaultUncaughtExceptionHandler(Handler(app, old))
+    }
+
+    private class Handler(val app: Context, val next: Thread.UncaughtExceptionHandler?) : Thread.UncaughtExceptionHandler {
+        override fun uncaughtException(t: Thread, e: Throwable) {
+            if (HomeActivity.alive > 0) runCatching { crashed(app, e) }
+            next?.uncaughtException(t, e)
+        }
+    }
+
+    /** One launcher crash. Writes synchronously; the Guard reports the event later (pending). */
+    fun crashed(ctx: Context, e: Throwable?) {
+        val p = prefs(ctx)
+        val now = System.currentTimeMillis()
+        val times = (p.getString("times", "") ?: "").split(',').mapNotNull { it.toLongOrNull() }
+        val (kept, act) = LauncherLogic.crash(times, now)
+        val ed = p.edit().putString("times", kept.joinToString(","))
+            .putString("last", (e?.javaClass?.simpleName ?: "") + ": " + (e?.message ?: "").take(120))
+        when (act) {
+            LauncherLogic.CrashAct.RESET -> ed.putBoolean("reset", true)
+            LauncherLogic.CrashAct.DISABLE -> ed.putLong("safeUntil", now + LauncherLogic.SAFE_MS).putBoolean("pendingEv", true).putString("times", "")
+            else -> {}
+        }
+        ed.commit()
+        // 3rd crash: off now (the stock launcher takes HOME); the Guard re-checks it every minute too
+        if (act == LauncherLogic.CrashAct.DISABLE) runCatching { off(ctx, goHome = false) }
+    }
+
+    /** HomeActivity asks on start: reset the layout once after a 2nd crash. */
+    fun takeReset(ctx: Context): Boolean {
+        val p = prefs(ctx)
+        if (!p.getBoolean("reset", false)) return false
+        p.edit().putBoolean("reset", false).commit()
+        return true
+    }
+
+    /** Guard tick: the `launcher` event after the safe mode started (once). */
+    fun pendingEvent(ctx: Context): String? {
+        val p = prefs(ctx)
+        if (!p.getBoolean("pendingEv", false)) return null
+        p.edit().putBoolean("pendingEv", false).commit()
+        return p.getString("last", "") ?: ""
+    }
+
+    /** state.launcher (protocol "v0.9.9: kid launcher"). */
+    fun state(ctx: Context, r: Rules, style: String, pages: Int): org.json.JSONObject = org.json.JSONObject()
+        .put("on", r.launcher.on && enabled(ctx)).put("home", runCatching {
+            ctx.packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
+        }.getOrNull() ?: "")
+        .put("err", err(ctx, r)).put("style", style).put("locked", r.launcher.lockCustom).put("pages", pages)
+        .put("safeUntil", safeUntil(ctx).takeIf { it > System.currentTimeMillis() } ?: 0)
+}

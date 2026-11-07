@@ -43,7 +43,7 @@ object Policy {
 
     /** Restrictions + self-protection + the permissions the guard needs. Safe to call again and again. */
     fun apply(ctx: Context, r: Rules) {
-        if (!isOwner(ctx)) return
+        if (!isOwner(ctx)) { runCatching { LauncherSafe.off(ctx, goHome = true) }; return }
         val d = dpm(ctx); val a = admin(ctx)
         runCatching {
             BASE.forEach { d.addUserRestriction(a, it) }
@@ -71,6 +71,7 @@ object Policy {
         for (p in perms) runCatching {
             d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
         }.onFailure { Log.w(TAG, "grant $p", it) }
+        runCatching { LauncherSafe.apply(ctx, r) }.onFailure { Log.w(TAG, "launcher", it) }   // v0.9.9 kid launcher (HOME)
     }
 
     /** v0.9.7: friendly support messages (+ the parent's note) and the lock-screen owner info ("" clears it). */
@@ -376,6 +377,8 @@ object Policy {
         runCatching { d.setLongSupportMessage(a, null) }
         runCatching { d.setDeviceOwnerLockScreenInfo(a, null) }
         removeAccEntry(ctx)
+        // kid launcher: our persistent HOME goes and the component is disabled before Device Owner does (else HOME stays ours)
+        runCatching { LauncherSafe.off(ctx, goHome = true) }.onFailure { Log.w(TAG, "launcher off", it) }
         // the mic was granted by us, not by the child: take it back and hand the switch to the user
         // the other grants (location, notifications) stay granted but the user can change them again
         for (p in listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, "android.permission.ACCESS_BACKGROUND_LOCATION",
@@ -412,6 +415,7 @@ object Policy {
         }
         s.suspendedByUs = emptySet()
         removeAccEntry(ctx)
+        runCatching { LauncherSafe.off(ctx, goHome = true) }   // only owner mode can turn it on, but never leave it behind
         runCatching { Acc.running?.disableSelf() }
         s.clearTokens()
         Quick.setEnabled(ctx, false)   // lock tile / widget / shortcuts: nothing left to lock with

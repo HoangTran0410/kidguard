@@ -167,6 +167,7 @@ data class Rules(
     val lockMsg: String = "",                // v0.9.7 lock-screen owner info (owner only), Notes.MSG_MAX
     val lockContact: String = "",
     val blockNote: String = "",              // v0.9.7 parent note on the block message, Notes.NOTE_MAX
+    val launcher: LauncherRule = LauncherRule(), // v0.9.9 kid launcher (HomeActivity), owner only
 ) {
     /** [persist] = true also writes pinHash/pinSalt (only for this phone's own storage). The default is safe to send to a parent: it has `pinSet` only. */
     fun toJson(persist: Boolean = false): JSONObject = JSONObject()
@@ -190,6 +191,7 @@ data class Rules(
         .put("groups", JSONArray().apply { groups.forEach { put(it.toJson()) } }).put("unlockMin", unlockMin)
         .put("windDown", JSONObject().put("gray", windGray).put("min", windMin).put("nudge", windNudge))
         .put("lockInfo", JSONObject().put("msg", lockMsg).put("contact", lockContact)).put("blockNote", blockNote)
+        .put("launcher", launcher.toJson())
         .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
 
     /** True when [pin] matches the stored hash (legacy or salted). False when no PIN is set. */
@@ -255,6 +257,7 @@ data class Rules(
                 lockMsg = Notes.clean(o.optJSONObject("lockInfo")?.optString("msg", "") ?: "", Notes.MSG_MAX),
                 lockContact = Notes.clean(o.optJSONObject("lockInfo")?.optString("contact", "") ?: "", Notes.MSG_MAX),
                 blockNote = Notes.clean(o.optString("blockNote", ""), Notes.NOTE_MAX),
+                launcher = LauncherRule.fromJson(o.optJSONObject("launcher")),
                 blockNew = o.optBoolean("blockNew", false),
                 approved = o.optJSONArray("approved").strings(),
                 lockLocation = o.optBoolean("lockLocation", true),

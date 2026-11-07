@@ -55,6 +55,8 @@ class ResTr(private val ctx: Context) : Tr {
         T.diff_watch_off -> R.string.diff_watch_off
         T.diff_pin -> R.string.diff_pin
         T.diff_other -> R.string.diff_other
+        T.diff_launcher -> R.string.diff_launcher
+        T.diff_launcher_off -> R.string.diff_launcher_off
         T.warn_d1 -> R.string.warn_d1
         T.warn_d5 -> R.string.warn_d5
         T.warn_bed -> R.string.warn_bed

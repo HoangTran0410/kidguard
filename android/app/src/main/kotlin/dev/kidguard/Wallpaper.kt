@@ -1,0 +1,97 @@
+package dev.kidguard
+
+import android.graphics.Bitmap
+import android.graphics.BlurMaskFilter
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RadialGradient
+import android.graphics.Rect
+import android.graphics.RectF
+import android.graphics.Shader
+
+/**
+ * The built-in wallpapers (no image files: drawn in a 412 x 915 design space, scaled to the screen, cropped to fill).
+ * [sample] gives the downsampled pixels of a screen region for HomeStyle.ink (adaptive text colour).
+ */
+object Wallpaper {
+    private const val W = 412f
+    private const val H = 915f
+
+    fun draw(id: String, w: Int, h: Int): Bitmap {
+        val bmp = Bitmap.createBitmap(w.coerceAtLeast(1), h.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        val s = maxOf(w / W, h / H)
+        c.translate((w - W * s) / 2, (h - H * s) / 2); c.scale(s, s)
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        fun col(x: String) = Color.parseColor(x)
+        fun lin(vararg stops: Pair<Float, String>) { p.shader = LinearGradient(0f, 0f, 0f, H, stops.map { col(it.second) }.toIntArray(), stops.map { it.first }.toFloatArray(), Shader.TileMode.CLAMP); c.drawRect(0f, 0f, W, H, p); p.shader = null }
+        fun oval(cx: Float, cy: Float, rx: Float, ry: Float, color: String, a: Float = 1f) { p.color = col(color); p.alpha = (a * 255).toInt(); c.drawOval(RectF(cx - rx, cy - ry, cx + rx, cy + ry), p); p.alpha = 255 }
+        fun stars(n: Int, seed: Int) {
+            val rnd = java.util.Random(seed.toLong())
+            p.color = Color.WHITE
+            repeat(n) { p.alpha = (90 + rnd.nextInt(150)); c.drawCircle(rnd.nextFloat() * W, rnd.nextFloat() * H * 0.7f, 0.6f + rnd.nextFloat() * 1.3f, p) }
+            p.alpha = 255
+        }
+        fun wave(y0: Float, c1x: Float, c1y: Float, c2x: Float, c2y: Float, y1: Float, color: String, a: Float) {
+            val path = Path().apply { moveTo(0f, y0); cubicTo(c1x, c1y, c2x, c2y, W, y1); lineTo(W, H); lineTo(0f, H); close() }
+            p.color = col(color); p.alpha = (a * 255).toInt(); c.drawPath(path, p); p.alpha = 255
+        }
+        when (id) {
+            "sky" -> {
+                lin(0f to "#7dd3fc", 0.75f to "#e0f2fe")
+                p.color = col("#fde047"); c.drawCircle(340f, 120f, 38f, p)
+                for ((x, y, rx, ry) in listOf(listOf(90f, 215f, 62f, 22f), listOf(128f, 198f, 40f, 26f), listOf(320f, 430f, 72f, 24f), listOf(292f, 414f, 38f, 24f), listOf(80f, 610f, 56f, 18f)))
+                    oval(x, y, rx, ry, "#ffffff", 0.95f)
+                oval(90f, 960f, 330f, 210f, "#86efac"); oval(390f, 990f, 300f, 230f, "#4ade80")
+            }
+            "night" -> {
+                lin(0f to "#0b1026", 1f to "#312e81")
+                stars(70, 7)
+                p.color = col("#fef9c3"); c.drawCircle(330f, 130f, 34f, p)
+                p.color = col("#0e1430"); c.drawCircle(345f, 120f, 30f, p)
+                oval(80f, 980f, 320f, 200f, "#1e1b4b"); oval(380f, 1000f, 300f, 220f, "#172554")
+            }
+            "sunset" -> {
+                lin(0f to "#fbcfe8", 0.5f to "#fed7aa", 1f to "#fef3c7")
+                wave(520f, 120f, 470f, 260f, 590f, 520f, "#fda4af", 0.55f)
+                wave(640f, 140f, 590f, 250f, 700f, 630f, "#f9a8d4", 0.55f)
+                wave(760f, 120f, 720f, 280f, 800f, 750f, "#c4b5fd", 0.6f)
+            }
+            "aurora" -> {
+                p.color = col("#020617"); c.drawRect(0f, 0f, W, H, p)
+                p.maskFilter = BlurMaskFilter(45f, BlurMaskFilter.Blur.NORMAL)
+                oval(90f, 230f, 160f, 90f, "#10b981", 0.6f); oval(320f, 360f, 170f, 100f, "#8b5cf6", 0.65f); oval(160f, 660f, 190f, 110f, "#0ea5e9", 0.45f)
+                p.maskFilter = null
+                stars(30, 3)
+            }
+            else -> {   // graphite
+                p.shader = RadialGradient(W * 0.8f, H * 0.15f, H * 0.9f, col("#334155"), col("#0b0f17"), Shader.TileMode.CLAMP)
+                c.drawRect(0f, 0f, W, H, p); p.shader = null
+                p.color = Color.WHITE; p.alpha = 9; p.strokeWidth = 6f
+                c.save(); c.rotate(35f, W / 2, H / 2)
+                var x = -H; while (x < W + H) { c.drawLine(x, -H, x, 2 * H, p); x += 14f }
+                c.restore(); p.alpha = 255
+            }
+        }
+        return bmp
+    }
+
+    /** Dark wallpapers want light status bar icons. */
+    fun isDark(id: String) = id in setOf("night", "aurora", "graphite")
+
+    /** Pixels of [r] (screen coords, clipped) scaled down to at most [n] x [n], for HomeStyle.ink. */
+    fun sample(bmp: Bitmap, r: Rect, n: Int = 24): IntArray {
+        val x = r.left.coerceIn(0, bmp.width - 1); val y = r.top.coerceIn(0, bmp.height - 1)
+        val w = (r.right.coerceAtMost(bmp.width) - x).coerceAtLeast(1); val h = (r.bottom.coerceAtMost(bmp.height) - y).coerceAtLeast(1)
+        val sub = Bitmap.createBitmap(bmp, x, y, w, h)
+        val sw = minOf(n, w); val sh = minOf(n, h)
+        val small = Bitmap.createScaledBitmap(sub, sw, sh, true)
+        val out = IntArray(sw * sh); small.getPixels(out, 0, sw, 0, 0, sw, sh)
+        if (small !== sub) small.recycle()
+        if (sub !== bmp) sub.recycle()
+        return out
+    }
+}

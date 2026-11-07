@@ -81,6 +81,7 @@ object Events {
         if (o.lockLocation != n.lockLocation) p += tr.s(if (n.lockLocation) T.diff_lockloc else T.diff_lockloc_off)
         if (o.autoUpdate != n.autoUpdate) p += tr.s(if (n.autoUpdate) T.diff_autoupd else T.diff_autoupd_off)
         if (o.showWatching != n.showWatching) p += tr.s(if (n.showWatching) T.diff_watch else T.diff_watch_off)
+        if (o.launcher.on != n.launcher.on) p += tr.s(if (n.launcher.on) T.diff_launcher else T.diff_launcher_off)
         if (o.pinHash != n.pinHash) p += tr.s(T.diff_pin)
         if (p.isEmpty()) p += tr.s(T.diff_other)
         val s = tr.s(T.diff_head, p.joinToString("; "))

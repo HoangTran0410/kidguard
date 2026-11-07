@@ -21,6 +21,7 @@ class RulesJsonTest {
         chores = listOf(Chore("c1", "Rửa bát", 20), Chore("c-2", "Dọn phòng", 45)),
         zones = listOf(Zone("z1", "Nhà", 21.03, 105.85, 150), Zone("z2", "Trường", 21.0, 105.8, 2000)),
         hidden = setOf("com.heytap.market", "com.facebook.katana"),
+        launcher = LauncherRule(on = true, settings = true, notes = false, lockCustom = true, style = "be"),
     )
 
     @Test fun roundTripPersist() = assertEquals(rich, Rules.fromJson(rich.toJson(persist = true)))
@@ -51,6 +52,11 @@ class RulesJsonTest {
             "zones":[{"id":"z","name":"N","lat":1,"lng":2,"r":50},{"id":"y","name":"N","lat":1,"lng":2,"r":49},{"id":"x","name":"N","lat":91,"lng":2,"r":100},
             {"id":"w","name":"N","lat":1,"lng":2,"r":2001},{"id":"v","name":"N","lat":1,"r":100}]}"""))
         assertEquals(listOf("ok"), r.chores.map { it.id }); assertEquals(listOf("z"), r.zones.map { it.id })
+    }
+
+    @Test fun launcherMissingIsOffAndBadStyleDropped() {
+        assertEquals(LauncherRule(), Rules.fromJson(JSONObject("{}")).launcher)
+        assertEquals(LauncherRule(on = true), Rules.fromJson(JSONObject("""{"launcher":{"on":true,"style":"neon"}}""")).launcher)
     }
 
     @Test fun choreAndZoneLimits() {
