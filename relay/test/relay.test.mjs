@@ -1,4 +1,7 @@
 // run: npx wrangler dev --port $PORT (default 8793), then: PORT=8793 node test/relay.test.mjs
+// A request that gets no answer in 30 s is retried once and reported (wrangler dev locally, and CI, sometimes leave one
+// request unanswered for minutes; seen at the "wrong token frame GET" check). Bodies are re-sendable strings/buffers here.
+{const f0=globalThis.fetch;globalThis.fetch=async(u,o={})=>{if(o.signal)return f0(u,o);try{return await f0(u,{...o,signal:AbortSignal.timeout(30000)});}catch(e){if(e.name!=="TimeoutError")throw e;console.log("RETRY (no answer in 30 s):",(o.method||"GET"),String(u).replace(/^https?:\/\/[^/]+/,""));return f0(u,{...o,signal:AbortSignal.timeout(30000)});}};}
 const B="http://localhost:"+(process.env.PORT||8793), id="a1b2c3d4e5f60718", T="ab".repeat(24), BAD="cd".repeat(24);
 let pass=0,fail=0; const ck=(n,c)=>{console.log(c?"PASS":"FAIL",n);c?pass++:fail++};
 const H=(t=T,x={})=>({"x-kg-token":t,...x});

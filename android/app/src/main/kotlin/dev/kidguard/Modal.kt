@@ -64,7 +64,16 @@ class Modal(private val act: Activity, private val u: Ui = Ui(act)) {
         box.addView(u.label(title, 20f, u.text, true).apply { gravity = Gravity.CENTER })
         if (!message.isNullOrBlank()) box.addView(u.label(message, 15f, u.sub).apply { gravity = Gravity.CENTER; setLineSpacing(0f, 1.15f) },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(8) })
-        if (content != null) box.addView(content, LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(16) })
+        if (content != null) {
+            // long scrolling content (log, rules) is capped so the buttons below always stay on screen
+            val v = if (content is android.widget.ScrollView) object : android.widget.FrameLayout(act) {
+                override fun onMeasure(w: Int, h: Int) {
+                    val cap = (act.resources.displayMetrics.heightPixels * 0.5f).toInt()
+                    super.onMeasure(w, View.MeasureSpec.makeMeasureSpec(cap, View.MeasureSpec.AT_MOST))
+                }
+            }.apply { addView(content) } else content
+            box.addView(v, LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(16) })
+        }
         box.addView(error, LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(10) })
 
         val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL }

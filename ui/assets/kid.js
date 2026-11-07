@@ -155,7 +155,8 @@ const LOG_IC = { pin_wrong: ["key-round", "bad"], unlock: ["lock-open"], paired:
   release_fail: ["octagon-x", "bad"], released: ["unlink", "bad"], sos: ["siren", "bad"], acc_settings: ["triangle-alert", "bad"],
   acc_rebind: ["refresh-cw"], acc_reenabled: ["refresh-cw"], view_start: ["eye"], control: ["pointer"], proj_denied: ["eye-off", "bad"],
   listen_start: ["ear"], listen_done: ["ear"], listen_err: ["ear", "bad"], ring_stopped: ["bell"], dns_fallback: ["wifi-off", "bad"],
-  admin_open: ["settings"], checkin: ["hand"], rules: ["list"] };
+  admin_open: ["settings"], checkin: ["hand"], rules: ["list"], dev_off: ["settings"],
+  setting_vol: ["sliders-horizontal"], setting_bright: ["sliders-horizontal"], setting_auto_on: ["sliders-horizontal"], setting_auto_off: ["sliders-horizontal"], setting_timeout: ["sliders-horizontal"], setting_dnd_on: ["sliders-horizontal"], setting_dnd_off: ["sliders-horizontal"] };
 const logRow = l => { const [i, tone] = LOG_IC[l.k] || ["circle"];
   return `<div class="lgr${tone ? " " + tone : ""}"><span class="lgi">${ic(i)}</span><span class="sp" style="min-width:0;overflow-wrap:anywhere">${esc(logTr(noEmoji(String(l.m || ""))))}</span><span class="mute lgt">${hhmm(l.t)}</span></div>`; };
 // newest first, one heading per day (Hôm nay / Hôm qua / 5 thg 11)

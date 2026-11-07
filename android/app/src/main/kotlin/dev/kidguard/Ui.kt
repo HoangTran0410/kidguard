@@ -16,7 +16,7 @@ import android.widget.TextView
 /** Small view helpers + palette (follows the system light/dark setting) for the child screen. */
 class Ui(val ctx: Context, pal: Palette? = null) {
     // [pal]: the kid launcher's palette (its accent and its own light / dark), so its modals and sheets match it
-    val dark = pal?.dark ?: ((ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES)
+    val dark = pal?.dark ?: isDark(ctx)
     val bg = pal?.bg ?: Color.parseColor(if (dark) "#0f172a" else "#f3f6fb")
     val card = pal?.sheet ?: Color.parseColor(if (dark) "#1e293b" else "#ffffff")
     val stroke = pal?.stroke ?: Color.parseColor(if (dark) "#334155" else "#e2e8f0")
@@ -26,6 +26,15 @@ class Ui(val ctx: Context, pal: Palette? = null) {
     val accent = pal?.accentText ?: Color.parseColor(if (dark) "#93c5fd" else "#2563eb")
     val tint = pal?.tint ?: Color.parseColor(if (dark) "#1e3a8a" else "#dbeafe")
     val onPrimary = pal?.onSolid ?: Color.WHITE
+
+    companion object {
+        /** Light / dark for every KidGuard screen: the launcher's "Giao diện" choice (Tuỳ chỉnh) when the kid made one,
+         *  else the system setting. One choice, so the app and the launcher never disagree (Android 8–9 have no system dark). */
+        fun isDark(ctx: Context): Boolean {
+            val sys = (ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+            return when (runCatching { HomeFile.load(ctx)?.style?.theme }.getOrNull()) { "dark" -> true; "light" -> false; else -> sys }
+        }
+    }
 
     fun dp(v: Int) = (v * ctx.resources.displayMetrics.density).toInt()
     fun dpf(v: Int) = v * ctx.resources.displayMetrics.density

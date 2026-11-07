@@ -414,6 +414,7 @@
     <string name="home_sec_kid">Của con</string>
     <string name="home_sec_parent">Bố mẹ</string>
     <string name="home_sec_device">Máy &amp; cài đặt</string>
+    <string name="log_yesterday">Hôm qua</string>
     <string name="home_today">Hôm nay</string>
     <string name="home_left">Hôm nay còn</string>
     <string name="home_bed">Giờ đi ngủ %1$s – %2$s</string>

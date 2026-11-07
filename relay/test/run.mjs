@@ -52,4 +52,4 @@ for (let i = 0; i < 120 && !up; i++) {
 if (!up) { console.error("wrangler dev did not start:\n" + log.slice(-2000)); process.exit(1); }
 
 const t = spawn(process.execPath, ["test/relay.test.mjs"], { stdio: "inherit", env: { ...process.env, PORT, MOCK: String(MOCK) } });
-t.on("exit", code => process.exit(code ?? 1));
+t.on("exit", code => { if (code) console.error("--- wrangler dev log (last 3000 chars) ---\n" + log.slice(-3000)); process.exit(code ?? 1); });

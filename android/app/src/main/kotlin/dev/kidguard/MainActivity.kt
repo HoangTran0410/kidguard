@@ -477,6 +477,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        if (Ui.isDark(this) != ui2.dark) { recreate(); return }   // light / dark changed in the launcher's Tuỳ chỉnh
         launched = false   // back from a screen we opened (see onStop)
         holding = null; holdBase.forEach { (b, t) -> b.text = t }   // a hint left over from before the pause
         refresh()
@@ -665,18 +666,57 @@ class MainActivity : Activity() {
         Modal(this, ui2).show(R.drawable.li_shield, Modal.Tone.INFO, getString(R.string.main_my_rules), getString(R.string.r_sub), ScrollView(this).apply { addView(box) }, ok = getString(R.string.close))
     }
 
-    /** The last 20 log lines: what the parent changed and what the guard did. */
+    /** The last 20 log lines, newest first, one heading per day, an icon per kind (`k`, same map as the web's LOG_IC). */
     private fun showLog() {
         val a = Store.of(this).logs()
-        val fmt = java.text.SimpleDateFormat("dd/MM HH:mm", java.util.Locale.US)
+        val u = ui2
+        val bad = Color.parseColor(if (u.dark) "#f87171" else "#dc2626")
+        val hm = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US)
+        val dayFmt = java.text.SimpleDateFormat("d/M", java.util.Locale.US)
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        if (a.length() == 0) box.addView(ui2.label(getString(R.string.log_empty), 15f, ui2.sub))
+        if (a.length() == 0) box.addView(u.label(getString(R.string.log_empty), 15f, u.sub))
+        val today = Usage.midnightAgo(0); val yest = Usage.midnightAgo(1)
+        var lastDay = -1L
         for (i in a.length() - 1 downTo maxOf(0, a.length() - 20)) {
             val o = a.optJSONObject(i) ?: continue
-            box.addView(ui2.label("${fmt.format(java.util.Date(o.optLong("t")))}  ${o.optString("m")}", 14f, ui2.text).apply { setPadding(0, dp(4), 0, dp(4)) })
+            val t = o.optLong("t")
+            val day = if (t >= today) today else if (t >= yest) yest else java.util.Calendar.getInstance().apply { timeInMillis = t; set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0) }.timeInMillis
+            if (day != lastDay) {
+                lastDay = day
+                box.addView(u.label(when (day) { today -> getString(R.string.home_today); yest -> getString(R.string.log_yesterday); else -> dayFmt.format(java.util.Date(t)) },
+                    13f, u.sub, true).apply { setPadding(0, dp(if (box.childCount == 0) 0 else 12), 0, dp(4)) })
+            }
+            val (icon, isBad) = LOG_IC[o.optString("k")] ?: (R.drawable.li_circle to false)
+            val c = if (isBad) bad else u.accent
+            box.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(5), 0, dp(5))
+                addView(android.widget.ImageView(context).apply {
+                    background = u.shape(Color.argb(if (u.dark) 55 else 30, Color.red(c), Color.green(c), Color.blue(c)), 10)
+                    scaleType = android.widget.ImageView.ScaleType.CENTER; setImageDrawable(Ic.get(context, icon, c, dp(16)))
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                }, LinearLayout.LayoutParams(dp(30), dp(30)))
+                addView(u.label(noEmoji(o.optString("m")), 14f, u.text), LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(10); marginEnd = dp(8) })
+                addView(u.label(hm.format(java.util.Date(t)), 12f, u.sub))
+            })
         }
-        Modal(this, ui2).show(R.drawable.li_shield, Modal.Tone.INFO, getString(R.string.log_title), getString(R.string.log_sub), ScrollView(this).apply { addView(box) }, ok = getString(R.string.close))
+        Modal(this, u).show(R.drawable.li_scroll_text, Modal.Tone.INFO, getString(R.string.log_title), getString(R.string.log_sub), ScrollView(this).apply { addView(box) }, ok = getString(R.string.close))
     }
+
+    private val LOG_IC: Map<String, Pair<Int, Boolean>> = mapOf(
+        "pin_wrong" to (R.drawable.li_key_round to true), "unlock" to (R.drawable.li_lock_open to false), "paired" to (R.drawable.li_link to false),
+        "tz" to (R.drawable.li_globe to false), "loc_fixed" to (R.drawable.li_map_pin to false), "usage_off" to (R.drawable.li_triangle_alert to true),
+        "new_app" to (R.drawable.li_package to false), "suspended" to (R.drawable.li_pause to false), "unsuspended" to (R.drawable.li_play to false),
+        "recover_open" to (R.drawable.li_refresh_cw to false), "recover_req" to (R.drawable.li_refresh_cw to false), "zone" to (R.drawable.li_map_pin to false),
+        "cmd" to (R.drawable.li_send to false), "cleared" to (R.drawable.li_eraser to false), "totp_off" to (R.drawable.li_shield to true),
+        "totp_on" to (R.drawable.li_shield to false), "release_fail" to (R.drawable.li_octagon_x to true), "released" to (R.drawable.li_unlink to true),
+        "sos" to (R.drawable.li_siren to true), "acc_settings" to (R.drawable.li_triangle_alert to true), "acc_rebind" to (R.drawable.li_refresh_cw to false),
+        "acc_reenabled" to (R.drawable.li_refresh_cw to false), "view_start" to (R.drawable.li_eye to false), "control" to (R.drawable.li_pointer to false),
+        "proj_denied" to (R.drawable.li_eye_off to true), "listen_start" to (R.drawable.li_ear to false), "listen_done" to (R.drawable.li_ear to false),
+        "listen_err" to (R.drawable.li_ear to true), "ring_stopped" to (R.drawable.li_bell to false), "dns_fallback" to (R.drawable.li_wifi_off to true),
+        "admin_open" to (R.drawable.li_settings to false), "checkin" to (R.drawable.li_hand to false), "rules" to (R.drawable.li_list to false),
+        "dev_off" to (R.drawable.li_settings to false)) + listOf("setting_vol", "setting_bright", "setting_auto_on", "setting_auto_off", "setting_timeout", "setting_dnd_on", "setting_dnd_off").associateWith { R.drawable.li_sliders_horizontal to false }
+
+    private fun noEmoji(s: String) = s.replace(Regex("[\\p{So}\\p{Cs}\\uFE0F\\u200D]"), "").trimStart()
 
     /**
      * v0.9.7 status + check-in labels. Lines: grayscale on (wind-down), the parent's note while something is locked.

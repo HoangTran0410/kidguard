@@ -40,6 +40,8 @@ class CustomActivity : Activity() {
     private lateinit var k: HomeKit
     private lateinit var pal: Palette
     private lateinit var scroll: ScrollView
+    private var wallX = 0                                  // the wallpaper row's own scroll, kept across rebuilds
+    private val thumbs = HashMap<String, Bitmap>()         // built-in wallpaper tiles, drawn once
     private var undo: HomeModel? = null
     private var busy = false
     private val locked get() = Store.of(this).rules.launcher.lockCustom
@@ -71,8 +73,12 @@ class CustomActivity : Activity() {
         window.statusBarColor = pal.bg; window.navigationBarColor = pal.bg
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = if (dark) 0 else (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or if (Build.VERSION.SDK_INT >= 26) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
-        val keepY = if (::scroll.isInitialized) scroll.scrollY else 0
-        scroll = ScrollView(this).apply { setBackgroundColor(pal.bg); isVerticalScrollBarEnabled = false }
+        // One ScrollView for the activity's life: a rebuild swaps only its content, so the page never jumps back to the
+        // top for a frame (the old setContentView + post(scrollTo) flashed on every tap, e.g. picking a wallpaper).
+        val first = !::scroll.isInitialized
+        if (first) scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
+        scroll.setBackgroundColor(pal.bg)
+        scroll.removeAllViews()
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(8), dp(16), dp(28)) }
         scroll.addView(col)
         // header: back + title
@@ -112,7 +118,11 @@ class CustomActivity : Activity() {
         }
 
         section(col, R.string.hm_c_wall)
-        val ws = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; clipToPadding = false }
+        val ws = object : HorizontalScrollView(this) {
+            private var placed = false
+            override fun onScrollChanged(l: Int, t: Int, ol: Int, ot: Int) { super.onScrollChanged(l, t, ol, ot); if (placed) wallX = l }
+            override fun onLayout(ch: Boolean, l: Int, t: Int, r: Int, b: Int) { super.onLayout(ch, l, t, r, b); if (!placed) { placed = true; scrollTo(wallX, 0) } }   // before the first draw
+        }.apply { isHorizontalScrollBarEnabled = false; clipToPadding = false }
         val wr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         wr.addView(pickTile(st.wallKind == "photo"), LinearLayout.LayoutParams(dp(64), dp(112)))
         val cur = if (st.wallKind == "photo") "" else st.wall.ifEmpty { if (dark) preset.wallDark else preset.wallLight }
@@ -139,8 +149,7 @@ class CustomActivity : Activity() {
         if (!locked) col.addView(note(s(R.string.hm_c_lock_hint), false), lp(14))
         col.addView(k.pill(s(R.string.hm_c_reset), R.drawable.li_rotate_ccw, false) { if (guard()) applyPreset(HomeStyle.preset(st.preset)) },
             LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(12) })
-        setContentView(scroll)
-        scroll.post { scroll.scrollTo(0, keepY) }
+        if (first) setContentView(scroll)   // else: scrollY is untouched by removeAllViews and clamped on the next layout
     }
 
     // ---- model edits ----
@@ -282,7 +291,7 @@ class CustomActivity : Activity() {
     }
 
     private fun wallTile(id: String, sel: Boolean) = FrameLayout(this).apply {
-        val bmp = Wallpaper.draw(id, dp(64), dp(112))
+        val bmp = thumbs.getOrPut(id) { Wallpaper.draw(id, dp(64), dp(112)) }
         addView(object : View(context) {
             override fun onDraw(c: Canvas) {
                 val path = android.graphics.Path().apply { addRoundRect(RectF(0f, 0f, width.toFloat(), height.toFloat()), k.dpf(14f), k.dpf(14f), android.graphics.Path.Direction.CW) }

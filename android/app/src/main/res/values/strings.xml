@@ -428,6 +428,7 @@
     <string name="home_sec_kid">For you</string>
     <string name="home_sec_parent">For parents</string>
     <string name="home_sec_device">Phone &amp; setup</string>
+    <string name="log_yesterday">Yesterday</string>
     <string name="home_today">Today</string>
     <string name="home_left">Left today</string>
     <string name="home_bed">Bedtime %1$s – %2$s</string>
