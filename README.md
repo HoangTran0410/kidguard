@@ -35,7 +35,7 @@
 </tr>
 </table>
 
-KidGuard becomes the phone's **Device Owner**, the same Android role a company uses for work phones. That is what lets it lock apps, keep location on and stop itself from being removed, with no root. The parent page (in Vietnamese for now) is plain HTML served by the phone itself; nothing goes to a cloud unless you turn on [Away from home](#away-from-home).
+KidGuard becomes the phone's **Device Owner**, the same Android role a company uses for work phones. That is what lets it lock apps, keep location on and stop itself from being removed, with no root. The parent page (English or Vietnamese) is plain HTML served by the phone itself; nothing goes to a cloud unless you turn on [Away from home](#away-from-home).
 
 > **Also by the author:** [TV Remote](https://github.com/HoangTran0410/tv-remote) controls an Android TV / TV box from your phone or any browser: remote, the TV's picture, kids' time limits and bedtime, ad-free home screen. No cloud, no sign-up. [tvremote.pages.dev](https://tvremote.pages.dev/?lang=en)
 
@@ -43,11 +43,11 @@ KidGuard becomes the phone's **Device Owner**, the same Android role a company u
 
 | You need | Where |
 |---|---|
-| The app for the child's phone | [kidguard.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.4/kidguard-0.9.4.apk) |
+| The app for the child's phone | [kidguard.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.5/kidguard-0.9.5.apk) |
 | QR code for a new or factory-reset phone | [kidguard.99-hoangtran.workers.dev/qr](https://kidguard.99-hoangtran.workers.dev/qr) |
 | Install from a computer's browser (USB, no adb) | [kidguard.99-hoangtran.workers.dev/install](https://kidguard.99-hoangtran.workers.dev/install) |
 | The parent page | the phone shows its address after setup: `http://<phone IP>:8770` |
-| The parent app (Android, optional) | [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.4/kidguard-parent-0.9.4.apk) |
+| The parent app (Android, optional) | [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.5/kidguard-parent-0.9.5.apk) |
 
 ## Install
 
@@ -70,7 +70,7 @@ when you can; a basic phone can be switched later with any of the ways above.
 Then the child's phone shows a **6-digit code** and a **QR code**. On the parent's phone (same Wi-Fi) scan the QR with the camera (it opens the page with the code filled in), or open `http://<phone IP>:8770` and type the code, and in **Cài đặt** (Settings) set a **parent PIN** (without it the phone refuses to pair another browser).
 
 **Parent app (Android, optional).** The browser is enough, but the app adds notifications (SOS, time requests, accessibility
-turned off) and shows the last data when the child's phone is offline. Install [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.4/kidguard-parent-0.9.4.apk) on the
+turned off) and shows the last data when the child's phone is offline. Install [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.5/kidguard-parent-0.9.5.apk) on the
 parent's phone, open it, tap **Thêm máy của con** (add the child's phone), type the address shown on the child's phone and then
 the 6-digit code (away from home: paste the Worker link from the child's Settings). iPhone: use the browser ([below](#iphone--ipad)).
 
@@ -87,6 +87,7 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự k
 | 🧹 **Chores** | The parent lists chores ("Wash the dishes +20 min"); the child picks one when asking for time. The parent approves, optionally with a note the child sees |
 | 🗂️ **App groups** | Put apps in a group ("Games", "Social") with one shared daily limit, and/or hours when they may be used ("YouTube only 19:00–20:00": a group of one app) |
 | 🔑 **Unlock code (Google Authenticator)** | Works with no network on either phone: the parent reads 6 digits from Google Authenticator, the child types them and gets 15–120 min free of limits (fully blocked apps stay blocked). Each code works once; the parent gets an event |
+| 🌐 **Languages** | English and Vietnamese in the parent page and both apps, with a language picker in each (no PIN needed on the child phone). Adding a language is one dictionary on the page plus one `values-xx` folder in the apps. |
 | ⚠️ **Heads-up before locking** | The child gets a notification 5 min and 1 min before the limit, bedtime or a schedule locks the phone |
 | 🧒 **Luật của con** | The child can see their own rules: time left, bedtime, schedules, allowed apps, zones, and whether location, screen view and listening are on. Plus a log of what the parents changed |
 | 📦 **Per app** | Normal, N minutes a day, Block, or Always allowed. **Select many** to change them at once |
