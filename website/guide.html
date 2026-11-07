@@ -34,7 +34,7 @@
 <span id="menu" class="menu-t" aria-hidden="true"></span>
 <header>
   <div class="wrap">
-    <a class="brand" href="./"><img src="img/icon.svg?v=53fa2372eb" width="26" height="26" alt="">KidGuard <small><span class="ver">v0.9.6</span></small></a>
+    <a class="brand" href="./"><img src="img/icon.svg?v=53fa2372eb" width="26" height="26" alt="">KidGuard <small><span class="ver">v0.9.7</span></small></a>
     <a class="burger open" href="#menu" aria-label="Mở menu"><i></i></a>
     <a class="burger shut" href="#_" aria-label="Đóng menu"><i></i></a>
     <nav aria-label="Menu">
@@ -93,6 +93,7 @@
   <div class="warnote">
     <p><b>Trước khi cài theo cách A–D:</b> Android chỉ cho app làm Device Owner khi máy <b>không có tài khoản nào</b> (Google, Samsung, Xiaomi…).</p>
     <p>Vào <b>Cài đặt → Tài khoản</b> trên máy con, xóa hết. Cài xong đăng nhập lại, mọi thứ quay về.</p>
+    <p><b>Giữ đăng nhập các app</b> <span class="tag weak">Beta</span> Android chỉ đếm tài khoản của app đang bật. Với <a href="#install-usb">cách C</a> (máy tính), thay vì xóa tài khoản Facebook, Messenger, OneDrive…, tắt tạm app đó: <code>adb shell pm disable-user --user 0 &lt;tên gói&gt;</code>, cài Device Owner, rồi bật lại: <code>adb shell pm enable &lt;tên gói&gt;</code>. App giữ nguyên đăng nhập. Tài khoản Google và Samsung vẫn phải xóa (app hệ thống, không tắt được an toàn). Xem tài khoản thuộc app nào: <code>adb shell dumpsys account</code>. Mới thử một phần (Galaxy A51, Android 13).</p>
   </div>
 
   <article id="install-phone">

@@ -605,6 +605,15 @@
     <string name="hm_w_added">%1$s added</string>
     <string name="hm_w_already">Already on the home screen: tap a size to resize it</string>
     <string name="hm_w_size">Size %1$d×%2$d</string>
+    <string name="hm_w_when">When can I play</string>
+    <string name="hm_w_when_d">Your day: school, bedtime, free time and how long is left</string>
+    <string name="hm_w_earn">Earn more time</string>
+    <string name="hm_w_earn_d">Do chores to get extra time</string>
+    <string name="hm_w_msg">From mum and dad</string>
+    <string name="hm_w_msg_d">The latest message your parents sent</string>
+    <string name="hm_w_class">Timetable</string>
+    <string name="hm_w_class_d">Today\'s classes and what to pack for tomorrow</string>
+    <string name="hm_w_apps_title">Widgets from other apps</string>
     <string name="hm_w_analog">Analog clock</string>
     <string name="hm_w_analog_d">A clock face with hands</string>
     <string name="hm_w_battery">Battery</string>

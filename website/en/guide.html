@@ -34,7 +34,7 @@
 <span id="menu" class="menu-t" aria-hidden="true"></span>
 <header>
   <div class="wrap">
-    <a class="brand" href="./"><img src="../img/icon.svg?v=53fa2372eb" width="26" height="26" alt="">KidGuard <small><span class="ver">v0.9.6</span></small></a>
+    <a class="brand" href="./"><img src="../img/icon.svg?v=53fa2372eb" width="26" height="26" alt="">KidGuard <small><span class="ver">v0.9.7</span></small></a>
     <a class="burger open" href="#menu" aria-label="Open menu"><i></i></a>
     <a class="burger shut" href="#_" aria-label="Close menu"><i></i></a>
     <nav aria-label="Menu">
@@ -93,6 +93,7 @@
   <div class="warnote">
     <p><b>Before ways A–D:</b> Android only lets an app become Device Owner while the phone has <b>no accounts</b> (Google, Samsung, Xiaomi…).</p>
     <p>On the child's phone open <b>Settings → Accounts</b> and remove them all. Sign back in after setup: everything comes back.</p>
+    <p><b>Keep apps signed in</b> <span class="tag weak">Beta</span> Android only counts accounts of enabled apps. With <a href="#install-usb">way C</a> (computer), instead of removing the Facebook, Messenger, OneDrive… accounts, disable those apps for a moment: <code>adb shell pm disable-user --user 0 &lt;package&gt;</code>, set up Device Owner, then turn them back on: <code>adb shell pm enable &lt;package&gt;</code>. The apps stay signed in. Google and Samsung accounts still have to be removed (system apps, not safe to disable). Which app owns which account: <code>adb shell dumpsys account</code>. Only partly tested (Galaxy A51, Android 13).</p>
   </div>
 
   <article id="install-phone">

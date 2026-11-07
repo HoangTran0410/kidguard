@@ -587,6 +587,15 @@
     <string name="hm_w_added">Đã thêm %1$s</string>
     <string name="hm_w_already">Đã có ở màn chính: bấm một cỡ để đổi cỡ</string>
     <string name="hm_w_size">Cỡ %1$d×%2$d</string>
+    <string name="hm_w_when">Khi nào được chơi</string>
+    <string name="hm_w_when_d">Cả ngày: giờ học, giờ ngủ, giờ được dùng và còn bao lâu</string>
+    <string name="hm_w_earn">Kiếm thêm giờ</string>
+    <string name="hm_w_earn_d">Làm việc nhà để được thêm giờ</string>
+    <string name="hm_w_msg">Lời nhắn bố mẹ</string>
+    <string name="hm_w_msg_d">Tin mới nhất bố mẹ gửi cho con</string>
+    <string name="hm_w_class">Thời khoá biểu</string>
+    <string name="hm_w_class_d">Môn học hôm nay và mai cần mang gì</string>
+    <string name="hm_w_apps_title">Tiện ích của ứng dụng khác</string>
     <string name="hm_w_analog">Đồng hồ kim</string>
     <string name="hm_w_analog_d">Mặt đồng hồ có kim</string>
     <string name="hm_w_battery">Pin</string>

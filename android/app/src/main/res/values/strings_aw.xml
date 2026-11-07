@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hm_aw_hidden">This app is hidden right now</string>
+    <string name="hm_aw_paused">This app is locked right now</string>
+    <string name="hm_aw_gone">App removed</string>
+    <string name="hm_aw_fail">Could not add this widget</string>
+</resources>

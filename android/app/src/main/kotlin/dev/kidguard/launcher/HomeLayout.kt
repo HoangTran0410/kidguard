@@ -10,6 +10,7 @@ import org.json.JSONObject
 data class HItem(
     val id: String, val kind: String, val x: Int, val y: Int, val w: Int = 1, val h: Int = 1,
     val pkg: String = "", val cls: String = "", val type: String = "", val name: String = "", val apps: List<String> = emptyList(),
+    val awid: Int = 0,                                       // type "app": the AppWidgetHost id of another app's widget
 ) {
     fun toJson(): JSONObject = JSONObject().put("id", id).put("kind", kind).put("x", x).put("y", y).also { o ->
         if (w != 1 || kind == "widget") o.put("w", w)
@@ -18,6 +19,7 @@ data class HItem(
         if (cls.isNotEmpty()) o.put("cls", cls)
         if (type.isNotEmpty()) o.put("type", type)
         if (kind == "folder") o.put("name", name).put("apps", JSONArray(apps))
+        if (awid != 0) o.put("awid", awid)
     }
     fun covers(cx: Int, cy: Int) = cx in x until x + w && cy in y until y + h
 }
@@ -54,11 +56,12 @@ data class HomeModel(
     val cols: Int, val rows: Int, val pages: List<List<HItem>>, val dock: List<String>, val style: HStyle,
     val seen: Set<String> = emptySet(),                      // apps placed once or removed by the kid: never auto-added again
     val notes: JSONArray = JSONArray(), val todo: JSONArray = JSONArray(),   // the -1 page's (part 2), kept as they are
+    val timetable: JSONObject = JSONObject(),                // "Thời khoá biểu" widget: {"1":[subject…],…,"7":[…]} (ISO weekday), kept as is
 ) {
     fun toJson(): JSONObject = JSONObject().put("v", 1).put("grid", JSONObject().put("cols", cols).put("rows", rows))
         .put("pages", JSONArray().apply { pages.forEach { p -> put(JSONObject().put("items", JSONArray().apply { p.forEach { put(it.toJson()) } })) } })
         .put("dock", JSONArray().apply { dock.forEach { put(JSONObject().put("pkg", it)) } })
-        .put("style", style.toJson()).put("seen", JSONArray(seen.sorted())).put("notes", notes).put("todo", todo)
+        .put("style", style.toJson()).put("seen", JSONArray(seen.sorted())).put("notes", notes).put("todo", todo).put("timetable", timetable)
 
     /** Packages on the grid (folders included) or in the dock. */
     fun onHome(): Set<String> = pages.flatten().flatMap { if (it.kind == "folder") it.apps else listOf(it.pkg) }.filter { it.isNotEmpty() }.toSet() +
@@ -73,8 +76,11 @@ object HomeLayout {
         "clock" to listOf(4 to 1, 4 to 2), "analog" to listOf(2 to 2), "month" to listOf(4 to 2, 2 to 2),
         "time" to listOf(2 to 1, 4 to 1), "next" to listOf(4 to 1), "quick" to listOf(4 to 1),
         "todo" to listOf(2 to 2, 4 to 2), "note" to listOf(2 to 2, 4 to 2), "counts" to listOf(2 to 2),
-        "usage" to listOf(4 to 1, 4 to 2), "battery" to listOf(2 to 1))
-    val WIDGETS = SIZES.keys
+        "usage" to listOf(4 to 1, 4 to 2), "battery" to listOf(2 to 1),
+        "when" to listOf(4 to 1, 4 to 2), "earn" to listOf(2 to 2, 4 to 2), "msg" to listOf(4 to 1, 2 to 2), "class" to listOf(4 to 2, 2 to 2))
+    /** Another app's widget (AppWidgetHost): kind "widget", type "app", pkg / cls = its provider, awid = the host id. Any size. */
+    const val APP = "app"
+    val WIDGETS = SIZES.keys + APP
     const val FOLDER_MAX = 20
     val KINDS = setOf("app", "widget", "folder")
 
@@ -195,9 +201,9 @@ object HomeLayout {
                 var it = HItem(j.optString("id").take(16).ifEmpty { "i$pi-$k" }, kind, j.optInt("x", -1), j.optInt("y", -1),
                     j.optInt("w", 1).coerceIn(1, 5), j.optInt("h", 1).coerceIn(1, 6),
                     j.optString("pkg").take(200), j.optString("cls").take(300), j.optString("type"), j.optString("name").take(40),
-                    j.optJSONArray("apps")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() } } ?: emptyList())
+                    j.optJSONArray("apps")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() } } ?: emptyList(), j.optInt("awid", 0))
                 when (kind) {
-                    "widget" -> { if (it.type !in WIDGETS) continue; it = it.copy(w = minOf(it.w, cols), h = minOf(it.h, rows), x = minOf(it.x, cols - minOf(it.w, cols))) }
+                    "widget" -> { if (it.type !in WIDGETS || (it.type == APP && (it.awid == 0 || it.pkg.isEmpty()))) continue; it = it.copy(w = minOf(it.w, cols), h = minOf(it.h, rows), x = minOf(it.x, cols - minOf(it.w, cols))) }
                     "app" -> { if (it.pkg.isEmpty() || !seenPkgs.add(it.pkg)) continue; it = it.copy(w = 1, h = 1) }
                     "folder" -> {
                         val apps = it.apps.filter { seenPkgs.add(it) }.distinct().take(FOLDER_MAX)
@@ -235,7 +241,7 @@ object HomeLayout {
         }
         val seen = o.optJSONArray("seen")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() } }?.toSet() ?: emptySet()
         return trimPages(HomeModel(cols, rows, pages, dock, style, seen + seenPkgs + dock.filter { it.isNotEmpty() && !it.startsWith("@") },
-            o.optJSONArray("notes") ?: JSONArray(), o.optJSONArray("todo") ?: JSONArray()))
+            o.optJSONArray("notes") ?: JSONArray(), o.optJSONArray("todo") ?: JSONArray(), o.optJSONObject("timetable") ?: JSONObject()))
     }
 
     /** SOS invariant: the phone is always in dock slot 1. */
@@ -385,6 +391,17 @@ object HomeLayout {
     /** A picker tap: the first free cells for a [w] x [h] widget, from [page] on, then the pages before, then a new page. */
     fun placeWidget(m: HomeModel, type: String, w: Int, h: Int, page: Int): HomeModel? {
         val t = take(m, Src.NewWidget(type, w, h)) ?: return null
+        val order = (page.coerceIn(0, m.pages.size - 1) until m.pages.size) + (0 until page.coerceIn(0, m.pages.size - 1))
+        for (pi in order) firstFree(m.pages[pi], m.cols, m.rows, t.item.w, t.item.h)?.let { (x, y) -> return dropCell(t, pi, x, y) }
+        return dropCell(t, m.pages.size, 0, 0)
+    }
+
+    /** Ids of the other apps' widgets (type app) in the model: the host deletes the ones that leave. */
+    fun appWidgetIds(m: HomeModel): Set<Int> = m.pages.flatten().filter { it.kind == "widget" && it.type == APP && it.awid != 0 }.map { it.awid }.toSet()
+
+    /** A picker tap for another app's widget: like [placeWidget], but the item carries the provider and the host id. */
+    fun placeAppWidget(m: HomeModel, pkg: String, cls: String, awid: Int, w: Int, h: Int, page: Int): HomeModel? {
+        val t = Taken(m, HItem(idFor(m, "w"), "widget", 0, 0, minOf(w, m.cols), minOf(h, m.rows), pkg = pkg, cls = cls, type = APP, awid = awid))
         val order = (page.coerceIn(0, m.pages.size - 1) until m.pages.size) + (0 until page.coerceIn(0, m.pages.size - 1))
         for (pi in order) firstFree(m.pages[pi], m.cols, m.rows, t.item.w, t.item.h)?.let { (x, y) -> return dropCell(t, pi, x, y) }
         return dropCell(t, m.pages.size, 0, 0)

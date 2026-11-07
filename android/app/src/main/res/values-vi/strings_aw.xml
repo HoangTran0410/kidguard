@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hm_aw_hidden">Ứng dụng này đang bị ẩn</string>
+    <string name="hm_aw_paused">Ứng dụng này đang bị khoá</string>
+    <string name="hm_aw_gone">Ứng dụng đã gỡ</string>
+    <string name="hm_aw_fail">Không thêm được tiện ích này</string>
+</resources>

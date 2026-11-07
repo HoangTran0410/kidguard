@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hm_wk_earn_empty">Bố mẹ chưa giao việc nào</string>
+    <string name="hm_wk_total">+%1$d phút</string>
+    <string name="hm_wk_done_btn">Xong · +%1$d phút</string>
+    <string name="hm_wk_today">Hôm nay</string>
+    <string name="hm_wk_tomorrow">Mai mang</string>
+    <string name="hm_wk_pack">Soạn cặp cho mai</string>
+    <string name="hm_wk_off">Hôm nay nghỉ</string>
+    <string name="hm_wk_off_tomorrow">Mai nghỉ</string>
+    <string name="hm_wk_class_empty">Bấm để nhập thời khoá biểu</string>
+    <string name="hm_wk_edit_title">Thời khoá biểu</string>
+    <string name="hm_wk_edit_hint">Bấm môn để sửa, giữ để xoá</string>
+    <string name="hm_wk_add">Thêm môn</string>
+    <string name="hm_wk_subject_hint">Tên môn (vd: Toán)</string>
+    <string name="hm_wk_edit_subject">Sửa môn</string>
+    <string name="hm_wk_remove">Xoá</string>
+    <string name="hm_wk_remove_desc">Xoá %1$s</string>
+    <string name="hm_wk_copy">Chép từ hôm trước</string>
+    <string name="hm_wk_full">Tối đa %1$d môn một ngày</string>
+    <string name="hm_wk_day_empty">Ngày này chưa có môn</string>
+    <string name="hm_wk_done">Xong</string>
+    <string name="hm_wk_d1">T2</string>
+    <string name="hm_wk_d2">T3</string>
+    <string name="hm_wk_d3">T4</string>
+    <string name="hm_wk_d4">T5</string>
+    <string name="hm_wk_d5">T6</string>
+    <string name="hm_wk_d6">T7</string>
+    <string name="hm_wk_d7">CN</string>
+</resources>

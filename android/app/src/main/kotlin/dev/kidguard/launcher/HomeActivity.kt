@@ -114,6 +114,8 @@ class HomeActivity : Activity() {
     internal var timeRx: BroadcastReceiver? = null
     internal var pkgRx: BroadcastReceiver? = null
     internal var lastView: View0? = null
+    internal val aw = AwState()                    // other apps' widgets (HomeAppWidgets.kt)
+    internal var lifecycleStarted = false
     internal var lastShow: Map<String, LauncherLogic.Show> = emptyMap()
 
     internal fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -208,7 +210,13 @@ class HomeActivity : Activity() {
         super.onPause()
     }
 
+    override fun onStart() { super.onStart(); lifecycleStarted = true; awStart() }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) { super.onActivityResult(requestCode, resultCode, data); awResult(requestCode, resultCode, data) }
+
     override fun onStop() {
+        lifecycleStarted = false; awStop()
         pkgRx?.let { runCatching { unregisterReceiver(it) } }; pkgRx = null
         super.onStop()
     }
@@ -308,6 +316,7 @@ class HomeActivity : Activity() {
         val dial = dialer()
         m = HomeLayout.appendNew(m, visible.map { it.pkg }.filter { it != dial })
         if (m != model) { HomeFile.save(this, m); model = m }
+        awSync(m)
         preset = HomeStyle.preset(m.style.preset)
         val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         dark = m.style.theme == "dark" || (m.style.theme == "auto" && night)
@@ -460,6 +469,11 @@ class HomeActivity : Activity() {
                         "todo" -> todoWidget(m, it.w, it.h)
                         "note" -> noteWidget(m, it.w, it.h)
                         "usage" -> usageWidget(dv, all, it.w, it.h)
+                        "when" -> whenWidget(r, dv, block, it.w, it.h)
+                        "msg" -> msgWidget(s, it.w, it.h)
+                        "earn" -> earnWidget(r, s, it.w, it.h)
+                        "class" -> classWidget(m, dv, it.w, it.h)
+                        HomeLayout.APP -> appWidget(it, show)
                         else -> null
                     }?.also { v -> armWidget(v, it); (android.os.SystemClock.uptimeMillis() - w0).let { ms -> if (ms > 4) android.util.Log.i("KG.perf", "widget ${it.type} ${ms}ms") } } }
                     "app" -> all[it.pkg]?.takeIf { a -> show[a.pkg] != LauncherLogic.Show.HIDE }?.let { a ->

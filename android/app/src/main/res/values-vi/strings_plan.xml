@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hm_wp_left">Còn %1$s</string>
+    <string name="hm_wp_nolimit">Không giới hạn</string>
+    <string name="hm_wp_group_left">%1$s · còn %2$s</string>
+    <string name="hm_wp_group_out">%1$s · hết giờ</string>
+    <string name="hm_wp_next">Lúc %1$s: %2$s</string>
+    <string name="hm_wp_bed">đi ngủ</string>
+    <string name="hm_wp_msg_from">Bố mẹ</string>
+    <string name="hm_wp_msg_none">Chưa có lời nhắn từ bố mẹ</string>
+    <string name="hm_wp_msg_wait">Đang chờ bố mẹ · %1$s</string>
+    <string name="hm_wp_msg_ask">Xin %1$d phút</string>
+    <string name="hm_wp_msg_ask0">Xin thêm giờ</string>
+</resources>

@@ -24,7 +24,7 @@ import dev.kidguard.HomeActivity.Row
 
 /** Long-press on a widget (or one of its buttons): menu (sizes, remove), and a drag moves it. */
 internal fun HomeActivity.armWidget(v: View, it: HItem) {
-    val sizes = HomeLayout.SIZES[it.type].orEmpty().map { (w, h) -> minOf(w, model?.cols ?: w) to h }.distinct()
+    val sizes = if (it.type == HomeLayout.APP) awSizes(it) else HomeLayout.SIZES[it.type].orEmpty().map { (w, h) -> minOf(w, model?.cols ?: w) to h }.distinct()
     val showMenu = {
         menu(sizes.filter { s -> s != it.w to it.h }.map { (w, h) ->
             Row(R.drawable.li_layout_dashboard, getString(R.string.hm_w_size, w, h), true) { model?.let { mm -> HomeLayout.resizeWidget(mm, it.id, w, h)?.let { n -> update(n) } ?: noRoom(null) } }
@@ -32,8 +32,8 @@ internal fun HomeActivity.armWidget(v: View, it: HItem) {
     }
     val src = { DragSt(Src.Item(it.id), null, "widget", it.w, it.h, it.id, v) }
     fun walk(x: View) {
-        if (x === v || x.isClickable) arm(x, showMenu, src, dragView = v)
-        if (x is ViewGroup) for (i in 0 until x.childCount) walk(x.getChildAt(i))
+        if (x === v || (x.isClickable && v !is KgHostView)) arm(x, showMenu, src, dragView = v)
+        if (x is ViewGroup && v !is KgHostView) for (i in 0 until x.childCount) walk(x.getChildAt(i))
     }
     walk(v)
     v.isLongClickable = true
@@ -42,13 +42,15 @@ internal fun HomeActivity.armWidget(v: View, it: HItem) {
 internal fun HomeActivity.widgetLabel(type: String) = getString(when (type) {
     "time" -> R.string.hm_w_time; "quick" -> R.string.hm_w_quick; "next" -> R.string.hm_w_next; "clock" -> R.string.hm_w_clock
     "analog" -> R.string.hm_w_analog; "month" -> R.string.hm_w_month; "battery" -> R.string.hm_w_battery
-    "todo" -> R.string.hm_w_todo; "note" -> R.string.hm_w_note; "usage" -> R.string.hm_w_usage; else -> R.string.hm_w_counts
+    "todo" -> R.string.hm_w_todo; "note" -> R.string.hm_w_note; "usage" -> R.string.hm_w_usage
+    "when" -> R.string.hm_w_when; "earn" -> R.string.hm_w_earn; "msg" -> R.string.hm_w_msg; "class" -> R.string.hm_w_class; else -> R.string.hm_w_counts
 })
 
 internal fun HomeActivity.widgetDesc(type: String) = getString(when (type) {
     "time" -> R.string.hm_w_time_d; "quick" -> R.string.hm_w_quick_d; "next" -> R.string.hm_w_next_d; "clock" -> R.string.hm_w_clock_d
     "analog" -> R.string.hm_w_analog_d; "month" -> R.string.hm_w_month_d; "battery" -> R.string.hm_w_battery_d
-    "todo" -> R.string.hm_w_todo_d; "note" -> R.string.hm_w_note_d; "usage" -> R.string.hm_w_usage_d; else -> R.string.hm_w_counts_d
+    "todo" -> R.string.hm_w_todo_d; "note" -> R.string.hm_w_note_d; "usage" -> R.string.hm_w_usage_d
+    "when" -> R.string.hm_w_when_d; "earn" -> R.string.hm_w_earn_d; "msg" -> R.string.hm_w_msg_d; "class" -> R.string.hm_w_class_d; else -> R.string.hm_w_counts_d
 })
 
 // ---- widget design system: every card widget is built from these, so they all look like one family ----
@@ -288,7 +290,7 @@ internal fun HomeActivity.openPicker() {
     val first = 4
     for (i in 0 until minOf(first, types.size)) addRow(i, types[i])
     lap("rows")
-    fun more(from: Int) { if (from >= types.size || overlay !== scrim) return; for (i in from until minOf(from + 3, types.size)) addRow(i, types[i]); list.post { more(from + 3) } }
+    fun more(from: Int) { if (from >= types.size) { if (overlay === scrim) awPickerSection(list) { overlay === scrim }; return }; if (overlay !== scrim) return; for (i in from until minOf(from + 3, types.size)) addRow(i, types[i]); list.post { more(from + 3) } }
     list.post { more(first) }
     sheet.addView(sc, LinearLayout.LayoutParams(-1, -2))
     scrim.addView(sheet, FrameLayout.LayoutParams(-1, (root.height * 0.62f).toInt(), Gravity.BOTTOM))
@@ -338,6 +340,10 @@ internal fun HomeActivity.preview(type: String): View {
         "todo" -> todoPreview(c)
         "note" -> notePreview(c)
         "usage" -> usagePreview(c)
+        "when" -> whenPreview(c)
+        "earn" -> earnPreview(c)
+        "msg" -> msgPreview(c)
+        "class" -> classPreview(c)
         else -> for ((ic, lab) in listOf(R.drawable.li_list_checks to R.string.hm_w_c_chores, R.drawable.li_sticky_note to R.string.hm_w_c_notes, R.drawable.li_file to R.string.hm_w_c_files))
             c.addView(text(getString(lab), 10f, pal.text).apply { Ic.lead(this, ic, pal.accentText); compoundDrawablePadding = dp(4); maxLines = 1 })
     }
