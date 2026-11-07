@@ -300,7 +300,8 @@ button.li:hover{background:color-mix(in srgb,var(--bg) 60%,transparent)}
 .rtop{display:flex;gap:10px;align-items:center;margin-bottom:12px}.rtop .seg{flex:1;margin:0}
 .req{border-color:color-mix(in srgb,var(--warn) 45%,var(--stroke))}
 .req .row button{flex:1}
-.spad{display:flex;gap:12px;align-items:stretch;flex-wrap:wrap;margin-top:6px}.spad .keys{flex:1 1 260px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.spad{display:flex;gap:12px;align-items:stretch;flex-wrap:wrap;margin-top:6px}.spad .keys{flex:1 1 180px;display:grid;grid-auto-rows:44px;gap:4px}.spad .keys button{min-height:44px;justify-content:flex-start}
+.snav{display:flex;gap:4px;margin:6px auto 0;max-width:360px;background:var(--card2,var(--card));border:1px solid var(--line);border-radius:14px;padding:3px}.snav button{flex:1;min-height:40px;border:0;background:transparent;border-radius:11px;padding:0}.snav .ic{width:20px;height:20px}
 .swp{display:grid;grid-template:"a u b" 44px "l c r" 44px "e d f" 44px/44px 44px 44px;gap:4px;position:relative;flex:none}.swp button{min-height:44px;padding:0;border-radius:12px}.swp .u{grid-area:u}.swp .l{grid-area:l}.swp .r{grid-area:r}.swp .d{grid-area:d}.swp .slab2{grid-area:c;display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--sub)}
 button.sent{border-color:var(--ok)!important;background:color-mix(in srgb,var(--ok) 14%,var(--card))!important}
 .zrow{display:flex;align-items:center;gap:10px}.zrow .x{flex:1;min-width:0;display:flex;flex-direction:column}.zrow .x b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.zrow .mute{font-size:13px}.zrow [data-zdel]{min-width:44px;padding:0}
@@ -407,6 +408,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none;
 <symbol id="i-smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" /></symbol>
 <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" /><path d="M20 2v4" /><path d="M22 4h-4" /><circle cx="4" cy="20" r="2" /></symbol>
 <symbol id="i-sprout" viewBox="0 0 24 24"><path d="M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3" /><path d="M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4" /><path d="M5 21h14" /></symbol>
+<symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /></symbol>
 <symbol id="i-square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /></symbol>
 <symbol id="i-square-check" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="m16 9-5.5 5.5L8 12" /></symbol>
 <symbol id="i-star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></symbol>
@@ -2993,7 +2995,7 @@ vi: {
   "se.unsupported": "Máy con dùng Android cũ, chưa hỗ trợ xem màn hình (cần Android 11+)", "se.busy": "Máy con đang bận, thử lại…",
   "se.need consent": "Cần con bấm Cho phép trên máy (Android 8–10 hỏi trước khi chia sẻ màn hình; Android 8–9 có ô “Không hiện lại”)", "se.denied": "Con đã bấm Huỷ trên máy, sẽ hỏi lại sau 1 phút", "scr.watching": "Đang xem",
   "scr.stat": "{0} khung/giây · trễ {1} ms", "scr.cant": "Chưa xem được màn hình", "scr.lost": "Mất kết nối tới máy con", "scr.wait": "Đang chờ máy con kết nối (tối đa ~20 giây)…",
-  "scr.retry": "Mất kết nối, đang thử lại…", "scr.h": "Màn hình máy con", "swp.h": "Vuốt", "swp.up": "Vuốt lên (cuộn xuống)", "swp.down": "Vuốt xuống (cuộn lên)", "swp.left": "Vuốt sang trái (trang sau)", "swp.right": "Vuốt sang phải (trang trước)", "key.quick": "Cài đặt nhanh", "scr.view": "Chỉ xem", "key.home": "Màn hình chính", "key.recents": "Đa nhiệm", "key.notif": "Thông báo",
+  "scr.retry": "Mất kết nối, đang thử lại…", "scr.h": "Màn hình máy con", "swp.h": "Vuốt", "swp.up": "Vuốt lên (cuộn xuống)", "swp.down": "Vuốt xuống (cuộn lên)", "swp.left": "Vuốt sang trái (trang sau)", "swp.right": "Vuốt sang phải (trang trước)", "key.quick": "Cài đặt nhanh", "key.nav": "Phím điều hướng", "scr.view": "Chỉ xem", "key.home": "Màn hình chính", "key.recents": "Đa nhiệm", "key.notif": "Thông báo",
   "scr.typePh": "Gõ chữ vào ô đang chọn trên máy con…", "scr.sendTxt": "Gửi chữ", "scr.notify": "Báo cho con \"Bố mẹ đang xem / đang điều khiển\"",
   "scr.tip": "Chạm vào ảnh để bấm, kéo để vuốt, giữ lâu để nhấn giữ. Nhật ký luôn ghi lại lúc bố mẹ xem và điều khiển.",
   "dp.prev": "Tháng trước", "dp.next": "Tháng sau", close: "Đóng", acc: "sai số {0} m",
@@ -3350,7 +3352,7 @@ en: {
   "se.unsupported": "The kid's phone runs an older Android that can't share the screen (needs Android 11+)", "se.busy": "The kid's phone is busy, retrying…",
   "se.need consent": "Your kid needs to tap Allow on the phone (Android 8–10 asks before sharing the screen; Android 8–9 has a “Don't show again” box)", "se.denied": "Your kid tapped Cancel on the phone, it asks again in 1 minute", "scr.watching": "Viewing",
   "scr.stat": "{0} fps · {1} ms lag", "scr.cant": "Can't show the screen yet", "scr.lost": "Lost connection to the kid's phone", "scr.wait": "Waiting for the kid's phone to connect (up to ~20 seconds)…",
-  "scr.retry": "Connection lost, retrying…", "scr.h": "Kid's screen", "swp.h": "Swipe", "swp.up": "Swipe up (scroll down)", "swp.down": "Swipe down (scroll up)", "swp.left": "Swipe left (next page)", "swp.right": "Swipe right (previous page)", "key.quick": "Quick settings", "scr.view": "View only", "key.home": "Home", "key.recents": "Recent apps", "key.notif": "Notifications",
+  "scr.retry": "Connection lost, retrying…", "scr.h": "Kid's screen", "swp.h": "Swipe", "swp.up": "Swipe up (scroll down)", "swp.down": "Swipe down (scroll up)", "swp.left": "Swipe left (next page)", "swp.right": "Swipe right (previous page)", "key.quick": "Quick settings", "key.nav": "Navigation keys", "scr.view": "View only", "key.home": "Home", "key.recents": "Recent apps", "key.notif": "Notifications",
   "scr.typePh": "Type into the selected field on the kid's phone…", "scr.sendTxt": "Send text", "scr.notify": "Tell my kid \"A parent is watching / controlling\"",
   "scr.tip": "Tap the picture to tap, drag to swipe, hold to long-press. The log always records when a parent views or controls the screen.",
   "dp.prev": "Previous month", "dp.next": "Next month", close: "Close", acc: "accuracy {0} m",
@@ -5676,7 +5678,7 @@ function screenCtl() {
   const so = $("#s-off"); if (!so) return;
   const off = screenOff(), lock = off || scr.view;
   so.hidden = !off; $("#s-box").classList.toggle("off", off);
-  $("#s-btns").querySelectorAll("button").forEach(x => x.disabled = lock);
+  document.querySelectorAll("#s-btns button, #s-nav button").forEach(x => x.disabled = lock);
   $("#f-stxt").disabled = lock; $("#s-send").disabled = lock || !$("#f-stxt").value;
   if (off) actPaint();
 }
@@ -5686,6 +5688,7 @@ function screenTab(b) {
     <label class="row"><input type="checkbox" id="s-view" ${scr.view ? "checked" : ""}> ${ic("eye")} ${t("scr.view")}</label></div>
     <div class="alert warn" id="s-off" hidden style="margin-top:10px">${ic("moon")}<span class="sp"><b>${t("so.h")}</b><br><span class="mute">${t("so.p")}</span></span><button type="button" id="wake" class="act pri"></button></div>
     <div class="scr ${scr.view ? "view" : ""}" id="s-box" style="margin-top:10px"><img id="s-img" alt="${esc(t("scr.h"))}" draggable="false"><div class="scr-msg" id="s-msg"></div></div>
+    <div class="snav" id="s-nav" role="group" aria-label="${esc(t("key.nav"))}"><button data-key="back" aria-label="${esc(t("back"))}" title="${esc(t("back"))}">${ic("arrow-left")}</button><button data-key="home" aria-label="${esc(t("key.home"))}" title="${esc(t("key.home"))}">${ic("circle")}</button><button data-key="recents" aria-label="${esc(t("key.recents"))}" title="${esc(t("key.recents"))}">${ic("square")}</button></div>
     <div class="mute" id="s-stat" style="margin:4px 0"></div>
     <div class="spad" id="s-btns">
       <div class="swp" role="group" aria-label="${esc(t("swp.h"))}"><span class="slab2">${t("swp.h")}</span>
@@ -5693,8 +5696,7 @@ function screenTab(b) {
         <button data-sw="left" class="l" aria-label="${esc(t("swp.left"))}" title="${esc(t("swp.left"))}">${ic("arrow-left")}</button>
         <button data-sw="right" class="r" aria-label="${esc(t("swp.right"))}" title="${esc(t("swp.right"))}">${ic("arrow-right")}</button>
         <button data-sw="down" class="d" aria-label="${esc(t("swp.down"))}" title="${esc(t("swp.down"))}">${ic("arrow-down")}</button></div>
-      <div class="keys"><button data-key="back">${ic("arrow-left")} ${t("back")}</button><button data-key="home">${ic("house")} ${t("key.home")}</button><button data-key="recents">${ic("layers")} ${t("key.recents")}</button>
-        <button data-key="notifications">${ic("bell")} ${t("key.notif")}</button><button data-key="quick">${ic("sliders")} ${t("key.quick")}</button><button data-key="lock">${ic("lock")} ${t("lockScr")}</button></div></div>
+      <div class="keys"><button data-key="notifications">${ic("bell")} ${t("key.notif")}</button><button data-key="quick">${ic("sliders")} ${t("key.quick")}</button><button data-key="lock">${ic("lock")} ${t("lockScr")}</button></div></div>
     <div class="row" style="margin-top:10px"><input id="f-stxt" class="sp" placeholder="${esc(t("scr.typePh"))}" aria-label="${esc(t("scr.typePh"))}"><button id="s-send" class="pri">${ic("send")} ${t("scr.sendTxt")}</button></div>
     <div class="mute" id="s-terr" role="status" style="margin-top:4px"></div>
     <label class="row" style="margin-top:10px"><input type="checkbox" id="f-sw" ${edit && edit.showWatching ? "checked" : ""}><span>${ic("bell")} ${t("scr.notify")}</span></label>
@@ -5706,7 +5708,7 @@ function screenTab(b) {
   // from the screen edges, where Android opens the shade / back gesture instead.
   const SW = { up: [.5, .72, .5, .28], down: [.5, .28, .5, .72], left: [.82, .5, .18, .5], right: [.18, .5, .82, .5] };
   const flash = x => { x.classList.add("sent"); setTimeout(() => x.classList.remove("sent"), 450); };
-  $("#s-btns").querySelectorAll("[data-key]").forEach(x => { x.onclick = () => { flash(x); sendInput({ type: "key", key: x.dataset.key }); }; });
+  document.querySelectorAll("#s-btns [data-key], #s-nav [data-key]").forEach(x => { x.onclick = () => { flash(x); sendInput({ type: "key", key: x.dataset.key }); }; });
   $("#s-btns").querySelectorAll("[data-sw]").forEach(x => { x.onclick = () => { const [x1, y1, x2, y2] = SW[x.dataset.sw]; flash(x); sendInput({ type: "swipe", x1, y1, x2, y2, ms: 260 }); }; });
   const tx = $("#f-stxt"), terr = $("#s-terr");
   const send = async () => {
