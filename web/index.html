@@ -300,6 +300,9 @@ button.li:hover{background:color-mix(in srgb,var(--bg) 60%,transparent)}
 .rtop{display:flex;gap:10px;align-items:center;margin-bottom:12px}.rtop .seg{flex:1;margin:0}
 .req{border-color:color-mix(in srgb,var(--warn) 45%,var(--stroke))}
 .req .row button{flex:1}
+.spad{display:flex;gap:12px;align-items:stretch;flex-wrap:wrap;margin-top:6px}.spad .keys{flex:1 1 260px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.swp{display:grid;grid-template:"a u b" 44px "l c r" 44px "e d f" 44px/44px 44px 44px;gap:4px;position:relative;flex:none}.swp button{min-height:44px;padding:0;border-radius:12px}.swp .u{grid-area:u}.swp .l{grid-area:l}.swp .r{grid-area:r}.swp .d{grid-area:d}.swp .slab2{grid-area:c;display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--sub)}
+button.sent{border-color:var(--ok)!important;background:color-mix(in srgb,var(--ok) 14%,var(--card))!important}
 .zrow{display:flex;align-items:center;gap:10px}.zrow .x{flex:1;min-width:0;display:flex;flex-direction:column}.zrow .x b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.zrow .mute{font-size:13px}.zrow [data-zdel]{min-width:44px;padding:0}
 .zp .map{margin-top:10px;cursor:grab}.zp .map.drag{cursor:grabbing}.zp .zpin{position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);color:#dc2626;width:38px;height:38px;display:block;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}.zp .zpin svg{width:38px;height:38px;display:block;fill:#fff;stroke-width:2.2}.zp #zpN{width:100%}
 .zpr{width:100%}.zpr input{flex:1}.zpc summary{cursor:pointer;color:var(--accent);margin-top:12px;font-weight:600}
@@ -340,6 +343,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none;
 <!-- Icons: Lucide (https://lucide.dev), ISC License, Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT); all other copyright (c) Lucide Contributors 2022. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></symbol>
+<symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></symbol>
+<symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7" /><path d="M12 19V5" /></symbol>
+<symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></symbol>
+<symbol id="i-sliders" viewBox="0 0 24 24"><path d="M21 4h-7" /><path d="M10 4H3" /><path d="M21 12h-9" /><path d="M8 12H3" /><path d="M21 20h-5" /><path d="M12 20H3" /><path d="M14 2v4" /><path d="M8 10v4" /><path d="M16 18v4" /></symbol>
 <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M4.929 4.929 19.07 19.071" /></symbol>
 <symbol id="i-battery-full" viewBox="0 0 24 24"><path d="M10 10v4" /><path d="M14 10v4" /><path d="M22 14v-4" /><path d="M6 10v4" /><rect x="2" y="6" width="16" height="12" rx="2" /></symbol>
 <symbol id="i-bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0" /><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></symbol>
@@ -2986,7 +2993,7 @@ vi: {
   "se.unsupported": "Máy con dùng Android cũ, chưa hỗ trợ xem màn hình (cần Android 11+)", "se.busy": "Máy con đang bận, thử lại…",
   "se.need consent": "Cần con bấm Cho phép trên máy (Android 8–10 hỏi trước khi chia sẻ màn hình; Android 8–9 có ô “Không hiện lại”)", "se.denied": "Con đã bấm Huỷ trên máy, sẽ hỏi lại sau 1 phút", "scr.watching": "Đang xem",
   "scr.stat": "{0} khung/giây · trễ {1} ms", "scr.cant": "Chưa xem được màn hình", "scr.lost": "Mất kết nối tới máy con", "scr.wait": "Đang chờ máy con kết nối (tối đa ~20 giây)…",
-  "scr.retry": "Mất kết nối, đang thử lại…", "scr.h": "Màn hình máy con", "scr.view": "Chỉ xem", "key.home": "Màn hình chính", "key.recents": "Đa nhiệm", "key.notif": "Thông báo",
+  "scr.retry": "Mất kết nối, đang thử lại…", "scr.h": "Màn hình máy con", "swp.h": "Vuốt", "swp.up": "Vuốt lên (cuộn xuống)", "swp.down": "Vuốt xuống (cuộn lên)", "swp.left": "Vuốt sang trái (trang sau)", "swp.right": "Vuốt sang phải (trang trước)", "key.quick": "Cài đặt nhanh", "scr.view": "Chỉ xem", "key.home": "Màn hình chính", "key.recents": "Đa nhiệm", "key.notif": "Thông báo",
   "scr.typePh": "Gõ chữ vào ô đang chọn trên máy con…", "scr.sendTxt": "Gửi chữ", "scr.notify": "Báo cho con \"Bố mẹ đang xem / đang điều khiển\"",
   "scr.tip": "Chạm vào ảnh để bấm, kéo để vuốt, giữ lâu để nhấn giữ. Nhật ký luôn ghi lại lúc bố mẹ xem và điều khiển.",
   "dp.prev": "Tháng trước", "dp.next": "Tháng sau", close: "Đóng", acc: "sai số {0} m",
@@ -3343,7 +3350,7 @@ en: {
   "se.unsupported": "The kid's phone runs an older Android that can't share the screen (needs Android 11+)", "se.busy": "The kid's phone is busy, retrying…",
   "se.need consent": "Your kid needs to tap Allow on the phone (Android 8–10 asks before sharing the screen; Android 8–9 has a “Don't show again” box)", "se.denied": "Your kid tapped Cancel on the phone, it asks again in 1 minute", "scr.watching": "Viewing",
   "scr.stat": "{0} fps · {1} ms lag", "scr.cant": "Can't show the screen yet", "scr.lost": "Lost connection to the kid's phone", "scr.wait": "Waiting for the kid's phone to connect (up to ~20 seconds)…",
-  "scr.retry": "Connection lost, retrying…", "scr.h": "Kid's screen", "scr.view": "View only", "key.home": "Home", "key.recents": "Recent apps", "key.notif": "Notifications",
+  "scr.retry": "Connection lost, retrying…", "scr.h": "Kid's screen", "swp.h": "Swipe", "swp.up": "Swipe up (scroll down)", "swp.down": "Swipe down (scroll up)", "swp.left": "Swipe left (next page)", "swp.right": "Swipe right (previous page)", "key.quick": "Quick settings", "scr.view": "View only", "key.home": "Home", "key.recents": "Recent apps", "key.notif": "Notifications",
   "scr.typePh": "Type into the selected field on the kid's phone…", "scr.sendTxt": "Send text", "scr.notify": "Tell my kid \"A parent is watching / controlling\"",
   "scr.tip": "Tap the picture to tap, drag to swipe, hold to long-press. The log always records when a parent views or controls the screen.",
   "dp.prev": "Previous month", "dp.next": "Next month", close: "Close", acc: "accuracy {0} m",
@@ -5624,7 +5631,7 @@ function screenStart() {
         const blob = await r.blob(); if (!alive()) break;
         fails = 0; showFrame(blob, performance.now() - t0);
       } catch { if (alive()) screenMsg(t("scr.lost")); await sleep(2000); continue; }
-      await sleep(Math.max(0, 400 - (performance.now() - t0)));   // ~2.5 fps
+      await sleep(Math.max(0, 140 - (performance.now() - t0)));   // up to ~7 fps on the LAN; a slow phone just answers slower
     }
   })();
   else {
@@ -5680,8 +5687,14 @@ function screenTab(b) {
     <div class="alert warn" id="s-off" hidden style="margin-top:10px">${ic("moon")}<span class="sp"><b>${t("so.h")}</b><br><span class="mute">${t("so.p")}</span></span><button type="button" id="wake" class="act pri"></button></div>
     <div class="scr ${scr.view ? "view" : ""}" id="s-box" style="margin-top:10px"><img id="s-img" alt="${esc(t("scr.h"))}" draggable="false"><div class="scr-msg" id="s-msg"></div></div>
     <div class="mute" id="s-stat" style="margin:4px 0"></div>
-    <div class="grid" id="s-btns"><button data-key="back">${ic("arrow-left")} ${t("back")}</button><button data-key="home">${ic("house")} ${t("key.home")}</button><button data-key="recents">${ic("layers")} ${t("key.recents")}</button>
-      <button data-key="notifications">${ic("bell")} ${t("key.notif")}</button><button data-key="lock">${ic("lock")} ${t("lockScr")}</button></div>
+    <div class="spad" id="s-btns">
+      <div class="swp" role="group" aria-label="${esc(t("swp.h"))}"><span class="slab2">${t("swp.h")}</span>
+        <button data-sw="up" class="u" aria-label="${esc(t("swp.up"))}" title="${esc(t("swp.up"))}">${ic("arrow-up")}</button>
+        <button data-sw="left" class="l" aria-label="${esc(t("swp.left"))}" title="${esc(t("swp.left"))}">${ic("arrow-left")}</button>
+        <button data-sw="right" class="r" aria-label="${esc(t("swp.right"))}" title="${esc(t("swp.right"))}">${ic("arrow-right")}</button>
+        <button data-sw="down" class="d" aria-label="${esc(t("swp.down"))}" title="${esc(t("swp.down"))}">${ic("arrow-down")}</button></div>
+      <div class="keys"><button data-key="back">${ic("arrow-left")} ${t("back")}</button><button data-key="home">${ic("house")} ${t("key.home")}</button><button data-key="recents">${ic("layers")} ${t("key.recents")}</button>
+        <button data-key="notifications">${ic("bell")} ${t("key.notif")}</button><button data-key="quick">${ic("sliders")} ${t("key.quick")}</button><button data-key="lock">${ic("lock")} ${t("lockScr")}</button></div></div>
     <div class="row" style="margin-top:10px"><input id="f-stxt" class="sp" placeholder="${esc(t("scr.typePh"))}" aria-label="${esc(t("scr.typePh"))}"><button id="s-send" class="pri">${ic("send")} ${t("scr.sendTxt")}</button></div>
     <div class="mute" id="s-terr" role="status" style="margin-top:4px"></div>
     <label class="row" style="margin-top:10px"><input type="checkbox" id="f-sw" ${edit && edit.showWatching ? "checked" : ""}><span>${ic("bell")} ${t("scr.notify")}</span></label>
@@ -5689,7 +5702,12 @@ function screenTab(b) {
   $("#f-sw").onchange = e => { if (!edit) return; edit.showWatching = e.target.checked; changed(); };
   const box = $("#s-box"), img = $("#s-img");
   $("#s-view").onchange = e => { scr.view = e.target.checked; box.classList.toggle("view", scr.view); screenCtl(); };
-  $("#s-btns").querySelectorAll("button").forEach(x => { x.onclick = () => sendInput({ type: "key", key: x.dataset.key }); });
+  // quick buttons: work even when the picture lags (a tap on a 2-fps picture lands in the wrong place). Swipes stay away
+  // from the screen edges, where Android opens the shade / back gesture instead.
+  const SW = { up: [.5, .72, .5, .28], down: [.5, .28, .5, .72], left: [.82, .5, .18, .5], right: [.18, .5, .82, .5] };
+  const flash = x => { x.classList.add("sent"); setTimeout(() => x.classList.remove("sent"), 450); };
+  $("#s-btns").querySelectorAll("[data-key]").forEach(x => { x.onclick = () => { flash(x); sendInput({ type: "key", key: x.dataset.key }); }; });
+  $("#s-btns").querySelectorAll("[data-sw]").forEach(x => { x.onclick = () => { const [x1, y1, x2, y2] = SW[x.dataset.sw]; flash(x); sendInput({ type: "swipe", x1, y1, x2, y2, ms: 260 }); }; });
   const tx = $("#f-stxt"), terr = $("#s-terr");
   const send = async () => {
     const v = tx.value; if (!v || screenOff() || scr.view) return;
