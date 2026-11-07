@@ -118,33 +118,44 @@ It uses Android's Private DNS. If the filter's host is refused, or the network h
 
 ## Away from home
 
-Two options. Pick one, or use both.
+At home the parent page talks to the kid's phone over Wi-Fi. When the kid is at school or out, pick one of these:
 
-| | Tailscale | Cloudflare Worker |
-|---|---|---|
-| Setup | paste one key, nothing to deploy | deploy a Worker (needs Node) |
-| Speed | instant, the page talks to the phone directly | commands in ~20 s (~60 s screen off) |
-| Parent's phone | needs the Tailscale app (Android / iPhone) | any browser |
-| Child sees | a key icon in the status bar (Android always shows it for a VPN) | nothing |
+| | Tailscale (recommended) | Your own relay (advanced) | Shared relay |
+|---|---|---|---|
+| Setup | ~5 min, once: Tailscale app on the parent's phone + paste one key | ~3 min on a computer: run one script (needs Node.js) | ~10 s: paste an address |
+| Speed | instant (direct connection) | commands in ~20 s (~60 s with the screen off) | same as your own relay |
+| Listen around | yes | no | no |
+| Your data goes through | nobody (end-to-end encrypted, peer to peer) | only your own Cloudflare account | the author's Cloudflare account |
+| Cost / limits | free (Personal plan: 6 users, unlimited devices) | free (100,000 requests/day; one kid's phone uses ~4,300) | free, but the quota is shared by everyone: it can run out for the day |
+| Parent's phone | Tailscale app (Android / iPhone) | any browser | any browser |
+| Kid sees | a key icon in the status bar (Android shows it for every VPN) | nothing | nothing |
 
-### Tailscale (private network)
+### Tailscale (recommended)
 
-1. Make a free account at [tailscale.com](https://tailscale.com), then **Settings → Keys → Generate auth key**: Reusable on, Ephemeral **off** (an ephemeral device is deleted when the phone is off for a while, and its address changes).
-2. In the parent page (on home Wi-Fi): **Cài đặt → Điều khiển từ xa qua Tailscale**, paste the key, optional device name, press **Bật**.
-3. The child's phone downloads the official Tailscale app (SHA-256 checked), installs it silently, joins your network and hides the app. About a minute; the card then shows **Đã kết nối** and an address like `http://100.x.y.z:8770`.
-4. On the parent's phone install Tailscale, log in with the same account, open that address.
+1. On the parent's phone install **Tailscale** and sign in (Google / Apple / Microsoft account: this also makes your free Tailscale account).
+2. Open [console.tailscale.com/admin/settings/keys](https://console.tailscale.com/admin/settings/keys) → **Generate auth key** → **Generate** (defaults are fine: one-off, not ephemeral) → copy it.
+3. In the parent page (on home Wi-Fi): **Cài đặt → Điều khiển từ xa qua Tailscale**, paste the key, press **Bật**. The kid's phone downloads the official Tailscale app (SHA-256 checked), installs it silently, joins your network and hides the app (about a minute); the card then shows **Đã kết nối** and an address like `http://100.x.y.z:8770`.
+4. **Don't skip:** in [console.tailscale.com/admin/machines](https://console.tailscale.com/admin/machines), on the kid's phone row → **⋯ → Disable key expiry**. Otherwise Tailscale signs the kid's phone out after 180 days and remote access stops until you paste a new key at home.
+5. On the parent's phone open that address (with Tailscale on). Several kids: add each one's address from the same page (**Thêm máy của con**).
 
 The key is only accepted on home Wi-Fi and stays on the child's phone (never sent through the Worker). The child cannot turn the VPN off, change VPN settings or uninstall Tailscale; KidGuard's safe-DNS filter keeps working. **Tắt và gỡ Tailscale** (or Release) removes it all; then delete the device in the Tailscale admin console (**Machines**), since an uninstalled app cannot log itself out.
 
-### Cloudflare Worker (relay)
+### Your own relay (advanced)
 
-The parent page works the same through a small **Cloudflare Worker** (free plan) that relays commands, state and the live screen. Frames stay in the Worker's memory only, never stored.
+A small **Cloudflare Worker** in your own free Cloudflare account relays commands, state and the live screen. Frames stay in the Worker's memory only, never stored. On a computer with [Node.js](https://nodejs.org) 18+:
 
 ```bash
-cd worker && npm install && npx wrangler login && npx wrangler deploy
+git clone https://github.com/HoangTran0410/kidguard && cd kidguard
+scripts/relay.sh          # Windows: powershell -ExecutionPolicy Bypass -File scripts\relay.ps1
 ```
 
-In the parent page (on home Wi-Fi): **Cài đặt → Nâng cao: relay Cloudflare Worker** (Settings → advanced: relay), paste the Worker address, press On, open the link it shows on the parent's phone. Commands reach the phone in about 20 s (about 60 s with the screen off).
+It installs the tools, opens the Cloudflare login in your browser (make a free account there if needed), deploys, and prints your relay address (`https://kidguard.<you>.workers.dev`). Run it again to update; `--delete` (`-Delete`) removes it.
+
+Then in the parent page (on home Wi-Fi): **Cài đặt → relay Cloudflare Worker**, paste the address, press **Bật**, open the link it shows on the parent's phone (or add it in the parent app).
+
+### Shared relay
+
+Same as above with the author's relay: paste `https://kidguard.99-hoangtran.workers.dev` instead. Nothing to install, but your kid's state passes through someone else's Cloudflare account and the free daily quota is shared by everyone using it. Fine to try; switch to Tailscale or your own relay for daily use.
 
 ### Instant SOS notifications (optional)
 

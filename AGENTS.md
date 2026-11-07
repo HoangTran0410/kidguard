@@ -6,7 +6,7 @@ the contract**: change it in the same commit as any JSON / endpoint / command sh
 
 ## Layout
 Root: `android/` (Gradle project: `app/` child app, `parent/` parent app), `web/`, `worker/`, `site/` (kid-guard.pages.dev),
-`docs/`, `scripts/` (`build.sh`, `setup.sh`, `setup.ps1`). Build outputs land in `build/` at the root.
+`docs/`, `scripts/` (`build.sh`, `setup.sh`, `setup.ps1`, `relay.sh`/`relay.ps1` = deploy the worker to the user's own Cloudflare account). Build outputs land in `build/` at the root.
 - `android/app/src/main/kotlin/dev/kidguard/` (package `dev.kidguard`, minSdk 26, target 34)
   - `Rules.kt` pure rules + `decide()` (block-reason priority, see protocol). Unit-tested, keep it Android-free.
   - `Guard.kt` foreground loop: applies rules, suspends apps, location track. `Policy.kt` DevicePolicyManager restrictions.
