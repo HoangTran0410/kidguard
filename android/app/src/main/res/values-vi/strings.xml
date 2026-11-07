@@ -509,6 +509,7 @@
     <string name="hm_pin">Ghim vào màn chính</string>
     <string name="hm_pinned">Đã ở màn chính</string>
     <string name="hm_unpin">Bỏ khỏi màn chính</string>
+    <string name="hm_home_menu">Màn hình chính…</string>
     <string name="hm_open_kg">Mở KidGuard</string>
     <string name="hm_customize">Tuỳ chỉnh</string>
     <string name="hm_soon_title">Sắp có</string>

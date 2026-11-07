@@ -738,7 +738,17 @@ class HomeActivity : Activity() {
         pw.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
         pw.setOnDismissListener { if (popup === pw) popup = null }
         popup = pw
-        if (anchor != null) pw.showAsDropDown(anchor, 0, -dp(6)) else pw.showAtLocation(root, Gravity.TOP or Gravity.START, x.coerceAtMost(root.width - dp(260)).coerceAtLeast(dp(8)), y)
+        // place it ourselves: showAsDropDown on an item near the bottom cut the last rows off (Android 8 doesn't flip it)
+        box.measure(View.MeasureSpec.makeMeasureSpec(dp(250), View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+        val h = box.measuredHeight
+        val rl = IntArray(2).also { root.getLocationInWindow(it) }
+        val (px, py) = if (anchor != null) {
+            val l = IntArray(2).also { anchor.getLocationInWindow(it) }
+            val below = l[1] - rl[1] + anchor.height - dp(6)
+            l[0] - rl[0] to (if (below + h <= root.height - insB - dp(8)) below else l[1] - rl[1] - h + dp(6))
+        } else x - rl[0] to y - rl[1]
+        pw.showAtLocation(root, Gravity.TOP or Gravity.START, px.coerceAtMost(root.width - dp(260)).coerceAtLeast(dp(8)) + rl[0],
+            py.coerceAtMost(root.height - insB - h - dp(8)).coerceAtLeast(insT + dp(8)) + rl[1])
     }
 
     private fun appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
@@ -748,6 +758,10 @@ class HomeActivity : Activity() {
             Row(R.drawable.li_pin, getString(if (placed) R.string.hm_pinned else R.string.hm_pin), !placed) { update(HomeLayout.pin(m, a.pkg)); if (drawer != null) closeDrawer() }.takeIf { mode == Mode.DRAWER },
             Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { update(HomeLayout.remove(m, a.pkg)) }.takeIf { placed || mode != Mode.DRAWER },
             Row(R.drawable.li_folder_plus, getString(R.string.hm_f_add), true) { addToFolderSheet(a) },
+            // the app fills its whole cell, so most long-presses land on one: give the empty-space menu a way in from here
+            Row(R.drawable.li_house, getString(R.string.hm_home_menu), true) {
+                val l = IntArray(2); v.getLocationInWindow(l); emptyMenu(l[0], l[1] + v.height / 2)
+            }.takeIf { mode != Mode.DRAWER },
         ), v)
     }
 

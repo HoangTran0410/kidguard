@@ -527,6 +527,7 @@
     <string name="hm_pin">Pin to home screen</string>
     <string name="hm_pinned">Already on the home screen</string>
     <string name="hm_unpin">Remove from home screen</string>
+    <string name="hm_home_menu">Home screen…</string>
     <string name="hm_open_kg">Open KidGuard</string>
     <string name="hm_customize">Customize</string>
     <string name="hm_soon_title">Coming soon</string>
