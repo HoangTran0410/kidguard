@@ -15,7 +15,9 @@ Root: `android/` (Gradle project: `app/` child app, `parent/` parent app), `ui/`
   - `remote/` parent link + remote commands: `Http.kt` LAN server on `:8770` (serves `ui/index.html` + `ui/assets/*`),
     `Api.kt` its routes (token `X-KG-Token`), `Relay.kt` phone side of the worker relay, `Acc.kt` accessibility (screen
     capture + remote input, API 30+), `Proj.kt`, `Listen.kt`, `Ring.kt`, `Wake.kt`, shared files, `Update.kt` self-update.
-  - `launcher/` kid launcher: `HomeActivity.kt`, `HomeLayout.kt` (pure model, unit-tested), `LauncherSafe.kt`, style, wallpapers, "Hôm nay" page.
+  - `launcher/` kid launcher: `HomeActivity.kt` (lifecycle, render, pages, custom views + all state; members are `internal`) with
+    extension-function files `HomeDrag` / `HomeMenus` / `HomeWidgets` / `HomeIcons` / `HomeDock` (new state goes in the activity);
+    `HomeLayout.kt` (pure model, unit-tested), `LauncherSafe.kt`, style, wallpapers, "Hôm nay" page.
   - `setup/` `Provisioning.kt` QR/Device Owner, `SelfSetup*.kt` phone runs adb against itself (libadb-android + Conscrypt).
   - `ui/` child screens: `MainActivity.kt`, `AdminActivity.kt`, `Modal`/`Sheet`/`Ui` helpers, `Ic.kt` Lucide icons
     (`res/drawable/li_*.xml`), kid actions, shortcuts, language.

@@ -1,14 +1,9 @@
 package dev.kidguard
 
 import android.annotation.SuppressLint
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.app.Activity
-import android.app.ActivityOptions
 import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -18,14 +13,12 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.util.Log
-import android.view.animation.DecelerateInterpolator
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -35,7 +28,6 @@ import android.provider.Telephony
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.TypedValue
-import android.view.DragEvent
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
@@ -46,7 +38,6 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -55,13 +46,8 @@ import android.widget.OverScroller
 import android.widget.PopupWindow
 import android.widget.ScrollView
 import android.widget.TextView
-import android.widget.Toast
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.roundToInt
 import dev.kidguard.HomeLayout.Src
 
 /**
@@ -75,63 +61,63 @@ import dev.kidguard.HomeLayout.Src
 class HomeActivity : Activity() {
     companion object { @Volatile var alive = 0; const val FOLDER_MS = 500L }
 
-    private class AppE(val pkg: String, val cls: String, val label: String) {
+    internal class AppE(val pkg: String, val cls: String, val label: String) {
         val sortKey by lazy { LauncherLogic.sortKey(label) }   // once per app list: sortedBy calls its selector per comparison
     }
 
     /** What is being dragged: a grid / dock / folder / picker source, or [pkg] from the drawer. */
-    private class DragSt(val src: Src?, val pkg: String?, val kind: String, val w: Int, val h: Int, val id: String?, val view: View?)
+    internal class DragSt(val src: Src?, val pkg: String?, val kind: String, val w: Int, val h: Int, val id: String?, val view: View?)
 
-    private class CellLP(val x: Int, val y: Int, val w: Int, val h: Int) : ViewGroup.LayoutParams(-1, -1)
+    internal class CellLP(val x: Int, val y: Int, val w: Int, val h: Int) : ViewGroup.LayoutParams(-1, -1)
 
-    private enum class Mode { HOME, DOCK, DRAWER, PANEL }
+    internal enum class Mode { HOME, DOCK, DRAWER, PANEL }
 
-    private val main = Handler(Looper.getMainLooper())
-    private lateinit var u: Ui
-    private var pal: Palette = HomeStyle.palette("blue", false)
-    private lateinit var kit: HomeKit
-    private lateinit var preset: HomeStyle.Preset
-    private lateinit var acts: KidActions
-    private var dark = false
-    private lateinit var root: FrameLayout
-    private lateinit var wallView: ImageView
-    private var wall: Bitmap? = null
-    private var wallKey = ""
-    private lateinit var content: SwipeUp
-    private lateinit var chrome: LinearLayout
+    internal val main = Handler(Looper.getMainLooper())
+    internal lateinit var u: Ui
+    internal var pal: Palette = HomeStyle.palette("blue", false)
+    internal lateinit var kit: HomeKit
+    internal lateinit var preset: HomeStyle.Preset
+    internal lateinit var acts: KidActions
+    internal var dark = false
+    internal lateinit var root: FrameLayout
+    internal lateinit var wallView: ImageView
+    internal var wall: Bitmap? = null
+    internal var wallKey = ""
+    internal lateinit var content: SwipeUp
+    internal lateinit var chrome: LinearLayout
     /** Floats over the pages: the edit / drop bar on top, the drag tip above the dots. Its contents never move the grid. */
-    private lateinit var floatBox: FrameLayout
-    private lateinit var bannerBox: FrameLayout
-    private lateinit var topBar: FrameLayout
-    private lateinit var bottom: LinearLayout
-    private lateinit var tip: TextView
-    private lateinit var pager: Pager
-    private lateinit var dots: LinearLayout
-    private lateinit var hint: ImageView
-    private lateinit var dock: LinearLayout
-    private var today: TodayPage? = null
-    private var drawer: Drawer? = null
-    private var popup: PopupWindow? = null
-    private var overlay: View? = null            // folder panel or widget picker (views, not dialogs: a drag survives them)
-    private var apps: Map<String, AppE>? = null
-    private var model: HomeModel? = null
-    private var key = ""
-    private var lastTap = 0L
-    private var drag: DragSt? = null
-    private var tempPage = false
-    private var insT = 0; private var insB = 0; private var insL = 0; private var insR = 0
-    private val inkViews = ArrayList<View>()      // TextViews / dot rows that sit right on the wallpaper
-    private val inkCache = HashMap<String, Ink>()
-    private val itemViews = HashMap<String, View>()   // grid item id -> its view on the current render
-    private val dockViews = ArrayList<View>()
-    private val listener: () -> Unit = { render(false) }
-    private var timeRx: BroadcastReceiver? = null
-    private var pkgRx: BroadcastReceiver? = null
-    private var lastView: View0? = null
-    private var lastShow: Map<String, LauncherLogic.Show> = emptyMap()
+    internal lateinit var floatBox: FrameLayout
+    internal lateinit var bannerBox: FrameLayout
+    internal lateinit var topBar: FrameLayout
+    internal lateinit var bottom: LinearLayout
+    internal lateinit var tip: TextView
+    internal lateinit var pager: Pager
+    internal lateinit var dots: LinearLayout
+    internal lateinit var hint: ImageView
+    internal lateinit var dock: LinearLayout
+    internal var today: TodayPage? = null
+    internal var drawer: Drawer? = null
+    internal var popup: PopupWindow? = null
+    internal var overlay: View? = null            // folder panel or widget picker (views, not dialogs: a drag survives them)
+    internal var apps: Map<String, AppE>? = null
+    internal var model: HomeModel? = null
+    internal var key = ""
+    internal var lastTap = 0L
+    internal var drag: DragSt? = null
+    internal var tempPage = false
+    internal var insT = 0; internal var insB = 0; internal var insL = 0; internal var insR = 0
+    internal val inkViews = ArrayList<View>()      // TextViews / dot rows that sit right on the wallpaper
+    internal val inkCache = HashMap<String, Ink>()
+    internal val itemViews = HashMap<String, View>()   // grid item id -> its view on the current render
+    internal val dockViews = ArrayList<View>()
+    internal val listener: () -> Unit = { render(false) }
+    internal var timeRx: BroadcastReceiver? = null
+    internal var pkgRx: BroadcastReceiver? = null
+    internal var lastView: View0? = null
+    internal var lastShow: Map<String, LauncherLogic.Show> = emptyMap()
 
-    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
-    private fun dpf(v: Float) = v * resources.displayMetrics.density
+    internal fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+    internal fun dpf(v: Float) = v * resources.displayMetrics.density
 
     override fun getResources(): android.content.res.Resources = Lang.res(baseContext) ?: super.getResources()
 
@@ -249,7 +235,7 @@ class HomeActivity : Activity() {
 
     // ---------------- data ----------------
 
-    private fun launcherApps(): Map<String, AppE> {
+    internal fun launcherApps(): Map<String, AppE> {
         apps?.let { return it }
         val pm = packageManager
         val out = LinkedHashMap<String, AppE>()
@@ -261,11 +247,11 @@ class HomeActivity : Activity() {
         return out.also { apps = it }
     }
 
-    private class View0(val want: Map<String, String>, val leftMs: Long, val usage: Map<String, Long>, val minute: Int, val dow: Int, val now: Long,
+    internal class View0(val want: Map<String, String>, val leftMs: Long, val usage: Map<String, Long>, val minute: Int, val dow: Int, val now: Long,
                         val apps: Set<String>, val prot: Set<String>, val today: String)
 
     /** The Guard's last decision, or the same decide() run here when the Guard has not ticked yet. */
-    private fun decision(r: Rules, s: Store): View0 {
+    internal fun decision(r: Rules, s: Store): View0 {
         val now = System.currentTimeMillis(); val today = Guard.day(now)
         val cal = Calendar.getInstance()
         val minute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
@@ -276,13 +262,13 @@ class HomeActivity : Activity() {
         return View0(want, dailyLeftMs(r, use, today, all.keys, prot), use, minute, Rules.isoDow(today), now, all.keys, prot, today)
     }
 
-    private fun resolvePkg(i: Intent): String? = runCatching {
+    internal fun resolvePkg(i: Intent): String? = runCatching {
         packageManager.resolveActivity(i, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName?.takeIf { it != "android" && !it.contains("resolver") }
     }.getOrNull()
 
-    private fun dialer(): String? = resolvePkg(Intent(Intent.ACTION_DIAL))
+    internal fun dialer(): String? = resolvePkg(Intent(Intent.ACTION_DIAL))
 
-    private fun firstModel(r: Rules, visible: List<AppE>): HomeModel {
+    internal fun firstModel(r: Rules, visible: List<AppE>): HomeModel {
         val vis = visible.map { it.pkg }.toSet()
         val dockApps = listOfNotNull(
             runCatching { Telephony.Sms.getDefaultSmsPackage(this) }.getOrNull(),
@@ -295,9 +281,9 @@ class HomeActivity : Activity() {
 
     // ---------------- render ----------------
 
-    private fun busy() = drag != null || overlay != null || popup?.isShowing == true || pager.dragging
+    internal fun busy() = drag != null || overlay != null || popup?.isShowing == true || pager.dragging
 
-    private fun render(force: Boolean) {
+    internal fun render(force: Boolean) {
         val t0 = android.os.SystemClock.elapsedRealtime()
         try { render0(force) } finally {
             val ms = android.os.SystemClock.elapsedRealtime() - t0
@@ -305,11 +291,11 @@ class HomeActivity : Activity() {
         }
     }
 
-    private class Lap { val t = android.os.SystemClock.elapsedRealtime(); var l = t; val sb = StringBuilder()
+    internal class Lap { val t = android.os.SystemClock.elapsedRealtime(); var l = t; val sb = StringBuilder()
         operator fun invoke(n: String) { val x = android.os.SystemClock.elapsedRealtime(); sb.append(n).append('=').append(x - l).append(' '); l = x }
         fun done(n: String) { if (android.os.SystemClock.elapsedRealtime() - t > 16) android.util.Log.i("KG.perf", "$n $sb") } }
 
-    private fun render0(force: Boolean) {
+    internal fun render0(force: Boolean) {
         if (isFinishing || isDestroyed) return
         val s = Store.of(this); val r = s.rules
         val lap = Lap()
@@ -364,7 +350,7 @@ class HomeActivity : Activity() {
         main.post { inkPass(); chromeFade() }
     }
 
-    private fun ensureWall() {
+    internal fun ensureWall() {
         val w = root.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
         val h = root.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
         val st = model?.style ?: HStyle()
@@ -380,21 +366,21 @@ class HomeActivity : Activity() {
         old?.recycle()
     }
 
-    private fun locationOn(): Boolean = runCatching {
+    internal fun locationOn(): Boolean = runCatching {
         val lm = getSystemService(LocationManager::class.java)
         if (Build.VERSION.SDK_INT >= 28) lm.isLocationEnabled
         else @Suppress("DEPRECATION") Settings.Secure.getInt(contentResolver, Settings.Secure.LOCATION_MODE) != Settings.Secure.LOCATION_MODE_OFF
     }.getOrDefault(true)
 
-    private fun card(radius: Int = 22) = GradientDrawable().apply { setColor(pal.card); cornerRadius = dpf(radius.toFloat()) }
-    private fun fill(color: Int, radius: Float = 999f) = GradientDrawable().apply { setColor(color); cornerRadius = dpf(radius) }
-    private fun text(t: String, sp: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
+    internal fun card(radius: Int = 22) = GradientDrawable().apply { setColor(pal.card); cornerRadius = dpf(radius.toFloat()) }
+    internal fun fill(color: Int, radius: Float = 999f) = GradientDrawable().apply { setColor(color); cornerRadius = dpf(radius) }
+    internal fun text(t: String, sp: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
         text = t; setTextSize(TypedValue.COMPLEX_UNIT_SP, sp * (model?.style?.font?.toFloat() ?: 1f)); setTextColor(color)
         if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         includeFontPadding = false
     }
 
-    private fun buildBanner(code: String?) {
+    internal fun buildBanner(code: String?) {
         bannerBox.removeAllViews()
         if (code == null) return
         val msg = when (code) { "owner" -> R.string.hm_b_owner; "usage" -> R.string.hm_b_usage; "location" -> R.string.hm_b_location; "acc" -> R.string.hm_b_acc; else -> R.string.hm_b_guard }
@@ -414,7 +400,7 @@ class HomeActivity : Activity() {
     }
 
     /** While dragging: the round remove target. Hidden otherwise. */
-    private fun buildTopBar() {
+    internal fun buildTopBar() {
         topBar.removeAllViews()
         val dragging = drag != null
         topBar.visibility = if (dragging) View.VISIBLE else View.GONE
@@ -429,13 +415,13 @@ class HomeActivity : Activity() {
         topBar.addView(b, FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(10); bottomMargin = dp(4) })
     }
 
-    private fun announce(t: String) = root.announceForAccessibility(t)
+    internal fun announce(t: String) = root.announceForAccessibility(t)
 
     /**
      * Home pages leave room for the chrome (status bar + banner on top, dots + dock below). Frozen while an
      * item is dragged: the drop bar and the tip float over the grid, so the grid neither shrinks nor jumps.
      */
-    private fun padPages() {
+    internal fun padPages() {
         if (!::pager.isInitialized) return
         (tip.layoutParams as? FrameLayout.LayoutParams)?.let { lp -> val b = bottom.height + dp(8); if (lp.bottomMargin != b) { lp.bottomMargin = b; tip.layoutParams = lp } }
         if (drag != null) return
@@ -447,7 +433,7 @@ class HomeActivity : Activity() {
         }
     }
 
-    private fun buildPages(m: HomeModel, all: Map<String, AppE>, show: Map<String, LauncherLogic.Show>, dv: View0, r: Rules, s: Store, block: String?) {
+    internal fun buildPages(m: HomeModel, all: Map<String, AppE>, show: Map<String, LauncherLogic.Show>, dv: View0, r: Rules, s: Store, block: String?) {
         inkViews.clear(); itemViews.clear(); clocks.clear()
         val keep = pager.page
         pager.removeAllViews()
@@ -494,14 +480,14 @@ class HomeActivity : Activity() {
     }
 
     /** While dragging: the page panel in the wallpaper's ink colour. */
-    private fun styleCells() {
+    internal fun styleCells() {
         val on = drag != null
         val c = inkCache["grid"]?.text ?: Color.WHITE
         for (i in 1 until pager.childCount) (pager.getChildAt(i) as? CellLayout)?.let { it.grid = on; it.gridColor = c; it.invalidate() }
     }
 
     /** -1 page: the chrome (dots, dock, banner) slides away with the pages; status bar icons follow the page. */
-    private fun chromeFade() {
+    internal fun chromeFade() {
         val w = pager.width.takeIf { it > 0 } ?: return
         val f = (pager.scrollX.toFloat() / w).coerceIn(0f, 1f)     // 0 on "Hôm nay", 1 on page 1+
         chrome.alpha = f
@@ -512,7 +498,7 @@ class HomeActivity : Activity() {
         chrome.translationX = (1 - f) * w * 0.3f
     }
 
-    private fun buildDots() {
+    internal fun buildDots() {
         dots.removeAllViews()
         val n = pager.childCount - 1
         dots.contentDescription = getString(R.string.hm_page, pager.page.coerceAtLeast(1), n.coerceAtLeast(1))
@@ -530,1105 +516,29 @@ class HomeActivity : Activity() {
         dots.background = null
     }
 
-    // ---- app icon ----
-
-    private fun iconPx(): Int = dp((preset.iconDp * (0.8f + 0.1f * ((model?.style?.icon ?: 3) - 1))).toInt())
-
-    private fun appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules, mode: Mode, item: HItem? = null, folder: HItem? = null, slot: Int = -1): View {
-        val list = mode == Mode.DRAWER || mode == Mode.PANEL     // on an opaque surface: pal.text labels, a "còn x phút" line
-        val px = if (list) dp(52) else iconPx()
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; setPadding(0, dp(4), 0, dp(2)) }
-        val frame = FrameLayout(this)
-        val bmp = IconCache.get(this, a.pkg, a.cls, px, model?.style?.shape != "square")
-        frame.addView(object : View(this) {
-            override fun onDraw(c: Canvas) {
-                bmp ?: return
-                if (paused) { val p = IconCache.greyPaint(); p.alpha = 115; c.drawBitmap(bmp, 0f, 0f, p) } else c.drawBitmap(bmp, 0f, 0f, null)
-            }
-        }, FrameLayout.LayoutParams(px, px))
-        val reason = dv.want[a.pkg]
-        if (paused) {
-            // clock badge: warn fill + glyph picked for it (HomeStyle tests both), a ring of the sheet colour keeps it off the grey icon
-            val bs = (px * 0.36f).toInt().coerceAtLeast(dp(18))
-            frame.addView(ImageView(this).apply {
-                setImageDrawable(Ic.get(this@HomeActivity, R.drawable.li_clock, pal.onWarn, bs))
-                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(pal.warn); setStroke(dp(2), pal.sheet) }
-                val pad = (bs * 0.2f).toInt(); setPadding(pad, pad, pad, pad)
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            }, FrameLayout.LayoutParams(bs, bs, Gravity.TOP or Gravity.END).apply { setMargins(0, -bs / 4, -bs / 4, 0) })
-            frame.clipChildren = false
-        }
-        box.clipChildren = false
-        box.addView(frame, LinearLayout.LayoutParams(px + dp(4), px + dp(2)).apply { gravity = Gravity.CENTER_HORIZONTAL })
-        val showLabel = list || (model?.style?.labels ?: true)
-        if (showLabel) {
-            val lbl = text(a.label, if (preset.id == "be" && !list) 14f else 12f, if (list) pal.text else Color.WHITE).apply {
-                maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; gravity = Gravity.CENTER; setPadding(dp(4), dp(1), dp(4), dp(1))
-            }
-            box.addView(lbl, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4); gravity = Gravity.CENTER_HORIZONTAL })
-            if (!list) inkViews += lbl
-        }
-        if (list) {
-            val sub = when {
-                paused -> reopenShort(r, reason ?: "", a.pkg, dv)
-                else -> LauncherLogic.appLeftMs(r, dv.usage, a.pkg).takeIf { it in 0 until 60 * 60_000L }?.let { getString(R.string.hm_min_left, ((it + 59_999) / 60_000).toInt()) }
-            }
-            if (sub != null) box.addView(text(sub, 11f, if (paused) pal.warnText else pal.sub).apply { maxLines = 1; gravity = Gravity.CENTER },
-                LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(1); gravity = Gravity.CENTER_HORIZONTAL })
-        }
-        box.contentDescription = if (paused) getString(R.string.hm_paused_desc, a.label, BasicLogic.reasonText(reason ?: "", Store.of(this).tr)) else a.label
-        kit.tap(box, 16f, list && pal.dark || !list)
-        box.setOnClickListener { if (debounce()) { if (paused) pausedSheet(a, reason ?: "", dv, r) else launch(a, box) } }
-        // drag source: where the icon lives
-        val src: () -> DragSt = {
-            when (mode) {
-                Mode.HOME -> DragSt(Src.Item(item!!.id), null, "app", 1, 1, item.id, box)
-                Mode.DOCK -> DragSt(Src.Dock(slot), null, "app", 1, 1, null, box)
-                Mode.PANEL -> DragSt(Src.InFolder(folder!!.id, a.pkg), null, "app", 1, 1, null, null)
-                Mode.DRAWER -> DragSt(null, a.pkg, "app", 1, 1, null, null)
-            }
-        }
-        arm(box, { appMenu(a, box, mode, item) }, src, immediate = mode == Mode.PANEL)
-        return box
-    }
-
-    private fun folderName(f: HItem): String = f.name.ifBlank { getString(R.string.hm_f_default) }
-
-    private fun folderIcon(f: HItem, vis: List<AppE>, show: Map<String, LauncherLogic.Show>): View {
-        val px = iconPx()
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; setPadding(0, dp(4), 0, dp(2)) }
-        val square = model?.style?.shape == "square"
-        val mini = (px * 0.36f).toInt()
-        val grid = object : View(this) {
-            val bmps = vis.take(4).map { IconCache.get(this@HomeActivity, it.pkg, it.cls, mini, !square) to (show[it.pkg] == LauncherLogic.Show.PAUSED) }
-            override fun onDraw(c: Canvas) {
-                val gap = (px - 2 * mini) / 3f
-                for ((i, b) in bmps.withIndex()) {
-                    val bm = b.first ?: continue
-                    val x = gap + (i % 2) * (mini + gap); val y = gap + (i / 2) * (mini + gap)
-                    if (b.second) { val p = IconCache.greyPaint(); p.alpha = 115; c.drawBitmap(bm, x, y, p) } else c.drawBitmap(bm, x, y, null)
-                }
-            }
-        }.apply { background = if (square) fill(pal.card, px * 0.22f / resources.displayMetrics.density) else GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(pal.card) } }
-        box.addView(grid, LinearLayout.LayoutParams(px, px).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(1); bottomMargin = dp(1) })
-        if (model?.style?.labels != false) {
-            val lbl = text(folderName(f), if (preset.id == "be") 14f else 12f, Color.WHITE).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; gravity = Gravity.CENTER; setPadding(dp(4), dp(1), dp(4), dp(1)) }
-            box.addView(lbl, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4); gravity = Gravity.CENTER_HORIZONTAL })
-            inkViews += lbl
-        }
-        box.contentDescription = getString(R.string.hm_f_desc, folderName(f), vis.size)
-        kit.tap(box, 16f, true)
-        box.setOnClickListener { if (debounce()) openFolder(f.id) }
-        arm(box, {
-            menu(listOf(
-                Row(R.drawable.li_pencil, getString(R.string.hm_f_rename), true) { renameFolder(f.id) },
-                Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { mm -> HomeLayout.take(mm, Src.Item(f.id))?.let { update(HomeLayout.dropRemove(it)) } } },
-            ), box)
-        }, { DragSt(Src.Item(f.id), null, "folder", 1, 1, f.id, box) })
-        return box
-    }
-
-    private fun debounce(): Boolean {
-        val now = android.os.SystemClock.elapsedRealtime()
-        if (now - lastTap < 600) return false
-        lastTap = now; return true
-    }
-
-    private fun launch(a: AppE, from: View) {
-        val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(ComponentName(a.pkg, a.cls))
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-        val opts = ActivityOptions.makeScaleUpAnimation(from, 0, 0, from.width, from.height).toBundle()
-        runCatching { startActivity(i, opts) }.recoverCatching { packageManager.getLaunchIntentForPackage(a.pkg)?.let { startActivity(it) } ?: error("none") }
-            .onFailure { Toast.makeText(this, R.string.hm_open_fail, Toast.LENGTH_SHORT).show() }
-    }
-
-    private fun hhmm(t: Long) = SimpleDateFormat("HH:mm", Locale.ROOT).format(Date(t))
-
-    /** "Mở 17:00" / "Hết giờ" under a greyed app in the drawer. */
-    private fun reopenShort(r: Rules, reason: String, pkg: String, dv: View0): String = when (val o = LauncherLogic.reopen(r, reason, pkg, dv.minute, dv.dow, dv.now)) {
-        is LauncherLogic.Reopen.AtMinute -> getString(R.string.hm_opens, HomeLogic.clock(o.minute))
-        is LauncherLogic.Reopen.AtMs -> getString(R.string.hm_opens, hhmm(o.ms))
-        else -> getString(R.string.hm_out)
-    }
-
-    /** "06:30 sáng mai" / "lúc 17:00" / "vào ngày mai", or null. */
-    private fun reopenWhen(r: Rules, reason: String, pkg: String, dv: View0): String? = when (val o = LauncherLogic.reopen(r, reason, pkg, dv.minute, dv.dow, dv.now)) {
-        is LauncherLogic.Reopen.AtMinute -> if (o.minute <= dv.minute) getString(R.string.hm_tomorrow_at, HomeLogic.clock(o.minute)) else getString(R.string.hm_today_at, HomeLogic.clock(o.minute))
-        is LauncherLogic.Reopen.AtMs -> getString(R.string.hm_today_at, hhmm(o.ms))
-        LauncherLogic.Reopen.Tomorrow -> getString(R.string.hm_tomorrow)
-        else -> null
-    }
-
-    // ---- paused sheet ----
-
-    private fun pausedSheet(a: AppE, reason: String, dv: View0, r: Rules) {
-        val s = Store.of(this)
-        val sh = Sheet(this, u, getString(R.string.hm_paused_title, a.label))
-        val body = sh.body
-        val warnCard = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            background = fill(pal.warnTint, 18f); setPadding(dp(14), dp(12), dp(14), dp(12))
-        }
-        warnCard.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@HomeActivity, R.drawable.li_clock, pal.onWarn, dp(18))); background = fill(pal.warn); setPadding(dp(8), dp(8), dp(8), dp(8)) },
-            LinearLayout.LayoutParams(dp(34), dp(34)))
-        val txt = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, 0, 0) }
-        txt.addView(text(BasicLogic.reasonText(reason, s.tr).replaceFirstChar { it.titlecase() }, 16f, pal.text, true))
-        reopenWhen(r, reason, a.pkg, dv)?.let { txt.addView(text(getString(R.string.hm_reopen, it), 14f, pal.warnText).apply { setPadding(0, dp(3), 0, 0) }) }
-        warnCard.addView(txt, LinearLayout.LayoutParams(0, -2, 1f))
-        body.addView(warnCard, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(14), dp(12), 0) })
-        val note = Notes.clean(r.blockNote, Notes.NOTE_MAX)
-        if (note.isNotEmpty() && r.launcher.notes) {
-            val nc = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = fill(pal.bg, 18f); setPadding(dp(14), dp(12), dp(14), dp(12)) }
-            nc.addView(text(getString(R.string.hm_note), 12f, pal.sub, true))
-            nc.addView(text(note, 15f, pal.text).apply { setPadding(0, dp(4), 0, 0); includeFontPadding = true })
-            body.addView(nc, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(10), dp(12), 0) })
-        }
-        if (HomeLogic.canAsk(s.everPaired, dv.leftMs, reason)) body.addView(kit.pill(getString(R.string.main_more), R.drawable.li_timer, true) { sh.dismiss(); main.post { acts.askMore() } },
-            LinearLayout.LayoutParams(-1, dp(52)).apply { setMargins(dp(12), dp(16), dp(12), 0) })
-        body.addView(kit.pill(getString(R.string.hm_later), null, false) { sh.dismiss() }, LinearLayout.LayoutParams(-1, dp(52)).apply { setMargins(dp(12), dp(8), dp(12), 0) })
-        sh.show()
-    }
-
-    // ---- menus ----
-
-    private class Row(val icon: Int, val label: String, val enabled: Boolean, val run: () -> Unit)
-
-    private fun menu(rows: List<Row>, anchor: View?, x: Int = 0, y: Int = 0) {
-        popup?.dismiss()
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = fill(pal.sheet, 16f); setPadding(0, dp(6), 0, dp(6)); elevation = dpf(8f) }
-        val pw = PopupWindow(box, dp(250), ViewGroup.LayoutParams.WRAP_CONTENT, true)
-        for (r in rows) box.addView(LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(14), dp(12), dp(14), dp(12))
-            val c = if (r.enabled) pal.text else pal.sub
-            addView(ImageView(context).apply { setImageDrawable(Ic.get(context, r.icon, if (r.enabled) pal.onTint else pal.sub, dp(18))); background = fill(if (r.enabled) pal.tint else pal.bg); setPadding(dp(6), dp(6), dp(6), dp(6)) },
-                LinearLayout.LayoutParams(dp(30), dp(30)))
-            addView(text(r.label, 15f, c).apply { setPadding(dp(12), 0, 0, 0) })
-            isEnabled = r.enabled
-            kit.tap(this, 10f)
-            if (r.enabled) setOnClickListener { pw.dismiss(); r.run() }
-            contentDescription = r.label
-        }, LinearLayout.LayoutParams(-1, -2))
-        pw.elevation = dpf(8f)
-        pw.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-        pw.setOnDismissListener { if (popup === pw) popup = null }
-        popup = pw
-        // place it ourselves: showAsDropDown on an item near the bottom cut the last rows off (Android 8 doesn't flip it)
-        box.measure(View.MeasureSpec.makeMeasureSpec(dp(250), View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
-        val h = box.measuredHeight
-        val rl = IntArray(2).also { root.getLocationInWindow(it) }
-        val (px, py) = if (anchor != null) {
-            val l = IntArray(2).also { anchor.getLocationInWindow(it) }
-            val below = l[1] - rl[1] + anchor.height - dp(6)
-            l[0] - rl[0] to (if (below + h <= root.height - insB - dp(8)) below else l[1] - rl[1] - h + dp(6))
-        } else x - rl[0] to y - rl[1]
-        pw.showAtLocation(root, Gravity.TOP or Gravity.START, px.coerceAtMost(root.width - dp(260)).coerceAtLeast(dp(8)) + rl[0],
-            py.coerceAtMost(root.height - insB - h - dp(8)).coerceAtLeast(insT + dp(8)) + rl[1])
-    }
-
-    private fun appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
-        val m = model ?: return
-        val placed = a.pkg in m.onHome()
-        menu(listOfNotNull(
-            Row(R.drawable.li_pin, getString(if (placed) R.string.hm_pinned else R.string.hm_pin), !placed) { update(HomeLayout.pin(m, a.pkg)); if (drawer != null) closeDrawer() }.takeIf { mode == Mode.DRAWER },
-            Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { update(HomeLayout.remove(m, a.pkg)) }.takeIf { placed || mode != Mode.DRAWER },
-            Row(R.drawable.li_folder_plus, getString(R.string.hm_f_add), true) { addToFolderSheet(a) },
-            // the app fills its whole cell, so most long-presses land on one: give the empty-space menu a way in from here
-            Row(R.drawable.li_house, getString(R.string.hm_home_menu), true) {
-                val l = IntArray(2); v.getLocationInWindow(l); emptyMenu(l[0], l[1] + v.height / 2)
-            }.takeIf { mode != Mode.DRAWER },
-        ), v)
-    }
-
-    private fun emptyMenu(x: Int, y: Int) = menu(listOf(
-        Row(R.drawable.li_layout_dashboard, getString(R.string.hm_w_title), true) { openPicker() },
-        Row(R.drawable.li_sliders_horizontal, getString(R.string.hm_customize), true) { runCatching { startActivity(Intent(this, CustomActivity::class.java)) } },
-        Row(R.drawable.li_shield, getString(R.string.hm_open_kg), true) { openMain() },
-    ), null, x, y)
-
-    private fun update(m: HomeModel) { HomeFile.save(this, m); model = m; key = ""; render(true) }
-
-    private fun openMain() = runCatching { startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-
-    // ---- folders ----
-
-    /** Auto name from the two apps' ApplicationInfo.category: Trò chơi / Mạng xã hội / Học tập / Giải trí, else Thư mục. */
-    private fun autoName(a: String, b: String): String {
-        fun cat(p: String) = if (Build.VERSION.SDK_INT >= 26) runCatching { packageManager.getApplicationInfo(p, 0).category }.getOrDefault(-1) else -1
-        return when (HomeLayout.folderKind(cat(a), cat(b))) {
-            "games" -> getString(R.string.hm_f_games); "social" -> getString(R.string.hm_f_social); "study" -> getString(R.string.hm_f_study); "fun" -> getString(R.string.hm_f_fun)
-            else -> getString(R.string.hm_f_default)
-        }
-    }
-
-    /** "Thêm vào thư mục": the folders on the home, then "a new folder with" each other app on the grid. */
-    private fun addToFolderSheet(a: AppE) {
-        val m = model ?: return
-        val all = launcherApps()
-        val sh = Sheet(this, u, getString(R.string.hm_f_add_title, a.label))
-        fun rowOf(icon: View, label: String, run: () -> Unit) = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(16), dp(10), dp(16), dp(10))
-            addView(icon, LinearLayout.LayoutParams(dp(40), dp(40)))
-            addView(text(label, 16f, pal.text).apply { setPadding(dp(14), 0, 0, 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
-            kit.tap(this, 12f) { sh.dismiss(); run() }
-            contentDescription = label
-        }
-        val folders = m.pages.flatten().filter { it.kind == "folder" && a.pkg !in it.apps && lastShow.let { s -> it.apps.any { p -> s[p] != null && s[p] != LauncherLogic.Show.HIDE } } }
-        for (f in folders) sh.body.addView(rowOf(kit.badge(R.drawable.li_folder, pal.onTint, pal.tint, 40, 20, square = true), folderName(f)) {
-            HomeLayout.addTo(m, a.pkg, f.id, "")?.let { update(it); toast(getString(R.string.hm_f_added, folderName(f))) } ?: toast(getString(R.string.hm_f_full))
-        })
-        val others = m.pages.flatten().filter { it.kind == "app" && it.pkg != a.pkg && lastShow[it.pkg]?.let { s -> s != LauncherLogic.Show.HIDE } == true }
-            .mapNotNull { it to (all[it.pkg] ?: return@mapNotNull null) }.sortedBy { it.second.sortKey }
-        if (others.isNotEmpty()) sh.body.addView(text(getString(R.string.hm_f_new_with), 13f, pal.sub, true).apply { setPadding(dp(16), dp(14), dp(16), dp(4)) })
-        for ((it, e) in others) sh.body.addView(rowOf(ImageView(this).apply { setImageBitmap(IconCache.get(this@HomeActivity, e.pkg, e.cls, dp(40), model?.style?.shape != "square")) }, e.label) {
-            val name = autoName(e.pkg, a.pkg)
-            HomeLayout.addTo(m, a.pkg, it.id, name)?.let { n -> update(n); toast(getString(R.string.hm_f_added, name)) }
-        })
-        if (folders.isEmpty() && others.isEmpty()) sh.body.addView(text(getString(R.string.hm_f_none), 15f, pal.sub).apply { setPadding(dp(16), dp(16), dp(16), dp(16)) })
-        sh.show()
-    }
-
-    private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()
-
-    private fun renameFolder(id: String) {
-        val m = model ?: return
-        val f = HomeLayout.find(m, id)?.second ?: return
-        val md = Modal(this, u)
-        val field = md.field(getString(R.string.hm_f_name_hint), 40).apply { setText(folderName(f)); setSelection(text.length) }
-        md.show(R.drawable.li_pencil, Modal.Tone.INFO, getString(R.string.hm_f_rename), content = field, ok = getString(R.string.hm_t_save), cancel = getString(R.string.cancel)) {
-            val n = HomeLayout.rename(model ?: return@show true, id, field.text.toString())
-            val wasOpen = overlay?.tag == "folder:$id"
-            if (wasOpen) closeOverlay()
-            update(n)
-            if (wasOpen) main.post { openFolder(id) }
-            true
-        }
-        field.requestFocus()
-    }
-
-    /** A rounded panel over the home: the folder's visible apps (paused ones greyed + badge). Drag one out to take it out. */
-    private fun openFolder(id: String) {
-        val m = model ?: return
-        val f = HomeLayout.find(m, id)?.second?.takeIf { it.kind == "folder" } ?: return
-        val dv = lastView ?: return
-        val r = Store.of(this).rules
-        val all = launcherApps()
-        val vis = f.apps.mapNotNull { p -> all[p]?.takeIf { lastShow[p] != null && lastShow[p] != LauncherLogic.Show.HIDE } }
-        if (vis.isEmpty()) return
-        popup?.dismiss()
-        val scrim = FrameLayout(this).apply { setBackgroundColor(Color.argb(if (pal.dark) 140 else 90, 0, 0, 0)); isClickable = true; setOnClickListener { closeOverlay() }; tag = "folder:$id" }
-        val panel = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; background = fill(pal.sheet, 28f); setPadding(dp(12), dp(14), dp(12), dp(16)); elevation = dpf(12f); isClickable = true
-        }
-        val title = text(folderName(f), 20f, pal.text, true).apply {
-            gravity = Gravity.CENTER; setPadding(dp(12), dp(6), dp(12), dp(10))
-            setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, Ic.get(this@HomeActivity, R.drawable.li_pencil, pal.sub, dp(18)), null); compoundDrawablePadding = dp(8)
-            contentDescription = getString(R.string.hm_f_rename) + ": " + folderName(f)
-            kit.tap(this, 12f) { renameFolder(id) }
-        }
-        panel.addView(title, LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
-        val cols = 4
-        var row: LinearLayout? = null
-        for ((i, a) in vis.withIndex()) {
-            if (i % cols == 0) { row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }; panel.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) }) }
-            row!!.addView(appIcon(a, lastShow[a.pkg] == LauncherLogic.Show.PAUSED, dv, r, Mode.PANEL, folder = f), LinearLayout.LayoutParams(0, -2, 1f))
-        }
-        row?.let { rw -> while (rw.childCount < cols) rw.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f)) }
-        panel.addView(text(getString(R.string.hm_f_drag_out), 12f, pal.sub).apply { gravity = Gravity.CENTER; setPadding(dp(8), dp(10), dp(8), 0) }, LinearLayout.LayoutParams(-1, -2))
-        scrim.addView(panel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { setMargins(dp(16) + insL, insT + (root.height * 0.22f).toInt(), dp(16) + insR, 0) })
-        showOverlay(scrim)
-        panel.scaleX = 0.9f; panel.scaleY = 0.9f; panel.alpha = 0f
-        panel.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(160).start()
-        announce(folderName(f))
-    }
-
-    private fun showOverlay(v: View) {
-        closeOverlay()
-        overlay = v
-        root.addView(v, FrameLayout.LayoutParams(-1, -1))
-    }
-
-    private fun closeOverlay() {
-        val v = overlay ?: return
-        overlay = null
-        root.removeView(v)
-        if (drag == null) main.post { render(false) }
-    }
-
-    // ---- widgets ----
-
-    /** Long-press on a widget (or one of its buttons): menu (sizes, remove), and a drag moves it. */
-    private fun armWidget(v: View, it: HItem) {
-        val sizes = HomeLayout.SIZES[it.type].orEmpty().map { (w, h) -> minOf(w, model?.cols ?: w) to h }.distinct()
-        val showMenu = {
-            menu(sizes.filter { s -> s != it.w to it.h }.map { (w, h) ->
-                Row(R.drawable.li_layout_dashboard, getString(R.string.hm_w_size, w, h), true) { model?.let { mm -> HomeLayout.resizeWidget(mm, it.id, w, h)?.let { n -> update(n) } ?: noRoom(null) } }
-            } + Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { mm -> HomeLayout.take(mm, Src.Item(it.id))?.let { t -> update(HomeLayout.dropRemove(t)) } } }, v)
-        }
-        val src = { DragSt(Src.Item(it.id), null, "widget", it.w, it.h, it.id, v) }
-        fun walk(x: View) {
-            if (x === v || x.isClickable) arm(x, showMenu, src, dragView = v)
-            if (x is ViewGroup) for (i in 0 until x.childCount) walk(x.getChildAt(i))
-        }
-        walk(v)
-        v.isLongClickable = true
-    }
-
-    private fun widgetLabel(type: String) = getString(when (type) {
-        "time" -> R.string.hm_w_time; "quick" -> R.string.hm_w_quick; "next" -> R.string.hm_w_next; "clock" -> R.string.hm_w_clock; else -> R.string.hm_w_counts
-    })
-
-    /** Clock widgets on the current render: the minute tick only changes their text, no rebuild (it used to rebuild the home every minute). */
-    private val clocks = ArrayList<Pair<TextView, TextView>>()
-
-    private fun tickClocks(dv: View0) {
-        val now = HomeLogic.clock(dv.minute)
-        for ((t, d) in clocks) if (t.text != now) { t.text = now; (t.parent as? View)?.contentDescription = "$now. ${d.text}" }
-    }
-
-    private fun clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideNext: Boolean): View {
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL or Gravity.START; setPadding(dp(14), dp(4), dp(8), dp(4)) }
-        val big = when (preset.clock) { "big" -> 60f; "thin" -> 46f; else -> 54f } * (if (w <= 3 && preset.cols == 5) 0.85f else 1f) * (if (h >= 2) 1.4f else 1f)
-        val t = text(HomeLogic.clock(dv.minute), big, Color.WHITE).apply {
-            typeface = Typeface.create(if (preset.clock == "thin") "sans-serif-light" else "sans-serif", Typeface.NORMAL); setPadding(dp(6), 0, dp(6), 0)
-        }
-        box.addView(t, LinearLayout.LayoutParams(-2, -2))
-        val date = SimpleDateFormat("EEEE, d MMMM", resources.configuration.locales[0]).format(Date(dv.now)).replaceFirstChar { it.titlecase() }
-        val d = text(date, if (h >= 2) 17f else 15f, Color.WHITE, true).apply { setPadding(dp(6), dp(2), dp(6), dp(2)) }
-        box.addView(d, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(2) })
-        inkViews += t; inkViews += d
-        clocks += t to d
-        // one place for "what's next": the "Lịch tiếp theo" widget when it is on the home, else here
-        if (!hideNext) LauncherLogic.nextEvent(r, dv.minute, dv.dow)?.let { (min, name) ->
-            val n = text(if (name.isEmpty()) getString(R.string.hm_next_bed, HomeLogic.clock(min)) else getString(R.string.hm_next, name, HomeLogic.clock(min)), 13f, Color.WHITE)
-                .apply { setPadding(dp(6), dp(2), dp(6), dp(2)); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
-            box.addView(n, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(2) })
-            inkViews += n
-        }
-        box.contentDescription = "${t.text}. ${d.text}"
-        return box
-    }
-
-    private fun dur(ms: Long) = HomeLogic.hm(ms).let { (h, m) -> if (h == 0) getString(R.string.home_m, m) else if (m == 0) getString(R.string.home_h, h) else getString(R.string.home_hm, h, m) }
-
-    /** The card wraps its content and sits in the middle of its cells (the mock's height, not the cell's). */
-    private fun centred(v: View): View = FrameLayout(this).apply { clipChildren = false; addView(v, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_VERTICAL)) }
-
-    private fun timeWidget(r: Rules, dv: View0, block: String?, s: Store, w: Int): View {
-        val small = w <= 2
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(16), dp(12), dp(16), dp(12)) }
-        val canAsk = HomeLogic.canAsk(s.everPaired, dv.leftMs, block)
-        if (block != null) {
-            // out of time: amber card (opaque tint: its own text passes on any wallpaper), reason + when it opens + "bấm Xin giờ"
-            box.background = fill(pal.warnTint, 22f)
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-            val icon = when (block) { "bedtime" -> R.drawable.li_moon; "schedule" -> R.drawable.li_calendar; "paused" -> R.drawable.li_circle_pause; else -> R.drawable.li_timer }
-            if (!small) row.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@HomeActivity, icon, pal.onWarn, dp(18))); background = fill(pal.warn); setPadding(dp(8), dp(8), dp(8), dp(8)) },
-                LinearLayout.LayoutParams(dp(34), dp(34)).apply { rightMargin = dp(12) })
-            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-            col.addView(text(BasicLogic.reasonText(block, s.tr).replaceFirstChar { it.titlecase() }, if (small) 15f else 18f, pal.text, true).apply { maxLines = 2 })
-            val wh = reopenWhen(r, block, "", dv)?.let { getString(R.string.hm_reopen, it) }
-            val line = when { wh != null && canAsk -> getString(R.string.hm_reopen_ask, wh); wh != null -> wh; canAsk -> getString(R.string.main_more); else -> null }
-            if (line != null) col.addView(text(line, 13f, pal.warnText).apply { setPadding(0, dp(3), 0, 0); maxLines = 2 })
-            row.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
-            box.addView(row)
-        } else {
-            box.background = card()
-            box.addView(text(getString(R.string.home_left).uppercase(), 11f, pal.sub, true).apply { letterSpacing = 0.08f })
-            if (dv.leftMs < 0) {
-                box.addView(text(getString(R.string.tl_none), if (small) 18f else 22f, pal.text, true).apply { setPadding(0, dp(4), 0, 0) })
-                if (r.bedtimeOn && !small) box.addView(text(getString(R.string.home_bed, r.bedStart, r.bedEnd), 13f, pal.sub).apply { setPadding(0, dp(3), 0, 0) })
-            } else {
-                val low = dv.leftMs < 10 * 60_000L
-                box.addView(text(dur(dv.leftMs), if (small) 20f else 26f, if (low) pal.warnText else pal.accentText, true).apply { setPadding(0, dp(4), 0, dp(8)); maxLines = 1 })
-                val limitMs = (baseLimitMin(r, dv.today) + if (r.bonusDay == dv.today) r.bonusMin else 0) * 60_000L
-                val used = dv.usage.filterKeys { it in dv.apps && it !in dv.prot && it !in r.allow }.values.sum()
-                val bar = FrameLayout(this).apply { background = fill(pal.stroke, 3f) }
-                val f = if (limitMs > 0) (used.toFloat() / limitMs).coerceIn(0.02f, 1f) else 0f
-                bar.addView(View(this).apply { background = fill(if (low) pal.warn else pal.solid, 3f) }, FrameLayout.LayoutParams(-1, -1))
-                bar.addOnLayoutChangeListener { v, l, _, rr, _, _, _, _, _ -> (v as FrameLayout).getChildAt(0).let { c -> val want = ((rr - l) * f).toInt(); if (c.layoutParams.width != want) { c.layoutParams.width = want; c.post { c.requestLayout() } } } }
-                box.addView(bar, LinearLayout.LayoutParams(-1, dp(6)))
-                if (!small) {
-                    val ln = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(7), 0, 0) }
-                    ln.addView(text(getString(R.string.home_used, dur(used)), 12f, pal.sub), LinearLayout.LayoutParams(0, -2, 1f))
-                    ln.addView(text(getString(R.string.home_limit, dur(limitMs)), 12f, pal.sub))
-                    box.addView(ln)
-                }
-            }
-        }
-        if (canAsk) kit.tap(box, 22f) { if (debounce()) acts.askMore() }
-        box.contentDescription = (box.getChildAt(0) as? TextView)?.text?.toString()
-        return centred(box)
-    }
-
-    private fun quickWidget(s: Store, w: Int): View {
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; background = card(); setPadding(dp(6), dp(10), dp(6), dp(10)) }
-        val paired = s.everPaired
-        val today = Guard.day(System.currentTimeMillis())
-        fun ci(ck: String, base: Int): String {
-            val t = s.lastCheckin(ck)
-            return if (t > 0 && Guard.day(t) == today) getString(R.string.hm_q_sent_at, hhmm(t)) else getString(base)
-        }
-        // glyph colour comes from its own fill (HomeStyle: onDanger / onTint / onSolid), never the mock's purple-on-purple
-        val items = listOf(
-            Triple(R.drawable.li_siren, Pair(pal.danger, pal.onDanger), Pair(if (s.sos().length() > 0) getString(R.string.hm_q_sent) else getString(R.string.home_sos), pal.dangerText)) to { acts.askSos() },
-            Triple(R.drawable.li_map_pin, Pair(pal.tint, pal.onTint), Pair(ci("arrived", R.string.hm_q_arrived), pal.text)) to { acts.askCheckin("arrived") },
-            Triple(R.drawable.li_car, Pair(pal.tint, pal.onTint), Pair(ci("pickup", R.string.hm_q_pickup), pal.text)) to { acts.askCheckin("pickup") },
-            Triple(R.drawable.li_timer, Pair(pal.solid, pal.onSolid), Pair(if (s.requests().length() > 0) getString(R.string.hm_q_wait) else getString(R.string.hm_q_more), pal.text)) to { acts.askMore() },
-        )
-        val circle = if (w >= 4 && preset.id == "be") 56 else 48
-        for ((spec, run) in items) {
-            val (icon, fills, lab) = spec
-            val b = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(2), dp(4), dp(2), dp(4))
-                addView(ImageView(context).apply {
-                    setImageDrawable(Ic.get(context, icon, fills.second, dp(22))); background = fill(fills.first)
-                    val p = dp((circle - 22) / 2); setPadding(p, p, p, p)
-                }, LinearLayout.LayoutParams(dp(circle), dp(circle)))
-                addView(text(lab.first, 12f, lab.second, true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, dp(6), 0, 0); gravity = Gravity.CENTER })
-                contentDescription = lab.first
-                // ripple in a rounded mask + no grey focus box (the SOS button used to keep one after a tap)
-                kit.tap(this, 14f) {
-                    if (!debounce()) return@tap
-                    if (!paired) Modal(this@HomeActivity, u).show(R.drawable.li_link, Modal.Tone.INFO, getString(R.string.hm_pair_title), getString(R.string.hm_pair_body),
-                        ok = getString(R.string.hm_open_kg), cancel = getString(R.string.cancel)) { openMain(); true }
-                    else run()
-                }
-            }
-            row.addView(b, LinearLayout.LayoutParams(0, -2, 1f))
-        }
-        return centred(row)
-    }
-
-    /** "Lịch tiếp theo" 4x1: what comes next today (or now), from LauncherLogic.today; a tap opens "Hôm nay". */
-    private fun nextWidget(r: Rules, dv: View0): View {
-        val box = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; background = card(); setPadding(dp(14), dp(12), dp(14), dp(12)) }
-        val ev = LauncherLogic.today(r, dv.minute, dv.dow).firstOrNull { it.state == "now" || it.state == "next" }
-        box.addView(kit.badge(when (ev?.kind) { "bed" -> R.drawable.li_moon; "group" -> R.drawable.li_timer; else -> R.drawable.li_calendar }, pal.onTint, pal.tint, 40, 20))
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, dp(4), 0) }
-        if (ev == null) col.addView(text(getString(R.string.hm_t_no_more), 15f, pal.text, true))
-        else {
-            col.addView(text((if (ev.state == "now") getString(R.string.hm_t_now) else getString(R.string.hm_w_next_at, HomeLogic.clock(ev.start))).uppercase(), 11f, pal.accentText, true).apply { letterSpacing = 0.06f })
-            val name = when (ev.kind) { "bed" -> getString(R.string.hm_t_bed); "group" -> getString(R.string.hm_t_group, ev.name); else -> ev.name.ifBlank { getString(R.string.hm_t_lock) } }
-            col.addView(text(name, 16f, pal.text, true).apply { setPadding(0, dp(3), 0, 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
-        }
-        box.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
-        box.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@HomeActivity, R.drawable.li_chevron_right, pal.sub, dp(18))); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }, LinearLayout.LayoutParams(dp(18), dp(18)))
-        kit.tap(box, 22f) { pager.snapTo(0) }
-        box.contentDescription = getString(R.string.hm_w_next) + ": " + ((col.getChildAt(col.childCount - 1) as? TextView)?.text ?: "")
-        return centred(box)
-    }
-
-    /** "Việc · Ghi chú · File" 2x2: counts from the "Hôm nay" page; a tap opens it. */
-    private fun countsWidget(r: Rules, m: HomeModel): View {
-        val (chores, notes, files) = TodayPage.counts(this, r, m)
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL; background = card(); setPadding(dp(14), dp(12), dp(14), dp(12)) }
-        box.addView(text(getString(R.string.hm_t_title), 14f, pal.text, true).apply { setPadding(0, 0, 0, dp(6)) })
-        for ((ic, lab, n) in listOf(Triple(R.drawable.li_list_checks, R.string.hm_w_c_chores, chores), Triple(R.drawable.li_sticky_note, R.string.hm_w_c_notes, notes), Triple(R.drawable.li_file, R.string.hm_w_c_files, files))) {
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(5), 0, dp(5)) }
-            row.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@HomeActivity, ic, pal.accentText, dp(16))) }, LinearLayout.LayoutParams(dp(16), dp(16)))
-            row.addView(text(getString(lab), 13f, pal.text).apply { setPadding(dp(8), 0, dp(4), 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
-            row.addView(text(n.toString(), 14f, pal.text, true))
-            box.addView(row)
-        }
-        kit.tap(box, 22f) { pager.snapTo(0) }
-        box.contentDescription = "${getString(R.string.hm_w_c_chores)} $chores, ${getString(R.string.hm_w_c_notes)} $notes, ${getString(R.string.hm_w_c_files)} $files"
-        return centred(box)
-    }
-
-    // ---- widget picker ----
-
-    /** Our widgets with their sizes. Tap a size: placed (or resized when it is on the home already). Hold and drag: drop it anywhere. */
-    private fun openPicker() {
-        val m = model ?: return
-        popup?.dismiss()
-        val scrim = FrameLayout(this).apply { setBackgroundColor(Color.argb(if (pal.dark) 140 else 80, 0, 0, 0)); isClickable = true; setOnClickListener { closeOverlay() }; tag = "picker" }
-        val sheet = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; isClickable = true; elevation = dpf(12f)
-            background = GradientDrawable().apply { setColor(pal.sheet); cornerRadii = floatArrayOf(dpf(28f), dpf(28f), dpf(28f), dpf(28f), 0f, 0f, 0f, 0f) }
-            setPadding(dp(20) + insL, dp(10), dp(20) + insR, dp(12) + insB)
-        }
-        sheet.addView(View(this).apply { background = fill(pal.stroke) }, LinearLayout.LayoutParams(dp(36), dp(4)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(12) })
-        sheet.addView(text(getString(R.string.hm_w_title), 22f, pal.text, true))
-        sheet.addView(text(getString(R.string.hm_w_sub), 14f, pal.sub).apply { setPadding(0, dp(4), 0, dp(6)); includeFontPadding = true })
-        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val sc = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(list) }
-        for ((i, type) in HomeLayout.SIZES.keys.withIndex()) {
-            if (i > 0) list.addView(View(this).apply { setBackgroundColor(pal.stroke) }, LinearLayout.LayoutParams(-1, dp(1)))
-            val placed = m.pages.flatten().firstOrNull { it.kind == "widget" && it.type == type }
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(12), 0, dp(12)) }
-            val pv = preview(type)
-            row.addView(pv, LinearLayout.LayoutParams(dp(124), dp(76)))
-            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), 0, 0, 0) }
-            col.addView(text(widgetLabel(type), 16f, pal.text, true))
-            col.addView(text(getString(when (type) { "time" -> R.string.hm_w_time_d; "quick" -> R.string.hm_w_quick_d; "next" -> R.string.hm_w_next_d; "clock" -> R.string.hm_w_clock_d; else -> R.string.hm_w_counts_d }), 13f, pal.sub).apply { setPadding(0, dp(2), 0, dp(6)); includeFontPadding = true })
-            val chips = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            val sizes = HomeLayout.SIZES[type].orEmpty().map { (w, h) -> minOf(w, m.cols) to h }.distinct()
-            for ((w, h) in sizes) {
-                val cur = placed != null && placed.w == w && placed.h == h
-                chips.addView(kit.chip(if (cur) getString(R.string.hm_w_on_home, w, h) else "$w×$h", if (cur) pal.onSolid else pal.onTint, if (cur) pal.solid else pal.tint, if (cur) R.drawable.li_check else null).apply {
-                    kit.tap(this, 999f) { if (!cur) pickSize(type, w, h, placed) }
-                    contentDescription = if (cur) getString(R.string.hm_w_on_home, w, h) else getString(R.string.hm_w_add_size, widgetLabel(type), w, h)
-                }, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(6) })
-            }
-            col.addView(chips)
-            row.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
-            // hold the row to drag a new widget in (only one of each kind: a placed one is moved on the home itself)
-            if (placed == null) arm(row, {}, { DragSt(Src.NewWidget(type, sizes[0].first, sizes[0].second), null, "widget", sizes[0].first, sizes[0].second, null, pv) }, immediate = true, dragView = pv)
-            kit.tap(row, 16f) { if (placed == null) pickSize(type, sizes[0].first, sizes[0].second, null) else toast(getString(R.string.hm_w_already)) }
-            list.addView(row, LinearLayout.LayoutParams(-1, -2))
-        }
-        sheet.addView(sc, LinearLayout.LayoutParams(-1, -2))
-        scrim.addView(sheet, FrameLayout.LayoutParams(-1, (root.height * 0.62f).toInt(), Gravity.BOTTOM))
-        showOverlay(scrim)
-        sheet.translationY = dpf(80f); sheet.alpha = 0f
-        sheet.animate().translationY(0f).alpha(1f).setDuration(180).start()
-    }
-
-    private fun pickSize(type: String, w: Int, h: Int, placed: HItem?) {
-        val m = model ?: return
-        val hp = (pager.page - 1).coerceAtLeast(0)
-        val n = if (placed != null) HomeLayout.resizeWidget(m, placed.id, w, h) else HomeLayout.placeWidget(m, type, w, h, hp)
-        if (n == null) { noRoom(null); return }
-        closeOverlay()
-        update(n)
-        HomeLayout.find(n, placed?.id ?: n.pages.flatten().first { it.kind == "widget" && it.type == type }.id)?.first?.let { pi -> pager.post { pager.snapTo(pi + 1) } }
-        toast(getString(R.string.hm_w_added, widgetLabel(type)))
-    }
-
-    /** A miniature on a tint block: a sheet card with the widget's main glyph and line (all tested pairs). */
-    private fun preview(type: String): View {
-        val box = FrameLayout(this).apply { background = fill(pal.tint, 16f); setPadding(dp(8), dp(8), dp(8), dp(8)); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
-        val c = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = fill(pal.sheet, 10f); setPadding(dp(8), dp(4), dp(8), dp(4)) }
-        when (type) {
-            "time" -> {
-                c.addView(text(dur(65 * 60_000L), 13f, pal.accentText, true))
-                c.addView(View(this).apply { background = fill(pal.solid, 2f) }, LinearLayout.LayoutParams(dp(60), dp(4)).apply { topMargin = dp(5) })
-            }
-            "quick" -> {
-                val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-                for ((ic, f, g) in listOf(Triple(R.drawable.li_siren, pal.danger, pal.onDanger), Triple(R.drawable.li_map_pin, pal.tint, pal.onTint), Triple(R.drawable.li_car, pal.tint, pal.onTint), Triple(R.drawable.li_timer, pal.solid, pal.onSolid)))
-                    r.addView(kit.badge(ic, g, f, 20, 12), LinearLayout.LayoutParams(dp(20), dp(20)).apply { setMargins(dp(2), 0, dp(2), 0) })
-                c.addView(r)
-            }
-            "next" -> {
-                c.addView(text(HomeLogic.clock(17 * 60), 10f, pal.sub))
-                c.addView(text(getString(R.string.hm_t_next), 12f, pal.text, true).apply { Ic.lead(this, R.drawable.li_calendar, pal.accentText); compoundDrawablePadding = dp(4) })
-            }
-            "clock" -> {
-                c.addView(text(HomeLogic.clock(lastView?.minute ?: 980), 22f, pal.text, true))
-                c.addView(text(SimpleDateFormat("EEE d/M", resources.configuration.locales[0]).format(Date()), 10f, pal.sub))
-            }
-            else -> for ((ic, lab) in listOf(R.drawable.li_list_checks to R.string.hm_w_c_chores, R.drawable.li_sticky_note to R.string.hm_w_c_notes, R.drawable.li_file to R.string.hm_w_c_files))
-                c.addView(text(getString(lab), 10f, pal.text).apply { Ic.lead(this, ic, pal.accentText); compoundDrawablePadding = dp(4); maxLines = 1 })
-        }
-        box.addView(c, FrameLayout.LayoutParams(-1, -1))
-        return box
-    }
-
-    // ---- drag and drop ----
-
-    private var armed: View? = null
-    private var downX = 0f; private var downY = 0f
-
-    /**
-     * Pixel-style press: long-press shows [onLong] (the menu); moving the finger 8 dp after that closes it and starts a drag.
-     * In a folder panel / the picker ([immediate]) the long-press starts the drag at once.
-     */
-    private fun arm(v: View, onLong: () -> Unit, src: () -> DragSt, immediate: Boolean = false, dragView: View = v) {
-        v.isLongClickable = true
-        v.setOnTouchListener { _, e ->
-            when (e.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { downX = e.rawX; downY = e.rawY; armed = null }
-                MotionEvent.ACTION_MOVE -> if (armed === v && (abs(e.rawX - downX) > dp(8) || abs(e.rawY - downY) > dp(8))) { armed = null; popup?.dismiss(); startDrag(dragView, src()) }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> armed = null
-            }
-            false
-        }
-        v.setOnLongClickListener {
-            v.parent?.requestDisallowInterceptTouchEvent(true)
-            v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-            if (immediate) startDrag(dragView, src()) else { armed = v; onLong() }
-            true
-        }
-    }
-
-    private fun startDrag(v: View, d: DragSt) {
-        if (drag != null || !v.isAttachedToWindow) return
-        val ok = runCatching { v.startDragAndDrop(null, View.DragShadowBuilder(v), d, 0) }.getOrDefault(false)
-        if (!ok) return
-        drag = d
-        d.view?.visibility = View.INVISIBLE
-        // leaving a panel / the drawer / the picker: the home takes the drop
-        when {
-            overlay != null -> { val o = overlay; overlay = null; o?.visibility = View.GONE; main.post { root.removeView(o) } }
-            drawer != null -> closeDrawer()
-        }
-        if (pager.page == 0) pager.snapTo(1)
-        bannerBox.visibility = View.INVISIBLE   // keeps its height: the drop bar floats over it
-        buildTopBar(); styleCells()
-        main.post { padPages() }
-    }
-
-    private var flip: Runnable? = null
-    private var hoverId: String? = null          // folder target: the finger rested on its icon (see FOLDER_MS)
-    private var folderArm: Runnable? = null
-    private var folderReady = false
-    private var swapId: String? = null           // item sliding out of the way (preview of the re-arrange)
-    private var removeBtn: View? = null
-    private var removeHot = false
-    private var removeNear = false               // heading for the remove circle: no cell highlight under it
-    private var dropped = false                  // the drop changed the layout: endDrag leaves the views for the new render
-
-    private fun pageView(): CellLayout? = pager.getChildAt(pager.page) as? CellLayout
-
-    /** Finger -> (page index, anchor cell for the dragged size, the item under the finger). */
-    private fun cellAt(x: Float, y: Float, d: DragSt): Triple<Int, Pair<Int, Int>, HItem?>? {
-        val m = model ?: return null
-        val cl = pageView() ?: return null
-        val loc = IntArray(2); val rl = IntArray(2)
-        cl.getLocationInWindow(loc); root.getLocationInWindow(rl)
-        val lx = x - (loc[0] - rl[0]); val ly = y - (loc[1] - rl[1]) - cl.paddingTop
-        val cw = cl.cellW(); val ch = cl.cellH()
-        if (cw <= 0 || ch <= 0 || ly < -ch / 2 || ly > m.rows * ch + ch / 2) return null
-        val fx = (lx - cl.side) / cw; val fy = ly / ch
-        val w = minOf(d.w, m.cols); val h = minOf(d.h, m.rows)
-        val ax = (fx - w / 2f).roundToInt().coerceIn(0, m.cols - w); val ay = (fy - h / 2f).roundToInt().coerceIn(0, m.rows - h)
-        val pi = cl.page
-        val under = m.pages.getOrNull(pi)?.firstOrNull { it.id != d.id && it.covers(fx.toInt().coerceIn(0, m.cols - 1), fy.toInt().coerceIn(0, m.rows - 1)) }
-        return Triple(pi, ax to ay, under)
-    }
-
-    private fun inView(v: View, x: Float, y: Float): Boolean {
-        if (!v.isShown) return false
-        val loc = IntArray(2); val rl = IntArray(2); v.getLocationInWindow(loc); root.getLocationInWindow(rl)
-        val l = loc[0] - rl[0]; val t = loc[1] - rl[1]
-        return x >= l && x < l + v.width && y >= t && y < t + v.height
-    }
-
-    private fun dockSlot(x: Float, y: Float): Int {
-        if (!inView(dock, x, y)) return -1
-        for ((i, v) in dockViews.withIndex()) if (inView(v, x, y)) return i
-        return -1
-    }
-
-    private fun onDrag(e: DragEvent): Boolean {
-        val d = drag ?: (e.localState as? DragSt) ?: return false
-        when (e.action) {
-            DragEvent.ACTION_DRAG_STARTED -> return true
-            DragEvent.ACTION_DRAG_LOCATION -> hover(e.x, e.y, d)
-            DragEvent.ACTION_DRAG_EXITED -> clearHover()
-            DragEvent.ACTION_DROP -> return drop(e.x, e.y, d)
-            DragEvent.ACTION_DRAG_ENDED -> endDrag()
-        }
-        return true
-    }
-
-    private fun clearHover() { clearCell(); magnet(Float.NaN, Float.NaN) }
-
-    /** Resets the cell-level hover: folder target, the re-arrange preview, the tip, the cell highlight, dock slots. */
-    private fun clearCell() {
-        folderArm?.let { main.removeCallbacks(it) }; folderArm = null; folderReady = false
-        hoverId?.let { itemViews[it]?.background = null }
-        hoverId = null
-        unswap()
-        tip.visibility = View.GONE
-        pageView()?.let { if (it.hl != null) { it.hl = null; it.invalidate() } }
-        for (v in dockViews) v.background = null
-    }
-
-    private fun unswap() {
-        swapId?.let { itemViews[it]?.animate()?.translationX(0f)?.translationY(0f)?.setDuration(180)?.start() }
-        swapId = null
-    }
-
-    /**
-     * The remove target follows the finger: within ~170 dp it leans toward it, grows and brightens (the "pull"); inside
-     * the 64 dp zone it turns red (one tick). NaN resets it. Returns true inside the zone (= drop removes).
-     */
-    private fun magnet(x: Float, y: Float): Boolean {
-        val b = removeBtn ?: return false
-        if (!b.isShown) return false
-        val loc = IntArray(2); val rl = IntArray(2); b.getLocationInWindow(loc); root.getLocationInWindow(rl)
-        val cx = loc[0] - rl[0] - b.translationX + b.width / 2f; val cy = loc[1] - rl[1] - b.translationY + b.height / 2f
-        val dist = if (x.isNaN()) Float.MAX_VALUE else kotlin.math.hypot(x - cx, y - cy)
-        val k = (1f - dist / dpf(170f)).coerceIn(0f, 1f)
-        val hot = dist < dpf(64f)
-        removeNear = k > 0.35f
-        b.translationX = if (k > 0f) (x - cx) * 0.3f * k else 0f
-        b.translationY = if (k > 0f) (y - cy) * 0.3f * k else 0f
-        val sc = if (hot) 1.3f else 1f + 0.2f * k
-        b.scaleX = sc; b.scaleY = sc; b.alpha = if (hot) 1f else 0.5f + 0.4f * k
-        if (hot != removeHot) {
-            removeHot = hot
-            b.background = fill(if (hot) pal.danger else pal.sheet)
-            (b as ImageView).setImageDrawable(Ic.get(this, R.drawable.li_x, if (hot) pal.onDanger else pal.text, dp(24)))
-            if (hot) b.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-        }
-        return hot
-    }
-
-    /** The finger is near the middle of [it]'s icon (not just passing over its edge). */
-    private fun nearCentre(it: HItem, x: Float, y: Float): Boolean {
-        val v = itemViews[it.id] ?: return false
-        val loc = IntArray(2); val rl = IntArray(2); v.getLocationInWindow(loc); root.getLocationInWindow(rl)
-        // rest position (it may be sliding out of the way right now); the icon sits above the label
-        val cx = loc[0] - rl[0] - v.translationX + v.width / 2f; val cy = loc[1] - rl[1] - v.translationY + v.height / 2f - v.height * 0.12f
-        return kotlin.math.hypot(x - cx, y - cy) < v.width * 0.3f
-    }
-
-    private fun hover(x: Float, y: Float, d: DragSt) {
-        val m = model ?: return
-        // the remove target
-        if (magnet(x, y) || removeNear) { clearCell(); cancelFlip(); return }
-        val slot = dockSlot(x, y)
-        if (slot >= 0) {
-            clearCell(); cancelFlip()
-            if (slot > 0 && d.kind == "app") dockViews[slot].background = fill(pal.card, 18f)
-            return
-        }
-        // the screen edges flip pages (past the last page: a new empty one)
-        val edge = dp(22)
-        if (x < edge || x > root.width - edge) {
-            clearCell()
-            if (flip == null) {
-                val dir = if (x < edge) -1 else 1
-                flip = Runnable {
-                    flip = null
-                    val target = pager.page + dir
-                    if (target < 1) return@Runnable
-                    if (target >= pager.childCount) {
-                        if (tempPage || (m.pages.lastOrNull()?.isEmpty() == true)) return@Runnable
-                        tempPage = true
-                        pager.addView(CellLayout(this, m.cols, m.rows).apply { page = m.pages.size })
-                        styleCells(); padPages(); buildDots()
-                    }
-                    pager.snapTo(target)
-                }.also { main.postDelayed(it, 500) }
-            }
-            return
-        }
-        cancelFlip()
-        val (pi, a, under) = cellAt(x, y, d) ?: run { clearCell(); return }
-        val cl = pageView() ?: return
-        // folder: only after the finger rests on the middle of an app / folder icon for FOLDER_MS; passing over = move
-        if (under != null && d.kind == "app" && (under.kind == "app" || under.kind == "folder") && nearCentre(under, x, y)) {
-            if (hoverId == under.id) return
-            clearCell()
-            hoverId = under.id
-            val u = under
-            folderArm = Runnable {
-                folderArm = null
-                if (hoverId != u.id) return@Runnable
-                folderReady = true
-                itemViews[u.id]?.let { v -> v.background = fill(pal.card, 20f); v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY) }
-                val name = if (u.kind == "folder") folderName(u) else launcherApps()[u.pkg]?.label ?: ""
-                showTip(getString(if (u.kind == "folder") R.string.hm_f_drop_into else R.string.hm_f_drop_make, name))
-            }.also { main.postDelayed(it, FOLDER_MS) }
-            return
-        }
-        if (hoverId != null) clearCell()
-        val t = taken(m, d) ?: return
-        val w = minOf(d.w, m.cols); val h = minOf(d.h, m.rows)
-        val free = HomeLayout.free(t.m.pages.getOrNull(pi) ?: emptyList(), m.cols, m.rows, a.first, a.second, w, h)
-        val sw = if (free) null else HomeLayout.swapSpot(t, pi, a.first, a.second)
-        // re-arrange preview: the item in the way slides to where it will go
-        if (sw?.first?.id != swapId) {
-            unswap()
-            if (sw != null) itemViews[sw.first.id]?.let { v ->
-                swapId = sw.first.id
-                v.animate().translationX(((sw.second - sw.first.x) * cl.cellW()).toFloat()).translationY(((sw.third - sw.first.y) * cl.cellH()).toFloat())
-                    .setDuration(200).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
-            }
-        }
-        val hl = intArrayOf(a.first, a.second, w, h); val ok = free || sw != null
-        if (!(cl.hl contentEquals hl) || cl.hlOk != ok) { cl.hl = hl; cl.hlOk = ok; cl.invalidate() }
-    }
-
-    private fun showTip(t: String) {
-        tip.text = t; tip.setTextColor(pal.bg); tip.background = fill(pal.text); tip.visibility = View.VISIBLE
-    }
-
-    private fun cancelFlip() { flip?.let { main.removeCallbacks(it) }; flip = null }
-
-    private fun taken(m: HomeModel, d: DragSt): HomeLayout.Taken? =
-        if (d.src != null) HomeLayout.take(m, d.src) else d.pkg?.let { HomeLayout.detach(m, it) }
-
-    private fun drop(x: Float, y: Float, d: DragSt): Boolean {
-        cancelFlip()
-        val m = model ?: return false
-        val t = taken(m, d) ?: return false
-        val out: HomeModel? = when {
-            magnet(x, y) -> if (d.src is Src.NewWidget || (d.pkg != null && d.pkg !in m.onHome())) m else HomeLayout.dropRemove(t)
-            dockSlot(x, y) >= 0 -> HomeLayout.dropDock(t, dockSlot(x, y))
-            else -> cellAt(x, y, d)?.let { (pi, a, under) ->
-                if (folderReady && under != null && under.id == hoverId && d.kind == "app")
-                    HomeLayout.dropOnto(t, under.id, if (under.kind == "app") autoName(under.pkg, t.item.pkg) else "")
-                else HomeLayout.dropMove(t, pi, a.first, a.second)
-            }
-        }
-        // the dragged item lands from where the finger let go: on its new cell, or back home (no room / same place)
-        land = if (removeHot) null else Triple(d, x, y)
-        if (out == null) return true   // no room there: it just springs home (the red cell already said so); true = our animation, not the system's
-        if (out !== m) { HomeFile.save(this, out); model = out; dropped = true }
-        return true
-    }
-
-    private var land: Triple<DragSt, Float, Float>? = null
-
-    /**
-     * After the post-drop render: the item's real view starts where the finger let go and springs into its cell (the
-     * system drag shadow is gone by then, so it reads as the same icon flying home). An app dropped into a folder: the
-     * folder pops instead.
-     */
-    private fun landNow() {
-        val (d, x, y) = land ?: return
-        land = null
-        val m = model ?: return
-        val pkg = d.pkg ?: d.src.let { (it as? Src.InFolder)?.pkg }
-        val all = m.pages.flatten()
-        var pop = false
-        val v: View = d.id?.let { itemViews[it] }
-            ?: all.firstOrNull { pkg != null && it.kind == "app" && it.pkg == pkg }?.let { itemViews[it.id] }
-            ?: all.firstOrNull { pkg != null && it.kind == "folder" && pkg in it.apps }?.let { pop = true; itemViews[it.id] }
-            ?: m.dock.indexOf(pkg ?: "").takeIf { it > 0 }?.let { dockViews.getOrNull(it) }
-            ?: return
-        v.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
-            override fun onPreDraw(): Boolean {
-                if (v.viewTreeObserver.isAlive) v.viewTreeObserver.removeOnPreDrawListener(this)
-                if (!v.isAttachedToWindow) return true
-                if (pop) {
-                    v.scaleX = 1.18f; v.scaleY = 1.18f
-                    v.animate().scaleX(1f).scaleY(1f).setInterpolator(android.view.animation.OvershootInterpolator(3f)).setDuration(300).start()
-                    return true
-                }
-                val loc = IntArray(2); val rl = IntArray(2); v.getLocationInWindow(loc); root.getLocationInWindow(rl)
-                v.translationX = x - (loc[0] - rl[0] + v.width / 2f); v.translationY = y - (loc[1] - rl[1] + v.height / 2f)
-                v.scaleX = 1.06f; v.scaleY = 1.06f
-                v.animate().translationX(0f).translationY(0f).scaleX(1f).scaleY(1f)
-                    .setInterpolator(android.view.animation.OvershootInterpolator(1.3f)).setDuration(340).start()
-                return true
-            }
-        })
-    }
-
-    private fun noRoom(v: View?) {
-        (v ?: pageView())?.let { ObjectAnimator.ofFloat(it, "translationX", 0f, dpf(10f), -dpf(10f), dpf(6f), -dpf(6f), 0f).setDuration(320).start() }
-        toast(getString(R.string.hm_e_no_room))
-    }
-
-    /**
-     * After a drop that changed the layout the old views stay as they are (dragged one hidden, the displaced one already
-     * slid to its new cell) until the posted render swaps in the new layout: restoring them first flashed the old layout
-     * for a frame. (The render is posted: rebuilding the pages inside the drag event dispatch is not safe.)
-     */
-    private fun endDrag() {
-        if (drag == null) return
-        if (!dropped && land == null) drag?.view?.visibility = View.VISIBLE   // landing: the new render's view flies in
-        drag = null
-        cancelFlip()
-        if (dropped) swapId = null
-        dropped = false
-        clearHover()
-        bannerBox.visibility = View.VISIBLE
-        key = ""
-        main.post { render(true); landNow() }
-    }
-
-    // ---- dock ----
-
-    private fun buildDock(m: HomeModel, all: Map<String, AppE>, show: Map<String, LauncherLogic.Show>, dv: View0, r: Rules) {
-        dock.removeAllViews(); dockViews.clear()
-        // the card surface (HomeStyle.cardWorst): dock labels in pal.text pass on any wallpaper
-        dock.background = if (m.style.dockBg) GradientDrawable().apply { setColor(pal.card); cornerRadius = dpf(28f) } else null
-        dock.setPadding(dp(6), dp(8), dp(6), dp(8))
-        val px = (iconPx() * 0.9f).toInt().coerceAtMost(dp(60))
-        for ((i, slot) in m.dock.withIndex()) {
-            val cell = FrameLayout(this)
-            val v: View? = if (i == 0) {
-                val d = dialer()
-                val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-                val bmp = d?.let { p -> IconCache.get(this, p, all[p]?.cls ?: "", px, m.style.shape != "square") }
-                box.addView(ImageView(this).apply {
-                    if (bmp != null) setImageBitmap(bmp) else { setImageDrawable(Ic.get(context, R.drawable.li_phone, pal.onSolid, dp(26))); background = fill(pal.solid); setPadding(dp(14), dp(14), dp(14), dp(14)) }
-                }, LinearLayout.LayoutParams(px, px))
-                if (preset.dockLabels) box.addView(dockLabel(getString(R.string.hm_phone), m.style.dockBg))
-                box.contentDescription = getString(R.string.hm_phone)
-                kit.tap(box, 16f, true) {
-                    if (!debounce()) return@tap
-                    runCatching { startActivity(Intent(Intent.ACTION_DIAL).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                        .onFailure { Toast.makeText(this, R.string.hm_no_dialer, Toast.LENGTH_SHORT).show() }
-                }
-                box.isLongClickable = true
-                box.setOnLongClickListener { sosMenu(box); true }
-                box
-            } else all[slot]?.takeIf { show[it.pkg] != LauncherLogic.Show.HIDE }?.let { a ->
-                val paused = show[a.pkg] == LauncherLogic.Show.PAUSED
-                appIcon(a, paused, dv, r, Mode.DOCK, slot = i).also { v ->
-                    if (!preset.dockLabels) (v as LinearLayout).getChildAt(1)?.let { (v as LinearLayout).removeView(it); inkViews.remove(it) }
-                    else if (m.style.dockBg) (v as LinearLayout).getChildAt(1)?.let { inkViews.remove(it); (it as TextView).setTextColor(pal.text) }
-                }
-            }
-            if (v != null) cell.addView(v, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
-            dock.addView(cell, LinearLayout.LayoutParams(0, -2, 1f))
-            dockViews += cell
-        }
-    }
-
-    private fun dockLabel(t: String, onBg: Boolean) = text(t, 12f, if (onBg) pal.text else Color.WHITE).apply {
-        gravity = Gravity.CENTER; setPadding(dp(4), dp(3), dp(4), 0); maxLines = 1
-        if (!onBg) inkViews += this
-    }
-
-    private fun sosMenu(anchor: View) {
-        fun call(n: String) = runCatching { startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$n")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        menu(listOf(
-            Row(R.drawable.li_siren, getString(R.string.main_sos), true) { if (Store.of(this).everPaired) acts.askSos() else call("112") },
-            Row(R.drawable.li_phone, getString(R.string.hm_112), true) { call("112") },
-            Row(R.drawable.li_shield, getString(R.string.hm_113), true) { call("113") },
-            Row(R.drawable.li_triangle_alert, getString(R.string.hm_114), true) { call("114") },
-            Row(R.drawable.li_phone, getString(R.string.hm_115), true) { call("115") },
-        ), null, anchor.let { val l = IntArray(2); it.getLocationInWindow(l); l[0] }, anchor.let { val l = IntArray(2); it.getLocationInWindow(l); (l[1] - dp(300)).coerceAtLeast(dp(40)) })
-    }
-
-    // ---- adaptive text on the wallpaper ----
-
-    /**
-     * One ink for everything that sits on the wallpaper (labels, clock, dots, hint), picked once per wallpaper from the
-     * whole home area, like Pixel / iOS: every label looks the same, no per-label pills, nothing re-sampled per position
-     * or page. Contrast on busy spots comes from the text shadow (stronger when the wallpaper is mid-tone).
-     */
-    private fun inkPass() {
-        val bmp = wall ?: return
-        if (isFinishing) return
-        val w = root.width.takeIf { it > 0 } ?: return
-        val ink = inkCache.getOrPut("grid") { HomeStyle.ink(Wallpaper.sample(bmp, Rect(0, insT, w, bmp.height - insB), 48), Contrast.LARGE) }
-        inkCache["dots"] = ink
-        val busy = ink.ratio < Contrast.TEXT
-        val shadow = if (busy) Contrast.alpha(ink.shadow, 0.85) else ink.shadow
-        for (v in inkViews.toList()) {
-            if (v === dots) continue
-            when (v) {
-                is TextView -> { v.setTextColor(ink.text); v.setShadowLayer(dpf(if (busy) 4f else 3f), 0f, dpf(1f), shadow); v.background = null }
-                is ImageView -> { v.drawable?.setTint(ink.text); v.background = null }
-            }
-        }
-        buildDots()
-        styleCells()
-        bars()
-    }
-
-    /** Status / nav bar icons: on the -1 page they follow its surface, on the home the wallpaper behind them. */
-    private fun bars() {
-        val bmp = wall ?: return
-        val w = root.width.takeIf { it > 0 } ?: return
-        val darkTop: Boolean; val darkBottom: Boolean
-        if (pager.page == 0) { darkTop = !pal.dark; darkBottom = !pal.dark }
-        else {
-            // the wallpaper does not scroll: sample it once per wallpaper, not on every page change
-            val k = "$wallKey|bars"
-            val v = barsCache?.takeIf { it.first == k }?.second ?: Pair(
-                HomeStyle.ink(Wallpaper.sample(bmp, Rect(0, 0, w, dp(28)))).darkText,
-                HomeStyle.ink(Wallpaper.sample(bmp, Rect(0, bmp.height - dp(48), w, bmp.height))).darkText).also { barsCache = k to it }
-            darkTop = v.first; darkBottom = v.second
-        }
-        @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-            (if (darkTop) View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR else 0) or (if (Build.VERSION.SDK_INT >= 26 && darkBottom) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
-    }
-
-    private var barsCache: Pair<String, Pair<Boolean, Boolean>>? = null
-
-    // ---- drawer ----
-
-    /** Built once and kept (hidden) between opens, so a swipe can show it under the finger at once; rebuilt when the colours change. */
-    private var drawerCache: Drawer? = null
-    private var drawerP = 0f                       // 0 closed .. 1 open
-    private var drawerAnim: ValueAnimator? = null
-
-    private fun drawerView(): Drawer = drawerCache?.also { it.refill() } ?: Drawer(this).also { d ->
-        drawerCache = d
-        d.setPadding(insL, insT, insR, insB); d.visibility = View.GONE
-        root.addView(d, FrameLayout.LayoutParams(-1, -1))
-    }
-
-    /** A finger or a button starts moving the drawer: the home goes into one GPU layer so fading it costs nothing per frame. */
-    private fun drawerBegin(): Boolean {
-        drawerAnim?.cancel(); drawerAnim = null
-        if (drawer == null) {
-            if (drag != null) return false
-            popup?.dismiss(); closeOverlay()
-            drawer = drawerView(); drawerP = 0f
-        }
-        content.visibility = View.VISIBLE; wallView.visibility = View.VISIBLE
-        content.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-        return true
-    }
-
-    /** Pixel: the drawer's top rides the finger 1:1, the home fades and shrinks a little behind it. */
-    private fun drawerAt(p: Float) {
-        val d = drawer ?: return
-        drawerP = p.coerceIn(0f, 1f)
-        d.visibility = View.VISIBLE
-        d.translationY = (1 - drawerP) * root.height
-        content.alpha = 1 - drawerP
-        val sc = 1 - 0.06f * drawerP; content.scaleX = sc; content.scaleY = sc
-    }
-
-    /** Finger up: a fling either way wins, else moving it 40 % of the way flips it ([wasOpen]: where the finger started). [vy] px/s, + = down. */
-    private fun drawerRelease(vy: Float, minFling: Float, wasOpen: Boolean) =
-        drawerSettle(LauncherLogic.drawerOpens(vy, minFling, drawerP, wasOpen), vy)
-
-    private fun drawerSettle(open: Boolean, vy: Float = 0f) {
-        drawer ?: return
-        drawerAnim?.cancel()
-        val to = if (open) 1f else 0f
-        val px = abs(to - drawerP) * root.height
-        val ms = (px / abs(vy).coerceAtLeast(dpf(2200f)) * 1000).toLong().coerceIn(110, 300)   // faster when flung
-        var cancelled = false
-        drawerAnim = ValueAnimator.ofFloat(drawerP, to).apply {
-            duration = ms; interpolator = DecelerateInterpolator(1.5f)
-            addUpdateListener { drawerAt(it.animatedValue as Float) }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationCancel(a: Animator) { cancelled = true }
-                override fun onAnimationEnd(a: Animator) { if (!cancelled) drawerDone(open) }
-            })
-            start()
-        }
-    }
-
-    private fun drawerDone(open: Boolean) {
-        val d = drawer ?: return
-        drawerAnim = null
-        content.setLayerType(View.LAYER_TYPE_NONE, null)
-        if (open) {
-            // the drawer is opaque: stop drawing the home and the wallpaper under it while it scrolls
-            content.visibility = View.INVISIBLE; wallView.visibility = View.INVISIBLE
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                (if (!pal.dark) View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (Build.VERSION.SDK_INT >= 26) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0) else 0)
-        } else {
-            drawer = null
-            d.visibility = View.GONE
-            (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(d.windowToken, 0)
-            if (d.search.text.isNotEmpty()) d.search.setText("")
-            d.scroll.scrollTo(0, 0)
-            content.alpha = 1f; content.scaleX = 1f; content.scaleY = 1f
-            bars()
-        }
-    }
-
-    private fun openDrawer() {
-        if (drawer == null) { if (!drawerBegin()) return; drawerAt(0f) } else drawerBegin()
-        drawerSettle(true)
-    }
-
-    private fun closeDrawer() {
-        drawer ?: return
-        drawerBegin(); drawerSettle(false)
-    }
+    // ---- state used by the split-out files (HomeDrag / HomeWidgets / HomeDock / HomeMenus) ----
+
+    internal class Row(val icon: Int, val label: String, val enabled: Boolean, val run: () -> Unit)
+    internal val clocks = ArrayList<Pair<TextView, TextView>>()
+    internal var armed: View? = null
+    internal var downX = 0f; internal var downY = 0f
+    internal var flip: Runnable? = null
+    internal var hoverId: String? = null          // folder target: the finger rested on its icon (see FOLDER_MS)
+    internal var folderArm: Runnable? = null
+    internal var folderReady = false
+    internal var swapId: String? = null           // item sliding out of the way (preview of the re-arrange)
+    internal var removeBtn: View? = null
+    internal var removeHot = false
+    internal var removeNear = false               // heading for the remove circle: no cell highlight under it
+    internal var dropped = false                  // the drop changed the layout: endDrag leaves the views for the new render
+    internal var land: Triple<DragSt, Float, Float>? = null
+    internal var barsCache: Pair<String, Pair<Boolean, Boolean>>? = null
+    internal var drawerCache: Drawer? = null
+    internal var drawerP = 0f                       // 0 closed .. 1 open
+    internal var drawerAnim: ValueAnimator? = null
 
     /** A–Z drawer like Pixel's: search on top, ONE continuous grid (the home's column count), letters only in the side scrubber. */
-    private inner class Drawer(ctx: Context) : LinearLayout(ctx) {
+    internal inner class Drawer(ctx: Context) : LinearLayout(ctx) {
         val search = EditText(ctx)
         val list = LinearLayout(ctx).apply { orientation = VERTICAL }
         val rail = LinearLayout(ctx).apply { orientation = VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
@@ -1776,7 +686,7 @@ class HomeActivity : Activity() {
      * Vertical swipes on the home pages (not on "Hôm nay", it scrolls). Up: the drawer follows the finger 1:1 and on release opens or
      * closes by fling or 40 % (Pixel). Down on empty space or a non-scrolling item: the notification shade, like Pixel / Nova.
      */
-    private inner class SwipeUp(ctx: Context) : FrameLayout(ctx) {
+    internal inner class SwipeUp(ctx: Context) : FrameLayout(ctx) {
         private var x0 = 0f; private var y0 = 0f; private var up = false; private var downOk = false; private var from = 0f
         private var vt: VelocityTracker? = null
         private val slop = ViewConfiguration.get(ctx).scaledTouchSlop
@@ -1814,7 +724,7 @@ class HomeActivity : Activity() {
     }
 
     /** True when a visible view under (x, y) of [g] can scroll vertically (a list widget): its own swipe, not the shade's. */
-    private fun scrollsAt(g: ViewGroup, x: Int, y: Int): Boolean {
+    internal fun scrollsAt(g: ViewGroup, x: Int, y: Int): Boolean {
         for (i in g.childCount - 1 downTo 0) {
             val c = g.getChildAt(i)
             if (c.visibility != View.VISIBLE) continue
@@ -1828,7 +738,7 @@ class HomeActivity : Activity() {
 
     /** Pull the notification shade down (hidden StatusBarManager API, what Nova uses; EXPAND_STATUS_BAR is a normal permission). */
     @SuppressLint("WrongConstant")
-    private fun expandShade() {
+    internal fun expandShade() {
         runCatching {
             val sb = getSystemService("statusbar") ?: return
             Class.forName("android.app.StatusBarManager").getMethod("expandNotificationsPanel").invoke(sb)
@@ -1836,7 +746,7 @@ class HomeActivity : Activity() {
     }
 
     /** Horizontal pages (0 = "Hôm nay"); long-press on empty space of a home page opens Tiện ích / Tuỳ chỉnh / Sắp xếp / KidGuard. */
-    private inner class Pager(ctx: Context) : ViewGroup(ctx) {
+    internal inner class Pager(ctx: Context) : ViewGroup(ctx) {
         var page = 1
         var dragging = false
         var onPage: () -> Unit = {}
@@ -1933,7 +843,7 @@ class HomeActivity : Activity() {
     }
 
     /** cols x rows grid inside its padding (the chrome); children carry their cell rectangle (LP). While dragging: one soft page panel + the drop cell. */
-    private inner class CellLayout(ctx: Context, val cols: Int, val rows: Int) : ViewGroup(ctx) {
+    internal inner class CellLayout(ctx: Context, val cols: Int, val rows: Int) : ViewGroup(ctx) {
         private val gap = dp(6)
         val side = dp(10)
         var page = 0
