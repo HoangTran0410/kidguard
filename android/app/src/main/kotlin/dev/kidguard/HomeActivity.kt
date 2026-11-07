@@ -1379,9 +1379,49 @@ class HomeActivity : Activity() {
                 else HomeLayout.dropMove(t, pi, a.first, a.second)
             }
         }
-        if (out == null) { noRoom(pageView()); return false }
+        // the dragged item lands from where the finger let go: on its new cell, or back home (no room / same place)
+        land = if (removeHot) null else Triple(d, x, y)
+        if (out == null) return true   // no room there: it just springs home (the red cell already said so); true = our animation, not the system's
         if (out !== m) { HomeFile.save(this, out); model = out; dropped = true }
         return true
+    }
+
+    private var land: Triple<DragSt, Float, Float>? = null
+
+    /**
+     * After the post-drop render: the item's real view starts where the finger let go and springs into its cell (the
+     * system drag shadow is gone by then, so it reads as the same icon flying home). An app dropped into a folder: the
+     * folder pops instead.
+     */
+    private fun landNow() {
+        val (d, x, y) = land ?: return
+        land = null
+        val m = model ?: return
+        val pkg = d.pkg ?: d.src.let { (it as? Src.InFolder)?.pkg }
+        val all = m.pages.flatten()
+        var pop = false
+        val v: View = d.id?.let { itemViews[it] }
+            ?: all.firstOrNull { pkg != null && it.kind == "app" && it.pkg == pkg }?.let { itemViews[it.id] }
+            ?: all.firstOrNull { pkg != null && it.kind == "folder" && pkg in it.apps }?.let { pop = true; itemViews[it.id] }
+            ?: m.dock.indexOf(pkg ?: "").takeIf { it > 0 }?.let { dockViews.getOrNull(it) }
+            ?: return
+        v.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                if (v.viewTreeObserver.isAlive) v.viewTreeObserver.removeOnPreDrawListener(this)
+                if (!v.isAttachedToWindow) return true
+                if (pop) {
+                    v.scaleX = 1.18f; v.scaleY = 1.18f
+                    v.animate().scaleX(1f).scaleY(1f).setInterpolator(android.view.animation.OvershootInterpolator(3f)).setDuration(300).start()
+                    return true
+                }
+                val loc = IntArray(2); val rl = IntArray(2); v.getLocationInWindow(loc); root.getLocationInWindow(rl)
+                v.translationX = x - (loc[0] - rl[0] + v.width / 2f); v.translationY = y - (loc[1] - rl[1] + v.height / 2f)
+                v.scaleX = 1.06f; v.scaleY = 1.06f
+                v.animate().translationX(0f).translationY(0f).scaleX(1f).scaleY(1f)
+                    .setInterpolator(android.view.animation.OvershootInterpolator(1.3f)).setDuration(340).start()
+                return true
+            }
+        })
     }
 
     private fun noRoom(v: View?) {
@@ -1396,7 +1436,7 @@ class HomeActivity : Activity() {
      */
     private fun endDrag() {
         if (drag == null) return
-        if (!dropped) drag?.view?.visibility = View.VISIBLE
+        if (!dropped && land == null) drag?.view?.visibility = View.VISIBLE   // landing: the new render's view flies in
         drag = null
         cancelFlip()
         if (dropped) swapId = null
@@ -1404,7 +1444,7 @@ class HomeActivity : Activity() {
         clearHover()
         bannerBox.visibility = View.VISIBLE
         key = ""
-        main.post { render(true) }
+        main.post { render(true); landNow() }
     }
 
     // ---- dock ----
