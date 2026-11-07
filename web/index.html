@@ -3024,7 +3024,7 @@ vi: {
   "upd.latest": "Đang dùng bản mới nhất", "upd.h": "Phiên bản KidGuard", "upd.kid": "Máy con: {0}", "upd.checked": "kiểm tra {0}",
   "upd.auto": "Tự cập nhật mỗi ngày (Device Owner: tự cài, con không phải bấm)", "upd.now": "Kiểm tra và cập nhật ngay", "upd.sent": "Đã gửi: máy con kiểm tra bản mới",
   "upd.ask": "Cho máy con kiểm tra và cài bản KidGuard mới nhất từ GitHub? KidGuard tắt vài giây khi cài.", "upd.ok": "Cập nhật",
-  "set.name": "Tên", "pin.h": "PIN của bố mẹ", "pin.p": "Cần PIN này để mở ghép thêm máy ngay trên máy con.", "pin.none": "Chưa đặt PIN — nên đặt để con không tự ghép máy",
+  "set.name": "Tên", "pin.h": "PIN của bố mẹ", "pin.saved": "Đã lưu PIN mới", "pin.p": "Cần PIN này để mở ghép thêm máy ngay trên máy con.", "pin.none": "Chưa đặt PIN — nên đặt để con không tự ghép máy",
   "pin.change": "Đã đặt PIN. Nhập 4–8 số mới để đổi.", "pin.set": "Nhập 4–8 số để đặt PIN.", "pin.ph": "4–8 số", "pin.new": "PIN mới", "pin.changeB": "Đổi PIN", "pin.setB": "Đặt PIN",
   "pin.bad": "PIN 4–8 số",
   "notif.h": "Thông báo", "notif.p": "Thông báo trên máy này (con xin thêm giờ, mất kết nối)",
@@ -3381,7 +3381,7 @@ en: {
   "upd.latest": "Up to date", "upd.h": "KidGuard version", "upd.kid": "Kid's phone: {0}", "upd.checked": "checked {0}",
   "upd.auto": "Update automatically every day (Device Owner: installs by itself, no tap needed)", "upd.now": "Check and update now", "upd.sent": "Sent: the kid's phone is checking for updates",
   "upd.ask": "Have the kid's phone check for and install the latest KidGuard from GitHub? KidGuard stops for a few seconds while installing.", "upd.ok": "Update",
-  "set.name": "Name", "pin.h": "Parent PIN", "pin.p": "This PIN is needed to open pairing right on the kid's phone.", "pin.none": "No PIN set. Set one so your kid can't pair their own phone",
+  "set.name": "Name", "pin.h": "Parent PIN", "pin.saved": "New PIN saved", "pin.p": "This PIN is needed to open pairing right on the kid's phone.", "pin.none": "No PIN set. Set one so your kid can't pair their own phone",
   "pin.change": "PIN is set. Enter 4–8 new digits to change it.", "pin.set": "Enter 4–8 digits to set a PIN.", "pin.ph": "4–8 digits", "pin.new": "New PIN", "pin.changeB": "Change PIN", "pin.setB": "Set PIN",
   "pin.bad": "PIN must be 4–8 digits",
   "notif.h": "Notifications", "notif.p": "Notifications on this phone (time requests, lost connection)",
@@ -4680,6 +4680,7 @@ function earBar() {
       if (er || fail) toast("err|" + t("ear.fail", er ? tc("ear.", er, er) : t("e.lost"))); else toast("ok|" + t("ear.ended")); };
     au.onended = () => ended(false);
     au.onerror = () => ended(true);
+    au._end = ended;
   }
   return e;
 }
@@ -4692,14 +4693,52 @@ async function earStart() {
   earT = 0; e.style.display = "flex"; $("#earTxt").textContent = t("connecting");
   earErr0 = st && st.listen ? st.listen.err || "" : "";   // only an error that shows up after this press is ours
   expect("listen", true, "ear1");
-  au.src = `${base(cur)}/listen?k=${encodeURIComponent(cur.token)}&t=${Date.now()}`;
-  au.play().catch(() => {});
+  earPlay(`${base(cur)}/listen?k=${encodeURIComponent(cur.token)}&t=${Date.now()}`, au);
   clearInterval(earStart.i);
   earStart.i = setInterval(() => { if (earT) $("#earTxt").textContent = t("ear.live", fmtClock(Date.now() - earT)); }, 1000);
 }
+// A plain <audio src> waits ~8 s before the first sound on this 32 kbit/s live stream (the browser buffers ~32 KB to
+// probe it) and then stays 8 s behind. MediaSource: we feed the bytes ourselves, first sound ~0.4 s, and playback is kept
+// at the live edge (a Wi-Fi hiccup jumps forward instead of adding delay for the rest of the session).
+function earPlay(url, au) {
+  const MS = window.ManagedMediaSource || window.MediaSource;
+  if (!MS || !MS.isTypeSupported || !MS.isTypeSupported("audio/aac")) { au.src = url; au.play().catch(() => {}); return; }
+  const ctl = new AbortController(), ms = new MS(); earPlay.ctl = ctl;
+  au.disableRemotePlayback = true;   // required by ManagedMediaSource (iOS Safari)
+  au.src = earPlay.url = URL.createObjectURL(ms);
+  const fail = () => { if (!ctl.signal.aborted) { ctl.abort(); au._end && au._end(true); } };
+  ms.addEventListener("sourceopen", async () => {
+    let sb; try { sb = ms.addSourceBuffer("audio/aac"); sb.mode = "sequence"; } catch { return fail(); }
+    const q = []; let started = false, done = false;
+    const pump = () => {
+      if (sb.updating || ms.readyState !== "open") return;
+      if (q.length) { try { sb.appendBuffer(q.shift()); } catch { fail(); } }
+      else if (done) { try { ms.endOfStream(); } catch {} }   // the phone ended it: play out, then "ended"
+    };
+    sb.addEventListener("updateend", () => {
+      const b = au.buffered;
+      if (b.length) {
+        const end = b.end(b.length - 1);
+        if (!started) { started = true; au.currentTime = Math.max(b.start(0), end - 0.3); au.play().catch(() => {}); }
+        else if (end - au.currentTime > 1.2) au.currentTime = end - 0.3;
+        if (b.start(0) < au.currentTime - 45) { try { sb.remove(0, au.currentTime - 30); return; } catch {} }   // memory stays small over 10 min
+      }
+      pump();
+    });
+    try {
+      const r = await fetch(url, { cache: "no-store", signal: ctl.signal });
+      if (!r.ok || !r.body) return fail();
+      const rd = r.body.getReader();
+      for (;;) { const { value, done: d } = await rd.read(); if (d) break; q.push(value); pump(); }
+      done = true; pump();
+    } catch { fail(); }
+  }, { once: true });
+}
 function earStop(msg) {
   clearInterval(earStart.i); earT = 0;
+  if (earPlay.ctl) { earPlay.ctl.abort(); earPlay.ctl = null; }
   const au = $("#earAudio"), had = au && au.getAttribute("src"); if (au) { au.pause(); au.removeAttribute("src"); au.load(); }
+  if (earPlay.url) { URL.revokeObjectURL(earPlay.url); earPlay.url = ""; }
   const e = $("#ear"); if (e) e.style.display = "none";
   // closing the player is not enough when the Wi-Fi dropped: tell the phone too, so its mic (and banner) never sticks
   if (had && earStart.k) call(earStart.k, "/cmd", "POST", { type: "listenStop" }).catch(() => {});
@@ -4764,6 +4803,7 @@ function actPaint() {
     else if (id === "ear1" && ringOn()) { cls = "dis"; why = t("act.noEar"); }
     else if (fresh && a.s === "err") { cls = "err"; icn = "triangle-alert"; lab = t("act.err"); }
     else if (fresh) { cls = "done"; icn = "check"; lab = t(a.s === "sent" ? "act.sent" : "act.done"); }
+    else if (id === "lock" && screenOff()) { icn = ACT.wake[0]; lab = t(ACT.wake[1]); }   // already locked: the useful action is waking it
     b.classList.remove("on", "pend", "done", "err", "dis"); if (cls) b.classList.add(cls);
     const h = tile ? `<b>${cls === "pend" ? '<i class="spin"></i>' : ic(icn)}</b><span>${lab}</span>` : `${cls === "pend" ? "" : ic(icn)} ${lab}`;
     if (b.innerHTML !== h) b.innerHTML = h;
@@ -4991,7 +5031,7 @@ function homeTab(b) {
   $("#pauseGo").onclick = () => pickTime("pause", pausedLeft > 0 ? t("pk.active", whenTxt(r.pausedUntil)) + " · " + t("pk.leftN", fmt(pausedLeft)) : "",
     until => { edit.pausedUntil = until; changed(); toast("ok|" + t("pk.sumPause", whenTxt(until))); render(); },
     pausedLeft > 0 ? () => { edit.pausedUntil = 0; changed(); toast("ok|" + t("pk.unpaused")); render(); } : null);
-  $("#lock").onclick = () => act("lock", () => cmd({ type: "lock" }, t("lock.done")));
+  $("#lock").onclick = () => act("lock", () => screenOff() ? cmd({ type: "wake" }, t("wake.done"), false) : cmd({ type: "lock" }, t("lock.done")));
   $("#ring").onclick = () => ringOn() ? ringStop() : earOn() ? toast("warn|" + t("act.noRing")) : act("ring", async () => { const r = await cmd({ type: "ring" }, t("ring.done")); if (r && r.result !== "queued") expect("ring", true, "ring"); return r; });
   $("#loc").onclick = () => act("loc", () => cmd({ type: "locate" }, t("locate.done")));
   $("#scrGo").onclick = () => goTab("screen");
@@ -6171,7 +6211,21 @@ function setTab(b) {
   if (APP) $("#f-notify").onchange = e => { kgCall("setNotify", e.target.checked ? "true" : "false"); if (e.target.checked) setTimeout(() => { if (kgCall("canNotify") === "false") toast("warn|" + t("notif.blockedShort")); }, 1500); };
   if ($("#relayBox")) $("#relayBox").ontoggle = e => { relayOpen = e.target.open; };
   $("#saveName").onclick = () => { cur.name = $("#f-name").value || t("kid"); save(kids); render(); };
-  $("#savePin").onclick = () => { const p = $("#f-pin").value; if (!/^\d{4,8}$/.test(p)) return toast("warn|" + t("pin.bad")); edit.pin = p; changed(); $("#f-pin").value = ""; };
+  // saved right away (not the 0.5 s debounce) so the button can show sending -> saved / failed
+  $("#savePin").onclick = async () => {
+    const f = $("#f-pin"), bt = $("#savePin"), p = f.value, k = cur, e = edit;
+    if (!/^\d{4,8}$/.test(p)) { toast("warn|" + t("pin.bad")); f.focus(); return; }
+    clearTimeout(saveT); saveT = null; e.pin = p;
+    const h0 = bt.innerHTML; bt.disabled = f.disabled = true; bt.setAttribute("aria-busy", "true"); bt.innerHTML = `<i class="spin"></i> ${t("act.sending")}`;
+    try {
+      await putRules(k, e); f.value = "";
+      toast(k.via === "lan" ? "ok|" + t("pin.saved") : "send|" + t("sentRelay"));
+      if (k === cur && tab === "set") render(); else { bt.innerHTML = h0; bt.disabled = f.disabled = false; }
+    } catch (er) {
+      delete e.pin; toast("err|" + t("errX", er.message)); if (k === cur) saveFail(true);
+      bt.innerHTML = h0; bt.disabled = f.disabled = false; f.focus();   // the PIN stays typed: press again to retry
+    } finally { bt.removeAttribute("aria-busy"); }
+  };
   if (lan) $("#saveRelay").onclick = async () => {
     const url = $("#relay").value.trim().replace(/\/+$/, "");
     if (!/^https:\/\//.test(url)) return toast("warn|" + t("relay.https"));
