@@ -70,8 +70,10 @@ object HomeLayout {
     const val DOCK = 4
     /** Widget types and the sizes the picker offers (w x h; wider than the grid = full width). */
     val SIZES: Map<String, List<Pair<Int, Int>>> = linkedMapOf(
-        "time" to listOf(2 to 1, 4 to 1), "quick" to listOf(4 to 1), "next" to listOf(4 to 1),
-        "clock" to listOf(4 to 1, 4 to 2), "counts" to listOf(2 to 2))
+        "clock" to listOf(4 to 1, 4 to 2), "analog" to listOf(2 to 2), "month" to listOf(4 to 2, 2 to 2),
+        "time" to listOf(2 to 1, 4 to 1), "next" to listOf(4 to 1), "quick" to listOf(4 to 1),
+        "todo" to listOf(2 to 2, 4 to 2), "note" to listOf(2 to 2, 4 to 2), "counts" to listOf(2 to 2),
+        "usage" to listOf(4 to 1, 4 to 2), "battery" to listOf(2 to 1))
     val WIDGETS = SIZES.keys
     const val FOLDER_MAX = 20
     val KINDS = setOf("app", "widget", "folder")

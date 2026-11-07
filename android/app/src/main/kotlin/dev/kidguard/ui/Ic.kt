@@ -15,8 +15,19 @@ object Ic {
     const val WARN = "#d97706"
     const val INFO = "#2563eb"
 
-    fun get(ctx: Context, res: Int, color: Int, sizePx: Int): Drawable =
-        ctx.getDrawable(res)!!.mutate().apply { setTint(color); setBounds(0, 0, sizePx, sizePx) }
+    // Parsing a vector XML costs ~0.5-1 ms; a home render asks for the same few (icon, colour) pairs dozens of times.
+    // The cache keeps each tinted drawable's ConstantState (shared, immutable); every caller gets its own copy.
+    private val cache = object : LinkedHashMap<Long, Drawable.ConstantState>(64, 0.75f, true) {
+        override fun removeEldestEntry(e: MutableMap.MutableEntry<Long, Drawable.ConstantState>?) = size > 160
+    }
+
+    fun get(ctx: Context, res: Int, color: Int, sizePx: Int): Drawable {
+        val key = (res.toLong() shl 32) or (color.toLong() and 0xffffffffL)
+        val st = synchronized(cache) { cache[key] }
+            ?: ctx.getDrawable(res)!!.mutate().apply { setTint(color) }.constantState?.also { synchronized(cache) { cache[key] = it } }
+        val d = st?.newDrawable(ctx.resources)?.mutate() ?: ctx.getDrawable(res)!!.mutate().apply { setTint(color) }
+        return d.apply { setBounds(0, 0, sizePx, sizePx) }
+    }
 
     /** Icon at the start of a TextView / Button, tinted with the text color. */
     fun lead(v: TextView, res: Int, color: Int = v.currentTextColor) {

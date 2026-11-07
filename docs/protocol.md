@@ -783,7 +783,9 @@ event `{"kind": "launcher", "text": "…đã tắt 24 giờ (HH:mm)"}` is sent. 
  "seen":[pkg…], "notes":[note…], "todo":[todo…]}
 ```
 item `{"id","kind":"app|widget|folder","x","y","w"?,"h"?,"pkg"?,"cls"?,"type"?,"name"?,"apps"?}`.
-- Widgets (`type`, sizes w×h): `time` 2×1 / 4×1, `quick` 4×1, `next` 4×1, `clock` 4×1 / 4×2, `counts` 2×2. One of each
+- Widgets (`type`, sizes w×h): `clock` 4×1 / 4×2, `analog` 2×2, `month` 4×2 / 2×2, `time` 2×1 / 4×1, `next` 4×1, `quick` 4×1,
+  `todo` 2×2 / 4×2 (the kid's `todo` list, tap ticks), `note` 2×2 / 4×2 (newest of `notes`), `counts` 2×2, `usage` 4×1 / 4×2
+  (today's top apps), `battery` 2×1. Older phones drop types they don't know (repair on load). One of each
   type; on a 3-column grid a 4-wide widget is 3 wide. Placed from "Tiện ích" (long-press empty space) by tap or drag.
 - Folder: `apps` (2–20 pkgs, in order), `name` (auto from the apps' category: Trò chơi / Mạng xã hội / Học tập /
   Giải trí / Thư mục; the kid can rename). A folder left with 1 app turns back into that app (on edit and on load).

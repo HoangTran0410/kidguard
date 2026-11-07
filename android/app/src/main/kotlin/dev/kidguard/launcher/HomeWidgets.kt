@@ -40,14 +40,54 @@ internal fun HomeActivity.armWidget(v: View, it: HItem) {
 }
 
 internal fun HomeActivity.widgetLabel(type: String) = getString(when (type) {
-    "time" -> R.string.hm_w_time; "quick" -> R.string.hm_w_quick; "next" -> R.string.hm_w_next; "clock" -> R.string.hm_w_clock; else -> R.string.hm_w_counts
+    "time" -> R.string.hm_w_time; "quick" -> R.string.hm_w_quick; "next" -> R.string.hm_w_next; "clock" -> R.string.hm_w_clock
+    "analog" -> R.string.hm_w_analog; "month" -> R.string.hm_w_month; "battery" -> R.string.hm_w_battery
+    "todo" -> R.string.hm_w_todo; "note" -> R.string.hm_w_note; "usage" -> R.string.hm_w_usage; else -> R.string.hm_w_counts
 })
+
+internal fun HomeActivity.widgetDesc(type: String) = getString(when (type) {
+    "time" -> R.string.hm_w_time_d; "quick" -> R.string.hm_w_quick_d; "next" -> R.string.hm_w_next_d; "clock" -> R.string.hm_w_clock_d
+    "analog" -> R.string.hm_w_analog_d; "month" -> R.string.hm_w_month_d; "battery" -> R.string.hm_w_battery_d
+    "todo" -> R.string.hm_w_todo_d; "note" -> R.string.hm_w_note_d; "usage" -> R.string.hm_w_usage_d; else -> R.string.hm_w_counts_d
+})
+
+// ---- widget design system: every card widget is built from these, so they all look like one family ----
+// Card: pal.card fill, radius 22, padding 14 / 12 dp, wraps its content and sits centred in its cells (centred()).
+// Type scale: head 11sp pal.sub UPPERCASE (letterSpacing 0.08) - value 20-26sp bold (pal.accentText, pal.warnText when low)
+//   - primary line 15-16sp bold pal.text - secondary 12-13sp pal.sub. Icons: Lucide via Ic.get, 16-18 dp, pal.accentText
+//   (or kit.badge(icon, pal.onTint, pal.tint, 40, 20) for a leading round badge). Never raw colours: only pal.*.
+// A tap that "opens more" goes to the "Hôm nay" page (wOpen). Live values (minute, battery) update in place through
+// tickers, never by a rebuild.
+
+/** The widget card: vertical (or horizontal) box with the shared fill and padding. */
+internal fun HomeActivity.wCard(vertical: Boolean = true) = LinearLayout(this).apply {
+    orientation = if (vertical) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+    gravity = Gravity.CENTER_VERTICAL; background = card(); setPadding(dp(14), dp(12), dp(14), dp(12))
+}
+
+/** Card heading: small accent icon + UPPERCASE label in pal.sub; [end] = optional right-hand text (a count). */
+internal fun HomeActivity.wHead(icon: Int, label: String, end: String? = null): View {
+    val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, dp(6)) }
+    row.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@wHead, icon, pal.accentText, dp(14))); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }, LinearLayout.LayoutParams(dp(14), dp(14)))
+    row.addView(text(label.uppercase(), 11f, pal.sub, true).apply { letterSpacing = 0.08f; setPadding(dp(6), 0, dp(4), 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
+    if (end != null) row.addView(text(end, 12f, pal.sub, true))
+    return row
+}
+
+/** Primary / secondary / empty lines of the scale above. */
+internal fun HomeActivity.wMain(t: String, lines: Int = 1) = text(t, 15f, pal.text, true).apply { maxLines = lines; ellipsize = android.text.TextUtils.TruncateAt.END }
+internal fun HomeActivity.wSub(t: String, lines: Int = 1) = text(t, 12f, pal.sub).apply { maxLines = lines; ellipsize = android.text.TextUtils.TruncateAt.END }
+internal fun HomeActivity.wEmpty(t: String) = text(t, 13f, pal.sub).apply { maxLines = 2; setPadding(0, dp(2), 0, dp(2)) }
+
+/** Tap = open the "Hôm nay" page (ripple in the card's corner radius). */
+internal fun HomeActivity.wOpen(v: View) = kit.tap(v, 22f) { pager.snapTo(0) }
 
 /** Clock widgets on the current render: the minute tick only changes their text, no rebuild (it used to rebuild the home every minute). */
 
 internal fun HomeActivity.tickClocks(dv: View0) {
     val now = HomeLogic.clock(dv.minute)
     for ((t, d) in clocks) if (t.text != now) { t.text = now; (t.parent as? View)?.contentDescription = "$now. ${d.text}" }
+    for (t in tickers) t(dv)
 }
 
 internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideNext: Boolean): View {
@@ -205,6 +245,7 @@ internal fun HomeActivity.countsWidget(r: Rules, m: HomeModel): View {
 /** Our widgets with their sizes. Tap a size: placed (or resized when it is on the home already). Hold and drag: drop it anywhere. */
 internal fun HomeActivity.openPicker() {
     val m = model ?: return
+    val lap = HomeActivity.Lap()
     popup?.dismiss()
     val scrim = FrameLayout(this).apply { setBackgroundColor(Color.argb(if (pal.dark) 140 else 80, 0, 0, 0)); isClickable = true; setOnClickListener { closeOverlay() }; tag = "picker" }
     val sheet = LinearLayout(this).apply {
@@ -217,7 +258,7 @@ internal fun HomeActivity.openPicker() {
     sheet.addView(text(getString(R.string.hm_w_sub), 14f, pal.sub).apply { setPadding(0, dp(4), 0, dp(6)); includeFontPadding = true })
     val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
     val sc = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(list) }
-    for ((i, type) in HomeLayout.SIZES.keys.withIndex()) {
+    fun addRow(i: Int, type: String) {
         if (i > 0) list.addView(View(this).apply { setBackgroundColor(pal.stroke) }, LinearLayout.LayoutParams(-1, dp(1)))
         val placed = m.pages.flatten().firstOrNull { it.kind == "widget" && it.type == type }
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(12), 0, dp(12)) }
@@ -225,7 +266,7 @@ internal fun HomeActivity.openPicker() {
         row.addView(pv, LinearLayout.LayoutParams(dp(124), dp(76)))
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), 0, 0, 0) }
         col.addView(text(widgetLabel(type), 16f, pal.text, true))
-        col.addView(text(getString(when (type) { "time" -> R.string.hm_w_time_d; "quick" -> R.string.hm_w_quick_d; "next" -> R.string.hm_w_next_d; "clock" -> R.string.hm_w_clock_d; else -> R.string.hm_w_counts_d }), 13f, pal.sub).apply { setPadding(0, dp(2), 0, dp(6)); includeFontPadding = true })
+        col.addView(text(widgetDesc(type), 13f, pal.sub).apply { setPadding(0, dp(2), 0, dp(6)); includeFontPadding = true })
         val chips = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val sizes = HomeLayout.SIZES[type].orEmpty().map { (w, h) -> minOf(w, m.cols) to h }.distinct()
         for ((w, h) in sizes) {
@@ -242,9 +283,17 @@ internal fun HomeActivity.openPicker() {
         kit.tap(row, 16f) { if (placed == null) pickSize(type, sizes[0].first, sizes[0].second, null) else toast(getString(R.string.hm_w_already)) }
         list.addView(row, LinearLayout.LayoutParams(-1, -2))
     }
+    // the first rows fill the sheet; the rest (below the fold) are built on the next frames, so the sheet slides up at once
+    val types = HomeLayout.SIZES.keys.toList()
+    val first = 4
+    for (i in 0 until minOf(first, types.size)) addRow(i, types[i])
+    lap("rows")
+    fun more(from: Int) { if (from >= types.size || overlay !== scrim) return; for (i in from until minOf(from + 3, types.size)) addRow(i, types[i]); list.post { more(from + 3) } }
+    list.post { more(first) }
     sheet.addView(sc, LinearLayout.LayoutParams(-1, -2))
     scrim.addView(sheet, FrameLayout.LayoutParams(-1, (root.height * 0.62f).toInt(), Gravity.BOTTOM))
-    showOverlay(scrim)
+    showOverlay(scrim); lap("show")
+    sheet.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener { override fun onPreDraw(): Boolean { sheet.viewTreeObserver.removeOnPreDrawListener(this); lap("layout"); lap.done("picker"); return true } })
     sheet.translationY = dpf(80f); sheet.alpha = 0f
     sheet.animate().translationY(0f).alpha(1f).setDuration(180).start()
 }
@@ -283,6 +332,12 @@ internal fun HomeActivity.preview(type: String): View {
             c.addView(text(HomeLogic.clock(lastView?.minute ?: 980), 22f, pal.text, true))
             c.addView(text(SimpleDateFormat("EEE d/M", resources.configuration.locales[0]).format(Date()), 10f, pal.sub))
         }
+        "analog" -> analogPreview(c)
+        "month" -> monthPreview(c)
+        "battery" -> batteryPreview(c)
+        "todo" -> todoPreview(c)
+        "note" -> notePreview(c)
+        "usage" -> usagePreview(c)
         else -> for ((ic, lab) in listOf(R.drawable.li_list_checks to R.string.hm_w_c_chores, R.drawable.li_sticky_note to R.string.hm_w_c_notes, R.drawable.li_file to R.string.hm_w_c_files))
             c.addView(text(getString(lab), 10f, pal.text).apply { Ic.lead(this, ic, pal.accentText); compoundDrawablePadding = dp(4); maxLines = 1 })
     }

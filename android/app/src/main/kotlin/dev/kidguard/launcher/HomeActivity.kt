@@ -336,15 +336,20 @@ class HomeActivity : Activity() {
         key = k
         lastView = dv; lastShow = show
         tempPage = false
-        ensureWall()
+        ensureWall(); lap("wall")
         buildBanner(banner)
         buildTopBar()
-        buildPages(m, all, show, dv, r, s, block)
-        buildDock(m, all, show, dv, r)
+        buildPages(m, all, show, dv, r, s, block); lap("pages")
+        buildDock(m, all, show, dv, r); lap("dock")
         hint.setImageDrawable(Ic.get(this, R.drawable.li_chevron_up, Color.WHITE, dp(18)))
         inkViews += hint
-        today?.fill(r, dv.minute, dv.dow, dv.now)
-        lap("build"); lap.done("rebuild")
+        // the "Hôm nay" page (25-35 ms) is off screen on almost every render: rebuilt once the main thread is idle
+        if (pager.page == 0) today?.fill(r, dv.minute, dv.dow, dv.now) else {
+            val gen = ++todayGen
+            android.os.Looper.myQueue().addIdleHandler { if (gen == todayGen && !isFinishing) today?.fill(r, dv.minute, dv.dow, dv.now); false }
+        }
+        lap("today")
+        lap.done("rebuild")
         // no-op unless what it shows changed; the first one is built while idle, so the first swipe up has it ready under the finger
         drawerCache?.let { d -> main.post { d.refill() } } ?: main.postDelayed({ if (drawerCache == null && !isFinishing && !busy()) drawerView() }, 800)
         main.post { inkPass(); chromeFade() }
@@ -434,7 +439,7 @@ class HomeActivity : Activity() {
     }
 
     internal fun buildPages(m: HomeModel, all: Map<String, AppE>, show: Map<String, LauncherLogic.Show>, dv: View0, r: Rules, s: Store, block: String?) {
-        inkViews.clear(); itemViews.clear(); clocks.clear()
+        inkViews.clear(); itemViews.clear(); clocks.clear(); tickers.clear()
         val keep = pager.page
         pager.removeAllViews()
         today?.view?.let { (it.parent as? ViewGroup)?.removeView(it); pager.addView(it) }
@@ -443,14 +448,20 @@ class HomeActivity : Activity() {
             val cell = CellLayout(this, m.cols, m.rows)
             for (it in p) {
                 val v: View = when (it.kind) {
-                    "widget" -> when (it.type) {
+                    "widget" -> { val w0 = android.os.SystemClock.uptimeMillis(); when (it.type) {
                         "clock" -> clockWidget(r, dv, it.w, it.h, hasNext)
                         "time" -> timeWidget(r, dv, block, s, it.w)
                         "quick" -> quickWidget(s, it.w)
                         "next" -> nextWidget(r, dv)
                         "counts" -> countsWidget(r, m)
+                        "analog" -> analogWidget(dv, it.w, it.h)
+                        "month" -> monthWidget(dv, it.w, it.h)
+                        "battery" -> batteryWidget(it.w)
+                        "todo" -> todoWidget(m, it.w, it.h)
+                        "note" -> noteWidget(m, it.w, it.h)
+                        "usage" -> usageWidget(dv, all, it.w, it.h)
                         else -> null
-                    }?.also { v -> armWidget(v, it) }
+                    }?.also { v -> armWidget(v, it); (android.os.SystemClock.uptimeMillis() - w0).let { ms -> if (ms > 4) android.util.Log.i("KG.perf", "widget ${it.type} ${ms}ms") } } }
                     "app" -> all[it.pkg]?.takeIf { a -> show[a.pkg] != LauncherLogic.Show.HIDE }?.let { a ->
                         appIcon(a, show[a.pkg] == LauncherLogic.Show.PAUSED, dv, r, Mode.HOME, it)
                     }
@@ -520,6 +531,9 @@ class HomeActivity : Activity() {
 
     internal class Row(val icon: Int, val label: String, val enabled: Boolean, val run: () -> Unit)
     internal val clocks = ArrayList<Pair<TextView, TextView>>()
+    internal var todayGen = 0
+    /** Live parts of widgets (analog hands, battery): run on the minute tick with the fresh View0, no rebuild. */
+    internal val tickers = ArrayList<(View0) -> Unit>()
     internal var armed: View? = null
     internal var downX = 0f; internal var downY = 0f
     internal var flip: Runnable? = null
