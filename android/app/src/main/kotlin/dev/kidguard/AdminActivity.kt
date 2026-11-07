@@ -90,15 +90,18 @@ class AdminActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() { val w = web; if (w != null && w.canGoBack()) w.goBack() else end() }
 
-    // leaving the foreground (home, recents, another app, the screen turning off) ends the session for good
-    override fun onPause() { leaving = !isFinishing; super.onPause(); end() }
-
     /**
-     * Left for home / Recents / another app (not back or a timeout, which finish first): remove the whole task, so no
-     * Recents card is left (ColorOS force-stops an app whose card is swiped away). Back returns to MainActivity as usual.
+     * Not visible any more (home, Recents, another app) ends the session for good and removes the whole task, so no
+     * Recents card is left (ColorOS force-stops an app whose card is swiped away). Back / a timeout finish first: Back
+     * returns to MainActivity as usual. Only onStop, not onPause: on Android 8 pulling down the notification shade or a
+     * system dialog (location accuracy prompt) pauses the page, and the parent's session was thrown away mid-task.
+     * The screen turning off ends it through [screenOff].
      */
-    private var leaving = false
-    override fun onStop() { super.onStop(); if (leaving && !isChangingConfigurations) finishAndRemoveTask() }
+    override fun onStop() {
+        super.onStop()
+        if (isFinishing || isChangingConfigurations) return
+        end(); finishAndRemoveTask()
+    }
 
     override fun onDestroy() {
         end()

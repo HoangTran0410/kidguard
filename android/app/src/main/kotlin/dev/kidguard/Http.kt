@@ -45,7 +45,7 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
                     val s = ServerSocket(port).also { server = it }
                     while (!s.isClosed) {
                         val c = s.accept()
-                        try { pool.execute { serve(c) } } catch (e: RejectedExecutionException) { runCatching { c.close() } }
+                        try { pool.execute { safe(c) } } catch (e: RejectedExecutionException) { runCatching { c.close() } }
                     }
                 } catch (e: BindException) {
                     Log.w("KidGuard", "http bind $port failed, retry in 2s", e)
@@ -56,6 +56,13 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
     }
 
     fun stop() { stopped = true; runCatching { server?.close() }; pool.shutdownNow() }
+
+    /** A client gone mid-write (page closed, Wi-Fi dropped) throws "Broken pipe" here: uncaught on a pool thread it
+     *  killed the whole app (Oppo dropbox, 0.9.5), which then looked like a crash + restart to the child. */
+    private fun safe(c: Socket) {
+        try { serve(c) } catch (e: java.io.IOException) { Log.d("KidGuard", "http client gone: ${e.message}") }
+        catch (e: Exception) { Log.w("KidGuard", "http serve", e) }
+    }
 
     private fun serve(c: Socket) = c.use {
         it.soTimeout = 15_000

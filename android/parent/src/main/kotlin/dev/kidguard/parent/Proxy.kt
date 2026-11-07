@@ -55,7 +55,7 @@ class Proxy(private val ctx: Context, val port: Int) {
             while (!stopped) {
                 try {
                     val c = s.accept()
-                    try { pool.execute { serve(c) } } catch (e: Exception) { runCatching { c.close() } }
+                    try { pool.execute { try { serve(c) } catch (e: Exception) { Log.d("KidGuard", "proxy client gone: ${e.message}") } } } catch (e: Exception) { runCatching { c.close() } }
                 } catch (e: SocketException) { break } catch (e: Exception) { Log.e("KGParent", "accept", e) }
             }
         }, "kg-proxy").start()

@@ -26,6 +26,7 @@ import android.os.HandlerThread
 import android.os.Bundle
 import android.os.IBinder
 import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
@@ -91,6 +92,10 @@ class Guard : Service() {
         running = this
         Watchdog.schedule(this)
         work.post { runCatching { Policy.apply(this, store.rules) }; Quick.setEnabled(this, true) }   // off the main thread: DPM calls can block
+        @Suppress("DEPRECATION") runCatching {   // location switched off: back on at once (rule lockLocation), not at the next tick
+            contentResolver.registerContentObserver(Settings.Secure.getUriFor(Settings.Secure.LOCATION_MODE), false, locObserver)
+            contentResolver.registerContentObserver(Settings.Secure.getUriFor(Settings.Secure.LOCATION_PROVIDERS_ALLOWED), false, locObserver)
+        }
         runCatching {
             registerReceiver(pkgReceiver, IntentFilter().apply {
                 addAction(Intent.ACTION_PACKAGE_ADDED); addAction(Intent.ACTION_PACKAGE_REMOVED); addDataScheme("package")
@@ -112,6 +117,7 @@ class Guard : Service() {
         running = null
         runCatching { unregisterReceiver(pkgReceiver) }
         runCatching { unregisterReceiver(timeReceiver) }
+        runCatching { contentResolver.unregisterContentObserver(locObserver) }
         Listen.stopAll(); Proj.stop(this); Ring.stop(this)
         wifiLock(false)
         http?.stop(); relay?.stop()
@@ -149,12 +155,7 @@ class Guard : Service() {
         Policy.retryDns(this, r)
         Ts.poll(this, store)
         if (r.trackMin > 0 && now - lastTrackTry >= r.trackMin * 60_000L - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) }
-        if (r.lockLocation && Build.VERSION.SDK_INT >= 30 && Policy.isOwner(this)) {
-            if (!locationOn()) {
-                runCatching { Policy.dpm(this).setLocationEnabled(Policy.admin(this), true) }
-                if (!locFixLogged) { locFixLogged = true; store.log(R.string.log_loc_fixed) }
-            } else locFixLogged = false
-        }
+        keepLocation(r)
         if (!Usage.granted(this)) {
             if (!usageLogged) {
                 usageLogged = true; store.log(R.string.log_usage_off)
@@ -329,6 +330,30 @@ class Guard : Service() {
             .put("notes", runCatching { KidNotes.stateJson(HomeFile.load(this)?.notes) }.getOrDefault(org.json.JSONArray()))   // the kid's notes shared with parents
             .put("sys", Sys.state(this))
             .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)) else it.put("preinstalled", preinstalled(prot, now)) }
+    }
+
+    /**
+     * Rule lockLocation: location switched off (quick settings tile) => straight back on. Android 11+: DPM
+     * setLocationEnabled (DISALLOW_CONFIG_LOCATION, Android 9+, already hides the switch). Android 8: no restriction
+     * exists, so the Device Owner writes LOCATION_MODE (setSecureSetting, allowed for it before Android 9), else
+     * WRITE_SECURE_SETTINGS. Runs every tick and at once from [locObserver].
+     */
+    private fun keepLocation(r: Rules) {
+        if (!r.lockLocation || !Policy.isOwner(this)) return
+        if (locationOn()) { locFixLogged = false; return }
+        if (Build.VERSION.SDK_INT >= 30) runCatching { Policy.dpm(this).setLocationEnabled(Policy.admin(this), true) }
+        else {
+            @Suppress("DEPRECATION") val mode = Settings.Secure.LOCATION_MODE_HIGH_ACCURACY
+            @Suppress("DEPRECATION") runCatching { Policy.dpm(this).setSecureSetting(Policy.admin(this), Settings.Secure.LOCATION_MODE, mode.toString()) }
+                .onFailure { Log.w("KidGuard", "location mode (owner)", it) }
+            if (!locationOn() && checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
+                @Suppress("DEPRECATION") runCatching { Settings.Secure.putInt(contentResolver, Settings.Secure.LOCATION_MODE, mode) }
+                    .onFailure { Log.w("KidGuard", "location mode (wss)", it) }
+        }
+        if (!locFixLogged) { locFixLogged = true; store.log(R.string.log_loc_fixed) }
+    }
+    private val locObserver by lazy {
+        object : android.database.ContentObserver(work) { override fun onChange(self: Boolean) { runCatching { keepLocation(store.rules) } } }
     }
 
     private fun locationOn(): Boolean {
