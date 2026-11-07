@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vietnamese. Same names as values/strings.xml (English, the default). Keep the format args (%1$s, %2$d) the same. -->
+<resources>
+    <string name="acc_desc">KidGuard: cho bố mẹ xem màn hình và giúp con thao tác từ xa, khoá ứng dụng ngay khi mở. Có thông báo mỗi khi bố mẹ đang xem.</string>
+
+    <!-- Rules / Events / Warn (pure logic, keys in Tr.kt) -->
+    <string name="reason_blocked">bố mẹ đã chặn app này</string>
+    <string name="reason_app_limit">hết giờ dùng app này hôm nay</string>
+    <string name="reason_group_hours">chưa tới giờ được dùng app này</string>
+    <string name="reason_group_limit">nhóm app này đã hết giờ hôm nay</string>
+    <string name="reason_new">app mới, chờ bố mẹ cho phép</string>
+    <string name="reason_paused">bố mẹ đang tạm dừng máy</string>
+    <string name="reason_schedule">đang trong giờ nghỉ</string>
+    <string name="reason_bedtime">đã đến giờ đi ngủ</string>
+    <string name="reason_daily">đã hết giờ dùng máy hôm nay</string>
+    <string name="ev_zone_in">Đã đến %1$s</string>
+    <string name="ev_zone_out">Đã rời %1$s</string>
+    <plurals name="answer_yes">
+        <item quantity="other">Bố mẹ đã đồng ý thêm %1$d phút</item>
+    </plurals>
+    <string name="answer_no">Bố mẹ chưa đồng ý</string>
+    <string name="answer_note">%1$s. Bố mẹ nhắn: %2$s</string>
+    <string name="diff_head">Bố mẹ đổi luật: %1$s</string>
+    <string name="diff_limit">giới hạn %1$s → %2$s</string>
+    <string name="diff_none">không</string>
+    <string name="diff_min">%1$d phút</string>
+    <string name="no_limit">không giới hạn</string>
+    <string name="diff_by_day">giới hạn từng ngày: %1$s</string>
+    <string name="diff_by_day_off">bỏ giới hạn từng ngày</string>
+    <string name="diff_bed">giờ ngủ %1$s–%2$s</string>
+    <string name="diff_bed_off">tắt giờ ngủ</string>
+    <string name="diff_sched_n">lịch nghỉ %1$d → %2$d</string>
+    <string name="diff_sched">sửa lịch nghỉ</string>
+    <string name="diff_blocked">chặn %1$d → %2$d app</string>
+    <string name="diff_allow">luôn cho dùng %1$d → %2$d app</string>
+    <string name="app_hidden">Ẩn app: %1$s</string>
+    <string name="app_unhidden">Hiện lại app: %1$s</string>
+    <string name="diff_pause">tạm dừng máy</string>
+    <string name="diff_pause_off">bỏ tạm dừng</string>
+    <string name="diff_bonus">thưởng +%1$d phút</string>
+    <string name="diff_bonus_off">bỏ thưởng giờ</string>
+    <string name="diff_chores_n">việc nhà %1$d → %2$d</string>
+    <string name="diff_chores">sửa việc nhà</string>
+    <string name="diff_zones_n">vùng %1$d → %2$d</string>
+    <string name="diff_zones">sửa vùng</string>
+    <string name="diff_track">lưu vị trí mỗi %1$d phút</string>
+    <string name="diff_track_off">tắt lưu vị trí</string>
+    <string name="diff_lockloc">khoá bật vị trí</string>
+    <string name="diff_lockloc_off">bỏ khoá vị trí</string>
+    <string name="diff_autoupd">bật tự cập nhật KidGuard</string>
+    <string name="diff_autoupd_off">tắt tự cập nhật KidGuard</string>
+    <string name="diff_watch">báo con khi xem màn hình</string>
+    <string name="diff_watch_off">không báo con khi xem màn hình</string>
+    <string name="diff_pin">đổi PIN</string>
+    <string name="diff_other">cài đặt khác</string>
+    <string name="warn_d1">Còn 1 phút: lưu lại việc đang làm nhé</string>
+    <string name="warn_d5">Còn %1$d phút nữa là hết giờ hôm nay</string>
+    <string name="warn_bed">%1$d phút nữa đến giờ ngủ</string>
+    <string name="warn_break">%1$d phút nữa đến giờ nghỉ</string>
+    <string name="warn_break_named">%1$d phút nữa đến giờ nghỉ: %2$s</string>
+
+    <!-- shared bits -->
+    <plurals name="min_n">
+        <item quantity="other">%1$d phút</item>
+    </plurals>
+    <string name="under_1_min">dưới 1 phút</string>
+    <string name="cancel">Huỷ</string>
+    <string name="close">Đóng</string>
+    <string name="send">Gửi</string>
+    <string name="locked_title">Tạm khoá</string>
+    <string name="chore_item">%1$s +%2$d phút</string>
+    <string-array name="day_short">
+        <item>T2</item><item>T3</item><item>T4</item><item>T5</item><item>T6</item><item>T7</item><item>CN</item>
+    </string-array>
+    <string name="err_generic">lỗi</string>
+    <string name="err_http">tải lỗi HTTP %1$d</string>
+    <string name="err_sha_read">mã SHA-256 không đọc được</string>
+    <string name="err_install">cài lỗi: %1$s</string>
+    <string name="err_timeout">hết giờ chờ</string>
+    <string name="err_user_action">cần người dùng bấm (không phải Device Owner?)</string>
+
+    <!-- Store / Api: log lines and events (sent to the parent as text) -->
+    <string name="log_pin_wrong">Nhập sai PIN %1$d lần, khoá %2$d phút</string>
+    <string name="ev_unlock_wrong">Nhập sai mã mở khoá 5 lần</string>
+    <string name="log_unlock">Mở khoá bằng mã của bố mẹ: %1$d phút</string>
+    <string name="ev_unlock">Con đã mở khoá bằng mã của bố mẹ: %1$d phút</string>
+    <string name="log_paired">Đã ghép một thiết bị của bố mẹ</string>
+
+    <!-- Guard -->
+    <string name="ev_tz">Múi giờ máy bị đổi: %1$s</string>
+    <string name="log_tz">Múi giờ bị đổi: %1$s</string>
+    <string name="ev_clock">Giờ máy bị đổi</string>
+    <string name="log_loc_fixed">Vị trí bị tắt, đã bật lại</string>
+    <string name="log_usage_off">Quyền theo dõi sử dụng bị tắt</string>
+    <string name="ev_usage_off">Quyền theo dõi giờ dùng bị tắt: giới hạn giờ không tính được</string>
+    <string name="log_new_app">Cài mới: %1$s</string>
+    <string name="ev_new_app">Đã cài %1$s</string>
+    <string name="log_suspended">Tạm khoá: %1$s (%2$s)</string>
+    <string name="log_unsuspended">Mở lại: %1$s</string>
+    <string name="log_recover_open">Đã mở ghép lại (yêu cầu từ máy con hôm qua)</string>
+    <string name="ev_battery">Pin còn %1$d%%</string>
+    <string name="log_zone">Vùng: sự kiện mới</string>
+    <string name="ch_answer">Bố mẹ trả lời</string>
+    <string name="ch_warn">Báo trước khi hết giờ</string>
+    <string name="log_cmd">Lệnh: %1$s → %2$s</string>
+    <string name="log_cleared">Bố mẹ xoá dữ liệu: %1$s</string>
+    <string name="log_totp_off">Đã tắt mã mở khoá</string>
+    <string name="log_totp_on">Đã bật mã mở khoá (Google Authenticator)</string>
+    <string name="log_release_fail">Gỡ quản lý chưa xong: %1$s</string>
+    <string name="log_released">Đã gỡ quyền quản lý</string>
+    <string name="log_sos">Con bấm SOS</string>
+    <string name="notif_guard_title">KidGuard đang bật</string>
+    <string name="notif_guard_text">Bố mẹ quản lý thời gian dùng máy</string>
+
+    <!-- Basic mode setup card -->
+    <string name="basic_title">Cài nhanh không cần máy tính</string>
+    <string name="basic_intro">Làm lần lượt từng bước bên dưới. Mỗi nút mở đúng màn hình cần bật; bật xong bấm Quay lại.</string>
+    <string name="basic_admin">1. Bật quyền quản trị thiết bị</string>
+    <string name="basic_admin_d">Để KidGuard khoá máy được và không bị gỡ khi chưa có bố mẹ.</string>
+    <string name="basic_admin_expl">KidGuard cần quyền này để khoá màn hình và chống bị gỡ.</string>
+    <string name="basic_acc">2. Bật Trợ năng cho KidGuard</string>
+    <string name="basic_acc_d">Vào Trợ năng, chọn KidGuard, bật. Dùng để chặn app bị khoá và giữ KidGuard không bị tắt.</string>
+    <string name="basic_usage">3. Cho phép xem thời gian dùng app</string>
+    <string name="basic_usage_d">Chọn KidGuard rồi bật \"Cho phép\". Dùng để đếm giờ dùng từng app.</string>
+    <string name="basic_loc">4. Cho phép vị trí</string>
+    <string name="basic_loc_d">Để bố mẹ biết con đang ở đâu. Chọn \"Chính xác\" và \"Khi dùng ứng dụng\" ở bước này.</string>
+    <string name="basic_loc_bg">4. Vị trí: cho phép \"Luôn cho phép\"</string>
+    <string name="basic_loc_bg_d">Để bố mẹ xem vị trí cả khi con không mở KidGuard. Chọn \"Luôn cho phép\" (Always) ở màn hình tiếp theo.</string>
+    <string name="basic_notif">5. Cho phép thông báo</string>
+    <string name="basic_notif_d">Để con thấy lời nhắc và lý do khi app bị khoá.</string>
+    <string name="basic_battery">6. Không giới hạn pin cho KidGuard</string>
+    <string name="basic_battery_d">Nếu không, máy có thể tự tắt KidGuard khi tiết kiệm pin.</string>
+    <string name="basic_autostart">Cho phép tự khởi động (Oppo, Xiaomi, Vivo…)</string>
+    <string name="basic_play_protect">Bị Google Play Protect chặn (\"App blocked to protect your device\")? Mở CH Play → ảnh đại diện → Play Protect → ⚙ → tắt \"Quét ứng dụng bằng Play Protect\", làm xong các bước ở đây rồi bật lại.</string>
+
+    <!-- Device Owner checklist -->
+    <string name="prov_usage">Bật quyền theo dõi sử dụng</string>
+    <string name="prov_acc">Bật Trợ năng KidGuard</string>
+    <string name="prov_title">Bước còn lại</string>
+    <string name="prov_intro">Bật 2 quyền này để KidGuard chạy đầy đủ</string>
+    <string name="prov_done">Đã xong: %1$s</string>
+    <string name="prov_secure_yes">Tự bật lại Trợ năng: có</string>
+    <string name="prov_secure_no">Tuỳ chọn: tự bật lại Trợ năng cần máy tính hoặc Gỡ lỗi không dây</string>
+
+    <!-- Accessibility -->
+    <string name="log_acc_settings">Con mở trang gỡ / tắt KidGuard, đã đưa về màn hình chính</string>
+    <string name="ch_block">App đang bị khoá</string>
+    <string name="notif_blocked">%1$s đang bị khoá: %2$s</string>
+    <string name="log_acc_rebind">Trợ năng không kết nối, thử bind lại</string>
+    <string name="log_acc_reenabled">Trợ năng bị tắt, đã bật lại</string>
+    <string name="log_view_start">Bố mẹ bắt đầu xem màn hình</string>
+    <string name="notice_viewing">Bố mẹ đang xem màn hình</string>
+    <string name="ch_viewing">Đang xem màn hình</string>
+    <string name="log_control">Bố mẹ điều khiển từ xa</string>
+    <string name="notice_control">Bố mẹ đang điều khiển máy</string>
+
+    <!-- Remote access (Ts) -->
+    <string name="ts_log_connected">Điều khiển từ xa: đã kết nối (%1$s)</string>
+    <string name="ts_err_no_net">Chưa vào được mạng (khoá sai, hết hạn hoặc phone chưa có Internet)</string>
+    <string name="ts_err_install">cài không xong</string>
+    <string name="ts_log_installed">Điều khiển từ xa: đã cài, đang đăng nhập</string>
+    <string name="ts_err_apk_name">không thấy tên APK</string>
+    <string name="ts_err_sha">sai SHA-256 của APK</string>
+    <string name="ts_log_unhide">Điều khiển từ xa: ẩn app làm mất kết nối, để app hiện</string>
+
+    <!-- Self-update -->
+    <string name="upd_err_bad_tag">bản %1$s không hợp lệ</string>
+    <string name="upd_err_github">GitHub trả lời HTTP %1$d</string>
+    <string name="upd_err_version">không đọc được phiên bản</string>
+    <string name="upd_err_sha">sai SHA-256 của bản cập nhật</string>
+    <string name="upd_err_save">không lưu được bản cập nhật</string>
+    <string name="upd_err_invalid">bản tải về không hợp lệ</string>
+    <string name="ch_update">Cập nhật KidGuard</string>
+    <string name="notif_update_title">Có bản KidGuard mới (%1$s)</string>
+    <string name="notif_update_text">Mở KidGuard, bấm Cập nhật</string>
+    <string name="upd_cancelled">đã huỷ</string>
+
+    <!-- Policy -->
+    <string name="policy_support">Bố mẹ đang tạm khoá ứng dụng này.</string>
+    <string name="dns_refused">DNS %1$s bị từ chối (mã %2$d)</string>
+    <string name="dns_fallback">Mạng hiện tại không dùng được DNS an toàn, tạm tắt 30 phút để con không mất mạng</string>
+    <string name="log_dns_fallback">DNS an toàn làm mất mạng, tạm tắt 30 phút</string>
+    <!-- a `release` command result: keep the "failed: " prefix -->
+    <plurals name="release_stuck">
+        <item quantity="other">failed: %1$d app còn bị ẩn</item>
+    </plurals>
+
+    <!-- Listening -->
+    <plurals name="listen_about">
+        <item quantity="other">khoảng %1$d phút</item>
+    </plurals>
+    <string name="log_listen_done">Bố mẹ đã nghe âm thanh xung quanh từ %1$s (%2$s)</string>
+    <string name="log_listen_start">Bố mẹ bắt đầu nghe âm thanh xung quanh</string>
+    <string name="ch_listen">Bố mẹ đang nghe</string>
+    <string name="notif_listen_title">Bố mẹ đang nghe âm thanh xung quanh máy</string>
+    <string name="notif_listen_text">Micro đang bật để bố mẹ nghe. Tự tắt sau tối đa 10 phút.</string>
+
+    <!-- Self-setup (adb over Wireless debugging) -->
+    <string name="step_pair">Ghép nối với chính máy này</string>
+    <string name="step_accounts">Kiểm tra tài khoản trên máy</string>
+    <string name="step_owner">Cấp quyền quản lý thiết bị</string>
+    <string name="step_usage">Cấp quyền xem thời gian dùng app</string>
+    <string name="step_secure">Cấp quyền ghi cài đặt hệ thống</string>
+    <string name="step_acc">Bật trợ năng</string>
+    <string name="step_battery">Cho phép chạy nền (không giới hạn pin)</string>
+    <string name="ss_failed">Chưa cài được: %1$s</string>
+    <string name="ss_no_pair_port">Không thấy cổng ghép nối. Hãy mở lại hộp thoại \"Ghép thiết bị bằng mã ghép nối\" rồi thử lại.</string>
+    <string name="ss_pair_fail">Ghép nối không thành công (sai mã hoặc hộp thoại đã đóng).</string>
+    <string name="ss_no_conn_port">Ghép nối xong nhưng không thấy cổng kết nối. Hãy tắt rồi bật lại \"Gỡ lỗi không dây\".</string>
+    <string name="ss_conn_fail">Không kết nối được tới chính máy này: %1$s</string>
+    <string name="ss_cmd_fail">lệnh không thành công</string>
+    <string name="ss_accounts">Máy còn tài khoản, cần xoá trước: %1$s. Vào Cài đặt > Mật khẩu và tài khoản, xoá hết rồi thử lại (cài xong đăng nhập lại được).</string>
+    <string name="ss_done">Xong. KidGuard đã được cài quyền quản lý.</string>
+    <string name="ch_selfsetup">Tự cài KidGuard</string>
+    <string name="ss_code_label">Mã 6 số</string>
+    <string name="ss_code_action">Nhập mã ghép</string>
+    <string name="ss_code_title">KidGuard: nhập mã ghép nối</string>
+    <string name="ss_code_text">Nhìn mã 6 số trong hộp thoại Cài đặt, rồi bấm \"Nhập mã ghép\" ở đây.</string>
+    <string name="ss_running">KidGuard đang tự cài</string>
+    <string name="ss_code_6">Mã phải đủ 6 số</string>
+    <string name="ssa_title">Tự cài KidGuard, không cần máy tính</string>
+    <string name="ssa_old">Máy này dùng Android %1$s (dưới 11) nên không tự cài được. Cần cắm máy tính chạy setup.sh (xem README), hoặc cài lại máy rồi quét mã QR.</string>
+    <string name="ssa_intro">Máy sẽ tự \"nói chuyện\" với chính nó qua Gỡ lỗi không dây. Cần Wi-Fi, và máy chưa đăng nhập tài khoản nào (Google, Samsung, Xiaomi...). Làm lần lượt 3 bước:</string>
+    <string name="ssa_s1">Bước 1. Bật Tuỳ chọn nhà phát triển</string>
+    <string name="ssa_s1_d">Vào Giới thiệu về điện thoại, bấm 7 lần vào \"Số hiệu bản tạo\" (Build number).</string>
+    <string name="ssa_s1_btn">Mở Giới thiệu về điện thoại</string>
+    <string name="ssa_s2">Bước 2. Bật Gỡ lỗi không dây</string>
+    <string name="ssa_s2_d">Trong Tuỳ chọn nhà phát triển, bật \"Gỡ lỗi không dây\" (Wireless debugging) và cho phép Wi-Fi này.</string>
+    <string name="ssa_s2_btn">Mở Tuỳ chọn nhà phát triển</string>
+    <string name="ssa_s3">Bước 3. Nhập mã ghép nối</string>
+    <string name="ssa_s3_d">Bấm nút dưới đây. Rồi trong Gỡ lỗi không dây, bấm \"Ghép thiết bị bằng mã ghép nối\". Hộp thoại sẽ tắt nếu con rời màn hình Cài đặt, nên mã được nhập ở thông báo: kéo thanh thông báo xuống, bấm \"Nhập mã ghép\" và gõ mã 6 số.</string>
+    <string name="ssa_s3_btn">Hiện ô nhập mã ở thông báo</string>
+    <string name="ssa_or_here">Hoặc nhập ngay tại đây (nếu thông báo không hiện):</string>
+    <string name="ssa_code_hint">Mã ghép nối 6 số</string>
+    <string name="ssa_pair_port_hint">Cổng ghép nối (để trống nếu máy tự tìm thấy)</string>
+    <string name="ssa_conn_port_hint">Cổng kết nối (để trống nếu máy tự tìm thấy)</string>
+    <string name="ssa_wifi_off">Tắt Gỡ lỗi không dây sau khi cài xong</string>
+    <string name="ssa_start">Bắt đầu cài</string>
+    <string name="ssa_progress">Tiến trình</string>
+    <string name="ssa_code_6">Mã ghép nối phải đủ 6 số.</string>
+    <string name="ssa_pair_seen">Đã thấy hộp thoại ghép nối (cổng %1$d).</string>
+    <string name="ssa_pair_none">Chưa thấy hộp thoại ghép nối.</string>
+    <string name="ssa_wd_on">Gỡ lỗi không dây đang bật (cổng %1$d).</string>
+    <string name="ssa_wd_off">Gỡ lỗi không dây chưa bật.</string>
+
+    <!-- Child main screen -->
+    <string name="main_tagline">Giúp con dùng điện thoại an toàn</string>
+    <string name="main_code_label">MÃ GHÉP ĐÔI</string>
+    <string name="main_code_left">MÃ GHÉP ĐÔI · CÒN %1$s</string>
+    <string name="main_code_under1">DƯỚI 1 PHÚT</string>
+    <string name="main_code_min">%1$d PHÚT</string>
+    <string name="main_qr_desc">Mã QR để bố mẹ quét</string>
+    <string name="main_sos">SOS: báo bố mẹ ngay</string>
+    <string name="main_update">Cập nhật KidGuard (bản mới)</string>
+    <string name="main_update_allow">Bật \"Cho phép từ nguồn này\" cho KidGuard rồi bấm lại</string>
+    <string name="main_more">Xin thêm giờ</string>
+    <string name="main_unlock">Nhập mã mở khoá của bố mẹ</string>
+    <string name="main_unlocked_until">Đang mở khoá tới %1$s · nhập mã khác để thêm</string>
+    <string name="main_pair_more">Ghép thêm máy của bố mẹ</string>
+    <string name="main_my_rules">Luật của con</string>
+    <string name="main_log">Nhật ký: bố mẹ đã đổi gì</string>
+    <string name="main_reveal">Bố mẹ: hiện mã ghép (giữ 5 giây)</string>
+    <string name="main_recover">Bố mẹ mất liên kết? Mở ghép lại (giữ 10 giây)</string>
+    <string name="main_recover_at">Mã ghép sẽ hiện lúc %1$s</string>
+    <string name="log_recover_req">Máy con yêu cầu mở ghép lại (mở sau 24 giờ)</string>
+    <string name="ev_recover_req">Máy con yêu cầu mở ghép lại: sẽ mở sau 24 giờ. Đặt PIN để huỷ.</string>
+    <string name="main_recover_title">Sẽ mở ghép sau 24 giờ</string>
+    <string name="main_recover_body">Để an toàn, mã ghép hiện sau 24 giờ và bố mẹ được báo ngay. Nếu bố mẹ vẫn còn quản lý được, hãy đặt mã PIN để huỷ.</string>
+    <string name="main_battery">Cài đặt pin / tự khởi động</string>
+    <string name="main_lang">Ngôn ngữ / Language: %1$s</string>
+    <string name="lang_title">Ngôn ngữ / Language</string>
+    <string name="lang_system">Theo điện thoại</string>
+    <string name="main_self">Cài đầy đủ không cần máy tính (Android 11+)</string>
+    <plurals name="main_hold">
+        <item quantity="other">Giữ nút %1$d giây</item>
+    </plurals>
+    <string name="st_owner">Đang được bố mẹ quản lý</string>
+    <string name="st_basic">Chế độ cơ bản: KidGuard đang bảo vệ</string>
+    <string name="st_unfinished">Chưa cài xong: làm lần lượt các bước trong khung \"Cài nhanh\" bên dưới</string>
+    <string name="st_no_usage">Chưa có quyền xem thời gian dùng app</string>
+    <string name="st_running">Đang chạy</string>
+    <string name="st_starting">Đang khởi động…</string>
+    <string name="st_acc_on">Trợ năng: bật</string>
+    <string name="st_acc_off">Trợ năng: tắt</string>
+    <string name="st_loc_on">Vị trí: bật</string>
+    <string name="st_loc_off">Vị trí: tắt</string>
+    <plurals name="st_pending">
+        <item quantity="other">Đang chờ bố mẹ trả lời: %1$d yêu cầu</item>
+    </plurals>
+    <string name="st_sos">Đã gửi SOS, đang chờ bố mẹ xem</string>
+    <string name="st_remote">Điều khiển từ xa: bật</string>
+    <string name="st_last_listen">Lần nghe gần nhất: %1$s (%2$s)</string>
+    <string name="main_hint_qr">Trên máy bố mẹ (cùng Wi-Fi): quét mã QR bằng camera, hoặc mở trình duyệt:\n%1$s\nrồi nhập mã ở trên.</string>
+    <string name="main_hint_nowifi">Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n(chưa có Wi-Fi)\nrồi nhập mã ở trên.</string>
+    <string name="main_hint_hidden">Chưa ghép với máy bố mẹ. Bố mẹ giữ nút \"hiện mã ghép\" bên dưới 5 giây để bắt đầu ghép.</string>
+    <string name="main_hint_managed">Bố mẹ quản lý tại:\n%1$s</string>
+    <string name="main_no_wifi">(chưa có Wi-Fi)</string>
+    <string name="pin_need_title">Cần mã PIN</string>
+    <string name="pin_need_body">Bố mẹ hãy đặt mã PIN trong trang quản lý trước khi ghép thêm máy.</string>
+    <plurals name="pin_locked">
+        <item quantity="other">Nhập sai PIN nhiều lần. Thử lại sau %1$d phút.</item>
+    </plurals>
+    <string name="pin_field">PIN của bố mẹ</string>
+    <string name="pin_title">Nhập PIN của bố mẹ</string>
+    <string name="pin_body">Chỉ bố mẹ mới được ghép thêm máy.</string>
+    <string name="pin_ok">Mở ghép</string>
+    <string name="pin_wrong">Sai PIN, thử lại</string>
+    <string name="r_no_limit">Hôm nay con không bị giới hạn giờ</string>
+    <string name="r_today">Hôm nay: còn %1$d / %2$d phút</string>
+    <string name="r_bed">Giờ ngủ: %1$s - %2$s</string>
+    <string name="r_bed_none">Giờ ngủ: không đặt</string>
+    <string name="r_sched_none">Giờ nghỉ theo lịch: không có</string>
+    <string name="r_sched">Giờ nghỉ: %1$s - %2$s (%3$s)</string>
+    <string name="r_sched_named">Giờ nghỉ \"%1$s\": %2$s - %3$s (%4$s)</string>
+    <string name="r_allow_sys">App luôn dùng được: chỉ các app hệ thống (điện thoại, đồng hồ…)</string>
+    <string name="r_allow">App luôn dùng được: %1$s</string>
+    <string name="r_blocked">App đang bị chặn: %1$d</string>
+    <string name="r_track">Vị trí: bố mẹ xem được, lưu lịch sử mỗi %1$d phút</string>
+    <string name="r_track_off">Vị trí: bố mẹ chỉ xem khi bấm tìm máy</string>
+    <string name="r_view">Xem màn hình: bố mẹ có thể xem khi bật</string>
+    <string name="r_view_told">Xem màn hình: bố mẹ có thể xem khi bật (con sẽ thấy thông báo)</string>
+    <string name="r_view_off">Xem màn hình: đang tắt</string>
+    <string name="r_listen">Nghe âm thanh xung quanh: chỉ khi có tiếng bíp và thông báo cho con</string>
+    <string name="r_group">Nhóm %1$s: %2$s</string>
+    <string name="r_group_min">cả nhóm %1$d phút/ngày</string>
+    <string name="r_group_hours">chỉ dùng %1$s</string>
+    <string name="r_zones">Bố mẹ được báo khi con đến / rời: %1$s</string>
+    <string name="r_chores">Việc nhà đổi giờ: %1$s</string>
+    <string name="r_sub">Chỉ để xem, bố mẹ là người thay đổi.</string>
+    <string name="log_empty">Chưa có gì.</string>
+    <string name="log_title">Nhật ký</string>
+    <string name="log_sub">20 dòng gần nhất, mới nhất ở trên.</string>
+    <string name="sos_q">Gửi SOS cho bố mẹ?</string>
+    <string name="sos_q_body">Bố mẹ sẽ nhận báo khẩn cấp kèm vị trí của con.</string>
+    <string name="sos_send">Gửi SOS</string>
+    <string name="sos_done">Đã báo cho bố mẹ</string>
+    <string name="sos_done_body">Bố mẹ sẽ thấy báo SOS và vị trí của con.</string>
+    <string name="sos_again">Vừa gửi rồi</string>
+    <string name="sos_again_body">Bố mẹ sẽ thấy ngay khi máy có mạng.</string>
+    <plurals name="unl_locked">
+        <item quantity="other">Nhập sai nhiều lần. Thử lại sau %1$d phút.</item>
+    </plurals>
+    <string name="unl_hint">6 số</string>
+    <string name="unl_title">Mã mở khoá</string>
+    <string name="unl_body">Bố mẹ mở Google Authenticator, đọc 6 số của KidGuard. Mỗi mã dùng được một lần, mở khoá %1$d phút (app bị chặn hẳn vẫn bị chặn).</string>
+    <string name="unl_ok">Mở khoá</string>
+    <string name="unl_done">Đã mở khoá</string>
+    <plurals name="unl_done_body">
+        <item quantity="other">Con dùng được thêm %1$d phút.</item>
+    </plurals>
+    <string name="unl_wrong">Sai mã hoặc mã đã dùng, thử lại</string>
+    <string name="more_note">Lý do (không bắt buộc)</string>
+    <string name="more_other">Khác: tự chọn số phút</string>
+    <string name="more_body">Chọn số phút con muốn xin bố mẹ.</string>
+    <string name="more_body_chores">Làm việc nhà để xin thêm giờ, hoặc tự chọn số phút. Bố mẹ sẽ quyết định.</string>
+    <string name="log_more">Con xin thêm giờ</string>
+    <string name="more_sent">Đã gửi cho bố mẹ</string>
+    <string name="more_sent_body">Con sẽ nhận thông báo khi bố mẹ trả lời.</string>
+    <string name="more_fail">Chưa gửi được</string>
+    <string name="more_fail_body">Đang có quá nhiều yêu cầu chờ bố mẹ trả lời.</string>
+    <string name="msg_title">Bố mẹ nhắn</string>
+    <string name="msg_read">Con đã đọc</string>
+    <string name="ch_msg">Tin nhắn từ bố mẹ</string>
+</resources>

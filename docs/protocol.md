@@ -249,7 +249,9 @@ the child over plain http; the WebView itself may only reach `127.0.0.1:<port>` 
   - `GET /app/history/day?k=<t>&p=<rest>&d=2026-11-05` -> `{"day","t","body"}`, 404 if none.
 - **JS bridge** `window.KGApp` (strings): `version()` -> `"1"`; `setKids(json)` json = `[{name,target,via:"lan"|"relay",id,token}]`
   (called whenever the list changes); `getNotify()` / `setNotify("true"|"false")` (default true);
-  `getHistoryDays()` -> `"0"` (unlimited) | `"30"` ...; `setHistoryDays(n)`.
+  `getHistoryDays()` -> `"0"` (unlimited) | `"30"` ...; `setHistoryDays(n)`; `getLang()` -> `""` (phone setting) | `"en"` | `"vi"`,
+  `setLang(code)` same codes, others ignored, same code = no-op: language of the app's own notifications (Android 13+: the
+  system per-app language). The page translates itself; the WebView is not reloaded.
 - **Background**: JobScheduler job every ~15 min (+ once at app start) fetches each kid's state with its token and
   notifies once per event: new entry in `requests` ("<name> xin thêm <min> phút"; the first look at a kid only records
   existing ones) and lost connection > 30 min ("Mất kết nối với máy của <name>"; LAN: `state.t` old or fetch failing
@@ -272,7 +274,9 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
 - **Zones / events**: the phone checks each new location fix against `zones` (inside = distance <= r; leaving needs
   distance > r + 50 m so a fix at the edge doesn't flap); fixes with accuracy > 300 m are ignored and appends events. State NEW:
   `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing", "text": "Đã đến Nhà"}]`,
-  newest last, at most 50, older than 7 days dropped. Kinds:
+  newest last, at most 50, older than 7 days dropped. `text` is free text for people, in the child app's language
+  (English or Vietnamese, from the phone / per-app language; the examples here are the Vietnamese ones). The same goes for
+  log lines (`log[].m`) and error strings (`dnsError`, `update.err`, `ts.err`). Code must switch on `kind`, never parse `text`. Kinds:
   - `zoneIn` / `zoneOut`: "Đã đến <zone>" / "Đã rời <zone>" (`zone` field = zone id). First fix after a rules change
     only records where the phone is (no event).
   - `battery`: "Pin còn <n>%" once when it drops to <= 15 % while not charging (re-armed after charging to >= 30 %).

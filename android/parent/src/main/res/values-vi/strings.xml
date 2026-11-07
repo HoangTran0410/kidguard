@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vietnamese. Same names as values/strings.xml (English, the default). Keep the format args (%1$s, %2$d) the same. -->
+<resources>
+    <string name="app_name">KidGuard Phụ huynh</string>
+    <string name="err_port">Không mở được cổng nội bộ</string>
+    <string name="ch_events">Thông báo từ máy của con</string>
+    <string name="ch_sos">SOS từ con</string>
+    <string name="upd_title">Có bản KidGuard Phụ huynh mới (%1$s)</string>
+    <string name="upd_text">Bấm để tải về rồi cài đè lên bản cũ</string>
+    <plurals name="ev_request">
+        <item quantity="other">%1$s xin thêm %2$d phút</item>
+    </plurals>
+    <string name="ev_sos">%1$s bấm SOS lúc %2$s</string>
+    <string name="ev_lost">Mất kết nối với máy của %1$s</string>
+    <string name="ev_acc_off">%1$s đã tắt Trợ năng của KidGuard: app không bị chặn nữa</string>
+</resources>

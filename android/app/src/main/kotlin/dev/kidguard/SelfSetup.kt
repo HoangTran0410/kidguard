@@ -150,9 +150,10 @@ object SelfSetup {
     const val PKG = "dev.kidguard"
     const val ACC = "$PKG/$PKG.Acc"
     const val STEP_TODO = 0; const val STEP_RUN = 1; const val STEP_OK = 2; const val STEP_ERR = 3
-    val STEPS = listOf(
-        "Ghép nối với chính máy này", "Kiểm tra tài khoản trên máy", "Cấp quyền quản lý thiết bị",
-        "Cấp quyền xem thời gian dùng app", "Cấp quyền ghi cài đặt hệ thống", "Bật trợ năng", "Cho phép chạy nền (không giới hạn pin)",
+    /** Step labels (string resources), in order. */
+    val STEPS = intArrayOf(
+        R.string.step_pair, R.string.step_accounts, R.string.step_owner,
+        R.string.step_usage, R.string.step_secure, R.string.step_acc, R.string.step_battery,
     )
     private const val CH = "selfsetup"; private const val NID = 41; const val KEY_CODE = "code"; const val ACTION_CODE = "dev.kidguard.PAIR_CODE"
 
@@ -185,12 +186,12 @@ object SelfSetup {
         Thread({ runCatching { job(app, code.trim(), pairPort, connPort) }.onFailure { Log.w(AdbPortFinder.TAG, "job", it); fail(app, it.message ?: it.toString()) }; running = false }, "selfsetup").start()
     }
 
-    private fun mark(app: Context, i: Int, s: Int) { state[i] = s; notifyProgress(app, if (s == STEP_RUN) STEPS[i] + "..." else null) }
+    private fun mark(app: Context, i: Int, s: Int) { state[i] = s; notifyProgress(app, if (s == STEP_RUN) app.getString(STEPS[i]) + "..." else null) }
 
     private fun fail(app: Context, msg: String) {
         Log.w(AdbPortFinder.TAG, "failed: $msg")
         val i = state.indexOf(STEP_RUN); if (i >= 0) state[i] = STEP_ERR
-        message = msg; notifyFinal(app, "Chưa cài được: $msg")
+        message = msg; notifyFinal(app, app.getString(R.string.ss_failed, msg))
     }
 
     private fun waitFor(ms: Long, get: () -> Int): Int { val end = System.currentTimeMillis() + ms; while (System.currentTimeMillis() < end) { val v = get(); if (v > 0) return v; Thread.sleep(200) }; return 0 }
@@ -200,15 +201,15 @@ object SelfSetup {
         // 1) pair, then connect
         mark(app, 0, STEP_RUN)
         val pp = if (pairPort > 0) pairPort else waitFor(8000) { pairingPort }
-        if (pp == 0) return fail(app, "Không thấy cổng ghép nối. Hãy mở lại hộp thoại \"Ghép thiết bị bằng mã ghép nối\" rồi thử lại.")
+        if (pp == 0) return fail(app, app.getString(R.string.ss_no_pair_port))
         val paired = runCatching { m.pair("127.0.0.1", pp, code) }
-        if (paired.isFailure || paired.getOrNull() != true) return fail(app, "Ghép nối không thành công (sai mã hoặc hộp thoại đã đóng). " + (paired.exceptionOrNull()?.message ?: ""))
+        if (paired.isFailure || paired.getOrNull() != true) return fail(app, app.getString(R.string.ss_pair_fail) + " " + (paired.exceptionOrNull()?.message ?: ""))
         val cp = if (connPort > 0) connPort else waitFor(12000) { connectPort }
-        if (cp == 0) return fail(app, "Ghép nối xong nhưng không thấy cổng kết nối. Hãy tắt rồi bật lại \"Gỡ lỗi không dây\".")
+        if (cp == 0) return fail(app, app.getString(R.string.ss_no_conn_port))
         Log.i(AdbPortFinder.TAG, "paired, connecting to $cp")
         val c = runCatching { m.connect("127.0.0.1", cp) }
         Log.i(AdbPortFinder.TAG, "connect -> $c")
-        if (c.isFailure || c.getOrNull() != true) return fail(app, "Không kết nối được tới chính máy này: " + (c.exceptionOrNull()?.message ?: ""))
+        if (c.isFailure || c.getOrNull() != true) return fail(app, app.getString(R.string.ss_conn_fail, c.exceptionOrNull()?.message ?: ""))
         state[0] = STEP_OK
 
         fun sh(cmd: String): String {
@@ -227,7 +228,7 @@ object SelfSetup {
             mark(app, i, STEP_RUN)
             val out = sh(cmd); Log.i(AdbPortFinder.TAG, "$cmd -> $out")
             val good = if (need != null) need(out) else SelfSetupLogic.ok(out)
-            if (!good) { state[i] = STEP_ERR; message = out.ifBlank { "lệnh không thành công" }; notifyFinal(app, "Chưa cài được: $message"); return false }
+            if (!good) { state[i] = STEP_ERR; message = out.ifBlank { app.getString(R.string.ss_cmd_fail) }; notifyFinal(app, app.getString(R.string.ss_failed, message)); return false }
             state[i] = STEP_OK; return true
         }
 
@@ -236,7 +237,7 @@ object SelfSetup {
         val acc = SelfSetupLogic.accounts(sh("dumpsys account"))
         if (acc.isNotEmpty()) {
             state[1] = STEP_ERR
-            message = "Máy còn tài khoản, cần xoá trước: " + acc.joinToString(", ") + ". Vào Cài đặt > Mật khẩu và tài khoản, xoá hết rồi thử lại (cài xong đăng nhập lại được)."
+            message = app.getString(R.string.ss_accounts, acc.joinToString(", "))
             notifyFinal(app, message); runCatching { m.disconnect() }; return
         }
         state[1] = STEP_OK
@@ -253,7 +254,7 @@ object SelfSetup {
         // optional: Wireless debugging off. The link drops with it, so no reading afterwards.
         if (turnOffWifi) { runCatching { sh("settings put global adb_wifi_enabled 0") }; wifiOff = true }
         runCatching { m.disconnect() }
-        done = true; message = "Xong. KidGuard đã được cài quyền quản lý."
+        done = true; message = app.getString(R.string.ss_done)
         stopDiscovery()
         notifyFinal(app, message)
         Guard.start(app)
@@ -262,7 +263,7 @@ object SelfSetup {
     // ---- notification with a reply box: the pairing dialog closes if the user leaves Settings, so the code is typed here ----
     private fun nm(ctx: Context): NotificationManager {
         val n = ctx.getSystemService(NotificationManager::class.java)
-        n.createNotificationChannel(NotificationChannel(CH, "Tự cài KidGuard", NotificationManager.IMPORTANCE_HIGH))
+        n.createNotificationChannel(NotificationChannel(CH, ctx.getString(R.string.ch_selfsetup), NotificationManager.IMPORTANCE_HIGH))
         return n
     }
 
@@ -272,16 +273,16 @@ object SelfSetup {
     fun askCodeNotification(ctx: Context) {
         val pi = PendingIntent.getBroadcast(ctx, 1, Intent(ctx, PairCodeReceiver::class.java).setAction(ACTION_CODE).setPackage(ctx.packageName),
             PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val ri = RemoteInput.Builder(KEY_CODE).setLabel("Mã 6 số").build()
-        val act = Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_key), "Nhập mã ghép", pi).addRemoteInput(ri).build()
-        nm(ctx).notify(NID, base(ctx).setContentTitle("KidGuard: nhập mã ghép nối")
-            .setContentText("Nhìn mã 6 số trong hộp thoại Cài đặt, rồi bấm \"Nhập mã ghép\" ở đây.")
+        val ri = RemoteInput.Builder(KEY_CODE).setLabel(ctx.getString(R.string.ss_code_label)).build()
+        val act = Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_key), ctx.getString(R.string.ss_code_action), pi).addRemoteInput(ri).build()
+        nm(ctx).notify(NID, base(ctx).setContentTitle(ctx.getString(R.string.ss_code_title))
+            .setContentText(ctx.getString(R.string.ss_code_text))
             .setAutoCancel(false).setOngoing(true).addAction(act).build())
     }
 
     private fun notifyProgress(ctx: Context, text: String?) {
         if (text == null) return
-        runCatching { nm(ctx).notify(NID, base(ctx).setContentTitle("KidGuard đang tự cài").setContentText(text).setOngoing(true).build()) }
+        runCatching { nm(ctx).notify(NID, base(ctx).setContentTitle(ctx.getString(R.string.ss_running)).setContentText(text).setOngoing(true).build()) }
     }
 
     private fun notifyFinal(ctx: Context, text: String) {
@@ -296,7 +297,7 @@ class PairCodeReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         val code = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(SelfSetup.KEY_CODE)?.toString()?.filter { it.isDigit() } ?: return
         if (code.length != 6) {
-            SelfSetup.message = "Mã phải đủ 6 số"; SelfSetup.askCodeNotification(ctx); return
+            SelfSetup.message = ctx.applicationContext.getString(R.string.ss_code_6); SelfSetup.askCodeNotification(ctx.applicationContext); return
         }
         SelfSetup.start(ctx, code)
     }

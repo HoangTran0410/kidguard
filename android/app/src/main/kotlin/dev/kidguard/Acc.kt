@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit
 
 /** Accessibility side: live screen, remote input, instant app-switch events. See docs/protocol.md. */
 class Acc : AccessibilityService() {
+    override fun getResources(): android.content.res.Resources = Lang.res(baseContext) ?: super.getResources()   // in-app language (Android 8-12)
     private var lastPkg: String? = null
     private var lastPoke = 0L
 
@@ -80,7 +81,7 @@ class Acc : AccessibilityService() {
             val now = System.currentTimeMillis()
             if (now - lastProtectLog > 30_000) {
                 lastProtectLog = now
-                runCatching { Store.of(this).log("Con mở trang gỡ / tắt KidGuard, đã đưa về màn hình chính") }
+                runCatching { Store.of(this).log(R.string.log_acc_settings) }
             }
         }
     }
@@ -142,9 +143,9 @@ class Acc : AccessibilityService() {
             runCatching {
                 val label = runCatching { ctx.packageManager.getApplicationInfo(pkg, 0).loadLabel(ctx.packageManager).toString() }.getOrDefault(pkg)
                 val nm = ctx.getSystemService(NotificationManager::class.java)
-                nm.createNotificationChannel(NotificationChannel("kg_block", "App đang bị khoá", NotificationManager.IMPORTANCE_HIGH))
+                nm.createNotificationChannel(NotificationChannel("kg_block", ctx.getString(R.string.ch_block), NotificationManager.IMPORTANCE_HIGH))
                 nm.notify(7400 + (pkg.hashCode() and 0xff), Notification.Builder(ctx, "kg_block").setSmallIcon(android.R.drawable.ic_lock_lock)
-                    .setContentTitle("$label đang bị khoá: ${BasicLogic.reasonText(code)}").setContentText("KidGuard").setAutoCancel(true)
+                    .setContentTitle(ctx.getString(R.string.notif_blocked, label, BasicLogic.reasonText(code, ResTr(ctx)))).setContentText("KidGuard").setAutoCancel(true)
                     .setCategory(Notification.CATEGORY_STATUS).build())
             }
         }
@@ -185,7 +186,7 @@ class Acc : AccessibilityService() {
                     if (++misses > 2) {
                         misses = 0; rebind = true
                         Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, without(cur, me))
-                        Store.of(ctx).log("Trợ năng không kết nối, thử bind lại")
+                        Store.of(ctx).log(R.string.log_acc_rebind)
                     }
                 } else {
                     Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, if (cur.isEmpty()) me else "$cur:$me")
@@ -193,7 +194,7 @@ class Acc : AccessibilityService() {
                     if (rebind) rebind = false
                     else {
                         val now = System.currentTimeMillis()
-                        if (now - lastReEnableLog > 3_600_000) { lastReEnableLog = now; Store.of(ctx).log("Trợ năng bị tắt, đã bật lại") }
+                        if (now - lastReEnableLog > 3_600_000) { lastReEnableLog = now; Store.of(ctx).log(R.string.log_acc_reenabled) }
                     }
                 }
             }
@@ -274,8 +275,8 @@ class Acc : AccessibilityService() {
             main.post {
                 if (!viewing) {
                     viewing = true
-                    Store.of(svc).log("Bố mẹ bắt đầu xem màn hình")
-                    notice(svc, "Bố mẹ đang xem màn hình")
+                    Store.of(svc).log(R.string.log_view_start)
+                    notice(svc, svc.getString(R.string.notice_viewing))
                 }
                 main.removeCallbacks(hide)
                 main.postDelayed(hide, 5000)
@@ -286,7 +287,7 @@ class Acc : AccessibilityService() {
         private fun notice(svc: Acc, title: String) {
             if (!Store.of(svc).rules.showWatching) return
             val nm = svc.getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(NotificationChannel(CH, "Đang xem màn hình", NotificationManager.IMPORTANCE_DEFAULT))
+            nm.createNotificationChannel(NotificationChannel(CH, svc.getString(R.string.ch_viewing), NotificationManager.IMPORTANCE_DEFAULT))
             nm.notify(NID, Notification.Builder(svc, CH).setSmallIcon(android.R.drawable.ic_menu_view)
                 .setContentTitle(title).setOngoing(true).setOnlyAlertOnce(true).build())
         }
@@ -340,7 +341,7 @@ class Acc : AccessibilityService() {
                 else -> "bad input"
             }
             if (res == "ok") main.post {
-                if (!controlled) { controlled = true; Store.of(svc).log("Bố mẹ điều khiển từ xa"); notice(svc, "Bố mẹ đang điều khiển máy") }
+                if (!controlled) { controlled = true; Store.of(svc).log(R.string.log_control); notice(svc, svc.getString(R.string.notice_control)) }
             }
             return res
         }

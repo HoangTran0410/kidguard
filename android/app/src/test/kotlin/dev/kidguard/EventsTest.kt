@@ -13,27 +13,27 @@ class EventsTest {
     private fun lat(m: Double) = 21.0 + m / 111_195.0
 
     @Test fun enterAndLeaveWithHysteresis() {
-        var (ins, ev) = Events.zoneStep(listOf(home), emptySet(), lat(500.0), 105.0, false)
+        var (ins, ev) = Events.zoneStep(listOf(home), emptySet(), lat(500.0), 105.0, false, TestTr.VI)
         assertTrue(ev.isEmpty()); assertTrue(ins.isEmpty())
-        Events.zoneStep(listOf(home), ins, lat(90.0), 105.0, false).let { ins = it.first; ev = it.second }
+        Events.zoneStep(listOf(home), ins, lat(90.0), 105.0, false, TestTr.VI).let { ins = it.first; ev = it.second }
         assertEquals(listOf("zoneIn"), ev.map { it.kind }); assertEquals("Đã đến Nhà", ev[0].text); assertEquals("z1", ev[0].zone)
-        Events.zoneStep(listOf(home), ins, lat(120.0), 105.0, false).let { ins = it.first; ev = it.second }   // r+20: still inside
+        Events.zoneStep(listOf(home), ins, lat(120.0), 105.0, false, TestTr.VI).let { ins = it.first; ev = it.second }   // r+20: still inside
         assertTrue(ev.isEmpty()); assertEquals(setOf("z1"), ins)
-        Events.zoneStep(listOf(home), ins, lat(160.0), 105.0, false).let { ins = it.first; ev = it.second }   // > r+50
+        Events.zoneStep(listOf(home), ins, lat(160.0), 105.0, false, TestTr.VI).let { ins = it.first; ev = it.second }   // > r+50
         assertEquals(listOf("zoneOut"), ev.map { it.kind }); assertEquals("Đã rời Nhà", ev[0].text); assertTrue(ins.isEmpty())
     }
 
     @Test fun edgeFixDoesNotFlap() {
         // outside at r+30 is not "in" again (needs <= r), inside at r+30 is not "out"
-        assertTrue(Events.zoneStep(listOf(home), emptySet(), lat(130.0), 105.0, false).second.isEmpty())
-        assertTrue(Events.zoneStep(listOf(home), setOf("z1"), lat(130.0), 105.0, false).second.isEmpty())
+        assertTrue(Events.zoneStep(listOf(home), emptySet(), lat(130.0), 105.0, false, TestTr.VI).second.isEmpty())
+        assertTrue(Events.zoneStep(listOf(home), setOf("z1"), lat(130.0), 105.0, false, TestTr.VI).second.isEmpty())
     }
 
     @Test fun firstFixOnlyRecords() {
-        val (ins, ev) = Events.zoneStep(listOf(home), emptySet(), lat(10.0), 105.0, true)
+        val (ins, ev) = Events.zoneStep(listOf(home), emptySet(), lat(10.0), 105.0, true, TestTr.VI)
         assertTrue(ev.isEmpty()); assertEquals(setOf("z1"), ins)
         // removed zone leaves the set silently
-        assertTrue(Events.zoneStep(emptyList(), ins, 0.0, 0.0, false).let { it.first.isEmpty() && it.second.isEmpty() })
+        assertTrue(Events.zoneStep(emptyList(), ins, 0.0, 0.0, false, TestTr.VI).let { it.first.isEmpty() && it.second.isEmpty() })
     }
 
     @Test fun batteryOnceThenRearm() {
@@ -62,29 +62,29 @@ class EventsTest {
     }
 
     @Test fun answerText() {
-        assertEquals("Bố mẹ đã đồng ý thêm 30 phút", Events.answerText(true, 30, ""))
-        assertEquals("Bố mẹ đã đồng ý thêm 30 phút. Bố mẹ nhắn: giỏi lắm", Events.answerText(true, 30, "  giỏi lắm "))
-        assertEquals("Bố mẹ chưa đồng ý. Bố mẹ nhắn: mai nhé", Events.answerText(false, 30, "mai nhé"))
-        assertTrue(Events.answerText(true, 5, "x".repeat(300)).endsWith("x".repeat(200)))
+        assertEquals("Bố mẹ đã đồng ý thêm 30 phút", Events.answerText(true, 30, "", TestTr.VI))
+        assertEquals("Bố mẹ đã đồng ý thêm 30 phút. Bố mẹ nhắn: giỏi lắm", Events.answerText(true, 30, "  giỏi lắm ", TestTr.VI))
+        assertEquals("Bố mẹ chưa đồng ý. Bố mẹ nhắn: mai nhé", Events.answerText(false, 30, "mai nhé", TestTr.VI))
+        assertTrue(Events.answerText(true, 5, "x".repeat(300), TestTr.VI).endsWith("x".repeat(200)))
     }
 
     @Test fun ruleDiffSummary() {
         val a = Rules(dailyMin = 120)
         assertEquals("Bố mẹ đổi luật: giới hạn 120 → 90 phút; giờ ngủ 21:30–06:30",
-            Events.ruleDiff(a, a.copy(dailyMin = 90, bedtimeOn = true)))
-        assertEquals("Bố mẹ đổi luật: giới hạn 120 → không giới hạn", Events.ruleDiff(a, a.copy(dailyMin = 0)))
+            Events.ruleDiff(a, a.copy(dailyMin = 90, bedtimeOn = true), TestTr.VI))
+        assertEquals("Bố mẹ đổi luật: giới hạn 120 → không giới hạn", Events.ruleDiff(a, a.copy(dailyMin = 0), TestTr.VI))
         assertEquals("Bố mẹ đổi luật: chặn 0 → 2 app; tạm dừng máy; việc nhà 0 → 1; vùng 0 → 1",
-            Events.ruleDiff(a, a.copy(blocked = setOf("a", "b"), chores = listOf(Chore("c", "C", 10)), zones = listOf(Zone("z", "Z", 1.0, 1.0, 100)), pausedUntil = 5)))
-        assertEquals("Bố mẹ đổi luật: cài đặt khác", Events.ruleDiff(a, a.copy(noDebug = true)))
+            Events.ruleDiff(a, a.copy(blocked = setOf("a", "b"), chores = listOf(Chore("c", "C", 10)), zones = listOf(Zone("z", "Z", 1.0, 1.0, 100)), pausedUntil = 5), TestTr.VI))
+        assertEquals("Bố mẹ đổi luật: cài đặt khác", Events.ruleDiff(a, a.copy(noDebug = true), TestTr.VI))
         assertEquals("Bố mẹ đổi luật: thưởng +20 phút; lưu vị trí mỗi 30 phút; bỏ khoá vị trí; không báo con khi xem màn hình",
-            Events.ruleDiff(a, a.copy(bonusDay = "d", bonusMin = 20, trackMin = 30, lockLocation = false, showWatching = false)))
+            Events.ruleDiff(a, a.copy(bonusDay = "d", bonusMin = 20, trackMin = 30, lockLocation = false, showWatching = false), TestTr.VI))
     }
 
     @Test fun ruleDiffCapped() {
         val s = Events.ruleDiff(Rules(), Rules(dailyByDay = listOf(1000, 1000, 1000, 1000, 1000, 1000, 1000), bedtimeOn = true,
             schedules = List(5) { Schedule("s", true, setOf(1), "10:00", "11:00") }, blocked = (1..30).map { "p$it" }.toSet(),
             allow = setOf("a"), pausedUntil = 1, bonusDay = "d", bonusMin = 20, trackMin = 30, lockLocation = false, showWatching = false,
-            pinHash = "h", chores = listOf(Chore("c", "C", 10)), zones = listOf(Zone("z", "Z", 1.0, 1.0, 100))))
+            pinHash = "h", chores = listOf(Chore("c", "C", 10)), zones = listOf(Zone("z", "Z", 1.0, 1.0, 100))), TestTr.VI)
         assertEquals(160, s.length); assertTrue(s.endsWith("…"))
     }
 }

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  English (default). Translations: res/values-<lang>/strings.xml with the same names (values-vi = Vietnamese).
+  To add a language: copy values-vi to values-<lang>, translate, then add <lang> to res/xml/locales_config.xml
+  and androidResources.localeFilters in build.gradle.kts, and one line in Langs.kt (the in-app picker). Keys used by Logic.kt are listed in Tr.kt (enum T).
+  The parent page itself (web/index.html) is not translated here.
+-->
+<resources>
+    <string name="app_name">KidGuard Parent</string>
+    <string name="err_port">Couldn\'t open the local port</string>
+    <string name="ch_events">Alerts from your child\'s phone</string>
+    <string name="ch_sos">SOS from your child</string>
+    <string name="upd_title">New KidGuard Parent version (%1$s)</string>
+    <string name="upd_text">Tap to download it, then install it over the old one</string>
+    <plurals name="ev_request">
+        <item quantity="one">%1$s asks for %2$d more minute</item>
+        <item quantity="other">%1$s asks for %2$d more minutes</item>
+    </plurals>
+    <string name="ev_sos">%1$s pressed SOS at %2$s</string>
+    <string name="ev_lost">Lost connection to %1$s\'s phone</string>
+    <string name="ev_acc_off">%1$s turned off KidGuard\'s Accessibility: apps are no longer blocked</string>
+</resources>

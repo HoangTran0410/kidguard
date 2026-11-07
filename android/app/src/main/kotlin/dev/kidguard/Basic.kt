@@ -48,8 +48,8 @@ object Basic {
 /** Child screen card "Cài nhanh không cần máy tính": one big button per missing item, rebuilt on every resume. */
 class BasicChecklist(private val act: Activity, private val ui: Ui, private val autostart: () -> Unit) {
     val box: LinearLayout = ui.cardBox().apply {
-        addView(ui.label("Cài nhanh không cần máy tính", 17f, ui.text, true))
-        addView(ui.label("Làm lần lượt từng bước bên dưới. Mỗi nút mở đúng màn hình cần bật; bật xong bấm Quay lại.", 14f))
+        addView(ui.label(act.getString(R.string.basic_title), 17f, ui.text, true))
+        addView(ui.label(act.getString(R.string.basic_intro), 14f))
     }
     private val items = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
     init { box.addView(items) }
@@ -69,33 +69,33 @@ class BasicChecklist(private val act: Activity, private val ui: Ui, private val 
         if (key == lastKey) return lastMissing
         lastKey = key
         items.removeAllViews()
-        fun add(t: String, why: String, go: () -> Unit) {
-            items.addView(ui.button(t, null, true) { runCatching { go() } })
-            items.addView(ui.label(why, 13f).apply { setPadding(ui.dp(4), ui.dp(4), ui.dp(4), 0) })
+        fun add(t: Int, why: Int, go: () -> Unit) {
+            items.addView(ui.button(c.getString(t), null, true) { runCatching { go() } })
+            items.addView(ui.label(c.getString(why), 13f).apply { setPadding(ui.dp(4), ui.dp(4), ui.dp(4), 0) })
         }
         var missing = false
         if (!Basic.adminActive(c)) { missing = true
-            add("1. Bật quyền quản trị thiết bị", "Để KidGuard khoá máy được và không bị gỡ khi chưa có bố mẹ.") {
+            add(R.string.basic_admin, R.string.basic_admin_d) {
                 c.startActivity(Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
                     .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, Policy.admin(c))
-                    .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "KidGuard cần quyền này để khoá màn hình và chống bị gỡ."))
+                    .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, c.getString(R.string.basic_admin_expl)))
             }
         }
         if (!Acc.isOn(c)) { missing = true
-            add("2. Bật Trợ năng cho KidGuard", "Vào Trợ năng, chọn KidGuard, bật. Dùng để chặn app bị khoá và giữ KidGuard không bị tắt.") {
+            add(R.string.basic_acc, R.string.basic_acc_d) {
                 c.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
         }
         if (!Usage.granted(c)) { missing = true
-            add("3. Cho phép xem thời gian dùng app", "Chọn KidGuard rồi bật \"Cho phép\". Dùng để đếm giờ dùng từng app.") {
+            add(R.string.basic_usage, R.string.basic_usage_d) {
                 open(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:${c.packageName}")), Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
             }
         }
         if (!Basic.locationOk(c)) { missing = true
             val fine = c.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            if (!fine) add("4. Cho phép vị trí", "Để bố mẹ biết con đang ở đâu. Chọn \"Chính xác\" và \"Khi dùng ứng dụng\" ở bước này.") {
+            if (!fine) add(R.string.basic_loc, R.string.basic_loc_d) {
                 c.requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 41)
-            } else add("4. Vị trí: cho phép \"Luôn cho phép\"", "Để bố mẹ xem vị trí cả khi con không mở KidGuard. Chọn \"Luôn cho phép\" (Always) ở màn hình tiếp theo.") {
+            } else add(R.string.basic_loc_bg, R.string.basic_loc_bg_d) {
                 if (Build.VERSION.SDK_INT >= 30) {
                     // Android 11+ sends the user to the app's location page itself
                     open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${c.packageName}")))
@@ -104,18 +104,18 @@ class BasicChecklist(private val act: Activity, private val ui: Ui, private val 
             }
         }
         if (!Basic.notifyOk(c)) { missing = true
-            add("5. Cho phép thông báo", "Để con thấy lời nhắc và lý do khi app bị khoá.") {
+            add(R.string.basic_notif, R.string.basic_notif_d) {
                 c.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 43)
             }
         }
         if (!Basic.batteryOk(c)) { missing = true
-            add("6. Không giới hạn pin cho KidGuard", "Nếu không, máy có thể tự tắt KidGuard khi tiết kiệm pin.") {
+            add(R.string.basic_battery, R.string.basic_battery_d) {
                 open(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${c.packageName}")),
                     Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
             }
-            items.addView(ui.button("Cho phép tự khởi động (Oppo, Xiaomi, Vivo…)", null, false) { runCatching { autostart() } })
+            items.addView(ui.button(c.getString(R.string.basic_autostart), null, false) { runCatching { autostart() } })
         }
-        if (missing) items.addView(ui.label("Bị Google Play Protect chặn (\"App blocked to protect your device\")? Mở CH Play → ảnh đại diện → Play Protect → ⚙ → tắt \"Quét ứng dụng bằng Play Protect\", làm xong các bước ở đây rồi bật lại.", 13f).apply { setPadding(ui.dp(4), ui.dp(12), ui.dp(4), 0) })
+        if (missing) items.addView(ui.label(c.getString(R.string.basic_play_protect), 13f).apply { setPadding(ui.dp(4), ui.dp(12), ui.dp(4), 0) })
         box.visibility = if (missing) View.VISIBLE else View.GONE
         lastMissing = missing
         return missing

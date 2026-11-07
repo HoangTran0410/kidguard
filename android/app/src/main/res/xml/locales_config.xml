@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Languages offered in Android 13+ Settings > Apps > (app) > Language. To add one: add res/values-<lang>/strings.xml,
+     a <locale> line here, <lang> in androidResources.localeFilters (build.gradle.kts) and in Langs.ALL (Langs.kt). -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="vi" />
+</locale-config>

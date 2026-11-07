@@ -10,9 +10,9 @@ import java.security.SecureRandom
  * Everything the child keeps, in device-protected storage. No component is directBootAware, so the guard starts on
  * BOOT_COMPLETED (after the first unlock), not before.
  */
-class Store private constructor(ctx: Context) {
+class Store private constructor(private val app: Context) {
     private val p: SharedPreferences =
-        ctx.createDeviceProtectedStorageContext().getSharedPreferences("kg", Context.MODE_PRIVATE)
+        app.createDeviceProtectedStorageContext().getSharedPreferences("kg", Context.MODE_PRIVATE)
 
     @get:Synchronized val id: String
         get() = p.getString("id", null) ?: randomHex(8).also { p.edit().putString("id", it).apply() }
@@ -70,7 +70,7 @@ class Store private constructor(ctx: Context) {
         val f = p.getInt("pinFails", 0) + 1
         val lock = Safety.pinLockMs(f)
         p.edit().putInt("pinFails", f).putLong("pinLock", if (lock > 0) System.currentTimeMillis() + lock else 0).commit()
-        if (lock > 0) log("Nhập sai PIN $f lần, khoá ${lock / 60_000} phút")
+        if (lock > 0) log(R.string.log_pin_wrong, f, (lock / 60_000).toInt())
         return false
     }
 
@@ -133,14 +133,14 @@ class Store private constructor(ctx: Context) {
             val f = p.getInt("unlockFails", 0) + 1
             val lock = Safety.pinLockMs(f)
             p.edit().putInt("unlockFails", f).putLong("unlockLock", if (lock > 0) now + lock else 0).commit()
-            if (f == 5) addEvent(Ev("tamper", "Nhập sai mã mở khoá 5 lần"))
+            if (f == 5) event("tamper", R.string.ev_unlock_wrong)
             return 0
         }
         val min = rules.unlockMin
         p.edit().putLong("totpLast", step).putInt("unlockFails", 0).remove("unlockLock")
             .putLong("unlockUntil", maxOf(now, p.getLong("unlockUntil", 0)) + min * 60_000L).commit()
-        log("Mở khoá bằng mã của bố mẹ: $min phút")
-        addEvent(Ev("unlock", "Con đã mở khoá bằng mã của bố mẹ: $min phút"))
+        log(R.string.log_unlock, min)
+        event("unlock", R.string.ev_unlock, min)
         return min
     }
 
@@ -285,6 +285,12 @@ class Store private constructor(ctx: Context) {
         return a.length() - keep.length()
     }
 
+    /** Text in the app's language. Log lines and events go to the parent as they are (protocol: free text). */
+    val tr: Tr = ResTr(app)
+    fun str(id: Int, vararg a: Any): String = app.getString(id, *a)
+    fun log(id: Int, vararg a: Any) = log(app.getString(id, *a))
+    fun event(kind: String, id: Int, vararg a: Any) = addEvent(Ev(kind, app.getString(id, *a)))
+
     /** Recent events for the parent: commands done, apps paused. Last 50. */
     @Synchronized fun log(msg: String) {
         val a = runCatching { JSONArray(p.getString("log", "[]")) }.getOrDefault(JSONArray())
@@ -311,7 +317,7 @@ class Store private constructor(ctx: Context) {
     /** One new location fix against the zones: stores the events, returns them. */
     @Synchronized fun zoneFix(zones: List<Zone>, lat: Double, lng: Double): List<Ev> {
         val inside = p.getStringSet("zin", emptySet())!!.toSet()
-        val (now, evs) = Events.zoneStep(zones, inside, lat, lng, record = zoneBaseline || p.getStringSet("zin", null) == null)
+        val (now, evs) = Events.zoneStep(zones, inside, lat, lng, record = zoneBaseline || p.getStringSet("zin", null) == null, tr = tr)
         p.edit().putStringSet("zin", now).putBoolean("zoneBase", false).apply()
         evs.forEach { addEvent(it) }
         return evs

@@ -53,7 +53,12 @@ android {
     }
     // the same single-file parent page the child phone and the worker serve
     sourceSets["main"].assets.srcDirs("../../web")
-    androidResources { ignoreAssetsPatterns += listOf("!install.html", "!qr.html", "!provision.json", "!vendor") }
+    androidResources {
+        ignoreAssetsPatterns += listOf("!install.html", "!qr.html", "!provision.json", "!vendor")
+        // UI languages: English (res/values, default) + Vietnamese (res/values-vi). Also drops libraries' other languages.
+        // New language: add res/values-<lang>/strings.xml, list it here and in res/xml/locales_config.xml (Android 13+ per-app language).
+        localeFilters += listOf("en", "vi")
+    }
     lint { checkReleaseBuilds = false }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_11; targetCompatibility = JavaVersion.VERSION_11 }
     kotlinOptions { jvmTarget = "11" }

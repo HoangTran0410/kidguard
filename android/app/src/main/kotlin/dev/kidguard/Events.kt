@@ -19,14 +19,14 @@ object Events {
      * Zones the fix is in, and the events it causes. Inside = distance <= r; a zone already inside is left only
      * beyond r + 50 m (no flapping at the edge). [record] = true (first fix after a rules change) only updates the set.
      */
-    fun zoneStep(zones: List<Zone>, inside: Set<String>, lat: Double, lng: Double, record: Boolean): Pair<Set<String>, List<Ev>> {
+    fun zoneStep(zones: List<Zone>, inside: Set<String>, lat: Double, lng: Double, record: Boolean, tr: Tr): Pair<Set<String>, List<Ev>> {
         val now = linkedSetOf<String>(); val out = mutableListOf<Ev>()
         for (z in zones) {
             val d = Track.meters(z.lat, z.lng, lat, lng)
             val was = z.id in inside
             val isIn = if (was) d <= z.r + LEAVE_EXTRA_M else d <= z.r
             if (isIn) now += z.id
-            if (!record && isIn != was) out += if (isIn) Ev("zoneIn", "Đã đến ${z.name}", z.id) else Ev("zoneOut", "Đã rời ${z.name}", z.id)
+            if (!record && isIn != was) out += if (isIn) Ev("zoneIn", tr.s(T.ev_zone_in, z.name), z.id) else Ev("zoneOut", tr.s(T.ev_zone_out, z.name), z.id)
         }
         return now to out
     }
@@ -51,37 +51,39 @@ object Events {
     }
 
     /** Child notification for an `answer` command; [note] (<= 200 chars) is the parent's message. */
-    fun answerText(ok: Boolean, min: Int, note: String): String {
-        val base = if (ok) "Bố mẹ đã đồng ý thêm ${min.coerceIn(0, 24 * 60)} phút" else "Bố mẹ chưa đồng ý"
+    fun answerText(ok: Boolean, min: Int, note: String, tr: Tr): String {
+        val m = min.coerceIn(0, 24 * 60)
+        val base = if (ok) tr.q(T.answer_yes, m, m) else tr.s(T.answer_no)
         val n = note.trim().take(200)
-        return if (n.isEmpty()) base else "$base. Bố mẹ nhắn: $n"
+        return if (n.isEmpty()) base else tr.s(T.answer_note, base, n)
     }
 
-    /** "Bố mẹ đổi luật: giới hạn 120 → 90 phút; giờ ngủ 21:30–06:30", at most 160 chars. */
-    fun ruleDiff(o: Rules, n: Rules): String {
+    /** "Bố mẹ đổi luật: giới hạn 120 → 90 phút; giờ ngủ 21:30–06:30" (in the phone's language), at most 160 chars. */
+    fun ruleDiff(o: Rules, n: Rules, tr: Tr): String {
         val p = mutableListOf<String>()
-        if (o.dailyMin != n.dailyMin) p += "giới hạn ${if (o.dailyMin > 0) "${o.dailyMin}" else "không"} → ${if (n.dailyMin > 0) "${n.dailyMin} phút" else "không giới hạn"}"
-        if (o.dailyByDay != n.dailyByDay) p += if (n.dailyByDay.size == 7) "giới hạn từng ngày: " + n.dailyByDay.joinToString("/") else "bỏ giới hạn từng ngày"
+        fun lim(v: Int, unit: Boolean) = if (v > 0) (if (unit) tr.s(T.diff_min, v) else "$v") else tr.s(if (unit) T.no_limit else T.diff_none)
+        if (o.dailyMin != n.dailyMin) p += tr.s(T.diff_limit, lim(o.dailyMin, false), lim(n.dailyMin, true))
+        if (o.dailyByDay != n.dailyByDay) p += if (n.dailyByDay.size == 7) tr.s(T.diff_by_day, n.dailyByDay.joinToString("/")) else tr.s(T.diff_by_day_off)
         if (o.bedtimeOn != n.bedtimeOn || (n.bedtimeOn && (o.bedStart != n.bedStart || o.bedEnd != n.bedEnd)))
-            p += if (n.bedtimeOn) "giờ ngủ ${n.bedStart}–${n.bedEnd}" else "tắt giờ ngủ"
-        if (o.schedules != n.schedules) p += if (o.schedules.size != n.schedules.size) "lịch nghỉ ${o.schedules.size} → ${n.schedules.size}" else "sửa lịch nghỉ"
-        if (o.blocked != n.blocked) p += "chặn ${o.blocked.size} → ${n.blocked.size} app"
-        if (o.allow != n.allow) p += "luôn cho dùng ${o.allow.size} → ${n.allow.size} app"
+            p += if (n.bedtimeOn) tr.s(T.diff_bed, n.bedStart, n.bedEnd) else tr.s(T.diff_bed_off)
+        if (o.schedules != n.schedules) p += if (o.schedules.size != n.schedules.size) tr.s(T.diff_sched_n, o.schedules.size, n.schedules.size) else tr.s(T.diff_sched)
+        if (o.blocked != n.blocked) p += tr.s(T.diff_blocked, o.blocked.size, n.blocked.size)
+        if (o.allow != n.allow) p += tr.s(T.diff_allow, o.allow.size, n.allow.size)
         if (o.hidden != n.hidden) {
-            (n.hidden - o.hidden).sorted().take(3).forEach { p += "Ẩn app: $it" }
-            (o.hidden - n.hidden).sorted().take(3).forEach { p += "Hiện lại app: $it" }
+            (n.hidden - o.hidden).sorted().take(3).forEach { p += tr.s(T.app_hidden, it) }
+            (o.hidden - n.hidden).sorted().take(3).forEach { p += tr.s(T.app_unhidden, it) }
         }
-        if (o.pausedUntil != n.pausedUntil) p += if (n.pausedUntil > 0) "tạm dừng máy" else "bỏ tạm dừng"
-        if (o.bonusDay != n.bonusDay || o.bonusMin != n.bonusMin) p += if (n.bonusMin > 0) "thưởng +${n.bonusMin} phút" else "bỏ thưởng giờ"
-        if (o.chores != n.chores) p += if (o.chores.size != n.chores.size) "việc nhà ${o.chores.size} → ${n.chores.size}" else "sửa việc nhà"
-        if (o.zones != n.zones) p += if (o.zones.size != n.zones.size) "vùng ${o.zones.size} → ${n.zones.size}" else "sửa vùng"
-        if (o.trackMin != n.trackMin) p += if (n.trackMin > 0) "lưu vị trí mỗi ${n.trackMin} phút" else "tắt lưu vị trí"
-        if (o.lockLocation != n.lockLocation) p += if (n.lockLocation) "khoá bật vị trí" else "bỏ khoá vị trí"
-        if (o.autoUpdate != n.autoUpdate) p += if (n.autoUpdate) "bật tự cập nhật KidGuard" else "tắt tự cập nhật KidGuard"
-        if (o.showWatching != n.showWatching) p += if (n.showWatching) "báo con khi xem màn hình" else "không báo con khi xem màn hình"
-        if (o.pinHash != n.pinHash) p += "đổi PIN"
-        if (p.isEmpty()) p += "cài đặt khác"
-        val s = "Bố mẹ đổi luật: " + p.joinToString("; ")
+        if (o.pausedUntil != n.pausedUntil) p += tr.s(if (n.pausedUntil > 0) T.diff_pause else T.diff_pause_off)
+        if (o.bonusDay != n.bonusDay || o.bonusMin != n.bonusMin) p += if (n.bonusMin > 0) tr.s(T.diff_bonus, n.bonusMin) else tr.s(T.diff_bonus_off)
+        if (o.chores != n.chores) p += if (o.chores.size != n.chores.size) tr.s(T.diff_chores_n, o.chores.size, n.chores.size) else tr.s(T.diff_chores)
+        if (o.zones != n.zones) p += if (o.zones.size != n.zones.size) tr.s(T.diff_zones_n, o.zones.size, n.zones.size) else tr.s(T.diff_zones)
+        if (o.trackMin != n.trackMin) p += if (n.trackMin > 0) tr.s(T.diff_track, n.trackMin) else tr.s(T.diff_track_off)
+        if (o.lockLocation != n.lockLocation) p += tr.s(if (n.lockLocation) T.diff_lockloc else T.diff_lockloc_off)
+        if (o.autoUpdate != n.autoUpdate) p += tr.s(if (n.autoUpdate) T.diff_autoupd else T.diff_autoupd_off)
+        if (o.showWatching != n.showWatching) p += tr.s(if (n.showWatching) T.diff_watch else T.diff_watch_off)
+        if (o.pinHash != n.pinHash) p += tr.s(T.diff_pin)
+        if (p.isEmpty()) p += tr.s(T.diff_other)
+        val s = tr.s(T.diff_head, p.joinToString("; "))
         return if (s.length <= 160) s else s.take(159) + "…"
     }
 }

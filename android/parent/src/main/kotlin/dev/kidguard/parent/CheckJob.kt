@@ -44,8 +44,8 @@ class CheckJob : JobService() {
 
         fun channel(c: Context) {
             val nm = c.getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(NotificationChannel(CHANNEL, "Thông báo từ máy của con", NotificationManager.IMPORTANCE_DEFAULT))
-            nm.createNotificationChannel(NotificationChannel(SOS_CHANNEL, "SOS từ con", NotificationManager.IMPORTANCE_HIGH))
+            nm.createNotificationChannel(NotificationChannel(CHANNEL, c.getString(R.string.ch_events), NotificationManager.IMPORTANCE_DEFAULT))
+            nm.createNotificationChannel(NotificationChannel(SOS_CHANNEL, c.getString(R.string.ch_sos), NotificationManager.IMPORTANCE_HIGH))
         }
 
         fun run(c: Context) {
@@ -64,7 +64,7 @@ class CheckJob : JobService() {
             val onWifi = onWifi(cm)
             val out = synchronized(Store) {   // a push may mark the same event seen meanwhile ([Push.handle])
                 val old = Logic.NotifyState.fromJson(Store.notifyState(c, k.key))
-                val o = Logic.evaluate(k.name, seen, old, now, Logic.failCounts(k.via, onWifi))
+                val o = Logic.evaluate(k.name, seen, old, now, Logic.failCounts(k.via, onWifi), tr = ResTr(c))
                 // can't show notifications: keep the events unseen so they fire once the permission is back
                 if (o.events.isEmpty() || canPost) Store.setNotifyState(c, k.key, o.state.toJson())
                 o
@@ -119,8 +119,8 @@ class CheckJob : JobService() {
             Store.setUpdateNotified(c, tag)
             channel(c)
             val pi = PendingIntent.getActivity(c, 9, Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Logic.parentApk(tag))), PendingIntent.FLAG_IMMUTABLE)
-            val n = android.app.Notification.Builder(c, CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle("Có bản KidGuard Phụ huynh mới ($tag)")
-                .setContentText("Bấm để tải về rồi cài đè lên bản cũ").setContentIntent(pi).setAutoCancel(true).build()
+            val n = android.app.Notification.Builder(c, CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle(c.getString(R.string.upd_title, tag))
+                .setContentText(c.getString(R.string.upd_text)).setContentIntent(pi).setAutoCancel(true).build()
             c.getSystemService(NotificationManager::class.java).notify(0x6b67, n)
         }
 

@@ -66,8 +66,8 @@ class DebloatTest {
 
     @Test fun diffLine() {
         val a = Rules(); val b = a.copy(hidden = setOf("com.x"))
-        assertEquals("Bố mẹ đổi luật: Ẩn app: com.x", Events.ruleDiff(a, b))
-        assertEquals("Bố mẹ đổi luật: Hiện lại app: com.x", Events.ruleDiff(b, a))
+        assertEquals("Bố mẹ đổi luật: Ẩn app: com.x", Events.ruleDiff(a, b, TestTr.VI))
+        assertEquals("Bố mẹ đổi luật: Hiện lại app: com.x", Events.ruleDiff(b, a, TestTr.VI))
     }
 
     @Test fun userAppsNeverListedOrSuggested() {

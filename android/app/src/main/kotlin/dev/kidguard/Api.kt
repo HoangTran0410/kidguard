@@ -24,7 +24,7 @@ class Api(private val g: Guard) {
                 val t = store.tryPair(o.optString("code"), o.optString("pin").filter { it.isDigit() })
                     ?: return Res.json(JSONObject().put("error", store.lastPairError).put("wait", store.pinLockLeft()).toString(),
                         if (store.lastPairError == "wait" || store.lastPairError == "pin locked") 429 else 403)
-                store.log("Đã ghép một thiết bị của bố mẹ")
+                store.log(R.string.log_paired)
                 return Res.json(JSONObject().put("token", t).put("id", store.id).toString())
             }
         }

@@ -45,6 +45,7 @@ class Boot : BroadcastReceiver() {
  * it serves the parent's page on the LAN and, when a relay is set, syncs with it.
  */
 class Guard : Service() {
+    override fun getResources(): android.content.res.Resources = Lang.res(baseContext) ?: super.getResources()   // in-app language (Android 8-12)
     private lateinit var store: Store
     private lateinit var work: Handler
     private var http: Http? = null
@@ -66,9 +67,9 @@ class Guard : Service() {
             val w = System.currentTimeMillis(); val e = android.os.SystemClock.elapsedRealtime()
             if (intent.action == Intent.ACTION_TIMEZONE_CHANGED) runCatching {
                 val tz = java.util.TimeZone.getDefault().id
-                store.addEvent(Ev("clock", "Múi giờ máy bị đổi: $tz")); store.log("Múi giờ bị đổi: $tz"); relay?.kick()
+                store.event("clock", R.string.ev_tz, tz); store.log(R.string.log_tz, tz); relay?.kick()
             }
-            else if (Events.clockJumped(refWall, refElapsed, w, e)) runCatching { store.addEvent(Ev("clock", "Giờ máy bị đổi")); store.log("Giờ máy bị đổi"); relay?.kick() }
+            else if (Events.clockJumped(refWall, refElapsed, w, e)) runCatching { store.event("clock", R.string.ev_clock); store.log(R.string.ev_clock); relay?.kick() }
             refWall = w; refElapsed = e
         }
     }
@@ -129,6 +130,7 @@ class Guard : Service() {
     fun pokeSoft() { if (::work.isInitialized) { work.removeCallbacks(pokeRun); work.postDelayed(pokeRun, 300) } }
 
     private fun tick(force: Boolean) {
+        runCatching { relabel() }
         val now = System.currentTimeMillis()
         // reference for the clock-jump check (see timeReceiver)
         refWall = now; refElapsed = android.os.SystemClock.elapsedRealtime()
@@ -148,13 +150,13 @@ class Guard : Service() {
         if (r.lockLocation && Build.VERSION.SDK_INT >= 30 && Policy.isOwner(this)) {
             if (!locationOn()) {
                 runCatching { Policy.dpm(this).setLocationEnabled(Policy.admin(this), true) }
-                if (!locFixLogged) { locFixLogged = true; store.log("Vị trí bị tắt, đã bật lại") }
+                if (!locFixLogged) { locFixLogged = true; store.log(R.string.log_loc_fixed) }
             } else locFixLogged = false
         }
         if (!Usage.granted(this)) {
             if (!usageLogged) {
-                usageLogged = true; store.log("Quyền theo dõi sử dụng bị tắt")
-                if (store.knownApps != null) runCatching { store.addEvent(Ev("tamper", "Quyền theo dõi giờ dùng bị tắt: giới hạn giờ không tính được")); relay?.kick() }
+                usageLogged = true; store.log(R.string.log_usage_off)
+                if (store.knownApps != null) runCatching { store.event("tamper", R.string.ev_usage_off); relay?.kick() }
             }
         } else usageLogged = false
         // first tick (with a real app list): everything installed now is "old"; while blockNew is off keep refreshing it
@@ -165,20 +167,20 @@ class Guard : Service() {
         val nowKnown = apps.keys + store.hiddenByUs
         if (!r.blockNew && apps.isNotEmpty() && known != nowKnown) store.knownApps = nowKnown
         (fresh - store.loggedNew).takeIf { it.isNotEmpty() }?.let { n ->
-            n.forEach { store.log("Cài mới: ${apps[it] ?: it}"); store.addEvent(Ev("newApp", "Đã cài ${apps[it] ?: it}")) }
+            n.forEach { store.log(R.string.log_new_app, apps[it] ?: it); store.event("newApp", R.string.ev_new_app, apps[it] ?: it) }
             store.loggedNew = (store.loggedNew + n).intersect(apps.keys)
         }
         batteryCheck()
         val newApps = if (r.blockNew) fresh else emptySet()
-        Warn.due(r, dailyLeftMs(r, use.ms, today, apps.keys, prot), minute, today, store.warned(today))?.let { w ->
+        Warn.due(r, dailyLeftMs(r, use.ms, today, apps.keys, prot), minute, today, store.warned(today), store.tr)?.let { w ->
             store.markWarned(today, w.keys); notifyWarn(w.text)
         }
         val want = decide(r, use.ms, minute, now, today, apps.keys, prot, newApps, store.unlockUntil)
         val had = store.suspendedByUs
         val nowSusp = Policy.suspendExactly(this, want.keys, had)
         if (nowSusp != had) {
-            (nowSusp - had).takeIf { it.isNotEmpty() }?.let { store.log("Tạm khoá: " + it.joinToString { p -> apps[p] ?: p } + " (" + want[it.first()] + ")") }
-            (had - nowSusp).takeIf { it.isNotEmpty() }?.let { store.log("Mở lại: " + it.joinToString { p -> apps[p] ?: p }) }
+            (nowSusp - had).takeIf { it.isNotEmpty() }?.let { store.log(R.string.log_suspended, it.joinToString { p -> apps[p] ?: p }, want[it.first()] ?: "") }
+            (had - nowSusp).takeIf { it.isNotEmpty() }?.let { store.log(R.string.log_unsuspended, it.joinToString { p -> apps[p] ?: p }) }
             store.suspendedByUs = nowSusp
         }
         applyHidden(r, prot, now)
@@ -193,7 +195,7 @@ class Guard : Service() {
         if (now - lastLocateAt > 15 * 60_000) { lastLocateAt = now; locate() }
         store.recoverAt.takeIf { it > 0 }?.let { at ->   // child's "lost the link" request (MainActivity): a PIN cancels it
             if (store.rules.pinHash.isNotBlank()) store.recoverAt = 0
-            else if (now >= at) { store.recoverAt = 0; store.openPairing(); store.log("Đã mở ghép lại (yêu cầu từ máy con hôm qua)") }
+            else if (now >= at) { store.recoverAt = 0; store.openPairing(); store.log(R.string.log_recover_open) }
         }
         if (now - store.historyAt > 3_600_000) store.saveHistory(history(now, apps.keys, prot, apps), now)
         Update.maybe(this, r, now)
@@ -215,8 +217,8 @@ class Guard : Service() {
         if (r.hidden.isEmpty() && had.isEmpty()) return
         val nowHid = Policy.hideExactly(this, r.hidden, had, never)
         if (nowHid != had) {
-            (nowHid - had).takeIf { it.isNotEmpty() }?.let { store.log("Ẩn app: " + it.joinToString { p -> Policy.labelOf(this, p) }) }
-            (had - nowHid).takeIf { it.isNotEmpty() }?.let { store.log("Hiện lại app: " + it.joinToString { p -> Policy.labelOf(this, p) }) }
+            (nowHid - had).takeIf { it.isNotEmpty() }?.let { store.log(R.string.app_hidden, it.joinToString { p -> Policy.labelOf(this, p) }) }
+            (had - nowHid).takeIf { it.isNotEmpty() }?.let { store.log(R.string.app_unhidden, it.joinToString { p -> Policy.labelOf(this, p) }) }
             store.hiddenByUs = nowHid
             hideKey = ""   // re-evaluate next tick with the new set (cheap), and pick up Policy.cached app list changes
             Policy.invalidate(); preAt = 0
@@ -245,14 +247,14 @@ class Guard : Service() {
         val pct = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
         val (armed, fire) = Events.batteryStep(store.batteryArmed, pct, bm.isCharging)
         if (armed != store.batteryArmed) store.batteryArmed = armed
-        if (fire) { store.addEvent(Ev("battery", "Pin còn $pct%")); relay?.kick() }
+        if (fire) { store.event("battery", R.string.ev_battery, pct); relay?.kick() }
     }
 
     /** A new location fix: zone in / out events. */
     private fun zoneFix(lat: Double, lng: Double, acc: Float) {
         val z = store.rules.zones
         if (z.isEmpty() || acc > 300f) return   // a cell-tower fix (km off) would fake "left Home"
-        if (store.zoneFix(z, lat, lng).isNotEmpty()) { store.log("Vùng: sự kiện mới"); relay?.kick() }
+        if (store.zoneFix(z, lat, lng).isNotEmpty()) { store.log(R.string.log_zone); relay?.kick() }
     }
 
     private fun state(r: Rules, apps: Map<String, String>, prot: Set<String>, use: Usage.Today, want: Map<String, String>,
@@ -318,7 +320,7 @@ class Guard : Service() {
 
     private fun notifyChild(text: String) {
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel("answer", "Bố mẹ trả lời", NotificationManager.IMPORTANCE_HIGH))
+        nm.createNotificationChannel(NotificationChannel("answer", getString(R.string.ch_answer), NotificationManager.IMPORTANCE_HIGH))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         nm.notify(2, Notification.Builder(this, "answer").setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentTitle("KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
@@ -327,7 +329,7 @@ class Guard : Service() {
     /** Heads-up before a lock (daily limit, bedtime, schedule): the child gets time to save what they are doing. */
     private fun notifyWarn(text: String) = runCatching {
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel("warn", "Báo trước khi hết giờ", NotificationManager.IMPORTANCE_HIGH))
+        nm.createNotificationChannel(NotificationChannel("warn", getString(R.string.ch_warn), NotificationManager.IMPORTANCE_HIGH))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         nm.notify(6, Notification.Builder(this, "warn").setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
@@ -342,7 +344,7 @@ class Guard : Service() {
         val r = if (incoming.pinHash.isBlank()) incoming.copy(pinHash = old.pinHash, pinSalt = old.pinSalt) else incoming
         store.rules = r
         if (::work.isInitialized) work.post { runCatching { Policy.apply(this, r) } }
-        if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r))
+        if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r, store.tr))
         if (r.zones != old.zones) store.zoneBaseline = true
         kick()
     }
@@ -354,7 +356,7 @@ class Guard : Service() {
         // written with commit() before anything runs (a reboot / release must not run twice after a restart)
         if (id.isNotBlank() && !store.markCmd(id)) { Log.i("KidGuard", "duplicate command $id ($t)"); return "ok" }
         val res = runCatching { run(t, c) }.getOrElse { Log.w("KidGuard", "command $t", it); "failed" }
-        if (t != "relay" && t != "release") runCatching { store.log("Lệnh: $t → $res") }
+        if (t != "relay" && t != "release") runCatching { store.log(R.string.log_cmd, t, res) }
         kick()
         return res
     }
@@ -374,7 +376,7 @@ class Guard : Service() {
         "unpairAll" -> { store.clearTokens(); "ok" }
         "answer" -> {
             val req = store.removeRequest(c.optString("id"))
-            if (req != null) notifyChild(Events.answerText(c.optBoolean("ok"), c.optInt("min", req.optInt("min")), c.optString("note")))
+            if (req != null) notifyChild(Events.answerText(c.optBoolean("ok"), c.optInt("min", req.optInt("min")), c.optString("note"), store.tr))
             if (req != null) "ok" else "no such request"
         }
         "sosAck" -> if (store.ackSos(c.optString("sos").ifBlank { "all" }) > 0) "ok" else "no such sos"   // not "id": the relay fills that in
@@ -384,14 +386,14 @@ class Guard : Service() {
         "clearData" -> {
             val pkg = c.optString("pkg")
             val res = Policy.clearData(this, pkg)
-            if (res == "ok") store.log("Bố mẹ xoá dữ liệu: " + Policy.labelOf(this, pkg))
+            if (res == "ok") store.log(R.string.log_cleared, Policy.labelOf(this, pkg))
             res
         }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
         // the parent page made the secret and shows it as an Authenticator QR; "" turns codes off
         "totpSet" -> c.optString("secret").let { s ->
             if (s.isNotEmpty() && Totp.decode(s) == null) "bad secret"
-            else { store.totpSecret = s.uppercase().filter { it in 'A'..'Z' || it in '2'..'7' }; store.unlockUntil = 0; store.log(if (s.isEmpty()) "Đã tắt mã mở khoá" else "Đã bật mã mở khoá (Google Authenticator)"); "ok" }
+            else { store.totpSecret = s.uppercase().filter { it in 'A'..'Z' || it in '2'..'7' }; store.unlockUntil = 0; store.log(if (s.isEmpty()) R.string.log_totp_off else R.string.log_totp_on); "ok" }
         }
         "release" -> release()
         else -> "unknown"
@@ -408,8 +410,8 @@ class Guard : Service() {
             Listen.stopAll()
             res = runCatching { Policy.release(this, store) }.getOrElse { Log.w("KidGuard", "release", it); "failed" }
             // anything but "ok" (e.g. "failed: N app còn bị ẩn") means we are still in charge: keep enforcing
-            if (res != "ok") { stopped = false; work.post(loopRun); store.log("Gỡ quản lý chưa xong: $res") }
-            else store.log("Đã gỡ quyền quản lý")
+            if (res != "ok") { stopped = false; work.post(loopRun); store.log(R.string.log_release_fail, res) }
+            else store.log(R.string.log_released)
             done.countDown()
         }
         if (!done.await(20, java.util.concurrent.TimeUnit.SECONDS)) return "failed"
@@ -505,7 +507,7 @@ class Guard : Service() {
     /** SOS from the child's screen: remember it, take a fresh location, tell the relay now. */
     fun sos(): Boolean {
         store.addSos() ?: return false
-        store.log("Con bấm SOS")
+        store.log(R.string.log_sos)
         runCatching { locate() }
         kick(); relay?.kick()
         // once more when the location fix has had time to come in
@@ -518,12 +520,25 @@ class Guard : Service() {
         Log.w("KidGuard", "mic foreground", it); if (on) runCatching { foreground(false) }; false
     }
 
+    private var fgLabel = ""
+    private fun fgNotification(): Notification {
+        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        val t = getString(R.string.notif_guard_title); val x = getString(R.string.notif_guard_text)
+        fgLabel = t + "\n" + x
+        return Notification.Builder(this, "guard").setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setContentTitle(t).setContentText(x).setOngoing(true).setContentIntent(open).build()
+    }
+
+    /** The in-app language changed (Lang): re-post the foreground notification in it. Same id = same foreground slot. */
+    private fun relabel() {
+        if (fgLabel.isEmpty() || getString(R.string.notif_guard_title) + "\n" + getString(R.string.notif_guard_text) == fgLabel) return
+        getSystemService(NotificationManager::class.java).notify(1, fgNotification())
+    }
+
     private fun foreground(mic: Boolean = false) {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel("guard", "KidGuard", NotificationManager.IMPORTANCE_MIN))
-        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        val n = Notification.Builder(this, "guard").setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentTitle("KidGuard đang bật").setContentText("Bố mẹ quản lý thời gian dùng máy").setOngoing(true).setContentIntent(open).build()
+        val n = fgNotification()
         val type = ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or (if (mic) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0)
         if (Build.VERSION.SDK_INT >= 34) startForeground(1, n, type)
         else if (Build.VERSION.SDK_INT >= 30 && mic) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)

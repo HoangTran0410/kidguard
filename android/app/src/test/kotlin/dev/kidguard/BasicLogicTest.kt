@@ -27,8 +27,8 @@ class BasicLogicTest {
     }
 
     @Test fun reasonTextKnownAndUnknown() {
-        assertEquals("đã hết giờ dùng máy hôm nay", BasicLogic.reasonText("daily"))
-        assertEquals("x", BasicLogic.reasonText("x"))
+        assertEquals("đã hết giờ dùng máy hôm nay", BasicLogic.reasonText("daily", TestTr.VI))
+        assertEquals("x", BasicLogic.reasonText("x", TestTr.VI))
     }
 
     private fun n(vararg t: String) = t.map { Node(it) }

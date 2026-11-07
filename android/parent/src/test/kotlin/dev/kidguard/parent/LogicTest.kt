@@ -53,57 +53,57 @@ class LogicTest {
     private fun seen(vararg r: Pair<String, Int>, ok: Boolean = true, act: Long = now) = Logic.Seen(ok, r.toList(), act)
 
     @Test fun firstLookOnlyRecords() {
-        val o = Logic.evaluate("An", seen("a" to 30), Logic.NotifyState(), now)
+        val o = Logic.evaluate("An", seen("a" to 30), Logic.NotifyState(), now, tr = TestTr.VI)
         assertTrue(o.events.isEmpty())
         assertTrue(o.state.init && "a" in o.state.seenIds)
     }
 
     @Test fun requestNotifiedOnce() {
-        var st = Logic.evaluate("An", seen("a" to 30), Logic.NotifyState(), now).state
-        val o1 = Logic.evaluate("An", seen("a" to 30, "b" to 15), st, now)
+        var st = Logic.evaluate("An", seen("a" to 30), Logic.NotifyState(), now, tr = TestTr.VI).state
+        val o1 = Logic.evaluate("An", seen("a" to 30, "b" to 15), st, now, tr = TestTr.VI)
         assertEquals(listOf("An xin thêm 15 phút"), o1.events.map { it.text })
-        val o2 = Logic.evaluate("An", seen("a" to 30, "b" to 15), o1.state, now)
+        val o2 = Logic.evaluate("An", seen("a" to 30, "b" to 15), o1.state, now, tr = TestTr.VI)
         assertTrue(o2.events.isEmpty())
         // survives JSON persistence
-        val o3 = Logic.evaluate("An", seen("a" to 30, "b" to 15), Logic.NotifyState.fromJson(o1.state.toJson()), now)
+        val o3 = Logic.evaluate("An", seen("a" to 30, "b" to 15), Logic.NotifyState.fromJson(o1.state.toJson()), now, tr = TestTr.VI)
         assertTrue(o3.events.isEmpty())
     }
 
     @Test fun lostNotifiedOnceThenResets() {
         val base = Logic.NotifyState(init = true)
-        val o1 = Logic.evaluate("An", seen(act = now - 31 * 60_000), base, now)
+        val o1 = Logic.evaluate("An", seen(act = now - 31 * 60_000), base, now, tr = TestTr.VI)
         assertEquals(listOf("Mất kết nối với máy của An"), o1.events.map { it.text })
-        assertTrue(Logic.evaluate("An", seen(act = now - 40 * 60_000), o1.state, now).events.isEmpty())
-        val back = Logic.evaluate("An", seen(act = now), o1.state, now)
+        assertTrue(Logic.evaluate("An", seen(act = now - 40 * 60_000), o1.state, now, tr = TestTr.VI).events.isEmpty())
+        val back = Logic.evaluate("An", seen(act = now), o1.state, now, tr = TestTr.VI)
         assertFalse(back.state.lost)
-        assertEquals(1, Logic.evaluate("An", seen(act = now - 31 * 60_000), back.state, now).events.size)
+        assertEquals(1, Logic.evaluate("An", seen(act = now - 31 * 60_000), back.state, now, tr = TestTr.VI).events.size)
     }
 
     @Test fun accessibilityOffNotifiedOncePerTransition() {
         val base = Logic.NotifyState(init = true)
         val off = Logic.Seen(true, emptyList(), now, accOff = true)
-        val o1 = Logic.evaluate("An", off, base, now)
+        val o1 = Logic.evaluate("An", off, base, now, tr = TestTr.VI)
         assertEquals(listOf("An đã tắt Trợ năng của KidGuard: app không bị chặn nữa"), o1.events.map { it.text })
-        assertTrue(Logic.evaluate("An", off, o1.state, now).events.isEmpty())
+        assertTrue(Logic.evaluate("An", off, o1.state, now, tr = TestTr.VI).events.isEmpty())
         // a failed fetch keeps the flag; turning it back on re-arms
-        val failed = Logic.evaluate("An", seen(ok = false), o1.state, now)
+        val failed = Logic.evaluate("An", seen(ok = false), o1.state, now, tr = TestTr.VI)
         assertTrue(failed.state.accOff)
-        val on = Logic.evaluate("An", seen(), o1.state, now)
+        val on = Logic.evaluate("An", seen(), o1.state, now, tr = TestTr.VI)
         assertFalse(on.state.accOff)
-        assertEquals(1, Logic.evaluate("An", off, on.state, now).events.size)
+        assertEquals(1, Logic.evaluate("An", off, on.state, now, tr = TestTr.VI).events.size)
         assertTrue(Logic.NotifyState.fromJson(o1.state.toJson()).accOff)
     }
 
     @Test fun fetchFailureNeedsThirtyMinutes() {
         val f = seen(ok = false, act = 0)
-        val o1 = Logic.evaluate("An", f, Logic.NotifyState(init = true), now)
+        val o1 = Logic.evaluate("An", f, Logic.NotifyState(init = true), now, tr = TestTr.VI)
         assertTrue(o1.events.isEmpty()); assertEquals(now, o1.state.failSince)
-        val o2 = Logic.evaluate("An", f, o1.state, now + 29 * 60_000)
+        val o2 = Logic.evaluate("An", f, o1.state, now + 29 * 60_000, tr = TestTr.VI)
         assertTrue(o2.events.isEmpty())
-        val o3 = Logic.evaluate("An", f, o2.state, now + 31 * 60_000)
+        val o3 = Logic.evaluate("An", f, o2.state, now + 31 * 60_000, tr = TestTr.VI)
         assertEquals(1, o3.events.size)
-        assertTrue(Logic.evaluate("An", f, o3.state, now + 50 * 60_000).events.isEmpty())
-        val ok = Logic.evaluate("An", seen(act = now + 60 * 60_000), o3.state, now + 60 * 60_000)
+        assertTrue(Logic.evaluate("An", f, o3.state, now + 50 * 60_000, tr = TestTr.VI).events.isEmpty())
+        val ok = Logic.evaluate("An", seen(act = now + 60 * 60_000), o3.state, now + 60 * 60_000, tr = TestTr.VI)
         assertFalse(ok.state.lost); assertEquals(0L, ok.state.failSince)
     }
 
@@ -140,10 +140,10 @@ class LogicTest {
 
     @Test fun sosNotifiesOnceEvenOnFirstLook() {
         val s = Logic.Seen(true, emptyList(), now, listOf("x1" to now - 60_000, "old" to now - 7 * 3600_000L))
-        val o1 = Logic.evaluate("An", s, Logic.NotifyState(), now)
+        val o1 = Logic.evaluate("An", s, Logic.NotifyState(), now, tr = TestTr.VI)
         assertEquals(listOf("sos:x1"), o1.events.map { it.key })
         assertTrue(o1.events[0].text.startsWith("An bấm SOS lúc "))
-        val o2 = Logic.evaluate("An", s, o1.state, now + 60_000)
+        val o2 = Logic.evaluate("An", s, o1.state, now + 60_000, tr = TestTr.VI)
         assertTrue(o2.events.isEmpty())
     }
 
@@ -155,20 +155,20 @@ class LogicTest {
         val kids = Logic.parseKids("""[{"name":"An","target":"https://w.example.dev","via":"relay","id":"0123456789abcdef","token":"t"},
             {"name":"Bo","target":"http://192.168.1.5:8770","via":"lan","id":"","token":"t"}]""")
         val none = { _: Logic.KidCfg -> Logic.NotifyState() }
-        val sos = Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "0123456789abcdef", "eid" to "s:a1", "t" to "0"), none)!!
+        val sos = Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "0123456789abcdef", "eid" to "s:a1", "t" to "0"), none, tr = TestTr.VI)!!
         assertEquals("An", sos.first.name); assertEquals("sos:a1", sos.second.key)
-        val req = Logic.pushEvent(kids, mapOf("kind" to "req", "kid" to "0123456789abcdef", "eid" to "r:q9", "min" to "30"), none)!!
+        val req = Logic.pushEvent(kids, mapOf("kind" to "req", "kid" to "0123456789abcdef", "eid" to "r:q9", "min" to "30"), none, tr = TestTr.VI)!!
         assertEquals("req:q9", req.second.key); assertEquals("An xin thêm 30 phút", req.second.text)
         // same keys as the background check -> same notification id; already seen -> nothing
         val seen = { _: Logic.KidCfg -> Logic.NotifyState(setOf("s:a1", "q9")) }
-        assertNull(Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "0123456789abcdef", "eid" to "s:a1"), seen))
-        assertNull(Logic.pushEvent(kids, mapOf("kind" to "req", "kid" to "0123456789abcdef", "eid" to "r:q9"), seen))
-        assertNull(Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "ffffffffffffffff", "eid" to "s:a1"), none))
-        assertNull(Logic.pushEvent(kids, mapOf("kind" to "zap", "kid" to "0123456789abcdef", "eid" to "s:a1"), none))
+        assertNull(Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "0123456789abcdef", "eid" to "s:a1"), seen, tr = TestTr.VI))
+        assertNull(Logic.pushEvent(kids, mapOf("kind" to "req", "kid" to "0123456789abcdef", "eid" to "r:q9"), seen, tr = TestTr.VI))
+        assertNull(Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "ffffffffffffffff", "eid" to "s:a1"), none, tr = TestTr.VI))
+        assertNull(Logic.pushEvent(kids, mapOf("kind" to "zap", "kid" to "0123456789abcdef", "eid" to "s:a1"), none, tr = TestTr.VI))
         assertEquals(setOf("x", "q9"), Logic.withSeen(Logic.NotifyState(setOf("x")), Logic.seenIdOf("r:q9")!!).seenIds)
         // what the check stores must match what the push marks, or both would notify
         val after = Logic.evaluate("An", Logic.Seen(true, listOf("q9" to 30), System.currentTimeMillis(), listOf("a1" to System.currentTimeMillis())),
-            Logic.NotifyState(setOf("s:a1", "q9"), init = true), System.currentTimeMillis())
+            Logic.NotifyState(setOf("s:a1", "q9"), init = true), System.currentTimeMillis(), tr = TestTr.VI)
         assertTrue(after.events.isEmpty())
     }
 
@@ -187,13 +187,13 @@ class LogicTest {
         assertFalse(Logic.failCounts("lan", false)); assertTrue(Logic.failCounts("lan", true)); assertTrue(Logic.failCounts("relay", false))
         val f = Logic.Seen(false, emptyList(), 0)
         val s0 = Logic.NotifyState(init = true, failSince = 0L)
-        val o = Logic.evaluate("An", f, s0, now + 60 * 60_000, failCounts = false)
+        val o = Logic.evaluate("An", f, s0, now + 60 * 60_000, failCounts = false, tr = TestTr.VI)
         assertTrue(o.events.isEmpty()); assertEquals(0L, o.state.failSince)
     }
 
     @Test fun pushWithoutTimeUsesNow() {
         val kids = listOf(Logic.KidCfg("An", "https://r.example", "relay", "0123456789abcdef", "t"))
-        val e = Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "0123456789abcdef", "eid" to "s:a1"), { Logic.NotifyState() }, 1_700_000_000_000L)!!
+        val e = Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "0123456789abcdef", "eid" to "s:a1"), { Logic.NotifyState() }, 1_700_000_000_000L, tr = TestTr.VI)!!
         assertEquals("An bấm SOS lúc " + Logic.hhmm(1_700_000_000_000L), e.second.text)
     }
 
@@ -201,26 +201,26 @@ class LogicTest {
     private fun seenEv(e: List<Logic.Ev>) = Logic.Seen(true, emptyList(), now, emptyList(), e)
 
     @Test fun eventsFirstLookOnlyRecordsThenNotifyOnce() {
-        val o0 = Logic.evaluate("An", seenEv(evs("e1" to "Đã đến Nhà")), Logic.NotifyState(init = true, evInit = false), now)
+        val o0 = Logic.evaluate("An", seenEv(evs("e1" to "Đã đến Nhà")), Logic.NotifyState(init = true, evInit = false), now, tr = TestTr.VI)
         assertTrue(o0.events.isEmpty())   // also for a kid that already had init=true before events existed
         assertTrue(o0.state.evInit && "e:e1" in o0.state.seenIds)
-        val o1 = Logic.evaluate("An", seenEv(evs("e1" to "Đã đến Nhà", "e2" to "Pin còn 14%")), o0.state, now)
+        val o1 = Logic.evaluate("An", seenEv(evs("e1" to "Đã đến Nhà", "e2" to "Pin còn 14%")), o0.state, now, tr = TestTr.VI)
         assertEquals(listOf("ev:e2"), o1.events.map { it.key })
         assertEquals("An: Pin còn 14%", o1.events[0].text)
-        val o2 = Logic.evaluate("An", seenEv(evs("e1" to "Đã đến Nhà", "e2" to "Pin còn 14%")), Logic.NotifyState.fromJson(o1.state.toJson()), now)
+        val o2 = Logic.evaluate("An", seenEv(evs("e1" to "Đã đến Nhà", "e2" to "Pin còn 14%")), Logic.NotifyState.fromJson(o1.state.toJson()), now, tr = TestTr.VI)
         assertTrue(o2.events.isEmpty())
     }
 
     @Test fun staleEventsAreRecordedNotShown() {
         val st = Logic.NotifyState(init = true, evInit = true)
-        val o = Logic.evaluate("An", seenEv(evs("old" to "Đã rời Nhà", t = now - 7 * 3600_000L)), st, now)
+        val o = Logic.evaluate("An", seenEv(evs("old" to "Đã rời Nhà", t = now - 7 * 3600_000L)), st, now, tr = TestTr.VI)
         assertTrue(o.events.isEmpty())
         assertTrue("e:old" in o.state.seenIds)
     }
 
     @Test fun eventIdsDontClashWithRequests() {
         val st = Logic.NotifyState(setOf("x"), init = true, evInit = true)   // request id "x" already seen
-        val o = Logic.evaluate("An", seenEv(evs("x" to "Đã cài Game")), st, now)
+        val o = Logic.evaluate("An", seenEv(evs("x" to "Đã cài Game")), st, now, tr = TestTr.VI)
         assertEquals(1, o.events.size)
     }
 
@@ -229,6 +229,6 @@ class LogicTest {
         assertEquals("An", Logic.pushCheckKid(kids, mapOf("kind" to "ev", "kid" to "0123456789abcdef", "eid" to "e:abc"))?.name)
         assertNull(Logic.pushCheckKid(kids, mapOf("kind" to "ev", "kid" to "ffff")))   // LAN kids have no push
         assertNull(Logic.pushCheckKid(kids, mapOf("kind" to "sos", "kid" to "0123456789abcdef")))
-        assertNull(Logic.pushEvent(kids, mapOf("kind" to "ev", "kid" to "0123456789abcdef", "eid" to "e:abc"), { Logic.NotifyState() }))   // not a notification by itself
+        assertNull(Logic.pushEvent(kids, mapOf("kind" to "ev", "kid" to "0123456789abcdef", "eid" to "e:abc"), { Logic.NotifyState() }, tr = TestTr.VI))   // not a notification by itself
     }
 }

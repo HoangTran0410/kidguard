@@ -1,4 +1,378 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  English (default). Translations live in res/values-<lang>/strings.xml with the same names (values-vi = Vietnamese).
+  To add a language: copy values-vi to values-<lang>, translate, then add <lang> to res/xml/locales_config.xml
+  and androidResources.localeFilters in build.gradle.kts, and one line in Langs.kt (the in-app picker). Keys used by pure logic are listed in Tr.kt (enum T).
+-->
 <resources>
-    <string name="acc_desc">KidGuard: cho bố mẹ xem màn hình và giúp con thao tác từ xa, khoá ứng dụng ngay khi mở. Có thông báo mỗi khi bố mẹ đang xem.</string>
+    <string name="acc_desc">KidGuard: lets parents see the screen and help remotely, and locks blocked apps as soon as they open. You get a notice whenever a parent is watching.</string>
+
+    <!-- Rules / Events / Warn (pure logic, keys in Tr.kt) -->
+    <string name="reason_blocked">blocked by your parent</string>
+    <string name="reason_app_limit">no time left for this app today</string>
+    <string name="reason_group_hours">this app isn\'t allowed at this time</string>
+    <string name="reason_group_limit">this app group is out of time today</string>
+    <string name="reason_new">new app, waiting for your parent\'s OK</string>
+    <string name="reason_paused">your parent has paused the phone</string>
+    <string name="reason_schedule">it\'s break time</string>
+    <string name="reason_bedtime">it\'s bedtime</string>
+    <string name="reason_daily">screen time is up for today</string>
+    <string name="ev_zone_in">Arrived at %1$s</string>
+    <string name="ev_zone_out">Left %1$s</string>
+    <plurals name="answer_yes">
+        <item quantity="one">Your parent gave you %1$d more minute</item>
+        <item quantity="other">Your parent gave you %1$d more minutes</item>
+    </plurals>
+    <string name="answer_no">Your parent said not this time</string>
+    <string name="answer_note">%1$s. Your parent says: %2$s</string>
+    <string name="diff_head">Rules changed: %1$s</string>
+    <string name="diff_limit">limit %1$s → %2$s</string>
+    <string name="diff_none">none</string>
+    <string name="diff_min">%1$d min</string>
+    <string name="no_limit">no limit</string>
+    <string name="diff_by_day">per-day limits: %1$s</string>
+    <string name="diff_by_day_off">per-day limits removed</string>
+    <string name="diff_bed">bedtime %1$s–%2$s</string>
+    <string name="diff_bed_off">bedtime off</string>
+    <string name="diff_sched_n">break schedules %1$d → %2$d</string>
+    <string name="diff_sched">break schedule edited</string>
+    <string name="diff_blocked">blocked apps %1$d → %2$d</string>
+    <string name="diff_allow">always-allowed apps %1$d → %2$d</string>
+    <string name="app_hidden">App hidden: %1$s</string>
+    <string name="app_unhidden">App shown again: %1$s</string>
+    <string name="diff_pause">phone paused</string>
+    <string name="diff_pause_off">pause lifted</string>
+    <string name="diff_bonus">bonus +%1$d min</string>
+    <string name="diff_bonus_off">bonus removed</string>
+    <string name="diff_chores_n">chores %1$d → %2$d</string>
+    <string name="diff_chores">chores edited</string>
+    <string name="diff_zones_n">places %1$d → %2$d</string>
+    <string name="diff_zones">places edited</string>
+    <string name="diff_track">location saved every %1$d min</string>
+    <string name="diff_track_off">location history off</string>
+    <string name="diff_lockloc">location locked on</string>
+    <string name="diff_lockloc_off">location lock removed</string>
+    <string name="diff_autoupd">KidGuard auto-update on</string>
+    <string name="diff_autoupd_off">KidGuard auto-update off</string>
+    <string name="diff_watch">screen-viewing notice on</string>
+    <string name="diff_watch_off">screen-viewing notice off</string>
+    <string name="diff_pin">PIN changed</string>
+    <string name="diff_other">other settings</string>
+    <string name="warn_d1">1 minute left: save what you\'re doing</string>
+    <string name="warn_d5">%1$d minutes of screen time left today</string>
+    <string name="warn_bed">Bedtime in %1$d minutes</string>
+    <string name="warn_break">Break time in %1$d minutes</string>
+    <string name="warn_break_named">Break time in %1$d minutes: %2$s</string>
+
+    <!-- shared bits -->
+    <plurals name="min_n">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <string name="under_1_min">under 1 minute</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+    <string name="send">Send</string>
+    <string name="locked_title">Locked for now</string>
+    <string name="chore_item">%1$s +%2$d min</string>
+    <string-array name="day_short">
+        <item>Mon</item><item>Tue</item><item>Wed</item><item>Thu</item><item>Fri</item><item>Sat</item><item>Sun</item>
+    </string-array>
+    <string name="err_generic">error</string>
+    <string name="err_http">download failed: HTTP %1$d</string>
+    <string name="err_sha_read">couldn\'t read the SHA-256</string>
+    <string name="err_install">install failed: %1$s</string>
+    <string name="err_timeout">timed out</string>
+    <string name="err_user_action">needs a tap from the user (not Device Owner?)</string>
+
+    <!-- Store / Api: log lines and events (sent to the parent as text) -->
+    <string name="log_pin_wrong">Wrong PIN %1$d times, locked for %2$d min</string>
+    <string name="ev_unlock_wrong">Wrong unlock code entered 5 times</string>
+    <string name="log_unlock">Unlocked with a parent code: %1$d min</string>
+    <string name="ev_unlock">Unlocked with your code: %1$d min</string>
+    <string name="log_paired">A parent device was paired</string>
+
+    <!-- Guard -->
+    <string name="ev_tz">Phone time zone changed: %1$s</string>
+    <string name="log_tz">Time zone changed: %1$s</string>
+    <string name="ev_clock">Phone clock was changed</string>
+    <string name="log_loc_fixed">Location was off, turned it back on</string>
+    <string name="log_usage_off">Usage access was turned off</string>
+    <string name="ev_usage_off">Usage access was turned off: time limits can\'t be counted</string>
+    <string name="log_new_app">New app: %1$s</string>
+    <string name="ev_new_app">Installed %1$s</string>
+    <string name="log_suspended">Locked: %1$s (%2$s)</string>
+    <string name="log_unsuspended">Unlocked: %1$s</string>
+    <string name="log_recover_open">Pairing reopened (asked for on this phone yesterday)</string>
+    <string name="ev_battery">Battery at %1$d%%</string>
+    <string name="log_zone">Places: new event</string>
+    <string name="ch_answer">Parent replies</string>
+    <string name="ch_warn">Time-up warnings</string>
+    <string name="log_cmd">Command: %1$s → %2$s</string>
+    <string name="log_cleared">Parent cleared data: %1$s</string>
+    <string name="log_totp_off">Unlock codes turned off</string>
+    <string name="log_totp_on">Unlock codes turned on (Google Authenticator)</string>
+    <string name="log_release_fail">Release not finished: %1$s</string>
+    <string name="log_released">Management removed</string>
+    <string name="log_sos">SOS pressed</string>
+    <string name="notif_guard_title">KidGuard is on</string>
+    <string name="notif_guard_text">Your parent manages screen time</string>
+
+    <!-- Basic mode setup card -->
+    <string name="basic_title">Quick setup, no computer needed</string>
+    <string name="basic_intro">Do the steps below in order. Each button opens the right screen: turn the setting on, then press Back.</string>
+    <string name="basic_admin">1. Turn on device admin</string>
+    <string name="basic_admin_d">So KidGuard can lock the phone and can\'t be removed without a parent.</string>
+    <string name="basic_admin_expl">KidGuard needs this to lock the screen and to stop being uninstalled.</string>
+    <string name="basic_acc">2. Turn on Accessibility for KidGuard</string>
+    <string name="basic_acc_d">Open Accessibility, pick KidGuard, turn it on. It blocks locked apps and keeps KidGuard from being switched off.</string>
+    <string name="basic_usage">3. Allow usage access</string>
+    <string name="basic_usage_d">Pick KidGuard and turn on \"Permit\". It counts the time spent in each app.</string>
+    <string name="basic_loc">4. Allow location</string>
+    <string name="basic_loc_d">So your parent knows where you are. Choose \"Precise\" and \"While using the app\" here.</string>
+    <string name="basic_loc_bg">4. Location: choose \"Allow all the time\"</string>
+    <string name="basic_loc_bg_d">So your parent can see the location even when KidGuard isn\'t open. Choose \"Allow all the time\" on the next screen.</string>
+    <string name="basic_notif">5. Allow notifications</string>
+    <string name="basic_notif_d">So you see reminders, and why an app is locked.</string>
+    <string name="basic_battery">6. No battery limits for KidGuard</string>
+    <string name="basic_battery_d">Otherwise the phone may stop KidGuard to save battery.</string>
+    <string name="basic_autostart">Allow autostart (Oppo, Xiaomi, Vivo…)</string>
+    <string name="basic_play_protect">Blocked by Google Play Protect (\"App blocked to protect your device\")? Open Play Store → profile picture → Play Protect → ⚙ → turn off \"Scan apps with Play Protect\", finish the steps here, then turn it back on.</string>
+
+    <!-- Device Owner checklist -->
+    <string name="prov_usage">Turn on usage access</string>
+    <string name="prov_acc">Turn on KidGuard Accessibility</string>
+    <string name="prov_title">Steps left</string>
+    <string name="prov_intro">Turn on these 2 permissions so KidGuard works fully</string>
+    <string name="prov_done">Done: %1$s</string>
+    <string name="prov_secure_yes">Turns Accessibility back on by itself: yes</string>
+    <string name="prov_secure_no">Optional: turning Accessibility back on by itself needs a computer or Wireless debugging</string>
+
+    <!-- Accessibility -->
+    <string name="log_acc_settings">The uninstall / turn-off page for KidGuard was opened; went back to the home screen</string>
+    <string name="ch_block">Locked apps</string>
+    <string name="notif_blocked">%1$s is locked: %2$s</string>
+    <string name="log_acc_rebind">Accessibility not connected, binding again</string>
+    <string name="log_acc_reenabled">Accessibility was turned off, turned it back on</string>
+    <string name="log_view_start">Parent started viewing the screen</string>
+    <string name="notice_viewing">Your parent is viewing the screen</string>
+    <string name="ch_viewing">Screen viewing</string>
+    <string name="log_control">Parent took remote control</string>
+    <string name="notice_control">Your parent is controlling the phone</string>
+
+    <!-- Remote access (Ts) -->
+    <string name="ts_log_connected">Remote control: connected (%1$s)</string>
+    <string name="ts_err_no_net">Couldn\'t join the network (wrong or expired key, or the phone has no Internet)</string>
+    <string name="ts_err_install">install didn\'t finish</string>
+    <string name="ts_log_installed">Remote control: installed, signing in</string>
+    <string name="ts_err_apk_name">APK name not found</string>
+    <string name="ts_err_sha">APK SHA-256 doesn\'t match</string>
+    <string name="ts_log_unhide">Remote control: hiding the app dropped the connection, leaving it visible</string>
+
+    <!-- Self-update -->
+    <string name="upd_err_bad_tag">version %1$s is not valid</string>
+    <string name="upd_err_github">GitHub answered HTTP %1$d</string>
+    <string name="upd_err_version">couldn\'t read the version</string>
+    <string name="upd_err_sha">update SHA-256 doesn\'t match</string>
+    <string name="upd_err_save">couldn\'t save the update</string>
+    <string name="upd_err_invalid">the downloaded file is not valid</string>
+    <string name="ch_update">KidGuard updates</string>
+    <string name="notif_update_title">New KidGuard version (%1$s)</string>
+    <string name="notif_update_text">Open KidGuard and tap Update</string>
+    <string name="upd_cancelled">cancelled</string>
+
+    <!-- Policy -->
+    <string name="policy_support">Your parent has locked this app for now.</string>
+    <string name="dns_refused">DNS %1$s was refused (code %2$d)</string>
+    <string name="dns_fallback">Safe DNS doesn\'t work on this network: off for 30 minutes so the phone stays online</string>
+    <string name="log_dns_fallback">Safe DNS broke the connection, off for 30 minutes</string>
+    <!-- a `release` command result: keep the "failed: " prefix -->
+    <plurals name="release_stuck">
+        <item quantity="one">failed: %1$d app still hidden</item>
+        <item quantity="other">failed: %1$d apps still hidden</item>
+    </plurals>
+
+    <!-- Listening -->
+    <plurals name="listen_about">
+        <item quantity="one">about %1$d minute</item>
+        <item quantity="other">about %1$d minutes</item>
+    </plurals>
+    <string name="log_listen_done">Parent listened to the surroundings from %1$s (%2$s)</string>
+    <string name="log_listen_start">Parent started listening to the surroundings</string>
+    <string name="ch_listen">Parent listening</string>
+    <string name="notif_listen_title">Your parent is listening to the sound around the phone</string>
+    <string name="notif_listen_text">The mic is on so your parent can listen. It turns off by itself within 10 minutes.</string>
+
+    <!-- Self-setup (adb over Wireless debugging) -->
+    <string name="step_pair">Pair with this phone</string>
+    <string name="step_accounts">Check accounts on the phone</string>
+    <string name="step_owner">Grant device management</string>
+    <string name="step_usage">Grant usage access</string>
+    <string name="step_secure">Grant permission to write system settings</string>
+    <string name="step_acc">Turn on Accessibility</string>
+    <string name="step_battery">Allow running in the background (no battery limits)</string>
+    <string name="ss_failed">Setup failed: %1$s</string>
+    <string name="ss_no_pair_port">Pairing port not found. Open the \"Pair device with pairing code\" dialog again and retry.</string>
+    <string name="ss_pair_fail">Pairing failed (wrong code, or the dialog was closed).</string>
+    <string name="ss_no_conn_port">Paired, but the connection port wasn\'t found. Turn \"Wireless debugging\" off and on again.</string>
+    <string name="ss_conn_fail">Couldn\'t connect to this phone: %1$s</string>
+    <string name="ss_cmd_fail">command failed</string>
+    <string name="ss_accounts">The phone still has accounts, remove them first: %1$s. Go to Settings > Passwords &amp; accounts, remove them all and retry (you can sign back in after setup).</string>
+    <string name="ss_done">Done. KidGuard is now the device manager.</string>
+    <string name="ch_selfsetup">KidGuard self-setup</string>
+    <string name="ss_code_label">6-digit code</string>
+    <string name="ss_code_action">Enter pairing code</string>
+    <string name="ss_code_title">KidGuard: enter the pairing code</string>
+    <string name="ss_code_text">Find the 6-digit code in the Settings dialog, then tap \"Enter pairing code\" here.</string>
+    <string name="ss_running">KidGuard is setting itself up</string>
+    <string name="ss_code_6">The code must be 6 digits</string>
+    <string name="ssa_title">Set up KidGuard without a computer</string>
+    <string name="ssa_old">This phone runs Android %1$s (older than 11), so it can\'t set itself up. Connect a computer and run setup.sh (see the README), or reset the phone and scan the QR code.</string>
+    <string name="ssa_intro">The phone will \"talk\" to itself over Wireless debugging. It needs Wi-Fi, and no accounts signed in on the phone (Google, Samsung, Xiaomi...). Do these 3 steps in order:</string>
+    <string name="ssa_s1">Step 1. Turn on Developer options</string>
+    <string name="ssa_s1_d">Open About phone and tap \"Build number\" 7 times.</string>
+    <string name="ssa_s1_btn">Open About phone</string>
+    <string name="ssa_s2">Step 2. Turn on Wireless debugging</string>
+    <string name="ssa_s2_d">In Developer options, turn on \"Wireless debugging\" and allow this Wi-Fi.</string>
+    <string name="ssa_s2_btn">Open Developer options</string>
+    <string name="ssa_s3">Step 3. Enter the pairing code</string>
+    <string name="ssa_s3_d">Tap the button below. Then in Wireless debugging, tap \"Pair device with pairing code\". The dialog closes if you leave Settings, so the code goes into a notification: pull down the notification shade, tap \"Enter pairing code\" and type the 6 digits.</string>
+    <string name="ssa_s3_btn">Show the code box in a notification</string>
+    <string name="ssa_or_here">Or type it here (if the notification doesn\'t show):</string>
+    <string name="ssa_code_hint">6-digit pairing code</string>
+    <string name="ssa_pair_port_hint">Pairing port (leave empty to find it automatically)</string>
+    <string name="ssa_conn_port_hint">Connection port (leave empty to find it automatically)</string>
+    <string name="ssa_wifi_off">Turn off Wireless debugging when done</string>
+    <string name="ssa_start">Start setup</string>
+    <string name="ssa_progress">Progress</string>
+    <string name="ssa_code_6">The pairing code must be 6 digits.</string>
+    <string name="ssa_pair_seen">Pairing dialog found (port %1$d).</string>
+    <string name="ssa_pair_none">Pairing dialog not found yet.</string>
+    <string name="ssa_wd_on">Wireless debugging is on (port %1$d).</string>
+    <string name="ssa_wd_off">Wireless debugging is not on yet.</string>
+
+    <!-- Child main screen -->
+    <string name="main_tagline">Helping kids use their phone safely</string>
+    <string name="main_code_label">PAIRING CODE</string>
+    <string name="main_code_left">PAIRING CODE · %1$s LEFT</string>
+    <string name="main_code_under1">UNDER 1 MIN</string>
+    <string name="main_code_min">%1$d MIN</string>
+    <string name="main_qr_desc">QR code for your parent to scan</string>
+    <string name="main_sos">SOS: alert my parent now</string>
+    <string name="main_update">Update KidGuard (new version)</string>
+    <string name="main_update_allow">Turn on \"Allow from this source\" for KidGuard, then tap again</string>
+    <string name="main_more">Ask for more time</string>
+    <string name="main_unlock">Enter a parent\'s unlock code</string>
+    <string name="main_unlocked_until">Unlocked until %1$s · enter another code for more</string>
+    <string name="main_pair_more">Pair another parent device</string>
+    <string name="main_my_rules">My rules</string>
+    <string name="main_log">Log: what my parent changed</string>
+    <string name="main_reveal">Parents: show the pairing code (hold 5 seconds)</string>
+    <string name="main_recover">Parent lost access? Reopen pairing (hold 10 seconds)</string>
+    <string name="main_recover_at">The pairing code appears at %1$s</string>
+    <string name="log_recover_req">This phone asked to reopen pairing (opens in 24 hours)</string>
+    <string name="ev_recover_req">The child\'s phone asked to reopen pairing: it opens in 24 hours. Set a PIN to cancel.</string>
+    <string name="main_recover_title">Pairing opens in 24 hours</string>
+    <string name="main_recover_body">For safety, the pairing code shows up after 24 hours and your parent is told right away. If your parent can still manage the phone, setting a PIN cancels this.</string>
+    <string name="main_battery">Battery / autostart settings</string>
+    <!-- language row: both languages in the label so whoever reads either one finds it; names come from Langs.ALL -->
+    <string name="main_lang">Language / Ngôn ngữ: %1$s</string>
+    <string name="lang_title">Language / Ngôn ngữ</string>
+    <string name="lang_system">Phone setting</string>
+    <string name="main_self">Full setup without a computer (Android 11+)</string>
+    <plurals name="main_hold">
+        <item quantity="one">Hold the button for %1$d second</item>
+        <item quantity="other">Hold the button for %1$d seconds</item>
+    </plurals>
+    <string name="st_owner">Managed by your parent</string>
+    <string name="st_basic">Basic mode: KidGuard is protecting this phone</string>
+    <string name="st_unfinished">Setup not finished: do the steps in the \"Quick setup\" box below</string>
+    <string name="st_no_usage">No usage access yet</string>
+    <string name="st_running">Running</string>
+    <string name="st_starting">Starting…</string>
+    <string name="st_acc_on">Accessibility: on</string>
+    <string name="st_acc_off">Accessibility: off</string>
+    <string name="st_loc_on">Location: on</string>
+    <string name="st_loc_off">Location: off</string>
+    <plurals name="st_pending">
+        <item quantity="one">Waiting for your parent to answer: %1$d request</item>
+        <item quantity="other">Waiting for your parent to answer: %1$d requests</item>
+    </plurals>
+    <string name="st_sos">SOS sent, waiting for your parent to see it</string>
+    <string name="st_remote">Remote control: on</string>
+    <string name="st_last_listen">Last listened: %1$s (%2$s)</string>
+    <string name="main_hint_qr">On the parent\'s phone (same Wi-Fi): scan the QR code with the camera, or open a browser at:\n%1$s\nthen enter the code above.</string>
+    <string name="main_hint_nowifi">On the parent\'s phone (same Wi-Fi), open a browser at:\n(no Wi-Fi yet)\nthen enter the code above.</string>
+    <string name="main_hint_hidden">Not paired with a parent yet. A parent holds the \"show the pairing code\" button below for 5 seconds to start.</string>
+    <string name="main_hint_managed">Your parent manages this phone at:\n%1$s</string>
+    <string name="main_no_wifi">(no Wi-Fi yet)</string>
+    <string name="pin_need_title">PIN needed</string>
+    <string name="pin_need_body">Parents: set a PIN on the management page before pairing another device.</string>
+    <plurals name="pin_locked">
+        <item quantity="one">Too many wrong PINs. Try again in %1$d minute.</item>
+        <item quantity="other">Too many wrong PINs. Try again in %1$d minutes.</item>
+    </plurals>
+    <string name="pin_field">Parent PIN</string>
+    <string name="pin_title">Enter the parent PIN</string>
+    <string name="pin_body">Only a parent can pair another device.</string>
+    <string name="pin_ok">Open pairing</string>
+    <string name="pin_wrong">Wrong PIN, try again</string>
+    <string name="r_no_limit">No time limit for you today</string>
+    <string name="r_today">Today: %1$d of %2$d minutes left</string>
+    <string name="r_bed">Bedtime: %1$s - %2$s</string>
+    <string name="r_bed_none">Bedtime: not set</string>
+    <string name="r_sched_none">Scheduled breaks: none</string>
+    <string name="r_sched">Break: %1$s - %2$s (%3$s)</string>
+    <string name="r_sched_named">Break \"%1$s\": %2$s - %3$s (%4$s)</string>
+    <string name="r_allow_sys">Always allowed: only system apps (phone, clock…)</string>
+    <string name="r_allow">Always allowed: %1$s</string>
+    <string name="r_blocked">Blocked apps: %1$d</string>
+    <string name="r_track">Location: your parent can see it, history saved every %1$d minutes</string>
+    <string name="r_track_off">Location: your parent sees it only when they look for the phone</string>
+    <string name="r_view">Screen viewing: your parent can view the screen while it\'s on</string>
+    <string name="r_view_told">Screen viewing: your parent can view the screen while it\'s on (you\'ll see a notice)</string>
+    <string name="r_view_off">Screen viewing: off</string>
+    <string name="r_listen">Listening to the surroundings: only with a beep and a notice for you</string>
+    <string name="r_group">Group %1$s: %2$s</string>
+    <string name="r_group_min">%1$d min/day for the whole group</string>
+    <string name="r_group_hours">only %1$s</string>
+    <string name="r_zones">Your parent is told when you arrive at / leave: %1$s</string>
+    <string name="r_chores">Chores for extra time: %1$s</string>
+    <string name="r_sub">View only: your parent makes the changes.</string>
+    <string name="log_empty">Nothing yet.</string>
+    <string name="log_title">Log</string>
+    <string name="log_sub">Last 20 lines, newest first.</string>
+    <string name="sos_q">Send SOS to your parent?</string>
+    <string name="sos_q_body">Your parent gets an emergency alert with your location.</string>
+    <string name="sos_send">Send SOS</string>
+    <string name="sos_done">Your parent has been alerted</string>
+    <string name="sos_done_body">Your parent will see the SOS and your location.</string>
+    <string name="sos_again">Already sent</string>
+    <string name="sos_again_body">Your parent will see it as soon as the phone is online.</string>
+    <plurals name="unl_locked">
+        <item quantity="one">Too many wrong codes. Try again in %1$d minute.</item>
+        <item quantity="other">Too many wrong codes. Try again in %1$d minutes.</item>
+    </plurals>
+    <string name="unl_hint">6 digits</string>
+    <string name="unl_title">Unlock code</string>
+    <string name="unl_body">Your parent opens Google Authenticator and reads out KidGuard\'s 6 digits. Each code works once and unlocks %1$d minutes (fully blocked apps stay blocked).</string>
+    <string name="unl_ok">Unlock</string>
+    <string name="unl_done">Unlocked</string>
+    <plurals name="unl_done_body">
+        <item quantity="one">You can use %1$d more minute.</item>
+        <item quantity="other">You can use %1$d more minutes.</item>
+    </plurals>
+    <string name="unl_wrong">Wrong or already used code, try again</string>
+    <string name="more_note">Reason (optional)</string>
+    <string name="more_other">Other: pick the minutes</string>
+    <string name="more_body">Pick how many minutes to ask your parent for.</string>
+    <string name="more_body_chores">Do a chore for extra time, or pick the minutes yourself. Your parent decides.</string>
+    <string name="log_more">Asked for more time</string>
+    <string name="more_sent">Sent to your parent</string>
+    <string name="more_sent_body">You\'ll get a notification when your parent answers.</string>
+    <string name="more_fail">Couldn\'t send</string>
+    <string name="more_fail_body">Too many requests are still waiting for an answer.</string>
+    <string name="msg_title">Message from your parent</string>
+    <string name="msg_read">Got it</string>
+    <string name="ch_msg">Messages from your parent</string>
 </resources>

@@ -61,7 +61,7 @@ object Policy {
             restrict(d, a, UserManager.DISALLOW_APPS_CONTROL, true)
             @Suppress("DEPRECATION") runCatching { d.setAutoTimeRequired(a, true) }
         }
-        runCatching { d.setShortSupportMessage(a, "Bố mẹ đang tạm khoá ứng dụng này.") }
+        runCatching { d.setShortSupportMessage(a, ctx.getString(R.string.policy_support)) }
         applyNet(ctx, d, a, r)
         val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
         if (Build.VERSION.SDK_INT >= 29) perms += Manifest.permission.ACCESS_BACKGROUND_LOCATION
@@ -83,14 +83,14 @@ object Policy {
             restrict(d, a, UserManager.DISALLOW_CONFIG_LOCATION, true)
         } else restrict(d, a, UserManager.DISALLOW_CONFIG_LOCATION, false)
         if (Build.VERSION.SDK_INT >= 28) restrict(d, a, UserManager.DISALLOW_AIRPLANE_MODE, r.noAirplane)
-        applyDns(d, a, r)
+        applyDns(ctx, d, a, r)
     }
 
     /** "" while Private DNS is fine, else a short reason (the host was rejected; then the phone runs opportunistic DNS). */
     @Volatile var dnsError: String = ""
     private var dnsTriedAt = 0L
 
-    private fun applyDns(d: DevicePolicyManager, a: ComponentName, r: Rules) {
+    private fun applyDns(ctx: Context, d: DevicePolicyManager, a: ComponentName, r: Rules) {
         if (Build.VERSION.SDK_INT < 29) return
         dnsTriedAt = System.currentTimeMillis()
         if (r.safeDns.isEmpty()) {
@@ -107,7 +107,7 @@ object Policy {
             // keep the child online: opportunistic DNS and let the system settings change it
             restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, false)
             runCatching { d.setGlobalPrivateDnsModeOpportunistic(a) }
-            dnsError = "DNS ${r.safeDns} bị từ chối (mã $code)"
+            dnsError = ctx.getString(R.string.dns_refused, r.safeDns, code)
         }
     }
 
@@ -123,7 +123,7 @@ object Policy {
         if (Build.VERSION.SDK_INT < 29 || r.safeDns.isEmpty() || !isOwner(ctx)) { unvalidatedSince = 0; return }
         val now = System.currentTimeMillis()
         if (dnsError.isNotEmpty()) {
-            if (now - dnsTriedAt >= retryAfter) { unvalidatedSince = 0; applyDns(dpm(ctx), admin(ctx), r) }
+            if (now - dnsTriedAt >= retryAfter) { unvalidatedSince = 0; applyDns(ctx, dpm(ctx), admin(ctx), r) }
             return
         }
         val cm = ctx.getSystemService(android.net.ConnectivityManager::class.java)
@@ -135,9 +135,9 @@ object Policy {
         if (now - unvalidatedSince < 90_000) return
         val d = dpm(ctx); val a = admin(ctx)
         runCatching { d.setGlobalPrivateDnsModeOpportunistic(a) }
-        dnsError = "Mạng hiện tại không dùng được DNS an toàn, tạm tắt 30 phút để con không mất mạng"
+        dnsError = ctx.getString(R.string.dns_fallback)
         dnsTriedAt = now; retryAfter = 30 * 60_000L; unvalidatedSince = 0
-        runCatching { Store.of(ctx).log("DNS an toàn làm mất mạng, tạm tắt 30 phút") }
+        runCatching { Store.of(ctx).log(R.string.log_dns_fallback) }
     }
 
     private var cacheAt = 0L
@@ -352,7 +352,7 @@ object Policy {
         if (stuck.isNotEmpty()) {
             Log.w(TAG, "release: still hidden $stuck")
             runCatching { apply(ctx, s.rules) }; Watchdog.schedule(ctx)
-            return "failed: ${stuck.size} app còn bị ẩn"
+            return ctx.resources.getQuantityString(R.plurals.release_stuck, stuck.size, stuck.size)
         }
         Update.forget(ctx)
         (BASE + INSTALL + UserManager.DISALLOW_DEBUGGING_FEATURES + UserManager.DISALLOW_APPS_CONTROL).forEach { runCatching { d.clearUserRestriction(a, it) } }

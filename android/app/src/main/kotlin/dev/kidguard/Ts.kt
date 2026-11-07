@@ -104,7 +104,7 @@ object Ts {
         busy = true
         Thread({
             try { setup(ctx, s) } catch (e: Exception) {
-                Log.w(TAG, "remote access setup", e); state = "error"; err = (e.message ?: "lỗi").take(120)
+                Log.w(TAG, "remote access setup", e); state = "error"; err = (e.message ?: ctx.getString(R.string.err_generic)).take(120)
             } finally { busy = false }
         }, "ts-setup").start()
     }
@@ -132,12 +132,12 @@ object Ts {
         val now = findIp()
         if (now.isNotEmpty()) {
             ip = now
-            if (state != "on") { state = "on"; err = ""; s.log("Điều khiển từ xa: đã kết nối ($now)"); hide(ctx, s) }
+            if (state != "on") { state = "on"; err = ""; s.log(R.string.ts_log_connected, now); hide(ctx, s) }
         } else {
             ip = ""
             if (state == "on") { state = "installing"; since = System.currentTimeMillis() }
             if (System.currentTimeMillis() - since > GRACE_MS && state != "error") {
-                state = "error"; err = "Chưa vào được mạng (khoá sai, hết hạn hoặc phone chưa có Internet)"
+                state = "error"; err = ctx.getString(R.string.ts_err_no_net)
             }
         }
     }
@@ -146,12 +146,12 @@ object Ts {
         if (!installed(ctx)) {
             val apk = download(ctx)
             try { install(ctx, s, apk) } finally { apk.delete() }
-            if (!installed(ctx)) throw IllegalStateException("cài không xong")
+            if (!installed(ctx)) throw IllegalStateException(ctx.getString(R.string.ts_err_install))
         }
         applyPolicy(ctx, s, suspend = false)
         asserted = true
         since = System.currentTimeMillis()
-        s.log("Điều khiển từ xa: đã cài, đang đăng nhập")
+        s.log(R.string.ts_log_installed)
         // the always-on VPN binds the app's VPN service, which reads the managed config and logs in without any UI.
         // Only if no tailnet address shows up: open the app once (so the child sees it), then go back home.
         if (waitIp(30_000)) { Log.i(TAG, "remote access: up without opening the app"); return }
@@ -169,26 +169,26 @@ object Ts {
         return false
     }
 
-    private fun httpGet(url: String): HttpURLConnection {
+    private fun httpGet(ctx: Context, url: String): HttpURLConnection {
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 15_000; c.readTimeout = 30_000; c.instanceFollowRedirects = true
-        if (c.responseCode != 200) throw IllegalStateException("tải lỗi HTTP ${c.responseCode}")
+        if (c.responseCode != 200) throw IllegalStateException(ctx.getString(R.string.err_http, c.responseCode))
         return c
     }
 
     private fun download(ctx: Context): File {
-        val name = TsLogic.apkName(httpGet(TsLogic.BASE + "?mode=json").inputStream.use { String(it.readBytes()) })
-            ?: throw IllegalStateException("không thấy tên APK")
-        val want = TsLogic.sha256Of(httpGet(TsLogic.BASE + name + ".sha256").inputStream.use { String(it.readBytes()) })
-            ?: throw IllegalStateException("mã SHA-256 không đọc được")
+        val name = TsLogic.apkName(httpGet(ctx, TsLogic.BASE + "?mode=json").inputStream.use { String(it.readBytes()) })
+            ?: throw IllegalStateException(ctx.getString(R.string.ts_err_apk_name))
+        val want = TsLogic.sha256Of(httpGet(ctx, TsLogic.BASE + name + ".sha256").inputStream.use { String(it.readBytes()) })
+            ?: throw IllegalStateException(ctx.getString(R.string.err_sha_read))
         val f = File(ctx.cacheDir, "ts.apk")
         val md = MessageDigest.getInstance("SHA-256")
-        httpGet(TsLogic.BASE + name).inputStream.use { i -> f.outputStream().use { o ->
+        httpGet(ctx, TsLogic.BASE + name).inputStream.use { i -> f.outputStream().use { o ->
             val buf = ByteArray(64 * 1024)
             while (true) { val n = i.read(buf); if (n < 0) break; md.update(buf, 0, n); o.write(buf, 0, n) }
         } }
         val got = md.digest().joinToString("") { "%02x".format(it) }
-        if (got != want) { f.delete(); throw IllegalStateException("sai SHA-256 của APK") }
+        if (got != want) { f.delete(); throw IllegalStateException(ctx.getString(R.string.ts_err_sha)) }
         return f
     }
 
@@ -204,7 +204,7 @@ object Ts {
             pi.openSession(id).use { ses ->
                 apk.inputStream().use { i -> ses.openWrite("ts", 0, apk.length()).use { o -> i.copyTo(o); ses.fsync(o) } }
                 val res = commitAndWait(ctx, ses, "dev.kidguard.TS_INSTALL")
-                if (res != null) throw IllegalStateException("cài lỗi: $res")
+                if (res != null) throw IllegalStateException(ctx.getString(R.string.err_install, res))
             }
         } finally { runCatching { Policy.apply(ctx, s.rules) } }
     }
@@ -212,13 +212,13 @@ object Ts {
     /** Commits and waits for the status broadcast. Null = success, else a short reason. */
     internal fun commitAndWait(ctx: Context, ses: PackageInstaller.Session, action: String): String? {
         val done = CountDownLatch(1)
-        var out: String? = "hết giờ chờ"
+        var out: String? = ctx.getString(R.string.err_timeout)
         val r = object : BroadcastReceiver() {
             override fun onReceive(c: Context, i: Intent) {
                 when (i.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)) {
                     PackageInstaller.STATUS_SUCCESS -> out = null
-                    PackageInstaller.STATUS_PENDING_USER_ACTION -> out = "cần người dùng bấm (không phải Device Owner?)"
-                    else -> out = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "lỗi"
+                    PackageInstaller.STATUS_PENDING_USER_ACTION -> out = ctx.getString(R.string.err_user_action)
+                    else -> out = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ctx.getString(R.string.err_generic)
                 }
                 done.countDown()
             }
@@ -265,7 +265,7 @@ object Ts {
                 if (findIp().isEmpty()) {
                     runCatching { d.setPackagesSuspended(a, arrayOf(TsLogic.PKG), false) }
                     s.tsHide = false
-                    s.log("Điều khiển từ xa: ẩn app làm mất kết nối, để app hiện")
+                    s.log(R.string.ts_log_unhide)
                     runCatching { ctx.packageManager.getLaunchIntentForPackage(TsLogic.PKG)?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)?.let { ctx.startActivity(it) } }
                 }
             } catch (e: Exception) { Log.w(TAG, "ts hide", e) } finally { busy = false }

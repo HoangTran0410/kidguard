@@ -19,17 +19,17 @@ object BasicLogic {
         return blocked[pkg]
     }
 
-    /** Child-facing text for decide()'s reason codes. */
-    fun reasonText(code: String): String = when (code) {
-        "blocked" -> "bố mẹ đã chặn app này"
-        "appLimit" -> "hết giờ dùng app này hôm nay"
-        "groupHours" -> "chưa tới giờ được dùng app này"
-        "groupLimit" -> "nhóm app này đã hết giờ hôm nay"
-        "new" -> "app mới, chờ bố mẹ cho phép"
-        "paused" -> "bố mẹ đang tạm dừng máy"
-        "schedule" -> "đang trong giờ nghỉ"
-        "bedtime" -> "đã đến giờ đi ngủ"
-        "daily" -> "đã hết giờ dùng máy hôm nay"
+    /** Child-facing text for decide()'s reason codes (unknown codes as they are). */
+    fun reasonText(code: String, tr: Tr): String = when (code) {
+        "blocked" -> tr.s(T.reason_blocked)
+        "appLimit" -> tr.s(T.reason_app_limit)
+        "groupHours" -> tr.s(T.reason_group_hours)
+        "groupLimit" -> tr.s(T.reason_group_limit)
+        "new" -> tr.s(T.reason_new)
+        "paused" -> tr.s(T.reason_paused)
+        "schedule" -> tr.s(T.reason_schedule)
+        "bedtime" -> tr.s(T.reason_bedtime)
+        "daily" -> tr.s(T.reason_daily)
         else -> code
     }
 
@@ -60,8 +60,8 @@ object BasicLogic {
     )
     /** Whole-text matches that are common words: counted as controls only when the node is clickable. */
     private val WEAK_CLICK = setOf("gỡ", "tắt", "dừng", "stop", "turn off", "off", "disable", "xoá", "xóa", "remove", "delete")
-    /** Our accessibility service description, shown on its detail page where the child can switch it off. */
-    private val ACC_DESC = "cho bố mẹ xem màn hình"
+    /** Our accessibility service description (res acc_desc, each language), shown on its detail page where the child can switch it off. */
+    private val ACC_DESC = listOf("cho bố mẹ xem màn hình", "lets parents see the screen")
 
     private fun norm(s: String) = Normalizer.normalize(s.trim(), Normalizer.Form.NFC).lowercase(Locale.ROOT)
 
@@ -77,7 +77,7 @@ object BasicLogic {
             val t = norm(n.text)
             if (t.isEmpty()) continue
             if (ls.any { t.contains(it) }) mentions = true
-            if (STRONG_PREFIX.any { t.startsWith(it) } || t.contains(ACC_DESC) || (n.clickable && !n.checkable && t in WEAK_CLICK)) control = true
+            if (STRONG_PREFIX.any { t.startsWith(it) } || ACC_DESC.any { t.contains(it) } || (n.clickable && !n.checkable && t in WEAK_CLICK)) control = true
             if (mentions && control) return true
         }
         return false

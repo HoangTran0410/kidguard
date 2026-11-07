@@ -49,7 +49,7 @@ object Push {
         Logic.pushCheckKid(Logic.parseKids(Store.kids(c)), data)?.let { k -> runCatching { CheckJob.runKid(c, k) }.onFailure { Log.w("KGParent", "ev check", it) }; return }
         val hit = synchronized(Store) {
             val kids = Logic.parseKids(Store.kids(c))
-            val ev = Logic.pushEvent(kids, data, { Logic.NotifyState.fromJson(Store.notifyState(c, it.key)) }) ?: return
+            val ev = Logic.pushEvent(kids, data, { Logic.NotifyState.fromJson(Store.notifyState(c, it.key)) }, tr = ResTr(c)) ?: return
             val st = Logic.NotifyState.fromJson(Store.notifyState(c, ev.first.key))
             Store.setNotifyState(c, ev.first.key, Logic.withSeen(st, Logic.seenIdOf(data["eid"]!!)!!).toJson())
             ev

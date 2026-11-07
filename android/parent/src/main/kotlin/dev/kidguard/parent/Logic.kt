@@ -138,7 +138,7 @@ object Logic {
     fun failCounts(via: String, onWifi: Boolean) = via != "lan" || onWifi
 
     /** Notify once per event: a new child request id, and the transition to "lost > 30 min". */
-    fun evaluate(name: String, seen: Seen, st: NotifyState, now: Long, failCounts: Boolean = true): Outcome {
+    fun evaluate(name: String, seen: Seen, st: NotifyState, now: Long, failCounts: Boolean = true, tr: Tr): Outcome {
         if (!seen.fetchOk && !failCounts) return Outcome(emptyList(), st)   // unreachable for a reason that says nothing about the kid
         val events = ArrayList<Event>()
         var ids = st.seenIds
@@ -147,22 +147,22 @@ object Logic {
         if (seen.fetchOk) {
             failSince = 0L
             // the first look at a kid only records what is already there (no burst of old requests)
-            if (st.init) for ((id, min) in seen.requests) if (id !in ids) events.add(Event("req:$id", "$name xin thêm $min phút"))
+            if (st.init) for ((id, min) in seen.requests) if (id !in ids) events.add(Event("req:$id", tr.q(T.ev_request, min, name, min)))
             // SOS: also on the first look, unless it is old (the child may have pressed it before the app was set up)
-            for ((id, t) in seen.sos) if ("s:$id" !in ids && now - t < SOS_FRESH_MS) events.add(Event("sos:$id", "$name bấm SOS lúc ${hhmm(t)}"))
+            for ((id, t) in seen.sos) if ("s:$id" !in ids && now - t < SOS_FRESH_MS) events.add(Event("sos:$id", tr.s(T.ev_sos, name, hhmm(t))))
             // events (zones, battery, new app, clock): same rule as requests, plus a one-time silent look per kid so an app
             // update does not replay the 50 events a phone already holds; stale ones are recorded but not shown
             if (st.evInit) for (e in seen.events) if ("e:${e.id}" !in ids && now - e.t < EV_FRESH_MS) events.add(Event("ev:${e.id}", "$name: ${e.text}"))
             val current = seen.sos.map { "s:" + it.first } + seen.requests.map { it.first } + seen.events.map { "e:" + it.id }
             ids = (ids + current).let { all -> if (all.size > 300) current.toSet() else all }
             val isLost = seen.activityT > 0 && now - seen.activityT > LOST_MS
-            if (isLost && !lost) events.add(Event("lost", "Mất kết nối với máy của $name"))
+            if (isLost && !lost) events.add(Event("lost", tr.s(T.ev_lost, name)))
             lost = isLost
-            if (seen.accOff && !st.accOff) events.add(Event("acc", "$name đã tắt Trợ năng của KidGuard: app không bị chặn nữa"))
+            if (seen.accOff && !st.accOff) events.add(Event("acc", tr.s(T.ev_acc_off, name)))
         } else {
             if (failSince == 0L) failSince = now
             val isLost = now - failSince > LOST_MS
-            if (isLost && !lost) events.add(Event("lost", "Mất kết nối với máy của $name"))
+            if (isLost && !lost) events.add(Event("lost", tr.s(T.ev_lost, name)))
             if (isLost) lost = true
         }
         return Outcome(events, NotifyState(ids, lost, failSince, true, st.evInit || seen.fetchOk, if (seen.fetchOk) seen.accOff else st.accOff))
@@ -172,15 +172,15 @@ object Logic {
      * FCM data message from the relay ({kind: sos|req, kid, eid: "s:<id>"|"r:<id>", t, min}) -> the same event the
      * background check would post (same key, so the same notification id), or null if unknown / already notified.
      */
-    fun pushEvent(kids: List<KidCfg>, data: Map<String, String>, st: (KidCfg) -> NotifyState, now: Long = System.currentTimeMillis()): Pair<KidCfg, Event>? {
+    fun pushEvent(kids: List<KidCfg>, data: Map<String, String>, st: (KidCfg) -> NotifyState, now: Long = System.currentTimeMillis(), tr: Tr): Pair<KidCfg, Event>? {
         val k = kids.firstOrNull { it.via == "relay" && it.id == data["kid"] } ?: return null
         val eid = data["eid"] ?: return null
         val seenId = seenIdOf(eid) ?: return null
         if (seenId in st(k).seenIds) return null
         val t = data["t"]?.toLongOrNull()?.takeIf { it > 0 } ?: now
         return when (data["kind"]) {
-            "sos" -> k to Event("sos:" + eid.removePrefix("s:"), "${k.name} bấm SOS lúc ${hhmm(t)}")
-            "req" -> k to Event("req:" + eid.removePrefix("r:"), "${k.name} xin thêm ${data["min"]?.toIntOrNull() ?: 0} phút")
+            "sos" -> k to Event("sos:" + eid.removePrefix("s:"), tr.s(T.ev_sos, k.name, hhmm(t)))
+            "req" -> k to Event("req:" + eid.removePrefix("r:"), (data["min"]?.toIntOrNull() ?: 0).let { m -> tr.q(T.ev_request, m, k.name, m) })
             else -> null
         }
     }

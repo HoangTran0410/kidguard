@@ -57,12 +57,12 @@ object Listen {
             val start = since
             val ms = System.currentTimeMillis() - start
             val min = (ms + 30_000) / 60_000
-            val took = if (min < 1) "dưới 1 phút" else "khoảng $min phút"
+            val took = if (min < 1) g.getString(R.string.under_1_min) else g.resources.getQuantityString(R.plurals.listen_about, min.toInt(), min.toInt())
             since = 0L; current = null
             runCatching { Store.of(g).lastListen = longArrayOf(start, ms) }
             g.micForeground(false)
             g.getSystemService(NotificationManager::class.java)?.cancel(NID)
-            runCatching { Store.of(g).log("Bố mẹ đã nghe âm thanh xung quanh từ ${java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(start))} ($took)") }
+            runCatching { Store.of(g).log(R.string.log_listen_done, java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(start)), took) }
             g.kick()
         }
     }
@@ -89,7 +89,7 @@ object Listen {
             rec.setOutputFile(pipe[1].fileDescriptor)
             rec.prepare(); rec.start()
             since = System.currentTimeMillis(); lastError = ""
-            Store.of(g).log("Bố mẹ bắt đầu nghe âm thanh xung quanh")
+            Store.of(g).log(R.string.log_listen_start)
             g.kick()
             Session(g, rec, pipe[0], pipe[1]).also { current = it }
         } catch (e: Exception) {
@@ -104,7 +104,7 @@ object Listen {
     /** True when the "listening" notice can show: notifications on and the channel at least DEFAULT importance. */
     private fun noticeVisible(g: Guard): Boolean {
         val nm = g.getSystemService(NotificationManager::class.java) ?: return false
-        nm.createNotificationChannel(NotificationChannel(CH, "Bố mẹ đang nghe", NotificationManager.IMPORTANCE_HIGH))
+        nm.createNotificationChannel(NotificationChannel(CH, g.getString(R.string.ch_listen), NotificationManager.IMPORTANCE_HIGH))
         if (!nm.areNotificationsEnabled()) return false
         val imp = nm.getNotificationChannel(CH)?.importance ?: return false
         return imp >= NotificationManager.IMPORTANCE_DEFAULT
@@ -121,11 +121,11 @@ object Listen {
             android.os.Handler(g.mainLooper).postDelayed({ t.release() }, 1_000)
         }
         val nm = g.getSystemService(NotificationManager::class.java) ?: return
-        nm.createNotificationChannel(NotificationChannel(CH, "Bố mẹ đang nghe", NotificationManager.IMPORTANCE_HIGH))
+        nm.createNotificationChannel(NotificationChannel(CH, g.getString(R.string.ch_listen), NotificationManager.IMPORTANCE_HIGH))
         val open = PendingIntent.getActivity(g, 0, Intent(g, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         nm.notify(NID, Notification.Builder(g, CH).setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setContentTitle("Bố mẹ đang nghe âm thanh xung quanh máy")
-            .setContentText("Micro đang bật để bố mẹ nghe. Tự tắt sau tối đa 10 phút.")
+            .setContentTitle(g.getString(R.string.notif_listen_title))
+            .setContentText(g.getString(R.string.notif_listen_text))
             .setOngoing(true).setContentIntent(open).build())
     }
 }

@@ -39,7 +39,12 @@ android {
     // one UI file for the APK (LAN) and the worker (away): web/index.html
     sourceSets["main"].assets.srcDirs("../../web")
     // the apps serve only index.html; the installer pages + their bundle are for the worker / a browser
-    androidResources { ignoreAssetsPatterns += listOf("!install.html", "!qr.html", "!provision.json", "!vendor") }
+    androidResources {
+        ignoreAssetsPatterns += listOf("!install.html", "!qr.html", "!provision.json", "!vendor")
+        // UI languages: English (res/values, default) + Vietnamese (res/values-vi). Also drops libraries' other languages.
+        // New language: add res/values-<lang>/strings.xml, list it here and in res/xml/locales_config.xml (Android 13+ per-app language).
+        localeFilters += listOf("en", "vi")
+    }
     // BouncyCastle (via libadb) ships 1.2 MB of Picnic post-quantum tables; adb pairing never uses them
     packaging { resources { excludes += "org/bouncycastle/pqc/**" } }
     buildFeatures { buildConfig = true }

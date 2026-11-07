@@ -27,6 +27,7 @@ import android.widget.TextView
  * then does the same steps as setup.sh. The work lives in [SelfSetup]; this screen only shows it.
  */
 class SelfSetupActivity : Activity() {
+    override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(Lang.wrap(base))   // in-app language (Android 8-12)
     private val ui = Handler(Looper.getMainLooper())
     private lateinit var portInfo: TextView
     private lateinit var code: EditText
@@ -44,43 +45,43 @@ class SelfSetupActivity : Activity() {
             this.text = t; textSize = size; setTextColor(Color.parseColor(color)); if (bold) setTypeface(typeface, Typeface.BOLD); setPadding(0, dp(6), 0, dp(6))
         }
         fun button(t: String, f: () -> Unit) = Button(this).apply { text = t; isAllCaps = false; setOnClickListener { f() } }
-        col.addView(text("Tự cài KidGuard, không cần máy tính", 24f, true, "#111827"))
+        col.addView(text(getString(R.string.ssa_title), 24f, true, "#111827"))
 
         if (Build.VERSION.SDK_INT < 30) {
-            col.addView(text("Máy này dùng Android ${Build.VERSION.RELEASE} (dưới 11) nên không tự cài được. Cần cắm máy tính chạy setup.sh (xem README), hoặc cài lại máy rồi quét mã QR."))
+            col.addView(text(getString(R.string.ssa_old, Build.VERSION.RELEASE)))
             setContentView(ScrollView(this).apply { setBackgroundColor(Color.WHITE); addView(col) })
             return
         }
-        col.addView(text("Máy sẽ tự \"nói chuyện\" với chính nó qua Gỡ lỗi không dây. Cần Wi-Fi, và máy chưa đăng nhập tài khoản nào (Google, Samsung, Xiaomi...). Làm lần lượt 3 bước:"))
+        col.addView(text(getString(R.string.ssa_intro)))
 
-        col.addView(text("Bước 1. Bật Tuỳ chọn nhà phát triển", 17f, true, "#111827"))
-        col.addView(text("Vào Giới thiệu về điện thoại, bấm 7 lần vào \"Số hiệu bản tạo\" (Build number)."))
-        col.addView(button("Mở Giới thiệu về điện thoại") { open(Settings.ACTION_DEVICE_INFO_SETTINGS) })
+        col.addView(text(getString(R.string.ssa_s1), 17f, true, "#111827"))
+        col.addView(text(getString(R.string.ssa_s1_d)))
+        col.addView(button(getString(R.string.ssa_s1_btn)) { open(Settings.ACTION_DEVICE_INFO_SETTINGS) })
 
-        col.addView(text("Bước 2. Bật Gỡ lỗi không dây", 17f, true, "#111827"))
-        col.addView(text("Trong Tuỳ chọn nhà phát triển, bật \"Gỡ lỗi không dây\" (Wireless debugging) và cho phép Wi-Fi này."))
-        col.addView(button("Mở Tuỳ chọn nhà phát triển") { open(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS) })
+        col.addView(text(getString(R.string.ssa_s2), 17f, true, "#111827"))
+        col.addView(text(getString(R.string.ssa_s2_d)))
+        col.addView(button(getString(R.string.ssa_s2_btn)) { open(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS) })
 
-        col.addView(text("Bước 3. Nhập mã ghép nối", 17f, true, "#111827"))
-        col.addView(text("Bấm nút dưới đây. Rồi trong Gỡ lỗi không dây, bấm \"Ghép thiết bị bằng mã ghép nối\". Hộp thoại sẽ tắt nếu con rời màn hình Cài đặt, nên mã được nhập ở thông báo: kéo thanh thông báo xuống, bấm \"Nhập mã ghép\" và gõ mã 6 số."))
-        col.addView(button("Hiện ô nhập mã ở thông báo") { askNotification() })
+        col.addView(text(getString(R.string.ssa_s3), 17f, true, "#111827"))
+        col.addView(text(getString(R.string.ssa_s3_d)))
+        col.addView(button(getString(R.string.ssa_s3_btn)) { askNotification() })
         portInfo = text("", 14f)
         col.addView(portInfo)
 
-        col.addView(text("Hoặc nhập ngay tại đây (nếu thông báo không hiện):", 14f))
-        code = EditText(this).apply { hint = "Mã ghép nối 6 số"; inputType = InputType.TYPE_CLASS_NUMBER; filters = arrayOf(InputFilter.LengthFilter(6)) }
+        col.addView(text(getString(R.string.ssa_or_here), 14f))
+        code = EditText(this).apply { hint = getString(R.string.ssa_code_hint); inputType = InputType.TYPE_CLASS_NUMBER; filters = arrayOf(InputFilter.LengthFilter(6)) }
         col.addView(code)
-        pairPort = EditText(this).apply { hint = "Cổng ghép nối (để trống nếu máy tự tìm thấy)"; inputType = InputType.TYPE_CLASS_NUMBER; filters = arrayOf(InputFilter.LengthFilter(5)) }
+        pairPort = EditText(this).apply { hint = getString(R.string.ssa_pair_port_hint); inputType = InputType.TYPE_CLASS_NUMBER; filters = arrayOf(InputFilter.LengthFilter(5)) }
         col.addView(pairPort)
-        connPort = EditText(this).apply { hint = "Cổng kết nối (để trống nếu máy tự tìm thấy)"; inputType = InputType.TYPE_CLASS_NUMBER; filters = arrayOf(InputFilter.LengthFilter(5)) }
+        connPort = EditText(this).apply { hint = getString(R.string.ssa_conn_port_hint); inputType = InputType.TYPE_CLASS_NUMBER; filters = arrayOf(InputFilter.LengthFilter(5)) }
         col.addView(connPort)
-        wifiOff = CheckBox(this).apply { text = "Tắt Gỡ lỗi không dây sau khi cài xong"; isChecked = true }
+        wifiOff = CheckBox(this).apply { text = getString(R.string.ssa_wifi_off); isChecked = true }
         col.addView(wifiOff)
-        start = button("Bắt đầu cài") { go() }
+        start = button(getString(R.string.ssa_start)) { go() }
         col.addView(start)
 
-        col.addView(text("Tiến trình", 17f, true, "#111827"))
-        for (s in SelfSetup.STEPS) { val r = text(s, 15f); r.compoundDrawablePadding = dp(10); rows.add(r); col.addView(r) }
+        col.addView(text(getString(R.string.ssa_progress), 17f, true, "#111827"))
+        for (s in SelfSetup.STEPS) { val r = text(getString(s), 15f); r.compoundDrawablePadding = dp(10); rows.add(r); col.addView(r) }
         result = text("", 15f, true)
         col.addView(result)
         setContentView(ScrollView(this).apply { setBackgroundColor(Color.WHITE); addView(col) })
@@ -109,7 +110,7 @@ class SelfSetupActivity : Activity() {
 
     private fun go() {
         val c = code.text.toString().filter { it.isDigit() }
-        if (c.length != 6) { result.text = "Mã ghép nối phải đủ 6 số."; return }
+        if (c.length != 6) { result.text = getString(R.string.ssa_code_6); return }
         SelfSetup.turnOffWifi = wifiOff.isChecked
         SelfSetup.start(this, c, pairPort.text.toString().toIntOrNull() ?: 0, connPort.text.toString().toIntOrNull() ?: 0)
         tick()
@@ -117,8 +118,8 @@ class SelfSetupActivity : Activity() {
 
     private fun tick() {
         val pp = SelfSetup.pairingPort; val cp = SelfSetup.connectPort
-        portInfo.text = (if (pp > 0) "Đã thấy hộp thoại ghép nối (cổng $pp). " else "Chưa thấy hộp thoại ghép nối. ") +
-            (if (cp > 0) "Gỡ lỗi không dây đang bật (cổng $cp)." else "Gỡ lỗi không dây chưa bật.")
+        portInfo.text = (if (pp > 0) getString(R.string.ssa_pair_seen, pp) else getString(R.string.ssa_pair_none)) + " " +
+            (if (cp > 0) getString(R.string.ssa_wd_on, cp) else getString(R.string.ssa_wd_off))
         for (i in rows.indices) {
             val (icon, tint) = when (SelfSetup.state[i]) {
                 SelfSetup.STEP_OK -> R.drawable.ic_ok to "#16a34a"

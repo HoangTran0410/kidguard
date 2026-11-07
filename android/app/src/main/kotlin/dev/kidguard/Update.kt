@@ -85,7 +85,7 @@ object Update {
         if (!busy.compareAndSet(false, true)) return false
         val app = ctx.applicationContext
         Thread({
-            try { run(app, force) } catch (e: Throwable) { Log.e(TAG, "update", e); status = "failed"; err = (e.message ?: "lỗi").take(120) }
+            try { run(app, force) } catch (e: Throwable) { Log.e(TAG, "update", e); status = "failed"; err = (e.message ?: app.getString(R.string.err_generic)).take(120) }
             finally { busy.set(false) }
         }, "update").start()
         return true
@@ -93,18 +93,18 @@ object Update {
 
     private fun run(ctx: Context, force: Boolean) {
         status = "checking"; err = ""
-        val tag = check()
+        val tag = check(ctx)
         prefs(ctx).edit().putString("latest", tag).apply()
         latest = tag
         // "at" (the once-a-day mark) only after a full success: a failed download/install retries in an hour (triedAt)
         val done = { prefs(ctx).edit().putLong("at", System.currentTimeMillis()).apply() }
         if (!UpdateLogic.newer(tag, current())) { status = ""; apk(ctx).delete(); done(); return }
         // a release whose APK we already rejected (wrong package / versionCode): don't download it again every day
-        if (prefs(ctx).getString("badTag", "") == tag) { status = "failed"; err = "bản $tag không hợp lệ"; done(); return }
+        if (prefs(ctx).getString("badTag", "") == tag) { status = "failed"; err = ctx.getString(R.string.upd_err_bad_tag, tag); done(); return }
         val f = apk(ctx)
         if (!f.exists() || prefs(ctx).getString("apkTag", "") != tag) {
             status = "downloading"
-            download(tag, f); prefs(ctx).edit().putString("apkTag", tag).apply()
+            download(ctx, tag, f); prefs(ctx).edit().putString("apkTag", tag).apply()
         }
         try { verifyPackage(ctx, f) } catch (e: IllegalStateException) { prefs(ctx).edit().putString("badTag", tag).apply(); done(); throw e }
         if (Policy.isOwner(ctx)) { status = "installing"; installSilently(ctx, f) }
@@ -114,34 +114,34 @@ object Update {
     }
 
     /** The latest tag, read from the redirect of /releases/latest (no API key, no rate limit). */
-    private fun check(): String {
+    private fun check(ctx: Context): String {
         val c = URL(UpdateLogic.LATEST).openConnection() as HttpURLConnection
         c.instanceFollowRedirects = false; c.connectTimeout = 15_000; c.readTimeout = 15_000; c.requestMethod = "HEAD"
         try {
-            if (c.responseCode !in 300..399) throw IllegalStateException("GitHub trả lời HTTP ${c.responseCode}")
-            return UpdateLogic.tagFromLocation(c.getHeaderField("Location")) ?: throw IllegalStateException("không đọc được phiên bản")
+            if (c.responseCode !in 300..399) throw IllegalStateException(ctx.getString(R.string.upd_err_github, c.responseCode))
+            return UpdateLogic.tagFromLocation(c.getHeaderField("Location")) ?: throw IllegalStateException(ctx.getString(R.string.upd_err_version))
         } finally { c.disconnect() }
     }
 
-    private fun get(url: String): HttpURLConnection {
+    private fun get(ctx: Context, url: String): HttpURLConnection {
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 15_000; c.readTimeout = 60_000; c.instanceFollowRedirects = true
-        if (c.responseCode != 200) { val code = c.responseCode; c.disconnect(); throw IllegalStateException("tải lỗi HTTP $code") }
+        if (c.responseCode != 200) { val code = c.responseCode; c.disconnect(); throw IllegalStateException(ctx.getString(R.string.err_http, code)) }
         return c
     }
 
-    private fun download(tag: String, f: File) {
-        val want = TsLogic.sha256Of(get(UpdateLogic.apkUrl(tag, "kidguard.apk.sha256")).inputStream.use { String(it.readBytes()) })
-            ?: throw IllegalStateException("mã SHA-256 không đọc được")
+    private fun download(ctx: Context, tag: String, f: File) {
+        val want = TsLogic.sha256Of(get(ctx, UpdateLogic.apkUrl(tag, "kidguard.apk.sha256")).inputStream.use { String(it.readBytes()) })
+            ?: throw IllegalStateException(ctx.getString(R.string.err_sha_read))
         val tmp = File(f.parentFile, "update.part"); val md = MessageDigest.getInstance("SHA-256")
         try {
-            get(UpdateLogic.apkUrl(tag, "kidguard.apk")).inputStream.use { i -> tmp.outputStream().use { o ->
+            get(ctx, UpdateLogic.apkUrl(tag, "kidguard.apk")).inputStream.use { i -> tmp.outputStream().use { o ->
                 val buf = ByteArray(64 * 1024)
                 while (true) { val n = i.read(buf); if (n < 0) break; md.update(buf, 0, n); o.write(buf, 0, n) }
             } }
         } catch (e: Throwable) { tmp.delete(); throw e }
-        if (md.digest().joinToString("") { "%02x".format(it) } != want) { tmp.delete(); throw IllegalStateException("sai SHA-256 của bản cập nhật") }
-        if (!tmp.renameTo(f)) throw IllegalStateException("không lưu được bản cập nhật")
+        if (md.digest().joinToString("") { "%02x".format(it) } != want) { tmp.delete(); throw IllegalStateException(ctx.getString(R.string.upd_err_sha)) }
+        if (!tmp.renameTo(f)) throw IllegalStateException(ctx.getString(R.string.upd_err_save))
     }
 
     /** Same package, higher versionCode; the signature is checked by Android at install. */
@@ -150,7 +150,7 @@ object Update {
         val pi = ctx.packageManager.getPackageArchiveInfo(f.path, 0)
         val code = if (Build.VERSION.SDK_INT >= 28) pi?.longVersionCode ?: 0 else (pi?.versionCode ?: 0).toLong()
         if (pi?.packageName != ctx.packageName || code <= BuildConfig.VERSION_CODE) {
-            f.delete(); throw IllegalStateException("bản tải về không hợp lệ")
+            f.delete(); throw IllegalStateException(ctx.getString(R.string.upd_err_invalid))
         }
     }
 
@@ -173,7 +173,7 @@ object Update {
             val (pi, id) = session(ctx, f)
             pi.openSession(id).use { s ->
                 val res = Ts.commitAndWait(ctx, s, "dev.kidguard.SELF_UPDATE")
-                if (res != null) throw IllegalStateException("cài lỗi: $res")
+                if (res != null) throw IllegalStateException(ctx.getString(R.string.err_install, res))
             }
             status = ""
         } finally { installing = false; runCatching { Policy.apply(ctx, Store.of(ctx).rules) } }
@@ -195,17 +195,17 @@ object Update {
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
                     s.commit(pend.intentSender)
                 }
-            }.onFailure { status = "failed"; err = (it.message ?: "lỗi").take(120) }
+            }.onFailure { status = "failed"; err = (it.message ?: app.getString(R.string.err_generic)).take(120) }
         }, "update-ui").start()
         return true
     }
 
     private fun notifyChild(ctx: Context, tag: String) = runCatching {
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel("update", "Cập nhật KidGuard", NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(NotificationChannel("update", ctx.getString(R.string.ch_update), NotificationManager.IMPORTANCE_DEFAULT))
         val open = PendingIntent.getActivity(ctx, 3, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         nm.notify(8, Notification.Builder(ctx, "update").setSmallIcon(android.R.drawable.stat_sys_download_done)
-            .setContentTitle("Có bản KidGuard mới ($tag)").setContentText("Mở KidGuard, bấm Cập nhật").setAutoCancel(true).setContentIntent(open).build())
+            .setContentTitle(ctx.getString(R.string.notif_update_title, tag)).setContentText(ctx.getString(R.string.notif_update_text)).setAutoCancel(true).setContentIntent(open).build())
     }
 
     fun failed(msg: String) { status = "failed"; err = msg.take(120) }
@@ -227,7 +227,7 @@ class UpdateReceiver : BroadcastReceiver() {
             }
             PackageInstaller.STATUS_SUCCESS -> {}
             PackageInstaller.STATUS_FAILURE_ABORTED -> {}   // the child closed the confirm screen: still "ready", not an error
-            else -> Update.failed(i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "đã huỷ")
+            else -> Update.failed(i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ctx.applicationContext.getString(R.string.upd_cancelled))
         }
     }
 }

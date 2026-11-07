@@ -34,6 +34,6 @@ class UpdateLogicTest {
         assertTrue(Rules.fromJson(JSONObject()).autoUpdate)
         val off = Rules.fromJson(Rules(autoUpdate = false).toJson())
         assertFalse(off.autoUpdate)
-        assertTrue(Events.ruleDiff(Rules(), off).contains("tắt tự cập nhật KidGuard"))
+        assertTrue(Events.ruleDiff(Rules(), off, TestTr.VI).contains("tắt tự cập nhật KidGuard"))
     }
 }

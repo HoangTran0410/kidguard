@@ -41,16 +41,23 @@ class Bridge(private val a: Activity) {
     @JavascriptInterface fun getNotify() = Store.notify(a).toString()
     /** "true" when the OS lets us show notifications (permission + not disabled in settings). */
     @JavascriptInterface fun canNotify() = CheckJob.canNotify(a.applicationContext).toString()
+    /** App language for native text (notifications): "" = phone setting, else a [Langs.ALL] code. The page translates itself. */
+    @JavascriptInterface fun getLang(): String = Lang.get(a)
+    /** Unknown codes are ignored. Same code = no-op. The activity declares configChanges=locale, so the WebView is never recreated. */
+    @JavascriptInterface fun setLang(code: String) {
+        if (Langs.valid(code)) Lang.set(a.applicationContext, code)
+    }
 }
 
 class MainActivity : Activity() {
+    override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(Lang.wrap(base))   // in-app language (Android 8-12)
     private var web: WebView? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
         val proxy = proxy ?: Proxy(applicationContext, Store.pickPort(applicationContext)).also {
-            if (!it.start()) { Toast.makeText(this, "Không mở được cổng nội bộ", Toast.LENGTH_LONG).show(); finish(); return }
+            if (!it.start()) { Toast.makeText(this, getString(R.string.err_port), Toast.LENGTH_LONG).show(); finish(); return }
             proxy = it
         }
         CheckJob.channel(this)
