@@ -113,6 +113,12 @@ v0.9.6:
   In the worker whitelist (repeatable, not deliver-once). Over LAN through an adb-forwarded port the reply can be lost
   (adb goes down with it); normal Wi-Fi LAN and the relay are fine.
 - Saving rules that switch `noDebug` from false to true also runs `devOff` once.
+v0.9.7:
+- `devOn`: the way back after `devOff`: turns Developer options and USB debugging (`ADB_ENABLED`) on with
+  `Settings.Global.putInt` (needs WRITE_SECURE_SETTINGS; the Device Owner fallback can't write these). Result
+  `ok | not allowed | blocked | failed: <reason>` (`blocked` = the `noDebug` rule's DISALLOW_DEBUGGING_FEATURES is set).
+  State `dev.canOn` (bool, v0.9.7) says whether it can work; the page shows the button only then. Logs `log_dev_on`.
+  In the worker whitelist (repeatable).
 
 ## Live screen and remote control
 

@@ -166,6 +166,7 @@ select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none;border-radi
 .cl.open .clb>div{overflow:visible}
 /* "Thiết bị" key/value rows */
 .dvkv{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--stroke)}.dvkv>span{color:var(--sub)}.dvkv>b{font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere}
+.dz .cl{border-color:color-mix(in srgb,var(--danger) 35%,var(--stroke))}.dz .cli{color:var(--danger)!important;background:color-mix(in srgb,var(--danger) 12%,transparent)!important}
 .cl .cl{border-radius:14px;box-shadow:none}
 @media (prefers-reduced-motion:reduce){.clb,.cl.open .clb,.clh .chev{transition:none}.tile.on b::after{animation:none}}
 /* segmented control */
@@ -324,3 +325,9 @@ button:not(:disabled):active,a.btn:active{transform:scale(.97);filter:brightness
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 25%,transparent)}
 input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}button:active,.tile:active b,.tile:hover b{transform:none!important}}
+
+/* on-device admin session: one slim sticky line */
+.lbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;margin:0 0 10px;border-radius:12px;font-size:13px;
+  background:color-mix(in srgb,var(--warn,#d97706) 14%,var(--card));border:1px solid color-mix(in srgb,var(--warn,#d97706) 35%,var(--stroke));color:var(--text)}
+.lbar>.si{flex:none;color:var(--warn,#d97706)}.lbar>span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lbar button{flex:none;min-height:32px;padding:4px 10px;font-size:13px}

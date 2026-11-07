@@ -3,6 +3,7 @@ package dev.kidguard
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.UserManager
 import android.provider.Settings
 import android.util.Log
 import org.json.JSONObject
@@ -24,6 +25,23 @@ object DevOpts {
         .put("on", global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED))
         .put("adb", global(ctx, Settings.Global.ADB_ENABLED) || (Build.VERSION.SDK_INT >= 30 && global(ctx, ADB_WIFI)))
         .put("canOff", canOff(ctx))
+        .put("canOn", canOn(ctx))
+
+    /** "devOn" works only with WRITE_SECURE_SETTINGS and while no debugging restriction (rule noDebug) is set. */
+    fun canOn(ctx: Context) = canWrite(ctx) && !blocked(ctx)
+    private fun blocked(ctx: Context) = runCatching {
+        (ctx.getSystemService(Context.USER_SERVICE) as UserManager).hasUserRestriction(UserManager.DISALLOW_DEBUGGING_FEATURES) }.getOrDefault(false)
+
+    /** Developer options, then USB debugging (the parent's way back after "devOff"). "ok", "not allowed", "blocked" or "failed: ...". */
+    fun on(ctx: Context): String {
+        if (!canWrite(ctx)) return "not allowed"
+        if (blocked(ctx)) return "blocked"
+        var err: String? = null
+        for (k in listOf(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, Settings.Global.ADB_ENABLED))
+            runCatching { Settings.Global.putInt(ctx.contentResolver, k, 1) }.onFailure { err = it.javaClass.simpleName }
+        val ok = global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED) && global(ctx, Settings.Global.ADB_ENABLED)
+        return (if (ok) "ok" else "failed: " + (err ?: "still off")).also { if (it != "ok") Log.w("KidGuard", "devOn: $it") }
+    }
 
     /** Wireless debugging, USB debugging, then Developer options itself. Returns "ok", "not allowed" or "failed: ...". */
     fun off(ctx: Context): String {

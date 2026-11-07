@@ -718,7 +718,7 @@ class MainActivity : Activity() {
         "proj_denied" to (R.drawable.li_eye_off to true), "listen_start" to (R.drawable.li_ear to false), "listen_done" to (R.drawable.li_ear to false),
         "listen_err" to (R.drawable.li_ear to true), "ring_stopped" to (R.drawable.li_bell to false), "dns_fallback" to (R.drawable.li_wifi_off to true),
         "admin_open" to (R.drawable.li_settings to false), "checkin" to (R.drawable.li_hand to false), "rules" to (R.drawable.li_list to false),
-        "dev_off" to (R.drawable.li_settings to false)) + listOf("setting_vol", "setting_bright", "setting_auto_on", "setting_auto_off", "setting_timeout", "setting_dnd_on", "setting_dnd_off").associateWith { R.drawable.li_sliders_horizontal to false }
+        "dev_off" to (R.drawable.li_settings to false), "dev_on" to (R.drawable.li_settings to false)) + listOf("setting_vol", "setting_bright", "setting_auto_on", "setting_auto_off", "setting_timeout", "setting_dnd_on", "setting_dnd_off").associateWith { R.drawable.li_sliders_horizontal to false }
 
     private fun noEmoji(s: String) = s.replace(Regex("[\\p{So}\\p{Cs}\\uFE0F\\u200D]"), "").trimStart()
 

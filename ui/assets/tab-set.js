@@ -1,19 +1,18 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
-let relayOpen = false;   // the "advanced: relay" box survives re-renders
 // per-kid "seen" flags kept in this browser: the away-from-home tip, the manual key-expiry step
 const kidFlag = (k, n, v) => { const key = "kg." + n + "." + (k.id || k.target || ""); try { if (v === undefined) return localStorage.getItem(key) === "1"; localStorage.setItem(key, "1"); } catch {} return false; };
 // Remote access over Tailscale (state.ts). The auth key is only typed at home (LAN): it never goes through the relay.
 function tsCard(lan) {
-  if (isBasic()) return `<div class="card"><h2>${ic("route")} ${t("ts.h")}</h2>${needOwner("Tailscale")}<p class="mute">${t("ts.basic")}</p></div>`;
+  if (isBasic()) return sec("s-ts", "route", t("ts.h"), t("sd.ts"), [t("off")], `${needOwner("Tailscale")}<p class="mute">${t("ts.basic")}</p>`);
   const ts = (st && st.ts) || { state: "off" };
   const label = tc("ts.", ts.state, ts.state);
   const cls = { on: "ok", error: "bad", installing: "warn" }[ts.state] || "";
   const url = ts.ip ? `http://${ts.ip}:8770` : "";
   if (!lan && ts.state === "off") return "";   // relay page: it can only be enabled at home, so an "off" row says nothing
   const exp = ts.state === "on" && ts.noExpiry === false && !kidFlag(cur, "tsExp");   // false only from phones that report it
-  return `<div class="card" id="tsCard"><h2>${ic("route")} ${t("ts.h")}</h2>
+  return sec("s-ts", "route", t("ts.h"), t("sd.ts"), [esc(label), cls], `
     <p class="mute">${t("ts.p")}</p>
-    <p><span class="tag ${cls}">${esc(label)}</span>${ts.host ? " · " + t("ts.host", "<b>" + esc(ts.host) + "</b>") : ""}</p>
+    ${ts.host ? `<p>${t("ts.host", "<b>" + esc(ts.host) + "</b>")}</p>` : ""}
     ${ts.err ? `<div class="alert warn">${ic("triangle-alert")} ${esc(ts.err)}</div>` : ""}
     ${url ? `<p>${ic("link")} <code>${esc(url)}</code>${ts.noExpiry ? ` <span class="tag ok">${t("ts.noExp")}</span>` : ""}</p>` : ""}
     ${exp ? `<div class="alert warn">${ic("triangle-alert")} <span>${t("ts.expP", "<b>" + esc(ts.host || "kid") + "</b>")}
@@ -24,7 +23,7 @@ function tsCard(lan) {
     <div class="row" style="margin-top:8px"><input id="f-ts-host" class="sp" placeholder="${esc(t("ts.hostPh"))}" aria-label="${esc(t("ts.hostPh"))}" value="${esc(ts.host || "")}"><button id="tsOn" class="pri">${ic("route")} ${ts.state === "off" ? t("turnOn") : t("ts.again")}</button></div>`
       : `<p class="mute">${t("ts.homeOnly")}</p>`}
     ${ts.state !== "off" ? `<button id="tsOff" class="bad" style="margin-top:8px">${ic("x")} ${t("ts.remove")}</button>
-    <p class="mute">${t("ts.after", esc(ts.host || "kid"))}</p>` : ""}</div>`;
+    <p class="mute">${t("ts.after", esc(ts.host || "kid"))}</p>` : ""}`, ts.state === "error" || exp);
 }
 
 // Self-update of the child app (state.update, v0.9): status line, "update now", rule autoUpdate.
@@ -35,26 +34,32 @@ function pairTick() {
   const end = pairLocal && st.t < pairLocal.at ? pairLocal.end : (st.pairUntil || 0), left = end - Date.now();
   el.innerHTML = left > 0 ? `${ic("hourglass")} ${t("pairT.on", "<b>" + fmtClock(left) + "</b>")}` : t("pairT.off");
 }
-// Developer options (state.dev, v0.9.6): banking apps refuse to open while on; "devOff" turns it off.
-// devPend {kid, at, fail}: from pressing the button until a state shows it off (relay: only queued), 3 min, or an error answer.
+// Developer options (state.dev, v0.9.6): banking apps refuse to open while on; "devOff" turns it off, "devOn" (0.9.7) back on.
+// devPend {kid, want, at, ok, fail}: from pressing a button until a state shows `want`, an error answer, or a verdict:
+// "ok" (the phone checked it) but a state taken 5 s later still says otherwise = something switched it back;
+// queued on the relay: still on in a state 90 s after the press; no state at all: 3 min (a timer redraws, refresh may not).
 let devPend = null;
 function devCard() {
   const d = st.dev; if (!d) return "";   // child older than 0.9.6
   const on = !!(d.on || d.adb), p = devPend && devPend.kid === cur ? devPend : null;
-  if (p && !p.fail && !on) devPend = null;
+  if (p && !p.fail && on === p.want) devPend = null;
+  else if (p && !p.fail && p.ok && st.t > p.ok + 5000) p.fail = t("dev.reOn");
+  else if (p && !p.fail && st.t > p.at + 90000) p.fail = t("dev.stillOn");
   else if (p && !p.fail && Date.now() - p.at > 180000) p.fail = t("dev.timeout");
-  const busy = p && !p.fail && on;
-  return `<div class="card"><h2>${ic("code")} ${t("dev.h")}</h2>
-    <p><span class="tag ${on ? "warn" : "ok"}">${on ? t("dev.on") : t("dev.off")}</span></p>
-    ${on ? `<p class="mute">${t("dev.p")}${d.adb ? " " + t("dev.adb") : ""}</p>
-    ${p && p.fail ? `<div class="alert warn">${ic("triangle-alert")} ${t("dev.fail", esc(p.fail))}</div>` : ""}
-    ${d.canOff ? `<button id="devOff" ${busy ? "disabled" : ""}>${ic(busy ? "hourglass" : "x")} ${busy ? t("dev.pend") : t("dev.btn")}</button>` : `<p class="mute">${ic("circle-help")} ${t("dev.cant")}</p>`}` : ""}</div>`;
+  const busy = p && !p.fail && on !== p.want, fail = p && p.fail ? `<div class="alert warn">${ic("triangle-alert")} ${t(p.want ? "dev.failOn" : "dev.fail", esc(p.fail))}</div>` : "";
+  return sec("s-dev", "code", t("dev.h"), t("sd.dev"), [on ? t("dev.on") : t("dev.off"), on ? "warn" : "ok"], on ? `<p class="mute">${t("dev.p")}${d.adb ? " " + t("dev.adb") : ""}</p>
+    ${fail}
+    ${d.canOff ? `<button id="devOff" ${busy ? "disabled" : ""}>${ic(busy ? "hourglass" : "x")} ${busy ? t("dev.pend") : t("dev.btn")}</button>` : `<p class="mute">${ic("circle-help")} ${t("dev.cant")}</p>`}` : `<p class="mute">${ic("check")} ${t("dev.offP")}</p>${fail}
+    ${d.canOn ? `<button id="devOn" ${busy ? "disabled" : ""}>${ic(busy ? "hourglass" : "code")} ${busy ? t("dev.pendOn") : t("dev.onBtn")}</button>` : ""}`, on || !!fail);
 }
-async function devOff() {
-  const k = cur; devPend = { kid: k, at: Date.now(), fail: "" }; render();
-  const r = await cmd({ type: "devOff" }, t("dev.done"), false);
-  // cmd() already toasted the reason; "ok" / "queued" stay pending until a state shows it off (or 3 min)
-  if (!r && devPend && devPend.kid === k) devPend.fail = t("upd.unknown");
+async function devOff(want) {
+  want = want === true;
+  if (want && !(await ask(t("dev.askOn"), t("dev.onBtn")))) return;
+  const k = cur, p = devPend = { kid: k, want, at: Date.now(), ok: 0, fail: "" }; render();
+  const r = await cmd({ type: want ? "devOn" : "devOff" }, t(want ? "dev.doneOn" : "dev.done"), false);
+  // cmd() already toasted the reason; "ok" / "queued" stay pending until a state settles it (see devPend)
+  if (devPend === p) { if (!r) p.fail = t("upd.unknown"); else if (r.result === "ok") p.ok = Date.now(); else if (r.result !== "queued") p.fail = r.result; }
+  clearTimeout(devOff.t); devOff.t = setTimeout(() => { if (devPend === p && tab === "set") render(); }, 181000);
   render(); setTimeout(refresh, r && r.result === "queued" ? 15000 : 1500);
 }
 function updCard() {
@@ -65,10 +70,11 @@ function updCard() {
   const line = u.status === "checking" ? t("upd.checking") : u.status === "downloading" ? t("upd.dl", v) : u.status === "installing" ? t("upd.inst", v)
     : u.status === "ready" ? t("upd.ready", v)
     : u.status === "failed" ? `${ic("triangle-alert")} ${t("errX", esc(u.err || t("upd.unknown")))}` : has ? t("upd.has", v) : t("upd.latest");
-  return `<div class="card"><h2>${ic("refresh-cw")} ${t("upd.h")}</h2>
+  const busy = u.status === "downloading" || u.status === "installing" || u.status === "checking";
+  return sec("s-upd", "refresh-cw", t("upd.h"), t("sd.upd"), has ? [t("upd.has", v), "warn"] : [esc(st.version || "?"), "ok"], `
     <p>${t("upd.kid", "<b>" + esc(st.version || "?") + "</b>")} · ${line}${u.checkedAt ? ` <span class="mute">· ${t("upd.checked", ago(u.checkedAt))}</span>` : ""}</p>
     <label class="row"><input type="checkbox" id="f-au" ${edit && edit.autoUpdate ? "checked" : ""}><span class="sp">${t("upd.auto")}</span></label>
-    <div class="row" style="margin-top:8px"><button id="updNow" ${u.status === "downloading" || u.status === "installing" || u.status === "checking" ? "disabled" : ""}>${ic("refresh-cw")} ${t("upd.now")}</button></div></div>`;
+    <div class="row" style="margin-top:8px"><button id="updNow" ${busy ? "disabled" : ""}>${ic("refresh-cw")} ${t("upd.now")}</button></div>`, has || busy || u.status === "failed");
 }
 // paired parent devices (state.devices, phone >= 0.9.8). Our own row: "self" on LAN; on the relay page, sha256(token)[:8].
 const devIds = new Map();
@@ -150,13 +156,13 @@ function sysHtml() {
       ${can.dnd ? "" : `<div class="mute">${t("sys.noDnd")}</div>`}`);
   }
   const off = cur.via !== "lan" && Date.now() - lastSeen() > 120000;
-  return `<h2>${ic("sliders-horizontal")} ${t("sys.h")}</h2>${off ? `<div class="alert warn">${ic("wifi-off")} ${t("sys.offline")}</div>` : ""}${rows.join("") || `<p class="mute">${t("sys.none")}</p>`}`;
+  return `${off ? `<div class="alert warn">${ic("wifi-off")} ${t("sys.offline")}</div>` : ""}${rows.join("") || `<p class="mute">${t("sys.none")}</p>`}`;
 }
 // the card redraws in place on every refresh (the tab is not redrawn while a control has focus), never while a slider is held
 function sysDraw() {
   const box = $("#sysCard"); if (!box) return;
   if (sysUi.drag || Object.keys(sysUi.deb).length) return;
-  const h = sysHtml(); box.style.display = h ? "" : "none";
+  const h = sysHtml(); (box.closest(".cl") || box).style.display = h ? "" : "none";
   const f = document.activeElement && box.contains(document.activeElement) ? document.activeElement.id : "";
   box.innerHTML = h;
   if (f && $("#" + f)) $("#" + f).focus();
@@ -200,14 +206,22 @@ function setTab(b) {
   if (Array.isArray(st.devices) && !st.devices.some(d => d.self) && !devIds.has(cur.token)) { const k = cur; devIdOf(k).then(id => { if (id && k === cur && tab === "set") { lastSig = ""; render(); } }); }
   b.innerHTML = `<div class="g2"><div>
   <div class="sec">${t("set.security")}</div>
-  <div class="card"><h2>${ic("key-round")} ${t("pin.h")}</h2><p class="mute">${t("pin.p")}</p>
+  ${sec("s-pin", "key-round", t("pin.h"), t("pin.p"), edit.pinSet ? [t("pin.isSet"), "ok"] : [t("pin.notSet"), "warn"], `
     ${edit.pinSet ? "" : `<div class="alert warn">${ic("triangle-alert")} ${t("pin.none")}</div>`}
     <p class="mute">${edit.pinSet ? t("pin.change") : t("pin.set")}</p>
-    <div class="row"><input class="sp" style="min-width:8em" id="f-pin" inputmode="numeric" type="password" placeholder="${esc(t("pin.ph"))}" aria-label="${esc(t("pin.new"))}" maxlength="8" autocomplete="new-password"><button id="savePin">${ic("key-round")} ${edit.pinSet ? t("pin.changeB") : t("pin.setB")}</button></div></div>
+    <div class="row"><input class="sp" style="min-width:8em" id="f-pin" inputmode="numeric" type="password" placeholder="${esc(t("pin.ph"))}" aria-label="${esc(t("pin.new"))}" maxlength="8" autocomplete="new-password"><button id="savePin">${ic("key-round")} ${edit.pinSet ? t("pin.changeB") : t("pin.setB")}</button></div>`, !edit.pinSet)}
   <div id="rsx">${S.totp}</div>
-  <div class="sec">${t("paired.h")}</div>
-  <div class="card">${Array.isArray(st.devices) ? devsHtml() : `<p class="mute">${t("dev.old")}</p>`}
-    <div class="row" style="margin-top:10px"><button id="openPair" class="sp">${ic("lock-open")} ${t("paired.add")}</button><button id="forget" class="sp">${ic("eraser")} ${APP ? t("forget.app") : t("forget.web")}</button></div><div id="pairOut" class="mute" style="margin-top:8px"></div></div>
+  ${sec("s-paired", "smartphone", t("paired.h"), t("sd.paired"), Array.isArray(st.devices) ? [String(st.devices.length)] : null, `${Array.isArray(st.devices) ? devsHtml() : `<p class="mute">${t("dev.old")}</p>`}
+    <div class="row" style="margin-top:10px"><button id="openPair" class="sp">${ic("lock-open")} ${t("paired.add")}</button><button id="forget" class="sp">${ic("eraser")} ${APP ? t("forget.app") : t("forget.web")}</button></div><div id="pairOut" class="mute" style="margin-top:8px"></div>`, st.pairUntil > Date.now())}
+  <div class="sec" id="awaySec">${t("set.conn")}</div>
+  ${lan ? `<p class="mute" style="margin:0 4px 10px">${t("away.cmp")}</p>` : ""}
+  ${tsCard(lan)}
+  ${lan ? sec("s-relay", "globe", t("relay.h"), t("sd.relay"), st.relay ? [t("on"), "ok"] : [t("off")], `<p class="mute">${t("relay.p")}</p>
+    <div class="row"><input id="relay" class="sp" placeholder="${esc(t("relay.ph"))}" aria-label="${esc(t("relay.addr"))}" value="${esc(st.relay || "")}"><button id="saveRelay" class="pri">${ic("globe")} ${t("turnOn")}</button></div>
+    <div id="relayOut"></div>`, !!st.relay) : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p></div>`}
+  <div class="dz" style="margin-top:22px">${sec("s-danger", "octagon-x", t("set.danger"), t("sd.danger"), null, `<h2>${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
+    <h2 style="margin-top:18px">${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
+    <button id="release" class="bad">${ic("octagon-x")} ${t("rel.btn")}</button>`)}</div>
   </div><div>
   <div class="sec">${t("set.general")}</div>
   <div class="card"><h2>${ic("user")} ${t("set.name")}</h2><div class="row"><input id="f-name" class="sp" aria-label="${esc(t("set.name"))}" value="${esc(cur.name)}"><button id="saveName">${ic("save")} ${t("save")}</button></div></div>
@@ -216,20 +230,9 @@ function setTab(b) {
   ${APP ? `<div class="card"><h2>${ic("history")} ${t("keep.h")}</h2><select id="f-days" aria-label="${esc(t("keep.h"))}">${["0", "30", "90", "365"].map(v => `<option value="${v}" ${String(kgCall("getHistoryDays") || "0") === v ? "selected" : ""}>${+v ? t("days", +v) : t("noLimitC")}</option>`).join("")}</select>
     <p class="mute">${t("keep.p")}</p></div>` : ""}
   ${updCard()}
-  <div class="card" id="sysCard"></div>
+  ${sec("s-sys", "sliders-horizontal", t("sys.h"), t("sd.sys"), null, `<div id="sysCard"></div>`)}
   ${devCard()}
   ${APP ? "" : `<div class="card"><h2>${ic("smartphone")} ${t("a2hs.h")}</h2><p class="mute">${t("a2hs.p")}</p></div>`}
-  <div class="sec" id="awaySec">${t("set.conn")}</div>
-  ${lan ? `<p class="mute" style="margin:0 4px 10px">${t("away.cmp")}</p>` : ""}
-  ${tsCard(lan)}
-  ${lan ? `<details class="card" id="relayBox"${st.relay || relayOpen ? " open" : ""}><summary><h2 style="display:inline-flex">${ic("globe")} ${t("relay.h")}</h2></summary>
-    <p class="mute">${t("relay.p")}</p>
-    <div class="row"><input id="relay" class="sp" placeholder="${esc(t("relay.ph"))}" aria-label="${esc(t("relay.addr"))}" value="${esc(st.relay || "")}"><button id="saveRelay" class="pri">${ic("globe")} ${t("turnOn")}</button></div>
-    <div id="relayOut"></div></details>` : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p></div>`}
-  <div class="sec" style="color:var(--danger)">${t("set.danger")}</div>
-  <div class="card" style="border-color:color-mix(in srgb,var(--danger) 35%,var(--stroke))"><h2>${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
-    <h2 style="margin-top:18px">${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
-    <button id="release" class="bad">${ic("octagon-x")} ${t("rel.btn")}</button></div>
   </div></div>`;
   rulesWire($("#rsx"), edit);
   b.querySelectorAll("[data-unp]").forEach(x => x.onclick = async () => {
@@ -255,7 +258,6 @@ function setTab(b) {
   sysDraw();
   if (APP) $("#f-days").onchange = e => kgCall("setHistoryDays", e.target.value);
   if (APP) $("#f-notify").onchange = e => { kgCall("setNotify", e.target.checked ? "true" : "false"); if (e.target.checked) setTimeout(() => { if (kgCall("canNotify") === "false") toast("warn|" + t("notif.blockedShort")); }, 1500); };
-  if ($("#relayBox")) $("#relayBox").ontoggle = e => { relayOpen = e.target.open; };
   $("#saveName").onclick = () => { cur.name = $("#f-name").value || t("kid"); save(kids); render(); };
   // saved right away (not the 0.5 s debounce) so the button can show sending -> saved / failed
   $("#savePin").onclick = async () => {
@@ -303,7 +305,8 @@ function setTab(b) {
     if (!(await ask(t(APP ? "forget.askApp" : "forget.askWeb", cur.name), APP ? t("delete") : t("forget"), true))) return;
     screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); navDown(0); };
   if ($("#f-au")) $("#f-au").onchange = e => { if (!edit) return; edit.autoUpdate = e.target.checked; changed(); };
-  if ($("#devOff")) $("#devOff").onclick = devOff;
+  if ($("#devOff")) $("#devOff").onclick = () => devOff(false);
+  if ($("#devOn")) $("#devOn").onclick = () => devOff(true);
   if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, t("upd.sent"), [t("upd.ask"), t("upd.ok")]).then(() => setTimeout(refresh, 4000));
   $("#release").onclick = async () => {
     await cmd({ type: "release" }, t("rel.done"), [t("rel.ask"), t("rel.ok"), true, t("rel.word")]);

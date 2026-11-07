@@ -39,7 +39,8 @@ const KEY = "kg.kids";
 const APP = !!window.KGApp;
 // on-device parent page (child app AdminActivity): the session rides an HttpOnly cookie, JS never sees a token
 const LOCAL = !APP && !!window.KGLocal;
-const localBar = () => LOCAL ? `<div class="alert warn row" style="position:sticky;top:0;z-index:30">${ic("smartphone")} <span class="sp">${t("local.bar")}</span><button id="localEnd" class="pri">${ic("check")} ${t("local.end")}</button></div>` : "";
+// one slim line (it used to fill half a phone screen); "Exit" ends the session, the full rule is in its title
+const localBar = () => LOCAL ? `<div class="lbar" title="${esc(t("local.why"))}">${ic("smartphone")}<span>${t("local.bar")}</span><button id="localEnd">${ic("x")} ${t("local.end")}</button></div>` : "";
 function localWire() { const b = $("#localEnd"); if (b) b.onclick = () => { try { KGLocal.end(); } catch {} }; }
 function localOver() { gen++; clearInterval(timer); cur = null; $("#app").className = "solo"; $("#app").innerHTML = `<div class="card mute">${ic("lock")} ${t("local.over")}</div>`; try { KGLocal.end(); } catch {} }
 async function localBoot() {

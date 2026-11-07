@@ -106,6 +106,7 @@
     <string name="ch_warn">Báo trước khi hết giờ</string>
     <string name="log_cmd">Lệnh: %1$s → %2$s</string>
     <string name="log_cleared">Bố mẹ xoá dữ liệu: %1$s</string>
+    <string name="log_dev_on">Bố mẹ đã bật lại Tuỳ chọn nhà phát triển và gỡ lỗi USB</string>
     <string name="log_dev_off">Bố mẹ đã tắt Tuỳ chọn nhà phát triển và gỡ lỗi USB</string>
     <string name="log_totp_off">Đã tắt mã mở khoá</string>
     <string name="log_totp_on">Đã bật mã mở khoá (Google Authenticator)</string>

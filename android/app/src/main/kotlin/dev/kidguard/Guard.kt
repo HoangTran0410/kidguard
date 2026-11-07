@@ -432,6 +432,7 @@ class Guard : Service() {
         }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
         "devOff" -> devOff()
+        "devOn" -> DevOpts.on(this).also { if (it == "ok") store.log(R.string.log_dev_on) }
         // the parent page made the secret and shows it as an Authenticator QR; "" turns codes off
         "totpSet" -> c.optString("secret").let { s ->
             if (s.isNotEmpty() && Totp.decode(s) == null) "bad secret"
