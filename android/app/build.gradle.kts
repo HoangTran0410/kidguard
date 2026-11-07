@@ -36,9 +36,9 @@ android {
             ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
         }
     }
-    // one UI file for the APK (LAN) and the worker (away): web/index.html
+    // one UI for the APK (LAN) and the worker (away): web/index.html + web/ui/
     sourceSets["main"].assets.srcDirs("../../web")
-    // the apps serve only index.html; the installer pages + their bundle are for the worker / a browser
+    // the apps serve only index.html + ui/; the installer pages + their bundle are for the worker / a browser
     androidResources {
         ignoreAssetsPatterns += listOf("!install.html", "!qr.html", "!provision.json", "!vendor")
         // UI languages: English (res/values, default) + Vietnamese (res/values-vi). Also drops libraries' other languages.

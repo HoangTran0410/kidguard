@@ -9,6 +9,11 @@ ck("sync binds, no live",r.status==200&&!j.live);
 {const q=await fetch(`${B}/qr`),qt=await q.text(),l=await fetch(`${B}/vendor/qrcode.js`),lt=await l.text();
 ck("qr page loads the QR lib from vendor/",q.status==200&&qt.includes('src="vendor/qrcode.js"')&&!qt.includes("qrcode-generator 1.4.4"));
 ck("vendor/qrcode.js served as JS",l.status==200&&/javascript/.test(l.headers.get("content-type"))&&lt.includes("qrcode-generator 1.4.4"));}
+{const pg=await (await fetch(`${B}/`)).text(),srcs=[...pg.matchAll(/(?:src|href)="\/ui\/([a-z0-9-]+\.(?:js|css))"/g)].map(m=>m[1]);
+let okAll=srcs.length>10;for(const n of srcs){const x=await fetch(`${B}/ui/${n}`);await x.text();if(x.status!=200||x.headers.get("x-content-type-options")!="nosniff"||!(n.endsWith(".css")?/text\/css/:/javascript/).test(x.headers.get("content-type")))okAll=false;}
+ck("every /ui/ file the page names is served with its type ("+srcs.length+")",okAll);
+const c=await fetch(`${B}/ui/core.js`),ct=await c.text();ck("/ui/core.js 200 JS",c.status==200&&/javascript/.test(c.headers.get("content-type"))&&ct.includes("async function call("));
+for(const bad of ["/ui/x.js","/ui/..%2Findex.html","/ui/index.html","/ui/toString","/ui/"]){const x=await fetch(B+bad);await x.text();ck("unknown "+bad+" 404",x.status==404);}}
 ck("wrong token 401",(await P("sync","{}",BAD)).status==401);
 ck("wrong token frame GET 401",(await fetch(`${B}/c/${id}/frame?after=0`,{headers:H(BAD)})).status==401);
 r=await P("live","{}");j=await r.json();ck("live ok phone -1",j.ok&&j.phone==-1);

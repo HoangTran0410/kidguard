@@ -393,6 +393,13 @@ object Safety {
     /** Pairing: every 3rd wrong guess (code or PIN) makes a new code and blocks for 30 s, 60 s, … */
     fun pairBlockMs(fails: Int): Long = if (fails > 0 && fails % 3 == 0) backoffMs(fails / 3, 1, 30_000L) else 0
 
+    private val UI = Regex("""/ui/([a-z0-9][a-z0-9-]{0,40})\.(js|css)""")
+
+    /** `/ui/<name>.js|css` (the page's code, web/ui/) -> (asset path, Content-Type); anything else (traversal, other dirs) -> null. */
+    fun uiAsset(path: String): Pair<String, String>? = UI.matchEntire(path)?.let { m ->
+        "ui/${m.groupValues[1]}.${m.groupValues[2]}" to (if (m.groupValues[2] == "js") "text/javascript; charset=utf-8" else "text/css; charset=utf-8")
+    }
+
     private fun portOk(p: String) = p.isEmpty() || (p.startsWith(":") && p.length in 2..6 && p.drop(1).all { it.isDigit() })
     private val V4 = Regex("""\d{1,3}(\.\d{1,3}){3}""")
     private val LABEL = Regex("[a-z0-9-]{1,63}")

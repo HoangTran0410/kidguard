@@ -6,6 +6,41 @@ import html from "../../web/index.html";
 import install from "../../web/install.html";
 import qr from "../../web/qr.html";
 import qrLib from "../../web/vendor/qrcode.js";   // text (wrangler rule), served next to /qr
+// the parent page's code (web/ui/, text via the wrangler rule), served at /ui/<name>: a new file there goes here too
+import ui_style_css from "../../web/ui/style.css";
+import ui_qrcode_js from "../../web/ui/qrcode.js";
+import ui_i18n_vi_js from "../../web/ui/i18n-vi.js";
+import ui_i18n_en_js from "../../web/ui/i18n-en.js";
+import ui_core_js from "../../web/ui/core.js";
+import ui_overview_js from "../../web/ui/overview.js";
+import ui_kid_js from "../../web/ui/kid.js";
+import ui_tab_files_js from "../../web/ui/tab-files.js";
+import ui_shell_js from "../../web/ui/shell.js";
+import ui_tab_home_js from "../../web/ui/tab-home.js";
+import ui_tab_apps_js from "../../web/ui/tab-apps.js";
+import ui_tab_rules_js from "../../web/ui/tab-rules.js";
+import ui_tab_screen_js from "../../web/ui/tab-screen.js";
+import ui_tab_where_js from "../../web/ui/tab-where.js";
+import ui_tab_set_js from "../../web/ui/tab-set.js";
+import ui_start_js from "../../web/ui/start.js";
+const UI = {
+  "style.css": ui_style_css,
+  "qrcode.js": ui_qrcode_js,
+  "i18n-vi.js": ui_i18n_vi_js,
+  "i18n-en.js": ui_i18n_en_js,
+  "core.js": ui_core_js,
+  "overview.js": ui_overview_js,
+  "kid.js": ui_kid_js,
+  "tab-files.js": ui_tab_files_js,
+  "shell.js": ui_shell_js,
+  "tab-home.js": ui_tab_home_js,
+  "tab-apps.js": ui_tab_apps_js,
+  "tab-rules.js": ui_tab_rules_js,
+  "tab-screen.js": ui_tab_screen_js,
+  "tab-where.js": ui_tab_where_js,
+  "tab-set.js": ui_tab_set_js,
+  "start.js": ui_start_js,
+};
 
 const MAX_BODY = 256 * 1024, MAX_DEVICE = 32 * 1024;
 const MAX_FRAME = 1024 * 1024;
@@ -24,7 +59,7 @@ const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update",
 const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "setting", "fileUp", "fileDel"];
 const SETTING_KEYS = ["vol.ring", "vol.media", "vol.alarm", "bright", "autoBright", "timeoutMs", "dnd"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
-// inline scripts/styles are needed (single-file pages); the installer imports ESM from jsDelivr and downloads the APK
+// 'self': the parent page's /ui/ files; 'unsafe-inline': install/qr inline scripts + a few inline handlers in the parent page; the installer imports ESM from jsDelivr and downloads the APK
 const CSP = [
   "default-src 'none'", "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net", "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://tile.openstreetmap.de https://tile.openstreetmap.org", "font-src 'self' data:",
@@ -47,6 +82,13 @@ export default {
       : req.method === "GET" && url.pathname === "/qr" ? qr : null;
     if (req.method === "GET" && url.pathname === "/vendor/qrcode.js") return new Response(qrLib, { headers: {
       "content-type": "text/javascript; charset=utf-8", "cache-control": "public, max-age=86400", "x-content-type-options": "nosniff" } });
+    if (req.method === "GET" && url.pathname.startsWith("/ui/")) {
+      const n = url.pathname.slice(4), body = Object.hasOwn(UI, n) ? UI[n] : null;
+      if (body === null) return json({ error: "not found" }, 404);
+      return new Response(body, { headers: {   // no-cache: always the same version as the page that loads it
+        "content-type": (n.endsWith(".css") ? "text/css" : "text/javascript") + "; charset=utf-8", "cache-control": "no-cache",
+        "x-content-type-options": "nosniff" } });
+    }
     if (page) {
       return new Response(page, { headers: {
         "content-type": "text/html; charset=utf-8", "cache-control": "no-cache",

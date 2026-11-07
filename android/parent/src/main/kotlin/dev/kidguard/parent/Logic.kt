@@ -59,6 +59,13 @@ object Logic {
     fun isFilesPath(rest: String): Boolean { val p = rest.substringBefore("?"); return p == "/api/files" || p.startsWith("/api/files/") || RELAY_FILE.matches(p) }
 
     /** "/k/<t>/<rest>" -> (target, rest-with-leading-slash-and-query-stripped-by-caller). Null when malformed/invalid target. */
+    private val UI = Regex("""/ui/([a-z0-9][a-z0-9-]{0,40})\.(js|css)""")
+
+    /** `/ui/<name>.js|css` (the page's code, web/ui/) -> (asset path, Content-Type); anything else -> null. Same rule as the child's Safety.uiAsset. */
+    fun uiAsset(path: String): Pair<String, String>? = UI.matchEntire(path)?.let { m ->
+        "ui/${m.groupValues[1]}.${m.groupValues[2]}" to (if (m.groupValues[2] == "js") "text/javascript; charset=utf-8" else "text/css; charset=utf-8")
+    }
+
     fun parseKidPath(path: String): Pair<String, String>? {
         if (!path.startsWith("/k/")) return null
         val body = path.substring(3)

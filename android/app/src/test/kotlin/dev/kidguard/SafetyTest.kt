@@ -21,6 +21,14 @@ class SafetyTest {
         assertEquals(120_000L, Safety.pairBlockMs(9))
     }
 
+    @Test fun uiAsset() {
+        assertEquals("ui/core.js" to "text/javascript; charset=utf-8", Safety.uiAsset("/ui/core.js"))
+        assertEquals("ui/style.css" to "text/css; charset=utf-8", Safety.uiAsset("/ui/style.css"))
+        assertEquals("ui/tab-set.js", Safety.uiAsset("/ui/tab-set.js")?.first)
+        listOf("/ui/../index.html", "/ui/a/b.js", "/ui/.js", "/ui/x.html", "/ui/X.js", "/ui/x.js?", "/vendor/qrcode.js",
+            "/ui/core.js/", "/ui/-x.js", "ui/core.js").forEach { assertEquals(it, null, Safety.uiAsset(it)) }
+    }
+
     @Test fun hostAllowed() {
         listOf(null, "", "192.168.1.5:8770", "127.0.0.1", "localhost:8770", "[::1]:8770", "[fe80::1%25wlan0]",
             "kid-an:8770", "kid-an.tail1234.ts.net", "100.65.87.104:8770").forEach { assertTrue(it.toString(), Safety.hostOk(it)) }

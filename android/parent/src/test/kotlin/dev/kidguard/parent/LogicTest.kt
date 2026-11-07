@@ -30,6 +30,13 @@ class LogicTest {
         assertNull(Logic.parseKidPath("/x/abc/def"))
     }
 
+    @Test fun uiAsset() {
+        assertEquals("ui/core.js" to "text/javascript; charset=utf-8", Logic.uiAsset("/ui/core.js"))
+        assertEquals("ui/style.css" to "text/css; charset=utf-8", Logic.uiAsset("/ui/style.css"))
+        listOf("/ui/../index.html", "/ui/a/b.js", "/ui/x.html", "/app/history/days", "/ui/core.js/", "/ui/-x.js")
+            .forEach { assertNull(it, Logic.uiAsset(it)) }
+    }
+
     @Test fun statePaths() {
         assertTrue(Logic.isStatePath("GET", "/api/state"))
         assertTrue(Logic.isStatePath("GET", "/c/0123456789abcdef/state"))

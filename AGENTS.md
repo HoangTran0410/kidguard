@@ -11,13 +11,20 @@ Root: `android/` (Gradle project: `app/` child app, `parent/` parent app), `web/
   - `Rules.kt` pure rules + `decide()` (block-reason priority, see protocol). Unit-tested, keep it Android-free.
   - `Guard.kt` foreground loop: applies rules, suspends apps, location track. `Policy.kt` DevicePolicyManager restrictions.
   - `Store.kt` persistence, `Usage.kt` usage stats, `Watchdog.kt` restart alarm, `Provisioning.kt` QR/Device Owner.
-  - `Http.kt` LAN server on `:8770` (serves `web/index.html` from assets), `Api.kt` its routes (token `X-KG-Token`).
+  - `Http.kt` LAN server on `:8770` (serves `web/index.html` + `web/ui/*` from assets), `Api.kt` its routes (token `X-KG-Token`).
   - `Relay.kt` phone side of the worker relay. `Acc.kt` accessibility: screen capture + remote input (API 30+).
   - `SelfSetup*.kt` phone runs adb against itself over Wireless debugging (libadb-android + Conscrypt).
   - `MainActivity.kt` child UI, `Ic.kt` Lucide vector icons (`res/drawable/li_*.xml`).
 - `web/` is **one UI for both sides**: it is the APK's assets dir (`sourceSets.assets.srcDirs("../../web")`, for both apps) and the worker
-  imports the `.html` files as text. Single-file pages, inline JS/CSS, no build step.
-  - `index.html` parent page. `install.html` WebUSB installer (Tango ADB bundled inline; rebuild: `web/vendor/build.sh`).
+  imports the `.html` files (and `web/ui/*`) as text. No build step.
+  - `index.html` parent page: markup shell + icon sprite; its CSS/JS live in `web/ui/` (`style.css`, then classic `defer` scripts
+    sharing globals, in the `<script>` order of index.html: `qrcode.js`, `i18n-vi.js`, `i18n-en.js` (dict `L`), `core.js` (i18n fns,
+    storage, `call()`/`base()`, helpers, boot, add/pair/list screens), `overview.js` (all-kids view, map engine, back nav), `kid.js`
+    (open/refresh, rules save, `ask`, `cmd`, templates), `tab-files.js`, `shell.js` (nav, `render()`, banners, actions, sheets),
+    `tab-home|apps|rules|screen|where|set.js`, `start.js` (boot call, last)). Served at `/ui/<name>` by `Api.kt`, the parent
+    app's `Proxy.kt` (both: whitelist `/ui/[a-z0-9-]+.(js|css)`) and the worker (explicit import map `UI`).
+    **New `web/ui` file** ⇒ add its `<script defer>` tag in index.html AND its import in `worker/src/index.js` (the worker test
+    fetches every `/ui/` file the page names). Top-level `let`/`const` are shared across files: never redeclare a name. `install.html` WebUSB installer (Tango ADB bundled inline; rebuild: `web/vendor/build.sh`).
   - `qr.html` QR provisioning page (QR library in `vendor/qrcode.js`, served by the worker at `/vendor/qrcode.js`); `scripts/build.sh` rewrites the JSON between `/*KG*/` markers and `web/provision.json`.
 - `worker/src/index.js` relay (Durable Object `Kid`, SQLite, free plan). Command whitelist lives here.
 - `scripts/setup.sh`, `scripts/setup.ps1`, `install.html`, `SelfSetup.kt` all do the same setup steps: keep them in sync (protocol "Setup steps").

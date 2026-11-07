@@ -18,8 +18,9 @@ jobs:
         run: ./gradlew --no-daemon testDebugUnitTest :parent:testDebugUnitTest
       - name: Page script parses
         run: |
-          node -e 'const s=require("fs").readFileSync("web/index.html","utf8");const m=[...s.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(x=>x[1]).join("\n");require("fs").writeFileSync("/tmp/page.js",m)'
-          node --check /tmp/page.js
+          files=$(grep -o 'src="/ui/[a-z0-9-]*\.js"' web/index.html | sed 's|src="/|web/|; s|"$||')
+          for f in $files; do node --check "$f"; done
+          cat $files > /tmp/page.js && node --check /tmp/page.js
   worker:
     runs-on: ubuntu-latest
     timeout-minutes: 15

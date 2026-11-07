@@ -154,6 +154,11 @@ The first capture / first input of a session is logged in the phone log.
 - `GET /c/<id>/state` already returns `seen` (ms of the phone's last sync): the page warns when `now - seen > 5 min`.
 - The worker also serves `GET /install` -> `web/install.html`.
 
+### Parent page files (served next to the page by the phone, the parent app and the worker)
+- `GET /` (or `/index.html`) -> `web/index.html`; it loads `GET /ui/<name>.css|js` (files of `web/ui/`, name `[a-z0-9-]+`).
+  No token (public like the page). `text/css` / `text/javascript; charset=utf-8`, `nosniff`; phone + parent app `no-store`,
+  worker `no-cache`. Any other `/ui/...` path -> 404. The parent app's proxy also wants its `kgs` cookie, like `/`.
+
 ### API levels (v0.9.6)
 - **API 30+**: frames from `AccessibilityService.takeScreenshot` (unchanged).
 - **API 26-29**: frames from **MediaProjection** (`Proj.kt`), same JPEG / headers / routes as above. The first capture
@@ -346,7 +351,7 @@ the child over plain http; the WebView itself may only reach `127.0.0.1:<port>` 
 - **Access**: the WebView first loads `/s/<secret>` (secret random per app start) which sets cookie
   `kgs=<secret>` (HttpOnly, SameSite=Strict) and 302s to `/`. Without the cookie or with a `Host` other than
   `127.0.0.1:<port>`: 403.
-- `GET /` -> index.html (same headers as the phone, CSP also `connect-src 'self'`).
+- `GET /` -> index.html (same headers as the phone, CSP also `connect-src 'self'`); `GET /ui/<name>.js|css` -> its files.
 - **Proxy** `ANY /k/<t>/<rest>` -> `<target>/<rest>`; `t` = base64url (no padding) of `http://<host>:<port>` (LAN /
   Tailscale) or `https://<worker host>` (relay); other schemes, userinfo, paths -> 400. Forwards method, query, body and
   `X-KG-Token`, `X-KG-W`, `X-KG-H`, `Content-Type`; returns status, body, `Content-Type` and all `X-KG-*` headers.
