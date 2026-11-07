@@ -81,7 +81,12 @@ if (-not $Yes) {
 # adb shell often exits 0 on failure: run a command, stop if the output looks like an error.
 function Chk {
     $o = Adb shell @args
-    if ($o -match "Error|Exception|denied|Failure") { Write-Host "LỖI: $o"; exit 1 }
+    if ($o -match "Error|Exception|denied|Failure") {
+        Write-Host "LỖI: $o"
+        # ColorOS blocks adb from granting permissions until "Disable permission monitoring" is on
+        if ($o -match "UPDATE_APP_OPS_STATS|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS") { Write-Host '→ Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật "Tắt giám sát quyền" (Disable permission monitoring), rồi chạy lại.' }
+        exit 1
+    }
 }
 
 Write-Host "[1/8] Cài app"

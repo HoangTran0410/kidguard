@@ -127,6 +127,9 @@ class AdbPortFinder(ctx: Context, private val type: String) {
 
 /** Pure helpers (unit tested). */
 object SelfSetupLogic {
+    /** ColorOS (Oppo/Realme/OnePlus) refuses adb permission grants until "Disable permission monitoring" is on. */
+    fun permMonitoring(out: String) = Regex("UPDATE_APP_OPS_STATS|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS").containsMatchIn(out)
+
     private val ACCOUNT = Regex("""Account \{name=([^,}]*), type=([^}]*)\}""")
 
     /** Accounts listed by `dumpsys account` as "name (type)". */
@@ -228,7 +231,9 @@ object SelfSetup {
             mark(app, i, STEP_RUN)
             val out = sh(cmd); Log.i(AdbPortFinder.TAG, "$cmd -> $out")
             val good = if (need != null) need(out) else SelfSetupLogic.ok(out)
-            if (!good) { state[i] = STEP_ERR; message = out.ifBlank { app.getString(R.string.ss_cmd_fail) }; notifyFinal(app, app.getString(R.string.ss_failed, message)); return false }
+            if (!good) { state[i] = STEP_ERR; message = out.ifBlank { app.getString(R.string.ss_cmd_fail) }
+                if (SelfSetupLogic.permMonitoring(out)) message += "\n" + app.getString(R.string.ss_perm_mon)
+                notifyFinal(app, app.getString(R.string.ss_failed, message)); return false }
             state[i] = STEP_OK; return true
         }
 

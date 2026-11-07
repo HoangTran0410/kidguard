@@ -23,4 +23,11 @@ class SelfSetupLogicTest {
         assertTrue(SelfSetupLogic.ok(""))
         assertFalse(SelfSetupLogic.ok("java.lang.SecurityException: denied"))
     }
+
+    @Test fun colorOsPermissionMonitoring() {
+        // real output from an Oppo CPH1912 (ColorOS 5, Android 8.1) with permission monitoring on
+        assertTrue(SelfSetupLogic.permMonitoring("Security exception: uid 2000 does not have android.permission.UPDATE_APP_OPS_STATS."))
+        assertTrue(SelfSetupLogic.permMonitoring("Operation not allowed: java.lang.SecurityException: grantRuntimePermission: Neither user 2000 nor current process has android.permission.GRANT_RUNTIME_PERMISSIONS."))
+        assertTrue(!SelfSetupLogic.permMonitoring("Error: Unknown package: dev.kidguard"))
+    }
 }

@@ -204,6 +204,7 @@
     <string name="step_acc">Bật trợ năng</string>
     <string name="step_battery">Cho phép chạy nền (không giới hạn pin)</string>
     <string name="ss_failed">Chưa cài được: %1$s</string>
+    <string name="ss_perm_mon">Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật \"Tắt giám sát quyền\" (Disable permission monitoring), rồi làm lại.</string>
     <string name="ss_no_pair_port">Không thấy cổng ghép nối. Hãy mở lại hộp thoại \"Ghép thiết bị bằng mã ghép nối\" rồi thử lại.</string>
     <string name="ss_pair_fail">Ghép nối không thành công (sai mã hoặc hộp thoại đã đóng).</string>
     <string name="ss_no_conn_port">Ghép nối xong nhưng không thấy cổng kết nối. Hãy tắt rồi bật lại \"Gỡ lỗi không dây\".</string>

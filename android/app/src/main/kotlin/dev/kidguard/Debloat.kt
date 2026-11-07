@@ -40,6 +40,10 @@ object Debloat {
         "com.coloros.childrenspace", "com.coloros.soundrecorder", "com.nearme.gamecenter", "com.nearme.instant.platform",
         "com.nearme.statistics.rom", "com.realme.store", "com.realme.link", "com.realmecomm.app", "com.opos.ads", "com.opos.cs",
         "com.oplus.games", "com.oplus.melody", 
+        // older ColorOS (5/6, Android 8-9): ad offerwall, theme store, lock-screen magazine, global search, tips, cloud
+        "com.coloros.avastofferwall", "com.nearme.themespace", "com.coloros.pictorial", "com.oppo.quicksearchbox",
+        "com.coloros.operationtips", "com.oppo.operationManual", "com.oppoex.afterservice", "com.coloros.cloud",
+        "com.coloros.accegamesdk", "com.opera.preinstall",
         
         // Xiaomi / MIUI / Redmi / POCO
         "com.miui.msa.global", "com.miui.analytics", "com.miui.systemAdSolution", "com.xiaomi.mipicks", "com.xiaomi.discover",

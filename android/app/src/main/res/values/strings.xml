@@ -212,6 +212,7 @@
     <string name="step_acc">Turn on Accessibility</string>
     <string name="step_battery">Allow running in the background (no battery limits)</string>
     <string name="ss_failed">Setup failed: %1$s</string>
+    <string name="ss_perm_mon">Oppo/Realme/OnePlus (ColorOS): in Developer options turn on \"Disable permission monitoring\", then try again.</string>
     <string name="ss_no_pair_port">Pairing port not found. Open the \"Pair device with pairing code\" dialog again and retry.</string>
     <string name="ss_pair_fail">Pairing failed (wrong code, or the dialog was closed).</string>
     <string name="ss_no_conn_port">Paired, but the connection port wasn\'t found. Turn \"Wireless debugging\" off and on again.</string>

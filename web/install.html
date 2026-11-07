@@ -236,7 +236,9 @@ const sh = async (cmd) => {
 };
 // adb shell often exits 0 on failure, so look at the text
 const BAD = /Error|Exception|denied|Failure/i;
-const must = async (cmd) => { const out = await sh(cmd); if (BAD.test(out)) throw new Error(out.trim()); return out; };
+// ColorOS blocks adb from granting permissions until "Disable permission monitoring" is on
+const PERM_MON = /UPDATE_APP_OPS_STATS|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS/;
+const must = async (cmd) => { const out = await sh(cmd); if (BAD.test(out)) throw new Error(out.trim() + (PERM_MON.test(out) ? "\n→ Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật \"Tắt giám sát quyền\" (Disable permission monitoring), rồi chạy lại." : "")); return out; };
 
 async function pushApk(remote) {
   const sync = await adb.sync();
