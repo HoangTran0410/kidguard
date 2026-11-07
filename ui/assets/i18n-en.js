@@ -1,4 +1,4 @@
-// KidGuard parent page, part of web/index.html (classic script, shared globals, load order = the <script> tags there).
+// KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 L.en = {
   lang: "Language", saveFail: "Changes not saved yet", retry: "Try again", pickDay: "Pick a day", kid: "Kid",
   "no.this": "this", needOwner: "Needs Device Owner: the kid's phone is in basic mode, so {0} has no effect.",

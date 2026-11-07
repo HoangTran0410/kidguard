@@ -1,4 +1,4 @@
-// KidGuard parent page, part of web/index.html (classic script, shared globals, load order = the <script> tags there).
+// KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // warning under a time range (bedtime / schedule) that would never block anything
 function timeWarn(x, on, sch) {
   if (!on) return "";

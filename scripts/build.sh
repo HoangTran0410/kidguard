@@ -29,10 +29,10 @@ cp android/parent/build/outputs/apk/release/parent-release.apk build/kidguard-pa
 V=$(sed -n 's/^kg.version=//p' android/gradle.properties)
 cp build/kidguard.apk "build/kidguard-$V.apk"; cp build/kidguard-parent.apk "build/kidguard-parent-$V.apk"
 perl -pi -e 's#releases/(?:latest/download|download/v[0-9.]+)/kidguard(-parent)?(?:-[0-9.]+)?\.apk#releases/download/v'"$V"'/kidguard$1-'"$V"'.apk#g; s#<span class="ver">v[0-9.]*</span>#<span class="ver">v'"$V"'</span>#g' \
-  site/index.html site/en/index.html README.md
+  website/index.html website/en/index.html README.md
 scripts/stamp-site.sh
 
-# QR provisioning: SHA-256 of the signing certificate, URL-safe base64 without padding -> web/provision.json + web/qr.html defaults
+# QR provisioning: SHA-256 of the signing certificate, URL-safe base64 without padding -> ui/provision.json + ui/qr.html defaults
 APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)
 if [ -n "$APKSIGNER" ]; then
   HEX=$("$APKSIGNER" verify --print-certs build/kidguard.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
@@ -41,14 +41,14 @@ else
 fi
 if [ -n "$HEX" ]; then
   SUM=$(printf '%s' "$HEX" | xxd -r -p | base64 | tr '+/' '-_' | tr -d '=\n')
-  [ -f web/provision.json ] && URL=$(sed -n 's/.*"apkUrl": *"\([^"]*\)".*/\1/p' web/provision.json) || URL=
+  [ -f ui/provision.json ] && URL=$(sed -n 's/.*"apkUrl": *"\([^"]*\)".*/\1/p' ui/provision.json) || URL=
   : "${URL:=https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk}"
   J="{\"component\":\"dev.kidguard/dev.kidguard.Admin\",\"checksum\":\"$SUM\",\"apkUrl\":\"$URL\"}"
-  echo "$J" > web/provision.json
+  echo "$J" > ui/provision.json
   # the worker bundles only .html, so the same values are inlined into the page between /*KG*/ markers
-  sed -E "s|/\*KG\*/.*/\*KG\*/|/*KG*/$J/*KG*/|" web/qr.html > web/qr.html.tmp && mv web/qr.html.tmp web/qr.html
+  sed -E "s|/\*KG\*/.*/\*KG\*/|/*KG*/$J/*KG*/|" ui/qr.html > ui/qr.html.tmp && mv ui/qr.html.tmp ui/qr.html
   echo "QR checksum: $SUM"
 else
-  echo "warning: could not compute the signing checksum (web/provision.json not updated)" >&2
+  echo "warning: could not compute the signing checksum (ui/provision.json not updated)" >&2
 fi
 echo "build/kidguard.apk ($(du -h build/kidguard.apk | cut -f1))"

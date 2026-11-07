@@ -52,7 +52,7 @@ android {
         debug { if (keystore.exists()) signingConfig = signingConfigs.getByName("release") }
     }
     // the same single-file parent page the child phone and the worker serve
-    sourceSets["main"].assets.srcDirs("../../web")
+    sourceSets["main"].assets.srcDirs("../../ui")
     androidResources {
         ignoreAssetsPatterns += listOf("!install.html", "!qr.html", "!provision.json", "!vendor")
         // UI languages: English (res/values, default) + Vietnamese (res/values-vi). Also drops libraries' other languages.

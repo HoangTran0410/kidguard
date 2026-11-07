@@ -1,4 +1,4 @@
-// KidGuard parent page, part of web/index.html (classic script, shared globals, load order = the <script> tags there).
+// KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // ---- shell: one NAV list feeds the desktop sidebar and the phone bottom bar ("Thêm" holds the rest) ----
 const NAV = [["home", "house"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["screen", "smartphone"], ["dev", "cpu"], ["files", "folder-open"], ["log", "notebook-pen"], ["rep", "chart-column"], ["hist", "history"], ["set", "settings"]];
 const BNAV = [["home", "house"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["more", "ellipsis"]];

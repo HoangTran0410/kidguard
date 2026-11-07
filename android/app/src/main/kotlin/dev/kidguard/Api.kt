@@ -39,7 +39,7 @@ class Api(private val g: Guard) {
         if (r.method == "GET" && (r.path == "/" || r.path == "/index.html")) {
             return Res(200, "text/html; charset=utf-8", g.assets.open("index.html").use { it.readBytes() })
         }
-        // the page's scripts + style (web/ui/), public like the page itself
+        // the page's scripts + style (ui/assets/), public like the page itself
         if (r.method == "GET") Safety.uiAsset(r.path)?.let { (file, type) ->
             return try { Res(200, type, g.assets.open(file).use { it.readBytes() }) } catch (e: java.io.IOException) { Res.text("not found", 404) }
         }

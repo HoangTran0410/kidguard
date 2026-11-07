@@ -1,4 +1,4 @@
-// KidGuard parent page, part of web/index.html (classic script, shared globals, load order = the <script> tags there).
+// KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 function homeTab(b) {
   const r = edit || st.rules, today = st.day, limit = edit ? todayLimit(r, today) : (st.limitMin ?? r.dailyMin);
   const reqs = (st.requests || []).filter(q => !answered.has(q.id));

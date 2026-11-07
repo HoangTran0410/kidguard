@@ -1,4 +1,4 @@
-// KidGuard parent page, part of web/index.html (classic script, shared globals, load order = the <script> tags there).
+// KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // --- one child ------------------------------------------------------------
 let noState = false;   // relay answered {state: null}: the child never synced
 let gen = 0;   // bumped by every screen change; async work started for an older screen drops its result

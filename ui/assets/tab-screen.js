@@ -1,4 +1,4 @@
-// KidGuard parent page, part of web/index.html (classic script, shared globals, load order = the <script> tags there).
+// KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // --- live screen + remote control -------------------------------------------
 // Runs independently of the 4 s state poll (refresh() never redraws the screen tab).
 const scr = { gen: 0, url: null, seq: 0, frames: [], lat: 0, liveT: null, view: false, err: "", msg: "", off: false };   // off: the last frame answer was "screen off"

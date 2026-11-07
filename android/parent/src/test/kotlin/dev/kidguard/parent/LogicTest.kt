@@ -31,8 +31,8 @@ class LogicTest {
     }
 
     @Test fun uiAsset() {
-        assertEquals("ui/core.js" to "text/javascript; charset=utf-8", Logic.uiAsset("/ui/core.js"))
-        assertEquals("ui/style.css" to "text/css; charset=utf-8", Logic.uiAsset("/ui/style.css"))
+        assertEquals("assets/core.js" to "text/javascript; charset=utf-8", Logic.uiAsset("/ui/core.js"))
+        assertEquals("assets/style.css" to "text/css; charset=utf-8", Logic.uiAsset("/ui/style.css"))
         listOf("/ui/../index.html", "/ui/a/b.js", "/ui/x.html", "/app/history/days", "/ui/core.js/", "/ui/-x.js")
             .forEach { assertNull(it, Logic.uiAsset(it)) }
     }

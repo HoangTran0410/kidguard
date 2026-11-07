@@ -1,10 +1,10 @@
-# Deploys your own KidGuard relay (worker/) to YOUR Cloudflare account (free plan) and prints its address.
+# Deploys your own KidGuard relay (relay/) to YOUR Cloudflare account (free plan) and prints its address.
 # Same as scripts/relay.sh. Needs Node.js 18+; opens a browser once to log in.
 #   powershell -ExecutionPolicy Bypass -File scripts\relay.ps1            deploy (or update)
 #   powershell -ExecutionPolicy Bypass -File scripts\relay.ps1 -Delete    remove it from your account
 param([switch]$Delete)
 $ErrorActionPreference = "Stop"
-Set-Location (Join-Path $PSScriptRoot "..\worker")
+Set-Location (Join-Path $PSScriptRoot "..\relay")
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Write-Host "Need Node.js 18+ (https://nodejs.org)"; exit 1 }
 if ([int](node -p "process.versions.node.split('.')[0]") -lt 18) { Write-Host "Need Node.js 18+, found $(node -v)"; exit 1 }

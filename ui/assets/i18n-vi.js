@@ -1,4 +1,4 @@
-// KidGuard parent page, part of web/index.html (classic script, shared globals, load order = the <script> tags there).
+// KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // ---- i18n ----------------------------------------------------------------
 // To add a language: add one object to L (same keys as en; a missing key falls back to en, then to the key itself)
 // and one [code, name] entry to LANGS. {0} {1} are arguments; {one, other} picks a plural form (Intl.PluralRules) by {0}.

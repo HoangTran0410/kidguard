@@ -395,9 +395,9 @@ object Safety {
 
     private val UI = Regex("""/ui/([a-z0-9][a-z0-9-]{0,40})\.(js|css)""")
 
-    /** `/ui/<name>.js|css` (the page's code, web/ui/) -> (asset path, Content-Type); anything else (traversal, other dirs) -> null. */
+    /** `/ui/<name>.js|css` (the page's code, ui/assets/) -> (asset path, Content-Type); anything else (traversal, other dirs) -> null. */
     fun uiAsset(path: String): Pair<String, String>? = UI.matchEntire(path)?.let { m ->
-        "ui/${m.groupValues[1]}.${m.groupValues[2]}" to (if (m.groupValues[2] == "js") "text/javascript; charset=utf-8" else "text/css; charset=utf-8")
+        "assets/${m.groupValues[1]}.${m.groupValues[2]}" to (if (m.groupValues[2] == "js") "text/javascript; charset=utf-8" else "text/css; charset=utf-8")
     }
 
     private fun portOk(p: String) = p.isEmpty() || (p.startsWith(":") && p.length in 2..6 && p.drop(1).all { it.isDigit() })

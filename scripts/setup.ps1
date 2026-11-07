@@ -7,7 +7,7 @@ How to run (right-click setup.ps1 is NOT enough; open PowerShell in this folder 
 Before: on the phone, remove every account (Settings > Accounts: Google, Samsung, Xiaomi...), turn on
 USB debugging, plug it in. After setup you can sign in to the accounts again.
 Undo: from the parent's page, Settings > "Gỡ quyền quản lý", then uninstall the app.
-Steps are the same as docs/protocol.md "Setup steps" (setup.sh and web/install.html do the same).
+Steps are the same as docs/protocol.md "Setup steps" (setup.sh and ui/install.html do the same).
 #>
 param([string]$Apk = "", [Alias("y")][switch]$Yes)
 $ErrorActionPreference = "Stop"

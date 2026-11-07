@@ -1,4 +1,4 @@
-// KidGuard parent page, part of web/index.html (classic script, shared globals, load order = the <script> tags there).
+// KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // --- Files tab: the shared folder (docs/protocol.md "Shared files"). Only what was sent, never a browser of the phone. ---
 // Jobs live outside render(): a tab switch or a state refresh keeps transfers running; progress bars update in place.
 const FX = { lan: 200 * 1048576, relay: 10 * 1048576, chunk: 1048576 };

@@ -2,26 +2,26 @@
 // One Durable Object per child (by relay id). It stores the last state the child posted, the newest rules the
 // parent set, and a short queue of commands. The child polls POST /c/<id>/sync every 20-60 s.
 // Auth: the token in the parent's link; the first child sync binds its sha256 to the id.
-import html from "../../web/index.html";
-import install from "../../web/install.html";
-import qr from "../../web/qr.html";
-// the parent page's code (web/ui/, text via the wrangler rule), served at /ui/<name>: a new file there goes here too
-import ui_style_css from "../../web/ui/style.css";
-import ui_qrcode_js from "../../web/ui/qrcode.js";
-import ui_i18n_vi_js from "../../web/ui/i18n-vi.js";
-import ui_i18n_en_js from "../../web/ui/i18n-en.js";
-import ui_core_js from "../../web/ui/core.js";
-import ui_overview_js from "../../web/ui/overview.js";
-import ui_kid_js from "../../web/ui/kid.js";
-import ui_tab_files_js from "../../web/ui/tab-files.js";
-import ui_shell_js from "../../web/ui/shell.js";
-import ui_tab_home_js from "../../web/ui/tab-home.js";
-import ui_tab_apps_js from "../../web/ui/tab-apps.js";
-import ui_tab_rules_js from "../../web/ui/tab-rules.js";
-import ui_tab_screen_js from "../../web/ui/tab-screen.js";
-import ui_tab_where_js from "../../web/ui/tab-where.js";
-import ui_tab_set_js from "../../web/ui/tab-set.js";
-import ui_start_js from "../../web/ui/start.js";
+import html from "../../ui/index.html";
+import install from "../../ui/install.html";
+import qr from "../../ui/qr.html";
+// the parent page's code (ui/assets/, text via the wrangler rule), served at /ui/<name>: a new file there goes here too
+import ui_style_css from "../../ui/assets/style.css";
+import ui_qrcode_js from "../../ui/assets/qrcode.js";
+import ui_i18n_vi_js from "../../ui/assets/i18n-vi.js";
+import ui_i18n_en_js from "../../ui/assets/i18n-en.js";
+import ui_core_js from "../../ui/assets/core.js";
+import ui_overview_js from "../../ui/assets/overview.js";
+import ui_kid_js from "../../ui/assets/kid.js";
+import ui_tab_files_js from "../../ui/assets/tab-files.js";
+import ui_shell_js from "../../ui/assets/shell.js";
+import ui_tab_home_js from "../../ui/assets/tab-home.js";
+import ui_tab_apps_js from "../../ui/assets/tab-apps.js";
+import ui_tab_rules_js from "../../ui/assets/tab-rules.js";
+import ui_tab_screen_js from "../../ui/assets/tab-screen.js";
+import ui_tab_where_js from "../../ui/assets/tab-where.js";
+import ui_tab_set_js from "../../ui/assets/tab-set.js";
+import ui_start_js from "../../ui/assets/start.js";
 const UI = {
   "style.css": ui_style_css,
   "qrcode.js": ui_qrcode_js,

@@ -1,4 +1,4 @@
-// KidGuard parent page, part of web/index.html (classic script, shared globals, load order = the <script> tags there).
+// KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 const sel = { on: false, set: new Set(), f: "all", limOpen: false };
 // "Ứng dụng" tab: segmented sub-tabs (app list / hide preinstalled / storage), last one remembered
 let appsSub = (() => { try { return localStorage.getItem("kg.appsSub") || "list"; } catch { return "list"; } })();

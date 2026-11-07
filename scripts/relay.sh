@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Deploys your own KidGuard relay (worker/) to YOUR Cloudflare account (free plan) and prints its address.
+# Deploys your own KidGuard relay (relay/) to YOUR Cloudflare account (free plan) and prints its address.
 # Your kids' data then only goes through your own account. Needs Node.js 18+; opens a browser once to log in.
 #   scripts/relay.sh            deploy (or update) the relay
 #   scripts/relay.sh --delete   remove it from your account
 set -euo pipefail
-cd "$(dirname "$0")/../worker"
+cd "$(dirname "$0")/../relay"
 
 command -v node >/dev/null || { echo "Need Node.js 18+ (https://nodejs.org)"; exit 1; }
 [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 18 ] || { echo "Need Node.js 18+, found $(node -v)"; exit 1; }

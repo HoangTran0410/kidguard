@@ -36,8 +36,8 @@ android {
             ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
         }
     }
-    // one UI for the APK (LAN) and the worker (away): web/index.html + web/ui/
-    sourceSets["main"].assets.srcDirs("../../web")
+    // one UI for the APK (LAN) and the worker (away): ui/index.html + ui/assets/
+    sourceSets["main"].assets.srcDirs("../../ui")
     // the apps serve only index.html + ui/; the installer pages + their bundle are for the worker / a browser
     androidResources {
         ignoreAssetsPatterns += listOf("!install.html", "!qr.html", "!provision.json", "!vendor")

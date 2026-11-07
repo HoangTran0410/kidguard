@@ -1,4 +1,4 @@
-// KidGuard parent page, part of web/index.html (classic script, shared globals, load order = the <script> tags there).
+// KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 let relayOpen = false;   // the "advanced: relay" box survives re-renders
 // Remote access over Tailscale (state.ts). The auth key is only typed at home (LAN): it never goes through the relay.
 function tsCard(lan) {

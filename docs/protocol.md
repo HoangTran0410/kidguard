@@ -152,10 +152,10 @@ The first capture / first input of a session is logged in the phone log.
 - Parent `POST /c/<id>/input` body = input object -> `{"result":"queued"}` (queue max 50, delivered on the next frame reply).
 - Frames live only in Durable Object memory (never storage).
 - `GET /c/<id>/state` already returns `seen` (ms of the phone's last sync): the page warns when `now - seen > 5 min`.
-- The worker also serves `GET /install` -> `web/install.html`.
+- The worker also serves `GET /install` -> `ui/install.html`.
 
 ### Parent page files (served next to the page by the phone, the parent app and the worker)
-- `GET /` (or `/index.html`) -> `web/index.html`; it loads `GET /ui/<name>.css|js` (files of `web/ui/`, name `[a-z0-9-]+`).
+- `GET /` (or `/index.html`) -> `ui/index.html`; it loads `GET /ui/<name>.css|js` (files of `ui/assets/`, name `[a-z0-9-]+`).
   No token (public like the page). `text/css` / `text/javascript; charset=utf-8`, `nosniff`; phone + parent app `no-store`,
   worker `no-cache`. Any other `/ui/...` path -> 404. The parent app's proxy also wants its `kgs` cookie, like `/`.
 
@@ -343,7 +343,7 @@ The first capture / first input of a session is logged in the phone log.
 - The page uses `${base}/icon?pkg=..&k=..` in all modes (LAN, relay, parent-app proxy `/k/<target>/...`).
 
 ## Parent app (v0.5, module `:parent`, `dev.kidguard.parent`)
-Shows the same `web/index.html` in a WebView (`scripts/build.sh` -> `build/kidguard-parent.apk`). The page only uses same-origin
+Shows the same `ui/index.html` in a WebView (`scripts/build.sh` -> `build/kidguard-parent.apk`). The page only uses same-origin
 URLs, so the app runs a small HTTP server on `127.0.0.1:<port>` (cleartext is allowed app-wide because the proxy calls
 the child over plain http; the WebView itself may only reach `127.0.0.1:<port>` and the OSM tiles).
 - **Port**: random free port chosen once and stored; reused while free. localStorage is per origin, so if the port
@@ -653,7 +653,7 @@ Only volume, brightness, screen timeout and Do Not Disturb; anything else goes t
   per version, the tap opens `releases/download/v<tag>/kidguard-parent-<tag>.apk` in the browser (no install permission).
 - **Release assets**: `kidguard.apk`, `kidguard-parent.apk` + their `.sha256` (fixed names: QR provisioning, setup
   scripts and the child updater use `kidguard.apk`/`kidguard.apk.sha256`; never rename them) and versioned copies
-  `kidguard-<v>.apk`, `kidguard-parent-<v>.apk` for people downloading by hand (site/README link these).
+  `kidguard-<v>.apk`, `kidguard-parent-<v>.apk` for people downloading by hand (website/README link these).
 
 ## Device health, the "Máy" tab (after 0.9.5)
 - State adds `"sdk": 34` (Build.VERSION.SDK_INT) next to `android`.

@@ -7,7 +7,7 @@ const jpg=Buffer.from("ffd8ffe000104a46494600010100000100010000ffd9","hex");
 let r=await P("sync",JSON.stringify({state:{}}));let j=await r.json();
 ck("sync binds, no live",r.status==200&&!j.live);
 {const q=await fetch(`${B}/qr`),qt=await q.text(),l=await fetch(`${B}/ui/qrcode.js`),lt=await l.text();
-ck("qr page loads the shared QR lib from ui/",q.status==200&&qt.includes('src="ui/qrcode.js"')&&!qt.includes("qrcode-generator 1.4.4"));
+ck("qr page loads the shared QR lib from ui/",q.status==200&&qt.includes('src="/ui/qrcode.js"')&&!qt.includes("qrcode-generator 1.4.4"));
 ck("ui/qrcode.js served as JS",l.status==200&&/javascript/.test(l.headers.get("content-type"))&&lt.includes("qrcode-generator 1.4.4"));}
 {const pg=await (await fetch(`${B}/`)).text(),srcs=[...pg.matchAll(/(?:src|href)="\/ui\/([a-z0-9-]+\.(?:js|css))"/g)].map(m=>m[1]);
 let okAll=srcs.length>10;for(const n of srcs){const x=await fetch(`${B}/ui/${n}`);await x.text();if(x.status!=200||x.headers.get("x-content-type-options")!="nosniff"||!(n.endsWith(".css")?/text\/css/:/javascript/).test(x.headers.get("content-type")))okAll=false;}

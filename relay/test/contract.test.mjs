@@ -11,7 +11,7 @@ const guard = rd("android/app/src/main/kotlin/dev/kidguard/Guard.kt");
 const start = guard.indexOf("private fun run(t: String");
 const body = guard.slice(start, guard.indexOf('else -> "unknown"', start));
 const phone = [...body.matchAll(/^\s{8}"(\w+)"\s*->/gm)].map(m => m[1]);
-const js = rd("worker/src/index.js");
+const js = rd("relay/src/index.js");
 const arr = n => [...(js.match(new RegExp(`const ${n} = \\[([^\\]]*)\\]`)) || [, ""])[1].matchAll(/"(\w+)"/g)].map(m => m[1]);
 const CMDS = arr("CMDS"), ONCE = arr("ONCE");
 const docs = rd("docs/protocol.md");

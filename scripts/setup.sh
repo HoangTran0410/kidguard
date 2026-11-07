@@ -4,7 +4,7 @@
 # Before: on the phone, remove every account (Settings > Accounts: Google, Samsung, Xiaomi...), turn on
 # USB debugging, plug it in. After setup you can sign in to the accounts again.
 # Undo: from the parent's page, Settings > "Gỡ quyền quản lý", then uninstall the app.
-# Steps are the same as docs/protocol.md "Setup steps" (setup.ps1 and web/install.html do the same).
+# Steps are the same as docs/protocol.md "Setup steps" (setup.ps1 and ui/install.html do the same).
 set -euo pipefail
 cd "$(dirname "$0")"
 PKG=dev.kidguard

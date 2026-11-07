@@ -202,9 +202,9 @@ scripts/build.sh                              # build/kidguard.apk + build/kidgu
 TRUSTSTORE=/path/trust.jks scripts/build.sh   # behind a TLS-intercepting proxy
 ```
 
-Layout: `android/` (Gradle: `app/` child, `parent/` parent app), `web/` (pages shared by both apps and the Worker), `worker/`, `site/`, `docs/`, `scripts/`.
+Layout: `android/` (Gradle: `app/` child, `parent/` parent app), `ui/` (pages shared by both apps and the Worker), `relay/`, `website/`, `docs/`, `scripts/`.
 
-JDK 17, Android SDK 35. Parent page: `web/index.html` + `web/ui/` (CSS and plain scripts, no build step). Installers: `web/install.html`, `web/qr.html` (the WebUSB ADB library is bundled, rebuild with `web/vendor/build.sh`). Tests: `cd android && ./gradlew testDebugUnitTest :parent:testDebugUnitTest`, `cd worker && npm ci && npm test` (starts `wrangler dev` itself). CI runs both on every push (`.github/workflows/ci.yml`, no signing key there).
+JDK 17, Android SDK 35. Parent page: `ui/index.html` + `ui/assets/` (CSS and plain scripts, no build step). Installers: `ui/install.html`, `ui/qr.html` (the WebUSB ADB library is bundled, rebuild with `ui/vendor/build.sh`). Tests: `cd android && ./gradlew testDebugUnitTest :parent:testDebugUnitTest`, `cd worker && npm ci && npm test` (starts `wrangler dev` itself). CI runs both on every push (`.github/workflows/ci.yml`, no signing key there).
 
 **Signing key:** the QR code carries the checksum of the APK's signing certificate. Every release must be signed with the same `android/app/signing.jks` (not in git; back it up), or phones set up by QR refuse the update.
 

@@ -22,9 +22,9 @@ class SafetyTest {
     }
 
     @Test fun uiAsset() {
-        assertEquals("ui/core.js" to "text/javascript; charset=utf-8", Safety.uiAsset("/ui/core.js"))
-        assertEquals("ui/style.css" to "text/css; charset=utf-8", Safety.uiAsset("/ui/style.css"))
-        assertEquals("ui/tab-set.js", Safety.uiAsset("/ui/tab-set.js")?.first)
+        assertEquals("assets/core.js" to "text/javascript; charset=utf-8", Safety.uiAsset("/ui/core.js"))
+        assertEquals("assets/style.css" to "text/css; charset=utf-8", Safety.uiAsset("/ui/style.css"))
+        assertEquals("assets/tab-set.js", Safety.uiAsset("/ui/tab-set.js")?.first)
         listOf("/ui/../index.html", "/ui/a/b.js", "/ui/.js", "/ui/x.html", "/ui/X.js", "/ui/x.js?", "/vendor/qrcode.js",
             "/ui/core.js/", "/ui/-x.js", "ui/core.js").forEach { assertEquals(it, null, Safety.uiAsset(it)) }
     }

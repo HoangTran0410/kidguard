@@ -1,4 +1,4 @@
-// KidGuard parent page, part of web/index.html (classic script, shared globals, load order = the <script> tags there).
+// KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // --- location history map (no external scripts: OSM tiles as <img> + SVG overlay) -----------
 let trk = [], trkLoaded = 0, trkDay = "", mv = null;
 // --- shared date picker: one button + one month popover (lives outside #app, so re-renders keep it open) -----------

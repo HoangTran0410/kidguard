@@ -35,7 +35,7 @@ class Res(val code: Int, val type: String, val body: ByteArray, val headers: Map
 }
 
 /**
- * The parent app's local server on 127.0.0.1: serves web/index.html (+ its web/ui/ files) and forwards `/k/<t>/<rest>` to the child
+ * The parent app's local server on 127.0.0.1: serves ui/index.html (+ its ui/assets/ files) and forwards `/k/<t>/<rest>` to the child
  * (LAN `http://ip:8770` or relay `https://host`), caching state snapshots (see docs/protocol.md "Parent app").
  */
 class Proxy(private val ctx: Context, val port: Int) {
@@ -88,7 +88,7 @@ class Proxy(private val ctx: Context, val port: Int) {
         Res(200, "text/html; charset=utf-8", ctx.assets.open("index.html").use { it.readBytes() }, html = true)
     } catch (e: Exception) { Res.text("no page", 500) }
 
-    // the page's scripts + style (web/ui/)
+    // the page's scripts + style (ui/assets/)
     private fun ui(a: Pair<String, String>): Res = try {
         Res(200, a.second, ctx.assets.open(a.first).use { it.readBytes() })
     } catch (e: java.io.IOException) { Res.text("not found", 404) }
