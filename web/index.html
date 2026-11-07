@@ -282,6 +282,34 @@ button.li:hover{background:color-mix(in srgb,var(--bg) 60%,transparent)}
 .rtop{display:flex;gap:10px;align-items:center;margin-bottom:12px}.rtop .seg{flex:1;margin:0}
 .req{border-color:color-mix(in srgb,var(--warn) 45%,var(--stroke))}
 .req .row button{flex:1}
+/* --- interaction feedback: every clickable thing reacts on hover, press and keyboard focus --- */
+:root{--hov:color-mix(in srgb,var(--accent) 9%,var(--card));--hovb:color-mix(in srgb,var(--accent) 45%,var(--stroke))}
+button,a.btn,a.lnkbtn,.li,.nav,.kidn,.tile b,.chip,select{transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .12s,filter .15s}
+@media (hover:hover){
+  button:not(:disabled):hover,a.btn:hover,a.lnkbtn:hover{background:var(--hov);border-color:var(--hovb)}
+  button.pri:not(:disabled):hover{background:var(--primary);filter:brightness(1.12);box-shadow:0 4px 14px color-mix(in srgb,var(--primary) 38%,transparent)}
+  button.pri.bad:not(:disabled):hover{background:var(--danger);box-shadow:0 4px 14px color-mix(in srgb,var(--danger) 35%,transparent)}
+  button.stopb:not(:disabled):hover{background:var(--warn);filter:brightness(1.1)}
+  .nav:hover,.kidn:hover{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--text)}
+  .nav:hover .si{color:var(--accent)}
+  .nav.on:hover{background:var(--tint)}
+  .tile:not(:disabled):hover{background:none}
+  .tile:not(:disabled):hover b{background:var(--hov);border-color:var(--hovb);transform:translateY(-2px);box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 22%,transparent)}
+  .tile:not(:disabled):hover span{color:var(--accent)}
+  .li:not(:disabled):hover{background:var(--hov)}
+  .li:not(:disabled):hover>svg:last-child{transform:translateX(3px);color:var(--accent)}
+  .seg button:not(:disabled):not(.on):hover,.bnav button:hover{background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--text)}
+  .hist button:hover,.clh:hover{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+  a:not(.btn):not(.lnkbtn):hover{text-decoration:underline;text-underline-offset:3px}
+  select:hover,input:hover,textarea:hover{border-color:var(--hovb)}
+}
+.li>svg:last-child{transition:transform .15s,color .15s}
+button:not(:disabled):active,a.btn:active{transform:scale(.97);filter:brightness(.95)}
+.tile:not(:disabled):active b{transform:scale(.93)}
+.li:not(:disabled):active,.nav:active{transform:none;filter:brightness(.92)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 25%,transparent)}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}button:active,.tile:active b,.tile:hover b{transform:none!important}}
 </style>
 </head>
 <body>
@@ -415,7 +443,7 @@ vi: {
   "add.relayPh": "https://kidguard.ten-ban.workers.dev/#c=…&k=…", "add.relayLink": "Link relay", add: "Thêm", back: "Quay lại",
   "add.badAddr": "Địa chỉ không hợp lệ", "add.badLink": "Link không đúng dạng https://…/#c=…&k=…", connecting: "Đang kết nối…",
   "add.fail": "Không kết nối được tới {0}. Kiểm tra địa chỉ, và điện thoại này phải cùng mạng/Tailscale với máy con.", "add.failShort": "Không kết nối được",
-  "pair.h": "Ghép với máy của con", "pair.enter": "Nhập mã 6 số đang hiện trên máy của con.", "pair.code": "Mã 6 số", "pair.name": "Tên con", "pair.pin": "PIN của bố mẹ", "pair.go": "Ghép",
+  "pair.h": "Ghép với máy của con", "pair.enter": "Nhập mã 6 số đang hiện trên máy của con.", "pair.code": "Mã 6 số", "pair.name": "Tên con", "pair.pin": "PIN của bố mẹ", "pair.go": "Ghép", "pair.busy": "Đang ghép…", "pair.opening": "Đã ghép, đang mở…", "pe.timeout": "Máy con không trả lời sau 20 giây. Kiểm tra máy con và máy này cùng Wi-Fi rồi thử lại.",
   "pair.closedP": "Máy của con chưa mở ghép. Trên máy con: mở app KidGuard → <b>Ghép thêm máy của bố mẹ</b> (cần PIN của bố mẹ nếu đã đặt).",
   "pair.notSetup": "Máy con chưa cài xong: mở KidGuard trên máy con và làm theo danh sách trên màn hình.",
   "pe.wrong code": "Sai mã, thử lại", "pe.wrong pin": "Sai PIN", "pe.pin locked": "Sai PIN nhiều lần, thử lại sau {0} phút",
@@ -760,7 +788,7 @@ en: {
   "add.relayPh": "https://kidguard.your-name.workers.dev/#c=…&k=…", "add.relayLink": "Relay link", add: "Add", back: "Back",
   "add.badAddr": "Invalid address", "add.badLink": "The link should look like https://…/#c=…&k=…", connecting: "Connecting…",
   "add.fail": "Couldn't connect to {0}. Check the address; this phone must be on the same network/Tailscale as the kid's phone.", "add.failShort": "Couldn't connect",
-  "pair.h": "Pair with your kid's phone", "pair.enter": "Enter the 6-digit code shown on your kid's phone.", "pair.code": "6-digit code", "pair.name": "Kid's name", "pair.pin": "Parent PIN", "pair.go": "Pair",
+  "pair.h": "Pair with your kid's phone", "pair.enter": "Enter the 6-digit code shown on your kid's phone.", "pair.code": "6-digit code", "pair.name": "Kid's name", "pair.pin": "Parent PIN", "pair.go": "Pair", "pair.busy": "Pairing…", "pair.opening": "Paired, opening…", "pe.timeout": "No answer from the kid's phone after 20 seconds. Check both are on the same Wi-Fi, then try again.",
   "pair.closedP": "Pairing isn't open on the kid's phone. On that phone: open KidGuard → <b>Pair another parent phone</b> (needs the parent PIN if one is set).",
   "pair.notSetup": "The kid's phone isn't set up yet: open KidGuard on it and follow the checklist on screen.",
   "pe.wrong code": "Wrong code, try again", "pe.wrong pin": "Wrong PIN", "pe.pin locked": { one: "Too many wrong PINs, try again in {0} minute", other: "Too many wrong PINs, try again in {0} minutes" },
@@ -1333,7 +1361,17 @@ function pairScreen(hello, target, prefill = "") {
   }
   const go = $("#go"); if (!go) return;
   if (prefill) (hello.pin ? $("#pin") : newPin ? $("#np1") : go).focus();
+  const idle = go.innerHTML;
+  // busy: the phone can take seconds (PIN hashing on old phones); show it, block double taps, give up after 20 s
+  const busy = (on, label) => {
+    go.disabled = on; go.setAttribute("aria-busy", on ? "true" : "false");
+    go.innerHTML = on ? `<i class="spin"></i> ${label}` : idle;
+    document.querySelectorAll(".pairf input").forEach(i => i.disabled = on);
+  };
   go.onclick = async () => {
+    if (go.disabled) return;
+    $("#e").textContent = "";
+    const ac = new AbortController(), to = setTimeout(() => ac.abort(), 20000);
     try {
       const body = { code: $("#code").value, pin: $("#pin") ? $("#pin").value : "" };
       if (newPin) {
@@ -1343,12 +1381,18 @@ function pairScreen(hello, target, prefill = "") {
         body.newPin = a;
       }
       // the phone keeps nothing until this page uses the token once (open -> /state): closing now leaves it unpaired
-      const r = await fetch(pre + "/pair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      busy(true, t("pair.busy"));
+      const r = await fetch(pre + "/pair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: ac.signal });
       const j = await r.json();
       if (!r.ok) throw new Error(hasT("pe." + j.error) ? t("pe." + j.error, Math.ceil((j.wait || 60000) / 60000)) : t("pe.fail"));
+      clearTimeout(to);
       const k = { id: j.id, token: j.token, name: $("#nm").value || t("kid"), via: "lan", ...(APP ? { target } : {}) };
-      kids = kids.filter(x => !(x.id === k.id && x.via === "lan")).concat(k); save(kids); open(k);
-    } catch (e) { $("#e").textContent = e.message; }
+      kids = kids.filter(x => !(x.id === k.id && x.via === "lan")).concat(k); save(kids);
+      busy(true, t("pair.opening")); open(k);
+    } catch (e) {
+      clearTimeout(to); busy(false);
+      $("#e").textContent = e.name === "AbortError" ? t("pe.timeout") : e.message;
+    }
   };
 }
 
@@ -2076,6 +2120,8 @@ function updateLive() {
   const lan = cur.via === "lan", online = onlineNow();
   const lost = lan ? (lastErr || Date.now() - st.t > 300000) : (seenAt && Date.now() - seenAt > 300000);
   const lostFrom = lan ? st.t : seenAt;
+  const sk = document.querySelector(".kidn.on");   // sidebar dot is rendered once; keep it in step with the header
+  if (sk) { sk.querySelector(".dot")?.remove(); sk.insertAdjacentHTML("beforeend", dot(online ? "on" : "bad")); }
   if (hs) hs.innerHTML = `${dot(online ? "on" : "bad")}<span>${online ? t("live.on") : t("live.off")} · ${ago(lastSeen())} · ${ic("battery-full")} ${+st.battery}%${st.charging ? ic("zap") : ""} · ${st.screenOn ? (st.current ? t("scrOnApp", "<b>" + esc(st.current) + "</b>") : t("scrOn")) : t("scrOff")}</span>`;
   const B = [];   // [tone, icon, text]
   if (APP && cachedAt) B.push(["warn", "wifi-off", t("live.cached", hhmm(cachedAt))]);
