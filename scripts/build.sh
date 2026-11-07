@@ -29,7 +29,7 @@ cp android/parent/build/outputs/apk/release/parent-release.apk build/kidguard-pa
 V=$(sed -n 's/^kg.version=//p' android/gradle.properties)
 cp build/kidguard.apk "build/kidguard-$V.apk"; cp build/kidguard-parent.apk "build/kidguard-parent-$V.apk"
 perl -pi -e 's#releases/(?:latest/download|download/v[0-9.]+)/kidguard(-parent)?(?:-[0-9.]+)?\.apk#releases/download/v'"$V"'/kidguard$1-'"$V"'.apk#g; s#<span class="ver">v[0-9.]*</span>#<span class="ver">v'"$V"'</span>#g' \
-  website/index.html website/en/index.html README.md
+  website/index.html website/en/index.html website/guide.html website/en/guide.html README.md
 scripts/stamp-site.sh
 
 # QR provisioning: SHA-256 of the signing certificate, URL-safe base64 without padding -> ui/provision.json + ui/qr.html defaults

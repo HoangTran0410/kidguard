@@ -12,4 +12,16 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/"/>
   </url>
+  <url>
+    <loc>https://kid-guard.pages.dev/guide</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/guide"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/guide"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/guide"/>
+  </url>
+  <url>
+    <loc>https://kid-guard.pages.dev/en/guide</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/guide"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/guide"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/guide"/>
+  </url>
 </urlset>

@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>KidGuard guide: install, Tailscale, relay, parent app</title>
+<meta name="description" content="Step by step: install KidGuard on your child's Android phone (5 ways), open the parent page, manage it away from home with Tailscale or a Cloudflare Worker, the parent app, and how to remove it all.">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b1220">
+<meta property="og:type" content="article">
+<meta property="og:title" content="KidGuard guide: install, Tailscale, relay, parent app">
+<meta property="og:description" content="Install on the child's phone, open the parent page, manage it away from home. Short, numbered steps.">
+<meta property="og:site_name" content="KidGuard">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://kid-guard.pages.dev/en/guide">
+<meta property="og:url" content="https://kid-guard.pages.dev/en/guide">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="vi_VN">
+<meta property="og:image" content="https://kid-guard.pages.dev/img/og.jpg?v=74b29956cd">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="KidGuard: the parent page managing a child's Android phone">
+<meta name="twitter:image" content="https://kid-guard.pages.dev/img/og.jpg?v=74b29956cd">
+<meta name="twitter:image:alt" content="KidGuard: the parent page managing a child's Android phone">
+<link rel="icon" type="image/svg+xml" href="../img/icon.svg?v=53fa2372eb">
+<link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/guide">
+<link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/guide">
+<link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/guide">
+<link rel="stylesheet" href="../css/site.css?v=3978e785b2">
+</head>
+<body>
+
+<span id="menu" class="menu-t" aria-hidden="true"></span>
+<header>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="../img/icon.svg?v=53fa2372eb" width="26" height="26" alt="">KidGuard <small><span class="ver">v0.9.6</span></small></a>
+    <a class="burger open" href="#menu" aria-label="Open menu"><i></i></a>
+    <a class="burger shut" href="#_" aria-label="Close menu"><i></i></a>
+    <nav aria-label="Menu">
+      <a href="./#features">Features</a>
+      <a href="./#install">Install</a>
+      <a href="./#away">Away from home</a>
+      <a href="./#faq">FAQ</a>
+      <a href="guide.html" aria-current="page">Guide</a>
+      <a href="https://github.com/HoangTran0410/kidguard" target="_blank" rel="noopener">GitHub</a>
+      <a class="lang" href="../guide.html" hreflang="vi" lang="vi">VI</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+<section class="ghero">
+  <div class="wrap">
+    <h1>KidGuard guide</h1>
+    <p>Install it on your child's Android phone, open the parent page, then keep managing it when the child is out. Follow the steps; everything can be undone.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/HoangTran0410/kidguard/releases/download/v0.9.6/kidguard-0.9.6.apk"><span>Get KidGuard <span class="ver">v0.9.6</span> <small>child's phone</small></span></a>
+      <a class="btn" href="https://github.com/HoangTran0410/kidguard/releases/download/v0.9.6/kidguard-parent-0.9.6.apk"><span>Parent app <span class="ver">v0.9.6</span> <small>your phone</small></span></a>
+    </div>
+  </div>
+</section>
+
+<section class="glay">
+  <div class="wrap">
+    <aside class="toc" aria-label="Contents">
+      <b>Contents</b>
+      <ol>
+        <li><a href="#install">Install on the child's phone</a></li>
+        <li class="sub"><a href="#install-phone">A. On the phone itself</a></li>
+        <li class="sub"><a href="#install-qr">B. Scan a QR code</a></li>
+        <li class="sub"><a href="#install-usb">C. Computer and USB cable</a></li>
+        <li class="sub"><a href="#install-cli">D. Command line</a></li>
+        <li class="sub"><a href="#install-basic">E. Basic mode</a></li>
+        <li><a href="#pair">Open the parent page</a></li>
+        <li><a href="#parent-app">Parent app</a></li>
+        <li><a href="#away">Away from home</a></li>
+        <li><a href="#tailscale">Tailscale</a></li>
+        <li><a href="#relay">Cloudflare Worker relay</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#iphone">Child on an iPhone</a></li>
+        <li><a href="#remove">Remove KidGuard</a></li>
+        <li><a href="#faq">Troubleshooting</a></li>
+      </ol>
+    </aside>
+
+    <div class="gmain">
+
+<section id="install">
+  <h2>Install on the child's phone</h2>
+  <p>There are five ways; pick one. Ways A to D make KidGuard the phone's <b>Device Owner</b> (the Android role a company uses for work phones): it can lock apps and can't be removed, no root needed. Way E skips this but is weaker.</p>
+  <div class="warnote">
+    <p><b>Before ways A–D:</b> Android only lets an app become Device Owner while the phone has <b>no accounts</b> (Google, Samsung, Xiaomi…).</p>
+    <p>On the child's phone open <b>Settings → Accounts</b> and remove them all. Sign back in after setup: everything comes back.</p>
+  </div>
+
+  <article id="install-phone">
+    <h3>A. On the phone itself <span class="tag ok">Recommended</span></h3>
+    <p class="need">Needs: Android 11+, Wi-Fi. No computer.</p>
+    <ol class="steps">
+      <li><a href="https://github.com/HoangTran0410/kidguard/releases/download/v0.9.6/kidguard-0.9.6.apk">Download the APK</a> on the child's phone, install it and open KidGuard.</li>
+      <li>Tap <b>Full setup without a computer (Android 11+)</b>.</li>
+      <li>Turn on Developer options: open <b>About phone</b> and tap <b>Build number</b> 7 times.</li>
+      <li>In Developer options, turn on <b>Wireless debugging</b> and allow this Wi-Fi.</li>
+      <li>Back in KidGuard, tap <b>Show the code box in a notification</b>. Then in Wireless debugging tap <b>Pair device with pairing code</b>.</li>
+      <li>Pull down the notification shade, tap <b>Enter pairing code</b> and type the 6 digits shown.</li>
+      <li>KidGuard does the rest, then turns Wireless debugging off again.</li>
+    </ol>
+    <p class="tip">The code goes into a notification because the pairing dialog closes when you leave Settings. If the notification doesn't show, type the code in KidGuard itself.</p>
+  </article>
+
+  <article id="install-qr">
+    <h3>B. Scan a QR code</h3>
+    <p class="need">Needs: a new or factory-reset phone with stock-like Android (Pixel, Samsung, Nokia…).</p>
+    <ol class="steps">
+      <li>Turn the child's phone on and stop at the welcome screen.</li>
+      <li>Tap 6 times on an empty spot. The phone opens a QR scanner.</li>
+      <li>Scan the <a href="https://kidguard.99-hoangtran.workers.dev/qr" target="_blank" rel="noopener">setup QR code</a> (open it on a computer or another phone).</li>
+      <li>The phone downloads KidGuard over Wi-Fi and sets it up.</li>
+      <li>Open KidGuard and finish the short checklist on screen.</li>
+    </ol>
+    <p class="tip">Some skins drop the 6-tap screen (e.g. Oppo / Realme ColorOS on Android 8–9). Use <a href="#install-usb">way C</a> there.</p>
+  </article>
+
+  <article id="install-usb">
+    <h3>C. Computer and USB cable</h3>
+    <p class="need">Needs: a computer with Chrome or Edge, a USB cable. No adb to install. About 3 minutes.</p>
+    <ol class="steps">
+      <li>On the child's phone: remove every account (<b>Settings → Accounts</b>).</li>
+      <li>Turn on Developer options: <b>Settings → About phone</b>, tap <b>Build number</b> 7 times.</li>
+      <li>In Developer options, turn on <b>USB debugging</b>. Xiaomi / Redmi / POCO: also turn on <b>USB debugging (Security settings)</b> and <b>Install via USB</b>.</li>
+      <li>Plug the phone into the computer and open the <a href="https://kidguard.99-hoangtran.workers.dev/install" target="_blank" rel="noopener">installer page</a> in Chrome or Edge.</li>
+      <li>Press the connect button and pick the phone in the dialog. On the phone tap <b>Allow</b> (tick “Always allow from this computer”).</li>
+      <li>Press the install button. When it's done the page shows the address for the parent.</li>
+    </ol>
+  </article>
+
+  <article id="install-cli">
+    <h3>D. Command line</h3>
+    <p class="need">Needs: macOS, Linux or Windows, a USB cable.</p>
+    <ol class="steps">
+      <li>Prepare the child's phone as in <a href="#install-usb">way C</a>, steps 1–3, and plug it in.</li>
+      <li>Get the source on the computer (or just the <a href="https://github.com/HoangTran0410/kidguard/blob/main/scripts/setup.sh" target="_blank" rel="noopener">setup.sh</a> / <a href="https://github.com/HoangTran0410/kidguard/blob/main/scripts/setup.ps1" target="_blank" rel="noopener">setup.ps1</a> file).</li>
+      <li>Run:
+<pre><code>git clone https://github.com/HoangTran0410/kidguard &amp;&amp; cd kidguard
+scripts/setup.sh
+
+# Windows
+powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
+      <li>The script downloads adb if it is missing, and the latest KidGuard release (SHA-256 checked) if it finds no APK. Add <code>-y</code> to skip the questions.</li>
+      <li>It runs 8 steps: install the app, set Device Owner, grant usage access and secure-settings access, turn on accessibility, allow background running, open the app, print the parent's address.</li>
+    </ol>
+  </article>
+
+  <article id="install-basic">
+    <h3>E. Basic mode <span class="tag weak">Weaker</span></h3>
+    <p class="need">Needs: any Android 8+. No computer, accounts can stay. For old phones with no QR screen and no computer or cable.</p>
+    <ol class="steps">
+      <li>Install the APK, open KidGuard, tap <b>Quick setup, no computer needed</b>.</li>
+      <li>Turn on each item in order: device admin, accessibility, usage access, location (choose <b>Allow all the time</b>), notifications, battery.</li>
+      <li>Each button opens the right system screen: turn the setting on, then press Back.</li>
+    </ol>
+    <div class="warnote">
+      <p><b>Why it is weaker:</b> blocked apps are closed back to the home screen instead of greyed out.</p>
+      <ul>
+        <li>Not available: family DNS, blocking app installs / USB debugging, locking airplane mode / location / clock, reboot, Tailscale.</li>
+        <li>A child who boots into <b>Safe Mode</b> or turns accessibility off stops the blocking. The parent page shows a red warning and the parent app notifies.</li>
+      </ul>
+      <p>You can switch to Device Owner later with way A, C or D (accounts removed, like a fresh install). Rules and pairing are kept.</p>
+    </div>
+  </article>
+</section>
+
+<section id="pair">
+  <h2>Open the parent page</h2>
+  <p>After setup the child's phone shows a <b>6-digit code</b> and a <b>QR code</b>.</p>
+  <ol class="steps">
+    <li>On your phone (same Wi-Fi as the child's), scan the QR with the camera. The page opens with the code filled in.</li>
+    <li>Or open a browser at <code>http://&lt;child phone IP&gt;:8770</code> and type the 6-digit code.</li>
+    <li>Open the <b>Settings</b> tab and set a <b>parent PIN</b>. Without it the child's phone refuses to pair another browser.</li>
+    <li>Sign back in to the accounts on the child's phone (if you removed them) and unplug the cable.</li>
+    <li>Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap <b>Battery / autostart settings</b> and let KidGuard run in the background.</li>
+  </ol>
+  <p class="tip"><b>Oppo / Realme / OnePlus (ColorOS):</b> open Recents and pull the KidGuard card down to lock it (padlock icon). In Phone Manager allow KidGuard to autostart and run in the background. Swiping KidGuard away in Recents on ColorOS stops the app completely.</p>
+  <p>On home Wi-Fi the page is plain HTTP: use it only on networks you trust. Each browser pairs once with the 6-digit code; pairing more needs the parent PIN.</p>
+</section>
+
+<section id="parent-app">
+  <h2>Parent app (Android)</h2>
+  <p>The browser is enough to manage everything. The parent app adds <b>notifications</b> (SOS, more-time requests, accessibility turned off, lost connection) and shows the last data when the child's phone is offline.</p>
+  <ol class="steps">
+    <li><a href="https://github.com/HoangTran0410/kidguard/releases/download/v0.9.6/kidguard-parent-0.9.6.apk">Download the parent app</a> and install it on your phone.</li>
+    <li>Open it and tap <b>Add kid's phone</b>.</li>
+    <li>At home: type the address shown on the child's KidGuard screen, then the 6-digit code.</li>
+    <li>Away from home: paste the relay link (like <code>https://…/#c=…&amp;k=…</code>) from Settings, see <a href="#relay">Cloudflare Worker relay</a>.</li>
+    <li>Two kids or more: <b>Overview</b> shows every kid on one page.</li>
+  </ol>
+  <p>A time request notification has <b>+15 / +30 min</b> and <b>Decline</b> buttons right on it. The app checks about every 15 minutes. For SOS in seconds (through the Worker and Firebase) you build the app yourself: see the <a href="https://github.com/HoangTran0410/kidguard#instant-sos-notifications-optional" target="_blank" rel="noopener">README</a>.</p>
+  <p>Parent on an iPhone: there is no app, the browser (Safari) is enough.</p>
+</section>
+
+<section id="away">
+  <h2>Away from home</h2>
+  <p>At home the page talks to the child's phone over Wi-Fi. When the child is at school or out, turn on one of the two free options below. Both are <b>turned on while at home</b>, in the parent page: <b>Settings → Connection</b>.</p>
+  <div class="card tblwrap">
+    <table class="tbl">
+      <thead><tr><th scope="col"></th><th scope="col">Tailscale</th><th scope="col">Own relay</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Setup</th><td>~5 min, once: Tailscale app on the parent's phone, paste one key</td><td>~3 min on a computer: run one script (needs Node.js)</td></tr>
+        <tr><th scope="row">Speed</th><td><span class="yes">Instant</span></td><td>Commands in ~20 s (~60 s with the screen off)</td></tr>
+        <tr><th scope="row">Listen around</th><td><span class="yes">Yes</span></td><td>No</td></tr>
+        <tr><th scope="row">Data goes through</th><td>Nobody (end-to-end encrypted)</td><td>Only your own Cloudflare account</td></tr>
+        <tr><th scope="row">Limits</th><td>Free (Personal plan: 6 users, unlimited devices)</td><td>Free (100,000 requests/day, one kid's phone uses ~4,300)</td></tr>
+        <tr><th scope="row">Parent's phone</th><td>Tailscale app (Android / iPhone)</td><td>Any browser</td></tr>
+        <tr><th scope="row">Child sees</th><td>A key icon in the status bar (Android shows it for every VPN)</td><td>Nothing</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="tailscale">
+  <h2>Tailscale <span class="tag ok">Recommended</span></h2>
+  <p>The child's phone installs Tailscale itself and joins your private network. No Cloudflare needed. Needs Device Owner (not in basic mode).</p>
+  <ol class="steps">
+    <li>On your phone: install the <b>Tailscale</b> app and sign in with Google / Apple / Microsoft. This also makes your free Tailscale account.</li>
+    <li>Open the <a href="https://login.tailscale.com/admin/settings/keys" target="_blank" rel="noopener">Keys page</a> → <b>Generate access token</b> → <b>Generate</b> → copy it.</li>
+    <li>At home (same Wi-Fi as the child's phone), open the parent page: <b>Settings → Connection → Remote control via Tailscale</b>.</li>
+    <li>Paste the key into the <code>tskey-api-… / tskey-auth-…</code> box, optionally name the phone (e.g. <code>kid-an</code>), press <b>Turn on</b>.</li>
+    <li>The child's phone downloads the official Tailscale app (SHA-256 checked), installs it silently, joins your network and hides the app. About a minute.</li>
+    <li>The card shows <b>Connected</b>, an address like <code>http://100.x.y.z:8770</code> and <b>never expires</b>.</li>
+    <li>On your phone (with Tailscale on), open that address. Several kids: add each address with <b>Add kid's phone</b>.</li>
+  </ol>
+
+  <h3>Access token or auth key?</h3>
+  <ul>
+    <li><b>API access token</b> (<code>tskey-api-…</code>), recommended: the child's phone makes its own one-off key and turns off Tailscale's 180-day key expiry for itself. The token is only used during setup, then dropped, never stored.</li>
+    <li><b>Auth key</b> (<code>tskey-auth-…</code>): also works, but you turn off the expiry by hand once. Open the <a href="https://login.tailscale.com/admin/machines" target="_blank" rel="noopener">Machines page</a> → the child's phone row → <b>⋯ → Disable key expiry</b>. Otherwise Tailscale signs the phone out after 180 days. The parent page reminds you.</li>
+  </ul>
+
+  <h3>Good to know</h3>
+  <ul>
+    <li>Turning it on or changing the key only works at home. The key stays on the child's phone and never goes through the Worker.</li>
+    <li>The child can't turn the VPN off, change VPN settings or uninstall Tailscale. The safe-DNS filter keeps working.</li>
+    <li>To stop: press <b>Turn off and remove Tailscale</b> (or Remove controls). Then delete the phone on the Machines page, since an uninstalled app can't log itself out.</li>
+  </ul>
+</section>
+
+<section id="relay">
+  <h2>Your own relay (Cloudflare Worker)</h2>
+  <p>A small Cloudflare Worker in your own free Cloudflare account relays commands, state and the live screen. Screen frames stay in the Worker's memory only, never stored. The parent's phone only needs a browser.</p>
+  <p class="need">Needs: a computer with <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> 18+. The Cloudflare account can be made for free at login.</p>
+  <ol class="steps">
+    <li>On the computer, run:
+<pre><code>git clone https://github.com/HoangTran0410/kidguard &amp;&amp; cd kidguard
+scripts/relay.sh
+
+# Windows
+powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
+    <li>The script does 3 steps: installs its tools (about a minute the first time), opens the Cloudflare login in your browser (if you're not logged in), then deploys.</li>
+    <li>A new account may be asked to pick a <code>workers.dev</code> subdomain: answer it, it becomes part of the relay address.</li>
+    <li>It prints the address: <code>Relay ready: https://kidguard.&lt;you&gt;.workers.dev</code>.</li>
+    <li>At home, open the parent page: <b>Settings → Connection → Advanced: your own relay (Cloudflare Worker)</b>. Paste the address, press <b>Turn on</b>.</li>
+    <li>The page shows a remote-control link. Open it on your phone (keep it safe, don't share it), or paste it into the parent app.</li>
+  </ol>
+  <ul>
+    <li>Update: run the script again. Remove it from your account: <code>scripts/relay.sh --delete</code> (Windows: <code>-Delete</code>).</li>
+    <li>Free plan: 100,000 requests a day, one kid's phone uses about 4,300. Listen around doesn't work through the relay.</li>
+  </ul>
+
+  <h3 id="shared-relay">Shared relay (to try it)</h3>
+  <p>Same as above, but paste <code>https://kidguard.99-hoangtran.workers.dev</code>: nothing to install. In exchange your child's state passes through the author's Cloudflare account, and the free daily quota is shared by everyone, so it can run out for the day. For daily use switch to Tailscale or your own relay.</p>
+</section>
+
+<section id="features">
+  <h2>Features</h2>
+  <p>All in the current release, no paid tier.</p>
+  <div class="feat">
+    <div class="card">
+      <h3>Time</h3>
+      <dl>
+        <div><dt>Daily limit</dt><dd>One number, or one per weekday. When time is up every app (except “Always allowed”) locks until midnight. +15 / +30 / +60 min for today.</dd></div>
+        <div><dt>Bedtime, schedules</dt><dd>Bedtime every day, plus windows on chosen days (school hours Mon–Fri); can cross midnight.</dd></div>
+        <div><dt>Heads-up before locking</dt><dd>The child gets a notification 5 min and 1 min before the limit, bedtime or a schedule locks the phone.</dd></div>
+        <div><dt>Pause now</dt><dd>30 min, 1 h, or until 6 am.</dd></div>
+        <div><dt>Ask for more time</dt><dd>15 / 30 / 60 min plus a reason; the parent approves or declines.</dd></div>
+        <div><dt>Chores</dt><dd>The parent lists chores (“Wash the dishes +20 min”); the child picks one when asking. Approve with a note if you like.</dd></div>
+        <div><dt>Unlock code</dt><dd>6 digits from Google Authenticator, no network on either phone. The child gets 15–120 min free of limits; each code works once.</dd></div>
+        <div><dt>Rule templates</dt><dd>School day, Weekend, Summer holiday, Exams, or save your own. Apply to one kid or several.</dd></div>
+      </dl>
+    </div>
+    <div class="card">
+      <h3>Apps</h3>
+      <dl>
+        <div><dt>Per app</dt><dd>Normal, N minutes a day, Block, or Always allowed. Select many to change them at once.</dd></div>
+        <div><dt>App groups</dt><dd>One shared daily limit for a group (“Games”, “Social”) and/or hours when it may be used.</dd></div>
+        <div><dt>New apps</dt><dd>Optionally locked until a parent approves them.</dd></div>
+        <div><dt>Lighter phone</dt><dd>Hide the maker's preinstalled apps the child doesn't use, see the heaviest apps, clear an app's data. Needs Device Owner.</dd></div>
+        <div><dt>Updates itself</dt><dd>Once a day the child's phone checks GitHub releases, downloads the new APK and checks its SHA-256. Off or update now in Settings.</dd></div>
+      </dl>
+    </div>
+    <div class="card">
+      <h3>Location and safety</h3>
+      <dl>
+        <div><dt>Location</dt><dd>Locate now, location forced on (the child can't turn it off), 7-day history on an OpenStreetMap map.</dd></div>
+        <div><dt>Zones</dt><dd>Home, School… with a radius: you're told when the child arrives or leaves.</dd></div>
+        <div><dt>SOS</dt><dd>A red button on the child's phone: the parent page shows the time and a fresh location; the parent app notifies.</dd></div>
+        <div><dt>See the screen</dt><dd>The child's screen live (Android 11+, ~3 fps). The child is told the parent is viewing.</dd></div>
+        <div><dt>Remote control</dt><dd>Tap, swipe, long press, Back / Home / Recents, type text.</dd></div>
+        <div><dt>Listen around</dt><dd>At most 10 min at a time, home Wi-Fi or Tailscale only. The child always knows: a beep, a notification, Android's mic dot.</dd></div>
+        <div><dt>Alerts</dt><dd>Arrived / left a zone, battery at 15 %, a new app installed, the clock changed.</dd></div>
+      </dl>
+    </div>
+    <div class="card">
+      <h3>Looking back</h3>
+      <dl>
+        <div><dt>History</dt><dd>Screen time for 7 days, top apps per day, a weekly report per kid.</dd></div>
+        <div><dt>All kids</dt><dd><b>Overview</b>: a card per kid, every kid's location on one map, 7 days side by side.</dd></div>
+        <div><dt>Child's rules</dt><dd>The child sees their own rules and a log of what the parents changed.</dd></div>
+        <div><dt>Languages</dt><dd>English and Vietnamese in the parent page and both apps.</dd></div>
+      </dl>
+    </div>
+    <div class="card">
+      <h3>Hard to break</h3>
+      <dl>
+        <div><dt>Tamper-proof</dt><dd>Blocks uninstall, force stop, factory reset from Settings, Safe Mode, new users, changing the clock, airplane mode. A watchdog restarts it.</dd></div>
+        <div><dt>Optional</dt><dd>Family DNS filter (AdGuard / Cloudflare / CleanBrowsing), block installs, block USB debugging.</dd></div>
+        <div><dt>Commands</dt><dd>Lock the screen, ring, full-screen message, restart the phone.</dd></div>
+      </dl>
+    </div>
+  </div>
+  <p>Locked apps use Android's own mechanism: the icon turns grey and opening it says the parent paused it.</p>
+</section>
+
+<section id="iphone">
+  <h2>Child on an iPhone / iPad</h2>
+  <p>There is no KidGuard for iOS: Apple doesn't let third-party apps see the screen, control the phone or lock other apps. Use what is built in and free:</p>
+  <ul>
+    <li><b>Screen Time + Family Sharing</b>: limits, downtime, app limits, adult-site filter, purchase approval, “ask for more time”, managed from the parent's iPhone.</li>
+    <li><b>Find My</b>: the child's location.</li>
+  </ul>
+  <p>Child on Android, parent on an iPhone: manage it from the iPhone's browser.</p>
+</section>
+
+<section id="remove">
+  <h2>Remove KidGuard</h2>
+  <ol class="steps">
+    <li>Parent page → <b>Settings → Danger zone → Remove controls…</b></li>
+    <li>Every app is unlocked and every restriction lifted. If Tailscale was on, it is removed too.</li>
+    <li>Uninstall KidGuard like any app.</li>
+  </ol>
+</section>
+
+<section id="faq">
+  <h2>Troubleshooting</h2>
+  <div class="card faq">
+    <details><summary>“App blocked to protect your device” (Play Protect)?</summary><p>Play Protect blocks apps installed from a browser or file manager when they use accessibility. On the child's phone: <b>Play Store</b> → your avatar → <b>Play Protect</b> → ⚙ → turn off <b>Scan apps with Play Protect</b>. Install and set up KidGuard, then turn it back on. QR setup is not affected (the phone downloads the app itself).</p></details>
+    <details><summary>No 6-tap spot on the welcome screen?</summary><p>Some skins drop that screen (e.g. Oppo / Realme ColorOS on Android 8–9). Use the <a href="#install-usb">computer and USB cable</a>.</p></details>
+    <details><summary>Phone older than Android 11 can't set itself up?</summary><p>Way A needs Android 11+. Use a computer (<a href="#install-usb">way C</a> or <a href="#install-cli">D</a>), factory reset and <a href="#install-qr">scan the QR</a>, or use <a href="#install-basic">basic mode</a>.</p></details>
+    <details><summary>The parent page won't open?</summary><p>Check the address on the child's KidGuard screen (default port 8770). Your phone must be on the same Wi-Fi, or the same Tailscale network, as the child's phone.</p></details>
+    <details><summary>Can the DNS filter cut the Internet?</summary><p>No. If the filter's host is refused, or the network has Internet but DNS-over-TLS is blocked for 90 seconds, KidGuard falls back to normal DNS for 30 minutes and the parent page says why.</p></details>
+    <details><summary>Why do some apps show black when viewed remotely?</summary><p>Apps that mark their screen secure (banking…) always show black.</p></details>
+    <details><summary>Can the child remove it?</summary><p>Not from Settings. A factory reset from the hardware keys (recovery) still works: KidGuard is gone and the parent page shows “disconnected”.</p></details>
+    <details><summary>Limits on Android 8–10?</summary><p>Live screen and remote control need Android 11+. On Android 8–10 the child can force stop KidGuard (it starts again on reboot).</p></details>
+    <details><summary>Another bug or an idea?</summary><p>Post it on <a href="https://github.com/HoangTran0410/kidguard/issues" target="_blank" rel="noopener">GitHub Issues</a>. Technical details: <a href="https://github.com/HoangTran0410/kidguard/blob/main/docs/protocol.md" target="_blank" rel="noopener">docs/protocol.md</a>.</p></details>
+  </div>
+</section>
+
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>KidGuard · <a href="https://github.com/HoangTran0410/kidguard/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a> · <a href="https://github.com/HoangTran0410/kidguard/blob/main/PRIVACY.md" target="_blank" rel="noopener">Privacy</a></span>
+    <span><a href="./">Home</a> · <a href="https://github.com/HoangTran0410/kidguard" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/HoangTran0410/kidguard/issues" target="_blank" rel="noopener">Feedback</a> · <a href="../guide.html" hreflang="vi" lang="vi">Tiếng Việt</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
