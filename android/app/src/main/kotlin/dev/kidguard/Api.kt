@@ -17,21 +17,28 @@ class Api(private val g: Guard) {
         if (!r.path.startsWith("/api/")) return Res.text("not found", 404)
         val p = r.path.removePrefix("/api")
         when {
+            // pairPin: this phone takes `newPin` at pairing (pairing without a PIN is refused while none is set)
             p == "/hello" -> return Res.json(JSONObject().put("id", store.id).put("pairing", store.pairCode() != null)
-                .put("pin", store.rules.pinHash.isNotBlank()).put("owner", Policy.isOwner(g)).put("mode", Basic.mode(g)).toString())
+                .put("pin", store.rules.pinHash.isNotBlank()).put("pairPin", true).put("owner", Policy.isOwner(g)).put("mode", Basic.mode(g)).toString())
             p == "/pair" && r.method == "POST" -> {
                 val o = runCatching { JSONObject(r.text) }.getOrDefault(JSONObject())
-                val t = store.tryPair(o.optString("code"), o.optString("pin").filter { it.isDigit() })
+                val t = store.tryPair(o.optString("code"), o.optString("pin").filter { it.isDigit() }, o.optString("newPin").trim())
                     ?: return Res.json(JSONObject().put("error", store.lastPairError).put("wait", store.pinLockLeft()).toString(),
-                        if (store.lastPairError == "wait" || store.lastPairError == "pin locked") 429 else 403)
-                store.log(R.string.log_paired)
-                return Res.json(JSONObject().put("token", t).put("id", store.id).toString())
+                        when (store.lastPairError) { "wait", "pin locked" -> 429; "bad pin" -> 400; else -> 403 })
+                // pending until the page uses the token (Store.commitPair), so a closed page leaves nothing half-done
+                return Res.json(JSONObject().put("token", t).put("id", store.id).put("pinSet", true).toString())
             }
         }
-        val token = r.header("x-kg-token") ?: r.query["k"]
-        if (!store.tokenOk(token)) return Res.json("""{"error":"not paired"}""", 401)
+        val token = listOf(r.header("x-kg-token"), r.query["k"]).firstOrNull { !it.isNullOrBlank() }
+        val session = ParentSession.fromCookie(r.header("cookie"))   // on-device parent page (AdminActivity), never a paired token
+        if (!ParentSession.valid(session) && !store.tokenOk(token)) {
+            if (!store.commitPair(token)) return Res.json("""{"error":"not paired"}""", 401)
+            store.log(R.string.log_paired)
+            g.kick()
+        }
         return when {
             p == "/state" -> Res.json(g.currentState().toString())
+            p == "/files" || p.startsWith("/files/") -> Files.api(g, r, p.removePrefix("/files"))   // shared folder only, Files.kt
             p == "/rules" && r.method == "PUT" -> {
                 val body = JSONObject(r.text)
                 var incoming = Rules.fromJson(body)
@@ -54,6 +61,7 @@ class Api(private val g: Guard) {
             }
             p == "/input" && r.method == "POST" -> Res.json(JSONObject().put("result",
                 runCatching { Acc.input(JSONObject(r.text)) }.getOrDefault("bad input")).toString())
+            p == "/device" -> Res.json(DeviceInfo.get(g, if (r.query["fresh"] == "1") DeviceLogic.FRESH_MS else DeviceLogic.TTL_MS).toString())   // "Máy" view, cached 60 s
             p == "/track" -> Res.json(JSONObject().put("track", track(((r.query["days"]?.toIntOrNull()) ?: 7).coerceIn(1, 7))).toString())
             p == "/icon" -> icon(r.query["pkg"] ?: "")
             // LAN / Tailscale only (the relay has no audio route): AAC stream of the mic; the child is always told

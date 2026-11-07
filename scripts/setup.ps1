@@ -148,3 +148,7 @@ if (-not $ip) { $ip = "<IP của máy con>" }
 Write-Host ""
 Write-Host "OK Xong. Trên điện thoại bố mẹ (cùng Wi-Fi), mở: http://${ip}:8770"
 Write-Host "-> rồi nhập mã 6 số đang hiện trên máy con. Giờ có thể đăng nhập lại tài khoản trên máy con."
+# ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off)
+if ("$(Adb shell 'getprop ro.build.version.opporom; getprop ro.build.version.oplusrom')".Trim()) {
+    Write-Host '-> Oppo/Realme/OnePlus (ColorOS): mở Đa nhiệm, kéo thẻ KidGuard xuống để khoá (biểu tượng ổ khoá), và trong Quản lý điện thoại cho KidGuard "Tự khởi chạy" + chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app và Trợ năng.'
+}

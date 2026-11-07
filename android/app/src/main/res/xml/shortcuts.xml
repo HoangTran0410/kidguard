@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the KidGuard icon: "Lock screen". LockActivity only locks and finishes. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/sc_lock"
+        android:shortcutId="lock"
+        android:shortcutLongLabel="@string/q_lock"
+        android:shortcutShortLabel="@string/q_lock">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="dev.kidguard.LockActivity"
+            android:targetPackage="dev.kidguard" />
+    </shortcut>
+</shortcuts>

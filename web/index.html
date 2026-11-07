@@ -21,6 +21,8 @@ h2{font-size:15px;margin:0 0 10px;color:var(--mute);font-weight:600;text-transfo
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:0 0 12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .sp{flex:1}
+.fxdrop{border:2px dashed var(--line);border-radius:12px;padding:16px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;margin:8px 0}.fxdrop.on{border-color:var(--pri)}
+.fxrow{display:flex;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}.fxrow:first-child{border-top:0}.fxm{min-width:0}.fxn{overflow-wrap:anywhere}.fxb{display:flex;gap:6px;flex:none}.fxrow .bar{margin:6px 0 0}
 .mute{color:var(--mute);font-size:13px}
 .big{font-size:30px;font-weight:700}
 button,select,input{font:inherit;color:inherit}
@@ -31,6 +33,10 @@ button:active{filter:brightness(.92)}
 button.pri{background:var(--btn);color:var(--pri-fg);border-color:var(--btn);font-weight:600}
 button.bad{color:var(--bad)}
 button:disabled{opacity:.5}
+button.act.on{background:var(--warn-bg);color:var(--warn-fg);border-color:var(--warn);font-weight:600}
+button.act.done{background:var(--ok-bg);color:var(--ok-fg)}button.act.err{background:var(--bad-bg);color:var(--bad-fg)}
+button.act.pend::before{content:"";display:inline-block;width:.9em;height:.9em;margin-right:6px;vertical-align:-2px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 input,select{max-width:100%;min-height:44px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
 input[type=checkbox]{width:20px;height:20px;min-height:0}
 .pairf{display:flex;flex-direction:column;gap:10px;margin-top:10px}.pairf input,.pairf button{width:100%}
@@ -102,6 +108,7 @@ button{min-height:44px}
 .ovk .nm{display:flex;align-items:center;gap:8px}.ovk .sw{width:12px;height:12px;border-radius:50%;flex:none}
 .ovb{display:flex;gap:6px;align-items:flex-end;height:130px;padding-top:6px}.ovb>div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
 .ovb .g{display:flex;gap:2px;align-items:flex-end;height:104px;width:100%;justify-content:center}.ovb .g i{flex:1;max-width:14px;border-radius:3px 3px 0 0;min-height:2px}
+.map .merr{position:absolute;left:8px;right:52px;top:8px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;pointer-events:none}
 .map .pin{position:absolute;transform:translate(-50%,-100%);background:var(--card);color:var(--fg);border:2px solid;border-radius:10px;padding:2px 8px;font-size:12px;font-weight:600;white-space:nowrap;pointer-events:none}
 #saveBar{position:fixed;left:0;right:0;bottom:0;z-index:50;display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--bad,#b91c1c);color:#fff}
 #saveBar button{margin-left:auto}
@@ -110,6 +117,42 @@ body.sb #toast{bottom:76px}
 a{color:var(--pri)}
 a.lnkbtn{display:inline-flex;align-items:center;gap:6px;background:var(--chip);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:9px 14px;text-decoration:none}
 select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none}
+/* collapsible section (sec()): header button + grid-rows animation; closed body is visibility:hidden (out of tab order) */
+.cl{padding:0;overflow:hidden}
+.cl>h2{margin:0;font:inherit;color:inherit;text-transform:none;letter-spacing:0}
+.clh{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-radius:16px;padding:14px 16px;min-height:56px}
+.clh:hover{background:var(--chip)}.clh:active{filter:none;background:var(--chip)}
+.clh .cli{width:34px;height:34px;border-radius:10px;background:var(--chip);color:var(--pri);display:grid;place-items:center;flex:none}
+.clh .clt{flex:1;min-width:0;display:flex;flex-direction:column}
+.clh .clt b{font-weight:600;font-size:15px}
+.clh .clr{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}
+.clh .clt>span:last-child:not(.clr){color:var(--mute);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.clh .tag{margin:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.clh .chev{color:var(--mute);transition:transform .18s ease;flex:none}
+.cl.open .clh .chev{transform:rotate(180deg)}
+.clb{display:grid;grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows .2s ease,visibility 0s linear .2s}
+.cl.open .clb{grid-template-rows:1fr;visibility:visible;transition:grid-template-rows .2s ease,visibility 0s}
+.clb>div{min-height:0;overflow:hidden}
+.clb>div>div{padding:0 16px 16px}
+.cl.open .clb>div{overflow:visible}
+/* "Máy" tab key/value rows */
+.dvkv{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 0;border-top:1px solid var(--line)}.dvkv>span{color:var(--mute)}.dvkv>b{font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere}
+.sub .card .cl,.cl .cl{border-radius:12px}
+@media (prefers-reduced-motion:reduce){.clb,.cl.open .clb,.clh .chev{transition:none}}
+/* segmented control (Apps sub-tabs) */
+.seg{display:flex;gap:4px;background:var(--chip);border:1px solid var(--line);border-radius:14px;padding:4px;margin:0 0 12px}
+.seg button{flex:1 1 0;min-width:0;background:none;border:0;border-radius:10px;padding:8px 6px;min-height:40px;color:var(--mute);font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg button[aria-selected=true]{background:var(--card);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg .n{font-size:12px;font-weight:600;background:var(--bad-bg);color:var(--bad-fg);border-radius:999px;padding:0 6px}
+@media (max-width:380px){.seg button .si{display:none}}
+button.pausing{background:var(--warn-bg);color:var(--warn-fg);border-color:var(--warn);display:flex;align-items:center;justify-content:center;gap:6px;text-align:left}
+#pauseGo{min-height:52px;font-size:16px}
+.pk .stp{flex-wrap:nowrap}.pk .stp input[type=number]{width:6em;text-align:center;font-size:18px;font-weight:600}.pk .stp>button{width:44px;padding:0;flex:none}.pk .stp select{flex:1}
+.pk .stp input[type=time]{flex:1;font-size:18px;font-weight:600}
+.pk .seg{margin:6px 0 10px}.pks{font-size:16px}
+.hbar{position:sticky;bottom:8px;z-index:5;background:var(--card);border:1px solid var(--pri);border-radius:14px;padding:10px 12px;box-shadow:0 4px 18px rgba(0,0,0,.25);margin:0 0 12px}
+.prog{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin:8px 0 4px;display:flex}
+.prog i{display:block;height:100%;background:var(--ok)}.prog i.b{background:var(--bad)}.prog i.w{background:var(--warn)}
 #toast{position:fixed;z-index:80;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;display:none;max-width:90vw}
 </style>
 </head>
@@ -137,6 +180,8 @@ select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none}
 <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></symbol>
 <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" /><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" /><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" /><path d="m2 2 20 20" /></symbol>
 <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4" /></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></symbol>
 <symbol id="i-folder-open" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></symbol>
 <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></symbol>
 <symbol id="i-hand" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2" /><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2" /><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8" /><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" /></symbol>
@@ -184,12 +229,15 @@ select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none}
 <symbol id="i-thumbs-up" viewBox="0 0 24 24"><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" /><path d="M7 10v12" /></symbol>
 <symbol id="i-timer" viewBox="0 0 24 24"><line x1="10" x2="14" y1="2" y2="2" /><line x1="12" x2="15" y1="14" y2="11" /><circle cx="12" cy="14" r="8" /></symbol>
 <symbol id="i-hard-drive" viewBox="0 0 24 24"><line x1="22" x2="2" y1="12" y2="12" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /><line x1="6" x2="6.01" y1="16" y2="16" /><line x1="10" x2="10.01" y1="16" y2="16" /></symbol>
+<symbol id="i-cpu" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2" /><rect width="6" height="6" x="9" y="9" rx="1" /><path d="M15 2v2" /><path d="M15 20v2" /><path d="M2 15h2" /><path d="M2 9h2" /><path d="M20 15h2" /><path d="M20 9h2" /><path d="M9 2v2" /><path d="M9 20v2" /></symbol>
+<symbol id="i-memory-stick" viewBox="0 0 24 24"><path d="M6 19v-3" /><path d="M10 19v-3" /><path d="M14 19v-3" /><path d="M18 19v-3" /><path d="M8 11V9" /><path d="M16 11V9" /><path d="M12 11V9" /><path d="M2 15h20" /><path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1.1a2 2 0 0 0 0 3.837V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.1a2 2 0 0 0 0-3.837Z" /></symbol>
 <symbol id="i-trash-2" viewBox="0 0 24 24"><path d="M10 11v6" /><path d="M14 11v6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
 <symbol id="i-circle-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></symbol><symbol id="i-triangle-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></symbol>
 <symbol id="i-undo-2" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></symbol>
 <symbol id="i-unlink" viewBox="0 0 24 24"><path d="m18.84 12.25 1.72-1.71h-.02a5.004 5.004 0 0 0-.12-7.07 5.006 5.006 0 0 0-6.95 0l-1.72 1.71" /><path d="m5.17 11.75-1.71 1.71a5.004 5.004 0 0 0 .12 7.07 5.006 5.006 0 0 0 6.95 0l1.71-1.71" /><line x1="8" x2="8" y1="2" y2="5" /><line x1="2" x2="5" y1="8" y2="8" /><line x1="16" x2="16" y1="19" y2="22" /><line x1="19" x2="22" y1="16" y2="16" /></symbol>
 <symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></symbol>
 <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></symbol>
+<symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
 <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
 <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
 <symbol id="i-layout-grid" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></symbol>
@@ -238,6 +286,11 @@ vi: {
   "pair.notSetup": "Máy con chưa cài xong: mở KidGuard trên máy con và làm theo danh sách trên màn hình.",
   "pe.wrong code": "Sai mã, thử lại", "pe.wrong pin": "Sai PIN", "pe.pin locked": "Sai PIN nhiều lần, thử lại sau {0} phút",
   "pe.wait": "Sai nhiều lần: máy con đã đổi mã mới, đợi một lát rồi nhập mã mới", "pe.closed": "Máy con đã đóng ghép, mở lại trên máy con", "pe.fail": "Không ghép được",
+  "pair.newPin": "Đặt PIN của bố mẹ (4–8 số)", "pair.newPinP": "Máy con chưa có PIN: đặt luôn bây giờ. Cần PIN này để ghép thêm máy và để quản lý ngay trên máy con. Con không được biết PIN.",
+  "pair.pin1": "PIN mới", "pair.pin2": "Nhập lại PIN", "pe.pin required": "Hãy đặt PIN (4–8 số) để ghép", "pe.bad pin": "PIN 4–8 số", "pe.mismatch": "Hai PIN không giống nhau",
+  "pinGate.h": "Đặt PIN của bố mẹ", "pinGate.p": "Máy này đã ghép từ trước nhưng chưa có PIN. Bố mẹ cần đặt PIN trước khi dùng tiếp: PIN để ghép thêm máy và để quản lý ngay trên máy con (thay cho việc chờ 24 giờ). Con không được biết PIN.",
+  "pinGate.go": "Đặt PIN", "pinGate.wait": "Đang lưu PIN…", "pinGate.off": "Không lưu được khi đang xem bản lưu cũ. Kết nối lại máy con rồi thử lại.",
+  "local.bar": "Đang quản lý ngay trên máy con. Trang tự đóng khi tắt màn hình, khi rời trang hoặc sau 5 phút không chạm.", "local.end": "Xong", "local.over": "Phiên quản lý đã hết.",
   "list.none": "Chưa có máy nào. Mở link \"điều khiển từ xa\" từ trang của con (khi ở nhà, tab Cài đặt) để thêm.",
   ov: "Tổng quan", list: "Danh sách", "ov.where": "Các con đang ở đâu", "ov.week": "Thời gian dùng 7 ngày", "ov.report": "Báo cáo tuần",
   "ov.sos": "{0} bấm SOS lúc {1}", loading: "Đang tải…", "ov.online": "đang kết nối", "ov.offline": "mất kết nối · {0}", "ov.usingApp": "đang dùng {0}", "ov.using": "đang dùng",
@@ -275,13 +328,42 @@ vi: {
   "tpl.noStore": "Trình duyệt không cho lưu mẫu", "tpl.saved": "Đã lưu mẫu “{0}”",
   "hist.viewing": "Dữ liệu ngày {0} · chỉ xem", "hist.live": "Về dữ liệu mới nhất",
   "pin.warn": "Chưa đặt PIN. Không có PIN, con có thể tự ghép máy của mình để gỡ quản lý.", "pin.setNow": "Đặt PIN ngay",
+  "tab.dev": "Máy", "dv.sto": "Bộ nhớ", "dv.stoChip": "Còn {0}", "dv.stoD": "Đã dùng {0} / {1} ({2}%)", "dv.apps": "App chiếm nhiều chỗ nhất",
+  "dv.appRow": "App {0} · Dữ liệu {1} · Cache {2}", "dv.noUsage": "Chưa xem được dung lượng từng app: cần quyền <b>Truy cập dữ liệu sử dụng</b> trên máy con.",
+  "dv.cacheTip": "Không có nút xoá cache: Android chỉ cho app hệ thống xoá cache của app khác. Muốn xoá: trên máy con vào Cài đặt → Ứng dụng → chọn app → Bộ nhớ → Xoá bộ nhớ đệm (làm được qua tab Màn hình).",
+  "dv.clean": "Dọn máy: ẩn app cài sẵn không dùng", "dv.clearOld": "Cần Android 9 trở lên",
+  "dv.ram": "RAM", "dv.ramChip": "Dùng {0}%", "dv.ramD": "Còn trống {0} / {1}", "dv.ramLow": "Máy đang thiếu RAM: Android sẽ tự đóng bớt app chạy nền.",
+  "dv.ramWhy": "Từ Android 8, app không được đọc RAM hay CPU của từng app khác, nên KidGuard không hiện số đó (không bịa số). Dưới đây là các app dùng lâu nhất hôm nay.",
+  "dv.topUse": "Dùng nhiều nhất hôm nay", "dv.noUse": "Hôm nay chưa dùng app nào.",
+  "dv.bat": "Pin", "dv.batChip": "{0}%", "dv.temp": "Nhiệt độ", "dv.health": "Tình trạng pin", "dv.plug": "Sạc", "dv.volt": "Điện áp",
+  "dv.charging": "Đang sạc ({0})", "dv.notCharging": "Không sạc", "dv.plug.ac": "sạc tường", "dv.plug.usb": "USB", "dv.plug.wireless": "không dây", "dv.plug.dock": "đế sạc", "dv.plug.none": "?",
+  "dv.h.good": "Tốt", "dv.h.overheat": "Quá nóng", "dv.h.dead": "Hỏng", "dv.h.overVoltage": "Quá áp", "dv.h.failure": "Lỗi", "dv.h.cold": "Quá lạnh", "dv.h.unknown": "Không rõ",
+  "dv.hot": "Máy đang nóng ({0}). Nên cho máy nghỉ, tháo ốp, đừng vừa sạc vừa chơi.", "dv.scr": "Màn hình bật hôm nay", "dv.scrOld": "Cần Android 9 trở lên",
+  "dv.sys": "Hệ thống", "dv.model": "Máy", "dv.os": "Android", "dv.up": "Bật liên tục", "dv.kg": "KidGuard", "dv.net": "Mạng", "dv.days": "{0} ngày",
+  "dv.n.wifi": "Wi-Fi", "dv.n.cell": "Dữ liệu di động", "dv.n.ethernet": "Ethernet", "dv.n.vpn": "VPN", "dv.n.other": "Khác", "dv.n.none": "Không có mạng",
+  "dv.sig": "Sóng Wi-Fi", "dv.sigN": "{0}/4 vạch ({1} dBm)", "dv.metered": "tính phí theo dung lượng",
+  "dv.act": "Thao tác", "dv.reboot": "Khởi động lại máy", "dv.rebootD": "Máy tắt vài phút rồi tự bật lại, KidGuard tự chạy lại sau đó.",
+  "dv.noBoost": "Không có nút \"tăng tốc / dọn RAM\": Android tự quản lý RAM, đóng app chỉ làm app mở lại và tốn pin hơn. Máy chậm thì khởi động lại mới thật sự giúp.",
+  "dv.refresh": "Làm mới", "dv.at": "Cập nhật lúc {0}", "dv.wait": "Đang chờ máy con gửi số liệu (tối đa khoảng 1 phút)…", "dv.stale": "Đang hiện số liệu cũ, chờ máy con gửi bản mới…", "dv.loading": "Đang lấy số liệu máy…",
+  "dv.old": "Máy con chưa gửi số liệu. Cần cập nhật KidGuard trên máy con (bản sau 0.9.5).", "dv.oldRelay": "Máy chủ trung gian (relay) chưa hỗ trợ mục này: cần cập nhật worker.", "dv.err": "Không lấy được: {0}",
   "tab.home": "Hôm nay", "tab.screen": "Màn hình", "tab.apps": "Ứng dụng", "tab.rules": "Luật", "tab.where": "Vị trí", "tab.set": "Cài đặt", "tab.history": "Lịch sử",
+  "tab.files": "File", "fx.sendH": "Gửi file cho con", "fx.sendP": "File vào thư mục Download/KidGuard trên máy con, con được báo ngay. Tối đa {0} mỗi file.",
+  "fx.sendPr": "Qua relay (không cùng Wi-Fi): tối đa {0} mỗi file, giữ trên relay 1 giờ. Cùng Wi-Fi gửi được tới 200 MB.", "fx.pick": "Gửi file", "fx.drop": "hoặc kéo thả file vào đây",
+  "fx.app": "Ứng dụng bố mẹ chưa chọn và lưu được file. Mở trang này trong trình duyệt để gửi và tải file.", "fx.fromKid": "File con gửi", "fx.fromKidP": "Trên máy con: Chia sẻ → Gửi cho bố mẹ, hoặc Thêm → Gửi file cho bố mẹ.",
+  "fx.sent": "File đã gửi cho con", "fx.none": "Chưa có file nào.", "fx.scope": "Chỉ có thư mục chung này: KidGuard không cho xem các file khác trên máy con.",
+  "fx.q": "Đang chờ…", "fx.up": "Đang gửi {0}%", "fx.upWait": "Đã lên relay, chờ máy con nhận…", "fx.upDone": "Đã tới máy con", "fx.stopped": "Đã huỷ", "fx.err": "Lỗi: {0}",
+  "fx.cancel": "Huỷ", "fx.retry": "Thử lại", "fx.dismiss": "Bỏ khỏi danh sách", "fx.get": "Tải về", "fx.getting": "Đang tải {0}%", "fx.getWait": "Chờ máy con gửi lên relay…", "fx.got": "Đã tải",
+  "fx.del": "Xoá", "fx.delInAsk": "Xoá \"{0}\" khỏi máy con?", "fx.delOutAsk": "Xoá \"{0}\" khỏi thư mục chung?", "fx.deleted": "Đã xoá", "fx.delQueued": "Đã gửi lệnh xoá",
+  "fx.st.delivered": "Đã tới máy con", "fx.st.opened": "Con đã mở", "fx.st.gone": "Con đã xoá", "fx.st.new": "Mới", "fx.st.fetched": "Đã tải về",
+  "fx.e.big": "File quá lớn: tối đa {0}", "fx.e.relayBig": "Qua relay chỉ gửi được tới {0}. File lớn hơn: chỉ gửi được khi cùng Wi-Fi.", "fx.e.bad name": "tên file không hợp lệ", "fx.e.too big": "file quá lớn",
+  "fx.e.length required": "thiếu độ dài file", "fx.e.incomplete": "bị ngắt giữa chừng", "fx.e.no space": "máy con hết chỗ trống", "fx.e.failed": "máy con không lưu được", "fx.e.relay full": "relay đang đầy, thử lại sau",
+  "fx.e.gone": "file không còn trên máy con", "fx.e.no such file": "file không còn", "fx.e.timeout": "máy con không phản hồi (đang mất mạng?)", "fx.e.expired": "hết hạn trên relay (1 giờ)", "fx.e.net": "mất kết nối",
   cantConnect: "Không kết nối được: {0}", noState: "Máy con chưa kết nối relay lần nào", "hist.snap": "Ảnh chụp lúc {0}", "live.cached": "Mất kết nối · dữ liệu lúc {0}",
   "live.on": "Đang kết nối", "live.off": "Mất kết nối", "live.upd": "cập nhật {0}", scrOnApp: "màn hình bật · {0}", scrOn: "màn hình bật",
   "live.pending": "Luật mới đang chờ máy con nhận", "live.selfOff": "Điện thoại/máy tính này đang mất mạng, chưa biết tình trạng máy con",
-  "live.lost": "Mất liên lạc với máy con từ {0} — máy tắt, mất mạng hoặc KidGuard bị tắt", "live.mic": "Micro máy con đang bật (bố mẹ đang nghe) từ {0}",
+  "live.lost": "Mất liên lạc với máy con từ {0}: máy tắt, mất mạng, hoặc KidGuard trên máy con đã bị tắt (có thể do vuốt khỏi đa nhiệm). Mở app KidGuard trên máy con để bật lại", "live.mic": "Micro máy con đang bật (bố mẹ đang nghe) từ {0}",
   "live.usage": "Con đã tắt quyền theo dõi sử dụng — giới hạn giờ không hoạt động", "live.dns": "DNS an toàn bị từ chối: {0}",
-  "live.acc": "Trợ năng đang tắt: không xem/điều khiển màn hình được", "live.locOff": "Định vị đang tắt",
+  "live.acc": "Trợ năng của KidGuard đã bị tắt trên máy con → vào Cài đặt > Trợ năng bật lại (đến lúc đó không xem/điều khiển màn hình được)", "live.locOff": "Định vị đang tắt",
   "sos.at": "SOS: con bấm nút khẩn cấp lúc {0}", "sos.n": "({0} lần)", "sos.where": "Xem vị trí", listen: "Nghe xung quanh", "sos.ack": "Đã xử lý",
   "sos.cleared": "Đã xoá báo SOS", "sos.askAck": "Đánh dấu SOS đã xử lý? Báo trên máy con sẽ tắt.", stop: "Dừng",
   "ear.ended": "Đã dừng (tối đa 10 phút mỗi lần)", "ear.fail": "Không nghe được: {0}", "ear.busy": "Một máy bố mẹ khác đang nghe",
@@ -289,6 +371,13 @@ vi: {
   "ear.mic failed": "Micro máy con đang bận (đang gọi điện?)", "ear.lanOnly": "Chỉ nghe được qua mạng nhà hoặc Tailscale",
   "ear.ask": "Bật micro máy con để nghe xung quanh?\n\nMáy con sẽ kêu bíp và hiện thông báo “Bố mẹ đang nghe”. Tự dừng sau tối đa 10 phút.", "ear.on": "Bật micro",
   "ear.live": "Đang nghe máy con · {0}",
+  "ear.mic silenced": "Hệ thống máy con chặn micro (chỉ thu được im lặng). Trên ColorOS: Cài đặt → Quyền riêng tư → Quyền micro, cho KidGuard", "ear.mic stalled": "Micro máy con không gửi âm thanh",
+  "ear.ringing": "Máy con đang đổ chuông, tắt chuông trước", "micStop": "Tắt micro", "ear.askStop": "Tắt micro máy con, dừng nghe?",
+  wake: "Bật màn hình", "wake.done": "Đã bật màn hình máy con", "cr.wake.failed": "Không bật được màn hình máy con",
+  "act.ringOn": "Đang đổ chuông · bấm để tắt", "act.earOn": "Đang nghe xung quanh · bấm để tắt", "act.sent": "Đã gửi", "act.done": "Xong", "act.err": "Lỗi, thử lại",
+  "act.noRing": "Đang nghe xung quanh: tắt micro rồi mới đổ chuông được", "act.noEar": "Máy con đang đổ chuông: tắt chuông rồi mới nghe được",
+  "ring.askStop": "Tắt chuông máy con?", ringStop: "Tắt chuông", "ring.stopped": "Đã tắt chuông", "live.ring": "Máy con đang đổ chuông từ {0}",
+  "cr.ring.listening": "Đang nghe xung quanh: tắt micro rồi mới đổ chuông được",
   "perm.acc": "Trợ năng (để chặn app)", "perm.admin": "Quản trị thiết bị (chống gỡ app)", "perm.usage": "Truy cập dữ liệu sử dụng (đếm giờ)", "perm.location": "Vị trí",
   "perm.notify": "Thông báo", "perm.battery": "Chạy nền / pin",
   "mode.setup": "Máy con chưa cài xong, luật chưa có tác dụng. Trên máy con mở KidGuard và bật: {0}.", "mode.items": "các mục trong danh sách",
@@ -299,14 +388,14 @@ vi: {
   "req.reply": "Lời nhắn cho con (không bắt buộc)", "req.replyPh": "Ví dụ: Giỏi lắm! Nhớ tắt máy lúc 9h nhé", minutes: "Số phút", "req.yes": "Đồng ý {0} phút", "req.no": "Từ chối",
   today: "Hôm nay", yesterday: "Hôm qua", used: "đã dùng", "home.incl": "(gồm {0} phút thêm)", "home.noLim": "(không giới hạn)", left: "Còn {0}",
   "home.noLimHint": "Chưa đặt giới hạn mỗi ngày, nên không cần thêm giờ", "home.unbonus": "Bỏ thêm giờ", events: "Sự kiện", now: "Ngay bây giờ",
-  paused: "Đang cấm dùng máy", pausedLeft: "(trừ app luôn cho phép), còn {0}", unpause: "Mở lại", "pause.30": "Cấm dùng máy 30 phút", "pause.60": "Cấm dùng 1 giờ",
-  "pause.am": "Cấm dùng tới 6h sáng", lockScr: "Khoá màn hình", ring: "Đổ chuông", locate: "Lấy vị trí", reboot: "Khởi động lại máy", msgPh: "Nhắn cho con…",
+  unpause: "Mở lại",
+  lockScr: "Khoá màn hình", ring: "Đổ chuông", locate: "Lấy vị trí", reboot: "Khởi động lại máy", msgPh: "Nhắn cho con…",
   lockedN: "Đang khoá ({0})", last7: "7 ngày qua", topApps: "Dùng nhiều nhất", none: "Chưa có", log: "Nhật ký", empty: "Trống",
   "req.askYes": "Đồng ý cho con thêm {0} phút hôm nay?", "req.askNote": "Lời nhắn: “{0}”", "req.bonusFail": "Chưa lưu được phút thưởng: {0}",
   "req.yesDone": "Đã đồng ý thêm {0} phút", "req.askNo": "Từ chối yêu cầu của con?", "req.noDone": "Đã từ chối", "reboot.done": "Đã gửi lệnh khởi động lại",
-  "bonus.ask": "Cho con thêm {0} hôm nay?", "bonus.askNone": "Bỏ hết phút thưởng hôm nay?", "pause.askAm": "Cấm con dùng máy tới 6h sáng?", "pause.ask": "Cấm con dùng máy {0}?",
+ 
   "pause.askNote": "Mọi app bị khoá, trừ app luôn cho phép. Gọi điện vẫn được. Hết giờ thì tự mở lại.", "pause.ok": "Cấm dùng",
-  "unpause.ask": "Bỏ dừng, cho con dùng máy lại?", "lock.done": "Đã khoá màn hình", "ring.done": "Đang đổ chuông 20 giây", "locate.done": "Đang lấy vị trí, xem tab Vị trí",
+  "lock.done": "Đã khoá màn hình", "ring.done": "Đang đổ chuông 20 giây", "locate.done": "Đang lấy vị trí, xem tab Vị trí",
   "msg.done": "Đã nhắn",
   cl: "Lệnh: {0} → {1}", "cl.lock": "Khoá màn hình", "cl.locate": "Lấy vị trí", "cl.message": "Tin nhắn", "cl.ring": "Đổ chuông", "cl.openPairing": "Mở ghép máy",
   "cl.unpairAll": "Huỷ ghép mọi máy", "cl.release": "Gỡ quản lý", "cl.answer": "Trả lời xin thêm giờ", "cl.reboot": "Khởi động lại", "cl.tailscale": "Cài Tailscale",
@@ -322,14 +411,39 @@ vi: {
   "sel.noneYet": "Chưa chọn app nào", "lim.range": "Nhập 1–1440 phút", todayV: "{0} hôm nay", newInst: "Mới cài", permit: "Cho phép", "apps.rule": "Luật cho {0}",
   normal: "Bình thường", "apps.none": "Không có app nào", permitted: "Đã cho phép",
   "clean.h": "Dọn máy cho nhẹ",
-  "clean.p": "Ẩn app cài sẵn của hãng mà con không dùng: app bị ẩn không chạy nền, không tốn RAM, không tự cập nhật. Bỏ tích là hiện lại ngay, không mất gì. Đang ẩn: {0}.",
-  "clean.sug": "nên ẩn", "clean.noSug": "Không thấy app cài sẵn nào nên ẩn.", "clean.hideSug": "Ẩn hết app nên ẩn", "clean.onlySug": "Chỉ hiện app nên ẩn",
-  "clean.all": "Xem tất cả app hệ thống ({0})", "clean.noList": "Máy con chưa gửi danh sách app cài sẵn (cần KidGuard 0.8 trở lên).", "clean.heavy": "App nặng nhất",
+  "clean.p": "Ẩn app cài sẵn của hãng mà con không dùng: app bị ẩn không chạy nền, không tốn RAM, không tự cập nhật. Tích chọn rồi bấm Lưu; bỏ tích và Lưu là hiện lại, không mất gì. Máy đang ẩn: {0}.",
+  "clean.sug": "nên ẩn", "clean.noSug": "Không thấy app cài sẵn nào nên ẩn.",
+  "clean.noList": "Máy con chưa gửi danh sách app cài sẵn (cần KidGuard 0.8 trở lên).", "clean.heavy": "App nặng nhất",
   "clean.clear": "Xoá dữ liệu", "clean.noSize": "Chưa có số liệu dung lượng (cần quyền <b>Truy cập dữ liệu sử dụng</b> trên máy con, KidGuard 0.8+).",
   "clean.tipOwner": "Xoá dữ liệu = app về như mới cài (mất đăng nhập, tin nhắn, file lưu trong app).", "clean.tipBasic": "Trên máy con: Cài đặt → Ứng dụng → chọn app → Gỡ cài đặt / Tắt.",
-  "clean.tipRam": "Không có nút \"dọn RAM\": Android tự quản lý, tắt app chạy nền chỉ làm nó mở lại và tốn pin hơn.", hidden: "Đã ẩn", unhidden: "Đã hiện lại",
-  "clean.askHide": "Ẩn {0} app cài sẵn nên ẩn?\n\n{1}\n\nBỏ tích là hiện lại.", hide: "Ẩn", "clean.hidN": "Đã ẩn {0} app", "clean.cleared": "Đã xoá dữ liệu {0}",
+  "clean.tipRam": "Không có nút \"dọn RAM\": Android tự quản lý, tắt app chạy nền chỉ làm nó mở lại và tốn pin hơn.",
+  "clean.cleared": "Đã xoá dữ liệu {0}",
   "clean.askClear": "Xoá toàn bộ dữ liệu của {0}?\n\nApp sẽ như mới cài: mất đăng nhập và mọi thứ lưu trong app. Không hoàn tác được.", delete: "Xoá",
+  "pk.p0": "sáng", "pk.p1": "trưa", "pk.p2": "chiều", "pk.p3": "tối", "pk.tmr": "{0} {1} mai",
+  "pk.pauseH": "Cấm dùng máy", "pk.bonusH": "Cho thêm giờ hôm nay", "pk.dur": "Trong khoảng", "pk.at": "Đến lúc", "pk.less": "Bớt", "pk.more": "Thêm",
+  "pk.amount": "Thời lượng", "pk.unit": "Đơn vị", "pk.mins": "phút", "pk.hours": "giờ", "pk.untilL": "Khoá đến", "pk.quick": "Chọn nhanh", "pk.am6": "tới 6h sáng mai",
+  "pk.sumPause": "Khoá đến {0}", "pk.sumBonus": "Thêm {0}", "pk.today": "chỉ hôm nay", "pk.bad": "Chọn từ 1 phút đến 24 giờ.",
+  "pk.bonusNote": "Cộng vào giới hạn hôm nay; mai tự về như cũ.", "pk.update": "Cập nhật", "pk.give": "Cho thêm",
+  "pk.bonusBtn": "Cho thêm giờ…", "pk.pauseBtn": "Cấm dùng…", "pk.active": "Đang cấm tới {0}", "pk.tapEdit": "bấm để gỡ/sửa", "pk.leftN": "còn {0}",
+  "pk.bonusNow": "Hôm nay đã cho thêm {0} phút", "pk.bonusDone": "Đã cho thêm {0}", "pk.unpaused": "Đã gỡ cấm",
+  "as.list": "Danh sách app", "as.clean": "Dọn máy", "as.space": "Dung lượng",
+  "hd.ok": "Đã ẩn", "hd.refused": "Máy không cho ẩn", "hd.waiting": "Chờ máy con…", "hd.showing": "Đang hiện lại…",
+  "hd.sum": "Đã ẩn {0}/{1} app", "hd.refN": "{0} app máy không cho ẩn", "hd.waitN": "{0} app đang chờ máy con",
+  "hd.refTip": "\"Máy không cho ẩn\": hãng điện thoại khoá app đó (ColorOS / Oppo khoá Trung tâm game, Cửa hàng, Chủ đề…). KidGuard vẫn thử lại mỗi 10 phút; bỏ tích rồi Lưu để thôi thử. Muốn chặn hẳn thì chặn app đó ở tab Danh sách app.",
+  "hd.sugH": "Nên ẩn", "hd.sugD": "App cài sẵn của hãng ít ai dùng, và app đang ẩn", "hd.restH": "App hệ thống khác", "hd.restD": "Chỉ ẩn khi chắc con không cần",
+  "hd.nApps": "{0} app", "hd.sel": "Đang chọn ẩn {0} app", "hd.allSug": "Chọn tất cả gợi ý", "hd.save": "Lưu (ẩn {0}, hiện {1})",
+  "hd.ask": "Gửi danh sách ẩn mới sang máy con?\n\nẨn thêm {0} app, hiện lại {1} app. Bỏ tích và Lưu là hiện lại, không mất dữ liệu.", "hd.sent": "Đã gửi, chờ máy con báo kết quả…",
+  "clean.oldOs": "Máy con chạy Android {0}: nút Xoá dữ liệu cần Android 9 trở lên nên đã ẩn. Cách khác: trên máy con vào Cài đặt → Ứng dụng → chọn app → Bộ nhớ → Xoá dữ liệu.",
+  "cr.clearData.unsupported": "Máy con chạy Android cũ (cần Android 9 trở lên) nên không xoá dữ liệu từ xa được. Trên máy con: Cài đặt → Ứng dụng → chọn app → Bộ nhớ → Xoá dữ liệu.",
+  "cr.clearData.protected": "App này được bảo vệ (hệ thống hoặc KidGuard) nên không xoá dữ liệu.", "cr.clearData.failed": "Máy con không xoá được dữ liệu app này.",
+  "cr.clearData.not owner": "Cần Device Owner để xoá dữ liệu app từ xa.",
+  "chip.none": "Chưa có", "chip.nTpl": "{0} mẫu", "chip.perDay": "{0}/ngày", "chip.nGrp": "{0} nhóm", "chip.nChore": "{0} việc", "chip.nSch": "{0} lịch bật",
+  "chip.nZone": "{0} vùng", "chip.every": "mỗi {0}",
+  "sd.tpl": "Áp một bộ luật có sẵn hoặc lưu bộ của bạn", "sd.daily": "Tổng thời gian dùng máy mỗi ngày", "sd.grp": "Nhiều app chung một hạn mức, khung giờ",
+  "sd.totp": "Mở khoá tạm bằng mã 6 số trên điện thoại bạn", "sd.chore": "Con làm việc nhà để xin thêm phút", "sd.bed": "Khoá máy vào giờ ngủ",
+  "sd.sch": "Khoá máy trong giờ học", "sd.zone": "Báo khi con đến hoặc rời nơi quen", "sd.trk": "Lưu đường đi để xem ở tab Vị trí",
+  "sd.more": "Duyệt app mới, khoá vị trí, khoá chế độ máy bay", "sd.dns": "Lọc web người lớn cho cả máy", "sd.anti": "Không cho tự cài app, không cho gỡ lỗi USB",
+  "map.fail": "Không tải được bản đồ: mạng đang chặn máy chủ bản đồ. Đường đi và giờ vẫn đúng; bấm biểu tượng bản đồ để mở Google Maps.",
   "tw.missing": "Chưa chọn đủ giờ bắt đầu và kết thúc, luật này không có tác dụng", "tw.same": "Giờ bắt đầu và kết thúc trùng nhau, luật này không có tác dụng",
   "tw.noDays": "Chưa chọn ngày nào, lịch này không có tác dụng",
   "tpl.h": "Mẫu luật", "tpl.p": "Chọn một mẫu để áp dụng nhanh cho một hoặc nhiều con.", "tpl.applyTo": "Áp dụng cho {0}", "tpl.applyMany": "Áp dụng cho nhiều con…",
@@ -352,6 +466,19 @@ vi: {
   "chore.h": "Việc nhà đổi thêm giờ", "chore.namePh": "Tên việc (vd: Rửa bát)", "chore.name": "Tên việc", minShort: "phút", "chore.del": "Xoá việc",
   "chore.none": "Chưa có việc nào. Ví dụ: Rửa bát +20 phút.", "chore.add": "Thêm việc",
   "chore.tip": "Con chọn việc đã làm khi xin thêm giờ; bố mẹ vẫn là người bấm Đồng ý (tối đa 20 việc, 5–120 phút).", "chore.askDel": "Xoá việc “{0}”?", "chore.newName": "Việc nhà",
+  // v0.9.7 comfort: wind-down, messages on the kid's phone, check-in, canned replies
+  "wd.h": "Chuẩn bị đi ngủ", "sd.wind": "Màn hình đen trắng và lời nhắc trước giờ ngủ", "wd.gray": "Màn hình đen trắng từ trước giờ ngủ đến sáng",
+  "wd.lead": "Bắt đầu", "wd.leadN": "{0} phút trước giờ ngủ", "wd.at": "Đúng giờ ngủ", "wd.nudge": "Nhắc con “Còn 10 phút nữa là giờ ngủ”",
+  "wd.needBed": "Bật “Giờ ngủ” thì mục này mới chạy.", "wd.perm": "Cần cấp quyền: máy con chưa có quyền đổi màu màn hình (WRITE_SECURE_SETTINGS). Chạy lại bước cài đặt (setup.sh / Tự cài trên máy con).",
+  "wd.fail": "Máy con chưa đổi được màu màn hình ({0}).", "wd.nowOn": "Máy con đang đen trắng", "wd.wait": "Sẽ đen trắng từ {0}", "wd.unsaved": "Chưa lưu: máy con nhận sau khi lưu.",
+  "wd.tip": "Tắt: bỏ chọn ô trên, máy con trả lại màu cũ trong ~10 giây. Con có tự tắt trong Cài đặt thì máy bật lại. Gỡ KidGuard cũng trả lại màu cũ.",
+  "chip.gray": "đen trắng", "chip.nudge": "nhắc 10 phút",
+  "kn.h": "Lời nhắn trên máy con", "sd.kind": "Màn hình khoá và câu hiện khi app bị khoá", "kn.lock": "Màn hình khoá (người nhặt được máy cũng thấy)",
+  "kn.msg": "Lời nhắn", "kn.msgPh": "Vd: Máy của Bin", "kn.contact": "Liên hệ khẩn cấp", "kn.contactPh": "Vd: Gọi mẹ 09xx", "kn.preview": "Màn hình khoá sẽ hiện: “{0}”", "kn.noLock": "Để trống: màn hình khoá không hiện gì.",
+  "kn.note": "Lời nhắn khi app bị khoá", "kn.notePh": "Vd: Học xong rồi chơi nhé con", "kn.noteDef": "Để trống: “Bố mẹ đang tạm khoá ứng dụng này. Con có thể xin thêm giờ trong KidGuard nhé.”",
+  "kn.tip": "Hiện trong hộp “bị khoá” của Android và trên màn hình KidGuard. Xoá chữ để tắt. Gỡ KidGuard cũng xoá hết.", "chip.lock": "màn khoá", "chip.note": "lời nhắn",
+  "ci.arrived": "{0} báo đã tới nơi lúc {1}", "ci.pickup": "{0} nhờ đón lúc {1}", "ci.where": "Xem vị trí", "ci.seen": "Đã xem", "ci.noLoc": "chưa kèm vị trí", "ci.loc": "kèm vị trí ±{0} m",
+  "req.canned": ["Ok, nhớ đi ngủ đúng giờ nhé", "Làm xong bài đã nhé", "Giỏi lắm con!", "Hôm nay đủ rồi con"], "req.cannedAria": "Trả lời nhanh",
   "bed.h": "Giờ ngủ", "sch.h": "Lịch học", "sch.namePh": "Tên (vd: Giờ học)", "sch.name": "Tên lịch", "sch.none": "Chưa có lịch. Ví dụ: khoá giờ học 7:00–11:30 các ngày T2–T6.",
   "sch.add": "Thêm lịch", "sch.askDel": "Xoá lịch này?",
   "zone.h": "Vùng (nhà, trường…)", "zone.namePh": "Tên vùng (vd: Nhà)", "zone.name": "Tên vùng", "zone.r": "bán kính", lat: "Vĩ độ", lng: "Kinh độ",
@@ -367,6 +494,7 @@ vi: {
   "anti.owner": "Luôn bật sẵn: chặn gỡ KidGuard, chặn Force stop, chặn đặt lại máy trong Cài đặt, chặn Safe Mode, chặn tạo người dùng, khoá đổi giờ.",
   "se.acc off": "Chưa bật Trợ năng — chạy lại cài đặt", "se.screen off": "Màn hình máy con đang tắt",
   "se.unsupported": "Máy con dùng Android cũ, chưa hỗ trợ xem màn hình (cần Android 11+)", "se.busy": "Máy con đang bận, thử lại…",
+  "se.need consent": "Cần con bấm Cho phép trên máy (Android 8–10 hỏi trước khi chia sẻ màn hình; Android 8–9 có ô “Không hiện lại”)", "se.denied": "Con đã bấm Huỷ trên máy, sẽ hỏi lại sau 1 phút", "scr.watching": "Đang xem",
   "scr.stat": "{0} khung/giây · trễ {1} ms", "scr.cant": "Chưa xem được màn hình", "scr.lost": "Mất kết nối tới máy con", "scr.wait": "Đang chờ máy con kết nối (tối đa ~20 giây)…",
   "scr.retry": "Mất kết nối, đang thử lại…", "scr.h": "Màn hình máy con", "scr.view": "Chỉ xem", "key.home": "Màn hình chính", "key.recents": "Đa nhiệm", "key.notif": "Thông báo",
   "scr.typePh": "Gõ chữ vào ô đang chọn trên máy con…", "scr.sendTxt": "Gửi chữ", "scr.notify": "Báo cho con \"Bố mẹ đang xem / đang điều khiển\"",
@@ -439,6 +567,11 @@ en: {
   "pair.notSetup": "The kid's phone isn't set up yet: open KidGuard on it and follow the checklist on screen.",
   "pe.wrong code": "Wrong code, try again", "pe.wrong pin": "Wrong PIN", "pe.pin locked": { one: "Too many wrong PINs, try again in {0} minute", other: "Too many wrong PINs, try again in {0} minutes" },
   "pe.wait": "Too many tries: the kid's phone made a new code, wait a moment and enter the new one", "pe.closed": "Pairing was closed, reopen it on the kid's phone", "pe.fail": "Couldn't pair",
+  "pair.newPin": "Set the parent PIN (4–8 digits)", "pair.newPinP": "This phone has no PIN yet: set it now. You need it to pair another phone and to manage right on the kid's phone. Don't tell your kid.",
+  "pair.pin1": "New PIN", "pair.pin2": "PIN again", "pe.pin required": "Set a PIN (4–8 digits) to pair", "pe.bad pin": "PIN must be 4–8 digits", "pe.mismatch": "The two PINs don't match",
+  "pinGate.h": "Set the parent PIN", "pinGate.p": "This phone was paired earlier but has no PIN. Set one before going on: it is needed to pair another phone and to manage right on the kid's phone (instead of waiting 24 hours). Don't tell your kid.",
+  "pinGate.go": "Set PIN", "pinGate.wait": "Saving the PIN…", "pinGate.off": "Can't save while showing a saved copy. Reconnect to the kid's phone and try again.",
+  "local.bar": "Managing right on the kid's phone. The page closes when the screen turns off, when you leave it, or after 5 minutes without a touch.", "local.end": "Done", "local.over": "The management session ended.",
   "list.none": "No phones yet. Open the \"remote control\" link from your kid's page (at home, Settings tab) to add one.",
   ov: "Overview", list: "List", "ov.where": "Where the kids are", "ov.week": "Screen time, 7 days", "ov.report": "Weekly report",
   "ov.sos": "{0} pressed SOS at {1}", loading: "Loading…", "ov.online": "online", "ov.offline": "offline · {0}", "ov.usingApp": "using {0}", "ov.using": "in use",
@@ -477,13 +610,42 @@ en: {
   "tpl.noStore": "The browser won't let us save templates", "tpl.saved": "Template “{0}” saved",
   "hist.viewing": "Data for {0} · read-only", "hist.live": "Back to latest",
   "pin.warn": "No PIN set. Without a PIN, your kid could pair their own phone and remove the controls.", "pin.setNow": "Set PIN now",
+  "tab.dev": "Device", "dv.sto": "Storage", "dv.stoChip": "{0} free", "dv.stoD": "Used {0} of {1} ({2}%)", "dv.apps": "Apps using the most space",
+  "dv.appRow": "App {0} · Data {1} · Cache {2}", "dv.noUsage": "Per-app sizes need <b>Usage access</b> on the kid's phone.",
+  "dv.cacheTip": "There's no clear-cache button: Android only lets system apps clear other apps' cache. To clear it: on the kid's phone, Settings → Apps → pick the app → Storage → Clear cache (you can do it from the Screen tab).",
+  "dv.clean": "Clean up: hide unused preinstalled apps", "dv.clearOld": "Needs Android 9 or later",
+  "dv.ram": "RAM", "dv.ramChip": "{0}% used", "dv.ramD": "{0} free of {1}", "dv.ramLow": "The phone is low on RAM: Android will close some background apps.",
+  "dv.ramWhy": "Since Android 8, apps can't read other apps' RAM or CPU use, so KidGuard doesn't show it (no made-up numbers). Below are the apps used the longest today.",
+  "dv.topUse": "Used the most today", "dv.noUse": "No apps used yet today.",
+  "dv.bat": "Battery", "dv.batChip": "{0}%", "dv.temp": "Temperature", "dv.health": "Battery health", "dv.plug": "Charging", "dv.volt": "Voltage",
+  "dv.charging": "Charging ({0})", "dv.notCharging": "Not charging", "dv.plug.ac": "wall charger", "dv.plug.usb": "USB", "dv.plug.wireless": "wireless", "dv.plug.dock": "dock", "dv.plug.none": "?",
+  "dv.h.good": "Good", "dv.h.overheat": "Overheating", "dv.h.dead": "Dead", "dv.h.overVoltage": "Over voltage", "dv.h.failure": "Failure", "dv.h.cold": "Too cold", "dv.h.unknown": "Unknown",
+  "dv.hot": "The phone is hot ({0}). Let it rest, take the case off, and don't play while charging.", "dv.scr": "Screen on today", "dv.scrOld": "Needs Android 9 or later",
+  "dv.sys": "System", "dv.model": "Model", "dv.os": "Android", "dv.up": "Up for", "dv.kg": "KidGuard", "dv.net": "Network", "dv.days": { one: "{0} day", other: "{0} days" },
+  "dv.n.wifi": "Wi-Fi", "dv.n.cell": "Mobile data", "dv.n.ethernet": "Ethernet", "dv.n.vpn": "VPN", "dv.n.other": "Other", "dv.n.none": "No network",
+  "dv.sig": "Wi-Fi signal", "dv.sigN": "{0}/4 bars ({1} dBm)", "dv.metered": "metered",
+  "dv.act": "Actions", "dv.reboot": "Restart phone", "dv.rebootD": "The phone is off for a few minutes, then starts again; KidGuard comes back by itself.",
+  "dv.noBoost": "There's no \"boost / clean RAM\" button: Android manages RAM itself, and closing apps just makes them restart and use more battery. If the phone is slow, a restart is what really helps.",
+  "dv.refresh": "Refresh", "dv.at": "Updated {0}", "dv.wait": "Waiting for the kid's phone to send its numbers (up to about a minute)…", "dv.stale": "Showing older numbers, waiting for fresh ones…", "dv.loading": "Getting the phone's numbers…",
+  "dv.old": "The kid's phone hasn't sent anything. Update KidGuard on the kid's phone (a version after 0.9.5).", "dv.oldRelay": "The relay doesn't support this yet: the worker needs an update.", "dv.err": "Couldn't get it: {0}",
   "tab.home": "Today", "tab.screen": "Screen", "tab.apps": "Apps", "tab.rules": "Rules", "tab.where": "Location", "tab.set": "Settings", "tab.history": "History",
+  "tab.files": "Files", "fx.sendH": "Send a file to your kid", "fx.sendP": "It goes to Download/KidGuard on the kid's phone, with a notification. Up to {0} a file.",
+  "fx.sendPr": "Through the relay (not on the same Wi-Fi): up to {0} a file, kept on the relay for 1 hour. On the same Wi-Fi up to 200 MB.", "fx.pick": "Send a file", "fx.drop": "or drop files here",
+  "fx.app": "The parent app can't pick or save files yet. Open this page in a browser to send and download files.", "fx.fromKid": "Files from your kid", "fx.fromKidP": "On the kid's phone: Share → Send to my parents, or More → Send a file to my parents.",
+  "fx.sent": "Files you sent", "fx.none": "No files yet.", "fx.scope": "Only this shared folder: KidGuard never shows other files on the kid's phone.",
+  "fx.q": "Waiting…", "fx.up": "Sending {0}%", "fx.upWait": "On the relay, waiting for the phone…", "fx.upDone": "Delivered", "fx.stopped": "Cancelled", "fx.err": "Error: {0}",
+  "fx.cancel": "Cancel", "fx.retry": "Retry", "fx.dismiss": "Remove from the list", "fx.get": "Download", "fx.getting": "Downloading {0}%", "fx.getWait": "Waiting for the phone to upload…", "fx.got": "Downloaded",
+  "fx.del": "Delete", "fx.delInAsk": "Delete \"{0}\" from the kid's phone?", "fx.delOutAsk": "Delete \"{0}\" from the shared folder?", "fx.deleted": "Deleted", "fx.delQueued": "Delete sent",
+  "fx.st.delivered": "On the phone", "fx.st.opened": "Opened", "fx.st.gone": "Deleted on the phone", "fx.st.new": "New", "fx.st.fetched": "Downloaded",
+  "fx.e.big": "Too big: at most {0}", "fx.e.relayBig": "Through the relay only up to {0}. Bigger files only on the same Wi-Fi.", "fx.e.bad name": "bad file name", "fx.e.too big": "file too big",
+  "fx.e.length required": "file length missing", "fx.e.incomplete": "the transfer was cut", "fx.e.no space": "the kid's phone is full", "fx.e.failed": "the phone could not save it", "fx.e.relay full": "the relay is full, try later",
+  "fx.e.gone": "the file is no longer on the phone", "fx.e.no such file": "the file is gone", "fx.e.timeout": "the phone did not answer (offline?)", "fx.e.expired": "expired on the relay (1 hour)", "fx.e.net": "connection lost",
   cantConnect: "Couldn't connect: {0}", noState: "The kid's phone hasn't reached the relay yet", "hist.snap": "Snapshot at {0}", "live.cached": "Offline · data from {0}",
   "live.on": "Online", "live.off": "Offline", "live.upd": "updated {0}", scrOnApp: "screen on · {0}", scrOn: "screen on",
   "live.pending": "New rules waiting for the kid's phone to pick them up", "live.selfOff": "This phone/computer is offline, so the kid's phone status is unknown",
-  "live.lost": "Lost contact with the kid's phone since {0}: it's off, offline, or KidGuard was stopped", "live.mic": "The kid's microphone is on (a parent is listening) since {0}",
+  "live.lost": "Lost contact with the kid's phone since {0}: it's off, offline, or KidGuard on it was stopped (maybe swiped away in Recents). Open the KidGuard app on the kid's phone to start it again", "live.mic": "The kid's microphone is on (a parent is listening) since {0}",
   "live.usage": "Your kid turned off usage access: time limits don't work", "live.dns": "Safe DNS was refused: {0}",
-  "live.acc": "Accessibility is off: the screen can't be viewed or controlled", "live.locOff": "Location is off",
+  "live.acc": "KidGuard's Accessibility was turned off on the kid's phone → turn it back on in Settings > Accessibility (until then the screen can't be viewed or controlled)", "live.locOff": "Location is off",
   "sos.at": "SOS: your kid pressed the emergency button at {0}", "sos.n": { one: "({0} time)", other: "({0} times)" }, "sos.where": "See location", listen: "Listen in", "sos.ack": "Handled",
   "sos.cleared": "SOS cleared", "sos.askAck": "Mark the SOS as handled? The alert on the kid's phone will go away.", stop: "Stop",
   "ear.ended": "Stopped (10 minutes max each time)", "ear.fail": "Couldn't listen: {0}", "ear.busy": "Another parent phone is already listening",
@@ -491,6 +653,13 @@ en: {
   "ear.mic failed": "The kid's microphone is busy (on a call?)", "ear.lanOnly": "Listening only works over the home network or Tailscale",
   "ear.ask": "Turn on the kid's microphone to hear the surroundings?\n\nThe kid's phone will beep and show a “Parent is listening” notice. It stops by itself after 10 minutes at most.", "ear.on": "Turn on mic",
   "ear.live": "Listening to the kid's phone · {0}",
+  "ear.mic silenced": "The kid's phone system blocks the mic (only silence comes through). On ColorOS: Settings → Privacy → Microphone permission, allow KidGuard", "ear.mic stalled": "The kid's mic isn't sending any sound",
+  "ear.ringing": "The kid's phone is ringing, stop the ring first", "micStop": "Turn mic off", "ear.askStop": "Turn off the kid's mic and stop listening?",
+  wake: "Wake screen", "wake.done": "The kid's screen is on", "cr.wake.failed": "Couldn't turn the kid's screen on",
+  "act.ringOn": "Ringing · tap to stop", "act.earOn": "Listening · tap to stop", "act.sent": "Sent", "act.done": "Done", "act.err": "Failed, try again",
+  "act.noRing": "Listening now: turn the mic off before ringing", "act.noEar": "The kid's phone is ringing: stop the ring before listening",
+  "ring.askStop": "Stop the ring on the kid's phone?", ringStop: "Stop ringing", "ring.stopped": "Ringing stopped", "live.ring": "The kid's phone is ringing since {0}",
+  "cr.ring.listening": "Listening now: turn the mic off before ringing",
   "perm.acc": "Accessibility (to block apps)", "perm.admin": "Device admin (stops uninstalling)", "perm.usage": "Usage access (to count time)", "perm.location": "Location",
   "perm.notify": "Notifications", "perm.battery": "Background / battery",
   "mode.setup": "The kid's phone isn't fully set up, so rules have no effect yet. On that phone open KidGuard and turn on: {0}.", "mode.items": "the items in the list",
@@ -501,14 +670,14 @@ en: {
   "req.reply": "Message to your kid (optional)", "req.replyPh": "e.g. Well done! Remember to put the phone away at 9", minutes: "Minutes", "req.yes": "Allow {0} min", "req.no": "Decline",
   today: "Today", yesterday: "Yesterday", used: "used", "home.incl": "(includes {0} bonus min)", "home.noLim": "(no limit)", left: "{0} left",
   "home.noLimHint": "No daily limit set, so no need to add time", "home.unbonus": "Remove extra time", events: "Events", now: "Right now",
-  paused: "Phone use is paused", pausedLeft: "(except always-allowed apps), {0} left", unpause: "Resume", "pause.30": "Pause 30 min", "pause.60": "Pause 1 hour",
-  "pause.am": "Pause until 6 AM", lockScr: "Lock screen", ring: "Ring", locate: "Locate", reboot: "Restart phone", msgPh: "Message your kid…",
+  unpause: "Resume",
+  lockScr: "Lock screen", ring: "Ring", locate: "Locate", reboot: "Restart phone", msgPh: "Message your kid…",
   lockedN: "Locked now ({0})", last7: "Last 7 days", topApps: "Most used", none: "Nothing yet", log: "Log", empty: "Empty",
   "req.askYes": { one: "Give your kid {0} more minute today?", other: "Give your kid {0} more minutes today?" }, "req.askNote": "Message: “{0}”", "req.bonusFail": "Couldn't save the bonus minutes: {0}",
   "req.yesDone": { one: "Allowed {0} more minute", other: "Allowed {0} more minutes" }, "req.askNo": "Decline your kid's request?", "req.noDone": "Declined", "reboot.done": "Restart command sent",
-  "bonus.ask": "Give your kid {0} more today?", "bonus.askNone": "Remove all of today's bonus time?", "pause.askAm": "Pause your kid's phone until 6 AM?", "pause.ask": "Pause your kid's phone for {0}?",
+ 
   "pause.askNote": "Every app is locked except always-allowed ones. Calls still work. It unlocks by itself when time's up.", "pause.ok": "Pause",
-  "unpause.ask": "End the pause and let your kid use the phone again?", "lock.done": "Screen locked", "ring.done": "Ringing for 20 seconds", "locate.done": "Getting location, see the Location tab",
+  "lock.done": "Screen locked", "ring.done": "Ringing for 20 seconds", "locate.done": "Getting location, see the Location tab",
   "msg.done": "Message sent",
   cl: "Command: {0} → {1}", "cl.lock": "Lock screen", "cl.locate": "Locate", "cl.message": "Message", "cl.ring": "Ring", "cl.openPairing": "Open pairing",
   "cl.unpairAll": "Unpair all phones", "cl.release": "Remove controls", "cl.answer": "Answer time request", "cl.reboot": "Restart", "cl.tailscale": "Install Tailscale",
@@ -527,15 +696,39 @@ en: {
   "sel.noneYet": "No apps selected", "lim.range": "Enter 1–1440 minutes", todayV: "{0} today", newInst: "New", permit: "Allow", "apps.rule": "Rule for {0}",
   normal: "Normal", "apps.none": "No apps", permitted: "Allowed",
   "clean.h": "Lighten the phone",
-  "clean.p": "Hide the maker's preinstalled apps your kid doesn't use: hidden apps don't run in the background, use RAM or update themselves. Untick to bring one back instantly, nothing is lost. Hidden now: {0}.",
-  "clean.sug": "suggested", "clean.noSug": "No preinstalled apps worth hiding.", "clean.hideSug": "Hide all suggested", "clean.onlySug": "Show suggested only",
-  "clean.all": "Show all system apps ({0})", "clean.noList": "The kid's phone hasn't sent its preinstalled app list (needs KidGuard 0.8 or later).", "clean.heavy": "Largest apps",
+  "clean.p": "Hide the maker's preinstalled apps your kid doesn't use: hidden apps don't run in the background, use RAM or update themselves. Tick, then Save; untick and Save to bring one back, nothing is lost. Hidden on the phone now: {0}.",
+  "clean.sug": "suggested", "clean.noSug": "No preinstalled apps worth hiding.",
+  "clean.noList": "The kid's phone hasn't sent its preinstalled app list (needs KidGuard 0.8 or later).", "clean.heavy": "Largest apps",
   "clean.clear": "Clear data", "clean.noSize": "No storage figures yet (needs <b>Usage access</b> on the kid's phone, KidGuard 0.8+).",
   "clean.tipOwner": "Clear data = the app is like freshly installed (logins, messages and files saved in it are gone).", "clean.tipBasic": "On the kid's phone: Settings → Apps → pick the app → Uninstall / Disable.",
-  "clean.tipRam": "There's no \"clean RAM\" button: Android manages memory itself, and killing background apps just makes them restart and use more battery.", hidden: "Hidden", unhidden: "Shown again",
-  "clean.askHide": { one: "Hide {0} suggested preinstalled app?\n\n{1}\n\nUntick to bring it back.", other: "Hide {0} suggested preinstalled apps?\n\n{1}\n\nUntick to bring them back." }, hide: "Hide",
-  "clean.hidN": { one: "Hid {0} app", other: "Hid {0} apps" }, "clean.cleared": "Cleared data for {0}",
+  "clean.tipRam": "There's no \"clean RAM\" button: Android manages memory itself, and killing background apps just makes them restart and use more battery.",
+  "clean.cleared": "Cleared data for {0}",
   "clean.askClear": "Clear all data for {0}?\n\nThe app will be like freshly installed: logins and everything saved in it are gone. This can't be undone.", delete: "Delete",
+  "pk.p0": "", "pk.p1": "", "pk.p2": "", "pk.p3": "", "pk.tmr": "{0} tomorrow",
+  "pk.pauseH": "Pause the phone", "pk.bonusH": "Extra time today", "pk.dur": "For", "pk.at": "Until", "pk.less": "Less", "pk.more": "More",
+  "pk.amount": "Duration", "pk.unit": "Unit", "pk.mins": "min", "pk.hours": "hours", "pk.untilL": "Lock until", "pk.quick": "Quick picks", "pk.am6": "until 6 AM tomorrow",
+  "pk.sumPause": "Locked until {0}", "pk.sumBonus": "Add {0}", "pk.today": "today only", "pk.bad": "Pick 1 minute to 24 hours.",
+  "pk.bonusNote": "Added to today's limit; back to normal tomorrow.", "pk.update": "Update", "pk.give": "Give",
+  "pk.bonusBtn": "Extra time…", "pk.pauseBtn": "Pause…", "pk.active": "Paused until {0}", "pk.tapEdit": "tap to end or change", "pk.leftN": "{0} left",
+  "pk.bonusNow": "Already gave {0} extra min today", "pk.bonusDone": "Gave {0} extra", "pk.unpaused": "Pause ended",
+  "as.list": "App list", "as.clean": "Clean up", "as.space": "Storage",
+  "hd.ok": "Hidden", "hd.refused": "Phone won't hide", "hd.waiting": "Waiting for phone…", "hd.showing": "Showing again…",
+  "hd.sum": "Hid {0}/{1} apps", "hd.refN": { one: "{0} app the phone won't hide", other: "{0} apps the phone won't hide" }, "hd.waitN": { one: "{0} app waiting for the phone", other: "{0} apps waiting for the phone" },
+  "hd.refTip": "\"Phone won't hide\": the phone maker locks that app (ColorOS / Oppo locks Game Center, App Market, Themes…). KidGuard retries every 10 minutes; untick it and Save to stop trying. To keep the kid out of it, block it in the App list instead.",
+  "hd.sugH": "Suggested", "hd.sugD": "Maker apps few people use, and apps hidden now", "hd.restH": "Other system apps", "hd.restD": "Hide only if you're sure your kid doesn't need it",
+  "hd.nApps": { one: "{0} app", other: "{0} apps" }, "hd.sel": { one: "{0} app selected to hide", other: "{0} apps selected to hide" }, "hd.allSug": "Select all suggested", "hd.save": "Save (hide {0}, show {1})",
+  "hd.ask": "Send the new hide list to the kid's phone?\n\nHide {0} more, show {1} again. Untick and Save to bring an app back, nothing is lost.", "hd.sent": "Sent, waiting for the kid's phone to report back…",
+  "clean.oldOs": "The kid's phone runs Android {0}: Clear data needs Android 9 or later, so the button is hidden. Instead, on the kid's phone: Settings → Apps → pick the app → Storage → Clear data.",
+  "cr.clearData.unsupported": "The kid's phone runs an older Android (needs Android 9 or later), so data can't be cleared remotely. On the kid's phone: Settings → Apps → pick the app → Storage → Clear data.",
+  "cr.clearData.protected": "This app is protected (system or KidGuard), its data can't be cleared.", "cr.clearData.failed": "The kid's phone couldn't clear this app's data.",
+  "cr.clearData.not owner": "Clearing app data remotely needs Device Owner.",
+  "chip.none": "None", "chip.nTpl": { one: "{0} template", other: "{0} templates" }, "chip.perDay": "{0}/day", "chip.nGrp": { one: "{0} group", other: "{0} groups" },
+  "chip.nChore": { one: "{0} chore", other: "{0} chores" }, "chip.nSch": { one: "{0} on", other: "{0} on" }, "chip.nZone": { one: "{0} place", other: "{0} places" }, "chip.every": "every {0}",
+  "sd.tpl": "Apply a ready-made rule set or save your own", "sd.daily": "Total screen time per day", "sd.grp": "Several apps sharing one limit and hours",
+  "sd.totp": "Unlock for a while with a 6-digit code on your phone", "sd.chore": "Your kid earns minutes by doing chores", "sd.bed": "Lock the phone at night",
+  "sd.sch": "Lock the phone during school hours", "sd.zone": "Get told when your kid arrives or leaves", "sd.trk": "Keep a route to view in the Location tab",
+  "sd.more": "Approve new apps, lock location, lock airplane mode", "sd.dns": "Filter adult sites on the whole phone", "sd.anti": "No installing apps, no USB debugging",
+  "map.fail": "Map couldn't load: the network is blocking the map server. The route and times are still right; tap the map icon to open Google Maps.",
   "tw.missing": "Start and end times aren't both set, so this rule has no effect", "tw.same": "Start and end times are the same, so this rule has no effect",
   "tw.noDays": "No days picked, so this schedule has no effect",
   "tpl.h": "Rule templates", "tpl.p": "Pick a template to quickly apply it to one or more kids.", "tpl.applyTo": "Apply to {0}", "tpl.applyMany": "Apply to several kids…",
@@ -558,6 +751,19 @@ en: {
   "chore.h": "Chores for extra time", "chore.namePh": "Chore name (e.g. Wash the dishes)", "chore.name": "Chore name", minShort: "min", "chore.del": "Delete chore",
   "chore.none": "No chores yet. For example: Wash the dishes +20 min.", "chore.add": "Add chore",
   "chore.tip": "Your kid picks a chore they did when asking for more time; you still tap Allow (up to 20 chores, 5–120 min).", "chore.askDel": "Delete the chore “{0}”?", "chore.newName": "Chore",
+  // v0.9.7 comfort: wind-down, messages on the kid's phone, check-in, canned replies
+  "wd.h": "Wind-down", "sd.wind": "Black-and-white screen and a reminder before bedtime", "wd.gray": "Black-and-white screen from before bedtime until morning",
+  "wd.lead": "Start", "wd.leadN": "{0} min before bedtime", "wd.at": "At bedtime", "wd.nudge": "Remind your kid “10 minutes until bedtime”",
+  "wd.needBed": "Turn on “Bedtime” for this to work.", "wd.perm": "Permission needed: the kid's phone can't change screen colours (WRITE_SECURE_SETTINGS). Run the setup step again (setup.sh / Self setup on the kid's phone).",
+  "wd.fail": "The kid's phone couldn't change screen colours ({0}).", "wd.nowOn": "The kid's phone is black and white now", "wd.wait": "Black and white from {0}", "wd.unsaved": "Not saved yet: the phone gets it after saving.",
+  "wd.tip": "To turn off: untick the box; the phone gets its old colours back in ~10 seconds. If your kid turns it off in Settings, it comes back on. Removing KidGuard also restores the old colours.",
+  "chip.gray": "grayscale", "chip.nudge": "10-min reminder",
+  "kn.h": "Messages on the kid's phone", "sd.kind": "Lock screen and the text shown when an app is locked", "kn.lock": "Lock screen (whoever finds the phone sees it too)",
+  "kn.msg": "Message", "kn.msgPh": "e.g. Bin's phone", "kn.contact": "Emergency contact", "kn.contactPh": "e.g. Call mum 09xx", "kn.preview": "Lock screen will show: “{0}”", "kn.noLock": "Empty: nothing on the lock screen.",
+  "kn.note": "Note when an app is locked", "kn.notePh": "e.g. Homework first, then games", "kn.noteDef": "Empty: “This app is paused for now. You can ask your parent for more time in KidGuard.”",
+  "kn.tip": "Shown in Android's “blocked” dialog and on the KidGuard screen. Clear the text to turn it off. Removing KidGuard clears all of it.", "chip.lock": "lock screen", "chip.note": "note",
+  "ci.arrived": "{0} checked in: arrived at {1}", "ci.pickup": "{0} asked to be picked up at {1}", "ci.where": "See location", "ci.seen": "Seen", "ci.noLoc": "no location yet", "ci.loc": "with location ±{0} m",
+  "req.canned": ["OK, remember bedtime", "Finish your homework first", "Well done!", "That's enough for today"], "req.cannedAria": "Quick replies",
   "bed.h": "Bedtime", "sch.h": "School schedules", "sch.namePh": "Name (e.g. Class time)", "sch.name": "Schedule name", "sch.none": "No schedules yet. For example: lock during class 7:00–11:30, Mon–Fri.",
   "sch.add": "Add schedule", "sch.askDel": "Delete this schedule?",
   "zone.h": "Places (home, school…)", "zone.namePh": "Place name (e.g. Home)", "zone.name": "Place name", "zone.r": "radius", lat: "Latitude", lng: "Longitude",
@@ -573,6 +779,7 @@ en: {
   "anti.owner": "Always on: KidGuard can't be uninstalled or force-stopped; factory reset from Settings, Safe Mode, adding users and changing the time are blocked.",
   "se.acc off": "Accessibility isn't on, run setup again", "se.screen off": "The kid's screen is off",
   "se.unsupported": "The kid's phone runs an older Android that can't share the screen (needs Android 11+)", "se.busy": "The kid's phone is busy, retrying…",
+  "se.need consent": "Your kid needs to tap Allow on the phone (Android 8–10 asks before sharing the screen; Android 8–9 has a “Don't show again” box)", "se.denied": "Your kid tapped Cancel on the phone, it asks again in 1 minute", "scr.watching": "Viewing",
   "scr.stat": "{0} fps · {1} ms lag", "scr.cant": "Can't show the screen yet", "scr.lost": "Lost connection to the kid's phone", "scr.wait": "Waiting for the kid's phone to connect (up to ~20 seconds)…",
   "scr.retry": "Connection lost, retrying…", "scr.h": "Kid's screen", "scr.view": "View only", "key.home": "Home", "key.recents": "Recent apps", "key.notif": "Notifications",
   "scr.typePh": "Type into the selected field on the kid's phone…", "scr.sendTxt": "Send text", "scr.notify": "Tell my kid \"A parent is watching / controlling\"",
@@ -655,6 +862,17 @@ document.addEventListener("change", e => { if (e.target && e.target.id === "lang
 const KEY = "kg.kids";
 // App mode: running inside the KidGuard parent Android app (WebView + local proxy, bridge window.KGApp).
 const APP = !!window.KGApp;
+// on-device parent page (child app AdminActivity): the session rides an HttpOnly cookie, JS never sees a token
+const LOCAL = !APP && !!window.KGLocal;
+const localBar = () => LOCAL ? `<div class="alert warn row" style="position:sticky;top:0;z-index:30">${ic("smartphone")} <span class="sp">${t("local.bar")}</span><button id="localEnd" class="pri">${ic("check")} ${t("local.end")}</button></div>` : "";
+function localWire() { const b = $("#localEnd"); if (b) b.onclick = () => { try { KGLocal.end(); } catch {} }; }
+function localOver() { gen++; clearInterval(timer); cur = null; $("#app").innerHTML = `<div class="card mute">${ic("lock")} ${t("local.over")}</div>`; try { KGLocal.end(); } catch {} }
+async function localBoot() {
+  let hello = null;
+  try { const r = await fetch("/api/hello"); if (r.ok) hello = await r.json(); } catch {}
+  if (!hello || !hello.id) return localOver();
+  open({ id: hello.id, token: "", name: t("kid"), via: "lan" });   // not in `kids`: never saved
+}
 const b64u = s => btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const kgCall = (m, ...a) => { try { return window.KGApp[m](...a); } catch { return null; } };
 const load = () => {
@@ -690,6 +908,7 @@ const reason = c => tc("rs.", c, t("rs.locked"));
 const hhmm = at => new Date(at).toLocaleTimeString(lang, { hour: "numeric", minute: "2-digit" });
 const dm = k => new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)).toLocaleDateString(lang, { day: "numeric", month: "short" });   // "YYYY-MM-DD" -> "7 thg 11" / "Nov 7"
 const DNS = () => [["", t("off")], ["family.adguard-dns.com", "AdGuard Family"], ["family.cloudflare-dns.com", "Cloudflare Family"], ["family-filter-dns.cleanbrowsing.org", "CleanBrowsing Family"]];
+const WD_STEPS = [0, 15, 30, 45, 60];
 // rules from older phones may lack v0.2 fields
 function norm(e) {
   e.hidden = Array.isArray(e.hidden) ? e.hidden : [];   // v0.8 preinstalled apps hidden by the parent
@@ -699,6 +918,9 @@ function norm(e) {
   e.blocked = e.blocked || []; e.allow = e.allow || []; e.appMin = e.appMin || {};
   e.chores = Array.isArray(e.chores) ? e.chores : []; e.zones = Array.isArray(e.zones) ? e.zones : [];
   e.groups = Array.isArray(e.groups) ? e.groups : []; e.unlockMin = [15, 30, 60, 120].includes(+e.unlockMin) ? +e.unlockMin : 30;
+  const wd = e.windDown || {}, li = e.lockInfo || {};   // v0.9.7
+  e.windDown = { gray: !!wd.gray, min: WD_STEPS.includes(+wd.min) ? +wd.min : 30, nudge: !!wd.nudge };
+  e.lockInfo = { msg: String(li.msg || ""), contact: String(li.contact || "") }; e.blockNote = String(e.blockNote || "");
   return e;
 }
 // index 0 = Monday, from "YYYY-MM-DD"
@@ -730,6 +952,7 @@ async function call(k, path, method = "GET", body) {
 async function boot() {
   if (navLvl()) try { history.replaceState(null, ""); } catch {}   // a reload keeps the old entry state
   if (APP) return appBoot();
+  if (LOCAL) return localBoot();
   // a link from the child: #c=<id>&k=<token>&n=<name>
   const h = new URLSearchParams(location.hash.slice(1));
   // QR from the child's screen: #pair=<6 digits> prefills the code; drop the hash so a reload does not reuse it
@@ -766,7 +989,16 @@ function appBoot() {
   $("#app").querySelectorAll("[data-i]").forEach(b => b.onclick = () => open(list[+b.dataset.i]));
   $("#addKid").onclick = addScreen;
   if ($("#ovGo")) $("#ovGo").onclick = () => overview(list, appBoot);
+  appOpenKid();
 }
+// parent app: a notification tap names one kid (KGApp.takeOpen() -> {target, id}, given once); the app also calls this on a running page
+function appOpenKid() {
+  let o = null;
+  try { o = JSON.parse(window.KGApp && KGApp.takeOpen ? KGApp.takeOpen() || "null" : "null"); } catch {}
+  const k = o && kids.find(x => x.target === o.target && x.id === o.id);
+  if (k && k !== cur) open(k);
+}
+window.kgAppOpen = appOpenKid;
 function addScreen() {
   const keep = [($("#addr") || {}).value || "", ($("#rlink") || {}).value || ""]; reScreen = addScreen;
   $("#app").innerHTML = head(t("addKid")) + `
@@ -808,12 +1040,17 @@ async function lanHello(target) {
 function pairScreen(hello, target, prefill = "") {
   const pre = target ? "/k/" + b64u(target) + "/api" : "/api";
   reScreen = () => pairScreen(hello, target, ($("#code") || {}).value || prefill);
+  // no PIN yet (phone >= 0.9.6 says pairPin): this pairing sets it, atomically on the phone; older phones get the PIN gate after
+  const newPin = hello.pairPin && !hello.pin;
   $("#app").innerHTML = head("KidGuard") + `<div class="card">
     <h2>${ic("link")} ${t("pair.h")}</h2>
     ${hello.pairing ? `<p>${ic("hash")} ${t("pair.enter")}</p>
     <div class="pairf"><input id="code" inputmode="numeric" maxlength="6" placeholder="123456" value="${esc(prefill)}" aria-label="${esc(t("pair.code"))}">
     <input id="nm" placeholder="${esc(t("pair.name"))}" value="${esc(t("kid"))}" aria-label="${esc(t("pair.name"))}">
     ${hello.pin ? `<input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="${esc(t("pair.pin"))}" aria-label="${esc(t("pair.pin"))}">` : ""}
+    ${newPin ? `</div><p class="mute" style="margin:10px 0 6px">${ic("key-round")} <b>${t("pair.newPin")}</b><br>${t("pair.newPinP")}</p><div class="pairf">
+    <input id="np1" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin1"))}" aria-label="${esc(t("pair.pin1"))}">
+    <input id="np2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin2"))}" aria-label="${esc(t("pair.pin2"))}">` : ""}
     <button class="pri" id="go">${ic("link")} ${t("pair.go")}</button></div><p class="err" id="e"></p>`
     : `<p>${ic("hourglass")} ${t("pair.closedP")}</p><button id="retry" onclick="location.reload()">${ic("refresh-cw")} ${t("retry")}</button>`}
     ${hello.owner || hello.mode === "basic" ? "" : `<p class="err">${ic("triangle-alert")} ${t("pair.notSetup")}</p>`}
@@ -824,10 +1061,18 @@ function pairScreen(hello, target, prefill = "") {
     if ($("#retry")) $("#retry").onclick = () => lanHello(target);
   }
   const go = $("#go"); if (!go) return;
-  if (prefill) (hello.pin ? $("#pin") : go).focus();
+  if (prefill) (hello.pin ? $("#pin") : newPin ? $("#np1") : go).focus();
   go.onclick = async () => {
     try {
-      const r = await fetch(pre + "/pair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: $("#code").value, pin: $("#pin") ? $("#pin").value : "" }) });
+      const body = { code: $("#code").value, pin: $("#pin") ? $("#pin").value : "" };
+      if (newPin) {
+        const a = $("#np1").value, b = $("#np2").value;
+        if (!/^\d{4,8}$/.test(a)) throw new Error(t("pe.bad pin"));
+        if (a !== b) throw new Error(t("pe.mismatch"));
+        body.newPin = a;
+      }
+      // the phone keeps nothing until this page uses the token once (open -> /state): closing now leaves it unpaired
+      const r = await fetch(pre + "/pair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const j = await r.json();
       if (!r.ok) throw new Error(hasT("pe." + j.error) ? t("pe." + j.error, Math.ceil((j.wait || 60000) / 60000)) : t("pe.fail"));
       const k = { id: j.id, token: j.token, name: $("#nm").value || t("kid"), via: "lan", ...(APP ? { target } : {}) };
@@ -935,18 +1180,33 @@ function ovReport(D) {
       <div class="mute">${ic("hand")} ${t("rep.reqs", reqs)}</div></div>`;
   }).join("");
 }
+// Map tiles: the first host that loads wins (tileI, kept for the page's life). tile.openstreetmap.org is blocked on some
+// networks (seen on a Vietnamese ISP: its DNS answers 127.0.0.1 even via 8.8.8.8, and TLS with that SNI is reset), so the
+// OSM Germany server (same OSM data and style) goes first. Every host must be in img-src of the HTML CSP (phone Http.kt,
+// parent app Proxy.kt, worker). A host blocked by an older CSP just fails over to the next one.
+const TILES = ["https://tile.openstreetmap.de/{z}/{x}/{y}.png", "https://tile.openstreetmap.org/{z}/{x}/{y}.png"];
+let tileI = 0, tileDead = false;
+const tileUrl = (i, z, x, y) => TILES[i].replace("{z}", z).replace("{x}", x).replace("{y}", y);
+const tileImg = (z, x, y, l, tp) => `<img alt="" draggable="false" data-i="${tileI}" data-z="${z}" data-x="${x}" data-y="${y}" src="${tileUrl(tileI, z, x, y)}" onerror="tileErr(this)" style="left:${l}px;top:${tp}px">`;
+const mapFail = () => `<div class="merr" role="status">${ic("wifi-off")} ${t("map.fail")}</div>`;
+function tileErr(im) {
+  const i = +im.dataset.i + 1;
+  if (i < TILES.length) { if (tileI < i) tileI = i; im.dataset.i = i; im.src = tileUrl(i, im.dataset.z, im.dataset.x, im.dataset.y); return; }
+  im.onerror = null; im.style.visibility = "hidden"; tileDead = true;
+  const m = im.closest(".map"); if (m && !m.querySelector(".merr")) m.insertAdjacentHTML("beforeend", mapFail());
+}
 function ovMap(pins) {
   const box = $("#map"); if (!box) return;
   const w = box.clientWidth || 340, h = 260, S = 256 * 2 ** mv.z, left = mv.fx * S - w / 2, top = mv.fy * S - h / 2, n = 2 ** mv.z;
   let tiles = "";
   for (let ty = Math.floor(top / 256); ty <= Math.floor((top + h) / 256); ty++) for (let tx = Math.floor(left / 256); tx <= Math.floor((left + w) / 256); tx++) {
     if (ty < 0 || ty >= n) continue;
-    tiles += `<img alt="" draggable="false" src="https://tile.openstreetmap.org/${mv.z}/${((tx % n) + n) % n}/${ty}.png" style="left:${Math.round(tx * 256 - left)}px;top:${Math.round(ty * 256 - top)}px">`;
+    tiles += tileImg(mv.z, ((tx % n) + n) % n, ty, Math.round(tx * 256 - left), Math.round(ty * 256 - top));
   }
   const xy = pins.map(p => [wx(p.lng) * S - left, wy(p.lat) * S - top]);
   box.innerHTML = `<div class="layer" id="mlayer">${tiles}<svg width="${w}" height="${h}" style="left:0;top:0">${xy.map((q, i) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="8" fill="${pins[i].c}" stroke="#fff" stroke-width="3"/>`).join("")}</svg>
     ${xy.map((q, i) => `<span class="pin" style="left:${q[0].toFixed(0)}px;top:${(q[1] - 12).toFixed(0)}px;border-color:${pins[i].c}">${esc(pins[i].name)}</span>`).join("")}</div>
-    <div class="mz"><button id="mzi" aria-label="${esc(t("zoomIn"))}">${ic("plus")}</button><button id="mzo" aria-label="${esc(t("zoomOut"))}">${ic("minus")}</button></div><div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>`;
+    <div class="mz"><button id="mzi" aria-label="${esc(t("zoomIn"))}">${ic("plus")}</button><button id="mzo" aria-label="${esc(t("zoomOut"))}">${ic("minus")}</button></div><div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>${tileDead ? mapFail() : ""}`;
   $("#mzi").onclick = () => { mv.z = Math.min(18, mv.z + 1); ovMap(pins); };
   $("#mzo").onclick = () => { mv.z = Math.max(2, mv.z - 1); ovMap(pins); };
 }
@@ -974,7 +1234,7 @@ let noState = false;   // relay answered {state: null}: the child never synced
 let gen = 0;   // bumped by every screen change; async work started for an older screen drops its result
 // relay: the phone sends the state only when it changed, so its sync time (seen) says "online", not state.t
 function lastSeen() { return cur && cur.via !== "lan" && seenAt ? Math.max(seenAt, st ? st.t : 0) : (st ? st.t : 0); }
-async function open(k) { const g = ++gen; pairLocal = null; screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); noState = false; saveFail(false); render(); if ($("#back")) navTo(1); clearInterval(timer); await refresh(); if (g !== gen) return; clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
+async function open(k) { const g = ++gen; pairLocal = null; screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); hideDraft = null; noState = false; saveFail(false); render(); if ($("#back")) navTo(1); clearInterval(timer); await refresh(); if (g !== gen) return; clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
 
 async function refresh() {
   if (!cur || viewDay || document.hidden) return;
@@ -992,6 +1252,7 @@ async function refresh() {
     if (k !== cur) return;
     lastErr = e.message;
     lastNet = !!e.net;
+    if (LOCAL && e.raw === "not paired") return localOver();   // the on-device session expired
     if (e.raw === "not paired" || /not paired/.test(e.message)) { gen++; clearInterval(timer); cur = null; kids = kids.filter(x => x !== k); save(kids); navDown(0); toast(t("e.not paired")); return setTimeout(boot, 1000); }
   }
   const busy = document.activeElement && /^(SELECT|INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
@@ -1004,9 +1265,10 @@ async function refresh() {
   // redraw the tab only when what it shows changed and nobody is using a control (icons would reload, a select would close)
   const sig = st ? JSON.stringify([tab, st.rules && st.rules.rev, st.apps.map(a => [a.suspended, a.blocked, Math.floor(a.ms / 60000)]),
     st.location && st.location.t, (st.log || []).length, (st.track || []).length, Math.floor(st.usedMs / 60000), lastErr, cachedAt, viewDay,
-    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, st.totpOn, st.unlockUntil, (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(",")]) : lastErr + (noState ? "|nostate" : "");
+    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, st.totpOn, st.unlockUntil, (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(","), (st.preinstalled || []).map(x => x.hidden ? 1 : 0).join(""), (st.rules && st.rules.hidden || []).join(",")]) : lastErr + (noState ? "|nostate" : "");
   if (tab === "screen") updateLive();   // never redraw the screen tab: the <img> updates by itself
   else if (sig !== lastSig && !busy) { lastSig = sig; render(); } else updateLive();
+  if (tab === "files" && k === cur) fxSync();   // shared folder list + relay upload delivery (its own redraw)
 }
 let lastSig = "";
 
@@ -1068,7 +1330,7 @@ async function cmd(c, okMsg, q) {
   if (a && !(await ask(...a))) return;
   try {
     const r = await call(cur, "/cmd", "POST", c);
-    if (r && r.result && !["ok", "queued", "no such sos"].includes(r.result) && !(c.type === "tailscale" || c.type === "openPairing")) { toast("err|" + t("cmd.answer", r.result)); return; }
+    if (r && r.result && !["ok", "queued", "no such sos"].includes(r.result) && !(c.type === "tailscale" || c.type === "openPairing")) { toast("err|" + tc("cr." + c.type + ".", r.result, t("cmd.answer", r.result))); return; }
     if (r && r.result === "queued") {   // relay: only stored, the phone runs it on its next poll
       const on = cur && Date.now() - lastSeen() < (cur.via === "lan" ? 30000 : 120000);
       toast(on ? "send|" + t("cmd.queued") : "warn|" + t("cmd.queuedOff"));
@@ -1103,7 +1365,7 @@ const totpHtml = s => `<div class="alert warn" style="margin-top:10px"><b>${ic("
     <p class="mute">${t("totp.share")}</p>
     <button id="totpDone">${ic("check")} ${t("totp.done")}</button></div>`;
 // ---- v0.6: events, chores, zones, templates ----
-const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open" };
+const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand" };
 const evHtml = e => `<div class="row" style="padding:3px 0">${ic(EV_IC[e.kind] || "bell")} <span class="sp">${esc(noEmoji(e.text))}</span><span class="mute">${ago(e.t)}</span></div>`;
 const zoneOk = z => z && Number.isFinite(+z.lat) && Number.isFinite(+z.lng) && z.lat !== "" && z.lng !== "" && z.lat !== null && z.lng !== null && Math.abs(+z.lat) <= 90 && Math.abs(+z.lng) <= 180;
 const newId = p => p + Math.random().toString(36).slice(2, 8);
@@ -1177,6 +1439,209 @@ async function tplSave() {
   tplSel = PRESET_D.length + Math.min(u.length, 12) - 1; toast("ok|" + t("tpl.saved", name)); render();
 }
 
+// --- Files tab: the shared folder (docs/protocol.md "Shared files"). Only what was sent, never a browser of the phone. ---
+// Jobs live outside render(): a tab switch or a state refresh keeps transfers running; progress bars update in place.
+const FX = { lan: 200 * 1048576, relay: 10 * 1048576, chunk: 1048576 };
+const fx = { jobs: [], list: null, kid: null, sig: "", raf: 0, hide: new Set() };
+const fxSize = n => n < 1024 ? n + " B" : n < 1048576 ? Math.round(n / 1024) + " KB" : (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + " MB";
+const fxHex = () => [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, "0")).join("");
+const fxRelay = (k = cur) => !!k && k.via !== "lan";
+const fxHdr = k => k.token ? { "X-KG-Token": k.token } : {};   // on-device page: the HttpOnly cookie instead
+const fxErr = e => e && e.raw === "abort" ? t("fx.stopped") : tc("fx.e.", (e && e.raw) || "", (e && e.message) || t("fx.e.failed"));
+const fxStop = () => errOf("abort", t("fx.stopped"));
+function fxFiles() {
+  const l = !fxRelay() && fx.kid === cur && fx.list ? fx.list : (st && st.files) || [];
+  return l.filter(f => !fx.hide.has(f.id));
+}
+function fxLoad(k = cur) {
+  if (!k || fxRelay(k)) return;
+  call(k, "/files").then(j => { if (k === cur && Array.isArray(j.files)) { fx.list = j.files; fx.kid = k; fxPaint(); } }).catch(() => {});
+}
+// one XHR (upload progress needs it): LAN PUT of the whole file, or one relay chunk
+function fxXhr(job, method, url, body, onUp) {
+  return new Promise((res, rej) => {
+    const x = new XMLHttpRequest(); job.abort = () => x.abort();
+    x.open(method, url);
+    for (const [h, v] of Object.entries(fxHdr(job.kid))) x.setRequestHeader(h, v);
+    if (onUp) x.upload.onprogress = e => { if (e.lengthComputable) onUp(e.loaded); };
+    x.onload = () => {
+      let j = {}; try { j = JSON.parse(x.responseText); } catch {}
+      x.status >= 200 && x.status < 300 ? res(j) : rej(errOf(j.error || (x.status === 413 ? "too big" : "HTTP " + x.status)));
+    };
+    x.onerror = () => rej(errOf("net")); x.onabort = () => rej(fxStop());
+    x.send(body);
+  });
+}
+function fxSend(list) {
+  const k = cur, max = fxRelay(k) ? FX.relay : FX.lan;
+  for (const f of [...list]) {
+    const job = { id: fxHex(), kid: k, kind: "up", name: f.name, size: f.size, pct: 0, state: "queue", err: "", file: f };
+    if (f.size > max) { job.state = "err"; job.big = true; job.err = t(fxRelay(k) ? "fx.e.relayBig" : "fx.e.big", fxSize(max)); }
+    fx.jobs.unshift(job);
+  }
+  fxPaint(); fxPump();
+}
+// one upload at a time (the phone serves 4 connections; the relay wants chunks in order)
+async function fxPump() {
+  if (fxPump.on) return; fxPump.on = true;
+  try { for (let j; (j = fx.jobs.slice().reverse().find(x => x.kind === "up" && x.state === "queue"));) await fxUp(j); }
+  finally { fxPump.on = false; }
+}
+async function fxUp(job) {
+  const k = job.kid, f = job.file; job.state = "run"; job.pct = 0; job.err = ""; fxPaint();
+  try {
+    if (!fxRelay(k)) {
+      const j = await fxXhr(job, "PUT", base(k) + "/files/" + encodeURIComponent(f.name), f, n => { job.pct = n / Math.max(1, f.size); fxPaint(); });
+      job.fid = j.file && j.file.id; job.state = "done"; job.pct = 1; fxLoad(k);
+    } else {
+      const fid = job.fid = fxHex(), n = Math.max(1, Math.ceil(f.size / FX.chunk));
+      for (let i = 0; i < n; i++) {
+        if (job.state === "stop") throw fxStop();
+        const q = `?fid=${fid}&i=${i}&n=${n}&to=kid&size=${f.size}&name=${encodeURIComponent(f.name)}`;
+        await fxXhr(job, "POST", base(k) + "/file" + q, f.slice(i * FX.chunk, (i + 1) * FX.chunk), b => { job.pct = (i * FX.chunk + b) / Math.max(1, f.size); fxPaint(); });
+      }
+      job.pct = 1; job.state = "wait"; job.at = Date.now();   // "done" once the phone lists it (state files, next sync)
+    }
+  } catch (e) {
+    job.state = e.raw === "abort" ? "stop" : "err"; job.err = fxErr(e);
+    if (job.fid && fxRelay(k)) fetch(base(k) + "/file?fid=" + job.fid, { method: "DELETE", headers: fxHdr(k) }).catch(() => {});
+  }
+  job.abort = null; fxPaint();
+}
+function fxSave(blob, name) {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+async function fxGet(f) {
+  const k = cur;
+  if (fx.jobs.some(j => j.kid === k && j.kind === "down" && j.fid === f.id && /^(run|wait)$/.test(j.state))) return;
+  fx.jobs = fx.jobs.filter(j => !(j.kid === k && j.kind === "down" && j.fid === f.id));
+  const job = { id: fxHex(), kid: k, kind: "down", name: f.name, size: f.size, fid: f.id, pct: 0, state: "run", err: "" };
+  fx.jobs.unshift(job); fxPaint();
+  try {
+    let parts = [];
+    if (!fxRelay(k)) {
+      const ctl = new AbortController(); job.abort = () => ctl.abort();
+      const r = await fetch(base(k) + "/files/" + f.id, { headers: fxHdr(k), signal: ctl.signal }).catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("net"); });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw errOf(j.error || "HTTP " + r.status); }
+      const total = +r.headers.get("content-length") || f.size || 1, rd = r.body.getReader(); let got = 0;
+      for (;;) {
+        const { done, value } = await rd.read().catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("incomplete"); });
+        if (done) break; parts.push(value); got += value.length; job.pct = got / total; fxPaint();
+      }
+      if (got < f.size) throw errOf("incomplete");
+    } else {
+      if (f.size > FX.relay) throw errOf("relayBig", t("fx.e.relayBig", fxSize(FX.relay)));
+      job.state = "wait"; fxPaint();
+      await call(k, "/cmd", "POST", { type: "fileUp", file: f.id });   // the phone puts it on the relay (next sync)
+      let meta = null; const end = Date.now() + 5 * 60e3;
+      while (!meta) {
+        await new Promise(s => setTimeout(s, 3000));
+        if (job.state === "stop") throw fxStop();
+        if (Date.now() > end) throw errOf("timeout");
+        const l = await call(k, "/file?to=parent").catch(() => ({}));
+        meta = (l.files || []).find(x => x.fid === f.id && x.done) || null;
+      }
+      job.state = "run"; fxPaint();
+      for (let i = 0; i < meta.n; i++) {
+        if (job.state === "stop") throw fxStop();
+        const ctl = new AbortController(); job.abort = () => ctl.abort();
+        const r = await fetch(base(k) + `/file?fid=${f.id}&i=${i}`, { headers: fxHdr(k), signal: ctl.signal }).catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("net"); });
+        if (!r.ok) throw errOf("HTTP " + r.status);
+        parts.push(await r.arrayBuffer()); job.pct = (i + 1) / meta.n; fxPaint();
+      }
+      fetch(base(k) + "/file?fid=" + f.id, { method: "DELETE", headers: fxHdr(k) }).catch(() => {});
+    }
+    fxSave(new Blob(parts), f.name); parts = null; job.state = "done"; job.pct = 1;
+  } catch (e) { job.state = e.raw === "abort" ? "stop" : "err"; job.err = fxErr(e); }
+  job.abort = null; fxPaint(); fxLoad(k);
+}
+function fxCancel(job) { if (!/^(queue|run|wait)$/.test(job.state)) return; const a = job.abort; job.state = "stop"; job.err = t("fx.stopped"); if (a) a(); else if (job.kind === "up" && job.fid && fxRelay(job.kid)) fetch(base(job.kid) + "/file?fid=" + job.fid, { method: "DELETE", headers: fxHdr(job.kid) }).catch(() => {}); fxPaint(); }
+async function fxDel(f) {
+  if (!(await ask(t(f.dir === "in" ? "fx.delInAsk" : "fx.delOutAsk", f.name), t("fx.del"), true))) return;
+  const k = cur;
+  try {
+    if (!fxRelay(k)) { await call(k, "/files/" + f.id, "DELETE"); fxLoad(k); }
+    else await call(k, "/cmd", "POST", { type: "fileDel", file: f.id });
+    fx.hide.add(f.id); toast("ok|" + t(fxRelay(k) ? "fx.delQueued" : "fx.deleted"));
+  } catch (e) { toast("err|" + fxErr(e)); }
+  fxPaint();
+}
+// relay uploads: done when the phone's state lists the id; stale after the relay TTL
+function fxSync() {
+  const have = new Set(((st && st.files) || []).concat(fx.list || []).map(f => f.id));
+  for (const j of fx.jobs) if (j.kind === "up" && j.state === "wait") {
+    if (have.has(j.fid)) j.state = "done"; else if (Date.now() - j.at > 3600e3) { j.state = "err"; j.err = t("fx.e.expired"); }
+  }
+  fxLoad(); fxPaint();
+}
+const fxTxt = j => j.state === "queue" ? t("fx.q") : j.state === "run" ? t(j.kind === "up" ? "fx.up" : "fx.getting", Math.floor(j.pct * 100))
+  : j.state === "wait" ? t(j.kind === "up" ? "fx.upWait" : "fx.getWait") : j.state === "done" ? t(j.kind === "up" ? "fx.upDone" : "fx.got")
+  : j.state === "stop" ? t("fx.stopped") : t("fx.err", j.err);
+const fxBar = j => /^(run|wait|queue)$/.test(j.state) ? `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.floor(j.pct * 100)}" data-fxb="${j.id}"><i data-fxp="${j.id}" style="width:${Math.floor(j.pct * 100)}%"></i></div>` : "";
+const fxTone = j => j.state === "done" ? "ok" : j.state === "err" ? "bad" : "";
+function fxPaint() { if (!fx.raf) fx.raf = requestAnimationFrame(() => { fx.raf = 0; fxDraw(); }); }
+function fxDraw() {
+  const J = $("#fxJobs"), O = $("#fxOut"), I = $("#fxIn"); if (!J || !cur) return;
+  const jobs = fx.jobs.filter(j => j.kid === cur), files = fxFiles(), dl = id => jobs.find(j => j.kind === "down" && j.fid === id);
+  // full redraw only when the structure changed; a progress tick only moves bars / text (a click is never lost mid-press)
+  const sig = JSON.stringify([jobs.map(j => [j.id, j.state, j.err]), files.map(f => [f.id, f.st, f.name])]);
+  if (sig === fx.sig && J.dataset.ok) {
+    for (const j of jobs) { const p = $(`[data-fxp="${j.id}"]`), x = $(`[data-fxt="${j.id}"]`), b = $(`[data-fxb="${j.id}"]`);
+      if (p) p.style.width = Math.floor(j.pct * 100) + "%"; if (b) b.setAttribute("aria-valuenow", Math.floor(j.pct * 100)); if (x) x.textContent = fxTxt(j); }
+    return;
+  }
+  fx.sig = sig; J.dataset.ok = 1;
+  const row = (name, sub, status, bar, btns) => `<div class="fxrow"><div class="sp fxm"><b class="fxn">${esc(name)}</b> <span class="mute">${sub}</span>${status}${bar}</div><div class="fxb">${btns}</div></div>`;
+  const xb = (act, id, icon, label, cls = "") => `<button data-fx="${act}" data-id="${id}" class="${cls}" aria-label="${esc(label)}" title="${esc(label)}">${ic(icon)}</button>`;
+  J.innerHTML = jobs.filter(j => j.kind === "up").map(j => row(j.name, fxSize(j.size),
+    `<div class="mute" role="status" data-fxt="${j.id}"${fxTone(j) ? ` style="color:var(--${fxTone(j)})"` : ""}>${esc(fxTxt(j))}</div>`, fxBar(j),
+    (/^(queue|run|wait)$/.test(j.state) ? `<button data-fx="cancel" data-id="${j.id}">${ic("x")} ${t("fx.cancel")}</button>` : "") +
+    (/^(err|stop)$/.test(j.state) && j.file && !j.big ? xb("retry", j.id, "refresh-cw", t("fx.retry")) : "") +
+    (/^(done|err|stop)$/.test(j.state) ? xb("dismiss", j.id, "x", t("fx.dismiss")) : ""))).join("");
+  const out = files.filter(f => f.dir === "out"), inn = files.filter(f => f.dir === "in");
+  const meta = f => fxSize(f.size) + " · " + esc(ago(f.at)) + ` <span class="tag ${/^(opened|fetched)$/.test(f.st) ? "ok" : f.st === "gone" ? "warn" : ""}">${esc(tc("fx.st.", f.st, f.st))}</span>`;
+  O.innerHTML = out.length ? out.map(f => { const j = dl(f.id);
+    const st2 = j ? `<div class="mute" role="status" data-fxt="${j.id}"${fxTone(j) ? ` style="color:var(--${fxTone(j)})"` : ""}>${esc(fxTxt(j))}</div>` : "";
+    const busy = j && /^(run|wait)$/.test(j.state);
+    return row(f.name, meta(f), st2, j ? fxBar(j) : "",
+      (APP ? "" : busy ? `<button data-fx="cancel" data-id="${j.id}">${ic("x")} ${t("fx.cancel")}</button>`
+        : `<button class="pri" data-fx="get" data-id="${f.id}">${ic(j && j.state === "done" ? "check" : j && j.state === "err" ? "refresh-cw" : "download")} ${t(j && j.state === "done" ? "fx.got" : j && j.state === "err" ? "fx.retry" : "fx.get")}</button>`) +
+      xb("del", f.id, "trash-2", t("fx.del"), "bad"));
+  }).join("") : `<p class="mute">${t("fx.none")} ${t("fx.fromKidP")}</p>`;
+  I.innerHTML = inn.length ? inn.map(f => row(f.name, meta(f), "", "", xb("del", f.id, "trash-2", t("fx.del"), "bad"))).join("") : `<p class="mute">${t("fx.none")}</p>`;
+}
+function filesTab(b) {
+  const relay = fxRelay(), max = relay ? FX.relay : FX.lan;
+  fx.sig = "";
+  b.innerHTML = `<div class="card"><h2>${ic("upload")} ${t("fx.sendH")}</h2>
+    <p class="mute">${t(relay ? "fx.sendPr" : "fx.sendP", fxSize(max))}</p>
+    ${APP ? `<div class="alert warn">${ic("triangle-alert")} ${t("fx.app")}</div>` : `<div id="fxDrop" class="fxdrop"><input type="file" id="fxPick" multiple hidden>
+      <button class="pri" id="fxBtn">${ic("upload")} ${t("fx.pick")}</button><span class="mute">${t("fx.drop")}</span></div>`}
+    <div id="fxJobs"></div></div>
+  <div class="card"><h2>${ic("inbox")} ${t("fx.fromKid")}</h2><div id="fxOut"></div></div>
+  <div class="card"><h2>${ic("folder-open")} ${t("fx.sent")}</h2><div id="fxIn"></div></div>
+  <p class="mute">${ic("shield")} ${t("fx.scope")}</p>`;
+  const pick = $("#fxPick"), drop = $("#fxDrop");
+  if (pick) { $("#fxBtn").onclick = () => pick.click(); pick.onchange = () => { if (pick.files.length) fxSend(pick.files); pick.value = ""; }; }
+  if (drop) {
+    drop.ondragover = e => { e.preventDefault(); drop.classList.add("on"); };
+    drop.ondragleave = () => drop.classList.remove("on");
+    drop.ondrop = e => { e.preventDefault(); e.stopPropagation(); drop.classList.remove("on"); if (e.dataTransfer.files.length) fxSend(e.dataTransfer.files); };
+  }
+  b.onclick = e => {
+    const el = e.target.closest("[data-fx]"); if (!el) return;
+    const id = el.dataset.id, job = fx.jobs.find(j => j.id === id), f = fxFiles().find(x => x.id === id);
+    ({ cancel: () => job && fxCancel(job), dismiss: () => { fx.jobs = fx.jobs.filter(j => j !== job); fxPaint(); },
+       retry: () => { if (job) { job.state = "queue"; job.pct = 0; job.fid = null; fxPaint(); fxPump(); } },
+       get: () => f && fxGet(f), del: () => f && fxDel(f) })[el.dataset.fx]();
+  };
+  fxDraw(); fxLoad();
+}
+// a file dropped outside the drop zone must not navigate the page away (and drop the transfers)
+["dragover", "drop"].forEach(n => window.addEventListener(n, e => { if (tab === "files" && cur && e.dataTransfer && [...e.dataTransfer.types].includes("Files")) { e.preventDefault(); if (n === "drop" && !APP) fxSend(e.dataTransfer.files); } }));
+window.addEventListener("beforeunload", e => { if (fx.jobs.some(j => /^(run|wait|queue)$/.test(j.state))) { e.preventDefault(); e.returnValue = ""; } });
+
 // The tab bar is rebuilt on every render: keep its horizontal scroll and the page scroll, fade edges with more tabs.
 function tabFade(t) { const m = t.scrollWidth - t.clientWidth; t.classList.toggle("fl", t.scrollLeft > 2); t.classList.toggle("fr", m - t.scrollLeft > 2); }
 function render(tabClick) {
@@ -1186,27 +1651,54 @@ function render(tabClick) {
   const focus = document.activeElement && document.activeElement.id;   // keep the field being typed in
   if (focus && /^(f-|msg|relay)/.test(focus)) { updateLive(); return; }
   if (tab !== "screen") screenStop();
+  if (st && edit && !viewDay && !edit.pinSet) return pinGate(a);   // paired before PINs were required: nothing else until one is set
   const online = st && Date.now() - lastSeen() < (cur.via === "lan" ? 30000 : 120000);
-  a.innerHTML = `
+  a.innerHTML = `${localBar()}
   <div class="row"><h1 class="sp">${ic("user")} ${esc(cur.name)}</h1>${APP || kids.length > 1 || cur.via === "relay" ? `<button id="back">${ic("list")} ${t("list")}</button>` : ""}</div>
   ${viewDay ? `<div class="alert warn row" style="position:sticky;top:0;z-index:20">${ic("history")} <span class="sp">${t("hist.viewing", esc(dm(viewDay)))}</span><button id="goLive" class="pri">${ic("zap")} ${t("hist.live")}</button></div>` : ""}
   ${st && edit && !viewDay && !edit.pinSet && tab !== "set" ? `<div class="alert warn row">${ic("key-round")} <span class="sp">${t("pin.warn")}</span><button id="goPin" class="pri">${t("pin.setNow")}</button></div>` : ""}
   <div class="card" id="live"></div>
-  <div class="tabs">${[["home", "house"], ["screen", "smartphone"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["set", "settings"]].filter(x => !(viewDay && x[0] === "screen")).concat(APP ? [["hist", "history"]] : []).map(([id, i]) => [id, ic(i) + " " + t("tab." + id)]).map(([id, n]) => `<button data-tab="${id}" class="${tab === id ? "on" : ""}">${n}</button>`).join("")}</div>
+  <div class="tabs">${[["home", "house"], ["screen", "smartphone"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["dev", "cpu"], ["files", "folder-open"], ["set", "settings"]].filter(x => !(viewDay && (x[0] === "screen" || x[0] === "dev" || x[0] === "files"))).concat(APP ? [["hist", "history"]] : []).map(([id, i]) => [id, ic(i) + " " + t("tab." + id)]).map(([id, n]) => `<button data-tab="${id}" class="${tab === id ? "on" : ""}">${n}</button>`).join("")}</div>
   <div id="body"></div>`;
   a.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; if (tab === "hist") histDays = null; render(true); });
   const tabsEl = a.querySelector(".tabs"); tabsEl.scrollLeft = tabX; tabsEl.onscroll = () => tabFade(tabsEl); tabFade(tabsEl);
   const on = tabsEl.querySelector(".on"); if (tabClick && on) { const l = on.offsetLeft - tabsEl.offsetLeft, r = l + on.offsetWidth; if (l < tabsEl.scrollLeft) tabsEl.scrollLeft = l - 24; else if (r > tabsEl.scrollLeft + tabsEl.clientWidth) tabsEl.scrollLeft = r - tabsEl.clientWidth + 24; tabFade(tabsEl); }
   if ($("#goLive")) $("#goLive").onclick = () => { tab = "home"; open(cur); navDown(1); };
   if ($("#back")) $("#back").onclick = () => { goList(); navDown(0); };
+  localWire();
   if ($("#goPin")) $("#goPin").onclick = () => { tab = "set"; render(true); const f = $("#f-pin"); if (f) { f.scrollIntoView({ block: "center" }); f.focus(); } };
   updateLive();
   const body = $("#body");
   if (!st) { body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " " + t("cantConnect", esc(lastErr)) : noState ? ic("hourglass") + " " + t("noState") : ic("hourglass") + " " + t("loading")}</div>`; return; }
-  ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, set: setTab, hist: histTab })[tab](body);
+  ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, dev: devTab, set: setTab, hist: histTab, files: filesTab })[tab](body);
   // a refresh keeps the page where it was; a tab switch from below the tab bar lands on the top of the new tab
   const barY = tabsEl.getBoundingClientRect().top + window.scrollY - 8;
   if (oldTabs) window.scrollTo(0, tabClick ? Math.min(pageY, barY) : pageY);
+}
+
+// Legacy phone (paired, no PIN): a screen with no way around it until the PIN is saved. Setting it on the child phone
+// itself is not offered (the child holds it); the on-device admin session reaches this only via the Authenticator.
+function pinGate(a) {
+  screenStop();
+  a.innerHTML = `${localBar()}
+  <div class="row"><h1 class="sp">${ic("user")} ${esc(cur.name)}</h1>${APP || kids.length > 1 || cur.via === "relay" ? `<button id="back">${ic("list")} ${t("list")}</button>` : ""}</div>
+  <div class="card"><h2>${ic("key-round")} ${t("pinGate.h")}</h2><p>${t("pinGate.p")}</p>
+    <div class="pairf"><input id="f-gp1" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin1"))}" aria-label="${esc(t("pair.pin1"))}">
+    <input id="f-gp2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin2"))}" aria-label="${esc(t("pair.pin2"))}">
+    <button class="pri" id="gpGo">${ic("key-round")} ${t("pinGate.go")}</button></div><p class="err" id="gpE" role="alert"></p></div>`;
+  localWire();
+  if ($("#back")) $("#back").onclick = () => { goList(); navDown(0); };
+  const go = $("#gpGo"), err = $("#gpE");
+  go.onclick = async () => {
+    const x = $("#f-gp1").value, y = $("#f-gp2").value;
+    if (!/^\d{4,8}$/.test(x)) return err.textContent = t("pe.bad pin");
+    if (x !== y) return err.textContent = t("pe.mismatch");
+    if (APP && cachedAt) return err.textContent = t("pinGate.off");
+    go.disabled = true; err.textContent = t("pinGate.wait"); clearTimeout(saveT);
+    const k = cur, e = edit;
+    try { e.pin = x; await putRules(k, e); if (k === cur) { lastSig = ""; render(); } }
+    catch (er) { delete e.pin; go.disabled = false; err.textContent = er.message; }
+  };
 }
 
 function updateLive() {
@@ -1225,13 +1717,39 @@ function updateLive() {
     ${!lan && lastNet ? `<div class="alert warn">${ic("wifi-off")} ${t("live.selfOff")}</div>` : ""}
     ${lost && !(!lan && lastNet) ? `<div class="alert">${ic("siren")} ${t("live.lost", hhmm(lostFrom))}${lastErr && lan ? " (" + esc(lastErr) + ")" : ""}</div>` : ""}
     ${sosHtml()}
-    ${st.listen && st.listen.on ? `<div class="alert warn">${ic("ear")} ${t("live.mic", hhmm(st.listen.since))}</div>` : ""}
+    ${ciHtml()}
+    ${st.listen && st.listen.on ? `<div class="alert warn row">${ic("ear")} <span class="sp">${t("live.mic", hhmm(st.listen.since))}</span><button id="micStop" class="bad">${ic("square")} ${t("micStop")}</button></div>` : ""}
+    ${st.ring && st.ring.on ? `<div class="alert warn row">${ic("bell")} <span class="sp">${t("live.ring", hhmm(st.ring.since))}</span><button id="ringStop2" class="bad">${ic("square")} ${t("ringStop")}</button></div>` : ""}
     ${modeHtml()}
     ${st.usageAccess === false ? `<div class="alert warn">${ic("triangle-alert")} ${t("live.usage")}</div>` : ""}
     ${st.dnsError ? `<div class="alert warn">${ic("triangle-alert")} ${t("live.dns", esc(st.dnsError))}</div>` : ""}
     ${st.acc === false ? `<div class="alert warn">${ic("triangle-alert")} ${t("live.acc")}</div>` : ""}
     ${st.locationOn === false ? `<div class="alert warn">${ic("triangle-alert")} ${t("live.locOff")}</div>` : ""}`;
   wireSos(el);
+  wireCi(el);
+  if ($("#micStop")) $("#micStop").onclick = micStop;
+  if ($("#ringStop2")) $("#ringStop2").onclick = ringStop;
+  actPaint();
+}
+
+// ---- v0.9.7 check-in (child tapped "Con tới nơi rồi" / "Đón con với"): banner until "Đã xem" (per browser), 3 h max ----
+let ciSeen = (() => { try { return new Set(JSON.parse(localStorage.getItem("kg.ciSeen") || "[]")); } catch { return new Set(); } })();
+function ciLast() {
+  const e = ((st && st.events) || []).filter(x => x.kind === "checkin" && Date.now() - x.t < 3 * 3600e3 && !ciSeen.has(x.id));
+  return e[e.length - 1];
+}
+function ciHtml() {
+  const e = !viewDay && ciLast(); if (!e) return "";
+  const l = e.loc, pk = e.ck === "pickup";
+  return `<div class="alert${pk ? " warn" : ""}" role="status"${pk ? "" : ' style="background:var(--ok-bg);color:var(--ok-fg)"'}>${ic(pk ? "hand" : "map-pin")} <b>${t(pk ? "ci.pickup" : "ci.arrived", esc(cur.name), hhmm(e.t))}</b> <span class="mute">· ${l ? t("ci.loc", Math.round(+l.acc || 0)) : t("ci.noLoc")}</span>
+    <div class="row" style="margin-top:8px;font-weight:400"><button data-ci="where" ${l || st.location ? "" : "disabled"}>${ic("map-pin")} ${t("ci.where")}</button><button data-ci="seen" class="pri" data-id="${esc(e.id)}">${ic("check")} ${t("ci.seen")}</button></div></div>`;
+}
+function wireCi(el) {
+  el.querySelectorAll("[data-ci]").forEach(b => b.onclick = () => {
+    if (b.dataset.ci === "where") { tab = "where"; render(); return; }
+    ciSeen.add(b.dataset.id); try { localStorage.setItem("kg.ciSeen", JSON.stringify([...ciSeen].slice(-50))); } catch {}
+    updateLive();
+  });
 }
 
 // ---- SOS (child pressed the button) ----
@@ -1265,14 +1783,19 @@ function earBar() {
     $("#earStop").onclick = () => earStop();
     const au = $("#earAudio");
     au.onplaying = () => { earT = earT || Date.now(); };
-    au.onended = () => earStop(t("ear.ended"));
-    au.onerror = async () => { if (!au.getAttribute("src")) return; earStop(); await refresh().catch(() => {}); const er = st && st.listen && st.listen.err; toast("err|" + t("ear.fail", er ? tc("ear.", er, er) : t("e.lost"))); };
+    // the phone ends the stream itself on 10 min, a blocked mic ("mic silenced") or a stuck one: say which
+    const ended = async (fail) => { if (!au.getAttribute("src")) return; earStop(); await refresh().catch(() => {}); const er = st && st.listen && st.listen.err;
+      if (er || fail) toast("err|" + t("ear.fail", er ? tc("ear.", er, er) : t("e.lost"))); else toast("ok|" + t("ear.ended")); };
+    au.onended = () => ended(false);
+    au.onerror = () => ended(true);
   }
   return e;
 }
 async function earStart() {
   if (!cur || cur.via !== "lan") return toast("warn|" + t("ear.lanOnly"));
+  if (ringOn()) return toast("warn|" + t("act.noEar"));
   if (!(await ask(t("ear.ask"), t("ear.on")))) return;
+  earStart.k = cur;
   const e = earBar(), au = $("#earAudio");
   earT = 0; e.style.display = "flex"; $("#earTxt").textContent = t("connecting");
   au.src = `${base(cur)}/listen?k=${encodeURIComponent(cur.token)}&t=${Date.now()}`;
@@ -1282,9 +1805,56 @@ async function earStart() {
 }
 function earStop(msg) {
   clearInterval(earStart.i); earT = 0;
-  const au = $("#earAudio"); if (au) { au.pause(); au.removeAttribute("src"); au.load(); }
+  const au = $("#earAudio"), had = au && au.getAttribute("src"); if (au) { au.pause(); au.removeAttribute("src"); au.load(); }
   const e = $("#ear"); if (e) e.style.display = "none";
+  // closing the player is not enough when the Wi-Fi dropped: tell the phone too, so its mic (and banner) never sticks
+  if (had && earStart.k) call(earStart.k, "/cmd", "POST", { type: "listenStop" }).catch(() => {});
+  earStart.k = null;
   if (msg) toast("ok|" + msg);
+  actPaint();
+}
+
+// ---- per-kid action buttons: idle / pending (spinner, disabled) / active (accent, tap = confirm stop) / done / error ----
+// Active comes from the phone's own state (st.ring, st.listen), never from a local guess. Conflicts (docs/protocol.md
+// "Action states"): no ring while listening, no listening while ringing (the phone refuses too).
+const actSt = {};   // button id -> {s: "pend" | "done" | "err", t: ms}
+const ringOn = () => !!(st && st.ring && st.ring.on);
+const earOn = () => !!(st && st.listen && st.listen.on) || !!($("#earAudio") && $("#earAudio").getAttribute("src"));
+async function act(id, fn) {
+  if (actSt[id] && actSt[id].s === "pend") return;
+  actSt[id] = { s: "pend", t: Date.now() }; actPaint();
+  const r = await fn();
+  actSt[id] = r === undefined ? { s: "err", t: Date.now() } : { s: r.result === "queued" ? "sent" : "done", t: Date.now() };
+  if (r !== undefined && id === "ring") refresh().catch(() => {});
+  actPaint(); setTimeout(actPaint, 2600);
+}
+function actPaint() {
+  const set = (id, cls, label, dis, title) => { const b = $("#" + id); if (!b || !b.classList.contains("act")) return;
+    if (!b.dataset.l) b.dataset.l = b.innerHTML;
+    b.classList.remove("on", "pend", "done", "err"); if (cls) b.classList.add(cls);
+    b.innerHTML = label == null ? b.dataset.l : label; b.disabled = !!dis; b.title = title || ""; };
+  for (const id of ["lock", "wake", "ring", "loc", "ear1"]) {
+    const a = actSt[id], fresh = a && (a.s === "pend" || Date.now() - a.t < 2500);
+    const base = $("#" + id) && $("#" + id).dataset.l;
+    if (id === "ring" && ringOn()) { set(id, "on", ic("bell") + " " + t("act.ringOn")); continue; }
+    if (id === "ear1" && earOn()) { set(id, "on", ic("ear") + " " + t("act.earOn")); continue; }
+    if (id === "ring" && earOn()) { set(id, "", null, true, t("act.noRing")); continue; }
+    if (id === "ear1" && ringOn()) { set(id, "", null, true, t("act.noEar")); continue; }
+    if (fresh && a.s === "pend") set(id, "pend", null, true);
+    else if (fresh && a.s === "err") set(id, "err", ic("triangle-alert") + " " + t("act.err"));
+    else if (fresh) set(id, "done", ic("check") + " " + t(a.s === "sent" ? "act.sent" : "act.done"));
+    else set(id, "", base);
+  }
+}
+async function ringStop() {
+  if (!cur || !(await ask(t("ring.askStop"), t("ringStop")))) return;
+  if (await cmd({ type: "ringStop" }, t("ring.stopped"), false)) { if (st && st.ring) st.ring.on = false; updateLive(); actPaint(); refresh().catch(() => {}); }
+}
+async function micStop() {
+  if (!cur || !(await ask(t("ear.askStop"), t("micStop")))) return;
+  const had = $("#earAudio") && $("#earAudio").getAttribute("src"); earStop();
+  if (had) { if (st && st.listen) st.listen.on = false; updateLive(); refresh().catch(() => {}); return; }   // earStop already sent listenStop
+  if (await cmd({ type: "listenStop" }, t("turnedOff"), false)) { if (st && st.listen) st.listen.on = false; updateLive(); refresh().catch(() => {}); }
 }
 function fmtClock(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 
@@ -1295,11 +1865,69 @@ function modeHtml() {
   return (m.acc === false ? `<div class="alert">${ic("siren")} ${t("mode.accOff")}</div>` : "")
     + `<div class="alert warn">${ic("info")} ${t("mode.basic")}${miss.length ? " " + t("mode.miss", esc(miss.join(", "))) : ""}</div>`;
 }
+// "Cấm dùng…" / "Cho thêm giờ…" modal on the #askPop layer (Esc / backdrop close it through askDone).
+// pause: rules.pausedUntil = end time (ms), "for N min" or "until HH:MM" (passed today = tomorrow), both computed here.
+// bonus: rules.bonus = {day, min}, today only, so minutes only.
+const partOfDay = h => t(h < 11 ? "pk.p0" : h < 13 ? "pk.p1" : h < 18 ? "pk.p2" : "pk.p3");
+function whenTxt(ts) {
+  const d = new Date(ts), n = new Date(), tm = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1);
+  const same = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return same(d, n) ? hhmm(ts) : same(d, tm) ? t("pk.tmr", hhmm(ts), partOfDay(d.getHours())) : hhmm(ts);
+}
+function untilOf(hm) {   // "HH:MM" -> next such moment (today if still ahead, else tomorrow)
+  const [h, m] = String(hm).split(":").map(Number); if (!(h >= 0 && m >= 0)) return 0;
+  const d = new Date(); d.setHours(h, m, 0, 0); if (d.getTime() <= Date.now() + 30000) d.setDate(d.getDate() + 1); return d.getTime();
+}
+function pickTime(kind, active, onOk, onClear) {
+  if (askDone) askDone(false);
+  const pause = kind === "pause", pop = $("#askPop");
+  const s = { mode: "dur", n: pause ? 30 : 15, unit: "m", at: "06:00" };
+  const chips = pause ? [[10], [30], [60], ["06:00"]] : [[10], [15], [30], [60]];
+  const ms = () => s.mode === "at" ? untilOf(s.at) - Date.now() : Math.round(s.n * (s.unit === "h" ? 60 : 1)) * 60000;
+  const ok = () => { const v = ms(); return v >= 60000 && v <= 24 * 3600e3; };
+  const draw = () => {
+    const v = ms(), end = s.mode === "at" ? untilOf(s.at) : Date.now() + v;
+    pop.innerHTML = `<div class="dp pk" role="dialog" aria-modal="true" aria-labelledby="askT"><h2 id="askT" style="margin:0 0 4px">${ic(pause ? "pause" : "plus")} ${t(pause ? "pk.pauseH" : "pk.bonusH")}</h2>
+      ${active ? `<div class="alert warn" style="font-weight:400;margin:4px 0 10px">${ic(pause ? "pause" : "timer")} ${active}</div>` : ""}
+      ${pause ? `<div class="seg" role="tablist" aria-label="${esc(t("pk.pauseH"))}">${[["dur", "timer", t("pk.dur")], ["at", "clock", t("pk.at")]].map(([id, i, n]) => `<button type="button" role="tab" data-pm="${id}" aria-selected="${s.mode === id}">${ic(i)}<span>${n}</span></button>`).join("")}</div>` : ""}
+      ${s.mode === "dur" ? `<div class="row stp"><button type="button" id="pkMinus" aria-label="${esc(t("pk.less"))}">${ic("minus")}</button><input id="pkN" type="number" inputmode="decimal" min="1" max="${s.unit === "h" ? 24 : 1440}" step="${s.unit === "h" ? 0.5 : 5}" value="${s.n}" aria-label="${esc(t("pk.amount"))}"><button type="button" id="pkPlus" aria-label="${esc(t("pk.more"))}">${ic("plus")}</button>
+        <select id="pkU" aria-label="${esc(t("pk.unit"))}"><option value="m" ${s.unit === "m" ? "selected" : ""}>${t("pk.mins")}</option><option value="h" ${s.unit === "h" ? "selected" : ""}>${t("pk.hours")}</option></select></div>`
+      : `<label class="row stp"><span>${t("pk.untilL")}</span><input id="pkAt" type="time" value="${esc(s.at)}" aria-label="${esc(t("pk.at"))}"></label>`}
+      <div class="chips" style="margin:10px 0" role="group" aria-label="${esc(t("pk.quick"))}">${chips.map(([c]) => { const on = typeof c === "string" ? s.mode === "at" && s.at === c : s.mode === "dur" && ms() === c * 60000;
+        return `<button type="button" data-pc="${c}" class="${on ? "on" : ""}" aria-pressed="${on}">${typeof c === "string" ? t("pk.am6") : fmt(c * 60000)}</button>`; }).join("")}</div>
+      <div class="pks" role="status">${ok() ? `<b>${pause ? t("pk.sumPause", whenTxt(end)) : t("pk.sumBonus", fmt(v))}</b> <span class="mute">· ${pause ? fmt(v) : t("pk.today")}</span>` : `<span class="err">${t("pk.bad")}</span>`}</div>
+      ${pause ? `<p class="mute" style="margin:6px 0 12px">${t("pause.askNote")}</p>` : `<p class="mute" style="margin:6px 0 12px">${t("pk.bonusNote")}</p>`}
+      <div class="row"><button type="button" id="askNo" class="sp">${ic("x")} ${t("cancel")}</button><button type="button" id="askOk" class="sp pri" ${ok() ? "" : "disabled"}>${ic("check")} ${t(pause ? (active ? "pk.update" : "pause.ok") : "pk.give")}</button></div>
+      ${onClear ? `<button type="button" id="pkClear" class="bad" style="width:100%;margin-top:8px">${ic(pause ? "play" : "trash-2")} ${t(pause ? "unpause" : "home.unbonus")}</button>` : ""}</div>`;
+    pop.querySelectorAll("[data-pm]").forEach(x => x.onclick = () => { s.mode = x.dataset.pm; redraw("[data-pm][aria-selected=true]"); });
+    pop.querySelectorAll("[data-pc]").forEach(x => x.onclick = () => { const c = x.dataset.pc; if (c.includes(":")) { s.mode = "at"; s.at = c; } else { s.mode = "dur"; if (+c % 60 === 0) { s.unit = "h"; s.n = c / 60; } else { s.unit = "m"; s.n = +c; } } redraw(`[data-pc="${c}"]`); });
+    const N = $("#pkN");
+    if (N) {
+      N.oninput = () => { s.n = +String(N.value).replace(",", ".") || 0; sum(); };
+      $("#pkU").onchange = e => { const m = ms(); s.unit = e.target.value; s.n = s.unit === "h" ? Math.max(0.5, Math.round(m / 1800000) / 2) : Math.round(m / 60000); redraw("#pkU"); };
+      const step = d => { const st0 = s.unit === "h" ? 0.5 : 5; s.n = Math.max(st0, Math.min(s.unit === "h" ? 24 : 1440, Math.round((s.n + d * st0) / st0) * st0)); redraw(d > 0 ? "#pkPlus" : "#pkMinus"); };
+      $("#pkMinus").onclick = () => step(-1); $("#pkPlus").onclick = () => step(1);
+    }
+    if ($("#pkAt")) $("#pkAt").onchange = $("#pkAt").oninput = e => { if (e.target.value) { s.at = e.target.value; sum(); } };
+    $("#askNo").onclick = () => askDone && askDone(false);
+    $("#askOk").onclick = () => { if (!ok()) return; const v = ms(), end = s.mode === "at" ? untilOf(s.at) : Date.now() + v; askDone && askDone(true); onOk(pause ? end : Math.round(v / 60000)); };
+    if ($("#pkClear")) $("#pkClear").onclick = () => { askDone && askDone(true); onClear(); };
+  };
+  // the summary line follows typing without redrawing (the input keeps focus)
+  const sum = () => { const v = ms(), end = s.mode === "at" ? untilOf(s.at) : Date.now() + v, el = pop.querySelector(".pks");
+    el.innerHTML = ok() ? `<b>${pause ? t("pk.sumPause", whenTxt(end)) : t("pk.sumBonus", fmt(v))}</b> <span class="mute">· ${pause ? fmt(v) : t("pk.today")}</span>` : `<span class="err">${t("pk.bad")}</span>`;
+    $("#askOk").disabled = !ok();
+    pop.querySelectorAll("[data-pc]").forEach(x => { const c = x.dataset.pc, on = c.includes(":") ? s.mode === "at" && s.at === c : s.mode === "dur" && v === c * 60000; x.classList.toggle("on", on); x.setAttribute("aria-pressed", on); }); };
+  const redraw = f => { draw(); const x = f && pop.querySelector(f); if (x) x.focus(); };
+  draw(); pop.style.display = "flex";
+  return new Promise(res => { const done = v => { if (askDone !== done) return; askDone = null; pop.style.display = "none"; pop.innerHTML = ""; res(v); }; askDone = done; const f = $("#pkN") || $("#askOk"); if (f) f.focus(); });
+}
 function homeTab(b) {
   const r = edit || st.rules, today = st.day, limit = edit ? todayLimit(r, today) : (st.limitMin ?? r.dailyMin);
   const reqs = (st.requests || []).filter(q => !answered.has(q.id));
   const used = st.usedMs, left = st.leftMs, pct = limit ? Math.min(100, used / (limit * 600)) : 0;
   const pausedLeft = r.pausedUntil - Date.now();
+  const bonusMin = r.bonus && r.bonus.day === today ? +r.bonus.min || 0 : 0;
   const blockedNow = st.apps.filter(x => x.suspended);
   b.innerHTML = `
   ${reqs.map(q => { const ch = q.chore ? (r.chores || []).find(c => c.id === q.chore) : null, m = reqMin[q.id] || +q.min, id = esc(q.id), chips = [15, 30, 45, 60].includes(+q.min) ? [15, 30, 45, 60] : [15, 30, 45, 60, +q.min].sort((a, c) => a - c);
@@ -1308,20 +1936,19 @@ function homeTab(b) {
     ${q.note ? `<div class="mute" style="margin-top:4px">${t("req.note", esc(q.note))}</div>` : ""}
     <label class="mute" for="f-rn-${id}" style="display:block;margin-top:10px">${t("req.reply")}</label>
     <input id="f-rn-${id}" data-rn="${id}" maxlength="200" autocomplete="off" placeholder="${esc(t("req.replyPh"))}" style="width:100%" value="${esc(reqNote[q.id] || "")}">
+    <div class="chips" style="margin-top:6px" role="group" aria-label="${esc(t("req.cannedAria"))}">${t("req.canned").map(c => `<button type="button" data-cr="${id}" data-v="${esc(c)}" class="${reqNote[q.id] === c ? "on" : ""}" aria-pressed="${reqNote[q.id] === c}">${esc(c)}</button>`).join("")}</div>
     <div class="chips" style="margin-top:8px" role="group" aria-label="${esc(t("minutes"))}">${chips.map(v => `<button data-rm="${id}" data-v="${v}" class="${v === m ? "on" : ""}" aria-pressed="${v === m}">${t("fmt.m", v)}</button>`).join("")}</div>
     <div class="row" style="margin-top:10px"><button class="pri sp" data-yes="${id}" data-min="${m}">${ic("circle-check")} ${t("req.yes", m)}</button><button class="sp" data-no="${id}">${ic("circle-x")} ${t("req.no")}</button></div></div>`; }).join("")}
   <div class="card"><h2>${ic("timer")} ${t("today")}</h2>
     <div class="row"><span class="big">${fmt(used)}</span><span class="mute">${t("used")}${limit ? " / " + fmt(limit * 60000) + (r.bonus && r.bonus.day === today && r.bonus.min ? " " + t("home.incl", r.bonus.min) : "") : " " + t("home.noLim")}</span></div>
     ${limit ? `<div class="bar"><i style="width:${pct}%"></i></div><div class="mute">${t("left", fmt(left))}</div>` : ""}
-    <div class="row" style="margin-top:10px">${limit ? [15, 30, 60].map(n => `<button data-bonus="${n}">${ic("plus")} ${fmt(n * 60000)}</button>`).join("") : `<span class="mute">${t("home.noLimHint")}</span>`}
-    ${r.bonus && r.bonus.day === today && r.bonus.min ? `<button data-bonus="0">${ic("undo-2")} ${t("home.unbonus")}</button>` : ""}</div>
+    <div class="row" style="margin-top:10px">${limit ? `<button type="button" id="bonusGo" class="sp">${ic("plus")} ${t("pk.bonusBtn")}${bonusMin ? ` <span class="tag ok">+${t("fmt.m", bonusMin)}</span>` : ""}</button>` : `<span class="mute">${t("home.noLimHint")}</span>`}</div>
   </div>
   ${(st.events || []).length ? `<div class="card"><h2>${ic("bell")} ${t("events")}</h2>${(st.events || []).slice(-10).reverse().map(evHtml).join("")}</div>` : ""}
   <div class="card"><h2>${ic("zap")} ${t("now")}</h2>
-    ${pausedLeft > 0 ? `<p><b>${ic("pause")} ${t("paused")}</b> ${t("pausedLeft", fmt(pausedLeft))} <button id="unpause" class="pri">${ic("play")} ${t("unpause")}</button></p>` : ""}
+    <button type="button" id="pauseGo" class="${pausedLeft > 0 ? "pausing" : "pri"}" style="width:100%;margin-bottom:10px">${pausedLeft > 0 ? `${ic("pause")} <span><b>${t("pk.active", whenTxt(r.pausedUntil))}</b> · ${t("pk.tapEdit")}</span>` : `${ic("pause")} ${t("pk.pauseBtn")}`}</button>
     <div class="grid">
-      <button data-pause="30">${ic("pause")} ${t("pause.30")}</button><button data-pause="60">${ic("pause")} ${t("pause.60")}</button><button data-pause="morning">${ic("pause")} ${t("pause.am")}</button>
-      <button id="lock">${ic("lock")} ${t("lockScr")}</button><button id="ring">${ic("bell")} ${t("ring")}</button><button id="loc">${ic("map-pin")} ${t("locate")}</button>${cur.via === "lan" && !viewDay ? `<button id="ear1">${ic("ear")} ${t("listen")}</button>` : ""}
+      <button id="lock" class="act">${ic("lock")} ${t("lockScr")}</button><button id="wake" class="act">${ic("lightbulb")} ${t("wake")}</button><button id="ring" class="act">${ic("bell")} ${t("ring")}</button><button id="loc" class="act">${ic("map-pin")} ${t("locate")}</button>${cur.via === "lan" && !viewDay ? `<button id="ear1" class="act">${ic("ear")} ${t("listen")}</button>` : ""}
       ${isBasic() ? "" : `<button id="reboot" class="bad">${ic("refresh-cw")} ${t("reboot")}</button>`}
     </div>
     <div class="row" style="margin-top:10px"><input id="msg" class="sp" placeholder="${esc(t("msgPh"))}" aria-label="${esc(t("msgPh"))}" maxlength="300"><button id="send" class="pri">${ic("send")} ${t("send")}</button></div>
@@ -1332,6 +1959,14 @@ function homeTab(b) {
   <div class="card"><h2>${ic("notebook-pen")} ${t("log")}</h2>${(st.log || []).slice(-12).reverse().map(l => `<div class="mute">${hhmm(l.t)} · ${esc(logTr(noEmoji(l.m)))}</div>`).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}</div>`;
   drawHist();
   b.querySelectorAll("[data-rn]").forEach(i => i.oninput = () => { reqNote[i.dataset.rn] = i.value; });
+  // canned reply: fills the message (tap again = clear); the chip that matches the text shows as pressed
+  const crPaint = id => b.querySelectorAll("[data-cr]").forEach(o => { if (o.dataset.cr !== id) return; const on = (reqNote[id] || "") === o.dataset.v; o.classList.toggle("on", on); o.setAttribute("aria-pressed", on); });
+  b.querySelectorAll("[data-rn]").forEach(i => i.addEventListener("input", () => crPaint(i.dataset.rn)));
+  b.querySelectorAll("[data-cr]").forEach(c => c.onclick = () => {
+    const id = c.dataset.cr, v = reqNote[id] === c.dataset.v ? "" : c.dataset.v; reqNote[id] = v;
+    const i = [...b.querySelectorAll("[data-rn]")].find(o => o.dataset.rn === id); if (i) i.value = v;
+    crPaint(id);
+  });
   b.querySelectorAll("[data-rm]").forEach(c => c.onclick = () => {
     const id = c.dataset.rm, v = +c.dataset.v; reqMin[id] = v;
     b.querySelectorAll("[data-rm]").forEach(o => { if (o.dataset.rm !== id) return; const on = +o.dataset.v === v; o.classList.toggle("on", on); o.setAttribute("aria-pressed", on); });
@@ -1358,22 +1993,18 @@ function homeTab(b) {
     render();
   });
   if ($("#reboot")) $("#reboot").onclick = () => cmd({ type: "reboot" }, t("reboot.done"));
-  b.querySelectorAll("[data-bonus]").forEach(x => x.onclick = async () => {
-    if (!(await ask(+x.dataset.bonus ? t("bonus.ask", fmt(+x.dataset.bonus * 60000)) : t("bonus.askNone")))) return;
-    const add = +x.dataset.bonus, cur0 = r.bonus && r.bonus.day === today ? r.bonus.min : 0;
-    edit.bonus = { day: today, min: add ? cur0 + add : 0 }; changed(); render();
-  });
-  b.querySelectorAll("[data-pause]").forEach(x => x.onclick = async () => {
-    if (!(await ask((x.dataset.pause === "morning" ? t("pause.askAm") : t("pause.ask", fmt(x.dataset.pause * 60000))) + "\n\n" + t("pause.askNote"), t("pause.ok")))) return;
-    let until; if (x.dataset.pause === "morning") { const d = new Date(); if (d.getHours() >= 6) d.setDate(d.getDate() + 1); d.setHours(6, 0, 0, 0); until = d.getTime(); }
-    else until = Date.now() + x.dataset.pause * 60000;
-    edit.pausedUntil = until; changed(); render();
-  });
-  if ($("#unpause")) $("#unpause").onclick = async () => { if (!(await ask(t("unpause.ask")))) return; edit.pausedUntil = 0; changed(); render(); };
-  $("#lock").onclick = () => cmd({ type: "lock" }, t("lock.done"));
-  $("#ring").onclick = () => cmd({ type: "ring" }, t("ring.done"));
-  $("#loc").onclick = () => cmd({ type: "locate" }, t("locate.done"));
-  if ($("#ear1")) $("#ear1").onclick = earStart;
+  if ($("#bonusGo")) $("#bonusGo").onclick = () => pickTime("bonus", bonusMin ? t("pk.bonusNow", bonusMin) : "",
+    m => { const c0 = edit.bonus && edit.bonus.day === today ? edit.bonus.min : 0; edit.bonus = { day: today, min: c0 + m }; changed(); toast("ok|" + t("pk.bonusDone", fmt(m * 60000))); render(); },
+    bonusMin ? () => { edit.bonus = { day: today, min: 0 }; changed(); render(); } : null);
+  $("#pauseGo").onclick = () => pickTime("pause", pausedLeft > 0 ? t("pk.active", whenTxt(r.pausedUntil)) + " · " + t("pk.leftN", fmt(pausedLeft)) : "",
+    until => { edit.pausedUntil = until; changed(); toast("ok|" + t("pk.sumPause", whenTxt(until))); render(); },
+    pausedLeft > 0 ? () => { edit.pausedUntil = 0; changed(); toast("ok|" + t("pk.unpaused")); render(); } : null);
+  $("#lock").onclick = () => act("lock", () => cmd({ type: "lock" }, t("lock.done")));
+  $("#wake").onclick = () => act("wake", () => cmd({ type: "wake" }, t("wake.done"), false));
+  $("#ring").onclick = () => ringOn() ? ringStop() : act("ring", () => cmd({ type: "ring" }, t("ring.done")));
+  $("#loc").onclick = () => act("loc", () => cmd({ type: "locate" }, t("locate.done")));
+  if ($("#ear1")) $("#ear1").onclick = () => earOn() ? micStop() : earStart();
+  actPaint();
   $("#send").onclick = () => { const tx = $("#msg").value.trim(); if (!tx) return; cmd({ type: "message", text: tx }, t("msg.done")).then(r => { if (r && $("#msg") && $("#msg").value.trim() === tx) $("#msg").value = ""; }); };
 }
 
@@ -1405,8 +2036,44 @@ function appRow(x) {
   return `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${fmt(x.ms)}${x.suspended || x.blocked ? `<span class="tag bad">${reason(x.blocked)}</span>` : ""}</span></div></div>`;
 }
 
+// Collapsible section: a heading button (aria-expanded) over a body that stays in the DOM (controls keep their wiring).
+// Open/closed per id is remembered in localStorage "kg.sec" ({id: 1|0}); def = open when never toggled.
+const secOpen = (() => { try { const o = JSON.parse(localStorage.getItem("kg.sec") || "{}"); return o && typeof o === "object" ? o : {}; } catch { return {}; } })();
+const isOpen = (id, def) => id in secOpen ? !!secOpen[id] : !!def;
+const chipHtml = c => c ? `<span class="tag ${c[1] || ""}" data-chip>${c[0]}</span>` : `<span data-chip></span>`;
+function sec(id, icn, title, desc, chip, body, def) {
+  const o = isOpen(id, def);
+  return `<section class="card cl${o ? " open" : ""}" data-sec="${id}"><h2><button type="button" class="clh" id="sh-${id}" aria-expanded="${o}" aria-controls="sb-${id}">
+    <span class="cli">${ic(icn)}</span><span class="clt"><span class="clr"><b>${title}</b>${chipHtml(chip)}</span>${desc ? `<span>${desc}</span>` : ""}</span><svg class="si chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></h2>
+    <div class="clb" id="sb-${id}" role="region" aria-labelledby="sh-${id}"><div><div>${body}</div></div></div></section>`;
+}
+const setChip = (root, id, c) => { const el = root.querySelector(`[data-sec="${id}"] [data-chip]`); if (el) el.outerHTML = chipHtml(c); };
+document.addEventListener("click", e => {
+  const h = e.target.closest && e.target.closest(".clh"); if (!h) return;
+  const s = h.closest(".cl"), o = !s.classList.contains("open");
+  s.classList.toggle("open", o); h.setAttribute("aria-expanded", o);
+  secOpen[s.dataset.sec] = o ? 1 : 0; try { localStorage.setItem("kg.sec", JSON.stringify(secOpen)); } catch {}
+});
+
 const sel = { on: false, set: new Set(), f: "all", limOpen: false };
+// "Ứng dụng" tab: segmented sub-tabs (app list / hide preinstalled / storage), last one remembered
+let appsSub = (() => { try { return localStorage.getItem("kg.appsSub") || "list"; } catch { return "list"; } })();
 function appsTab(b) {
+  const subs = [["list", "puzzle", t("as.list")], ["clean", "eye-off", t("as.clean")], ["space", "hard-drive", t("as.space")]];
+  if (!subs.some(x => x[0] === appsSub)) appsSub = "list";
+  const ref = cleanStat().ref;
+  b.innerHTML = `<div class="seg" role="tablist" aria-label="${esc(t("tab.apps"))}">${subs.map(([id, i, n]) => `<button type="button" role="tab" id="st-${id}" data-sub="${id}" aria-selected="${appsSub === id}" aria-controls="subp" tabindex="${appsSub === id ? 0 : -1}">${ic(i)}<span>${n}</span>${id === "clean" && ref ? `<span class="n" title="${esc(t("hd.refN", ref))}">${ref}</span>` : ""}</button>`).join("")}</div>
+    <div id="subp" role="tabpanel" aria-labelledby="st-${appsSub}"></div>`;
+  const tabs = [...b.querySelectorAll("[data-sub]")];
+  const pick = (id, f) => { appsSub = id; try { localStorage.setItem("kg.appsSub", id); } catch {} appsTab(b); if (f) { const x = b.querySelector(`[data-sub="${id}"]`); if (x) x.focus(); } };
+  tabs.forEach((x, i) => {
+    x.onclick = () => pick(x.dataset.sub);
+    x.onkeydown = e => { const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0; if (e.key === "Home" || e.key === "End") { e.preventDefault(); pick(tabs[e.key === "Home" ? 0 : tabs.length - 1].dataset.sub, true); } else if (d) { e.preventDefault(); pick(tabs[(i + d + tabs.length) % tabs.length].dataset.sub, true); } };
+  });
+  const p = $("#subp");
+  (appsSub === "clean" ? cleanTab : appsSub === "space" ? spaceTab : appsList)(p);
+}
+function appsList(b) {
   const mode = p => edit.blocked.includes(p) ? "block" : edit.allow.includes(p) ? "allow" : edit.appMin[p] ? "limit" : "normal";
   const isNew = x => x.new && !edit.approved.includes(x.pkg);
   const FILT = [["all", t("f.all")], ["new", ic("sparkles") + " " + t("f.new")], ["blocked", ic("octagon-x") + " " + t("f.blocked")], ["limited", ic("timer") + " " + t("f.limited")]];
@@ -1417,7 +2084,7 @@ function appsTab(b) {
     <div class="chips" id="flt">${FILT.map(([v, n]) => `<button data-f="${v}" class="${sel.f === v ? "on" : ""}">${n}</button>`).join("")}</div>
     ${sel.on ? `<div class="row" style="margin-top:8px"><button id="selAll">${ic("square-check")} ${t("sel.all")}</button><button id="selNone">${ic("square")} ${t("sel.none")}</button></div>` : ""}
     <div id="list"></div><p class="mute">${ic("lightbulb")} ${t("apps.tip")}</p></div>
-    ${sel.on ? `<div class="bulk" id="bulk"></div>` : ""}${cleanHtml()}`;
+    ${sel.on ? `<div class="bulk" id="bulk"></div>` : ""}`;
   const drawBar = () => {
     const bar = $("#bulk"); if (!bar) return;
     const n = sel.set.size, dis = n ? "" : "disabled";
@@ -1473,48 +2140,192 @@ function appsTab(b) {
     drawBar();
   };
   $("#f-q").oninput = draw;
-  $("#selTog").onclick = () => { sel.on = !sel.on; sel.set.clear(); sel.limOpen = false; appsTab(b); };
-  b.querySelectorAll("#flt [data-f]").forEach(x => x.onclick = () => { sel.f = x.dataset.f; appsTab(b); });
+  $("#selTog").onclick = () => { sel.on = !sel.on; sel.set.clear(); sel.limOpen = false; appsList(b); };
+  b.querySelectorAll("#flt [data-f]").forEach(x => x.onclick = () => { sel.f = x.dataset.f; appsList(b); });
   if ($("#selAll")) $("#selAll").onclick = () => { visible().forEach(x => sel.set.add(x.pkg)); draw(); };
   if ($("#selNone")) $("#selNone").onclick = () => { sel.set.clear(); draw(); };
-  draw(); cleanWire(b);
+  draw();
 }
 
 // v0.8 phone clean-up: hide preinstalled bloat (owner), clear an app's data (owner, Android 9+), heaviest apps (both modes)
-let cleanAll = false;
+// Hiding is edited as a draft (hideDraft, only while it differs from rules.hidden) and saved with ONE rules update.
+// Per-app result comes from the phone's report: state.rules.hidden = what the phone has taken, preinstalled[].hidden = isApplicationHidden.
+// Wanted + taken + still not hidden = the phone refused (ColorOS refuses some of its own apps, e.g. the game center / store / themes).
+let hideDraft = null;
 const mbTxt = m => m >= 1024 ? (m / 1024).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " GB" : m + " MB";
-function cleanHtml() {
-  const heavy = (st.apps || []).filter(x => x.mb > 0).sort((a, b) => b.mb - a.mb).slice(0, 8);
-  const pre = st.preinstalled || [], owner = !isBasic() && st.owner !== false;
-  const hid = p => edit.hidden.includes(p);
-  const list = cleanAll ? pre : pre.filter(x => x.suggest || hid(x.pkg) || x.hidden);
-  const nHid = pre.filter(x => hid(x.pkg)).length;
-  return `<div class="card"><h2>${ic("sparkles")} ${t("clean.h")}</h2>
-    ${owner && st.preinstalled ? `<p class="mute">${ic("eye-off")} ${t("clean.p", "<b>" + nHid + "</b>")}</p>
-      <div id="pre">${list.map(x => `<label class="app"><input type="checkbox" data-h="${esc(x.pkg)}" ${hid(x.pkg) ? "checked" : ""}><div class="nm"><b>${esc(x.label)}</b><span class="mute">${esc(x.pkg)}${x.mb ? " · " + mbTxt(x.mb) : ""}${x.suggest ? `<span class="tag warn">${t("clean.sug")}</span>` : ""}</span></div></label>`).join("") || `<p class="mute">${t("clean.noSug")}</p>`}</div>
-      <div class="row" style="margin-top:8px">${pre.some(x => x.suggest && !hid(x.pkg)) ? `<button id="hideSug">${ic("eye-off")} ${t("clean.hideSug")}</button>` : ""}<button id="preAll">${cleanAll ? t("clean.onlySug") : t("clean.all", pre.length)}</button></div>`
-      : owner ? `<p class="mute">${ic("hourglass")} ${t("clean.noList")}</p>` : needOwner(t("no.hide"))}
-    <h2 style="margin-top:14px">${ic("hard-drive")} ${t("clean.heavy")}</h2>
-    ${heavy.length ? heavy.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${mbTxt(x.mb)}</span></div>${owner && !x.protected ? `<button data-clr="${esc(x.pkg)}" class="bad">${ic("trash-2")} ${t("clean.clear")}</button>` : ""}</div>`).join("")
-      : `<p class="mute">${t("clean.noSize")}</p>`}
-    <p class="mute">${ic("lightbulb")} ${owner ? t("clean.tipOwner") : t("clean.tipBasic")} ${t("clean.tipRam")}</p></div>`;
+function cleanStat() {
+  const pre = (st && st.preinstalled) || [], saved = new Set((edit && edit.hidden) || []), took = new Set((st && st.rules && st.rules.hidden) || []);
+  const of = x => saved.has(x.pkg) ? (took.has(x.pkg) ? (x.hidden ? "ok" : "ref") : "wait") : (x.hidden && took.has(x.pkg) ? "show" : "");
+  const n = { want: 0, ok: 0, ref: 0, wait: 0, of };
+  pre.forEach(x => { const s = of(x); if (saved.has(x.pkg)) { n.want++; if (s === "ok" || s === "ref" || s === "wait") n[s]++; } });
+  return n;
 }
-function cleanWire(b) {
-  b.querySelectorAll("[data-h]").forEach(c => c.onchange = () => {
-    const p = c.dataset.h; edit.hidden = edit.hidden.filter(x => x !== p); if (c.checked) edit.hidden.push(p);
-    changed(); toast("ok|" + (c.checked ? t("hidden") : t("unhidden"))); setTimeout(refresh, 1500);
-  });
-  if ($("#hideSug")) $("#hideSug").onclick = async () => {
-    const add = (st.preinstalled || []).filter(x => x.suggest && !edit.hidden.includes(x.pkg));
-    if (!(await ask(t("clean.askHide", add.length, add.map(x => x.label).join(", ")), t("hide")))) return;
-    add.forEach(x => edit.hidden.push(x.pkg)); changed(); toast("ok|" + t("clean.hidN", add.length)); appsTab(b); setTimeout(refresh, 1500);
+const sameSet = (a, b) => a.size === b.size && [...a].every(x => b.has(x));
+// Android 9+ (API 28) for DevicePolicyManager.clearApplicationUserData; state has only the release string ("8.1.0")
+const canClear = () => !st || !st.android || !(parseInt(st.android, 10) < 9);
+function cleanTab(b) {
+  const owner = !isBasic() && st.owner !== false;
+  if (!owner) { b.innerHTML = `<div class="card">${needOwner(t("no.hide"))}</div>`; return; }
+  if (!st.preinstalled) { b.innerHTML = `<div class="card"><p class="mute">${ic("hourglass")} ${t("clean.noList")}</p></div>`; return; }
+  const pre = st.preinstalled, saved = new Set(edit.hidden), S = cleanStat();
+  const draft = () => hideDraft || saved;
+  const sug = pre.filter(x => x.suggest || saved.has(x.pkg) || x.hidden), rest = pre.filter(x => !sug.includes(x));
+  const TAG = { ok: `<span class="tag ok">${ic("check")} ${t("hd.ok")}</span>`, ref: `<span class="tag bad">${ic("ban")} ${t("hd.refused")}</span>`,
+    wait: `<span class="tag">${ic("hourglass")} ${t("hd.waiting")}</span>`, show: `<span class="tag">${ic("hourglass")} ${t("hd.showing")}</span>` };
+  const row = x => `<label class="app"><input type="checkbox" data-hd="${esc(x.pkg)}" ${draft().has(x.pkg) ? "checked" : ""}><div class="nm"><b>${esc(x.label)}</b><span class="mute">${esc(x.pkg)}${x.mb ? " · " + mbTxt(x.mb) : ""}${x.suggest ? `<span class="tag warn">${t("clean.sug")}</span>` : ""}${TAG[S.of(x)] || ""}</span></div></label>`;
+  const pc = v => S.want ? (v / S.want * 100).toFixed(1) + "%" : "0";
+  const nSug = pre.filter(x => x.suggest).length;
+  b.innerHTML = `<div class="card"><h2>${ic("sparkles")} ${t("clean.h")}</h2>
+    <p class="mute" style="margin:0">${t("clean.p", "<b>" + pre.filter(x => x.hidden).length + "</b>")}</p>
+    ${S.want ? `<div class="prog" role="img" aria-label="${esc(t("hd.sum", S.ok, S.want))}"><i style="width:${pc(S.ok)}"></i><i class="b" style="width:${pc(S.ref)}"></i><i class="w" style="width:${pc(S.wait)}"></i></div>
+      <div><b>${t("hd.sum", S.ok, S.want)}</b>${S.ref ? ` · <span class="err">${t("hd.refN", S.ref)}</span>` : ""}${S.wait ? ` · <span class="mute">${t("hd.waitN", S.wait)}</span>` : ""}</div>
+      ${S.ref ? `<div class="alert warn" style="font-weight:400;font-size:13px">${ic("triangle-alert")} ${t("hd.refTip")}</div>` : ""}` : ""}</div>
+  ${sec("cl-sug", "sparkles", t("hd.sugH"), t("hd.sugD"), [t("hd.nApps", sug.length)], sug.map(row).join("") || `<p class="mute">${t("clean.noSug")}</p>`, true)}
+  ${rest.length ? sec("cl-rest", "layers", t("hd.restH"), t("hd.restD"), [t("hd.nApps", rest.length)], rest.map(row).join("")) : ""}
+  <div class="hbar" id="hbar"></div>`;
+  const bar = () => {
+    const d = draft(), add = [...d].filter(p => !saved.has(p)).length, rem = [...saved].filter(p => !d.has(p)).length, dirty = !!hideDraft;
+    $("#hbar").innerHTML = `<div class="row"><span class="sp mute">${ic("eye-off")} ${t("hd.sel", [...d].filter(p => pre.some(x => x.pkg === p)).length)}</span></div>
+      <div class="row" style="margin-top:6px"><button type="button" id="hdSug" ${nSug ? "" : "disabled"}>${ic("square-check")} ${t("hd.allSug")}</button><button type="button" id="hdNone">${ic("square")} ${t("sel.none")}</button></div>
+      ${dirty ? `<div class="row" style="margin-top:6px"><button type="button" class="pri sp" id="hdSave">${ic("save")} ${t("hd.save", add, rem)}</button><button type="button" id="hdUndo">${ic("x")} ${t("cancel")}</button></div>` : ""}`;
+    $("#hdSug").onclick = () => { const s = new Set(draft()); pre.forEach(x => x.suggest && s.add(x.pkg)); setD(s); cleanTab(b); };
+    $("#hdNone").onclick = () => { setD(new Set()); cleanTab(b); };
+    if ($("#hdUndo")) $("#hdUndo").onclick = () => { hideDraft = null; cleanTab(b); };
+    if ($("#hdSave")) $("#hdSave").onclick = async () => {
+      if (!(await ask(t("hd.ask", add, rem), t("save")))) return;
+      edit.hidden = [...draft()]; hideDraft = null; changed();   // one PUT with the whole rules.hidden
+      toast("ok|" + t("hd.sent")); cleanTab(b); setTimeout(refresh, 1500);
+    };
   };
-  if ($("#preAll")) $("#preAll").onclick = () => { cleanAll = !cleanAll; appsTab(b); };
+  const setD = s => { hideDraft = sameSet(s, saved) ? null : s; };
+  b.querySelectorAll("[data-hd]").forEach(c => c.onchange = () => { const s = new Set(draft()); c.checked ? s.add(c.dataset.hd) : s.delete(c.dataset.hd); setD(s); bar(); });
+  bar();
+}
+function spaceTab(b) {
+  const heavy = (st.apps || []).filter(x => x.mb > 0).sort((a, b) => b.mb - a.mb).slice(0, 15);
+  const owner = !isBasic() && st.owner !== false, cc = owner && canClear();
+  b.innerHTML = `<div class="card"><h2>${ic("hard-drive")} ${t("clean.heavy")}</h2>
+    ${owner && !cc ? `<div class="alert warn" style="margin:0 0 8px;font-weight:400;font-size:13px">${ic("triangle-alert")} ${t("clean.oldOs", esc(st.android))}</div>` : ""}
+    ${heavy.length ? heavy.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${mbTxt(x.mb)}</span></div>${cc && !x.protected ? `<button type="button" data-clr="${esc(x.pkg)}" class="bad">${ic("trash-2")} ${t("clean.clear")}</button>` : ""}</div>`).join("")
+      : `<p class="mute">${t("clean.noSize")}</p>`}
+    <p class="mute">${ic("lightbulb")} ${cc ? t("clean.tipOwner") + " " : ""}${owner ? "" : t("clean.tipBasic") + " "}${t("clean.tipRam")}</p></div>`;
   b.querySelectorAll("[data-clr]").forEach(x => x.onclick = () => {
     const a = (st.apps || []).find(y => y.pkg === x.dataset.clr); if (!a) return;
     cmd({ type: "clearData", pkg: a.pkg }, t("clean.cleared", a.label),
       [t("clean.askClear", a.label), t("delete"), true]).then(() => setTimeout(refresh, 2000));
   });
+}
+
+// ---- "Máy" tab: device health, on demand (docs/protocol.md "Device health"). LAN: GET /api/device (phone caches 60 s).
+// Relay: POST /device asks + returns the last stored snapshot; the phone PUTs a new one on its next sync (<= ~1 min).
+let dv = null;      // {k, d: snapshot, tried, busy, wait, err}
+const dvAct = {};   // button id -> {s: "pend" | "done" | "sent" | "err", t}
+const byt = n => { n = +n || 0; const f = (v, d) => v.toLocaleString(lang, { maximumFractionDigits: d });
+  return n >= 1e9 ? f(n / 1e9, n >= 1e11 ? 0 : 1) + " GB" : n >= 1e6 ? f(n / 1e6, 0) + " MB" : n >= 1e3 ? f(n / 1e3, 0) + " KB" : f(n, 0) + " B"; };
+const dvDur = ms => ms >= 864e5 ? t("dv.days", Math.floor(ms / 864e5)) + (ms % 864e5 >= 36e5 ? " " + fmt(Math.floor(ms % 864e5 / 36e5) * 36e5) : "") : fmt(ms);
+const dvDraw = () => { if (tab === "dev" && $("#body")) devTab($("#body")); };
+function dvBtn(id, icn, label, cls, dis, title) {
+  const a = dvAct[id], fresh = a && (a.s === "pend" || Date.now() - a.t < 2500);
+  const st2 = fresh ? a.s : "", txt = st2 === "err" ? ic("triangle-alert") + " " + t("act.err") : st2 === "done" || st2 === "sent" ? ic("check") + " " + t(st2 === "sent" ? "act.sent" : "act.done") : ic(icn) + " " + label;
+  return `<button type="button" id="${id}" class="act ${cls || ""} ${st2 === "sent" ? "done" : st2}" ${dis || st2 === "pend" ? "disabled" : ""} ${title ? `title="${esc(title)}"` : ""} aria-live="polite">${txt}</button>`;
+}
+async function dvRun(id, fn) {
+  if (dvAct[id] && dvAct[id].s === "pend") return;
+  dvAct[id] = { s: "pend", t: Date.now() }; dvDraw();
+  const r = await fn();
+  dvAct[id] = { s: r === undefined ? "err" : r.result === "queued" ? "sent" : "done", t: Date.now() };
+  dvDraw(); setTimeout(dvDraw, 2600);
+}
+async function devLoad(force) {
+  const k = cur; if (!k) return;
+  if (!dv || dv.k !== k) dv = { k };
+  if (dv.busy || (!force && dv.tried && Date.now() - dv.tried < 60000)) return;
+  const me = dv; me.busy = true; me.err = ""; me.tried = Date.now(); dvAct.dvRef = { s: "pend", t: Date.now() };
+  const gone = () => dv !== me || cur !== k;
+  const old = e => e.raw === "not found" || e.raw === "HTTP 404";
+  try {
+    if (k.via === "lan") me.d = await call(k, force ? "/device?fresh=1" : "/device");
+    else {
+      let j = await call(k, "/device", "POST", {}).catch(e => { if (old(e)) throw e; return call(k, "/device"); });
+      const asked = +j.asked || 0;
+      if (j.device) me.d = j.device;
+      me.wait = !(asked && j.device && +j.device.at >= asked); if (!gone()) dvDraw();
+      for (let i = 0; me.wait && i < 30 && !gone() && tab === "dev"; i++) {
+        await new Promise(r => setTimeout(r, 4000));
+        if (gone() || tab !== "dev") break;
+        j = await call(k, "/device").catch(() => ({}));
+        if (j.device && (!asked || +j.device.at >= asked)) { me.d = j.device; me.wait = false; }
+      }
+      if (me.wait && !me.d) me.err = t("dv.old");
+      me.wait = false;
+    }
+    dvAct.dvRef = { s: me.err ? "err" : "done", t: Date.now() };
+  } catch (e) { me.err = old(e) ? t(k.via === "lan" ? "dv.old" : "dv.oldRelay") : t("dv.err", e.message); dvAct.dvRef = { s: "err", t: Date.now() }; }
+  me.busy = false;
+  if (!gone()) { dvDraw(); setTimeout(dvDraw, 2600); }
+}
+function devTab(b) {
+  if (!dv || dv.k !== cur) dv = { k: cur };
+  if (!dv.busy && (!dv.tried || Date.now() - dv.tried > 60000)) { devLoad(false); }
+  const d = dv.d, now = Date.now();
+  const kv = (k, v) => `<div class="dvkv"><span>${k}</span><b>${v}</b></div>`;
+  const bar = (pct, tone, label) => `<div class="prog" role="progressbar" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}"><i class="${tone}" style="width:${Math.max(0, Math.min(100, pct)).toFixed(1)}%"></i></div>`;
+  const head = `<div class="card row"><span class="sp mute" role="status">${dv.err ? `<span style="color:var(--bad)">${ic("triangle-alert")}</span> ${esc(dv.err)}`
+      : dv.wait ? ic("hourglass") + " " + t(d ? "dv.stale" : "dv.wait") : !d ? ic("hourglass") + " " + t("dv.loading") : ic("clock") + " " + t("dv.at", hhmm(+d.t || now))}</span>
+    ${dvBtn("dvRef", "refresh-cw", t("dv.refresh"), "", dv.busy)}</div>`;
+  if (!d) { b.innerHTML = head; wireDev(b); return; }
+  const s = d.storage || {}, used = Math.max(0, (+s.total || 0) - (+s.free || 0)), sp = s.total ? used / s.total * 100 : 0;
+  const owner = !isBasic() && st.owner !== false, mine = new Map((st.apps || []).map(x => [x.pkg, x]));
+  const stoTone = s.total && (s.free < 1e9 || sp > 95) ? "b" : sp > 85 ? "w" : "";
+  const appRow = (x, i) => { const a = mine.get(x.pkg), can = owner && a && !a.protected;
+    const btn = !can ? "" : d.clearData ? dvBtn("dvc" + i, "trash-2", t("clean.clear"), "bad") : dvBtn("dvc" + i, "trash-2", t("clean.clear"), "", true, t("dv.clearOld"));
+    return `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute"><b style="display:inline;color:var(--fg)">${byt(x.app + x.data + x.cache)}</b> · ${t("dv.appRow", byt(x.app), byt(x.data), byt(x.cache))}</span></div>${btn}</div>`; };
+  const apps = Array.isArray(s.apps) ? s.apps : null;
+  const sto = `${bar(sp, stoTone, t("dv.sto"))}<p style="margin:4px 0 8px">${t("dv.stoD", byt(used), byt(s.total), Math.round(sp))}</p>
+    <h3 style="margin:12px 0 4px;font-size:14px">${t("dv.apps")}</h3>
+    ${apps ? apps.map(appRow).join("") || `<p class="mute">—</p>` : `<p class="mute">${t("dv.noUsage")}</p>`}
+    ${owner && !d.clearData && apps ? `<p class="mute">${ic("triangle-alert")} ${t("clean.oldOs", esc(d.android))}</p>` : ""}
+    <p class="mute">${ic("lightbulb")} ${t("dv.cacheTip")}</p>
+    <button type="button" id="dvClean">${ic("eye-off")} ${t("dv.clean")}</button>`;
+  const r = d.ram || {}, rp = r.total ? (r.total - r.avail) / r.total * 100 : 0, rTone = r.low ? "b" : rp > 85 ? "w" : "";
+  const top = (st.apps || []).filter(x => x.ms >= 30000).sort((a, c) => c.ms - a.ms).slice(0, 5);
+  const ram = `${bar(rp, rTone, t("dv.ram"))}<p style="margin:4px 0 8px">${t("dv.ramD", byt(r.avail), byt(r.total))}</p>
+    ${r.low ? `<div class="alert warn">${ic("triangle-alert")} ${t("dv.ramLow")}</div>` : ""}
+    ${r.perApp ? "" : `<p class="mute">${ic("circle-help")} ${t("dv.ramWhy")}</p>`}
+    <h3 style="margin:12px 0 4px;font-size:14px">${t("dv.topUse")}</h3>
+    ${top.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${t("todayV", fmt(x.ms))}</span></div></div>`).join("") || `<p class="mute">${t("dv.noUse")}</p>`}`;
+  const bt = d.battery || {}, tc2 = bt.tempC, hot = tc2 != null && tc2 >= 40, badH = bt.health && !["good", "unknown"].includes(bt.health);
+  const deg = v => v.toLocaleString(lang, { maximumFractionDigits: 1 }) + "°C";
+  const bTone = bt.pct >= 0 && bt.pct <= 15 && !bt.charging ? "b" : bt.pct <= 30 ? "w" : "";
+  const bat = `${bt.pct >= 0 ? bar(bt.pct, bTone, t("dv.bat")) : ""}
+    ${hot ? `<div class="alert warn">${ic("flame")} ${t("dv.hot", deg(tc2))}</div>` : ""}
+    ${kv(t("dv.plug"), bt.charging ? t("dv.charging", tc("dv.plug.", bt.plug, bt.plug)) : t("dv.notCharging"))}
+    ${tc2 != null ? kv(t("dv.temp"), deg(tc2)) : ""}
+    ${kv(t("dv.health"), `<span class="tag ${badH ? "bad" : bt.health === "good" ? "ok" : ""}" style="margin:0">${tc("dv.h.", bt.health, bt.health || "?")}</span>`)}
+    ${bt.voltageMv > 0 ? kv(t("dv.volt"), (bt.voltageMv / 1000).toLocaleString(lang, { maximumFractionDigits: 2 }) + " V") : ""}
+    ${kv(t("dv.scr"), bt.screenOnMs != null ? fmt(bt.screenOnMs) : `<span class="mute" style="font-weight:400">${t("dv.scrOld")}</span>`)}`;
+  const n = d.net || {};
+  const sys = `${kv(t("dv.model"), esc(d.model))}${kv(t("dv.os"), esc(d.android) + " · API " + (+d.sdk || "?"))}${kv(t("dv.up"), dvDur(+d.uptimeMs || 0))}
+    ${kv(t("dv.kg"), esc(d.version))}${kv(t("dv.net"), tc("dv.n.", n.type, esc(n.type)) + (n.metered && n.type !== "none" ? ` <span class="mute" style="font-weight:400">· ${t("dv.metered")}</span>` : ""))}
+    ${n.type === "wifi" && n.bars != null ? kv(t("dv.sig"), t("dv.sigN", n.bars, n.rssi)) : ""}`;
+  const act = `${isBasic() ? needOwner(t("dv.reboot")) : `<div class="row">${dvBtn("dvBoot", "refresh-cw", t("dv.reboot"), "bad")}</div><p class="mute">${t("dv.rebootD")}</p>`}
+    <p class="mute">${ic("lightbulb")} ${t("dv.noBoost")}</p>`;
+  b.innerHTML = head
+    + sec("d-sto", "hard-drive", t("dv.sto"), "", [t("dv.stoChip", byt(s.free)), stoTone === "b" ? "bad" : stoTone === "w" ? "warn" : "ok"], sto, true)
+    + sec("d-ram", "memory-stick", t("dv.ram"), "", [t("dv.ramChip", Math.round(rp)), rTone === "b" ? "bad" : rTone === "w" ? "warn" : "ok"], ram, false)
+    + sec("d-bat", "battery-full", t("dv.bat"), "", [t("dv.batChip", bt.pct) + (tc2 != null ? " · " + deg(tc2) : ""), badH || bTone === "b" ? "bad" : hot || bTone === "w" ? "warn" : "ok"], bat, false)
+    + sec("d-sys", "smartphone", t("dv.sys"), "", ["Android " + esc(d.android)], sys, false)
+    + sec("d-act", "zap", t("dv.act"), "", null, act, true);
+  wireDev(b, apps);
+}
+function wireDev(b, apps) {
+  const x = $("#dvRef"); if (x) x.onclick = () => devLoad(true);
+  const c = $("#dvClean"); if (c) c.onclick = () => { tab = "apps"; appsSub = "clean"; try { localStorage.setItem("kg.appsSub", "clean"); } catch {} render(true); };
+  const r = $("#dvBoot"); if (r) r.onclick = async () => { if (!(await ask(...askOf("reboot")))) return; dvRun("dvBoot", () => cmd({ type: "reboot" }, t("reboot.done"), false)); };
+  (apps || []).forEach((a, i) => { const e = $("#dvc" + i); if (e && !e.disabled) e.onclick = async () => {
+    if (!(await ask(t("clean.askClear", a.label), t("delete"), true))) return;
+    dvRun("dvc" + i, () => cmd({ type: "clearData", pkg: a.pkg }, t("clean.cleared", a.label), false)).then(() => setTimeout(() => devLoad(true), 3000));
+  }; });
 }
 
 // warning under a time range (bedtime / schedule) that would never block anything
@@ -1526,26 +2337,101 @@ function timeWarn(x, on, sch) {
   if (sch && !(x.days || []).length) m.push(t("tw.noDays"));
   return m.map(w => `<div class="alert warn" style="margin-top:8px">${ic("triangle-alert")} ${w}</div>`).join("");
 }
+// ---- v0.9.7 wind-down + messages on the kid's phone (rules tab) ----
+function windChip(r) {
+  const w = r.windDown, ws = st && st.windDown, bad = !r.bedtime.on || (ws && (ws.perm === false || ws.err));
+  if (!w.gray && !w.nudge) return [t("off")];
+  return [t("on") + " · " + [w.gray && t("chip.gray"), w.nudge && t("chip.nudge")].filter(Boolean).join(", "), bad ? "warn" : "ok"];
+}
+function windStatus(r) {   // idle / active / failure / conflict, below the controls
+  const w = r.windDown, ws = st && st.windDown, saved = st && st.rules && st.rules.windDown, out = [];
+  const al = (k, i, m) => `<div class="alert ${k}" style="margin-top:8px">${ic(i)} ${m}</div>`;
+  if ((w.gray || w.nudge) && !r.bedtime.on) out.push(al("warn", "triangle-alert", t("wd.needBed")));
+  if (w.gray && ws && ws.perm === false) out.push(al("warn", "triangle-alert", t("wd.perm")));
+  else if (w.gray && ws && ws.err) out.push(al("warn", "triangle-alert", t("wd.fail", esc(ws.err))));
+  if (saved && (saved.gray !== w.gray || +saved.min !== +w.min || saved.nudge !== w.nudge)) out.push(`<p class="mute">${ic("hourglass")} ${t("wd.unsaved")}</p>`);
+  else if (w.gray && r.bedtime.on && ws) {
+    const s = String(r.bedtime.start || "21:30").split(":").map(Number), m = ((s[0] * 60 + s[1] - w.min) % 1440 + 1440) % 1440;
+    out.push(ws.gray ? `<p><span class="tag ok">${ic("moon")} ${t("wd.nowOn")}</span></p>` : `<p class="mute">${ic("clock")} ${t("wd.wait", String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"))}</p>`);
+  }
+  return out.join("");
+}
+function windBody(r) {
+  const w = r.windDown;
+  return `    <label class="row"><input type="checkbox" id="f-wg" ${w.gray ? "checked" : ""}><span class="sp">${ic("moon")} ${t("wd.gray")}</span></label>
+    <label class="row" style="margin-top:8px">${t("wd.lead")} <select id="f-wm" ${w.gray ? "" : "disabled"}>${WD_STEPS.map(n => `<option value="${n}" ${w.min === n ? "selected" : ""}>${n ? t("wd.leadN", n) : t("wd.at")}</option>`).join("")}</select></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-wn" ${w.nudge ? "checked" : ""}><span class="sp">${ic("bell")} ${t("wd.nudge")}</span></label>
+    <div id="wdS">${windStatus(r)}</div>
+    <p class="mute">${ic("lightbulb")} ${t("wd.tip")}</p>`;
+}
+const lockPrev = r => [r.lockInfo.msg, r.lockInfo.contact].map(s => s.replace(/\s+/g, " ").trim()).filter(Boolean).join(" · ");
+function kindStatus(r) {
+  const p = lockPrev(r), basic = isBasic();
+  return (p ? `<p class="mute">${ic("eye")} ${t("kn.preview", esc(p))}</p>` : `<p class="mute">${t("kn.noLock")}</p>`) + (basic ? needOwner(t("kn.lock")) : "");
+}
+function kindBody(r) {
+  return `    <b>${ic("lock")} ${t("kn.lock")}</b>
+    <div class="row" style="margin-top:8px"><input class="sp" id="f-lm" maxlength="60" autocomplete="off" placeholder="${esc(t("kn.msgPh"))}" aria-label="${esc(t("kn.msg"))}" value="${esc(r.lockInfo.msg)}"></div>
+    <div class="row" style="margin-top:8px"><input class="sp" id="f-lc" maxlength="60" autocomplete="off" inputmode="text" placeholder="${esc(t("kn.contactPh"))}" aria-label="${esc(t("kn.contact"))}" value="${esc(r.lockInfo.contact)}"></div>
+    <div id="knS">${kindStatus(r)}</div>
+    <label for="f-bnote" style="display:block;margin-top:12px"><b>${ic("notebook-pen")} ${t("kn.note")}</b></label>
+    <input id="f-bnote" maxlength="120" autocomplete="off" placeholder="${esc(t("kn.notePh"))}" style="width:100%;margin-top:8px" value="${esc(r.blockNote)}">
+    <p class="mute">${t("kn.noteDef")}</p>
+    <p class="mute">${ic("lightbulb")} ${t("kn.tip")}</p>`;
+}
+function wireComfort(b, r) {
+  const ws = () => { const e = $("#wdS"); if (e) e.innerHTML = windStatus(r); };
+  $("#f-wg").onchange = e => { r.windDown.gray = e.target.checked; $("#f-wm").disabled = !e.target.checked; ws(); changed(); };
+  $("#f-wm").onchange = e => { r.windDown.min = +e.target.value; ws(); changed(); };
+  $("#f-wn").onchange = e => { r.windDown.nudge = e.target.checked; ws(); changed(); };
+  $("#f-bed").addEventListener("change", ws);
+  const ks = () => { const e = $("#knS"); if (e) e.innerHTML = kindStatus(r); };
+  $("#f-lm").oninput = e => { r.lockInfo.msg = e.target.value.slice(0, 60); ks(); changed(); };
+  $("#f-lc").oninput = e => { r.lockInfo.contact = e.target.value.slice(0, 60); ks(); changed(); };
+  $("#f-bnote").oninput = e => { r.blockNote = e.target.value.slice(0, 120); changed(); };
+}
+
+// one-line status chip per rules section: [text, tone] (tone: ok = active, warn = active but has a problem)
+function ruleChips(r) {
+  const on = (x, w) => [t("on") + (x ? " · " + x : ""), w ? "warn" : "ok"], off = [t("off")], none = [t("chip.none")];
+  const hm = s => esc(s || "?"), basic = isBasic();
+  const dns = DNS().find(d => d[0] === r.safeDns);
+  const schOn = r.schedules.filter(x => x.on), more = [r.blockNew, r.lockLocation, r.noAirplane].filter(Boolean).length, anti = [r.noInstall, r.noDebug].filter(Boolean).length;
+  return {
+    tpl: [t("chip.nTpl", allTpl().length)],
+    daily: r.dailyByDay.length ? on(t("daily.by")) : r.dailyMin ? on(t("chip.perDay", fmt(r.dailyMin * 60000))) : off,
+    grp: r.groups.length ? [t("chip.nGrp", r.groups.length), r.groups.some(g => !(g.pkgs || []).length) ? "warn" : "ok"] : none,
+    totp: st.totpOn === undefined ? null : st.totpOn ? on() : off,
+    chore: r.chores.length ? [t("chip.nChore", r.chores.length), "ok"] : none,
+    bed: r.bedtime.on ? on(hm(r.bedtime.start) + "–" + hm(r.bedtime.end), !!timeWarn(r.bedtime, true)) : off,
+    sch: schOn.length ? [t("chip.nSch", schOn.length), schOn.some(x => timeWarn(x, true, true)) ? "warn" : "ok"] : r.schedules.length ? off : none,
+    zone: r.zones.length ? [t("chip.nZone", r.zones.length), "ok"] : none,
+    trk: r.trackMin ? on(t("chip.every", fmt(r.trackMin * 60000))) : off,
+    more: more ? on(more + "/3", basic) : off,
+    dns: r.safeDns ? on(esc(dns ? dns[1] : r.safeDns), basic) : off,
+    anti: anti ? on(anti + "/2", basic) : off,
+    wind: windChip(r),
+    kind: (n => n.length ? [n.join(" · "), "ok"] : off)([(r.lockInfo.msg || r.lockInfo.contact) && t("chip.lock"), r.blockNote && t("chip.note")].filter(Boolean)),
+  };
+}
 function rulesTab(b) {
   const r = edit;
   const T = allTpl(); if (tplSel >= T.length) tplSel = 0;
   const tcur = T[tplSel], nUser = T.length - PRESET_D.length, multi = reachKids().length > 1;
+  const C = ruleChips(r);
   b.innerHTML = `
-  <div class="card"><h2>${ic("layers")} ${t("tpl.h")}</h2>
-    <p class="mute" style="margin:0 0 8px">${t("tpl.p")}</p>
+  ${sec("r-tpl", "layers", t("tpl.h"), t("sd.tpl"), C.tpl, `    <p class="mute" style="margin:0 0 8px">${t("tpl.p")}</p>
     <div class="chips" role="group" aria-label="${esc(t("tpl.h"))}">${T.map((t, i) => `<button data-tpl="${i}" class="${i === tplSel ? "on" : ""}" aria-pressed="${i === tplSel}">${esc(t.name)}</button>`).join("")}</div>
     <div class="mute" style="margin-top:8px">${esc(tcur.name)}: ${tplSummary(tcur)}</div>
     <div class="row" style="margin-top:10px"><button class="pri sp" id="tplGo">${ic("check")} ${t("tpl.applyTo", esc(cur.name))}</button>${multi ? `<button class="sp" id="tplMulti">${ic("clipboard-copy")} ${t("tpl.applyMany")}</button>` : ""}</div>
     <div class="row" style="margin-top:8px"><button class="sp" id="tplSave">${ic("save")} ${t("tpl.saveCur")}</button>${tplSel >= PRESET_D.length ? `<button class="bad" id="tplDel">${ic("trash-2")} ${t("tpl.del")}</button>` : ""}</div>
-    ${nUser ? "" : `<p class="mute">${t("tpl.noOwn")}</p>`}</div>
-  <div class="card"><h2>${ic("timer")} ${t("daily.h")}</h2>
-    <div class="row"><select id="f-dmode" aria-label="${esc(t("daily.h"))}"><option value="same" ${r.dailyByDay.length ? "" : "selected"}>${t("daily.same")}</option><option value="by" ${r.dailyByDay.length ? "selected" : ""}>${t("daily.by")}</option></select></div>
+    ${nUser ? "" : `<p class="mute">${t("tpl.noOwn")}</p>`}`)}
+  ${sec("r-daily", "timer", t("daily.h"), t("sd.daily"), C.daily, `    <div class="row"><select id="f-dmode" aria-label="${esc(t("daily.h"))}"><option value="same" ${r.dailyByDay.length ? "" : "selected"}>${t("daily.same")}</option><option value="by" ${r.dailyByDay.length ? "selected" : ""}>${t("daily.by")}</option></select></div>
     ${r.dailyByDay.length ? `<div class="grid" style="margin-top:8px">${t("wdl").map((n, i) => `<label class="mute">${t("daily.dayLbl", n)}<input type="number" min="0" max="1440" step="15" inputmode="numeric" data-d="${i}" id="f-d${i}" value="${+r.dailyByDay[i] || 0}" style="width:100%"></label>`).join("")}</div>`
     : `<div class="row" style="margin-top:8px"><select id="f-daily" aria-label="${esc(t("daily.h"))}">${[0, 30, 60, 90, 120, 150, 180, 240, 300].map(n => `<option value="${n}" ${r.dailyMin === n ? "selected" : ""}>${n ? fmt(n * 60000) : t("noLimitC")}</option>`).join("")}
     ${[0, 30, 60, 90, 120, 150, 180, 240, 300].includes(r.dailyMin) ? "" : `<option selected value="${r.dailyMin}">${fmt(r.dailyMin * 60000)}</option>`}</select></div>`}
-    <p class="mute">${ic("lightbulb")} ${t("daily.tip")}</p></div>
-  <div class="card"><h2>${ic("layers")} ${t("grp.h")}</h2>
-    ${r.groups.map((g, i) => { const h = (g.hours || [])[0], have = new Set(g.pkgs || []), list = (st.apps || []).map(a => [a.pkg, a.label]).concat((g.pkgs || []).filter(p => !(st.apps || []).some(a => a.pkg === p)).map(p => [p, p]));
+    <p class="mute">${ic("lightbulb")} ${t("daily.tip")}</p>`)}
+  ${sec("r-grp", "layout-grid", t("grp.h"), t("sd.grp"), C.grp, `    ${r.groups.map((g, i) => { const h = (g.hours || [])[0], have = new Set(g.pkgs || []), list = (st.apps || []).map(a => [a.pkg, a.label]).concat((g.pkgs || []).filter(p => !(st.apps || []).some(a => a.pkg === p)).map(p => [p, p]));
       return `<div class="sch" data-g="${i}"><div class="row"><input class="sp" id="f-gn${i}" maxlength="40" placeholder="${esc(t("grp.namePh"))}" aria-label="${esc(t("grp.name"))}" value="${esc(g.name)}"><button class="bad" data-gdel="${i}" aria-label="${esc(t("grp.del"))}">${ic("trash-2")}</button></div>
       <label class="row" style="margin-top:8px">${t("grp.max")} <input type="number" id="f-gm${i}" min="0" max="1440" step="15" inputmode="numeric" style="width:5.5em" value="${+g.min || 0}"> ${t("minPerDay")} <span class="mute">${t("zeroNoLim")}</span></label>
       <label class="row" style="margin-top:8px"><input type="checkbox" id="g-hon${i}" ${h ? "checked" : ""}><span class="sp">${ic("clock")} ${t("grp.hours")}</span></label>
@@ -1555,50 +2441,46 @@ function rulesTab(b) {
       <div style="max-height:260px;overflow:auto;margin-top:6px">${list.map(([p, l]) => `<label class="row"><input type="checkbox" data-gp="${esc(p)}" ${have.has(p) ? "checked" : ""}><span class="sp">${esc(l)}</span></label>`).join("") || `<p class="mute">${t("grp.noList")}</p>`}</div></details>
       ${have.size ? "" : `<p class="mute">${ic("triangle-alert")} ${t("grp.empty")}</p>`}</div>`; }).join("") || `<p class="mute">${ic("inbox")} ${t("grp.none")}</p>`}
     <button id="addGroup" ${r.groups.length >= 10 ? "disabled" : ""}>${ic("plus")} ${t("grp.add")}</button>
-    <p class="mute">${ic("lightbulb")} ${t("grp.tip")}</p></div>
-  <div class="card"><h2>${ic("key-round")} ${t("totp.h")}</h2>
-    ${st.totpOn === undefined ? `<p class="mute">${ic("triangle-alert")} ${t("totp.old")}</p>` : st.totpOn
+    <p class="mute">${ic("lightbulb")} ${t("grp.tip")}</p>`)}
+  ${sec("r-totp", "key-round", t("totp.h"), t("sd.totp"), C.totp, `    ${st.totpOn === undefined ? `<p class="mute">${ic("triangle-alert")} ${t("totp.old")}</p>` : st.totpOn
       ? `<p>${ic("circle-check")} ${t("totp.onP")}${st.unlockUntil > Date.now() ? " " + t("totp.until", hhmm(st.unlockUntil)) : ""}</p>
         <div class="row"><button class="sp" id="totpNew">${ic("refresh-cw")} ${t("totp.new")}</button><button class="bad" id="totpOff">${ic("x")} ${t("turnOff")}</button></div>`
       : `<p class="mute">${t("totp.offP")}</p><button class="pri" id="totpNew">${ic("key-round")} ${t("totp.enable")}</button>`}
     <label class="row" style="margin-top:10px">${t("totp.each")} <select id="f-um">${[15, 30, 60, 120].map(n => `<option value="${n}" ${+r.unlockMin === n ? "selected" : ""}>${fmt(n * 60000)}</option>`).join("")}</select></label>
     <div id="totpOut">${totpShown && totpShown.k === cur ? totpHtml(totpShown) : ""}</div>
-    <p class="mute">${ic("lightbulb")} ${t("totp.tip")}</p></div>
-  <div class="card"><h2>${ic("star")} ${t("chore.h")}</h2>
-    ${r.chores.map((c, i) => `<div class="app" data-c="${i}"><input class="sp" id="f-cn${i}" data-f="name" maxlength="40" placeholder="${esc(t("chore.namePh"))}" aria-label="${esc(t("chore.name"))}" value="${esc(c.name)}"><label class="row">+<input type="number" id="f-cm${i}" data-f="min" min="5" max="120" step="5" inputmode="numeric" aria-label="${esc(t("minutes"))}" style="width:5.5em" value="${+c.min || 20}"> ${t("minShort")}</label><button class="bad" data-cdel="${i}" aria-label="${esc(t("chore.del"))}">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("chore.none")}</p>`}
+    <p class="mute">${ic("lightbulb")} ${t("totp.tip")}</p>`)}
+  ${sec("r-chore", "star", t("chore.h"), t("sd.chore"), C.chore, `    ${r.chores.map((c, i) => `<div class="app" data-c="${i}"><input class="sp" id="f-cn${i}" data-f="name" maxlength="40" placeholder="${esc(t("chore.namePh"))}" aria-label="${esc(t("chore.name"))}" value="${esc(c.name)}"><label class="row">+<input type="number" id="f-cm${i}" data-f="min" min="5" max="120" step="5" inputmode="numeric" aria-label="${esc(t("minutes"))}" style="width:5.5em" value="${+c.min || 20}"> ${t("minShort")}</label><button class="bad" data-cdel="${i}" aria-label="${esc(t("chore.del"))}">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("chore.none")}</p>`}
     <button id="addChore" ${r.chores.length >= 20 ? "disabled" : ""}>${ic("plus")} ${t("chore.add")}</button>
-    <p class="mute">${ic("lightbulb")} ${t("chore.tip")}</p></div>
-  <div class="card"><h2>${ic("moon")} ${t("bed.h")}</h2>
-    <div class="row"><label class="row"><input type="checkbox" id="f-bed" ${r.bedtime.on ? "checked" : ""}> ${ic("moon")} ${t("on")}</label>
+    <p class="mute">${ic("lightbulb")} ${t("chore.tip")}</p>`)}
+  ${sec("r-bed", "moon", t("bed.h"), t("sd.bed"), C.bed, `    <div class="row"><label class="row"><input type="checkbox" id="f-bed" ${r.bedtime.on ? "checked" : ""}> ${ic("moon")} ${t("on")}</label>
     <span class="sp"></span><span class="row tm">${t("from")} <input type="time" id="f-bs" aria-label="${esc(t("start"))}" value="${esc(r.bedtime.start)}"> ${t("to")} <input type="time" id="f-be" aria-label="${esc(t("end"))}" value="${esc(r.bedtime.end)}"></span></div>
-    <div id="bedW">${timeWarn(r.bedtime, r.bedtime.on)}</div></div>
-  <div class="card"><h2>${ic("book-open")} ${t("sch.h")}</h2>
-    ${r.schedules.map((x, i) => `<div class="sch" data-s="${i}">
+    <div id="bedW">${timeWarn(r.bedtime, r.bedtime.on)}</div>`)}
+  ${sec("r-wind", "moon", t("wd.h"), t("sd.wind"), C.wind, windBody(r))}
+  ${sec("r-kind", "notebook-pen", t("kn.h"), t("sd.kind"), C.kind, kindBody(r))}
+  ${sec("r-sch", "book-open", t("sch.h"), t("sd.sch"), C.sch, `    ${r.schedules.map((x, i) => `<div class="sch" data-s="${i}">
       <div class="row"><input id="f-sn${i}" class="sp" data-f="name" placeholder="${esc(t("sch.namePh"))}" aria-label="${esc(t("sch.name"))}" value="${esc(x.name)}"><label class="row"><input type="checkbox" data-f="on" ${x.on ? "checked" : ""}> ${t("on")}</label></div>
       <div class="chips" style="margin:8px 0">${t("wd").map((n, d) => `<button data-day="${d + 1}" class="${(x.days || []).includes(d + 1) ? "on" : ""}" aria-pressed="${(x.days || []).includes(d + 1)}">${n}</button>`).join("")}</div>
       <div class="row"><span class="row tm">${t("from")} <input type="time" id="f-ss${i}" data-f="start" aria-label="${esc(t("start"))}" value="${esc(x.start)}"> ${t("to")} <input type="time" id="f-se${i}" data-f="end" aria-label="${esc(t("end"))}" value="${esc(x.end)}"></span><span class="sp"></span><button class="bad" data-del="${i}">${ic("trash-2")} ${t("delete")}</button></div><div data-sw>${timeWarn(x, x.on, true)}</div></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("sch.none")}</p>`}
-    <button id="addSch">${ic("plus")} ${t("sch.add")}</button></div>
-  <div class="card"><h2>${ic("map-pin")} ${t("zone.h")}</h2>
-    ${r.zones.map((z, i) => `<div class="sch" data-z="${i}"><div class="row"><input class="sp" id="f-zn${i}" maxlength="40" placeholder="${esc(t("zone.namePh"))}" aria-label="${esc(t("zone.name"))}" value="${esc(z.name)}"><label class="row">${t("zone.r")} <input type="number" id="f-zr${i}" min="50" max="2000" step="50" inputmode="numeric" style="width:6em" value="${+z.r || 150}"> m</label></div>
+    <button id="addSch">${ic("plus")} ${t("sch.add")}</button>`)}
+  ${sec("r-zone", "map-pin", t("zone.h"), t("sd.zone"), C.zone, `    ${r.zones.map((z, i) => `<div class="sch" data-z="${i}"><div class="row"><input class="sp" id="f-zn${i}" maxlength="40" placeholder="${esc(t("zone.namePh"))}" aria-label="${esc(t("zone.name"))}" value="${esc(z.name)}"><label class="row">${t("zone.r")} <input type="number" id="f-zr${i}" min="50" max="2000" step="50" inputmode="numeric" style="width:6em" value="${+z.r || 150}"> m</label></div>
       <div class="row" style="margin-top:8px"><input id="f-zla${i}" inputmode="decimal" placeholder="${esc(t("lat"))}" aria-label="${esc(t("lat"))}" style="width:8.5em" value="${zoneOk(z) ? +z.lat : ""}"><input id="f-zlo${i}" inputmode="decimal" placeholder="${esc(t("lng"))}" aria-label="${esc(t("lng"))}" style="width:8.5em" value="${zoneOk(z) ? +z.lng : ""}"></div>
       <div class="row" style="margin-top:8px"><button data-zhere="${i}" class="sp" ${st.location ? "" : "disabled"}>${ic("map-pin")} ${t("zone.here")}</button><button class="bad" data-zdel="${i}">${ic("trash-2")} ${t("delete")}</button></div></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("zone.none")}</p>`}
     <button id="addZone" ${r.zones.length >= 10 || !st.location ? "disabled" : ""}>${ic("plus")} ${t("zone.add")}</button>${st.location ? "" : `<p class="mute">${ic("triangle-alert")} ${t("zone.noLoc")}</p>`}
-    <p class="mute">${ic("lightbulb")} ${t("zone.tip")}</p></div>
-  <div class="card"><h2>${ic("map-pin")} ${t("trk.h")}</h2>
-    <select id="f-tm" aria-label="${esc(t("trk.h"))}">${[0, 5, 10, 15, 30, 60].map(v => `<option value="${v}" ${r.trackMin === v ? "selected" : ""}>${v ? fmt(v * 60000) : t("off")}</option>`).join("")}${[0, 5, 10, 15, 30, 60].includes(r.trackMin) ? "" : `<option selected value="${r.trackMin}">${fmt(r.trackMin * 60000)}</option>`}</select>
-    <p class="mute">${ic("map")} ${t("trk.tip")}</p></div>
-  <div class="card"><h2>${ic("construction")} ${t("more.h")}</h2>
-    <label class="row"><input type="checkbox" id="f-bn" ${r.blockNew ? "checked" : ""}><span class="sp">${ic("sparkles")} ${t("more.new")}</span></label>
+    <p class="mute">${ic("lightbulb")} ${t("zone.tip")}</p>`)}
+  ${sec("r-trk", "route", t("trk.h"), t("sd.trk"), C.trk, `    <select id="f-tm" aria-label="${esc(t("trk.h"))}">${[0, 5, 10, 15, 30, 60].map(v => `<option value="${v}" ${r.trackMin === v ? "selected" : ""}>${v ? fmt(v * 60000) : t("off")}</option>`).join("")}${[0, 5, 10, 15, 30, 60].includes(r.trackMin) ? "" : `<option selected value="${r.trackMin}">${fmt(r.trackMin * 60000)}</option>`}</select>
+    <p class="mute">${ic("map")} ${t("trk.tip")}</p>`)}
+  ${sec("r-more", "construction", t("more.h"), t("sd.more"), C.more, `    <label class="row"><input type="checkbox" id="f-bn" ${r.blockNew ? "checked" : ""}><span class="sp">${ic("sparkles")} ${t("more.new")}</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-ll" ${r.lockLocation ? "checked" : ""}><span class="sp">${ic("map-pin")} ${t("more.loc")}</span></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span class="sp">${ic("plane")} ${t("more.air")}</span></label>${isBasic() ? needOwner(t("no.locAir")) : ""}</div>
-  <div class="card"><h2>${ic("shield")} ${t("dns.h")}</h2>
-    <select id="f-dns" aria-label="${esc(t("dns.h"))}">${DNS().map(([v, n]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}</option>`).join("")}${DNS().some(d => d[0] === r.safeDns) ? "" : `<option selected value="${esc(r.safeDns)}">${esc(r.safeDns)}</option>`}</select>
-    <p class="mute">${ic("eye-off")} ${t("dns.tip")}</p>${isBasic() ? needOwner() : ""}</div>
-  <div class="card"><h2>${ic("lock-keyhole")} ${t("anti.h")}</h2>
-    <label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span class="sp">${ic("package")} ${t("anti.install")}</span></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span class="sp">${ic("plane")} ${t("more.air")}</span></label>${isBasic() ? needOwner(t("no.locAir")) : ""}`)}
+  ${sec("r-dns", "shield", t("dns.h"), t("sd.dns"), C.dns, `    <select id="f-dns" aria-label="${esc(t("dns.h"))}">${DNS().map(([v, n]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}</option>`).join("")}${DNS().some(d => d[0] === r.safeDns) ? "" : `<option selected value="${esc(r.safeDns)}">${esc(r.safeDns)}</option>`}</select>
+    <p class="mute">${ic("eye-off")} ${t("dns.tip")}</p>${isBasic() ? needOwner() : ""}`)}
+  ${sec("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span class="sp">${ic("package")} ${t("anti.install")}</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label>
     ${isBasic() ? needOwner() + `<p class="mute">${ic("shield")} ${t("anti.basic")}</p>`
-      : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}</div>`;
+      : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}`)}`;
+  // chips follow edits that don't redraw the tab (selects, checkboxes, typing)
+  const chips = () => setTimeout(() => { if (!b.isConnected || !edit) return; const c = ruleChips(edit); Object.keys(c).forEach(k => setChip(b, "r-" + k, c[k])); });
+  b.addEventListener("change", chips); b.addEventListener("input", chips);
   b.querySelectorAll("[data-tpl]").forEach(x => x.onclick = () => { tplSel = +x.dataset.tpl; render(); });
   $("#tplGo").onclick = () => tplApply(tcur);
   if ($("#tplMulti")) $("#tplMulti").onclick = () => tplMulti(tcur);
@@ -1691,6 +2573,7 @@ function rulesTab(b) {
   $("#f-bed").onchange = e => { r.bedtime.on = e.target.checked; bw(); changed(); };
   $("#f-bs").onchange = e => { r.bedtime.start = e.target.value; bw(); changed(); };
   $("#f-be").onchange = e => { r.bedtime.end = e.target.value; bw(); changed(); };
+  wireComfort(b, r);
   $("#f-ni").onchange = e => { r.noInstall = e.target.checked; changed(); };
   $("#f-nd").onchange = e => { r.noDebug = e.target.checked; changed(); };
 }
@@ -1707,7 +2590,7 @@ function screenStat() {
   const el = $("#s-stat"); if (!el) return;
   const now = performance.now(); scr.frames = scr.frames.filter(t => now - t < 5000);
   const fps = scr.frames.length > 1 ? (scr.frames.length - 1) / ((scr.frames[scr.frames.length - 1] - scr.frames[0]) / 1000) : 0;
-  el.textContent = scr.frames.length ? t("scr.stat", fps.toLocaleString(lang, { maximumFractionDigits: 1, minimumFractionDigits: 1 }), Math.round(scr.lat)) : "";
+  el.textContent = scr.frames.length ? t("scr.watching") + " · " + t("scr.stat", fps.toLocaleString(lang, { maximumFractionDigits: 1, minimumFractionDigits: 1 }), Math.round(scr.lat)) : "";
 }
 function showFrame(blob, lat) {
   const old = scr.url; scr.url = URL.createObjectURL(blob);
@@ -1858,7 +2741,7 @@ function drawMap(pts) {
   let tiles = "";
   for (let ty = Math.floor(top / 256); ty <= Math.floor((top + h) / 256); ty++) for (let tx = Math.floor(left / 256); tx <= Math.floor((left + w) / 256); tx++) {
     if (ty < 0 || ty >= n) continue;
-    tiles += `<img alt="" draggable="false" src="https://tile.openstreetmap.org/${mv.z}/${((tx % n) + n) % n}/${ty}.png" style="left:${Math.round(tx * 256 - left)}px;top:${Math.round(ty * 256 - top)}px">`;
+    tiles += tileImg(mv.z, ((tx % n) + n) % n, ty, Math.round(tx * 256 - left), Math.round(ty * 256 - top));
   }
   const xy = pts.map(p => [wx(p[2]) * S - left, wy(p[1]) * S - top]);
   const line = xy.map(q => q.map(v => v.toFixed(1)).join(",")).join(" ");
@@ -1869,7 +2752,7 @@ function drawMap(pts) {
     return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${Math.max(3, (z.r || 150) / mpp).toFixed(1)}" fill="#16a34a" fill-opacity=".14" stroke="#16a34a" stroke-width="2" style="pointer-events:none"/><text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" font-size="12" font-weight="600" fill="#166534" stroke="#fff" stroke-width="3" paint-order="stroke" style="pointer-events:none">${esc(z.name)}</text>`;
   }).join("");
   box.innerHTML = `<div class="layer" id="mlayer">${tiles}<svg width="${w}" height="${h}" style="left:0;top:0">${zs}<polyline points="${line}" fill="none" stroke="#2563eb" stroke-width="3" stroke-opacity=".7" stroke-linejoin="round"/>${dots}</svg></div>
-    <div class="mz"><button id="mzi" aria-label="${esc(t("zoomIn"))}">${ic("plus")}</button><button id="mzo" aria-label="${esc(t("zoomOut"))}">${ic("minus")}</button></div><div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>`;
+    <div class="mz"><button id="mzi" aria-label="${esc(t("zoomIn"))}">${ic("plus")}</button><button id="mzo" aria-label="${esc(t("zoomOut"))}">${ic("minus")}</button></div><div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>${tileDead ? mapFail() : ""}`;
   $("#mzi").onclick = () => { mv.z = Math.min(18, mv.z + 1); drawMap(pts); };
   $("#mzo").onclick = () => { mv.z = Math.max(2, mv.z - 1); drawMap(pts); };
   box.querySelectorAll("circle[data-i]").forEach(c => c.onclick = () => { if (box._moved) return; const p = pts[+c.dataset.i]; $("#mapInfo").textContent = `${hhmm(p[0])} · ${t("acc", "±" + Math.round(p[3] || 0))}`; });

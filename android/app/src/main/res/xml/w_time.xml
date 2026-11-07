@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- updatePeriodMillis 0: Guard pushes a new text only when it changes, from its existing tick (no extra wakeups) -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/q_time_desc"
+    android:initialLayout="@layout/w_time"
+    android:minWidth="110dp"
+    android:minHeight="40dp"
+    android:previewLayout="@layout/w_time"
+    android:resizeMode="horizontal"
+    android:targetCellWidth="2"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

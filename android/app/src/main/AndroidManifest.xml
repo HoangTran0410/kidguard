@@ -6,13 +6,19 @@
     <!-- basic mode self-update: the child confirms the system install screen (Device Owner installs without it) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Wi-Fi signal (RSSI) for the parent's "Máy" view on API 26-28 -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- live screen on Android 8-10 (no accessibility screenshot): MediaProjection, the child confirms the system dialog -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <!-- "listen around" (LAN / Tailscale): the child always gets a beep + notification, see Listen.kt -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- parent's files -> public Download/KidGuard on API 26-28 (Device Owner grants it); 29+ uses MediaStore, no permission -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
@@ -67,11 +73,79 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- long-press on our Quick Settings tiles opens this screen instead of App info (Force stop / Uninstall) -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
+
+        <!-- quick actions (Quick.kt): lock only / time left only; they open nothing but KidGuard. Disabled by release. -->
+        <activity
+            android:name=".LockActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:launchMode="singleInstance"
+            android:theme="@android:style/Theme.NoDisplay" />
+
+        <receiver
+            android:name=".LockReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".LockWidget"
+            android:exported="true"
+            android:label="@string/q_lock">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/w_lock" />
+        </receiver>
+
+        <receiver
+            android:name=".TimeWidget"
+            android:exported="true"
+            android:label="@string/q_time">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/w_time" />
+        </receiver>
+
+        <service
+            android:name=".LockTile"
+            android:exported="true"
+            android:icon="@drawable/li_lock"
+            android:label="@string/q_lock"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".TimeTile"
+            android:exported="true"
+            android:icon="@drawable/li_timer"
+            android:label="@string/q_time"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <!-- QR provisioning: the setup wizard calls these (only the system may, hence BIND_DEVICE_ADMIN) -->
         <activity
             android:name=".ProvisioningModeActivity"
+            android:excludeFromRecents="true"
             android:exported="true"
             android:permission="android.permission.BIND_DEVICE_ADMIN"
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
@@ -83,6 +157,7 @@
 
         <activity
             android:name=".PolicyComplianceActivity"
+            android:excludeFromRecents="true"
             android:exported="true"
             android:permission="android.permission.BIND_DEVICE_ADMIN"
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
@@ -94,7 +169,16 @@
 
         <activity
             android:name=".SelfSetupActivity"
+            android:excludeFromRecents="true"
             android:exported="false" />
+
+        <!-- on-device parent page (PIN / Authenticator); config changes must not restart it: a pause ends the session -->
+        <activity
+            android:name=".AdminActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|fontScale" />
 
         <receiver
             android:name=".PairCodeReceiver"
@@ -107,6 +191,32 @@
             android:launchMode="singleTop"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
+
+        <!-- command "wake": turns the screen on over the lock screen (Wake.kt) -->
+        <activity
+            android:name=".WakeActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- live screen on Android 8-10 (Proj.kt): the system consent dialog + the service that holds the projection -->
+        <activity
+            android:name=".ProjActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <service
+            android:name=".ProjService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+
+        <receiver
+            android:name=".RingStopReceiver"
+            android:exported="false" />
 
         <service
             android:name=".Guard"
@@ -159,5 +269,26 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility" />
         </service>
+        <!-- shared folder (Files.kt): share target "Gửi cho bố mẹ", the sheet's file picker, opening a file the parent sent -->
+        <activity
+            android:name=".ShareInActivity"
+            android:label="@string/files_share_label"
+            android:icon="@mipmap/ic_launcher"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="false"
+            android:exported="true">
+            <intent-filter android:label="@string/files_share_label">
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+        <provider
+            android:name=".FilesProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 </manifest>

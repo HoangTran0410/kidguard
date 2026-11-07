@@ -6,24 +6,26 @@ import html from "../../web/index.html";
 import install from "../../web/install.html";
 import qr from "../../web/qr.html";
 
-const MAX_BODY = 256 * 1024;
+const MAX_BODY = 256 * 1024, MAX_DEVICE = 32 * 1024;
 const MAX_FRAME = 1024 * 1024;
 const MAX_RULES = 64 * 1024, MAX_CMD = 4096, MAX_CMDS = 20;   // 64 KB + 20 x 4 KB stays far below the phone's 256 KB reply cap
 const KEYS = ["back", "home", "recents", "notifications", "quick", "lock", "power"];
 const PKG = /^[A-Za-z0-9._]{1,200}$/, MAX_ICONS = 400;
 // <img> can't send headers: only the icon GET may carry the token in ?k=
 const tokenOf = (req, url) => req.headers.get("x-kg-token") || (req.method === "GET" && url.pathname.endsWith("/icon") ? url.searchParams.get("k") || "" : "");
-const limitFor = (action) => action === "frame" ? MAX_FRAME : MAX_BODY;
+// shared files (docs/protocol.md "Shared files"): <= 10 MB a file in 1 MiB chunks, kept 1 h, deleted once fetched
+const FILE_CHUNK = 1048576, FILE_MAX = 10 * 1048576, FILE_TTL = 3600e3, FILE_N = 8, FILE_TOTAL = 32 * 1048576, FID = /^[0-9a-f]{16}$/;
+const limitFor = (action) => action === "frame" ? MAX_FRAME : action === "file" ? FILE_CHUNK : MAX_BODY;
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
-const ONCE = ["reboot", "release", "unpairAll", "clearData", "update", "totpSet"];   // deliver-once: dropped from the queue when handed to the phone
-const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet"];
+const ONCE = ["reboot", "release", "unpairAll", "clearData", "update", "totpSet", "fileDel"];   // deliver-once: dropped from the queue when handed to the phone
+const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "fileUp", "fileDel"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
 // inline scripts/styles are needed (single-file pages); the installer imports ESM from jsDelivr and downloads the APK
 const CSP = [
   "default-src 'none'", "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net", "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://tile.openstreetmap.org", "font-src 'self' data:",
+  "img-src 'self' data: blob: https://tile.openstreetmap.de https://tile.openstreetmap.org", "font-src 'self' data:",
   "connect-src 'self' https://cdn.jsdelivr.net https://github.com https://objects.githubusercontent.com",
   "frame-src https://www.openstreetmap.org", "worker-src 'self' blob:", "object-src 'none'", "base-uri 'none'",
   "form-action 'self'", "frame-ancestors 'none'",
@@ -48,7 +50,7 @@ export default {
         "x-frame-options": "DENY", "content-security-policy": CSP,
       } });
     }
-    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push)$/);
+    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|file)$/);
     if (!m) return json({ error: "not found" }, 404);
     if (env.RL) {
       const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
@@ -72,6 +74,7 @@ export class Kid {
   constructor(ctx, env) {
     this.ctx = ctx; this.s = ctx.storage; this.env = env || {};
     this.liveUntil = 0; this.frame = null; this.seq = Date.now(); this.seen = 0; this.seenWritten = 0; this.inputs = []; this.waiters = new Set();
+    this.deviceWant = 0;   // parent asked for a device-health snapshot at this ms (memory only, like liveUntil)
   }
 
   async fetch(req) {
@@ -143,6 +146,7 @@ export class Kid {
       }
       return json({ error: "method not allowed" }, 405);
     }
+    if (action === "file") return this.file(req, url, now);
     let body = null;
     if (req.method !== "GET") {
       const buf = await req.arrayBuffer();
@@ -151,6 +155,20 @@ export class Kid {
     }
     if (req.method !== "GET" && !isObj(body)) return json({ error: "bad json" }, 400);
 
+    // device health ("Máy" view): parent POST {} asks (the next sync reply says "device": true) and gets the last one
+    // stored; the phone PUTs the snapshot. GET only reads. Stored (<= 32 KB) so the page shows the last one at once.
+    if (action === "device") {
+      if (req.method === "PUT") {
+        if (!isObj(body) || JSON.stringify(body).length > MAX_DEVICE) return json({ error: "too big" }, 413);
+        await this.s.put("device", { ...body, at: now });
+        this.deviceWant = 0;
+        return json({ ok: true });
+      }
+      if (req.method === "POST") this.deviceWant = now;
+      else if (req.method !== "GET") return json({ error: "method not allowed" }, 405);
+      const d = (await this.s.get("device")) || null;
+      return json({ device: d, asked: this.deviceWant, seen: this.seen });
+    }
     if (action === "live") {
       if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
       this.liveUntil = now + 20e3;
@@ -190,6 +208,9 @@ export class Kid {
       if (state) this.ctx.waitUntil(this.pushNew(state, id).catch(e => console.log("push", String(e))));
       const out = { cmds };
       if (this.liveUntil > now) out.live = true;
+      const files = (await this.fileGc(now)).filter(f => f.to === "kid" && f.got.length === f.n).length;
+      if (files) out.files = files;   // the phone then fetches them from /file
+      if (this.deviceWant && now - this.deviceWant < 120e3) out.device = true;
       const known = state || (await this.s.get("state"));   // the phone omits state when unchanged
       const have = known && known.rules ? +known.rules.rev || 0 : 0;
       if (rules && rules.rev > have) out.rules = rules;
@@ -238,6 +259,61 @@ export class Kid {
       cmds.push(c);
       await this.s.put("cmds", cmds);
       return json({ result: "queued" });
+    }
+    return json({ error: "method not allowed" }, 405);
+  }
+
+  /** Shared files list ("files": [{fid, to, name, size, n, at, got: [chunk #]}]); expired ones (1 h) dropped with their chunks. */
+  async fileGc(now) {
+    const list = (await this.s.get("files")) || [];
+    const keep = list.filter(f => now - f.at < FILE_TTL);
+    if (keep.length !== list.length) {
+      await this.s.delete(list.filter(f => !keep.includes(f)).flatMap(f => [...Array(f.n).keys()].map(i => "fc:" + f.fid + ":" + i)));
+      await this.s.put("files", keep);
+    }
+    return keep;
+  }
+
+  /** /file: POST ?fid&i&n&to&size&name (one chunk), GET ?to= (list), GET ?fid&i (chunk), DELETE ?fid. Parent and phone share the token. */
+  async file(req, url, now) {
+    const q = url.searchParams, fid = q.get("fid") || "";
+    const buf = req.method === "POST" ? await req.arrayBuffer() : null;   // before any storage read: no other await between get and put below
+    if (buf && buf.byteLength > FILE_CHUNK) return json({ error: "too big" }, 413);
+    const list = await this.fileGc(now);
+    if (req.method === "GET" && !fid) {
+      const to = q.get("to");
+      return json({ files: list.filter(f => f.to === to).map(f => ({ fid: f.fid, name: f.name, size: f.size, n: f.n, at: f.at, done: f.got.length === f.n })), max: FILE_MAX, chunk: FILE_CHUNK });
+    }
+    if (!FID.test(fid)) return json({ error: "bad id" }, 400);
+    let f = list.find(x => x.fid === fid);
+    const key = (i) => "fc:" + fid + ":" + i;
+    if (req.method === "POST") {
+      if (!f) {
+        const to = q.get("to"), size = Number(q.get("size")), n = Number(q.get("n")), name = String(q.get("name") || "").slice(0, 200);
+        if (!["kid", "parent"].includes(to) || !name || !Number.isInteger(size) || size < 0) return json({ error: "bad file" }, 400);
+        if (size > FILE_MAX) return json({ error: "too big" }, 413);
+        if (n !== Math.max(1, Math.ceil(size / FILE_CHUNK))) return json({ error: "bad file" }, 400);
+        if (list.length >= FILE_N || list.reduce((s, x) => s + x.size, 0) + size > FILE_TOTAL) return json({ error: "relay full" }, 507);
+        f = { fid, to, name, size, n, at: now, got: [] }; list.push(f);
+      }
+      const i = Number(q.get("i"));
+      if (!Number.isInteger(i) || i < 0 || i >= f.n) return json({ error: "bad chunk" }, 400);
+      if (buf.byteLength !== (i < f.n - 1 ? FILE_CHUNK : f.size - FILE_CHUNK * (f.n - 1))) return json({ error: "bad chunk" }, 400);
+      if (!f.got.includes(i)) f.got.push(i);
+      await this.s.put({ [key(i)]: buf, files: list });
+      return json({ ok: true, done: f.got.length === f.n });
+    }
+    if (!f) return json({ error: "no such file" }, 404);
+    if (req.method === "GET") {
+      const i = Number(q.get("i"));
+      const b = Number.isInteger(i) && i >= 0 && i < f.n ? await this.s.get(key(i)) : null;
+      if (!b) return json({ error: "no such chunk" }, 404);
+      return new Response(b, { headers: { "content-type": "application/octet-stream", "cache-control": "no-store", "x-content-type-options": "nosniff" } });
+    }
+    if (req.method === "DELETE") {
+      await this.s.delete([...Array(f.n).keys()].map(key));
+      await this.s.put("files", list.filter(x => x !== f));
+      return json({ ok: true });
     }
     return json({ error: "method not allowed" }, 405);
   }

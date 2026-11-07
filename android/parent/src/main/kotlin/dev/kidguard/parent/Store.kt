@@ -25,6 +25,23 @@ object Store {
     fun notifyState(c: Context, key: String): String? = p(c).getString("ns:" + sha(key), null)
     fun setNotifyState(c: Context, key: String, json: String) { p(c).edit().putString("ns:" + sha(key), json).apply() }
 
+    /** Requests answered from a notification button (kid hash + request id), newest last, max 100: a second tap is ignored. */
+    fun takeAnswer(c: Context, kid: String, req: String): Boolean = synchronized(this) {
+        val k = sha("$kid|$req").take(24)
+        val a = org.json.JSONArray(p(c).getString("answered", "[]") ?: "[]")
+        if ((0 until a.length()).any { a.optString(it) == k }) return false
+        val out = org.json.JSONArray(); val from = maxOf(0, a.length() - 99)
+        for (i in from until a.length()) out.put(a.optString(i))
+        p(c).edit().putString("answered", out.put(k).toString()).commit()
+        true
+    }
+    fun dropAnswer(c: Context, kid: String, req: String) = synchronized(this) {
+        val k = sha("$kid|$req").take(24)
+        val a = org.json.JSONArray(p(c).getString("answered", "[]") ?: "[]")
+        val out = org.json.JSONArray(); for (i in 0 until a.length()) if (a.optString(i) != k) out.put(a.optString(i))
+        p(c).edit().putString("answered", out.toString()).commit()
+    }
+
     /** The page's localStorage lives per origin (= per port), so the port is chosen once and reused when free. */
     fun pickPort(c: Context): Int {
         val saved = p(c).getInt("port", 0)

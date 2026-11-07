@@ -72,7 +72,7 @@ class CheckJob : JobService() {
             if (canPost) for (e in out.events) post(c, k, e)
         }
 
-        private fun fetch(k: Logic.KidCfg): Logic.Seen? {
+        fun fetch(k: Logic.KidCfg): Logic.Seen? {
             val url = k.target + (if (k.via == "lan") "/api/state" else "/c/${k.id}/state")
             val r = Net.call("GET", url, mapOf("X-KG-Token" to k.token), null, 15_000)
             if (r.status == 401 || r.status == 403) return null
@@ -94,10 +94,10 @@ class CheckJob : JobService() {
                 val evs = (0 until (ea?.length() ?: 0)).mapNotNull { i ->
                     val x = ea!!.optJSONObject(i) ?: return@mapNotNull null
                     val id = x.optString("id"); val text = x.optString("text")
-                    if (id.isEmpty() || text.isEmpty()) null else Logic.Ev(id, text.take(120), x.optLong("t"))
+                    if (id.isEmpty() || text.isEmpty()) null else Logic.Ev(id, text.take(120), x.optLong("t"), x.optString("kind"), Act.locOf(JSONObject().put("location", x.optJSONObject("loc"))))
                 }
                 val accOff = st.optString("mode") == "basic" && st.optJSONObject("basic")?.optBoolean("acc", true) == false
-                Logic.Seen(true, list, if (k.via == "lan") st.optLong("t") else o.optLong("seen"), sos, evs, accOff)
+                Logic.Seen(true, list, if (k.via == "lan") st.optLong("t") else o.optLong("seen"), sos, evs, accOff, Act.locOf(st))
             } catch (e: Exception) { Logic.Seen(false, emptyList(), 0) }
         }
 
@@ -130,14 +130,6 @@ class CheckJob : JobService() {
             return c.getSystemService(NotificationManager::class.java).areNotificationsEnabled()
         }
 
-        fun post(c: Context, k: Logic.KidCfg, e: Logic.Event) {
-            if (!canNotify(c)) return
-            channel(c)
-            val pi = PendingIntent.getActivity(c, 0, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            val n = android.app.Notification.Builder(c, if (e.key.startsWith("sos:")) SOS_CHANNEL else CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle("KidGuard")
-                .setContentText(e.text).setContentIntent(pi).setAutoCancel(true).build()
-            c.getSystemService(NotificationManager::class.java).notify((k.key + e.key).hashCode(), n)
-        }
+        fun post(c: Context, k: Logic.KidCfg, e: Logic.Event, quiet: Boolean = false) = Notif.post(c, k, e, quiet)
     }
 }

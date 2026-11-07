@@ -128,10 +128,13 @@ object Logic {
     }
 
     /** What one check saw for a kid. activityT = state.t (LAN) or relay `seen` (ms of the child's last sync), 0 = unknown. */
-    class Ev(val id: String, val text: String, val t: Long)   // one state.events entry (v0.6)
+    class Ev(val id: String, val text: String, val t: Long, val kind: String = "", val loc: Loc? = null)   // one state.events entry (v0.6); loc: v0.9.7 check-in
+    class Loc(val lat: Double, val lng: Double, val t: Long)   // state.location (last fix)
     class Seen(val fetchOk: Boolean, val requests: List<Pair<String, Int>>, val activityT: Long, val sos: List<Pair<String, Long>> = emptyList(), val events: List<Ev> = emptyList(),
-               val accOff: Boolean = false)   // v0.7 basic mode: the child turned KidGuard's accessibility off (no blocking)
-    class Event(val key: String, val text: String)   // key: unique per event, used as notification id
+               val accOff: Boolean = false,   // v0.7 basic mode: the child turned KidGuard's accessibility off (no blocking)
+               val loc: Loc? = null)
+    /** key: unique per event, used as notification id. [min]: a request's minutes; [loc]: the kid's last fix (SOS "show location"). */
+    class Event(val key: String, val text: String, val min: Int = 0, val loc: Loc? = null)
     class Outcome(val events: List<Event>, val state: NotifyState)
 
     /** A failed fetch of a LAN kid says nothing while this phone is off Wi-Fi (mobile data cannot reach 192.168.x.x). */
@@ -147,12 +150,12 @@ object Logic {
         if (seen.fetchOk) {
             failSince = 0L
             // the first look at a kid only records what is already there (no burst of old requests)
-            if (st.init) for ((id, min) in seen.requests) if (id !in ids) events.add(Event("req:$id", tr.q(T.ev_request, min, name, min)))
+            if (st.init) for ((id, min) in seen.requests) if (id !in ids) events.add(Event("req:$id", tr.q(T.ev_request, min, name, min), min))
             // SOS: also on the first look, unless it is old (the child may have pressed it before the app was set up)
-            for ((id, t) in seen.sos) if ("s:$id" !in ids && now - t < SOS_FRESH_MS) events.add(Event("sos:$id", tr.s(T.ev_sos, name, hhmm(t))))
+            for ((id, t) in seen.sos) if ("s:$id" !in ids && now - t < SOS_FRESH_MS) events.add(Event("sos:$id", tr.s(T.ev_sos, name, hhmm(t)), loc = seen.loc))
             // events (zones, battery, new app, clock): same rule as requests, plus a one-time silent look per kid so an app
             // update does not replay the 50 events a phone already holds; stale ones are recorded but not shown
-            if (st.evInit) for (e in seen.events) if ("e:${e.id}" !in ids && now - e.t < EV_FRESH_MS) events.add(Event("ev:${e.id}", "$name: ${e.text}"))
+            if (st.evInit) for (e in seen.events) if ("e:${e.id}" !in ids && now - e.t < EV_FRESH_MS) events.add(if (e.kind == "checkin") Event("ci:${e.id}", "$name: ${e.text}", loc = e.loc ?: seen.loc) else Event("ev:${e.id}", "$name: ${e.text}"))
             val current = seen.sos.map { "s:" + it.first } + seen.requests.map { it.first } + seen.events.map { "e:" + it.id }
             ids = (ids + current).let { all -> if (all.size > 300) current.toSet() else all }
             val isLost = seen.activityT > 0 && now - seen.activityT > LOST_MS
@@ -180,7 +183,7 @@ object Logic {
         val t = data["t"]?.toLongOrNull()?.takeIf { it > 0 } ?: now
         return when (data["kind"]) {
             "sos" -> k to Event("sos:" + eid.removePrefix("s:"), tr.s(T.ev_sos, k.name, hhmm(t)))
-            "req" -> k to Event("req:" + eid.removePrefix("r:"), (data["min"]?.toIntOrNull() ?: 0).let { m -> tr.q(T.ev_request, m, k.name, m) })
+            "req" -> k to (data["min"]?.toIntOrNull() ?: 0).let { m -> Event("req:" + eid.removePrefix("r:"), tr.q(T.ev_request, m, k.name, m), m) }
             else -> null
         }
     }

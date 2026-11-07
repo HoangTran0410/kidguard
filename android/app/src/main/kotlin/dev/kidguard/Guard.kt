@@ -90,13 +90,14 @@ class Guard : Service() {
         work = Handler(HandlerThread("guard").apply { start() }.looper)
         running = this
         Watchdog.schedule(this)
-        work.post { runCatching { Policy.apply(this, store.rules) } }   // off the main thread: DPM calls can block
+        work.post { runCatching { Policy.apply(this, store.rules) }; Quick.setEnabled(this, true) }   // off the main thread: DPM calls can block
         runCatching {
             registerReceiver(pkgReceiver, IntentFilter().apply {
                 addAction(Intent.ACTION_PACKAGE_ADDED); addAction(Intent.ACTION_PACKAGE_REMOVED); addDataScheme("package")
             })
         }
         runCatching { registerReceiver(timeReceiver, IntentFilter(Intent.ACTION_TIME_CHANGED).apply { addAction(Intent.ACTION_TIMEZONE_CHANGED) }) }
+        wifiLock(true)
         http = Http(this, Api(this)).also { it.start(PORT) }
         relay = Relay(this).also { it.start() }
         work.post(loopRun)
@@ -111,7 +112,8 @@ class Guard : Service() {
         running = null
         runCatching { unregisterReceiver(pkgReceiver) }
         runCatching { unregisterReceiver(timeReceiver) }
-        Listen.stopAll()
+        Listen.stopAll(); Proj.stop(this); Ring.stop(this)
+        wifiLock(false)
         http?.stop(); relay?.stop()
         work.looper.quitSafely()
         super.onDestroy()
@@ -172,10 +174,16 @@ class Guard : Service() {
         }
         batteryCheck()
         val newApps = if (r.blockNew) fresh else emptySet()
-        Warn.due(r, dailyLeftMs(r, use.ms, today, apps.keys, prot), minute, today, store.warned(today), store.tr)?.let { w ->
+        val leftMs = dailyLeftMs(r, use.ms, today, apps.keys, prot)
+        Warn.due(r, leftMs, minute, today, store.warned(today), store.tr)?.let { w ->
             store.markWarned(today, w.keys); notifyWarn(w.text)
         }
+        // v0.9.7 bedtime wind-down: grayscale (re-applied if the child switched it off, put back afterwards)
+        windActive = WindDown.active(r, minute)
+        runCatching { GrayFx.tick(this, store, windActive) }.onFailure { Log.w("KidGuard", "wind-down", it) }
         val want = decide(r, use.ms, minute, now, today, apps.keys, prot, newApps, store.unlockUntil)
+        // time-left tile / widget: pushed only when the text changes
+        runCatching { Quick.publish(this, QuickLogic.timeLeftText(leftMs, QuickLogic.phoneBlock(want), store.tr)) }
         val had = store.suspendedByUs
         val nowSusp = Policy.suspendExactly(this, want.keys, had)
         if (nowSusp != had) {
@@ -268,7 +276,7 @@ class Guard : Service() {
         val pm = getSystemService(PowerManager::class.java)
         return JSONObject()
             .put("id", store.id).put("t", now).put("day", today)
-            .put("model", "${Build.MANUFACTURER} ${Build.MODEL}").put("android", Build.VERSION.RELEASE).put("version", BuildConfig.VERSION_NAME)
+            .put("model", "${Build.MANUFACTURER} ${Build.MODEL}").put("android", Build.VERSION.RELEASE).put("sdk", Build.VERSION.SDK_INT).put("version", BuildConfig.VERSION_NAME)
             .put("pairUntil", store.pairOpenUntil())
             .put("totpOn", store.totpSecret.isNotBlank()).put("unlockUntil", store.unlockUntil.takeIf { it > now } ?: 0)
             .put("acc", Acc.isOn(this))
@@ -293,7 +301,10 @@ class Guard : Service() {
             .put("requests", store.requests())
             .put("sos", store.sos())
             .put("listen", Listen.state())
+            .put("files", Files.state(this))
+            .put("ring", Ring.state())
             .put("events", store.events())
+            .put("windDown", GrayFx.state(this, r, windActive))
             .put("update", Update.stateJson(this))
             .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)) else it.put("preinstalled", preinstalled(prot, now)) }
     }
@@ -365,7 +376,12 @@ class Guard : Service() {
         "lock" -> if (Policy.lockNow(this)) "ok" else "not owner"
         "locate" -> { locate(); "ok" }
         "message" -> { MessageActivity.show(this, c.optString("text").take(500)); "ok" }
-        "ring" -> { ring(); "ok" }
+        "ring" -> Ring.start(this)
+        "ringStop" -> Ring.stop(this)
+        "wake" -> Wake.now(this)
+        "listenStop" -> { Listen.stopAll(); "ok" }
+        "fileUp" -> Files.command(this, t, c)   // shared folder over the relay (Files.kt)
+        "fileDel" -> Files.command(this, t, c)
         "relay" -> {
             store.relayUrl = c.optString("url")
             if (store.relayToken.isBlank() || store.relayId.isBlank()) { store.relayToken = store.addToken(); store.relayId = Store.randomHex(8) }
@@ -407,11 +423,12 @@ class Guard : Service() {
         work.postAtFrontOfQueue {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
-            Listen.stopAll()
+            Listen.stopAll(); Proj.stop(this); Ring.stop(this); wifiLock(false)
+            runCatching { GrayFx.restore(this, store) }.onFailure { Log.w("KidGuard", "grayscale restore", it) }   // the loop puts it back if release fails
             res = runCatching { Policy.release(this, store) }.getOrElse { Log.w("KidGuard", "release", it); "failed" }
             // anything but "ok" (e.g. "failed: N app còn bị ẩn") means we are still in charge: keep enforcing
-            if (res != "ok") { stopped = false; work.post(loopRun); store.log(R.string.log_release_fail, res) }
-            else store.log(R.string.log_released)
+            if (res != "ok") { stopped = false; wifiLock(true); work.post(loopRun); store.log(R.string.log_release_fail, res) }
+            else { store.log(R.string.log_released); runCatching { Files.wipeOutbox(this) } }   // received files stay in Download
             done.countDown()
         }
         if (!done.await(20, java.util.concurrent.TimeUnit.SECONDS)) return "failed"
@@ -430,6 +447,7 @@ class Guard : Service() {
             // an old cached fix (getLastKnownLocation after a long gap) must not fire zone in/out events
             if (System.currentTimeMillis() - l.time < 10 * 60_000) zoneFix(l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else 0f)
             store.location = JSONObject().put("lat", l.latitude).put("lng", l.longitude).put("acc", l.accuracy.toDouble()).put("t", l.time).put("src", l.provider ?: "")
+            if (store.fillCheckins(store.location!!)) relay?.kick()   // a check-in pressed before this fix gets it
         }
         val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER).filter {
             runCatching { lm.isProviderEnabled(it) }.getOrDefault(false)
@@ -486,22 +504,26 @@ class Guard : Service() {
         }.onFailure { Log.w("KidGuard", "track $p", it); work.removeCallbacks(timeout); finish(fallback()) }
     }
 
-    private fun ring() {
-        val am = getSystemService(AudioManager::class.java)
-        runCatching { am.setStreamVolume(AudioManager.STREAM_ALARM, am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0) }
-        val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-        val rt = RingtoneManager.getRingtone(this, uri) ?: return
-        rt.audioAttributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build()
-        rt.play()
-        work.postDelayed({ runCatching { rt.stop() } }, 20_000)
-    }
-
     private fun goHome() {
         // the accessibility service can press Home from the background; starting an activity may be blocked there
         if (Acc.running?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) == true) return
         runCatching {
             startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
+    }
+
+    @Volatile private var windActive = false
+
+    /**
+     * v0.9.7 check-in ("arrived" / "pickup"): same transport as SOS (fresh fix, relay now and 15 s later) but a plain
+     * event, no alarm. False = the same button was pressed less than a minute ago.
+     */
+    fun checkin(ck: String): Boolean {
+        if (!checkinNow(this, store, ck)) return false
+        runCatching { locate() }
+        kick(); relay?.kick()
+        if (::work.isInitialized) work.postDelayed({ relay?.kick() }, 15_000)
+        return true
     }
 
     /** SOS from the child's screen: remember it, take a fresh location, tell the relay now. */
@@ -514,6 +536,21 @@ class Guard : Service() {
         if (::work.isInitialized) work.postDelayed({ relay?.kick() }, 15_000)
         return true
     }
+
+    private var wifi: android.net.wifi.WifiManager.WifiLock? = null
+
+    /**
+     * Held while the service runs: some ROMs (ColorOS on Android 8.1) put Wi-Fi to sleep with the screen off and the
+     * LAN page / listen stream drop. Costs some standby battery (radio stays out of power save); released on stop / release.
+     */
+    @Suppress("DEPRECATION")
+    private fun wifiLock(on: Boolean) = runCatching {
+        if (!on) { wifi?.takeIf { it.isHeld }?.release(); wifi = null; return@runCatching }
+        if (wifi?.isHeld == true) return@runCatching
+        val wm = applicationContext.getSystemService(android.net.wifi.WifiManager::class.java) ?: return@runCatching
+        // LOW_LATENCY (29+) only works while the app is in the foreground with the screen on: useless here
+        wifi = wm.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "kidguard:lan").apply { setReferenceCounted(false); acquire() }
+    }.onFailure { Log.w("KidGuard", "wifi lock", it) }
 
     /** Adds / drops the microphone type of our foreground service (Android 14 needs it before using the mic). */
     fun micForeground(on: Boolean): Boolean = runCatching { foreground(on); true }.getOrElse {
@@ -549,6 +586,15 @@ class Guard : Service() {
         const val PORT = 8770
         const val TICK_MS = 10_000L
         @Volatile var running: Guard? = null
+
+        /** Stores a check-in event (+ log line). The running Guard also locates and syncs; else starting it does. */
+        fun checkinNow(ctx: Context, s: Store, ck: String): Boolean {
+            if (ck !in Checkin.TYPES) return false
+            val text = ctx.getString(if (ck == "arrived") R.string.ev_ci_arrived else R.string.ev_ci_pickup)
+            s.addCheckin(ck, text, s.location) ?: return false
+            s.log(R.string.log_checkin, ctx.getString(if (ck == "arrived") R.string.main_ci_arrived else R.string.main_ci_pickup))
+            return true
+        }
 
         fun start(ctx: Context) {
             if (Store.of(ctx).released) return   // after "release" nothing may bring us back

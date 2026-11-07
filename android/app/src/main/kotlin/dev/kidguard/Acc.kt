@@ -32,12 +32,24 @@ class Acc : AccessibilityService() {
     private var lastPkg: String? = null
     private var lastPoke = 0L
 
-    override fun onServiceConnected() { running = this; lastError = "" }
+    /** Screen on / unlock: bring Guard back if it was stopped while this service lives (Guard.start is a no-op after release). */
+    private val wakeUp = object : android.content.BroadcastReceiver() {
+        override fun onReceive(c: android.content.Context, i: android.content.Intent) { if (Guard.running == null) Guard.start(c) }
+    }
+
+    // The system rebinds an enabled accessibility service after its process was killed or crashed (not after a real
+    // force-stop): that is the first code of ours to run again, so restart Guard + its watchdog alarm here.
+    override fun onServiceConnected() {
+        running = this; lastError = ""
+        runCatching { Guard.start(this); Watchdog.schedule(this) }
+        runCatching { registerReceiver(wakeUp, android.content.IntentFilter(android.content.Intent.ACTION_SCREEN_ON).apply { addAction(android.content.Intent.ACTION_USER_PRESENT) }) }
+    }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {
         if (e?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = e.packageName?.toString() ?: return
         if (pkg != packageName) basicGuard(pkg)
+        if (TaskLogic.dropTasks(pkg, e.className?.toString(), packageName, homes())) dropTasks()
         if (pkg == lastPkg) return
         lastPkg = pkg
         val wait = 1000 - (System.currentTimeMillis() - lastPoke)
@@ -46,6 +58,22 @@ class Acc : AccessibilityService() {
             main.removeCallbacks(trail)
             main.postDelayed(trail, wait + 20)
         } else pokeNow()
+    }
+
+    private var homeSet: Set<String>? = null
+    private fun homes(): Set<String> = homeSet ?: runCatching {
+        packageManager.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME), 0)
+            .map { it.activityInfo.packageName }.toSet()
+    }.getOrDefault(emptySet()).also { homeSet = it }
+
+    /**
+     * The child went Home or opened Recents: finish every KidGuard task so Recents has no KidGuard card. Recents still
+     * shows the front-most task even with excludeFromRecents, and on ColorOS swiping that card is a real force-stop
+     * (com.coloros.athena): Guard dies, alarms go, and Android drops our accessibility service from the enabled list.
+     */
+    private fun dropTasks() {
+        val am = getSystemService(android.app.ActivityManager::class.java) ?: return
+        runCatching { am.appTasks.forEach { t -> runCatching { t.finishAndRemoveTask() } } }
     }
 
     /** Basic mode (no Device Owner): bounce blocked apps and Settings pages that would remove KidGuard. Owner mode: no-op. */
@@ -106,9 +134,16 @@ class Acc : AccessibilityService() {
     private fun pokeNow() { lastPoke = System.currentTimeMillis(); runCatching { Guard.poke(this) } }
 
     override fun onInterrupt() {}
+
+    /** Find-my-phone ring: a volume key stops it (and is eaten). Every other key passes straight through. */
+    override fun onKeyEvent(e: android.view.KeyEvent): Boolean {
+        if (!Ring.active || (e.keyCode != android.view.KeyEvent.KEYCODE_VOLUME_UP && e.keyCode != android.view.KeyEvent.KEYCODE_VOLUME_DOWN)) return false
+        if (e.action == android.view.KeyEvent.ACTION_UP) { runCatching { Store.of(this).log(R.string.log_ring_stopped) }; Ring.stop(this) }
+        return true
+    }
     override fun onUnbind(intent: android.content.Intent?): Boolean { drop(); return super.onUnbind(intent) }
     override fun onDestroy() { drop(); super.onDestroy() }
-    private fun drop() { main.removeCallbacks(trail); main.removeCallbacks(scan1); main.removeCallbacks(scan2); main.removeCallbacks(scan3); if (running === this) running = null; lastError = "acc off"; hideNotice() }
+    private fun drop() { runCatching { unregisterReceiver(wakeUp) }; main.removeCallbacks(trail); main.removeCallbacks(scan1); main.removeCallbacks(scan2); main.removeCallbacks(scan3); if (running === this) running = null; lastError = "acc off"; hideNotice() }
 
     companion object {
         @Volatile var running: Acc? = null
@@ -145,7 +180,9 @@ class Acc : AccessibilityService() {
                 val nm = ctx.getSystemService(NotificationManager::class.java)
                 nm.createNotificationChannel(NotificationChannel("kg_block", ctx.getString(R.string.ch_block), NotificationManager.IMPORTANCE_HIGH))
                 nm.notify(7400 + (pkg.hashCode() and 0xff), Notification.Builder(ctx, "kg_block").setSmallIcon(android.R.drawable.ic_lock_lock)
-                    .setContentTitle(ctx.getString(R.string.notif_blocked, label, BasicLogic.reasonText(code, ResTr(ctx)))).setContentText("KidGuard").setAutoCancel(true)
+                    .setContentTitle(ctx.getString(R.string.notif_blocked, label, BasicLogic.reasonText(code, ResTr(ctx))))
+                    // v0.9.7: the parent's note, else the friendly default
+                    .setContentText(Notes.clean(Store.of(ctx).rules.blockNote, Notes.NOTE_MAX).let { n -> if (n.isEmpty()) ctx.getString(R.string.policy_support) else ctx.getString(R.string.policy_note, n) }).setAutoCancel(true)
                     .setCategory(Notification.CATEGORY_STATUS).build())
             }
         }
@@ -213,12 +250,20 @@ class Acc : AccessibilityService() {
             }
         }
 
+        /** Pause between two relay frames: projection frames (API < 30) come at most once a second. */
+        fun frameGapMs(): Long = if (ProjLogic.useProjection(Build.VERSION.SDK_INT)) ProjLogic.GAP_MS else 333
+
         /** One JPEG of the screen, longest side <= [maxSide]. Blocks up to 3 s. Null + [lastError] when it cannot. */
         fun capture(maxSide: Int = 720, quality: Int = 50): Frame? {
             val svc = running ?: run { lastError = "acc off"; return null }
-            if (Build.VERSION.SDK_INT < 30) { lastError = "unsupported"; return null }
             if (Looper.myLooper() == Looper.getMainLooper()) { lastError = "busy"; return null }
             if (!(svc.getSystemService(Context.POWER_SERVICE) as PowerManager).isInteractive) { lastError = "screen off"; return null }
+            // Android 8-10: no takeScreenshot, frames come from MediaProjection (child consents once, see Proj.kt)
+            if (ProjLogic.useProjection(Build.VERSION.SDK_INT)) {
+                val f = Proj.capture(svc, maxSide, quality)
+                if (f == null) lastError = Proj.err else { lastError = ""; noteViewing(svc) }
+                return f
+            }
             synchronized(lock) {
                 val key = "$maxSide/$quality"
                 val now = System.currentTimeMillis()
@@ -326,11 +371,12 @@ class Acc : AccessibilityService() {
                         "recents" -> AccessibilityService.GLOBAL_ACTION_RECENTS
                         "notifications" -> AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
                         "quick" -> AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS
-                        "lock" -> if (Build.VERSION.SDK_INT >= 28) AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN else -1
+                        "lock" -> if (Build.VERSION.SDK_INT >= 28) AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN else -2   // API 26-27: DPM lockNow
                         "power" -> AccessibilityService.GLOBAL_ACTION_POWER_DIALOG
                         else -> -1
                     }
-                    if (a < 0) "bad input" else if (svc.performGlobalAction(a)) "ok" else "failed"
+                    if (a == -2) (if (Policy.lockNow(svc)) "ok" else "failed")
+                    else if (a < 0) "bad input" else if (svc.performGlobalAction(a)) "ok" else "failed"
                 }
                 "text" -> {
                     val f = svc.rootInActiveWindow?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)

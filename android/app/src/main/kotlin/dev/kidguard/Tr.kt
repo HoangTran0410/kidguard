@@ -17,7 +17,8 @@ enum class T {
     diff_sched_n, diff_sched, diff_blocked, diff_allow, app_hidden, app_unhidden, diff_pause, diff_pause_off,
     diff_bonus, diff_bonus_off, diff_chores_n, diff_chores, diff_zones_n, diff_zones, diff_track, diff_track_off,
     diff_lockloc, diff_lockloc_off, diff_autoupd, diff_autoupd_off, diff_watch, diff_watch_off, diff_pin, diff_other,
-    warn_d1, warn_d5, warn_bed, warn_break, warn_break_named,
+    warn_d1, warn_d5, warn_bed, warn_bed10, warn_break, warn_break_named,
+    tl_min, tl_h, tl_hm, tl_none,
 }
 
 /** Looks up user-visible text. [s]: a plain string with format args; [q]: a plural picked by [n] (args as given). */

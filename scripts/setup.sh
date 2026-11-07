@@ -139,3 +139,7 @@ ip=$(adb shell ip -4 addr show wlan0 2>/dev/null | awk '/inet /{print $2}' | cut
 echo
 echo "OK Xong. Trên điện thoại bố mẹ (cùng Wi-Fi), mở: http://${ip:-<IP của máy con>}:8770"
 echo "-> rồi nhập mã 6 số đang hiện trên máy con. Giờ có thể đăng nhập lại tài khoản trên máy con."
+# ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off)
+if [ -n "$(adb shell 'getprop ro.build.version.opporom; getprop ro.build.version.oplusrom' | tr -d '[:space:]')" ]; then
+  echo '-> Oppo/Realme/OnePlus (ColorOS): mở Đa nhiệm, kéo thẻ KidGuard xuống để khoá (biểu tượng ổ khoá), và trong Quản lý điện thoại cho KidGuard "Tự khởi chạy" + chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app và Trợ năng.'
+fi

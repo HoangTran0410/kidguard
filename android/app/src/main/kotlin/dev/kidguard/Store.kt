@@ -29,7 +29,7 @@ class Store private constructor(private val app: Context) {
         p.edit().putStringSet("tokens", tokenHashes() + sha256(t)).apply()
         return t
     }
-    @Synchronized fun clearTokens() { p.edit().remove("tokens").remove("relayToken").remove("relayId").apply() }
+    @Synchronized fun clearTokens() { pending.clear(); p.edit().remove("tokens").remove("relayToken").remove("relayId").apply() }
 
     /** The token the child uses with the relay: one of the paired ones, shown to the parent as a link. */
     @get:Synchronized @set:Synchronized var relayToken: String
@@ -79,20 +79,77 @@ class Store private constructor(private val app: Context) {
      * (the child can see the code, never the PIN). Every 3rd wrong guess makes a new code and blocks for a while.
      * Returns the token, or null with [lastPairError] = closed | wait | pin locked | wrong pin | wrong code.
      */
-    @Synchronized fun tryPair(code: String, pin: String): String? {
+    @Synchronized fun tryPair(code: String, pin: String, newPin: String = ""): String? {
         val now = System.currentTimeMillis()
         if (p.getLong("pairBlock", 0) > now) { lastPairError = "wait"; return null }
         val want = pairCode() ?: run { lastPairError = "closed"; return null }
         if (code.trim() != want) { pairFail(now); lastPairError = "wrong code"; return null }
         // after the code: anyone could otherwise send wrong PINs and keep the PIN (and new pairings) locked
-        if (rules.pinHash.isNotBlank()) {
-            if (pinLockLeft() > 0) { lastPairError = "pin locked"; return null }
-            if (!checkParentPin(pin)) { pairFail(now); lastPairError = if (pinLockLeft() > 0) "pin locked" else "wrong pin"; return null }
+        var set = PendingPin("", "")
+        when (val c = PairPin.decide(rules.pinHash.isNotBlank(), newPin)) {
+            is PairPin.Check.Bad -> { lastPairError = c.error; return null }   // no PIN yet: this pairing must set one
+            is PairPin.Check.SetPin -> { val salt = Rules.salt8(); set = PendingPin(Rules.hashPin(c.pin, salt), salt) }
+            PairPin.Check.UsePin -> {
+                if (pinLockLeft() > 0) { lastPairError = "pin locked"; return null }
+                if (!checkParentPin(pin)) { pairFail(now); lastPairError = if (pinLockLeft() > 0) "pin locked" else "wrong pin"; return null }
+            }
         }
-        val t = addToken()
-        p.edit().putBoolean("everPaired", true).apply()
-        closePairing()
+        // nothing is stored yet: the token (and the new PIN) only count once the page uses it (commitPair)
+        val t = randomHex(24)
+        pending.add(sha256(t), set, now)
         return t
+    }
+    class PendingPin(val hash: String, val salt: String)
+    private val pending = PendingPairs<PendingPin>()
+
+    /**
+     * The first authenticated request with a pending pairing token: store the token, the new PIN (if this pairing set
+     * one), "paired" and close pairing, all in one commit. False = not a pending token (unknown or expired).
+     */
+    @Synchronized fun commitPair(t: String?): Boolean {
+        if (t.isNullOrBlank()) return false
+        val now = System.currentTimeMillis()
+        val pp = pending.take(sha256(t), now) ?: return false
+        val e = p.edit().putStringSet("tokens", tokenHashes() + sha256(t)).putBoolean("everPaired", true)
+            .remove("pairUntil").remove("pairCode").putInt("wrong", 0).remove("pairBlock").remove("recoverAt")
+        val r = rules
+        if (pp.hash.isNotEmpty() && r.pinHash.isBlank())
+            e.putString("rules", r.copy(pinHash = pp.hash, pinSalt = pp.salt, rev = maxOf(r.rev + 1, now)).toJson(persist = true).toString())
+        e.commit()
+        pending.clear()
+        return true
+    }
+
+    /**
+     * "Bố mẹ quản lý trên máy này": the parent PIN (shared lockout with pairing) or a current Authenticator code.
+     * Returns 1 = right, 0 = wrong (a `tamper` event for the parents), -1 = locked (see [adminLockLeft]).
+     */
+    @Synchronized fun checkAdmin(code: String, now: Long = System.currentTimeMillis()): Int {
+        val c = code.filter { it.isDigit() }
+        val secret = totpSecret
+        val pinOk = rules.pinHash.isNotBlank() && pinLockLeft() == 0L
+        val totpOk = secret.isNotBlank() && unlockLockLeft() == 0L
+        if (!pinOk && !totpOk) return -1
+        if (totpOk && c.length == 6) {
+            val step = Totp.check(secret, c, now, p.getLong("totpLast", 0))
+            if (step >= 0) { p.edit().putLong("totpLast", step).putInt("unlockFails", 0).remove("unlockLock").commit(); log(R.string.log_admin_open); return 1 }
+        }
+        if (pinOk) {
+            if (checkParentPin(c)) { log(R.string.log_admin_open); return 1 }
+        } else {
+            // no PIN (or it is locked): the wrong code counts against the Authenticator's own limit
+            val f = p.getInt("unlockFails", 0) + 1
+            val lock = Safety.pinLockMs(f)
+            p.edit().putInt("unlockFails", f).putLong("unlockLock", if (lock > 0) now + lock else 0).commit()
+        }
+        event("tamper", R.string.ev_admin_wrong)
+        return if (adminLockLeft() > 0) -1 else 0
+    }
+    /** ms until the on-device admin can be tried again: both ways in must be locked. */
+    @Synchronized fun adminLockLeft(): Long {
+        val a = if (rules.pinHash.isNotBlank()) pinLockLeft() else Long.MAX_VALUE
+        val b = if (totpSecret.isNotBlank()) unlockLockLeft() else Long.MAX_VALUE
+        return minOf(a, b).takeIf { it != Long.MAX_VALUE } ?: 0
     }
     @Volatile var lastPairError = ""; private set
     private fun pairFail(now: Long) {
@@ -247,11 +304,12 @@ class Store private constructor(private val app: Context) {
     /** "More time, please" from the child, max 5. */
     @Synchronized fun requests(): JSONArray = runCatching { JSONArray(p.getString("reqs", "[]")) }.getOrDefault(JSONArray())
     /** [chore]: id of a parent's chore (then [min] is that chore's minutes); the parent still decides. */
-    @Synchronized fun addRequest(min: Int, note: String, chore: String? = null): Boolean {
+    @Synchronized fun addRequest(min: Int, note: String, chore: String? = null, tpl: String? = null): Boolean {
         val a = requests()
         if (a.length() >= 5) return false
         val o = JSONObject().put("id", randomHex(3)).put("t", System.currentTimeMillis()).put("min", min).put("note", note.trim().take(100))
         if (!chore.isNullOrBlank()) o.put("chore", chore)
+        if (!tpl.isNullOrBlank()) o.put("tpl", tpl)   // v0.9.7 ReqTpl id
         a.put(o)
         p.edit().putString("reqs", a.toString()).apply()
         return true
@@ -327,6 +385,39 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var batteryArmed: Boolean
         get() = p.getBoolean("batArmed", true)
         set(v) { p.edit().putBoolean("batArmed", v).apply() }
+
+    // v0.9.7 wind-down grayscale: we switched it on (owned) and what the phone had before (Gray.Saved)
+    @get:Synchronized val grayOwned: Boolean get() = p.getBoolean("grayOwned", false)
+    @get:Synchronized val graySaved: Gray.Saved? get() =
+        if (!p.contains("grayOn")) null else Gray.Saved(Gray.dec(p.getString("grayOn", null)), Gray.dec(p.getString("grayMode", null)))
+    @Synchronized fun setGray(owned: Boolean, saved: Gray.Saved?) {
+        val e = p.edit().putBoolean("grayOwned", owned)
+        if (saved == null) e.remove("grayOn").remove("grayMode") else e.putString("grayOn", Gray.enc(saved.on)).putString("grayMode", Gray.enc(saved.mode))
+        e.commit()
+    }
+
+    /** v0.9.7 check-in ("arrived" / "pickup"): an event with the last fix if it is fresh. Null = same button < 1 min ago. */
+    @Synchronized fun addCheckin(ck: String, text: String, loc: JSONObject?): JSONObject? {
+        val now = System.currentTimeMillis()
+        val a = events()
+        if (Checkin.tooSoon(a, ck, now)) return null
+        val o = Checkin.event(randomHex(3), now, ck, text, Checkin.fresh(loc, now))
+        p.edit().putString("events", Events.prune(a.put(o), now).toString()).commit()
+        return o
+    }
+    /** A new location fix: attached to check-ins of the last 2 minutes. */
+    @Synchronized fun fillCheckins(loc: JSONObject): Boolean {
+        val now = System.currentTimeMillis(); val a = events()
+        if (!Checkin.fill(a, loc, now)) return false
+        p.edit().putString("events", a.toString()).apply()
+        return true
+    }
+    /** Time of the last check-in of [ck] (button label), 0 = none in the event list. */
+    @Synchronized fun lastCheckin(ck: String): Long {
+        val a = events(); var t = 0L
+        for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optString("kind") == Checkin.KIND && it.optString("ck") == ck }?.let { t = maxOf(t, it.optLong("t")) }
+        return t
+    }
 
     @Synchronized fun wipe() { p.edit().clear().apply() }
 

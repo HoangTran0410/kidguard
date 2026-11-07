@@ -58,7 +58,12 @@ class ResTr(private val ctx: Context) : Tr {
         T.warn_d1 -> R.string.warn_d1
         T.warn_d5 -> R.string.warn_d5
         T.warn_bed -> R.string.warn_bed
+        T.warn_bed10 -> R.string.warn_bed10
         T.warn_break -> R.string.warn_break
         T.warn_break_named -> R.string.warn_break_named
+        T.tl_min -> R.string.tl_min
+        T.tl_h -> R.string.tl_h
+        T.tl_hm -> R.string.tl_hm
+        T.tl_none -> R.string.tl_none
     }
 }

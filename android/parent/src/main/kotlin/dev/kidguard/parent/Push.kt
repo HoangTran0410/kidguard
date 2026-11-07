@@ -55,6 +55,11 @@ object Push {
             ev
         }
         CheckJob.post(c, hit.first, hit.second)
+        // the push carries no location (privacy): fetch the state once so "Xem vị trí" opens the map at the last fix
+        if (Act.isSos(hit.second.key)) Thread({
+            val loc = runCatching { CheckJob.fetch(hit.first)?.loc }.getOrNull() ?: return@Thread
+            if (Notif.showing(c, hit.first, hit.second.key)) CheckJob.post(c, hit.first, Logic.Event(hit.second.key, hit.second.text, loc = loc), quiet = true)
+        }, "kg-sos-loc").start()
     }
 }
 

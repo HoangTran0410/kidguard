@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- home-screen widgets (light); values-night has the dark ones. Same palette as Ui.kt -->
+<resources>
+    <color name="w_bg">#F2FFFFFF</color>
+    <color name="w_stroke">#FFE2E8F0</color>
+    <color name="w_text">#FF0F172A</color>
+    <color name="w_sub">#FF64748B</color>
+    <color name="w_accent">#FF2563EB</color>
+</resources>

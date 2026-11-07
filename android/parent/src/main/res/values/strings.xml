@@ -19,4 +19,15 @@
     <string name="ev_sos">%1$s pressed SOS at %2$s</string>
     <string name="ev_lost">Lost connection to %1$s\'s phone</string>
     <string name="ev_acc_off">%1$s turned off KidGuard\'s Accessibility: apps are no longer blocked</string>
+    <string name="act_grant">+%1$d min</string>
+    <string name="act_decline">Decline</string>
+    <string name="act_map">Show location</string>
+    <string name="ans_sending">Sending…</string>
+    <plurals name="ans_granted">
+        <item quantity="one">Gave %1$d more minute</item>
+        <item quantity="other">Gave %1$d more minutes</item>
+    </plurals>
+    <string name="ans_declined">Declined</string>
+    <string name="ans_already">This request was already answered</string>
+    <string name="ans_failed">Couldn\'t send it, tap to open the page</string>
 </resources>

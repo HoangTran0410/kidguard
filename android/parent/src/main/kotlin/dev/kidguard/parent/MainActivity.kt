@@ -47,6 +47,13 @@ class Bridge(private val a: Activity) {
     @JavascriptInterface fun setLang(code: String) {
         if (Langs.valid(code)) Lang.set(a.applicationContext, code)
     }
+    /** A notification tap asked for one kid: `{"target","id"}` once (then ""), so the page opens that kid instead of the list. */
+    @JavascriptInterface fun takeOpen(): String {
+        val h = MainActivity.openKid ?: return ""
+        MainActivity.openKid = null
+        val k = Notif.kidOf(a, h) ?: return ""
+        return org.json.JSONObject().put("target", k.target).put("id", k.id).toString()
+    }
 }
 
 class MainActivity : Activity() {
@@ -56,6 +63,7 @@ class MainActivity : Activity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
+        takeOpen(intent)
         val proxy = proxy ?: Proxy(applicationContext, Store.pickPort(applicationContext)).also {
             if (!it.start()) { Toast.makeText(this, getString(R.string.err_port), Toast.LENGTH_LONG).show(); finish(); return }
             proxy = it
@@ -106,6 +114,17 @@ class MainActivity : Activity() {
         Log.i("KGParent", "page $origin")
     }
 
+    /** Notification tap ([Notif.openKid]): remember the kid; a running page is told at once, a loading one asks on boot. */
+    private fun takeOpen(i: android.content.Intent?): Boolean {
+        val h = i?.getStringExtra(Notif.EXTRA_KID)?.takeIf { it.length == 64 } ?: return false
+        openKid = h
+        return true
+    }
+    override fun onNewIntent(i: android.content.Intent) {
+        super.onNewIntent(i)
+        if (takeOpen(i)) web?.evaluateJavascript("window.kgAppOpen && kgAppOpen()", null)
+    }
+
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         val w = web
@@ -117,5 +136,5 @@ class MainActivity : Activity() {
     override fun onResume() { super.onResume(); web?.onResume() }
     override fun onDestroy() { web?.destroy(); web = null; super.onDestroy() }
 
-    companion object { @Volatile var proxy: Proxy? = null }
+    companion object { @Volatile var proxy: Proxy? = null; @Volatile var openKid: String? = null }
 }

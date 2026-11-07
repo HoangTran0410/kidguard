@@ -156,6 +156,15 @@
     <string name="log_acc_reenabled">Accessibility was turned off, turned it back on</string>
     <string name="log_view_start">Parent started viewing the screen</string>
     <string name="notice_viewing">Your parent is viewing the screen</string>
+    <string name="ch_proj">Screen sharing (Android 8-10)</string>
+    <string name="notice_proj">Sharing the screen with your parent</string>
+    <string name="log_proj_denied">Screen sharing request was declined on this phone</string>
+    <string name="log_listen_err">Listening stopped: %1$s</string>
+    <string name="ch_ring">Find my phone</string>
+    <string name="notif_ring_title">Your parent is ringing this phone</string>
+    <string name="notif_ring_text">Tap Stop ringing, or press a volume key</string>
+    <string name="ring_stop">Stop ringing</string>
+    <string name="log_ring_stopped">Ringing stopped on the phone</string>
     <string name="ch_viewing">Screen viewing</string>
     <string name="log_control">Parent took remote control</string>
     <string name="notice_control">Your parent is controlling the phone</string>
@@ -182,7 +191,7 @@
     <string name="upd_cancelled">cancelled</string>
 
     <!-- Policy -->
-    <string name="policy_support">Your parent has locked this app for now.</string>
+    <string name="policy_support">This app is paused for now. You can ask your parent for more time in KidGuard.</string>
     <string name="dns_refused">DNS %1$s was refused (code %2$d)</string>
     <string name="dns_fallback">Safe DNS doesn\'t work on this network: off for 30 minutes so the phone stays online</string>
     <string name="log_dns_fallback">Safe DNS broke the connection, off for 30 minutes</string>
@@ -219,6 +228,7 @@
     <string name="ss_conn_fail">Couldn\'t connect to this phone: %1$s</string>
     <string name="ss_cmd_fail">command failed</string>
     <string name="ss_accounts">The phone still has accounts, remove them first: %1$s. Go to Settings > Passwords &amp; accounts, remove them all and retry (you can sign back in after setup).</string>
+    <string name="ss_coloros">Oppo/Realme/OnePlus (ColorOS): open Recents, pull the KidGuard card down to lock it (padlock icon), and in Phone Manager allow KidGuard \"Auto-launch\" + background running. Swiping KidGuard out of Recents on ColorOS stops the app and its Accessibility for good.</string>
     <string name="ss_done">Done. KidGuard is now the device manager.</string>
     <string name="ch_selfsetup">KidGuard self-setup</string>
     <string name="ss_code_label">6-digit code</string>
@@ -292,7 +302,7 @@
     <string name="st_running">Running</string>
     <string name="st_starting">Starting…</string>
     <string name="st_acc_on">Accessibility: on</string>
-    <string name="st_acc_off">Accessibility: off</string>
+    <string name="st_acc_off">KidGuard\'s Accessibility is off → turn it back on in Settings > Accessibility</string>
     <string name="st_loc_on">Location: on</string>
     <string name="st_loc_off">Location: off</string>
     <plurals name="st_pending">
@@ -376,4 +386,111 @@
     <string name="msg_title">Message from your parent</string>
     <string name="msg_read">Got it</string>
     <string name="ch_msg">Messages from your parent</string>
+    <!-- quick actions: lock button (shortcut, widget, tile), time-left tile / widget, screen-off gestures (Quick.kt) -->
+    <string name="tl_min">%1$d min left</string>
+    <string name="tl_h">%1$d h left</string>
+    <string name="tl_hm">%1$d h %2$d min left</string>
+    <string name="tl_none">No limit</string>
+    <string name="q_lock">Lock screen</string>
+    <string name="q_lock_short">Lock</string>
+    <string name="q_time">Screen time left</string>
+    <string name="q_today">Today</string>
+    <string name="q_lock_desc">Locks the screen with one tap</string>
+    <string name="q_time_desc">Today\'s screen time left. Tap to ask for more time</string>
+    <string name="q_lock_fail">Couldn\'t lock the screen: KidGuard isn\'t fully set up</string>
+    <string name="main_pin_lock">Add a Lock screen button to the home screen</string>
+    <string name="main_pin_lock_no">This home screen can\'t add shortcuts. Long-press an empty spot and add the KidGuard \"Lock\" widget instead.</string>
+    <string name="main_gestures">Double tap to wake / screen-off gestures</string>
+    <string name="main_gestures_body">Apps can\'t do this themselves: it\'s a phone setting. KidGuard opens the right page if it can find it.</string>
+    <string name="main_gestures_open">Open settings</string>
+    <!-- on-device parent page (AdminActivity) + hold-to-confirm buttons -->
+    <string name="main_admin">Parent: manage on this phone</string>
+    <!-- home screen: status card, quick row, "More" sheet -->
+    <string name="home_more">More</string>
+    <string name="home_more_desc">More options</string>
+    <string name="home_sec_kid">For you</string>
+    <string name="home_sec_parent">For parents</string>
+    <string name="home_sec_device">Phone &amp; setup</string>
+    <string name="home_today">Today</string>
+    <string name="home_left">Left today</string>
+    <string name="home_bed">Bedtime %1$s – %2$s</string>
+    <string name="home_used">Used %1$s</string>
+    <string name="home_limit">Limit %1$s</string>
+    <string name="home_m">%1$d min</string>
+    <string name="home_h">%1$d h</string>
+    <string name="home_hm">%1$d h %2$d min</string>
+    <string name="home_reopen_at">Opens again at %1$s</string>
+    <string name="home_reopen_tomorrow">Opens again tomorrow</string>
+    <string name="home_unlocked">Unlocked until %1$s</string>
+    <string name="home_ok">Protected</string>
+    <plurals name="home_warn">
+        <item quantity="one">%1$d thing to check</item>
+        <item quantity="other">%1$d things to check</item>
+    </plurals>
+    <string name="home_status">Protection status</string>
+    <string name="home_status_sub">What KidGuard needs to work well on this phone.</string>
+    <string name="home_status_desc">%1$s. Tap for details</string>
+    <string name="home_version">KidGuard %1$s</string>
+    <string name="home_sos">SOS</string>
+    <string name="admin_title">Manage on this phone</string>
+    <string name="admin_body">Parent: enter your PIN or a current Authenticator code. The page closes when the screen turns off, when you leave it, or after 5 minutes without a touch.</string>
+    <string name="admin_body_pin">Parent: enter your PIN. The page closes when the screen turns off, when you leave it, or after 5 minutes without a touch.</string>
+    <string name="admin_body_totp">Parent: enter a current Authenticator code. The page closes when the screen turns off, when you leave it, or after 5 minutes without a touch.</string>
+    <string name="admin_field">PIN or 6-digit code</string>
+    <string name="admin_ok">Open</string>
+    <string name="admin_wrong">Wrong code, try again</string>
+    <string name="admin_not_ready">The management page isn\'t ready yet. Try again in a few seconds.</string>
+    <string name="st_no_pin">Your parent hasn\'t set a PIN yet</string>
+    <string name="log_admin_open">A parent opened the management page on this phone</string>
+    <string name="ev_admin_wrong">Wrong PIN / code entered to open the management page on the child\'s phone</string>
+    <plurals name="hold_left">
+        <item quantity="one">Keep holding… %1$d second</item>
+        <item quantity="other">Keep holding… %1$d seconds</item>
+    </plurals>
+    <plurals name="hold_need">
+        <item quantity="one">Hold for the full %1$d second</item>
+        <item quantity="other">Hold for the full %1$d seconds</item>
+    </plurals>
+    <plurals name="hold_a11y">
+        <item quantity="one">start the %1$d-second countdown (activate again to cancel)</item>
+        <item quantity="other">start the %1$d-second countdown (activate again to cancel)</item>
+    </plurals>
+    <!-- v0.9.7 comfort: wind-down, lock-screen info, block note, check-in, request templates -->
+    <string name="warn_bed10">%1$d minutes until bedtime</string>
+    <string name="policy_support_long">KidGuard helps you and your parent keep a good routine. This app is resting for now, by the rules your parent set. If you need it, open KidGuard and tap \"Ask for more time\", or talk to your parent.</string>
+    <string name="policy_note">From your parent: %1$s</string>
+    <string name="st_gray">Screen is black and white: bedtime is near</string>
+    <string name="main_ci_arrived">I\'ve arrived</string>
+    <string name="main_ci_pickup">Please pick me up</string>
+    <string name="main_ci_sent">%1$s · sent %2$s</string>
+    <string name="ev_ci_arrived">Check-in: I\'ve arrived</string>
+    <string name="ev_ci_pickup">Check-in: please pick me up</string>
+    <string name="log_checkin">Kid tapped \"%1$s\"</string>
+    <string name="ci_done">Your parent has been told</string>
+    <string name="ci_done_loc">Your parent will see this and your location.</string>
+    <string name="ci_done_noloc">Your parent will see this. The phone is getting your location and will add it.</string>
+    <string name="ci_again">Already sent</string>
+    <string name="ci_again_body">You just tapped this. Wait a minute before tapping it again.</string>
+    <string name="ci_q_arrived">Tell your parent you\'ve arrived?</string>
+    <string name="ci_q_pickup">Ask your parent to pick you up?</string>
+    <string name="ci_q_body">Your parent will get this message with your location.</string>
+    <string name="ci_send">Send</string>
+    <string name="more_quick">Tap one to send it now, or pick below.</string>
+    <string name="tpl_homework">+15 min for homework</string>
+    <string name="tpl_play">+30 min to play</string>
+    <string name="tpl_study">I need a study app</string>
+    <!-- shared files (Files.kt, ShareInActivity.kt) -->
+    <string name="ch_files">Files from parents</string>
+    <string name="files_got">Parents sent: %1$s</string>
+    <string name="files_got_sub">Tap to open. It is in Download/KidGuard.</string>
+    <string name="files_share_label">Send to my parents</string>
+    <string name="files_menu">Send a file to my parents</string>
+    <string name="files_sending">Sending to your parents…</string>
+    <plurals name="files_sent"><item quantity="one">Sent %1$d file to your parents</item><item quantity="other">Sent %1$d files to your parents</item></plurals>
+    <string name="files_too_big">Too big: at most 200 MB per file</string>
+    <string name="files_failed">Could not send the file</string>
+    <string name="files_none">Nothing to send</string>
+    <string name="files_no_picker">No file picker on this phone</string>
+    <string name="files_gone">That file is gone</string>
+    <string name="files_no_app">No app here can open this file</string>
 </resources>

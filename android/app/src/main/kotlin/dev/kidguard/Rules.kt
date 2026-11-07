@@ -161,6 +161,12 @@ data class Rules(
     val hidden: Set<String> = emptySet(),    // preinstalled apps the parent hid (owner only), max Debloat.MAX_HIDDEN
     val groups: List<AppGroup> = emptyList(), // max AppGroup.MAX
     val unlockMin: Int = 30,                 // minutes an Authenticator code unlocks on the child phone: 15, 30, 60, 120
+    val windGray: Boolean = false,           // v0.9.7 wind-down: grayscale from windMin before bedtime until it ends
+    val windMin: Int = 30,                   // WindDown.STEPS
+    val windNudge: Boolean = false,          // "10 minutes to bedtime" notification
+    val lockMsg: String = "",                // v0.9.7 lock-screen owner info (owner only), Notes.MSG_MAX
+    val lockContact: String = "",
+    val blockNote: String = "",              // v0.9.7 parent note on the block message, Notes.NOTE_MAX
 ) {
     /** [persist] = true also writes pinHash/pinSalt (only for this phone's own storage). The default is safe to send to a parent: it has `pinSet` only. */
     fun toJson(persist: Boolean = false): JSONObject = JSONObject()
@@ -182,6 +188,8 @@ data class Rules(
         .put("zones", JSONArray().apply { zones.forEach { put(it.toJson()) } })
         .put("hidden", JSONArray(hidden.sorted()))
         .put("groups", JSONArray().apply { groups.forEach { put(it.toJson()) } }).put("unlockMin", unlockMin)
+        .put("windDown", JSONObject().put("gray", windGray).put("min", windMin).put("nudge", windNudge))
+        .put("lockInfo", JSONObject().put("msg", lockMsg).put("contact", lockContact)).put("blockNote", blockNote)
         .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
 
     /** True when [pin] matches the stored hash (legacy or salted). False when no PIN is set. */
@@ -189,7 +197,7 @@ data class Rules(
         pinHash.isNotBlank() && java.security.MessageDigest.isEqual(hashPin(pin, pinSalt).toByteArray(), pinHash.toByteArray())
 
     companion object {
-        private fun salt8() = ByteArray(8).also { java.security.SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
+        fun salt8() = ByteArray(8).also { java.security.SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
         fun sha256(s: String): String = java.security.MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
 
         /** Salt "" = the old unsalted form; else sha256 iterated 10 000 times. */
@@ -241,6 +249,12 @@ data class Rules(
                     (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(AppGroup::fromJson) }.distinctBy { it.id }.take(AppGroup.MAX)
                 } ?: emptyList(),
                 unlockMin = o.optInt("unlockMin", 30).takeIf { it in UNLOCK_STEPS } ?: 30,
+                windGray = o.optJSONObject("windDown")?.optBoolean("gray", false) ?: false,
+                windMin = o.optJSONObject("windDown")?.optInt("min", 30)?.takeIf { it in WindDown.STEPS } ?: 30,
+                windNudge = o.optJSONObject("windDown")?.optBoolean("nudge", false) ?: false,
+                lockMsg = Notes.clean(o.optJSONObject("lockInfo")?.optString("msg", "") ?: "", Notes.MSG_MAX),
+                lockContact = Notes.clean(o.optJSONObject("lockInfo")?.optString("contact", "") ?: "", Notes.MSG_MAX),
+                blockNote = Notes.clean(o.optString("blockNote", ""), Notes.NOTE_MAX),
                 blockNew = o.optBoolean("blockNew", false),
                 approved = o.optJSONArray("approved").strings(),
                 lockLocation = o.optBoolean("lockLocation", true),

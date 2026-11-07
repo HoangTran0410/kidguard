@@ -33,6 +33,7 @@ ck("frame 1MB-ish ok",(await P("frame",Buffer.alloc(900000))).status==200);
 ck("cmd >256KB 413",(await P("cmd",JSON.stringify({type:"message",text:"a".repeat(300000)}))).status==413);
 ck("cmd answer ok",(await (await P("cmd",JSON.stringify({type:"answer",id:"x",ok:true}))).json()).result=="queued");
 ck("cmd reboot ok",(await (await P("cmd",JSON.stringify({type:"reboot"}))).json()).result=="queued");
+ck("cmd wake ok",(await (await P("cmd",JSON.stringify({type:"wake"}))).json()).result=="queued");
 ck("PUT frame 405",(await fetch(`${B}/c/${id}/frame`,{method:"PUT",headers:H(),body:"x"})).status==405);
 ck("GET live 405",(await fetch(`${B}/c/${id}/live`,{headers:H()})).status==405);
 r=await fetch(`${B}/install`);ck("/install 200 html",r.status==200&&r.headers.get("content-type").includes("html"));
@@ -83,7 +84,7 @@ ck("frame seq starts at Date.now()", (await (async()=>{await P2("live","{}");con
 // 4b: old inputs dropped
 await P2("live","{}");await P2("input",JSON.stringify({type:"tap",x:.2,y:.2}));await sleep(5300);await P2("input",JSON.stringify({type:"key",key:"home"}));
 j=await (await P2("frame",jpg)).json();ck("inputs older than 5s dropped, fresh kept (no 'at' leak)",j.inputs.length==1&&j.inputs[0].type=="key"&&!("at" in j.inputs[0]));
-ck("CSP allows OSM tiles",(await fetch(`${B}/`)).headers.get("content-security-policy").includes("img-src 'self' data: blob: https://tile.openstreetmap.org"));
+ck("CSP allows OSM tiles",(await fetch(`${B}/`)).headers.get("content-security-policy").includes("img-src 'self' data: blob: https://tile.openstreetmap.de https://tile.openstreetmap.org"));
 const track=Array.from({length:700},(_,i)=>[1.7e12+i,10.123456,106.123456,12.5]);
 r=await P2("sync",JSON.stringify({state:{track}}));ck("sync with ~700-point track (<120KB) ok",r.status==200);
 r=await P2("sync",JSON.stringify({state:{big:"a".repeat(125000)}}));ck("state >120KB -> 413",r.status==413);
@@ -129,6 +130,19 @@ ck("clearData bad pkg 400",(await PC("cmd",{type:"clearData",pkg:"a b;rm"})).sta
 ck("clearData queued",(await (await PC("cmd",{type:"clearData",pkg:"com.heytap.market",id:"cd1"})).json()).result=="queued");
 const c1=await (await PC("sync",{})).json();ck("clearData delivered with pkg",c1.cmds.some(c=>c.type=="clearData"&&c.pkg=="com.heytap.market"));
 const c2=await (await PC("sync",{})).json();ck("clearData NOT delivered twice",!c2.cmds.some(c=>c.type=="clearData"));}
+// ---- device health ("Máy"): parent POST asks, sync says device:true, phone PUTs, parent reads it ----
+{const idd=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),PD=(p,o,m="POST")=>fetch(`${B}/c/${idd}/${p}`,{method:m,headers:H(),body:o===undefined?undefined:JSON.stringify(o)});
+await PD("sync",{state:{t:1}});
+ck("device: not asked -> sync has no device flag",!(await (await PD("sync",{})).json()).device);
+let d=await (await PD("device",{})).json();ck("device POST asks, none stored yet",d.device===null&&d.asked>0);
+ck("device: sync now says device:true",(await (await PD("sync",{})).json()).device===true);
+ck("device PUT ok",(await (await PD("device",{sdk:34,storage:{total:1,free:1}},"PUT")).json()).ok===true);
+ck("device: flag cleared after the PUT",!(await (await PD("sync",{})).json()).device);
+d=await (await fetch(`${B}/c/${idd}/device`,{headers:H()})).json();ck("device GET returns stored + at",d.device&&d.device.sdk===34&&d.device.at>0);
+ck("device GET does not ask",!(await (await PD("sync",{})).json()).device);
+ck("device PUT >32KB 413",(await PD("device",{x:"a".repeat(40000)},"PUT")).status==413);
+ck("device PUT array 400",(await PD("device",[1],"PUT")).status==400);
+ck("device wrong token 401",(await fetch(`${B}/c/${idd}/device`,{headers:H(BAD)})).status==401);}
 // ---- tester additions: deliver-once, pinHash never leaves, oversized cmd ----
 {const id4=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),P4=(p,o,m="POST")=>fetch(`${B}/c/${id4}/${p}`,{method:m,headers:H(),body:o===undefined?undefined:JSON.stringify(o)});
 const G4=async p=>await (await fetch(`${B}/c/${id4}/${p}`,{headers:H()})).text();
@@ -160,4 +174,26 @@ ck("sync works after all that",(await P4("sync",{})).status==200);}
 // last: per-IP rate limit (150 / 10 s) on /c/*; the page itself is not limited
 {const rs=[];for(let i=0;i<11&&!rs.includes(429);i++)rs.push(...await Promise.all(Array.from({length:20},()=>fetch(`${B}/c/${id}/state`,{headers:H(BAD)}).then(r=>r.status,()=>0))));
 ck("rate limit: burst of 220 gets some 429",rs.includes(429));ck("rate limit: page / still 200",(await fetch(`${B}/`)).status==200);}
+// ---- shared files: chunked through the DO, <= 10 MB, deleted on DELETE ----
+await new Promise(s=>setTimeout(s,10500));   // the per-IP rate limit (150 / 10 s) is used up by the tests above
+{const id5=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),U=(q,m="GET",body)=>fetch(`${B}/c/${id5}/file${q}`,{method:m,headers:H(),body});
+await fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{}})});
+const fid="00112233445566ff",sz=1048576+5,big=Buffer.alloc(sz,7);big[sz-1]=9;
+const q=i=>`?fid=${fid}&i=${i}&n=2&to=kid&size=${sz}&name=${encodeURIComponent("bài.pdf")}`;
+let r=await U(q(0),"POST",big.subarray(0,1048576));const r0=await r.json();ck("file chunk 0 ok, not done",r.status==200&&r0.done===false);
+ck("file sync: none done yet",!(await (await fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:H(),body:"{}"})).json()).files);
+ck("file bad chunk size 400",(await U(q(1),"POST",Buffer.alloc(3))).status==400);
+r=await U(q(1),"POST",big.subarray(1048576));ck("file chunk 1 done",(await r.json()).done===true);
+ck("file sync says files:1",(await (await fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:H(),body:"{}"})).json()).files===1);
+let l=await (await U("?to=kid")).json();ck("file list to kid",l.files.length==1&&l.files[0].name=="bài.pdf"&&l.files[0].done&&l.files[0].n==2);
+ck("file list to parent empty",(await (await U("?to=parent")).json()).files.length==0);
+const c0=Buffer.from(await (await U(`?fid=${fid}&i=0`)).arrayBuffer()),c1=Buffer.from(await (await U(`?fid=${fid}&i=1`)).arrayBuffer());
+ck("file chunks round-trip",Buffer.concat([c0,c1]).equals(big));
+ck("file >10MB 413",(await U(`?fid=0011223344556677&i=0&n=11&to=kid&size=${10*1048576+1}&name=x`,"POST",Buffer.alloc(10))).status==413);
+ck("file bad id 400",(await U(`?fid=../x&i=0`)).status==400);
+ck("file bad to 400",(await U(`?fid=0011223344556678&i=0&n=1&to=evil&size=1&name=x`,"POST",Buffer.alloc(1))).status==400);
+ck("file wrong token 401",(await fetch(`${B}/c/${id5}/file?to=kid`,{headers:H(BAD)})).status==401);
+ck("file delete ok",(await (await U(`?fid=${fid}`,"DELETE")).json()).ok===true);
+ck("file gone after delete",(await U(`?fid=${fid}&i=0`)).status==404&&(await (await U("?to=kid")).json()).files.length==0);
+ck("cmd fileUp whitelisted",(await (await fetch(`${B}/c/${id5}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"fileUp",file:fid})})).json()).result=="queued");}
 console.log(pass,"pass",fail,"fail");process.exit(fail?1:0);

@@ -14,7 +14,9 @@ import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
-class Req(val method: String, val path: String, val query: Map<String, String>, val headers: Map<String, String>, val body: ByteArray) {
+/** [input] set (PUT /api/files/..., see Files.kt): the body is NOT read; [length] bytes wait on [input] for the handler. */
+class Req(val method: String, val path: String, val query: Map<String, String>, val headers: Map<String, String>, val body: ByteArray,
+          val input: InputStream? = null, val length: Long = -1) {
     val text get() = String(body, Charsets.UTF_8)
     fun header(n: String) = headers[n.lowercase()]
 }
@@ -68,7 +70,7 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
         val head = "HTTP/1.1 ${res.code} ${reason(res.code)}\r\nContent-Type: ${res.type}\r\n" +
             (if (res.stream == null) "Content-Length: ${res.body.size}\r\n" else "") +
             "Cache-Control: ${if (res.type == "image/png") "private, max-age=86400" else "no-store"}\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n" +
-            (if (res.type.startsWith("text/html")) "X-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'; connect-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org\r\n" else "") +
+            (if (res.type.startsWith("text/html")) "X-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'; connect-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.de https://tile.openstreetmap.org\r\n" else "") +
             res.headers.entries.joinToString("") { (k, v) -> "$k: $v\r\n" } + "\r\n"
         val out = it.getOutputStream()
         val s = res.stream
@@ -104,18 +106,25 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
             if (++n > 100) throw TooBig()
             val k = l.substringBefore(":", ""); if (k.isNotEmpty()) headers[k.trim().lowercase()] = l.substringAfter(":").trim()
         }
-        val len = headers["content-length"]?.toIntOrNull() ?: 0
-        if (len > 512 * 1024) throw TooBig()
-        val body = ByteArray(len)
-        var got = 0
-        while (got < len) { val r = i.read(body, got, len - got); if (r < 0) break; got += r }
         val target = parts[1]
         val path = target.substringBefore("?")
         val query = target.substringAfter("?", "").split("&").filter { it.contains("=") }.associate {
             URLDecoder.decode(it.substringBefore("="), "UTF-8") to URLDecoder.decode(it.substringAfter("="), "UTF-8")
         }
-        return Req(parts[0].uppercase(), path, query, headers, body)
+        val method = parts[0].uppercase()
+        // shared-file upload: streamed to storage by Files.kt (<= 200 MB), never held in memory
+        if (method == "PUT" && path.startsWith("/api/files/")) {
+            val n = headers["content-length"]?.toLongOrNull() ?: -1L
+            if (n > FilesLogic.MAX_LAN) throw TooBig()
+            return Req(method, path, query, headers, ByteArray(0), i, n)
+        }
+        val len = headers["content-length"]?.toIntOrNull() ?: 0
+        if (len > 512 * 1024) throw TooBig()
+        val body = ByteArray(len)
+        var got = 0
+        while (got < len) { val r = i.read(body, got, len - got); if (r < 0) break; got += r }
+        return Req(method, path, query, headers, body)
     }
 
-    private fun reason(c: Int) = when (c) { 200 -> "OK"; 204 -> "No Content"; 400 -> "Bad Request"; 401 -> "Unauthorized"; 403 -> "Forbidden"; 404 -> "Not Found"; 409 -> "Conflict"; 413 -> "Payload Too Large"; 503 -> "Service Unavailable"; else -> "Error" }
+    private fun reason(c: Int) = when (c) { 200 -> "OK"; 204 -> "No Content"; 400 -> "Bad Request"; 401 -> "Unauthorized"; 403 -> "Forbidden"; 404 -> "Not Found"; 409 -> "Conflict"; 413 -> "Payload Too Large"; 507 -> "Insufficient Storage"; 503 -> "Service Unavailable"; else -> "Error" }
 }

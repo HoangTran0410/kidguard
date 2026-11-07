@@ -150,6 +150,15 @@
     <string name="log_acc_reenabled">Trợ năng bị tắt, đã bật lại</string>
     <string name="log_view_start">Bố mẹ bắt đầu xem màn hình</string>
     <string name="notice_viewing">Bố mẹ đang xem màn hình</string>
+    <string name="ch_proj">Chia sẻ màn hình (Android 8-10)</string>
+    <string name="notice_proj">Đang chia sẻ màn hình cho bố mẹ</string>
+    <string name="log_proj_denied">Yêu cầu chia sẻ màn hình bị từ chối trên máy</string>
+    <string name="log_listen_err">Dừng nghe: %1$s</string>
+    <string name="ch_ring">Tìm điện thoại</string>
+    <string name="notif_ring_title">Bố mẹ đang đổ chuông máy này</string>
+    <string name="notif_ring_text">Bấm Tắt chuông hoặc bấm nút âm lượng</string>
+    <string name="ring_stop">Tắt chuông</string>
+    <string name="log_ring_stopped">Đã tắt chuông trên máy</string>
     <string name="ch_viewing">Đang xem màn hình</string>
     <string name="log_control">Bố mẹ điều khiển từ xa</string>
     <string name="notice_control">Bố mẹ đang điều khiển máy</string>
@@ -176,7 +185,7 @@
     <string name="upd_cancelled">đã huỷ</string>
 
     <!-- Policy -->
-    <string name="policy_support">Bố mẹ đang tạm khoá ứng dụng này.</string>
+    <string name="policy_support">Bố mẹ đang tạm khoá ứng dụng này. Con có thể xin thêm giờ trong KidGuard nhé.</string>
     <string name="dns_refused">DNS %1$s bị từ chối (mã %2$d)</string>
     <string name="dns_fallback">Mạng hiện tại không dùng được DNS an toàn, tạm tắt 30 phút để con không mất mạng</string>
     <string name="log_dns_fallback">DNS an toàn làm mất mạng, tạm tắt 30 phút</string>
@@ -211,6 +220,7 @@
     <string name="ss_conn_fail">Không kết nối được tới chính máy này: %1$s</string>
     <string name="ss_cmd_fail">lệnh không thành công</string>
     <string name="ss_accounts">Máy còn tài khoản, cần xoá trước: %1$s. Vào Cài đặt > Mật khẩu và tài khoản, xoá hết rồi thử lại (cài xong đăng nhập lại được).</string>
+    <string name="ss_coloros">Oppo/Realme/OnePlus (ColorOS): mở Đa nhiệm, kéo thẻ KidGuard xuống để khoá (biểu tượng ổ khoá), và trong Quản lý điện thoại cho KidGuard \"Tự khởi chạy\" + chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app và Trợ năng.</string>
     <string name="ss_done">Xong. KidGuard đã được cài quyền quản lý.</string>
     <string name="ch_selfsetup">Tự cài KidGuard</string>
     <string name="ss_code_label">Mã 6 số</string>
@@ -282,7 +292,7 @@
     <string name="st_running">Đang chạy</string>
     <string name="st_starting">Đang khởi động…</string>
     <string name="st_acc_on">Trợ năng: bật</string>
-    <string name="st_acc_off">Trợ năng: tắt</string>
+    <string name="st_acc_off">Trợ năng của KidGuard đã bị tắt → vào Cài đặt > Trợ năng bật lại</string>
     <string name="st_loc_on">Vị trí: bật</string>
     <string name="st_loc_off">Vị trí: tắt</string>
     <plurals name="st_pending">
@@ -362,4 +372,107 @@
     <string name="msg_title">Bố mẹ nhắn</string>
     <string name="msg_read">Con đã đọc</string>
     <string name="ch_msg">Tin nhắn từ bố mẹ</string>
+    <!-- quick actions: lock button (shortcut, widget, tile), time-left tile / widget, screen-off gestures (Quick.kt) -->
+    <string name="tl_min">Còn %1$d phút</string>
+    <string name="tl_h">Còn %1$d giờ</string>
+    <string name="tl_hm">Còn %1$d giờ %2$d phút</string>
+    <string name="tl_none">Không giới hạn</string>
+    <string name="q_lock">Khoá màn hình</string>
+    <string name="q_lock_short">Khoá</string>
+    <string name="q_time">Thời gian còn lại</string>
+    <string name="q_today">Hôm nay</string>
+    <string name="q_lock_desc">Chạm một lần để khoá màn hình</string>
+    <string name="q_time_desc">Thời gian dùng máy còn lại hôm nay. Chạm để xin thêm giờ</string>
+    <string name="q_lock_fail">Không khoá được màn hình: KidGuard chưa cài đặt xong</string>
+    <string name="main_pin_lock">Thêm nút Khoá màn hình ra màn hình chính</string>
+    <string name="main_pin_lock_no">Màn hình chính này không thêm được lối tắt. Nhấn giữ chỗ trống và thêm tiện ích \"Khoá\" của KidGuard nhé.</string>
+    <string name="main_gestures">Chạm 2 lần để mở màn hình / cử chỉ khi tắt màn hình</string>
+    <string name="main_gestures_body">Ứng dụng không tự làm được việc này, đây là cài đặt của điện thoại. KidGuard sẽ mở đúng trang cài đặt nếu tìm thấy.</string>
+    <string name="main_gestures_open">Mở cài đặt</string>
+    <!-- on-device parent page (AdminActivity) + hold-to-confirm buttons -->
+    <string name="main_admin">Bố mẹ quản lý trên máy này</string>
+    <!-- home screen: status card, quick row, "Thêm" sheet -->
+    <string name="home_more">Thêm</string>
+    <string name="home_more_desc">Thêm tuỳ chọn</string>
+    <string name="home_sec_kid">Của con</string>
+    <string name="home_sec_parent">Bố mẹ</string>
+    <string name="home_sec_device">Máy &amp; cài đặt</string>
+    <string name="home_today">Hôm nay</string>
+    <string name="home_left">Hôm nay còn</string>
+    <string name="home_bed">Giờ đi ngủ %1$s – %2$s</string>
+    <string name="home_used">Đã dùng %1$s</string>
+    <string name="home_limit">Giới hạn %1$s</string>
+    <string name="home_m">%1$d phút</string>
+    <string name="home_h">%1$d giờ</string>
+    <string name="home_hm">%1$d giờ %2$d phút</string>
+    <string name="home_reopen_at">Mở lại lúc %1$s</string>
+    <string name="home_reopen_tomorrow">Mở lại vào ngày mai</string>
+    <string name="home_unlocked">Đang mở khoá tới %1$s</string>
+    <string name="home_ok">Đang bảo vệ</string>
+    <plurals name="home_warn">
+        <item quantity="other">Cần kiểm tra %1$d mục</item>
+    </plurals>
+    <string name="home_status">Trạng thái bảo vệ</string>
+    <string name="home_status_sub">Những gì KidGuard cần để chạy tốt trên máy này.</string>
+    <string name="home_status_desc">%1$s. Chạm để xem chi tiết</string>
+    <string name="home_version">KidGuard %1$s</string>
+    <string name="home_sos">SOS</string>
+    <string name="admin_title">Quản lý trên máy này</string>
+    <string name="admin_body">Bố mẹ nhập PIN hoặc mã Authenticator đang hiện. Trang tự đóng khi tắt màn hình, khi rời trang hoặc sau 5 phút không chạm.</string>
+    <string name="admin_body_pin">Bố mẹ nhập PIN. Trang tự đóng khi tắt màn hình, khi rời trang hoặc sau 5 phút không chạm.</string>
+    <string name="admin_body_totp">Bố mẹ nhập mã Authenticator đang hiện. Trang tự đóng khi tắt màn hình, khi rời trang hoặc sau 5 phút không chạm.</string>
+    <string name="admin_field">PIN hoặc mã 6 số</string>
+    <string name="admin_ok">Mở</string>
+    <string name="admin_wrong">Sai mã, thử lại</string>
+    <string name="admin_not_ready">Trang quản lý chưa sẵn sàng, thử lại sau vài giây.</string>
+    <string name="st_no_pin">Bố mẹ chưa đặt PIN</string>
+    <string name="log_admin_open">Bố mẹ mở trang quản lý trên máy này</string>
+    <string name="ev_admin_wrong">Có người nhập sai PIN / mã để mở trang quản lý trên máy con</string>
+    <plurals name="hold_left">
+        <item quantity="other">Giữ tiếp… %1$d giây</item>
+    </plurals>
+    <plurals name="hold_need">
+        <item quantity="other">Giữ đủ %1$d giây</item>
+    </plurals>
+    <plurals name="hold_a11y">
+        <item quantity="other">bắt đầu đếm %1$d giây (chạm lần nữa để huỷ)</item>
+    </plurals>
+    <!-- v0.9.7 comfort: wind-down, lock-screen info, block note, check-in, request templates -->
+    <string name="warn_bed10">Còn %1$d phút nữa là giờ ngủ</string>
+    <string name="policy_support_long">KidGuard giúp con và bố mẹ cùng giữ giờ giấc. Ứng dụng này đang tạm nghỉ theo luật bố mẹ đặt. Nếu cần dùng, con mở KidGuard và bấm \"Xin thêm giờ\", hoặc nói với bố mẹ nhé.</string>
+    <string name="policy_note">Bố mẹ nhắn: %1$s</string>
+    <string name="st_gray">Màn hình đen trắng: sắp đến giờ ngủ</string>
+    <string name="main_ci_arrived">Con tới nơi rồi</string>
+    <string name="main_ci_pickup">Đón con với</string>
+    <string name="main_ci_sent">%1$s · đã gửi %2$s</string>
+    <string name="ev_ci_arrived">Con báo: đã tới nơi</string>
+    <string name="ev_ci_pickup">Con nhờ: đón con với</string>
+    <string name="log_checkin">Con bấm \"%1$s\"</string>
+    <string name="ci_done">Đã báo bố mẹ</string>
+    <string name="ci_done_loc">Bố mẹ sẽ thấy tin này và vị trí của con.</string>
+    <string name="ci_done_noloc">Bố mẹ sẽ thấy tin này. Máy đang lấy vị trí, có là gửi kèm.</string>
+    <string name="ci_again">Vừa gửi rồi</string>
+    <string name="ci_again_body">Con vừa bấm nút này. Đợi 1 phút rồi bấm lại nếu cần.</string>
+    <string name="ci_q_arrived">Báo bố mẹ: con tới nơi rồi?</string>
+    <string name="ci_q_pickup">Nhờ bố mẹ đến đón con?</string>
+    <string name="ci_q_body">Bố mẹ sẽ nhận được tin này kèm vị trí của con.</string>
+    <string name="ci_send">Gửi</string>
+    <string name="more_quick">Bấm một nút để gửi ngay, hoặc tự chọn bên dưới.</string>
+    <string name="tpl_homework">+15 phút làm bài</string>
+    <string name="tpl_play">+30 phút chơi</string>
+    <string name="tpl_study">Cần app học</string>
+    <!-- shared files (Files.kt, ShareInActivity.kt) -->
+    <string name="ch_files">File bố mẹ gửi</string>
+    <string name="files_got">Bố mẹ gửi: %1$s</string>
+    <string name="files_got_sub">Chạm để mở. File nằm trong Download/KidGuard.</string>
+    <string name="files_share_label">Gửi cho bố mẹ</string>
+    <string name="files_menu">Gửi file cho bố mẹ</string>
+    <string name="files_sending">Đang gửi cho bố mẹ…</string>
+    <plurals name="files_sent"><item quantity="other">Đã gửi %1$d file cho bố mẹ</item></plurals>
+    <string name="files_too_big">File quá lớn: tối đa 200 MB mỗi file</string>
+    <string name="files_failed">Không gửi được file</string>
+    <string name="files_none">Không có gì để gửi</string>
+    <string name="files_no_picker">Máy không có trình chọn file</string>
+    <string name="files_gone">File này không còn nữa</string>
+    <string name="files_no_app">Không có ứng dụng nào mở được file này</string>
 </resources>

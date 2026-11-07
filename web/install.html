@@ -124,6 +124,7 @@
       <li><svg class="si" aria-hidden="true"><use href="#i-lock"/></svg> Vào tab <b>Cài đặt</b>, đặt <b>PIN của bố mẹ</b>.</li>
       <li><svg class="si" aria-hidden="true"><use href="#i-key-round"/></svg> Giờ có thể đăng nhập lại tài khoản trên máy con và rút cáp.</li>
     </ol>
+    <p class="msg hide" id="coloros"><svg class="si" aria-hidden="true"><use href="#i-lock"/></svg> Oppo/Realme/OnePlus (ColorOS): mở Đa nhiệm, kéo thẻ KidGuard xuống để khoá (biểu tượng ổ khoá), và trong Quản lý điện thoại cho KidGuard "Tự khởi chạy" + chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app và Trợ năng.</p>
     <p class="msg"><svg class="si" aria-hidden="true"><use href="#i-undo-2"/></svg> Gỡ: trang bố mẹ &gt; Cài đặt &gt; "Gỡ quyền quản lý", rồi gỡ app như thường.</p>
   </section>
 </main>
@@ -293,6 +294,8 @@ const STEPS = [
     let m = (await sh("ip -4 addr show wlan0")).match(/inet (\d+\.\d+\.\d+\.\d+)/);
     if (!m) m = (await sh("ip route get 1.1.1.1")).match(/\bsrc (\d+\.\d+\.\d+\.\d+)/);
     window.__ip = m ? m[1] : "";
+    // ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off): show the lock-card hint
+    window.__coloros = /\S/.test(await sh("getprop ro.build.version.opporom; getprop ro.build.version.oplusrom"));
   }],
 ];
 
@@ -341,6 +344,7 @@ $("install").onclick = async () => {
     return;
   }
   $("lan").textContent = "http://" + (window.__ip || "<IP của máy con>") + ":8770";
+  $("coloros").classList.toggle("hide", !window.__coloros);
   $("done").classList.remove("hide");
   $("done").scrollIntoView({ behavior: "smooth" });
 };

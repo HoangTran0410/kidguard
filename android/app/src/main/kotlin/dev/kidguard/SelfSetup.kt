@@ -256,10 +256,13 @@ object SelfSetup {
         sh("settings put secure accessibility_enabled 1")
         state[5] = STEP_OK
         if (!step(6, "dumpsys deviceidle whitelist +$PKG") { !it.contains("Unknown", true) && !it.contains("Exception", true) }) return
+        // ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off): lock-card hint (read while the link is up)
+        val colorOs = runCatching { sh("getprop ro.build.version.opporom; getprop ro.build.version.oplusrom") }.getOrDefault("").isNotBlank()
         // optional: Wireless debugging off. The link drops with it, so no reading afterwards.
         if (turnOffWifi) { runCatching { sh("settings put global adb_wifi_enabled 0") }; wifiOff = true }
         runCatching { m.disconnect() }
         done = true; message = app.getString(R.string.ss_done)
+        if (colorOs) message += "\n" + app.getString(R.string.ss_coloros)
         stopDiscovery()
         notifyFinal(app, message)
         Guard.start(app)

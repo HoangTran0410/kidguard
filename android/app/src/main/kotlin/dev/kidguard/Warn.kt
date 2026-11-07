@@ -28,6 +28,9 @@ object Warn {
             if (s != null && e != null && !Rules.inWindow(minuteOfDay, s, e)) {
                 val d = minutesTo(s)
                 if (d in 1..LEAD_MIN && "$today:bed" !in sent) out += Due(setOf("$today:bed"), tr.s(T.warn_bed, LEAD_MIN))
+                // v0.9.7 wind-down nudge, a gentle one before the 5-minute heads-up
+                else if (r.windNudge && d in (LEAD_MIN + 1)..WindDown.NUDGE_MIN && "$today:bed10" !in sent)
+                    out += Due(setOf("$today:bed10"), tr.s(T.warn_bed10, WindDown.NUDGE_MIN))
             }
         }
         r.schedules.forEachIndexed { i, sc ->

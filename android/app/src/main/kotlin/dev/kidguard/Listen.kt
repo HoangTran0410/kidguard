@@ -12,6 +12,7 @@ import android.media.MediaRecorder
 import android.media.ToneGenerator
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.os.PowerManager
 import android.util.Log
 import java.io.IOException
 import java.io.OutputStream
@@ -28,50 +29,84 @@ object Listen {
 
     @Volatile var since = 0L; private set
     val active get() = since > 0
-    @Volatile var lastError = ""; private set
+    /** Guard's state is rebuilt per tick: a changed error kicks a tick so the page sees it at once, not on the next one. */
+    @Volatile var lastError = ""
+        private set(v) { val changed = field != v; field = v; if (changed) Guard.running?.kick() }
 
     fun state(): org.json.JSONObject = org.json.JSONObject().put("on", active).put("since", since).put("err", lastError)
 
     class Session(private val g: Guard, private val rec: MediaRecorder, private val read: ParcelFileDescriptor, private val write: ParcelFileDescriptor) {
         @Volatile private var closed = false
+        @Volatile private var lastData = System.currentTimeMillis()
+        private val started = System.currentTimeMillis()
+        // screen off: keep the CPU up while streaming (the Wi-Fi lock in Guard keeps the radio up)
+        private val wl = runCatching {
+            g.getSystemService(PowerManager::class.java).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "kidguard:listen").apply { setReferenceCounted(false); acquire(MAX_MS + 30_000) }
+        }.getOrNull()
+
+        init {
+            // watchdog: a blocked mic (ColorOS privacy layer: amplitude stays 0) or a stuck encoder / reader ends the session,
+            // so `listen.on` never sticks and the next request is not refused
+            Thread({
+                val amps = ArrayList<Int>()
+                runCatching { rec.maxAmplitude }   // the first call is always 0
+                while (!closed) {
+                    try { Thread.sleep(250) } catch (_: InterruptedException) { break }
+                    val now = System.currentTimeMillis()
+                    if (now - started <= ListenLogic.SILENT_MS + 250) {
+                        amps += runCatching { rec.maxAmplitude }.getOrDefault(0)
+                        if (ListenLogic.blocked(amps, now - started)) { close("mic silenced"); break }
+                    }
+                    if (ListenLogic.stalled(lastData, now)) { close("mic stalled"); break }
+                    if (now - started > MAX_MS) { close(""); break }
+                }
+            }, "listen-watch").apply { isDaemon = true; start() }
+        }
 
         /** Copies the AAC (ADTS) stream to [out] until the parent goes away, [MAX_MS] passes or [stopAll] is called. */
         fun pump(out: OutputStream) {
-            val start = System.currentTimeMillis()
             try {
                 ParcelFileDescriptor.AutoCloseInputStream(read).use { ins ->
                     val buf = ByteArray(4096)
-                    while (!closed && System.currentTimeMillis() - start < MAX_MS) {
+                    while (!closed && System.currentTimeMillis() - started < MAX_MS) {
                         val n = ins.read(buf); if (n < 0) break
+                        lastData = System.currentTimeMillis()
                         out.write(buf, 0, n); out.flush()
                     }
                 }
-            } catch (e: IOException) { /* the parent closed the player */ } finally { close() }
+            } catch (e: IOException) { /* the parent closed the player, or close() closed the pipe */ } finally { close("") }
         }
 
-        @Synchronized fun close() {
-            if (closed) return
-            closed = true
+        /** [why] non-empty = an error the page shows (`listen.err`). Only the current session touches the shared state. */
+        fun close(why: String) {
+            synchronized(this) { if (closed) return; closed = true }
             runCatching { rec.stop() }; runCatching { rec.release() }
             runCatching { write.close() }; runCatching { read.close() }
-            val start = since
-            val ms = System.currentTimeMillis() - start
+            runCatching { wl?.release() }
+            val ms = System.currentTimeMillis() - started
             val min = (ms + 30_000) / 60_000
             val took = if (min < 1) g.getString(R.string.under_1_min) else g.resources.getQuantityString(R.plurals.listen_about, min.toInt(), min.toInt())
-            since = 0L; current = null
-            runCatching { Store.of(g).lastListen = longArrayOf(start, ms) }
-            g.micForeground(false)
-            g.getSystemService(NotificationManager::class.java)?.cancel(NID)
-            runCatching { Store.of(g).log(R.string.log_listen_done, java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(start)), took) }
+            val mine = synchronized(Listen) { (current === this).also { if (it) { since = 0L; current = null; if (why.isNotEmpty()) lastError = why } } }
+            runCatching { Store.of(g).lastListen = longArrayOf(started, ms) }
+            if (mine) {
+                g.micForeground(false)
+                g.getSystemService(NotificationManager::class.java)?.cancel(NID)
+            }
+            if (why.isNotEmpty()) runCatching { Store.of(g).log(R.string.log_listen_err, why) }
+            runCatching { Store.of(g).log(R.string.log_listen_done, java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(started)), took) }
             g.kick()
         }
     }
 
     @Volatile private var current: Session? = null
 
-    /** Starts the mic, or returns null with [lastError] = "busy" | "no mic permission" | "notice blocked" | "mic blocked" | "mic failed". */
+    /**
+     * Starts the mic, or returns null with [lastError] = "no mic permission" | "notice blocked" | "mic blocked" | "mic failed".
+     * A session already running is replaced (a parent whose Wi-Fi dropped must be able to start again at once).
+     */
     @Synchronized fun open(g: Guard): Session? {
-        if (current != null) { lastError = "busy"; return null }
+        ActionLogic.conflict("listen", ringing = Ring.active, listening = active)?.let { lastError = it; return null }
+        current?.close("")
         if (g.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) { lastError = "no mic permission"; return null }
         // the child must be able to see the notice: refuse when notifications or this channel are off / silent
         if (!noticeVisible(g)) { lastError = "notice blocked"; return null }
@@ -110,8 +145,8 @@ object Listen {
         return imp >= NotificationManager.IMPORTANCE_DEFAULT
     }
 
-    /** Release / service stop. */
-    fun stopAll() { current?.close() }
+    /** Release / service stop / command `listenStop`. True when a session was running. */
+    fun stopAll(): Boolean { val c = current ?: return false; c.close(""); return true }
 
     /** Beep + ongoing notification. Always, whatever the rules say. */
     private fun tell(g: Guard) {

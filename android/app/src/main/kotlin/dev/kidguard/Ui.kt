@@ -65,6 +65,58 @@ class Ui(val ctx: Context) {
         setOnClickListener { onClick() }
     }
 
+    val danger = Color.parseColor(if (dark) "#f87171" else "#dc2626")
+
+    /** [a] blended toward [b] by [t] (0..1), opaque: tinted fills that look the same on any background. */
+    fun mix(a: Int, b: Int, t: Float): Int = Color.rgb(
+        (Color.red(a) + (Color.red(b) - Color.red(a)) * t).toInt(),
+        (Color.green(a) + (Color.green(b) - Color.green(a)) * t).toInt(),
+        (Color.blue(a) + (Color.blue(b) - Color.blue(a)) * t).toInt())
+
+    /** An icon centered on a rounded square, as one drawable (for compound drawables of tiles / list rows). */
+    fun badge(icon: Int, iconColor: Int, fill: Int, sizeDp: Int, iconDp: Int, radius: Int, strokeColor: Int = 0): android.graphics.drawable.Drawable {
+        val inset = dp((sizeDp - iconDp) / 2)
+        return android.graphics.drawable.LayerDrawable(arrayOf(shape(fill, radius, strokeColor, if (strokeColor != 0) 1 else 0), Ic.get(ctx, icon, iconColor, dp(iconDp)))).apply {
+            setLayerInset(1, inset, inset, inset, inset); setBounds(0, 0, dp(sizeDp), dp(sizeDp))
+        }
+    }
+
+    /**
+     * Home quick action: a 60dp rounded square with the icon, the label under it. A Button, so callers can keep
+     * setting its text / visibility. [toneColor] tints icon, fill and border (SOS = [danger]).
+     */
+    fun tile(t: String, icon: Int, toneColor: Int, onClick: () -> Unit): Button = Button(ctx).apply {
+        text = t; isAllCaps = false; textSize = 12.5f; setTypeface(typeface, Typeface.BOLD); stateListAnimator = null
+        setTextColor(if (toneColor == danger) danger else this@Ui.text)
+        val tinted = toneColor == danger
+        setCompoundDrawablesRelative(null, badge(icon, toneColor, if (tinted) mix(card, toneColor, if (dark) 0.18f else 0.10f) else card, 60, 26, 20,
+            if (tinted) mix(card, toneColor, 0.4f) else stroke), null, null)
+        compoundDrawablePadding = dp(6)
+        gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; maxLines = 3; setLineSpacing(0f, 1.05f)
+        minHeight = dp(48); minimumHeight = dp(48); minWidth = 0; minimumWidth = 0
+        setPadding(dp(2), dp(4), dp(2), dp(4))
+        background = RippleDrawable(ColorStateList.valueOf(Color.argb(40, 128, 128, 128)), null, shape(Color.WHITE, 16))
+        setOnClickListener { onClick() }
+    }
+
+    /** Sheet / list row: tinted icon square, label, chevron. A Button (works with MainActivity.holdToRun). */
+    fun listRow(t: String, icon: Int, chevron: Boolean = true, onClick: () -> Unit): Button = Button(ctx).apply {
+        text = t; isAllCaps = false; textSize = 16f; stateListAnimator = null; setTextColor(this@Ui.text)
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        gravity = Gravity.CENTER_VERTICAL or Gravity.START; textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+        setCompoundDrawablesRelative(badge(icon, accent, tint, 36, 20, 11), null,
+            if (chevron) Ic.get(ctx, R.drawable.li_chevron_right, sub, dp(18)) else null, null)
+        compoundDrawablePadding = dp(14)
+        minHeight = dp(56); minimumHeight = dp(56)
+        setPadding(dp(12), dp(6), dp(12), dp(6))
+        background = RippleDrawable(ColorStateList.valueOf(Color.argb(40, 128, 128, 128)), null, shape(Color.WHITE, 16))
+        layoutParams = LinearLayout.LayoutParams(-1, -2)
+        setOnClickListener { onClick() }
+    }
+
+    /** Small caps section title ("CỦA CON"). */
+    fun section(t: String) = label(t.uppercase(), 12f, sub, true).apply { letterSpacing = 0.1f; setPadding(dp(12), dp(18), dp(12), dp(4)) }
+
     /** Icon row for the status list: tinted icon + text. */
     fun row(icon: Int, toneHex: String, t: String, last: Boolean = false): View = LinearLayout(ctx).apply {
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL

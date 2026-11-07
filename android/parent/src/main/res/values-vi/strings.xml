@@ -13,4 +13,14 @@
     <string name="ev_sos">%1$s bấm SOS lúc %2$s</string>
     <string name="ev_lost">Mất kết nối với máy của %1$s</string>
     <string name="ev_acc_off">%1$s đã tắt Trợ năng của KidGuard: app không bị chặn nữa</string>
+    <string name="act_grant">+%1$d phút</string>
+    <string name="act_decline">Từ chối</string>
+    <string name="act_map">Xem vị trí</string>
+    <string name="ans_sending">Đang gửi…</string>
+    <plurals name="ans_granted">
+        <item quantity="other">Đã cho thêm %1$d phút</item>
+    </plurals>
+    <string name="ans_declined">Đã từ chối</string>
+    <string name="ans_already">Yêu cầu này đã được trả lời rồi</string>
+    <string name="ans_failed">Không gửi được, mở trang</string>
 </resources>

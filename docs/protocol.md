@@ -66,11 +66,14 @@ v0.1: `lock locate message{text} ring relay{url} openPairing unpairAll release`.
   saving rules (`bonus`), the command only removes the request and tells the child (notification).
 - `reboot`: DevicePolicyManager.reboot.
 `release` must also undo every v0.2 restriction (location, airplane, private DNS, accessibility allowlist).
+It also disables the child's lock / time-left Quick Settings tiles, home-screen widgets and lock shortcuts (`Quick.kt`;
+a pinned shortcut can only be disabled, not removed). No wire change: they read nothing but the phone's own state.
 The worker's command whitelist must include `answer` and `reboot`.
 v0.4:
 - While pairing is open the child screen also shows a QR of `http://<ip>:8770/#pair=<code>`; the page prefills the code
   from `#pair=` (6 digits) and drops the hash.
 - `openPairing` returns `set PIN first` (and does nothing) when a parent was already paired and no PIN is set.
+- v0.9.6: `/api/pair` also takes `newPin` and refuses to pair without a PIN when none is set; see "v0.9.6" below.
 - LAN `GET /api/hello` adds `pin: bool`. `POST /api/pair {code, pin?}`: `pin` is required once a PIN is set (the child
   can see the code, never the PIN). Errors `{error, wait}`: 403 `wrong code | wrong pin`, 429 `wait | pin locked`,
   403 `closed`. Every 3rd wrong guess makes a new code and blocks pairing for 30 s, doubling (cap 32 min).
@@ -91,7 +94,8 @@ Acc.isOn(ctx): Boolean
 Acc.ensureEnabled(ctx): Boolean          // core calls this every tick
 Acc.capture(maxSide = 720, quality = 50): Acc.Frame?   // Frame(jpeg, w, h) w/h = real screen px; null => Acc.lastError
 Acc.input(o: JSONObject): String         // "ok" or error
-Acc.lastError: String                    // "acc off" | "screen off" | "unsupported" (API < 30) | "busy" | …
+Acc.lastError: String                    // "acc off" | "screen off" | "busy" | "need consent" | "denied" | "timeout" | …
+Acc.frameGapMs(): Long                   // relay loop pause: 333 (API 30+), 1000 (API 26-29, projection)
 ```
 While frames are being taken (any capture in the last 5 s) the child sees an ongoing notification
 "Bố mẹ đang xem màn hình" (after the first input: "Bố mẹ đang điều khiển máy"), unless rule `showWatching` is false.
@@ -127,6 +131,58 @@ The first capture / first input of a session is logged in the phone log.
 - `GET /c/<id>/state` already returns `seen` (ms of the phone's last sync): the page warns when `now - seen > 5 min`.
 - The worker also serves `GET /install` -> `web/install.html`.
 
+### API levels (v0.9.6)
+- **API 30+**: frames from `AccessibilityService.takeScreenshot` (unchanged).
+- **API 26-29**: frames from **MediaProjection** (`Proj.kt`), same JPEG / headers / routes as above. The first capture
+  opens the system consent dialog on the child phone (`ProjActivity`); we never auto-click it. Android 8-9 shows
+  "Don't show again" (then later sessions start silently); Android 10 asks every session. Until the child taps Allow
+  `lastError` is `"need consent"` (page: "Cần con bấm Cho phép trên máy"); after Cancel `"denied"`, asked again after 60 s.
+  While it runs a foreground service (`ProjService`, type `mediaProjection`) shows "Đang chia sẻ màn hình cho bố mẹ"
+  (always, whatever `showWatching` says). At most ~1 real frame/s (an unchanged screen re-sends the last JPEG); the
+  projection stops 20 s after the last capture (parent stopped viewing), when the system ends it, and on `release`.
+  The page shows "Đang xem · N fps" while frames arrive.
+- Remote input (`dispatchGesture`, global actions, set text) works on API 26+; it was never gated at 30. Key `lock`
+  on API 26-27 (no `GLOBAL_ACTION_LOCK_SCREEN`) falls back to DPM `lockNow`.
+
+## Action states (v0.9.6)
+- `wake`: turns the screen on (`SCREEN_BRIGHT|ACQUIRE_CAUSES_WAKEUP` wakelock 3 s + an invisible `WakeActivity` with
+  `setTurnScreenOn`/`setShowWhenLocked`, flags on API 26), then `requestDismissKeyguard` only when the keyguard has no
+  secure lock (a PIN/pattern stays on the lock screen). Result `ok | failed` (screen still off after 2 s). Not deliver-once.
+  On the relay a sleeping phone only polls every ~60 s, so a relay `wake` can take that long.
+- `ring` (20 s alarm, full alarm volume, restored after): the phone shows a heads-up notification "Bố mẹ đang đổ chuông
+  máy này" with **Tắt chuông**; a volume key also stops it (accessibility key filter, only while ringing). Result
+  `ok | listening | failed`. Again while ringing = restart the 20 s.
+- `ringStop`: stops it. Idempotent, always `ok`. Not deliver-once (stopping twice is harmless).
+- `listenStop`: ends a listen session (below). Idempotent, `ok`.
+- State adds `"ring": {"on": bool, "since": ms}` (the real player state).
+- Conflicts (`ActionLogic.conflict`, also on the page): `ring` while listening -> `listening`; listen while ringing ->
+  `503 {"error":"ringing"}`. Everything else (wake, lock, locate, screen view) can run together.
+- Page: every per-kid action button has idle / pending (spinner, disabled) / done or sent (2.5 s) / error states; ring and
+  listen show "Đang … · bấm để tắt" from the phone's state (`ring.on`, `listen.on`) and stop after a confirm. The mic and
+  ring banners have their own stop button.
+- All three (`wake`, `ringStop`, `listenStop`) are in the worker whitelist. `release` also stops ringing, the screen
+  projection, listening, and drops the Wi-Fi lock.
+- **Wi-Fi lock**: the service holds a `WIFI_MODE_FULL_HIGH_PERF` lock while it runs (some ROMs, e.g. ColorOS 8.1, put
+  Wi-Fi to sleep with the screen off and the LAN page drops). Costs some standby battery. Released on stop / release.
+
+## Staying alive (v0.9.6)
+- **ColorOS Recents swipe = real force-stop** (`com.coloros.athena` calls force-stop): process dead, package
+  `stopped=true`, alarms (Watchdog) cancelled, and AOSP removes the force-stopped package from
+  `enabled_accessibility_services`. Nothing of ours runs again until someone opens the app. AOSP (emulator) only
+  removes the task: Guard (foreground service) keeps running.
+- So: no KidGuard card in Recents. Every activity has `excludeFromRecents`, and the accessibility service finishes all
+  our tasks (`ActivityManager.appTasks[].finishAndRemoveTask()`) when the launcher or a Recents screen comes to the
+  front (excludeFromRecents alone still shows the front-most task).
+- Recovery when killed but not force-stopped: Guard is `START_STICKY` + restarts in `onTaskRemoved`; the system
+  rebinds Acc after a kill and `Acc.onServiceConnected` starts Guard + re-arms the Watchdog; Acc restarts Guard on
+  `SCREEN_ON` / `USER_PRESENT`. Every Guard tick calls `Acc.ensureEnabled` (re-adds our accessibility entry when
+  `accReEnable`, i.e. WRITE_SECURE_SETTINGS was granted).
+- State `acc: false` = our accessibility service is not connected; the page and the child app show "turn it back on
+  in Settings > Accessibility". Force stop / Clear data in Settings: `setUserControlDisabledPackages` (API 30+),
+  `DISALLOW_APPS_CONTROL` (below); both undone by release. No DO API whitelists us from athena.
+- Lost contact (`live.lost`) names the likely cause: KidGuard stopped, maybe swiped out of Recents; open the app on
+  the child's phone.
+
 ## Setup steps (scripts/setup.sh, scripts/setup.ps1, the web installer and the in-app self-setup `SelfSetup.kt` do the same, in this order)
 1. `adb install -r -g kidguard.apk`
 2. `adb shell dpm set-device-owner dev.kidguard/.Admin` (verify with `dumpsys device_policy`)
@@ -138,6 +194,9 @@ The first capture / first input of a session is logged in the phone log.
 6. `adb shell dumpsys deviceidle whitelist +dev.kidguard`
 7. `adb shell am start -n dev.kidguard/.MainActivity`
 8. print the LAN URL (`http://<wlan0 ip>:8770`) and tell the parent to enter the 6-digit code.
+9. ColorOS only (`getprop ro.build.version.opporom` or `ro.build.version.oplusrom` not empty): hint only, no adb
+   setting for it: lock the KidGuard card in Recents (pull it down) and allow "Tự khởi chạy" + background running in
+   Phone Manager (a Recents swipe is a real force-stop, see "Staying alive").
 
 ## v0.2.1 changes (after review)
 - **PIN hash never leaves the phone/worker to the parent.** `state.rules` and every worker response carry
@@ -169,9 +228,10 @@ The first capture / first input of a session is logged in the phone log.
 - State: `"track": [[t,lat,lon,acc], …]` = points since local midnight of YESTERDAY (keeps state small).
 - LAN: `GET /api/track?days=7` -> `{"track": [...]}` (all stored points, max 7 days).
 - Page "Vị trí" tab: map of the chosen day (Hôm nay / Hôm qua; via LAN also older days) drawn WITHOUT external
-  scripts: OSM tiles `https://tile.openstreetmap.org/{z}/{x}/{y}.png` as <img> + an SVG polyline/dots, auto-fit zoom,
-  point list with times, tap a dot -> time + accuracy. CSP of HTML pages must allow `img-src 'self' data: blob:
-  https://tile.openstreetmap.org`.
+  scripts: OSM tiles as <img> (`https://tile.openstreetmap.de/{z}/{x}/{y}.png` first, `https://tile.openstreetmap.org/...`
+  as fallback per tile: .org is blocked on some ISPs) + an SVG polyline/dots, auto-fit zoom, point list with times, tap a
+  dot -> time + accuracy. CSP of HTML pages (phone, parent app proxy, worker) must allow `img-src 'self' data: blob:
+  https://tile.openstreetmap.de https://tile.openstreetmap.org`.
 
 ## SOS and "listen around" (v0.5)
 - **SOS**: the child's KidGuard screen has a red "SOS" button (one confirm). The phone stores `{id, t}` (max 10;
@@ -185,14 +245,18 @@ The first capture / first input of a session is logged in the phone log.
   also on the first look at a kid. The background check runs ~every 15 min; relay kids also get FCM (below, seconds).
 - **Listen around** (one way, LAN / Tailscale only, the relay has no audio route):
   `GET /api/listen?k=<token>` -> `200 audio/aac` (ADTS, AAC-LC 16 kHz mono 32 kbit/s, ~14 MB/h), no Content-Length,
-  streamed until the client closes or 10 min pass (the page can start again). Errors: `409 {"error":"busy"}` (one
-  listener at a time), `503 {"error": "no mic permission" | "mic blocked" | "mic failed" | "notice blocked"}` (v0.6: refused when
+  streamed until the client closes or 10 min pass (the page can start again). v0.9.6: a new request **replaces** a running
+  session (a parent whose Wi-Fi dropped can start again at once; `busy` is no longer answered). Errors: `503 {"error": "no mic permission" | "mic blocked" | "mic failed" | "notice blocked"}` (v0.6: refused when
   the child's notifications or the `kg_listen` channel are off, so listening can never be silent). Each session is logged
   ("Bố mẹ đã nghe âm thanh xung quanh từ HH:mm (…)") and the child screen shows "Lần nghe gần nhất".
 - The child is **always** told; it does not depend on `showWatching`: a beep, an ongoing high-importance notification
   "Bố mẹ đang nghe âm thanh xung quanh máy", a status line on the KidGuard screen, and log lines at start and stop.
   Android itself also shows its mic indicator.
 - State adds `"listen": {"on": bool, "since": ms, "err": "<last error or empty>"}`.
+- v0.9.6: the phone ends a session by itself, with `listen.err`, when the mic gives only amplitude 0 for 2.5 s
+  (`"mic silenced"`: a ROM privacy layer such as ColorOS blocks it although RECORD_AUDIO is granted) or no encoded bytes
+  are read for 4 s (`"mic stalled"`: also when nobody reads the stream). `on` is cleared by whichever session is current,
+  so it never sticks. A partial wakelock is held while a session runs. The page sends `listenStop` when the parent stops.
 - The phone gets RECORD_AUDIO through `setPermissionGrantState` (with the location ones) and adds the `microphone` type to
   its foreground service only while listening. `release` revokes RECORD_AUDIO (DENIED, then DEFAULT) and stops a session.
 - Parent-app proxy: `GET /k/<t>/api/listen` is passed through as a stream (never cached).
@@ -252,10 +316,18 @@ the child over plain http; the WebView itself may only reach `127.0.0.1:<port>` 
   `getHistoryDays()` -> `"0"` (unlimited) | `"30"` ...; `setHistoryDays(n)`; `getLang()` -> `""` (phone setting) | `"en"` | `"vi"`,
   `setLang(code)` same codes, others ignored, same code = no-op: language of the app's own notifications (Android 13+: the
   system per-app language). The page translates itself; the WebView is not reloaded.
+  `takeOpen()` -> `'{"target","id"}'` once after a notification tap (then `""`): the page opens that kid (on boot, and
+  the app calls `window.kgAppOpen()` on a running page).
 - **Background**: JobScheduler job every ~15 min (+ once at app start) fetches each kid's state with its token and
   notifies once per event: new entry in `requests` ("<name> xin thêm <min> phút"; the first look at a kid only records
   existing ones) and lost connection > 30 min ("Mất kết nối với máy của <name>"; LAN: `state.t` old or fetch failing
-  for > 30 min, relay: `seen` old). Skipped when the parent phone itself has no network. Tapping opens the app.
+  for > 30 min, relay: `seen` old). Skipped when the parent phone itself has no network. Tapping opens the page on that kid.
+- **Notification actions** (v0.9.6, no new wire format): a time request gets "+15 / +30 min" (the child's own amount
+  replaces the nearer one) and "Decline". A grant does what the page's request card does: `GET state` (request gone =
+  "already answered"), `PUT rules` with today's `bonus.min` raised, then `answer {id, ok: true, min}`; decline sends only
+  `answer {id, ok: false}`. LAN `no such request` = already answered. SOS gets "Show location" (`geo:` at `state.location`
+  when known, else the page) and a full-screen intent where Android 14 still allows it. Notifications group per kid.
+  Intents carry only sha256(target|id) and the request id, never a token.
 
 ## v0.6: chores, notes, zones, events, rule-change log, templates
 
@@ -273,7 +345,7 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
   "Bố mẹ đã đồng ý / chưa đồng ý" notification ("… Bố mẹ nhắn: <note>").
 - **Zones / events**: the phone checks each new location fix against `zones` (inside = distance <= r; leaving needs
   distance > r + 50 m so a fix at the edge doesn't flap); fixes with accuracy > 300 m are ignored and appends events. State NEW:
-  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing", "text": "Đã đến Nhà"}]`,
+  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing|checkin", "text": "Đã đến Nhà"}]`,
   newest last, at most 50, older than 7 days dropped. `text` is free text for people, in the child app's language
   (English or Vietnamese, from the phone / per-app language; the examples here are the Vietnamese ones). The same goes for
   log lines (`log[].m`) and error strings (`dnsError`, `update.err`, `ts.err`). Code must switch on `kind`, never parse `text`. Kinds:
@@ -380,6 +452,86 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
   event. Each use sends event `unlock` "Con đã mở khoá bằng mã của bố mẹ: N phút" and a log line.
 - **State** `totpOn: bool`, `unlockUntil: ms` (0 = not unlocked). Missing `totpOn` = phone older than 0.9.4.
 
+## v0.9.6: PIN at pairing, on-device parent page, hold-to-confirm
+- **Pairing needs a PIN.** `GET /api/hello` adds `pairPin: true` (this phone takes `newPin`). `POST /api/pair
+  {code, pin?, newPin?}`: with a PIN set, `pin` as before (`newPin` ignored: an old PIN can't be skipped); with no PIN,
+  `newPin` (4–8 digits, the page asks twice and sends it once) is required. Errors (after the code check, so they cost
+  no code tries and no PIN tries): 403 `pin required`, 400 `bad pin`. Reply `{token, id, pinSet: true}`.
+- **Atomic, nothing half-done.** `/pair` stores nothing: the token (and the new PIN) wait in memory for 5 min (max 3).
+  The first authenticated request with that token (the page's first `/state`) stores the token hash, the salted PIN
+  (rules `rev` bumped), `everPaired`, and closes pairing in one `commit()`; other pending tokens die. A page that closes or
+  crashes before that leaves the phone unpaired, the code still valid, no lockout and no wait; a phone restart drops
+  pending tokens too. The page saves the kid before opening it, so a reload commits (or gets 401, forgets it and shows
+  the pairing screen again). No relay change: the relay has no code pairing (relay tokens come from the `relay` command
+  of an already paired page).
+- **Old pages / old phones.** An old page (older parent app bundle) pairing a phone with no PIN gets `pin required`
+  ("Không ghép được"): update the parent app, or pair from the page the phone serves itself (always current). Old pages
+  pairing a phone that has a PIN work as before (they call `/state` right after, which commits). A new page talking to
+  a phone older than 0.9.6 (no `pairPin`) pairs without the PIN fields and then shows the PIN gate below.
+- **Legacy phones** (paired before this, no PIN): every page open shows a "Đặt PIN" screen with no way past it until a
+  rules PUT with `pin` succeeds (LAN or relay; worker unchanged, it already hashes `pin`). The child app shows
+  "Bố mẹ chưa đặt PIN" in its status card and never offers to set the PIN itself (the child holds the phone). The 24 h
+  "Mở ghép lại" stays only for these phones (no PIN); with a PIN, the parent opens pairing or the on-device page with it.
+- **On-device parent page.** Child app "Bố mẹ quản lý trên máy này" (shown when a PIN or an Authenticator secret is set):
+  the parent PIN (same counter and lockout as pairing / "pair another device") or a current Authenticator code (±1 step,
+  once each; wrong ones count on the PIN counter while a PIN is set, else on the Authenticator counter). Every wrong one
+  adds a `tamper` event (pushed like the others). Success logs "Bố mẹ mở trang quản lý trên máy này" and opens
+  `AdminActivity`: a WebView on `http://127.0.0.1:8770/` (the phone's own LAN server and `index.html`).
+  - Session token: 24 random bytes, kept only as a hash in memory, sent as an `HttpOnly; SameSite=Strict` cookie `kgs`
+    (never in a URL, never in JS, never logged). The phone accepts the cookie only as this session, never as a paired
+    token. Ends (revoked server side, cookie and WebView storage wiped) when the screen turns off, the activity leaves the
+    foreground, Back, the page's "Xong", or after 5 min with no touch (page polling does not count).
+  - The page sees `window.KGLocal` (`end()` only): it opens the phone without saving it in `kids`, shows a sticky
+    "Đang quản lý ngay trên máy con" bar, and on 401 shows "Phiên quản lý đã hết". Everything else is the normal page
+    (pair a new device via "Ghép thêm máy bố mẹ", unpair all, rules, PIN, Authenticator…).
+  - WebView: no file / content access, no geolocation, no new windows; navigation only to `http://127.0.0.1:8770`,
+    sub-requests only there and to `tile.openstreetmap.org` (already in the CSP). No FLAG_SECURE.
+- **Hold-to-confirm** (child screen: 5 s "hiện mã ghép", 10 s "Mở ghép lại"): a fill grows over the button and the label
+  counts down ("Giữ tiếp… 3 giây"); an early release animates back and shows "Giữ đủ 5 giây"; a haptic tick at the end.
+  TalkBack: activating the button (its click action is labelled "bắt đầu đếm N giây") runs the same countdown without a
+  hold; activating again cancels. No wire change.
+
+## v0.9.7: wind-down, lock-screen info, block note, check-in, request templates
+Rules, NEW optional fields (bad values fall back to the default):
+```jsonc
+{
+  "windDown": {"gray": false, "min": 30, "nudge": false},   // min: 0 | 15 | 30 | 45 | 60 (else 30)
+  "lockInfo": {"msg": "Máy của Bin", "contact": "Gọi mẹ 09xx"}, // each <= 60 chars, one line (control chars -> space)
+  "blockNote": "Học xong rồi chơi nhé"                         // <= 120 chars, one line; "" = the default text
+}
+```
+- **Wind-down** (owner and basic): with `bedtime.on` and `windDown.gray`, the phone turns on grayscale from
+  `bedtime.start - min` until `bedtime.end` (`WindDown.active`; window may cross midnight). It writes
+  `Settings.Secure accessibility_display_daltonizer_enabled = 1` and `accessibility_display_daltonizer = 0` (needs
+  WRITE_SECURE_SETTINGS, granted by setup; `DPM.setSecureSetting` does not allow these keys). Before the first write it
+  stores the two old values (missing key remembered as missing) and puts exactly those back when the window ends, when
+  `gray` is turned off, and in `release` (before the rest of release; if release fails the loop switches it on again).
+  Every Guard tick re-applies only what differs (the child switching it off in Settings is undone within ~10 s).
+  A missing old switch restores to `0`, a missing old mode to `12` (system default).
+- `windDown.nudge`: one notification "Còn 10 phút nữa là giờ ngủ" 6..10 min before bedtime (channel `warn`, once a day;
+  the 5-minute heads-up still follows). Needs `bedtime.on`, not `gray`.
+- State NEW `"windDown": {"active": bool, "gray": bool, "perm": bool, "err": ""}`: `active` = inside the window with
+  `gray` on, `gray` = our grayscale is on now, `perm` = the app holds WRITE_SECURE_SETTINGS (page: "cần cấp quyền"
+  when `gray` is on and `perm` is false), `err` = `"no permission" | "write failed" | ""`.
+- **Lock-screen info** (owner only): `DPM.setDeviceOwnerLockScreenInfo("msg · contact")` (either may be empty; both
+  empty = cleared). `release` clears it.
+- **Block note**: `setShortSupportMessage` = `blockNote` or the default "Bố mẹ đang tạm khoá ứng dụng này. Con có thể xin
+  thêm giờ trong KidGuard nhé." (Android's "blocked by admin" dialog); `setLongSupportMessage` = a kind default
+  paragraph plus "Bố mẹ nhắn: <note>". Basic mode: the block notification's text is "Bố mẹ nhắn: <note>" (or the
+  default). The KidGuard screen shows "Bố mẹ nhắn: <note>" while any app is blocked. `release` clears both messages.
+- **Check-in** (child buttons "Con tới nơi rồi" / "Đón con với", one tap, no alarm): an event in `events`,
+  `{"id", "t", "kind": "checkin", "ck": "arrived" | "pickup", "text", "loc"?: {"lat", "lng", "acc", "t"}}`.
+  `loc` = the last fix if younger than 10 min; the phone also takes a fresh fix and attaches it (to check-ins of the
+  last 2 min that have none or an older one). Same transport as SOS: relay sync now and 15 s later; relay push as a
+  normal `ev` (`ek: "checkin"`). Same button again within 60 s = ignored (child sees "Vừa gửi rồi"). No ack command:
+  the page hides its banner after "Đã xem" (browser-local) or 3 h. Parent app: notification key `ci:<id>` on
+  `kg_events` (normal importance) with "Xem vị trí" (`geo:` at `loc`, else `state.location`, else the page).
+- **Request templates**: the child's "Xin thêm giờ" dialog has one-tap buttons "+15 phút làm bài" (15), "+30 phút chơi"
+  (30), "Cần app học" (15) that send at once. The request adds `"tpl": "homework" | "play" | "study"` and `note` =
+  the label (+ ": " + typed text). Request shape: `{"id","t","min","note"?, "chore"?, "tpl"?}`.
+- **Canned replies (page only)**: chips under "Lời nhắn cho con" fill the existing `answer.note`. No wire change.
+- No new commands (worker whitelist unchanged).
+
 ## v0.9.3 fixes
 - Relay rules carry `pinAt` (the rev of the PUT that set the PIN; kept by later PUTs). The phone takes a relay `pinHash`
   only when `pinAt` is newer than the last one it took, so a PIN changed later on LAN / on the phone is not reverted.
@@ -411,3 +563,82 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
 - **Release assets**: `kidguard.apk`, `kidguard-parent.apk` + their `.sha256` (fixed names: QR provisioning, setup
   scripts and the child updater use `kidguard.apk`/`kidguard.apk.sha256`; never rename them) and versioned copies
   `kidguard-<v>.apk`, `kidguard-parent-<v>.apk` for people downloading by hand (site/README link these).
+
+## Device health, the "Máy" tab (after 0.9.5)
+- State adds `"sdk": 34` (Build.VERSION.SDK_INT) next to `android`.
+- On demand only, never in the state poll. Built by `DeviceInfo.kt` (pure part `DeviceLogic.kt`), cached 60 s on the phone.
+- LAN: `GET /api/device` (token as usual) -> snapshot; `?fresh=1` accepts one at most 5 s old (the page's Refresh).
+- Relay: parent `POST /c/<id>/device {}` asks and gets `{"device": <last stored snapshot + "at": worker ms> | null,
+  "asked": <worker ms>, "seen": ms}`; `GET` only reads (does not ask). While asked (< 2 min, memory only) the sync reply
+  has `"device": true`; the phone then `PUT /c/<id>/device` with a snapshot at most 5 s old (413 over 32 KB, 400 not an
+  object), which clears the ask. The page shows the stored one at once and polls `GET` every 4 s (max 2 min) until
+  `device.at >= asked`. Not a command: nothing in the queue or the whitelist.
+```jsonc
+{
+  "t": 1793940898493, "sdk": 27, "android": "8.1.0", "model": "OPPO CPH1803", "version": "0.9.6", "uptimeMs": 123456789,
+  "storage": {"total": 32000000000, "free": 3200000000,        // bytes, StorageStatsManager (matches Settings), StatFs fallback
+              "apps": [{"pkg": "…", "label": "…", "app": 0, "data": 0, "cache": 0}]},   // top 15 by app+data+cache, all
+                                                               // installed packages; null without usage access
+  "ram": {"total": 0, "avail": 0, "threshold": 0, "low": false, // ActivityManager.MemoryInfo
+          "perApp": false, "otherProcs": 0, "procStat": false}, // probes: other apps' processes visible / /proc/stat readable
+  "battery": {"pct": 81, "charging": true, "plug": "ac|usb|wireless|dock|none", "tempC": 34.5,
+              "health": "good|overheat|dead|overVoltage|failure|cold|unknown", "voltageMv": 4100,
+              "screenOnMs": 3600000},                           // API 28+ (SCREEN_INTERACTIVE events), else null
+  "net": {"type": "wifi|cell|ethernet|vpn|other|none", "rssi": -60, "bars": 3, "metered": false},   // rssi/bars Wi-Fi only
+  "clearData": true                                             // Device Owner on API 28+: the clearData command works
+}
+```
+- Not readable, so not shown: per-app RAM / CPU % (since Android 7/8 `getRunningAppProcesses` lists only our own
+  process and `/proc` of other apps and `/proc/stat` are blocked by SELinux; the snapshot reports the probes), per-app
+  battery use (BatteryStats is a system permission), clearing other apps' cache (`DELETE_CACHE_FILES` /
+  `CLEAR_APP_CACHE` are `signature|privileged`, a Device Owner can't get them). The page explains each instead.
+- Manifest adds `ACCESS_WIFI_STATE` (normal) for the RSSI on API 26-28 (API 29+ reads NetworkCapabilities).
+
+## Shared files (v0.9.8): a shared folder, never a phone browser
+
+**Rule: the parent sees and gets only what was sent through KidGuard** (parent -> kid files and the kid's outbox).
+No route lists, reads or deletes anything else on the phone (privacy, and scoped storage on API 30+ forbids it anyway).
+Code: `Files.kt` (Android), `FilesLogic.kt` (pure: names, caps, listing JSON; `FilesLogicTest`), `ShareInActivity.kt`.
+- Entry (`GET /api/files` items and state `files`, newest first; state carries the newest 30):
+  `{"id": "<16 hex>", "dir": "in|out", "name": "…", "size": bytes, "at": ms, "st": "…"}`.
+  `in` = parent -> kid, `st` `delivered` (saved on the phone) -> `opened` (the kid tapped the notification) or `gone`
+  (deleted on the phone, seen at download time). `out` = kid -> parent, `st` `new` -> `fetched` (a full download).
+  Phone paths / URIs never leave the phone.
+- Names: rejected (400 `bad name`) with any `/` `\`, control char, `.` / `..` or blank; else `<>:"|?*` -> `_`, leading
+  dots dropped, spaces collapsed, cut to 120 chars keeping the extension; a clash becomes `a (1).pdf`.
+- Caps: LAN 200 MB a file (413 `too big`, checked from Content-Length before reading), relay 10 MB; 507 `no space`
+  when the phone would keep < 50 MB free; index 100 entries, outbox 50 files (oldest dropped).
+- parent -> kid lands in the public `Download/KidGuard/` (MediaStore.Downloads on API 29+; on 26-28 the file API
+  with `WRITE_EXTERNAL_STORAGE`, `maxSdkVersion` 28, granted by the Device Owner in `Policy.apply`; basic mode without
+  that grant falls back to the app's own external `Download/KidGuard`). The kid gets "Bố mẹ gửi: <name>"; the tap goes
+  through `ShareInActivity` (marks `opened`) to `ACTION_VIEW` on `content://dev.kidguard.files/<id>` (`FilesProvider`,
+  read-only, not exported, per-intent grant).
+- kid -> parent: `ShareInActivity` is a share target ("Gửi cho bố mẹ", `ACTION_SEND` / `SEND_MULTIPLE`, `*/*`, plain
+  text becomes a `.txt`) and the sheet row "Gửi file cho bố mẹ" (system picker). Each stream is copied into
+  `filesDir/outbox/<id>` before the activity finishes: no URI permission is kept.
+
+### LAN (token `X-KG-Token`, `?k=`, or the on-device admin cookie; same check as every `/api` route)
+- `GET /api/files` -> `{"files": [entry…], "maxLan": 209715200, "maxRelay": 10485760}`.
+- `PUT /api/files/<url-encoded name>` (body = the file, Content-Length required, streamed to storage by `Http.kt`, never
+  buffered) -> `{"file": entry}`; errors `{"error": "bad name|too big|length required|incomplete|no space|failed"}`.
+- `GET /api/files/<id>` -> the bytes, always `application/octet-stream` + `Content-Disposition: attachment` (a kid's
+  `.html` must not render on the phone's origin). `DELETE /api/files/<id>` -> `{"result": "ok"}` (an `in` file is
+  removed from Download too). Both 404 for an unknown id; ids are 16 hex, names are never used to address a file.
+
+### Relay (worker `/c/<id>/file`, Durable Object storage, free plan OK)
+- Chunks of 1 MiB (`FILE_CHUNK`), at most 10 MB a file, 8 files / 32 MB per kid, 1 h TTL (dropped on any file call or
+  sync), deleted by the receiver right after it has the file. Parent and phone share the token.
+- `POST ?fid=<16 hex>&i=<chunk>&n=<chunks>&to=kid|parent&size=<bytes>&name=<enc>` body = chunk -> `{ok, done}`
+  (400 wrong chunk length / bad file, 413 > 10 MB, 507 `relay full`). `GET ?to=kid|parent` ->
+  `{"files": [{fid, name, size, n, at, done}], "max", "chunk"}`. `GET ?fid&i` -> chunk bytes. `DELETE ?fid`.
+- parent -> kid: the page uploads with a fresh `fid`; the sync reply then has `"files": N` (complete files for the kid);
+  the phone fetches them (`Files.pull`, own thread), saves each like a LAN upload with id = `fid`, deletes it from the
+  relay. The page shows "delivered" once state `files` has that id.
+- kid -> parent: command `fileUp {file: <id>}` (outbox files <= 10 MB, else `too big`) makes the phone upload it with
+  `fid = id, to = parent`; the page polls `GET ?to=parent` until `done`, downloads the chunks, then `DELETE`s it.
+  `fileDel {file: <id>}` = the LAN `DELETE` (deliver-once). Both are in the worker whitelist.
+- The parent app's WebView has no file chooser / blob download: the page tells the parent to use a browser there.
+
+### Release
+`release` deletes the outbox and the index; files the kid received stay in `Download/KidGuard` (they are the kid's).
+The `WRITE_EXTERNAL_STORAGE` grant (API 26-28) goes back to default with the other grants.

@@ -231,4 +231,15 @@ class LogicTest {
         assertNull(Logic.pushCheckKid(kids, mapOf("kind" to "sos", "kid" to "0123456789abcdef")))
         assertNull(Logic.pushEvent(kids, mapOf("kind" to "ev", "kid" to "0123456789abcdef", "eid" to "e:abc"), { Logic.NotifyState() }, tr = TestTr.VI))   // not a notification by itself
     }
+
+    @Test fun checkinEventGetsOwnKeyAndLocation() {
+        val now = 10_000_000L
+        val fix = Logic.Loc(21.0, 105.0, now - 1000)
+        val evs = listOf(Logic.Ev("c1", "Con báo: đã tới nơi", now - 5000, "checkin", fix), Logic.Ev("z1", "Đã đến Nhà", now - 5000, "zoneIn"))
+        val o = Logic.evaluate("An", Logic.Seen(true, emptyList(), now, events = evs), Logic.NotifyState(init = true, evInit = true), now, tr = TestTr.VI)
+        val ci = o.events.single { it.key == "ci:c1" }
+        assertEquals("An: Con báo: đã tới nơi", ci.text); assertEquals(fix, ci.loc)
+        assertTrue(o.events.any { it.key == "ev:z1" && it.loc == null })
+        assertTrue("e:c1" in o.state.seenIds)
+    }
 }

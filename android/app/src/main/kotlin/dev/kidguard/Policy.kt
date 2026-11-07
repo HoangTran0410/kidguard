@@ -61,15 +61,26 @@ object Policy {
             restrict(d, a, UserManager.DISALLOW_APPS_CONTROL, true)
             @Suppress("DEPRECATION") runCatching { d.setAutoTimeRequired(a, true) }
         }
-        runCatching { d.setShortSupportMessage(a, ctx.getString(R.string.policy_support)) }
+        applyNotes(ctx, d, a, r)
         applyNet(ctx, d, a, r)
         val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
         if (Build.VERSION.SDK_INT >= 29) perms += Manifest.permission.ACCESS_BACKGROUND_LOCATION
         if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
+        if (Build.VERSION.SDK_INT < 29) perms += Manifest.permission.WRITE_EXTERNAL_STORAGE   // parent's files -> Download/KidGuard (Files.kt); 29+ uses MediaStore
         perms += Manifest.permission.RECORD_AUDIO   // "listen around"; the child is always told when it is used (Listen.kt)
         for (p in perms) runCatching {
             d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
         }.onFailure { Log.w(TAG, "grant $p", it) }
+    }
+
+    /** v0.9.7: friendly support messages (+ the parent's note) and the lock-screen owner info ("" clears it). */
+    private fun applyNotes(ctx: Context, d: DevicePolicyManager, a: ComponentName, r: Rules) {
+        val note = Notes.clean(r.blockNote, Notes.NOTE_MAX)
+        runCatching { d.setShortSupportMessage(a, Notes.short(note, ctx.getString(R.string.policy_support))) }.onFailure { Log.w(TAG, "short support", it) }
+        runCatching { d.setLongSupportMessage(a, Notes.long(ctx.getString(R.string.policy_support_long), note.takeIf { it.isNotEmpty() }?.let { ctx.getString(R.string.policy_note, it) })) }
+            .onFailure { Log.w(TAG, "long support", it) }
+        val info = Notes.lockText(r.lockMsg, r.lockContact)
+        runCatching { d.setDeviceOwnerLockScreenInfo(a, info.ifEmpty { null }) }.onFailure { Log.w(TAG, "lock screen info", it) }
     }
 
     private fun restrict(d: DevicePolicyManager, a: ComponentName, key: String, on: Boolean) = runCatching {
@@ -361,11 +372,13 @@ object Policy {
         if (Build.VERSION.SDK_INT >= 30) runCatching { d.setUserControlDisabledPackages(a, emptyList()) }
         else @Suppress("DEPRECATION") runCatching { d.setAutoTimeRequired(a, false) }
         runCatching { d.setShortSupportMessage(a, null) }
+        runCatching { d.setLongSupportMessage(a, null) }
+        runCatching { d.setDeviceOwnerLockScreenInfo(a, null) }
         removeAccEntry(ctx)
         // the mic was granted by us, not by the child: take it back and hand the switch to the user
         // the other grants (location, notifications) stay granted but the user can change them again
         for (p in listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, "android.permission.ACCESS_BACKGROUND_LOCATION",
-            "android.permission.POST_NOTIFICATIONS")) runCatching { d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT) }
+            "android.permission.POST_NOTIFICATIONS", Manifest.permission.WRITE_EXTERNAL_STORAGE)) runCatching { d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT) }
         runCatching {
             d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED)
             d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT)
@@ -374,7 +387,7 @@ object Policy {
         Watchdog.cancel(ctx)
         @Suppress("DEPRECATION") runCatching { d.clearDeviceOwnerApp(ctx.packageName) }
         s.suspendedByUs = emptySet(); s.hiddenByUs = emptySet()
-        if (!isOwner(ctx)) { s.clearTokens(); return "ok" }
+        if (!isOwner(ctx)) { s.clearTokens(); Quick.setEnabled(ctx, false); return "ok" }
         // still Device Owner: put the protection back (the loop re-suspends apps) and keep the parents' tokens
         s.released = false
         runCatching { apply(ctx, s.rules) }.onFailure { Log.w(TAG, "re-apply after failed release", it) }
@@ -400,6 +413,7 @@ object Policy {
         removeAccEntry(ctx)
         runCatching { Acc.running?.disableSelf() }
         s.clearTokens()
+        Quick.setEnabled(ctx, false)   // lock tile / widget / shortcuts: nothing left to lock with
         return "ok"
     }
 

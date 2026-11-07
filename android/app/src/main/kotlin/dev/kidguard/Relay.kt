@@ -115,8 +115,10 @@ class Relay(private val g: Guard) {
                 if (cmd.optString("type") != "relay") runCatching { g.command(cmd) }.onFailure { Log.w("KidGuard", "cmd", it) }
                 acks.put(cmd.optString("id"))
             }
+            if (res.optInt("files") > 0) Files.pull(g)   // parent -> kid files waiting on the relay (own thread)
             lastOk = System.currentTimeMillis(); lastError = ""
             if (res.optBoolean("live")) startLive(base, rid, token)
+            if (res.optBoolean("device")) runCatching { DeviceInfo.upload(g, base, rid, token) }.onFailure { Log.w("KidGuard", "device", it) }
             return acks.length() > 0 || res.has("rules")
         } finally { c.disconnect() }
     }
@@ -193,7 +195,7 @@ class Relay(private val g: Guard) {
                 gap = 1_000
             }
             if (!live) return
-            val wait = maxOf(gap, if (gap == 150L) 0 else 333 - (System.currentTimeMillis() - t0))
+            val wait = maxOf(gap, if (gap == 150L) 0 else Acc.frameGapMs() - (System.currentTimeMillis() - t0))
             if (wait > 0) Thread.sleep(wait)
         }
     }
