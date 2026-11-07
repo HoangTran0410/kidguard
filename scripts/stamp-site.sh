@@ -1,8 +1,17 @@
 #!/bin/bash
-# Cache-bust the site stylesheet: /css/* is cached for a day (+7 days stale), so a page that links new classes
-# must link a new URL. Run after editing site/css (scripts/build.sh calls it too).
+# Cache-bust the site's stylesheet and images: /css/* and /img/* are cached for a day (+7 days stale), so a changed
+# file must be linked under a new URL. Appends ?v=<first 10 hex of sha256> to every css/site.css and img/<file> reference
+# in both pages (relative, ../ and absolute og:image / JSON-LD URLs alike). Idempotent: an old ?v= is replaced.
+# Run after editing site/css or site/img (scripts/build.sh calls it too).
 set -e
 cd "$(dirname "$0")/.."
+PAGES="site/index.html site/en/index.html"
 H=$(shasum -a 256 site/css/site.css | cut -c1-10)
-perl -pi -e 's#(href="(?:\.\./)?css/site\.css)(?:\?v=[0-9a-f]+)?"#$1?v='"$H"'"#g' site/index.html site/en/index.html
+perl -pi -e 's#(href="(?:\.\./)?css/site\.css)(?:\?v=[0-9a-f]+)?"#$1?v='"$H"'"#g' $PAGES
 echo "site.css?v=$H"
+for f in site/img/*; do
+  [ -f "$f" ] || continue
+  n=$(basename "$f"); h=$(shasum -a 256 "$f" | cut -c1-10)
+  N="$n" H="$h" perl -pi -e 's#(img/\Q$ENV{N}\E)(?:\?v=[0-9a-f]+)?(?=")#$1?v=$ENV{H}#g' $PAGES
+  echo "img/$n?v=$h"
+done
