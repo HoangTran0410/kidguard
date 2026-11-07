@@ -282,6 +282,9 @@ button.li:hover{background:color-mix(in srgb,var(--bg) 60%,transparent)}
 .rtop{display:flex;gap:10px;align-items:center;margin-bottom:12px}.rtop .seg{flex:1;margin:0}
 .req{border-color:color-mix(in srgb,var(--warn) 45%,var(--stroke))}
 .req .row button{flex:1}
+.zrow{display:flex;align-items:center;gap:10px}.zrow .x{flex:1;min-width:0;display:flex;flex-direction:column}.zrow .x b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.zrow .mute{font-size:13px}.zrow [data-zdel]{min-width:44px;padding:0}
+.zp .map{margin-top:10px;cursor:grab}.zp .map.drag{cursor:grabbing}.zp .zpin{position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);color:#dc2626;width:38px;height:38px;display:block;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}.zp .zpin svg{width:38px;height:38px;display:block;fill:#fff;stroke-width:2.2}.zp #zpN{width:100%}
+.zpr{width:100%}.zpr input{flex:1}.zpc summary{cursor:pointer;color:var(--accent);margin-top:12px;font-weight:600}
 /* --- interaction feedback: every clickable thing reacts on hover, press and keyboard focus --- */
 :root{--hov:color-mix(in srgb,var(--accent) 9%,var(--card));--hovb:color-mix(in srgb,var(--accent) 45%,var(--stroke))}
 button,a.btn,a.lnkbtn,.li,.nav,.kidn,.tile b,.chip,select{transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s,transform .12s,filter .15s}
@@ -647,7 +650,8 @@ vi: {
   "zone.here": "Dùng vị trí hiện tại của con", "zone.none": "Chưa có vùng nào. Ví dụ: Nhà, Trường (bán kính 50–2000 m).", "zone.add": "Thêm vùng",
   "zone.noLoc": "Chưa có vị trí của con, chưa thêm vùng được (chờ máy con báo vị trí).", "zone.noLocShort": "Chưa có vị trí của con, chưa thêm vùng được",
   "zone.tip": "Máy con đến / rời vùng thì bạn nhận thông báo (mục Sự kiện, tab Hôm nay). Con thấy danh sách vùng trong \"Luật của con\". Vùng hiện trên bản đồ ở tab Vị trí.",
-  "zone.badCoord": "Toạ độ không hợp lệ", "zone.askDel": "Xoá vùng “{0}”?", "zone.newName": "Vùng mới",
+  "zone.badCoord": "Toạ độ không hợp lệ", "zone.edit": "Sửa vùng", "zone.editB": "Sửa", "zone.save": "Lưu vùng", "zone.kid": "Về chỗ con đang ở", "zone.coord": "Nhập toạ độ (tuỳ chọn)", "zone.go": "Đến", "zone.noName": "Đặt tên cho vùng trước đã",
+  "zone.drag": "Kéo bản đồ hoặc chạm vào nơi cần chọn. Ghim đỏ ở giữa là tâm vùng.", "zone.far": "Chưa có vị trí của con: kéo, phóng to bản đồ tới nơi cần đặt vùng.", "zone.askDel": "Xoá vùng “{0}”?", "zone.newName": "Vùng mới",
   "trk.h": "Ghi vị trí mỗi …", "trk.tip": "Dùng để vẽ lịch sử di chuyển trong tab Vị trí. Ghi thường xuyên hơn thì tốn pin hơn.",
   "hm.h": "Màn hình chính của bé", "sd.home": "KidGuard thay màn hình chính: chỉ hiện app con được dùng", "hm.on": "Bật màn hình chính KidGuard", "hm.style": "Kiểu ban đầu", "hm.sAuto": "Mặc định (Thiếu niên)", "hm.sBe": "Bé (6–10 tuổi)", "hm.sTeen": "Thiếu niên", "hm.sGon": "Gọn", "hm.settings": "Hiện app Cài đặt", "hm.notes": "Hiện lời nhắn của bố mẹ khi app tạm nghỉ", "hm.tip": "App bị chặn và app mới chưa duyệt không hiện; app hết giờ bị làm mờ, con chạm vào thì thấy lý do và nút Xin thêm giờ. Gọi điện luôn ở ô đầu thanh dưới (giữ để gọi 112–115). Tắt là màn hình cũ của máy quay lại. Kiểu chỉ áp dụng lần đầu; con tự đổi sau.", "hm.owner": "màn hình chính của bé", "hm.stOn": "Đang chạy trên máy con", "hm.stWait": "Chờ máy con áp dụng…", "hm.stCrash": "Đã tự tắt 24 giờ vì lỗi liên tục", "hm.stHome": "Nút Home đang mở màn hình khác", "hm.stNoOwner": "Cần Device Owner", "hm.stOld": "Máy con cần bản KidGuard mới hơn",
   "more.h": "Chặn thêm", "more.new": "Chặn app mới cài cho tới khi duyệt", "more.loc": "Khoá vị trí: không cho tắt định vị", "more.air": "Chế độ máy bay: không cho bật",
@@ -996,7 +1000,8 @@ en: {
   "zone.here": "Use your kid's current location", "zone.none": "No places yet. For example: Home, School (radius 50–2000 m).", "zone.add": "Add place",
   "zone.noLoc": "No location from your kid yet, so places can't be added (waiting for the kid's phone).", "zone.noLocShort": "No location from your kid yet, so places can't be added",
   "zone.tip": "You get a notice when the kid's phone arrives at or leaves a place (Events, Today tab). Your kid sees the list in \"My rules\". Places show on the map in the Location tab.",
-  "zone.badCoord": "Invalid coordinates", "zone.askDel": "Delete the place “{0}”?", "zone.newName": "New place",
+  "zone.badCoord": "Invalid coordinates", "zone.edit": "Edit place", "zone.editB": "Edit", "zone.save": "Save place", "zone.kid": "Go to my kid", "zone.coord": "Enter coordinates (optional)", "zone.go": "Go", "zone.noName": "Give the place a name first",
+  "zone.drag": "Drag the map or tap a spot. The red pin in the middle is the centre.", "zone.far": "No location from your kid yet: drag and zoom the map to the place.", "zone.askDel": "Delete the place “{0}”?", "zone.newName": "New place",
   "trk.h": "Record location every …", "trk.tip": "Used to draw the movement history in the Location tab. Recording more often uses more battery.",
   "hm.h": "Kid home screen", "sd.home": "KidGuard replaces the home screen: only apps your kid may use show up", "hm.on": "Turn on the KidGuard home screen", "hm.style": "Starting style", "hm.sAuto": "Default (Teen)", "hm.sBe": "Kid (6–10)", "hm.sTeen": "Teen", "hm.sGon": "Compact", "hm.settings": "Show the Settings app", "hm.notes": "Show your note when an app is paused", "hm.tip": "Blocked apps and new apps waiting for approval don't show; apps out of time are greyed, and tapping one shows why plus a More time button. Phone is always the first dock slot (hold it for 112–115). Turning it off brings the phone's own home screen back. The style only applies the first time; your kid can change it later.", "hm.owner": "the kid home screen", "hm.stOn": "Running on the kid's phone", "hm.stWait": "Waiting for the kid's phone…", "hm.stCrash": "Turned itself off for 24 h after repeated crashes", "hm.stHome": "Home opens another app", "hm.stNoOwner": "Needs Device Owner", "hm.stOld": "The kid's phone needs a newer KidGuard",
   "more.h": "More blocking", "more.new": "Block newly installed apps until approved", "more.loc": "Lock location: can't turn off location", "more.air": "Airplane mode: can't turn on",
@@ -3004,10 +3009,8 @@ function ruleSecs(r) {
       <div class="chips" style="margin:8px 0">${t("wd").map((n, d) => `<button data-day="${d + 1}" class="${(x.days || []).includes(d + 1) ? "on" : ""}" aria-pressed="${(x.days || []).includes(d + 1)}">${n}</button>`).join("")}</div>
       <div class="row"><span class="row tm">${t("from")} <input type="time" id="f-ss${i}" data-f="start" aria-label="${esc(t("start"))}" value="${esc(x.start)}"> ${t("to")} <input type="time" id="f-se${i}" data-f="end" aria-label="${esc(t("end"))}" value="${esc(x.end)}"></span><span class="sp"></span><button class="bad" data-del="${i}">${ic("trash-2")} ${t("delete")}</button></div><div data-sw>${timeWarn(x, x.on, true)}</div></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("sch.none")}</p>`}
     <button id="addSch">${ic("plus")} ${t("sch.add")}</button>`),
-    zone: sec("r-zone", "map-pin", t("zone.h"), t("sd.zone"), C.zone, `    ${r.zones.map((z, i) => `<div class="sch" data-z="${i}"><div class="row"><input class="sp" id="f-zn${i}" maxlength="40" placeholder="${esc(t("zone.namePh"))}" aria-label="${esc(t("zone.name"))}" value="${esc(z.name)}"><label class="row">${t("zone.r")} <input type="number" id="f-zr${i}" min="50" max="2000" step="50" inputmode="numeric" style="width:6em" value="${+z.r || 150}"> m</label></div>
-      <div class="row" style="margin-top:8px"><input id="f-zla${i}" inputmode="decimal" placeholder="${esc(t("lat"))}" aria-label="${esc(t("lat"))}" style="width:8.5em" value="${zoneOk(z) ? +z.lat : ""}"><input id="f-zlo${i}" inputmode="decimal" placeholder="${esc(t("lng"))}" aria-label="${esc(t("lng"))}" style="width:8.5em" value="${zoneOk(z) ? +z.lng : ""}"></div>
-      <div class="row" style="margin-top:8px"><button data-zhere="${i}" class="sp" ${st.location ? "" : "disabled"}>${ic("map-pin")} ${t("zone.here")}</button><button class="bad" data-zdel="${i}">${ic("trash-2")} ${t("delete")}</button></div></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("zone.none")}</p>`}
-    <button id="addZone" ${r.zones.length >= 10 || !st.location ? "disabled" : ""}>${ic("plus")} ${t("zone.add")}</button>${st.location ? "" : `<p class="mute">${ic("triangle-alert")} ${t("zone.noLoc")}</p>`}
+    zone: sec("r-zone", "map-pin", t("zone.h"), t("sd.zone"), C.zone, `    ${r.zones.map((z, i) => `<div class="sch zrow" data-z="${i}"><span class="ib">${ic("map-pin")}</span><span class="x"><b>${esc(z.name || t("zone.newName"))}</b><span class="mute">${t("zone.r")} ${+z.r || 150} m${zoneOk(z) ? "" : " · " + t("zone.badCoord")}</span></span><button data-zedit="${i}">${ic("map")} ${t("zone.editB")}</button><button class="bad" data-zdel="${i}" aria-label="${esc(t("delete"))}">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("zone.none")}</p>`}
+    <button id="addZone" ${r.zones.length >= 10 ? "disabled" : ""}>${ic("plus")} ${t("zone.add")}</button>
     <p class="mute">${ic("lightbulb")} ${t("zone.tip")}</p>`),
     trk: sec("r-trk", "route", t("trk.h"), t("sd.trk"), C.trk, `    <select id="f-tm" aria-label="${esc(t("trk.h"))}">${[0, 5, 10, 15, 30, 60].map(v => `<option value="${v}" ${r.trackMin === v ? "selected" : ""}>${v ? fmt(v * 60000) : t("off")}</option>`).join("")}${[0, 5, 10, 15, 30, 60].includes(r.trackMin) ? "" : `<option selected value="${r.trackMin}">${fmt(r.trackMin * 60000)}</option>`}</select>
     <p class="mute">${ic("map")} ${t("trk.tip")}</p>`),
@@ -3105,25 +3108,14 @@ function rulesWire(b, r) {
     const n = $("#f-cn" + (r.chores.length - 1)); if (n) { n.focus(); n.select(); }
   };
   b.querySelectorAll("[data-z]").forEach(box => {
-    const z = r.zones[+box.dataset.z], i = +box.dataset.z;
-    $("#f-zn" + i).oninput = e => { z.name = e.target.value.slice(0, 40); changed(); };
-    $("#f-zr" + i).onchange = e => { z.r = clampN(e.target.value, 50, 2000, 150); e.target.value = z.r; changed(); };
-    const coord = (id, key, lim) => { $(id + i).onchange = e => {
-      const v = parseFloat(String(e.target.value).replace(",", "."));
-      if (!(Math.abs(v) <= lim)) { toast("warn|" + t("zone.badCoord")); e.target.value = zoneOk(z) ? +z[key] : ""; return; }
-      z[key] = v; changed();
-    }; };
-    coord("#f-zla", "lat", 90); coord("#f-zlo", "lng", 180);
-    box.querySelector("[data-zhere]").onclick = () => { const l = st.location; if (!l) return; z.lat = +l.lat; z.lng = +l.lng; changed(); render(); };
+    const i = +box.dataset.z, z = r.zones[i];
+    box.querySelector("[data-zedit]").onclick = async () => { const v = await pickPlace(z); if (!v) return; Object.assign(z, v); changed(); render(); };
     box.querySelector("[data-zdel]").onclick = async () => { if (!(await ask(t("zone.askDel", z.name), t("delete"), true))) return; r.zones.splice(i, 1); changed(); render(); };
   });
-  $("#addZone").onclick = () => {
-    const l = st.location;
+  $("#addZone").onclick = async () => {
     if (r.zones.length >= 10) return;
-    if (!l) return toast("warn|" + t("zone.noLocShort"));   // a zone without coordinates is dropped on save
-    const z = { id: newId("z"), name: t("zone.newName"), lat: +l.lat, lng: +l.lng, r: 150 };
-    r.zones.push(z); changed();
-    render(); const n = $("#f-zn" + (r.zones.length - 1)); if (n) { n.focus(); n.select(); }
+    const v = await pickPlace({ name: "", r: 150 }); if (!v) return;
+    r.zones.push({ id: newId("z"), ...v }); changed(); render();
   };
   $("#f-dmode").onchange = e => { r.dailyByDay = e.target.value === "by" ? Array(7).fill(r.dailyMin || 0) : []; changed(); document.activeElement.blur(); render(); };
   if ($("#f-daily")) $("#f-daily").onchange = e => { r.dailyMin = +e.target.value; changed(); };
@@ -3337,6 +3329,74 @@ function drawMap(pts) {
   $("#mzi").onclick = () => { mv.z = Math.min(18, mv.z + 1); drawMap(pts); };
   $("#mzo").onclick = () => { mv.z = Math.max(2, mv.z - 1); drawMap(pts); };
   box.querySelectorAll("circle[data-i]").forEach(c => c.onclick = () => { if (box._moved) return; const p = pts[+c.dataset.i]; $("#mapInfo").textContent = `${hhmm(p[0])} · ${t("acc", "±" + Math.round(p[3] || 0))}`; });
+}
+// Place picker (Google Maps / Life360 "add place"): the map moves under a fixed centre pin; tap a spot to jump there.
+// Coordinates are an optional fold-out. Resolves {name, lat, lng, r} or false.
+const unwy = fy => Math.atan(Math.sinh(Math.PI * (1 - 2 * fy))) * 180 / Math.PI;
+function pickPlace(z0) {
+  const l = st && st.location, has = zoneOk(z0), c = has ? [+z0.lat, +z0.lng] : l ? [+l.lat, +l.lng] : [16, 106];
+  const v = { z: has || l ? 16 : 5, fx: wx(c[1]), fy: wy(c[0]) };
+  let rad = +z0.r || 150;
+  const at = () => ({ lat: +unwy(v.fy).toFixed(6), lng: +(v.fx * 360 - 180).toFixed(6) });
+  const others = ((edit || st.rules || {}).zones || []).filter(x => x !== z0 && zoneOk(x));
+  return sheet(`<div class="dp zp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("map-pin", t(has ? "zone.edit" : "zone.add"))}
+    <input id="zpN" maxlength="40" placeholder="${esc(t("zone.namePh"))}" aria-label="${esc(t("zone.name"))}" value="${esc(z0.name || "")}">
+    <div class="map" id="zpM"><div class="layer" id="zpL"></div><span class="zpin" aria-hidden="true">${ic("map-pin")}</span>
+      <div class="mz"><button type="button" id="zpI" aria-label="${esc(t("zoomIn"))}">${ic("plus")}</button><button type="button" id="zpO" aria-label="${esc(t("zoomOut"))}">${ic("minus")}</button></div>
+      <div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div>
+    <p class="mute" style="margin:6px 0 10px">${ic("pointer")} ${t(has || l ? "zone.drag" : "zone.far")}</p>
+    <label class="row zpr">${t("zone.r")} <input type="range" id="zpR" min="50" max="2000" step="50" value="${rad}"> <b id="zpRv">${rad} m</b></label>
+    ${l ? `<button type="button" id="zpK" style="width:100%;margin-top:8px">${ic("user")} ${t("zone.kid")}</button>` : ""}
+    <details class="zpc"><summary>${t("zone.coord")}</summary><div class="row" style="margin-top:8px"><input id="zpLa" inputmode="decimal" placeholder="${esc(t("lat"))}" aria-label="${esc(t("lat"))}" style="width:8.5em"><input id="zpLo" inputmode="decimal" placeholder="${esc(t("lng"))}" aria-label="${esc(t("lng"))}" style="width:8.5em"><button type="button" id="zpG">${t("zone.go")}</button></div></details>
+    <div class="row" style="margin-top:14px"><button type="button" class="sp" id="zpX">${t("cancel")}</button><button type="button" class="pri sp" id="zpS">${ic("check")} ${t("zone.save")}</button></div></div>`, (pop, done) => {
+    const box = pop.querySelector("#zpM"), lay = pop.querySelector("#zpL"), H = 260;
+    const fill = () => { const p = at(); pop.querySelector("#zpLa").value = p.lat; pop.querySelector("#zpLo").value = p.lng; };
+    const draw = () => {
+      const w = box.clientWidth || 340, S = 256 * 2 ** v.z, n = 2 ** v.z, left = v.fx * S - w / 2, top = v.fy * S - H / 2;
+      let tiles = "";
+      for (let ty = Math.floor(top / 256); ty <= Math.floor((top + H) / 256); ty++) for (let tx = Math.floor(left / 256); tx <= Math.floor((left + w) / 256); tx++)
+        if (ty >= 0 && ty < n) tiles += tileImg(v.z, ((tx % n) + n) % n, ty, Math.round(tx * 256 - left), Math.round(ty * 256 - top));
+      const mpp = lat => 156543.03392 * Math.cos(lat * Math.PI / 180) / n;
+      const ring = (lat, lng, r, me) => { const cx = wx(lng) * S - left, cy = wy(lat) * S - top;
+        return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${Math.max(4, r / mpp(lat)).toFixed(1)}" fill="${me ? "#dc2626" : "#16a34a"}" fill-opacity="${me ? ".16" : ".1"}" stroke="${me ? "#dc2626" : "#16a34a"}" stroke-width="2" ${me ? "" : 'stroke-dasharray="5 4"'}/>`; };
+      const kid = l ? (() => { const cx = wx(+l.lng) * S - left, cy = wy(+l.lat) * S - top; return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="7" fill="#2563eb" stroke="#fff" stroke-width="2.5"/>`; })() : "";
+      const p = at();
+      lay.style.transform = "";
+      lay.innerHTML = tiles + `<svg width="${w}" height="${H}" style="left:0;top:0;pointer-events:none">${others.map(x => ring(+x.lat, +x.lng, +x.r || 150)).join("")}${ring(p.lat, p.lng, rad, 1)}${kid}</svg>`;
+    };
+    const zoom = d => { v.z = Math.max(3, Math.min(18, v.z + d)); draw(); };
+    pop.querySelector("#zpI").onclick = () => zoom(1); pop.querySelector("#zpO").onclick = () => zoom(-1);
+    box.addEventListener("wheel", e => { e.preventDefault(); zoom(e.deltaY < 0 ? 1 : -1); }, { passive: false });
+    let d = null, moved = false;
+    box.onpointerdown = e => { if (e.target.closest("button,a")) return; d = { x: e.clientX, y: e.clientY, id: e.pointerId }; moved = false; };
+    box.onpointermove = e => {
+      if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (!moved && Math.hypot(dx, dy) > 5) { moved = true; box.classList.add("drag"); try { box.setPointerCapture(d.id); } catch {} }
+      if (moved) lay.style.transform = `translate(${dx}px,${dy}px)`;
+    };
+    const end = e => {
+      if (!d) return; const S = 256 * 2 ** v.z, dx = e.clientX - d.x, dy = e.clientY - d.y; d = null; box.classList.remove("drag");
+      if (moved) { v.fx -= dx / S; v.fy -= dy / S; }
+      else if (e.type === "pointerup") { const b = box.getBoundingClientRect(); v.fx += (e.clientX - b.left - b.width / 2) / S; v.fy += (e.clientY - b.top - H / 2) / S; }   // tap = put the centre here
+      else return;
+      v.fx = ((v.fx % 1) + 1) % 1; v.fy = Math.min(0.999, Math.max(0.001, v.fy)); draw(); fill();
+    };
+    box.onpointerup = end; box.onpointercancel = end;
+    const rr = pop.querySelector("#zpR"); rr.oninput = () => { rad = +rr.value; pop.querySelector("#zpRv").textContent = rad + " m"; draw(); };
+    const k = pop.querySelector("#zpK"); if (k) k.onclick = () => { v.fx = wx(+l.lng); v.fy = wy(+l.lat); v.z = Math.max(v.z, 16); draw(); fill(); };
+    pop.querySelector("#zpG").onclick = () => {
+      const la = parseFloat(String(pop.querySelector("#zpLa").value).replace(",", ".")), lo = parseFloat(String(pop.querySelector("#zpLo").value).replace(",", "."));
+      if (!(Math.abs(la) <= 85) || !(Math.abs(lo) <= 180)) return toast("warn|" + t("zone.badCoord"));
+      v.fx = wx(lo); v.fy = wy(la); v.z = Math.max(v.z, 15); draw();
+    };
+    pop.querySelector("#zpX").onclick = () => done(false);
+    pop.querySelector("#zpS").onclick = () => {
+      const nm = pop.querySelector("#zpN"), name = nm.value.trim().slice(0, 40);
+      if (!name) { toast("warn|" + t("zone.noName")); nm.focus(); return; }
+      done({ name, ...at(), r: rad });
+    };
+    requestAnimationFrame(() => { draw(); fill(); if (!has) pop.querySelector("#zpN").focus(); });
+  });
 }
 function mapDrag(pts, draw = () => drawMap(pts)) {
   const box = $("#map"); let d = null;
