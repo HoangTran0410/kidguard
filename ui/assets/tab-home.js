@@ -1,4 +1,10 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
+// Once per kid, at home: nothing set up for when the kid is out (no Tailscale, no relay) -> one tip card.
+function awayTip() {
+  if (cur.via !== "lan" || isBasic() || (st.ts && st.ts.state !== "off") || st.relay || kidFlag(cur, "away")) return "";
+  return `<div class="card mt16"><h2>${ic("route")} ${t("away.h")}</h2><p class="mute">${t("away.p")}</p>
+    <div class="row"><button type="button" id="awayGo" class="pri">${ic("chevron-right")} ${t("away.go")}</button><button type="button" id="awayNo">${t("away.later")}</button></div></div>`;
+}
 function homeTab(b) {
   const r = edit || st.rules, today = st.day, limit = edit ? todayLimit(r, today) : (st.limitMin ?? r.dailyMin);
   const reqs = (st.requests || []).filter(q => !answered.has(q.id));
@@ -28,6 +34,7 @@ function homeTab(b) {
     <button type="button" id="moreAct" class="tile" aria-haspopup="dialog"><b>${ic("ellipsis")}</b><span>${t("nav.more")}</span></button>
   </div>
   <div id="strip"></div>
+  ${awayTip()}
   </div><div>
   <div class="list mt16"><div class="lhead"><h2>${ic("flame")} ${t("home.topToday")}</h2></div>
     ${top.map(x => `<div class="li">${icon(x)}<span class="x"><b>${esc(x.label)}</b><span class="mbar"><i style="width:${Math.round(x.ms / mx * 100)}%"></i></span></span><span class="v">${fmt(x.ms)}</span></div>`).join("") || `<div class="empty"><span class="e">${ic("sprout")}</span>${t("none")}</div>`}
@@ -37,6 +44,8 @@ function homeTab(b) {
     <button type="button" class="lfoot" data-go="log">${t("tab.log")} ${ic("chevron-right")}</button></div>
   </div></div>`;
   wireReq(b, today, false);
+  if ($("#awayGo")) $("#awayGo").onclick = () => { tab = "set"; render(true); const c = $("#awaySec"); if (c) c.scrollIntoView({ block: "start" }); };
+  if ($("#awayNo")) $("#awayNo").onclick = () => { kidFlag(cur, "away", 1); render(); };
   b.querySelectorAll("[data-go]").forEach(x => x.onclick = () => goTab(x.dataset.go));
   if ($("#blkGo")) $("#blkGo").onclick = () => { sel.f = "blocked"; appsSub = "list"; goTab("apps"); };
   if ($("#bonusGo")) $("#bonusGo").onclick = () => pickTime("bonus", bonusMin ? t("pk.bonusNow", bonusMin) : "",

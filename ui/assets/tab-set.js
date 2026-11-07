@@ -1,5 +1,7 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 let relayOpen = false;   // the "advanced: relay" box survives re-renders
+// per-kid "seen" flags kept in this browser: the away-from-home tip, the manual key-expiry step
+const kidFlag = (k, n, v) => { const key = "kg." + n + "." + (k.id || k.target || ""); try { if (v === undefined) return localStorage.getItem(key) === "1"; localStorage.setItem(key, "1"); } catch {} return false; };
 // Remote access over Tailscale (state.ts). The auth key is only typed at home (LAN): it never goes through the relay.
 function tsCard(lan) {
   if (isBasic()) return `<div class="card"><h2>${ic("route")} ${t("ts.h")}</h2>${needOwner("Tailscale")}<p class="mute">${t("ts.basic")}</p></div>`;
@@ -8,13 +10,17 @@ function tsCard(lan) {
   const cls = { on: "ok", error: "bad", installing: "warn" }[ts.state] || "";
   const url = ts.ip ? `http://${ts.ip}:8770` : "";
   if (!lan && ts.state === "off") return "";   // relay page: it can only be enabled at home, so an "off" row says nothing
-  return `<div class="card"><h2>${ic("route")} ${t("ts.h")}</h2>
+  const exp = ts.state === "on" && ts.noExpiry === false && !kidFlag(cur, "tsExp");   // false only from phones that report it
+  return `<div class="card" id="tsCard"><h2>${ic("route")} ${t("ts.h")}</h2>
     <p class="mute">${t("ts.p")}</p>
     <p><span class="tag ${cls}">${esc(label)}</span>${ts.host ? " · " + t("ts.host", "<b>" + esc(ts.host) + "</b>") : ""}</p>
     ${ts.err ? `<div class="alert warn">${ic("triangle-alert")} ${esc(ts.err)}</div>` : ""}
-    ${url ? `<p>${ic("link")} <code>${esc(url)}</code></p>` : ""}
+    ${url ? `<p>${ic("link")} <code>${esc(url)}</code>${ts.noExpiry ? ` <span class="tag ok">${t("ts.noExp")}</span>` : ""}</p>` : ""}
+    ${exp ? `<div class="alert warn">${ic("triangle-alert")} <span>${t("ts.expP", "<b>" + esc(ts.host || "kid") + "</b>")}
+      <span class="row" style="margin-top:8px"><a class="lnkbtn" href="https://login.tailscale.com/admin/machines" target="_blank" rel="noopener">${ic("link")} ${t("ts.machines")}</a><button type="button" id="tsExpOk">${ic("check")} ${t("ts.expDone")}</button></span></span></div>` : ""}
     ${lan ? `<p class="mute">${t("ts.keyP")}</p>
-    <div class="row"><input id="f-ts-key" class="sp" type="password" autocomplete="off" placeholder="tskey-auth-…" aria-label="${esc(t("ts.key"))}"></div>
+    <ol class="mute" style="margin:6px 0 10px;padding-left:20px"><li>${t("ts.s1")}</li><li>${t("ts.s2")} <a href="https://login.tailscale.com/admin/settings/keys" target="_blank" rel="noopener">${t("ts.keysPage")}</a></li><li>${t("ts.s3")}</li></ol>
+    <div class="row"><input id="f-ts-key" class="sp" type="password" autocomplete="off" placeholder="tskey-api-… / tskey-auth-…" aria-label="${esc(t("ts.key"))}"></div>
     <div class="row" style="margin-top:8px"><input id="f-ts-host" class="sp" placeholder="${esc(t("ts.hostPh"))}" aria-label="${esc(t("ts.hostPh"))}" value="${esc(ts.host || "")}"><button id="tsOn" class="pri">${ic("route")} ${ts.state === "off" ? t("turnOn") : t("ts.again")}</button></div>`
       : `<p class="mute">${t("ts.homeOnly")}</p>`}
     ${ts.state !== "off" ? `<button id="tsOff" class="bad" style="margin-top:8px">${ic("x")} ${t("ts.remove")}</button>
@@ -213,7 +219,8 @@ function setTab(b) {
   <div class="card" id="sysCard"></div>
   ${devCard()}
   ${APP ? "" : `<div class="card"><h2>${ic("smartphone")} ${t("a2hs.h")}</h2><p class="mute">${t("a2hs.p")}</p></div>`}
-  <div class="sec">${t("set.conn")}</div>
+  <div class="sec" id="awaySec">${t("set.conn")}</div>
+  ${lan ? `<p class="mute" style="margin:0 4px 10px">${t("away.cmp")}</p>` : ""}
   ${tsCard(lan)}
   ${lan ? `<details class="card" id="relayBox"${st.relay || relayOpen ? " open" : ""}><summary><h2 style="display:inline-flex">${ic("globe")} ${t("relay.h")}</h2></summary>
     <p class="mute">${t("relay.p")}</p>
@@ -283,6 +290,7 @@ function setTab(b) {
     if (r && r.result && r.result !== "ok") toast("err|" + t("cmd.answer", r.result));
     $("#f-ts-key").value = "";
   };
+  if ($("#tsExpOk")) $("#tsExpOk").onclick = () => { kidFlag(cur, "tsExp", 1); render(); };
   if ($("#tsOff")) $("#tsOff").onclick = async () => { await cmd({ type: "tailscaleOff" }, t("turnedOff")); };
   $("#openPair").onclick = async () => {
     const r = await cmd({ type: "openPairing" }, t("pairT.shown"));

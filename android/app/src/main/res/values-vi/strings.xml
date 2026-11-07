@@ -182,6 +182,8 @@
     <string name="ts_log_connected">Điều khiển từ xa: đã kết nối (%1$s)</string>
     <string name="ts_err_no_net">Chưa vào được mạng (khoá sai, hết hạn hoặc phone chưa có Internet)</string>
     <string name="ts_err_install">cài không xong</string>
+    <string name="ts_err_token">Tailscale không nhận token (hết hạn hoặc sai)</string>
+    <string name="ts_log_noexpiry">Điều khiển từ xa: đã tắt hạn khoá</string>
     <string name="ts_log_installed">Điều khiển từ xa: đã cài, đang đăng nhập</string>
     <string name="ts_err_apk_name">không thấy tên APK</string>
     <string name="ts_err_sha">sai SHA-256 của APK</string>

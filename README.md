@@ -133,9 +133,9 @@ At home the parent page talks to the kid's phone over Wi-Fi. When the kid is at 
 ### Tailscale (recommended)
 
 1. On the parent's phone install **Tailscale** and sign in (Google / Apple / Microsoft account: this also makes your free Tailscale account).
-2. Open [console.tailscale.com/admin/settings/keys](https://console.tailscale.com/admin/settings/keys) → **Generate auth key** → **Generate** (defaults are fine: one-off, not ephemeral) → copy it.
+2. Open [login.tailscale.com/admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → **Generate access token** → **Generate** → copy it. (An auth key also works, but then you must do step 4 by hand.)
 3. In the parent page (on home Wi-Fi): **Cài đặt → Điều khiển từ xa qua Tailscale**, paste the key, press **Bật**. The kid's phone downloads the official Tailscale app (SHA-256 checked), installs it silently, joins your network and hides the app (about a minute); the card then shows **Đã kết nối** and an address like `http://100.x.y.z:8770`.
-4. **Don't skip:** in [console.tailscale.com/admin/machines](https://console.tailscale.com/admin/machines), on the kid's phone row → **⋯ → Disable key expiry**. Otherwise Tailscale signs the kid's phone out after 180 days and remote access stops until you paste a new key at home.
+4. With the access token the kid's phone makes its own one-off key and turns off Tailscale's 180-day key expiry for itself, then forgets the token (never stored); the card shows **không hết hạn**. With an auth key instead: in [login.tailscale.com/admin/machines](https://login.tailscale.com/admin/machines), on the kid's phone row → **⋯ → Disable key expiry** (the page reminds you), or Tailscale signs the phone out after 180 days.
 5. On the parent's phone open that address (with Tailscale on). Several kids: add each one's address from the same page (**Thêm máy của con**).
 
 The key is only accepted on home Wi-Fi and stays on the child's phone (never sent through the Worker). The child cannot turn the VPN off, change VPN settings or uninstall Tailscale; KidGuard's safe-DNS filter keeps working. **Tắt và gỡ Tailscale** (or Release) removes it all; then delete the device in the Tailscale admin console (**Machines**), since an uninstalled app cannot log itself out.

@@ -53,7 +53,7 @@ leftMs apps rules location lan relay log`), plus:
   "history": [                     // NEW: last 7 days before today, newest first
     {"day": "2026-11-05", "ms": 5400000, "top": [{"pkg":"…","label":"…","ms":1200000}]}   // top: up to 5
   ],
-  "ts": {"state": "off|installing|on|error", "ip": "100.x.y.z", "host": "kid-an", "err": ""},  // v0.4: Tailscale (never the key)
+  "ts": {"state": "off|installing|on|error", "ip": "100.x.y.z", "host": "kid-an", "err": "", "noExpiry": false},  // v0.4: Tailscale (never the key); noExpiry v0.9.6: node key expiry turned off
   "requests": [                    // NEW: the child asked for more time (button on the child's KidGuard screen)
     {"id": "a1b2c3", "t": 1793940898493, "min": 30, "note": "con làm bài tập"}
   ]
@@ -98,6 +98,11 @@ v0.4:
   sets managed config + always-on VPN (no lockdown) + uninstall block + `DISALLOW_CONFIG_VPN`, hides the app once the
   tunnel is up. Result `ok | bad key | busy | not owner`. **LAN only**: not in the worker whitelist, so the key never
   sits in the relay queue.
+  `authKey` may instead be an **API access token** (`tskey-api-…`, v0.9.6): the phone keeps it in memory only, uses it to
+  `POST api.tailscale.com/api/v2/tailnet/-/keys` (one-off, pre-approved, not ephemeral, 1 h) for its own auth key, and
+  once its 100.x address is up finds itself in `GET /tailnet/-/devices` and `POST /device/<id>/key {"keyExpiryDisabled": true}`
+  (state `ts.noExpiry` true), then drops the token (also after 5 failed tries, or a 401/403). With a plain auth key
+  `noExpiry` stays false and the page shows the manual "Disable key expiry" step (Tailscale signs a node out after 180 days).
 - `tailscaleOff`: undo all of it and uninstall Tailscale (also done by `release`). In the worker whitelist.
 v0.9.6:
 - `devOff`: turns off wireless debugging (`adb_wifi_enabled`, API 30+), USB debugging (`ADB_ENABLED`) and Developer

@@ -312,7 +312,7 @@ class Guard : Service() {
             .put("location", store.location ?: JSONObject.NULL)
             .put("lan", lanUrl() ?: JSONObject.NULL)
             .put("relay", store.relayUrl)
-            .put("ts", Ts.stateJson(store.tsHost))
+            .put("ts", Ts.stateJson(store))
             .put("devices", store.devices())
             .put("log", store.logs())
             .put("history", store.history)

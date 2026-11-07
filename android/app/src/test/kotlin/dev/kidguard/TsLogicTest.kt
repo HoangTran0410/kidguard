@@ -49,4 +49,21 @@ class TsLogicTest {
         assertEquals("never", m["UseTailscaleDNSSettings"]); assertEquals("always", m["AllowIncomingConnections"])
         assertEquals("KidGuard", m["ManagedByOrganizationName"])
     }
+
+    @Test fun apiTokenFlow() {
+        assertTrue(TsLogic.isApiToken("tskey-api-kABC-xyz0123456789"))
+        assertFalse(TsLogic.isApiToken("tskey-auth-kABC-xyz0123456789"))
+        val b = org.json.JSONObject(TsLogic.keyBody())
+        val c = b.getJSONObject("capabilities").getJSONObject("devices").getJSONObject("create")
+        assertFalse(c.getBoolean("reusable")); assertFalse(c.getBoolean("ephemeral")); assertTrue(c.getBoolean("preauthorized"))
+        assertEquals(3600, b.getInt("expirySeconds"))
+        assertEquals("tskey-auth-kX-abcdefghij", TsLogic.keyFrom("""{"id":"kX","key":"tskey-auth-kX-abcdefghij"}"""))
+        assertNull(TsLogic.keyFrom("""{"id":"kX"}"""))
+        assertNull(TsLogic.keyFrom("""{"key":"evil key with spaces"}"""))
+        val devs = """{"devices":[{"id":"111","nodeId":"nA","addresses":["100.64.0.1","fd7a::1"]},{"id":"222","nodeId":"nB","addresses":["100.101.2.3"]}]}"""
+        assertEquals("nB", TsLogic.deviceId(devs, "100.101.2.3"))
+        assertNull(TsLogic.deviceId(devs, "100.1.1.1"))
+        assertEquals("333", TsLogic.deviceId("""{"devices":[{"id":"333","addresses":["100.9.9.9"]}]}""", "100.9.9.9"))
+        assertNull(TsLogic.deviceId("""{"devices":[{"nodeId":"../x","addresses":["100.9.9.9"]}]}""", "100.9.9.9"))
+    }
 }

@@ -38,7 +38,7 @@ android {
     }
     // one UI for the APK (LAN) and the worker (away): ui/index.html + ui/assets/
     sourceSets["main"].assets.srcDirs("../../ui")
-    // the apps serve only index.html + ui/; the installer pages + their bundle are for the worker / a browser
+    // the apps serve only index.html + assets/; the installer pages + their bundle are for the worker / a browser
     androidResources {
         ignoreAssetsPatterns += listOf("!install.html", "!qr.html", "!provision.json", "!vendor")
         // UI languages: English (res/values, default) + Vietnamese (res/values-vi). Also drops libraries' other languages.

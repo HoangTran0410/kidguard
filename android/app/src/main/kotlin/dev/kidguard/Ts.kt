@@ -41,6 +41,27 @@ object TsLogic {
 
     fun validKey(k: String): Boolean = Regex("[A-Za-z0-9_-]{10,300}").matches(k)
 
+    /** An API access token (Settings → Keys → Generate access token) instead of an auth key: the phone then makes its own
+     *  one-off auth key and turns off its node key expiry (else Tailscale signs it out after 180 days). */
+    fun isApiToken(k: String) = k.startsWith("tskey-api-")
+
+    const val API = "https://api.tail" + "scale.com/api/v2"
+
+    /** Body for POST /tailnet/-/keys: one device, pre-approved, not ephemeral, key valid 1 hour. */
+    fun keyBody(): String = JSONObject().put("capabilities", JSONObject().put("devices", JSONObject().put("create",
+        JSONObject().put("reusable", false).put("ephemeral", false).put("preauthorized", true)))).put("expirySeconds", 3600).toString()
+
+    /** The new auth key from the create-key answer, or null. */
+    fun keyFrom(json: String): String? = runCatching { JSONObject(json).optString("key") }.getOrNull()?.takeIf { it.startsWith("tskey-") && validKey(it) }
+
+    /** Device id (GET /tailnet/-/devices) of the device that has tailnet address [ip], or null. */
+    fun deviceId(json: String, ip: String): String? = runCatching {
+        val a = JSONObject(json).getJSONArray("devices")
+        (0 until a.length()).map { a.getJSONObject(it) }.firstOrNull { d ->
+            val ad = d.optJSONArray("addresses"); ad != null && (0 until ad.length()).any { ad.optString(it) == ip }
+        }?.let { d -> d.optString("nodeId").ifEmpty { d.optString("id") } }
+    }.getOrNull()?.takeIf { Regex("[A-Za-z0-9_-]{1,100}").matches(it) }
+
     /** Device name on the tailnet: a-z 0-9 and "-", at most 40 chars; default "kid-" + first 4 chars of the phone id. */
     fun hostName(raw: String, id: String): String {
         val s = raw.lowercase().replace(Regex("[^a-z0-9-]+"), "-").trim('-').take(40).trim('-')
@@ -75,8 +96,12 @@ object Ts {
     @Volatile private var since = 0L
     @Volatile private var asserted = false
 
-    /** Never includes the auth key. */
-    fun stateJson(host: String): JSONObject = JSONObject().put("state", state).put("ip", ip).put("host", host).put("err", err)
+    /** Parent's API token: memory only, dropped once key expiry is off (or after a few tries). Never stored or sent. */
+    @Volatile private var apiToken = ""
+    @Volatile private var expTries = 0
+
+    /** Never includes the auth key or token. noExpiry: the node key won't expire (else the page asks to turn it off by hand). */
+    fun stateJson(s: Store): JSONObject = JSONObject().put("state", state).put("ip", ip).put("host", s.tsHost).put("err", err).put("noExpiry", s.tsNoExpiry)
 
     fun installed(ctx: Context) = runCatching { ctx.packageManager.getPackageInfo(TsLogic.PKG, 0); true }.getOrDefault(false)
 
@@ -92,7 +117,8 @@ object Ts {
         val k = key.trim()
         if (!TsLogic.validKey(k)) return "bad key"
         if (busy) return "busy"
-        s.tsKey = k; s.tsHost = TsLogic.hostName(hostRaw, s.id); s.tsWanted = true; s.tsHide = true
+        if (TsLogic.isApiToken(k)) { apiToken = k; expTries = 0; s.tsKey = "" } else { apiToken = ""; s.tsKey = k }
+        s.tsNoExpiry = false; s.tsHost = TsLogic.hostName(hostRaw, s.id); s.tsWanted = true; s.tsHide = true
         startSetup(ctx, s)
         return "ok"
     }
@@ -133,6 +159,7 @@ object Ts {
         if (now.isNotEmpty()) {
             ip = now
             if (state != "on") { state = "on"; err = ""; s.log(R.string.ts_log_connected, now); hide(ctx, s) }
+            if (apiToken.isNotEmpty() && !s.tsNoExpiry && !busy) noExpiry(ctx, s, now)
         } else {
             ip = ""
             if (state == "on") { state = "installing"; since = System.currentTimeMillis() }
@@ -142,7 +169,43 @@ object Ts {
         }
     }
 
+    /** With the parent's API token: make a one-off pre-approved auth key for this phone. */
+    private fun makeKey(ctx: Context, s: Store) {
+        val c = api(ctx, "/tailnet/-/keys", TsLogic.keyBody())
+        s.tsKey = TsLogic.keyFrom(c) ?: throw IllegalStateException(ctx.getString(R.string.ts_err_token))
+    }
+
+    /** With the parent's API token: turn off this phone's node key expiry, then forget the token. */
+    private fun noExpiry(ctx: Context, s: Store, myIp: String) {
+        busy = true
+        Thread({
+            try {
+                val id = TsLogic.deviceId(api(ctx, "/tailnet/-/devices", null), myIp) ?: throw IllegalStateException("device not listed yet")
+                api(ctx, "/device/$id/key", JSONObject().put("keyExpiryDisabled", true).toString())
+                s.tsNoExpiry = true; apiToken = ""; s.log(R.string.ts_log_noexpiry)
+            } catch (e: Exception) {
+                Log.w(TAG, "ts key expiry", e)
+                if (++expTries >= 5) apiToken = ""   // the page then shows the manual step
+            } finally { busy = false }
+        }, "ts-expiry").start()
+    }
+
+    private fun api(ctx: Context, path: String, body: String?): String {
+        val c = URL(TsLogic.API + path).openConnection() as HttpURLConnection
+        c.connectTimeout = 15_000; c.readTimeout = 20_000
+        c.setRequestProperty("Authorization", "Bearer $apiToken")
+        if (body != null) {
+            c.requestMethod = "POST"; c.doOutput = true; c.setRequestProperty("Content-Type", "application/json")
+            c.outputStream.use { it.write(body.toByteArray()) }
+        }
+        val code = c.responseCode
+        if (code == 401 || code == 403) { apiToken = ""; throw IllegalStateException(ctx.getString(R.string.ts_err_token)) }
+        if (code !in 200..299) throw IllegalStateException(ctx.getString(R.string.err_http, code))
+        return c.inputStream.use { String(it.readBytes()) }.take(1_000_000)
+    }
+
     private fun setup(ctx: Context, s: Store) {
+        if (s.tsKey.isEmpty() && apiToken.isNotEmpty()) makeKey(ctx, s)
         if (!installed(ctx)) {
             val apk = download(ctx)
             try { install(ctx, s, apk) } finally { apk.delete() }
@@ -274,7 +337,7 @@ object Ts {
 
     /** Takes everything back (also called from release). Synchronous, at most ~15 s. */
     fun undo(ctx: Context, s: Store) {
-        s.tsWanted = false; s.tsKey = ""
+        s.tsWanted = false; s.tsKey = ""; s.tsNoExpiry = false; apiToken = ""
         if (!Policy.isOwner(ctx)) return
         val d = Policy.dpm(ctx); val a = Policy.admin(ctx)
         runCatching { d.setApplicationRestrictions(a, TsLogic.PKG, Bundle()) }

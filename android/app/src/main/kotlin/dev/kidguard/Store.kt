@@ -266,6 +266,10 @@ class Store private constructor(private val app: Context) {
         get() = p.getString("tsHost", "")!!
         set(v) { p.edit().putString("tsHost", v).apply() }
     /** Suspend the app once the tunnel is up (turned off for good if suspension breaks the tunnel). */
+    /** The phone's own Tailscale node key never expires (we turned that off through the API with the parent's token). */
+    @get:Synchronized @set:Synchronized var tsNoExpiry: Boolean
+        get() = p.getBoolean("tsNoExpiry", false)
+        set(v) { p.edit().putBoolean("tsNoExpiry", v).apply() }
     @get:Synchronized @set:Synchronized var tsHide: Boolean
         get() = p.getBoolean("tsHide", true)
         set(v) { p.edit().putBoolean("tsHide", v).apply() }
