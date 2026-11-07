@@ -3,8 +3,8 @@ main = "src/index.js"
 compatibility_date = "2025-09-01"
 workers_dev = true
 
-# web/index.html is bundled as text (one page for the APK and the relay)
-rules = [{ type = "Text", globs = ["**/*.html"], fallthrough = false }]
+# web/*.html (one page for the APK and the relay) and web/vendor/qrcode.js are bundled as text
+rules = [{ type = "Text", globs = ["**/*.html", "**/vendor/qrcode.js"], fallthrough = false }]
 
 [[durable_objects.bindings]]
 name = "KIDS"

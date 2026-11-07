@@ -5,6 +5,7 @@
 import html from "../../web/index.html";
 import install from "../../web/install.html";
 import qr from "../../web/qr.html";
+import qrLib from "../../web/vendor/qrcode.js";   // text (wrangler rule), served next to /qr
 
 const MAX_BODY = 256 * 1024, MAX_DEVICE = 32 * 1024;
 const MAX_FRAME = 1024 * 1024;
@@ -44,6 +45,8 @@ export default {
     const page = req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html") ? html
       : req.method === "GET" && url.pathname === "/install" ? install
       : req.method === "GET" && url.pathname === "/qr" ? qr : null;
+    if (req.method === "GET" && url.pathname === "/vendor/qrcode.js") return new Response(qrLib, { headers: {
+      "content-type": "text/javascript; charset=utf-8", "cache-control": "public, max-age=86400", "x-content-type-options": "nosniff" } });
     if (page) {
       return new Response(page, { headers: {
         "content-type": "text/html; charset=utf-8", "cache-control": "no-cache",

@@ -18,7 +18,7 @@ Root: `android/` (Gradle project: `app/` child app, `parent/` parent app), `web/
 - `web/` is **one UI for both sides**: it is the APK's assets dir (`sourceSets.assets.srcDirs("../../web")`, for both apps) and the worker
   imports the `.html` files as text. Single-file pages, inline JS/CSS, no build step.
   - `index.html` parent page. `install.html` WebUSB installer (Tango ADB bundled inline; rebuild: `web/vendor/build.sh`).
-  - `qr.html` QR provisioning page; `scripts/build.sh` rewrites the JSON between `/*KG*/` markers and `web/provision.json`.
+  - `qr.html` QR provisioning page (QR library in `vendor/qrcode.js`, served by the worker at `/vendor/qrcode.js`); `scripts/build.sh` rewrites the JSON between `/*KG*/` markers and `web/provision.json`.
 - `worker/src/index.js` relay (Durable Object `Kid`, SQLite, free plan). Command whitelist lives here.
 - `scripts/setup.sh`, `scripts/setup.ps1`, `install.html`, `SelfSetup.kt` all do the same setup steps: keep them in sync (protocol "Setup steps").
 

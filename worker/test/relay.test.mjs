@@ -6,6 +6,9 @@ const P=(p,body,t=T,x={})=>fetch(`${B}/c/${id}/${p}`,{method:"POST",headers:H(t,
 const jpg=Buffer.from("ffd8ffe000104a46494600010100000100010000ffd9","hex");
 let r=await P("sync",JSON.stringify({state:{}}));let j=await r.json();
 ck("sync binds, no live",r.status==200&&!j.live);
+{const q=await fetch(`${B}/qr`),qt=await q.text(),l=await fetch(`${B}/vendor/qrcode.js`),lt=await l.text();
+ck("qr page loads the QR lib from vendor/",q.status==200&&qt.includes('src="vendor/qrcode.js"')&&!qt.includes("qrcode-generator 1.4.4"));
+ck("vendor/qrcode.js served as JS",l.status==200&&/javascript/.test(l.headers.get("content-type"))&&lt.includes("qrcode-generator 1.4.4"));}
 ck("wrong token 401",(await P("sync","{}",BAD)).status==401);
 ck("wrong token frame GET 401",(await fetch(`${B}/c/${id}/frame?after=0`,{headers:H(BAD)})).status==401);
 r=await P("live","{}");j=await r.json();ck("live ok phone -1",j.ok&&j.phone==-1);
