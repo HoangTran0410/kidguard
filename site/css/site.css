@@ -115,6 +115,14 @@ nav a.lang{font-weight:700;color:var(--ink);border:1px solid var(--line2);border
 .feat dd{color:var(--muted);font-size:14px}
 .warnote{margin-top:var(--s4);background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:var(--r);padding:var(--s3) var(--s4);color:var(--warn);font-size:14px}
 .warnote b{color:var(--warn)}
+details.warnote{border-top:1px solid var(--warn-line)}
+details.warnote summary{padding:0 var(--s6) 0 0;font-weight:400}
+details.warnote summary::before,details.warnote summary::after{background:var(--warn)}
+details.warnote summary:focus-visible{outline-color:var(--warn)}
+details.warnote ol{margin:var(--s3) 0 0;padding-left:var(--s5);color:var(--ink)}
+details.warnote li b{color:var(--ink)}
+details.warnote li+li{margin-top:var(--s1)}
+details.warnote p{margin:var(--s2) 0 0;padding:0;color:var(--muted);font-size:14px}
 
 /* screenshots */
 .gallery{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--s5)}
