@@ -66,6 +66,31 @@ object LauncherSafe {
             ?.activityInfo?.let { it.packageName == ctx.packageName && it.name == HomeActivity::class.java.name } == true
     }.getOrDefault(false)
 
+    /**
+     * After our own update (MY_PACKAGE_REPLACED). Android 8 kills the process and finishes HomeActivity, but its
+     * starting window stays up: the old launcher underneath is resumed and stopped in a loop and the screen stays black
+     * until someone presses Home. So if the kid was on the home screen (last foreground app = us or a launcher), start
+     * HOME. If the kid was in another app, leave them there: their next Home press works.
+     */
+    fun afterUpdate(ctx: Context) = runCatching {
+        if (!enabled(ctx) || !homeIsOurs(ctx)) return@runCatching
+        val top = lastForeground(ctx)
+        val homes = ctx.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+            .map { it.activityInfo.packageName }.toSet()
+        Log.i(TAG, "after update: top=$top")
+        if (top == null || top == ctx.packageName || top in homes) home(ctx)
+    }.onFailure { Log.w(TAG, "launcher after update", it) }
+
+    private fun lastForeground(ctx: Context): String? {
+        val um = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+        val now = System.currentTimeMillis()
+        val ev = um.queryEvents(now - 30 * 60_000L, now)
+        val e = android.app.usage.UsageEvents.Event()
+        var top: String? = null
+        while (ev.hasNextEvent()) { ev.getNextEvent(e); if (e.eventType == android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND) top = e.packageName }
+        return top
+    }
+
     private fun home(ctx: Context) = runCatching {
         ctx.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }

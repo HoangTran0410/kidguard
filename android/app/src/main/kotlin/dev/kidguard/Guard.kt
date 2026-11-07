@@ -38,7 +38,10 @@ import java.util.Date
 import java.util.Locale
 
 class Boot : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) { Guard.start(context); Watchdog.schedule(context) }   // BOOT_COMPLETED, MY_PACKAGE_REPLACED
+    override fun onReceive(context: Context, intent: Intent) {   // BOOT_COMPLETED, MY_PACKAGE_REPLACED
+        Guard.start(context); Watchdog.schedule(context)
+        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) LauncherSafe.afterUpdate(context)
+    }
 }
 
 /**
