@@ -464,24 +464,62 @@ class Guard : Service() {
             if (l == null) return
             val old = store.location
             if (old != null && old.optLong("t") > l.time) return
+            // network then gps answer within seconds: keep the finer one
+            if (old != null && l.time - old.optLong("t") < 60_000 && l.hasAccuracy() && old.optDouble("acc", 1e9) < l.accuracy) return
             // an old cached fix (getLastKnownLocation after a long gap) must not fire zone in/out events
             if (System.currentTimeMillis() - l.time < 10 * 60_000) zoneFix(l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else 0f)
             store.location = JSONObject().put("lat", l.latitude).put("lng", l.longitude).put("acc", l.accuracy.toDouble()).put("t", l.time).put("src", l.provider ?: "")
             if (store.fillCheckins(store.location!!)) relay?.kick()   // a check-in pressed before this fix gets it
         }
-        val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER).filter {
-            runCatching { lm.isProviderEnabled(it) }.getOrDefault(false)
+        for (p in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER))
+            runCatching { if (lm.isProviderEnabled(p)) save(lm.getLastKnownLocation(p)) }
+        oneFix(lm, 60_000, each = true) { l -> if (l != null) { save(l); kick() } }
+    }
+
+    /** Providers to ask for one fix. Fused alone when it exists; else network AND gps together, first answer wins:
+     *  on Android 8-10 there is no fused provider, and gps alone never answers indoors, so the history got a point
+     *  only when a cached fix happened to be fresh (the "sparse track" on the Oppo, 2026-11-07). */
+    private fun fixProviders(lm: LocationManager): List<String> {
+        val on = { p: String -> runCatching { lm.isProviderEnabled(p) }.getOrDefault(false) }
+        if (Build.VERSION.SDK_INT >= 31 && on(LocationManager.FUSED_PROVIDER)) return listOf(LocationManager.FUSED_PROVIDER)
+        return listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER).filter(on)
+    }
+
+    /** Asks every provider for one fix; [onFix] gets the first one (or null after [timeoutMs] / when all fail).
+     *  [each]: [onFix] gets every fix as it comes (network first, then the finer gps one), never null.
+     *  Every listener is removed when it ends, so gps never stays on (dumpsys showed hours of gps from leaked one-shots). */
+    @SuppressLint("MissingPermission")
+    private fun oneFix(lm: LocationManager, timeoutMs: Long, each: Boolean = false, onFix: (Location?) -> Unit) {
+        val ps = fixProviders(lm)
+        if (ps.isEmpty()) { if (!each) onFix(null); return }
+        var done = false; var left = ps.size
+        val cancel = android.os.CancellationSignal()
+        val listeners = mutableListOf<LocationListener>()
+        lateinit var timeout: Runnable
+        fun end(l: Location?) {
+            if (done) return
+            done = true; work.removeCallbacks(timeout)
+            runCatching { cancel.cancel() }
+            listeners.forEach { runCatching { lm.removeUpdates(it) } }
+            if (!each) onFix(l)
         }
-        for (p in providers) runCatching { save(lm.getLastKnownLocation(p)) }
-        for (p in providers) runCatching {
-            if (Build.VERSION.SDK_INT >= 30) lm.getCurrentLocation(p, null, mainExecutor) { save(it); kick() }
-            else @Suppress("DEPRECATION") lm.requestSingleUpdate(p, object : LocationListener {
-                override fun onLocationChanged(l: Location) { save(l); kick() }
-                @Deprecated("old API levels still call it") override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-                override fun onProviderEnabled(provider: String) {}
-                override fun onProviderDisabled(provider: String) {}
-            }, mainLooper)
-        }.onFailure { Log.w("KidGuard", "locate $p", it) }
+        fun miss() { if (--left <= 0) end(null) }
+        fun got(l: Location) { if (done) return; if (!each) end(l) else { onFix(l); miss() } }
+        timeout = Runnable { end(null) }
+        work.postDelayed(timeout, timeoutMs)
+        for (p in ps) runCatching {
+            if (Build.VERSION.SDK_INT >= 30) lm.getCurrentLocation(p, cancel, mainExecutor) { l -> work.post { if (l != null) got(l) else miss() } }
+            else {
+                val li = object : LocationListener {
+                    override fun onLocationChanged(l: Location) { work.post { got(l) } }
+                    @Deprecated("old API levels still call it") override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                    override fun onProviderEnabled(provider: String) {}
+                    override fun onProviderDisabled(provider: String) {}
+                }
+                listeners += li
+                @Suppress("DEPRECATION") lm.requestSingleUpdate(p, li, mainLooper)
+            }
+        }.onFailure { Log.w("KidGuard", "fix $p", it); work.post { miss() } }
     }
 
     /** One location fix for the history: 30 s timeout, then the last known one if it is younger than 2 x [everyMin]. */
@@ -490,38 +528,18 @@ class Guard : Service() {
         if (trackBusy) return
         val lm = getSystemService(LocationManager::class.java) ?: return
         trackBusy = true
-        var done = false
-        fun finish(l: Location?) {
-            if (done) return
-            done = true; trackBusy = false
-            if (l != null) zoneFix(l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else 0f)
-            if (l != null) store.addTrack(l.time.takeIf { it > 0 } ?: System.currentTimeMillis(), l.latitude, l.longitude, l.accuracy.toInt())
-        }
         fun fallback(): Location? = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER)
             .mapNotNull { p -> runCatching { lm.getLastKnownLocation(p) }.getOrNull() }
             .filter { System.currentTimeMillis() - it.time < 2L * everyMin * 60_000 }.maxByOrNull { it.time }
-        val providers = listOf(LocationManager.FUSED_PROVIDER, LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER).filter {
-            runCatching { lm.isProviderEnabled(it) }.getOrDefault(false)
+        oneFix(lm, 30_000) { got ->
+            trackBusy = false
+            val l = got ?: fallback() ?: return@oneFix
+            zoneFix(l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else 0f)
+            // a fix's own clock can lag (cached network fix); stamp it now when it is that recent, so same-spot points space out evenly
+            val now = System.currentTimeMillis()
+            val t = if (l.time <= 0 || now - l.time < 2 * 60_000) now else l.time
+            store.addTrack(t, l.latitude, l.longitude, l.accuracy.toInt(), Track.gapFor(everyMin))
         }
-        val p = providers.firstOrNull()
-        if (p == null) { finish(fallback()); return }
-        val cancel = android.os.CancellationSignal()
-        val listener = object : LocationListener {
-            override fun onLocationChanged(l: Location) { work.post { finish(l) } }
-            @Deprecated("old API levels still call it") override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-            override fun onProviderEnabled(provider: String) {}
-            override fun onProviderDisabled(provider: String) {}
-        }
-        val timeout = Runnable {
-            cancel.cancel()
-            if (Build.VERSION.SDK_INT < 30) runCatching { lm.removeUpdates(listener) }
-            finish(fallback())
-        }
-        work.postDelayed(timeout, 30_000)
-        runCatching {
-            if (Build.VERSION.SDK_INT >= 30) lm.getCurrentLocation(p, cancel, mainExecutor) { l -> work.post { work.removeCallbacks(timeout); finish(l ?: fallback()) } }
-            else @Suppress("DEPRECATION") lm.requestSingleUpdate(p, listener, mainLooper)
-        }.onFailure { Log.w("KidGuard", "track $p", it); work.removeCallbacks(timeout); finish(fallback()) }
     }
 
     private fun goHome() {

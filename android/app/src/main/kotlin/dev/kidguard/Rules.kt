@@ -363,7 +363,7 @@ object Track {
     const val MIN_MOVE_M = 30.0
     const val MAX_GAP_MS = 60 * 60_000L
     const val KEEP_MS = 7 * 24 * 3_600_000L
-    const val MAX_POINTS = 2000
+    const val MAX_POINTS = 2100              // 7 days at the 5-min step = 2016
 
     /** Metres between two points (haversine). */
     fun meters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
@@ -373,9 +373,12 @@ object Track {
         return 2 * r * Math.asin(Math.sqrt(a))
     }
 
-    /** Store a new point? Yes when there is none yet, it moved >= 30 m from the last stored one, or >= 60 min passed. */
-    fun shouldStore(lastT: Long?, lastLat: Double, lastLon: Double, t: Long, lat: Double, lon: Double): Boolean =
-        lastT == null || t - lastT >= MAX_GAP_MS || meters(lastLat, lastLon, lat, lon) >= MIN_MOVE_M
+    /** Same-spot points are kept once per interval (minus slack for a late tick), so the parent's timeline has no hour-long holes. */
+    fun gapFor(everyMin: Int): Long = (everyMin * 60_000L - 90_000L).coerceIn(60_000L, MAX_GAP_MS)
+
+    /** Store a new point? Yes when there is none yet, it moved >= 30 m from the last stored one, or >= [gapMs] passed. */
+    fun shouldStore(lastT: Long?, lastLat: Double, lastLon: Double, t: Long, lat: Double, lon: Double, gapMs: Long = MAX_GAP_MS): Boolean =
+        lastT == null || t - lastT >= gapMs || meters(lastLat, lastLon, lat, lon) >= MIN_MOVE_M
 }
 
 /** Pure guards for the LAN server and the PIN / pairing brute-force limits (unit tested). */

@@ -50,6 +50,9 @@ class PinTrackTest {
         assertFalse(Track.shouldStore(t, 10.0, 106.0, t + 600_000, 10.0001, 106.0))      // ~11 m, 10 min
         assertTrue(Track.shouldStore(t, 10.0, 106.0, t + 600_000, 10.001, 106.0))        // ~111 m
         assertTrue(Track.shouldStore(t, 10.0, 106.0, t + 3_600_000, 10.0, 106.0))        // 60 min, same spot
+        assertTrue(Track.shouldStore(t, 10.0, 106.0, t + 600_000, 10.0, 106.0, Track.gapFor(10)))    // 10-min step, same spot: kept
+        assertFalse(Track.shouldStore(t, 10.0, 106.0, t + 240_000, 10.0, 106.0, Track.gapFor(10)))   // a quicker re-fix: not kept
+        assertEquals(3_510_000L, Track.gapFor(60)); assertEquals(210_000L, Track.gapFor(5))
         assertEquals(111_195.0, Track.meters(10.0, 106.0, 11.0, 106.0), 200.0)
     }
 }

@@ -288,10 +288,10 @@ class Store private constructor(private val app: Context) {
     @Synchronized private fun trackAll(): JSONArray = runCatching { JSONArray(p.getString("track", "[]")) }.getOrDefault(JSONArray())
 
     /** Adds a point if [Track.shouldStore]; keeps 7 days and at most 2000 points. Returns true if stored. */
-    @Synchronized fun addTrack(t: Long, lat: Double, lon: Double, acc: Int): Boolean {
+    @Synchronized fun addTrack(t: Long, lat: Double, lon: Double, acc: Int, gapMs: Long = Track.MAX_GAP_MS): Boolean {
         val a = trackAll()
         val last = if (a.length() > 0) a.optJSONArray(a.length() - 1) else null
-        if (!Track.shouldStore(last?.optLong(0), last?.optDouble(1) ?: 0.0, last?.optDouble(2) ?: 0.0, t, lat, lon)) return false
+        if (!Track.shouldStore(last?.optLong(0), last?.optDouble(1) ?: 0.0, last?.optDouble(2) ?: 0.0, t, lat, lon, gapMs)) return false
         val keep = JSONArray()
         val from = maxOf(0, a.length() - (Track.MAX_POINTS - 1))
         for (i in from until a.length()) { val q = a.optJSONArray(i) ?: continue; if (t - q.optLong(0) <= Track.KEEP_MS) keep.put(q) }
