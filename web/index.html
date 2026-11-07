@@ -114,6 +114,7 @@ code{word-break:break-all;font-size:12px}
 .scr.view img{touch-action:auto}
 .scr-msg{position:absolute;left:0;right:0;bottom:0;padding:8px 10px;background:rgba(0,0,0,.65);color:#fff;font-size:13px;text-align:center;pointer-events:none}
 .scr-msg:empty{display:none}
+.gst{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;--gc:#fff}.gst line,.gst path{stroke:var(--gc);stroke-width:4;stroke-linecap:round;stroke-linejoin:round;fill:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))}.gst circle{fill:var(--gc);stroke:rgba(0,0,0,.5);stroke-width:2}.gst text{fill:#fff;font:700 13px system-ui,sans-serif;paint-order:stroke;stroke:rgba(0,0,0,.85);stroke-width:4px}.gst.hint{--gc:#93c5fd}.gst.hint line{stroke-dasharray:8 8}.gst.drag{--gc:#fff}.gst.send{--gc:#fbbf24}.gst.ok{--gc:#4ade80;transition:opacity .6s .5s;opacity:0}.gst.bad,.gst.cancel{--gc:#f87171}.gst.cancel line{stroke-dasharray:6 6}
 .tap{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:rgba(59,130,246,.6);pointer-events:none;animation:tp .5s forwards}
 @keyframes tp{to{transform:scale(1.8);opacity:0}}
 .bulk,.hbar{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom));z-index:5;background:var(--card);border:1px solid var(--accent);border-radius:18px;padding:10px 12px;box-shadow:0 8px 24px rgba(2,6,23,.2);margin:8px 0 12px}
@@ -2995,9 +2996,9 @@ vi: {
   "se.unsupported": "Máy con dùng Android cũ, chưa hỗ trợ xem màn hình (cần Android 11+)", "se.busy": "Máy con đang bận, thử lại…",
   "se.need consent": "Cần con bấm Cho phép trên máy (Android 8–10 hỏi trước khi chia sẻ màn hình; Android 8–9 có ô “Không hiện lại”)", "se.denied": "Con đã bấm Huỷ trên máy, sẽ hỏi lại sau 1 phút", "scr.watching": "Đang xem",
   "scr.stat": "{0} khung/giây · trễ {1} ms", "scr.cant": "Chưa xem được màn hình", "scr.lost": "Mất kết nối tới máy con", "scr.wait": "Đang chờ máy con kết nối (tối đa ~20 giây)…",
-  "scr.retry": "Mất kết nối, đang thử lại…", "scr.h": "Màn hình máy con", "swp.h": "Vuốt", "swp.up": "Vuốt lên (cuộn xuống)", "swp.down": "Vuốt xuống (cuộn lên)", "swp.left": "Vuốt sang trái (trang sau)", "swp.right": "Vuốt sang phải (trang trước)", "key.quick": "Cài đặt nhanh", "key.nav": "Phím điều hướng", "scr.view": "Chỉ xem", "key.home": "Màn hình chính", "key.recents": "Đa nhiệm", "key.notif": "Thông báo",
+  "scr.retry": "Mất kết nối, đang thử lại…", "scr.h": "Màn hình máy con", "swp.h": "Vuốt", "swp.up": "Vuốt lên (cuộn xuống)", "swp.down": "Vuốt xuống (cuộn lên)", "swp.left": "Vuốt sang trái (trang sau)", "swp.right": "Vuốt sang phải (trang trước)", "key.quick": "Cài đặt nhanh", "key.nav": "Phím điều hướng", "swp.sending": "Đang gửi…", "swp.fail": "Không vuốt được", "swp.release": "Thả tay để gửi", "swp.cancel": "Thả ở đây để huỷ", "swp.cancelled": "Đã huỷ", "scr.view": "Chỉ xem", "key.home": "Màn hình chính", "key.recents": "Đa nhiệm", "key.notif": "Thông báo",
   "scr.typePh": "Gõ chữ vào ô đang chọn trên máy con…", "scr.sendTxt": "Gửi chữ", "scr.notify": "Báo cho con \"Bố mẹ đang xem / đang điều khiển\"",
-  "scr.tip": "Chạm vào ảnh để bấm, kéo để vuốt, giữ lâu để nhấn giữ. Nhật ký luôn ghi lại lúc bố mẹ xem và điều khiển.",
+  "scr.tip": "Chạm vào ảnh để bấm, giữ lâu để nhấn giữ. Kéo để vuốt: mũi tên hiện trước, thả tay mới gửi, máy con vuốt lại đúng đường và tốc độ đó; kéo ra ngoài ảnh rồi thả để huỷ. Nhật ký luôn ghi lại lúc bố mẹ xem và điều khiển.",
   "dp.prev": "Tháng trước", "dp.next": "Tháng sau", close: "Đóng", acc: "sai số {0} m",
   "hist.fail": "Không đọc được dữ liệu ngày {0}", "hist.h": "Lịch sử đã lưu trên máy này", "hist.pick": "Chọn ngày (ngày có dữ liệu được tô đậm) để xem lại, chỉ xem.",
   "hist.none": "Chưa có ngày nào được lưu. Dữ liệu được lưu mỗi khi mở app và kết nối được với máy con.",
@@ -3352,9 +3353,9 @@ en: {
   "se.unsupported": "The kid's phone runs an older Android that can't share the screen (needs Android 11+)", "se.busy": "The kid's phone is busy, retrying…",
   "se.need consent": "Your kid needs to tap Allow on the phone (Android 8–10 asks before sharing the screen; Android 8–9 has a “Don't show again” box)", "se.denied": "Your kid tapped Cancel on the phone, it asks again in 1 minute", "scr.watching": "Viewing",
   "scr.stat": "{0} fps · {1} ms lag", "scr.cant": "Can't show the screen yet", "scr.lost": "Lost connection to the kid's phone", "scr.wait": "Waiting for the kid's phone to connect (up to ~20 seconds)…",
-  "scr.retry": "Connection lost, retrying…", "scr.h": "Kid's screen", "swp.h": "Swipe", "swp.up": "Swipe up (scroll down)", "swp.down": "Swipe down (scroll up)", "swp.left": "Swipe left (next page)", "swp.right": "Swipe right (previous page)", "key.quick": "Quick settings", "key.nav": "Navigation keys", "scr.view": "View only", "key.home": "Home", "key.recents": "Recent apps", "key.notif": "Notifications",
+  "scr.retry": "Connection lost, retrying…", "scr.h": "Kid's screen", "swp.h": "Swipe", "swp.up": "Swipe up (scroll down)", "swp.down": "Swipe down (scroll up)", "swp.left": "Swipe left (next page)", "swp.right": "Swipe right (previous page)", "key.quick": "Quick settings", "key.nav": "Navigation keys", "swp.sending": "Sending…", "swp.fail": "Swipe failed", "swp.release": "Release to send", "swp.cancel": "Release here to cancel", "swp.cancelled": "Cancelled", "scr.view": "View only", "key.home": "Home", "key.recents": "Recent apps", "key.notif": "Notifications",
   "scr.typePh": "Type into the selected field on the kid's phone…", "scr.sendTxt": "Send text", "scr.notify": "Tell my kid \"A parent is watching / controlling\"",
-  "scr.tip": "Tap the picture to tap, drag to swipe, hold to long-press. The log always records when a parent views or controls the screen.",
+  "scr.tip": "Tap the picture to tap, hold to long-press. Drag to swipe: an arrow shows it first, it is sent when you let go and the phone replays that line at that speed; drag off the picture and let go to cancel. The log always records when a parent views or controls the screen.",
   "dp.prev": "Previous month", "dp.next": "Next month", close: "Close", acc: "accuracy {0} m",
   "hist.fail": "Couldn't read the data for {0}", "hist.h": "History saved on this phone", "hist.pick": "Pick a day (days with data are bold) to look back, read-only.",
   "hist.none": "No days saved yet. Data is saved each time the app opens and reaches the kid's phone.",
@@ -5687,7 +5688,7 @@ function screenTab(b) {
   b.innerHTML = `<div class="card"><div class="row"><h2 class="sp" style="margin:0">${ic("smartphone")} ${t("scr.h")}</h2>
     <label class="row"><input type="checkbox" id="s-view" ${scr.view ? "checked" : ""}> ${ic("eye")} ${t("scr.view")}</label></div>
     <div class="alert warn" id="s-off" hidden style="margin-top:10px">${ic("moon")}<span class="sp"><b>${t("so.h")}</b><br><span class="mute">${t("so.p")}</span></span><button type="button" id="wake" class="act pri"></button></div>
-    <div class="scr ${scr.view ? "view" : ""}" id="s-box" style="margin-top:10px"><img id="s-img" alt="${esc(t("scr.h"))}" draggable="false"><div class="scr-msg" id="s-msg"></div></div>
+    <div class="scr ${scr.view ? "view" : ""}" id="s-box" style="margin-top:10px"><img id="s-img" alt="${esc(t("scr.h"))}" draggable="false"><div class="scr-msg" id="s-msg"></div><svg class="gst" id="s-gst" aria-hidden="true"></svg></div>
     <div class="snav" id="s-nav" role="group" aria-label="${esc(t("key.nav"))}"><button data-key="back" aria-label="${esc(t("back"))}" title="${esc(t("back"))}">${ic("arrow-left")}</button><button data-key="home" aria-label="${esc(t("key.home"))}" title="${esc(t("key.home"))}">${ic("circle")}</button><button data-key="recents" aria-label="${esc(t("key.recents"))}" title="${esc(t("key.recents"))}">${ic("square")}</button></div>
     <div class="mute" id="s-stat" style="margin:4px 0"></div>
     <div class="spad" id="s-btns">
@@ -5709,7 +5710,32 @@ function screenTab(b) {
   const SW = { up: [.5, .72, .5, .28], down: [.5, .28, .5, .72], left: [.82, .5, .18, .5], right: [.18, .5, .82, .5] };
   const flash = x => { x.classList.add("sent"); setTimeout(() => x.classList.remove("sent"), 450); };
   document.querySelectorAll("#s-btns [data-key], #s-nav [data-key]").forEach(x => { x.onclick = () => { flash(x); sendInput({ type: "key", key: x.dataset.key }); }; });
-  $("#s-btns").querySelectorAll("[data-sw]").forEach(x => { x.onclick = () => { const [x1, y1, x2, y2] = SW[x.dataset.sw]; flash(x); sendInput({ type: "swipe", x1, y1, x2, y2, ms: 260 }); }; });
+  // gesture preview: an arrow on the picture shows exactly what the phone will replay (start -> end, straight line),
+  // white while dragging, amber while sending, green when the phone answered, red on failure / cancel
+  const gst = $("#s-gst"); let gstT = 0;
+  const arrow = (a, z, cls, label = "") => {
+    clearTimeout(gstT); if (!img.src) return;
+    const ir = img.getBoundingClientRect(), br = box.getBoundingClientRect();
+    const P = f => [ir.left - br.left + f.x * ir.width, ir.top - br.top + f.y * ir.height];
+    const [x1, y1] = P(a), [x2, y2] = P(z), g = Math.atan2(y2 - y1, x2 - x1), h = 16;
+    const head = d => `${(x2 - h * Math.cos(g + d)).toFixed(1)} ${(y2 - h * Math.sin(g + d)).toFixed(1)}`;
+    const tx = Math.min(br.width - 70, Math.max(6, x2 + 10)), ty = Math.min(br.height - 8, Math.max(16, y2 - 12));
+    gst.setAttribute("viewBox", `0 0 ${br.width} ${br.height}`); gst.setAttribute("class", "gst " + cls);
+    gst.innerHTML = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><path d="M${head(.5)}L${x2} ${y2}L${head(-.5)}"/><circle cx="${x1}" cy="${y1}" r="7"/>${label ? `<text x="${tx}" y="${ty}">${esc(label)}</text>` : ""}`;
+  };
+  const gstClear = (ms = 0) => { clearTimeout(gstT); gstT = setTimeout(() => { gst.innerHTML = ""; gst.setAttribute("class", "gst"); }, ms); };
+  const replay = async (o, a, z) => {
+    arrow(a, z, "send", t("swp.sending"));
+    const ok = await sendInput(o);
+    arrow(a, z, ok ? "ok" : "bad", ok ? "" : t("swp.fail")); gstClear(ok ? 1200 : 2500);
+  };
+  const swOf = k => { const [x1, y1, x2, y2] = SW[k]; return [{ x: x1, y: y1 }, { x: x2, y: y2 }]; };
+  $("#s-btns").querySelectorAll("[data-sw]").forEach(x => {
+    const show = () => { if (!x.disabled && !gst.classList.contains("send")) arrow(...swOf(x.dataset.sw), "hint"); };
+    const hide = () => { if (gst.classList.contains("hint")) gstClear(); };
+    x.onmouseenter = show; x.onfocus = show; x.onmouseleave = hide; x.onblur = hide;
+    x.onclick = () => { const [a, z] = swOf(x.dataset.sw); flash(x); replay({ type: "swipe", x1: a.x, y1: a.y, x2: z.x, y2: z.y, ms: 260 }, a, z); };
+  });
   const tx = $("#f-stxt"), terr = $("#s-terr");
   const send = async () => {
     const v = tx.value; if (!v || screenOff() || scr.view) return;
@@ -5724,17 +5750,27 @@ function screenTab(b) {
   screenCtl();
   let down = null;
   const frac = (e, r) => ({ x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) });
-  img.addEventListener("pointerdown", e => { if (scr.view || !img.src || screenOff()) return; e.preventDefault(); img.setPointerCapture(e.pointerId); down = { px: e.clientX, py: e.clientY, t: performance.now(), r: img.getBoundingClientRect() }; });
+  const outside = (e, r) => e.clientX < r.left - 4 || e.clientX > r.right + 4 || e.clientY < r.top - 4 || e.clientY > r.bottom + 4;
+  img.addEventListener("pointerdown", e => { if (scr.view || !img.src || screenOff()) return; e.preventDefault(); img.setPointerCapture(e.pointerId); down = { px: e.clientX, py: e.clientY, t: performance.now(), mt: 0, r: img.getBoundingClientRect() }; });
   img.addEventListener("contextmenu", e => e.preventDefault());
-  img.addEventListener("pointercancel", () => { down = null; });
+  img.addEventListener("pointercancel", () => { down = null; gstClear(); });
+  img.addEventListener("pointermove", e => {
+    if (!down) return; const d = down;
+    if (!d.mt) { if (Math.hypot(e.clientX - d.px, e.clientY - d.py) < 12) return; d.mt = performance.now(); }   // speed: first move .. last move (not the hold before or a pause before letting go)
+    d.lt = performance.now();
+    const a = frac({ clientX: d.px, clientY: d.py }, d.r), z = frac(e, d.r);
+    outside(e, d.r) ? arrow(a, z, "cancel", t("swp.cancel")) : arrow(a, z, "drag", t("swp.release"));
+  });
   img.addEventListener("pointerup", e => {
     if (!down) return; const d = down; down = null;
-    const dur = performance.now() - d.t, dist = Math.hypot(e.clientX - d.px, e.clientY - d.py);
+    const now = performance.now(), dur = now - d.t, dist = Math.hypot(e.clientX - d.px, e.clientY - d.py);
     const a = frac({ clientX: d.px, clientY: d.py }, d.r), z = frac(e, d.r);
-    const dot = document.createElement("div"); dot.className = "tap"; const br = box.getBoundingClientRect();
-    dot.style.left = (e.clientX - br.left) + "px"; dot.style.top = (e.clientY - br.top) + "px"; box.appendChild(dot); setTimeout(() => dot.remove(), 600);
-    if (dist < 12) sendInput({ type: dur > 500 ? "long" : "tap", x: +a.x.toFixed(4), y: +a.y.toFixed(4) });
-    else sendInput({ type: "swipe", x1: +a.x.toFixed(4), y1: +a.y.toFixed(4), x2: +z.x.toFixed(4), y2: +z.y.toFixed(4), ms: Math.round(Math.min(1500, Math.max(100, dur))) });
+    if (dist >= 12 && outside(e, d.r)) { arrow(a, z, "cancel", t("swp.cancelled")); gstClear(900); return; }
+    if (dist < 12) {
+      const dot = document.createElement("div"); dot.className = "tap"; const br = box.getBoundingClientRect();
+      dot.style.left = (e.clientX - br.left) + "px"; dot.style.top = (e.clientY - br.top) + "px"; box.appendChild(dot); setTimeout(() => dot.remove(), 600);
+      sendInput({ type: dur > 500 ? "long" : "tap", x: +a.x.toFixed(4), y: +a.y.toFixed(4) });
+    } else replay({ type: "swipe", x1: +a.x.toFixed(4), y1: +a.y.toFixed(4), x2: +z.x.toFixed(4), y2: +z.y.toFixed(4), ms: Math.round(Math.min(3000, Math.max(80, (d.lt || now) - (d.mt || d.t)))) }, a, z);
   });
   screenStart();
 }
