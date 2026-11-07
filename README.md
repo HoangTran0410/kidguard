@@ -43,11 +43,11 @@ KidGuard becomes the phone's **Device Owner**, the same Android role a company u
 
 | You need | Where |
 |---|---|
-| The app for the child's phone | [kidguard.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.6/kidguard-0.9.6.apk) |
+| The app for the child's phone | [kidguard.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk) |
 | QR code for a new or factory-reset phone | [kidguard.99-hoangtran.workers.dev/qr](https://kidguard.99-hoangtran.workers.dev/qr) |
 | Install from a computer's browser (USB, no adb) | [kidguard.99-hoangtran.workers.dev/install](https://kidguard.99-hoangtran.workers.dev/install) |
 | The parent page | the phone shows its address after setup: `http://<phone IP>:8770` |
-| The parent app (Android, optional) | [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.6/kidguard-parent-0.9.6.apk) |
+| The parent app (Android, optional) | [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk) |
 
 ## Install
 
@@ -70,7 +70,7 @@ when you can; a basic phone can be switched later with any of the ways above.
 Then the child's phone shows a **6-digit code** and a **QR code**. On the parent's phone (same Wi-Fi) scan the QR with the camera (it opens the page with the code filled in), or open `http://<phone IP>:8770` and type the code, and in **Cài đặt** (Settings) set a **parent PIN** (without it the phone refuses to pair another browser).
 
 **Parent app (Android, optional).** The browser is enough, but the app adds notifications (SOS, time requests, accessibility
-turned off) and shows the last data when the child's phone is offline. Install [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/download/v0.9.6/kidguard-parent-0.9.6.apk) on the
+turned off) and shows the last data when the child's phone is offline. Install [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk) on the
 parent's phone, open it, tap **Thêm máy của con** (add the child's phone), type the address shown on the child's phone and then
 the 6-digit code (away from home: paste the Worker link from the child's Settings). iPhone: use the browser ([below](#iphone--ipad)).
 

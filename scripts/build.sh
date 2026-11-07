@@ -24,12 +24,12 @@ cp android/app/build/outputs/apk/release/app-release.apk build/kidguard.apk
 cp android/parent/build/outputs/apk/release/parent-release.apk build/kidguard-parent.apk
 # release assets: the child self-update (Update.kt) needs kidguard.apk.sha256 next to the APK
 (cd build && for f in kidguard.apk kidguard-parent.apk; do shasum -a 256 "$f" > "$f.sha256"; done)
-# versioned copies for people downloading by hand (Chrome otherwise saves "kidguard (1).apk"); the fixed names above
-# stay for QR provisioning, setup scripts and the updater. Site + README link the versioned ones and show the version.
+# versioned copies for people who want a named file; site + README link releases/latest/download/<fixed name>, so a
+# release needs no link edits. Only the version chip (<span class="ver">) is stamped.
 V=$(sed -n 's/^kg.version=//p' android/gradle.properties)
 cp build/kidguard.apk "build/kidguard-$V.apk"; cp build/kidguard-parent.apk "build/kidguard-parent-$V.apk"
-perl -pi -e 's#releases/(?:latest/download|download/v[0-9.]+)/kidguard(-parent)?(?:-[0-9.]+)?\.apk#releases/download/v'"$V"'/kidguard$1-'"$V"'.apk#g; s#<span class="ver">v[0-9.]*</span>#<span class="ver">v'"$V"'</span>#g' \
-  website/index.html website/en/index.html website/guide.html website/en/guide.html README.md
+perl -pi -e 's#<span class="ver">v[0-9.]*</span>#<span class="ver">v'"$V"'</span>#g' \
+  website/index.html website/en/index.html website/guide.html website/en/guide.html
 scripts/stamp-site.sh
 
 # QR provisioning: SHA-256 of the signing certificate, URL-safe base64 without padding -> ui/provision.json + ui/qr.html defaults
