@@ -63,7 +63,7 @@ class Acc : AccessibilityService() {
     private var homeSet: Set<String>? = null
     private fun homes(): Set<String> = homeSet ?: runCatching {
         packageManager.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME), 0)
-            .map { it.activityInfo.packageName }.toSet()
+            .map { it.activityInfo.packageName to it.activityInfo.name }.let { TaskLogic.homes(it, BasicLogic::isSettingsPkg) }
     }.getOrDefault(emptySet()).also { homeSet = it }
 
     /**

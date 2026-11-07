@@ -48,6 +48,14 @@ class LiveLogicTest {
         assertTrue(ListenLogic.stalled(0, 4_001)); assertFalse(ListenLogic.stalled(1_000, 4_000))
     }
 
+    @Test fun settingsFallbackHomeIsNotAHome() {
+        val acts = listOf("com.android.settings" to "com.android.settings.FallbackHome", "com.sec.android.app.launcher" to "com.android.launcher3.uioverrides.QuickstepLauncher",
+            "dev.kidguard" to "dev.kidguard.HomeActivity", "com.oppo.settings" to "com.oppo.settings.Home")
+        assertEquals(setOf("com.sec.android.app.launcher", "dev.kidguard"), TaskLogic.homes(acts, BasicLogic::isSettingsPkg))
+        // About phone opened from setup inside our task must not finish it
+        assertFalse(TaskLogic.dropTasks("com.android.settings", "com.android.settings.Settings\$MyDeviceInfoActivity", "dev.kidguard", TaskLogic.homes(acts, BasicLogic::isSettingsPkg)))
+    }
+
     @Test fun dropTasksOnHomeOrRecentsOnly() {
         val homes = setOf("com.oppo.launcher")
         assertTrue(TaskLogic.dropTasks("com.oppo.launcher", "com.oppo.launcher.Launcher", "dev.kidguard", homes))

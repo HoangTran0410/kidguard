@@ -59,6 +59,14 @@ object TaskLogic {
      */
     fun dropTasks(pkg: String, cls: String?, self: String, homes: Set<String>): Boolean =
         pkg != self && (pkg in homes || pkg.contains("recents", true) || (cls?.contains("recents", true) == true))
+
+    /**
+     * Real home apps among the CATEGORY_HOME activities ([pkg] to [cls]). Settings' FallbackHome (direct-boot placeholder,
+     * priority -1000) also answers HOME: counting Settings as a launcher finished our task the moment a setup step opened
+     * "About phone" inside it, and the child landed on the home screen (dead end in "full setup" from basic mode).
+     */
+    fun homes(acts: List<Pair<String, String>>, isSettings: (String) -> Boolean): Set<String> =
+        acts.filter { (p, c) -> !c.endsWith("FallbackHome") && !isSettings(p) }.map { it.first }.toSet()
 }
 
 /** Which phone actions refuse each other (same table in docs/protocol.md "Action states" and on the page). */
