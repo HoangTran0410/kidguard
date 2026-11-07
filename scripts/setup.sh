@@ -113,6 +113,9 @@ chk appops set $PKG GET_USAGE_STATS allow
 
 echo "[4/8] Cấp quyền ghi cài đặt bảo mật"
 chk pm grant $PKG android.permission.WRITE_SECURE_SETTINGS
+# optional (remote phone settings): brightness / screen timeout and Do Not Disturb; old Android may not know them
+adb shell appops set $PKG WRITE_SETTINGS allow >/dev/null 2>&1 || true
+adb shell cmd notification allow_dnd $PKG >/dev/null 2>&1 || true
 
 echo "[5/8] Bật dịch vụ Trợ năng"
 cur=$(adb shell settings get secure enabled_accessibility_services | tr -d '\r' | head -n1)

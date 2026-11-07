@@ -115,6 +115,16 @@
     <string name="log_dev_off">Parent turned off Developer options and USB debugging</string>
     <string name="log_totp_off">Unlock codes turned off</string>
     <string name="log_totp_on">Unlock codes turned on (Google Authenticator)</string>
+    <string name="sys_ring">ring</string>
+    <string name="sys_media">media</string>
+    <string name="sys_alarm">alarm</string>
+    <string name="log_setting_vol">Parent set %1$s volume to %2$d/%3$d</string>
+    <string name="log_setting_bright">Parent set brightness to %1$d%%</string>
+    <string name="log_setting_auto_on">Parent turned auto-brightness on</string>
+    <string name="log_setting_auto_off">Parent turned auto-brightness off</string>
+    <string name="log_setting_timeout">Parent set screen timeout to %1$d s</string>
+    <string name="log_setting_dnd_on">Parent turned Do Not Disturb on</string>
+    <string name="log_setting_dnd_off">Parent turned Do Not Disturb off</string>
     <string name="log_release_fail">Release not finished: %1$s</string>
     <string name="log_released">Management removed</string>
     <string name="log_sos">SOS pressed</string>

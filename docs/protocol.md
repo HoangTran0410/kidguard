@@ -211,6 +211,8 @@ The first capture / first input of a session is logged in the phone log.
 2. `adb shell dpm set-device-owner dev.kidguard/.Admin` (verify with `dumpsys device_policy`)
 3. `adb shell appops set dev.kidguard GET_USAGE_STATS allow`
 4. `adb shell pm grant dev.kidguard android.permission.WRITE_SECURE_SETTINGS`
+   then, optional (errors ignored, for remote phone settings): `appops set dev.kidguard WRITE_SETTINGS allow` and
+   `cmd notification allow_dnd dev.kidguard` (Do Not Disturb access)
 5. accessibility on: read `settings get secure enabled_accessibility_services`, append
    `dev.kidguard/dev.kidguard.Acc` (`:`-separated, skip if present, treat `null` as empty), write it back, then
    `settings put secure accessibility_enabled 1`
@@ -564,6 +566,34 @@ Rules, NEW optional fields (bad values fall back to the default):
   the label (+ ": " + typed text). Request shape: `{"id","t","min","note"?, "chore"?, "tpl"?}`.
 - **Canned replies (page only)**: chips under "Lời nhắn cho con" fill the existing `answer.note`. No wire change.
 - No new commands (worker whitelist unchanged).
+## Remote phone settings (after v0.9.5)
+Only volume, brightness, screen timeout and Do Not Disturb; anything else goes through the Screen tab's remote control.
+- **State** `sys` (absent on older children: the page hides the card). Read at most once a minute and right after a change
+  (not every guard tick):
+  ```jsonc
+  "sys": {
+    "vol": {"ring": [3, 7], "media": [5, 15], "alarm": [6, 7]},   // [current step, max step] (AudioManager)
+    "bright": [120, 255] | null,       // Settings.System.SCREEN_BRIGHTNESS, max from the framework config (some OEMs > 255)
+    "autoBright": false | null,        // SCREEN_BRIGHTNESS_MODE == automatic
+    "timeoutMs": 30000 | null,         // SCREEN_OFF_TIMEOUT
+    "dnd": true | null,                // interruption filter != ALL
+    "can": {"vol": true, "bright": true, "timeout": true, "dnd": false},   // false: the page disables the control and says why
+    "last": {"vol.media": {"id": "s…", "res": "ok", "t": 1793940898493}}  // per key: the last `setting` command's result
+  }
+  ```
+- **Command** `setting {key, value, id?}`, `key` one of `vol.ring vol.media vol.alarm bright autoBright timeoutMs dnd`;
+  `value` a JSON number (volume step, brightness 1..max, ms) or a boolean (`autoBright`, `dnd`). The phone clamps numbers
+  (volume 0..max, brightness 1..max, timeout 15 s..10 min). Result `ok | bad key | bad value | no permission |
+  no dnd access | blocked by dnd | volume fixed | not applied | failed`. The worker answers 400 `bad setting` for an
+  unknown key or a value that is neither a number nor a boolean. Not deliver-once (repeats are harmless; the phone de-dups by `id`).
+  The page sends its own `id` and waits for `sys.last[key].id` in a later state (relay: the command only gets `queued`).
+  Each change logs one line (`log_setting_*`); a failure logs the usual `Command: setting → <result>`.
+- **How, per Android version**: volume = `AudioManager.setStreamVolume` (no permission; while DND is on the ring stream can
+  refuse: `blocked by dnd`). Brightness / auto / timeout = `DevicePolicyManager.setSystemSetting` on Android 9+ as Device
+  Owner, else `Settings.System.putInt` (allowed by WRITE_SECURE_SETTINGS from setup, or the WRITE_SETTINGS app-op); the
+  value must read back or the result is `not applied`. DND = `NotificationManager.setInterruptionFilter` (on = PRIORITY,
+  off = ALL), needs policy access, which only setup can give (`cmd notification allow_dnd`); without it `can.dnd=false`.
+- `release` needs nothing extra: these are plain user settings, no restriction is added.
 
 ## v0.9.3 fixes
 - Relay rules carry `pinAt` (the rev of the PUT that set the PIN; kept by later PUTs). The phone takes a relay `pinHash`

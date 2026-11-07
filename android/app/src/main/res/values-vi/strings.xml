@@ -109,6 +109,16 @@
     <string name="log_dev_off">Bố mẹ đã tắt Tuỳ chọn nhà phát triển và gỡ lỗi USB</string>
     <string name="log_totp_off">Đã tắt mã mở khoá</string>
     <string name="log_totp_on">Đã bật mã mở khoá (Google Authenticator)</string>
+    <string name="sys_ring">chuông</string>
+    <string name="sys_media">nhạc / video</string>
+    <string name="sys_alarm">báo thức</string>
+    <string name="log_setting_vol">Bố mẹ đặt âm lượng %1$s: %2$d/%3$d</string>
+    <string name="log_setting_bright">Bố mẹ đặt độ sáng %1$d%%</string>
+    <string name="log_setting_auto_on">Bố mẹ bật độ sáng tự động</string>
+    <string name="log_setting_auto_off">Bố mẹ tắt độ sáng tự động</string>
+    <string name="log_setting_timeout">Bố mẹ đặt tắt màn hình sau %1$d giây</string>
+    <string name="log_setting_dnd_on">Bố mẹ bật Không làm phiền</string>
+    <string name="log_setting_dnd_off">Bố mẹ tắt Không làm phiền</string>
     <string name="log_release_fail">Gỡ quản lý chưa xong: %1$s</string>
     <string name="log_released">Đã gỡ quyền quản lý</string>
     <string name="log_sos">Con bấm SOS</string>

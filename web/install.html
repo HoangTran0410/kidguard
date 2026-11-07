@@ -273,6 +273,9 @@ const STEPS = [
   ["Cấp quyền xem thời gian dùng app", async () => { await must("appops set " + PKG + " GET_USAGE_STATS allow"); }],
   ["Cấp quyền ghi cài đặt bảo mật", async () => {
     await must("pm grant " + PKG + " android.permission.WRITE_SECURE_SETTINGS");
+    // optional (remote phone settings): brightness / screen timeout and Do Not Disturb; old Android may not know them
+    await sh("appops set " + PKG + " WRITE_SETTINGS allow").catch(() => {});
+    await sh("cmd notification allow_dnd " + PKG).catch(() => {});
   }],
   ["Bật dịch vụ Trợ năng", async () => {
     let cur = (await sh("settings get secure enabled_accessibility_services")).split("\n")[0].trim();

@@ -20,7 +20,8 @@ const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
 const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel"];   // deliver-once: dropped from the queue when handed to the phone
-const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "fileUp", "fileDel"];
+const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "setting", "fileUp", "fileDel"];
+const SETTING_KEYS = ["vol.ring", "vol.media", "vol.alarm", "bright", "autoBright", "timeoutMs", "dnd"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
 // inline scripts/styles are needed (single-file pages); the installer imports ESM from jsDelivr and downloads the APK
 const CSP = [
@@ -250,6 +251,7 @@ export class Kid {
       const type = String(body.type || "");
       if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
       if (type === "clearData" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
+      if (type === "setting" && !(SETTING_KEYS.includes(body.key) && (typeof body.value === "boolean" || Number.isFinite(body.value)))) return json({ error: "bad setting" }, 400);
       // expired commands are only dropped on a phone sync: don't let them fill the queue
       const cmds = ((await this.s.get("cmds")) || []).filter(c => now - (c.at || 0) < 86400e3);
       // full queue: refuse instead of silently dropping the oldest (it may be a pending release)

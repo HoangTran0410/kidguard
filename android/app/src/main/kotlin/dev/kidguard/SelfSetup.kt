@@ -250,6 +250,8 @@ object SelfSetup {
         if (!step(2, "dpm set-device-owner $PKG/.Admin") { it.contains("Success") }) { runCatching { m.disconnect() }; return }
         if (!step(3, "appops set $PKG GET_USAGE_STATS allow")) return
         if (!step(4, "pm grant $PKG android.permission.WRITE_SECURE_SETTINGS")) return
+        // optional (remote phone settings): brightness / screen timeout and Do Not Disturb; old Android may not know them
+        runCatching { sh("appops set $PKG WRITE_SETTINGS allow") }; runCatching { sh("cmd notification allow_dnd $PKG") }
         mark(app, 5, STEP_RUN)
         val merged = SelfSetupLogic.withAccessibility(sh("settings get secure enabled_accessibility_services"), ACC)
         if (merged != null) sh("settings put secure enabled_accessibility_services '$merged'")

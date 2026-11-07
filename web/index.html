@@ -409,6 +409,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none;
 <symbol id="i-siren" viewBox="0 0 24 24"><path d="M7 18v-6a5 5 0 1 1 10 0v6" /><path d="M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z" /><path d="M21 12h1" /><path d="M18.5 4.5 18 5" /><path d="M2 12h1" /><path d="M12 2v1" /><path d="m4.929 4.929.707.707" /><path d="M12 12v6" /></symbol>
 <symbol id="i-smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" /></symbol>
 <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" /><path d="M20 2v4" /><path d="M22 4h-4" /><circle cx="4" cy="20" r="2" /></symbol>
+<symbol id="i-alarm-clock" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M5 3 2 6" /><path d="m22 6-3-3" /><path d="M6.38 18.7 4 21" /><path d="M17.64 18.67 20 21" /></symbol>
+<symbol id="i-bell-off" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0" /><path d="M17 17H4a1 1 0 0 1-.74-1.673C4.59 13.956 6 12.499 6 8a6 6 0 0 1 .258-1.742" /><path d="m2 2 20 20" /><path d="M8.668 3.01A6 6 0 0 1 18 8c0 2.687.77 4.653 1.707 6.05" /></symbol>
+<symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></symbol>
+<symbol id="i-sliders-horizontal" viewBox="0 0 24 24"><path d="M10 5H3" /><path d="M12 19H3" /><path d="M14 3v4" /><path d="M16 17v4" /><path d="M21 12h-9" /><path d="M21 19h-5" /><path d="M21 5h-7" /><path d="M8 10v4" /><path d="M8 12H3" /></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" /></symbol>
 <symbol id="i-sprout" viewBox="0 0 24 24"><path d="M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3" /><path d="M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4" /><path d="M5 21h14" /></symbol>
 <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /></symbol>
 <symbol id="i-square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /></symbol>
@@ -2892,6 +2897,14 @@ vi: {
   "pause.askNote": "Mọi app bị khoá, trừ app luôn cho phép. Gọi điện vẫn được. Hết giờ thì tự mở lại.", "pause.ok": "Cấm dùng",
   "lock.done": "Đã khoá màn hình", "ring.done": "Đang đổ chuông 20 giây", "locate.done": "Đang lấy vị trí, xem tab Vị trí",
   "msg.done": "Đã nhắn",
+  "sys.h": "Cài đặt máy", "sys.ring": "Chuông", "sys.media": "Nhạc, video", "sys.alarm": "Báo thức", "sys.bright": "Độ sáng", "sys.auto": "Độ sáng tự động",
+  "sys.autoHint": "Đang để tự động: máy tự chỉnh. Tắt tự động để chỉnh tay.", "sys.timeout": "Tắt màn hình sau", "sys.sec": "{0} giây", "sys.dnd": "Không làm phiền",
+  "sys.pending": "đang gửi", "sys.queued": "chờ máy con", "sys.done": "xong", "sys.fail": "không được: {0}", "sys.volFixed": "Máy này không cho đổi âm lượng.",
+  "sys.ringDnd": "Đang bật Không làm phiền nên có thể không đổi được chuông.", "sys.noWrite": "Máy con chưa có quyền đổi mục này. Cài lại bằng máy tính (setup) để cấp quyền.",
+  "sys.noDnd": "Máy con chưa cho KidGuard bật / tắt Không làm phiền. Cài lại bằng máy tính (setup) để cấp quyền.", "sys.offline": "Máy con đang mất kết nối: thay đổi sẽ chạy khi máy online lại.",
+  "sys.none": "Máy con không báo cài đặt nào.", "cl.setting": "Cài đặt máy", "sr.blocked by dnd": "Không làm phiền đang chặn", "sr.no permission": "thiếu quyền",
+  "sr.no dnd access": "thiếu quyền Không làm phiền", "sr.not applied": "máy không nhận", "sr.volume fixed": "máy khoá âm lượng", "sr.bad value": "giá trị sai",
+  "sr.bad key": "máy con chưa hỗ trợ", "sr.unknown": "máy con cần cập nhật KidGuard", "sr.failed": "lỗi", "sr.timeout": "máy con không trả lời",
   cl: "Lệnh: {0} → {1}", "cl.lock": "Khoá màn hình", "cl.locate": "Lấy vị trí", "cl.message": "Tin nhắn", "cl.ring": "Đổ chuông", "cl.openPairing": "Mở ghép máy",
   "cl.unpairAll": "Huỷ ghép mọi máy", "cl.release": "Gỡ quản lý", "cl.answer": "Trả lời xin thêm giờ", "cl.reboot": "Khởi động lại", "cl.tailscale": "Cài Tailscale",
   "cl.tailscaleOff": "Tắt Tailscale", "cl.devOff": "Tắt tuỳ chọn nhà phát triển", "cl.sosAck": "Đã xem SOS", "cl.clearData": "Xoá dữ liệu app", "cl.update": "Cập nhật", "cl.relay": "Cấu hình relay", "cl.listen": "Nghe xung quanh",
@@ -3250,6 +3263,14 @@ en: {
   "pause.askNote": "Every app is locked except always-allowed ones. Calls still work. It unlocks by itself when time's up.", "pause.ok": "Pause",
   "lock.done": "Screen locked", "ring.done": "Ringing for 20 seconds", "locate.done": "Getting location, see the Location tab",
   "msg.done": "Message sent",
+  "sys.h": "Phone settings", "sys.ring": "Ring", "sys.media": "Music, video", "sys.alarm": "Alarm", "sys.bright": "Brightness", "sys.auto": "Auto brightness",
+  "sys.autoHint": "Auto is on: the phone adjusts itself. Turn auto off to set it by hand.", "sys.timeout": "Screen off after", "sys.sec": "{0} s", "sys.dnd": "Do Not Disturb",
+  "sys.pending": "sending", "sys.queued": "waiting for the phone", "sys.done": "done", "sys.fail": "failed: {0}", "sys.volFixed": "This phone doesn't allow volume changes.",
+  "sys.ringDnd": "Do Not Disturb is on, so the ring volume may not change.", "sys.noWrite": "The kid's phone can't change this yet. Run setup from a computer again to grant it.",
+  "sys.noDnd": "KidGuard can't switch Do Not Disturb on the kid's phone yet. Run setup from a computer again to grant it.", "sys.offline": "The kid's phone is offline: changes run when it's back online.",
+  "sys.none": "The kid's phone reports no settings.", "cl.setting": "Phone settings", "sr.blocked by dnd": "blocked by Do Not Disturb", "sr.no permission": "no permission",
+  "sr.no dnd access": "no Do Not Disturb access", "sr.not applied": "the phone didn't take it", "sr.volume fixed": "volume is fixed", "sr.bad value": "bad value",
+  "sr.bad key": "not supported by the kid's phone", "sr.unknown": "the kid's phone needs a KidGuard update", "sr.failed": "error", "sr.timeout": "no answer from the kid's phone",
   cl: "Command: {0} → {1}", "cl.lock": "Lock screen", "cl.locate": "Locate", "cl.message": "Message", "cl.ring": "Ring", "cl.openPairing": "Open pairing",
   "cl.unpairAll": "Unpair all phones", "cl.release": "Remove controls", "cl.answer": "Answer time request", "cl.reboot": "Restart", "cl.tailscale": "Install Tailscale",
   "cl.tailscaleOff": "Turn off Tailscale", "cl.devOff": "Turn off developer options", "cl.sosAck": "SOS handled", "cl.clearData": "Clear app data", "cl.update": "Update", "cl.relay": "Set up relay", "cl.listen": "Listen in",
@@ -4037,6 +4058,7 @@ async function refresh() {
   if (tab === "screen") updateLive();   // never redraw the screen tab: the <img> updates by itself
   else if (sig !== lastSig && !busy) { lastSig = sig; render(); } else updateLive();
   if (tab === "files" && k === cur) fxSync();   // shared folder list + relay upload delivery (its own redraw)
+  if (tab === "set") sysDraw();   // the phone-settings card follows st.sys by itself
 }
 let lastSig = "";
 
@@ -6183,6 +6205,115 @@ function devsHtml() {
       <span class="mute">${self ? `<span class="tag t-info" style="margin:0 4px 0 0">${t("dev.self")}</span>` : ""}${t("dev.at", d.at ? new Date(d.at).toLocaleDateString(lang) : "—")} · ${t("dev.last", d.last ? ago(d.last) : "—")}</span></div>
       <button type="button" class="bad" data-unp="${esc(d.id)}">${ic("unlink")} ${t("dev.unpair")}</button></div>`; }).join("") || `<p class="mute">${t("none")}</p>`;
 }
+// ---- "Cài đặt máy": volume, brightness, screen timeout, DND (command `setting`, state `sys`) ----
+// The phone's state is the truth: a control shows the phone's value unless a change of ours is still on its way.
+// pend[key] = {v, id, at, s: "pending" | "sent" | "fail", why}. "sent" = the phone answered ok (LAN); every change waits
+// for a state carrying its result (sys.last[key].id), then the control follows the phone again. A failed one rolls back.
+const SYS_TO = [15, 30, 60, 120, 300, 600].map(s => s * 1000);
+const sysUi = { k: null, pend: {}, done: {}, drag: null, deb: {} };
+function sysOf() { if (sysUi.k !== cur) { sysUi.k = cur; sysUi.pend = {}; sysUi.done = {}; } return st && st.sys; }
+function sysPhone(s, key) {   // the phone's value for a key
+  if (key.startsWith("vol.")) { const a = s.vol && s.vol[key.slice(4)]; return a ? +a[0] : null; }
+  if (key === "bright") return s.bright ? +s.bright[0] : null;
+  return s[key] ?? null;
+}
+// settle our changes against the phone's state: its result for our id, else a timeout once the phone has clearly synced since
+function sysSettle(s) {
+  const now = Date.now(), last = s.last || {}, lan = cur.via === "lan";
+  for (const [key, p] of Object.entries(sysUi.pend)) {
+    const r = last[key];
+    if (r && r.id === p.id) {
+      if (r.res === "ok") { delete sysUi.pend[key]; sysUi.done[key] = now; } else Object.assign(p, { s: "fail", why: r.res });
+    } else if (p.s === "sent" && now - p.at > 30000) { delete sysUi.pend[key]; sysUi.done[key] = now; }   // said ok, state just lagging
+    else if (p.s === "pending" && (lan ? now - p.at > 30000 : now - p.at > 90000 && lastSeen() > p.at + 45000)) Object.assign(p, { s: "fail", why: "timeout" });
+  }
+}
+function sysCtl(s, key) {   // value shown + status html
+  const p = sysUi.pend[key], v = p && p.s !== "fail" ? p.v : sysPhone(s, key);
+  const stt = p ? (p.s === "fail" ? `<span class="tag bad" role="status">${ic("triangle-alert")} ${esc(t("sys.fail", tc("sr.", p.why, p.why)))}</span>`
+    : `<span class="tag" role="status">${ic("hourglass")} ${t(cur.via === "lan" ? "sys.pending" : "sys.queued")}</span>`)
+    : Date.now() - (sysUi.done[key] || 0) < 4000 ? `<span class="tag ok" role="status">${ic("check")} ${t("sys.done")}</span>` : "";
+  return { v, stt };
+}
+function sysHtml() {
+  const s = sysOf();
+  if (!s || viewDay) return "";
+  sysSettle(s);
+  const can = s.can || {}, rows = [];
+  const range = (key, icon, label, min, max, shown, off, why) => {
+    const { v, stt } = sysCtl(s, key), id = "f-sys-" + key.replace(".", "-");
+    return `<div style="margin:10px 0"><label class="row" for="${id}"><span>${ic(icon)}</span><span class="sp">${label}</span><b data-sysv="${key}">${v == null ? "—" : shown(v)}</b>${stt}</label>
+      <input type="range" id="${id}" data-sys="${key}" min="${min}" max="${max}" step="1" value="${v ?? min}" style="width:100%" ${off || v == null ? "disabled" : ""} aria-label="${esc(label)}">
+      ${why ? `<div class="mute">${why}</div>` : ""}</div>`;
+  };
+  for (const [key, icon] of [["vol.ring", "bell"], ["vol.media", "music"], ["vol.alarm", "alarm-clock"]]) {
+    const a = s.vol && s.vol[key.slice(4)]; if (!a) continue;
+    rows.push(range(key, icon, t("sys." + key.slice(4)), 0, +a[1], v => v + "/" + +a[1], !can.vol, !can.vol ? t("sys.volFixed") : key === "vol.ring" && s.dnd ? t("sys.ringDnd") : ""));
+  }
+  if (s.bright) {
+    const max = +s.bright[1] || 255, auto = sysCtl(s, "autoBright"), autoOn = !!auto.v;
+    rows.push(range("bright", "sun", t("sys.bright"), 1, max, v => Math.round(v * 100 / max) + "%", !can.bright || autoOn,
+      !can.bright ? t("sys.noWrite") : autoOn ? t("sys.autoHint") : ""));
+    if (s.autoBright != null) rows.push(`<label class="row" style="margin:10px 0"><input type="checkbox" data-sys="autoBright" ${autoOn ? "checked" : ""} ${can.bright ? "" : "disabled"}><span class="sp">${t("sys.auto")}</span>${auto.stt}</label>`);
+  }
+  if (s.timeoutMs != null) {
+    const { v, stt } = sysCtl(s, "timeoutMs"), opts = SYS_TO.includes(+v) ? SYS_TO : SYS_TO.concat(+v).sort((a, b) => a - b);
+    const lbl = ms => ms < 60000 || ms % 60000 ? t("sys.sec", Math.round(ms / 1000)) : t("fmt.m", ms / 60000);
+    rows.push(`<div style="margin:10px 0"><label class="row" for="f-sys-to"><span>${ic("timer")}</span><span class="sp">${t("sys.timeout")}</span>${stt}</label>
+      <select id="f-sys-to" data-sys="timeoutMs" style="width:100%" ${can.timeout ? "" : "disabled"}>${opts.map(o => `<option value="${o}" ${o === +v ? "selected" : ""}>${esc(lbl(o))}</option>`).join("")}</select>
+      ${can.timeout ? "" : `<div class="mute">${t("sys.noWrite")}</div>`}</div>`);
+  }
+  if (s.dnd != null) {
+    const { v, stt } = sysCtl(s, "dnd");
+    rows.push(`<label class="row" style="margin:10px 0"><input type="checkbox" data-sys="dnd" ${v ? "checked" : ""} ${can.dnd ? "" : "disabled"}><span>${ic("bell-off")}</span><span class="sp">${t("sys.dnd")}</span>${stt}</label>
+      ${can.dnd ? "" : `<div class="mute">${t("sys.noDnd")}</div>`}`);
+  }
+  const off = cur.via !== "lan" && Date.now() - lastSeen() > 120000;
+  return `<h2>${ic("sliders-horizontal")} ${t("sys.h")}</h2>${off ? `<div class="alert warn">${ic("wifi-off")} ${t("sys.offline")}</div>` : ""}${rows.join("") || `<p class="mute">${t("sys.none")}</p>`}`;
+}
+// the card redraws in place on every refresh (the tab is not redrawn while a control has focus), never while a slider is held
+function sysDraw() {
+  const box = $("#sysCard"); if (!box) return;
+  if (sysUi.drag || Object.keys(sysUi.deb).length) return;
+  const h = sysHtml(); box.style.display = h ? "" : "none";
+  const f = document.activeElement && box.contains(document.activeElement) ? document.activeElement.id : "";
+  box.innerHTML = h;
+  if (f && $("#" + f)) $("#" + f).focus();
+  box.querySelectorAll("[data-sys]").forEach(el => {
+    const key = el.dataset.sys;
+    if (el.type === "range") {
+      el.onpointerdown = () => { sysUi.drag = key; };
+      el.oninput = () => { const b = box.querySelector(`[data-sysv="${key}"]`), s = st.sys;   // live number while sliding, nothing sent
+        if (b) b.textContent = key === "bright" ? Math.round(el.value * 100 / (+s.bright[1] || 255)) + "%" : el.value + "/" + el.max; };
+    }
+    // "change" = released (mouse / touch) or a key step: a short pause so held arrow keys send once
+    el.onchange = () => {
+      sysUi.drag = null;
+      const v = el.type === "checkbox" ? el.checked : +el.value;
+      clearTimeout(sysUi.deb[key]);
+      sysUi.deb[key] = setTimeout(() => { delete sysUi.deb[key]; sysSend(key, v); }, el.type === "range" ? 400 : 0);
+    };
+  });
+}
+// a slider touched but not moved: no change event, so let go of it here
+document.addEventListener("pointerup", () => { if (sysUi.drag) setTimeout(() => { if (sysUi.drag) { sysUi.drag = null; sysDraw(); } }, 50); });
+async function sysSend(key, v) {
+  const k = cur, s = st && st.sys;
+  if (!s) return;
+  if (v === sysPhone(s, key) && !sysUi.pend[key]) return sysDraw();
+  const id = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  sysUi.pend[key] = { v, id, at: Date.now(), s: "pending" }; delete sysUi.done[key];
+  sysDraw();
+  let r;
+  try { r = await call(k, "/cmd", "POST", { type: "setting", key, value: v, id }); }
+  catch (e) { r = { result: e.message || "failed" }; }
+  const p = sysUi.pend[key];
+  if (k !== cur || !p || p.id !== id) return;   // another kid open now, or a newer change took over
+  if (r.result === "ok") { p.s = "sent"; refresh(); }
+  else if (r.result !== "queued") Object.assign(p, { s: "fail", why: r.result || "failed" });
+  sysDraw();
+}
+
 function setTab(b) {
   const lan = cur.via === "lan", S = ruleSecs(edit);
   if (Array.isArray(st.devices) && !st.devices.some(d => d.self) && !devIds.has(cur.token)) { const k = cur; devIdOf(k).then(id => { if (id && k === cur && tab === "set") { lastSig = ""; render(); } }); }
@@ -6204,6 +6335,7 @@ function setTab(b) {
   ${APP ? `<div class="card"><h2>${ic("history")} ${t("keep.h")}</h2><select id="f-days" aria-label="${esc(t("keep.h"))}">${["0", "30", "90", "365"].map(v => `<option value="${v}" ${String(kgCall("getHistoryDays") || "0") === v ? "selected" : ""}>${+v ? t("days", +v) : t("noLimitC")}</option>`).join("")}</select>
     <p class="mute">${t("keep.p")}</p></div>` : ""}
   ${updCard()}
+  <div class="card" id="sysCard"></div>
   ${devCard()}
   ${APP ? "" : `<div class="card"><h2>${ic("smartphone")} ${t("a2hs.h")}</h2><p class="mute">${t("a2hs.p")}</p></div>`}
   <div class="sec">${t("set.conn")}</div>
@@ -6238,6 +6370,7 @@ function setTab(b) {
     }
     st.devices = st.devices.filter(o => o !== d); lastSig = ""; render();
   });
+  sysDraw();
   if (APP) $("#f-days").onchange = e => kgCall("setHistoryDays", e.target.value);
   if (APP) $("#f-notify").onchange = e => { kgCall("setNotify", e.target.checked ? "true" : "false"); if (e.target.checked) setTimeout(() => { if (kgCall("canNotify") === "false") toast("warn|" + t("notif.blockedShort")); }, 1500); };
   if ($("#relayBox")) $("#relayBox").ontoggle = e => { relayOpen = e.target.open; };

@@ -150,6 +150,13 @@ ck("device GET does not ask",!(await (await PD("sync",{})).json()).device);
 ck("device PUT >32KB 413",(await PD("device",{x:"a".repeat(40000)},"PUT")).status==413);
 ck("device PUT array 400",(await PD("device",[1],"PUT")).status==400);
 ck("device wrong token 401",(await fetch(`${B}/c/${idd}/device`,{headers:H(BAD)})).status==401);}
+// ---- remote phone settings: key whitelist + number/boolean value ----
+{const ids=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),PS=(p,o)=>fetch(`${B}/c/${ids}/${p}`,{method:"POST",headers:H(),body:JSON.stringify(o)});
+await PS("sync",{state:{t:1}});
+const bad=await Promise.all([{key:"wifi",value:1},{key:"vol.media"},{key:"vol.media",value:"7"},{key:"dnd",value:null}].map(async o=>(await PS("cmd",{type:"setting",...o})).status));
+ck(`setting bad key/value 400 [got ${bad}]`,bad.every(s=>s==400));
+ck("setting queued",(await (await PS("cmd",{type:"setting",key:"vol.media",value:7,id:"s1"})).json()).result=="queued"&&(await (await PS("cmd",{type:"setting",key:"dnd",value:true})).json()).result=="queued");
+const s1=await (await PS("sync",{})).json();ck("setting delivered with key/value",s1.cmds.some(c=>c.type=="setting"&&c.key=="vol.media"&&c.value===7&&c.id=="s1")&&s1.cmds.some(c=>c.key=="dnd"&&c.value===true));}
 // ---- tester additions: deliver-once, pinHash never leaves, oversized cmd ----
 {const id4=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),P4=(p,o,m="POST")=>fetch(`${B}/c/${id4}/${p}`,{method:m,headers:H(),body:o===undefined?undefined:JSON.stringify(o)});
 const G4=async p=>await (await fetch(`${B}/c/${id4}/${p}`,{headers:H()})).text();

@@ -326,6 +326,7 @@ class Guard : Service() {
             .put("windDown", GrayFx.state(this, r, windActive))
             .put("update", Update.stateJson(this))
             .put("launcher", runCatching { LauncherSafe.state(this, r, HomeFile.styleId(this), HomeFile.pages(this)) }.getOrDefault(JSONObject()))
+            .put("sys", Sys.state(this))
             .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)) else it.put("preinstalled", preinstalled(prot, now)) }
     }
 
@@ -388,7 +389,8 @@ class Guard : Service() {
         // written with commit() before anything runs (a reboot / release must not run twice after a restart)
         if (id.isNotBlank() && !store.markCmd(id)) { Log.i("KidGuard", "duplicate command $id ($t)"); return "ok" }
         val res = runCatching { run(t, c) }.getOrElse { Log.w("KidGuard", "command $t", it); "failed" }
-        if (t != "relay" && t != "release") runCatching { store.log(R.string.log_cmd, t, res) }
+        // a done `setting` writes its own log line (log_setting_*)
+        if (t != "relay" && t != "release" && !(t == "setting" && res == "ok")) runCatching { store.log(R.string.log_cmd, t, res) }
         kick()
         return res
     }
@@ -434,6 +436,7 @@ class Guard : Service() {
             if (s.isNotEmpty() && Totp.decode(s) == null) "bad secret"
             else { store.totpSecret = s.uppercase().filter { it in 'A'..'Z' || it in '2'..'7' }; store.unlockUntil = 0; store.log(if (s.isEmpty()) R.string.log_totp_off else R.string.log_totp_on); "ok" }
         }
+        "setting" -> Sys.set(this, store, c)
         "release" -> release()
         else -> "unknown"
     }
