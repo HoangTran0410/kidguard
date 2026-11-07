@@ -2774,7 +2774,7 @@ vi: {
   "e.waiting for the phone": "Đang chờ máy con", "e.bad command": "Lệnh không hợp lệ", "e.bad json": "Dữ liệu gửi đi không hợp lệ", "e.not found": "Không tìm thấy",
   "e.http": "Máy chủ lỗi ({0}), thử lại sau", "e.viewOnly": "đang xem lịch sử, chỉ xem", "e.cachedOff": "đang mất kết nối, chưa gửi được", "e.lost": "mất kết nối",
   "via.lan": "mạng nhà / Tailscale", open: "Mở", "app.none": "Chưa có máy nào. Bấm \"Thêm máy của con\" để bắt đầu.", ovN: "Tổng quan {0} con",
-  addKid: "Thêm máy của con", "add.lanH": "Mạng nhà hoặc Tailscale",
+  addKid: "Thêm máy của con", "add.lanH": "Mạng nhà hoặc Tailscale", "add.sameOrigin": "Danh sách lưu trong trình duyệt này, theo địa chỉ đang mở. Luôn mở trang từ cùng một máy con để thấy đủ danh sách.",
   "add.lanP": "Nhập địa chỉ máy con (ví dụ 192.168.1.5 hoặc kid-an.tail123.ts.net, cổng mặc định 8770). Xem trên màn hình KidGuard của con.",
   "add.addr": "Địa chỉ máy con", "add.connect": "Kết nối", "add.relayH": "Qua relay Cloudflare Worker",
   "add.relayP": "Dán link điều khiển từ xa (dạng https://…/#c=…&amp;k=…) lấy từ Cài đặt trên máy con.",
@@ -3139,7 +3139,7 @@ en: {
   "e.waiting for the phone": "Waiting for the kid's phone", "e.bad command": "Invalid command", "e.bad json": "Invalid data sent", "e.not found": "Not found",
   "e.http": "Server error ({0}), try again later", "e.viewOnly": "viewing history, read-only", "e.cachedOff": "offline, couldn't send", "e.lost": "connection lost",
   "via.lan": "home network / Tailscale", open: "Open", "app.none": "No phones yet. Tap \"Add kid's phone\" to start.", ovN: { one: "Overview · {0} kid", other: "Overview · {0} kids" },
-  addKid: "Add kid's phone", "add.lanH": "Home network or Tailscale",
+  addKid: "Add kid's phone", "add.lanH": "Home network or Tailscale", "add.sameOrigin": "This list is saved in this browser, per address. Always open the page from the same kid's phone to see the whole list.",
   "add.lanP": "Enter the kid's phone address (e.g. 192.168.1.5 or kid-an.tail123.ts.net, default port 8770). It's shown on the KidGuard screen on the kid's phone.",
   "add.addr": "Kid's phone address", "add.connect": "Connect", "add.relayH": "Via a Cloudflare Worker relay",
   "add.relayP": "Paste the remote-control link (like https://…/#c=…&amp;k=…) from Settings on the kid's phone.",
@@ -3598,7 +3598,15 @@ function dayIdx(day) { const [y, m, d] = String(day).split("-").map(Number); ret
 function baseLimit(r, day) { return r.dailyByDay && r.dailyByDay.length === 7 && day ? +r.dailyByDay[dayIdx(day)] || 0 : r.dailyMin || 0; }
 function todayLimit(r, day) { const b = baseLimit(r, day); return b ? b + (r.bonus && r.bonus.day === day ? r.bonus.min || 0 : 0) : 0; }
 
-function base(k) { return (APP ? "/k/" + b64u(k.target) : "") + (k.via === "lan" ? "/api" : "/c/" + encodeURIComponent(k.id)); }
+// Browser on the LAN: another phone's kid is reached directly at its own origin (CORS on its /api, docs/protocol.md);
+// the kid of the phone that served this page keeps relative URLs.
+const direct = k => !APP && k.via === "lan" && k.target && k.target !== location.origin ? k.target : "";
+const lanApi = target => (APP ? "/k/" + b64u(target) : target === location.origin ? "" : target) + "/api";
+// an unreachable phone on the LAN would hang a fetch for the whole TCP timeout
+const quick = ms => typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(ms) : undefined;
+function base(k) { return (APP ? "/k/" + b64u(k.target) : direct(k)) + (k.via === "lan" ? "/api" : "/c/" + encodeURIComponent(k.id)); }
+// the kids the home list shows: app = every kid with an address; LAN browser = every LAN kid saved on this origin
+const homeKids = () => APP ? kids.filter(k => k.target) : kids.filter(k => k.via === "lan");
 // Error with a readable message (keys "e.<code>"); .raw keeps the original code for logic ("not live", "not paired"), .net = our own network failed
 function errOf(raw, msg) {
   let m = msg || tc("e.", raw, "");
@@ -3616,7 +3624,7 @@ async function call(k, path, method = "GET", body) {
   if (APP && method !== "GET" && viewDay && k === cur) throw new Error(t("e.viewOnly"));
   if (APP && method !== "GET" && cachedAt && k === cur) throw new Error(t("e.cachedOff"));
   let r;
-  try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined }); }
+  try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined, signal: direct(k) ? quick(15000) : undefined }); }
   catch (e) { throw errOf("net", APP ? t("e.lost") : null); }
   if (APP && method === "GET" && path === "/state" && k === cur) cachedAt = +r.headers.get("X-KG-Cached") || 0;
   const j = await r.json().catch(() => ({}));
@@ -3657,9 +3665,9 @@ async function boot() {
 // --- app mode: kid list, add-kid ---------------------------------------------
 function appBoot() {
   save(kids);   // tell the app the current list once on load
-  const list = kids.filter(k => k.target); reScreen = appBoot;
+  const list = homeKids(); reScreen = appBoot;
   $("#app").innerHTML = head("KidGuard") + (list.length ? list.map((k, i) =>
-    `<div class="card row"><b class="sp">${ic("user")} ${esc(k.name)} <span class="mute">· ${k.via === "lan" ? t("via.lan") : "relay"}</span></b><button class="pri" data-i="${i}">${ic("folder-open")} ${t("open")}</button></div>`).join("")
+    `<div class="card row"><b class="sp">${ic("user")} ${esc(k.name)}${APP ? ` <span class="mute">· ${k.via === "lan" ? t("via.lan") : "relay"}</span>` : ""}</b><button class="pri" data-i="${i}">${ic("folder-open")} ${t("open")}</button></div>`).join("")
     : `<div class="card empty"><span class="e">${ic("inbox")}</span><p>${t("app.none")}</p></div>`) +
     `<div class="row">${list.length > 1 ? `<button class="pri sp" id="ovGo">${ic("layout-grid")} ${t("ovN", list.length)}</button>` : ""}<button class="${list.length > 1 ? "" : "pri "}sp" id="addKid">${ic("plus")} ${t("addKid")}</button></div>`;
   $("#app").querySelectorAll("[data-i]").forEach(b => b.onclick = () => open(list[+b.dataset.i]));
@@ -3680,10 +3688,11 @@ function addScreen() {
   $("#app").innerHTML = head(t("addKid")) + `
   <div class="card"><h2>${ic("wifi")} ${t("add.lanH")}</h2>
     <p class="mute">${t("add.lanP")}</p>
-    <div class="pairf"><input id="addr" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="192.168.1.5" aria-label="${esc(t("add.addr"))}" value="${esc(keep[0])}"><button class="pri" id="lanGo">${ic("link")} ${t("add.connect")}</button></div><p class="err" id="e1"></p></div>
-  <div class="card"><h2>${ic("globe")} ${t("add.relayH")}</h2>
+    <div class="pairf"><input id="addr" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="192.168.1.5" aria-label="${esc(t("add.addr"))}" value="${esc(keep[0])}"><button class="pri" id="lanGo">${ic("link")} ${t("add.connect")}</button></div><p class="err" id="e1"></p>
+    ${APP ? "" : `<p class="mute">${ic("lightbulb")} ${t("add.sameOrigin")}</p>`}</div>
+  ${APP ? `<div class="card"><h2>${ic("globe")} ${t("add.relayH")}</h2>
     <p class="mute">${t("add.relayP")}</p>
-    <div class="pairf"><input id="rlink" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${esc(t("add.relayPh"))}" aria-label="${esc(t("add.relayLink"))}" value="${esc(keep[1])}"><button class="pri" id="rGo">${ic("globe")} ${t("add")}</button></div><p class="err" id="e2"></p></div>
+    <div class="pairf"><input id="rlink" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${esc(t("add.relayPh"))}" aria-label="${esc(t("add.relayLink"))}" value="${esc(keep[1])}"><button class="pri" id="rGo">${ic("globe")} ${t("add")}</button></div><p class="err" id="e2"></p></div>` : ""}
   <button id="abk">${ic("list")} ${t("back")}</button>`;
   $("#abk").onclick = appBoot;
   $("#lanGo").onclick = () => {
@@ -3691,7 +3700,7 @@ function addScreen() {
     if (!/^[A-Za-z0-9.-]+(:\d{1,5})?$/.test(a)) return $("#e1").textContent = t("add.badAddr");
     lanHello("http://" + (a.includes(":") ? a : a + ":8770"));
   };
-  $("#rGo").onclick = () => {
+  if ($("#rGo")) $("#rGo").onclick = () => {
     try {
       const u = new URL($("#rlink").value.trim()), h = new URLSearchParams(u.hash.slice(1));
       if (u.protocol !== "https:" || !h.get("c") || !h.get("k")) throw 0;
@@ -3705,7 +3714,7 @@ const head = title => { $("#app").className = "solo"; return `<div class="row" s
 async function lanHello(target) {
   const e = $("#e1"); if (e) e.textContent = t("connecting");
   try {
-    const r = await fetch("/k/" + b64u(target) + "/api/hello");
+    const r = await fetch(lanApi(target) + "/hello", { signal: APP ? undefined : quick(8000) });
     const hello = r.ok ? await r.json() : null;
     if (!hello || !hello.id) throw 0;
     const k = kids.find(x => x.via === "lan" && x.id === hello.id);
@@ -3715,7 +3724,7 @@ async function lanHello(target) {
 }
 
 function pairScreen(hello, target, prefill = "") {
-  const pre = target ? "/k/" + b64u(target) + "/api" : "/api";
+  const pre = target ? lanApi(target) : "/api";
   reScreen = () => pairScreen(hello, target, ($("#code") || {}).value || prefill);
   // no PIN yet (phone >= 0.9.6 says pairPin): this pairing sets it, atomically on the phone; older phones get the PIN gate after
   const newPin = hello.pairPin && !hello.pin;
@@ -3732,10 +3741,11 @@ function pairScreen(hello, target, prefill = "") {
     : `<p>${ic("hourglass")} ${t("pair.closedP")}</p><button id="retry" onclick="location.reload()">${ic("refresh-cw")} ${t("retry")}</button>`}
     ${hello.owner || hello.mode === "basic" ? "" : `<p class="err">${ic("triangle-alert")} ${t("pair.notSetup")}</p>`}
   </div>`;
-  if (APP) {
+  // app, or a LAN browser adding another phone: back to the add screen; this phone's own pairing: back to the list if it has kids
+  if (APP || target || homeKids().length) {
     $("#app").insertAdjacentHTML("beforeend", `<button id="abk">${ic("list")} ${t("back")}</button>`);
-    $("#abk").onclick = () => addScreen();
-    if ($("#retry")) $("#retry").onclick = () => lanHello(target);
+    $("#abk").onclick = () => APP || target ? addScreen() : appBoot();
+    if ($("#retry") && target) $("#retry").onclick = () => lanHello(target);
   }
   const go = $("#go"); if (!go) return;
   if (prefill) (hello.pin ? $("#pin") : newPin ? $("#np1") : go).focus();
@@ -3764,7 +3774,7 @@ function pairScreen(hello, target, prefill = "") {
       const j = await r.json();
       if (!r.ok) throw new Error(hasT("pe." + j.error) ? t("pe." + j.error, Math.ceil((j.wait || 60000) / 60000)) : t("pe.fail"));
       clearTimeout(to);
-      const k = { id: j.id, token: j.token, name: $("#nm").value || t("kid"), via: "lan", ...(APP ? { target } : {}) };
+      const k = { id: j.id, token: j.token, name: $("#nm").value || t("kid"), via: "lan", ...(target ? { target } : {}) };
       kids = kids.filter(x => !(x.id === k.id && x.via === "lan")).concat(k); save(kids);
       busy(true, t("pair.opening")); open(k);
     } catch (e) {
@@ -4008,8 +4018,8 @@ function goList() {
   if (ov) { const b = ov.back; ov = null; return b(); }
   if (!cur) return;
   screenStop(); earStop(); cur = null;
-  if (APP) return appBoot();
-  listScreen(kids.filter(k => k.via === (onLan() ? "lan" : "relay")));
+  if (APP || onLan()) return appBoot();
+  listScreen(kids.filter(k => k.via === "relay"));
 }
 addEventListener("popstate", () => {
   const l = navLvl();
@@ -4210,7 +4220,7 @@ function tplSummary(tp) {
   return `${r.dailyByDay && r.dailyByDay.length === 7 ? t("tps.byDay") : r.dailyMin ? t("perDay", r.dailyMin) : t("tps.noLimit")} · ${b.on ? t("tps.bed", esc(b.start) + "–" + esc(b.end)) : t("tps.noBed")} · ${t("tps.sch", (r.schedules || []).length)}`;
 }
 // kids this page can reach right now (LAN page: only this phone; app / relay page: every saved kid)
-const reachKids = () => APP ? kids.filter(k => k.target) : onLan() ? [cur] : kids.filter(k => k.via === "relay");
+const reachKids = () => APP || onLan() ? homeKids() : kids.filter(k => k.via === "relay");
 async function kidRules(k) {
   const j = await call(k, "/state");
   const r = j.rules ?? (j.state && j.state.rules);   // relay: {state, rules (sent, not yet taken)}; LAN: the state itself
@@ -4491,7 +4501,7 @@ function sideHtml(on) {
   return `<nav class="side" aria-label="KidGuard"><div class="brand"><span class="badge">${ic("shield")}</span>KidGuard</div>
     ${L.length > 1 ? `<button type="button" class="nav${on === "ov" ? " on" : ""}" id="sideOv">${ic("users")} ${t("nav.family")}</button>` : ""}
     ${L.length ? `<div class="slab">${t("nav.kids")}</div>${kidsH}` : ""}
-    ${APP ? `<button type="button" class="nav" id="sideAdd">${ic("plus")} ${t("addKid")}</button>` : ""}
+    ${APP || onLan() ? `<button type="button" class="nav" id="sideAdd">${ic("plus")} ${t("addKid")}</button>` : ""}
     ${cur && on !== "ov" ? `<div class="slab">${esc(cur.name)}</div>${NAV.filter(([id]) => navOk(id)).map(([id, i]) => `<button type="button" class="nav${tab === id ? " on" : ""}" data-tab="${id}" ${tab === id ? 'aria-current="page"' : ""}>${ic(i)} ${t("tab." + id)}${id === "home" && reqN() ? `<span class="n">${reqN()}</span>` : ""}</button>`).join("")}` : ""}
     <div class="foot">${langSel("lang2")}${themeBtn()}</div></nav>`;
 }
@@ -4500,14 +4510,14 @@ function wireSide(root) {
   const go = k => { if (!k || (k === cur && !ov)) return; gen++; clearInterval(timer); ov = null; open(k); };
   root.querySelectorAll("[data-sk]").forEach(b => b.onclick = () => go(L[+b.dataset.sk]));
   const s = root.querySelector("#sideKid"); if (s) s.onchange = () => go(L[+s.value]);
-  const o = root.querySelector("#sideOv"); if (o) o.onclick = () => { if (ov) return; screenStop(); earStop(); overview(L, APP ? appBoot : () => listScreen(L)); };
+  const o = root.querySelector("#sideOv"); if (o) o.onclick = () => { if (ov) return; screenStop(); earStop(); overview(L, APP || onLan() ? appBoot : () => listScreen(L)); };
   const a = root.querySelector("#sideAdd"); if (a) a.onclick = () => { gen++; clearInterval(timer); screenStop(); earStop(); cur = null; ov = null; addScreen(); };
 }
 const bnavHtml = () => `<nav class="bnav" aria-label="${esc(t("nav.main"))}">${BNAV.map(([id, i]) => { const on = id === "more" ? MORE_TABS.has(tab) : tab === id;
   return `<button type="button" data-tab="${id}" class="${on ? "on" : ""}" ${on ? 'aria-current="page"' : ""}><b>${ic(i)}${id === "home" && reqN() ? `<span class="n">${reqN()}</span>` : ""}</b><span>${t(id === "more" ? "nav.more" : "tab." + id)}</span></button>`; }).join("")}</nav>`;
 function headHtml() {
-  const back = APP || kids.length > 1 || cur.via === "relay";
-  return `<div class="head">${back ? `<button type="button" id="back" class="back${kidList().length > 1 || APP ? " mOnly" : ""}" aria-label="${esc(t("list"))}" title="${esc(t("list"))}">${ic("chevron-left")}</button>` : ""}${kidAv(cur)}
+  const back = APP || onLan() || kids.length > 1 || cur.via === "relay";
+  return `<div class="head">${back ? `<button type="button" id="back" class="back${kidList().length > 1 || APP || onLan() ? " mOnly" : ""}" aria-label="${esc(t("list"))}" title="${esc(t("list"))}">${ic("chevron-left")}</button>` : ""}${kidAv(cur)}
     <div><div class="t1">${esc(cur.name)}</div><div class="st" id="hst"></div></div><span class="savechip" id="saveChip" role="status"></span></div>`;
 }
 // header save chip: saving / failed / waiting for the kid's phone (relay) / saved (3 s)
@@ -4563,7 +4573,7 @@ function moreTab(b) {
       APP || kids.length > 1 || cur.via === "relay" ? `<button type="button" class="li" id="moreList"><span class="ib">${ic("list")}</span><span class="x"><b>${t("list")}</b></span>${ic("chevron-right")}</button>` : ""])
     + `<div class="sec">${t("set.general")}</div><div class="card row">${langSel()}<span class="sp"></span>${themeBtn()}</div>`;
   b.querySelectorAll("[data-go]").forEach(x => x.onclick = () => goTab(x.dataset.go));
-  if ($("#moreOv")) $("#moreOv").onclick = () => { screenStop(); earStop(); overview(L, APP ? appBoot : () => listScreen(L)); };
+  if ($("#moreOv")) $("#moreOv").onclick = () => { screenStop(); earStop(); overview(L, APP || onLan() ? appBoot : () => listScreen(L)); };
   if ($("#moreList")) $("#moreList").onclick = () => { goList(); navDown(0); };
 }
 // "Nhật ký": events + the phone's own log

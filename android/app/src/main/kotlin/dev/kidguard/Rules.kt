@@ -409,4 +409,26 @@ object Safety {
         val h = h0.substringBefore(":").trimEnd('.')
         return h == "localhost" || h.matches(V4) || h.matches(LABEL) || (h.endsWith(".ts.net") && h.split('.').all { it.matches(LABEL) })
     }
+
+    /**
+     * CORS for /api: only a page served by another KidGuard phone on the LAN / tailnet may read our answers, so a
+     * parent's browser can manage several phones from one page. Origin must be plain http with a host that [hostOk]
+     * takes and, for IP literals, a private / CGNAT / loopback / link-local address: a public web site never qualifies.
+     */
+    fun corsOriginOk(raw: String?): Boolean {
+        val o = raw?.trim()?.lowercase() ?: return false
+        if (!o.startsWith("http://")) return false
+        val hp = o.removePrefix("http://")
+        if (hp.isEmpty() || hp.contains('/') || !hostOk(hp)) return false
+        if (hp.startsWith("[")) {
+            val a = hp.substringBefore("]").drop(1)
+            return a == "::1" || a.startsWith("fe80:") || a.startsWith("fc") || a.startsWith("fd")
+        }
+        val h = hp.substringBefore(":").trimEnd('.')
+        if (!h.matches(V4)) return true   // localhost, single-label LAN names, *.ts.net (hostOk already refused public names)
+        val b = h.split('.').map { it.toInt() }
+        if (b.any { it > 255 }) return false
+        return b[0] == 10 || b[0] == 127 || (b[0] == 172 && b[1] in 16..31) || (b[0] == 192 && b[1] == 168) ||
+            (b[0] == 169 && b[1] == 254) || (b[0] == 100 && b[1] in 64..127)
+    }
 }

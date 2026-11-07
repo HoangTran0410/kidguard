@@ -205,6 +205,29 @@ The first capture / first input of a session is logged in the phone log.
   `DISALLOW_APPS_CONTROL` (below); both undone by release. No DO API whitelists us from athena.
 - Lost contact (`live.lost`) names the likely cause: KidGuard stopped, maybe swiped out of Recents; open the app on
   the child's phone.
+## Several kids from one browser page (LAN)
+- The page served by phone A (`http://<A>:8770/`) can add phone B by address ("Thêm máy của con" in the list, same
+  `addScreen` / `lanHello` / `pairScreen` flow as the parent app). A LAN kid saved with a `target` other than
+  `location.origin` is called directly at `<target>/api/...`; A's own kid keeps relative `/api`. The kid list lives in
+  A's origin's localStorage (the add screen says so: always open the page from the same phone).
+- Phone `/api/*` CORS (`Api.handle`): `OPTIONS` -> `204` with `Access-Control-Allow-Origin: <origin>`,
+  `-Allow-Methods: GET, POST, PUT, DELETE`, `-Allow-Headers: X-KG-Token, X-KG-Name, Content-Type`, `-Max-Age: 600`,
+  and `-Allow-Private-Network: true` when the request has `Access-Control-Request-Private-Network`. Other `/api`
+  answers get `Access-Control-Allow-Origin: <origin>` + `Access-Control-Expose-Headers: X-KG-Seq, X-KG-Age, X-KG-Err,
+  X-KG-W, X-KG-H`. Always `Vary: Origin`. Non-`/api` paths (the HTML) get no CORS.
+- The origin is echoed only when `Safety.corsOriginOk`: `http://` + a host `hostOk` takes (localhost, IP literal,
+  single-label name, `*.ts.net`) and, for IP literals, private / CGNAT (`100.64/10`, Tailscale) / loopback / link-local
+  only. Otherwise no CORS header (the browser blocks the read), not `*`.
+- Why it is safe: every `/api` call except `hello` and `pair` needs the `X-KG-Token`, never a cookie, and we never send
+  `Access-Control-Allow-Credentials`, so CORS only lets a page read what it can already authenticate for. `hello`
+  shows only id / pairing open / pin set / mode. `pair` needs the 6-digit code on the child's screen while pairing is
+  open, with the existing backoff (`Safety.pairBlockMs`, new code every 3 wrong guesses); the origin allowlist keeps a
+  public web site from even reading the answer. The Host check (DNS rebinding) is unchanged.
+- Phone HTML CSP: `connect-src 'self' http://*:8770; img-src 'self' data: blob: https://tile.openstreetmap.org
+  http://*:8770` (other phones' API: state, cmd, screen frames; `<img>` app icons). `<audio>` (listen) is not limited
+  (no `media-src` / `default-src`). The worker and the parent app proxy CSPs are unchanged (no direct cross-origin calls).
+- Unreachable phone: direct calls abort after 15 s (`hello` 8 s) and show the usual "can't reach" UI; `401 not paired`
+  forgets the kid as before.
 
 ## Setup steps (scripts/setup.sh, scripts/setup.ps1, the web installer and the in-app self-setup `SelfSetup.kt` do the same, in this order)
 1. `adb install -r -g kidguard.apk`

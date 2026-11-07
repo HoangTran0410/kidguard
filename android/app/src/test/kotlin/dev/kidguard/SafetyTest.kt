@@ -31,4 +31,15 @@ class SafetyTest {
             assertFalse(it, Safety.hostOk(it))
         }
     }
+
+    @Test fun corsOrigin() {
+        listOf("http://192.168.1.6:8770", "http://10.0.0.2:8770", "http://172.20.1.1:8770", "http://100.65.87.104:8770",
+            "http://kid-an.tail1234.ts.net:8770", "http://kid-an:8770", "http://localhost:9001", "http://[fe80::1]:8770").forEach {
+            assertTrue(it, Safety.corsOriginOk(it))
+        }
+        listOf(null, "", "null", "https://192.168.1.6:8770", "http://8.8.8.8:8770", "http://172.32.0.1:8770", "http://evil.com:8770",
+            "http://192.168.1.5.evil.com", "http://[2001:db8::1]:8770", "http://192.168.1.6:8770/x", "http://999.1.1.1").forEach {
+            assertFalse(it.toString(), Safety.corsOriginOk(it))
+        }
+    }
 }

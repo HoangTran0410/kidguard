@@ -9,7 +9,32 @@ import java.io.ByteArrayOutputStream
 class Api(private val g: Guard) {
     private val store = Store.of(g)
 
+    /**
+     * CORS for every /api/ path (docs/protocol.md "Several kids from one browser page"): the Origin is echoed only when
+     * [Safety.corsOriginOk] (another KidGuard phone's page), never with Allow-Credentials. Auth stays the token.
+     */
     fun handle(r: Req): Res {
+        if (!r.path.startsWith("/api/")) return route(r)
+        val origin = r.header("origin")?.takeIf { Safety.corsOriginOk(it) }
+        if (r.method == "OPTIONS") {
+            if (!Safety.hostOk(r.header("host"))) return Res.text("bad host", 403)
+            val h = linkedMapOf("Vary" to "Origin")
+            if (origin != null) {
+                h["Access-Control-Allow-Origin"] = origin
+                h["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE"
+                h["Access-Control-Allow-Headers"] = "X-KG-Token, X-KG-Name, Content-Type"
+                h["Access-Control-Max-Age"] = "600"
+                if (r.header("access-control-request-private-network") != null) h["Access-Control-Allow-Private-Network"] = "true"
+            }
+            return Res(204, "text/plain; charset=utf-8", ByteArray(0), h)
+        }
+        val res = route(r)
+        val h = res.headers + ("Vary" to "Origin") + (if (origin == null) emptyMap() else
+            mapOf("Access-Control-Allow-Origin" to origin, "Access-Control-Expose-Headers" to "X-KG-Seq, X-KG-Age, X-KG-Err, X-KG-W, X-KG-H"))
+        return Res(res.code, res.type, res.body, h, res.stream)
+    }
+
+    private fun route(r: Req): Res {
         if (!Safety.hostOk(r.header("host"))) return Res.text("bad host", 403)   // DNS rebinding
         if (r.method == "GET" && (r.path == "/" || r.path == "/index.html")) {
             return Res(200, "text/html; charset=utf-8", g.assets.open("index.html").use { it.readBytes() })
