@@ -566,9 +566,6 @@
     <string name="ev_launcher_crash">Kid home screen crashed 3 times in 5 minutes: switched off for 24 h (%1$s)</string>
     <!-- kid launcher part 2 -->
     <string name="hm_d_rail">Alphabet: drag to jump</string>
-    <string name="hm_e_arrange">Arrange home screen</string>
-    <string name="hm_e_done">Done</string>
-    <string name="hm_e_hint">Hold and drag to move</string>
     <string name="hm_e_no_room">Not enough room there</string>
     <string name="hm_f_add">Add to folder</string>
     <string name="hm_f_add_title">Put %1$s in a folder</string>

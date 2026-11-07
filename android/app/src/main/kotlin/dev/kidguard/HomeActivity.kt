@@ -117,7 +117,6 @@ class HomeActivity : Activity() {
     private var model: HomeModel? = null
     private var key = ""
     private var lastTap = 0L
-    private var editMode = false
     private var drag: DragSt? = null
     private var tempPage = false
     private var insT = 0; private var insB = 0; private var insL = 0; private var insR = 0
@@ -154,7 +153,7 @@ class HomeActivity : Activity() {
         content = SwipeUp(this)
         pager = Pager(this)
         content.addView(pager, FrameLayout.LayoutParams(-1, -1))
-        // chrome over the pages: banner / edit bar at the top, tip + dots + hint + dock at the bottom; touches in between fall through
+        // chrome over the pages: banner at the top, tip + dots + hint + dock at the bottom; touches in between fall through
         chrome = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         bannerBox = FrameLayout(this)
         topBar = FrameLayout(this).apply { visibility = View.GONE; clipChildren = false; clipToPadding = false }   // the remove circle leans out of it
@@ -235,7 +234,6 @@ class HomeActivity : Activity() {
         when {
             overlay != null -> closeOverlay()
             drawer != null -> closeDrawer()
-            editMode -> setEdit(false)
             else -> pager.snapTo(1)
         }
     }
@@ -245,7 +243,6 @@ class HomeActivity : Activity() {
         when {
             overlay != null -> closeOverlay()
             drawer != null -> closeDrawer()
-            editMode -> setEdit(false)
             pager.page != 1 -> pager.snapTo(1)
         }
     }
@@ -346,7 +343,7 @@ class HomeActivity : Activity() {
         val timeKey = listOf(dv.today, LauncherLogic.nextEvent(r, dv.minute, dv.dow), LauncherLogic.today(r, dv.minute, dv.dow).map { it.state })
         val k = listOf(m.toJson().toString(), all.values.joinToString(",") { it.label }, show.toString(), dv.want.toString(), block, banner, timeKey, dv.leftMs / 60_000, s.everPaired,
             s.sos().length(), s.lastCheckin("arrived"), s.lastCheckin("pickup"), s.requests().toString(), r.blockNote, r.launcher, dark, files,
-            r.chores, r.schedules, r.groups.map { it.hours }, r.bedtimeOn, r.bedStart, r.bedEnd, r.lockContact, editMode).joinToString("|")
+            r.chores, r.schedules, r.groups.map { it.hours }, r.bedtimeOn, r.bedStart, r.bedEnd, r.lockContact).joinToString("|")
         lap("key")
         if (!force && k == key) { tickClocks(dv); lap.done("same"); return }
         if (busy()) { main.postDelayed({ render(false) }, 1500); return }   // never rebuild under a finger / an open panel
@@ -354,7 +351,7 @@ class HomeActivity : Activity() {
         lastView = dv; lastShow = show
         tempPage = false
         ensureWall()
-        buildBanner(if (editMode) null else banner)
+        buildBanner(banner)
         buildTopBar()
         buildPages(m, all, show, dv, r, s, block)
         buildDock(m, all, show, dv, r)
@@ -416,49 +413,26 @@ class HomeActivity : Activity() {
         bannerBox.addView(row, FrameLayout.LayoutParams(-1, -2).apply { setMargins(dp(14), dp(6), dp(14), dp(2)) })
     }
 
-    /** Edit mode: a hint + "Xong"; while dragging: the "Bỏ khỏi màn chính" drop target. Hidden otherwise. */
+    /** While dragging: the round remove target. Hidden otherwise. */
     private fun buildTopBar() {
         topBar.removeAllViews()
         val dragging = drag != null
-        topBar.visibility = if (editMode || dragging) View.VISIBLE else View.GONE
-        if (!editMode && !dragging) return
+        topBar.visibility = if (dragging) View.VISIBLE else View.GONE
         removeBtn = null; removeHot = false
-        if (dragging) {
-            // a small faded circle; it leans toward the item as it comes near and turns red only inside the drop zone
-            val b = ImageView(this).apply {
-                setImageDrawable(Ic.get(this@HomeActivity, R.drawable.li_x, pal.text, dp(24))); scaleType = ImageView.ScaleType.CENTER
-                background = fill(pal.sheet); alpha = 0.5f; elevation = dpf(3f); contentDescription = getString(R.string.hm_unpin)
-            }
-            removeBtn = b
-            topBar.addView(b, FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(10); bottomMargin = dp(4) })
-            return
+        if (!dragging) return
+        // a small faded circle; it leans toward the item as it comes near and turns red only inside the drop zone
+        val b = ImageView(this).apply {
+            setImageDrawable(Ic.get(this@HomeActivity, R.drawable.li_x, pal.text, dp(24))); scaleType = ImageView.ScaleType.CENTER
+            background = fill(pal.sheet); alpha = 0.5f; elevation = dpf(3f); contentDescription = getString(R.string.hm_unpin)
         }
-        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; elevation = dpf(2f) }
-        run {
-            bar.background = fill(pal.sheet, 18f); bar.setPadding(dp(16), dp(8), dp(8), dp(8))
-            bar.addView(text(getString(R.string.hm_e_hint), 14f, pal.text).apply { Ic.lead(this, R.drawable.li_move, pal.accentText); compoundDrawablePadding = dp(8); gravity = Gravity.CENTER_VERTICAL },
-                LinearLayout.LayoutParams(0, -2, 1f))
-            bar.addView(TextView(this).apply {
-                text = getString(R.string.hm_e_done); setTextColor(pal.onSolid); background = fill(pal.solid); setPadding(dp(18), dp(9), dp(18), dp(9))
-                typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-                kit.tap(this, 999f, true) { setEdit(false) }
-            })
-        }
-        topBar.addView(bar, FrameLayout.LayoutParams(-1, -2).apply { setMargins(dp(14), dp(6), dp(14), dp(4)) })
-    }
-
-    private fun setEdit(on: Boolean) {
-        if (editMode == on) return
-        editMode = on
-        popup?.dismiss()
-        key = ""; render(true)
-        if (on) announce(getString(R.string.hm_e_hint))
+        removeBtn = b
+        topBar.addView(b, FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(10); bottomMargin = dp(4) })
     }
 
     private fun announce(t: String) = root.announceForAccessibility(t)
 
     /**
-     * Home pages leave room for the chrome (status bar + banner / edit bar on top, dots + dock below). Frozen while an
+     * Home pages leave room for the chrome (status bar + banner on top, dots + dock below). Frozen while an
      * item is dragged: the drop bar and the tip float over the grid, so the grid neither shrinks nor jumps.
      */
     private fun padPages() {
@@ -519,9 +493,9 @@ class HomeActivity : Activity() {
         pager.post { pager.scrollTo(pager.page * pager.width, 0); chromeFade() }
     }
 
-    /** Edit / drag: the page panel in the wallpaper's ink colour. */
+    /** While dragging: the page panel in the wallpaper's ink colour. */
     private fun styleCells() {
-        val on = editMode || drag != null
+        val on = drag != null
         val c = inkCache["grid"]?.text ?: Color.WHITE
         for (i in 1 until pager.childCount) (pager.getChildAt(i) as? CellLayout)?.let { it.grid = on; it.gridColor = c; it.invalidate() }
     }
@@ -768,7 +742,6 @@ class HomeActivity : Activity() {
     private fun emptyMenu(x: Int, y: Int) = menu(listOf(
         Row(R.drawable.li_layout_dashboard, getString(R.string.hm_w_title), true) { openPicker() },
         Row(R.drawable.li_sliders_horizontal, getString(R.string.hm_customize), true) { runCatching { startActivity(Intent(this, CustomActivity::class.java)) } },
-        Row(R.drawable.li_layout_grid, getString(R.string.hm_e_arrange), true) { setEdit(true) },
         Row(R.drawable.li_shield, getString(R.string.hm_open_kg), true) { openMain() },
     ), null, x, y)
 
@@ -1159,7 +1132,7 @@ class HomeActivity : Activity() {
 
     /**
      * Pixel-style press: long-press shows [onLong] (the menu); moving the finger 8 dp after that closes it and starts a drag.
-     * In edit mode (and in a folder panel / the picker, [immediate]) the long-press starts the drag at once.
+     * In a folder panel / the picker ([immediate]) the long-press starts the drag at once.
      */
     private fun arm(v: View, onLong: () -> Unit, src: () -> DragSt, immediate: Boolean = false, dragView: View = v) {
         v.isLongClickable = true
@@ -1174,7 +1147,7 @@ class HomeActivity : Activity() {
         v.setOnLongClickListener {
             v.parent?.requestDisallowInterceptTouchEvent(true)
             v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-            if (editMode || immediate) startDrag(dragView, src()) else { armed = v; onLong() }
+            if (immediate) startDrag(dragView, src()) else { armed = v; onLong() }
             true
         }
     }
@@ -1584,7 +1557,6 @@ class HomeActivity : Activity() {
         if (drawer == null) {
             if (drag != null) return false
             popup?.dismiss(); closeOverlay()
-            if (editMode) setEdit(false)
             drawer = drawerView(); drawerP = 0f
         }
         content.visibility = View.VISIBLE; wallView.visibility = View.VISIBLE
@@ -1816,7 +1788,7 @@ class HomeActivity : Activity() {
                 MotionEvent.ACTION_DOWN -> { x0 = e.x; y0 = e.y; up = false; downOk = !scrollsAt(this, e.x.toInt(), e.y.toInt()) }
                 MotionEvent.ACTION_MOVE -> {
                     val dy = e.y - y0; val dx = e.x - x0
-                    val free = !pager.dragging && pager.page > 0 && drag == null && this@HomeActivity.overlay == null && popup?.isShowing != true && !editMode
+                    val free = !pager.dragging && pager.page > 0 && drag == null && this@HomeActivity.overlay == null && popup?.isShowing != true
                     if (free && dy < -slop && abs(dy) > abs(dx) * 1.5f && drawerBegin()) { up = true; from = e.y; drawerAt(0f) }
                     else if (free && downOk && drawer == null && dy > slop * 2 && dy > abs(dx) * 1.5f) { downOk = false; expandShade() }
                 }
@@ -1960,7 +1932,7 @@ class HomeActivity : Activity() {
         }
     }
 
-    /** cols x rows grid inside its padding (the chrome); children carry their cell rectangle (LP). Edit mode: one soft page panel + the drop cell. */
+    /** cols x rows grid inside its padding (the chrome); children carry their cell rectangle (LP). While dragging: one soft page panel + the drop cell. */
     private inner class CellLayout(ctx: Context, val cols: Int, val rows: Int) : ViewGroup(ctx) {
         private val gap = dp(6)
         val side = dp(10)

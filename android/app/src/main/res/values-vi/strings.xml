@@ -548,9 +548,6 @@
     <string name="ev_launcher_crash">Màn hình chính của bé lỗi 3 lần trong 5 phút: đã tắt 24 giờ (%1$s)</string>
     <!-- kid launcher part 2 -->
     <string name="hm_d_rail">Bảng chữ cái: kéo để nhảy tới</string>
-    <string name="hm_e_arrange">Sắp xếp màn chính</string>
-    <string name="hm_e_done">Xong</string>
-    <string name="hm_e_hint">Giữ và kéo để di chuyển</string>
     <string name="hm_e_no_room">Không đủ chỗ</string>
     <string name="hm_f_add">Thêm vào thư mục</string>
     <string name="hm_f_add_title">Cho %1$s vào thư mục</string>
