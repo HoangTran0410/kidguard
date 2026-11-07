@@ -1557,7 +1557,9 @@ class HomeActivity : Activity() {
 
         private fun ptrack(e: MotionEvent) {
             if (e.actionMasked == MotionEvent.ACTION_DOWN) { pvt?.recycle(); pvt = VelocityTracker.obtain() }
-            pvt?.addMovement(e)
+            // screen coordinates: this view slides down with the finger, so its own (local) y barely moves and a quick
+            // flick measured ~0 px/s: closing needed a 40 % drag while opening took a flick
+            MotionEvent.obtain(e).let { r -> r.setLocation(e.rawX, e.rawY); pvt?.addMovement(r); r.recycle() }
             if (e.actionMasked == MotionEvent.ACTION_UP || e.actionMasked == MotionEvent.ACTION_CANCEL) { if (!pulling) { pvt?.recycle(); pvt = null } }
         }
 
