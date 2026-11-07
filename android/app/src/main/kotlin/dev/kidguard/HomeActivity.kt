@@ -98,6 +98,8 @@ class HomeActivity : Activity() {
     private var wallKey = ""
     private lateinit var content: SwipeUp
     private lateinit var chrome: LinearLayout
+    /** Floats over the pages: the edit / drop bar on top, the drag tip above the dots. Its contents never move the grid. */
+    private lateinit var floatBox: FrameLayout
     private lateinit var bannerBox: FrameLayout
     private lateinit var topBar: FrameLayout
     private lateinit var bottom: LinearLayout
@@ -164,18 +166,21 @@ class HomeActivity : Activity() {
         }
         dock = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         chrome.addView(bannerBox, LinearLayout.LayoutParams(-1, -2))
-        chrome.addView(topBar, LinearLayout.LayoutParams(-1, -2))
         chrome.addView(View(this), LinearLayout.LayoutParams(-1, 0, 1f))
-        bottom.addView(tip, LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(8) })
         bottom.addView(dots, LinearLayout.LayoutParams(-1, dp(18)))
         bottom.addView(hint, LinearLayout.LayoutParams(-2, dp(22)))
         bottom.addView(dock, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(4), dp(12), dp(10)) })
         chrome.addView(bottom, LinearLayout.LayoutParams(-1, -2))
         content.addView(chrome, FrameLayout.LayoutParams(-1, -1))
+        floatBox = FrameLayout(this)
+        floatBox.addView(topBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
+        floatBox.addView(tip, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL))
+        content.addView(floatBox, FrameLayout.LayoutParams(-1, -1))
         root.addView(content, FrameLayout.LayoutParams(-1, -1))
         root.setOnApplyWindowInsetsListener { _, ins ->
             @Suppress("DEPRECATION") run { insL = ins.systemWindowInsetLeft; insT = ins.systemWindowInsetTop; insR = ins.systemWindowInsetRight; insB = ins.systemWindowInsetBottom }
             chrome.setPadding(insL, insT, insR, insB)
+            floatBox.setPadding(insL, insT, insR, insB)
             drawerCache?.setPadding(insL, insT, insR, insB)
             today?.pad(insT, insB)
             padPages()
@@ -444,9 +449,14 @@ class HomeActivity : Activity() {
 
     private fun announce(t: String) = root.announceForAccessibility(t)
 
-    /** Home pages leave room for the chrome (status bar + banner / edit bar on top, dots + dock below). */
+    /**
+     * Home pages leave room for the chrome (status bar + banner / edit bar on top, dots + dock below). Frozen while an
+     * item is dragged: the drop bar and the tip float over the grid, so the grid neither shrinks nor jumps.
+     */
     private fun padPages() {
         if (!::pager.isInitialized) return
+        (tip.layoutParams as? FrameLayout.LayoutParams)?.let { lp -> val b = bottom.height + dp(8); if (lp.bottomMargin != b) { lp.bottomMargin = b; tip.layoutParams = lp } }
+        if (drag != null) return
         val top = insT + bannerBox.height + (if (topBar.visibility == View.VISIBLE) topBar.height else 0)
         val bot = insB + bottom.height
         for (i in 1 until pager.childCount) {
@@ -1159,7 +1169,7 @@ class HomeActivity : Activity() {
             drawer != null -> closeDrawer()
         }
         if (pager.page == 0) pager.snapTo(1)
-        bannerBox.visibility = View.GONE
+        bannerBox.visibility = View.INVISIBLE   // keeps its height: the drop bar floats over it
         buildTopBar(); styleCells()
         main.post { padPages() }
     }
