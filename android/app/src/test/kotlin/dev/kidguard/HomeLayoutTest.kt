@@ -117,4 +117,32 @@ class HomeLayoutTest {
         assertEquals(2, m.pages.size)
         assertEquals(1, HomeLayout.remove(m, "com.app9").pages.size)
     }
+
+    private fun grid(vararg it: HItem) = HomeModel(4, 5, listOf(it.toList()), listOf("", "", "", ""), HStyle())
+    private fun app(id: String, x: Int, y: Int) = HItem(id, "app", x, y, pkg = "p.$id")
+
+    @Test fun dropOnAnAppOnTheSamePageSwaps() {
+        val m = grid(app("a", 0, 0), app("b", 1, 0), app("c", 2, 0))
+        val t = HomeLayout.take(m, HomeLayout.Src.Item("a"))!!
+        val out = HomeLayout.dropMove(t, 0, 2, 0)!!
+        val at = out.pages[0].associate { it.id to (it.x to it.y) }
+        assertEquals(2 to 0, at["a"]); assertEquals(0 to 0, at["c"]); assertEquals(1 to 0, at["b"])
+        noOverlap(out)
+    }
+
+    @Test fun dropFromElsewhereMovesTheAppToTheNearestFreeCell() {
+        val m = grid(app("b", 1, 0), app("c", 2, 0)).let { it.copy(pages = it.pages + listOf(listOf(app("a", 0, 0)))) }
+        val t = HomeLayout.take(m, HomeLayout.Src.Item("a"))!!          // from page 2 onto c on page 1
+        val out = HomeLayout.dropMove(t, 0, 2, 0)!!
+        val c = out.pages[0].single { it.id == "c" }
+        assertEquals(1, Math.abs(c.x - 2) + Math.abs(c.y - 0))   // one cell away
+        noOverlap(out)
+    }
+
+    @Test fun freeCellIsAPlainDropAndAWidgetIsNotSwapped() {
+        val m = grid(app("a", 0, 0), HItem("w", "widget", 0, 1, 4, 2, type = "clock"))
+        val t = HomeLayout.take(m, HomeLayout.Src.Item("a"))!!
+        assertEquals(3 to 4, HomeLayout.dropMove(t, 0, 3, 4)!!.pages[0].single { it.id == "a" }.let { it.x to it.y })
+        assertNull(HomeLayout.dropMove(t, 0, 1, 1))          // onto a 4x2 widget: no room, nothing moves
+    }
 }

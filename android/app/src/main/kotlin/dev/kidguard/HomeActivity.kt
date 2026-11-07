@@ -37,6 +37,7 @@ import android.text.TextWatcher
 import android.util.TypedValue
 import android.view.DragEvent
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.VelocityTracker
@@ -72,7 +73,7 @@ import dev.kidguard.HomeLayout.Src
  * Pure parts: LauncherLogic, HomeLayout, HomeStyle (contrast), KidNotes. Text on the wallpaper adapts (HomeStyle.ink).
  */
 class HomeActivity : Activity() {
-    companion object { @Volatile var alive = 0 }
+    companion object { @Volatile var alive = 0; const val FOLDER_MS = 500L }
 
     private class AppE(val pkg: String, val cls: String, val label: String) {
         val sortKey by lazy { LauncherLogic.sortKey(label) }   // once per app list: sortedBy calls its selector per comparison
@@ -156,7 +157,7 @@ class HomeActivity : Activity() {
         // chrome over the pages: banner / edit bar at the top, tip + dots + hint + dock at the bottom; touches in between fall through
         chrome = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         bannerBox = FrameLayout(this)
-        topBar = FrameLayout(this).apply { visibility = View.GONE }
+        topBar = FrameLayout(this).apply { visibility = View.GONE; clipChildren = false; clipToPadding = false }   // the remove circle leans out of it
         bottom = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
         tip = TextView(this).apply { visibility = View.GONE; setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setPadding(dp(16), dp(9), dp(16), dp(9)); gravity = Gravity.CENTER }
         dots = LinearLayout(this).apply { gravity = Gravity.CENTER; orientation = LinearLayout.HORIZONTAL }
@@ -172,7 +173,7 @@ class HomeActivity : Activity() {
         bottom.addView(dock, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(4), dp(12), dp(10)) })
         chrome.addView(bottom, LinearLayout.LayoutParams(-1, -2))
         content.addView(chrome, FrameLayout.LayoutParams(-1, -1))
-        floatBox = FrameLayout(this)
+        floatBox = FrameLayout(this).apply { clipChildren = false; clipToPadding = false }
         floatBox.addView(topBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
         floatBox.addView(tip, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL))
         content.addView(floatBox, FrameLayout.LayoutParams(-1, -1))
@@ -421,12 +422,19 @@ class HomeActivity : Activity() {
         val dragging = drag != null
         topBar.visibility = if (editMode || dragging) View.VISIBLE else View.GONE
         if (!editMode && !dragging) return
-        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; elevation = dpf(2f) }
+        removeBtn = null; removeHot = false
         if (dragging) {
-            bar.background = fill(pal.danger, 18f); bar.gravity = Gravity.CENTER
-            bar.addView(text(getString(R.string.hm_unpin), 16f, pal.onDanger, true).apply { Ic.lead(this, R.drawable.li_x, pal.onDanger); compoundDrawablePadding = dp(8); gravity = Gravity.CENTER_VERTICAL })
-            bar.setPadding(dp(16), dp(15), dp(16), dp(15))
-        } else {
+            // a small faded circle; it leans toward the item as it comes near and turns red only inside the drop zone
+            val b = ImageView(this).apply {
+                setImageDrawable(Ic.get(this@HomeActivity, R.drawable.li_x, pal.text, dp(24))); scaleType = ImageView.ScaleType.CENTER
+                background = fill(pal.sheet); alpha = 0.5f; elevation = dpf(3f); contentDescription = getString(R.string.hm_unpin)
+            }
+            removeBtn = b
+            topBar.addView(b, FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(10); bottomMargin = dp(4) })
+            return
+        }
+        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; elevation = dpf(2f) }
+        run {
             bar.background = fill(pal.sheet, 18f); bar.setPadding(dp(16), dp(8), dp(8), dp(8))
             bar.addView(text(getString(R.string.hm_e_hint), 14f, pal.text).apply { Ic.lead(this, R.drawable.li_move, pal.accentText); compoundDrawablePadding = dp(8); gravity = Gravity.CENTER_VERTICAL },
                 LinearLayout.LayoutParams(0, -2, 1f))
@@ -1175,7 +1183,14 @@ class HomeActivity : Activity() {
     }
 
     private var flip: Runnable? = null
-    private var hoverId: String? = null
+    private var hoverId: String? = null          // folder target: the finger rested on its icon (see FOLDER_MS)
+    private var folderArm: Runnable? = null
+    private var folderReady = false
+    private var swapId: String? = null           // item sliding out of the way (preview of the re-arrange)
+    private var removeBtn: View? = null
+    private var removeHot = false
+    private var removeNear = false               // heading for the remove circle: no cell highlight under it
+    private var dropped = false                  // the drop changed the layout: endDrag leaves the views for the new render
 
     private fun pageView(): CellLayout? = pager.getChildAt(pager.page) as? CellLayout
 
@@ -1221,29 +1236,73 @@ class HomeActivity : Activity() {
         return true
     }
 
-    private fun clearHover() {
+    private fun clearHover() { clearCell(); magnet(Float.NaN, Float.NaN) }
+
+    /** Resets the cell-level hover: folder target, the re-arrange preview, the tip, the cell highlight, dock slots. */
+    private fun clearCell() {
+        folderArm?.let { main.removeCallbacks(it) }; folderArm = null; folderReady = false
         hoverId?.let { itemViews[it]?.background = null }
         hoverId = null
+        unswap()
         tip.visibility = View.GONE
-        pageView()?.let { it.hl = null; it.invalidate() }
-        (topBar.getChildAt(0))?.let { it.scaleX = 1f; it.scaleY = 1f }
+        pageView()?.let { if (it.hl != null) { it.hl = null; it.invalidate() } }
         for (v in dockViews) v.background = null
     }
 
+    private fun unswap() {
+        swapId?.let { itemViews[it]?.animate()?.translationX(0f)?.translationY(0f)?.setDuration(180)?.start() }
+        swapId = null
+    }
+
+    /**
+     * The remove target follows the finger: within ~170 dp it leans toward it, grows and brightens (the "pull"); inside
+     * the 64 dp zone it turns red (one tick). NaN resets it. Returns true inside the zone (= drop removes).
+     */
+    private fun magnet(x: Float, y: Float): Boolean {
+        val b = removeBtn ?: return false
+        if (!b.isShown) return false
+        val loc = IntArray(2); val rl = IntArray(2); b.getLocationInWindow(loc); root.getLocationInWindow(rl)
+        val cx = loc[0] - rl[0] - b.translationX + b.width / 2f; val cy = loc[1] - rl[1] - b.translationY + b.height / 2f
+        val dist = if (x.isNaN()) Float.MAX_VALUE else kotlin.math.hypot(x - cx, y - cy)
+        val k = (1f - dist / dpf(170f)).coerceIn(0f, 1f)
+        val hot = dist < dpf(64f)
+        removeNear = k > 0.35f
+        b.translationX = if (k > 0f) (x - cx) * 0.3f * k else 0f
+        b.translationY = if (k > 0f) (y - cy) * 0.3f * k else 0f
+        val sc = if (hot) 1.3f else 1f + 0.2f * k
+        b.scaleX = sc; b.scaleY = sc; b.alpha = if (hot) 1f else 0.5f + 0.4f * k
+        if (hot != removeHot) {
+            removeHot = hot
+            b.background = fill(if (hot) pal.danger else pal.sheet)
+            (b as ImageView).setImageDrawable(Ic.get(this, R.drawable.li_x, if (hot) pal.onDanger else pal.text, dp(24)))
+            if (hot) b.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        }
+        return hot
+    }
+
+    /** The finger is near the middle of [it]'s icon (not just passing over its edge). */
+    private fun nearCentre(it: HItem, x: Float, y: Float): Boolean {
+        val v = itemViews[it.id] ?: return false
+        val loc = IntArray(2); val rl = IntArray(2); v.getLocationInWindow(loc); root.getLocationInWindow(rl)
+        // rest position (it may be sliding out of the way right now); the icon sits above the label
+        val cx = loc[0] - rl[0] - v.translationX + v.width / 2f; val cy = loc[1] - rl[1] - v.translationY + v.height / 2f - v.height * 0.12f
+        return kotlin.math.hypot(x - cx, y - cy) < v.width * 0.3f
+    }
+
     private fun hover(x: Float, y: Float, d: DragSt) {
-        clearHover()
         val m = model ?: return
         // the remove target
-        if (inView(topBar, x, y)) { topBar.getChildAt(0)?.let { it.scaleX = 1.04f; it.scaleY = 1.04f }; cancelFlip(); return }
+        if (magnet(x, y) || removeNear) { clearCell(); cancelFlip(); return }
         val slot = dockSlot(x, y)
         if (slot >= 0) {
-            cancelFlip()
+            clearCell(); cancelFlip()
             if (slot > 0 && d.kind == "app") dockViews[slot].background = fill(pal.card, 18f)
             return
         }
         // the screen edges flip pages (past the last page: a new empty one)
         val edge = dp(22)
         if (x < edge || x > root.width - edge) {
+            clearCell()
             if (flip == null) {
                 val dir = if (x < edge) -1 else 1
                 flip = Runnable {
@@ -1262,18 +1321,40 @@ class HomeActivity : Activity() {
             return
         }
         cancelFlip()
-        val (pi, a, under) = cellAt(x, y, d) ?: return
+        val (pi, a, under) = cellAt(x, y, d) ?: run { clearCell(); return }
         val cl = pageView() ?: return
-        if (under != null && d.kind == "app" && (under.kind == "app" || under.kind == "folder")) {
+        // folder: only after the finger rests on the middle of an app / folder icon for FOLDER_MS; passing over = move
+        if (under != null && d.kind == "app" && (under.kind == "app" || under.kind == "folder") && nearCentre(under, x, y)) {
+            if (hoverId == under.id) return
+            clearCell()
             hoverId = under.id
-            itemViews[under.id]?.background = fill(pal.card, 20f)
-            val name = if (under.kind == "folder") folderName(under) else launcherApps()[under.pkg]?.label ?: ""
-            showTip(getString(if (under.kind == "folder") R.string.hm_f_drop_into else R.string.hm_f_drop_make, name))
-        } else {
-            val t = taken(m, d) ?: return
-            val free = HomeLayout.free(t.m.pages.getOrNull(pi) ?: emptyList(), m.cols, m.rows, a.first, a.second, minOf(d.w, m.cols), minOf(d.h, m.rows))
-            cl.hl = intArrayOf(a.first, a.second, minOf(d.w, m.cols), minOf(d.h, m.rows)); cl.hlOk = free; cl.invalidate()
+            val u = under
+            folderArm = Runnable {
+                folderArm = null
+                if (hoverId != u.id) return@Runnable
+                folderReady = true
+                itemViews[u.id]?.let { v -> v.background = fill(pal.card, 20f); v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY) }
+                val name = if (u.kind == "folder") folderName(u) else launcherApps()[u.pkg]?.label ?: ""
+                showTip(getString(if (u.kind == "folder") R.string.hm_f_drop_into else R.string.hm_f_drop_make, name))
+            }.also { main.postDelayed(it, FOLDER_MS) }
+            return
         }
+        if (hoverId != null) clearCell()
+        val t = taken(m, d) ?: return
+        val w = minOf(d.w, m.cols); val h = minOf(d.h, m.rows)
+        val free = HomeLayout.free(t.m.pages.getOrNull(pi) ?: emptyList(), m.cols, m.rows, a.first, a.second, w, h)
+        val sw = if (free) null else HomeLayout.swapSpot(t, pi, a.first, a.second)
+        // re-arrange preview: the item in the way slides to where it will go
+        if (sw?.first?.id != swapId) {
+            unswap()
+            if (sw != null) itemViews[sw.first.id]?.let { v ->
+                swapId = sw.first.id
+                v.animate().translationX(((sw.second - sw.first.x) * cl.cellW()).toFloat()).translationY(((sw.third - sw.first.y) * cl.cellH()).toFloat())
+                    .setDuration(200).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+            }
+        }
+        val hl = intArrayOf(a.first, a.second, w, h); val ok = free || sw != null
+        if (!(cl.hl contentEquals hl) || cl.hlOk != ok) { cl.hl = hl; cl.hlOk = ok; cl.invalidate() }
     }
 
     private fun showTip(t: String) {
@@ -1290,16 +1371,16 @@ class HomeActivity : Activity() {
         val m = model ?: return false
         val t = taken(m, d) ?: return false
         val out: HomeModel? = when {
-            inView(topBar, x, y) -> if (d.src is Src.NewWidget || (d.pkg != null && d.pkg !in m.onHome())) m else HomeLayout.dropRemove(t)
+            magnet(x, y) -> if (d.src is Src.NewWidget || (d.pkg != null && d.pkg !in m.onHome())) m else HomeLayout.dropRemove(t)
             dockSlot(x, y) >= 0 -> HomeLayout.dropDock(t, dockSlot(x, y))
             else -> cellAt(x, y, d)?.let { (pi, a, under) ->
-                if (under != null && d.kind == "app" && (under.kind == "app" || under.kind == "folder"))
+                if (folderReady && under != null && under.id == hoverId && d.kind == "app")
                     HomeLayout.dropOnto(t, under.id, if (under.kind == "app") autoName(under.pkg, t.item.pkg) else "")
-                else HomeLayout.dropCell(t, pi, a.first, a.second)
+                else HomeLayout.dropMove(t, pi, a.first, a.second)
             }
         }
         if (out == null) { noRoom(pageView()); return false }
-        if (out !== m) { HomeFile.save(this, out); model = out }
+        if (out !== m) { HomeFile.save(this, out); model = out; dropped = true }
         return true
     }
 
@@ -1308,11 +1389,19 @@ class HomeActivity : Activity() {
         toast(getString(R.string.hm_e_no_room))
     }
 
+    /**
+     * After a drop that changed the layout the old views stay as they are (dragged one hidden, the displaced one already
+     * slid to its new cell) until the posted render swaps in the new layout: restoring them first flashed the old layout
+     * for a frame. (The render is posted: rebuilding the pages inside the drag event dispatch is not safe.)
+     */
     private fun endDrag() {
         if (drag == null) return
-        drag?.view?.visibility = View.VISIBLE
+        if (!dropped) drag?.view?.visibility = View.VISIBLE
         drag = null
-        cancelFlip(); clearHover()
+        cancelFlip()
+        if (dropped) swapId = null
+        dropped = false
+        clearHover()
         bannerBox.visibility = View.VISIBLE
         key = ""
         main.post { render(true) }

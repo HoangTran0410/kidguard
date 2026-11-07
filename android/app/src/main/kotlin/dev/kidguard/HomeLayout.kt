@@ -292,6 +292,35 @@ object HomeLayout {
     }
 
     /**
+     * Re-arrange: dropping on cells taken by exactly one item of the same size moves that item out of the way, to the
+     * spot the dragged one left (same page, if it fits there) or else to the nearest free spot on the page. Returns the
+     * displaced item and its new cell, or null (free cells: plain [dropCell]; several / other-size items: no room).
+     */
+    fun swapSpot(t: Taken, page: Int, x: Int, y: Int): Triple<HItem, Int, Int>? {
+        val m = t.m
+        val items = m.pages.getOrNull(page) ?: return null
+        val w = t.item.w; val h = t.item.h
+        val hit = items.filter { it.x < x + w && x < it.x + it.w && it.y < y + h && y < it.y + it.h }
+        val u = hit.singleOrNull()?.takeIf { it.w == w && it.h == h } ?: return null
+        val rest = items - u + t.item.copy(x = x, y = y)
+        if (t.page == page && free(rest, m.cols, m.rows, t.x, t.y, u.w, u.h)) return Triple(u, t.x, t.y)
+        var best: Pair<Int, Int>? = null; var bd = Int.MAX_VALUE
+        for (cy in 0..m.rows - u.h) for (cx in 0..m.cols - u.w) if (free(rest, m.cols, m.rows, cx, cy, u.w, u.h)) {
+            val d = (cx - u.x) * (cx - u.x) + (cy - u.y) * (cy - u.y)
+            if (d < bd) { bd = d; best = cx to cy }
+        }
+        return best?.let { Triple(u, it.first, it.second) }
+    }
+
+    /** [dropCell], or on a taken spot the [swapSpot] move. Null = no room. */
+    fun dropMove(t: Taken, page: Int, x: Int, y: Int): HomeModel? {
+        dropCell(t, page, x, y)?.let { return it }
+        val (u, nx, ny) = swapSpot(t, page, x, y) ?: return null
+        val items = t.m.pages[page].map { if (it.id == u.id) it.copy(x = nx, y = ny) else it } + t.item.copy(x = x, y = y)
+        return trimPages(setPage(t.m, page, items))
+    }
+
+    /**
      * Drops an app on the app or folder [targetId]: app + app = a new folder named [name] in the target's cell;
      * app + folder = one more app in it. Null when it can't (a widget or a folder dragged, a full folder).
      */
