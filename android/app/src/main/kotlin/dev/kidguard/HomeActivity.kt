@@ -545,7 +545,7 @@ class HomeActivity : Activity() {
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }, LinearLayout.LayoutParams(if (i == pager.page) dp(16) else dp(7), dp(7)).apply { setMargins(dp(4), 0, dp(4), 0) })
         if (dots !in inkViews) inkViews += dots
-        ink?.let { applyScrimTo(dots, it) }
+        dots.background = null
     }
 
     // ---- app icon ----
@@ -1376,35 +1376,26 @@ class HomeActivity : Activity() {
 
     // ---- adaptive text on the wallpaper ----
 
-    /** For every text / dot row on the wallpaper: sample what is behind it, pick light or dark ink, add a scrim if needed. */
+    /**
+     * One ink for everything that sits on the wallpaper (labels, clock, dots, hint), picked once per wallpaper from the
+     * whole home area, like Pixel / iOS: every label looks the same, no per-label pills, nothing re-sampled per position
+     * or page. Contrast on busy spots comes from the text shadow (stronger when the wallpaper is mid-tone).
+     */
     private fun inkPass() {
         val bmp = wall ?: return
         if (isFinishing) return
         val w = root.width.takeIf { it > 0 } ?: return
-        val loc = IntArray(2)
-        fun rectOf(v: View): Rect? {
-            if (v.width == 0 || v.windowToken == null) return null
-            v.getLocationInWindow(loc)
-            val x = ((loc[0] % w) + w) % w      // pages off screen: the wallpaper does not scroll, so the same x on any page
-            return Rect(x, loc[1], x + v.width, loc[1] + v.height)
-        }
+        val ink = inkCache.getOrPut("grid") { HomeStyle.ink(Wallpaper.sample(bmp, Rect(0, insT, w, bmp.height - insB), 48), Contrast.LARGE) }
+        inkCache["dots"] = ink
+        val busy = ink.ratio < Contrast.TEXT
+        val shadow = if (busy) Contrast.alpha(ink.shadow, 0.85) else ink.shadow
         for (v in inkViews.toList()) {
-            val rc = rectOf(v) ?: continue
-            val k = if (v === dots) "dots" else "${rc.left},${rc.top},${rc.width()},${rc.height()}"
-            val need = if (v === dots || v === hint) Contrast.LARGE else Contrast.TEXT
-            val ink = inkCache.getOrPut(k) { HomeStyle.ink(Wallpaper.sample(bmp, rc), need) }
-            if (v === dots) { inkCache["dots"] = ink; continue }
+            if (v === dots) continue
             when (v) {
-                is TextView -> {
-                    v.setTextColor(ink.text)
-                    v.setShadowLayer(dpf(3f), 0f, dpf(1f), ink.shadow)
-                    applyScrimTo(v, ink)
-                }
-                is ImageView -> { v.drawable?.setTint(ink.text); applyScrimTo(v, ink) }
+                is TextView -> { v.setTextColor(ink.text); v.setShadowLayer(dpf(if (busy) 4f else 3f), 0f, dpf(1f), shadow); v.background = null }
+                is ImageView -> { v.drawable?.setTint(ink.text); v.background = null }
             }
         }
-        // edit-mode grid lines: one ink for the whole grid area (3:1 like any other non-text mark)
-        inkCache.getOrPut("grid") { HomeStyle.ink(Wallpaper.sample(bmp, Rect(0, insT, w, bmp.height - insB)), Contrast.LARGE) }
         buildDots()
         styleCells()
         bars()
@@ -1430,10 +1421,6 @@ class HomeActivity : Activity() {
     }
 
     private var barsCache: Pair<String, Pair<Boolean, Boolean>>? = null
-
-    private fun applyScrimTo(v: View, ink: Ink) {
-        v.background = if (Contrast.a(ink.scrim) == 0) null else fill(ink.scrim, 10f)
-    }
 
     // ---- drawer ----
 
