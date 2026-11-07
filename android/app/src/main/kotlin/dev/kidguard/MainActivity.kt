@@ -48,6 +48,8 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val tc = android.os.SystemClock.elapsedRealtime()
+        window.decorView.post { android.util.Log.i("KG.perf", "main create ${android.os.SystemClock.elapsedRealtime() - tc}ms") }
         Guard.start(this)
         val u = Ui(this); ui2 = u
         val pad = dp(20)
@@ -480,7 +482,9 @@ class MainActivity : Activity() {
         if (Ui.isDark(this) != ui2.dark) { recreate(); return }   // light / dark changed in the launcher's Tuỳ chỉnh
         launched = false   // back from a screen we opened (see onStop)
         holding = null; holdBase.forEach { (b, t) -> b.text = t }   // a hint left over from before the pause
+        val t0 = android.os.SystemClock.elapsedRealtime()
         refresh()
+        (android.os.SystemClock.elapsedRealtime() - t0).let { if (it > 16) android.util.Log.i("KG.perf", "main refresh ${it}ms") }
         // the time-left tile / widget: "ask for more time" (only once a parent is paired, like the button)
         if (intent?.getBooleanExtra(Quick.EXTRA_MORE, false) == true) {
             intent.removeExtra(Quick.EXTRA_MORE)

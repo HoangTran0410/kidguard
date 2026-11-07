@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="AppMain" parent="@android:style/Theme.Material.NoActionBar" />
+    <style name="AppMain" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:scrollViewStyle">@style/NoBounceScroll</item>
+        <item name="android:horizontalScrollViewStyle">@style/NoBounceHScroll</item>
+        <item name="android:listViewStyle">@style/NoBounceList</item>
+        <item name="android:gridViewStyle">@style/NoBounceGrid</item>
+    </style>
     <!-- kid launcher (HomeActivity): drawn edge to edge over its own wallpaper -->
     <style name="AppHome" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:scrollViewStyle">@style/NoBounceScroll</item>
+        <item name="android:horizontalScrollViewStyle">@style/NoBounceHScroll</item>
+        <item name="android:listViewStyle">@style/NoBounceList</item>
+        <item name="android:gridViewStyle">@style/NoBounceGrid</item>
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:windowShowWallpaper">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>

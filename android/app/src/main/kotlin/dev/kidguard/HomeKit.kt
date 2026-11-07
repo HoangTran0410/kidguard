@@ -73,11 +73,6 @@ class HomeKit(val act: Activity, val pal: Palette, val font: Float = 1f) {
         if (icon != null) { Ic.lead(this, icon, fg); compoundDrawablePadding = dp(4) }
     }
 
-    /** A dashed rounded outline (edit-mode cells). */
-    fun dashPaint(color: Int) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE; strokeWidth = dpf(1.5f); this.color = color
-        pathEffect = android.graphics.DashPathEffect(floatArrayOf(dpf(5f), dpf(4f)), 0f)
-    }
 
     fun drawRound(c: Canvas, l: Float, t: Float, r: Float, b: Float, p: Paint, rad: Float = dpf(16f)) = c.drawRoundRect(l, t, r, b, rad, rad, p)
 }

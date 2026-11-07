@@ -121,8 +121,9 @@ object LauncherLogic {
     }
 
     /** Lower case, accents off, đ -> d: "Đồng hồ" matches "dong ho". */
+    private val MARKS = Regex("\\p{M}+")   // compiled once: fold runs for every app on each home render
     fun fold(s: String): String = java.text.Normalizer.normalize(s.lowercase(), java.text.Normalizer.Form.NFD)
-        .replace(Regex("\\p{M}+"), "").replace('đ', 'd')
+        .replace(MARKS, "").replace('đ', 'd')
 
     /** Search: every typed word starts a word of the label, or the folded label contains the query. */
     fun matches(label: String, query: String): Boolean {

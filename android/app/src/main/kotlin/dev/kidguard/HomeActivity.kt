@@ -74,7 +74,9 @@ import dev.kidguard.HomeLayout.Src
 class HomeActivity : Activity() {
     companion object { @Volatile var alive = 0 }
 
-    private class AppE(val pkg: String, val cls: String, val label: String)
+    private class AppE(val pkg: String, val cls: String, val label: String) {
+        val sortKey by lazy { LauncherLogic.sortKey(label) }   // once per app list: sortedBy calls its selector per comparison
+    }
 
     /** What is being dragged: a grid / dock / folder / picker source, or [pkg] from the drawer. */
     private class DragSt(val src: Src?, val pkg: String?, val kind: String, val w: Int, val h: Int, val id: String?, val view: View?)
@@ -293,14 +295,27 @@ class HomeActivity : Activity() {
     private fun busy() = drag != null || overlay != null || popup?.isShowing == true || pager.dragging
 
     private fun render(force: Boolean) {
+        val t0 = android.os.SystemClock.elapsedRealtime()
+        try { render0(force) } finally {
+            val ms = android.os.SystemClock.elapsedRealtime() - t0
+            if (ms > 16) android.util.Log.i("KG.perf", "home render ${ms}ms force=$force")
+        }
+    }
+
+    private class Lap { val t = android.os.SystemClock.elapsedRealtime(); var l = t; val sb = StringBuilder()
+        operator fun invoke(n: String) { val x = android.os.SystemClock.elapsedRealtime(); sb.append(n).append('=').append(x - l).append(' '); l = x }
+        fun done(n: String) { if (android.os.SystemClock.elapsedRealtime() - t > 16) android.util.Log.i("KG.perf", "$n $sb") } }
+
+    private fun render0(force: Boolean) {
         if (isFinishing || isDestroyed) return
         val s = Store.of(this); val r = s.rules
-        val all = launcherApps()
-        val dv = decision(r, s)
-        val show = all.keys.associateWith { LauncherLogic.show(it, dv.want, r, packageName) }
-        val visible = all.values.filter { show[it.pkg] != LauncherLogic.Show.HIDE }.sortedBy { LauncherLogic.sortKey(it.label) }
-        var m = model ?: HomeFile.load(this) ?: firstModel(r, visible)
-        m = HomeLayout.prune(m) { it !in all && !Policy.installed(this, it) }
+        val lap = Lap()
+        val all = launcherApps(); lap("apps")
+        val dv = decision(r, s); lap("decision")
+        val show = all.keys.associateWith { LauncherLogic.show(it, dv.want, r, packageName) }; lap("show")
+        val visible = all.values.filter { show[it.pkg] != LauncherLogic.Show.HIDE }.sortedBy { it.sortKey }; lap("sort")
+        var m = model ?: HomeFile.load(this) ?: firstModel(r, visible); lap("model")
+        m = HomeLayout.prune(m) { it !in all && !Policy.installed(this, it) }; lap("prune")
         val dial = dialer()
         m = HomeLayout.appendNew(m, visible.map { it.pkg }.filter { it != dial })
         if (m != model) { HomeFile.save(this, m); model = m }
@@ -318,6 +333,7 @@ class HomeActivity : Activity() {
             today = TodayPage(this, kit, u, acts, { model }, { update(it) }, { openMain() }).also { it.onRefresh = { key = ""; render(true) }; it.pad(insT, insB) }
         } else if (kit.font != m.style.font.toFloat()) kit = HomeKit(this, pal, m.style.font.toFloat())
         val block = QuickLogic.phoneBlock(dv.want)
+        lap("palette")
         val banner = LauncherLogic.banner(Policy.isOwner(this), Guard.running != null, Usage.granted(this), locationOn(), Acc.isOn(this))
         val files = runCatching { Files.all(this) }.getOrDefault(emptyList()).joinToString(",") { it.id + it.st }
         // not the minute itself: what it changes (next event, today's schedule states, the date); the clock text is set in place below
@@ -325,7 +341,8 @@ class HomeActivity : Activity() {
         val k = listOf(m.toJson().toString(), all.values.joinToString(",") { it.label }, show.toString(), dv.want.toString(), block, banner, timeKey, dv.leftMs / 60_000, s.everPaired,
             s.sos().length(), s.lastCheckin("arrived"), s.lastCheckin("pickup"), s.requests().toString(), r.blockNote, r.launcher, dark, files,
             r.chores, r.schedules, r.groups.map { it.hours }, r.bedtimeOn, r.bedStart, r.bedEnd, r.lockContact, editMode).joinToString("|")
-        if (!force && k == key) { tickClocks(dv); return }
+        lap("key")
+        if (!force && k == key) { tickClocks(dv); lap.done("same"); return }
         if (busy()) { main.postDelayed({ render(false) }, 1500); return }   // never rebuild under a finger / an open panel
         key = k
         lastView = dv; lastShow = show
@@ -338,6 +355,7 @@ class HomeActivity : Activity() {
         hint.setImageDrawable(Ic.get(this, R.drawable.li_chevron_up, Color.WHITE, dp(18)))
         inkViews += hint
         today?.fill(r, dv.minute, dv.dow, dv.now)
+        lap("build"); lap.done("rebuild")
         // no-op unless what it shows changed; the first one is built while idle, so the first swipe up has it ready under the finger
         drawerCache?.let { d -> main.post { d.refill() } } ?: main.postDelayed({ if (drawerCache == null && !isFinishing && !busy()) drawerView() }, 800)
         main.post { inkPass(); chromeFade() }
@@ -483,7 +501,7 @@ class HomeActivity : Activity() {
         pager.post { pager.scrollTo(pager.page * pager.width, 0); chromeFade() }
     }
 
-    /** Edit / drag: dashed cell outlines in the wallpaper's ink colour. */
+    /** Edit / drag: the page panel in the wallpaper's ink colour. */
     private fun styleCells() {
         val on = editMode || drag != null
         val c = inkCache["grid"]?.text ?: Color.WHITE
@@ -754,7 +772,7 @@ class HomeActivity : Activity() {
             HomeLayout.addTo(m, a.pkg, f.id, "")?.let { update(it); toast(getString(R.string.hm_f_added, folderName(f))) } ?: toast(getString(R.string.hm_f_full))
         })
         val others = m.pages.flatten().filter { it.kind == "app" && it.pkg != a.pkg && lastShow[it.pkg]?.let { s -> s != LauncherLogic.Show.HIDE } == true }
-            .mapNotNull { it to (all[it.pkg] ?: return@mapNotNull null) }.sortedBy { LauncherLogic.sortKey(it.second.label) }
+            .mapNotNull { it to (all[it.pkg] ?: return@mapNotNull null) }.sortedBy { it.second.sortKey }
         if (others.isNotEmpty()) sh.body.addView(text(getString(R.string.hm_f_new_with), 13f, pal.sub, true).apply { setPadding(dp(16), dp(14), dp(16), dp(4)) })
         for ((it, e) in others) sh.body.addView(rowOf(ImageView(this).apply { setImageBitmap(IconCache.get(this@HomeActivity, e.pkg, e.cls, dp(40), model?.style?.shape != "square")) }, e.label) {
             val name = autoName(e.pkg, a.pkg)
@@ -1606,7 +1624,7 @@ class HomeActivity : Activity() {
             val all = launcherApps(); val dv = decision(r, s)
             val q = search.text.toString()
             val shown = all.values.filter { LauncherLogic.show(it.pkg, dv.want, r, packageName) != LauncherLogic.Show.HIDE && LauncherLogic.matches(it.label, q) }
-                .sortedBy { LauncherLogic.sortKey(it.label) }
+                .sortedBy { it.sortKey }
             val anyPaused = shown.any { dv.want[it.pkg] != null }
             val k = listOf(q, shown.joinToString(",") { it.pkg + "=" + it.label }, shown.map { dv.want[it.pkg] }, model?.cols, model?.onHome(), model?.style?.shape,
                 model?.style?.icon, if (anyPaused) dv.minute else 0, if (anyPaused) dv.leftMs / 60_000 else 0, if (anyPaused) r.groups.map { it.hours } else 0).joinToString("|")
@@ -1800,7 +1818,7 @@ class HomeActivity : Activity() {
         }
     }
 
-    /** cols x rows grid inside its padding (the chrome); children carry their cell rectangle (LP). Edit mode: dashed cells. */
+    /** cols x rows grid inside its padding (the chrome); children carry their cell rectangle (LP). Edit mode: one soft page panel + the drop cell. */
     private inner class CellLayout(ctx: Context, val cols: Int, val rows: Int) : ViewGroup(ctx) {
         private val gap = dp(6)
         val side = dp(10)
@@ -1809,7 +1827,8 @@ class HomeActivity : Activity() {
         var gridColor = Color.WHITE
         var hl: IntArray? = null
         var hlOk = true
-        private val dash by lazy { kit.dashPaint(gridColor) }
+        private val panel = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = dp(1).toFloat() }
         private val hlPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
         init { clipChildren = false; clipToPadding = false; setWillNotDraw(false) }
@@ -1839,19 +1858,13 @@ class HomeActivity : Activity() {
         override fun onDraw(c: Canvas) {
             if (!grid) return
             val cw = cellW().toFloat(); val ch = cellH().toFloat()
-            dash.color = gridColor
-            // widget cards are a little see-through: no dashes under a visible widget
-            val busy = BooleanArray(cols * rows)
-            for (i in 0 until childCount) {
-                val v = getChildAt(i); val lp = v.layoutParams as CellLP
-                if (v.visibility != View.VISIBLE || lp.w * lp.h < 2) continue
-                for (yy in lp.y until (lp.y + lp.h).coerceAtMost(rows)) for (xx in lp.x until (lp.x + lp.w).coerceAtMost(cols)) busy[yy * cols + xx] = true
-            }
-            for (y in 0 until rows) for (x in 0 until cols) {
-                if (busy[y * cols + x]) continue
-                val l = side + x * cw + gap / 2f; val t = paddingTop + y * ch + gap / 2f
-                kit.drawRound(c, l, t, l + cw - gap, t + ch - gap, dash)
-            }
+            // One soft panel around the page (One UI's edit page), no per-cell outlines: those read as clutter. The cell
+            // the item will land in lights up while dragging (hl below), like Pixel / One UI.
+            panel.color = Color.argb(28, Color.red(gridColor), Color.green(gridColor), Color.blue(gridColor))
+            edge.color = Color.argb(70, Color.red(gridColor), Color.green(gridColor), Color.blue(gridColor))
+            val l0 = side.toFloat() - gap / 2f; val t0 = paddingTop - gap / 2f
+            val r0 = side + cols * cw + gap / 2f; val b0 = paddingTop + rows * ch + gap / 2f
+            kit.drawRound(c, l0, t0, r0, b0, panel, kit.dpf(22f)); kit.drawRound(c, l0, t0, r0, b0, edge, kit.dpf(22f))
             hl?.let { (x, y, w, h) ->
                 // the drop cells: the card colour when it fits, the danger colour when it doesn't
                 hlPaint.color = if (hlOk) pal.card else Color.argb(150, Color.red(pal.danger), Color.green(pal.danger), Color.blue(pal.danger))

@@ -1,12 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="AppMain" parent="@android:style/Theme.Material.Light.NoActionBar" />
+    <style name="AppMain" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:scrollViewStyle">@style/NoBounceScroll</item>
+        <item name="android:horizontalScrollViewStyle">@style/NoBounceHScroll</item>
+        <item name="android:listViewStyle">@style/NoBounceList</item>
+        <item name="android:gridViewStyle">@style/NoBounceGrid</item>
+    </style>
     <!-- kid launcher (HomeActivity): drawn edge to edge over its own wallpaper -->
     <style name="AppHome" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:scrollViewStyle">@style/NoBounceScroll</item>
+        <item name="android:horizontalScrollViewStyle">@style/NoBounceHScroll</item>
+        <item name="android:listViewStyle">@style/NoBounceList</item>
+        <item name="android:gridViewStyle">@style/NoBounceGrid</item>
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:windowShowWallpaper">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+    <!-- activities without their own theme (application default) -->
+    <style name="AppBase" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:scrollViewStyle">@style/NoBounceScroll</item>
+        <item name="android:horizontalScrollViewStyle">@style/NoBounceHScroll</item>
+        <item name="android:listViewStyle">@style/NoBounceList</item>
+        <item name="android:gridViewStyle">@style/NoBounceGrid</item>
+    </style>
+    <!-- see-through activities (actions sheet, share-in) -->
+    <style name="AppClear" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:scrollViewStyle">@style/NoBounceScroll</item>
+        <item name="android:horizontalScrollViewStyle">@style/NoBounceHScroll</item>
     </style>
 </resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- No overscroll effect on any scroll: ColorOS / some skins draw it as a spring that drags the whole page past its
+         end and back, which reads as the screen bouncing. Pulled in by every theme (themes.xml, values-night). -->
+    <style name="NoBounceScroll" parent="@android:style/Widget.Material.ScrollView"><item name="android:overScrollMode">never</item></style>
+    <style name="NoBounceHScroll" parent="@android:style/Widget.Material.HorizontalScrollView"><item name="android:overScrollMode">never</item></style>
+    <style name="NoBounceList" parent="@android:style/Widget.Material.ListView"><item name="android:overScrollMode">never</item></style>
+    <style name="NoBounceGrid" parent="@android:style/Widget.Material.GridView"><item name="android:overScrollMode">never</item></style>
+</resources>

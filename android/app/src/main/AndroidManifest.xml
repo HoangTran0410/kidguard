@@ -64,7 +64,7 @@
         android:localeConfig="@xml/locales_config"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        android:theme="@style/AppBase">
 
         <activity
             android:name=".MainActivity"
@@ -179,7 +179,7 @@
             android:excludeFromRecents="true"
             android:exported="true"
             android:permission="android.permission.BIND_DEVICE_ADMIN"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            android:theme="@style/AppClear">
             <intent-filter>
                 <action android:name="android.app.action.GET_PROVISIONING_MODE" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -191,7 +191,7 @@
             android:excludeFromRecents="true"
             android:exported="true"
             android:permission="android.permission.BIND_DEVICE_ADMIN"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            android:theme="@style/AppClear">
             <intent-filter>
                 <action android:name="android.app.action.ADMIN_POLICY_COMPLIANCE" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -229,7 +229,7 @@
             android:exported="false"
             android:noHistory="true"
             android:taskAffinity=""
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:theme="@style/AppClear" />
 
         <!-- live screen on Android 8-10 (Proj.kt): the system consent dialog + the service that holds the projection -->
         <activity
@@ -237,7 +237,7 @@
             android:excludeFromRecents="true"
             android:exported="false"
             android:taskAffinity=""
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:theme="@style/AppClear" />
 
         <service
             android:name=".ProjService"
@@ -304,7 +304,7 @@
             android:name=".ShareInActivity"
             android:label="@string/files_share_label"
             android:icon="@mipmap/ic_launcher"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:theme="@style/AppClear"
             android:excludeFromRecents="true"
             android:noHistory="false"
             android:exported="true">
