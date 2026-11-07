@@ -119,11 +119,28 @@ code{word-break:break-all;font-size:12px}
 .bulk,.hbar{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom));z-index:5;background:var(--card);border:1px solid var(--accent);border-radius:18px;padding:10px 12px;box-shadow:0 8px 24px rgba(2,6,23,.2);margin:8px 0 12px}
 .app input[type=checkbox]{flex:none}label.app{cursor:pointer}
 .map{position:relative;height:260px;border-radius:14px;overflow:hidden;background:var(--track);touch-action:none;user-select:none;-webkit-user-select:none;margin-top:10px}
-.map .layer{position:absolute;inset:0}.map img{position:absolute;width:256px;height:256px;max-width:none;pointer-events:none}
+.map{cursor:grab}.map.drag{cursor:grabbing}.map .layer{position:absolute;inset:0;transform-origin:0 0}.map img{position:absolute;width:256px;height:256px;max-width:none;pointer-events:none}
 .map svg{position:absolute;overflow:visible}.map circle{cursor:pointer}
 .map .mz{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}.map .mz button{min-height:36px;width:36px;padding:0;background:var(--card);border-radius:12px}
 .map .attr{position:absolute;right:0;bottom:0;background:rgba(255,255,255,.8);color:#333;font-size:11px;padding:1px 5px}.map .attr a{color:#333}
 .map .merr{position:absolute;left:8px;right:52px;top:8px;background:var(--card);color:var(--text);border:1px solid var(--stroke);border-radius:12px;padding:6px 10px;font-size:13px;pointer-events:none}
+.tln{margin-top:10px}.tln .scH{display:flex;align-items:center;gap:10px}
+.tln .scH button{width:48px;height:48px;min-height:48px;padding:0;border-radius:999px;flex:none}.tln .scH button[aria-pressed=true]{background:var(--tint);border-color:var(--accent);color:var(--accent)}
+.tln .scL{min-width:0;flex:1;line-height:1.25}.tln .scL b{font-size:22px;font-variant-numeric:tabular-nums;display:block}.tln .scL span{color:var(--sub);font-size:14px;overflow-wrap:anywhere}
+.tln .scW{position:relative;height:36px;margin-top:6px}
+.tln .scK{position:absolute;left:11px;right:11px;top:50%;height:8px;transform:translateY(-50%);background:var(--track);border-radius:4px;overflow:hidden;pointer-events:none}
+.tln .scK i{position:absolute;top:0;bottom:0;background:var(--ok);opacity:.9}.tln .scK .pf{position:absolute;left:0;top:0;bottom:0;background:var(--accent);opacity:.55}
+.tln input[type=range]{position:absolute;inset:0;width:100%;height:100%;min-height:0;margin:0;padding:0;border:0;background:none;-webkit-appearance:none;appearance:none;cursor:pointer;box-shadow:none}
+.tln input[type=range]::-webkit-slider-runnable-track{background:transparent;height:36px;border:0}
+.tln input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:7px;border-radius:50%;background:var(--card);border:3px solid var(--primary);box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.tln input[type=range]::-moz-range-track{background:transparent;border:0}
+.tln input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--card);border:3px solid var(--primary)}
+.tln input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 35%,transparent)}
+.tln input[type=range]:focus-visible::-moz-range-thumb{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 35%,transparent)}
+.tln input[type=range]:disabled{cursor:default;opacity:.45}
+.tln .scA{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+#s-box.off{opacity:.45;pointer-events:none}#s-off:not([hidden]){display:flex;gap:10px;align-items:center;flex-wrap:wrap}#s-off .sp{min-width:12em}#s-off button{flex:none}
+.stb{flex:1;min-width:0;justify-content:flex-start;text-align:left;border-color:transparent;background:transparent;padding:6px 8px;font-weight:400}.stb.on{background:var(--tint);border-color:var(--accent)}
 .map .pin{position:absolute;transform:translate(-50%,-100%);background:var(--card);color:var(--text);border:2px solid;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 2px 8px rgba(15,23,42,.2)}
 #ear{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(420px,calc(100vw - 32px));background:color-mix(in srgb,var(--warn) 14%,var(--card));color:var(--text);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:16px;padding:8px 8px 8px 14px;display:none;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(2,6,23,.2);z-index:25;font-weight:600}
 @media(min-width:960px){#ear{bottom:28px;left:calc(50% + 132px)}}
@@ -2962,6 +2979,10 @@ vi: {
   "anti.basic": "Chế độ cơ bản: KidGuard tự thoát khỏi màn hình gỡ app, tắt quyền quản trị, tắt Trợ năng và Buộc dừng của chính nó.",
   "anti.owner": "Luôn bật sẵn: chặn gỡ KidGuard, chặn Force stop, chặn đặt lại máy trong Cài đặt, chặn Safe Mode, chặn tạo người dùng, khoá đổi giờ.",
   "se.acc off": "Chưa bật Trợ năng — chạy lại cài đặt", "se.screen off": "Màn hình máy con đang tắt",
+  "se.no field": "Trên máy con chưa có ô nhập chữ nào đang được chọn. Chạm vào ô cần gõ trên ảnh màn hình trước.",
+  "se.failed": "Máy con không làm được thao tác này. Thử lại sau giây lát.", "se.bad input": "Thao tác không hợp lệ, hãy tải lại trang rồi thử lại.",
+  "se.timeout": "Máy con trả lời chậm quá, thử lại…", "se.capture failed": "Máy con không chụp được màn hình, thử lại…", "se.unknown": "Máy con không làm được việc này (mã: {0})",
+  "so.h": "Màn hình máy con đang tắt", "so.p": "Các nút điều khiển tạm khoá vì máy con đang tắt màn hình. Bật màn hình để xem và điều khiển.",
   "se.unsupported": "Máy con dùng Android cũ, chưa hỗ trợ xem màn hình (cần Android 11+)", "se.busy": "Máy con đang bận, thử lại…",
   "se.need consent": "Cần con bấm Cho phép trên máy (Android 8–10 hỏi trước khi chia sẻ màn hình; Android 8–9 có ô “Không hiện lại”)", "se.denied": "Con đã bấm Huỷ trên máy, sẽ hỏi lại sau 1 phút", "scr.watching": "Đang xem",
   "scr.stat": "{0} khung/giây · trễ {1} ms", "scr.cant": "Chưa xem được màn hình", "scr.lost": "Mất kết nối tới máy con", "scr.wait": "Đang chờ máy con kết nối (tối đa ~20 giây)…",
@@ -2975,6 +2996,9 @@ vi: {
   "where.noStops": "Không có điểm dừng nào ≥ 5 phút", "where.noPts": "Chưa có điểm nào — bật {0} Ghi vị trí trong Luật", "where.lastH": "Vị trí gần nhất", "where.gmaps": "Mở Google Maps",
   "where.noLoc": "Chưa có vị trí. Bật Vị trí trên máy con rồi bấm Lấy vị trí.", "where.locNew": "Lấy vị trí mới", "where.auto": "Máy con tự ghi vị trí theo chu kỳ đặt trong tab Luật.",
   "where.locating": "Đang lấy vị trí…",
+  "tl.play": "Phát lại cả ngày", "tl.pause": "Tạm dừng", "tl.aria": "Thời điểm trong ngày", "tl.none": "chưa có vị trí lúc này",
+  "tl.atZ": "đang ở {0}", "tl.stay": "đứng yên một chỗ", "tl.move": "đang di chuyển", "tl.gap": "ước đoán, không có điểm {0}–{1}",
+  "tl.last": "vị trí cuối lúc {0}", "tl.now": "bây giờ", "tl.one": "Cần ít nhất 2 điểm để phát lại", "tl.go": "Xem lúc {0} trên dòng thời gian",
   "ts.h": "Điều khiển từ xa qua Tailscale", "ts.basic": "Dùng relay (Cloudflare) trong mục bên dưới để quản lý khi con ra khỏi nhà.",
   "ts.remove": "Tắt và gỡ Tailscale", "ts.installTx": "Đang cài Tailscale trên máy con…", "ts.off": "Đang tắt", "ts.installing": "Đang cài / đăng nhập…", "ts.on": "Đã kết nối", "ts.error": "Lỗi",
   "ts.p": "Không cần Cloudflare: máy con tự cài Tailscale và vào mạng riêng của bạn. Điện thoại bố mẹ cài Tailscale cùng tài khoản rồi mở địa chỉ bên dưới.",
@@ -3312,6 +3336,10 @@ en: {
   "anti.basic": "Basic mode: KidGuard backs out of the uninstall screen and of the screens that turn off its admin rights, Accessibility or Force stop.",
   "anti.owner": "Always on: KidGuard can't be uninstalled or force-stopped; factory reset from Settings, Safe Mode, adding users and changing the time are blocked.",
   "se.acc off": "Accessibility isn't on, run setup again", "se.screen off": "The kid's screen is off",
+  "se.no field": "No text field is selected on the kid's phone. Tap the field you want to type into on the screen picture first.",
+  "se.failed": "The kid's phone couldn't do that. Try again in a moment.", "se.bad input": "That action isn't valid, reload the page and try again.",
+  "se.timeout": "The kid's phone is slow to answer, retrying…", "se.capture failed": "The kid's phone couldn't capture the screen, retrying…", "se.unknown": "The kid's phone couldn't do that (code: {0})",
+  "so.h": "The kid's screen is off", "so.p": "Controls are locked while the kid's screen is off. Wake the screen to view and control it.",
   "se.unsupported": "The kid's phone runs an older Android that can't share the screen (needs Android 11+)", "se.busy": "The kid's phone is busy, retrying…",
   "se.need consent": "Your kid needs to tap Allow on the phone (Android 8–10 asks before sharing the screen; Android 8–9 has a “Don't show again” box)", "se.denied": "Your kid tapped Cancel on the phone, it asks again in 1 minute", "scr.watching": "Viewing",
   "scr.stat": "{0} fps · {1} ms lag", "scr.cant": "Can't show the screen yet", "scr.lost": "Lost connection to the kid's phone", "scr.wait": "Waiting for the kid's phone to connect (up to ~20 seconds)…",
@@ -3325,6 +3353,9 @@ en: {
   "where.noStops": "No stops of 5 minutes or more", "where.noPts": "No points yet: turn on {0} Record location in Rules", "where.lastH": "Last known location", "where.gmaps": "Open Google Maps",
   "where.noLoc": "No location yet. Turn on Location on the kid's phone, then tap Locate.", "where.locNew": "Get new location", "where.auto": "The kid's phone records its location on the interval set in the Rules tab.",
   "where.locating": "Getting location…",
+  "tl.play": "Play the day", "tl.pause": "Pause", "tl.aria": "Time of day", "tl.none": "no location at this time",
+  "tl.atZ": "at {0}", "tl.stay": "staying in one place", "tl.move": "on the move", "tl.gap": "estimated, no points {0}–{1}",
+  "tl.last": "last fix at {0}", "tl.now": "now", "tl.one": "Needs at least 2 points to play back", "tl.go": "Show {0} on the timeline",
   "ts.h": "Remote control via Tailscale", "ts.basic": "Use the Cloudflare relay in the section below to manage the phone when your kid is away from home.",
   "ts.remove": "Turn off and remove Tailscale", "ts.installTx": "Installing Tailscale on the kid's phone…", "ts.off": "Off", "ts.installing": "Installing / signing in…", "ts.on": "Connected", "ts.error": "Error",
   "ts.p": "No Cloudflare needed: the kid's phone installs Tailscale and joins your private network. Install Tailscale on your phone with the same account, then open the address below.",
@@ -3775,7 +3806,7 @@ function ovDraw() {
     else mb.lastElementChild.innerHTML = pins.map(p => `<span style="color:${p.c}">●</span> ${esc(p.name)} ${ago(p.t)}`).join(" · ");
     const pts = pins.map(p => [p.t, p.lat, p.lng]);
     if (!mv) { mv = fitView(pts, $("#map").clientWidth || 340, 260); mv.z = Math.min(mv.z, 15); }
-    const draw = () => ovMap(pins); draw(); mapDrag(pts, draw);
+    const draw = () => ovMap(pins); draw(); mapCtl($("#map"), () => mv, draw);
   }
   // 7 days, one bar per kid per day
   $("#ovRep").innerHTML = ovReport(D);
@@ -3812,7 +3843,106 @@ function ovReport(D) {
 const TILES = ["https://tile.openstreetmap.de/{z}/{x}/{y}.png", "https://tile.openstreetmap.org/{z}/{x}/{y}.png"];
 let tileI = 0, tileDead = false;
 const tileUrl = (i, z, x, y) => TILES[i].replace("{z}", z).replace("{x}", x).replace("{y}", y);
-const tileImg = (z, x, y, l, tp) => `<img alt="" draggable="false" data-i="${tileI}" data-z="${z}" data-x="${x}" data-y="${y}" src="${tileUrl(tileI, z, x, y)}" onerror="tileErr(this)" style="left:${l}px;top:${tp}px">`;
+const tileImg = (z, x, y, l, tp, sz = 256) => `<img alt="" draggable="false" data-i="${tileI}" data-z="${z}" data-x="${x}" data-y="${y}" src="${tileUrl(tileI, z, x, y)}" onerror="tileErr(this)" style="left:${l}px;top:${tp}px${sz !== 256 ? `;width:${sz}px;height:${sz}px` : ""}">`;
+// Tiles for view v {z (may be fractional), fx, fy} in a w×h box: integer-zoom tiles, scaled by 2^(z - round(z)).
+// Remembers what was drawn in box._r, so gestures can CSS-transform the layer until the next real draw.
+function mapTiles(box, v, w, h) {
+  const zi = Math.round(v.z), ts = 256 * 2 ** (v.z - zi), n = 2 ** zi, S = 256 * 2 ** v.z, left = v.fx * S - w / 2, top = v.fy * S - h / 2, sz = ts === 256 ? 256 : Math.ceil(ts) + 1;
+  let html = "";
+  for (let ty = Math.floor(top / ts); ty <= Math.floor((top + h) / ts); ty++) for (let tx = Math.floor(left / ts); tx <= Math.floor((left + w) / ts); tx++)
+    if (ty >= 0 && ty < n) html += tileImg(zi, ((tx % n) + n) % n, ty, Math.round(tx * ts - left), Math.round(ty * ts - top), sz);
+  box._r = { z: v.z, fx: v.fx, fy: v.fy, S, left, top, w, h };
+  return { html, S, left, top };
+}
+const mapZB = () => `<div class="mz"><button type="button" data-mz="1" aria-label="${esc(t("zoomIn"))}">${ic("plus")}</button><button type="button" data-mz="-1" aria-label="${esc(t("zoomOut"))}">${ic("minus")}</button></div>`;
+const mapAttr = `<div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>`;
+// One gesture set for every map (Google Maps web): mouse wheel / trackpad pinch (ctrl+wheel) / Safari gesture / touch pinch
+// zoom around the pointer, two-finger trackpad scroll and drag pan, double-click / double-tap zoom in, +/- buttons.
+// During a gesture the drawn layer is only CSS-transformed; the real redraw runs once it settles (120 ms), so no tile flood.
+// getV() returns the live view object (mutated here), draw() renders it; o.tap(x, y) -> true to redraw, o.after() after each redraw,
+// o.dblCentre: double-tap zooms at the centre (the picker moves the centre on tap).
+function mapCtl(box, getV, draw, o = {}) {
+  box._ctl = { getV, draw, o };
+  if (box._ctlOn) return; box._ctlOn = true;
+  const C = () => box._ctl, V = () => C().getV(), W = () => box.clientWidth || 340, H = () => box.clientHeight || 260;
+  const fix = v => { v.z = Math.max(3, Math.min(18, Math.abs(v.z - Math.round(v.z)) < 1e-6 ? Math.round(v.z) : v.z)); v.fx = ((v.fx % 1) + 1) % 1; v.fy = Math.min(0.999, Math.max(0.001, v.fy)); };
+  let tm = 0;
+  const commit = () => { clearTimeout(tm); tm = 0; const v = V(); if (!v) return; fix(v); C().draw(); if (C().o.after) C().o.after(); };
+  const preview = () => {
+    const r = box._r, l = box.querySelector(".layer"), v = V(); if (!r || !l || !v) return;
+    const k = 2 ** (v.z - r.z), px = (v.fx - r.fx) * r.S + W() / 2, py = (v.fy - r.fy) * r.S + H() / 2;
+    l.style.transform = `translate(${(W() / 2 - k * px).toFixed(1)}px,${(H() / 2 - k * py).toFixed(1)}px) scale(${k.toFixed(4)})`;
+  };
+  const soon = () => { preview(); clearTimeout(tm); tm = setTimeout(commit, 120); };
+  const zoomAt = (z1, ax, ay, v = V()) => {   // the world point under (ax, ay) stays under it
+    z1 = Math.max(3, Math.min(18, z1)); const S0 = 256 * 2 ** v.z, S1 = 256 * 2 ** z1, dx = ax - W() / 2, dy = ay - H() / 2;
+    v.fx += dx / S0 - dx / S1; v.fy += dy / S0 - dy / S1; v.z = z1;
+  };
+  const rel = e => { const b = box.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
+  const P = new Map(); let d = null, pin = null, lastTap = null, gest = false, g0 = 0, panUntil = 0;
+  box.addEventListener("wheel", e => {
+    const v = V(); if (!v) return; e.preventDefault(); if (gest) return;
+    const m = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? H() : 1, dx = e.deltaX * m, dy = e.deltaY * m, [ax, ay] = rel(e);
+    // a mouse wheel: line/page mode, or whole 120 notches with no sideways part; trackpad scrolls are small pixel deltas
+    const mouse = !e.ctrlKey && Date.now() > panUntil && (e.deltaMode !== 0 || (!dx && e.wheelDeltaY && Math.abs(e.wheelDeltaY) % 120 === 0));
+    if (e.ctrlKey) zoomAt(v.z - dy / 60, ax, ay);   // trackpad pinch (Chrome, Edge, Brave, Firefox)
+    else if (mouse) zoomAt(v.z - Math.max(-1, Math.min(1, dy / 100)), ax, ay);
+    else { panUntil = Date.now() + 300; const S = 256 * 2 ** v.z; v.fx += dx / S; v.fy += dy / S; }
+    soon();
+  }, { passive: false });
+  // Safari (macOS) pinch; on iOS the touch pinch below already handles it
+  box.addEventListener("gesturestart", e => { e.preventDefault(); if (P.size > 1 || !V()) return; gest = true; g0 = V().z; });
+  box.addEventListener("gesturechange", e => { e.preventDefault(); if (!gest || !V()) return; const [ax, ay] = rel(e); zoomAt(g0 + Math.log2(e.scale || 1), ax, ay); soon(); });
+  box.addEventListener("gestureend", e => { e.preventDefault(); if (gest) { gest = false; commit(); } });
+  box.addEventListener("click", e => {
+    const b = e.target.closest("[data-mz]"), v = V(); if (!b || !v) return;
+    zoomAt(Math.round(v.z) + +b.dataset.mz, W() / 2, H() / 2); commit();
+  });
+  box.addEventListener("pointerdown", e => {
+    if (e.target.closest("button,a,input") || !V()) return;
+    P.set(e.pointerId, rel(e));
+    if (P.size === 1) { const q = rel(e); d = { x: q[0], y: q[1], v0: { ...V() }, moved: false }; box._moved = false; }
+    else if (P.size === 2) {
+      const [a, b] = [...P.values()]; clearTimeout(tm);
+      pin = { d0: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, m0: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], v0: { ...V() } }; d = null; box._moved = true;
+      P.forEach((_, id) => { try { box.setPointerCapture(id); } catch {} });
+    }
+  });
+  box.addEventListener("pointermove", e => {
+    if (!P.has(e.pointerId)) return; const q = rel(e); P.set(e.pointerId, q); const v = V(); if (!v) return;
+    if (pin && P.size >= 2) {
+      const [a, b] = [...P.values()], k = Math.hypot(a[0] - b[0], a[1] - b[1]) / pin.d0, m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      const z1 = Math.max(3, Math.min(18, pin.v0.z + Math.log2(k))), S0 = 256 * 2 ** pin.v0.z, S1 = 256 * 2 ** z1;
+      v.z = z1; v.fx = pin.v0.fx + (pin.m0[0] - W() / 2) / S0 - (m[0] - W() / 2) / S1; v.fy = pin.v0.fy + (pin.m0[1] - H() / 2) / S0 - (m[1] - H() / 2) / S1;
+      preview();
+    } else if (d) {
+      const dx = q[0] - d.x, dy = q[1] - d.y;
+      if (!d.moved && Math.hypot(dx, dy) > 5) { d.moved = box._moved = true; box.classList.add("drag"); try { box.setPointerCapture(e.pointerId); } catch {} }
+      if (d.moved) { const S = 256 * 2 ** d.v0.z; v.fx = d.v0.fx - dx / S; v.fy = d.v0.fy - dy / S; preview(); }
+    }
+  });
+  const up = e => {
+    if (!P.has(e.pointerId)) return; P.delete(e.pointerId); const v = V();
+    if (pin) {
+      if (P.size < 2) {
+        pin = null; commit();
+        if (P.size === 1 && V()) { const q = [...P.values()][0]; d = { x: q[0], y: q[1], v0: { ...V() }, moved: true }; }   // one finger left: keep panning
+        else setTimeout(() => box._moved = false, 50);
+      }
+      return;
+    }
+    if (!d) return; const dd = d; d = null; box.classList.remove("drag");
+    if (dd.moved) { commit(); setTimeout(() => box._moved = false, 50); return; }
+    if (e.type !== "pointerup" || !v) return;
+    const [ax, ay] = rel(e), now = Date.now();
+    if (lastTap && now - lastTap.t < 320 && Math.hypot(ax - lastTap.x, ay - lastTap.y) < 30) {
+      lastTap = null; if (C().o.dblCentre) zoomAt(Math.round(v.z) + 1, W() / 2, H() / 2); else zoomAt(Math.round(v.z) + 1, ax, ay); commit(); return;
+    }
+    lastTap = { t: now, x: ax, y: ay };
+    if (C().o.tap && C().o.tap(ax, ay)) commit();
+  };
+  box.addEventListener("pointerup", up); box.addEventListener("pointercancel", up);
+}
 const mapFail = () => `<div class="merr" role="status">${ic("wifi-off")} ${t("map.fail")}</div>`;
 function tileErr(im) {
   const i = +im.dataset.i + 1;
@@ -3822,18 +3952,11 @@ function tileErr(im) {
 }
 function ovMap(pins) {
   const box = $("#map"); if (!box) return;
-  const w = box.clientWidth || 340, h = 260, S = 256 * 2 ** mv.z, left = mv.fx * S - w / 2, top = mv.fy * S - h / 2, n = 2 ** mv.z;
-  let tiles = "";
-  for (let ty = Math.floor(top / 256); ty <= Math.floor((top + h) / 256); ty++) for (let tx = Math.floor(left / 256); tx <= Math.floor((left + w) / 256); tx++) {
-    if (ty < 0 || ty >= n) continue;
-    tiles += tileImg(mv.z, ((tx % n) + n) % n, ty, Math.round(tx * 256 - left), Math.round(ty * 256 - top));
-  }
+  const w = box.clientWidth || 340, h = 260, { html, S, left, top } = mapTiles(box, mv, w, h);
   const xy = pins.map(p => [wx(p.lng) * S - left, wy(p.lat) * S - top]);
-  box.innerHTML = `<div class="layer" id="mlayer">${tiles}<svg width="${w}" height="${h}" style="left:0;top:0">${xy.map((q, i) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="8" fill="${pins[i].c}" stroke="#fff" stroke-width="3"/>`).join("")}</svg>
+  box.innerHTML = `<div class="layer" id="mlayer">${html}<svg width="${w}" height="${h}" style="left:0;top:0">${xy.map((q, i) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="8" fill="${pins[i].c}" stroke="#fff" stroke-width="3"/>`).join("")}</svg>
     ${xy.map((q, i) => `<span class="pin" style="left:${q[0].toFixed(0)}px;top:${(q[1] - 12).toFixed(0)}px;border-color:${pins[i].c}">${esc(pins[i].name)}</span>`).join("")}</div>
-    <div class="mz"><button id="mzi" aria-label="${esc(t("zoomIn"))}">${ic("plus")}</button><button id="mzo" aria-label="${esc(t("zoomOut"))}">${ic("minus")}</button></div><div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>${tileDead ? mapFail() : ""}`;
-  $("#mzi").onclick = () => { mv.z = Math.min(18, mv.z + 1); ovMap(pins); };
-  $("#mzo").onclick = () => { mv.z = Math.max(2, mv.z - 1); ovMap(pins); };
+    ${mapZB()}${mapAttr}${tileDead ? mapFail() : ""}`;
 }
 
 // --- back button: one history entry per level (1 = kid / overview, 2 = a past day), same URL ---
@@ -4430,7 +4553,7 @@ function pinGate(a) {
 // Header status line + banner stack (priority order, 1 shown + "N more"). SOS and check-ins sit on top and never fold.
 let banAll = false;
 function updateLive() {
-  paintSave();
+  paintSave(); if (tab === "screen") screenCtl();
   const el = $("#live"), hs = $("#hst"); if (!el) return;
   if (!st) { if (hs) hs.innerHTML = `${dot(lastErr ? "bad" : "")}<span>${lastErr ? esc(lastErr) : t("connecting")}</span>`; el.innerHTML = ""; return; }
   if (viewDay) { if (hs) hs.innerHTML = `${ic("clock")}<span>${t("hist.snap", hhmm(st.t))} · ${+st.battery}%</span>`; el.innerHTML = ""; return; }
@@ -5460,10 +5583,10 @@ function rulesWire(b, r) {
 
 // --- live screen + remote control -------------------------------------------
 // Runs independently of the 4 s state poll (refresh() never redraws the screen tab).
-const scr = { gen: 0, url: null, seq: 0, frames: [], lat: 0, liveT: null, view: false, err: "", msg: "" };
+const scr = { gen: 0, url: null, seq: 0, frames: [], lat: 0, liveT: null, view: false, err: "", msg: "", off: false };   // off: the last frame answer was "screen off"
 // screen errors from the phone (Acc.lastError): keys "se.<code>"
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const errText = e => tc("se.", e, e ? t("errX", e) : "");
+const errText = e => tc("se.", e, e ? t("se.unknown", e) : "");
 
 function screenMsg(t) { scr.msg = t; const m = $("#s-msg"); if (m) m.textContent = t; }
 function screenStat() {
@@ -5476,7 +5599,7 @@ function showFrame(blob, lat) {
   const old = scr.url; scr.url = URL.createObjectURL(blob);
   const img = $("#s-img"); if (img) img.src = scr.url;
   if (old) URL.revokeObjectURL(old);
-  scr.lat = lat; scr.frames.push(performance.now()); screenMsg(""); screenStat();
+  scr.lat = lat; scr.frames.push(performance.now()); screenMsg(""); screenStat(); if (scr.off) { scr.off = false; screenCtl(); }
 }
 function screenStop() {
   scr.gen++; clearInterval(scr.liveT); scr.liveT = null;
@@ -5497,7 +5620,7 @@ function screenStart() {
         const r = await fetch(base(k) + "/screen?max=720&q=50", { headers: { "X-KG-Token": k.token }, cache: "no-store" });
         if (!r.ok) { const j = await r.json().catch(() => ({}));
           if (j.error === "timeout" && fails < 3) { fails++; if (alive()) screenMsg(t("connecting")); await sleep(600 * 2 ** fails); continue; }   // 1.2 / 2.4 / 4.8 s
-          if (alive()) screenMsg(errText(j.error) || t("scr.cant")); await sleep(1500); continue; }
+          if (alive()) { screenMsg(errText(j.error) || t("scr.cant")); screenOffErr(j.error); } await sleep(1500); continue; }
         const blob = await r.blob(); if (!alive()) break;
         fails = 0; showFrame(blob, performance.now() - t0);
       } catch { if (alive()) screenMsg(t("scr.lost")); await sleep(2000); continue; }
@@ -5515,7 +5638,7 @@ function screenStart() {
           if (!alive()) break;
           if (r.status === 204) { const e = r.headers.get("X-KG-Err");
             if (e === "timeout" && fails < 3) { fails++; screenMsg(t("scr.wait")); await sleep(600 * 2 ** fails); continue; }
-            screenMsg(e ? errText(e) : scr.frames.length ? "" : t("scr.wait")); await sleep(200); continue; }
+            screenMsg(e ? errText(e) : scr.frames.length ? "" : t("scr.wait")); screenOffErr(e); await sleep(200); continue; }
           if (!r.ok) { const j = await r.json().catch(() => ({})); screenMsg(t("errX", j.error || "HTTP " + r.status)); await sleep(2000); continue; }
           const blob = await r.blob(); if (!alive()) break;
           scr.seq = +r.headers.get("X-KG-Seq") || scr.seq; fails = 0;
@@ -5528,34 +5651,60 @@ function screenStart() {
 // hidden page (tab in background, parent app paused): the poll timers skip their fetch; catch up at once when shown again
 document.addEventListener("visibilitychange", () => { if (document.hidden) screenStop(); else { if (cur && tab === "screen") screenStart(); if (cur) refresh(); else if (ov) ovLoad(); } });
 
-async function sendInput(o) {
-  if (scr.view || !cur) return;
+async function sendInput(o, show = m => toast("warn|" + m)) {
+  if (scr.view || !cur || screenOff()) return false;
   try {
     let r;
     try { r = await call(cur, "/input", "POST", o); }
-    catch (e) { if (cur.via !== "relay" || e.raw !== "not live") throw e; await call(cur, "/live", "POST", {}); r = await call(cur, "/input", "POST", o); } if (r.result && r.result !== "ok" && r.result !== "queued") toast(errText(r.result)); }
-  catch (e) { toast("err|" + t("errX", e.message)); }
+    catch (e) { if (cur.via !== "relay" || e.raw !== "not live") throw e; await call(cur, "/live", "POST", {}); r = await call(cur, "/input", "POST", o); }
+    if (r.result && r.result !== "ok" && r.result !== "queued") { if (r.result === "screen off") screenOffErr("screen off"); show(errText(r.result)); return false; }
+    return true;
+  }
+  catch (e) { toast("err|" + t("errX", e.message)); return false; }
+}
+// Screen off (state.screenOn false, or the phone answered "screen off"): lock every control, offer one "wake" button.
+const screenOff = () => !viewDay && ((st && st.screenOn === false) || scr.off);
+function screenOffErr(e) { if (e === "screen off" && !scr.off) { scr.off = true; screenCtl(); } }
+function screenCtl() {
+  const so = $("#s-off"); if (!so) return;
+  const off = screenOff(), lock = off || scr.view;
+  so.hidden = !off; $("#s-box").classList.toggle("off", off);
+  $("#s-btns").querySelectorAll("button").forEach(x => x.disabled = lock);
+  $("#f-stxt").disabled = lock; $("#s-send").disabled = lock || !$("#f-stxt").value;
+  if (off) actPaint();
 }
 
 function screenTab(b) {
   b.innerHTML = `<div class="card"><div class="row"><h2 class="sp" style="margin:0">${ic("smartphone")} ${t("scr.h")}</h2>
     <label class="row"><input type="checkbox" id="s-view" ${scr.view ? "checked" : ""}> ${ic("eye")} ${t("scr.view")}</label></div>
+    <div class="alert warn" id="s-off" hidden style="margin-top:10px">${ic("moon")}<span class="sp"><b>${t("so.h")}</b><br><span class="mute">${t("so.p")}</span></span><button type="button" id="wake" class="act pri"></button></div>
     <div class="scr ${scr.view ? "view" : ""}" id="s-box" style="margin-top:10px"><img id="s-img" alt="${esc(t("scr.h"))}" draggable="false"><div class="scr-msg" id="s-msg"></div></div>
     <div class="mute" id="s-stat" style="margin:4px 0"></div>
     <div class="grid" id="s-btns"><button data-key="back">${ic("arrow-left")} ${t("back")}</button><button data-key="home">${ic("house")} ${t("key.home")}</button><button data-key="recents">${ic("layers")} ${t("key.recents")}</button>
       <button data-key="notifications">${ic("bell")} ${t("key.notif")}</button><button data-key="lock">${ic("lock")} ${t("lockScr")}</button></div>
     <div class="row" style="margin-top:10px"><input id="f-stxt" class="sp" placeholder="${esc(t("scr.typePh"))}" aria-label="${esc(t("scr.typePh"))}"><button id="s-send" class="pri">${ic("send")} ${t("scr.sendTxt")}</button></div>
+    <div class="mute" id="s-terr" role="status" style="margin-top:4px"></div>
     <label class="row" style="margin-top:10px"><input type="checkbox" id="f-sw" ${edit && edit.showWatching ? "checked" : ""}><span>${ic("bell")} ${t("scr.notify")}</span></label>
     <p class="mute">${ic("pointer")} ${t("scr.tip")}</p></div>`;
   $("#f-sw").onchange = e => { if (!edit) return; edit.showWatching = e.target.checked; changed(); };
   const box = $("#s-box"), img = $("#s-img");
-  $("#s-view").onchange = e => { scr.view = e.target.checked; box.classList.toggle("view", scr.view); $("#s-btns").querySelectorAll("button").forEach(x => x.disabled = scr.view); $("#s-send").disabled = scr.view; };
-  $("#s-btns").querySelectorAll("button").forEach(x => { x.disabled = scr.view; x.onclick = () => sendInput({ type: "key", key: x.dataset.key }); });
-  $("#s-send").disabled = scr.view;
-  $("#s-send").onclick = () => { const t = $("#f-stxt").value; if (!t) return; sendInput({ type: "text", text: t }); $("#f-stxt").value = ""; };
+  $("#s-view").onchange = e => { scr.view = e.target.checked; box.classList.toggle("view", scr.view); screenCtl(); };
+  $("#s-btns").querySelectorAll("button").forEach(x => { x.onclick = () => sendInput({ type: "key", key: x.dataset.key }); });
+  const tx = $("#f-stxt"), terr = $("#s-terr");
+  const send = async () => {
+    const v = tx.value; if (!v || screenOff() || scr.view) return;
+    terr.textContent = "";
+    const ok = await sendInput({ type: "text", text: v }, m => { terr.innerHTML = `${ic("triangle-alert")} ${esc(m)}`; });
+    if (ok) { tx.value = ""; screenCtl(); }   // keep the text when it did not arrive, so it can be sent again
+  };
+  tx.oninput = () => { terr.textContent = ""; screenCtl(); };
+  tx.onkeydown = e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); send(); } };
+  $("#s-send").onclick = send;
+  $("#wake").onclick = () => act("wake", () => cmd({ type: "wake" }, t("wake.done"), false));
+  screenCtl();
   let down = null;
   const frac = (e, r) => ({ x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) });
-  img.addEventListener("pointerdown", e => { if (scr.view || !img.src) return; e.preventDefault(); img.setPointerCapture(e.pointerId); down = { px: e.clientX, py: e.clientY, t: performance.now(), r: img.getBoundingClientRect() }; });
+  img.addEventListener("pointerdown", e => { if (scr.view || !img.src || screenOff()) return; e.preventDefault(); img.setPointerCapture(e.pointerId); down = { px: e.clientX, py: e.clientY, t: performance.now(), r: img.getBoundingClientRect() }; });
   img.addEventListener("contextmenu", e => e.preventDefault());
   img.addEventListener("pointercancel", () => { down = null; });
   img.addEventListener("pointerup", e => {
@@ -5622,25 +5771,102 @@ function fitView(pts, w, h) {
 }
 function drawMap(pts) {
   const box = $("#map"); if (!box) return;
-  const w = box.clientWidth || 340, h = 260, S = 256 * 2 ** mv.z, left = mv.fx * S - w / 2, top = mv.fy * S - h / 2, n = 2 ** mv.z;
-  let tiles = "";
-  for (let ty = Math.floor(top / 256); ty <= Math.floor((top + h) / 256); ty++) for (let tx = Math.floor(left / 256); tx <= Math.floor((left + w) / 256); tx++) {
-    if (ty < 0 || ty >= n) continue;
-    tiles += tileImg(mv.z, ((tx % n) + n) % n, ty, Math.round(tx * 256 - left), Math.round(ty * 256 - top));
-  }
+  const w = box.clientWidth || 340, h = 260, { html, S, left, top } = mapTiles(box, mv, w, h);
   const xy = pts.map(p => [wx(p[2]) * S - left, wy(p[1]) * S - top]);
   const line = xy.map(q => q.map(v => v.toFixed(1)).join(",")).join(" ");
-  const last = pts.length - 1;
-  const dots = xy.map((q, i) => `<circle data-i="${i}" cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${i === 0 || i === last ? 8 : 5}" fill="${i === 0 ? "#16a34a" : i === last ? "#dc2626" : "#2563eb"}" stroke="#fff" stroke-width="2"/>`).join("");
+  const last = pts.length - 1, r = pts.length > 150 ? 3 : 5;
+  const dots = xy.map((q, i) => `<circle data-i="${i}" cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${i === 0 || i === last ? 8 : r}" fill="${i === 0 ? "#16a34a" : i === last ? "#dc2626" : "#2563eb"}" stroke="#fff" stroke-width="2"/>`).join("");
   const zs = ((edit || st.rules || {}).zones || []).filter(zoneOk).map(z => {
     const mpp = 156543.03392 * Math.cos(+z.lat * Math.PI / 180) / 2 ** mv.z, cx = wx(+z.lng) * S - left, cy = wy(+z.lat) * S - top;
     return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${Math.max(3, (z.r || 150) / mpp).toFixed(1)}" fill="#16a34a" fill-opacity=".14" stroke="#16a34a" stroke-width="2" style="pointer-events:none"/><text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" font-size="12" font-weight="600" fill="#166534" stroke="#fff" stroke-width="3" paint-order="stroke" style="pointer-events:none">${esc(z.name)}</text>`;
   }).join("");
-  box.innerHTML = `<div class="layer" id="mlayer">${tiles}<svg width="${w}" height="${h}" style="left:0;top:0">${zs}<polyline points="${line}" fill="none" stroke="#2563eb" stroke-width="3" stroke-opacity=".7" stroke-linejoin="round"/>${dots}</svg></div>
-    <div class="mz"><button id="mzi" aria-label="${esc(t("zoomIn"))}">${ic("plus")}</button><button id="mzo" aria-label="${esc(t("zoomOut"))}">${ic("minus")}</button></div><div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div>${tileDead ? mapFail() : ""}`;
-  $("#mzi").onclick = () => { mv.z = Math.min(18, mv.z + 1); drawMap(pts); };
-  $("#mzo").onclick = () => { mv.z = Math.max(2, mv.z - 1); drawMap(pts); };
-  box.querySelectorAll("circle[data-i]").forEach(c => c.onclick = () => { if (box._moved) return; const p = pts[+c.dataset.i]; $("#mapInfo").textContent = `${hhmm(p[0])} · ${t("acc", "±" + Math.round(p[3] || 0))}`; });
+  // the whole day faded, the part already "passed" on the timeline solid, the kid's marker at the scrubber time on top
+  box.innerHTML = `<div class="layer" id="mlayer">${html}<svg width="${w}" height="${h}" style="left:0;top:0">${zs}<polyline points="${line}" fill="none" stroke="#2563eb" stroke-width="3" stroke-opacity=".3" stroke-linejoin="round" style="pointer-events:none"/><polyline id="mPass" points="" fill="none" stroke="#2563eb" stroke-width="4" stroke-opacity=".9" stroke-linejoin="round" stroke-linecap="round" style="pointer-events:none"/>${dots}<g id="mNow" style="pointer-events:none"></g></svg></div>
+    ${mapZB()}${mapAttr}${tileDead ? mapFail() : ""}`;
+  box.querySelectorAll("circle[data-i]").forEach(c => c.onclick = () => { if (box._moved) return; const p = pts[+c.dataset.i]; $("#mapInfo").textContent = `${hhmm(p[0])} · ${t("acc", "±" + Math.round(p[3] || 0))}`; scrPlay(false); scrSet(p[0], false); });
+  scrPaint(false);
+}
+// --- timeline scrubber (Google Maps Timeline / Life360 history): one track for the day, thumb = a moment, the map shows where ---
+// tl.pts/sp/t0/t1 are set by whereTab; tl.t is the thumb time, tl.live = follow "now" (today) / the end of the day.
+const tl = { day: "", t: 0, t0: 0, t1: 0, pts: [], sp: [], live: true, play: false, raf: 0, last: 0, drag: false };
+function scrZone(lat, lng) { const z = ((edit || (st && st.rules) || {}).zones || []).filter(zoneOk).find(z => hav(+z.lat, +z.lng, lat, lng) <= (+z.r || 150)); return z ? z.name : ""; }
+function scrAt(T) {   // where the kid was at T: null before the first point; linear between neighbours; a stop snaps to its centre
+  const p = tl.pts; if (!p.length || T < p[0][0]) return null;
+  let lo = 0, hi = p.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (p[m][0] <= T) lo = m; else hi = m - 1; }
+  const s = tl.sp.find(s => T >= s.start && T <= s.end);
+  if (s) return { lat: s.lat, lng: s.lon, i: lo, stop: s };
+  if (lo === p.length - 1) return { lat: p[lo][1], lng: p[lo][2], i: lo, end: true };
+  const a = p[lo], b = p[lo + 1], f = Math.min(1, (T - a[0]) / ((b[0] - a[0]) || 1));
+  if (hav(a[1], a[2], b[1], b[2]) < 100) return { lat: a[1], lng: a[2], i: lo, still: true, gap: [a[0], b[0]] };
+  return { lat: a[1] + (b[1] - a[1]) * f, lng: a[2] + (b[2] - a[2]) * f, i: lo, move: true, gap: [a[0], b[0]] };
+}
+function scrText(T, P) {
+  if (!P) return t("tl.none");
+  const z = scrZone(P.lat, P.lng);
+  if (P.stop) return (z ? t("tl.atZ", esc(z)) : t("tl.stay")) + ` (${hhmm(P.stop.start)}–${hhmm(P.stop.end)})`;
+  if (P.end) return t("tl.last", hhmm(tl.pts[P.i][0])) + (z ? " · " + t("tl.atZ", esc(z)) : "");
+  if (P.still) return z ? t("tl.atZ", esc(z)) : t("tl.stay");
+  return t("tl.move") + (P.gap[1] - P.gap[0] > 30 * 60000 ? ` · ${t("tl.gap", hhmm(P.gap[0]), hhmm(P.gap[1]))}` : "");
+}
+function scrPaint(follow) {
+  const T = tl.t, P = scrAt(T), R = $("#scR");
+  if (R && !tl.drag) R.value = T;
+  const L = $("#scL"); if (L) L.innerHTML = `<b>${hhmm(T)}</b><span>${scrText(T, P)}</span>`;
+  const pf = $("#scPf"); if (pf) pf.style.width = (tl.t1 > tl.t0 ? (T - tl.t0) / (tl.t1 - tl.t0) * 100 : 100).toFixed(2) + "%";
+  if (R) R.setAttribute("aria-valuetext", `${hhmm(T)}, ${(L && L.lastChild ? L.lastChild.textContent : "")}`);
+  const box = $("#map"), r = box && box._r, pass = $("#mPass"), now = $("#mNow"); if (!r || !pass || !now) return;
+  const px = (lat, lng) => [wx(lng) * r.S - r.left, wy(lat) * r.S - r.top];
+  const q = P ? tl.pts.slice(0, P.i + 1).map(p => px(p[1], p[2])) : [];
+  if (P) q.push(px(P.lat, P.lng));
+  pass.setAttribute("points", q.map(c => c[0].toFixed(1) + "," + c[1].toFixed(1)).join(" "));
+  if (!P) { now.innerHTML = ""; return; }
+  const [x, y] = q[q.length - 1];
+  now.innerHTML = `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="17" fill="#2563eb" fill-opacity=".2"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="9" fill="#2563eb" stroke="#fff" stroke-width="3"/>`;
+  if (follow && (x < 30 || y < 30 || x > r.w - 30 || y > r.h - 30) && !box.classList.contains("drag")) { mv.fx = wx(P.lng); mv.fy = wy(P.lat); drawMap(tl.pts); }
+}
+function scrSet(T, follow = true) { tl.t = Math.max(tl.t0, Math.min(tl.t1, T)); tl.live = tl.t >= tl.t1 - 1000; scrPaint(follow); }
+function scrBtn() {
+  const b = $("#scP"); if (!b) return;
+  b.setAttribute("aria-pressed", tl.play); b.setAttribute("aria-label", t(tl.play ? "tl.pause" : "tl.play")); b.title = t(tl.play ? "tl.pause" : "tl.play");
+  b.innerHTML = ic(tl.play ? "pause" : "play");
+}
+function scrPlay(on) {
+  cancelAnimationFrame(tl.raf); tl.play = !!on && tl.pts.length > 1;
+  if (tl.play) {
+    if (tl.t >= tl.t1 - 1000 || tl.t < tl.pts[0][0]) tl.t = tl.pts[0][0];   // from the start; skip the empty morning before the first fix
+    tl.last = performance.now(); tl.raf = requestAnimationFrame(scrTick); scrPaint(true);
+  }
+  scrBtn();
+}
+function scrTick(now) {
+  if (!tl.play) return;
+  if (!$("#scR")) { tl.play = false; return; }   // left the tab
+  const dt = Math.min(100, now - tl.last); tl.last = now;
+  tl.t = Math.min(tl.t1, tl.t + (tl.t1 - tl.t0) * dt / 12000);   // the whole day in ~12 s
+  tl.live = false; scrPaint(true);
+  if (tl.t >= tl.t1) { tl.live = true; return scrPlay(false); }
+  tl.raf = requestAnimationFrame(scrTick);
+}
+function scrHtml(pts) {
+  const one = pts.length < 2, span = tl.t1 - tl.t0, pc = x => span > 0 ? Math.max(0, Math.min(100, (x - tl.t0) / span * 100)) : 0;
+  return `<div class="tln"><div class="scH"><button type="button" id="scP" ${one ? `disabled title="${esc(t("tl.one"))}"` : ""} aria-pressed="${tl.play}" aria-label="${esc(t(tl.play ? "tl.pause" : "tl.play"))}">${ic(tl.play ? "pause" : "play")}</button>
+    <div class="scL" id="scL" aria-live="off"></div></div>
+    <div class="scW"><div class="scK"><b class="pf" id="scPf"></b>${tl.sp.map(s => `<i style="left:${pc(s.start).toFixed(2)}%;width:${Math.max(0.8, pc(s.end) - pc(s.start)).toFixed(2)}%"></i>`).join("")}</div>
+    <input type="range" id="scR" min="${tl.t0}" max="${tl.t1}" step="1000" value="${tl.t}" ${span > 0 ? "" : "disabled"} aria-label="${esc(t("tl.aria"))}"></div>
+    <div class="scA"><span>${hhmm(tl.t0)}</span><span>${tl.day === dkey(Date.now()) ? t("tl.now") : hhmm(tl.t1)}</span></div></div>`;
+}
+function scrWire() {
+  const R = $("#scR"); if (!R) return;
+  R.oninput = () => { if (tl.play) scrPlay(false); scrSet(+R.value, true); };
+  R.onpointerdown = () => { tl.drag = true; if (tl.play) scrPlay(false); };
+  R.onpointerup = R.onpointercancel = R.onchange = () => { tl.drag = false; };
+  R.onkeydown = e => {   // arrows 5 min (shift: 30), page keys 1 h; Home/End stay native
+    const m = { ArrowLeft: -5, ArrowDown: -5, ArrowRight: 5, ArrowUp: 5, PageDown: -60, PageUp: 60 }[e.key]; if (m == null) return;
+    e.preventDefault(); if (tl.play) scrPlay(false); scrSet(tl.t + m * 60000 * (e.shiftKey && Math.abs(m) === 5 ? 6 : 1));
+  };
+  const b = $("#scP"); if (b) b.onclick = () => scrPlay(!tl.play);
+  document.querySelectorAll("[data-stt]").forEach(x => x.onclick = () => { scrPlay(false); scrSet(+x.dataset.stt); });
+  scrPaint(false);
 }
 // Place picker (Google Maps / Life360 "add place"): the map moves under a fixed centre pin; tap a spot to jump there.
 // Coordinates are an optional fold-out. Resolves {name, lat, lng, r} or false.
@@ -5654,8 +5880,7 @@ function pickPlace(z0) {
   return sheet(`<div class="dp zp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("map-pin", t(has ? "zone.edit" : "zone.add"))}
     <input id="zpN" maxlength="40" placeholder="${esc(t("zone.namePh"))}" aria-label="${esc(t("zone.name"))}" value="${esc(z0.name || "")}">
     <div class="map" id="zpM"><div class="layer" id="zpL"></div><span class="zpin" aria-hidden="true">${ic("map-pin")}</span>
-      <div class="mz"><button type="button" id="zpI" aria-label="${esc(t("zoomIn"))}">${ic("plus")}</button><button type="button" id="zpO" aria-label="${esc(t("zoomOut"))}">${ic("minus")}</button></div>
-      <div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></div></div>
+      ${mapZB()}${mapAttr}</div>
     <p class="mute" style="margin:6px 0 10px">${ic("pointer")} ${t(has || l ? "zone.drag" : "zone.far")}</p>
     <label class="row zpr">${t("zone.r")} <input type="range" id="zpR" min="50" max="2000" step="50" value="${rad}"> <b id="zpRv">${rad} m</b></label>
     ${l ? `<button type="button" id="zpK" style="width:100%;margin-top:8px">${ic("user")} ${t("zone.kid")}</button>` : ""}
@@ -5664,36 +5889,17 @@ function pickPlace(z0) {
     const box = pop.querySelector("#zpM"), lay = pop.querySelector("#zpL"), H = 260;
     const fill = () => { const p = at(); pop.querySelector("#zpLa").value = p.lat; pop.querySelector("#zpLo").value = p.lng; };
     const draw = () => {
-      const w = box.clientWidth || 340, S = 256 * 2 ** v.z, n = 2 ** v.z, left = v.fx * S - w / 2, top = v.fy * S - H / 2;
-      let tiles = "";
-      for (let ty = Math.floor(top / 256); ty <= Math.floor((top + H) / 256); ty++) for (let tx = Math.floor(left / 256); tx <= Math.floor((left + w) / 256); tx++)
-        if (ty >= 0 && ty < n) tiles += tileImg(v.z, ((tx % n) + n) % n, ty, Math.round(tx * 256 - left), Math.round(ty * 256 - top));
+      const w = box.clientWidth || 340, n = 2 ** v.z, { html, S, left, top } = mapTiles(box, v, w, H);
       const mpp = lat => 156543.03392 * Math.cos(lat * Math.PI / 180) / n;
       const ring = (lat, lng, r, me) => { const cx = wx(lng) * S - left, cy = wy(lat) * S - top;
         return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${Math.max(4, r / mpp(lat)).toFixed(1)}" fill="${me ? "#dc2626" : "#16a34a"}" fill-opacity="${me ? ".16" : ".1"}" stroke="${me ? "#dc2626" : "#16a34a"}" stroke-width="2" ${me ? "" : 'stroke-dasharray="5 4"'}/>`; };
       const kid = l ? (() => { const cx = wx(+l.lng) * S - left, cy = wy(+l.lat) * S - top; return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="7" fill="#2563eb" stroke="#fff" stroke-width="2.5"/>`; })() : "";
       const p = at();
       lay.style.transform = "";
-      lay.innerHTML = tiles + `<svg width="${w}" height="${H}" style="left:0;top:0;pointer-events:none">${others.map(x => ring(+x.lat, +x.lng, +x.r || 150)).join("")}${ring(p.lat, p.lng, rad, 1)}${kid}</svg>`;
+      lay.innerHTML = html + `<svg width="${w}" height="${H}" style="left:0;top:0;pointer-events:none">${others.map(x => ring(+x.lat, +x.lng, +x.r || 150)).join("")}${ring(p.lat, p.lng, rad, 1)}${kid}</svg>`;
     };
-    const zoom = d => { v.z = Math.max(3, Math.min(18, v.z + d)); draw(); };
-    pop.querySelector("#zpI").onclick = () => zoom(1); pop.querySelector("#zpO").onclick = () => zoom(-1);
-    box.addEventListener("wheel", e => { e.preventDefault(); zoom(e.deltaY < 0 ? 1 : -1); }, { passive: false });
-    let d = null, moved = false;
-    box.onpointerdown = e => { if (e.target.closest("button,a")) return; d = { x: e.clientX, y: e.clientY, id: e.pointerId }; moved = false; };
-    box.onpointermove = e => {
-      if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y;
-      if (!moved && Math.hypot(dx, dy) > 5) { moved = true; box.classList.add("drag"); try { box.setPointerCapture(d.id); } catch {} }
-      if (moved) lay.style.transform = `translate(${dx}px,${dy}px)`;
-    };
-    const end = e => {
-      if (!d) return; const S = 256 * 2 ** v.z, dx = e.clientX - d.x, dy = e.clientY - d.y; d = null; box.classList.remove("drag");
-      if (moved) { v.fx -= dx / S; v.fy -= dy / S; }
-      else if (e.type === "pointerup") { const b = box.getBoundingClientRect(); v.fx += (e.clientX - b.left - b.width / 2) / S; v.fy += (e.clientY - b.top - H / 2) / S; }   // tap = put the centre here
-      else return;
-      v.fx = ((v.fx % 1) + 1) % 1; v.fy = Math.min(0.999, Math.max(0.001, v.fy)); draw(); fill();
-    };
-    box.onpointerup = end; box.onpointercancel = end;
+    // tap = put the centre here; double-tap then zooms in at that (new) centre
+    mapCtl(box, () => v, draw, { after: fill, dblCentre: true, tap: (x, y) => { const S = 256 * 2 ** v.z; v.fx += (x - (box.clientWidth || 340) / 2) / S; v.fy += (y - H / 2) / S; return true; } });
     const rr = pop.querySelector("#zpR"); rr.oninput = () => { rad = +rr.value; pop.querySelector("#zpRv").textContent = rad + " m"; draw(); };
     const k = pop.querySelector("#zpK"); if (k) k.onclick = () => { v.fx = wx(+l.lng); v.fy = wy(+l.lat); v.z = Math.max(v.z, 16); draw(); fill(); };
     pop.querySelector("#zpG").onclick = () => {
@@ -5710,21 +5916,6 @@ function pickPlace(z0) {
     requestAnimationFrame(() => { draw(); fill(); if (!has) pop.querySelector("#zpN").focus(); });
   });
 }
-function mapDrag(pts, draw = () => drawMap(pts)) {
-  const box = $("#map"); let d = null;
-  box.onpointerdown = e => { if (e.target.closest("button,a")) return; d = { x: e.clientX, y: e.clientY, id: e.pointerId }; box._moved = false; };
-  box.onpointermove = e => {
-    if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y;
-    if (!box._moved && Math.hypot(dx, dy) > 5) { box._moved = true; try { box.setPointerCapture(d.id); } catch {} }
-    if (box._moved) { const l = $("#mlayer"); if (l) l.style.transform = `translate(${dx}px,${dy}px)`; }
-  };
-  const end = e => {
-    if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; d = null;
-    if (box._moved) { const S = 256 * 2 ** mv.z; mv.fx -= dx / S; mv.fy -= dy / S; draw(); setTimeout(() => box._moved = false, 50); }
-  };
-  box.onpointerup = end; box.onpointercancel = end;
-}
-
 // --- app mode: history calendar -------------------------------------------------
 const histPath = () => "k=" + b64u(cur.target) + "&p=" + encodeURIComponent(cur.via === "lan" ? "api/state" : "c/" + encodeURIComponent(cur.id) + "/state");
 async function pickDay(d) {
@@ -5756,7 +5947,7 @@ function whereTab(b) {
   const l = st.location, lan = cur.via === "lan";
   if (lan && !viewDay && Date.now() - trkLoaded > 60000) {
     trkLoaded = Date.now();
-    call(cur, "/track?days=7").then(j => { trk = j.track || []; const f = document.activeElement && document.activeElement.id; if (tab === "where" && $("#body") && !(f && /^f-/.test(f))) whereTab($("#body")); }).catch(() => {});
+    call(cur, "/track?days=7").then(j => { trk = j.track || []; const f = document.activeElement && document.activeElement.id; if (tab === "where" && $("#body") && !(f && /^f-/.test(f)) && !tl.drag) whereTab($("#body")); }).catch(() => {});
   }
   const all = allTrack(), today = dkey(Date.now()), yest = dkey(Date.now() - 864e5);
   const keys = [...new Set([today, yest].concat(all.map(p => dkey(p[0]))))].sort().reverse();
@@ -5765,15 +5956,22 @@ function whereTab(b) {
   let dist = 0; for (let i = 1; i < pts.length; i++) dist += hav(pts[i - 1][1], pts[i - 1][2], pts[i][1], pts[i][2]);
   const sp = stopsOf(pts), home = pts.length ? pts[0] : null;
   const S = viewDay ? null : ruleSecs(edit);
+  // timeline range: today 00:00 -> now, a past day its first -> last point
+  const isToday = trkDay === today, [yy, mm, dd] = trkDay.split("-").map(Number);
+  if (tl.day !== trkDay) { scrPlay(false); tl.day = trkDay; tl.live = true; }
+  tl.pts = pts; tl.sp = sp;
+  tl.t0 = isToday ? new Date(yy, mm - 1, dd).getTime() : pts.length ? pts[0][0] : 0;
+  tl.t1 = isToday ? Math.max(Date.now(), pts.length ? pts[pts.length - 1][0] : 0) : pts.length ? pts[pts.length - 1][0] : 0;
+  tl.t = tl.live || tl.play ? (tl.play ? tl.t : tl.t1) : Math.max(tl.t0, Math.min(tl.t1, tl.t));
   b.innerHTML = `<div class="g2 w"><div><div class="card"><div class="row" style="margin-bottom:4px"><h2 class="sp" style="margin:0">${ic("map-pin")} ${t("where.h")}</h2><div id="days">${dayBtn("trk", { sel: trkDay, days: keys, onPick: k => { trkDay = k; mv = null; whereTab(b); } })}</div></div>
-    ${pts.length ? `<div class="map" id="map"></div><div class="mute" id="mapInfo" style="margin:6px 0">${ic("pointer")} ${t("where.tap")} · ${dot("on")} ${t("where.start")} · ${dot("bad")} ${t("where.last")}</div>
+    ${pts.length ? `<div class="map" id="map"></div>${scrHtml(pts)}<div class="mute" id="mapInfo" style="margin:6px 0">${ic("pointer")} ${t("where.tap")} · ${dot("on")} ${t("where.start")} · ${dot("bad")} ${t("where.last")}</div>
       <div class="row"><b>${ic("route")} ${(dist / 1000).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km</b><span class="mute">· ${t("where.pts", pts.length)} · ${hhmm(pts[0][0])}–${hhmm(pts[pts.length - 1][0])}</span></div>`
     : `<div class="empty"><span class="e">${ic("map")}</span>${t("where.noPts", ic("map-pin"))}</div>`}
     <div class="row" style="margin-top:12px;flex-wrap:nowrap"><div class="sp" style="min-width:0">${l ? `<b>${ic("pin")} ${t("where.lastH")}</b><div class="mute">${ic("clock")} ${ago(l.t)} · ${t("acc", "~" + Math.round(l.acc))}</div>` : `<span class="mute">${t("where.noLoc")}</span>`}</div>
       ${l ? `<a class="btn rb" href="https://www.google.com/maps?q=${+l.lat},${+l.lng}" target="_blank" rel="noopener" aria-label="${esc(t("where.gmaps"))}" title="${esc(t("where.gmaps"))}">${ic("map")}</a>` : ""}</div>
     <button id="loc2" class="pri act" style="width:100%;margin-top:12px;height:52px">${ic("map-pin")} ${t("where.locNew")}</button><p class="mute" style="margin-bottom:0">${ic("refresh-cw")} ${t("where.auto")}</p></div></div>
   <div>${pts.length ? `<div class="card"><h2>${ic("pause")} ${t("where.stops")}</h2>
-      ${sp.map(s => `<div class="row" style="padding:6px 0;flex-wrap:nowrap">${home && hav(home[1], home[2], s.lat, s.lon) < 150 ? ic("house") : ic("map-pin")} <span class="sp"><b>${hhmm(s.start)}–${hhmm(s.end)}</b> · ${fmt(s.end - s.start)}</span><a class="btn rb" style="width:40px;height:40px;min-height:40px" href="https://www.google.com/maps?q=${+s.lat},${+s.lon}" target="_blank" rel="noopener" aria-label="Google Maps" title="Google Maps">${ic("map")}</a></div>`).join("") || `<div class="mute">${t("where.noStops")}</div>`}</div>` : ""}
+      ${sp.map(s => { const z = scrZone(s.lat, s.lon); return `<div class="row" style="padding:2px 0;flex-wrap:nowrap"><button type="button" class="stb" data-stt="${s.start}" aria-label="${esc(t("tl.go", hhmm(s.start)))}">${z || !home || hav(home[1], home[2], s.lat, s.lon) >= 150 ? ic("map-pin") : ic("house")} <span class="sp"><b>${hhmm(s.start)}–${hhmm(s.end)}</b> · ${fmt(s.end - s.start)}${z ? ` · ${esc(z)}` : ""}</span></button><a class="btn rb" style="width:40px;height:40px;min-height:40px" href="https://www.google.com/maps?q=${+s.lat},${+s.lon}" target="_blank" rel="noopener" aria-label="Google Maps" title="Google Maps">${ic("map")}</a></div>`; }).join("") || `<div class="mute">${t("where.noStops")}</div>`}</div>` : ""}
     ${S ? `<div id="rsx">${S.zone}${S.trk}</div>` : ""}</div></div>`;
   $("#loc2").onclick = () => act("loc2", () => cmd({ type: "locate" }, t("where.locating")));
   actPaint();
@@ -5781,8 +5979,8 @@ function whereTab(b) {
   dpBind(b);
   if (pts.length) {
     if (!mv) mv = fitView(pts, $("#map").clientWidth || 340, 260);
-    drawMap(pts); mapDrag(pts);
-  }
+    drawMap(pts); mapCtl($("#map"), () => mv, () => drawMap(pts)); scrWire();
+  } else scrPlay(false);
 }
 
 let relayOpen = false;   // the "advanced: relay" box survives re-renders
