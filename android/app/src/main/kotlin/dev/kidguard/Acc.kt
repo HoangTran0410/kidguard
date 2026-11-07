@@ -70,10 +70,12 @@ class Acc : AccessibilityService() {
      * The child went Home or opened Recents: finish every KidGuard task so Recents has no KidGuard card. Recents still
      * shows the front-most task even with excludeFromRecents, and on ColorOS swiping that card is a real force-stop
      * (com.coloros.athena): Guard dies, alarms go, and Android drops our accessibility service from the enabled list.
+     * The kid launcher's own task (HomeActivity, the HOME screen) is kept.
      */
     private fun dropTasks() {
         val am = getSystemService(android.app.ActivityManager::class.java) ?: return
-        runCatching { am.appTasks.forEach { t -> runCatching { t.finishAndRemoveTask() } } }
+        // never our own launcher's task: it IS the home screen, finishing it rebuilt the whole home on every return (slow phones lagged)
+        runCatching { am.appTasks.forEach { t -> runCatching { if (t.taskInfo.baseIntent.component?.className != HomeActivity::class.java.name) t.finishAndRemoveTask() } } }
     }
 
     /** Basic mode (no Device Owner): bounce blocked apps and Settings pages that would remove KidGuard. Owner mode: no-op. */

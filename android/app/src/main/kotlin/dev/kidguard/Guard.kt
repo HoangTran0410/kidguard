@@ -326,6 +326,7 @@ class Guard : Service() {
             .put("windDown", GrayFx.state(this, r, windActive))
             .put("update", Update.stateJson(this))
             .put("launcher", runCatching { LauncherSafe.state(this, r, HomeFile.styleId(this), HomeFile.pages(this)) }.getOrDefault(JSONObject()))
+            .put("notes", runCatching { KidNotes.stateJson(HomeFile.load(this)?.notes) }.getOrDefault(org.json.JSONArray()))   // the kid's notes shared with parents
             .put("sys", Sys.state(this))
             .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)) else it.put("preinstalled", preinstalled(prot, now)) }
     }

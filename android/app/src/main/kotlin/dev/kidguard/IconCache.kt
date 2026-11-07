@@ -3,11 +3,12 @@ package dev.kidguard
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Drawable
@@ -16,7 +17,7 @@ import android.util.LruCache
 
 /**
  * Real app icons for the kid launcher, rendered once to a bitmap of the wanted size and kept in an LRU of <= 4 MB.
- * Adaptive icons are clipped to the chosen shape; legacy icons sit at 80 % on a white plate of the same shape.
+ * Adaptive icons get the chosen mask (circle / rounded square); legacy icons are drawn as they are, full size, no plate (Pixel / Nova).
  */
 object IconCache {
     private const val MAX_BYTES = 4 * 1024 * 1024
@@ -54,16 +55,19 @@ object IconCache {
         val c = Canvas(b)
         val clip = shape(px, round)
         if (Build.VERSION.SDK_INT >= 26 && d is AdaptiveIconDrawable) {
-            c.clipPath(clip)
             // the layers are 108 dp with a 72 dp safe zone: draw at 150 % so the visible part fills the shape
             val ex = (px * 0.25f).toInt()
             d.background?.let { it.setBounds(-ex, -ex, px + ex, px + ex); it.draw(c) }
             d.foreground?.let { it.setBounds(-ex, -ex, px + ex, px + ex); it.draw(c) }
+            // then the mask with smooth edges (clipPath on a bitmap canvas is not anti-aliased)
+            clip.fillType = Path.FillType.INVERSE_WINDING
+            c.drawPath(clip, Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) })
         } else {
-            val plate = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
-            c.drawPath(clip, plate)
-            val inset = (px * 0.1f).toInt()
-            d.setBounds(inset, inset, px - inset, px - inset); d.draw(c)
+            // keep the icon's own aspect, centred (a few legacy icons are not square)
+            val iw = d.intrinsicWidth.takeIf { it > 0 } ?: px; val ih = d.intrinsicHeight.takeIf { it > 0 } ?: px
+            val sc = px.toFloat() / maxOf(iw, ih)
+            val w = (iw * sc).toInt(); val h = (ih * sc).toInt()
+            d.setBounds((px - w) / 2, (px - h) / 2, (px - w) / 2 + w, (px - h) / 2 + h); d.draw(c)
         }
         return b
     }

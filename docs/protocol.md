@@ -739,7 +739,8 @@ Optional home screen on the kid's phone (`HomeActivity`, category HOME). Device 
   opens it with no chooser. `on:false`, `release` (before `clearDeviceOwnerApp`) and `releaseBasic` clear the preferred
   activity and disable the component; the stock launcher comes back. Not Device Owner ⇒ treated as off.
 - `settings`: show the system Settings app (hidden by default). `notes`: show `blockNote` in the "app tạm nghỉ" sheet.
-- `lockCustom`: reserved (part 2: lock the kid's own layout changes). `style`: `""|"be"|"teen"|"gon"`, the preset used only
+- `lockCustom`: makes the kid's "Tuỳ chỉnh" screen read-only (style, grid, wallpaper, colours, text size) with a note
+  "Bố mẹ đã khoá phần tuỳ chỉnh". Arranging (move, folders, widgets, remove) stays allowed. No PIN on the phone. `style`: `""|"be"|"teen"|"gon"`, the preset used only
   when `home.json` is first made (unknown values ⇒ `""` = teen).
 
 What shows: every launcher activity passes through the Guard's `decide()`: reasons `blocked` / `new` (and parent-hidden or
@@ -759,8 +760,31 @@ reset to the preset. 3rd within 5 min: the launcher is turned off for 24 h (`saf
 event `{"kind": "launcher", "text": "…đã tắt 24 giờ (HH:mm)"}` is sent. After 24 h the rule applies again.
 
 ### `home.json` (phone only, app files dir)
-`{"v":1, "cols":3-5, "rows":4-6, "pages":[[item…]…], "dock":["@phone", pkg|"", "", ""], "style":{…}, "seen":[pkg…]}`,
-item `{"id","kind":"app|widget|folder","x","y","w","h","pkg"?,"cls"?,"type":"clock|time|quick"?,"name"?,"apps"?}`.
+```
+{"v":1, "grid":{"cols":3-5,"rows":4-6}, "pages":[{"items":[item…]}…], "dock":[{"pkg":"@phone"},{"pkg":pkg|""}×3],
+ "style":{"preset":"be|teen|gon","icon":1-5,"labels":bool,"shape":"round|square","dockBg":bool,"accent":"<id>"|"",
+          "theme":"light|dark|auto","font":0.85|1.0|1.15|1.3,"wall":{"kind":"builtin|photo","id":"<wall id>","dim":0-60}},
+ "seen":[pkg…], "notes":[note…], "todo":[todo…]}
+```
+item `{"id","kind":"app|widget|folder","x","y","w"?,"h"?,"pkg"?,"cls"?,"type"?,"name"?,"apps"?}`.
+- Widgets (`type`, sizes w×h): `time` 2×1 / 4×1, `quick` 4×1, `next` 4×1, `clock` 4×1 / 4×2, `counts` 2×2. One of each
+  type; on a 3-column grid a 4-wide widget is 3 wide. Placed from "Tiện ích" (long-press empty space) by tap or drag.
+- Folder: `apps` (2–20 pkgs, in order), `name` (auto from the apps' category: Trò chơi / Mạng xã hội / Học tập /
+  Giải trí / Thư mục; the kid can rename). A folder left with 1 app turns back into that app (on edit and on load).
+  Blocked / new / hidden apps are never shown in a folder (it is not rewritten: what shows is decided at each render).
+- `wall.kind:"photo"`: the kid's own picture in `wall.jpg` (same dir), centre-cropped to the screen, ≤1080 px wide, JPEG
+  ≤~300 KB; `dim` darkens it (%). Picked with `ACTION_PICK_IMAGES` (API 33+) or `ACTION_OPEN_DOCUMENT`.
+- `notes`: `{"id","t":ms,"text"(≤500),"share":bool}`, max 50, newest first: the kid's notes on the "Hôm nay" page.
+- `todo`: `{"id","text"(≤100),"done":bool}`, max 50: homework the kid adds there.
 Written atomically (tmp + rename). An unreadable file is moved to `home.json.bad` and a fresh one made; bad items are
 repaired or dropped on load. New installs go to the first free cell; apps the kid removed (`seen`) are not re-added.
-Not sent to the parent in this version.
+The file itself is not sent to the parent.
+
+### State `notes` (in `GET /api/state`, relay state too)
+`[{"id","t":ms,"text"}]`: only the kid's notes marked "Bố mẹ xem được" (`share:true`), newest 20. Read-only for the
+parent. Absent = older app; `[]` = none shared.
+
+### "Hôm nay" page (-1, left of page 1)
+SOS row (not removable; unpaired ⇒ dials 112), today's timeline (schedules, group windows, bedtime; from `today()`),
+chores (`rules.chores`: "Xong" sends the same request as the main screen with the chore id) + homework (`todo`), notes,
+and the Download/KidGuard folder (files from the parent, red dot = not opened yet). A KidGuard button opens the main app.

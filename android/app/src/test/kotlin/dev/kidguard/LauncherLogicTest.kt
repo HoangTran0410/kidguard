@@ -106,4 +106,19 @@ class LauncherLogicTest {
         assertEquals(r, LauncherRule.fromJson(r.toJson()))
         assertEquals(LauncherRule(), LauncherRule.fromJson(null))
     }
+
+    @Test fun drawerReleaseFlingOrFortyPercent() {
+        // from the home: 40 % up opens, less springs back; a fling wins over distance either way
+        assertFalse(LauncherLogic.drawerOpens(0f, 500f, 0.39f, false))
+        assertTrue(LauncherLogic.drawerOpens(0f, 500f, 0.41f, false))
+        assertTrue(LauncherLogic.drawerOpens(-900f, 500f, 0.05f, false))
+        assertFalse(LauncherLogic.drawerOpens(900f, 500f, 0.9f, false))
+        // pulled down from the open drawer: 40 % down (p < 0.6) closes, a short pull stays open, a flick down closes
+        assertTrue(LauncherLogic.drawerOpens(0f, 500f, 0.85f, true))
+        assertFalse(LauncherLogic.drawerOpens(0f, 500f, 0.59f, true))
+        assertFalse(LauncherLogic.drawerOpens(900f, 500f, 0.95f, true))
+        assertTrue(LauncherLogic.drawerOpens(-900f, 500f, 0.3f, true))
+        // a slow drift under the fling speed is not a fling
+        assertTrue(LauncherLogic.drawerOpens(400f, 500f, 0.7f, true))
+    }
 }

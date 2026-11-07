@@ -35,8 +35,8 @@ class Modal(private val act: Activity, private val u: Ui = Ui(act)) {
     }
     private fun fill(t: Tone): Int = when (t) {
         Tone.DANGER -> Color.parseColor("#dc2626")
-        Tone.OK -> Color.parseColor("#16a34a")
-        Tone.WARN -> Color.parseColor("#d97706")
+        Tone.OK -> Color.parseColor("#15803d")      // white label >= 4.5:1
+        Tone.WARN -> Color.parseColor("#b45309")
         Tone.INFO -> u.primary
     }
 

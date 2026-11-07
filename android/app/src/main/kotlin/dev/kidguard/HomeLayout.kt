@@ -68,7 +68,12 @@ data class HomeModel(
 object HomeLayout {
     const val PHONE = "@phone"
     const val DOCK = 4
-    val WIDGETS = setOf("clock", "time", "quick")             // part 2 adds next / chores / notes / files
+    /** Widget types and the sizes the picker offers (w x h; wider than the grid = full width). */
+    val SIZES: Map<String, List<Pair<Int, Int>>> = linkedMapOf(
+        "time" to listOf(2 to 1, 4 to 1), "quick" to listOf(4 to 1), "next" to listOf(4 to 1),
+        "clock" to listOf(4 to 1, 4 to 2), "counts" to listOf(2 to 2))
+    val WIDGETS = SIZES.keys
+    const val FOLDER_MAX = 20
     val KINDS = setOf("app", "widget", "folder")
 
     /** Widget ids are "w" + n, apps "a" + n: unique inside one model. */
@@ -155,7 +160,7 @@ object HomeLayout {
         val pages = m.pages.map { p -> p.mapNotNull { i ->
             when (i.kind) {
                 "app" -> i.takeIf { !gone(i.pkg) }
-                "folder" -> i.copy(apps = i.apps.filter { !gone(it) }).takeIf { it.apps.isNotEmpty() }
+                "folder" -> i.copy(apps = i.apps.filter { !gone(it) }).let { f -> when (f.apps.size) { 0 -> null; 1 -> f.copy(kind = "app", pkg = f.apps[0], name = "", apps = emptyList()); else -> f } }
                 else -> i
             }
         } }
@@ -192,7 +197,12 @@ object HomeLayout {
                 when (kind) {
                     "widget" -> { if (it.type !in WIDGETS) continue; it = it.copy(w = minOf(it.w, cols), h = minOf(it.h, rows), x = minOf(it.x, cols - minOf(it.w, cols))) }
                     "app" -> { if (it.pkg.isEmpty() || !seenPkgs.add(it.pkg)) continue; it = it.copy(w = 1, h = 1) }
-                    "folder" -> { val apps = it.apps.filter { seenPkgs.add(it) }.distinct(); if (apps.isEmpty()) continue; it = it.copy(w = 1, h = 1, apps = apps) }
+                    "folder" -> {
+                        val apps = it.apps.filter { seenPkgs.add(it) }.distinct().take(FOLDER_MAX)
+                        if (apps.isEmpty()) continue
+                        // a folder of one is that app again
+                        it = if (apps.size == 1) it.copy(kind = "app", w = 1, h = 1, pkg = apps[0], name = "", apps = emptyList()) else it.copy(w = 1, h = 1, apps = apps)
+                    }
                 }
                 if (free(out, cols, rows, it.x, it.y, it.w, it.h)) out += it
                 else if (it.kind != "widget") misplaced += it      // a widget that doesn't fit is dropped (the picker brings it back)
@@ -228,4 +238,172 @@ object HomeLayout {
 
     /** SOS invariant: the phone is always in dock slot 1. */
     fun sosOk(m: HomeModel) = m.dock.size == DOCK && m.dock[0] == PHONE
+
+    // ---------------- edit: drag and drop, folders, widgets (part 2) ----------------
+
+    /** Where a drag starts: a grid item, a dock slot (1-3), an app inside a folder, or a new widget from the picker. */
+    sealed class Src {
+        data class Item(val id: String) : Src()
+        data class Dock(val slot: Int) : Src()
+        data class InFolder(val folder: String, val pkg: String) : Src()
+        data class NewWidget(val type: String, val w: Int, val h: Int) : Src()
+    }
+
+    /** [m] with the dragged [item] taken out; where it came from ([page] -1 = not the grid, [dock] -1 = not the dock). */
+    data class Taken(val m: HomeModel, val item: HItem, val page: Int = -1, val x: Int = 0, val y: Int = 0, val dock: Int = -1)
+
+    fun find(m: HomeModel, id: String): Pair<Int, HItem>? {
+        m.pages.forEachIndexed { i, p -> p.firstOrNull { it.id == id }?.let { return i to it } }
+        return null
+    }
+
+    private fun idFor(m: HomeModel, prefix: String) = nextId(m.pages.flatten(), prefix)
+
+    private fun setPage(m: HomeModel, i: Int, items: List<HItem>): HomeModel {
+        val pages = m.pages.toMutableList()
+        while (pages.size <= i) pages += emptyList<HItem>()
+        pages[i] = items
+        return m.copy(pages = pages)
+    }
+
+    /** Picks up [src]. A folder left with one app turns back into that app (same cell); an empty one goes. */
+    fun take(m: HomeModel, src: Src): Taken? = when (src) {
+        is Src.Item -> find(m, src.id)?.let { (pi, it) -> Taken(setPage(m, pi, m.pages[pi].filter { o -> o.id != it.id }), it, pi, it.x, it.y) }
+        is Src.Dock -> m.dock.getOrNull(src.slot)?.takeIf { src.slot > 0 && it.isNotEmpty() }?.let { pkg ->
+            Taken(m.copy(dock = m.dock.mapIndexed { i, d -> if (i == src.slot) "" else d }), HItem(idFor(m, "a"), "app", 0, 0, pkg = pkg), dock = src.slot)
+        }
+        is Src.InFolder -> find(m, src.folder)?.takeIf { it.second.kind == "folder" && src.pkg in it.second.apps }?.let { (pi, f) ->
+            val left = f.apps - src.pkg
+            val repl = when (left.size) { 0 -> null; 1 -> f.copy(kind = "app", pkg = left[0], name = "", apps = emptyList()); else -> f.copy(apps = left) }
+            val m2 = setPage(m, pi, m.pages[pi].mapNotNull { if (it.id == f.id) repl else it })
+            Taken(m2, HItem(idFor(m2, "a"), "app", 0, 0, pkg = src.pkg))
+        }
+        is Src.NewWidget -> if (src.type !in WIDGETS) null
+            else Taken(m, HItem(idFor(m, "w"), "widget", 0, 0, minOf(src.w, m.cols), minOf(src.h, m.rows), type = src.type))
+    }
+
+    /** Drops on the empty cells at ([x], [y]) of [page] ([page] == pages.size: a new page). Null = no room there. */
+    fun dropCell(t: Taken, page: Int, x: Int, y: Int): HomeModel? {
+        val m = t.m
+        if (page < 0 || page > m.pages.size) return null
+        val items = m.pages.getOrNull(page) ?: emptyList()
+        if (!free(items, m.cols, m.rows, x, y, t.item.w, t.item.h)) return null
+        return trimPages(setPage(m, page, items + t.item.copy(x = x, y = y)))
+    }
+
+    /**
+     * Drops an app on the app or folder [targetId]: app + app = a new folder named [name] in the target's cell;
+     * app + folder = one more app in it. Null when it can't (a widget or a folder dragged, a full folder).
+     */
+    fun dropOnto(t: Taken, targetId: String, name: String): HomeModel? {
+        if (t.item.kind != "app") return null
+        val m = t.m
+        val (pi, target) = find(m, targetId) ?: return null
+        val repl = when (target.kind) {
+            "app" -> if (target.pkg == t.item.pkg) return null else HItem(idFor(m, "f"), "folder", target.x, target.y, name = name.take(40), apps = listOf(target.pkg, t.item.pkg))
+            "folder" -> if (target.apps.size >= FOLDER_MAX || t.item.pkg in target.apps) return null else target.copy(apps = target.apps + t.item.pkg)
+            else -> return null
+        }
+        return trimPages(setPage(m, pi, m.pages[pi].map { if (it.id == targetId) repl else it }))
+    }
+
+    /**
+     * Drops an app on dock [slot] (1-3; slot 0 is the phone). An occupied slot swaps: its app goes where the dragged one
+     * came from (that grid cell, that dock slot), or to the first free cell.
+     */
+    fun dropDock(t: Taken, slot: Int): HomeModel? {
+        if (t.item.kind != "app" || slot !in 1 until DOCK) return null
+        val m = t.m
+        val old = m.dock[slot]
+        var out = m.copy(dock = m.dock.mapIndexed { i, d -> if (i == slot) t.item.pkg else d })
+        if (old.isNotEmpty() && old != t.item.pkg) out = when {
+            t.dock > 0 -> out.copy(dock = out.dock.mapIndexed { i, d -> if (i == t.dock) old else d })
+            t.page >= 0 && free(out.pages.getOrNull(t.page) ?: emptyList(), m.cols, m.rows, t.x, t.y, 1, 1) ->
+                setPage(out, t.page, (out.pages.getOrNull(t.page) ?: emptyList()) + HItem(idFor(out, "a"), "app", t.x, t.y, pkg = old))
+            else -> out.copy(pages = place(out.pages, m.cols, m.rows, old))
+        }
+        return trimPages(out)
+    }
+
+    /** "Bỏ khỏi màn chính" target: what was taken stays off the home (apps stay in the drawer and are not re-added). */
+    fun dropRemove(t: Taken): HomeModel = trimPages(t.m.copy(seen = t.m.seen + listOf(t.item.pkg).filter { it.isNotEmpty() } + t.item.apps))
+
+    fun rename(m: HomeModel, id: String, name: String): HomeModel {
+        val n = name.trim().take(40)
+        val (pi, f) = find(m, id)?.takeIf { it.second.kind == "folder" } ?: return m
+        return if (n.isEmpty() || n == f.name) m else setPage(m, pi, m.pages[pi].map { if (it.id == id) it.copy(name = n) else it })
+    }
+
+    /** Takes [pkg] off the grid / dock / other folders, wherever it is (the menu's "Thêm vào thư mục" starts here). */
+    fun detach(m: HomeModel, pkg: String): Taken {
+        m.pages.flatten().firstOrNull { it.kind == "app" && it.pkg == pkg }?.let { return take(m, Src.Item(it.id))!! }
+        m.pages.flatten().firstOrNull { it.kind == "folder" && pkg in it.apps }?.let { return take(m, Src.InFolder(it.id, pkg))!! }
+        val slot = m.dock.indexOf(pkg)
+        if (slot > 0) return take(m, Src.Dock(slot))!!
+        return Taken(m, HItem(idFor(m, "a"), "app", 0, 0, pkg = pkg))
+    }
+
+    /** "Thêm vào thư mục": [pkg] into the folder or onto the app [targetId] (then a new folder [name]). */
+    fun addTo(m: HomeModel, pkg: String, targetId: String, name: String): HomeModel? {
+        val t = detach(m, pkg)
+        return dropOnto(t.copy(m = t.m.copy(seen = t.m.seen + pkg)), targetId, name)
+    }
+
+    fun hasWidget(m: HomeModel, type: String) = m.pages.flatten().any { it.kind == "widget" && it.type == type }
+
+    /** A picker tap: the first free cells for a [w] x [h] widget, from [page] on, then the pages before, then a new page. */
+    fun placeWidget(m: HomeModel, type: String, w: Int, h: Int, page: Int): HomeModel? {
+        val t = take(m, Src.NewWidget(type, w, h)) ?: return null
+        val order = (page.coerceIn(0, m.pages.size - 1) until m.pages.size) + (0 until page.coerceIn(0, m.pages.size - 1))
+        for (pi in order) firstFree(m.pages[pi], m.cols, m.rows, t.item.w, t.item.h)?.let { (x, y) -> return dropCell(t, pi, x, y) }
+        return dropCell(t, m.pages.size, 0, 0)
+    }
+
+    /** Another size for the widget [id]: in place when the new cells are free, else the first place it fits. */
+    fun resizeWidget(m: HomeModel, id: String, w: Int, h: Int): HomeModel? {
+        val (pi, it) = find(m, id)?.takeIf { it.second.kind == "widget" } ?: return null
+        val nw = minOf(w, m.cols); val nh = minOf(h, m.rows)
+        if (nw == it.w && nh == it.h) return m
+        val rest = m.pages[pi].filter { o -> o.id != id }
+        val x = minOf(it.x, m.cols - nw); val y = minOf(it.y, m.rows - nh)
+        if (free(rest, m.cols, m.rows, x, y, nw, nh)) return setPage(m, pi, rest + it.copy(x = x, y = y, w = nw, h = nh))
+        val t = Taken(setPage(m, pi, rest), it.copy(w = nw, h = nh), pi, it.x, it.y)
+        for (p in listOf(pi) + m.pages.indices.filter { p -> p != pi }) firstFree(t.m.pages[p], m.cols, m.rows, nw, nh)?.let { (fx, fy) -> return dropCell(t, p, fx, fy) }
+        return dropCell(t, t.m.pages.size, 0, 0)
+    }
+
+    /**
+     * New grid size (protocol "Changing rows / columns"). Bigger: nothing moves. Smaller: widgets shrink to fit, every item
+     * keeps its cell when it still fits, else takes the first free cell of its page, else moves on to the next page;
+     * the order (page, row, col) is kept. Nothing is ever dropped.
+     */
+    fun regrid(m: HomeModel, cols: Int, rows: Int): HomeModel {
+        val c = cols.coerceIn(3, 5); val r = rows.coerceIn(4, 6)
+        if (c >= m.cols && r >= m.rows) return m.copy(cols = c, rows = r)
+        val out = ArrayList<List<HItem>>()
+        var carry = emptyList<HItem>()
+        var pi = 0
+        while (pi < m.pages.size || carry.isNotEmpty()) {
+            val own = (m.pages.getOrNull(pi) ?: emptyList()).sortedWith(compareBy({ it.y }, { it.x }))
+                .map { if (it.kind == "widget") it.copy(w = minOf(it.w, c), h = minOf(it.h, r)) else it }
+            val placed = ArrayList<HItem>(); val next = ArrayList<HItem>()
+            val misfit = ArrayList<HItem>()
+            for (it in own) if (free(placed, c, r, it.x, it.y, it.w, it.h)) placed += it else misfit += it
+            for (it in carry + misfit) {
+                val f = firstFree(placed, c, r, it.w, it.h)
+                if (f != null) placed += it.copy(x = f.first, y = f.second) else next += it
+            }
+            out += placed.toList()
+            carry = next
+            pi++
+            if (pi > 40) break
+        }
+        return trimPages(m.copy(cols = c, rows = r, pages = out.ifEmpty { listOf(emptyList()) }))
+    }
+
+    /** Folder name from the two apps' ApplicationInfo.category (API 26+, -1 unknown): a shared kind, else "". */
+    fun folderKind(a: Int, b: Int): String {
+        fun k(c: Int) = when (c) { 0 -> "games"; 4 -> "social"; 7 -> "study"; 1, 2, 3 -> "fun"; else -> "" }
+        return if (k(a) == k(b)) k(a) else ""
+    }
 }

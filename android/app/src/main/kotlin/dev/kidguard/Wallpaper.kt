@@ -79,6 +79,24 @@ object Wallpaper {
         return bmp
     }
 
+    /** The kid's own photo (filesDir/wall.jpg, already screen-sized by Tuỳ chỉnh), cropped to fill [w] x [h]; null if missing. */
+    fun photo(ctx: android.content.Context, w: Int, h: Int): Bitmap? = runCatching {
+        val f = java.io.File(ctx.filesDir, PHOTO)
+        if (!f.exists()) return null
+        val src = android.graphics.BitmapFactory.decodeFile(f.path) ?: return null
+        val out = Bitmap.createBitmap(w.coerceAtLeast(1), h.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val s = maxOf(w.toFloat() / src.width, h.toFloat() / src.height)
+        val dw = src.width * s; val dh = src.height * s
+        Canvas(out).drawBitmap(src, null, RectF((w - dw) / 2, (h - dh) / 2, (w + dw) / 2, (h + dh) / 2), Paint(Paint.FILTER_BITMAP_FLAG))
+        src.recycle()
+        out
+    }.getOrNull()
+
+    const val PHOTO = "wall.jpg"
+
+    /** Darkens [bmp] by [pct] % (Tuỳ chỉnh "Làm tối"), in place, so the ink sampling sees the same pixels as the kid. */
+    fun dim(bmp: Bitmap, pct: Int) { if (pct > 0) Canvas(bmp).drawColor(Color.argb((pct.coerceIn(0, 60) * 255 / 100), 0, 0, 0)) }
+
     /** Dark wallpapers want light status bar icons. */
     fun isDark(id: String) = id in setOf("night", "aurora", "graphite")
 

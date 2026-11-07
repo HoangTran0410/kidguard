@@ -50,6 +50,22 @@ class HomeStyleTest {
             }
             // the warn badge sits on a greyed icon with a ring of the sheet colour: the ring separates it
             ok("$tag warn/ring", p.warn, p.sheet, Contrast.LARGE)
+            // part 2 controls (Tuỳ chỉnh, Hôm nay, picker, folder panel)
+            ok("$tag accentText/tint chip", p.accentText, p.tint, Contrast.TEXT)     // "Bố mẹ xem được" badge, size chips
+            ok("$tag onTint/tint chip", p.onTint, p.tint, Contrast.TEXT)
+            for (bg in listOf(p.sheet, p.bg)) {
+                ok("$tag slider+switch on", p.accentText, bg, Contrast.LARGE)        // track, thumb, selected border
+                ok("$tag switch off track", p.sub, bg, Contrast.LARGE)
+                ok("$tag danger target", p.onDanger, p.danger, Contrast.TEXT)         // "Bỏ khỏi màn chính"
+            }
+            // widget previews: a sheet mini-card on a tint block, text/sub/accentText on the mini-card
+            ok("$tag preview text", p.text, p.sheet, Contrast.TEXT); ok("$tag preview accent", p.accentText, p.sheet, Contrast.TEXT)
+            // accent swatches: in dark, each swatch carries a ring of its own text colour, which must stand out from bg
+            for (sw in HomeStyle.ACCENTS) {
+                val sp = HomeStyle.palette(sw.id, dark)
+                val c = maxOf(Contrast.ratio(sp.solid, p.sheet), Contrast.ratio(sp.accentText, p.sheet))
+                assertTrue("$tag swatch ${sw.id} %.2f".format(c), c >= Contrast.LARGE)
+            }
         }
     }
 

@@ -16,6 +16,17 @@ data class LauncherRule(val on: Boolean = false, val settings: Boolean = false, 
 
 /** Pure part of the kid launcher (HomeActivity): what shows, greyed or hidden, time left, search, crash counter. */
 object LauncherLogic {
+    /**
+     * App drawer release (Pixel): a fling either way wins ([vy] px/s, + = down), else moving it 40 % of the way flips it.
+     * [p] 0 closed .. 1 open, [wasOpen] where the finger started (pull down from the open drawer, or up from the home).
+     */
+    fun drawerOpens(vy: Float, minFling: Float, p: Float, wasOpen: Boolean): Boolean = when {
+        vy < -minFling -> true
+        vy > minFling -> false
+        wasOpen -> p > 0.6f
+        else -> p > 0.4f
+    }
+
     enum class Show { OK, PAUSED, HIDE }
 
     /** Never listed: system plumbing that some phones give an icon, settings (unless the rule allows), remote access. */
@@ -74,6 +85,39 @@ object LauncherLogic {
         for (s in r.schedules) if (s.on && dow in s.days) Rules.parseHm(s.start)?.let { if (it > minute) c += it to s.name }
         if (r.bedtimeOn) Rules.parseHm(r.bedStart)?.let { if (it > minute) c += it to "" }
         return c.minByOrNull { it.first }
+    }
+
+    /**
+     * One line of the "Hôm nay" page's schedule: a lock window (`schedule`), an app group's open hours (`group`) or
+     * bedtime (`bed`). [state]: past / now / next (the first one still to come) / later.
+     */
+    data class Ev(val start: Int, val end: Int, val kind: String, val name: String, val state: String)
+
+    /** Today's timeline from the rules, by start time. Windows that started yesterday and run past midnight show at 00:00. */
+    fun today(r: Rules, minute: Int, dow: Int): List<Ev> {
+        val raw = ArrayList<Triple<Int, Int, Pair<String, String>>>()
+        fun add(s: Schedule, kind: String, name: String) {
+            if (!s.on) return
+            val a = Rules.parseHm(s.start) ?: return; val b = Rules.parseHm(s.end) ?: return
+            if (a == b) return
+            val yesterday = if (dow == 1) 7 else dow - 1
+            if (dow in s.days) raw += Triple(a, if (b > a) b else b + 1440, kind to name)
+            if (b < a && yesterday in s.days) raw += Triple(0, b, kind to name)   // the tail of last night's window
+        }
+        for (s in r.schedules) add(s, "schedule", s.name)
+        for (g in r.groups) for (h in g.hours) add(h, "group", g.name)
+        if (r.bedtimeOn) add(Schedule("", true, (1..7).toSet(), r.bedStart, r.bedEnd), "bed", "")
+        val sorted = raw.distinct().sortedWith(compareBy({ it.first }, { it.second }))
+        var nextSet = false
+        return sorted.map { (a, b, kn) ->
+            val st = when {
+                minute >= b -> "past"
+                minute >= a -> "now"
+                !nextSet -> { nextSet = true; "next" }
+                else -> "later"
+            }
+            Ev(a, b % 1440, kn.first, kn.second, st)
+        }
     }
 
     /** Lower case, accents off, đ -> d: "Đồng hồ" matches "dong ho". */

@@ -14,16 +14,18 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /** Small view helpers + palette (follows the system light/dark setting) for the child screen. */
-class Ui(val ctx: Context) {
-    val dark = (ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-    val bg = Color.parseColor(if (dark) "#0f172a" else "#f3f6fb")
-    val card = Color.parseColor(if (dark) "#1e293b" else "#ffffff")
-    val stroke = Color.parseColor(if (dark) "#334155" else "#e2e8f0")
-    val text = Color.parseColor(if (dark) "#f1f5f9" else "#0f172a")
-    val sub = Color.parseColor(if (dark) "#94a3b8" else "#64748b")
-    val primary = Color.parseColor(if (dark) "#3b82f6" else "#2563eb")
-    val accent = Color.parseColor(if (dark) "#93c5fd" else "#2563eb")
-    val tint = Color.parseColor(if (dark) "#1e3a8a" else "#dbeafe")
+class Ui(val ctx: Context, pal: Palette? = null) {
+    // [pal]: the kid launcher's palette (its accent and its own light / dark), so its modals and sheets match it
+    val dark = pal?.dark ?: ((ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES)
+    val bg = pal?.bg ?: Color.parseColor(if (dark) "#0f172a" else "#f3f6fb")
+    val card = pal?.sheet ?: Color.parseColor(if (dark) "#1e293b" else "#ffffff")
+    val stroke = pal?.stroke ?: Color.parseColor(if (dark) "#334155" else "#e2e8f0")
+    val text = pal?.text ?: Color.parseColor(if (dark) "#f1f5f9" else "#0f172a")
+    val sub = pal?.sub ?: Color.parseColor(if (dark) "#94a3b8" else "#64748b")
+    val primary = pal?.solid ?: Color.parseColor(if (dark) "#3b82f6" else "#2563eb")
+    val accent = pal?.accentText ?: Color.parseColor(if (dark) "#93c5fd" else "#2563eb")
+    val tint = pal?.tint ?: Color.parseColor(if (dark) "#1e3a8a" else "#dbeafe")
+    val onPrimary = pal?.onSolid ?: Color.WHITE
 
     fun dp(v: Int) = (v * ctx.resources.displayMetrics.density).toInt()
     fun dpf(v: Int) = v * ctx.resources.displayMetrics.density
@@ -55,13 +57,13 @@ class Ui(val ctx: Context) {
     fun button(t: String, icon: Int?, primaryStyle: Boolean, onClick: () -> Unit): Button = Button(ctx).apply {
         text = t; isAllCaps = false; textSize = 16f; setTypeface(typeface, Typeface.BOLD)
         stateListAnimator = null; minHeight = dp(54); minimumHeight = dp(54)
-        setTextColor(if (primaryStyle) Color.WHITE else this@Ui.text)
+        setTextColor(if (primaryStyle) onPrimary else this@Ui.text)
         val base = if (primaryStyle) shape(primary, 16) else shape(card, 16, stroke, 1)
         background = RippleDrawable(ColorStateList.valueOf(Color.argb(40, 128, 128, 128)), base, null)
         gravity = Gravity.CENTER
         setPadding(dp(16), 0, dp(16), 0)
         layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) }
-        if (icon != null) Ic.lead(this, icon, if (primaryStyle) Color.WHITE else accent)
+        if (icon != null) Ic.lead(this, icon, if (primaryStyle) onPrimary else accent)
         setOnClickListener { onClick() }
     }
 
