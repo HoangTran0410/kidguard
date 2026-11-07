@@ -3,8 +3,8 @@ main = "src/index.js"
 compatibility_date = "2025-09-01"
 workers_dev = true
 
-# web/*.html (one page for the APK and the relay), its web/ui/*.js|css and web/vendor/qrcode.js are bundled as text
-rules = [{ type = "Text", globs = ["**/*.html", "**/vendor/qrcode.js", "**/web/ui/*.js", "**/web/ui/*.css"], fallthrough = false }]
+# web/*.html (one page for the APK and the relay) and its web/ui/*.js|css (incl. the QR library, shared with qr.html) are bundled as text
+rules = [{ type = "Text", globs = ["**/*.html", "**/web/ui/*.js", "**/web/ui/*.css"], fallthrough = false }]
 
 [[durable_objects.bindings]]
 name = "KIDS"

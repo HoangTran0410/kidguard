@@ -5,7 +5,6 @@
 import html from "../../web/index.html";
 import install from "../../web/install.html";
 import qr from "../../web/qr.html";
-import qrLib from "../../web/vendor/qrcode.js";   // text (wrangler rule), served next to /qr
 // the parent page's code (web/ui/, text via the wrangler rule), served at /ui/<name>: a new file there goes here too
 import ui_style_css from "../../web/ui/style.css";
 import ui_qrcode_js from "../../web/ui/qrcode.js";
@@ -80,8 +79,6 @@ export default {
     const page = req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html") ? html
       : req.method === "GET" && url.pathname === "/install" ? install
       : req.method === "GET" && url.pathname === "/qr" ? qr : null;
-    if (req.method === "GET" && url.pathname === "/vendor/qrcode.js") return new Response(qrLib, { headers: {
-      "content-type": "text/javascript; charset=utf-8", "cache-control": "public, max-age=86400", "x-content-type-options": "nosniff" } });
     if (req.method === "GET" && url.pathname.startsWith("/ui/")) {
       const n = url.pathname.slice(4), body = Object.hasOwn(UI, n) ? UI[n] : null;
       if (body === null) return json({ error: "not found" }, 404);

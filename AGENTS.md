@@ -25,7 +25,7 @@ Root: `android/` (Gradle project: `app/` child app, `parent/` parent app), `web/
     app's `Proxy.kt` (both: whitelist `/ui/[a-z0-9-]+.(js|css)`) and the worker (explicit import map `UI`).
     **New `web/ui` file** ⇒ add its `<script defer>` tag in index.html AND its import in `worker/src/index.js` (the worker test
     fetches every `/ui/` file the page names). Top-level `let`/`const` are shared across files: never redeclare a name. `install.html` WebUSB installer (Tango ADB bundled inline; rebuild: `web/vendor/build.sh`).
-  - `qr.html` QR provisioning page (QR library in `vendor/qrcode.js`, served by the worker at `/vendor/qrcode.js`); `scripts/build.sh` rewrites the JSON between `/*KG*/` markers and `web/provision.json`.
+  - `qr.html` QR provisioning page (QR library in `ui/qrcode.js`, shared with the parent page); `scripts/build.sh` rewrites the JSON between `/*KG*/` markers and `web/provision.json`.
 - `worker/src/index.js` relay (Durable Object `Kid`, SQLite, free plan). Command whitelist lives here.
 - `scripts/setup.sh`, `scripts/setup.ps1`, `install.html`, `SelfSetup.kt` all do the same setup steps: keep them in sync (protocol "Setup steps").
 
