@@ -81,6 +81,7 @@ class BasicChecklist(private val act: Activity, private val ui: Ui, private val 
                     .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, c.getString(R.string.basic_admin_expl)))
             }
         }
+        if (Acc.restricted(c)) add(R.string.acc_restricted, R.string.acc_restricted_d) { c.startActivity(Acc.appInfo(c)) }
         if (!Acc.isOn(c)) { missing = true
             add(R.string.basic_acc, R.string.basic_acc_d) {
                 c.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

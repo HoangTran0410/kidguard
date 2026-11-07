@@ -206,6 +206,20 @@ class Acc : AccessibilityService() {
         /** Enabled in Settings and connected right now. */
         fun isOn(ctx: Context): Boolean = running != null
 
+        /** Android 13+ "Restricted setting": an APK installed from a browser / file manager may not turn on Accessibility
+         *  until the user allows it in App info → ⋮ → "Allow restricted settings". True while that block is likely on. */
+        fun restricted(ctx: Context): Boolean {
+            if (Build.VERSION.SDK_INT < 33 || running != null) return false
+            if (ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == PackageManager.PERMISSION_GRANTED) return false   // setup turns it on itself
+            return runCatching {
+                val ao = ctx.getSystemService(android.app.AppOpsManager::class.java)
+                ao.unsafeCheckOpNoThrow("android:access_restricted_settings", android.os.Process.myUid(), ctx.packageName) != android.app.AppOpsManager.MODE_ALLOWED
+            }.getOrDefault(true)
+        }
+
+        /** App info page, where the ⋮ menu has "Allow restricted settings". */
+        fun appInfo(ctx: Context) = android.content.Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${ctx.packageName}")).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+
         /**
          * Turns our service back on if the child turned it off (needs WRITE_SECURE_SETTINGS from setup).
          * True only when the service is connected now. If our entry is present but never connects (crashed service),

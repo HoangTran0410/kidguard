@@ -143,6 +143,8 @@
 
     <!-- Device Owner checklist -->
     <string name="prov_usage">Turn on usage access</string>
+    <string name="acc_restricted">Allow restricted settings (Android 13+)</string>
+    <string name="acc_restricted_d">If Accessibility says "Restricted setting": tap OK, open this, tap ⋮ (top right) → "Allow restricted settings", confirm, then turn on Accessibility again.</string>
     <string name="prov_acc">Turn on KidGuard Accessibility</string>
     <string name="prov_title">Steps left</string>
     <string name="prov_intro">Turn on these 2 permissions so KidGuard works fully</string>

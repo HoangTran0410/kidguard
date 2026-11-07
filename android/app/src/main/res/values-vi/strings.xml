@@ -137,6 +137,8 @@
 
     <!-- Device Owner checklist -->
     <string name="prov_usage">Bật quyền theo dõi sử dụng</string>
+    <string name="acc_restricted">Cho phép cài đặt bị hạn chế (Android 13+)</string>
+    <string name="acc_restricted_d">Nếu Trợ năng báo "Cài đặt bị hạn chế": bấm OK, mở mục này, bấm ⋮ (góc trên bên phải) → "Cho phép cài đặt bị hạn chế", xác nhận, rồi bật lại Trợ năng.</string>
     <string name="prov_acc">Bật Trợ năng KidGuard</string>
     <string name="prov_title">Bước còn lại</string>
     <string name="prov_intro">Bật 2 quyền này để KidGuard chạy đầy đủ</string>

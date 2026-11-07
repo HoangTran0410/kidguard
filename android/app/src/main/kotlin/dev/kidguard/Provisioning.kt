@@ -46,8 +46,10 @@ object Checklist {
             runCatching { it.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:${it.packageName}"))) }
                 .onFailure { _ -> it.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
         }),
+        Row(R.string.acc_restricted, { !Acc.restricted(it) }, { it.startActivity(Acc.appInfo(it)) }),   // Android 13+ only, see [visible]
         Row(R.string.prov_acc, { Acc.isOn(it) }, { it.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }),
     )
+    private fun visible(r: Row) = r.label != R.string.acc_restricted || android.os.Build.VERSION.SDK_INT >= 33
 
     private fun hasSecure(ctx: Context) =
         ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -57,14 +59,15 @@ object Checklist {
         val box = ui.cardBox().apply { tag = "checklist" }
         box.addView(ui.label(act.getString(R.string.prov_title), 17f, ui.text, true))
         box.addView(ui.label(act.getString(R.string.prov_intro), 14f))
-        for (r in rows) box.addView(ui.button(act.getString(r.label), null, false) { runCatching { r.open(act) } })
+        for (r in rows.filter(::visible)) box.addView(ui.button(act.getString(r.label), null, false) { runCatching { r.open(act) } })
+        if (android.os.Build.VERSION.SDK_INT >= 33) box.addView(ui.label(act.getString(R.string.acc_restricted_d), 13f))
         box.addView(ui.label("", 13f).apply { tag = "secure"; setPadding(0, ui.dp(12), 0, 0) })
         return box
     }
 
     fun update(act: Activity, box: LinearLayout) {
         val buttons = (0 until box.childCount).map { box.getChildAt(it) }.filterIsInstance<Button>()
-        rows.forEachIndexed { i, r -> buttons[i].text = act.getString(r.label).let { l -> if (r.done(act)) act.getString(R.string.prov_done, l) else l }; buttons[i].alpha = if (r.done(act)) 0.6f else 1f }
+        rows.filter(::visible).forEachIndexed { i, r -> buttons[i].text = act.getString(r.label).let { l -> if (r.done(act)) act.getString(R.string.prov_done, l) else l }; buttons[i].alpha = if (r.done(act)) 0.6f else 1f }
         val needed = !rows.all { r -> r.done(act) }
         box.visibility = if (needed) View.VISIBLE else View.GONE
         box.findViewWithTag<TextView>("secure").text =
