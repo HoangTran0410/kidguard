@@ -374,7 +374,7 @@ class Guard : Service() {
         val r = if (incoming.pinHash.isBlank()) incoming.copy(pinHash = old.pinHash, pinSalt = old.pinSalt) else incoming
         store.rules = r
         if (::work.isInitialized) work.post { runCatching { Policy.apply(this, r) } }
-        if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r, store.tr))
+        if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r, store.tr), "rules")
         if (r.zones != old.zones) store.zoneBaseline = true
         kick()
     }

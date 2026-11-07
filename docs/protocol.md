@@ -363,7 +363,11 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
   `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing|checkin|launcher", "text": "Đã đến Nhà"}]`,
   newest last, at most 50, older than 7 days dropped. `text` is free text for people, in the child app's language
   (English or Vietnamese, from the phone / per-app language; the examples here are the Vietnamese ones). The same goes for
-  log lines (`log[].m`) and error strings (`dnsError`, `update.err`, `ts.err`). Code must switch on `kind`, never parse `text`. Kinds:
+  log lines (`log[].m`; NEW `log[].k` = kind, the string id without `log_`: `pin_wrong`, `unlock`, `paired`, `tz`,
+  `loc_fixed`, `usage_off`, `new_app`, `suspended`, `unsuspended`, `recover_open`, `recover_req`, `zone`, `cmd`, `cleared`,
+  `totp_off`, `totp_on`, `release_fail`, `released`, `sos`, `acc_settings`, `acc_rebind`, `acc_reenabled`, `view_start`,
+  `control`, `proj_denied`, `listen_start`, `listen_done`, `listen_err`, `ring_stopped`, `dns_fallback`, `admin_open`,
+  `checkin`, `rules`; absent on older lines, pages show a plain dot) and error strings (`dnsError`, `update.err`, `ts.err`). Code must switch on `kind`, never parse `text`. Kinds:
   - `zoneIn` / `zoneOut`: "Đã đến <zone>" / "Đã rời <zone>" (`zone` field = zone id). First fix after a rules change
     only records where the phone is (no event).
   - `battery`: "Pin còn <n>%" once when it drops to <= 15 % while not charging (re-armed after charging to >= 30 %).

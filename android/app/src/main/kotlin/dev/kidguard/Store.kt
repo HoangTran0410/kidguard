@@ -385,13 +385,14 @@ class Store private constructor(private val app: Context) {
     /** Text in the app's language. Log lines and events go to the parent as they are (protocol: free text). */
     val tr: Tr = ResTr(app)
     fun str(id: Int, vararg a: Any): String = app.getString(id, *a)
-    fun log(id: Int, vararg a: Any) = log(app.getString(id, *a))
+    /** Kind = the string's resource name without "log_" (log_pin_wrong -> "pin_wrong"), so the page can pick an icon. */
+    fun log(id: Int, vararg a: Any) = log(app.getString(id, *a), runCatching { app.resources.getResourceEntryName(id).removePrefix("log_") }.getOrDefault(""))
     fun event(kind: String, id: Int, vararg a: Any) = addEvent(Ev(kind, app.getString(id, *a)))
 
     /** Recent events for the parent: commands done, apps paused. Last 50. */
-    @Synchronized fun log(msg: String) {
+    @Synchronized fun log(msg: String, kind: String = "") {
         val a = runCatching { JSONArray(p.getString("log", "[]")) }.getOrDefault(JSONArray())
-        a.put(JSONObject().put("t", System.currentTimeMillis()).put("m", msg))
+        a.put(JSONObject().put("t", System.currentTimeMillis()).put("m", msg).apply { if (kind.isNotEmpty()) put("k", kind) })
         val keep = JSONArray(); for (i in maxOf(0, a.length() - 50) until a.length()) keep.put(a.get(i))
         p.edit().putString("log", keep.toString()).apply()
     }

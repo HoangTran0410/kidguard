@@ -115,6 +115,7 @@ code{word-break:break-all;font-size:12px}
 .scr-msg{position:absolute;left:0;right:0;bottom:0;padding:8px 10px;background:rgba(0,0,0,.65);color:#fff;font-size:13px;text-align:center;pointer-events:none}
 .scr-msg:empty{display:none}
 .gst{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;--gc:#fff}.gst line,.gst path{stroke:var(--gc);stroke-width:4;stroke-linecap:round;stroke-linejoin:round;fill:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))}.gst circle{fill:var(--gc);stroke:rgba(0,0,0,.5);stroke-width:2}.gst text{fill:#fff;font:700 13px system-ui,sans-serif;paint-order:stroke;stroke:rgba(0,0,0,.85);stroke-width:4px}.gst.hint{--gc:#93c5fd}.gst.hint line{stroke-dasharray:8 8}.gst.drag{--gc:#fff}.gst.send{--gc:#fbbf24}.gst.ok{--gc:#4ade80;transition:opacity .6s .5s;opacity:0}.gst.bad,.gst.cancel{--gc:#f87171}.gst.cancel line{stroke-dasharray:6 6}
+.lgr{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--line)}.lgd+.lgr{border-top:0}.lgi{flex:none;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:color-mix(in srgb,var(--sub) 14%,transparent);color:var(--sub)}.lgi .ic{width:16px;height:16px}.lgr.bad .lgi{background:color-mix(in srgb,var(--danger) 16%,transparent);color:var(--danger)}.lgt{flex:none;font-size:12px;padding-top:5px}.lgd{font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.04em;margin:12px 0 2px}
 .tap{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:rgba(59,130,246,.6);pointer-events:none;animation:tp .5s forwards}
 @keyframes tp{to{transform:scale(1.8);opacity:0}}
 .bulk,.hbar{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom));z-index:5;background:var(--card);border:1px solid var(--accent);border-radius:18px;padding:10px 12px;box-shadow:0 8px 24px rgba(2,6,23,.2);margin:8px 0 12px}
@@ -4135,6 +4136,20 @@ const totpHtml = s => `<div class="alert warn" style="margin-top:10px"><b>${ic("
     <button id="totpDone">${ic("check")} ${t("totp.done")}</button></div>`;
 // ---- v0.6: events, chores, zones, templates ----
 const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand", launcher: "house" };
+// phone log line kind (log[].k, protocol) -> icon + tone; lines from older phones have no k
+const LOG_IC = { pin_wrong: ["key-round", "bad"], unlock: ["lock-open"], paired: ["link"], tz: ["globe"], loc_fixed: ["map-pin"],
+  usage_off: ["triangle-alert", "bad"], new_app: ["package"], suspended: ["pause"], unsuspended: ["play"], recover_open: ["refresh-cw"],
+  recover_req: ["refresh-cw"], zone: ["map-pin"], cmd: ["send"], cleared: ["eraser"], totp_off: ["shield", "bad"], totp_on: ["shield"],
+  release_fail: ["octagon-x", "bad"], released: ["unlink", "bad"], sos: ["siren", "bad"], acc_settings: ["triangle-alert", "bad"],
+  acc_rebind: ["refresh-cw"], acc_reenabled: ["refresh-cw"], view_start: ["eye"], control: ["pointer"], proj_denied: ["eye-off", "bad"],
+  listen_start: ["ear"], listen_done: ["ear"], listen_err: ["ear", "bad"], ring_stopped: ["bell"], dns_fallback: ["wifi-off", "bad"],
+  admin_open: ["settings"], checkin: ["hand"], rules: ["list"] };
+const logRow = l => { const [i, tone] = LOG_IC[l.k] || ["circle"];
+  return `<div class="lgr${tone ? " " + tone : ""}"><span class="lgi">${ic(i)}</span><span class="sp" style="min-width:0;overflow-wrap:anywhere">${esc(logTr(noEmoji(String(l.m || ""))))}</span><span class="mute lgt">${hhmm(l.t)}</span></div>`; };
+// newest first, one heading per day (Hôm nay / Hôm qua / 5 thg 11)
+const byDay = (rows, at, draw) => { let last = "", out = "";
+  for (const r of rows) { const k = dkey(at(r)); if (k !== last) { last = k; out += `<div class="lgd">${esc(dayLabel(k))}</div>`; } out += draw(r); }
+  return out; };
 const evHtml = e => `<div class="row" style="padding:3px 0">${ic(EV_IC[e.kind] || "bell")} <span class="sp">${esc(noEmoji(e.text))}</span><span class="mute">${ago(e.t)}</span></div>`;
 const zoneOk = z => z && Number.isFinite(+z.lat) && Number.isFinite(+z.lng) && z.lat !== "" && z.lng !== "" && z.lat !== null && z.lng !== null && Math.abs(+z.lat) <= 90 && Math.abs(+z.lng) <= 180;
 const newId = p => p + Math.random().toString(36).slice(2, 8);
@@ -4525,7 +4540,7 @@ function moreTab(b) {
 function logTab(b) {
   const ev = (st.events || []).slice().reverse(), lg = (st.log || []).slice(-60).reverse();
   b.innerHTML = `<div class="card"><h2>${ic("bell")} ${t("events")}</h2>${ev.map(evHtml).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}</div>
-  <div class="card"><h2>${ic("notebook-pen")} ${t("log")}</h2>${lg.map(l => `<div class="ev row" style="padding:4px 0;align-items:flex-start;flex-wrap:nowrap"><span class="mute" style="flex:none;min-width:3.2em">${hhmm(l.t)}</span><span class="sp" style="min-width:0;overflow-wrap:anywhere">${esc(logTr(noEmoji(l.m)))}</span></div>`).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}</div>`;
+  <div class="card"><h2>${ic("notebook-pen")} ${t("log")}</h2>${byDay(lg, l => l.t, logRow) || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}</div>`;
 }
 // "Báo cáo tuần": 7-day bars + this kid's weekly report + most used today
 function repTab(b) {
