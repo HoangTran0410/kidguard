@@ -7,14 +7,18 @@ the contract**: change it in the same commit as any JSON / endpoint / command sh
 ## Layout
 Root: `android/` (Gradle project: `app/` child app, `parent/` parent app), `ui/`, `relay/`, `website/` (kid-guard.pages.dev),
 `docs/`, `scripts/` (`build.sh`, `setup.sh`, `setup.ps1`, `relay.sh`/`relay.ps1` = deploy the worker to the user's own Cloudflare account). Build outputs land in `build/` at the root.
-- `android/app/src/main/kotlin/dev/kidguard/` (package `dev.kidguard`, minSdk 26, target 34)
-  - `Rules.kt` pure rules + `decide()` (block-reason priority, see protocol). Unit-tested, keep it Android-free.
-  - `Guard.kt` foreground loop: applies rules, suspends apps, location track. `Policy.kt` DevicePolicyManager restrictions.
-  - `Store.kt` persistence, `Usage.kt` usage stats, `Watchdog.kt` restart alarm, `Provisioning.kt` QR/Device Owner.
-  - `Http.kt` LAN server on `:8770` (serves `ui/index.html` + `ui/assets/*` from assets), `Api.kt` its routes (token `X-KG-Token`).
-  - `Relay.kt` phone side of the worker relay. `Acc.kt` accessibility: screen capture + remote input (API 30+).
-  - `SelfSetup*.kt` phone runs adb against itself over Wireless debugging (libadb-android + Conscrypt).
-  - `MainActivity.kt` child UI, `Ic.kt` Lucide vector icons (`res/drawable/li_*.xml`).
+- `android/app/src/main/kotlin/dev/kidguard/` (package `dev.kidguard` for **every** file, minSdk 26, target 34). Folders are for
+  reading only: never give a file a sub-package (manifest components + the Device Owner admin are bound to `dev.kidguard.*`).
+  - `guard/` enforcement: `Rules.kt` pure rules + `decide()` (block-reason priority, see protocol; unit-tested, keep it
+    Android-free), `Guard.kt` foreground loop (applies rules, suspends apps, location), `Policy.kt` DevicePolicyManager
+    restrictions + `Admin`, `Store.kt` persistence, `Usage.kt` usage stats, `Watchdog.kt` restart alarm, Basic mode, comfort, sys settings.
+  - `remote/` parent link + remote commands: `Http.kt` LAN server on `:8770` (serves `ui/index.html` + `ui/assets/*`),
+    `Api.kt` its routes (token `X-KG-Token`), `Relay.kt` phone side of the worker relay, `Acc.kt` accessibility (screen
+    capture + remote input, API 30+), `Proj.kt`, `Listen.kt`, `Ring.kt`, `Wake.kt`, shared files, `Update.kt` self-update.
+  - `launcher/` kid launcher: `HomeActivity.kt`, `HomeLayout.kt` (pure model, unit-tested), `LauncherSafe.kt`, style, wallpapers, "Hôm nay" page.
+  - `setup/` `Provisioning.kt` QR/Device Owner, `SelfSetup*.kt` phone runs adb against itself (libadb-android + Conscrypt).
+  - `ui/` child screens: `MainActivity.kt`, `AdminActivity.kt`, `Modal`/`Sheet`/`Ui` helpers, `Ic.kt` Lucide icons
+    (`res/drawable/li_*.xml`), kid actions, shortcuts, language.
 - `ui/` is **one UI for both sides**: it is the APK's assets dir (`sourceSets.assets.srcDirs("../../ui")`, for both apps) and the worker
   imports the `.html` files (and `ui/assets/*`) as text. No build step.
   - `index.html` parent page: markup shell + icon sprite; its CSS/JS live in `ui/assets/` (`style.css`, then classic `defer` scripts
