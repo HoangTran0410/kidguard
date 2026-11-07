@@ -34,6 +34,7 @@ ck("cmd >256KB 413",(await P("cmd",JSON.stringify({type:"message",text:"a".repea
 ck("cmd answer ok",(await (await P("cmd",JSON.stringify({type:"answer",id:"x",ok:true}))).json()).result=="queued");
 ck("cmd reboot ok",(await (await P("cmd",JSON.stringify({type:"reboot"}))).json()).result=="queued");
 ck("cmd wake ok",(await (await P("cmd",JSON.stringify({type:"wake"}))).json()).result=="queued");
+ck("cmd devOff ok",(await (await P("cmd",JSON.stringify({type:"devOff"}))).json()).result=="queued");
 ck("PUT frame 405",(await fetch(`${B}/c/${id}/frame`,{method:"PUT",headers:H(),body:"x"})).status==405);
 ck("GET live 405",(await fetch(`${B}/c/${id}/live`,{headers:H()})).status==405);
 r=await fetch(`${B}/install`);ck("/install 200 html",r.status==200&&r.headers.get("content-type").includes("html"));

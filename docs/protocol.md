@@ -45,6 +45,7 @@ leftMs apps rules location lan relay log`), plus:
   "acc": true,                     // NEW: accessibility service connected (live screen / remote control available)
   "accReEnable": true,             // NEW: the app holds WRITE_SECURE_SETTINGS (can re-enable acc itself)
   "locationOn": true,              // NEW: system location switch
+  "dev": {"on": true, "adb": false, "canOff": true},   // v0.9.6: Developer options on; USB or (API 30+) wireless debugging on; app holds WRITE_SECURE_SETTINGS or is Device Owner
   "limitMin": 120,                 // NEW: today's limit in minutes incl. bonus (0 = none)
   "pairUntil": 1793940898493,      // v0.9.2: an opened pairing window (openPairing / PIN on the child) closes at this ms; 0 = closed (also before the first pairing)
   "apps": [{"pkg":"…","label":"…","ms":0,"blocked":"new|…|null","suspended":true,"protected":false,
@@ -98,6 +99,15 @@ v0.4:
   tunnel is up. Result `ok | bad key | busy | not owner`. **LAN only**: not in the worker whitelist, so the key never
   sits in the relay queue.
 - `tailscaleOff`: undo all of it and uninstall Tailscale (also done by `release`). In the worker whitelist.
+v0.9.6:
+- `devOff`: turns off wireless debugging (`adb_wifi_enabled`, API 30+), USB debugging (`ADB_ENABLED`) and Developer
+  options (`DEVELOPMENT_SETTINGS_ENABLED`) with `Settings.Global.putInt` (WRITE_SECURE_SETTINGS); as Device Owner it
+  falls back to `DevicePolicyManager.setGlobalSetting` where Android allows it. Banking apps often refuse to open while
+  these are on. Result `ok | not allowed | failed: <reason>` (`not allowed` = `dev.canOff` false). Logs `log_dev_off`.
+  Not a new restriction (nothing for `release` to undo); the child can turn them on again unless `noDebug` is set.
+  In the worker whitelist (repeatable, not deliver-once). Over LAN through an adb-forwarded port the reply can be lost
+  (adb goes down with it); normal Wi-Fi LAN and the relay are fine.
+- Saving rules that switch `noDebug` from false to true also runs `devOff` once.
 
 ## Live screen and remote control
 

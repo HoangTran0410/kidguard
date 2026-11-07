@@ -299,6 +299,7 @@ class Guard : Service() {
             .put("acc", Acc.isOn(this))
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
             .put("locationOn", locationOn())
+            .put("dev", DevOpts.state(this))
             .put("limitMin", baseLimitMin(r, today).let { if (it > 0) it + if (r.bonusDay == today) r.bonusMin else 0 else 0 })
             .put("owner", Policy.isOwner(this)).put("mode", Basic.mode(this)).put("usageAccess", Usage.granted(this)).put("dnsError", Policy.dnsError)
             .put("battery", bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1)
@@ -374,6 +375,7 @@ class Guard : Service() {
         val r = if (incoming.pinHash.isBlank()) incoming.copy(pinHash = old.pinHash, pinSalt = old.pinSalt) else incoming
         store.rules = r
         if (::work.isInitialized) work.post { runCatching { Policy.apply(this, r) } }
+        if (r.noDebug && !old.noDebug) devOff()   // "no debugging" switched on: also turn Developer options off once
         if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r, store.tr), "rules")
         if (r.zones != old.zones) store.zoneBaseline = true
         kick()
@@ -426,6 +428,7 @@ class Guard : Service() {
             res
         }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
+        "devOff" -> devOff()
         // the parent page made the secret and shows it as an Authenticator QR; "" turns codes off
         "totpSet" -> c.optString("secret").let { s ->
             if (s.isNotEmpty() && Totp.decode(s) == null) "bad secret"
@@ -434,6 +437,8 @@ class Guard : Service() {
         "release" -> release()
         else -> "unknown"
     }
+
+    private fun devOff(): String = DevOpts.off(this).also { if (it == "ok") store.log(R.string.log_dev_off) }
 
     /** On the Guard thread, loop stopped first so no tick races with it. */
     private fun release(): String {
