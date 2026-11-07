@@ -73,6 +73,7 @@ object Ring {
         if (oldVol >= 0) runCatching { c.getSystemService(AudioManager::class.java).setStreamVolume(AudioManager.STREAM_ALARM, oldVol, 0) }
         oldVol = -1
         since = 0L
+        Listen.clearRinging()
         runCatching { c.getSystemService(NotificationManager::class.java).cancel(NID) }
     }
 

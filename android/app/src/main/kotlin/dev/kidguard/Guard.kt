@@ -222,8 +222,11 @@ class Guard : Service() {
         val key = r.hidden.sorted().joinToString(",") + "|" + had.sorted().joinToString(",") + "|" + never.hashCode()
         if (key == hideKey && now - hideAt < 10 * 60_000L) return
         hideKey = key; hideAt = now
-        if (r.hidden.isEmpty() && had.isEmpty()) return
-        val nowHid = Policy.hideExactly(this, r.hidden, had, never)
+        if (r.hidden.isEmpty() && had.isEmpty() && store.refusedHide.isEmpty()) return
+        val failed = HashSet<String>()
+        val nowHid = Policy.hideExactly(this, r.hidden, had, never, failed)
+        val refused = Debloat.refusedAfter(store.refusedHide, failed, nowHid - had, had - nowHid, r.hidden)
+        if (refused != store.refusedHide) { store.refusedHide = refused; Policy.invalidate(); preAt = 0 }
         if (nowHid != had) {
             (nowHid - had).takeIf { it.isNotEmpty() }?.let { store.log(R.string.app_hidden, it.joinToString { p -> Policy.labelOf(this, p) }) }
             (had - nowHid).takeIf { it.isNotEmpty() }?.let { store.log(R.string.app_unhidden, it.joinToString { p -> Policy.labelOf(this, p) }) }
@@ -295,6 +298,7 @@ class Guard : Service() {
             .put("lan", lanUrl() ?: JSONObject.NULL)
             .put("relay", store.relayUrl)
             .put("ts", Ts.stateJson(store.tsHost))
+            .put("devices", store.devices())
             .put("log", store.logs())
             .put("history", store.history)
             .put("track", store.track(2))
@@ -384,12 +388,13 @@ class Guard : Service() {
         "fileDel" -> Files.command(this, t, c)
         "relay" -> {
             store.relayUrl = c.optString("url")
-            if (store.relayToken.isBlank() || store.relayId.isBlank()) { store.relayToken = store.addToken(); store.relayId = Store.randomHex(8) }
+            if (store.relayToken.isBlank() || store.relayId.isBlank()) { store.relayToken = store.addToken(); store.relayId = Store.randomHex(8); store.touchDevice(store.relayToken, "relay") }
             relay?.kick(); "ok"
         }
         // no PIN yet: the code shows on the child's screen and nothing else would stop the child pairing first
         "openPairing" -> if (store.everPaired && store.rules.pinHash.isBlank()) "set PIN first" else { store.openPairing(); "ok" }
         "unpairAll" -> { store.clearTokens(); "ok" }
+        "unpair" -> if (store.unpair(c.optString("id"))) { relay?.kick(); kick(); "ok" } else "no such device"
         "answer" -> {
             val req = store.removeRequest(c.optString("id"))
             if (req != null) notifyChild(Events.answerText(c.optBoolean("ok"), c.optInt("min", req.optInt("min")), c.optString("note"), store.tr))

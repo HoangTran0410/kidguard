@@ -810,31 +810,74 @@ class MainActivity : Activity() {
 
 /** A message from the parent, over everything. */
 class MessageActivity : Activity() {
+    private val h = Handler(Looper.getMainLooper())
+    private var textView: TextView? = null
+    private val wakeOff = Runnable { screenOnFlag(false) }
+
     override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(Lang.wrap(base))   // in-app language (Android 8-12)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val pad = (24 * resources.displayMetrics.density).toInt()
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(pad, pad, pad, pad); setBackgroundColor(Color.parseColor("#1e3a8a")) }
         col.addView(TextView(this).apply { text = getString(R.string.msg_title); textSize = 18f; setTextColor(Color.parseColor("#bfdbfe")); gravity = Gravity.CENTER; Ic.lead(this, R.drawable.li_mail) })
-        col.addView(TextView(this).apply { text = intent.getStringExtra("text") ?: ""; textSize = 30f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; setPadding(0, pad, 0, pad) })
-        col.addView(Button(this).apply { text = getString(R.string.msg_read); Ic.lead(this, R.drawable.li_thumbs_up); setOnClickListener { finish() } })
+        textView = TextView(this).apply { text = intent.getStringExtra("text") ?: ""; textSize = 30f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; setPadding(0, pad, 0, pad) }
+        col.addView(textView)
+        col.addView(Button(this).apply { text = getString(R.string.msg_read); Ic.lead(this, R.drawable.li_thumbs_up); setOnClickListener {
+            runCatching { getSystemService(NotificationManager::class.java).cancel(NID) }; finish() } })
         setContentView(col)
+        wakeScreen()
     }
 
+    /** singleTop: a second message while this one is open replaces the text (it used to keep showing the first). */
+    override fun onNewIntent(i: Intent) {
+        super.onNewIntent(i)
+        setIntent(i)
+        textView?.text = i.getStringExtra("text") ?: ""
+        wakeScreen()
+    }
+
+    /**
+     * Turn the screen on for a new message only. A permanent turnScreenOn (the old manifest attribute) re-lit the screen
+     * every time the activity came back over the lock screen, so the parent's `lock` while a message was open did nothing.
+     */
+    private fun wakeScreen() { h.removeCallbacks(wakeOff); screenOnFlag(true); h.postDelayed(wakeOff, 3_000) }
+
+    private fun screenOnFlag(on: Boolean) {
+        if (android.os.Build.VERSION.SDK_INT >= 27) setTurnScreenOn(on)
+        else @Suppress("DEPRECATION") if (on) window.addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON) else window.clearFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+    }
+
+    /** On screen now: keep the message in the shade (Home without "Got it"), but drop the full-screen intent. */
+    // delayed: on a second message show() posts its full-screen notice right after startActivity, often after this resume
+    override fun onResume() { super.onResume(); h.removeCallbacks(quiet); h.postDelayed(quiet, 1_500) }
+    private val quiet = Runnable { if (!isFinishing) notice(this, textView?.text?.toString() ?: "", fullScreen = false) }
+
+    override fun onDestroy() { h.removeCallbacksAndMessages(null); super.onDestroy() }
+
     companion object {
+        private const val NID = 3
         fun show(ctx: Context, text: String) {
             val i = Intent(ctx, MessageActivity::class.java).putExtra("text", text)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             runCatching { ctx.startActivity(i) }
             // background activity starts can be blocked: a heads-up notification with a full-screen intent shows it anyway
-            runCatching {
-                val nm = ctx.getSystemService(NotificationManager::class.java)
-                nm.createNotificationChannel(NotificationChannel("msg", ctx.getString(R.string.ch_msg), NotificationManager.IMPORTANCE_HIGH))
-                val pi = PendingIntent.getActivity(ctx, 3, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-                nm.notify(3, Notification.Builder(ctx, "msg").setSmallIcon(android.R.drawable.ic_lock_lock).setContentTitle(ctx.getString(R.string.msg_title))
-                    .setContentText(text).setStyle(Notification.BigTextStyle().bigText(text)).setCategory(Notification.CATEGORY_MESSAGE)
-                    .setAutoCancel(true).setContentIntent(pi).setFullScreenIntent(pi, true).build())
-            }
+            notice(ctx, text, fullScreen = true)
+        }
+
+        /**
+         * [fullScreen] only until the message is on screen: SystemUI fires a pending full-screen intent again whenever the
+         * keyguard comes up, so a parent's `lock` re-woke the phone at once while the message was open.
+         */
+        private fun notice(ctx: Context, text: String, fullScreen: Boolean) = runCatching {
+            val i = Intent(ctx, MessageActivity::class.java).putExtra("text", text)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            val nm = ctx.getSystemService(NotificationManager::class.java)
+            nm.createNotificationChannel(NotificationChannel("msg", ctx.getString(R.string.ch_msg), NotificationManager.IMPORTANCE_HIGH))
+            val pi = PendingIntent.getActivity(ctx, 3, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            nm.notify(NID, Notification.Builder(ctx, "msg").setSmallIcon(android.R.drawable.ic_lock_lock).setContentTitle(ctx.getString(R.string.msg_title))
+                .setContentText(text).setStyle(Notification.BigTextStyle().bigText(text)).setCategory(Notification.CATEGORY_MESSAGE)
+                .setOnlyAlertOnce(!fullScreen).setAutoCancel(true).setContentIntent(pi)
+                .apply { if (fullScreen) setFullScreenIntent(pi, true) }.build())
         }
     }
 }

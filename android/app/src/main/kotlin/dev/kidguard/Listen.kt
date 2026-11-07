@@ -145,6 +145,9 @@ object Listen {
         return imp >= NotificationManager.IMPORTANCE_DEFAULT
     }
 
+    /** Ringing stopped: the "ringing" refusal is no longer true, so the page must not keep showing it as `listen.err`. */
+    fun clearRinging() { if (lastError == "ringing") lastError = "" }
+
     /** Release / service stop / command `listenStop`. True when a session was running. */
     fun stopAll(): Boolean { val c = current ?: return false; c.close(""); return true }
 

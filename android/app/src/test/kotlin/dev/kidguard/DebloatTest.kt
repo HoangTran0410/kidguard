@@ -81,3 +81,18 @@ class DebloatTest {
         assertFalse(Debloat.isSuggest("com.heytap.usercenter"))
     }
 }
+
+class DebloatRefusedTest {
+    private val s = emptySet<String>()
+    @org.junit.Test fun failureIsFlagged() { assertEquals(setOf("a.b"), Debloat.refusedAfter(s, setOf("a.b"), s, s, setOf("a.b"))) }
+    @org.junit.Test fun staysUntilSuccess() {
+        val r1 = Debloat.refusedAfter(s, setOf("a.b"), s, s, setOf("a.b"))
+        assertEquals(setOf("a.b"), Debloat.refusedAfter(r1, s, s, s, setOf("a.b")))
+        assertEquals(s, Debloat.refusedAfter(r1, s, setOf("a.b"), s, setOf("a.b")))
+    }
+    @org.junit.Test fun clearedOnUnhideOrDrop() {
+        assertEquals(s, Debloat.refusedAfter(setOf("a.b"), s, s, setOf("a.b"), setOf("a.b")))
+        assertEquals(s, Debloat.refusedAfter(setOf("a.b"), s, s, s, s))
+        assertEquals(setOf("c.d"), Debloat.refusedAfter(setOf("a.b"), setOf("c.d"), s, s, setOf("c.d")))
+    }
+}

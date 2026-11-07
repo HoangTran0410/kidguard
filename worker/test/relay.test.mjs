@@ -65,6 +65,12 @@ const ids=new Set(j.cmds.map(c=>c.id));ck("ids unique",ids.size==5);
 j=await S();ck("deliver-once: reboot/release/unpairAll gone, lock+answer stay",j.cmds.map(c=>c.type).sort().join()=="answer,lock");
 j=await S({acks:["req1",j.cmds.find(c=>c.type=="lock").id]});ck("acks drop the rest",j.cmds.length==0);
 ck("bad cmd 400",(await P2("cmd",JSON.stringify({type:"rm"}))).status==400);
+// unpair {id}: whitelisted, keeps the device id as the command id, deliver-once (destructive)
+r=await P2("cmd",JSON.stringify({type:"unpair",id:"a1b2c3d4"}));ck("unpair accepted",r.status==200);
+await P2("cmd",JSON.stringify({type:"lock"}));
+j=await S();const up=j.cmds.find(c=>c.type=="unpair");ck("unpair delivered with its device id",!!up&&up.id=="a1b2c3d4");
+j=await S();ck("unpair is deliver-once (gone on next sync, lock stays)",j.cmds.map(c=>c.type).join()=="lock");
+j=await S({acks:[j.cmds[0].id]});ck("unpair test queue clean",j.cmds.length==0);
 // 6: rules
 ck("rules array 400",(await P2("rules","[1]",T,{},"PUT")).status==400);
 ck("rules string 400",(await P2("rules",'"x"',T,{},"PUT")).status==400);

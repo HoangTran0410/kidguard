@@ -252,13 +252,13 @@ object Policy {
      * Hides exactly [want] among the apps we hid (setApplicationHidden). Owner only; never touches the never-hide set.
      * Returns what is hidden by us now ([had] changed by what worked).
      */
-    fun hideExactly(ctx: Context, want: Set<String>, had: Set<String>, never: Set<String> = neverHide(ctx)): Set<String> {
+    fun hideExactly(ctx: Context, want: Set<String>, had: Set<String>, never: Set<String> = neverHide(ctx), failed: MutableSet<String>? = null): Set<String> {
         if (!isOwner(ctx)) return had
         val d = dpm(ctx); val a = admin(ctx)
         val df = Debloat.diff(want, had, never)
         var now = had
         for (p in df.show) if (runCatching { d.setApplicationHidden(a, p, false) }.getOrElse { Log.w(TAG, "unhide $p", it); false } || !installed(ctx, p)) now = now - p
-        for (p in df.hide) if (runCatching { d.setApplicationHidden(a, p, true) }.getOrElse { Log.w(TAG, "hide $p", it); false }) now = now + p
+        for (p in df.hide) if (runCatching { d.setApplicationHidden(a, p, true) }.getOrElse { Log.w(TAG, "hide $p", it); false }) now = now + p else failed?.add(p)   // false = the OS refused
         return now
     }
 
@@ -312,6 +312,7 @@ object Policy {
             pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), flags).map { it.activityInfo.packageName }.toSet()
         }.getOrDefault(emptySet())
         val ours = s.hiddenByUs + s.rules.hidden
+        val refused = s.refusedHide
         data class C(val ai: ApplicationInfo, val hidden: Boolean, val row: Debloat.Row)
         val out = mutableListOf<C>()
         @Suppress("DEPRECATION")
@@ -331,7 +332,7 @@ object Policy {
             order.forEach { p ->
                 val c = by.getValue(p)
                 arr.put(JSONObject().put("pkg", p).put("label", c.row.label).put("hidden", c.hidden).put("suggest", c.row.suggest)
-                    .put("mb", mb(p) ?: JSONObject.NULL))
+                    .put("mb", mb(p) ?: JSONObject.NULL).also { o -> if (p in refused) o.put("refused", true) })
             }
         }
     }
@@ -386,7 +387,7 @@ object Policy {
         s.released = true
         Watchdog.cancel(ctx)
         @Suppress("DEPRECATION") runCatching { d.clearDeviceOwnerApp(ctx.packageName) }
-        s.suspendedByUs = emptySet(); s.hiddenByUs = emptySet()
+        s.suspendedByUs = emptySet(); s.hiddenByUs = emptySet(); s.refusedHide = emptySet()
         if (!isOwner(ctx)) { s.clearTokens(); Quick.setEnabled(ctx, false); return "ok" }
         // still Device Owner: put the protection back (the loop re-suspends apps) and keep the parents' tokens
         s.released = false

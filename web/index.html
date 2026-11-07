@@ -4,90 +4,110 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="KidGuard">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>KidGuard</title>
 <style>
-:root{--bg:#f3f4f6;--card:#fff;--fg:#111827;--mute:#6b7280;--line:#e5e7eb;--pri:#2563eb;--btn:#2563eb;--pri-fg:#fff;--bad-bg:#fee2e2;--bad-fg:#991b1b;--ok-bg:#dcfce7;--ok-fg:#166534;--warn-bg:#fef3c7;--warn-fg:#92400e;--bad:#dc2626;--ok:#16a34a;--warn:#d97706;--chip:#eef2ff}
-@media (prefers-color-scheme:dark){:root{--bg:#0b0f17;--card:#151b26;--fg:#e5e7eb;--mute:#9ca3af;--line:#263041;--pri:#3b82f6;--chip:#1e293b;--btn:#2563eb;--bad-bg:#3b1519;--bad-fg:#fca5a5;--ok-bg:#12301d;--ok-fg:#86efac;--warn-bg:#3a2a0b;--warn-fg:#fcd34d}}
+:root{--bg:#f3f6fb;--card:#fff;--stroke:#e2e8f0;--stroke2:#cbd5e1;--text:#0f172a;--sub:#64748b;--primary:#2563eb;--accent:#2563eb;--tint:#dbeafe;--ok:#16a34a;--warn:#d97706;--danger:#dc2626;--track:#e2e8f0;--scrim:rgba(2,6,23,.45);--shadow:0 1px 2px rgba(15,23,42,.05),0 4px 16px rgba(15,23,42,.05);--tbg:12%;
+/* old names, kept as aliases */
+--fg:var(--text);--mute:var(--sub);--line:var(--stroke);--pri:var(--accent);--btn:var(--primary);--pri-fg:#fff;--bad:var(--danger);--chip:#f1f5f9;--bad-bg:#fee2e2;--bad-fg:#991b1b;--ok-bg:#dcfce7;--ok-fg:#166534;--warn-bg:#fef3c7;--warn-fg:#92400e}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f172a;--card:#1e293b;--stroke:#334155;--stroke2:#475569;--text:#f1f5f9;--sub:#94a3b8;--primary:#3b82f6;--accent:#93c5fd;--tint:rgba(30,58,138,.55);--ok:#4ade80;--warn:#fbbf24;--danger:#f87171;--track:#334155;--scrim:rgba(2,6,23,.65);--shadow:none;--tbg:20%;--chip:#273449;--bad-bg:#3b1519;--bad-fg:#fca5a5;--ok-bg:#12301d;--ok-fg:#86efac;--warn-bg:#3a2a0b;--warn-fg:#fcd34d}}
+:root[data-theme=dark]{--bg:#0f172a;--card:#1e293b;--stroke:#334155;--stroke2:#475569;--text:#f1f5f9;--sub:#94a3b8;--primary:#3b82f6;--accent:#93c5fd;--tint:rgba(30,58,138,.55);--ok:#4ade80;--warn:#fbbf24;--danger:#f87171;--track:#334155;--scrim:rgba(2,6,23,.65);--shadow:none;--tbg:20%;--chip:#273449;--bad-bg:#3b1519;--bad-fg:#fca5a5;--ok-bg:#12301d;--ok-fg:#86efac;--warn-bg:#3a2a0b;--warn-fg:#fcd34d}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-main{max-width:680px;margin:0 auto;padding:16px 16px 80px}
-h1{font-size:22px;margin:4px 0 14px;display:flex;align-items:center;gap:8px}
-h2{font-size:15px;margin:0 0 10px;color:var(--mute);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:0 0 12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+main{min-height:100vh}
+/* plain screens (pair, add, list, pin gate): one centred column */
+.solo{max-width:560px;margin:0 auto;padding:16px 16px 40px}
+h1{font-size:22px;font-weight:800;letter-spacing:-.01em;margin:4px 0 14px;display:flex;align-items:center;gap:10px}
+h2{font-size:16px;margin:0 0 10px;color:var(--text);font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+h2>.si{color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--stroke);border-radius:20px;padding:18px;margin:0 0 12px;box-shadow:var(--shadow);min-width:0}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .sp{flex:1}
-.fxdrop{border:2px dashed var(--line);border-radius:12px;padding:16px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;margin:8px 0}.fxdrop.on{border-color:var(--pri)}
-.fxrow{display:flex;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}.fxrow:first-child{border-top:0}.fxm{min-width:0}.fxn{overflow-wrap:anywhere}.fxb{display:flex;gap:6px;flex:none}.fxrow .bar{margin:6px 0 0}
-.mute{color:var(--mute);font-size:13px}
-.big{font-size:30px;font-weight:700}
-button,select,input{font:inherit;color:inherit}
-button{background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:9px 14px;cursor:pointer}
-a.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:9px 14px;color:inherit;text-decoration:none;box-sizing:border-box}
-button:active{filter:brightness(.92)}
-:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
-button.pri{background:var(--btn);color:var(--pri-fg);border-color:var(--btn);font-weight:600}
-button.bad{color:var(--bad)}
-button:disabled{opacity:.5}
-button.act.on{background:var(--warn-bg);color:var(--warn-fg);border-color:var(--warn);font-weight:600}
-button.act.done{background:var(--ok-bg);color:var(--ok-fg)}button.act.err{background:var(--bad-bg);color:var(--bad-fg)}
-button.act.pend::before{content:"";display:inline-block;width:.9em;height:.9em;margin-right:6px;vertical-align:-2px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
+.mute,.sub{color:var(--sub);font-size:13px}
+.lab{font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--sub);text-transform:uppercase}
+.sec{font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--sub);margin:22px 4px 8px;text-transform:uppercase}
+.sec:first-child{margin-top:4px}
+.big{font-size:38px;font-weight:800;color:var(--accent);margin-top:2px;letter-spacing:-.02em;line-height:1.1}
+p{margin:8px 0}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--card);border:1px solid var(--stroke);border-radius:14px;padding:9px 14px;cursor:pointer;min-height:44px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-align:center}
+button:hover{border-color:var(--stroke2)}
+button:active{filter:brightness(.95)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.pri{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:700}
+button.bad{color:var(--danger)}
+button.pri.bad,button.bad.pri{background:var(--danger);border-color:var(--danger);color:#fff}
+button:disabled{opacity:.45;cursor:default}
+a{color:var(--accent);text-decoration:none}
+a.btn,a.lnkbtn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--card);border:1px solid var(--stroke);border-radius:14px;padding:9px 14px;color:var(--text);font-weight:600;min-height:44px;text-decoration:none}
+/* stateful action buttons (.act): pend / on / done / err / dis */
+button.act.on{background:color-mix(in srgb,var(--warn) 16%,var(--card));color:var(--text);border-color:var(--warn)}
+button.act.done{background:color-mix(in srgb,var(--ok) 12%,var(--card));color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+button.act.err{background:color-mix(in srgb,var(--danger) 10%,var(--card));color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,transparent)}
+button.act.dis{opacity:.45}
+button.act:not(.tile).pend::before{content:"";display:inline-block;width:1em;height:1em;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-input,select{max-width:100%;min-height:44px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
-input[type=checkbox]{width:20px;height:20px;min-height:0}
-.pairf{display:flex;flex-direction:column;gap:10px;margin-top:10px}.pairf input,.pairf button{width:100%}
+input,select,textarea{max-width:100%;min-height:44px;background:var(--bg);border:1px solid var(--stroke);border-radius:12px;padding:8px 12px;min-width:0}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input[type=checkbox]{width:20px;height:20px;min-height:0;accent-color:var(--primary);flex:none;padding:0}
+label.row{min-height:40px}
+.pairf{display:flex;flex-direction:column;gap:10px;margin-top:10px}.pairf input,.pairf button{width:100%}.pairf button{height:52px;font-size:16px}
 #code{font-size:28px;text-align:center;letter-spacing:.35em;font-weight:700}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
-.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:8px 0}
-.bar>i{display:block;height:100%;background:var(--pri)}
-.app{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.bar{height:6px;background:var(--track);border-radius:3px;overflow:hidden;margin:8px 0}
+.bar>i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.app{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--stroke)}
 .app:first-child{border-top:0}
-.ic{width:36px;height:36px;border-radius:9px;background:var(--chip);flex:none;display:grid;place-items:center;font-weight:700;overflow:hidden}
+.ic{width:36px;height:36px;border-radius:10px;background:var(--track);flex:none;display:grid;place-items:center;font-weight:800;overflow:hidden}
 .ic img{width:100%;height:100%}
 .app .nm{flex:1 1 50px;min-width:0}.app>button,.app>select{flex:none;margin-left:auto}.app>select{max-width:54%;padding-left:8px;padding-right:2px}.app .tag{white-space:nowrap}
 .app .nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:999px;background:var(--chip);margin-left:4px}
-.tag.bad{background:var(--bad-bg);color:var(--bad-fg)}.tag.ok{background:var(--ok-bg);color:var(--ok-fg)}.tag.warn{background:var(--warn-bg);color:var(--warn-fg)}
-.dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--mute)}
-.dot.on{background:var(--ok)}.dot.bad{background:var(--bad)}
+/* chips / tags with a tone */
+.tag,.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:650;padding:2px 9px;border-radius:999px;white-space:nowrap;color:var(--tn,var(--sub));background:color-mix(in srgb,var(--tn,var(--sub)) 13%,transparent);margin-left:4px;vertical-align:1px}
+.tag .si,.chip .si{width:13px;height:13px}
+.tag.bad,.t-bad{--tn:var(--danger)}.tag.ok,.t-ok{--tn:var(--ok)}.tag.warn,.t-warn{--tn:var(--warn)}.t-info{--tn:var(--accent)}.t-mute{--tn:var(--sub)}
+button.chip{min-height:30px;border:0;padding:4px 10px;margin:0;cursor:pointer}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--stroke2);flex:none}
+.dot.on{background:var(--ok)}.dot.bad{background:var(--danger)}.dot.warn{background:var(--warn)}
 .si{width:1.15em;height:1.15em;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-0.2em;flex:none}
-.err{color:var(--bad)}
-iframe{width:100%;height:220px;border:0;border-radius:10px}
-.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch}
-.tabs::-webkit-scrollbar{display:none}
-/* fade the edge that still has tabs behind it (toggled by tabFade) */
-.tabs.fr{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent)}
-.tabs.fl{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 36px),transparent)}
-.tabs.fl.fr{-webkit-mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent)}
-.tabs button{white-space:nowrap}
+.err{color:var(--danger)}
+iframe{width:100%;height:220px;border:0;border-radius:12px}
 .e{display:inline-block;width:1.4em;text-align:center;margin-right:2px}
-.empty{text-align:center;padding:14px 4px;color:var(--mute)}.empty .e{display:block;width:auto;font-size:28px;margin:0 0 4px}
-.tabs button.on{background:var(--btn);color:var(--pri-fg)}
+.empty{text-align:center;padding:14px 4px;color:var(--sub)}.empty .e{display:block;width:auto;font-size:28px;margin:0 0 4px;color:var(--accent)}
 code{word-break:break-all;font-size:12px}
-button{min-height:44px}
-.alert{background:var(--bad-bg);color:var(--bad-fg);border-radius:10px;padding:10px 12px;margin-top:8px;font-weight:600}
-.alert.warn{background:var(--warn-bg);color:var(--warn-fg)}
+.alert{background:color-mix(in srgb,var(--tn,var(--danger)) 12%,var(--card));color:var(--text);border:1px solid color-mix(in srgb,var(--tn,var(--danger)) 35%,transparent);border-radius:14px;padding:10px 12px;margin-top:8px;font-weight:600}
+.alert>.si:first-child{color:var(--tn,var(--danger))}
+.alert.warn{--tn:var(--warn)}.alert.ok{--tn:var(--ok)}.alert.info{--tn:var(--accent)}
 .dpb{display:inline-flex;align-items:center;gap:6px;font-weight:600}
-#dpPop,#askPop{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px}
-#dpPop .dp,#askPop .dp{background:var(--card);color:var(--fg,inherit);border:1px solid var(--line);border-radius:16px;padding:14px;width:100%;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+/* modal layer: bottom sheet on phones, centred dialog on desktop */
+#dpPop,#askPop{position:fixed;inset:0;z-index:50;background:var(--scrim);display:none;align-items:flex-end;justify-content:center}
+#dpPop .dp,#askPop .dp{background:var(--card);color:var(--text);border-radius:28px 28px 0 0;padding:10px 20px calc(20px + env(safe-area-inset-bottom));width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 -8px 40px rgba(2,6,23,.25)}
+#dpPop .dp::before,#askPop .dp::before{content:"";display:block;width:36px;height:4px;border-radius:2px;background:var(--stroke2);margin:0 auto 14px}
+@media(min-width:960px){#dpPop,#askPop{align-items:center}#dpPop .dp,#askPop .dp{width:440px;border-radius:24px;padding:24px;box-shadow:0 24px 60px rgba(2,6,23,.35)}#dpPop .dp::before,#askPop .dp::before{display:none}}
+.dp h2{font-size:19px}
+.dp .row>button.sp{height:52px;font-size:16px}
+.shh{display:flex;align-items:center;gap:12px;margin-bottom:12px}.shh h2{flex:1;margin:0}
+.close{width:40px;height:40px;min-height:40px;border-radius:20px;background:var(--bg);border:0;padding:0;color:var(--sub);flex:none}
 .dpg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
-.dpg button{min-height:38px;padding:2px;min-width:0}.dpg span{text-align:center;padding:9px 0;font-size:14px}
+.dpg button{min-height:40px;padding:2px;min-width:0;border-radius:12px}.dpg span{text-align:center;padding:9px 0;font-size:14px}
 .dpg button.sel{outline:2px solid var(--ok);outline-offset:1px}
-.chips{display:flex;gap:6px;flex-wrap:wrap}
-.chips button{min-width:44px;padding:6px 8px}
-.chips button.on{background:var(--btn);color:var(--pri-fg);border-color:var(--btn)}
-.sch{border-top:1px solid var(--line);padding:10px 0}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips button{min-height:40px;min-width:48px;padding:0 12px;border-radius:12px;font-size:14px}
+.chips button.on{background:var(--tint);color:var(--accent);border-color:var(--accent)}
+.sch{border-top:1px solid var(--stroke);padding:12px 0}
+.sch:first-child{border-top:0}
 .sw{width:12px;height:12px;border-radius:50%;flex:none;display:inline-block}
 .dp .app{padding:8px 0}
 .hist{display:flex;gap:6px;align-items:flex-end;height:130px;margin:6px 0}
-.hist button{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;padding:0 0 2px;background:none;border:0;border-radius:6px;font-size:12px;color:var(--mute)}
-.hist button i{display:block;width:70%;background:var(--pri);opacity:.45;border-radius:5px 5px 0 0;min-height:2px}
-.hist button.on i{opacity:1}.hist button.on{color:var(--fg);font-weight:700;background:var(--chip)}
-.scr{position:relative;background:#000;border-radius:10px;overflow:hidden;min-height:200px;display:grid;place-items:center}
+.hist button{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;padding:0 0 2px;background:none;border:0;border-radius:8px;font-size:12px;color:var(--sub);min-width:0;gap:2px}
+.hist button i{display:block;width:70%;background:var(--accent);opacity:.4;border-radius:5px 5px 0 0;min-height:2px}
+.hist button.on i{opacity:1}.hist button.on{color:var(--text);font-weight:700;background:var(--bg)}
+.scr{position:relative;background:#000;border-radius:14px;overflow:hidden;min-height:200px;display:grid;place-items:center}
 .scr img{display:block;width:100%;max-height:75vh;object-fit:contain;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .scr img:not([src]){display:none}
 .scr.view img{touch-action:auto}
@@ -95,65 +115,173 @@ button{min-height:44px}
 .scr-msg:empty{display:none}
 .tap{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:rgba(59,130,246,.6);pointer-events:none;animation:tp .5s forwards}
 @keyframes tp{to{transform:scale(1.8);opacity:0}}
-.bulk{position:sticky;bottom:8px;background:var(--card);border:1px solid var(--pri);border-radius:14px;padding:10px;box-shadow:0 4px 18px rgba(0,0,0,.35);margin-top:8px}
+.bulk,.hbar{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom));z-index:5;background:var(--card);border:1px solid var(--accent);border-radius:18px;padding:10px 12px;box-shadow:0 8px 24px rgba(2,6,23,.2);margin:8px 0 12px}
 .app input[type=checkbox]{flex:none}label.app{cursor:pointer}
-.map{position:relative;height:260px;border-radius:10px;overflow:hidden;background:var(--chip);touch-action:none;user-select:none;-webkit-user-select:none;margin-top:10px}
+.map{position:relative;height:260px;border-radius:14px;overflow:hidden;background:var(--track);touch-action:none;user-select:none;-webkit-user-select:none;margin-top:10px}
 .map .layer{position:absolute;inset:0}.map img{position:absolute;width:256px;height:256px;max-width:none;pointer-events:none}
 .map svg{position:absolute;overflow:visible}.map circle{cursor:pointer}
-.map .mz{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}.map .mz button{min-height:36px;width:36px;padding:0;background:var(--card)}
+.map .mz{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}.map .mz button{min-height:36px;width:36px;padding:0;background:var(--card);border-radius:12px}
 .map .attr{position:absolute;right:0;bottom:0;background:rgba(255,255,255,.8);color:#333;font-size:11px;padding:1px 5px}.map .attr a{color:#333}
-#ear{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);width:min(380px,calc(100vw - 32px));box-sizing:border-box;background:var(--card);color:var(--fg);border:2px solid var(--warn);border-radius:12px;padding:8px 12px;display:none;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:20}
-.sos{border:2px solid var(--bad)}
-.ovk{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}.ovk .card{margin:0}
-.ovk .nm{display:flex;align-items:center;gap:8px}.ovk .sw{width:12px;height:12px;border-radius:50%;flex:none}
+.map .merr{position:absolute;left:8px;right:52px;top:8px;background:var(--card);color:var(--text);border:1px solid var(--stroke);border-radius:12px;padding:6px 10px;font-size:13px;pointer-events:none}
+.map .pin{position:absolute;transform:translate(-50%,-100%);background:var(--card);color:var(--text);border:2px solid;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 2px 8px rgba(15,23,42,.2)}
+#ear{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(420px,calc(100vw - 32px));background:color-mix(in srgb,var(--warn) 14%,var(--card));color:var(--text);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:16px;padding:8px 8px 8px 14px;display:none;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(2,6,23,.2);z-index:25;font-weight:600}
+@media(min-width:960px){#ear{bottom:28px;left:calc(50% + 132px)}}
+.sos{--tn:var(--danger);border-width:2px}
+.ovk{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:12px}.ovk .card{margin:0}
+.ovk .nm{display:flex;align-items:center;gap:10px}.ovk .sw{width:12px;height:12px;border-radius:50%;flex:none}
+.ovk .kv{font-size:24px;font-weight:800;letter-spacing:-.01em;margin-top:12px}
+.ovk .card.paused{background:color-mix(in srgb,var(--warn) 9%,var(--card));border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
 .ovb{display:flex;gap:6px;align-items:flex-end;height:130px;padding-top:6px}.ovb>div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
 .ovb .g{display:flex;gap:2px;align-items:flex-end;height:104px;width:100%;justify-content:center}.ovb .g i{flex:1;max-width:14px;border-radius:3px 3px 0 0;min-height:2px}
-.map .merr{position:absolute;left:8px;right:52px;top:8px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;pointer-events:none}
-.map .pin{position:absolute;transform:translate(-50%,-100%);background:var(--card);color:var(--fg);border:2px solid;border-radius:10px;padding:2px 8px;font-size:12px;font-weight:600;white-space:nowrap;pointer-events:none}
-#saveBar{position:fixed;left:0;right:0;bottom:0;z-index:50;display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--bad,#b91c1c);color:#fff}
-#saveBar button{margin-left:auto}
-body.sb #toast{bottom:76px}
-.row.tm{flex-wrap:nowrap}.row.tm input[type=time]{width:7em;padding:8px 6px}
-a{color:var(--pri)}
-a.lnkbtn{display:inline-flex;align-items:center;gap:6px;background:var(--chip);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:9px 14px;text-decoration:none}
-select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none}
+#saveBar{position:fixed;left:0;right:0;bottom:0;z-index:60;display:none;align-items:center;gap:10px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:var(--danger);color:#fff;font-weight:600}
+#saveBar button{margin-left:auto;background:#fff;color:#991b1b;border:0}
+body.sb #toast{bottom:150px}
+.row.tm{flex-wrap:nowrap}.row.tm input[type=time]{width:7.2em;padding:8px 6px}
+select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none;border-radius:20px}
 /* collapsible section (sec()): header button + grid-rows animation; closed body is visibility:hidden (out of tab order) */
-.cl{padding:0;overflow:hidden}
-.cl>h2{margin:0;font:inherit;color:inherit;text-transform:none;letter-spacing:0}
-.clh{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-radius:16px;padding:14px 16px;min-height:56px}
-.clh:hover{background:var(--chip)}.clh:active{filter:none;background:var(--chip)}
-.clh .cli{width:34px;height:34px;border-radius:10px;background:var(--chip);color:var(--pri);display:grid;place-items:center;flex:none}
+.cl{padding:0;overflow:hidden;margin-bottom:10px}
+.cl.open{border-color:color-mix(in srgb,var(--accent) 35%,var(--stroke))}
+.cl>h2{margin:0;font:inherit;color:inherit;display:block}
+.clh{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:none;border:0;border-radius:20px;padding:14px 16px;min-height:68px;justify-content:flex-start;font-weight:400}
+.clh:hover{background:color-mix(in srgb,var(--bg) 60%,transparent)}.clh:active{filter:none}
+.clh .cli{width:36px;height:36px;border-radius:11px;background:var(--tint);color:var(--accent);display:grid;place-items:center;flex:none}
 .clh .clt{flex:1;min-width:0;display:flex;flex-direction:column}
-.clh .clt b{font-weight:600;font-size:15px}
+.clh .clt b{font-weight:650;font-size:15.5px}
 .clh .clr{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}
-.clh .clt>span:last-child:not(.clr){color:var(--mute);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
-.clh .tag{margin:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
-.clh .chev{color:var(--mute);transition:transform .18s ease;flex:none}
+.clh .clt>span:last-child:not(.clr){color:var(--sub);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.clh .tag{margin:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clh .chev{color:var(--sub);transition:transform .18s ease;flex:none}
 .cl.open .clh .chev{transform:rotate(180deg)}
 .clb{display:grid;grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows .2s ease,visibility 0s linear .2s}
-.cl.open .clb{grid-template-rows:1fr;visibility:visible;transition:grid-template-rows .2s ease,visibility 0s}
+.cl.open .clb{grid-template-rows:1fr;visibility:visible;transition:grid-template-rows .2s ease,visibility 0s;border-top:1px solid var(--stroke)}
 .clb>div{min-height:0;overflow:hidden}
-.clb>div>div{padding:0 16px 16px}
+.clb>div>div{padding:12px 16px 18px}
 .cl.open .clb>div{overflow:visible}
-/* "Máy" tab key/value rows */
-.dvkv{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 0;border-top:1px solid var(--line)}.dvkv>span{color:var(--mute)}.dvkv>b{font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere}
-.sub .card .cl,.cl .cl{border-radius:12px}
-@media (prefers-reduced-motion:reduce){.clb,.cl.open .clb,.clh .chev{transition:none}}
-/* segmented control (Apps sub-tabs) */
-.seg{display:flex;gap:4px;background:var(--chip);border:1px solid var(--line);border-radius:14px;padding:4px;margin:0 0 12px}
-.seg button{flex:1 1 0;min-width:0;background:none;border:0;border-radius:10px;padding:8px 6px;min-height:40px;color:var(--mute);font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.seg button[aria-selected=true]{background:var(--card);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
-.seg .n{font-size:12px;font-weight:600;background:var(--bad-bg);color:var(--bad-fg);border-radius:999px;padding:0 6px}
+/* "Thiết bị" key/value rows */
+.dvkv{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--stroke)}.dvkv>span{color:var(--sub)}.dvkv>b{font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere}
+.cl .cl{border-radius:14px;box-shadow:none}
+@media (prefers-reduced-motion:reduce){.clb,.cl.open .clb,.clh .chev{transition:none}.tile.on b::after{animation:none}}
+/* segmented control */
+.seg{display:flex;gap:2px;background:var(--track);border-radius:14px;padding:3px;margin:0 0 14px}
+.seg button{flex:1 1 0;min-width:0;background:none;border:0;border-radius:11px;padding:6px;min-height:40px;color:var(--sub);font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg button[aria-selected=true]{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+.seg .n{font-size:11px;font-weight:800;background:var(--warn);color:#fff;border-radius:8px;padding:0 5px;line-height:16px}
 @media (max-width:380px){.seg button .si{display:none}}
-button.pausing{background:var(--warn-bg);color:var(--warn-fg);border-color:var(--warn);display:flex;align-items:center;justify-content:center;gap:6px;text-align:left}
-#pauseGo{min-height:52px;font-size:16px}
-.pk .stp{flex-wrap:nowrap}.pk .stp input[type=number]{width:6em;text-align:center;font-size:18px;font-weight:600}.pk .stp>button{width:44px;padding:0;flex:none}.pk .stp select{flex:1}
-.pk .stp input[type=time]{flex:1;font-size:18px;font-weight:600}
-.pk .seg{margin:6px 0 10px}.pks{font-size:16px}
-.hbar{position:sticky;bottom:8px;z-index:5;background:var(--card);border:1px solid var(--pri);border-radius:14px;padding:10px 12px;box-shadow:0 4px 18px rgba(0,0,0,.25);margin:0 0 12px}
-.prog{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin:8px 0 4px;display:flex}
-.prog i{display:block;height:100%;background:var(--ok)}.prog i.b{background:var(--bad)}.prog i.w{background:var(--warn)}
-#toast{position:fixed;z-index:80;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;display:none;max-width:90vw}
+button.pausing{background:color-mix(in srgb,var(--warn) 16%,var(--card));color:var(--text);border-color:var(--warn)}
+button.pausing .si{color:var(--warn)}
+.pk .stp{flex-wrap:nowrap}.pk .stp input[type=number]{width:6em;text-align:center;font-size:20px;font-weight:700}.pk .stp>button{width:48px;height:48px;border-radius:24px;padding:0;flex:none}.pk .stp select{flex:1}
+.pk .stp input[type=time]{flex:1;font-size:20px;font-weight:700}
+.pk .seg{margin:6px 0 10px}.pks{font-size:15px;padding:12px 14px;border-radius:14px;background:var(--bg)}
+.prog{height:8px;background:var(--track);border-radius:4px;overflow:hidden;margin:8px 0 4px;display:flex}
+.prog i{display:block;height:100%;background:var(--ok)}.prog i.b{background:var(--danger)}.prog i.w{background:var(--warn)}
+.fxdrop{border:2px dashed var(--stroke2);border-radius:18px;padding:20px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;margin:8px 0;text-align:center}.fxdrop.on{border-color:var(--accent);background:var(--tint)}
+.fxrow{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--stroke)}.fxrow:first-child{border-top:0}.fxm{min-width:0}.fxn{overflow-wrap:anywhere}.fxb{display:flex;gap:6px;flex:none}.fxrow .bar{margin:6px 0 0}
+.fxb button{min-width:44px;border-radius:22px}
+#toast{position:fixed;z-index:80;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#0f172a;color:#f1f5f9;padding:11px 16px;border-radius:14px;display:none;max-width:calc(100vw - 32px);box-shadow:0 8px 24px rgba(2,6,23,.3);font-size:14px}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) #toast{background:#f1f5f9;color:#0f172a}}
+:root[data-theme=dark] #toast{background:#f1f5f9;color:#0f172a}
+@media(min-width:960px){#toast{bottom:28px;left:calc(50% + 132px)}}
+
+/* ===== shell: sidebar (>= 960 px) + bottom nav (phones) ===== */
+.shell{min-height:100vh;display:flex}
+.side{display:none}
+.mainc{flex:1;min-width:0;padding:16px 16px calc(96px + env(safe-area-inset-bottom))}
+.wrap{max-width:640px;margin:0 auto}
+.bnav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--stroke);display:grid;grid-template-columns:repeat(5,1fr);padding:6px 4px calc(8px + env(safe-area-inset-bottom))}
+.bnav button{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;font-weight:600;color:var(--sub);padding:4px 0;min-height:52px;background:none;border:0;border-radius:12px;min-width:0}
+.bnav button b{display:grid;place-items:center;width:56px;height:30px;border-radius:15px;font-size:19px}
+.bnav button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bnav button.on{color:var(--text)}.bnav button.on b{background:var(--tint);color:var(--accent)}
+.bnav button b{position:relative}.bnav .n{position:absolute;top:-4px;right:6px;min-width:16px;height:16px;border-radius:8px;background:var(--warn);color:#fff;font-size:10.5px;font-weight:800;line-height:16px;padding:0 4px}
+@media(min-width:960px){
+  .side{display:flex;flex-direction:column;width:264px;flex:none;position:sticky;top:0;height:100vh;overflow:auto;border-right:1px solid var(--stroke);background:var(--card);padding:20px 14px}
+  .bnav{display:none}.mainc{padding:28px 36px 48px}.wrap{max-width:1000px}
+  .mOnly{display:none!important}
+}
+@media(max-width:959px){.dOnly{display:none!important}}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;padding:0 8px 18px}
+.brand .badge{width:36px;height:36px;border-radius:12px;font-size:19px}
+.slab{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--sub);text-transform:uppercase;padding:14px 10px 6px}
+.nav,.kidn{display:flex;align-items:center;gap:12px;min-height:42px;padding:0 10px;border-radius:12px;font-size:14.5px;font-weight:500;color:var(--text);width:100%;text-align:left;justify-content:flex-start;background:none;border:0}
+.nav .si{color:var(--sub)}.nav:hover,.kidn:hover{background:var(--bg)}
+.nav.on{background:var(--tint);color:var(--accent);font-weight:700}.nav.on .si{color:var(--accent)}
+.nav .n{margin-left:auto;font-size:12px;font-weight:800;color:var(--warn)}
+.kidn{font-weight:600;min-height:44px}.kidn.on{background:var(--bg)}.kidn .av{width:28px;height:28px;font-size:13px;border-radius:10px}.kidn .dot{margin-left:auto}
+.kidn span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side select.kids{width:100%;margin:2px 0}
+.side .foot{margin-top:auto;display:flex;gap:8px;padding:12px 6px 0;border-top:1px solid var(--stroke);align-items:center}
+.side .foot select{flex:1}
+/* kid header */
+.head{display:flex;align-items:center;gap:12px;margin-bottom:16px;min-width:0}
+.head>div{min-width:0;flex:1}
+.badge{width:44px;height:44px;border-radius:14px;background:var(--tint);color:var(--accent);display:grid;place-items:center;font-size:22px;flex:none}
+.av{width:44px;height:44px;border-radius:15px;display:grid;place-items:center;font-weight:800;font-size:18px;color:#fff;flex:none}
+.t1{font-size:20px;font-weight:750;line-height:1.15;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--sub);margin-top:2px;white-space:nowrap;overflow:hidden}
+.st>span{overflow:hidden;text-overflow:ellipsis}
+.rb{width:44px;height:44px;min-height:44px;border-radius:22px;padding:0;flex:none;font-size:20px}
+.back{width:36px;height:44px;min-height:44px;padding:0;border:0;background:none;color:var(--sub);margin-right:-6px;flex:none}
+.back .si{width:24px;height:24px}
+.savechip{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;flex:none;color:var(--tn,var(--ok))}
+.savechip:empty{display:none}
+.spin{display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .8s linear infinite;flex:none}
+/* banner stack */
+#live:empty{display:none}
+#live{margin-bottom:12px}
+#live>*+*{margin-top:10px}
+.ban{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;border:1px solid color-mix(in srgb,var(--tn) 35%,transparent);background:color-mix(in srgb,var(--tn) 8%,var(--card));font-size:14px;font-weight:600}
+.ban .bi{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:19px;color:var(--tn);background:color-mix(in srgb,var(--tn) 16%,transparent);flex:none}
+.ban .x{flex:1;min-width:0}.ban .x .sub{display:block;font-weight:400}
+.ban.col{flex-wrap:wrap}.ban.col .acts{display:flex;gap:8px;flex-wrap:wrap;width:100%}.ban.col .acts button{flex:1}
+.more-ban{font-size:13px;color:var(--sub);font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:2px 4px;background:none;border:0;min-height:32px}
+/* hero */
+.hero{border-radius:24px;background:var(--tint);padding:20px;margin-bottom:16px}
+.hero .meta{display:flex;justify-content:space-between;font-size:13px;color:var(--sub);margin-top:6px;gap:8px;flex-wrap:wrap}
+.hero .bar{margin-top:14px;background:color-mix(in srgb,var(--accent) 18%,transparent)}
+.hero .hb{margin-top:18px;width:100%;height:52px;font-size:16px;border-radius:16px}
+.hero .hb2{margin-top:10px;width:100%;height:48px;border-radius:14px;background:color-mix(in srgb,var(--card) 70%,transparent);border-color:transparent}
+.hero button.pausing.hb,.hero button.pausing.hb2{background:color-mix(in srgb,var(--warn) 18%,var(--card));border:1px solid var(--warn);height:auto;min-height:52px;padding:8px 14px}
+/* round quick actions */
+.quick{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:4px}
+.tile{display:flex;flex-direction:column;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text);text-align:center;line-height:1.2;background:none;border:0;padding:4px 0;min-width:0;justify-content:flex-start}
+.tile b{position:relative;width:58px;height:58px;border-radius:29px;display:grid;place-items:center;font-size:23px;background:var(--card);border:1px solid var(--stroke);color:var(--accent);box-shadow:var(--shadow)}
+.tile:hover b{border-color:var(--stroke2)}
+.tile.on b{background:var(--warn);border-color:var(--warn);color:#fff}
+.tile.on b::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--warn);opacity:.45;animation:pulse 1.6s ease-out infinite}
+@keyframes pulse{from{transform:scale(.9);opacity:.6}to{transform:scale(1.15);opacity:0}}
+.tile.on{color:var(--warn)}
+.tile.pend b{color:var(--sub)}.tile.pend b .spin{width:22px;height:22px;border-width:2.5px;color:var(--accent)}
+.tile.err b{border-color:color-mix(in srgb,var(--danger) 50%,transparent);color:var(--danger);background:color-mix(in srgb,var(--danger) 10%,var(--card))}.tile.err{color:var(--danger)}
+.tile.done b{border-color:color-mix(in srgb,var(--ok) 50%,transparent);color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--card))}.tile.done{color:var(--ok)}
+.tile.dis{opacity:.45}
+.tile:disabled{opacity:1}
+.tile span{max-width:100%;overflow-wrap:anywhere}
+.actbar{width:100%;margin-top:12px;display:flex;align-items:center;gap:10px;padding:8px 8px 8px 14px;border-radius:16px;background:color-mix(in srgb,var(--warn) 14%,var(--card));border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);font-size:14px;font-weight:600;color:var(--text)}
+.actbar>.si{color:var(--warn);width:18px;height:18px}.actbar .x{flex:1;min-width:0}
+button.stopb{min-height:36px;height:36px;padding:0 14px;border-radius:18px;background:var(--warn);border:0;color:#1f1300;font-weight:700;font-size:13.5px}
+#strip:empty{display:none}
+@media(max-width:380px){.tile b{width:52px;height:52px;font-size:21px}.tile{font-size:11.5px}.actbar{font-size:13px}button.stopb{padding:0 12px}}
+/* lists */
+.list{background:var(--card);border:1px solid var(--stroke);border-radius:20px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:12px}
+.li{display:flex;align-items:center;gap:14px;min-height:56px;padding:8px 16px;font-size:15px;width:100%;text-align:left;background:none;border:0;border-radius:0;justify-content:flex-start;font-weight:400}
+.li+.li{border-top:1px solid var(--stroke)}
+button.li:hover{background:color-mix(in srgb,var(--bg) 60%,transparent)}
+.ib{width:36px;height:36px;border-radius:11px;background:var(--tint);color:var(--accent);display:grid;place-items:center;font-size:18px;flex:none}
+.li .x{flex:1;min-width:0}.li .x b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.li .x .sub{display:block}
+.li .v{color:var(--sub);font-size:14px;white-space:nowrap}.li .ch{color:var(--sub)}
+.lhead{display:flex;align-items:center;padding:14px 16px 4px;gap:8px}
+.lhead h2{margin:0;font-size:15px}
+.lfoot{display:flex;align-items:center;justify-content:center;gap:4px;min-height:48px;border:0;border-top:1px solid var(--stroke);border-radius:0;font-size:14px;font-weight:600;color:var(--accent);width:100%;background:none}
+.list .ev,.list .app{padding:10px 16px}
+.mbar{height:4px;border-radius:2px;background:var(--track);margin-top:6px;overflow:hidden}.mbar i{display:block;height:100%;background:var(--accent)}
+.pill{min-height:40px;height:40px;padding:0 14px;border-radius:20px;font-size:14px;white-space:nowrap}
+.g2{display:grid;gap:0 16px;min-width:0}.g2>*{min-width:0}
+@media(min-width:960px){.g2{grid-template-columns:1fr 1fr;align-items:start}.g2.w{grid-template-columns:1.1fr .9fr}}
+@media (max-width:959px){.mt16{margin-top:16px}}
+.req .row>button{flex:1 1 0;white-space:nowrap}.req .row>[data-yes]{flex:1 1 100%}
+.rtop{display:flex;gap:10px;align-items:center;margin-bottom:12px}.rtop .seg{flex:1;margin:0}
+.req{border-color:color-mix(in srgb,var(--warn) 45%,var(--stroke))}
+.req .row button{flex:1}
 </style>
 </head>
 <body>
@@ -246,6 +374,12 @@ button.pausing{background:var(--warn-bg);color:var(--warn-fg);border-color:var(-
 <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01" /><path d="M8.5 16.429a5 5 0 0 1 7 0" /><path d="M5 12.859a10 10 0 0 1 5.17-2.69" /><path d="M13.41 10.2a15 15 0 0 1 5.59 2.66" /><path d="M2 8.82a15 15 0 0 1 4.17-2.65" /><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76" /><path d="m2 2 20 20" /></symbol>
 <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></symbol>
 <symbol id="i-zap" viewBox="0 0 24 24"><path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z" /></symbol>
+<symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" /></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></symbol>
+<symbol id="i-message-square" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></symbol>
+<symbol id="i-sun-moon" viewBox="0 0 24 24"><path d="M12 8a2.83 2.83 0 0 0 4 4 4 4 0 1 1-4-4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.9 4.9 1.4 1.4" /><path d="m17.7 17.7 1.4 1.4" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.3 17.7-1.4 1.4" /><path d="m19.1 4.9-1.4 1.4" /></symbol>
 </defs></svg>
 <div id="dpPop" role="dialog" aria-modal="true" aria-label="Chọn ngày" data-ta="pickDay"></div>
 <div id="askPop" role="alertdialog" aria-modal="true" aria-labelledby="askT"></div>
@@ -540,6 +674,69 @@ vi: {
   "forget.askApp": "Xoá máy “{0}” khỏi app?\n\nMuốn xem lại phải ghép lại bằng mã trên máy con.",
   "forget.askWeb": "Quên máy “{0}” ở trình duyệt này?\n\nMuốn xem lại phải ghép lại bằng mã trên máy con.",
   "rel.done": "Đã gỡ quản lý", "rel.ask": "Gỡ quyền quản lý: máy con sẽ hết mọi giới hạn và KidGuard không điều khiển được nữa.", "rel.ok": "Gỡ quản lý", "rel.word": "GỠ",
+  // redesign (shell, home, settings)
+  "nav.more": "Thêm",
+  "nav.family": "Cả nhà",
+  "nav.kids": "Các con",
+  "nav.pick": "Chọn con…",
+  "nav.main": "Điều hướng chính",
+  "tab.more": "Thêm",
+  "tab.log": "Nhật ký",
+  "tab.rep": "Báo cáo tuần",
+  "tab.hist": "Lịch sử",
+  "sec.kid": "Máy con",
+  "sec.track": "Theo dõi",
+  "sec.manage": "Quản lý",
+  "more.screenS": "Xem và điều khiển màn hình",
+  "more.devS": "Bộ nhớ, pin, RAM, thông tin máy",
+  "more.filesS": "Gửi và nhận tệp",
+  "more.logS": "Sự kiện và nhật ký máy con",
+  "more.repS": "7 ngày qua, app dùng nhiều",
+  "more.setS": "PIN, máy đã ghép, ngôn ngữ, kết nối",
+  "set.general": "Chung",
+  "set.security": "Bảo mật",
+  "set.conn": "Kết nối",
+  "set.danger": "Vùng nguy hiểm",
+  "ban.more": "{0} cảnh báo khác",
+  "ban.less": "Thu gọn",
+  "save.saving": "Đang lưu…",
+  "save.saved": "Đã lưu",
+  "save.failed": "Chưa lưu được",
+  "save.pending": "Chờ máy con nhận",
+  "act.off": "Tắt",
+  "act.timeout": "Máy con không trả lời, thử lại",
+  "act.ringing": "Đang đổ chuông",
+  "act.listening": "Đang nghe",
+  "act.noConfirm": "Máy con chưa xác nhận, thử lại",
+  "act.sending": "Đang gửi…",
+  "act.finding": "Đang tìm…",
+  "hero.left": "Còn lại hôm nay",
+  "hero.out": "Đã hết giờ hôm nay",
+  "hero.used": "Đã dùng hôm nay",
+  "hero.usedOf": "Đã dùng {0} / {1}",
+  "home.topToday": "Hôm nay dùng gì",
+  "home.allApps": "Tất cả ứng dụng",
+  "home.recent": "Gần đây",
+  "req.replyBtn": "Trả lời…",
+  "msg.h": "Gửi lời nhắn lên màn hình máy con",
+  "rules.segTime": "Thời gian",
+  "rules.segSafe": "An toàn",
+  "tpl.apply": "Áp mẫu…",
+  "theme.h": "Giao diện",
+  "theme.auto": "Theo máy",
+  "theme.light": "Sáng",
+  "theme.dark": "Tối",
+  "dev.noName": "Máy chưa rõ tên",
+  "dev.self": "Máy này",
+  "dev.at": "Ghép: {0}",
+  "dev.last": "Dùng: {0}",
+  "dev.unpair": "Huỷ ghép",
+  "dev.ask": "Huỷ ghép \"{0}\"? Máy đó sẽ không xem hay điều khiển máy con được nữa.",
+  "dev.askSelf": "Huỷ ghép chính máy này? Trang sẽ quay về màn hình ghép, phải nhập mã trên máy con để ghép lại.",
+  "dev.unpaired": "Đã huỷ ghép \"{0}\"",
+  "dev.queued": "Đã gửi lệnh huỷ ghép, máy con sẽ làm khi nhận được",
+  "dev.old": "Máy con bản cũ chưa liệt kê từng máy đã ghép. Cập nhật máy con để huỷ ghép từng máy.",
+  "cr.unpair.no such device": "Máy đó đã được huỷ ghép rồi"
 },
 en: {
   lang: "Language", saveFail: "Changes not saved yet", retry: "Try again", pickDay: "Pick a day", kid: "Kid",
@@ -825,6 +1022,69 @@ en: {
   "forget.askApp": "Remove “{0}” from the app?\n\nTo see it again you'll have to pair again with a code from the kid's phone.",
   "forget.askWeb": "Forget “{0}” in this browser?\n\nTo see it again you'll have to pair again with a code from the kid's phone.",
   "rel.done": "Controls removed", "rel.ask": "Remove controls: the kid's phone loses every limit and KidGuard can't control it any more.", "rel.ok": "Remove controls", "rel.word": "REMOVE",
+  // redesign (shell, home, settings)
+  "nav.more": "More",
+  "nav.family": "Family",
+  "nav.kids": "Kids",
+  "nav.pick": "Pick a kid…",
+  "nav.main": "Main navigation",
+  "tab.more": "More",
+  "tab.log": "Log",
+  "tab.rep": "Weekly report",
+  "tab.hist": "History",
+  "sec.kid": "Kid's phone",
+  "sec.track": "Tracking",
+  "sec.manage": "Manage",
+  "more.screenS": "See and control the screen",
+  "more.devS": "Storage, battery, RAM, phone info",
+  "more.filesS": "Send and receive files",
+  "more.logS": "Events and the phone's log",
+  "more.repS": "Last 7 days, most used apps",
+  "more.setS": "PIN, paired devices, language, connection",
+  "set.general": "General",
+  "set.security": "Security",
+  "set.conn": "Connection",
+  "set.danger": "Danger zone",
+  "ban.more": "{0} more alerts",
+  "ban.less": "Show less",
+  "save.saving": "Saving…",
+  "save.saved": "Saved",
+  "save.failed": "Not saved",
+  "save.pending": "Waiting for the phone",
+  "act.off": "Stop",
+  "act.timeout": "The kid's phone did not answer, try again",
+  "act.ringing": "Ringing",
+  "act.listening": "Listening",
+  "act.noConfirm": "The kid's phone did not confirm, try again",
+  "act.sending": "Sending…",
+  "act.finding": "Finding…",
+  "hero.left": "Left today",
+  "hero.out": "Out of time today",
+  "hero.used": "Used today",
+  "hero.usedOf": "Used {0} / {1}",
+  "home.topToday": "Used today",
+  "home.allApps": "All apps",
+  "home.recent": "Recent",
+  "req.replyBtn": "Reply…",
+  "msg.h": "Show a message on the kid's screen",
+  "rules.segTime": "Time",
+  "rules.segSafe": "Safety",
+  "tpl.apply": "Apply template…",
+  "theme.h": "Theme",
+  "theme.auto": "System",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
+  "dev.noName": "Unnamed device",
+  "dev.self": "This device",
+  "dev.at": "Paired: {0}",
+  "dev.last": "Used: {0}",
+  "dev.unpair": "Unpair",
+  "dev.ask": "Unpair \"{0}\"? It will no longer see or control the kid's phone.",
+  "dev.askSelf": "Unpair this device? The page goes back to pairing; you need the code on the kid's phone to pair again.",
+  "dev.unpaired": "Unpaired \"{0}\"",
+  "dev.queued": "Unpair sent; the kid's phone does it when it gets it",
+  "dev.old": "The kid's phone is an older version and does not list paired devices. Update it to unpair one device.",
+  "cr.unpair.no such device": "That device was already unpaired"
 },
 };
 // pick: saved choice, else the first browser language we have (vi* -> vi), else en
@@ -843,7 +1103,7 @@ function t(k, ...a) {
   return typeof v === "string" ? v.replace(/\{(\d)\}/g, (m, i) => a[i] ?? "") : v;
 }
 const tc = (pre, code, dflt) => hasT(pre + code) ? t(pre + code) : dflt;   // a code from the phone -> its text, unknown codes as given (or dflt)
-const langSel = () => `<select id="lang" class="lang" aria-label="${esc(t("lang"))}">${LANGS.map(([v, n]) => `<option value="${v}" ${v === lang ? "selected" : ""}>${n}</option>`).join("")}</select>`;
+const langSel = (id = "lang") => `<select id="${id}" class="lang" aria-label="${esc(t("lang"))}">${LANGS.map(([v, n]) => `<option value="${v}" ${v === lang ? "selected" : ""}>${n}</option>`).join("")}</select>`;
 function applyLang() {
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-t]").forEach(e => e.textContent = t(e.dataset.t));
@@ -858,7 +1118,7 @@ function setLang(l) {
   appLang(); applyLang();
   if (cur) { lastSig = ""; render(); } else if (ov) { ovShell(); ovDraw(); } else if (reScreen) reScreen();
 }
-document.addEventListener("change", e => { if (e.target && e.target.id === "lang") setLang(e.target.value); });
+document.addEventListener("change", e => { if (e.target && e.target.classList && e.target.classList.contains("lang")) setLang(e.target.value); });
 const KEY = "kg.kids";
 // App mode: running inside the KidGuard parent Android app (WebView + local proxy, bridge window.KGApp).
 const APP = !!window.KGApp;
@@ -866,7 +1126,7 @@ const APP = !!window.KGApp;
 const LOCAL = !APP && !!window.KGLocal;
 const localBar = () => LOCAL ? `<div class="alert warn row" style="position:sticky;top:0;z-index:30">${ic("smartphone")} <span class="sp">${t("local.bar")}</span><button id="localEnd" class="pri">${ic("check")} ${t("local.end")}</button></div>` : "";
 function localWire() { const b = $("#localEnd"); if (b) b.onclick = () => { try { KGLocal.end(); } catch {} }; }
-function localOver() { gen++; clearInterval(timer); cur = null; $("#app").innerHTML = `<div class="card mute">${ic("lock")} ${t("local.over")}</div>`; try { KGLocal.end(); } catch {} }
+function localOver() { gen++; clearInterval(timer); cur = null; $("#app").className = "solo"; $("#app").innerHTML = `<div class="card mute">${ic("lock")} ${t("local.over")}</div>`; try { KGLocal.end(); } catch {} }
 async function localBoot() {
   let hello = null;
   try { const r = await fetch("/api/hello"); if (r.ok) hello = await r.json(); } catch {}
@@ -935,12 +1195,18 @@ function errOf(raw, msg) {
   if (!m) { const h = /^HTTP (\d+)$/.exec(raw); m = h ? t("e.http", h[1]) : raw; }
   const e = new Error(m); e.raw = raw; e.net = raw === "net"; return e;
 }
+// X-KG-Name: how this browser shows up in the kid's "paired parent devices" list (state.devices[].name). ASCII only:
+// fetch() refuses header values outside ISO-8859-1.
+const KG_NAME = (() => { const u = navigator.userAgent || "";
+  const br = APP ? "KidGuard app" : /Edg\//.test(u) ? "Edge" : /OPR\/|Opera/.test(u) ? "Opera" : /SamsungBrowser/.test(u) ? "Samsung Internet" : /Firefox\//.test(u) ? "Firefox" : /Chrome\//.test(u) ? "Chrome" : /Safari\//.test(u) ? "Safari" : "Browser";
+  const os = /Android/.test(u) ? "Android" : /iPhone|iPad|iPod/.test(u) ? "iOS" : /Mac OS X|Macintosh/.test(u) ? "Mac" : /Windows/.test(u) ? "Windows" : /CrOS/.test(u) ? "ChromeOS" : /Linux/.test(u) ? "Linux" : "";
+  return (br + (os ? " / " + os : "")).replace(/[^\x20-\x7e]/g, "").slice(0, 40); })();
 async function call(k, path, method = "GET", body) {
   // app mode: a cached snapshot means the phone/relay is unreachable, so commands cannot be delivered
   if (APP && method !== "GET" && viewDay && k === cur) throw new Error(t("e.viewOnly"));
   if (APP && method !== "GET" && cachedAt && k === cur) throw new Error(t("e.cachedOff"));
   let r;
-  try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined }); }
+  try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined }); }
   catch (e) { throw errOf("net", APP ? t("e.lost") : null); }
   if (APP && method === "GET" && path === "/state" && k === cur) cachedAt = +r.headers.get("X-KG-Cached") || 0;
   const j = await r.json().catch(() => ({}));
@@ -1024,7 +1290,8 @@ function addScreen() {
     } catch { $("#e2").textContent = t("add.badLink"); }
   };
 }
-const head = title => `<div class="row"><h1 class="sp">${ic("shield")} ${title}</h1>${langSel()}</div>`;
+// plain screens (list / add / pair): one centred column (#app.solo); render() and the overview clear it
+const head = title => { $("#app").className = "solo"; return `<div class="row" style="margin-bottom:14px"><span class="badge">${ic("shield")}</span><h1 class="sp" style="margin:0">${title}</h1>${langSel()}${themeBtn()}</div>`; };
 async function lanHello(target) {
   const e = $("#e1"); if (e) e.textContent = t("connecting");
   try {
@@ -1106,11 +1373,14 @@ async function overview(list, back) {
 }
 function ovShell() {
   mv = null;
-  $("#app").innerHTML = `<div class="row"><h1 class="sp">${ic("layout-grid")} ${t("ov")}</h1>${langSel()}<button id="ovBack">${ic("list")} ${t("list")}</button></div>
+  const a = $("#app"); a.className = "";
+  a.innerHTML = `<div class="shell">${sideHtml("ov")}<div class="mainc"><div class="wrap">
+    <div class="head"><button type="button" id="ovBack" class="back" aria-label="${esc(t("list"))}" title="${esc(t("list"))}">${ic("chevron-left")}</button><span class="badge">${ic("users")}</span><div><div class="t1">${t("nav.family")}</div><div class="st">${t("ovN", ov.data.length)}</div></div></div>
     <div id="ovSos"></div><div class="ovk" id="ovKids"></div>
     <div class="card" style="margin-top:12px"><h2>${ic("map-pin")} ${t("ov.where")}</h2><div id="ovMapBox"></div></div>
     <div class="card"><h2>${ic("chart-column")} ${t("ov.week")}</h2><div id="ovBars"></div></div>
-    <div class="card"><h2>${ic("history")} ${t("ov.report")}</h2><div id="ovRep"></div></div>`;
+    ${sec("ov-rep", "history", t("ov.report"), "", "", `<div id="ovRep"></div>`, false)}</div></div></div>`;
+  wireSide(a);
   $("#ovBack").onclick = () => { gen++; clearInterval(timer); const b = ov.back; ov = null; b(); navDown(0); };
 }
 async function ovLoad() {
@@ -1234,7 +1504,7 @@ let noState = false;   // relay answered {state: null}: the child never synced
 let gen = 0;   // bumped by every screen change; async work started for an older screen drops its result
 // relay: the phone sends the state only when it changed, so its sync time (seen) says "online", not state.t
 function lastSeen() { return cur && cur.via !== "lan" && seenAt ? Math.max(seenAt, st ? st.t : 0) : (st ? st.t : 0); }
-async function open(k) { const g = ++gen; pairLocal = null; screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); hideDraft = null; noState = false; saveFail(false); render(); if ($("#back")) navTo(1); clearInterval(timer); await refresh(); if (g !== gen) return; clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
+async function open(k) { const g = ++gen; pairLocal = null; wantReset(); screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); hideDraft = null; noState = false; saveFail(false); render(); if ($("#back")) navTo(1); clearInterval(timer); await refresh(); if (g !== gen) return; clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
 
 async function refresh() {
   if (!cur || viewDay || document.hidden) return;
@@ -1248,6 +1518,7 @@ async function refresh() {
     pendingRules = j.state !== undefined ? j.rules : null;
     seenAt = j.state !== undefined ? +j.seen || 0 : 0;
     lastErr = ""; lastNet = false;
+    settle();
   } catch (e) {
     if (k !== cur) return;
     lastErr = e.message;
@@ -1265,7 +1536,7 @@ async function refresh() {
   // redraw the tab only when what it shows changed and nobody is using a control (icons would reload, a select would close)
   const sig = st ? JSON.stringify([tab, st.rules && st.rules.rev, st.apps.map(a => [a.suspended, a.blocked, Math.floor(a.ms / 60000)]),
     st.location && st.location.t, (st.log || []).length, (st.track || []).length, Math.floor(st.usedMs / 60000), lastErr, cachedAt, viewDay,
-    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, st.totpOn, st.unlockUntil, (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(","), (st.preinstalled || []).map(x => x.hidden ? 1 : 0).join(""), (st.rules && st.rules.hidden || []).join(",")]) : lastErr + (noState ? "|nostate" : "");
+    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, st.totpOn, st.unlockUntil, (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(","), (st.preinstalled || []).map(x => (x.hidden ? 1 : 0) + (x.refused ? 2 : 0)).join(""), (st.devices || []).map(d => d.id + d.name).join(","), (st.rules && st.rules.hidden || []).join(",")]) : lastErr + (noState ? "|nostate" : "");
   if (tab === "screen") updateLive();   // never redraw the screen tab: the <img> updates by itself
   else if (sig !== lastSig && !busy) { lastSig = sig; render(); } else updateLive();
   if (tab === "files" && k === cur) fxSync();   // shared folder list + relay upload delivery (its own redraw)
@@ -1442,6 +1713,8 @@ async function tplSave() {
 // --- Files tab: the shared folder (docs/protocol.md "Shared files"). Only what was sent, never a browser of the phone. ---
 // Jobs live outside render(): a tab switch or a state refresh keeps transfers running; progress bars update in place.
 const FX = { lan: 200 * 1048576, relay: 10 * 1048576, chunk: 1048576 };
+// parent app >= the file bridge: KGApp.files() === "true" (picker + downloads work in its WebView); older app: no files
+const FXNO = APP && !(() => { try { return !!(window.KGApp && KGApp.files && KGApp.files() === "true"); } catch { return false; } })();
 const fx = { jobs: [], list: null, kid: null, sig: "", raf: 0, hide: new Set() };
 const fxSize = n => n < 1024 ? n + " B" : n < 1048576 ? Math.round(n / 1024) + " KB" : (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + " MB";
 const fxHex = () => [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -1605,7 +1878,7 @@ function fxDraw() {
     const st2 = j ? `<div class="mute" role="status" data-fxt="${j.id}"${fxTone(j) ? ` style="color:var(--${fxTone(j)})"` : ""}>${esc(fxTxt(j))}</div>` : "";
     const busy = j && /^(run|wait)$/.test(j.state);
     return row(f.name, meta(f), st2, j ? fxBar(j) : "",
-      (APP ? "" : busy ? `<button data-fx="cancel" data-id="${j.id}">${ic("x")} ${t("fx.cancel")}</button>`
+      (FXNO ? "" : busy ? `<button data-fx="cancel" data-id="${j.id}">${ic("x")} ${t("fx.cancel")}</button>`
         : `<button class="pri" data-fx="get" data-id="${f.id}">${ic(j && j.state === "done" ? "check" : j && j.state === "err" ? "refresh-cw" : "download")} ${t(j && j.state === "done" ? "fx.got" : j && j.state === "err" ? "fx.retry" : "fx.get")}</button>`) +
       xb("del", f.id, "trash-2", t("fx.del"), "bad"));
   }).join("") : `<p class="mute">${t("fx.none")} ${t("fx.fromKidP")}</p>`;
@@ -1616,7 +1889,7 @@ function filesTab(b) {
   fx.sig = "";
   b.innerHTML = `<div class="card"><h2>${ic("upload")} ${t("fx.sendH")}</h2>
     <p class="mute">${t(relay ? "fx.sendPr" : "fx.sendP", fxSize(max))}</p>
-    ${APP ? `<div class="alert warn">${ic("triangle-alert")} ${t("fx.app")}</div>` : `<div id="fxDrop" class="fxdrop"><input type="file" id="fxPick" multiple hidden>
+    ${FXNO ? `<div class="alert warn">${ic("triangle-alert")} ${t("fx.app")}</div>` : `<div id="fxDrop" class="fxdrop"><input type="file" id="fxPick" multiple hidden>
       <button class="pri" id="fxBtn">${ic("upload")} ${t("fx.pick")}</button><span class="mute">${t("fx.drop")}</span></div>`}
     <div id="fxJobs"></div></div>
   <div class="card"><h2>${ic("inbox")} ${t("fx.fromKid")}</h2><div id="fxOut"></div></div>
@@ -1639,53 +1912,141 @@ function filesTab(b) {
   fxDraw(); fxLoad();
 }
 // a file dropped outside the drop zone must not navigate the page away (and drop the transfers)
-["dragover", "drop"].forEach(n => window.addEventListener(n, e => { if (tab === "files" && cur && e.dataTransfer && [...e.dataTransfer.types].includes("Files")) { e.preventDefault(); if (n === "drop" && !APP) fxSend(e.dataTransfer.files); } }));
+["dragover", "drop"].forEach(n => window.addEventListener(n, e => { if (tab === "files" && cur && e.dataTransfer && [...e.dataTransfer.types].includes("Files")) { e.preventDefault(); if (n === "drop" && !FXNO) fxSend(e.dataTransfer.files); } }));
 window.addEventListener("beforeunload", e => { if (fx.jobs.some(j => /^(run|wait|queue)$/.test(j.state))) { e.preventDefault(); e.returnValue = ""; } });
 
-// The tab bar is rebuilt on every render: keep its horizontal scroll and the page scroll, fade edges with more tabs.
-function tabFade(t) { const m = t.scrollWidth - t.clientWidth; t.classList.toggle("fl", t.scrollLeft > 2); t.classList.toggle("fr", m - t.scrollLeft > 2); }
+// ---- shell: one NAV list feeds the desktop sidebar and the phone bottom bar ("Thêm" holds the rest) ----
+const NAV = [["home", "house"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["screen", "smartphone"], ["dev", "cpu"], ["files", "folder-open"], ["log", "notebook-pen"], ["rep", "chart-column"], ["hist", "history"], ["set", "settings"]];
+const BNAV = [["home", "house"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["more", "ellipsis"]];
+const MORE_TABS = new Set(["more", "screen", "dev", "files", "log", "rep", "hist", "set"]);
+const navOk = id => !(viewDay && (id === "screen" || id === "dev" || id === "files")) && (id !== "hist" || APP);
+// the kids this page can switch between (same list the old "Danh sách" screen showed)
+const kidList = () => APP ? kids.filter(k => k.target) : kids.filter(k => k.via === (onLan() ? "lan" : "relay"));
+function kidAv(k) {
+  const L = kidList(), i = Math.max(0, L.indexOf(k)), c = (((k && k.name) || "?").trim()[0] || "?").toUpperCase();
+  return `<span class="av" style="background:${KC[i % KC.length]}" aria-hidden="true">${esc(c)}</span>`;
+}
+// theme: auto (follows the system) / light / dark, per browser
+const THEMES = ["auto", "light", "dark"];
+let theme = (() => { try { return THEMES.includes(localStorage.getItem("kg.theme")) ? localStorage.getItem("kg.theme") : "auto"; } catch { return "auto"; } })();
+function applyTheme() { if (theme === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", theme); }
+applyTheme();
+const themeBtn = () => `<button type="button" class="rb" data-theme-btn aria-label="${esc(t("theme.h") + ": " + t("theme." + theme))}" title="${esc(t("theme.h") + ": " + t("theme." + theme))}">${ic(theme === "auto" ? "sun-moon" : theme === "dark" ? "moon" : "sun")}</button>`;
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("[data-theme-btn]"); if (!b) return;
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]; try { localStorage.setItem("kg.theme", theme); } catch {}
+  applyTheme(); document.querySelectorAll("[data-theme-btn]").forEach(x => { x.outerHTML = themeBtn(); });
+  toast("ok|" + t("theme.h") + ": " + t("theme." + theme));
+});
+const reqN = () => st && !viewDay ? (st.requests || []).filter(q => !answered.has(q.id)).length : 0;
+const onlineNow = () => st && Date.now() - lastSeen() < (cur && cur.via === "lan" ? 30000 : 120000);
+function sideHtml(on) {
+  const L = kidList();
+  const kidsH = L.length > 6
+    ? `<select class="kids" id="sideKid" aria-label="${esc(t("nav.kids"))}">${cur ? "" : `<option value="">${t("nav.pick")}</option>`}${L.map((k, i) => `<option value="${i}" ${k === cur ? "selected" : ""}>${esc(k.name)}</option>`).join("")}</select>`
+    : L.map((k, i) => `<button type="button" class="kidn${k === cur ? " on" : ""}" data-sk="${i}" ${k === cur ? 'aria-current="true"' : ""}>${kidAv(k)}<span>${esc(k.name)}</span>${k === cur && st ? dot(onlineNow() ? "on" : "bad") : ""}</button>`).join("");
+  return `<nav class="side" aria-label="KidGuard"><div class="brand"><span class="badge">${ic("shield")}</span>KidGuard</div>
+    ${L.length > 1 ? `<button type="button" class="nav${on === "ov" ? " on" : ""}" id="sideOv">${ic("users")} ${t("nav.family")}</button>` : ""}
+    ${L.length ? `<div class="slab">${t("nav.kids")}</div>${kidsH}` : ""}
+    ${APP ? `<button type="button" class="nav" id="sideAdd">${ic("plus")} ${t("addKid")}</button>` : ""}
+    ${cur && on !== "ov" ? `<div class="slab">${esc(cur.name)}</div>${NAV.filter(([id]) => navOk(id)).map(([id, i]) => `<button type="button" class="nav${tab === id ? " on" : ""}" data-tab="${id}" ${tab === id ? 'aria-current="page"' : ""}>${ic(i)} ${t("tab." + id)}${id === "home" && reqN() ? `<span class="n">${reqN()}</span>` : ""}</button>`).join("")}` : ""}
+    <div class="foot">${langSel("lang2")}${themeBtn()}</div></nav>`;
+}
+function wireSide(root) {
+  const L = kidList();
+  const go = k => { if (!k || (k === cur && !ov)) return; gen++; clearInterval(timer); ov = null; open(k); };
+  root.querySelectorAll("[data-sk]").forEach(b => b.onclick = () => go(L[+b.dataset.sk]));
+  const s = root.querySelector("#sideKid"); if (s) s.onchange = () => go(L[+s.value]);
+  const o = root.querySelector("#sideOv"); if (o) o.onclick = () => { if (ov) return; screenStop(); earStop(); overview(L, APP ? appBoot : () => listScreen(L)); };
+  const a = root.querySelector("#sideAdd"); if (a) a.onclick = () => { gen++; clearInterval(timer); screenStop(); earStop(); cur = null; ov = null; addScreen(); };
+}
+const bnavHtml = () => `<nav class="bnav" aria-label="${esc(t("nav.main"))}">${BNAV.map(([id, i]) => { const on = id === "more" ? MORE_TABS.has(tab) : tab === id;
+  return `<button type="button" data-tab="${id}" class="${on ? "on" : ""}" ${on ? 'aria-current="page"' : ""}><b>${ic(i)}${id === "home" && reqN() ? `<span class="n">${reqN()}</span>` : ""}</b><span>${t(id === "more" ? "nav.more" : "tab." + id)}</span></button>`; }).join("")}</nav>`;
+function headHtml() {
+  const back = APP || kids.length > 1 || cur.via === "relay";
+  return `<div class="head">${back ? `<button type="button" id="back" class="back${kidList().length > 1 || APP ? " mOnly" : ""}" aria-label="${esc(t("list"))}" title="${esc(t("list"))}">${ic("chevron-left")}</button>` : ""}${kidAv(cur)}
+    <div><div class="t1">${esc(cur.name)}</div><div class="st" id="hst"></div></div><span class="savechip" id="saveChip" role="status"></span></div>`;
+}
+// header save chip: saving / failed / waiting for the kid's phone (relay) / saved (3 s)
+let savedAt = 0;
+function paintSave() {
+  const c = $("#saveChip"); if (!c) return;
+  const wait = pendingRules && st && st.rules && pendingRules.rev > st.rules.rev;
+  const h = saveFailed ? `<span class="tag bad">${ic("triangle-alert")} ${t("save.failed")}</span>`
+    : saveT || saveBusy ? `<span class="tag t-info"><i class="spin" style="width:12px;height:12px"></i> ${t("save.saving")}</span>`
+    : wait ? `<span class="tag warn">${ic("hourglass")} ${t("save.pending")}</span>`
+    : Date.now() - savedAt < 3000 ? `<span class="tag ok">${ic("check")} ${t("save.saved")}</span>` : "";
+  if (c.innerHTML !== h) c.innerHTML = h;
+}
 function render(tabClick) {
-  const oldTabs = document.querySelector("#app .tabs"), tabX = oldTabs ? oldTabs.scrollLeft : 0, pageY = window.scrollY;
+  const pageY = window.scrollY;
   if (!cur) return;
   const a = $("#app");
   const focus = document.activeElement && document.activeElement.id;   // keep the field being typed in
   if (focus && /^(f-|msg|relay)/.test(focus)) { updateLive(); return; }
   if (tab !== "screen") screenStop();
   if (st && edit && !viewDay && !edit.pinSet) return pinGate(a);   // paired before PINs were required: nothing else until one is set
-  const online = st && Date.now() - lastSeen() < (cur.via === "lan" ? 30000 : 120000);
-  a.innerHTML = `${localBar()}
-  <div class="row"><h1 class="sp">${ic("user")} ${esc(cur.name)}</h1>${APP || kids.length > 1 || cur.via === "relay" ? `<button id="back">${ic("list")} ${t("list")}</button>` : ""}</div>
-  ${viewDay ? `<div class="alert warn row" style="position:sticky;top:0;z-index:20">${ic("history")} <span class="sp">${t("hist.viewing", esc(dm(viewDay)))}</span><button id="goLive" class="pri">${ic("zap")} ${t("hist.live")}</button></div>` : ""}
-  ${st && edit && !viewDay && !edit.pinSet && tab !== "set" ? `<div class="alert warn row">${ic("key-round")} <span class="sp">${t("pin.warn")}</span><button id="goPin" class="pri">${t("pin.setNow")}</button></div>` : ""}
-  <div class="card" id="live"></div>
-  <div class="tabs">${[["home", "house"], ["screen", "smartphone"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["dev", "cpu"], ["files", "folder-open"], ["set", "settings"]].filter(x => !(viewDay && (x[0] === "screen" || x[0] === "dev" || x[0] === "files"))).concat(APP ? [["hist", "history"]] : []).map(([id, i]) => [id, ic(i) + " " + t("tab." + id)]).map(([id, n]) => `<button data-tab="${id}" class="${tab === id ? "on" : ""}">${n}</button>`).join("")}</div>
-  <div id="body"></div>`;
-  a.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; if (tab === "hist") histDays = null; render(true); });
-  const tabsEl = a.querySelector(".tabs"); tabsEl.scrollLeft = tabX; tabsEl.onscroll = () => tabFade(tabsEl); tabFade(tabsEl);
-  const on = tabsEl.querySelector(".on"); if (tabClick && on) { const l = on.offsetLeft - tabsEl.offsetLeft, r = l + on.offsetWidth; if (l < tabsEl.scrollLeft) tabsEl.scrollLeft = l - 24; else if (r > tabsEl.scrollLeft + tabsEl.clientWidth) tabsEl.scrollLeft = r - tabsEl.clientWidth + 24; tabFade(tabsEl); }
+  a.className = ""; a.innerHTML = `<div class="shell">${sideHtml()}<div class="mainc"><div class="wrap">${localBar()}
+  ${headHtml()}
+  ${viewDay ? `<div class="ban t-warn" style="position:sticky;top:8px;z-index:15;margin-bottom:12px"><span class="bi">${ic("history")}</span><div class="x">${t("hist.viewing", esc(dm(viewDay)))}</div><button id="goLive" class="pri pill">${ic("zap")} ${t("hist.live")}</button></div>` : ""}
+  ${st && edit && !viewDay && !edit.pinSet && tab !== "set" ? `<div class="ban t-warn"><span class="bi">${ic("key-round")}</span><div class="x">${t("pin.warn")}</div><button id="goPin" class="pri pill">${t("pin.setNow")}</button></div>` : ""}
+  <div id="live"></div>
+  <div id="body"></div></div></div>${bnavHtml()}</div>`;
+  a.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => goTab(b.dataset.tab));
+  wireSide(a);
   if ($("#goLive")) $("#goLive").onclick = () => { tab = "home"; open(cur); navDown(1); };
   if ($("#back")) $("#back").onclick = () => { goList(); navDown(0); };
   localWire();
   if ($("#goPin")) $("#goPin").onclick = () => { tab = "set"; render(true); const f = $("#f-pin"); if (f) { f.scrollIntoView({ block: "center" }); f.focus(); } };
-  updateLive();
   const body = $("#body");
-  if (!st) { body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " " + t("cantConnect", esc(lastErr)) : noState ? ic("hourglass") + " " + t("noState") : ic("hourglass") + " " + t("loading")}</div>`; return; }
-  ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, dev: devTab, set: setTab, hist: histTab, files: filesTab })[tab](body);
-  // a refresh keeps the page where it was; a tab switch from below the tab bar lands on the top of the new tab
-  const barY = tabsEl.getBoundingClientRect().top + window.scrollY - 8;
-  if (oldTabs) window.scrollTo(0, tabClick ? Math.min(pageY, barY) : pageY);
+  if (!st) { updateLive(); body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " " + t("cantConnect", esc(lastErr)) : noState ? ic("hourglass") + " " + t("noState") : ic("hourglass") + " " + t("loading")}</div>`; return; }
+  if (!navOk(tab)) tab = "home";
+  ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, dev: devTab, set: setTab, hist: histTab, files: filesTab, more: moreTab, log: logTab, rep: repTab })[tab](body);
+  updateLive();
+  // a refresh keeps the page where it was; a tab switch lands on the top of the new tab
+  window.scrollTo(0, tabClick ? 0 : pageY);
+}
+function goTab(id) { tab = id; if (tab === "hist") histDays = null; render(true); }
+
+// "Thêm" (phones): everything that is not in the bottom bar, grouped
+function moreTab(b) {
+  const L = kidList();
+  const li = (id, icn, sub) => navOk(id) ? `<button type="button" class="li" data-go="${id}"><span class="ib">${ic(icn)}</span><span class="x"><b>${t("tab." + id)}</b>${sub ? `<span class="sub">${sub}</span>` : ""}</span>${ic("chevron-right")}</button>` : "";
+  const grp = (h, rows) => rows.join("") ? `<div class="sec">${h}</div><div class="list">${rows.join("")}</div>` : "";
+  b.innerHTML = grp(t("sec.kid"), [li("screen", "smartphone", t("more.screenS")), li("dev", "cpu", t("more.devS")), li("files", "folder-open", t("more.filesS"))])
+    + grp(t("sec.track"), [li("log", "notebook-pen", t("more.logS")), li("rep", "chart-column", t("more.repS")), li("hist", "history", t("hist.h"))])
+    + grp(t("sec.manage"), [li("set", "settings", t("more.setS")),
+      L.length > 1 ? `<button type="button" class="li" id="moreOv"><span class="ib">${ic("users")}</span><span class="x"><b>${t("nav.family")}</b><span class="sub">${t("ovN", L.length)}</span></span>${ic("chevron-right")}</button>` : "",
+      APP || kids.length > 1 || cur.via === "relay" ? `<button type="button" class="li" id="moreList"><span class="ib">${ic("list")}</span><span class="x"><b>${t("list")}</b></span>${ic("chevron-right")}</button>` : ""])
+    + `<div class="sec">${t("set.general")}</div><div class="card row">${langSel()}<span class="sp"></span>${themeBtn()}</div>`;
+  b.querySelectorAll("[data-go]").forEach(x => x.onclick = () => goTab(x.dataset.go));
+  if ($("#moreOv")) $("#moreOv").onclick = () => { screenStop(); earStop(); overview(L, APP ? appBoot : () => listScreen(L)); };
+  if ($("#moreList")) $("#moreList").onclick = () => { goList(); navDown(0); };
+}
+// "Nhật ký": events + the phone's own log
+function logTab(b) {
+  const ev = (st.events || []).slice().reverse(), lg = (st.log || []).slice(-60).reverse();
+  b.innerHTML = `<div class="card"><h2>${ic("bell")} ${t("events")}</h2>${ev.map(evHtml).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}</div>
+  <div class="card"><h2>${ic("notebook-pen")} ${t("log")}</h2>${lg.map(l => `<div class="ev row" style="padding:4px 0;align-items:flex-start;flex-wrap:nowrap"><span class="mute" style="flex:none;min-width:3.2em">${hhmm(l.t)}</span><span class="sp" style="min-width:0;overflow-wrap:anywhere">${esc(logTr(noEmoji(l.m)))}</span></div>`).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}</div>`;
+}
+// "Báo cáo tuần": 7-day bars + this kid's weekly report + most used today
+function repTab(b) {
+  b.innerHTML = `<div class="g2"><div><div class="card"><h2>${ic("chart-column")} ${t("last7")}</h2><div id="histPick" style="margin-bottom:8px"></div><div class="hist" id="hist"></div><div id="histTop" class="mute"></div></div>
+    <div class="card"><h2>${ic("history")} ${t("ov.report")}</h2>${ovReport([{ k: cur, st, err: "" }])}</div></div>
+    <div class="card"><h2>${ic("flame")} ${t("topApps")}</h2>${st.apps.filter(x => x.ms > 60000).slice(0, 12).map(appRow).join("") || `<div class="empty"><span class="e">${ic("sprout")}</span>${t("none")}</div>`}</div></div>`;
+  drawHist();
 }
 
 // Legacy phone (paired, no PIN): a screen with no way around it until the PIN is saved. Setting it on the child phone
 // itself is not offered (the child holds it); the on-device admin session reaches this only via the Authenticator.
 function pinGate(a) {
   screenStop();
-  a.innerHTML = `${localBar()}
-  <div class="row"><h1 class="sp">${ic("user")} ${esc(cur.name)}</h1>${APP || kids.length > 1 || cur.via === "relay" ? `<button id="back">${ic("list")} ${t("list")}</button>` : ""}</div>
+  a.className = ""; a.innerHTML = `<div class="solo">${localBar()}
+  <div class="head">${APP || kids.length > 1 || cur.via === "relay" ? `<button type="button" id="back" class="back" aria-label="${esc(t("list"))}">${ic("chevron-left")}</button>` : ""}${kidAv(cur)}<div><div class="t1">${esc(cur.name)}</div></div></div>
   <div class="card"><h2>${ic("key-round")} ${t("pinGate.h")}</h2><p>${t("pinGate.p")}</p>
     <div class="pairf"><input id="f-gp1" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin1"))}" aria-label="${esc(t("pair.pin1"))}">
     <input id="f-gp2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin2"))}" aria-label="${esc(t("pair.pin2"))}">
-    <button class="pri" id="gpGo">${ic("key-round")} ${t("pinGate.go")}</button></div><p class="err" id="gpE" role="alert"></p></div>`;
+    <button class="pri" id="gpGo">${ic("key-round")} ${t("pinGate.go")}</button></div><p class="err" id="gpE" role="alert"></p></div></div>`;
   localWire();
   if ($("#back")) $("#back").onclick = () => { goList(); navDown(0); };
   const go = $("#gpGo"), err = $("#gpE");
@@ -1701,35 +2062,51 @@ function pinGate(a) {
   };
 }
 
+// Header status line + banner stack (priority order, 1 shown + "N more"). SOS and check-ins sit on top and never fold.
+let banAll = false;
 function updateLive() {
-  const el = $("#live"); if (!el) return;
-  if (!st) { el.innerHTML = `<span class="mute">${lastErr ? ic("triangle-alert") + " " + esc(lastErr) : ic("hourglass") + " " + t("connecting")}</span>`; return; }
-  if (viewDay) { el.innerHTML = `<div class="mute">${ic("clock")} ${t("hist.snap", hhmm(st.t))} · ${ic("smartphone")} ${esc(st.model)} · ${ic("battery-full")} ${+st.battery}%</div>`; return; }
-  const lan = cur.via === "lan";
-  const online = Date.now() - lastSeen() < (lan ? 30000 : 120000);
-  
+  paintSave();
+  const el = $("#live"), hs = $("#hst"); if (!el) return;
+  if (!st) { if (hs) hs.innerHTML = `${dot(lastErr ? "bad" : "")}<span>${lastErr ? esc(lastErr) : t("connecting")}</span>`; el.innerHTML = ""; return; }
+  if (viewDay) { if (hs) hs.innerHTML = `${ic("clock")}<span>${t("hist.snap", hhmm(st.t))} · ${+st.battery}%</span>`; el.innerHTML = ""; return; }
+  const lan = cur.via === "lan", online = onlineNow();
   const lost = lan ? (lastErr || Date.now() - st.t > 300000) : (seenAt && Date.now() - seenAt > 300000);
   const lostFrom = lan ? st.t : seenAt;
-  el.innerHTML = `${APP && cachedAt ? `<div class="alert warn">${ic("wifi-off")} ${t("live.cached", hhmm(cachedAt))}</div>` : ""}<div class="row"><span>${online ? dot("on") : dot("bad")}</span><b>${online ? t("live.on") : t("live.off")}</b>
-    <span class="mute">· ${ic("clock")} ${t("live.upd", ago(lastSeen()))}</span><span class="sp"></span><span>${ic("battery-full")} ${+st.battery}%${st.charging ? ic("zap") : ""}</span></div>
-    <div class="mute">${ic("smartphone")} ${esc(st.model)} · Android ${esc(st.android)} · ${st.screenOn ? (st.current ? t("scrOnApp", "<b>" + esc(st.current) + "</b>") : t("scrOn")) : t("scrOff")}</div>
-    ${pendingRules && st.rules && pendingRules.rev > st.rules.rev ? `<div class="mute">${ic("hourglass")} ${t("live.pending")}</div>` : ""}
-    ${!lan && lastNet ? `<div class="alert warn">${ic("wifi-off")} ${t("live.selfOff")}</div>` : ""}
-    ${lost && !(!lan && lastNet) ? `<div class="alert">${ic("siren")} ${t("live.lost", hhmm(lostFrom))}${lastErr && lan ? " (" + esc(lastErr) + ")" : ""}</div>` : ""}
-    ${sosHtml()}
-    ${ciHtml()}
-    ${st.listen && st.listen.on ? `<div class="alert warn row">${ic("ear")} <span class="sp">${t("live.mic", hhmm(st.listen.since))}</span><button id="micStop" class="bad">${ic("square")} ${t("micStop")}</button></div>` : ""}
-    ${st.ring && st.ring.on ? `<div class="alert warn row">${ic("bell")} <span class="sp">${t("live.ring", hhmm(st.ring.since))}</span><button id="ringStop2" class="bad">${ic("square")} ${t("ringStop")}</button></div>` : ""}
-    ${modeHtml()}
-    ${st.usageAccess === false ? `<div class="alert warn">${ic("triangle-alert")} ${t("live.usage")}</div>` : ""}
-    ${st.dnsError ? `<div class="alert warn">${ic("triangle-alert")} ${t("live.dns", esc(st.dnsError))}</div>` : ""}
-    ${st.acc === false ? `<div class="alert warn">${ic("triangle-alert")} ${t("live.acc")}</div>` : ""}
-    ${st.locationOn === false ? `<div class="alert warn">${ic("triangle-alert")} ${t("live.locOff")}</div>` : ""}`;
+  if (hs) hs.innerHTML = `${dot(online ? "on" : "bad")}<span>${online ? t("live.on") : t("live.off")} · ${ago(lastSeen())} · ${ic("battery-full")} ${+st.battery}%${st.charging ? ic("zap") : ""} · ${st.screenOn ? (st.current ? t("scrOnApp", "<b>" + esc(st.current) + "</b>") : t("scrOn")) : t("scrOff")}</span>`;
+  const B = [];   // [tone, icon, text]
+  if (APP && cachedAt) B.push(["warn", "wifi-off", t("live.cached", hhmm(cachedAt))]);
+  if (!lan && lastNet) B.push(["warn", "wifi-off", t("live.selfOff")]);
+  if (lost && !(!lan && lastNet)) B.push(["bad", "siren", t("live.lost", hhmm(lostFrom)) + (lastErr && lan ? " (" + esc(lastErr) + ")" : "")]);
+  B.push(...modeBans());
+  if (st.acc === false) B.push(["warn", "triangle-alert", t("live.acc")]);
+  if (st.usageAccess === false) B.push(["warn", "triangle-alert", t("live.usage")]);
+  if (st.dnsError) B.push(["warn", "triangle-alert", t("live.dns", esc(st.dnsError))]);
+  if (st.locationOn === false) B.push(["warn", "triangle-alert", t("live.locOff")]);
+  const ban = x => `<div class="ban t-${x[0]}" role="status"><span class="bi">${ic(x[1])}</span><div class="x">${x[2]}</div></div>`;
+  const strip = $("#strip") ? "" : stripHtml();   // home has its own spot under the round buttons
+  el.innerHTML = sosHtml() + ciHtml() + strip + (banAll ? B : B.slice(0, 1)).map(ban).join("")
+    + (B.length > 1 ? `<button type="button" class="more-ban" id="banMore" aria-expanded="${banAll}">${ic(banAll ? "chevron-down" : "chevron-right")} ${banAll ? t("ban.less") : t("ban.more", B.length - 1)}</button>` : "");
+  if ($("#banMore")) $("#banMore").onclick = () => { banAll = !banAll; updateLive(); };
   wireSos(el);
   wireCi(el);
-  if ($("#micStop")) $("#micStop").onclick = micStop;
-  if ($("#ringStop2")) $("#ringStop2").onclick = ringStop;
+  wireStrip(el);
   actPaint();
+}
+// ring / listen "active strip": what is on right now on the kid's phone + one Stop button
+function stripHtml() {
+  if (!st || viewDay) return "";
+  const local = $("#earAudio") && $("#earAudio").getAttribute("src");   // our own player has its own bar (#ear)
+  return (earOn() && !local ? `<div class="actbar" role="status">${ic("ear")}<span class="x">${t("live.mic", hhmm(st.listen && st.listen.since || Date.now()))}</span><button type="button" id="micStop" class="stopb" ${actSt.ear1 && actSt.ear1.s === "pend" ? 'disabled aria-busy="true"' : ""}>${actSt.ear1 && actSt.ear1.s === "pend" ? '<i class="spin" style="width:14px;height:14px"></i> ' + t("act.sending") : ic("square") + " " + t("act.off")}</button></div>` : "")
+    + (ringOn() ? `<div class="actbar" role="status">${ic("bell")}<span class="x">${t("act.ringOn")}</span><button type="button" id="ringStop2" class="stopb" ${actSt.ring && actSt.ring.s === "pend" ? 'disabled aria-busy="true"' : ""}>${actSt.ring && actSt.ring.s === "pend" ? '<i class="spin" style="width:14px;height:14px"></i> ' + t("act.sending") : ic("square") + " " + t("act.off")}</button></div>` : "");
+}
+function wireStrip(root) {
+  const m = root.querySelector("#micStop"), r = root.querySelector("#ringStop2");
+  if (m) m.onclick = micStop; if (r) r.onclick = ringStop;
+}
+function paintStrip() {
+  const s = $("#strip"); if (!s) return;
+  const h = stripHtml(); if (s.dataset.h === h) return;
+  s.dataset.h = h; s.innerHTML = h; wireStrip(s);
 }
 
 // ---- v0.9.7 check-in (child tapped "Con tới nơi rồi" / "Đón con với"): banner until "Đã xem" (per browser), 3 h max ----
@@ -1773,7 +2150,7 @@ function wireSos(el) {
 
 // ---- Listen around (LAN / Tailscale only; the child always hears a beep and sees a notification) ----
 // listen errors from the phone: keys "ear.<code>"
-let earT = 0;
+let earT = 0, earErr0 = "";
 function earBar() {
   let e = $("#ear");
   if (!e) {
@@ -1782,9 +2159,9 @@ function earBar() {
     document.body.appendChild(e);
     $("#earStop").onclick = () => earStop();
     const au = $("#earAudio");
-    au.onplaying = () => { earT = earT || Date.now(); };
+    au.onplaying = () => { earT = earT || Date.now(); const w = want.listen; if (w && w.on) { delete want.listen; liveOn.listen = true; actSt[w.id] = { s: "done", t: Date.now() }; actPaint(); } };
     // the phone ends the stream itself on 10 min, a blocked mic ("mic silenced") or a stuck one: say which
-    const ended = async (fail) => { if (!au.getAttribute("src")) return; earStop(); await refresh().catch(() => {}); const er = st && st.listen && st.listen.err;
+    const ended = async (fail) => { if (!au.getAttribute("src")) return; earStop(); await refresh().catch(() => {}); const e0 = st && st.listen && st.listen.err, er = e0 && e0 !== earErr0 ? e0 : "";
       if (er || fail) toast("err|" + t("ear.fail", er ? tc("ear.", er, er) : t("e.lost"))); else toast("ok|" + t("ear.ended")); };
     au.onended = () => ended(false);
     au.onerror = () => ended(true);
@@ -1798,6 +2175,8 @@ async function earStart() {
   earStart.k = cur;
   const e = earBar(), au = $("#earAudio");
   earT = 0; e.style.display = "flex"; $("#earTxt").textContent = t("connecting");
+  earErr0 = st && st.listen ? st.listen.err || "" : "";   // only an error that shows up after this press is ours
+  expect("listen", true, "ear1");
   au.src = `${base(cur)}/listen?k=${encodeURIComponent(cur.token)}&t=${Date.now()}`;
   au.play().catch(() => {});
   clearInterval(earStart.i);
@@ -1811,59 +2190,97 @@ function earStop(msg) {
   if (had && earStart.k) call(earStart.k, "/cmd", "POST", { type: "listenStop" }).catch(() => {});
   earStart.k = null;
   if (msg) toast("ok|" + msg);
-  actPaint();
+  updateLive(); actPaint();
 }
 
 // ---- per-kid action buttons: idle / pending (spinner, disabled) / active (accent, tap = confirm stop) / done / error ----
 // Active comes from the phone's own state (st.ring, st.listen), never from a local guess. Conflicts (docs/protocol.md
 // "Action states"): no ring while listening, no listening while ringing (the phone refuses too).
 const actSt = {};   // button id -> {s: "pend" | "done" | "err", t: ms}
-const ringOn = () => !!(st && st.ring && st.ring.on);
-const earOn = () => !!(st && st.listen && st.listen.on) || !!($("#earAudio") && $("#earAudio").getAttribute("src"));
+// The phone's /state can lag a command by a poll or two. So: a sent ring/listen (or its stop) keeps the button pending
+// until /state shows the wanted on/off (~8 s, then error); without a pending command, a change needs 2 polls in a row.
+const liveOn = { ring: null, listen: null };   // shown state; null = nothing seen yet for this kid (take the first poll as is)
+const want = {}, flips = {};                    // key -> {on, until, id}; key -> polls in a row that disagree
+const rawOn = key => !!(st && st[key] && st[key].on);
+function settle() {
+  if (!st) return;
+  for (const key of ["ring", "listen"]) {
+    const raw = rawOn(key), w = want[key];
+    if (w) {
+      if (raw === w.on) { liveOn[key] = raw; flips[key] = 0; delete want[key]; actSt[w.id] = { s: "done", t: Date.now() }; }
+      else if (Date.now() > w.until) { delete want[key]; liveOn[key] = raw; flips[key] = 0; actSt[w.id] = { s: "err", t: Date.now() }; toast("err|" + t("act.noConfirm")); setTimeout(actPaint, 6100); }
+      continue;
+    }
+    if (liveOn[key] === null) { liveOn[key] = raw; continue; }
+    if (raw !== liveOn[key]) { flips[key] = (flips[key] || 0) + 1; if (flips[key] >= 2) { liveOn[key] = raw; flips[key] = 0; } } else flips[key] = 0;
+  }
+}
+// wait for /state to show `on` for `key`; polls every second meanwhile
+function expect(key, on, id) {
+  want[key] = { on, until: Date.now() + 8000, id }; actSt[id] = { s: "pend", t: Date.now() }; actPaint();
+  const k = cur;
+  const tick = async () => { if (!want[key] || k !== cur) return; await refresh().catch(() => {}); if (k !== cur) { delete want[key]; return; } updateLive(); if (want[key]) setTimeout(tick, 1000); else setTimeout(actPaint, 2600); };
+  setTimeout(tick, 700);
+}
+function wantReset() { for (const k of Object.keys(want)) delete want[k]; liveOn.ring = liveOn.listen = null; flips.ring = flips.listen = 0; }
+const ringOn = () => !!liveOn.ring;
+const earOn = () => !!liveOn.listen || !!($("#earAudio") && $("#earAudio").getAttribute("src"));
+const ACT = { lock: ["lock", "lockScr"], wake: ["lightbulb", "wake"], ring: ["bell", "ring"], loc: ["map-pin", "locate"], loc2: ["map-pin", "where.locNew"], ear1: ["ear", "listen"] };
+const ACT_TO = {};   // 20 s without an answer = error ("the phone did not answer")
 async function act(id, fn) {
   if (actSt[id] && actSt[id].s === "pend") return;
   actSt[id] = { s: "pend", t: Date.now() }; actPaint();
-  const r = await fn();
-  actSt[id] = r === undefined ? { s: "err", t: Date.now() } : { s: r.result === "queued" ? "sent" : "done", t: Date.now() };
-  if (r !== undefined && id === "ring") refresh().catch(() => {});
-  actPaint(); setTimeout(actPaint, 2600);
+  const r = await Promise.race([fn(), new Promise(res => setTimeout(() => res(ACT_TO), 20000))]);
+  if (r === ACT_TO) toast("err|" + t("act.timeout"));
+  if (r && r !== ACT_TO && Object.values(want).some(w => w.id === id)) return actPaint();   // waiting for /state to confirm
+  actSt[id] = r === undefined || r === ACT_TO ? { s: "err", t: Date.now() } : { s: r.result === "queued" ? "sent" : "done", t: Date.now() };
+  actPaint(); setTimeout(actPaint, 2600); if (actSt[id].s === "err") setTimeout(actPaint, 6100);
 }
+// .tile = round button (icon in <b>, label under it); other .act buttons = icon + label inline (the "Thêm" sheet)
 function actPaint() {
-  const set = (id, cls, label, dis, title) => { const b = $("#" + id); if (!b || !b.classList.contains("act")) return;
-    if (!b.dataset.l) b.dataset.l = b.innerHTML;
-    b.classList.remove("on", "pend", "done", "err"); if (cls) b.classList.add(cls);
-    b.innerHTML = label == null ? b.dataset.l : label; b.disabled = !!dis; b.title = title || ""; };
-  for (const id of ["lock", "wake", "ring", "loc", "ear1"]) {
-    const a = actSt[id], fresh = a && (a.s === "pend" || Date.now() - a.t < 2500);
-    const base = $("#" + id) && $("#" + id).dataset.l;
-    if (id === "ring" && ringOn()) { set(id, "on", ic("bell") + " " + t("act.ringOn")); continue; }
-    if (id === "ear1" && earOn()) { set(id, "on", ic("ear") + " " + t("act.earOn")); continue; }
-    if (id === "ring" && earOn()) { set(id, "", null, true, t("act.noRing")); continue; }
-    if (id === "ear1" && ringOn()) { set(id, "", null, true, t("act.noEar")); continue; }
-    if (fresh && a.s === "pend") set(id, "pend", null, true);
-    else if (fresh && a.s === "err") set(id, "err", ic("triangle-alert") + " " + t("act.err"));
-    else if (fresh) set(id, "done", ic("check") + " " + t(a.s === "sent" ? "act.sent" : "act.done"));
-    else set(id, "", base);
+  for (const id of Object.keys(ACT)) {
+    const b = $("#" + id); if (!b || !b.classList.contains("act")) continue;
+    const a = actSt[id], fresh = a && (a.s === "pend" || Date.now() - a.t < (a.s === "err" ? 6000 : 2500)), tile = b.classList.contains("tile");
+    let cls = "", icn = ACT[id][0], lab = t(ACT[id][1]), why = "";
+    if (fresh && a.s === "pend") { cls = "pend"; lab = t(id === "loc" || id === "loc2" ? "act.finding" : "act.sending"); }
+    else if (id === "ring" && ringOn()) { cls = "on"; lab = t(tile ? "act.ringing" : "act.ringOn"); }
+    else if (id === "ear1" && earOn()) { cls = "on"; lab = t(tile ? "act.listening" : "act.earOn"); }
+    else if (id === "ring" && earOn()) { cls = "dis"; why = t("act.noRing"); }
+    else if (id === "ear1" && ringOn()) { cls = "dis"; why = t("act.noEar"); }
+    else if (fresh && a.s === "err") { cls = "err"; icn = "triangle-alert"; lab = t("act.err"); }
+    else if (fresh) { cls = "done"; icn = "check"; lab = t(a.s === "sent" ? "act.sent" : "act.done"); }
+    b.classList.remove("on", "pend", "done", "err", "dis"); if (cls) b.classList.add(cls);
+    const h = tile ? `<b>${cls === "pend" ? '<i class="spin"></i>' : ic(icn)}</b><span>${lab}</span>` : `${cls === "pend" ? "" : ic(icn)} ${lab}`;
+    if (b.innerHTML !== h) b.innerHTML = h;
+    b.disabled = cls === "pend"; b.setAttribute("aria-busy", cls === "pend"); b.title = why;
+    if (why) b.setAttribute("aria-disabled", "true"); else b.removeAttribute("aria-disabled");
   }
+  // listening is reached through "Thêm": that round button turns amber while the mic is on
+  const m = $("#moreAct");
+  if (m) { const on = earOn(), h = on ? `<b>${ic("ear")}</b><span>${t("act.listening")}</span>` : `<b>${ic("ellipsis")}</b><span>${t("nav.more")}</span>`; m.classList.toggle("on", on); if (m.innerHTML !== h) m.innerHTML = h; }
+  paintStrip();
 }
 async function ringStop() {
   if (!cur || !(await ask(t("ring.askStop"), t("ringStop")))) return;
-  if (await cmd({ type: "ringStop" }, t("ring.stopped"), false)) { if (st && st.ring) st.ring.on = false; updateLive(); actPaint(); refresh().catch(() => {}); }
+  actSt.ring = { s: "pend", t: Date.now() }; actPaint();
+  const r = await cmd({ type: "ringStop" }, t("ring.stopped"), false);
+  if (r && r.result !== "queued") expect("ring", false, "ring"); else { actSt.ring = r ? { s: "sent", t: Date.now() } : { s: "err", t: Date.now() }; actPaint(); }
 }
 async function micStop() {
   if (!cur || !(await ask(t("ear.askStop"), t("micStop")))) return;
   const had = $("#earAudio") && $("#earAudio").getAttribute("src"); earStop();
-  if (had) { if (st && st.listen) st.listen.on = false; updateLive(); refresh().catch(() => {}); return; }   // earStop already sent listenStop
-  if (await cmd({ type: "listenStop" }, t("turnedOff"), false)) { if (st && st.listen) st.listen.on = false; updateLive(); refresh().catch(() => {}); }
+  if (had) return expect("listen", false, "ear1");   // earStop already sent listenStop
+  actSt.ear1 = { s: "pend", t: Date.now() }; actPaint();
+  const r = await cmd({ type: "listenStop" }, t("turnedOff"), false);
+  if (r && r.result !== "queued") expect("listen", false, "ear1"); else { actSt.ear1 = r ? { s: "sent", t: Date.now() } : { s: "err", t: Date.now() }; actPaint(); }
 }
 function fmtClock(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 
-function modeHtml() {
-  if (st.owner || !st.mode && st.owner !== false) return "";
+function modeBans() {   // basic mode / unfinished setup: [tone, icon, text] banners
+  if (st.owner || !st.mode && st.owner !== false) return [];
   const m = st.basic || {}, miss = ["acc", "admin", "usage", "location", "notify", "battery"].filter(k => m[k] === false).map(k => t("perm." + k));
-  if (st.mode !== "basic") return `<div class="alert">${ic("triangle-alert")} ${t("mode.setup", esc(miss.join(", ") || t("mode.items")))}</div>`;
-  return (m.acc === false ? `<div class="alert">${ic("siren")} ${t("mode.accOff")}</div>` : "")
-    + `<div class="alert warn">${ic("info")} ${t("mode.basic")}${miss.length ? " " + t("mode.miss", esc(miss.join(", "))) : ""}</div>`;
+  if (st.mode !== "basic") return [["bad", "triangle-alert", t("mode.setup", esc(miss.join(", ") || t("mode.items")))]];
+  return (m.acc === false ? [["bad", "siren", t("mode.accOff")]] : []).concat([["warn", "info", t("mode.basic") + (miss.length ? " " + t("mode.miss", esc(miss.join(", "))) : "")]]);
 }
 // "Cấm dùng…" / "Cho thêm giờ…" modal on the #askPop layer (Esc / backdrop close it through askDone).
 // pause: rules.pausedUntil = end time (ms), "for N min" or "until HH:MM" (passed today = tomorrow), both computed here.
@@ -1922,42 +2339,44 @@ function pickTime(kind, active, onOk, onClear) {
   draw(); pop.style.display = "flex";
   return new Promise(res => { const done = v => { if (askDone !== done) return; askDone = null; pop.style.display = "none"; pop.innerHTML = ""; res(v); }; askDone = done; const f = $("#pkN") || $("#askOk"); if (f) f.focus(); });
 }
-function homeTab(b) {
-  const r = edit || st.rules, today = st.day, limit = edit ? todayLimit(r, today) : (st.limitMin ?? r.dailyMin);
-  const reqs = (st.requests || []).filter(q => !answered.has(q.id));
-  const used = st.usedMs, left = st.leftMs, pct = limit ? Math.min(100, used / (limit * 600)) : 0;
-  const pausedLeft = r.pausedUntil - Date.now();
-  const bonusMin = r.bonus && r.bonus.day === today ? +r.bonus.min || 0 : 0;
-  const blockedNow = st.apps.filter(x => x.suspended);
-  b.innerHTML = `
-  ${reqs.map(q => { const ch = q.chore ? (r.chores || []).find(c => c.id === q.chore) : null, m = reqMin[q.id] || +q.min, id = esc(q.id), chips = [15, 30, 45, 60].includes(+q.min) ? [15, 30, 45, 60] : [15, 30, 45, 60, +q.min].sort((a, c) => a - c);
-    return `<div class="card" style="border-color:var(--warn)" role="group" aria-label="${esc(t("req.aria"))}"><b>${ic("hand")} ${t("req.asks", esc(cur.name), +q.min)}</b>${q.t ? ` <span class="mute">· ${ago(q.t)}</span>` : ""}
-    ${q.chore ? `<div style="margin-top:6px"><span class="tag warn">${ic("star")} ${t("req.chore")}</span> <span class="tag">${esc(ch ? ch.name : t("req.choreGone"))}</span></div>` : ""}
+// generic sheet on the #askPop layer (bottom sheet on phones, dialog on desktop); Esc / backdrop / #askNo close it
+function sheet(html, wire) {
+  if (askDone) askDone(false);
+  const pop = $("#askPop"); pop.innerHTML = html; pop.style.display = "flex";
+  return new Promise(res => {
+    const done = v => { if (askDone !== done) return; askDone = null; pop.style.display = "none"; pop.innerHTML = ""; res(v); };
+    askDone = done;
+    const x = pop.querySelector("#askNo"); if (x) x.onclick = () => done(false);
+    if (wire) wire(pop, done);
+    const f = pop.querySelector(".close") || pop.querySelector("button"); if (f) f.focus();
+  });
+}
+const sheetHead = (icn, title) => `<div class="shh"><h2 id="askT">${ic(icn)} ${title}</h2><button type="button" class="close" id="askNo" aria-label="${esc(t("close"))}">${ic("x")}</button></div>`;
+
+// time request: compact card on home; note, canned replies and minute chips live in the "Trả lời…" sheet
+const reqChips = q => [15, 30, 45, 60].includes(+q.min) ? [15, 30, 45, 60] : [15, 30, 45, 60, +q.min].sort((a, c) => a - c);
+function reqCard(q, r) {
+  const ch = q.chore ? (r.chores || []).find(c => c.id === q.chore) : null, m = reqMin[q.id] || +q.min, id = esc(q.id), note = (reqNote[q.id] || "").trim();
+  return `<div class="card req" role="group" aria-label="${esc(t("req.aria"))}"><div class="row" style="flex-wrap:nowrap;align-items:flex-start"><span class="ib t-warn" style="color:var(--warn);background:color-mix(in srgb,var(--warn) 16%,transparent)">${ic("hand")}</span>
+    <div class="sp" style="min-width:0"><b>${t("req.asks", esc(cur.name), +q.min)}</b>${q.t ? ` <span class="mute">· ${ago(q.t)}</span>` : ""}
+    ${q.chore ? `<div style="margin-top:4px"><span class="tag warn" style="margin:0">${ic("star")} ${t("req.chore")}</span> <span class="tag">${esc(ch ? ch.name : t("req.choreGone"))}</span></div>` : ""}
     ${q.note ? `<div class="mute" style="margin-top:4px">${t("req.note", esc(q.note))}</div>` : ""}
-    <label class="mute" for="f-rn-${id}" style="display:block;margin-top:10px">${t("req.reply")}</label>
-    <input id="f-rn-${id}" data-rn="${id}" maxlength="200" autocomplete="off" placeholder="${esc(t("req.replyPh"))}" style="width:100%" value="${esc(reqNote[q.id] || "")}">
-    <div class="chips" style="margin-top:6px" role="group" aria-label="${esc(t("req.cannedAria"))}">${t("req.canned").map(c => `<button type="button" data-cr="${id}" data-v="${esc(c)}" class="${reqNote[q.id] === c ? "on" : ""}" aria-pressed="${reqNote[q.id] === c}">${esc(c)}</button>`).join("")}</div>
-    <div class="chips" style="margin-top:8px" role="group" aria-label="${esc(t("minutes"))}">${chips.map(v => `<button data-rm="${id}" data-v="${v}" class="${v === m ? "on" : ""}" aria-pressed="${v === m}">${t("fmt.m", v)}</button>`).join("")}</div>
-    <div class="row" style="margin-top:10px"><button class="pri sp" data-yes="${id}" data-min="${m}">${ic("circle-check")} ${t("req.yes", m)}</button><button class="sp" data-no="${id}">${ic("circle-x")} ${t("req.no")}</button></div></div>`; }).join("")}
-  <div class="card"><h2>${ic("timer")} ${t("today")}</h2>
-    <div class="row"><span class="big">${fmt(used)}</span><span class="mute">${t("used")}${limit ? " / " + fmt(limit * 60000) + (r.bonus && r.bonus.day === today && r.bonus.min ? " " + t("home.incl", r.bonus.min) : "") : " " + t("home.noLim")}</span></div>
-    ${limit ? `<div class="bar"><i style="width:${pct}%"></i></div><div class="mute">${t("left", fmt(left))}</div>` : ""}
-    <div class="row" style="margin-top:10px">${limit ? `<button type="button" id="bonusGo" class="sp">${ic("plus")} ${t("pk.bonusBtn")}${bonusMin ? ` <span class="tag ok">+${t("fmt.m", bonusMin)}</span>` : ""}</button>` : `<span class="mute">${t("home.noLimHint")}</span>`}</div>
-  </div>
-  ${(st.events || []).length ? `<div class="card"><h2>${ic("bell")} ${t("events")}</h2>${(st.events || []).slice(-10).reverse().map(evHtml).join("")}</div>` : ""}
-  <div class="card"><h2>${ic("zap")} ${t("now")}</h2>
-    <button type="button" id="pauseGo" class="${pausedLeft > 0 ? "pausing" : "pri"}" style="width:100%;margin-bottom:10px">${pausedLeft > 0 ? `${ic("pause")} <span><b>${t("pk.active", whenTxt(r.pausedUntil))}</b> · ${t("pk.tapEdit")}</span>` : `${ic("pause")} ${t("pk.pauseBtn")}`}</button>
-    <div class="grid">
-      <button id="lock" class="act">${ic("lock")} ${t("lockScr")}</button><button id="wake" class="act">${ic("lightbulb")} ${t("wake")}</button><button id="ring" class="act">${ic("bell")} ${t("ring")}</button><button id="loc" class="act">${ic("map-pin")} ${t("locate")}</button>${cur.via === "lan" && !viewDay ? `<button id="ear1" class="act">${ic("ear")} ${t("listen")}</button>` : ""}
-      ${isBasic() ? "" : `<button id="reboot" class="bad">${ic("refresh-cw")} ${t("reboot")}</button>`}
-    </div>
-    <div class="row" style="margin-top:10px"><input id="msg" class="sp" placeholder="${esc(t("msgPh"))}" aria-label="${esc(t("msgPh"))}" maxlength="300"><button id="send" class="pri">${ic("send")} ${t("send")}</button></div>
-  </div>
-  ${blockedNow.length ? `<div class="card"><h2>${ic("ban")} ${t("lockedN", blockedNow.length)}</h2>${blockedNow.slice(0, 50).map(x => `<span class="tag bad">${esc(x.label)}</span>`).join(" ")}</div>` : ""}
-  <div class="card"><h2>${ic("chart-column")} ${t("last7")}</h2><div id="histPick" style="margin-bottom:8px"></div><div class="hist" id="hist"></div><div id="histTop" class="mute"></div></div>
-  <div class="card"><h2>${ic("flame")} ${t("topApps")}</h2>${st.apps.filter(x => x.ms > 60000).slice(0, 8).map(appRow).join("") || `<div class="empty"><span class="e">${ic("sprout")}</span>${t("none")}</div>`}</div>
-  <div class="card"><h2>${ic("notebook-pen")} ${t("log")}</h2>${(st.log || []).slice(-12).reverse().map(l => `<div class="mute">${hhmm(l.t)} · ${esc(logTr(noEmoji(l.m)))}</div>`).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}</div>`;
-  drawHist();
+    ${note ? `<div class="mute" style="margin-top:4px">${ic("message-square")} ${esc(note)}</div>` : ""}</div></div>
+    <div class="row" style="margin-top:12px"><button class="pri" data-yes="${id}" data-min="${m}">${ic("circle-check")} ${t("req.yes", m)}</button><button data-no="${id}">${ic("circle-x")} ${t("req.no")}</button><button data-reply="${id}">${ic("message-square")} ${t("req.replyBtn")}</button></div></div>`;
+}
+function replySheet(q, today) {
+  const m = reqMin[q.id] || +q.min, id = esc(q.id);
+  return sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("hand", t("req.asks", esc(cur.name), +q.min))}
+    ${q.note ? `<p class="mute" style="margin-top:0">${t("req.note", esc(q.note))}</p>` : ""}
+    <label class="mute" for="f-rn-${id}" style="display:block;margin-top:6px">${t("req.reply")}</label>
+    <input id="f-rn-${id}" data-rn="${id}" maxlength="200" autocomplete="off" placeholder="${esc(t("req.replyPh"))}" style="width:100%;margin-top:6px" value="${esc(reqNote[q.id] || "")}">
+    <div class="chips" style="margin-top:8px" role="group" aria-label="${esc(t("req.cannedAria"))}">${t("req.canned").map(c => `<button type="button" data-cr="${id}" data-v="${esc(c)}" class="${reqNote[q.id] === c ? "on" : ""}" aria-pressed="${reqNote[q.id] === c}">${esc(c)}</button>`).join("")}</div>
+    <div class="mute" style="margin-top:14px">${t("minutes")}</div>
+    <div class="chips" style="margin-top:6px" role="group" aria-label="${esc(t("minutes"))}">${reqChips(q).map(v => `<button type="button" data-rm="${id}" data-v="${v}" class="${v === m ? "on" : ""}" aria-pressed="${v === m}">${t("fmt.m", v)}</button>`).join("")}</div>
+    <div class="row" style="margin-top:16px"><button class="sp" data-no="${id}">${ic("circle-x")} ${t("req.no")}</button><button class="sp pri" data-yes="${id}" data-min="${m}">${ic("circle-check")} ${t("req.yes", m)}</button></div></div>`,
+    pop => wireReq(pop, today, true));
+}
+function wireReq(b, today, inSheet) {
   b.querySelectorAll("[data-rn]").forEach(i => i.oninput = () => { reqNote[i.dataset.rn] = i.value; });
   // canned reply: fills the message (tap again = clear); the chip that matches the text shows as pressed
   const crPaint = id => b.querySelectorAll("[data-cr]").forEach(o => { if (o.dataset.cr !== id) return; const on = (reqNote[id] || "") === o.dataset.v; o.classList.toggle("on", on); o.setAttribute("aria-pressed", on); });
@@ -1970,10 +2389,11 @@ function homeTab(b) {
   b.querySelectorAll("[data-rm]").forEach(c => c.onclick = () => {
     const id = c.dataset.rm, v = +c.dataset.v; reqMin[id] = v;
     b.querySelectorAll("[data-rm]").forEach(o => { if (o.dataset.rm !== id) return; const on = +o.dataset.v === v; o.classList.toggle("on", on); o.setAttribute("aria-pressed", on); });
-    const y = [...b.querySelectorAll("[data-yes]")].find(o => o.dataset.yes === id); if (y) { y.dataset.min = v; y.innerHTML = ic("circle-check") + " " + t("req.yes", v); }
+    document.querySelectorAll("[data-yes]").forEach(y => { if (y.dataset.yes === id) { y.dataset.min = v; y.innerHTML = ic("circle-check") + " " + t("req.yes", v); } });
   });
   const noteOf = id => (reqNote[id] || "").trim().slice(0, 200);
   const doneReq = id => { delete reqMin[id]; delete reqNote[id]; };
+  const after = () => { if (cur) render(); };
   b.querySelectorAll("[data-yes]").forEach(x => x.onclick = async () => {
     const id = x.dataset.yes, note = noteOf(id);
     if (!(await ask(t("req.askYes", +x.dataset.min) + (note ? "\n" + t("req.askNote", note) : "")))) return;
@@ -1984,15 +2404,72 @@ function homeTab(b) {
     try { await putRules(k, e); } catch (er) { if (e === edit) e.bonus = prev; toast("err|" + t("req.bonusFail", er.message)); return; }   // card stays
     if (k !== cur) return;
     if (await cmd({ type: "answer", id, ok: true, min: n, ...(note ? { note } : {}) }, t("req.yesDone", n), false)) { answered.add(id); doneReq(id); }
-    render();
+    after();
   });
   b.querySelectorAll("[data-no]").forEach(x => x.onclick = async () => {
     const id = x.dataset.no, note = noteOf(id);
     if (!(await ask(t("req.askNo") + (note ? "\n" + t("req.askNote", note) : ""), t("req.no"), true))) return;
     if (await cmd({ type: "answer", id, ok: false, ...(note ? { note } : {}) }, t("req.noDone"), false)) { answered.add(id); doneReq(id); }
-    render();
+    after();
   });
-  if ($("#reboot")) $("#reboot").onclick = () => cmd({ type: "reboot" }, t("reboot.done"));
+  if (!inSheet) b.querySelectorAll("[data-reply]").forEach(x => x.onclick = () => { const q = (st.requests || []).find(o => o.id === x.dataset.reply); if (q) replySheet(q, today).then(() => { if (cur && tab === "home") render(); }); });
+}
+// "Thêm" round button: wake, listen, message, restart
+function moreSheet() {
+  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("zap", t("now"))}
+    <div class="grid"><button type="button" id="wake" class="act"></button>${cur.via === "lan" && !viewDay ? `<button type="button" id="ear1" class="act"></button>` : ""}${isBasic() ? "" : `<button type="button" id="reboot" class="bad">${ic("refresh-cw")} ${t("reboot")}</button>`}</div>
+    ${cur.via === "lan" ? "" : `<p class="mute">${ic("ear")} ${t("ear.lanOnly")}</p>`}
+    <label class="mute" for="msg" style="display:block;margin:16px 0 6px">${t("msg.h")}</label>
+    <div class="row"><input id="msg" class="sp" placeholder="${esc(t("msgPh"))}" maxlength="300"><button type="button" id="send" class="pri">${ic("send")} ${t("send")}</button></div></div>`,
+    pop => {
+      pop.querySelector("#wake").onclick = () => act("wake", () => cmd({ type: "wake" }, t("wake.done"), false));
+      const e1 = pop.querySelector("#ear1"); if (e1) e1.onclick = () => earOn() ? micStop() : ringOn() ? toast("warn|" + t("act.noEar")) : earStart();
+      const rb = pop.querySelector("#reboot"); if (rb) rb.onclick = () => cmd({ type: "reboot" }, t("reboot.done"));
+      pop.querySelector("#send").onclick = () => { const tx = $("#msg").value.trim(); if (!tx) return $("#msg").focus(); cmd({ type: "message", text: tx }, t("msg.done")).then(r => { if (r && $("#msg") && $("#msg").value.trim() === tx) $("#msg").value = ""; }); };
+      pop.querySelector("#msg").onkeydown = e => { if (e.key === "Enter") pop.querySelector("#send").click(); };
+      actPaint();
+    });
+}
+function homeTab(b) {
+  const r = edit || st.rules, today = st.day, limit = edit ? todayLimit(r, today) : (st.limitMin ?? r.dailyMin);
+  const reqs = (st.requests || []).filter(q => !answered.has(q.id));
+  const used = st.usedMs, left = st.leftMs, pct = limit ? Math.min(100, used / (limit * 600)) : 0;
+  const pausedLeft = r.pausedUntil - Date.now();
+  const bonusMin = r.bonus && r.bonus.day === today ? +r.bonus.min || 0 : 0;
+  const blockedNow = st.apps.filter(x => x.suspended);
+  // the solid button follows the situation: can use the phone -> "Cấm dùng…"; paused / out of time -> "Cho thêm giờ…"
+  const out = pausedLeft > 0 || (limit && left <= 0);
+  const pauseB = cls => `<button type="button" id="pauseGo" class="${pausedLeft > 0 ? "pausing " + cls.replace("pri ", "") : cls}">${pausedLeft > 0 ? `${ic("pause")} <span><b>${t("pk.active", whenTxt(r.pausedUntil))}</b> · ${t("pk.tapEdit")}</span>` : `${ic("pause")} ${t("pk.pauseBtn")}`}</button>`;
+  const bonusB = cls => limit ? `<button type="button" id="bonusGo" class="${cls}">${ic("plus")} ${t("pk.bonusBtn")}${bonusMin ? ` <span class="tag ok">+${t("fmt.m", bonusMin)}</span>` : ""}</button>` : "";
+  const top = st.apps.filter(x => x.ms > 60000).slice(0, 3), mx = Math.max(1, ...top.map(x => x.ms));
+  const ev = (st.events || []).slice(-3).reverse();
+  b.innerHTML = `<div class="g2 w"><div>
+  ${reqs.map(q => reqCard(q, r)).join("")}
+  <section class="hero" aria-label="${esc(t("today"))}">
+    <div class="lab">${limit ? t(left > 0 ? "hero.left" : "hero.out") : t("hero.used")}</div>
+    <div class="big">${limit ? fmt(Math.max(0, left)) : fmt(used)}</div>
+    <div class="meta"><span>${limit ? t("hero.usedOf", fmt(used), fmt(limit * 60000)) + (bonusMin ? " " + t("home.incl", bonusMin) : "") : t("home.noLim")}</span>${blockedNow.length ? `<button type="button" class="chip t-bad" id="blkGo">${ic("ban")} ${t("lockedN", blockedNow.length)} ›</button>` : ""}</div>
+    ${limit ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ""}
+    ${out ? bonusB("pri hb") + pauseB(limit ? "hb2" : "pri hb") : pauseB("pri hb") + bonusB("hb2")}
+    ${limit ? "" : `<p class="mute" style="margin:10px 0 0">${t("home.noLimHint")}</p>`}
+  </section>
+  <div class="quick" role="group" aria-label="${esc(t("now"))}">
+    <button type="button" id="lock" class="tile act"></button><button type="button" id="ring" class="tile act"></button><button type="button" id="loc" class="tile act"></button>
+    <button type="button" id="scrGo" class="tile" ${navOk("screen") ? "" : "disabled"}><b>${ic("smartphone")}</b><span>${t("tab.screen")}</span></button>
+    <button type="button" id="moreAct" class="tile" aria-haspopup="dialog"><b>${ic("ellipsis")}</b><span>${t("nav.more")}</span></button>
+  </div>
+  <div id="strip"></div>
+  </div><div>
+  <div class="list mt16"><div class="lhead"><h2>${ic("flame")} ${t("home.topToday")}</h2></div>
+    ${top.map(x => `<div class="li">${icon(x)}<span class="x"><b>${esc(x.label)}</b><span class="mbar"><i style="width:${Math.round(x.ms / mx * 100)}%"></i></span></span><span class="v">${fmt(x.ms)}</span></div>`).join("") || `<div class="empty"><span class="e">${ic("sprout")}</span>${t("none")}</div>`}
+    <button type="button" class="lfoot" data-go="apps">${t("home.allApps")} ${ic("chevron-right")}</button></div>
+  <div class="list"><div class="lhead"><h2>${ic("bell")} ${t("home.recent")}</h2></div>
+    ${ev.map(e => `<div class="li"><span class="ib">${ic(EV_IC[e.kind] || "bell")}</span><span class="x"><b style="white-space:normal">${esc(noEmoji(e.text))}</b></span><span class="v">${ago(e.t)}</span></div>`).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}
+    <button type="button" class="lfoot" data-go="log">${t("tab.log")} ${ic("chevron-right")}</button></div>
+  </div></div>`;
+  wireReq(b, today, false);
+  b.querySelectorAll("[data-go]").forEach(x => x.onclick = () => goTab(x.dataset.go));
+  if ($("#blkGo")) $("#blkGo").onclick = () => { sel.f = "blocked"; appsSub = "list"; goTab("apps"); };
   if ($("#bonusGo")) $("#bonusGo").onclick = () => pickTime("bonus", bonusMin ? t("pk.bonusNow", bonusMin) : "",
     m => { const c0 = edit.bonus && edit.bonus.day === today ? edit.bonus.min : 0; edit.bonus = { day: today, min: c0 + m }; changed(); toast("ok|" + t("pk.bonusDone", fmt(m * 60000))); render(); },
     bonusMin ? () => { edit.bonus = { day: today, min: 0 }; changed(); render(); } : null);
@@ -2000,12 +2477,11 @@ function homeTab(b) {
     until => { edit.pausedUntil = until; changed(); toast("ok|" + t("pk.sumPause", whenTxt(until))); render(); },
     pausedLeft > 0 ? () => { edit.pausedUntil = 0; changed(); toast("ok|" + t("pk.unpaused")); render(); } : null);
   $("#lock").onclick = () => act("lock", () => cmd({ type: "lock" }, t("lock.done")));
-  $("#wake").onclick = () => act("wake", () => cmd({ type: "wake" }, t("wake.done"), false));
-  $("#ring").onclick = () => ringOn() ? ringStop() : act("ring", () => cmd({ type: "ring" }, t("ring.done")));
+  $("#ring").onclick = () => ringOn() ? ringStop() : earOn() ? toast("warn|" + t("act.noRing")) : act("ring", async () => { const r = await cmd({ type: "ring" }, t("ring.done")); if (r && r.result !== "queued") expect("ring", true, "ring"); return r; });
   $("#loc").onclick = () => act("loc", () => cmd({ type: "locate" }, t("locate.done")));
-  if ($("#ear1")) $("#ear1").onclick = () => earOn() ? micStop() : earStart();
+  $("#scrGo").onclick = () => goTab("screen");
+  $("#moreAct").onclick = moreSheet;
   actPaint();
-  $("#send").onclick = () => { const tx = $("#msg").value.trim(); if (!tx) return; cmd({ type: "message", text: tx }, t("msg.done")).then(r => { if (r && $("#msg") && $("#msg").value.trim() === tx) $("#msg").value = ""; }); };
 }
 
 // device log lines "Lệnh: <type> → <result>" (the phone writes the prefix in Vietnamese, type/result as English codes): keys "cl.<type>", "cr.<result>".
@@ -2155,7 +2631,8 @@ let hideDraft = null;
 const mbTxt = m => m >= 1024 ? (m / 1024).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " GB" : m + " MB";
 function cleanStat() {
   const pre = (st && st.preinstalled) || [], saved = new Set((edit && edit.hidden) || []), took = new Set((st && st.rules && st.rules.hidden) || []);
-  const of = x => saved.has(x.pkg) ? (took.has(x.pkg) ? (x.hidden ? "ok" : "ref") : "wait") : (x.hidden && took.has(x.pkg) ? "show" : "");
+  // preinstalled[].refused (phone >= 0.9.8): the OS said no to hiding it, so it counts as not hidden whatever "hidden" says
+  const of = x => { const h = x.hidden && !x.refused; return saved.has(x.pkg) ? (x.refused ? "ref" : took.has(x.pkg) ? (h ? "ok" : "ref") : "wait") : (h && took.has(x.pkg) ? "show" : ""); };
   const n = { want: 0, ok: 0, ref: 0, wait: 0, of };
   pre.forEach(x => { const s = of(x); if (saved.has(x.pkg)) { n.want++; if (s === "ok" || s === "ref" || s === "wait") n[s]++; } });
   return n;
@@ -2176,7 +2653,7 @@ function cleanTab(b) {
   const pc = v => S.want ? (v / S.want * 100).toFixed(1) + "%" : "0";
   const nSug = pre.filter(x => x.suggest).length;
   b.innerHTML = `<div class="card"><h2>${ic("sparkles")} ${t("clean.h")}</h2>
-    <p class="mute" style="margin:0">${t("clean.p", "<b>" + pre.filter(x => x.hidden).length + "</b>")}</p>
+    <p class="mute" style="margin:0">${t("clean.p", "<b>" + pre.filter(x => x.hidden && !x.refused).length + "</b>")}</p>
     ${S.want ? `<div class="prog" role="img" aria-label="${esc(t("hd.sum", S.ok, S.want))}"><i style="width:${pc(S.ok)}"></i><i class="b" style="width:${pc(S.ref)}"></i><i class="w" style="width:${pc(S.wait)}"></i></div>
       <div><b>${t("hd.sum", S.ok, S.want)}</b>${S.ref ? ` · <span class="err">${t("hd.refN", S.ref)}</span>` : ""}${S.wait ? ` · <span class="mute">${t("hd.waitN", S.wait)}</span>` : ""}</div>
       ${S.ref ? `<div class="alert warn" style="font-weight:400;font-size:13px">${ic("triangle-alert")} ${t("hd.refTip")}</div>` : ""}` : ""}</div>
@@ -2380,6 +2857,7 @@ function kindBody(r) {
     <p class="mute">${ic("lightbulb")} ${t("kn.tip")}</p>`;
 }
 function wireComfort(b, r) {
+  const $ = s => b.querySelector(s) || document.createElement("i");
   const ws = () => { const e = $("#wdS"); if (e) e.innerHTML = windStatus(r); };
   $("#f-wg").onchange = e => { r.windDown.gray = e.target.checked; $("#f-wm").disabled = !e.target.checked; ws(); changed(); };
   $("#f-wm").onchange = e => { r.windDown.min = +e.target.value; ws(); changed(); };
@@ -2414,24 +2892,19 @@ function ruleChips(r) {
     kind: (n => n.length ? [n.join(" · "), "ok"] : off)([(r.lockInfo.msg || r.lockInfo.contact) && t("chip.lock"), r.blockNote && t("chip.note")].filter(Boolean)),
   };
 }
-function rulesTab(b) {
-  const r = edit;
-  const T = allTpl(); if (tplSel >= T.length) tplSel = 0;
-  const tcur = T[tplSel], nUser = T.length - PRESET_D.length, multi = reachKids().length > 1;
+// Rules: two sub-tabs (time / blocking & safety). Zones + location log live in the "Vị trí" tab, the Authenticator in
+// "Cài đặt"; the same section HTML (ruleSecs) and wiring (rulesWire) serve all three, wiring only what is on screen.
+let rseg = (() => { try { return localStorage.getItem("kg.rseg") === "safe" ? "safe" : "time"; } catch { return "time"; } })();
+const RSEG = { time: ["daily", "grp", "bed", "wind", "sch", "chore"], safe: ["more", "dns", "anti", "kind"] };
+function ruleSecs(r) {
   const C = ruleChips(r);
-  b.innerHTML = `
-  ${sec("r-tpl", "layers", t("tpl.h"), t("sd.tpl"), C.tpl, `    <p class="mute" style="margin:0 0 8px">${t("tpl.p")}</p>
-    <div class="chips" role="group" aria-label="${esc(t("tpl.h"))}">${T.map((t, i) => `<button data-tpl="${i}" class="${i === tplSel ? "on" : ""}" aria-pressed="${i === tplSel}">${esc(t.name)}</button>`).join("")}</div>
-    <div class="mute" style="margin-top:8px">${esc(tcur.name)}: ${tplSummary(tcur)}</div>
-    <div class="row" style="margin-top:10px"><button class="pri sp" id="tplGo">${ic("check")} ${t("tpl.applyTo", esc(cur.name))}</button>${multi ? `<button class="sp" id="tplMulti">${ic("clipboard-copy")} ${t("tpl.applyMany")}</button>` : ""}</div>
-    <div class="row" style="margin-top:8px"><button class="sp" id="tplSave">${ic("save")} ${t("tpl.saveCur")}</button>${tplSel >= PRESET_D.length ? `<button class="bad" id="tplDel">${ic("trash-2")} ${t("tpl.del")}</button>` : ""}</div>
-    ${nUser ? "" : `<p class="mute">${t("tpl.noOwn")}</p>`}`)}
-  ${sec("r-daily", "timer", t("daily.h"), t("sd.daily"), C.daily, `    <div class="row"><select id="f-dmode" aria-label="${esc(t("daily.h"))}"><option value="same" ${r.dailyByDay.length ? "" : "selected"}>${t("daily.same")}</option><option value="by" ${r.dailyByDay.length ? "selected" : ""}>${t("daily.by")}</option></select></div>
+  return {
+    daily: sec("r-daily", "timer", t("daily.h"), t("sd.daily"), C.daily, `    <div class="row"><select id="f-dmode" aria-label="${esc(t("daily.h"))}"><option value="same" ${r.dailyByDay.length ? "" : "selected"}>${t("daily.same")}</option><option value="by" ${r.dailyByDay.length ? "selected" : ""}>${t("daily.by")}</option></select></div>
     ${r.dailyByDay.length ? `<div class="grid" style="margin-top:8px">${t("wdl").map((n, i) => `<label class="mute">${t("daily.dayLbl", n)}<input type="number" min="0" max="1440" step="15" inputmode="numeric" data-d="${i}" id="f-d${i}" value="${+r.dailyByDay[i] || 0}" style="width:100%"></label>`).join("")}</div>`
     : `<div class="row" style="margin-top:8px"><select id="f-daily" aria-label="${esc(t("daily.h"))}">${[0, 30, 60, 90, 120, 150, 180, 240, 300].map(n => `<option value="${n}" ${r.dailyMin === n ? "selected" : ""}>${n ? fmt(n * 60000) : t("noLimitC")}</option>`).join("")}
     ${[0, 30, 60, 90, 120, 150, 180, 240, 300].includes(r.dailyMin) ? "" : `<option selected value="${r.dailyMin}">${fmt(r.dailyMin * 60000)}</option>`}</select></div>`}
-    <p class="mute">${ic("lightbulb")} ${t("daily.tip")}</p>`)}
-  ${sec("r-grp", "layout-grid", t("grp.h"), t("sd.grp"), C.grp, `    ${r.groups.map((g, i) => { const h = (g.hours || [])[0], have = new Set(g.pkgs || []), list = (st.apps || []).map(a => [a.pkg, a.label]).concat((g.pkgs || []).filter(p => !(st.apps || []).some(a => a.pkg === p)).map(p => [p, p]));
+    <p class="mute">${ic("lightbulb")} ${t("daily.tip")}</p>`),
+    grp: sec("r-grp", "layout-grid", t("grp.h"), t("sd.grp"), C.grp, `    ${r.groups.map((g, i) => { const h = (g.hours || [])[0], have = new Set(g.pkgs || []), list = (st.apps || []).map(a => [a.pkg, a.label]).concat((g.pkgs || []).filter(p => !(st.apps || []).some(a => a.pkg === p)).map(p => [p, p]));
       return `<div class="sch" data-g="${i}"><div class="row"><input class="sp" id="f-gn${i}" maxlength="40" placeholder="${esc(t("grp.namePh"))}" aria-label="${esc(t("grp.name"))}" value="${esc(g.name)}"><button class="bad" data-gdel="${i}" aria-label="${esc(t("grp.del"))}">${ic("trash-2")}</button></div>
       <label class="row" style="margin-top:8px">${t("grp.max")} <input type="number" id="f-gm${i}" min="0" max="1440" step="15" inputmode="numeric" style="width:5.5em" value="${+g.min || 0}"> ${t("minPerDay")} <span class="mute">${t("zeroNoLim")}</span></label>
       <label class="row" style="margin-top:8px"><input type="checkbox" id="g-hon${i}" ${h ? "checked" : ""}><span class="sp">${ic("clock")} ${t("grp.hours")}</span></label>
@@ -2441,54 +2914,84 @@ function rulesTab(b) {
       <div style="max-height:260px;overflow:auto;margin-top:6px">${list.map(([p, l]) => `<label class="row"><input type="checkbox" data-gp="${esc(p)}" ${have.has(p) ? "checked" : ""}><span class="sp">${esc(l)}</span></label>`).join("") || `<p class="mute">${t("grp.noList")}</p>`}</div></details>
       ${have.size ? "" : `<p class="mute">${ic("triangle-alert")} ${t("grp.empty")}</p>`}</div>`; }).join("") || `<p class="mute">${ic("inbox")} ${t("grp.none")}</p>`}
     <button id="addGroup" ${r.groups.length >= 10 ? "disabled" : ""}>${ic("plus")} ${t("grp.add")}</button>
-    <p class="mute">${ic("lightbulb")} ${t("grp.tip")}</p>`)}
-  ${sec("r-totp", "key-round", t("totp.h"), t("sd.totp"), C.totp, `    ${st.totpOn === undefined ? `<p class="mute">${ic("triangle-alert")} ${t("totp.old")}</p>` : st.totpOn
+    <p class="mute">${ic("lightbulb")} ${t("grp.tip")}</p>`),
+    totp: sec("r-totp", "key-round", t("totp.h"), t("sd.totp"), C.totp, `    ${st.totpOn === undefined ? `<p class="mute">${ic("triangle-alert")} ${t("totp.old")}</p>` : st.totpOn
       ? `<p>${ic("circle-check")} ${t("totp.onP")}${st.unlockUntil > Date.now() ? " " + t("totp.until", hhmm(st.unlockUntil)) : ""}</p>
         <div class="row"><button class="sp" id="totpNew">${ic("refresh-cw")} ${t("totp.new")}</button><button class="bad" id="totpOff">${ic("x")} ${t("turnOff")}</button></div>`
       : `<p class="mute">${t("totp.offP")}</p><button class="pri" id="totpNew">${ic("key-round")} ${t("totp.enable")}</button>`}
     <label class="row" style="margin-top:10px">${t("totp.each")} <select id="f-um">${[15, 30, 60, 120].map(n => `<option value="${n}" ${+r.unlockMin === n ? "selected" : ""}>${fmt(n * 60000)}</option>`).join("")}</select></label>
     <div id="totpOut">${totpShown && totpShown.k === cur ? totpHtml(totpShown) : ""}</div>
-    <p class="mute">${ic("lightbulb")} ${t("totp.tip")}</p>`)}
-  ${sec("r-chore", "star", t("chore.h"), t("sd.chore"), C.chore, `    ${r.chores.map((c, i) => `<div class="app" data-c="${i}"><input class="sp" id="f-cn${i}" data-f="name" maxlength="40" placeholder="${esc(t("chore.namePh"))}" aria-label="${esc(t("chore.name"))}" value="${esc(c.name)}"><label class="row">+<input type="number" id="f-cm${i}" data-f="min" min="5" max="120" step="5" inputmode="numeric" aria-label="${esc(t("minutes"))}" style="width:5.5em" value="${+c.min || 20}"> ${t("minShort")}</label><button class="bad" data-cdel="${i}" aria-label="${esc(t("chore.del"))}">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("chore.none")}</p>`}
+    <p class="mute">${ic("lightbulb")} ${t("totp.tip")}</p>`),
+    chore: sec("r-chore", "star", t("chore.h"), t("sd.chore"), C.chore, `    ${r.chores.map((c, i) => `<div class="app" data-c="${i}"><input class="sp" id="f-cn${i}" data-f="name" maxlength="40" placeholder="${esc(t("chore.namePh"))}" aria-label="${esc(t("chore.name"))}" value="${esc(c.name)}"><label class="row">+<input type="number" id="f-cm${i}" data-f="min" min="5" max="120" step="5" inputmode="numeric" aria-label="${esc(t("minutes"))}" style="width:5.5em" value="${+c.min || 20}"> ${t("minShort")}</label><button class="bad" data-cdel="${i}" aria-label="${esc(t("chore.del"))}">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("chore.none")}</p>`}
     <button id="addChore" ${r.chores.length >= 20 ? "disabled" : ""}>${ic("plus")} ${t("chore.add")}</button>
-    <p class="mute">${ic("lightbulb")} ${t("chore.tip")}</p>`)}
-  ${sec("r-bed", "moon", t("bed.h"), t("sd.bed"), C.bed, `    <div class="row"><label class="row"><input type="checkbox" id="f-bed" ${r.bedtime.on ? "checked" : ""}> ${ic("moon")} ${t("on")}</label>
+    <p class="mute">${ic("lightbulb")} ${t("chore.tip")}</p>`),
+    bed: sec("r-bed", "moon", t("bed.h"), t("sd.bed"), C.bed, `    <div class="row"><label class="row"><input type="checkbox" id="f-bed" ${r.bedtime.on ? "checked" : ""}> ${ic("moon")} ${t("on")}</label>
     <span class="sp"></span><span class="row tm">${t("from")} <input type="time" id="f-bs" aria-label="${esc(t("start"))}" value="${esc(r.bedtime.start)}"> ${t("to")} <input type="time" id="f-be" aria-label="${esc(t("end"))}" value="${esc(r.bedtime.end)}"></span></div>
-    <div id="bedW">${timeWarn(r.bedtime, r.bedtime.on)}</div>`)}
-  ${sec("r-wind", "moon", t("wd.h"), t("sd.wind"), C.wind, windBody(r))}
-  ${sec("r-kind", "notebook-pen", t("kn.h"), t("sd.kind"), C.kind, kindBody(r))}
-  ${sec("r-sch", "book-open", t("sch.h"), t("sd.sch"), C.sch, `    ${r.schedules.map((x, i) => `<div class="sch" data-s="${i}">
+    <div id="bedW">${timeWarn(r.bedtime, r.bedtime.on)}</div>`),
+    wind: sec("r-wind", "moon", t("wd.h"), t("sd.wind"), C.wind, windBody(r)),
+    kind: sec("r-kind", "notebook-pen", t("kn.h"), t("sd.kind"), C.kind, kindBody(r)),
+    sch: sec("r-sch", "book-open", t("sch.h"), t("sd.sch"), C.sch, `    ${r.schedules.map((x, i) => `<div class="sch" data-s="${i}">
       <div class="row"><input id="f-sn${i}" class="sp" data-f="name" placeholder="${esc(t("sch.namePh"))}" aria-label="${esc(t("sch.name"))}" value="${esc(x.name)}"><label class="row"><input type="checkbox" data-f="on" ${x.on ? "checked" : ""}> ${t("on")}</label></div>
       <div class="chips" style="margin:8px 0">${t("wd").map((n, d) => `<button data-day="${d + 1}" class="${(x.days || []).includes(d + 1) ? "on" : ""}" aria-pressed="${(x.days || []).includes(d + 1)}">${n}</button>`).join("")}</div>
       <div class="row"><span class="row tm">${t("from")} <input type="time" id="f-ss${i}" data-f="start" aria-label="${esc(t("start"))}" value="${esc(x.start)}"> ${t("to")} <input type="time" id="f-se${i}" data-f="end" aria-label="${esc(t("end"))}" value="${esc(x.end)}"></span><span class="sp"></span><button class="bad" data-del="${i}">${ic("trash-2")} ${t("delete")}</button></div><div data-sw>${timeWarn(x, x.on, true)}</div></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("sch.none")}</p>`}
-    <button id="addSch">${ic("plus")} ${t("sch.add")}</button>`)}
-  ${sec("r-zone", "map-pin", t("zone.h"), t("sd.zone"), C.zone, `    ${r.zones.map((z, i) => `<div class="sch" data-z="${i}"><div class="row"><input class="sp" id="f-zn${i}" maxlength="40" placeholder="${esc(t("zone.namePh"))}" aria-label="${esc(t("zone.name"))}" value="${esc(z.name)}"><label class="row">${t("zone.r")} <input type="number" id="f-zr${i}" min="50" max="2000" step="50" inputmode="numeric" style="width:6em" value="${+z.r || 150}"> m</label></div>
+    <button id="addSch">${ic("plus")} ${t("sch.add")}</button>`),
+    zone: sec("r-zone", "map-pin", t("zone.h"), t("sd.zone"), C.zone, `    ${r.zones.map((z, i) => `<div class="sch" data-z="${i}"><div class="row"><input class="sp" id="f-zn${i}" maxlength="40" placeholder="${esc(t("zone.namePh"))}" aria-label="${esc(t("zone.name"))}" value="${esc(z.name)}"><label class="row">${t("zone.r")} <input type="number" id="f-zr${i}" min="50" max="2000" step="50" inputmode="numeric" style="width:6em" value="${+z.r || 150}"> m</label></div>
       <div class="row" style="margin-top:8px"><input id="f-zla${i}" inputmode="decimal" placeholder="${esc(t("lat"))}" aria-label="${esc(t("lat"))}" style="width:8.5em" value="${zoneOk(z) ? +z.lat : ""}"><input id="f-zlo${i}" inputmode="decimal" placeholder="${esc(t("lng"))}" aria-label="${esc(t("lng"))}" style="width:8.5em" value="${zoneOk(z) ? +z.lng : ""}"></div>
       <div class="row" style="margin-top:8px"><button data-zhere="${i}" class="sp" ${st.location ? "" : "disabled"}>${ic("map-pin")} ${t("zone.here")}</button><button class="bad" data-zdel="${i}">${ic("trash-2")} ${t("delete")}</button></div></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("zone.none")}</p>`}
     <button id="addZone" ${r.zones.length >= 10 || !st.location ? "disabled" : ""}>${ic("plus")} ${t("zone.add")}</button>${st.location ? "" : `<p class="mute">${ic("triangle-alert")} ${t("zone.noLoc")}</p>`}
-    <p class="mute">${ic("lightbulb")} ${t("zone.tip")}</p>`)}
-  ${sec("r-trk", "route", t("trk.h"), t("sd.trk"), C.trk, `    <select id="f-tm" aria-label="${esc(t("trk.h"))}">${[0, 5, 10, 15, 30, 60].map(v => `<option value="${v}" ${r.trackMin === v ? "selected" : ""}>${v ? fmt(v * 60000) : t("off")}</option>`).join("")}${[0, 5, 10, 15, 30, 60].includes(r.trackMin) ? "" : `<option selected value="${r.trackMin}">${fmt(r.trackMin * 60000)}</option>`}</select>
-    <p class="mute">${ic("map")} ${t("trk.tip")}</p>`)}
-  ${sec("r-more", "construction", t("more.h"), t("sd.more"), C.more, `    <label class="row"><input type="checkbox" id="f-bn" ${r.blockNew ? "checked" : ""}><span class="sp">${ic("sparkles")} ${t("more.new")}</span></label>
+    <p class="mute">${ic("lightbulb")} ${t("zone.tip")}</p>`),
+    trk: sec("r-trk", "route", t("trk.h"), t("sd.trk"), C.trk, `    <select id="f-tm" aria-label="${esc(t("trk.h"))}">${[0, 5, 10, 15, 30, 60].map(v => `<option value="${v}" ${r.trackMin === v ? "selected" : ""}>${v ? fmt(v * 60000) : t("off")}</option>`).join("")}${[0, 5, 10, 15, 30, 60].includes(r.trackMin) ? "" : `<option selected value="${r.trackMin}">${fmt(r.trackMin * 60000)}</option>`}</select>
+    <p class="mute">${ic("map")} ${t("trk.tip")}</p>`),
+    more: sec("r-more", "construction", t("more.h"), t("sd.more"), C.more, `    <label class="row"><input type="checkbox" id="f-bn" ${r.blockNew ? "checked" : ""}><span class="sp">${ic("sparkles")} ${t("more.new")}</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-ll" ${r.lockLocation ? "checked" : ""}><span class="sp">${ic("map-pin")} ${t("more.loc")}</span></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span class="sp">${ic("plane")} ${t("more.air")}</span></label>${isBasic() ? needOwner(t("no.locAir")) : ""}`)}
-  ${sec("r-dns", "shield", t("dns.h"), t("sd.dns"), C.dns, `    <select id="f-dns" aria-label="${esc(t("dns.h"))}">${DNS().map(([v, n]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}</option>`).join("")}${DNS().some(d => d[0] === r.safeDns) ? "" : `<option selected value="${esc(r.safeDns)}">${esc(r.safeDns)}</option>`}</select>
-    <p class="mute">${ic("eye-off")} ${t("dns.tip")}</p>${isBasic() ? needOwner() : ""}`)}
-  ${sec("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span class="sp">${ic("package")} ${t("anti.install")}</span></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span class="sp">${ic("plane")} ${t("more.air")}</span></label>${isBasic() ? needOwner(t("no.locAir")) : ""}`),
+    dns: sec("r-dns", "shield", t("dns.h"), t("sd.dns"), C.dns, `    <select id="f-dns" aria-label="${esc(t("dns.h"))}">${DNS().map(([v, n]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}</option>`).join("")}${DNS().some(d => d[0] === r.safeDns) ? "" : `<option selected value="${esc(r.safeDns)}">${esc(r.safeDns)}</option>`}</select>
+    <p class="mute">${ic("eye-off")} ${t("dns.tip")}</p>${isBasic() ? needOwner() : ""}`),
+    anti: sec("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span class="sp">${ic("package")} ${t("anti.install")}</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label>
     ${isBasic() ? needOwner() + `<p class="mute">${ic("shield")} ${t("anti.basic")}</p>`
-      : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}`)}`;
+      : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}`),
+  };
+}
+function rulesTab(b) {
+  const r = edit, S = ruleSecs(r), segs = [["time", "timer", t("rules.segTime")], ["safe", "shield", t("rules.segSafe")]];
+  b.innerHTML = `<div class="rtop"><div class="seg" role="tablist" aria-label="${esc(t("tab.rules"))}">${segs.map(([id, i, n]) => `<button type="button" role="tab" data-rseg="${id}" aria-selected="${rseg === id}">${ic(i)}<span>${n}</span></button>`).join("")}</div>
+    <button type="button" class="pill" id="tplOpen" aria-haspopup="dialog">${ic("layers")} ${t("tpl.apply")}</button></div>
+    <div id="rsx" role="tabpanel">${RSEG[rseg].map(k => S[k]).join("")}</div>`;
+  b.querySelectorAll("[data-rseg]").forEach(x => x.onclick = () => { rseg = x.dataset.rseg; try { localStorage.setItem("kg.rseg", rseg); } catch {} rulesTab(b); const f = b.querySelector(`[data-rseg="${rseg}"]`); if (f) f.focus(); });
+  $("#tplOpen").onclick = tplSheet;
+  rulesWire($("#rsx"), r);
+}
+// "Áp mẫu…": the templates card as a sheet
+function tplSheet() {
+  const body = () => { const T = allTpl(); if (tplSel >= T.length) tplSel = 0;
+    const tcur = T[tplSel], nUser = T.length - PRESET_D.length, multi = reachKids().length > 1;
+    return { tcur, html: `<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("layers", t("tpl.h"))}    <p class="mute" style="margin:0 0 8px">${t("tpl.p")}</p>
+    <div class="chips" role="group" aria-label="${esc(t("tpl.h"))}">${T.map((t, i) => `<button data-tpl="${i}" class="${i === tplSel ? "on" : ""}" aria-pressed="${i === tplSel}">${esc(t.name)}</button>`).join("")}</div>
+    <div class="mute" style="margin-top:8px">${esc(tcur.name)}: ${tplSummary(tcur)}</div>
+    <div class="row" style="margin-top:10px"><button class="pri sp" id="tplGo">${ic("check")} ${t("tpl.applyTo", esc(cur.name))}</button>${multi ? `<button class="sp" id="tplMulti">${ic("clipboard-copy")} ${t("tpl.applyMany")}</button>` : ""}</div>
+    <div class="row" style="margin-top:8px"><button class="sp" id="tplSave">${ic("save")} ${t("tpl.saveCur")}</button>${tplSel >= PRESET_D.length ? `<button class="bad" id="tplDel">${ic("trash-2")} ${t("tpl.del")}</button>` : ""}</div>
+    ${nUser ? "" : `<p class="mute">${t("tpl.noOwn")}</p>`}</div>` }; };
+  const wire = (pop, done) => {
+    const { tcur } = body();
+    pop.querySelector("#askNo").onclick = () => done(false);
+    pop.querySelectorAll("[data-tpl]").forEach(x => x.onclick = () => { tplSel = +x.dataset.tpl; pop.innerHTML = body().html; wire(pop, done); const f = pop.querySelector(`[data-tpl="${tplSel}"]`); if (f) f.focus(); });
+    pop.querySelector("#tplGo").onclick = () => tplApply(tcur);
+    if (pop.querySelector("#tplMulti")) pop.querySelector("#tplMulti").onclick = () => tplMulti(tcur);
+    pop.querySelector("#tplSave").onclick = tplSave;
+    if (pop.querySelector("#tplDel")) pop.querySelector("#tplDel").onclick = async () => {
+      if (!(await ask(t("tpl.askDel", tcur.name), t("delete"), true))) return;
+      saveTpl(userTpl().filter(t => t.name !== tcur.name)); tplSel = 0; if (cur) render();
+    };
+  };
+  sheet(body().html, wire);
+}
+function rulesWire(b, r) {
+  // only some sections are on screen: a missing control gets a throwaway element instead of a null
+  const $ = s => b.querySelector(s) || document.createElement("i");
   // chips follow edits that don't redraw the tab (selects, checkboxes, typing)
   const chips = () => setTimeout(() => { if (!b.isConnected || !edit) return; const c = ruleChips(edit); Object.keys(c).forEach(k => setChip(b, "r-" + k, c[k])); });
   b.addEventListener("change", chips); b.addEventListener("input", chips);
-  b.querySelectorAll("[data-tpl]").forEach(x => x.onclick = () => { tplSel = +x.dataset.tpl; render(); });
-  $("#tplGo").onclick = () => tplApply(tcur);
-  if ($("#tplMulti")) $("#tplMulti").onclick = () => tplMulti(tcur);
-  $("#tplSave").onclick = tplSave;
-  if ($("#tplDel")) $("#tplDel").onclick = async () => {
-    if (!(await ask(t("tpl.askDel", tcur.name), t("delete"), true))) return;
-    saveTpl(userTpl().filter(t => t.name !== tcur.name)); tplSel = 0; render();
-  };
   b.querySelectorAll("[data-g]").forEach(box => {
     const i = +box.dataset.g, g = r.groups[i];
     $("#f-gn" + i).oninput = e => { g.name = e.target.value.slice(0, 40); changed(); };
@@ -2609,14 +3112,17 @@ function screenStart() {
   const img = $("#s-img"); if (img && scr.url) img.src = scr.url;
   screenMsg(scr.msg || t("connecting"));
   const alive = () => scr.gen === gen && tab === "screen";
+  let fails = 0;   // "timeout" answers in a row (the phone's capture is still waking up)
   if (k.via === "lan") (async () => {
     while (alive()) {
       const t0 = performance.now();
       try {
         const r = await fetch(base(k) + "/screen?max=720&q=50", { headers: { "X-KG-Token": k.token }, cache: "no-store" });
-        if (!r.ok) { const j = await r.json().catch(() => ({})); if (alive()) screenMsg(errText(j.error) || t("scr.cant")); await sleep(1500); continue; }
+        if (!r.ok) { const j = await r.json().catch(() => ({}));
+          if (j.error === "timeout" && fails < 3) { fails++; if (alive()) screenMsg(t("connecting")); await sleep(600 * 2 ** fails); continue; }   // 1.2 / 2.4 / 4.8 s
+          if (alive()) screenMsg(errText(j.error) || t("scr.cant")); await sleep(1500); continue; }
         const blob = await r.blob(); if (!alive()) break;
-        showFrame(blob, performance.now() - t0);
+        fails = 0; showFrame(blob, performance.now() - t0);
       } catch { if (alive()) screenMsg(t("scr.lost")); await sleep(2000); continue; }
       await sleep(Math.max(0, 400 - (performance.now() - t0)));   // ~2.5 fps
     }
@@ -2630,10 +3136,12 @@ function screenStart() {
         try {
           const r = await fetch(base(k) + "/frame?after=" + scr.seq, { headers: { "X-KG-Token": k.token }, cache: "no-store" });
           if (!alive()) break;
-          if (r.status === 204) { const e = r.headers.get("X-KG-Err"); screenMsg(e ? errText(e) : scr.frames.length ? "" : t("scr.wait")); await sleep(200); continue; }
+          if (r.status === 204) { const e = r.headers.get("X-KG-Err");
+            if (e === "timeout" && fails < 3) { fails++; screenMsg(t("scr.wait")); await sleep(600 * 2 ** fails); continue; }
+            screenMsg(e ? errText(e) : scr.frames.length ? "" : t("scr.wait")); await sleep(200); continue; }
           if (!r.ok) { const j = await r.json().catch(() => ({})); screenMsg(t("errX", j.error || "HTTP " + r.status)); await sleep(2000); continue; }
           const blob = await r.blob(); if (!alive()) break;
-          scr.seq = +r.headers.get("X-KG-Seq") || scr.seq;
+          scr.seq = +r.headers.get("X-KG-Seq") || scr.seq; fails = 0;
           showFrame(blob, +r.headers.get("X-KG-Age") || 0);
         } catch { if (alive()) screenMsg(t("scr.retry")); await sleep(2000); }
       }
@@ -2803,7 +3311,7 @@ function whereTab(b) {
   const l = st.location, lan = cur.via === "lan";
   if (lan && !viewDay && Date.now() - trkLoaded > 60000) {
     trkLoaded = Date.now();
-    call(cur, "/track?days=7").then(j => { trk = j.track || []; if (tab === "where" && $("#body")) whereTab($("#body")); }).catch(() => {});
+    call(cur, "/track?days=7").then(j => { trk = j.track || []; const f = document.activeElement && document.activeElement.id; if (tab === "where" && $("#body") && !(f && /^f-/.test(f))) whereTab($("#body")); }).catch(() => {});
   }
   const all = allTrack(), today = dkey(Date.now()), yest = dkey(Date.now() - 864e5);
   const keys = [...new Set([today, yest].concat(all.map(p => dkey(p[0]))))].sort().reverse();
@@ -2811,17 +3319,20 @@ function whereTab(b) {
   const pts = all.filter(p => dkey(p[0]) === trkDay);
   let dist = 0; for (let i = 1; i < pts.length; i++) dist += hav(pts[i - 1][1], pts[i - 1][2], pts[i][1], pts[i][2]);
   const sp = stopsOf(pts), home = pts.length ? pts[0] : null;
-  b.innerHTML = `<div class="card"><h2>${ic("map-pin")} ${t("where.h")}</h2>
-    <div id="days">${dayBtn("trk", { sel: trkDay, days: keys, onPick: k => { trkDay = k; mv = null; whereTab(b); } })}</div>
-    ${pts.length ? `<div class="map" id="map"></div><div class="mute" id="mapInfo" style="margin:4px 0">${ic("pointer")} ${t("where.tap")} · ${dot("on")} ${t("where.start")} · ${dot("bad")} ${t("where.last")}</div>
-      <div class="row"><b>${ic("route")} ${(dist / 1000).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km</b><span class="mute">· ${t("where.pts", pts.length)} · ${hhmm(pts[0][0])}–${hhmm(pts[pts.length - 1][0])}</span></div>
-      <h2 style="margin:12px 0 4px">${ic("pause")} ${t("where.stops")}</h2>
-      ${sp.map(s => `<div class="row" style="padding:3px 0">${home && hav(home[1], home[2], s.lat, s.lon) < 150 ? ic("house") : ic("map-pin")} <b>${hhmm(s.start)}–${hhmm(s.end)}</b> · ${fmt(s.end - s.start)} <a class="sp" href="https://www.google.com/maps?q=${+s.lat},${+s.lon}" target="_blank" rel="noopener" aria-label="Google Maps">${ic("map")}</a></div>`).join("") || `<div class="mute">${t("where.noStops")}</div>`}`
-    : `<div class="empty"><span class="e">${ic("map")}</span>${t("where.noPts", ic("map-pin"))}</div>`}</div>
-  <div class="card"><h2>${ic("pin")} ${t("where.lastH")}</h2>${l ? `<p>${ic("clock")} ${ago(l.t)} · ${t("acc", "~" + Math.round(l.acc))} · <a href="https://www.google.com/maps?q=${+l.lat},${+l.lng}" target="_blank" rel="noopener">${ic("map")} ${t("where.gmaps")}</a></p>`
-    : `<div class="empty"><span class="e">${ic("map")}</span>${t("where.noLoc")}</div>`}
-    <button id="loc2" class="pri">${ic("map-pin")} ${t("where.locNew")}</button><p class="mute">${ic("refresh-cw")} ${t("where.auto")}</p></div>`;
-  $("#loc2").onclick = () => cmd({ type: "locate" }, t("where.locating"));
+  const S = viewDay ? null : ruleSecs(edit);
+  b.innerHTML = `<div class="g2 w"><div><div class="card"><div class="row" style="margin-bottom:4px"><h2 class="sp" style="margin:0">${ic("map-pin")} ${t("where.h")}</h2><div id="days">${dayBtn("trk", { sel: trkDay, days: keys, onPick: k => { trkDay = k; mv = null; whereTab(b); } })}</div></div>
+    ${pts.length ? `<div class="map" id="map"></div><div class="mute" id="mapInfo" style="margin:6px 0">${ic("pointer")} ${t("where.tap")} · ${dot("on")} ${t("where.start")} · ${dot("bad")} ${t("where.last")}</div>
+      <div class="row"><b>${ic("route")} ${(dist / 1000).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km</b><span class="mute">· ${t("where.pts", pts.length)} · ${hhmm(pts[0][0])}–${hhmm(pts[pts.length - 1][0])}</span></div>`
+    : `<div class="empty"><span class="e">${ic("map")}</span>${t("where.noPts", ic("map-pin"))}</div>`}
+    <div class="row" style="margin-top:12px;flex-wrap:nowrap"><div class="sp" style="min-width:0">${l ? `<b>${ic("pin")} ${t("where.lastH")}</b><div class="mute">${ic("clock")} ${ago(l.t)} · ${t("acc", "~" + Math.round(l.acc))}</div>` : `<span class="mute">${t("where.noLoc")}</span>`}</div>
+      ${l ? `<a class="btn rb" href="https://www.google.com/maps?q=${+l.lat},${+l.lng}" target="_blank" rel="noopener" aria-label="${esc(t("where.gmaps"))}" title="${esc(t("where.gmaps"))}">${ic("map")}</a>` : ""}</div>
+    <button id="loc2" class="pri act" style="width:100%;margin-top:12px;height:52px">${ic("map-pin")} ${t("where.locNew")}</button><p class="mute" style="margin-bottom:0">${ic("refresh-cw")} ${t("where.auto")}</p></div></div>
+  <div>${pts.length ? `<div class="card"><h2>${ic("pause")} ${t("where.stops")}</h2>
+      ${sp.map(s => `<div class="row" style="padding:6px 0;flex-wrap:nowrap">${home && hav(home[1], home[2], s.lat, s.lon) < 150 ? ic("house") : ic("map-pin")} <span class="sp"><b>${hhmm(s.start)}–${hhmm(s.end)}</b> · ${fmt(s.end - s.start)}</span><a class="btn rb" style="width:40px;height:40px;min-height:40px" href="https://www.google.com/maps?q=${+s.lat},${+s.lon}" target="_blank" rel="noopener" aria-label="Google Maps" title="Google Maps">${ic("map")}</a></div>`).join("") || `<div class="mute">${t("where.noStops")}</div>`}</div>` : ""}
+    ${S ? `<div id="rsx">${S.zone}${S.trk}</div>` : ""}</div></div>`;
+  $("#loc2").onclick = () => act("loc2", () => cmd({ type: "locate" }, t("where.locating")));
+  actPaint();
+  if ($("#rsx")) rulesWire($("#rsx"), edit);
   dpBind(b);
   if (pts.length) {
     if (!mv) mv = fitView(pts, $("#map").clientWidth || 340, 260);
@@ -2872,29 +3383,76 @@ function updCard() {
     <label class="row"><input type="checkbox" id="f-au" ${edit && edit.autoUpdate ? "checked" : ""}><span class="sp">${t("upd.auto")}</span></label>
     <div class="row" style="margin-top:8px"><button id="updNow" ${u.status === "downloading" || u.status === "installing" || u.status === "checking" ? "disabled" : ""}>${ic("refresh-cw")} ${t("upd.now")}</button></div></div>`;
 }
+// paired parent devices (state.devices, phone >= 0.9.8). Our own row: "self" on LAN; on the relay page, sha256(token)[:8].
+const devIds = new Map();
+async function devIdOf(k) {
+  if (devIds.has(k.token)) return devIds.get(k.token);
+  try { const h = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(k.token)));
+    const id = [...h.slice(0, 4)].map(x => x.toString(16).padStart(2, "0")).join(""); devIds.set(k.token, id); return id; }
+  catch { devIds.set(k.token, ""); return ""; }   // no WebCrypto (plain http): just no "this device" mark
+}
+function devsHtml() {
+  const D = st.devices; if (!Array.isArray(D)) return "";
+  const me = devIds.get(cur.token);
+  return D.map(d => { const self = d.self || (!!me && d.id === me);
+    return `<div class="app"><span class="ib">${ic(d.name === "relay" ? "globe" : "smartphone")}</span><div class="nm"><b>${d.name ? esc(d.name) : t("dev.noName")}</b>
+      <span class="mute">${self ? `<span class="tag t-info" style="margin:0 4px 0 0">${t("dev.self")}</span>` : ""}${t("dev.at", d.at ? new Date(d.at).toLocaleDateString(lang) : "—")} · ${t("dev.last", d.last ? ago(d.last) : "—")}</span></div>
+      <button type="button" class="bad" data-unp="${esc(d.id)}">${ic("unlink")} ${t("dev.unpair")}</button></div>`; }).join("") || `<p class="mute">${t("none")}</p>`;
+}
 function setTab(b) {
-  const lan = cur.via === "lan";
-  b.innerHTML = `
-  <div class="card"><h2>${ic("user")} ${t("set.name")}</h2><div class="row"><input id="f-name" class="sp" aria-label="${esc(t("set.name"))}" value="${esc(cur.name)}"><button id="saveName">${ic("save")} ${t("save")}</button></div></div>
-  <div class="card"><h2>${ic("globe")} ${t("lang")}</h2>${langSel()}</div>
+  const lan = cur.via === "lan", S = ruleSecs(edit);
+  if (Array.isArray(st.devices) && !st.devices.some(d => d.self) && !devIds.has(cur.token)) { const k = cur; devIdOf(k).then(id => { if (id && k === cur && tab === "set") { lastSig = ""; render(); } }); }
+  b.innerHTML = `<div class="g2"><div>
+  <div class="sec">${t("set.security")}</div>
   <div class="card"><h2>${ic("key-round")} ${t("pin.h")}</h2><p class="mute">${t("pin.p")}</p>
     ${edit.pinSet ? "" : `<div class="alert warn">${ic("triangle-alert")} ${t("pin.none")}</div>`}
     <p class="mute">${edit.pinSet ? t("pin.change") : t("pin.set")}</p>
     <div class="row"><input class="sp" style="min-width:8em" id="f-pin" inputmode="numeric" type="password" placeholder="${esc(t("pin.ph"))}" aria-label="${esc(t("pin.new"))}" maxlength="8" autocomplete="new-password"><button id="savePin">${ic("key-round")} ${edit.pinSet ? t("pin.changeB") : t("pin.setB")}</button></div></div>
+  <div id="rsx">${S.totp}</div>
+  <div class="sec">${t("paired.h")}</div>
+  <div class="card">${Array.isArray(st.devices) ? devsHtml() : `<p class="mute">${t("dev.old")}</p>`}
+    <div class="row" style="margin-top:10px"><button id="openPair" class="sp">${ic("lock-open")} ${t("paired.add")}</button><button id="forget" class="sp">${ic("eraser")} ${APP ? t("forget.app") : t("forget.web")}</button></div><div id="pairOut" class="mute" style="margin-top:8px"></div></div>
+  </div><div>
+  <div class="sec">${t("set.general")}</div>
+  <div class="card"><h2>${ic("user")} ${t("set.name")}</h2><div class="row"><input id="f-name" class="sp" aria-label="${esc(t("set.name"))}" value="${esc(cur.name)}"><button id="saveName">${ic("save")} ${t("save")}</button></div></div>
+  <div class="card row"><h2 class="sp" style="margin:0">${ic("globe")} ${t("lang")}</h2>${langSel()}${themeBtn()}</div>
   ${APP ? `<div class="card"><h2>${ic("bell")} ${t("notif.h")}</h2><label class="row"><input type="checkbox" id="f-notify" ${kgCall("getNotify") === "false" || kgCall("canNotify") === "false" ? "" : "checked"}><span class="sp">${t("notif.p")}</span></label>${kgCall("getNotify") !== "false" && kgCall("canNotify") === "false" ? `<p class="mute">${ic("triangle-alert")} ${t("notif.blocked")}</p>` : ""}</div>` : ""}
   ${APP ? `<div class="card"><h2>${ic("history")} ${t("keep.h")}</h2><select id="f-days" aria-label="${esc(t("keep.h"))}">${["0", "30", "90", "365"].map(v => `<option value="${v}" ${String(kgCall("getHistoryDays") || "0") === v ? "selected" : ""}>${+v ? t("days", +v) : t("noLimitC")}</option>`).join("")}</select>
     <p class="mute">${t("keep.p")}</p></div>` : ""}
+  ${updCard()}
+  ${APP ? "" : `<div class="card"><h2>${ic("smartphone")} ${t("a2hs.h")}</h2><p class="mute">${t("a2hs.p")}</p></div>`}
+  <div class="sec">${t("set.conn")}</div>
   ${tsCard(lan)}
-  ${lan ? `<details class="card" id="relayBox"${st.relay || relayOpen ? " open" : ""}><summary><h2 style="display:inline">${ic("globe")} ${t("relay.h")}</h2></summary>
+  ${lan ? `<details class="card" id="relayBox"${st.relay || relayOpen ? " open" : ""}><summary><h2 style="display:inline-flex">${ic("globe")} ${t("relay.h")}</h2></summary>
     <p class="mute">${t("relay.p")}</p>
     <div class="row"><input id="relay" class="sp" placeholder="${esc(t("relay.ph"))}" aria-label="${esc(t("relay.addr"))}" value="${esc(st.relay || "")}"><button id="saveRelay" class="pri">${ic("globe")} ${t("turnOn")}</button></div>
     <div id="relayOut"></div></details>` : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p></div>`}
-  ${updCard()}
-  <div class="card"><h2>${ic("link")} ${t("paired.h")}</h2>
-    <div class="grid"><button id="openPair">${ic("lock-open")} ${t("paired.add")}</button><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button><button id="forget">${ic("eraser")} ${APP ? t("forget.app") : t("forget.web")}</button></div><div id="pairOut" class="mute" style="margin-top:8px"></div></div>
-  ${APP ? "" : `<div class="card"><h2>${ic("smartphone")} ${t("a2hs.h")}</h2><p class="mute">${t("a2hs.p")}</p></div>`}
-  <div class="card"><h2>${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
-    <button id="release" class="bad">${ic("octagon-x")} ${t("rel.btn")}</button></div>`;
+  <div class="sec" style="color:var(--danger)">${t("set.danger")}</div>
+  <div class="card" style="border-color:color-mix(in srgb,var(--danger) 35%,var(--stroke))"><h2>${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
+    <h2 style="margin-top:18px">${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
+    <button id="release" class="bad">${ic("octagon-x")} ${t("rel.btn")}</button></div>
+  </div></div>`;
+  rulesWire($("#rsx"), edit);
+  b.querySelectorAll("[data-unp]").forEach(x => x.onclick = async () => {
+    const d = (st.devices || []).find(o => o.id === x.dataset.unp); if (!d) return;
+    const k = cur, self = d.self || d.id === devIds.get(k.token), nm = d.name || t("dev.noName");
+    if (!(await ask(t(self ? "dev.askSelf" : "dev.ask", nm), t("dev.unpair"), true))) return;
+    x.disabled = true;
+    let r;
+    try { r = await call(k, "/cmd", "POST", { type: "unpair", id: d.id }); }
+    catch (e) {   // LAN answers 404 {"result":"no such device"} when it is already gone
+      if (/404|no such device/.test(e.message)) { toast("warn|" + t("cr.unpair.no such device")); refresh().catch(() => {}); }
+      else toast("err|" + t("errX", e.message));
+      x.disabled = false; return;
+    }
+    if (r && r.result && r.result !== "ok" && r.result !== "queued") { toast("err|" + tc("cr.unpair.", r.result, t("cmd.answer", r.result))); x.disabled = false; return; }
+    toast((r && r.result === "queued" ? "send|" : "ok|") + t(r && r.result === "queued" ? "dev.queued" : "dev.unpaired", nm));
+    if (k !== cur) return;
+    if (self) {   // this browser's token is gone: back to pairing, never a dead page
+      gen++; clearInterval(timer); screenStop(); earStop(); cur = null; kids = kids.filter(o => o !== k); save(kids); navDown(0); return setTimeout(boot, 800);
+    }
+    st.devices = st.devices.filter(o => o !== d); lastSig = ""; render();
+  });
   if (APP) $("#f-days").onchange = e => kgCall("setHistoryDays", e.target.value);
   if (APP) $("#f-notify").onchange = e => { kgCall("setNotify", e.target.checked ? "true" : "false"); if (e.target.checked) setTimeout(() => { if (kgCall("canNotify") === "false") toast("warn|" + t("notif.blockedShort")); }, 1500); };
   if ($("#relayBox")) $("#relayBox").ontoggle = e => { relayOpen = e.target.open; };

@@ -36,8 +36,14 @@ class Api(private val g: Guard) {
             store.log(R.string.log_paired)
             g.kick()
         }
+        if (token != null && !ParentSession.valid(session)) store.touchDevice(token, r.header("x-kg-name"))
         return when {
-            p == "/state" -> Res.json(g.currentState().toString())
+            // devices: the cached list, with the caller's own row marked self (a paired token only; the on-device session has none)
+            p == "/state" -> Res.json(g.currentState().let { st -> if (token == null || ParentSession.valid(session)) st else JSONObject(st.toString()).put("devices", store.devices(token)) }.toString())
+            p == "/unpair" && r.method == "POST" -> {
+                val id = runCatching { JSONObject(r.text).optString("id") }.getOrDefault("")
+                if (store.unpair(id)) { g.kick(); Res.json("""{"result":"ok"}""") } else Res.json("""{"result":"no such device"}""", 404)
+            }
             p == "/files" || p.startsWith("/files/") -> Files.api(g, r, p.removePrefix("/files"))   // shared folder only, Files.kt
             p == "/rules" && r.method == "PUT" -> {
                 val body = JSONObject(r.text)

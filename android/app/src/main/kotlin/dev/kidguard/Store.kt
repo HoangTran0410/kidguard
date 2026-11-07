@@ -29,7 +29,41 @@ class Store private constructor(private val app: Context) {
         p.edit().putStringSet("tokens", tokenHashes() + sha256(t)).apply()
         return t
     }
-    @Synchronized fun clearTokens() { pending.clear(); p.edit().remove("tokens").remove("relayToken").remove("relayId").apply() }
+    @Synchronized fun clearTokens() { pending.clear(); p.edit().remove("tokens").remove("relayToken").remove("relayId").remove("devs").apply() }
+
+    /** Name / first seen / last seen of each paired token (keyed by its sha256), see [Paired]. */
+    @Synchronized private fun devMeta(): Map<String, Paired.Dev> {
+        val o = runCatching { JSONObject(p.getString("devs", "{}")!!) }.getOrDefault(JSONObject())
+        return o.keys().asSequence().associateWith { k -> o.getJSONObject(k).let { Paired.Dev(it.optString("n"), it.optLong("a"), it.optLong("l")) } }
+    }
+    @Synchronized private fun putDevMeta(m: Map<String, Paired.Dev>) {
+        val o = JSONObject(); m.forEach { (k, d) -> o.put(k, JSONObject().put("n", d.name).put("a", d.at).put("l", d.last)) }
+        p.edit().putString("devs", o.toString()).apply()
+    }
+    /** A request with a valid paired token: remember the device (name from the page's X-KG-Name header, first time only) and when it was last seen. */
+    @Synchronized fun touchDevice(t: String?, name: String?) {
+        if (t.isNullOrBlank()) return
+        val h = sha256(t); if (h !in tokenHashes()) return
+        val m = devMeta(); val n = Paired.touch(m, h, System.currentTimeMillis(), name)
+        if (n !== m) putDevMeta(n)
+    }
+    /** state.devices; [selfToken] marks the caller's own row. */
+    @Synchronized fun devices(selfToken: String? = null): JSONArray {
+        val a = JSONArray()
+        Paired.rows(tokenHashes(), devMeta(), selfToken?.takeIf { it.isNotBlank() }?.let { sha256(it) }).forEach {
+            a.put(JSONObject().put("id", it.id).put("name", it.name).put("at", it.at).put("last", it.last).also { o -> if (it.self) o.put("self", true) })
+        }
+        return a
+    }
+    /** Revokes one paired device by [id]. If it held the relay link, the relay link dies with it. False = no such device. */
+    @Synchronized fun unpair(id: String): Boolean {
+        val hs = tokenHashes(); val h = Paired.find(hs, id) ?: return false
+        val e = p.edit().putStringSet("tokens", hs - h)
+        if (relayToken.isNotBlank() && sha256(relayToken) == h) e.remove("relayToken").remove("relayId")
+        e.commit()
+        putDevMeta(Paired.prune(devMeta(), hs - h))
+        return true
+    }
 
     /** The token the child uses with the relay: one of the paired ones, shown to the parent as a link. */
     @get:Synchronized @set:Synchronized var relayToken: String
@@ -278,6 +312,11 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var suspendedByUs: Set<String>
         get() = p.getStringSet("susp", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("susp", v).commit() }   // must survive a crash: it is what release / the loop undo
+
+    /** Preinstalled apps the parent wants hidden but the OS refused (state.preinstalled[].refused). */
+    @get:Synchronized @set:Synchronized var refusedHide: Set<String>
+        get() = p.getStringSet("hideRefused", emptySet())!!.toSet()
+        set(v) { p.edit().putStringSet("hideRefused", v).apply() }
 
     /** Apps we hid with setApplicationHidden (what release / the loop undo). */
     @get:Synchronized @set:Synchronized var hiddenByUs: Set<String>

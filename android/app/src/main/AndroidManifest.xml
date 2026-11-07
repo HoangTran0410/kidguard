@@ -189,8 +189,7 @@
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTop"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true" />
+            android:showWhenLocked="true" />
 
         <!-- command "wake": turns the screen on over the lock screen (Wake.kt) -->
         <activity

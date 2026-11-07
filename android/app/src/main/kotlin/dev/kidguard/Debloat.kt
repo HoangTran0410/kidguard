@@ -107,6 +107,14 @@ object Debloat {
     data class Row(val pkg: String, val label: String, val suggest: Boolean)
     fun sortRows(rows: List<Row>): List<Row> = sorted(rows, { it.suggest }, { it.label }, { it.pkg })
 
+    /**
+     * Packages the OS refused to hide (setApplicationHidden returned false) and the parent still wants hidden.
+     * [prev]: refused so far. [failed]/[hid]: this pass's hide failures / successes. [shown]: un-hidden this pass. [want]: rules.hidden.
+     * A success, an unhide or the parent dropping the package clears the flag.
+     */
+    fun refusedAfter(prev: Set<String>, failed: Set<String>, hid: Set<String>, shown: Set<String>, want: Set<String>): Set<String> =
+        ((prev + failed) - hid - shown).intersect(want)
+
     /** Packages release must un-hide: everything we hid plus anything still hidden that the rules listed. */
     fun toUnhideOnRelease(hiddenByUs: Set<String>, rulesHidden: Set<String>, currentlyHidden: Set<String>): Set<String> =
         hiddenByUs + rulesHidden.intersect(currentlyHidden)

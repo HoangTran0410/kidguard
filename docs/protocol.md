@@ -62,6 +62,19 @@ leftMs apps rules location lan relay log`), plus:
 ## Commands (`POST /api/cmd` on LAN, queued via `POST /c/<id>/cmd` on the relay)
 
 v0.1: `lock locate message{text} ring relay{url} openPairing unpairAll release`. NEW:
+- `unpair {id}`: revoke ONE paired parent device (`id` from `state.devices[].id`). Result `ok` or `no such device`.
+  Destructive: the worker whitelists it and drops it from the queue once delivered (deliver-once, like `unpairAll`).
+  The worker keeps `id` as the command id (it is 8 hex chars, so it passes the id check); do not send other ids. Revoking
+  the device you are using is allowed (it gets 401 next request and must re-pair). If that device was the relay link
+  (the one named `relay`), the relay token / id are cleared too, so the phone stops syncing until the relay is set up again.
+  LAN also has `POST /api/unpair {"id"}` -> `{"result":"ok"}` or 404 `{"result":"no such device"}`. `release` is not affected
+  (it still clears every token).
+- **State** `devices: [{"id","name","at","last","self"?:true}]`: paired parent devices, oldest pairing first. `id` = first 8 hex
+  of sha256(token) (non-secret; the token never leaves the parent's browser). `name` = the page's optional `X-KG-Name`
+  header (<=40 chars, taken the first time it is seen; the relay link is named `relay`; may be ""), `at` / `last` = epoch ms of
+  pairing / last LAN request (`last` moves at most every 5 min; 0 for phones paired before this). `self: true` marks the
+  caller's own row on LAN `/api/state` only; the relay-cached state has no `self`, the page can compute its own id as
+  sha256(token).slice(0,8).
 - `answer {id, ok: bool, min?}`: the parent answered a time request. The page ALSO grants the time itself by
   saving rules (`bonus`), the command only removes the request and tells the child (notification).
 - `reboot`: DevicePolicyManager.reboot.
@@ -427,6 +440,10 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
   any in the suggest list that are installed, plus anything currently hidden. Never lists the never-hide set.
   `suggest` = on the curated bloat list (OEM stores, browsers, music / video, game helpers, ads / analytics, preinstalled
   Facebook / Netflix stubs…). Sorted: suggest first, then label.
+  `refused: true` (present only when true): the OS refused `setApplicationHidden(true)` (returned false; some ColorOS
+  packages) while the package is in `rules.hidden`, so `hidden` stays false. The phone remembers it per package, retries
+  every 10 min, and clears the flag on a later success, an unhide, or when the parent removes it from `rules.hidden`
+  (and on release). The page should show "this phone refuses to hide it" instead of a stuck toggle.
 - **State** `apps[].mb`: app + data + cache size in MB (StorageStatsManager, needs usage access; refreshed hourly), null
   if unknown. Both modes.
 - **Never hide / never clear**: KidGuard, `android`, systemui, Settings, phone / dialer / telecom / contacts providers,
