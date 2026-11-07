@@ -52,6 +52,12 @@ object Logic {
     fun allowedRequest(kidsJson: String, target: String, method: String, rest: String) =
         allowedTarget(kidsJson, target) || (target.startsWith("http://") && ((method == "GET" && rest == "/api/hello") || (method == "POST" && rest == "/api/pair")))
 
+    /** Body cap of the shared-files routes (LAN 200 MB + slack); every other route keeps 512 KB. */
+    const val MAX_FILE_BODY = 210L * 1024 * 1024
+    private val RELAY_FILE = Regex("^/c/[^/]+/file$")
+    /** LAN `/api/files…` and relay `/c/<id>/file` (rest = path after the target, query stripped). */
+    fun isFilesPath(rest: String): Boolean { val p = rest.substringBefore("?"); return p == "/api/files" || p.startsWith("/api/files/") || RELAY_FILE.matches(p) }
+
     /** "/k/<t>/<rest>" -> (target, rest-with-leading-slash-and-query-stripped-by-caller). Null when malformed/invalid target. */
     fun parseKidPath(path: String): Pair<String, String>? {
         if (!path.startsWith("/k/")) return null

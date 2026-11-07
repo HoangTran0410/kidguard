@@ -19,13 +19,15 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.TimeUnit
 
-class Req(val method: String, val path: String, val rawQuery: String, val query: Map<String, String>, val headers: Map<String, String>, val body: ByteArray) {
+class Req(val method: String, val path: String, val rawQuery: String, val query: Map<String, String>, val headers: Map<String, String>, val body: ByteArray,
+          /** Set for a big `/api/files` / relay `/file` body that was NOT read yet: [bodyLen] bytes still on [bodyIn]. */
+          val bodyIn: InputStream? = null, val bodyLen: Long = 0) {
     fun header(n: String) = headers[n.lowercase()]
 }
 
 /** [stream] set: no Content-Length; the body is what [stream] writes (the connection then closes). */
 class Res(val code: Int, val type: String, val body: ByteArray, val headers: Map<String, String> = emptyMap(), val html: Boolean = false,
-          val stream: ((java.io.OutputStream) -> Unit)? = null) {
+          val stream: ((java.io.OutputStream) -> Unit)? = null, val length: Long = -1) {
     companion object {
         fun json(s: String, code: Int = 200) = Res(code, "application/json; charset=utf-8", s.toByteArray())
         fun text(s: String, code: Int) = Res(code, "text/plain; charset=utf-8", s.toByteArray())
@@ -91,6 +93,7 @@ class Proxy(private val ctx: Context, val port: Int) {
         val url = target + rest + (if (r.rawQuery.isNotEmpty()) "?" + r.rawQuery else "")
         val fwd = HashMap<String, String>()
         for (h in listOf("X-KG-Token", "X-KG-W", "X-KG-H", "Content-Type")) r.header(h)?.let { fwd[h] = it }
+        if (Logic.isFilesPath(rest)) return filesForward(r, url, fwd)
         if (r.method == "GET" && rest == "/api/listen") return listen(url, fwd)
         val cacheable = Logic.isStatePath(r.method, rest)
         // state answers in < 1 s; a hung phone or half-dead Wi-Fi accepts the TCP connect and then stalls,
@@ -107,6 +110,41 @@ class Proxy(private val ctx: Context, val port: Int) {
         val h = HashMap(res.headers)
         return Res(res.status, res.type, res.body, h)
     }
+
+    /** Shared-files routes: request body streamed up, a LAN download streamed down (never buffered; docs/protocol.md "Shared files"). */
+    private fun filesForward(r: Req, url: String, fwd: Map<String, String>): Res {
+        var c: java.net.HttpURLConnection? = null
+        try {
+            c = (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
+                requestMethod = r.method; connectTimeout = 6_000; readTimeout = 120_000; instanceFollowRedirects = false; useCaches = false
+                fwd.forEach { (k, v) -> setRequestProperty(k, v) }
+                if (r.method != "GET" && r.method != "HEAD" && (r.bodyIn != null || r.body.isNotEmpty())) {
+                    doOutput = true
+                    setFixedLengthStreamingMode(if (r.bodyIn != null) r.bodyLen else r.body.size.toLong())
+                    outputStream.use { o ->
+                        if (r.bodyIn == null) o.write(r.body) else {
+                            val buf = ByteArray(32 * 1024); var left = r.bodyLen
+                            while (left > 0) { val n = r.bodyIn.read(buf, 0, minOf(buf.size.toLong(), left).toInt()); if (n < 0) throw java.io.IOException("short body"); o.write(buf, 0, n); left -= n }
+                        }
+                    }
+                }
+            }
+            val code = c.responseCode
+            val type = c.contentType ?: "application/octet-stream"
+            if (code == 200 && r.method == "GET" && c.contentLengthLong >= 0 && rest0(r).startsWith("/api/files/")) {
+                val conn = c; c = null
+                return Res(200, type, ByteArray(0), stream = { out ->
+                    try { conn.inputStream.use { ins -> val buf = ByteArray(32 * 1024); while (true) { val n = ins.read(buf); if (n < 0) break; out.write(buf, 0, n) }; out.flush() } }
+                    catch (e: Exception) { /* either side closed */ } finally { runCatching { conn.disconnect() } }
+                }, length = conn.contentLengthLong)
+            }
+            val bytes = (if (code >= 400) c.errorStream else c.inputStream)?.use { it.readBytes() } ?: ByteArray(0)
+            return Res(code, type, bytes)
+        } catch (e: Exception) {
+            return Res.json("{\"error\":\"offline\"}", 502)
+        } finally { runCatching { c?.disconnect() } }
+    }
+    private fun rest0(r: Req) = Logic.parseKidPath(r.path)?.second ?: ""
 
     /** The child's mic stream (LAN / Tailscale): passed through as it comes, never cached. */
     private fun listen(url: String, fwd: Map<String, String>): Res {
@@ -199,9 +237,9 @@ class Proxy(private val ctx: Context, val port: Int) {
             Log.w("KGParent", "req", e); Res.text("error", 500)
         }
         val head = "HTTP/1.1 ${res.code} ${reason(res.code)}\r\nContent-Type: ${res.type}\r\n" +
-            (if (res.stream == null) "Content-Length: ${res.body.size}\r\n" else "") +
+            (if (res.stream == null) "Content-Length: ${res.body.size}\r\n" else if (res.length >= 0) "Content-Length: ${res.length}\r\n" else "") +
             "Cache-Control: no-store\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n" +
-            (if (res.html) "X-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'; connect-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.de https://tile.openstreetmap.org\r\n" else "") +
+            (if (res.html) "X-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'; connect-src 'self' blob:; img-src 'self' data: blob: https://tile.openstreetmap.de https://tile.openstreetmap.org\r\n" else "") +
             res.headers.entries.joinToString("") { (k, v) -> "$k: ${v.replace('\r', ' ').replace('\n', ' ')}\r\n" } + "\r\n"
         val out = it.getOutputStream()
         val s = res.stream
@@ -237,18 +275,19 @@ class Proxy(private val ctx: Context, val port: Int) {
             if (++n > 100) throw TooBig()
             val k = l.substringBefore(":", ""); if (k.isNotEmpty()) headers[k.trim().lowercase()] = l.substringAfter(":").trim()
         }
-        val len = headers["content-length"]?.toIntOrNull() ?: 0
-        if (len > 512 * 1024) throw TooBig()
-        val body = ByteArray(len)
-        var got = 0
-        while (got < len) { val r = i.read(body, got, len - got); if (r < 0) break; got += r }
+        val len = headers["content-length"]?.toLongOrNull() ?: 0
         val target = parts[1]
         val path = target.substringBefore("?")
+        val big = len > 512 * 1024
+        if (big && !(len <= Logic.MAX_FILE_BODY && Logic.parseKidPath(path)?.second?.let { Logic.isFilesPath(it) } == true)) throw TooBig()
+        val body = if (big) ByteArray(0) else ByteArray(len.toInt())
+        var got = 0
+        while (!big && got < len) { val r = i.read(body, got, len.toInt() - got); if (r < 0) break; got += r }
         val raw = target.substringAfter("?", "")
         val query = raw.split("&").filter { it.contains("=") }.associate {
             URLDecoder.decode(it.substringBefore("="), "UTF-8") to URLDecoder.decode(it.substringAfter("="), "UTF-8")
         }
-        return Req(parts[0].uppercase(), path, raw, query, headers, body)
+        return Req(parts[0].uppercase(), path, raw, query, headers, body, if (big) i else null, if (big) len else 0)
     }
 
     private fun reason(c: Int) = when (c) { 200 -> "OK"; 204 -> "No Content"; 302 -> "Found"; 400 -> "Bad Request"; 401 -> "Unauthorized"; 403 -> "Forbidden"; 404 -> "Not Found"; 413 -> "Payload Too Large"; 502 -> "Bad Gateway"; else -> "Error" }

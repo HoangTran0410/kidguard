@@ -18,6 +18,12 @@ import android.widget.Toast
 /** JS bridge `window.KGApp`. Only the page served from our own 127.0.0.1 origin is ever loaded in the WebView. */
 class Bridge(private val a: Activity) {
     @JavascriptInterface fun version() = "1"
+    /** "true": this app picks files (file chooser) and saves downloads (blob / data / same-origin) to Downloads. */
+    @JavascriptInterface fun files() = "true"
+    // blob download: the page's JS (see MainActivity.onDownloadStart) hands the bytes over in chunks
+    @JavascriptInterface fun dlBegin(name: String, mime: String): String = Downloads.begin(a, name, mime)
+    @JavascriptInterface fun dlChunk(id: String, b64: String): Boolean = Downloads.chunk(id, b64)
+    @JavascriptInterface fun dlEnd(id: String, ok: String) { Downloads.end(a, id, ok == "true") }
     /** The kid list survives a proxy port change (localStorage is per origin). */
     @JavascriptInterface fun getKids(): String = Store.kids(a)
     @JavascriptInterface fun setKids(json: String) {
@@ -59,6 +65,19 @@ class Bridge(private val a: Activity) {
 class MainActivity : Activity() {
     override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(Lang.wrap(base))   // in-app language (Android 8-12)
     private var web: WebView? = null
+    private var chooser: android.webkit.ValueCallback<Array<android.net.Uri>>? = null
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(req: Int, res: Int, data: android.content.Intent?) {
+        if (req != REQ_PICK) return super.onActivityResult(req, res, data)
+        val cb = chooser ?: return
+        chooser = null
+        val uris: Array<android.net.Uri>? = if (res != RESULT_OK || data == null) null else {
+            val c = data.clipData
+            if (c != null) Array(c.itemCount) { c.getItemAt(it).uri } else data.data?.let { arrayOf(it) }
+        }
+        cb.onReceiveValue(uris)
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(b: Bundle?) {
@@ -85,6 +104,20 @@ class MainActivity : Activity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         }
         w.addJavascriptInterface(Bridge(this), "KGApp")
+        w.setDownloadListener { url, _, cd, mime, _ ->
+            if (url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("$origin/"))
+                w.evaluateJavascript(Downloads.script(url, cd, mime), null)
+        }
+        w.webChromeClient = object : android.webkit.WebChromeClient() {
+            override fun onShowFileChooser(v: WebView, cb: android.webkit.ValueCallback<Array<android.net.Uri>>, p: FileChooserParams): Boolean {
+                chooser?.onReceiveValue(null)
+                chooser = cb
+                val i = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).addCategory(android.content.Intent.CATEGORY_OPENABLE).setType("*/*")
+                    .putExtra(android.content.Intent.EXTRA_ALLOW_MULTIPLE, p.mode == FileChooserParams.MODE_OPEN_MULTIPLE)
+                try { startActivityForResult(i, REQ_PICK) } catch (e: Exception) { chooser = null; cb.onReceiveValue(null); Toast.makeText(this@MainActivity, R.string.files_nopicker, Toast.LENGTH_LONG).show() }
+                return true
+            }
+        }
         w.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest): Boolean {
                 if (r.url.toString().startsWith("$origin/")) return false
@@ -136,5 +169,5 @@ class MainActivity : Activity() {
     override fun onResume() { super.onResume(); web?.onResume() }
     override fun onDestroy() { web?.destroy(); web = null; super.onDestroy() }
 
-    companion object { @Volatile var proxy: Proxy? = null; @Volatile var openKid: String? = null }
+    companion object { const val REQ_PICK = 71; @Volatile var proxy: Proxy? = null; @Volatile var openKid: String? = null }
 }

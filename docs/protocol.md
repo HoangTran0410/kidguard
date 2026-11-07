@@ -311,7 +311,9 @@ the child over plain http; the WebView itself may only reach `127.0.0.1:<port>` 
   the oldest days (all kids) are deleted until >= 200 MB or only 7 days remain.
   - `GET /app/history/days?k=<t>&p=<rest>` -> `["2026-11-06","2026-11-05",...]` newest first (`<rest>` = `api/state` or `c/<id>/state`).
   - `GET /app/history/day?k=<t>&p=<rest>&d=2026-11-05` -> `{"day","t","body"}`, 404 if none.
-- **JS bridge** `window.KGApp` (strings): `version()` -> `"1"`; `setKids(json)` json = `[{name,target,via:"lan"|"relay",id,token}]`
+- **JS bridge** `window.KGApp` (strings): `version()` -> `"1"`; `files()` -> `"true"` (v0.9.8+: the WebView has a file chooser
+  (multiple, `ACTION_OPEN_DOCUMENT`) and saves `<a download>` blob/data/same-origin downloads into `Download/KidGuard`; the page checks
+  `window.KGApp && KGApp.files && KGApp.files() === "true"`); internal `dlBegin/dlChunk/dlEnd` (used by the app's injected script only); `setKids(json)` json = `[{name,target,via:"lan"|"relay",id,token}]`
   (called whenever the list changes); `getNotify()` / `setNotify("true"|"false")` (default true);
   `getHistoryDays()` -> `"0"` (unlimited) | `"30"` ...; `setHistoryDays(n)`; `getLang()` -> `""` (phone setting) | `"en"` | `"vi"`,
   `setLang(code)` same codes, others ignored, same code = no-op: language of the app's own notifications (Android 13+: the
@@ -637,7 +639,7 @@ Code: `Files.kt` (Android), `FilesLogic.kt` (pure: names, caps, listing JSON; `F
 - kid -> parent: command `fileUp {file: <id>}` (outbox files <= 10 MB, else `too big`) makes the phone upload it with
   `fid = id, to = parent`; the page polls `GET ?to=parent` until `done`, downloads the chunks, then `DELETE`s it.
   `fileDel {file: <id>}` = the LAN `DELETE` (deliver-once). Both are in the worker whitelist.
-- The parent app's WebView has no file chooser / blob download: the page tells the parent to use a browser there.
+- Parent app: the proxy streams bodies (up to 210 MB request, LAN `GET /api/files/<id>` response streamed with Content-Length) for `/api/files…` and relay `/c/<id>/file` only; other routes keep the 512 KB cap. The WebView offers a file chooser and saves downloads (bridge `KGApp.files()`).
 
 ### Release
 `release` deletes the outbox and the index; files the kid received stay in `Download/KidGuard` (they are the kid's).

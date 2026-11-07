@@ -30,4 +30,7 @@
     <string name="ans_declined">Declined</string>
     <string name="ans_already">This request was already answered</string>
     <string name="ans_failed">Couldn\'t send it, tap to open the page</string>
+    <string name="dl_ok">Saved to Downloads/KidGuard: %1$s</string>
+    <string name="dl_fail">Couldn\'t save %1$s</string>
+    <string name="files_nopicker">Couldn\'t open the file picker</string>
 </resources>

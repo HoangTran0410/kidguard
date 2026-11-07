@@ -242,4 +242,9 @@ class LogicTest {
         assertTrue(o.events.any { it.key == "ev:z1" && it.loc == null })
         assertTrue("e:c1" in o.state.seenIds)
     }
+
+    @Test fun filesPathsAreTheOnlyStreamedOnes() {
+        for (r in listOf("/api/files", "/api/files/ab12", "/c/x1/file", "/c/x1/file?fid=a&i=0")) assertTrue(r, Logic.isFilesPath(r))
+        for (r in listOf("/api/filesx", "/api/state", "/c/x1/cmd", "/c/x1/file/y", "/api/pair")) assertFalse(r, Logic.isFilesPath(r))
+    }
 }

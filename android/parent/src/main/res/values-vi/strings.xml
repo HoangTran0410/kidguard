@@ -23,4 +23,7 @@
     <string name="ans_declined">Đã từ chối</string>
     <string name="ans_already">Yêu cầu này đã được trả lời rồi</string>
     <string name="ans_failed">Không gửi được, mở trang</string>
+    <string name="dl_ok">Đã lưu vào Tải xuống/KidGuard: %1$s</string>
+    <string name="dl_fail">Không lưu được %1$s</string>
+    <string name="files_nopicker">Không mở được trình chọn file</string>
 </resources>
