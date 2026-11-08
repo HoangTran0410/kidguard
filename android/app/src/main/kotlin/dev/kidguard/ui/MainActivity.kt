@@ -168,6 +168,9 @@ class MainActivity : Activity() {
         // language: harmless, so no PIN (the parent's rules don't depend on it)
         val langName = Langs.ALL.firstOrNull { it.first == Lang.get(this) }?.second ?: getString(R.string.lang_system)
         kidG.addView(u.listRow(getString(R.string.main_lang, langName), R.drawable.li_globe) { sheet.dismiss(); askLang() })
+        // check GitHub now: no PIN, it only installs the official newer release (owner: silent; basic: system prompt)
+        updRow = u.listRow(getString(R.string.main_check_update, BuildConfig.VERSION_NAME), R.drawable.li_refresh_cw, chevron = false) { checkUpdate() }
+        devG.addView(updRow)
         selfBtn = u.listRow(getString(R.string.main_self), R.drawable.li_wifi) { sheet.dismiss(); startActivity(Intent(this@MainActivity, SelfSetupActivity::class.java)) }
         devG.addView(selfBtn)
         checklist = Checklist.build(this, u)
@@ -175,6 +178,46 @@ class MainActivity : Activity() {
         setContentView(ScrollView(this).apply { setBackgroundColor(u.bg); isFillViewport = true; addView(col) })
         window.statusBarColor = u.bg; window.navigationBarColor = u.bg
         if (!u.dark) window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (android.os.Build.VERSION.SDK_INT >= 27) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
+    }
+
+    private lateinit var updRow: Button
+    private var updPolling = false
+
+    /** "Kiểm tra cập nhật": forced [Update.start] on its own thread; the row's text shows progress, polled from [Update.stateJson]. */
+    private fun checkUpdate() {
+        if (updPolling) return
+        updPolling = true
+        val runs0 = Update.runs
+        val started = Update.start(this, true)   // false = a run is already going: just follow it
+        val t0 = System.currentTimeMillis()
+        val idle = getString(R.string.main_check_update, BuildConfig.VERSION_NAME)
+        // the "…" sheet closes on tap, so every phase is also said in a toast (the row text alone was never seen)
+        var said = ""
+        fun say(msg: String, long: Boolean = false) { updRow.text = msg; if (msg != said) { said = msg; android.widget.Toast.makeText(this, msg, if (long) android.widget.Toast.LENGTH_LONG else android.widget.Toast.LENGTH_SHORT).show() } }
+        fun end(msg: String?) { updPolling = false; if (msg != null) say(msg, true) else updRow.text = idle; if (msg != null) ui.postDelayed({ if (!updPolling) updRow.text = idle }, 6_000) }
+        say(getString(R.string.upd_checking))
+        val tick = object : Runnable {
+            override fun run() {
+                val st = Update.stateJson(this@MainActivity)
+                val status = st.optString("status")
+                val fresh = !started || Update.runs > runs0
+                when {
+                    System.currentTimeMillis() - t0 > 300_000 -> end(getString(R.string.upd_failed, getString(R.string.err_generic)))
+                    !fresh -> ui.postDelayed(this, 400)
+                    status == "checking" -> { say(getString(R.string.upd_checking)); ui.postDelayed(this, 400) }
+                    status == "downloading" -> { say(getString(R.string.upd_downloading, st.optString("latest"))); ui.postDelayed(this, 400) }
+                    status == "installing" -> { say(getString(R.string.upd_installing, st.optString("latest"))); ui.postDelayed(this, 600) }
+                    status == "failed" -> end(getString(R.string.upd_failed, st.optString("err").ifBlank { getString(R.string.err_generic) }))
+                    status == "ready" -> {
+                        if (Update.installInteractive(this@MainActivity)) end(getString(R.string.upd_installing, st.optString("latest")))
+                        else { end(null); android.widget.Toast.makeText(this@MainActivity, getString(R.string.main_update_allow), android.widget.Toast.LENGTH_LONG).show() }
+                    }
+                    UpdateLogic.newer(st.optString("latest"), Update.current()) -> ui.postDelayed(this, 400)   // between phases
+                    else -> end(getString(R.string.upd_current, Update.current()))
+                }
+            }
+        }
+        ui.postDelayed(tick, 400)
     }
 
     /** Language picker: phone setting + every [Langs.ALL] entry in its own language. */

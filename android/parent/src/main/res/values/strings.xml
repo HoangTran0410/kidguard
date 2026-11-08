@@ -11,7 +11,7 @@
     <string name="ch_events">Alerts from your child\'s phone</string>
     <string name="ch_sos">SOS from your child</string>
     <string name="upd_title">New KidGuard Parent version (%1$s)</string>
-    <string name="upd_text">Tap to download it, then install it over the old one</string>
+    <string name="upd_text">Tap to open the app and install it</string>
     <plurals name="ev_request">
         <item quantity="one">%1$s asks for %2$d more minute</item>
         <item quantity="other">%1$s asks for %2$d more minutes</item>

@@ -3,7 +3,9 @@ package dev.kidguard.parent
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.provider.Settings
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -16,7 +18,7 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 
 /** JS bridge `window.KGApp`. Only the page served from our own 127.0.0.1 origin is ever loaded in the WebView. */
-class Bridge(private val a: Activity) {
+class Bridge(private val a: MainActivity) {
     @JavascriptInterface fun version() = "1"
     /** "true": this app picks files (file chooser) and saves downloads (blob / data / same-origin) to Downloads. */
     @JavascriptInterface fun files() = "true"
@@ -53,6 +55,19 @@ class Bridge(private val a: Activity) {
     @JavascriptInterface fun setLang(code: String) {
         if (Langs.valid(code)) Lang.set(a.applicationContext, code)
     }
+    /** "true" when notifications are on in the app and allowed by Android. */
+    @JavascriptInterface fun notifOn() = (Store.notify(a) && CheckJob.canNotify(a.applicationContext)).toString()
+    /** Android's own notification settings page for this app. */
+    @JavascriptInterface fun openNotifSettings() {
+        a.runOnUiThread { runCatching { a.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, a.packageName)) } }
+    }
+    @JavascriptInterface fun appVersion(): String = BuildConfig.VERSION_NAME
+    /** Checks GitHub now; progress and result arrive as `kgUpd({st: checking|ok|new|fail, tag})` on the page. */
+    @JavascriptInterface fun checkUpdate() = Updater.check(a)
+    /** Downloads release [tag] and opens the system installer: `kgUpd({st: perm|dl(pct)|inst|dlfail, tag})`. */
+    @JavascriptInterface fun installUpdate(tag: String) = Updater.install(a, tag)
+    /** "true" once after the update notification was tapped: the page opens "App settings". */
+    @JavascriptInterface fun takeSettings(): String = if (MainActivity.openSettings) { MainActivity.openSettings = false; "true" } else "false"
     /** A notification tap asked for one kid: `{"target","id"}` once (then ""), so the page opens that kid instead of the list. */
     @JavascriptInterface fun takeOpen(): String {
         val h = MainActivity.openKid ?: return ""
@@ -82,7 +97,7 @@ class MainActivity : Activity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
-        takeOpen(intent)
+        takeOpen(intent); takeSettings(intent)
         val proxy = proxy ?: Proxy(applicationContext, Store.pickPort(applicationContext)).also {
             if (!it.start()) { Toast.makeText(this, getString(R.string.err_port), Toast.LENGTH_LONG).show(); finish(); return }
             proxy = it
@@ -153,9 +168,16 @@ class MainActivity : Activity() {
         openKid = h
         return true
     }
+    private fun takeSettings(i: android.content.Intent?): Boolean {
+        if (i?.getBooleanExtra(EXTRA_SETTINGS, false) != true) return false
+        openSettings = true
+        return true
+    }
+    /** Updater -> page: one JSON state, on the main thread. */
+    fun push(o: org.json.JSONObject) { runOnUiThread { web?.evaluateJavascript("window.kgUpd && kgUpd(" + o + ")", null) } }
     override fun onNewIntent(i: android.content.Intent) {
         super.onNewIntent(i)
-        if (takeOpen(i)) web?.evaluateJavascript("window.kgAppOpen && kgAppOpen()", null)
+        if (takeOpen(i) or takeSettings(i)) web?.evaluateJavascript("window.kgAppOpen && kgAppOpen()", null)
     }
 
     @Deprecated("Deprecated in Java")
@@ -169,5 +191,5 @@ class MainActivity : Activity() {
     override fun onResume() { super.onResume(); web?.onResume() }
     override fun onDestroy() { web?.destroy(); web = null; super.onDestroy() }
 
-    companion object { const val REQ_PICK = 71; @Volatile var proxy: Proxy? = null; @Volatile var openKid: String? = null }
+    companion object { const val REQ_PICK = 71; @Volatile var proxy: Proxy? = null; @Volatile var openKid: String? = null; @Volatile var openSettings = false; const val EXTRA_SETTINGS = "kg.settings" }
 }

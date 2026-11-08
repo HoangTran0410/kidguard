@@ -203,6 +203,7 @@ function appOpenKid() {
   try { o = JSON.parse(window.KGApp && KGApp.takeOpen ? KGApp.takeOpen() || "null" : "null"); } catch {}
   const k = o && kids.find(x => x.target === o.target && x.id === o.id);
   if (k && k !== cur) open(k);
+  if (!k && KGApp.takeSettings && KGApp.takeSettings() === "true") goAppSettings();
 }
 window.kgAppOpen = appOpenKid;
 function addScreen() {
@@ -232,7 +233,9 @@ function addScreen() {
   };
 }
 // plain screens (list / add / pair): one centred column (#app.solo); render() and the overview clear it
-const head = title => { $("#app").className = "solo"; return `<div class="row" style="margin-bottom:14px"><span class="badge">${ic("shield")}</span><h1 class="sp" style="margin:0">${title}</h1>${langSel()}${themeBtn()}</div>`; };
+// back: a sub-screen (app settings) shows a back arrow instead of the logo, and no settings gear
+const head = (title, back) => { $("#app").className = "solo"; return `<div class="row" style="margin-bottom:14px">${back ? `<button type="button" class="rb" id="appSetBack" aria-label="${esc(t("back"))}" title="${esc(t("back"))}">${ic("arrow-left")}</button>` : `<span class="badge">${ic("shield")}</span>`}<h1 class="sp" style="margin:0">${title}</h1>${back ? "" : APP ? `<button type="button" class="rb" id="appSetBtn" aria-label="${esc(t("au.h"))}" title="${esc(t("au.h"))}">${ic("settings")}</button>` : `${langSel()}${themeBtn()}`}</div>`; };
+document.addEventListener("click", e => { if (APP && e.target.closest && e.target.closest("#appSetBtn")) appSettings(); });
 async function lanHello(target) {
   const e = $("#e1"); if (e) e.textContent = t("connecting");
   try {

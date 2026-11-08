@@ -228,6 +228,7 @@ function goList() {
 }
 addEventListener("popstate", () => {
   const l = navLvl();
+  if (typeof appSetOn !== "undefined" && appSetOn && !(history.state && history.state.appSet)) { appSetOn = false; return appBoot(); }
   if (l === 0 && (cur || ov)) goList();
   else if (l === 1 && cur && viewDay) { tab = "home"; open(cur); }
 });

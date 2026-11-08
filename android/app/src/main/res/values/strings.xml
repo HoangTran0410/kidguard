@@ -726,4 +726,10 @@
     <string name="hm_c_accent_n">Colour %1$d</string>
     <string name="ss_paired">Paired. KidGuard can now hide apps while Wireless debugging is on.</string>
     <string name="app_shell_off">Wireless debugging is off: app changes will apply when it is back on</string>
+    <string name="main_check_update">Check for updates · v%1$s</string>
+    <string name="upd_checking">Checking…</string>
+    <string name="upd_downloading">Downloading v%1$s…</string>
+    <string name="upd_installing">Installing v%1$s…</string>
+    <string name="upd_current">Up to date (v%1$s)</string>
+    <string name="upd_failed">Update failed: %1$s</string>
 </resources>

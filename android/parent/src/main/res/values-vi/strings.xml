@@ -6,7 +6,7 @@
     <string name="ch_events">Thông báo từ máy của con</string>
     <string name="ch_sos">SOS từ con</string>
     <string name="upd_title">Có bản KidGuard Phụ huynh mới (%1$s)</string>
-    <string name="upd_text">Bấm để tải về rồi cài đè lên bản cũ</string>
+    <string name="upd_text">Bấm để mở app và cài bản mới</string>
     <plurals name="ev_request">
         <item quantity="other">%1$s xin thêm %2$d phút</item>
     </plurals>

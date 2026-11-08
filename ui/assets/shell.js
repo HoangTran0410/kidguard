@@ -107,9 +107,10 @@ function moreTab(b) {
     + grp(t("sec.manage"), [li("set", "settings", t("more.setS")),
       L.length > 1 ? `<button type="button" class="li" id="moreOv"><span class="ib">${ic("users")}</span><span class="x"><b>${t("nav.family")}</b><span class="sub">${t("ovN", L.length)}</span></span>${ic("chevron-right")}</button>` : "",
       APP || kids.length > 1 || cur.via === "relay" ? `<button type="button" class="li" id="moreList"><span class="ib">${ic("list")}</span><span class="x"><b>${t("list")}</b></span>${ic("chevron-right")}</button>` : ""])
-    + `<div class="sec">${t("set.general")}</div><div class="card row">${langSel()}<span class="sp"></span>${themeBtn()}</div>`;
+    + `<div class="sec">${t("set.general")}</div>${APP ? `<div class="list"><button type="button" class="li" id="moreApp"><span class="ib">${ic("settings")}</span><span class="x"><b>${t("au.h")}</b></span>${ic("chevron-right")}</button></div>` : `<div class="card row">${langSel()}<span class="sp"></span>${themeBtn()}</div>`}`;
   b.querySelectorAll("[data-go]").forEach(x => x.onclick = () => goTab(x.dataset.go));
   if ($("#moreOv")) $("#moreOv").onclick = () => { screenStop(); earStop(); overview(L, APP || onLan() ? appBoot : () => listScreen(L)); };
+  if ($("#moreApp")) $("#moreApp").onclick = () => goAppSettings();
   if ($("#moreList")) $("#moreList").onclick = () => { goList(); navDown(0); };
 }
 // "Nhật ký": events + the phone's own log
@@ -564,3 +565,47 @@ function moreSheet() {
       actPaint();
     });
 }
+// ---- parent app only: "Cài đặt app" (language, theme, notifications, update, guide); the gear in head() and the "Thêm" sheet open it ----
+let appUpd = { st: "idle" };   // idle | checking | ok | new | fail | perm | dl(pct) | inst | dlfail; pushed by the app through kgUpd()
+window.kgUpd = o => { appUpd = o || { st: "idle" }; if ($("#updBox")) $("#updBox").innerHTML = updBoxHtml(); };
+function updBoxHtml() {
+  const u = appUpd, v = kgCall("appVersion") || "";
+  const busy = u.st === "checking" || u.st === "dl";
+  const msg = { checking: t("au.checking"), ok: t("au.ok"), fail: t("au.fail"), new: t("au.new", u.tag), perm: t("au.perm"), dl: t("au.dl", u.pct || 0), inst: t("au.inst"), dlfail: t("au.dlfail") }[u.st] || "";
+  const inst = u.st === "new" || u.st === "perm" || u.st === "dlfail" || u.st === "inst";
+  return `${msg ? `<p class="${u.st === "fail" || u.st === "dlfail" ? "err" : "mute"}" role="status">${busy ? '<i class="spin"></i> ' : ""}${msg}</p>` : ""}
+    <div class="row">${inst ? `<button class="pri sp" id="updInst" data-tag="${esc(u.tag || "")}">${ic("download")} ${t("au.install", u.tag || "")}</button>` : ""}
+    <button class="${inst ? "" : "pri "}sp" id="updChk" ${busy ? "disabled" : ""}>${ic("refresh-cw")} ${t("au.check", v)}</button></div>`;
+}
+// one history entry while it is open, so Android Back returns to the list (popstate in overview.js) instead of leaving the app
+let appSetOn = false;
+function appSetClose() { if (!appSetOn) return; if (history.state && history.state.appSet) history.back(); else { appSetOn = false; appBoot(); } }   // popstate does the rest
+function appSettings() {
+  reScreen = appSettings;
+  if (!appSetOn) { appSetOn = true; try { history.pushState({ kg: navLvl() + 1, appSet: 1 }, ""); } catch {} }
+  const notifOn = kgCall("notifOn") === "true", wantOn = kgCall("getNotify") !== "false";
+  $("#app").innerHTML = head(t("au.h"), true) + `
+  <div class="card"><h2>${ic("globe")} ${t("lang")}</h2>${langSel()}</div>
+  <div class="card"><h2>${ic("sun-moon")} ${t("theme.h")}</h2><div class="seg" role="tablist">${THEMES.map(x => `<button type="button" role="tab" data-th="${x}" aria-selected="${x === theme}">${t("theme." + x)}</button>`).join("")}</div></div>
+  <div class="card"><h2>${ic("bell")} ${t("notif.h")}</h2>
+    <label class="row"><input type="checkbox" id="f-notify" ${wantOn ? "checked" : ""}><span class="sp">${t("notif.p")}</span></label>
+    <p class="mute">${notifOn ? t("au.nOn") : wantOn ? ic("triangle-alert") + " " + t("notif.blocked") : t("au.nOff")}</p>
+    <button id="nSet">${ic("settings")} ${t("au.nOpen")}</button></div>
+  <div class="card"><h2>${ic("download")} ${t("au.upd")}</h2><div id="updBox">${updBoxHtml()}</div></div>
+  <div class="card row"><b class="sp">${ic("book-open")} ${t("au.guide")}</b><a class="btn" href="https://kid-guard.pages.dev/${lang === "en" ? "en/" : ""}guide.html" target="_blank" rel="noopener">${ic("external-link")} ${t("open")}</a></div>
+  <button id="abk">${ic("list")} ${t("back")}</button>`;
+  $("#abk").onclick = $("#appSetBack").onclick = appSetClose;
+  $("#app").querySelectorAll("[data-th]").forEach(b => b.onclick = () => {
+    theme = b.dataset.th; try { localStorage.setItem("kg.theme", theme); } catch {}
+    applyTheme(); appSettings();
+  });
+  $("#f-notify").onchange = e => { kgCall("setNotify", e.target.checked ? "true" : "false"); if (e.target.checked) setTimeout(() => { if (kgCall("canNotify") === "false") toast("warn|" + t("notif.blockedShort")); appSettings(); }, 1500); else appSettings(); };
+  $("#nSet").onclick = () => kgCall("openNotifSettings");
+  // one delegated handler: updBox is redrawn by kgUpd
+  $("#app").onclick = e => {
+    const b = e.target.closest && e.target.closest("#updChk, #updInst"); if (!b || b.disabled) return;
+    if (b.id === "updChk") kgCall("checkUpdate"); else kgCall("installUpdate", b.dataset.tag);
+  };
+}
+// from the kid screens: leave the kid, then show the settings on the list's place
+function goAppSettings() { if (cur || ov) goList(); appSettings(); }

@@ -234,8 +234,6 @@ function setTab(b) {
   </div><div>
   <div class="sec">${t("set.general")}</div>
   <div class="card"><h2>${ic("user")} ${t("set.name")}</h2><div class="row"><input id="f-name" class="sp" aria-label="${esc(t("set.name"))}" value="${esc(cur.name)}"><button id="saveName">${ic("save")} ${t("save")}</button></div></div>
-  <div class="card row"><h2 class="sp" style="margin:0">${ic("globe")} ${t("lang")}</h2>${langSel()}${themeBtn()}</div>
-  ${APP ? `<div class="card"><h2>${ic("bell")} ${t("notif.h")}</h2><label class="row"><input type="checkbox" id="f-notify" ${kgCall("getNotify") === "false" || kgCall("canNotify") === "false" ? "" : "checked"}><span class="sp">${t("notif.p")}</span></label>${kgCall("getNotify") !== "false" && kgCall("canNotify") === "false" ? `<p class="mute">${ic("triangle-alert")} ${t("notif.blocked")}</p>` : ""}</div>` : ""}
   ${APP ? `<div class="card"><h2>${ic("history")} ${t("keep.h")}</h2><select id="f-days" aria-label="${esc(t("keep.h"))}">${["0", "30", "90", "365"].map(v => `<option value="${v}" ${String(kgCall("getHistoryDays") || "0") === v ? "selected" : ""}>${+v ? t("days", +v) : t("noLimitC")}</option>`).join("")}</select>
     <p class="mute">${t("keep.p")}</p></div>` : ""}
   ${featCard()}
@@ -267,7 +265,6 @@ function setTab(b) {
   });
   sysDraw();
   if (APP) $("#f-days").onchange = e => kgCall("setHistoryDays", e.target.value);
-  if (APP) $("#f-notify").onchange = e => { kgCall("setNotify", e.target.checked ? "true" : "false"); if (e.target.checked) setTimeout(() => { if (kgCall("canNotify") === "false") toast("warn|" + t("notif.blockedShort")); }, 1500); };
   $("#saveName").onclick = () => { cur.name = $("#f-name").value || t("kid"); save(kids); render(); };
   // saved right away (not the 0.5 s debounce) so the button can show sending -> saved / failed
   $("#savePin").onclick = async () => {

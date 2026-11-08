@@ -707,4 +707,10 @@
     <string name="hm_c_accent_n">Màu %1$d</string>
     <string name="ss_paired">Đã ghép nối. KidGuard sẽ ẩn được app khi Gỡ lỗi không dây đang bật.</string>
     <string name="app_shell_off">Gỡ lỗi không dây đang tắt: thay đổi app sẽ áp dụng khi bật lại</string>
+    <string name="main_check_update">Kiểm tra cập nhật · v%1$s</string>
+    <string name="upd_checking">Đang kiểm tra…</string>
+    <string name="upd_downloading">Đang tải v%1$s…</string>
+    <string name="upd_installing">Đang cài v%1$s…</string>
+    <string name="upd_current">Đã là bản mới nhất (v%1$s)</string>
+    <string name="upd_failed">Cập nhật lỗi: %1$s</string>
 </resources>

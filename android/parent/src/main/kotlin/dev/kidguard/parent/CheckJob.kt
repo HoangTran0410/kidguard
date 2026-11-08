@@ -107,7 +107,7 @@ class CheckJob : JobService() {
             return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
         }
 
-        /** Once a day: is there a newer release? Notifies once per version; the tap downloads the APK in the browser. */
+        /** Once a day: is there a newer release? Notifies once per version; the tap opens the app on "App settings" (in-app download, [Updater]). */
         fun checkUpdate(c: Context) {
             val now = System.currentTimeMillis()
             if (now - Store.updateAt(c) < 24 * 3_600_000L) return
@@ -118,7 +118,7 @@ class CheckJob : JobService() {
             if (!Logic.newer(tag, BuildConfig.VERSION_NAME) || Store.updateNotified(c) == tag || !canNotify(c)) return
             Store.setUpdateNotified(c, tag)
             channel(c)
-            val pi = PendingIntent.getActivity(c, 9, Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Logic.parentApk(tag))), PendingIntent.FLAG_IMMUTABLE)
+            val pi = PendingIntent.getActivity(c, 9, Intent(c, MainActivity::class.java).putExtra(MainActivity.EXTRA_SETTINGS, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
             val n = android.app.Notification.Builder(c, CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle(c.getString(R.string.upd_title, tag))
                 .setContentText(c.getString(R.string.upd_text)).setContentIntent(pi).setAutoCancel(true).build()
             c.getSystemService(NotificationManager::class.java).notify(0x6b67, n)

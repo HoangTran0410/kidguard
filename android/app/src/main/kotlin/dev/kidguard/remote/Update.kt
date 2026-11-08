@@ -55,6 +55,8 @@ object Update {
     @Volatile var latest = ""; private set
     @Volatile var status = ""; private set      // "", "checking", "downloading", "installing", "ready" (basic: waits for the child), "failed"
     @Volatile var err = ""; private set
+    /** Counts [start] runs, so a UI that polls [status] can tell a fresh result from a stale one. */
+    @Volatile var runs = 0; private set
     /** True while the owner install session runs: [Policy.apply] then leaves the install restrictions lifted. */
     @Volatile var installing = false; private set
 
@@ -83,6 +85,7 @@ object Update {
     /** [force] = the parent asked: also install a download that is already waiting (basic: notify again). */
     fun start(ctx: Context, force: Boolean): Boolean {
         if (!busy.compareAndSet(false, true)) return false
+        runs++
         val app = ctx.applicationContext
         Thread({
             try { run(app, force) } catch (e: Throwable) { Log.e(TAG, "update", e); status = "failed"; err = (e.message ?: app.getString(R.string.err_generic)).take(120) }

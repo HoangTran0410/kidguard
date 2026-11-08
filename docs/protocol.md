@@ -382,6 +382,10 @@ the child over plain http; the WebView itself may only reach `127.0.0.1:<port>` 
   `getHistoryDays()` -> `"0"` (unlimited) | `"30"` ...; `setHistoryDays(n)`; `getLang()` -> `""` (phone setting) | `"en"` | `"vi"`,
   `setLang(code)` same codes, others ignored, same code = no-op: language of the app's own notifications (Android 13+: the
   system per-app language). The page translates itself; the WebView is not reloaded.
+  App settings screen (page, APP only): `notifOn()` -> `"true"` when notifications are on and allowed by Android; `openNotifSettings()` opens Android's notification
+  settings for the app; `appVersion()`; `checkUpdate()` checks GitHub now and `installUpdate(tag)` downloads `kidguard-parent-<tag>.apk` in-app (HttpURLConnection, https redirects)
+  and opens the system installer (asks for "install unknown apps" first); both report by calling `window.kgUpd({st: checking|ok|new|fail|perm|dl|inst|dlfail, tag?, pct?})`;
+  `takeSettings()` -> `"true"` once after the update notification was tapped (the page opens App settings; `kgAppOpen()` is called on a running page).
   `takeOpen()` -> `'{"target","id"}'` once after a notification tap (then `""`): the page opens that kid (on boot, and
   the app calls `window.kgAppOpen()` on a running page).
 - **Background**: JobScheduler job every ~15 min (+ once at app start) fetches each kid's state with its token and
