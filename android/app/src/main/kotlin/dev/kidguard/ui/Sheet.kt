@@ -27,9 +27,33 @@ class Sheet(act: Activity, u: Ui, title: String) {
             background = GradientDrawable().apply { setColor(u.card); val r = u.dpf(28); cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f) }
             setPadding(u.dp(12), u.dp(10), u.dp(12), u.dp(16))
         }
-        box.addView(View(act).apply { background = u.shape(u.stroke, 2); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO },
-            LinearLayout.LayoutParams(u.dp(36), u.dp(4)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = u.dp(10) })
-        box.addView(u.label(title, 20f, u.text, true).apply { setPadding(u.dp(12), 0, u.dp(12), 0); accessibilityHeading(this) })
+        // header = drag handle + title + close: drag it down (or tap X / outside / Back) to close, like any bottom sheet
+        val head = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
+        head.addView(View(act).apply { background = u.shape(u.stroke, 2); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO },
+            LinearLayout.LayoutParams(u.dp(36), u.dp(4)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = u.dp(6) })
+        val titleRow = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        titleRow.addView(u.label(title, 20f, u.text, true).apply { setPadding(u.dp(12), 0, u.dp(8), 0); accessibilityHeading(this) },
+            LinearLayout.LayoutParams(0, -2, 1f))
+        titleRow.addView(android.widget.ImageView(act).apply {
+            setImageDrawable(Ic.get(act, R.drawable.li_x, u.sub, u.dp(22))); scaleType = android.widget.ImageView.ScaleType.CENTER
+            background = u.shape(u.bg, 22); contentDescription = act.getString(R.string.close)
+            setOnClickListener { d.dismiss() }
+        }, LinearLayout.LayoutParams(u.dp(44), u.dp(44)))
+        head.addView(titleRow)
+        box.addView(head, LinearLayout.LayoutParams(-1, -2))
+        var downY = 0f; var dragging = false
+        head.setOnTouchListener { _, e ->
+            when (e.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> { downY = e.rawY; dragging = true; box.animate().cancel() }
+                android.view.MotionEvent.ACTION_MOVE -> if (dragging) box.translationY = (e.rawY - downY).coerceAtLeast(0f)
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> if (dragging) {
+                    dragging = false
+                    if (box.translationY > maxOf(u.dp(80).toFloat(), box.height * 0.2f)) box.animate().translationY(box.height.toFloat()).setDuration(150).withEndAction { d.dismiss(); box.translationY = 0f }.start()
+                    else box.animate().translationY(0f).setDuration(150).start()
+                }
+            }
+            true
+        }
         val scroll = ScrollView(act).apply { isVerticalScrollBarEnabled = false; addView(body) }
         box.addView(scroll, LinearLayout.LayoutParams(-1, -2, 1f))   // weight + wrap: shrinks only when the sheet would not fit (big font, short screen)
         box.isClickable = true   // taps on the sheet itself don't reach the scrim

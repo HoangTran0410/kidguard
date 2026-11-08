@@ -353,6 +353,8 @@ L.en = {
   "hero.usedOf": "Used {0} / {1}",
   "home.topToday": "Used today",
   "home.allApps": "All apps",
+  "pinFirst.p": "Set a parent PIN before saving rules. Only parents should know it: it opens “Parent controls on this phone” and pairs your own phone later.",
+  "pinFirst.need": "Not saved: set a parent PIN first",
   "home.recent": "Recent",
   "req.replyBtn": "Reply…",
   "msg.h": "Show a message on the kid's screen",

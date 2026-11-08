@@ -356,6 +356,8 @@ L.vi = {
   "hero.usedOf": "Đã dùng {0} / {1}",
   "home.topToday": "Hôm nay dùng gì",
   "home.allApps": "Tất cả ứng dụng",
+  "pinFirst.p": "Đặt mã PIN bố mẹ trước khi lưu luật. Chỉ bố mẹ biết mã này: dùng để mở “Bố mẹ quản lý trên máy này” và để ghép điện thoại của bố mẹ sau này.",
+  "pinFirst.need": "Chưa lưu: cần đặt mã PIN bố mẹ trước",
   "home.recent": "Gần đây",
   "req.replyBtn": "Trả lời…",
   "msg.h": "Gửi lời nhắn lên màn hình máy con",

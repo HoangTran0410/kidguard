@@ -855,3 +855,6 @@ preferred activity. The flag is not sent in state; `release` disables the compon
 
 Before setup (never paired, no parent PIN, no Authenticator) "Bố mẹ quản lý trên máy này" opens the local page without a
 code (`PairPin.adminOpen`); with a PIN or TOTP, or once paired, the code is required as before.
+The page skips its PIN gate while `caps.paired` is false (preview) and instead asks for a new parent PIN (twice) on the
+first rules save; the PUT carries it as `"pin"`. That PIN then guards the local page and is the PIN the parent enters
+when pairing their own phone (`/api/pair`), so it follows the parent from preview to pairing.

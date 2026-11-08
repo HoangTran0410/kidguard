@@ -69,7 +69,7 @@ function render(tabClick) {
   const focus = document.activeElement && document.activeElement.id;   // keep the field being typed in
   if (focus && /^(f-|msg|relay)/.test(focus)) { updateLive(); return; }
   if (tab !== "screen") screenStop();
-  if (st && edit && !viewDay && !edit.pinSet) return pinGate(a);   // paired before PINs were required: nothing else until one is set
+  if (st && edit && !viewDay && !edit.pinSet && !(st.caps && st.caps.paired === false)) return pinGate(a);   // preview: the PIN is asked on the first save (putRules)   // paired before PINs were required: nothing else until one is set
   a.className = ""; a.innerHTML = `<div class="shell">${sideHtml()}<div class="mainc"><div class="wrap">${localBar()}
   ${headHtml()}
   ${viewDay ? `<div class="ban t-warn" style="position:sticky;top:8px;z-index:15;margin-bottom:12px"><span class="bi">${ic("history")}</span><div class="x">${t("hist.viewing", esc(dm(viewDay)))}</div><button id="goLive" class="pri pill">${ic("zap")} ${t("hist.live")}</button></div>` : ""}

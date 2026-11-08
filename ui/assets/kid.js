@@ -49,6 +49,15 @@ function saveFail(on) { saveFailed = on; const b = $("#saveBar"); if (b) b.style
 $("#saveRetry").onclick = () => changed();
 // PUT the rules; throws on failure. Used by changed() (debounced) and by approve (needs the result before it answers).
 async function putRules(k, e) {
+  // Preview (phone never paired, no parent PIN yet): the first save sets the parent PIN. It is the same PIN the parent
+  // later enters to pair their own phone, and from then on it guards "Bố mẹ quản lý trên máy này".
+  if (!e.pinSet && !e.pin && st && st.caps && st.caps.paired === false) {
+    let pin = "";
+    const inp = (id, ph) => `<input id="${id}" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(ph)}" aria-label="${esc(ph)}" style="width:100%;margin-bottom:10px">`;
+    const collect = () => { const x = $("#askP1").value, y = $("#askP2").value; if (/^\d{4,8}$/.test(x) && x === y) { pin = x; return true; } return false; };
+    if (!(await ask(t("pinFirst.p"), t("pinGate.go"), false, "", inp("askP1", t("pair.pin1")) + inp("askP2", t("pair.pin2")), collect))) throw new Error(t("pinFirst.need"));
+    e.pin = pin;
+  }
   saveBusy++;
   try {
     const body = { ...e }; delete body.pinHash; delete body.pinSet; if (!body.pin) delete body.pin;
