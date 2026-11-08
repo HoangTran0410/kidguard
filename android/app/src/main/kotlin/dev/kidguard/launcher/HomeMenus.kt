@@ -53,13 +53,14 @@ internal fun HomeActivity.pausedSheet(a: AppE, reason: String, dv: View0, r: Rul
 
 internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: Int = 0) {
     popup?.dismiss()
+    val focus = menuFocus(anchor)
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = fill(pal.sheet, 16f); setPadding(0, dp(6), 0, dp(6)); elevation = dpf(8f) }
     // 250dp, wider with a big system font, never wider than the screen; taller than the screen scrolls
     val mw = minOf(dp((250 * resources.configuration.fontScale.coerceIn(1f, 1.4f)).toInt()), root.width - dp(16))
     val maxH = root.height - insT - insB - dp(24)
     val scroll = object : android.widget.ScrollView(this) {
         override fun onMeasure(w: Int, h: Int) = super.onMeasure(w, View.MeasureSpec.makeMeasureSpec(maxH, View.MeasureSpec.AT_MOST))
-    }.apply { isVerticalScrollBarEnabled = false; background = fill(pal.sheet, 16f); elevation = dpf(8f); addView(box) }
+    }.apply { isVerticalScrollBarEnabled = false; background = fill(pal.sheet, 16f); elevation = shadow(8f); addView(box) }
     box.background = null; box.elevation = 0f
     val pw = PopupWindow(scroll, mw, ViewGroup.LayoutParams.WRAP_CONTENT, true)
     for (r in rows) box.addView(LinearLayout(this).apply {
@@ -73,9 +74,16 @@ internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: In
         if (r.enabled) setOnClickListener { pw.dismiss(); r.run() }
         contentDescription = r.label
     }, LinearLayout.LayoutParams(-1, -2))
-    pw.elevation = dpf(8f)
+    pw.elevation = shadow(8f)
     pw.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
-    pw.setOnDismissListener { if (popup === pw) popup = null }
+    pw.setOnDismissListener {
+        if (popup === pw) popup = null
+        // the lifted icon goes at once (a drag may be taking it), the dark layer fades
+        if (focusView === focus && popup == null && focus.visibility == View.VISIBLE) {
+            focus.icon = null; focus.invalidate()
+            focus.animate().alpha(0f).setDuration(160).withEndAction { if (popup == null) focus.visibility = View.INVISIBLE }.start()
+        }
+    }
     popup = pw
     // place it ourselves: showAsDropDown on an item near the bottom cut the last rows off (Android 8 doesn't flip it)
     scroll.measure(View.MeasureSpec.makeMeasureSpec(mw, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
@@ -108,9 +116,7 @@ internal fun HomeActivity.appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
         // edit mode with this icon already picked (One UI's "Chọn"): several apps at once from here
         Row(R.drawable.li_check, getString(R.string.hm_e_pick), true) { enterEdit(item?.id) }.takeIf { mode == Mode.HOME && item != null },
         // the app fills its whole cell, so most long-presses land on one: give the empty-space menu a way in from here
-        Row(R.drawable.li_house, getString(R.string.hm_home_menu), true) {
-            val l = IntArray(2); v.getLocationInWindow(l); emptyMenu(l[0], l[1] + v.height / 2)
-        }.takeIf { mode != Mode.DRAWER },
+        Row(R.drawable.li_layout_dashboard, getString(R.string.hm_edit_home), true) { if (mode == Mode.PANEL) closeOverlay(); enterEdit() }.takeIf { mode != Mode.DRAWER },
         // the system's app details (storage, notifications, permissions), last like POCO / One UI. Only when the parent lets
         // the kid open Settings: otherwise this would be a way into it.
         Row(R.drawable.li_info, getString(R.string.hm_app_info), true) {
@@ -126,7 +132,7 @@ internal fun HomeActivity.emptyMenu(x: Int, y: Int) = menu(listOf(
     Row(R.drawable.li_shield, getString(R.string.hm_open_kg), true) { openMain() },
 ), null, x, y)
 
-internal fun HomeActivity.update(m: HomeModel) { HomeFile.save(this, m); model = m; key = ""; render(true) }
+internal fun HomeActivity.update(m: HomeModel) { HomeFile.save(this, m); model = m; key = ""; reusePages = true; render(true) }
 
 internal fun HomeActivity.openMain() = runCatching { startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 
@@ -187,7 +193,7 @@ internal fun HomeActivity.renameFolder(id: String) {
 }
 
 /** A rounded panel over the home: the folder's visible apps (paused ones greyed + badge). Drag one out to take it out. */
-internal fun HomeActivity.openFolder(id: String) {
+internal fun HomeActivity.openFolder(id: String, from: View? = null) {
     val m = model ?: return
     val f = HomeLayout.find(m, id)?.second?.takeIf { it.kind == "folder" } ?: return
     val dv = lastView ?: return
@@ -195,31 +201,51 @@ internal fun HomeActivity.openFolder(id: String) {
     val all = launcherApps()
     val vis = f.apps.mapNotNull { p -> all[p]?.takeIf { lastShow[p] != null && lastShow[p] != LauncherLogic.Show.HIDE } }
     if (vis.isEmpty()) return
+    folderSheet(folderName(f), "folder:$id", { renameFolder(id) }, vis.map { a -> appIcon(a, lastShow[a.pkg] == LauncherLogic.Show.PAUSED, dv, r, Mode.PANEL, folder = f) to a.pkg }, from, "folderGrid")
+}
+
+/**
+ * The iOS folder look, shared by home folders and App Library groups: the name big above a square glass card of 3×3
+ * apps per page (+ dots), a dark layer behind, the card zooming out of [from] and back into it. [gridTag] marks a
+ * home folder's grid (re-arranging inside it); [rename] makes the name tappable.
+ */
+internal fun HomeActivity.folderSheet(name: String, tag: String?, rename: (() -> Unit)?, icons: List<Pair<View, String>>, from: View?, gridTag: String?) {
     popup?.dismiss()
-    val scrim = FrameLayout(this).apply { setBackgroundColor(Color.argb(if (pal.dark) 140 else 90, 0, 0, 0)); isClickable = true; setOnClickListener { closeOverlay() }; tag = "folder:$id" }
-    val panel = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL; background = fill(pal.sheet, 28f); setPadding(dp(12), dp(14), dp(12), dp(16)); elevation = dpf(12f); isClickable = true
+    val scrim = FrameLayout(this).apply { isClickable = true; setOnClickListener { closeOverlay() }; this.tag = tag }
+    // a dark layer that deepens with the zoom (no blur: an animated blur costs a GPU pass per frame, a plain alpha
+    // costs nothing on any phone). Its own view, so fading it never fades the card flying back into the icon
+    val dim = View(this).apply { setBackgroundColor(Color.argb(150, 0, 0, 0)) }
+    scrim.addView(dim, FrameLayout.LayoutParams(-1, -1))
+    // no clipping: the card flies from / back into the icon, often below the panel (it was cut off at its bottom)
+    scrim.clipChildren = false
+    val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; clipChildren = false; clipToPadding = false }
+    val title = text(name, 28f, Color.WHITE, true).apply {
+        gravity = Gravity.CENTER; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(dp(12), dp(4), dp(12), dp(4))
+        setShadowLayer(dpf(6f), 0f, dpf(1f), 0x66000000)
+        if (rename != null) { contentDescription = getString(R.string.hm_f_rename) + ": " + name; kit.tap(this, 12f) { rename() } }
     }
-    val title = text(folderName(f), 20f, pal.text, true).apply {
-        gravity = Gravity.CENTER; setPadding(dp(12), dp(6), dp(12), dp(10))
-        setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, Ic.get(this@openFolder, R.drawable.li_pencil, pal.sub, dp(18)), null); compoundDrawablePadding = dp(8)
-        contentDescription = getString(R.string.hm_f_rename) + ": " + folderName(f)
-        kit.tap(this, 12f) { renameFolder(id) }
+    panel.addView(title, LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(16) })
+    val card = LibraryPage.Square(this).apply { background = GlassCard(pal.card, dpf(38f), dpf(1f), pal.dark); setPadding(dp(14), dp(16), dp(14), dp(16)); elevation = shadow(12f); isClickable = true }   // lite effects: no shadow re-rendered each frame of the zoom (janked an Oppo A5s)
+    val grid = FolderGrid(this, 3, 3).apply { this.tag = gridTag }
+    for ((v, key) in icons) grid.add(v.also { oneLine(it) }, key)
+    card.addView(grid, FrameLayout.LayoutParams(-1, -1))
+    panel.addView(card, LinearLayout.LayoutParams(-1, -2))
+    if (grid.pages > 1) {
+        val dots = PageDots(this).apply { set(grid.pages, Color.WHITE, null); pos = 1f }
+        grid.onScroll = { dots.pos = 1 + it }
+        panel.addView(dots, LinearLayout.LayoutParams(-2, dp(18)).apply { topMargin = dp(14) })
     }
-    panel.addView(title, LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
-    val cols = 4
-    var row: LinearLayout? = null
-    for ((i, a) in vis.withIndex()) {
-        if (i % cols == 0) { row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }; panel.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) }) }
-        row!!.addView(appIcon(a, lastShow[a.pkg] == LauncherLogic.Show.PAUSED, dv, r, Mode.PANEL, folder = f), LinearLayout.LayoutParams(0, -2, 1f))
-    }
-    row?.let { rw -> while (rw.childCount < cols) rw.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f)) }
-    panel.addView(text(getString(R.string.hm_f_drag_out), 12f, pal.sub).apply { gravity = Gravity.CENTER; setPadding(dp(8), dp(10), dp(8), 0) }, LinearLayout.LayoutParams(-1, -2))
-    scrim.addView(panel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { setMargins(dp(16) + insL, insT + (root.height * 0.22f).toInt(), dp(16) + insR, 0) })
+    val side = (minOf(root.width, root.height) * 0.11f).toInt()
+    scrim.addView(panel, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_VERTICAL).apply { setMargins(side + insL, 0, side + insR, dp(40)) })
     showOverlay(scrim)
-    panel.scaleX = 0.9f; panel.scaleY = 0.9f; panel.alpha = 0f
-    panel.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(160).start()
-    announce(folderName(f))
+    folderZoom(dim, card, grid, title, from)
+    announce(name)
+}
+
+/** Folder labels on one line ("Phone Ma…", iOS): two lines at a big font ran into the next row of the 3×3 card. */
+private fun oneLine(v: View) {
+    if (v is IconLabel) v.most = 1 else if (v is android.widget.TextView) { v.maxLines = 1; v.ellipsize = android.text.TextUtils.TruncateAt.END }
+    else if (v is android.view.ViewGroup) for (i in 0 until v.childCount) oneLine(v.getChildAt(i))
 }
 
 internal fun HomeActivity.showOverlay(v: View) {
@@ -231,6 +257,42 @@ internal fun HomeActivity.showOverlay(v: View) {
 internal fun HomeActivity.closeOverlay() {
     val v = overlay ?: return
     overlay = null
-    root.removeView(v)
-    if (drag == null) main.post { render(false) }
+    val ex = overlayExit; overlayExit = null
+    val done = { root.removeView(v); if (drag == null) main.post { render(false) } }
+    if (ex != null) ex(done) else done()
+}
+
+/**
+ * iOS long-press: the home goes dark behind the menu and the pressed icon stays lit above it (a picture of it in the
+ * same place). One view kept in the root and only shown / hidden, drawing both itself: adding and removing a view
+ * there re-laid out the whole home each time (Oppo A5s: 30 % janky frames per menu, 10-15 % without it).
+ */
+internal class MenuFocus(ctx: android.content.Context) : View(ctx) {
+    private val paint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+    var icon: android.graphics.Bitmap? = null
+    var ix = 0f; var iy = 0f
+    init { visibility = INVISIBLE; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO; outlineProvider = null; translationZ = 1000f }
+    override fun hasOverlappingRendering() = false
+    override fun onDraw(c: android.graphics.Canvas) {
+        c.drawColor(Color.argb(120, 0, 0, 0))
+        icon?.let { c.drawBitmap(it, ix, iy, paint) }
+    }
+}
+
+internal fun HomeActivity.menuFocus(anchor: View?): MenuFocus {
+    val f = focusView ?: MenuFocus(this).also { focusView = it; root.addView(it, FrameLayout.LayoutParams(-1, -1)) }
+    f.animate().cancel()
+    val a = anchor?.takeIf { it.isAttachedToWindow && it.width > 0 && it.height > 0 }
+    f.icon = a?.let {
+        val b = android.graphics.Bitmap.createBitmap(it.width, it.height, android.graphics.Bitmap.Config.ARGB_8888)
+        runCatching { it.draw(android.graphics.Canvas(b)) }
+        val l = IntArray(2); it.getLocationInWindow(l); val r = IntArray(2); f.getLocationInWindow(r)
+        f.ix = (l[0] - r[0]).toFloat(); f.iy = (l[1] - r[1]).toFloat()
+        b
+    }
+    // light effects (weak phones): no dark layer; it cost an Oppo A5s ~4 more slow frames per menu (25 % janky vs 12 %)
+    if (liteFx) { f.icon = null; f.visibility = View.INVISIBLE; return f }
+    f.alpha = 0f; f.visibility = View.VISIBLE; f.invalidate()
+    f.animate().alpha(1f).setDuration(180).start()
+    return f
 }

@@ -26,7 +26,7 @@ class HomeKit(val act: Activity, val pal: Palette, val font: Float = 1f) {
     fun dpf(v: Float) = v * d
 
     fun fill(color: Int, radius: Float = 999f) = GradientDrawable().apply { setColor(color); cornerRadius = dpf(radius) }
-    fun card(radius: Float = 22f) = fill(pal.card, radius)
+    fun card(radius: Float = 22f) = GlassCard(pal.card, dpf(radius), dpf(1f), pal.dark)
     fun sheetCard(radius: Float = 22f) = GradientDrawable().apply { setColor(pal.sheet); cornerRadius = dpf(radius); setStroke(dp(1), pal.stroke) }
     fun circle(color: Int) = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color) }
 
@@ -75,4 +75,33 @@ class HomeKit(val act: Activity, val pal: Palette, val font: Float = 1f) {
 
 
     fun drawRound(c: Canvas, l: Float, t: Float, r: Float, b: Float, p: Paint, rad: Float = dpf(16f)) = c.drawRoundRect(l, t, r, b, rad, rad, p)
+}
+
+/**
+ * The launcher's one card surface (widgets, "Hôm nay" cards): the palette fill plus the glass rim the icons have, a
+ * hairline lit on the top-left and bottom-right corners that fades along the sides (iOS 26 / LauncherOS). A plain
+ * GradientDrawable underneath (setColor / cornerRadius keep working); the rim shader is rebuilt only on a size change.
+ */
+class GlassCard(color: Int, radius: Float, private val w: Float, dark: Boolean) : GradientDrawable() {
+    private val rim = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { style = android.graphics.Paint.Style.STROKE; strokeWidth = w }
+    private val r = android.graphics.RectF()
+    private val rad = radius
+    // on a light card the white rim would vanish: a faint dark edge on the shaded corner keeps the pane readable
+    private val a0 = if (dark) 0x66FFFFFF else 0xCCFFFFFF.toInt()
+    private val a1 = if (dark) 0x38FFFFFF else 0x1F000000
+    init { setColor(color); cornerRadius = radius }
+
+    override fun onBoundsChange(b: android.graphics.Rect) {
+        super.onBoundsChange(b)
+        rim.shader = android.graphics.LinearGradient(b.left.toFloat(), b.top.toFloat(), b.right.toFloat(), b.bottom.toFloat(),
+            intArrayOf(a0, a0 and 0x00FFFFFF, a1 and 0x00FFFFFF, a1), floatArrayOf(0f, 0.35f, 0.65f, 1f), android.graphics.Shader.TileMode.CLAMP)
+    }
+
+    override fun draw(c: android.graphics.Canvas) {
+        super.draw(c)
+        val b = bounds; val h = w / 2
+        r.set(b.left + h, b.top + h, b.right - h, b.bottom - h)
+        rim.alpha = alpha   // the rim fades with the pane (folder card morphing into its icon)
+        c.drawRoundRect(r, rad - h, rad - h, rim)
+    }
 }

@@ -1,5 +1,7 @@
 package dev.kidguard
 
+import android.util.TypedValue
+
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
@@ -15,7 +17,9 @@ import java.util.Date
 internal fun HomeActivity.analogWidget(dv: View0, w: Int, h: Int): View {
     val card = wCard().apply { gravity = Gravity.CENTER }
     val face = AnalogFace(this, pal.tint, pal.sub, pal.text, pal.accentText).apply { minute = dv.minute; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
-    card.addView(face, LinearLayout.LayoutParams(dp(112), dp(112)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+    // the face takes all the room the card has (iOS: the dial is the widget), the date line stays under it
+    card.addView(face, LinearLayout.LayoutParams(-1, 0, 1f).apply { gravity = Gravity.CENTER_HORIZONTAL })
+    card.minimumHeight = dp(if (h >= 2) 150 else 100)
     val fmt = SimpleDateFormat("EEE d/M", resources.configuration.locales[0])
     val date = wSub(fmt.format(Date(dv.now))).apply { gravity = Gravity.CENTER }
     card.addView(date, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
@@ -30,8 +34,8 @@ internal fun HomeActivity.analogWidget(dv: View0, w: Int, h: Int): View {
 }
 
 internal fun HomeActivity.monthWidget(dv: View0, w: Int, h: Int): View {
-    val card = wCard().apply { setPadding(dp(6), dp(6), dp(6), dp(6)) }
-    val grid = MonthGrid(this, pal.text, pal.sub, pal.solid, pal.onSolid, model?.style?.font?.toFloat() ?: 1f).apply { day = dv.now; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+    val card = wCard().apply { setPadding(dp(8), dp(8), dp(8), dp(8)) }
+    val grid = MonthGrid(this, pal.text, pal.sub, pal.solid, pal.onSolid, model?.style?.font?.toFloat() ?: 1f, pal.accentText).apply { day = dv.now; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
     card.addView(grid, LinearLayout.LayoutParams(-1, dp(if (h >= 2) 170 else 120)))
     val fmt = SimpleDateFormat("EEEE, d MMMM yyyy", resources.configuration.locales[0])
     card.contentDescription = fmt.format(Date(dv.now))
@@ -60,10 +64,11 @@ internal fun HomeActivity.batteryWidget(w: Int): View {
     val card = wCard(false)
     val b0 = readBattery()
     val glyph = BatteryGlyph(this, pal.sub, pal.solid, pal.warn).apply { level = b0.pct; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
-    card.addView(glyph, LinearLayout.LayoutParams(dp(40), dp(22)).apply { rightMargin = dp(12) })
+    // half-width cell (2×1) at a big font scale: a smaller glyph and a 2-line status, so "Pin yếu, nhớ sạc nhé" is not cut to "Pin yếu, nh…"
+    card.addView(glyph, LinearLayout.LayoutParams(dp(30), dp(17)).apply { rightMargin = dp(10) })
     val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
     val value = text("${b0.pct}%", 22f, if (b0.pct < 20 && !b0.charging) pal.warnText else pal.accentText, true).apply { maxLines = 1 }
-    val line = wSub(batLine(b0))
+    val line = wSub(batLine(b0), 2).apply { setAutoSizeTextTypeUniformWithConfiguration(8, 12, 1, TypedValue.COMPLEX_UNIT_SP); layoutParams = LinearLayout.LayoutParams(-1, dp(32)) }
     col.addView(value); col.addView(line)
     card.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
     card.contentDescription = "${value.text}. ${line.text}"
@@ -80,16 +85,48 @@ internal fun HomeActivity.batteryWidget(w: Int): View {
 
 internal fun HomeActivity.analogPreview(c: LinearLayout) {
     c.gravity = Gravity.CENTER
-    c.addView(AnalogFace(this, pal.tint, pal.sub, pal.text, pal.accentText).apply { minute = 10 * 60 + 10 }, LinearLayout.LayoutParams(dp(40), dp(40)))
+    c.addView(AnalogFace(this, pal.tint, pal.sub, pal.text, pal.accentText).apply { minute = 10 * 60 + 10 }, LinearLayout.LayoutParams(dp(72), dp(72)))
 }
 
 internal fun HomeActivity.monthPreview(c: LinearLayout) {
     c.gravity = Gravity.CENTER
-    c.addView(MonthGrid(this, pal.text, pal.sub, pal.solid, pal.onSolid, 1f), LinearLayout.LayoutParams(-1, dp(52)))
+    c.addView(MonthGrid(this, pal.text, pal.sub, pal.solid, pal.onSolid, 1f), LinearLayout.LayoutParams(-1, dp(74)))
 }
 
 internal fun HomeActivity.batteryPreview(c: LinearLayout) {
     c.gravity = Gravity.CENTER
     c.addView(BatteryGlyph(this, pal.sub, pal.solid, pal.warn).apply { level = 70 }, LinearLayout.LayoutParams(dp(32), dp(18)))
     c.addView(text("70%", 12f, pal.accentText, true).apply { setPadding(0, dp(3), 0, 0); gravity = Gravity.CENTER })
+}
+
+/** One tap turns the screen off (the same path as the "Khoá màn hình" home-screen widget / quick tile: [Quick.lock]). 1×1 = the round button only. */
+internal fun HomeActivity.lockWidget(w: Int): View {
+    fun disc(sz: Int) = android.widget.FrameLayout(this).apply {
+        background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(pal.solid) }
+        addView(android.widget.ImageView(context).apply { setImageDrawable(Ic.get(context, R.drawable.li_lock, pal.onSolid, dp(sz / 2))) },
+            android.widget.FrameLayout.LayoutParams(dp(sz / 2), dp(sz / 2), Gravity.CENTER))
+    }
+    val label = getString(R.string.q_lock)
+    if (w <= 1) {
+        val box = android.widget.FrameLayout(this)
+        val d = disc(52).apply { contentDescription = label; kit.tap(this, 999f, true) { dev.kidguard.Quick.lockOrSay(this@lockWidget) } }
+        box.addView(d, android.widget.FrameLayout.LayoutParams(dp(52), dp(52), Gravity.CENTER))
+        return box
+    }
+    val card = wCard(false)
+    card.addView(disc(40), LinearLayout.LayoutParams(dp(40), dp(40)).apply { rightMargin = dp(12) })
+    // shrinks to fit a half-width cell at a big font scale (font 1.6 on the Oppo cut "Khoá màn hình" to "Khoá màn")
+    card.addView(text(label, 15f, pal.text, true).apply { maxLines = 2; setAutoSizeTextTypeUniformWithConfiguration(9, 15, 1, TypedValue.COMPLEX_UNIT_SP) }, LinearLayout.LayoutParams(0, dp(44), 1f))
+    card.contentDescription = label
+    kit.tap(card, 22f) { dev.kidguard.Quick.lockOrSay(this) }
+    return centred(card)
+}
+
+internal fun HomeActivity.lockPreview(c: LinearLayout) {
+    c.gravity = Gravity.CENTER
+    c.addView(android.widget.FrameLayout(this).apply {
+        background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(pal.solid) }
+        addView(android.widget.ImageView(context).apply { setImageDrawable(Ic.get(context, R.drawable.li_lock, pal.onSolid, dp(18))) },
+            android.widget.FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER))
+    }, LinearLayout.LayoutParams(dp(36), dp(36)))
 }

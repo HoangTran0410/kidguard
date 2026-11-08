@@ -56,12 +56,24 @@ internal fun pressed(icon: View?, down: Boolean?) {
 }
 
 internal fun HomeActivity.startDrag(v: View, d: DragSt) {
+    libraryOut()
     if (drag != null || !v.isAttachedToWindow) return
     val ok = runCatching { v.startDragAndDrop(null, View.DragShadowBuilder(v), d, 0) }.getOrDefault(false)
     if (!ok) return
     drag = d
+    // inside an open folder: re-arrange there first; the home takes over when the finger leaves the panel
+    if (folderDragBegin(v, d)) return
     d.view?.visibility = View.INVISIBLE
-    if (d.kind == "app") for (c in dockViews) c.visibility = View.VISIBLE   // empty dock slots are drop targets again
+    homeDragChrome()
+}
+
+/** The home gets ready for a drop: dock gap animations, panels / drawer closed, drop bar shown. */
+internal fun HomeActivity.homeDragChrome() {
+    val d = drag ?: return
+    // from the dock: its slot closes up at once, the others re-centre (One UI); a drop elsewhere re-renders the dock anyway
+    (d.src as? Src.Dock)?.let { dockViews.getOrNull(it.slot)?.visibility = View.GONE }
+    dock.layoutTransition = android.animation.LayoutTransition().apply { setDuration(160) }
+    dockRoom = null
     // leaving a panel / the drawer / the picker: the home takes the drop
     when {
         overlay != null -> { val o = overlay; overlay = null; o?.visibility = View.GONE; main.post { root.removeView(o) } }
@@ -106,8 +118,42 @@ internal fun HomeActivity.dockSlot(x: Float, y: Float): Int {
     return -1
 }
 
+/**
+ * Where a drop on the dock goes: (-1, k) = in after the first k shown icons, when the app fits (the dock opens a gap there,
+ * [gapAt]); (slot, -1) = onto that icon, replacing / swapping it, when the dock is full. Null: not over the dock.
+ * The icons sit packed and centred (empty slots hidden), so "between icons" is the only way in when there is room.
+ */
+internal fun HomeActivity.dockTarget(x: Float, y: Float, d: DragSt): Pair<Int, Int>? {
+    if (!inView(dock, x, y) || d.kind != "app") return null
+    val room = dockRoom ?: run { val m = model; val pkg = m?.let { taken(it, d)?.item?.pkg }
+        (m != null && pkg != null && m.dock.drop(1).count { it.isNotEmpty() && it != pkg } < HomeLayout.DOCK - 1) }.also { dockRoom = it }
+    if (!room) return dockSlot(x, y).takeIf { it >= 0 }?.let { it to -1 }
+    val rl = IntArray(2); root.getLocationInWindow(rl); val l = IntArray(2)
+    var k = 0
+    for (v in dockViews) {
+        if (v.visibility != View.VISIBLE) continue
+        v.getLocationInWindow(l)
+        if (x > l[0] - rl[0] + v.width / 2f) k++
+    }
+    return -1 to k.coerceAtLeast(1)   // never before the phone
+}
+
+/** Opens (k >= 0) or closes (-1) the gap in the dock after the first [k] shown icons; the layout transition slides them apart. */
+internal fun HomeActivity.gapAt(k: Int) {
+    if (k == dockGapK && (k < 0 || dockGap != null)) return
+    dockGap?.let { dock.removeView(it) }; dockGap = null; dockGapK = k
+    if (k < 0) return
+    var idx = dock.childCount; var n = 0
+    for (c in 0 until dock.childCount) { if (dock.getChildAt(c).visibility != View.VISIBLE) continue; if (n == k) { idx = c; break }; n++ }
+    val h = dockViews.firstOrNull { it.visibility == View.VISIBLE && it.height > 0 }?.height ?: dp(64)
+    val g = View(this).apply { background = fill(if (pal.dark) 0x26FFFFFF else 0x16000000, 18f) }
+    dock.addView(g, idx, android.widget.LinearLayout.LayoutParams(0, h, 1f).apply { setMargins(dp(4), 0, dp(4), 0) })
+    dockGap = g
+}
+
 internal fun HomeActivity.onDrag(e: DragEvent): Boolean {
     val d = drag ?: (e.localState as? DragSt) ?: return false
+    if (folderDrag != null && folderDragEvt(e, d)) return true
     when (e.action) {
         DragEvent.ACTION_DRAG_STARTED -> return true
         DragEvent.ACTION_DRAG_LOCATION -> hover(e.x, e.y, d)
@@ -121,14 +167,16 @@ internal fun HomeActivity.onDrag(e: DragEvent): Boolean {
 internal fun HomeActivity.clearHover() { clearCell(); magnet(Float.NaN, Float.NaN) }
 
 /** Resets the cell-level hover: folder target, the re-arrange preview, the tip, the cell highlight, dock slots. */
-internal fun HomeActivity.clearCell() {
+internal fun HomeActivity.clearCell(keepGap: Boolean = false, keepDock: Int = -1) {
+    if (!keepGap) gapAt(-1)
     folderArm?.let { main.removeCallbacks(it) }; folderArm = null; folderReady = false
-    hoverId?.let { itemViews[it]?.background = null }
+    swapArm?.let { main.removeCallbacks(it) }; swapArm = null; swapWant = null
+    pageView()?.plateOff()
     hoverId = null
     unswap()
     tip.visibility = View.GONE
     pageView()?.let { if (it.hl != null) { it.hl = null; it.invalidate() } }
-    for (v in dockViews) v.background = null
+    for ((i, v) in dockViews.withIndex()) if (i != keepDock && v.background != null) v.background = null
 }
 
 internal fun HomeActivity.unswap() {
@@ -168,19 +216,22 @@ internal fun HomeActivity.nearCentre(it: HItem, x: Float, y: Float): Boolean {
     val loc = IntArray(2); val rl = IntArray(2); v.getLocationInWindow(loc); root.getLocationInWindow(rl)
     // rest position (it may be sliding out of the way right now); the icon sits above the label
     val cx = loc[0] - rl[0] - v.translationX + v.width / 2f; val cy = loc[1] - rl[1] - v.translationY + v.height / 2f - v.height * 0.12f
-    return kotlin.math.hypot(x - cx, y - cy) < v.width * 0.3f
+    return kotlin.math.hypot(x - cx, y - cy) < v.width * 0.36f
 }
 
 internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
     val m = model ?: return
     // the remove target
     if (magnet(x, y) || removeNear) { clearCell(); cancelFlip(); return }
-    val slot = dockSlot(x, y)
-    if (slot >= 0) {
-        clearCell(); cancelFlip()
-        if (slot > 0 && d.kind == "app") dockViews[slot].background = fill(pal.card, 18f)
+    val dt = dockTarget(x, y, d)
+    if (dt != null) {
+        val (slot, k) = dt
+        clearCell(keepGap = true, keepDock = slot); cancelFlip()
+        gapAt(k)
+        if (slot > 0 && dockViews[slot].background == null) dockViews[slot].background = fill(pal.card, 18f)   // once, not per drag event
         return
     }
+    if (dockSlot(x, y) >= 0) { clearCell(); cancelFlip(); return }   // a widget / folder over the dock: no target
     // the screen edges flip pages (past the last page: a new empty one). 48 dp: with gesture navigation the system sends no
     // drag events in its back-gesture strip (~25 dp on a Poco), so the old 22 dp zone was nearly all dead: pushing to the edge
     // never flipped. Resting there keeps flipping (no events come while the finger is still, so it re-checks itself).
@@ -197,7 +248,10 @@ internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
                 if (target >= pager.childCount) {
                     if (tempPage || (m.pages.lastOrNull()?.isEmpty() == true)) return@Runnable
                     tempPage = true
-                    pager.addView(CellLayout(this, m.cols, m.rows).apply { page = m.pages.size })
+                    // padPages() is frozen while dragging: give the new page the same chrome room as the others now, else its grid
+                    // spans the whole screen (taller cells) until the drop re-renders it
+                    val ref = pager.getChildAt(pager.page)
+                    pager.addView(CellLayout(this, m.cols, m.rows).apply { page = m.pages.size; ref?.let { setPadding(it.paddingLeft, it.paddingTop, it.paddingRight, it.paddingBottom) } })
                     styleCells(); padPages(); buildDots()
                 }
                 pager.snapTo(target)
@@ -221,7 +275,7 @@ internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
             folderArm = null
             if (hoverId != u.id) return@Runnable
             folderReady = true
-            itemViews[u.id]?.let { v -> v.background = fill(pal.card, 20f); v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY) }
+            itemViews[u.id]?.let { v -> folderPlate(v); v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY) }
             val name = if (u.kind == "folder") folderName(u) else launcherApps()[u.pkg]?.label ?: ""
             showTip(getString(if (u.kind == "folder") R.string.hm_f_drop_into else R.string.hm_f_drop_make, name))
         }.also { main.postDelayed(it, HomeActivity.FOLDER_MS) }
@@ -234,11 +288,21 @@ internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
     val sw = if (free) null else HomeLayout.swapSpot(t, pi, a.first, a.second)
     // re-arrange preview: the item in the way slides to where it will go
     if (sw?.first?.id != swapId) {
-        unswap()
-        if (sw != null) itemViews[sw.first.id]?.let { v ->
-            swapId = sw.first.id
-            v.animate().translationX(((sw.second - sw.first.x) * cl.cellW()).toFloat()).translationY(((sw.third - sw.first.y) * cl.cellH()).toFloat())
-                .setDuration(200).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+        if (sw == null) { unswap(); swapArm?.let { main.removeCallbacks(it) }; swapArm = null; swapWant = null }
+        else if (swapWant != sw.first.id) {
+            // waits a moment: heading for an icon's middle (folder) passes its edge first, and must not shove it away
+            swapArm?.let { main.removeCallbacks(it) }
+            swapWant = sw.first.id
+            swapArm = Runnable {
+                swapArm = null
+                if (drag !== d || swapWant != sw.first.id) return@Runnable
+                unswap()
+                itemViews[sw.first.id]?.let { v ->
+                    swapId = sw.first.id
+                    v.animate().translationX(((sw.second - sw.first.x) * cl.cellW()).toFloat()).translationY(((sw.third - sw.first.y) * cl.cellH()).toFloat())
+                        .setDuration(260).setInterpolator(android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)).start()
+                }
+            }.also { main.postDelayed(it, HomeActivity.SWAP_MS) }
         }
     }
     val hl = intArrayOf(a.first, a.second, w, h); val ok = free || sw != null
@@ -258,9 +322,18 @@ internal fun HomeActivity.drop(x: Float, y: Float, d: DragSt): Boolean {
     cancelFlip()
     val m = model ?: return false
     val t = taken(m, d) ?: return false
+    // another app's widget from the picker: remember the cell, bind it (system prompt the first time), then place it there
+    if (d.src is Src.NewAppWidget) {
+        val info = awDrag; awDrag = null
+        land = null
+        val at = if (magnet(x, y) || dockSlot(x, y) >= 0) null else cellAt(x, y, d)?.takeIf { (pi, a, _) -> HomeLayout.dropMove(t, pi, a.first, a.second) != null }
+        if (info != null && at != null) { aw.dropAt = Triple(at.first, at.second.first, at.second.second); main.post { awAdd(info) } }
+        return true
+    }
     val out: HomeModel? = when {
         magnet(x, y) -> if (d.src is Src.NewWidget || (d.pkg != null && d.pkg !in m.onHome())) m else HomeLayout.dropRemove(t)
-        dockSlot(x, y) >= 0 -> HomeLayout.dropDock(t, dockSlot(x, y))
+        dockTarget(x, y, d) != null -> dockTarget(x, y, d)!!.let { (slot, k) -> if (slot >= 0) HomeLayout.dropDock(t, slot) else HomeLayout.insertDock(t, k) }
+        dockSlot(x, y) >= 0 -> null
         else -> cellAt(x, y, d)?.let { (pi, a, under) ->
             if (folderReady && under != null && under.id == hoverId && d.kind == "app")
                 HomeLayout.dropOnto(t, under.id, if (under.kind == "app") autoName(under.pkg, t.item.pkg) else "")
@@ -322,14 +395,24 @@ internal fun HomeActivity.noRoom(v: View?) {
  * for a frame. (The render is posted: rebuilding the pages inside the drag event dispatch is not safe.)
  */
 internal fun HomeActivity.endDrag() {
+    main.post { libraryBack() }
     if (drag == null) return
     if (!dropped && land == null) drag?.view?.visibility = View.VISIBLE   // landing: the new render's view flies in
     drag = null
     cancelFlip()
+    dock.layoutTransition = null; gapAt(-1); dockRoom = null
     if (dropped) swapId = null
     dropped = false
     clearHover()
     bannerBox.visibility = View.VISIBLE
     key = ""
-    main.post { render(true); landNow() }
+    main.post { reusePages = true; render(true); landNow() }
+}
+
+/** iOS: a dark rounded plate grows behind the icon the dragged app would make a folder with. */
+internal fun HomeActivity.folderPlate(v: View) {
+    val cl = pageView() ?: return
+    val icon = (v as? android.view.ViewGroup)?.getChildAt(0) ?: v
+    val a = IntArray(2); icon.getLocationInWindow(a); val b = IntArray(2); cl.getLocationInWindow(b)
+    cl.plate(a[0] - b[0] - v.translationX + icon.width / 2f, a[1] - b[1] - v.translationY + icon.height / 2f, icon.width * 1.3f)
 }

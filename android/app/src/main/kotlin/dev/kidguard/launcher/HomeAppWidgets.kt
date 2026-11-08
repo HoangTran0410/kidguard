@@ -18,6 +18,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import kotlin.math.abs
 import kotlin.math.ceil
+import dev.kidguard.HomeLayout.Src
+import dev.kidguard.HomeActivity.DragSt
 
 // Other apps' home-screen widgets (AppWidgetHost) on the kid launcher. Item: kind "widget", type "app", pkg/cls = provider, awid = host id.
 // Everything lives here; hooks: HomeActivity (aw, onStart/onStop, onActivityResult, render sync), armWidget, openPicker.
@@ -68,6 +70,7 @@ internal class AwState {
     val views = HashMap<Int, AppWidgetHostView>()
     var seen: Set<Int>? = null            // ids present in the last synced model
     var pendingId = 0
+    var dropAt: Triple<Int, Int, Int>? = null   // page, x, y where a picker drag let go; used once the bind / configure finishes
     var listening = false
 }
 
@@ -98,17 +101,19 @@ private fun HomeActivity.awCell(): Pair<Int, Int> {
 private fun cellsFor(px: Int, cell: Int, max: Int) = ceil(px.toDouble() / cell.coerceAtLeast(1)).toInt().coerceIn(1, max)
 
 /** Smallest size in cells the provider accepts. */
+// AppWidgetProviderInfo sizes are already px (the system resolves the provider's dp on this screen). Taking them for dp
+// (× density) made every widget ~2.75× too big on a 440 dpi phone: Binance "Hot Coins" (220 dp) asked for 4×all rows.
 internal fun HomeActivity.awMinCells(info: AppWidgetProviderInfo): Pair<Int, Int> {
-    val m = model; val (cw, ch) = awCell(); val d = resources.displayMetrics.density
+    val m = model; val (cw, ch) = awCell()
     val minW = if (info.minResizeWidth in 1 until info.minWidth) info.minResizeWidth else info.minWidth
     val minH = if (info.minResizeHeight in 1 until info.minHeight) info.minResizeHeight else info.minHeight
-    return cellsFor((minW * d).toInt(), cw, m?.cols ?: 4) to cellsFor((minH * d).toInt(), ch, m?.rows ?: 5)
+    return cellsFor(minW, cw, m?.cols ?: 4) to cellsFor(minH, ch, m?.rows ?: 5)
 }
 
 /** Default size when added: what minWidth / minHeight ask for. */
 private fun HomeActivity.awDefaultCells(info: AppWidgetProviderInfo): Pair<Int, Int> {
-    val m = model; val (cw, ch) = awCell(); val d = resources.displayMetrics.density
-    return cellsFor((info.minWidth * d).toInt(), cw, m?.cols ?: 4) to cellsFor((info.minHeight * d).toInt(), ch, m?.rows ?: 5)
+    val m = model; val (cw, ch) = awCell()
+    return cellsFor(info.minWidth, cw, m?.cols ?: 4) to cellsFor(info.minHeight, ch, m?.rows ?: 5)
 }
 
 /** Sizes offered in the long-press menu: the provider's own, within its resize mode. */
@@ -195,12 +200,15 @@ internal fun HomeActivity.awPickerSection(list: LinearLayout, query: String = ""
         var line: LinearLayout? = null
         for ((k, r) in g.rows.withIndex()) {
             val info = r.info; val name = r.name
-            val (w, h) = cellsFor((info.minWidth * d).toInt(), cw, m?.cols ?: 4) to cellsFor((info.minHeight * d).toInt(), ch, m?.rows ?: 5)
+            val (w, h) = awDefaultCells(info)
             val cell = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(4), dp(6), dp(4), dp(6)) }
             cell.addView(ImageView(this).apply { setImageBitmap(r.pv); scaleType = ImageView.ScaleType.FIT_CENTER; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }, LinearLayout.LayoutParams(-1, dp(84)))
             cell.addView(text(name, 13f, pal.text, true).apply { gravity = Gravity.CENTER; maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, dp(6), 0, 0) }, LinearLayout.LayoutParams(-1, -2))
             cell.addView(wSub("$w×$h").apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-1, -2))
-            kit.tap(cell, 16f) { awAdd(info) }
+            kit.tap(cell, 16f) { aw.dropAt = null; awAdd(info) }
+            // drag it onto a page like our own widgets (POCO / Pixel): the bind prompt comes after the drop
+            arm(cell, {}, { awDrag = info; DragSt(Src.NewAppWidget(info.provider.packageName, info.provider.className, w, h), null, "widget", w, h, null, cell.getChildAt(0)) },
+                immediate = true, dragView = cell.getChildAt(0))
             cell.contentDescription = "$name, ${g.app.label}, $w×$h"
             if (k % 2 == 0) line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; weightSum = 2f }.also { card.addView(it, LinearLayout.LayoutParams(-1, -2)) }
             line!!.addView(cell, LinearLayout.LayoutParams(0, -2, 1f))
@@ -262,7 +270,9 @@ private fun HomeActivity.awPlace(id: Int) {
     val info = awMgr().getAppWidgetInfo(id) ?: return awFail(id)
     val m = model ?: return awFail(id)
     val (w, h) = awDefaultCells(info)
-    val n = HomeLayout.placeAppWidget(m, info.provider.packageName, info.provider.className, id, w, h, (pager.page - 1).coerceAtLeast(0))
+    val at = aw.dropAt; aw.dropAt = null
+    val n = if (at != null) HomeLayout.placeAppWidgetAt(m, info.provider.packageName, info.provider.className, id, w, h, at.first, at.second, at.third)
+        else HomeLayout.placeAppWidget(m, info.provider.packageName, info.provider.className, id, w, h, (pager.page - 1).coerceIn(0, (m.pages.size - 1).coerceAtLeast(0)))
     if (n == null) { runCatching { aw.host?.deleteAppWidgetId(id) }; noRoom(null); return }
     update(n)
     HomeLayout.find(n, n.pages.flatten().first { it.type == HomeLayout.APP && it.awid == id }.id)?.first?.let { pi -> pager.post { pager.snapTo(pi + 1) } }
@@ -274,6 +284,6 @@ internal fun HomeActivity.awResult(req: Int, res: Int, data: Intent?) {
     if (req != REQ_BIND && req != REQ_CONF) return
     val id = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, 0)?.takeIf { it != 0 } ?: aw.pendingId
     if (id == 0) return
-    if (res != Activity.RESULT_OK) { runCatching { aw.host?.deleteAppWidgetId(id) }; aw.pendingId = 0; return }
+    if (res != Activity.RESULT_OK) { runCatching { aw.host?.deleteAppWidgetId(id) }; aw.pendingId = 0; aw.dropAt = null; return }
     if (req == REQ_BIND) awConfigure(id) else awPlace(id)
 }

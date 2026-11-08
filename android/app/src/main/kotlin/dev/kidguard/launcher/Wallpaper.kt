@@ -67,6 +67,66 @@ object Wallpaper {
                 p.maskFilter = null
                 stars(30, 3)
             }
+            "ocean" -> {
+                lin(0f to "#bae6fd", 0.45f to "#e0f2fe", 0.46f to "#38bdf8", 1f to "#0369a1")
+                p.color = col("#fef08a"); c.drawCircle(80f, 140f, 30f, p)
+                oval(300f, 190f, 60f, 18f, "#ffffff", 0.9f); oval(330f, 176f, 34f, 20f, "#ffffff", 0.9f)
+                wave(520f, 120f, 490f, 280f, 560f, 515f, "#7dd3fc", 0.6f)
+                wave(650f, 140f, 610f, 270f, 700f, 640f, "#0ea5e9", 0.55f)
+                wave(790f, 110f, 750f, 300f, 830f, 780f, "#075985", 0.6f)
+            }
+            "forest" -> {
+                lin(0f to "#d9f99d", 0.7f to "#f7fee7")
+                p.color = col("#fde68a"); c.drawCircle(320f, 150f, 44f, p)
+                oval(60f, 1000f, 330f, 330f, "#86efac"); oval(380f, 1010f, 300f, 340f, "#4ade80")
+                val rnd = java.util.Random(11)
+                for (k in 0 until 9) {
+                    val x = 20f + k * 46f + rnd.nextFloat() * 14f; val base = 760f + rnd.nextFloat() * 70f; val th = 120f + rnd.nextFloat() * 70f
+                    val tri = Path().apply { moveTo(x, base - th); lineTo(x - 28f, base); lineTo(x + 28f, base); close() }
+                    p.color = col(if (k % 2 == 0) "#15803d" else "#166534"); c.drawPath(tri, p)
+                }
+            }
+            "candy" -> {
+                p.color = col("#fdf2f8"); c.drawRect(0f, 0f, W, H, p)
+                p.maskFilter = BlurMaskFilter(60f, BlurMaskFilter.Blur.NORMAL)
+                oval(80f, 180f, 170f, 150f, "#f9a8d4", 0.75f); oval(340f, 420f, 170f, 150f, "#a5b4fc", 0.7f)
+                oval(110f, 700f, 190f, 150f, "#fde68a", 0.75f); oval(330f, 860f, 150f, 120f, "#99f6e4", 0.7f)
+                p.maskFilter = null
+            }
+            "mint" -> {
+                lin(0f to "#ccfbf1", 1f to "#ecfeff")
+                for ((x, y, r, cl) in listOf(listOf(330f, 160f, 90f, "#99f6e4"), listOf(60f, 420f, 70f, "#a7f3d0"), listOf(360f, 640f, 120f, "#bae6fd"), listOf(90f, 850f, 100f, "#99f6e4")))
+                    oval(x as Float, y as Float, r as Float, r, cl as String, 0.7f)
+            }
+            "space" -> {
+                lin(0f to "#030712", 1f to "#1e1b4b")
+                stars(90, 21)
+                p.color = col("#f97316"); c.drawCircle(290f, 300f, 70f, p)
+                p.color = col("#fdba74"); p.alpha = 120; c.drawCircle(270f, 280f, 50f, p); p.alpha = 255
+                p.style = Paint.Style.STROKE; p.strokeWidth = 7f; p.color = col("#fcd34d")
+                c.save(); c.rotate(-18f, 290f, 300f); c.drawOval(RectF(185f, 280f, 395f, 320f), p); c.restore()
+                p.style = Paint.Style.FILL
+                p.color = col("#93c5fd"); c.drawCircle(90f, 620f, 18f, p)
+            }
+            "dusk" -> {
+                lin(0f to "#1e1b4b", 0.55f to "#7c3aed", 0.8f to "#f472b6", 1f to "#fdba74")
+                stars(40, 5)
+                wave(690f, 110f, 600f, 250f, 720f, 660f, "#4c1d95", 0.9f)
+                wave(780f, 140f, 720f, 300f, 820f, 760f, "#2e1065", 1f)
+            }
+            "berry" -> {
+                p.color = col("#0f0a1e"); c.drawRect(0f, 0f, W, H, p)
+                p.maskFilter = BlurMaskFilter(55f, BlurMaskFilter.Blur.NORMAL)
+                oval(330f, 200f, 160f, 120f, "#db2777", 0.55f); oval(80f, 480f, 170f, 130f, "#7c3aed", 0.55f); oval(300f, 800f, 190f, 130f, "#2563eb", 0.5f)
+                p.maskFilter = null
+            }
+            "ember" -> {
+                p.shader = RadialGradient(W * 0.2f, H * 0.95f, H, col("#7c2d12"), col("#0c0a09"), Shader.TileMode.CLAMP)
+                c.drawRect(0f, 0f, W, H, p); p.shader = null
+                val rnd = java.util.Random(9)
+                repeat(40) { p.color = col("#fb923c"); p.alpha = 60 + rnd.nextInt(140); c.drawCircle(rnd.nextFloat() * W, H * 0.35f + rnd.nextFloat() * H * 0.65f, 1f + rnd.nextFloat() * 2.2f, p) }
+                p.alpha = 255
+            }
             else -> {   // graphite
                 p.shader = RadialGradient(W * 0.8f, H * 0.15f, H * 0.9f, col("#334155"), col("#0b0f17"), Shader.TileMode.CLAMP)
                 c.drawRect(0f, 0f, W, H, p); p.shader = null
@@ -131,7 +191,7 @@ object Wallpaper {
     fun dim(bmp: Bitmap, pct: Int) { if (pct > 0) Canvas(bmp).drawColor(Color.argb((pct.coerceIn(0, 60) * 255 / 100), 0, 0, 0)) }
 
     /** Dark wallpapers want light status bar icons. */
-    fun isDark(id: String) = id in setOf("night", "aurora", "graphite")
+    fun isDark(id: String) = id in setOf("night", "aurora", "graphite", "space", "dusk", "berry", "ember")
 
     /** Pixels of [r] (screen coords, clipped) scaled down to at most [n] x [n], for HomeStyle.ink. */
     fun sample(bmp: Bitmap, r: Rect, n: Int = 24): IntArray {

@@ -111,13 +111,15 @@ class CustomActivity : Activity() {
         section(col, R.string.hm_c_home)
         val home = group()
         home.addView(stepper(s(R.string.hm_c_cols), mm.cols, 3, 5) { regrid(it, mm.rows) })
-        line(home); home.addView(stepper(s(R.string.hm_c_rows), mm.rows, 4, 6) { regrid(mm.cols, it) })
+        line(home); home.addView(stepper(s(R.string.hm_c_rows), mm.rows, 4, HomeLayout.MAX_ROWS) { regrid(mm.cols, it, manual = true) })
         line(home); home.addView(slider(s(R.string.hm_c_icon), st.icon - 1, 4, s(R.string.hm_c_small), s(R.string.hm_c_big)) { v -> set { it.copy(icon = v + 1) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_labels), st.labels) { v -> set { it.copy(labels = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_face), HomeActivity.FACES.zip(listOf(R.string.hm_c_face_sys, R.string.hm_c_face_light, R.string.hm_c_face_medium, R.string.hm_c_face_condensed, R.string.hm_c_face_serif)).map { (f, r) -> s(r) to f }, st.face) { v -> set { it.copy(face = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_shape), listOf(s(R.string.hm_c_round) to "round", s(R.string.hm_c_square) to "square"), st.shape) { v -> set { it.copy(shape = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock), st.dockBg) { v -> set { it.copy(dockBg = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock_labels), st.dockLabels) { v -> set { it.copy(dockLabels = v) } })
+        line(home); home.addView(switchRow(s(R.string.hm_c_library), st.lib) { v -> set { it.copy(lib = v) } })
+        line(home); home.addView(segRow(s(R.string.hm_c_fx), listOf(s(R.string.hm_c_fx_full) to "full", s(R.string.hm_c_fx_lite) to "lite", s(R.string.hm_c_auto) to "auto"), st.fx) { v -> set { it.copy(fx = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_dots), listOf(s(R.string.hm_c_badge_off) to "off", s(R.string.hm_c_badge_dot) to "dot", s(R.string.hm_c_badge_num) to "num"), st.badge) { v ->
             set { it.copy(badge = v) }; NotifDots.setOn(this, v != "off")
         })
@@ -191,10 +193,11 @@ class CustomActivity : Activity() {
         save(mm.copy(style = ns)); build()
     }
 
-    private fun regrid(c: Int, r: Int) {
+    /** [manual] = the kid set the rows: "auto" (rows follow the screen) is off until a style preset is picked again. */
+    private fun regrid(c: Int, r: Int, manual: Boolean = false) {
         if (!guard()) return
         val mm = m ?: return
-        val n = HomeLayout.regrid(mm, c, r)
+        val n = HomeLayout.regrid(mm, c, r).copy(autoRows = mm.autoRows && !manual)
         if (n.cols == mm.cols && n.rows == mm.rows) return
         // a smaller grid moves things: offer "Hoàn tác" until the next change
         undo = if (c < mm.cols || r < mm.rows) mm else null
@@ -205,7 +208,7 @@ class CustomActivity : Activity() {
         val mm = m ?: return
         val g = HomeLayout.regrid(mm, p.cols, p.rows)
         undo = if (p.cols < mm.cols || p.rows < mm.rows) mm else null
-        save(g.copy(style = HStyle(preset = p.id, labels = p.labels, dockBg = p.dockBg, theme = mm.style.theme)))
+        save(g.copy(autoRows = true, style = HStyle(preset = p.id, labels = p.labels, dockBg = p.dockBg, theme = mm.style.theme)))
         build()
     }
 

@@ -17,8 +17,18 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized val id: String
         get() = p.getString("id", null) ?: randomHex(8).also { p.edit().putString("id", it).apply() }
 
+    private var rulesRaw: String? = null; private var rulesObj: Rules? = null
+    /** A stored JSON string as is: a cheap "did it change" key (no parse). */
+    @Synchronized fun raw(k: String): String = p.getString(k, "") ?: ""
+
     @get:Synchronized @set:Synchronized var rules: Rules
-        get() = p.getString("rules", null)?.let { runCatching { Rules.fromJson(JSONObject(it)) }.getOrNull() } ?: Rules()
+        get() {
+            // parsed once per stored string: Rules is immutable, and the launcher + Guard read it many times a minute
+            // (1-5 ms of JSON per read on an Oppo A5s)
+            val raw = p.getString("rules", null)
+            if (raw == rulesRaw) rulesObj?.let { return it }
+            return (raw?.let { runCatching { Rules.fromJson(JSONObject(it)) }.getOrNull() } ?: Rules()).also { rulesRaw = raw; rulesObj = it }
+        }
         set(v) { p.edit().putString("rules", v.toJson(persist = true).toString()).apply() }
 
     /** Tokens of paired parent browsers. Kept as sha256, the token itself only lives in the parent's browser. */

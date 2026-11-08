@@ -798,21 +798,36 @@ crash count and the safe mode, and a layout reset by a crash in the last 24 h co
 
 ### `home.json` (phone only, app files dir)
 ```
-{"v":1, "grid":{"cols":3-5,"rows":4-6}, "pages":[{"items":[item…]}…], "dock":[{"pkg":"@phone"},{"pkg":pkg|""}×3],
+{"v":1, "grid":{"cols":3-5,"rows":4-7,"auto":bool}, "pages":[{"items":[item…]}…], "dock":[{"pkg":"@phone"},{"pkg":pkg|""}×3],
  "style":{"preset":"be|teen|gon","icon":1-5,"labels":bool,"shape":"round|square","dockBg":bool,"dockLabels":bool,"badge":"num|dot|off","face":"sys|light|medium|condensed|serif","accent":"<id>"|"",
-          "theme":"light|dark|auto","font":0.85|1.0|1.15|1.3,"wall":{"kind":"builtin|photo","id":"<wall id>","dim":0-60,"blur":0-100}},
- "seen":[pkg…], "notes":[note…], "todo":[todo…], "timetable":{"1".."7":[subject…]}}
+          "theme":"light|dark|auto","font":0.85|1.0|1.15|1.3,"wall":{"kind":"builtin|photo","id":"<wall id>","dim":0-60,"blur":0-100},"lib":true,"fx":"auto|full|lite"},
+ "seen":[pkg…], "notes":[note…], "todo":[todo…], "timetable":{"1".."7":{"am":[subject…],"pm":[subject…]},"bells":{"am":[[start,end]…],"pm":[…]}}, "todayHide":[card…]}
 ```
+`todayHide`: "Hôm nay" cards the kid turned off ("Tuỳ chỉnh thẻ" at the end of that page): `now` (greeting, school period
+now / next, countdown to the next lock or bedtime), `time` (screen time left + top 3 apps), `sched`, `chores`, `tomorrow`
+(tomorrow's subjects, from 17:00), `notes`, `files` (both ways: opens what parents sent, lists what the kid sent + "Bố mẹ đã tải", "Gửi file cho bố mẹ" = the system picker into the outbox). The SOS / call buttons can't be hidden. Empty schedule / files /
+tomorrow cards are left out on their own. Phone only.
 item `{"id","kind":"app|widget|folder","x","y","w"?,"h"?,"pkg"?,"cls"?,"type"?,"name"?,"apps"?,"awid"?}`.
-`timetable`: ISO weekday ("1" = Monday) → up to 10 subjects of ≤ 30 chars, typed by the kid on the phone (the "Thời khoá biểu" widget's editor). Phone only.
+`timetable`: ISO weekday ("1" = Monday) → morning (`am`) and afternoon (`pm`) periods, up to 8 each, subjects of ≤ 30 chars,
+index = period, `""` = free period (trailing blanks dropped). An older phone's plain array day is read as the morning. `bells`: one
+bell schedule for every day, `[start, end]` minutes since midnight per period, up to 8 per session (default: 7:00 / 13:30, 45 min,
+5 min changes, 20 min after period 2). A gap of ≥ 15 min between two periods is "ra chơi"; morning end → afternoon start is
+"nghỉ trưa". Typed by the kid on the phone (the "Thời khoá biểu" widget's editor: by day / week (Mon–Sat, Sun when used) / bell times; a break's length changes by moving the later periods). Phone only.
 - Widgets (`type`, sizes w×h): `clock` 4×1 / 4×2, `analog` 2×2, `month` 4×2 / 2×2, `time` 2×1 / 4×1, `next` 4×1, `quick` 4×1,
   `todo` 2×2 / 4×2 (the kid's `todo` list, tap ticks), `note` 2×2 / 4×2 (newest of `notes`), `counts` 2×2, `usage` 4×1 / 4×2
-  (today's top apps), `battery` 2×1, `when` 4×1 / 4×2 (6:00–22:00 bar of blocked / free time, time left, per-group left),
+  (today's top apps), `battery` 2×1, `lock` 1×1 / 2×1 (one tap turns the screen off, same as the system widget), `when` 4×1 / 4×2 (6:00–22:00 bar of blocked / free time, time left, per-group left),
   `earn` 2×2 / 4×2 (`rules.chores`, "Xong" sends the same request as the "Hôm nay" page), `msg` 4×1 / 2×2 (`rules.blockNote` +
-  newest pending request; the phone keeps no message history), `class` 4×2 / 2×2 (today's `timetable` + what to pack for tomorrow). Older phones drop types they don't know (repair on load). One of each
+  newest pending request; the phone keeps no message history), `class` 4×2 / 2×2 / 4×4 (the period now or ra chơi / nghỉ trưa, today's `timetable`, what to pack for tomorrow; 4×4 = the whole week as a grid). Older phones drop types they don't know (repair on load). One of each
   type; on a 3-column grid a 4-wide widget is 3 wide. Placed from "Tiện ích" (long-press empty space) by tap or drag. Resizing grows it in
   place: what it covers moves down by the rows it grew, else to the first free cell of the page, else onto a new page right after.
+- `grid.auto` (default true when missing): the phone picks the rows so the cells are about square on its screen (4..7;
+  fewer when an icon + one label line would not fit), regridding once when the screen or columns change; setting the rows
+  by hand in "Tuỳ chỉnh" turns it off, picking a style preset turns it back on.
+- Built-in `wall.id`: `sky`, `night`, `sunset`, `aurora`, `graphite`, `ocean`, `forest`, `candy`, `mint`, `space`, `dusk`,
+  `berry`, `ember` (drawn on the phone; an older phone ignores an id it does not know and keeps the preset's wallpaper).
 - `style.wall.dim` / `blur` (percent) apply to any wallpaper kind: the image is blurred, then darkened, once per change.
+- `style.lib` (bool, default true): the App Library as the last home page (apps grouped: suggested, recently added, then by Android app category). Folders keep `apps` in the order the kid arranged them (hold an app in an open folder to move it; hidden apps keep their slots).
+- `style.fx` (default `"auto"`): launcher effects. `lite` = no page fade while swiping, no live shadows under moving cards/menus (the folder zoom stays). `auto` = lite when the system animations are off (`ValueAnimator.areAnimatorsEnabled()` false: Developer options scale 0 / Remove animations) or on a weak phone (Android < 9, low-RAM flag, or < 3 GB RAM); `full` still goes lite when the system animations are off.
 - Widget `type:"app"` (another app's home-screen widget): `pkg`/`cls` = provider component, `awid` = AppWidgetHost id (host id 0x4b47), any size w×h within the grid, several allowed. Not rendered (a locked card instead) while its app is hidden or blocked; the id is deleted from the host when the item leaves the layout. Older phones drop it (repair).
 - Folder: `apps` (2–20 pkgs, in order), `name` (auto from the apps' category: Trò chơi / Mạng xã hội / Học tập /
   Giải trí / Thư mục; the kid can rename). A folder left with 1 app turns back into that app (on edit and on load).

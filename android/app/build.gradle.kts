@@ -59,6 +59,9 @@ dependencies {
     implementation("com.github.MuntashirAkon:sun-security-android:1.1")   // X509 cert for the adb TLS key
     implementation("org.conscrypt:conscrypt-android:2.5.3")
     implementation("com.google.zxing:core:3.5.3")   // pairing QR on the child screen
+    // writes src/main/baseline-prof.txt's AOT profile at first start: the launcher is compiled at once instead of
+    // running interpreted / JIT for its first seconds (~70 ms frames on the first swipes after an install or a kill)
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
 }

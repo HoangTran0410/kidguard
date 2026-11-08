@@ -82,7 +82,26 @@ object IconCache {
         clip.fillType = Path.FillType.INVERSE_WINDING
         c.drawPath(clip, Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) })
         edge(b, c, clip, px)
+        glass(c, clip, px)
         return b
+    }
+
+    /**
+     * The glass rim (iOS 26 / LauncherOS): a thin light line on the top-left and bottom-right corners, fading out along
+     * the sides, so the icon reads as a lit pane and its logo stands out. Drawn once into the cached bitmap: free per frame.
+     */
+    private fun glass(c: Canvas, clip: Path, px: Int) {
+        clip.fillType = Path.FillType.WINDING
+        val w = (px / 72f).coerceAtLeast(1.2f)
+        val p = px.toFloat()
+        c.save(); c.clipPath(clip)
+        c.drawPath(clip, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE; strokeWidth = w * 2
+            shader = android.graphics.LinearGradient(0f, 0f, p, p,
+                intArrayOf(0xB3FFFFFF.toInt(), 0x00FFFFFF, 0x00FFFFFF, 0x80FFFFFF.toInt()), floatArrayOf(0f, 0.32f, 0.68f, 1f),
+                android.graphics.Shader.TileMode.CLAMP)
+        })
+        c.restore()
     }
 
     /**

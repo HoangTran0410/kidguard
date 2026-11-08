@@ -62,7 +62,7 @@ class HomeActivity : Activity() {
     companion object {
         /** Width of the drawer's A–Z rail (was 26: it ate into the grid). */
         const val RAIL_DP = 20
-        @Volatile var alive = 0; const val FOLDER_MS = 500L
+        @Volatile var alive = 0; const val FOLDER_MS = 350L; const val SWAP_MS = 220L
         /** Created once: Typeface.create looked the family up again for every bold label. */
         val MEDIUM: Typeface by lazy { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
         /** Launcher font (style.face), families every Android ships: no font files in the APK. */
@@ -81,7 +81,8 @@ class HomeActivity : Activity() {
         }
     }
 
-    internal class AppE(val pkg: String, val cls: String, val label: String) {
+    /** [cat] = ApplicationInfo.category (-1 unknown, game flag folded in), [sys] = preinstalled: the app library's groups. */
+    internal class AppE(val pkg: String, val cls: String, val label: String, val cat: Int = -1, val sys: Boolean = false) {
         val sortKey by lazy { LauncherLogic.sortKey(label) }   // once per app list: sortedBy calls its selector per comparison
         val folded by lazy { LauncherLogic.fold(label) }       // drawer search: once per app list, not per key typed
     }
@@ -113,18 +114,20 @@ class HomeActivity : Activity() {
     internal lateinit var bottom: LinearLayout
     internal lateinit var tip: TextView
     internal lateinit var pager: Pager
-    internal lateinit var dots: LinearLayout
+    internal lateinit var dots: PageDots
     internal lateinit var hint: ImageView
     internal lateinit var dock: LinearLayout
     internal var today: TodayPage? = null
     internal var drawer: Drawer? = null
     internal var popup: PopupWindow? = null
+    internal var overlayExit: ((() -> Unit) -> Unit)? = null   // the open folder's closing animation (then the callback)
     internal var overlay: View? = null            // folder panel or widget picker (views, not dialogs: a drag survives them)
     internal var apps: Map<String, AppE>? = null
     internal var model: HomeModel? = null
     internal var key = ""
     internal var lastTap = 0L
     internal var drag: DragSt? = null
+    internal var folderDrag: FolderDrag? = null   // a drag re-arranging the open folder (HomeFolder.kt)
     internal var tempPage = false
     /** Edit mode (HomeEdit.kt): pages shrink, a tap picks / unpicks a grid item, bulk actions in the bottom bar. */
     internal var editing = false
@@ -139,6 +142,10 @@ class HomeActivity : Activity() {
     internal val inkCache = HashMap<String, Ink>()
     internal val itemViews = HashMap<String, View>()   // grid item id -> its view on the current render
     internal val dockViews = ArrayList<View>()
+    internal var awDrag: android.appwidget.AppWidgetProviderInfo? = null   // the provider of a picker drag of another app's widget
+    internal var dockGap: View? = null      // the opening in the dock where a dragged app would go in
+    internal var dockGapK = -1
+    internal var dockRoom: Boolean? = null  // this drag's app fits in the dock without replacing one (decided once per drag)
     internal val listener: () -> Unit = { render(false) }
     internal var timeRx: BroadcastReceiver? = null
     internal var pkgRx: BroadcastReceiver? = null
@@ -153,6 +160,7 @@ class HomeActivity : Activity() {
     override fun getResources(): android.content.res.Resources = Lang.res(baseContext) ?: super.getResources()
 
     override fun onCreate(b: Bundle?) {
+
         super.onCreate(b)
         LauncherSafe.watch(this)
         alive++
@@ -176,7 +184,7 @@ class HomeActivity : Activity() {
         topBar = FrameLayout(this).apply { visibility = View.GONE; clipChildren = false; clipToPadding = false }   // the remove circle leans out of it
         bottom = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
         tip = TextView(this).apply { visibility = View.GONE; setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setPadding(dp(16), dp(9), dp(16), dp(9)); gravity = Gravity.CENTER }
-        dots = LinearLayout(this).apply { gravity = Gravity.CENTER; orientation = LinearLayout.HORIZONTAL }
+        dots = PageDots(this).apply { importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES }
         hint = ImageView(this).apply {
             contentDescription = getString(R.string.hm_all_apps); setPadding(dp(10), dp(2), dp(10), dp(2))
             setOnClickListener { openDrawer() }
@@ -184,7 +192,7 @@ class HomeActivity : Activity() {
         dock = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         chrome.addView(bannerBox, LinearLayout.LayoutParams(-1, -2))
         chrome.addView(View(this), LinearLayout.LayoutParams(-1, 0, 1f))
-        bottom.addView(dots, LinearLayout.LayoutParams(-1, dp(18)))
+        bottom.addView(dots, LinearLayout.LayoutParams(-2, dp(18)).apply { bottomMargin = dp(2) })
         bottom.addView(hint, LinearLayout.LayoutParams(-2, dp(22)))
         bottom.addView(dock, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(4), dp(12), dp(10)) })
         chrome.addView(bottom, LinearLayout.LayoutParams(-1, -2))
@@ -197,7 +205,10 @@ class HomeActivity : Activity() {
         root.setOnApplyWindowInsetsListener { _, ins ->
             @Suppress("DEPRECATION") run { insL = ins.systemWindowInsetLeft; insT = ins.systemWindowInsetTop; insR = ins.systemWindowInsetRight; imeB = ins.systemWindowInsetBottom }
             insB = if (android.os.Build.VERSION.SDK_INT >= 30) ins.getInsets(android.view.WindowInsets.Type.systemBars()).bottom
-                else @Suppress("DEPRECATION") minOf(ins.stableInsetBottom, imeB)
+                // the bars without the keyboard: the stable inset, except that ColorOS 5 (Oppo A5s, 8.1) reports stable = 0
+                // under a 96 px nav bar (the dock sat on the back / home buttons). Then a small inset is the nav bar and a
+                // big one (the keyboard) keeps the last bars value.
+                else @Suppress("DEPRECATION") ins.stableInsetBottom.let { st -> if (st > 0) minOf(st, imeB) else if (imeB <= dp(72)) imeB else insB }
             chrome.setPadding(insL, insT, insR, insB)
             floatBox.setPadding(insL, insT, insR, insB)
             drawerCache?.setPadding(insL, insT, insR, imeB)
@@ -214,11 +225,18 @@ class HomeActivity : Activity() {
         pager.post { pager.jump(1) }
     }
 
-    override fun onDestroy() { alive--; if (NotifDots.onChange === dotRx) NotifDots.onChange = null; super.onDestroy() }
+    override fun onDestroy() { alive--; main.removeCallbacks(renderRetry); main.removeCallbacks(pkgLater)
+        pkgRx?.let { runCatching { unregisterReceiver(it) } }; pkgRx = null
+        if (NotifDots.onChange === dotRx) NotifDots.onChange = null; super.onDestroy() }
     private val dotRx: (Set<String>) -> Unit = { changed -> Dots.refresh(window.decorView, changed) }
 
     /** The drawer's "recently used" packages, most recent first ([Recent]); read off the main thread on each return home. */
     internal var recent: List<String> = emptyList()
+    /** The app library page (last pager child), filled the first time it scrolls into view; detached while dragging / editing. */
+    internal var library: LibraryPage? = null
+    /** pkg -> first install time, read off the main thread once per app set (the library's "Mới thêm" group). */
+    internal var installed: Pair<Set<String>, Map<String, Long>>? = null
+    internal fun onLibrary() = library?.let { it.parent === pager && pager.getChildAt(pager.page) === it } == true
 
     override fun onResume() {
         super.onResume()
@@ -231,7 +249,7 @@ class HomeActivity : Activity() {
         registerReceiver(timeRx, IntentFilter().apply { addAction(Intent.ACTION_TIME_TICK); addAction(Intent.ACTION_TIME_CHANGED); addAction(Intent.ACTION_TIMEZONE_CHANGED) })
         if (pkgRx == null) {
             // the key covers the app set, labels and pauses: the Guard re-suspending the same apps (every poke) must not rebuild the home
-            pkgRx = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { apps = null; Policy.invalidate(); render(false) } }
+            pkgRx = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { apps = null; Policy.invalidate(); main.removeCallbacks(pkgLater); main.postDelayed(pkgLater, 400) } }
             registerReceiver(pkgRx, IntentFilter().apply {
                 addAction(Intent.ACTION_PACKAGE_ADDED); addAction(Intent.ACTION_PACKAGE_REMOVED); addAction(Intent.ACTION_PACKAGE_CHANGED)
                 addAction(Intent.ACTION_PACKAGES_SUSPENDED); addAction(Intent.ACTION_PACKAGES_UNSUSPENDED); addDataScheme("package")
@@ -241,7 +259,9 @@ class HomeActivity : Activity() {
         NotifDots.onChange = dotRx
         NotifDots.setOn(this, (model ?: HomeFile.load(this))?.style?.badge != "off")
         model = null          // Tuỳ chỉnh may have changed home.json (HomeFile's cache)
-        apps = null           // package changes while stopped are not broadcast to us
+        // apps stay: pkgRx lives from the first resume to onDestroy, so installs / updates while an app is in front reach
+        // it (re-querying every launcher activity on each return home cost an Oppo A5s 6-7 ms)
+        dialerAt = 0L; bannerSet = false
         render(false)         // rebuilds only when the key changed: coming back from an app is free
     }
 
@@ -250,6 +270,7 @@ class HomeActivity : Activity() {
         Guard.listeners.remove(listener)
         timeRx?.let { runCatching { unregisterReceiver(it) } }; timeRx = null
         popup?.dismiss()
+        pager.dragging = false   // a gesture cut by an app switch must not keep busy() true (the home would never rebuild)
         super.onPause()
     }
 
@@ -260,7 +281,6 @@ class HomeActivity : Activity() {
 
     override fun onStop() {
         lifecycleStarted = false; awStop()
-        pkgRx?.let { runCatching { unregisterReceiver(it) } }; pkgRx = null
         super.onStop()
     }
 
@@ -300,7 +320,11 @@ class HomeActivity : Activity() {
                 // loadLabel is a binder call per app (Samsung routes it through its EDM service): ~15 ms on every return home.
                 // The apk path changes on each update, the locale is in the key: a stale label cannot survive either.
                 val k = ai.applicationInfo?.sourceDir + "|" + ai.name + "|" + resources.configuration.locales[0]
-                out[ai.packageName] = AppE(ai.packageName, ai.name, labelCache.getOrPut(k) { ri.loadLabel(pm).toString() })
+                val info = ai.applicationInfo
+                @Suppress("DEPRECATION")
+                val cat = when { info == null -> -1; info.flags and android.content.pm.ApplicationInfo.FLAG_IS_GAME != 0 -> LibraryLogic.GAME; Build.VERSION.SDK_INT >= 26 -> info.category; else -> -1 }
+                out[ai.packageName] = AppE(ai.packageName, ai.name, labelCache.getOrPut(k) { ri.loadLabel(pm).toString() }, cat,
+                    info != null && info.flags and (android.content.pm.ApplicationInfo.FLAG_SYSTEM or android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0)
             }
         }
         return out.also { apps = it }
@@ -326,7 +350,36 @@ class HomeActivity : Activity() {
         packageManager.resolveActivity(i, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName?.takeIf { it != "android" && !it.contains("resolver") }
     }.getOrNull()
 
-    internal fun dialer(): String? = resolvePkg(Intent(Intent.ACTION_DIAL))
+    // resolved once per resume / package change (a binder call on every render otherwise)
+    private var dialerPkg: String? = null; private var dialerAt = 0L
+    private val todayIcon: (AppE, Int) -> View = { a, size ->
+        ImageView(this).apply { IconCache.get(this@HomeActivity, a.pkg, a.cls, dp(size), model?.style?.shape != "square")?.let { setImageBitmap(it) }; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+    }
+    internal fun dialer(): String? {
+        if (dialerAt == 0L) { dialerPkg = resolvePkg(Intent(Intent.ACTION_DIAL)); dialerAt = 1L }
+        return dialerPkg
+    }
+    // the banner's checks (device owner, usage access, location, ...: binder calls), at most every 20 s and on each resume:
+    // the kid fixing one in Settings comes back through onResume; location from the shade shows within 20 s
+    private var bannerAt = 0L; private var bannerSet = false
+    private var cOwner = false; private var cUsage = false; private var cLoc = false
+    private fun bannerNow(s: Store): String? {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!bannerSet || now - bannerAt > 20_000) {
+            cOwner = Policy.isOwner(this); cUsage = Usage.granted(this); cLoc = locationOn()
+            bannerAt = now; bannerSet = true
+        }
+        return if (!cOwner && !s.everPaired) null   // standalone use before setup: nothing to nag about
+            else LauncherLogic.banner(cOwner, Guard.running != null, cUsage, cLoc, Acc.isOn(this))
+    }
+    // last check-ins ("đã tới" / "đón con"), re-read only when the stored events change
+    private var evRaw: String? = null; private var evKey = ""
+    private fun checkinKey(s: Store): String {
+        val raw = s.raw("events")
+        if (raw != evRaw) { evRaw = raw; evKey = "${s.lastCheckin("arrived")},${s.lastCheckin("pickup")}" }
+        return evKey
+    }
+    private var jsonOf: HomeModel? = null; private var jsonStr = ""
 
     internal fun firstModel(r: Rules, visible: List<AppE>): HomeModel {
         val vis = visible.map { it.pkg }.toSet()
@@ -341,10 +394,31 @@ class HomeActivity : Activity() {
 
     // ---------------- render ----------------
 
+    /**
+     * Lighter effects: no page fade, no live shadows under moving cards. Chosen in Tuỳ chỉnh ("fx": full / lite), or
+     * "auto": lite when the system's animations are off (Developer options / Remove animations) or on a weak phone.
+     * Read on every render, so a change in the system settings applies on the next return home.
+     */
+    internal var liteFx = false
+    private val weakPhone by lazy {
+        val am = getSystemService(android.app.ActivityManager::class.java)
+        val mi = android.app.ActivityManager.MemoryInfo().also { am?.getMemoryInfo(it) }
+        android.os.Build.VERSION.SDK_INT < 28 || am?.isLowRamDevice == true || mi.totalMem in 1 until 3L * 1024 * 1024 * 1024
+    }
+    internal fun fxNow(st: HStyle?) = when (st?.fx) {
+        "full" -> !android.animation.ValueAnimator.areAnimatorsEnabled()
+        "lite" -> true
+        else -> !android.animation.ValueAnimator.areAnimatorsEnabled() || weakPhone
+    }
+    internal fun shadow(d: Float) = if (liteFx) 0f else dpf(d)
+
+    private val renderRetry = Runnable { render(false) }
+    private val pkgLater = Runnable { apps = null; dialerAt = 0L; render(false) }   // a suspend / install burst: one rebuild
     internal fun busy() = drag != null || overlay != null || popup?.isShowing == true || pager.dragging
 
     internal fun render(force: Boolean) {
         val t0 = android.os.SystemClock.elapsedRealtime()
+        liteFx = fxNow(model?.style)
         try { render0(force) } finally {
             val ms = android.os.SystemClock.elapsedRealtime() - t0
             if (ms > 16) android.util.Log.i("KG.perf", "home render ${ms}ms force=$force")
@@ -357,8 +431,8 @@ class HomeActivity : Activity() {
 
     internal fun render0(force: Boolean) {
         if (isFinishing || isDestroyed) return
-        val s = Store.of(this); val r = s.rules
         val lap = Lap()
+        val s = Store.of(this); val r = s.rules; lap("rules")
         val all = launcherApps(); lap("apps")
         val dv = decision(r, s); lap("decision")
         val show = all.keys.associateWith { LauncherLogic.show(it, dv.want, r, packageName) }; lap("show")
@@ -368,7 +442,8 @@ class HomeActivity : Activity() {
         val dial = dialer()
         m = HomeLayout.appendNew(m, visible.map { it.pkg }.filter { it != dial })
         if (m != model) { HomeFile.save(this, m); model = m }
-        awSync(m)
+        lap("new")
+        awSync(m); lap("aw")
         preset = HomeStyle.preset(m.style.preset)
         val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         dark = m.style.theme == "dark" || (m.style.theme == "auto" && night)
@@ -386,18 +461,25 @@ class HomeActivity : Activity() {
         } else if (kit.font != m.style.font.toFloat()) kit = HomeKit(this, pal, m.style.font.toFloat())
         val block = QuickLogic.phoneBlock(dv.want)
         lap("palette")
-        val banner = if (!Policy.isOwner(this) && !s.everPaired) null   // standalone use before setup: nothing to nag about
-            else LauncherLogic.banner(Policy.isOwner(this), Guard.running != null, Usage.granted(this), locationOn(), Acc.isOn(this))
+        val banner = bannerNow(s)
+        lap("banner")
         val files = runCatching { Files.all(this) }.getOrDefault(emptyList()).joinToString(",") { it.id + it.st }
+        lap("files")
         // not the minute itself: what it changes (next event, today's schedule states, the date); the clock text is set in place below
-        val timeKey = listOf(dv.today, LauncherLogic.nextEvent(r, dv.minute, dv.dow), LauncherLogic.today(r, dv.minute, dv.dow).map { it.state })
-        val k = listOf(m.toJson().toString(), all.values.joinToString(",") { it.label }, show.toString(), dv.want.toString(), block, banner, timeKey, dv.leftMs / 60_000, s.everPaired,
-            s.sos().length(), s.lastCheckin("arrived"), s.lastCheckin("pickup"), s.requests().toString(), r.blockNote, r.launcher, dark, files,
+        val timeKey = listOf(dv.today, LauncherLogic.nextEvent(r, dv.minute, dv.dow), LauncherLogic.today(r, dv.minute, dv.dow).map { it.state },
+            m.timetable.takeIf { it.length() > 0 }?.let { tt -> TimetableLogic.at(TimetableLogic.slots(tt, dv.dow), dv.minute).let { (c, n) -> "${c?.start}-${n?.start}" } },
+            TimetableLogic.eveningFirst(dv.minute))
+        lap("time")
+        val mj = if (m === jsonOf) jsonStr else m.toJson().toString().also { jsonOf = m; jsonStr = it }; lap("json")
+        val k = listOf(mj, all.values.joinToString(",") { it.label }, show.toString(), dv.want.toString(), block, banner, timeKey, dv.leftMs / 60_000, s.everPaired,
+            s.raw("sos"), checkinKey(s), s.raw("reqs"), r.blockNote, r.launcher, dark, files,
             r.chores, r.schedules, r.groups.map { it.hours }, r.bedtimeOn, r.bedStart, r.bedEnd, r.lockContact).joinToString("|")
         lap("key")
         if (!force && k == key) { tickClocks(dv); lap.done("same"); return }
-        if (busy()) { main.postDelayed({ render(false) }, 1500); return }   // never rebuild under a finger / an open panel
+        if (busy()) { main.removeCallbacks(renderRetry); main.postDelayed(renderRetry, 1500); return }   // never rebuild under a finger / an open panel
         key = k
+        // everything the page views depend on except the grid pages themselves (and dock / seen, which no page shows)
+        pageGlobal = k.replaceFirst(mj, m.copy(pages = emptyList(), dock = emptyList(), seen = emptySet()).toJson().toString()) + "|" + liteFx + "|" + kit.font
         lastView = dv; lastShow = show
         tempPage = false
         ensureWall(); lap("wall")
@@ -408,9 +490,10 @@ class HomeActivity : Activity() {
         hint.setImageDrawable(Ic.get(this, R.drawable.li_chevron_up, Color.WHITE, dp(18)))
         inkViews += hint
         // the "Hôm nay" page (25-35 ms) is off screen on almost every render: rebuilt once the main thread is idle
-        if (pager.page == 0) today?.fill(r, dv.minute, dv.dow, dv.now) else {
+        val fillToday = { today?.fill(r, dv, block, all, todayIcon) }
+        if (pager.page == 0) fillToday() else {
             val gen = ++todayGen
-            android.os.Looper.myQueue().addIdleHandler { if (gen == todayGen && !isFinishing) today?.fill(r, dv.minute, dv.dow, dv.now); false }
+            android.os.Looper.myQueue().addIdleHandler { if (gen == todayGen && !isFinishing) fillToday(); false }
         }
         lap("today")
         lap("${IconCache.stats()}"); lap.done("rebuild")
@@ -444,7 +527,7 @@ class HomeActivity : Activity() {
         else @Suppress("DEPRECATION") Settings.Secure.getInt(contentResolver, Settings.Secure.LOCATION_MODE) != Settings.Secure.LOCATION_MODE_OFF
     }.getOrDefault(true)
 
-    internal fun card(radius: Int = 22) = GradientDrawable().apply { setColor(pal.card); cornerRadius = dpf(radius.toFloat()) }
+    internal fun card(radius: Int = 22) = GlassCard(pal.card, dpf(radius.toFloat()), dpf(1f), pal.dark)
     internal fun fill(color: Int, radius: Float = 999f) = GradientDrawable().apply { setColor(color); cornerRadius = dpf(radius) }
     internal fun text(t: String, sp: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
         text = t; setTextSize(TypedValue.COMPLEX_UNIT_SP, sp * (model?.style?.font?.toFloat() ?: 1f)); setTextColor(color)
@@ -487,6 +570,23 @@ class HomeActivity : Activity() {
         topBar.addView(b, FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(10); bottomMargin = dp(4) })
     }
 
+    /**
+     * "auto" rows: as many rows as make the cells ~square on this screen (POCO: 4×7 on a 20:9 phone), fewer when an icon +
+     * one label line would not fit (font scale). Measured without the banner, so a banner coming and going never regrids.
+     */
+    internal fun autoRows() {
+        val m = model ?: return
+        if (!m.autoRows || drag != null || editing || pager.height == 0) return
+        val availH = pager.height - insT - dp(16) - (if (topBar.visibility == View.VISIBLE) topBar.height else 0) - insB - bottom.height
+        val cellW = (pager.width - 2 * dp(10)) / m.cols
+        // what a 1x1 app cell needs (appIcon): 4 dp pad + icon + 2 dp frame + 2 dp margin + one real label line + 2 dp pad, + the 6 dp gap.
+        // Measured, not estimated: a guess of 12 sp cut the "g" of "Telegram" at 7 rows on the Poco.
+        val line = if (m.style.labels) iconLabel("Ág", false, Color.WHITE, 1).apply { measure(0, 0) }.measuredHeight else 0
+        val minH = iconPx() + dp(4 + 2 + 2 + 2 + 6) + line
+        val r = HomeLayout.fitRows(availH, cellW, minH, m.rows)
+        if (r != m.rows) { Log.i("KG.perf", "autoRows ${m.rows} -> $r (h=$availH cw=$cellW min=$minH)"); update(HomeLayout.regrid(m, m.cols, r)) }
+    }
+
     internal fun announce(t: String) = root.announceForAccessibility(t)
 
     /**
@@ -495,6 +595,7 @@ class HomeActivity : Activity() {
      */
     internal fun padPages() {
         if (!::pager.isInitialized) return
+        pager.post { autoRows() }
         (tip.layoutParams as? FrameLayout.LayoutParams)?.let { lp -> val b = bottom.height + dp(8); if (lp.bottomMargin != b) { lp.bottomMargin = b; tip.layoutParams = lp } }
         if (drag != null) return
         // + 16 dp: the first row sat right under the status bar icons (One UI / Pixel leave a gap there too)
@@ -502,18 +603,51 @@ class HomeActivity : Activity() {
         val bot = insB + bottom.height
         for (i in 1 until pager.childCount) {
             val c = pager.getChildAt(i)
-            if (c.paddingTop != top || c.paddingBottom != bot) c.setPadding(0, top, 0, bot)
+            // the library has no chrome over it (it fades away there): only the system bars
+            val (t, b) = if (c === library) (insT + dp(12)) to (insB + dp(12)) else top to bot
+            if (c.paddingTop != t || c.paddingBottom != b) c.setPadding(0, t, 0, b)
         }
     }
+
+    /** One built grid page and what it registered (wallpaper ink, clocks, tickers, item views), to keep it across a layout edit. */
+    internal class PageBuilt(val cell: CellLayout, val ink: List<View>, val clocks: List<Pair<TextView, TextView>>, val tickers: List<(View0) -> Unit>, val items: Map<String, View>)
+    private var builtPages = HashMap<String, MutableList<PageBuilt>>()
+    private var builtGlobal = ""
+    internal var pageGlobal = ""        // the render key without the grid pages (set by render0)
+    internal var reusePages = false     // set by layout edits (update, drop): the next build may keep unchanged pages
 
     internal fun buildPages(m: HomeModel, all: Map<String, AppE>, show: Map<String, LauncherLogic.Show>, dv: View0, r: Rules, s: Store, block: String?) {
         inkViews.clear(); itemViews.clear(); clocks.clear(); tickers.clear()
         val keep = pager.page
+        // a layout-only change (drop, minus, group, move): pages whose items and everything else are the same keep their
+        // views. Rebuilding every page cost an Oppo A5s 68 ms per drop (5 frames); data refreshes still rebuild all.
+        val global = pageGlobal + "|" + HomeLayout.hasWidget(m, "next")
+        val old = if (reusePages && global == builtGlobal) builtPages else HashMap()
+        reusePages = false; builtGlobal = global
+        val made = HashMap<String, MutableList<PageBuilt>>()
         pager.removeAllViews()
         today?.view?.let { (it.parent as? ViewGroup)?.removeView(it); pager.addView(it) }
         val hasNext = HomeLayout.hasWidget(m, "next")
         for ((pi, p) in m.pages.withIndex()) {
+            val sig = p.joinToString(";") { it.toJson().toString() }
+            val reuse = old[sig]?.removeLastOrNull()
+            if (reuse != null) {
+                val cell = reuse.cell
+                // what a drag / press / swap preview may have left on them: hidden source, offsets, press scale
+                for (i in 0 until cell.childCount) cell.getChildAt(i).apply {
+                    animate().cancel(); visibility = View.VISIBLE; alpha = 1f; scaleX = 1f; scaleY = 1f; translationX = 0f; translationY = 0f
+                    (this as? ViewGroup)?.getChildAt(0)?.let { ic -> ic.animate().cancel(); ic.scaleX = 1f; ic.scaleY = 1f }
+                }
+                cell.hl = null; cell.plateOff()
+                inkViews += reuse.ink; clocks += reuse.clocks; tickers += reuse.tickers; itemViews += reuse.items
+                cell.page = pi
+                pager.addView(cell)
+                made.getOrPut(sig) { ArrayList() } += reuse
+                continue
+            }
+            val i0 = inkViews.size; val c0 = clocks.size; val t0 = tickers.size
             val cell = CellLayout(this, m.cols, m.rows)
+            val items = HashMap<String, View>()
             for (it in p) {
                 val v: View = when (it.kind) {
                     "widget" -> { val w0 = android.os.SystemClock.uptimeMillis(); when (it.type) {
@@ -525,6 +659,7 @@ class HomeActivity : Activity() {
                         "analog" -> analogWidget(dv, it.w, it.h)
                         "month" -> monthWidget(dv, it.w, it.h)
                         "battery" -> batteryWidget(it.w)
+                        "lock" -> lockWidget(it.w)
                         "todo" -> todoWidget(m, it.w, it.h)
                         "note" -> noteWidget(m, it.w, it.h)
                         "usage" -> usageWidget(dv, all, it.w, it.h)
@@ -549,11 +684,22 @@ class HomeActivity : Activity() {
                     }
                     else -> null
                 } ?: continue
-                itemViews[it.id] = v
+                itemViews[it.id] = v; items[it.id] = v
                 cell.addView(v, CellLP(it.x, it.y, it.w, it.h, it.id))
             }
             cell.page = pi
             pager.addView(cell)
+            made.getOrPut(sig) { ArrayList() } += PageBuilt(cell, ArrayList(inkViews.subList(i0, inkViews.size)), ArrayList(clocks.subList(c0, clocks.size)),
+                ArrayList(tickers.subList(t0, tickers.size)), items)
+        }
+        builtPages = made
+        // the App Library: the last page, built empty, filled when it first scrolls into view (libraryFill)
+        library = if (m.style.lib) LibraryPage(this).also { if (drag == null && !editing) pager.addView(it) } else null
+        // built while idle, not on the first swipe to it: ~100 ms of icon views on an Oppo A5s was one 113 ms frame mid-swipe
+        library?.let { l ->
+            // fill the library once the home is idle: waits while the kid drags, swipes or has a folder open
+            fun later(ms: Long) { main.postDelayed({ if (library === l) { if (busy()) later(400) else libraryFill() } }, ms) }
+            later(1500)
         }
         styleCells()
         padPages()
@@ -565,7 +711,7 @@ class HomeActivity : Activity() {
 
     /** While dragging: the page panel in the wallpaper's ink colour. */
     internal fun styleCells() {
-        val on = drag != null || editing
+        val on = editing   // dragging: no page panel (iOS); only the drop cell lights up, fading and gliding
         val c = inkCache["grid"]?.text ?: Color.WHITE
         for (i in 1 until pager.childCount) (pager.getChildAt(i) as? CellLayout)?.let { it.grid = on; it.gridColor = c; it.invalidate() }
     }
@@ -573,31 +719,43 @@ class HomeActivity : Activity() {
     /** -1 page: the chrome (dots, dock, banner) slides away with the pages; status bar icons follow the page. */
     internal fun chromeFade() {
         val w = pager.width.takeIf { it > 0 } ?: return
-        val f = (pager.scrollX.toFloat() / w).coerceIn(0f, 1f)     // 0 on "Hôm nay", 1 on page 1+
+        val f0 = (pager.scrollX.toFloat() / w).coerceIn(0f, 1f)     // 0 on "Hôm nay", 1 on page 1+
+        // the App Library (last page) is full screen like "Hôm nay": the chrome leaves to the left as it comes in
+        val li = library?.takeIf { it.parent === pager }?.let { pager.indexOfChild(it) } ?: -1
+        val g = if (li > 0) ((li * w - pager.scrollX).toFloat() / w).coerceIn(0f, 1f) else 1f
+        val f = minOf(f0, g)
         chrome.alpha = f
         chrome.visibility = if (f < 0.02f) View.INVISIBLE else View.VISIBLE
         // mid-fade: one GPU layer, so the alpha does not redraw dock + dots + banner offscreen every frame
         val lt = if (f > 0.02f && f < 0.98f) View.LAYER_TYPE_HARDWARE else View.LAYER_TYPE_NONE
         if (chrome.layerType != lt) chrome.setLayerType(lt, null)
-        chrome.translationX = (1 - f) * w * 0.3f
+        chrome.translationX = if (g < f0) -(1 - g) * w * 0.3f else (1 - f) * w * 0.3f
+        dots.pos = pager.scrollX.toFloat() / w
+        pageFade(w)
+    }
+
+    /**
+     * iOS / LauncherOS page change: the leaving page fades out as it slides, the arriving one fades in. Only alpha on
+     * the page views (CellLayout draws its children without an offscreen buffer, see hasOverlappingRendering).
+     */
+    internal fun pageFade(w: Int) {
+        val x = pager.scrollX
+        for (i in 0 until pager.childCount) {
+            val v = pager.getChildAt(i)
+            val d = abs(i * w - x).toFloat() / w
+            // edit mode: the pager shrinks and the neighbours peek in at the sides, they stay visible
+            val a = if (editing || liteFx) 1f else if (d >= 1f) 0f else (1f - d * 1.15f).coerceIn(0f, 1f).let { it * it * (3 - 2 * it) }   // smoothstep
+            if (v.alpha != a) v.alpha = a
+            if (a > 0f && v === library) libraryFill()
+        }
     }
 
     internal fun buildDots() {
-        dots.removeAllViews()
         val n = pager.childCount - 1
         dots.contentDescription = getString(R.string.hm_page, pager.page.coerceAtLeast(1), n.coerceAtLeast(1))
-        val ink = inkCache["dots"]
-        val c = ink?.text ?: Color.WHITE
-        // the -1 page: a small calendar glyph, like Pixel's "Discover" mark
-        dots.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@HomeActivity, R.drawable.li_calendar, c, dp(10))); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO },
-            LinearLayout.LayoutParams(dp(10), dp(10)).apply { setMargins(dp(4), 0, dp(4), 0) })
-        for (i in 1..n) dots.addView(View(this).apply {
-            // active = a filled pill, others = a ring of the same ink: both keep full contrast (no faded dot)
-            background = GradientDrawable().apply { cornerRadius = dpf(4f); if (i == pager.page) setColor(c) else { shape = GradientDrawable.OVAL; setStroke(dp(1).coerceAtLeast(2), c) } }
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }, LinearLayout.LayoutParams(if (i == pager.page) dp(16) else dp(7), dp(7)).apply { setMargins(dp(4), 0, dp(4), 0) })
-        if (dots !in inkViews) inkViews += dots
-        dots.background = null
+        val c = inkCache["dots"]?.text ?: Color.WHITE
+        dots.set(n, c, Ic.get(this, R.drawable.li_calendar, c, dp(10)))
+        pager.width.takeIf { it > 0 }?.let { dots.pos = pager.scrollX.toFloat() / it }
     }
 
     // ---- state used by the split-out files (HomeDrag / HomeWidgets / HomeDock / HomeMenus) ----
@@ -614,6 +772,9 @@ class HomeActivity : Activity() {
     internal var hoverId: String? = null          // folder target: the finger rested on its icon (see FOLDER_MS)
     internal var folderArm: Runnable? = null
     internal var folderReady = false
+    internal var focusView: MenuFocus? = null     // the dark layer + lifted icon behind a long-press menu
+    internal var swapArm: Runnable? = null        // re-arrange preview waits SWAP_MS: passing over an icon toward its middle (folder) never shoves it
+    internal var swapWant: String? = null
     internal var swapId: String? = null           // item sliding out of the way (preview of the re-arrange)
     internal var removeBtn: View? = null
     internal var removeHot = false
@@ -633,6 +794,7 @@ class HomeActivity : Activity() {
         val bubble = TextView(ctx)
         val scroll = ScrollView(ctx)
         private var lastKey = ""
+        private var lastSk = ""
         // init{} below calls refill(): its state must be declared above it
         var firstHit: View? = null
         private var fillGen = 0
@@ -645,6 +807,7 @@ class HomeActivity : Activity() {
         private val cells = ArrayList<Pair<View, String>>()
         private var scrubbed: String? = null   // the letter under the finger (null once it lifts)
         private var lit: String? = null        // the highlighted letter: stays after the finger lifts, until the list is scrolled by hand
+        private var cur: String? = null        // the letter of the top row while the list is scrolled by hand: marked on the rail only
         private val alphaTo = HashMap<View, Float>()   // each cell's target alpha (its current one lags behind while animating)
         private var downOnRail = false
         private val hideBubble = Runnable { bubble.animate().alpha(0f).setDuration(150).withEndAction { bubble.visibility = View.GONE; bubble.alpha = 1f }.start() }
@@ -744,6 +907,8 @@ class HomeActivity : Activity() {
                 true
             }
             rail.contentDescription = getString(R.string.hm_d_rail)
+            // scrolling by hand: the rail follows, marking the letter of the row at the top (POCO / One UI), no dimming
+            scroll.setOnScrollChangeListener { _, _, y, _, _ -> if (lit == null) follow(y) }
             refill()
         }
 
@@ -755,10 +920,14 @@ class HomeActivity : Activity() {
             val shown = all.values.filter { LauncherLogic.show(it.pkg, dv.want, r, packageName) != LauncherLogic.Show.HIDE && LauncherLogic.matchesFolded(it.folded, fq) }
                 .sortedBy { it.sortKey }
             val anyPaused = shown.any { dv.want[it.pkg] != null }
-            val k = listOf(q, shown.joinToString(",") { it.pkg + "=" + it.label }, shown.map { dv.want[it.pkg] }, model?.cols, model?.onHome(), model?.style?.shape,
-                model?.style?.icon, if (q.isBlank()) recent.take(12) else "", if (anyPaused) dv.minute else 0, if (anyPaused) dv.leftMs / 60_000 else 0, if (anyPaused) r.groups.map { it.hours } else 0).joinToString("|")
+            val sk = listOf(q, shown.joinToString(",") { it.pkg + "=" + it.label }, shown.map { dv.want[it.pkg] }, model?.cols, model?.onHome(), model?.style?.shape,
+                model?.style?.icon, if (q.isBlank()) recent.take(12) else "").joinToString("|")
+            val k = sk + "|" + listOf(if (anyPaused) dv.minute else 0, if (anyPaused) dv.leftMs / 60_000 else 0, if (anyPaused) r.groups.map { it.hours } else 0).joinToString("|")
             if (k == lastKey) return
-            lastKey = k
+            // only the minute moved (a paused app's time left) while the kid is looking at the drawer: rebuilding it under
+            // the finger reset the scroll every minute. It catches up the next time the drawer opens.
+            if (sk == lastSk && this@HomeActivity.drawer === this && isShown) return
+            lastKey = k; lastSk = sk
             unlight(); list.removeAllViews(); cells.clear(); alphaTo.clear(); firstHit = null; fillGen++
             if (shown.isEmpty()) {
                 rail.removeAllViews(); railKey = ""
@@ -843,10 +1012,19 @@ class HomeActivity : Activity() {
             })
         }
 
+        /** The rail letter whose first row is the last one at or above the list's top edge (only rows already built). */
+        private fun follow(y: Int) {
+            var at: String? = null
+            for ((l, i) in rowOf) { if (i >= built) break; val v = list.getChildAt(i + off) ?: break; if (v.top <= y + dp(8)) at = l else break }
+            if (at == cur) return
+            cur = at
+            for (j in 0 until rail.childCount) (rail.getChildAt(j) as TextView).let { t -> val on = t.tag == at; t.setTextColor(if (on) pal.solid else pal.sub); t.typeface = tf(on) }
+        }
+
         /** Back to normal: the list was scrolled by hand, the search changed, or the drawer closed. */
         fun unlight() {
             if (lit == null && bubble.visibility != View.VISIBLE) return
-            scrollAnim?.cancel(); bubble.removeCallbacks(hideBubble); bubble.visibility = View.GONE; light(null)
+            scrollAnim?.cancel(); bubble.removeCallbacks(hideBubble); bubble.visibility = View.GONE; light(null); cur = null; follow(scroll.scrollY)
         }
 
         /** Any touch reaches here first, even once the ScrollView has claimed the gesture: a drag on the list ends the highlight. */
@@ -890,9 +1068,9 @@ class HomeActivity : Activity() {
                 MotionEvent.ACTION_DOWN -> { x0 = e.x; y0 = e.y; up = false; downOk = !scrollsAt(this, e.x.toInt(), e.y.toInt()) }
                 MotionEvent.ACTION_MOVE -> {
                     val dy = e.y - y0; val dx = e.x - x0
-                    val free = !pager.dragging && pager.page > 0 && drag == null && !editing && this@HomeActivity.overlay == null && popup?.isShowing != true
+                    val free = !pager.dragging && pager.page > 0 && !onLibrary() && drag == null && !editing && this@HomeActivity.overlay == null && popup?.isShowing != true
                     if (free && dy < -slop && abs(dy) > abs(dx) * 1.5f && drawerBegin()) { up = true; from = e.y; drawerAt(0f) }
-                    else if (free && downOk && drawer == null && dy > slop * 2 && dy > abs(dx) * 1.5f) { downOk = false; expandShade() }
+                    else if (free && downOk && drawer == null && dy > slop * 2 && dy > abs(dx) * 1.5f) { downOk = false; expandShade(x0 > width / 2f) }
                 }
             }
             return up
@@ -930,10 +1108,16 @@ class HomeActivity : Activity() {
 
     /** Pull the notification shade down (hidden StatusBarManager API, what Nova uses; EXPAND_STATUS_BAR is a normal permission). */
     @SuppressLint("WrongConstant")
-    internal fun expandShade() {
+    /**
+     * Swipe down on the home: the left half opens the notifications, the right half the quick settings (HyperOS / One UI 7
+     * split shade). Phones with one shade (Pixel, older ROMs) open it fully expanded on the right: still the toggles.
+     */
+    internal fun expandShade(settings: Boolean = false) {
         runCatching {
             val sb = getSystemService("statusbar") ?: return
-            Class.forName("android.app.StatusBarManager").getMethod("expandNotificationsPanel").invoke(sb)
+            val c = Class.forName("android.app.StatusBarManager")
+            if (settings) runCatching { c.getMethod("expandSettingsPanel").invoke(sb) }.getOrElse { c.getMethod("expandNotificationsPanel").invoke(sb) }
+            else c.getMethod("expandNotificationsPanel").invoke(sb)
         }.onFailure { Log.w("KidGuard", "expand shade: $it") }
     }
 
@@ -950,7 +1134,7 @@ class HomeActivity : Activity() {
         private val slop = ViewConfiguration.get(ctx).scaledTouchSlop
         private val minFling = ViewConfiguration.get(ctx).scaledMinimumFlingVelocity * 3
         private val longPress = Runnable {
-            if (!dragging && page > 0 && drag == null) {
+            if (!dragging && page > 0 && drag == null && getChildAt(page) is CellLayout) {
                 performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                 val l = IntArray(2); getLocationInWindow(l); emptyMenu((l[0] + x0).toInt(), (l[1] + y0).toInt())
             }
@@ -1053,6 +1237,8 @@ class HomeActivity : Activity() {
         private val hlPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
         init { clipChildren = false; clipToPadding = false; setWillNotDraw(false) }
+        // items never overlap: the page fade applies alpha to each item, no full-page offscreen buffer per frame
+        override fun hasOverlappingRendering() = false
 
         // edit mode: a tap (not a long-press, not a move) picks the item under it; the item never sees the click
         private var tx0 = 0f; private var ty0 = 0f; private var tt0 = 0L
@@ -1064,10 +1250,21 @@ class HomeActivity : Activity() {
                 MotionEvent.ACTION_UP -> if (abs(e.x - tx0) < tslop && abs(e.y - ty0) < tslop && e.eventTime - tt0 < ViewConfiguration.getLongPressTimeout() &&
                     drag == null && popup?.isShowing != true) {
                     for (i in childCount - 1 downTo 0) {
+                        val c = getChildAt(i); val cid = (c.layoutParams as CellLP).id
+                        if (cid.isEmpty()) continue
+                        val (mx, my) = badgeAt(c, true)
+                        if (Math.hypot((e.x - mx).toDouble(), (e.y - my).toDouble()) < dpf(16f)) { removeOne(cid); return true }
+                    }
+                    for (i in childCount - 1 downTo 0) {
                         val c = getChildAt(i)
                         if (e.x >= c.left && e.x < c.right && e.y >= c.top && e.y < c.bottom) {
                             val id = (c.layoutParams as CellLP).id
-                            if (id.isNotEmpty()) { togglePick(id); return true }
+                            if (id.isNotEmpty()) {
+                                // the minus badge (top-left) has a finger-sized target around it
+                                val (mx, my) = badgeAt(c, true)
+                                if (Math.hypot((e.x - mx).toDouble(), (e.y - my).toDouble()) < dpf(22f)) removeOne(id) else togglePick(id)
+                                return true
+                            }
                         }
                     }
                 }
@@ -1079,6 +1276,19 @@ class HomeActivity : Activity() {
         private val ringLine = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
         private val tick = android.graphics.Path()
 
+        private val minusFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xF0E5E5EA.toInt() }
+        private val minusLine = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF1C1C1E.toInt(); strokeCap = Paint.Cap.ROUND }
+
+        /** Centre of an item's corner badge: the icon's corner for a 1x1, the card's corner for a widget. */
+        fun badgeAt(v: View, left: Boolean): Pair<Float, Float> {
+            val r = dpf(10f); val lp = v.layoutParams as CellLP
+            val icon = if (v is ViewGroup && v.childCount > 0 && (v !is LinearLayout || (lp.w == 1 && lp.h == 1))) v.getChildAt(0) else null
+            val cx = if (icon != null) v.left + (if (left) icon.left + r * 0.4f else icon.right - r * 0.4f)
+                     else if (left) v.left + r * 1.2f else v.right - r * 1.2f
+            val cy = if (icon != null) v.top + icon.top + r * 0.4f else v.top + r * 1.2f
+            return cx to cy
+        }
+
         /** Edit mode: a pick circle on each item's top-right (the icon's corner for a 1x1), ticked on the accent when picked (POCO). */
         override fun dispatchDraw(c: Canvas) {
             super.dispatchDraw(c)
@@ -1086,11 +1296,13 @@ class HomeActivity : Activity() {
             val r = dpf(10f)
             for (i in 0 until childCount) {
                 val v = getChildAt(i); val lp = v.layoutParams as CellLP
-                if (lp.id.isEmpty()) continue
+                if (lp.id.isEmpty() || v.alpha < 1f) continue   // leaving (minus tapped): its badges go with it
                 // a 1x1: the icon's corner; a widget: the corner of its card (FitCell centres a wrap-height card in the cells)
-                val icon = if (v is ViewGroup && v.childCount > 0 && (v !is LinearLayout || (lp.w == 1 && lp.h == 1))) v.getChildAt(0) else null
-                val cx = if (icon != null) v.left + icon.right - r * 0.4f else v.right - r * 1.2f
-                val cy = if (icon != null) v.top + icon.top + r * 0.4f else v.top + r * 1.2f
+                // iOS minus (top-left): tap = off the home screen
+                val (mx, my) = badgeAt(v, true)
+                c.drawCircle(mx, my, r * 1.1f, minusFill)
+                minusLine.strokeWidth = dpf(2.2f); c.drawLine(mx - r * 0.5f, my, mx + r * 0.5f, my, minusLine)
+                val (cx, cy) = badgeAt(v, false)
                 val on = lp.id in picked
                 ringFill.color = if (on) pal.solid else 0x55000000
                 c.drawCircle(cx, cy, r, ringFill)
@@ -1157,9 +1369,43 @@ class HomeActivity : Activity() {
             }
         }
 
+        // the drop cell glides to the next cell and fades in / out (it popped from cell to cell)
+        private val hlR = android.graphics.RectF(); private var hlA = 0f
+        private var lastDraw = 0L   // frame-time steps: the same speed at 60 and 120 Hz
+        // the "drop to make a folder" plate behind the target icon (iOS), grows in / fades out
+        private var plX = 0f; private var plY = 0f; private var plS = 0f; private var plOn = false; private var plA = 0f
+        private val plPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        fun plate(cx: Float, cy: Float, size: Float) { plX = cx; plY = cy; plS = size; plOn = true; invalidate() }
+        fun plateOff() { if (plOn) { plOn = false; invalidate() } }
+
         override fun onDraw(c: Canvas) {
-            if (!grid) return
             val cw = cellW().toFloat(); val ch = cellH().toFloat()
+            var more = false
+            val now = drawingTime; val st = if (lastDraw == 0L) 1f else ((now - lastDraw) / 16.7f).coerceIn(0.25f, 3f); lastDraw = now
+            if (plOn || plA > 0f) {
+                plA = if (plOn) minOf(1f, plA + 0.16f * st) else maxOf(0f, plA - 0.2f * st); more = more || (plOn && plA < 1f) || (!plOn && plA > 0f)
+                val e = 1 - (1 - plA) * (1 - plA)                 // ease-out grow
+                val half = plS / 2 * (0.75f + 0.25f * e)
+                plPaint.color = Color.argb((95 * plA).toInt(), 0, 0, 0)
+                c.drawRoundRect(plX - half, plY - half, plX + half, plY + half, half * 0.5f, half * 0.5f, plPaint)
+            }
+            val tg = hl
+            if (tg != null) {
+                val (x, y, w, h) = tg
+                val l = side + x * cw + gap / 2f; val t = paddingTop + y * ch + gap / 2f; val r = l + w * cw - gap; val b = t + h * ch - gap
+                if (hlA == 0f) hlR.set(l, t, r, b)
+                else { val k = 1f - Math.pow(0.65, st.toDouble()).toFloat(); hlR.set(hlR.left + (l - hlR.left) * k, hlR.top + (t - hlR.top) * k, hlR.right + (r - hlR.right) * k, hlR.bottom + (b - hlR.bottom) * k) }
+                hlA = minOf(1f, hlA + 0.2f * st)
+                more = more || hlA < 1f || kotlin.math.abs(hlR.left - l) > 0.5f || kotlin.math.abs(hlR.top - t) > 0.5f || kotlin.math.abs(hlR.right - r) > 0.5f
+            } else if (hlA > 0f) { hlA = maxOf(0f, hlA - 0.2f * st); more = true }
+            if (hlA > 0f) {
+                // the drop cells: the card colour when it fits, the danger colour when it doesn't
+                val col = if (hlOk) pal.card else Color.argb(150, Color.red(pal.danger), Color.green(pal.danger), Color.blue(pal.danger))
+                hlPaint.color = col; hlPaint.alpha = (Color.alpha(col) * hlA).toInt()
+                kit.drawRound(c, hlR.left, hlR.top, hlR.right, hlR.bottom, hlPaint)
+            }
+            if (more) postInvalidateOnAnimation() else lastDraw = 0L
+            if (!grid) return
             // One soft panel around the page (One UI's edit page), no per-cell outlines: those read as clutter. The cell
             // the item will land in lights up while dragging (hl below), like Pixel / One UI.
             panel.color = Color.argb(28, Color.red(gridColor), Color.green(gridColor), Color.blue(gridColor))
@@ -1167,12 +1413,6 @@ class HomeActivity : Activity() {
             val l0 = side.toFloat() - gap / 2f; val t0 = paddingTop - gap / 2f
             val r0 = side + cols * cw + gap / 2f; val b0 = paddingTop + rows * ch + gap / 2f
             kit.drawRound(c, l0, t0, r0, b0, panel, kit.dpf(22f)); kit.drawRound(c, l0, t0, r0, b0, edge, kit.dpf(22f))
-            hl?.let { (x, y, w, h) ->
-                // the drop cells: the card colour when it fits, the danger colour when it doesn't
-                hlPaint.color = if (hlOk) pal.card else Color.argb(150, Color.red(pal.danger), Color.green(pal.danger), Color.blue(pal.danger))
-                val l = side + x * cw + gap / 2f; val t = paddingTop + y * ch + gap / 2f
-                kit.drawRound(c, l, t, l + w * cw - gap, t + h * ch - gap, hlPaint)
-            }
         }
     }
 

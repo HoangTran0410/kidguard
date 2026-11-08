@@ -69,7 +69,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     val showLabel = list || (if (mode == Mode.DOCK) model?.style?.dockLabels else model?.style?.labels) ?: true
     if (showLabel) {
         val lbl = iconLabel(a.label, list, if (list) pal.text else Color.WHITE)
-        box.addView(lbl, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+        box.addView(lbl, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(if (list) 4 else 2) })   // grid: 2 dp, so 7 square rows fit an icon + a label line (POCO)
         if (!list) inkViews += lbl
     }
     if (list) {
@@ -93,7 +93,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
             Mode.DRAWER -> DragSt(null, a.pkg, "app", 1, 1, null, null)
         }
     }
-    arm(box, { appMenu(a, box, mode, item) }, src, immediate = mode == Mode.PANEL, press = if (list) null else frame)
+    arm(box, { appMenu(a, box, mode, item) }, src, press = if (list) null else frame)   // in a folder too: menu first, moving the finger drags (iOS)
     return box
 }
 
@@ -116,8 +116,9 @@ internal fun HomeActivity.iconLabel(t: String, list: Boolean, color: Int, lines:
 internal fun HomeActivity.labelPx(list: Boolean): Float {
     val user = (model?.style?.font?.toFloat() ?: 1f)
     val sys = kotlin.math.sqrt(resources.configuration.fontScale).coerceIn(0.9f, 1.25f)
-    val base = if (list) dp(52) * 0.23f else iconPx() * 0.25f
-    return base * sys * user
+    // iOS: 12 pt under a 60 pt icon (20 %), regular weight. 25 % made names as tall as a third of the icon and cut them
+    val base = if (list) dp(52) * 0.21f else iconPx() * 0.2f
+    return (base * sys * user).coerceIn(dpf(10f), dpf(13.5f) * sys * user)
 }
 
 /**
@@ -166,7 +167,7 @@ internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String
     box.contentDescription = getString(R.string.hm_f_desc, folderName(f), vis.size)
     kit.tap(box, 16f, true)
     box.foreground = null
-    box.setOnClickListener { if (debounce()) openFolder(f.id) }
+    box.setOnClickListener { if (debounce()) openFolder(f.id, grid) }
     arm(box, {
         menu(listOf(
             Row(R.drawable.li_pencil, getString(R.string.hm_f_rename), true) { renameFolder(f.id) },
@@ -186,6 +187,8 @@ internal fun HomeActivity.debounce(): Boolean {
 internal fun HomeActivity.launch(a: AppE, from: View) {
     val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(ComponentName(a.pkg, a.cls))
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+    // zoom from the icon. Only the default launcher gets it: HyperOS slides an app opened from any other app in from
+    // the side, custom animations included (checked on a Poco where KidGuard is not the default home)
     val opts = ActivityOptions.makeScaleUpAnimation(from, 0, 0, from.width, from.height).toBundle()
     Recent.note(this, a.pkg)
     runCatching { startActivity(i, opts) }.recoverCatching { packageManager.getLaunchIntentForPackage(a.pkg)?.let { startActivity(it) } ?: error("none") }

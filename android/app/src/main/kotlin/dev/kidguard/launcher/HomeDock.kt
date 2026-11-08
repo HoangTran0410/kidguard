@@ -111,7 +111,6 @@ internal fun HomeActivity.inkPass() {
     val busy = ink.ratio < Contrast.TEXT
     val shadow = if (busy) Contrast.alpha(ink.shadow, 0.85) else ink.shadow
     for (v in inkViews.toList()) {
-        if (v === dots) continue
         when (v) {
             is TextView -> { v.setTextColor(ink.text); v.setShadowLayer(dpf(if (busy) 4f else 3f), 0f, dpf(1f), shadow); v.background = null }
             is ImageView -> { v.drawable?.setTint(ink.text); v.background = null }

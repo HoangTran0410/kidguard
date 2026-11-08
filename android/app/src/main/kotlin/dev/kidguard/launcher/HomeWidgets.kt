@@ -41,14 +41,14 @@ internal fun HomeActivity.armWidget(v: View, it: HItem) {
 
 internal fun HomeActivity.widgetLabel(type: String) = getString(when (type) {
     "time" -> R.string.hm_w_time; "quick" -> R.string.hm_w_quick; "next" -> R.string.hm_w_next; "clock" -> R.string.hm_w_clock
-    "analog" -> R.string.hm_w_analog; "month" -> R.string.hm_w_month; "battery" -> R.string.hm_w_battery
+    "analog" -> R.string.hm_w_analog; "month" -> R.string.hm_w_month; "battery" -> R.string.hm_w_battery; "lock" -> R.string.q_lock
     "todo" -> R.string.hm_w_todo; "note" -> R.string.hm_w_note; "usage" -> R.string.hm_w_usage
     "when" -> R.string.hm_w_when; "earn" -> R.string.hm_w_earn; "msg" -> R.string.hm_w_msg; "class" -> R.string.hm_w_class; else -> R.string.hm_w_counts
 })
 
 internal fun HomeActivity.widgetDesc(type: String) = getString(when (type) {
     "time" -> R.string.hm_w_time_d; "quick" -> R.string.hm_w_quick_d; "next" -> R.string.hm_w_next_d; "clock" -> R.string.hm_w_clock_d
-    "analog" -> R.string.hm_w_analog_d; "month" -> R.string.hm_w_month_d; "battery" -> R.string.hm_w_battery_d
+    "analog" -> R.string.hm_w_analog_d; "month" -> R.string.hm_w_month_d; "battery" -> R.string.hm_w_battery_d; "lock" -> R.string.hm_w_lock_d
     "todo" -> R.string.hm_w_todo_d; "note" -> R.string.hm_w_note_d; "usage" -> R.string.hm_w_usage_d
     "when" -> R.string.hm_w_when_d; "earn" -> R.string.hm_w_earn_d; "msg" -> R.string.hm_w_msg_d; "class" -> R.string.hm_w_class_d; else -> R.string.hm_w_counts_d
 })
@@ -90,6 +90,7 @@ internal fun HomeActivity.tickClocks(dv: View0) {
     val now = HomeLogic.clock(dv.minute)
     for ((t, d) in clocks) if (t.text != now) { t.text = now; (t.parent as? View)?.contentDescription = "$now. ${d.text}" }
     for (t in tickers) t(dv)
+    today?.tick(dv.minute)
 }
 
 internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideNext: Boolean): View {
@@ -117,7 +118,7 @@ internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideN
 
 internal fun HomeActivity.dur(ms: Long) = HomeLogic.hm(ms).let { (h, m) -> if (h == 0) getString(R.string.home_m, m) else if (m == 0) getString(R.string.home_h, h) else getString(R.string.home_hm, h, m) }
 
-/** The card wraps its content and sits in the middle of its cells (the mock's height, not the cell's). */
+/** The card fills its cells (content centred in it); taller content is scaled down to fit ([FitCell]). */
 internal fun HomeActivity.centred(v: View): View = FitCell(this).apply { clipChildren = false; addView(v, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_VERTICAL)) }
 
 /**
@@ -144,6 +145,9 @@ internal class FitCell(c: android.content.Context) : FrameLayout(c) {
         cw = (ws / s).toInt()
         child.measure(MeasureSpec.makeMeasureSpec(cw, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
         ch = child.measuredHeight
+        // shorter than its cells: the card grows to fill them (POCO / One UI: a widget's background is its whole area, so a
+        // 2×2 clock and a 2×2 calendar side by side are the same size); its content stays centred (wCard's gravity)
+        if (ch * s < hs) child.measure(MeasureSpec.makeMeasureSpec(cw, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec((hs / s).toInt(), MeasureSpec.EXACTLY))
         scale = s
         setMeasuredDimension(ws, hs)
     }
@@ -290,13 +294,12 @@ internal fun HomeActivity.openPicker() {
     popup?.dismiss()
     val scrim = FrameLayout(this).apply { setBackgroundColor(Color.argb(if (pal.dark) 140 else 80, 0, 0, 0)); isClickable = true; setOnClickListener { closeOverlay() }; tag = "picker" }
     val sheet = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL; isClickable = true; elevation = dpf(12f)
+        orientation = LinearLayout.VERTICAL; isClickable = true; elevation = shadow(12f)
         background = GradientDrawable().apply { setColor(pal.sheet); cornerRadii = floatArrayOf(dpf(28f), dpf(28f), dpf(28f), dpf(28f), 0f, 0f, 0f, 0f) }
         setPadding(dp(20) + insL, dp(10), dp(20) + insR, dp(12) + imeB)
     }
     sheet.addView(View(this).apply { background = fill(pal.stroke) }, LinearLayout.LayoutParams(dp(36), dp(4)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(12) })
     sheet.addView(text(getString(R.string.hm_w_title), 22f, pal.text, true))
-    sheet.addView(text(getString(R.string.hm_w_sub), 14f, pal.sub).apply { setPadding(0, dp(4), 0, dp(6)); includeFontPadding = true })
     // search (POCO's picker has one on top): our widgets by name / description, other apps' by app or widget name
     val search = android.widget.EditText(this)
     val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; background = fill(pickSurf(), 22f); setPadding(dp(14), 0, dp(6), 0) }
@@ -338,18 +341,21 @@ internal fun HomeActivity.openPicker() {
         val (w0, h0) = sizes.first()
         val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(4), dp(6), dp(4), dp(8)) }
         // the first size's preview, fitted into a fixed-height slot so every tile lines up (POCO's grid)
-        val pv = ScaleBox(this, dp(if (w0 >= 3) 210 else 112), dp(if (h0 >= 2) 112 else 70), maxH = dp(84))
-            .apply { addView(preview(type).apply { setPadding(0, 0, 0, 0); background = fill(pickSurf(), 18f); (this as? ViewGroup)?.getChildAt(0)?.background = null }) }
+        // the plate is the whole slot (every tile the same size, POCO); the mock, without its own plates, is scaled to fill it
+        val pv = ScaleBox(this, dp(124), dp(84), maxH = dp(104), pad = dp(8))   // one base the plate's shape: every mock ~100 %, none shrunk to a corner
+            .apply { background = fill(pickSurf(), 18f); addView(preview(type).apply { setPadding(0, 0, 0, 0); background = null; (this as? ViewGroup)?.getChildAt(0)?.background = null }) }
         tile.addView(pv, LinearLayout.LayoutParams(-1, -2))
         tile.addView(text(widgetLabel(type), 13f, pal.text, true).apply { gravity = Gravity.CENTER; maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, dp(6), 0, dp(6)) }, LinearLayout.LayoutParams(-1, -2))
         val pills = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         for ((w, h) in sizes) {
             val cur = placed != null && placed.w == w && placed.h == h
             pills.addView(kit.chip("$w×$h", if (cur) pal.onSolid else pal.accentText, if (cur) pal.solid else pal.tint).apply {
-                setPadding(dp(12), dp(5), dp(12), dp(5))
+                // three sizes in a half-width tile: narrower pills, never wrapped ("4×4" broke into 3 lines)
+                val px = if (sizes.size >= 3) 8 else 12
+                setPadding(dp(px), dp(5), dp(px), dp(5)); maxLines = 1; isSingleLine = true
                 contentDescription = if (cur) getString(R.string.hm_w_on_home, w, h) else getString(R.string.hm_w_add_size, widgetLabel(type), w, h)
                 kit.tap(this, 999f) { if (cur) toast(getString(R.string.hm_w_already)) else pickSize(type, w, h, placed) }
-            }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(3); marginEnd = dp(3) })
+            }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(if (sizes.size >= 3) 2 else 3); marginEnd = dp(if (sizes.size >= 3) 2 else 3) })
         }
         tile.addView(pills, LinearLayout.LayoutParams(-1, -2))
         val curFirst = placed != null && placed.w == w0 && placed.h == h0
@@ -370,8 +376,11 @@ internal fun HomeActivity.openPicker() {
     fun more(g: Int) {
         if (overlay !== scrim || g != gen) return
         if (built >= shown.size) { if (query.isNotEmpty() || list.height <= sc.height) aw(); return }
-        addCard(shown[built++])
-        list.postOnAnimation { more(g) }
+        // a card costs ~20 ms on a slow phone (more than a frame): one card a frame was ~17 janky frames in a row, so the
+        // rest are built in two lumps (one janky frame each) once the slide-up has settled
+        val upTo = if (built < 8) minOf(8, shown.size) else shown.size
+        while (built < upTo) addCard(shown[built++])
+        list.postDelayed({ more(g) }, 120)
     }
     fun refill(first: Int, delay: Long) {
         val g = ++gen; awOn = false; list.removeAllViews(); sc.scrollTo(0, 0); kg = null; kgRow = null; kgN = 0
@@ -381,10 +390,10 @@ internal fun HomeActivity.openPicker() {
         while (built < minOf(first, shown.size)) addCard(shown[built++])
         if (delay > 0) list.postDelayed({ more(g) }, delay) else list.postOnAnimation { more(g) }
     }
-    refill(4, 260)
+    refill(0, 200)   // nothing now (a row is ~25 ms on an Oppo A5s, before the first frame); the cards come in two lumps after the slide-up
     lap("rows")
     sc.setOnScrollChangeListener { _, _, y, _, _ -> if (built >= shown.size && y + sc.height * 2 > list.height) aw() }
-    val typed = Runnable { refill(6, 0) }
+    val typed = Runnable { if (overlay === scrim) refill(6, 0) }   // closed within 180 ms of a keystroke: build nothing
     search.addTextChangedListener(object : android.text.TextWatcher {
         override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
@@ -398,7 +407,7 @@ internal fun HomeActivity.openPicker() {
     showOverlay(scrim); lap("show")
     sheet.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener { override fun onPreDraw(): Boolean { sheet.viewTreeObserver.removeOnPreDrawListener(this); lap("layout"); lap.done("picker"); return true } })
     sheet.translationY = dpf(80f); sheet.alpha = 0f
-    sheet.animate().translationY(0f).alpha(1f).setDuration(180).start()
+    sheet.animate().translationY(0f).alpha(1f).setDuration(180).withLayer().start()
 }
 
 /** The keyboard (the picker's search) lifts the sheet's content above it and grows the sheet to the top, so the results
@@ -415,7 +424,7 @@ internal fun HomeActivity.pickSurf(): Int = if (pal.dark) 0x17FFFFFF else 0x0E00
 
 internal fun HomeActivity.pickSize(type: String, w: Int, h: Int, placed: HItem?) {
     val m = model ?: return
-    val hp = (pager.page - 1).coerceAtLeast(0)
+    val hp = (pager.page - 1).coerceIn(0, (m.pages.size - 1).coerceAtLeast(0))   // on the library page: the last real page
     val n = if (placed != null) HomeLayout.resizeWidget(m, placed.id, w, h) else HomeLayout.placeWidget(m, type, w, h, hp)
     if (n == null) { noRoom(null); return }
     closeOverlay()
@@ -436,7 +445,7 @@ internal fun HomeActivity.preview(type: String): View {
         "quick" -> {
             val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
             for ((ic, f, g) in listOf(Triple(R.drawable.li_siren, pal.danger, pal.onDanger), Triple(R.drawable.li_map_pin, pal.tint, pal.onTint), Triple(R.drawable.li_car, pal.tint, pal.onTint), Triple(R.drawable.li_timer, pal.solid, pal.onSolid)))
-                r.addView(kit.badge(ic, g, f, 20, 12), LinearLayout.LayoutParams(dp(20), dp(20)).apply { setMargins(dp(2), 0, dp(2), 0) })
+                r.addView(kit.badge(ic, g, f, 26, 15), LinearLayout.LayoutParams(dp(26), dp(26)).apply { setMargins(dp(2), 0, dp(2), 0) })
             c.addView(r)
         }
         "next" -> {
@@ -450,6 +459,7 @@ internal fun HomeActivity.preview(type: String): View {
         "analog" -> analogPreview(c)
         "month" -> monthPreview(c)
         "battery" -> batteryPreview(c)
+        "lock" -> lockPreview(c)
         "todo" -> todoPreview(c)
         "note" -> notePreview(c)
         "usage" -> usagePreview(c)
@@ -466,10 +476,10 @@ internal fun HomeActivity.preview(type: String): View {
 
 /** Lays its one child out at a fixed base size and scales it to its own width (widget picker previews: the mock stays in
  *  proportion and its text grows with the tile). Height follows the base aspect. */
-internal class ScaleBox(c: android.content.Context, private val bw: Int, private val bh: Int, private val maxH: Int = 0) : FrameLayout(c) {
+internal class ScaleBox(c: android.content.Context, private val bw: Int, private val bh: Int, private val maxH: Int = 0, private val pad: Int = 0) : FrameLayout(c) {
     init { clipChildren = true }
-    /** Fit inside the width and, with [maxH], a fixed-height slot (centred in it). */
-    private fun scale(ws: Int) = (ws.toFloat() / bw).let { if (maxH > 0) minOf(it, maxH.toFloat() / bh) else it }
+    /** Fit inside the width and, with [maxH], a fixed-height slot (centred in it), [pad] in from the edges; up to 140 % (a small mock grows to fill its plate). */
+    private fun scale(ws: Int) = ((ws - 2f * pad) / bw).let { if (maxH > 0) minOf(it, (maxH - 2f * pad) / bh) else it }.coerceAtMost(1.4f)
     override fun onMeasure(w: Int, h: Int) {
         val ws = MeasureSpec.getSize(w).takeIf { it > 0 } ?: bw
         getChildAt(0)?.measure(MeasureSpec.makeMeasureSpec(bw, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(bh, MeasureSpec.EXACTLY))

@@ -36,34 +36,175 @@ class TodayPage(
     private var notesOpen = false
     var padTop = 0; var padBottom = 0
 
-    init { view.addView(col, FrameLayout.LayoutParams(-1, -2)) }
+    init { view.addView(col, FrameLayout.LayoutParams(-1, -2)); view.clipToPadding = true }
 
-    fun pad(top: Int, bottom: Int) { padTop = top; padBottom = bottom; col.setPadding(dp(16), top + dp(16), dp(16), bottom + dp(20)) }
+    // the status bar strip is the scroll view's padding (clipped): scrolled cards no longer run under the clock
+    fun pad(top: Int, bottom: Int) { padTop = top; padBottom = bottom; view.setPadding(0, top, 0, 0); col.setPadding(dp(16), dp(12), dp(16), bottom + dp(20)) }
 
-    /** Rebuilds everything (cheap: a few dozen views). */
-    fun fill(r: Rules, minute: Int, dow: Int, now: Long) {
+    /** Rebuilds everything (cheap: a few dozen views). Cards the kid turned off (HomeModel.todayHide) are left out. */
+    internal fun fill(r: Rules, dv: HomeActivity.View0, block: String?, all: Map<String, HomeActivity.AppE>, icon: (HomeActivity.AppE, Int) -> View) {
         val st = Store.of(act)
-        col.removeAllViews()
-        col.setPadding(dp(16), padTop + dp(16), dp(16), padBottom + dp(20))
-        header(now)
-        sosRow(r, st)
-        schedule(r, minute, dow)
-        chores(r, st)
-        notes()
-        files()
+        val hide = model()?.todayHide ?: emptySet()
+        col.removeAllViews(); until = null
+        pad(padTop, padBottom)
+        header(r, st, dv.now)
+        if ("now" !in hide) hero(r, st, dv, block)
+        if ("time" !in hide) screen(st, r, dv, block, all, icon)
+        if ("sched" !in hide) schedule(r, dv.minute, dv.dow)
+        if ("chores" !in hide) chores(r, st)
+        if ("tomorrow" !in hide) tomorrow(dv)
+        if ("notes" !in hide) notes()
+        if ("files" !in hide) files()
+        col.addView(k.text(s(R.string.hm_t_cards), 14f, pal.accentText, true).apply {
+            setPadding(dp(12), dp(10), dp(12), dp(10)); gravity = Gravity.CENTER_VERTICAL
+            Ic.lead(this, R.drawable.li_sliders_horizontal, pal.accentText); compoundDrawablePadding = dp(8)
+            k.tap(this, 12f) { pickCards() }
+        }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(14); gravity = Gravity.CENTER_HORIZONTAL })
+    }
+
+    /** Every minute (the launcher's clock tick): the countdown line of "Bây giờ", without a rebuild. */
+    fun tick(minute: Int) { until?.let { (t, at) -> untilText(t, at.first, at.second, minute) } }
+    private var until: Pair<TextView, Pair<Int, String>>? = null
+    private fun untilText(t: TextView, at: Int, name: String, minute: Int) {
+        val left = at - minute
+        t.visibility = if (left in 1..180) View.VISIBLE else View.GONE
+        if (left > 0) t.text = s(R.string.hm_t_until, durText(left * 60_000L), name.ifBlank { s(R.string.hm_t_bed_word) }, HomeLogic.clock(at))
+    }
+
+    private fun durText(ms: Long) = HomeLogic.hm(ms).let { (h, m) -> if (h == 0) s(R.string.home_m, m) else if (m == 0) s(R.string.home_h, h) else s(R.string.home_hm, h, m) }
+
+    // ---- choose cards ----
+
+    private val cardIds = listOf("now" to R.string.hm_t_now_card, "time" to R.string.hm_t_screen, "sched" to R.string.hm_t_schedule,
+        "chores" to R.string.hm_t_chores, "tomorrow" to R.string.hm_t_tomorrow_card, "notes" to R.string.hm_t_notes, "files" to R.string.hm_t_files)
+
+    private fun pickCards() {
+        val m0 = model() ?: return
+        val box = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
+        box.addView(k.text(s(R.string.hm_t_cards_sub), 13f, u.sub).apply { setPadding(dp(2), 0, 0, dp(6)) })
+        val sws = cardIds.map { (id, name) ->
+            Switch(act).apply {
+                text = s(name); setTextColor(u.text); textSize = 16f; isChecked = id !in m0.todayHide
+                setPadding(dp(2), dp(7), 0, dp(7))
+                thumbTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(pal.accentText, pal.sheet))
+                trackTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(pal.accentText, pal.sub))
+            }.also { box.addView(it, LinearLayout.LayoutParams(-1, -2)) }
+        }
+        // scrolls: 7 switches don't fit a small phone at a big font
+        val scroll = ScrollView(act).apply { isVerticalScrollBarEnabled = false; addView(box) }
+        Modal(act, u).show(R.drawable.li_sliders_horizontal, Modal.Tone.INFO, s(R.string.hm_t_cards), content = scroll, ok = s(R.string.hm_t_save), cancel = s(R.string.cancel)) {
+            val hide = cardIds.indices.filter { !sws[it].isChecked }.map { cardIds[it].first }.toSet()
+            model()?.let { mm -> if (mm.todayHide != hide) save(mm.copy(todayHide = hide)) }; true
+        }
     }
 
     private fun lp(top: Int = 12) = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top) }
 
-    private fun header(now: Long) {
+    private fun header(r: Rules, st: Store, now: Long) {
         val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val t = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
-        t.addView(k.text(s(R.string.hm_t_title), 30f, pal.text, true).apply { if (android.os.Build.VERSION.SDK_INT >= 28) isAccessibilityHeading = true })
+        t.addView(k.text(s(R.string.hm_t_title), 30f, pal.text, true).apply { maxLines = 1; if (android.os.Build.VERSION.SDK_INT >= 28) isAccessibilityHeading = true })
         val date = SimpleDateFormat("EEEE d/M", act.resources.configuration.locales[0]).format(Date(now)).replaceFirstChar { it.titlecase() }
-        t.addView(k.text(date, 14f, pal.sub).apply { setPadding(0, dp(4), 0, 0) })
+        t.addView(k.text(date, 14f, pal.sub).apply { setPadding(0, dp(2), 0, 0) })
+        if (st.sos().length() > 0) t.addView(k.text(s(R.string.home_sos) + " · " + s(R.string.hm_q_sent), 13f, pal.dangerText, true).apply { setPadding(0, dp(2), 0, 0) })
         row.addView(t, LinearLayout.LayoutParams(0, -2, 1f))
-        // no "KidGuard" pill here: it pushed "Hôm nay" onto 2 lines at a 1.5 font, and the home shield + long-press menu open it
+        // call: a number in the lock-screen contact ("Gọi mẹ 0912…"), else just the phone app
+        val num = Regex("\\+?\\d[\\d .-]{6,}\\d").find(r.lockContact)?.value?.replace(Regex("[ .-]"), "")
+        row.addView(ImageView(act).apply {
+            setImageDrawable(Ic.get(act, R.drawable.li_phone, pal.text, dp(22))); scaleType = ImageView.ScaleType.CENTER
+            background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(pal.sheet); setStroke(dp(1), pal.stroke) }
+            contentDescription = s(R.string.hm_t_call); k.tap(this, 26f) { dial(num) }
+        }, LinearLayout.LayoutParams(dp(52), dp(52)).apply { marginEnd = dp(10) })
+        // SOS: always here, can't be hidden
+        row.addView(ImageView(act).apply {
+            setImageDrawable(Ic.get(act, R.drawable.li_siren, pal.onDanger, dp(24))); scaleType = ImageView.ScaleType.CENTER
+            background = k.circle(pal.danger); contentDescription = s(R.string.main_sos)
+            k.tap(this, 26f) { if (st.everPaired) acts.askSos() else dial("112") }
+        }, LinearLayout.LayoutParams(dp(52), dp(52)))
         col.addView(row, lp(0))
+    }
+
+    // ---- Bây giờ: greeting, the school period now / next, countdown to the next lock or bedtime ----
+
+    private fun hero(r: Rules, st: Store, dv: HomeActivity.View0, block: String?) {
+        val m = model() ?: return
+        val c = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; background = k.fill(pal.tint, 22f); setPadding(dp(18), dp(16), dp(18), dp(16)) }
+        val h = dv.minute / 60
+        val hi = when { h < 5 || h >= 22 -> R.string.hm_t_hi_night; h < 11 -> R.string.hm_t_hi_morning; h < 13 -> R.string.hm_t_hi_noon; h < 18 -> R.string.hm_t_hi_afternoon; else -> R.string.hm_t_hi_evening }
+        val top = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        top.addView(ImageView(act).apply { setImageDrawable(Ic.get(act, if (h in 6..17) R.drawable.li_sun else R.drawable.li_moon, pal.onTint, dp(22))); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO },
+            LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginEnd = dp(10) })
+        top.addView(k.text(s(hi), 20f, pal.onTint, true).apply { maxLines = 2 }, LinearLayout.LayoutParams(0, -2, 1f))
+        c.addView(top)
+        val lines = ArrayList<String>()
+        if (block != null) lines += s(R.string.hm_t_locked, BasicLogic.reasonText(block, st.tr))
+        val (cur, next) = TimetableLogic.at(TimetableLogic.slots(m.timetable, dv.dow), dv.minute)
+        when (cur?.kind) {
+            TimetableLogic.Kind.CLASS -> lines += s(R.string.hm_t_class_now, cur.subject, cur.period, HomeLogic.clock(cur.end))
+            TimetableLogic.Kind.RECESS -> lines += s(R.string.hm_t_recess, HomeLogic.clock(cur.end))
+            TimetableLogic.Kind.LUNCH -> lines += s(R.string.hm_t_lunch, HomeLogic.clock(cur.end))
+            null -> {}
+        }
+        if (next != null && cur?.kind != TimetableLogic.Kind.CLASS) lines += s(R.string.hm_t_class_next, next.subject, HomeLogic.clock(next.start))
+        for (l in lines) c.addView(k.text(l, 15f, pal.onTint).apply { setPadding(0, dp(6), 0, 0); maxLines = 3 })
+        val ev = LauncherLogic.nextEvent(r, dv.minute, dv.dow)
+        if (ev != null) {
+            val t = k.text("", 15f, pal.onTint, true).apply { setPadding(0, dp(6), 0, 0); maxLines = 2 }
+            untilText(t, ev.first, ev.second, dv.minute); until = t to ev
+            c.addView(t)
+        }
+        if (lines.isEmpty() && h in 5..21 && (ev == null || ev.first - dv.minute > 180)) c.addView(k.text(s(R.string.hm_t_nice_day), 15f, pal.onTint).apply { setPadding(0, dp(6), 0, 0) })
+        col.addView(c, lp(16))
+    }
+
+    // ---- Thời gian dùng máy: ring + left, top 3 apps, ask for more ----
+
+    private fun screen(st: Store, r: Rules, dv: HomeActivity.View0, block: String?, all: Map<String, HomeActivity.AppE>, icon: (HomeActivity.AppE, Int) -> View) {
+        val top = dv.usage.entries.filter { it.value >= 60_000 && it.key != act.packageName && it.key in all && it.key in dv.apps && it.key !in dv.prot && it.key !in r.allow }
+            .sortedByDescending { it.value }
+        val used = top.sumOf { it.value }
+        val limitMs = (baseLimitMin(r, dv.today).takeIf { it > 0 }?.let { it + if (r.bonusDay == dv.today) r.bonusMin else 0 } ?: 0) * 60_000L
+        if (limitMs <= 0 && used == 0L) return   // no limit, nothing used yet: nothing worth a card
+        val c = card()
+        title(c, R.drawable.li_timer, s(R.string.hm_t_screen))
+        val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(10), 0, 0) }
+        val low = limitMs > 0 && dv.leftMs in 0 until 10 * 60_000L
+        if (limitMs > 0) row.addView(UseRing(act, (1f - dv.leftMs.coerceAtLeast(0).toFloat() / limitMs).coerceIn(0f, 1f), if (low) pal.warn else pal.solid, pal.stroke, k.dpf(7f)),
+            LinearLayout.LayoutParams(dp(60), dp(60)).apply { marginEnd = dp(14) })
+        val t = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
+        t.addView(k.text(if (limitMs > 0) s(R.string.hm_t_left, durText(dv.leftMs.coerceAtLeast(0))) else s(R.string.hm_t_no_limit), 20f, if (low) pal.warnText else pal.text, true).apply { maxLines = 2 })
+        t.addView(k.text(s(R.string.hm_t_used, durText(if (limitMs > 0) (limitMs - dv.leftMs.coerceAtLeast(0)).coerceAtLeast(0) else used)), 13f, pal.sub).apply { setPadding(0, dp(2), 0, 0) })
+        row.addView(t, LinearLayout.LayoutParams(0, -2, 1f))
+        c.addView(row)
+        if (top.isNotEmpty()) {
+            val apps = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(12), 0, 0) }
+            for ((pkg, ms) in top.take(3)) {
+                val a = all[pkg] ?: continue
+                val one = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; contentDescription = a.label + " " + durText(ms) }
+                one.addView(icon(a, 26), LinearLayout.LayoutParams(dp(26), dp(26)))
+                one.addView(k.text(durText(ms), 13f, pal.sub).apply { setPadding(dp(6), 0, 0, 0); maxLines = 1 })
+                apps.addView(one, LinearLayout.LayoutParams(0, -2, 1f))
+            }
+            c.addView(apps)
+        }
+        if (HomeLogic.canAsk(st.everPaired, dv.leftMs, block) && limitMs > 0)
+            c.addView(k.pill(s(R.string.main_more), R.drawable.li_plus, false) { acts.askMore() }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(12) })
+        col.addView(c, lp())
+    }
+
+    // ---- Ngày mai: tomorrow's subjects, from 17:00 ----
+
+    private fun tomorrow(dv: HomeActivity.View0) {
+        val m = model() ?: return
+        if (!TimetableLogic.eveningFirst(dv.minute)) return
+        val subj = TimetableLogic.distinct(TimetableLogic.day(m.timetable, TimetableLogic.tomorrow(dv.dow)))
+        if (subj.isEmpty()) return
+        val c = card()
+        val day = SimpleDateFormat("EEEE", act.resources.configuration.locales[0]).format(Date(dv.now + 86_400_000L)).replaceFirstChar { it.titlecase() }
+        title(c, R.drawable.li_calendar, s(R.string.hm_t_tomorrow, day))
+        c.addView(k.text(subj.joinToString(" · "), 15f, pal.text, true).apply { setPadding(0, dp(10), 0, 0) })
+        c.addView(k.text(s(R.string.hm_t_pack), 13f, pal.sub).apply { setPadding(0, dp(4), 0, 0) })
+        col.addView(c, lp())
     }
 
     private fun card(): LinearLayout = LinearLayout(act).apply {
@@ -82,33 +223,6 @@ class TodayPage(
 
     private fun divider(c: LinearLayout) = c.addView(View(act).apply { setBackgroundColor(pal.stroke) }, LinearLayout.LayoutParams(-1, dp(1)).apply { topMargin = dp(10); bottomMargin = dp(2) })
 
-    // ---- SOS: always first, can't be removed ----
-
-    private fun sosRow(r: Rules, st: Store) {
-        val row = LinearLayout(act).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(14), dp(12), dp(12), dp(12))
-            background = android.graphics.drawable.GradientDrawable().apply { setColor(pal.sheet); cornerRadius = k.dpf(20f); setStroke(dp(2), pal.danger) }
-        }
-        val sent = st.sos().length() > 0
-        row.addView(k.badge(R.drawable.li_siren, pal.onDanger, pal.danger, 44, 22))
-        val t = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, dp(8), 0) }
-        t.addView(k.text(s(R.string.home_sos), 17f, pal.dangerText, true))
-        t.addView(k.text(s(if (sent) R.string.hm_q_sent else R.string.hm_t_sos_sub), 13f, pal.sub).apply { setPadding(0, dp(2), 0, 0) })
-        row.addView(t, LinearLayout.LayoutParams(0, -2, 1f))
-        k.tap(row, 20f) { if (st.everPaired) acts.askSos() else dial("112") }
-        row.contentDescription = s(R.string.main_sos)
-        val call = k.text(s(R.string.hm_t_call), 14f, pal.text, true).apply {
-            background = android.graphics.drawable.GradientDrawable().apply { setColor(pal.sheet); cornerRadius = k.dpf(14f); setStroke(dp(1), pal.stroke) }
-            setPadding(dp(12), dp(10), dp(14), dp(10)); gravity = Gravity.CENTER_VERTICAL
-            Ic.lead(this, R.drawable.li_phone, pal.text); compoundDrawablePadding = dp(6)
-        }
-        // a number in the lock-screen contact ("Gọi mẹ 0912…"), else just the phone app
-        val num = Regex("\\+?\\d[\\d .-]{6,}\\d").find(r.lockContact)?.value?.replace(Regex("[ .-]"), "")
-        k.tap(call, 14f) { dial(num) }
-        row.addView(call)
-        col.addView(row, lp(16))
-    }
-
     private fun dial(n: String?) {
         val i = if (n == null) Intent(Intent.ACTION_DIAL) else Intent(Intent.ACTION_DIAL, Uri.parse("tel:$n"))
         runCatching { act.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
@@ -118,10 +232,10 @@ class TodayPage(
     // ---- Lịch ----
 
     private fun schedule(r: Rules, minute: Int, dow: Int) {
+        val evs = LauncherLogic.today(r, minute, dow)
+        if (evs.isEmpty()) return   // an empty card is noise: "Hôm nay" shows what is there
         val c = card()
         title(c, R.drawable.li_calendar, s(R.string.hm_t_schedule))
-        val evs = LauncherLogic.today(r, minute, dow)
-        if (evs.isEmpty()) c.addView(k.text(s(R.string.hm_t_no_schedule), 14f, pal.sub).apply { setPadding(0, dp(10), 0, dp(2)) })
         for ((i, e) in evs.withIndex()) {
             if (i > 0) divider(c)
             val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(8), 0, dp(4)) }
@@ -196,7 +310,6 @@ class TodayPage(
             row.contentDescription = (if (td.done) s(R.string.hm_t_done_state) + ": " else "") + td.text
             c.addView(row, LinearLayout.LayoutParams(-1, -2))
         }
-        if (n == 0) c.addView(k.text(s(R.string.hm_t_no_chores), 14f, pal.sub).apply { setPadding(0, dp(10), 0, dp(2)) })
         if (todos.size < KidNotes.TODO_MAX) c.addView(k.text(s(R.string.hm_t_add_homework), 14f, pal.accentText, true).apply {
             setPadding(dp(4), dp(12), dp(4), dp(4)); Ic.lead(this, R.drawable.li_plus, pal.accentText); compoundDrawablePadding = dp(8); gravity = Gravity.CENTER_VERTICAL
             k.tap(this, 10f) { addHomework() }
@@ -243,7 +356,6 @@ class TodayPage(
         title(c, R.drawable.li_sticky_note, s(R.string.hm_t_notes), if (l.size > 3) (if (notesOpen) s(R.string.hm_t_less) else s(R.string.hm_t_all, l.size)) else null) {
             notesOpen = !notesOpen; refreshSoon()
         }
-        if (l.isEmpty()) c.addView(k.text(s(R.string.hm_t_no_notes), 14f, pal.sub).apply { setPadding(0, dp(10), 0, dp(2)) })
         for ((i, n) in l.take(if (notesOpen) l.size else 3).withIndex()) {
             if (i > 0) divider(c)
             val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(8), 0, dp(4)) }
@@ -304,27 +416,39 @@ class TodayPage(
     // ---- Thư mục KidGuard ----
 
     private fun files() {
-        val l = runCatching { Files.all(act) }.getOrDefault(emptyList()).filter { it.dir == "in" && it.st != "gone" }.sortedByDescending { it.at }
+        // both ways: parent -> kid ("in", opens here) and what the kid sent ("out", the parent page downloads it)
+        val l = runCatching { Files.all(act) }.getOrDefault(emptyList()).filter { it.st != FilesLogic.GONE }.sortedByDescending { it.at }
+        val paired = Store.of(act).everPaired
+        if (l.isEmpty() && !paired) return
         val c = card()
-        title(c, R.drawable.li_folder, s(R.string.hm_t_files), if (l.isNotEmpty()) l.size.toString() else null)
-        if (l.isEmpty()) c.addView(k.text(s(R.string.hm_t_no_files), 14f, pal.sub).apply { setPadding(0, dp(10), 0, dp(2)); includeFontPadding = true })
+        title(c, R.drawable.li_folder, s(R.string.hm_t_files), if (l.size > 3) l.size.toString() else null)
         for ((i, e) in l.take(3).withIndex()) {
             if (i > 0) divider(c)
+            val out = e.dir == FilesLogic.OUT
             val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(8), 0, dp(4)) }
-            row.addView(k.badge(R.drawable.li_file, pal.onTint, pal.tint, 40, 20, square = true))
+            row.addView(k.badge(if (out) R.drawable.li_send else R.drawable.li_file, pal.onTint, pal.tint, 40, 20, square = true))
             val t = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, dp(8), 0) }
             t.addView(k.text(e.name, 15f, pal.text, true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.MIDDLE })
-            t.addView(k.text(s(R.string.hm_t_from_parent, android.text.format.DateUtils.getRelativeTimeSpanString(e.at, System.currentTimeMillis(), 60_000L)), 12f, pal.sub).apply { setPadding(0, dp(2), 0, 0) })
+            val ago = android.text.format.DateUtils.getRelativeTimeSpanString(e.at, System.currentTimeMillis(), 60_000L)
+            t.addView(k.text(s(if (out) R.string.hm_t_to_parent else R.string.hm_t_from_parent, ago), 12f, pal.sub).apply { setPadding(0, dp(2), 0, 0) })
             row.addView(t, LinearLayout.LayoutParams(0, -2, 1f))
-            if (e.st != "opened") row.addView(View(act).apply { background = k.circle(pal.danger); contentDescription = s(R.string.hm_t_new) }, LinearLayout.LayoutParams(dp(9), dp(9)))
-            k.tap(row, 12f) {
-                val i2 = runCatching { Files.viewIntent(act, e.id) }.getOrNull()
-                if (i2 == null || runCatching { act.startActivity(i2.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isFailure)
-                    android.widget.Toast.makeText(act, R.string.hm_t_file_fail, android.widget.Toast.LENGTH_SHORT).show()
-                refreshSoon()
+            if (out) { if (e.st == FilesLogic.FETCHED) row.addView(k.chip(s(R.string.hm_t_fetched), pal.onTint, pal.tint, R.drawable.li_check)) }
+            else {
+                if (e.st != FilesLogic.OPENED) row.addView(View(act).apply { background = k.circle(pal.danger); contentDescription = s(R.string.hm_t_new) }, LinearLayout.LayoutParams(dp(9), dp(9)))
+                k.tap(row, 12f) {
+                    val i2 = runCatching { Files.viewIntent(act, e.id) }.getOrNull()
+                    if (i2 == null || runCatching { act.startActivity(i2.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isFailure)
+                        android.widget.Toast.makeText(act, R.string.hm_t_file_fail, android.widget.Toast.LENGTH_SHORT).show()
+                    refreshSoon()
+                }
             }
             c.addView(row, LinearLayout.LayoutParams(-1, -2))
         }
+        // the system file picker, then the same outbox as the share sheet's "Gửi cho bố mẹ" (ShareInActivity)
+        if (paired) c.addView(k.text(s(R.string.files_menu), 14f, pal.accentText, true).apply {
+            setPadding(dp(4), dp(12), dp(4), dp(4)); Ic.lead(this, R.drawable.li_send, pal.accentText); compoundDrawablePadding = dp(8); gravity = Gravity.CENTER_VERTICAL
+            k.tap(this, 10f) { ShareInActivity.pick(act) }
+        }, LinearLayout.LayoutParams(-2, -2))
         col.addView(c, lp())
     }
 
@@ -340,5 +464,17 @@ class TodayPage(
             val files = runCatching { Files.all(act) }.getOrDefault(emptyList()).count { it.dir == "in" && it.st != "gone" && it.st != "opened" }
             return Triple(chores, KidNotes.notes(m.notes).size, files)
         }
+    }
+}
+
+/** "Thời gian dùng máy": the part of today's limit already used, as an arc from 12 o'clock. */
+private class UseRing(ctx: android.content.Context, val f: Float, val fg: Int, val bg: Int, val w: Float) : View(ctx) {
+    private val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { style = android.graphics.Paint.Style.STROKE; strokeWidth = w; strokeCap = android.graphics.Paint.Cap.ROUND }
+    private val r = android.graphics.RectF()
+    init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
+    override fun onDraw(c: android.graphics.Canvas) {
+        r.set(w / 2, w / 2, width - w / 2, height - w / 2)
+        p.color = bg; c.drawOval(r, p)
+        if (f > 0f) { p.color = fg; c.drawArc(r, -90f, 360f * f.coerceAtLeast(0.02f), false, p) }
     }
 }

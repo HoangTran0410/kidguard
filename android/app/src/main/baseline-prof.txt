@@ -1,0 +1,4 @@
+# The whole app, compiled ahead of time once androidx.profileinstaller has installed this (AGP expands the wildcards
+# before R8 renames classes). Without it the launcher runs interpreted / JIT for its first seconds after an install.
+HSPLdev/kidguard/**->**(**)**
+Ldev/kidguard/**;

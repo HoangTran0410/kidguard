@@ -75,4 +75,22 @@ class HomeBulkTest {
         val (out, n) = HomeLayout.moveTo(m, listOf("a"), 1)
         assertEquals(0, n); assertTrue(out === m)
     }
+
+    @Test fun insertDockPacksAndPlacesBetweenIcons() {
+        val m = model(listOf(app("a", 0, 0), app("b", 1, 0))).copy(dock = listOf(HomeLayout.PHONE, "", "p.cam", ""))
+        // grid app "a" dropped right after the phone (k = 1): before the camera, the dock packed, a gone from the grid
+        val out = HomeLayout.insertDock(HomeLayout.take(m, HomeLayout.Src.Item("a"))!!, 1)!!
+        assertEquals(listOf(HomeLayout.PHONE, "p.a", "p.cam", ""), out.dock)
+        assertEquals(listOf(listOf("b")), ids(out))
+        // after the last icon (k past the end)
+        assertEquals(listOf(HomeLayout.PHONE, "p.cam", "p.b", ""), HomeLayout.insertDock(HomeLayout.take(m, HomeLayout.Src.Item("b"))!!, 9)!!.dock)
+    }
+
+    @Test fun insertDockMovesWithinTheDockAndRefusesWhenFull() {
+        val m = model(listOf(app("a", 0, 0))).copy(dock = listOf(HomeLayout.PHONE, "p.x", "p.y", ""))
+        // x dragged out of the dock and dropped after y
+        assertEquals(listOf(HomeLayout.PHONE, "p.y", "p.x", ""), HomeLayout.insertDock(HomeLayout.take(m, HomeLayout.Src.Dock(1))!!, 2)!!.dock)
+        val full = m.copy(dock = listOf(HomeLayout.PHONE, "p.x", "p.y", "p.z"))
+        assertNull(HomeLayout.insertDock(HomeLayout.take(full, HomeLayout.Src.Item("a"))!!, 1))
+    }
 }
