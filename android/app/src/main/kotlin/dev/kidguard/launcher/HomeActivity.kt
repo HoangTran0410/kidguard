@@ -59,10 +59,15 @@ import dev.kidguard.HomeLayout.Src
  * Pure parts: LauncherLogic, HomeLayout, HomeStyle (contrast), KidNotes. Text on the wallpaper adapts (HomeStyle.ink).
  */
 class HomeActivity : Activity() {
-    companion object { @Volatile var alive = 0; const val FOLDER_MS = 500L }
+    companion object {
+        @Volatile var alive = 0; const val FOLDER_MS = 500L
+        /** Created once: Typeface.create looked the family up again for every bold label. */
+        val MEDIUM: Typeface by lazy { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
+    }
 
     internal class AppE(val pkg: String, val cls: String, val label: String) {
         val sortKey by lazy { LauncherLogic.sortKey(label) }   // once per app list: sortedBy calls its selector per comparison
+        val folded by lazy { LauncherLogic.fold(label) }       // drawer search: once per app list, not per key typed
     }
 
     /** What is being dragged: a grid / dock / folder / picker source, or [pkg] from the drawer. */
@@ -384,6 +389,8 @@ class HomeActivity : Activity() {
         val old = wall
         wall = (if (photo) Wallpaper.photo(this, w, h)?.also { Wallpaper.dim(it, st.dim) } else null) ?: Wallpaper.draw(id, w, h)
         wallView.setImageBitmap(wall)
+        // the opaque wallpaper covers the window: the theme's black background was one more full-screen fill per frame
+        window.setBackgroundDrawable(null)
         old?.recycle()
     }
 
@@ -397,7 +404,7 @@ class HomeActivity : Activity() {
     internal fun fill(color: Int, radius: Float = 999f) = GradientDrawable().apply { setColor(color); cornerRadius = dpf(radius) }
     internal fun text(t: String, sp: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
         text = t; setTextSize(TypedValue.COMPLEX_UNIT_SP, sp * (model?.style?.font?.toFloat() ?: 1f)); setTextColor(color)
-        if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        if (bold) typeface = MEDIUM
         includeFontPadding = false
     }
 
@@ -577,10 +584,16 @@ class HomeActivity : Activity() {
         val search = EditText(ctx)
         val list = LinearLayout(ctx).apply { orientation = VERTICAL }
         val rail = LinearLayout(ctx).apply { orientation = VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-        val firstRow = LinkedHashMap<String, View>()     // letter -> the grid row holding its first app
         val bubble = TextView(ctx)
         val scroll = ScrollView(ctx)
         private var lastKey = ""
+        // init{} below calls refill(): its state must be declared above it
+        var firstHit: View? = null
+        private var fillGen = 0
+        private var built = 0
+        private var rowsLeft: () -> Unit = {}
+        private var railKey = ""
+        val rowOf = LinkedHashMap<String, Int>()   // rail letter -> index of the grid row holding its first app
         // pull down while the list is at its top: the drawer follows the finger down, then closes or springs back (Pixel)
         private var py0 = 0f; private var px0 = 0f; private var pulling = false; private var pullFrom = 0f
         private var pvt: VelocityTracker? = null
@@ -659,7 +672,7 @@ class HomeActivity : Activity() {
                 if (rail.childCount == 0) return@setOnTouchListener false
                 val i = (e.y / v.height * rail.childCount).toInt().coerceIn(0, rail.childCount - 1)
                 val letter = (rail.getChildAt(i) as TextView).text.toString()
-                firstRow[letter]?.let { scroll.scrollTo(0, it.top) }
+                rowFor(letter)?.let { rv -> if (rv.isLaidOut) scroll.scrollTo(0, rv.top) else scroll.post { scroll.scrollTo(0, rv.top) } }
                 when (e.actionMasked) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
                         if (bubble.text != letter) { bubble.text = letter; v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK) }
@@ -675,44 +688,64 @@ class HomeActivity : Activity() {
             refill()
         }
 
-        var firstHit: View? = null
-
         /** Rebuilds the grid only when what it shows changed (apps, pauses, the query, columns); cheap to call on every render. */
         fun refill() {
             val s = Store.of(context); val r = s.rules
             val all = launcherApps(); val dv = decision(r, s)
-            val q = search.text.toString()
-            val shown = all.values.filter { LauncherLogic.show(it.pkg, dv.want, r, packageName) != LauncherLogic.Show.HIDE && LauncherLogic.matches(it.label, q) }
+            val q = search.text.toString(); val fq = LauncherLogic.fold(q).trim()
+            val shown = all.values.filter { LauncherLogic.show(it.pkg, dv.want, r, packageName) != LauncherLogic.Show.HIDE && LauncherLogic.matchesFolded(it.folded, fq) }
                 .sortedBy { it.sortKey }
             val anyPaused = shown.any { dv.want[it.pkg] != null }
             val k = listOf(q, shown.joinToString(",") { it.pkg + "=" + it.label }, shown.map { dv.want[it.pkg] }, model?.cols, model?.onHome(), model?.style?.shape,
                 model?.style?.icon, if (anyPaused) dv.minute else 0, if (anyPaused) dv.leftMs / 60_000 else 0, if (anyPaused) r.groups.map { it.hours } else 0).joinToString("|")
             if (k == lastKey) return
             lastKey = k
-            list.removeAllViews(); rail.removeAllViews(); firstRow.clear(); firstHit = null
+            list.removeAllViews(); firstHit = null; fillGen++
             if (shown.isEmpty()) {
+                rail.removeAllViews(); railKey = ""
                 list.addView(text(getString(R.string.hm_no_result, q), 15f, pal.sub).apply { gravity = Gravity.CENTER; setPadding(dp(16), dp(40), dp(16), dp(16)) }, LayoutParams(-1, -2))
                 return
             }
             val cols = (model?.cols ?: 4).coerceIn(3, 5)
-            var row: LinearLayout? = null
             val onHome = model?.onHome() ?: emptySet()
-            for ((n, a) in shown.withIndex()) {
-                if (n % cols == 0) { row = LinearLayout(context).apply { orientation = HORIZONTAL; setPadding(dp(8), dp(6), dp(8), dp(6)) }; list.addView(row, LayoutParams(-1, -2)) }
-                val l = LauncherLogic.letter(a.label)
-                if (q.isBlank() && l !in firstRow) {
-                    firstRow[l] = row!!
-                    rail.addView(text(l, 11f, pal.sub, true).apply { gravity = Gravity.CENTER; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }, LayoutParams(-1, 0, 1f))
-                }
-                val paused = dv.want[a.pkg] != null
-                val v = appIcon(a, paused, dv, r, if (a.pkg in onHome) Mode.DRAWER else Mode.DRAWER)
-                if (firstHit == null) firstHit = v
-                row!!.addView(v, LayoutParams(0, -2, 1f))
+            val rows = shown.chunked(cols)
+            // rail letters come from the data, so they exist before their rows are built
+            rowOf.clear()
+            if (q.isBlank()) for ((i, a) in shown.withIndex()) LauncherLogic.letter(a.label).let { l -> if (l !in rowOf) rowOf[l] = i / cols }
+            // ~20 TextViews: rebuilt only when the letters change, not on every key typed
+            val letters = rowOf.keys.joinToString("")
+            if (letters != railKey) {
+                railKey = letters; rail.removeAllViews()
+                for (l in rowOf.keys) rail.addView(text(l, 11f, pal.sub, true).apply { gravity = Gravity.CENTER; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }, LayoutParams(-1, 0, 1f))
             }
-            // pad the last row so cells keep their width
-            row?.let { rw -> while (rw.childCount < cols) rw.addView(View(context), LayoutParams(0, 1, 1f)) }
-            list.addView(View(context), LayoutParams(-1, dp(24)))
+            // ~1.5 ms per icon: 50+ apps cost 80 ms in one frame on a Galaxy A51 (each key typed, each open after a change).
+            // Build what fills the screen now, the rest a few rows per frame; a new refill drops the old queue.
+            val gen = ++fillGen
+            fun addRow(i: Int) {
+                val row = LinearLayout(context).apply { orientation = HORIZONTAL; setPadding(dp(8), dp(6), dp(8), dp(6)) }
+                for (a in rows[i]) {
+                    val v = appIcon(a, dv.want[a.pkg] != null, dv, r, Mode.DRAWER)
+                    if (firstHit == null) firstHit = v
+                    row.addView(v, LayoutParams(0, -2, 1f))
+                }
+                // pad the last row so cells keep their width
+                while (row.childCount < cols) row.addView(View(context), LayoutParams(0, 1, 1f))
+                list.addView(row, list.childCount - 1, LayoutParams(-1, -2))
+            }
+            list.addView(View(context), LayoutParams(-1, dp(24)))   // bottom gap, rows go before it
+            // as many rows as the visible list holds: the first row measured at the list's width
+            addRow(0)
+            val w = (if (scroll.width > 0) scroll.width else resources.displayMetrics.widthPixels - dp(26))
+            val rowH = list.getChildAt(0).let { it.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.UNSPECIFIED); it.measuredHeight.coerceAtLeast(dp(48)) }
+            val first = minOf(rows.size, (if (scroll.height > 0) scroll.height else resources.displayMetrics.heightPixels) / rowH + 1)
+            for (i in 1 until first) addRow(i)
+            built = first; rowsLeft = { if (gen == fillGen) { while (built < rows.size) addRow(built++) } }
+            fun more() { if (gen != fillGen || built >= rows.size) return; repeat(2) { if (built < rows.size) addRow(built++) }; postOnAnimation { more() } }
+            if (built < rows.size) postOnAnimation { more() }
         }
+
+        /** The row view for [letter], building any rows still queued first. */
+        fun rowFor(letter: String): View? { val i = rowOf[letter] ?: return null; if (i >= built) rowsLeft(); return list.getChildAt(i) }
     }
 
     // ---- custom views ----
@@ -898,11 +931,44 @@ class HomeActivity : Activity() {
         override fun onMeasure(w: Int, h: Int) {
             val W = MeasureSpec.getSize(w); val H = MeasureSpec.getSize(h)
             val cw = (W - 2 * side) / cols; val ch = ((H - paddingTop - paddingBottom) / rows).coerceAtLeast(1)
+            shareLabels(cw)
             for (i in 0 until childCount) {
                 val c = getChildAt(i); val lp = c.layoutParams as CellLP
                 c.measure(MeasureSpec.makeMeasureSpec((cw * lp.w - gap).coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec((ch * lp.h - gap).coerceAtLeast(0), MeasureSpec.EXACTLY))
             }
             setMeasuredDimension(W, H)
+        }
+
+        /**
+         * One UI: a long name may spill into the free space beside it when the neighbours' names are short (or the cell is
+         * empty). Each 1x1 icon's label borrows the same amount left and right (it stays centred): the smaller of what
+         * the two sides can spare. Decided once per measure; drawing outside the cell costs nothing per frame.
+         */
+        private fun shareLabels(cw: Int) {
+            val inner = cw - gap
+            val at = HashMap<Int, IconLabel>()   // y * cols + x -> label of a 1x1 icon
+            val busy = HashSet<Int>()
+            for (i in 0 until childCount) {
+                val c = getChildAt(i); val lp = c.layoutParams as CellLP
+                for (yy in lp.y until lp.y + lp.h) for (xx in lp.x until lp.x + lp.w) busy += yy * cols + xx
+                if (lp.w != 1 || lp.h != 1) continue
+                val box = c as? LinearLayout ?: continue
+                (0 until box.childCount).map { box.getChildAt(it) }.firstOrNull { it is IconLabel }?.let { at[lp.y * cols + lp.x] = it as IconLabel }
+            }
+            fun need(l: IconLabel) = l.paint.measureText(l.text.toString()) + l.paddingLeft + l.paddingRight
+            // what a cell can lend to one side: half its free width (all of it is free when empty, nothing for widgets)
+            fun spare(x: Int, y: Int): Float = when {
+                x < 0 || x >= cols -> (side - gap / 2f - kit.dpf(10f)).coerceAtLeast(0f)   // page margin, never to the screen edge
+                (y * cols + x) !in busy -> cw / 2f
+                else -> at[y * cols + x]?.let { ((inner - need(it)) / 2f).coerceAtLeast(0f) } ?: 0f
+            }
+            for ((k, l) in at) {
+                val x = k % cols; val y = k / cols
+                val over = need(l) - inner
+                val e = if (over <= 0f) 0 else minOf(over / 2f, spare(x - 1, y) + gap / 2f, spare(x + 1, y) + gap / 2f).toInt().coerceAtLeast(0)
+                val lp = l.layoutParams as? LinearLayout.LayoutParams ?: continue
+                lp.leftMargin = -e; lp.rightMargin = -e
+            }
         }
 
         override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {

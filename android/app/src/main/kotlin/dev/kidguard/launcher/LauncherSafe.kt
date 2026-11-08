@@ -80,6 +80,7 @@ object LauncherSafe {
      * HOME. If the kid was in another app, leave them there: their next Home press works.
      */
     fun afterUpdate(ctx: Context) = runCatching {
+        freshStart(ctx)
         if (!enabled(ctx) || !homeIsOurs(ctx)) return@runCatching
         val top = lastForeground(ctx)
         val homes = ctx.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
@@ -87,6 +88,22 @@ object LauncherSafe {
         Log.i(TAG, "after update: top=$top")
         if (top == null || top == ctx.packageName || top in homes) home(ctx)
     }.onFailure { Log.w(TAG, "launcher after update", it) }
+
+    /**
+     * A new version may fix what crashed: forget the crash count and the 24 h safe mode, and if the 2nd crash reset the
+     * layout within the last 24 h, give the kid their layout back (it crashes twice more if the layout was the cause).
+     */
+    private fun freshStart(ctx: Context) {
+        val p = prefs(ctx)
+        val now = System.currentTimeMillis()
+        val resetAt = p.getLong("resetAt", 0)
+        val safe = p.getLong("safeUntil", 0) > now
+        if (resetAt == 0L && !safe && p.getString("times", "").isNullOrEmpty()) return
+        val restored = resetAt > now - LauncherLogic.SAFE_MS && HomeFile.restoreBad(ctx)
+        p.edit().remove("times").remove("safeUntil").remove("resetAt").putBoolean("reset", false).commit()
+        Log.i(TAG, "after update: crash state cleared, safe=$safe layout restored=$restored")
+        if (safe) apply(ctx, Store.of(ctx).rules)
+    }
 
     private fun lastForeground(ctx: Context): String? {
         val um = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
@@ -149,7 +166,7 @@ object LauncherSafe {
     fun takeReset(ctx: Context): Boolean {
         val p = prefs(ctx)
         if (!p.getBoolean("reset", false)) return false
-        p.edit().putBoolean("reset", false).commit()
+        p.edit().putBoolean("reset", false).putLong("resetAt", System.currentTimeMillis()).commit()
         return true
     }
 

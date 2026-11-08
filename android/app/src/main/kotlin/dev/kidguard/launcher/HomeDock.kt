@@ -13,6 +13,7 @@ import android.os.Build
 import android.view.animation.DecelerateInterpolator
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -35,17 +36,18 @@ internal fun HomeActivity.buildDock(m: HomeModel, all: Map<String, AppE>, show: 
     // the card surface (HomeStyle.cardWorst): dock labels in pal.text pass on any wallpaper
     dock.background = if (m.style.dockBg) GradientDrawable().apply { setColor(pal.card); cornerRadius = dpf(28f) } else null
     dock.setPadding(dp(6), dp(8), dp(6), dp(8))
-    val px = (iconPx() * 0.9f).toInt().coerceAtMost(dp(60))
+    val px = iconPx()   // same size as the app icons beside it (was 90 %: "Gọi" looked smaller)
     for ((i, slot) in m.dock.withIndex()) {
         val cell = FrameLayout(this)
         val v: View? = if (i == 0) {
             val d = dialer()
-            val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+            val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, dp(4), 0, dp(2)) }   // as appIcon
             val bmp = d?.let { p -> IconCache.get(this, p, all[p]?.cls ?: "", px, m.style.shape != "square") }
             box.addView(ImageView(this).apply {
                 if (bmp != null) setImageBitmap(bmp) else { setImageDrawable(Ic.get(context, R.drawable.li_phone, pal.onSolid, dp(26))); background = fill(pal.solid); setPadding(dp(14), dp(14), dp(14), dp(14)) }
-            }, LinearLayout.LayoutParams(px, px))
-            if (preset.dockLabels) box.addView(dockLabel(getString(R.string.hm_phone), m.style.dockBg))
+            }, LinearLayout.LayoutParams(px, px).apply { bottomMargin = dp(2) })
+            if (preset.dockLabels && m.style.dockLabels) box.addView(iconLabel(getString(R.string.hm_phone), false, if (m.style.dockBg) pal.text else Color.WHITE, 1).also { if (!m.style.dockBg) inkViews += it },
+                LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
             box.contentDescription = getString(R.string.hm_phone)
             kit.tap(box, 16f, true) {
                 if (!debounce()) return@tap
@@ -58,19 +60,26 @@ internal fun HomeActivity.buildDock(m: HomeModel, all: Map<String, AppE>, show: 
         } else all[slot]?.takeIf { show[it.pkg] != LauncherLogic.Show.HIDE }?.let { a ->
             val paused = show[a.pkg] == LauncherLogic.Show.PAUSED
             appIcon(a, paused, dv, r, Mode.DOCK, slot = i).also { v ->
-                if (!preset.dockLabels) (v as LinearLayout).getChildAt(1)?.let { (v as LinearLayout).removeView(it); inkViews.remove(it) }
+                if (!preset.dockLabels || !m.style.dockLabels) (v as LinearLayout).getChildAt(1)?.let { (v as LinearLayout).removeView(it); inkViews.remove(it) }
                 else if (m.style.dockBg) (v as LinearLayout).getChildAt(1)?.let { inkViews.remove(it); (it as TextView).setTextColor(pal.text) }
+                // one line in the dock (the grid allows two), same size as the grid's labels
+                (v as LinearLayout).getChildAt(1)?.let { (it as? IconLabel)?.most = 1 }
             }
         }
-        if (v != null) cell.addView(v, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
+        if (v != null) cell.addView(v, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
         dock.addView(cell, LinearLayout.LayoutParams(0, -2, 1f))
         dockViews += cell
     }
-}
-
-internal fun HomeActivity.dockLabel(t: String, onBg: Boolean) = text(t, 12f, if (onBg) pal.text else Color.WHITE).apply {
-    gravity = Gravity.CENTER; setPadding(dp(4), dp(3), dp(4), 0); maxLines = 1
-    if (!onBg) inkViews += this
+    // One size for the whole dock, decided now (not after layout, which raced the rebuilds): the grid's label size,
+    // shrunk together (down to 70 %) when the longest name would not fit its narrower cell.
+    val ls = dockViews.mapNotNull { c -> ((c as? ViewGroup)?.getChildAt(0) as? ViewGroup)?.let { b -> (0 until b.childCount).map { b.getChildAt(it) }.firstOrNull { it is IconLabel } as? IconLabel } }
+    if (ls.isNotEmpty()) {
+        val base = labelPx(false)
+        val cellW = (resources.displayMetrics.widthPixels - dp(24) - dp(12)) / m.dock.size.coerceAtLeast(1) - dp(8)
+        val p = android.graphics.Paint(ls[0].paint).apply { textSize = base }
+        val sc = ls.minOf { l -> p.measureText(l.text.toString()).let { if (it <= 0f) 1f else cellW / it } }.coerceIn(0.7f, 1f)
+        ls.forEach { it.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, base * sc) }
+    }
 }
 
 internal fun HomeActivity.sosMenu(anchor: View) {

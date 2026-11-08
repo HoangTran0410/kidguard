@@ -11,6 +11,7 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -54,12 +55,11 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     }
     box.clipChildren = false
     box.addView(frame, LinearLayout.LayoutParams(px + dp(4), px + dp(2)).apply { gravity = Gravity.CENTER_HORIZONTAL })
-    val showLabel = list || (model?.style?.labels ?: true)
+    // the dock has its own switch ("Tên ứng dụng ở thanh dưới"); "Tên ứng dụng" is the grid's
+    val showLabel = list || (if (mode == Mode.DOCK) model?.style?.dockLabels else model?.style?.labels) ?: true
     if (showLabel) {
-        val lbl = text(a.label, if (preset.id == "be" && !list) 14f else 12f, if (list) pal.text else Color.WHITE).apply {
-            maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; gravity = Gravity.CENTER; setPadding(dp(4), dp(1), dp(4), dp(1))
-        }
-        box.addView(lbl, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4); gravity = Gravity.CENTER_HORIZONTAL })
+        val lbl = iconLabel(a.label, list, if (list) pal.text else Color.WHITE)
+        box.addView(lbl, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
         if (!list) inkViews += lbl
     }
     if (list) {
@@ -86,6 +86,44 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     return box
 }
 
+/**
+ * The one label style under every icon (grid, dock incl. "Gọi", drawer, folders): one size everywhere, full cell width,
+ * up to 2 lines like One UI (with a 1.5 system font most names ended in "…" on one line). The dock is 1 line, same size.
+ */
+internal fun HomeActivity.iconLabel(t: String, list: Boolean, color: Int, lines: Int = 2): TextView = IconLabel(this, lines).apply {
+    text = t; setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, labelPx(list))
+    setTextColor(color); includeFontPadding = false
+    ellipsize = android.text.TextUtils.TruncateAt.END; gravity = Gravity.CENTER; setPadding(dp(4), dp(1), dp(4), dp(1))
+    setLineSpacing(0f, 0.92f)
+}
+
+/**
+ * Label size follows the icon (Pixel: 12 sp under 48 dp, ~25 %), so a 5x6 grid with small icons gets small labels too.
+ * The system font scale still counts, damped (sqrt, at most x1.25): at 1.5 the labels were as tall as half an icon.
+ * The drawer keeps 12 sp: its icons are a fixed 52 dp.
+ */
+internal fun HomeActivity.labelPx(list: Boolean): Float {
+    val user = (model?.style?.font?.toFloat() ?: 1f)
+    val sys = kotlin.math.sqrt(resources.configuration.fontScale).coerceIn(0.9f, 1.25f)
+    val base = if (list) dp(52) * 0.23f else iconPx() * 0.25f
+    return base * sys * user
+}
+
+/**
+ * 2 lines only when they fit: the cell has room for both (5x6 with a big font does not) and no word is wider than the
+ * label (else Android splits it mid-word, "Faceb/ook"); otherwise 1 line with "…".
+ */
+internal class IconLabel(ctx: android.content.Context, var most: Int) : TextView(ctx) {
+    override fun onMeasure(w: Int, h: Int) {
+        val width = MeasureSpec.getSize(w) - paddingLeft - paddingRight
+        var n = most
+        if (n > 1 && MeasureSpec.getMode(h) != MeasureSpec.UNSPECIFIED && MeasureSpec.getSize(h) - paddingTop - paddingBottom < lineHeight * 2) n = 1
+        if (n > 1 && MeasureSpec.getMode(w) != MeasureSpec.UNSPECIFIED && text.split(' ').any { paint.measureText(it) > width }) n = 1
+        if (n != maxLines) maxLines = n
+        super.onMeasure(w, h)
+    }
+}
+
 internal fun HomeActivity.folderName(f: HItem): String = f.name.ifBlank { getString(R.string.hm_f_default) }
 
 internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String, LauncherLogic.Show>): View {
@@ -106,8 +144,8 @@ internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String
     }.apply { background = if (square) fill(pal.card, px * 0.22f / resources.displayMetrics.density) else GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(pal.card) } }
     box.addView(grid, LinearLayout.LayoutParams(px, px).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(1); bottomMargin = dp(1) })
     if (model?.style?.labels != false) {
-        val lbl = text(folderName(f), if (preset.id == "be") 14f else 12f, Color.WHITE).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; gravity = Gravity.CENTER; setPadding(dp(4), dp(1), dp(4), dp(1)) }
-        box.addView(lbl, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4); gravity = Gravity.CENTER_HORIZONTAL })
+        val lbl = iconLabel(folderName(f), false, Color.WHITE)
+        box.addView(lbl, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
         inkViews += lbl
     }
     box.contentDescription = getString(R.string.hm_f_desc, folderName(f), vis.size)

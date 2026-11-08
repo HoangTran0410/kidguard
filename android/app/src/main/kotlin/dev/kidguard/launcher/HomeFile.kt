@@ -37,6 +37,15 @@ object HomeFile {
         runCatching { file(ctx).renameTo(File(ctx.filesDir, "$NAME.bad")) }
     }
 
+    /** A new app version after a crash [reset]: put the kid's layout back if it still parses (the crash may have been the code's). */
+    @Synchronized fun restoreBad(ctx: Context): Boolean {
+        val bad = File(ctx.filesDir, "$NAME.bad")
+        if (HomeLayout.parse(runCatching { bad.readText() }.getOrNull()) == null) return false
+        cache = null
+        file(ctx).delete()
+        return bad.renameTo(file(ctx))
+    }
+
     fun styleId(ctx: Context): String = load(ctx)?.style?.preset ?: ""
     fun pages(ctx: Context): Int = load(ctx)?.pages?.size ?: 0
 }

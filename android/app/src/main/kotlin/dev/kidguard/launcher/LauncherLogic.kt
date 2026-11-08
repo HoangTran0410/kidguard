@@ -127,12 +127,13 @@ object LauncherLogic {
         .replace(MARKS, "").replace('đ', 'd')
 
     /** Search: every typed word starts a word of the label, or the folded label contains the query. */
-    fun matches(label: String, query: String): Boolean {
-        val q = fold(query).trim()
-        if (q.isEmpty()) return true
-        val l = fold(label)
-        return l.contains(q) || q.split(Regex("\\s+")).all { w -> l.split(Regex("[^\\p{L}\\p{N}]+")).any { it.startsWith(w) } }
-    }
+    fun matches(label: String, query: String): Boolean = matchesFolded(fold(label), fold(query).trim())
+
+    private val SPACES = Regex("\\s+")
+    private val NON_WORD = Regex("[^\\p{L}\\p{N}]+")
+    /** [matches] on an already folded label + trimmed query: the drawer folds each label once, not on every key typed. */
+    fun matchesFolded(l: String, q: String): Boolean =
+        q.isEmpty() || l.contains(q) || q.split(SPACES).all { w -> l.split(NON_WORD).any { it.startsWith(w) } }
 
     /** Rail letter: the first letter without accents, except Đ (its own letter in Vietnamese); digits / symbols -> "#". */
     fun letter(label: String): String {

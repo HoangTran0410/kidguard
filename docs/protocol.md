@@ -791,12 +791,13 @@ suspended-by-KidGuard plumbing) are never shown, in grid, dock, drawer or search
 ### Crash fallback
 Uncaught exceptions while `HomeActivity` is alive are counted (device-protected prefs). 2nd crash within 5 min: the layout is
 reset to the preset. 3rd within 5 min: the launcher is turned off for 24 h (`safeUntil`), the stock launcher returns and an
-event `{"kind": "launcher", "text": "…đã tắt 24 giờ (HH:mm)"}` is sent. After 24 h the rule applies again.
+event `{"kind": "launcher", "text": "…đã tắt 24 giờ (HH:mm)"}` is sent. After 24 h the rule applies again. An app update clears the
+crash count and the safe mode, and a layout reset by a crash in the last 24 h comes back (`home.json.bad`, if it parses).
 
 ### `home.json` (phone only, app files dir)
 ```
 {"v":1, "grid":{"cols":3-5,"rows":4-6}, "pages":[{"items":[item…]}…], "dock":[{"pkg":"@phone"},{"pkg":pkg|""}×3],
- "style":{"preset":"be|teen|gon","icon":1-5,"labels":bool,"shape":"round|square","dockBg":bool,"accent":"<id>"|"",
+ "style":{"preset":"be|teen|gon","icon":1-5,"labels":bool,"shape":"round|square","dockBg":bool,"dockLabels":bool,"accent":"<id>"|"",
           "theme":"light|dark|auto","font":0.85|1.0|1.15|1.3,"wall":{"kind":"builtin|photo","id":"<wall id>","dim":0-60}},
  "seen":[pkg…], "notes":[note…], "todo":[todo…], "timetable":{"1".."7":[subject…]}}
 ```
