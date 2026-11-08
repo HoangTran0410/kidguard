@@ -504,6 +504,7 @@
     <string name="hm_title">Màn hình chính của bé</string>
     <string name="hm_swipe">Vuốt lên để xem tất cả ứng dụng</string>
     <string name="hm_all_apps">Tất cả ứng dụng</string>
+    <string name="hm_recent">Dùng gần đây</string>
     <string name="hm_search">Tìm ứng dụng</string>
     <string name="hm_no_result">Không có ứng dụng nào khớp “%1$s”</string>
     <string name="hm_paused_title">%1$s đang tạm nghỉ</string>
@@ -514,6 +515,23 @@
     <string name="hm_min_left">còn %1$d phút</string>
     <string name="hm_pin">Ghim vào màn chính</string>
     <string name="hm_pinned">Đã ở màn chính</string>
+    <string name="hm_e_enter">Chọn nhiều mục</string>
+    <string name="hm_e_pick">Chọn</string>
+    <string name="hm_e_tap">Chạm để chọn</string>
+    <string name="hm_e_n">Đã chọn %d</string>
+    <string name="hm_e_done">Xong</string>
+    <string name="hm_e_none">Bỏ chọn</string>
+    <string name="hm_e_group">Gom nhóm</string>
+    <string name="hm_e_move">Chuyển trang</string>
+    <string name="hm_e_all">Chọn cả trang</string>
+    <string name="hm_e_delpage">Xoá trang</string>
+    <string name="hm_e_page">Trang %d</string>
+    <string name="hm_e_newpage">Trang mới</string>
+    <string name="hm_e_del_title">Xoá trang này?</string>
+    <string name="hm_e_del_body">%d mục sẽ rời màn chính. Ứng dụng vẫn còn trong danh sách ứng dụng.</string>
+    <string name="hm_e_removed">Đã bỏ %d mục khỏi màn chính</string>
+    <string name="hm_e_nofit">%d mục không vừa trang đó</string>
+    <string name="hm_e_group_need">Chọn ít nhất 2 ứng dụng để gom nhóm</string>
     <string name="hm_unpin">Bỏ khỏi màn chính</string>
     <string name="hm_home_menu">Màn hình chính…</string>
     <string name="hm_open_kg">Mở KidGuard</string>
@@ -555,6 +573,7 @@
     <!-- kid launcher part 2 -->
     <string name="hm_d_rail">Bảng chữ cái: kéo để nhảy tới</string>
     <string name="hm_e_no_room">Không đủ chỗ</string>
+    <string name="hm_app_info">Thông tin ứng dụng</string>
     <string name="hm_f_add">Thêm vào thư mục</string>
     <string name="hm_f_add_title">Cho %1$s vào thư mục</string>
     <string name="hm_f_added">Đã thêm vào %1$s</string>
@@ -572,6 +591,9 @@
     <string name="hm_f_rename">Đổi tên</string>
     <string name="hm_f_social">Mạng xã hội</string>
     <string name="hm_f_study">Học tập</string>
+    <string name="hm_w_search">Tìm tiện ích</string>
+    <string name="hm_w_add">Thêm</string>
+    <string name="hm_w_in_use">Đang dùng</string>
     <string name="hm_w_title">Tiện ích</string>
     <string name="hm_w_sub">Bấm một cỡ để thêm, hoặc giữ và kéo ra màn chính.</string>
     <string name="hm_w_time">Thời gian còn lại</string>
@@ -697,7 +719,8 @@
     <string name="hm_c_dots_need">Chưa có quyền đọc thông báo. Chạm để bật cho KidGuard.</string>
     <string name="hm_c_undo">Hoàn tác đổi lưới</string>
     <string name="hm_c_wall">Hình nền</string>
-    <string name="hm_c_dim">Làm tối ảnh</string>
+    <string name="hm_c_dim">Giảm sáng</string>
+    <string name="hm_c_blur">Làm mờ</string>
     <string name="hm_c_accent">Màu nhấn</string>
     <string name="hm_c_theme">Sáng / tối</string>
     <string name="hm_c_light">Sáng</string>

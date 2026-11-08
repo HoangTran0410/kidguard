@@ -86,19 +86,17 @@ internal interface DotHost { val dotPkgs: Collection<String> }
 
 internal object Dots {
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val num = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textAlign = Paint.Align.CENTER; typeface = Typeface.DEFAULT_BOLD }
 
     fun count(pkgs: Collection<String>): Int { val c = NotifDots.counts; return if (c.isEmpty()) 0 else pkgs.sumOf { c[it] ?: 0 } }
 
-    /** One UI style (or a plain dot): a red disc with the count at the icon's top-right, a thin white ring keeps it off any icon. */
+    /** POCO / One UI style (or a plain dot): a red disc with the count at the icon's top-right, no ring (POCO's reads fine without). */
     fun draw(c: Canvas, px: Int, n: Int, density: Float, number: Boolean = true) {
         if (n <= 0) return
         if (!number) {
             // Pixel-style plain dot
             val r = (px * 0.1f).coerceAtLeast(5 * density); val cx = px - r * 0.5f; val cy = r * 0.5f   // half out past the corner
             fill.color = 0xFFE5393B.toInt(); c.drawCircle(cx, cy, r, fill)
-            ring.color = Color.WHITE; ring.strokeWidth = density * 1.5f; c.drawCircle(cx, cy, r, ring)
             return
         }
         val t = if (n > 99) "99+" else n.toString()
@@ -109,8 +107,6 @@ internal object Dots {
         val cx = px - w / 2f + r * 0.55f; val cy = r * 0.45f
         fill.color = 0xFFE5393B.toInt()
         c.drawRoundRect(cx - w / 2, cy - r, cx + w / 2, cy + r, r, r, fill)
-        ring.color = Color.WHITE; ring.strokeWidth = density * 1.5f
-        c.drawRoundRect(cx - w / 2, cy - r, cx + w / 2, cy + r, r, r, ring)
         c.drawText(t, cx, cy - (num.descent() + num.ascent()) / 2, num)
     }
 

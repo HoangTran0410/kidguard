@@ -67,6 +67,8 @@ internal fun HomeActivity.buildDock(m: HomeModel, all: Map<String, AppE>, show: 
             }
         }
         if (v != null) cell.addView(v, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
+        // an empty slot takes no room, so the icons left spread out evenly (POCO / One UI); a drag opens the slots again ([startDrag])
+        else if (i > 0) cell.visibility = View.GONE
         dock.addView(cell, LinearLayout.LayoutParams(0, -2, 1f))
         dockViews += cell
     }
@@ -223,6 +225,7 @@ internal fun HomeActivity.openDrawer() {
 
 internal fun HomeActivity.closeDrawer() {
     drawer ?: return
+    drawer?.unlight()
     // the keyboard starts sliding away now, not after the drawer is gone
     drawer?.search?.let { s -> s.clearFocus(); (getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(s.windowToken, 0) }
     drawerBegin(); drawerSettle(false)

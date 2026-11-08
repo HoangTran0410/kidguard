@@ -26,11 +26,11 @@ data class HItem(
 
 data class HStyle(
     val preset: String = "teen", val icon: Int = 3, val labels: Boolean = true, val shape: String = "round", val dockBg: Boolean = true, val dockLabels: Boolean = true, val badge: String = "num", val face: String = "sys",
-    val accent: String = "", val theme: String = "auto", val font: Double = 1.0, val wallKind: String = "builtin", val wall: String = "", val dim: Int = 0,
+    val accent: String = "", val theme: String = "auto", val font: Double = 1.0, val wallKind: String = "builtin", val wall: String = "", val dim: Int = 0, val blur: Int = 0,
 ) {
     fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels).put("badge", badge).put("face", face)
         .put("accent", accent).put("theme", theme).put("font", font)
-        .put("wall", JSONObject().put("kind", wallKind).put("id", wall).put("dim", dim))
+        .put("wall", JSONObject().put("kind", wallKind).put("id", wall).put("dim", dim).put("blur", blur))
 
     companion object {
         fun fromJson(o: JSONObject?): HStyle {
@@ -47,7 +47,7 @@ data class HStyle(
                 font = o.optDouble("font", 1.0).takeIf { !it.isNaN() }?.coerceIn(0.85, 1.3) ?: 1.0,
                 wallKind = w.optString("kind", "builtin").takeIf { it in setOf("builtin", "photo", "system") } ?: "builtin",
                 wall = w.optString("id", "").takeIf { it.isEmpty() || it in HomeStyle.WALLS } ?: "",
-                dim = w.optInt("dim", 0).coerceIn(0, 60),
+                dim = w.optInt("dim", 0).coerceIn(0, 60), blur = w.optInt("blur", 0).coerceIn(0, 100),
             )
         }
     }
@@ -387,6 +387,69 @@ object HomeLayout {
         return dropOnto(t.copy(m = t.m.copy(seen = t.m.seen + pkg)), targetId, name)
     }
 
+    // ---- edit mode (several items at once, POCO / One UI) ----
+
+    /** The picked grid items in reading order: page, then row, then column. */
+    private fun picked(m: HomeModel, ids: Collection<String>): List<Pair<Int, HItem>> =
+        m.pages.flatMapIndexed { pi, p -> p.filter { it.id in ids }.map { pi to it } }.sortedWith(compareBy({ it.first }, { it.second.y }, { it.second.x }))
+
+    /** Edit-mode actions leave no empty page anywhere (the first one included); one page always stays. */
+    private fun compact(m: HomeModel): HomeModel {
+        val keep = m.pages.filter { it.isNotEmpty() }.ifEmpty { listOf(emptyList()) }
+        return if (keep.size == m.pages.size) m else m.copy(pages = keep)
+    }
+
+    /** Apps behind grid items (a folder's apps; widgets have none): they stay in the drawer and are never re-added. */
+    private fun pkgsOf(items: List<HItem>) = items.flatMap { when (it.kind) { "app" -> listOf(it.pkg); "folder" -> it.apps; else -> emptyList() } }.filter { it.isNotEmpty() }
+
+    /** "Bỏ khỏi màn chính" on the picked items (apps, folders, widgets). */
+    fun removeIds(m: HomeModel, ids: Set<String>): HomeModel {
+        val gone = m.pages.flatten().filter { it.id in ids }
+        if (gone.isEmpty()) return m
+        return compact(m.copy(pages = m.pages.map { p -> p.filter { it.id !in ids } }, seen = m.seen + pkgsOf(gone)))
+    }
+
+    /** "Xoá trang": the whole page goes, its apps stay in the drawer. The only page left is emptied, never removed. */
+    fun removePage(m: HomeModel, page: Int): HomeModel {
+        if (page !in m.pages.indices) return m
+        val pages = m.pages.filterIndexed { i, _ -> i != page }.ifEmpty { listOf(emptyList()) }
+        return compact(m.copy(pages = pages, seen = m.seen + pkgsOf(m.pages[page])))
+    }
+
+    /**
+     * "Gom nhóm": the picked apps and folders become one folder in the first one's cell (a folder keeps its name),
+     * in reading order. Picked widgets stay where they are. Null: fewer than 2 apps or more than [FOLDER_MAX].
+     */
+    fun group(m: HomeModel, ids: Collection<String>, name: String): HomeModel? {
+        val items = picked(m, ids).filter { it.second.kind == "app" || it.second.kind == "folder" }
+        val apps = pkgsOf(items.map { it.second }).distinct()
+        if (apps.size < 2 || apps.size > FOLDER_MAX) return null
+        val (pi, first) = items.first()
+        val folder = if (first.kind == "folder") first.copy(apps = apps) else HItem(idFor(m, "f"), "folder", first.x, first.y, name = name.take(40), apps = apps)
+        val merged = items.map { it.second.id }.toSet() - first.id
+        val pages = m.pages.mapIndexed { i, p -> p.filter { it.id !in merged }.map { if (i == pi && it.id == first.id) folder else it } }
+        return compact(m.copy(pages = pages))
+    }
+
+    /**
+     * "Chuyển trang": the picked items to the first free cells of [page] ([page] == pages.size: a new page), in reading
+     * order. What does not fit stays put. Returns the model and how many items moved.
+     */
+    fun moveTo(m: HomeModel, ids: Collection<String>, page: Int): Pair<HomeModel, Int> {
+        if (page < 0 || page > m.pages.size) return m to 0
+        val pages = m.pages.map { it.toMutableList() }.toMutableList()
+        if (page == pages.size) pages.add(mutableListOf())
+        var n = 0
+        for ((pi, it) in picked(m, ids)) {
+            if (pi == page) continue
+            val (x, y) = firstFree(pages[page], m.cols, m.rows, it.w, it.h) ?: continue
+            pages[pi].removeAll { o -> o.id == it.id }
+            pages[page].add(it.copy(x = x, y = y)); n++
+        }
+        if (n == 0) return m to 0
+        return compact(m.copy(pages = pages.map { it.toList() })) to n
+    }
+
     fun hasWidget(m: HomeModel, type: String) = m.pages.flatten().any { it.kind == "widget" && it.type == type }
 
     /** A picker tap: the first free cells for a [w] x [h] widget, from [page] on, then the pages before, then a new page. */
@@ -415,10 +478,24 @@ object HomeLayout {
         if (nw == it.w && nh == it.h) return m
         val rest = m.pages[pi].filter { o -> o.id != id }
         val x = minOf(it.x, m.cols - nw); val y = minOf(it.y, m.rows - nh)
-        if (free(rest, m.cols, m.rows, x, y, nw, nh)) return setPage(m, pi, rest + it.copy(x = x, y = y, w = nw, h = nh))
-        val t = Taken(setPage(m, pi, rest), it.copy(w = nw, h = nh), pi, it.x, it.y)
-        for (p in listOf(pi) + m.pages.indices.filter { p -> p != pi }) firstFree(t.m.pages[p], m.cols, m.rows, nw, nh)?.let { (fx, fy) -> return dropCell(t, p, fx, fy) }
-        return dropCell(t, t.m.pages.size, 0, 0)
+        val grown = it.copy(x = x, y = y, w = nw, h = nh)
+        if (free(rest, m.cols, m.rows, x, y, nw, nh)) return setPage(m, pi, rest + grown)
+        // grows in place (One UI / POCO): what it now covers moves down by the rows it grew, else to the first free cell of
+        // the page, else onto a new page right after it. Moving the widget to another free page instead looked like it vanished.
+        val dy = (nh - it.h).coerceAtLeast(1)
+        val placed = arrayListOf(grown); val over = ArrayList<HItem>()
+        for (o in rest.sortedWith(compareBy({ it.y }, { it.x }))) {
+            val spot = listOf(o.x to o.y, o.x to o.y + dy).firstOrNull { (cx, cy) -> free(placed, m.cols, m.rows, cx, cy, o.w, o.h) }
+                ?: firstFree(placed, m.cols, m.rows, o.w, o.h)
+            if (spot != null) placed += o.copy(x = spot.first, y = spot.second) else over += o
+        }
+        val pages = m.pages.toMutableList(); pages[pi] = placed
+        if (over.isNotEmpty()) {
+            val np = ArrayList<HItem>()
+            for (o in over) firstFree(np, m.cols, m.rows, o.w, o.h)?.let { (cx, cy) -> np += o.copy(x = cx, y = cy) }
+            pages.add(pi + 1, np)
+        }
+        return m.copy(pages = pages)
     }
 
     /**

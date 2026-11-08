@@ -154,48 +154,83 @@ internal fun HomeActivity.appWidget(it: HItem, show: Map<String, LauncherLogic.S
 
 // ---- picker section ----
 
-private fun HomeActivity.awProviders(): List<Pair<HomeActivity.AppE, List<AppWidgetProviderInfo>>> {
-    val all = launcherApps()
+/** [all] / [show]: snapshots taken on the main thread (this runs on the picker's loader thread). */
+private fun HomeActivity.awProviders(all: Map<String, HomeActivity.AppE>, show: Map<String, LauncherLogic.Show>): List<Pair<HomeActivity.AppE, List<AppWidgetProviderInfo>>> {
     val infos = runCatching { awMgr().getInstalledProvidersForProfile(Process.myUserHandle()) }.getOrNull() ?: awMgr().installedProviders
-    return infos.filter { p -> p.provider.packageName != packageName && lastShow[p.provider.packageName].let { s -> s != null && s != LauncherLogic.Show.HIDE } }
+    return infos.filter { p -> p.provider.packageName != packageName && show[p.provider.packageName].let { s -> s != null && s != LauncherLogic.Show.HIDE } }
         .groupBy { it.provider.packageName }
         .mapNotNull { (pkg, l) -> all[pkg]?.let { it to l } }
         .sortedBy { it.first.sortKey }
 }
 
-/** After our own rows: a header and, per app, its icon + label and one row per provider. Built a few apps per frame. */
-internal fun HomeActivity.awPickerSection(list: LinearLayout, alive: () -> Boolean) {
-    val groups = awProviders()
-    if (groups.isEmpty()) return
-    list.addView(text(getString(R.string.hm_w_apps_title), 18f, pal.text, true).apply { setPadding(0, dp(20), 0, dp(4)) })
+/**
+ * After our own rows: a header and, per app, its icon + label and one row per provider. Reading the previews is slow
+ * (~25 ms an app on a Poco F-class phone: decode + label, 75 apps there), so a background thread reads them, shrunk to
+ * the thumbnail size, and the rows are added a few apps per frame. On the main thread this jammed every frame for ~2 s
+ * while the sheet slid up.
+ */
+internal fun HomeActivity.awPickerSection(list: LinearLayout, query: String = "", alive: () -> Boolean) {
+    val fq = LauncherLogic.fold(query).trim()
     val sq = model?.style?.shape != "square"
     val (cw, ch) = awCell(); val d = resources.displayMetrics.density; val m = model
-    fun group(g: Pair<HomeActivity.AppE, List<AppWidgetProviderInfo>>) {
-        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(12), 0, dp(4)) }
-        head.addView(ImageView(this).apply { setImageBitmap(IconCache.get(this@awPickerSection, g.first.pkg, g.first.cls, dp(28), sq)) }, LinearLayout.LayoutParams(dp(28), dp(28)))
-        head.addView(text(g.first.label, 15f, pal.text, true).apply { setPadding(dp(10), 0, 0, 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
-        list.addView(head)
-        for (info in g.second) {
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(6), 0, dp(6)) }
-            val pv = runCatching { info.loadPreviewImage(this, 0) ?: info.loadIcon(this, 0) }.getOrNull()
-            row.addView(ImageView(this).apply { setImageDrawable(pv); scaleType = ImageView.ScaleType.FIT_CENTER; background = fill(pal.tint, 12f); setPadding(dp(6), dp(6), dp(6), dp(6)); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }, LinearLayout.LayoutParams(dp(96), dp(60)))
-            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, 0, 0) }
-            val name = runCatching { info.loadLabel(packageManager) }.getOrNull()?.takeIf { it.isNotBlank() } ?: g.first.label
-            col.addView(text(name, 14f, pal.text, true).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END })
+    class R0(val info: AppWidgetProviderInfo, val pv: android.graphics.Bitmap?, val name: String)
+    class G0(val app: HomeActivity.AppE, val icon: android.graphics.Bitmap?, val rows: List<R0>)
+    // thumbnails at most 2x density: 150 providers at full 3x size would hold ~70 MB while the sheet is open
+    val ds = minOf(d, 2f); val tw = (130 * ds).toInt(); val th = (84 * ds).toInt()
+    fun thumb(dr: android.graphics.drawable.Drawable?): android.graphics.Bitmap? {
+        dr ?: return null
+        val iw = dr.intrinsicWidth.takeIf { it > 0 } ?: tw; val ih = dr.intrinsicHeight.takeIf { it > 0 } ?: th
+        val sc = minOf(tw.toFloat() / iw, th.toFloat() / ih, 1f)
+        val w = (iw * sc).toInt().coerceAtLeast(1); val h = (ih * sc).toInt().coerceAtLeast(1)
+        return runCatching { android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888).also { dr.setBounds(0, 0, w, h); dr.draw(android.graphics.Canvas(it)) } }.getOrNull()
+    }
+    // POCO's look: one card per app (icon + name), its widgets two to a row as bare previews (no plate behind them),
+    // name + size under each; cards spaced apart so one app's widgets never run into the next one's.
+    fun group(g: G0) {
+        val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = fill(pickSurf(), 22f); setPadding(dp(14), dp(12), dp(14), dp(10)) }
+        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, dp(8)) }
+        head.addView(ImageView(this).apply { setImageBitmap(g.icon) }, LinearLayout.LayoutParams(dp(26), dp(26)))
+        head.addView(text(g.app.label, 15f, pal.text, true).apply { setPadding(dp(10), 0, 0, 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+        card.addView(head)
+        var line: LinearLayout? = null
+        for ((k, r) in g.rows.withIndex()) {
+            val info = r.info; val name = r.name
             val (w, h) = cellsFor((info.minWidth * d).toInt(), cw, m?.cols ?: 4) to cellsFor((info.minHeight * d).toInt(), ch, m?.rows ?: 5)
-            col.addView(wSub("$w×$h"))
-            row.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
-            kit.tap(row, 16f) { awAdd(info) }
-            row.contentDescription = "$name, ${g.first.label}, $w×$h"
-            list.addView(row, LinearLayout.LayoutParams(-1, -2))
+            val cell = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(4), dp(6), dp(4), dp(6)) }
+            cell.addView(ImageView(this).apply { setImageBitmap(r.pv); scaleType = ImageView.ScaleType.FIT_CENTER; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }, LinearLayout.LayoutParams(-1, dp(84)))
+            cell.addView(text(name, 13f, pal.text, true).apply { gravity = Gravity.CENTER; maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, dp(6), 0, 0) }, LinearLayout.LayoutParams(-1, -2))
+            cell.addView(wSub("$w×$h").apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-1, -2))
+            kit.tap(cell, 16f) { awAdd(info) }
+            cell.contentDescription = "$name, ${g.app.label}, $w×$h"
+            if (k % 2 == 0) line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; weightSum = 2f }.also { card.addView(it, LinearLayout.LayoutParams(-1, -2)) }
+            line!!.addView(cell, LinearLayout.LayoutParams(0, -2, 1f))
         }
+        list.addView(card, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
     }
-    fun more(from: Int) {
-        if (from >= groups.size || !alive()) return
-        for (i in from until minOf(from + 2, groups.size)) group(groups[i])
-        list.post { more(from + 2) }
+    val q = java.util.concurrent.ConcurrentLinkedQueue<G0>()
+    val done = java.util.concurrent.atomic.AtomicBoolean(false)
+    val ctx = applicationContext; val all = launcherApps(); val show = lastShow
+    Thread({
+        // the provider list too (~30 ms): only the views are made on the main thread
+        for ((app, infos) in runCatching { awProviders(all, show) }.getOrDefault(emptyList())) {
+            if (!alive()) break
+            // a search: the app's name matches (all its widgets) or a widget's own name does (only those)
+            val named = infos.map { it to (runCatching { it.loadLabel(ctx.packageManager) }.getOrNull()?.takeIf { n -> n.isNotBlank() } ?: app.label) }
+            val keep = if (fq.isEmpty() || LauncherLogic.fold(app.label).contains(fq)) named else named.filter { LauncherLogic.fold(it.second).contains(fq) }
+            if (keep.isEmpty()) continue
+            val icon = IconCache.get(ctx, app.pkg, app.cls, dp(28), sq)
+            q += G0(app, icon, keep.map { (info, name) -> R0(info, thumb(runCatching { info.loadPreviewImage(ctx, 0) ?: info.loadIcon(ctx, 0) }.getOrNull()), name) })
+        }
+        done.set(true)
+    }, "kg-aw-picker").apply { priority = Thread.NORM_PRIORITY - 1 }.start()
+    var titled = false
+    fun drain() {
+        if (!alive()) return
+        if (!titled && q.isNotEmpty()) { titled = true; list.addView(text(getString(R.string.hm_w_apps_title), 18f, pal.text, true).apply { setPadding(0, dp(20), 0, dp(4)) }) }
+        repeat(3) { q.poll()?.let { group(it) } }
+        if (!done.get() || q.isNotEmpty()) list.postOnAnimation { drain() }
     }
-    more(0)
+    list.postOnAnimation { drain() }
 }
 
 // ---- add flow: allocate id -> bind (ask when needed) -> configure -> place ----

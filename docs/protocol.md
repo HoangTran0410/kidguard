@@ -800,7 +800,7 @@ crash count and the safe mode, and a layout reset by a crash in the last 24 h co
 ```
 {"v":1, "grid":{"cols":3-5,"rows":4-6}, "pages":[{"items":[item…]}…], "dock":[{"pkg":"@phone"},{"pkg":pkg|""}×3],
  "style":{"preset":"be|teen|gon","icon":1-5,"labels":bool,"shape":"round|square","dockBg":bool,"dockLabels":bool,"badge":"num|dot|off","face":"sys|light|medium|condensed|serif","accent":"<id>"|"",
-          "theme":"light|dark|auto","font":0.85|1.0|1.15|1.3,"wall":{"kind":"builtin|photo","id":"<wall id>","dim":0-60}},
+          "theme":"light|dark|auto","font":0.85|1.0|1.15|1.3,"wall":{"kind":"builtin|photo","id":"<wall id>","dim":0-60,"blur":0-100}},
  "seen":[pkg…], "notes":[note…], "todo":[todo…], "timetable":{"1".."7":[subject…]}}
 ```
 item `{"id","kind":"app|widget|folder","x","y","w"?,"h"?,"pkg"?,"cls"?,"type"?,"name"?,"apps"?,"awid"?}`.
@@ -810,7 +810,9 @@ item `{"id","kind":"app|widget|folder","x","y","w"?,"h"?,"pkg"?,"cls"?,"type"?,"
   (today's top apps), `battery` 2×1, `when` 4×1 / 4×2 (6:00–22:00 bar of blocked / free time, time left, per-group left),
   `earn` 2×2 / 4×2 (`rules.chores`, "Xong" sends the same request as the "Hôm nay" page), `msg` 4×1 / 2×2 (`rules.blockNote` +
   newest pending request; the phone keeps no message history), `class` 4×2 / 2×2 (today's `timetable` + what to pack for tomorrow). Older phones drop types they don't know (repair on load). One of each
-  type; on a 3-column grid a 4-wide widget is 3 wide. Placed from "Tiện ích" (long-press empty space) by tap or drag.
+  type; on a 3-column grid a 4-wide widget is 3 wide. Placed from "Tiện ích" (long-press empty space) by tap or drag. Resizing grows it in
+  place: what it covers moves down by the rows it grew, else to the first free cell of the page, else onto a new page right after.
+- `style.wall.dim` / `blur` (percent) apply to any wallpaper kind: the image is blurred, then darkened, once per change.
 - Widget `type:"app"` (another app's home-screen widget): `pkg`/`cls` = provider component, `awid` = AppWidgetHost id (host id 0x4b47), any size w×h within the grid, several allowed. Not rendered (a locked card instead) while its app is hidden or blocked; the id is deleted from the host when the item leaves the layout. Older phones drop it (repair).
 - Folder: `apps` (2–20 pkgs, in order), `name` (auto from the apps' category: Trò chơi / Mạng xã hội / Học tập /
   Giải trí / Thư mục; the kid can rename). A folder left with 1 app turns back into that app (on edit and on load).

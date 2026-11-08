@@ -95,6 +95,39 @@ object Wallpaper {
     const val PHOTO = "wall.jpg"
 
     /** Darkens [bmp] by [pct] % (Tuỳ chỉnh "Làm tối"), in place, so the ink sampling sees the same pixels as the kid. */
+    /**
+     * Frosted wallpaper (POCO's "làm mờ hình nền"): [pct] 0-100. Done once per wallpaper change, never per frame: shrink to
+     * 1/4..1/14, three box-blur passes on the small copy (≈ a Gaussian), scale back up with filtering. Returns [bmp] at 0.
+     */
+    fun blur(bmp: Bitmap, pct: Int): Bitmap {
+        if (pct <= 0) return bmp
+        val f = 4 + pct / 10
+        val sw = (bmp.width / f).coerceAtLeast(8); val sh = (bmp.height / f).coerceAtLeast(8)
+        val small = Bitmap.createScaledBitmap(bmp, sw, sh, true)
+        val a = IntArray(sw * sh); small.getPixels(a, 0, sw, 0, 0, sw, sh)
+        val t = IntArray(a.size); val r = 2
+        repeat(3) { box(a, t, sw, sh, r, true); box(t, a, sw, sh, r, false) }
+        small.setPixels(a, 0, sw, 0, 0, sw, sh)
+        val out = Bitmap.createScaledBitmap(small, bmp.width, bmp.height, true)
+        small.recycle(); if (out !== bmp) bmp.recycle()
+        return if (out.isMutable) out else out.copy(Bitmap.Config.ARGB_8888, true).also { out.recycle() }
+    }
+
+    /** One box-blur pass of radius [r], rows ([horiz]) or columns, edges clamped; opaque wallpapers, so alpha is kept at 255. */
+    private fun box(src: IntArray, dst: IntArray, w: Int, h: Int, r: Int, horiz: Boolean) {
+        val n = if (horiz) w else h; val lines = if (horiz) h else w; val d = 2 * r + 1
+        for (l in 0 until lines) {
+            fun at(i: Int) = src[if (horiz) l * w + i.coerceIn(0, n - 1) else i.coerceIn(0, n - 1) * w + l]
+            var rs = 0; var gs = 0; var bs = 0
+            for (i in -r..r) { val p = at(i); rs += p shr 16 and 255; gs += p shr 8 and 255; bs += p and 255 }
+            for (i in 0 until n) {
+                dst[if (horiz) l * w + i else i * w + l] = (0xFF shl 24) or (rs / d shl 16) or (gs / d shl 8) or (bs / d)
+                val o = at(i - r); val p = at(i + r + 1)
+                rs += (p shr 16 and 255) - (o shr 16 and 255); gs += (p shr 8 and 255) - (o shr 8 and 255); bs += (p and 255) - (o and 255)
+            }
+        }
+    }
+
     fun dim(bmp: Bitmap, pct: Int) { if (pct > 0) Canvas(bmp).drawColor(Color.argb((pct.coerceIn(0, 60) * 255 / 100), 0, 0, 0)) }
 
     /** Dark wallpapers want light status bar icons. */

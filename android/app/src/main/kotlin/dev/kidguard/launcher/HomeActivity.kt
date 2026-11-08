@@ -60,6 +60,8 @@ import dev.kidguard.HomeLayout.Src
  */
 class HomeActivity : Activity() {
     companion object {
+        /** Width of the drawer's A–Z rail (was 26: it ate into the grid). */
+        const val RAIL_DP = 20
         @Volatile var alive = 0; const val FOLDER_MS = 500L
         /** Created once: Typeface.create looked the family up again for every bold label. */
         val MEDIUM: Typeface by lazy { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
@@ -87,7 +89,7 @@ class HomeActivity : Activity() {
     /** What is being dragged: a grid / dock / folder / picker source, or [pkg] from the drawer. */
     internal class DragSt(val src: Src?, val pkg: String?, val kind: String, val w: Int, val h: Int, val id: String?, val view: View?)
 
-    internal class CellLP(val x: Int, val y: Int, val w: Int, val h: Int) : ViewGroup.LayoutParams(-1, -1)
+    internal class CellLP(val x: Int, val y: Int, val w: Int, val h: Int, val id: String = "") : ViewGroup.LayoutParams(-1, -1)
 
     internal enum class Mode { HOME, DOCK, DRAWER, PANEL }
 
@@ -124,6 +126,11 @@ class HomeActivity : Activity() {
     internal var lastTap = 0L
     internal var drag: DragSt? = null
     internal var tempPage = false
+    /** Edit mode (HomeEdit.kt): pages shrink, a tap picks / unpicks a grid item, bulk actions in the bottom bar. */
+    internal var editing = false
+    internal val picked = LinkedHashSet<String>()   // picked grid item ids
+    internal var editTop: View? = null
+    internal var editBottom: View? = null
     internal var insT = 0; internal var insB = 0; internal var insL = 0; internal var insR = 0
     /** Bottom inset with the keyboard (insB is the bars only): the drawer, Today and sheets with a text field follow the
      *  keyboard; the home pages never do (they shrank for the ~0.5 s the keyboard took to slide away after search). */
@@ -195,6 +202,7 @@ class HomeActivity : Activity() {
             floatBox.setPadding(insL, insT, insR, insB)
             drawerCache?.setPadding(insL, insT, insR, imeB)
             today?.pad(insT, imeB)
+            pickerIme()
             padPages()
             ins
         }
@@ -209,8 +217,15 @@ class HomeActivity : Activity() {
     override fun onDestroy() { alive--; if (NotifDots.onChange === dotRx) NotifDots.onChange = null; super.onDestroy() }
     private val dotRx: (Set<String>) -> Unit = { changed -> Dots.refresh(window.decorView, changed) }
 
+    /** The drawer's "recently used" packages, most recent first ([Recent]); read off the main thread on each return home. */
+    internal var recent: List<String> = emptyList()
+
     override fun onResume() {
         super.onResume()
+        Thread {
+            val r = Recent.load(applicationContext)
+            runOnUiThread { if (r != recent) { recent = r; drawer?.refill() } }
+        }.start()
         Guard.listeners.add(listener)
         timeRx = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { render(false) } }
         registerReceiver(timeRx, IntentFilter().apply { addAction(Intent.ACTION_TIME_TICK); addAction(Intent.ACTION_TIME_CHANGED); addAction(Intent.ACTION_TIMEZONE_CHANGED) })
@@ -231,6 +246,7 @@ class HomeActivity : Activity() {
     }
 
     override fun onPause() {
+        exitEdit()
         Guard.listeners.remove(listener)
         timeRx?.let { runCatching { unregisterReceiver(it) } }; timeRx = null
         popup?.dismiss()
@@ -254,6 +270,7 @@ class HomeActivity : Activity() {
         popup?.dismiss()
         when {
             overlay != null -> closeOverlay()
+            editing -> exitEdit()
             drawer != null -> closeDrawer()
             else -> pager.snapTo(1)
         }
@@ -263,6 +280,7 @@ class HomeActivity : Activity() {
     override fun onBackPressed() {
         when {
             overlay != null -> closeOverlay()
+            editing -> exitEdit()   // multi-select: Back leaves it (as Home does), picks dropped
             drawer != null -> closeDrawer()
             pager.page != 1 -> pager.snapTo(1)
         }
@@ -395,7 +413,7 @@ class HomeActivity : Activity() {
             android.os.Looper.myQueue().addIdleHandler { if (gen == todayGen && !isFinishing) today?.fill(r, dv.minute, dv.dow, dv.now); false }
         }
         lap("today")
-        lap.done("rebuild")
+        lap("${IconCache.stats()}"); lap.done("rebuild")
         // no-op unless what it shows changed; the first one is built while idle, so the first swipe up has it ready under the finger
         drawerCache?.let { d -> main.post { d.refill() } } ?: main.postDelayed({ if (drawerCache == null && !isFinishing && !busy()) drawerView() }, 800)
         main.post { inkPass(); chromeFade() }
@@ -408,11 +426,12 @@ class HomeActivity : Activity() {
         val p = if (::preset.isInitialized) preset else HomeStyle.preset(st.preset)
         val photo = st.wallKind == "photo"
         val id = st.wall.takeIf { it.isNotEmpty() } ?: if (dark) p.wallDark else p.wallLight
-        val k = (if (photo) "photo:" + java.io.File(filesDir, Wallpaper.PHOTO).lastModified() + ":" + st.dim else id) + "@${w}x$h"
+        val k = (if (photo) "photo:" + java.io.File(filesDir, Wallpaper.PHOTO).lastModified() else id) + ":${st.dim}:${st.blur}@${w}x$h"
         if (k == wallKey) return
         wallKey = k; inkCache.clear()
         val old = wall
-        wall = (if (photo) Wallpaper.photo(this, w, h)?.also { Wallpaper.dim(it, st.dim) } else null) ?: Wallpaper.draw(id, w, h)
+        // blur + dim (Tuỳ chỉnh) on any wallpaper: a calmer background makes the grid easier to read
+        wall = Wallpaper.blur((if (photo) Wallpaper.photo(this, w, h) else null) ?: Wallpaper.draw(id, w, h), st.blur).also { Wallpaper.dim(it, st.dim) }
         wallView.show(wall)
         // the opaque wallpaper covers the window: the theme's black background was one more full-screen fill per frame
         window.setBackgroundDrawable(null)
@@ -531,7 +550,7 @@ class HomeActivity : Activity() {
                     else -> null
                 } ?: continue
                 itemViews[it.id] = v
-                cell.addView(v, CellLP(it.x, it.y, it.w, it.h))
+                cell.addView(v, CellLP(it.x, it.y, it.w, it.h, it.id))
             }
             cell.page = pi
             pager.addView(cell)
@@ -546,7 +565,7 @@ class HomeActivity : Activity() {
 
     /** While dragging: the page panel in the wallpaper's ink colour. */
     internal fun styleCells() {
-        val on = drag != null
+        val on = drag != null || editing
         val c = inkCache["grid"]?.text ?: Color.WHITE
         for (i in 1 until pager.childCount) (pager.getChildAt(i) as? CellLayout)?.let { it.grid = on; it.gridColor = c; it.invalidate() }
     }
@@ -591,6 +610,7 @@ class HomeActivity : Activity() {
     internal var armed: View? = null
     internal var downX = 0f; internal var downY = 0f
     internal var flip: Runnable? = null
+    internal var hoverX = 0f; internal var hoverY = 0f   // last drag hover point (edge flip repeats while the finger rests)
     internal var hoverId: String? = null          // folder target: the finger rested on its icon (see FOLDER_MS)
     internal var folderArm: Runnable? = null
     internal var folderReady = false
@@ -609,7 +629,7 @@ class HomeActivity : Activity() {
     internal inner class Drawer(ctx: Context) : LinearLayout(ctx) {
         val search = EditText(ctx)
         val list = LinearLayout(ctx).apply { orientation = VERTICAL }
-        val rail = LinearLayout(ctx).apply { orientation = VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        val rail = LinearLayout(ctx).apply { orientation = VERTICAL; gravity = Gravity.CENTER }   // letters packed in the middle (POCO / One UI), not spread over the height
         val bubble = TextView(ctx)
         val scroll = ScrollView(ctx)
         private var lastKey = ""
@@ -619,7 +639,16 @@ class HomeActivity : Activity() {
         private var built = 0
         private var rowsLeft: () -> Unit = {}
         private var railKey = ""
+        private var off = 0   // list children above the A–Z rows (the "recently used" header, row, divider)
         val rowOf = LinkedHashMap<String, Int>()   // rail letter -> index of the grid row holding its first app
+        /** Every built cell with its rail letter: the scrubbed letter's apps stay lit, the rest dim (POCO / MIUI drawer). */
+        private val cells = ArrayList<Pair<View, String>>()
+        private var scrubbed: String? = null   // the letter under the finger (null once it lifts)
+        private var lit: String? = null        // the highlighted letter: stays after the finger lifts, until the list is scrolled by hand
+        private val alphaTo = HashMap<View, Float>()   // each cell's target alpha (its current one lags behind while animating)
+        private var downOnRail = false
+        private val hideBubble = Runnable { bubble.animate().alpha(0f).setDuration(150).withEndAction { bubble.visibility = View.GONE; bubble.alpha = 1f }.start() }
+        private var scrollAnim: android.animation.ObjectAnimator? = null
         // pull down while the list is at its top: the drawer follows the finger down, then closes or springs back (Pixel)
         private var py0 = 0f; private var px0 = 0f; private var pulling = false; private var pullFrom = 0f
         private var pvt: VelocityTracker? = null
@@ -632,7 +661,7 @@ class HomeActivity : Activity() {
                 MotionEvent.ACTION_DOWN -> { py0 = e.rawY; px0 = e.rawX; pulling = false }
                 MotionEvent.ACTION_MOVE -> {
                     val dy = e.rawY - py0
-                    val onRail = e.x >= width - paddingRight - dp(26)
+                    val onRail = e.x >= width - paddingRight - dp(RAIL_DP)
                     if (!pulling && !onRail && drag == null && popup?.isShowing != true && drawerAnim == null && scroll.scrollY == 0 &&
                         dy > pslop && dy > abs(e.rawX - px0) * 1.5f) { pulling = true; pullFrom = e.rawY; drawerBegin() }
                 }
@@ -685,7 +714,7 @@ class HomeActivity : Activity() {
             scroll.isVerticalScrollBarEnabled = false
             scroll.addView(list)
             inner.addView(scroll, LayoutParams(0, -1, 1f))
-            inner.addView(rail, LayoutParams(dp(26), -1))
+            inner.addView(rail, LayoutParams(dp(RAIL_DP), -1))
             body.addView(inner, FrameLayout.LayoutParams(-1, -1))
             // the scrub bubble: a big letter on the accent while the finger is on the rail
             bubble.apply {
@@ -696,17 +725,21 @@ class HomeActivity : Activity() {
             addView(body, LayoutParams(-1, 0, 1f))
             rail.setOnTouchListener { v, e ->
                 if (rail.childCount == 0) return@setOnTouchListener false
-                val i = (e.y / v.height * rail.childCount).toInt().coerceIn(0, rail.childCount - 1)
-                val letter = (rail.getChildAt(i) as TextView).text.toString()
-                rowFor(letter)?.let { rv -> if (rv.isLaidOut) scroll.scrollTo(0, rv.top) else scroll.post { scroll.scrollTo(0, rv.top) } }
+                // the letter under the finger; above / below the packed block = the first / last one
+                var i = 0
+                while (i < rail.childCount - 1 && e.y >= rail.getChildAt(i).bottom) i++
+                val letter = rail.getChildAt(i).tag as String
                 when (e.actionMasked) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                        if (bubble.text != letter) { bubble.text = letter; v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK) }
+                        if (letter != scrubbed) { scrubbed = letter; scrubTo(letter); v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK) }
+                        bubble.removeCallbacks(hideBubble); bubble.animate().cancel(); bubble.alpha = 1f
+                        bubble.text = if (letter == "#") "…" else letter
                         bubble.visibility = View.VISIBLE
                         bubble.translationY = (e.y - dp(30)).coerceIn(0f, (v.height - dp(60)).toFloat())
                         if (e.actionMasked == MotionEvent.ACTION_DOWN) v.performClick()
                     }
-                    else -> bubble.visibility = View.GONE
+                    // a tap shows the letter too: the bubble stays ~1 s, the highlight until the list is scrolled by hand
+                    else -> { scrubbed = null; bubble.postDelayed(hideBubble, 1000) }
                 }
                 true
             }
@@ -723,10 +756,10 @@ class HomeActivity : Activity() {
                 .sortedBy { it.sortKey }
             val anyPaused = shown.any { dv.want[it.pkg] != null }
             val k = listOf(q, shown.joinToString(",") { it.pkg + "=" + it.label }, shown.map { dv.want[it.pkg] }, model?.cols, model?.onHome(), model?.style?.shape,
-                model?.style?.icon, if (anyPaused) dv.minute else 0, if (anyPaused) dv.leftMs / 60_000 else 0, if (anyPaused) r.groups.map { it.hours } else 0).joinToString("|")
+                model?.style?.icon, if (q.isBlank()) recent.take(12) else "", if (anyPaused) dv.minute else 0, if (anyPaused) dv.leftMs / 60_000 else 0, if (anyPaused) r.groups.map { it.hours } else 0).joinToString("|")
             if (k == lastKey) return
             lastKey = k
-            list.removeAllViews(); firstHit = null; fillGen++
+            unlight(); list.removeAllViews(); cells.clear(); alphaTo.clear(); firstHit = null; fillGen++
             if (shown.isEmpty()) {
                 rail.removeAllViews(); railKey = ""
                 list.addView(text(getString(R.string.hm_no_result, q), 15f, pal.sub).apply { gravity = Gravity.CENTER; setPadding(dp(16), dp(40), dp(16), dp(16)) }, LayoutParams(-1, -2))
@@ -735,6 +768,9 @@ class HomeActivity : Activity() {
             val cols = (model?.cols ?: 4).coerceIn(3, 5)
             val onHome = model?.onHome() ?: emptySet()
             val rows = shown.chunked(cols)
+            // "Dùng gần đây": one row on top, only without a query (POCO / Pixel); the A–Z rows come after it
+            val rec = if (q.isBlank()) recent.mapNotNull { p -> shown.firstOrNull { it.pkg == p } }.take(cols) else emptyList()
+            off = 0
             // rail letters come from the data, so they exist before their rows are built
             rowOf.clear()
             if (q.isBlank()) for ((i, a) in shown.withIndex()) LauncherLogic.letter(a.label).let { l -> if (l !in rowOf) rowOf[l] = i / cols }
@@ -742,7 +778,10 @@ class HomeActivity : Activity() {
             val letters = rowOf.keys.joinToString("")
             if (letters != railKey) {
                 railKey = letters; rail.removeAllViews()
-                for (l in rowOf.keys) rail.addView(text(l, 11f, pal.sub, true).apply { gravity = Gravity.CENTER; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }, LayoutParams(-1, 0, 1f))
+                // small and light like POCO's: the grid keeps its room. Names starting with a digit or a sign sit under "…".
+                for (l in rowOf.keys) rail.addView(text(if (l == "#") "…" else l, 10f, pal.sub).apply {
+                    tag = l; gravity = Gravity.CENTER; setPadding(0, dp(2), 0, dp(2)); importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+                }, LayoutParams(-1, -2))
             }
             // ~1.5 ms per icon: 50+ apps cost 80 ms in one frame on a Galaxy A51 (each key typed, each open after a change).
             // Build what fills the screen now, the rest a few rows per frame; a new refill drops the old queue.
@@ -752,6 +791,7 @@ class HomeActivity : Activity() {
                 for (a in rows[i]) {
                     val v = appIcon(a, dv.want[a.pkg] != null, dv, r, Mode.DRAWER)
                     if (firstHit == null) firstHit = v
+                    cells += v to LauncherLogic.letter(a.label)
                     row.addView(v, LayoutParams(0, -2, 1f))
                 }
                 // pad the last row so cells keep their width
@@ -759,10 +799,19 @@ class HomeActivity : Activity() {
                 list.addView(row, list.childCount - 1, LayoutParams(-1, -2))
             }
             list.addView(View(context), LayoutParams(-1, dp(24)))   // bottom gap, rows go before it
+            if (rec.size >= 2) {
+                list.addView(text(getString(R.string.hm_recent), 12f, pal.sub).apply { setPadding(dp(16), dp(4), dp(16), 0) }, list.childCount - 1, LayoutParams(-1, -2))
+                val row = LinearLayout(context).apply { orientation = HORIZONTAL; setPadding(dp(8), dp(6), dp(8), dp(6)); clipChildren = false; clipToPadding = false }
+                for (a in rec) { val v = appIcon(a, dv.want[a.pkg] != null, dv, r, Mode.DRAWER); cells += v to ""; row.addView(v, LayoutParams(0, -2, 1f)) }
+                while (row.childCount < cols) row.addView(View(context), LayoutParams(0, 1, 1f))
+                list.addView(row, list.childCount - 1, LayoutParams(-1, -2))
+                list.addView(View(context).apply { setBackgroundColor(pal.sub and 0x00FFFFFF or 0x33000000) }, list.childCount - 1, LayoutParams(-1, 1).apply { setMargins(dp(16), dp(6), dp(16), dp(8)) })
+                off = 3
+            }
             // as many rows as the visible list holds: the first row measured at the list's width
             addRow(0)
-            val w = (if (scroll.width > 0) scroll.width else resources.displayMetrics.widthPixels - dp(26))
-            val rowH = list.getChildAt(0).let { it.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.UNSPECIFIED); it.measuredHeight.coerceAtLeast(dp(48)) }
+            val w = (if (scroll.width > 0) scroll.width else resources.displayMetrics.widthPixels - dp(RAIL_DP))
+            val rowH = list.getChildAt(off).let { it.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.UNSPECIFIED); it.measuredHeight.coerceAtLeast(dp(48)) }
             val first = minOf(rows.size, (if (scroll.height > 0) scroll.height else resources.displayMetrics.heightPixels) / rowH + 1)
             for (i in 1 until first) addRow(i)
             built = first; rowsLeft = { if (gen == fillGen) { while (built < rows.size) addRow(built++) } }
@@ -771,7 +820,56 @@ class HomeActivity : Activity() {
         }
 
         /** The row view for [letter], building any rows still queued first. */
-        fun rowFor(letter: String): View? { val i = rowOf[letter] ?: return null; if (i >= built) rowsLeft(); return list.getChildAt(i) }
+        fun rowFor(letter: String): View? { val i = rowOf[letter] ?: return null; if (i >= built) rowsLeft(); return list.getChildAt(i + off) }
+
+        /**
+         * Glides to [letter]'s first row (180 ms) and lights its apps. The row's top is read after layout: rows built just
+         * now (the drawer builds a few per frame) had no position yet and a post{} could run before the layout pass, so
+         * the list jumped to the wrong place (often the top).
+         */
+        private fun scrubTo(letter: String) {
+            light(letter)
+            val rv = rowFor(letter) ?: return
+            val go = {
+                val max = (list.height - scroll.height).coerceAtLeast(0)
+                scrollAnim?.cancel()
+                scrollAnim = android.animation.ObjectAnimator.ofInt(scroll, "scrollY", rv.top.coerceIn(0, max)).setDuration(180).apply {
+                    interpolator = android.view.animation.DecelerateInterpolator(1.6f); start()
+                }
+            }
+            if (!list.isLayoutRequested && rv.isLaidOut) go()
+            else list.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() { list.viewTreeObserver.removeOnGlobalLayoutListener(this); if (lit == letter) go() }
+            })
+        }
+
+        /** Back to normal: the list was scrolled by hand, the search changed, or the drawer closed. */
+        fun unlight() {
+            if (lit == null && bubble.visibility != View.VISIBLE) return
+            scrollAnim?.cancel(); bubble.removeCallbacks(hideBubble); bubble.visibility = View.GONE; light(null)
+        }
+
+        /** Any touch reaches here first, even once the ScrollView has claimed the gesture: a drag on the list ends the highlight. */
+        override fun dispatchTouchEvent(e: MotionEvent): Boolean {
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> downOnRail = e.x >= width - paddingRight - dp(RAIL_DP)
+                MotionEvent.ACTION_MOVE -> if (!downOnRail && lit != null && abs(e.rawY - py0) > pslop) unlight()
+            }
+            return super.dispatchTouchEvent(e)
+        }
+
+        /** [letter]'s apps at full strength, the others dimmed; null = all back to normal. The rail marks it too. */
+        private fun light(letter: String?) {
+            lit = letter
+            for (j in 0 until rail.childCount) (rail.getChildAt(j) as TextView).let { t ->
+                val on = t.tag == letter
+                t.setTextColor(if (on) pal.solid else pal.sub); t.typeface = tf(on)
+            }
+            for ((v, l) in cells) {
+                val a = if (letter == null || l == letter) 1f else 0.25f
+                if ((alphaTo[v] ?: 1f) != a) { alphaTo[v] = a; v.animate().alpha(a).setDuration(120).start() }
+            }
+        }
     }
 
     // ---- custom views ----
@@ -792,7 +890,7 @@ class HomeActivity : Activity() {
                 MotionEvent.ACTION_DOWN -> { x0 = e.x; y0 = e.y; up = false; downOk = !scrollsAt(this, e.x.toInt(), e.y.toInt()) }
                 MotionEvent.ACTION_MOVE -> {
                     val dy = e.y - y0; val dx = e.x - x0
-                    val free = !pager.dragging && pager.page > 0 && drag == null && this@HomeActivity.overlay == null && popup?.isShowing != true
+                    val free = !pager.dragging && pager.page > 0 && drag == null && !editing && this@HomeActivity.overlay == null && popup?.isShowing != true
                     if (free && dy < -slop && abs(dy) > abs(dx) * 1.5f && drawerBegin()) { up = true; from = e.y; drawerAt(0f) }
                     else if (free && downOk && drawer == null && dy > slop * 2 && dy > abs(dx) * 1.5f) { downOk = false; expandShade() }
                 }
@@ -955,6 +1053,54 @@ class HomeActivity : Activity() {
         private val hlPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
         init { clipChildren = false; clipToPadding = false; setWillNotDraw(false) }
+
+        // edit mode: a tap (not a long-press, not a move) picks the item under it; the item never sees the click
+        private var tx0 = 0f; private var ty0 = 0f; private var tt0 = 0L
+        private val tslop = ViewConfiguration.get(ctx).scaledTouchSlop
+        override fun onInterceptTouchEvent(e: MotionEvent): Boolean {
+            if (!editing) return false
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> { tx0 = e.x; ty0 = e.y; tt0 = e.eventTime }
+                MotionEvent.ACTION_UP -> if (abs(e.x - tx0) < tslop && abs(e.y - ty0) < tslop && e.eventTime - tt0 < ViewConfiguration.getLongPressTimeout() &&
+                    drag == null && popup?.isShowing != true) {
+                    for (i in childCount - 1 downTo 0) {
+                        val c = getChildAt(i)
+                        if (e.x >= c.left && e.x < c.right && e.y >= c.top && e.y < c.bottom) {
+                            val id = (c.layoutParams as CellLP).id
+                            if (id.isNotEmpty()) { togglePick(id); return true }
+                        }
+                    }
+                }
+            }
+            return false
+        }
+
+        private val ringFill = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val ringLine = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
+        private val tick = android.graphics.Path()
+
+        /** Edit mode: a pick circle on each item's top-right (the icon's corner for a 1x1), ticked on the accent when picked (POCO). */
+        override fun dispatchDraw(c: Canvas) {
+            super.dispatchDraw(c)
+            if (!editing) return
+            val r = dpf(10f)
+            for (i in 0 until childCount) {
+                val v = getChildAt(i); val lp = v.layoutParams as CellLP
+                if (lp.id.isEmpty()) continue
+                // a 1x1: the icon's corner; a widget: the corner of its card (FitCell centres a wrap-height card in the cells)
+                val icon = if (v is ViewGroup && v.childCount > 0 && (v !is LinearLayout || (lp.w == 1 && lp.h == 1))) v.getChildAt(0) else null
+                val cx = if (icon != null) v.left + icon.right - r * 0.4f else v.right - r * 1.2f
+                val cy = if (icon != null) v.top + icon.top + r * 0.4f else v.top + r * 1.2f
+                val on = lp.id in picked
+                ringFill.color = if (on) pal.solid else 0x55000000
+                c.drawCircle(cx, cy, r, ringFill)
+                ringLine.color = if (on) pal.onSolid else Color.WHITE; ringLine.strokeWidth = dpf(if (on) 2f else 1.5f)
+                if (on) {
+                    tick.rewind(); tick.moveTo(cx - r * 0.45f, cy + r * 0.02f); tick.lineTo(cx - r * 0.1f, cy + r * 0.38f); tick.lineTo(cx + r * 0.5f, cy - r * 0.32f)
+                    c.drawPath(tick, ringLine)
+                } else c.drawCircle(cx, cy, r - ringLine.strokeWidth / 2, ringLine)
+            }
+        }
 
         fun cellW() = (width - 2 * side) / cols
         fun cellH() = (height - paddingTop - paddingBottom) / rows

@@ -34,14 +34,20 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     val px = if (list) dp(52) else iconPx()
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; setPadding(0, dp(4), 0, dp(2)) }
     val frame = FrameLayout(this)
-    val bmp = IconCache.get(this, a.pkg, a.cls, px, model?.style?.shape != "square")
+    // the drawer shows the home-size bitmap scaled to its 52 dp: one bitmap per app, not two. Two sizes for ~280 apps did not
+    // fit the LRU (Poco: 32 MB), so every rebuild evicted and re-rendered ~350 icons (2 s, 244 frames lost after a bulk move)
+    val bmp = IconCache.get(this, a.pkg, a.cls, iconPx(), model?.style?.shape != "square")
+    val dst = android.graphics.RectF(0f, 0f, px.toFloat(), px.toFloat())
+    val scaled = bmp != null && bmp.width != px
+    val fp = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG or android.graphics.Paint.ANTI_ALIAS_FLAG)
     val badge = if (paused) "off" else model?.style?.badge ?: "num"
     frame.clipChildren = false   // the badge pokes out of the icon
     frame.addView(object : View(this), DotHost {
         override val dotPkgs = listOf(a.pkg)
         override fun onDraw(c: Canvas) {
             bmp ?: return
-            if (paused) { val p = IconCache.greyPaint(); p.alpha = 115; c.drawBitmap(bmp, 0f, 0f, p) } else c.drawBitmap(bmp, 0f, 0f, null)
+            if (paused) { val p = IconCache.greyPaint(); p.alpha = 115; if (scaled) c.drawBitmap(bmp, null, dst, p) else c.drawBitmap(bmp, 0f, 0f, p) }
+            else if (scaled) c.drawBitmap(bmp, null, dst, fp) else c.drawBitmap(bmp, 0f, 0f, null)
             if (badge != "off") Dots.draw(c, px, Dots.count(dotPkgs), resources.displayMetrics.density, badge == "num")
         }
     }, FrameLayout.LayoutParams(px, px))
@@ -76,6 +82,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     }
     box.contentDescription = if (paused) getString(R.string.hm_paused_desc, a.label, BasicLogic.reasonText(reason ?: "", Store.of(this).tr)) else a.label
     kit.tap(box, 16f, list && pal.dark || !list)
+    if (!list) box.foreground = null   // the icon sinking on touch is the feedback ([pressed]), no grey ripple over it
     box.setOnClickListener { if (debounce()) { if (paused) pausedSheet(a, reason ?: "", dv, r) else launch(a, box) } }
     // drag source: where the icon lives
     val src: () -> DragSt = {
@@ -86,7 +93,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
             Mode.DRAWER -> DragSt(null, a.pkg, "app", 1, 1, null, null)
         }
     }
-    arm(box, { appMenu(a, box, mode, item) }, src, immediate = mode == Mode.PANEL)
+    arm(box, { appMenu(a, box, mode, item) }, src, immediate = mode == Mode.PANEL, press = if (list) null else frame)
     return box
 }
 
@@ -158,13 +165,15 @@ internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String
     }
     box.contentDescription = getString(R.string.hm_f_desc, folderName(f), vis.size)
     kit.tap(box, 16f, true)
+    box.foreground = null
     box.setOnClickListener { if (debounce()) openFolder(f.id) }
     arm(box, {
         menu(listOf(
             Row(R.drawable.li_pencil, getString(R.string.hm_f_rename), true) { renameFolder(f.id) },
+            Row(R.drawable.li_check, getString(R.string.hm_e_pick), true) { enterEdit(f.id) },
             Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { mm -> HomeLayout.take(mm, Src.Item(f.id))?.let { update(HomeLayout.dropRemove(it)) } } },
         ), box)
-    }, { DragSt(Src.Item(f.id), null, "folder", 1, 1, f.id, box) })
+    }, { DragSt(Src.Item(f.id), null, "folder", 1, 1, f.id, box) }, press = grid)
     return box
 }
 
@@ -178,6 +187,7 @@ internal fun HomeActivity.launch(a: AppE, from: View) {
     val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(ComponentName(a.pkg, a.cls))
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
     val opts = ActivityOptions.makeScaleUpAnimation(from, 0, 0, from.width, from.height).toBundle()
+    Recent.note(this, a.pkg)
     runCatching { startActivity(i, opts) }.recoverCatching { packageManager.getLaunchIntentForPackage(a.pkg)?.let { startActivity(it) } ?: error("none") }
         .onFailure { Toast.makeText(this, R.string.hm_open_fail, Toast.LENGTH_SHORT).show() }
 }

@@ -22,21 +22,36 @@ import dev.kidguard.HomeActivity.CellLayout
  * Pixel-style press: long-press shows [onLong] (the menu); moving the finger 8 dp after that closes it and starts a drag.
  * In a folder panel / the picker ([immediate]) the long-press starts the drag at once.
  */
-internal fun HomeActivity.arm(v: View, onLong: () -> Unit, src: () -> DragSt, immediate: Boolean = false, dragView: View = v) {
+internal fun HomeActivity.arm(v: View, onLong: () -> Unit, src: () -> DragSt, immediate: Boolean = false, dragView: View = v, press: View? = null) {
     v.isLongClickable = true
     v.setOnTouchListener { _, e ->
         when (e.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { downX = e.rawX; downY = e.rawY; armed = null }
-            MotionEvent.ACTION_MOVE -> if (armed === v && (abs(e.rawX - downX) > dp(8) || abs(e.rawY - downY) > dp(8))) { armed = null; popup?.dismiss(); startDrag(dragView, src()) }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> armed = null
+            MotionEvent.ACTION_DOWN -> { downX = e.rawX; downY = e.rawY; armed = null; pressed(press, true) }
+            MotionEvent.ACTION_MOVE -> if (armed === v && (abs(e.rawX - downX) > dp(8) || abs(e.rawY - downY) > dp(8))) { armed = null; popup?.dismiss(); pressed(press, null); startDrag(dragView, src()) }
+            // a scroll / page swipe taking the gesture sends CANCEL: the icon springs back too
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { armed = null; pressed(press, false) }
         }
         false
     }
     v.setOnLongClickListener {
         v.parent?.requestDisallowInterceptTouchEvent(true)
         v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-        if (immediate) startDrag(dragView, src()) else { armed = v; onLong() }
+        if (immediate) { pressed(press, null); startDrag(dragView, src()) } else { armed = v; onLong() }
         true
+    }
+}
+
+/**
+ * The pressed look (One UI / Pixel): the icon sinks to 88 % on touch and springs back on release.
+ * [down] null = back to full size at once (a drag is starting: its shadow is drawn from the view as it is now).
+ */
+internal fun pressed(icon: View?, down: Boolean?) {
+    icon ?: return
+    icon.animate().cancel()
+    when (down) {
+        true -> icon.animate().scaleX(0.88f).scaleY(0.88f).setDuration(110).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+        false -> icon.animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(android.view.animation.OvershootInterpolator(2.5f)).start()
+        null -> { icon.scaleX = 1f; icon.scaleY = 1f }
     }
 }
 
@@ -46,6 +61,7 @@ internal fun HomeActivity.startDrag(v: View, d: DragSt) {
     if (!ok) return
     drag = d
     d.view?.visibility = View.INVISIBLE
+    if (d.kind == "app") for (c in dockViews) c.visibility = View.VISIBLE   // empty dock slots are drop targets again
     // leaving a panel / the drawer / the picker: the home takes the drop
     when {
         overlay != null -> { val o = overlay; overlay = null; o?.visibility = View.GONE; main.post { root.removeView(o) } }
@@ -165,8 +181,11 @@ internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
         if (slot > 0 && d.kind == "app") dockViews[slot].background = fill(pal.card, 18f)
         return
     }
-    // the screen edges flip pages (past the last page: a new empty one)
-    val edge = dp(22)
+    // the screen edges flip pages (past the last page: a new empty one). 48 dp: with gesture navigation the system sends no
+    // drag events in its back-gesture strip (~25 dp on a Poco), so the old 22 dp zone was nearly all dead: pushing to the edge
+    // never flipped. Resting there keeps flipping (no events come while the finger is still, so it re-checks itself).
+    val edge = dp(48)
+    hoverX = x; hoverY = y
     if (x < edge || x > root.width - edge) {
         clearCell()
         if (flip == null) {
@@ -182,10 +201,13 @@ internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
                     styleCells(); padPages(); buildDots()
                 }
                 pager.snapTo(target)
-            }.also { main.postDelayed(it, 500) }
+                main.postDelayed({ if (drag === d && flip == null) hover(hoverX, hoverY, d) }, 300)
+            }.also { main.postDelayed(it, 400) }
         }
         return
     }
+    // a little slack: a jitter just inside the edge does not restart the wait
+    if (flip != null && (x < edge * 1.6f || x > root.width - edge * 1.6f)) return
     cancelFlip()
     val (pi, a, under) = cellAt(x, y, d) ?: run { clearCell(); return }
     val cl = pageView() ?: return

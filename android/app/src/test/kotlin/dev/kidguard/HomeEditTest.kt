@@ -112,6 +112,14 @@ class HomeEditTest {
         val c = m.pages.flatten().first { it.type == "clock" }
         val r = HomeLayout.resizeWidget(m, c.id, 4, 2)!!
         assertEquals(2, r.pages.flatten().first { it.id == c.id }.h); noOverlap(r)
+        // grows in place on a busy page: same page, same cell, what it covers moves down / on, nothing lost
+        val busy = HomeLayout.fresh("teen", apps, emptyList())
+        val (bp, bc) = HomeLayout.find(busy, busy.pages.flatten().first { it.type == "clock" }.id)!!
+        val g = HomeLayout.resizeWidget(busy, bc.id, 4, 2)!!
+        val (gp, gc) = HomeLayout.find(g, bc.id)!!
+        assertEquals(bp, gp); assertEquals(bc.x to bc.y, gc.x to gc.y); assertEquals(2, gc.h)
+        noOverlap(g); assertEquals(all(busy).sorted(), all(g).sorted())
+        assertEquals(busy.pages.flatten().size, g.pages.flatten().size)
         // full page => next page
         val full = HomeLayout.fresh("teen", apps.take(17), emptyList())
         val f2 = HomeLayout.placeWidget(full, "counts", 2, 2, 0)!!

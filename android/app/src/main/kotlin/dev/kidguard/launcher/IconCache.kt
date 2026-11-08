@@ -16,26 +16,31 @@ import android.os.Build
 import android.util.LruCache
 
 /**
- * Real app icons for the kid launcher, rendered once to a bitmap of the wanted size and kept in an LRU of 1/8 of the heap
- * (>= 8 MB). 4 MB was too small on a 420 dpi phone (~90 KB an icon, 50+ on the pages + dock + drawer): every rebuild walked
+ * Real app icons for the kid launcher, rendered once to a bitmap of the wanted size and kept in an LRU of 1/5 of the heap
+ * (8-96 MB; the drawer reuses the home-size bitmap, so ~1 bitmap per app). 4 MB was too small on a 420 dpi phone (~90 KB an icon, 50+ on the pages + dock + drawer): every rebuild walked
  * the LRU in the same order, so it missed every icon and re-rendered them all (~700 ms after each drop on a Galaxy A51).
  * Every icon gets the chosen mask (circle / squircle); legacy icons are fitted or put on a plate first ([legacy]).
  */
 object IconCache {
-    private val MAX_BYTES = (Runtime.getRuntime().maxMemory() / 8).coerceIn(8L shl 20, 64L shl 20).toInt()
+    private val MAX_BYTES = (Runtime.getRuntime().maxMemory() / 5).coerceIn(8L shl 20, 96L shl 20).toInt()
     private val lru = object : LruCache<String, Bitmap>(MAX_BYTES) {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
     private val grey = Paint(Paint.FILTER_BITMAP_FLAG).apply { colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) }) }
 
     fun clear() = lru.evictAll()
+    /** Perf counters for KG.perf (reset by the reader): icons rendered (cache misses) and the time they took. */
+    var misses = 0; var missMs = 0L
+    fun stats(): String = "icons=$misses/${missMs}ms lru=${lru.size() shr 20}/${MAX_BYTES shr 20}MB".also { misses = 0; missMs = 0 }
 
     fun get(ctx: Context, pkg: String, cls: String, px: Int, round: Boolean): Bitmap? {
         val key = "$pkg/$cls@$px${if (round) "r" else "s"}"
         lru.get(key)?.let { return it }
+        val t0 = android.os.SystemClock.uptimeMillis()
         val d = load(ctx, pkg, cls) ?: return null
         val b = render(d, px, round)
         lru.put(key, b)
+        misses++; missMs += android.os.SystemClock.uptimeMillis() - t0
         return b
     }
 

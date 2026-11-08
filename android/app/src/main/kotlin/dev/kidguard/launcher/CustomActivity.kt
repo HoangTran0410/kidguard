@@ -145,7 +145,11 @@ class CustomActivity : Activity() {
         for (w in HomeStyle.WALLS) wr.addView(wallTile(w, w == cur), LinearLayout.LayoutParams(dp(64), dp(112)).apply { leftMargin = dp(8) })
         ws.addView(wr)
         col.addView(ws, lp(8))
-        if (st.wallKind == "photo") col.addView(slider(s(R.string.hm_c_dim), st.dim / 10, 6, "0", "60%") { v -> set { it.copy(dim = v * 10) } }.apply { background = k.sheetCard(18f); setPadding(dp(16), dp(4), dp(16), dp(4)) }, lp(8))
+        // POCO-style: blur and darken any wallpaper, so the icons and labels stand out
+        val fx = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = k.sheetCard(18f); setPadding(dp(16), dp(4), dp(16), dp(4)) }
+        fx.addView(slider(s(R.string.hm_c_blur), st.blur / 20, 5, "0", "100%") { v -> set { it.copy(blur = v * 20) } })
+        fx.addView(slider(s(R.string.hm_c_dim), st.dim / 10, 6, "0", "60%") { v -> set { it.copy(dim = v * 10) } })
+        col.addView(fx, lp(8))
 
         section(col, R.string.hm_c_accent)
         val ar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -383,8 +387,8 @@ class CustomActivity : Activity() {
         override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
             bmp?.recycle()
             val dark = isDark(st); val pre = HomeStyle.preset(st.preset)
-            bmp = (if (st.wallKind == "photo") Wallpaper.photo(context, w, h) else null) ?: Wallpaper.draw(st.wall.ifEmpty { if (dark) pre.wallDark else pre.wallLight }, w, h)
-            bmp?.let { Wallpaper.dim(it, if (st.wallKind == "photo") st.dim else 0) }
+            bmp = Wallpaper.blur((if (st.wallKind == "photo") Wallpaper.photo(context, w, h) else null) ?: Wallpaper.draw(st.wall.ifEmpty { if (dark) pre.wallDark else pre.wallLight }, w, h), st.blur)
+            bmp?.let { Wallpaper.dim(it, st.dim) }
         }
         override fun onDraw(c: Canvas) {
             val w = width.toFloat(); val h = height.toFloat(); val r = k.dpf(14f)
