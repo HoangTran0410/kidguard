@@ -357,8 +357,10 @@ const ringOn = () => !!liveOn.ring;
 const earOn = () => !!liveOn.listen || !!($("#earAudio") && $("#earAudio").getAttribute("src"));
 const ACT = { lock: ["lock", "lockScr"], wake: ["lightbulb", "wake"], ring: ["bell", "ring"], loc: ["map-pin", "locate"], loc2: ["map-pin", "where.locNew"], ear1: ["ear", "listen"] };
 const ACT_TO = {};   // 20 s without an answer = error ("the phone did not answer")
-async function act(id, fn) {
+// q: the confirm question ([text, ok, danger]); asked first, so the 20 s answer timer starts only once the parent agreed
+async function act(id, fn, q) {
   if (actSt[id] && actSt[id].s === "pend") return;
+  if (q && !(await ask(...q))) return;
   actSt[id] = { s: "pend", t: Date.now() }; actPaint();
   const r = await Promise.race([fn(), new Promise(res => setTimeout(() => res(ACT_TO), 20000))]);
   if (r === ACT_TO) toast("err|" + t("act.timeout"));

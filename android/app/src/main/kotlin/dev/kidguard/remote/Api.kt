@@ -87,7 +87,12 @@ class Api(private val g: Guard) {
                 if (c.optString("type") == "relay") {
                     val res = g.command(c)
                     Res.json(JSONObject().put("result", res).put("id", store.relayId).put("token", store.relayToken).put("url", store.relayUrl).toString())
-                } else Res.json(JSONObject().put("result", g.command(c)).toString())
+                } else {
+                    val t0 = android.os.SystemClock.elapsedRealtime()
+                    val res = g.command(c)
+                    android.util.Log.i("KG.perf", "cmd ${c.optString("type")} -> $res ${android.os.SystemClock.elapsedRealtime() - t0}ms${if (ParentSession.valid(session)) " (on-device)" else ""}")
+                    Res.json(JSONObject().put("result", res).toString())
+                }
             }
             p == "/screen" -> {
                 val f = Acc.capture((r.query["max"]?.toIntOrNull() ?: 720).coerceIn(320, 1600), (r.query["q"]?.toIntOrNull() ?: 50).coerceIn(20, 90))

@@ -253,7 +253,7 @@ function whereTab(b) {
   <div>${pts.length ? `<div class="card"><h2>${ic("pause")} ${t("where.stops")}</h2>
       ${sp.map(s => { const z = scrZone(s.lat, s.lon); return `<div class="row" style="padding:2px 0;flex-wrap:nowrap"><button type="button" class="stb" data-stt="${s.start}" aria-label="${esc(t("tl.go", hhmm(s.start)))}">${z || !home || hav(home[1], home[2], s.lat, s.lon) >= 150 ? ic("map-pin") : ic("house")} <span class="sp"><b>${hhmm(s.start)}–${hhmm(s.end)}</b> · ${fmt(s.end - s.start)}${z ? ` · ${esc(z)}` : ""}</span></button><a class="btn rb" style="width:40px;height:40px;min-height:40px" href="https://www.google.com/maps?q=${+s.lat},${+s.lon}" target="_blank" rel="noopener" aria-label="Google Maps" title="Google Maps">${ic("map")}</a></div>`; }).join("") || `<div class="mute">${t("where.noStops")}</div>`}</div>` : ""}
     ${S ? `<div id="rsx">${S.zone}${S.trk}</div>` : ""}</div></div>`;
-  $("#loc2").onclick = () => act("loc2", () => cmd({ type: "locate" }, t("where.locating")));
+  $("#loc2").onclick = () => act("loc2", () => cmd({ type: "locate" }, t("where.locating"), false), askOf("locate"));
   actPaint();
   if ($("#rsx")) rulesWire($("#rsx"), edit);
   dpBind(b);

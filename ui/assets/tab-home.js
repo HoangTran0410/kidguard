@@ -54,9 +54,9 @@ function homeTab(b) {
   $("#pauseGo").onclick = () => pickTime("pause", pausedLeft > 0 ? t("pk.active", whenTxt(r.pausedUntil)) + " · " + t("pk.leftN", fmt(pausedLeft)) : "",
     until => { edit.pausedUntil = until; changed(); toast("ok|" + t("pk.sumPause", whenTxt(until))); render(); },
     pausedLeft > 0 ? () => { edit.pausedUntil = 0; changed(); toast("ok|" + t("pk.unpaused")); render(); } : null);
-  $("#lock").onclick = () => act("lock", () => screenOff() ? cmd({ type: "wake" }, t("wake.done"), false) : cmd({ type: "lock" }, t("lock.done")));
-  $("#ring").onclick = () => ringOn() ? ringStop() : earOn() ? toast("warn|" + t("act.noRing")) : act("ring", async () => { const r = await cmd({ type: "ring" }, t("ring.done")); if (r && r.result !== "queued") expect("ring", true, "ring"); return r; });
-  $("#loc").onclick = () => act("loc", () => cmd({ type: "locate" }, t("locate.done")));
+  $("#lock").onclick = () => act("lock", () => screenOff() ? cmd({ type: "wake" }, t("wake.done"), false) : cmd({ type: "lock" }, t("lock.done"), false), screenOff() ? null : askOf("lock"));
+  $("#ring").onclick = () => ringOn() ? ringStop() : earOn() ? toast("warn|" + t("act.noRing")) : act("ring", async () => { const r = await cmd({ type: "ring" }, t("ring.done"), false); if (r && r.result !== "queued") expect("ring", true, "ring"); return r; }, askOf("ring"));
+  $("#loc").onclick = () => act("loc", () => cmd({ type: "locate" }, t("locate.done"), false), askOf("locate"));
   $("#scrGo").onclick = () => goTab("screen");
   $("#moreAct").onclick = moreSheet;
   actPaint();
