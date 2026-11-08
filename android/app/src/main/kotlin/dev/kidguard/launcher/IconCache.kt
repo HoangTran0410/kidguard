@@ -16,11 +16,13 @@ import android.os.Build
 import android.util.LruCache
 
 /**
- * Real app icons for the kid launcher, rendered once to a bitmap of the wanted size and kept in an LRU of <= 4 MB.
+ * Real app icons for the kid launcher, rendered once to a bitmap of the wanted size and kept in an LRU of 1/8 of the heap
+ * (>= 8 MB). 4 MB was too small on a 420 dpi phone (~90 KB an icon, 50+ on the pages + dock + drawer): every rebuild walked
+ * the LRU in the same order, so it missed every icon and re-rendered them all (~700 ms after each drop on a Galaxy A51).
  * Adaptive icons get the chosen mask (circle / rounded square); legacy icons are drawn as they are, full size, no plate (Pixel / Nova).
  */
 object IconCache {
-    private const val MAX_BYTES = 4 * 1024 * 1024
+    private val MAX_BYTES = (Runtime.getRuntime().maxMemory() / 8).coerceIn(8L shl 20, 64L shl 20).toInt()
     private val lru = object : LruCache<String, Bitmap>(MAX_BYTES) {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
