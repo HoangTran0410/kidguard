@@ -118,6 +118,7 @@ class CustomActivity : Activity() {
         line(home); home.addView(segRow(s(R.string.hm_c_shape), listOf(s(R.string.hm_c_round) to "round", s(R.string.hm_c_square) to "square"), st.shape) { v -> set { it.copy(shape = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock), st.dockBg) { v -> set { it.copy(dockBg = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock_labels), st.dockLabels) { v -> set { it.copy(dockLabels = v) } })
+        line(home); home.addView(switchRow(s(R.string.hm_c_today), st.today) { v -> set { it.copy(today = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_library), st.lib) { v -> set { it.copy(lib = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_fx), listOf(s(R.string.hm_c_fx_full) to "full", s(R.string.hm_c_fx_lite) to "lite", s(R.string.hm_c_auto) to "auto"), st.fx) { v -> set { it.copy(fx = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_dots), listOf(s(R.string.hm_c_badge_off) to "off", s(R.string.hm_c_badge_dot) to "dot", s(R.string.hm_c_badge_num) to "num"), st.badge) { v ->

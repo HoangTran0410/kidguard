@@ -490,7 +490,7 @@ class HomeActivity : Activity() {
         hint.setImageDrawable(Ic.get(this, R.drawable.li_chevron_up, Color.WHITE, dp(18)))
         inkViews += hint
         // the "Hôm nay" page (25-35 ms) is off screen on almost every render: rebuilt once the main thread is idle
-        val fillToday = { today?.fill(r, dv, block, all, todayIcon) }
+        val fillToday = { if (m.style.today) today?.fill(r, dv, block, all, todayIcon) }
         if (pager.page == 0) fillToday() else {
             val gen = ++todayGen
             android.os.Looper.myQueue().addIdleHandler { if (gen == todayGen && !isFinishing) fillToday(); false }
@@ -626,7 +626,8 @@ class HomeActivity : Activity() {
         reusePages = false; builtGlobal = global
         val made = HashMap<String, MutableList<PageBuilt>>()
         pager.removeAllViews()
-        today?.view?.let { (it.parent as? ViewGroup)?.removeView(it); pager.addView(it) }
+        today?.view?.let { (it.parent as? ViewGroup)?.removeView(it); pager.addView(it); it.visibility = if (m.style.today) View.VISIBLE else View.INVISIBLE }
+        pager.minPage = if (m.style.today) 0 else 1
         val hasNext = HomeLayout.hasWidget(m, "next")
         for ((pi, p) in m.pages.withIndex()) {
             val sig = p.joinToString(";") { it.toJson().toString() }
@@ -703,7 +704,7 @@ class HomeActivity : Activity() {
         }
         styleCells()
         padPages()
-        pager.page = keep.coerceIn(0, pager.childCount - 1).let { if (it == 0 && keep != 0) 1 else it }
+        pager.page = keep.coerceIn(pager.minPage.coerceAtMost(pager.childCount - 1), pager.childCount - 1).let { if (it == 0 && keep != 0) 1 else it }
         pager.onPage = { buildDots(); bars(); chromeFade() }
         buildDots()
         pager.post { pager.scrollTo(pager.page * pager.width, 0); chromeFade() }
@@ -754,7 +755,7 @@ class HomeActivity : Activity() {
         val n = pager.childCount - 1
         dots.contentDescription = getString(R.string.hm_page, pager.page.coerceAtLeast(1), n.coerceAtLeast(1))
         val c = inkCache["dots"]?.text ?: Color.WHITE
-        dots.set(n, c, Ic.get(this, R.drawable.li_calendar, c, dp(10)))
+        dots.set(n, c, if (pager.minPage == 0) Ic.get(this, R.drawable.li_calendar, c, dp(10)) else null)   // no "Hôm nay" glyph when that page is off
         pager.width.takeIf { it > 0 }?.let { dots.pos = pager.scrollX.toFloat() / it }
     }
 
@@ -1124,6 +1125,7 @@ class HomeActivity : Activity() {
     /** Horizontal pages (0 = "Hôm nay"); long-press on empty space of a home page opens Tiện ích / Tuỳ chỉnh / Sắp xếp / KidGuard. */
     internal inner class Pager(ctx: Context) : ViewGroup(ctx) {
         var page = 1
+        var minPage = 0   // 1 = the "Hôm nay" page is turned off (style.today): it stays child 0 so page numbers don't move
         var dragging = false
         var onPage: () -> Unit = {}
         // Launcher3's scroll interpolator (quintic out): the page leaves at the finger's speed. The default (viscous fluid)
@@ -1175,7 +1177,7 @@ class HomeActivity : Activity() {
                         val max = (childCount - 1).coerceAtLeast(0) * width
                         val nx = scrollX + (lastX - e.x).toInt()
                         // rubber band past the first / last page
-                        val adj = if (nx < 0 || nx > max) scrollX + ((lastX - e.x) / 3).toInt() else nx
+                        val adj = if (nx < minPage * width || nx > max) scrollX + ((lastX - e.x) / 3).toInt() else nx
                         scrollTo(adj, 0); lastX = e.x
                     }
                 }
@@ -1198,7 +1200,7 @@ class HomeActivity : Activity() {
         fun snapTo(p: Int, vx: Float = 0f) {
             val n = (childCount - 1).coerceAtLeast(0)
             val old = page
-            page = p.coerceIn(0, n)
+            page = p.coerceIn(minPage.coerceAtMost(n), n)
             val dist = page * width - scrollX
             // quintic out starts at 5x the mean speed: match the fling, 180-320 ms (Launcher3 also derives it from velocity)
             val ms = if (vx > minFling && dist != 0) (5000f * abs(dist) / vx).toInt().coerceIn(180, 320) else 300
@@ -1211,7 +1213,7 @@ class HomeActivity : Activity() {
         }
 
         /** No animation (first show, HOME from far away). */
-        fun jump(p: Int) { scroller.abortAnimation();  page = p.coerceIn(0, (childCount - 1).coerceAtLeast(0)); scrollTo(page * width, 0); onPage() }
+        fun jump(p: Int) { scroller.abortAnimation();  page = p.coerceIn(minPage.coerceAtMost((childCount - 1).coerceAtLeast(0)), (childCount - 1).coerceAtLeast(0)); scrollTo(page * width, 0); onPage() }
 
         override fun computeScroll() {
             if (scroller.computeScrollOffset()) { scrollTo(scroller.currX, 0); postInvalidateOnAnimation() }

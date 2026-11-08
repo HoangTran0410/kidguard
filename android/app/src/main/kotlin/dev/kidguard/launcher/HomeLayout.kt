@@ -27,9 +27,9 @@ data class HItem(
 data class HStyle(
     val preset: String = "teen", val icon: Int = 3, val labels: Boolean = true, val shape: String = "round", val dockBg: Boolean = true, val dockLabels: Boolean = true, val badge: String = "num", val face: String = "sys",
     val accent: String = "", val theme: String = "auto", val font: Double = 1.0, val wallKind: String = "builtin", val wall: String = "", val dim: Int = 0, val blur: Int = 0,
-    val lib: Boolean = true, val fx: String = "auto",
+    val lib: Boolean = true, val fx: String = "auto", val today: Boolean = true,
 ) {
-    fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels).put("badge", badge).put("face", face).put("lib", lib).put("fx", fx)
+    fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels).put("badge", badge).put("face", face).put("lib", lib).put("fx", fx).put("today", today)
         .put("accent", accent).put("theme", theme).put("font", font)
         .put("wall", JSONObject().put("kind", wallKind).put("id", wall).put("dim", dim).put("blur", blur))
 
@@ -49,7 +49,7 @@ data class HStyle(
                 wallKind = w.optString("kind", "builtin").takeIf { it in setOf("builtin", "photo", "system") } ?: "builtin",
                 wall = w.optString("id", "").takeIf { it.isEmpty() || it in HomeStyle.WALLS } ?: "",
                 dim = w.optInt("dim", 0).coerceIn(0, 60), blur = w.optInt("blur", 0).coerceIn(0, 100),
-                lib = o.optBoolean("lib", true),
+                lib = o.optBoolean("lib", true), today = o.optBoolean("today", true),
                 fx = o.optString("fx", "auto").takeIf { it in setOf("auto", "full", "lite") } ?: "auto",
             )
         }

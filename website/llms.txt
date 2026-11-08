@@ -38,7 +38,7 @@ Xiaomi, Oppo, Vivo, Samsung: let KidGuard run in the background (battery / autos
 - SOS button on the child's phone; see the child's screen live and remote control (Android 11+); listen around (one way, at most 10 min, home Wi-Fi or Tailscale only, the child is always told); lock, ring, message, restart.
 - Lighter phone: hide preinstalled apps, see the heaviest apps. Family DNS filter, block installs and USB debugging (Device Owner only).
 - Tamper-proof: blocks uninstall, force stop, factory reset from Settings, Safe Mode, new users, changing the clock. Undo everything: Settings > remove management lifts every restriction, then uninstall like any app.
-- Kid launcher: a home screen of the app's own (grid, dock, folders, widgets, the child's own rules page).
+- Kid launcher: a home screen of the app's own, iPhone-style (hold menu, drag to make folders, minus badge to remove, multi-select, App Library page, widgets incl. timetable and other apps' widgets). "Today" page: SOS + call, right now (class, time to bedtime), screen time, tomorrow's subjects, chores, notes, files both ways (kid can send a file to the parents); the kid picks the cards or turns the page off.
 - Updates itself once a day from GitHub releases (SHA-256 checked).
 
 ## Features and permissions

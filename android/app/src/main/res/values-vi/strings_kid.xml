@@ -59,6 +59,7 @@
     <string name="hm_c_fx">Hiệu ứng</string>
     <string name="hm_c_fx_full">Đầy đủ</string>
     <string name="hm_c_fx_lite">Nhẹ</string>
+    <string name="hm_c_today">Trang "Hôm nay" (vuốt phải từ trang 1)</string>
     <string name="hm_c_library">Thư viện ứng dụng ở trang cuối</string>
     <string name="hm_lib_title">Thư viện ứng dụng</string>
     <string name="hm_lib_more">Cả %1$d ứng dụng trong %2$s</string>

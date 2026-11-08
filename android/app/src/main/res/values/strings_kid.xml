@@ -59,6 +59,7 @@
     <string name="hm_c_fx">Effects</string>
     <string name="hm_c_fx_full">Full</string>
     <string name="hm_c_fx_lite">Light</string>
+    <string name="hm_c_today">"Today" page (swipe right from page 1)</string>
     <string name="hm_c_library">App Library on the last page</string>
     <string name="hm_lib_title">App Library</string>
     <string name="hm_lib_more">All %1$d apps in %2$s</string>

@@ -33,7 +33,7 @@ class PageDots(ctx: Context) : View(ctx) {
     private val r = RectF()
 
     fun set(n: Int, color: Int, calendar: Drawable?) {
-        val changed = n != pages
+        val changed = n != pages || (glyph == null) != (calendar == null)
         pages = n.coerceAtLeast(1); ink = color; glyph = calendar
         // light ink (dark wallpaper) on a dark pane, dark ink on a light one; no rim (it read as a border)
         val light = Color.luminance(color) > 0.5f
@@ -43,9 +43,10 @@ class PageDots(ctx: Context) : View(ctx) {
     }
 
     private fun win() = minOf(pages, MAX)
+    private fun lead() = if (glyph != null) glyphSz + step * 0.6f else 0f   // room for the "Hôm nay" glyph
 
     override fun onMeasure(w: Int, h: Int) {
-        val width = padH * 2 + glyphSz + step * 0.6f + win() * step - (step - dot)
+        val width = padH * 2 + lead() + win() * step - (step - dot)
         setMeasuredDimension(resolveSize(width.toInt() + 1, w), resolveSize((18 * d).toInt(), h))
     }
 
@@ -61,7 +62,7 @@ class PageDots(ctx: Context) : View(ctx) {
             g.alpha = (255 * (0.45f + 0.55f * (1 - p.coerceAtMost(1f)))).toInt(); g.draw(c)
         }
         val n = pages; val w = win()
-        val x0 = padH + glyphSz + step * 0.6f + dot / 2
+        val x0 = padH + lead() + dot / 2
         // first page of the visible window, sliding with the scroll; centred on the current page where it can be
         val s = (p.coerceIn(1f, n.toFloat()) - (w - 1) / 2f).coerceIn(1f, (n - w + 1).toFloat())
         val moreL = (s - 1).coerceIn(0f, 1f); val moreR = (n - w + 1 - s).coerceIn(0f, 1f)
