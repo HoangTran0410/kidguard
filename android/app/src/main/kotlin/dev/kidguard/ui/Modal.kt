@@ -57,24 +57,25 @@ class Modal(private val act: Activity, private val u: Ui = Ui(act)) {
             background = u.shape(u.card, 28, u.stroke, 1)
             setPadding(u.dp(24), u.dp(24), u.dp(24), u.dp(20))
         }
-        if (icon != null) box.addView(ImageView(act).apply {
-            background = u.shape(Color.argb(if (u.dark) 55 else 30, Color.red(c), Color.green(c), Color.blue(c)), 32)
-            setImageDrawable(Ic.get(act, icon, c, u.dp(30))); scaleType = ImageView.ScaleType.CENTER
-        }, LinearLayout.LayoutParams(u.dp(64), u.dp(64)).apply { bottomMargin = u.dp(14) })
-        box.addView(u.label(title, 20f, u.text, true).apply { gravity = Gravity.CENTER })
-        if (!message.isNullOrBlank()) box.addView(u.label(message, 15f, u.sub).apply { gravity = Gravity.CENTER; setLineSpacing(0f, 1.15f) },
+        // everything above the buttons scrolls (big system font, keyboard, small screens); the buttons stay pinned below
+        val top = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        val scroll = android.widget.ScrollView(act).apply { isVerticalScrollBarEnabled = false; overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS; addView(top) }
+        if (icon != null) {
+            top.addView(ImageView(act).apply {
+                background = u.shape(Color.argb(if (u.dark) 55 else 30, Color.red(c), Color.green(c), Color.blue(c)), 32)
+                setImageDrawable(Ic.get(act, icon, c, u.dp(30))); scaleType = ImageView.ScaleType.CENTER
+            }, LinearLayout.LayoutParams(u.dp(64), u.dp(64)).apply { bottomMargin = u.dp(14) })
+        }
+        top.addView(u.label(title, 20f, u.text, true).apply { gravity = Gravity.CENTER })
+        if (!message.isNullOrBlank()) top.addView(u.label(message, 15f, u.sub).apply { gravity = Gravity.CENTER; setLineSpacing(0f, 1.15f) },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(8) })
         if (content != null) {
-            // long scrolling content (log, rules) is capped so the buttons below always stay on screen
-            val v = if (content is android.widget.ScrollView) object : android.widget.FrameLayout(act) {
-                override fun onMeasure(w: Int, h: Int) {
-                    val cap = (act.resources.displayMetrics.heightPixels * 0.5f).toInt()
-                    super.onMeasure(w, View.MeasureSpec.makeMeasureSpec(cap, View.MeasureSpec.AT_MOST))
-                }
-            }.apply { addView(content) } else content
-            box.addView(v, LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(16) })
+            // a caller's ScrollView is unwrapped: the one scroll above handles it
+            val v = if (content is android.widget.ScrollView && content.childCount == 1) content.getChildAt(0).also { content.removeView(it) } else content
+            top.addView(v, LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(16) })
         }
-        box.addView(error, LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(10) })
+        top.addView(error, LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(10) })
+        box.addView(scroll, LinearLayout.LayoutParams(-1, -2, 1f))   // weight + wrap: shrinks only when the card would not fit
 
         val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL }
         fun place(b: Button, first: Boolean) = row.addView(b, LinearLayout.LayoutParams(0, -2, 1f).apply { if (!first) marginStart = u.dp(10) })
@@ -85,7 +86,7 @@ class Modal(private val act: Activity, private val u: Ui = Ui(act)) {
         place(okBtn, cancel == null)
         box.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(20) })
 
-        d.setContentView(box)
+        d.setContentView(android.widget.FrameLayout(act).apply { setPadding(0, u.dp(24), 0, u.dp(24)); addView(box, android.widget.FrameLayout.LayoutParams(-1, -2)) })
         d.setCanceledOnTouchOutside(cancel != null)
         d.setOnCancelListener { onCancel() }
         d.window?.apply {
@@ -106,6 +107,7 @@ class Modal(private val act: Activity, private val u: Ui = Ui(act)) {
     fun field(hint: String, max: Int, pin: Boolean = false): EditText = EditText(act).apply {
         this.hint = if (pin) "• • • •" else hint; filters = arrayOf(InputFilter.LengthFilter(max))
         setTextColor(u.text); setHintTextColor(u.sub); textSize = if (pin) 24f else 16f
+        if (pin) { maxLines = 1; setAutoSizeTextTypeUniformWithConfiguration(15, 24, 1, android.util.TypedValue.COMPLEX_UNIT_SP) }
         if (pin) { inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD; gravity = Gravity.CENTER; letterSpacing = 0.3f }
         else inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         imeOptions = EditorInfo.IME_ACTION_DONE

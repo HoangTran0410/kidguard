@@ -200,14 +200,29 @@ data class Rules(
 
     companion object {
         fun salt8() = ByteArray(8).also { java.security.SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
-        fun sha256(s: String): String = java.security.MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
+        private val HEX = "0123456789abcdef".toCharArray()
+        /** Lower-case hex. A table, not "%02x".format: 10 000 PIN rounds x 32 formats took ~2 s on an old phone. */
+        fun hex(b: ByteArray): String {
+            val c = CharArray(b.size * 2)
+            for (i in b.indices) { val v = b[i].toInt() and 0xff; c[2 * i] = HEX[v ushr 4]; c[2 * i + 1] = HEX[v and 15] }
+            return String(c)
+        }
+        fun sha256(s: String): String = hex(java.security.MessageDigest.getInstance("SHA-256").digest(s.toByteArray()))
 
-        /** Salt "" = the old unsalted form; else sha256 iterated 10 000 times. */
+        /** Salt "" = the old unsalted form; else sha256 iterated 10 000 times (same output as before, one digest reused). */
         fun hashPin(pin: String, salt: String): String {
             if (salt.isEmpty()) return sha256("kg:$pin")
-            var h = sha256("$salt:$pin")
-            repeat(9_999) { h = sha256(h + salt) }
-            return h
+            val md = java.security.MessageDigest.getInstance("SHA-256")
+            val sb = salt.toByteArray()
+            var h = md.digest("$salt:$pin".toByteArray())
+            val buf = ByteArray(64 + sb.size)
+            System.arraycopy(sb, 0, buf, 64, sb.size)
+            repeat(9_999) {
+                // h + salt, where h is the 64-char hex of the previous round
+                for (i in h.indices) { val v = h[i].toInt() and 0xff; buf[2 * i] = HEX[v ushr 4].code.toByte(); buf[2 * i + 1] = HEX[v and 15].code.toByte() }
+                h = md.digest(buf)
+            }
+            return hex(h)
         }
 
         fun fromJson(o: JSONObject): Rules {

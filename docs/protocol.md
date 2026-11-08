@@ -486,11 +486,11 @@ APK, open KidGuard and follow the checklist; no cable, no adb.
 Real gains only: hiding preinstalled OEM apps (they stop running, use no RAM, don't update) and clearing an app's
 data. No "RAM cleaner" / killing background apps (they restart; costs battery) and no clearing other apps' cache
 (system-only since Android 8).
-- **Rules** `hidden: ["pkg", …]` (owner only): preinstalled apps the parent hid. The phone calls
+- **Rules** `hidden: ["pkg", …]` (Device Owner, or the self-adb shell below): preinstalled apps the parent hid. The phone calls
   `setApplicationHidden(true)` on each (skipping the never-hide set) and un-hides what it hid before and is no longer
-  listed (it remembers its own set, like suspend). Unknown / not installed entries are kept and ignored.
-  **release** un-hides every app KidGuard hid.
-- **State** `preinstalled: [{"pkg","label","hidden":bool,"suggest":bool,"mb":int|null}]` (owner only; refreshed at
+  listed (it remembers its own set, like suspend; shell path: `pm disable-user --user 0` / `pm enable --user 0`, at most 20 packages per pass, the loop continues next tick). Unknown / not installed entries are kept and ignored.
+  **release** un-hides every app KidGuard hid (owner path: `setApplicationHidden(false)`; shell path: `pm enable`, see below).
+- **State** `preinstalled: [{"pkg","label","hidden":bool,"suggest":bool,"mb":int|null}]` (Device Owner, or a working self-adb shell; refreshed at
   most every 10 min): system apps the parent may hide = system / preinstalled packages with a launcher activity, plus
   any in the suggest list that are installed, plus anything currently hidden. Never lists the never-hide set.
   `suggest` = on the curated bloat list (OEM stores, browsers, music / video, game helpers, ads / analytics, preinstalled
@@ -504,10 +504,22 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
 - **Never hide / never clear**: KidGuard, `android`, systemui, Settings, phone / dialer / telecom / contacts providers,
   the default launcher and every enabled keyboard, Google Play services / framework, Play Store, WebView, package
   installer / permission controller, `com.android.providers.*`, Bluetooth / NFC / keychain, and `Policy`'s protected apps.
-- **Command** `clearData {pkg}` (owner, Android 9+, deliver-once): `DevicePolicyManager.clearApplicationUserData`.
-  Result `"ok"` | `"not owner"` | `"unsupported"` (Android < 9) | `"protected"` (never-clear set or KidGuard) | `"failed"`.
-- **Basic mode**: `hidden` is ignored and `preinstalled` is absent; the page shows the heaviest apps (`apps[].mb`) and
-  says hiding preinstalled apps needs Device Owner.
+- **Command** `clearData {pkg}` (deliver-once): owner on Android 9+ = `DevicePolicyManager.clearApplicationUserData`; without
+  Device Owner = `pm clear --user 0 <pkg>` through the self-adb shell (any Android 11+).
+  Result `"ok"` | `"not owner"` (no owner and no shell) | `"unsupported"` (owner, Android < 9) | `"protected"` (never-clear set or KidGuard) | `"failed"`.
+- **Self-adb shell (no Device Owner)**: `setup/SelfAdb.kt`. KidGuard pairs once with the phone's own Wireless debugging
+  (same flow as the self-setup, `SelfAdb.pair`: notification with the 6-digit code, pair + connect only, none of the
+  Device Owner steps) and then runs `pm` as the adb shell user. `SelfAdb.ready` = a paired key exists and the local adbd
+  accepts a connection now (answer cached 30-60 s). With it, `hidden`, `preinstalled` and `clearData` work in Basic mode too
+  and `caps.adb` is true. KidGuard records the packages it disabled (`shellDisabled`) and only ever re-enables those.
+  Limits: Android 11+; Wireless debugging must be on and the phone on Wi-Fi; after a reboot Wireless debugging is off
+  again, so already disabled apps stay disabled and new hide / unhide changes wait (log line "Wireless debugging is off")
+  until it is turned on again. A `pm` that does not report the new state counts as a refusal (`refused: true`, retried every 10 min);
+  no shell mid-pass is not a refusal. **release** re-enables every app we disabled through the shell. Without a shell the release still completes
+  (`"ok"`; the parent is never locked in): the apps still disabled stay in the phone's `shellDisabled` set, a log line says how many, and
+  every later start of KidGuard (boot, opening the app) re-enables them as soon as the shell works. Until then the user can enable them in Settings > Apps.
+- **Basic mode** without the shell: `hidden` is ignored and `preinstalled` is absent; the page shows the heaviest apps (`apps[].mb`) and
+  says hiding preinstalled apps needs Device Owner or the self-adb shell.
 
 ## v0.9.4: app groups, Authenticator unlock code
 - **Rules** `groups: [{"id","name","pkgs":[pkg…],"min":int,"hours":[{"days":[1..7],"start":"HH:MM","end":"HH:MM"}]}]`
@@ -687,7 +699,7 @@ Only volume, brightness, screen timeout and Do Not Disturb; anything else goes t
               "health": "good|overheat|dead|overVoltage|failure|cold|unknown", "voltageMv": 4100,
               "screenOnMs": 3600000},                           // API 28+ (SCREEN_INTERACTIVE events), else null
   "net": {"type": "wifi|cell|ethernet|vpn|other|none", "rssi": -60, "bars": 3, "metered": false},   // rssi/bars Wi-Fi only
-  "clearData": true                                             // Device Owner on API 28+: the clearData command works
+  "clearData": true                                             // Device Owner on API 28+, or a working self-adb shell: the clearData command works
 }
 ```
 - Not readable, so not shown: per-app RAM / CPU % (since Android 7/8 `getRunningAppProcesses` lists only our own
@@ -753,7 +765,9 @@ Optional home screen on the kid's phone (`HomeActivity`, category HOME). Device 
 `{"on": false, "settings": false, "notes": true, "lockCustom": false, "style": ""}`. Missing = all defaults (off).
 - `on`: enable the `.HomeActivity` component (manifest default: disabled) + `addPersistentPreferredActivity(HOME)` so Home
   opens it with no chooser. `on:false`, `release` (before `clearDeviceOwnerApp`) and `releaseBasic` clear the preferred
-  activity and disable the component; the stock launcher comes back. Not Device Owner ⇒ treated as off.
+  activity and disable the component; the stock launcher comes back. Not Device Owner ⇒ the rule only enables the component
+  (no forced HOME: the user picks KidGuard in Settings) and only once paired; before pairing the child app's local opt-in
+  ("Tính năng và quyền" → launcher) decides. See "Features and permissions".
 - `settings`: show the system Settings app (hidden by default). `notes`: show `blockNote` in the "app tạm nghỉ" sheet.
 - `lockCustom`: makes the kid's "Tuỳ chỉnh" screen read-only (style, grid, wallpaper, colours, text size) with a note
   "Bố mẹ đã khoá phần tuỳ chỉnh". Arranging (move, folders, widgets, remove) stays allowed. No PIN on the phone. `style`: `""|"be"|"teen"|"gon"`, the preset used only
@@ -810,3 +824,34 @@ parent. Absent = older app; `[]` = none shared.
 SOS row (not removable; unpaired ⇒ dials 112), today's timeline (schedules, group windows, bedtime; from `today()`),
 chores (`rules.chores`: "Xong" sends the same request as the main screen with the chore id) + homework (`todo`), notes,
 and the Download/KidGuard folder (files from the parent, red dot = not opened yet). A KidGuard button opens the main app.
+
+## Features and permissions
+What works with which permission, so the child app and the web page can show it before the heavy setup (Device Owner)
+is done. Source of truth: `guard/Features.kt` (pure, `FeaturesTest`). State adds (absent = older app):
+- `caps`: `{"owner","admin","acc","usage","location","notify","battery","home","adb","paired"}`, all bool. `home` = KidGuard
+  is the default HOME app now; `adb` = the phone can run adb against itself (false until that flow exists); `paired` = `everPaired`.
+- `features`: `[{"id","ok":bool,"missing":["acc","admin"]}]` in display order. `ok` = one alternative has every cap;
+  otherwise `missing` = the alternative with the fewest missing caps (first on ties).
+
+| id | alternatives (any one) | note |
+|---|---|---|
+| `launcher` | `home` | works without Device Owner and without pairing (local opt-in, below) |
+| `launcherLock` | `owner` | persistent preferred HOME |
+| `debloat` | `owner` or `adb` | |
+| `limits` | `owner` or `acc`+`usage`+`admin` | basic mode bounces with Accessibility; needs usage and device admin |
+| `block` | `owner` or `acc`+`admin` | `Basic.enforcing` also needs the device admin |
+| `usage` | `usage` | |
+| `location` | `location` | fine + background |
+| `screen` | `acc` | screen view / remote input, API 30+ |
+| `remote` | `paired` | |
+| `noUninstall` | `owner` or `admin` | |
+| `dns` | `owner` | private DNS |
+
+Child-app screen "Tính năng và quyền" (Thêm sheet) lists these with a button per missing cap.
+
+Local launcher opt-in (phone only, not in rules): `Store.launcherLocal`. Not owner + never paired ⇒ `wanted` = this flag;
+paired ⇒ the parent's `launcher` rule; owner ⇒ the rule, with the forced HOME. Only the owner path adds the persistent
+preferred activity. The flag is not sent in state; `release` disables the component as before.
+
+Before setup (never paired, no parent PIN, no Authenticator) "Bố mẹ quản lý trên máy này" opens the local page without a
+code (`PairPin.adminOpen`); with a PIN or TOTP, or once paired, the code is required as before.

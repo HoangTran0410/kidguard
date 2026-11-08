@@ -43,8 +43,8 @@ internal fun HomeActivity.pausedSheet(a: AppE, reason: String, dv: View0, r: Rul
         body.addView(nc, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(10), dp(12), 0) })
     }
     if (HomeLogic.canAsk(s.everPaired, dv.leftMs, reason)) body.addView(kit.pill(getString(R.string.main_more), R.drawable.li_timer, true) { sh.dismiss(); main.post { acts.askMore() } },
-        LinearLayout.LayoutParams(-1, dp(52)).apply { setMargins(dp(12), dp(16), dp(12), 0) })
-    body.addView(kit.pill(getString(R.string.hm_later), null, false) { sh.dismiss() }, LinearLayout.LayoutParams(-1, dp(52)).apply { setMargins(dp(12), dp(8), dp(12), 0) })
+        LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(16), dp(12), 0) })
+    body.addView(kit.pill(getString(R.string.hm_later), null, false) { sh.dismiss() }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(8), dp(12), 0) })
     sh.show()
 }
 
@@ -54,13 +54,20 @@ internal fun HomeActivity.pausedSheet(a: AppE, reason: String, dv: View0, r: Rul
 internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: Int = 0) {
     popup?.dismiss()
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = fill(pal.sheet, 16f); setPadding(0, dp(6), 0, dp(6)); elevation = dpf(8f) }
-    val pw = PopupWindow(box, dp(250), ViewGroup.LayoutParams.WRAP_CONTENT, true)
+    // 250dp, wider with a big system font, never wider than the screen; taller than the screen scrolls
+    val mw = minOf(dp((250 * resources.configuration.fontScale.coerceIn(1f, 1.4f)).toInt()), root.width - dp(16))
+    val maxH = root.height - insT - insB - dp(24)
+    val scroll = object : android.widget.ScrollView(this) {
+        override fun onMeasure(w: Int, h: Int) = super.onMeasure(w, View.MeasureSpec.makeMeasureSpec(maxH, View.MeasureSpec.AT_MOST))
+    }.apply { isVerticalScrollBarEnabled = false; background = fill(pal.sheet, 16f); elevation = dpf(8f); addView(box) }
+    box.background = null; box.elevation = 0f
+    val pw = PopupWindow(scroll, mw, ViewGroup.LayoutParams.WRAP_CONTENT, true)
     for (r in rows) box.addView(LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(14), dp(12), dp(14), dp(12))
         val c = if (r.enabled) pal.text else pal.sub
         addView(ImageView(context).apply { setImageDrawable(Ic.get(context, r.icon, if (r.enabled) pal.onTint else pal.sub, dp(18))); background = fill(if (r.enabled) pal.tint else pal.bg); setPadding(dp(6), dp(6), dp(6), dp(6)) },
             LinearLayout.LayoutParams(dp(30), dp(30)))
-        addView(text(r.label, 15f, c).apply { setPadding(dp(12), 0, 0, 0) })
+        addView(text(r.label, 15f, c).apply { setPadding(dp(12), 0, 0, 0); maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
         isEnabled = r.enabled
         kit.tap(this, 10f)
         if (r.enabled) setOnClickListener { pw.dismiss(); r.run() }
@@ -71,15 +78,15 @@ internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: In
     pw.setOnDismissListener { if (popup === pw) popup = null }
     popup = pw
     // place it ourselves: showAsDropDown on an item near the bottom cut the last rows off (Android 8 doesn't flip it)
-    box.measure(View.MeasureSpec.makeMeasureSpec(dp(250), View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
-    val h = box.measuredHeight
+    scroll.measure(View.MeasureSpec.makeMeasureSpec(mw, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+    val h = scroll.measuredHeight
     val rl = IntArray(2).also { root.getLocationInWindow(it) }
     val (px, py) = if (anchor != null) {
         val l = IntArray(2).also { anchor.getLocationInWindow(it) }
         val below = l[1] - rl[1] + anchor.height - dp(6)
         l[0] - rl[0] to (if (below + h <= root.height - insB - dp(8)) below else l[1] - rl[1] - h + dp(6))
     } else x - rl[0] to y - rl[1]
-    pw.showAtLocation(root, Gravity.TOP or Gravity.START, px.coerceAtMost(root.width - dp(260)).coerceAtLeast(dp(8)) + rl[0],
+    pw.showAtLocation(root, Gravity.TOP or Gravity.START, px.coerceAtMost(root.width - mw - dp(8)).coerceAtLeast(dp(8)) + rl[0],
         py.coerceAtMost(root.height - insB - h - dp(8)).coerceAtLeast(insT + dp(8)) + rl[1])
 }
 

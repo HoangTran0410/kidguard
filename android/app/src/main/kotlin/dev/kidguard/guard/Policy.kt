@@ -43,7 +43,7 @@ object Policy {
 
     /** Restrictions + self-protection + the permissions the guard needs. Safe to call again and again. */
     fun apply(ctx: Context, r: Rules) {
-        if (!isOwner(ctx)) { runCatching { LauncherSafe.off(ctx, goHome = true) }; return }
+        if (!isOwner(ctx)) { runCatching { LauncherSafe.apply(ctx, r) }; return }   // non-owner: only the user's own HOME choice (local opt-in / parent rule)
         val d = dpm(ctx); val a = admin(ctx)
         runCatching {
             BASE.forEach { d.addUserRestriction(a, it) }
@@ -254,7 +254,7 @@ object Policy {
      * Returns what is hidden by us now ([had] changed by what worked).
      */
     fun hideExactly(ctx: Context, want: Set<String>, had: Set<String>, never: Set<String> = neverHide(ctx), failed: MutableSet<String>? = null): Set<String> {
-        if (!isOwner(ctx)) return had
+        if (!isOwner(ctx)) return hideViaShell(ctx, want, had, never, failed)
         val d = dpm(ctx); val a = admin(ctx)
         val df = Debloat.diff(want, had, never)
         var now = had
@@ -263,12 +263,63 @@ object Policy {
         return now
     }
 
+    /**
+     * No Device Owner: the same through the phone's own adb shell ([SelfAdb]): `pm disable-user` / `pm enable`. [had] = apps WE disabled
+     * (Store.shellDisabled); we only ever re-enable those. At most [Debloat.SHELL_BATCH] packages per call; blocks, so off the main thread.
+     * No shell mid-way (Wireless debugging went off) stops the pass without marking anything as refused.
+     */
+    private fun hideViaShell(ctx: Context, want: Set<String>, had: Set<String>, never: Set<String>, failed: MutableSet<String>?): Set<String> {
+        if (!SelfAdb.ready(ctx)) return had
+        val df = Debloat.shellBatch(Debloat.diff(want, had, never))
+        var now = had
+        for (p in df.show) {
+            if (!installed(ctx, p)) { now = now - p; continue }
+            val out = SelfAdb.run(ctx, Debloat.enableCmd(p) ?: continue) ?: break
+            if (Debloat.enableOk(out)) now = now - p else Log.w(TAG, "shell enable $p: $out")
+        }
+        for (p in df.hide) {
+            val out = SelfAdb.run(ctx, Debloat.disableCmd(p) ?: continue) ?: break
+            if (Debloat.disableOk(out)) now = now + p else { Log.w(TAG, "shell disable $p: $out"); failed?.add(p) }
+        }
+        return now
+    }
+
+    /** Disabled for the user (by us or anyone): what `pm disable-user` sets. */
+    private fun disabledByUser(ctx: Context, pkg: String): Boolean = runCatching {
+        ctx.packageManager.getApplicationEnabledSetting(pkg) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER
+    }.getOrDefault(false)
+
+    /**
+     * Release: re-enables what we disabled through the shell. Keeps only what is still disabled in Store.shellDisabled and returns
+     * how many (0 = done). Without a shell they stay listed and release reports it.
+     */
+    private fun enableShellDisabled(ctx: Context, s: Store): Int {
+        val ours = s.shellDisabled
+        if (ours.isEmpty()) return 0
+        var left = Debloat.toEnableOnRelease(ours) { disabledByUser(ctx, it) }
+        if (left.isNotEmpty() && SelfAdb.ready(ctx)) for (p in left) {
+            val out = SelfAdb.run(ctx, Debloat.enableCmd(p) ?: continue) ?: break
+            if (Debloat.enableOk(out)) left = left - p
+        }
+        s.shellDisabled = left
+        return left.size
+    }
+
+    private val retrying = java.util.concurrent.atomic.AtomicBoolean(false)
+    /** After release: apps we could not re-enable (no Wireless debugging then) are retried at every start while the shell works. */
+    fun retryShellEnable(ctx: Context) {
+        val s = Store.of(ctx)
+        if (s.shellDisabled.isEmpty() || !SelfAdb.hasKey(ctx) || !retrying.compareAndSet(false, true)) return
+        Thread({ try { runCatching { enableShellDisabled(ctx, s) } } finally { retrying.set(false) } }, "shellenable").apply { isDaemon = true }.start()
+    }
+
     /** True when [pkg] is present, hidden apps included. */
     fun installed(ctx: Context, pkg: String): Boolean = runCatching {
         @Suppress("DEPRECATION") ctx.packageManager.getApplicationInfo(pkg, PackageManager.MATCH_UNINSTALLED_PACKAGES); true
     }.getOrDefault(false)
 
-    private fun isHidden(ctx: Context, pkg: String): Boolean = runCatching { dpm(ctx).isApplicationHidden(admin(ctx), pkg) }.getOrDefault(false)
+    private fun isHidden(ctx: Context, pkg: String): Boolean =
+        if (isOwner(ctx)) runCatching { dpm(ctx).isApplicationHidden(admin(ctx), pkg) }.getOrDefault(false) else disabledByUser(ctx, pkg)
 
     /** Un-hides everything we hid plus anything still hidden that the rules list. Part of release. */
     private fun unhideAll(ctx: Context, s: Store, d: DevicePolicyManager, a: ComponentName) {
@@ -282,7 +333,12 @@ object Policy {
      * Blocks up to 5 s for the system's answer, so call it off the main thread.
      */
     fun clearData(ctx: Context, pkg: String): String {
-        if (!isOwner(ctx)) return "not owner"
+        if (!isOwner(ctx)) {   // no Device Owner: `pm clear` through the self-adb shell
+            val cmd = Debloat.clearCmd(pkg)
+            if (cmd == null || !Debloat.canClear(pkg, ctx.packageName, neverHide(ctx))) return "protected"
+            val out = SelfAdb.run(ctx, cmd) ?: return "not owner"
+            return if (Debloat.clearOk(out)) "ok" else "failed"
+        }
         if (Build.VERSION.SDK_INT < 28) return "unsupported"
         if (!Debloat.validPkg(pkg) || !Debloat.canClear(pkg, ctx.packageName, neverHide(ctx))) return "protected"
         val latch = java.util.concurrent.CountDownLatch(1)
@@ -305,14 +361,14 @@ object Policy {
      * Never lists the never-hide set. Sorted suggest first, then label.
      */
     fun preinstalled(ctx: Context, s: Store, never: Set<String>, mb: (String) -> Int?): JSONArray {
-        if (!isOwner(ctx)) return JSONArray()
+        if (!isOwner(ctx) && !SelfAdb.ready(ctx)) return JSONArray()
         val pm = ctx.packageManager
         val flags = PackageManager.MATCH_UNINSTALLED_PACKAGES or PackageManager.MATCH_DISABLED_COMPONENTS
         @Suppress("DEPRECATION")
         val withIcon = runCatching {
             pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), flags).map { it.activityInfo.packageName }.toSet()
         }.getOrDefault(emptySet())
-        val ours = s.hiddenByUs + s.rules.hidden
+        val ours = s.hiddenByUs + s.shellDisabled + s.rules.hidden
         val refused = s.refusedHide
         data class C(val ai: ApplicationInfo, val hidden: Boolean, val row: Debloat.Row)
         val out = mutableListOf<C>()
@@ -352,7 +408,12 @@ object Policy {
      * Call it on the Guard thread with the loop stopped. Returns "ok", "not owner" or "failed" (still Device Owner).
      */
     fun release(ctx: Context, s: Store): String {
-        if (!isOwner(ctx)) return releaseBasic(ctx, s)
+        if (!isOwner(ctx)) {
+            val off = enableShellDisabled(ctx, s)
+            val res = releaseBasic(ctx, s)   // always: the parent must be able to let the phone go
+            if (off > 0 && res == "ok") s.log(ctx.resources.getQuantityString(R.plurals.release_shell_left, off, off))   // kept in Store.shellDisabled, see [retryShellEnable]
+            return res
+        }
         val d = dpm(ctx); val a = admin(ctx)
         runCatching { Ts.undo(ctx, s) }.onFailure { Log.w(TAG, "remote access undo", it) }
         // every launcher app, not just what we remember: the stored set may be stale
@@ -362,6 +423,7 @@ object Policy {
         runCatching { unhideAll(ctx, s, d, a) }.onFailure { Log.w(TAG, "unhide all", it) }
         // setApplicationHidden(false) can refuse without throwing: once Device Owner is gone nobody can un-hide, so stop here
         val stuck = (s.hiddenByUs + s.rules.hidden).filter { isHidden(ctx, it) }
+        val shellLeft = enableShellDisabled(ctx, s)   // apps disabled before this phone became Device Owner
         if (stuck.isNotEmpty()) {
             Log.w(TAG, "release: still hidden $stuck")
             runCatching { apply(ctx, s.rules) }; Watchdog.schedule(ctx)
@@ -391,7 +453,10 @@ object Policy {
         Watchdog.cancel(ctx)
         @Suppress("DEPRECATION") runCatching { d.clearDeviceOwnerApp(ctx.packageName) }
         s.suspendedByUs = emptySet(); s.hiddenByUs = emptySet(); s.refusedHide = emptySet()
-        if (!isOwner(ctx)) { s.clearTokens(); Quick.setEnabled(ctx, false); return "ok" }
+        if (!isOwner(ctx)) {
+            if (shellLeft > 0) s.log(ctx.resources.getQuantityString(R.plurals.release_shell_left, shellLeft, shellLeft))
+            s.clearTokens(); Quick.setEnabled(ctx, false); return "ok"
+        }
         // still Device Owner: put the protection back (the loop re-suspends apps) and keep the parents' tokens
         s.released = false
         runCatching { apply(ctx, s.rules) }.onFailure { Log.w(TAG, "re-apply after failed release", it) }

@@ -27,7 +27,13 @@ object LauncherSafe {
     fun inSafeMode(ctx: Context): Boolean = System.currentTimeMillis() < safeUntil(ctx)
 
     /** The launcher should be the home screen now. */
-    fun wanted(ctx: Context, r: Rules): Boolean = r.launcher.on && Policy.isOwner(ctx) && !inSafeMode(ctx) && !Store.of(ctx).released
+    fun wanted(ctx: Context, r: Rules): Boolean {
+        val s = Store.of(ctx)
+        if (inSafeMode(ctx) || s.released) return false
+        if (Policy.isOwner(ctx)) return r.launcher.on
+        // no Device Owner: the user picks KidGuard as HOME themselves. Local opt-in before pairing, the parent's rule after
+        return if (s.everPaired) r.launcher.on else s.launcherLocal
+    }
 
     private fun homeFilter() = IntentFilter(Intent.ACTION_MAIN).apply {
         addCategory(Intent.CATEGORY_HOME); addCategory(Intent.CATEGORY_DEFAULT)
@@ -43,6 +49,7 @@ object LauncherSafe {
         val pm = ctx.packageManager
         if (!was) runCatching { pm.setComponentEnabledSetting(comp(ctx), PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP) }
             .onFailure { Log.w(TAG, "launcher enable", it) }
+        if (!Policy.isOwner(ctx)) return   // only the owner may force / lock HOME; the user picks it in Settings
         // re-added every time: cheap, and it fixes a HOME the user re-picked in Settings
         if (!homeIsOurs(ctx)) runCatching { Policy.dpm(ctx).addPersistentPreferredActivity(Policy.admin(ctx), homeFilter(), comp(ctx)) }
             .onFailure { Log.w(TAG, "launcher preferred", it) }
@@ -96,6 +103,12 @@ object LauncherSafe {
     }
 
     fun err(ctx: Context, r: Rules): String = LauncherLogic.err(r.launcher.on, Policy.isOwner(ctx), inSafeMode(ctx), homeIsOurs(ctx))
+
+    /** The Features sheet's "launcher" row: turn the local opt-in on/off (enables / disables the HOME component). */
+    fun setLocal(ctx: Context, on: Boolean) {
+        Store.of(ctx).launcherLocal = on
+        runCatching { apply(ctx, Store.of(ctx).rules) }.onFailure { Log.w(TAG, "launcher local", it) }
+    }
 
     // ---- crash fallback ----
 

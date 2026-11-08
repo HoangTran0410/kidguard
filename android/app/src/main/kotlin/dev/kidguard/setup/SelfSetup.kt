@@ -166,7 +166,7 @@ object SelfSetup {
     @Volatile var done = false
     @Volatile var turnOffWifi = true
     @Volatile var wifiOff: Boolean? = null  // result of the optional last step
-    private var mgr: SelfAdbManager? = null
+    @Volatile var pairOnly = false      // set by SelfAdb.pair: pair + connect, none of the Device Owner steps
     private var pairing: AdbPortFinder? = null
     private var connecting: AdbPortFinder? = null
 
@@ -182,11 +182,11 @@ object SelfSetup {
     fun stopDiscovery() { pairing?.stop(); connecting?.stop() }
 
     /** Starts the job on a background thread: pair with [code], connect, run every step. Port 0 = use the discovered one. */
-    fun start(ctx: Context, code: String, pairPort: Int = 0, connPort: Int = 0) {
+    fun start(ctx: Context, code: String, pairPort: Int = 0, connPort: Int = 0, pairOnly: Boolean = false) {
         val app = ctx.applicationContext
         synchronized(this) { if (running) return; running = true; done = false; message = ""; wifiOff = null; state.fill(STEP_TODO) }
         startDiscovery(app)
-        Thread({ runCatching { job(app, code.trim(), pairPort, connPort) }.onFailure { Log.w(AdbPortFinder.TAG, "job", it); fail(app, it.message ?: it.toString()) }; running = false }, "selfsetup").start()
+        Thread({ runCatching { job(app, code.trim(), pairPort, connPort, pairOnly) }.onFailure { Log.w(AdbPortFinder.TAG, "job", it); fail(app, it.message ?: it.toString()) }; this.pairOnly = false; running = false }, "selfsetup").start()
     }
 
     private fun mark(app: Context, i: Int, s: Int) { state[i] = s; notifyProgress(app, if (s == STEP_RUN) app.getString(STEPS[i]) + "..." else null) }
@@ -199,8 +199,8 @@ object SelfSetup {
 
     private fun waitFor(ms: Long, get: () -> Int): Int { val end = System.currentTimeMillis() + ms; while (System.currentTimeMillis() < end) { val v = get(); if (v > 0) return v; Thread.sleep(200) }; return 0 }
 
-    private fun job(app: Context, code: String, pairPort: Int, connPort: Int) {
-        val m = mgr ?: SelfAdbManager(app).also { mgr = it }
+    private fun job(app: Context, code: String, pairPort: Int, connPort: Int, onlyPair: Boolean) {
+        val m = SelfAdb.manager(app)
         // 1) pair, then connect
         mark(app, 0, STEP_RUN)
         val pp = if (pairPort > 0) pairPort else waitFor(8000) { pairingPort }
@@ -214,6 +214,12 @@ object SelfSetup {
         Log.i(AdbPortFinder.TAG, "connect -> $c")
         if (c.isFailure || c.getOrNull() != true) return fail(app, app.getString(R.string.ss_conn_fail, c.exceptionOrNull()?.message ?: ""))
         state[0] = STEP_OK
+        if (onlyPair) {   // SelfAdb.pair: the key is paired, the shell works while Wireless debugging stays on
+            runCatching { m.disconnect() }
+            SelfAdb.invalidate(); stopDiscovery()
+            done = true; message = app.getString(R.string.ss_paired)
+            notifyFinal(app, message); Guard.start(app); return
+        }
 
         fun sh(cmd: String): String {
             Log.i(AdbPortFinder.TAG, "sh: $cmd")
@@ -309,6 +315,6 @@ class PairCodeReceiver : BroadcastReceiver() {
         if (code.length != 6) {
             SelfSetup.message = ctx.applicationContext.getString(R.string.ss_code_6); SelfSetup.askCodeNotification(ctx.applicationContext); return
         }
-        SelfSetup.start(ctx, code)
+        SelfSetup.start(ctx, code, pairOnly = SelfSetup.pairOnly)
     }
 }

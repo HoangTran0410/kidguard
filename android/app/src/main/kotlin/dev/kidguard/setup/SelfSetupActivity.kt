@@ -103,6 +103,7 @@ class SelfSetupActivity : Activity() {
     }
 
     private fun askNotification() {
+        SelfSetup.pairOnly = false   // the full setup, not SelfAdb.pair
         SelfSetup.startDiscovery(this)
         SelfSetup.askCodeNotification(this)
         open(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)

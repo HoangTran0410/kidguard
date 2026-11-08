@@ -134,6 +134,8 @@ class MainActivity : Activity() {
         col.addView(u.cardBox(4).apply { addView(u.listRow(getString(R.string.main_my_rules), R.drawable.li_shield) { showMyRules() }) },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         kidG.addView(u.listRow(getString(R.string.main_log), R.drawable.li_scroll_text) { sheet.dismiss(); showLog() })
+        // what works with which permission (FeaturesSheet): usable before any setup
+        kidG.addView(u.listRow(getString(R.string.feat_title), R.drawable.li_list_checks) { sheet.dismiss(); FeaturesSheet.show(this, u) { askPin() } })
         // shared folder (Files.kt): system picker -> outbox, the parent page lists it under "File con gửi"
         kidG.addView(u.listRow(getString(R.string.files_menu), R.drawable.li_send) { sheet.dismiss(); ShareInActivity.pick(this@MainActivity) })
         revealBtn = u.button(getString(R.string.main_reveal), R.drawable.li_link, true) {}
@@ -192,7 +194,12 @@ class MainActivity : Activity() {
     private fun askAdmin() {
         val s = Store.of(this)
         val pinSet = s.rules.pinHash.isNotBlank(); val totpOn = s.totpSecret.isNotBlank()
-        if (!PairPin.adminAvailable(pinSet, totpOn)) return
+        if (!PairPin.adminAvailable(pinSet, totpOn, s.everPaired)) return
+        // before setup (never paired, no PIN, no Authenticator): no parent to ask, open the page to preview / configure
+        if (PairPin.adminOpen(pinSet, totpOn, s.everPaired)) {
+            if (Guard.running == null) { Guard.start(this); android.widget.Toast.makeText(this, getString(R.string.admin_not_ready), android.widget.Toast.LENGTH_SHORT).show(); return }
+            AdminActivity.start(this); return
+        }
         fun lockText(left: Long) = ((left + 59_999) / 60_000).toInt().let { resources.getQuantityString(R.plurals.pin_locked, it, it) }
         s.adminLockLeft().takeIf { it > 0 }?.let { Modal(this, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, getString(R.string.locked_title), lockText(it)); return }
         val m = Modal(this, ui2)
@@ -200,13 +207,18 @@ class MainActivity : Activity() {
         val body = getString(if (pinSet && totpOn) R.string.admin_body else if (pinSet) R.string.admin_body_pin else R.string.admin_body_totp)
         m.show(R.drawable.li_users, Modal.Tone.INFO, getString(R.string.admin_title), body, input, ok = getString(R.string.admin_ok), cancel = getString(R.string.cancel)) {
             if (Guard.running == null) { m.setError(getString(R.string.admin_not_ready)); Guard.start(this); return@show false }
-            when (s.checkAdmin(input.text.toString())) {
+            val tc = android.os.SystemClock.elapsedRealtime()
+            val res = s.checkAdmin(input.text.toString())
+            android.util.Log.i("KG.perf", "admin check ${android.os.SystemClock.elapsedRealtime() - tc}ms")
+            when (res) {
                 1 -> { AdminActivity.start(this); true }
                 -1 -> { input.setText(""); m.setError(lockText(s.adminLockLeft())); false }
                 else -> { input.setText(""); m.setError(getString(R.string.admin_wrong)); false }
             }
         }
         input.requestFocus()
+        // WebView start-up while the PIN is being typed, after the modal has drawn
+        ui.postDelayed({ AdminActivity.warm() }, 300)
     }
 
     /** Hold-to-confirm state: the label each button shows when idle (refresh() may change it while a hold runs). */
@@ -379,10 +391,7 @@ class MainActivity : Activity() {
     /** The tech status rows + Device Owner checklist (kept up to date by refresh) in a modal. */
     private fun showStatus() {
         (statusBox.parent as? android.view.ViewGroup)?.removeView(statusBox)
-        val maxH = (resources.displayMetrics.heightPixels * 0.55f).toInt()
-        val scroll = object : ScrollView(this) {
-            override fun onMeasure(w: Int, h: Int) = super.onMeasure(w, View.MeasureSpec.makeMeasureSpec(maxH, View.MeasureSpec.AT_MOST))
-        }.apply { addView(statusBox) }
+        val scroll = ScrollView(this).apply { addView(statusBox) }   // Modal unwraps it into its own scroll
         Modal(this, ui2).show(R.drawable.li_shield, Modal.Tone.INFO, getString(R.string.home_status), getString(R.string.home_status_sub), scroll, ok = getString(R.string.close))
             .setOnDismissListener { (statusBox.parent as? android.view.ViewGroup)?.removeView(statusBox) }
     }
@@ -532,7 +541,7 @@ class MainActivity : Activity() {
         // SOS / more time only reach someone once a parent has paired
         (if (s.everPaired) View.VISIBLE else View.GONE).let { sosBtn.visibility = it; moreBtn.visibility = it }
         unlockBtn.visibility = if (s.totpSecret.isNotBlank()) View.VISIBLE else View.GONE
-        adminBtn.visibility = if (PairPin.adminAvailable(s.rules.pinHash.isNotBlank(), s.totpSecret.isNotBlank())) View.VISIBLE else View.GONE
+        adminBtn.visibility = if (PairPin.adminAvailable(s.rules.pinHash.isNotBlank(), s.totpSecret.isNotBlank(), s.everPaired)) View.VISIBLE else View.GONE
         unlockBtn.text = s.unlockUntil.takeIf { it > System.currentTimeMillis() }?.let { getString(R.string.main_unlocked_until, java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(it))) }
             ?: getString(R.string.main_unlock)
         updBtn.visibility = if (!owner && Update.apk(this).exists() && UpdateLogic.newer(Update.stateJson(this).optString("latest"), Update.current())) View.VISIBLE else View.GONE
@@ -699,8 +708,11 @@ class MainActivity : Activity() {
                     scaleType = android.widget.ImageView.ScaleType.CENTER; setImageDrawable(Ic.get(context, icon, c, dp(16)))
                     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 }, LinearLayout.LayoutParams(dp(30), dp(30)))
-                addView(u.label(noEmoji(o.optString("m")), 14f, u.text), LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(10); marginEnd = dp(8) })
-                addView(u.label(hm.format(java.util.Date(t)), 12f, u.sub))
+                val big = resources.configuration.fontScale > 1.15f   // large system font: time goes under the text, not beside it
+                val msg = u.label(noEmoji(o.optString("m")), 14f, u.text).apply { minWidth = 0 }
+                val time = u.label(hm.format(java.util.Date(t)), 12f, u.sub)
+                if (big) addView(LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; addView(msg); addView(time) }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(10) })
+                else { addView(msg, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(10); marginEnd = dp(8) }); addView(time) }
             })
         }
         Modal(this, u).show(R.drawable.li_scroll_text, Modal.Tone.INFO, getString(R.string.log_title), getString(R.string.log_sub), ScrollView(this).apply { addView(box) }, ok = getString(R.string.close))

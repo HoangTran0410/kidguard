@@ -7,7 +7,7 @@ const rd = p => readFileSync(join(root, p), "utf8");
 let pass = 0, fail = 0;
 const ck = (n, c) => { console.log(c ? "PASS" : "FAIL", n); c ? pass++ : fail++; };
 
-const guard = rd("android/app/src/main/kotlin/dev/kidguard/Guard.kt");
+const guard = rd("android/app/src/main/kotlin/dev/kidguard/guard/Guard.kt");
 const start = guard.indexOf("private fun run(t: String");
 const body = guard.slice(start, guard.indexOf('else -> "unknown"', start));
 const phone = [...body.matchAll(/^\s{8}"(\w+)"\s*->/gm)].map(m => m[1]);

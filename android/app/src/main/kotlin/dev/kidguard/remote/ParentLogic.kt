@@ -27,8 +27,15 @@ object PairPin {
     /** Paired before PINs were mandatory: the page forces "Đặt PIN", the child app shows "Bố mẹ chưa đặt PIN". */
     fun legacyNoPin(everPaired: Boolean, pinSet: Boolean) = everPaired && !pinSet
 
-    /** The child app's "Bố mẹ quản lý trên máy này" entry: needs something only a parent knows. */
-    fun adminAvailable(pinSet: Boolean, totpOn: Boolean) = pinSet || totpOn
+    /**
+     * The child app's "Bố mẹ quản lý trên máy này" entry: needs something only a parent knows. Before setup (never paired,
+     * no PIN, no Authenticator) there is no parent yet, so the page opens without a code to preview / configure.
+     * [everPaired] defaults to true = the old behaviour.
+     */
+    fun adminAvailable(pinSet: Boolean, totpOn: Boolean, everPaired: Boolean = true) = pinSet || totpOn || adminOpen(pinSet, totpOn, everPaired)
+
+    /** True = open the local page with no code (nobody to ask). */
+    fun adminOpen(pinSet: Boolean, totpOn: Boolean, everPaired: Boolean) = !everPaired && !pinSet && !totpOn
 }
 
 /**

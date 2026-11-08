@@ -212,6 +212,9 @@
         <item quantity="other">failed: %1$d app còn bị ẩn</item>
     </plurals>
 
+    <plurals name="release_shell_left">
+        <item quantity="other">%1$d app đã tắt vẫn chưa bật lại: sẽ bật lại khi Gỡ lỗi không dây đang bật ở lần mở sau (hoặc bật trong Cài đặt > Ứng dụng)</item>
+    </plurals>
     <!-- Listening -->
     <plurals name="listen_about">
         <item quantity="other">khoảng %1$d phút</item>
@@ -442,6 +445,7 @@
     <string name="admin_body_totp">Bố mẹ nhập mã Authenticator đang hiện. Trang tự đóng khi tắt màn hình, khi rời trang hoặc sau 5 phút không chạm.</string>
     <string name="admin_field">PIN hoặc mã 6 số</string>
     <string name="admin_ok">Mở</string>
+    <string name="admin_loading">Đang mở trang quản lý…</string>
     <string name="admin_wrong">Sai mã, thử lại</string>
     <string name="admin_not_ready">Trang quản lý chưa sẵn sàng, thử lại sau vài giây.</string>
     <string name="st_no_pin">Bố mẹ chưa đặt PIN</string>
@@ -701,4 +705,6 @@
     <string name="hm_c_picking">Đang mở…</string>
     <string name="hm_c_pick_fail">Không dùng được ảnh này</string>
     <string name="hm_c_accent_n">Màu %1$d</string>
+    <string name="ss_paired">Đã ghép nối. KidGuard sẽ ẩn được app khi Gỡ lỗi không dây đang bật.</string>
+    <string name="app_shell_off">Gỡ lỗi không dây đang tắt: thay đổi app sẽ áp dụng khi bật lại</string>
 </resources>

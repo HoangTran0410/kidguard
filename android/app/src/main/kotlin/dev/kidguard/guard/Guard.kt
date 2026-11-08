@@ -232,15 +232,23 @@ class Guard : Service() {
     private var preCache: JSONArray = JSONArray(); private var preAt = 0L
     private var mbCache = HashMap<String, Int>(); private var mbAt = 0L   // -1 = unknown
 
-    /** Owner only: hide / un-hide per rules.hidden when the rules or the never-hide set changed (or every 10 min, an app may have been installed). */
+    private var shellOffLogged = false
+    /** Hide / un-hide per rules.hidden when the rules or the never-hide set changed (or every 10 min, an app may have been installed).
+     *  Device Owner: setApplicationHidden. Otherwise through the self-adb shell (SelfAdb) while Wireless debugging is on. */
     private fun applyHidden(r: Rules, prot: Set<String>, now: Long) {
-        if (!Policy.isOwner(this)) return
-        val had = store.hiddenByUs
+        val owner = Policy.isOwner(this)
+        val had = if (owner) store.hiddenByUs else store.shellDisabled
         val never = Policy.neverHide(this, prot)
         val key = r.hidden.sorted().joinToString(",") + "|" + had.sorted().joinToString(",") + "|" + never.hashCode()
         if (key == hideKey && now - hideAt < 10 * 60_000L) return
         hideKey = key; hideAt = now
         if (r.hidden.isEmpty() && had.isEmpty() && store.refusedHide.isEmpty()) return
+        if (!owner && !SelfAdb.ready(this)) {   // no shell: changes wait (disabled apps stay disabled)
+            hideKey = ""
+            if (!shellOffLogged && Debloat.diff(r.hidden, had, Policy.neverHide(this, prot)).let { it.hide.isNotEmpty() || it.show.isNotEmpty() }) { shellOffLogged = true; store.log(R.string.app_shell_off) }
+            return
+        }
+        shellOffLogged = false
         val failed = HashSet<String>()
         val nowHid = Policy.hideExactly(this, r.hidden, had, never, failed)
         val refused = Debloat.refusedAfter(store.refusedHide, failed, nowHid - had, had - nowHid, r.hidden)
@@ -248,7 +256,7 @@ class Guard : Service() {
         if (nowHid != had) {
             (nowHid - had).takeIf { it.isNotEmpty() }?.let { store.log(R.string.app_hidden, it.joinToString { p -> Policy.labelOf(this, p) }) }
             (had - nowHid).takeIf { it.isNotEmpty() }?.let { store.log(R.string.app_unhidden, it.joinToString { p -> Policy.labelOf(this, p) }) }
-            store.hiddenByUs = nowHid
+            if (owner) store.hiddenByUs = nowHid else store.shellDisabled = nowHid
             hideKey = ""   // re-evaluate next tick with the new set (cheap), and pick up Policy.cached app list changes
             Policy.invalidate(); preAt = 0
         }
@@ -295,6 +303,7 @@ class Guard : Service() {
         }
         val bm = getSystemService(BatteryManager::class.java)
         val pm = getSystemService(PowerManager::class.java)
+        val fc = FeatureCaps.of(this)
         return JSONObject()
             .put("id", store.id).put("t", now).put("day", today)
             .put("model", "${Build.MANUFACTURER} ${Build.MODEL}").put("android", Build.VERSION.RELEASE).put("sdk", Build.VERSION.SDK_INT).put("version", BuildConfig.VERSION_NAME)
@@ -305,7 +314,7 @@ class Guard : Service() {
             .put("locationOn", locationOn())
             .put("dev", DevOpts.state(this))
             .put("limitMin", baseLimitMin(r, today).let { if (it > 0) it + if (r.bonusDay == today) r.bonusMin else 0 else 0 })
-            .put("owner", Policy.isOwner(this)).put("mode", Basic.mode(this)).put("usageAccess", Usage.granted(this)).put("dnsError", Policy.dnsError)
+            .put("owner", Policy.isOwner(this)).put("mode", Basic.mode(this)).put("caps", FeatureCaps.caps(this, fc)).put("features", FeatureCaps.features(fc)).put("usageAccess", Usage.granted(this)).put("dnsError", Policy.dnsError)
             .put("battery", bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1)
             .put("charging", bm?.isCharging == true).put("screenOn", pm?.isInteractive == true)
             .put("current", use.current?.let { apps[it] ?: it } ?: JSONObject.NULL)
@@ -332,7 +341,7 @@ class Guard : Service() {
             .put("launcher", runCatching { LauncherSafe.state(this, r, HomeFile.styleId(this), HomeFile.pages(this)) }.getOrDefault(JSONObject()))
             .put("notes", runCatching { KidNotes.stateJson(HomeFile.load(this)?.notes) }.getOrDefault(org.json.JSONArray()))   // the kid's notes shared with parents
             .put("sys", Sys.state(this))
-            .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)) else it.put("preinstalled", preinstalled(prot, now)) }
+            .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)); if (Policy.isOwner(this) || SelfAdb.ready(this)) it.put("preinstalled", preinstalled(prot, now)) }
     }
 
     /**
@@ -680,7 +689,7 @@ class Guard : Service() {
         }
 
         fun start(ctx: Context) {
-            if (Store.of(ctx).released) return   // after "release" nothing may bring us back
+            if (Store.of(ctx).released) { Policy.retryShellEnable(ctx); return }   // after "release" nothing may bring us back (but apps we disabled via the shell still get enabled)
             runCatching { ctx.startForegroundService(Intent(ctx, Guard::class.java)) }.onFailure { Log.e("KidGuard", "start", it) }
         }
 

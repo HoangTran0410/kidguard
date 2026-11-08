@@ -68,6 +68,20 @@ let isRelayOrigin = false;
 // v0.7 basic mode: no Device Owner (old phones without mode = owner as before)
 const isBasic = () => !!(st && st.mode && st.mode !== "owner");
 const needOwner = (what = t("no.this")) => `<p class="mute">${ic("lock")} ${t("needOwner", what)}</p>`;
+// Feature gating (state.features / state.caps from phones >= 0.9.8; an older phone has neither = everything counts as available).
+const feat = id => { const f = st && Array.isArray(st.features) && st.features.find(x => x.id === id); return f ? { ok: !!f.ok, missing: f.missing || [] } : { ok: true, missing: [] }; };
+const CAPS = ["owner", "admin", "acc", "usage", "location", "notify", "battery", "home", "adb", "paired"];
+const capName = c => hasT("cap_" + c) ? t("cap_" + c) : c;
+// section id -> feature id (sec() dims the body of a section whose feature is not ok), tab id -> feature id (render())
+const FEAT_SEC = { "r-daily": "limits", "r-grp": "limits", "r-bed": "limits", "r-wind": "limits", "r-sch": "limits", "r-dns": "dns", "r-anti": "noUninstall",
+  "r-home": "launcher", "r-kind": "launcherLock", "r-zone": "location", "r-trk": "location", "cl-sug": "debloat", "cl-rest": "debloat" };
+const FEAT_TAB = { apps: "block", screen: "screen", where: "location", rep: "usage" };
+// "Cần: Device Owner, Trợ năng" + how to get it; empty when the feature is available
+function gateNote(id) {
+  const f = feat(id); if (f.ok) return "";
+  return `<div class="needline" role="note"><span class="tag warn">${ic("lock")} ${t("cap_need", esc(f.missing.map(capName).join(", ") || "?"))}</span>
+    <span class="mute">${f.missing.map(c => hasT("cap_how_" + c) ? t("cap_how_" + c) : "").filter(Boolean).map(esc).join(" ")}</span></div>`;
+}
 
 const ic = n => `<svg class="si" aria-hidden="true"><use href="#i-${n}"/></svg>`;
 const dot = c => `<i class="dot ${c}"></i>`;

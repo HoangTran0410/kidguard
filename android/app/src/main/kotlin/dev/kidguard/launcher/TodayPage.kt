@@ -132,7 +132,7 @@ class TodayPage(
             val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(8), 0, dp(4)) }
             val past = e.state == "past"
             val hot = e.state == "now" || e.state == "next"
-            row.addView(k.text(HomeLogic.clock(e.start), 14f, if (hot) pal.accentText else pal.sub, true), LinearLayout.LayoutParams(dp(58), -2))
+            row.addView(k.text(HomeLogic.clock(e.start), 14f, if (hot) pal.accentText else pal.sub, true).apply { minWidth = dp(58); maxLines = 1 }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(8) })
             val t = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
             val name = when (e.kind) { "bed" -> s(R.string.hm_t_bed); "group" -> s(R.string.hm_t_group, e.name); else -> e.name.ifBlank { s(R.string.hm_t_lock) } }
             val sub = when (e.kind) {
@@ -140,8 +140,8 @@ class TodayPage(
                 "group" -> s(R.string.hm_t_group_sub, HomeLogic.clock(e.start), HomeLogic.clock(e.end))
                 else -> s(R.string.hm_t_lock_sub, HomeLogic.clock(e.end))
             }
-            t.addView(k.text(name, 15f, if (past) pal.sub else pal.text, true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
-            t.addView(k.text(sub, 12f, pal.sub).apply { setPadding(0, dp(2), 0, 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+            t.addView(k.text(name, 15f, if (past) pal.sub else pal.text, true).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END })
+            t.addView(k.text(sub, 12f, pal.sub).apply { setPadding(0, dp(2), 0, 0); maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END })
             row.addView(t, LinearLayout.LayoutParams(0, -2, 1f))
             when (e.state) {
                 "now" -> row.addView(k.chip(s(R.string.hm_t_now), pal.onSolid, pal.solid))

@@ -86,6 +86,11 @@ function render(tabClick) {
   if (!st) { updateLive(); body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " " + t("cantConnect", esc(lastErr)) : noState ? ic("hourglass") + " " + t("noState") : ic("hourglass") + " " + t("loading")}</div>`; return; }
   if (!navOk(tab)) tab = "home";
   ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, dev: devTab, set: setTab, hist: histTab, files: filesTab, more: moreTab, log: logTab, rep: repTab })[tab](body);
+  const gn = FEAT_TAB[tab] ? gateNote(FEAT_TAB[tab]) : "";
+  if (gn) {   // move the nodes (not innerHTML) so the handlers the tab just wired survive
+    const w = document.createElement("div"); w.className = "gated"; while (body.firstChild) w.appendChild(body.firstChild);
+    body.insertAdjacentHTML("afterbegin", gn); body.appendChild(w);
+  }
   updateLive();
   // a refresh keeps the page where it was; a tab switch lands on the top of the new tab
   window.scrollTo(0, tabClick ? 0 : pageY);
@@ -403,6 +408,7 @@ async function micStop() {
 function fmtClock(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 
 function modeBans() {   // basic mode / unfinished setup: [tone, icon, text] banners
+  if (st.mode === "setup" && st.features) return [["info", "eye", t("mode.preview")]];
   if (st.owner || !st.mode && st.owner !== false) return [];
   const m = st.basic || {}, miss = ["acc", "admin", "usage", "location", "notify", "battery"].filter(k => m[k] === false).map(k => t("perm." + k));
   if (st.mode !== "basic") return [["bad", "triangle-alert", t("mode.setup", esc(miss.join(", ") || t("mode.items")))]];

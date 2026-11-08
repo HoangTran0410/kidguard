@@ -62,6 +62,15 @@ async function devOff(want) {
   clearTimeout(devOff.t); devOff.t = setTimeout(() => { if (devPend === p && tab === "set") render(); }, 181000);
   render(); setTimeout(refresh, r && r.result === "queued" ? 15000 : 1500);
 }
+// "Chức năng & quyền": every feature with ok / the permissions it still needs (state.features, phone >= 0.9.9)
+function featCard() {
+  const F = Array.isArray(st.features) ? st.features : null; if (!F) return "";
+  const n = F.filter(f => f.ok).length;
+  const rows = F.map(f => `<tr class="${f.ok ? "" : "no"}"><th scope="row">${esc(hasT("ft_" + f.id) ? t("ft_" + f.id) : f.id)}</th>
+    <td>${f.ok ? `<span class="tag ok">${ic("check")} ${t("ft.ok")}</span>` : `<span class="tag warn">${ic("lock")} ${t("cap_need", esc((f.missing || []).map(capName).join(", ") || "?"))}</span>`}</td></tr>`).join("");
+  return sec("s-feat", "list-checks", t("ft.h"), t("ft.d"), [`${n}/${F.length}`, n === F.length ? "ok" : "warn"], `<div class="tblw"><table class="ft"><tbody>${rows}</tbody></table></div>
+    <p class="mute">${t("ft.p")}</p>`, n < F.length);
+}
 function updCard() {
   const u = st.update; if (!u) return "";   // child older than 0.9: no self-update
   const newer = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0; } return false; };
@@ -229,6 +238,7 @@ function setTab(b) {
   ${APP ? `<div class="card"><h2>${ic("bell")} ${t("notif.h")}</h2><label class="row"><input type="checkbox" id="f-notify" ${kgCall("getNotify") === "false" || kgCall("canNotify") === "false" ? "" : "checked"}><span class="sp">${t("notif.p")}</span></label>${kgCall("getNotify") !== "false" && kgCall("canNotify") === "false" ? `<p class="mute">${ic("triangle-alert")} ${t("notif.blocked")}</p>` : ""}</div>` : ""}
   ${APP ? `<div class="card"><h2>${ic("history")} ${t("keep.h")}</h2><select id="f-days" aria-label="${esc(t("keep.h"))}">${["0", "30", "90", "365"].map(v => `<option value="${v}" ${String(kgCall("getHistoryDays") || "0") === v ? "selected" : ""}>${+v ? t("days", +v) : t("noLimitC")}</option>`).join("")}</select>
     <p class="mute">${t("keep.p")}</p></div>` : ""}
+  ${featCard()}
   ${updCard()}
   ${sec("s-sys", "sliders-horizontal", t("sys.h"), t("sd.sys"), null, `<div id="sysCard"></div>`)}
   ${devCard()}

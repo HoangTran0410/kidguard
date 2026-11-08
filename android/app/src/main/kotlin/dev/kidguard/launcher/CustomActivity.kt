@@ -114,7 +114,7 @@ class CustomActivity : Activity() {
         col.addView(home, lp(8))
         undo?.let { u0 ->
             col.addView(k.pill(s(R.string.hm_c_undo), R.drawable.li_rotate_ccw, false) { if (!guard()) return@pill; save(u0); undo = null; build() },
-                LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(8) })
+                LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         }
 
         section(col, R.string.hm_c_wall)
@@ -148,7 +148,7 @@ class CustomActivity : Activity() {
 
         if (!locked) col.addView(note(s(R.string.hm_c_lock_hint), false), lp(14))
         col.addView(k.pill(s(R.string.hm_c_reset), R.drawable.li_rotate_ccw, false) { if (guard()) applyPreset(HomeStyle.preset(st.preset)) },
-            LinearLayout.LayoutParams(-1, dp(52)).apply { topMargin = dp(12) })
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
         if (first) setContentView(scroll)   // else: scrollY is untouched by removeAllViews and clamped on the next layout
     }
 
@@ -218,7 +218,7 @@ class CustomActivity : Activity() {
             k.tap(this, 12f) { if (enabled) on(v + d) }
         }
         addView(btn(R.drawable.li_minus, v > min, s(R.string.hm_c_less, label), -1), LinearLayout.LayoutParams(dp(40), dp(40)))
-        addView(k.text(v.toString(), 18f, pal.text, true).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(dp(40), -2))
+        addView(k.text(v.toString(), 18f, pal.text, true).apply { gravity = Gravity.CENTER; minWidth = dp(40) }, LinearLayout.LayoutParams(-2, -2))
         addView(btn(R.drawable.li_plus, v < max, s(R.string.hm_c_more, label), 1), LinearLayout.LayoutParams(dp(40), dp(40)))
     }
 

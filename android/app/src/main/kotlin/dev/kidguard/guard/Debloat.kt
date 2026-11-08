@@ -122,4 +122,29 @@ object Debloat {
     /** clearData is refused for the never-hide set and KidGuard itself. */
     fun canClear(pkg: String, self: String, extraNever: Set<String> = emptySet()): Boolean =
         pkg != self && canHide(pkg, extraNever)
+
+    // ---- no Device Owner: the same through the phone's own adb shell (setup/SelfAdb.kt) ----
+
+    /** Packages handled per pass through the shell (each command is a round trip); the loop continues on the next tick. */
+    const val SHELL_BATCH = 20
+
+    /** Reversible "hide" through the shell: disabled for user 0 (the data stays). Null for an invalid package name (never build a command from it). */
+    fun disableCmd(pkg: String): String? = if (validPkg(pkg)) "pm disable-user --user 0 $pkg" else null
+    fun enableCmd(pkg: String): String? = if (validPkg(pkg)) "pm enable --user 0 $pkg" else null
+    fun clearCmd(pkg: String): String? = if (validPkg(pkg)) "pm clear --user 0 $pkg" else null
+
+    /** `pm disable-user` prints "Package x new state: disabled-user"; `pm enable` prints "... new state: enabled". Anything else is a failure. */
+    fun disableOk(out: String) = out.contains("new state: disabled-user")
+    fun enableOk(out: String) = out.contains("new state: enabled") || out.contains("new state: default")
+    fun clearOk(out: String) = out.trim().equals("Success", ignoreCase = true)
+
+    /** Only [SHELL_BATCH] packages at a time, [show] goes first. */
+    fun shellBatch(df: Diff): Diff {
+        val show = df.show.sorted().take(SHELL_BATCH)
+        return Diff(df.hide.sorted().take(SHELL_BATCH - show.size).toSet(), show.toSet())
+    }
+
+    /** Shell release: what we disabled and is still disabled. [stillDisabled] is asked from the OS (false = already enabled / uninstalled). */
+    fun toEnableOnRelease(disabledByUs: Set<String>, stillDisabled: (String) -> Boolean): Set<String> =
+        disabledByUs.filter { validPkg(it) && stillDisabled(it) }.toSet()
 }

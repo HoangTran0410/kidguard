@@ -118,8 +118,16 @@
           <div><dt>Per app</dt><dd>N minutes, blocked or always allowed.</dd></div>
           <div><dt>App groups</dt><dd>A shared limit or allowed hours for a group.</dd></div>
           <div><dt>New apps</dt><dd>Locked until you approve them.</dd></div>
-          <div><dt>Lighter phone</dt><dd>Hide unused preinstalled apps.</dd></div>
+          <div><dt>Clean-up</dt><dd>Hide unused preinstalled apps, clear app data, see heavy apps.</dd></div>
           <div><dt>Updates itself</dt><dd>From GitHub, SHA-256 checked.</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>Kid home screen</h3>
+        <dl>
+          <div><dt>Own launcher</dt><dd>Apps, folders, wallpapers; locked apps are dimmed.</dd></div>
+          <div><dt>Widgets</dt><dd>Clock, calendar, homework, notes, battery, apps used today; other apps' widgets too.</dd></div>
+          <div><dt>&ldquo;Today&rdquo; page</dt><dd>Time left, things to do and notes from the parents.</dd></div>
         </dl>
       </div>
       <div class="card">
@@ -164,6 +172,30 @@
       <figure><div class="phone"><img loading="lazy" decoding="async" src="../img/parent-kids.webp?v=0c09105470" width="800" height="1720" alt="Overview screen of the parent page: three children on one page, time used, battery, an SOS alert and a request for more time"></div><figcaption><b>Several kids</b>All your children on one page.</figcaption></figure>
       <figure><div class="phone"><img loading="lazy" decoding="async" src="../img/child-app.webp?v=96a7a49f18" width="540" height="1200" alt="KidGuard on the child's phone: time left, ask for more time, SOS button"></div><figcaption><b>Child's phone</b>Time left, more time, SOS.</figcaption></figure>
     </div>
+  </div>
+</section>
+
+<section id="permissions">
+  <div class="wrap">
+    <div class="sh">
+      <h2>Which feature needs what</h2>
+      <p>Before setup is finished the parent page still opens as a preview; features missing a permission are dimmed and say what they need.</p>
+    </div>
+    <div class="card tblwrap">
+      <table class="tbl">
+        <thead><tr><th scope="col">Feature</th><th scope="col">Needs</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Preview the parent page, edit rules</th><td><span class="yes">Nothing installed</span></td></tr>
+          <tr><th scope="row">Kid home screen, widgets</th><td>KidGuard set as the home app</td></tr>
+          <tr><th scope="row">App blocking, time limits, usage stats</th><td>Accessibility + Usage access</td></tr>
+          <tr><th scope="row">Location, zones, SOS</th><td>Location permission + notifications</td></tr>
+          <tr><th scope="row">Live screen view and control</th><td>Accessibility (Android 11+)</td></tr>
+          <tr><th scope="row">Clean-up, uninstall protection, home screen lock, DNS filter</th><td>Device Owner</td></tr>
+          <tr><th scope="row">Remote control, alerts</th><td>Paired with a parent phone</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="after">Without Device Owner KidGuard runs in basic mode: a locked app is sent back to the home screen. In the parent page, <b>Settings</b> has a <b>Features &amp; permissions</b> list showing what the kid's phone still lacks.</p>
   </div>
 </section>
 

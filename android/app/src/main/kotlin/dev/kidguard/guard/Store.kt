@@ -279,6 +279,11 @@ class Store private constructor(private val app: Context) {
         get() = p.getBoolean("released", false)
         set(v) { p.edit().putBoolean("released", v).commit() }
 
+    /** Local opt-in for the kid launcher before any parent rule exists (Features sheet). Once paired, the parent's `launcher` rule wins. */
+    @get:Synchronized @set:Synchronized var launcherLocal: Boolean
+        get() = p.getBoolean("launcherLocal", false)
+        set(v) { p.edit().putBoolean("launcherLocal", v).commit() }
+
     /** Remembers command [id] (last 100). False if it was already executed. Written with commit(): it must survive a reboot / release. */
     @Synchronized fun markCmd(rawId: String): Boolean {
         val id = rawId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }.ifEmpty { return true }
@@ -326,6 +331,11 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var hiddenByUs: Set<String>
         get() = p.getStringSet("hid", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("hid", v).commit() }
+
+    /** Apps we disabled through the self-adb shell (`pm disable-user`) without Device Owner: the only ones we ever re-enable. */
+    @get:Synchronized @set:Synchronized var shellDisabled: Set<String>
+        get() = p.getStringSet("shellOff", emptySet())!!.toSet()
+        set(v) { p.edit().putStringSet("shellOff", v).commit() }
 
     @get:Synchronized @set:Synchronized var location: JSONObject?
         get() = p.getString("loc", null)?.let { runCatching { JSONObject(it) }.getOrNull() }

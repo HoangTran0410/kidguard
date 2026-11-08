@@ -70,7 +70,7 @@ class Ui(val ctx: Context, pal: Palette? = null) {
         val base = if (primaryStyle) shape(primary, 16) else shape(card, 16, stroke, 1)
         background = RippleDrawable(ColorStateList.valueOf(Color.argb(40, 128, 128, 128)), base, null)
         gravity = Gravity.CENTER
-        setPadding(dp(16), 0, dp(16), 0)
+        setPadding(dp(16), dp(8), dp(16), dp(8))
         layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) }
         if (icon != null) Ic.lead(this, icon, if (primaryStyle) onPrimary else accent)
         setOnClickListener { onClick() }

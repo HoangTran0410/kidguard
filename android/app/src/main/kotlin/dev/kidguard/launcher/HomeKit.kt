@@ -61,7 +61,7 @@ class HomeKit(val act: Activity, val pal: Palette, val font: Float = 1f) {
         val fg = if (primary) pal.onSolid else pal.text
         setTextColor(fg)
         background = if (primary) fill(pal.solid, 16f) else GradientDrawable().apply { setColor(pal.sheet); cornerRadius = dpf(16f); setStroke(dp(1), pal.stroke) }
-        setPadding(dp(16), 0, dp(16), 0)
+        setPadding(dp(16), dp(12), dp(16), dp(12)); minHeight = dp(52)   // grows with a large font
         if (icon != null) Ic.lead(this, icon, fg)
         tap(this, 16f, primary || pal.dark) { onClick() }
         contentDescription = t

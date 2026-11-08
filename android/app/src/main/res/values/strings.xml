@@ -219,6 +219,10 @@
         <item quantity="other">failed: %1$d apps still hidden</item>
     </plurals>
 
+    <plurals name="release_shell_left">
+        <item quantity="one">%1$d app we disabled is still disabled: it is re-enabled when Wireless debugging is on at the next start (or enable it in Settings > Apps)</item>
+        <item quantity="other">%1$d apps we disabled are still disabled: they are re-enabled when Wireless debugging is on at the next start (or enable them in Settings > Apps)</item>
+    </plurals>
     <!-- Listening -->
     <plurals name="listen_about">
         <item quantity="one">about %1$d minute</item>
@@ -457,6 +461,7 @@
     <string name="admin_body_totp">Parent: enter a current Authenticator code. The page closes when the screen turns off, when you leave it, or after 5 minutes without a touch.</string>
     <string name="admin_field">PIN or 6-digit code</string>
     <string name="admin_ok">Open</string>
+    <string name="admin_loading">Opening the parent page…</string>
     <string name="admin_wrong">Wrong code, try again</string>
     <string name="admin_not_ready">The management page isn\'t ready yet. Try again in a few seconds.</string>
     <string name="st_no_pin">Your parent hasn\'t set a PIN yet</string>
@@ -719,4 +724,6 @@
     <string name="hm_c_picking">Opening…</string>
     <string name="hm_c_pick_fail">Could not use that photo</string>
     <string name="hm_c_accent_n">Colour %1$d</string>
+    <string name="ss_paired">Paired. KidGuard can now hide apps while Wireless debugging is on.</string>
+    <string name="app_shell_off">Wireless debugging is off: app changes will apply when it is back on</string>
 </resources>

@@ -40,7 +40,7 @@ function homeTab(b) {
     ${top.map(x => `<div class="li">${icon(x)}<span class="x"><b>${esc(x.label)}</b><span class="mbar"><i style="width:${Math.round(x.ms / mx * 100)}%"></i></span></span><span class="v">${fmt(x.ms)}</span></div>`).join("") || `<div class="empty"><span class="e">${ic("sprout")}</span>${t("none")}</div>`}
     <button type="button" class="lfoot" data-go="apps">${t("home.allApps")} ${ic("chevron-right")}</button></div>
   <div class="list"><div class="lhead"><h2>${ic("bell")} ${t("home.recent")}</h2></div>
-    ${ev.map(e => `<div class="li"><span class="ib">${ic(EV_IC[e.kind] || "bell")}</span><span class="x"><b style="white-space:normal">${esc(noEmoji(e.text))}</b></span><span class="v">${ago(e.t)}</span></div>`).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}
+    ${ev.map(e => `<div class="li"><span class="ib">${ic(EV_IC[e.kind] || "bell")}</span><span class="x"><b style="white-space:normal">${esc(noEmoji(e.text))}</b><span class="sub mute">${ago(e.t)}</span></span></div>`).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}
     <button type="button" class="lfoot" data-go="log">${t("tab.log")} ${ic("chevron-right")}</button></div>
   </div></div>`;
   wireReq(b, today, false);
@@ -96,8 +96,9 @@ const secOpen = (() => { try { const o = JSON.parse(localStorage.getItem("kg.sec
 const isOpen = (id, def) => id in secOpen ? !!secOpen[id] : !!def;
 const chipHtml = c => c ? `<span class="tag ${c[1] || ""}" data-chip>${c[0]}</span>` : `<span data-chip></span>`;
 function sec(id, icn, title, desc, chip, body, def) {
-  const o = isOpen(id, def);
-  return `<section class="card cl${o ? " open" : ""}" data-sec="${id}"><h2><button type="button" class="clh" id="sh-${id}" aria-expanded="${o}" aria-controls="sb-${id}">
+  const o = isOpen(id, def), g = FEAT_SEC[id] ? gateNote(FEAT_SEC[id]) : "";
+  if (g) body = g + `<div class="gated">${body}</div>`;
+  return `<section class="card cl${o ? " open" : ""}${g ? " gate" : ""}" data-sec="${id}"><h2><button type="button" class="clh" id="sh-${id}" aria-expanded="${o}" aria-controls="sb-${id}">
     <span class="cli">${ic(icn)}</span><span class="clt"><span class="clr"><b>${title}</b>${chipHtml(chip)}</span>${desc ? `<span>${desc}</span>` : ""}</span><svg class="si chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></h2>
     <div class="clb" id="sb-${id}" role="region" aria-labelledby="sh-${id}"><div><div>${body}</div></div></div></section>`;
 }

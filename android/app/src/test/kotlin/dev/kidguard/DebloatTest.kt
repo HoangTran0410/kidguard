@@ -95,4 +95,38 @@ class DebloatRefusedTest {
         assertEquals(s, Debloat.refusedAfter(setOf("a.b"), s, s, s, s))
         assertEquals(setOf("c.d"), Debloat.refusedAfter(setOf("a.b"), setOf("c.d"), s, s, setOf("c.d")))
     }
+
+    @Test fun shellCommands() {
+        assertEquals("pm disable-user --user 0 com.heytap.market", Debloat.disableCmd("com.heytap.market"))
+        assertEquals("pm enable --user 0 com.heytap.market", Debloat.enableCmd("com.heytap.market"))
+        assertEquals("pm clear --user 0 com.heytap.market", Debloat.clearCmd("com.heytap.market"))
+        for (bad in listOf("a.b; reboot", "x y.z", "", "nodot", "a.b\nc.d")) {
+            assertEquals(bad, null, Debloat.disableCmd(bad)); assertEquals(null, Debloat.enableCmd(bad)); assertEquals(null, Debloat.clearCmd(bad))
+        }
+    }
+
+    @Test fun shellOutput() {
+        assertTrue(Debloat.disableOk("Package com.x.y new state: disabled-user"))
+        assertFalse(Debloat.disableOk("Exception occurred while executing 'disable-user': java.lang.SecurityException"))
+        assertFalse(Debloat.disableOk(""))
+        assertTrue(Debloat.enableOk("Package com.x.y new state: enabled"))
+        assertTrue(Debloat.enableOk("Package com.x.y new state: default"))
+        assertFalse(Debloat.enableOk("Error: java.lang.IllegalArgumentException: Unknown package"))
+        assertTrue(Debloat.clearOk("Success\n")); assertFalse(Debloat.clearOk("Failed")); assertFalse(Debloat.clearOk(""))
+    }
+
+    @Test fun shellBatchCaps() {
+        val hide = (1..50).map { "a.p$it" }.toSet()
+        val b = Debloat.shellBatch(Debloat.Diff(hide, emptySet()))
+        assertEquals(Debloat.SHELL_BATCH, b.hide.size); assertTrue(b.show.isEmpty())
+        val mixed = Debloat.shellBatch(Debloat.Diff(hide, (1..5).map { "b.p$it" }.toSet()))
+        assertEquals(5, mixed.show.size); assertEquals(Debloat.SHELL_BATCH - 5, mixed.hide.size)
+        assertEquals(Debloat.Diff(setOf("a.b"), setOf("c.d")), Debloat.shellBatch(Debloat.Diff(setOf("a.b"), setOf("c.d"))))
+    }
+
+    @Test fun releaseEnable() {
+        val ours = setOf("a.b", "c.d", "bad pkg")
+        assertEquals(setOf("a.b"), Debloat.toEnableOnRelease(ours) { it == "a.b" || it == "bad pkg" })
+        assertEquals(emptySet<String>(), Debloat.toEnableOnRelease(emptySet()) { true })
+    }
 }

@@ -112,13 +112,52 @@ internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideN
         inkViews += n
     }
     box.contentDescription = "${t.text}. ${d.text}"
-    return box
+    return centred(box)
 }
 
 internal fun HomeActivity.dur(ms: Long) = HomeLogic.hm(ms).let { (h, m) -> if (h == 0) getString(R.string.home_m, m) else if (m == 0) getString(R.string.home_h, h) else getString(R.string.home_hm, h, m) }
 
 /** The card wraps its content and sits in the middle of its cells (the mock's height, not the cell's). */
-internal fun HomeActivity.centred(v: View): View = FrameLayout(this).apply { clipChildren = false; addView(v, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_VERTICAL)) }
+internal fun HomeActivity.centred(v: View): View = FitCell(this).apply { clipChildren = false; addView(v, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_VERTICAL)) }
+
+/**
+ * Holds one widget card in its fixed-size cell. With a big system / kid font the card can want more height than the cell;
+ * then it is laid out wider (fewer wrapped lines) and scaled down about its centre until it fits (never below 60%),
+ * instead of spilling over the neighbouring cells. At normal sizes it is a plain centred frame.
+ */
+internal class FitCell(c: android.content.Context) : FrameLayout(c) {
+    override fun onMeasure(w: Int, h: Int) {
+        val child = getChildAt(0)
+        val ws = MeasureSpec.getSize(w); val hs = MeasureSpec.getSize(h)
+        if (child == null || child.visibility == View.GONE || MeasureSpec.getMode(h) != MeasureSpec.EXACTLY || ws == 0 || hs == 0) { super.onMeasure(w, h); return }
+        var s = 1f
+        var cw = ws; var ch = 0
+        for (i in 0 until 3) {
+            cw = (ws / s).toInt()
+            child.measure(MeasureSpec.makeMeasureSpec(cw, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+            ch = child.measuredHeight
+            val ns = if (ch * s > hs) (hs.toFloat() / ch).coerceAtLeast(0.6f) else 1f
+            if (ns >= s - 0.01f && i > 0) break
+            s = minOf(s, ns).coerceAtLeast(0.6f)
+            if (s == 1f) break
+        }
+        cw = (ws / s).toInt()
+        child.measure(MeasureSpec.makeMeasureSpec(cw, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+        ch = child.measuredHeight
+        scale = s
+        setMeasuredDimension(ws, hs)
+    }
+    private var scale = 1f
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        val child = getChildAt(0) ?: return
+        if (child.visibility == View.GONE) return
+        val cw = child.measuredWidth; val ch = child.measuredHeight
+        val top = ((b - t) - ch) / 2
+        child.layout(0, top, cw, top + ch)
+        child.pivotX = 0f; child.pivotY = ch / 2f
+        child.scaleX = scale; child.scaleY = scale
+    }
+}
 
 internal fun HomeActivity.timeWidget(r: Rules, dv: View0, block: String?, s: Store, w: Int): View {
     val small = w <= 2

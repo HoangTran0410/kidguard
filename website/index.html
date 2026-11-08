@@ -118,8 +118,16 @@
           <div><dt>Từng ứng dụng</dt><dd>N phút mỗi ngày, chặn hoặc luôn cho phép.</dd></div>
           <div><dt>Nhóm ứng dụng</dt><dd>Số phút chung hoặc khung giờ cho cả nhóm.</dd></div>
           <div><dt>Ứng dụng mới</dt><dd>Khóa đến khi bạn duyệt.</dd></div>
-          <div><dt>Dọn máy</dt><dd>Ẩn app cài sẵn không dùng, xem app nặng.</dd></div>
+          <div><dt>Dọn máy</dt><dd>Ẩn app cài sẵn không dùng, xóa dữ liệu app, xem app nặng.</dd></div>
           <div><dt>Tự cập nhật</dt><dd>Tải bản mới từ GitHub, kiểm SHA-256.</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <h3>Màn hình chính cho con</h3>
+        <dl>
+          <div><dt>Launcher riêng</dt><dd>App, thư mục, hình nền; app bị khóa tự mờ đi.</dd></div>
+          <div><dt>Widget</dt><dd>Đồng hồ, lịch, bài tập, ghi chú, pin, app dùng hôm nay; thêm cả widget của app khác.</dd></div>
+          <div><dt>Trang &ldquo;Hôm nay&rdquo;</dt><dd>Con thấy giờ còn lại, việc cần làm và lời nhắn của bố mẹ.</dd></div>
         </dl>
       </div>
       <div class="card">
@@ -164,6 +172,30 @@
       <figure><div class="phone"><img loading="lazy" decoding="async" src="img/parent-kids.webp?v=0c09105470" width="800" height="1720" alt="Màn hình Tổng quan của trang phụ huynh: ba con trên một trang, giờ đã dùng, pin, cảnh báo SOS và yêu cầu xin thêm giờ"></div><figcaption><b>Nhiều con</b>Tất cả các con trên một trang.</figcaption></figure>
       <figure><div class="phone"><img loading="lazy" decoding="async" src="img/child-app.webp?v=96a7a49f18" width="540" height="1200" alt="Ứng dụng KidGuard trên máy của con: giờ còn lại, nút xin thêm giờ, nút SOS"></div><figcaption><b>Máy của con</b>Giờ còn lại, xin thêm giờ, SOS.</figcaption></figure>
     </div>
+  </div>
+</section>
+
+<section id="quyen">
+  <div class="wrap">
+    <div class="sh">
+      <h2>Chức năng nào cần quyền gì</h2>
+      <p>Chưa cài xong vẫn mở được trang phụ huynh để xem trước; mục thiếu quyền sẽ mờ đi và ghi rõ cần gì.</p>
+    </div>
+    <div class="card tblwrap">
+      <table class="tbl">
+        <thead><tr><th scope="col">Chức năng</th><th scope="col">Cần</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Xem trước trang phụ huynh, chỉnh luật</th><td><span class="yes">Không cần cài gì</span></td></tr>
+          <tr><th scope="row">Màn hình chính cho con, widget</th><td>Đặt KidGuard làm màn hình chính</td></tr>
+          <tr><th scope="row">Chặn app, giới hạn giờ, thống kê</th><td>Trợ năng + Truy cập dữ liệu sử dụng</td></tr>
+          <tr><th scope="row">Vị trí, vùng, SOS</th><td>Quyền Vị trí + thông báo</td></tr>
+          <tr><th scope="row">Xem và điều khiển màn hình</th><td>Trợ năng (Android 11+)</td></tr>
+          <tr><th scope="row">Dọn máy, chống gỡ app, khóa màn hình chính, lọc DNS</th><td>Device Owner</td></tr>
+          <tr><th scope="row">Điều khiển từ xa, nhận cảnh báo</th><td>Ghép với điện thoại bố mẹ</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="after">Không có Device Owner, KidGuard chạy ở chế độ cơ bản: app bị khóa tự thoát ra màn hình chính. Trong trang phụ huynh, tab <b>Cài đặt</b> có mục <b>Chức năng &amp; quyền</b> cho biết máy con còn thiếu gì.</p>
   </div>
 </section>
 

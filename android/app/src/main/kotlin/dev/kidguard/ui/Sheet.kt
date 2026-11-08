@@ -22,7 +22,6 @@ class Sheet(act: Activity, u: Ui, title: String) {
 
     init {
         d.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        val maxH = (act.resources.displayMetrics.heightPixels * 0.88f).toInt()
         val box = LinearLayout(act).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply { setColor(u.card); val r = u.dpf(28); cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f) }
@@ -31,16 +30,23 @@ class Sheet(act: Activity, u: Ui, title: String) {
         box.addView(View(act).apply { background = u.shape(u.stroke, 2); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO },
             LinearLayout.LayoutParams(u.dp(36), u.dp(4)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = u.dp(10) })
         box.addView(u.label(title, 20f, u.text, true).apply { setPadding(u.dp(12), 0, u.dp(12), 0); accessibilityHeading(this) })
-        val scroll = object : ScrollView(act) {
-            override fun onMeasure(w: Int, h: Int) = super.onMeasure(w, View.MeasureSpec.makeMeasureSpec(maxH - u.dp(80), View.MeasureSpec.AT_MOST))
-        }.apply { isVerticalScrollBarEnabled = false; addView(body) }
-        box.addView(scroll, LinearLayout.LayoutParams(-1, -2))
+        val scroll = ScrollView(act).apply { isVerticalScrollBarEnabled = false; addView(body) }
+        box.addView(scroll, LinearLayout.LayoutParams(-1, -2, 1f))   // weight + wrap: shrinks only when the sheet would not fit (big font, short screen)
         box.isClickable = true   // taps on the sheet itself don't reach the scrim
         // full-window dialog with its own scrim: the navigation bar then takes the sheet's color instead of a dimmed strip
         val scrim = android.widget.FrameLayout(act).apply {
             setBackgroundColor(Color.argb(128, 0, 0, 0)); setOnClickListener { d.dismiss() }
+            setPadding(0, u.dp(40), 0, 0)   // never reaches the status bar
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             addView(box, android.widget.FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
+        }
+        // ColorOS (and edge-to-edge windows) draw this full-window dialog under the navigation bar: keep the last row above it
+        // (no insets reach it there, so measure: whatever of the scrim lies below the visible frame is under the bar)
+        scrim.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            val r = android.graphics.Rect(); v.getWindowVisibleDisplayFrame(r)
+            val at = IntArray(2); v.getLocationOnScreen(at)
+            val under = (at[1] + v.height - r.bottom).coerceIn(0, u.dp(96))
+            if (box.paddingBottom != u.dp(16) + under) v.post { box.setPadding(u.dp(12), u.dp(10), u.dp(12), u.dp(16) + under) }
         }
         d.setContentView(scrim)
         d.window?.apply {

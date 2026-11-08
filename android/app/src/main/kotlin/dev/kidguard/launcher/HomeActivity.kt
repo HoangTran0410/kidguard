@@ -332,7 +332,8 @@ class HomeActivity : Activity() {
         } else if (kit.font != m.style.font.toFloat()) kit = HomeKit(this, pal, m.style.font.toFloat())
         val block = QuickLogic.phoneBlock(dv.want)
         lap("palette")
-        val banner = LauncherLogic.banner(Policy.isOwner(this), Guard.running != null, Usage.granted(this), locationOn(), Acc.isOn(this))
+        val banner = if (!Policy.isOwner(this) && !s.everPaired) null   // standalone use before setup: nothing to nag about
+            else LauncherLogic.banner(Policy.isOwner(this), Guard.running != null, Usage.granted(this), locationOn(), Acc.isOn(this))
         val files = runCatching { Files.all(this) }.getOrDefault(emptyList()).joinToString(",") { it.id + it.st }
         // not the minute itself: what it changes (next event, today's schedule states, the date); the clock text is set in place below
         val timeKey = listOf(dv.today, LauncherLogic.nextEvent(r, dv.minute, dv.dow), LauncherLogic.today(r, dv.minute, dv.dow).map { it.state })

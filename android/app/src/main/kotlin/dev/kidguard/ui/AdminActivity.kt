@@ -51,6 +51,7 @@ class AdminActivity : Activity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        val t0 = android.os.SystemClock.elapsedRealtime()
         super.onCreate(savedInstanceState)
         if (!ParentSession.active()) { finish(); return }
         registerReceiver(screenOff, IntentFilter(Intent.ACTION_SCREEN_OFF))
@@ -65,14 +66,39 @@ class AdminActivity : Activity() {
             mediaPlaybackRequiresUserGesture = true
         }
         w.addJavascriptInterface(Bridge(), "KGLocal")
+        val u = Ui(this)
+        w.setBackgroundColor(u.bg)
+        // the first page load on an old phone takes a few seconds (WebView start + scripts): show that it is coming
+        val wait = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL; gravity = android.view.Gravity.CENTER; setBackgroundColor(u.bg)
+            isClickable = true
+            addView(android.widget.ProgressBar(context).apply { isIndeterminate = true; indeterminateTintList = android.content.res.ColorStateList.valueOf(u.primary) },
+                android.widget.LinearLayout.LayoutParams(u.dp(48), u.dp(48)))
+            addView(android.widget.TextView(context).apply {
+                text = getString(R.string.admin_loading); setTextColor(u.sub); textSize = 15f; gravity = android.view.Gravity.CENTER
+                setPadding(u.dp(24), u.dp(16), u.dp(24), 0)
+            })
+        }
+        var shown = false
+        fun ready(why: String) {
+            if (shown) return; shown = true
+            android.util.Log.i("KG.perf", "admin page $why ${android.os.SystemClock.elapsedRealtime() - t0}ms (since PIN ok ${android.os.SystemClock.elapsedRealtime() - okAt}ms)")
+            wait.animate().alpha(0f).setDuration(150).withEndAction { wait.visibility = android.view.View.GONE }.start()
+        }
+        w.webChromeClient = object : android.webkit.WebChromeClient() {
+            override fun onProgressChanged(v: WebView, p: Int) { if (p >= 100) ready("progress") }
+        }
         w.webViewClient = object : WebViewClient() {
+            override fun onPageCommitVisible(v: WebView, url: String) { if (url.startsWith(ParentSession.ORIGIN)) ui.postDelayed({ ready("visible") }, 120) }
+            override fun onPageFinished(v: WebView, url: String) { if (url.startsWith(ParentSession.ORIGIN)) ready("finished") }
             // only our own page: any other navigation (links to GitHub, the relay, …) is dropped
             override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest) = !ours(r.url)
             override fun shouldInterceptRequest(v: WebView, r: WebResourceRequest): WebResourceResponse? =
                 if (ours(r.url) || r.url.host == "tile.openstreetmap.org") null
                 else WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), "".byteInputStream())
         }
-        setContentView(w)
+        setContentView(android.widget.FrameLayout(this).apply { addView(w); addView(wait) })
+        android.util.Log.i("KG.perf", "admin create ${android.os.SystemClock.elapsedRealtime() - t0}ms")
         w.loadUrl("${ParentSession.ORIGIN}/")
         ui.postDelayed(check, 5_000)
     }
@@ -121,10 +147,17 @@ class AdminActivity : Activity() {
     }
 
     companion object {
+        private var okAt = 0L
+
+        /** Loads the WebView engine while the parent types the PIN (its first start costs ~1 s on an old phone, on the main thread). */
+        fun warm() { runCatching { CookieManager.getInstance() } }
+
         /** Opens a session and the page. Call only after [Store.checkAdmin] said yes. */
         fun start(a: Activity) {
+            okAt = android.os.SystemClock.elapsedRealtime()
             val t = ParentSession.open()
             val cm = CookieManager.getInstance()
+            android.util.Log.i("KG.perf", "admin cookie mgr ${android.os.SystemClock.elapsedRealtime() - okAt}ms")
             cm.setAcceptCookie(true)
             cm.setCookie(ParentSession.ORIGIN, "${ParentSession.COOKIE}=$t; Path=/; HttpOnly; SameSite=Strict") {
                 a.startActivity(Intent(a, AdminActivity::class.java))
