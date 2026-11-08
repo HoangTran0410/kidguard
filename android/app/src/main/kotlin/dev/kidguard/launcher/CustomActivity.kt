@@ -169,7 +169,7 @@ class CustomActivity : Activity() {
         val fi = fonts.indexOfFirst { kotlin.math.abs(it - st.font) < 0.01 }.let { if (it < 0) 1 else it }
         col.addView(group().apply { addView(slider(s(R.string.hm_c_font), fi, 3, "A", "A", bigEnd = true) { v -> set { it.copy(font = fonts[v]) } }) }, lp(8))
 
-        if (!locked) col.addView(note(s(R.string.hm_c_lock_hint), false), lp(14))
+        if (!locked && !Flavor.HOME) col.addView(note(s(R.string.hm_c_lock_hint), false), lp(14))
         col.addView(k.pill(s(R.string.hm_c_reset), R.drawable.li_rotate_ccw, false) { if (guard()) applyPreset(HomeStyle.preset(st.preset)) },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
         if (first) setContentView(scroll)   // else: scrollY is untouched by removeAllViews and clamped on the next layout

@@ -149,11 +149,12 @@ object HomeLayout {
     /**
      * First run: page 1 = the preset's widgets then [apps] (visible now, in the caller's order); more pages as needed.
      * [dockApps]: up to 3 apps for slots 2-4 (slot 1 is always the phone). Apps in the dock are not on the grid too.
+     * [parent] false (KidGuard Home): no time-left / quick-actions widgets, a 2-row clock instead.
      */
-    fun fresh(preset: String, apps: List<String>, dockApps: List<String>): HomeModel {
+    fun fresh(preset: String, apps: List<String>, dockApps: List<String>, parent: Boolean = true): HomeModel {
         val p = HomeStyle.preset(preset)
         val dock = (listOf(PHONE) + dockApps.filter { it.isNotEmpty() && it != PHONE }.distinct().take(DOCK - 1)).let { it + List(DOCK - it.size) { "" } }
-        var pages: List<List<HItem>> = listOf(defaultWidgets(p, p.cols))
+        var pages: List<List<HItem>> = listOf(if (parent) defaultWidgets(p, p.cols) else listOf(HItem("w1", "widget", 0, 0, p.cols, 2, type = "clock")))
         val onGrid = apps.distinct().filter { it !in dock }
         for (a in onGrid) pages = place(pages, p.cols, p.rows, a)
         return HomeModel(p.cols, p.rows, pages, dock, HStyle(preset = p.id, dockBg = p.dockBg, labels = p.labels), (onGrid + dock.filter { !it.startsWith("@") && it.isNotEmpty() }).toSet())

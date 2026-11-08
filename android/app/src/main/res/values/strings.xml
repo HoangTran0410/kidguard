@@ -589,6 +589,7 @@
     <string name="hm_b_usage">Usage access is off: time limits can\'t be counted</string>
     <string name="hm_b_location">Location is off</string>
     <string name="hm_b_acc">KidGuard accessibility is off</string>
+    <string name="hm_b_home">Not your home screen yet: the Home button still opens the old one.</string>
     <string name="hm_b_guard">KidGuard is restarting</string>
     <string name="hm_fix">Fix</string>
     <string name="hm_open_fail">Couldn\'t open this app</string>

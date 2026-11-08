@@ -121,7 +121,7 @@ internal fun HomeActivity.appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
         // the kid open Settings: otherwise this would be a way into it.
         Row(R.drawable.li_info, getString(R.string.hm_app_info), true) {
             runCatching { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${a.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        }.takeIf { Store.of(this).rules.launcher.settings },
+        }.takeIf { Flavor.HOME || Store.of(this).rules.launcher.settings },
     ), v)
 }
 
@@ -129,10 +129,14 @@ internal fun HomeActivity.emptyMenu(x: Int, y: Int) = menu(listOf(
     Row(R.drawable.li_check, getString(R.string.hm_e_enter), true) { enterEdit() },
     Row(R.drawable.li_layout_dashboard, getString(R.string.hm_w_title), true) { openPicker() },
     Row(R.drawable.li_sliders_horizontal, getString(R.string.hm_customize), true) { runCatching { startActivity(Intent(this, CustomActivity::class.java)) } },
-    Row(R.drawable.li_shield, getString(R.string.hm_open_kg), true) { openMain() },
-), null, x, y)
+    Row(R.drawable.li_shield, getString(R.string.hm_open_kg), true) { openMain() }.takeIf { !Flavor.HOME },
+).filterNotNull(), null, x, y)
 
 internal fun HomeActivity.update(m: HomeModel) { HomeFile.save(this, m); model = m; key = ""; reusePages = true; render(true) }
+
+/** KidGuard Home: the system's "Default home app" screen (older / odd ROMs: the app's own default settings). */
+internal fun HomeActivity.homeSettings() = runCatching { startActivity(Intent(android.provider.Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    .recoverCatching { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 
 internal fun HomeActivity.openMain() = runCatching { startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 

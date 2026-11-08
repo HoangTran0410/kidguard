@@ -36,9 +36,11 @@ Root: `android/` (Gradle project: `app/` child app, `parent/` parent app), `ui/`
 - `scripts/setup.sh`, `scripts/setup.ps1`, `install.html`, `SelfSetup.kt` all do the same setup steps: keep them in sync (protocol "Setup steps").
 
 ## Build / test
-- `scripts/build.sh` → `build/kidguard.apk` + `build/kidguard-parent.apk`; runs both apps' unit tests + `assembleRelease`. JDK 17, Android SDK 35.
+- `scripts/build.sh` → `build/kidguard.apk` + `build/kidguard-home.apk` + `build/kidguard-parent.apk`; runs the unit tests + release builds.
+  `app/` has 2 flavors: `kid` (KidGuard, `dev.kidguard`) and `home` ("KidGuard Home", `dev.kidguard.home`: the launcher alone,
+  `src/home/AndroidManifest.xml` removes the parental parts; code checks `Flavor.HOME`). Debug install: `:app:installKidDebug` / `installHomeDebug`. JDK 17, Android SDK 35.
   Behind a TLS proxy: `TRUSTSTORE=/path.jks scripts/build.sh`.
-- Kotlin unit tests only: `cd android && ./gradlew testDebugUnitTest :parent:testDebugUnitTest` (`DecideTest`, `PinTrackTest`, `SelfSetupLogicTest`).
+- Kotlin unit tests only: `cd android && ./gradlew testKidDebugUnitTest :parent:testDebugUnitTest` (`DecideTest`, `PinTrackTest`, `SelfSetupLogicTest`).
 - Worker: `cd worker && npm ci && npm test` (starts `wrangler dev` on :8793, runs `test/relay.test.mjs`, stops it).
 - Nothing tests `ui/*.html` or on-device behaviour: say so in reports; real-phone checks are the user's.
 

@@ -14,6 +14,11 @@ import android.widget.Toast
 class HomeEntry : Activity() {
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
+        if (Flavor.HOME) {   // KidGuard Home: the launcher is the app (a 3rd crash in 5 min turned it off: tapping the icon is the way back)
+            runCatching { packageManager.setComponentEnabledSetting(LauncherSafe.comp(this), android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED, android.content.pm.PackageManager.DONT_KILL_APP) }
+            startActivity(Intent(this, HomeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            finish(); return
+        }
         val s = Store.of(this)
         if (!LauncherSafe.wanted(this, s.rules) && !Policy.isOwner(this) && !s.everPaired && !s.released && !LauncherSafe.inSafeMode(this))
             LauncherSafe.setLocal(this, true)

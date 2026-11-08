@@ -9,6 +9,7 @@ Android 8+ on the child's phone. Parent: any browser (iPhone included) or the An
 - **Child app** (kidguard.apk, on the child's phone): enforces the rules, suspends apps, sends location, serves the parent page on port 8770 of the phone. Download: https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk
 - **Parent page**: plain HTML served by the child's phone. At home open `http://<phone IP>:8770` and type the 6-digit code shown on the child's phone (or scan the QR it shows). Away from home use Tailscale (recommended, direct, end-to-end encrypted), your own Cloudflare Worker relay (free, run `scripts/relay.sh` or `scripts/relay.ps1`), or the author's shared relay (quota shared by everyone). Set a parent PIN in Settings: without it the phone refuses to pair another browser.
 - **Parent app** (kidguard-parent.apk, optional, Android): the browser is enough, but the app adds notifications (SOS, time requests, accessibility turned off) and shows the last data when the child's phone is offline. Download: https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk
+- **KidGuard Home** (kidguard-home.apk, < 1 MB, Android 8+): the kid launcher alone (iOS-style home, App Library, Today page, widgets), its own package dev.kidguard.home; no parental control, no Device Owner, no special permissions.
 
 ## Setup in short
 

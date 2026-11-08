@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KidGuard Home: same strings as KidGuard, minus the "con" / parent wording where the launcher still shows it -->
+<resources>
+    <string name="hm_t_nice_day">Chúc một ngày vui vẻ!</string>
+    <string name="hm_w_note_d">Ghi chú mới nhất</string>
+</resources>

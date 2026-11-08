@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "KidGuard Home" (flavor home): the kid launcher on its own. Merged over src/main/AndroidManifest.xml; drops every
+     parental-control part: no Device Owner admin, accessibility, relay, location, LAN server, self-update. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" tools:node="remove" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" tools:node="remove" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" tools:node="remove" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:node="remove" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove" />
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <!-- implied by an old library's targetSdk, never used -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
+    <!-- the launcher is the whole app: HOME is on from install (KidGuard turns it on by rule) -->
+    <application android:label="@string/home_app" android:icon="@mipmap/ic_home_app" android:roundIcon="@mipmap/ic_home_app"
+        tools:replace="android:label,android:icon" tools:remove="android:usesCleartextTraffic">
+        <activity android:name=".HomeActivity" android:enabled="true" tools:replace="android:enabled" />
+        <service android:name=".NotifDots" android:label="@string/home_app" tools:replace="android:label" />
+        <activity android:name=".MainActivity" tools:node="remove" />
+        <activity android:name=".LockActivity" tools:node="remove" />
+        <activity android:name=".ProvisioningModeActivity" tools:node="remove" />
+        <activity android:name=".PolicyComplianceActivity" tools:node="remove" />
+        <activity android:name=".SelfSetupActivity" tools:node="remove" />
+        <activity android:name=".AdminActivity" tools:node="remove" />
+        <activity android:name=".MessageActivity" tools:node="remove" />
+        <activity android:name=".WakeActivity" tools:node="remove" />
+        <activity android:name=".ProjActivity" tools:node="remove" />
+        <activity android:name=".ShareInActivity" tools:node="remove" />
+        <receiver android:name=".LockReceiver" tools:node="remove" />
+        <receiver android:name=".LockWidget" tools:node="remove" />
+        <receiver android:name=".TimeWidget" tools:node="remove" />
+        <receiver android:name=".PairCodeReceiver" tools:node="remove" />
+        <receiver android:name=".RingStopReceiver" tools:node="remove" />
+        <receiver android:name=".Admin" tools:node="remove" />
+        <receiver android:name=".Boot" tools:node="remove" />
+        <receiver android:name=".Watchdog" tools:node="remove" />
+        <receiver android:name=".UpdateReceiver" tools:node="remove" />
+        <service android:name=".LockTile" tools:node="remove" />
+        <service android:name=".TimeTile" tools:node="remove" />
+        <service android:name=".ProjService" tools:node="remove" />
+        <service android:name=".Guard" tools:node="remove" />
+        <service android:name=".Acc" tools:node="remove" />
+        <provider android:name=".FilesProvider" tools:node="remove" />
+    </application>
+</manifest>

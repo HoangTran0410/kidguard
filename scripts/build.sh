@@ -18,16 +18,17 @@ if [ -n "${TRUSTSTORE:-}" ]; then
   export JAVA_OPTS="$T"
   OPTS=(-Dorg.gradle.jvmargs="-Xmx2g $T")
 fi
-(cd android && ./gradlew -q ${OPTS[@]+"${OPTS[@]}"} testDebugUnitTest assembleRelease :parent:testDebugUnitTest :parent:assembleRelease)
+(cd android && ./gradlew -q ${OPTS[@]+"${OPTS[@]}"} testKidDebugUnitTest assembleKidRelease assembleHomeRelease :parent:testDebugUnitTest :parent:assembleRelease)
 mkdir -p build
-cp android/app/build/outputs/apk/release/app-release.apk build/kidguard.apk
+cp android/app/build/outputs/apk/kid/release/app-kid-release.apk build/kidguard.apk
+cp android/app/build/outputs/apk/home/release/app-home-release.apk build/kidguard-home.apk
 cp android/parent/build/outputs/apk/release/parent-release.apk build/kidguard-parent.apk
 # release assets: the child self-update (Update.kt) needs kidguard.apk.sha256 next to the APK
-(cd build && for f in kidguard.apk kidguard-parent.apk; do shasum -a 256 "$f" > "$f.sha256"; done)
+(cd build && for f in kidguard.apk kidguard-parent.apk kidguard-home.apk; do shasum -a 256 "$f" > "$f.sha256"; done)
 # versioned copies for people who want a named file; site + README link releases/latest/download/<fixed name>, so a
 # release needs no link edits. Only the version chip (<span class="ver">) is stamped.
 V=$(sed -n 's/^kg.version=//p' android/gradle.properties)
-cp build/kidguard.apk "build/kidguard-$V.apk"; cp build/kidguard-parent.apk "build/kidguard-parent-$V.apk"
+cp build/kidguard.apk "build/kidguard-$V.apk"; cp build/kidguard-parent.apk "build/kidguard-parent-$V.apk"; cp build/kidguard-home.apk "build/kidguard-home-$V.apk"
 perl -pi -e 's#<span class="ver">v[0-9.]*</span>#<span class="ver">v'"$V"'</span>#g' \
   website/index.html website/en/index.html website/guide.html website/en/guide.html
 scripts/stamp-site.sh

@@ -807,6 +807,7 @@ crash count and the safe mode, and a layout reset by a crash in the last 24 h co
 now / next, countdown to the next lock or bedtime), `time` (screen time left + top 3 apps), `sched`, `chores`, `tomorrow`
 (tomorrow's subjects, from 17:00), `notes`, `files` (both ways: opens what parents sent, lists what the kid sent + "Bố mẹ đã tải", "Gửi file cho bố mẹ" = the system picker into the outbox). The SOS / call buttons can't be hidden. Empty schedule / files /
 tomorrow cards are left out on their own. `style.today` false = no "Hôm nay" page at all (page 1 is the first; widgets that open it do nothing). Phone only.
+KidGuard Home (`kidguard-home.apk`, package `dev.kidguard.home`, v0.9.9+) is the same launcher with no parent link: same layout file / fields, no rules (nothing is blocked), no relay / LAN / commands. It never talks to the worker or the parent page; widgets `time` `quick` `next` `counts` `usage` `lock` `when` `earn` `msg` and Today cards `time` `chores` `files` are not offered there.
 item `{"id","kind":"app|widget|folder","x","y","w"?,"h"?,"pkg"?,"cls"?,"type"?,"name"?,"apps"?,"awid"?}`.
 `timetable`: ISO weekday ("1" = Monday) → morning (`am`) and afternoon (`pm`) periods, up to 8 each, subjects of ≤ 30 chars,
 index = period, `""` = free period (trailing blanks dropped). An older phone's plain array day is read as the morning. `bells`: one

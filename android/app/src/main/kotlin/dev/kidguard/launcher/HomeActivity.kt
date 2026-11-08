@@ -365,6 +365,10 @@ class HomeActivity : Activity() {
     private var cOwner = false; private var cUsage = false; private var cLoc = false
     private fun bannerNow(s: Store): String? {
         val now = android.os.SystemClock.elapsedRealtime()
+        if (Flavor.HOME) {   // no Guard / admin to warn about: only "Home still opens the old launcher"
+            if (!bannerSet || now - bannerAt > 20_000) { cOwner = LauncherSafe.homeIsOurs(this); bannerAt = now; bannerSet = true }
+            return if (cOwner) null else "home"
+        }
         if (!bannerSet || now - bannerAt > 20_000) {
             cOwner = Policy.isOwner(this); cUsage = Usage.granted(this); cLoc = locationOn()
             bannerAt = now; bannerSet = true
@@ -389,7 +393,7 @@ class HomeActivity : Activity() {
             resolvePkg(Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com"))),
         ).filter { it in vis }
         val d = dialer()
-        return HomeLayout.fresh(r.launcher.style.ifEmpty { "teen" }, visible.map { it.pkg }.filter { it != d }, dockApps)
+        return HomeLayout.fresh(r.launcher.style.ifEmpty { "teen" }, visible.map { it.pkg }.filter { it != d }, dockApps, parent = !Flavor.HOME)
     }
 
     // ---------------- render ----------------
@@ -538,7 +542,7 @@ class HomeActivity : Activity() {
     internal fun buildBanner(code: String?) {
         bannerBox.removeAllViews()
         if (code == null) return
-        val msg = when (code) { "owner" -> R.string.hm_b_owner; "usage" -> R.string.hm_b_usage; "location" -> R.string.hm_b_location; "acc" -> R.string.hm_b_acc; else -> R.string.hm_b_guard }
+        val msg = when (code) { "owner" -> R.string.hm_b_owner; "usage" -> R.string.hm_b_usage; "location" -> R.string.hm_b_location; "acc" -> R.string.hm_b_acc; "home" -> R.string.hm_b_home; else -> R.string.hm_b_guard }
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             background = fill(pal.sheet, 18f); setPadding(dp(12), dp(8), dp(8), dp(8)); elevation = dpf(2f)
@@ -549,7 +553,7 @@ class HomeActivity : Activity() {
         row.addView(TextView(this).apply {
             text = getString(R.string.hm_fix); setTextColor(pal.onSolid); background = fill(pal.solid); setPadding(dp(14), dp(7), dp(14), dp(7))
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            kit.tap(this, 999f, true) { openMain() }
+            kit.tap(this, 999f, true) { if (code == "home") homeSettings() else openMain() }
         })
         bannerBox.addView(row, FrameLayout.LayoutParams(-1, -2).apply { setMargins(dp(14), dp(6), dp(14), dp(2)) })
     }
@@ -651,7 +655,7 @@ class HomeActivity : Activity() {
             val items = HashMap<String, View>()
             for (it in p) {
                 val v: View = when (it.kind) {
-                    "widget" -> { val w0 = android.os.SystemClock.uptimeMillis(); when (it.type) {
+                    "widget" -> { val w0 = android.os.SystemClock.uptimeMillis(); if (!Flavor.widget(it.type)) null else when (it.type) {
                         "clock" -> clockWidget(r, dv, it.w, it.h, hasNext)
                         "time" -> timeWidget(r, dv, block, s, it.w)
                         "quick" -> quickWidget(s, it.w)

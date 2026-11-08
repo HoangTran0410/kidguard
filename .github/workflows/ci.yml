@@ -15,7 +15,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Kotlin unit tests (child + parent)
         working-directory: android
-        run: ./gradlew --no-daemon testDebugUnitTest :parent:testDebugUnitTest
+        run: ./gradlew --no-daemon testKidDebugUnitTest :parent:testDebugUnitTest
       - name: Page script parses
         run: |
           files=$(grep -o 'src="/ui/[a-z0-9-]*\.js"' ui/index.html | sed 's|src="/ui/|ui/assets/|; s|"$||')

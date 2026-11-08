@@ -30,6 +30,7 @@ object LauncherSafe {
     fun wanted(ctx: Context, r: Rules): Boolean {
         val s = Store.of(ctx)
         if (inSafeMode(ctx) || s.released) return false
+        if (Flavor.HOME) return true
         if (Policy.isOwner(ctx)) return r.launcher.on
         // no Device Owner: the user picks KidGuard as HOME themselves. Local opt-in before pairing, the parent's rule after
         return if (s.everPaired) r.launcher.on else s.launcherLocal

@@ -44,7 +44,7 @@ class TodayPage(
     /** Rebuilds everything (cheap: a few dozen views). Cards the kid turned off (HomeModel.todayHide) are left out. */
     internal fun fill(r: Rules, dv: HomeActivity.View0, block: String?, all: Map<String, HomeActivity.AppE>, icon: (HomeActivity.AppE, Int) -> View) {
         val st = Store.of(act)
-        val hide = model()?.todayHide ?: emptySet()
+        val hide = (model()?.todayHide ?: emptySet()) + cardIds0.filterNot { Flavor.card(it) }
         col.removeAllViews(); until = null
         pad(padTop, padBottom)
         header(r, st, dv.now)
@@ -75,8 +75,9 @@ class TodayPage(
 
     // ---- choose cards ----
 
+    private val cardIds0 = listOf("now", "time", "sched", "chores", "tomorrow", "notes", "files")
     private val cardIds = listOf("now" to R.string.hm_t_now_card, "time" to R.string.hm_t_screen, "sched" to R.string.hm_t_schedule,
-        "chores" to R.string.hm_t_chores, "tomorrow" to R.string.hm_t_tomorrow_card, "notes" to R.string.hm_t_notes, "files" to R.string.hm_t_files)
+        "chores" to R.string.hm_t_chores, "tomorrow" to R.string.hm_t_tomorrow_card, "notes" to R.string.hm_t_notes, "files" to R.string.hm_t_files).filter { Flavor.card(it.first) }
 
     private fun pickCards() {
         val m0 = model() ?: return
@@ -108,6 +109,7 @@ class TodayPage(
         t.addView(k.text(date, 14f, pal.sub).apply { setPadding(0, dp(2), 0, 0) })
         if (st.sos().length() > 0) t.addView(k.text(s(R.string.home_sos) + " · " + s(R.string.hm_q_sent), 13f, pal.dangerText, true).apply { setPadding(0, dp(2), 0, 0) })
         row.addView(t, LinearLayout.LayoutParams(0, -2, 1f))
+        if (Flavor.HOME) { col.addView(row, lp(0)); return }   // KidGuard Home: no parent to call, no SOS
         // call: a number in the lock-screen contact ("Gọi mẹ 0912…"), else just the phone app
         val num = Regex("\\+?\\d[\\d .-]{6,}\\d").find(r.lockContact)?.value?.replace(Regex("[ .-]"), "")
         row.addView(ImageView(act).apply {
@@ -387,8 +389,9 @@ class TodayPage(
             thumbTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(pal.accentText, pal.sheet))
             trackTintList = android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(pal.accentText, pal.sub))
         }
+        if (Flavor.HOME) sw.visibility = View.GONE   // no parent to share with
         box.addView(sw, LinearLayout.LayoutParams(-1, -2))
-        box.addView(k.text(s(R.string.hm_t_share_sub), 12f, pal.sub).apply { setPadding(dp(2), dp(4), 0, 0); includeFontPadding = true })
+        if (!Flavor.HOME) box.addView(k.text(s(R.string.hm_t_share_sub), 12f, pal.sub).apply { setPadding(dp(2), dp(4), 0, 0); includeFontPadding = true })
         var dlg: android.app.Dialog? = null
         if (n != null) box.addView(k.text(s(R.string.hm_t_delete), 15f, pal.dangerText, true).apply {
             setPadding(dp(4), dp(14), dp(4), dp(4)); Ic.lead(this, R.drawable.li_trash_2, pal.dangerText); compoundDrawablePadding = dp(8); gravity = Gravity.CENTER_VERTICAL

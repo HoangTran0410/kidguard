@@ -321,7 +321,7 @@ internal fun HomeActivity.openPicker() {
     // one preview each, two sizes of the same widget side by side read as duplicates), its sizes as small pills under the
     // name. Tap the tile = its first size, tap a pill = that size; the size on the home is the filled pill. Hold the preview
     // to drag the widget onto the home (only one of each kind: a placed one is resized from here instead).
-    val types = HomeLayout.SIZES.keys.toList()
+    val types = HomeLayout.SIZES.keys.filter { Flavor.widget(it) }
     val sq = m.style.shape != "square"
     var kg: LinearLayout? = null
     var kgRow: LinearLayout? = null

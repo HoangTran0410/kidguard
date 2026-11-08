@@ -102,6 +102,13 @@ class HomeEditTest {
         assertEquals("F", HomeLayout.rename(m, id, "   ").pages.flatten().single { it.id == id }.name)
     }
 
+    @Test fun freshWithoutParentHasOnlyTheClock() {
+        val m = HomeLayout.fresh("teen", apps.take(6), emptyList(), parent = false)
+        val w = m.pages[0].filter { it.kind == "widget" }
+        assertEquals(listOf("clock"), w.map { it.type }); assertEquals(2, w[0].h)
+        assertEquals(6, m.pages.flatten().count { it.kind == "app" }); noOverlap(m)
+    }
+
     @Test fun widgetsPlaceOnceResizeAndShrinkToGrid() {
         val empty = HomeLayout.fresh("teen", emptyList(), emptyList())
         val noTime = HomeLayout.dropRemove(HomeLayout.take(empty, Src.Item(empty.pages[0].first { it.type == "time" }.id))!!)

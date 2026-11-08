@@ -48,6 +48,7 @@ KidGuard becomes the phone's **Device Owner**, the same Android role a company u
 | Install from a computer's browser (USB, no adb) | [kidguard.99-hoangtran.workers.dev/install](https://kidguard.99-hoangtran.workers.dev/install) |
 | The parent page | the phone shows its address after setup: `http://<phone IP>:8770` |
 | The parent app (Android, optional) | [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk) |
+| Just the kid launcher, no parental control (any phone, < 1 MB) | [kidguard-home.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-home.apk) |
 
 ## Install
 

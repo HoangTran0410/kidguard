@@ -689,12 +689,13 @@ class Guard : Service() {
         }
 
         fun start(ctx: Context) {
+            if (Flavor.HOME) return   // KidGuard Home: no Guard service (removed from its manifest)
             if (Store.of(ctx).released) { Policy.retryShellEnable(ctx); return }   // after "release" nothing may bring us back (but apps we disabled via the shell still get enabled)
             runCatching { ctx.startForegroundService(Intent(ctx, Guard::class.java)) }.onFailure { Log.e("KidGuard", "start", it) }
         }
 
         /** Re-run the rules now (e.g. the accessibility service saw another app come to the front). */
-        fun poke(ctx: Context) { running?.pokeSoft() ?: start(ctx) }
+        fun poke(ctx: Context) { if (!Flavor.HOME) running?.pokeSoft() ?: start(ctx) }
 
         fun day(ms: Long): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(ms))
 

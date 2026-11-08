@@ -15,6 +15,14 @@ android {
         versionCode = (property("kg.code") as String).toInt()
         versionName = property("kg.version") as String
     }
+    // kid = KidGuard (Device Owner child app, kidguard.apk). home = "KidGuard Home" (kidguard-home.apk): the kid launcher
+    // alone, its own package, no admin / accessibility / relay / location (src/home/AndroidManifest.xml removes them);
+    // code checks BuildConfig.HOME (Flavor.kt) to hide what needs a parent
+    flavorDimensions += "app"
+    productFlavors {
+        create("kid") { dimension = "app"; buildConfigField("boolean", "HOME", "false") }
+        create("home") { dimension = "app"; applicationIdSuffix = ".home"; buildConfigField("boolean", "HOME", "true") }
+    }
     signingConfigs {
         create("release") {
             storeFile = keystore
@@ -51,6 +59,13 @@ android {
     lint { checkReleaseBuilds = false }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_11; targetCompatibility = JavaVersion.VERSION_11 }
     kotlinOptions { jvmTarget = "11" }
+}
+
+// KidGuard Home has no self-setup (adb over Wi-Fi): drop its native libs (~2.5 MB per ABI); R8 drops the classes
+androidComponents {
+    onVariants(selector().withFlavor("app" to "home")) { v ->
+        v.packaging.jniLibs.excludes.addAll(listOf("**/libconscrypt_jni.so", "**/libspake2.so"))
+    }
 }
 
 dependencies {
