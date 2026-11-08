@@ -250,10 +250,16 @@ class HomeActivity : Activity() {
         @Suppress("DEPRECATION")
         for (ri in pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)) {
             val ai = ri.activityInfo ?: continue
-            if (ai.packageName !in out) out[ai.packageName] = AppE(ai.packageName, ai.name, ri.loadLabel(pm).toString())
+            if (ai.packageName !in out) {
+                // loadLabel is a binder call per app (Samsung routes it through its EDM service): ~15 ms on every return home.
+                // The apk path changes on each update, the locale is in the key: a stale label cannot survive either.
+                val k = ai.applicationInfo?.sourceDir + "|" + ai.name + "|" + resources.configuration.locales[0]
+                out[ai.packageName] = AppE(ai.packageName, ai.name, labelCache.getOrPut(k) { ri.loadLabel(pm).toString() })
+            }
         }
         return out.also { apps = it }
     }
+    private val labelCache = HashMap<String, String>()
 
     internal class View0(val want: Map<String, String>, val leftMs: Long, val usage: Map<String, Long>, val minute: Int, val dow: Int, val now: Long,
                         val apps: Set<String>, val prot: Set<String>, val today: String)

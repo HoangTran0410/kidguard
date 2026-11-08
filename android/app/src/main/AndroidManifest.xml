@@ -65,6 +65,8 @@
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:theme="@style/AppBase">
+        <!-- adb shell may sample the CPU (simpleperf) for perf work; not debuggable, nothing else exposed -->
+        <profileable android:shell="true" tools:targetApi="29" />
 
         <activity
             android:name=".MainActivity"
