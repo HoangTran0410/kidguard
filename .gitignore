@@ -11,6 +11,3 @@ node_modules/
 .kotlin/
 android/parent/google-services.json
 *firebase-adminsdk*.json
-
-# APKs copied in by scripts/site.sh before a Pages deploy (served same-origin: github.com links open the GitHub app)
-website/dl/
