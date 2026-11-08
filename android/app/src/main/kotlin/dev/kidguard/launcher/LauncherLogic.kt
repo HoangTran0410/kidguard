@@ -43,7 +43,8 @@ object LauncherLogic {
      * plumbing / settings => [Show.HIDE]; any other reason => greyed with a clock badge; else normal.
      */
     fun show(pkg: String, want: Map<String, String>, r: Rules, self: String): Show = when {
-        pkg == self || pkg in PLUMBING -> Show.HIDE
+        pkg == self -> Show.OK   // KidGuard itself stays findable in the drawer (SOS, xin giờ, "Bố mẹ quản lý trên máy này")
+        pkg in PLUMBING -> Show.HIDE
         pkg in r.hidden || pkg in r.blocked || want[pkg] in HIDE_REASONS -> Show.HIDE
         pkg in SETTINGS && !r.launcher.settings -> Show.HIDE
         want[pkg] != null -> Show.PAUSED
