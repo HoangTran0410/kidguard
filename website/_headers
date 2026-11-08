@@ -23,3 +23,8 @@
 
 /sitemap.xml
   Cache-Control: public, max-age=3600
+
+/dl/*
+  Content-Type: application/vnd.android.package-archive
+  Content-Disposition: attachment
+  Cache-Control: public, max-age=300
