@@ -29,7 +29,7 @@ L.en = {
   "pair.pin1": "New PIN", "pair.pin2": "PIN again", "pe.pin required": "Set a PIN (4–8 digits) to pair", "pe.bad pin": "PIN must be 4–8 digits", "pe.mismatch": "The two PINs don't match",
   "pinGate.h": "Set the parent PIN", "pinGate.p": "This phone was paired earlier but has no PIN. Set one before going on: it is needed to pair another phone and to manage right on the kid's phone (instead of waiting 24 hours). Don't tell your kid.",
   "pinGate.go": "Set PIN", "pinGate.wait": "Saving the PIN…", "pinGate.off": "Can't save while showing a saved copy. Reconnect to the kid's phone and try again.",
-  "local.bar": "Managing on the kid's phone · exits after 5 min without a touch", "local.why": "The page closes when the screen turns off, when you leave it, or after 5 minutes without a touch.", "local.end": "Exit", "local.over": "The management session ended.",
+  "local.bar": "On the kid's phone · exits after 5 min idle", "local.why": "The page closes when the screen turns off, when you leave it, or after 5 minutes without a touch.", "local.end": "Exit", "local.over": "The management session ended.",
   "list.none": "No phones yet. Open the \"remote control\" link from your kid's page (at home, Settings tab) to add one.",
   ov: "Overview", list: "List", "ov.where": "Where the kids are", "ov.week": "Screen time, 7 days", "ov.report": "Weekly report",
   "ov.sos": "{0} pressed SOS at {1}", loading: "Loading…", "ov.online": "online", "ov.offline": "offline · {0}", "ov.usingApp": "using {0}", "ov.using": "in use",

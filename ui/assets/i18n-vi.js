@@ -36,7 +36,7 @@ L.vi = {
   "pair.pin1": "PIN mới", "pair.pin2": "Nhập lại PIN", "pe.pin required": "Hãy đặt PIN (4–8 số) để ghép", "pe.bad pin": "PIN 4–8 số", "pe.mismatch": "Hai PIN không giống nhau",
   "pinGate.h": "Đặt PIN của bố mẹ", "pinGate.p": "Máy này đã ghép từ trước nhưng chưa có PIN. Bố mẹ cần đặt PIN trước khi dùng tiếp: PIN để ghép thêm máy và để quản lý ngay trên máy con (thay cho việc chờ 24 giờ). Con không được biết PIN.",
   "pinGate.go": "Đặt PIN", "pinGate.wait": "Đang lưu PIN…", "pinGate.off": "Không lưu được khi đang xem bản lưu cũ. Kết nối lại máy con rồi thử lại.",
-  "local.bar": "Đang quản lý trên máy con · tự thoát sau 5 phút không chạm", "local.why": "Trang tự đóng khi tắt màn hình, khi rời trang hoặc sau 5 phút không chạm.", "local.end": "Thoát", "local.over": "Phiên quản lý đã hết.",
+  "local.bar": "Quản lý trên máy con · tự thoát sau 5 phút", "local.why": "Trang tự đóng khi tắt màn hình, khi rời trang hoặc sau 5 phút không chạm.", "local.end": "Thoát", "local.over": "Phiên quản lý đã hết.",
   "list.none": "Chưa có máy nào. Mở link \"điều khiển từ xa\" từ trang của con (khi ở nhà, tab Cài đặt) để thêm.",
   ov: "Tổng quan", list: "Danh sách", "ov.where": "Các con đang ở đâu", "ov.week": "Thời gian dùng 7 ngày", "ov.report": "Báo cáo tuần",
   "ov.sos": "{0} bấm SOS lúc {1}", loading: "Đang tải…", "ov.online": "đang kết nối", "ov.offline": "mất kết nối · {0}", "ov.usingApp": "đang dùng {0}", "ov.using": "đang dùng",
