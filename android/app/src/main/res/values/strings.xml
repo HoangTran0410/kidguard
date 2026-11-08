@@ -413,6 +413,8 @@
     <string name="tl_h">%1$d h left</string>
     <string name="tl_hm">%1$d h %2$d min left</string>
     <string name="tl_none">No limit</string>
+    <string name="home_app">KidGuard Home</string>
+    <string name="home_app_off">The KidGuard home screen is off for this phone. Opening KidGuard.</string>
     <string name="q_lock">Lock screen</string>
     <string name="q_lock_short">Lock</string>
     <string name="q_time">Screen time left</string>

@@ -398,6 +398,8 @@
     <string name="tl_h">Còn %1$d giờ</string>
     <string name="tl_hm">Còn %1$d giờ %2$d phút</string>
     <string name="tl_none">Không giới hạn</string>
+    <string name="home_app">KidGuard Home</string>
+    <string name="home_app_off">Màn hình chính KidGuard đang tắt trên máy này. Đang mở KidGuard.</string>
     <string name="q_lock">Khoá màn hình</string>
     <string name="q_lock_short">Khoá</string>
     <string name="q_time">Thời gian còn lại</string>

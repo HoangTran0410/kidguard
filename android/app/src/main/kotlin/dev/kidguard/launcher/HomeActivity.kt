@@ -277,6 +277,7 @@ class HomeActivity : Activity() {
         @Suppress("DEPRECATION")
         for (ri in pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)) {
             val ai = ri.activityInfo ?: continue
+            if (ai.name == HomeEntry::class.java.name) continue   // "KidGuard Home" would open this very screen
             if (ai.packageName !in out) {
                 // loadLabel is a binder call per app (Samsung routes it through its EDM service): ~15 ms on every return home.
                 // The apk path changes on each update, the locale is in the key: a stale label cannot survive either.

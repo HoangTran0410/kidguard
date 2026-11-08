@@ -86,6 +86,23 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <!-- "KidGuard Home" in the phone's app list: opens the kid launcher directly (HomeEntry.kt) -->
+        <activity
+            android:name=".HomeEntry"
+            android:exported="true"
+            android:label="@string/home_app"
+            android:icon="@mipmap/ic_home_app"
+            android:roundIcon="@mipmap/ic_home_app"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <!-- v0.9.9 kid launcher: off until the `launcher` rule enables it (LauncherSafe, Device Owner only); release disables it -->
         <activity
             android:name=".HomeActivity"
