@@ -492,7 +492,7 @@ const sheetHead = (icn, title) => `<div class="shh"><h2 id="askT">${ic(icn)} ${t
 const reqChips = q => [15, 30, 45, 60].includes(+q.min) ? [15, 30, 45, 60] : [15, 30, 45, 60, +q.min].sort((a, c) => a - c);
 function reqCard(q, r) {
   const ch = q.chore ? (r.chores || []).find(c => c.id === q.chore) : null, m = reqMin[q.id] || +q.min, id = esc(q.id), note = (reqNote[q.id] || "").trim();
-  return `<div class="card req" role="group" aria-label="${esc(t("req.aria"))}"><div class="row" style="flex-wrap:nowrap;align-items:flex-start"><span class="ib t-warn" style="color:var(--warn);background:rgba(127,127,127,.14);background:color-mix(in srgb,var(--warn) 16%,transparent)">${ic("hand")}</span>
+  return `<div class="card req" role="group" aria-label="${esc(t("req.aria"))}"><div class="row" style="flex-wrap:nowrap;align-items:flex-start"><span class="ib t-warn" style="color:var(--warn);background:rgba(217,119,6,.16)">${ic("hand")}</span>
     <div class="sp" style="min-width:0"><b>${t("req.asks", esc(cur.name), +q.min)}</b>${q.t ? ` <span class="mute">· ${ago(q.t)}</span>` : ""}
     ${q.chore ? `<div style="margin-top:4px"><span class="tag warn" style="margin:0">${ic("star")} ${t("req.chore")}</span> <span class="tag">${esc(ch ? ch.name : t("req.choreGone"))}</span></div>` : ""}
     ${q.note ? `<div class="mute" style="margin-top:4px">${t("req.note", esc(q.note))}</div>` : ""}
