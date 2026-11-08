@@ -439,6 +439,7 @@ object Policy {
         runCatching { d.setLongSupportMessage(a, null) }
         runCatching { d.setDeviceOwnerLockScreenInfo(a, null) }
         removeAccEntry(ctx)
+        NotifDots.setOn(ctx, false)
         // kid launcher: our persistent HOME goes and the component is disabled before Device Owner does (else HOME stays ours)
         runCatching { LauncherSafe.off(ctx, goHome = true) }.onFailure { Log.w(TAG, "launcher off", it) }
         // the mic was granted by us, not by the child: take it back and hand the switch to the user
@@ -480,6 +481,7 @@ object Policy {
         }
         s.suspendedByUs = emptySet()
         removeAccEntry(ctx)
+        NotifDots.setOn(ctx, false)
         runCatching { LauncherSafe.off(ctx, goHome = true) }   // only owner mode can turn it on, but never leave it behind
         runCatching { Acc.running?.disableSelf() }
         s.clearTokens()

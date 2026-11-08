@@ -250,6 +250,17 @@
             android:name=".RingStopReceiver"
             android:exported="false" />
 
+        <!-- notification dots on the kid launcher's icons: counts only (NotifDots) -->
+        <service
+            android:name=".NotifDots"
+            android:exported="true"
+            android:label="KidGuard"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <service
             android:name=".Guard"
             android:exported="false"

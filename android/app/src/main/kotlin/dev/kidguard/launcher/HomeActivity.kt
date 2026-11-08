@@ -63,6 +63,20 @@ class HomeActivity : Activity() {
         @Volatile var alive = 0; const val FOLDER_MS = 500L
         /** Created once: Typeface.create looked the family up again for every bold label. */
         val MEDIUM: Typeface by lazy { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
+        /** Launcher font (style.face), families every Android ships: no font files in the APK. */
+        val FACES = listOf("sys", "light", "medium", "condensed", "serif")
+        @Volatile var face = "sys"
+        private val faces = HashMap<String, Typeface>()
+        /** The chosen face, regular or emphasised (titles, buttons). The system "bold font" setting still adds on top. */
+        fun tf(bold: Boolean): Typeface = faces.getOrPut("$face$bold") {
+            when (face) {
+                "light" -> Typeface.create(if (bold) "sans-serif" else "sans-serif-light", Typeface.NORMAL)
+                "medium" -> if (bold) Typeface.create("sans-serif", Typeface.BOLD) else MEDIUM
+                "condensed" -> Typeface.create("sans-serif-condensed", if (bold) Typeface.BOLD else Typeface.NORMAL)
+                "serif" -> Typeface.create("serif", if (bold) Typeface.BOLD else Typeface.NORMAL)
+                else -> if (bold) MEDIUM else Typeface.DEFAULT
+            }
+        }
     }
 
     internal class AppE(val pkg: String, val cls: String, val label: String) {
@@ -85,7 +99,7 @@ class HomeActivity : Activity() {
     internal lateinit var acts: KidActions
     internal var dark = false
     internal lateinit var root: FrameLayout
-    internal lateinit var wallView: ImageView
+    internal lateinit var wallView: WallSurface
     internal var wall: Bitmap? = null
     internal var wallKey = ""
     internal lateinit var content: SwipeUp
@@ -111,6 +125,9 @@ class HomeActivity : Activity() {
     internal var drag: DragSt? = null
     internal var tempPage = false
     internal var insT = 0; internal var insB = 0; internal var insL = 0; internal var insR = 0
+    /** Bottom inset with the keyboard (insB is the bars only): the drawer, Today and sheets with a text field follow the
+     *  keyboard; the home pages never do (they shrank for the ~0.5 s the keyboard took to slide away after search). */
+    internal var imeB = 0
     internal val inkViews = ArrayList<View>()      // TextViews / dot rows that sit right on the wallpaper
     internal val inkCache = HashMap<String, Ink>()
     internal val itemViews = HashMap<String, View>()   // grid item id -> its view on the current render
@@ -141,7 +158,7 @@ class HomeActivity : Activity() {
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
         root = FrameLayout(this)
-        wallView = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_XY; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+        wallView = WallSurface(this).apply { importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
         root.addView(wallView, FrameLayout.LayoutParams(-1, -1))
         content = SwipeUp(this)
         pager = Pager(this)
@@ -171,11 +188,13 @@ class HomeActivity : Activity() {
         content.addView(floatBox, FrameLayout.LayoutParams(-1, -1))
         root.addView(content, FrameLayout.LayoutParams(-1, -1))
         root.setOnApplyWindowInsetsListener { _, ins ->
-            @Suppress("DEPRECATION") run { insL = ins.systemWindowInsetLeft; insT = ins.systemWindowInsetTop; insR = ins.systemWindowInsetRight; insB = ins.systemWindowInsetBottom }
+            @Suppress("DEPRECATION") run { insL = ins.systemWindowInsetLeft; insT = ins.systemWindowInsetTop; insR = ins.systemWindowInsetRight; imeB = ins.systemWindowInsetBottom }
+            insB = if (android.os.Build.VERSION.SDK_INT >= 30) ins.getInsets(android.view.WindowInsets.Type.systemBars()).bottom
+                else @Suppress("DEPRECATION") minOf(ins.stableInsetBottom, imeB)
             chrome.setPadding(insL, insT, insR, insB)
             floatBox.setPadding(insL, insT, insR, insB)
-            drawerCache?.setPadding(insL, insT, insR, insB)
-            today?.pad(insT, insB)
+            drawerCache?.setPadding(insL, insT, insR, imeB)
+            today?.pad(insT, imeB)
             padPages()
             ins
         }
@@ -187,7 +206,8 @@ class HomeActivity : Activity() {
         pager.post { pager.jump(1) }
     }
 
-    override fun onDestroy() { alive--; super.onDestroy() }
+    override fun onDestroy() { alive--; if (NotifDots.onChange === dotRx) NotifDots.onChange = null; super.onDestroy() }
+    private val dotRx: (Set<String>) -> Unit = { changed -> Dots.refresh(window.decorView, changed) }
 
     override fun onResume() {
         super.onResume()
@@ -203,6 +223,8 @@ class HomeActivity : Activity() {
             })
         }
         Guard.poke(this)
+        NotifDots.onChange = dotRx
+        NotifDots.setOn(this, (model ?: HomeFile.load(this))?.style?.badge != "off")
         model = null          // Tuỳ chỉnh may have changed home.json (HomeFile's cache)
         apps = null           // package changes while stopped are not broadcast to us
         render(false)         // rebuilds only when the key changed: coming back from an app is free
@@ -333,13 +355,15 @@ class HomeActivity : Activity() {
         dark = m.style.theme == "dark" || (m.style.theme == "auto" && night)
         val accent = m.style.accent.ifEmpty { if (dark) preset.accentDark else preset.accentLight }
         val np = HomeStyle.palette(accent, dark)
-        if (np != pal || today == null) {
+        val faceChanged = face != m.style.face
+        face = m.style.face
+        if (np != pal || today == null || faceChanged) {
             // the launcher's own accent and light / dark for its modals and sheets ("Xin giờ" & co)
             pal = np; u = Ui(this, pal); kit = HomeKit(this, pal, m.style.font.toFloat())
             // the kept drawer has the old colours baked in: drop it unless it is on screen
             drawerCache?.takeIf { drawer == null }?.let { root.removeView(it); drawerCache = null }
             acts = KidActions(this, u) { key = ""; render(true) }
-            today = TodayPage(this, kit, u, acts, { model }, { update(it) }, { openMain() }).also { it.onRefresh = { key = ""; render(true) }; it.pad(insT, insB) }
+            today = TodayPage(this, kit, u, acts, { model }, { update(it) }, { openMain() }).also { it.onRefresh = { key = ""; render(true) }; it.pad(insT, imeB) }
         } else if (kit.font != m.style.font.toFloat()) kit = HomeKit(this, pal, m.style.font.toFloat())
         val block = QuickLogic.phoneBlock(dv.want)
         lap("palette")
@@ -388,7 +412,7 @@ class HomeActivity : Activity() {
         wallKey = k; inkCache.clear()
         val old = wall
         wall = (if (photo) Wallpaper.photo(this, w, h)?.also { Wallpaper.dim(it, st.dim) } else null) ?: Wallpaper.draw(id, w, h)
-        wallView.setImageBitmap(wall)
+        wallView.show(wall)
         // the opaque wallpaper covers the window: the theme's black background was one more full-screen fill per frame
         window.setBackgroundDrawable(null)
         old?.recycle()
@@ -404,7 +428,7 @@ class HomeActivity : Activity() {
     internal fun fill(color: Int, radius: Float = 999f) = GradientDrawable().apply { setColor(color); cornerRadius = dpf(radius) }
     internal fun text(t: String, sp: Float, color: Int, bold: Boolean = false) = TextView(this).apply {
         text = t; setTextSize(TypedValue.COMPLEX_UNIT_SP, sp * (model?.style?.font?.toFloat() ?: 1f)); setTextColor(color)
-        if (bold) typeface = MEDIUM
+        typeface = tf(bold)
         includeFontPadding = false
     }
 
@@ -453,7 +477,8 @@ class HomeActivity : Activity() {
         if (!::pager.isInitialized) return
         (tip.layoutParams as? FrameLayout.LayoutParams)?.let { lp -> val b = bottom.height + dp(8); if (lp.bottomMargin != b) { lp.bottomMargin = b; tip.layoutParams = lp } }
         if (drag != null) return
-        val top = insT + bannerBox.height + (if (topBar.visibility == View.VISIBLE) topBar.height else 0)
+        // + 16 dp: the first row sat right under the status bar icons (One UI / Pixel leave a gap there too)
+        val top = insT + dp(16) + bannerBox.height + (if (topBar.visibility == View.VISIBLE) topBar.height else 0)
         val bot = insB + bottom.height
         for (i in 1 until pager.childCount) {
             val c = pager.getChildAt(i)
@@ -722,7 +747,7 @@ class HomeActivity : Activity() {
             // Build what fills the screen now, the rest a few rows per frame; a new refill drops the old queue.
             val gen = ++fillGen
             fun addRow(i: Int) {
-                val row = LinearLayout(context).apply { orientation = HORIZONTAL; setPadding(dp(8), dp(6), dp(8), dp(6)) }
+                val row = LinearLayout(context).apply { orientation = HORIZONTAL; setPadding(dp(8), dp(6), dp(8), dp(6)); clipChildren = false; clipToPadding = false }
                 for (a in rows[i]) {
                     val v = appIcon(a, dv.want[a.pkg] != null, dv, r, Mode.DRAWER)
                     if (firstHit == null) firstHit = v
@@ -818,7 +843,9 @@ class HomeActivity : Activity() {
         var page = 1
         var dragging = false
         var onPage: () -> Unit = {}
-        private val scroller = OverScroller(ctx)
+        // Launcher3's scroll interpolator (quintic out): the page leaves at the finger's speed. The default (viscous fluid)
+        // starts slow, so every swipe hitched right after the finger lifted.
+        private val scroller = OverScroller(ctx) { t -> val u = t - 1f; u * u * u * u * u + 1f }
         private var vt: VelocityTracker? = null
         private var x0 = 0f; private var y0 = 0f; private var lastX = 0f
         private val slop = ViewConfiguration.get(ctx).scaledTouchSlop
@@ -880,16 +907,19 @@ class HomeActivity : Activity() {
             // a fling, or 30 % of the width either way (Pixel-like); a slow drag back below 30 % stays
             val dx = scrollX - page * width
             val target = when { vx < -minFling || (vx <= minFling && dx > width * 0.3f) -> page + 1; vx > minFling || (vx >= -minFling && dx < -width * 0.3f) -> page - 1; else -> page }
-            snapTo(target)
+            snapTo(target, abs(vx))
         }
 
         private fun release() { dragging = false; vt?.recycle(); vt = null }
 
-        fun snapTo(p: Int) {
+        fun snapTo(p: Int, vx: Float = 0f) {
             val n = (childCount - 1).coerceAtLeast(0)
             val old = page
             page = p.coerceIn(0, n)
-            scroller.startScroll(scrollX, 0, page * width - scrollX, 0, 260)
+            val dist = page * width - scrollX
+            // quintic out starts at 5x the mean speed: match the fling, 180-320 ms (Launcher3 also derives it from velocity)
+            val ms = if (vx > minFling && dist != 0) (5000f * abs(dist) / vx).toInt().coerceIn(180, 320) else 300
+            scroller.startScroll(scrollX, 0, dist, 0, ms)
             postInvalidateOnAnimation()
             if (page != old) {
                 onPage()
@@ -898,7 +928,7 @@ class HomeActivity : Activity() {
         }
 
         /** No animation (first show, HOME from far away). */
-        fun jump(p: Int) { scroller.abortAnimation(); page = p.coerceIn(0, (childCount - 1).coerceAtLeast(0)); scrollTo(page * width, 0); onPage() }
+        fun jump(p: Int) { scroller.abortAnimation();  page = p.coerceIn(0, (childCount - 1).coerceAtLeast(0)); scrollTo(page * width, 0); onPage() }
 
         override fun computeScroll() {
             if (scroller.computeScrollOffset()) { scrollTo(scroller.currX, 0); postInvalidateOnAnimation() }
@@ -1004,4 +1034,32 @@ class HomeActivity : Activity() {
         if (drawer == null && overlay == null && pager.page > 0 && e.action == KeyEvent.ACTION_DOWN && e.isPrintingKey) { openDrawer(); drawer?.search?.let { it.requestFocus(); it.append(e.unicodeChar.toChar().toString()) }; return true }
         return super.dispatchKeyEvent(e)
     }
+}
+
+/**
+ * The home wallpaper on its own surface, composited by SurfaceFlinger like the system wallpaper of stock launchers.
+ * As an ImageView the 1080x2400 bitmap was drawn again on every frame of a page swipe: 14-15 ms a frame on a Galaxy A51
+ * (GPU-bound), 8 ms with it hidden, One UI 5 ms. Drawn once here, when the surface appears or the picture changes.
+ */
+internal class WallSurface(ctx: Context) : android.view.SurfaceView(ctx), android.view.SurfaceHolder.Callback {
+    private var bmp: Bitmap? = null
+    private var ready = false
+    private val paint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+    init { holder.addCallback(this) }
+
+    fun show(b: Bitmap?) { bmp = b; paintNow() }
+
+    private fun paintNow() {
+        if (!ready) return
+        val b = bmp
+        val c = runCatching { if (android.os.Build.VERSION.SDK_INT >= 26) holder.lockHardwareCanvas() else holder.lockCanvas() }.getOrNull() ?: return
+        try {
+            c.drawColor(android.graphics.Color.BLACK)
+            if (b != null && !b.isRecycled) c.drawBitmap(b, null, android.graphics.Rect(0, 0, c.width, c.height), paint)
+        } finally { runCatching { holder.unlockCanvasAndPost(c) } }
+    }
+
+    override fun surfaceCreated(h: android.view.SurfaceHolder) { ready = true; paintNow() }
+    override fun surfaceChanged(h: android.view.SurfaceHolder, f: Int, w: Int, hh: Int) = paintNow()
+    override fun surfaceDestroyed(h: android.view.SurfaceHolder) { ready = false }
 }

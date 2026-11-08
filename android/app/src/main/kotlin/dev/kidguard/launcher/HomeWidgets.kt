@@ -292,7 +292,7 @@ internal fun HomeActivity.openPicker() {
     val sheet = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL; isClickable = true; elevation = dpf(12f)
         background = GradientDrawable().apply { setColor(pal.sheet); cornerRadii = floatArrayOf(dpf(28f), dpf(28f), dpf(28f), dpf(28f), 0f, 0f, 0f, 0f) }
-        setPadding(dp(20) + insL, dp(10), dp(20) + insR, dp(12) + insB)
+        setPadding(dp(20) + insL, dp(10), dp(20) + insR, dp(12) + imeB)
     }
     sheet.addView(View(this).apply { background = fill(pal.stroke) }, LinearLayout.LayoutParams(dp(36), dp(4)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(12) })
     sheet.addView(text(getString(R.string.hm_w_title), 22f, pal.text, true))

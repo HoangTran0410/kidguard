@@ -251,7 +251,9 @@ The first capture / first input of a session is logged in the phone log.
 3. `adb shell appops set dev.kidguard GET_USAGE_STATS allow`
 4. `adb shell pm grant dev.kidguard android.permission.WRITE_SECURE_SETTINGS`
    then, optional (errors ignored, for remote phone settings): `appops set dev.kidguard WRITE_SETTINGS allow` and
-   `cmd notification allow_dnd dev.kidguard` (Do Not Disturb access)
+   `cmd notification allow_dnd dev.kidguard` (Do Not Disturb access) and
+   `cmd notification allow_listener dev.kidguard/dev.kidguard.NotifDots` (launcher notification dots: counts per app
+   only, never stored or sent; writing `enabled_notification_listeners` does not work since Android 8, measured on 8.1)
 5. accessibility on: read `settings get secure enabled_accessibility_services`, append
    `dev.kidguard/dev.kidguard.Acc` (`:`-separated, skip if present, treat `null` as empty), write it back, then
    `settings put secure accessibility_enabled 1`
@@ -797,7 +799,7 @@ crash count and the safe mode, and a layout reset by a crash in the last 24 h co
 ### `home.json` (phone only, app files dir)
 ```
 {"v":1, "grid":{"cols":3-5,"rows":4-6}, "pages":[{"items":[item…]}…], "dock":[{"pkg":"@phone"},{"pkg":pkg|""}×3],
- "style":{"preset":"be|teen|gon","icon":1-5,"labels":bool,"shape":"round|square","dockBg":bool,"dockLabels":bool,"accent":"<id>"|"",
+ "style":{"preset":"be|teen|gon","icon":1-5,"labels":bool,"shape":"round|square","dockBg":bool,"dockLabels":bool,"badge":"num|dot|off","face":"sys|light|medium|condensed|serif","accent":"<id>"|"",
           "theme":"light|dark|auto","font":0.85|1.0|1.15|1.3,"wall":{"kind":"builtin|photo","id":"<wall id>","dim":0-60}},
  "seen":[pkg…], "notes":[note…], "todo":[todo…], "timetable":{"1".."7":[subject…]}}
 ```

@@ -124,6 +124,7 @@ Chk pm grant $Pkg android.permission.WRITE_SECURE_SETTINGS
 # optional (remote phone settings): brightness / screen timeout and Do Not Disturb; old Android may not know them
 Adb shell appops set $Pkg WRITE_SETTINGS allow | Out-Null
 Adb shell cmd notification allow_dnd $Pkg | Out-Null
+Adb shell cmd notification allow_listener "$Pkg/$Pkg.NotifDots" | Out-Null
 
 Write-Host "[5/8] Bật dịch vụ Trợ năng"
 $cur = ((Adb shell settings get secure enabled_accessibility_services) -split "`n")[0].Trim()

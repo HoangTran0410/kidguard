@@ -62,12 +62,7 @@ class TodayPage(
         val date = SimpleDateFormat("EEEE d/M", act.resources.configuration.locales[0]).format(Date(now)).replaceFirstChar { it.titlecase() }
         t.addView(k.text(date, 14f, pal.sub).apply { setPadding(0, dp(4), 0, 0) })
         row.addView(t, LinearLayout.LayoutParams(0, -2, 1f))
-        row.addView(k.text("KidGuard", 14f, pal.accentText, true).apply {
-            background = k.sheetCard(999f); setPadding(dp(14), dp(10), dp(16), dp(10)); gravity = Gravity.CENTER_VERTICAL
-            Ic.lead(this, R.drawable.li_shield, pal.accentText); compoundDrawablePadding = dp(6)
-            k.tap(this, 999f) { openMain() }
-            contentDescription = s(R.string.hm_open_kg)
-        })
+        // no "KidGuard" pill here: it pushed "Hôm nay" onto 2 lines at a 1.5 font, and the home shield + long-press menu open it
         col.addView(row, lp(0))
     }
 

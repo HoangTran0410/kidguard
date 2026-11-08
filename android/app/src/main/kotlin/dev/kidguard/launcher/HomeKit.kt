@@ -32,7 +32,7 @@ class HomeKit(val act: Activity, val pal: Palette, val font: Float = 1f) {
 
     fun text(t: CharSequence, sp: Float, color: Int, bold: Boolean = false) = TextView(act).apply {
         text = t; setTextSize(TypedValue.COMPLEX_UNIT_SP, sp * font); setTextColor(color)
-        if (bold) typeface = HomeActivity.MEDIUM
+        typeface = HomeActivity.tf(bold)
         includeFontPadding = false
     }
 

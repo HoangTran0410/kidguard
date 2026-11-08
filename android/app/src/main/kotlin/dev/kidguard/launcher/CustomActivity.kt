@@ -58,7 +58,12 @@ class CustomActivity : Activity() {
         build()
     }
 
-    override fun onResume() { super.onResume(); if (m != null && HomeFile.load(this) !== m) { m = HomeFile.load(this) ?: m; build() } }
+    private var dotsNeed = false
+    override fun onResume() {
+        super.onResume()
+        if (m != null && HomeFile.load(this) !== m) { m = HomeFile.load(this) ?: m; build() }
+        else if (dotsNeed && NotifDots.granted(this)) { NotifDots.setOn(this, true); build() }   // back from the access screen
+    }
 
     private fun isDark(st: HStyle) = st.theme == "dark" || (st.theme == "auto" &&
         (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES)
@@ -109,9 +114,19 @@ class CustomActivity : Activity() {
         line(home); home.addView(stepper(s(R.string.hm_c_rows), mm.rows, 4, 6) { regrid(mm.cols, it) })
         line(home); home.addView(slider(s(R.string.hm_c_icon), st.icon - 1, 4, s(R.string.hm_c_small), s(R.string.hm_c_big)) { v -> set { it.copy(icon = v + 1) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_labels), st.labels) { v -> set { it.copy(labels = v) } })
+        line(home); home.addView(segRow(s(R.string.hm_c_face), HomeActivity.FACES.zip(listOf(R.string.hm_c_face_sys, R.string.hm_c_face_light, R.string.hm_c_face_medium, R.string.hm_c_face_condensed, R.string.hm_c_face_serif)).map { (f, r) -> s(r) to f }, st.face) { v -> set { it.copy(face = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_shape), listOf(s(R.string.hm_c_round) to "round", s(R.string.hm_c_square) to "square"), st.shape) { v -> set { it.copy(shape = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock), st.dockBg) { v -> set { it.copy(dockBg = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock_labels), st.dockLabels) { v -> set { it.copy(dockLabels = v) } })
+        line(home); home.addView(segRow(s(R.string.hm_c_dots), listOf(s(R.string.hm_c_badge_off) to "off", s(R.string.hm_c_badge_dot) to "dot", s(R.string.hm_c_badge_num) to "num"), st.badge) { v ->
+            set { it.copy(badge = v) }; NotifDots.setOn(this, v != "off")
+        })
+        // no access (a phone set up before 0.9.8): a tap opens the system screen; setup grants it on new phones
+        dotsNeed = st.badge != "off" && !NotifDots.granted(this)
+        if (dotsNeed) home.addView(note(s(R.string.hm_c_dots_need), false).apply {
+            setPadding(dp(4), 0, dp(4), dp(12))
+            k.tap(this, 12f) { runCatching { startActivity(android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) } }
+        })
         col.addView(home, lp(8))
         undo?.let { u0 ->
             col.addView(k.pill(s(R.string.hm_c_undo), R.drawable.li_rotate_ccw, false) { if (!guard()) return@pill; save(u0); undo = null; build() },
@@ -263,8 +278,39 @@ class CustomActivity : Activity() {
         }
     }
 
+    /**
+     * A select row (Android's list preference / Material's exposed dropdown): label, the current value and a chevron;
+     * a tap drops the choices below it. Chips beside the label did not fit at a 1.5 font ("Chấm" was cut).
+     */
     private fun segRow(label: String, items: List<Pair<String, String>>, cur: String, on: (String) -> Unit) = row(label).apply {
-        addView(seg(items, cur, null, on), LinearLayout.LayoutParams(dp(190), -2))
+        val curLabel = items.firstOrNull { it.second == cur }?.first ?: items.first().first
+        val value = k.text(curLabel, 15f, pal.accentText, true).apply {
+            gravity = Gravity.CENTER_VERTICAL or Gravity.END; maxLines = 1
+            setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, Ic.get(context, R.drawable.li_chevron_up, pal.sub, dp(18)).let { d ->
+                android.graphics.drawable.RotateDrawable().apply { drawable = d; fromDegrees = 180f; toDegrees = 180f; level = 10000 } }, null)
+            compoundDrawablePadding = dp(6); setPadding(dp(12), dp(8), dp(4), dp(8))
+        }
+        addView(value, LinearLayout.LayoutParams(-2, -2))
+        contentDescription = "$label, $curLabel"
+        k.tap(this, 12f) { dropdown(this, items, cur, on) }
+    }
+
+    private fun dropdown(anchor: View, items: List<Pair<String, String>>, cur: String, on: (String) -> Unit) {
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = k.sheetCard(16f); setPadding(0, dp(6), 0, dp(6)); elevation = k.dpf(8f) }
+        val pop = android.widget.PopupWindow(list, (anchor.width * 0.6f).toInt().coerceAtLeast(dp(200)), -2, true).apply {
+            elevation = k.dpf(8f); setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)); isOutsideTouchable = true
+        }
+        for ((t, id) in items) {
+            val sel = id == cur
+            list.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; minimumHeight = dp(52); setPadding(dp(16), 0, dp(14), 0)
+                addView(k.text(t, 16f, if (sel) pal.accentText else pal.text, sel), LinearLayout.LayoutParams(0, -2, 1f))
+                if (sel) addView(ImageView(context).apply { setImageDrawable(Ic.get(context, R.drawable.li_check, pal.accentText, dp(20))) }, LinearLayout.LayoutParams(dp(20), dp(20)))
+                contentDescription = t + if (sel) ", " + s(R.string.hm_c_selected) else ""
+                k.tap(this, 0f) { pop.dismiss(); if (!sel) on(id) }
+            }, LinearLayout.LayoutParams(-1, -2))
+        }
+        pop.showAsDropDown(anchor, anchor.width - pop.width, -dp(6))
     }
 
     private fun presetCard(p: HomeStyle.Preset, sel: Boolean) = LinearLayout(this).apply {

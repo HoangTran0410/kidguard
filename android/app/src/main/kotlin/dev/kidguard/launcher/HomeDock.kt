@@ -38,7 +38,7 @@ internal fun HomeActivity.buildDock(m: HomeModel, all: Map<String, AppE>, show: 
     dock.setPadding(dp(6), dp(8), dp(6), dp(8))
     val px = iconPx()   // same size as the app icons beside it (was 90 %: "Gọi" looked smaller)
     for ((i, slot) in m.dock.withIndex()) {
-        val cell = FrameLayout(this)
+        val cell = FrameLayout(this).apply { clipChildren = false }   // notification badges poke out of the icons
         val v: View? = if (i == 0) {
             val d = dialer()
             val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, dp(4), 0, dp(2)) }   // as appIcon
@@ -146,7 +146,7 @@ internal fun HomeActivity.bars() {
 
 internal fun HomeActivity.drawerView(): Drawer = drawerCache?.also { it.refill() } ?: Drawer(this).also { d ->
     drawerCache = d
-    d.setPadding(insL, insT, insR, insB); d.visibility = View.GONE
+    d.setPadding(insL, insT, insR, imeB); d.visibility = View.GONE
     root.addView(d, FrameLayout.LayoutParams(-1, -1))
 }
 
@@ -158,7 +158,7 @@ internal fun HomeActivity.drawerBegin(): Boolean {
         popup?.dismiss(); closeOverlay()
         drawer = drawerView(); drawerP = 0f
     }
-    content.visibility = View.VISIBLE; wallView.visibility = View.VISIBLE
+    content.visibility = View.VISIBLE
     content.setLayerType(View.LAYER_TYPE_HARDWARE, null)
     return true
 }
@@ -201,7 +201,7 @@ internal fun HomeActivity.drawerDone(open: Boolean) {
     content.setLayerType(View.LAYER_TYPE_NONE, null)
     if (open) {
         // the drawer is opaque: stop drawing the home and the wallpaper under it while it scrolls
-        content.visibility = View.INVISIBLE; wallView.visibility = View.INVISIBLE
+        content.visibility = View.INVISIBLE   // the wallpaper surface stays: it costs the app nothing and hiding it would destroy it
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
             (if (!pal.dark) View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (Build.VERSION.SDK_INT >= 26) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0) else 0)
@@ -223,5 +223,7 @@ internal fun HomeActivity.openDrawer() {
 
 internal fun HomeActivity.closeDrawer() {
     drawer ?: return
+    // the keyboard starts sliding away now, not after the drawer is gone
+    drawer?.search?.let { s -> s.clearFocus(); (getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(s.windowToken, 0) }
     drawerBegin(); drawerSettle(false)
 }

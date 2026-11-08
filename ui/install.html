@@ -276,6 +276,7 @@ const STEPS = [
     // optional (remote phone settings): brightness / screen timeout and Do Not Disturb; old Android may not know them
     await sh("appops set " + PKG + " WRITE_SETTINGS allow").catch(() => {});
     await sh("cmd notification allow_dnd " + PKG).catch(() => {});
+    await sh("cmd notification allow_listener " + PKG + "/" + PKG + ".NotifDots").catch(() => {});
   }],
   ["Bật dịch vụ Trợ năng", async () => {
     let cur = (await sh("settings get secure enabled_accessibility_services")).split("\n")[0].trim();

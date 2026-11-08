@@ -35,10 +35,14 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; setPadding(0, dp(4), 0, dp(2)) }
     val frame = FrameLayout(this)
     val bmp = IconCache.get(this, a.pkg, a.cls, px, model?.style?.shape != "square")
-    frame.addView(object : View(this) {
+    val badge = if (paused) "off" else model?.style?.badge ?: "num"
+    frame.clipChildren = false   // the badge pokes out of the icon
+    frame.addView(object : View(this), DotHost {
+        override val dotPkgs = listOf(a.pkg)
         override fun onDraw(c: Canvas) {
             bmp ?: return
             if (paused) { val p = IconCache.greyPaint(); p.alpha = 115; c.drawBitmap(bmp, 0f, 0f, p) } else c.drawBitmap(bmp, 0f, 0f, null)
+            if (badge != "off") Dots.draw(c, px, Dots.count(dotPkgs), resources.displayMetrics.density, badge == "num")
         }
     }, FrameLayout.LayoutParams(px, px))
     val reason = dv.want[a.pkg]
@@ -53,7 +57,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
         }, FrameLayout.LayoutParams(bs, bs, Gravity.TOP or Gravity.END).apply { setMargins(0, -bs / 4, -bs / 4, 0) })
         frame.clipChildren = false
     }
-    box.clipChildren = false
+    box.clipChildren = false; box.clipToPadding = false   // the badge pokes out above the padding
     box.addView(frame, LinearLayout.LayoutParams(px + dp(4), px + dp(2)).apply { gravity = Gravity.CENTER_HORIZONTAL })
     // the dock has its own switch ("Tên ứng dụng ở thanh dưới"); "Tên ứng dụng" is the grid's
     val showLabel = list || (if (mode == Mode.DOCK) model?.style?.dockLabels else model?.style?.labels) ?: true
@@ -92,7 +96,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
  */
 internal fun HomeActivity.iconLabel(t: String, list: Boolean, color: Int, lines: Int = 2): TextView = IconLabel(this, lines).apply {
     text = t; setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, labelPx(list))
-    setTextColor(color); includeFontPadding = false
+    setTextColor(color); includeFontPadding = false; typeface = HomeActivity.tf(false)
     ellipsize = android.text.TextUtils.TruncateAt.END; gravity = Gravity.CENTER; setPadding(dp(4), dp(1), dp(4), dp(1))
     setLineSpacing(0f, 0.92f)
 }
@@ -131,7 +135,9 @@ internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; setPadding(0, dp(4), 0, dp(2)) }
     val square = model?.style?.shape == "square"
     val mini = (px * 0.36f).toInt()
-    val grid = object : View(this) {
+    val badge = model?.style?.badge ?: "num"
+    val grid = object : View(this), DotHost {
+        override val dotPkgs = vis.filter { show[it.pkg] != LauncherLogic.Show.PAUSED }.map { it.pkg }
         val bmps = vis.take(4).map { IconCache.get(this@folderIcon, it.pkg, it.cls, mini, !square) to (show[it.pkg] == LauncherLogic.Show.PAUSED) }
         override fun onDraw(c: Canvas) {
             val gap = (px - 2 * mini) / 3f
@@ -140,8 +146,10 @@ internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String
                 val x = gap + (i % 2) * (mini + gap); val y = gap + (i / 2) * (mini + gap)
                 if (b.second) { val p = IconCache.greyPaint(); p.alpha = 115; c.drawBitmap(bm, x, y, p) } else c.drawBitmap(bm, x, y, null)
             }
+            if (badge != "off") Dots.draw(c, px, Dots.count(dotPkgs), resources.displayMetrics.density, badge == "num")
         }
     }.apply { background = if (square) fill(pal.card, px * 0.22f / resources.displayMetrics.density) else GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(pal.card) } }
+    box.clipChildren = false; box.clipToPadding = false   // the badge pokes out above the padding
     box.addView(grid, LinearLayout.LayoutParams(px, px).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(1); bottomMargin = dp(1) })
     if (model?.style?.labels != false) {
         val lbl = iconLabel(folderName(f), false, Color.WHITE)

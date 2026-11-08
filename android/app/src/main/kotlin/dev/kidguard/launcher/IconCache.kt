@@ -19,7 +19,7 @@ import android.util.LruCache
  * Real app icons for the kid launcher, rendered once to a bitmap of the wanted size and kept in an LRU of 1/8 of the heap
  * (>= 8 MB). 4 MB was too small on a 420 dpi phone (~90 KB an icon, 50+ on the pages + dock + drawer): every rebuild walked
  * the LRU in the same order, so it missed every icon and re-rendered them all (~700 ms after each drop on a Galaxy A51).
- * Adaptive icons get the chosen mask (circle / rounded square); legacy icons are drawn as they are, full size, no plate (Pixel / Nova).
+ * Every icon gets the chosen mask (circle / squircle); legacy icons are fitted or put on a plate first ([legacy]).
  */
 object IconCache {
     private val MAX_BYTES = (Runtime.getRuntime().maxMemory() / 8).coerceIn(8L shl 20, 64L shl 20).toInt()
@@ -47,10 +47,21 @@ object IconCache {
         if (cls.isNotEmpty()) pm.getActivityIcon(android.content.ComponentName(pkg, cls)) else pm.getApplicationIcon(pkg)
     }.recoverCatching { ctx.packageManager.getApplicationIcon(pkg) }.getOrNull()
 
+    /** Circle, or One UI's squircle (superellipse, n = 5): softer corners than a rounded rect. */
     private fun shape(px: Int, round: Boolean): Path = Path().apply {
-        if (round) addCircle(px / 2f, px / 2f, px / 2f, Path.Direction.CW)
-        else addRoundRect(RectF(0f, 0f, px.toFloat(), px.toFloat()), px * 0.24f, px * 0.24f, Path.Direction.CW)
+        val h = px / 2f
+        if (round) { addCircle(h, h, h, Path.Direction.CW); return@apply }
+        for (k in 0..96) {
+            val t = k * 2 * Math.PI / 96
+            val ct = Math.cos(t); val st = Math.sin(t)
+            val x = h + h * Math.signum(ct) * Math.pow(Math.abs(ct), 0.4); val y = h + h * Math.signum(st) * Math.pow(Math.abs(st), 0.4)
+            if (k == 0) moveTo(x.toFloat(), y.toFloat()) else lineTo(x.toFloat(), y.toFloat())
+        }
+        close()
     }
+
+    private fun inShape(u: Double, v: Double, round: Boolean) =
+        if (round) u * u + v * v <= 1.0 else Math.pow(Math.abs(u), 5.0) + Math.pow(Math.abs(v), 5.0) <= 1.0
 
     private fun render(d: Drawable, px: Int, round: Boolean): Bitmap {
         val b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
@@ -61,19 +72,55 @@ object IconCache {
             val ex = (px * 0.25f).toInt()
             d.background?.let { it.setBounds(-ex, -ex, px + ex, px + ex); it.draw(c) }
             d.foreground?.let { it.setBounds(-ex, -ex, px + ex, px + ex); it.draw(c) }
-            // then the mask with smooth edges (clipPath on a bitmap canvas is not anti-aliased)
-            clip.fillType = Path.FillType.INVERSE_WINDING
-            c.drawPath(clip, Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) })
-        } else {
-            // keep the icon's own aspect, centred (a few legacy icons are not square)
-            val iw = d.intrinsicWidth.takeIf { it > 0 } ?: px; val ih = d.intrinsicHeight.takeIf { it > 0 } ?: px
-            val sc = px.toFloat() / maxOf(iw, ih)
-            val w = (iw * sc).toInt(); val h = (ih * sc).toInt()
-            d.setBounds((px - w) / 2, (px - h) / 2, (px - w) / 2 + w, (px - h) / 2 + h); d.draw(c)
-            normalize(b, c, d)
-        }
+        } else legacy(d, px, round, c)
+        // the mask with smooth edges (clipPath on a bitmap canvas is not anti-aliased)
+        clip.fillType = Path.FillType.INVERSE_WINDING
+        c.drawPath(clip, Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) })
         edge(b, c, clip, px)
         return b
+    }
+
+    /**
+     * Legacy (non-adaptive) icons, the One UI way, so every icon ends up in the same shape:
+     * - the visible part already fills the shape (a square logo in square mode, Samsung's round Chrome in round mode):
+     *   scaled to the full size, then masked;
+     * - otherwise (eTax's disc in square mode, Vietnam Airlines' bird): shrunk to 74 % on a white plate that goes
+     *   slightly grey towards the bottom, the light-from-above look of One UI's plates.
+     * Measured on the visible pixels (Samsung hands some icons out pre-shaped with a transparent margin).
+     */
+    private fun legacy(d: Drawable, px: Int, round: Boolean, c: Canvas) {
+        val raw = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
+        val iw = d.intrinsicWidth.takeIf { it > 0 } ?: px; val ih = d.intrinsicHeight.takeIf { it > 0 } ?: px
+        val sc = px.toFloat() / maxOf(iw, ih)
+        val w = (iw * sc).toInt(); val h = (ih * sc).toInt()
+        d.setBounds((px - w) / 2, (px - h) / 2, (px - w) / 2 + w, (px - h) / 2 + h); d.draw(Canvas(raw))
+        val a = IntArray(px * px); raw.getPixels(a, 0, px, 0, 0, px, px)
+        var l = px; var t = px; var r = -1; var bt = -1
+        for (y in 0 until px) for (x in 0 until px) if ((a[y * px + x] ushr 24) > 40) { if (x < l) l = x; if (x > r) r = x; if (y < t) t = y; if (y > bt) bt = y }
+        if (r < 0) { raw.recycle(); return }
+        val bw = r - l + 1; val bh = bt - t + 1
+        // share of the shape (stretched over the visible box) that is opaque
+        var inN = 0; var opN = 0
+        for (y in t..bt step 2) for (x in l..r step 2) {
+            val u = (x - l + 0.5) / bw * 2 - 1; val v = (y - t + 0.5) / bh * 2 - 1
+            if (!inShape(u, v, round)) continue
+            inN++; if ((a[y * px + x] ushr 24) > 200) opN++
+        }
+        val full = inN > 0 && opN >= inN * 0.96 && minOf(bw, bh) >= maxOf(bw, bh) * 0.92
+        val src = android.graphics.Rect(l, t, r + 1, bt + 1)
+        val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+        if (full) {
+            val o = px * 0.01f   // a hair past the mask: no light rim from the icon's own anti-aliased edge
+            c.drawBitmap(raw, src, RectF(-o, -o, px + o, px + o), paint)
+        } else {
+            c.drawRect(0f, 0f, px.toFloat(), px.toFloat(), Paint().apply {
+                shader = android.graphics.LinearGradient(0f, 0f, 0f, px.toFloat(), 0xFFFFFFFF.toInt(), 0xFFE6E9EE.toInt(), android.graphics.Shader.TileMode.CLAMP)
+            })
+            val s = px * 0.74f / maxOf(bw, bh)
+            val dw = bw * s; val dh = bh * s
+            c.drawBitmap(raw, src, RectF((px - dw) / 2, (px - dh) / 2, (px + dw) / 2, (px + dh) / 2), paint)
+        }
+        raw.recycle()
     }
 
     /**
@@ -94,29 +141,6 @@ object IconCache {
         c.save(); c.clipPath(clip)
         c.drawPath(clip, Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = w * 2; color = 0x24000000 })
         c.restore()
-    }
-
-    /**
-     * Legacy icons often carry their own transparent margin (Samsung hands Chrome / Phone out pre-shaped and padded), so
-     * they looked smaller than their neighbours in the dock. Like Launcher3's IconNormalizer: crop to the visible pixels,
-     * then scale so the visible area matches a full circle of [b]'s size (a square gets ~89 %, a circle 100 %).
-     */
-    private fun normalize(b: Bitmap, c: Canvas, d: Drawable) {
-        val px = b.width
-        val a = IntArray(px * px); b.getPixels(a, 0, px, 0, 0, px, px)
-        var l = px; var t = px; var r = -1; var bt = -1; var n = 0
-        for (y in 0 until px) for (x in 0 until px) if ((a[y * px + x] ushr 24) > 40) { n++; if (x < l) l = x; if (x > r) r = x; if (y < t) t = y; if (y > bt) bt = y }
-        if (r < 0) return
-        val bw = r - l + 1; val bh = bt - t + 1
-        val fill = n.toFloat() / (bw * bh)                      // circle ~0.785, squircle ~0.9, square 1
-        val target = px * minOf(1f, kotlin.math.sqrt(0.785f / fill.coerceAtLeast(0.3f)))
-        val s = target / maxOf(bw, bh)
-        if (s < 1.04f && s > 0.96f) return                      // already right: keep the pixels as drawn
-        val ob = d.bounds
-        val ox = (px - bw * s) / 2 - l * s; val oy = (px - bh * s) / 2 - t * s
-        b.eraseColor(0)
-        d.setBounds((ob.left * s + ox).toInt(), (ob.top * s + oy).toInt(), (ob.right * s + ox).toInt(), (ob.bottom * s + oy).toInt())
-        d.draw(c)
     }
 
     /** Label for a launcher activity, cached by the caller. */

@@ -258,6 +258,7 @@ object SelfSetup {
         if (!step(4, "pm grant $PKG android.permission.WRITE_SECURE_SETTINGS")) return
         // optional (remote phone settings): brightness / screen timeout and Do Not Disturb; old Android may not know them
         runCatching { sh("appops set $PKG WRITE_SETTINGS allow") }; runCatching { sh("cmd notification allow_dnd $PKG") }
+        runCatching { sh("cmd notification allow_listener $PKG/$PKG.NotifDots") }   // launcher notification dots
         mark(app, 5, STEP_RUN)
         val merged = SelfSetupLogic.withAccessibility(sh("settings get secure enabled_accessibility_services"), ACC)
         if (merged != null) sh("settings put secure enabled_accessibility_services '$merged'")

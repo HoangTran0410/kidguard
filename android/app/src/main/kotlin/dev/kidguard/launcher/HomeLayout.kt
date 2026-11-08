@@ -25,10 +25,10 @@ data class HItem(
 }
 
 data class HStyle(
-    val preset: String = "teen", val icon: Int = 3, val labels: Boolean = true, val shape: String = "round", val dockBg: Boolean = true, val dockLabels: Boolean = true,
+    val preset: String = "teen", val icon: Int = 3, val labels: Boolean = true, val shape: String = "round", val dockBg: Boolean = true, val dockLabels: Boolean = true, val badge: String = "num", val face: String = "sys",
     val accent: String = "", val theme: String = "auto", val font: Double = 1.0, val wallKind: String = "builtin", val wall: String = "", val dim: Int = 0,
 ) {
-    fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels)
+    fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels).put("badge", badge).put("face", face)
         .put("accent", accent).put("theme", theme).put("font", font)
         .put("wall", JSONObject().put("kind", wallKind).put("id", wall).put("dim", dim))
 
@@ -40,7 +40,8 @@ data class HStyle(
                 preset = o.optString("preset", "teen").takeIf { p -> HomeStyle.PRESETS.any { it.id == p } } ?: "teen",
                 icon = o.optInt("icon", 3).coerceIn(1, 5), labels = o.optBoolean("labels", true),
                 shape = o.optString("shape", "round").takeIf { it == "round" || it == "square" } ?: "round",
-                dockBg = o.optBoolean("dockBg", true), dockLabels = o.optBoolean("dockLabels", true),
+                dockBg = o.optBoolean("dockBg", true), dockLabels = o.optBoolean("dockLabels", true), badge = o.optString("badge", "num").takeIf { it in setOf("num", "dot", "off") } ?: "num",
+                face = o.optString("face", "sys").takeIf { it in HomeActivity.FACES } ?: "sys",
                 accent = o.optString("accent", "").takeIf { a -> a.isEmpty() || HomeStyle.ACCENTS.any { it.id == a } } ?: "",
                 theme = o.optString("theme", "auto").takeIf { it in setOf("auto", "light", "dark") } ?: "auto",
                 font = o.optDouble("font", 1.0).takeIf { !it.isNaN() }?.coerceIn(0.85, 1.3) ?: 1.0,
