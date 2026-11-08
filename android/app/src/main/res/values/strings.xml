@@ -589,7 +589,10 @@
     <string name="hm_b_usage">Usage access is off: time limits can\'t be counted</string>
     <string name="hm_b_location">Location is off</string>
     <string name="hm_b_acc">KidGuard accessibility is off</string>
-    <string name="hm_b_home">Not your home screen yet: the Home button still opens the old one.</string>
+    <string name="hm_xiaomi_nav_t">Navigation will use 3 buttons</string>
+    <string name="hm_xiaomi_nav_b">On Xiaomi, Redmi and POCO phones, any home screen other than Xiaomi\'s switches gesture navigation to 3 buttons. The system does this and there is no setting to keep gestures. Go back to Xiaomi\'s home screen to get gestures again.</string>
+    <string name="hm_xiaomi_nav_ok">Continue</string>
+    <string name="hm_b_home">Not set as home screen yet</string>
     <string name="hm_b_guard">KidGuard is restarting</string>
     <string name="hm_fix">Fix</string>
     <string name="hm_open_fail">Couldn\'t open this app</string>

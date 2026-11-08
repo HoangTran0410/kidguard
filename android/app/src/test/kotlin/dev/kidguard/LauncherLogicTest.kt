@@ -121,4 +121,13 @@ class LauncherLogicTest {
         // a slow drift under the fling speed is not a fling
         assertTrue(LauncherLogic.drawerOpens(400f, 500f, 0.7f, true))
     }
+
+    @Test fun settingsShowOnAPhoneNobodyManages() {
+        val r = Rules()
+        assertTrue(LauncherLogic.settingsOk(r, owner = false, paired = false))
+        assertFalse(LauncherLogic.settingsOk(r, owner = true, paired = false))
+        assertFalse(LauncherLogic.settingsOk(r, owner = false, paired = true))
+        assertEquals(Show.OK, LauncherLogic.show("com.android.settings", emptyMap(), r, "dev.kidguard", settingsOk = true))
+        assertEquals(Show.HIDE, LauncherLogic.show("com.android.settings", emptyMap(), r, "dev.kidguard"))
+    }
 }

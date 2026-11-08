@@ -188,4 +188,30 @@ class HomeEditTest {
         // weekend: no school
         assertEquals(listOf("bed", "group", "bed"), LauncherLogic.today(r, 9 * 60, 6).map { it.kind })
     }
+
+    @Test fun freshGridGrowingFillsTheNewRow() {
+        val apps = (1..40).map { "a$it" }
+        val m = HomeLayout.fresh("teen", apps, emptyList(), parent = false)
+        val big = HomeLayout.regrid(m, m.cols, m.rows + 1)
+        // every page but the last is full, nothing lost, order kept
+        assertTrue(big.pages.dropLast(1).all { HomeLayout.full(it, big.cols, big.rows) })
+        val order = { mm: HomeModel -> mm.pages.flatMap { p -> p.sortedWith(compareBy({ it.y }, { it.x })) }.filter { it.kind == "app" }.map { it.pkg } }
+        assertEquals(order(m), order(big))
+    }
+
+    @Test fun handMadeGridGrowingKeepsPlaces() {
+        val m = HomeLayout.fresh("teen", (1..40).map { "a$it" }, emptyList(), parent = false)
+        val gap = m.copy(pages = listOf(m.pages[0].drop(3)) + m.pages.drop(1))   // a hole on page 1
+        val big = HomeLayout.regrid(gap, gap.cols, gap.rows + 1)
+        assertEquals(gap.pages, big.pages)
+    }
+
+    @Test fun importedLayoutDropsOtherAppsWidgetsOnly() {
+        val m = HomeLayout.fresh("teen", (1..6).map { "a$it" }, emptyList(), parent = false)
+        val other = HItem("w9", "widget", 0, 0, 2, 2, type = HomeLayout.APP)
+        val withOther = m.copy(pages = m.pages + listOf(listOf(other)))
+        val im = HomeLayout.imported(withOther)
+        assertEquals(m.pages, im.pages)   // its page was only that widget: gone too
+        assertEquals(withOther.timetable.toString(), im.timetable.toString())
+    }
 }

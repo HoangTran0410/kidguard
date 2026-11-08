@@ -47,6 +47,8 @@ object LauncherSafe {
 
     private fun on(ctx: Context) {
         val was = enabled(ctx)
+        // first time on: the kid keeps the home screen they made in KidGuard Home (before that app is hidden below)
+        if (!was) HomeExport.pull(ctx)
         val pm = ctx.packageManager
         if (!was) runCatching { pm.setComponentEnabledSetting(comp(ctx), PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP) }
             .onFailure { Log.w(TAG, "launcher enable", it) }
@@ -55,6 +57,18 @@ object LauncherSafe {
         if (!homeIsOurs(ctx)) runCatching { Policy.dpm(ctx).addPersistentPreferredActivity(Policy.admin(ctx), homeFilter(), comp(ctx)) }
             .onFailure { Log.w(TAG, "launcher preferred", it) }
         if (!was) home(ctx)
+        hideHomeApp(ctx, true)
+    }
+
+    /** The stand-alone "KidGuard Home" app (home flavor). While our launcher runs a managed phone it would be a second
+     *  "KidGuard Home" icon and HOME choice without SOS / time requests, so the owner hides it; off() (rule off, safe
+     *  mode, release) shows it again. Hidden, not removed: its layout stays. */
+    private fun homePkg(ctx: Context) = ctx.packageName + ".home"
+    fun homeAppShown(ctx: Context): Boolean = Policy.isOwner(ctx) && runCatching {
+        ctx.packageManager.getApplicationInfo(homePkg(ctx), 0); true }.getOrDefault(false)   // hidden apps are not found
+    private fun hideHomeApp(ctx: Context, hide: Boolean) {
+        if (!Policy.isOwner(ctx)) return
+        runCatching { Policy.dpm(ctx).setApplicationHidden(Policy.admin(ctx), homePkg(ctx), hide) }.onFailure { Log.w(TAG, "home app hidden=$hide", it) }
     }
 
     /** Undo: clear our preferred HOME and disable the component. Used by rule off, safe mode and release. */
@@ -66,6 +80,7 @@ object LauncherSafe {
         if (was) runCatching { ctx.packageManager.setComponentEnabledSetting(comp(ctx), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP) }
             .onFailure { Log.w(TAG, "launcher disable", it) }
         if (was && goHome) home(ctx)
+        hideHomeApp(ctx, false)
     }
 
     /** Which activity HOME opens now. */

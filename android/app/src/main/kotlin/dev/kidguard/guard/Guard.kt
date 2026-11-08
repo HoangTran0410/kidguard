@@ -224,7 +224,7 @@ class Guard : Service() {
         LauncherSafe.pendingEvent(this)?.let { why -> runCatching { store.event("launcher", R.string.ev_launcher_crash, why); store.log(R.string.ev_launcher_crash, why); relay?.kick() } }
         if (now - launcherAt < 60_000) return
         launcherAt = now
-        if (LauncherSafe.wanted(this, r) != LauncherSafe.enabled(this) || (LauncherSafe.enabled(this) && !LauncherSafe.homeIsOurs(this)))
+        if (LauncherSafe.wanted(this, r) != LauncherSafe.enabled(this) || (LauncherSafe.enabled(this) && (!LauncherSafe.homeIsOurs(this) || LauncherSafe.homeAppShown(this))))
             runCatching { LauncherSafe.apply(this, r) }.onFailure { Log.w("KidGuard", "launcher", it) }
     }
 

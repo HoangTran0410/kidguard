@@ -385,14 +385,23 @@ class HomeActivity : Activity() {
     }
     private var jsonOf: HomeModel? = null; private var jsonStr = ""
 
+    // owner / paired change rarely: read once per resume (dialer cache is reset there too)
+    private var managedAt = 0L; private var managed = true
+    internal fun settingsOk(r: Rules): Boolean {
+        if (Flavor.HOME) return true
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - managedAt > 20_000) { managed = Policy.isOwner(this) || Store.of(this).everPaired; managedAt = now }
+        return LauncherLogic.settingsOk(r, owner = managed, paired = false)
+    }
+
     internal fun firstModel(r: Rules, visible: List<AppE>): HomeModel {
         val vis = visible.map { it.pkg }.toSet()
+        val d = dialer()   // slot 1 is already the phone: an app that is both dialer and SMS (Truecaller) must not come twice
         val dockApps = listOfNotNull(
             runCatching { Telephony.Sms.getDefaultSmsPackage(this) }.getOrNull(),
             resolvePkg(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)),
             resolvePkg(Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com"))),
-        ).filter { it in vis }
-        val d = dialer()
+        ).filter { it in vis && it != d }
         return HomeLayout.fresh(r.launcher.style.ifEmpty { "teen" }, visible.map { it.pkg }.filter { it != d }, dockApps, parent = !Flavor.HOME)
     }
 
@@ -439,7 +448,7 @@ class HomeActivity : Activity() {
         val s = Store.of(this); val r = s.rules; lap("rules")
         val all = launcherApps(); lap("apps")
         val dv = decision(r, s); lap("decision")
-        val show = all.keys.associateWith { LauncherLogic.show(it, dv.want, r, packageName) }; lap("show")
+        val show = all.keys.associateWith { LauncherLogic.show(it, dv.want, r, packageName, settingsOk(r)) }; lap("show")
         val visible = all.values.filter { show[it.pkg] != LauncherLogic.Show.HIDE }.sortedBy { it.sortKey }; lap("sort")
         var m = model ?: HomeFile.load(this) ?: firstModel(r, visible); lap("model")
         m = HomeLayout.prune(m) { it !in all && !Policy.installed(this, it) }; lap("prune")
@@ -922,7 +931,7 @@ class HomeActivity : Activity() {
             val s = Store.of(context); val r = s.rules
             val all = launcherApps(); val dv = decision(r, s)
             val q = search.text.toString(); val fq = LauncherLogic.fold(q).trim()
-            val shown = all.values.filter { LauncherLogic.show(it.pkg, dv.want, r, packageName) != LauncherLogic.Show.HIDE && LauncherLogic.matchesFolded(it.folded, fq) }
+            val shown = all.values.filter { LauncherLogic.show(it.pkg, dv.want, r, packageName, settingsOk(r)) != LauncherLogic.Show.HIDE && LauncherLogic.matchesFolded(it.folded, fq) }
                 .sortedBy { it.sortKey }
             val anyPaused = shown.any { dv.want[it.pkg] != null }
             val sk = listOf(q, shown.joinToString(",") { it.pkg + "=" + it.label }, shown.map { dv.want[it.pkg] }, model?.cols, model?.onHome(), model?.style?.shape,

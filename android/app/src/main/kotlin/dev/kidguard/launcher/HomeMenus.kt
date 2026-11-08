@@ -121,7 +121,7 @@ internal fun HomeActivity.appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
         // the kid open Settings: otherwise this would be a way into it.
         Row(R.drawable.li_info, getString(R.string.hm_app_info), true) {
             runCatching { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${a.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        }.takeIf { Flavor.HOME || Store.of(this).rules.launcher.settings },
+        }.takeIf { settingsOk(Store.of(this).rules) },
     ), v)
 }
 
@@ -135,7 +135,16 @@ internal fun HomeActivity.emptyMenu(x: Int, y: Int) = menu(listOf(
 internal fun HomeActivity.update(m: HomeModel) { HomeFile.save(this, m); model = m; key = ""; reusePages = true; render(true) }
 
 /** KidGuard Home: the system's "Default home app" screen (older / odd ROMs: the app's own default settings). */
-internal fun HomeActivity.homeSettings() = runCatching { startActivity(Intent(android.provider.Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+internal fun HomeActivity.homeSettings() {
+    // Xiaomi / Redmi / POCO (MIUI, HyperOS): another home turns gesture navigation into 3 buttons and nothing keeps the
+    // gestures (the system drops its gesture view; checked on a POCO, HyperOS 3). Say so before the user picks.
+    val xiaomi = android.os.Build.MANUFACTURER.lowercase() in setOf("xiaomi", "redmi", "poco")
+    if (!xiaomi) { openHomeSettings(); return }
+    Modal(this, u).show(R.drawable.li_info, Modal.Tone.WARN, getString(R.string.hm_xiaomi_nav_t), getString(R.string.hm_xiaomi_nav_b),
+        ok = getString(R.string.hm_xiaomi_nav_ok), cancel = getString(R.string.cancel)) { openHomeSettings(); true }
+}
+
+private fun HomeActivity.openHomeSettings() = runCatching { startActivity(Intent(android.provider.Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     .recoverCatching { startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 
 internal fun HomeActivity.openMain() = runCatching { startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }

@@ -570,7 +570,10 @@
     <string name="hm_b_usage">Quyền theo dõi giờ dùng đang tắt</string>
     <string name="hm_b_location">Vị trí đang tắt</string>
     <string name="hm_b_acc">Trợ năng của KidGuard đang tắt</string>
-    <string name="hm_b_home">Chưa là màn hình chính: nút Home vẫn mở màn hình cũ.</string>
+    <string name="hm_xiaomi_nav_t">Điều hướng sẽ thành 3 nút</string>
+    <string name="hm_xiaomi_nav_b">Trên máy Xiaomi, Redmi, POCO, dùng màn hình chính không phải của Xiaomi sẽ chuyển điều hướng cử chỉ thành 3 nút. Đây là do hệ thống, không có cài đặt nào giữ được cử chỉ. Chọn lại màn hình chính của Xiaomi để có cử chỉ lại.</string>
+    <string name="hm_xiaomi_nav_ok">Tiếp tục</string>
+    <string name="hm_b_home">Chưa đặt làm màn hình chính</string>
     <string name="hm_b_guard">KidGuard đang khởi động lại</string>
     <string name="hm_fix">Sửa</string>
     <string name="hm_open_fail">Không mở được ứng dụng này</string>

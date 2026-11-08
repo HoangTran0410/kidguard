@@ -117,6 +117,19 @@ object HomeLayout {
     fun free(items: List<HItem>, cols: Int, rows: Int, x: Int, y: Int, w: Int, h: Int): Boolean =
         x >= 0 && y >= 0 && x + w <= cols && y + h <= rows && (x until x + w).all { cx -> (y until y + h).all { cy -> items.none { it.covers(cx, cy) } } }
 
+    /** Every cell of the page is taken. */
+    fun full(items: List<HItem>, cols: Int, rows: Int) = firstFree(items, cols, rows) == null
+
+    /** Places [items] in order, each at the first free spot of the current page, a new page when it does not fit. */
+    fun flow(items: List<HItem>, cols: Int, rows: Int): List<List<HItem>> {
+        val out = arrayListOf(ArrayList<HItem>())
+        for (it in items) {
+            val f = firstFree(out.last(), cols, rows, it.w, it.h) ?: run { out += ArrayList<HItem>(); firstFree(out.last(), cols, rows, it.w, it.h) }
+            if (f != null) out.last() += it.copy(x = f.first, y = f.second) else out += arrayListOf(it.copy(x = 0, y = 0))
+        }
+        return out
+    }
+
     /** First free cell of [items] in reading order, or null. */
     fun firstFree(items: List<HItem>, cols: Int, rows: Int, w: Int = 1, h: Int = 1): Pair<Int, Int>? {
         for (y in 0..rows - h) for (x in 0..cols - w) if (free(items, cols, rows, x, y, w, h)) return x to y
@@ -523,6 +536,10 @@ object HomeLayout {
     }
 
     /** Ids of the other apps' widgets (type app) in the model: the host deletes the ones that leave. */
+    /** A layout taken from KidGuard Home: other apps' widgets are bound to that app's widget host, so they cannot come along. */
+    fun imported(m: HomeModel): HomeModel =
+        trimPages(m.copy(pages = m.pages.map { p -> p.filter { !(it.kind == "widget" && it.type == APP) } }))
+
     fun appWidgetIds(m: HomeModel): Set<Int> = m.pages.flatten().filter { it.kind == "widget" && it.type == APP && it.awid != 0 }.map { it.awid }.toSet()
 
     /** A picker tap for another app's widget: like [placeWidget], but the item carries the provider and the host id. */
@@ -567,7 +584,14 @@ object HomeLayout {
      */
     fun regrid(m: HomeModel, cols: Int, rows: Int): HomeModel {
         val c = cols.coerceIn(3, 5); val r = rows.coerceIn(4, MAX_ROWS)
-        if (c >= m.cols && r >= m.rows) return m.copy(cols = c, rows = r)
+        if (c >= m.cols && r >= m.rows) {
+            val g = m.copy(cols = c, rows = r)
+            // Auto-filled pages (fresh() / appendNew: every page but the last is full) flow into the new rows; a hand-made
+            // layout with gaps or short pages keeps its places. Without this, a fresh 5-row grid that grows to 6 left the
+            // last row of every page empty.
+            val auto = c == m.cols && r > m.rows && m.pages.size > 1 && m.pages.dropLast(1).all { full(it, m.cols, m.rows) }
+            return if (!auto) g else trimPages(g.copy(pages = flow(m.pages.flatMap { p -> p.sortedWith(compareBy({ it.y }, { it.x })) }, c, r)))
+        }
         val out = ArrayList<List<HItem>>()
         var carry = emptyList<HItem>()
         var pi = 0

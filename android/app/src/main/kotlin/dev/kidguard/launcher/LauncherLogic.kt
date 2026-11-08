@@ -42,14 +42,20 @@ object LauncherLogic {
      * [want]: Guard's decide() result (pkg -> reason). Blocked by the parent / waiting for approval / hidden ("Dọn máy") /
      * plumbing / settings => [Show.HIDE]; any other reason => greyed with a clock badge; else normal.
      */
-    fun show(pkg: String, want: Map<String, String>, r: Rules, self: String): Show = when {
+    fun show(pkg: String, want: Map<String, String>, r: Rules, self: String, settingsOk: Boolean = r.launcher.settings): Show = when {
         pkg == self -> Show.OK   // KidGuard itself stays findable in the drawer (SOS, xin giờ, "Bố mẹ quản lý trên máy này")
         pkg in PLUMBING -> Show.HIDE
         pkg in r.hidden || pkg in r.blocked || want[pkg] in HIDE_REASONS -> Show.HIDE
-        pkg in SETTINGS && !r.launcher.settings -> Show.HIDE
+        pkg in SETTINGS && !settingsOk -> Show.HIDE
         want[pkg] != null -> Show.PAUSED
         else -> Show.OK
     }
+
+    /**
+     * Settings may show: the parent allows it, or nobody manages this phone (no Device Owner, never paired: the user picked
+     * our home themselves). Hiding it there was a dead end: no way back to the default-home or navigation settings.
+     */
+    fun settingsOk(r: Rules, owner: Boolean, paired: Boolean) = r.launcher.settings || (!owner && !paired)
 
     /** ms left today for [pkg] under its own limit and its groups' limits (the smallest), -1 when none applies. */
     fun appLeftMs(r: Rules, usageMs: Map<String, Long>, pkg: String): Long {
