@@ -27,7 +27,8 @@
 <link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/guide">
 <link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/guide">
 <link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/guide">
-<link rel="stylesheet" href="css/site.css?v=3978e785b2">
+<link rel="stylesheet" href="css/site.css?v=3978e785b2-ai">
+<link rel="alternate" type="text/plain" title="llms.txt" href="llms.txt">
 </head>
 <body>
 
@@ -58,6 +59,7 @@
     <div class="cta">
       <a class="btn primary" href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk"><span>Tải KidGuard <small>máy của con</small></span></a>
       <a class="btn" href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk"><span>App bố mẹ <small>máy của bạn</small></span></a>
+      <button type="button" class="btn gai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Hỏi AI <small>Chép câu lệnh để hỏi ChatGPT, Claude, Gemini</small></span></button>
     </div>
   </div>
 </section>
@@ -89,9 +91,16 @@
 
 <section id="install">
   <h2>Cài lên máy con</h2>
-  <p>Có năm cách, chọn một. Cách A đến D biến KidGuard thành <b>Device Owner</b> (vai trò Android cho máy công ty): khóa được app, con không gỡ được, không cần root. Cách E không cần bước này nhưng yếu hơn.</p>
+  <ol class="steps">
+    <li><b>Cài APK và mở app.</b> Không cần xóa tài khoản, chưa cần cài đặt gì. Đã dùng được ngay: launcher cho con (bật trên máy), <b>Dọn máy</b> <span class="tag weak">Beta</span> (chỉ cần ghép Gỡ lỗi không dây, app tự chạy <code>pm disable-user</code> trên chính máy) và <b>Bố mẹ quản lý trên máy này</b> (trang phụ huynh ngay trên máy con, ở chế độ xem trước: mục thiếu quyền sẽ mờ và ghi rõ cần quyền gì).</li>
+    <li><b>Đặt PIN phụ huynh:</b> trang hỏi ở lần lưu luật đầu tiên. PIN này khóa trang trên máy con, và là PIN bạn nhập khi ghép điện thoại của mình ở bước 5.</li>
+    <li><b>Cấp quyền khi cần</b>, theo bảng <a href="./#quyen">chức năng nào cần quyền gì</a>: trợ năng, quyền truy cập dữ liệu sử dụng, quản trị thiết bị, vị trí…</li>
+    <li><b>Tùy chọn, mạnh nhất: Device Owner</b> (cách A–D bên dưới). <b>Chỉ bước này</b> mới cần xóa hết tài khoản trên máy con trước.</li>
+    <li><b>Ghép điện thoại hoặc trình duyệt của bố mẹ</b> (Wi-Fi nhà hoặc relay, xem <a href="#away">Từ xa</a>).</li>
+  </ol>
+  <p>Có năm cách cài, chọn một. Cách A đến D biến KidGuard thành <b>Device Owner</b> (vai trò Android cho máy công ty): khóa được app, con không gỡ được, không cần root. Cách E không cần bước này nhưng yếu hơn.</p>
   <div class="warnote">
-    <p><b>Trước khi cài theo cách A–D:</b> Android chỉ cho app làm Device Owner khi máy <b>không có tài khoản nào</b> (Google, Samsung, Xiaomi…).</p>
+    <p><b>Chỉ khi làm Device Owner (cách A–D):</b> Android chỉ cho app làm Device Owner khi máy <b>không có tài khoản nào</b> (Google, Samsung, Xiaomi…).</p>
     <p>Vào <b>Cài đặt → Tài khoản</b> trên máy con, xóa hết. Cài xong đăng nhập lại, mọi thứ quay về.</p>
     <p><b>Giữ đăng nhập các app</b> <span class="tag weak">Beta</span> Android chỉ đếm tài khoản của app đang bật. Với <a href="#install-usb">cách C</a> (máy tính), thay vì xóa tài khoản Facebook, Messenger, OneDrive…, tắt tạm app đó: <code>adb shell pm disable-user --user 0 &lt;tên gói&gt;</code>, cài Device Owner, rồi bật lại: <code>adb shell pm enable &lt;tên gói&gt;</code>. App giữ nguyên đăng nhập. Tài khoản Google và Samsung vẫn phải xóa (app hệ thống, không tắt được an toàn). Xem tài khoản thuộc app nào: <code>adb shell dumpsys account</code>. Mới thử một phần (Galaxy A51, Android 13).</p>
   </div>
@@ -380,5 +389,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
   </div>
 </footer>
 
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="js/ai.js?v=1"></script>
 </body>
 </html>

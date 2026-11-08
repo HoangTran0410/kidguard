@@ -292,3 +292,10 @@ nav a[aria-current="page"]{color:var(--ink);font-weight:700}
 
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 @media print{header,.burger,.xad,.toc{display:none}}
+
+/* "Ask an AI" (js/ai.js): the way most people get an answer, so it stands out from the buttons beside it */
+.btn.gai{border-color:transparent;background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(120deg,var(--pri),#f59e0b) border-box}
+.btn.gai:hover{border-color:transparent}
+.btn.gai svg{color:#f59e0b}
+.toast{position:fixed;left:50%;bottom:24px;width:max-content;max-width:calc(100vw - 32px);text-align:center;transform:translateX(-50%) translateY(calc(100% + 32px));visibility:hidden;background:var(--card);color:var(--ink);border:1px solid var(--line2);padding:10px 18px;border-radius:12px;font-weight:600;font-size:15px;box-shadow:0 8px 24px var(--shadow);z-index:50}
+.toast.show{transform:translateX(-50%) translateY(0);visibility:visible;transition:transform .25s}

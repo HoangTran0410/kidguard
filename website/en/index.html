@@ -28,7 +28,8 @@
 <link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/">
 <link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/">
 <link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/">
-<link rel="stylesheet" href="../css/site.css?v=3978e785b2">
+<link rel="stylesheet" href="../css/site.css?v=3978e785b2-ai">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../llms.txt">
 </head>
 <body>
 
@@ -68,6 +69,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 21a2 2 0 0 0 3.4 0M3.3 15.3A1 1 0 0 0 4 17h16a1 1 0 0 0 .7-1.7C19.4 14 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.4 6-2.7 7.3"/></svg>
           <span>Parent app <small>your phone</small></span>
         </a>
+        <button type="button" class="btn gai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Ask an AI <small>Copy a prompt for ChatGPT, Claude, Gemini</small></span></button>
       </div>
       <p class="note">The <b>parent app</b> alerts your own phone the moment the child presses SOS, asks for more time or trips an alert. The web page cannot do that.</p>
       <p class="links"><a class="go" href="#install">How to install</a><a class="go" href="#undo">Undo it any time</a></p>
@@ -226,7 +228,7 @@
   <div class="wrap">
     <div class="sh">
       <h2>Five ways to install</h2>
-      <p>Device Owner needs a phone with no accounts: remove them first, sign back in after. Only way E skips this. <a class="go" href="guide.html#install">Step-by-step guide</a></p>
+      <p>Install the APK and open it: the launcher, Dọn máy, the on-device parent page and the preview already work. Only Device Owner (A-D, strongest, optional) needs a phone with no accounts: remove them first, sign back in after. <a class="go" href="guide.html#install">Step-by-step guide</a></p>
     </div>
     <ol class="card rows">
       <li><span class="id" aria-hidden="true">A</span><div><h3>On the phone itself <span class="tag ok">Recommended</span></h3><p>Android 11+, Wi-Fi. Tap <b>Cài đầy đủ không cần máy tính (Android 11+)</b>; it sets itself up over Wireless debugging.</p></div></li>
@@ -301,5 +303,7 @@
   </div>
 </footer>
 
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="../js/ai.js?v=1"></script>
 </body>
 </html>

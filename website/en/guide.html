@@ -27,7 +27,8 @@
 <link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/guide">
 <link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/guide">
 <link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/guide">
-<link rel="stylesheet" href="../css/site.css?v=3978e785b2">
+<link rel="stylesheet" href="../css/site.css?v=3978e785b2-ai">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../llms.txt">
 </head>
 <body>
 
@@ -58,6 +59,7 @@
     <div class="cta">
       <a class="btn primary" href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk"><span>Get KidGuard <small>child's phone</small></span></a>
       <a class="btn" href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk"><span>Parent app <small>your phone</small></span></a>
+      <button type="button" class="btn gai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Ask an AI <small>Copy a prompt for ChatGPT, Claude, Gemini</small></span></button>
     </div>
   </div>
 </section>
@@ -89,9 +91,16 @@
 
 <section id="install">
   <h2>Install on the child's phone</h2>
-  <p>There are five ways; pick one. Ways A to D make KidGuard the phone's <b>Device Owner</b> (the Android role a company uses for work phones): it can lock apps and can't be removed, no root needed. Way E skips this but is weaker.</p>
+  <ol class="steps">
+    <li><b>Install the APK and open the app.</b> No need to remove accounts, no setup yet. These already work: the kid launcher (opt-in on the phone), <b>Dọn máy</b> (debloat) <span class="tag weak">Beta</span> (only needs wireless-debugging pairing; the app runs <code>pm disable-user</code> against the phone itself), and <b>Bố mẹ quản lý trên máy này</b> (the parent page on the child's phone, in preview mode: features that need more permissions are greyed out with a note saying which one).</li>
+    <li><b>Set the parent PIN:</b> the page asks on the first rules save. It protects the page on this phone, and it is the PIN you type when pairing your own phone in step 5.</li>
+    <li><b>Grant permissions as needed</b>, following the <a href="./#permissions">feature and permission table</a>: accessibility, usage access, device admin, location…</li>
+    <li><b>Optional, strongest: Device Owner</b> (ways A-D below). <b>Only this step</b> needs every account removed from the child's phone first.</li>
+    <li><b>Pair the parent's phone or browser</b> (home Wi-Fi or relay, see <a href="#away">Away from home</a>).</li>
+  </ol>
+  <p>There are five ways to install; pick one. Ways A to D make KidGuard the phone's <b>Device Owner</b> (the Android role a company uses for work phones): it can lock apps and can't be removed, no root needed. Way E skips this but is weaker.</p>
   <div class="warnote">
-    <p><b>Before ways A–D:</b> Android only lets an app become Device Owner while the phone has <b>no accounts</b> (Google, Samsung, Xiaomi…).</p>
+    <p><b>Only for Device Owner (ways A-D):</b> Android only lets an app become Device Owner while the phone has <b>no accounts</b> (Google, Samsung, Xiaomi…).</p>
     <p>On the child's phone open <b>Settings → Accounts</b> and remove them all. Sign back in after setup: everything comes back.</p>
     <p><b>Keep apps signed in</b> <span class="tag weak">Beta</span> Android only counts accounts of enabled apps. With <a href="#install-usb">way C</a> (computer), instead of removing the Facebook, Messenger, OneDrive… accounts, disable those apps for a moment: <code>adb shell pm disable-user --user 0 &lt;package&gt;</code>, set up Device Owner, then turn them back on: <code>adb shell pm enable &lt;package&gt;</code>. The apps stay signed in. Google and Samsung accounts still have to be removed (system apps, not safe to disable). Which app owns which account: <code>adb shell dumpsys account</code>. Only partly tested (Galaxy A51, Android 13).</p>
   </div>
@@ -380,5 +389,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
   </div>
 </footer>
 
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="../js/ai.js?v=1"></script>
 </body>
 </html>

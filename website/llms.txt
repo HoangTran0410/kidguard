@@ -1,0 +1,81 @@
+# KidGuard
+
+> Free, open-source parental control for Android. The child's phone runs the KidGuard app as Device Owner (the Android role companies use for work phones); parents manage it from any browser (home Wi-Fi, or away from home through Tailscale or a Cloudflare Worker relay) or from an optional parent app. No account, no server you must run, rules run on the child's phone even offline, every change undoable. Site: https://kid-guard.pages.dev · Source: https://github.com/HoangTran0410/kidguard
+
+Android 8+ on the child's phone. Parent: any browser (iPhone included) or the Android parent app. iOS child phones are not supported (Apple does not allow it; use Screen Time + Family Sharing and Find My). The site is in Vietnamese and English.
+
+## Two apps and a web page
+
+- **Child app** (kidguard.apk, on the child's phone): enforces the rules, suspends apps, sends location, serves the parent page on port 8770 of the phone. Download: https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk
+- **Parent page**: plain HTML served by the child's phone. At home open `http://<phone IP>:8770` and type the 6-digit code shown on the child's phone (or scan the QR it shows). Away from home use Tailscale (recommended, direct, end-to-end encrypted), your own Cloudflare Worker relay (free, run `scripts/relay.sh` or `scripts/relay.ps1`), or the author's shared relay (quota shared by everyone). Set a parent PIN in Settings: without it the phone refuses to pair another browser.
+- **Parent app** (kidguard-parent.apk, optional, Android): the browser is enough, but the app adds notifications (SOS, time requests, accessibility turned off) and shows the last data when the child's phone is offline. Download: https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk
+
+## Setup in short
+
+Order (v0.9.8). Only step 4 needs the child's phone to have no accounts.
+
+1. Install the APK on the child's phone and open it. No account removal, no setup needed. Already working: the kid launcher (opt-in on the phone), "Dọn máy" (debloat; beta without Device Owner, needs only wireless-debugging pairing, the phone runs `pm disable-user` against itself), and "Bố mẹ quản lý trên máy này" (the parent page on the child's phone, in preview mode: features that need more permissions are greyed with a note naming the permission).
+2. On the first rules save the page asks for a parent PIN. It protects the on-device page, and the parent types the same PIN when pairing their own phone.
+3. Grant permissions as needed, following the table below: accessibility, usage access, device admin, location, battery...
+4. Optional, strongest: Device Owner. Android only allows it while the phone has no accounts (Google, Samsung, Xiaomi...): remove them first, then sign back in after setup. Ways:
+   - On the phone itself (Android 11+, Wi-Fi): tap the full-setup button; turn on Developer options > Wireless debugging > Pair with code and type the 6 digits into KidGuard's notification. The phone runs adb against itself.
+   - QR provisioning (new or factory-reset phone, stock-like Android): on the welcome screen tap 6 times on an empty spot, scan the QR at https://kidguard.99-hoangtran.workers.dev/qr. Some skins drop the 6-tap screen (e.g. Oppo / Realme ColorOS on Android 8-9): use the USB way.
+   - Browser + USB cable (Chrome or Edge on a computer): turn on USB debugging, plug in, open https://kidguard.99-hoangtran.workers.dev/install (WebUSB installer, no adb needed).
+   - Command line: `scripts/setup.sh` (macOS / Linux) or `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1` (Windows); downloads adb if missing.
+5. Pair the parent's phone or browser (home Wi-Fi or relay).
+
+Basic mode (no Device Owner, accounts stay) is what steps 1-3 give you: tap "Cài nhanh không cần máy tính" and turn on each item of the checklist (device admin, accessibility, usage access, location, battery). Weaker: blocked apps are closed back to the home screen instead of greyed out; no family DNS, no blocking installs / USB debugging, no reboot, no Tailscale; Safe Mode stops the blocking. It can be switched to Device Owner later (step 4).
+
+Xiaomi, Oppo, Vivo, Samsung: let KidGuard run in the background (battery / autostart settings).
+
+## What it does
+
+- Daily screen-time limit (one number or per weekday), +15 / +30 / +60 min for today; per-app limits, block, always allowed; app groups with a shared limit or allowed hours; new apps locked until a parent approves.
+- Bedtime and schedules (can cross midnight), pause now, heads-up notification 5 min and 1 min before a lock.
+- Ask for more time (child asks, parent approves), chores that earn time, Google Authenticator unlock code that works offline.
+- Location: locate now, location forced on, 7-day history on an OpenStreetMap map, zones (arrived / left alerts), alerts (battery 15 %, new app, clock changed).
+- History and a weekly report per kid; rule templates; an overview of all kids at once.
+- SOS button on the child's phone; see the child's screen live and remote control (Android 11+); listen around (one way, at most 10 min, home Wi-Fi or Tailscale only, the child is always told); lock, ring, message, restart.
+- Lighter phone: hide preinstalled apps, see the heaviest apps. Family DNS filter, block installs and USB debugging (Device Owner only).
+- Tamper-proof: blocks uninstall, force stop, factory reset from Settings, Safe Mode, new users, changing the clock. Undo everything: Settings > remove management lifts every restriction, then uninstall like any app.
+- Kid launcher: a home screen of the app's own (grid, dock, folders, widgets, the child's own rules page).
+- Updates itself once a day from GitHub releases (SHA-256 checked).
+
+## Features and permissions
+
+Which feature works with which permission, so the child app and the web page can show it before the heavy setup. Capabilities: owner (Device Owner), admin (device admin), acc (accessibility), usage (usage access), location, notify, battery, home (KidGuard is the default Home app), adb (the phone can run adb against itself), paired. A feature works when any one alternative has every capability.
+
+| Feature | Alternatives (any one) | Note |
+|---|---|---|
+| launcher | home | works without Device Owner and without pairing |
+| launcherLock | owner | persistent preferred Home |
+| debloat | owner or adb | hide preinstalled apps |
+| limits | owner, or acc + usage + admin | basic mode bounces with accessibility |
+| block | owner, or acc + admin | |
+| usage | usage | |
+| location | location | fine + background |
+| screen | acc | screen view and remote input, Android 11+ |
+| remote | paired | |
+| noUninstall | owner or admin | |
+| dns | owner | private DNS filter |
+
+## FAQ
+
+- Is it free? Yes: MIT licence, no ads, no account, no subscription.
+- Where do the rules run? On the child's phone, so they work offline.
+- Does data go to a cloud? Not unless you turn on Away from home; with Tailscale it is peer to peer, with your own relay it is only your own Cloudflare account.
+- iPhone child? No. iPhone parent? Yes, through the browser.
+- Known limits: a factory reset from the hardware keys (recovery) still works; live screen and remote control need Android 11+; on Android 8-10 the child can force stop KidGuard (it restarts on reboot); apps with a secure screen (banking) show black; on home Wi-Fi the page is plain HTTP, use trusted networks only.
+- "App blocked to protect your device" (Play Protect) when installing from a browser: turn off Play Protect scanning briefly on the child's phone, install and set up, turn it back on. QR setup is not affected.
+
+## Docs
+
+- [Home page, Vietnamese](https://kid-guard.pages.dev/)
+- [Home page, English](https://kid-guard.pages.dev/en/)
+- [User guide, Vietnamese](https://kid-guard.pages.dev/guide): step by step for setup, rules, away from home, troubleshooting
+- [User guide, English](https://kid-guard.pages.dev/en/guide)
+- [README (English)](https://github.com/HoangTran0410/kidguard/blob/main/README.md): setup for each way, features, Tailscale, relay, privacy
+- [Protocol](https://github.com/HoangTran0410/kidguard/blob/main/docs/protocol.md): JSON, endpoints and commands between the phone, the parent page and the relay; the section "Features and permissions" has the table above
+- [Privacy](https://github.com/HoangTran0410/kidguard/blob/main/PRIVACY.md)
+- [Releases](https://github.com/HoangTran0410/kidguard/releases)
+- [Issues](https://github.com/HoangTran0410/kidguard/issues)
