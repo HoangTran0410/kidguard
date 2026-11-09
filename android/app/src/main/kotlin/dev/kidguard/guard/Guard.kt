@@ -96,6 +96,7 @@ class Guard : Service() {
         work = Handler(HandlerThread("guard").apply { start() }.looper)
         running = this
         Watchdog.schedule(this)
+        runCatching { Ring.restoreAfterDeath(this) }
         work.post { runCatching { Policy.apply(this, store.rules) }; Quick.setEnabled(this, true) }   // off the main thread: DPM calls can block
         @Suppress("DEPRECATION") runCatching {   // location switched off: back on at once (rule lockLocation), not at the next tick
             contentResolver.registerContentObserver(Settings.Secure.getUriFor(Settings.Secure.LOCATION_MODE), false, locObserver)
@@ -146,6 +147,14 @@ class Guard : Service() {
     /** Many pokes in a burst (accessibility events) become one tick 300 ms after the last. */
     fun pokeSoft() { if (::work.isInitialized) { work.removeCallbacks(pokeRun); work.postDelayed(pokeRun, 300) } }
 
+    private val optLogAt = HashMap<String, Long>()
+    private fun optFail(name: String, e: Throwable) {
+        val n = System.currentTimeMillis()
+        if (n - (optLogAt[name] ?: 0L) >= 60_000) { optLogAt[name] = n; Log.w("KidGuard", "tick step $name", e) }
+    }
+    /** An optional tick step: a failure here must never skip the suspend / hide enforcement below (logged at most once a minute per step). */
+    private inline fun opt(name: String, f: () -> Unit) { try { f() } catch (e: Throwable) { optFail(name, e) } }
+
     private fun tick(force: Boolean) {
         runCatching { relabel() }
         val now = System.currentTimeMillis()
@@ -156,16 +165,15 @@ class Guard : Service() {
         lastFullTick = now
         val r = store.rules
         val (apps, prot) = Policy.cached(this)
-        val use = Usage.today(this, now)
+        val use = runCatching { Usage.today(this, now) }.onFailure { optFail("usage", it) }.getOrNull() ?: Usage.Today(emptyMap(), null)
         val cal = Calendar.getInstance().apply { timeInMillis = now }
         val minute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         val today = day(now)
-        Acc.ensureEnabled(this)
-        Policy.syncDns(this, r)
-        Policy.retryDns(this, r)
-        Ts.poll(this, store)
-        if (r.trackMin > 0 && now - lastTrackTry >= r.trackMin * 60_000L - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) }
-        keepLocation(r)
+        opt("acc") { Acc.ensureEnabled(this) }
+        opt("dns") { Policy.syncDns(this, r); Policy.retryDns(this, r) }
+        opt("ts") { Ts.poll(this, store) }
+        opt("track") { if (r.trackMin > 0 && now - lastTrackTry >= r.trackMin * 60_000L - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) } }
+        opt("location") { keepLocation(r) }
         // usage access: reported once per revoke (persisted, so a process restart while revoked does not repeat it), the child is asked to turn it back on
         if (!Usage.granted(this)) {
             if (!store.usageOffRaised) {
@@ -195,12 +203,12 @@ class Guard : Service() {
             n.forEach { store.log(R.string.log_new_app, apps[it] ?: it); store.event("newApp", R.string.ev_new_app, apps[it] ?: it) }
             store.loggedNew = (store.loggedNew + n).intersect(apps.keys)
         }
-        batteryCheck()
+        opt("battery") { batteryCheck() }
         val newApps = if (r.blockNew) fresh else emptySet()
         val leftMs = dailyLeftMs(r, use.ms, today, apps.keys, prot)
-        if (!r.monitor) Warn.due(r, leftMs, minute, today, store.warned(today), store.tr)?.let { w ->
+        opt("warn") { if (!r.monitor) Warn.due(r, leftMs, minute, today, store.warned(today), store.tr)?.let { w ->
             store.markWarned(today, w.keys); notifyWarn(w.text)
-        }
+        } }
         // v0.9.7 bedtime wind-down: grayscale (re-applied if the child switched it off, put back afterwards)
         windActive = WindDown.active(r, minute)
         runCatching { GrayFx.tick(this, store, windActive) }.onFailure { Log.w("KidGuard", "wind-down", it) }
@@ -229,14 +237,14 @@ class Guard : Service() {
         else use.current?.takeIf { it in want && it !in nowSusp }?.let { cur -> BasicLogic.bounceReason(cur, packageName, want, prot)?.let { Acc.bounceApp(this, cur, it) } }
         // the app in front just got suspended: send the child home (the system's own "paused" dialog shows when they tap it again)
         if (use.current != null && use.current in nowSusp && use.current !in had) goHome()
-        if (now - lastLocateAt > 15 * 60_000) { lastLocateAt = now; locate() }
-        store.recoverAt.takeIf { it > 0 }?.let { at ->   // child's "lost the link" request (MainActivity): a PIN cancels it
+        opt("locate") { if (now - lastLocateAt > 15 * 60_000) { lastLocateAt = now; locate() } }
+        opt("recover") { store.recoverAt.takeIf { it > 0 }?.let { at ->   // child's "lost the link" request (MainActivity): a PIN cancels it
             if (store.rules.pinHash.isNotBlank()) store.recoverAt = 0
             else if (now >= at) { store.recoverAt = 0; store.openPairing(); store.log(R.string.log_recover_open) }
-        }
-        if (now - store.historyAt > 3_600_000) store.saveHistory(history(now, apps.keys, prot, apps), now)
-        Update.maybe(this, r, now)
-        launcherTick(r, now)
+        } }
+        opt("history") { if (now - store.historyAt > 3_600_000) store.saveHistory(history(now, apps.keys, prot, apps), now) }
+        opt("update") { Update.maybe(this, r, now) }
+        opt("launcher") { launcherTick(r, now) }
         snap = Snap(r, want, use.ms, leftMs, minute, now, Rules.isoDow(today), apps.keys, prot)
         listeners.forEach { l -> main.post { runCatching { l() } } }
         lastState = state(r, apps, prot, use, want, if (r.monitor) would else emptyMap(), nowSusp, today, now, newApps)

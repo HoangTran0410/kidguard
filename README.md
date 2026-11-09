@@ -196,6 +196,7 @@ setup is not affected (the phone downloads the app itself).
 
 **Known limits**
 
+- **PIN forgotten:** any browser or parent app that is still paired can set a new PIN in Settings (a rules save accepts a new PIN without the old one). Without one: if an Authenticator was set up, its current 6-digit code opens "Bố mẹ quản lý trên máy này" on the child's phone, and the same Settings page sets a new PIN. If the PIN was never set, holding "Parent lost access?" on the child's screen reopens pairing after 24 h (the parent is told). PIN forgotten and every paired device and the Authenticator lost: no way back in the app (factory reset or an adb reinstall only); keep the PIN and set up the Authenticator.
 - A factory reset from the hardware keys (recovery) still works; KidGuard is then gone and the parent page shows "disconnected".
 - Live screen and remote control need Android 11+. On Android 8–10 the child can force stop KidGuard (it starts again on reboot).
 - Apps that mark their screen secure (banking…) show black.

@@ -253,7 +253,9 @@ object SelfSetup {
         }
         state[1] = STEP_OK
         // 3..7 (same as setup.sh, minus install)
-        if (!step(2, "dpm set-device-owner $PKG/.Admin") { it.contains("Success") }) { runCatching { m.disconnect() }; return }
+        // a rerun after a partly failed setup: we already are Device Owner ("already set" would stop it here), so go on
+        if (Policy.isOwner(app)) { Log.i(AdbPortFinder.TAG, "already Device Owner: skip set-device-owner"); state[2] = STEP_OK }
+        else if (!step(2, "dpm set-device-owner $PKG/.Admin") { it.contains("Success") }) { runCatching { m.disconnect() }; return }
         if (!step(3, "appops set $PKG GET_USAGE_STATS allow")) return
         if (!step(4, "pm grant $PKG android.permission.WRITE_SECURE_SETTINGS")) return
         // optional (remote phone settings): brightness / screen timeout and Do Not Disturb; old Android may not know them

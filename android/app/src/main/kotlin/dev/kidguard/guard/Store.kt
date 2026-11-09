@@ -284,6 +284,10 @@ class Store private constructor(private val app: Context) {
         get() = p.getBoolean("tsHide", true)
         set(v) { p.edit().putBoolean("tsHide", v).apply() }
 
+    /** Alarm volume before a parent "ring" turned it up (-1 = none). Kept on disk so a process death mid-ring can still restore it (Ring.restoreAfterDeath). */
+    @get:Synchronized @set:Synchronized var ringVol: Int
+        get() = p.getInt("ringVol", -1)
+        set(v) { p.edit().putInt("ringVol", v).commit() }
     /** Set by release: the guard must not start again (Boot / watchdog / accessibility poke) until Device Owner is given again. */
     @get:Synchronized @set:Synchronized var released: Boolean
         get() = p.getBoolean("released", false)
