@@ -260,11 +260,28 @@ function ovMap(pins) {
     ${mapZB()}${mapAttr}${tileDead ? mapFail() : ""}`;
 }
 
-// --- back button: one history entry per level (1 = kid / overview, 2 = a past day), same URL ---
+// --- back button: one history entry per level, same URL ---
+// kid page (1; 0 on the on-device page, which has no list) -> another tab (td 1) -> a screen opened from "Thêm" (td 2);
+// a past day adds {day: 1}. Back walks down that stack: sub-screen -> Thêm -> Hôm nay -> list (never past the kid on-device).
 const navLvl = () => (history.state && history.state.kg) || 0;
+const SUB_TABS = new Set(["screen", "dev", "files", "log", "rep", "hist", "set"]);
+let navSkip = null;   // goTab going down: the popstate that follows only relabels the entry it lands on
+function navTab(id, from) {
+  try {
+    const s = history.state || {}, d = s.td || 0;
+    if (s.day) return;
+    const want = id === "home" ? 0 : SUB_TABS.has(id) && from === "more" ? 2 : 1;
+    if (want === d) { if (d) history.replaceState({ ...s, tab: id }, ""); }
+    else if (want > d) for (let i = d + 1; i <= want; i++) history.pushState({ kg: navLvl() + 1, td: i, tab: i === want ? id : from }, "");
+    else { navSkip = id; history.go(want - d); }
+  } catch {}
+}
+let navQuiet = false;   // a back the page already handled (leaving a past day for today): its popstate does nothing
+const dayOff = () => { try { if (history.state && history.state.day) { navQuiet = true; history.back(); } } catch {} };
 function navTo(n) { try { while (navLvl() < n) history.pushState({ kg: navLvl() + 1 }, ""); } catch {} }
 function navDown(n) { try { const d = navLvl() - n; if (d > 0) history.go(-d); } catch {} }
 function goList() {
+  if (LOCAL && !ov) return;   // the on-device page is this one kid: there is no list behind it
   gen++; clearInterval(timer); if (askDone) askDone(false, true);
   leaveSave();
   if (ov) { const b = ov.back; ov = null; return b(); }
@@ -274,8 +291,12 @@ function goList() {
   listScreen(kids.filter(k => k.via === "relay"));
 }
 addEventListener("popstate", () => {
-  const l = navLvl();
-  if (typeof appSetOn !== "undefined" && appSetOn && !(history.state && history.state.appSet)) { appSetOn = false; return appBoot(); }
-  if (l === 0 && (cur || ov)) goList();
-  else if (l === 1 && cur && viewDay) { tab = "home"; open(cur); }
+  const l = navLvl(), s = history.state || {};
+  if (typeof appSetOn !== "undefined" && appSetOn && !s.appSet) { appSetOn = false; return appBoot(); }
+  if (navQuiet) { navQuiet = false; return; }
+  if (navSkip) { if (s.td) try { history.replaceState({ ...s, tab: navSkip }, ""); } catch {} navSkip = null; return; }
+  if (cur && viewDay && !s.day) { tab = s.td ? s.tab : "home"; return open(cur); }
+  const base = cur && !ov && $("#back") ? 1 : 0;   // the kid page's own level (no list behind it = 0)
+  if (cur && !ov && (s.td || l === base)) { const nt = s.td ? s.tab : "home"; if (tab !== nt) { tab = nt; if (tab === "hist") histDays = null; render(true); } return; }
+  if (l < base || (l === 0 && ov)) goList();
 });

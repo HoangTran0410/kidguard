@@ -208,7 +208,7 @@ async function pickDay(d) {
     clearInterval(timer); screenStop();
     st = j.state !== undefined ? j.state : j; pendingRules = null; seenAt = 0; cachedAt = 0; lastErr = "";
     if (!st.apps || !st.rules) throw 0;
-    edit = norm(structuredClone(st.rules)); viewDay = d; tab = "home"; trk = []; trkLoaded = 0; render(); navTo(2);
+    edit = norm(structuredClone(st.rules)); viewDay = d; tab = "home"; trk = []; trkLoaded = 0; render(); try { if (!(history.state && history.state.day)) history.pushState({ kg: navLvl() + 1, day: 1 }, ""); } catch {}
   } catch { toast("err|" + t("hist.fail", dm(d))); }
 }
 function histTab(b) {
@@ -218,7 +218,7 @@ function histTab(b) {
   }
   const today = dkey(Date.now());
   b.innerHTML = `<div class="card"><h2>${ic("history")} ${t("hist.h")}</h2>
-    ${dayBtn("app", { sel: viewDay || today, days: histDays, onPick: k => { if (k === today) { tab = "home"; open(cur); navDown(1); } else pickDay(k); } })}
+    ${dayBtn("app", { sel: viewDay || today, days: histDays, onPick: k => { if (k === today) { tab = "home"; open(cur); dayOff(); } else pickDay(k); } })}
     <p class="mute" style="margin-top:10px">${histDays.length ? t("hist.pick") : t("hist.none")}</p></div>`;
   dpBind(b);
 }

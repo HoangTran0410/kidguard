@@ -48,7 +48,7 @@ function wireSide(root) {
 const bnavHtml = () => `<nav class="bnav" aria-label="${esc(t("nav.main"))}">${BNAV.map(([id, i]) => { const on = id === "more" ? MORE_TABS.has(tab) : tab === id;
   return `<button type="button" data-tab="${id}" class="${on ? "on" : ""}" ${on ? 'aria-current="page"' : ""}><b>${ic(i)}${id === "home" && reqN() ? `<span class="n">${reqN()}</span>` : ""}</b><span>${t(id === "more" ? "nav.more" : "tab." + id)}</span></button>`; }).join("")}</nav>`;
 function headHtml() {
-  const back = APP || onLan() || kids.length > 1 || cur.via === "relay";
+  const back = !LOCAL && (APP || onLan() || kids.length > 1 || cur.via === "relay");
   return `<div class="head">${back ? `<button type="button" id="back" class="back${kidList().length > 1 || APP || onLan() ? " mOnly" : ""}" aria-label="${esc(t("list"))}" title="${esc(t("list"))}">${ic("chevron-left")}</button>` : ""}${kidAv(cur)}
     <div><div class="t1">${esc(cur.name)}</div><div class="st" id="hst"></div></div><span class="savechip" id="saveChip" role="status"></span></div>`;
 }
@@ -79,7 +79,7 @@ function render(tabClick) {
   <div id="body"></div></div></div>${bnavHtml()}</div>`;
   a.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => goTab(b.dataset.tab));
   wireSide(a);
-  if ($("#goLive")) $("#goLive").onclick = () => { tab = "home"; open(cur); navDown(1); };
+  if ($("#goLive")) $("#goLive").onclick = () => { tab = "home"; open(cur); dayOff(); };
   if ($("#back")) $("#back").onclick = () => { goList(); navDown(0); };
   localWire();
   if ($("#goPin")) $("#goPin").onclick = () => { tab = "set"; render(true); const f = $("#f-pin"); if (f) { f.scrollIntoView({ block: "center" }); f.focus(); } };
@@ -97,7 +97,7 @@ function render(tabClick) {
   // a refresh keeps the page where it was; a tab switch lands on the top of the new tab
   window.scrollTo(0, tabClick ? 0 : pageY);
 }
-function goTab(id) { tab = id; if (tab === "hist") histDays = null; render(true); }
+function goTab(id) { const from = tab; tab = id; if (tab === "hist") histDays = null; render(true); navTab(id, from); }
 
 // "Thêm" (phones): everything that is not in the bottom bar, grouped
 function moreTab(b) {
@@ -107,8 +107,8 @@ function moreTab(b) {
   b.innerHTML = grp(t("sec.kid"), [li("screen", "smartphone", t("more.screenS")), li("dev", "cpu", t("more.devS")), li("files", "folder-open", t("more.filesS"))])
     + grp(t("sec.track"), [li("log", "notebook-pen", t("more.logS")), li("rep", "chart-column", t("more.repS")), li("hist", "history", t("hist.h"))])
     + grp(t("sec.manage"), [li("set", "settings", t("more.setS")),
-      L.length > 1 ? `<button type="button" class="li" id="moreOv"><span class="ib">${ic("users")}</span><span class="x"><b>${t("nav.family")}</b><span class="sub">${t("ovN", L.length)}</span></span>${ic("chevron-right")}</button>` : "",
-      APP || kids.length > 1 || cur.via === "relay" ? `<button type="button" class="li" id="moreList"><span class="ib">${ic("list")}</span><span class="x"><b>${t("list")}</b></span>${ic("chevron-right")}</button>` : ""])
+      L.length > 1 && !LOCAL ? `<button type="button" class="li" id="moreOv"><span class="ib">${ic("users")}</span><span class="x"><b>${t("nav.family")}</b><span class="sub">${t("ovN", L.length)}</span></span>${ic("chevron-right")}</button>` : "",
+      !LOCAL && (APP || kids.length > 1 || cur.via === "relay") ? `<button type="button" class="li" id="moreList"><span class="ib">${ic("list")}</span><span class="x"><b>${t("list")}</b></span>${ic("chevron-right")}</button>` : ""])
     + `<div class="sec">${t("set.general")}</div>${APP ? `<div class="list"><button type="button" class="li" id="moreApp"><span class="ib">${ic("settings")}</span><span class="x"><b>${t("au.h")}</b></span>${ic("chevron-right")}</button></div>` : `<div class="card row">${langSel()}<span class="sp"></span>${themeBtn()}</div>`}`;
   b.querySelectorAll("[data-go]").forEach(x => x.onclick = () => goTab(x.dataset.go));
   if ($("#moreOv")) $("#moreOv").onclick = () => { screenStop(); earStop(); overview(L, APP || onLan() ? appBoot : () => listScreen(L)); };
@@ -134,7 +134,7 @@ function repTab(b) {
 function pinGate(a) {
   screenStop();
   a.className = ""; a.innerHTML = `<div class="solo">${localBar()}
-  <div class="head">${APP || kids.length > 1 || cur.via === "relay" ? `<button type="button" id="back" class="back" aria-label="${esc(t("list"))}">${ic("chevron-left")}</button>` : ""}${kidAv(cur)}<div><div class="t1">${esc(cur.name)}</div></div></div>
+  <div class="head">${!LOCAL && (APP || kids.length > 1 || cur.via === "relay") ? `<button type="button" id="back" class="back" aria-label="${esc(t("list"))}">${ic("chevron-left")}</button>` : ""}${kidAv(cur)}<div><div class="t1">${esc(cur.name)}</div></div></div>
   <div class="card"><h2>${ic("key-round")} ${t("pinGate.h")}</h2><p>${t("pinGate.p")}</p>
     <div class="pairf"><input id="f-gp1" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin1"))}" aria-label="${esc(t("pair.pin1"))}">
     <input id="f-gp2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin2"))}" aria-label="${esc(t("pair.pin2"))}">

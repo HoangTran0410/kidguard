@@ -185,6 +185,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 
 ### Android generic
 - `enabled_notification_listeners` writes ignored since Android 8
+- Parent page Back (2026-11-10): history entries per level, `navTab` in overview.js: kid page -> other tab (td 1, tabs replace each other) -> screen opened from Thêm (td 2); a past day = {day:1}. Back: sub-screen -> Thêm -> Hôm nay -> list. The on-device page (LOCAL) has no list: no back arrow, no Danh sách / Cả nhà, `goList` is a no-op, Back at Hôm nay ends the session
 - Map tile hosts live in 5 places: `TILES` (overview.js), CSP img-src (Http.kt, Proxy.kt, worker) AND the WebView request filters (AdminActivity `TILE_HOSTS`, parent MainActivity). 2026-11-10: the filters only had .org (blocked on the VN ISP), so the map failed in both apps
 - On-device parent page (AdminActivity) wipes WebView storage every session: anything the page must remember there goes through the `KGLocal` bridge into `Store` (e.g. `lvOffered`, 2026-11-10: "Mức bắt đầu" was asked on every open)
 - WebView dark mode (targetSdk 33+): `prefers-color-scheme` follows the hosting activity theme's `isLightTheme`, not the system. A light-only theme = the page stays light in dark mode (AdminActivity, 2026-11-10): give the activity a theme with a `values-night` variant (`AppWeb`)
