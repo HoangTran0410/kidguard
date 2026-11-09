@@ -104,6 +104,8 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 
 - Child screen (MainActivity) uses Kid Home's palette (`HomeStyle.palette`, recreated when accent/theme changes). One "Việc cần làm · x/y" card (`ui/SetupSteps.kt`) holds every setup step for both modes, battery + OEM auto-start included (auto-start can't be read back: child taps "Đã bật" -> `Store.autostartOk`); only steps left are listed. "Trạng thái bảo vệ" + "Tính năng và quyền" merged into one sheet "Bảo vệ và quyền" (`FeaturesSheet.show(..., status, battery)`). Kid Home card on the main screen while it isn't HOME. Old `BasicChecklist` / owner `Checklist` deleted (11-09)
 
+- (2026-11-09) Long-press menus stay short (Pixel / One UI): header = name + (i) app info; one "Sửa app" sheet holds rename + icon + restore (live preview, saves only on Lưu); "Chọn" merged into "Sửa màn hình chính" (starts with the item picked); widget sizes = chips in the header; no "Đọc tên" row (speak setting reads on tap).
+
 ### Website / docs
 - Site is static HTML+CSS, no JS (CSP script-src 'none' on most pages; only the llms "Hỏi AI" button allows 'self' script), deployed by `npx wrangler pages deploy website --project-name kid-guard --branch main` (direct upload); not tied to git
 - Guide pages (website/guide.html + en/guide.html) replace GitHub README anchor links — user: links to nonexistent anchors not OK; stable section ids listed in website-guide report: install, install-phone/qr/usb/cli/basic, pair, parent-app, away, tailscale, relay, shared-relay, features, iphone, remove, faq (26e4309)

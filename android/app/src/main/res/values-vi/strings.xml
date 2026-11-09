@@ -532,8 +532,6 @@
     <string name="hm_min_left">còn %1$d phút</string>
     <string name="hm_pin">Ghim vào màn chính</string>
     <string name="hm_pinned">Đã ở màn chính</string>
-    <string name="hm_e_enter">Chọn nhiều mục</string>
-    <string name="hm_e_pick">Chọn</string>
     <string name="hm_e_tap">Chạm để chọn</string>
     <string name="hm_e_n">Đã chọn %d</string>
     <string name="hm_e_done">Xong</string>
@@ -640,7 +638,6 @@
     <string name="hm_w_add_size">Thêm %1$s, cỡ %2$d×%3$d</string>
     <string name="hm_w_added">Đã thêm %1$s</string>
     <string name="hm_w_already">Đã có ở màn chính: bấm một cỡ để đổi cỡ</string>
-    <string name="hm_w_size">Cỡ %1$d×%2$d</string>
     <string name="hm_w_when">Khi nào được chơi</string>
     <string name="hm_w_when_d">Cả ngày: giờ học, giờ ngủ, giờ được dùng và còn bao lâu</string>
     <string name="hm_w_earn">Kiếm thêm giờ</string>

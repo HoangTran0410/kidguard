@@ -26,9 +26,14 @@ import dev.kidguard.HomeActivity.Row
 internal fun HomeActivity.armWidget(v: View, it: HItem) {
     val sizes = if (it.type == HomeLayout.APP) awSizes(it) else HomeLayout.SIZES[it.type].orEmpty().map { (w, h) -> minOf(w, model?.cols ?: w) to h }.distinct()
     val showMenu = {
-        menu(sizes.filter { s -> s != it.w to it.h }.map { (w, h) ->
-            Row(R.drawable.li_layout_dashboard, getString(R.string.hm_w_size, w, h), true) { model?.let { mm -> HomeLayout.resizeWidget(mm, it.id, w, h)?.let { n -> update(n) } ?: noRoom(null) } }
-        } + Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { mm -> HomeLayout.take(mm, Src.Item(it.id))?.let { t -> update(HomeLayout.dropRemove(t)) } } }, v)
+        // sizes as one row of chips under a "Cỡ" header (was one menu row per size)
+        val chips = sizes.map { (w, h) ->
+            MenuChip("$w×$h", w == it.w && h == it.h) { model?.let { mm -> HomeLayout.resizeWidget(mm, it.id, w, h)?.let { n -> update(n) } ?: noRoom(null) } }
+        }
+        menu(listOf(
+            Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { mm -> HomeLayout.take(mm, Src.Item(it.id))?.let { t -> update(HomeLayout.dropRemove(t)) } } },
+            Row(R.drawable.li_layout_dashboard, getString(R.string.hm_edit_home), true) { enterEdit(it.id) },
+        ), v, head = if (chips.size > 1) MenuHead(getString(R.string.hm_w_size_h), chips = chips) else null)
     }
     val src = { DragSt(Src.Item(it.id), null, "widget", it.w, it.h, it.id, v) }
     fun walk(x: View) {

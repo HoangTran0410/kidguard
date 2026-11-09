@@ -51,7 +51,12 @@ internal fun HomeActivity.pausedSheet(a: AppE, reason: String, dv: View0, r: Rul
 // ---- menus ----
 
 
-internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: Int = 0) {
+/** Optional menu header: a title with small icon buttons on the right (e.g. app info), and/or one row of choice chips. */
+internal class MenuHead(val title: String?, val buttons: List<HeadBtn> = emptyList(), val chips: List<MenuChip> = emptyList())
+internal class HeadBtn(val icon: Int, val desc: String, val run: () -> Unit)
+internal class MenuChip(val label: String, val on: Boolean, val run: () -> Unit)
+
+internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: Int = 0, head: MenuHead? = null) {
     popup?.dismiss()
     val focus = menuFocus(anchor)
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = fill(pal.sheet, 16f); setPadding(0, dp(6), 0, dp(6)); elevation = dpf(8f) }
@@ -63,6 +68,7 @@ internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: In
     }.apply { isVerticalScrollBarEnabled = false; background = fill(pal.sheet, 16f); elevation = shadow(8f); addView(box) }
     box.background = null; box.elevation = 0f
     val pw = PopupWindow(scroll, mw, ViewGroup.LayoutParams.WRAP_CONTENT, true)
+    if (head != null) menuHead(box, head, pw)
     for (r in rows) box.addView(LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(14), dp(12), dp(14), dp(12))
         val c = if (r.enabled) pal.text else pal.sub
@@ -106,37 +112,58 @@ internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: In
     scroll.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(200).setInterpolator(android.view.animation.DecelerateInterpolator(2f)).start()
 }
 
+/** Header of a long-press menu (Pixel / One UI): title + icon buttons, then chips, then a hairline before the rows. */
+private fun HomeActivity.menuHead(box: LinearLayout, h: MenuHead, pw: PopupWindow) {
+    if (h.title != null || h.buttons.isNotEmpty()) box.addView(LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(16), dp(4), dp(8), dp(4))
+        addView(text(h.title ?: "", 14f, pal.sub, true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
+        for (b in h.buttons) addView(ImageView(context).apply {
+            setImageDrawable(Ic.get(context, b.icon, pal.text, dp(18))); scaleType = ImageView.ScaleType.CENTER
+            contentDescription = b.desc; kit.tap(this, 20f) { pw.dismiss(); b.run() }
+        }, LinearLayout.LayoutParams(dp(40), dp(40)))
+    }, LinearLayout.LayoutParams(-1, -2))
+    if (h.chips.isNotEmpty()) box.addView(android.widget.HorizontalScrollView(this).apply {
+        isHorizontalScrollBarEnabled = false
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL; setPadding(dp(12), dp(4), dp(12), dp(8))
+            for (c in h.chips) addView(text(c.label, 14f, if (c.on) pal.onSolid else pal.text, c.on).apply {
+                background = fill(if (c.on) pal.solid else pal.tint); setPadding(dp(14), dp(7), dp(14), dp(7)); gravity = Gravity.CENTER
+                contentDescription = c.label; isSelected = c.on
+                if (!c.on) kit.tap(this, 999f) { pw.dismiss(); c.run() }
+            }, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(6) })
+        })
+    }, LinearLayout.LayoutParams(-1, -2))
+    box.addView(View(this).apply { setBackgroundColor(pal.sub and 0x00FFFFFF or 0x33000000) }, LinearLayout.LayoutParams(-1, 1).apply { setMargins(dp(14), dp(2), dp(14), dp(4)) })
+}
+
 internal fun HomeActivity.appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
     val m = model ?: return
     val placed = a.pkg in m.onHome()
+    // the system's app details (storage, notifications, permissions) as the header's (i) like Pixel / One UI. Only when
+    // the parent lets the kid open Settings: otherwise this would be a way into it.
+    val info = HeadBtn(R.drawable.li_info, getString(R.string.hm_app_info)) {
+        runCatching { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${a.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }.takeIf { settingsOk(Store.of(this).rules) }
     menu(listOfNotNull(
         Row(R.drawable.li_pin, getString(if (placed) R.string.hm_pinned else R.string.hm_pin), !placed) { update(HomeLayout.pin(m, a.pkg)); if (drawer != null) closeDrawer() }.takeIf { mode == Mode.DRAWER },
         Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { update(HomeLayout.remove(m, a.pkg)) }.takeIf { placed || mode != Mode.DRAWER },
         Row(R.drawable.li_folder_plus, getString(R.string.hm_f_add), true) { addToFolderSheet(a) },
-        // edit mode with this icon already picked (One UI's "Chọn"): several apps at once from here
-        Row(R.drawable.li_check, getString(R.string.hm_e_pick), true) { enterEdit(item?.id) }.takeIf { mode == Mode.HOME && item != null },
-    ) + lookRows(a) + listOfNotNull(
-        // the app fills its whole cell, so most long-presses land on one: give the empty-space menu a way in from here
-        Row(R.drawable.li_layout_dashboard, getString(R.string.hm_edit_home), true) { if (mode == Mode.PANEL) closeOverlay(); enterEdit() }.takeIf { mode != Mode.DRAWER },
-        // the system's app details (storage, notifications, permissions), last like POCO / One UI. Only when the parent lets
-        // the kid open Settings: otherwise this would be a way into it.
-        Row(R.drawable.li_info, getString(R.string.hm_app_info), true) {
-            runCatching { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${a.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        }.takeIf { settingsOk(Store.of(this).rules) },
-    ), v)
+        lookRow(a),
+        // one way into edit mode (the old "Chọn" + "Sửa màn hình chính"): on the grid it starts with this icon picked
+        Row(R.drawable.li_layout_dashboard, getString(R.string.hm_edit_home), true) { if (mode == Mode.PANEL) closeOverlay(); enterEdit(item?.id.takeIf { mode == Mode.HOME }) }.takeIf { mode != Mode.DRAWER },
+    ), v, head = MenuHead(a.label, listOfNotNull(info)))
 }
 
 /** Long-press on a pinned shortcut: take it off the home, or edit the home. */
 internal fun HomeActivity.shortcutMenu(item: HItem, v: View) = menu(listOf(
     Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { m -> update(HomeLayout.removeIds(m, setOf(item.id))) } },
-    Row(R.drawable.li_check, getString(R.string.hm_e_pick), true) { enterEdit(item.id) },
-    Row(R.drawable.li_layout_dashboard, getString(R.string.hm_edit_home), true) { enterEdit() },
+    Row(R.drawable.li_layout_dashboard, getString(R.string.hm_edit_home), true) { enterEdit(item.id) },
 ), v)
 
 internal fun HomeActivity.emptyMenu(x: Int, y: Int) = menu(listOf(
-    Row(R.drawable.li_check, getString(R.string.hm_e_enter), true) { enterEdit() },
+    Row(R.drawable.li_layout_dashboard, getString(R.string.hm_edit_home), true) { enterEdit() },
     focusRow(),
-    Row(R.drawable.li_layout_dashboard, getString(R.string.hm_w_title), true) { openPicker() },
+    Row(R.drawable.li_layout_grid, getString(R.string.hm_w_title), true) { openPicker() },
     Row(R.drawable.li_sliders_horizontal, getString(R.string.hm_customize), true) { runCatching { startActivity(Intent(this, CustomActivity::class.java)) } },
     Row(R.drawable.li_shield, getString(R.string.hm_open_kg), true) { openMain() }.takeIf { !Flavor.HOME },
 ).filterNotNull(), null, x, y)

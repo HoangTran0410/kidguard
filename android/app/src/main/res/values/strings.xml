@@ -551,8 +551,6 @@
     <string name="hm_min_left">%1$d min left</string>
     <string name="hm_pin">Pin to home screen</string>
     <string name="hm_pinned">Already on the home screen</string>
-    <string name="hm_e_enter">Select items</string>
-    <string name="hm_e_pick">Select</string>
     <string name="hm_e_tap">Tap items to select</string>
     <string name="hm_e_n">%d selected</string>
     <string name="hm_e_done">Done</string>
@@ -659,7 +657,6 @@
     <string name="hm_w_add_size">Add %1$s, size %2$d×%3$d</string>
     <string name="hm_w_added">%1$s added</string>
     <string name="hm_w_already">Already on the home screen: tap a size to resize it</string>
-    <string name="hm_w_size">Size %1$d×%2$d</string>
     <string name="hm_w_when">When can I play</string>
     <string name="hm_w_when_d">Your day: school, bedtime, free time and how long is left</string>
     <string name="hm_w_earn">Earn more time</string>
