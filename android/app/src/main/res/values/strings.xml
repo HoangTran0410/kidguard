@@ -842,4 +842,13 @@
     <string name="hm_sc_added">Added "%1$s" to the home screen</string>
     <string name="hm_sc_fail">This shortcut can\'t open now</string>
     <string name="hm_sc_rm">The shortcut leaves the home screen. The app stays.</string>
+    <string name="nlog_title">Notification history</string>
+    <string name="nlog_menu">Notification history</string>
+    <string name="nlog_clear">Clear all</string>
+    <string name="nlog_clear_body">Deletes the list on this phone. It can\'t be undone.</string>
+    <string name="nlog_clear_ok">Clear</string>
+    <string name="nlog_empty">Nothing here yet.\nNotifications from the last 7 days show up here, even after you swipe them away. Tap one to open its app.</string>
+    <string name="nlog_today">Today</string>
+    <string name="nlog_yesterday">Yesterday</string>
+    <string name="nlog_gone">This app can\'t open now</string>
 </resources>

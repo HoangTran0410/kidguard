@@ -29,7 +29,11 @@ class NotifDots : NotificationListenerService() {
         recount()
     }
     override fun onListenerDisconnected() { me = null; publish(emptyMap()) }
-    override fun onNotificationPosted(sbn: StatusBarNotification?) = recountSoon()
+    override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        // the kid's own history (NotifLog): local only, never sent
+        if (sbn != null) runCatching { NotifLog.record(this, sbn) }
+        recountSoon()
+    }
     override fun onNotificationRemoved(sbn: StatusBarNotification?) = recountSoon()
 
     // a burst (a chat app posting 10 messages, a group cancel) is one binder round trip instead of one per callback

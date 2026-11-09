@@ -823,4 +823,13 @@
     <string name="hm_sc_added">Đã thêm \"%1$s\" ra màn hình chính</string>
     <string name="hm_sc_fail">Lối tắt này không mở được lúc này</string>
     <string name="hm_sc_rm">Lối tắt rời màn hình chính. App vẫn còn.</string>
+    <string name="nlog_title">Thông báo đã xem</string>
+    <string name="nlog_menu">Thông báo đã xem</string>
+    <string name="nlog_clear">Xoá hết</string>
+    <string name="nlog_clear_body">Xoá danh sách trên điện thoại này. Không khôi phục được.</string>
+    <string name="nlog_clear_ok">Xoá</string>
+    <string name="nlog_empty">Chưa có gì.\nThông báo trong 7 ngày qua sẽ hiện ở đây, kể cả khi con đã vuốt bỏ. Chạm vào để mở app.</string>
+    <string name="nlog_today">Hôm nay</string>
+    <string name="nlog_yesterday">Hôm qua</string>
+    <string name="nlog_gone">App này không mở được lúc này</string>
 </resources>
