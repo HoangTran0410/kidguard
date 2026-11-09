@@ -42,14 +42,16 @@ internal fun HomeActivity.arm(v: View, onLong: () -> Unit, src: () -> DragSt, im
 }
 
 /**
- * The pressed look (One UI / Pixel): the icon sinks to 88 % on touch and springs back on release.
+ * The pressed look (One UI / Pixel): the icon sinks to 88 % on touch and springs back on release; a widget card
+ * (wider than 120 dp) only to 96 %, a big card shrinking by 12 % looks like it is falling away.
  * [down] null = back to full size at once (a drag is starting: its shadow is drawn from the view as it is now).
  */
 internal fun pressed(icon: View?, down: Boolean?) {
     icon ?: return
     icon.animate().cancel()
     when (down) {
-        true -> icon.animate().scaleX(0.88f).scaleY(0.88f).setDuration(110).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+        true -> { val s = if (icon.width > 120 * icon.resources.displayMetrics.density) 0.96f else 0.88f
+            icon.animate().scaleX(s).scaleY(s).setDuration(110).setInterpolator(android.view.animation.DecelerateInterpolator()).start() }
         false -> icon.animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(android.view.animation.OvershootInterpolator(2.5f)).start()
         null -> { icon.scaleX = 1f; icon.scaleY = 1f }
     }

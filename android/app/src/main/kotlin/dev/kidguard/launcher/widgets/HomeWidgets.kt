@@ -37,7 +37,8 @@ internal fun HomeActivity.armWidget(v: View, it: HItem) {
     }
     val src = { DragSt(Src.Item(it.id), null, "widget", it.w, it.h, it.id, v) }
     fun walk(x: View) {
-        if (x === v || (x.isClickable && v !is KgHostView)) arm(x, showMenu, src, dragView = v)
+        // a tappable card (not its small buttons) sinks like an app icon does, so every tap target answers the same way
+        if (x === v || (x.isClickable && v !is KgHostView)) arm(x, showMenu, src, dragView = v, press = if (x.isClickable && x is ViewGroup) x else null)
         if (x is ViewGroup && v !is KgHostView) for (i in 0 until x.childCount) walk(x.getChildAt(i))
     }
     walk(v)

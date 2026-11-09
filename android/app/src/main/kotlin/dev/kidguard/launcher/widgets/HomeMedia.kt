@@ -56,7 +56,8 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean,
     init {
         val col = LinearLayout(act).apply { orientation = VERTICAL; gravity = Gravity.CENTER_VERTICAL }
         col.addView(title); col.addView(artist)
-        act.kit.tap(col, 12f) { if (listening) open() else { act.closeOverlay(); NotifDots.ask(act) } }
+        // the whole card opens the playing app (the buttons keep their own taps); the home widget puts the ripple on its wCard
+        if (cc) act.kit.tap(this, 26f, dark = true) { tapped() }
         val b = act.dp(40)
         if (square) {
             // 2x2 (music widgets on Pixel / HyperOS): art on top, the names, the three buttons along the bottom
@@ -85,6 +86,8 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean,
         val c = ctl ?: return
         if (c.playbackState?.state == PlaybackState.STATE_PLAYING) c.transportControls.pause() else c.transportControls.play()
     }
+
+    fun tapped() { if (listening) open() else { act.closeOverlay(); NotifDots.ask(act) } }
 
     private fun open() {
         val pkg = ctl?.packageName ?: return
@@ -172,7 +175,9 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean,
 /** Home widget "media": the same card in the widget style (pal colours, wCard). Full row x 1, or 2x2 (stacked). */
 internal fun HomeActivity.mediaWidget(w: Int, h: Int): View {
     val card = wCard(false)
-    card.addView(MediaCard(this, false, square = h >= 2 && w <= 3), LinearLayout.LayoutParams(-1, -2))
+    val mc = MediaCard(this, false, square = h >= 2 && w <= 3)
+    card.addView(mc, LinearLayout.LayoutParams(-1, -2))
+    kit.tap(card, 22f) { mc.tapped() }
     return card
 }
 

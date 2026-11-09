@@ -546,8 +546,8 @@ class CustomActivity : Activity() {
         col.addView(note(s(R.string.gest_hint), false), lp(8))
 
         section(col, R.string.bk_title)
-        col.addView(k.pill(s(R.string.bk_save), R.drawable.li_file, false) { backupStart() }, lp(8))
-        col.addView(k.pill(s(R.string.bk_restore), R.drawable.li_file, false) { if (guard()) restoreStart() }, lp(8))
+        col.addView(k.pill(s(R.string.bk_save), R.drawable.li_file_down, false) { backupStart() }, lp(8))
+        col.addView(k.pill(s(R.string.bk_restore), R.drawable.li_file_up, false) { if (guard()) restoreStart() }, lp(8))
         if (HomeBackup.hasUndo(this)) col.addView(k.pill(s(R.string.bk_undo), R.drawable.li_rotate_ccw, false) {
             if (guard()) { if (HomeBackup.undo(this)) { reloadAfterBackup(); Toast.makeText(this, R.string.bk_undone, Toast.LENGTH_SHORT).show() } else build() }
         }, lp(8))
@@ -601,7 +601,7 @@ class CustomActivity : Activity() {
                 if (isDestroyed || isFinishing) return@runOnUiThread
                 if (p == null) { Toast.makeText(this, R.string.bk_bad, Toast.LENGTH_LONG).show(); return@runOnUiThread }
                 val body = s(R.string.bk_confirm_body, p.model.pages.size, p.model.onHome().size, gone)
-                Modal(this, Ui(this)).show(R.drawable.li_file, Modal.Tone.WARN, s(R.string.bk_confirm_title), body, null, s(R.string.bk_restore_ok), s(R.string.gest_cancel)) {
+                Modal(this, Ui(this)).show(R.drawable.li_file_up, Modal.Tone.WARN, s(R.string.bk_confirm_title), body, null, s(R.string.bk_restore_ok), s(R.string.gest_cancel)) {
                     if (HomeBackup.apply(this, p)) { reloadAfterBackup(); Toast.makeText(this, R.string.bk_done, Toast.LENGTH_LONG).show() }
                     else Toast.makeText(this, R.string.bk_fail, Toast.LENGTH_LONG).show()
                     true
