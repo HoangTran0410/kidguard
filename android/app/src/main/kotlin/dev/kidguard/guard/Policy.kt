@@ -393,7 +393,7 @@ object Policy {
      * No shell mid-way (Wireless debugging went off) stops the pass without marking anything as refused.
      */
     private fun hideViaShell(ctx: Context, want: Set<String>, had: Set<String>, never: Set<String>, failed: MutableSet<String>?): Set<String> {
-        if (!SelfAdb.ready(ctx)) return had
+        if (!SelfAdb.ensure(ctx)) return had
         val df = Debloat.shellBatch(Debloat.diff(want, had, never))
         var now = had
         for (p in df.show) {
@@ -421,7 +421,7 @@ object Policy {
         val ours = s.shellDisabled
         if (ours.isEmpty()) return 0
         var left = Debloat.toEnableOnRelease(ours) { disabledByUser(ctx, it) }
-        if (left.isNotEmpty() && SelfAdb.ready(ctx)) for (p in left) {
+        if (left.isNotEmpty() && SelfAdb.ensure(ctx)) for (p in left) {
             val out = SelfAdb.run(ctx, Debloat.enableCmd(p) ?: continue) ?: break
             if (Debloat.enableOk(out)) left = left - p
         }
@@ -485,7 +485,7 @@ object Policy {
      * Never lists the never-hide set. Sorted suggest first, then label.
      */
     fun preinstalled(ctx: Context, s: Store, never: Set<String>, mb: (String) -> Int?): JSONArray {
-        if (!isOwner(ctx) && !SelfAdb.ready(ctx)) return JSONArray()
+        if (!isOwner(ctx) && !SelfAdb.ready(ctx) && !SelfAdb.canOpen(ctx)) return JSONArray()
         val pm = ctx.packageManager
         val flags = PackageManager.MATCH_UNINSTALLED_PACKAGES or PackageManager.MATCH_DISABLED_COMPONENTS
         @Suppress("DEPRECATION")

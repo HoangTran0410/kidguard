@@ -63,7 +63,7 @@ object DeviceInfo {
             total = total, free = free,
             apps = if (Usage.granted(ctx)) runCatching { appSizes(ctx) }.onFailure { Log.w("KidGuard", "device sizes", it) }.getOrNull() else null,
             ram = ram(ctx), battery = battery(ctx, now), net = net(ctx),
-            canClear = (Build.VERSION.SDK_INT >= 28 && Policy.isOwner(ctx)) || (!Policy.isOwner(ctx) && SelfAdb.ready(ctx)))
+            canClear = (Build.VERSION.SDK_INT >= 28 && Policy.isOwner(ctx)) || (!Policy.isOwner(ctx) && (SelfAdb.ready(ctx) || SelfAdb.canOpen(ctx))))
     }
 
     /** Total / free of internal storage. StorageStatsManager matches Settings (rounded total incl. system); StatFs if it fails. */

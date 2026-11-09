@@ -309,7 +309,9 @@ class Guard : Service() {
         if (key == hideKey && now - hideAt < 10 * 60_000L) return
         hideKey = key; hideAt = now
         if (r.hidden.isEmpty() && had.isEmpty() && store.refusedHide.isEmpty()) return
-        if (!owner && !SelfAdb.ready(this)) {   // no shell: changes wait (disabled apps stay disabled)
+        // no Device Owner: open the adb window (SelfAdb.ensure) only when something really has to change
+        if (!owner && Debloat.diff(r.hidden - store.refusedHide, had, never).let { it.hide.isEmpty() && it.show.isEmpty() }) return
+        if (!owner && !SelfAdb.ensure(this)) {   // no shell (or no window to open): changes wait (disabled apps stay disabled)
             hideKey = ""
             if (!shellOffLogged && Debloat.diff(r.hidden, had, Policy.neverHide(this, prot)).let { it.hide.isNotEmpty() || it.show.isNotEmpty() }) { shellOffLogged = true; store.log(R.string.app_shell_off) }
             return
@@ -408,7 +410,7 @@ class Guard : Service() {
             .put("launcher", runCatching { LauncherSafe.state(this, r, HomeFile.styleId(this), HomeFile.pages(this)) }.getOrDefault(JSONObject()))
             .put("notes", runCatching { KidNotes.stateJson(HomeFile.load(this)?.notes) }.getOrDefault(org.json.JSONArray()))   // the kid's notes shared with parents
             .put("sys", Sys.state(this))
-            .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)); if (Policy.isOwner(this) || SelfAdb.ready(this)) it.put("preinstalled", preinstalled(prot, now)) }
+            .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)); if (Policy.isOwner(this) || SelfAdb.ready(this) || SelfAdb.canOpen(this)) it.put("preinstalled", preinstalled(prot, now)) }
     }
 
     /**

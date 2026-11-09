@@ -590,6 +590,10 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
   and `caps.adb` is true. KidGuard records the packages it disabled (`shellDisabled`) and only ever re-enables those.
   Limits: Android 11+; Wireless debugging must be on and the phone on Wi-Fi; after a reboot Wireless debugging is off
   again, so already disabled apps stay disabled and new hide / unhide changes wait (log line "Wireless debugging is off")
+  **Adb window (2026-11-10):** with WRITE_SECURE_SETTINGS (`caps.wss`) and a paired key, `SelfAdb.ensure` turns Developer
+  options + Wireless debugging on itself for a job (only when a hide / unhide / clear really has to run, on Wi-Fi, not
+  under DISALLOW_DEBUGGING_FEATURES), waits up to 10 s for adbd, and puts both back 20 s after the last command. So
+  Developer options can stay off for banking apps and `hidden` / `clearData` / `preinstalled` still work.
   until it is turned on again. A `pm` that does not report the new state counts as a refusal (`refused: true`, retried every 10 min);
   no shell mid-pass is not a refusal. **release** re-enables every app we disabled through the shell. Without a shell the release still completes
   (`"ok"`; the parent is never locked in): the apps still disabled stay in the phone's `shellDisabled` set, a log line says how many, and

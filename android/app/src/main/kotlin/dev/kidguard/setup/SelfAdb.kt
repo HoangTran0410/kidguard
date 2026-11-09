@@ -8,7 +8,8 @@ import android.util.Log
 /**
  * A shell for non-Device-Owner phones: KidGuard talks to the phone's own adbd over Wireless debugging (Android 11+),
  * using the key paired once through [SelfSetup]. Used by "Dọn máy" (pm disable-user / pm enable / pm clear).
- * Wireless debugging must be on and the phone on Wi-Fi; after a reboot it is off again, so [ready] is false until the user turns it on.
+ * Wireless debugging must be on and the phone on Wi-Fi. With WRITE_SECURE_SETTINGS, [ensure] turns it on for the job and
+ * off again afterwards (the "window"), so Developer options can stay off for banking apps.
  */
 object SelfAdb {
     private const val TAG = AdbPortFinder.TAG
@@ -42,6 +43,59 @@ object SelfAdb {
         return v
     }
 
+    // ---- the "window": Developer options stay OFF (banking apps refuse to run with them on); for a shell job KidGuard
+    // turns Developer options + Wireless debugging on itself (WRITE_SECURE_SETTINGS), runs it, and puts both back
+    // [IDLE_MS] after the last command. What the job changes (pm disable-user / suspend / clear) stays after adb is off.
+    private const val IDLE_MS = 20_000L
+    private const val ADB_WIFI = "adb_wifi_enabled"   // Settings.Global.ADB_WIFI_ENABLED is @hide
+    private const val DEV = Settings.Global.DEVELOPMENT_SETTINGS_ENABLED
+    @Volatile private var opened: Map<String, Int>? = null   // values before we switched them, restored by [close]
+    @Volatile private var lastUse = 0L
+    private val closer = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /** The window can be opened: paired key, Android 11+, WRITE_SECURE_SETTINGS, no debugging restriction, on Wi-Fi. */
+    fun canOpen(ctx: Context): Boolean = android.os.Build.VERSION.SDK_INT >= 30 && hasKey(ctx) && Sys.wss(ctx) && runCatching {
+        !(ctx.getSystemService(Context.USER_SERVICE) as android.os.UserManager).hasUserRestriction(android.os.UserManager.DISALLOW_DEBUGGING_FEATURES) &&
+            ctx.getSystemService(android.net.ConnectivityManager::class.java).let { cm ->
+                cm.getNetworkCapabilities(cm.activeNetwork)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true }
+    }.getOrDefault(false)
+
+    /** Ready now, or after opening the window (waits up to ~10 s for adbd). Off the main thread. */
+    fun ensure(ctx: Context): Boolean {
+        if (ready(ctx)) { touch(ctx); return true }
+        if (!canOpen(ctx)) return false
+        synchronized(lock) {
+            if (opened == null) {
+                val cr = ctx.contentResolver
+                val prev = listOf(DEV, ADB_WIFI).associateWith { runCatching { Settings.Global.getInt(cr, it, 0) }.getOrDefault(0) }
+                if (prev.values.all { it == 1 }) return false   // already on and still not ready: nothing to open
+                opened = prev
+                for (k in listOf(DEV, ADB_WIFI)) runCatching { Settings.Global.putInt(cr, k, 1) }.onFailure { Log.w(TAG, "window open $k", it) }
+                Log.i(TAG, "self adb window open")
+            }
+        }
+        repeat(20) { invalidate(); if (ready(ctx)) { touch(ctx); return true }; Thread.sleep(500) }
+        close(ctx)
+        return false
+    }
+
+    private fun touch(ctx: Context) {
+        if (opened == null) return
+        lastUse = System.currentTimeMillis()
+        closer.removeCallbacksAndMessages(null)
+        closer.postDelayed({ Thread { if (System.currentTimeMillis() - lastUse >= IDLE_MS - 500) close(ctx) }.start() }, IDLE_MS)
+    }
+
+    /** Puts Wireless debugging, then Developer options back the way they were before [ensure] opened them. */
+    fun close(ctx: Context) = synchronized(lock) {
+        val prev = opened ?: return@synchronized
+        runCatching { manager(ctx).disconnect() }
+        val cr = ctx.contentResolver
+        for (k in listOf(ADB_WIFI, DEV)) if (prev[k] == 0) runCatching { Settings.Global.putInt(cr, k, 0) }.onFailure { Log.w(TAG, "window close $k", it) }
+        opened = null; invalidate()
+        Log.i(TAG, "self adb window closed")
+    }
+
     /** Forget the cached answer (after a failed command or when the user paired again). */
     fun invalidate() { readyAt = 0L }
 
@@ -61,7 +115,7 @@ object SelfAdb {
 
     /** Runs a shell command and returns its trimmed output, or null when there is no shell / it timed out. Off the main thread. */
     fun run(ctx: Context, cmd: String): String? {
-        if (!ready(ctx)) return null
+        if (!ensure(ctx)) return null
         synchronized(lock) {
             repeat(2) { attempt ->
                 val m = manager(ctx)
