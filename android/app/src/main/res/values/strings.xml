@@ -845,4 +845,13 @@
     <string name="hm_sc_rm">The shortcut leaves the home screen. The app stays.</string>
     <string name="main_need_pair_title">%1$s: pair with a parent first</string>
     <string name="main_need_pair_body">This button sends a message to a parent\'s phone. This phone isn\'t paired with one yet, so there\'s nobody to send it to.\n\nTo pair: a parent holds \"Parents: show the pairing code\" at the top of this screen for 5 seconds, then scans the code from their phone.</string>
+    <string name="nlog_title">Notification history</string>
+    <string name="nlog_menu">Notification history</string>
+    <string name="nlog_clear">Clear all</string>
+    <string name="nlog_clear_body">Deletes the list on this phone. It can\'t be undone.</string>
+    <string name="nlog_clear_ok">Clear</string>
+    <string name="nlog_empty">Nothing here yet.\nNotifications from the last 7 days show up here, even after you swipe them away. Tap one to open its app.</string>
+    <string name="nlog_today">Today</string>
+    <string name="nlog_yesterday">Yesterday</string>
+    <string name="nlog_gone">This app can\'t open now</string>
 </resources>

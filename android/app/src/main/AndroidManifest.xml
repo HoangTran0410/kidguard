@@ -156,6 +156,15 @@
             android:screenOrientation="portrait"
             android:theme="@style/AppMain" />
 
+        <!-- kid notification history (NotifLog), opened from the home long-press menu; same task as the home, never in recents -->
+        <activity
+            android:name=".NotifLogActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="dev.kidguard.home"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppMain" />
+
         <!-- quick actions (Quick.kt): lock only / time left only; they open nothing but KidGuard. Disabled by release. -->
         <activity
             android:name=".LockActivity"

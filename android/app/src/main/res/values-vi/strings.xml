@@ -826,4 +826,13 @@
     <string name="hm_sc_rm">Lối tắt rời màn hình chính. App vẫn còn.</string>
     <string name="main_need_pair_title">%1$s: cần ghép với bố mẹ trước</string>
     <string name="main_need_pair_body">Nút này gửi tin tới máy bố mẹ. Máy này chưa ghép với máy bố mẹ nào nên chưa gửi được.\n\nCách ghép: bố mẹ giữ nút \"Bố mẹ: hiện mã ghép\" ở đầu màn hình này 5 giây, rồi quét mã bằng máy bố mẹ.</string>
+    <string name="nlog_title">Thông báo đã xem</string>
+    <string name="nlog_menu">Thông báo đã xem</string>
+    <string name="nlog_clear">Xoá hết</string>
+    <string name="nlog_clear_body">Xoá danh sách trên điện thoại này. Không khôi phục được.</string>
+    <string name="nlog_clear_ok">Xoá</string>
+    <string name="nlog_empty">Chưa có gì.\nThông báo trong 7 ngày qua sẽ hiện ở đây, kể cả khi con đã vuốt bỏ. Chạm vào để mở app.</string>
+    <string name="nlog_today">Hôm nay</string>
+    <string name="nlog_yesterday">Hôm qua</string>
+    <string name="nlog_gone">App này không mở được lúc này</string>
 </resources>

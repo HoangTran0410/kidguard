@@ -165,6 +165,7 @@ internal fun HomeActivity.emptyMenu(x: Int, y: Int) = menu(listOf(
     focusRow(),
     Row(R.drawable.li_layout_grid, getString(R.string.hm_w_title), true) { openPicker() },
     Row(R.drawable.li_sliders_horizontal, getString(R.string.hm_customize), true) { runCatching { startActivity(Intent(this, CustomActivity::class.java)) } },
+    Row(R.drawable.li_bell, getString(R.string.nlog_menu), true) { runCatching { startActivity(Intent(this, NotifLogActivity::class.java)) } }.takeIf { NotifLog.enabled },
     Row(R.drawable.li_shield, getString(R.string.hm_open_kg), true) { openMain() }.takeIf { !Flavor.HOME },
 ).filterNotNull(), null, x, y)
 
