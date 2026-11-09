@@ -124,6 +124,7 @@ class HomeActivity : Activity() {
     internal var overlayExit: ((() -> Unit) -> Unit)? = null   // the open folder's closing animation (then the callback)
     internal var overlay: View? = null            // folder panel or widget picker (views, not dialogs: a drag survives them)
     internal var apps: Map<String, AppE>? = null
+    private var appsLook = -1   // AppLook.version the cached [apps] labels were read with
     internal var model: HomeModel? = null
     internal var key = ""
     internal var lastTap = 0L
@@ -314,6 +315,8 @@ class HomeActivity : Activity() {
     // ---------------- data ----------------
 
     internal fun launcherApps(): Map<String, AppE> {
+        // a restored backup / undo (Tuỳ chỉnh) changes the renames behind our back: read the labels again
+        if (appsLook != AppLook.version) { apps = null; appsLook = AppLook.version }
         apps?.let { return it }
         val pm = packageManager
         val out = LinkedHashMap<String, AppE>()

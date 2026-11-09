@@ -27,7 +27,10 @@ object AppLook {
     const val MAX_ENTRIES = 600
     @Volatile private var map: Map<String, AppCustom> = emptyMap()
 
-    fun set(m: Map<String, AppCustom>) { map = m }
+    /** Goes up whenever the overrides change: the launcher's cached app list (labels) is rebuilt when it differs. */
+    @Volatile var version = 0; private set
+
+    fun set(m: Map<String, AppCustom>) { if (m != map) { map = m; version++ } }
 
     /** Pinned shortcuts (cls = "sc:...") keep their own label and icon. */
     fun get(pkg: String, cls: String): AppCustom? =

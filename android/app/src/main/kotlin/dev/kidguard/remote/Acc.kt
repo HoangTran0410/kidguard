@@ -53,7 +53,7 @@ class Acc : AccessibilityService() {
         if (e.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = e.packageName?.toString() ?: return
         // a bank app that refuses accessibility services came up without our launcher (Recents, a link): step aside now
-        if (pkg in Store.of(this).rules.accPause) { AccPause.pause(this, pkg); return }
+        if (pkg in Store.of(this).rules.accPause) { AccPause.pauseLate(this, pkg); return }
         if (pkg != packageName) basicGuard(pkg)
         if (TaskLogic.dropTasks(pkg, e.className?.toString(), packageName, homes())) dropTasks()
         if (pkg == lastPkg) return

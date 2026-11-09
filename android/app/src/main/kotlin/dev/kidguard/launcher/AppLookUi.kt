@@ -24,10 +24,25 @@ internal fun HomeActivity.setLook(pkg: String, c: AppCustom) {
     if (drawer != null) main.post { closeDrawer() }
 }
 
-private fun HomeActivity.circle(spec: String, px: Int): ImageView = ImageView(this).apply {
-    AppLook.parseSpec(spec)?.let { setImageDrawable(AppLook.draw(this@circle, it, px)) }
-    outlineProvider = object : ViewOutlineProvider() { override fun getOutline(v: View, o: Outline) = o.setOval(0, 0, v.width, v.height) }
-    clipToOutline = true
+/** One choice in the icon grid: a coloured circle (its own [bg], recoloured in place) with a white glyph or an emoji. */
+private class Tile(val view: View, val bg: GradientDrawable, val glyph: Boolean, val value: String)
+
+/**
+ * Plain views, no bitmap per tile: drawing 50 bitmaps (vector + emoji text) on open cost ~70 ms of main thread on
+ * Oppo A5s, and a colour tap redrew them all. Now a colour tap only calls setColor on each circle.
+ */
+private fun HomeActivity.tile(glyph: Boolean, value: String, color: Int, sz: Int): Tile {
+    val bg = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color) }
+    val v: View = if (glyph) ImageView(this).apply {
+        AppLook.GLYPH_RES[value]?.let { id -> setImageDrawable(getDrawable(id)?.mutate()?.apply { setTint(android.graphics.Color.WHITE) }) }
+        scaleType = ImageView.ScaleType.FIT_CENTER; val p = (sz * 0.22f).toInt(); setPadding(p, p, p, p)
+    } else TextView(this).apply {
+        text = value; gravity = Gravity.CENTER; includeFontPadding = false
+        setTextColor(android.graphics.Color.WHITE)   // the default text colour is translucent: emoji came out faded
+        setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, sz * 0.5f)
+    }
+    v.background = bg
+    return Tile(v, bg, glyph, value)
 }
 
 /**
@@ -36,6 +51,7 @@ private fun HomeActivity.circle(spec: String, px: Int): ImageView = ImageView(th
  * puts the original name + icon back at once. Replaces three separate menu rows (rename / icon / restore).
  */
 internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
+    val t0 = Perf.now()
     val sh = Sheet(this, u, getString(R.string.hm2_edit_title))
     val cur = AppLook.get(a.pkg, a.cls) ?: AppCustom()
     var icon = cur.icon                       // "" = the original icon
@@ -45,7 +61,7 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
     // 6 per row, sized to the sheet (12 dp sheet padding each side, 3 dp gap per side): fixed 48 dp + margins overflowed 360 dp screens
     val cell = (minOf(root.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels, resources.displayMetrics.widthPixels) - dp(24)) / 6
     val gap = dp(3); val sz = (cell - 2 * gap).coerceAtMost(dp(52))
-    val selected = ArrayList<Pair<View, String>>()
+    val tiles = ArrayList<Tile>()
 
     // preview + name
     val preview = ImageView(this)
@@ -53,7 +69,9 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
         val d = AppLook.parseSpec(icon)?.let { AppLook.draw(this, it, big) }
         if (d != null) { preview.setImageDrawable(d); preview.clipToOutline = true }
         else { preview.clipToOutline = false; IconCache.get(this, a.pkg, "", big, round)?.let { preview.setImageBitmap(it) } }
-        for ((v, spec) in selected) v.foreground = if (spec == icon) GradientDrawable().apply { shape = GradientDrawable.OVAL; setStroke(dp(3), pal.text) } else null
+        val sp = AppLook.parseSpec(icon)
+        // the ring is the circle's own stroke: foreground holds kit.tap's ripple
+        for (t in tiles) t.bg.setStroke(if (sp != null && sp.glyph == t.glyph && sp.value == t.value) dp(3) else 0, pal.text)
     }
     preview.outlineProvider = object : ViewOutlineProvider() { override fun getOutline(v: View, o: Outline) = o.setOval(0, 0, v.width, v.height) }
     val name = EditText(this).apply {
@@ -99,40 +117,61 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
     sh.body.addView(orig)
     val glyphs = GridLayout(this).apply { columnCount = 6 }
     val emojis = GridLayout(this).apply { columnCount = 6 }
-    fun fill(grid: GridLayout, specs: List<Pair<String, String>>) {
-        grid.removeAllViews()
-        for ((spec, desc) in specs) {
-            val v = circle(spec, sz).apply { contentDescription = desc; kit.tap(this, 24f) { choose(spec) } }
-            selected += v to spec
-            grid.addView(v, GridLayout.LayoutParams().apply { width = sz; height = sz; setMargins(gap, gap, gap, gap) })
+    fun fill(grid: GridLayout, glyph: Boolean, values: List<String>) {
+        for (value in values) {
+            val t = tile(glyph, value, color, sz)
+            t.view.contentDescription = value.replace('_', ' ')
+            kit.tap(t.view, -1f) { choose(if (glyph) AppLook.glyphSpec(value, color) else AppLook.emojiSpec(value, color)) }
+            tiles += t
+            grid.addView(t.view, GridLayout.LayoutParams().apply { width = sz; height = sz; setMargins(gap, gap, gap, gap) })
         }
     }
-    fun fillAll() {
-        selected.clear()
-        fill(glyphs, AppLook.GLYPHS.map { AppLook.glyphSpec(it, color) to it.replace('_', ' ') })
-        fill(emojis, AppLook.EMOJIS.map { AppLook.emojiSpec(it, color) to it })
-    }
     val swatches = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(8), dp(4), dp(8), dp(4)) }
-    fun paintSwatches() {
-        swatches.removeAllViews()
-        for (c in AppLook.COLORS) swatches.addView(View(this).apply {
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(c); if (c == color) setStroke(dp(3), pal.text) }
-            contentDescription = getString(R.string.hm2_icon_color) + " " + AppLook.hex(c)
-            setOnClickListener {
-                color = c; paintSwatches(); fillAll()
-                // the picked glyph / emoji follows the new colour
-                AppLook.parseSpec(icon)?.let { sp -> icon = if (sp.glyph) AppLook.glyphSpec(sp.value, c) else AppLook.emojiSpec(sp.value, c) }
-                paintPreview()
-            }
-        }, LinearLayout.LayoutParams(0, dp(28), 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
-    }
-    paintSwatches(); fillAll()
+    val dots = ArrayList<Pair<GradientDrawable, Int>>()
+    for (c in AppLook.COLORS) swatches.addView(View(this).apply {
+        val d = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(c); if (c == color) setStroke(dp(3), pal.text) }
+        dots += d to c; background = d
+        contentDescription = getString(R.string.hm2_icon_color) + " " + AppLook.hex(c)
+        setOnClickListener {
+            color = c
+            for ((dd, cc) in dots) dd.setStroke(if (cc == c) dp(3) else 0, pal.text)
+            for (t in tiles) t.bg.setColor(c)
+            // the picked glyph / emoji follows the new colour
+            AppLook.parseSpec(icon)?.let { sp -> icon = if (sp.glyph) AppLook.glyphSpec(sp.value, c) else AppLook.emojiSpec(sp.value, c) }
+            paintPreview()
+        }
+    }, LinearLayout.LayoutParams(0, dp(28), 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
     sh.body.addView(swatches, LinearLayout.LayoutParams(-1, -2))
     sh.body.addView(text(getString(R.string.hm2_icon_glyphs), 13f, pal.sub, true).apply { setPadding(dp(12), dp(10), dp(12), 0) })
-    sh.body.addView(glyphs)
+    // grids sit height-reserved (rows known) and are filled after the sheet's first frame: the slide-up starts at once
+    // and the sheet does not jump (a View.post before the first frame still runs ahead of it, see CustomActivity)
+    fun rowsH(n: Int) = ((n + 5) / 6) * (sz + 2 * gap)
+    sh.body.addView(glyphs, LinearLayout.LayoutParams(-2, rowsH(AppLook.GLYPHS.size)))
     sh.body.addView(text(getString(R.string.hm2_icon_emoji), 13f, pal.sub, true).apply { setPadding(dp(12), dp(8), dp(12), 0) })
-    sh.body.addView(emojis)
+    sh.body.addView(emojis, LinearLayout.LayoutParams(-2, rowsH(AppLook.EMOJIS.size)))
     paintPreview()
+    sh.body.viewTreeObserver.addOnDrawListener(object : android.view.ViewTreeObserver.OnDrawListener {
+        var done = false
+        override fun onDraw() {
+            if (done) return
+            done = true
+            val me = this
+            sh.body.post {
+                runCatching { sh.body.viewTreeObserver.removeOnDrawListener(me) }
+                // two lumps on two frames (~12 ms each on Oppo A5s) instead of one 25 ms frame
+                val tf = Perf.now()
+                fill(glyphs, true, AppLook.GLYPHS); paintPreview()
+                Perf.log("appEdit glyphs", Perf.now() - tf)
+                sh.body.postOnAnimation {
+                    val te = Perf.now()
+                    fill(emojis, false, AppLook.EMOJIS); paintPreview()
+                    Perf.log("appEdit emoji", Perf.now() - te)
+                }
+            }
+        }
+    })
 
+    val built = Perf.now()
     sh.show()
+    Perf.firstDraw(sh.body, "appEdit", t0, built)
 }

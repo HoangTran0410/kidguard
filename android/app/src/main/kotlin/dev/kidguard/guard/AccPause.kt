@@ -59,10 +59,14 @@ object AccPause {
 
     fun active(ctx: Context): Boolean = Store.of(ctx).accPaused.isNotEmpty()
 
-    /** [pkg] is opening: turn our accessibility service off (before the launcher starts it, or on its first window). */
-    @Synchronized fun pause(ctx: Context, pkg: String) {
+    /**
+     * [pkg] is opening: turn our accessibility service off (before the launcher starts it, or on its first window).
+     * True when the service went off just now (nothing was paused before). [stopSelf] false = the caller still needs the
+     * service for a moment (see [pauseLate]) and stops it itself.
+     */
+    @Synchronized fun pause(ctx: Context, pkg: String, stopSelf: Boolean = true): Boolean {
         val s = Store.of(ctx)
-        if (pkg !in s.rules.accPause || !able(ctx)) return
+        if (pkg !in s.rules.accPause || !able(ctx)) return false
         val had = s.accPaused
         s.accPaused = had + pkg; s.accLeftAt = 0L
         if (had.isEmpty()) {
@@ -80,8 +84,39 @@ object AccPause {
             }
         }
         // the setting change unbinds us a moment later; the service can also stop itself right away
-        Acc.running?.let { svc -> runCatching { svc.disableSelf() } }
+        if (stopSelf) Acc.running?.let { svc -> runCatching { svc.disableSelf() } }
+        return had.isEmpty()
     }
+
+    /**
+     * The bank came up WITHOUT our launcher (Recents, a notification, a link from another app): it already saw the
+     * service on and shows its "turn off accessibility" refusal. Pausing now is too late for this run, so restart it
+     * once: Home (a global action of the still-bound service: no background-start limit), kill the bank's process, then
+     * open it fresh with the service already off. The reopen comes from our app while our Home is in front; with another
+     * launcher on a basic-mode phone Android may block it (the kid just taps the bank again). A deep link is lost.
+     */
+    fun pauseLate(svc: android.accessibilityservice.AccessibilityService, pkg: String) {
+        if (Store.of(svc).rules.accPause.isEmpty()) return
+        runCatching { svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) }
+        val fresh = pause(svc, pkg, stopSelf = false)
+        val app = svc.applicationContext
+        val h = android.os.Handler(android.os.Looper.getMainLooper())
+        h.postDelayed({ runCatching { svc.disableSelf() } }, 150)
+        if (!fresh) return
+        h.postDelayed({
+            app.getSystemService(android.app.ActivityManager::class.java)?.let { am -> runCatching { am.killBackgroundProcesses(pkg) } }
+        }, RELAUNCH_KILL_MS)
+        h.postDelayed({
+            runCatching {
+                app.packageManager.getLaunchIntentForPackage(pkg)?.let { i ->
+                    app.startActivity(i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK))
+                }
+            }
+        }, RELAUNCH_OPEN_MS)
+    }
+
+    private const val RELAUNCH_KILL_MS = 600L
+    private const val RELAUNCH_OPEN_MS = 1000L
 
     /** Guard tick: count the time since the last paused app left the front; after [AccPauseLogic.RESUME_MS] turn back on. */
     @Synchronized fun tick(ctx: Context, current: String?, now: Long) {

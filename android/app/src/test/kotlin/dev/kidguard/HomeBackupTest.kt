@@ -29,5 +29,13 @@ class HomeBackupTest {
         assertNull(HomeBackup.parse("x".repeat((HomeBackup.MAX_BYTES + 1).toInt())))
     }
 
+    /** "Sửa app" edits (name + icon) live in HomeModel.custom, so a backup must carry them and restore them. */
+    @Test fun customNameAndIconSurvive() {
+        val c = m.copy(custom = mapOf("a.b" to AppCustom(label = "Học", icon = AppLook.glyphSpec(AppLook.GLYPHS[0], AppLook.COLORS[2])),
+            "c.d" to AppCustom(icon = AppLook.emojiSpec(AppLook.EMOJIS[0], AppLook.COLORS[5]))))
+        val p = HomeBackup.parse(HomeBackup.export(c, null, null).first)!!
+        assertEquals(c.custom, p.model.custom)
+    }
+
     @Test fun bareHomeJson() { assertNotNull(HomeBackup.parse(m.toJson().toString())) }
 }

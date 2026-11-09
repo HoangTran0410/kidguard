@@ -68,4 +68,12 @@ class AppLookTest {
         assertTrue(ReadAids.voiceOk(0)); assertTrue(ReadAids.voiceOk(2)); assertFalse(ReadAids.voiceOk(-1)); assertFalse(ReadAids.voiceOk(-2))
         assertTrue(ReadAids.spacing("easy") > 0f); assertEquals(0f, ReadAids.spacing("sys"), 0f)
     }
+
+    /** A restored backup changes the overrides: the version moves so the launcher reads its labels again. */
+    @Test fun versionMovesOnlyOnChange() {
+        AppLook.set(emptyMap()); val v0 = AppLook.version
+        AppLook.set(emptyMap()); assertEquals(v0, AppLook.version)
+        AppLook.set(mapOf("a.b" to AppCustom(label = "X"))); assertTrue(AppLook.version > v0)
+        AppLook.set(emptyMap())
+    }
 }

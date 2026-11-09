@@ -10,6 +10,7 @@ The child app is also a kid launcher, shipped alone as the "KidGuard Home" flavo
 | How a feature works end to end (trigger -> steps -> state -> gotchas, with file pointers) | `docs/flows.md` |
 | What was already decided / tried and rejected / OEM quirks / past bugs / open issues | `docs/decisions.md` |
 | Wire formats: rules, state, commands, endpoints, setup steps (**the contract**) | `docs/protocol.md` (900 lines: grep the heading) |
+| Launcher perf budgets, how to measure, rules (**any launcher UI change**) | `docs/launcher-perf.md`, `scripts/perf.sh` |
 | User-facing docs | `README.md`, `website/guide.html` |
 
 Before designing or "fixing" something, grep `docs/decisions.md` for it: many ideas were already measured and dropped.
@@ -30,6 +31,8 @@ When you settle something durable (a decision, a rejected approach, a platform q
   Release asset names (`kidguard.apk`, `.sha256`, ...) are a contract with the updater, QR page and website.
 - Setup steps are done 4 ways and must stay in sync: `scripts/setup.sh`, `scripts/setup.ps1`, `ui/install.html`, `K/setup/SelfSetup.kt`.
 - Launcher changes: build and install BOTH flavors (`kid` and `home`); the phone's default HOME may be either.
+- Launcher UI changes are measured on a real phone (release build, `docs/launcher-perf.md`): before/after numbers in the
+  commit, within the budgets there or a written reason.
 - Never regenerate/delete `android/app/signing.jks` (QR checksum + self-update + Home layout import depend on it).
 - Don't read `ui/install.html` / `ui/qr.html` whole (inline bundles, lines of 13-25k chars): grep them.
 - Don't search inside `.claude/worktrees/` (stale copies of the tree from old agent runs).

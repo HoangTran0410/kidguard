@@ -106,6 +106,10 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 
 - (2026-11-09) Long-press menus stay short (Pixel / One UI): header = name + (i) app info; one "Sửa app" sheet holds rename + icon + restore (live preview, saves only on Lưu); "Chọn" merged into "Sửa màn hình chính" (starts with the item picked); widget sizes = chips in the header; no "Đọc tên" row (speak setting reads on tap).
 
+- (2026-11-09) Sửa app sheet: icon grid = plain views (oval drawable + glyph / white emoji), recoloured in place, built after the first draw in 2 lumps. Oppo A5s release warm: build 71-83 -> 25-29 ms, first draw 133-149 -> 94-108 ms, colour tap p90 10-11 ms. Perf rules + budgets: `docs/launcher-perf.md`
+- (2026-11-09) Bank opened without our launcher (Recents, notification, link) already saw the service on: `AccPause.pauseLate` = Home (global action, while still bound) -> pause -> kill bank -> reopen it fresh after 1 s. Deep links are lost; with another launcher on a basic-mode phone Android may block the reopen
+- (2026-11-09) Restored backup / undo changed renames but the launcher kept its cached app labels until a package event: `AppLook.version`, `launcherApps()` rereads when it moves
+
 ### Website / docs
 - Site is static HTML+CSS, no JS (CSP script-src 'none' on most pages; only the llms "Hỏi AI" button allows 'self' script), deployed by `npx wrangler pages deploy website --project-name kid-guard --branch main` (direct upload); not tied to git
 - Guide pages (website/guide.html + en/guide.html) replace GitHub README anchor links — user: links to nonexistent anchors not OK; stable section ids listed in website-guide report: install, install-phone/qr/usb/cli/basic, pair, parent-app, away, tailscale, relay, shared-relay, features, iphone, remove, faq (26e4309)
@@ -166,6 +170,9 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 ### Old WebView (Chromium < 111, e.g. Oppo = 101)
 - color-mix() only inside `@supports (color:color-mix(in srgb,red,blue))`; inline JS styles must not use color-mix. 46 declarations moved (b05190c)
 - inset/min() expanded for old WebViews; flex gap issues on Android 8 Chrome on the site (4ca10dd, 831bf98)
+### Build
+- Gradle file-system watching (macOS) missed script-rewritten Kotlin files twice: "up-to-date" + old APK. Build with `--no-watch-fs`, check APK time (11-09)
+
 ### Android generic
 - `enabled_notification_listeners` writes ignored since Android 8
 - Android 12+: no Settings.Global writes; use DPM setGlobalSetting whitelist (ADB_ENABLED, AUTO_TIME...). `adb_wifi_enabled` is @hide (DevOpts.kt)
