@@ -1,4 +1,3 @@
-                if (md.digest().joinToString("") { "%02x".format(it) } != want) { out.delete(); throw java.io.IOException("sha256 mismatch") }
 package dev.kidguard.parent
 
 import android.app.Activity
@@ -105,6 +104,7 @@ object Updater {
                     }
                 } }
                 if (got < 100_000 || (total > 0 && got != total)) throw java.io.IOException("short")
+                if (md.digest().joinToString("") { "%02x".format(it) } != want) { out.delete(); throw java.io.IOException("sha256 mismatch") }
                 return
             } finally { c.disconnect() }
         }
