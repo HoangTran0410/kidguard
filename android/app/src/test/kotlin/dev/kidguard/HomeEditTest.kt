@@ -164,6 +164,9 @@ class HomeEditTest {
         val back = HomeLayout.parse(old.toJson().toString())!!
         assertEquals(5, back.pages[0].first { it.id == "w1" }.w)
         assertEquals(4, back.pages[0].first { it.id == "w2" }.w)
+        // the owner's POCO: 3 -> 5 columns with an old build left a 3-wide clock; it now spans the row
+        val three = m5.copy(pages = listOf(listOf(HItem("w1", "widget", 0, 0, 3, 2, type = "clock"), HItem("a1", "app", 0, 2, pkg = "com.app1"))))
+        assertEquals(5, HomeLayout.parse(three.toJson().toString())!!.pages[0].first { it.id == "w1" }.w)
     }
 
     @Test fun folderKind() {

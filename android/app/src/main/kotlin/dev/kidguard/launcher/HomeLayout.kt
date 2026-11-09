@@ -271,8 +271,9 @@ object HomeLayout {
         pages = pages.map { p -> p.map { i -> if (ids.add(i.id)) i else i.copy(id = fresh(if (i.kind == "widget") "w" else "a")).also { ids.add(it.id) } } }
         // before 0.9.12 "4 wide" was 4 cells on a 5-column grid too: such a card at the left edge with the 5th column free
         // beside it now spans the row (what the picker offers since then); one placed next to an icon stays as it is
-        if (cols == 5) pages = pages.map { p -> p.map { i ->
-            if (i.kind == "widget" && i.type != APP && i.x == 0 && i.w == 4 && free(p, cols, rows, 4, i.y, 1, i.h)) i.copy(w = 5) else i } }
+        // (3 wide on 4-5 columns too: the picker never offered 3, so it can only come from a column change)
+        pages = pages.map { p -> p.map { i ->
+            if (i.kind == "widget" && i.type != APP && i.x == 0 && i.w in 3 until cols && free(p, cols, rows, i.w, i.y, cols - i.w, i.h)) i.copy(w = cols) else i } }
         for (m0 in misplaced) {
             val it = if (ids.add(m0.id)) m0 else m0.copy(id = fresh("a")).also { ids.add(it.id) }
             val all = pages
