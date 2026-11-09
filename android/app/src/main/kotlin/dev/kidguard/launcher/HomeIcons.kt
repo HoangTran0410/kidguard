@@ -72,8 +72,8 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     val showLabel = list || (if (mode == Mode.DOCK) model?.style?.dockLabels else model?.style?.labels) ?: true
     if (showLabel) {
         val lbl = iconLabel(a.label, list, if (list) pal.text else Color.WHITE)
-        box.addView(lbl, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(if (list) 4 else 2) })   // grid: 2 dp, so 7 square rows fit an icon + a label line (POCO)
-        if (!list) { if (model?.style?.solid == true) ReadAids.backLabel(lbl) else inkViews += lbl }
+        // grid: 2 dp, so 7 square rows fit an icon + a label line (POCO)
+        if (list) box.addView(lbl, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) }) else addLabel(box, lbl, 2)
     }
     if (list) {
         val sub = when {
@@ -104,6 +104,20 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
  * The one label style under every icon (grid, dock incl. "Gọi", drawer, folders): one size everywhere, full cell width,
  * up to 2 lines like One UI (with a 1.5 system font most names ended in "…" on one line). The dock is 1 line, same size.
  */
+/**
+ * Adds a grid / dock name under an icon. One place for apps, folders, shortcuts and the dock phone, so "Tên ứng dụng
+ * tương phản cao" styles all of them (folders and shortcuts used to stay plain next to backed app names).
+ */
+internal fun HomeActivity.addLabel(box: LinearLayout, lbl: TextView, top: Int) {
+    if (model?.style?.solid == true) {
+        ReadAids.backLabel(lbl)
+        box.addView(lbl, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(top); gravity = Gravity.CENTER_HORIZONTAL })
+    } else {
+        inkViews += lbl
+        box.addView(lbl, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top) })
+    }
+}
+
 internal fun HomeActivity.iconLabel(t: String, list: Boolean, color: Int, lines: Int = 2): TextView = IconLabel(this, lines).apply {
     text = t; setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, labelPx(list))
     setTextColor(color); includeFontPadding = false; typeface = HomeActivity.tf(false)
@@ -168,9 +182,7 @@ internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String
     box.clipChildren = false; box.clipToPadding = false   // the badge pokes out above the padding
     box.addView(grid, LinearLayout.LayoutParams(px, px).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(1); bottomMargin = dp(1) })
     if (model?.style?.labels != false) {
-        val lbl = iconLabel(folderName(f), false, Color.WHITE)
-        box.addView(lbl, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
-        inkViews += lbl
+        addLabel(box, iconLabel(folderName(f), false, Color.WHITE), 4)
     }
     box.contentDescription = getString(R.string.hm_f_desc, folderName(f), vis.size)
     kit.tap(box, 16f, true)

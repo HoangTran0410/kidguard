@@ -113,8 +113,8 @@ class CustomActivity : Activity() {
         section(col, R.string.hm_c_home)
         val home = group()
         home.addView(stepper(s(R.string.hm_c_cols), mm.cols, 3, 5) { regrid(it, mm.rows) })
-        line(home); home.addView(stepper(s(R.string.hm_c_rows), mm.rows, 4, HomeLayout.MAX_ROWS) { regrid(mm.cols, it, manual = true) })
-        line(home); home.addView(slider(s(R.string.hm_c_icon), st.icon - 1, 4, s(R.string.hm_c_small), s(R.string.hm_c_big)) { v -> set { it.copy(icon = v + 1) } })
+        // no rows stepper: rows always follow the screen (cells ~square, HomeLayout.fitRows); picking both made cells oblong
+        line(home); home.addView(stepper(s(R.string.hm_c_icon), st.icon, 1, 5) { v -> set { it.copy(icon = v) } })   // 1..5 like "Số cột" (owner: a slider took a whole block)
         line(home); home.addView(switchRow(s(R.string.hm_c_labels), st.labels) { v -> set { it.copy(labels = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_face), HomeActivity.FACES.zip(listOf(R.string.hm_c_face_sys, R.string.hm_c_face_light, R.string.hm_c_face_medium, R.string.hm_c_face_condensed, R.string.hm_c_face_serif, R.string.hm2_c_face_easy)).map { (f, r) -> s(r) to f }, st.face) { v -> set { it.copy(face = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_shape), listOf(s(R.string.hm_c_round_opt) to "round", s(R.string.hm_c_square_opt) to "square"), st.shape) { v -> set { it.copy(shape = v) } })
@@ -222,11 +222,11 @@ class CustomActivity : Activity() {
         save(mm.copy(style = ns)); build()
     }
 
-    /** [manual] = the kid set the rows: "auto" (rows follow the screen) is off until a style preset is picked again. */
-    private fun regrid(c: Int, r: Int, manual: Boolean = false) {
+    /** Columns only: the home recomputes the rows for the new cell width (autoRows) once it is shown again. */
+    private fun regrid(c: Int, r: Int) {
         if (!guard()) return
         val mm = m ?: return
-        val n = HomeLayout.regrid(mm, c, r).copy(autoRows = mm.autoRows && !manual)
+        val n = HomeLayout.regrid(mm, c, r).copy(autoRows = true)
         if (n.cols == mm.cols && n.rows == mm.rows) return
         // a smaller grid moves things: offer "Hoàn tác" until the next change
         undo = if (c < mm.cols || r < mm.rows) mm else null; undoPhoto = false
@@ -275,7 +275,16 @@ class CustomActivity : Activity() {
         addView(btn(R.drawable.li_plus, v < max, s(R.string.hm_c_more, label), 1), LinearLayout.LayoutParams(dp(40), dp(40)))
     }
 
-    private fun slider(label: String, v: Int, max: Int, lo: String, hi: String, bigEnd: Boolean = false, on: (Int) -> Unit) = row(label).apply {
+    // label above, the bar full width under it (Android Settings): a 150 dp bar beside the label squeezed
+    // "Cỡ biểu tượng" against "Nhỏ" at font 1.3
+    private fun slider(label: String, v: Int, max: Int, lo: String, hi: String, bigEnd: Boolean = false, on: (Int) -> Unit): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL; setPadding(0, dp(12), 0, dp(6))
+        addView(k.text(label, 16f, pal.text))
+        addView(sliderBar(label, v, max, lo, hi, bigEnd, on), LinearLayout.LayoutParams(-1, -2))
+    }
+
+    private fun sliderBar(label: String, v: Int, max: Int, lo: String, hi: String, bigEnd: Boolean, on: (Int) -> Unit) = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; minimumHeight = dp(44)
         addView(k.text(lo, 12f, pal.sub))
         addView(SeekBar(context).apply {
             this.max = max; progress = v; contentDescription = label
@@ -286,7 +295,7 @@ class CustomActivity : Activity() {
                 override fun onStartTrackingTouch(sb: SeekBar) {}
                 override fun onStopTrackingTouch(sb: SeekBar) { if (sb.progress != v) on(sb.progress) }
             })
-        }, LinearLayout.LayoutParams(dp(150), -2))
+        }, LinearLayout.LayoutParams(0, -2, 1f))
         addView(k.text(hi, if (bigEnd) 20f else 12f, if (bigEnd) pal.text else pal.sub, bigEnd))
     }
 
@@ -319,7 +328,9 @@ class CustomActivity : Activity() {
      * A select row (Android's list preference / Material's exposed dropdown): label, the current value and a chevron;
      * a tap drops the choices below it. Chips beside the label did not fit at a 1.5 font ("Chấm" was cut).
      */
-    private fun segRow(label: String, items: List<Pair<String, String>>, cur: String, on: (String) -> Unit) = row(label).apply {
+    private fun segRow(label: String, items: List<Pair<String, String>>, cur: String, on: (String) -> Unit) = StackRow(this).apply {
+        minimumHeight = dp(60)
+        addView(k.text(label, 16f, pal.text), LinearLayout.LayoutParams(0, -2, 1f))
         val curLabel = items.firstOrNull { it.second == cur }?.first ?: items.first().first
         val value = k.text(curLabel, 15f, pal.accentText, true).apply {
             gravity = Gravity.CENTER_VERTICAL or Gravity.END; maxLines = 1
@@ -604,3 +615,30 @@ class CustomActivity : Activity() {
         if (prev.exists()) prev.renameTo(File(filesDir, Wallpaper.PHOTO))
     }
 }
+
+/**
+ * Label + value row that stacks (label above, value below, start-aligned) when both don't fit on one line. Side by side,
+ * a long value ("Mặc định (danh sách ứng dụng)") left the weighted label ~0 px: "Vuốt lên" wrapped one letter per line.
+ */
+private class StackRow(c: android.content.Context) : LinearLayout(c) {
+    init { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    override fun onMeasure(w: Int, h: Int) {
+        val label = getChildAt(0) as? TextView; val value = getChildAt(1) as? TextView
+        if (label != null && value != null && MeasureSpec.getMode(w) != MeasureSpec.UNSPECIFIED) {
+            val avail = MeasureSpec.getSize(w) - paddingLeft - paddingRight
+            value.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+            val needLabel = kotlin.math.ceil(label.paint.measureText(label.text.toString())).toInt() + label.paddingLeft + label.paddingRight
+            val stack = needLabel + value.measuredWidth > avail
+            if (stack != (orientation == VERTICAL)) {
+                orientation = if (stack) VERTICAL else HORIZONTAL
+                gravity = if (stack) Gravity.START else Gravity.CENTER_VERTICAL
+                label.layoutParams = if (stack) LayoutParams(-1, -2).apply { topMargin = (10 * resources.displayMetrics.density).toInt() } else LayoutParams(0, -2, 1f)
+                value.layoutParams = LayoutParams(-2, -2).apply { if (stack) bottomMargin = (4 * resources.displayMetrics.density).toInt() }
+                value.gravity = if (stack) Gravity.CENTER_VERTICAL or Gravity.START else Gravity.CENTER_VERTICAL or Gravity.END
+                value.setPadding(if (stack) 0 else value.paddingRight * 3, value.paddingTop, value.paddingRight, value.paddingBottom)
+            }
+        }
+        super.onMeasure(w, h)
+    }
+}
+

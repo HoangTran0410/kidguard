@@ -462,6 +462,9 @@
     <string name="home_m">%1$d min</string>
     <string name="home_h">%1$d h</string>
     <string name="home_hm">%1$d h %2$d min</string>
+    <string name="home_m_s">%1$dm</string>
+    <string name="home_h_s">%1$dh</string>
+    <string name="home_hm_s">%1$dh %2$dm</string>
     <string name="home_reopen_at">Opens again at %1$s</string>
     <string name="home_reopen_tomorrow">Opens again tomorrow</string>
     <string name="home_unlocked">Unlocked until %1$s</string>
@@ -564,12 +567,10 @@
     <string name="hm_e_del_title">Delete this page?</string>
     <string name="hm_e_del_body">%d items leave the home screen. The apps stay in the app list.</string>
     <string name="hm_e_rm_q">Remove “%s” from the home screen?</string>
-    <string name="hm_e_rm_app">The app stays in the App Library.</string>
     <string name="hm_e_rm_folder">The folder and its %d apps leave the home screen. The apps stay in the App Library.</string>
     <string name="hm_e_rm_widget_q">Remove this widget?</string>
     <string name="hm_e_rm_widget">It leaves the home screen. You can add it again from Widgets.</string>
     <string name="hm_e_rm_ok">Remove</string>
-    <string name="hm_e_removed1">Removed from the home screen</string>
     <string name="hm_e_removed">Removed %d items from the home screen</string>
     <string name="hm_e_nofit">%d items didn\'t fit on that page</string>
     <string name="hm_e_group_need">Pick at least 2 apps to group</string>
@@ -771,7 +772,6 @@
     <string name="hm_c_style">Style</string>
     <string name="hm_c_home">Home screen</string>
     <string name="hm_c_cols">Columns</string>
-    <string name="hm_c_rows">Rows</string>
     <string name="hm_c_icon">Icon size</string>
     <string name="hm_c_small">Small</string>
     <string name="hm_c_big">Big</string>

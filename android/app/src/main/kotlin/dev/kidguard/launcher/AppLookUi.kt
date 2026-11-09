@@ -34,7 +34,7 @@ private class Tile(val view: View, val bg: GradientDrawable, val glyph: Boolean,
 private fun HomeActivity.tile(glyph: Boolean, value: String, color: Int, sz: Int): Tile {
     val bg = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color) }
     val v: View = if (glyph) ImageView(this).apply {
-        AppLook.GLYPH_RES[value]?.let { id -> setImageDrawable(getDrawable(id)?.mutate()?.apply { setTint(android.graphics.Color.WHITE) }) }
+        AppLook.GLYPH_RES[value]?.let { id -> setImageDrawable(getDrawable(id)?.mutate()?.apply { setTint(AppLook.ink(color)) }) }
         scaleType = ImageView.ScaleType.FIT_CENTER; val p = (sz * 0.22f).toInt(); setPadding(p, p, p, p)
     } else TextView(this).apply {
         text = value; gravity = Gravity.CENTER; includeFontPadding = false
@@ -93,15 +93,20 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
         }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(14) })
     }
     sh.body.addView(top)
-    // actions right under the name (no scrolling to find Lưu): Khôi phục gốc (only when customised) + Lưu
-    val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(8), dp(10), dp(8), dp(4)) }
-    if (!cur.empty) bar.addView(kit.pill(getString(R.string.hm2_restore), R.drawable.li_rotate_ccw, false) { sh.dismiss(); setLook(a.pkg, AppCustom()) },
-        LinearLayout.LayoutParams(0, -2, 1f).apply { rightMargin = dp(8) })
+    // actions right under the name, compact (a full-width primary button took a third of the screen): "Khôi phục gốc" as
+    // a text button on the left (only when customised), "Lưu" a wrap-content pill on the right (iOS / Material dialogs)
+    val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(8), dp(12), dp(4)) }
+    if (!cur.empty) bar.addView(text(getString(R.string.hm2_restore), 15f, pal.accentText, true).apply {
+        setPadding(dp(10), dp(10), dp(10), dp(10)); Ic.lead(this, R.drawable.li_rotate_ccw, pal.accentText); compoundDrawablePadding = dp(6)
+        kit.tap(this, 12f) { sh.dismiss(); setLook(a.pkg, AppCustom()) }
+        contentDescription = getString(R.string.hm2_restore)
+    })
+    bar.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
     bar.addView(kit.pill(getString(R.string.hm_t_save), R.drawable.li_check, true) {
         val t = name.text.toString().trim()
         sh.dismiss()
         setLook(a.pkg, AppCustom(label = if (t == a.real) "" else t, icon = icon))
-    }, LinearLayout.LayoutParams(0, -2, 1f))
+    }.apply { minHeight = dp(44); setPadding(dp(18), dp(8), dp(20), dp(8)) }, LinearLayout.LayoutParams(-2, -2))
     sh.body.addView(bar)
 
     // icon choices: original, colour, glyphs, emoji (a tap only changes the preview)
@@ -115,8 +120,6 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
     }
     sh.body.addView(text(getString(R.string.hm2_icon), 13f, pal.sub, true).apply { setPadding(dp(12), dp(14), dp(12), 0) })
     sh.body.addView(orig)
-    val glyphs = GridLayout(this).apply { columnCount = 6 }
-    val emojis = GridLayout(this).apply { columnCount = 6 }
     fun fill(grid: GridLayout, glyph: Boolean, values: List<String>) {
         for (value in values) {
             val t = tile(glyph, value, color, sz)
@@ -126,29 +129,39 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
             grid.addView(t.view, GridLayout.LayoutParams().apply { width = sz; height = sz; setMargins(gap, gap, gap, gap) })
         }
     }
-    val swatches = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(8), dp(4), dp(8), dp(4)) }
-    val dots = ArrayList<Pair<GradientDrawable, Int>>()
-    for (c in AppLook.COLORS) swatches.addView(View(this).apply {
-        val d = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(c); if (c == color) setStroke(dp(3), pal.text) }
-        dots += d to c; background = d
-        contentDescription = getString(R.string.hm2_icon_color) + " " + AppLook.hex(c)
-        setOnClickListener {
-            color = c
-            for ((dd, cc) in dots) dd.setStroke(if (cc == c) dp(3) else 0, pal.text)
-            for (t in tiles) t.bg.setColor(c)
-            // the picked glyph / emoji follows the new colour
-            AppLook.parseSpec(icon)?.let { sp -> icon = if (sp.glyph) AppLook.glyphSpec(sp.value, c) else AppLook.emojiSpec(sp.value, c) }
-            paintPreview()
+    // one "Màu" row (a 36 dp swatch + hex) opening the colour picker: ten 28 dp dots were hard to hit and too few
+    val sw = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color) }
+    val hexT = text(AppLook.hex(color), 14f, pal.sub)
+    sh.body.addView(LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; minimumHeight = dp(52); setPadding(dp(12), dp(6), dp(12), dp(6))
+        addView(View(this@appEditSheet).apply { background = sw }, LinearLayout.LayoutParams(dp(36), dp(36)))
+        addView(text(getString(R.string.hm2_icon_color), 15f, pal.text).apply { setPadding(dp(12), 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
+        addView(hexT)
+        addView(ImageView(this@appEditSheet).apply { setImageDrawable(Ic.get(this@appEditSheet, R.drawable.li_chevron_right, pal.sub, dp(20))) }, LinearLayout.LayoutParams(dp(20), dp(20)).apply { leftMargin = dp(6) })
+        contentDescription = getString(R.string.hm2_icon_color)
+        kit.tap(this, 12f) {
+            colorPick(color) { c ->
+                color = c; sw.setColor(c); hexT.text = AppLook.hex(c)
+                for (t in tiles) { t.bg.setColor(c); if (t.glyph) (t.view as ImageView).drawable?.setTint(AppLook.ink(c)) }
+                // the picked glyph / emoji follows the new colour
+                AppLook.parseSpec(icon)?.let { sp -> icon = if (sp.glyph) AppLook.glyphSpec(sp.value, c) else AppLook.emojiSpec(sp.value, c) }
+                paintPreview()
+            }
         }
-    }, LinearLayout.LayoutParams(0, dp(28), 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
-    sh.body.addView(swatches, LinearLayout.LayoutParams(-1, -2))
+    }, LinearLayout.LayoutParams(-1, -2))
+    // ~100 glyphs + ~100 emoji: horizontal pages of 6x3 (iOS / Gboard emoji panels), a page is built only when it comes
+    // into view (owner: "don't render every icon at once"); the pages' height is fixed so nothing jumps
+    val pagers = ArrayList<PagedGrid>()
     sh.body.addView(text(getString(R.string.hm2_icon_glyphs), 13f, pal.sub, true).apply { setPadding(dp(12), dp(10), dp(12), 0) })
-    // grids sit height-reserved (rows known) and are filled after the sheet's first frame: the slide-up starts at once
-    // and the sheet does not jump (a View.post before the first frame still runs ahead of it, see CustomActivity)
-    fun rowsH(n: Int) = ((n + 5) / 6) * (sz + 2 * gap)
-    sh.body.addView(glyphs, LinearLayout.LayoutParams(-2, rowsH(AppLook.GLYPHS.size)))
+    pagers += PagedGrid(this, AppLook.GLYPHS, cell, sz + 2 * gap, pal.sub, pal.text) { g, vals -> fill(g, true, vals); paintPreview() }.also { sh.body.addView(it.root) }
     sh.body.addView(text(getString(R.string.hm2_icon_emoji), 13f, pal.sub, true).apply { setPadding(dp(12), dp(8), dp(12), 0) })
-    sh.body.addView(emojis, LinearLayout.LayoutParams(-2, rowsH(AppLook.EMOJIS.size)))
+    pagers += PagedGrid(this, AppLook.EMOJIS, cell, sz + 2 * gap, pal.sub, pal.text) { g, vals -> fill(g, false, vals); paintPreview() }.also { sh.body.addView(it.root) }
+    // any emoji the phone can draw, picked with the keyboard's own emoji panel + search (Gboard, Samsung, ...): a bundled
+    // full picker would need ~3,600 emoji with vi + en names; the keyboard already has them, up to date
+    sh.body.addView(text(getString(R.string.hm2_emoji_more), 15f, pal.accentText, true).apply {
+        setPadding(dp(14), dp(12), dp(14), dp(12)); Ic.lead(this, R.drawable.li_plus, pal.accentText); compoundDrawablePadding = dp(8)
+        kit.tap(this, 12f) { emojiInput { e -> choose(AppLook.emojiSpec(e, color)); sh.body.post { sh.body.parent?.let { (it as? android.widget.ScrollView)?.smoothScrollTo(0, 0) } } } }
+    })
     paintPreview()
     sh.body.viewTreeObserver.addOnDrawListener(object : android.view.ViewTreeObserver.OnDrawListener {
         var done = false
@@ -158,14 +171,14 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
             val me = this
             sh.body.post {
                 runCatching { sh.body.viewTreeObserver.removeOnDrawListener(me) }
-                // two lumps on two frames (~12 ms each on Oppo A5s) instead of one 25 ms frame
+                // first page of each on two frames (~6 ms each on Oppo A5s); the rest when swiped to
                 val tf = Perf.now()
-                fill(glyphs, true, AppLook.GLYPHS); paintPreview()
-                Perf.log("appEdit glyphs", Perf.now() - tf)
+                pagers[0].ensure(0)
+                Perf.log("appEdit glyphs p0", Perf.now() - tf)
                 sh.body.postOnAnimation {
                     val te = Perf.now()
-                    fill(emojis, false, AppLook.EMOJIS); paintPreview()
-                    Perf.log("appEdit emoji", Perf.now() - te)
+                    pagers[1].ensure(0)
+                    Perf.log("appEdit emoji p0", Perf.now() - te)
                 }
             }
         }
@@ -174,4 +187,82 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
     val built = Perf.now()
     sh.show()
     Perf.firstDraw(sh.body, "appEdit", t0, built)
+}
+
+/** The first emoji typed (keyboard emoji panel), checked to be one the phone draws; anything else = a short hint. */
+private fun HomeActivity.emojiInput(done: (String) -> Unit) {
+    val f = EditText(this).apply {
+        hint = getString(R.string.hm2_emoji_hint); setTextColor(u.text); setHintTextColor(u.sub); textSize = 28f; gravity = Gravity.CENTER; setSingleLine()
+        background = u.shape(u.bg, 14, u.stroke, 1); setPadding(dp(14), dp(10), dp(14), dp(10))
+    }
+    Modal(this, u).show(null, Modal.Tone.INFO, getString(R.string.hm2_emoji_more), getString(R.string.hm2_emoji_body), f, getString(R.string.hm_t_save), getString(R.string.cancel)) {
+        val e = AppLook.firstEmoji(f.text.toString())
+        if (e == null || !android.graphics.Paint().hasGlyph(e)) { f.error = getString(R.string.hm2_emoji_bad); false } else { done(e); true }
+    }
+}
+
+/**
+ * Horizontal pages of [cols] x [rows] cells over [values], snapping page by page, with dots under them. Page i's views
+ * are built by [fill] only once page i (or its neighbour) is shown.
+ */
+private class PagedGrid(act: HomeActivity, val values: List<String>, cell: Int, rowH: Int, dotOff: Int, dotOn: Int,
+                        val fill: (GridLayout, List<String>) -> Unit) {
+    val per = 18
+    val count = (values.size + per - 1) / per
+    private val grids = ArrayList<GridLayout>()
+    private val built = HashSet<Int>()
+    private val dots = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+    private val dotOff = dotOff; private val dotOn = dotOn
+    private var cur = 0
+    private val pageW = cell * 6
+    val scroll = object : android.widget.HorizontalScrollView(act) {
+        override fun fling(velocityX: Int) { isFlinging = true; go(if (velocityX > 0) cur + 1 else if (velocityX < 0) cur - 1 else cur) }
+        override fun onTouchEvent(e: android.view.MotionEvent): Boolean {
+            val r = super.onTouchEvent(e)
+            if (e.actionMasked == android.view.MotionEvent.ACTION_UP || e.actionMasked == android.view.MotionEvent.ACTION_CANCEL)
+                post { if (!isFlinging) go(Math.round(scrollX.toFloat() / pageW)); isFlinging = false }   // a fling already picked its page
+            return r
+        }
+        var isFlinging = false
+        override fun onScrollChanged(l: Int, t: Int, ol: Int, ot: Int) {
+            super.onScrollChanged(l, t, ol, ot)
+            // the page coming into view (and the one after it) are built while the finger is still moving
+            val p = l / pageW; ensure(p); if (l % pageW != 0) ensure(p + 1)
+        }
+    }
+    val root = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
+
+    init {
+        scroll.isHorizontalScrollBarEnabled = false; scroll.overScrollMode = View.OVER_SCROLL_NEVER
+        val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL }
+        for (i in 0 until count) {
+            val g = GridLayout(act).apply { columnCount = 6 }
+            grids += g
+            row.addView(g, LinearLayout.LayoutParams(pageW, rowH * 3))
+        }
+        scroll.addView(row)
+        root.addView(scroll, LinearLayout.LayoutParams(pageW, -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        if (count > 1) {
+            val d = act.resources.displayMetrics.density
+            for (i in 0 until count) dots.addView(View(act).apply {
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(if (i == 0) dotOn else dotOff) }
+                alpha = if (i == 0) 1f else 0.5f
+            }, LinearLayout.LayoutParams((6 * d).toInt(), (6 * d).toInt()).apply { setMargins((4 * d).toInt(), (6 * d).toInt(), (4 * d).toInt(), (2 * d).toInt()) })
+            root.addView(dots, LinearLayout.LayoutParams(-1, -2))
+        }
+    }
+
+    fun ensure(p: Int) {
+        if (p !in 0 until count || !built.add(p)) return
+        fill(grids[p], values.subList(p * per, minOf(values.size, (p + 1) * per)))
+    }
+
+    fun go(p: Int) {
+        cur = p.coerceIn(0, count - 1)
+        ensure(cur)
+        scroll.smoothScrollTo(cur * pageW, 0)
+        for (i in 0 until dots.childCount) dots.getChildAt(i).apply {
+            (background as GradientDrawable).setColor(if (i == cur) dotOn else dotOff); alpha = if (i == cur) 1f else 0.5f
+        }
+    }
 }

@@ -62,7 +62,17 @@ class HomeKit(val act: Activity, val pal: Palette, val font: Float = 1f) {
         setTextColor(fg)
         background = if (primary) fill(pal.solid, 16f) else GradientDrawable().apply { setColor(pal.sheet); cornerRadius = dpf(16f); setStroke(dp(1), pal.stroke) }
         setPadding(dp(16), dp(12), dp(16), dp(12)); minHeight = dp(52)   // grows with a large font
-        if (icon != null) Ic.lead(this, icon, fg)
+        if (icon != null) {
+            Ic.lead(this, icon, fg)
+            // a wide pill drew the icon at the far left and the text in the middle: pad both sides so icon + text sit
+            // centred as one group (Material button style)
+            addOnLayoutChangeListener { v, l, _, r, _, _, _, _, _ ->
+                val t = v as TextView; val d = t.compoundDrawablesRelative[0] ?: return@addOnLayoutChangeListener
+                val tw = t.paint.measureText(t.text.toString()).toInt()
+                val side = ((r - l - tw - d.bounds.width() - t.compoundDrawablePadding) / 2).coerceAtLeast(dp(16))
+                if (t.paddingLeft != side) t.post { t.setPadding(side, t.paddingTop, side, t.paddingBottom) }
+            }
+        }
         tap(this, 16f, primary || pal.dark) { onClick() }
         contentDescription = t
     }

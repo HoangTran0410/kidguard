@@ -82,7 +82,7 @@ data class HomeModel(
 object HomeLayout {
     const val PHONE = "@phone"
     const val DOCK = 4
-    /** Widget types and the sizes the picker offers (w x h; wider than the grid = full width). */
+    /** Widget types and the sizes the picker offers (w x h; w 4 = the full row on any grid, see [span]). */
     val SIZES: Map<String, List<Pair<Int, Int>>> = linkedMapOf(
         "clock" to listOf(4 to 1, 4 to 2), "analog" to listOf(2 to 2), "month" to listOf(4 to 2, 2 to 2),
         "time" to listOf(2 to 1, 4 to 1), "next" to listOf(4 to 1), "quick" to listOf(4 to 1),
@@ -92,6 +92,8 @@ object HomeLayout {
         "timer" to listOf(2 to 2, 4 to 2), "streak" to listOf(2 to 2, 4 to 2))
     /** Another app's widget (AppWidgetHost): kind "widget", type "app", pkg / cls = its provider, awid = the host id. Any size. */
     const val APP = "app"
+    /** A [SIZES] width on a [cols]-wide grid: 4 means the whole row (3, 4 or 5 cells), narrower ones stay as they are. */
+    fun span(w: Int, cols: Int) = if (w >= 4) cols else minOf(w, cols)
     val WIDGETS = SIZES.keys + APP
     const val FOLDER_MAX = 20
     const val MAX_ROWS = 7
@@ -267,6 +269,10 @@ object HomeLayout {
         var n = 0
         fun fresh(prefix: String): String { var id: String; do { id = "$prefix${++n}" } while (id in ids || pages.flatten().any { it.id == id } || misplaced.any { it.id == id }); return id }
         pages = pages.map { p -> p.map { i -> if (ids.add(i.id)) i else i.copy(id = fresh(if (i.kind == "widget") "w" else "a")).also { ids.add(it.id) } } }
+        // before 0.9.12 "4 wide" was 4 cells on a 5-column grid too: such a card at the left edge with the 5th column free
+        // beside it now spans the row (what the picker offers since then); one placed next to an icon stays as it is
+        if (cols == 5) pages = pages.map { p -> p.map { i ->
+            if (i.kind == "widget" && i.type != APP && i.x == 0 && i.w == 4 && free(p, cols, rows, 4, i.y, 1, i.h)) i.copy(w = 5) else i } }
         for (m0 in misplaced) {
             val it = if (ids.add(m0.id)) m0 else m0.copy(id = fresh("a")).also { ids.add(it.id) }
             val all = pages
@@ -611,12 +617,14 @@ object HomeLayout {
     fun regrid(m: HomeModel, cols: Int, rows: Int): HomeModel {
         val c = cols.coerceIn(3, 5); val r = rows.coerceIn(4, MAX_ROWS)
         if (c >= m.cols && r >= m.rows) {
-            val g = m.copy(cols = c, rows = r)
+            // a widget that filled the old row fills the new one (the added columns are empty): a 4-wide card on a 5-wide
+            // grid left an odd gap on the right
+            val g = m.copy(cols = c, rows = r, pages = if (c == m.cols) m.pages else m.pages.map { p -> p.map { if (it.kind == "widget" && it.x == 0 && it.w == m.cols) it.copy(w = c) else it } })
             // Auto-filled pages (fresh() / appendNew: every page but the last is full) flow into the new rows; a hand-made
             // layout with gaps or short pages keeps its places. Without this, a fresh 5-row grid that grows to 6 left the
             // last row of every page empty.
             val auto = c == m.cols && r > m.rows && m.pages.size > 1 && m.pages.dropLast(1).all { full(it, m.cols, m.rows) }
-            return if (!auto) g else trimPages(g.copy(pages = flow(m.pages.flatMap { p -> p.sortedWith(compareBy({ it.y }, { it.x })) }, c, r)))
+            return if (!auto) g else trimPages(g.copy(pages = flow(g.pages.flatMap { p -> p.sortedWith(compareBy({ it.y }, { it.x })) }, c, r)))
         }
         val out = ArrayList<List<HItem>>()
         var carry = emptyList<HItem>()

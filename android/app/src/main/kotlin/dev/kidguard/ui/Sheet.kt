@@ -18,6 +18,8 @@ import android.widget.ScrollView
  */
 class Sheet(act: Activity, u: Ui, title: String) {
     val body = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
+    /** Stays above the scrolling [body] (a search field). Empty = no space taken. */
+    val pinned = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
     private val d = Dialog(act)
 
     init {
@@ -54,6 +56,7 @@ class Sheet(act: Activity, u: Ui, title: String) {
             }
             true
         }
+        box.addView(pinned, LinearLayout.LayoutParams(-1, -2))
         val scroll = ScrollView(act).apply { isVerticalScrollBarEnabled = false; addView(body) }
         box.addView(scroll, LinearLayout.LayoutParams(-1, -2, 1f))   // weight + wrap: shrinks only when the sheet would not fit (big font, short screen)
         box.isClickable = true   // taps on the sheet itself don't reach the scrim
@@ -77,6 +80,7 @@ class Sheet(act: Activity, u: Ui, title: String) {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
             setWindowAnimations(android.R.style.Animation_InputMethod)
+            setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)   // a search / name field keeps the list above the keyboard
             clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND); addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
             navigationBarColor = u.card; statusBarColor = Color.TRANSPARENT
             if (!u.dark && android.os.Build.VERSION.SDK_INT >= 27) decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR

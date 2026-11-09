@@ -46,8 +46,9 @@ internal fun HomeActivity.buildDock(m: HomeModel, all: Map<String, AppE>, show: 
             box.addView(ImageView(this).apply {
                 if (bmp != null) setImageBitmap(bmp) else { setImageDrawable(Ic.get(context, R.drawable.li_phone, pal.onSolid, dp(26))); background = fill(pal.solid); setPadding(dp(14), dp(14), dp(14), dp(14)) }
             }, LinearLayout.LayoutParams(px, px).apply { bottomMargin = dp(2) })
-            if (preset.dockLabels && m.style.dockLabels) box.addView(iconLabel(getString(R.string.hm_phone), false, if (m.style.dockBg) pal.text else Color.WHITE, 1).also { if (!m.style.dockBg) inkViews += it },
-                LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+            if (preset.dockLabels && m.style.dockLabels) iconLabel(getString(R.string.hm_phone), false, if (m.style.dockBg) pal.text else Color.WHITE, 1).let {
+                if (m.style.dockBg) box.addView(it, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) }) else addLabel(box, it, 4)   // as app icons
+            }
             box.contentDescription = getString(R.string.hm_phone)
             kit.tap(box, 16f, true) {
                 if (!debounce()) return@tap

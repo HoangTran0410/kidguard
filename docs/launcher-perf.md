@@ -80,4 +80,8 @@ scripts/perf.sh $S reset; <do the action 3x with adb input>; scripts/perf.sh $S 
 - [ ] Within the budgets of §1 or a written reason.
 - [ ] Both flavors build (`kid` + `home`); behaviour checked on the flavor the phone uses as HOME.
 - [ ] New probe points left in as `Perf.*` (off by default); no `Log.d` spam.
+- [ ] Layout: screenshot every new / changed screen, row and widget size with the LONGEST vi string, at font scale
+      1.3 and on a 4- and a 5-column grid (emulator: `settings put system font_scale 1.3`). A label beside a value
+      must not be squeezed to 0 (a weight-1 label next to a wrap-content value: "Vuốt lên" went 1 letter per line),
+      a number must never be ellipsized ("1 …"). Build + unit tests say nothing about this.
 - [ ] A durable lesson (a trick that worked or didn't) = one line in `docs/decisions.md`.

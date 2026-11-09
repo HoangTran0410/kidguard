@@ -24,7 +24,7 @@ import dev.kidguard.HomeActivity.Row
 
 /** Long-press on a widget (or one of its buttons): menu (sizes, remove), and a drag moves it. */
 internal fun HomeActivity.armWidget(v: View, it: HItem) {
-    val sizes = if (it.type == HomeLayout.APP) awSizes(it) else HomeLayout.SIZES[it.type].orEmpty().map { (w, h) -> minOf(w, model?.cols ?: w) to h }.distinct()
+    val sizes = if (it.type == HomeLayout.APP) awSizes(it) else HomeLayout.SIZES[it.type].orEmpty().map { (w, h) -> HomeLayout.span(w, model?.cols ?: w) to h }.distinct()
     val showMenu = {
         // sizes as one row of chips under a "Cỡ" header (was one menu row per size)
         val chips = sizes.map { (w, h) ->
@@ -101,12 +101,14 @@ internal fun HomeActivity.tickClocks(dv: View0) {
 internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideNext: Boolean): View {
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL or Gravity.START; setPadding(dp(14), dp(4), dp(8), dp(4)) }
     val big = when (preset.clock) { "big" -> 60f; "thin" -> 46f; else -> 54f } * (if (w <= 3 && preset.cols == 5) 0.85f else 1f) * (if (h >= 2) 1.4f else 1f)
-    val t = text(HomeLogic.clock(dv.minute), big, Color.WHITE).apply {
+    // one line, scaled down to the cell (FitText): a 3-of-5-cell clock at 2 rows (75 sp) broke into "00:2 / 0" (owner's POCO)
+    val t = FitText(this, big, 0.4f).apply { text = HomeLogic.clock(dv.minute); setTextColor(Color.WHITE) }.apply {
         typeface = Typeface.create(if (preset.clock == "thin") "sans-serif-light" else "sans-serif", Typeface.NORMAL); setPadding(dp(6), 0, dp(6), 0)
     }
     box.addView(t, LinearLayout.LayoutParams(-2, -2))
     val date = SimpleDateFormat("EEEE, d MMMM", resources.configuration.locales[0]).format(Date(dv.now)).replaceFirstChar { it.titlecase() }
-    val d = text(date, if (h >= 2) 17f else 15f, Color.WHITE, true).apply { setPadding(dp(6), dp(2), dp(6), dp(2)) }
+    val d = FitText(this, if (h >= 2) 17f else 15f, 0.75f).apply {
+        full = date; text = date; short = SimpleDateFormat("EEE, d/M", resources.configuration.locales[0]).format(Date(dv.now)).replaceFirstChar { it.titlecase() }; setTextColor(Color.WHITE); typeface = HomeActivity.tf(true); setPadding(dp(6), dp(2), dp(6), dp(2)) }
     box.addView(d, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(2) })
     inkViews += t; inkViews += d
     clocks += t to d
@@ -119,6 +121,78 @@ internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideN
     }
     box.contentDescription = "${t.text}. ${d.text}"
     return centred(box)
+}
+
+/**
+ * One-line text that shrinks (down to [minScale] of [sp]) to fit the width its parent offers, instead of wrapping or
+ * being cut. Re-measured on every layout, so a wider cell (more columns -> fewer, or a resize) gets the full size back.
+ */
+internal class FitText(c: android.content.Context, private val sp: Float, private val minScale: Float) : TextView(c) {
+    /** Shorter wording used when [full] would need more than [minScale] (a date: "Th 3, 10/11"). */
+    var full: String = ""; var short: String? = null
+    private val probe = android.graphics.Paint()
+    init { setSingleLine(); includeFontPadding = false; setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, sp) }
+    override fun onMeasure(wSpec: Int, hSpec: Int) {
+        val px = sp * resources.displayMetrics.scaledDensity
+        var target = px
+        if (MeasureSpec.getMode(wSpec) != MeasureSpec.UNSPECIFIED) {
+            val avail = MeasureSpec.getSize(wSpec) - paddingLeft - paddingRight
+            probe.set(paint); probe.textSize = px
+            val f = full.ifEmpty { text.toString() }
+            var tw = probe.measureText(f)
+            val use = if (short != null && avail > 0 && tw * minScale > avail) short!! else f
+            if (use !== f) tw = probe.measureText(use)
+            if (text.toString() != use) text = use
+            if (tw > avail && avail > 0) target = px * maxOf(minScale, avail / tw * 0.98f)
+        }
+        // only when it changes: setTextSize requests a layout, and the target is stable for a given width (no loop)
+        if (Math.abs(textSize - target) > 0.5f) setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, target)
+        super.onMeasure(wSpec, hSpec)
+    }
+}
+
+/** Short form for tight spots (under an icon): "1g 20p" / "1h 20m". */
+internal fun HomeActivity.durShort(ms: Long) = HomeLogic.hm(ms).let { (h, m) -> if (h == 0) getString(R.string.home_m_s, m) else if (m == 0) getString(R.string.home_h_s, h) else getString(R.string.home_hm_s, h, m) }
+
+/**
+ * Horizontal row whose first child takes the rest (weight 1) and must fit whole: trailing children are dropped (GONE)
+ * until it does. The 4x1 usage card on a 5-column grid cut every time to "1 …" (owner's POCO).
+ */
+internal class DropRow(c: android.content.Context, private val must: android.widget.TextView) : LinearLayout(c) {
+    init { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    override fun onMeasure(w: Int, h: Int) {
+        for (i in 1 until childCount) getChildAt(i).visibility = View.VISIBLE
+        val need = kotlin.math.ceil(must.paint.measureText(must.text.toString())).toInt() + must.paddingLeft + must.paddingRight
+        super.onMeasure(w, h)
+        var last = childCount - 1
+        while (last >= 1 && must.measuredWidth < need) { getChildAt(last--).visibility = View.GONE; super.onMeasure(w, h) }
+    }
+}
+
+/**
+ * Centred horizontal group that never overflows its parent: when its natural width does not fit, [drop] is hidden, then
+ * [shrink]'s text is scaled down (to 60%). Used by the battery card.
+ */
+internal class FitRow(c: android.content.Context, private val drop: View) : LinearLayout(c) {
+    var shrink: android.widget.TextView? = null
+    private var baseSize = 0f
+    init { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    override fun onMeasure(w: Int, h: Int) {
+        val avail = MeasureSpec.getSize(w)
+        val t = shrink
+        if (t != null && baseSize == 0f) baseSize = t.textSize
+        if (t != null && t.textSize != baseSize) t.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, baseSize)
+        drop.visibility = View.VISIBLE
+        if (MeasureSpec.getMode(w) != MeasureSpec.UNSPECIFIED && t != null) {
+            // decided on the number alone: the status line under it wraps into whatever width is left
+            val lp = drop.layoutParams as MarginLayoutParams
+            val g = lp.width + lp.leftMargin + lp.rightMargin
+            val tw = t.paint.measureText(t.text.toString()) + t.paddingLeft + t.paddingRight + paddingLeft + paddingRight
+            if (g + tw > avail) drop.visibility = View.GONE
+            if (tw > avail) t.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, (baseSize * avail / tw).coerceAtLeast(baseSize * 0.6f))
+        }
+        super.onMeasure(w, h)
+    }
 }
 
 internal fun HomeActivity.dur(ms: Long) = HomeLogic.hm(ms).let { (h, m) -> if (h == 0) getString(R.string.home_m, m) else if (m == 0) getString(R.string.home_h, h) else getString(R.string.home_hm, h, m) }
@@ -342,7 +416,7 @@ internal fun HomeActivity.openPicker() {
     fun addCard(type: String) {
         val card = kgCard()
         val placed = m.pages.flatten().firstOrNull { it.kind == "widget" && it.type == type }
-        val sizes = HomeLayout.SIZES[type].orEmpty().map { (w, h) -> minOf(w, m.cols) to h }.distinct()
+        val sizes = HomeLayout.SIZES[type].orEmpty().map { (w, h) -> HomeLayout.span(w, m.cols) to h }.distinct()
         val (w0, h0) = sizes.first()
         val tile = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(4), dp(6), dp(4), dp(8)) }
         // the first size's preview, fitted into a fixed-height slot so every tile lines up (POCO's grid)

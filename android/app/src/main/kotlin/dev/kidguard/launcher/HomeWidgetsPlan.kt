@@ -45,7 +45,7 @@ internal class DayBar(ctx: Context, private val free: Int, private val block: In
         }
     }
 
-    override fun onMeasure(wSpec: Int, hSpec: Int) = setMeasuredDimension(MeasureSpec.getSize(wSpec), (if (labels) 34 else 20) * d.toInt())
+    override fun onMeasure(wSpec: Int, hSpec: Int) = setMeasuredDimension(MeasureSpec.getSize(wSpec), ((if (labels) 34 else 20) * d).toInt())   // d.toInt() cut 2.75 to 2: hour labels clipped
 
     companion object { const val FROM = 6 * 60; const val TO = 22 * 60 }
 }

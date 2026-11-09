@@ -65,12 +65,18 @@ internal fun HomeActivity.batteryWidget(w: Int): View {
     val b0 = readBattery()
     val glyph = BatteryGlyph(this, pal.sub, pal.solid, pal.warn).apply { level = b0.pct; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
     // half-width cell (2×1) at a big font scale: a smaller glyph and a 2-line status, so "Pin yếu, nhớ sạc nhé" is not cut to "Pin yếu, nh…"
-    card.addView(glyph, LinearLayout.LayoutParams(dp(30), dp(17)).apply { rightMargin = dp(10) })
+    // one centred group that always fits the card: too narrow (2x1 on a 5-column grid, big font: "100%" was cut on the
+    // right) -> the glyph goes first (the % says it all), then the number shrinks
+    val row = FitRow(this, glyph)
+    card.gravity = Gravity.CENTER
+    card.addView(row, LinearLayout.LayoutParams(-2, -2))
+    row.addView(glyph, LinearLayout.LayoutParams(dp(30), dp(17)).apply { rightMargin = dp(10) })
     val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
     val value = text("${b0.pct}%", 22f, if (b0.pct < 20 && !b0.charging) pal.warnText else pal.accentText, true).apply { maxLines = 1 }
     val line = wSub(batLine(b0), 2).apply { setAutoSizeTextTypeUniformWithConfiguration(8, 12, 1, TypedValue.COMPLEX_UNIT_SP); layoutParams = LinearLayout.LayoutParams(-1, dp(32)) }
     col.addView(value); col.addView(line)
-    card.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
+    row.addView(col, LinearLayout.LayoutParams(-2, -2))
+    row.shrink = value
     card.contentDescription = "${value.text}. ${line.text}"
     tickers += {
         val b = readBattery()
@@ -121,9 +127,7 @@ internal fun HomeActivity.lockWidget(w: Int): View {
         frame.addView(tile, android.widget.FrameLayout.LayoutParams(px, px))
         box.addView(frame, LinearLayout.LayoutParams(px + dp(4), px + dp(2)).apply { gravity = Gravity.CENTER_HORIZONTAL })
         if (model?.style?.labels != false) {
-            val lbl = iconLabel(label, false, android.graphics.Color.WHITE)
-            box.addView(lbl, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
-            inkViews += lbl
+            addLabel(box, iconLabel(label, false, android.graphics.Color.WHITE), 2)
         }
         box.contentDescription = label
         kit.tap(box, 16f, true) { dev.kidguard.Quick.lockOrSay(this) }
@@ -132,7 +136,7 @@ internal fun HomeActivity.lockWidget(w: Int): View {
     val card = wCard(false)
     card.addView(disc(40), LinearLayout.LayoutParams(dp(40), dp(40)).apply { rightMargin = dp(12) })
     // shrinks to fit a half-width cell at a big font scale (font 1.6 on the Oppo cut "Khoá màn hình" to "Khoá màn")
-    card.addView(text(label, 15f, pal.text, true).apply { maxLines = 2; setAutoSizeTextTypeUniformWithConfiguration(9, 15, 1, TypedValue.COMPLEX_UNIT_SP) }, LinearLayout.LayoutParams(0, dp(44), 1f))
+    card.addView(text(label, 15f, pal.text, true).apply { maxLines = 2; gravity = Gravity.CENTER_VERTICAL; setAutoSizeTextTypeUniformWithConfiguration(9, 15, 1, TypedValue.COMPLEX_UNIT_SP) }, LinearLayout.LayoutParams(0, dp(44), 1f))
     card.contentDescription = label
     kit.tap(card, 22f) { dev.kidguard.Quick.lockOrSay(this) }
     return centred(card)

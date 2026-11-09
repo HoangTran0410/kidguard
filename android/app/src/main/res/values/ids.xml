@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- TalkBack custom action on the home page dots: open all apps (the swipe-up chevron was removed) -->
+    <item name="kg_all_apps" type="id" />
+</resources>

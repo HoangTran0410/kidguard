@@ -23,7 +23,7 @@ internal fun HomeActivity.enterEdit(pre: String? = null) {
     pager.pivotX = pager.width / 2f; pager.pivotY = pager.height * 0.48f
     // withLayer: the pages (icons, widgets) scale as one GPU texture, not redrawn each frame (62 % janky frames on an Oppo A5s)
     pager.animate().scaleX(0.86f).scaleY(0.86f).setDuration(240).setInterpolator(DecelerateInterpolator(1.6f)).withLayer().start()
-    for (v in listOf(hint, dock)) v.animate().alpha(0f).setDuration(150).withEndAction { if (editing) v.visibility = View.INVISIBLE }.start()
+    dock.let { v -> v.animate().alpha(0f).setDuration(150).withEndAction { if (editing) v.visibility = View.INVISIBLE }.start() }
     styleCells(); chromeFade()
     editBars()
 }
@@ -32,7 +32,7 @@ internal fun HomeActivity.exitEdit() {
     if (!editing) return
     editing = false; picked.clear(); chromeFade(); libraryBack()
     pager.animate().scaleX(1f).scaleY(1f).setDuration(220).setInterpolator(DecelerateInterpolator(1.6f)).withLayer().start()
-    for (v in listOf(hint, dock)) { v.visibility = View.VISIBLE; v.animate().alpha(1f).setDuration(180).start() }
+    dock.let { v -> v.visibility = View.VISIBLE; v.animate().alpha(1f).setDuration(180).start() }
     for (v in listOfNotNull(editTop, editBottom)) v.animate().alpha(0f).setDuration(150).withEndAction { floatBox.removeView(v) }.start()
     editTop = null; editBottom = null
     styleCells()
@@ -43,42 +43,6 @@ internal fun HomeActivity.togglePick(id: String) {
     pager.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
     for (i in 1 until pager.childCount) pager.getChildAt(i).invalidate()
     editBars()
-}
-
-/**
- * iOS minus badge: asks first (what goes and that the apps stay in the library), then the item shrinks + fades out
- * and leaves the home; the other picks are kept.
- */
-internal fun HomeActivity.removeOne(id: String) {
-    val m = model ?: return
-    val item = m.pages.flatten().firstOrNull { it.id == id } ?: return
-    pager.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
-    val (title, body) = when (item.kind) {
-        "app" -> getString(R.string.hm_e_rm_q, IconCache.label(this, item.pkg)) to getString(R.string.hm_e_rm_app)
-        "folder" -> getString(R.string.hm_e_rm_q, folderName(item)) to getString(R.string.hm_e_rm_folder, item.apps.size)
-        HomeLayout.SHORTCUT -> getString(R.string.hm_e_rm_q, item.name) to getString(R.string.hm_sc_rm)
-        else -> getString(R.string.hm_e_rm_widget_q) to getString(R.string.hm_e_rm_widget)
-    }
-    Modal(this, u).show(R.drawable.li_circle_minus, Modal.Tone.WARN, title, body, ok = getString(R.string.hm_e_rm_ok), cancel = getString(R.string.cancel)) {
-        val v = cellOf(id)
-        val done = {
-            val cur = model
-            if (cur != null && editing) {
-                val keep = picked.filter { it != id }
-                applyEdit(HomeLayout.removeIds(cur, setOf(id)))
-                picked += keep; editBars()
-                toast(getString(R.string.hm_e_removed1))
-            }
-        }
-        if (v == null || !android.animation.ValueAnimator.areAnimatorsEnabled()) done()
-        else {
-            v.pivotX = v.width / 2f; v.pivotY = v.height / 2f
-            v.alpha = 0.99f; (v.parent as? View)?.invalidate()
-            v.animate().scaleX(0.2f).scaleY(0.2f).alpha(0f).setDuration(200)
-                .setInterpolator(android.view.animation.AccelerateInterpolator(1.4f)).withLayer().withEndAction { done() }.start()
-        }
-        true
-    }
 }
 
 /** The grid view of item [id] on any page, if built. */
@@ -94,7 +58,7 @@ private fun HomeActivity.cellOf(id: String): View? {
 private fun HomeActivity.applyEdit(m: HomeModel) {
     picked.clear()
     update(m)
-    hint.visibility = View.INVISIBLE; dock.visibility = View.INVISIBLE
+    dock.visibility = View.INVISIBLE
     styleCells()
     editBars()
 }

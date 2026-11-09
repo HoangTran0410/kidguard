@@ -902,8 +902,8 @@ bell schedule for every day, `[start, end]` minutes since midnight per period, u
   type; on a 3-column grid a 4-wide widget is 3 wide. Placed from "Tiện ích" (long-press empty space) by tap or drag. Resizing grows it in
   place: what it covers moves down by the rows it grew, else to the first free cell of the page, else onto a new page right after.
 - `grid.auto` (default true when missing): the phone picks the rows so the cells are about square on its screen (4..7;
-  fewer when an icon + one label line would not fit), regridding once when the screen or columns change; setting the rows
-  by hand in "Tuỳ chỉnh" turns it off, picking a style preset turns it back on.
+  fewer when an icon + one label line would not fit), regridding once when the screen or columns change. Since 0.9.12 the
+  rows are always automatic ("Tuỳ chỉnh" offers columns only); `auto` is still written (true) and ignored when read.
 - Built-in `wall.id`: `sky`, `night`, `sunset`, `aurora`, `graphite`, `ocean`, `forest`, `candy`, `mint`, `space`, `dusk`,
   `berry`, `ember` (drawn on the phone; an older phone ignores an id it does not know and keeps the preset's wallpaper).
 - `style.wall.dim` / `blur` (percent) apply to any wallpaper kind: the image is blurred, then darkened, once per change.

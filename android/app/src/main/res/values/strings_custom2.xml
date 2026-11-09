@@ -16,4 +16,11 @@
     <string name="hm2_edit">Edit app</string>
     <string name="hm2_edit_title">Edit app</string>
     <string name="hm_w_size_h">Size</string>
+    <string name="hm2_emoji_more">More emoji…</string>
+    <string name="hm2_emoji_body">Open the keyboard\'s emoji panel (🙂 key) and pick or search any emoji.</string>
+    <string name="hm2_emoji_hint">Emoji</string>
+    <string name="hm2_emoji_bad">Type one emoji</string>
+    <string name="cp_hue">Hue</string>
+    <string name="cp_sat">Saturation</string>
+    <string name="cp_val">Brightness</string>
 </resources>

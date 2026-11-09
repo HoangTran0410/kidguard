@@ -116,7 +116,6 @@ class HomeActivity : Activity() {
     internal lateinit var tip: TextView
     internal lateinit var pager: Pager
     internal lateinit var dots: PageDots
-    internal lateinit var hint: ImageView
     internal lateinit var dock: LinearLayout
     internal var today: TodayPage? = null
     internal var drawer: Drawer? = null
@@ -187,15 +186,20 @@ class HomeActivity : Activity() {
         bottom = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
         tip = TextView(this).apply { visibility = View.GONE; setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setPadding(dp(16), dp(9), dp(16), dp(9)); gravity = Gravity.CENTER }
         dots = PageDots(this).apply { importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES }
-        hint = ImageView(this).apply {
-            contentDescription = getString(R.string.hm_all_apps); setPadding(dp(10), dp(2), dp(10), dp(2))
-            setOnClickListener { openDrawer() }
+        // no "swipe up" chevron under the dots (owner: the swipe is enough, Pixel / iOS show none); TalkBack still gets
+        // "all apps" as an action on the dots
+        dots.accessibilityDelegate = object : View.AccessibilityDelegate() {
+            override fun onInitializeAccessibilityNodeInfo(host: View, info: android.view.accessibility.AccessibilityNodeInfo) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                info.addAction(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction(R.id.kg_all_apps, getString(R.string.hm_all_apps)))
+            }
+            override fun performAccessibilityAction(host: View, action: Int, args: android.os.Bundle?) =
+                if (action == R.id.kg_all_apps) { openDrawer(); true } else super.performAccessibilityAction(host, action, args)
         }
         dock = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         chrome.addView(bannerBox, LinearLayout.LayoutParams(-1, -2))
         chrome.addView(View(this), LinearLayout.LayoutParams(-1, 0, 1f))
         bottom.addView(dots, LinearLayout.LayoutParams(-2, dp(18)).apply { bottomMargin = dp(2) })
-        bottom.addView(hint, LinearLayout.LayoutParams(-2, dp(22)))
         bottom.addView(dock, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(4), dp(12), dp(10)) })
         chrome.addView(bottom, LinearLayout.LayoutParams(-1, -2))
         content.addView(chrome, FrameLayout.LayoutParams(-1, -1))
@@ -513,8 +517,6 @@ class HomeActivity : Activity() {
         buildTopBar()
         buildPages(m, all, show, dv, r, s, block); lap("pages")
         buildDock(m, all, show, dv, r); lap("dock")
-        hint.setImageDrawable(Ic.get(this, R.drawable.li_chevron_up, Color.WHITE, dp(18)))
-        inkViews += hint
         // the "Hôm nay" page (25-35 ms) is off screen on almost every render: rebuilt once the main thread is idle
         val fillToday = { if (m.style.today) today?.fill(r, dv, block, all, todayIcon) }
         if (pager.page == 0) fillToday() else {
@@ -602,7 +604,8 @@ class HomeActivity : Activity() {
      */
     internal fun autoRows() {
         val m = model ?: return
-        if (!m.autoRows || drag != null || editing || pager.height == 0) return
+        // always on now (owner: rows are not a choice; an old manual "rows" pick made oblong cells): m.autoRows is ignored
+        if (drag != null || editing || pager.height == 0) return
         val availH = pager.height - insT - dp(16) - (if (topBar.visibility == View.VISIBLE) topBar.height else 0) - insB - bottom.height
         val cellW = (pager.width - 2 * dp(10)) / m.cols
         // what a 1x1 app cell needs (appIcon): 4 dp pad + icon + 2 dp frame + 2 dp margin + one real label line + 2 dp pad, + the 6 dp gap.
@@ -1298,19 +1301,12 @@ class HomeActivity : Activity() {
                 MotionEvent.ACTION_UP -> if (abs(e.x - tx0) < tslop && abs(e.y - ty0) < tslop && e.eventTime - tt0 < ViewConfiguration.getLongPressTimeout() &&
                     drag == null && popup?.isShowing != true) {
                     for (i in childCount - 1 downTo 0) {
-                        val c = getChildAt(i); val cid = (c.layoutParams as CellLP).id
-                        if (cid.isEmpty()) continue
-                        val (mx, my) = badgeAt(c, true)
-                        if (Math.hypot((e.x - mx).toDouble(), (e.y - my).toDouble()) < dpf(16f)) { removeOne(cid); return true }
-                    }
-                    for (i in childCount - 1 downTo 0) {
                         val c = getChildAt(i)
                         if (e.x >= c.left && e.x < c.right && e.y >= c.top && e.y < c.bottom) {
                             val id = (c.layoutParams as CellLP).id
                             if (id.isNotEmpty()) {
-                                // the minus badge (top-left) has a finger-sized target around it
-                                val (mx, my) = badgeAt(c, true)
-                                if (Math.hypot((e.x - mx).toDouble(), (e.y - my).toDouble()) < dpf(22f)) removeOne(id) else togglePick(id)
+                                // no minus badge any more (owner: not needed): removing = pick + the bar's remove, or the long-press menu
+                                togglePick(id)
                                 return true
                             }
                         }
@@ -1324,8 +1320,6 @@ class HomeActivity : Activity() {
         private val ringLine = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
         private val tick = android.graphics.Path()
 
-        private val minusFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xF0E5E5EA.toInt() }
-        private val minusLine = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF1C1C1E.toInt(); strokeCap = Paint.Cap.ROUND }
 
         /** Centre of an item's corner badge: the icon's corner for a 1x1, the card's corner for a widget. */
         fun badgeAt(v: View, left: Boolean): Pair<Float, Float> {
@@ -1346,10 +1340,6 @@ class HomeActivity : Activity() {
                 val v = getChildAt(i); val lp = v.layoutParams as CellLP
                 if (lp.id.isEmpty() || v.alpha < 1f) continue   // leaving (minus tapped): its badges go with it
                 // a 1x1: the icon's corner; a widget: the corner of its card (FitCell centres a wrap-height card in the cells)
-                // iOS minus (top-left): tap = off the home screen
-                val (mx, my) = badgeAt(v, true)
-                c.drawCircle(mx, my, r * 1.1f, minusFill)
-                minusLine.strokeWidth = dpf(2.2f); c.drawLine(mx - r * 0.5f, my, mx + r * 0.5f, my, minusLine)
                 val (cx, cy) = badgeAt(v, false)
                 val on = lp.id in picked
                 ringFill.color = if (on) pal.solid else 0x55000000

@@ -8,6 +8,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppLookTest {
+    @Test fun firstEmojiTakesOneGraphemeAndRejectsText() {
+        assertEquals("🚀", AppLook.firstEmoji("🚀🎮"))
+        assertEquals("👩🏽‍💻", AppLook.firstEmoji(" 👩🏽‍💻 "))      // skin tone + ZWJ = one grapheme, 7 chars
+        assertEquals("❤️", AppLook.firstEmoji("❤️"))
+        assertNull(AppLook.firstEmoji("abc")); assertNull(AppLook.firstEmoji("7")); assertNull(AppLook.firstEmoji(""))
+        assertNotNull(AppLook.parseSpec(AppLook.emojiSpec("👩🏽‍💻", AppLook.COLORS[0])))
+    }
+
     private fun model(custom: Map<String, AppCustom> = emptyMap(), style: HStyle = HStyle()) =
         HomeLayout.fresh("teen", (1..6).map { "com.app$it" }, emptyList()).copy(custom = custom, style = style)
 

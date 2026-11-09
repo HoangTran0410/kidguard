@@ -114,13 +114,10 @@ internal fun HomeActivity.focusSheet() {
 private fun HomeActivity.pickStudy() {
     val chosen = FocusStore.study(this).toMutableSet()
     val list = launcherApps().values.filter { lastShow[it.pkg] != LauncherLogic.Show.HIDE || it.pkg in chosen }.sortedBy { it.sortKey }
-    val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-    val cbs = list.map { a -> CheckBox(this).apply { text = a.label; setTextColor(u.text); textSize = 16f; isChecked = a.pkg in chosen; setPadding(dp(4), dp(8), 0, dp(8)) }.also { box.addView(it) } }
-    val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(box) }
-    Modal(this, u).show(R.drawable.li_check, Modal.Tone.INFO, getString(R.string.focus_apps_t), content = scroll, ok = getString(R.string.hm_t_save), cancel = getString(R.string.cancel)) {
+    appPickSheet(getString(R.string.focus_apps_t), list, chosen) { picked ->
         val keep = chosen - list.map { it.pkg }.toSet()   // apps not listed (parent-hidden) keep their mark
-        FocusStore.setStudy(this, keep + list.filterIndexed { i, _ -> cbs[i].isChecked }.map { it.pkg })
-        key = ""; render(true); true
+        FocusStore.setStudy(this, keep + picked.filter { p -> list.any { it.pkg == p } })
+        key = ""; render(true)
     }
 }
 

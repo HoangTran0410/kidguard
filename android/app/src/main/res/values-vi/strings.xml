@@ -447,6 +447,9 @@
     <string name="home_m">%1$d phút</string>
     <string name="home_h">%1$d giờ</string>
     <string name="home_hm">%1$d giờ %2$d phút</string>
+    <string name="home_m_s">%1$dp</string>
+    <string name="home_h_s">%1$dg</string>
+    <string name="home_hm_s">%1$dg %2$dp</string>
     <string name="home_reopen_at">Mở lại lúc %1$s</string>
     <string name="home_reopen_tomorrow">Mở lại vào ngày mai</string>
     <string name="home_unlocked">Đang mở khoá tới %1$s</string>
@@ -545,12 +548,10 @@
     <string name="hm_e_del_title">Xoá trang này?</string>
     <string name="hm_e_del_body">%d mục sẽ rời màn chính. Ứng dụng vẫn còn trong danh sách ứng dụng.</string>
     <string name="hm_e_rm_q">Bỏ “%s” khỏi màn chính?</string>
-    <string name="hm_e_rm_app">Ứng dụng vẫn còn trong Thư viện ứng dụng.</string>
     <string name="hm_e_rm_folder">Thư mục và %d ứng dụng bên trong sẽ rời màn chính. Ứng dụng vẫn còn trong Thư viện ứng dụng.</string>
     <string name="hm_e_rm_widget_q">Gỡ tiện ích này?</string>
     <string name="hm_e_rm_widget">Tiện ích sẽ rời màn chính. Có thể thêm lại trong mục Tiện ích.</string>
     <string name="hm_e_rm_ok">Bỏ</string>
-    <string name="hm_e_removed1">Đã bỏ khỏi màn chính</string>
     <string name="hm_e_removed">Đã bỏ %d mục khỏi màn chính</string>
     <string name="hm_e_nofit">%d mục không vừa trang đó</string>
     <string name="hm_e_group_need">Chọn ít nhất 2 ứng dụng để gom nhóm</string>
@@ -752,7 +753,6 @@
     <string name="hm_c_style">Kiểu</string>
     <string name="hm_c_home">Màn chính</string>
     <string name="hm_c_cols">Số cột</string>
-    <string name="hm_c_rows">Số hàng</string>
     <string name="hm_c_icon">Cỡ biểu tượng</string>
     <string name="hm_c_small">Nhỏ</string>
     <string name="hm_c_big">Lớn</string>

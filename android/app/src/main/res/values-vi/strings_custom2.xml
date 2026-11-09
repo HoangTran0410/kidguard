@@ -16,4 +16,11 @@
     <string name="hm2_edit">Sửa app</string>
     <string name="hm2_edit_title">Sửa ứng dụng</string>
     <string name="hm_w_size_h">Kích cỡ</string>
+    <string name="hm2_emoji_more">Emoji khác…</string>
+    <string name="hm2_emoji_body">Mở bảng emoji của bàn phím (phím 🙂) rồi chọn hoặc tìm emoji bất kỳ.</string>
+    <string name="hm2_emoji_hint">Emoji</string>
+    <string name="hm2_emoji_bad">Nhập 1 emoji</string>
+    <string name="cp_hue">Sắc màu</string>
+    <string name="cp_sat">Độ đậm</string>
+    <string name="cp_val">Độ sáng</string>
 </resources>

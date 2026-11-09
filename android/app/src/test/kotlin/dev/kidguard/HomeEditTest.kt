@@ -144,7 +144,26 @@ class HomeEditTest {
         assertEquals(all(m).sorted(), all(small).sorted())
         assertEquals(m.pages.flatten().count { it.kind == "widget" }, small.pages.flatten().count { it.kind == "widget" })
         val big = HomeLayout.regrid(small, 5, 6)
-        assertEquals(small.pages, big.pages)
+        // nothing moves; widgets that filled the 3-wide row fill the 5-wide one
+        assertEquals(small.pages.map { p -> p.map { if (it.kind == "widget" && it.x == 0 && it.w == 3) it.copy(w = 5) else it } }, big.pages)
+        noOverlap(big)
+    }
+
+    @Test fun fullRowWidgetsFollowTheColumnCount() {
+        assertEquals(5, HomeLayout.span(4, 5)); assertEquals(3, HomeLayout.span(4, 3)); assertEquals(2, HomeLayout.span(2, 5))
+        val f = HomeLayout.fresh("gon", apps, emptyList())
+        val m4 = HomeLayout.regrid(f, 4, f.rows).let { it.copy(pages = listOf(listOf(HItem("w1", "widget", 0, 0, 4, 2, type = "clock"), HItem("a1", "app", 0, 2, pkg = "com.app1")))) }
+        val m5 = HomeLayout.regrid(m4, 5, m4.rows)
+        val w4 = m4.pages[0].filter { it.kind == "widget" && it.w == 4 }
+        assertTrue(w4.isNotEmpty())
+        for (w in w4) assertEquals(5, m5.pages[0].first { it.id == w.id }.w)
+        noOverlap(m5)
+        // an old 5-column layout with a 4-wide card: spans the row when the 5th cell beside it is free, not when an icon sits there
+        val old = m5.copy(pages = listOf(listOf(HItem("w1", "widget", 0, 0, 4, 1, type = "clock"), HItem("w2", "widget", 0, 1, 4, 1, type = "quick"),
+            HItem("a1", "app", 4, 1, pkg = "com.app1"))))
+        val back = HomeLayout.parse(old.toJson().toString())!!
+        assertEquals(5, back.pages[0].first { it.id == "w1" }.w)
+        assertEquals(4, back.pages[0].first { it.id == "w2" }.w)
     }
 
     @Test fun folderKind() {

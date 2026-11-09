@@ -82,16 +82,21 @@ internal fun HomeActivity.usageWidget(dv: View0, all: Map<String, AppE>, w: Int,
     }
     if (h < 2) {
         val card = wCard(false)
+        val sum = text(dur(total), 20f, pal.accentText, true).apply { maxLines = 1; setPadding(0, dp(2), 0, 0) }
+        val row = DropRow(this, sum)
+        card.addView(row, LinearLayout.LayoutParams(-1, -2))
         val left = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         left.addView(text(title.uppercase(), 11f, pal.sub, true).apply { letterSpacing = 0.08f; maxLines = 1; ellipsize = TextUtils.TruncateAt.END })
-        left.addView(text(dur(total), 20f, pal.accentText, true).apply { maxLines = 1; setPadding(0, dp(2), 0, 0) })
-        card.addView(left, LinearLayout.LayoutParams(0, -2, 1f))
+        left.addView(sum)
+        row.addView(left, LinearLayout.LayoutParams(0, -2, 1f))
         for (e in top.take(3)) {
             val a = all[e.key] ?: continue
             val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
             col.addView(usageIcon(a, 28), LinearLayout.LayoutParams(dp(28), dp(28)))
-            col.addView(wSub(dur(e.value)))
-            card.addView(col, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(12) })
+            // short form, never ellipsized ("1 …" said nothing); DropRow drops a column instead when it does not fit
+            col.addView(text(durShort(e.value), 12f, pal.sub).apply { maxLines = 1; setPadding(0, dp(2), 0, 0) })
+            col.contentDescription = "${a.label}. ${dur(e.value)}"
+            row.addView(col, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(10) })
         }
         card.contentDescription = "$title. ${dur(total)}"
         return centred(card)

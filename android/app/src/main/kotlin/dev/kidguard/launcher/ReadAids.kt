@@ -30,7 +30,7 @@ object ReadAids {
     fun spacing(face: String) = if (face == "easy") 0.06f else 0f
 
     /** Label backing: dark enough for white text on any wallpaper (WCAG AA over a light one: 0.8 alpha black). */
-    const val BACKING = 0xCC000000.toInt()
+    const val BACKING = 0x9E000000.toInt()   // white text on it over a white wallpaper ~6:1 (WCAG AA); 0xCC read as heavy black bars
 
     fun systemScale(ctx: Context): Float = runCatching { Settings.Global.getFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }.getOrDefault(1f)
 
@@ -43,10 +43,16 @@ object ReadAids {
         runCatching { android.animation.ValueAnimator::class.java.getMethod("setDurationScale", Float::class.javaPrimitiveType).invoke(null, want); scaleSet = want }
     }
 
-    /** Solid label backing for grid / dock names (white text on a dark pill). */
+    /**
+     * Solid label backing for grid / dock names: white text on a dark pill that hugs the text (iOS "Increase contrast" /
+     * Pixel "High contrast text" style). The label must be wrap_content (see HomeActivity.addLabel): a full-cell-width
+     * backing read as black bars.
+     */
     fun backLabel(t: TextView) {
-        t.setTextColor(0xFFFFFFFF.toInt())
-        t.background = GradientDrawable().apply { setColor(BACKING); cornerRadius = t.resources.displayMetrics.density * 8 }
+        val d = t.resources.displayMetrics.density
+        t.setTextColor(0xFFFFFFFF.toInt()); t.setShadowLayer(0f, 0f, 0f, 0)
+        t.background = GradientDrawable().apply { setColor(BACKING); cornerRadius = 10 * d }
+        t.setPadding((7 * d).toInt(), (1 * d).toInt(), (7 * d).toInt(), (2 * d).toInt())
     }
 
     // ---------------- Đọc to ----------------
