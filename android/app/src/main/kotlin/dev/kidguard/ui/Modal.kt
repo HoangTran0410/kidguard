@@ -87,8 +87,9 @@ class Modal(private val act: Activity, private val u: Ui = Ui(act)) {
         top.addView(error, LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(10) })
         box.addView(scroll, LinearLayout.LayoutParams(-1, -2, 1f))   // weight + wrap: shrinks only when the card would not fit
 
-        val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL }
-        fun place(b: Button, first: Boolean) = row.addView(b, LinearLayout.LayoutParams(0, -2, 1f).apply { if (!first) marginStart = u.dp(10) })
+        // not baseline-aligned: a 2-line label would otherwise be pushed down and clipped; MATCH_PARENT = equal heights
+        val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; isBaselineAligned = false }
+        fun place(b: Button, first: Boolean) = row.addView(b, LinearLayout.LayoutParams(0, -1, 1f).apply { if (!first) marginStart = u.dp(10) })
         if (cancel != null) place(u.button(cancel, null, false) { d.dismiss(); onCancel() }, true)
         val okBtn = u.button(ok, null, true) { if (onOk()) d.dismiss() }.apply {
             background = RippleDrawable(ColorStateList.valueOf(Color.argb(60, 255, 255, 255)), u.shape(fill(tone), 16), null)
@@ -130,7 +131,7 @@ class Modal(private val act: Activity, private val u: Ui = Ui(act)) {
 
     fun choice(items: List<String>, start: Int = 0, vertical: Boolean = false): Choice {
         var sel = start
-        val row = LinearLayout(act).apply { orientation = if (vertical) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL }
+        val row = LinearLayout(act).apply { orientation = if (vertical) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL; isBaselineAligned = false }
         val views = ArrayList<TextView>()
         fun paint() = views.forEachIndexed { i, v ->
             val on = i == sel

@@ -103,7 +103,7 @@ class MainActivity : Activity() {
         basicList = BasicChecklist(this, u) { openBatterySettings() }
         col.addView(basicList.box)
         // quick row: frequent kid actions as round tiles (SOS keeps its confirm modal, see askSos)
-        val quick = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; weightSum = 4f }
+        val quick = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; weightSum = 4f; isBaselineAligned = false }
         fun tileLp() = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(2); marginEnd = dp(2) }
         sosBtn = u.tile(getString(R.string.home_sos), R.drawable.li_siren, u.danger) { askSos() }.apply { contentDescription = getString(R.string.main_sos) }
         quick.addView(sosBtn, tileLp())
