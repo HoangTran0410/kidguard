@@ -55,6 +55,8 @@
     <string name="diff_other">cài đặt khác</string>
     <string name="diff_launcher">bật màn hình chính cho bé</string>
     <string name="diff_launcher_off">tắt màn hình chính cho bé</string>
+    <string name="diff_monitor">bật chế độ chỉ theo dõi (không chặn gì)</string>
+    <string name="diff_monitor_off">tắt chế độ chỉ theo dõi (áp dụng luật)</string>
     <string name="warn_d1">Còn 1 phút: lưu lại việc đang làm nhé</string>
     <string name="warn_d5">Còn %1$d phút nữa là hết giờ hôm nay</string>
     <string name="warn_bed">%1$d phút nữa đến giờ ngủ</string>
@@ -99,6 +101,7 @@
     <string name="ev_new_app">Đã cài %1$s</string>
     <string name="log_suspended">Tạm khoá: %1$s (%2$s)</string>
     <string name="log_unsuspended">Mở lại: %1$s</string>
+    <string name="log_would_block">Chỉ theo dõi, đáng lẽ khoá: %1$s (%2$s)</string>
     <string name="log_recover_open">Đã mở ghép lại (yêu cầu từ máy con hôm qua)</string>
     <string name="ev_battery">Pin còn %1$d%%</string>
     <string name="log_zone">Vùng: sự kiện mới</string>
@@ -350,6 +353,7 @@
     <string name="r_track">Vị trí: bố mẹ xem được, lưu lịch sử mỗi %1$d phút</string>
     <string name="r_track_off">Vị trí: bố mẹ chỉ xem khi bấm tìm máy</string>
     <string name="r_view">Xem màn hình: bố mẹ có thể xem khi bật</string>
+    <string name="r_monitor">Chỉ theo dõi: bố mẹ xem được thời gian dùng và vị trí, nhưng hiện chưa chặn hay giới hạn gì</string>
     <string name="r_view_told">Xem màn hình: bố mẹ có thể xem khi bật (con sẽ thấy thông báo)</string>
     <string name="r_view_off">Xem màn hình: đang tắt</string>
     <string name="r_listen">Nghe âm thanh xung quanh: chỉ khi có tiếng bíp và thông báo cho con</string>

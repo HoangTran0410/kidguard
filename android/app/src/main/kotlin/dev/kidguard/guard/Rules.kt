@@ -168,6 +168,7 @@ data class Rules(
     val lockContact: String = "",
     val blockNote: String = "",              // v0.9.7 parent note on the block message, Notes.NOTE_MAX
     val launcher: LauncherRule = LauncherRule(), // v0.9.9 kid launcher (HomeActivity), owner only
+    val monitor: Boolean = false,            // "monitor only": measure + report, never suspend / bounce / grey out; decide() still runs (state.wouldBlock)
 ) {
     /** [persist] = true also writes pinHash/pinSalt (only for this phone's own storage). The default is safe to send to a parent: it has `pinSet` only. */
     fun toJson(persist: Boolean = false): JSONObject = JSONObject()
@@ -191,7 +192,7 @@ data class Rules(
         .put("groups", JSONArray().apply { groups.forEach { put(it.toJson()) } }).put("unlockMin", unlockMin)
         .put("windDown", JSONObject().put("gray", windGray).put("min", windMin).put("nudge", windNudge))
         .put("lockInfo", JSONObject().put("msg", lockMsg).put("contact", lockContact)).put("blockNote", blockNote)
-        .put("launcher", launcher.toJson())
+        .put("launcher", launcher.toJson()).put("monitor", monitor)
         .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
 
     /** True when [pin] matches the stored hash (legacy or salted). False when no PIN is set. */
@@ -273,6 +274,7 @@ data class Rules(
                 lockContact = Notes.clean(o.optJSONObject("lockInfo")?.optString("contact", "") ?: "", Notes.MSG_MAX),
                 blockNote = Notes.clean(o.optString("blockNote", ""), Notes.NOTE_MAX),
                 launcher = LauncherRule.fromJson(o.optJSONObject("launcher")),
+                monitor = o.optBoolean("monitor", false),
                 blockNew = o.optBoolean("blockNew", false),
                 approved = o.optJSONArray("approved").strings(),
                 lockLocation = o.optBoolean("lockLocation", true),
@@ -362,6 +364,9 @@ fun decide(
     if (unlockUntil > nowMs) out.entries.removeAll { it.value != "blocked" && it.value != "new" }
     return out
 }
+
+/** What is actually enforced: [would] (decide()'s result), or nothing in monitor-only mode. Pure. */
+fun enforced(r: Rules, would: Map<String, String>): Map<String, String> = if (r.monitor) emptyMap() else would
 
 /** ms of use left today against the daily limit, or -1 when there is none. */
 fun dailyLeftMs(r: Rules, usageMs: Map<String, Long>, today: String, launchable: Set<String>, protected: Set<String>): Long {

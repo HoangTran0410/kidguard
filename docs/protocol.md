@@ -24,6 +24,7 @@ shape, say so in your report instead of silently diverging.
   "lockLocation": true,            // NEW (default true): location forced on, child cannot change location settings
   "noAirplane": true,              // NEW (default true): airplane mode disallowed
   "showWatching": true,            // v0.4 (default true): child sees the "watching / controlling" notification
+  "monitor": false,                // v0.9.11 (default false): "monitor only". Phone still measures + reports; decide() still runs but NOTHING is enforced (no suspend / bounce / grey launcher / heads-up warnings). Device-level restrictions (Policy.apply: noInstall, DNS, location lock, ...) stay as configured. Turning it on unsuspends our suspensions on the next tick
   "autoUpdate": true,              // v0.9 (default true): daily self-update from GitHub releases (see "Self-update")
   "safeDns": "",                   // NEW: "" = off, else a Private DNS host, e.g. "family.adguard-dns.com",
                                    //      "family.cloudflare-dns.com", "family-filter-dns.cleanbrowsing.org"
@@ -49,7 +50,8 @@ leftMs apps rules location lan relay log`), plus:
   "limitMin": 120,                 // NEW: today's limit in minutes incl. bonus (0 = none)
   "pairUntil": 1793940898493,      // v0.9.2: an opened pairing window (openPairing / PIN on the child) closes at this ms; 0 = closed (also before the first pairing)
   "apps": [{"pkg":"…","label":"…","ms":0,"blocked":"new|…|null","suspended":true,"protected":false,
-            "new": true}],         // NEW "new": installed after setup and not approved
+            "new": true}],         // NEW "new": installed after setup and not approved. With rules.monitor, "blocked" is always null (nothing enforced)
+  "wouldBlock": {"pkg": "reason"}, // v0.9.11: what decide() computed but did not enforce (same reasons as apps[].blocked); {} unless rules.monitor
   "history": [                     // NEW: last 7 days before today, newest first
     {"day": "2026-11-05", "ms": 5400000, "top": [{"pkg":"…","label":"…","ms":1200000}]}   // top: up to 5
   ],

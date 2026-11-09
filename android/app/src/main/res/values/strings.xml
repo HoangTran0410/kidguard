@@ -60,6 +60,8 @@
     <string name="diff_other">other settings</string>
     <string name="diff_launcher">kid home screen on</string>
     <string name="diff_launcher_off">kid home screen off</string>
+    <string name="diff_monitor">monitor-only mode on (nothing is blocked)</string>
+    <string name="diff_monitor_off">monitor-only mode off (rules enforced)</string>
     <string name="warn_d1">1 minute left: save what you\'re doing</string>
     <string name="warn_d5">%1$d minutes of screen time left today</string>
     <string name="warn_bed">Bedtime in %1$d minutes</string>
@@ -105,6 +107,7 @@
     <string name="ev_new_app">Installed %1$s</string>
     <string name="log_suspended">Locked: %1$s (%2$s)</string>
     <string name="log_unsuspended">Unlocked: %1$s</string>
+    <string name="log_would_block">Monitor only, would lock: %1$s (%2$s)</string>
     <string name="log_recover_open">Pairing reopened (asked for on this phone yesterday)</string>
     <string name="ev_battery">Battery at %1$d%%</string>
     <string name="log_zone">Places: new event</string>
@@ -363,6 +366,7 @@
     <string name="r_track">Location: your parent can see it, history saved every %1$d minutes</string>
     <string name="r_track_off">Location: your parent sees it only when they look for the phone</string>
     <string name="r_view">Screen viewing: your parent can view the screen while it\'s on</string>
+    <string name="r_monitor">Monitor only: your parent sees your usage and location, but nothing is blocked or limited right now</string>
     <string name="r_view_told">Screen viewing: your parent can view the screen while it\'s on (you\'ll see a notice)</string>
     <string name="r_view_off">Screen viewing: off</string>
     <string name="r_listen">Listening to the surroundings: only with a beep and a notice for you</string>
