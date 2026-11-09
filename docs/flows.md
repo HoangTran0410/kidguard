@@ -286,8 +286,8 @@ HomeLibrary/HomeControl bodies (only signatures), Wallpaper draw(), PageDots, Ki
 | Installed app list | `HA.launcherApps()` 311 (queryIntentActivities LAUNCHER, skip HomeEntry, `labelCache`) |
 | Show / pause / hide decision | `HA.decision()` 338 + `LauncherLogic.show()` (L/LauncherLogic.kt) |
 | Render pipeline | `HA.render` 432, `render0` 445-516, `buildPages` 632-724 |
-| Wallpaper bitmap | `HA.ensureWall` 518, `Wallpaper.draw/photo/blur/dim` (L/Wallpaper.kt), `WallSurface` HA:1446 |
-| Palette / presets / accents / walls | `L/HomeStyle.kt` (PRESETS 121, ACCENTS 83, WALLS 128, `palette` 100, `ink` 138) |
+| Wallpaper bitmap | `HA.ensureWall` 518, `Wallpaper.draw/photo/blur/dim` (L/custom/Wallpaper.kt), `WallSurface` HA:1446 |
+| Palette / presets / accents / walls | `L/custom/HomeStyle.kt` (PRESETS 121, ACCENTS 83, WALLS 128, `palette` 100, `ink` 138) |
 | Icon bitmaps (mask, grey) | `L/IconCache.kt` `get` 36 (LRU = heap/5, 8-96 MB), `greyPaint` |
 | Launch app | `L/HomeIcons.kt` `launch` (~165), `debounce`, `reopenShort/When` |
 | Pure layout model | `L/HomeLayout.kt` (fresh, parse, place, drop*, group, moveTo, removeIds, removePage, resizeWidget, regrid, fitRows, placeAppWidget*) |
@@ -298,20 +298,20 @@ HomeLibrary/HomeControl bodies (only signatures), Wallpaper draw(), PageDots, Ki
 | Edit mode | `L/HomeEdit.kt` enterEdit, exitEdit, editBars, removeOne |
 | Dock, SOS, bars | `L/HomeDock.kt` buildDock, sosMenu 87, inkPass |
 | Drawer + A-Z rail | `HA.Drawer` 804-1065 (refill 930, rail touch 903, scrubTo 1013, follow 1030); open/close in HomeDock.kt |
-| Swipe up/down on home | `HA.SwipeUp` 1073; `expandShade` 1129; `openControl` L/HomeControl.kt 206 |
+| Swipe up/down on home | `HA.SwipeUp` 1073; `expandShade` 1129; `openControl` L/control/HomeControl.kt 206 |
 | Folders | `L/HomeMenus.kt` openFolder/folderSheet/renameFolder/addToFolderSheet; `L/HomeFolder.kt` (FolderGrid, folderDragBegin/Evt, folderZoom) |
 | App Library page | `L/HomeLibrary.kt` (`LibraryLogic.groups`, libraryOut/libraryBack/libraryFill) |
-| Today page | `L/TodayPage.kt` |
-| Own widgets | `L/HomeWidgets.kt` (design system at top, SIZES), `HomeWidgetsLive/Lists/Plan/Kid` |
-| Other apps' widgets | `L/HomeAppWidgets.kt` (awAdd, awConfigure, awPlace, awSync, appWidget) |
+| Today page | `L/today/TodayPage.kt` |
+| Own widgets | `L/widgets/HomeWidgets.kt` (design system at top, SIZES), `HomeWidgetsLive/Lists/Plan/Kid` |
+| Other apps' widgets | `L/widgets/HomeAppWidgets.kt` (awAdd, awConfigure, awPlace, awSync, appWidget) |
 | Widget picker | `HomeWidgets.kt` openPicker, `awPickerSection` |
 | Notification dots | `L/NotifDots.kt` (listener), `Dots.refresh`, `DotHost` interface in icons |
-| Customization screen | `L/CustomActivity.kt` build 71-176, set 188, regrid 197, applyPreset 208, pick/savePhoto 420+ |
+| Customization screen | `L/custom/CustomActivity.kt` build 71-176, set 188, regrid 197, applyPreset 208, pick/savePhoto 420+ |
 | Recent apps row | `L/Recent.kt` (usage stats, else local list of 12) |
-| Control center | `L/HomeControl.kt` (`CcSys`, `ControlLogic.mode`, toggles) |
+| Control center | `L/control/HomeControl.kt` (`CcSys`, `ControlLogic.mode`, toggles) |
 | Safety / crash fallback | `L/LauncherSafe.kt` wanted, apply/on/off, uncaught handler, safe mode |
 | Flavor switch | `L/Flavor.kt` (HOME = BuildConfig.HOME), `L/HomeEntry.kt`, `src/home/AndroidManifest.xml` |
-| Kid-to-Home layout import | `L/HomeExport.kt` (provider "layout"/"wall", same-signer check) |
+| Kid-to-Home layout import | `L/custom/HomeExport.kt` (provider "layout"/"wall", same-signer check) |
 
 ### 3.1 Start / render / page structure
 
@@ -396,7 +396,7 @@ Gotchas: `Recent.load` is a binder call; must run off main thread (note in Recen
 
 ### 3.8 Today page ("Hôm nay")
 
-`L/TodayPage.kt`; rebuilt on idle (HA:505-510). Cards (hidden ones in `HomeModel.todayHide`, "Tuỳ chọn thẻ" modal):
+`L/today/TodayPage.kt`; rebuilt on idle (HA:505-510). Cards (hidden ones in `HomeModel.todayHide`, "Tuỳ chọn thẻ" modal):
 - header: call + SOS (never hideable; absent in Home flavor)
 - `now`: greeting, current/next school period, countdown to next lock/bedtime
 - `time`: screen time left + top 3 apps; empty: "no apps used, no limit" text (no action: limits are the parent's)

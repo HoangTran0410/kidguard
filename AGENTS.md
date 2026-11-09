@@ -53,7 +53,7 @@ installers, also the APK assets dir and imported by the worker), `relay/` (Cloud
 | LAN server + routes | `K/remote/Http.kt` (`:8770`), `K/remote/Api.kt` (token `X-KG-Token`) |
 | Relay (phone side) | `K/remote/Relay.kt`; worker `relay/src/index.js` (`CMDS`, `ONCE`, DO `Kid`) |
 | Screen / input / listen / ring / wake / files / update / Tailscale | `K/remote/Acc.kt`, `Proj.kt`, `Listen.kt`, `Ring.kt`, `Wake.kt`, `Files.kt`, `Update.kt`, `Ts.kt` |
-| Kid launcher | `K/launcher/HomeActivity.kt` (state, render, pager, drawer) + extension files `HomeDrag/HomeMenus/HomeEdit/HomeIcons/HomeDock/HomeFolder/HomeLibrary/HomeControl/HomeWidgets*/HomeAppWidgets`; pure model `HomeLayout.kt` (unit-tested); `TodayPage.kt`; `CustomActivity.kt`; `LauncherSafe.kt`; `Flavor.kt` |
+| Kid launcher | `K/launcher/HomeActivity.kt` (state, render, pager, drawer) + extension files `HomeDrag/HomeMenus/HomeEdit/HomeIcons/HomeDock/HomeFolder/HomeLibrary`; pure model `HomeLayout.kt` (unit-tested); `LauncherSafe.kt`; `Flavor.kt`. Subfolders: `widgets/` (`HomeWidgets*`, `HomeAppWidgets`, `HomeMedia`, `*Logic`), `custom/` (`CustomActivity` = Tuỳ chỉnh, `AppLook*` = Sửa app, colour picker, backup, wallpaper, style), `control/` (control center), `focus/`, `today/` (`TodayPage`, `KidNotes`) |
 | Setup / provisioning | `K/setup/Provisioning.kt`, `SelfSetup*.kt` |
 | Child screens | `K/ui/MainActivity.kt`, `AdminActivity.kt`, `Modal`/`Sheet`/`Ui`, `Ic.kt` (Lucide icons `res/drawable/li_*.xml`) |
 | Parent page | `ui/index.html` + `ui/assets/`: `core.js` (`call()`, `base()`, boot, pairing), `kid.js` (refresh, `putRules`, `cmd`), `shell.js` (nav, render, actions), `tab-*.js`, `i18n-*.js` |
