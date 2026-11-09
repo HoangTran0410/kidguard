@@ -79,6 +79,8 @@ object Events {
         if (o.zones != n.zones) p += if (o.zones.size != n.zones.size) tr.s(T.diff_zones_n, o.zones.size, n.zones.size) else tr.s(T.diff_zones)
         if (o.trackMin != n.trackMin) p += if (n.trackMin > 0) tr.s(T.diff_track, n.trackMin) else tr.s(T.diff_track_off)
         if (o.lockLocation != n.lockLocation) p += tr.s(if (n.lockLocation) T.diff_lockloc else T.diff_lockloc_off)
+        if (o.safeDns != n.safeDns) p += tr.s(if (n.safeDns.isNotEmpty()) T.diff_dns else T.diff_dns_off, n.safeDns)
+        if (o.noVpn != n.noVpn) p += tr.s(if (n.noVpn) T.diff_novpn else T.diff_novpn_off)
         if (o.autoUpdate != n.autoUpdate) p += tr.s(if (n.autoUpdate) T.diff_autoupd else T.diff_autoupd_off)
         if (o.showWatching != n.showWatching) p += tr.s(if (n.showWatching) T.diff_watch else T.diff_watch_off)
         if (o.launcher.on != n.launcher.on) p += tr.s(if (n.launcher.on) T.diff_launcher else T.diff_launcher_off)

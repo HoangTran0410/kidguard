@@ -110,7 +110,7 @@ Owner adds:
 - BASE: factory reset, safe boot, add user, config date/time (:38). INSTALL pair if `noInstall && !Update.installing` else cleared (:51). `DISALLOW_DEBUGGING_FEATURES` iff `noDebug` (:52).
 - `setUninstallBlocked(self)`; API30+ `setUserControlDisabledPackages([self])` + `setAutoTimeEnabled(true)`; API<30 `DISALLOW_APPS_CONTROL` + `setAutoTimeRequired(true)` (:55-63).
 - `applyNotes`: short/long support message + lock-screen owner info (:78).
-- `applyNet`: location (see 6), `DISALLOW_AIRPLANE_MODE` (API 28+) iff `noAirplane`, Private DNS (`applyDns` :105: `safeDns` host -> restriction `DISALLOW_CONFIG_PRIVATE_DNS`; rejected => opportunistic + restriction cleared + `dnsError`). `retryDns` (:134) every tick: retry after rejection; 90 s non-validated network => opportunistic fallback for 30 min (restriction kept).
+- `applyNet`: location (see 6), `DISALLOW_AIRPLANE_MODE` (API 28+) iff `noAirplane`, Private DNS (`applyDoh` Chrome/Edge `DnsOverHttpsMode=off` while safeDns, `applyVpnLock` = only owner of `DISALLOW_CONFIG_VPN` for `noVpn` + Tailscale; `applyDns` :105: `safeDns` host -> restriction `DISALLOW_CONFIG_PRIVATE_DNS`; rejected => opportunistic + restriction cleared + `dnsError`). `retryDns` (:134) every tick: retry after rejection; 90 s non-validated network => opportunistic fallback for 30 min (restriction kept).
 - Grants (:66-73): fine/coarse/background location, POST_NOTIFICATIONS, WRITE_EXTERNAL (<29), RECORD_AUDIO -> GRANTED.
 - `LauncherSafe.apply` (HOME persistent preferred activity).
 Also by others: Tailscale `DISALLOW_CONFIG_VPN` + uninstall block + suspend of TS pkg (remote/Ts.kt:306-308, undone Ts.kt:345-347).

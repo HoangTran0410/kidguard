@@ -17,7 +17,7 @@ class RulesJsonTest {
             Schedule("Đêm", false, setOf(6, 7), "23:00", "02:00"),
         ),
         blockNew = true, approved = setOf("com.ok"), lockLocation = false, noAirplane = false,
-        safeDns = "family.cloudflare-dns.com", trackMin = 30, showWatching = false,
+        safeDns = "family.cloudflare-dns.com", noVpn = true, trackMin = 30, showWatching = false,
         chores = listOf(Chore("c1", "Rửa bát", 20), Chore("c-2", "Dọn phòng", 45)),
         zones = listOf(Zone("z1", "Nhà", 21.03, 105.85, 150), Zone("z2", "Trường", 21.0, 105.8, 2000)),
         hidden = setOf("com.heytap.market", "com.facebook.katana"),

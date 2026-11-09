@@ -153,6 +153,7 @@ data class Rules(
     val lockLocation: Boolean = true,
     val noAirplane: Boolean = true,
     val safeDns: String = "",                // Private DNS host, "" = off
+    val noVpn: Boolean = false,              // Device Owner: DISALLOW_CONFIG_VPN (no VPN apps / settings for the child)
     val trackMin: Int = 10,                  // location history every N minutes: 0 (off), 5, 10, 15, 30, 60
     val showWatching: Boolean = true,        // child sees "parent is watching / controlling" while the screen is viewed
     val autoUpdate: Boolean = true,          // daily check of GitHub releases; owner installs silently, basic asks the child
@@ -184,7 +185,7 @@ data class Rules(
         .put("dailyByDay", JSONArray(dailyByDay))
         .put("schedules", JSONArray().apply { schedules.forEach { put(it.toJson()) } })
         .put("blockNew", blockNew).put("approved", JSONArray(approved.sorted()))
-        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("trackMin", trackMin)
+        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("noVpn", noVpn).put("trackMin", trackMin)
         .put("showWatching", showWatching).put("autoUpdate", autoUpdate)
         .put("chores", JSONArray().apply { chores.forEach { put(it.toJson()) } })
         .put("zones", JSONArray().apply { zones.forEach { put(it.toJson()) } })
@@ -281,6 +282,7 @@ data class Rules(
                 noAirplane = o.optBoolean("noAirplane", true),
                 showWatching = o.optBoolean("showWatching", true),
                 autoUpdate = o.optBoolean("autoUpdate", true),
+                noVpn = o.optBoolean("noVpn", false),
                 trackMin = o.optInt("trackMin", 10).takeIf { it in TRACK_STEPS } ?: 10,
                 safeDns = o.optString("safeDns", "").trim().lowercase().takeIf { it.matches(DNS_HOST) } ?: "",
             )

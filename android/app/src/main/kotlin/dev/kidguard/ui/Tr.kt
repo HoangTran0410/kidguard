@@ -16,7 +16,7 @@ enum class T {
     diff_head, diff_limit, diff_none, diff_min, no_limit, diff_by_day, diff_by_day_off, diff_bed, diff_bed_off,
     diff_sched_n, diff_sched, diff_blocked, diff_allow, app_hidden, app_unhidden, diff_pause, diff_pause_off,
     diff_bonus, diff_bonus_off, diff_chores_n, diff_chores, diff_zones_n, diff_zones, diff_track, diff_track_off,
-    diff_lockloc, diff_lockloc_off, diff_autoupd, diff_autoupd_off, diff_watch, diff_watch_off, diff_pin, diff_other, diff_launcher, diff_launcher_off, diff_monitor, diff_monitor_off,
+    diff_lockloc, diff_lockloc_off, diff_dns, diff_dns_off, diff_novpn, diff_novpn_off, diff_autoupd, diff_autoupd_off, diff_watch, diff_watch_off, diff_pin, diff_other, diff_launcher, diff_launcher_off, diff_monitor, diff_monitor_off,
     warn_d1, warn_d5, warn_bed, warn_bed10, warn_break, warn_break_named,
     tl_min, tl_h, tl_hm, tl_none,
 }

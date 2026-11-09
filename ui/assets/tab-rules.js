@@ -80,7 +80,7 @@ function ruleChips(r) {
     zone: r.zones.length ? [t("chip.nZone", r.zones.length), "ok"] : none,
     trk: r.trackMin ? on(t("chip.every", fmt(r.trackMin * 60000))) : off,
     more: more ? on(more + "/3", basic) : off,
-    dns: r.safeDns ? on(esc(dns ? dns[1] : r.safeDns), basic) : off,
+    dns: r.safeDns || r.noVpn ? on(esc((dns ? dns[1] : r.safeDns) || t("dns.novpn.short")), basic) : off,
     anti: anti ? on(anti + "/2", basic) : off,
     wind: windChip(r),
     home: r.launcher.on ? on(t({ be: "hm.sBe", teen: "hm.sTeen", gon: "hm.sGon" }[r.launcher.style] || "hm.sAuto"), basic || !!(st.launcher && st.launcher.err)) : off,
@@ -165,8 +165,11 @@ function ruleSecs(r) {
     more: sec("r-more", "construction", t("more.h"), t("sd.more"), C.more, `    <label class="row"><input type="checkbox" id="f-bn" ${r.blockNew ? "checked" : ""}><span class="sp">${ic("sparkles")} ${t("more.new")}</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-ll" ${r.lockLocation ? "checked" : ""}><span class="sp">${ic("map-pin")} ${t("more.loc")}</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span class="sp">${ic("plane")} ${t("more.air")}</span></label>${isBasic() ? needOwner(t("no.locAir")) : ""}`),
-    dns: sec("r-dns", "shield", t("dns.h"), t("sd.dns"), C.dns, `    <select id="f-dns" aria-label="${esc(t("dns.h"))}">${DNS().map(([v, n]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}</option>`).join("")}${DNS().some(d => d[0] === r.safeDns) ? "" : `<option selected value="${esc(r.safeDns)}">${esc(r.safeDns)}</option>`}</select>
-    <p class="mute">${ic("eye-off")} ${t("dns.tip")}</p>${isBasic() ? needOwner() : ""}`),
+    dns: sec("r-dns", "shield", t("dns.h"), t("sd.dns"), C.dns, `    <select id="f-dns" aria-label="${esc(t("dns.h"))}">${DNS().map(([v, n, ss]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}${ss ? " · " + t("dns.ss") : ""}</option>`).join("")}<option value="__c" ${r.safeDns && !DNS().some(d => d[0] === r.safeDns) ? "selected" : ""}>${t("dns.custom")}</option></select>
+    <input type="text" id="f-dnsc" placeholder="dns.example.com" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(DNS().some(d => d[0] === r.safeDns) ? "" : r.safeDns)}" style="margin-top:8px;${r.safeDns && !DNS().some(d => d[0] === r.safeDns) ? "" : "display:none"}" aria-label="${esc(t("dns.custom"))}">
+    <p class="mute">${ic("eye-off")} ${t("dns.tip")}</p>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nv" ${r.noVpn ? "checked" : ""}><span class="sp">${ic("shield")} ${t("dns.novpn")}</span></label>
+    <p class="mute">${ic("info")} ${t("dns.novpn.tip")}</p>${isBasic() ? needOwner() : ""}`),
     anti: sec("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span class="sp">${ic("package")} ${t("anti.install")}</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label>
     ${isBasic() ? needOwner() + `<p class="mute">${ic("shield")} ${t("anti.basic")}</p>`
@@ -287,7 +290,13 @@ function rulesWire(b, r) {
   $("#f-bn").onchange = e => { r.blockNew = e.target.checked; changed(); };
   $("#f-ll").onchange = e => { r.lockLocation = e.target.checked; changed(); };
   $("#f-na").onchange = e => { r.noAirplane = e.target.checked; changed(); };
-  $("#f-dns").onchange = e => { r.safeDns = e.target.value; changed(); };
+  $("#f-dns").onchange = e => {
+    const c = $("#f-dnsc");
+    if (e.target.value === "__c") { c.style.display = ""; c.focus(); return; }   // wait for a host to be typed
+    c.style.display = "none"; r.safeDns = e.target.value; changed();
+  };
+  $("#f-dnsc").onchange = e => { r.safeDns = e.target.value.trim().toLowerCase(); changed(); };
+  $("#f-nv").onchange = e => { r.noVpn = e.target.checked; changed(); };
   const bw = () => { $("#bedW").innerHTML = timeWarn(r.bedtime, r.bedtime.on); };
   $("#f-bed").onchange = e => { r.bedtime.on = e.target.checked; bw(); changed(); };
   $("#f-bs").onchange = e => { r.bedtime.start = e.target.value; bw(); changed(); };

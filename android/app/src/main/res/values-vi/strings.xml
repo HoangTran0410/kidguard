@@ -47,6 +47,10 @@
     <string name="diff_track_off">tắt lưu vị trí</string>
     <string name="diff_lockloc">khoá bật vị trí</string>
     <string name="diff_lockloc_off">bỏ khoá vị trí</string>
+    <string name="diff_dns">DNS an toàn %1$s</string>
+    <string name="diff_dns_off">tắt DNS an toàn</string>
+    <string name="diff_novpn">chặn VPN</string>
+    <string name="diff_novpn_off">cho phép VPN</string>
     <string name="diff_autoupd">bật tự cập nhật KidGuard</string>
     <string name="diff_autoupd_off">tắt tự cập nhật KidGuard</string>
     <string name="diff_watch">báo con khi xem màn hình</string>
