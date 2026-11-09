@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gest_title">Cử chỉ trên màn hình chính</string>
+    <string name="gest_dbl">Chạm đúp</string>
+    <string name="gest_up">Vuốt lên</string>
+    <string name="gest_down">Vuốt xuống</string>
+    <string name="gest_def_up">Mặc định (danh sách ứng dụng)</string>
+    <string name="gest_def_down">Mặc định (thông báo / điều khiển)</string>
+    <string name="gest_none">Không làm gì</string>
+    <string name="gest_search">Mở tìm kiếm</string>
+    <string name="gest_drawer">Mở danh sách ứng dụng</string>
+    <string name="gest_shade">Thông báo</string>
+    <string name="gest_lock">Khoá màn hình</string>
+    <string name="gest_today">Mở trang Hôm nay</string>
+    <string name="gest_app">Mở một ứng dụng…</string>
+    <string name="gest_app_named">Mở %1$s</string>
+    <string name="gest_hint">Chỉ ở chỗ trống; kéo thả, chế độ sắp xếp và cuộn tiện ích không bị ảnh hưởng.</string>
+    <string name="gest_pick_app">Chọn ứng dụng</string>
+    <string name="gest_cancel">Huỷ</string>
+    <string name="gest_app_gone">Không mở được ứng dụng đó</string>
+    <string name="bk_title">Sao lưu</string>
+    <string name="bk_save">Sao lưu màn hình chính</string>
+    <string name="bk_restore">Khôi phục từ tệp</string>
+    <string name="bk_undo">Hoàn tác lần khôi phục gần nhất</string>
+    <string name="bk_undone">Đã trả lại màn hình chính trước đó</string>
+    <string name="bk_hint">Tệp gồm bố cục, thư mục, tiện ích, ghi chú, kiểu giao diện, cử chỉ và hình nền ảnh nếu ảnh nhỏ.</string>
+    <string name="bk_no_picker">Máy không có trình chọn tệp</string>
+    <string name="bk_fail">Không lưu được</string>
+    <string name="bk_saved">Đã lưu bản sao lưu</string>
+    <string name="bk_saved_nophoto">Đã lưu (hình nền ảnh không được đưa vào)</string>
+    <string name="bk_bad">Đây không phải bản sao lưu KidGuard dùng được</string>
+    <string name="bk_confirm_title">Khôi phục bản sao lưu này?</string>
+    <string name="bk_confirm_body">%1$d trang, %2$d ứng dụng (%3$d chưa cài trên máy này, sẽ không hiện). Màn hình chính hiện tại bị thay thế; có thể hoàn tác một lần.</string>
+    <string name="bk_restore_ok">Khôi phục</string>
+    <string name="bk_done">Đã khôi phục</string>
+</resources>

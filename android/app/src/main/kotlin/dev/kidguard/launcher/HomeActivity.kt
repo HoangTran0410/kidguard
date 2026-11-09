@@ -1101,8 +1101,14 @@ class HomeActivity : Activity() {
                 MotionEvent.ACTION_MOVE -> {
                     val dy = e.y - y0; val dx = e.x - x0
                     val free = !pager.dragging && pager.page > 0 && !onLibrary() && drag == null && !editing && this@HomeActivity.overlay == null && popup?.isShowing != true
-                    if (free && dy < -slop && abs(dy) > abs(dx) * 1.5f && drawerBegin()) { up = true; from = e.y; drawerAt(0f) }
-                    else if (free && downOk && drawer == null && dy > slop * 2 && dy > abs(dx) * 1.5f) { downOk = false; if (x0 > width / 2f) openControl() else expandShade(false) }
+                    val upA = Gest.action(this@HomeActivity, GestLogic.UP); val dnA = Gest.action(this@HomeActivity, GestLogic.DOWN)   // gestures: HomeGestures.kt
+                    val upDrawer = upA == GestLogic.DEFAULT || upA == GestLogic.DRAWER
+                    if (free && upDrawer && dy < -slop && abs(dy) > abs(dx) * 1.5f && drawerBegin()) { up = true; from = e.y; drawerAt(0f) }
+                    else if (free && !upDrawer && downOk && drawer == null && GestLogic.swipe(dx, dy, slop.toFloat()) == GestLogic.Dir.UP) { downOk = false; gestRun(GestLogic.UP) }
+                    else if (free && downOk && drawer == null && dy > slop * 2 && dy > abs(dx) * 1.5f) {
+                        downOk = false
+                        if (dnA != GestLogic.DEFAULT) gestRun(GestLogic.DOWN) else if (x0 > width / 2f) openControl() else expandShade(false)
+                    }
                 }
             }
             return up
@@ -1200,7 +1206,7 @@ class HomeActivity : Activity() {
         override fun onTouchEvent(e: MotionEvent): Boolean {
             track(e)
             when (e.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { x0 = e.x; y0 = e.y; lastX = e.x; postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong()) }
+                MotionEvent.ACTION_DOWN -> { x0 = e.x; y0 = e.y; lastX = e.x; postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong()); Gest.taps(context).down(e.eventTime, e.x, e.y) }
                 MotionEvent.ACTION_MOVE -> {
                     if (abs(e.x - x0) > slop || abs(e.y - y0) > slop) removeCallbacks(longPress)
                     if (!dragging && abs(e.x - x0) > slop && abs(e.x - x0) > abs(e.y - y0)) { dragging = true; lastX = e.x; parent.requestDisallowInterceptTouchEvent(true) }
@@ -1212,7 +1218,13 @@ class HomeActivity : Activity() {
                         scrollTo(adj, 0); lastX = e.x
                     }
                 }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { removeCallbacks(longPress); if (dragging) settle(); release() }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    removeCallbacks(longPress)
+                    // double tap on empty grid space (HomeGestures.kt); a single tap there does nothing
+                    val dbl = e.actionMasked == MotionEvent.ACTION_UP && !dragging && getChildAt(page) is CellLayout && Gest.taps(context).up(e.eventTime, e.x, e.y)
+                    if (dragging) settle(); release()
+                    if (dbl && gestFree() && Gest.action(this@HomeActivity, GestLogic.DBL) != GestLogic.NONE) gestRun(GestLogic.DBL)
+                }
             }
             return true
         }

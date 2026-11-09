@@ -181,6 +181,7 @@ class CustomActivity : Activity() {
             val fi = fonts.indexOfFirst { kotlin.math.abs(it - st.font) < 0.01 }.let { if (it < 0) 1 else it }
             col.addView(group().apply { addView(slider(s(R.string.hm_c_font), fi, 3, "A", "A", bigEnd = true) { v -> set { it.copy(font = fonts[v]) } }) }, lp(8))
 
+            gestBackup(col)   // gestures + backup / restore (HomeGestures.kt, HomeBackup.kt)
             if (!locked && !Flavor.HOME) col.addView(note(s(R.string.hm_c_lock_hint), false), lp(14))
             col.addView(k.pill(s(R.string.hm_c_reset), R.drawable.li_rotate_ccw, false) { if (guard()) applyPreset(HomeStyle.preset(st.preset)) },
                 LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
@@ -458,6 +459,7 @@ class CustomActivity : Activity() {
     override fun onActivityResult(req: Int, res: Int, data: Intent?) {
         super.onActivityResult(req, res, data)
         val uri = data?.data
+        if ((req == 8 || req == 9) && res == RESULT_OK && uri != null) { backupResult(req, uri); return }
         if (req != 7 || res != RESULT_OK || uri == null) return
         busy = true; build()
         val dm = resources.displayMetrics
@@ -508,6 +510,95 @@ class CustomActivity : Activity() {
     }
 
     /** Undo after a new photo: the previous wall.jpg comes back (the style comes back with the saved model). */
+    // ---- gestures + backup (logic: GestLogic.kt, HomeGestures.kt, HomeBackup.kt; strings: strings_gest.xml) ----
+
+    private fun gestBackup(col: LinearLayout) {
+        section(col, R.string.gest_title)
+        val g = group()
+        val names = mapOf(GestLogic.DBL to R.string.gest_dbl, GestLogic.UP to R.string.gest_up, GestLogic.DOWN to R.string.gest_down)
+        for ((i, gid) in GestLogic.GESTURES.withIndex()) {
+            val cur = Gest.action(this, gid)
+            val items = ArrayList<Pair<String, String>>()
+            if (gid != GestLogic.DBL) items += s(if (gid == GestLogic.UP) R.string.gest_def_up else R.string.gest_def_down) to GestLogic.DEFAULT
+            items += s(R.string.gest_none) to GestLogic.NONE
+            items += s(R.string.gest_search) to GestLogic.SEARCH
+            if (gid != GestLogic.UP) items += s(R.string.gest_drawer) to GestLogic.DRAWER   // swipe up already opens it ("default")
+            items += s(R.string.gest_shade) to GestLogic.SHADE
+            if (Gest.lockOk(this)) items += s(R.string.gest_lock) to GestLogic.LOCK
+            if (m?.style?.today != false) items += s(R.string.gest_today) to GestLogic.TODAY
+            val pkg = Gest.app(this, gid)
+            items += (if (cur == GestLogic.APP && pkg.isNotEmpty()) s(R.string.gest_app_named, appLabel(pkg)) else s(R.string.gest_app)) to GestLogic.APP
+            if (i > 0) line(g)
+            g.addView(segRow(s(names.getValue(gid)), items, cur) { v -> if (guard()) { if (v == GestLogic.APP) chooseApp(gid) else { Gest.set(this, gid, v); build() } } else build() })
+        }
+        col.addView(g, lp(8))
+        col.addView(note(s(R.string.gest_hint), false), lp(8))
+
+        section(col, R.string.bk_title)
+        col.addView(k.pill(s(R.string.bk_save), R.drawable.li_file, false) { backupStart() }, lp(8))
+        col.addView(k.pill(s(R.string.bk_restore), R.drawable.li_file, false) { if (guard()) restoreStart() }, lp(8))
+        if (HomeBackup.hasUndo(this)) col.addView(k.pill(s(R.string.bk_undo), R.drawable.li_rotate_ccw, false) {
+            if (guard()) { if (HomeBackup.undo(this)) { reloadAfterBackup(); Toast.makeText(this, R.string.bk_undone, Toast.LENGTH_SHORT).show() } else build() }
+        }, lp(8))
+        col.addView(note(s(R.string.bk_hint), false), lp(8))
+    }
+
+    private fun appLabel(pkg: String) = runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
+
+    private fun chooseApp(gid: String) {
+        val pm = packageManager
+        val apps = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
+            .map { it.activityInfo.packageName to it.loadLabel(pm).toString() }.filter { it.first != packageName && !it.first.startsWith("$packageName.") }
+            .distinctBy { it.first }.sortedBy { it.second.lowercase() }
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        var dlg: android.app.Dialog? = null
+        val ui = Ui(this)
+        for ((pkg, label) in apps) list.addView(TextView(this).apply {
+            text = label; textSize = 16f; setTextColor(ui.text); setPadding(dp(8), dp(14), dp(8), dp(14)); minHeight = dp(48)
+            setOnClickListener { dlg?.dismiss(); Gest.set(this@CustomActivity, gid, GestLogic.APP, pkg); build() }
+        }, LinearLayout.LayoutParams(-1, -2))
+        dlg = Modal(this, ui).show(null, Modal.Tone.INFO, s(R.string.gest_pick_app), null, list, s(R.string.gest_cancel))
+    }
+
+    private fun backupStart() {
+        val name = "kidguard-home-" + java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date()) + ".json"
+        runCatching { startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json").putExtra(Intent.EXTRA_TITLE, name), 8) }
+            .onFailure { Toast.makeText(this, R.string.bk_no_picker, Toast.LENGTH_LONG).show() }
+    }
+
+    private fun restoreStart() {
+        runCatching { startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), 9) }
+            .onFailure { Toast.makeText(this, R.string.bk_no_picker, Toast.LENGTH_LONG).show() }
+    }
+
+    private fun reloadAfterBackup() { m = HomeFile.load(this) ?: m; undo = null; undoPhoto = false; build() }
+
+    private fun backupResult(req: Int, uri: android.net.Uri) {
+        if (req == 8) {
+            Thread {
+                val b = HomeBackup.current(this)
+                val ok = b != null && HomeBackup.write(this, uri, b.first)
+                runOnUiThread { Toast.makeText(this, if (!ok) s(R.string.bk_fail) else if (b!!.second) s(R.string.bk_saved) else s(R.string.bk_saved_nophoto), Toast.LENGTH_LONG).show() }
+            }.start()
+            return
+        }
+        if (!guard()) return   // the parent locked Tuỳ chỉnh: no restore
+        Thread {
+            val p = HomeBackup.parse(HomeBackup.read(this, uri))
+            val gone = if (p != null) HomeBackup.missing(this, p.model) else 0
+            runOnUiThread {
+                if (isDestroyed || isFinishing) return@runOnUiThread
+                if (p == null) { Toast.makeText(this, R.string.bk_bad, Toast.LENGTH_LONG).show(); return@runOnUiThread }
+                val body = s(R.string.bk_confirm_body, p.model.pages.size, p.model.onHome().size, gone)
+                Modal(this, Ui(this)).show(R.drawable.li_file, Modal.Tone.WARN, s(R.string.bk_confirm_title), body, null, s(R.string.bk_restore_ok), s(R.string.gest_cancel)) {
+                    if (HomeBackup.apply(this, p)) { reloadAfterBackup(); Toast.makeText(this, R.string.bk_done, Toast.LENGTH_LONG).show() }
+                    else Toast.makeText(this, R.string.bk_fail, Toast.LENGTH_LONG).show()
+                    true
+                }
+            }
+        }.start()
+    }
+
     private fun restorePhoto() {
         val prev = File(filesDir, Wallpaper.PHOTO + ".prev")
         if (prev.exists()) prev.renameTo(File(filesDir, Wallpaper.PHOTO))
