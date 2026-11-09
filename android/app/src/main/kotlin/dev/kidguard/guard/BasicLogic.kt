@@ -65,6 +65,33 @@ object BasicLogic {
 
     private fun norm(s: String) = Normalizer.normalize(s.trim(), Normalizer.Form.NFC).lowercase(Locale.ROOT)
 
+    // PlaybackState.STATE_PLAYING / STATE_BUFFERING (plain ints: this file stays Android-free)
+    private const val ST_PLAYING = 3
+    private const val ST_BUFFERING = 6
+
+    /** A media session must be paused after a bounce: it belongs to the bounced package and plays (or is about to). */
+    fun shouldPause(sessionPkg: String?, state: Int, bounced: String): Boolean =
+        sessionPkg != null && sessionPkg == bounced && (state == ST_PLAYING || state == ST_BUFFERING)
+
+    /** [write]: put the setting back to 1 (only when we may); [log]: the child just switched it off (1 -> 0), tell the parent once. */
+    class ClockFix(val write: Boolean, val log: Boolean)
+
+    /** Automatic date & time / time zone in basic mode. [now] = the setting (-1 unreadable), [prev] = last seen (-1 unknown). */
+    fun clockFix(now: Int, prev: Int, canWrite: Boolean): ClockFix =
+        if (now != 0) ClockFix(false, false) else ClockFix(canWrite, prev == 1)
+
+    private val DT_AUTO = listOf("tự động đặt thời gian", "đặt thời gian tự động", "ngày giờ tự động", "ngày và giờ tự động", "múi giờ tự động",
+        "set time automatically", "automatic date & time", "automatic date and time", "automatic time zone", "set automatically")
+    private val DT_MANUAL = listOf("đặt ngày", "đặt giờ", "đặt thời gian", "set date", "set time")
+
+    /** The Settings page that sets the clock: the "automatic date & time" switch next to "set date" / "set time" rows
+     * (the main Settings list has a lone "Date & time" row, which does not match). */
+    fun isDateTimePage(pkg: String, nodes: List<Node>): Boolean {
+        if (!isSettingsPkg(pkg)) return false
+        val ts = nodes.map { norm(it.text) }
+        return ts.any { t -> DT_AUTO.any { t.contains(it) } } && ts.any { t -> DT_MANUAL.any { t == it || t.startsWith(it) } }
+    }
+
     /**
      * True when a window of [pkg] mentions KidGuard (one of [labels]) AND offers a destructive control.
      * An app list that merely shows "KidGuard" has no such control and passes. KidGuard's own windows are never passed in.

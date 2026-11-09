@@ -536,6 +536,12 @@ APK, open KidGuard and follow the checklist; no cable, no adb.
   accessibility service sends HOME when a Settings / package installer / OEM security window shows KidGuard together
   with an uninstall / deactivate / force-stop / accessibility-off control (text match, Vietnamese + English).
   KidGuard's own screen is never blocked.
+- **Bounce stops audio** (basic): after a bounce (rules, daily limit, lock) the guard pauses that package's playing media
+  session (`MediaSessionManager`, via our notification access; skipped without it). No new state field.
+- **Clock** (basic, no `DISALLOW_CONFIG_DATE_TIME`): with `WRITE_SECURE_SETTINGS` the guard tick keeps Settings.Global
+  `auto_time` and `auto_time_zone` = 1; if the child turned one off (1 -> 0) the existing `clock` event "Phone clock was changed"
+  is sent once. The accessibility service also sends HOME from the Date & time page (automatic switch + set date / set time
+  rows). `release` stops both (`Basic.enforcing`). No new state field or rule.
 - **Not available in basic** (page hides or disables them, says "cần Device Owner"): app install / USB debugging
   blocks, family DNS, airplane / location / clock / safe-mode / factory-reset locks, `reboot`, Tailscale, new-app lock
   before first launch (still blocked on launch). `lock` uses the admin's force-lock. Live screen / remote control need

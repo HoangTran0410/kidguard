@@ -180,6 +180,7 @@
     <string name="prov_secure_no">Optional: turning Accessibility back on by itself needs a computer or Wireless debugging</string>
 
     <!-- Accessibility -->
+    <string name="log_acc_clock">The Date and time page was opened; went back to the home screen</string>
     <string name="log_acc_settings">The uninstall / turn-off page for KidGuard was opened; went back to the home screen</string>
     <string name="ch_block">Locked apps</string>
     <string name="notif_blocked">%1$s is locked: %2$s</string>

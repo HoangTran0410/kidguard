@@ -77,6 +77,22 @@ class Guard : Service() {
             refWall = w; refElapsed = e
         }
     }
+    private var prevAuto = -1; private var prevAutoTz = -1
+    /** Basic mode: keep automatic time / time zone on (WRITE_SECURE_SETTINGS, else only report); stops with release (Basic.enforcing). */
+    private fun clockGuard() {
+        val can = checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        var tamper = false
+        for (tz in listOf(false, true)) {
+            val key = if (tz) android.provider.Settings.Global.AUTO_TIME_ZONE else android.provider.Settings.Global.AUTO_TIME
+            val now = android.provider.Settings.Global.getInt(contentResolver, key, -1)
+            val fix = BasicLogic.clockFix(now, if (tz) prevAutoTz else prevAuto, can)
+            if (fix.write) runCatching { android.provider.Settings.Global.putInt(contentResolver, key, 1) }
+            if (fix.log) tamper = true
+            val seen = if (fix.write) 1 else now   // a rewrite means the next tick reads 1; a failed one logs only once (prev = 0)
+            if (tz) prevAutoTz = seen else prevAuto = seen
+        }
+        if (tamper) { store.event("clock", R.string.ev_clock); store.log(R.string.ev_clock); relay?.kick() }
+    }
     private val pkgReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == Intent.ACTION_PACKAGE_REMOVED && !intent.getBooleanExtra(Intent.EXTRA_REPLACING, false))
@@ -235,6 +251,7 @@ class Guard : Service() {
         // basic mode: no suspend, so the guard bounces instead (window events do the same instantly, see Acc)
         val basic = Basic.enforcing(this)
         Acc.blocked = if (basic) want else emptyMap(); Acc.prot = prot
+        if (basic) runCatching { clockGuard() }
         if (basic) use.current?.let { cur -> BasicLogic.bounceReason(cur, packageName, want, prot)?.let { Acc.bounceApp(this, cur, it) } }
         // owner mode: the system refused to suspend it (some OEMs protect their own apps): bounce it instead
         else use.current?.takeIf { it in want && it !in nowSusp }?.let { cur -> BasicLogic.bounceReason(cur, packageName, want, prot)?.let { Acc.bounceApp(this, cur, it) } }

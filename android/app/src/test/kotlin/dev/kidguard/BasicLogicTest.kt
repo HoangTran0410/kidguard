@@ -33,6 +33,32 @@ class BasicLogicTest {
 
     private fun n(vararg t: String) = t.map { Node(it) }
 
+    @Test fun pauseOnlyBouncedPackageWhilePlaying() {
+        assertTrue(BasicLogic.shouldPause("com.game", 3, "com.game"))
+        assertTrue(BasicLogic.shouldPause("com.game", 6, "com.game"))
+        assertFalse(BasicLogic.shouldPause("com.game", 2, "com.game"))   // paused already
+        assertFalse(BasicLogic.shouldPause("com.game", 0, "com.game"))
+        assertFalse(BasicLogic.shouldPause("com.music", 3, "com.game"))  // another app's session stays
+        assertFalse(BasicLogic.shouldPause(null, 3, "com.game"))
+    }
+
+    @Test fun clockFixRewritesAndReportsOnce() {
+        assertTrue(BasicLogic.clockFix(0, 1, true).write)
+        assertTrue(BasicLogic.clockFix(0, 1, true).log)
+        assertFalse(BasicLogic.clockFix(0, 0, false).log)     // already reported
+        assertFalse(BasicLogic.clockFix(0, 0, false).write)   // no WRITE_SECURE_SETTINGS
+        assertFalse(BasicLogic.clockFix(1, 1, true).write)
+        assertFalse(BasicLogic.clockFix(-1, 1, true).write)
+        assertFalse(BasicLogic.clockFix(0, -1, true).log)     // first look: no report
+    }
+
+    @Test fun dateTimePage() {
+        assertTrue(BasicLogic.isDateTimePage("com.android.settings", n("Date & time", "Set time automatically", "Set date", "Set time")))
+        assertTrue(BasicLogic.isDateTimePage("com.android.settings", n("Ngày và giờ", "Tự động đặt thời gian", "Đặt ngày", "Đặt giờ")))
+        assertFalse(BasicLogic.isDateTimePage("com.android.settings", n("Settings", "Date & time", "Display")))
+        assertFalse(BasicLogic.isDateTimePage("com.android.chrome", n("Set time automatically", "Set date")))
+    }
+
     @Test fun appInfoPageIsBouncedVi() {
         assertTrue(BasicLogic.selfProtect("com.android.settings", n("Thông tin ứng dụng", "KidGuard", "Mở", "Gỡ cài đặt", "Buộc dừng")))
         assertTrue(BasicLogic.selfProtect("com.coloros.safecenter", n("KidGuard", "Buộc dừng")))
