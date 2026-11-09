@@ -38,7 +38,10 @@ object Usage {
         val open = HashMap<String, Long>()          // package -> resumed at
         var last: String? = null
         val e = UsageEvents.Event()
-        fun close(pkg: String, at: Long) { open.remove(pkg)?.let { total[pkg] = (total[pkg] ?: 0) + (at - maxOf(it, from)).coerceAtLeast(0) } }
+        fun close(pkg: String, at: Long) {
+            // used only before `from` (the look-back window): no entry, or the app would show as "used today" with 0 min
+            open.remove(pkg)?.let { val d = at - maxOf(it, from); if (d > 0) total[pkg] = (total[pkg] ?: 0) + d }
+        }
         fun closeAll(at: Long) { open.keys.toList().forEach { close(it, at) } }
         while (ev.hasNextEvent()) {
             ev.getNextEvent(e)

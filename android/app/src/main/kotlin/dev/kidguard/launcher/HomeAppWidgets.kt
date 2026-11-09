@@ -75,9 +75,11 @@ internal class AwState {
 }
 
 /** The id of a bind in progress, also kept in prefs so [awSync] can drop it after a process death. */
+private const val AW_PENDING_MAX_MS = 10 * 60_000L
+
 internal fun HomeActivity.awPend(id: Int) {
     aw.pendingId = id
-    getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt("awPending", id).apply()
+    getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt("awPending", id).putLong("awPendingAt", System.currentTimeMillis()).apply()
 }
 
 internal fun HomeActivity.awHost(): AppWidgetHost = aw.host ?: KgHost(applicationContext).also { aw.host = it }
@@ -92,8 +94,13 @@ internal fun HomeActivity.awSync(m: HomeModel) {
     aw.seen = now
     if (before == null) {
         // an id allocated for a bind that never finished (process died mid-flow) would stay in the host for ever
-        val p = getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt("awPending", 0)
-        if (p != 0) { if (p !in now) runCatching { awHost().deleteAppWidgetId(p) }; awPend(0) }
+        // only a stale one: a recreated activity (rotation, low RAM) still gets the bind/config result for a fresh id
+        val sp = getSharedPreferences("launcher", Context.MODE_PRIVATE)
+        val p = sp.getInt("awPending", 0)
+        if (p != 0) {
+            if (System.currentTimeMillis() - sp.getLong("awPendingAt", 0) < AW_PENDING_MAX_MS) aw.pendingId = p
+            else { if (p !in now) runCatching { awHost().deleteAppWidgetId(p) }; awPend(0) }
+        }
         if (now.isNotEmpty() && !aw.listening && lifecycleStarted) awStart(); return }
     for (id in before - now) { runCatching { aw.host?.deleteAppWidgetId(id) }; aw.views.remove(id) }
     if (before.isEmpty() && now.isNotEmpty() && !aw.listening && lifecycleStarted) awStart()
