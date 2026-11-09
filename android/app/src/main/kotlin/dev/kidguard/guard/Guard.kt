@@ -170,6 +170,7 @@ class Guard : Service() {
         val minute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         val today = day(now)
         // bank apps refuse to run with any accessibility service on: off while one is used, back on 10 min after (AccPause)
+        opt("focus") { FocusStore.expire(this, now) }   // a study session that ended: DND back (launcher may be gone)
         opt("accPause") { AccPause.tick(this, use.current, now) }
         opt("acc") { if (!AccPause.active(this)) Acc.ensureEnabled(this) }
         opt("dns") { Policy.syncDns(this, r); Policy.retryDns(this, r) }

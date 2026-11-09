@@ -134,6 +134,7 @@ internal fun HomeActivity.shortcutMenu(item: HItem, v: View) = menu(listOf(
 
 internal fun HomeActivity.emptyMenu(x: Int, y: Int) = menu(listOf(
     Row(R.drawable.li_check, getString(R.string.hm_e_enter), true) { enterEdit() },
+    focusRow(),
     Row(R.drawable.li_layout_dashboard, getString(R.string.hm_w_title), true) { openPicker() },
     Row(R.drawable.li_sliders_horizontal, getString(R.string.hm_customize), true) { runCatching { startActivity(Intent(this, CustomActivity::class.java)) } },
     Row(R.drawable.li_shield, getString(R.string.hm_open_kg), true) { openMain() }.takeIf { !Flavor.HOME },

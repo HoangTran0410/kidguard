@@ -455,7 +455,7 @@ class HomeActivity : Activity() {
         val s = Store.of(this); val r = s.rules; lap("rules")
         val all = launcherApps(); lap("apps")
         val dv = decision(r, s); lap("decision")
-        val show = all.keys.associateWith { LauncherLogic.show(it, dv.want, r, packageName, settingsOk(r)) }; lap("show")
+        val show = focusShow(all.keys.associateWith { LauncherLogic.show(it, dv.want, r, packageName, settingsOk(r)) }, dv); lap("show")
         val visible = all.values.filter { show[it.pkg] != LauncherLogic.Show.HIDE }.sortedBy { it.sortKey }; lap("sort")
         var m = model ?: HomeFile.load(this) ?: firstModel(r, visible); lap("model")
         m = HomeLayout.prune(m) { it !in all && !Policy.installed(this, it) }; lap("prune")
@@ -493,9 +493,9 @@ class HomeActivity : Activity() {
         val mj = if (m === jsonOf) jsonStr else m.toJson().toString().also { jsonOf = m; jsonStr = it }; lap("json")
         val k = listOf(mj, all.values.joinToString(",") { it.label }, show.toString(), dv.want.toString(), block, banner, timeKey, dv.leftMs / 60_000, s.everPaired,
             s.raw("sos"), checkinKey(s), s.raw("reqs"), r.blockNote, r.launcher, dark, files,
-            r.chores, r.schedules, r.groups.map { it.hours }, r.bedtimeOn, r.bedStart, r.bedEnd, r.lockContact).joinToString("|")
+            r.chores, r.schedules, r.groups.map { it.hours }, r.bedtimeOn, r.bedStart, r.bedEnd, r.lockContact, focusKey(this)).joinToString("|")
         lap("key")
-        if (!force && k == key) { tickClocks(dv); lap.done("same"); return }
+        if (!force && k == key) { tickClocks(dv); focusTick(); lap.done("same"); return }
         if (busy()) { main.removeCallbacks(renderRetry); main.postDelayed(renderRetry, 1500); return }   // never rebuild under a finger / an open panel
         key = k
         // everything the page views depend on except the grid pages themselves (and dock / seen, which no page shows)
@@ -503,7 +503,7 @@ class HomeActivity : Activity() {
         lastView = dv; lastShow = show
         tempPage = false
         ensureWall(); lap("wall")
-        buildBanner(banner)
+        buildBanner(banner); focusChip()
         buildTopBar()
         buildPages(m, all, show, dv, r, s, block); lap("pages")
         buildDock(m, all, show, dv, r); lap("dock")

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_title">Chế độ Học bài</string>
+    <string name="focus_sub">Màn hình chính chỉ còn các app học, thông báo được tắt tiếng.</string>
+    <string name="focus_card_idle">Bắt đầu một buổi học</string>
+    <string name="focus_start_n">Bắt đầu %d phút</string>
+    <string name="focus_chip">Đang học bài · còn %d phút</string>
+    <string name="focus_chip_sched">Giờ học · đến %s</string>
+    <string name="focus_end">Kết thúc sớm</string>
+    <string name="focus_end_t">Dừng chế độ học bài?</string>
+    <string name="focus_end_b">Các app khác sẽ hiện lại ngay.</string>
+    <string name="focus_end_pin">Nhập mã PIN của phụ huynh để dừng sớm.</string>
+    <string name="focus_end_ok">Dừng</string>
+    <string name="focus_apps">App học (%d)</string>
+    <string name="focus_apps_t">Chọn app học</string>
+    <string name="focus_apps_empty">Hãy chọn các app học trước rồi bắt đầu.</string>
+    <string name="focus_sched">Giờ học tự động</string>
+    <string name="focus_sched_none">Chưa đặt</string>
+    <string name="focus_sched_t">Giờ học</string>
+    <string name="focus_sched_pin">Nhập mã PIN của phụ huynh để đổi giờ học.</string>
+    <string name="focus_add">Thêm khung giờ</string>
+    <string name="focus_from">Từ</string>
+    <string name="focus_to">Đến</string>
+    <string name="focus_bad_range">Giờ kết thúc phải sau giờ bắt đầu.</string>
+    <string name="focus_no_day">Chọn ít nhất một ngày.</string>
+    <string name="focus_dnd_on">Đang bật Không làm phiền khi học.</string>
+    <string name="focus_dnd_off">Muốn tắt tiếng thông báo, hãy cấp cho KidGuard quyền Không làm phiền trong Cài đặt.</string>
+    <string name="focus_remove">Xoá</string>
+</resources>
