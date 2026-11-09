@@ -424,6 +424,8 @@
     <string name="q_time_desc">Thời gian dùng máy còn lại hôm nay. Chạm để xin thêm giờ</string>
     <string name="q_lock_fail">Không khoá được màn hình: KidGuard chưa cài đặt xong</string>
     <string name="main_pin_lock">Thêm nút Khoá màn hình ra màn hình chính</string>
+    <string name="main_pin_lock_added">Đã thêm nút Khoá ra màn hình chính</string>
+    <string name="main_pin_lock_there">Màn hình chính đã có nút Khoá rồi</string>
     <string name="main_pin_lock_no">Màn hình chính này không thêm được lối tắt. Nhấn giữ chỗ trống và thêm tiện ích \"Khoá\" của KidGuard nhé.</string>
     <string name="main_gestures">Chạm 2 lần để mở màn hình / cử chỉ khi tắt màn hình</string>
     <string name="main_gestures_body">Ứng dụng không tự làm được việc này, đây là cài đặt của điện thoại. KidGuard sẽ mở đúng trang cài đặt nếu tìm thấy.</string>

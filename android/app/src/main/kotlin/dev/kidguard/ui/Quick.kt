@@ -104,6 +104,23 @@ object Quick {
     fun moreIntent(ctx: Context): Intent = Intent(ctx, MainActivity::class.java).putExtra(EXTRA_MORE, true)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
+    /**
+     * The default home is this app's own kid launcher: add its 1x1 "lock" widget to the first page with room (or say
+     * it is there already) and show the home. False when another launcher is the home (then [requestPin]).
+     */
+    fun addLockToOwnHome(ctx: android.app.Activity): Boolean {
+        val home = runCatching { ctx.packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo }.getOrNull()
+        if (home?.packageName != ctx.packageName || home.name != HomeActivity::class.java.name) return false
+        val m = HomeFile.load(ctx) ?: return false
+        val msg = if (HomeLayout.hasWidget(m, "lock")) R.string.main_pin_lock_there else {
+            val n = HomeLayout.placeWidget(m, "lock", 1, 1, 0) ?: return false
+            HomeFile.save(ctx, n); R.string.main_pin_lock_added
+        }
+        android.widget.Toast.makeText(ctx, ctx.getString(msg), android.widget.Toast.LENGTH_LONG).show()
+        runCatching { ctx.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        return true
+    }
+
     /** Asks the launcher to pin a "Lock screen" icon. False when this launcher can't. */
     fun requestPin(ctx: Context): Boolean = runCatching {
         val sm = ctx.getSystemService(ShortcutManager::class.java) ?: return false

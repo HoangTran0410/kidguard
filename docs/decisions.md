@@ -48,6 +48,8 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 
 - Launcher drawer jank after using an app: the "recent" row changed so the first swipe frame rebuilt the whole grid (94-103 ms build, 183-200 ms frame, Oppo A5s). Now `drawerPrep()` refills the hidden drawer on idle after resume, and the hidden drawer is INVISIBLE not GONE (GONE re-measured the grid on show): 3-5 ms build, 16-50 ms first frame. "Dùng gần đây" title dropped (owner: the row speaks for itself) (11-09)
 
+- Kid Home does not take pinned shortcuts (`requestPinShortcut` / CONFIRM_PIN_SHORTCUT) from any app: not built, not a ban. Would need a shortcut item in HomeModel + LauncherApps.startShortcut, and the block rules applied to the shortcut's package. Our own "add Lock to home" puts the built-in 1x1 lock widget instead when Kid Home (kid flavor) is the default home (11-09)
+
 ### Remote / relay
 - Command whitelist lives in the relay worker; new command = whitelist + protocol + test. Destructive (`reboot`, `release`, `unpairAll`, `update`, `unpair`) are deliver-once (AGENTS.md)
 - Worker caps: cmd <=4 KB, rules <=64 KB, full queue -> 429 (never drop oldest), per-IP 150 req/10 s on /c/*; state size counted in bytes; expired cmds don't count (1747923, 66d8d5d, f032b5d)

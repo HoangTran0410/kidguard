@@ -439,6 +439,8 @@
     <string name="q_time_desc">Today\'s screen time left. Tap to ask for more time</string>
     <string name="q_lock_fail">Couldn\'t lock the screen: KidGuard isn\'t fully set up</string>
     <string name="main_pin_lock">Add a Lock screen button to the home screen</string>
+    <string name="main_pin_lock_added">Lock button added to the home screen</string>
+    <string name="main_pin_lock_there">The home screen already has the Lock button</string>
     <string name="main_pin_lock_no">This home screen can\'t add shortcuts. Long-press an empty spot and add the KidGuard \"Lock\" widget instead.</string>
     <string name="main_gestures">Double tap to wake / screen-off gestures</string>
     <string name="main_gestures_body">Apps can\'t do this themselves: it\'s a phone setting. KidGuard opens the right page if it can find it.</string>

@@ -172,6 +172,8 @@ class MainActivity : Activity() {
         // kid conveniences: a lock icon on the home screen, and where the phone keeps "double tap to wake"
         kidG.addView(u.listRow(getString(R.string.main_pin_lock), R.drawable.li_lock) {
             sheet.dismiss()
+            // our own home has no pinned shortcuts (none of any app): put its built-in 1x1 lock widget there instead
+            if (Quick.addLockToOwnHome(this)) return@listRow
             if (!Quick.requestPin(this)) Modal(this, ui2).show(R.drawable.li_lock, Modal.Tone.INFO, getString(R.string.q_lock), getString(R.string.main_pin_lock_no))
         })
         kidG.addView(u.listRow(getString(R.string.main_gestures), R.drawable.li_smartphone) { sheet.dismiss(); askGestures() })
