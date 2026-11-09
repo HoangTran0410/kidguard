@@ -47,7 +47,8 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean,
     private var shownKey: Any? = null
 
     private val cb = object : MediaController.Callback() {
-        override fun onPlaybackStateChanged(state: PlaybackState?) = show()
+        // re-pick, not just redraw: a session that drops to ERROR / STOPPED must give way (or empty the card)
+        override fun onPlaybackStateChanged(state: PlaybackState?) = pick(null)
         override fun onMetadataChanged(metadata: MediaMetadata?) = show()
         override fun onSessionDestroyed() { main.post { pick(null) } }
     }
@@ -109,6 +110,7 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean,
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus && !listening && NotifDots.granted(act, fresh = true)) { listen(); NotifDots.setOn(act, true) }
+        else if (hasFocus && listening) pick(null)   // back on home: catch a change the callbacks missed
     }
 
     override fun onDetachedFromWindow() {
@@ -117,10 +119,17 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean,
         ctl?.unregisterCallback(cb); ctl = null
     }
 
-    /** Playing first, then paused (a song stopped a minute ago is still the one to resume), never a stopped / empty one. */
+    /**
+     * Playing first, then paused (a song stopped a minute ago is still the one to resume). Only live states count: an app
+     * closed from Recents can leave its session active in ERROR with the old title and no actions (YouTube / ReVanced on
+     * the owner's Poco: "Required premium account to perform action in background"), which looked stuck and dead.
+     */
     private fun pick(list: List<MediaController>?) {
+        val live = setOf(PlaybackState.STATE_PLAYING, PlaybackState.STATE_PAUSED, PlaybackState.STATE_BUFFERING, PlaybackState.STATE_CONNECTING,
+            PlaybackState.STATE_FAST_FORWARDING, PlaybackState.STATE_REWINDING, PlaybackState.STATE_SKIPPING_TO_NEXT,
+            PlaybackState.STATE_SKIPPING_TO_PREVIOUS, PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM)
         val l = (list ?: runCatching { msm.getActiveSessions(cn) }.getOrNull().orEmpty())
-            .filter { it.metadata != null && it.playbackState?.state.let { s -> s != null && s != PlaybackState.STATE_NONE && s != PlaybackState.STATE_STOPPED } }
+            .filter { it.metadata != null && it.playbackState?.state in live }
         val best = l.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING } ?: l.firstOrNull()
         if (best?.sessionToken != ctl?.sessionToken) {
             ctl?.unregisterCallback(cb); ctl = best
