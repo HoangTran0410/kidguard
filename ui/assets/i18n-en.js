@@ -175,6 +175,7 @@ L.en = {
   "clean.h": "Lighten the phone",
   "clean.p": "Hide the maker's preinstalled apps your kid doesn't use: hidden apps don't run in the background, use RAM or update themselves. Tick, then Save; untick and Save to bring one back, nothing is lost. Hidden on the phone now: {0}.",
   "clean.sug": "suggested", "clean.noSug": "No preinstalled apps worth hiding.",
+  "clean.needAdb": "The kid's phone has no Device Owner: turn on <b>Wireless debugging</b> on it (Developer options) so KidGuard can hide preinstalled apps and clear app data by itself.",
   "clean.noList": "The kid's phone hasn't sent its preinstalled app list (needs KidGuard 0.8 or later).", "clean.heavy": "Largest apps",
   "clean.clear": "Clear data", "clean.noSize": "No storage figures yet (needs <b>Usage access</b> on the kid's phone, KidGuard 0.8+).",
   "clean.tipOwner": "Clear data = the app is like freshly installed (logins, messages and files saved in it are gone).", "clean.tipBasic": "On the kid's phone: Settings → Apps → pick the app → Uninstall / Disable.",

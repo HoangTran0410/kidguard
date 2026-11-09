@@ -26,6 +26,13 @@ class AccPauseTest {
         assertEquals(0L to true, AccPauseLogic.step("com.zing", list, t0, t0 + 10 * min))
     }
 
+    @Test fun basicModeComesBackAfterOneMinute() {
+        val t0 = 1_000_000L
+        val b = AccPauseLogic.RESUME_BASIC_MS
+        assertEquals(t0 to false, AccPauseLogic.step("com.zing", list, t0, t0 + b - 1, b))
+        assertEquals(0L to true, AccPauseLogic.step("com.zing", list, t0, t0 + b, b))
+    }
+
     @Test fun clockWentBackRestartsCount() {
         assertEquals(100L to false, AccPauseLogic.step("com.zing", list, 5_000L, 100L))
     }

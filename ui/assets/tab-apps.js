@@ -109,8 +109,9 @@ const sameSet = (a, b) => a.size === b.size && [...a].every(x => b.has(x));
 // Android 9+ (API 28) for DevicePolicyManager.clearApplicationUserData; state has only the release string ("8.1.0")
 const canClear = () => !st || !st.android || !(parseInt(st.android, 10) < 9);
 function cleanTab(b) {
+  // No Device Owner: the phone hides via its own Wireless-debugging adb and sends state.preinstalled only while that works
   const owner = !isBasic() && st.owner !== false;
-  if (!owner) { b.innerHTML = `<div class="card">${needOwner(t("no.hide"))}</div>`; return; }
+  if (!owner && !st.preinstalled) { b.innerHTML = `<div class="card"><p class="mute">${ic("lock")} ${t("clean.needAdb")}</p></div>`; return; }
   if (!st.preinstalled) { b.innerHTML = `<div class="card"><p class="mute">${ic("hourglass")} ${t("clean.noList")}</p></div>`; return; }
   const pre = st.preinstalled, saved = new Set(edit.hidden), S = cleanStat();
   const draft = () => hideDraft || saved;
@@ -148,12 +149,13 @@ function cleanTab(b) {
 }
 function spaceTab(b) {
   const heavy = (st.apps || []).filter(x => x.mb > 0).sort((a, b) => b.mb - a.mb).slice(0, 15);
-  const owner = !isBasic() && st.owner !== false, cc = owner && canClear();
+  // basic mode: `pm clear` through the self-adb shell (any Android version), usable while state.preinstalled is sent
+  const owner = !isBasic() && st.owner !== false, cc = owner ? canClear() : !!st.preinstalled;
   b.innerHTML = `<div class="card"><h2>${ic("hard-drive")} ${t("clean.heavy")}</h2>
     ${owner && !cc ? `<div class="alert warn" style="margin:0 0 8px;font-weight:400;font-size:13px">${ic("triangle-alert")} ${t("clean.oldOs", esc(st.android))}</div>` : ""}
     ${heavy.length ? heavy.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${mbTxt(x.mb)}</span></div>${cc && !x.protected ? `<button type="button" data-clr="${esc(x.pkg)}" class="bad">${ic("trash-2")} ${t("clean.clear")}</button>` : ""}</div>`).join("")
       : `<p class="mute">${t("clean.noSize")}</p>`}
-    <p class="mute">${ic("lightbulb")} ${cc ? t("clean.tipOwner") + " " : ""}${owner ? "" : t("clean.tipBasic") + " "}${t("clean.tipRam")}</p></div>`;
+    <p class="mute">${ic("lightbulb")} ${cc ? t("clean.tipOwner") + " " : ""}${cc ? "" : t("clean.tipBasic") + " "}${t("clean.tipRam")}</p></div>`;
   b.querySelectorAll("[data-clr]").forEach(x => x.onclick = () => {
     const a = (st.apps || []).find(y => y.pkg === x.dataset.clr); if (!a) return;
     cmd({ type: "clearData", pkg: a.pkg }, t("clean.cleared", a.label),

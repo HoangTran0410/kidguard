@@ -178,6 +178,7 @@ L.vi = {
   "clean.h": "Dọn máy cho nhẹ",
   "clean.p": "Ẩn app cài sẵn của hãng mà con không dùng: app bị ẩn không chạy nền, không tốn RAM, không tự cập nhật. Tích chọn rồi bấm Lưu; bỏ tích và Lưu là hiện lại, không mất gì. Máy đang ẩn: {0}.",
   "clean.sug": "nên ẩn", "clean.noSug": "Không thấy app cài sẵn nào nên ẩn.",
+  "clean.needAdb": "Máy con chưa có Device Owner: bật <b>Gỡ lỗi không dây</b> trên máy con (Tuỳ chọn nhà phát triển) để KidGuard tự ẩn app cài sẵn và xoá dữ liệu app.",
   "clean.noList": "Máy con chưa gửi danh sách app cài sẵn (cần KidGuard 0.8 trở lên).", "clean.heavy": "App nặng nhất",
   "clean.clear": "Xoá dữ liệu", "clean.noSize": "Chưa có số liệu dung lượng (cần quyền <b>Truy cập dữ liệu sử dụng</b> trên máy con, KidGuard 0.8+).",
   "clean.tipOwner": "Xoá dữ liệu = app về như mới cài (mất đăng nhập, tin nhắn, file lưu trong app).", "clean.tipBasic": "Trên máy con: Cài đặt → Ứng dụng → chọn app → Gỡ cài đặt / Tắt.",

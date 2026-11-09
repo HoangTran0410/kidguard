@@ -12,11 +12,13 @@ import android.provider.Settings
  * Rule `accPause` (package list, defaults to [AccPauseLogic.DEFAULT]): when one of them opens, our accessibility
  * service is really turned off (not hidden: the bank gets what it asks for), and turned back on once none of them has
  * been in front for [AccPauseLogic.RESUME_MS]; their background processes are then killed so the next open is a fresh
- * start (which the launcher / the window event pauses for again). Owner mode with WRITE_SECURE_SETTINGS only: basic
- * mode enforces through the service itself and usually can't turn it back on.
+ * start (which the launcher / the window event pauses for again). Needs WRITE_SECURE_SETTINGS (to turn it back on);
+ * basic mode resumes after [AccPauseLogic.RESUME_BASIC_MS] because it blocks apps through the service itself.
  */
 object AccPauseLogic {
     const val RESUME_MS = 10 * 60_000L
+    /** Basic mode blocks apps through the service itself: a paused service blocks nothing, so come back much sooner. */
+    const val RESUME_BASIC_MS = 60_000L
 
     /** Vietnamese banks / wallets (package names from their Play Store pages; parents edit the list on the page). */
     val DEFAULT: Set<String> = setOf(
@@ -38,17 +40,21 @@ object AccPauseLogic {
     )
 
     /** Tick step while paused: new "left at" time (0 = a paused app is in front) and whether to turn the service back on. */
-    fun step(current: String?, list: Set<String>, leftAt: Long, now: Long): Pair<Long, Boolean> = when {
+    fun step(current: String?, list: Set<String>, leftAt: Long, now: Long, resumeMs: Long = RESUME_MS): Pair<Long, Boolean> = when {
         current != null && current in list -> 0L to false
         leftAt <= 0L || leftAt > now -> now to false          // just left (or the clock went back): start counting
-        now - leftAt >= RESUME_MS -> 0L to true
+        now - leftAt >= resumeMs -> 0L to true
         else -> leftAt to false
     }
 }
 
 object AccPause {
-    /** Can we turn the service off AND back on by ourselves? */
-    fun able(ctx: Context): Boolean = !Flavor.HOME && Policy.isOwner(ctx) &&
+    /**
+     * Can we turn the service off AND back on by ourselves? WRITE_SECURE_SETTINGS is what matters: Device Owner setups
+     * get it, and so do basic-mode phones set up over adb / Wireless debugging (they used to be excluded, so a bank app
+     * never ran on a basic-mode phone).
+     */
+    fun able(ctx: Context): Boolean = !Flavor.HOME &&
         ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == PackageManager.PERMISSION_GRANTED
 
     fun active(ctx: Context): Boolean = Store.of(ctx).accPaused.isNotEmpty()
@@ -83,7 +89,8 @@ object AccPause {
         val paused = s.accPaused
         if (paused.isEmpty()) return
         if (!able(ctx)) { resume(ctx, s, paused, kill = false); return }   // lost owner / permission: never stay off
-        val (leftAt, back) = AccPauseLogic.step(current, s.rules.accPause + paused, s.accLeftAt, now)
+        val wait = if (Policy.isOwner(ctx)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS
+        val (leftAt, back) = AccPauseLogic.step(current, s.rules.accPause + paused, s.accLeftAt, now, wait)
         if (back) resume(ctx, s, paused, kill = true) else if (leftAt != s.accLeftAt) s.accLeftAt = leftAt
     }
 

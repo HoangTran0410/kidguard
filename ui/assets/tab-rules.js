@@ -328,10 +328,10 @@ function rulesWire(b, r) {
   bankBind(r);
 }
 // Apps that refuse to open while any accessibility service is on (banks, some wallets / games): the phone turns
-// KidGuard's off while one is used (rules.accPause, owner mode). Any app can be picked; a package name can be typed
+// KidGuard's off while one is used (rules.accPause; owner mode, or basic mode set up over adb). Any app can be picked; a package name can be typed
 // for one not installed yet. Picked apps first, then A-Z.
 function bankBox(r) {
-  if (!Array.isArray(r.accPause) || isBasic()) return "";
+  if (!Array.isArray(r.accPause)) return "";
   return `<h4 style="margin:14px 0 4px">${ic("landmark")} ${t("bank.h")}</h4><p class="mute">${t("bank.p")}</p>
     <details id="bk" style="margin-top:6px"><summary id="bk-n"></summary>
     <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" style="margin-top:8px">
