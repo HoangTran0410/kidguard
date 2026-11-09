@@ -87,6 +87,18 @@ object IconCache {
     }
 
     /**
+     * A plain plate in the app-icon shape with the same glass rim, for things that sit in the grid next to app icons
+     * (folder background, the 1×1 lock widget), so they line up and read like an icon. Small: drawn per render.
+     */
+    fun plate(px: Int, round: Boolean, color: Int): Bitmap {
+        val b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
+        val c = Canvas(b); val clip = shape(px, round)
+        c.drawPath(clip, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
+        glass(c, clip, px)
+        return b
+    }
+
+    /**
      * The glass rim (iOS 26 / LauncherOS): a thin light line on the top-left and bottom-right corners, fading out along
      * the sides, so the icon reads as a lit pane and its logo stands out. Drawn once into the cached bitmap: free per frame.
      */

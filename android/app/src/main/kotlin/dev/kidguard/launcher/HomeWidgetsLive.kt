@@ -108,9 +108,25 @@ internal fun HomeActivity.lockWidget(w: Int): View {
     }
     val label = getString(R.string.q_lock)
     if (w <= 1) {
-        val box = android.widget.FrameLayout(this)
-        val d = disc(52).apply { contentDescription = label; kit.tap(this, 999f, true) { dev.kidguard.Quick.lockOrSay(this@lockWidget) } }
-        box.addView(d, android.widget.FrameLayout.LayoutParams(dp(52), dp(52), Gravity.CENTER))
+        // laid out exactly like appIcon (same box padding, icon size, shape and label), so it lines up with the app icons around it
+        val px = iconPx()
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; setPadding(0, dp(4), 0, dp(2)) }
+        val square = model?.style?.shape == "square"
+        val tile = android.widget.FrameLayout(this).apply {
+            background = android.graphics.drawable.BitmapDrawable(resources, IconCache.plate(px, !square, pal.solid))
+            addView(android.widget.ImageView(context).apply { setImageDrawable(Ic.get(context, R.drawable.li_lock, pal.onSolid, px / 2)) },
+                android.widget.FrameLayout.LayoutParams(px / 2, px / 2, Gravity.CENTER))
+        }
+        val frame = android.widget.FrameLayout(this)
+        frame.addView(tile, android.widget.FrameLayout.LayoutParams(px, px))
+        box.addView(frame, LinearLayout.LayoutParams(px + dp(4), px + dp(2)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        if (model?.style?.labels != false) {
+            val lbl = iconLabel(label, false, android.graphics.Color.WHITE)
+            box.addView(lbl, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
+            inkViews += lbl
+        }
+        box.contentDescription = label
+        kit.tap(box, 16f, true) { dev.kidguard.Quick.lockOrSay(this) }
         return box
     }
     val card = wCard(false)

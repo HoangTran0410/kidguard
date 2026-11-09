@@ -88,6 +88,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Icons: all in chosen shape (circle/squircle); legacy icons fill or sit at 74 % on plate; normalised visual area (86c66de, 704c7b8)
 
 - Launcher safety nets (decided): `HomeFile` keeps an older good `home.json.bad` as `.bad.old` on a second reset and sets its cache only after the rename; crash counting needs a launcher UI frame in the stack (`LauncherLogic.isLauncherCrash`), not just `HomeActivity.alive`; Tuỳ chỉnh Undo covers presets/Reset and a new wallpaper photo (`wall.jpg.prev`); dropping a folder or another app's widget on the remove circle asks first; `closeOverlay` hides the IME.
+- Grid items next to app icons draw `IconCache.plate()` (same squircle/circle + glass rim): folder background (dark: white 22 % fill, pal.card matched navy wallpapers so the folder had no edge) and the 1x1 lock widget (laid out like appIcon, with label). Folder open/close 280/220 ms, close to a page swipe (180-320 ms); 420/340 felt slow (11-09)
 
 ### Website / docs
 - Site is static HTML+CSS, no JS (CSP script-src 'none' on most pages; only the llms "Hỏi AI" button allows 'self' script), deployed by `npx wrangler pages deploy website --project-name kid-guard --branch main` (direct upload); not tied to git

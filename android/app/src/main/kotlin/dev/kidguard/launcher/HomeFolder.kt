@@ -188,8 +188,9 @@ private fun HomeActivity.folderLeave(f: FolderDrag) {
  */
 internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, content: View, title: View, from: View?, dots: View? = null) {
     val src = from?.takeIf { it.isAttachedToWindow && it.width > 0 }
+    // 280 / 220 ms like a home page swipe (180-320 ms); 420 / 340 felt slow next to it (11-09).
     // ease-in-out with a soft landing: the card is seen leaving the icon (a sharp ease-out jumped past it in a frame)
-    val ease = android.view.animation.PathInterpolator(0.3f, 0.05f, 0.1f, 1f)
+    val ease = android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)
     // Launcher3 / iOS morph: a picture of the folder icon rides on the card. Small, the card shows the icon itself
     // (its 2×2 preview, its corners); grown, the real 3×3 apps. Without it the card's own apps, shrunk, landed in a
     // different layout from the icon's preview and the icons jumped in size the frame the card was swapped for it.
@@ -255,7 +256,7 @@ internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, co
             if (toIcon()) { src?.visibility = View.INVISIBLE; card.clipToPadding = false }
             else { ghost?.visibility = View.GONE; k0 = 0.85f; x0 = card.width * 0.075f; y0 = card.height * 0.075f }
             at(0f)
-            go(0f, 1f, 420) { f = 1f; ghost?.visibility = View.GONE; card.clipToPadding = true }
+            go(0f, 1f, 280) { f = 1f; ghost?.visibility = View.GONE; card.clipToPadding = true }
             run?.addUpdateListener { f = it.animatedValue as Float }
             return true
         }
@@ -268,7 +269,7 @@ internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, co
         ghost?.visibility = View.VISIBLE; card.clipToPadding = false
         if (!toIcon()) { ghost?.visibility = View.GONE; k0 = 0.85f; x0 = card.width * 0.075f; y0 = card.height * 0.075f }
         // the icon shows again the same frame the card (now a picture of it) goes: no gap, no size jump
-        go(cur, 0f, 340) { src?.visibility = View.VISIBLE; label?.alpha = 1f; done() }
+        go(cur, 0f, 220) { src?.visibility = View.VISIBLE; label?.alpha = 1f; done() }
         }
     }
 }

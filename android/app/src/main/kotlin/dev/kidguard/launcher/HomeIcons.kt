@@ -157,7 +157,11 @@ internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String
             }
             if (badge != "off") Dots.draw(c, px, Dots.count(dotPkgs), resources.displayMetrics.density, badge == "num")
         }
-    }.apply { background = if (square) fill(pal.card, px * 0.22f / resources.displayMetrics.density) else GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(pal.card) } }
+    }.apply {
+        // the app-icon plate (same shape + glass rim). Dark: pal.card (#1e293b) matched common navy wallpapers, so the
+        // folder had no edge; a frosted white fill reads on any wallpaper. Light keeps pal.card (already white-ish)
+        background = android.graphics.drawable.BitmapDrawable(resources, IconCache.plate(px, !square, if (pal.dark) Color.argb(56, 255, 255, 255) else pal.card))
+    }
     box.clipChildren = false; box.clipToPadding = false   // the badge pokes out above the padding
     box.addView(grid, LinearLayout.LayoutParams(px, px).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(1); bottomMargin = dp(1) })
     if (model?.style?.labels != false) {
