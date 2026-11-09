@@ -325,7 +325,8 @@ internal fun HomeActivity.openControl() {
     panel.addView(row1, LinearLayout.LayoutParams(w, -2))
 
     // what plays now (HomeMedia.kt), only while something does, like the system control centers
-    if (NotifDots.granted(this)) {
+    // no notification access: the card asks for it, but only where the kid may open Settings (KidGuard Home, or allowed)
+    if (NotifDots.granted(this) || ok) {
         val media = MediaCard(this, true).apply {
             background = GlassCard(0x33FFFFFF, dpf(26f), dpf(1f), true); setPadding(dp(12), dp(12), dp(8), dp(12)); visibility = View.GONE
             onState = { has -> visibility = if (has) View.VISIBLE else View.GONE }

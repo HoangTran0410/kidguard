@@ -51,4 +51,5 @@
     <string name="md_preview">Now playing</string>
     <string name="hm_w_media">Now playing</string>
     <string name="hm_w_media_d">The music or video playing now: pause, previous, next</string>
+    <string name="md_noaccess_sub">Tap to allow it</string>
 </resources>

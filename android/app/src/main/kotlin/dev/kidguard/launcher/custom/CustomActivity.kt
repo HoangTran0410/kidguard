@@ -130,7 +130,7 @@ class CustomActivity : Activity() {
         dotsNeed = st.badge != "off" && !NotifDots.granted(this)
         if (dotsNeed) home.addView(note(s(R.string.hm_c_dots_need), false).apply {
             setPadding(dp(4), 0, dp(4), dp(12))
-            k.tap(this, 12f) { runCatching { startActivity(android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) } }
+            k.tap(this, 12f) { NotifDots.ask(this@CustomActivity) }
         })
         col.addView(home, lp(8))
 

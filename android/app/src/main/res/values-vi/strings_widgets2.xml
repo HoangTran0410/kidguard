@@ -51,4 +51,5 @@
     <string name="md_preview">Đang phát</string>
     <string name="hm_w_media">Đang phát</string>
     <string name="hm_w_media_d">Nhạc hoặc video đang phát: tạm dừng, bài trước, bài tiếp</string>
+    <string name="md_noaccess_sub">Chạm để cho phép</string>
 </resources>

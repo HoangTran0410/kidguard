@@ -86,6 +86,15 @@ class NotifDots : NotificationListenerService() {
             else Settings.Secure.getString(ctx.contentResolver, "enabled_notification_listeners")?.contains(cn.flattenToString()) == true
         }
 
+        /** Opens the system switch for our listener (Android 11+: straight to KidGuard's own row, else the list). */
+        fun ask(ctx: Context) {
+            val cn = ComponentName(ctx, NotifDots::class.java)
+            val direct = if (android.os.Build.VERSION.SDK_INT >= 30) android.content.Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+                .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, cn.flattenToString()) else null
+            val list = android.content.Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+            for (i in listOfNotNull(direct, list)) if (runCatching { ctx.startActivity(i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess) return
+        }
+
         /** The dots switch (and release): listen or stop listening. Access itself stays as setup left it. */
         fun setOn(ctx: Context, on: Boolean) {
             wanted = on

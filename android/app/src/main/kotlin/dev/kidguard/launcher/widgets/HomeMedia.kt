@@ -19,7 +19,9 @@ import android.widget.LinearLayout
  * "Đang phát" card: the media session that plays now (else the latest one), with its art, title, artist and
  * previous / play-pause / next. Used in the control center (hidden while nothing plays) and as the home widget "media".
  * Sessions come from MediaSessionManager.getActiveSessions, which needs notification access: KidGuard already has it
- * for the badges (NotifDots), so no new permission. Without it the widget says so; the control center just hides the card.
+ * for the badges (NotifDots), so no new permission. Without it (a phone set up before 0.9.8, or KidGuard Home that never
+ * asked) the card says so and a tap opens the system switch (NotifDots.ask); it picks the sessions up when the home
+ * gets focus back. The control center shows that card only where the kid may open Settings.
  * Tapping the title opens the playing app through [launch], the same path as its icon (rules apply as usual).
  */
 internal class MediaCard(private val act: HomeActivity, private val cc: Boolean) : LinearLayout(act) {
@@ -57,7 +59,7 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean)
         addView(art, LayoutParams(a, a))
         val col = LinearLayout(act).apply { orientation = VERTICAL; gravity = Gravity.CENTER_VERTICAL }
         col.addView(title); col.addView(artist)
-        act.kit.tap(col, 12f) { open() }
+        act.kit.tap(col, 12f) { if (listening) open() else { act.closeOverlay(); NotifDots.ask(act) } }
         addView(col, LayoutParams(0, -2, 1f).apply { leftMargin = act.dp(12); rightMargin = act.dp(4) })
         val b = act.dp(40)
         addView(prev, LayoutParams(b, b)); addView(play, LayoutParams(b, b)); addView(next, LayoutParams(b, b))
@@ -80,15 +82,25 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean)
         act.closeOverlay(); act.launch(a, this)
     }
 
-    override fun onAttachedToWindow() {
-        super.onAttachedToWindow()
+    private var listening = false
+    private fun listen() {
+        if (listening) return
         if (!NotifDots.granted(act)) { show(); return }
-        runCatching { msm.addOnActiveSessionsChangedListener(sessions, cn, main); pick(msm.getActiveSessions(cn)) }.onFailure { show() }
+        listening = runCatching { msm.addOnActiveSessionsChangedListener(sessions, cn, main) }.isSuccess
+        if (listening) pick(runCatching { msm.getActiveSessions(cn) }.getOrNull()) else show()
+    }
+
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); listen() }
+
+    // back from the system switch: access may be on now (asked fresh, the 5 s cache would still say no)
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && !listening && NotifDots.granted(act, fresh = true)) { listen(); NotifDots.setOn(act, true) }
     }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        runCatching { msm.removeOnActiveSessionsChangedListener(sessions) }
+        if (listening) runCatching { msm.removeOnActiveSessionsChangedListener(sessions) }; listening = false
         ctl?.unregisterCallback(cb); ctl = null
     }
 
@@ -106,14 +118,15 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean)
 
     private fun show() {
         val c = ctl; val md = c?.metadata
-        onState(md != null)
+        onState(md != null || !listening)
         if (c == null || md == null) {
             shownKey = null
-            title.text = act.getString(if (NotifDots.granted(act)) R.string.md_none else R.string.md_noaccess)
-            artist.text = act.getString(R.string.md_none_sub)
+            title.text = act.getString(if (listening) R.string.md_none else R.string.md_noaccess)
+            artist.text = act.getString(if (listening) R.string.md_none_sub else R.string.md_noaccess_sub)
             art.setImageDrawable(Ic.get(act, R.drawable.li_music, fg, act.dp(22))); art.scaleType = ImageView.ScaleType.CENTER
             art.background = act.kit.fill(if (cc) 0x33FFFFFF else act.pal.tint, 12f)
-            for (v in listOf(prev, play, next)) { v.alpha = 0.35f; v.isEnabled = false }
+            // no access: the whole row is the "allow" button, so no dead controls taking its width
+            for (v in listOf(prev, play, next)) { v.alpha = 0.35f; v.isEnabled = false; v.visibility = if (listening) VISIBLE else GONE }
             contentDescription = title.text
             return
         }
@@ -140,7 +153,7 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean)
         val acts = c.playbackState?.actions ?: 0L
         prev.alpha = if (acts and PlaybackState.ACTION_SKIP_TO_PREVIOUS != 0L) 1f else 0.35f
         next.alpha = if (acts and PlaybackState.ACTION_SKIP_TO_NEXT != 0L) 1f else 0.35f
-        for (v in listOf(prev, play, next)) v.isEnabled = true
+        for (v in listOf(prev, play, next)) { v.isEnabled = true; v.visibility = VISIBLE }
         contentDescription = "${title.text}. ${artist.text}"
     }
 }
