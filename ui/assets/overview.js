@@ -140,7 +140,7 @@ function ovReport(D) {
 // Map tiles: the first host that loads wins (tileI, kept for the page's life). tile.openstreetmap.org is blocked on some
 // networks (seen on a Vietnamese ISP: its DNS answers 127.0.0.1 even via 8.8.8.8, and TLS with that SNI is reset), so the
 // OSM Germany server (same OSM data and style) goes first. Every host must be in img-src of the HTML CSP (phone Http.kt,
-// parent app Proxy.kt, worker). A host blocked by an older CSP just fails over to the next one.
+// parent app Proxy.kt, worker) AND in the WebView request filters (AdminActivity TILE_HOSTS, parent MainActivity). A host blocked by an older CSP just fails over to the next one.
 const TILES = ["https://tile.openstreetmap.de/{z}/{x}/{y}.png", "https://tile.openstreetmap.org/{z}/{x}/{y}.png"];
 let tileI = 0, tileDead = false;
 const tileUrl = (i, z, x, y) => TILES[i].replace("{z}", z).replace("{x}", x).replace("{y}", y);

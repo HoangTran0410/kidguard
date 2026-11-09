@@ -94,7 +94,7 @@ class AdminActivity : Activity() {
             // only our own page: any other navigation (links to GitHub, the relay, …) is dropped
             override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest) = !ours(r.url)
             override fun shouldInterceptRequest(v: WebView, r: WebResourceRequest): WebResourceResponse? =
-                if (ours(r.url) || r.url.host == "tile.openstreetmap.org") null
+                if (ours(r.url) || (r.url.scheme == "https" && r.url.host in TILE_HOSTS)) null
                 else WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), "".byteInputStream())
         }
         setContentView(android.widget.FrameLayout(this).apply { addView(w); addView(wait) })
@@ -102,6 +102,9 @@ class AdminActivity : Activity() {
         w.loadUrl("${ParentSession.ORIGIN}/")
         ui.postDelayed(check, 5_000)
     }
+
+    /** Map tile hosts: same list and order as TILES in ui/assets/overview.js (.org is blocked on some VN ISPs, .de goes first). */
+    private val TILE_HOSTS = setOf("tile.openstreetmap.de", "tile.openstreetmap.org")
 
     private fun ours(u: Uri) = u.scheme == "http" && u.host == "127.0.0.1" && u.port == Guard.PORT
 

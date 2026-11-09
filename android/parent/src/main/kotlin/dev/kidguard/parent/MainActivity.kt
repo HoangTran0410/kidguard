@@ -145,7 +145,7 @@ class MainActivity : Activity() {
             // nothing but our own proxy (and the OSM map tiles the page uses) may be reached from the WebView
             override fun shouldInterceptRequest(v: WebView, r: WebResourceRequest): WebResourceResponse? {
                 val u = r.url.toString()
-                return if (u.startsWith("$origin/") || u.startsWith("https://tile.openstreetmap.org/") || u.startsWith("data:") || u.startsWith("blob:")) null
+                return if (u.startsWith("$origin/") || u.startsWith("https://tile.openstreetmap.de/") || u.startsWith("https://tile.openstreetmap.org/") || u.startsWith("data:") || u.startsWith("blob:")) null
                 else WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), java.io.ByteArrayInputStream(ByteArray(0)))
             }
             // Android killed the page renderer (low memory, cheap phones): without this the whole app dies with it
