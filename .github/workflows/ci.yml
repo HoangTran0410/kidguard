@@ -16,6 +16,9 @@ jobs:
       - name: Kotlin unit tests (child + parent)
         working-directory: android
         run: ./gradlew --no-daemon testKidDebugUnitTest :parent:testDebugUnitTest
+      - name: Compile home flavor + parent app (debug, no signing)
+        working-directory: android
+        run: ./gradlew --no-daemon assembleHomeDebug :parent:assembleDebug
       - name: Page script parses
         run: |
           files=$(grep -o 'src="/ui/[a-z0-9-]*\.js"' ui/index.html | sed 's|src="/ui/|ui/assets/|; s|"$||')

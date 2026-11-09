@@ -542,8 +542,12 @@ Extra only in SelfSetup: accounts pre-check, optional Wi-Fi-debugging off. Rule 
 5. Update website/guide/README text for new features (done in release commits), keep `llms.txt`/sitemap if relevant.
 6. Commit `vX.Y.Z: <summary>` (with Co-Authored-By), tag `vX.Y.Z`, push main + tag.
 7. Create GitHub Release `vX.Y.Z` (manual/gh) and upload from `build/`: `kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk`, their `.sha256` files, and `kidguard-<v>.apk`, `kidguard-home-<v>.apk`, `kidguard-parent-<v>.apk`. Mark as latest (updater + QR + site use `/latest/`).
-8. Deploy relay (`scripts/relay.sh`) so /install, /qr, parent page match; deploy website to Pages.
-9. Real-phone checks are the user's (nothing tests ui/*.html or on-device).
+8. Deploy relay (`scripts/relay.sh`) so /install, /qr, parent page match; deploy website to Pages (owner's OK first).
+   Website: static dir `website/` -> Cloudflare Pages project `kid-guard` (`kid-guard.pages.dev`): `npx wrangler pages deploy website --project-name kid-guard` (the exact command is the maintainer's choice; nothing in the repo runs it). Run `scripts/stamp-site.sh` first if css/img changed (build.sh already does).
+9. Verify the release: `scripts/release-check.sh [vX.Y.Z]` (read-only HEAD requests) checks the 9 contract asset names (`kidguard{,-parent,-home}.apk` + `.sha256`, three `-<v>.apk` copies) exist and the tag is `latest`. Asset names come from `Update.kt` (`kidguard.apk`, `.sha256`), README/website links and `build.sh`.
+10. Real-phone checks are the user's (nothing tests ui/*.html or on-device).
+- Signing key backup: `android/app/signing.jks` (gitignored, store/key/alias password `kidguard`, alias `kidguard`) is the only copy; lose it and every enrolled phone needs uninstall + redo setup (self-update and QR checksum both pin it). Keep an offline copy (password manager / encrypted drive) and the SHA-256 printed by build.sh ("QR checksum") with it.
+- build.sh side effects (tracked files it rewrites): site version chips, `?v=` cache-busters (stamp-site.sh), `ui/provision.json`, `ui/qr.html` `/*KG*/` block. With the same key and unchanged assets only the chips change; always review `git diff` after a build. CI never runs build.sh (no key): it compiles kid/home/parent debug instead.
 
 ## 5. Add-a-feature checklists
 

@@ -42,8 +42,11 @@ else
 fi
 if [ -n "$HEX" ]; then
   SUM=$(printf '%s' "$HEX" | xxd -r -p | base64 | tr '+/' '-_' | tr -d '=\n')
+  # fallback = this checkout's own GitHub repo (remote origin), so a fork's QR points at the fork's release
+  REPO_URL=$(git remote get-url origin 2>/dev/null | sed -E 's#^git@github.com:#https://github.com/#; s#\.git$##' || true)
+  case "$REPO_URL" in https://github.com/*) ;; *) REPO_URL=https://github.com/HoangTran0410/kidguard ;; esac
   [ -f ui/provision.json ] && URL=$(sed -n 's/.*"apkUrl": *"\([^"]*\)".*/\1/p' ui/provision.json) || URL=
-  : "${URL:=https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk}"
+  : "${URL:=$REPO_URL/releases/latest/download/kidguard.apk}"
   J="{\"component\":\"dev.kidguard/dev.kidguard.Admin\",\"checksum\":\"$SUM\",\"apkUrl\":\"$URL\"}"
   echo "$J" > ui/provision.json
   # the worker bundles only .html, so the same values are inlined into the page between /*KG*/ markers

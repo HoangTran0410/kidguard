@@ -209,6 +209,17 @@ async function loadApk() {
     }
   } catch (_) { /* fall through to picker */ }
   if (apkBytes && !isApk(apkBytes)) apkBytes = null;
+  // integrity: compare with kidguard.apk.sha256 next to it when the server has one (same as setup.sh); skipped if absent
+  if (apkBytes && window.crypto && crypto.subtle) {
+    try {
+      const sr = await fetch("kidguard.apk.sha256", { cache: "no-store" });
+      const want = sr.ok ? ((await sr.text()).trim().split(/\s+/)[0] || "").toLowerCase() : "";
+      if (/^[0-9a-f]{64}$/.test(want)) {
+        const got = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", apkBytes))).map((x) => x.toString(16).padStart(2, "0")).join("");
+        if (got !== want) { apkBytes = null; setMsg("apkmsg", "Sai mã kiểm tra SHA-256 của kidguard.apk. Dừng.", "bad"); $("pick").classList.remove("hide"); return; }
+      }
+    } catch (_) { /* no checksum available */ }
+  }
   if (apkBytes && apkBytes.length > 1000) {
     setMsg("apkmsg", "Đã có kidguard.apk (" + (apkBytes.length / 1048576).toFixed(1) + " MB).", "ok");
     $("install").disabled = false;
