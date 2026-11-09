@@ -88,4 +88,5 @@ class Sheet(act: Activity, u: Ui, title: String) {
     val showing get() = d.isShowing
     fun show() { if (!d.isShowing) d.show() }
     fun dismiss() { if (d.isShowing) d.dismiss() }
+    fun onDismiss(f: () -> Unit) { d.setOnDismissListener { f() } }
 }

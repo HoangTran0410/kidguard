@@ -40,8 +40,9 @@ class MainActivity : Activity() {
     private lateinit var codeLabel: TextView
     private lateinit var hint: TextView
     private lateinit var pairBtn: Button
-    private lateinit var checklist: LinearLayout
-    private lateinit var basicList: BasicChecklist
+    private lateinit var steps: SetupSteps
+    private lateinit var homeCard: LinearLayout
+    private var palKey = ""
     private lateinit var selfBtn: Button
     private lateinit var revealBtn: Button
     private lateinit var recoverBtn: Button
@@ -51,7 +52,9 @@ class MainActivity : Activity() {
         val tc = android.os.SystemClock.elapsedRealtime()
         window.decorView.post { android.util.Log.i("KG.perf", "main create ${android.os.SystemClock.elapsedRealtime() - tc}ms") }
         Guard.start(this)
-        val u = Ui(this); ui2 = u
+        // the kid launcher's palette (accent + light / dark from its "Tuỳ chỉnh"), so this screen looks like Kid Home
+        val pal = launcherPal(); palKey = pal.toString()
+        val u = Ui(this, pal); ui2 = u
         val pad = dp(20)
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, dp(36), pad, pad) }
         // header: shield badge + name + health line (opens the status details), "Thêm" sheet button on the right
@@ -79,6 +82,9 @@ class MainActivity : Activity() {
             setOnClickListener { sheet.show() }
         }, LinearLayout.LayoutParams(dp(48), dp(48)))
         col.addView(head)
+        // "Việc cần làm · 3/7": every setup step (both modes), right under the header until all are done
+        steps = SetupSteps(this, u)
+        col.addView(steps.box)
         // status details (tech rows + Device Owner checklist): a modal from the health line / the sheet, not the home screen
         statusBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         status = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -99,9 +105,6 @@ class MainActivity : Activity() {
         hint = TextView(this).apply { textSize = 15f; setTextColor(u.sub); setLineSpacing(0f, 1.15f) }
         pairCard.addView(hint)
         col.addView(pairCard)
-        // basic mode (no Device Owner): the quick setup checklist, shown until every item is on
-        basicList = BasicChecklist(this, u) { openBatterySettings() }
-        col.addView(basicList.box)
         // quick row: frequent kid actions as round tiles (SOS keeps its confirm modal, see askSos)
         val quick = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; weightSum = 4f; isBaselineAligned = false }
         fun tileLp() = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(2); marginEnd = dp(2) }
@@ -114,6 +117,15 @@ class MainActivity : Activity() {
         quick.addView(ciPickup, tileLp())
         quick.addView(u.tile(getString(R.string.q_lock_short), R.drawable.li_lock, u.accent) { Quick.lockOrSay(this) }.apply { contentDescription = getString(R.string.q_lock) }, tileLp())
         col.addView(quick, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
+        // Kid Home: offered on the main screen while it isn't the home screen (it used to hide in "Tính năng và quyền")
+        homeCard = u.cardBox(16).apply { (layoutParams as LinearLayout.LayoutParams).topMargin = dp(22) }
+        homeCard.addView(u.label(getString(R.string.kh_title), 18f, u.text, true).apply {
+            setCompoundDrawablesRelative(u.badge(R.drawable.li_house, u.onPrimary, u.primary, 40, 22, 12), null, null, null)
+            compoundDrawablePadding = dp(12); gravity = Gravity.CENTER_VERTICAL
+        })
+        homeCard.addView(u.label(getString(R.string.kh_body), 14f).apply { setPadding(0, dp(8), 0, 0); setLineSpacing(0f, 1.1f) })
+        homeCard.addView(u.button(getString(R.string.feat_launcher_use), R.drawable.li_house, true) { FeaturesSheet.fix(this, ui2, "home") { askPin() } })
+        col.addView(homeCard)
         // basic mode can't update silently: a downloaded, verified update waits for this tap (owner installs by itself)
         updBtn = u.button(getString(R.string.main_update), R.drawable.li_shield, false) {
             if (!Update.installInteractive(this)) android.widget.Toast.makeText(this, getString(R.string.main_update_allow), android.widget.Toast.LENGTH_LONG).show()
@@ -134,8 +146,6 @@ class MainActivity : Activity() {
         col.addView(u.cardBox(4).apply { addView(u.listRow(getString(R.string.main_my_rules), R.drawable.li_shield) { showMyRules() }) },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         kidG.addView(u.listRow(getString(R.string.main_log), R.drawable.li_scroll_text) { sheet.dismiss(); showLog() })
-        // what works with which permission (FeaturesSheet): usable before any setup
-        kidG.addView(u.listRow(getString(R.string.feat_title), R.drawable.li_list_checks) { sheet.dismiss(); FeaturesSheet.show(this, u) { askPin() } })
         // shared folder (Files.kt): system picker -> outbox, the parent page lists it under "File con gửi"
         kidG.addView(u.listRow(getString(R.string.files_menu), R.drawable.li_send) { sheet.dismiss(); ShareInActivity.pick(this@MainActivity) })
         revealBtn = u.button(getString(R.string.main_reveal), R.drawable.li_link, true) {}
@@ -157,8 +167,8 @@ class MainActivity : Activity() {
             refresh()
         }
         parentG.addView(recoverBtn)
-        devG.addView(u.listRow(getString(R.string.home_status), R.drawable.li_circle_check) { sheet.dismiss(); showStatus() })
-        devG.addView(u.listRow(getString(R.string.main_battery), R.drawable.li_battery_charging) { sheet.dismiss(); openBatterySettings() })
+        // one screen for "what runs / what's missing" (status rows + features + battery), also from the health line
+        devG.addView(u.listRow(getString(R.string.prot_title), R.drawable.li_circle_check) { sheet.dismiss(); showStatus() })
         // kid conveniences: a lock icon on the home screen, and where the phone keeps "double tap to wake"
         kidG.addView(u.listRow(getString(R.string.main_pin_lock), R.drawable.li_lock) {
             sheet.dismiss()
@@ -173,8 +183,6 @@ class MainActivity : Activity() {
         devG.addView(updRow)
         selfBtn = u.listRow(getString(R.string.main_self), R.drawable.li_wifi) { sheet.dismiss(); startActivity(Intent(this@MainActivity, SelfSetupActivity::class.java)) }
         devG.addView(selfBtn)
-        checklist = Checklist.build(this, u)
-        statusBox.addView(checklist)
         setContentView(ScrollView(this).apply { setBackgroundColor(u.bg); isFillViewport = true; addView(col) })
         window.statusBarColor = u.bg; window.navigationBarColor = u.bg
         if (!u.dark) window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (android.os.Build.VERSION.SDK_INT >= 27) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
@@ -431,12 +439,19 @@ class MainActivity : Activity() {
         sheet.body.addView(u.label(getString(R.string.home_version, BuildConfig.VERSION_NAME), 12f, u.sub).apply { gravity = Gravity.CENTER; setPadding(0, dp(16), 0, dp(4)) })
     }
 
-    /** The tech status rows + Device Owner checklist (kept up to date by refresh) in a modal. */
+    /** "Bảo vệ và quyền": the live status rows (kept up to date by refresh) + every feature + battery, in one sheet. */
     private fun showStatus() {
         (statusBox.parent as? android.view.ViewGroup)?.removeView(statusBox)
-        val scroll = ScrollView(this).apply { addView(statusBox) }   // Modal unwraps it into its own scroll
-        Modal(this, ui2).show(R.drawable.li_shield, Modal.Tone.INFO, getString(R.string.home_status), getString(R.string.home_status_sub), scroll, ok = getString(R.string.close))
-            .setOnDismissListener { (statusBox.parent as? android.view.ViewGroup)?.removeView(statusBox) }
+        FeaturesSheet.show(this, ui2, { askPin() }, statusBox) { openBatterySettings() }
+            .onDismiss { (statusBox.parent as? android.view.ViewGroup)?.removeView(statusBox) }
+    }
+
+    /** Kid Home's palette, as HomeActivity computes it (preset accent unless the kid picked one; light / dark like [Ui.isDark]). */
+    private fun launcherPal(): Palette {
+        val st = runCatching { HomeFile.load(this)?.style }.getOrNull() ?: HStyle()
+        val dark = Ui.isDark(this)
+        val preset = HomeStyle.preset(st.preset)
+        return HomeStyle.palette(st.accent.ifEmpty { if (dark) preset.accentDark else preset.accentLight }, dark)
     }
 
     private fun dot(color: Int) = android.graphics.drawable.GradientDrawable().apply {
@@ -531,7 +546,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        if (Ui.isDark(this) != ui2.dark) { recreate(); return }   // light / dark changed in the launcher's Tuỳ chỉnh
+        if (launcherPal().toString() != palKey) { recreate(); return }   // light / dark or accent changed in the launcher's Tuỳ chỉnh
         launched = false   // back from a screen we opened (see onStop)
         holding = null; holdBase.forEach { (b, t) -> b.text = t }   // a hint left over from before the pause
         val t0 = android.os.SystemClock.elapsedRealtime()
@@ -589,10 +604,9 @@ class MainActivity : Activity() {
             ?: getString(R.string.main_unlock)
         updBtn.visibility = if (!owner && Update.apk(this).exists() && UpdateLogic.newer(Update.stateJson(this).optString("latest"), Update.current())) View.VISIBLE else View.GONE
         selfBtn.visibility = if (owner || android.os.Build.VERSION.SDK_INT < 30) View.GONE else View.VISIBLE
-        if (owner) basicList.box.visibility = View.GONE else basicList.update()
+        steps.update()
+        homeCard.visibility = if (LauncherSafe.homeIsOurs(this)) View.GONE else View.VISIBLE
         val lan = Guard.lanUrl()
-        Checklist.update(this, checklist)
-        if (!owner) checklist.visibility = View.GONE   // basic mode has its own, longer checklist
         val u = ui2
         status.removeAllViews(); kidNotes.removeAllViews(); warnN = 0
         // line: tech status (the details modal, WARNs counted for the health line); kidLine: what the child must see, in the status card
@@ -615,6 +629,8 @@ class MainActivity : Activity() {
         if (s.sos().length() > 0) kidLine(R.drawable.li_siren, Ic.WARN, getString(R.string.st_sos))
         comfortRefresh(s) { icon, tone, text -> kidLine(icon, tone, text) }
         if (s.relayUrl.isNotBlank()) line(R.drawable.li_globe, Ic.INFO, getString(R.string.st_remote))
+        // was in the owner checklist card: can KidGuard turn Accessibility back on by itself
+        if (owner) line(R.drawable.li_accessibility, Ic.INFO, getString(if (checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == android.content.pm.PackageManager.PERMISSION_GRANTED) R.string.prov_secure_yes else R.string.prov_secure_no))
         // paired before PINs were mandatory: only a parent's page can set it (never this phone: the child holds it)
         if (PairPin.legacyNoPin(s.everPaired, s.rules.pinHash.isNotBlank())) line(warn, Ic.WARN, getString(R.string.st_no_pin))
         s.lastListen?.let { (t, ms) ->
@@ -819,19 +835,7 @@ class MainActivity : Activity() {
     }
 
     /** Phone makers hide "autostart / no battery limits" in their own screens; try the known ones, else the app's page. */
-    private fun openBatterySettings() {
-        val known = listOf(
-            "com.miui.securitycenter" to "com.miui.permcenter.autostart.AutoStartManagementActivity",
-            "com.coloros.safecenter" to "com.coloros.safecenter.startupapp.StartupAppListActivity",
-            "com.vivo.permissionmanager" to "com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
-            "com.huawei.systemmanager" to "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
-            "com.samsung.android.lool" to "com.samsung.android.sm.battery.ui.BatteryActivity",
-        )
-        for ((pkg, cls) in known) if (runCatching { startActivity(Intent().setComponent(ComponentName(pkg, cls)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return
-        // App info has "Force stop": basic mode bounces it (self-protection), so it opens the battery list there
-        if (!Policy.isOwner(this) && runCatching { startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return
-        runCatching { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-    }
+    private fun openBatterySettings() = SetupSteps.openBattery(this)
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 }

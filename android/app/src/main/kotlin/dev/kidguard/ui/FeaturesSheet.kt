@@ -58,7 +58,7 @@ object FeaturesSheet {
     }
 
     /** The system screen that grants [cap]. [pair] starts the child app's pairing flow. */
-    private fun fix(act: Activity, u: Ui, cap: String, pair: () -> Unit) {
+    fun fix(act: Activity, u: Ui, cap: String, pair: () -> Unit) {
         val pkg = Uri.parse("package:${act.packageName}")
         fun granted(p: String) = act.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
         when (cap) {
@@ -91,10 +91,20 @@ object FeaturesSheet {
         }
     }
 
-    fun show(act: Activity, u: Ui, pair: () -> Unit) {
-        val sheet = Sheet(act, u, act.getString(R.string.feat_title))
+    /**
+     * "Bảo vệ và quyền": [status] (MainActivity's live status rows, kept up to date by its refresh) on top, then every
+     * feature with its missing permissions, then the battery / auto-start page. One screen instead of the old
+     * "Trạng thái bảo vệ" modal + "Tính năng và quyền" sheet, which answered the same question twice.
+     */
+    fun show(act: Activity, u: Ui, pair: () -> Unit, status: android.view.View? = null, battery: (() -> Unit)? = null): Sheet {
+        val sheet = Sheet(act, u, act.getString(if (status != null) R.string.prot_title else R.string.feat_title))
         val body = sheet.body
         val pad = u.dp(12)
+        if (status != null) {
+            body.addView(u.section(act.getString(R.string.prot_status)))
+            body.addView(u.cardBox(14).apply { (layoutParams as LinearLayout.LayoutParams).topMargin = u.dp(4); addView(status) })
+            body.addView(u.section(act.getString(R.string.prot_features)))
+        }
         body.addView(u.label(act.getString(R.string.feat_intro), 14f).apply { setPadding(pad, u.dp(6), pad, u.dp(6)) })
         val caps = FeatureCaps.of(act)
         val store = Store.of(act)
@@ -120,6 +130,10 @@ object FeaturesSheet {
                 card.addView(u.button(act.getString(R.string.feat_launcher_off), null, false) { sheet.dismiss(); LauncherSafe.setLocal(act, false) })
             body.addView(card)
         }
+        if (battery != null) body.addView(u.listRow(act.getString(R.string.main_battery), R.drawable.li_battery_charging) { sheet.dismiss(); battery() }.apply {
+            (layoutParams as LinearLayout.LayoutParams).topMargin = u.dp(12)
+        })
         sheet.show()
+        return sheet
     }
 }

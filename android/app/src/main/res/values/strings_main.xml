@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="steps_title">To do</string>
+    <string name="steps_count">%1$d/%2$d done</string>
+    <string name="steps_intro">Tap each step: it opens the right screen. Turn it on, then come back.</string>
+    <string name="step_autostart">Allow auto-start</string>
+    <string name="step_autostart_d">This phone stops background apps unless KidGuard may auto-start. Turn KidGuard on there, then tap Done.</string>
+    <string name="step_done_btn">Done</string>
+    <string name="kh_title">Kid Home</string>
+    <string name="kh_body">The kid home screen: only allowed apps, today\'s time left, SOS and a \"Today\" page.</string>
+    <string name="prot_title">Protection and permissions</string>
+    <string name="prot_status">Now</string>
+    <string name="prot_features">Features</string>
+</resources>

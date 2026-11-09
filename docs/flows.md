@@ -158,7 +158,7 @@ Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`,
 
 - `Basic.mode` (Basic.kt:25): owner | basic (admin active + accessibility on) | setup. `enforcing` = !owner && admin && !released.
 - Blocking only by bounce (see 3). Self-protect: `BasicLogic.selfProtect` (BasicLogic.kt:72) on Settings-like packages scanned at 0.2/0.8/1.8 s (Acc.kt:128-135); needs both a "KidGuard" mention and a destructive control.
-- Hide/clear only through self-adb shell; location lock, restrictions, suspend: not available. Checklist UI `BasicChecklist` (Basic.kt:49).
+- Hide/clear only through self-adb shell; location lock, restrictions, suspend: not available. Checklist UI: the "Việc cần làm" card `SetupSteps` (`ui/SetupSteps.kt`, both modes).
 
 ## 2. Parent <-> phone (LAN, relay, parent app)
 
@@ -482,7 +482,7 @@ Contract: `docs/protocol.md:248-265` "Setup steps" (9 items). AGENTS.md says set
 - `ui/qr.html:84` `DEF = /*KG*/{component, checksum, apkUrl}/*KG*/` (inlined by build.sh); `:92-93` builds `PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION` + `..._SIGNATURE_CHECKSUM`; `:126-130` validates https + checksum present.
 - Phone side: `setup/Provisioning.kt:20-28` `ProvisioningModeActivity` answers FULLY_MANAGED_DEVICE; `:31-38` `PolicyComplianceActivity` returns OK. Manifest `AndroidManifest.xml:204-216` (GET_PROVISIONING_MODE, ADMIN_POLICY_COMPLIANCE).
 - Wizard installs APK from URL, verifies cert SHA-256 (url-safe base64), sets Device Owner. NO adb steps run, so no usage-stats / WRITE_SECURE_SETTINGS / accessibility grants.
-- After that: `Checklist` (`Provisioning.kt:41-75`) card on MainActivity walks the child through Usage access, "restricted settings" (API 33+), Accessibility manually. Shows "secure settings" yes/no (`:54-55,73`).
+- After that: the "Việc cần làm" card (`ui/SetupSteps.kt`) on MainActivity walks the child through "restricted settings" (API 33+), Accessibility, Usage access, battery, OEM auto-start. "Secure settings" yes/no is a row in "Bảo vệ và quyền" (MainActivity.refresh).
 - Gotchas: checksum is tied to signing.jks (AGENTS.md); `ui/provision.json` is rewritten by build.sh; QR needs Android 10+ wizard flow ("QR 6 taps"); apkUrl must be https and fetched by the wizard (GitHub latest redirect).
 
 #### 1b. scripts/setup.sh (macOS/Linux) and scripts/setup.ps1 (Windows), USB adb

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="steps_title">Việc cần làm</string>
+    <string name="steps_count">%1$d/%2$d xong</string>
+    <string name="steps_intro">Bấm từng bước: mỗi bước mở đúng màn hình cần bật. Bật xong thì quay lại đây.</string>
+    <string name="step_autostart">Cho phép tự khởi động</string>
+    <string name="step_autostart_d">Máy này tự tắt app chạy nền nếu KidGuard không được tự khởi động. Bật KidGuard ở đó rồi bấm Đã bật.</string>
+    <string name="step_done_btn">Đã bật</string>
+    <string name="kh_title">Kid Home</string>
+    <string name="kh_body">Màn hình chính cho con: chỉ hiện app được phép, thời gian còn lại hôm nay, nút SOS và trang \"Hôm nay\".</string>
+    <string name="prot_title">Bảo vệ và quyền</string>
+    <string name="prot_status">Hiện tại</string>
+    <string name="prot_features">Tính năng</string>
+</resources>

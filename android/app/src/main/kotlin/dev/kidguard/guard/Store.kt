@@ -294,6 +294,10 @@ class Store private constructor(private val app: Context) {
         set(v) { p.edit().putBoolean("released", v).commit() }
 
     /** Local opt-in for the kid launcher before any parent rule exists (Features sheet). Once paired, the parent's `launcher` rule wins. */
+    /** The child confirmed the phone's auto-start page (can't be read back): the "Việc cần làm" step is done. */
+    @get:Synchronized @set:Synchronized var autostartOk: Boolean
+        get() = p.getBoolean("autostartOk", false)
+        set(v) { p.edit().putBoolean("autostartOk", v).apply() }
     @get:Synchronized @set:Synchronized var launcherLocal: Boolean
         get() = p.getBoolean("launcherLocal", false)
         set(v) { p.edit().putBoolean("launcherLocal", v).commit() }
