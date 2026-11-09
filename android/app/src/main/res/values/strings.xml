@@ -767,6 +767,8 @@
     <string name="hm_c_preview">%1$d columns, %2$d rows, %3$s icons, %4$s</string>
     <string name="hm_c_square">square</string>
     <string name="hm_c_round">round</string>
+    <string name="hm_c_square_opt">Square</string>
+    <string name="hm_c_round_opt">Round</string>
     <string name="hm_c_with_labels">with names</string>
     <string name="hm_c_no_labels">no names</string>
     <string name="hm_c_style">Style</string>

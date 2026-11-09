@@ -52,6 +52,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Drawer after a cold start: icons rendered on a background thread first (`drawerWarm`), then the drawer built. POCO measured: build 254 -> 33 ms, rows added while swiping 35-83 -> 4-6 ms each, p90 frame 200 -> 44-69 ms. A Chrome PWA "Install" is a real WebAPK (`org.chromium.webapk.*`), placed on the home as a normal app; only "Tạo lối tắt" gives a pinned shortcut (11-09)
 - Home first render after a cold start (release builds): app labels + "has activity" kept on disk per apk path (`Labels`, `labels.json`), launcher keeps its own decision 15 s until the Guard ticks, home icons not rendered yet load on a background thread (`IconCache.async`, shown when ready). POCO 483-522 -> 184-189 ms, Oppo A5s 1165-1173 -> 509-513 ms. A blurred-wallpaper file cache was tried and dropped: the 315 ms blur was a debug build (not JIT-compiled), 45 ms in release (11-09)
 - DND tile: the manifest needs ACCESS_NOTIFICATION_POLICY or KidGuard is not listed on the system DND access page (only the adb `allow_dnd` setup step granted it) (11-09)
+- Tuỳ chỉnh first open: sections below the fold are built after the first frame is drawn (a View.post before it still ran ahead of that frame: no gain, measured). Oppo A5s first draw 146-218 -> 87-142 ms (11-09)
 
 ### Remote / relay
 - Command whitelist lives in the relay worker; new command = whitelist + protocol + test. Destructive (`reboot`, `release`, `unpairAll`, `update`, `unpair`) are deliver-once (AGENTS.md)

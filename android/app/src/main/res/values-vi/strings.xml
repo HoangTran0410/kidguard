@@ -748,6 +748,8 @@
     <string name="hm_c_preview">%1$d cột, %2$d hàng, biểu tượng %3$s, %4$s</string>
     <string name="hm_c_square">vuông</string>
     <string name="hm_c_round">tròn</string>
+    <string name="hm_c_square_opt">Vuông</string>
+    <string name="hm_c_round_opt">Tròn</string>
     <string name="hm_c_with_labels">có tên</string>
     <string name="hm_c_no_labels">không tên</string>
     <string name="hm_c_style">Kiểu</string>

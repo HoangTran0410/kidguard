@@ -117,7 +117,7 @@ class CustomActivity : Activity() {
         line(home); home.addView(slider(s(R.string.hm_c_icon), st.icon - 1, 4, s(R.string.hm_c_small), s(R.string.hm_c_big)) { v -> set { it.copy(icon = v + 1) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_labels), st.labels) { v -> set { it.copy(labels = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_face), HomeActivity.FACES.zip(listOf(R.string.hm_c_face_sys, R.string.hm_c_face_light, R.string.hm_c_face_medium, R.string.hm_c_face_condensed, R.string.hm_c_face_serif)).map { (f, r) -> s(r) to f }, st.face) { v -> set { it.copy(face = v) } })
-        line(home); home.addView(segRow(s(R.string.hm_c_shape), listOf(s(R.string.hm_c_round) to "round", s(R.string.hm_c_square) to "square"), st.shape) { v -> set { it.copy(shape = v) } })
+        line(home); home.addView(segRow(s(R.string.hm_c_shape), listOf(s(R.string.hm_c_round_opt) to "round", s(R.string.hm_c_square_opt) to "square"), st.shape) { v -> set { it.copy(shape = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock), st.dockBg) { v -> set { it.copy(dockBg = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock_labels), st.dockLabels) { v -> set { it.copy(dockLabels = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_today), st.today) { v -> set { it.copy(today = v) } })
@@ -138,42 +138,59 @@ class CustomActivity : Activity() {
                 LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         }
 
-        section(col, R.string.hm_c_wall)
-        val ws = object : HorizontalScrollView(this) {
-            private var placed = false
-            override fun onScrollChanged(l: Int, t: Int, ol: Int, ot: Int) { super.onScrollChanged(l, t, ol, ot); if (placed) wallX = l }
-            override fun onLayout(ch: Boolean, l: Int, t: Int, r: Int, b: Int) { super.onLayout(ch, l, t, r, b); if (!placed) { placed = true; scrollTo(wallX, 0) } }   // before the first draw
-        }.apply { isHorizontalScrollBarEnabled = false; clipToPadding = false }
-        val wr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        wr.addView(pickTile(st.wallKind == "photo"), LinearLayout.LayoutParams(dp(64), dp(112)))
-        val cur = if (st.wallKind == "photo") "" else st.wall.ifEmpty { if (dark) preset.wallDark else preset.wallLight }
-        for (w in HomeStyle.WALLS) wr.addView(wallTile(w, w == cur), LinearLayout.LayoutParams(dp(64), dp(112)).apply { leftMargin = dp(8) })
-        ws.addView(wr)
-        col.addView(ws, lp(8))
-        // POCO-style: blur and darken any wallpaper, so the icons and labels stand out
-        val fx = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = k.sheetCard(18f); setPadding(dp(16), dp(4), dp(16), dp(4)) }
-        fx.addView(slider(s(R.string.hm_c_blur), st.blur / 20, 5, "0", "100%") { v -> set { it.copy(blur = v * 20) } })
-        fx.addView(slider(s(R.string.hm_c_dim), st.dim / 10, 6, "0", "60%") { v -> set { it.copy(dim = v * 10) } })
-        col.addView(fx, lp(8))
+        // first open: what fills the screen now, the sections below the fold right after the first frame (the whole form
+        // was 86-139 ms before it on an Oppo A5s); a rebuild (a setting changed) builds it all at once, so nothing flashes
+        val rest = {
+            section(col, R.string.hm_c_wall)
+            val ws = object : HorizontalScrollView(this) {
+                private var placed = false
+                override fun onScrollChanged(l: Int, t: Int, ol: Int, ot: Int) { super.onScrollChanged(l, t, ol, ot); if (placed) wallX = l }
+                override fun onLayout(ch: Boolean, l: Int, t: Int, r: Int, b: Int) { super.onLayout(ch, l, t, r, b); if (!placed) { placed = true; scrollTo(wallX, 0) } }   // before the first draw
+            }.apply { isHorizontalScrollBarEnabled = false; clipToPadding = false }
+            val wr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            wr.addView(pickTile(st.wallKind == "photo"), LinearLayout.LayoutParams(dp(64), dp(112)))
+            val cur = if (st.wallKind == "photo") "" else st.wall.ifEmpty { if (dark) preset.wallDark else preset.wallLight }
+            for (w in HomeStyle.WALLS) wr.addView(wallTile(w, w == cur), LinearLayout.LayoutParams(dp(64), dp(112)).apply { leftMargin = dp(8) })
+            ws.addView(wr)
+            col.addView(ws, lp(8))
+            // POCO-style: blur and darken any wallpaper, so the icons and labels stand out
+            val fx = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = k.sheetCard(18f); setPadding(dp(16), dp(4), dp(16), dp(4)) }
+            fx.addView(slider(s(R.string.hm_c_blur), st.blur / 20, 5, "0", "100%") { v -> set { it.copy(blur = v * 20) } })
+            fx.addView(slider(s(R.string.hm_c_dim), st.dim / 10, 6, "0", "60%") { v -> set { it.copy(dim = v * 10) } })
+            col.addView(fx, lp(8))
 
-        section(col, R.string.hm_c_accent)
-        val ar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val curAccent = st.accent.ifEmpty { if (dark) preset.accentDark else preset.accentLight }
-        for (a in HomeStyle.ACCENTS) ar.addView(swatch(a, a.id == curAccent, dark), LinearLayout.LayoutParams(0, dp(44), 1f))
-        col.addView(ar, lp(8))
+            section(col, R.string.hm_c_accent)
+            val ar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            val curAccent = st.accent.ifEmpty { if (dark) preset.accentDark else preset.accentLight }
+            for (a in HomeStyle.ACCENTS) ar.addView(swatch(a, a.id == curAccent, dark), LinearLayout.LayoutParams(0, dp(44), 1f))
+            col.addView(ar, lp(8))
 
-        section(col, R.string.hm_c_theme)
-        col.addView(seg(listOf(s(R.string.hm_c_light) to "light", s(R.string.hm_c_dark) to "dark", s(R.string.hm_c_auto) to "auto"), st.theme,
-            listOf(R.drawable.li_sun, R.drawable.li_moon, R.drawable.li_smartphone_auto)) { v -> set { it.copy(theme = v) } }, lp(8))
+            section(col, R.string.hm_c_theme)
+            col.addView(seg(listOf(s(R.string.hm_c_light) to "light", s(R.string.hm_c_dark) to "dark", s(R.string.hm_c_auto) to "auto"), st.theme,
+                listOf(R.drawable.li_sun, R.drawable.li_moon, R.drawable.li_smartphone_auto)) { v -> set { it.copy(theme = v) } }, lp(8))
 
-        section(col, R.string.hm_c_text)
-        val fonts = listOf(0.85, 1.0, 1.15, 1.3)
-        val fi = fonts.indexOfFirst { kotlin.math.abs(it - st.font) < 0.01 }.let { if (it < 0) 1 else it }
-        col.addView(group().apply { addView(slider(s(R.string.hm_c_font), fi, 3, "A", "A", bigEnd = true) { v -> set { it.copy(font = fonts[v]) } }) }, lp(8))
+            section(col, R.string.hm_c_text)
+            val fonts = listOf(0.85, 1.0, 1.15, 1.3)
+            val fi = fonts.indexOfFirst { kotlin.math.abs(it - st.font) < 0.01 }.let { if (it < 0) 1 else it }
+            col.addView(group().apply { addView(slider(s(R.string.hm_c_font), fi, 3, "A", "A", bigEnd = true) { v -> set { it.copy(font = fonts[v]) } }) }, lp(8))
 
-        if (!locked && !Flavor.HOME) col.addView(note(s(R.string.hm_c_lock_hint), false), lp(14))
-        col.addView(k.pill(s(R.string.hm_c_reset), R.drawable.li_rotate_ccw, false) { if (guard()) applyPreset(HomeStyle.preset(st.preset)) },
-            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+            if (!locked && !Flavor.HOME) col.addView(note(s(R.string.hm_c_lock_hint), false), lp(14))
+            col.addView(k.pill(s(R.string.hm_c_reset), R.drawable.li_rotate_ccw, false) { if (guard()) applyPreset(HomeStyle.preset(st.preset)) },
+                LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+        }
+        if (!first) rest() else {
+            // after the first frame is drawn (a View.post before it still ran ahead of that frame: no gain, measured)
+            val vto = window.decorView.viewTreeObserver
+            vto.addOnDrawListener(object : android.view.ViewTreeObserver.OnDrawListener {
+                var done = false
+                override fun onDraw() {
+                    if (done) return
+                    done = true
+                    val me = this
+                    col.post { window.decorView.viewTreeObserver.removeOnDrawListener(me); if (!isDestroyed && scroll.getChildAt(0) === col) rest() }
+                }
+            })
+        }
         if (first) setContentView(scroll)   // else: scrollY is untouched by removeAllViews and clamped on the next layout
     }
 
