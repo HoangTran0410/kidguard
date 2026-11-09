@@ -81,6 +81,8 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Wallpaper blur 0-100 % / dim 0-60 % sliders for every kind; wallpaper drawn on its own SurfaceView (86c66de, 435a991)
 - Icons: all in chosen shape (circle/squircle); legacy icons fill or sit at 74 % on plate; normalised visual area (86c66de, 704c7b8)
 
+- Launcher safety nets (decided): `HomeFile` keeps an older good `home.json.bad` as `.bad.old` on a second reset and sets its cache only after the rename; crash counting needs a launcher UI frame in the stack (`LauncherLogic.isLauncherCrash`), not just `HomeActivity.alive`; Tuỳ chỉnh Undo covers presets/Reset and a new wallpaper photo (`wall.jpg.prev`); dropping a folder or another app's widget on the remove circle asks first; `closeOverlay` hides the IME.
+
 ### Website / docs
 - Site is static HTML+CSS, no JS (CSP script-src 'none' on most pages; only the llms "Hỏi AI" button allows 'self' script), deployed by `npx wrangler pages deploy website --project-name kid-guard --branch main` (direct upload); not tied to git
 - Guide pages (website/guide.html + en/guide.html) replace GitHub README anchor links — user: links to nonexistent anchors not OK; stable section ids listed in website-guide report: install, install-phone/qr/usb/cli/basic, pair, parent-app, away, tailscale, relay, shared-relay, features, iphone, remove, faq (26e4309)

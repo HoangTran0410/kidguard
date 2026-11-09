@@ -331,7 +331,11 @@ internal fun HomeActivity.drop(x: Float, y: Float, d: DragSt): Boolean {
         return true
     }
     val out: HomeModel? = when {
-        magnet(x, y) -> if (d.src is Src.NewWidget || (d.pkg != null && d.pkg !in m.onHome())) m else HomeLayout.dropRemove(t)
+        magnet(x, y) -> if (d.src is Src.NewWidget || (d.pkg != null && d.pkg !in m.onHome())) m
+            else HomeLayout.dropRemove(t).let { rm ->
+                // a folder or another app's widget costs the kid a layout: ask like the edit-mode minus badge does
+                if (t.item.kind == "folder" || (t.item.kind == "widget" && t.item.type == "app")) { askDropRemove(m, rm, t.item); m } else rm
+            }
         dockTarget(x, y, d) != null -> dockTarget(x, y, d)!!.let { (slot, k) -> if (slot >= 0) HomeLayout.dropDock(t, slot) else HomeLayout.insertDock(t, k) }
         dockSlot(x, y) >= 0 -> null
         else -> cellAt(x, y, d)?.let { (pi, a, under) ->
@@ -347,6 +351,17 @@ internal fun HomeActivity.drop(x: Float, y: Float, d: DragSt): Boolean {
     return true
 }
 
+
+private fun HomeActivity.askDropRemove(before: HomeModel, after: HomeModel, item: HItem) {
+    val (title, body) = if (item.kind == "folder") getString(R.string.hm_e_rm_q, folderName(item)) to getString(R.string.hm_e_rm_folder, item.apps.size)
+        else getString(R.string.hm_e_rm_widget_q) to getString(R.string.hm_e_rm_widget)
+    main.post {
+        Modal(this, u).show(R.drawable.li_circle_minus, Modal.Tone.WARN, title, body, ok = getString(R.string.hm_e_rm_ok), cancel = getString(R.string.cancel)) {
+            if (model === before) update(after)   // the layout moved on meanwhile: nothing to remove any more
+            true
+        }
+    }
+}
 
 /**
  * After the post-drop render: the item's real view starts where the finger let go and springs into its cell (the

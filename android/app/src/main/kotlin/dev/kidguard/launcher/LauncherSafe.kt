@@ -164,10 +164,16 @@ object LauncherSafe {
 
     private class Handler(val app: Context, val next: Thread.UncaughtExceptionHandler?) : Thread.UncaughtExceptionHandler {
         override fun uncaughtException(t: Thread, e: Throwable) {
-            // only the main thread is the launcher UI: a crash on the Guard / relay / worker thread is not a launcher crash
-            if (HomeActivity.alive > 0 && t === android.os.Looper.getMainLooper().thread) runCatching { crashed(app, e) }
+            // only a crash with launcher frames counts: Guard / relay code on the main thread is not a launcher crash
+            if (HomeActivity.alive > 0 && runCatching { LauncherLogic.isLauncherCrash(frames(e)) }.getOrDefault(true)) runCatching { crashed(app, e) }
             next?.uncaughtException(t, e)
         }
+    }
+
+    private fun frames(e: Throwable): List<String> {
+        val out = ArrayList<String>(); var c: Throwable? = e; var n = 0
+        while (c != null && n++ < 6) { c.stackTrace.mapTo(out) { it.className }; c = c.cause }
+        return out
     }
 
     /** One launcher crash. Writes synchronously; the Guard reports the event later (pending). */

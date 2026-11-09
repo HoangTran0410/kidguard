@@ -262,6 +262,9 @@ internal fun HomeActivity.awPickerSection(list: LinearLayout, query: String = ""
 
 internal fun HomeActivity.awAdd(info: AppWidgetProviderInfo) {
     closeOverlay()
+    // a still-unplaced id from an earlier try (bind prompt dismissed, configure left open) would leak in the host
+    aw.pendingId.takeIf { it != 0 && it !in (aw.seen ?: emptySet()) }?.let { old -> runCatching { awHost().deleteAppWidgetId(old) } }
+    aw.pendingId = 0
     val id = runCatching { awHost().allocateAppWidgetId() }.getOrNull() ?: return toast(getString(R.string.hm_aw_fail))
     awPend(id)
     val ok = runCatching { awMgr().bindAppWidgetIdIfAllowed(id, info.provider) }.getOrDefault(false)

@@ -722,6 +722,7 @@
     <string name="hm_t_homework_hint">Ví dụ: Toán trang 12</string>
     <string name="hm_t_add">Thêm</string>
     <string name="hm_t_drop_q">Xoá bài tập này?</string>
+    <string name="hm_t_note_drop_q">Xoá ghi chú này?</string>
     <string name="hm_t_delete">Xoá</string>
     <string name="hm_t_notes">Ghi chú</string>
     <string name="hm_t_less">Thu gọn</string>
@@ -770,7 +771,7 @@
     <string name="hm_c_badge_dot">Chấm</string>
     <string name="hm_c_badge_num">Số</string>
     <string name="hm_c_dots_need">Chưa có quyền đọc thông báo. Chạm để bật cho KidGuard.</string>
-    <string name="hm_c_undo">Hoàn tác đổi lưới</string>
+    <string name="hm_c_undo">Hoàn tác thay đổi vừa rồi</string>
     <string name="hm_c_wall">Hình nền</string>
     <string name="hm_c_dim">Giảm sáng</string>
     <string name="hm_c_blur">Làm mờ</string>
