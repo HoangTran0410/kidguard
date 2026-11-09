@@ -179,13 +179,17 @@ class Guard : Service() {
         batteryCheck()
         val newApps = if (r.blockNew) fresh else emptySet()
         val leftMs = dailyLeftMs(r, use.ms, today, apps.keys, prot)
-        Warn.due(r, leftMs, minute, today, store.warned(today), store.tr)?.let { w ->
+        if (!r.monitor) Warn.due(r, leftMs, minute, today, store.warned(today), store.tr)?.let { w ->
             store.markWarned(today, w.keys); notifyWarn(w.text)
         }
         // v0.9.7 bedtime wind-down: grayscale (re-applied if the child switched it off, put back afterwards)
         windActive = WindDown.active(r, minute)
         runCatching { GrayFx.tick(this, store, windActive) }.onFailure { Log.w("KidGuard", "wind-down", it) }
-        val want = decide(r, use.ms, minute, now, today, apps.keys, prot, newApps, store.unlockUntil)
+        // monitor only: decide() still runs (pure) so the parent sees what strict mode would do, but nothing is enforced:
+        // `want` (empty) feeds suspend / bounce / launcher / tile, `would` feeds state.wouldBlock + the log
+        val would = decide(r, use.ms, minute, now, today, apps.keys, prot, newApps, store.unlockUntil)
+        val want = enforced(r, would)
+        logWould(if (r.monitor) would else emptyMap(), apps)
         // time-left tile / widget: pushed only when the text changes
         runCatching { Quick.publish(this, QuickLogic.timeLeftText(leftMs, QuickLogic.phoneBlock(want), store.tr)) }
         val had = store.suspendedByUs
@@ -214,7 +218,15 @@ class Guard : Service() {
         launcherTick(r, now)
         snap = Snap(r, want, use.ms, leftMs, minute, now, Rules.isoDow(today), apps.keys, prot)
         listeners.forEach { l -> main.post { runCatching { l() } } }
-        lastState = state(r, apps, prot, use, want, nowSusp, today, now, newApps)
+        lastState = state(r, apps, prot, use, want, if (r.monitor) would else emptyMap(), nowSusp, today, now, newApps)
+    }
+
+    private var wouldSeen: Set<String> = emptySet()
+    /** Monitor only: one log line per app that newly WOULD be blocked (nothing is locked). */
+    private fun logWould(would: Map<String, String>, apps: Map<String, String>) {
+        val add = would.keys - wouldSeen
+        if (add.isNotEmpty()) store.log(R.string.log_would_block, add.joinToString { apps[it] ?: it }, would[add.first()] ?: "")
+        wouldSeen = would.keys
     }
 
     private var launcherAt = 0L
@@ -294,7 +306,7 @@ class Guard : Service() {
         if (store.zoneFix(z, lat, lng).isNotEmpty()) { store.log(R.string.log_zone); relay?.kick() }
     }
 
-    private fun state(r: Rules, apps: Map<String, String>, prot: Set<String>, use: Usage.Today, want: Map<String, String>,
+    private fun state(r: Rules, apps: Map<String, String>, prot: Set<String>, use: Usage.Today, want: Map<String, String>, would: Map<String, String>,
                       susp: Set<String>, today: String, now: Long, newApps: Set<String>): JSONObject {
         val list = JSONArray()
         apps.entries.sortedByDescending { use.ms[it.key] ?: 0 }.forEach { (p, label) ->
@@ -321,6 +333,7 @@ class Guard : Service() {
             .put("usedMs", use.ms.filterKeys { it in apps && it !in prot && it !in r.allow }.values.sum())
             .put("leftMs", dailyLeftMs(r, use.ms, today, apps.keys, prot))
             .put("apps", list)
+            .put("wouldBlock", JSONObject().apply { would.forEach { (p, why) -> put(p, why) } })
             .put("rules", r.toJson())
             .put("location", store.location ?: JSONObject.NULL)
             .put("lan", lanUrl() ?: JSONObject.NULL)

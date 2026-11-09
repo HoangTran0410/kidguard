@@ -342,7 +342,7 @@ class HomeActivity : Activity() {
         Guard.snap?.takeIf { now - it.now < 30_000 }?.let { return View0(it.want, it.leftMs, it.usageMs, minute, it.dow, now, it.apps, it.prot, today) }
         val (all, prot) = Policy.cached(this)
         val use = runCatching { Usage.today(this, now).ms }.getOrDefault(emptyMap())
-        val want = decide(r, use, minute, now, today, all.keys, prot, unlockUntil = s.unlockUntil)
+        val want = enforced(r, decide(r, use, minute, now, today, all.keys, prot, unlockUntil = s.unlockUntil))
         return View0(want, dailyLeftMs(r, use, today, all.keys, prot), use, minute, Rules.isoDow(today), now, all.keys, prot, today)
     }
 

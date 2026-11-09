@@ -410,7 +410,11 @@ async function micStop() {
 }
 function fmtClock(ms) { const s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 
-function modeBans() {   // basic mode / unfinished setup: [tone, icon, text] banners
+function modeBans() {
+  const m = modeBans0();
+  return st.rules && st.rules.monitor ? [["warn", "eye", t("mon.ban")]].concat(m) : m;
+}
+function modeBans0() {   // basic mode / unfinished setup: [tone, icon, text] banners
   if (st.mode === "setup" && st.features) return [["info", "eye", t("mode.preview")]];
   if (st.owner || !st.mode && st.owner !== false) return [];
   const m = st.basic || {}, miss = ["acc", "admin", "usage", "location", "notify", "battery"].filter(k => m[k] === false).map(k => t("perm." + k));

@@ -173,13 +173,20 @@ function ruleSecs(r) {
       : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}`),
   };
 }
+function monWould() {   // monitor only: what strict mode would block right now (state.wouldBlock: pkg -> reason)
+  const w = st.wouldBlock || {}, names = Object.keys(w).map(p => ((st.apps || []).find(a => a.pkg === p) || {}).label || p);
+  return names.length ? t("mon.would", esc(names.slice(0, 8).join(", ")) + (names.length > 8 ? " …" : "")) : t("mon.none");
+}
 function rulesTab(b) {
   const r = edit, S = ruleSecs(r), segs = [["time", "timer", t("rules.segTime")], ["safe", "shield", t("rules.segSafe")]];
   b.innerHTML = `<div class="rtop"><div class="seg" role="tablist" aria-label="${esc(t("tab.rules"))}">${segs.map(([id, i, n]) => `<button type="button" role="tab" data-rseg="${id}" aria-selected="${rseg === id}">${ic(i)}<span>${n}</span></button>`).join("")}</div>
     <button type="button" class="pill" id="tplOpen" aria-haspopup="dialog">${ic("layers")} ${t("tpl.apply")}</button></div>
+    <div class="card" id="monCard"><label class="row"><input type="checkbox" id="f-mon" ${r.monitor ? "checked" : ""}><span class="sp">${ic("eye")} <b>${t("mon.h")}</b></span></label>
+    <p class="mute">${t("mon.p")}</p>${r.monitor ? `<p class="mute" id="monWould">${monWould()}</p>` : ""}</div>
     <div id="rsx" role="tabpanel">${RSEG[rseg].map(k => S[k]).join("")}</div>`;
   b.querySelectorAll("[data-rseg]").forEach(x => x.onclick = () => { rseg = x.dataset.rseg; try { localStorage.setItem("kg.rseg", rseg); } catch {} rulesTab(b); const f = b.querySelector(`[data-rseg="${rseg}"]`); if (f) f.focus(); });
   $("#tplOpen").onclick = tplSheet;
+  $("#f-mon").onchange = e => { if (!edit) return; edit.monitor = e.target.checked; changed(); rulesTab(b); };
   rulesWire($("#rsx"), r);
 }
 // "Áp mẫu…": the templates card as a sheet

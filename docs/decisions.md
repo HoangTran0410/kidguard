@@ -86,6 +86,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Download links use `releases/latest/download/kidguard(-parent).apk` (no edit per release); version only as a hero chip (5ee5aae). Versioned names kidguard-<v>.apk also attached because Chrome saved "kidguard (1).apk" with no version (36f479a)
 - APKs stay on GitHub releases: same-origin /dl/ hosting was tried and reverted (open-source provenance, one source to maintain) (9d75f23, reverted 7acef5e)
 - English README only (README.vi.md dropped) (bf164b5). Site CSS cache-busted with a content hash (fb3d5ec)
+- Rule `monitor` ("Chỉ theo dõi"): `decide()` stays pure and always runs; `enforced(r, would)` empties it in monitor mode, so suspend / bounce / launcher / Quick tile see nothing while `state.wouldBlock` + a log line report what strict mode would do. Device-level `Policy.apply` restrictions and all reporting are unchanged; heads-up warnings are off.
 - Release APK 7.4 -> 3.8 MB by dropping x86_64 and BouncyCastle PQC (747bc65)
 
 ## 2. REJECTED / DON'T RETRY

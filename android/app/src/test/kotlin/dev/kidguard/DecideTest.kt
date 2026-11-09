@@ -15,6 +15,16 @@ class DecideTest {
         decide(r, use, minute, now, today, apps, prot, news)
     // 2026-11-06 is a Friday; 11-07 Saturday; 11-08 Sunday; 11-09 Monday
 
+    @Test fun monitorComputesButEnforcesNothing() {
+        val r = Rules(blocked = setOf("game"), dailyMin = 30, monitor = true)
+        val would = d(r, mapOf("yt" to 40 * min))
+        assertEquals("blocked", would["game"]); assertEquals("daily", would["yt"])
+        assertTrue(enforced(r, would).isEmpty())
+        assertEquals(would, enforced(r.copy(monitor = false), would))
+        assertTrue(Rules.fromJson(r.toJson()).monitor)
+        assertFalse(Rules.fromJson(JSONObject("{}")).monitor)
+    }
+
     @Test fun nothingByDefault() = assertTrue(d(Rules()).isEmpty())
 
     @Test fun blockedListed() = assertEquals(mapOf("game" to "blocked"), d(Rules(blocked = setOf("game", "dialer"))))

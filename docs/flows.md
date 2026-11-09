@@ -24,6 +24,8 @@ Prefs: one SharedPreferences file `kg` in device-protected storage (`guard/Store
 - `guard/Basic.kt`, `BasicLogic.kt` basic mode (no Device Owner). `Comfort.kt` (WindDown/Gray/Notes/Checkin/ReqTpl, pure), `GrayFx.kt` its Android side, `Warn.kt` heads-ups, `Sys.kt`/`SysLogic.kt` remote phone settings, `DevOpts.kt` dev options.
 - Callers outside guard/: `remote/Api.kt` (LAN), `remote/Relay.kt` (relay), `remote/Acc.kt` (accessibility), `ui/MainActivity.kt` (child screen), `launcher/HomeActivity.kt` (reads `Guard.snap`).
 
+Monitor only (`rules.monitor`): Guard.tick computes `would = decide(...)` then `want = enforced(r, would)` (Rules.kt); only `want` reaches suspendExactly (empty => unsuspends ours), Acc/bounce, `snap` (launcher) and the tile; `would` goes to `state.wouldBlock` + `logWould`. Warn.due is skipped.
+
 ### 1.1 Rules update applied
 
 Trigger: parent saves rules (LAN `PUT /api/rules`) or relay sync returns newer rules.

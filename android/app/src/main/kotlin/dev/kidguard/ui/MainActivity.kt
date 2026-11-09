@@ -692,6 +692,7 @@ class MainActivity : Activity() {
         fun name(p: String) = apps[p] ?: p
         val days = resources.getStringArray(R.array.day_short)
         val L = mutableListOf<String>()
+        if (r.monitor) L += getString(R.string.r_monitor)
         val base = baseLimitMin(r, today)
         if (base <= 0) L += getString(R.string.r_no_limit)
         else {
