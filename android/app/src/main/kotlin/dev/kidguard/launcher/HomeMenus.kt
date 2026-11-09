@@ -115,6 +115,7 @@ internal fun HomeActivity.appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
         Row(R.drawable.li_folder_plus, getString(R.string.hm_f_add), true) { addToFolderSheet(a) },
         // edit mode with this icon already picked (One UI's "Chọn"): several apps at once from here
         Row(R.drawable.li_check, getString(R.string.hm_e_pick), true) { enterEdit(item?.id) }.takeIf { mode == Mode.HOME && item != null },
+    ) + lookRows(a) + listOfNotNull(
         // the app fills its whole cell, so most long-presses land on one: give the empty-space menu a way in from here
         Row(R.drawable.li_layout_dashboard, getString(R.string.hm_edit_home), true) { if (mode == Mode.PANEL) closeOverlay(); enterEdit() }.takeIf { mode != Mode.DRAWER },
         // the system's app details (storage, notifications, permissions), last like POCO / One UI. Only when the parent lets

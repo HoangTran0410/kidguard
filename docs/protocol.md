@@ -878,10 +878,11 @@ crash count and the safe mode, and a layout reset by a crash in the last 24 h co
 ### `home.json` (phone only, app files dir)
 ```
 {"v":1, "grid":{"cols":3-5,"rows":4-7,"auto":bool}, "pages":[{"items":[item…]}…], "dock":[{"pkg":"@phone"},{"pkg":pkg|""}×3],
- "style":{"preset":"be|teen|gon","icon":1-5,"labels":bool,"shape":"round|square","dockBg":bool,"dockLabels":bool,"badge":"num|dot|off","face":"sys|light|medium|condensed|serif","accent":"<id>"|"",
+ "style":{"preset":"be|teen|gon","icon":1-5,"labels":bool,"shape":"round|square","dockBg":bool,"dockLabels":bool,"badge":"num|dot|off","face":"sys|light|medium|condensed|serif|easy","speak":false,"calm":false,"solid":false,"accent":"<id>"|"",
           "theme":"light|dark|auto","font":0.85|1.0|1.15|1.3,"wall":{"kind":"builtin|photo","id":"<wall id>","dim":0-60,"blur":0-100},"lib":true,"fx":"auto|full|lite","today":true},
  "seen":[pkg…], "notes":[note…], "todo":[todo…], "timetable":{"1".."7":{"am":[subject…],"pm":[subject…]},"bells":{"am":[[start,end]…],"pm":[…]}}, "todayHide":[card…]}
 ```
+`custom` (optional, top level): per-app rename / icon `{"<pkg>":{"l":"<label, <=40>","i":"g:<lucide glyph>:#RRGGBB"|"e:<emoji>:#RRGGBB"}}` (keys may be `pkg/activity`); missing / unknown fields are ignored. `style.speak` = say an app's name when tapped + "Đọc to" on Hôm nay, `calm` = launcher animations off, `solid` = solid label backing.
 `todayHide`: "Hôm nay" cards the kid turned off ("Tuỳ chỉnh thẻ" at the end of that page): `now` (greeting, school period
 now / next, countdown to the next lock or bedtime), `time` (screen time left + top 3 apps), `sched`, `chores`, `tomorrow`
 (tomorrow's subjects, from 17:00), `notes`, `files` (both ways: opens what parents sent, lists what the kid sent + "Bố mẹ đã tải", "Gửi file cho bố mẹ" = the system picker into the outbox). The SOS / call buttons can't be hidden. Empty schedule / files /

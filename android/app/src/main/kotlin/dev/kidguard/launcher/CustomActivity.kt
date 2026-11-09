@@ -116,7 +116,7 @@ class CustomActivity : Activity() {
         line(home); home.addView(stepper(s(R.string.hm_c_rows), mm.rows, 4, HomeLayout.MAX_ROWS) { regrid(mm.cols, it, manual = true) })
         line(home); home.addView(slider(s(R.string.hm_c_icon), st.icon - 1, 4, s(R.string.hm_c_small), s(R.string.hm_c_big)) { v -> set { it.copy(icon = v + 1) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_labels), st.labels) { v -> set { it.copy(labels = v) } })
-        line(home); home.addView(segRow(s(R.string.hm_c_face), HomeActivity.FACES.zip(listOf(R.string.hm_c_face_sys, R.string.hm_c_face_light, R.string.hm_c_face_medium, R.string.hm_c_face_condensed, R.string.hm_c_face_serif)).map { (f, r) -> s(r) to f }, st.face) { v -> set { it.copy(face = v) } })
+        line(home); home.addView(segRow(s(R.string.hm_c_face), HomeActivity.FACES.zip(listOf(R.string.hm_c_face_sys, R.string.hm_c_face_light, R.string.hm_c_face_medium, R.string.hm_c_face_condensed, R.string.hm_c_face_serif, R.string.hm2_c_face_easy)).map { (f, r) -> s(r) to f }, st.face) { v -> set { it.copy(face = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_shape), listOf(s(R.string.hm_c_round_opt) to "round", s(R.string.hm_c_square_opt) to "square"), st.shape) { v -> set { it.copy(shape = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock), st.dockBg) { v -> set { it.copy(dockBg = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock_labels), st.dockLabels) { v -> set { it.copy(dockLabels = v) } })
@@ -133,6 +133,13 @@ class CustomActivity : Activity() {
             k.tap(this, 12f) { runCatching { startActivity(android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) } }
         })
         col.addView(home, lp(8))
+
+        section(col, R.string.hm2_c_read)
+        val read = group()
+        read.addView(switchRow(s(R.string.hm2_c_speak), st.speak) { v -> set { it.copy(speak = v) } })
+        line(read); read.addView(switchRow(s(R.string.hm2_c_calm), st.calm) { v -> set { it.copy(calm = v) } })
+        line(read); read.addView(switchRow(s(R.string.hm2_c_solid), st.solid) { v -> set { it.copy(solid = v) } })
+        col.addView(read, lp(8))
         undo?.let { u0 ->
             col.addView(k.pill(s(R.string.hm_c_undo), R.drawable.li_rotate_ccw, false) { if (!guard()) return@pill; if (undoPhoto) restorePhoto(); save(u0); undo = null; undoPhoto = false; build() },
                 LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })

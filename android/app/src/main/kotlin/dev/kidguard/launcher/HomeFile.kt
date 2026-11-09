@@ -18,6 +18,7 @@ object HomeFile {
         val m = HomeLayout.parse(runCatching { f.readText() }.getOrNull())
         if (m == null) { keepBad(ctx); Log.w("KidGuard", "home.json unreadable, kept as .bad") }
         cache = m
+        if (m != null) AppLook.set(m.custom)
         return m
     }
 
@@ -31,6 +32,7 @@ object HomeFile {
     }
 
     @Synchronized fun save(ctx: Context, m: HomeModel) {
+        AppLook.set(m.custom)
         if (m == cache) return
         // the cache is set only after the file is in place, so a failed write is tried again by the next save
         runCatching {
@@ -45,6 +47,7 @@ object HomeFile {
     /** After the 2nd crash in 5 min: start over (style and layout). */
     @Synchronized fun reset(ctx: Context) {
         cache = null
+        AppLook.set(emptyMap())
         keepBad(ctx)
     }
 

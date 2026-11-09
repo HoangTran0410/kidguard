@@ -33,7 +33,7 @@ object IconCache {
     var misses = 0; var missMs = 0L
     fun stats(): String = "icons=$misses/${missMs}ms lru=${lru.size() shr 20}/${MAX_BYTES shr 20}MB".also { misses = 0; missMs = 0 }
 
-    private fun key(pkg: String, cls: String, px: Int, round: Boolean) = "$pkg/$cls@$px${if (round) "r" else "s"}"
+    private fun key(pkg: String, cls: String, px: Int, round: Boolean) = "$pkg/$cls@$px${if (round) "r" else "s"}${AppLook.iconKey(pkg, cls)}"
 
     /** Only what is already rendered (no load). */
     fun peek(pkg: String, cls: String, px: Int, round: Boolean): Bitmap? = lru.get(key(pkg, cls, px, round))
@@ -56,7 +56,7 @@ object IconCache {
         val key = key(pkg, cls, px, round)
         lru.get(key)?.let { return it }
         val t0 = android.os.SystemClock.uptimeMillis()
-        val d = load(ctx, pkg, cls) ?: return null
+        val d = AppLook.drawable(ctx, pkg, cls, px) ?: load(ctx, pkg, cls) ?: return null
         val b = render(d, px, round)
         lru.put(key, b)
         misses++; missMs += android.os.SystemClock.uptimeMillis() - t0

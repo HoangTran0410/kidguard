@@ -50,6 +50,7 @@
 
     <!-- the launcher apps, to list and limit them (Android 11+ package visibility) -->
     <queries>
+        <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
         <package android:name="com.tailscale.ipn" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
