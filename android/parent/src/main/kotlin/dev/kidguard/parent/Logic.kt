@@ -218,6 +218,11 @@ object Logic {
     const val RELEASES = "https://github.com/HoangTran0410/kidguard/releases/latest"
     /** The versioned asset, so the browser saves "kidguard-parent-0.9.1.apk", not a second "kidguard-parent (1).apk". */
     fun parentApk(tag: String) = "https://github.com/HoangTran0410/kidguard/releases/download/v$tag/kidguard-parent-$tag.apk"
+    /** The release checksum asset (build.sh writes `shasum -a 256` output next to the fixed-name APK). */
+    fun parentSha(tag: String) = "https://github.com/HoangTran0410/kidguard/releases/download/v$tag/kidguard-parent.apk.sha256"
+    /** First token of a `shasum` line, lower-case hex, or null. */
+    fun sha256Of(text: String): String? =
+        text.trim().split(Regex("\\s+")).firstOrNull()?.lowercase()?.takeIf { Regex("[0-9a-f]{64}").matches(it) }
 
     /** "0.9.0" from a `Location: …/releases/tag/v0.9.0` redirect, or null. */
     fun tagFromLocation(loc: String?): String? =

@@ -308,9 +308,10 @@ function setTab(b) {
     if (r && r.result === "set PIN first") toast("warn|" + t("pairT.pinFirst"));
   };
   clearInterval(pairTick.i); pairTick.i = setInterval(pairTick, 1000); pairTick();
-  $("#unpair").onclick = async () => { await cmd({ type: "unpairAll" }); };
+  $("#unpair").onclick = async () => { await cmd({ type: "unpairAll" }, undefined, [t("ask.unpairAll"), t("askOk.unpairAll"), true, t("unp.word")]); };
   $("#forget").onclick = async () => {
-    if (!(await ask(t(APP ? "forget.askApp" : "forget.askWeb", cur.name), APP ? t("delete") : t("forget"), true))) return;
+    const fk = cur;   // typed word: forgetting a relay kid destroys the only token
+    if (!(await ask(t(fk.via === "relay" ? "forget.askRelay" : APP ? "forget.askApp" : "forget.askWeb", fk.name), APP ? t("delete") : t("forget"), true, t("forget.word"))) || fk !== cur) return;
     screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); navDown(0); };
   if ($("#f-au")) $("#f-au").onchange = e => { if (!edit) return; edit.autoUpdate = e.target.checked; changed(); };
   if ($("#devOff")) $("#devOff").onclick = () => devOff(false);

@@ -81,7 +81,7 @@ async function fxGet(f) {
   const job = { id: fxHex(), kid: k, kind: "down", name: f.name, size: f.size, fid: f.id, pct: 0, state: "run", err: "" };
   fx.jobs.unshift(job); fxPaint();
   try {
-    let parts = [];
+    let parts = []; let relayDel = false;
     if (!fxRelay(k)) {
       const ctl = new AbortController(); job.abort = () => ctl.abort();
       const r = await fetch(base(k) + "/files/" + f.id, { headers: fxHdr(k), signal: ctl.signal }).catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("net"); });
@@ -112,9 +112,11 @@ async function fxGet(f) {
         if (!r.ok) throw errOf("HTTP " + r.status);
         parts.push(await r.arrayBuffer()); job.pct = (i + 1) / meta.n; fxPaint();
       }
-      fetch(base(k) + "/file?fid=" + f.id, { method: "DELETE", headers: fxHdr(k) }).catch(() => {});
+      relayDel = true;
     }
     fxSave(new Blob(parts), f.name); parts = null; job.state = "done"; job.pct = 1;
+    // relay: drop the relay copy only after the browser took the file (a failed save keeps it for a retry)
+    if (relayDel) fetch(base(k) + "/file?fid=" + f.id, { method: "DELETE", headers: fxHdr(k) }).catch(() => {});
   } catch (e) { job.state = e.raw === "abort" ? "stop" : "err"; job.err = fxErr(e); }
   job.abort = null; fxPaint(); fxLoad(k);
 }

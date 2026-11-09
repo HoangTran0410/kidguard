@@ -1,3 +1,4 @@
+                if (md.digest().joinToString("") { "%02x".format(it) } != want) { out.delete(); throw java.io.IOException("sha256 mismatch") }
 package dev.kidguard.parent
 
 import android.app.Activity
@@ -52,7 +53,8 @@ object Updater {
             try {
                 val dir = File(a.cacheDir, "upd").apply { mkdirs(); listFiles()?.forEach { it.delete() } }
                 val f = File(dir, "kidguard-parent-$tag.apk")
-                download(Logic.parentApk(tag), f) { a.push(JSONObject().put("st", "dl").put("tag", tag).put("pct", it)) }
+                val want = fetchSha(Logic.parentSha(tag))   // like the child updater: no checksum, no install
+                download(Logic.parentApk(tag), f, want) { a.push(JSONObject().put("st", "dl").put("tag", tag).put("pct", it)) }
                 val uri = FileProvider.getUriForFile(a, a.packageName + ".files", f)
                 a.runOnUiThread {
                     a.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
@@ -66,7 +68,17 @@ object Updater {
     }
 
     /** GET following up to 6 https redirects by hand; progress in percent (0..100) when the size is known. */
-    private fun download(url: String, out: File, progress: (Int) -> Unit) {
+    /** The release `.sha256` asset (GitHub redirects to its CDN). */
+    private fun fetchSha(url: String): String {
+        val c = URL(url).openConnection() as HttpURLConnection
+        c.connectTimeout = 15_000; c.readTimeout = 15_000; c.instanceFollowRedirects = true
+        try {
+            if (c.responseCode != 200) throw java.io.IOException("sha HTTP ${c.responseCode}")
+            return Logic.sha256Of(String(c.inputStream.use { it.readBytes() }.take(4096).toByteArray())) ?: throw java.io.IOException("sha unreadable")
+        } finally { c.disconnect() }
+    }
+
+    private fun download(url: String, out: File, want: String, progress: (Int) -> Unit) {
         var cur = url
         for (hop in 0..6) {
             val c = URL(cur).openConnection() as HttpURLConnection
@@ -82,11 +94,12 @@ object Updater {
                 if (code != 200) throw java.io.IOException("HTTP $code")
                 val total = c.contentLengthLong
                 var got = 0L; var last = -1
+                val md = java.security.MessageDigest.getInstance("SHA-256")
                 c.inputStream.use { i -> out.outputStream().use { w ->
                     val buf = ByteArray(64 * 1024)
                     while (true) {
                         val n = i.read(buf); if (n < 0) break
-                        w.write(buf, 0, n); got += n
+                        w.write(buf, 0, n); md.update(buf, 0, n); got += n
                         val p = if (total > 0) (got * 100 / total).toInt() else 0
                         if (p != last) { last = p; progress(p) }
                     }

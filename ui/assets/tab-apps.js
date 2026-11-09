@@ -266,7 +266,7 @@ function devTab(b) {
 function wireDev(b, apps) {
   const x = $("#dvRef"); if (x) x.onclick = () => devLoad(true);
   const c = $("#dvClean"); if (c) c.onclick = () => { tab = "apps"; appsSub = "clean"; try { localStorage.setItem("kg.appsSub", "clean"); } catch {} render(true); };
-  const r = $("#dvBoot"); if (r) r.onclick = async () => { if (!(await ask(...askOf("reboot")))) return; dvRun("dvBoot", () => cmd({ type: "reboot" }, t("reboot.done"), false)); };
+  const r = $("#dvBoot"); if (r) r.onclick = async () => { const k0 = cur, ar = askOf("reboot"); if (!(await ask(k0.name + "\n" + ar[0], ...ar.slice(1))) || k0 !== cur) return; dvRun("dvBoot", () => cmd({ type: "reboot" }, t("reboot.done"), false)); };
   (apps || []).forEach((a, i) => { const e = $("#dvc" + i); if (e && !e.disabled) e.onclick = async () => {
     if (!(await ask(t("clean.askClear", a.label), t("delete"), true))) return;
     dvRun("dvc" + i, () => cmd({ type: "clearData", pkg: a.pkg }, t("clean.cleared", a.label), false)).then(() => setTimeout(() => devLoad(true), 3000));
