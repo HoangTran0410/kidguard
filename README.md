@@ -163,7 +163,7 @@ Same as above with the author's relay: paste `https://kidguard.99-hoangtran.work
 Without this the parent app checks every ~15 minutes. With it, SOS and "more time" requests from a kid connected through the Worker arrive in seconds (Firebase Cloud Messaging, free). Only an id, a time and the minutes go through Google; names, notes and locations do not.
 
 1. [console.firebase.google.com](https://console.firebase.google.com): add a project, then **Add app → Android**, package `dev.kidguard.parent`. Download `google-services.json` into `android/parent/` and build (`scripts/build.sh`).
-2. **Project settings → Service accounts → Generate new private key**, then: `cd worker && npx wrangler secret put FCM_SA < /path/key.json && npx wrangler deploy`. Delete the key file afterwards.
+2. **Project settings → Service accounts → Generate new private key**, then: `cd relay && npx wrangler secret put FCM_SA < /path/key.json && npx wrangler deploy`. Delete the key file afterwards.
 3. Open the parent app once: it registers itself with every kid that uses the Worker. The parent's phone needs Google Play services.
 
 ## iPhone / iPad
@@ -205,7 +205,7 @@ TRUSTSTORE=/path/trust.jks scripts/build.sh   # behind a TLS-intercepting proxy
 
 Layout: `android/` (Gradle: `app/` child, `parent/` parent app), `ui/` (pages shared by both apps and the Worker), `relay/`, `website/`, `docs/`, `scripts/`.
 
-JDK 17, Android SDK 35. Parent page: `ui/index.html` + `ui/assets/` (CSS and plain scripts, no build step). Installers: `ui/install.html`, `ui/qr.html` (the WebUSB ADB library is bundled, rebuild with `ui/vendor/build.sh`). Tests: `cd android && ./gradlew testDebugUnitTest :parent:testDebugUnitTest`, `cd worker && npm ci && npm test` (starts `wrangler dev` itself). CI runs both on every push (`.github/workflows/ci.yml`, no signing key there).
+JDK 17, Android SDK 35. Parent page: `ui/index.html` + `ui/assets/` (CSS and plain scripts, no build step). Installers: `ui/install.html`, `ui/qr.html` (the WebUSB ADB library is bundled, rebuild with `ui/vendor/build.sh`). Tests: `cd android && ./gradlew testKidDebugUnitTest :parent:testDebugUnitTest`, `cd relay && npm ci && npm test` (starts `wrangler dev` itself). CI runs both on every push (`.github/workflows/ci.yml`, no signing key there).
 
 **Signing key:** the QR code carries the checksum of the APK's signing certificate. Every release must be signed with the same `android/app/signing.jks` (not in git; back it up), or phones set up by QR refuse the update.
 

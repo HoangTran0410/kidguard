@@ -11,3 +11,7 @@ node_modules/
 .kotlin/
 android/parent/google-services.json
 *firebase-adminsdk*.json
+
+# agent scratch (Claude Code)
+.claude/worktrees/
+.claude/goal.md

@@ -1,55 +1,79 @@
 # KidGuard: notes for agents (AGENTS.md)
 
-Android parental control. Child phone runs the app as **Device Owner**; parents use a browser page (LAN direct, or via a
-Cloudflare Worker relay). User-facing docs: `README.md` (English). Wire formats: `docs/protocol.md`. **That file is
-the contract**: change it in the same commit as any JSON / endpoint / command shape you change.
+Android parental control. The child phone runs the app as **Device Owner** (or "basic mode": admin + accessibility);
+parents use one web page (LAN direct, Tailscale, or a Cloudflare Worker relay), also wrapped by a parent Android app.
+The child app is also a kid launcher, shipped alone as the "KidGuard Home" flavor.
 
-## Layout
-Root: `android/` (Gradle project: `app/` child app, `parent/` parent app), `ui/`, `relay/`, `website/` (kid-guard.pages.dev),
-`docs/`, `scripts/` (`build.sh`, `setup.sh`, `setup.ps1`, `relay.sh`/`relay.ps1` = deploy the worker to the user's own Cloudflare account). Build outputs land in `build/` at the root.
-- `android/app/src/main/kotlin/dev/kidguard/` (package `dev.kidguard` for **every** file, minSdk 26, target 34). Folders are for
-  reading only: never give a file a sub-package (manifest components + the Device Owner admin are bound to `dev.kidguard.*`).
-  - `guard/` enforcement: `Rules.kt` pure rules + `decide()` (block-reason priority, see protocol; unit-tested, keep it
-    Android-free), `Guard.kt` foreground loop (applies rules, suspends apps, location), `Policy.kt` DevicePolicyManager
-    restrictions + `Admin`, `Store.kt` persistence, `Usage.kt` usage stats, `Watchdog.kt` restart alarm, Basic mode, comfort, sys settings.
-  - `remote/` parent link + remote commands: `Http.kt` LAN server on `:8770` (serves `ui/index.html` + `ui/assets/*`),
-    `Api.kt` its routes (token `X-KG-Token`), `Relay.kt` phone side of the worker relay, `Acc.kt` accessibility (screen
-    capture + remote input, API 30+), `Proj.kt`, `Listen.kt`, `Ring.kt`, `Wake.kt`, shared files, `Update.kt` self-update.
-  - `launcher/` kid launcher: `HomeActivity.kt` (lifecycle, render, pages, custom views + all state; members are `internal`) with
-    extension-function files `HomeDrag` / `HomeMenus` / `HomeWidgets` (+ `HomeWidgetsLive|Lists|Plan|Kid`, one shared widget design system at the top of HomeWidgets.kt) / `HomeAppWidgets` (other apps' widgets, AppWidgetHost) / `HomeIcons` / `HomeDock` (new state goes in the activity);
-    `HomeLayout.kt` (pure model, unit-tested), `LauncherSafe.kt`, style, wallpapers, "Hôm nay" page.
-  - `setup/` `Provisioning.kt` QR/Device Owner, `SelfSetup*.kt` phone runs adb against itself (libadb-android + Conscrypt).
-  - `ui/` child screens: `MainActivity.kt`, `AdminActivity.kt`, `Modal`/`Sheet`/`Ui` helpers, `Ic.kt` Lucide icons
-    (`res/drawable/li_*.xml`), kid actions, shortcuts, language.
-- `ui/` is **one UI for both sides**: it is the APK's assets dir (`sourceSets.assets.srcDirs("../../ui")`, for both apps) and the worker
-  imports the `.html` files (and `ui/assets/*`) as text. No build step.
-  - `index.html` parent page: markup shell + icon sprite; its CSS/JS live in `ui/assets/` (`style.css`, then classic `defer` scripts
-    sharing globals, in the `<script>` order of index.html: `qrcode.js`, `i18n-vi.js`, `i18n-en.js` (dict `L`), `core.js` (i18n fns,
-    storage, `call()`/`base()`, helpers, boot, add/pair/list screens), `overview.js` (all-kids view, map engine, back nav), `kid.js`
-    (open/refresh, rules save, `ask`, `cmd`, templates), `tab-files.js`, `shell.js` (nav, `render()`, banners, actions, sheets),
-    `tab-home|apps|rules|screen|where|set.js`, `start.js` (boot call, last)). Served at `/ui/<name>` by `Api.kt`, the parent
-    app's `Proxy.kt` (both: whitelist `/ui/[a-z0-9-]+.(js|css)`) and the worker (explicit import map `UI`).
-    **New `ui/assets` file** ⇒ add its `<script defer>` tag in index.html AND its import in `relay/src/index.js` (the worker test
-    fetches every `/ui/` file the page names). Top-level `let`/`const` are shared across files: never redeclare a name. `install.html` WebUSB installer (Tango ADB bundled inline; rebuild: `ui/vendor/build.sh`).
-  - `qr.html` QR provisioning page (QR library `ui/assets/qrcode.js`, served at `/ui/qrcode.js`, shared with the parent page); `scripts/build.sh` rewrites the JSON between `/*KG*/` markers and `ui/provision.json`.
-- `relay/src/index.js` relay (Durable Object `Kid`, SQLite, free plan). Command whitelist lives here.
-- `scripts/setup.sh`, `scripts/setup.ps1`, `install.html`, `SelfSetup.kt` all do the same setup steps: keep them in sync (protocol "Setup steps").
+## Read first (in this order, only what you need)
+| Need | File |
+|---|---|
+| How a feature works end to end (trigger -> steps -> state -> gotchas, with file pointers) | `docs/flows.md` |
+| What was already decided / tried and rejected / OEM quirks / past bugs / open issues | `docs/decisions.md` |
+| Wire formats: rules, state, commands, endpoints, setup steps (**the contract**) | `docs/protocol.md` (900 lines: grep the heading) |
+| User-facing docs | `README.md`, `website/guide.html` |
+
+Before designing or "fixing" something, grep `docs/decisions.md` for it: many ideas were already measured and dropped.
+When you settle something durable (a decision, a rejected approach, a platform quirk), add one line there in the same commit.
+
+## Hard rules
+- `docs/protocol.md` is the contract: change it in the same commit as any JSON / endpoint / command / setup-step change
+  (the relay contract test checks commands are named there).
+- `release` must undo every restriction we add. New restriction ⇒ also undo it in `Policy.release` / `Guard.release`.
+- Every Kotlin file is `package dev.kidguard` (folders are for reading only; manifest + Device Owner admin bind to it).
+- UI text Vietnamese + English, always both (`res/values` + `res/values-vi`, `ui/assets/i18n-en.js` + `i18n-vi.js`); code and comments English.
+- Rules JSON is a full replace on the phone (`Rules.fromJson` is the allow-list): the page must always send the whole object.
+- New relay command ⇒ worker whitelist `CMDS` + protocol "Commands" + (destructive) `ONCE` list. Checklist: `docs/flows.md` §5.
+- New `ui/assets` file ⇒ `<script defer>` tag in `ui/index.html` (order matters, shared globals: never redeclare a
+  top-level name) AND import + map entry in `relay/src/index.js`.
+- HTML responses: `X-Frame-Options: DENY` + CSP; a new external origin goes into CSP on both phone (`Http.kt`) and worker (`relay/src/index.js` `CSP`).
+- `kg.code` (`android/gradle.properties`) goes up every release: the self-updater refuses an equal versionCode.
+  Release asset names (`kidguard.apk`, `.sha256`, ...) are a contract with the updater, QR page and website.
+- Setup steps are done 4 ways and must stay in sync: `scripts/setup.sh`, `scripts/setup.ps1`, `ui/install.html`, `K/setup/SelfSetup.kt`.
+- Launcher changes: build and install BOTH flavors (`kid` and `home`); the phone's default HOME may be either.
+- Never regenerate/delete `android/app/signing.jks` (QR checksum + self-update + Home layout import depend on it).
+- Don't read `ui/install.html` / `ui/qr.html` whole (inline bundles, lines of 13-25k chars): grep them.
+- Don't search inside `.claude/worktrees/` (stale copies of the tree from old agent runs).
+
+## Layout (where is X)
+Root: `android/` (Gradle: `app/` child app with flavors `kid` + `home`, `parent/` parent app), `ui/` (parent page +
+installers, also the APK assets dir and imported by the worker), `relay/` (Cloudflare Worker + Durable Object), `website/`
+(static site kid-guard.pages.dev), `docs/`, `scripts/` (build, setup, relay deploy). Build outputs: `build/`.
+
+`K/` = `android/app/src/main/kotlin/dev/kidguard/`:
+| Area | Files |
+|---|---|
+| Rules + block decision (pure, unit-tested) | `K/guard/Rules.kt` (`Rules`, `fromJson/toJson`, `decide()`) |
+| Enforcement loop, commands, state JSON | `K/guard/Guard.kt` (`tick`, `setRules`, `command`/`run`, `release`, state builder) |
+| Device Owner policy + release undo | `K/guard/Policy.kt` (`apply`, `suspendExactly`, `release`, `releaseBasic`) |
+| Persistence, PIN, pairing, TOTP | `K/guard/Store.kt` (one prefs file `kg`, device-protected) |
+| Basic mode, usage, watchdog, comfort, phone settings | `K/guard/Basic*.kt`, `Usage.kt`, `Watchdog.kt`, `Comfort.kt`, `Sys*.kt`, `DevOpts.kt` |
+| LAN server + routes | `K/remote/Http.kt` (`:8770`), `K/remote/Api.kt` (token `X-KG-Token`) |
+| Relay (phone side) | `K/remote/Relay.kt`; worker `relay/src/index.js` (`CMDS`, `ONCE`, DO `Kid`) |
+| Screen / input / listen / ring / wake / files / update / Tailscale | `K/remote/Acc.kt`, `Proj.kt`, `Listen.kt`, `Ring.kt`, `Wake.kt`, `Files.kt`, `Update.kt`, `Ts.kt` |
+| Kid launcher | `K/launcher/HomeActivity.kt` (state, render, pager, drawer) + extension files `HomeDrag/HomeMenus/HomeEdit/HomeIcons/HomeDock/HomeFolder/HomeLibrary/HomeControl/HomeWidgets*/HomeAppWidgets`; pure model `HomeLayout.kt` (unit-tested); `TodayPage.kt`; `CustomActivity.kt`; `LauncherSafe.kt`; `Flavor.kt` |
+| Setup / provisioning | `K/setup/Provisioning.kt`, `SelfSetup*.kt` |
+| Child screens | `K/ui/MainActivity.kt`, `AdminActivity.kt`, `Modal`/`Sheet`/`Ui`, `Ic.kt` (Lucide icons `res/drawable/li_*.xml`) |
+| Parent page | `ui/index.html` + `ui/assets/`: `core.js` (`call()`, `base()`, boot, pairing), `kid.js` (refresh, `putRules`, `cmd`), `shell.js` (nav, render, actions), `tab-*.js`, `i18n-*.js` |
+| Parent app | `android/parent/.../parent/` (`Proxy.kt` localhost proxy, `CheckJob.kt`, `Push.kt`) |
+
+Flavor `home` (`dev.kidguard.home`): launcher only, `src/home/AndroidManifest.xml` removes the parental parts; code checks `Flavor.HOME`.
 
 ## Build / test
-- `scripts/build.sh` → `build/kidguard.apk` + `build/kidguard-home.apk` + `build/kidguard-parent.apk`; runs the unit tests + release builds.
-  `app/` has 2 flavors: `kid` (KidGuard, `dev.kidguard`) and `home` ("KidGuard Home", `dev.kidguard.home`: the launcher alone,
-  `src/home/AndroidManifest.xml` removes the parental parts; code checks `Flavor.HOME`). Debug install: `:app:installKidDebug` / `installHomeDebug`. JDK 17, Android SDK 35.
-  Behind a TLS proxy: `TRUSTSTORE=/path.jks scripts/build.sh`.
-- Kotlin unit tests only: `cd android && ./gradlew testKidDebugUnitTest :parent:testDebugUnitTest` (`DecideTest`, `PinTrackTest`, `SelfSetupLogicTest`).
-- Worker: `cd worker && npm ci && npm test` (starts `wrangler dev` on :8793, runs `test/relay.test.mjs`, stops it).
+- Everything: `scripts/build.sh` → `build/kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk` (+ `.sha256`, versioned
+  copies). Runs unit tests + release builds. Side effects: stamps version into site pages and the QR checksum into
+  `ui/qr.html` / `ui/provision.json` (review the diff). JDK 17, SDK 35. Behind a TLS proxy: `TRUSTSTORE=/path.jks scripts/build.sh`.
+- Quick: `cd android && ./gradlew assembleKidRelease assembleHomeRelease testKidDebugUnitTest :parent:testDebugUnitTest`.
+  Debug install: `:app:installKidDebug` / `:app:installHomeDebug`.
+- Worker: `cd relay && npm ci && npm test` (starts `wrangler dev` on :8793; one run at a time).
+- After editing `ui/assets/*.js`: `node --check` each file (CI does this).
 - Nothing tests `ui/*.html` or on-device behaviour: say so in reports; real-phone checks are the user's.
+- Release steps (bump, build, tag, GitHub release assets, relay + site deploy): `docs/flows.md` §4.3.
+  Deploys (`wrangler deploy`, Pages) need the owner's OK.
 
-## Gotchas
-- Don't read `ui/install.html` / `ui/qr.html` whole: they contain huge inline bundles (lines of 13–25k chars). Use grep.
-- `android/app/signing.jks` (shared by both apps) is git-ignored and auto-made by `scripts/build.sh` (password `kidguard`). The QR checksum is tied to it:
-  a different key ⇒ provisioning fails. Never regenerate/delete it without asking.
-- App version: `kg.version` / `kg.code` in `android/gradle.properties` (both apps; state sends `BuildConfig.VERSION_NAME`). `kg.code` must go up every release: the self-updater refuses an equal versionCode.
-- `release` command must undo every restriction we add. A new restriction ⇒ also handle it in release.
-- New relay command ⇒ add to the worker whitelist + protocol. Destructive ones (`reboot`, `release`, `unpairAll`) are deliver-once.
-- HTML responses need `X-Frame-Options: DENY` + CSP; new external origins (e.g. tiles) must be added to CSP on both phone and worker.
-- UI text is Vietnamese; code/comments English.
+## Common gotchas (more in `docs/decisions.md` §3)
+- Android 8.1 / ColorOS: adb grants need "Disable permission monitoring"; Recents swipe = force-stop; stable inset 0.
+- Old WebView (Chrome < 111, e.g. Oppo = 101): `color-mix()` only inside `@supports`; no fallback-line trick.
+- HyperOS: the home window must show the wallpaper (`windowShowWallpaper` in BOTH `values` and `values-night` themes)
+  or app-open animations slide instead of zoom.
+- `DevicePolicyManager.setStatusBarDisabled` silences all notifications: don't use it (quick settings are closed via Acc).
+- Relay commands that aren't deliver-once stay queued 24 h; the parent page shows "sent", not "done".
