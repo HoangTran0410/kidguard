@@ -74,14 +74,17 @@ await P2("cmd",JSON.stringify({type:"lock"}));await P2("cmd",JSON.stringify({typ
 j=await S();ck("all 5 cmds delivered with ids",j.cmds.length==5&&j.cmds.every(c=>typeof c.id=="string"&&c.id.length>=3));
 ck("answer keeps given id",j.cmds.some(c=>c.type=="answer"&&c.id=="req1"));
 const ids=new Set(j.cmds.map(c=>c.id));ck("ids unique",ids.size==5);
-j=await S();ck("deliver-once: reboot/release/unpairAll gone, lock+answer stay",j.cmds.map(c=>c.type).sort().join()=="answer,lock");
+j=await S();ck("destructive cmds stay until acked (at-least-once): all 5 re-delivered",j.cmds.length==5);
+{const ids2=j.cmds.filter(c=>["reboot","release","unpairAll"].includes(c.type)).map(c=>c.id);j=await S({acks:ids2});ck("acked destructive cmds gone, lock+answer stay",j.cmds.map(c=>c.type).sort().join()=="answer,lock");}
 j=await S({acks:["req1",j.cmds.find(c=>c.type=="lock").id]});ck("acks drop the rest",j.cmds.length==0);
+r=await P2("cmd",JSON.stringify({type:"answer",id:"bad id!",ok:true}));j=await S();const an=j.cmds.find(c=>c.type=="answer");
+ck("answer with illegal id: cmd id replaced, request id kept in req",an&&an.id!="bad id!"&&an.req=="bad id!");await S({acks:[an.id]});
 ck("bad cmd 400",(await P2("cmd",JSON.stringify({type:"rm"}))).status==400);
 // unpair {id}: whitelisted, keeps the device id as the command id, deliver-once (destructive)
 r=await P2("cmd",JSON.stringify({type:"unpair",id:"a1b2c3d4"}));ck("unpair accepted",r.status==200);
 await P2("cmd",JSON.stringify({type:"lock"}));
 j=await S();const up=j.cmds.find(c=>c.type=="unpair");ck("unpair delivered with its device id",!!up&&up.id=="a1b2c3d4");
-j=await S();ck("unpair is deliver-once (gone on next sync, lock stays)",j.cmds.map(c=>c.type).join()=="lock");
+j=await S({acks:["a1b2c3d4"]});ck("unpair gone once acked (lock stays)",j.cmds.map(c=>c.type).join()=="lock");
 j=await S({acks:[j.cmds[0].id]});ck("unpair test queue clean",j.cmds.length==0);
 // 6: rules
 ck("rules array 400",(await P2("rules","[1]",T,{},"PUT")).status==400);
@@ -147,7 +150,7 @@ await PC("sync",{state:{t:1}});
 ck("clearData bad pkg 400",(await PC("cmd",{type:"clearData",pkg:"a b;rm"})).status==400&&(await PC("cmd",{type:"clearData"})).status==400&&(await PC("cmd",{type:"clearData",pkg:"a".repeat(201)})).status==400);
 ck("clearData queued",(await (await PC("cmd",{type:"clearData",pkg:"com.heytap.market",id:"cd1"})).json()).result=="queued");
 const c1=await (await PC("sync",{})).json();ck("clearData delivered with pkg",c1.cmds.some(c=>c.type=="clearData"&&c.pkg=="com.heytap.market"));
-const c2=await (await PC("sync",{})).json();ck("clearData NOT delivered twice",!c2.cmds.some(c=>c.type=="clearData"));}
+const c2=await (await PC("sync",{acks:["cd1"]})).json();ck("clearData NOT delivered after ack",!c2.cmds.some(c=>c.type=="clearData"));}
 // ---- device health ("Máy"): parent POST asks, sync says device:true, phone PUTs, parent reads it ----
 {const idd=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),PD=(p,o,m="POST")=>fetch(`${B}/c/${idd}/${p}`,{method:m,headers:H(),body:o===undefined?undefined:JSON.stringify(o)});
 await PD("sync",{state:{t:1}});
@@ -174,9 +177,11 @@ const G4=async p=>await (await fetch(`${B}/c/${id4}/${p}`,{headers:H()})).text()
 await P4("sync",{state:{rules:{rev:1,pinHash:"f".repeat(64),pinSalt:"abc"}}});
 await P4("cmd",{type:"reboot",id:"rb1"});await P4("cmd",{type:"lock",id:"lk1"});
 let a=await (await P4("sync",{})).json();
-ck("reboot delivered once",a.cmds.some(c=>c.type=="reboot"));
+ck("reboot delivered",a.cmds.some(c=>c.type=="reboot"));
 let b2=await (await P4("sync",{})).json();
-ck("reboot NOT delivered again on 2nd sync",!b2.cmds.some(c=>c.type=="reboot"));
+ck("reboot re-delivered until acked",b2.cmds.some(c=>c.type=="reboot"));
+b2=await (await P4("sync",{acks:["rb1"]})).json();
+ck("reboot gone once acked",!b2.cmds.some(c=>c.type=="reboot"));
 ck("non-once cmd (lock) re-delivered until acked",b2.cmds.some(c=>c.type=="lock"));
 b2=await (await P4("sync",{acks:["lk1"]})).json();ck("acked lock dropped",!b2.cmds.some(c=>c.type=="lock"));
 await P4("rules",{dailyMin:60,pin:"1234"},"PUT");

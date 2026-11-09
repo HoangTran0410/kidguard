@@ -32,9 +32,15 @@ class Res(val code: Int, val type: String, val body: ByteArray, val headers: Map
 
 /** A tiny HTTP/1.1 server (one request per connection), enough for the parent's page on the LAN. */
 class Http(private val tag: Any, private val handler: (Req) -> Res) {
+    private companion object { const val LONG_SLOTS = 6 }
     private var server: ServerSocket? = null
     @Volatile private var stopped = false
-    private val pool = ThreadPoolExecutor(4, 4, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(16))
+    // 16 workers (idle ones time out) + 32 queued. Long-running routes (listen, screen, file bodies) may hold at most
+    // LONG_SLOTS of them, so /state and the other short calls always find a free thread; an over-limit long call gets 503 busy.
+    private val pool = ThreadPoolExecutor(16, 16, 20L, TimeUnit.SECONDS, ArrayBlockingQueue(32)).apply { allowCoreThreadTimeOut(true) }
+    private val longSlots = java.util.concurrent.Semaphore(LONG_SLOTS)
+    private fun isLong(r: Req) = r.input != null || r.path == "/api/listen" || r.path == "/api/screen" ||
+        (r.method == "GET" && r.path.startsWith("/api/files/"))
 
     constructor(g: Guard, api: Api) : this(g, api::handle)
 
@@ -45,7 +51,7 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
                     val s = ServerSocket(port).also { server = it }
                     while (!s.isClosed) {
                         val c = s.accept()
-                        try { pool.execute { safe(c) } } catch (e: RejectedExecutionException) { runCatching { c.close() } }
+                        try { pool.execute { safe(c) } } catch (e: RejectedExecutionException) { busy(c) }
                     }
                 } catch (e: BindException) {
                     Log.w("KidGuard", "http bind $port failed, retry in 2s", e)
@@ -53,6 +59,12 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
                 } catch (e: SocketException) { /* stopped */ } catch (e: Exception) { Log.e("KidGuard", "http", e) }
             }
         }, "http").start()
+    }
+
+    /** Pool and queue full: answer 503 instead of closing the socket silently (the page then retries instead of "network error"). */
+    private fun busy(c: Socket) {
+        runCatching { c.soTimeout = 1000; c.getOutputStream().apply { write("HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nRetry-After: 2\r\nConnection: close\r\n\r\n".toByteArray()); flush() } }
+        runCatching { c.close() }
     }
 
     fun stop() { stopped = true; runCatching { server?.close() }; pool.shutdownNow() }
@@ -65,12 +77,15 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
     }
 
     private fun serve(c: Socket) = c.use {
+        var held = false
+        try {
         it.soTimeout = 15_000
         // total deadline for receiving the request (slow-drip guard); soTimeout alone resets on every byte
         val killer = Thread({ try { Thread.sleep(10_000); runCatching { it.close() } } catch (_: InterruptedException) {} }, "http-deadline").apply { isDaemon = true; start() }
         val res = try {
             val req = try { read(BufferedInputStream(it.getInputStream())) } finally { killer.interrupt() } ?: return
-            handler(req)
+            val long = isLong(req)
+            if (long && !longSlots.tryAcquire()) Res.json("{\"error\":\"busy\"}", 503) else { held = long; handler(req) }
         } catch (e: TooBig) { Res.text("too big", 413) } catch (e: Exception) {
             Log.w("KidGuard", "req", e); Res.text("error", 500)
         }
@@ -86,6 +101,7 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
         val sink = try { it.tcpNoDelay = true; out.write(head.toByteArray()); out.flush(); out }
             catch (e: java.io.IOException) { object : java.io.OutputStream() { override fun write(b: Int) = throw java.io.IOException("closed") } }
         s(sink)
+        } finally { if (held) longSlots.release() }
     }
 
     private class TooBig : Exception()

@@ -54,7 +54,12 @@ const limitFor = (action) => action === "frame" ? MAX_FRAME : action === "file" 
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
-const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel"];   // deliver-once: dropped from the queue when handed to the phone
+const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
+const ONCE_WINDOW = 10 * 60e3;
+const SHORT = ["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "devOn", "devOff", "setting"];   // "now" commands: stale after SHORT_TTL
+const SHORT_TTL = 10 * 60e3;
+// still wanted? (24 h overall; "now" commands 10 min; a destructive one only shortly after it was first handed to the phone)
+const live = (c, now) => now - (c.at || 0) < (SHORT.includes(c.type) ? SHORT_TTL : 86400e3) && !(c.sent && now - c.sent > ONCE_WINDOW);
 const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel"];
 const SETTING_KEYS = ["vol.ring", "vol.media", "vol.alarm", "bright", "autoBright", "timeoutMs", "dnd"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
@@ -232,7 +237,7 @@ export class Kid {
       if (this.inputs.length >= 50) return json({ error: "queue full" }, 429);
       const o = { type: t, at: now };
       for (const k of ["x", "y", "x1", "y1", "x2", "y2", "key", "text"]) if (k in body) o[k] = body[k];
-      if (t === "swipe") o.ms = Math.min(Math.max(+body.ms || 300, 50), 2000);
+      if (t === "swipe") o.ms = Math.min(Math.max(+body.ms || 300, 50), 3000);   // same clamp as Acc.kt
       this.inputs.push(o);
       return json({ result: "queued" });
     }
@@ -242,11 +247,14 @@ export class Kid {
       if (state && new TextEncoder().encode(JSON.stringify(state)).length > 120e3) return json({ error: "state too big" }, 413);   // DO storage value limit is 128 KiB
       const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
       const stored = (await this.s.get("cmds")) || [];
-      const cmds = stored.filter(c => !acks.has(c.id) && now - c.at < 86400e3);
+      const cmds = stored.filter(c => !acks.has(c.id) && live(c, now));
       const rules = await this.s.get("rules");
       const puts = {};
-      const keep = cmds.filter(c => !ONCE.includes(c.type));   // deliver-once commands leave the queue now
-      if (keep.length !== stored.length) puts.cmds = keep;
+      // destructive commands stay queued until acked (a lost reply must not drop a release); the phone de-dups by id.
+      // `sent` marks the first hand-out: after ONCE_WINDOW they are dropped even if never acked (e.g. the phone released).
+      let changed = cmds.length !== stored.length;
+      for (const c of cmds) if (ONCE.includes(c.type) && !c.sent) { c.sent = now; changed = true; }
+      if (changed) puts.cmds = cmds;
       this.seen = now;
       if (now - this.seenWritten >= 60e3) { puts.seen = now; this.seenWritten = now; }
       if (state && Object.keys(state).length) puts.state = state;
@@ -311,10 +319,13 @@ export class Kid {
       if (type === "clearData" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
       if (type === "setting" && !(SETTING_KEYS.includes(body.key) && (typeof body.value === "boolean" || Number.isFinite(body.value)))) return json({ error: "bad setting" }, 400);
       // expired commands are only dropped on a phone sync: don't let them fill the queue
-      const cmds = ((await this.s.get("cmds")) || []).filter(c => now - (c.at || 0) < 86400e3);
+      const cmds = ((await this.s.get("cmds")) || []).filter(c => live(c, now));
       // full queue: refuse instead of silently dropping the oldest (it may be a pending release)
       if (cmds.length >= MAX_CMDS) return json({ error: "queue full" }, 429);
       const c = { ...body, type, id: typeof body.id === "string" && /^[\w.-]{1,64}$/.test(body.id) ? body.id : crypto.randomUUID(), at: now };
+      delete c.sent;
+      // `answer`: the request id may not be a legal command id; keep it apart so the phone never answers the wrong request
+      if (type === "answer") c.req = String(body.req || body.id || "").slice(0, 200);
       if (JSON.stringify(c).length > MAX_CMD) return json({ error: "too big" }, 413);
       cmds.push(c);
       await this.s.put("cmds", cmds);

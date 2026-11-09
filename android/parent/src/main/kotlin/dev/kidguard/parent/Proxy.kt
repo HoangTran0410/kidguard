@@ -98,7 +98,7 @@ class Proxy(private val ctx: Context, val port: Int) {
         if (!Logic.allowedRequest(Store.kids(ctx), target, r.method, rest)) return Res.json("{\"error\":\"unknown target\"}", 403)
         val url = target + rest + (if (r.rawQuery.isNotEmpty()) "?" + r.rawQuery else "")
         val fwd = HashMap<String, String>()
-        for (h in listOf("X-KG-Token", "X-KG-W", "X-KG-H", "Content-Type")) r.header(h)?.let { fwd[h] = it }
+        for (h in listOf("X-KG-Token", "X-KG-W", "X-KG-H", "X-KG-Name", "Content-Type")) r.header(h)?.let { fwd[h] = it }
         if (Logic.isFilesPath(rest)) return filesForward(r, url, fwd)
         if (r.method == "GET" && rest == "/api/listen") return listen(url, fwd)
         val cacheable = Logic.isStatePath(r.method, rest)

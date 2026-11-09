@@ -99,7 +99,8 @@ class Relay(private val g: Guard) {
             val res = JSONObject(readCapped(c))
             if (full) { lastHash = hash; lastFull = now }
             acks = JSONArray()
-            res.optJSONObject("rules")?.let { r ->
+            // rules first, but a bad rules reply must never stop the commands below (a release/reboot would be lost)
+            runCatching { res.optJSONObject("rules")?.let { r ->
                 // the worker re-sends the PIN hash it once got with every rules reply: take it only when it is newer
                 // (pinAt) than the last one taken, else a later PIN set on LAN / on this phone would be reverted
                 val pinAt = r.optLong("pinAt", 0)
@@ -107,7 +108,7 @@ class Relay(private val g: Guard) {
                     if (x.pinHash.isNotBlank() && pinAt > store.relayPinAt) x else x.copy(pinHash = "", pinSalt = "")
                 }
                 if (rules.rev > store.rules.rev) { g.setRules(rules); if (rules.pinHash.isNotBlank()) store.relayPinAt = pinAt }
-            }
+            } }.onFailure { Log.w("KidGuard", "relay rules", it) }
             val cmds = res.optJSONArray("cmds") ?: JSONArray()
             for (i in 0 until cmds.length()) {
                 val cmd = cmds.optJSONObject(i) ?: continue
