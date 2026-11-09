@@ -303,6 +303,13 @@ class Store private constructor(private val app: Context) {
         return true
     }
 
+    /** Forgets command [rawId] again (its run failed, so a re-send with the same id must run). */
+    @Synchronized fun unmarkCmd(rawId: String) {
+        val id = rawId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }.ifEmpty { return }
+        val l = (p.getString("cmds", "") ?: "").split(',').filter { it.isNotEmpty() && it != id }
+        p.edit().putString("cmds", l.joinToString(",")).commit()
+    }
+
     /** Location history, points [t, lat, lon, acc]. */
     @Synchronized private fun trackAll(): JSONArray = runCatching { JSONArray(p.getString("track", "[]")) }.getOrDefault(JSONArray())
 

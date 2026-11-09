@@ -3,11 +3,11 @@
 The child app, the relay worker, the parent page and the installer all follow this file. If you need to change a
 shape, say so in your report instead of silently diverging.
 
-## Rules JSON (parent -> phone). New fields in v0.2 marked NEW. Unknown fields are ignored.
+## Rules JSON (parent -> phone). New fields in v0.2 marked NEW. Unknown fields are ignored; MISSING fields reset to their default (full replace: `hidden`, `groups`, `launcher`, `lockInfo`, `zones`, `chores`... are wiped by a partial PUT, so always send the whole object).
 
 ```jsonc
 {
-  "rev": 1793940898493,            // set by the phone / worker, newest wins
+  "rev": 1793940898493,            // set by the phone / worker, newest wins. A rules push (LAN PUT or relay) applies only if its rev >= the stored one; LAN saves stamp rev = max(old+1, phone clock), so a phone clock ahead of the worker's makes later relay edits lose until the worker's rev catches up
   "dailyMin": 120,                 // 0 = no daily limit
   "dailyByDay": [120,120,120,120,120,240,240], // NEW optional: Monday..Sunday; when length 7 it replaces dailyMin for that day; 0 = no limit that day
   "appMin": {"com.android.chrome": 15},
@@ -18,7 +18,7 @@ shape, say so in your report instead of silently diverging.
     {"name": "Giờ học", "on": true, "days": [1,2,3,4,5], "start": "07:00", "end": "11:30"}   // days: ISO 1=Mon..7=Sun
   ],
   "pausedUntil": 0,
-  "bonus": {"day": "2026-11-06", "min": 30},
+  "bonus": {"day": "2026-11-06", "min": 30},   // extra minutes on top of that day's limit; ignored when the day has no limit (base 0)
   "blockNew": true,                // NEW: apps installed after setup stay blocked (reason "new") until approved
   "approved": ["com.new.game"],    // NEW: approved new apps
   "lockLocation": true,            // NEW (default true): location forced on, child cannot change location settings
@@ -289,7 +289,7 @@ The first capture / first input of a session is logged in the phone log.
 - **HTML pages** (worker `/`, `/install`, phone LAN `/`) send `X-Frame-Options: DENY` and a CSP with `frame-ancestors 'none'`.
 
 ## Location history (v0.2.1)
-- Rules: `"trackMin": 10` (0 = off, allowed 0/5/10/15/30/60; default 10).
+- Rules: `"trackMin": 10` (0 = no history points, allowed 0/5/10/15/30/60; default 10). Independently the Guard refreshes `state.location` (last fix, zone in/out events) every 15 min, also with `trackMin=0`.
 - Phone (Guard): every `trackMin` minutes takes one fix (getCurrentLocation API 30+, else requestSingleUpdate,
   timeout 30 s, else lastKnown if < 2× trackMin old). Store a point only if moved ≥ 30 m from the last stored point OR
   ≥ 60 min since the last stored point. Keep 7 days, max 2000 points (drop oldest). Point = `[t, lat, lon, acc]`
@@ -563,7 +563,7 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
   the phone takes it). The phone keeps it in its own prefs and never sends it back; a new secret ends any unlock.
 - **Child screen** "Nhập mã mở khoá của bố mẹ" (only when a secret is set): a code within ±1 step that is newer than the
   last used one sets `unlockUntil = max(now, unlockUntil) + unlockMin`. Until then `decide()` keeps only `blocked`
-  and `new`. Wrong codes: 5 free, then 5 min doubling (own counter, not the PIN's); the 5th wrong one sends a `tamper`
+  and `new`. Wrong codes: 5 free, then 5 min doubling (own counter, not the PIN's; the child-side unlock and the on-device admin check each count their own wrong codes against this secret, so the two paths have separate 5-try budgets; with a PIN set, a wrong admin code counts against the PIN counter); the 5th wrong one sends a `tamper`
   event. Each use sends event `unlock` "Con đã mở khoá bằng mã của bố mẹ: N phút" and a log line.
 - **State** `totpOn: bool`, `unlockUntil: ms` (0 = not unlocked). Missing `totpOn` = phone older than 0.9.4.
 

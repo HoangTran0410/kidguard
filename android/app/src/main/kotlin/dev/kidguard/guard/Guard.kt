@@ -60,6 +60,7 @@ class Guard : Service() {
     private var lastTrackTry = 0L
     private var trackBusy = false
     private var stopped = false
+    private var released = false   // onCreate saw Store.released: nothing was started, onDestroy has little to undo
     private var locFixLogged = false
     private var usageLogged = false
     private val loopRun = Runnable { loop() }
@@ -91,6 +92,8 @@ class Guard : Service() {
         super.onCreate()
         store = Store.of(this)
         foreground()
+        // released: a sticky restart / rebind in the 2 s before stopSelf (or after it) must not enforce again
+        if (store.released) { released = true; stopSelf(); return }
         work = Handler(HandlerThread("guard").apply { start() }.looper)
         running = this
         Watchdog.schedule(this)
@@ -111,12 +114,16 @@ class Guard : Service() {
         work.post(loopRun)
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int { kick(); return START_STICKY }
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (released || store.released) { stopSelf(); return START_NOT_STICKY }
+        kick(); return START_STICKY
+    }
 
     /** Swiped away from recents: come straight back. */
     override fun onTaskRemoved(rootIntent: Intent?) { start(this); super.onTaskRemoved(rootIntent) }
 
     override fun onDestroy() {
+        if (released) { super.onDestroy(); return }
         running = null
         runCatching { unregisterReceiver(pkgReceiver) }
         runCatching { unregisterReceiver(timeReceiver) }
@@ -193,12 +200,14 @@ class Guard : Service() {
         // time-left tile / widget: pushed only when the text changes
         runCatching { Quick.publish(this, QuickLogic.timeLeftText(leftMs, QuickLogic.phoneBlock(want), store.tr)) }
         val had = store.suspendedByUs
+        // persisted BEFORE the DPM call: a crash in between must not leave suspended apps untracked (the loop could never undo them)
+        if ((want.keys - had).isNotEmpty()) store.suspendedByUs = had + want.keys
         val nowSusp = Policy.suspendExactly(this, want.keys, had)
         if (nowSusp != had) {
             (nowSusp - had).takeIf { it.isNotEmpty() }?.let { store.log(R.string.log_suspended, it.joinToString { p -> apps[p] ?: p }, want[it.first()] ?: "") }
             (had - nowSusp).takeIf { it.isNotEmpty() }?.let { store.log(R.string.log_unsuspended, it.joinToString { p -> apps[p] ?: p }) }
-            store.suspendedByUs = nowSusp
         }
+        if (store.suspendedByUs != nowSusp) store.suspendedByUs = nowSusp
         applyHidden(r, prot, now)
         // basic mode: no suspend, so the guard bounces instead (window events do the same instantly, see Acc)
         val basic = Basic.enforcing(this)
@@ -433,13 +442,15 @@ class Guard : Service() {
         kick()
     }
 
-    /** A command from the parent. Never throws; returns a short result. A repeated relay command [id] is skipped but still answered "ok". */
+    /** A command from the parent. Never throws; returns a short result. A repeated relay command [id] is skipped but still answered "ok" (unless its first run failed: then the id is forgotten and it runs again). */
     fun command(c: JSONObject): String {
         val t = c.optString("type")
         val id = c.optString("id")
         // written with commit() before anything runs (a reboot / release must not run twice after a restart)
         if (id.isNotBlank() && !store.markCmd(id)) { Log.i("KidGuard", "duplicate command $id ($t)"); return "ok" }
         val res = runCatching { run(t, c) }.getOrElse { Log.w("KidGuard", "command $t", it); "failed" }
+        // a failed run (e.g. release: "failed: N apps still hidden") may be re-sent with the same id and must run again, not answer "ok"
+        if (id.isNotBlank() && res.startsWith("failed")) store.unmarkCmd(id)
         // a done `setting` writes its own log line (log_setting_*)
         if (t != "relay" && t != "release" && !(t == "setting" && res == "ok")) runCatching { store.log(R.string.log_cmd, t, res) }
         kick()
@@ -498,23 +509,27 @@ class Guard : Service() {
     /** On the Guard thread, loop stopped first so no tick races with it. */
     private fun release(): String {
         if (!::work.isInitialized) return "failed"
-        var res = "failed"
+        val res = java.util.concurrent.atomic.AtomicReference("failed")
         val done = java.util.concurrent.CountDownLatch(1)
+        val state = java.util.concurrent.atomic.AtomicInteger(0)   // 0 running, 1 finished in time, 2 abandoned by the 20 s timeout
         work.postAtFrontOfQueue {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
             Listen.stopAll(); Proj.stop(this); Ring.stop(this); wifiLock(false)
             runCatching { GrayFx.restore(this, store) }.onFailure { Log.w("KidGuard", "grayscale restore", it) }   // the loop puts it back if release fails
-            res = runCatching { Policy.release(this, store) }.getOrElse { Log.w("KidGuard", "release", it); "failed" }
+            val r = runCatching { Policy.release(this, store) }.getOrElse { Log.w("KidGuard", "release", it); "failed" }
+            res.set(r)
             // anything but "ok" (e.g. "failed: N app còn bị ẩn") means we are still in charge: keep enforcing
-            if (res != "ok") { stopped = false; wifiLock(true); work.post(loopRun); store.log(R.string.log_release_fail, res) }
+            if (r != "ok") { stopped = false; wifiLock(true); work.post(loopRun); store.log(R.string.log_release_fail, r) }
             else { store.log(R.string.log_released); runCatching { Files.wipeOutbox(this) } }   // received files stay in Download
+            // finished after the caller gave up ("failed" was answered): still go away, we are released
+            if (!state.compareAndSet(0, 1) && r == "ok") Handler(mainLooper).postDelayed({ stopSelf() }, 2_000)
             done.countDown()
         }
-        if (!done.await(20, java.util.concurrent.TimeUnit.SECONDS)) return "failed"
+        if (!done.await(20, java.util.concurrent.TimeUnit.SECONDS) && state.compareAndSet(0, 2)) return "failed"
         // let the HTTP answer go out, then go away
-        if (res == "ok") Handler(mainLooper).postDelayed({ stopSelf() }, 2_000)
-        return res
+        if (res.get() == "ok") Handler(mainLooper).postDelayed({ stopSelf() }, 2_000)
+        return res.get()
     }
 
     @SuppressLint("MissingPermission")

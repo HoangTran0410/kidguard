@@ -80,4 +80,15 @@ class GroupTotpTest {
         assertEquals(-1, Totp.check("AAAA", "081804", now, 0))          // secret too short
         assertNull(Totp.decode("ABC1"))
     }
+
+    @Test fun totpEarlyCodeDoesNotLockOutTheNextOne() {
+        val k = Totp.decode(rfc)!!
+        val now = 1111111109_000L
+        val t = now / 30_000
+        // authenticator one step ahead of the phone: accepted once, replay refused, the next code still works
+        assertEquals(t + 1, Totp.check(rfc, Totp.code(k, t + 1), now, 0))
+        assertEquals(-1, Totp.check(rfc, Totp.code(k, t + 1), now, t + 1))
+        assertEquals(t + 2, Totp.check(rfc, Totp.code(k, t + 2), now + 30_000, t + 1))
+        assertEquals(t, Totp.check(rfc, Totp.code(k, t), now, 0))
+    }
 }
