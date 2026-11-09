@@ -238,11 +238,14 @@ class HomeActivity : Activity() {
     internal var installed: Pair<Set<String>, Map<String, Long>>? = null
     internal fun onLibrary() = library?.let { it.parent === pager && pager.getChildAt(pager.page) === it } == true
 
+    private var recentGen = 0
+
     override fun onResume() {
         super.onResume()
+        val gen = ++recentGen   // a slower older load must not overwrite a newer result
         Thread {
             val r = Recent.load(applicationContext)
-            runOnUiThread { if (r != recent) { recent = r; drawer?.refill() } }
+            runOnUiThread { if (gen == recentGen && r != recent) { recent = r; drawer?.refill() } }
         }.start()
         Guard.listeners.add(listener)
         timeRx = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { render(false) } }
@@ -634,14 +637,14 @@ class HomeActivity : Activity() {
         val keep = pager.page
         // a layout-only change (drop, minus, group, move): pages whose items and everything else are the same keep their
         // views. Rebuilding every page cost an Oppo A5s 68 ms per drop (5 frames); data refreshes still rebuild all.
-        val global = pageGlobal + "|" + HomeLayout.hasWidget(m, "next")
+        val global = pageGlobal + "|" + (Flavor.widget("next") && HomeLayout.hasWidget(m, "next"))
         val old = if (reusePages && global == builtGlobal) builtPages else HashMap()
         reusePages = false; builtGlobal = global
         val made = HashMap<String, MutableList<PageBuilt>>()
         pager.removeAllViews()
         today?.view?.let { (it.parent as? ViewGroup)?.removeView(it); pager.addView(it); it.visibility = if (m.style.today) View.VISIBLE else View.INVISIBLE }
         pager.minPage = if (m.style.today) 0 else 1
-        val hasNext = HomeLayout.hasWidget(m, "next")
+        val hasNext = (Flavor.widget("next") && HomeLayout.hasWidget(m, "next"))
         for ((pi, p) in m.pages.withIndex()) {
             val sig = p.joinToString(";") { it.toJson().toString() }
             val reuse = old[sig]?.removeLastOrNull()

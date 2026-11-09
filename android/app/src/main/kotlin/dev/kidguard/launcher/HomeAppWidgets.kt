@@ -74,6 +74,12 @@ internal class AwState {
     var listening = false
 }
 
+/** The id of a bind in progress, also kept in prefs so [awSync] can drop it after a process death. */
+internal fun HomeActivity.awPend(id: Int) {
+    aw.pendingId = id
+    getSharedPreferences("launcher", Context.MODE_PRIVATE).edit().putInt("awPending", id).apply()
+}
+
 internal fun HomeActivity.awHost(): AppWidgetHost = aw.host ?: KgHost(applicationContext).also { aw.host = it }
 
 internal fun HomeActivity.awStart() { if (aw.host == null && aw.seen.isNullOrEmpty()) return; runCatching { awHost().startListening(); aw.listening = true } }
@@ -84,7 +90,11 @@ internal fun HomeActivity.awSync(m: HomeModel) {
     val now = HomeLayout.appWidgetIds(m)
     val before = aw.seen
     aw.seen = now
-    if (before == null) { if (now.isNotEmpty() && !aw.listening && lifecycleStarted) awStart(); return }
+    if (before == null) {
+        // an id allocated for a bind that never finished (process died mid-flow) would stay in the host for ever
+        val p = getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt("awPending", 0)
+        if (p != 0) { if (p !in now) runCatching { awHost().deleteAppWidgetId(p) }; awPend(0) }
+        if (now.isNotEmpty() && !aw.listening && lifecycleStarted) awStart(); return }
     for (id in before - now) { runCatching { aw.host?.deleteAppWidgetId(id) }; aw.views.remove(id) }
     if (before.isEmpty() && now.isNotEmpty() && !aw.listening && lifecycleStarted) awStart()
 }
@@ -246,7 +256,7 @@ internal fun HomeActivity.awPickerSection(list: LinearLayout, query: String = ""
 internal fun HomeActivity.awAdd(info: AppWidgetProviderInfo) {
     closeOverlay()
     val id = runCatching { awHost().allocateAppWidgetId() }.getOrNull() ?: return toast(getString(R.string.hm_aw_fail))
-    aw.pendingId = id
+    awPend(id)
     val ok = runCatching { awMgr().bindAppWidgetIdIfAllowed(id, info.provider) }.getOrDefault(false)
     if (ok) return awConfigure(id)
     val i = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id).putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider)
@@ -261,12 +271,12 @@ private fun HomeActivity.awConfigure(id: Int) {
 
 private fun HomeActivity.awFail(id: Int) {
     runCatching { aw.host?.deleteAppWidgetId(id) }
-    if (aw.pendingId == id) aw.pendingId = 0
+    if (aw.pendingId == id) awPend(0)
     toast(getString(R.string.hm_aw_fail))
 }
 
 private fun HomeActivity.awPlace(id: Int) {
-    aw.pendingId = 0
+    awPend(0)
     val info = awMgr().getAppWidgetInfo(id) ?: return awFail(id)
     val m = model ?: return awFail(id)
     val (w, h) = awDefaultCells(info)
@@ -284,6 +294,6 @@ internal fun HomeActivity.awResult(req: Int, res: Int, data: Intent?) {
     if (req != REQ_BIND && req != REQ_CONF) return
     val id = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, 0)?.takeIf { it != 0 } ?: aw.pendingId
     if (id == 0) return
-    if (res != Activity.RESULT_OK) { runCatching { aw.host?.deleteAppWidgetId(id) }; aw.pendingId = 0; aw.dropAt = null; return }
+    if (res != Activity.RESULT_OK) { runCatching { aw.host?.deleteAppWidgetId(id) }; awPend(0); aw.dropAt = null; return }
     if (req == REQ_BIND) awConfigure(id) else awPlace(id)
 }

@@ -154,7 +154,6 @@ object Wallpaper {
 
     const val PHOTO = "wall.jpg"
 
-    /** Darkens [bmp] by [pct] % (Tuỳ chỉnh "Làm tối"), in place, so the ink sampling sees the same pixels as the kid. */
     /**
      * Frosted wallpaper (POCO's "làm mờ hình nền"): [pct] 0-100. Done once per wallpaper change, never per frame: shrink to
      * 1/4..1/14, three box-blur passes on the small copy (≈ a Gaussian), scale back up with filtering. Returns [bmp] at 0.
@@ -188,6 +187,7 @@ object Wallpaper {
         }
     }
 
+    /** Darkens [bmp] by [pct] % (Tuỳ chỉnh "Làm tối"), in place, so the ink sampling sees the same pixels as the kid. */
     fun dim(bmp: Bitmap, pct: Int) { if (pct > 0) Canvas(bmp).drawColor(Color.argb((pct.coerceIn(0, 60) * 255 / 100), 0, 0, 0)) }
 
     /** Dark wallpapers want light status bar icons. */

@@ -191,7 +191,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Http pool 4+16 idle-socket lockout; SelfSetup set-device-owner retry after partial setup; save-fail bar lost on kid switch
 - Zone circles only drawn when a track exists; weekly compare needs 14 days but phone keeps 7
 - Release on-device un-hide path untested (covered only by DebloatTest); 24 h recovery untested on device; real-GitHub update path only tested with a fake GitHub
-- Launcher perf open: ensureWall decodes/blurs on main; Recent.load thread per resume without generation guard; IconCache misses render on main; shareLabels allocs per measure; editBars rebuilt per pick; NotifDots recount not debounced; update()/applyEdit save JSON + full render(true) on main (HomeMenus.kt update, HomeEdit.kt applyEdit); pageFade offscreen layers on Today/Library pages; drag allocations (taken() copies per event); LauncherSafe counts any-thread crashes; pendingId widget leak
+- Launcher perf open (fixed 2026-11-09: Recent.load generation guard, NotifDots recount debounced 250 ms, LauncherSafe main-thread only, pendingId leak; SKIPPED as risky or not a real cost: ensureWall/IconCache sync render (needed before the first frame, runs only on change), shareLabels/editBars (tap-rate, tiny), update()/applyEdit save off main (ordering vs crash safety), drag allocations, pageFade): ensureWall decodes/blurs on main; Recent.load thread per resume without generation guard; IconCache misses render on main; shareLabels allocs per measure; editBars rebuilt per pick; NotifDots recount not debounced; update()/applyEdit save JSON + full render(true) on main (HomeMenus.kt update, HomeEdit.kt applyEdit); pageFade offscreen layers on Today/Library pages; drag allocations (taken() copies per event); LauncherSafe counts any-thread crashes; pendingId widget leak
 - Dock slot background reallocation per drag event: fixed 11-09; extra wallpaper layer cost (windowShowWallpaper) on Oppo A5s unmeasured
 - Play Console appeal for Play Protect block (user's call)
 - Convenience ideas (ranked in 2026-11-07-convenience-ideas): study schedule, evening summary notification, chores gating an app, kid focus mode, DNS per time slot, expected-in-zone alerts
@@ -230,20 +230,20 @@ Each was read from code only, nothing run on a device. Numbers restart per area.
 10. **Repo noise:** `.claude/worktrees/agent-*/` hold full stale copies of the tree (old `web/ui/core.js`, `Api.kt`); greps for `X-KG-Name`, `Api.kt`, etc. hit them. Exclude when searching.
 
 ### Launcher
-1. `L/HomeDock.kt:87` `sosMenu` still offers SOS (dials 112 unpaired) in Home flavor, while Flavor.kt says SOS is left out there.
-2. `L/TodayPage.kt` chores card excluded from HOME_CARDS but it is the only place for kid homework todos; Home user reaches them only via the todo widget.
-3. `HomeLayout.hasWidget(m,"next")` hides the clock's next-event line even when "next" is not renderable in Home (imported layouts).
-4. `L/HomeLayout.kt` ~540: orphan doc comment "Ids of the other apps' widgets..." sits above `imported()`.
-5. `L/TodayPage.kt` ~488 `counts()` uses literals "in"/"gone"/"opened" instead of `FilesLogic` constants; `pad()` `padBottom` only stored.
-7. `L/LauncherSafe.kt` uncaught handler counts any crash (e.g. Guard thread) as a launcher crash while `HomeActivity.alive>0` -> can reset kid layout or trip 24 h safe mode.
-8. `L/HomeAppWidgets.kt` `aw.pendingId` lost if process dies mid-bind (leaked host ids); `awSync` does not clean orphans after `HomeFile.reset`.
-9. `L/HomeExport.kt` `pull`: wallpaper `WALL_MAX` checked after the full copy.
-10. Perf: `HA.render0` ~445-516 runs `Files.all()` (disk) and builds a long key on every minute tick; `launcherApps()` HA:311 is binder-heavy; `NotifDots.granted()` binder call per resume and in `CustomActivity.build` (:128).
-11. `HA.decision` HA:338 uses a snapshot up to 30 s old: rule change lags on screen.
-12. `HomeMenus.openFolder` silent return when `lastView == null` (tap does nothing).
-13. `Recent.load` (Recent.kt:21) is a binder call documented "run off main"; confirm every caller (drawer `refill`) honours it.
-14. `CustomActivity.kt:128` recomputes `NotifDots.granted` on every `build()` (each tap) = binder call per tap.
-15. `Wallpaper.kt` `dim()` has a stray orphan KDoc ("Darkens...") above the `blur` KDoc (lines ~160-163).
+1. `L/HomeDock.kt:87` `sosMenu` still offers SOS (dials 112 unpaired) in Home flavor, while Flavor.kt says SOS is left out there. (fixed 2026-11-09) Home flavor: sosMenu drops the SOS row, keeps 112-115 dial rows.
+2. (SKIPPED: product decision; recommend keeping Home parent-free, kid todos stay in the todo widget) `L/TodayPage.kt` chores card excluded from HOME_CARDS but it is the only place for kid homework todos; Home user reaches them only via the todo widget.
+3. `HomeLayout.hasWidget(m,"next")` hides the clock's next-event line even when "next" is not renderable in Home (imported layouts). (fixed 2026-11-09) HomeActivity gates `hasNext` with `Flavor.widget("next")`.
+4. `L/HomeLayout.kt` ~540: orphan doc comment "Ids of the other apps' widgets..." sits above `imported()`. (fixed 2026-11-09) KDoc moved to `appWidgetIds`.
+5. `L/TodayPage.kt` ~488 `counts()` uses literals "in"/"gone"/"opened" instead of `FilesLogic` constants; `pad()` `padBottom` only stored. (fixed 2026-11-09) `counts()` uses FilesLogic constants; `padBottom` untouched.
+7. `L/LauncherSafe.kt` uncaught handler counts any crash (e.g. Guard thread) as a launcher crash while `HomeActivity.alive>0` -> can reset kid layout or trip 24 h safe mode. (fixed 2026-11-09) handler counts only main-thread crashes.
+8. `L/HomeAppWidgets.kt` `aw.pendingId` lost if process dies mid-bind (leaked host ids); `awSync` does not clean orphans after `HomeFile.reset`. (fixed 2026-11-09) pending id persisted (`awPending`), deleted at first awSync if not in the model; orphans after HomeFile.reset NOT cleaned (the host id list is a hidden API).
+9. `L/HomeExport.kt` `pull`: wallpaper `WALL_MAX` checked after the full copy. (fixed 2026-11-09) copy stops at WALL_MAX.
+10. (partly fixed: NotifDots.granted cached; rest skipped: render0 key needs Files.all and launcherApps binder cost unmeasured) Perf: `HA.render0` ~445-516 runs `Files.all()` (disk) and builds a long key on every minute tick; `launcherApps()` HA:311 is binder-heavy; `NotifDots.granted()` binder call per resume and in `CustomActivity.build` (:128).
+11. (skipped: 30 s snapshot is the Guard tick cadence, the lag is by design) `HA.decision` HA:338 uses a snapshot up to 30 s old: rule change lags on screen.
+12. `HomeMenus.openFolder` silent return when `lastView == null` (tap does nothing). (fixed 2026-11-09) renders first when lastView is null.
+13. `Recent.load` (Recent.kt:21) is a binder call documented "run off main"; confirm every caller (drawer `refill`) honours it. (fixed 2026-11-09) only caller is the onResume thread; generation guard added.
+14. `CustomActivity.kt:128` recomputes `NotifDots.granted` on every `build()` (each tap) = binder call per tap. (fixed 2026-11-09) `NotifDots.granted` cached 5 s (`fresh=true` on return from settings).
+15. `Wallpaper.kt` `dim()` has a stray orphan KDoc ("Darkens...") above the `blur` KDoc (lines ~160-163). (fixed 2026-11-09) KDoc moved above `dim`.
 
 ### Setup / build / release
 2. `README.md:208` test command `testDebugUnitTest` is ambiguous with flavors (app has kid/home); AGENTS.md uses `testKidDebugUnitTest`.

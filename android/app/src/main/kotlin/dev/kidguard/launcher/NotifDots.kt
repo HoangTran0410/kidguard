@@ -29,8 +29,12 @@ class NotifDots : NotificationListenerService() {
         recount()
     }
     override fun onListenerDisconnected() { me = null; publish(emptyMap()) }
-    override fun onNotificationPosted(sbn: StatusBarNotification?) = recount()
-    override fun onNotificationRemoved(sbn: StatusBarNotification?) = recount()
+    override fun onNotificationPosted(sbn: StatusBarNotification?) = recountSoon()
+    override fun onNotificationRemoved(sbn: StatusBarNotification?) = recountSoon()
+
+    // a burst (a chat app posting 10 messages, a group cancel) is one binder round trip instead of one per callback
+    private val later = Runnable { recount() }
+    private fun recountSoon() { main.removeCallbacks(later); main.postDelayed(later, 250) }
 
     private fun recount() {
         val all = runCatching { activeNotifications }.getOrNull() ?: return
@@ -65,7 +69,17 @@ class NotifDots : NotificationListenerService() {
 
         @Volatile private var wanted = true
 
-        fun granted(ctx: Context): Boolean {
+        private var grantedAt = 0L
+        private var grantedVal = false
+
+        /** Binder call, so cached for 5 s (CustomActivity.build runs on every tap); [fresh] = ask the system now. */
+        fun granted(ctx: Context, fresh: Boolean = false): Boolean {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (!fresh && grantedAt != 0L && now - grantedAt < 5_000) return grantedVal
+            return query(ctx).also { grantedVal = it; grantedAt = now }
+        }
+
+        private fun query(ctx: Context): Boolean {
             val cn = ComponentName(ctx, NotifDots::class.java)
             val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
             return if (android.os.Build.VERSION.SDK_INT >= 27) runCatching { nm.isNotificationListenerAccessGranted(cn) }.getOrDefault(false)
