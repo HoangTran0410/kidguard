@@ -125,7 +125,7 @@ object HomeStyle {
     )
     fun preset(id: String): Preset = PRESETS.firstOrNull { it.id == id } ?: PRESETS[1]
 
-    val WALLS = listOf("sky", "night", "sunset", "aurora", "graphite", "ocean", "forest", "candy", "mint", "space", "dusk", "berry", "ember")
+    val WALLS = listOf("sky", "night", "sunset", "aurora", "graphite", "ocean", "forest", "candy", "mint", "space", "dusk", "berry", "ember", "bloom", "lagoon", "nebula")
 
     private val LIGHT_INK = h("#ffffff")
     private val DARK_INK = h("#0f172a")
