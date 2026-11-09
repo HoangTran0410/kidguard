@@ -272,6 +272,8 @@ internal fun HomeActivity.showOverlay(v: View) {
 internal fun HomeActivity.closeOverlay() {
     val v = overlay ?: return
     overlay = null
+    // the widget picker has a search box: its keyboard must not outlive the overlay
+    runCatching { v.findFocus()?.clearFocus(); (getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(v.windowToken, 0) }
     val ex = overlayExit; overlayExit = null
     val done = { root.removeView(v); if (drag == null) main.post { render(false) } }
     if (ex != null) ex(done) else done()

@@ -161,6 +161,13 @@ object LauncherLogic {
     const val SAFE_MS = 24 * 3_600_000L
     enum class CrashAct { NONE, RESET, DISABLE }
 
+    private val UI_PREFIX = listOf("Home", "Today", "Custom", "Wallpaper", "IconCache", "NotifDots", "PageDots", "WidgetDraw", "KidNotes", "Timetable", "Recent")
+
+    /** True when a stack (class names, innermost first, causes included) passes through launcher UI code. Guard / Relay crashes on the main thread while the launcher is only in the background don't count. */
+    fun isLauncherCrash(classNames: List<String>): Boolean = classNames.any { c ->
+        c.startsWith("dev.kidguard.") && c.removePrefix("dev.kidguard.").substringBefore('$').let { n -> !n.contains('.') && UI_PREFIX.any { n.startsWith(it) } }
+    }
+
     fun crash(times: List<Long>, now: Long): Pair<List<Long>, CrashAct> {
         val kept = times.filter { now - it in 0 until CRASH_WINDOW_MS } + now
         return kept to when { kept.size >= 3 -> CrashAct.DISABLE; kept.size == 2 -> CrashAct.RESET; else -> CrashAct.NONE }

@@ -16,25 +16,36 @@ object HomeFile {
         val f = file(ctx)
         if (!f.exists()) return null
         val m = HomeLayout.parse(runCatching { f.readText() }.getOrNull())
-        if (m == null) { runCatching { f.renameTo(File(ctx.filesDir, "$NAME.bad")) }; Log.w("KidGuard", "home.json unreadable, kept as .bad") }
+        if (m == null) { keepBad(ctx); Log.w("KidGuard", "home.json unreadable, kept as .bad") }
         cache = m
         return m
     }
 
+    /** home.json -> home.json.bad. A .bad that still parses (an earlier layout) moves to .bad.old first, so a second reset can't destroy it. */
+    private fun keepBad(ctx: Context) {
+        val bad = File(ctx.filesDir, "$NAME.bad")
+        runCatching {
+            if (bad.exists() && HomeLayout.parse(runCatching { bad.readText() }.getOrNull()) != null) bad.renameTo(File(ctx.filesDir, "$NAME.bad.old"))
+            file(ctx).renameTo(bad)
+        }
+    }
+
     @Synchronized fun save(ctx: Context, m: HomeModel) {
         if (m == cache) return
-        cache = m
+        // the cache is set only after the file is in place, so a failed write is tried again by the next save
         runCatching {
             val tmp = File(ctx.filesDir, "$NAME.tmp")
             tmp.writeText(m.toJson().toString())
-            if (!tmp.renameTo(file(ctx))) { file(ctx).delete(); tmp.renameTo(file(ctx)) }
+            // rename replaces the target atomically (Android: rename(2)); no delete first, which could lose the file
+            if (!tmp.renameTo(file(ctx))) error("rename failed")
+            cache = m
         }.onFailure { Log.w("KidGuard", "home.json write", it) }
     }
 
     /** After the 2nd crash in 5 min: start over (style and layout). */
     @Synchronized fun reset(ctx: Context) {
         cache = null
-        runCatching { file(ctx).renameTo(File(ctx.filesDir, "$NAME.bad")) }
+        keepBad(ctx)
     }
 
     /** A new app version after a crash [reset]: put the kid's layout back if it still parses (the crash may have been the code's). */

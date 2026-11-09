@@ -43,6 +43,7 @@ class CustomActivity : Activity() {
     private var wallX = 0                                  // the wallpaper row's own scroll, kept across rebuilds
     private val thumbs = HashMap<String, Bitmap>()         // built-in wallpaper tiles, drawn once
     private var undo: HomeModel? = null
+    private var undoPhoto = false                           // the undo also brings the previous wall.jpg back (wall.jpg.prev)
     private var busy = false
     private val locked get() = Store.of(this).rules.launcher.lockCustom
     private fun dp(v: Int) = k.dp(v)
@@ -69,6 +70,7 @@ class CustomActivity : Activity() {
         (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES)
 
     private fun build() {
+        if (isDestroyed || isFinishing) return   // the photo thread can finish after the screen is gone
         val mm = m ?: return
         val st = mm.style
         val preset = HomeStyle.preset(st.preset)
@@ -132,7 +134,7 @@ class CustomActivity : Activity() {
         })
         col.addView(home, lp(8))
         undo?.let { u0 ->
-            col.addView(k.pill(s(R.string.hm_c_undo), R.drawable.li_rotate_ccw, false) { if (!guard()) return@pill; save(u0); undo = null; build() },
+            col.addView(k.pill(s(R.string.hm_c_undo), R.drawable.li_rotate_ccw, false) { if (!guard()) return@pill; if (undoPhoto) restorePhoto(); save(u0); undo = null; undoPhoto = false; build() },
                 LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         }
 
@@ -191,6 +193,7 @@ class CustomActivity : Activity() {
         val mm = m ?: return
         val ns = f(mm.style)
         if (ns == mm.style) return
+        undo = null; undoPhoto = false   // "until the next change"
         save(mm.copy(style = ns)); build()
     }
 
@@ -201,14 +204,15 @@ class CustomActivity : Activity() {
         val n = HomeLayout.regrid(mm, c, r).copy(autoRows = mm.autoRows && !manual)
         if (n.cols == mm.cols && n.rows == mm.rows) return
         // a smaller grid moves things: offer "Hoàn tác" until the next change
-        undo = if (c < mm.cols || r < mm.rows) mm else null
+        undo = if (c < mm.cols || r < mm.rows) mm else null; undoPhoto = false
         save(n); build()
     }
 
     private fun applyPreset(p: HomeStyle.Preset) {
         val mm = m ?: return
         val g = HomeLayout.regrid(mm, p.cols, p.rows)
-        undo = if (p.cols < mm.cols || p.rows < mm.rows) mm else null
+        undoPhoto = false
+        undo = mm   // a preset (and Reset) replaces the whole style: always offer "Hoàn tác" until the next change
         save(g.copy(autoRows = true, style = HStyle(preset = p.id, labels = p.labels, dockBg = p.dockBg, theme = mm.style.theme)))
         build()
     }
@@ -438,7 +442,12 @@ class CustomActivity : Activity() {
             val ok = runCatching { savePhoto(uri, sw, sh) }.getOrDefault(false)
             runOnUiThread {
                 busy = false
-                if (ok) set { it.copy(wallKind = "photo", wall = "", dim = if (it.wallKind == "photo") it.dim else 10) }
+                if (ok) {
+                    val before = m
+                    set { it.copy(wallKind = "photo", wall = "", dim = if (it.wallKind == "photo") it.dim else 10) }
+                    // the old photo (wall.jpg.prev) and style stay one tap away
+                    if (before != null && File(filesDir, Wallpaper.PHOTO + ".prev").exists()) { undo = before; undoPhoto = true; build() }
+                }
                 else { Toast.makeText(this, R.string.hm_c_pick_fail, Toast.LENGTH_LONG).show(); build() }
             }
         }.start()
@@ -467,6 +476,16 @@ class CustomActivity : Activity() {
         out.recycle()
         val tmp = File(filesDir, Wallpaper.PHOTO + ".tmp")
         tmp.writeBytes(bytes)
-        return tmp.renameTo(File(filesDir, Wallpaper.PHOTO))
+        val cur = File(filesDir, Wallpaper.PHOTO); val prev = File(filesDir, Wallpaper.PHOTO + ".prev")
+        if (cur.exists()) { if (!cur.renameTo(prev)) prev.delete() } else prev.delete()   // no photo before: nothing to undo to
+        if (tmp.renameTo(cur)) return true
+        if (prev.exists()) prev.renameTo(cur)   // could not place the new one: put the old one back
+        return false
+    }
+
+    /** Undo after a new photo: the previous wall.jpg comes back (the style comes back with the saved model). */
+    private fun restorePhoto() {
+        val prev = File(filesDir, Wallpaper.PHOTO + ".prev")
+        if (prev.exists()) prev.renameTo(File(filesDir, Wallpaper.PHOTO))
     }
 }

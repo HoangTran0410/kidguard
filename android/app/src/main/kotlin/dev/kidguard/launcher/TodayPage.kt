@@ -364,6 +364,13 @@ class TodayPage(
         f.requestFocus()
     }
 
+    private fun confirmDropNote(n: KidNotes.Note, edit: android.app.Dialog?) {
+        Modal(act, u).show(R.drawable.li_trash_2, Modal.Tone.DANGER, s(R.string.hm_t_note_drop_q), n.text.take(80), ok = s(R.string.hm_t_delete), cancel = s(R.string.cancel)) {
+            model()?.let { mm -> putNote(mm, n.id, "", false) }
+            edit?.dismiss(); true
+        }
+    }
+
     private fun confirmDropTodo(td: KidNotes.Todo) {
         Modal(act, u).show(R.drawable.li_trash_2, Modal.Tone.DANGER, s(R.string.hm_t_drop_q), td.text, ok = s(R.string.hm_t_delete), cancel = s(R.string.cancel)) {
             model()?.let { mm -> save(mm.copy(todo = KidNotes.todosJson(KidNotes.dropTodo(KidNotes.todos(mm.todo), td.id)))) }; true
@@ -416,10 +423,7 @@ class TodayPage(
         var dlg: android.app.Dialog? = null
         if (n != null) box.addView(k.text(s(R.string.hm_t_delete), 15f, pal.dangerText, true).apply {
             setPadding(dp(4), dp(14), dp(4), dp(4)); Ic.lead(this, R.drawable.li_trash_2, pal.dangerText); compoundDrawablePadding = dp(8); gravity = Gravity.CENTER_VERTICAL
-            k.tap(this, 10f) {
-                model()?.let { mm -> putNote(mm, n.id, "", false) }
-                dlg?.dismiss()
-            }
+            k.tap(this, 10f) { confirmDropNote(n, dlg) }
         }, LinearLayout.LayoutParams(-2, -2))
         dlg = Modal(act, u).show(R.drawable.li_sticky_note, Modal.Tone.INFO, s(if (n == null) R.string.hm_t_add_note else R.string.hm_t_edit_note), content = box,
             ok = s(R.string.hm_t_save), cancel = s(R.string.cancel)) {

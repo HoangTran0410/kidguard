@@ -130,4 +130,11 @@ class LauncherLogicTest {
         assertEquals(Show.OK, LauncherLogic.show("com.android.settings", emptyMap(), r, "dev.kidguard", settingsOk = true))
         assertEquals(Show.HIDE, LauncherLogic.show("com.android.settings", emptyMap(), r, "dev.kidguard"))
     }
+
+    @Test fun onlyLauncherFramesCountAsLauncherCrash() {
+        assertTrue(LauncherLogic.isLauncherCrash(listOf("android.view.View", "dev.kidguard.HomeMenusKt", "android.os.Handler")))
+        assertTrue(LauncherLogic.isLauncherCrash(listOf("java.lang.Error", "dev.kidguard.TodayPage\$Inner")))
+        assertFalse(LauncherLogic.isLauncherCrash(listOf("android.os.Handler", "dev.kidguard.Guard", "dev.kidguard.Relay\$run", "dev.kidguard.LauncherSafe")))
+        assertFalse(LauncherLogic.isLauncherCrash(emptyList()))
+    }
 }

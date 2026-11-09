@@ -164,9 +164,15 @@ object LauncherSafe {
 
     private class Handler(val app: Context, val next: Thread.UncaughtExceptionHandler?) : Thread.UncaughtExceptionHandler {
         override fun uncaughtException(t: Thread, e: Throwable) {
-            if (HomeActivity.alive > 0) runCatching { crashed(app, e) }
+            if (HomeActivity.alive > 0 && runCatching { LauncherLogic.isLauncherCrash(frames(e)) }.getOrDefault(true)) runCatching { crashed(app, e) }
             next?.uncaughtException(t, e)
         }
+    }
+
+    private fun frames(e: Throwable): List<String> {
+        val out = ArrayList<String>(); var c: Throwable? = e; var n = 0
+        while (c != null && n++ < 6) { c.stackTrace.mapTo(out) { it.className }; c = c.cause }
+        return out
     }
 
     /** One launcher crash. Writes synchronously; the Guard reports the event later (pending). */
