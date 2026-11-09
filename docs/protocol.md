@@ -345,6 +345,23 @@ The first capture / first input of a session is logged in the phone log.
   it into the `google_app_id` / `gcm_defaultSenderId` / `google_api_key` / `project_id` resources (no google-services
   plugin). Needs Google Play services on the parent's phone.
 
+## Telegram alerts (optional, relay kids only)
+- Worker secret `TG_BOT` = bot token from @BotFather. Not set = feature off (`GET /c/<id>/tg` -> `{"enabled": false}`, the page hides
+  the card). `TG_URL` (var, tests only) overrides `https://api.telegram.org`. Each family self-hosts the relay with its own bot.
+  LAN-only families cannot use it (the phone never talks to the worker).
+- `GET /c/<id>/tg` (kid token) -> `{"enabled": true, "linked": bool}`. `POST /c/<id>/tg {"name": "<kid>", "lang": "vi|en"}` ->
+  `{"enabled", "linked", "link": "https://t.me/<bot>?start=<code>"}`; code = the 16-hex relay id + 16 random hex, one-time, valid 15 min;
+  `name` (<= 30 chars, `<>` and control chars stripped) and `lang` are used in the messages. `POST {"off": true}` unlinks. 502 = Telegram unreachable.
+- Webhook `POST /tg/<sha256("tg:" + TG_BOT)[:32]>` (other path 404; only registered when `TG_BOT` is set). Register once:
+  `curl "https://api.telegram.org/bot$TOKEN/setWebhook" -d url=https://<worker>/tg/$(printf 'tg:%s' "$TOKEN" | shasum -a 256 | cut -c1-32)`
+  (`scripts/relay.sh` does it when run with `TG_BOT_TOKEN=...`). Always answers 200. Only private chats are read:
+  `/start <code>` links that chat to the kid in the code (unknown / expired / used code: a help text); `/stop_<relay id>` from the linked chat unlinks.
+  The webhook reaches the kid's Durable Object through an internal-only path (`x-kg-internal` header; the public route regex never matches it).
+- DO storage: `tg` = `{chat, name, lang, at}` (linked), `tgCode` = `{code, exp, name, lang}` (pending), `tgSeen` = last 50 event ids sent.
+- On every `sync` with a state, the same moments as FCM, each id once (own dedupe list, <= 5 per sync, a retry never double-sends):
+  `sos` < 6 h, `requests` < 1 h, events < 1 h of kind `newApp` or `tamper`. Plain text, no buttons; kid name + kind (+ minutes), no location,
+  note or app name. Telegram answers 403 (bot blocked) = unlinked.
+
 ## App icons (v0.5)
 - LAN: `GET /api/icon?pkg=<pkg>&k=<token>` -> 96 px PNG drawn by the phone.
 - Relay: after each successful sync the phone sends up to 30 not-yet-sent icons:

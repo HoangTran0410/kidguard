@@ -196,6 +196,44 @@ ck("full queue (20) refuses with 429 instead of dropping the oldest",st==429);
 const s3=await (await P4("sync",{})).json();
 ck("queued commands (incl. oldest) survive a full queue",s3.cmds.length==20&&s3.cmds.some(c=>c.type=="lock"||c.type=="message"));}
 ck("sync works after all that",(await P4("sync",{})).status==200);}
+// ---- Telegram alerts (fake Telegram from run.mjs on $MOCK; webhook path = sha256("tg:" + token)[:32]) ----
+if(process.env.MOCK){const {createHash}=await import("node:crypto"),M=`http://127.0.0.1:${process.env.MOCK}`;
+const hook=createHash("sha256").update("tg:123456:test-token").digest("hex").slice(0,32);
+const idT=[...crypto.getRandomValues(new Uint8Array(8))].map(b=>b.toString(16).padStart(2,"0")).join(""),PT=(p,o,m="POST")=>fetch(`${B}/c/${idT}/${p}`,{method:m,headers:H(),body:m=="GET"?undefined:JSON.stringify(o)});
+const tgs=async()=>(await (await fetch(M+"/_tg")).json());
+const upd=(text,chat=42,type="private")=>fetch(`${B}/tg/${hook}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:{text,chat:{id:chat,type}}})});
+await PT("sync",{state:{}});
+let j=await (await PT("tg",null,"GET")).json();ck("tg status: enabled, not linked",j.enabled===true&&j.linked===false);
+ck("tg needs the kid token",(await fetch(`${B}/c/${idT}/tg`,{headers:H(BAD)})).status==401);
+j=await (await PT("tg",{name:"Bé <b>Na</b>",lang:"en"})).json();
+const code=(j.link||"").split("start=")[1]||"";
+ck("tg link: t.me/<bot>?start=<id+8 random bytes>",j.link&&j.link.startsWith("https://t.me/kg_test_bot?start="+idT)&&/^[0-9a-f]{32}$/.test(code));
+ck("tg webhook wrong path 404",(await fetch(`${B}/tg/${"0".repeat(32)}`,{method:"POST",body:"{}"})).status==404);
+ck("tg webhook GET is not a route",(await fetch(`${B}/tg/${hook}`)).status==404);
+const n0=(await tgs()).length;
+await upd("/start "+idT+"0".repeat(16));await upd("/start "+code,42,"group");
+j=await (await PT("tg",null,"GET")).json();ck("tg wrong code / group chat does not link",j.linked===false);
+ck("tg bad code gets the help text",(await tgs()).length==n0+1);
+ck("tg webhook always 200 on junk",(await fetch(`${B}/tg/${hook}`,{method:"POST",body:"nope"})).status==200);
+await upd("/start "+code);
+j=await (await PT("tg",null,"GET")).json();ck("tg /start <code> links",j.linked===true);
+let ms=await tgs();ck("tg confirmation sent to the chat, name sanitised, in English",ms.length==n0+2&&ms[n0+1].chat_id==42&&/Telegram alerts are on for Bé bNa\/b/.test(ms[n0+1].text)&&ms[n0+1].text.includes("/stop_"+idT));
+await upd("/start "+code,43);ck("tg code is one-time",(await tgs()).length==n0+3&&(await (await PT("tg",null,"GET")).json()).linked===true);
+const now=Date.now();
+await PT("sync",{state:{sos:[{id:"t1",t:now}],requests:[{id:"q1",t:now,min:30,note:"bí mật"}],events:[{id:"n1",t:now,kind:"newApp",text:"Cài TikTok"},{id:"n2",t:now,kind:"battery"},{id:"n3",t:now,kind:"tamper"}]}});await new Promise(s=>setTimeout(s,800));
+ms=(await tgs()).slice(n0+3);
+ck("tg: sos, request, newApp, tamper sent (battery not), kid name, no notes / app names",ms.length==4&&ms.some(m=>/SOS: Bé bNa\/b/.test(m.text))&&ms.some(m=>/30 more minutes/.test(m.text))&&ms.some(m=>/new app/.test(m.text))&&ms.some(m=>/tamper/.test(m.text))&&!JSON.stringify(ms).includes("bí mật")&&!JSON.stringify(ms).includes("TikTok"));
+await PT("sync",{state:{sos:[{id:"t1",t:now}],requests:[{id:"q1",t:now,min:30}]}});await new Promise(s=>setTimeout(s,500));
+ck("tg: same ids not sent again",(await tgs()).length==n0+7);
+await upd("/stop_"+idT,99);ck("tg /stop_<id> from another chat does nothing",(await (await PT("tg",null,"GET")).json()).linked===true);
+await upd("/stop_"+idT,42);ck("tg /stop_<id> from the linked chat unlinks",(await (await PT("tg",null,"GET")).json()).linked===false);
+j=await (await PT("tg",{name:"Na"})).json();await upd("/start "+j.link.split("start=")[1]);
+ck("tg relink works (vi default)",(await (await PT("tg",null,"GET")).json()).linked===true&&/Đã bật báo qua Telegram/.test((await tgs()).at(-1).text));
+j=await (await PT("tg",{off:true})).json();ck("tg off from the page unlinks",j.linked===false&&(await (await PT("tg",null,"GET")).json()).linked===false);
+const idB=[...crypto.getRandomValues(new Uint8Array(8))].map(b=>b.toString(16).padStart(2,"0")).join(""),PB=(p,o,m="POST")=>fetch(`${B}/c/${idB}/${p}`,{method:m,headers:H(),body:m=="GET"?undefined:JSON.stringify(o)});
+await PB("sync",{state:{}});await PB("tg",{name:"Bo"}).then(r=>r.json()).then(async o=>{await upd("/start "+o.link.split("start=")[1],666);});
+await PB("sync",{state:{sos:[{id:"b1",t:now}]}});await new Promise(s=>setTimeout(s,600));
+ck("tg: Telegram 403 (bot blocked) unlinks",(await (await PB("tg",null,"GET")).json()).linked===false);}
 // last: per-IP rate limit (150 / 10 s) on /c/*; the page itself is not limited
 {const rs=[];for(let i=0;i<11&&!rs.includes(429);i++)rs.push(...await Promise.all(Array.from({length:20},()=>fetch(`${B}/c/${id}/state`,{headers:H(BAD)}).then(r=>r.status,()=>0))));
 ck("rate limit: burst of 220 gets some 429",rs.includes(429));ck("rate limit: page / still 200",(await fetch(`${B}/`)).status==200);}

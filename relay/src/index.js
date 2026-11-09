@@ -93,7 +93,9 @@ export default {
         "x-frame-options": "DENY", "content-security-policy": CSP,
       } });
     }
-    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|file)$/);
+    const th = req.method === "POST" && env.TG_BOT ? url.pathname.match(/^\/tg\/([0-9a-f]{32})$/) : null;
+    if (th) return tgHook(req, env, th[1]);
+    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|file|tg)$/);
     if (!m) return json({ error: "not found" }, 404);
     if (env.RL) {
       const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
@@ -122,6 +124,7 @@ export class Kid {
 
   async fetch(req) {
     const url = new URL(req.url), action = url.pathname.split("/").pop(), id = url.pathname.split("/")[2];
+    if (action === "_tg" && req.method === "POST" && req.headers.get("x-kg-internal") === "1") return this.tgIn(await req.json().catch(() => ({})), id);   // from tgHook only: the public route regex never matches `_tg`
     const token = tokenOf(req, url);
     if (!/^[0-9a-f]{48}$/.test(token)) return json({ error: "not paired" }, 401);
     const h = await sha256(token);
@@ -289,6 +292,19 @@ export class Kid {
       await this.s.put("push", list);
       return json({ ok: true, enabled: !!this.env.FCM_SA, devices: list.length });
     }
+    if (action === "tg") {   // Telegram alerts: GET status; POST {name, lang} -> one-time link; POST {off: true} unlinks
+      if (!this.env.TG_BOT) return json({ enabled: false });
+      const tg = (await this.s.get("tg")) || null;
+      if (req.method === "GET") return json({ enabled: true, linked: !!(tg && tg.chat) });
+      if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+      if (body.off) { await this.s.delete(["tg", "tgCode"]); return json({ enabled: true, linked: false }); }
+      const bot = await tgBotName(this.env);
+      if (!bot) return json({ error: "telegram unreachable" }, 502);
+      const code = id + [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, "0")).join("");
+      const name = String(body.name || "").replace(/[\u0000-\u001f<>]/g, "").slice(0, 30), lang = body.lang === "en" ? "en" : "vi";
+      await this.s.put("tgCode", { code, exp: now + 15 * 60e3, name, lang });
+      return json({ enabled: true, linked: !!(tg && tg.chat), link: `https://t.me/${bot}?start=${code}` });
+    }
     if (action === "cmd" && req.method === "POST") {
       const type = String(body.type || "");
       if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
@@ -362,6 +378,39 @@ export class Kid {
     return json({ error: "method not allowed" }, 405);
   }
 
+  /** Telegram webhook update -> the kid DO named in the link code (/start <code>) or in /stop_<id>. */
+  async tgIn(o, id) {
+    const tg = (await this.s.get("tg")) || null, chat = o.chat;
+    if (o.stop) {
+      if (!tg || tg.chat !== chat) return json({ ok: false });
+      await this.s.delete(["tg", "tgCode"]);
+      await tgSend(this.env, chat, TGM[tg.lang].off(tg.name));
+      return json({ ok: true });
+    }
+    const c = await this.s.get("tgCode");
+    if (!c || c.exp < Date.now() || typeof o.code !== "string" || o.code !== c.code) return json({ ok: false });
+    await this.s.put("tg", { chat, name: c.name, lang: c.lang, at: Date.now() });
+    await this.s.delete("tgCode");
+    await tgSend(this.env, chat, TGM[c.lang].on(c.name, id));
+    return json({ ok: true });
+  }
+
+  /** Same moments as FCM (SOS, more-time request, new app / tamper event) -> one Telegram text to the linked chat. */
+  async tgNew(ev) {
+    if (!this.env.TG_BOT) return;
+    const tg = await this.s.get("tg");
+    if (!tg || !tg.chat) return;
+    const seen = (await this.s.get("tgSeen")) || [];
+    const fresh = ev.filter(e => !seen.includes(e.eid) && (e.kind !== "ev" || e.ek === "newApp" || e.ek === "tamper")).slice(0, 5);
+    if (!fresh.length) return;
+    await this.s.put("tgSeen", [...seen, ...fresh.map(e => e.eid)].slice(-50));   // before sending: a retry must not double-notify
+    const m = TGM[tg.lang] || TGM.vi;
+    for (const e of fresh) {
+      const st = await tgSend(this.env, tg.chat, e.kind === "sos" ? m.sos(tg.name) : e.kind === "req" ? m.req(tg.name, e.min) : e.ek === "tamper" ? m.tamper(tg.name) : m.newApp(tg.name));
+      if (st === 403) { await this.s.delete(["tg", "tgCode"]); return; }   // the parent blocked the bot: unlink
+    }
+  }
+
   /** New SOS / more-time requests in the phone's state -> FCM data message to every registered parent app. */
   async pushNew(state, id) {
     const now = Date.now(), ev = [];
@@ -369,7 +418,9 @@ export class Kid {
     for (const r of Array.isArray(state.requests) ? state.requests : []) if (r && now - +r.t < 3600e3) ev.push({ kind: "req", eid: "r:" + r.id, t: +r.t, min: +r.min || 0 });
     for (const e of Array.isArray(state.events) ? state.events : []) if (e && now - +e.t < 3600e3 && /^[\w-]{1,24}$/.test(String(e.id)))
       ev.push({ kind: "ev", eid: "e:" + e.id, t: +e.t, ek: String(e.kind || "").slice(0, 12) });   // no text / zone name to Google
-    if (!ev.length || !this.env.FCM_SA) return;
+    if (!ev.length) return;
+    await this.tgNew(ev).catch(e => console.log("tg", String(e)));
+    if (!this.env.FCM_SA) return;
     // at most 5 events a sync (x 5 devices = 25 FCM calls, under the 50 subrequests a request may make)
     const sent = (await this.s.get("pushed")) || [], fresh = ev.filter(e => !sent.includes(e.eid)).slice(0, 5);
     if (!fresh.length) return;
@@ -417,4 +468,63 @@ async function fcmSend(env, token, data) {
     body: JSON.stringify({ message: { token, data, android: { priority: "HIGH", ttl: "21600s" } } }) });
   if (r.status === 401) fcmAuth = null;
   return r.status;
+}
+
+// ---- Telegram alerts (optional; secret TG_BOT = bot token from @BotFather; TG_URL (var, tests only) overrides https://api.telegram.org) ----
+// Text only, no location / note / app names: the same facts FCM carries, plus the kid's name the parent page sent when linking.
+const TGM = {
+  vi: {
+    sos: n => `SOS: ${n} vừa bấm nút SOS! Mở KidGuard để xem vị trí.`,
+    req: (n, min) => `${n} xin thêm ${min ? min + " phút" : "thời gian"}. Mở KidGuard để duyệt.`,
+    newApp: n => `${n}: có app mới được cài trên máy.`,
+    tamper: n => `${n}: có người thử can thiệp vào cài đặt máy.`,
+    on: (n, id) => `Đã bật báo qua Telegram cho ${n}. Để huỷ: gửi /stop_${id} hoặc bấm "Huỷ liên kết" trên trang KidGuard.`,
+    off: n => `Đã huỷ báo qua Telegram cho ${n}.`,
+    help: "Mở trang KidGuard (Cài đặt > Báo qua Telegram) rồi bấm nút liên kết.",
+  },
+  en: {
+    sos: n => `SOS: ${n} pressed the SOS button! Open KidGuard to see the location.`,
+    req: (n, min) => `${n} asks for ${min ? min + " more minutes" : "more time"}. Open KidGuard to answer.`,
+    newApp: n => `${n}: a new app was installed on the phone.`,
+    tamper: n => `${n}: someone tried to tamper with the phone's settings.`,
+    on: (n, id) => `Telegram alerts are on for ${n}. To stop: send /stop_${id} or press "Unlink" on the KidGuard page.`,
+    off: n => `Telegram alerts for ${n} are off.`,
+    help: "Open the KidGuard page (Settings > Telegram alerts) and press the link button.",
+  },
+};
+const tgApi = (env, method) => `${env.TG_URL || "https://api.telegram.org"}/bot${env.TG_BOT}/${method}`;
+let tgBot = null;   // {key, name} per isolate
+async function tgBotName(env) {
+  if (tgBot && tgBot.key === env.TG_BOT) return tgBot.name;
+  try {
+    const j = await (await fetch(tgApi(env, "getMe"))).json();
+    const name = j && j.ok && j.result && /^\w{3,64}$/.test(j.result.username || "") ? j.result.username : "";
+    if (name) tgBot = { key: env.TG_BOT, name };
+    return name;
+  } catch { return ""; }
+}
+/** Returns the HTTP status (0 = network error). */
+async function tgSend(env, chat, text) {
+  try {
+    const r = await fetch(tgApi(env, "sendMessage"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: chat, text, disable_web_page_preview: true }) });
+    await r.text();
+    return r.status;
+  } catch { return 0; }
+}
+/** POST /tg/<sha256("tg:" + TG_BOT)[:32]>: Telegram's webhook. Always answers 200 (Telegram retries otherwise). */
+async function tgHook(req, env, key) {
+  const ok = () => json({ ok: true });
+  if (key !== (await sha256("tg:" + env.TG_BOT)).slice(0, 32)) return json({ error: "not found" }, 404);
+  if (+(req.headers.get("content-length") || 0) > 16384) return ok();
+  let u; try { u = await req.json(); } catch { return ok(); }
+  const msg = u && u.message, text = msg && typeof msg.text === "string" ? msg.text.trim() : "";
+  if (!msg || !msg.chat || msg.chat.type !== "private" || !Number.isSafeInteger(msg.chat.id)) return ok();
+  const chat = msg.chat.id;
+  const m = text.match(/^\/start(?:@\w+)?\s+([0-9a-f]{32})$/), stop = text.match(/^\/stop_([0-9a-f]{16})(?:@\w+)?$/);
+  if (!m && !stop) { await tgSend(env, chat, TGM.vi.help + "\n" + TGM.en.help); return ok(); }
+  const id = m ? m[1].slice(0, 16) : stop[1];
+  const r = await env.KIDS.get(env.KIDS.idFromName(id)).fetch(`https://do/c/${id}/_tg`, { method: "POST", headers: { "x-kg-internal": "1" }, body: JSON.stringify(m ? { chat, code: m[1] } : { chat, stop: true }) });
+  const j = await r.json().catch(() => ({}));
+  if (!j.ok && m) await tgSend(env, chat, TGM.vi.help + "\n" + TGM.en.help);
+  return ok();
 }

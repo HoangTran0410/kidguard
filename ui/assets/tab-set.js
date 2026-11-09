@@ -228,6 +228,7 @@ function setTab(b) {
   ${lan ? sec("s-relay", "globe", t("relay.h"), t("sd.relay"), st.relay ? [t("on"), "ok"] : [t("off")], `<p class="mute">${t("relay.p")}</p>
     <div class="row"><input id="relay" class="sp" placeholder="${esc(t("relay.ph"))}" aria-label="${esc(t("relay.addr"))}" value="${esc(st.relay || "")}"><button id="saveRelay" class="pri">${ic("globe")} ${t("turnOn")}</button></div>
     <div id="relayOut"></div>`, !!st.relay) : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p></div>`}
+  ${lan ? "" : `<div id="tgBox"></div>`}
   <div class="dz" style="margin-top:22px">${sec("s-danger", "octagon-x", t("set.danger"), t("sd.danger"), null, `<h2>${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
     <h2 style="margin-top:18px">${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
     <button id="release" class="bad">${ic("octagon-x")} ${t("rel.btn")}</button>`)}</div>
@@ -315,7 +316,32 @@ function setTab(b) {
   if ($("#devOff")) $("#devOff").onclick = () => devOff(false);
   if ($("#devOn")) $("#devOn").onclick = () => devOff(true);
   if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, t("upd.sent"), [t("upd.ask"), t("upd.ok")]).then(() => setTimeout(refresh, 4000));
+  if ($("#tgBox")) tgDraw();
   $("#release").onclick = async () => {
     await cmd({ type: "release" }, t("rel.done"), [t("rel.ask"), t("rel.ok"), true, t("rel.word")]);
+  };
+}
+
+// Telegram alerts (relay kids only; the worker has the bot token). The box stays empty while the worker has no TG_BOT.
+async function tgDraw() {
+  const k = cur, box = $("#tgBox");
+  let st; try { st = await call(k, "/tg"); } catch { return; }
+  if (k !== cur || tab !== "set" || !st || !st.enabled || !box.isConnected) return;
+  box.innerHTML = sec("s-tg", "send", t("tg.h"), t("tg.d"), st.linked ? [t("on"), "ok"] : [t("off")], st.linked
+    ? `<p class="mute">${t("tg.on")}</p><button id="tgOff">${ic("unlink")} ${t("tg.unlink")}</button>`
+    : `<p class="mute">${t("tg.p")}</p><button id="tgLink" class="pri">${ic("send")} ${t("tg.link")}</button><div id="tgOut" class="mute"></div>`, false);
+  if ($("#tgOff")) $("#tgOff").onclick = async () => {
+    try { await call(k, "/tg", "POST", { off: true }); toast("ok|" + t("tg.done")); } catch (e) { toast("err|" + e.message); }
+    tgDraw();
+  };
+  if ($("#tgLink")) $("#tgLink").onclick = async () => {
+    try {
+      const r = await call(k, "/tg", "POST", { name: k.name, lang });
+      if (!/^https:\/\/t\.me\/\w+\?start=[0-9a-f]{32}$/.test(r.link || "")) throw new Error("bad link");
+      $("#tgOut").innerHTML = `<p>${t("tg.open")}</p><a class="lnkbtn" href="${esc(r.link)}" target="_blank" rel="noopener">${ic("send")} ${t("tg.openBtn")}</a>`;
+      clearTimeout(tgDraw.t);
+      const poll = n => { tgDraw.t = setTimeout(() => { if (tab === "set" && k === cur && n < 20) call(k, "/tg").then(x => x.linked ? tgDraw() : poll(n + 1), () => {}); }, 4000); };
+      poll(0);
+    } catch (e) { toast("err|" + e.message); }
   };
 }

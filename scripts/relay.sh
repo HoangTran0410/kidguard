@@ -23,6 +23,13 @@ out=$(npx wrangler deploy 2>&1 | tee /dev/stderr)
 url=$(printf '%s\n' "$out" | grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' | head -1)
 [ -n "$url" ] || { echo "Deployed, but no address found in the output above. Look for https://kidguard.<you>.workers.dev"; exit 1; }
 
+# Optional Telegram alerts: TG_BOT_TOKEN=<token from @BotFather> scripts/relay.sh (sets the secret, then registers the webhook)
+if [ -n "${TG_BOT_TOKEN:-}" ]; then
+  printf '%s' "$TG_BOT_TOKEN" | npx wrangler secret put TG_BOT >/dev/null
+  hk=$(printf 'tg:%s' "$TG_BOT_TOKEN" | node -e 'process.stdout.write(require("crypto").createHash("sha256").update(require("fs").readFileSync(0)).digest("hex").slice(0,32))')
+  curl -fsS "https://api.telegram.org/bot${TG_BOT_TOKEN}/setWebhook" -d "url=$url/tg/$hk" >/dev/null && echo "Telegram alerts on (webhook registered)." || echo "Telegram: setWebhook failed, check the token."
+fi
+
 cat <<EOF
 
 Relay ready: $url
