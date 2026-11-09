@@ -85,7 +85,9 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     }
     box.contentDescription = if (paused) getString(R.string.hm_paused_desc, a.label, BasicLogic.reasonText(reason ?: "", Store.of(this).tr)) else a.label
     kit.tap(box, 16f, list && pal.dark || !list)
-    if (!list) box.foreground = null   // the icon sinking on touch is the feedback ([pressed]), no grey ripple over it
+    // the icon sinking on touch is the feedback everywhere ([pressed]): no grey ripple over it. In the drawer / a folder the
+    // ripple also came ~100 ms late (scroll containers delay the pressed state), so a quick tap showed nothing
+    box.foreground = null
     box.setOnClickListener { if (debounce()) { if (model?.style?.speak == true) ReadAids.say(this, a.label); if (paused) pausedSheet(a, reason ?: "", dv, r) else launch(a, box) } }
     // drag source: where the icon lives
     val src: () -> DragSt = {
@@ -96,7 +98,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
             Mode.DRAWER -> DragSt(null, a.pkg, "app", 1, 1, null, null)
         }
     }
-    arm(box, { if (item?.kind == HomeLayout.SHORTCUT) shortcutMenu(item, box) else appMenu(a, box, mode, item) }, src, press = if (list) null else frame)   // in a folder too: menu first, moving the finger drags (iOS)
+    arm(box, { if (item?.kind == HomeLayout.SHORTCUT) shortcutMenu(item, box) else appMenu(a, box, mode, item) }, src, press = frame)   // in a folder too: menu first, moving the finger drags (iOS)
     return box
 }
 

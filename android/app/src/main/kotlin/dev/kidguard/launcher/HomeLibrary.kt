@@ -172,6 +172,9 @@ internal class LibraryPage(private val act: HomeActivity) : ScrollView(act) {
                     i == 3 && more -> slot.addView(minis(apps.drop(3).take(4)).apply {
                         contentDescription = getString(R.string.hm_lib_more, apps.size, libName(k))
                         kit.tap(this, 16f) { openLibGroup(libName(k), apps, card) }
+                        foreground = null   // sinks like the app icons beside it ([pressed]), no ripple
+                        setOnTouchListener { v, e -> when (e.actionMasked) { android.view.MotionEvent.ACTION_DOWN -> pressed(v, true)
+                            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> pressed(v, false) }; false }
                     }, FrameLayout.LayoutParams(-1, -1))
                 }
                 line.addView(slot, LinearLayout.LayoutParams(0, -1, 1f))
