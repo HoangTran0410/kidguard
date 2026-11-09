@@ -95,7 +95,7 @@ function ovDraw() {
       ${req ? `<div class="alert warn">${ic("hand")} ${t("ov.req", req)}</div>` : ""}
       ${s.location ? `<div class="mute">${ic("map-pin")} ${t("ov.loc", ago(s.location.t))}</div>` : `<div class="mute">${ic("map-pin")} ${t("ov.noLoc")}</div>`}
       ${(s.events || []).length ? (e => `<div class="mute">${ic(EV_IC[e.kind] || "bell")} ${esc(noEmoji(e.text))} · ${ago(e.t)}</div>`)(s.events[s.events.length - 1]) : ""}
-      <div class="row" style="margin-top:8px"><button data-o="${i}" class="sp">${ic("folder-open")} ${t("open")}</button>${s.location ? `<a class="btn sp" href="https://www.google.com/maps?q=${+s.location.lat},${+s.location.lng}" target="_blank" rel="noopener">${ic("map")} Google Maps</a>` : ""}</div></div>`;
+      <div class="row" style="margin-top:8px"><button data-o="${i}" class="sp">${ic("folder-open")} ${t("open")}</button>${s.location ? `<a class="btn sp" href="https://www.google.com/maps?q=${+s.location.lat},${+s.location.lng}" target="_blank" rel="noopener">${ic("external-link")} Google Maps</a>` : ""}</div></div>`;
   }).join("");
   document.querySelectorAll("#app [data-o]").forEach(b => b.onclick = () => { clearInterval(timer); const k = D[+b.dataset.o].k; ov = null; open(k); });
   // one map, the latest fix of every kid
