@@ -112,6 +112,18 @@
             </intent-filter>
         </activity>
 
+        <!-- an app pins a shortcut while our launcher is the default home (only the default home's handler is used) -->
+        <activity
+            android:name=".PinShortcutActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.content.pm.action.CONFIRM_PIN_SHORTCUT" />
+            </intent-filter>
+        </activity>
         <!-- v0.9.9 kid launcher: off until the `launcher` rule enables it (LauncherSafe, Device Owner only); release disables it -->
         <activity
             android:name=".HomeActivity"

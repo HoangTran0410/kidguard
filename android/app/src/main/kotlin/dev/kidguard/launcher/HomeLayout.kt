@@ -19,6 +19,7 @@ data class HItem(
         if (cls.isNotEmpty()) o.put("cls", cls)
         if (type.isNotEmpty()) o.put("type", type)
         if (kind == "folder") o.put("name", name).put("apps", JSONArray(apps))
+        if (kind == HomeLayout.SHORTCUT) o.put("name", name)
         if (awid != 0) o.put("awid", awid)
     }
     fun covers(cx: Int, cy: Int) = cx in x until x + w && cy in y until y + h
@@ -71,7 +72,7 @@ data class HomeModel(
         .put("todayHide", JSONArray(todayHide.sorted()))
 
     /** Packages on the grid (folders included) or in the dock. */
-    fun onHome(): Set<String> = pages.flatten().flatMap { if (it.kind == "folder") it.apps else listOf(it.pkg) }.filter { it.isNotEmpty() }.toSet() +
+    fun onHome(): Set<String> = pages.flatten().filter { it.kind != HomeLayout.SHORTCUT }.flatMap { if (it.kind == "folder") it.apps else listOf(it.pkg) }.filter { it.isNotEmpty() }.toSet() +
         dock.filter { it.isNotEmpty() && !it.startsWith("@") }
 }
 
@@ -104,7 +105,9 @@ object HomeLayout {
         val ratio = availH.toFloat() / cur / cellW
         return if (cur in 4..MAX_ROWS && ratio in 0.85f..1.2f && availH / cur >= minH) cur else r
     }
-    val KINDS = setOf("app", "widget", "folder")
+    /** An app's pinned shortcut (ShortcutManager.requestPinShortcut): pkg = the app, cls = the shortcut id, name = its label. */
+    const val SHORTCUT = "shortcut"
+    val KINDS = setOf("app", "widget", "folder", SHORTCUT)
 
     /** Widget ids are "w" + n, apps "a" + n: unique inside one model. */
     private fun nextId(m: List<HItem>, prefix: String): String {
@@ -203,7 +206,7 @@ object HomeLayout {
     fun prune(m: HomeModel, gone: (String) -> Boolean): HomeModel {
         val pages = m.pages.map { p -> p.mapNotNull { i ->
             when (i.kind) {
-                "app" -> i.takeIf { !gone(i.pkg) }
+                "app", SHORTCUT -> i.takeIf { !gone(i.pkg) }
                 "folder" -> i.copy(apps = i.apps.filter { !gone(it) }).let { f -> when (f.apps.size) { 0 -> null; 1 -> f.copy(kind = "app", pkg = f.apps[0], name = "", apps = emptyList()); else -> f } }
                 else -> i
             }
@@ -226,6 +229,7 @@ object HomeLayout {
         val rows = g.optInt("rows", HomeStyle.preset(style.preset).rows).coerceIn(4, MAX_ROWS)
         val pa = o.optJSONArray("pages") ?: JSONArray()
         val seenPkgs = HashSet<String>()
+        val seenShortcuts = HashSet<String>()
         val misplaced = ArrayList<HItem>()
         var pages = (0 until minOf(pa.length(), 20)).map { pi ->
             val items = pa.optJSONObject(pi)?.optJSONArray("items") ?: JSONArray()
@@ -241,6 +245,7 @@ object HomeLayout {
                 when (kind) {
                     "widget" -> { if (it.type !in WIDGETS || (it.type == APP && (it.awid == 0 || it.pkg.isEmpty()))) continue; it = it.copy(w = minOf(it.w, cols), h = minOf(it.h, rows), x = minOf(it.x, cols - minOf(it.w, cols))) }
                     "app" -> { if (it.pkg.isEmpty() || !seenPkgs.add(it.pkg)) continue; it = it.copy(w = 1, h = 1) }
+                    SHORTCUT -> { if (it.pkg.isEmpty() || it.cls.isEmpty() || !seenShortcuts.add(it.pkg + "/" + it.cls)) continue; it = it.copy(w = 1, h = 1, type = "", apps = emptyList()) }
                     "folder" -> {
                         val apps = it.apps.filter { seenPkgs.add(it) }.distinct().take(FOLDER_MAX)
                         if (apps.isEmpty()) continue
@@ -537,7 +542,23 @@ object HomeLayout {
 
     /** A layout taken from KidGuard Home: other apps' widgets are bound to that app's widget host, so they cannot come along. */
     fun imported(m: HomeModel): HomeModel =
-        trimPages(m.copy(pages = m.pages.map { p -> p.filter { !(it.kind == "widget" && it.type == APP) } }))
+        trimPages(m.copy(pages = m.pages.map { p -> p.filter { !(it.kind == "widget" && it.type == APP) && it.kind != SHORTCUT } }))   // shortcuts are pinned to that app too
+
+    /**
+     * A pinned shortcut accepted from an app: the first free cell from the first page on, else a new page. The same
+     * shortcut again only refreshes its label.
+     */
+    fun addShortcut(m: HomeModel, pkg: String, sid: String, label: String): HomeModel {
+        val name = label.take(40)
+        find(m, m.pages.flatten().firstOrNull { it.kind == SHORTCUT && it.pkg == pkg && it.cls == sid }?.id ?: "")?.let { (pi, it) ->
+            return if (it.name == name) m else m.copy(pages = m.pages.mapIndexed { i, p -> if (i != pi) p else p.map { o -> if (o.id == it.id) o.copy(name = name) else o } })
+        }
+        val id = idFor(m, "s")
+        for ((i, p) in m.pages.withIndex()) firstFree(p, m.cols, m.rows)?.let { (x, y) ->
+            return m.copy(pages = m.pages.toMutableList().also { it[i] = p + HItem(id, SHORTCUT, x, y, pkg = pkg, cls = sid, name = name) })
+        }
+        return m.copy(pages = m.pages + listOf(listOf(HItem(id, SHORTCUT, 0, 0, pkg = pkg, cls = sid, name = name))))
+    }
 
     /** Ids of the other apps' widgets (type app) in the model: the host deletes the ones that leave. */
     fun appWidgetIds(m: HomeModel): Set<Int> = m.pages.flatten().filter { it.kind == "widget" && it.type == APP && it.awid != 0 }.map { it.awid }.toSet()

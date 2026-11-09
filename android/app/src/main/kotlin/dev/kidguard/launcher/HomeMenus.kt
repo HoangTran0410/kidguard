@@ -125,6 +125,13 @@ internal fun HomeActivity.appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
     ), v)
 }
 
+/** Long-press on a pinned shortcut: take it off the home, or edit the home. */
+internal fun HomeActivity.shortcutMenu(item: HItem, v: View) = menu(listOf(
+    Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { m -> update(HomeLayout.removeIds(m, setOf(item.id))) } },
+    Row(R.drawable.li_check, getString(R.string.hm_e_pick), true) { enterEdit(item.id) },
+    Row(R.drawable.li_layout_dashboard, getString(R.string.hm_edit_home), true) { enterEdit() },
+), v)
+
 internal fun HomeActivity.emptyMenu(x: Int, y: Int) = menu(listOf(
     Row(R.drawable.li_check, getString(R.string.hm_e_enter), true) { enterEdit() },
     Row(R.drawable.li_layout_dashboard, getString(R.string.hm_w_title), true) { openPicker() },

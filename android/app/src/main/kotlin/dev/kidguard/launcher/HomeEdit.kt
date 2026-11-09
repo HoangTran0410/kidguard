@@ -56,6 +56,7 @@ internal fun HomeActivity.removeOne(id: String) {
     val (title, body) = when (item.kind) {
         "app" -> getString(R.string.hm_e_rm_q, IconCache.label(this, item.pkg)) to getString(R.string.hm_e_rm_app)
         "folder" -> getString(R.string.hm_e_rm_q, folderName(item)) to getString(R.string.hm_e_rm_folder, item.apps.size)
+        HomeLayout.SHORTCUT -> getString(R.string.hm_e_rm_q, item.name) to getString(R.string.hm_sc_rm)
         else -> getString(R.string.hm_e_rm_widget_q) to getString(R.string.hm_e_rm_widget)
     }
     Modal(this, u).show(R.drawable.li_circle_minus, Modal.Tone.WARN, title, body, ok = getString(R.string.hm_e_rm_ok), cancel = getString(R.string.cancel)) {

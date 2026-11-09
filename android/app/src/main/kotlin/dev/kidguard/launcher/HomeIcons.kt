@@ -88,13 +88,13 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     // drag source: where the icon lives
     val src: () -> DragSt = {
         when (mode) {
-            Mode.HOME -> DragSt(Src.Item(item!!.id), null, "app", 1, 1, item.id, box)
+            Mode.HOME -> DragSt(Src.Item(item!!.id), null, item.kind, 1, 1, item.id, box)   // a shortcut can't go into a folder
             Mode.DOCK -> DragSt(Src.Dock(slot), null, "app", 1, 1, null, box)
             Mode.PANEL -> DragSt(Src.InFolder(folder!!.id, a.pkg), null, "app", 1, 1, null, null)
             Mode.DRAWER -> DragSt(null, a.pkg, "app", 1, 1, null, null)
         }
     }
-    arm(box, { appMenu(a, box, mode, item) }, src, press = if (list) null else frame)   // in a folder too: menu first, moving the finger drags (iOS)
+    arm(box, { if (item?.kind == HomeLayout.SHORTCUT) shortcutMenu(item, box) else appMenu(a, box, mode, item) }, src, press = if (list) null else frame)   // in a folder too: menu first, moving the finger drags (iOS)
     return box
 }
 
@@ -197,6 +197,12 @@ internal fun HomeActivity.launch(a: AppE, from: View) {
     val fl = IntArray(2).also { from.getLocationOnScreen(it) }; val il = IntArray(2).also { icon.getLocationOnScreen(it) }
     i.sourceBounds = android.graphics.Rect(il[0], il[1], il[0] + icon.width, il[1] + icon.height)
     Recent.note(this, a.pkg)
+    if (a.cls.startsWith(Shortcuts.PREFIX)) {
+        if (!Flavor.HOME) runCatching { AccPause.pause(this, a.pkg) }
+        val opts = ActivityOptions.makeClipRevealAnimation(from, il[0] - fl[0], il[1] - fl[1], icon.width, icon.height).toBundle()
+        if (!Shortcuts.start(this, a.pkg, a.cls.removePrefix(Shortcuts.PREFIX), i.sourceBounds, opts)) Toast.makeText(this, R.string.hm_sc_fail, Toast.LENGTH_SHORT).show()
+        return
+    }
     // a bank app checks for accessibility services as it starts: ours goes off before it opens (AccPause)
     if (!Flavor.HOME) runCatching { AccPause.pause(this, a.pkg) }
     // The system's zoom: the app's real window grows out of the icon (Oppo, ColorOS 8.1). HyperOS grows it from the screen

@@ -47,7 +47,7 @@ object IconCache {
     /** The paused look: greyscale at 45 %, drawn by the caller with this paint (no second bitmap in the cache). */
     fun greyPaint(): Paint = grey
 
-    private fun load(ctx: Context, pkg: String, cls: String): Drawable? = runCatching {
+    private fun load(ctx: Context, pkg: String, cls: String): Drawable? = if (cls.startsWith(Shortcuts.PREFIX)) Shortcuts.icon(ctx, pkg, cls.removePrefix(Shortcuts.PREFIX)) else runCatching {
         val pm = ctx.packageManager
         if (cls.isNotEmpty()) pm.getActivityIcon(android.content.ComponentName(pkg, cls)) else pm.getApplicationIcon(pkg)
     }.recoverCatching { ctx.packageManager.getApplicationIcon(pkg) }.getOrNull()

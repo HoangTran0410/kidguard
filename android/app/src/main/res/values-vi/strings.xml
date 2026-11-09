@@ -821,4 +821,7 @@
     <string name="cc_failed">Máy không cho đổi mục này ở đây</string>
     <string name="cc_on">Bật</string>
     <string name="cc_off">Tắt</string>
+    <string name="hm_sc_added">Đã thêm \"%1$s\" ra màn hình chính</string>
+    <string name="hm_sc_fail">Lối tắt này không mở được lúc này</string>
+    <string name="hm_sc_rm">Lối tắt rời màn hình chính. App vẫn còn.</string>
 </resources>

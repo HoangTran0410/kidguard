@@ -145,4 +145,30 @@ class HomeLayoutTest {
         assertEquals(3 to 4, HomeLayout.dropMove(t, 0, 3, 4)!!.pages[0].single { it.id == "a" }.let { it.x to it.y })
         assertNull(HomeLayout.dropMove(t, 0, 1, 1))          // onto a 4x2 widget: no room, nothing moves
     }
+
+    @Test fun shortcutAddedOnceKeptByParseNotCountedAsTheApp() {
+        val m0 = HomeLayout.fresh("teen", apps.take(3), listOf("com.sms"))
+        val m1 = HomeLayout.addShortcut(m0, "com.app1", "lock", "Khoá")
+        val sc = m1.pages.flatten().single { it.kind == HomeLayout.SHORTCUT }
+        assertEquals("com.app1" to "lock", sc.pkg to sc.cls); assertEquals("Khoá", sc.name)
+        noOverlap(m1)
+        // the same one again: no second item, a new label is taken
+        assertEquals(m1, HomeLayout.addShortcut(m1, "com.app1", "lock", "Khoá"))
+        val m2 = HomeLayout.addShortcut(m1, "com.app1", "lock", "Lock")
+        assertEquals(listOf("Lock"), m2.pages.flatten().filter { it.kind == HomeLayout.SHORTCUT }.map { it.name })
+        // round trip; the app's own icon is still on the home, the shortcut does not count as it
+        val back = HomeLayout.parse(m2.toJson().toString())!!
+        assertEquals(m2.pages.flatten().first { it.kind == HomeLayout.SHORTCUT }, back.pages.flatten().first { it.kind == HomeLayout.SHORTCUT })
+        assertEquals(m0.onHome(), m2.onHome())
+        // the app uninstalled: its shortcut goes; imported from KidGuard Home: dropped (pinned to that app)
+        assertTrue(HomeLayout.prune(m2) { it == "com.app1" }.pages.flatten().none { it.kind == HomeLayout.SHORTCUT })
+        assertTrue(HomeLayout.imported(m2).pages.flatten().none { it.kind == HomeLayout.SHORTCUT })
+    }
+
+    @Test fun shortcutGoesToANewPageWhenFull() {
+        var m = HomeLayout.fresh("teen", emptyList(), emptyList())
+        m = m.copy(pages = listOf((0 until m.rows).flatMap { y -> (0 until m.cols).map { x -> HItem("a$x$y", "app", x, y, pkg = "p$x$y") } }))
+        val n = HomeLayout.addShortcut(m, "com.x", "s1", "S")
+        assertEquals(2, n.pages.size); assertEquals(HomeLayout.SHORTCUT, n.pages[1].single().kind)
+    }
 }

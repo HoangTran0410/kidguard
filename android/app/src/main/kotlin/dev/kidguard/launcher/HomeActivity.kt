@@ -691,6 +691,10 @@ class HomeActivity : Activity() {
                     "app" -> all[it.pkg]?.takeIf { a -> show[a.pkg] != LauncherLogic.Show.HIDE }?.let { a ->
                         appIcon(a, show[a.pkg] == LauncherLogic.Show.PAUSED, dv, r, Mode.HOME, it)
                     }
+                    // an app's pinned shortcut: shown, paused and blocked exactly like its app (never a way around a rule)
+                    HomeLayout.SHORTCUT -> all[it.pkg]?.takeIf { a -> show[a.pkg] != LauncherLogic.Show.HIDE }?.let { a ->
+                        appIcon(AppE(a.pkg, Shortcuts.PREFIX + it.cls, it.name.ifBlank { a.label }), show[a.pkg] == LauncherLogic.Show.PAUSED, dv, r, Mode.HOME, it)
+                    }
                     "folder" -> {
                         // never stored filtered: what shows is decided at each render; one visible app shows as that app
                         val vis = it.apps.mapNotNull { p -> all[p]?.takeIf { a -> show[a.pkg] != LauncherLogic.Show.HIDE } }
