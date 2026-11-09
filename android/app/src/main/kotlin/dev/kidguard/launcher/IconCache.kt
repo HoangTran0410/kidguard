@@ -33,8 +33,27 @@ object IconCache {
     var misses = 0; var missMs = 0L
     fun stats(): String = "icons=$misses/${missMs}ms lru=${lru.size() shr 20}/${MAX_BYTES shr 20}MB".also { misses = 0; missMs = 0 }
 
+    private fun key(pkg: String, cls: String, px: Int, round: Boolean) = "$pkg/$cls@$px${if (round) "r" else "s"}"
+
+    /** Only what is already rendered (no load). */
+    fun peek(pkg: String, cls: String, px: Int, round: Boolean): Bitmap? = lru.get(key(pkg, cls, px, round))
+
+    private val worker = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "kg-icons")
+    }
+    private val main by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
+
+    /**
+     * Lazy icon: rendered on a background thread (~7 ms each, cold, on a POCO), [done] on the main thread. In call order,
+     * so the cells built first (the ones on screen) come first.
+     */
+    fun async(ctx: Context, pkg: String, cls: String, px: Int, round: Boolean, done: (Bitmap?) -> Unit) {
+        val app = ctx.applicationContext
+        worker.execute { val b = runCatching { get(app, pkg, cls, px, round) }.getOrNull(); main.post { done(b) } }
+    }
+
     fun get(ctx: Context, pkg: String, cls: String, px: Int, round: Boolean): Bitmap? {
-        val key = "$pkg/$cls@$px${if (round) "r" else "s"}"
+        val key = key(pkg, cls, px, round)
         lru.get(key)?.let { return it }
         val t0 = android.os.SystemClock.uptimeMillis()
         val d = load(ctx, pkg, cls) ?: return null

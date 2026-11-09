@@ -321,19 +321,16 @@ class HomeActivity : Activity() {
             val ai = ri.activityInfo ?: continue
             if (ai.name == HomeEntry::class.java.name) continue   // "KidGuard Home" would open this very screen
             if (ai.packageName !in out) {
-                // loadLabel is a binder call per app (Samsung routes it through its EDM service): ~15 ms on every return home.
-                // The apk path changes on each update, the locale is in the key: a stale label cannot survive either.
-                val k = ai.applicationInfo?.sourceDir + "|" + ai.name + "|" + resources.configuration.locales[0]
+                // loadLabel is a binder call per app (Samsung routes it through its EDM service): kept on disk ([Labels])
                 val info = ai.applicationInfo
                 @Suppress("DEPRECATION")
                 val cat = when { info == null -> -1; info.flags and android.content.pm.ApplicationInfo.FLAG_IS_GAME != 0 -> LibraryLogic.GAME; Build.VERSION.SDK_INT >= 26 -> info.category; else -> -1 }
-                out[ai.packageName] = AppE(ai.packageName, ai.name, labelCache.getOrPut(k) { ri.loadLabel(pm).toString() }, cat,
+                out[ai.packageName] = AppE(ai.packageName, ai.name, Labels.of(this, ri, pm), cat,
                     info != null && info.flags and (android.content.pm.ApplicationInfo.FLAG_SYSTEM or android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0)
             }
         }
         return out.also { apps = it }
     }
-    private val labelCache = HashMap<String, String>()
 
     internal class View0(val want: Map<String, String>, val leftMs: Long, val usage: Map<String, Long>, val minute: Int, val dow: Int, val now: Long,
                         val apps: Set<String>, val prot: Set<String>, val today: String)
@@ -344,10 +341,16 @@ class HomeActivity : Activity() {
         val cal = Calendar.getInstance()
         val minute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         Guard.snap?.takeIf { now - it.now < 30_000 }?.let { return View0(it.want, it.leftMs, it.usageMs, minute, it.dow, now, it.apps, it.prot, today) }
+        // the Guard has not ticked yet (cold start): our own run is kept 15 s for the same rules (usage stats alone were
+        // 44-72 ms on every render of a POCO until the Guard's first tick)
+        own?.takeIf { (rr, unl, v) -> rr === r && unl == s.unlockUntil && now - v.now in 0..15_000 && v.today == today }?.let { (_, _, v) ->
+            return View0(v.want, v.leftMs, v.usage, minute, v.dow, now, v.apps, v.prot, today)
+        }
         val (all, prot) = Policy.cached(this)
         val use = runCatching { Usage.today(this, now).ms }.getOrDefault(emptyMap())
         val want = enforced(r, decide(r, use, minute, now, today, all.keys, prot, unlockUntil = s.unlockUntil))
         return View0(want, dailyLeftMs(r, use, today, all.keys, prot), use, minute, Rules.isoDow(today), now, all.keys, prot, today)
+            .also { own = Triple(r, s.unlockUntil, it) }
     }
 
     internal fun resolvePkg(i: Intent): String? = runCatching {
@@ -806,6 +809,7 @@ class HomeActivity : Activity() {
     internal var barsCache: Pair<String, Pair<Boolean, Boolean>>? = null
     internal var drawerCache: Drawer? = null
     internal var drawerWarming = false
+    private var own: Triple<Rules, Long, View0>? = null
     internal var drawerP = 0f                       // 0 closed .. 1 open
     internal var drawerAnim: ValueAnimator? = null
 

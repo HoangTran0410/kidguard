@@ -37,21 +37,23 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     val frame = FrameLayout(this)
     // the drawer shows the home-size bitmap scaled to its 52 dp: one bitmap per app, not two. Two sizes for ~280 apps did not
     // fit the LRU (Poco: 32 MB), so every rebuild evicted and re-rendered ~350 icons (2 s, 244 frames lost after a bulk move)
-    val bmp = IconCache.get(this, a.pkg, a.cls, iconPx(), model?.style?.shape != "square")
+    // lazy: an icon not rendered yet (cold start, new app) is drawn by a background thread and shows when ready
+    val round = model?.style?.shape != "square"
+    var bmp = IconCache.peek(a.pkg, a.cls, iconPx(), round)
     val dst = android.graphics.RectF(0f, 0f, px.toFloat(), px.toFloat())
-    val scaled = bmp != null && bmp.width != px
     val fp = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG or android.graphics.Paint.ANTI_ALIAS_FLAG)
     val badge = if (paused) "off" else model?.style?.badge ?: "num"
     frame.clipChildren = false   // the badge pokes out of the icon
     frame.addView(object : View(this), DotHost {
         override val dotPkgs = listOf(a.pkg)
         override fun onDraw(c: Canvas) {
-            bmp ?: return
+            val bmp = bmp ?: return
+            val scaled = bmp.width != px
             if (paused) { val p = IconCache.greyPaint(); p.alpha = 115; if (scaled) c.drawBitmap(bmp, null, dst, p) else c.drawBitmap(bmp, 0f, 0f, p) }
             else if (scaled) c.drawBitmap(bmp, null, dst, fp) else c.drawBitmap(bmp, 0f, 0f, null)
             if (badge != "off") Dots.draw(c, px, Dots.count(dotPkgs), resources.displayMetrics.density, badge == "num")
         }
-    }, FrameLayout.LayoutParams(px, px))
+    }.also { v -> if (bmp == null) IconCache.async(this, a.pkg, a.cls, iconPx(), round) { b -> if (b != null) { bmp = b; v.invalidate() } } }, FrameLayout.LayoutParams(px, px))
     val reason = dv.want[a.pkg]
     if (paused) {
         // clock badge: warn fill + glyph picked for it (HomeStyle tests both), a ring of the sheet colour keeps it off the grey icon

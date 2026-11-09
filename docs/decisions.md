@@ -50,6 +50,8 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 
 - Kid Home takes apps' pinned shortcuts (CONFIRM_PIN_SHORTCUT -> `PinShortcutActivity`, accepted at once, first free cell; item kind `shortcut`). It follows its source app's show/pause/hide rule (never a way around a block); Guard still enforces whatever it opens. Pinned widgets (requestPinAppWidget) are declined. Our own "add Lock to home" still puts the 1x1 lock widget when Kid Home (kid flavor) is the default home (11-09)
 - Drawer after a cold start: icons rendered on a background thread first (`drawerWarm`), then the drawer built. POCO measured: build 254 -> 33 ms, rows added while swiping 35-83 -> 4-6 ms each, p90 frame 200 -> 44-69 ms. A Chrome PWA "Install" is a real WebAPK (`org.chromium.webapk.*`), placed on the home as a normal app; only "Tạo lối tắt" gives a pinned shortcut (11-09)
+- Home first render after a cold start (release builds): app labels + "has activity" kept on disk per apk path (`Labels`, `labels.json`), launcher keeps its own decision 15 s until the Guard ticks, home icons not rendered yet load on a background thread (`IconCache.async`, shown when ready). POCO 483-522 -> 184-189 ms, Oppo A5s 1165-1173 -> 509-513 ms. A blurred-wallpaper file cache was tried and dropped: the 315 ms blur was a debug build (not JIT-compiled), 45 ms in release (11-09)
+- DND tile: the manifest needs ACCESS_NOTIFICATION_POLICY or KidGuard is not listed on the system DND access page (only the adb `allow_dnd` setup step granted it) (11-09)
 
 ### Remote / relay
 - Command whitelist lives in the relay worker; new command = whitelist + protocol + test. Destructive (`reboot`, `release`, `unpairAll`, `update`, `unpair`) are deliver-once (AGENTS.md)

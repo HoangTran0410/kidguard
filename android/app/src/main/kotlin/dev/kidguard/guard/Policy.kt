@@ -246,14 +246,17 @@ object Policy {
         val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         @Suppress("DEPRECATION")
         val list = pm.queryIntentActivities(i, PackageManager.MATCH_DISABLED_COMPONENTS)
-        val out = LinkedHashMap(list.associate { it.activityInfo.packageName to it.loadLabel(pm).toString() })
+        val out = LinkedHashMap(list.associate { it.activityInfo.packageName to Labels.of(ctx, it, pm) })
         runCatching {
             @Suppress("DEPRECATION")
             for (ai in pm.getInstalledApplications(0)) {
                 val pkg = ai.packageName
                 if (pkg in out || !ai.enabled || ai.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0) continue
-                val hasActivity = runCatching { pm.getPackageInfo(pkg, PackageManager.GET_ACTIVITIES).activities?.isNotEmpty() == true }.getOrDefault(false)
-                if (hasActivity) out[pkg] = ai.loadLabel(pm).toString()
+                // a binder call per app (~120 ms for all on a POCO, cold): kept per apk path with the labels
+                val hasActivity = Labels.memo(ctx, ai.sourceDir + "|acts") {
+                    runCatching { if (pm.getPackageInfo(pkg, PackageManager.GET_ACTIVITIES).activities?.isNotEmpty() == true) "1" else "0" }.getOrDefault("")
+                } != "0"   // a failed look-up ("", not kept) counts the app: never a way out of the limits
+                if (hasActivity) out[pkg] = Labels.of(ctx, ai, pm)
             }
         }
         return out.filterKeys { it != ctx.packageName && it != TsLogic.PKG }
