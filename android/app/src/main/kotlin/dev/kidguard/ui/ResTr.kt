@@ -51,6 +51,7 @@ class ResTr(private val ctx: Context) : Tr {
         T.diff_lockloc_off -> R.string.diff_lockloc_off
         T.diff_dns -> R.string.diff_dns
         T.diff_dns_off -> R.string.diff_dns_off
+        T.diff_dns_pause -> R.string.diff_dns_pause
         T.diff_novpn -> R.string.diff_novpn
         T.diff_novpn_off -> R.string.diff_novpn_off
         T.diff_autoupd -> R.string.diff_autoupd

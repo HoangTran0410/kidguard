@@ -54,6 +54,7 @@
     <string name="diff_lockloc_off">location lock removed</string>
     <string name="diff_dns">safe DNS %1$s</string>
     <string name="diff_dns_off">safe DNS off</string>
+    <string name="diff_dns_pause">safe DNS paused</string>
     <string name="diff_novpn">VPN blocked</string>
     <string name="diff_novpn_off">VPN allowed</string>
     <string name="diff_autoupd">KidGuard auto-update on</string>
@@ -105,6 +106,13 @@
     <string name="log_tz">Time zone changed: %1$s</string>
     <string name="ev_clock">Phone clock was changed</string>
     <string name="log_loc_fixed">Location was off, turned it back on</string>
+    <string name="log_usage_on">Usage access is back on</string>
+    <string name="ch_usage">Usage access</string>
+    <string name="usage_off_note">Usage access is off, so time limits don\'t work. Tap to turn it back on.</string>
+    <string name="ev_foreign_home">%1$s is now the default home screen (not a system app: it is not limited)</string>
+    <string name="log_foreign_home">Non-system default home screen: %1$s</string>
+    <string name="log_dns_paused">Safe DNS paused by the parent</string>
+    <string name="log_dns_resumed">Safe DNS is back on</string>
     <string name="log_usage_off">Usage access was turned off</string>
     <string name="ev_usage_off">Usage access was turned off: time limits can\'t be counted</string>
     <string name="log_new_app">New app: %1$s</string>

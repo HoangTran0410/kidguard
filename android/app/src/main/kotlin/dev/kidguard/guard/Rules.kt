@@ -153,6 +153,7 @@ data class Rules(
     val lockLocation: Boolean = true,
     val noAirplane: Boolean = true,
     val safeDns: String = "",                // Private DNS host, "" = off
+    val safeDnsPauseUntil: Long = 0,         // epoch ms: while now < this the phone behaves as if safeDns were "" (0 = no pause)
     val noVpn: Boolean = false,              // Device Owner: DISALLOW_CONFIG_VPN (no VPN apps / settings for the child)
     val trackMin: Int = 10,                  // location history every N minutes: 0 (off), 5, 10, 15, 30, 60
     val showWatching: Boolean = true,        // child sees "parent is watching / controlling" while the screen is viewed
@@ -171,6 +172,9 @@ data class Rules(
     val launcher: LauncherRule = LauncherRule(), // v0.9.9 kid launcher (HomeActivity), owner only
     val monitor: Boolean = false,            // "monitor only": measure + report, never suspend / bounce / grey out; decide() still runs (state.wouldBlock)
 ) {
+    /** The Private DNS host that should be active at [nowMs]: "" while paused or off. */
+    fun dnsHost(nowMs: Long = System.currentTimeMillis()): String = if (nowMs < safeDnsPauseUntil) "" else safeDns
+
     /** [persist] = true also writes pinHash/pinSalt (only for this phone's own storage). The default is safe to send to a parent: it has `pinSet` only. */
     fun toJson(persist: Boolean = false): JSONObject = JSONObject()
         .put("rev", rev).put("dailyMin", dailyMin)
@@ -185,7 +189,7 @@ data class Rules(
         .put("dailyByDay", JSONArray(dailyByDay))
         .put("schedules", JSONArray().apply { schedules.forEach { put(it.toJson()) } })
         .put("blockNew", blockNew).put("approved", JSONArray(approved.sorted()))
-        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("noVpn", noVpn).put("trackMin", trackMin)
+        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("safeDnsPauseUntil", safeDnsPauseUntil).put("noVpn", noVpn).put("trackMin", trackMin)
         .put("showWatching", showWatching).put("autoUpdate", autoUpdate)
         .put("chores", JSONArray().apply { chores.forEach { put(it.toJson()) } })
         .put("zones", JSONArray().apply { zones.forEach { put(it.toJson()) } })
@@ -284,6 +288,7 @@ data class Rules(
                 autoUpdate = o.optBoolean("autoUpdate", true),
                 noVpn = o.optBoolean("noVpn", false),
                 trackMin = o.optInt("trackMin", 10).takeIf { it in TRACK_STEPS } ?: 10,
+                safeDnsPauseUntil = o.optLong("safeDnsPauseUntil", 0).coerceAtLeast(0),
                 safeDns = o.optString("safeDns", "").trim().lowercase().takeIf { it.matches(DNS_HOST) } ?: "",
             )
         }

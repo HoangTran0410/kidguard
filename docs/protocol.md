@@ -29,6 +29,9 @@ shape, say so in your report instead of silently diverging.
   "safeDns": "",                   // NEW: "" = off, else a Private DNS host, e.g. "family.adguard-dns.com",
                                    //      "family.cloudflare-dns.com", "family-filter-dns.cleanbrowsing.org"
                                    //      Also (Device Owner): Chrome/Edge get managed config DnsOverHttpsMode=off while set, cleared when "" / release.
+  "safeDnsPauseUntil": 0,          // epoch ms (parent clock), 0 = none. While now < it the phone acts as if safeDns were "":
+                                   //      Private DNS opportunistic, Chrome/Edge DoH config cleared. Guard's 10 s tick re-applies safe DNS
+                                   //      by itself at expiry (no rules change needed). The page's "Pause 30 min" sets now+30 min.
   "noVpn": false,                  // NEW (default false): DISALLOW_CONFIG_VPN (Device Owner); also kept while our Tailscale access needs it
   "noInstall": false, "noDebug": false,
   "pinHash": "…",                  // the page may send "pin": "1234" instead; phone/worker store only the hash
@@ -299,11 +302,18 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   is always copied to `req` and the phone answers `req` (falling back to `id` on LAN).
 - **State** adds `dnsError` (`""` or a short reason when the Private DNS host was rejected; the phone then falls back
   to opportunistic DNS and clears the restriction so the child keeps internet) and keeps `usageAccess` (page warns when false).
+  Also `usageOff` (= `!usageAccess`; the phone raised one `tamper` event for this revoke, shows the child a notification
+  to turn it back on, and logs `usage_on` when it returns) and `dnsPausedUntil` (ms, 0 when no pause is running).
+  A `tamper` event is also raised once per package when a non-system app becomes the default HOME (it stays exempt from limits).
 - **Relay sync**: the phone may omit `state` when nothing but `t` and sub-minute time counters (`usedMs`, `leftMs`, `apps[].ms`)
   changed; it sends a full state at least every 5 min. So on the relay `state.t` can be minutes old: "online" = `seen`, not `t`.
   The worker writes `seen` at most once per minute.
 - **Live input**: the worker answers `POST /input` with `409 {"error":"not live"}` when `liveUntil < now`, and drops
   queued inputs older than 5 s when delivering. Frame `seq` starts at `Date.now()` so it stays increasing across restarts.
+- **Release** puts back what the phone had before our first apply (saved once in `Store`: auto-time on/off and Private DNS
+  mode + host): auto time via `setAutoTimeEnabled` (API 30+), Private DNS host re-set when it was `hostname`, `off` written
+  only if WRITE_SECURE_SETTINGS is held (DPM cannot set "off"; otherwise it stays opportunistic). Nothing saved = the old
+  behaviour (auto time on, opportunistic).
 - **Release** also: removes our accessibility entry, clears paired tokens, unsuspends every launchable app, cancels the
   watchdog, stops Guard; returns `"failed"` if still Device Owner afterwards.
 - **HTML pages** (worker `/`, `/install`, phone LAN `/`) send `X-Frame-Options: DENY` and a CSP with `frame-ancestors 'none'`.

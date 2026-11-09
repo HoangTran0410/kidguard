@@ -49,6 +49,7 @@
     <string name="diff_lockloc_off">bỏ khoá vị trí</string>
     <string name="diff_dns">DNS an toàn %1$s</string>
     <string name="diff_dns_off">tắt DNS an toàn</string>
+    <string name="diff_dns_pause">tạm tắt DNS an toàn</string>
     <string name="diff_novpn">chặn VPN</string>
     <string name="diff_novpn_off">cho phép VPN</string>
     <string name="diff_autoupd">bật tự cập nhật KidGuard</string>
@@ -99,6 +100,13 @@
     <string name="log_tz">Múi giờ bị đổi: %1$s</string>
     <string name="ev_clock">Giờ máy bị đổi</string>
     <string name="log_loc_fixed">Vị trí bị tắt, đã bật lại</string>
+    <string name="log_usage_on">Quyền theo dõi sử dụng đã bật lại</string>
+    <string name="ch_usage">Quyền theo dõi giờ dùng</string>
+    <string name="usage_off_note">Quyền theo dõi giờ dùng đang tắt nên giới hạn giờ không hoạt động. Chạm để bật lại.</string>
+    <string name="ev_foreign_home">%1$s vừa thành màn hình chính mặc định (không phải app hệ thống: không bị giới hạn)</string>
+    <string name="log_foreign_home">Màn hình chính mặc định không phải của hệ thống: %1$s</string>
+    <string name="log_dns_paused">Bố mẹ tạm tắt DNS an toàn</string>
+    <string name="log_dns_resumed">DNS an toàn đã bật lại</string>
     <string name="log_usage_off">Quyền theo dõi sử dụng bị tắt</string>
     <string name="ev_usage_off">Quyền theo dõi giờ dùng bị tắt: giới hạn giờ không tính được</string>
     <string name="log_new_app">Cài mới: %1$s</string>

@@ -46,6 +46,7 @@ object Policy {
     fun apply(ctx: Context, r: Rules) {
         if (!isOwner(ctx)) { runCatching { LauncherSafe.apply(ctx, r) }; return }   // non-owner: only the user's own HOME choice (local opt-in / parent rule)
         val d = dpm(ctx); val a = admin(ctx)
+        runCatching { savePrior(ctx, r) }.onFailure { Log.w(TAG, "save prior", it) }
         runCatching {
             BASE.forEach { d.addUserRestriction(a, it) }
             // a rules save during a self-update session must not put "no installs" back under it (Update.installing)
@@ -89,6 +90,37 @@ object Policy {
         if (on) d.addUserRestriction(a, key) else d.clearUserRestriction(a, key)
     }.onFailure { Log.w(TAG, "restriction $key", it) }
 
+    /**
+     * First apply only: remember the phone's own auto-time and Private DNS settings so [release] can put them back.
+     * A Private DNS host equal to our current safe DNS is not saved (upgrade of a phone we already manage: it is ours, not the user's).
+     */
+    private fun savePrior(ctx: Context, r: Rules) {
+        val s = Store.of(ctx)
+        if (s.priorSaved) return
+        val cr = ctx.contentResolver
+        s.priorAutoTime = Settings.Global.getInt(cr, Settings.Global.AUTO_TIME, -1)
+        val mode = Settings.Global.getString(cr, "private_dns_mode") ?: ""
+        val host = Settings.Global.getString(cr, "private_dns_specifier") ?: ""
+        if (mode == "hostname" && host.isNotEmpty() && host == r.safeDns) { s.priorDnsMode = ""; s.priorDnsHost = "" }
+        else { s.priorDnsMode = mode; s.priorDnsHost = host }
+        s.priorSaved = true
+    }
+
+    /** Release: back to what the owner had before we first applied (nothing saved: leave today's behaviour). */
+    private fun restorePrior(ctx: Context, d: DevicePolicyManager, a: ComponentName) {
+        val s = Store.of(ctx)
+        if (!s.priorSaved) return
+        if (Build.VERSION.SDK_INT >= 30 && s.priorAutoTime >= 0) runCatching { d.setAutoTimeEnabled(a, s.priorAutoTime == 1) }.onFailure { Log.w(TAG, "restore auto time", it) }
+        if (Build.VERSION.SDK_INT < 29) return
+        when (s.priorDnsMode) {
+            "hostname" -> if (s.priorDnsHost.isNotEmpty()) runCatching { d.setGlobalPrivateDnsModeSpecifiedHost(a, s.priorDnsHost) }.onFailure { Log.w(TAG, "restore dns host", it) }
+            "off" -> runCatching {   // DPM cannot set "off"; WRITE_SECURE_SETTINGS (granted to us as owner) can. Else it stays opportunistic.
+                if (ctx.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
+                    Settings.Global.putString(ctx.contentResolver, "private_dns_mode", "off")
+            }.onFailure { Log.w(TAG, "restore dns off", it) }
+        }
+    }
+
     /** Location, airplane mode and Private DNS (the "safe DNS" filter). Each piece is separate so one failing doesn't stop the rest. */
     private fun applyNet(ctx: Context, d: DevicePolicyManager, a: ComponentName, r: Rules) {
         if (r.lockLocation) {
@@ -97,7 +129,8 @@ object Policy {
         } else restrict(d, a, UserManager.DISALLOW_CONFIG_LOCATION, false)
         if (Build.VERSION.SDK_INT >= 28) restrict(d, a, UserManager.DISALLOW_AIRPLANE_MODE, r.noAirplane)
         applyDns(ctx, d, a, r)
-        applyDoh(d, a, r.safeDns.isNotEmpty())
+        applyDoh(d, a, r.dnsHost().isNotEmpty())
+        appliedDns = r.dnsHost()
         applyVpnLock(ctx, d, a, r.noVpn)
     }
 
@@ -121,17 +154,29 @@ object Policy {
     /** "" while Private DNS is fine, else a short reason (the host was rejected; then the phone runs opportunistic DNS). */
     @Volatile var dnsError: String = ""
     private var dnsTriedAt = 0L
+    /** Effective safe-DNS host last applied (null = never). Guard's tick compares it with [Rules.dnsHost] so a pause starts and ends by itself. */
+    @Volatile var appliedDns: String? = null
+
+    /** Called every tick: re-applies Private DNS / browser DoH when the effective host changed (pause started or expired). */
+    fun syncDns(ctx: Context, r: Rules) {
+        val want = r.dnsHost()
+        if (appliedDns == null || appliedDns == want || !isOwner(ctx)) { if (appliedDns == null) appliedDns = want; return }
+        val d = dpm(ctx); val a = admin(ctx)
+        applyDns(ctx, d, a, r); applyDoh(d, a, want.isNotEmpty()); appliedDns = want
+        runCatching { Store.of(ctx).log(if (want.isEmpty()) R.string.log_dns_paused else R.string.log_dns_resumed) }
+    }
 
     private fun applyDns(ctx: Context, d: DevicePolicyManager, a: ComponentName, r: Rules) {
         if (Build.VERSION.SDK_INT < 29) return
         dnsTriedAt = System.currentTimeMillis()
-        if (r.safeDns.isEmpty()) {
+        val host = r.dnsHost()
+        if (host.isEmpty()) {
             restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, false)
             runCatching { d.setGlobalPrivateDnsModeOpportunistic(a) }.onFailure { Log.w(TAG, "private dns off", it) }
             dnsError = ""
             return
         }
-        val code = runCatching { d.setGlobalPrivateDnsModeSpecifiedHost(a, r.safeDns) }.getOrElse { Log.w(TAG, "private dns", it); -1 }
+        val code = runCatching { d.setGlobalPrivateDnsModeSpecifiedHost(a, host) }.getOrElse { Log.w(TAG, "private dns", it); -1 }
         if (code == DevicePolicyManager.PRIVATE_DNS_SET_NO_ERROR) {
             restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, true)
             dnsError = ""
@@ -139,7 +184,7 @@ object Policy {
             // keep the child online: opportunistic DNS and let the system settings change it
             restrict(d, a, UserManager.DISALLOW_CONFIG_PRIVATE_DNS, false)
             runCatching { d.setGlobalPrivateDnsModeOpportunistic(a) }
-            dnsError = ctx.getString(R.string.dns_refused, r.safeDns, code)
+            dnsError = ctx.getString(R.string.dns_refused, host, code)
         }
     }
 
@@ -152,7 +197,7 @@ object Policy {
      * DNS-over-TLS port 853, which leaves the phone with no DNS at all), falls back to opportunistic DNS for 30 min.
      */
     fun retryDns(ctx: Context, r: Rules) {
-        if (Build.VERSION.SDK_INT < 29 || r.safeDns.isEmpty() || !isOwner(ctx)) { unvalidatedSince = 0; return }
+        if (Build.VERSION.SDK_INT < 29 || r.dnsHost().isEmpty() || !isOwner(ctx)) { unvalidatedSince = 0; return }
         val now = System.currentTimeMillis()
         if (dnsError.isNotEmpty()) {
             if (now - dnsTriedAt >= retryAfter) { unvalidatedSince = 0; applyDns(ctx, dpm(ctx), admin(ctx), r) }
@@ -214,6 +259,9 @@ object Policy {
         return out.filterKeys { it != ctx.packageName && it != TsLogic.PKG }
     }
 
+    /** Package of a non-system app that is the default HOME ("" = none). Set by [protectedApps]; Guard raises a tamper event. */
+    @Volatile var foreignHome: String = ""
+
     /** Never suspended: this app, the home screens, phone, settings, the system UI. */
     fun protectedApps(ctx: Context): Set<String> {
         val pm = ctx.packageManager
@@ -225,9 +273,11 @@ object Policy {
             // the system's own plumbing, which some phones give a launcher icon: suspending it breaks the phone
             "com.google.android.gms", "com.google.android.gsf", "com.android.stk", "com.android.cellbroadcastreceiver",
             "com.google.android.cellbroadcastreceiver", "com.google.android.apps.safetyhub")
-        // keyboards: a suspended keyboard leaves no way to type (not even the parent's PIN)
+        // keyboards: a suspended keyboard leaves no way to type (not even the parent's PIN). System keyboards always;
+        // a non-system keyboard only when it is the current default (else a third-party IME could escape the limits)
         runCatching {
-            ctx.getSystemService(android.view.inputmethod.InputMethodManager::class.java)?.enabledInputMethodList?.forEach { out += it.packageName }
+            ctx.getSystemService(android.view.inputmethod.InputMethodManager::class.java)?.enabledInputMethodList?.forEach { if (isSystem(pm, it.packageName)) out += it.packageName }
+            Settings.Secure.getString(ctx.contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)?.substringBefore('/')?.takeIf { it.isNotEmpty() }?.let { out += it }
         }
         // home / dialer / alarm handlers: only system apps, or the one the user really picked as default
         // (an app that merely declares a HOME / DIAL filter must not escape the limits)
@@ -235,16 +285,23 @@ object Policy {
             @Suppress("DEPRECATION")
             pm.queryIntentActivities(intent, 0).forEach { if (isSystem(pm, it.activityInfo.packageName)) out += it.activityInfo.packageName }
         }
-        fun default(intent: Intent) = runCatching {
+        // only system apps (and ours) are exempt as default dialer / SMS; a non-system default HOME stays exempt too, because
+        // suspending the only home screen is a dead end, but it is reported (foreignHome -> tamper event in Guard)
+        var foreign = ""
+        fun default(intent: Intent, home: Boolean = false) = runCatching {
             pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
-                ?.takeIf { it != "android" && !it.contains("resolver") }?.let { out += it }
+                ?.takeIf { it != "android" && !it.contains("resolver") }?.let {
+                    if (isSystem(pm, it) || it == ctx.packageName) out += it
+                    else if (home) { out += it; foreign = it }
+                }
         }
         val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-        sys(home); default(home)
+        sys(home); default(home, true)
         sys(Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS))
         val dial = Intent(Intent.ACTION_DIAL); sys(dial); default(dial)
-        runCatching { ctx.getSystemService(TelecomManager::class.java)?.defaultDialerPackage?.let { out += it } }
-        runCatching { Settings.Secure.getString(ctx.contentResolver, "sms_default_application")?.let { out += it } }
+        runCatching { ctx.getSystemService(TelecomManager::class.java)?.defaultDialerPackage?.let { if (isSystem(pm, it)) out += it } }
+        runCatching { Settings.Secure.getString(ctx.contentResolver, "sms_default_application")?.let { if (isSystem(pm, it)) out += it } }
+        foreignHome = foreign
         return out
     }
 
@@ -455,6 +512,7 @@ object Policy {
         applyNet(ctx, d, a, Rules(lockLocation = false, noAirplane = false, safeDns = ""))
         if (Build.VERSION.SDK_INT >= 30) runCatching { d.setUserControlDisabledPackages(a, emptyList()) }
         else @Suppress("DEPRECATION") runCatching { d.setAutoTimeRequired(a, false) }
+        restorePrior(ctx, d, a)
         runCatching { d.setShortSupportMessage(a, null) }
         runCatching { d.setLongSupportMessage(a, null) }
         runCatching { d.setDeviceOwnerLockScreenInfo(a, null) }
