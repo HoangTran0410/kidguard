@@ -107,6 +107,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Self-assigned system-overlay/true-control-center style approach for first control center phase: stay in-launcher (no SYSTEM_ALERT_WINDOW); Phase 2 overlay not built (11-08 feasibility)
 - Defaults of 1.6x font and fixed heights in child UI: use min-height + wrapping (d1c75da)
 - Hiding the Poco-detected "gesture nav becomes 3 buttons" side effect: can't fix; the launcher warns before the user picks (HomeMenus.kt:139)
+- Keystroke / keyword monitoring (FamShield does it on Windows): rejected, conflicts with "the child always knows"; see docs/research-famshield.md
 
 ## 3. PLATFORM GOTCHAS
 ### Oppo / ColorOS 5 (Android 8.1, CPH1912 / A5s; WebView = Chrome 101)
