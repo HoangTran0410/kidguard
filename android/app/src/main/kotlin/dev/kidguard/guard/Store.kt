@@ -298,6 +298,10 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var autostartOk: Boolean
         get() = p.getBoolean("autostartOk", false)
         set(v) { p.edit().putBoolean("autostartOk", v).apply() }
+    /** The on-device parent page offered the starting levels once (its WebView storage is wiped each session). */
+    var lvOffered: Boolean
+        get() = p.getBoolean("lvOffered", false)
+        set(v) { p.edit().putBoolean("lvOffered", v).apply() }
     @get:Synchronized @set:Synchronized var launcherLocal: Boolean
         get() = p.getBoolean("launcherLocal", false)
         set(v) { p.edit().putBoolean("launcherLocal", v).commit() }

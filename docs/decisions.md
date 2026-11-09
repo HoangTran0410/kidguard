@@ -185,6 +185,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 
 ### Android generic
 - `enabled_notification_listeners` writes ignored since Android 8
+- On-device parent page (AdminActivity) wipes WebView storage every session: anything the page must remember there goes through the `KGLocal` bridge into `Store` (e.g. `lvOffered`, 2026-11-10: "Mức bắt đầu" was asked on every open)
 - WebView dark mode (targetSdk 33+): `prefers-color-scheme` follows the hosting activity theme's `isLightTheme`, not the system. A light-only theme = the page stays light in dark mode (AdminActivity, 2026-11-10): give the activity a theme with a `values-night` variant (`AppWeb`)
 - Android 12+: no Settings.Global writes; use DPM setGlobalSetting whitelist (ADB_ENABLED, AUTO_TIME...). `adb_wifi_enabled` is @hide (DevOpts.kt)
 - Banking apps refuse to run with Developer options / USB debugging on

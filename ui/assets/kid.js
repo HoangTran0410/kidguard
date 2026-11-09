@@ -237,7 +237,7 @@ const rulesUntouched = r => !r.dailyMin && !(r.dailyByDay || []).length && !(r.b
 let lvBusy = false;
 async function levelsOffer(k) {
   if (lvBusy || k.lv || !edit) return;
-  const mark = () => { k.lv = 1; save(kids); };
+  const mark = () => { k.lv = 1; save(kids); if (LOCAL) try { window.KGLocal.lvDone(); } catch {} };
   // Rules already set => never offer, never overwrite. A never-paired preview phone is fine: the first save asks for the PIN in putRules.
   if (!rulesUntouched(edit)) return mark();
   lvBusy = true;

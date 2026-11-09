@@ -47,7 +47,8 @@ async function localBoot() {
   let hello = null;
   try { const r = await fetch("/api/hello"); if (r.ok) hello = await r.json(); } catch {}
   if (!hello || !hello.id) return localOver();
-  open({ id: hello.id, token: "", name: t("kid"), via: "lan" });   // not in `kids`: never saved
+  let lv = 0; try { lv = window.KGLocal.lvOffered() ? 1 : 0; } catch {}
+  open({ id: hello.id, token: "", name: t("kid"), via: "lan", lv });   // not in `kids`: never saved (the phone keeps `lv`)
 }
 const b64u = s => btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const kgCall = (m, ...a) => { try { return window.KGApp[m](...a); } catch { return null; } };

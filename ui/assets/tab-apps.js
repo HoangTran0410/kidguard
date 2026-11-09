@@ -23,17 +23,18 @@ function appsList(b) {
   const FILT = [["all", t("f.all")], ["new", ic("sparkles") + " " + t("f.new")], ["blocked", ic("octagon-x") + " " + t("f.blocked")], ["limited", ic("timer") + " " + t("f.limited")]];
   const pass = x => { const m = mode(x.pkg); return sel.f === "all" || (sel.f === "new" && isNew(x)) || (sel.f === "blocked" && (m === "block" || x.suspended)) || (sel.f === "limited" && m === "limit"); };
   const visible = () => { const q = ($("#f-q").value || "").toLowerCase(); return st.apps.filter(x => !x.protected && pass(x) && (!q || x.label.toLowerCase().includes(q) || x.pkg.includes(q))); };
-  b.innerHTML = `<div class="card"><div class="row"><h2 class="sp" style="margin:0">${ic("puzzle")} ${t("apps.h", st.apps.length)}</h2><button id="selTog" class="${sel.on ? "pri" : ""}">${sel.on ? ic("x") + " " + t("sel.exit") : ic("square-check") + " " + t("sel.on")}</button></div>
+  b.innerHTML = `<div class="card"><div class="row"><h2 class="sp" style="margin:0">${ic("puzzle")} ${t("apps.h", st.apps.length)}</h2><button id="selTog" class="sm${sel.on ? " pri" : ""}">${sel.on ? ic("x") + " " + t("sel.exit") : ic("square-check") + " " + t("sel.on")}</button></div>
     <input id="f-q" placeholder="${esc(t("apps.search"))}" aria-label="${esc(t("apps.search"))}" style="width:100%;margin:10px 0 6px">
-    <div class="chips" id="flt">${FILT.map(([v, n]) => `<button data-f="${v}" class="${sel.f === v ? "on" : ""}">${n}</button>`).join("")}</div>
-    ${sel.on ? `<div class="row" style="margin-top:8px"><button id="selAll">${ic("square-check")} ${t("sel.all")}</button><button id="selNone">${ic("square")} ${t("sel.none")}</button></div>` : ""}
+    <div class="chips scroll" id="flt">${FILT.map(([v, n]) => `<button data-f="${v}" class="${sel.f === v ? "on" : ""}">${n}</button>`).join("")}</div>
     <div id="list"></div><p class="mute">${ic("lightbulb")} ${t("apps.tip")}</p></div>
     ${sel.on ? `<div class="bulk" id="bulk"></div>` : ""}`;
   const drawBar = () => {
     const bar = $("#bulk"); if (!bar) return;
     const n = sel.set.size, dis = n ? "" : "disabled";
-    bar.innerHTML = `<div class="row"><b class="sp">${ic("check")} ${t("sel.n", n)}</b></div>
-      <div class="row" style="margin-top:6px"><button ${dis} data-a="block" class="bad">${ic("octagon-x")} ${t("block")}</button><button ${dis} data-a="unblock">${ic("circle-check")} ${t("unblock")}</button><button ${dis} data-a="allow">${ic("star")} ${t("allow")}</button><button ${dis} data-a="lim">${ic("timer")} ${t("limitX")}</button><button ${dis} data-a="unlim">${ic("trash-2")} ${t("unlimit")}</button><button ${dis} data-a="approve">${ic("thumbs-up")} ${t("approve")}</button></div>
+    // one slim header (count + select all/none) and one sideways-scrolling row of actions: ~2 rows on a phone, not 5
+    const all = visible().length > 0 && visible().every(x => sel.set.has(x.pkg));
+    bar.innerHTML = `<div class="row nw"><b class="sp">${ic("check")} ${t("sel.n", n)}</b><button class="sm" id="selAllNone">${all ? ic("square") + " " + t("sel.none") : ic("square-check") + " " + t("sel.all")}</button></div>
+      <div class="chips scroll" style="margin-top:6px"><button ${dis} data-a="block" class="bad">${ic("octagon-x")} ${t("block")}</button><button ${dis} data-a="unblock">${ic("circle-check")} ${t("unblock")}</button><button ${dis} data-a="allow">${ic("star")} ${t("allow")}</button><button ${dis} data-a="lim">${ic("timer")} ${t("limitX")}</button><button ${dis} data-a="unlim">${ic("trash-2")} ${t("unlimit")}</button><button ${dis} data-a="approve">${ic("thumbs-up")} ${t("approve")}</button></div>
       ${sel.limOpen ? `<div class="row" style="margin-top:6px"><input id="f-lim" type="number" min="1" max="1440" step="5" inputmode="numeric" placeholder="${esc(t("minPerDay"))}" aria-label="${esc(t("minPerDay"))}" style="width:9em"><button id="limOk" class="pri" ${dis}>${ic("circle-check")} ${t("apply")}</button></div>` : ""}`;
     const clr = p => { edit.blocked = edit.blocked.filter(x => x !== p); edit.allow = edit.allow.filter(x => x !== p); delete edit.appMin[p]; };
     // k: "bulk.<k>" asks "Block 3 apps?", "bulk.<k>Done" says "Blocked 3 apps"; m: minutes for "lim"
@@ -52,6 +53,7 @@ function appsList(b) {
       else if (a === "approve") apply("approve", p => { if (!edit.approved.includes(p)) edit.approved.push(p); });
       else if (a === "lim") { sel.limOpen = !sel.limOpen; drawBar(); const i = $("#f-lim"); if (i) i.focus(); }
     });
+    $("#selAllNone").onclick = () => { if (all) sel.set.clear(); else visible().forEach(x => sel.set.add(x.pkg)); draw(); };
     if ($("#limOk")) $("#limOk").onclick = () => {
       const m = Math.round(+$("#f-lim").value); if (!(m >= 1 && m <= 1440)) return toast("warn|" + t("lim.range"));
       apply("lim", p => { edit.blocked = edit.blocked.filter(v => v !== p); edit.allow = edit.allow.filter(v => v !== p); edit.appMin[p] = m; }, m);
@@ -62,8 +64,8 @@ function appsList(b) {
     $("#list").innerHTML = vis.map(x => {
       const m = mode(x.pkg), nw = isNew(x);
       const info = `<div class="nm"><b>${esc(x.label)}</b><span class="mute">${t("todayV", fmt(x.ms))}${x.suspended || x.blocked ? `<span class="tag bad">${reason(x.blocked)}</span>` : ""}${nw ? `<span class="tag" style="background:#fef3c7;color:#92400e">${ic("sparkles")} ${t("newInst")}</span>` : ""}${m === "block" ? `<span class="tag bad">${ic("octagon-x")} ${t("block")}</span>` : m === "allow" ? `<span class="tag" title="${esc(t("allow"))}">${ic("star")}</span>` : m === "limit" ? `<span class="tag">${ic("timer")} ${t("fmt.m", edit.appMin[x.pkg])}</span>` : ""}</span></div>`;
-      if (sel.on) return `<label class="app"><input type="checkbox" data-c="${esc(x.pkg)}" ${sel.set.has(x.pkg) ? "checked" : ""}>${icon(x)}${info}</label>`;
-      return `<div class="app">${icon(x)}${info}
+      if (sel.on) return `<label class="app r"><input type="checkbox" data-c="${esc(x.pkg)}" ${sel.set.has(x.pkg) ? "checked" : ""}>${icon(x)}${info}</label>`;
+      return `<div class="app${nw ? "" : " r"}">${icon(x)}${info}
       ${nw ? `<button class="pri" data-ok="${esc(x.pkg)}">${ic("circle-check")} ${t("permit")}</button>` : ""}
       <select data-p="${esc(x.pkg)}" aria-label="${esc(t("apps.rule", x.label))}">
         <option value="normal" ${m === "normal" ? "selected" : ""}>${t("normal")}</option>
@@ -86,8 +88,6 @@ function appsList(b) {
   $("#f-q").oninput = draw;
   $("#selTog").onclick = () => { sel.on = !sel.on; sel.set.clear(); sel.limOpen = false; appsList(b); };
   b.querySelectorAll("#flt [data-f]").forEach(x => x.onclick = () => { sel.f = x.dataset.f; appsList(b); });
-  if ($("#selAll")) $("#selAll").onclick = () => { visible().forEach(x => sel.set.add(x.pkg)); draw(); };
-  if ($("#selNone")) $("#selNone").onclick = () => { sel.set.clear(); draw(); };
   draw();
 }
 

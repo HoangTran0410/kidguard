@@ -108,6 +108,9 @@ class AdminActivity : Activity() {
     private inner class Bridge {
         /** The page ends the session itself ("Xong" button, or a 401 once it expired). */
         @JavascriptInterface fun end() { ui.post { this@AdminActivity.end() } }
+        /** "Mức bắt đầu" answered (a level or "Tự chỉnh sau"): this page's localStorage dies with the session, the phone remembers. */
+        @JavascriptInterface fun lvOffered(): Boolean = Store.of(this@AdminActivity).lvOffered
+        @JavascriptInterface fun lvDone() { Store.of(this@AdminActivity).lvOffered = true }
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent?): Boolean { ParentSession.touch(); return super.dispatchTouchEvent(ev) }
