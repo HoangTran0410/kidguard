@@ -24,7 +24,7 @@ import android.widget.LinearLayout
  * gets focus back. The control center shows that card only where the kid may open Settings.
  * Tapping the title opens the playing app through [launch], the same path as its icon (rules apply as usual).
  */
-internal class MediaCard(private val act: HomeActivity, private val cc: Boolean) : LinearLayout(act) {
+internal class MediaCard(private val act: HomeActivity, private val cc: Boolean, private val square: Boolean = false) : LinearLayout(act) {
     private val main = Handler(Looper.getMainLooper())
     private val msm = act.getSystemService(MediaSessionManager::class.java)
     private val cn = ComponentName(act, NotifDots::class.java)
@@ -54,15 +54,25 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean)
     private val sessions = MediaSessionManager.OnActiveSessionsChangedListener { pick(it) }
 
     init {
-        orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-        val a = act.dp(if (cc) 52 else 44)
-        addView(art, LayoutParams(a, a))
         val col = LinearLayout(act).apply { orientation = VERTICAL; gravity = Gravity.CENTER_VERTICAL }
         col.addView(title); col.addView(artist)
         act.kit.tap(col, 12f) { if (listening) open() else { act.closeOverlay(); NotifDots.ask(act) } }
-        addView(col, LayoutParams(0, -2, 1f).apply { leftMargin = act.dp(12); rightMargin = act.dp(4) })
         val b = act.dp(40)
-        addView(prev, LayoutParams(b, b)); addView(play, LayoutParams(b, b)); addView(next, LayoutParams(b, b))
+        if (square) {
+            // 2x2 (music widgets on Pixel / HyperOS): art on top, the names, the three buttons along the bottom
+            orientation = VERTICAL; gravity = Gravity.CENTER_VERTICAL
+            addView(art, LayoutParams(act.dp(52), act.dp(52)))
+            addView(col, LayoutParams(-1, -2).apply { topMargin = act.dp(8) })
+            val row = LinearLayout(act).apply { gravity = Gravity.CENTER_VERTICAL }
+            for (v in listOf(prev, play, next)) row.addView(v, LayoutParams(0, b, 1f))
+            addView(row, LayoutParams(-1, -2).apply { topMargin = act.dp(4) })
+        } else {
+            orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            val a = act.dp(if (cc) 52 else 44)
+            addView(art, LayoutParams(a, a))
+            addView(col, LayoutParams(0, -2, 1f).apply { leftMargin = act.dp(12); rightMargin = act.dp(4) })
+            addView(prev, LayoutParams(b, b)); addView(play, LayoutParams(b, b)); addView(next, LayoutParams(b, b))
+        }
         show()
     }
 
@@ -153,15 +163,16 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean)
         val acts = c.playbackState?.actions ?: 0L
         prev.alpha = if (acts and PlaybackState.ACTION_SKIP_TO_PREVIOUS != 0L) 1f else 0.35f
         next.alpha = if (acts and PlaybackState.ACTION_SKIP_TO_NEXT != 0L) 1f else 0.35f
+        play.alpha = 1f // the empty state dimmed all three; play/pause always works on a live session
         for (v in listOf(prev, play, next)) { v.isEnabled = true; v.visibility = VISIBLE }
         contentDescription = "${title.text}. ${artist.text}"
     }
 }
 
-/** Home widget "media": the same card in the widget style (pal colours, wCard). Any width; one row high. */
-internal fun HomeActivity.mediaWidget(): View {
+/** Home widget "media": the same card in the widget style (pal colours, wCard). Full row x 1, or 2x2 (stacked). */
+internal fun HomeActivity.mediaWidget(w: Int, h: Int): View {
     val card = wCard(false)
-    card.addView(MediaCard(this, false), LinearLayout.LayoutParams(-1, -2))
+    card.addView(MediaCard(this, false, square = h >= 2 && w <= 3), LinearLayout.LayoutParams(-1, -2))
     return card
 }
 
