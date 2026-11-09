@@ -190,7 +190,15 @@ internal class CcSlider(val act: HomeActivity, private val icon: Int, label: Str
     var onLong: (() -> Unit)? = null
     private var longDone = false
     private val slop = android.view.ViewConfiguration.get(act).scaledTouchSlop
-    private val longRun = Runnable { if (!moved) { longDone = true; isPressed = false; performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); onLong?.invoke() } }
+    private val holdMs = android.view.ViewConfiguration.getLongPressTimeout().toLong()
+    // hold cue: shrinks over the long-press wait (iOS control center), springs back when it fires, the finger drags or lifts
+    private fun squeeze(on: Boolean) {
+        if (onLong == null) return
+        animate().cancel()
+        if (on) animate().scaleX(0.95f).scaleY(0.95f).setDuration(holdMs).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+        else if (scaleX != 1f) animate().scaleX(1f).scaleY(1f).setDuration(180).setInterpolator(android.view.animation.OvershootInterpolator(2f)).start()
+    }
+    private val longRun = Runnable { if (!moved) { squeeze(false); longDone = true; isPressed = false; performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); onLong?.invoke() } }
     init { contentDescription = label; isFocusable = true }
 
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
@@ -211,22 +219,22 @@ internal class CcSlider(val act: HomeActivity, private val icon: Int, label: Str
         // a locked slider still opens its detail on a long press (the toggles there have their own modes)
         if (mode != Mode.DIRECT) {
             when (e.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { longDone = false; moved = false; if (onLong != null) postDelayed(longRun, android.view.ViewConfiguration.getLongPressTimeout().toLong()) }
-                MotionEvent.ACTION_UP -> { removeCallbacks(longRun); if (!longDone) onBlocked() }
-                MotionEvent.ACTION_CANCEL -> removeCallbacks(longRun)
+                MotionEvent.ACTION_DOWN -> { longDone = false; moved = false; if (onLong != null) { postDelayed(longRun, holdMs); squeeze(true) } }
+                MotionEvent.ACTION_UP -> { removeCallbacks(longRun); squeeze(false); if (!longDone) onBlocked() }
+                MotionEvent.ACTION_CANCEL -> { removeCallbacks(longRun); squeeze(false) }
             }
             return true
         }
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 y0 = e.y; v0 = value; moved = false; longDone = false; isPressed = true; parent?.requestDisallowInterceptTouchEvent(true)
-                if (onLong != null) postDelayed(longRun, android.view.ViewConfiguration.getLongPressTimeout().toLong())
+                if (onLong != null) { postDelayed(longRun, holdMs); squeeze(true) }
             }
             MotionEvent.ACTION_MOVE -> if (!longDone && (moved || kotlin.math.abs(y0 - e.y) > slop)) {
-                if (!moved) { moved = true; removeCallbacks(longRun); y0 = e.y }   // no jump by the slop distance
+                if (!moved) { moved = true; removeCallbacks(longRun); squeeze(false); y0 = e.y }   // no jump by the slop distance
                 value = v0 + (y0 - e.y) / height; onChange(value, false)
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { removeCallbacks(longRun); isPressed = false; if (moved) onChange(value, true) }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { removeCallbacks(longRun); squeeze(false); isPressed = false; if (moved) onChange(value, true) }
         }
         return true
     }
