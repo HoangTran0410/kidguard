@@ -228,7 +228,7 @@ internal fun HomeActivity.folderSheet(name: String, tag: String?, rename: (() ->
     val scrim = FrameLayout(this).apply { isClickable = true; setOnClickListener { closeOverlay() }; this.tag = tag }
     // a dark layer that deepens with the zoom (no blur: an animated blur costs a GPU pass per frame, a plain alpha
     // costs nothing on any phone). Its own view, so fading it never fades the card flying back into the icon
-    val dim = View(this).apply { setBackgroundColor(Color.argb(150, 0, 0, 0)) }
+    val dim = View(this).apply { setBackgroundColor(Color.argb(200, 0, 0, 0)) }   // 150 let the home show through the folder name (11-09)
     scrim.addView(dim, FrameLayout.LayoutParams(-1, -1))
     // no clipping: the card flies from / back into the icon, often below the panel (it was cut off at its bottom)
     scrim.clipChildren = false
