@@ -164,7 +164,8 @@ object LauncherSafe {
 
     private class Handler(val app: Context, val next: Thread.UncaughtExceptionHandler?) : Thread.UncaughtExceptionHandler {
         override fun uncaughtException(t: Thread, e: Throwable) {
-            if (HomeActivity.alive > 0) runCatching { crashed(app, e) }
+            // only the main thread is the launcher UI: a crash on the Guard / relay / worker thread is not a launcher crash
+            if (HomeActivity.alive > 0 && t === android.os.Looper.getMainLooper().thread) runCatching { crashed(app, e) }
             next?.uncaughtException(t, e)
         }
     }

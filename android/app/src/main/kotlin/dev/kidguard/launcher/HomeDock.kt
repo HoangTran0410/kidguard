@@ -86,8 +86,9 @@ internal fun HomeActivity.buildDock(m: HomeModel, all: Map<String, AppE>, show: 
 
 internal fun HomeActivity.sosMenu(anchor: View) {
     fun call(n: String) = runCatching { startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$n")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-    menu(listOf(
-        Row(R.drawable.li_siren, getString(R.string.main_sos), true) { if (Store.of(this).everPaired) acts.askSos() else call("112") },
+    menu(listOfNotNull(
+        // Home has no parent to ask: its long-press menu is the emergency numbers only
+        if (Flavor.HOME) null else Row(R.drawable.li_siren, getString(R.string.main_sos), true) { if (Store.of(this).everPaired) acts.askSos() else call("112") },
         Row(R.drawable.li_phone, getString(R.string.hm_112), true) { call("112") },
         Row(R.drawable.li_shield, getString(R.string.hm_113), true) { call("113") },
         Row(R.drawable.li_triangle_alert, getString(R.string.hm_114), true) { call("114") },

@@ -62,7 +62,7 @@ class CustomActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (m != null && HomeFile.load(this) !== m) { m = HomeFile.load(this) ?: m; build() }
-        else if (dotsNeed && NotifDots.granted(this)) { NotifDots.setOn(this, true); build() }   // back from the access screen
+        else if (dotsNeed && NotifDots.granted(this, fresh = true)) { NotifDots.setOn(this, true); build() }   // back from the access screen
     }
 
     private fun isDark(st: HStyle) = st.theme == "dark" || (st.theme == "auto" &&

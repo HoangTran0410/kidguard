@@ -485,7 +485,7 @@ class TodayPage(
             val reqs = Store.of(act).requests()
             val waiting = (0 until reqs.length()).mapNotNull { reqs.optJSONObject(it)?.optString("chore") }.toSet()
             val chores = r.chores.count { it.id !in waiting } + KidNotes.todos(m.todo).count { !it.done }
-            val files = runCatching { Files.all(act) }.getOrDefault(emptyList()).count { it.dir == "in" && it.st != "gone" && it.st != "opened" }
+            val files = runCatching { Files.all(act) }.getOrDefault(emptyList()).count { it.dir == FilesLogic.IN && it.st != FilesLogic.GONE && it.st != FilesLogic.OPENED }
             return Triple(chores, KidNotes.notes(m.notes).size, files)
         }
     }

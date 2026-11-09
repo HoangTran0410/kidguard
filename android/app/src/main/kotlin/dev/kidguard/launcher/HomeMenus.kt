@@ -209,6 +209,7 @@ internal fun HomeActivity.renameFolder(id: String) {
 internal fun HomeActivity.openFolder(id: String, from: View? = null) {
     val m = model ?: return
     val f = HomeLayout.find(m, id)?.second?.takeIf { it.kind == "folder" } ?: return
+    if (lastView == null) render(true)   // tapped before the first render finished: build it now instead of ignoring the tap
     val dv = lastView ?: return
     val r = Store.of(this).rules
     val all = launcherApps()

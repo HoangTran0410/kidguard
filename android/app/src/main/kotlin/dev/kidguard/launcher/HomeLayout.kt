@@ -535,11 +535,11 @@ object HomeLayout {
         return dropMove(t.copy(item = t.item.copy(awid = awid)), page, x, y) ?: placeAppWidget(m, pkg, cls, awid, w, h, page)
     }
 
-    /** Ids of the other apps' widgets (type app) in the model: the host deletes the ones that leave. */
     /** A layout taken from KidGuard Home: other apps' widgets are bound to that app's widget host, so they cannot come along. */
     fun imported(m: HomeModel): HomeModel =
         trimPages(m.copy(pages = m.pages.map { p -> p.filter { !(it.kind == "widget" && it.type == APP) } }))
 
+    /** Ids of the other apps' widgets (type app) in the model: the host deletes the ones that leave. */
     fun appWidgetIds(m: HomeModel): Set<Int> = m.pages.flatten().filter { it.kind == "widget" && it.type == APP && it.awid != 0 }.map { it.awid }.toSet()
 
     /** A picker tap for another app's widget: like [placeWidget], but the item carries the provider and the host id. */
