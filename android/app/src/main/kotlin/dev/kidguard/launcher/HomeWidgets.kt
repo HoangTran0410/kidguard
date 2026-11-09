@@ -43,14 +43,14 @@ internal fun HomeActivity.widgetLabel(type: String) = getString(when (type) {
     "time" -> R.string.hm_w_time; "quick" -> R.string.hm_w_quick; "next" -> R.string.hm_w_next; "clock" -> R.string.hm_w_clock
     "analog" -> R.string.hm_w_analog; "month" -> R.string.hm_w_month; "battery" -> R.string.hm_w_battery; "lock" -> R.string.q_lock
     "todo" -> R.string.hm_w_todo; "note" -> R.string.hm_w_note; "usage" -> R.string.hm_w_usage
-    "when" -> R.string.hm_w_when; "earn" -> R.string.hm_w_earn; "msg" -> R.string.hm_w_msg; "class" -> R.string.hm_w_class; else -> R.string.hm_w_counts
+    "when" -> R.string.hm_w_when; "earn" -> R.string.hm_w_earn; "msg" -> R.string.hm_w_msg; "class" -> R.string.hm_w_class; "timer" -> R.string.hm_w_timer; "streak" -> R.string.hm_w_streak; else -> R.string.hm_w_counts
 })
 
 internal fun HomeActivity.widgetDesc(type: String) = getString(when (type) {
     "time" -> R.string.hm_w_time_d; "quick" -> R.string.hm_w_quick_d; "next" -> R.string.hm_w_next_d; "clock" -> R.string.hm_w_clock_d
     "analog" -> R.string.hm_w_analog_d; "month" -> R.string.hm_w_month_d; "battery" -> R.string.hm_w_battery_d; "lock" -> R.string.hm_w_lock_d
     "todo" -> R.string.hm_w_todo_d; "note" -> R.string.hm_w_note_d; "usage" -> R.string.hm_w_usage_d
-    "when" -> R.string.hm_w_when_d; "earn" -> R.string.hm_w_earn_d; "msg" -> R.string.hm_w_msg_d; "class" -> R.string.hm_w_class_d; else -> R.string.hm_w_counts_d
+    "when" -> R.string.hm_w_when_d; "earn" -> R.string.hm_w_earn_d; "msg" -> R.string.hm_w_msg_d; "class" -> R.string.hm_w_class_d; "timer" -> R.string.hm_w_timer_d; "streak" -> R.string.hm_w_streak_d; else -> R.string.hm_w_counts_d
 })
 
 // ---- widget design system: every card widget is built from these, so they all look like one family ----
@@ -467,6 +467,8 @@ internal fun HomeActivity.preview(type: String): View {
         "earn" -> earnPreview(c)
         "msg" -> msgPreview(c)
         "class" -> classPreview(c)
+        "timer" -> timerPreview(c)
+        "streak" -> streakPreview(c)
         else -> for ((ic, lab) in listOf(R.drawable.li_list_checks to R.string.hm_w_c_chores, R.drawable.li_sticky_note to R.string.hm_w_c_notes, R.drawable.li_file to R.string.hm_w_c_files))
             c.addView(text(getString(lab), 10f, pal.text).apply { Ic.lead(this, ic, pal.accentText); compoundDrawablePadding = dp(4); maxLines = 1 })
     }
