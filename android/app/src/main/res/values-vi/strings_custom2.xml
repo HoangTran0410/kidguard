@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hm2_rename">Đổi tên</string>
+    <string name="hm2_icon">Đổi icon</string>
+    <string name="hm2_restore">Khôi phục</string>
+    <string name="hm2_read_name">Đọc tên</string>
+    <string name="hm2_read_page">Đọc to</string>
+    <string name="hm2_name_hint">Tên (gốc: %1$s)</string>
+    <string name="hm2_icon_title">Icon cho %1$s</string>
+    <string name="hm2_icon_orig">Icon gốc</string>
+    <string name="hm2_icon_color">Màu</string>
+    <string name="hm2_icon_glyphs">Biểu tượng</string>
+    <string name="hm2_icon_emoji">Emoji</string>
+    <string name="hm2_c_read">Dễ đọc</string>
+    <string name="hm2_c_face_easy">Dễ đọc</string>
+    <string name="hm2_c_speak">Đọc to tên ứng dụng khi chạm</string>
+    <string name="hm2_c_calm">Giảm chuyển động</string>
+    <string name="hm2_c_solid">Tên ứng dụng tương phản cao</string>
+</resources>

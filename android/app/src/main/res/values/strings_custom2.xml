@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hm2_rename">Rename</string>
+    <string name="hm2_icon">Change icon</string>
+    <string name="hm2_restore">Restore original</string>
+    <string name="hm2_read_name">Read name aloud</string>
+    <string name="hm2_read_page">Read aloud</string>
+    <string name="hm2_name_hint">Name (original: %1$s)</string>
+    <string name="hm2_icon_title">Icon for %1$s</string>
+    <string name="hm2_icon_orig">Original icon</string>
+    <string name="hm2_icon_color">Colour</string>
+    <string name="hm2_icon_glyphs">Symbols</string>
+    <string name="hm2_icon_emoji">Emoji</string>
+    <string name="hm2_c_read">Easy reading</string>
+    <string name="hm2_c_face_easy">Easy to read</string>
+    <string name="hm2_c_speak">Read names aloud when tapped</string>
+    <string name="hm2_c_calm">Reduce motion</string>
+    <string name="hm2_c_solid">High-contrast names</string>
+</resources>

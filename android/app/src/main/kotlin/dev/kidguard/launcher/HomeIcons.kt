@@ -73,7 +73,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     if (showLabel) {
         val lbl = iconLabel(a.label, list, if (list) pal.text else Color.WHITE)
         box.addView(lbl, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(if (list) 4 else 2) })   // grid: 2 dp, so 7 square rows fit an icon + a label line (POCO)
-        if (!list) inkViews += lbl
+        if (!list) { if (model?.style?.solid == true) ReadAids.backLabel(lbl) else inkViews += lbl }
     }
     if (list) {
         val sub = when {
@@ -86,7 +86,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     box.contentDescription = if (paused) getString(R.string.hm_paused_desc, a.label, BasicLogic.reasonText(reason ?: "", Store.of(this).tr)) else a.label
     kit.tap(box, 16f, list && pal.dark || !list)
     if (!list) box.foreground = null   // the icon sinking on touch is the feedback ([pressed]), no grey ripple over it
-    box.setOnClickListener { if (debounce()) { if (paused) pausedSheet(a, reason ?: "", dv, r) else launch(a, box) } }
+    box.setOnClickListener { if (debounce()) { if (model?.style?.speak == true) ReadAids.say(this, a.label); if (paused) pausedSheet(a, reason ?: "", dv, r) else launch(a, box) } }
     // drag source: where the icon lives
     val src: () -> DragSt = {
         when (mode) {
@@ -109,6 +109,7 @@ internal fun HomeActivity.iconLabel(t: String, list: Boolean, color: Int, lines:
     setTextColor(color); includeFontPadding = false; typeface = HomeActivity.tf(false)
     ellipsize = android.text.TextUtils.TruncateAt.END; gravity = Gravity.CENTER; setPadding(dp(4), dp(1), dp(4), dp(1))
     setLineSpacing(0f, 0.92f)
+    letterSpacing = ReadAids.spacing(model?.style?.face ?: "sys")
 }
 
 /**

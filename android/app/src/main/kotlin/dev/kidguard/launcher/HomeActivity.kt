@@ -66,7 +66,7 @@ class HomeActivity : Activity() {
         /** Created once: Typeface.create looked the family up again for every bold label. */
         val MEDIUM: Typeface by lazy { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
         /** Launcher font (style.face), families every Android ships: no font files in the APK. */
-        val FACES = listOf("sys", "light", "medium", "condensed", "serif")
+        val FACES = listOf("sys", "light", "medium", "condensed", "serif", "easy")
         @Volatile var face = "sys"
         private val faces = HashMap<String, Typeface>()
         /** The chosen face, regular or emphasised (titles, buttons). The system "bold font" setting still adds on top. */
@@ -76,15 +76,16 @@ class HomeActivity : Activity() {
                 "medium" -> if (bold) Typeface.create("sans-serif", Typeface.BOLD) else MEDIUM
                 "condensed" -> Typeface.create("sans-serif-condensed", if (bold) Typeface.BOLD else Typeface.NORMAL)
                 "serif" -> Typeface.create("serif", if (bold) Typeface.BOLD else Typeface.NORMAL)
+                "easy" -> Typeface.create("sans-serif-medium", Typeface.NORMAL)   // open, even strokes; the wide spacing is added on labels / cards (ReadAids)
                 else -> if (bold) MEDIUM else Typeface.DEFAULT
             }
         }
     }
 
     /** [cat] = ApplicationInfo.category (-1 unknown, game flag folded in), [sys] = preinstalled: the app library's groups. */
-    internal class AppE(val pkg: String, val cls: String, val label: String, val cat: Int = -1, val sys: Boolean = false) {
+    internal class AppE(val pkg: String, val cls: String, val label: String, val cat: Int = -1, val sys: Boolean = false, val real: String = label) {
         val sortKey by lazy { LauncherLogic.sortKey(label) }   // once per app list: sortedBy calls its selector per comparison
-        val folded by lazy { LauncherLogic.fold(label) }       // drawer search: once per app list, not per key typed
+        val folded by lazy { LauncherLogic.fold(if (real == label) label else "$label $real") }       // drawer search (custom + real label): once per app list, not per key typed
     }
 
     /** What is being dragged: a grid / dock / folder / picker source, or [pkg] from the drawer. */
@@ -325,8 +326,9 @@ class HomeActivity : Activity() {
                 val info = ai.applicationInfo
                 @Suppress("DEPRECATION")
                 val cat = when { info == null -> -1; info.flags and android.content.pm.ApplicationInfo.FLAG_IS_GAME != 0 -> LibraryLogic.GAME; Build.VERSION.SDK_INT >= 26 -> info.category; else -> -1 }
-                out[ai.packageName] = AppE(ai.packageName, ai.name, Labels.of(this, ri, pm), cat,
-                    info != null && info.flags and (android.content.pm.ApplicationInfo.FLAG_SYSTEM or android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0)
+                val real = Labels.of(this, ri, pm)
+                out[ai.packageName] = AppE(ai.packageName, ai.name, AppLook.label(ai.packageName, ai.name, real), cat,
+                    info != null && info.flags and (android.content.pm.ApplicationInfo.FLAG_SYSTEM or android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0, real)
             }
         }
         return out.also { apps = it }
@@ -425,7 +427,7 @@ class HomeActivity : Activity() {
         val mi = android.app.ActivityManager.MemoryInfo().also { am?.getMemoryInfo(it) }
         android.os.Build.VERSION.SDK_INT < 28 || am?.isLowRamDevice == true || mi.totalMem in 1 until 3L * 1024 * 1024 * 1024
     }
-    internal fun fxNow(st: HStyle?) = when (st?.fx) {
+    internal fun fxNow(st: HStyle?) = if (st?.calm == true) true else when (st?.fx) {
         "full" -> !android.animation.ValueAnimator.areAnimatorsEnabled()
         "lite" -> true
         else -> !android.animation.ValueAnimator.areAnimatorsEnabled() || weakPhone
@@ -439,6 +441,7 @@ class HomeActivity : Activity() {
     internal fun render(force: Boolean) {
         val t0 = android.os.SystemClock.elapsedRealtime()
         liteFx = fxNow(model?.style)
+        ReadAids.applyMotion(this, model?.style)
         try { render0(force) } finally {
             val ms = android.os.SystemClock.elapsedRealtime() - t0
             if (ms > 16) android.util.Log.i("KG.perf", "home render ${ms}ms force=$force")

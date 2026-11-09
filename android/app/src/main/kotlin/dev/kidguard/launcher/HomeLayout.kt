@@ -29,8 +29,9 @@ data class HStyle(
     val preset: String = "teen", val icon: Int = 3, val labels: Boolean = true, val shape: String = "round", val dockBg: Boolean = true, val dockLabels: Boolean = true, val badge: String = "num", val face: String = "sys",
     val accent: String = "", val theme: String = "auto", val font: Double = 1.0, val wallKind: String = "builtin", val wall: String = "", val dim: Int = 0, val blur: Int = 0,
     val lib: Boolean = true, val fx: String = "auto", val today: Boolean = true,
+    val speak: Boolean = false, val calm: Boolean = false, val solid: Boolean = false,   // reading aids: say the name on tap / launcher animations off / solid label backing
 ) {
-    fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels).put("badge", badge).put("face", face).put("lib", lib).put("fx", fx).put("today", today)
+    fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels).put("badge", badge).put("face", face).put("lib", lib).put("fx", fx).put("today", today).put("speak", speak).put("calm", calm).put("solid", solid)
         .put("accent", accent).put("theme", theme).put("font", font)
         .put("wall", JSONObject().put("kind", wallKind).put("id", wall).put("dim", dim).put("blur", blur))
 
@@ -51,6 +52,7 @@ data class HStyle(
                 wall = w.optString("id", "").takeIf { it.isEmpty() || it in HomeStyle.WALLS } ?: "",
                 dim = w.optInt("dim", 0).coerceIn(0, 60), blur = w.optInt("blur", 0).coerceIn(0, 100),
                 lib = o.optBoolean("lib", true), today = o.optBoolean("today", true),
+                speak = o.optBoolean("speak", false), calm = o.optBoolean("calm", false), solid = o.optBoolean("solid", false),
                 fx = o.optString("fx", "auto").takeIf { it in setOf("auto", "full", "lite") } ?: "auto",
             )
         }
@@ -64,12 +66,13 @@ data class HomeModel(
     val timetable: JSONObject = JSONObject(),                // "Thời khoá biểu" widget: {"1":[subject…],…,"7":[…]} (ISO weekday), kept as is
     val autoRows: Boolean = true,                            // rows follow the screen so the cells are ~square (POCO / One UI); off once the kid picks a number
     val todayHide: Set<String> = emptySet(),                 // "Hôm nay" cards the kid turned off (TodayPage ids: now time sched chores tomorrow notes files)
+    val custom: Map<String, AppCustom> = emptyMap(),         // per-app rename / icon (AppLook), keyed by package
 ) {
     fun toJson(): JSONObject = JSONObject().put("v", 1).put("grid", JSONObject().put("cols", cols).put("rows", rows).put("auto", autoRows))
         .put("pages", JSONArray().apply { pages.forEach { p -> put(JSONObject().put("items", JSONArray().apply { p.forEach { put(it.toJson()) } })) } })
         .put("dock", JSONArray().apply { dock.forEach { put(JSONObject().put("pkg", it)) } })
         .put("style", style.toJson()).put("seen", JSONArray(seen.sorted())).put("notes", notes).put("todo", todo).put("timetable", timetable)
-        .put("todayHide", JSONArray(todayHide.sorted()))
+        .put("todayHide", JSONArray(todayHide.sorted())).also { o -> if (custom.isNotEmpty()) o.put("custom", AppLook.toJson(custom)) }
 
     /** Packages on the grid (folders included) or in the dock. */
     fun onHome(): Set<String> = pages.flatten().filter { it.kind != HomeLayout.SHORTCUT }.flatMap { if (it.kind == "folder") it.apps else listOf(it.pkg) }.filter { it.isNotEmpty() }.toSet() +
@@ -283,7 +286,8 @@ object HomeLayout {
         val seen = o.optJSONArray("seen")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() } }?.toSet() ?: emptySet()
         return trimPages(HomeModel(cols, rows, pages, dock, style, seen + seenPkgs + dock.filter { it.isNotEmpty() && !it.startsWith("@") },
             o.optJSONArray("notes") ?: JSONArray(), o.optJSONArray("todo") ?: JSONArray(), o.optJSONObject("timetable") ?: JSONObject(), g.optBoolean("auto", true),
-            o.optJSONArray("todayHide")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() }.toSet() } ?: emptySet()))
+            o.optJSONArray("todayHide")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() }.toSet() } ?: emptySet(),
+            AppLook.parse(o.optJSONObject("custom"))))
     }
 
     /** SOS invariant: the phone is always in dock slot 1. */

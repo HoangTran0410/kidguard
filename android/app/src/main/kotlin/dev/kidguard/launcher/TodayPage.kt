@@ -48,6 +48,7 @@ class TodayPage(
         col.removeAllViews(); until = null
         pad(padTop, padBottom)
         header(r, st, dv.now)
+        ReadAids.todayButton(act, k, col, model()?.style?.speak == true)
         if ("now" !in hide) hero(r, st, dv, block)
         focusCard(act, col)
         if ("time" !in hide) screen(st, r, dv, block, all, icon)
