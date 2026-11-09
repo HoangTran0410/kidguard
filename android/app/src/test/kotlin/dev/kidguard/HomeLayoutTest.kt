@@ -171,4 +171,13 @@ class HomeLayoutTest {
         val n = HomeLayout.addShortcut(m, "com.x", "s1", "S")
         assertEquals(2, n.pages.size); assertEquals(HomeLayout.SHORTCUT, n.pages[1].single().kind)
     }
+
+    @Test fun firstRunShowsFeaturedOnlyRestInDrawer() {
+        val all = listOf("com.x1", "com.miui.gallery", "com.google.android.apps.photos", "com.google.android.youtube", "com.x2", "com.x3")
+        val f = HomeLayout.featured(all, used = listOf("com.x3", "com.nothere"), max = 3)
+        assertEquals(listOf("com.google.android.youtube", "com.google.android.apps.photos", "com.x3"), f)
+        val m = HomeLayout.fresh("teen", f, emptyList(), known = all)
+        assertEquals(f.toSet(), m.pages.flatten().filter { it.kind == "app" }.map { it.pkg }.toSet())
+        assertEquals(m, HomeLayout.appendNew(m, all))   // the others are "seen": they stay in the drawer
+    }
 }

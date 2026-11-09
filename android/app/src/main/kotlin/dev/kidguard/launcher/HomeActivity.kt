@@ -418,7 +418,13 @@ class HomeActivity : Activity() {
             resolvePkg(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)),
             resolvePkg(Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com"))),
         ).filter { it in vis && it != d }
-        return HomeLayout.fresh(r.launcher.style.ifEmpty { "teen" }, visible.map { it.pkg }.filter { it != d }, dockApps, parent = !Flavor.HOME)
+        val all = visible.map { it.pkg }.filter { it != d }
+        val used = runCatching {   // most used in the last 2 weeks (needs usage access; KidGuard Home may not have it)
+            val now = System.currentTimeMillis()
+            getSystemService(android.app.usage.UsageStatsManager::class.java).queryAndAggregateUsageStats(now - 14 * 86_400_000L, now)
+                .values.filter { it.totalTimeInForeground > 60_000 }.sortedByDescending { it.totalTimeInForeground }.map { it.packageName }
+        }.getOrDefault(emptyList())
+        return HomeLayout.fresh(r.launcher.style.ifEmpty { "teen" }, HomeLayout.featured(all.filter { it !in dockApps }, used), dockApps, parent = !Flavor.HOME, known = all)
     }
 
     // ---------------- render ----------------

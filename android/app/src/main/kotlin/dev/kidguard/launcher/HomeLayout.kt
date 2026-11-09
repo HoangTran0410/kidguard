@@ -173,14 +173,36 @@ object HomeLayout {
      * [dockApps]: up to 3 apps for slots 2-4 (slot 1 is always the phone). Apps in the dock are not on the grid too.
      * [parent] false (KidGuard Home): no time-left / quick-actions widgets, a 2-row clock instead.
      */
-    fun fresh(preset: String, apps: List<String>, dockApps: List<String>, parent: Boolean = true): HomeModel {
+    fun fresh(preset: String, apps: List<String>, dockApps: List<String>, parent: Boolean = true, known: List<String> = emptyList()): HomeModel {
         val p = HomeStyle.preset(preset)
         val dock = (listOf(PHONE) + dockApps.filter { it.isNotEmpty() && it != PHONE }.distinct().take(DOCK - 1)).let { it + List(DOCK - it.size) { "" } }
         var pages: List<List<HItem>> = listOf(if (parent) defaultWidgets(p, p.cols) else listOf(HItem("w1", "widget", 0, 0, p.cols, 2, type = "clock")))
         val onGrid = apps.distinct().filter { it !in dock }
         for (a in onGrid) pages = place(pages, p.cols, p.rows, a)
-        return HomeModel(p.cols, p.rows, pages, dock, HStyle(preset = p.id, dockBg = p.dockBg, labels = p.labels), (onGrid + dock.filter { !it.startsWith("@") && it.isNotEmpty() }).toSet())
+        return HomeModel(p.cols, p.rows, pages, dock, HStyle(preset = p.id, dockBg = p.dockBg, labels = p.labels), (onGrid + dock.filter { !it.startsWith("@") && it.isNotEmpty() } + known).toSet())
     }
+
+    /** Everyday apps a first home screen shows, in this order (package, or a prefix ending in "."). */
+    private val FEATURED = listOf(
+        "com.google.android.apps.youtube.kids", "com.google.android.youtube", "com.zing.zalo", "com.facebook.orca",
+        "com.google.android.apps.photos", "com.miui.gallery", "com.coloros.gallery3d", "com.oppo.gallery3d", "com.sec.android.gallery3d", "com.google.android.gallery3d",
+        "com.google.android.deskclock", "com.android.deskclock", "com.sec.android.app.clockpackage", "com.coloros.alarmclock",
+        "com.google.android.calculator", "com.miui.calculator", "com.coloros.calculator", "com.sec.android.app.popupcalculator", "com.android.calculator2",
+        "com.google.android.calendar", "com.android.calendar", "com.google.android.apps.maps", "com.google.android.apps.classroom",
+        "com.duolingo", "com.google.android.apps.docs", "com.spotify.music", "com.android.vending")
+
+    /**
+     * First run: up to [max] everyday apps for the grid instead of every app (bro, 11-10: "xóa mệt lắm"); the rest stay
+     * in the drawer (pass them to [fresh] as known so they are not placed later). [used]: most used first, fills the
+     * remaining slots when the phone has few of the known ones.
+     */
+    fun featured(all: List<String>, used: List<String> = emptyList(), max: Int = 8): List<String> {
+        val set = all.toSet()
+        val known = FEATURED.filter { it in set }.distinctBy { appKind(it) }
+        return (known + used.filter { it in set }).distinct().take(max)
+    }
+    private fun appKind(p: String) = when {   // one gallery / clock / calculator even when the phone has two
+        "gallery" in p || p.endsWith("photos") -> "gallery"; "clock" in p -> "clock"; "calculator" in p -> "calc"; else -> p }
 
     /** Newly visible apps (never seen before) go to the first free cell. Returns the same model when nothing is new. */
     fun appendNew(m: HomeModel, visible: List<String>): HomeModel {
