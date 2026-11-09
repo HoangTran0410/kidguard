@@ -45,4 +45,8 @@
     <string name="ft_noUninstall_d">Bé không gỡ được KidGuard khỏi máy.</string>
     <string name="ft_dns">Lọc web (DNS)</string>
     <string name="ft_dns_d">Chặn trang web xấu cho cả máy.</string>
+    <string name="feat_cap_wss">quyền cài đặt bảo mật</string>
+    <string name="feat_wss_body">Cần cấp quyền một lần qua máy tính (scripts/setup.sh, "pm grant"). Quyền vẫn còn sau khi tắt Tùy chọn nhà phát triển.</string>
+    <string name="ft_lockLocation">Giữ vị trí luôn bật</string>
+    <string name="ft_lockLocation_d">Không cho con tắt vị trí.</string>
 </resources>

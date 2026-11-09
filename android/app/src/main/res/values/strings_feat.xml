@@ -45,4 +45,8 @@
     <string name="ft_noUninstall_d">The child cannot remove KidGuard.</string>
     <string name="ft_dns">Web filter (DNS)</string>
     <string name="ft_dns_d">Block bad sites on the whole phone.</string>
+    <string name="feat_cap_wss">Secure settings permission</string>
+    <string name="feat_wss_body">Needs a one-time permission granted from a computer (scripts/setup.sh, "pm grant"). It stays after Developer options are turned off.</string>
+    <string name="ft_lockLocation">Keep location on (lock)</string>
+    <string name="ft_lockLocation_d">Stops the child from turning location off.</string>
 </resources>

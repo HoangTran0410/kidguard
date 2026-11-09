@@ -21,13 +21,16 @@ shape, say so in your report instead of silently diverging.
   "bonus": {"day": "2026-11-06", "min": 30},   // extra minutes on top of that day's limit; ignored when the day has no limit (base 0)
   "blockNew": true,                // NEW: apps installed after setup stay blocked (reason "new") until approved
   "approved": ["com.new.game"],    // NEW: approved new apps
-  "lockLocation": true,            // NEW (default true): location forced on, child cannot change location settings
+  "lockLocation": true,            // NEW (default true): location forced on, child cannot change location settings.
+                                   //      Basic mode with `caps.wss`: Guard re-writes Settings.Secure location_mode when it goes off (observer + tick); release stops it
   "noAirplane": true,              // NEW (default true): airplane mode disallowed
   "showWatching": true,            // v0.4 (default true): child sees the "watching / controlling" notification
   "monitor": false,                // v0.9.11 (default false): "monitor only". Phone still measures + reports; decide() still runs but NOTHING is enforced (no suspend / bounce / grey launcher / heads-up warnings). Device-level restrictions (Policy.apply: noInstall, DNS, location lock, ...) stay as configured. Turning it on unsuspends our suspensions on the next tick
   "autoUpdate": true,              // v0.9 (default true): daily self-update from GitHub releases (see "Self-update")
   "safeDns": "",                   // NEW: "" = off, else a Private DNS host, e.g. "family.adguard-dns.com",
                                    //      "family.cloudflare-dns.com", "family-filter-dns.cleanbrowsing.org"
+                                   //      Basic mode with `caps.wss`: Guard writes Settings.Global private_dns_mode=hostname + private_dns_specifier itself
+                                   //      (no DPM), re-applies on drift (ContentObserver + tick), restores the prior values on pause / "" / release.
                                    //      Also (Device Owner): Chrome/Edge get managed config DnsOverHttpsMode=off while set, cleared when "" / release.
   "safeDnsPauseUntil": 0,          // epoch ms (parent clock), 0 = none. While now < it the phone acts as if safeDns were "":
                                    //      Private DNS opportunistic, Chrome/Edge DoH config cleared. Guard's 10 s tick re-applies safe DNS
@@ -940,7 +943,7 @@ and the Download/KidGuard folder (files from the parent, red dot = not opened ye
 ## Features and permissions
 What works with which permission, so the child app and the web page can show it before the heavy setup (Device Owner)
 is done. Source of truth: `guard/Features.kt` (pure, `FeaturesTest`). State adds (absent = older app):
-- `caps`: `{"owner","admin","acc","usage","location","notify","battery","home","adb","paired"}`, all bool. `home` = KidGuard
+- `caps`: `{"owner","admin","acc","usage","location","notify","battery","home","adb","paired","wss"}`, all bool. `wss` = KidGuard holds WRITE_SECURE_SETTINGS (granted once by `pm grant` at setup; it stays after Developer options / debugging are turned off). `home` = KidGuard
   is the default HOME app now; `adb` = the phone can run adb against itself (false until that flow exists); `paired` = `everPaired`.
 - `features`: `[{"id","ok":bool,"missing":["acc","admin"]}]` in display order. `ok` = one alternative has every cap;
   otherwise `missing` = the alternative with the fewest missing caps (first on ties).
@@ -957,7 +960,8 @@ is done. Source of truth: `guard/Features.kt` (pure, `FeaturesTest`). State adds
 | `screen` | `acc` | screen view / remote input, API 30+ |
 | `remote` | `paired` | |
 | `noUninstall` | `owner` or `admin` | |
-| `dns` | `owner` | private DNS |
+| `dns` | `owner` or `wss` | private DNS; without Device Owner raw `Settings.Global` writes (Chrome/Edge DoH-off stays owner-only) |
+| `lockLocation` | `owner` or `wss` | location kept on; `wss` = raw `location_mode` write (unverified on Android 10+) |
 
 Child-app screen "Tính năng và quyền" (Thêm sheet) lists these with a button per missing cap.
 
