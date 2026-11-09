@@ -185,6 +185,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 
 ### Android generic
 - `enabled_notification_listeners` writes ignored since Android 8
+- WebView dark mode (targetSdk 33+): `prefers-color-scheme` follows the hosting activity theme's `isLightTheme`, not the system. A light-only theme = the page stays light in dark mode (AdminActivity, 2026-11-10): give the activity a theme with a `values-night` variant (`AppWeb`)
 - Android 12+: no Settings.Global writes; use DPM setGlobalSetting whitelist (ADB_ENABLED, AUTO_TIME...). `adb_wifi_enabled` is @hide (DevOpts.kt)
 - Banking apps refuse to run with Developer options / USB debugging on
 - Protected apps (`Policy.protectedApps`, 2026-11-09): exempt from every limit = our package + system apps (HOME/dialer/alarm handlers, system keyboards, SMS/dialer default if system). A non-system default dialer or SMS app is limited like any app (emergency calls go through system `com.android.phone`/telecom, still protected). Dead-end exceptions kept exempt: a non-system default HOME (suspending the only home screen leaves no way to open anything) and the current default keyboard (no way to type the PIN); the HOME case raises a `tamper` event once per package (`Policy.foreignHome`, Guard tick), so the parent can remove the app or `hidden` it. Other enabled non-system keyboards are no longer exempt.

@@ -31,4 +31,9 @@
         <item name="android:scrollViewStyle">@style/NoBounceScroll</item>
         <item name="android:horizontalScrollViewStyle">@style/NoBounceHScroll</item>
     </style>
+    <!-- "Bố mẹ quản lý trên máy này" (AdminActivity): a WebView reports prefers-color-scheme from the activity theme
+         (targetSdk 33+), so the parent page follows the phone's dark mode only if this theme has a night variant -->
+    <style name="AppWeb" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:scrollViewStyle">@style/NoBounceScroll</item>
+    </style>
 </resources>

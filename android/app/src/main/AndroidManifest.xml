@@ -252,6 +252,7 @@
 
         <!-- on-device parent page (PIN / Authenticator); config changes must not restart it: a pause ends the session -->
         <activity
+            android:theme="@style/AppWeb"
             android:name=".AdminActivity"
             android:exported="false"
             android:excludeFromRecents="true"
