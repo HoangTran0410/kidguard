@@ -4,7 +4,7 @@ const KC = ["#2563eb", "#db2777", "#16a34a", "#d97706", "#7c3aed", "#0891b2"];
 let ov = null;   // {list, back, data: [{k, st, seen, err}]}
 async function overview(list, back) {
   const g = ++gen; clearInterval(timer); cur = null; mv = null;
-  ov = { list, back, data: list.map(k => ({ k, st: null, seen: 0, err: "" })) };
+  ovRes = null; ovBusy = false; ov = { list, back, data: list.map(k => ({ k, st: null, seen: 0, err: "" })) };
   ovShell();
   navTo(1);
   ovDraw();
@@ -17,7 +17,7 @@ function ovShell() {
   const a = $("#app"); a.className = "";
   a.innerHTML = `<div class="shell">${sideHtml("ov")}<div class="mainc"><div class="wrap">
     <div class="head"><button type="button" id="ovBack" class="back" aria-label="${esc(t("list"))}" title="${esc(t("list"))}">${ic("chevron-left")}</button><span class="badge">${ic("users")}</span><div><div class="t1">${t("nav.family")}</div><div class="st">${t("ovN", ov.data.length)}</div></div></div>
-    <div id="ovSos"></div><div class="ovk" id="ovKids"></div>
+    <div id="ovSos"></div><div id="ovAll"></div><div class="ovk" id="ovKids"></div>
     <div class="card" style="margin-top:12px"><h2>${ic("map-pin")} ${t("ov.where")}</h2><div id="ovMapBox"></div></div>
     <div class="card"><h2>${ic("chart-column")} ${t("ov.week")}</h2><div id="ovBars"></div></div>
     ${sec("ov-rep", "history", t("ov.report"), "", "", `<div id="ovRep"></div>`, false)}</div></div></div>`;
@@ -33,8 +33,50 @@ async function ovLoad() {
   if (ov === o) ovDraw();
 }
 function ovOnline(d) { return d.st && (d.k.via === "lan" ? !d.err && Date.now() - d.st.t < 30000 : d.seen && Date.now() - d.seen < 120000); }
+// Emergency "pause all": for every kid set rules.pausedUntil (duration picker = the per-kid one) + send `lock`.
+// Results per kid are kept in ovRes ({name, ok, msg}); relay answers "queued" = stored, the phone has not done it yet.
+let ovRes = null, ovBusy = false;
+const ovPausedLeft = d => d.st && d.st.rules ? (+d.st.rules.pausedUntil || 0) - Date.now() : 0;
+async function ovEach(fn) {   // run fn(kid, freshRules) for every kid in parallel; never throws, returns [{name, ok, msg}]
+  const o = ov;
+  return Promise.all(o.data.map(async d => {
+    try { const j = await call(d.k, "/state"), s = j.state !== undefined ? j.state : j; const r = norm(structuredClone(s.rules || {}));
+      return { name: d.k.name, ...(await fn(d.k, r)) }; }
+    catch (e) { return { name: d.k.name, ok: false, msg: e.message }; }
+  }));
+}
+function ovPauseAll() {
+  if (ovBusy || !ov) return;
+  pickTime("pause", "", async until => {
+    if (!(await ask(t("ov.pauseAsk", ov.data.length, whenTxt(until)), t("ov.pauseGo"), true))) return;
+    ovBusy = true; ovRes = null; ovDraw();
+    const res = await ovEach(async (k, r) => {
+      r.pausedUntil = until; await putRules(k, r);
+      const c = await call(k, "/cmd", "POST", { type: "lock" });
+      if (c && c.result === "queued") return { ok: true, queued: true };
+      if (c && c.result && c.result !== "ok") return { ok: false, msg: tc("cr.lock.", c.result, t("cmd.answer", c.result)) };
+      return { ok: true };
+    });
+    ovBusy = false; ovRes = { kind: "pause", res }; if (ov) { ovDraw(); ovLoad(); }
+  }, null);
+}
+async function ovResumeAll() {
+  if (ovBusy || !ov || !(await ask(t("ov.resumeAsk"), t("ov.resumeGo")))) return;
+  ovBusy = true; ovRes = null; ovDraw();
+  const res = await ovEach(async (k, r) => { if (!(+r.pausedUntil > 0)) return { ok: true, skip: true }; r.pausedUntil = 0; await putRules(k, r); return { ok: true }; });
+  ovBusy = false; ovRes = { kind: "resume", res }; if (ov) { ovDraw(); ovLoad(); }
+}
+function ovAllDraw() {
+  const any = ov.data.some(d => ovPausedLeft(d) > 0), el = $("#ovAll");
+  const bad = ovRes ? ovRes.res.filter(x => !x.ok) : [], q = ovRes ? ovRes.res.filter(x => x.ok && x.queued) : [];
+  el.innerHTML = `<div class="row" style="margin-bottom:8px"><button type="button" id="ovPause" class="sp bad" ${ovBusy ? "disabled" : ""}>${ic("pause")} ${ovBusy ? t("loading") : t("ov.pauseAll")}</button>${any ? `<button type="button" id="ovResume" class="sp" ${ovBusy ? "disabled" : ""}>${ic("play")} ${t("ov.resumeAll")}</button>` : ""}</div>
+    ${ovRes ? `<div class="alert ${bad.length ? "bad" : q.length ? "warn" : "ok"}">${ic(bad.length ? "triangle-alert" : "check")} <b>${t(ovRes.kind === "pause" ? "ov.pauseRes" : "ov.resumeRes", ovRes.res.length - bad.length, ovRes.res.length)}</b>
+      ${bad.map(x => `<div>${esc(x.name)}: ${esc(x.msg || "?")}</div>`).join("")}${q.length ? `<div class="mute">${t("ov.queued", esc(q.map(x => x.name).join(", ")))}</div>` : ""}</div>` : ""}`;
+  $("#ovPause").onclick = ovPauseAll; if ($("#ovResume")) $("#ovResume").onclick = ovResumeAll;
+}
 function ovDraw() {
   const D = ov.data, col = i => KC[i % KC.length];
+  ovAllDraw();
   const sos = D.filter(d => d.st && (d.st.sos || []).length);
   $("#ovSos").innerHTML = sos.map(d => `<div class="alert bad sos row">${ic("siren")} <b class="sp">${t("ov.sos", esc(d.k.name), hhmm(d.st.sos[d.st.sos.length - 1].t))}</b><button class="pri" data-o="${D.indexOf(d)}">${ic("folder-open")} ${t("open")}</button></div>`).join("");
   $("#ovKids").innerHTML = D.map((d, i) => {
