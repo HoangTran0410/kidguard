@@ -49,6 +49,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Launcher drawer jank after using an app: the "recent" row changed so the first swipe frame rebuilt the whole grid (94-103 ms build, 183-200 ms frame, Oppo A5s). Now `drawerPrep()` refills the hidden drawer on idle after resume, and the hidden drawer is INVISIBLE not GONE (GONE re-measured the grid on show): 3-5 ms build, 16-50 ms first frame. "Dùng gần đây" title dropped (owner: the row speaks for itself) (11-09)
 
 - Kid Home takes apps' pinned shortcuts (CONFIRM_PIN_SHORTCUT -> `PinShortcutActivity`, accepted at once, first free cell; item kind `shortcut`). It follows its source app's show/pause/hide rule (never a way around a block); Guard still enforces whatever it opens. Pinned widgets (requestPinAppWidget) are declined. Our own "add Lock to home" still puts the 1x1 lock widget when Kid Home (kid flavor) is the default home (11-09)
+- Drawer after a cold start: icons rendered on a background thread first (`drawerWarm`), then the drawer built. POCO measured: build 254 -> 33 ms, rows added while swiping 35-83 -> 4-6 ms each, p90 frame 200 -> 44-69 ms. A Chrome PWA "Install" is a real WebAPK (`org.chromium.webapk.*`), placed on the home as a normal app; only "Tạo lối tắt" gives a pinned shortcut (11-09)
 
 ### Remote / relay
 - Command whitelist lives in the relay worker; new command = whitelist + protocol + test. Destructive (`reboot`, `release`, `unpairAll`, `update`, `unpair`) are deliver-once (AGENTS.md)

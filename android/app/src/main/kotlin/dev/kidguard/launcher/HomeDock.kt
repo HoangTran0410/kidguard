@@ -153,6 +153,22 @@ internal fun HomeActivity.drawerView(): Drawer = drawerCache?.also { it.refill()
 }
 
 /**
+ * First drawer after a cold start: its icons are rendered off the main thread first (~7 ms each on a POCO, cold; the
+ * drawer built them on the main thread: 254 ms build + 35-83 ms frames under the swiping finger), then it is built.
+ */
+internal fun HomeActivity.drawerWarm(apps: Collection<AppE>) {
+    if (drawerWarming) return
+    drawerWarming = true
+    val px = iconPx(); val round = model?.style?.shape != "square"
+    val vis = apps.filter { lastShow[it.pkg] != LauncherLogic.Show.HIDE }.sortedBy { it.sortKey }
+    Thread {
+        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)   // never ahead of a swipe
+        for (a in vis) runCatching { IconCache.get(this, a.pkg, a.cls, px, round) }
+        runOnUiThread { drawerWarming = false; if (drawerCache == null && !isFinishing && !busy()) drawerView() }
+    }.start()
+}
+
+/**
  * Brings the kept (hidden) drawer up to date while the main thread is idle. Coming home from an app changes the
  * "recent" row (and maybe pauses / apps): refill() then rebuilt the whole grid in the swipe's first frame, measured
  * 94-103 ms build / 183-200 ms frame on an Oppo A5s vs ~5 ms when nothing changed. No-op when nothing changed.

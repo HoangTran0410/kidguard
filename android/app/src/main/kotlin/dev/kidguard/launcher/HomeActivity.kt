@@ -515,7 +515,7 @@ class HomeActivity : Activity() {
         lap("today")
         lap("${IconCache.stats()}"); lap.done("rebuild")
         // no-op unless what it shows changed; the first one is built while idle, so the first swipe up has it ready under the finger
-        drawerCache?.let { d -> main.post { d.refill() } } ?: main.postDelayed({ if (drawerCache == null && !isFinishing && !busy()) drawerView() }, 800)
+        drawerCache?.let { d -> main.post { d.refill() } } ?: drawerWarm(all.values)
         main.post { inkPass(); chromeFade() }
     }
 
@@ -805,6 +805,7 @@ class HomeActivity : Activity() {
     internal var land: Triple<DragSt, Float, Float>? = null
     internal var barsCache: Pair<String, Pair<Boolean, Boolean>>? = null
     internal var drawerCache: Drawer? = null
+    internal var drawerWarming = false
     internal var drawerP = 0f                       // 0 closed .. 1 open
     internal var drawerAnim: ValueAnimator? = null
 
