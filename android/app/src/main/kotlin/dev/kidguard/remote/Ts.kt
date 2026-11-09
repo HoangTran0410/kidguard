@@ -305,7 +305,7 @@ object Ts {
             .onFailure { Log.w(TAG, "ts restrictions", it) }
         if (suspend != null) runCatching { d.setPackagesSuspended(a, arrayOf(TsLogic.PKG), suspend) }
         runCatching { d.setUninstallBlocked(a, TsLogic.PKG, true) }.onFailure { Log.w(TAG, "ts uninstall block", it) }
-        runCatching { d.addUserRestriction(a, UserManager.DISALLOW_CONFIG_VPN) }.onFailure { Log.w(TAG, "ts vpn restriction", it) }
+        Policy.applyVpnLock(ctx, d, a, s.rules.noVpn)   // sets it (tsWanted is true); never clears what the rule noVpn needs
         // not lockdown: without the VPN the child's internet still works
         // right after an install the system may not know the VPN service yet: check it took, else try again a few times
         for (i in 0 until 6) {
@@ -343,7 +343,7 @@ object Ts {
         runCatching { d.setApplicationRestrictions(a, TsLogic.PKG, Bundle()) }
         runCatching { d.setAlwaysOnVpnPackage(a, null, false) }
         runCatching { d.setUninstallBlocked(a, TsLogic.PKG, false) }
-        runCatching { d.clearUserRestriction(a, UserManager.DISALLOW_CONFIG_VPN) }
+        Policy.applyVpnLock(ctx, d, a, !s.released && s.rules.noVpn)   // tsWanted is already false: only the rule noVpn can keep it
         runCatching { d.setPackagesSuspended(a, arrayOf(TsLogic.PKG), false) }
         if (installed(ctx)) runCatching {
             val done = CountDownLatch(1)

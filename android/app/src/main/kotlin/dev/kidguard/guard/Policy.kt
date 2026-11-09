@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Bundle
 import android.os.UserManager
 import android.provider.Settings
 import android.telecom.TelecomManager
@@ -96,6 +97,25 @@ object Policy {
         } else restrict(d, a, UserManager.DISALLOW_CONFIG_LOCATION, false)
         if (Build.VERSION.SDK_INT >= 28) restrict(d, a, UserManager.DISALLOW_AIRPLANE_MODE, r.noAirplane)
         applyDns(ctx, d, a, r)
+        applyDoh(d, a, r.safeDns.isNotEmpty())
+        applyVpnLock(ctx, d, a, r.noVpn)
+    }
+
+    /** Chromium browsers that read the `DnsOverHttpsMode` managed policy on Android (Chrome; Edge 147+). Firefox/Brave/Opera: no managed DoH, see decisions. */
+    private val DOH_BROWSERS = listOf("com.android.chrome", "com.chrome.beta", "com.chrome.dev", "com.chrome.canary", "com.microsoft.emmx")
+
+    /** While safe DNS is on, browsers' own DoH would skip the filter: managed config DnsOverHttpsMode=off. Cleared (empty bundle) when it is off / on release. */
+    private fun applyDoh(d: DevicePolicyManager, a: ComponentName, on: Boolean) {
+        for (pkg in DOH_BROWSERS) runCatching { d.setApplicationRestrictions(a, pkg, Bundle().also { if (on) it.putString("DnsOverHttpsMode", "off") }) }
+            .onFailure { Log.w(TAG, "doh $pkg", it) }
+    }
+
+    /**
+     * Single owner of DISALLOW_CONFIG_VPN. Set when the rule `noVpn` is on OR our own Tailscale access wants it (Store.tsWanted);
+     * cleared only when neither does. Ts.kt must call this instead of touching the restriction.
+     */
+    fun applyVpnLock(ctx: Context, d: DevicePolicyManager, a: ComponentName, noVpn: Boolean) {
+        restrict(d, a, UserManager.DISALLOW_CONFIG_VPN, noVpn || Store.of(ctx).tsWanted)
     }
 
     /** "" while Private DNS is fine, else a short reason (the host was rejected; then the phone runs opportunistic DNS). */

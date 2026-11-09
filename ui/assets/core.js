@@ -97,13 +97,14 @@ function ago(at) {
 const reason = c => tc("rs.", c, t("rs.locked"));
 const hhmm = at => new Date(at).toLocaleTimeString(lang, { hour: "numeric", minute: "2-digit" });
 const dm = k => new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)).toLocaleDateString(lang, { day: "numeric", month: "short" });   // "YYYY-MM-DD" -> "7 thg 11" / "Nov 7"
-const DNS = () => [["", t("off")], ["family.adguard-dns.com", "AdGuard Family"], ["family.cloudflare-dns.com", "Cloudflare Family"], ["family-filter-dns.cleanbrowsing.org", "CleanBrowsing Family"]];
+const DNS = () => [["", t("off")], ["family-filter-dns.cleanbrowsing.org", "CleanBrowsing Family", 1], ["family.adguard-dns.com", "AdGuard Family", 1], ["family.cloudflare-dns.com", "Cloudflare Family", 0]];
+// [host, name, forces SafeSearch + YouTube restricted via DNS]. Cloudflare Family only blocks adult/malware domains.
 const WD_STEPS = [0, 15, 30, 45, 60];
 // rules from older phones may lack v0.2 fields
 function norm(e) {
   e.hidden = Array.isArray(e.hidden) ? e.hidden : [];   // v0.8 preinstalled apps hidden by the parent
   e.dailyByDay = Array.isArray(e.dailyByDay) && e.dailyByDay.length === 7 ? e.dailyByDay : [];
-  e.schedules = e.schedules || []; e.approved = e.approved || []; e.safeDns = e.safeDns || "";
+  e.schedules = e.schedules || []; e.approved = e.approved || []; e.safeDns = e.safeDns || ""; e.noVpn = !!e.noVpn;
   e.trackMin = e.trackMin === undefined ? 10 : +e.trackMin; e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.showWatching = e.showWatching !== false; e.autoUpdate = e.autoUpdate !== false; e.blockNew = !!e.blockNew;
   e.blocked = e.blocked || []; e.allow = e.allow || []; e.appMin = e.appMin || {};
   e.chores = Array.isArray(e.chores) ? e.chores : []; e.zones = Array.isArray(e.zones) ? e.zones : [];

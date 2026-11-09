@@ -49,6 +49,10 @@ class ResTr(private val ctx: Context) : Tr {
         T.diff_track_off -> R.string.diff_track_off
         T.diff_lockloc -> R.string.diff_lockloc
         T.diff_lockloc_off -> R.string.diff_lockloc_off
+        T.diff_dns -> R.string.diff_dns
+        T.diff_dns_off -> R.string.diff_dns_off
+        T.diff_novpn -> R.string.diff_novpn
+        T.diff_novpn_off -> R.string.diff_novpn_off
         T.diff_autoupd -> R.string.diff_autoupd
         T.diff_autoupd_off -> R.string.diff_autoupd_off
         T.diff_watch -> R.string.diff_watch

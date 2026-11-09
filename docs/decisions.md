@@ -140,7 +140,9 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - `enabled_notification_listeners` writes ignored since Android 8
 - Android 12+: no Settings.Global writes; use DPM setGlobalSetting whitelist (ADB_ENABLED, AUTO_TIME...). `adb_wifi_enabled` is @hide (DevOpts.kt)
 - Banking apps refuse to run with Developer options / USB debugging on
-- Chrome/Firefox own DoH bypasses safe DNS (managed config DnsOverHttpsMode=off not set) (open)
+- Browser DoH vs safe DNS: with `safeDns` on, `Policy.applyDoh` pushes managed config `DnsOverHttpsMode=off` to Chrome (stable/beta/dev/canary) and Edge (policy exists on Android from Edge 147); cleared when safeDns is off and in release. Firefox Android has no managed-config/AppConfig support (Mozilla only turns its DoH off itself when enterprise policy/parental control is detected), Brave/Opera unverified: documented limitation, not blocked. Unverified on a real phone.
+- Safe DNS presets (page `DNS()`): CleanBrowsing Family `family-filter-dns.cleanbrowsing.org` and AdGuard Family `family.adguard-dns.com` force SafeSearch (+ YouTube restricted, "where possible" for AdGuard; CleanBrowsing's YouTube level is Moderate/Strict per differing pages; the YouTube app may bypass); Cloudflare Family `family.cloudflare-dns.com` only blocks adult/malware (no SafeSearch). Plus "custom host".
+- `noVpn` rule (default false): `DISALLOW_CONFIG_VPN` via `Policy.applyVpnLock`, the single owner (set if `noVpn` OR `Store.tsWanted`; Ts.kt and release go through it). It blocks the VPN settings UI and adding/enabling VPN profiles by the user; it does not uninstall VPN apps and an app the user already consented to may keep running, which we cannot stop without removing the app (use blocked/hidden apps). Our Tailscale always-on VPN is set by the DO and unaffected. Unverified on a real phone.
 - macOS bash 3.2: empty array with `set -u` broke build.sh (882cd92)
 - Behind a TLS proxy: TRUSTSTORE=/path.jks scripts/build.sh
 - CI flakes: wrangler dev gives 503 on a fresh Durable Object and sometimes hangs: rerun; per-IP rate limit trips fast CI runners -> tests retry 429 (9e6042a)
@@ -181,7 +183,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Usage-access off = limits dead (event + banner only; DO can't lock the appop); Usage.kt misses an app already in front at midnight (unverified)
 - Owner mode Android 8.x timezone bypass (no DISALLOW_CONFIG_DATE_TIME <28); basic mode wall-clock tricks (event only); no trusted time (unverified)
 - `noDebug` default false: Wireless debugging + Termux/shell can switch off private DNS / usage appop; retryDns doesn't check drift (unverified)
-- Chrome/Firefox/Opera DoH bypasses safe DNS (set Chrome managed DoH off)
+- Firefox/Opera/Brave DoH still bypasses safe DNS (Chrome/Edge handled, see above)
 - Basic bounce leaves audio/PiP running; guest user in basic mode; PiP/split usage undercount
 - getKids bridge exposes tokens; shared phone/parent token (S4); deliver-once loss on destructive cmds (S8)
 - Http pool 4+16 idle-socket lockout; SelfSetup set-device-owner retry after partial setup; save-fail bar lost on kid switch

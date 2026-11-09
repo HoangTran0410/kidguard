@@ -27,6 +27,8 @@ shape, say so in your report instead of silently diverging.
   "autoUpdate": true,              // v0.9 (default true): daily self-update from GitHub releases (see "Self-update")
   "safeDns": "",                   // NEW: "" = off, else a Private DNS host, e.g. "family.adguard-dns.com",
                                    //      "family.cloudflare-dns.com", "family-filter-dns.cleanbrowsing.org"
+                                   //      Also (Device Owner): Chrome/Edge get managed config DnsOverHttpsMode=off while set, cleared when "" / release.
+  "noVpn": false,                  // NEW (default false): DISALLOW_CONFIG_VPN (Device Owner); also kept while our Tailscale access needs it
   "noInstall": false, "noDebug": false,
   "pinHash": "…",                  // the page may send "pin": "1234" instead; phone/worker store only the hash
 }
