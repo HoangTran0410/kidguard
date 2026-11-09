@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ch_timer">Timer</string>
+    <string name="hm_w_timer">Timer</string>
+    <string name="hm_w_timer_d">A disc that shrinks as time runs out; 5 / 10 / 15 / 25 min, your own time or pomodoro; rings when done</string>
+    <string name="tm_done">Time is up!</string>
+    <string name="tm_work_over">Work time is over. Take a 5 minute break!</string>
+    <string name="tm_break_over">Break is over. Ready for the next 25 minutes?</string>
+    <string name="tm_reset">Reset</string>
+    <string name="tm_done_short">Done!</string>
+    <string name="tm_pomo">Pomodoro</string>
+    <string name="tm_min">min</string>
+    <string name="tm_work">Work</string>
+    <string name="tm_break">Break</string>
+    <string name="tm_cycle">round %1$d</string>
+    <string name="tm_running">Running, tap the disc to pause</string>
+    <string name="tm_paused">Paused, tap the disc to go on</string>
+    <string name="tm_tap_start">Tap the disc to start</string>
+    <string name="tm_custom">Your own time</string>
+    <string name="tm_custom_hint">Minutes (1-180)</string>
+
+    <string name="hm_w_streak">Day streak</string>
+    <string name="hm_w_streak_d">Days in a row you finished your homework and chores; best streak and badges at 3, 7, 14 and 30 days</string>
+    <string name="sk_days">days</string>
+    <string name="sk_best">Best: %1$d</string>
+    <string name="sk_next">%1$d more to %2$d</string>
+    <string name="sk_today_done">Today: all done!</string>
+    <string name="sk_today_open">Today: tasks left</string>
+    <string name="sk_empty">Add homework to start a streak</string>
+    <string name="sk_new_badge">New badge: %1$d days!</string>
+    <string name="sk_badge_got">%1$d day badge, earned</string>
+    <string name="sk_badge_locked">%1$d day badge, not yet</string>
+    <string name="sk_cd">%1$d days, best %2$d</string>
+</resources>

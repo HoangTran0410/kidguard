@@ -254,6 +254,10 @@
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|fontScale" />
 
         <receiver
+            android:name=".TimerReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".PairCodeReceiver"
             android:exported="false" />
 

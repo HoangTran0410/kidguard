@@ -688,6 +688,8 @@ class HomeActivity : Activity() {
                         "msg" -> msgWidget(s, it.w, it.h)
                         "earn" -> earnWidget(r, s, it.w, it.h)
                         "class" -> classWidget(m, dv, it.w, it.h)
+                        "timer" -> timerWidget(it.w, it.h)
+                        "streak" -> streakWidget(m, r, s, it.w, it.h)
                         HomeLayout.APP -> appWidget(it, show)
                         else -> null
                     }?.also { v -> armWidget(v, it); (android.os.SystemClock.uptimeMillis() - w0).let { ms -> if (ms > 4) android.util.Log.i("KG.perf", "widget ${it.type} ${ms}ms") } } }

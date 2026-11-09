@@ -411,7 +411,7 @@ Home flavor: only now, sched, tomorrow, notes (HOME_CARDS).
 ### 3.9 Widgets
 
 Own: `Flavor.widget(type)` filters; types clock, analog, month, time, next, quick, todo, note, counts, usage, battery, lock, when,
-earn, msg, class (+ "app" for host widgets). Picker `openPicker`: one "KidGuard" card, 2-col tiles + size pills, drag via `Src.NewWidget`,
+earn, msg, class, timer, streak (+ "app" for host widgets). Picker `openPicker`: one "KidGuard" card, 2-col tiles + size pills, drag via `Src.NewWidget`,
 lazy "other apps" section (`awPickerSection`). Home flavor allows clock, analog, month, battery, todo, note, class.
 Other apps': `HomeAppWidgets.kt`: `awAdd` allocates id (host id `AW_HOST_ID` 0x4b47) -> `bindAppWidgetIdIfAllowed`, else ACTION_APPWIDGET_BIND
 (REQ_BIND 4701) -> `awConfigure` (REQ_CONF 4702) -> `awPlace` (`HomeLayout.placeAppWidget`). `awSync` deletes ids that left the model.

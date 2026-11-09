@@ -110,6 +110,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - English README only (README.vi.md dropped) (bf164b5). Site CSS cache-busted with a content hash (fb3d5ec)
 - Rule `monitor` ("Chỉ theo dõi"): `decide()` stays pure and always runs; `enforced(r, would)` empties it in monitor mode, so suspend / bounce / launcher / Quick tile see nothing while `state.wouldBlock` + a log line report what strict mode would do. Device-level `Policy.apply` restrictions and all reporting are unchanged; heads-up warnings are off.
 - Release APK 7.4 -> 3.8 MB by dropping x86_64 and BouncyCastle PQC (747bc65)
+- Widgets "timer" (Hẹn giờ) + "streak" (Chuỗi ngày), both flavors: timer state in device-protected prefs `kg_widgets2`, alarm = `setExactAndAllowWhileIdle` on ELAPSED_REALTIME (no exact-alarm permission: falls back to inexact on 31+), keyed by endAt so a stale alarm is ignored, lost on reboot (no boot receiver); streak day = list goes "not all done" -> "all done" (homework never resets daily, so "all ticked" alone would count every day), logic in `TimerLogic.kt` / `StreakLogic.kt` (unit-tested)
 
 ## 2. REJECTED / DON'T RETRY
 - `DevicePolicyManager.setStatusBarDisabled` for shade blocking: also sets mDisableNotificationEffects, silencing ALL notification sound/vibration/heads-up (measured API 34). Also don't use lock-task status bar flags. Use Acc quick-settings closing (11-09)
