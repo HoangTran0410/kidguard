@@ -44,6 +44,8 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Guard `tick()`: optional steps (usage, DNS retry, Tailscale poll, location, battery, warn, history, update, launcher) run through `opt{}`, so one throwing never skips suspend/hide; failures are logged once a minute per step.
 - Release moves `NotifDots.setOn(false)` after Device Owner is really gone and restores `tsWanted/tsKey/tsNoExpiry` when release fails; `Debloat.canClear` refuses `dev.kidguard` and `dev.kidguard.home`; LAN file upload is capped at 10 min total; `Store.ringVol` lets the Guard restore the alarm volume after a process death mid-ring.
 
+- Bank apps (VCB & co.) refuse to run while ANY accessibility service is on, Play Store ones too (Niagara Launcher, owner report), and re-check on every resume. Rule `accPause` (default ~15 VN banks/wallets): owner mode really removes our service when one opens (launcher tap first, else its window event), back on after 10 min with none in front + killBackgroundProcesses on them. Not "hiding" from the check. Basic mode: not done (the service is the enforcement). Recents re-open after resume may still lose the race (unverified) (11-09)
+
 ### Remote / relay
 - Command whitelist lives in the relay worker; new command = whitelist + protocol + test. Destructive (`reboot`, `release`, `unpairAll`, `update`, `unpair`) are deliver-once (AGENTS.md)
 - Worker caps: cmd <=4 KB, rules <=64 KB, full queue -> 429 (never drop oldest), per-IP 150 req/10 s on /c/*; state size counted in bytes; expired cmds don't count (1747923, 66d8d5d, f032b5d)

@@ -52,6 +52,8 @@ class Acc : AccessibilityService() {
         }
         if (e.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = e.packageName?.toString() ?: return
+        // a bank app that refuses accessibility services came up without our launcher (Recents, a link): step aside now
+        if (pkg in Store.of(this).rules.accPause) { AccPause.pause(this, pkg); return }
         if (pkg != packageName) basicGuard(pkg)
         if (TaskLogic.dropTasks(pkg, e.className?.toString(), packageName, homes())) dropTasks()
         if (pkg == lastPkg) return
@@ -269,7 +271,7 @@ class Acc : AccessibilityService() {
          * True only when the service is connected now. If our entry is present but never connects (crashed service),
          * after 3 misses the entry is removed; the next call re-adds it, which forces a rebind.
          */
-        fun ensureEnabled(ctx: Context): Boolean {
+        fun ensureEnabled(ctx: Context, quiet: Boolean = false): Boolean {
             if (running != null) { misses = 0; return true }
             if (ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") != PackageManager.PERMISSION_GRANTED) return false
             val cr = ctx.contentResolver
@@ -286,7 +288,7 @@ class Acc : AccessibilityService() {
                 } else {
                     Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, if (cur.isEmpty()) me else "$cur:$me")
                     Settings.Secure.putInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
-                    if (rebind) rebind = false
+                    if (rebind || quiet) rebind = false   // quiet: our own bank-app pause ended, not the child
                     else {
                         val now = System.currentTimeMillis()
                         if (now - lastReEnableLog > 3_600_000) { lastReEnableLog = now; Store.of(ctx).log(R.string.log_acc_reenabled) }

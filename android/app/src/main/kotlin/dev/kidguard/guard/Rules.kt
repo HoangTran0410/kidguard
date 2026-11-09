@@ -155,6 +155,7 @@ data class Rules(
     val safeDns: String = "",                // Private DNS host, "" = off
     val safeDnsPauseUntil: Long = 0,         // epoch ms: while now < this the phone behaves as if safeDns were "" (0 = no pause)
     val noVpn: Boolean = false,              // Device Owner: DISALLOW_CONFIG_VPN (no VPN apps / settings for the child)
+    val accPause: Set<String> = AccPauseLogic.DEFAULT,   // bank apps: our accessibility service is off while they are used (AccPause)
     val trackMin: Int = 10,                  // location history every N minutes: 0 (off), 5, 10, 15, 30, 60
     val showWatching: Boolean = true,        // child sees "parent is watching / controlling" while the screen is viewed
     val autoUpdate: Boolean = true,          // daily check of GitHub releases; owner installs silently, basic asks the child
@@ -189,7 +190,7 @@ data class Rules(
         .put("dailyByDay", JSONArray(dailyByDay))
         .put("schedules", JSONArray().apply { schedules.forEach { put(it.toJson()) } })
         .put("blockNew", blockNew).put("approved", JSONArray(approved.sorted()))
-        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("safeDnsPauseUntil", safeDnsPauseUntil).put("noVpn", noVpn).put("trackMin", trackMin)
+        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("safeDnsPauseUntil", safeDnsPauseUntil).put("noVpn", noVpn).put("trackMin", trackMin).put("accPause", JSONArray(accPause.sorted()))
         .put("showWatching", showWatching).put("autoUpdate", autoUpdate)
         .put("chores", JSONArray().apply { chores.forEach { put(it.toJson()) } })
         .put("zones", JSONArray().apply { zones.forEach { put(it.toJson()) } })
@@ -287,6 +288,7 @@ data class Rules(
                 showWatching = o.optBoolean("showWatching", true),
                 autoUpdate = o.optBoolean("autoUpdate", true),
                 noVpn = o.optBoolean("noVpn", false),
+                accPause = if (o.has("accPause")) o.optJSONArray("accPause").strings().take(100).toSet() else AccPauseLogic.DEFAULT,
                 trackMin = o.optInt("trackMin", 10).takeIf { it in TRACK_STEPS } ?: 10,
                 safeDnsPauseUntil = o.optLong("safeDnsPauseUntil", 0).coerceAtLeast(0),
                 safeDns = o.optString("safeDns", "").trim().lowercase().takeIf { it.matches(DNS_HOST) } ?: "",

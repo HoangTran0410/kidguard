@@ -34,6 +34,12 @@ shape, say so in your report instead of silently diverging.
                                    //      by itself at expiry (no rules change needed). The page's "Pause 30 min" sets now+30 min.
   "noVpn": false,                  // NEW (default false): DISALLOW_CONFIG_VPN (Device Owner); also kept while our Tailscale access needs it
   "noInstall": false, "noDebug": false,
+  "accPause": ["com.VCB", "…"],    // NEW: bank apps that refuse to run while any accessibility service is on. Absent = the phone's
+                                   //      default list (AccPauseLogic.DEFAULT, ~15 VN banks / wallets); [] = feature off; max 100.
+                                   //      Owner mode + WRITE_SECURE_SETTINGS only: when one opens (launcher tap or its window) the
+                                   //      phone removes its own accessibility service, and puts it back once none has been in front
+                                   //      for 10 min (their background processes are killed then). Nothing for release to undo
+                                   //      (release forgets the pause; the service is removed by release anyway).
   "pinHash": "…",                  // the page may send "pin": "1234" instead; phone/worker store only the hash
 }
 ```
@@ -49,6 +55,7 @@ leftMs apps rules location lan relay log`), plus:
 {
   "version": "0.9.4",
   "acc": true,                     // NEW: accessibility service connected (live screen / remote control available)
+  "accPaused": [],                 // NEW: packages it is turned off for right now (rules.accPause); non-empty = acc false on purpose
   "accReEnable": true,             // NEW: the app holds WRITE_SECURE_SETTINGS (can re-enable acc itself)
   "locationOn": true,              // NEW: system location switch
   "dev": {"on": true, "adb": false, "canOff": true},   // v0.9.6: Developer options on; USB or (API 30+) wireless debugging on; app holds WRITE_SECURE_SETTINGS or is Device Owner
@@ -473,7 +480,7 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
   (English or Vietnamese, from the phone / per-app language; the examples here are the Vietnamese ones). The same goes for
   log lines (`log[].m`; NEW `log[].k` = kind, the string id without `log_`: `pin_wrong`, `unlock`, `paired`, `tz`,
   `loc_fixed`, `usage_off`, `new_app`, `suspended`, `unsuspended`, `recover_open`, `recover_req`, `zone`, `cmd`, `cleared`,
-  `totp_off`, `totp_on`, `release_fail`, `released`, `sos`, `acc_settings`, `acc_rebind`, `acc_reenabled`, `view_start`,
+  `totp_off`, `totp_on`, `release_fail`, `released`, `sos`, `acc_settings`, `acc_rebind`, `acc_reenabled`, `acc_paused`, `acc_resumed`, `view_start`,
   `control`, `proj_denied`, `listen_start`, `listen_done`, `listen_err`, `ring_stopped`, `dns_fallback`, `admin_open`,
   `checkin`, `rules`; absent on older lines, pages show a plain dot) and error strings (`dnsError`, `update.err`, `ts.err`). Code must switch on `kind`, never parse `text`. Kinds:
   - `zoneIn` / `zoneOut`: "Đã đến <zone>" / "Đã rời <zone>" (`zone` field = zone id). First fix after a rules change

@@ -197,6 +197,8 @@ internal fun HomeActivity.launch(a: AppE, from: View) {
     val fl = IntArray(2).also { from.getLocationOnScreen(it) }; val il = IntArray(2).also { icon.getLocationOnScreen(it) }
     i.sourceBounds = android.graphics.Rect(il[0], il[1], il[0] + icon.width, il[1] + icon.height)
     Recent.note(this, a.pkg)
+    // a bank app checks for accessibility services as it starts: ours goes off before it opens (AccPause)
+    if (!Flavor.HOME) runCatching { AccPause.pause(this, a.pkg) }
     // The system's zoom: the app's real window grows out of the icon (Oppo, ColorOS 8.1). HyperOS grows it from the screen
     // centre for any third-party home and plays it only when the home window shows the system wallpaper (theme AppHome),
     // else it slides apps in from the side (measured on a Poco, HyperOS 3, same as a third-party iOS launcher). A zoom

@@ -66,7 +66,7 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
                 .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, c.getString(R.string.basic_admin_expl)))
         }
         if (Build.VERSION.SDK_INT >= 33) out += Step(s(R.string.acc_restricted), s(R.string.acc_restricted_d), !Acc.restricted(c)) { c.startActivity(Acc.appInfo(c)) }
-        out += Step(s(R.string.basic_acc), s(R.string.basic_acc_d), Acc.isOn(c)) { open(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        out += Step(s(R.string.basic_acc), s(R.string.basic_acc_d), Acc.isOn(c) || AccPause.active(c)) { open(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
         out += Step(s(R.string.basic_usage), s(R.string.basic_usage_d), Usage.granted(c)) { open(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, pkg), Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
         if (!owner) {
             val fine = c.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED

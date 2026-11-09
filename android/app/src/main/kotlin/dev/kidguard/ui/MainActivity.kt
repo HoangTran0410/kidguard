@@ -620,7 +620,8 @@ class MainActivity : Activity() {
             else line(warn, Ic.WARN, getString(R.string.st_unfinished))
         if (!usage) line(warn, Ic.WARN, getString(R.string.st_no_usage))
         if (Guard.running != null) line(ok, Ic.OK, getString(R.string.st_running)) else line(R.drawable.li_loader, Ic.INFO, getString(R.string.st_starting))
-        if (Acc.isOn(this@MainActivity)) line(R.drawable.li_accessibility, Ic.OK, getString(R.string.st_acc_on)) else line(R.drawable.li_accessibility, Ic.WARN, getString(R.string.st_acc_off))
+        if (AccPause.active(this@MainActivity)) line(R.drawable.li_accessibility, Ic.INFO, getString(R.string.st_acc_paused))
+        else if (Acc.isOn(this@MainActivity)) line(R.drawable.li_accessibility, Ic.OK, getString(R.string.st_acc_on)) else line(R.drawable.li_accessibility, Ic.WARN, getString(R.string.st_acc_off))
         val locOn = Basic.locationOn(this)
         line(R.drawable.li_map_pin, if (locOn) Ic.OK else Ic.WARN, getString(if (locOn) R.string.st_loc_on else R.string.st_loc_off))
         val pending = s.requests().length()
@@ -786,7 +787,7 @@ class MainActivity : Activity() {
         "cmd" to (R.drawable.li_send to false), "cleared" to (R.drawable.li_eraser to false), "totp_off" to (R.drawable.li_shield to true),
         "totp_on" to (R.drawable.li_shield to false), "release_fail" to (R.drawable.li_octagon_x to true), "released" to (R.drawable.li_unlink to true),
         "sos" to (R.drawable.li_siren to true), "acc_settings" to (R.drawable.li_triangle_alert to true), "acc_rebind" to (R.drawable.li_refresh_cw to false),
-        "acc_reenabled" to (R.drawable.li_refresh_cw to false), "view_start" to (R.drawable.li_eye to false), "control" to (R.drawable.li_pointer to false),
+        "acc_reenabled" to (R.drawable.li_refresh_cw to false), "acc_paused" to (R.drawable.li_accessibility to false), "acc_resumed" to (R.drawable.li_refresh_cw to false), "view_start" to (R.drawable.li_eye to false), "control" to (R.drawable.li_pointer to false),
         "proj_denied" to (R.drawable.li_eye_off to true), "listen_start" to (R.drawable.li_ear to false), "listen_done" to (R.drawable.li_ear to false),
         "listen_err" to (R.drawable.li_ear to true), "ring_stopped" to (R.drawable.li_bell to false), "dns_fallback" to (R.drawable.li_wifi_off to true),
         "admin_open" to (R.drawable.li_settings to false), "checkin" to (R.drawable.li_hand to false), "rules" to (R.drawable.li_list to false),

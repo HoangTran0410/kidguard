@@ -169,7 +169,9 @@ class Guard : Service() {
         val cal = Calendar.getInstance().apply { timeInMillis = now }
         val minute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         val today = day(now)
-        opt("acc") { Acc.ensureEnabled(this) }
+        // bank apps refuse to run with any accessibility service on: off while one is used, back on 10 min after (AccPause)
+        opt("accPause") { AccPause.tick(this, use.current, now) }
+        opt("acc") { if (!AccPause.active(this)) Acc.ensureEnabled(this) }
         opt("dns") { Policy.syncDns(this, r); Policy.retryDns(this, r) }
         opt("ts") { Ts.poll(this, store) }
         opt("track") { if (r.trackMin > 0 && now - lastTrackTry >= r.trackMin * 60_000L - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) } }
@@ -350,7 +352,7 @@ class Guard : Service() {
             .put("model", "${Build.MANUFACTURER} ${Build.MODEL}").put("android", Build.VERSION.RELEASE).put("sdk", Build.VERSION.SDK_INT).put("version", BuildConfig.VERSION_NAME)
             .put("pairUntil", store.pairOpenUntil())
             .put("totpOn", store.totpSecret.isNotBlank()).put("unlockUntil", store.unlockUntil.takeIf { it > now } ?: 0)
-            .put("acc", Acc.isOn(this))
+            .put("acc", Acc.isOn(this)).put("accPaused", JSONArray(store.accPaused.sorted()))
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
             .put("locationOn", locationOn())
             .put("dev", DevOpts.state(this))

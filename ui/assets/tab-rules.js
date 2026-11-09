@@ -174,7 +174,7 @@ function ruleSecs(r) {
     anti: sec("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span class="sp">${ic("package")} ${t("anti.install")}</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label>
     ${isBasic() ? needOwner() + `<p class="mute">${ic("shield")} ${t("anti.basic")}</p>`
-      : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}`),
+      : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}${bankBox(r)}`),
   };
 }
 function monWould() {   // monitor only: what strict mode would block right now (state.wouldBlock: pkg -> reason)
@@ -325,4 +325,19 @@ function rulesWire(b, r) {
   $("#f-hmlock").onchange = e => { r.launcher.lockCustom = e.target.checked; changed(); };
   $("#f-hmshade").onchange = e => { r.launcher.shade = e.target.checked; changed(); };
   $("#f-nd").onchange = e => { r.noDebug = e.target.checked; changed(); };
+  document.querySelectorAll("[data-bank]").forEach(c => c.onchange = () => {
+    const s = new Set(r.accPause || []); c.checked ? s.add(c.dataset.bank) : s.delete(c.dataset.bank);
+    r.accPause = [...s]; changed();
+  });
+}
+// Bank apps refuse to open while any accessibility service is on: the phone turns KidGuard's off while one is used
+// (rules.accPause, owner mode). Installed apps first; listed but not installed ones stay checked at the end.
+function bankBox(r) {
+  if (!Array.isArray(r.accPause) || isBasic()) return "";
+  const have = new Set(r.accPause), apps = (st.apps || []).slice().sort((a, b) => (have.has(b.pkg) - have.has(a.pkg)) || a.label.localeCompare(b.label));
+  const inst = new Set(apps.map(a => a.pkg)), n = apps.filter(a => have.has(a.pkg)).length;
+  return `<h4 style="margin:14px 0 4px">${ic("landmark")} ${t("bank.h")}</h4><p class="mute">${t("bank.p")}</p>
+    <details style="margin-top:6px"><summary>${t("bank.n", n)}</summary><div style="max-height:260px;overflow:auto;margin-top:6px">
+    ${apps.map(a => `<label class="row"><input type="checkbox" data-bank="${esc(a.pkg)}" ${have.has(a.pkg) ? "checked" : ""}><span class="sp">${esc(a.label)}</span></label>`).join("")}
+    ${r.accPause.filter(p => !inst.has(p)).length ? `<p class="mute">${t("bank.others", r.accPause.filter(p => !inst.has(p)).length)}</p>` : ""}</div></details>`;
 }

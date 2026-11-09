@@ -377,7 +377,7 @@ class HomeActivity : Activity() {
             bannerAt = now; bannerSet = true
         }
         return if (!cOwner && !s.everPaired) null   // standalone use before setup: nothing to nag about
-            else LauncherLogic.banner(cOwner, Guard.running != null, cUsage, cLoc, Acc.isOn(this))
+            else LauncherLogic.banner(cOwner, Guard.running != null, cUsage, cLoc, Acc.isOn(this) || AccPause.active(this))
     }
     // last check-ins ("đã tới" / "đón con"), re-read only when the stored events change
     private var evRaw: String? = null; private var evKey = ""

@@ -392,6 +392,14 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var knownApps: Set<String>?
         get() = p.getStringSet("known", null)?.toSet()
         set(v) { p.edit().putStringSet("known", v).apply() }
+    /** Bank apps our accessibility service is turned off for right now (see AccPause); empty = not paused. */
+    @get:Synchronized @set:Synchronized var accPaused: Set<String>
+        get() = p.getStringSet("accPaused", emptySet())!!.toSet()
+        set(v) { p.edit().putStringSet("accPaused", v).commit() }
+    /** When the last paused app left the front (0 = one is in front). */
+    @get:Synchronized @set:Synchronized var accLeftAt: Long
+        get() = p.getLong("accLeftAt", 0L)
+        set(v) { p.edit().putLong("accLeftAt", v).apply() }
     @get:Synchronized @set:Synchronized var loggedNew: Set<String>
         get() = p.getStringSet("loggedNew", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("loggedNew", v).apply() }

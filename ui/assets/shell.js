@@ -172,7 +172,8 @@ function updateLive() {
   if (!lan && lastNet) B.push(["warn", "wifi-off", t("live.selfOff")]);
   if (lost && !(!lan && lastNet)) B.push(["bad", "siren", t("live.lost", hhmm(lostFrom)) + (lastErr && lan ? " (" + esc(lastErr) + ")" : "")]);
   B.push(...modeBans());
-  if (st.acc === false) B.push(["warn", "triangle-alert", t("live.acc")]);
+  if ((st.accPaused || []).length) B.push(["info", "landmark", t("live.accBank", esc(st.accPaused.map(p => ((st.apps || []).find(a => a.pkg === p) || {}).label || p).join(", ")))]);
+  else if (st.acc === false) B.push(["warn", "triangle-alert", t("live.acc")]);
   if (st.usageAccess === false || st.usageOff) B.push(["bad", "triangle-alert", t("live.usage")]);
   if (st.dnsError) B.push(["warn", "triangle-alert", t("live.dns", esc(st.dnsError))]);
   if (st.locationOn === false) B.push(["warn", "triangle-alert", t("live.locOff")]);

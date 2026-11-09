@@ -176,7 +176,7 @@ const LOG_IC = { pin_wrong: ["key-round", "bad"], unlock: ["lock-open"], paired:
   usage_off: ["triangle-alert", "bad"], new_app: ["package"], suspended: ["pause"], unsuspended: ["play"], recover_open: ["refresh-cw"],
   recover_req: ["refresh-cw"], zone: ["map-pin"], cmd: ["send"], cleared: ["eraser"], totp_off: ["shield", "bad"], totp_on: ["shield"],
   release_fail: ["octagon-x", "bad"], released: ["unlink", "bad"], sos: ["siren", "bad"], acc_settings: ["triangle-alert", "bad"],
-  acc_rebind: ["refresh-cw"], acc_reenabled: ["refresh-cw"], view_start: ["eye"], control: ["pointer"], proj_denied: ["eye-off", "bad"],
+  acc_rebind: ["refresh-cw"], acc_reenabled: ["refresh-cw"], acc_paused: ["landmark"], acc_resumed: ["refresh-cw"], view_start: ["eye"], control: ["pointer"], proj_denied: ["eye-off", "bad"],
   listen_start: ["ear"], listen_done: ["ear"], listen_err: ["ear", "bad"], ring_stopped: ["bell"], dns_fallback: ["wifi-off", "bad"],
   admin_open: ["settings"], checkin: ["hand"], rules: ["list"], dev_off: ["settings"], dev_on: ["settings"],
   setting_vol: ["sliders-horizontal"], setting_bright: ["sliders-horizontal"], setting_auto_on: ["sliders-horizontal"], setting_auto_off: ["sliders-horizontal"], setting_timeout: ["sliders-horizontal"], setting_dnd_on: ["sliders-horizontal"], setting_dnd_off: ["sliders-horizontal"] };
