@@ -49,7 +49,17 @@ class Modal(private val act: Activity, private val u: Ui = Ui(act)) {
      */
     fun show(icon: Int?, tone: Tone, title: String, message: String? = null, content: View? = null,
              ok: String = "OK", cancel: String? = null, onCancel: () -> Unit = {}, onOk: () -> Boolean = { true }): Dialog {
-        val d = Dialog(act)
+        // every way out (Cancel, OK, tap outside, back, a caller's dismiss()) hides the keyboard first:
+        // the launcher window does not hide an IME the dialog opened (SOFT_INPUT_STATE_VISIBLE below)
+        val d = object : Dialog(act) {
+            override fun dismiss() {
+                runCatching {
+                    val v = currentFocus ?: window?.decorView
+                    if (v != null) act.getSystemService(android.view.inputmethod.InputMethodManager::class.java)?.hideSoftInputFromWindow(v.windowToken, 0)
+                }
+                super.dismiss()
+            }
+        }
         d.requestWindowFeature(Window.FEATURE_NO_TITLE)
         val c = color(tone)
         val box = LinearLayout(act).apply {

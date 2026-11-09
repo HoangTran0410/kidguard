@@ -262,6 +262,7 @@ The first capture / first input of a session is logged in the phone log.
   forgets the kid as before.
 
 ## Setup steps (scripts/setup.sh, scripts/setup.ps1, the web installer and the in-app self-setup `SelfSetup.kt` do the same, in this order)
+Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am start`, LAN URL: it already runs inside the app) and adds an accounts pre-check and Wi-Fi-off; the other three rely on `dpm set-device-owner` failing when accounts exist.
 1. `adb install -r -g kidguard.apk`
 2. `adb shell dpm set-device-owner dev.kidguard/.Admin` (verify with `dumpsys device_policy`)
 3. `adb shell appops set dev.kidguard GET_USAGE_STATS allow`
