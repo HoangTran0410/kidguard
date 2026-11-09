@@ -32,12 +32,13 @@ object Usage {
 
     fun range(ctx: Context, from: Long, now: Long): Today {
         val um = ctx.getSystemService(UsageStatsManager::class.java) ?: return Today(emptyMap(), null)
-        val ev = um.queryEvents(from, now) ?: return Today(emptyMap(), null)
+        // look back a few hours so an app already open at `from` (midnight) is seen resuming; only time after `from` is counted
+        val ev = um.queryEvents(from - CARRY_MS, now) ?: return Today(emptyMap(), null)
         val total = HashMap<String, Long>()
         val open = HashMap<String, Long>()          // package -> resumed at
         var last: String? = null
         val e = UsageEvents.Event()
-        fun close(pkg: String, at: Long) { open.remove(pkg)?.let { total[pkg] = (total[pkg] ?: 0) + (at - it).coerceAtLeast(0) } }
+        fun close(pkg: String, at: Long) { open.remove(pkg)?.let { total[pkg] = (total[pkg] ?: 0) + (at - maxOf(it, from)).coerceAtLeast(0) } }
         fun closeAll(at: Long) { open.keys.toList().forEach { close(it, at) } }
         while (ev.hasNextEvent()) {
             ev.getNextEvent(e)
@@ -59,6 +60,7 @@ object Usage {
         return Today(total, last)
     }
 
+    private const val CARRY_MS = 6 * 3_600_000L
     private const val SCREEN_NON_INTERACTIVE = 16
     private const val KEYGUARD_SHOWN = 17
     private const val DEVICE_SHUTDOWN = 26

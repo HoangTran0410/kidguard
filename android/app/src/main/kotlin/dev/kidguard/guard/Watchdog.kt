@@ -24,7 +24,7 @@ class Watchdog : BroadcastReceiver() {
         fun schedule(ctx: Context) {
             if (Store.of(ctx).released) return
             runCatching {
-                                ctx.getSystemService(AlarmManager::class.java)
+                ctx.getSystemService(AlarmManager::class.java)
                     .setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + EVERY, pi(ctx))
             }.onFailure { Log.w("KidGuard", "watchdog", it) }
         }
