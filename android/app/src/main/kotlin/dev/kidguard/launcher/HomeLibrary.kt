@@ -96,9 +96,16 @@ internal class LibraryPage(private val act: HomeActivity) : ScrollView(act) {
 
     init {
         isVerticalScrollBarEnabled = false; overScrollMode = OVER_SCROLL_NEVER
-        // clipped to the chrome room: cards never scroll under the status bar icons or behind the dock
+        // clipped at the top only (cards never scroll under the status bar icons); like TodayPage, the bottom room is
+        // padding INSIDE the content, so cards run under the navigation bar and the last row still scrolls clear of it
+        // (a bottom padding on the ScrollView itself cut the page off above the nav bar like a cropped box)
         clipToPadding = true
         addView(col, LayoutParams(-1, -2))
+    }
+
+    fun pad(top: Int, bottom: Int) {
+        if (paddingTop != top || paddingBottom != 0) setPadding(0, top, 0, 0)
+        if (col.paddingBottom != bottom) col.setPadding(0, 0, 0, bottom)
     }
 
     fun fill(all: Map<String, AppE>) = with(act) {

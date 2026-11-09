@@ -624,8 +624,8 @@ class HomeActivity : Activity() {
         for (i in 1 until pager.childCount) {
             val c = pager.getChildAt(i)
             // the library has no chrome over it (it fades away there): only the system bars
-            val (t, b) = if (c === library) (insT + dp(12)) to (insB + dp(12)) else top to bot
-            if (c.paddingTop != t || c.paddingBottom != b) c.setPadding(0, t, 0, b)
+            if (c === library) { library?.pad(insT + dp(12), insB + dp(12)); continue }
+            if (c.paddingTop != top || c.paddingBottom != bot) c.setPadding(0, top, 0, bot)
         }
     }
 
