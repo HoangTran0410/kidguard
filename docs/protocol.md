@@ -34,7 +34,7 @@ shape, say so in your report instead of silently diverging.
                                    //      by itself at expiry (no rules change needed). The page's "Pause 30 min" sets now+30 min.
   "noVpn": false,                  // NEW (default false): DISALLOW_CONFIG_VPN (Device Owner); also kept while our Tailscale access needs it
   "noInstall": false, "noDebug": false,
-  "accPause": ["com.VCB", "…"],    // NEW: bank apps that refuse to run while any accessibility service is on. Absent = the phone's
+  "accPause": ["com.VCB", "…"],    // NEW: apps that refuse to run while any accessibility service is on (banks by default; parents add any package). Absent = the phone's
                                    //      default list (AccPauseLogic.DEFAULT, ~15 VN banks / wallets); [] = feature off; max 100.
                                    //      Owner mode + WRITE_SECURE_SETTINGS only: when one opens (launcher tap or its window) the
                                    //      phone removes its own accessibility service, and puts it back once none has been in front

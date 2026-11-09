@@ -325,19 +325,44 @@ function rulesWire(b, r) {
   $("#f-hmlock").onchange = e => { r.launcher.lockCustom = e.target.checked; changed(); };
   $("#f-hmshade").onchange = e => { r.launcher.shade = e.target.checked; changed(); };
   $("#f-nd").onchange = e => { r.noDebug = e.target.checked; changed(); };
-  document.querySelectorAll("[data-bank]").forEach(c => c.onchange = () => {
-    const s = new Set(r.accPause || []); c.checked ? s.add(c.dataset.bank) : s.delete(c.dataset.bank);
-    r.accPause = [...s]; changed();
-  });
+  bankBind(r);
 }
-// Bank apps refuse to open while any accessibility service is on: the phone turns KidGuard's off while one is used
-// (rules.accPause, owner mode). Installed apps first; listed but not installed ones stay checked at the end.
+// Apps that refuse to open while any accessibility service is on (banks, some wallets / games): the phone turns
+// KidGuard's off while one is used (rules.accPause, owner mode). Any app can be picked; a package name can be typed
+// for one not installed yet. Picked apps first, then A-Z.
 function bankBox(r) {
   if (!Array.isArray(r.accPause) || isBasic()) return "";
-  const have = new Set(r.accPause), apps = (st.apps || []).slice().sort((a, b) => (have.has(b.pkg) - have.has(a.pkg)) || a.label.localeCompare(b.label));
-  const inst = new Set(apps.map(a => a.pkg)), n = apps.filter(a => have.has(a.pkg)).length;
   return `<h4 style="margin:14px 0 4px">${ic("landmark")} ${t("bank.h")}</h4><p class="mute">${t("bank.p")}</p>
-    <details style="margin-top:6px"><summary>${t("bank.n", n)}</summary><div style="max-height:260px;overflow:auto;margin-top:6px">
-    ${apps.map(a => `<label class="row"><input type="checkbox" data-bank="${esc(a.pkg)}" ${have.has(a.pkg) ? "checked" : ""}><span class="sp">${esc(a.label)}</span></label>`).join("")}
-    ${r.accPause.filter(p => !inst.has(p)).length ? `<p class="mute">${t("bank.others", r.accPause.filter(p => !inst.has(p)).length)}</p>` : ""}</div></details>`;
+    <details id="bk" style="margin-top:6px"><summary id="bk-n"></summary>
+    <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" style="margin-top:8px">
+    <div id="bk-list" style="max-height:300px;overflow:auto;margin-top:6px"></div>
+    <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="bk-pkg" class="sp" placeholder="${esc(t("bank.pkg"))}" autocapitalize="off" spellcheck="false" style="min-width:0">
+    <button class="btn" id="bk-add" type="button">${t("bank.add")}</button></div><p class="mute" id="bk-err" hidden>${t("bank.bad")}</p></details>`;
 }
+function bankBind(r) {
+  const list = $("#bk-list"); if (!list) return;
+  const fill = () => {
+    const have = new Set(r.accPause), apps = st.apps || [], inst = new Set(apps.map(a => a.pkg));
+    const rows = apps.map(a => ({ pkg: a.pkg, label: a.label, on: have.has(a.pkg) }))
+      .concat(r.accPause.filter(p => !inst.has(p)).map(p => ({ pkg: p, label: p, on: true, gone: true })))
+      .sort((a, b) => (b.on - a.on) || a.label.localeCompare(b.label));
+    $("#bk-n").textContent = t("bank.n", r.accPause.length);
+    list.innerHTML = rows.map(a => `<label class="row" data-q="${esc((a.label + " " + a.pkg).toLowerCase())}"><input type="checkbox" data-bank="${esc(a.pkg)}" ${a.on ? "checked" : ""}>
+      <span class="sp">${esc(a.label)}${a.gone ? ` <span class="mute">· ${t("bank.notInst")}</span>` : ""}</span></label>`).join("");
+    list.querySelectorAll("[data-bank]").forEach(c => c.onchange = () => {
+      const s = new Set(r.accPause); c.checked ? s.add(c.dataset.bank) : s.delete(c.dataset.bank);
+      r.accPause = [...s]; changed(); $("#bk-n").textContent = t("bank.n", r.accPause.length);
+    });
+    filt();
+  };
+  const filt = () => { const q = ($("#bk-q").value || "").trim().toLowerCase(); list.querySelectorAll("[data-q]").forEach(l => l.hidden = !!q && !l.dataset.q.includes(q)); };
+  $("#bk-q").oninput = filt;
+  $("#bk-add").onclick = () => {
+    const v = $("#bk-pkg").value.trim(), ok = /^[A-Za-z][\w]*(\.[A-Za-z_][\w]*)+$/.test(v) && v.length <= 200;
+    $("#bk-err").hidden = ok; if (!ok) return;
+    if (!r.accPause.includes(v)) { if (r.accPause.length >= 100) return; r.accPause = r.accPause.concat(v); changed(); }
+    $("#bk-pkg").value = ""; fill();
+  };
+  fill();
+}
+
