@@ -83,8 +83,9 @@ function drawHist() {
 function icon(x) {
   const l = ((x.label || "?").trim()[0] || "?").toUpperCase(), letter = esc(l), hue = (l.charCodeAt(0) * 47) % 360;
   const st0 = `background:hsl(${hue} 55% 45%);color:#fff`;
-  // LAN: the phone draws it; relay: the 48 px copy the phone uploaded; app mode: same paths through the proxy
-  return `<span class="ic" style="${st0}"><img data-l="${letter}" src="${base(cur)}/icon?pkg=${encodeURIComponent(x.pkg)}&k=${encodeURIComponent(cur.token)}" onload="this.parentNode.style.background='none'" onerror="this.parentNode.textContent=this.dataset.l"></span>`;
+  // LAN: the phone draws it; relay: the 48 px copy the phone uploaded; app mode: same paths through the proxy.
+  // lazy: a 200-app list fetches only the ~10 on screen first (LAN = one phone-side draw per icon); cached 24 h after
+  return `<span class="ic" style="${st0}"><img alt="" loading="lazy" decoding="async" data-l="${letter}" src="${base(cur)}/icon?pkg=${encodeURIComponent(x.pkg)}&k=${encodeURIComponent(cur.token)}" onload="this.parentNode.style.background='none'" onerror="this.parentNode.textContent=this.dataset.l"></span>`;
 }
 function appRow(x) {
   return `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${fmt(x.ms)}${x.suspended || x.blocked ? `<span class="tag bad">${reason(x.blocked)}</span>` : ""}</span></div></div>`;
