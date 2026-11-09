@@ -66,6 +66,7 @@ L.vi = {
   "totp.new": "Tạo mã mới", "tpl.school": "Ngày đi học", "tpl.weekend": "Cuối tuần", "tpl.summer": "Nghỉ hè", "tpl.exams": "Thi cử", "sch.class": "Giờ học", "sch.study": "Giờ ôn bài",
   "lim.byDay": "theo ngày", mins: "{0} phút", "tps.byDay": "giờ dùng khác nhau theo ngày", perDay: "{0} phút/ngày", "tps.noLimit": "không giới hạn giờ",
   "tps.bed": "ngủ {0}", "tps.noBed": "không giờ ngủ", "tps.sch": "{0} lịch học", noData: "chưa có dữ liệu",
+  "lv.title": "Mức bắt đầu", "lv.ask": "Chọn mức bắt đầu cho {0}. Mọi thứ đều chỉnh lại được sau trong tab Luật.", "lv.go": "Áp dụng", "lv.light": "Nhẹ nhàng", "lv.balanced": "Cân bằng (khuyên dùng)", "lv.strict": "Nghiêm", "lv.later": "Tự chỉnh sau", "lv.new": "chặn app mới", "lv.dns": "DNS an toàn", "lv.noinst": "cấm cài app",
   "tpl.askOne": "Áp dụng mẫu “{0}” cho {1}?\nSẽ ghi đè giờ dùng, giờ ngủ và lịch học. PIN, app chặn, danh sách cho phép và DNS giữ nguyên.", apply: "Áp dụng",
   "tpl.reading": "Đang đọc luật của các con…", "tpl.pickKids": "Chọn con", "tpl.cant": "không gửi được",
   "tpl.askMulti": "Áp dụng mẫu “{0}”?\nSẽ ghi đè giờ dùng, giờ ngủ và lịch học. PIN, app chặn và DNS giữ nguyên. Con chưa có mạng sẽ nhận luật khi online (relay: ~20 giây).",

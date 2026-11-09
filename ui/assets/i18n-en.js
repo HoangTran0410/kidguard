@@ -59,6 +59,7 @@ L.en = {
   "totp.new": "New code", "tpl.school": "School day", "tpl.weekend": "Weekend", "tpl.summer": "Summer break", "tpl.exams": "Exams", "sch.class": "Class time", "sch.study": "Study time",
   "lim.byDay": "per day of week", mins: "{0} min", "tps.byDay": "different time per day", perDay: "{0} min/day", "tps.noLimit": "no time limit",
   "tps.bed": "bed {0}", "tps.noBed": "no bedtime", "tps.sch": { one: "{0} schedule", other: "{0} schedules" }, noData: "no data yet",
+  "lv.title": "Starting level", "lv.ask": "Pick a starting level for {0}. You can change everything later in the Rules tab.", "lv.go": "Apply", "lv.light": "Light", "lv.balanced": "Balanced (recommended)", "lv.strict": "Strict", "lv.later": "I'll set it up later", "lv.new": "block new apps", "lv.dns": "safe DNS", "lv.noinst": "no installs",
   "tpl.askOne": "Apply the “{0}” template to {1}?\nThis replaces screen time, bedtime and schedules. PIN, blocked apps, the always-allowed list and DNS stay as they are.", apply: "Apply",
   "tpl.reading": "Reading the kids' rules…", "tpl.pickKids": "Pick kids", "tpl.cant": "can't send",
   "tpl.askMulti": "Apply the “{0}” template?\nThis replaces screen time, bedtime and schedules. PIN, blocked apps and DNS stay as they are. A kid that's offline gets the rules once online (relay: ~20 seconds).",
