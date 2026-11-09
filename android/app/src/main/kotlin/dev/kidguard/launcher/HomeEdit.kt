@@ -1,6 +1,7 @@
 package dev.kidguard
 
 import android.graphics.Color
+import android.content.Intent
 import android.view.Gravity
 import android.view.View
 import android.view.animation.DecelerateInterpolator
@@ -99,6 +100,8 @@ private fun HomeActivity.editBars() {
         }
         btn(R.drawable.li_trash_2, getString(R.string.hm_e_delpage), page in m.pages.indices) { deletePage(page) }
         btn(R.drawable.li_layout_dashboard, getString(R.string.hm_w_title)) { exitEdit(); openPicker() }
+        // a full home has no empty spot to long-press (the only other way into Tuỳ chỉnh), so it is here too
+        btn(R.drawable.li_sliders_horizontal, getString(R.string.hm_customize)) { exitEdit(); runCatching { startActivity(Intent(this, CustomActivity::class.java)) } }
     } else {
         val items = m.pages.flatten().filter { it.id in picked }
         val apps = items.sumOf { when (it.kind) { "app" -> 1; "folder" -> it.apps.size; else -> 0 } }
