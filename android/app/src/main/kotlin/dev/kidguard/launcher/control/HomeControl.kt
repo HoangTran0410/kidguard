@@ -132,6 +132,15 @@ internal object CcSys {
         Tile.DARK -> Intent(Settings.ACTION_DISPLAY_SETTINGS)
         else -> Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + ctx.packageName))
     }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    /** Long-press on a connectivity toggle: its full settings page (iOS / One UI / HyperOS); null = no long-press. */
+    fun full(t: Tile): Intent? = when (t) {
+        Tile.WIFI -> Intent(Settings.ACTION_WIFI_SETTINGS)
+        Tile.BT -> Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
+        Tile.AIRPLANE -> Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS)
+        Tile.DATA -> Intent(Settings.ACTION_NETWORK_OPERATOR_SETTINGS)
+        else -> null
+    }?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 }
 
 /** One round toggle with its label under it (the 2×2 connectivity card and the row of tiles). */
@@ -154,12 +163,24 @@ internal class CcToggle(val act: HomeActivity, val tile: Tile, private val icon:
             setShadowLayer(act.dpf(3f), 0f, 0f, 0x66000000)
         }, LayoutParams(-1, -2).apply { topMargin = act.dp(5) })
         contentDescription = label
-        act.kit.tap(btn, -1f, true)
+        // the circle sinks like a home icon ([pressed] / Motion), no grey ripple over it
+        btn.isClickable = true
+        btn.setOnTouchListener { v, e -> when (e.actionMasked) { MotionEvent.ACTION_DOWN -> pressed(v, true)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> pressed(v, false) }; false }
         btn.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         isFocusable = true
         draw()
     }
     fun onTap(f: () -> Unit) { btn.setOnClickListener { f() }; setOnClickListener { f() } }
+    var onLong: (() -> Unit)? = null
+        set(f) {
+            field = f
+            for (v in listOf(btn, this)) v.setOnLongClickListener { f?.let { v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); it(); true } ?: false }
+        }
+    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+        super.onInitializeAccessibilityNodeInfo(info)
+        if (onLong != null) info.addAction(AccessibilityNodeInfo.AccessibilityAction(AccessibilityNodeInfo.ACTION_LONG_CLICK, act.getString(R.string.cc_more_of)))
+    }
     fun set(state: Boolean?, m: Mode) { on = state; mode = m; draw() }
     private fun draw() {
         val lit = on == true
@@ -277,7 +298,10 @@ internal fun HomeActivity.openControl() {
     fun toggle(t: Tile, icon: Int, label: Int, size: Int, lines: Int = 1, direct: (Boolean) -> Boolean): CcToggle? {
         val m = ControlLogic.mode(t, ph)
         if (m == Mode.HIDDEN) return null
-        return CcToggle(this, t, icon, getString(label), size, lines).also { tg -> tg.mode = m; toggles += tg; tg.onTap { act(t, tg.mode) { direct(tg.on != true) } } }
+        return CcToggle(this, t, icon, getString(label), size, lines).also { tg -> tg.mode = m; toggles += tg; tg.onTap { act(t, tg.mode) { direct(tg.on != true) } }
+            // long-press: the full settings page, only where the kid may open Settings (else it would be a way around the lock)
+            CcSys.full(t)?.let { i -> tg.onLong = { if (ok) { runCatching { startActivity(i) }.onFailure { toast(R.string.cc_failed) }; closeOverlay() } else toast(R.string.cc_locked) } }
+        }
     }
 
     // row 1: connectivity card (2×2) | brightness + volume sliders
