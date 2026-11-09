@@ -83,7 +83,7 @@ class AdminActivity : Activity() {
         fun ready(why: String) {
             if (shown) return; shown = true
             android.util.Log.i("KG.perf", "admin page $why ${android.os.SystemClock.elapsedRealtime() - t0}ms (since PIN ok ${android.os.SystemClock.elapsedRealtime() - okAt}ms)")
-            wait.animate().alpha(0f).setDuration(150).withEndAction { wait.visibility = android.view.View.GONE }.start()
+            Motion.fade(wait, 0f) { wait.visibility = android.view.View.GONE }
         }
         w.webChromeClient = object : android.webkit.WebChromeClient() {
             override fun onProgressChanged(v: WebView, p: Int) { if (p >= 100) ready("progress") }

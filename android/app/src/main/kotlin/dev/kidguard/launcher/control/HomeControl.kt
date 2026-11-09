@@ -194,9 +194,7 @@ internal class CcSlider(val act: HomeActivity, private val icon: Int, label: Str
     // hold cue: shrinks over the long-press wait (iOS control center), springs back when it fires, the finger drags or lifts
     private fun squeeze(on: Boolean) {
         if (onLong == null) return
-        animate().cancel()
-        if (on) animate().scaleX(0.95f).scaleY(0.95f).setDuration(holdMs).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
-        else if (scaleX != 1f) animate().scaleX(1f).scaleY(1f).setDuration(180).setInterpolator(android.view.animation.OvershootInterpolator(2f)).start()
+        if (on) Motion.sink(this, 0.95f, holdMs) else Motion.release(this)
     }
     private val longRun = Runnable { if (!moved) { squeeze(false); longDone = true; isPressed = false; performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); onLong?.invoke() } }
     init { contentDescription = label; isFocusable = true }
@@ -383,11 +381,11 @@ internal fun HomeActivity.openControl() {
         detail.addView(body, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         panel.visibility = View.GONE; detail.visibility = View.VISIBLE
         detail.alpha = 0f; detail.scaleX = 0.96f; detail.scaleY = 0.96f
-        detail.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).setInterpolator(DecelerateInterpolator(2f)).start()
+        Motion.enter(detail)
         back = {
             back = null; extras.clear(); toggles.removeAll(own)
             detail.visibility = View.GONE; detail.removeAllViews(); panel.visibility = View.VISIBLE
-            panel.alpha = 0f; panel.animate().alpha(1f).setDuration(150).start()
+            panel.alpha = 0f; Motion.fade(panel, 1f)
             refresh()
         }
         announce(getString(title))
@@ -480,12 +478,12 @@ internal fun HomeActivity.openControl() {
     overlayExit = { done ->
         if (torchId != null) runCatching { getSystemService(CameraManager::class.java)?.unregisterTorchCallback(torchCb) }
         window.attributes = window.attributes.apply { screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
-        panel.animate().alpha(0f).translationY(-dpf(24f)).setDuration(150).start()
-        scrim.animate().alpha(0f).setDuration(170).withEndAction(done).start()
+        panel.animate().alpha(0f).translationY(-dpf(24f)).setDuration(Motion.FAST).setInterpolator(Motion.DECEL).start()
+        Motion.fade(scrim, 0f, end = done)
     }
     scrim.alpha = 0f; panel.alpha = 0f; panel.translationY = -dpf(32f); panel.scaleX = 0.96f; panel.scaleY = 0.96f
-    scrim.animate().alpha(1f).setDuration(160).start()
-    panel.animate().alpha(1f).translationY(0f).scaleX(1f).scaleY(1f).setDuration(240).setInterpolator(DecelerateInterpolator(2f)).start()
+    Motion.fade(scrim, 1f)
+    Motion.enter(panel, Motion.SLOW)
     refresh()
     announce(getString(R.string.cc_title))
 }

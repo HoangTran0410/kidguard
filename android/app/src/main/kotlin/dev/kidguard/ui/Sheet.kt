@@ -50,8 +50,8 @@ class Sheet(act: Activity, u: Ui, title: String) {
                 android.view.MotionEvent.ACTION_MOVE -> if (dragging) box.translationY = (e.rawY - downY).coerceAtLeast(0f)
                 android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> if (dragging) {
                     dragging = false
-                    if (box.translationY > maxOf(u.dp(80).toFloat(), box.height * 0.2f)) box.animate().translationY(box.height.toFloat()).setDuration(150).withEndAction { d.dismiss(); box.translationY = 0f }.start()
-                    else box.animate().translationY(0f).setDuration(150).start()
+                    if (box.translationY > maxOf(u.dp(80).toFloat(), box.height * 0.2f)) box.animate().translationY(box.height.toFloat()).setDuration(Motion.FAST).setInterpolator(Motion.DECEL).withEndAction { d.dismiss(); box.translationY = 0f }.start()
+                    else box.animate().translationY(0f).setDuration(Motion.FAST).setInterpolator(Motion.STD).start()
                 }
             }
             true

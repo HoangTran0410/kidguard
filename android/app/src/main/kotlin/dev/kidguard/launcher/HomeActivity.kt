@@ -849,7 +849,7 @@ class HomeActivity : Activity() {
         private var cur: String? = null        // the letter of the top row while the list is scrolled by hand: marked on the rail only
         private val alphaTo = HashMap<View, Float>()   // each cell's target alpha (its current one lags behind while animating)
         private var downOnRail = false
-        private val hideBubble = Runnable { bubble.animate().alpha(0f).setDuration(150).withEndAction { bubble.visibility = View.GONE; bubble.alpha = 1f }.start() }
+        private val hideBubble = Runnable { Motion.fade(bubble, 0f) { bubble.visibility = View.GONE; bubble.alpha = 1f } }
         private var scrollAnim: android.animation.ObjectAnimator? = null
         // pull down while the list is at its top: the drawer follows the finger down, then closes or springs back (Pixel)
         private var py0 = 0f; private var px0 = 0f; private var pulling = false; private var pullFrom = 0f
@@ -1041,8 +1041,8 @@ class HomeActivity : Activity() {
             val go = {
                 val max = (list.height - scroll.height).coerceAtLeast(0)
                 scrollAnim?.cancel()
-                scrollAnim = android.animation.ObjectAnimator.ofInt(scroll, "scrollY", rv.top.coerceIn(0, max)).setDuration(180).apply {
-                    interpolator = android.view.animation.DecelerateInterpolator(1.6f); start()
+                scrollAnim = android.animation.ObjectAnimator.ofInt(scroll, "scrollY", rv.top.coerceIn(0, max)).setDuration(Motion.MED).apply {
+                    interpolator = Motion.STD; start()
                 }
             }
             if (!list.isLayoutRequested && rv.isLaidOut) go()
@@ -1084,7 +1084,7 @@ class HomeActivity : Activity() {
             }
             for ((v, l) in cells) {
                 val a = if (letter == null || l == letter) 1f else 0.25f
-                if ((alphaTo[v] ?: 1f) != a) { alphaTo[v] = a; v.animate().alpha(a).setDuration(120).start() }
+                if ((alphaTo[v] ?: 1f) != a) { alphaTo[v] = a; Motion.fade(v, a, Motion.FAST) }
             }
         }
     }

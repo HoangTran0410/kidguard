@@ -110,7 +110,7 @@ class Modal(private val act: Activity, private val u: Ui = Ui(act)) {
         }
         d.show()
         box.alpha = 0f; box.scaleX = 0.92f; box.scaleY = 0.92f
-        box.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(160).start()
+        Motion.enter(box)
         return d
     }
 

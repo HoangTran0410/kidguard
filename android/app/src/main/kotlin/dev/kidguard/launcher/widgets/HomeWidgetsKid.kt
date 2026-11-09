@@ -366,7 +366,7 @@ internal fun HomeActivity.openTimetable(startDow: Int, tab: Int = 0) {
     scrim.addView(sheet, FrameLayout.LayoutParams(-1, (root.height * 0.88f).toInt(), Gravity.BOTTOM))
     showOverlay(scrim)
     sheet.translationY = dpf(80f); sheet.alpha = 0f
-    sheet.animate().translationY(0f).alpha(1f).setDuration(180).start()
+    Motion.enter(sheet, ease = Motion.STD)
 }
 
 internal fun HomeActivity.earnPreview(c: LinearLayout) {

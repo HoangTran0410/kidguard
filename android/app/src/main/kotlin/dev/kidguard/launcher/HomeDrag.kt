@@ -48,12 +48,10 @@ internal fun HomeActivity.arm(v: View, onLong: () -> Unit, src: () -> DragSt, im
  */
 internal fun pressed(icon: View?, down: Boolean?) {
     icon ?: return
-    icon.animate().cancel()
     when (down) {
-        true -> { val s = if (icon.width > 120 * icon.resources.displayMetrics.density) 0.96f else 0.88f
-            icon.animate().scaleX(s).scaleY(s).setDuration(110).setInterpolator(android.view.animation.DecelerateInterpolator()).start() }
-        false -> icon.animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(android.view.animation.OvershootInterpolator(2.5f)).start()
-        null -> { icon.scaleX = 1f; icon.scaleY = 1f }
+        true -> Motion.sink(icon, if (icon.width > 120 * icon.resources.displayMetrics.density) 0.96f else 0.88f)
+        false -> Motion.release(icon)
+        null -> { icon.animate().cancel(); icon.scaleX = 1f; icon.scaleY = 1f }
     }
 }
 
@@ -74,7 +72,7 @@ internal fun HomeActivity.homeDragChrome() {
     val d = drag ?: return
     // from the dock: its slot closes up at once, the others re-centre (One UI); a drop elsewhere re-renders the dock anyway
     (d.src as? Src.Dock)?.let { dockViews.getOrNull(it.slot)?.visibility = View.GONE }
-    dock.layoutTransition = android.animation.LayoutTransition().apply { setDuration(160) }
+    dock.layoutTransition = android.animation.LayoutTransition().apply { setDuration(Motion.FAST) }
     dockRoom = null
     // leaving a panel / the drawer / the picker: the home takes the drop
     when {
@@ -182,7 +180,7 @@ internal fun HomeActivity.clearCell(keepGap: Boolean = false, keepDock: Int = -1
 }
 
 internal fun HomeActivity.unswap() {
-    swapId?.let { itemViews[it]?.animate()?.translationX(0f)?.translationY(0f)?.setDuration(180)?.start() }
+    swapId?.let { itemViews[it]?.animate()?.translationX(0f)?.translationY(0f)?.setDuration(Motion.MED)?.setInterpolator(Motion.STD)?.start() }
     swapId = null
 }
 
@@ -302,7 +300,7 @@ internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
                 itemViews[sw.first.id]?.let { v ->
                     swapId = sw.first.id
                     v.animate().translationX(((sw.second - sw.first.x) * cl.cellW()).toFloat()).translationY(((sw.third - sw.first.y) * cl.cellH()).toFloat())
-                        .setDuration(260).setInterpolator(android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)).start()
+                        .setDuration(Motion.SLOW).setInterpolator(Motion.STD).start()
                 }
             }.also { main.postDelayed(it, HomeActivity.SWAP_MS) }
         }

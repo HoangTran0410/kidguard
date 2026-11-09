@@ -61,7 +61,7 @@ internal class FolderGrid(ctx: Context, val cols: Int, val rows: Int) : ViewGrou
             v.layout(x, y, x + cellW, y + v.measuredHeight)
             if (slide && had && (ox != x || oy != y) && v.visibility == View.VISIBLE) {
                 v.translationX = (ox - x).toFloat(); v.translationY = (oy - y).toFloat()
-                v.animate().translationX(0f).translationY(0f).setDuration(180).setInterpolator(DecelerateInterpolator()).start()
+                v.animate().translationX(0f).translationY(0f).setDuration(Motion.MED).setInterpolator(Motion.STD).start()
             }
         }
         slide = false
@@ -190,7 +190,7 @@ internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, co
     val src = from?.takeIf { it.isAttachedToWindow && it.width > 0 }
     // 280 / 220 ms like a home page swipe (180-320 ms); 420 / 340 felt slow next to it (11-09).
     // ease-in-out with a soft landing: the card is seen leaving the icon (a sharp ease-out jumped past it in a frame)
-    val ease = android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)
+    val ease = Motion.STD
     // Launcher3 / iOS morph: a picture of the folder icon rides on the card. Small, the card shows the icon itself
     // (its 2×2 preview, its corners); grown, the real 3×3 apps. Without it the card's own apps, shrunk, landed in a
     // different layout from the icon's preview and the icons jumped in size the frame the card was swapped for it.

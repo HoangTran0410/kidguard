@@ -487,7 +487,7 @@ internal fun HomeActivity.openPicker() {
     showOverlay(scrim); lap("show")
     sheet.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener { override fun onPreDraw(): Boolean { sheet.viewTreeObserver.removeOnPreDrawListener(this); lap("layout"); lap.done("picker"); return true } })
     sheet.translationY = dpf(80f); sheet.alpha = 0f
-    sheet.animate().translationY(0f).alpha(1f).setDuration(180).withLayer().start()
+    Motion.enter(sheet, ease = Motion.STD, layer = true)
 }
 
 /** The keyboard (the picker's search) lifts the sheet's content above it and grows the sheet to the top, so the results

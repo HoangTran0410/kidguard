@@ -22,8 +22,8 @@ internal fun HomeActivity.enterEdit(pre: String? = null) {
     picked.clear(); pre?.let { picked += it }
     pager.pivotX = pager.width / 2f; pager.pivotY = pager.height * 0.48f
     // withLayer: the pages (icons, widgets) scale as one GPU texture, not redrawn each frame (62 % janky frames on an Oppo A5s)
-    pager.animate().scaleX(0.86f).scaleY(0.86f).setDuration(240).setInterpolator(DecelerateInterpolator(1.6f)).withLayer().start()
-    dock.let { v -> v.animate().alpha(0f).setDuration(150).withEndAction { if (editing) v.visibility = View.INVISIBLE }.start() }
+    pager.animate().scaleX(0.86f).scaleY(0.86f).setDuration(Motion.SLOW).setInterpolator(Motion.STD).withLayer().start()
+    dock.let { v -> Motion.fade(v, 0f) { if (editing) v.visibility = View.INVISIBLE } }
     styleCells(); chromeFade()
     editBars()
 }
@@ -31,9 +31,9 @@ internal fun HomeActivity.enterEdit(pre: String? = null) {
 internal fun HomeActivity.exitEdit() {
     if (!editing) return
     editing = false; picked.clear(); chromeFade(); libraryBack()
-    pager.animate().scaleX(1f).scaleY(1f).setDuration(220).setInterpolator(DecelerateInterpolator(1.6f)).withLayer().start()
-    dock.let { v -> v.visibility = View.VISIBLE; v.animate().alpha(1f).setDuration(180).start() }
-    for (v in listOfNotNull(editTop, editBottom)) v.animate().alpha(0f).setDuration(150).withEndAction { floatBox.removeView(v) }.start()
+    pager.animate().scaleX(1f).scaleY(1f).setDuration(Motion.SLOW).setInterpolator(Motion.STD).withLayer().start()
+    dock.let { v -> v.visibility = View.VISIBLE; Motion.fade(v, 1f) }
+    for (v in listOfNotNull(editTop, editBottom)) Motion.fade(v, 0f) { floatBox.removeView(v) }
     editTop = null; editBottom = null
     styleCells()
 }
@@ -114,7 +114,7 @@ private fun HomeActivity.editBars() {
     editBottom = bar
     if (first) for (v in listOf(top, bar)) {
         v.alpha = 0f; v.translationY = dpf(if (v === top) -12f else 16f)
-        v.animate().alpha(1f).translationY(0f).setDuration(220).setInterpolator(DecelerateInterpolator(1.6f)).start()
+        Motion.enter(v)
     }
 }
 

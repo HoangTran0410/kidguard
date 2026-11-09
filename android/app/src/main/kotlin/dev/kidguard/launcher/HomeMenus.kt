@@ -87,7 +87,7 @@ internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: In
         // the lifted icon goes at once (a drag may be taking it), the dark layer fades
         if (focusView === focus && popup == null && focus.visibility == View.VISIBLE) {
             focus.icon = null; focus.invalidate()
-            focus.animate().alpha(0f).setDuration(160).withEndAction { if (popup == null) focus.visibility = View.INVISIBLE }.start()
+            Motion.fade(focus, 0f) { if (popup == null) focus.visibility = View.INVISIBLE }
         }
     }
     popup = pw
@@ -109,7 +109,7 @@ internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: In
     // grows out of the pressed icon (One UI / Pixel), not popped in place
     scroll.pivotX = (cx - fx).toFloat().coerceIn(0f, mw.toFloat()); scroll.pivotY = (cy - fy).toFloat().coerceIn(0f, h.toFloat())
     scroll.scaleX = 0.6f; scroll.scaleY = 0.6f; scroll.alpha = 0f
-    scroll.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(200).setInterpolator(android.view.animation.DecelerateInterpolator(2f)).start()
+    Motion.enter(scroll)
 }
 
 /** Header of a long-press menu (Pixel / One UI): title + icon buttons, then chips, then a hairline before the rows. */
@@ -347,6 +347,6 @@ internal fun HomeActivity.menuFocus(anchor: View?): MenuFocus {
     // light effects (weak phones): no dark layer; it cost an Oppo A5s ~4 more slow frames per menu (25 % janky vs 12 %)
     if (liteFx) { f.icon = null; f.visibility = View.INVISIBLE; return f }
     f.alpha = 0f; f.visibility = View.VISIBLE; f.invalidate()
-    f.animate().alpha(1f).setDuration(180).start()
+    Motion.fade(f, 1f)
     return f
 }
