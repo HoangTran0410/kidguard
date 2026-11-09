@@ -11,5 +11,8 @@ class UpdateTest {
         assertTrue(Logic.newer("0.10.0", "0.9.0"))
         assertFalse(Logic.newer("0.9.0", "0.9.0"))
         assertFalse(Logic.newer("0.8.9", "0.9.0"))
+        val h = "a".repeat(64)
+        assertEquals(h, Logic.sha256Of("${h.uppercase()}  kidguard-parent.apk\n"))
+        assertNull(Logic.sha256Of("<html>not found</html>"))
     }
 }

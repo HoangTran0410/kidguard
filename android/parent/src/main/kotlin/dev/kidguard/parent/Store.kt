@@ -24,6 +24,9 @@ object Store {
     fun setUpdateNotified(c: Context, tag: String) { p(c).edit().putString("updTag", tag).apply() }
     fun notifyState(c: Context, key: String): String? = p(c).getString("ns:" + sha(key), null)
     fun setNotifyState(c: Context, key: String, json: String) { p(c).edit().putString("ns:" + sha(key), json).apply() }
+    /** A kid whose token was refused (401/403) is announced once; cleared when it answers again. */
+    fun unpairedSeen(c: Context, key: String): Boolean = p(c).getBoolean("unp:" + sha(key), false)
+    fun setUnpairedSeen(c: Context, key: String, v: Boolean) { p(c).edit().putBoolean("unp:" + sha(key), v).apply() }
 
     /** Requests answered from a notification button (kid hash + request id), newest last, max 100: a second tap is ignored. */
     fun takeAnswer(c: Context, kid: String, req: String): Boolean = synchronized(this) {

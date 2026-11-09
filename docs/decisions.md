@@ -63,6 +63,8 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Parent unlock speed: PIN hash hex via table (~11x faster), WebView warmed while typing (d1c75da)
 - Icons: Lucide SVG/vector everywhere, no emoji in app, page or scripts (5d1853c, b604eb6)
 - One QR library (ui/assets/qrcode.js) shared by parent page and qr.html (8f05f0c). TOTP QR drawn locally (4ce13f2)
+- Parent page commands/dialogs are bound to the kid that was current when the dialog opened (`cmd()` aborts if `cur` changed; `open/goList/overview` close any open `ask`); destructive confirms name the kid; unpairAll and forget-kid need the typed word like release. Pause/resume-all builds rules from relay pending `j.rules` and refuses when no rules are known (full replace)
+- Parent app self-update verifies `kidguard-parent.apk.sha256` (release asset from build.sh) before the installer opens; CheckJob posts one "kid unpaired" notification on 401/403 (flag in Store, cleared when the kid answers again)
 
 ### Launcher (kid home)
 - Kid launcher is the persistent HOME behind rule `launcher`, with crash fallback (LauncherSafe); an app update clears the crash count and restores a layout reset in the last 24 h (56c95f8, 704c7b8)

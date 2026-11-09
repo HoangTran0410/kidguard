@@ -4,7 +4,7 @@ let noState = false;   // relay answered {state: null}: the child never synced
 let gen = 0;   // bumped by every screen change; async work started for an older screen drops its result
 // relay: the phone sends the state only when it changed, so its sync time (seen) says "online", not state.t
 function lastSeen() { return cur && cur.via !== "lan" && seenAt ? Math.max(seenAt, st ? st.t : 0) : (st ? st.t : 0); }
-async function open(k) { const g = ++gen; pairLocal = null; wantReset(); screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); hideDraft = null; noState = false; saveFail(false); render(); if ($("#back")) navTo(1); clearInterval(timer); await refresh(); if (g !== gen) return; clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
+async function open(k) { const g = ++gen; if (askDone) askDone(false, true); leaveSave(); pairLocal = null; wantReset(); screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); hideDraft = null; noState = false; saveFail(false); render(); if ($("#back")) navTo(1); clearInterval(timer); await refresh(); if (g !== gen) return; clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
 
 async function refresh() {
   if (!cur || viewDay || document.hidden) return;
@@ -45,6 +45,15 @@ async function refresh() {
 let lastSig = "";
 
 let saveT = null, saveBusy = 0, saveFailed = false;
+let zoneWarn = 0;   // zone count we already warned about (a zone without valid coordinates is not saved)
+// leaving a kid with a failed save: one last try in the background, say so if it still fails; hides the save-failed bar
+function leaveSave() {
+  if (saveFailed && cur && edit && !saveBusy) {
+    const k = cur, e = edit;
+    putRules(k, e).then(() => toast("ok|" + k.name + ": " + t("saved")), er => toast("err|" + k.name + ": " + t("saveFail") + " (" + er.message + ")"));
+  }
+  saveFail(false);
+}
 function saveFail(on) { saveFailed = on; const b = $("#saveBar"); if (b) b.style.display = on ? "flex" : "none"; document.body.classList.toggle("sb", !!on); }
 $("#saveRetry").onclick = () => changed();
 // PUT the rules; throws on failure. Used by changed() (debounced) and by approve (needs the result before it answers).
@@ -61,9 +70,10 @@ async function putRules(k, e) {
   saveBusy++;
   try {
     const body = { ...e }; delete body.pinHash; delete body.pinSet; if (!body.pin) delete body.pin;
-    if (Array.isArray(body.zones)) body.zones = body.zones.filter(zoneOk);
-    const r = await call(k, "/rules", "PUT", body); const hadPin = !!body.pin;
-    if (k.via === "lan" && r && typeof r === "object") { for (const x of Object.keys(e)) delete e[x]; Object.assign(e, norm(r)); }
+    if (Array.isArray(body.zones)) { const n0 = body.zones.length; body.zones = body.zones.filter(zoneOk); if (body.zones.length < n0 && zoneWarn !== n0) toast("warn|" + t("zone.skipped")); zoneWarn = body.zones.length < n0 ? n0 : 0; }
+    const sig0 = JSON.stringify(e), r = await call(k, "/rules", "PUT", body); const hadPin = !!body.pin;
+    // LAN: the reply is the phone's normalized rules; take it only if nothing was toggled meanwhile (else keep the edit, just the rev)
+    if (k.via === "lan" && r && typeof r === "object" && JSON.stringify(e) === sig0) { for (const x of Object.keys(e)) delete e[x]; Object.assign(e, norm(r)); }
     else if (r && r.rev) e.rev = r.rev;   // relay: else an older poll (rev of the previous save) looks newer and undoes this edit
     delete e.pin; if (hadPin) e.pinSet = true; delete e.pinHash;
     if (k === cur) saveFail(false);
@@ -71,6 +81,7 @@ async function putRules(k, e) {
 }
 function changed() {
   clearTimeout(saveT);
+  if (viewDay) return;   // history snapshot: read-only
   const k = cur, e = edit;
   if (!k || !e) return;
   saveT = setTimeout(async () => {
@@ -82,9 +93,9 @@ function changed() {
 
 // Every action that changes something on the child's phone asks first (custom modal: native confirm() looks off in the app).
 // typed: the user must type this word (release). Resolves true/false; Esc / backdrop = false.
-let askDone = null;
+let askDone = null, askAuto = false;   // askAuto: the last dialog was closed by the page (new dialog, screen change), not by the parent
 function ask(text, ok = t("agree"), danger = false, typed = "", extra = "", collect = null) {
-  if (askDone) askDone(false);
+  if (askDone) askDone(false, true);
   const pop = $("#askPop");
   pop.innerHTML = `<div class="dp"><h2 id="askT" style="margin:0 0 8px">${ic(danger ? "triangle-alert" : "circle-help")} ${t("confirm")}</h2>
     <div style="white-space:pre-line;margin-bottom:12px">${esc(text)}</div>
@@ -93,7 +104,7 @@ function ask(text, ok = t("agree"), danger = false, typed = "", extra = "", coll
     <div class="row"><button id="askNo" class="sp">${ic("x")} ${t("cancel")}</button><button id="askOk" class="sp ${danger ? "bad" : "pri"}" ${typed ? "disabled" : ""}>${ic("check")} ${esc(ok)}</button></div></div>`;
   pop.style.display = "flex";
   return new Promise(res => {
-    const done = v => { if (askDone !== done) return; askDone = null; pop.style.display = "none"; pop.innerHTML = ""; res(v); };
+    const done = (v, auto) => { if (askDone !== done) return; askDone = null; askAuto = !!auto; pop.style.display = "none"; pop.innerHTML = ""; res(v); };
     askDone = done;
     $("#askNo").onclick = () => done(false); $("#askOk").onclick = () => { if (collect && !collect()) return; done(true); };
     if (collect) { const upd = () => { $("#askOk").disabled = !collect(); }; pop.querySelectorAll("input").forEach(c => { c.oninput = c.onchange = upd; }); upd(); }
@@ -107,13 +118,16 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && askDone) a
 const ASK_BAD = { reboot: 1, unpairAll: 1, tailscaleOff: 1 };
 const askOf = c => hasT("ask." + c) ? [t("ask." + c), t("askOk." + c), !!ASK_BAD[c]] : null;
 async function cmd(c, okMsg, q) {
-  const a = q || (q === false ? null : askOf(c.type)) || (c.type === "message" ? [t("askMsg", c.text), t("send")] : null);
+  const k = cur, a0 = q || (q === false ? null : askOf(c.type)) || (c.type === "message" ? [t("askMsg", c.text), t("send")] : null);
+  // dangerous: name the kid in the text, so a dialog for A can never be mistaken for B
+  const a = a0 && a0[2] && k && k.name ? [k.name + "\n" + a0[0], ...a0.slice(1)] : a0;
   if (a && !(await ask(...a))) return;
+  if (k !== cur) return;   // the screen changed while the dialog was open (notification tap): never send A's command to B
   try {
-    const r = await call(cur, "/cmd", "POST", c);
+    const r = await call(k, "/cmd", "POST", c);
     if (r && r.result && !["ok", "queued", "no such sos"].includes(r.result) && !(c.type === "tailscale" || c.type === "openPairing")) { toast("err|" + tc("cr." + c.type + ".", r.result, t("cmd.answer", r.result))); return; }
     if (r && r.result === "queued") {   // relay: only stored, the phone runs it on its next poll
-      const on = cur && Date.now() - lastSeen() < (cur.via === "lan" ? 30000 : 120000);
+      const on = Date.now() - lastSeen() < (k.via === "lan" ? 30000 : 120000);
       toast(on ? "send|" + t("cmd.queued") : "warn|" + t("cmd.queuedOff"));
     } else toast("ok|" + (okMsg || t("sent")));
     return r || {};
@@ -130,13 +144,13 @@ function b32(bytes) {
   return bits ? out + A[(v << (5 - bits)) & 31] : out;
 }
 async function totpSetup() {
-  const again = st && st.totpOn;
+  const again = st && st.totpOn, kq = cur;
   const secret = b32(crypto.getRandomValues(new Uint8Array(20)));
   const r = await cmd({ type: "totpSet", secret }, again ? t("totp.newDone") : t("totp.onDone"),
     [again ? t("totp.askNew") : t("totp.askOn"), again ? t("totp.new") : t("turnOn")]);
   if (!r) return;
   const label = "KidGuard: " + ((cur && cur.name) || t("kid")), uri = `otpauth://totp/${encodeURIComponent(label)}?secret=${secret}&issuer=KidGuard`;
-  totpShown = { k: cur, secret, label, uri };
+  totpShown = { k: kq, secret, label, uri, queued: r.result === "queued" };
   document.activeElement && document.activeElement.blur(); render();
 }
 // drawn on each render, so a language switch also redraws it
@@ -149,7 +163,7 @@ const qrSvg = text => {   // dark modules on a white quiet zone: scanners need d
     return `<svg viewBox="0 0 ${n + 8} ${n + 8}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
   } catch { return ""; }
 };
-const totpHtml = s => `<div class="alert warn" style="margin-top:10px"><b>${ic("key-round")} ${t("totp.addNow")}</b> ${t("totp.once")}
+const totpHtml = s => `<div class="alert warn" style="margin-top:10px">${s.queued && !(st && st.totpOn && Date.now() - lastSeen() < 120000) ? `<p><b>${ic("clock")} ${t("totp.queued")}</b></p>` : ""}<b>${ic("key-round")} ${t("totp.addNow")}</b> ${t("totp.once")}
     <div class="totpqr"><div class="qrw" role="img" aria-label="${esc(t("totp.qrAlt"))}">${qrSvg(s.uri)}</div><p>${ic("smartphone")} ${t("totp.scan")}</p></div>
     <p><a class="btn pri" href="${esc(s.uri)}">${ic("smartphone")} ${t("totp.openGA")}</a> ${t("totp.onPhone")}</p>
     <p>${t("totp.manual", esc(s.label), `<code style="user-select:all;word-break:break-all">${s.secret.replace(/(.{4})/g, "$1 ").trim()}</code>`)}</p>
@@ -233,7 +247,7 @@ async function levelsOffer(k) {
   const extra = `<div role="radiogroup" aria-label="${esc(t("lv.title"))}" style="margin-bottom:8px">${LV_D.map(d => row(d.id)).join("")}<label class="app"><input type="radio" name="lv" value="later"><span class="nm"><b>${esc(t("lv.later"))}</b></span></label></div>`;
   const collect = () => { const c = document.querySelector('#askPop input[name="lv"]:checked'); if (!c) return false; pick = c.value; return true; };
   const ok = await ask(t("lv.ask", k.name), t("lv.go"), false, "", extra, collect);
-  lvBusy = false; mark();
+  const auto = askAuto; lvBusy = false; if (ok || !auto) mark();   // dismissed by another dialog / screen change: offer again later
   const lv = LV_D.find(x => x.id === pick);
   if (!ok || !lv || k !== cur || !edit || !rulesUntouched(edit)) return;   // re-check: someone may have edited while the dialog was open
   Object.assign(edit, tplFields(lv.rules, LV_F)); changed(); render();

@@ -59,7 +59,12 @@ class CheckJob : JobService() {
             val cm = c.getSystemService(ConnectivityManager::class.java)
             if (cm.activeNetwork == null) return   // our own phone is offline: nothing to conclude about the kid
             val now = System.currentTimeMillis()
-            val seen = fetch(k) ?: return   // 401/403: unpaired, not offline
+            val seen = fetch(k)
+            if (seen == null) {   // 401/403: unpaired (not just offline): tell the parent once instead of going silent
+                if (!Store.unpairedSeen(c, k.key) && canNotify(c)) { Store.setUnpairedSeen(c, k.key, true); postUnpaired(c, k) }
+                return
+            }
+            if (Store.unpairedSeen(c, k.key)) Store.setUnpairedSeen(c, k.key, false)
             val canPost = canNotify(c)
             val onWifi = onWifi(cm)
             val out = synchronized(Store) {   // a push may mark the same event seen meanwhile ([Push.handle])
@@ -70,6 +75,15 @@ class CheckJob : JobService() {
                 o
             }
             if (canPost) for (e in out.events) post(c, k, e)
+        }
+
+        private fun postUnpaired(c: Context, k: Logic.KidCfg) {
+            channel(c)
+            val pi = PendingIntent.getActivity(c, 10, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
+            val text = c.getString(R.string.ev_unpaired, k.name)
+            val n = android.app.Notification.Builder(c, CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle("KidGuard")
+                .setContentText(text).setStyle(android.app.Notification.BigTextStyle().bigText(text)).setContentIntent(pi).setAutoCancel(true).build()
+            c.getSystemService(NotificationManager::class.java).notify(0x6b68 + (k.key.hashCode() and 0xfff), n)
         }
 
         fun fetch(k: Logic.KidCfg): Logic.Seen? {

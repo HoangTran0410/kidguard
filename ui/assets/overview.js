@@ -3,7 +3,7 @@
 const KC = ["#2563eb", "#db2777", "#16a34a", "#d97706", "#7c3aed", "#0891b2"];
 let ov = null;   // {list, back, data: [{k, st, seen, err}]}
 async function overview(list, back) {
-  const g = ++gen; clearInterval(timer); cur = null; mv = null;
+  const g = ++gen; if (askDone) askDone(false, true); clearInterval(timer); cur = null; mv = null;
   ovRes = null; ovBusy = false; ov = { list, back, data: list.map(k => ({ k, st: null, seen: 0, err: "" })) };
   ovShell();
   navTo(1);
@@ -40,7 +40,11 @@ const ovPausedLeft = d => d.st && d.st.rules ? (+d.st.rules.pausedUntil || 0) - 
 async function ovEach(fn) {   // run fn(kid, freshRules) for every kid in parallel; never throws, returns [{name, ok, msg}]
   const o = ov;
   return Promise.all(o.data.map(async d => {
-    try { const j = await call(d.k, "/state"), s = j.state !== undefined ? j.state : j; const r = norm(structuredClone(s.rules || {}));
+    try { const j = await call(d.k, "/state"), s = (j.state !== undefined ? j.state : j) || {};
+      // relay: rules sent but not yet taken by the phone are newer than the state's; rules are a full replace, so never build from nothing
+      const base = j.state !== undefined && j.rules && j.rules.rev > ((s.rules || {}).rev || 0) ? j.rules : s.rules;
+      if (!base || typeof base !== "object" || !Object.keys(base).length) throw new Error(t("ov.noRules"));
+      const r = norm(structuredClone(base));
       return { name: d.k.name, ...(await fn(d.k, r)) }; }
     catch (e) { return { name: d.k.name, ok: false, msg: e.message }; }
   }));
@@ -261,7 +265,8 @@ const navLvl = () => (history.state && history.state.kg) || 0;
 function navTo(n) { try { while (navLvl() < n) history.pushState({ kg: navLvl() + 1 }, ""); } catch {} }
 function navDown(n) { try { const d = navLvl() - n; if (d > 0) history.go(-d); } catch {} }
 function goList() {
-  gen++; clearInterval(timer);
+  gen++; clearInterval(timer); if (askDone) askDone(false, true);
+  leaveSave();
   if (ov) { const b = ov.back; ov = null; return b(); }
   if (!cur) return;
   screenStop(); earStop(); cur = null;

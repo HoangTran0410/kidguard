@@ -22,6 +22,7 @@ document.addEventListener("click", e => {
   applyTheme(); document.querySelectorAll("[data-theme-btn]").forEach(x => { x.outerHTML = themeBtn(); });
   toast("ok|" + t("theme.h") + ": " + t("theme." + theme));
 });
+const bonusGiven = new Set();   // "kid:requestId" whose extra-time bonus is already saved
 const reqN = () => st && !viewDay ? (st.requests || []).filter(q => !answered.has(q.id)).length : 0;
 const onlineNow = () => st && Date.now() - lastSeen() < (cur && cur.via === "lan" ? 30000 : 120000);
 function sideHtml(on) {
@@ -86,6 +87,7 @@ function render(tabClick) {
   if (!st) { updateLive(); body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " " + t("cantConnect", esc(lastErr)) : noState ? ic("hourglass") + " " + t("noState") : ic("hourglass") + " " + t("loading")}</div>`; return; }
   if (!navOk(tab)) tab = "home";
   ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, dev: devTab, set: setTab, hist: histTab, files: filesTab, more: moreTab, log: logTab, rep: repTab })[tab](body);
+  if (viewDay && tab !== "hist") body.querySelectorAll("input,select,textarea").forEach(x => { x.disabled = true; });   // a past day is read-only: any edit would fail "viewOnly" and raise the save-failed bar
   const gn = FEAT_TAB[tab] ? gateNote(FEAT_TAB[tab]) : "";
   if (gn) {   // move the nodes (not innerHTML) so the handlers the tab just wired survive
     const w = document.createElement("div"); w.className = "gated"; while (body.firstChild) w.appendChild(body.firstChild);
@@ -435,7 +437,7 @@ function untilOf(hm) {   // "HH:MM" -> next such moment (today if still ahead, e
   const d = new Date(); d.setHours(h, m, 0, 0); if (d.getTime() <= Date.now() + 30000) d.setDate(d.getDate() + 1); return d.getTime();
 }
 function pickTime(kind, active, onOk, onClear) {
-  if (askDone) askDone(false);
+  if (askDone) askDone(false, true);
   const pause = kind === "pause", pop = $("#askPop");
   const s = { mode: "dur", n: pause ? 30 : 15, unit: "m", at: "06:00" };
   const chips = pause ? [[10], [30], [60], ["06:00"]] : [[10], [15], [30], [60]];
@@ -480,7 +482,7 @@ function pickTime(kind, active, onOk, onClear) {
 }
 // generic sheet on the #askPop layer (bottom sheet on phones, dialog on desktop); Esc / backdrop / #askNo close it
 function sheet(html, wire) {
-  if (askDone) askDone(false);
+  if (askDone) askDone(false, true);
   const pop = $("#askPop"); pop.innerHTML = html; pop.style.display = "flex";
   return new Promise(res => {
     const done = v => { if (askDone !== done) return; askDone = null; pop.style.display = "none"; pop.innerHTML = ""; res(v); };
@@ -538,9 +540,13 @@ function wireReq(b, today, inSheet) {
     if (!(await ask(t("req.askYes", +x.dataset.min) + (note ? "\n" + t("req.askNote", note) : "")))) return;
     const n = +x.dataset.min, cur0 = edit.bonus && edit.bonus.day === today ? edit.bonus.min : 0;
     const k = cur, e = edit, prev = e.bonus;
-    clearTimeout(saveT); saveT = null;
-    e.bonus = { day: today, min: cur0 + n };
-    try { await putRules(k, e); } catch (er) { if (e === edit) e.bonus = prev; toast("err|" + t("req.bonusFail", er.message)); return; }   // card stays
+    // idempotent per request: if the bonus was saved but `answer` failed, the next tap only re-sends the answer (never adds the bonus twice)
+    if (!bonusGiven.has((k.target || "") + k.id + ":" + id)) {
+      clearTimeout(saveT); saveT = null;
+      e.bonus = { day: today, min: cur0 + n };
+      try { await putRules(k, e); } catch (er) { if (e === edit) e.bonus = prev; toast("err|" + t("req.bonusFail", er.message)); return; }   // card stays
+      bonusGiven.add((k.target || "") + k.id + ":" + id);
+    }
     if (k !== cur) return;
     if (await cmd({ type: "answer", id, ok: true, min: n, ...(note ? { note } : {}) }, t("req.yesDone", n), false)) { answered.add(id); doneReq(id); }
     after();
@@ -564,7 +570,9 @@ function moreSheet() {
       pop.querySelector("#wake").onclick = () => act("wake", () => cmd({ type: "wake" }, t("wake.done"), false));
       const e1 = pop.querySelector("#ear1"); if (e1) e1.onclick = () => earOn() ? micStop() : ringOn() ? toast("warn|" + t("act.noEar")) : earStart();
       const rb = pop.querySelector("#reboot"); if (rb) rb.onclick = () => cmd({ type: "reboot" }, t("reboot.done"));
-      pop.querySelector("#send").onclick = () => { const tx = $("#msg").value.trim(); if (!tx) return $("#msg").focus(); cmd({ type: "message", text: tx }, t("msg.done")).then(r => { if (r && $("#msg") && $("#msg").value.trim() === tx) $("#msg").value = ""; }); };
+      pop.querySelector("#send").onclick = () => { const tx = $("#msg").value.trim(); if (!tx) return $("#msg").focus();
+        const sb = pop.querySelector("#send"); if (sb.disabled) return; sb.disabled = true;   // no double send while the dialog / request is in flight
+        cmd({ type: "message", text: tx }, t("msg.done")).then(r => { if (r && $("#msg") && $("#msg").value.trim() === tx) $("#msg").value = ""; }).finally(() => { sb.disabled = false; }); };
       pop.querySelector("#msg").onkeydown = e => { if (e.key === "Enter") pop.querySelector("#send").click(); };
       actPaint();
     });
