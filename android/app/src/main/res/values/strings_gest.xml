@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gest_title">Gestures on the home screen</string>
+    <string name="gest_dbl">Double tap</string>
+    <string name="gest_up">Swipe up</string>
+    <string name="gest_down">Swipe down</string>
+    <string name="gest_def_up">Default (app drawer)</string>
+    <string name="gest_def_down">Default (notifications / controls)</string>
+    <string name="gest_none">Nothing</string>
+    <string name="gest_search">Open search</string>
+    <string name="gest_drawer">Open app drawer</string>
+    <string name="gest_shade">Notifications</string>
+    <string name="gest_lock">Lock screen</string>
+    <string name="gest_today">Open Today page</string>
+    <string name="gest_app">Open an app…</string>
+    <string name="gest_app_named">Open %1$s</string>
+    <string name="gest_hint">Only on empty space; dragging, edit mode and widget scrolling are not affected.</string>
+    <string name="gest_pick_app">Choose an app</string>
+    <string name="gest_cancel">Cancel</string>
+    <string name="gest_app_gone">That app is not available</string>
+    <string name="bk_title">Backup</string>
+    <string name="bk_save">Back up home screen</string>
+    <string name="bk_restore">Restore from a file</string>
+    <string name="bk_undo">Undo the last restore</string>
+    <string name="bk_undone">Previous home screen is back</string>
+    <string name="bk_hint">The file holds the layout, folders, widgets, notes, style and gestures, and the photo wallpaper when it is small.</string>
+    <string name="bk_no_picker">No file picker on this phone</string>
+    <string name="bk_fail">Could not save</string>
+    <string name="bk_saved">Backup saved</string>
+    <string name="bk_saved_nophoto">Backup saved (the photo wallpaper was left out)</string>
+    <string name="bk_bad">This is not a usable KidGuard backup</string>
+    <string name="bk_confirm_title">Restore this backup?</string>
+    <string name="bk_confirm_body">%1$d pages, %2$d apps (%3$d not installed here, they stay hidden). Your current home screen is replaced; you can undo once.</string>
+    <string name="bk_restore_ok">Restore</string>
+    <string name="bk_done">Restored</string>
+</resources>
