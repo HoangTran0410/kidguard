@@ -520,7 +520,6 @@
     <string name="hm_title">Màn hình chính của bé</string>
     <string name="hm_swipe">Vuốt lên để xem tất cả ứng dụng</string>
     <string name="hm_all_apps">Tất cả ứng dụng</string>
-    <string name="hm_recent">Dùng gần đây</string>
     <string name="hm_search">Tìm ứng dụng</string>
     <string name="hm_no_result">Không có ứng dụng nào khớp “%1$s”</string>
     <string name="hm_paused_title">%1$s đang tạm nghỉ</string>

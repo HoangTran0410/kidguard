@@ -245,7 +245,7 @@ class HomeActivity : Activity() {
         val gen = ++recentGen   // a slower older load must not overwrite a newer result
         Thread {
             val r = Recent.load(applicationContext)
-            runOnUiThread { if (gen == recentGen && r != recent) { recent = r; drawer?.refill() } }
+            runOnUiThread { if (gen == recentGen && r != recent) { recent = r; drawer?.refill() ?: drawerPrep() } }
         }.start()
         Guard.listeners.add(listener)
         timeRx = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { render(false) } }
@@ -266,6 +266,7 @@ class HomeActivity : Activity() {
         // it (re-querying every launcher activity on each return home cost an Oppo A5s 6-7 ms)
         dialerAt = 0L; bannerSet = false
         render(false)         // rebuilds only when the key changed: coming back from an app is free
+        drawerPrep()
     }
 
     override fun onPause() {
@@ -985,14 +986,14 @@ class HomeActivity : Activity() {
                 list.addView(row, list.childCount - 1, LayoutParams(-1, -2))
             }
             list.addView(View(context), LayoutParams(-1, dp(24)))   // bottom gap, rows go before it
+            // no "recently used" title: the row over the divider reads as such (owner's call)
             if (rec.size >= 2) {
-                list.addView(text(getString(R.string.hm_recent), 12f, pal.sub).apply { setPadding(dp(16), dp(4), dp(16), 0) }, list.childCount - 1, LayoutParams(-1, -2))
                 val row = LinearLayout(context).apply { orientation = HORIZONTAL; setPadding(dp(8), dp(6), dp(8), dp(6)); clipChildren = false; clipToPadding = false }
                 for (a in rec) { val v = appIcon(a, dv.want[a.pkg] != null, dv, r, Mode.DRAWER); cells += v to ""; row.addView(v, LayoutParams(0, -2, 1f)) }
                 while (row.childCount < cols) row.addView(View(context), LayoutParams(0, 1, 1f))
                 list.addView(row, list.childCount - 1, LayoutParams(-1, -2))
                 list.addView(View(context).apply { setBackgroundColor(pal.sub and 0x00FFFFFF or 0x33000000) }, list.childCount - 1, LayoutParams(-1, 1).apply { setMargins(dp(16), dp(6), dp(16), dp(8)) })
-                off = 3
+                off = 2
             }
             // as many rows as the visible list holds: the first row measured at the list's width
             addRow(0)

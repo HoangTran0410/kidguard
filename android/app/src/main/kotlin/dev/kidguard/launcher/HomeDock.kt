@@ -148,8 +148,19 @@ internal fun HomeActivity.bars() {
 
 internal fun HomeActivity.drawerView(): Drawer = drawerCache?.also { it.refill() } ?: Drawer(this).also { d ->
     drawerCache = d
-    d.setPadding(insL, insT, insR, imeB); d.visibility = View.GONE
+    d.setPadding(insL, insT, insR, imeB); d.visibility = View.INVISIBLE   // laid out while hidden: GONE made the first swipe frame measure the whole grid
     root.addView(d, FrameLayout.LayoutParams(-1, -1))
+}
+
+/**
+ * Brings the kept (hidden) drawer up to date while the main thread is idle. Coming home from an app changes the
+ * "recent" row (and maybe pauses / apps): refill() then rebuilt the whole grid in the swipe's first frame, measured
+ * 94-103 ms build / 183-200 ms frame on an Oppo A5s vs ~5 ms when nothing changed. No-op when nothing changed.
+ */
+internal fun HomeActivity.drawerPrep() {
+    val d = drawerCache ?: return
+    if (drawer != null) return
+    android.os.Looper.myQueue().addIdleHandler { if (drawer == null && drawerCache === d && !isFinishing && !busy()) d.refill(); false }
 }
 
 /** A finger or a button starts moving the drawer: the home goes into one GPU layer so fading it costs nothing per frame. */
@@ -209,7 +220,7 @@ internal fun HomeActivity.drawerDone(open: Boolean) {
             (if (!pal.dark) View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (Build.VERSION.SDK_INT >= 26) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0) else 0)
     } else {
         drawer = null
-        d.visibility = View.GONE
+        d.visibility = View.INVISIBLE
         (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(d.windowToken, 0)
         if (d.search.text.isNotEmpty()) d.search.setText("")
         d.scroll.scrollTo(0, 0)

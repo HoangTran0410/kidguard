@@ -539,7 +539,6 @@
     <string name="hm_title">Kid home screen</string>
     <string name="hm_swipe">Swipe up for all apps</string>
     <string name="hm_all_apps">All apps</string>
-    <string name="hm_recent">Recent</string>
     <string name="hm_search">Search apps</string>
     <string name="hm_no_result">No app matches “%1$s”</string>
     <string name="hm_paused_title">%1$s is taking a break</string>
