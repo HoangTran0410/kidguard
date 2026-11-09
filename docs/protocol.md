@@ -768,7 +768,7 @@ The `WRITE_EXTERNAL_STORAGE` grant (API 26-28) goes back to default with the oth
 Optional home screen on the kid's phone (`HomeActivity`, category HOME). Device Owner only; off by default.
 
 ### Rule `launcher` (in `PUT /api/rules`)
-`{"on": false, "settings": false, "notes": true, "lockCustom": false, "style": ""}`. Missing = all defaults (off).
+`{"on": false, "settings": false, "notes": true, "lockCustom": false, "style": "", "shade": false}`. Missing = all defaults (off).
 - `on`: enable the `.HomeActivity` component (manifest default: disabled) + `addPersistentPreferredActivity(HOME)` so Home
   opens it with no chooser. `on:false`, `release` (before `clearDeviceOwnerApp`) and `releaseBasic` clear the preferred
   activity and disable the component; the stock launcher comes back. Not Device Owner ⇒ the rule only enables the component
@@ -778,12 +778,30 @@ Optional home screen on the kid's phone (`HomeActivity`, category HOME). Device 
 - `lockCustom`: makes the kid's "Tuỳ chỉnh" screen read-only (style, grid, wallpaper, colours, text size) with a note
   "Bố mẹ đã khoá phần tuỳ chỉnh". Arranging (move, folders, widgets, remove) stays allowed. No PIN on the phone. `style`: `""|"be"|"teen"|"gon"`, the preset used only
   when `home.json` is first made (unknown values ⇒ `""` = teen).
+- `shade` (v0.9.11): the system quick settings (control center) are closed as soon as they open, in any app (not the
+  lock screen); the notification shade itself stays usable. The accessibility service (`Acc`) watches window events and,
+  when a tall SystemUI window shows `quick_settings_panel` (the expanded quick settings; the shade alone shows
+  `quick_qs_panel`, measured AOSP 14 + ColorOS 8.1) or a window of `miui.systemui.plugin` (HyperOS control center,
+  unverified) is up, sends `GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE` (API 31+, else Back), re-checked 4 × 0.3 s. The
+  one-row quick tiles on top of the shade stay tappable. Needs the accessibility service on; without it nothing is
+  blocked. Only while the launcher is wanted (`on` + Device Owner, or the unmanaged opt-in); `on:false`, safe mode,
+  `release`, `releaseBasic` drop it with the launcher (no system flag is set, nothing else to undo). Not
+  `setStatusBarDisabled`: that also mutes every notification's sound, vibration and heads-up (measured, API 34). The
+  kid panel hides "Cài đặt nhanh của máy" while it is on.
 
 What shows: every launcher activity passes through the Guard's `decide()`: reasons `blocked` / `new` (and parent-hidden or
 suspended-by-KidGuard plumbing) are never shown, in grid, dock, drawer or search; any other reason (`daily`, `app`, `group`,
 `bedtime`, `schedule`, `paused`…) shows the app greyed with a clock badge; tapping it opens a sheet with the reason,
 "Mở lại …", the note, Xin thêm giờ (same request as the main screen) and Để sau. The dock slot 1 is always the dialer
 (`@phone`, `ACTION_DIAL`; long press: SOS / 112 / 113 / 114 / 115), never removable.
+
+Control center (on the phone only, no wire format): swipe down on the right half of a home page opens the kid's panel
+(the left half pulls the notification shade). Wi-Fi, Bluetooth, airplane, mobile data, torch, auto-rotate, Do Not
+Disturb, brightness and media volume, plus "Cài đặt nhanh của máy" (the system quick settings). Per tile
+(`ControlLogic.mode`): changed directly when the app can (Device Owner: Wi-Fi, Bluetooth; WRITE_SECURE_SETTINGS / the
+WRITE_SETTINGS app-op: rotate, brightness; DND policy access; torch always); otherwise it opens the system panel/page only
+where `settings` would show Settings (rule, unmanaged phone, KidGuard Home), else it shows a lock ("Bố mẹ quản lý mục
+này"). Airplane with `noAirplane` on a Device Owner phone is always locked. Nothing new to undo in `release`.
 
 ### State `launcher` (in `GET /api/state`, relay state too)
 `{"on": bool, "home": "<pkg>", "err": ""|"not owner"|"crash"|"home", "style": "be|teen|gon", "locked": bool, "pages": n, "safeUntil": ms}`

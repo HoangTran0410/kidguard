@@ -21,7 +21,7 @@ class RulesJsonTest {
         chores = listOf(Chore("c1", "Rửa bát", 20), Chore("c-2", "Dọn phòng", 45)),
         zones = listOf(Zone("z1", "Nhà", 21.03, 105.85, 150), Zone("z2", "Trường", 21.0, 105.8, 2000)),
         hidden = setOf("com.heytap.market", "com.facebook.katana"),
-        launcher = LauncherRule(on = true, settings = true, notes = false, lockCustom = true, style = "be"),
+        launcher = LauncherRule(on = true, settings = true, notes = false, lockCustom = true, style = "be", shade = true),
     )
 
     @Test fun roundTripPersist() = assertEquals(rich, Rules.fromJson(rich.toJson(persist = true)))

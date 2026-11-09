@@ -42,8 +42,16 @@ object LauncherSafe {
 
     /** Called from Policy.apply (Guard thread) and the minute check. Starts HOME only when the state really changed. */
     @Synchronized fun apply(ctx: Context, r: Rules) {
-        if (wanted(ctx, r)) on(ctx) else off(ctx, goHome = true)
+        if (wanted(ctx, r)) { on(ctx); shadeBlocked = r.launcher.shade } else off(ctx, goHome = true)
     }
+
+    /**
+     * Rule launcher.shade: the system notification shade / quick settings are closed as soon as they open (Acc, needs the
+     * accessibility service); the kid's own control center and notification list replace them. Not
+     * setStatusBarDisabled: that also mutes every notification's sound, vibration and heads-up (measured, API 34).
+     * Cleared by off() = rule off, safe mode, release.
+     */
+    @Volatile var shadeBlocked = false; private set
 
     private fun on(ctx: Context) {
         val was = enabled(ctx)
@@ -73,6 +81,7 @@ object LauncherSafe {
 
     /** Undo: clear our preferred HOME and disable the component. Used by rule off, safe mode and release. */
     fun off(ctx: Context, goHome: Boolean) {
+        shadeBlocked = false
         val was = enabled(ctx)
         if (Policy.isOwner(ctx)) runCatching { Policy.dpm(ctx).clearPackagePersistentPreferredActivities(Policy.admin(ctx), ctx.packageName) }
             .onFailure { Log.w(TAG, "launcher clear preferred", it) }

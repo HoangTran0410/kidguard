@@ -1084,7 +1084,7 @@ class HomeActivity : Activity() {
                     val dy = e.y - y0; val dx = e.x - x0
                     val free = !pager.dragging && pager.page > 0 && !onLibrary() && drag == null && !editing && this@HomeActivity.overlay == null && popup?.isShowing != true
                     if (free && dy < -slop && abs(dy) > abs(dx) * 1.5f && drawerBegin()) { up = true; from = e.y; drawerAt(0f) }
-                    else if (free && downOk && drawer == null && dy > slop * 2 && dy > abs(dx) * 1.5f) { downOk = false; expandShade(x0 > width / 2f) }
+                    else if (free && downOk && drawer == null && dy > slop * 2 && dy > abs(dx) * 1.5f) { downOk = false; if (x0 > width / 2f) openControl() else expandShade(false) }
                 }
             }
             return up

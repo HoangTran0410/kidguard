@@ -800,4 +800,20 @@
     <string name="upd_installing">Installing v%1$s…</string>
     <string name="upd_current">Up to date (v%1$s)</string>
     <string name="upd_failed">Update failed: %1$s</string>
+    <string name="cc_title">Control center</string>
+    <string name="cc_wifi">Wi-Fi</string>
+    <string name="cc_bt">Bluetooth</string>
+    <string name="cc_air">Airplane</string>
+    <string name="cc_data">Mobile data</string>
+    <string name="cc_torch">Flashlight</string>
+    <string name="cc_rotate">Auto-rotate</string>
+    <string name="cc_dnd">Do not disturb</string>
+    <string name="cc_notifs">Notifications</string>
+    <string name="cc_bright">Brightness</string>
+    <string name="cc_volume">Volume</string>
+    <string name="cc_more">Phone\'s quick settings</string>
+    <string name="cc_locked">A parent manages this</string>
+    <string name="cc_failed">This phone does not allow changing it here</string>
+    <string name="cc_on">On</string>
+    <string name="cc_off">Off</string>
 </resources>

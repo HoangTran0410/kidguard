@@ -243,15 +243,17 @@ internal fun HomeActivity.folderSheet(name: String, tag: String?, rename: (() ->
     for ((v, key) in icons) grid.add(v.also { oneLine(it) }, key)
     card.addView(grid, FrameLayout.LayoutParams(-1, -1))
     panel.addView(card, LinearLayout.LayoutParams(-1, -2))
+    var dots: View? = null
     if (grid.pages > 1) {
-        val dots = PageDots(this).apply { set(grid.pages, Color.WHITE, null); pos = 1f }
-        grid.onScroll = { dots.pos = 1 + it }
-        panel.addView(dots, LinearLayout.LayoutParams(-2, dp(18)).apply { topMargin = dp(14) })
+        val pd = PageDots(this).apply { set(grid.pages, Color.WHITE, null); pos = 1f }
+        grid.onScroll = { pd.pos = 1 + it }
+        dots = pd
+        panel.addView(pd, LinearLayout.LayoutParams(-2, dp(18)).apply { topMargin = dp(14) })
     }
     val side = (minOf(root.width, root.height) * 0.11f).toInt()
     scrim.addView(panel, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_VERTICAL).apply { setMargins(side + insL, 0, side + insR, dp(40)) })
     showOverlay(scrim)
-    folderZoom(dim, card, grid, title, from)
+    folderZoom(dim, card, grid, title, from, dots)
     announce(name)
 }
 

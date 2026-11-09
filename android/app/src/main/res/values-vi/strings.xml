@@ -781,4 +781,20 @@
     <string name="upd_installing">Đang cài v%1$s…</string>
     <string name="upd_current">Đã là bản mới nhất (v%1$s)</string>
     <string name="upd_failed">Cập nhật lỗi: %1$s</string>
+    <string name="cc_title">Bảng điều khiển</string>
+    <string name="cc_wifi">Wi-Fi</string>
+    <string name="cc_bt">Bluetooth</string>
+    <string name="cc_air">Máy bay</string>
+    <string name="cc_data">Dữ liệu</string>
+    <string name="cc_torch">Đèn pin</string>
+    <string name="cc_rotate">Tự xoay</string>
+    <string name="cc_dnd">Không làm phiền</string>
+    <string name="cc_notifs">Thông báo</string>
+    <string name="cc_bright">Độ sáng</string>
+    <string name="cc_volume">Âm lượng</string>
+    <string name="cc_more">Cài đặt nhanh của máy</string>
+    <string name="cc_locked">Bố mẹ quản lý mục này</string>
+    <string name="cc_failed">Máy không cho đổi mục này ở đây</string>
+    <string name="cc_on">Bật</string>
+    <string name="cc_off">Tắt</string>
 </resources>

@@ -63,15 +63,15 @@ object Sys {
     }
 
     /** OEMs (Xiaomi, some Oppo) use a bigger brightness range than 0..255; the framework config says which. */
-    private fun brightMax(): Int = runCatching {
+    internal fun brightMax(): Int = runCatching {
         val r = Resources.getSystem(); val id = r.getIdentifier("config_screenBrightnessSettingMaximum", "integer", "android")
         if (id != 0) r.getInteger(id) else 255
     }.getOrDefault(255).let { if (it in 1..65535) it else 255 }
 
     private fun ownerP(ctx: Context) = Build.VERSION.SDK_INT >= 28 && Policy.isOwner(ctx)
-    private fun wss(ctx: Context) = ctx.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
-    private fun canWriteSystem(ctx: Context) = ownerP(ctx) || wss(ctx) || Settings.System.canWrite(ctx)
-    private fun dndAccess(ctx: Context) = ctx.getSystemService(NotificationManager::class.java)?.isNotificationPolicyAccessGranted == true
+    internal fun wss(ctx: Context) = ctx.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
+    internal fun canWriteSystem(ctx: Context) = ownerP(ctx) || wss(ctx) || Settings.System.canWrite(ctx)
+    internal fun dndAccess(ctx: Context) = ctx.getSystemService(NotificationManager::class.java)?.isNotificationPolicyAccessGranted == true
 
     /** Device Owner API first (9+), then a plain write; true when the value reads back. */
     private fun writeSystem(ctx: Context, key: String, v: Int): Boolean {

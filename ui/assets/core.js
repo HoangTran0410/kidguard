@@ -112,7 +112,7 @@ function norm(e) {
   e.windDown = { gray: !!wd.gray, min: WD_STEPS.includes(+wd.min) ? +wd.min : 30, nudge: !!wd.nudge };
   e.lockInfo = { msg: String(li.msg || ""), contact: String(li.contact || "") }; e.blockNote = String(e.blockNote || "");
   const la = e.launcher || {};   // v0.9.9 kid launcher
-  e.launcher = { on: !!la.on, settings: !!la.settings, notes: la.notes !== false, lockCustom: !!la.lockCustom, style: ["", "be", "teen", "gon"].includes(la.style) ? la.style : "" };
+  e.launcher = { on: !!la.on, settings: !!la.settings, notes: la.notes !== false, lockCustom: !!la.lockCustom, shade: !!la.shade, style: ["", "be", "teen", "gon"].includes(la.style) ? la.style : "" };
   return e;
 }
 // index 0 = Monday, from "YYYY-MM-DD"

@@ -3,14 +3,14 @@ package dev.kidguard
 import org.json.JSONObject
 
 /** Rule `launcher` (parent -> phone, protocol "v0.9.9: kid launcher"). Missing = off. */
-data class LauncherRule(val on: Boolean = false, val settings: Boolean = false, val notes: Boolean = true, val lockCustom: Boolean = false, val style: String = "") {
-    fun toJson(): JSONObject = JSONObject().put("on", on).put("settings", settings).put("notes", notes).put("lockCustom", lockCustom).put("style", style)
+data class LauncherRule(val on: Boolean = false, val settings: Boolean = false, val notes: Boolean = true, val lockCustom: Boolean = false, val style: String = "", val shade: Boolean = false) {
+    fun toJson(): JSONObject = JSONObject().put("on", on).put("settings", settings).put("notes", notes).put("lockCustom", lockCustom).put("style", style).put("shade", shade)
 
     companion object {
         val STYLES = setOf("", "be", "teen", "gon")
         fun fromJson(o: JSONObject?): LauncherRule = if (o == null) LauncherRule() else LauncherRule(
             o.optBoolean("on", false), o.optBoolean("settings", false), o.optBoolean("notes", true), o.optBoolean("lockCustom", false),
-            o.optString("style", "").takeIf { it in STYLES } ?: "")
+            o.optString("style", "").takeIf { it in STYLES } ?: "", o.optBoolean("shade", false))
     }
 }
 

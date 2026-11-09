@@ -113,6 +113,7 @@ function homeBody(r) {
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmset" ${L.settings ? "checked" : ""}><span class="sp">${ic("settings")} ${t("hm.settings")}</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmn" ${L.notes ? "checked" : ""}><span class="sp">${ic("message-square")} ${t("hm.notes")}</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmlock" ${L.lockCustom ? "checked" : ""}><span class="sp">${ic("lock")} ${t("hm.lock")}</span></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmshade" ${L.shade ? "checked" : ""}><span class="sp">${ic("bell-off")} ${t("hm.shade")}<br><span class="mute">${t("hm.shadeHint")}</span></span></label>
     ${homeStatus(r)}${kidNotes()}
     <p class="mute">${ic("lightbulb")} ${t("hm.tip")}</p>${isBasic() ? needOwner(t("hm.owner")) : ""}`;
 }
@@ -291,5 +292,6 @@ function rulesWire(b, r) {
   $("#f-hmset").onchange = e => { r.launcher.settings = e.target.checked; changed(); };
   $("#f-hmn").onchange = e => { r.launcher.notes = e.target.checked; changed(); };
   $("#f-hmlock").onchange = e => { r.launcher.lockCustom = e.target.checked; changed(); };
+  $("#f-hmshade").onchange = e => { r.launcher.shade = e.target.checked; changed(); };
   $("#f-nd").onchange = e => { r.noDebug = e.target.checked; changed(); };
 }

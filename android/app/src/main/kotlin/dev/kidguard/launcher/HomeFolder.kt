@@ -186,7 +186,7 @@ private fun HomeActivity.folderLeave(f: FolderDrag) {
  * iOS folder: the card grows out of the folder icon (that icon hides meanwhile) while the home blurs and dims; the
  * name fades in late. Closing runs it backwards into the icon. Without the icon (gone / detached): a plain zoom.
  */
-internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, content: View, title: View, from: View?) {
+internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, content: View, title: View, from: View?, dots: View? = null) {
     val src = from?.takeIf { it.isAttachedToWindow && it.width > 0 }
     // ease-in-out with a soft landing: the card is seen leaving the icon (a sharp ease-out jumped past it in a frame)
     val ease = android.view.animation.PathInterpolator(0.3f, 0.05f, 0.1f, 1f)
@@ -197,7 +197,9 @@ internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, co
         val b = android.graphics.Bitmap.createBitmap(s.width, s.height, android.graphics.Bitmap.Config.ARGB_8888)
         runCatching { s.draw(android.graphics.Canvas(b)) }
         android.widget.ImageView(this).apply { setImageBitmap(b); scaleType = android.widget.ImageView.ScaleType.FIT_XY }
-            .also { card.addView(it, android.widget.FrameLayout.LayoutParams(-1, -1)) }
+            // over the card's padding too: inset by it, the picture landed smaller than the icon and the icon then
+            // popped back to full size the frame the card went (seen on the Poco, App Library groups)
+            .also { card.addView(it, android.widget.FrameLayout.LayoutParams(-1, -1).apply { setMargins(-card.paddingLeft, -card.paddingTop, -card.paddingRight, -card.paddingBottom) }) }
     }
     val plate = card.background
     // the name under the icon on the home: fades out as the big one above the card fades in, and back
@@ -219,6 +221,7 @@ internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, co
         val g = (1 - f / 0.4f).coerceIn(0f, 1f)
         ghost?.alpha = g; plate?.alpha = (255 * (1 - g)).toInt()
         content.alpha = ((f - 0.15f) / 0.45f).coerceIn(0f, 1f)
+        dots?.alpha = ((f - 0.3f) / 0.5f).coerceIn(0f, 1f)   // the page dots come and go with the apps, not at once
         dim.alpha = f
         title.alpha = ((f - 0.15f) / 0.7f).coerceIn(0f, 1f)
         label?.alpha = (1 - f / 0.6f).coerceIn(0f, 1f)
@@ -241,17 +244,18 @@ internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, co
     }
     var f = 0f
     var started = false; var closing = false
-    dim.alpha = 0f; title.alpha = 0f; content.alpha = 0f; ghost?.alpha = 1f; plate?.alpha = 0
+    dim.alpha = 0f; title.alpha = 0f; content.alpha = 0f; dots?.alpha = 0f; ghost?.alpha = 1f; plate?.alpha = 0
     card.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
         override fun onPreDraw(): Boolean {
             card.viewTreeObserver.removeOnPreDrawListener(this)
             if (closing) return true     // closed before its first frame: never open (it would cancel the close)
             started = true
             card.pivotX = 0f; card.pivotY = 0f
-            if (toIcon()) src?.visibility = View.INVISIBLE
+            // the picture covers the padding too: unclipped, else its rounded corners were cut square
+            if (toIcon()) { src?.visibility = View.INVISIBLE; card.clipToPadding = false }
             else { ghost?.visibility = View.GONE; k0 = 0.85f; x0 = card.width * 0.075f; y0 = card.height * 0.075f }
             at(0f)
-            go(0f, 1f, 420) { f = 1f; ghost?.visibility = View.GONE }
+            go(0f, 1f, 420) { f = 1f; ghost?.visibility = View.GONE; card.clipToPadding = true }
             run?.addUpdateListener { f = it.animatedValue as Float }
             return true
         }
@@ -261,7 +265,7 @@ internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, co
         if (!started) done()   // Back / Home within the first frame: nothing moved yet, nothing hidden
         else {
         val cur = (run?.animatedValue as? Float) ?: f
-        ghost?.visibility = View.VISIBLE
+        ghost?.visibility = View.VISIBLE; card.clipToPadding = false
         if (!toIcon()) { ghost?.visibility = View.GONE; k0 = 0.85f; x0 = card.width * 0.075f; y0 = card.height * 0.075f }
         // the icon shows again the same frame the card (now a picture of it) goes: no gap, no size jump
         go(cur, 0f, 340) { src?.visibility = View.VISIBLE; label?.alpha = 1f; done() }

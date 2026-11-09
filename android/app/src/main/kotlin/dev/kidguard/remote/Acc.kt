@@ -46,7 +46,11 @@ class Acc : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {
-        if (e?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        if (e == null) return
+        if (LauncherSafe.shadeBlocked && (e.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED || e.packageName?.toString() in SHADE_PKGS)) {
+            main.removeCallbacks(shadeCheck); main.post(shadeCheck)
+        }
+        if (e.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = e.packageName?.toString() ?: return
         if (pkg != packageName) basicGuard(pkg)
         if (TaskLogic.dropTasks(pkg, e.className?.toString(), packageName, homes())) dropTasks()
@@ -59,6 +63,40 @@ class Acc : AccessibilityService() {
             main.postDelayed(trail, wait + 20)
         } else pokeNow()
     }
+
+    /**
+     * Rule launcher.shade: the system quick settings (control center) opened -> close it; the notification shade alone
+     * stays. Found by its window: a tall SystemUI window showing quick_settings_panel (AOSP, ColorOS: measured), or
+     * HyperOS's control center plugin window. Not on the lock screen.
+     * Checked again 0.3 s later: a finger still pulling can re-open it.
+     */
+    private var shadeTries = 0
+    private val shadeCheck = Runnable { shadeTries = 0; closeShade() }
+    private fun closeShade() {
+        if (!LauncherSafe.shadeBlocked) return
+        if (runCatching { getSystemService(android.app.KeyguardManager::class.java)?.isKeyguardLocked == true }.getOrDefault(true)) return
+        if (!shadeOpen()) return
+        val ok = if (Build.VERSION.SDK_INT >= 31) performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE) else performGlobalAction(GLOBAL_ACTION_BACK)
+        android.util.Log.i("KidGuard", "shade closed ok=$ok")
+        if (++shadeTries < 4) main.postDelayed({ closeShade() }, 300)
+    }
+
+    private fun shadeOpen(): Boolean = runCatching {
+        val h = resources.displayMetrics.heightPixels
+        val b = Rect()
+        windows.any { w ->
+            if (w.type != android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM) return@any false
+            w.getBoundsInScreen(b)
+            if (b.height() < h / 2) return@any false
+            val root = w.root ?: return@any false
+            val pkg = root.packageName?.toString() ?: return@any false
+            when (pkg) {
+                "com.android.systemui" -> SHADE_IDS.any { id -> root.findAccessibilityNodeInfosByViewId("$pkg:id/$id").any { it.isVisibleToUser } }
+                in SHADE_PKGS -> true   // OEM control-center plugins: their whole window is the panel
+                else -> false
+            }
+        }
+    }.getOrDefault(false)
 
     private var homeSet: Set<String>? = null
     private fun homes(): Set<String> = homeSet ?: runCatching {
@@ -192,6 +230,10 @@ class Acc : AccessibilityService() {
         private const val CH = "kg_watch"
         private const val NID = 7301
         private val main = Handler(Looper.getMainLooper())
+        // the shade's windows: AOSP / ColorOS / One UI SystemUI, and HyperOS / MIUI's control center plugin (unverified)
+        private val SHADE_PKGS = setOf("com.android.systemui", "miui.systemui.plugin")
+        // only the expanded quick settings: the notification shade alone shows quick_qs_panel (one row), kept usable
+        private val SHADE_IDS = listOf("quick_settings_panel")
         private val exec = Executors.newSingleThreadExecutor()
         private val lock = Any()
         private var lastFrame: Frame? = null

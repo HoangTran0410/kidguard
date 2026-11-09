@@ -405,6 +405,9 @@ internal fun HomeActivity.endDrag() {
     dropped = false
     clearHover()
     bannerBox.visibility = View.VISIBLE
+    // the drop bar goes now, not in the posted render: the posted libraryBack() runs first and its padPages() counted
+    // the bar still on screen, so the whole grid dropped by its height for one frame (seen on the Poco)
+    buildTopBar()
     key = ""
     main.post { reusePages = true; render(true); landNow() }
 }

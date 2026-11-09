@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -187,10 +188,16 @@ internal fun HomeActivity.debounce(): Boolean {
 internal fun HomeActivity.launch(a: AppE, from: View) {
     val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(ComponentName(a.pkg, a.cls))
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-    // zoom from the icon. Only the default launcher gets it: HyperOS slides an app opened from any other app in from
-    // the side, custom animations included (checked on a Poco where KidGuard is not the default home)
-    val opts = ActivityOptions.makeScaleUpAnimation(from, 0, 0, from.width, from.height).toBundle()
+    // the icon picture inside the cell (cell > box > icon), where the app grows from, like Launcher3's clip reveal
+    val icon = ((from as? ViewGroup)?.getChildAt(0) as? ViewGroup)?.getChildAt(0) ?: from
+    val fl = IntArray(2).also { from.getLocationOnScreen(it) }; val il = IntArray(2).also { icon.getLocationOnScreen(it) }
+    i.sourceBounds = android.graphics.Rect(il[0], il[1], il[0] + icon.width, il[1] + icon.height)
     Recent.note(this, a.pkg)
+    // The system's zoom: the app's real window grows out of the icon (Oppo, ColorOS 8.1). HyperOS grows it from the screen
+    // centre for any third-party home and plays it only when the home window shows the system wallpaper (theme AppHome),
+    // else it slides apps in from the side (measured on a Poco, HyperOS 3, same as a third-party iOS launcher). A zoom
+    // drawn by us from the icon was tried and dropped: only a blank card (no preview of the app), and work on our thread.
+    val opts = ActivityOptions.makeClipRevealAnimation(from, il[0] - fl[0], il[1] - fl[1], icon.width, icon.height).toBundle()
     runCatching { startActivity(i, opts) }.recoverCatching { packageManager.getLaunchIntentForPackage(a.pkg)?.let { startActivity(it) } ?: error("none") }
         .onFailure { Toast.makeText(this, R.string.hm_open_fail, Toast.LENGTH_SHORT).show() }
 }
