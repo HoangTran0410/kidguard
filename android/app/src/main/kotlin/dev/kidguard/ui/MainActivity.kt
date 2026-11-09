@@ -108,12 +108,12 @@ class MainActivity : Activity() {
         // quick row: frequent kid actions as round tiles (SOS keeps its confirm modal, see askSos)
         val quick = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; weightSum = 4f; isBaselineAligned = false }
         fun tileLp() = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(2); marginEnd = dp(2) }
-        sosBtn = u.tile(getString(R.string.home_sos), R.drawable.li_siren, u.danger) { askSos() }.apply { contentDescription = getString(R.string.main_sos) }
+        sosBtn = u.tile(getString(R.string.home_sos), R.drawable.li_siren, u.danger) { if (paired(R.string.home_sos)) askSos() }.apply { contentDescription = getString(R.string.main_sos) }
         quick.addView(sosBtn, tileLp())
         // v0.9.7 check-ins: secondary, no alarm (see askCheckin)
-        ciArrived = u.tile(getString(R.string.main_ci_arrived), R.drawable.li_map_pin, u.accent) { askCheckin("arrived") }
+        ciArrived = u.tile(getString(R.string.main_ci_arrived), R.drawable.li_map_pin, u.accent) { if (paired(R.string.main_ci_arrived)) askCheckin("arrived") }
         quick.addView(ciArrived, tileLp())
-        ciPickup = u.tile(getString(R.string.main_ci_pickup), R.drawable.li_car, u.accent) { askCheckin("pickup") }
+        ciPickup = u.tile(getString(R.string.main_ci_pickup), R.drawable.li_car, u.accent) { if (paired(R.string.main_ci_pickup)) askCheckin("pickup") }
         quick.addView(ciPickup, tileLp())
         quick.addView(u.tile(getString(R.string.q_lock_short), R.drawable.li_lock, u.accent) { Quick.lockOrSay(this) }.apply { contentDescription = getString(R.string.q_lock) }, tileLp())
         col.addView(quick, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
@@ -599,7 +599,9 @@ class MainActivity : Activity() {
         val owner = Policy.isOwner(this)
         val usage = Usage.granted(this)
         // SOS / more time only reach someone once a parent has paired
-        (if (s.everPaired) View.VISIBLE else View.GONE).let { sosBtn.visibility = it; moreBtn.visibility = it }
+        moreBtn.visibility = if (s.everPaired) View.VISIBLE else View.GONE
+        // SOS / check-ins always show (the kid learns they exist); before pairing they're dimmed and a tap says why
+        (if (s.everPaired) 1f else 0.45f).let { a -> listOf(sosBtn, ciArrived, ciPickup).forEach { it.alpha = a } }
         unlockBtn.visibility = if (s.totpSecret.isNotBlank()) View.VISIBLE else View.GONE
         adminBtn.visibility = if (PairPin.adminAvailable(s.rules.pinHash.isNotBlank(), s.totpSecret.isNotBlank(), s.everPaired)) View.VISIBLE else View.GONE
         unlockBtn.text = s.unlockUntil.takeIf { it > System.currentTimeMillis() }?.let { getString(R.string.main_unlocked_until, java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(it))) }
@@ -802,8 +804,6 @@ class MainActivity : Activity() {
      * Buttons: idle "Con tới nơi rồi", after a send "Con tới nơi rồi · đã gửi 14:05" (today only).
      */
     private fun comfortRefresh(s: Store, line: (Int, String, String) -> Unit) {
-        val paired = s.everPaired
-        ciArrived.visibility = if (paired) View.VISIBLE else View.GONE; ciPickup.visibility = ciArrived.visibility
         val now = System.currentTimeMillis()
         fun label(ck: String, base: Int): String {
             val t = s.lastCheckin(ck)
@@ -818,6 +818,13 @@ class MainActivity : Activity() {
     }
 
     private val acts by lazy { KidActions(this, ui2) { refresh() } }
+    /** True once a parent has paired; else explains that [what] needs a parent's phone to reach and how to pair. */
+    private fun paired(what: Int): Boolean {
+        if (Store.of(this).everPaired) return true
+        Modal(this, ui2).show(R.drawable.li_link, Modal.Tone.INFO, getString(R.string.main_need_pair_title, getString(what)), getString(R.string.main_need_pair_body))
+        return false
+    }
+
     private fun askCheckin(ck: String) = acts.askCheckin(ck)
     private fun askSos() = acts.askSos()
     private fun askMore() = acts.askMore()
