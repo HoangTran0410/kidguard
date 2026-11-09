@@ -679,6 +679,12 @@
     <string name="hm_t_cards_sub">Chọn thẻ hiện ở trang Hôm nay. Nút SOS luôn hiện.</string>
     <string name="hm_t_call">Gọi</string>
     <string name="hm_t_schedule">Lịch hôm nay</string>
+    <string name="hm_t_screen_empty">Hôm nay chưa dùng app nào, không giới hạn thời gian.</string>
+    <string name="hm_t_sched_empty">Hôm nay chưa có lịch nào. Lịch dùng máy do bố mẹ đặt.</string>
+    <string name="hm_t_sched_empty_home">Hôm nay chưa có lịch nào.</string>
+    <string name="hm_t_tt_open">Thời khoá biểu</string>
+    <string name="hm_t_tomorrow_empty">Chưa có thời khoá biểu cho ngày mai.</string>
+    <string name="hm_t_tt_make">Tạo thời khoá biểu</string>
     <string name="hm_t_no_more">Hết lịch hôm nay</string>
     <string name="hm_t_bed">Giờ đi ngủ</string>
     <string name="hm_t_group">Giờ %1$s</string>

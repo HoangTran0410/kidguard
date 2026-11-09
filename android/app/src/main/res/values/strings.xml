@@ -698,6 +698,12 @@
     <string name="hm_t_cards_sub">Pick the cards shown on Today. The SOS button always stays.</string>
     <string name="hm_t_call">Call</string>
     <string name="hm_t_schedule">Schedule</string>
+    <string name="hm_t_screen_empty">No apps used yet today, and no time limit.</string>
+    <string name="hm_t_sched_empty">Nothing scheduled today. Screen-time schedules are set by your parents.</string>
+    <string name="hm_t_sched_empty_home">Nothing scheduled today.</string>
+    <string name="hm_t_tt_open">Timetable</string>
+    <string name="hm_t_tomorrow_empty">No timetable for tomorrow yet.</string>
+    <string name="hm_t_tt_make">Make a timetable</string>
     <string name="hm_t_no_more">Nothing else today</string>
     <string name="hm_t_bed">Bedtime</string>
     <string name="hm_t_group">%1$s time</string>

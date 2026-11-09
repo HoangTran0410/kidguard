@@ -166,9 +166,9 @@ class TodayPage(
             .sortedByDescending { it.value }
         val used = top.sumOf { it.value }
         val limitMs = (baseLimitMin(r, dv.today).takeIf { it > 0 }?.let { it + if (r.bonusDay == dv.today) r.bonusMin else 0 } ?: 0) * 60_000L
-        if (limitMs <= 0 && used == 0L) return   // no limit, nothing used yet: nothing worth a card
         val c = card()
         title(c, R.drawable.li_timer, s(R.string.hm_t_screen))
+        if (limitMs <= 0 && used == 0L) { empty(c, s(R.string.hm_t_screen_empty)); col.addView(c, lp()); return }   // no limit, nothing used yet
         val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(10), 0, 0) }
         val low = limitMs > 0 && dv.leftMs in 0 until 10 * 60_000L
         if (limitMs > 0) row.addView(UseRing(act, (1f - dv.leftMs.coerceAtLeast(0).toFloat() / limitMs).coerceIn(0f, 1f), if (low) pal.warn else pal.solid, pal.stroke, k.dpf(7f)),
@@ -199,15 +199,30 @@ class TodayPage(
     private fun tomorrow(dv: HomeActivity.View0) {
         val m = model() ?: return
         if (!TimetableLogic.eveningFirst(dv.minute)) return
-        val subj = TimetableLogic.distinct(TimetableLogic.day(m.timetable, TimetableLogic.tomorrow(dv.dow)))
-        if (subj.isEmpty()) return
+        val dow = TimetableLogic.tomorrow(dv.dow)
+        val subj = TimetableLogic.distinct(TimetableLogic.day(m.timetable, dow))
         val c = card()
         val day = SimpleDateFormat("EEEE", act.resources.configuration.locales[0]).format(Date(dv.now + 86_400_000L)).replaceFirstChar { it.titlecase() }
         title(c, R.drawable.li_calendar, s(R.string.hm_t_tomorrow, day))
-        c.addView(k.text(subj.joinToString(" · "), 15f, pal.text, true).apply { setPadding(0, dp(10), 0, 0) })
-        c.addView(k.text(s(R.string.hm_t_pack), 13f, pal.sub).apply { setPadding(0, dp(4), 0, 0) })
+        if (subj.isEmpty()) {
+            // shown empty too, with the way to fill it (the timetable is the kid's own, on the phone)
+            empty(c, s(R.string.hm_t_tomorrow_empty))
+            link(c, s(R.string.hm_t_tt_make), R.drawable.li_plus) { (act as? HomeActivity)?.openTimetable(dow) }
+        } else {
+            c.addView(k.text(subj.joinToString(" · "), 15f, pal.text, true).apply { setPadding(0, dp(10), 0, 0) })
+            c.addView(k.text(s(R.string.hm_t_pack), 13f, pal.sub).apply { setPadding(0, dp(4), 0, 0) })
+        }
         col.addView(c, lp())
     }
+
+    /** The line an empty card shows instead of hiding. */
+    private fun empty(c: LinearLayout, t: String) = c.addView(k.text(t, 14f, pal.sub).apply { setPadding(0, dp(10), 0, 0) })
+
+    /** An accent "+ action" row at the bottom of a card (same look as "Ghi chú mới"). */
+    private fun link(c: LinearLayout, t: String, icon: Int, onTap: () -> Unit) = c.addView(k.text(t, 14f, pal.accentText, true).apply {
+        setPadding(dp(4), dp(12), dp(4), dp(4)); Ic.lead(this, icon, pal.accentText); compoundDrawablePadding = dp(8); gravity = Gravity.CENTER_VERTICAL
+        k.tap(this, 10f) { onTap() }
+    }, LinearLayout.LayoutParams(-2, -2))
 
     private fun card(): LinearLayout = LinearLayout(act).apply {
         orientation = LinearLayout.VERTICAL; background = k.sheetCard(20f); setPadding(dp(16), dp(14), dp(16), dp(14))
@@ -235,9 +250,15 @@ class TodayPage(
 
     private fun schedule(r: Rules, minute: Int, dow: Int) {
         val evs = LauncherLogic.today(r, minute, dow)
-        if (evs.isEmpty()) return   // an empty card is noise: "Hôm nay" shows what is there
         val c = card()
         title(c, R.drawable.li_calendar, s(R.string.hm_t_schedule))
+        if (evs.isEmpty()) {
+            // these come from the parent's rules (the kid can't add them): say so, and offer the kid's own timetable
+            empty(c, s(if (Flavor.HOME) R.string.hm_t_sched_empty_home else R.string.hm_t_sched_empty))
+            link(c, s(R.string.hm_t_tt_open), R.drawable.li_calendar) { (act as? HomeActivity)?.openTimetable(dow) }
+            col.addView(c, lp())
+            return
+        }
         for ((i, e) in evs.withIndex()) {
             if (i > 0) divider(c)
             val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(8), 0, dp(4)) }
