@@ -166,6 +166,15 @@ Without this the parent app checks every ~15 minutes. With it, SOS and "more tim
 2. **Project settings → Service accounts → Generate new private key**, then: `cd relay && npx wrangler secret put FCM_SA < /path/key.json && npx wrangler deploy`. Delete the key file afterwards.
 3. Open the parent app once: it registers itself with every kid that uses the Worker. The parent's phone needs Google Play services.
 
+### Telegram alerts (optional, no parent app needed)
+
+Same events as above (SOS, "more time", new app, tamper) as a plain Telegram message, sent by your Worker. Text only: the kid's name and the kind of alert, no location or notes.
+
+1. In Telegram talk to @BotFather: `/newbot`, copy the token.
+2. `cd relay && npx wrangler secret put TG_BOT` (paste the token), `npx wrangler deploy`. Or run `TG_BOT_TOKEN=<token> scripts/relay.sh`, which does both and registers the webhook.
+3. Without the script, register the webhook once: `curl "https://api.telegram.org/bot<token>/setWebhook" -d url=https://<your-worker>/tg/$(printf 'tg:%s' "<token>" | shasum -a 256 | cut -c1-32)`
+4. Parent page (relay kid) → Settings → **Telegram alerts** → Link Telegram → Start. Unlink there, or send the `/stop_...` command from the bot's message.
+
 ## iPhone / iPad
 
 An app like this cannot exist on iOS: Apple does not let third-party apps see the screen, control the phone or lock other apps. Use what is built in and free:

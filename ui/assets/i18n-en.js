@@ -335,6 +335,7 @@ L.en = {
   "more.setS": "PIN, paired devices, language, connection",
   "set.general": "General",
   "set.security": "Security",
+  "tg.h": "Telegram alerts", "tg.d": "SOS, more-time requests, new apps, tampering: sent straight to Telegram", "tg.p": "Works without the KidGuard parent app. Press the button, Telegram opens, press Start. Messages only hold the kid's name and the kind of alert, no location or content.", "tg.link": "Link Telegram", "tg.open": "One-time link, expires in 15 minutes:", "tg.openBtn": "Open Telegram", "tg.on": "Alerts go to your Telegram. To stop them from Telegram, send the /stop_... command from the confirmation message.", "tg.unlink": "Unlink", "tg.done": "Unlinked",
   "set.conn": "Connection",
   "pin.isSet": "Set", "pin.notSet": "Not set", "sd.paired": "Parent phones and browsers that control this phone", "sd.ts": "View and control when your kid is away from home", "sd.relay": "Use your own Cloudflare Worker instead of the shared relay", "sd.danger": "Unpair everything, remove KidGuard from the kid's phone", "sd.upd": "App version on the kid's phone, self-update", "sd.sys": "Volume, brightness, screen timeout, Do Not Disturb", "sd.dev": "Banking apps won't open while it is on", "dev.offP": "Off: banking apps open normally.",
   "set.danger": "Danger zone",

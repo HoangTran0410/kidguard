@@ -14,7 +14,7 @@ const PORT = process.env.PORT || "8793", MOCK = 8794;
 const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const sa = { project_id: "kg-test", client_email: "kg@kg-test.iam.gserviceaccount.com", token_uri: `http://127.0.0.1:${MOCK}/token`,
   private_key: privateKey.export({ type: "pkcs8", format: "pem" }) };
-const sent = [];
+const sent = [], tgSent = [], TG_TOKEN = "123456:test-token";
 createServer((q, s) => {
   let b = ""; q.on("data", d => (b += d)); q.on("end", () => {
     const out = (st, o) => { s.writeHead(st, { "content-type": "application/json" }); s.end(JSON.stringify(o)); };
@@ -29,11 +29,15 @@ createServer((q, s) => {
       return m.token.startsWith("dead") ? out(404, { error: { status: "NOT_FOUND" } }) : out(200, { name: "x" });
     }
     if (q.url === "/_sent") return out(200, sent);
+    // fake Telegram: /bot<TG_TOKEN>/getMe, /sendMessage (recorded), GET /_tg
+    if (q.url === `/bot${TG_TOKEN}/getMe`) return out(200, { ok: true, result: { username: "kg_test_bot" } });
+    if (q.url === `/bot${TG_TOKEN}/sendMessage`) { const m = JSON.parse(b); tgSent.push(m); return m.chat_id === 666 ? out(403, { ok: false }) : out(200, { ok: true }); }
+    if (q.url === "/_tg") return out(200, tgSent);
     out(404, {});
   });
 }).listen(MOCK, "127.0.0.1");
 const envFile = join(mkdtempSync(join(tmpdir(), "kg-")), ".env");
-writeFileSync(envFile, `FCM_SA='${JSON.stringify(sa)}'\nFCM_URL=http://127.0.0.1:${MOCK}\n`);
+writeFileSync(envFile, `FCM_SA='${JSON.stringify(sa)}'\nFCM_URL=http://127.0.0.1:${MOCK}\nTG_BOT=${TG_TOKEN}\nTG_URL=http://127.0.0.1:${MOCK}\n`);
 
 // fresh local Durable Object storage every run: tests with fixed kid ids must not see the last run's queue / rules
 rmSync(".wrangler/state", { recursive: true, force: true });

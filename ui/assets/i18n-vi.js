@@ -338,6 +338,7 @@ L.vi = {
   "more.setS": "PIN, máy đã ghép, ngôn ngữ, kết nối",
   "set.general": "Chung",
   "set.security": "Bảo mật",
+  "tg.h": "Báo qua Telegram", "tg.d": "SOS, xin thêm giờ, app mới cài, ai đó can thiệp: nhắn thẳng vào Telegram", "tg.p": "Không cài app KidGuard cho bố mẹ cũng nhận được báo. Bấm nút, Telegram mở ra, bấm Start. Tin nhắn chỉ có tên con và loại báo, không có vị trí hay nội dung.", "tg.link": "Liên kết Telegram", "tg.open": "Link dùng một lần, hết hạn sau 15 phút:", "tg.openBtn": "Mở Telegram", "tg.on": "Đang báo vào Telegram của bạn. Muốn huỷ từ Telegram: gửi lệnh /stop_... có trong tin xác nhận.", "tg.unlink": "Huỷ liên kết", "tg.done": "Đã huỷ liên kết",
   "set.conn": "Kết nối",
   "pin.isSet": "Đã đặt", "pin.notSet": "Chưa đặt", "sd.paired": "Điện thoại, trình duyệt của bố mẹ điều khiển máy con", "sd.ts": "Xem và điều khiển khi con ra khỏi nhà", "sd.relay": "Dùng Cloudflare Worker của bạn thay relay chung", "sd.danger": "Huỷ ghép tất cả, gỡ KidGuard khỏi máy con", "sd.upd": "Phiên bản app trên máy con, tự cập nhật", "sd.sys": "Âm lượng, độ sáng, tắt màn hình, Không làm phiền", "sd.dev": "App ngân hàng không mở khi đang bật", "dev.offP": "Đang tắt: app ngân hàng mở bình thường.",
   "set.danger": "Vùng nguy hiểm",
