@@ -15,10 +15,11 @@ data class Caps(
     val home: Boolean = false,       // KidGuard is the default HOME app
     val adb: Boolean = false,        // self-ADB usable (the phone can run adb against itself)
     val paired: Boolean = false,     // a parent has paired (store.everPaired)
+    val wss: Boolean = false,        // WRITE_SECURE_SETTINGS granted (pm grant at setup; survives Developer options being turned off)
 ) {
     fun has(cap: String): Boolean = when (cap) {
         "owner" -> owner; "admin" -> admin; "acc" -> acc; "usage" -> usage; "location" -> location
-        "notify" -> notify; "battery" -> battery; "home" -> home; "adb" -> adb; "paired" -> paired
+        "notify" -> notify; "battery" -> battery; "home" -> home; "adb" -> adb; "paired" -> paired; "wss" -> wss
         else -> false
     }
     fun toMap(): Map<String, Boolean> = Features.CAPS.associateWith { has(it) }
@@ -27,7 +28,7 @@ data class Caps(
 data class Feature(val id: String, val ok: Boolean, val missing: List<String>)
 
 object Features {
-    val CAPS = listOf("owner", "admin", "acc", "usage", "location", "notify", "battery", "home", "adb", "paired")
+    val CAPS = listOf("owner", "admin", "acc", "usage", "location", "notify", "battery", "home", "adb", "paired", "wss")
 
     /** id -> alternatives; one alternative with every cap granted makes the feature usable. Order = display order. */
     val TABLE: List<Pair<String, List<List<String>>>> = listOf(
@@ -42,7 +43,9 @@ object Features {
         "screen" to listOf(listOf("acc")),
         "remote" to listOf(listOf("paired")),
         "noUninstall" to listOf(listOf("owner"), listOf("admin")),
-        "dns" to listOf(listOf("owner")),
+        // owner: DPM; basic: raw Settings writes, which only need WRITE_SECURE_SETTINGS (no live adb, works with Developer options off)
+        "dns" to listOf(listOf("owner"), listOf("wss")),
+        "lockLocation" to listOf(listOf("owner"), listOf("wss")),
     )
 
     fun status(c: Caps): List<Feature> = TABLE.map { (id, alts) ->

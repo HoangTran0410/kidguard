@@ -21,6 +21,7 @@ object FeatureCaps {
         home = LauncherSafe.homeIsOurs(ctx),
         adb = runCatching { SelfAdb.ready(ctx) }.getOrDefault(false),
         paired = Store.of(ctx).everPaired,
+        wss = Sys.wss(ctx),
     )
 
     fun caps(ctx: Context, c: Caps = of(ctx)): JSONObject = JSONObject().also { o -> c.toMap().forEach { (k, v) -> o.put(k, v) } }
@@ -38,7 +39,7 @@ object FeaturesSheet {
         "launcher" to R.drawable.li_house, "launcherLock" to R.drawable.li_lock, "debloat" to R.drawable.li_eraser,
         "limits" to R.drawable.li_timer, "block" to R.drawable.li_octagon_x, "usage" to R.drawable.li_list_checks,
         "location" to R.drawable.li_map_pin, "screen" to R.drawable.li_eye, "remote" to R.drawable.li_link,
-        "noUninstall" to R.drawable.li_shield, "dns" to R.drawable.li_globe,
+        "noUninstall" to R.drawable.li_shield, "dns" to R.drawable.li_globe, "lockLocation" to R.drawable.li_map_pin,
     )
 
     private fun str(act: Activity, prefix: String, id: String): String {
@@ -87,6 +88,7 @@ object FeaturesSheet {
                 open(act, Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS), Intent(Settings.ACTION_SETTINGS))
                 runCatching { SelfAdb.pair(act) }
             } else guide(act, u, R.string.feat_cap_adb, R.string.feat_adb_body)
+            "wss" -> guide(act, u, R.string.feat_cap_wss, R.string.feat_wss_body)
             "paired" -> pair()
         }
     }

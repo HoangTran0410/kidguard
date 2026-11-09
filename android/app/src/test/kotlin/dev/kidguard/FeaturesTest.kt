@@ -37,6 +37,14 @@ class FeaturesTest {
         assertTrue(f(Caps(), "debloat").missing.size == 1)
     }
 
+    @Test fun wssUnlocksDnsAndLocationLockWithoutOwner() {
+        assertFalse(f(Caps(), "dns").ok); assertFalse(f(Caps(), "lockLocation").ok)
+        assertEquals(listOf("owner"), f(Caps(), "dns").missing)
+        val c = Caps(wss = true)
+        assertTrue(f(c, "dns").ok); assertTrue(f(c, "lockLocation").ok)
+        assertFalse(f(c, "limits").ok)
+    }
+
     @Test fun mapHasEveryCap() {
         assertEquals(Features.CAPS.toSet(), Caps().toMap().keys)
         assertTrue(Features.TABLE.flatMap { it.second }.flatten().all { it in Features.CAPS })

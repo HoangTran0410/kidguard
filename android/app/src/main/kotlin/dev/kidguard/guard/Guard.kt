@@ -102,6 +102,10 @@ class Guard : Service() {
             contentResolver.registerContentObserver(Settings.Secure.getUriFor(Settings.Secure.LOCATION_MODE), false, locObserver)
             contentResolver.registerContentObserver(Settings.Secure.getUriFor(Settings.Secure.LOCATION_PROVIDERS_ALLOWED), false, locObserver)
         }
+        runCatching {   // basic mode + WRITE_SECURE_SETTINGS: Private DNS changed by hand => back to the safe host at once
+            contentResolver.registerContentObserver(Settings.Global.getUriFor("private_dns_mode"), false, dnsObserver)
+            contentResolver.registerContentObserver(Settings.Global.getUriFor("private_dns_specifier"), false, dnsObserver)
+        }
         runCatching {
             registerReceiver(pkgReceiver, IntentFilter().apply {
                 addAction(Intent.ACTION_PACKAGE_ADDED); addAction(Intent.ACTION_PACKAGE_REMOVED); addDataScheme("package")
@@ -128,6 +132,7 @@ class Guard : Service() {
         runCatching { unregisterReceiver(pkgReceiver) }
         runCatching { unregisterReceiver(timeReceiver) }
         runCatching { contentResolver.unregisterContentObserver(locObserver) }
+        runCatching { contentResolver.unregisterContentObserver(dnsObserver) }
         Listen.stopAll(); Proj.stop(this); Ring.stop(this)
         wifiLock(false)
         http?.stop(); relay?.stop()
@@ -396,9 +401,13 @@ class Guard : Service() {
      * WRITE_SECURE_SETTINGS. Runs every tick and at once from [locObserver].
      */
     private fun keepLocation(r: Rules) {
-        if (!r.lockLocation || !Policy.isOwner(this)) return
+        val owner = Policy.isOwner(this); val wss = Sys.wss(this)
+        if (!r.lockLocation || (!owner && !wss) || store.released) return
         if (locationOn()) { locFixLogged = false; return }
-        if (Build.VERSION.SDK_INT >= 30) runCatching { Policy.dpm(this).setLocationEnabled(Policy.admin(this), true) }
+        if (!owner) {   // basic mode: no DPM, so only the raw write (WRITE_SECURE_SETTINGS from setup)
+            @Suppress("DEPRECATION") runCatching { Settings.Secure.putInt(contentResolver, Settings.Secure.LOCATION_MODE, Settings.Secure.LOCATION_MODE_HIGH_ACCURACY) }
+                .onFailure { Log.w("KidGuard", "location mode (wss)", it) }
+        } else if (Build.VERSION.SDK_INT >= 30) runCatching { Policy.dpm(this).setLocationEnabled(Policy.admin(this), true) }
         else {
             @Suppress("DEPRECATION") val mode = Settings.Secure.LOCATION_MODE_HIGH_ACCURACY
             @Suppress("DEPRECATION") runCatching { Policy.dpm(this).setSecureSetting(Policy.admin(this), Settings.Secure.LOCATION_MODE, mode.toString()) }
@@ -411,6 +420,10 @@ class Guard : Service() {
     }
     private val locObserver by lazy {
         object : android.database.ContentObserver(work) { override fun onChange(self: Boolean) { runCatching { keepLocation(store.rules) } } }
+    }
+
+    private val dnsObserver by lazy {
+        object : android.database.ContentObserver(work) { override fun onChange(self: Boolean) { runCatching { Policy.keepDnsWss(this@Guard, store.rules) } } }
     }
 
     private fun locationOn(): Boolean {

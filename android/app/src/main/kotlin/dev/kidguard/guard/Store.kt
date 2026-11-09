@@ -377,6 +377,10 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var priorDnsMode: String
         get() = p.getString("priorDnsMode", "") ?: ""
         set(v) { p.edit().putString("priorDnsMode", v).apply() }
+    /** Private DNS was written by us without Device Owner (WRITE_SECURE_SETTINGS), so release / pause must put the prior value back. */
+    @get:Synchronized @set:Synchronized var dnsByWss: Boolean
+        get() = p.getBoolean("dnsByWss", false)
+        set(v) { p.edit().putBoolean("dnsByWss", v).apply() }
     @get:Synchronized @set:Synchronized var priorDnsHost: String
         get() = p.getString("priorDnsHost", "") ?: ""
         set(v) { p.edit().putString("priorDnsHost", v).apply() }

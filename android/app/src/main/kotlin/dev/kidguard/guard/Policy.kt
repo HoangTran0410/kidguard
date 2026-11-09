@@ -159,11 +159,53 @@ object Policy {
 
     /** Called every tick: re-applies Private DNS / browser DoH when the effective host changed (pause started or expired). */
     fun syncDns(ctx: Context, r: Rules) {
+        if (!isOwner(ctx)) { keepDnsWss(ctx, r); return }
         val want = r.dnsHost()
         if (appliedDns == null || appliedDns == want || !isOwner(ctx)) { if (appliedDns == null) appliedDns = want; return }
         val d = dpm(ctx); val a = admin(ctx)
         applyDns(ctx, d, a, r); applyDoh(d, a, want.isNotEmpty()); appliedDns = want
         runCatching { Store.of(ctx).log(if (want.isEmpty()) R.string.log_dns_paused else R.string.log_dns_resumed) }
+    }
+
+    /** Basic mode: the raw Private DNS writes work for a WRITE_SECURE_SETTINGS holder (no Device Owner, no live adb). */
+    private fun dnsWssOk(ctx: Context) = Build.VERSION.SDK_INT >= 29 && !isOwner(ctx) && Sys.wss(ctx) && !Store.of(ctx).released
+
+    /**
+     * Basic mode with WRITE_SECURE_SETTINGS: keep Private DNS on [Rules.dnsHost] (tick + [Guard] observer on the two Settings.Global keys);
+     * pause / off / release put back what the phone had ([DnsLogic.plan]). No-op for the owner (DPM does it) and without the permission.
+     */
+    @Synchronized fun keepDnsWss(ctx: Context, r: Rules) {
+        if (!dnsWssOk(ctx)) return
+        val s = Store.of(ctx); val cr = ctx.contentResolver
+        val want = r.dnsHost()
+        // fallen back to opportunistic (host unreachable): leave it until the retry window is over, see retryDns
+        if (want.isNotEmpty() && dnsError.isNotEmpty() && System.currentTimeMillis() - dnsTriedAt < retryAfter) return
+        val mode = Settings.Global.getString(cr, "private_dns_mode") ?: ""
+        val host = Settings.Global.getString(cr, "private_dns_specifier") ?: ""
+        if (want.isNotEmpty() && !s.dnsByWss) { s.priorSaved = false; savePrior(ctx, r) }
+        val w = DnsLogic.plan(want, mode, host, s.dnsByWss, s.priorDnsMode, s.priorDnsHost)
+        if (w != null) {
+            dnsTriedAt = System.currentTimeMillis()
+            runCatching { writeDns(ctx, w.first, w.second) }.onFailure { Log.w(TAG, "private dns (wss)", it) }
+        }
+        if (s.dnsByWss != want.isNotEmpty()) {
+            s.dnsByWss = want.isNotEmpty()
+            runCatching { s.log(if (want.isEmpty()) R.string.log_dns_paused else R.string.log_dns_resumed) }
+        }
+        if (want.isEmpty()) dnsError = ""
+        appliedDns = want
+    }
+
+    /** Specifier first, then the mode: switching to "hostname" with no host set would be rejected by the system. */
+    private fun writeDns(ctx: Context, mode: String, host: String) {
+        val cr = ctx.contentResolver
+        if (mode == "hostname") Settings.Global.putString(cr, "private_dns_specifier", host)
+        Settings.Global.putString(cr, "private_dns_mode", mode)
+    }
+
+    private fun setOpportunistic(ctx: Context) {
+        if (isOwner(ctx)) runCatching { dpm(ctx).setGlobalPrivateDnsModeOpportunistic(admin(ctx)) }
+        else runCatching { writeDns(ctx, "opportunistic", "") }
     }
 
     private fun applyDns(ctx: Context, d: DevicePolicyManager, a: ComponentName, r: Rules) {
@@ -197,10 +239,13 @@ object Policy {
      * DNS-over-TLS port 853, which leaves the phone with no DNS at all), falls back to opportunistic DNS for 30 min.
      */
     fun retryDns(ctx: Context, r: Rules) {
-        if (Build.VERSION.SDK_INT < 29 || r.dnsHost().isEmpty() || !isOwner(ctx)) { unvalidatedSince = 0; return }
+        if (Build.VERSION.SDK_INT < 29 || r.dnsHost().isEmpty() || !(isOwner(ctx) || dnsWssOk(ctx))) { unvalidatedSince = 0; return }
         val now = System.currentTimeMillis()
         if (dnsError.isNotEmpty()) {
-            if (now - dnsTriedAt >= retryAfter) { unvalidatedSince = 0; applyDns(ctx, dpm(ctx), admin(ctx), r) }
+            if (now - dnsTriedAt >= retryAfter) {
+                unvalidatedSince = 0
+                if (isOwner(ctx)) applyDns(ctx, dpm(ctx), admin(ctx), r) else { dnsError = ""; keepDnsWss(ctx, r) }
+            }
             return
         }
         val cm = ctx.getSystemService(android.net.ConnectivityManager::class.java)
@@ -210,8 +255,7 @@ object Policy {
         if (!online || validated) { unvalidatedSince = 0; retryAfter = 60_000L; return }
         if (unvalidatedSince == 0L) { unvalidatedSince = now; return }
         if (now - unvalidatedSince < 90_000) return
-        val d = dpm(ctx); val a = admin(ctx)
-        runCatching { d.setGlobalPrivateDnsModeOpportunistic(a) }
+        setOpportunistic(ctx)
         dnsError = ctx.getString(R.string.dns_fallback)
         dnsTriedAt = now; retryAfter = 30 * 60_000L; unvalidatedSince = 0
         runCatching { Store.of(ctx).log(R.string.log_dns_fallback) }
@@ -566,6 +610,7 @@ object Policy {
             s.released = false; Watchdog.schedule(ctx); return "failed"
         }
         s.suspendedByUs = emptySet()
+        restoreDnsWss(ctx, s)   // Private DNS we wrote with WRITE_SECURE_SETTINGS goes back to what the phone had
         removeAccEntry(ctx); AccPause.clear(ctx)   // a bank-app pause must not outlive us
         NotifDots.setOn(ctx, false)
         runCatching { LauncherSafe.off(ctx, goHome = true) }   // only owner mode can turn it on, but never leave it behind
@@ -573,6 +618,14 @@ object Policy {
         s.clearTokens()
         Quick.setEnabled(ctx, false)   // lock tile / widget / shortcuts: nothing left to lock with
         return "ok"
+    }
+
+    private fun restoreDnsWss(ctx: Context, s: Store) {
+        if (!s.dnsByWss || Build.VERSION.SDK_INT < 29 || !Sys.wss(ctx)) { s.dnsByWss = false; return }
+        val cr = ctx.contentResolver
+        DnsLogic.plan("", Settings.Global.getString(cr, "private_dns_mode") ?: "", Settings.Global.getString(cr, "private_dns_specifier") ?: "", true, s.priorDnsMode, s.priorDnsHost)
+            ?.let { runCatching { writeDns(ctx, it.first, it.second) }.onFailure { e -> Log.w(TAG, "restore dns (wss)", e) } }
+        s.dnsByWss = false; s.priorSaved = false
     }
 
     /** Takes our accessibility service out of enabled_accessibility_services (needs WRITE_SECURE_SETTINGS). */
