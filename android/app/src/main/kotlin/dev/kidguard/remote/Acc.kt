@@ -146,7 +146,12 @@ class Acc : AccessibilityService() {
         if (pkg != scanPkg || !BasicLogic.isSettingsPkg(pkg)) return
         val labels = listOf("KidGuard", runCatching { applicationInfo.loadLabel(packageManager).toString() }.getOrDefault("KidGuard"))
         val nodes = collectNodes(root, 300)
-        if (BasicLogic.selfProtect(pkg, nodes, labels)) {
+        if (BasicLogic.isDateTimePage(pkg, nodes)) {
+            // basic mode has no DISALLOW_CONFIG_DATE_TIME: the clock page is closed like the uninstall pages
+            performGlobalAction(GLOBAL_ACTION_HOME)
+            val now = System.currentTimeMillis()
+            if (now - lastProtectLog > 30_000) { lastProtectLog = now; runCatching { Store.of(this).log(R.string.log_acc_clock) } }
+        } else if (BasicLogic.selfProtect(pkg, nodes, labels)) {
             performGlobalAction(GLOBAL_ACTION_HOME)
             val now = System.currentTimeMillis()
             if (now - lastProtectLog > 30_000) {
@@ -212,6 +217,8 @@ class Acc : AccessibilityService() {
                 ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME)
                     .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
             }
+            // the app's audio would play on behind the home screen (every bounce, not only the notified one)
+            BasicMedia.pauseOf(ctx, pkg)
             val now = System.currentTimeMillis()
             synchronized(lastBounce) {
                 if (now - (lastBounce[pkg] ?: 0L) < 10_000) return
