@@ -194,6 +194,11 @@ internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, co
     // Launcher3 / iOS morph: a picture of the folder icon rides on the card. Small, the card shows the icon itself
     // (its 2×2 preview, its corners); grown, the real 3×3 apps. Without it the card's own apps, shrunk, landed in a
     // different layout from the icon's preview and the icons jumped in size the frame the card was swapped for it.
+    // the tapped icon (src itself, or a tile inside it: an App Library group's "+N") is still sunk ([pressed]) and
+    // springing back. Settle it at full size before the picture is taken: the picture kept it sunk, and when the close
+    // ended the real one popped from sunk to full size (App Library, 11-10)
+    fun settle(v: View) { if (v.scaleX != 1f) pressed(v, null); if (v is android.view.ViewGroup) for (i in 0 until v.childCount) settle(v.getChildAt(i)) }
+    src?.let { settle(it) }
     val ghost = src?.let { s ->
         val b = android.graphics.Bitmap.createBitmap(s.width, s.height, android.graphics.Bitmap.Config.ARGB_8888)
         runCatching { s.draw(android.graphics.Canvas(b)) }
