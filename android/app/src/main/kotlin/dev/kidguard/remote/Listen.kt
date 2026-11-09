@@ -33,7 +33,9 @@ object Listen {
     @Volatile var lastError = ""
         private set(v) { val changed = field != v; field = v; if (changed) Guard.running?.kick() }
 
-    fun state(): org.json.JSONObject = org.json.JSONObject().put("on", active).put("since", since).put("err", lastError)
+    /** [mic]: KidGuard holds RECORD_AUDIO (Device Owner grants it; basic mode needs the user to allow it in Settings). */
+    fun state(ctx: android.content.Context): org.json.JSONObject = org.json.JSONObject().put("on", active).put("since", since).put("err", lastError)
+        .put("mic", ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
 
     class Session(private val g: Guard, private val rec: MediaRecorder, private val read: ParcelFileDescriptor, private val write: ParcelFileDescriptor) {
         @Volatile private var closed = false

@@ -377,7 +377,7 @@ class Guard : Service() {
             .put("track", store.track(2))
             .put("requests", store.requests())
             .put("sos", store.sos())
-            .put("listen", Listen.state())
+            .put("listen", Listen.state(this))
             .put("files", Files.state(this))
             .put("ring", Ring.state())
             .put("events", store.events())

@@ -156,6 +156,18 @@ function pinGate(a) {
 
 // Header status line + banner stack (priority order, 1 shown + "N more"). SOS and check-ins sit on top and never fold.
 let banAll = false;
+const banHid = new Set();   // banners hidden with their x: this page session only, they come back next time
+// "Điện thoại của con" card on Hôm nay: connection, battery, screen (was one long line under the kid's name)
+function phoneCard(online) {
+  const appOf = p => p && p.startsWith("dev.kidguard") ? "KidGuard" : ((st.apps || []).find(a => a.pkg === p) || {}).label || p;
+  const cell = (tone, i, big, sub) => `<div class="pc"><span class="pci t-${tone}">${ic(i)}</span><b>${big}</b><span class="mute">${sub}</span></div>`;
+  const bat = +st.battery, cur0 = st.screenOn && st.current ? appOf(st.current) : "";
+  return `<div class="lhead"><h2>${ic("smartphone")} ${t("pc.title")}</h2></div><div class="pcg">`
+    + cell(online ? "ok" : "bad", online ? "wifi" : "wifi-off", online ? t("live.on") : t("live.off"), ago(lastSeen()))
+    + cell(st.charging ? "ok" : bat <= 15 ? "bad" : bat <= 30 ? "warn" : "info", st.charging ? "zap" : "battery-full", bat + "%", st.charging ? t("pc.charging") : t("pc.battery"))
+    + cell(st.screenOn ? "info" : "mute", "smartphone", st.screenOn ? t("pc.on") : t("pc.off"), cur0 ? esc(cur0) : t("pc.screen"))
+    + `</div>`;
+}
 function updateLive() {
   paintSave(); if (tab === "screen") screenCtl();
   const el = $("#live"), hs = $("#hst"); if (!el) return;
@@ -166,7 +178,8 @@ function updateLive() {
   const lostFrom = lan ? st.t : seenAt;
   const sk = document.querySelector(".kidn.on");   // sidebar dot is rendered once; keep it in step with the header
   if (sk) { sk.querySelector(".dot")?.remove(); sk.insertAdjacentHTML("beforeend", dot(online ? "on" : "bad")); }
-  if (hs) hs.innerHTML = `${dot(online ? "on" : "bad")}<span>${online ? t("live.on") : t("live.off")} · ${ago(lastSeen())} · ${ic("battery-full")} ${+st.battery}%${st.charging ? ic("zap") : ""} · ${st.screenOn ? (st.current ? t("scrOnApp", "<b>" + esc(st.current) + "</b>") : t("scrOn")) : t("scrOff")}</span>`;
+  if (hs) hs.innerHTML = `${dot(online ? "on" : "bad")}<span>${online ? t("live.on") : t("live.off")} · ${ago(lastSeen())}</span>`;
+  const pc = $("#phoneCard"); if (pc) pc.innerHTML = phoneCard(online);
   const B = [];   // [tone, icon, text]
   if (APP && cachedAt) B.push(["warn", "wifi-off", t("live.cached", hhmm(cachedAt))]);
   if (!lan && lastNet) B.push(["warn", "wifi-off", t("live.selfOff")]);
@@ -177,10 +190,13 @@ function updateLive() {
   if (st.usageAccess === false || st.usageOff) B.push(["bad", "triangle-alert", t("live.usage")]);
   if (st.dnsError) B.push(["warn", "triangle-alert", t("live.dns", esc(st.dnsError))]);
   if (st.locationOn === false) B.push(["warn", "triangle-alert", t("live.locOff")]);
-  const ban = x => `<div class="ban t-${x[0]}" role="status"><span class="bi">${ic(x[1])}</span><div class="x">${x[2]}</div></div>`;
+  const B2 = B.filter(x => !(x[3] && banHid.has(x[3])));
+  const ban = x => `<div class="ban t-${x[0]}" role="status"><span class="bi">${ic(x[1])}</span><div class="x">${x[2]}</div>${x[4] ? `<button type="button" class="pill" data-band="${x[3]}">${t("ban.why")}</button><button type="button" class="banx" data-banx="${x[3]}" aria-label="${esc(t("ban.hide"))}" title="${esc(t("ban.hide"))}">${ic("x")}</button>` : ""}</div>`;
   const strip = $("#strip") ? "" : stripHtml();   // home has its own spot under the round buttons
-  el.innerHTML = sosHtml() + ciHtml() + strip + (banAll ? B : B.slice(0, 1)).map(ban).join("")
-    + (B.length > 1 ? `<button type="button" class="more-ban" id="banMore" aria-expanded="${banAll}">${ic(banAll ? "chevron-down" : "chevron-right")} ${banAll ? t("ban.less") : t("ban.more", B.length - 1)}</button>` : "");
+  el.innerHTML = sosHtml() + ciHtml() + strip + (banAll ? B2 : B2.slice(0, 1)).map(ban).join("")
+    + (B2.length > 1 ? `<button type="button" class="more-ban" id="banMore" aria-expanded="${banAll}">${ic(banAll ? "chevron-down" : "chevron-right")} ${banAll ? t("ban.less") : t("ban.more", B2.length - 1)}</button>` : "");
+  el.querySelectorAll("[data-band]").forEach(x => x.onclick = () => { const d = B.find(y => y[3] === x.dataset.band); if (d) ask(d[4], "OK", false, "", "", null, d[2]); });
+  el.querySelectorAll("[data-banx]").forEach(x => x.onclick = () => { banHid.add(x.dataset.banx); updateLive(); });
   if ($("#banMore")) $("#banMore").onclick = () => { banAll = !banAll; updateLive(); };
   wireSos(el);
   wireCi(el);
@@ -256,7 +272,7 @@ function earBar() {
     const au = $("#earAudio");
     au.onplaying = () => { earT = earT || Date.now(); const w = want.listen; if (w && w.on) { delete want.listen; liveOn.listen = true; actSt[w.id] = { s: "done", t: Date.now() }; actPaint(); } };
     // the phone ends the stream itself on 10 min, a blocked mic ("mic silenced") or a stuck one: say which
-    const ended = async (fail) => { if (!au.getAttribute("src")) return; earStop(); await refresh().catch(() => {}); const e0 = st && st.listen && st.listen.err, er = e0 && e0 !== earErr0 ? e0 : "";
+    const ended = async (fail) => { if (!au.getAttribute("src")) return; earStop(); await refresh().catch(() => {}); const e0 = st && st.listen && st.listen.err, er = e0 && (e0 !== earErr0 || e0 === "no mic permission") ? e0 : "";   // a missing permission is never "old news"
       if (er || fail) toast("err|" + t("ear.fail", er ? tc("ear.", er, er) : t("e.lost"))); else toast("ok|" + t("ear.ended")); };
     au.onended = () => ended(false);
     au.onerror = () => ended(true);
@@ -267,6 +283,7 @@ function earBar() {
 async function earStart() {
   if (!cur || cur.via !== "lan") return toast("warn|" + t("ear.lanOnly"));
   if (ringOn()) return toast("warn|" + t("act.noEar"));
+  if (st && st.listen && st.listen.mic === false) return ask(t("ear.no mic permission"), "OK", false, "", "", null, t("ear.cant"));
   if (!(await ask(t("ear.ask"), t("ear.on")))) return;
   earStart.k = cur;
   const e = earBar(), au = $("#earAudio");
@@ -422,7 +439,7 @@ function modeBans0() {   // basic mode / unfinished setup: [tone, icon, text] ba
   if (st.owner || !st.mode && st.owner !== false) return [];
   const m = st.basic || {}, miss = ["acc", "admin", "usage", "location", "notify", "battery"].filter(k => m[k] === false).map(k => t("perm." + k));
   if (st.mode !== "basic") return [["bad", "triangle-alert", t("mode.setup", esc(miss.join(", ") || t("mode.items")))]];
-  return (m.acc === false ? [["bad", "siren", t("mode.accOff")]] : []).concat([["warn", "info", t("mode.basic") + (miss.length ? " " + t("mode.miss", esc(miss.join(", "))) : "")]]);
+  return (m.acc === false ? [["bad", "siren", t("mode.accOff")]] : []).concat([["warn", "info", t("mode.basicS") + (miss.length ? " " + t("mode.miss", esc(miss.join(", "))) : ""), "basic", t("mode.basic")]]);
 }
 // "Cấm dùng…" / "Cho thêm giờ…" modal on the #askPop layer (Esc / backdrop close it through askDone).
 // pause: rules.pausedUntil = end time (ms), "for N min" or "until HH:MM" (passed today = tomorrow), both computed here.

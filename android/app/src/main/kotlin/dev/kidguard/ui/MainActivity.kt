@@ -854,19 +854,38 @@ class MainActivity : Activity() {
 class MessageActivity : Activity() {
     private val h = Handler(Looper.getMainLooper())
     private var textView: TextView? = null
+    private var timeView: TextView? = null
     private val wakeOff = Runnable { screenOnFlag(false) }
 
     override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(Lang.wrap(base))   // in-app language (Android 8-12)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val pad = (24 * resources.displayMetrics.density).toInt()
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(pad, pad, pad, pad); setBackgroundColor(Color.parseColor("#1e3a8a")) }
-        col.addView(TextView(this).apply { text = getString(R.string.msg_title); textSize = 18f; setTextColor(Color.parseColor("#bfdbfe")); gravity = Gravity.CENTER; Ic.lead(this, R.drawable.li_mail) })
-        textView = TextView(this).apply { text = intent.getStringExtra("text") ?: ""; textSize = 30f; setTextColor(Color.WHITE); gravity = Gravity.CENTER; setPadding(0, pad, 0, pad) }
-        col.addView(textView)
-        col.addView(Button(this).apply { text = getString(R.string.msg_read); Ic.lead(this, R.drawable.li_thumbs_up); setOnClickListener {
-            runCatching { getSystemService(NotificationManager::class.java).cancel(NID) }; finish() } })
-        setContentView(col)
+        // Kid Home look: soft page, one rounded card (icon chip, "Bố mẹ nhắn · time", the text), a solid pill button
+        val ui = Ui(this)
+        val root = android.widget.FrameLayout(this).apply { setBackgroundColor(ui.bg); fitsSystemWindows = true }
+        val card = ui.cardBox(24).apply { gravity = Gravity.CENTER_HORIZONTAL; background = ui.shape(ui.card, 28, ui.stroke, 1); elevation = ui.dpf(6)
+            layoutParams = android.widget.FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { val m = ui.dp(20); setMargins(m, m, m, m) } }
+        card.addView(android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.li_mail); imageTintList = android.content.res.ColorStateList.valueOf(ui.accent)
+            background = ui.shape(ui.tint, 22); val p = ui.dp(16); setPadding(p, p, p, p)
+            layoutParams = LinearLayout.LayoutParams(ui.dp(64), ui.dp(64)) })
+        card.addView(ui.label(getString(R.string.msg_title), 15f, ui.accent, bold = true).apply { gravity = Gravity.CENTER; setPadding(0, ui.dp(12), 0, 0) })
+        timeView = ui.label("", 13f).apply { gravity = Gravity.CENTER }
+        card.addView(timeView)
+        textView = TextView(this).apply { textSize = 26f; setTextColor(ui.text); gravity = Gravity.CENTER; setLineSpacing(0f, 1.15f)
+            setTypeface(typeface, android.graphics.Typeface.BOLD); setTextIsSelectable(false); setPadding(0, ui.dp(16), 0, ui.dp(20)) }
+        card.addView(android.widget.ScrollView(this).apply { isVerticalFadingEdgeEnabled = true; addView(textView)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { weight = 1f } })
+        card.addView(ui.button(getString(R.string.msg_read), R.drawable.li_thumbs_up, true) {
+            runCatching { getSystemService(NotificationManager::class.java).cancel(NID) }; finish() }.apply {
+            background = android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(Color.argb(60, 255, 255, 255)), ui.shape(ui.primary, 27), null) })
+        root.addView(card)
+        setContentView(root)
+        window.statusBarColor = ui.bg; window.navigationBarColor = ui.bg
+        @Suppress("DEPRECATION") if (!ui.dark) window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (android.os.Build.VERSION.SDK_INT >= 26) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
+        setText(intent)
+        card.alpha = 0f; card.scaleX = 0.94f; card.scaleY = 0.94f; card.translationY = ui.dpf(12)
+        Motion.enter(card, Motion.SLOW, Motion.STD)
         wakeScreen()
     }
 
@@ -874,8 +893,13 @@ class MessageActivity : Activity() {
     override fun onNewIntent(i: Intent) {
         super.onNewIntent(i)
         setIntent(i)
-        textView?.text = i.getStringExtra("text") ?: ""
+        setText(i)
         wakeScreen()
+    }
+
+    private fun setText(i: Intent) {
+        textView?.text = i.getStringExtra("text") ?: ""
+        timeView?.text = android.text.format.DateFormat.getTimeFormat(this).format(java.util.Date())
     }
 
     /**

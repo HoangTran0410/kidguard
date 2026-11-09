@@ -94,14 +94,15 @@ function changed() {
 // Every action that changes something on the child's phone asks first (custom modal: native confirm() looks off in the app).
 // typed: the user must type this word (release). Resolves true/false; Esc / backdrop = false.
 let askDone = null, askAuto = false;   // askAuto: the last dialog was closed by the page (new dialog, screen change), not by the parent
-function ask(text, ok = t("agree"), danger = false, typed = "", extra = "", collect = null) {
+// info: a title string = a notice, not a question (no Cancel; OK only)
+function ask(text, ok = t("agree"), danger = false, typed = "", extra = "", collect = null, info = "") {
   if (askDone) askDone(false, true);
   const pop = $("#askPop");
-  pop.innerHTML = `<div class="dp"><h2 id="askT" style="margin:0 0 8px">${ic(danger ? "triangle-alert" : "circle-help")} ${t("confirm")}</h2>
+  pop.innerHTML = `<div class="dp"><h2 id="askT" style="margin:0 0 8px">${ic(info ? "info" : danger ? "triangle-alert" : "circle-help")} ${info ? esc(info) : t("confirm")}</h2>
     <div style="white-space:pre-line;margin-bottom:12px">${esc(text)}</div>
     ${extra}
     ${typed ? `<input id="askIn" autocomplete="off" placeholder="${esc(t("ask.typePh", typed))}" aria-label="${esc(t("ask.typeAria", typed))}" style="width:100%;margin-bottom:12px">` : ""}
-    <div class="row"><button id="askNo" class="sp">${ic("x")} ${t("cancel")}</button><button id="askOk" class="sp ${danger ? "bad" : "pri"}" ${typed ? "disabled" : ""}>${ic("check")} ${esc(ok)}</button></div></div>`;
+    <div class="row"><button id="askNo" class="sp"${info ? ' hidden' : ""}>${ic("x")} ${t("cancel")}</button><button id="askOk" class="sp ${danger ? "bad" : "pri"}" ${typed ? "disabled" : ""}>${ic("check")} ${esc(ok)}</button></div></div>`;
   pop.style.display = "flex";
   return new Promise(res => {
     const done = (v, auto) => { if (askDone !== done) return; askDone = null; askAuto = !!auto; pop.style.display = "none"; pop.innerHTML = ""; res(v); };

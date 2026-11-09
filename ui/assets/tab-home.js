@@ -36,6 +36,7 @@ function homeTab(b) {
   <div id="strip"></div>
   ${awayTip()}
   </div><div>
+  <section class="list mt16" id="phoneCard" aria-label="${esc(t("pc.title"))}">${phoneCard(onlineNow())}</section>
   <div class="list mt16"><div class="lhead"><h2>${ic("flame")} ${t("home.topToday")}</h2></div>
     ${top.map(x => `<div class="li">${icon(x)}<span class="x"><b>${esc(x.label)}</b><span class="mbar"><i style="width:${Math.round(x.ms / mx * 100)}%"></i></span></span><span class="v">${fmt(x.ms)}</span></div>`).join("") || `<div class="empty"><span class="e">${ic("sprout")}</span>${t("none")}</div>`}
     <button type="button" class="lfoot" data-go="apps">${t("home.allApps")} ${ic("chevron-right")}</button></div>

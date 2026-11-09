@@ -359,7 +359,8 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
 - The child is **always** told; it does not depend on `showWatching`: a beep, an ongoing high-importance notification
   "Bố mẹ đang nghe âm thanh xung quanh máy", a status line on the KidGuard screen, and log lines at start and stop.
   Android itself also shows its mic indicator.
-- State adds `"listen": {"on": bool, "since": ms, "err": "<last error or empty>"}`.
+- State adds `"listen": {"on": bool, "since": ms, "err": "<last error or empty>", "mic": bool}`. `mic` false = KidGuard has no
+  microphone permission (basic mode: the user allows it in Settings): the page says so before starting instead of failing.
 - v0.9.6: the phone ends a session by itself, with `listen.err`, when the mic gives only amplitude 0 for 2.5 s
   (`"mic silenced"`: a ROM privacy layer such as ColorOS blocks it although RECORD_AUDIO is granted) or no encoded bytes
   are read for 4 s (`"mic stalled"`: also when nobody reads the stream). `on` is cleared by whichever session is current,
