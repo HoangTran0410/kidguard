@@ -435,6 +435,9 @@ object Policy {
             return res
         }
         val d = dpm(ctx); val a = admin(ctx)
+        // Ts.undo forgets the remote-access settings: if release fails (still Device Owner) they are put back below
+        val tsBack = Triple(s.tsWanted, s.tsKey, s.tsNoExpiry)
+        val tsRestore = { s.tsWanted = tsBack.first; s.tsKey = tsBack.second; s.tsNoExpiry = tsBack.third }
         runCatching { Ts.undo(ctx, s) }.onFailure { Log.w(TAG, "remote access undo", it) }
         // every launcher app, not just what we remember: the stored set may be stale
         val all = (launchable(ctx).keys + s.suspendedByUs).toTypedArray()
@@ -446,7 +449,7 @@ object Policy {
         val shellLeft = enableShellDisabled(ctx, s)   // apps disabled before this phone became Device Owner
         if (stuck.isNotEmpty()) {
             Log.w(TAG, "release: still hidden $stuck")
-            runCatching { apply(ctx, s.rules) }; Watchdog.schedule(ctx)
+            tsRestore(); runCatching { apply(ctx, s.rules) }; Watchdog.schedule(ctx)
             return ctx.resources.getQuantityString(R.plurals.release_stuck, stuck.size, stuck.size)
         }
         Update.forget(ctx)
@@ -459,7 +462,6 @@ object Policy {
         runCatching { d.setLongSupportMessage(a, null) }
         runCatching { d.setDeviceOwnerLockScreenInfo(a, null) }
         removeAccEntry(ctx)
-        NotifDots.setOn(ctx, false)
         // kid launcher: our persistent HOME goes and the component is disabled before Device Owner does (else HOME stays ours)
         runCatching { LauncherSafe.off(ctx, goHome = true) }.onFailure { Log.w(TAG, "launcher off", it) }
         // the mic was granted by us, not by the child: take it back and hand the switch to the user
@@ -475,11 +477,13 @@ object Policy {
         @Suppress("DEPRECATION") runCatching { d.clearDeviceOwnerApp(ctx.packageName) }
         s.suspendedByUs = emptySet(); s.hiddenByUs = emptySet(); s.refusedHide = emptySet()
         if (!isOwner(ctx)) {
+            NotifDots.setOn(ctx, false)   // only once Device Owner is really gone (a failed release keeps the badge listener)
             if (shellLeft > 0) s.log(ctx.resources.getQuantityString(R.plurals.release_shell_left, shellLeft, shellLeft))
             s.clearTokens(); Quick.setEnabled(ctx, false); return "ok"
         }
         // still Device Owner: put the protection back (the loop re-suspends apps) and keep the parents' tokens
         s.released = false
+        tsRestore()   // remote access settings come back; apply() re-grants the mic / location permissions revoked above
         runCatching { apply(ctx, s.rules) }.onFailure { Log.w(TAG, "re-apply after failed release", it) }
         Watchdog.schedule(ctx)
         return "failed"

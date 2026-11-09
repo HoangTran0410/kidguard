@@ -114,9 +114,11 @@ object Files {
     }.getOrNull()
 
     /** Copies at most [max] bytes; returns how many. */
-    private fun copy(i: InputStream, o: OutputStream, max: Long): Long {
+    private fun copy(i: InputStream, o: OutputStream, max: Long, limitMs: Long = Long.MAX_VALUE): Long {
         val buf = ByteArray(64 * 1024); var got = 0L
+        val t0 = System.currentTimeMillis()
         while (got < max) {
+            if (System.currentTimeMillis() - t0 > limitMs) throw Cut()   // slow-drip upload: socket timeout alone resets on every byte
             val n = i.read(buf, 0, minOf(buf.size.toLong(), max - got).toInt()); if (n < 0) break
             o.write(buf, 0, n); got += n
         }
@@ -141,6 +143,8 @@ object Files {
             Log.w(TAG, "file receive", x); null to "failed"
         }
     }
+    /** Total time one LAN upload may take (the per-read socket timeout resets on every byte). */
+    private const val UP_MS = 10 * 60_000L
     private class NoSpace : IOException(); private class Cut : IOException()
 
     private fun checkSpace(dir: File, len: Long) {
@@ -157,7 +161,7 @@ object Files {
         }
         val uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv) ?: throw IOException("insert failed")
         try {
-            val n = (cr.openOutputStream(uri) ?: throw IOException("no stream")).use { copy(ins, it, len) }
+            val n = (cr.openOutputStream(uri) ?: throw IOException("no stream")).use { copy(ins, it, len, UP_MS) }
             if (n != len) throw Cut()
             cr.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
         } catch (x: Exception) { runCatching { cr.delete(uri, null, null) }; throw x }
@@ -176,7 +180,7 @@ object Files {
         val name = FilesLogic.unique(name0) { it.lowercase() in takenIdx || File(dir, it).exists() }
         val f = File(dir, name)
         try {
-            val n = f.outputStream().use { copy(ins, it, len) }
+            val n = f.outputStream().use { copy(ins, it, len, UP_MS) }
             if (n != len) throw Cut()
         } catch (x: Exception) { f.delete(); throw x }
         runCatching { MediaScannerConnection.scanFile(c, arrayOf(f.path), null, null) }

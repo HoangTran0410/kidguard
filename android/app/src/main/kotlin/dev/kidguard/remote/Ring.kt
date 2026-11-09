@@ -27,6 +27,14 @@ object Ring {
     private val main = Handler(Looper.getMainLooper())
     private var rt: Ringtone? = null
     private var oldVol = -1
+
+    /** Guard start: if the process died while ringing, the alarm volume was left at max: put it back. */
+    fun restoreAfterDeath(c: Context) {
+        val st = Store.of(c); val v = st.ringVol
+        if (v < 0 || rt?.isPlaying == true) return
+        runCatching { c.getSystemService(AudioManager::class.java).setStreamVolume(AudioManager.STREAM_ALARM, v, 0) }
+        st.ringVol = -1
+    }
     @Volatile var since = 0L; private set
     val active get() = since > 0
     private var app: Context? = null
@@ -44,7 +52,7 @@ object Ring {
             main.removeCallbacks(end)
             if (rt?.isPlaying != true) runCatching {
                 val am = c.getSystemService(AudioManager::class.java)
-                if (oldVol < 0) oldVol = am.getStreamVolume(AudioManager.STREAM_ALARM)
+                if (oldVol < 0) { oldVol = am.getStreamVolume(AudioManager.STREAM_ALARM); Store.of(c).ringVol = oldVol }
                 runCatching { am.setStreamVolume(AudioManager.STREAM_ALARM, am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0) }
                 val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
                 val r = RingtoneManager.getRingtone(c, uri) ?: error("no ringtone")
@@ -71,7 +79,7 @@ object Ring {
         main.removeCallbacks(end)
         runCatching { rt?.stop() }; rt = null
         if (oldVol >= 0) runCatching { c.getSystemService(AudioManager::class.java).setStreamVolume(AudioManager.STREAM_ALARM, oldVol, 0) }
-        oldVol = -1
+        oldVol = -1; runCatching { Store.of(c).ringVol = -1 }
         since = 0L
         Listen.clearRinging()
         runCatching { c.getSystemService(NotificationManager::class.java).cancel(NID) }

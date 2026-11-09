@@ -120,8 +120,9 @@ object Debloat {
         hiddenByUs + rulesHidden.intersect(currentlyHidden)
 
     /** clearData is refused for the never-hide set and KidGuard itself. */
+    private val OURS = setOf("dev.kidguard", "dev.kidguard.home")
     fun canClear(pkg: String, self: String, extraNever: Set<String> = emptySet()): Boolean =
-        pkg != self && canHide(pkg, extraNever)
+        pkg != self && pkg !in OURS && canHide(pkg, extraNever)   // never our own apps: clearing dev.kidguard.home would wipe the kid layout
 
     // ---- no Device Owner: the same through the phone's own adb shell (setup/SelfAdb.kt) ----
 

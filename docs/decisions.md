@@ -40,6 +40,10 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Self-update from GitHub releases: daily check (rule autoUpdate default on) or `update` cmd (deliver-once); checks sha256 + package + versionCode; DO installs silently, basic shows notification + button (e461efe)
 - Large-font support: modals scroll with pinned buttons, widgets scale to cell, sheets keep clear of ColorOS nav bar (d1c75da)
 
+- Pairing code reveal before the first pairing (`MainActivity.kt` `everPaired` gate, hold 5 s) is accepted: at that point the parent holds the phone for setup. Forgotten-PIN recovery paths are listed in `docs/flows.md` section 1.9; no extra recovery mechanism on purpose.
+- Guard `tick()`: optional steps (usage, DNS retry, Tailscale poll, location, battery, warn, history, update, launcher) run through `opt{}`, so one throwing never skips suspend/hide; failures are logged once a minute per step.
+- Release moves `NotifDots.setOn(false)` after Device Owner is really gone and restores `tsWanted/tsKey/tsNoExpiry` when release fails; `Debloat.canClear` refuses `dev.kidguard` and `dev.kidguard.home`; LAN file upload is capped at 10 min total; `Store.ringVol` lets the Guard restore the alarm volume after a process death mid-ring.
+
 ### Remote / relay
 - Command whitelist lives in the relay worker; new command = whitelist + protocol + test. Destructive (`reboot`, `release`, `unpairAll`, `update`, `unpair`) are deliver-once (AGENTS.md)
 - Worker caps: cmd <=4 KB, rules <=64 KB, full queue -> 429 (never drop oldest), per-IP 150 req/10 s on /c/*; state size counted in bytes; expired cmds don't count (1747923, 66d8d5d, f032b5d)
