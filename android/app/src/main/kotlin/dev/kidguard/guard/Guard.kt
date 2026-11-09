@@ -466,7 +466,7 @@ class Guard : Service() {
         "unpairAll" -> { store.clearTokens(); "ok" }
         "unpair" -> if (store.unpair(c.optString("id"))) { relay?.kick(); kick(); "ok" } else "no such device"
         "answer" -> {
-            val req = store.removeRequest(c.optString("id"))
+            val req = store.removeRequest(c.optString("req").ifBlank { c.optString("id") })   // relay: "req" = the request id (the command id may be a UUID)
             if (req != null) notifyChild(Events.answerText(c.optBoolean("ok"), c.optInt("min", req.optInt("min")), c.optString("note"), store.tr))
             if (req != null) "ok" else "no such request"
         }

@@ -68,7 +68,7 @@ leftMs apps rules location lan relay log`), plus:
 
 v0.1: `lock locate message{text} ring relay{url} openPairing unpairAll release`. NEW:
 - `unpair {id}`: revoke ONE paired parent device (`id` from `state.devices[].id`). Result `ok` or `no such device`.
-  Destructive: the worker whitelists it and drops it from the queue once delivered (deliver-once, like `unpairAll`).
+  Destructive: the worker whitelists it and keeps it until acked (see v0.2.1 "Commands are idempotent"; in the `ONCE` list like `unpairAll`).
   The worker keeps `id` as the command id (it is 8 hex chars, so it passes the id check); do not send other ids. Revoking
   the device you are using is allowed (it gets 401 next request and must re-pair). If that device was the relay link
   (the one named `relay`), the relay token / id are cleared too, so the phone stops syncing until the relay is set up again.
@@ -151,6 +151,10 @@ The first capture / first input of a session is logged in the phone log.
 ### LAN (phone HTTP server, token header `X-KG-Token`)
 - `GET /api/screen?max=720&q=50` -> `200 image/jpeg` with headers `X-KG-W`, `X-KG-H`; or `503 {"error": "<lastError>"}`.
 - `POST /api/input` body = input object -> `{"result": "ok"}` or `{"result": "<error>"}`.
+- Capacity: 16 worker threads + 32 queued connections; long-running routes (`/api/listen`, `/api/screen`, file bodies) share
+  6 slots, so `/api/state` always finds a thread. Over the limit: `503` (`{"error":"busy"}` for a long route, empty body +
+  `Retry-After: 2` when the whole pool is full) instead of a silently closed socket.
+- `/api/hello` answers on any method (no token; the pairing probe).
 
 ### Relay (worker), token header `X-KG-Token`, id = 16 hex
 - Limits: `POST /c/<id>/cmd` -> 429 `queue full` with 20 commands waiting, 413 `too big` over 4 KB of JSON; `PUT /c/<id>/rules`
@@ -166,6 +170,14 @@ The first capture / first input of a session is logged in the phone log.
   Also extends `liveUntil`.
 - Parent `POST /c/<id>/input` body = input object -> `{"result":"queued"}` (queue max 50, delivered on the next frame reply).
 - Frames live only in Durable Object memory (never storage).
+- Phone `POST /c/<id>/sync` body `{state?, acks: [cmd ids]}` (`state` omitted when unchanged, see v0.2.1) -> reply
+  `{cmds: [...], rules?, live?, files?, device?}`: `rules` only when the worker's `rules.rev` is higher than the `state.rules.rev`
+  it knows; the phone takes them only if `rules.rev` > its own (so a phone clock ahead of the worker's makes relay edits
+  wait until the worker rev catches up; LAN saves stamp `rev = max(old+1, phone now)`); `files` = number of
+  parent -> kid files waiting; `device` = the parent asked for a device-info upload.
+- Parent `GET /c/<id>/state` -> `{state, rules, seen, pending}`: `state` the last synced state (`rules` inside it with `pinSet`
+  instead of `pinHash`), `rules` the worker's copy, `seen` ms of the last sync, `pending` = queued command count.
+- Input `ms` (swipe duration) is clamped to **50..3000** by both the worker and `Acc.kt`.
 - `GET /c/<id>/state` already returns `seen` (ms of the phone's last sync): the page warns when `now - seen > 5 min`.
 - The worker also serves `GET /install` -> `ui/install.html`.
 
@@ -275,8 +287,15 @@ The first capture / first input of a session is logged in the phone log.
   opens pairing; "Mở ghép lại" recovery waits 24 h, see `pairing` events).
 - **Commands are idempotent.** Relay commands carry `id`; the phone remembers the last 100 executed ids in Store
   (written with `commit()` before running `reboot`/`release`) and skips repeats but still acks them. Each command runs
-  in its own try/catch and is acked even if it fails. The worker drops `reboot`, `release`, `unpairAll` from the queue
-  as soon as it delivers them (deliver-once).
+  in its own try/catch and is acked even if it fails (a bad `rules` in the same reply cannot stop the commands: rules
+  are applied inside `runCatching`). **Destructive commands** (the worker `ONCE` list: `reboot release unpairAll unpair
+  clearData update totpSet fileDel`) are delivered **at-least-once**: the worker keeps them until the phone acks the id
+  (so a lost reply does not drop a `release`) and the phone de-dups by id. The worker stamps `sent` at the first hand-out
+  and drops an unacked one 10 min later (the phone may have released and stopped syncing). "Now" commands (`lock locate
+  message ring wake ringStop listenStop devOn devOff setting`) expire on the worker after **10 min** (others 24 h), so a
+  `ring` queued overnight does not fire in the morning. The queue refuses at 20 entries (`429 queue full`).
+  `answer`: the worker keeps `id` as command id only if it matches `^[\w.-]{1,64}$`, else it makes a UUID; the request id
+  is always copied to `req` and the phone answers `req` (falling back to `id` on LAN).
 - **State** adds `dnsError` (`""` or a short reason when the Private DNS host was rejected; the phone then falls back
   to opportunistic DNS and clears the restriction so the child keeps internet) and keeps `usageAccess` (page warns when false).
 - **Relay sync**: the phone may omit `state` when nothing but `t` and sub-minute time counters (`usedMs`, `leftMs`, `apps[].ms`)
@@ -747,6 +766,7 @@ Code: `Files.kt` (Android), `FilesLogic.kt` (pure: names, caps, listing JSON; `F
   `in` = parent -> kid, `st` `delivered` (saved on the phone) -> `opened` (the kid tapped the notification) or `gone`
   (deleted on the phone, seen at download time). `out` = kid -> parent, `st` `new` -> `fetched` (a full download).
   Phone paths / URIs never leave the phone.
+- LAN `PUT /api/files/<name>?id=<fid>`: optional `id` (16 hex) lets the caller choose the entry id; ignored if malformed or already taken.
 - Names: rejected (400 `bad name`) with any `/` `\`, control char, `.` / `..` or blank; else `<>:"|?*` -> `_`, leading
   dots dropped, spaces collapsed, cut to 120 chars keeping the extension; a clash becomes `a (1).pdf`.
 - Caps: LAN 200 MB a file (413 `too big`, checked from Content-Length before reading), relay 10 MB; 507 `no space`
