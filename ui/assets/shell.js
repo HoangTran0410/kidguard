@@ -171,7 +171,7 @@ function updateLive() {
   if (lost && !(!lan && lastNet)) B.push(["bad", "siren", t("live.lost", hhmm(lostFrom)) + (lastErr && lan ? " (" + esc(lastErr) + ")" : "")]);
   B.push(...modeBans());
   if (st.acc === false) B.push(["warn", "triangle-alert", t("live.acc")]);
-  if (st.usageAccess === false) B.push(["warn", "triangle-alert", t("live.usage")]);
+  if (st.usageAccess === false || st.usageOff) B.push(["bad", "triangle-alert", t("live.usage")]);
   if (st.dnsError) B.push(["warn", "triangle-alert", t("live.dns", esc(st.dnsError))]);
   if (st.locationOn === false) B.push(["warn", "triangle-alert", t("live.locOff")]);
   const ban = x => `<div class="ban t-${x[0]}" role="status"><span class="bi">${ic(x[1])}</span><div class="x">${x[2]}</div></div>`;

@@ -61,7 +61,6 @@ class Guard : Service() {
     private var trackBusy = false
     private var stopped = false
     private var locFixLogged = false
-    private var usageLogged = false
     private val loopRun = Runnable { loop() }
     private val pokeRun = Runnable { kick() }
     private var refWall = System.currentTimeMillis()
@@ -155,16 +154,29 @@ class Guard : Service() {
         val minute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
         val today = day(now)
         Acc.ensureEnabled(this)
+        Policy.syncDns(this, r)
         Policy.retryDns(this, r)
         Ts.poll(this, store)
         if (r.trackMin > 0 && now - lastTrackTry >= r.trackMin * 60_000L - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) }
         keepLocation(r)
+        // usage access: reported once per revoke (persisted, so a process restart while revoked does not repeat it), the child is asked to turn it back on
         if (!Usage.granted(this)) {
-            if (!usageLogged) {
-                usageLogged = true; store.log(R.string.log_usage_off)
-                if (store.knownApps != null) runCatching { store.event("tamper", R.string.ev_usage_off); relay?.kick() }
+            if (!store.usageOffRaised) {
+                store.log(R.string.log_usage_off)
+                if (store.knownApps != null) {   // before the first app scan (fresh setup) nothing is raised yet; retried next tick
+                    store.usageOffRaised = true
+                    runCatching { store.event("tamper", R.string.ev_usage_off); relay?.kick() }
+                }
             }
-        } else usageLogged = false
+            notifyUsageOff(true)
+        } else { if (store.usageOffRaised) store.log(R.string.log_usage_on); store.usageOffRaised = false; notifyUsageOff(false) }
+        // a non-system app became the default HOME: it is exempt from all limits (no dead end), so tell the parent
+        Policy.foreignHome.let { fh ->
+            if (fh.isNotEmpty() && fh != store.foreignHomeSeen) {
+                store.foreignHomeSeen = fh
+                runCatching { store.event("tamper", R.string.ev_foreign_home, apps[fh] ?: fh); store.log(R.string.log_foreign_home, fh); relay?.kick() }
+            } else if (fh.isEmpty() && store.foreignHomeSeen.isNotEmpty()) store.foreignHomeSeen = ""
+        }
         // first tick (with a real app list): everything installed now is "old"; while blockNew is off keep refreshing it
         val stored = store.knownApps
         val known = stored ?: emptySet<String>().also { if (apps.isNotEmpty()) store.knownApps = apps.keys }
@@ -326,7 +338,7 @@ class Guard : Service() {
             .put("locationOn", locationOn())
             .put("dev", DevOpts.state(this))
             .put("limitMin", baseLimitMin(r, today).let { if (it > 0) it + if (r.bonusDay == today) r.bonusMin else 0 else 0 })
-            .put("owner", Policy.isOwner(this)).put("mode", Basic.mode(this)).put("caps", FeatureCaps.caps(this, fc)).put("features", FeatureCaps.features(fc)).put("usageAccess", Usage.granted(this)).put("dnsError", Policy.dnsError)
+            .put("owner", Policy.isOwner(this)).put("mode", Basic.mode(this)).put("caps", FeatureCaps.caps(this, fc)).put("features", FeatureCaps.features(fc)).put("usageAccess", Usage.granted(this)).put("usageOff", !Usage.granted(this)).put("dnsPausedUntil", r.safeDnsPauseUntil.takeIf { r.safeDns.isNotEmpty() && it > now } ?: 0).put("dnsError", Policy.dnsError)
             .put("battery", bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1)
             .put("charging", bm?.isCharging == true).put("screenOn", pm?.isInteractive == true)
             .put("current", use.current?.let { apps[it] ?: it } ?: JSONObject.NULL)
@@ -407,6 +419,16 @@ class Guard : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         nm.notify(2, Notification.Builder(this, "answer").setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentTitle("KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
+    }
+
+    /** Persistent notification (id 7) while usage access is off: tapping opens the system screen to turn it back on. */
+    private fun notifyUsageOff(on: Boolean) = runCatching {
+        val nm = getSystemService(NotificationManager::class.java)
+        if (!on) { nm.cancel(7); return@runCatching }
+        nm.createNotificationChannel(NotificationChannel("usage", getString(R.string.ch_usage), NotificationManager.IMPORTANCE_DEFAULT))
+        val open = PendingIntent.getActivity(this, 7, Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE)
+        nm.notify(7, Notification.Builder(this, "usage").setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle("KidGuard").setContentText(getString(R.string.usage_off_note)).setOngoing(true).setContentIntent(open).build())
     }
 
     /** Heads-up before a lock (daily limit, bedtime, schedule): the child gets time to save what they are doing. */

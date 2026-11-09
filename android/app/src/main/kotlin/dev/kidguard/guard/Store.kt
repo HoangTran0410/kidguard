@@ -352,6 +352,28 @@ class Store private constructor(private val app: Context) {
         set(v) { p.edit().putString("loc", v?.toString()).apply() }
 
     /** Launchable apps seen on the first tick; anything not in here (and not approved) is a "new" app. Null until first tick. */
+    /** Settings we found before our first apply, put back by Policy.release (see Policy.savePrior). */
+    @get:Synchronized @set:Synchronized var priorSaved: Boolean
+        get() = p.getBoolean("priorSaved", false)
+        set(v) { p.edit().putBoolean("priorSaved", v).commit() }
+    @get:Synchronized @set:Synchronized var priorAutoTime: Int
+        get() = p.getInt("priorAutoTime", -1)
+        set(v) { p.edit().putInt("priorAutoTime", v).apply() }
+    @get:Synchronized @set:Synchronized var priorDnsMode: String
+        get() = p.getString("priorDnsMode", "") ?: ""
+        set(v) { p.edit().putString("priorDnsMode", v).apply() }
+    @get:Synchronized @set:Synchronized var priorDnsHost: String
+        get() = p.getString("priorDnsHost", "") ?: ""
+        set(v) { p.edit().putString("priorDnsHost", v).apply() }
+    /** True once the "usage access off" tamper event was raised for the current revoke (cleared when the access is back). */
+    @get:Synchronized @set:Synchronized var usageOffRaised: Boolean
+        get() = p.getBoolean("usageOffRaised", false)
+        set(v) { p.edit().putBoolean("usageOffRaised", v).commit() }
+    /** Non-system default HOME package we already reported ("" = none). */
+    @get:Synchronized @set:Synchronized var foreignHomeSeen: String
+        get() = p.getString("foreignHomeSeen", "") ?: ""
+        set(v) { p.edit().putString("foreignHomeSeen", v).apply() }
+
     @get:Synchronized @set:Synchronized var knownApps: Set<String>?
         get() = p.getStringSet("known", null)?.toSet()
         set(v) { p.edit().putStringSet("known", v).apply() }

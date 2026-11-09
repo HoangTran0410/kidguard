@@ -167,6 +167,7 @@ function ruleSecs(r) {
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span class="sp">${ic("plane")} ${t("more.air")}</span></label>${isBasic() ? needOwner(t("no.locAir")) : ""}`),
     dns: sec("r-dns", "shield", t("dns.h"), t("sd.dns"), C.dns, `    <select id="f-dns" aria-label="${esc(t("dns.h"))}">${DNS().map(([v, n, ss]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}${ss ? " · " + t("dns.ss") : ""}</option>`).join("")}<option value="__c" ${r.safeDns && !DNS().some(d => d[0] === r.safeDns) ? "selected" : ""}>${t("dns.custom")}</option></select>
     <input type="text" id="f-dnsc" placeholder="dns.example.com" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(DNS().some(d => d[0] === r.safeDns) ? "" : r.safeDns)}" style="margin-top:8px;${r.safeDns && !DNS().some(d => d[0] === r.safeDns) ? "" : "display:none"}" aria-label="${esc(t("dns.custom"))}">
+    <div id="dnsP"></div>
     <p class="mute">${ic("eye-off")} ${t("dns.tip")}</p>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nv" ${r.noVpn ? "checked" : ""}><span class="sp">${ic("shield")} ${t("dns.novpn")}</span></label>
     <p class="mute">${ic("info")} ${t("dns.novpn.tip")}</p>${isBasic() ? needOwner() : ""}`),
@@ -295,7 +296,21 @@ function rulesWire(b, r) {
     if (e.target.value === "__c") { c.style.display = ""; c.focus(); return; }   // wait for a host to be typed
     c.style.display = "none"; r.safeDns = e.target.value; changed();
   };
-  $("#f-dnsc").onchange = e => { r.safeDns = e.target.value.trim().toLowerCase(); changed(); };
+  $("#f-dnsc").onchange = e => { r.safeDns = e.target.value.trim().toLowerCase(); changed(); dnsP(); };
+  // timed pause of safe DNS: rules.safeDnsPauseUntil (ms). The phone ends it by itself at that time.
+  const dnsP = () => {
+    const el = $("#dnsP"); if (!el) return;
+    const left = (+r.safeDnsPauseUntil || 0) - Date.now();
+    if (!r.safeDns) { el.innerHTML = ""; return; }
+    el.innerHTML = left > 0
+      ? `<div class="row" style="margin-top:8px"><span class="sp">${ic("pause")} ${t("dns.pausedLeft", Math.ceil(left / 60000))}</span><button id="dnsResume">${ic("play")} ${t("dns.resume")}</button></div>`
+      : `<button id="dnsPause" style="margin-top:8px">${ic("pause")} ${t("dns.pause")}</button>`;
+    const b1 = $("#dnsPause"), b2 = $("#dnsResume");
+    if (b1) b1.onclick = () => { r.safeDnsPauseUntil = Date.now() + 30 * 60000; changed(); dnsP(); };
+    if (b2) b2.onclick = () => { r.safeDnsPauseUntil = 0; changed(); dnsP(); };
+  };
+  $("#f-dns").addEventListener("change", () => dnsP());
+  dnsP();
   $("#f-nv").onchange = e => { r.noVpn = e.target.checked; changed(); };
   const bw = () => { $("#bedW").innerHTML = timeWarn(r.bedtime, r.bedtime.on); };
   $("#f-bed").onchange = e => { r.bedtime.on = e.target.checked; bw(); changed(); };
