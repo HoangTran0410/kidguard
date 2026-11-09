@@ -49,6 +49,7 @@ class TodayPage(
         pad(padTop, padBottom)
         header(r, st, dv.now)
         if ("now" !in hide) hero(r, st, dv, block)
+        focusCard(act, col)
         if ("time" !in hide) screen(st, r, dv, block, all, icon)
         if ("sched" !in hide) schedule(r, dv.minute, dv.dow)
         if ("chores" !in hide) chores(r, st)

@@ -112,6 +112,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Rule `monitor` ("Chỉ theo dõi"): `decide()` stays pure and always runs; `enforced(r, would)` empties it in monitor mode, so suspend / bounce / launcher / Quick tile see nothing while `state.wouldBlock` + a log line report what strict mode would do. Device-level `Policy.apply` restrictions and all reporting are unchanged; heads-up warnings are off.
 - Release APK 7.4 -> 3.8 MB by dropping x86_64 and BouncyCastle PQC (747bc65)
 
+- Study mode (Học bài, 2026-11-09, `FocusLogic/Store/Ui`): launcher-local (prefs `kg_focus`, not in rules JSON). Hides non-study apps by forcing `Show.HIDE` in `render0` (never un-hides a parent block); DND set only if access granted and filter was ALL, restored by render, Guard tick, end-alarm `FocusEndReceiver` and `Policy.release`. No education category in `LibraryLogic` (none exists in ApplicationInfo), so study apps start empty + picker; `TimetableLogic` is school bells, not home study hours, so own weekly slots.
 ## 2. REJECTED / DON'T RETRY
 - `DevicePolicyManager.setStatusBarDisabled` for shade blocking: also sets mDisableNotificationEffects, silencing ALL notification sound/vibration/heads-up (measured API 34). Also don't use lock-task status bar flags. Use Acc quick-settings closing (11-09)
 - Self-drawn app-open zoom animation: unnecessary once the window shows the wallpaper (HyperOS then plays the system zoom) (11-09)

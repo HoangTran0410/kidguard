@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="focus_title">Study mode</string>
+    <string name="focus_sub">Only your study apps stay on the home screen, and notifications go quiet.</string>
+    <string name="focus_card_idle">Start a study session</string>
+    <string name="focus_start_n">Start %d min</string>
+    <string name="focus_chip">Studying · %d min left</string>
+    <string name="focus_chip_sched">Study time · until %s</string>
+    <string name="focus_end">End early</string>
+    <string name="focus_end_t">End study mode?</string>
+    <string name="focus_end_b">The other apps come back right away.</string>
+    <string name="focus_end_pin">Enter the parent PIN to end study mode early.</string>
+    <string name="focus_end_ok">End</string>
+    <string name="focus_apps">Study apps (%d)</string>
+    <string name="focus_apps_t">Choose study apps</string>
+    <string name="focus_apps_empty">Pick your study apps first, then start.</string>
+    <string name="focus_sched">Automatic study hours</string>
+    <string name="focus_sched_none">Not set</string>
+    <string name="focus_sched_t">Study hours</string>
+    <string name="focus_sched_pin">Enter the parent PIN to change study hours.</string>
+    <string name="focus_add">Add a time range</string>
+    <string name="focus_from">From</string>
+    <string name="focus_to">To</string>
+    <string name="focus_bad_range">The end must be after the start.</string>
+    <string name="focus_no_day">Pick at least one day.</string>
+    <string name="focus_dnd_on">Do Not Disturb is on while you study.</string>
+    <string name="focus_dnd_off">To also silence notifications, give KidGuard Do Not Disturb access in Settings.</string>
+    <string name="focus_remove">Remove</string>
+</resources>

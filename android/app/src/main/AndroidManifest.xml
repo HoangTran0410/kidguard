@@ -166,6 +166,10 @@
             android:theme="@android:style/Theme.NoDisplay" />
 
         <receiver
+            android:name=".FocusEndReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".LockReceiver"
             android:exported="false" />
 

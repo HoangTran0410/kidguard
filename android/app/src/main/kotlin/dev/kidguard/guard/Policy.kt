@@ -488,6 +488,7 @@ object Policy {
      * Call it on the Guard thread with the loop stopped. Returns "ok", "not owner" or "failed" (still Device Owner).
      */
     fun release(ctx: Context, s: Store): String {
+        runCatching { FocusStore.release(ctx) }   // study mode: session, DND we set, schedule
         if (!isOwner(ctx)) {
             val off = enableShellDisabled(ctx, s)
             val res = releaseBasic(ctx, s)   // always: the parent must be able to let the phone go
