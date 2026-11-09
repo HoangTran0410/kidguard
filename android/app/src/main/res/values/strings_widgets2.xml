@@ -31,4 +31,24 @@
     <string name="sk_badge_got">%1$d day badge, earned</string>
     <string name="sk_badge_locked">%1$d day badge, not yet</string>
     <string name="sk_cd">%1$d days, best %2$d</string>
+    <string name="cc_more_of">More settings</string>
+    <string name="cc_auto_bright">Auto brightness</string>
+    <string name="cc_night">Eye comfort</string>
+    <string name="cc_dark">Dark mode</string>
+    <string name="cc_media">Media</string>
+    <string name="cc_ring">Ring</string>
+    <string name="cc_alarm">Alarm</string>
+    <string name="cc_sound">Sound</string>
+    <string name="cc_vibrate">Vibrate</string>
+    <string name="cc_silent">Silent</string>
+    <string name="md_prev">Previous</string>
+    <string name="md_next">Next</string>
+    <string name="md_play">Play</string>
+    <string name="md_pause">Pause</string>
+    <string name="md_none">Nothing playing</string>
+    <string name="md_noaccess">Needs notification access</string>
+    <string name="md_none_sub">Music and videos show here</string>
+    <string name="md_preview">Now playing</string>
+    <string name="hm_w_media">Now playing</string>
+    <string name="hm_w_media_d">The music or video playing now: pause, previous, next</string>
 </resources>

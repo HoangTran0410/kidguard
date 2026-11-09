@@ -89,7 +89,7 @@ object HomeLayout {
         "todo" to listOf(2 to 2, 4 to 2), "note" to listOf(2 to 2, 4 to 2), "counts" to listOf(2 to 2),
         "usage" to listOf(4 to 1, 4 to 2), "battery" to listOf(2 to 1), "lock" to listOf(1 to 1, 2 to 1),
         "when" to listOf(4 to 1, 4 to 2), "earn" to listOf(2 to 2, 4 to 2), "msg" to listOf(4 to 1, 2 to 2), "class" to listOf(4 to 2, 2 to 2, 4 to 4),
-        "timer" to listOf(2 to 2, 4 to 2), "streak" to listOf(2 to 2, 4 to 2))
+        "timer" to listOf(2 to 2, 4 to 2), "streak" to listOf(2 to 2, 4 to 2), "media" to listOf(4 to 1))
     /** Another app's widget (AppWidgetHost): kind "widget", type "app", pkg / cls = its provider, awid = the host id. Any size. */
     const val APP = "app"
     /** A [SIZES] width on a [cols]-wide grid: 4 means the whole row (3, 4 or 5 cells), narrower ones stay as they are. */

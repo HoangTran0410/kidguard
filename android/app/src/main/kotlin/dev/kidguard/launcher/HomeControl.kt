@@ -101,7 +101,25 @@ internal object CcSys {
         dnd = Sys.dndAccess(ctx),
         flash = torchId(ctx) != null,
         hasBt = hasBt(ctx),
+        secure = Sys.wss(ctx),
+        night = sysBool("config_nightDisplayAvailable") == true,
+        darkLocked = sysBool("config_lockDayNightMode") != false,
     )
+
+    private fun sysBool(name: String) = runCatching { android.content.res.Resources.getSystem().let { r -> r.getIdentifier(name, "bool", "android").takeIf { it != 0 }?.let { r.getBoolean(it) } } }.getOrNull()
+    fun autoBright(ctx: Context) = runCatching { Settings.System.getInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE) == Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC }.getOrNull()
+    private const val NIGHT = "night_display_activated"
+    /** Night light (AOSP; OEM "reading mode" / "eye comfort" is usually built on it). Watched live by ColorDisplayService. */
+    fun night(ctx: Context) = runCatching { Settings.Secure.getInt(ctx.contentResolver, NIGHT, 0) == 1 }.getOrNull()
+    fun setNight(ctx: Context, on: Boolean) = Sys.wss(ctx) && runCatching { Settings.Secure.putInt(ctx.contentResolver, NIGHT, if (on) 1 else 0) }.getOrDefault(false) && night(ctx) == on
+    fun dark(ctx: Context) = runCatching { ctx.getSystemService(android.app.UiModeManager::class.java)!!.nightMode == android.app.UiModeManager.MODE_NIGHT_YES }.getOrNull()
+    fun setDark(ctx: Context, on: Boolean) = runCatching {
+        val um = ctx.getSystemService(android.app.UiModeManager::class.java)!!
+        um.nightMode = if (on) android.app.UiModeManager.MODE_NIGHT_YES else android.app.UiModeManager.MODE_NIGHT_NO
+        dark(ctx) == on
+    }.getOrDefault(false)
+    /** Ringer: normal / vibrate / silent. Silent (and leaving it) is refused without Do Not Disturb access on 7+. */
+    fun setRinger(ctx: Context, mode: Int) = runCatching { ctx.getSystemService(AudioManager::class.java)!!.let { it.ringerMode = mode; it.ringerMode == mode } }.getOrDefault(false)
 
     /** The system page that changes [t] (a bottom-sheet panel on Android 10+ where one exists). */
     fun page(ctx: Context, t: Tile): Intent = when (t) {
@@ -109,7 +127,9 @@ internal object CcSys {
         Tile.BT -> Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
         Tile.AIRPLANE -> Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS)
         Tile.DATA -> Intent(if (Build.VERSION.SDK_INT >= 29) Settings.Panel.ACTION_INTERNET_CONNECTIVITY else Settings.ACTION_WIRELESS_SETTINGS)
-        Tile.DND -> Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+        Tile.DND, Tile.RINGER -> Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+        Tile.NIGHT -> Intent(Settings.ACTION_NIGHT_DISPLAY_SETTINGS)
+        Tile.DARK -> Intent(Settings.ACTION_DISPLAY_SETTINGS)
         else -> Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + ctx.packageName))
     }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 }
@@ -166,6 +186,11 @@ internal class CcSlider(val act: HomeActivity, private val icon: Int, label: Str
     private val light = Ic.get(act, icon, Color.WHITE, act.dp(24))
     private val darkIc = Ic.get(act, icon, 0xFF0F172A.toInt(), act.dp(24))
     private var y0 = 0f; private var v0 = 0f; private var moved = false
+    /** Long press (finger still) = more settings, like the system control centers. Null: no long press. */
+    var onLong: (() -> Unit)? = null
+    private var longDone = false
+    private val slop = android.view.ViewConfiguration.get(act).scaledTouchSlop
+    private val longRun = Runnable { if (!moved) { longDone = true; isPressed = false; performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); onLong?.invoke() } }
     init { contentDescription = label; isFocusable = true }
 
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
@@ -183,11 +208,25 @@ internal class CcSlider(val act: HomeActivity, private val icon: Int, label: Str
     }
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(e: MotionEvent): Boolean {
-        if (mode != Mode.DIRECT) { if (e.actionMasked == MotionEvent.ACTION_UP) onBlocked(); return true }
+        // a locked slider still opens its detail on a long press (the toggles there have their own modes)
+        if (mode != Mode.DIRECT) {
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> { longDone = false; moved = false; if (onLong != null) postDelayed(longRun, android.view.ViewConfiguration.getLongPressTimeout().toLong()) }
+                MotionEvent.ACTION_UP -> { removeCallbacks(longRun); if (!longDone) onBlocked() }
+                MotionEvent.ACTION_CANCEL -> removeCallbacks(longRun)
+            }
+            return true
+        }
         when (e.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { y0 = e.y; v0 = value; moved = false; isPressed = true; parent?.requestDisallowInterceptTouchEvent(true) }
-            MotionEvent.ACTION_MOVE -> { value = v0 + (y0 - e.y) / height; moved = true; onChange(value, false) }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { isPressed = false; if (moved) onChange(value, true) }
+            MotionEvent.ACTION_DOWN -> {
+                y0 = e.y; v0 = value; moved = false; longDone = false; isPressed = true; parent?.requestDisallowInterceptTouchEvent(true)
+                if (onLong != null) postDelayed(longRun, android.view.ViewConfiguration.getLongPressTimeout().toLong())
+            }
+            MotionEvent.ACTION_MOVE -> if (!longDone && (moved || kotlin.math.abs(y0 - e.y) > slop)) {
+                if (!moved) { moved = true; removeCallbacks(longRun); y0 = e.y }   // no jump by the slop distance
+                value = v0 + (y0 - e.y) / height; onChange(value, false)
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { removeCallbacks(longRun); isPressed = false; if (moved) onChange(value, true) }
         }
         return true
     }
@@ -196,8 +235,10 @@ internal class CcSlider(val act: HomeActivity, private val icon: Int, label: Str
         info.className = "android.widget.SeekBar"
         info.rangeInfo = AccessibilityNodeInfo.RangeInfo.obtain(AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_PERCENT, 0f, 100f, value * 100)
         if (mode == Mode.DIRECT) { info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD); info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD) }
+        if (onLong != null) info.addAction(AccessibilityNodeInfo.AccessibilityAction(AccessibilityNodeInfo.ACTION_LONG_CLICK, act.getString(R.string.cc_more_of)))
     }
     override fun performAccessibilityAction(action: Int, args: Bundle?): Boolean {
+        if (action == AccessibilityNodeInfo.ACTION_LONG_CLICK && onLong != null) { onLong?.invoke(); return true }
         val d = when (action) { AccessibilityNodeInfo.ACTION_SCROLL_FORWARD -> 0.1f; AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD -> -0.1f; else -> return super.performAccessibilityAction(action, args) }
         value += d; onChange(value, true); return true
     }
@@ -251,7 +292,7 @@ internal fun HomeActivity.openControl() {
     val bMax = CcSys.brightMax(ctx)
     val am = getSystemService(AudioManager::class.java)
     val vMax = am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 1
-    val bright = CcSlider(this, R.drawable.li_sun, getString(R.string.cc_bright)).apply {
+    fun mkBright() = CcSlider(this, R.drawable.li_sun, getString(R.string.cc_bright)).apply {
         mode = ControlLogic.mode(Tile.BRIGHT, ph)
         var last = 0L
         onBlocked = { if (mode == Mode.PAGE) page(Tile.BRIGHT) else toast(R.string.cc_locked) }
@@ -268,16 +309,29 @@ internal fun HomeActivity.openControl() {
             }
         }
     }
-    val vol = CcSlider(this, R.drawable.li_volume_2, getString(R.string.cc_volume)).apply {
+    fun mkVol(stream: Int, icon: Int, label: Int) = CcSlider(this, icon, getString(label)).apply {
+        val max = am?.getStreamMaxVolume(stream)?.coerceAtLeast(1) ?: 1
         mode = if (am == null || am.isVolumeFixed) Mode.LOCKED else Mode.DIRECT
         onBlocked = { toast(R.string.cc_failed) }
-        onChange = { f, _ -> runCatching { am?.setStreamVolume(AudioManager.STREAM_MUSIC, Math.round(f * vMax), 0) } }
+        // ring at 0 switches the phone to vibrate / silent: refused without Do Not Disturb access, so guarded
+        onChange = { f, _ -> runCatching { am?.setStreamVolume(stream, Math.round(f * max), 0) } }
     }
+    val bright = mkBright()
+    val vol = mkVol(AudioManager.STREAM_MUSIC, R.drawable.li_volume_2, R.string.cc_volume)
     val sliders = LinearLayout(this)
     sliders.addView(bright, LinearLayout.LayoutParams(0, -1, 1f).apply { marginEnd = gap / 2 })
     sliders.addView(vol, LinearLayout.LayoutParams(0, -1, 1f).apply { marginStart = gap / 2 })
     row1.addView(sliders, LinearLayout.LayoutParams(half, -1).apply { marginStart = gap })
     panel.addView(row1, LinearLayout.LayoutParams(w, -2))
+
+    // what plays now (HomeMedia.kt), only while something does, like the system control centers
+    if (NotifDots.granted(this)) {
+        val media = MediaCard(this, true).apply {
+            background = GlassCard(0x33FFFFFF, dpf(26f), dpf(1f), true); setPadding(dp(12), dp(12), dp(8), dp(12)); visibility = View.GONE
+            onState = { has -> visibility = if (has) View.VISIBLE else View.GONE }
+        }
+        panel.addView(media, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap })
+    }
 
     // row 2: torch, auto-rotate, Do Not Disturb, notifications
     val tsz = minOf(64, ((w - gap * 3) / 4 / resources.displayMetrics.density).toInt() - 8).coerceAtLeast(44)
@@ -300,6 +354,82 @@ internal fun HomeActivity.openControl() {
     // rule launcher.shade: the system quick settings close as soon as they open, so no way there
     if (!shadeOff()) panel.addView(more, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap + dp(6) })
 
+    // ---- long press on a slider: its detail (HyperOS / iOS pattern), in place of the main panel ----
+    val detail = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL; isClickable = true; visibility = View.GONE
+        background = GlassCard(0x33FFFFFF, dpf(30f), dpf(1f), true); setPadding(dp(16), dp(10), dp(16), dp(18))
+    }
+    var back: (() -> Unit)? = null
+    // read off the UI thread with the rest of refresh; each returns the UI update to run
+    val extras = mutableListOf<() -> (() -> Unit)>()
+    fun showDetail(title: Int, body: View, own: List<CcToggle>) {
+        detail.removeAllViews()
+        val head = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        head.addView(ImageView(this).apply {
+            setImageDrawable(Ic.get(this@openControl, R.drawable.li_arrow_left, Color.WHITE, dp(22))); scaleType = ImageView.ScaleType.CENTER
+            contentDescription = getString(R.string.hm_c_back); kit.tap(this, -1f) { back?.invoke() }
+        }, LinearLayout.LayoutParams(dp(44), dp(44)))
+        head.addView(kit.text(getString(title), 17f, Color.WHITE, true).apply { setPadding(dp(4), 0, 0, 0) })
+        detail.addView(head)
+        detail.addView(body, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        panel.visibility = View.GONE; detail.visibility = View.VISIBLE
+        detail.alpha = 0f; detail.scaleX = 0.96f; detail.scaleY = 0.96f
+        detail.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).setInterpolator(DecelerateInterpolator(2f)).start()
+        back = {
+            back = null; extras.clear(); toggles.removeAll(own)
+            detail.visibility = View.GONE; detail.removeAllViews(); panel.visibility = View.VISIBLE
+            panel.alpha = 0f; panel.animate().alpha(1f).setDuration(150).start()
+            refresh()
+        }
+        announce(getString(title))
+        refresh()
+    }
+    fun label(v: View, t: Int) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+        addView(v, LinearLayout.LayoutParams(dp(76), dp(230)))
+        addView(kit.text(getString(t), 13f, Color.WHITE).apply { gravity = Gravity.CENTER; maxLines = 1; setPadding(0, dp(8), 0, 0) })
+    }
+    bright.onLong = {
+        val body = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        val bs = mkBright()
+        extras += { val b = CcSys.bright(ctx); { if (b != null && !bs.isPressed) bs.value = ControlLogic.brightPos(b, bMax) } }
+        body.addView(label(bs, R.string.cc_bright), LinearLayout.LayoutParams(0, -2, 1f))
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        val own = listOfNotNull(
+            toggle(Tile.AUTO_BRIGHT, R.drawable.li_sun_medium, R.string.cc_auto_bright, 52, 2) { on -> CcSys.writeSys(ctx, Settings.System.SCREEN_BRIGHTNESS_MODE, if (on) 1 else 0) },
+            toggle(Tile.NIGHT, R.drawable.li_eye, R.string.cc_night, 52, 2) { on -> CcSys.setNight(ctx, on) },
+            toggle(Tile.DARK, R.drawable.li_sun_moon, R.string.cc_dark, 52, 2) { on -> CcSys.setDark(ctx, on) },
+        )
+        own.forEach { col.addView(it, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }) }
+        body.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
+        showDetail(R.string.cc_bright, body, own)
+    }
+    vol.onLong = {
+        val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val bars = LinearLayout(this).apply { gravity = Gravity.TOP }
+        for ((st, ic, lb) in listOf(Triple(AudioManager.STREAM_MUSIC, R.drawable.li_music, R.string.cc_media),
+                Triple(AudioManager.STREAM_RING, R.drawable.li_bell_ring, R.string.cc_ring), Triple(AudioManager.STREAM_ALARM, R.drawable.li_alarm_clock, R.string.cc_alarm))) {
+            val s = mkVol(st, ic, lb)
+            val max = am?.getStreamMaxVolume(st)?.coerceAtLeast(1) ?: 1
+            extras += { val v = runCatching { am?.getStreamVolume(st) }.getOrNull(); { if (v != null && !s.isPressed) s.value = v.toFloat() / max } }
+            bars.addView(label(s, lb), LinearLayout.LayoutParams(0, -2, 1f))
+        }
+        body.addView(bars)
+        // sound / vibrate / silent: one of three, like the system's ringer chooser
+        val rm = ControlLogic.mode(Tile.RINGER, ph)
+        val modes = listOf(AudioManager.RINGER_MODE_NORMAL to (R.drawable.li_bell to R.string.cc_sound),
+            AudioManager.RINGER_MODE_VIBRATE to (R.drawable.li_vibrate to R.string.cc_vibrate), AudioManager.RINGER_MODE_SILENT to (R.drawable.li_bell_off to R.string.cc_silent))
+        val row = LinearLayout(this).apply { gravity = Gravity.TOP }
+        val rt = modes.map { (m, il) ->
+            CcToggle(this, Tile.RINGER, il.first, getString(il.second), 52, 2).also { tg ->
+                tg.mode = rm; tg.onTap { act(Tile.RINGER, tg.mode) { CcSys.setRinger(ctx, m) } }
+                row.addView(tg, LinearLayout.LayoutParams(0, -2, 1f))
+            }
+        }
+        extras += { val cur = runCatching { am?.ringerMode }.getOrNull(); { rt.forEachIndexed { i, tg -> tg.set(cur?.let { it == modes[i].first }, rm) } } }
+        body.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(18) })
+        showDetail(R.string.cc_volume, body, emptyList())
+    }
     // torch has no getter: its callback reports the state (at once when registered)
     var torchOn: Boolean? = null
     val torchCb = object : CameraManager.TorchCallback() {
@@ -311,24 +441,29 @@ internal fun HomeActivity.openControl() {
     refresh = {
         Thread {
             val st = mapOf(Tile.WIFI to CcSys.wifi(ctx), Tile.BT to CcSys.btOn(ctx), Tile.AIRPLANE to CcSys.airplane(ctx), Tile.DATA to CcSys.data(ctx),
-                Tile.ROTATE to CcSys.rotate(ctx), Tile.DND to CcSys.dnd(ctx))
+                Tile.ROTATE to CcSys.rotate(ctx), Tile.DND to CcSys.dnd(ctx),
+                Tile.AUTO_BRIGHT to CcSys.autoBright(ctx), Tile.NIGHT to CcSys.night(ctx), Tile.DARK to CcSys.dark(ctx))
+            val more = extras.toList().map { it() }
             val b = CcSys.bright(ctx); val v = runCatching { am?.getStreamVolume(AudioManager.STREAM_MUSIC) }.getOrNull()
             main.post {
                 if (overlay !== scrim) return@post
                 for (t in toggles) t.set(if (t.tile == Tile.TORCH) torchOn else st[t.tile], t.mode)
                 if (b != null && !bright.isPressed) bright.value = ControlLogic.brightPos(b, bMax)
                 if (v != null) vol.value = v.toFloat() / vMax
+                for (f in more) f()
             }
         }.start()
     }
 
     scrim.addView(panel, FrameLayout.LayoutParams(w, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = insT + dp(36) })
+    scrim.addView(detail, FrameLayout.LayoutParams(w, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = insT + dp(36) })
     // tap outside or swipe up anywhere closes it
     var sy = 0f
     scrim.setOnTouchListener { _, e ->
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> sy = e.y
-            MotionEvent.ACTION_UP -> if (sy - e.y > dp(60) || kotlin.math.abs(sy - e.y) < dp(12)) closeOverlay()
+            // outside a detail: back to the main panel first (one tap), a swipe up still closes all
+            MotionEvent.ACTION_UP -> if (sy - e.y > dp(60)) closeOverlay() else if (kotlin.math.abs(sy - e.y) < dp(12)) back?.invoke() ?: closeOverlay()
         }
         true
     }

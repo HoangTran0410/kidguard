@@ -31,4 +31,24 @@
     <string name="sk_badge_got">Huy hiệu %1$d ngày, đã đạt</string>
     <string name="sk_badge_locked">Huy hiệu %1$d ngày, chưa đạt</string>
     <string name="sk_cd">%1$d ngày, kỷ lục %2$d</string>
+    <string name="cc_more_of">Cài đặt thêm</string>
+    <string name="cc_auto_bright">Độ sáng tự động</string>
+    <string name="cc_night">Bảo vệ mắt</string>
+    <string name="cc_dark">Nền tối</string>
+    <string name="cc_media">Nhạc, video</string>
+    <string name="cc_ring">Chuông</string>
+    <string name="cc_alarm">Báo thức</string>
+    <string name="cc_sound">Âm thanh</string>
+    <string name="cc_vibrate">Rung</string>
+    <string name="cc_silent">Im lặng</string>
+    <string name="md_prev">Bài trước</string>
+    <string name="md_next">Bài tiếp</string>
+    <string name="md_play">Phát</string>
+    <string name="md_pause">Tạm dừng</string>
+    <string name="md_none">Chưa phát gì</string>
+    <string name="md_noaccess">Cần quyền đọc thông báo</string>
+    <string name="md_none_sub">Nhạc, video hiện ở đây</string>
+    <string name="md_preview">Đang phát</string>
+    <string name="hm_w_media">Đang phát</string>
+    <string name="hm_w_media_d">Nhạc hoặc video đang phát: tạm dừng, bài trước, bài tiếp</string>
 </resources>

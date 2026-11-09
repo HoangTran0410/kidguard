@@ -699,6 +699,7 @@ class HomeActivity : Activity() {
                         "class" -> classWidget(m, dv, it.w, it.h)
                         "timer" -> timerWidget(it.w, it.h)
                         "streak" -> streakWidget(m, r, s, it.w, it.h)
+                        "media" -> mediaWidget()
                         HomeLayout.APP -> appWidget(it, show)
                         else -> null
                     }?.also { v -> armWidget(v, it); (android.os.SystemClock.uptimeMillis() - w0).let { ms -> if (ms > 4) android.util.Log.i("KG.perf", "widget ${it.type} ${ms}ms") } } }
@@ -1368,8 +1369,7 @@ class HomeActivity : Activity() {
 
         /**
          * One UI: a long name may spill into the free space beside it when the neighbours' names are short (or the cell is
-         * empty). Each 1x1 icon's label borrows the same amount left and right (it stays centred): the smaller of what
-         * the two sides can spare. Decided once per measure; drawing outside the cell costs nothing per frame.
+         * empty). Each 1x1 icon's label borrows from both sides, evenly when it can, else more from the roomier side. Decided once per measure; drawing outside the cell costs nothing per frame.
          */
         private fun shareLabels(cw: Int) {
             val inner = cw - gap
@@ -1382,19 +1382,30 @@ class HomeActivity : Activity() {
                 val box = c as? LinearLayout ?: continue
                 (0 until box.childCount).map { box.getChildAt(it) }.firstOrNull { it is IconLabel }?.let { at[lp.y * cols + lp.x] = it as IconLabel }
             }
-            fun need(l: IconLabel) = l.paint.measureText(l.text.toString()) + l.paddingLeft + l.paddingRight
+            // +2: margins are whole px; a label 1 px short of its text ellipsizes ("Khoá màn hì…" needed 249, got 248)
+            fun need(l: IconLabel) = kotlin.math.ceil(l.paint.measureText(l.text.toString())) + l.paddingLeft + l.paddingRight + 2f
             // what a cell can lend to one side: half its free width (all of it is free when empty, nothing for widgets)
-            fun spare(x: Int, y: Int): Float = when {
+            fun long(x: Int, y: Int) = x in 0 until cols && at[y * cols + x]?.let { need(it) > inner } == true
+            // [dir]: the side the cell is on, seen from the borrower (-1 left, +1 right)
+            fun spare(x: Int, y: Int, dir: Int): Float = when {
                 x < 0 || x >= cols -> (side - gap / 2f - kit.dpf(10f)).coerceAtLeast(0f)   // page margin, never to the screen edge
-                (y * cols + x) !in busy -> cw / 2f
+                // an empty cell: all of it when nobody on its far side wants it too, else half
+                (y * cols + x) !in busy -> if (long(x + dir, y)) cw / 2f else cw - kit.dpf(6f)
                 else -> at[y * cols + x]?.let { ((inner - need(it)) / 2f).coerceAtLeast(0f) } ?: 0f
             }
             for ((k, l) in at) {
                 val x = k % cols; val y = k / cols
                 val over = need(l) - inner
-                val e = if (over <= 0f) 0 else minOf(over / 2f, spare(x - 1, y) + gap / 2f, spare(x + 1, y) + gap / 2f).toInt().coerceAtLeast(0)
                 val lp = l.layoutParams as? LinearLayout.LayoutParams ?: continue
-                lp.leftMargin = -e; lp.rightMargin = -e
+                if (over <= 0f) { lp.leftMargin = 0; lp.rightMargin = 0; continue }
+                // centred when both sides can lend half; else the roomier side lends the rest (the name sits a few px off
+                // centre). Equal-only borrowing gave nothing whenever one side was a long name or the page edge:
+                // "Mạng xã …" between "MoMo" and "Thư mục" on the owner's POCO
+                val roomL = spare(x - 1, y, -1) + gap / 2f; val roomR = spare(x + 1, y, 1) + gap / 2f
+                var el = minOf(over / 2f, roomL); var er = minOf(over / 2f, roomR)
+                val rest = over - el - er
+                if (rest > 0f) { val addL = minOf(rest, roomL - el); el += addL; er = minOf(roomR, er + rest - addL) }
+                lp.leftMargin = -kotlin.math.ceil(el).toInt(); lp.rightMargin = -kotlin.math.ceil(er).toInt()
             }
         }
 

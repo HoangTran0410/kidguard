@@ -10,7 +10,7 @@ object Flavor {
     val HOME: Boolean = BuildConfig.HOME
 
     /** KidGuard widgets that work without a parent (data on the phone: layout, timetable, clock, battery). */
-    private val HOME_WIDGETS = setOf("clock", "analog", "month", "battery", "todo", "note", "class", "timer", "streak")
+    private val HOME_WIDGETS = setOf("clock", "analog", "month", "battery", "todo", "note", "class", "timer", "streak", "media")
     fun widget(type: String) = !HOME || type in HOME_WIDGETS || type == HomeLayout.APP
 
     /** "Hôm nay" cards without a parent. */

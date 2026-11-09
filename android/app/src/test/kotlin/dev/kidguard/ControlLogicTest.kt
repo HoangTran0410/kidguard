@@ -50,4 +50,20 @@ class ControlLogicTest {
         assertEquals(1, ControlLogic.brightValue(0f, 255))
         assertEquals(255, ControlLogic.brightValue(1f, 255))
     }
+
+    @Test fun brightnessDetailTilesFollowWhatThePhoneAllows() {
+        assertEquals(Mode.DIRECT, ControlLogic.mode(Tile.AUTO_BRIGHT, kid34))
+        assertEquals(Mode.PAGE, ControlLogic.mode(Tile.AUTO_BRIGHT, home34))
+        // no night light on the phone: no tile; with one, secure settings write it, else its page (or locked for a kid)
+        assertEquals(Mode.HIDDEN, ControlLogic.mode(Tile.NIGHT, kid34))
+        assertEquals(Mode.DIRECT, ControlLogic.mode(Tile.NIGHT, kid34.copy(night = true, secure = true)))
+        assertEquals(Mode.LOCKED, ControlLogic.mode(Tile.NIGHT, kid34.copy(night = true)))
+        assertEquals(Mode.PAGE, ControlLogic.mode(Tile.NIGHT, home34.copy(night = true)))
+        // dark mode: AOSP locks setNightMode (measured on the API 34 emulator) -> the display page
+        assertEquals(Mode.LOCKED, ControlLogic.mode(Tile.DARK, kid34))
+        assertEquals(Mode.PAGE, ControlLogic.mode(Tile.DARK, home34))
+        assertEquals(Mode.DIRECT, ControlLogic.mode(Tile.DARK, kid34.copy(darkLocked = false)))
+        assertEquals(Mode.HIDDEN, ControlLogic.mode(Tile.DARK, home34.copy(sdk = 28)))
+        assertEquals(Mode.DIRECT, ControlLogic.mode(Tile.RINGER, home34))
+    }
 }

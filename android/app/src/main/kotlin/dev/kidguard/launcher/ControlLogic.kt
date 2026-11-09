@@ -10,7 +10,7 @@ package dev.kidguard
  */
 object ControlLogic {
     enum class Mode { DIRECT, PAGE, LOCKED, HIDDEN }
-    enum class Tile { WIFI, BT, AIRPLANE, DATA, TORCH, ROTATE, DND, BRIGHT, VOLUME }
+    enum class Tile { WIFI, BT, AIRPLANE, DATA, TORCH, ROTATE, DND, BRIGHT, VOLUME, AUTO_BRIGHT, NIGHT, DARK, RINGER }
 
     data class Phone(
         val sdk: Int,
@@ -21,6 +21,9 @@ object ControlLogic {
         val dnd: Boolean,             // Do Not Disturb policy access
         val flash: Boolean,
         val hasBt: Boolean,
+        val secure: Boolean = false,  // WRITE_SECURE_SETTINGS (setup grants it): night light
+        val night: Boolean = false,   // the phone has a night light (config_nightDisplayAvailable)
+        val darkLocked: Boolean = true, // config_lockDayNightMode: setNightMode needs a system permission (AOSP default)
     )
 
     fun mode(t: Tile, p: Phone): Mode {
@@ -36,6 +39,13 @@ object ControlLogic {
             Tile.ROTATE, Tile.BRIGHT -> if (p.writeSys) Mode.DIRECT else page
             Tile.DND -> if (p.dnd) Mode.DIRECT else page
             Tile.VOLUME -> Mode.DIRECT
+            Tile.AUTO_BRIGHT -> if (p.writeSys) Mode.DIRECT else page
+            Tile.NIGHT -> if (!p.night) Mode.HIDDEN else if (p.secure) Mode.DIRECT else page
+            // UiModeManager.setNightMode works for apps only where the build does not lock it (AOSP locks it: "Night mode
+            // locked, requires MODIFY_DAY_NIGHT_MODE"); writing Secure ui_night_mode applies only after a reboot. Else the page
+            Tile.DARK -> if (p.sdk < 29) Mode.HIDDEN else if (!p.darkLocked) Mode.DIRECT else page
+            // silent needs Do Not Disturb access (Android 7+), sound / vibrate do not
+            Tile.RINGER -> Mode.DIRECT
         }
     }
 

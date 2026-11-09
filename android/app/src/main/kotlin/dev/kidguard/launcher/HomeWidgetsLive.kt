@@ -116,7 +116,9 @@ internal fun HomeActivity.lockWidget(w: Int): View {
     if (w <= 1) {
         // laid out exactly like appIcon (same box padding, icon size, shape and label), so it lines up with the app icons around it
         val px = iconPx()
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; setPadding(0, dp(4), 0, dp(2)) }
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; setPadding(0, dp(4), 0, dp(2))
+            // the name may borrow the neighbours' width (shareLabels): without this it was cut on both sides ("Khoá màn hìn")
+            clipChildren = false; clipToPadding = false }
         val square = model?.style?.shape == "square"
         val tile = android.widget.FrameLayout(this).apply {
             background = android.graphics.drawable.BitmapDrawable(resources, IconCache.plate(px, !square, pal.solid))
