@@ -60,7 +60,7 @@ const load = () => {
 };
 const save = k => {
   try { localStorage.setItem(KEY, JSON.stringify(k)); } catch {}
-  if (APP) kgCall("setKids", JSON.stringify(k.filter(x => x.target).map(x => ({ name: x.name, target: x.target, via: x.via, id: x.id, token: x.token }))));
+  if (APP) kgCall("setKids", JSON.stringify(k.filter(x => x.target).map(x => ({ name: x.name, target: x.target, via: x.via, id: x.id, token: x.token, lv: x.lv }))));
 };
 let kids = load(), cur = null, st = null, pendingRules = null, timer = null, edit = null, tab = "home", lastErr = "", viewDay = null, histDays = null, cachedAt = 0, seenAt = 0, answered = new Set(), histSel = -1, lastNet = false;
 const onLan = () => !location.pathname.startsWith("/c/") && !isRelayOrigin;

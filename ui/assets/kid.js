@@ -29,7 +29,7 @@ async function refresh() {
   const busy = document.activeElement && /^(SELECT|INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
   if (st && st.rules) {
     const nw = pendingRules && pendingRules.rev > st.rules.rev ? pendingRules : st.rules;
-    if (!edit) edit = norm(structuredClone(nw));
+    if (!edit) { edit = norm(structuredClone(nw)); levelsOffer(k); }
     // another parent (or the child) changed the rules: reload unless we are mid-edit or saving, else a stale page would overwrite them
     else if ((nw.rev || 0) > (edit.rev || 0) && !saveT && !saveBusy && !busy && !saveFailed) { edit = norm(structuredClone(nw)); lastSig = ""; }
   }
@@ -195,7 +195,7 @@ function saveTpl(a) {   // parent app: in its prefs (the WebView origin changes 
 }
 const allTpl = () => presets().concat(userTpl());
 let tplSel = 0;
-const tplFields = r => { const o = {}; for (const f of TPL_F) if (r[f] !== undefined) o[f] = structuredClone(r[f]); return o; };
+const tplFields = (r, F = TPL_F) => { const o = {}; for (const f of F) if (r[f] !== undefined) o[f] = structuredClone(r[f]); return o; };
 const limTxt = r => r.dailyByDay && r.dailyByDay.length === 7 ? t("lim.byDay") : r.dailyMin ? t("mins", r.dailyMin) : t("noLimit");
 function tplSummary(tp) {
   const r = tp.rules, b = r.bedtime || {};
@@ -208,6 +208,35 @@ async function kidRules(k) {
   const r = j.rules ?? (j.state && j.state.rules);   // relay: {state, rules (sent, not yet taken)}; LAN: the state itself
   if (!r) throw new Error(t("noData"));
   return r;
+}
+// First-pairing starting levels: same template machinery (tplFields), plus 3 extra fields only these carry (docs/protocol.md "Starting levels").
+const LV_F = TPL_F.concat(["blockNew", "safeDns", "noInstall"]);
+const LV_D = [
+  { id: "light", rules: { dailyMin: 180, dailyByDay: [], bedtime: { on: true, start: "22:00", end: "06:30" }, schedules: [], blockNew: false, safeDns: "", noInstall: false } },
+  { id: "balanced", rules: { dailyMin: 120, dailyByDay: [120, 120, 120, 120, 120, 180, 180], bedtime: { on: true, start: "21:30", end: "06:30" }, schedules: [], blockNew: true, safeDns: "family.cloudflare-dns.com", noInstall: false } },
+  { id: "strict", rules: { dailyMin: 60, dailyByDay: [60, 60, 60, 60, 60, 120, 120], bedtime: { on: true, start: "21:00", end: "06:30" }, schedules: [], blockNew: true, safeDns: "family.cloudflare-dns.com", noInstall: true } },
+];
+// "untouched" = nothing the parent could have set: no limits, no bedtime/schedules, no app lists/groups/zones, no DNS/install lock
+const rulesUntouched = r => !r.dailyMin && !(r.dailyByDay || []).length && !(r.bedtime && r.bedtime.on) && !(r.schedules || []).length
+  && !(r.blocked || []).length && !(r.allow || []).length && !Object.keys(r.appMin || {}).length && !(r.groups || []).length
+  && !(r.zones || []).length && !(r.hidden || []).length && !r.blockNew && !r.safeDns && !r.noInstall && !r.pausedUntil;
+let lvBusy = false;
+async function levelsOffer(k) {
+  if (lvBusy || k.lv || !edit) return;
+  const mark = () => { k.lv = 1; save(kids); };
+  // Rules already set => never offer, never overwrite. A never-paired preview phone is fine: the first save asks for the PIN in putRules.
+  if (!rulesUntouched(edit)) return mark();
+  lvBusy = true;
+  let pick = "balanced";
+  const row = id => { const d = LV_D.find(x => x.id === id);
+    return `<label class="app"><input type="radio" name="lv" value="${id}" ${id === pick ? "checked" : ""}><span class="nm"><b>${esc(t("lv." + id))}</b><span class="mute">${tplSummary(d)}${d.rules.blockNew ? " · " + esc(t("lv.new")) : ""}${d.rules.safeDns ? " · " + esc(t("lv.dns")) : ""}${d.rules.noInstall ? " · " + esc(t("lv.noinst")) : ""}</span></span></label>`; };
+  const extra = `<div role="radiogroup" aria-label="${esc(t("lv.title"))}" style="margin-bottom:8px">${LV_D.map(d => row(d.id)).join("")}<label class="app"><input type="radio" name="lv" value="later"><span class="nm"><b>${esc(t("lv.later"))}</b></span></label></div>`;
+  const collect = () => { const c = document.querySelector('#askPop input[name="lv"]:checked'); if (!c) return false; pick = c.value; return true; };
+  const ok = await ask(t("lv.ask", k.name), t("lv.go"), false, "", extra, collect);
+  lvBusy = false; mark();
+  const lv = LV_D.find(x => x.id === pick);
+  if (!ok || !lv || k !== cur || !edit || !rulesUntouched(edit)) return;   // re-check: someone may have edited while the dialog was open
+  Object.assign(edit, tplFields(lv.rules, LV_F)); changed(); render();
 }
 async function tplApply(tp) {
   if (!(await ask(t("tpl.askOne", tp.name, cur.name), t("apply")))) return;

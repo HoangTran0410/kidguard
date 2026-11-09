@@ -443,6 +443,8 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
 - **Templates (page only)**: `localStorage["kg.tpl"]` (parent app: bridge `KGApp.getTpl()` / `setTpl(json)`, <= 50 KB) = `[{name, rules: {dailyMin, dailyByDay, bedtime, schedules}}]`,
   presets "Ngày đi học", "Cuối tuần", "Nghỉ hè", "Thi cử". Applying sends one rules PUT per chosen kid with only those
   fields replaced (PIN, blocked apps, allow list, DNS kept).
+- **Starting levels (page only)**: right after the first open of a kid whose rules are untouched (no limits, bedtime, schedules, app lists, groups, zones, DNS, blockNew, noInstall), the page asks once for Light / Balanced / Strict / later.
+  Same template path (`tplFields`) with extra fields `blockNew`, `safeDns`, `noInstall`; one normal rules PUT. Remembered as `lv: 1` in the kid entry of `kg.kids` (also in the app mirror); it is set on any answer, so it is never asked twice.
 - **Weekly report (page only)**: the overview has "Báo cáo tuần": per kid total and daily average over the last 7 days
   (`history`), top 3 apps, requests count, compared with the 7 days before when available (needs 14 days of history: rare, the phone keeps 7). Requests are
   counted from the log, so approximate.
