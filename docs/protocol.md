@@ -835,7 +835,7 @@ Optional home screen on the kid's phone (`HomeActivity`, category HOME). Device 
   activity and disable the component; the stock launcher comes back. Not Device Owner ⇒ the rule only enables the component
   (no forced HOME: the user picks KidGuard in Settings) and only once paired; before pairing the child app's local opt-in
   ("Tính năng và quyền" → launcher) decides. See "Features and permissions".
-- `settings`: show the system Settings app (hidden by default; always shown on a phone nobody manages: no Device Owner and never paired, where the user picked the launcher themselves). `notes`: show `blockNote` in the "app tạm nghỉ" sheet.
+- `settings`: the kid may open system Settings: the Settings app shows, and the KidGuard control center opens settings pages (a toggle it can't flip directly, long-press on Wi-Fi / Bluetooth / airplane / data, the media card's notification-access ask); off, those say "a parent manages this" (hidden by default; always shown on a phone nobody manages: no Device Owner and never paired, where the user picked the launcher themselves). `notes`: show `blockNote` in the "app tạm nghỉ" sheet.
 - `lockCustom`: makes the kid's "Tuỳ chỉnh" screen read-only (style, grid, wallpaper, colours, text size) with a note
   "Bố mẹ đã khoá phần tuỳ chỉnh". Arranging (move, folders, widgets, remove) stays allowed. No PIN on the phone. `style`: `""|"be"|"teen"|"gon"`, the preset used only
   when `home.json` is first made (unknown values ⇒ `""` = teen).
