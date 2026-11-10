@@ -66,6 +66,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Xem màn hình + điều khiển | ✅ | ✅ | ✅ | ✅ | ✅ | Android 11+, cần Trợ năng. Relay ~3 khung/giây, LAN nhanh hơn |
 | **Nghe xung quanh** | ✅ | ✅ | ✅ | ✅ | ❌ | **Chỉ LAN / Tailscale** (Relay không có đường âm thanh). Cần quyền micro |
 | Chụp ảnh người nhập sai PIN (trang quản lý trên máy) | ✅ | ✅ | ✅ | ✅ | ✅ | DO tự cấp quyền camera; CB: bố mẹ cho phép 1 lần sau khi mở đúng PIN. Không có trong bản Home. Relay: tải qua kênh file |
+| Bot Telegram (/status, /bonus, /lock, /block, /locate, /screen, /rec, file…) | ✅ | ✅ | ✅ | ✅ | ⚠️ | Cần internet trên máy con, không cần relay/LAN. /screen cần Trợ năng (Android 11+), /rec cần quyền micro, /lock cần Quản trị thiết bị |
 | Gửi/nhận file | ✅ | ✅ | ✅ | ✅ | ⚠️ | LAN tới 200 MB/file; Relay tới 10 MB/file, 8 file / 32 MB, giữ 1 h |
 | Khởi động lại máy | ✅ | ❌ | ❌ | ❌ | ✅ | |
 | Bật/tắt Tùy chọn nhà phát triển (`devOn`/`devOff`) | ✅ | ❌ | ✅ | ✅ | ✅ | Cần WSS. Không chạy khi bật luật "chặn gỡ lỗi" |
@@ -81,7 +82,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 |---|---|---|---|
 | SOS, xin thêm giờ (hiện trên trang) | ✅ | ✅ | |
 | Đẩy thông báo tức thì (FCM) tới app bố mẹ | ❌ | ✅ | Cần secret `FCM_SA` trên worker |
-| Telegram | ❌ | ✅ | Cần cấu hình bot trên worker |
+| Bot Telegram trên máy con (xem, điều khiển, báo) | ✅ | ✅ | Không phụ thuộc LAN/relay: máy con tự nối Telegram. Trang chỉ dùng để dán token + lấy mã liên kết. (Báo qua bot của worker, `TG_BOT`: cách cũ, trang không còn dùng) |
 | Báo mất kết nối | ⚠️ | ✅ | App bố mẹ kiểm tra định kỳ |
 
 ### 3.5 Launcher (màn hình chính của con)

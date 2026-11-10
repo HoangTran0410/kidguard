@@ -437,7 +437,27 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   it into the `google_app_id` / `gcm_defaultSenderId` / `google_api_key` / `project_id` resources (no google-services
   plugin). Needs Google Play services on the parent's phone.
 
-## Telegram alerts (optional, relay kids only)
+## Telegram bot on the child phone (v0.9.x, Tg.kt)
+- The family makes its own bot at @BotFather; the token goes to the phone with command `tgSet {token, lang: "vi"|"en", name}`
+  (LAN or relay; relay: deliver-once). The phone checks it with `getMe` (results `bad token` / `telegram unreachable`), calls
+  `deleteWebhook` + `setMyCommands`, makes a 6-digit link code (15 min, 5 wrong tries). `tgSet {}` without a token = new code / new lang.
+  `tgCode` = new code, `tgUnlink {chat: "<id>"}` = drop one chat (`no such chat`), `tgOff` = forget token, chats, code (deliver-once).
+  The token never leaves the phone: not in state, not in rules. Release (both modes) = `tgOff`.
+- The phone long-polls `getUpdates` (timeout 50 s, offset kept), from Guard start; idle without a token. 401/404 -> `err: "bad token"`,
+  409 -> `err: "conflict"` (another poller / webhook; one deleteWebhook try). Private chats only. An unlinked chat may only send the code
+  (`/start <code>` or the 6 digits); max 5 chats; a chat that blocks the bot (403) is dropped.
+- State: `"tg": {"on", "bot": "<username>", "err": "", "chats": [{"id": "<string>", "name", "at"}], "code": "123456"|null, "codeUntil"}`.
+- Commands in the chat (TgLogic, vi/en texts): /status /apps /locate (last fix + a fresh one within ~30 s, sendLocation) /events
+  /bonus N (bonus today += N, 1-600) /pause N (pausedUntil = now+N min) /resume /lock /ring /msg <text>
+  /block, /unblock (app buttons `b:<pkg>` / `u:<pkg>`) /limit N (dailyMin, or 7 x N when dailyByDay is set; 0 = none) /bed on|off
+  /screen (Acc.capture 1280 px -> sendPhoto) /rec N (5-60 s mic, same notice as "listen", AAC document) /files (buttons `f:<id>` ->
+  sendDocument, <= 50 MB) ; a document sent to the bot (<= 20 MB) is saved like a LAN upload (Download/KidGuard) /help /unlink.
+  Rule edits go through `Guard.setRules` with `rev = max(now, rev + 1)`, so the page sees them as a newer rules object.
+- Alerts, every Guard tick, each id once (`tgSeen`, last 80; linking a chat marks the past as seen): every SOS (+ location),
+  every request with buttons `ry:<id>:<min>` (bonus + `answer ok`) / `rn:<id>` (`answer` no), every event; a `tamper` event waits up
+  to 10 s for its wrong-PIN photo and is sent as a photo.
+
+## Telegram alerts via the relay worker (older, unused by the page since the phone bot)
 - Worker secret `TG_BOT` = bot token from @BotFather. Not set = feature off (`GET /c/<id>/tg` -> `{"enabled": false}`, the page hides
   the card). `TG_URL` (var, tests only) overrides `https://api.telegram.org`. Each family self-hosts the relay with its own bot.
   LAN-only families cannot use it (the phone never talks to the worker).

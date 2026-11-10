@@ -223,6 +223,61 @@ class Store private constructor(private val app: Context) {
         val b = if (totpSecret.isNotBlank()) unlockLockLeft() else Long.MAX_VALUE
         return minOf(a, b).takeIf { it != Long.MAX_VALUE } ?: 0
     }
+    // ---- Telegram bot on this phone (Tg.kt). The token never leaves the phone (not in state, not in rules). ----
+    var tgToken: String
+        get() = p.getString("tgToken", "") ?: ""
+        set(v) { p.edit().putString("tgToken", v).commit() }
+    var tgBot: String
+        get() = p.getString("tgBot", "") ?: ""
+        set(v) { p.edit().putString("tgBot", v).apply() }
+    var tgName: String   // the child's name as the parent page calls it (texts only)
+        get() = p.getString("tgName", "") ?: ""
+        set(v) { p.edit().putString("tgName", v).apply() }
+    var tgLang: String
+        get() = p.getString("tgLang", "vi") ?: "vi"
+        set(v) { p.edit().putString("tgLang", v).apply() }
+    var tgErr: String
+        get() = p.getString("tgErr", "") ?: ""
+        set(v) { p.edit().putString("tgErr", v).apply() }
+    var tgOffset: Long
+        get() = p.getLong("tgOffset", 0)
+        set(v) { p.edit().putLong("tgOffset", v).apply() }
+    /** Linked chats [{id, name, at}], max TgLogic.MAX_CHATS: only these get alerts and may send commands. */
+    @Synchronized fun tgChats(): JSONArray = runCatching { JSONArray(p.getString("tgChats", "[]")) }.getOrDefault(JSONArray())
+    @Synchronized fun tgChatOk(id: Long): Boolean = tgChats().let { a -> (0 until a.length()).any { a.optJSONObject(it)?.optLong("id") == id } }
+    @Synchronized fun tgAddChat(id: Long, name: String): Boolean {
+        val a = tgChats(); if (tgChatOk(id)) return true
+        if (a.length() >= TgLogic.MAX_CHATS) return false
+        a.put(JSONObject().put("id", id).put("name", name.take(40)).put("at", System.currentTimeMillis()))
+        p.edit().putString("tgChats", a.toString()).commit(); return true
+    }
+    @Synchronized fun tgRemoveChat(id: Long): Boolean {
+        val a = tgChats(); val keep = JSONArray(); var hit = false
+        for (i in 0 until a.length()) { val o = a.optJSONObject(i) ?: continue; if (o.optLong("id") == id) hit = true else keep.put(o) }
+        p.edit().putString("tgChats", keep.toString()).commit(); return hit
+    }
+    /** A fresh 6-digit link code, valid TgLogic.CODE_MS, TgLogic.CODE_TRIES wrong tries. */
+    @Synchronized fun tgNewCode(now: Long = System.currentTimeMillis()): String {
+        val c = (SecureRandom().nextInt(900_000) + 100_000).toString()
+        p.edit().putString("tgCode", c).putLong("tgCodeUntil", now + TgLogic.CODE_MS).putInt("tgCodeTries", 0).commit(); return c
+    }
+    @Synchronized fun tgCode(now: Long = System.currentTimeMillis()): String? =
+        p.getString("tgCode", null)?.takeIf { now < p.getLong("tgCodeUntil", 0) && p.getInt("tgCodeTries", 0) < TgLogic.CODE_TRIES }
+    @Synchronized fun tgCodeUntil(): Long = p.getLong("tgCodeUntil", 0)
+    /** True = right code (then used up); a wrong one counts a try. */
+    @Synchronized fun tgTryCode(given: String, now: Long = System.currentTimeMillis()): Boolean {
+        val c = tgCode(now) ?: return false
+        if (TgLogic.codeOk(given, c, p.getLong("tgCodeUntil", 0), now)) { p.edit().remove("tgCode").commit(); return true }
+        p.edit().putInt("tgCodeTries", p.getInt("tgCodeTries", 0) + 1).commit(); return false
+    }
+    @Synchronized fun tgSeen(): List<String> = (p.getString("tgSeen", "") ?: "").split(',').filter { it.isNotEmpty() }
+    @Synchronized fun tgSetSeen(l: List<String>) { p.edit().putString("tgSeen", l.joinToString(",")).apply() }
+    /** Bot off: token, chats, code, offset, seen all gone. */
+    @Synchronized fun tgClear() {
+        p.edit().remove("tgToken").remove("tgBot").remove("tgChats").remove("tgCode").remove("tgCodeUntil").remove("tgCodeTries")
+            .remove("tgOffset").remove("tgSeen").remove("tgErr").remove("tgName").commit()
+    }
+
     /** Basic mode asked the parent once for the camera (wrong-PIN photo); a "deny" is not asked again. */
     var camAsked: Boolean
         get() = p.getBoolean("camAsked", false)

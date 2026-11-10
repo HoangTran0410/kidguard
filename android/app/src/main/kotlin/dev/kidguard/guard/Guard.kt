@@ -132,6 +132,7 @@ class Guard : Service() {
         wifiLock(true)
         http = Http(this, Api(this)).also { it.start(PORT) }
         relay = Relay(this).also { it.start() }
+        Tg.start(this)   // Telegram bot on this phone (idle without a token)
         work.post(loopRun)
     }
 
@@ -152,7 +153,7 @@ class Guard : Service() {
         runCatching { contentResolver.unregisterContentObserver(dnsObserver) }
         Listen.stopAll(); Proj.stop(this); Ring.stop(this)
         wifiLock(false)
-        http?.stop(); relay?.stop()
+        http?.stop(); relay?.stop(); Tg.stop()
         work.looper.quitSafely()
         super.onDestroy()
     }
@@ -179,6 +180,7 @@ class Guard : Service() {
 
     private fun tick(force: Boolean) {
         runCatching { relabel() }
+        runCatching { Tg.tick(this) }.onFailure { Log.w("KidGuard", "tg tick", it) }   // alerts to linked Telegram chats
         if (runCatching { store.defaultRelay() }.getOrDefault(false)) relay?.kick()
         val now = System.currentTimeMillis()
         // reference for the clock-jump check (see timeReceiver)
@@ -397,6 +399,7 @@ class Guard : Service() {
             .put("location", store.location ?: JSONObject.NULL)
             .put("lan", lanUrl() ?: JSONObject.NULL)
             .put("net", runCatching { DeviceInfo.netState(this) }.getOrDefault(JSONObject()))
+            .put("tg", runCatching { Tg.state(store) }.getOrDefault(JSONObject()))
             .put("relay", store.relayUrl)
             .put("ts", Ts.stateJson(store))
             .put("devices", store.devices())
@@ -537,6 +540,10 @@ class Guard : Service() {
         "fileUp" -> Files.command(this, t, c)   // shared folder over the relay (Files.kt)
         "fileDel" -> Files.command(this, t, c)
         "shotUp" -> Shot.command(this, c)       // wrong-PIN photo over the relay (Shot.kt)
+        "tgSet" -> Tg.command(this, t, c)   // Telegram bot on this phone (Tg.kt)
+        "tgCode" -> Tg.command(this, t, c)
+        "tgUnlink" -> Tg.command(this, t, c)
+        "tgOff" -> Tg.command(this, t, c)
         "relay" -> {
             store.relayUrl = c.optString("url")   // "" = relay off (kept off: no default again)
             if (store.relayUrl.isNotBlank() && (store.relayToken.isBlank() || store.relayId.isBlank())) { store.relayToken = store.addToken(); store.relayId = Store.randomHex(8); store.touchDevice(store.relayToken, "relay") }

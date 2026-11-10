@@ -474,6 +474,7 @@
     <string name="admin_ok">Mở</string>
     <string name="admin_loading">Đang mở trang quản lý…</string>
     <string name="admin_wrong">Sai mã, thử lại</string>
+    <string name="log_tg_linked">Telegram đã liên kết: %1$s</string>
     <string name="admin_shot_note">Sai 3 lần, máy sẽ chụp 1 ảnh bằng camera trước gửi bố mẹ.</string>
     <string name="admin_shot_taken">Sai nhiều lần: đã chụp ảnh gửi bố mẹ</string>
     <string name="admin_not_ready">Trang quản lý chưa sẵn sàng, thử lại sau vài giây.</string>

@@ -230,7 +230,7 @@ function setTab(b) {
     <p class="mute">${t("relay.self")}</p>
     <div id="relayOut">${cur.relay && st.relay ? relayLinkHtml(goLink(cur.relay.url, cur.relay.id, cur.relay.token, cur.name)) : ""}</div>`, !!st.relay)
     : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p>${cur.via === "relay" && isRelayOrigin ? relayLinkHtml(goLink(location.origin, cur.id, cur.token, cur.name)) : ""}</div>`}
-  ${lan ? "" : `<div id="tgBox"></div>`}
+  ${tgHtml()}
   <div class="dz" style="margin-top:22px">${sec("s-danger", "octagon-x", t("set.danger"), t("sd.danger"), null, `<h2>${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
     <h2 style="margin-top:18px">${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
     <button id="release" class="bad">${ic("octagon-x")} ${t("rel.btn")}</button>`)}</div>
@@ -324,34 +324,44 @@ function setTab(b) {
   if ($("#devOff")) $("#devOff").onclick = () => devOff(false);
   if ($("#devOn")) $("#devOn").onclick = () => devOff(true);
   if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, t("upd.sent"), [t("upd.ask"), t("upd.ok")]).then(() => setTimeout(refresh, 4000));
-  if ($("#tgBox")) tgDraw();
+  tgWire();
   $("#release").onclick = async () => {
     await cmd({ type: "release" }, t("rel.done"), [t("rel.ask"), t("rel.ok"), true, t("rel.word")]);
   };
 }
 
-// Telegram alerts (relay kids only; the worker has the bot token). The box stays empty while the worker has no TG_BOT.
-async function tgDraw() {
-  const k = cur, box = $("#tgBox");
-  let st; try { st = await call(k, "/tg"); } catch { return; }
-  if (k !== cur || tab !== "set" || !st || !st.enabled || !box.isConnected) return;
-  box.innerHTML = sec("s-tg", "send", t("tg.h"), t("tg.d"), st.linked ? [t("on"), "ok"] : [t("off")], st.linked
-    ? `<p class="mute">${t("tg.on")}</p><button id="tgOff">${ic("unlink")} ${t("tg.unlink")}</button>`
-    : `<p class="mute">${t("tg.p")}</p><button id="tgLink" class="pri">${ic("send")} ${t("tg.link")}</button><div id="tgOut" class="mute"></div>`, false);
-  if ($("#tgOff")) $("#tgOff").onclick = async () => {
-    try { await call(k, "/tg", "POST", { off: true }); toast("ok|" + t("tg.done")); } catch (e) { toast("err|" + e.message); }
-    tgDraw();
+// Telegram bot run by the child phone itself (Tg.kt): the family's own @BotFather token goes to the phone (cmd tgSet),
+// a linked chat sends the 6-digit code shown here. Status comes from state.tg; changes are commands (LAN and relay alike).
+function tgHtml() {
+  const g = st.tg; if (!g) return "";
+  const chats = g.chats || [];
+  const code = g.code && g.codeUntil > Date.now() ? g.code : "";
+  const body = !g.on
+    ? `<p class="mute">${t("tg.p")}</p>
+      <ol class="mute" style="padding-left:20px;margin:6px 0 10px"><li>${t("tg.s1")} <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a></li><li>${t("tg.s2")}</li><li>${t("tg.s3")}</li></ol>
+      <div class="row"><input id="tgTok" class="sp" type="password" autocomplete="off" spellcheck="false" placeholder="123456789:AA…" aria-label="${esc(t("tg.tok"))}"><button id="tgSet" class="pri">${ic("send")} ${t("tg.connect")}</button></div>
+      <p class="mute">${ic("info")} ${t("tg.privacy")}</p>`
+    : `<p>${ic("send")} ${t("tg.bot")}: ${g.bot ? `<a href="https://t.me/${esc(g.bot)}" target="_blank" rel="noopener">@${esc(g.bot)}</a>` : "—"}</p>
+      ${g.err ? `<p class="t-bad">${ic("triangle-alert")} ${esc(tc("tg.e.", g.err, g.err))}</p>` : ""}
+      <h3 style="margin:12px 0 4px">${t("tg.chats")}</h3>
+      ${chats.map(c => `<div class="row"><span class="sp">${ic("user")} ${esc(c.name || c.id)}</span><button type="button" data-tgun="${esc(c.id)}">${ic("unlink")} ${t("tg.unlink")}</button></div>`).join("") || `<p class="mute">${t("tg.noChats")}</p>`}
+      ${chats.length < 5 ? (code
+        ? `<p style="margin-top:10px">${t("tg.codeP", g.bot ? "@" + esc(g.bot) : "bot")}</p><div class="row"><b style="font-size:28px;letter-spacing:4px">${esc(code)}</b><span class="mute sp">${t("tg.until", hhmm(g.codeUntil))}</span></div>`
+        : `<button id="tgCode" style="margin-top:10px">${ic("key-round")} ${t("tg.newCode")}</button>`) : ""}
+      <p class="mute" style="margin-top:10px">${t("tg.cmds")}</p>
+      <button id="tgOff" class="bad" style="margin-top:6px">${ic("octagon-x")} ${t("tg.off")}</button>`;
+  return sec("s-tg", "send", t("tg.h"), t("tg.d"), g.on ? [chats.length ? t("tg.nChats", chats.length) : t("on"), chats.length ? "ok" : "warn"] : [t("off")], body, false);
+}
+function tgWire() {
+  const again = () => setTimeout(refresh, 2500);
+  if ($("#tgSet")) $("#tgSet").onclick = async () => {
+    const tok = $("#tgTok").value.trim();
+    if (!/^\d{5,15}:[A-Za-z0-9_-]{30,60}$/.test(tok)) { toast("err|" + t("tg.e.bad token")); return; }
+    await cmd({ type: "tgSet", token: tok, lang, name: (cur && cur.name) || "" }, t("tg.setDone"), false); again();
   };
-  if ($("#tgLink")) $("#tgLink").onclick = async () => {
-    try {
-      const r = await call(k, "/tg", "POST", { name: k.name, lang });
-      if (!/^https:\/\/t\.me\/\w+\?start=[0-9a-f]{32}$/.test(r.link || "")) throw new Error("bad link");
-      $("#tgOut").innerHTML = `<p>${t("tg.open")}</p><a class="lnkbtn" href="${esc(r.link)}" target="_blank" rel="noopener">${ic("send")} ${t("tg.openBtn")}</a>`;
-      clearTimeout(tgDraw.t);
-      const poll = n => { tgDraw.t = setTimeout(() => { if (tab === "set" && k === cur && n < 20) call(k, "/tg").then(x => x.linked ? tgDraw() : poll(n + 1), () => {}); }, 4000); };
-      poll(0);
-    } catch (e) { toast("err|" + e.message); }
-  };
+  if ($("#tgCode")) $("#tgCode").onclick = () => cmd({ type: "tgCode" }, t("tg.codeDone"), false).then(again);
+  if ($("#tgOff")) $("#tgOff").onclick = () => cmd({ type: "tgOff" }, t("tg.offDone"), [t("tg.offAsk"), t("tg.off"), true]).then(again);
+  document.querySelectorAll("[data-tgun]").forEach(b => b.onclick = () => cmd({ type: "tgUnlink", chat: b.dataset.tgun }, t("tg.unDone"), [t("tg.unAsk"), t("tg.unlink"), true]).then(again));
 }
 /** The /go link box (Cài đặt > relay): the link that always opens, whatever the phone's address. */
 function relayLinkHtml(link) {
