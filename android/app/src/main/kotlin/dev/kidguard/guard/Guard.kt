@@ -551,7 +551,7 @@ class Guard : Service() {
         }
         // no PIN yet: the code shows on the child's screen and nothing else would stop the child pairing first
         "openPairing" -> if (store.everPaired && store.rules.pinHash.isBlank()) "set PIN first" else { store.openPairing(); "ok" }
-        "unpairAll" -> { store.clearTokens(); "ok" }
+        "unpairAll" -> { store.clearTokens(); store.tgUnlinkAll(); Tg.wake(); "ok" }   // Telegram chats control the phone too
         "unpair" -> if (store.unpair(c.optString("id"))) { relay?.kick(); kick(); "ok" } else "no such device"
         "answer" -> {
             val req = store.removeRequest(c.optString("req").ifBlank { c.optString("id") })   // relay: "req" = the request id (the command id may be a UUID)

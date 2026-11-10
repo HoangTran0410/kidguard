@@ -45,8 +45,9 @@ object Adts {
     fun toM4a(src: ByteArray, tmpDir: File): Pair<ByteArray, Long>? {
         val info = parse(src)?.takeIf { it.frames.isNotEmpty() } ?: return null
         val f = File.createTempFile("rec", ".m4a", tmpDir)
+        var m: MediaMuxer? = null
         return try {
-            val m = MediaMuxer(f.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            m = MediaMuxer(f.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             val fmt = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, info.rate, info.channels)
             fmt.setByteBuffer("csd-0", ByteBuffer.wrap(asc(info)))
             val track = m.addTrack(fmt); m.start()
@@ -55,8 +56,8 @@ object Adts {
                 bi.set(0, fr.len, n * 1024L * 1_000_000 / info.rate, MediaCodec.BUFFER_FLAG_KEY_FRAME)
                 m.writeSampleData(track, ByteBuffer.wrap(src, fr.off, fr.len).slice(), bi)
             }
-            m.stop(); m.release()
+            m.stop(); m.release(); m = null
             f.readBytes() to info.durationMs
-        } catch (e: Exception) { null } finally { f.delete() }
+        } catch (e: Exception) { null } finally { runCatching { m?.release() }; f.delete() }
     }
 }

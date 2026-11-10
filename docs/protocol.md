@@ -463,6 +463,11 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   (answerCallbackQuery, "working…" toast) and commands send sendChatAction (typing / find_location / upload_photo / record_voice).
   setMyShortDescription. The page shows `https://t.me/<bot>?start=<code>` (+ QR): Telegram sends `/start <code>`, which links.
 - /rec answers as a voice message (sendVoice, M4A remuxed from the ADTS stream by `Adts.kt`, plays inline); fallback: the raw .aac as a document.
+  The voice carries a "Download" button (callback `a:<16 hex>`): the same M4A as a document, kept 24 h in cache/tgrec.
+- Reliability: an alert counts as seen only once at least one chat got it (else retried every 30 s, dropped after 24 h);
+  alerts have their own sender thread; one /locate and one /rec at a time ("busy" otherwise); 429 waits retry_after once.
+  Link codes: max 3 wrong tries per not-linked chat (plus 5 per code); a new link is announced to the other chats.
+  `unpairAll` also unlinks every Telegram chat (the bot token stays). A photo sent to the bot is saved like a file.
 - Language per chat (`chats[].lang`): set at link from the Telegram user's `language_code` (vi* -> vi, else en; none -> the bot
   language from tgSet), changed with /lang [vi|en] or the 🌐 menu button; alerts and answers use it. setMyCommands /
   setMyDescription / setMyShortDescription are set for language_code vi, en and the default, at tgSet and once per app start.

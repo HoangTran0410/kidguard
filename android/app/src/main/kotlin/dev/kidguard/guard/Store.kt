@@ -258,6 +258,7 @@ class Store private constructor(private val app: Context) {
         val a = tgChats(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optLong("id") == id }?.put("lang", lang)
         p.edit().putString("tgChats", a.toString()).commit()
     }
+    @Synchronized fun tgUnlinkAll() { p.edit().remove("tgChats").commit() }
     @Synchronized fun tgRemoveChat(id: Long): Boolean {
         val a = tgChats(); val keep = JSONArray(); var hit = false
         for (i in 0 until a.length()) { val o = a.optJSONObject(i) ?: continue; if (o.optLong("id") == id) hit = true else keep.put(o) }

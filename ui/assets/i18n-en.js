@@ -50,7 +50,7 @@ L.en = {
   "ask.locate": "Get the kid's phone's current location?", "askOk.locate": "Locate",
   "ask.reboot": "Restart your kid's phone? It will be off for a few minutes.", "askOk.reboot": "Restart",
   "ask.openPairing": "Show a pairing code on the kid's phone to pair another parent phone?\n\nThe code works for 10 minutes. Once paired, the phone stays connected for good.", "askOk.openPairing": "Show code",
-  "ask.unpairAll": "Unpair every parent phone, including this one? You'll have to pair again with a code from the kid's phone (needs the PIN).", "askOk.unpairAll": "Unpair", "unp.word": "UNPAIR", "forget.word": "FORGET",
+  "ask.unpairAll": "Unpair every parent phone, including this one, and unlink every Telegram chat? You'll have to pair again with a code from the kid's phone (needs the PIN).", "askOk.unpairAll": "Unpair", "unp.word": "UNPAIR", "forget.word": "FORGET",
   "forget.askRelay": "Forget “{0}” in this browser/app?\n\nThis phone is controlled over the relay and this device holds the only key. To control it again you need a new pairing link or code from the kid's phone (needs the PIN).",
   "ask.tailscaleOff": "Turn off Tailscale control and remove the Tailscale app from the kid's phone?", "askOk.tailscaleOff": "Turn off",
   "ask.tailscale": "Install Tailscale on the kid's phone and join your private network?", "askOk.tailscale": "Install",

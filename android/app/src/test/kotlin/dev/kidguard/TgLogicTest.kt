@@ -136,6 +136,9 @@ class TgLogicTest {
     @Test fun languages() {
         assertEquals("vi", TgLogic.langOf("vi-VN", "en")); assertEquals("en", TgLogic.langOf("fr", "vi"))
         assertEquals("vi", TgLogic.langOf("", "vi")); assertEquals("en", TgLogic.langOf(null, "en"))
+        assertEquals("vi", TgLogic.langOf("vn", "en"))
+        for (l in listOf("vi", "en")) for (k in listOf("busyOne", "newLink", "locOld", "e.upload", "e.gone", "e.no audio")) assertFalse(k, TgLogic.s(l, k, "x", 1) == k)
+        assertTrue(TgLogic.s("en", "newLink", "Mom").contains("Mom"))
         val vi = datas(TgLogic.menu("vi")); val en = datas(TgLogic.menu("en"))
         assertTrue(vi.contains("c:lang en") && en.contains("c:lang vi"))
         assertEquals(TgLogic.Cmd("lang", listOf("en"), "en"), TgLogic.fromData("c:lang en"))

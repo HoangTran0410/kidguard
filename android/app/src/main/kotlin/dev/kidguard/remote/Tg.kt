@@ -25,19 +25,29 @@ object Tg {
     private const val API = "https://api.telegram.org"
     private val lock = Object()
     @Volatile private var thread: Thread? = null
+    @Volatile private var gen = 0   // a poll thread runs while its generation is current (a stuck old one exits when it wakes)
     @Volatile private var guard: Guard? = null
     @Volatile private var conflictFixed = false
     @Volatile private var cmdsSet = false   // command lists / descriptions refreshed once per process (new texts after an update)
-    private val work = Executors.newFixedThreadPool(4)   // commands that wait (rec, locate ~30 s, screen) never block polling or each other
+    // commands that wait (rec, locate ~30 s, screen) never block polling or each other; bounded: a flood is dropped, not queued forever
+    private val work = java.util.concurrent.ThreadPoolExecutor(4, 4, 60, java.util.concurrent.TimeUnit.SECONDS,
+        java.util.concurrent.LinkedBlockingQueue(64), java.util.concurrent.ThreadPoolExecutor.DiscardOldestPolicy())
+    private val alerts = Executors.newSingleThreadExecutor()   // SOS / requests never wait behind a 60 s /rec
+    private val sending = java.util.concurrent.ConcurrentHashMap<String, Long>()   // alert key -> retry not before (MAX = in flight)
+    private val seenLock = Any(); private val rulesLock = Any()
+    private val locBusy = java.util.concurrent.atomic.AtomicBoolean(); private val recBusy = java.util.concurrent.atomic.AtomicBoolean()
+    private val strangerTries = java.util.concurrent.ConcurrentHashMap<Long, Int>()   // wrong link codes per chat (one stranger can't burn the code)
     private val fast = Executors.newSingleThreadExecutor()   // button acks: never queued behind a slow command
     private val askMsg = java.util.concurrent.ConcurrentHashMap<Long, Long>()   // chat -> when "💬 Message" asked for the text
 
-    fun start(g: Guard) {
+    @Synchronized fun start(g: Guard) {
         guard = g
         if (thread?.isAlive == true) return
-        thread = Thread({ loop() }, "tg").apply { isDaemon = true; start() }
+        val my = ++gen
+        thread = Thread({ loop(my) }, "tg").apply { isDaemon = true; start() }
     }
-    fun stop() { guard = null; thread?.interrupt(); thread = null }
+    @Synchronized fun stop() { guard = null; gen++; thread?.interrupt(); thread = null }
+    private fun redact(e: Throwable) = e.toString().replace(Regex("bot\\d+:[A-Za-z0-9_-]+"), "bot***")
     /** Token or chats changed: end the current wait at once. */
     fun wake() { synchronized(lock) { lock.notifyAll() }; thread?.interrupt() }
 
@@ -59,8 +69,9 @@ object Tg {
             "tgSet" -> {
                 val tok = c.optString("token").trim()
                 if (tok.isNotEmpty() && !TgLogic.tokenOk(tok)) return "bad token"
+                val oldLang = s.tgLang
                 c.optString("lang").takeIf { it == "vi" || it == "en" }?.let { s.tgLang = it }
-                c.optString("name").replace(Regex("[\\p{Cntrl}<>]"), "").trim().take(30).takeIf { it.isNotEmpty() }?.let { s.tgName = it }
+                val name = c.optString("name").replace(Regex("[\\p{Cntrl}<>]"), "").trim().take(30)
                 if (tok.isNotEmpty() && tok != s.tgToken) {
                     val me = runCatching { call(tok, "getMe", JSONObject()) }.getOrNull()
                     if (me == null || !me.optBoolean("ok")) return if (me == null) "telegram unreachable" else "bad token"
@@ -68,6 +79,8 @@ object Tg {
                     runCatching { call(tok, "deleteWebhook", JSONObject()) }   // getUpdates refuses while a webhook is set
                     runCatching { setCommands(tok, s.tgLang) }
                 }
+                else if (s.tgLang != oldLang && s.tgToken.isNotBlank()) s.tgToken.let { t0 -> work.execute { runCatching { setCommands(t0, s.tgLang) } } }
+                if (name.isNotEmpty()) s.tgName = name   // after tgClear (a new token clears the old name)
                 if (s.tgToken.isBlank()) return "bad token"
                 s.tgNewCode(); s.tgErr = ""; start(g); wake(); "ok"
             }
@@ -89,9 +102,9 @@ object Tg {
     }
 
     // ---------------- polling ----------------
-    private fun loop() {
+    private fun loop(my: Int) {
         var backoff = 5_000L
-        while (guard != null) {
+        while (guard != null && gen == my) {
             val g = guard ?: break
             val s = Store.of(g)
             val tok = s.tgToken
@@ -113,20 +126,26 @@ object Tg {
                 val a = r.optJSONArray("result") ?: JSONArray()
                 for (i in 0 until a.length()) {
                     val u = a.optJSONObject(i) ?: continue
+                    if (gen != my || s.tgToken != tok) break   // token changed / tgOff while this poll was in flight: not its offset
                     s.tgOffset = u.optLong("update_id") + 1   // before handling: one bad update must not loop forever
                     // a tapped button: stop its spinner at once (+ "working…" toast for actions; panels need none)
                     u.optJSONObject("callback_query")?.let { q -> runCatching { fast.execute { runCatching {
                         val d = q.optString("data")
                         call(tok, "answerCallbackQuery", JSONObject().put("callback_query_id", q.optString("id")).apply { if (!d.startsWith("n:")) put("text", TgLogic.s(s.tgChatLang(q.optJSONObject("message")?.optJSONObject("chat")?.optLong("id") ?: 0), "busy")) }, 8_000)
                     } } } }
-                    runCatching { work.execute { runCatching { update(g, s, u) }.onFailure { Log.w(TAG, "tg update", it) } } }
+                    runCatching { work.execute { runCatching { update(g, s, u) }.onFailure { e ->
+                        Log.w(TAG, "tg update: " + redact(e))
+                        // never a silent dead end: the chat that asked hears it failed
+                        val chat = (u.optJSONObject("message") ?: u.optJSONObject("callback_query")?.optJSONObject("message"))?.optJSONObject("chat")?.optLong("id") ?: 0
+                        if (chat != 0L && s.tgChatOk(chat)) runCatching { send(s, chat, TgLogic.s(s.tgChatLang(chat), "fail", e.javaClass.simpleName)) }
+                    } } }
                 }
             } catch (e: InterruptedException) {
                 // wake(): token / chats changed
             } catch (e: Exception) {
                 if (Thread.interrupted()) continue
                 Log.i(TAG, "tg poll: ${e.javaClass.simpleName}")
-                idle(backoff); backoff = minOf(backoff * 2, 5 * 60_000L)
+                idle(backoff); backoff = minOf(backoff * 2, 60_000L)   // capped: commands answer within a minute of the network coming back
             }
         }
     }
@@ -134,7 +153,15 @@ object Tg {
     private fun idle(ms: Long) { try { synchronized(lock) { lock.wait(ms) } } catch (_: InterruptedException) {} }
 
     // ---------------- Bot API ----------------
-    private fun call(tok: String, method: String, body: JSONObject, readMs: Int = 30_000): JSONObject {
+    private fun call(tok: String, method: String, body: JSONObject, readMs: Int = 30_000, retry: Boolean = true): JSONObject {
+        val r = call1(tok, method, body, readMs)
+        if (retry && r.optInt("error_code") == 429 && method != "getUpdates") {   // flood limit: wait as told (<= 30 s), once
+            Thread.sleep(r.optJSONObject("parameters")?.optLong("retry_after", 3)?.coerceIn(1, 30)?.times(1000) ?: 3_000)
+            return call1(tok, method, body, readMs)
+        }
+        return r
+    }
+    private fun call1(tok: String, method: String, body: JSONObject, readMs: Int): JSONObject {
         val h = (URL("$API/bot$tok/$method").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"; connectTimeout = 15_000; readTimeout = readMs; doOutput = true
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -147,19 +174,19 @@ object Tg {
     }
 
     /** multipart/form-data upload: [field] = the file, plus plain text fields. */
-    private fun upload(tok: String, method: String, fields: Map<String, String>, field: String, name: String, mime: String, data: ByteArray): JSONObject {
+    private fun upload(tok: String, method: String, fields: Map<String, String>, field: String, name: String, mime: String, data: java.io.InputStream, len: Long): JSONObject {
         val b = "kg" + Store.randomHex(12)
+        val safe = name.replace(Regex("[\"\\r\\n]"), "_")
+        val head = (fields.entries.joinToString("") { (k, v) -> "--$b\r\nContent-Disposition: form-data; name=\"$k\"\r\n\r\n$v\r\n" } +
+            "--$b\r\nContent-Disposition: form-data; name=\"$field\"; filename=\"$safe\"\r\nContent-Type: $mime\r\n\r\n").toByteArray()
+        val tail = "\r\n--$b--\r\n".toByteArray()
         val h = (URL("$API/bot$tok/$method").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"; connectTimeout = 15_000; readTimeout = 120_000; doOutput = true
             setRequestProperty("Content-Type", "multipart/form-data; boundary=$b")
+            setFixedLengthStreamingMode(head.size + len + tail.size)   // streamed: a 50 MB file is never held twice in memory
         }
         try {
-            DataOutputStream(h.outputStream).use { o ->
-                for ((k, v) in fields) o.write("--$b\r\nContent-Disposition: form-data; name=\"$k\"\r\n\r\n$v\r\n".toByteArray())
-                val safe = name.replace(Regex("[\"\\r\\n]"), "_")
-                o.write("--$b\r\nContent-Disposition: form-data; name=\"$field\"; filename=\"$safe\"\r\nContent-Type: $mime\r\n\r\n".toByteArray())
-                o.write(data); o.write("\r\n--$b--\r\n".toByteArray())
-            }
+            DataOutputStream(h.outputStream).use { o -> o.write(head); data.use { it.copyTo(o, 64 * 1024) }; o.write(tail) }
             val ins = if (h.responseCode < 400) h.inputStream else h.errorStream ?: throw IOException("HTTP ${h.responseCode}")
             return JSONObject(ins.use { String(it.readBytes()) })
         } finally { h.disconnect() }
@@ -171,9 +198,12 @@ object Tg {
         if (r.optInt("error_code") == 403) s.tgRemoveChat(chat)   // the parent blocked the bot
         return r
     }
-    private fun sendFile(s: Store, chat: Long, method: String, field: String, name: String, mime: String, data: ByteArray, caption: String = "", extra: Map<String, String> = emptyMap()): Boolean {
+    private fun sendFile(s: Store, chat: Long, method: String, field: String, name: String, mime: String, data: ByteArray, caption: String = "", extra: Map<String, String> = emptyMap()): Boolean =
+        sendStream(s, chat, method, field, name, mime, data.inputStream(), data.size.toLong(), caption, extra)
+    private fun sendStream(s: Store, chat: Long, method: String, field: String, name: String, mime: String, data: java.io.InputStream, len: Long, caption: String = "", extra: Map<String, String> = emptyMap()): Boolean {
         val tok = s.tgToken.ifBlank { return false }
-        val r = upload(tok, method, mapOf("chat_id" to chat.toString(), "caption" to caption.take(1000)) + extra, field, name, mime, data)
+        val r = runCatching { upload(tok, method, mapOf("chat_id" to chat.toString(), "caption" to caption.take(1000)) + extra, field, name, mime, data, len) }
+            .getOrElse { Log.w(TAG, "tg $method: " + redact(it)); return false }
         if (!r.optBoolean("ok")) Log.w(TAG, "tg $method: ${r.optString("description")}")
         return r.optBoolean("ok")
     }
@@ -209,7 +239,13 @@ object Tg {
 
     private fun hm(t: Long) = SimpleDateFormat("HH:mm", Locale.US).format(Date(t))
     private fun kidName(g: Guard) = Store.of(g).tgName.ifBlank { "KidGuard" }
-    private fun broadcast(s: Store, f: (Long) -> Unit) { val a = s.tgChats(); for (i in 0 until a.length()) a.optJSONObject(i)?.optLong("id")?.let { id -> runCatching { f(id) }.onFailure { Log.w(TAG, "tg send", it) } } }
+    /** f(chat) for every linked chat; returns how many succeeded. */
+    private fun broadcast(s: Store, f: (Long) -> Boolean): Int { val a = s.tgChats(); var ok = 0
+        for (i in 0 until a.length()) a.optJSONObject(i)?.optLong("id")?.let { id -> if (runCatching { f(id) }.onFailure { Log.w(TAG, "tg send: " + redact(it)) }.getOrDefault(false)) ok++ }
+        return ok }
+    private fun ok(r: JSONObject?) = r?.optBoolean("ok") == true
+    /** Rule edits from several workers / chats: read-modify-write one at a time. */
+    private fun editRules(g: Guard, s: Store, f: (Rules) -> Rules): Rules = synchronized(rulesLock) { f(s.rules).also { g.setRules(it) } }
 
     // ---------------- updates ----------------
     private fun update(g: Guard, s: Store, u: JSONObject) {
@@ -223,10 +259,14 @@ object Tg {
         if (!s.tgChatOk(id)) {
             val code = (TgLogic.parse(text)?.takeIf { it.name == "start" }?.rest ?: text).trim()
             if (Regex("^\\d{6}$").matches(code)) {
-                if (!s.tgTryCode(code)) { send(s, id, TgLogic.s(lang, "badCode")); return }
+                val n = strangerTries.merge(id, 1, Int::plus) ?: 1
+                if (n > TgLogic.CHAT_TRIES || !s.tgTryCode(code)) { send(s, id, TgLogic.s(lang, "badCode")); return }
+                strangerTries.remove(id)
                 val who = listOf(chat.optString("first_name"), chat.optString("last_name")).filter { it.isNotBlank() }.joinToString(" ").ifBlank { chat.optString("username") }
                 if (!s.tgAddChat(id, who, lang)) { send(s, id, TgLogic.s(lang, "full", TgLogic.MAX_CHATS)); return }
                 s.log(R.string.log_tg_linked, who)
+                // the others hear about it: a code seen on a shared screen must not give silent control
+                alerts.execute { broadcast(s) { c -> c != id && ok(send(s, c, TgLogic.s(s.tgChatLang(c), "newLink", who))) } }
                 tick(g, markOnly = true)   // the past is not news to a new chat
                 send(s, id, TgLogic.s(lang, "linked", kidName(g)), TgLogic.replyKb(lang))
                 send(s, id, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang)); g.kick()
@@ -234,6 +274,9 @@ object Tg {
             return
         }
         m.optJSONObject("document")?.let { return fileIn(g, s, id, it) }
+        m.optJSONArray("photo")?.let { a -> a.optJSONObject(a.length() - 1)?.let { p ->   // a photo (not "as file"): the biggest size
+            return fileIn(g, s, id, JSONObject().put("file_id", p.optString("file_id")).put("file_size", p.optLong("file_size"))
+                .put("file_name", "telegram-${SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())}.jpg").put("mime_type", "image/jpeg")) } }
         val asked = askMsg.remove(id)?.let { System.currentTimeMillis() - it < 10 * 60_000L } == true
         val c = TgLogic.parse(text) ?: TgLogic.fromButton(text)
             ?: if (asked && text.isNotBlank()) TgLogic.Cmd("msg", emptyList(), text.trim()) else null
@@ -249,7 +292,6 @@ object Tg {
         fun show(text: String, kb: JSONObject?) { if (panel > 0) edit(s, chat, panel, text, kb) else send(s, chat, text, kb) }
         fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
         fun res(r: String, okKey: String, vararg a: Any?) { if (r == "ok") say(okKey, *a) else say("fail", TgLogic.err(lang, r)) }
-        fun rules(f: (Rules) -> Rules) { g.setRules(f(s.rules)) }
         when (c.name) {
             "start", "help" -> send(s, chat, TgLogic.s(lang, "help", kidName(g)), TgLogic.replyKb(lang))
             "menu" -> send(s, chat, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang))
@@ -266,13 +308,10 @@ object Tg {
                 send(s, chat, if (rows.isEmpty()) TgLogic.s(lang, "noEvents") else TgLogic.s(lang, "events") + "\n" + rows.joinToString("\n") { "• ${hm(it.optLong("t"))} ${it.optString("text")}" })
             }
             "locate" -> {
-                val before = s.location?.optLong("t") ?: 0
-                g.command(JSONObject().put("type", "locate"))
-                s.location?.let { sendLoc(s, chat, it); say("locAt", hm(it.optLong("t")), it.optDouble("acc").toInt()) } ?: say("locWait")
-                // a fresh fix usually lands within 5-20 s
-                for (i in 0 until 8) { Thread.sleep(4_000); val l = s.location; if (l != null && l.optLong("t") > before) { sendLoc(s, chat, l); say("locAt", hm(l.optLong("t")), l.optDouble("acc").toInt()); return } }
-                if (s.location == null) say("noLoc")
+                if (!locBusy.compareAndSet(false, true)) return say("busyOne")
+                try { locate(g, s, chat, lang, now) } finally { locBusy.set(false) }
             }
+
             "bonus", "pause", "limit", "bed", "rec" ->
                 if (c.args.isEmpty()) show(subTitle(s, c.name, lang), TgLogic.sub(lang, c.name)) else runArg(g, s, chat, c, panel)
             "lock" -> res(g.command(JSONObject().put("type", "lock")), "locked")
@@ -283,6 +322,16 @@ object Tg {
             } else res(g.command(JSONObject().put("type", "message").put("text", c.rest.take(500))), "msgSent")
             else -> runArg(g, s, chat, c, panel)
         }
+    }
+
+    private fun locate(g: Guard, s: Store, chat: Long, lang: String, now: Long) {
+        fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
+        val before = s.location?.optLong("t") ?: 0
+        g.command(JSONObject().put("type", "locate"))
+        // the last known fix at once, labelled old when it is (> 5 min), then a fresh one usually within 5-20 s
+        s.location?.let { sendLoc(s, chat, it); say(if (now - it.optLong("t") > 5 * 60_000L) "locOld" else "locAt", hm(it.optLong("t")), it.optDouble("acc").toInt()) } ?: say("locWait")
+        for (i in 0 until 8) { Thread.sleep(4_000); val l = s.location; if (l != null && l.optLong("t") > before) { sendLoc(s, chat, l); say("locAt", hm(l.optLong("t")), l.optDouble("acc").toInt()); return } }
+        if (s.location == null) say("noLoc")
     }
 
     private fun subTitle(s: Store, name: String, lang: String) = when (name) {
@@ -298,11 +347,11 @@ object Tg {
         val back = listOf(TgLogic.s(lang, "b.back") to "n:main")
         fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
         fun res(r: String, okKey: String, vararg a: Any?) { if (r == "ok") say(okKey, *a) else say("fail", TgLogic.err(lang, r)) }
-        fun rules(f: (Rules) -> Rules) { g.setRules(f(s.rules)) }
+        fun rules(f: (Rules) -> Rules) { editRules(g, s, f) }
         when (c.name) {
             "bonus" -> {
                 val n = TgLogic.minutes(c.args.firstOrNull() ?: "30", 1, 600) ?: return say("usage", "/bonus 30")
-                val today = Guard.day(now); val r = TgLogic.bonus(s.rules, today, n, now); g.setRules(r); say("bonusDone", n, r.bonusMin)
+                val today = Guard.day(now); val r = editRules(g, s) { TgLogic.bonus(it, today, n, now) }; say("bonusDone", n, r.bonusMin)
             }
             "pause" -> {
                 val n = TgLogic.minutes(c.args.firstOrNull() ?: "60", 1, 24 * 60) ?: return say("usage", "/pause 60")
@@ -327,20 +376,12 @@ object Tg {
             "screen" -> {
                 say("shotWait")
                 val f = Acc.capture(1280, 80)
-                if (f == null) say("fail", TgLogic.err(lang, Acc.lastError)) else sendFile(s, chat, "sendPhoto", "photo", "screen.jpg", "image/jpeg", f.jpeg, hm(now))
+                if (f == null) say("fail", TgLogic.err(lang, Acc.lastError))
+                else if (!sendFile(s, chat, "sendPhoto", "photo", "screen.jpg", "image/jpeg", f.jpeg, hm(now))) say("fail", TgLogic.err(lang, "upload"))
             }
             "rec" -> {
-                val n = (c.args.firstOrNull()?.toIntOrNull() ?: TgLogic.REC_DEF).coerceIn(5, TgLogic.REC_MAX)
-                val ses = Listen.open(g) ?: return say("fail", TgLogic.err(lang, Listen.lastError))
-                say("recWait", n)
-                val out = ByteArrayOutputStream()
-                val t = Thread({ ses.pump(out) }, "tg-rec").apply { start() }
-                Thread.sleep(n * 1000L); ses.close(""); t.join(5_000)
-                val raw = out.toByteArray(); val name = "kidguard-${SimpleDateFormat("HHmm", Locale.US).format(Date(now))}"; val cap = TgLogic.s(lang, "recCap", n, hm(now))
-                // M4A = a voice message that plays inline; raw .aac only as a file to download (fallback)
-                val m4a = Adts.toM4a(raw, g.cacheDir)
-                if (m4a == null || !sendFile(s, chat, "sendVoice", "voice", "$name.m4a", "audio/mp4", m4a.first, cap, mapOf("duration" to (m4a.second / 1000).toString())))
-                    sendFile(s, chat, "sendDocument", "document", "$name.aac", "audio/aac", raw, cap)
+                if (!recBusy.compareAndSet(false, true)) return say("busyOne")
+                try { rec(g, s, chat, c, lang, now) } finally { recBusy.set(false) }
             }
             "files" -> {
                 val l = Files.all(g).filter { it.size <= TgLogic.TG_SEND_MAX }.sortedByDescending { it.at }.take(20)
@@ -351,6 +392,35 @@ object Tg {
             else -> say("unknown")
         }
     }
+
+    private fun rec(g: Guard, s: Store, chat: Long, c: TgLogic.Cmd, lang: String, now: Long) {
+        fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
+        val n = (c.args.firstOrNull()?.toIntOrNull() ?: TgLogic.REC_DEF).coerceIn(5, TgLogic.REC_MAX)
+        val ses = Listen.open(g) ?: return say("fail", TgLogic.err(lang, Listen.lastError))
+        say("recWait", n)
+        val out = ByteArrayOutputStream()
+        val t = Thread({ runCatching { ses.pump(out) } }, "tg-rec").apply { start() }
+        try { Thread.sleep(n * 1000L) } finally { ses.close(""); t.join(5_000) }
+        val raw = out.toByteArray()
+        if (raw.size < 256) return say("fail", TgLogic.err(lang, "no audio"))   // mic taken by a call / another app
+        val name = "kidguard-${SimpleDateFormat("HHmm", Locale.US).format(Date(now))}"; val cap = TgLogic.s(lang, "recCap", n, hm(now))
+        // M4A = a voice message that plays inline; raw .aac only as a file to download (fallback)
+        val m4a = Adts.toM4a(raw, g.cacheDir)
+        // + a "download" button: a voice message can't be saved as a file on every Telegram app; the tap sends the same audio as a document (kept 24 h)
+        val key = m4a?.let { keepRec(g, name, it.first) }
+        val kb = key?.let { TgLogic.keyboard(listOf(listOf(TgLogic.s(lang, "b.recFile") to "a:$it"))).toString() }
+        if (m4a == null || !sendFile(s, chat, "sendVoice", "voice", "$name.m4a", "audio/mp4", m4a.first, cap,
+                mapOf("duration" to (m4a.second / 1000).toString()) + (kb?.let { mapOf("reply_markup" to it) } ?: emptyMap())))
+            if (!sendFile(s, chat, "sendDocument", "document", "$name.aac", "audio/aac", raw, cap)) say("fail", TgLogic.err(lang, "upload"))
+    }
+
+    /** A recording kept for its "download" button: cache/tgrec/<key>__<name>.m4a, older than 24 h pruned. */
+    private fun recDir(g: Guard) = java.io.File(g.cacheDir, "tgrec").apply { mkdirs() }
+    private fun keepRec(g: Guard, name: String, b: ByteArray): String? = runCatching {
+        val d = recDir(g); val cut = System.currentTimeMillis() - 24 * 3600_000L
+        d.listFiles()?.forEach { if (it.lastModified() < cut) it.delete() }
+        val k = Store.randomHex(8); java.io.File(d, "${k}__$name.m4a").writeBytes(b); k
+    }.getOrNull()
 
     private fun callback(g: Guard, s: Store, q: JSONObject) {
         val chat = q.optJSONObject("message")?.optJSONObject("chat")?.optLong("id") ?: return
@@ -371,7 +441,7 @@ object Tg {
             d.startsWith("ry:") -> {
                 val (id, min) = d.removePrefix("ry:").split(':').let { it[0] to (it.getOrNull(1)?.toIntOrNull() ?: 15).coerceIn(1, 600) }
                 if ((0 until s.requests().length()).none { s.requests().optJSONObject(it)?.optString("id") == id }) return done(TgLogic.s(lang, "reqGone"))
-                g.setRules(TgLogic.bonus(s.rules, Guard.day(now), min, now))
+                editRules(g, s) { TgLogic.bonus(it, Guard.day(now), min, now) }
                 g.command(JSONObject().put("type", "answer").put("id", id).put("ok", true).put("min", min))
                 done(TgLogic.s(lang, "reqYes", min))
             }
@@ -383,15 +453,22 @@ object Tg {
             d.startsWith("b:") || d.startsWith("u:") -> {   // the picker becomes the answer, with "another one" + back
                 val on = d[0] == 'b'; val p = d.substring(2)
                 chatAction(s, chat, "typing")
-                g.setRules(TgLogic.block(s.rules, p, on, now))
+                editRules(g, s) { TgLogic.block(it, p, on, now) }
                 edit(s, chat, msgId, TgLogic.s(lang, if (on) "blocked" else "unblockedOne", label(p)), TgLogic.keyboard(listOf(listOf(
                     TgLogic.s(lang, if (on) "b.blockMore" else "b.unblockMore") to (if (on) "c:block" else "c:unblock"), TgLogic.s(lang, "b.back") to "n:main"))))
             }
+            d.startsWith("a:") -> {
+                chatAction(s, chat, "upload_document")
+                val k = d.removePrefix("a:").takeIf { Regex("^[0-9a-f]{16}$").matches(it) }
+                val f = k?.let { kk -> recDir(g).listFiles()?.firstOrNull { it.name.startsWith(kk + "__") } }
+                    ?: return send(s, chat, TgLogic.s(lang, "fail", TgLogic.err(lang, "gone"))).let {}
+                if (!sendStream(s, chat, "sendDocument", "document", f.name.substringAfter("__"), "audio/mp4", f.inputStream(), f.length())) send(s, chat, TgLogic.s(lang, "fail", TgLogic.err(lang, "upload")))
+            }
             d.startsWith("f:") -> {
                 chatAction(s, chat, "upload_document")
-                val e = Files.get(g, d.removePrefix("f:")) ?: return
-                val bytes = Files.openIn(g, e)?.use { it.readBytes() } ?: return
-                sendFile(s, chat, "sendDocument", "document", e.name, e.mime, bytes)
+                val e = Files.get(g, d.removePrefix("f:")) ?: return send(s, chat, TgLogic.s(lang, "fail", TgLogic.err(lang, "gone"))).let {}
+                val ins = Files.openIn(g, e) ?: return send(s, chat, TgLogic.s(lang, "fail", TgLogic.err(lang, "gone"))).let {}
+                if (!sendStream(s, chat, "sendDocument", "document", e.name, e.mime, ins, e.size)) send(s, chat, TgLogic.s(lang, "fail", TgLogic.err(lang, "upload")))
             }
         }
     }
@@ -404,6 +481,7 @@ object Tg {
         val h = URL("$API/file/bot$tok/${f.optString("file_path")}").openConnection() as HttpURLConnection
         h.connectTimeout = 15_000; h.readTimeout = 60_000
         try {
+            if (h.responseCode != 200) { send(s, chat, TgLogic.s(lang, "fail", "HTTP ${h.responseCode}")); return }
             val name = doc.optString("file_name").ifBlank { "telegram-file" }
             val (e, err) = h.inputStream.use { Files.receive(g, name, h.contentLengthLong.takeIf { it >= 0 } ?: f.optLong("file_size"), doc.optString("mime_type").ifBlank { null }, it) }
             if (e != null) send(s, chat, TgLogic.s(lang, "fileIn", e.name)) else send(s, chat, TgLogic.s(lang, "fail", err))
@@ -430,31 +508,42 @@ object Tg {
             if (k !in seen && (markOnly || it.optString("kind") != "tamper" || it.has("shot") || now - it.optLong("t") > 10_000)) fresh += k to it
         }
         if (fresh.isEmpty()) return
-        s.tgSetSeen(TgLogic.remember(s.tgSeen(), fresh.map { it.first }))   // before sending: a crash must not repeat them
-        if (markOnly || s.tgChats().length() == 0) return
+        if (markOnly || s.tgChats().length() == 0) { synchronized(seenLock) { s.tgSetSeen(TgLogic.remember(s.tgSeen(), fresh.map { it.first })) }; return }
+        // seen only once at least one chat got it; a failed one is retried on a later tick (30 s apart), never lost.
+        // Items older than a day are dropped instead (a phone offline for days does not flood the chat).
+        val todo = fresh.filter { (k, o) ->
+            if (now - o.optLong("t", now) > 24 * 3600_000L) { synchronized(seenLock) { s.tgSetSeen(TgLogic.remember(s.tgSeen(), listOf(k))) }; false }
+            else (sending[k] ?: 0L) <= now && sending.put(k, Long.MAX_VALUE).let { true }
+        }
+        if (todo.isEmpty()) return
         val name = kidName(g)
-        work.execute {
-            for ((k, o) in fresh) broadcast(s) { chat ->
-                val lang = s.tgChatLang(chat)
-                when (k[0]) {
-                    's' -> {
-                        send(s, chat, TgLogic.s(lang, "aSos", name), TgLogic.keyboard(listOf(listOf(TgLogic.s(lang, "b.locate") to "c:locate", TgLogic.s(lang, "b.status") to "r:status"))))
-                        s.location?.let { sendLoc(s, chat, it) }
-                    }
-                    'r' -> {
-                        val min = o.optInt("min"); val note = o.optString("note").takeIf { it.isNotBlank() }?.let { "\n“$it”" } ?: ""
-                        val opts = (if (min > 0) listOf(min) else listOf(15, 30)).distinct()
-                        send(s, chat, TgLogic.s(lang, "aReq", name, if (min > 0) TgLogic.s(lang, "min", min) else TgLogic.s(lang, "time"), note),
-                            TgLogic.keyboard(listOf(opts.map { TgLogic.s(lang, "yes", it) to "ry:${o.optString("id")}:$it" } + (TgLogic.s(lang, "no") to "rn:${o.optString("id")}"))))
-                    }
-                    else -> {
-                        val kind = o.optString("kind")
-                        val text = TgLogic.s(lang, when (kind) { "newApp" -> "aNewApp"; "tamper" -> "aTamper"; else -> "aEvent" }, o.optString("text"))
-                        val shot = o.optString("shot").takeIf { it.isNotBlank() }?.let { Shot.file(g, it) }
-                        if (shot != null) sendFile(s, chat, "sendPhoto", "photo", "kidguard-${shot.nameWithoutExtension}.jpg", "image/jpeg", shot.readBytes(), text)
-                        else send(s, chat, text)
-                    }
-                }
+        alerts.execute {
+            for ((k, o) in todo) {
+                val n = runCatching { alert(g, s, name, k, o) }.getOrDefault(0)
+                if (n > 0) { synchronized(seenLock) { s.tgSetSeen(TgLogic.remember(s.tgSeen(), listOf(k))) }; sending.remove(k) }
+                else sending[k] = System.currentTimeMillis() + 30_000L
+            }
+        }
+    }
+
+    /** One alert to every linked chat; how many got it. */
+    private fun alert(g: Guard, s: Store, name: String, k: String, o: JSONObject): Int = broadcast(s) { chat ->
+        val lang = s.tgChatLang(chat)
+        when (k[0]) {
+            's' -> ok(send(s, chat, TgLogic.s(lang, "aSos", name), TgLogic.keyboard(listOf(listOf(TgLogic.s(lang, "b.locate") to "c:locate", TgLogic.s(lang, "b.status") to "r:status")))))
+                .also { if (it) s.location?.let { l -> runCatching { sendLoc(s, chat, l) } } }
+            'r' -> {
+                val min = o.optInt("min"); val note = o.optString("note").takeIf { it.isNotBlank() }?.let { "\n“$it”" } ?: ""
+                val opts = (if (min > 0) listOf(min) else listOf(15, 30)).distinct()
+                ok(send(s, chat, TgLogic.s(lang, "aReq", name, if (min > 0) TgLogic.s(lang, "min", min) else TgLogic.s(lang, "time"), note),
+                    TgLogic.keyboard(listOf(opts.map { TgLogic.s(lang, "yes", it) to "ry:${o.optString("id")}:$it" } + (TgLogic.s(lang, "no") to "rn:${o.optString("id")}")))))
+            }
+            else -> {
+                val kind = o.optString("kind")
+                val text = TgLogic.s(lang, when (kind) { "newApp" -> "aNewApp"; "tamper" -> "aTamper"; else -> "aEvent" }, o.optString("text"))
+                val shot = o.optString("shot").takeIf { it.isNotBlank() }?.let { Shot.file(g, it) }?.takeIf { it.exists() }
+                (shot != null && sendStream(s, chat, "sendPhoto", "photo", "kidguard-${shot.nameWithoutExtension}.jpg", "image/jpeg", shot.inputStream(), shot.length(), text))
+                    || ok(send(s, chat, text))
             }
         }
     }

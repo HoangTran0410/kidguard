@@ -11,6 +11,7 @@ object TgLogic {
     const val MAX_CHATS = 5
     const val CODE_MS = 15 * 60_000L
     const val CODE_TRIES = 5
+    const val CHAT_TRIES = 3   // wrong codes from one not-linked chat before it is ignored (until the app restarts)
     const val POLL_S = 50                       // getUpdates long-poll seconds (one open request, ~1.5 KB / min idle)
     const val REC_DEF = 20; const val REC_MAX = 60
     const val TG_FILE_MAX = 20L * 1024 * 1024   // Bot API download limit (parent -> kid documents)
@@ -32,7 +33,7 @@ object TgLogic {
     /** Telegram's language_code ("vi", "vi-VN", "en-US"...) -> "vi" / "en"; blank = [fallback]. */
     fun langOf(code: String?, fallback: String) = when {
         code.isNullOrBlank() -> fallback
-        code.lowercase().startsWith("vi") -> "vi"
+        code.lowercase().let { it.startsWith("vi") || it == "vn" || it == "tv" } -> "vi"
         else -> "en"
     }
     fun other(lang: String) = if (lang == "en") "vi" else "en"
@@ -140,7 +141,9 @@ object TgLogic {
         "b.plus" to "+%1\$s", "b.sec" to "%1\$d giây",
         "kbPh" to "Gõ lệnh hoặc bấm nút…",
         "b.lang" to "🇬🇧 English", "langDone" to "🇻🇳 Đã chuyển sang Tiếng Việt.",
-        "busy" to "⏳ Đang làm…", "b.blockMore" to "⛔ Chặn app khác", "b.unblockMore" to "✅ Bỏ chặn app khác",
+        "busy" to "⏳ Đang làm…", "b.recFile" to "⬇️ Tải file ghi âm", "busyOne" to "⏳ Đang làm việc này cho một yêu cầu khác, đợi xong rồi thử lại.",
+        "newLink" to "🔗 Một chat Telegram mới vừa liên kết với máy: %1\$s. Không phải bạn hay người nhà? Gỡ trong KidGuard (Cài đặt > Telegram).",
+        "locOld" to "Vị trí cũ lúc %1\$s (sai số ~%2\$d m), đang lấy vị trí mới…", "b.blockMore" to "⛔ Chặn app khác", "b.unblockMore" to "✅ Bỏ chặn app khác",
         "botShort" to "Bot KidGuard riêng của nhà bạn: xem và quản lý điện thoại của con.",
         "botDesc" to "Bot này chạy trên chính điện thoại của con (KidGuard). Bấm Bắt đầu rồi gửi mã 6 số trong KidGuard (Cài đặt > Telegram) để liên kết. Chỉ chat đã liên kết mới điều khiển được.",
         // alerts
@@ -154,6 +157,7 @@ object TgLogic {
         "min" to "%1\$d phút", "time" to "thời gian",
         "e.acc off" to "cần bật Trợ năng KidGuard trên máy con",
         "e.screen off" to "màn hình máy con đang tắt",
+        "e.upload" to "gửi lên Telegram không được (mạng yếu?), thử lại sau", "e.gone" to "không còn trên máy", "e.no audio" to "không thu được âm thanh (micro đang bận?)",
         "e.no mic permission" to "chưa có quyền micro",
         "e.notice blocked" to "thông báo của KidGuard đang bị tắt trên máy con",
         "e.not owner" to "cần chế độ Device Owner",
@@ -224,7 +228,9 @@ object TgLogic {
         "b.plus" to "+%1\$s", "b.sec" to "%1\$d s",
         "kbPh" to "Send a command or tap a button…",
         "b.lang" to "🇻🇳 Tiếng Việt", "langDone" to "🇬🇧 Switched to English.",
-        "busy" to "⏳ Working…", "b.blockMore" to "⛔ Block another", "b.unblockMore" to "✅ Unblock another",
+        "busy" to "⏳ Working…", "b.recFile" to "⬇️ Download the recording", "busyOne" to "⏳ Already doing this for another request, try again when it's done.",
+        "newLink" to "🔗 A new Telegram chat just linked to the phone: %1\$s. Not you or family? Remove it in KidGuard (Settings > Telegram).",
+        "locOld" to "Old location from %1\$s (~%2\$d m), getting a fresh one…", "b.blockMore" to "⛔ Block another", "b.unblockMore" to "✅ Unblock another",
         "botShort" to "Your family's own KidGuard bot: see and manage your child's phone.",
         "botDesc" to "This bot runs on your child's phone itself (KidGuard). Press Start, then send the 6-digit code from KidGuard (Settings > Telegram) to link. Only linked chats can control the phone.",
         "aSos" to "🆘 %1\$s pressed SOS!",
@@ -237,6 +243,7 @@ object TgLogic {
         "min" to "%1\$d more minutes", "time" to "more time",
         "e.acc off" to "turn on KidGuard's accessibility service on the phone",
         "e.screen off" to "the phone's screen is off",
+        "e.upload" to "couldn't upload to Telegram (weak network?), try again later", "e.gone" to "no longer on the phone", "e.no audio" to "no sound recorded (microphone busy?)",
         "e.no mic permission" to "no microphone permission",
         "e.notice blocked" to "KidGuard's notifications are off on the phone",
         "e.not owner" to "needs Device Owner mode",
