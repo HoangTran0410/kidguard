@@ -772,6 +772,9 @@
     <string name="hm_c_face_medium">Đậm vừa</string>
     <string name="hm_c_face_condensed">Hẹp</string>
     <string name="hm_c_face_serif">Có chân</string>
+    <string name="hm_c_clock_align">Căn đồng hồ</string>
+    <string name="hm_c_align_left">Trái</string>
+    <string name="hm_c_align_center">Giữa</string>
     <string name="hm_c_shape">Hình biểu tượng</string>
     <string name="hm_c_dock">Nền thanh dưới</string>
     <string name="hm_c_dock_labels">Tên ứng dụng ở thanh dưới</string>

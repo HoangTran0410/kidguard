@@ -102,23 +102,26 @@ internal fun HomeActivity.tickClocks(dv: View0) {
 }
 
 internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideNext: Boolean): View {
-    val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL or Gravity.START; setPadding(dp(14), dp(4), dp(8), dp(4)) }
+    val mid = model?.style?.clockAlign == "center"
+    // left: the digits' ink on the icon column's left edge (the box is already there); centre: centred in the cells
+    val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL or (if (mid) Gravity.CENTER_HORIZONTAL else Gravity.START)
+        setPadding(if (mid) dp(8) else 0, dp(4), dp(8), dp(4)) }
     val big = when (preset.clock) { "big" -> 60f; "thin" -> 46f; else -> 54f } * (if (w <= 3 && preset.cols == 5) 0.85f else 1f) * (if (h >= 2) 1.4f else 1f)
     // one line, scaled down to the cell (FitText): a 3-of-5-cell clock at 2 rows (75 sp) broke into "00:2 / 0" (owner's POCO)
-    val t = FitText(this, big, 0.4f).apply { text = HomeLogic.clock(dv.minute); setTextColor(Color.WHITE) }.apply {
-        typeface = Typeface.create(if (preset.clock == "thin") "sans-serif-light" else "sans-serif", Typeface.NORMAL); setPadding(dp(6), 0, dp(6), 0)
+    val t = FitText(this, big, 0.4f).apply { text = HomeLogic.clock(dv.minute); setTextColor(Color.WHITE); inkLeft = !mid }.apply {
+        typeface = Typeface.create(if (preset.clock == "thin") "sans-serif-light" else "sans-serif", Typeface.NORMAL); setPadding(if (mid) dp(6) else 0, 0, dp(6), 0)
     }
     box.addView(t, LinearLayout.LayoutParams(-2, -2))
     val date = SimpleDateFormat("EEEE, d MMMM", resources.configuration.locales[0]).format(Date(dv.now)).replaceFirstChar { it.titlecase() }
     val d = FitText(this, if (h >= 2) 17f else 15f, 0.75f).apply {
-        full = date; text = date; short = SimpleDateFormat("EEE, d/M", resources.configuration.locales[0]).format(Date(dv.now)).replaceFirstChar { it.titlecase() }; setTextColor(Color.WHITE); typeface = HomeActivity.tf(true); setPadding(dp(6), dp(2), dp(6), dp(2)) }
+        full = date; text = date; short = SimpleDateFormat("EEE, d/M", resources.configuration.locales[0]).format(Date(dv.now)).replaceFirstChar { it.titlecase() }; setTextColor(Color.WHITE); inkLeft = !mid; typeface = HomeActivity.tf(true); setPadding(if (mid) dp(6) else 0, dp(2), dp(6), dp(2)) }
     box.addView(d, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(2) })
     inkViews += t; inkViews += d
     clocks += t to d
     // one place for "what's next": the "Lịch tiếp theo" widget when it is on the home, else here
     if (!hideNext) LauncherLogic.nextEvent(r, dv.minute, dv.dow)?.let { (min, name) ->
         val n = text(if (name.isEmpty()) getString(R.string.hm_next_bed, HomeLogic.clock(min)) else getString(R.string.hm_next, name, HomeLogic.clock(min)), 13f, Color.WHITE)
-            .apply { setPadding(dp(6), dp(2), dp(6), dp(2)); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
+            .apply { setPadding(if (mid) dp(6) else 0, dp(2), dp(6), dp(2)); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
         box.addView(n, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(2) })
         inkViews += n
     }
@@ -134,7 +137,15 @@ internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideN
 internal class FitText(c: android.content.Context, private val sp: Float, private val minScale: Float) : TextView(c) {
     /** Shorter wording used when [full] would need more than [minScale] (a date: "Th 3, 10/11"). */
     var full: String = ""; var short: String? = null
+    /** Shift left by the first glyph's side bearing, so the ink (not the advance box) starts at the padding: at 84 sp the
+     *  "0" of "02:53" sat ~4 dp right of the date line under it, which read as crooked (owner's POCO). */
+    var inkLeft = false
     private val probe = android.graphics.Paint()
+    private val ink = android.graphics.Rect()
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        super.onLayout(changed, l, t, r, b)
+        if (inkLeft && text.isNotEmpty()) { paint.getTextBounds(text.toString(), 0, 1, ink); translationX = -ink.left.toFloat() } else translationX = 0f
+    }
     init { setSingleLine(); includeFontPadding = false; setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, sp) }
     override fun onMeasure(wSpec: Int, hSpec: Int) {
         val px = sp * resources.displayMetrics.scaledDensity

@@ -791,6 +791,9 @@
     <string name="hm_c_face_medium">Medium</string>
     <string name="hm_c_face_condensed">Narrow</string>
     <string name="hm_c_face_serif">Serif</string>
+    <string name="hm_c_clock_align">Clock alignment</string>
+    <string name="hm_c_align_left">Left</string>
+    <string name="hm_c_align_center">Centre</string>
     <string name="hm_c_shape">Icon shape</string>
     <string name="hm_c_dock">Dock background</string>
     <string name="hm_c_dock_labels">App names in the dock</string>

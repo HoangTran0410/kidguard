@@ -119,9 +119,9 @@ object HomeStyle {
 
     /** "Bé" 6-10, "Thiếu niên", "Gọn". [timeW] 0 = full width. */
     val PRESETS = listOf(
-        Preset("be", 3, 4, 72, true, "sky", "night", "orange", "pink", "big", 0, true, true),
-        Preset("teen", 4, 5, 58, true, "sunset", "aurora", "violet", "teal", "normal", 0, false, true),
-        Preset("gon", 5, 6, 50, true, "graphite", "graphite", "blue", "slate", "thin", 2, false, false),
+        Preset("be", 3, 4, 72, true, "sky", "night", "blue", "blue", "big", 0, true, true),
+        Preset("teen", 4, 5, 58, true, "sunset", "aurora", "blue", "blue", "normal", 0, false, true),
+        Preset("gon", 5, 6, 50, true, "graphite", "graphite", "blue", "blue", "thin", 2, false, false),
     )
     fun preset(id: String): Preset = PRESETS.firstOrNull { it.id == id } ?: PRESETS[1]
 

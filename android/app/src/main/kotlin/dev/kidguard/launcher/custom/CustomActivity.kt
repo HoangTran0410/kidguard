@@ -118,6 +118,7 @@ class CustomActivity : Activity() {
         line(home); home.addView(switchRow(s(R.string.hm_c_labels), st.labels) { v -> set { it.copy(labels = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_face), HomeActivity.FACES.zip(listOf(R.string.hm_c_face_sys, R.string.hm_c_face_light, R.string.hm_c_face_medium, R.string.hm_c_face_condensed, R.string.hm_c_face_serif, R.string.hm2_c_face_easy)).map { (f, r) -> s(r) to f }, st.face) { v -> set { it.copy(face = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_shape), listOf(s(R.string.hm_c_round_opt) to "round", s(R.string.hm_c_square_opt) to "square"), st.shape) { v -> set { it.copy(shape = v) } })
+        line(home); home.addView(segRow(s(R.string.hm_c_clock_align), listOf(s(R.string.hm_c_align_left) to "left", s(R.string.hm_c_align_center) to "center"), st.clockAlign) { v -> set { it.copy(clockAlign = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock), st.dockBg) { v -> set { it.copy(dockBg = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock_labels), st.dockLabels) { v -> set { it.copy(dockLabels = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_today), st.today) { v -> set { it.copy(today = v) } })

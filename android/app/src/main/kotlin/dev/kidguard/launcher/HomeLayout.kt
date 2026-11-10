@@ -26,12 +26,13 @@ data class HItem(
 }
 
 data class HStyle(
-    val preset: String = "teen", val icon: Int = 3, val labels: Boolean = true, val shape: String = "round", val dockBg: Boolean = true, val dockLabels: Boolean = true, val badge: String = "num", val face: String = "sys",
+    val preset: String = "teen", val icon: Int = 3, val labels: Boolean = true, val shape: String = "square", val dockBg: Boolean = true, val dockLabels: Boolean = true, val badge: String = "num", val face: String = "sys",
     val accent: String = "", val theme: String = "auto", val font: Double = 1.0, val wallKind: String = "builtin", val wall: String = "", val dim: Int = 0, val blur: Int = 0,
     val lib: Boolean = true, val fx: String = "auto", val today: Boolean = true,
     val speak: Boolean = false, val calm: Boolean = false, val solid: Boolean = false,   // reading aids: say the name on tap / launcher animations off / solid label backing
+    val clockAlign: String = "left",                                                     // big clock widget: "left" | "center"
 ) {
-    fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels).put("badge", badge).put("face", face).put("lib", lib).put("fx", fx).put("today", today).put("speak", speak).put("calm", calm).put("solid", solid)
+    fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels).put("badge", badge).put("face", face).put("lib", lib).put("fx", fx).put("today", today).put("speak", speak).put("calm", calm).put("solid", solid).put("clockAlign", clockAlign)
         .put("accent", accent).put("theme", theme).put("font", font)
         .put("wall", JSONObject().put("kind", wallKind).put("id", wall).put("dim", dim).put("blur", blur))
 
@@ -42,7 +43,7 @@ data class HStyle(
             return HStyle(
                 preset = o.optString("preset", "teen").takeIf { p -> HomeStyle.PRESETS.any { it.id == p } } ?: "teen",
                 icon = o.optInt("icon", 3).coerceIn(1, 5), labels = o.optBoolean("labels", true),
-                shape = o.optString("shape", "round").takeIf { it == "round" || it == "square" } ?: "round",
+                shape = o.optString("shape", "square").takeIf { it == "round" || it == "square" } ?: "square",
                 dockBg = o.optBoolean("dockBg", true), dockLabels = o.optBoolean("dockLabels", true), badge = o.optString("badge", "num").takeIf { it in setOf("num", "dot", "off") } ?: "num",
                 face = o.optString("face", "sys").takeIf { it in HomeActivity.FACES } ?: "sys",
                 accent = o.optString("accent", "").takeIf { a -> a.isEmpty() || HomeStyle.ACCENTS.any { it.id == a } } ?: "",
@@ -53,6 +54,7 @@ data class HStyle(
                 dim = w.optInt("dim", 0).coerceIn(0, 60), blur = w.optInt("blur", 0).coerceIn(0, 100),
                 lib = o.optBoolean("lib", true), today = o.optBoolean("today", true),
                 speak = o.optBoolean("speak", false), calm = o.optBoolean("calm", false), solid = o.optBoolean("solid", false),
+                clockAlign = o.optString("clockAlign", "left").takeIf { it == "left" || it == "center" } ?: "left",
                 fx = o.optString("fx", "auto").takeIf { it in setOf("auto", "full", "lite") } ?: "auto",
             )
         }
