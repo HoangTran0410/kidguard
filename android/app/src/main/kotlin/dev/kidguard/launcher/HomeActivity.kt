@@ -928,7 +928,12 @@ class HomeActivity : Activity() {
                     override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
                     override fun afterTextChanged(s: Editable?) { refill() }
                 })
-                setOnEditorActionListener { _, id, _ -> if (id == EditorInfo.IME_ACTION_GO) { firstHit?.performClick(); true } else false }
+                // empty field: the key only closes the keyboard (Pixel); it used to open the first app of the grid (e.g. Agoda)
+                setOnEditorActionListener { v, id, _ ->
+                    if (id != EditorInfo.IME_ACTION_GO) false
+                    else if (v.text.isNullOrBlank()) { (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(v.windowToken, 0); v.clearFocus(); true }
+                    else { firstHit?.performClick(); true }
+                }
             }
             bar.addView(search, LayoutParams(0, -2, 1f))
             // ⋮ -> "Hidden apps" (HomeHidden.kt): what the drawer leaves out, and why
