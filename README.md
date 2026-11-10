@@ -119,19 +119,25 @@ It uses Android's Private DNS. If the filter's host is refused, or the network h
 
 ## Away from home
 
-At home the parent page talks to the kid's phone over Wi-Fi. When the kid is at school or out, pick one of these:
+At home the parent page talks to the kid's phone over Wi-Fi. When the kid is at school or out there are 3 free ways (use one or several). **The shared relay is already on after pairing**, so the page opens from anywhere even if you do nothing.
 
-| | Tailscale (recommended) | Your own relay (advanced) | Shared relay |
-|---|---|---|---|
-| Setup | ~5 min, once: Tailscale app on the parent's phone + paste one key | ~3 min on a computer: run one script (needs Node.js) | ~10 s: paste an address |
-| Speed | instant (direct connection) | commands in ~20 s (~60 s with the screen off) | same as your own relay |
-| Listen around | yes | no | no |
-| Your data goes through | nobody (end-to-end encrypted, peer to peer) | only your own Cloudflare account | the author's Cloudflare account |
-| Cost / limits | free (Personal plan: 6 users, unlimited devices) | free (100,000 requests/day; one kid's phone uses ~4,300) | free, but the quota is shared by everyone: it can run out for the day |
-| Parent's phone | Tailscale app (Android / iPhone) | any browser | any browser |
-| Kid sees | a key icon in the status bar (Android shows it for every VPN) | nothing | nothing |
+- Just alerts and quick taps (extra time, lock, location): **Telegram bot**.
+- Everything like at home (live screen, listen around): **Tailscale**.
+- Only a browser: the **relay** (on by default; host your own if you don't want data on the author's Cloudflare).
 
-### Tailscale (recommended)
+| | Telegram bot | Tailscale | Relay (shared, on by default) | Your own relay |
+|---|---|---|---|---|
+| Setup | ~2 min: make a bot, paste its token | ~5 min, once: Tailscale app on the parent's phone + paste one key | none | ~3 min on a computer: run one script (needs Node.js) |
+| Used with | the Telegram app (buttons) | the parent page | the parent page, any browser | the parent page, any browser |
+| Speed | ~1 s | instant (direct connection) | usually a few seconds (live socket); fallback poll ~20 s, ~60 s with the screen off | same |
+| Screen / listen | screenshot, 10-60 s recording | live screen, live listen | live screen, no listen | live screen, no listen |
+| SOS / more-time alerts | instant in Telegram | page / parent app | page / parent app | page / parent app |
+| Your data goes through | Telegram's servers | nobody (end-to-end encrypted, peer to peer) | the author's Cloudflare account | only your own Cloudflare account |
+| Needs | internet on the kid's phone; one bot per kid | Device Owner (not basic mode) | nothing | nothing |
+| Cost / limits | free | free (Personal plan: 6 users, unlimited devices) | free, quota shared by everyone: can run out for the day | free (100,000 requests/day; one kid's phone uses ~4,300) |
+| Kid sees | nothing (a notice while recording) | a key icon in the status bar (Android shows it for every VPN) | nothing | nothing |
+
+### Tailscale (most complete)
 
 1. On the parent's phone install **Tailscale** and sign in (Google / Apple / Microsoft account: this also makes your free Tailscale account).
 2. Open [login.tailscale.com/admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → **Generate access token** → **Generate** → copy it. (An auth key also works, but then you must do step 4 by hand.)
@@ -159,6 +165,8 @@ Then in the parent page (on home Wi-Fi): **Cài đặt → relay Cloudflare Work
 Same as above with the author's relay: paste `https://kidguard.99-hoangtran.workers.dev` instead. Nothing to install, but your kid's state passes through someone else's Cloudflare account and the free daily quota is shared by everyone using it. Fine to try; switch to Tailscale or your own relay for daily use.
 
 ### Instant SOS notifications (optional)
+
+Easier: the [Telegram bot](#telegram-bot-optional-easiest) delivers SOS and more-time requests at once with no build. The steps below are for the parent app.
 
 Without this the parent app checks every ~15 minutes. With it, SOS and "more time" requests from a kid connected through the Worker arrive in seconds (Firebase Cloud Messaging, free). Only an id, a time and the minutes go through Google; names, notes and locations do not.
 

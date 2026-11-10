@@ -82,7 +82,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 |---|---|---|---|
 | SOS, xin thêm giờ (hiện trên trang) | ✅ | ✅ | |
 | Đẩy thông báo tức thì (FCM) tới app bố mẹ | ❌ | ✅ | Cần secret `FCM_SA` trên worker |
-| Bot Telegram trên máy con (xem, điều khiển, báo) | ✅ | ✅ | Không phụ thuộc LAN/relay: máy con tự nối Telegram. Trang chỉ dùng để dán token + lấy mã liên kết. (Báo qua bot của worker, `TG_BOT`: cách cũ, trang không còn dùng) |
+| Bot Telegram trên máy con (xem, điều khiển, báo) | ✅ | ✅ | Không phụ thuộc LAN/relay: máy con tự nối Telegram. Trang chỉ dùng để dán token + lấy mã liên kết. (Legacy: báo qua bot của worker, `TG_BOT`, trang không dùng nữa: cách cũ, trang không còn dùng) |
 | Báo mất kết nối | ⚠️ | ✅ | App bố mẹ kiểm tra định kỳ |
 
 ### 3.5 Launcher (màn hình chính của con)

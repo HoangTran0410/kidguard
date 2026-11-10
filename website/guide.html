@@ -79,7 +79,7 @@
         <li><a href="#parent-app">App bố mẹ</a></li>
         <li><a href="#away">Khi con ra khỏi nhà</a></li>
         <li><a href="#tailscale">Tailscale</a></li>
-        <li><a href="#relay">Relay Cloudflare Worker</a></li>
+        <li><a href="#relay">Relay</a></li>
         <li><a href="#telegram">Bot Telegram</a></li>
         <li><a href="#features">Tính năng</a></li>
         <li><a href="#iphone">Con dùng iPhone</a></li>
@@ -192,6 +192,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li>Vào tab <b>Cài đặt</b>, đặt <b>PIN phụ huynh</b>. Chưa có PIN thì máy con không cho ghép thêm trình duyệt khác.</li>
     <li>Đăng nhập lại tài khoản trên máy con (nếu đã xóa) và rút cáp.</li>
     <li>Xiaomi, Oppo, Vivo, Samsung: trên máy con bấm <b>Cài đặt pin / tự khởi động</b>, cho KidGuard chạy nền.</li>
+    <li>Muốn quản lý cả khi con ra ngoài: xem <a href="#away">Khi con ra khỏi nhà</a>.</li>
   </ol>
   <p class="tip"><b>Oppo / Realme / OnePlus (ColorOS):</b> mở Đa nhiệm, kéo thẻ KidGuard xuống để khóa (biểu tượng ổ khóa). Trong Quản lý điện thoại, cho KidGuard “Tự khởi chạy” và chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app.</p>
   <p>Ở Wi-Fi nhà trang chạy HTTP thường: chỉ dùng ở mạng bạn tin tưởng. Mỗi trình duyệt ghép một lần bằng mã 6 số, ghép thêm cần PIN phụ huynh.</p>
@@ -204,34 +205,61 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li><a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk">Tải app bố mẹ</a> và cài lên điện thoại của bạn.</li>
     <li>Mở app, bấm <b>Thêm máy của con</b>.</li>
     <li>Ở nhà: gõ địa chỉ hiện trên màn hình KidGuard của con, rồi mã 6 số.</li>
-    <li>Ngoài nhà: dán link relay (dạng <code>https://…/#c=…&amp;k=…</code>) lấy trong Cài đặt, xem <a href="#relay">relay Cloudflare Worker</a>.</li>
+    <li>Ngoài nhà: dán link relay (dạng <code>https://…/#c=…&amp;k=…</code>) lấy trong <b>Cài đặt → Kết nối</b> (relay đã bật sẵn), xem <a href="#relay">relay</a>.</li>
     <li>Có từ 2 con: mục <b>Tổng quan</b> hiện tất cả các con trên một trang.</li>
   </ol>
+  <p><b>Dễ hơn:</b> <a href="#telegram">bot Telegram</a> gửi SOS và xin thêm giờ tới ngay, không cần app hay build.</p>
   <p>Thông báo xin thêm giờ có nút <b>+15 / +30 phút</b> và <b>Từ chối</b> ngay trên thông báo. App kiểm tra khoảng 15 phút một lần. Muốn SOS tới trong vài giây (qua Worker và Firebase), cần tự build app: xem <a href="https://github.com/HoangTran0410/kidguard#instant-sos-notifications-optional" target="_blank" rel="noopener">README</a>.</p>
   <p>Bố mẹ dùng iPhone: không có app, dùng trình duyệt (Safari) là đủ.</p>
 </section>
 
 <section id="away">
   <h2>Khi con ra khỏi nhà</h2>
-  <p>Ở nhà, trang nói chuyện thẳng với máy con qua Wi-Fi. Khi con ở trường hay đi chơi, bật một trong hai cách miễn phí dưới đây. Cả hai đều <b>bật khi đang ở nhà</b>, trong trang phụ huynh: <b>Cài đặt → Kết nối</b>.</p>
+  <p>Ở nhà, trang nói chuyện thẳng với máy con qua Wi-Fi, không cần cài gì. Khi con ở trường hay đi chơi có 3 cách, đều miễn phí, dùng một hay kết hợp đều được. <b>Relay chung đã bật sẵn</b> ngay khi ghép, nên không làm gì thì trang vẫn mở được từ xa.</p>
+  <ul>
+    <li><b>Chỉ muốn nhận báo và bấm nhanh</b> (cho thêm giờ, khóa, xem vị trí): <a href="#telegram">bot Telegram</a>.</li>
+    <li><b>Muốn mọi thứ như ở nhà</b> (xem màn hình trực tiếp, nghe xung quanh): <a href="#tailscale">Tailscale</a>.</li>
+    <li><b>Chỉ cần trình duyệt</b>: <a href="#relay">relay</a> (đã bật sẵn; tự tạo relay riêng nếu không muốn dữ liệu đi qua máy chủ của tác giả).</li>
+  </ul>
   <div class="card tblwrap">
     <table class="tbl">
-      <thead><tr><th scope="col"></th><th scope="col">Tailscale</th><th scope="col">Relay riêng</th></tr></thead>
+      <thead><tr><th scope="col"></th><th scope="col">Bot Telegram</th><th scope="col">Tailscale</th><th scope="col">Relay</th></tr></thead>
       <tbody>
-        <tr><th scope="row">Cài đặt</th><td>~5 phút, một lần: app Tailscale trên máy bố mẹ, dán 1 khóa</td><td>~3 phút trên máy tính: chạy 1 script (cần Node.js)</td></tr>
-        <tr><th scope="row">Tốc độ</th><td><span class="yes">Tức thì</span></td><td>Lệnh tới trong ~20 giây (~60 giây khi tắt màn hình)</td></tr>
-        <tr><th scope="row">Nghe xung quanh</th><td><span class="yes">Có</span></td><td>Không</td></tr>
-        <tr><th scope="row">Dữ liệu đi qua</th><td>Không ai (mã hóa đầu cuối)</td><td>Chỉ tài khoản Cloudflare của bạn</td></tr>
-        <tr><th scope="row">Giới hạn</th><td>Miễn phí (gói Personal: 6 người, không giới hạn thiết bị)</td><td>Miễn phí (100.000 request/ngày, mỗi máy con ~4.300)</td></tr>
-        <tr><th scope="row">Máy bố mẹ</th><td>App Tailscale (Android / iPhone)</td><td>Trình duyệt bất kỳ</td></tr>
-        <tr><th scope="row">Con thấy</th><td>Biểu tượng chìa khóa trên thanh trạng thái (Android hiện cho mọi VPN)</td><td>Không có gì</td></tr>
+        <tr><th scope="row">Cài đặt</th><td>~2 phút: tạo bot, dán token</td><td>~5 phút, một lần: app Tailscale trên máy bố mẹ, dán 1 khóa</td><td>Không cần (relay chung bật sẵn). Relay riêng: ~3 phút trên máy tính</td></tr>
+        <tr><th scope="row">Dùng bằng</th><td>App Telegram, nút bấm</td><td>Trang phụ huynh (app Tailscale bật)</td><td>Trang phụ huynh, trình duyệt bất kỳ</td></tr>
+        <tr><th scope="row">Tốc độ</th><td><span class="yes">~1 giây</span></td><td><span class="yes">Tức thì</span></td><td>Thường vài giây (khi mất kết nối nhanh: ~20 giây, tắt màn hình ~60 giây)</td></tr>
+        <tr><th scope="row">Màn hình / nghe</th><td>Chụp màn hình, ghi âm 10–60 giây</td><td><span class="yes">Xem trực tiếp, nghe trực tiếp</span></td><td>Xem trực tiếp, không nghe</td></tr>
+        <tr><th scope="row">Báo SOS, xin giờ</th><td><span class="yes">Tới ngay trong Telegram</span></td><td>Trong trang / app bố mẹ</td><td>Trong trang / app bố mẹ</td></tr>
+        <tr><th scope="row">Dữ liệu đi qua</th><td>Máy chủ Telegram</td><td>Không ai (mã hóa đầu cuối)</td><td>Relay chung: Cloudflare của tác giả. Relay riêng: chỉ tài khoản của bạn</td></tr>
+        <tr><th scope="row">Cần</th><td>Máy con có internet. Mỗi bé 1 bot</td><td>Device Owner (không có ở chế độ cơ bản)</td><td>Không</td></tr>
+        <tr><th scope="row">Con thấy</th><td>Không có gì (thông báo khi đang ghi âm)</td><td>Biểu tượng chìa khóa trên thanh trạng thái (VPN)</td><td>Không có gì</td></tr>
       </tbody>
     </table>
+  </div>
+  <p>Bot Telegram, Tailscale và relay riêng đều <b>bật khi đang ở nhà</b>, trong trang phụ huynh: <b>Cài đặt → Kết nối</b> và <b>Cài đặt → Telegram</b>.</p>
+</section>
+
+<section id="telegram">
+  <h2>Bot Telegram <span class="tag ok">Dễ nhất</span></h2>
+  <p>Điều khiển và nhận báo ngay trong Telegram: xem tình hình, cho thêm giờ, khóa máy, tìm vị trí, chụp màn hình, chặn app bằng nút bấm. SOS, xin thêm giờ (có nút Cho / Từ chối), nhập sai PIN (kèm ảnh) tự gửi tới. Không cần Tailscale hay relay: máy con tự chạy bot. Mỗi bé 1 bot riêng.</p>
+  <ol class="steps">
+    <li><b>Tạo bot (1 phút).</b> Trên điện thoại bố mẹ, mở <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> trong Telegram, bấm <b>Bắt đầu</b>, gửi <code>/newbot</code>. Gửi tên bot (vd: <code>Nhà Bin</code>), rồi tên đăng nhập kết thúc bằng <code>bot</code> (vd: <code>nhabin_kidguard_bot</code>; bị trùng thì thêm số).</li>
+    <li><b>Copy token.</b> BotFather trả về 1 dòng dạng <code>123456789:AAH…</code>: chạm vào là copy. Nhấn giữ cả tin → Sao chép cũng được. Giữ kín token.</li>
+    <li><b>Dán vào trang phụ huynh.</b> <b>Cài đặt → Telegram</b>, dán vào ô token (dán cả tin cũng được, trang tự lấy token), bấm <b>Kết nối</b>.</li>
+    <li><b>Liên kết.</b> Trang hiện nút <b>Mở Telegram và liên kết</b> và mã QR. Bấm nút (hoặc quét QR bằng camera điện thoại), Telegram mở bot, bấm <b>Bắt đầu</b>. Bot chào và hiện Menu.</li>
+    <li><b>Thêm người nhận</b> (bố, mẹ, ông bà, tối đa 5): bấm <b>Mã khác</b> và gửi link cho người đó.</li>
+  </ol>
+  <p>Dùng: bấm <b>📋 Menu</b> để bấm nút, hoặc gõ lệnh (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/help</code> xem hết lệnh, <code>/lang</code> đổi Tiếng Việt / English. Gỡ quản lý, huỷ ghép, xoá dữ liệu không làm được qua Telegram.</p>
+  <div class="card faq">
+    <details><summary>Có 2 bé thì sao?</summary><p>Tạo 2 bot (vd: Nhà Bin, Nhà Na), mỗi bot dán vào trang của bé đó. 1 bot chỉ chạy được trên 1 máy con.</p></details>
+    <details><summary>Báo “Token sai” hoặc “đang được nơi khác dùng”?</summary><p>Copy lại cả tin của BotFather và dán. “Nơi khác dùng” nghĩa là bot đã gắn cho máy khác: tạo bot mới cho bé này. Lỡ lộ token: gửi <code>/revoke</code> cho BotFather lấy token mới, dán lại.</p></details>
+    <details><summary>Bấm Bắt đầu mà bot im?</summary><p>Mã liên kết dùng được 15 phút: bấm <b>Mã khác</b>. Máy con phải có mạng (bot chạy trên máy con).</p></details>
+    <details><summary>Tin nhắn đi qua đâu?</summary><p>Qua máy chủ Telegram (không mã hoá đầu cuối). Token chỉ lưu trên máy con. Tắt bot: <b>Cài đặt → Telegram → Tắt bot</b>, máy con quên token.</p></details>
   </div>
 </section>
 
 <section id="tailscale">
-  <h2>Tailscale <span class="tag ok">Khuyên dùng</span></h2>
+  <h2>Tailscale <span class="tag ok">Đủ tính năng nhất</span></h2>
   <p>Máy con tự cài Tailscale và vào mạng riêng của bạn. Không cần Cloudflare. Cần Device Owner (không có ở chế độ cơ bản).</p>
   <ol class="steps">
     <li>Trên điện thoại của bạn: cài app <b>Tailscale</b>, đăng nhập bằng tài khoản Google / Apple / Microsoft. Việc này cũng tạo tài khoản Tailscale miễn phí.</li>
@@ -258,7 +286,9 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
 </section>
 
 <section id="relay">
-  <h2>Relay riêng (Cloudflare Worker)</h2>
+  <h2>Relay (Cloudflare Worker)</h2>
+  <p><b>Đã bật sẵn:</b> ghép xong là trang dùng relay chung của KidGuard, mở được từ bất cứ đâu (link trong <b>Cài đặt → Kết nối</b>). Trạng thái, vị trí và luật của con đi qua tài khoản Cloudflare của tác giả, hạn mức miễn phí dùng chung với mọi người. Không muốn vậy: tự tạo relay riêng như dưới, hoặc tắt relay trong Cài đặt.</p>
+  <h3>Tự tạo relay riêng</h3>
   <p>Một Cloudflare Worker nhỏ trong tài khoản Cloudflare miễn phí của bạn, chuyển lệnh, trạng thái và màn hình trực tiếp. Hình màn hình chỉ nằm trong bộ nhớ của Worker, không lưu lại. Máy bố mẹ chỉ cần trình duyệt.</p>
   <p class="need">Cần: máy tính có <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> 18+. Tài khoản Cloudflare tạo miễn phí lúc đăng nhập.</p>
   <ol class="steps">
@@ -276,30 +306,11 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
   </ol>
   <ul>
     <li>Cập nhật: chạy lại script. Gỡ khỏi tài khoản: <code>scripts/relay.sh --delete</code> (Windows: <code>-Delete</code>).</li>
-    <li>Gói miễn phí: 100.000 request mỗi ngày, mỗi máy con dùng khoảng 4.300. Không nghe xung quanh được qua relay.</li>
+    <li>Gói miễn phí: 100.000 request mỗi ngày, mỗi máy con dùng khoảng 4.300. Lệnh thường tới trong vài giây. Không nghe xung quanh được qua relay.</li>
   </ul>
 
-  <h3 id="shared-relay">Relay chung (để thử)</h3>
-  <p>Làm như trên nhưng dán <code>https://kidguard.99-hoangtran.workers.dev</code>, không cần cài gì. Đổi lại, trạng thái của con đi qua tài khoản Cloudflare của tác giả, và hạn mức miễn phí mỗi ngày dùng chung với mọi người nên có thể hết trong ngày. Dùng hằng ngày thì chuyển sang Tailscale hoặc relay riêng.</p>
-</section>
-
-<section id="telegram">
-  <h2>Bot Telegram <span class="tag ok">Dễ nhất</span></h2>
-  <p>Điều khiển và nhận báo ngay trong Telegram: xem tình hình, cho thêm giờ, khóa máy, tìm vị trí, chụp màn hình, chặn app bằng nút bấm. SOS, xin thêm giờ (có nút Cho / Từ chối), nhập sai PIN (kèm ảnh) tự gửi tới. Không cần Tailscale hay relay: máy con tự chạy bot. Mỗi bé 1 bot riêng.</p>
-  <ol class="steps">
-    <li><b>Tạo bot (1 phút).</b> Trên điện thoại bố mẹ, mở <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> trong Telegram, bấm <b>Bắt đầu</b>, gửi <code>/newbot</code>. Gửi tên bot (vd: <code>Nhà Bin</code>), rồi tên đăng nhập kết thúc bằng <code>bot</code> (vd: <code>nhabin_kidguard_bot</code>; bị trùng thì thêm số).</li>
-    <li><b>Copy token.</b> BotFather trả về 1 dòng dạng <code>123456789:AAH…</code>: chạm vào là copy. Nhấn giữ cả tin → Sao chép cũng được. Giữ kín token.</li>
-    <li><b>Dán vào trang phụ huynh.</b> <b>Cài đặt → Telegram</b>, dán vào ô token (dán cả tin cũng được, trang tự lấy token), bấm <b>Kết nối</b>.</li>
-    <li><b>Liên kết.</b> Trang hiện nút <b>Mở Telegram và liên kết</b> và mã QR. Bấm nút (hoặc quét QR bằng camera điện thoại), Telegram mở bot, bấm <b>Bắt đầu</b>. Bot chào và hiện Menu.</li>
-    <li><b>Thêm người nhận</b> (bố, mẹ, ông bà, tối đa 5): bấm <b>Mã khác</b> và gửi link cho người đó.</li>
-  </ol>
-  <p>Dùng: bấm <b>📋 Menu</b> để bấm nút, hoặc gõ lệnh (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/help</code> xem hết lệnh, <code>/lang</code> đổi Tiếng Việt / English. Gỡ quản lý, huỷ ghép, xoá dữ liệu không làm được qua Telegram.</p>
-  <div class="card faq">
-    <details><summary>Có 2 bé thì sao?</summary><p>Tạo 2 bot (vd: Nhà Bin, Nhà Na), mỗi bot dán vào trang của bé đó. 1 bot chỉ chạy được trên 1 máy con.</p></details>
-    <details><summary>Báo “Token sai” hoặc “đang được nơi khác dùng”?</summary><p>Copy lại cả tin của BotFather và dán. “Nơi khác dùng” nghĩa là bot đã gắn cho máy khác: tạo bot mới cho bé này. Lỡ lộ token: gửi <code>/revoke</code> cho BotFather lấy token mới, dán lại.</p></details>
-    <details><summary>Bấm Bắt đầu mà bot im?</summary><p>Mã liên kết dùng được 15 phút: bấm <b>Mã khác</b>. Máy con phải có mạng (bot chạy trên máy con).</p></details>
-    <details><summary>Tin nhắn đi qua đâu?</summary><p>Qua máy chủ Telegram (không mã hoá đầu cuối). Token chỉ lưu trên máy con. Tắt bot: <b>Cài đặt → Telegram → Tắt bot</b>, máy con quên token.</p></details>
-  </div>
+  <h3 id="shared-relay">Relay chung</h3>
+  <p>Địa chỉ <code>https://kidguard.99-hoangtran.workers.dev</code>, bật sẵn. Hạn mức miễn phí mỗi ngày dùng chung với mọi người nên hiếm khi có thể hết trong ngày: khi đó dùng bot Telegram, Tailscale hoặc relay riêng.</p>
 </section>
 
 <section id="features">

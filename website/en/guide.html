@@ -79,7 +79,7 @@
         <li><a href="#parent-app">Parent app</a></li>
         <li><a href="#away">Away from home</a></li>
         <li><a href="#tailscale">Tailscale</a></li>
-        <li><a href="#relay">Cloudflare Worker relay</a></li>
+        <li><a href="#relay">Relay</a></li>
         <li><a href="#telegram">Telegram bot</a></li>
         <li><a href="#features">Features</a></li>
         <li><a href="#iphone">Child on an iPhone</a></li>
@@ -192,6 +192,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li>Open the <b>Settings</b> tab and set a <b>parent PIN</b>. Without it the child's phone refuses to pair another browser.</li>
     <li>Sign back in to the accounts on the child's phone (if you removed them) and unplug the cable.</li>
     <li>Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap <b>Battery / autostart settings</b> and let KidGuard run in the background.</li>
+    <li>To manage when your child is out too: see <a href="#away">Away from home</a>.</li>
   </ol>
   <p class="tip"><b>Oppo / Realme / OnePlus (ColorOS):</b> open Recents and pull the KidGuard card down to lock it (padlock icon). In Phone Manager allow KidGuard to autostart and run in the background. Swiping KidGuard away in Recents on ColorOS stops the app completely.</p>
   <p>On home Wi-Fi the page is plain HTTP: use it only on networks you trust. Each browser pairs once with the 6-digit code; pairing more needs the parent PIN.</p>
@@ -204,34 +205,61 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li><a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk">Download the parent app</a> and install it on your phone.</li>
     <li>Open it and tap <b>Add kid's phone</b>.</li>
     <li>At home: type the address shown on the child's KidGuard screen, then the 6-digit code.</li>
-    <li>Away from home: paste the relay link (like <code>https://…/#c=…&amp;k=…</code>) from Settings, see <a href="#relay">Cloudflare Worker relay</a>.</li>
+    <li>Away from home: paste the relay link (like <code>https://…/#c=…&amp;k=…</code>) from <b>Settings → Connection</b> (the relay is already on), see <a href="#relay">relay</a>.</li>
     <li>Two kids or more: <b>Overview</b> shows every kid on one page.</li>
   </ol>
+  <p><b>Easier:</b> the <a href="#telegram">Telegram bot</a> delivers SOS and more-time requests at once, no app or build needed.</p>
   <p>A time request notification has <b>+15 / +30 min</b> and <b>Decline</b> buttons right on it. The app checks about every 15 minutes. For SOS in seconds (through the Worker and Firebase) you build the app yourself: see the <a href="https://github.com/HoangTran0410/kidguard#instant-sos-notifications-optional" target="_blank" rel="noopener">README</a>.</p>
   <p>Parent on an iPhone: there is no app, the browser (Safari) is enough.</p>
 </section>
 
 <section id="away">
   <h2>Away from home</h2>
-  <p>At home the page talks to the child's phone over Wi-Fi. When the child is at school or out, turn on one of the two free options below. Both are <b>turned on while at home</b>, in the parent page: <b>Settings → Connection</b>.</p>
+  <p>At home the page talks to the child's phone over Wi-Fi, nothing to set up. When the child is at school or out there are 3 free ways; use one or several. <b>The shared relay is already on</b> from pairing, so the page opens from anywhere even if you do nothing.</p>
+  <ul>
+    <li><b>Just alerts and quick taps</b> (extra time, lock, location): the <a href="#telegram">Telegram bot</a>.</li>
+    <li><b>Everything like at home</b> (live screen, listen around): <a href="#tailscale">Tailscale</a>.</li>
+    <li><b>Only a browser</b>: the <a href="#relay">relay</a> (already on; make your own if you don't want data going through the author's server).</li>
+  </ul>
   <div class="card tblwrap">
     <table class="tbl">
-      <thead><tr><th scope="col"></th><th scope="col">Tailscale</th><th scope="col">Own relay</th></tr></thead>
+      <thead><tr><th scope="col"></th><th scope="col">Telegram bot</th><th scope="col">Tailscale</th><th scope="col">Relay</th></tr></thead>
       <tbody>
-        <tr><th scope="row">Setup</th><td>~5 min, once: Tailscale app on the parent's phone, paste one key</td><td>~3 min on a computer: run one script (needs Node.js)</td></tr>
-        <tr><th scope="row">Speed</th><td><span class="yes">Instant</span></td><td>Commands in ~20 s (~60 s with the screen off)</td></tr>
-        <tr><th scope="row">Listen around</th><td><span class="yes">Yes</span></td><td>No</td></tr>
-        <tr><th scope="row">Data goes through</th><td>Nobody (end-to-end encrypted)</td><td>Only your own Cloudflare account</td></tr>
-        <tr><th scope="row">Limits</th><td>Free (Personal plan: 6 users, unlimited devices)</td><td>Free (100,000 requests/day, one kid's phone uses ~4,300)</td></tr>
-        <tr><th scope="row">Parent's phone</th><td>Tailscale app (Android / iPhone)</td><td>Any browser</td></tr>
-        <tr><th scope="row">Child sees</th><td>A key icon in the status bar (Android shows it for every VPN)</td><td>Nothing</td></tr>
+        <tr><th scope="row">Setup</th><td>~2 min: make a bot, paste its token</td><td>~5 min, once: Tailscale app on the parent's phone, paste one key</td><td>None (shared relay is on). Your own: ~3 min on a computer</td></tr>
+        <tr><th scope="row">Used with</th><td>The Telegram app, buttons</td><td>The parent page (Tailscale app on)</td><td>The parent page, any browser</td></tr>
+        <tr><th scope="row">Speed</th><td><span class="yes">~1 second</span></td><td><span class="yes">Instant</span></td><td>Usually a few seconds (if the live link drops: ~20 s, screen off ~60 s)</td></tr>
+        <tr><th scope="row">Screen / listen</th><td>Screenshot, 10–60 s recording</td><td><span class="yes">Live screen, live listen</span></td><td>Live screen, no listen</td></tr>
+        <tr><th scope="row">SOS, more-time requests</th><td><span class="yes">Arrive at once in Telegram</span></td><td>In the page / parent app</td><td>In the page / parent app</td></tr>
+        <tr><th scope="row">Data goes through</th><td>Telegram's servers</td><td>Nobody (end-to-end encrypted)</td><td>Shared: the author's Cloudflare. Your own: only your account</td></tr>
+        <tr><th scope="row">Needs</th><td>Internet on the child's phone. One bot per child</td><td>Device Owner (not in basic mode)</td><td>Nothing</td></tr>
+        <tr><th scope="row">Child sees</th><td>Nothing (a notice while recording)</td><td>A key icon in the status bar (VPN)</td><td>Nothing</td></tr>
       </tbody>
     </table>
+  </div>
+  <p>The Telegram bot, Tailscale and your own relay are all <b>turned on while at home</b>, in the parent page: <b>Settings → Connection</b> and <b>Settings → Telegram</b>.</p>
+</section>
+
+<section id="telegram">
+  <h2>Telegram bot <span class="tag ok">Easiest</span></h2>
+  <p>Control and get alerts right in Telegram: status, extra time, lock, location, screenshot, block apps with buttons. SOS, "more time" requests (with Allow / No buttons) and wrong PINs (with a photo) arrive by themselves. No Tailscale or relay needed: the child's phone runs the bot. One bot per child.</p>
+  <ol class="steps">
+    <li><b>Create a bot (1 minute).</b> On the parent's phone open <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> in Telegram, tap <b>Start</b>, send <code>/newbot</code>. Send a name (e.g. <code>Bin's home</code>), then a username ending in <code>bot</code> (e.g. <code>binshome_kidguard_bot</code>; taken? add digits).</li>
+    <li><b>Copy the token.</b> BotFather answers with a line like <code>123456789:AAH…</code>: tap it to copy. Long-press the whole message → Copy works too. Keep the token secret.</li>
+    <li><b>Paste it in the parent page.</b> <b>Settings → Telegram</b>, paste into the token box (the whole message is fine, the page picks the token out), tap <b>Connect</b>.</li>
+    <li><b>Link.</b> The page shows <b>Open Telegram and link</b> and a QR code. Tap it (or scan the QR with your phone's camera), Telegram opens the bot, tap <b>Start</b>. The bot says hello and shows the Menu.</li>
+    <li><b>Add people</b> (mum, dad, grandparents, up to 5): tap <b>Other code</b> and send them the link.</li>
+  </ol>
+  <p>Use it: tap <b>📋 Menu</b> for buttons, or type commands (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/help</code> lists them all, <code>/lang</code> switches English / Tiếng Việt. Release, unpair and clear data are not possible over Telegram.</p>
+  <div class="card faq">
+    <details><summary>Two children?</summary><p>Make two bots (e.g. Bin's home, Na's home), each pasted on that child's page. One bot runs on one child's phone only.</p></details>
+    <details><summary>“Wrong token” or “used somewhere else”?</summary><p>Copy BotFather's whole message again and paste it. “Used somewhere else” means the bot belongs to another phone: make a new bot for this child. Token leaked? Send <code>/revoke</code> to BotFather for a new one and paste it again.</p></details>
+    <details><summary>Tapped Start, the bot says nothing?</summary><p>A link code works for 15 minutes: tap <b>Other code</b>. The child's phone must be online (the bot runs on it).</p></details>
+    <details><summary>Where do messages go?</summary><p>Through Telegram's servers (not end-to-end encrypted). The token stays on the child's phone. Turn it off: <b>Settings → Telegram → Turn off</b>, the phone forgets the token.</p></details>
   </div>
 </section>
 
 <section id="tailscale">
-  <h2>Tailscale <span class="tag ok">Recommended</span></h2>
+  <h2>Tailscale <span class="tag ok">Most complete</span></h2>
   <p>The child's phone installs Tailscale itself and joins your private network. No Cloudflare needed. Needs Device Owner (not in basic mode).</p>
   <ol class="steps">
     <li>On your phone: install the <b>Tailscale</b> app and sign in with Google / Apple / Microsoft. This also makes your free Tailscale account.</li>
@@ -258,7 +286,9 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
 </section>
 
 <section id="relay">
-  <h2>Your own relay (Cloudflare Worker)</h2>
+  <h2>Relay (Cloudflare Worker)</h2>
+  <p><b>Already on:</b> after pairing the page uses KidGuard's shared relay and opens from anywhere (link in <b>Settings → Connection</b>). Your child's state, location and rules pass through the author's Cloudflare account, and the free quota is shared by everyone. Don't want that: make your own relay as below, or turn the relay off in Settings.</p>
+  <h3>Make your own relay</h3>
   <p>A small Cloudflare Worker in your own free Cloudflare account relays commands, state and the live screen. Screen frames stay in the Worker's memory only, never stored. The parent's phone only needs a browser.</p>
   <p class="need">Needs: a computer with <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> 18+. The Cloudflare account can be made for free at login.</p>
   <ol class="steps">
@@ -276,30 +306,11 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
   </ol>
   <ul>
     <li>Update: run the script again. Remove it from your account: <code>scripts/relay.sh --delete</code> (Windows: <code>-Delete</code>).</li>
-    <li>Free plan: 100,000 requests a day, one kid's phone uses about 4,300. Listen around doesn't work through the relay.</li>
+    <li>Free plan: 100,000 requests a day, one kid's phone uses about 4,300. Commands usually arrive in a few seconds. Listen around doesn't work through the relay.</li>
   </ul>
 
-  <h3 id="shared-relay">Shared relay (to try it)</h3>
-  <p>Same as above, but paste <code>https://kidguard.99-hoangtran.workers.dev</code>: nothing to install. In exchange your child's state passes through the author's Cloudflare account, and the free daily quota is shared by everyone, so it can run out for the day. For daily use switch to Tailscale or your own relay.</p>
-</section>
-
-<section id="telegram">
-  <h2>Telegram bot <span class="tag ok">Easiest</span></h2>
-  <p>Control and get alerts right in Telegram: status, extra time, lock, location, screenshot, block apps with buttons. SOS, "more time" requests (with Allow / No buttons) and wrong PINs (with a photo) arrive by themselves. No Tailscale or relay needed: the child's phone runs the bot. One bot per child.</p>
-  <ol class="steps">
-    <li><b>Create a bot (1 minute).</b> On the parent's phone open <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> in Telegram, tap <b>Start</b>, send <code>/newbot</code>. Send a name (e.g. <code>Bin's home</code>), then a username ending in <code>bot</code> (e.g. <code>binshome_kidguard_bot</code>; taken? add digits).</li>
-    <li><b>Copy the token.</b> BotFather answers with a line like <code>123456789:AAH…</code>: tap it to copy. Long-press the whole message → Copy works too. Keep the token secret.</li>
-    <li><b>Paste it in the parent page.</b> <b>Settings → Telegram</b>, paste into the token box (the whole message is fine, the page picks the token out), tap <b>Connect</b>.</li>
-    <li><b>Link.</b> The page shows <b>Open Telegram and link</b> and a QR code. Tap it (or scan the QR with your phone's camera), Telegram opens the bot, tap <b>Start</b>. The bot says hello and shows the Menu.</li>
-    <li><b>Add people</b> (mum, dad, grandparents, up to 5): tap <b>Other code</b> and send them the link.</li>
-  </ol>
-  <p>Use it: tap <b>📋 Menu</b> for buttons, or type commands (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/help</code> lists them all, <code>/lang</code> switches English / Tiếng Việt. Release, unpair and clear data are not possible over Telegram.</p>
-  <div class="card faq">
-    <details><summary>Two children?</summary><p>Make two bots (e.g. Bin's home, Na's home), each pasted on that child's page. One bot runs on one child's phone only.</p></details>
-    <details><summary>“Wrong token” or “used somewhere else”?</summary><p>Copy BotFather's whole message again and paste it. “Used somewhere else” means the bot belongs to another phone: make a new bot for this child. Token leaked? Send <code>/revoke</code> to BotFather for a new one and paste it again.</p></details>
-    <details><summary>Tapped Start, the bot says nothing?</summary><p>A link code works for 15 minutes: tap <b>Other code</b>. The child's phone must be online (the bot runs on it).</p></details>
-    <details><summary>Where do messages go?</summary><p>Through Telegram's servers (not end-to-end encrypted). The token stays on the child's phone. Turn it off: <b>Settings → Telegram → Turn off</b>, the phone forgets the token.</p></details>
-  </div>
+  <h3 id="shared-relay">Shared relay</h3>
+  <p>Address <code>https://kidguard.99-hoangtran.workers.dev</code>, on by default. The free daily quota is shared by everyone, so on a rare day it can run out: then use the Telegram bot, Tailscale or your own relay.</p>
 </section>
 
 <section id="features">

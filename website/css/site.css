@@ -201,6 +201,7 @@ footer a:hover{color:var(--ink)}
   .rows.cols>li{border-top:0;border-left:1px solid var(--line);padding:var(--pad)}
   .rows.cols>li:first-child{border-left:0}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:var(--s4)}
+  .two.three{grid-template-columns:repeat(3,minmax(0,1fr))}
   .dl{grid-template-columns:1fr 1fr}
   .dl .card:nth-child(3){grid-column:1/-1}
 }
