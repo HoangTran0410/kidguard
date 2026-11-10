@@ -462,6 +462,9 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   a picked app turns the picker into the answer (+ "another one"). Every tapped button is acked at once on its own thread
   (answerCallbackQuery, "working…" toast) and commands send sendChatAction (typing / find_location / upload_photo / record_voice).
   setMyShortDescription. The page shows `https://t.me/<bot>?start=<code>` (+ QR): Telegram sends `/start <code>`, which links.
+- Language per chat (`chats[].lang`): set at link from the Telegram user's `language_code` (vi* -> vi, else en; none -> the bot
+  language from tgSet), changed with /lang [vi|en] or the 🌐 menu button; alerts and answers use it. setMyCommands /
+  setMyDescription / setMyShortDescription are set for language_code vi, en and the default, at tgSet and once per app start.
 - Alerts, every Guard tick, each id once (`tgSeen`, last 80; linking a chat marks the past as seen): every SOS (+ location),
   every request with buttons `ry:<id>:<min>` (bonus + `answer ok`) / `rn:<id>` (`answer` no), every event; a `tamper` event waits up
   to 10 s for its wrong-PIN photo and is sent as a photo.

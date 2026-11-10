@@ -132,4 +132,14 @@ class TgLogicTest {
         assertEquals("2 giờ", TgLogic.fmt(120 * 60_000L, "vi")); assertEquals("1h 30m", TgLogic.fmt(90 * 60_000L, "en"))
         assertEquals("15 phút", TgLogic.fmt(15 * 60_000L, "vi"))
     }
+
+    @Test fun languages() {
+        assertEquals("vi", TgLogic.langOf("vi-VN", "en")); assertEquals("en", TgLogic.langOf("fr", "vi"))
+        assertEquals("vi", TgLogic.langOf("", "vi")); assertEquals("en", TgLogic.langOf(null, "en"))
+        val vi = datas(TgLogic.menu("vi")); val en = datas(TgLogic.menu("en"))
+        assertTrue(vi.contains("c:lang en") && en.contains("c:lang vi"))
+        assertEquals(TgLogic.Cmd("lang", listOf("en"), "en"), TgLogic.fromData("c:lang en"))
+        assertTrue(TgLogic.s("vi", "help", "Bin").contains("/lang") && TgLogic.s("en", "help", "Bin").contains("/lang"))
+        assertTrue(TgLogic.menu("en").toString().contains("Status") && TgLogic.menu("vi").toString().contains("Tình hình"))
+    }
 }

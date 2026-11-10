@@ -29,6 +29,14 @@ object TgLogic {
         return Cmd(head, rest.split(Regex("\\s+")).filter { it.isNotEmpty() }, rest)
     }
 
+    /** Telegram's language_code ("vi", "vi-VN", "en-US"...) -> "vi" / "en"; blank = [fallback]. */
+    fun langOf(code: String?, fallback: String) = when {
+        code.isNullOrBlank() -> fallback
+        code.lowercase().startsWith("vi") -> "vi"
+        else -> "en"
+    }
+    fun other(lang: String) = if (lang == "en") "vi" else "en"
+
     /** BotFather token shape: "123456789:AA…" (35 chars after the colon today; a little slack). */
     fun tokenOk(t: String) = Regex("^\\d{5,15}:[A-Za-z0-9_-]{30,60}$").matches(t.trim())
 
@@ -73,7 +81,7 @@ object TgLogic {
             "📱 APP\n/block – chọn app để chặn\n/unblock – bỏ chặn app\n\n" +
             "🎛 ĐIỀU KHIỂN\n/lock – khoá màn hình\n/ring – đổ chuông (tìm máy)\n/msg – hiện lời nhắn trên máy con\n\n" +
             "📸 TỪ XA\n/screen – chụp màn hình\n/rec – ghi âm xung quanh (máy con có thông báo)\n/files – file của con · gửi file vào đây = chuyển sang máy con\n\n" +
-            "⚙️ /menu – bảng nút bấm\n/unlink – ngừng nhận ở chat này\n\n" +
+            "⚙️ /menu – bảng nút bấm\n/lang – đổi ngôn ngữ (English)\n/unlink – ngừng nhận ở chat này\n\n" +
             "Số phút viết kiểu 30, 90, 2h, 1h30.",
         "linkAsk" to "👋 Đây là bot KidGuard riêng của nhà bạn. Gửi mã 6 số đang hiện trong KidGuard (Cài đặt > Telegram) để liên kết chat này.",
         "linked" to "✅ Đã liên kết với máy của %1\$s. Từ giờ chat này nhận báo SOS, xin thêm giờ, cảnh báo. Bấm nút bên dưới hoặc /help.",
@@ -131,6 +139,7 @@ object TgLogic {
         "b.resume" to "▶️ Gỡ cấm", "b.noLimit" to "Bỏ giới hạn", "b.bedOn" to "🌙 Bật", "b.bedOff" to "☀️ Tắt",
         "b.plus" to "+%1\$s", "b.sec" to "%1\$d giây",
         "kbPh" to "Gõ lệnh hoặc bấm nút…",
+        "b.lang" to "🇬🇧 English", "langDone" to "🇻🇳 Đã chuyển sang Tiếng Việt.",
         "busy" to "⏳ Đang làm…", "b.blockMore" to "⛔ Chặn app khác", "b.unblockMore" to "✅ Bỏ chặn app khác",
         "botShort" to "Bot KidGuard riêng của nhà bạn: xem và quản lý điện thoại của con.",
         "botDesc" to "Bot này chạy trên chính điện thoại của con (KidGuard). Bấm Bắt đầu rồi gửi mã 6 số trong KidGuard (Cài đặt > Telegram) để liên kết. Chỉ chat đã liên kết mới điều khiển được.",
@@ -157,7 +166,7 @@ object TgLogic {
             "📱 APPS\n/block – pick an app to block\n/unblock – unblock an app\n\n" +
             "🎛 CONTROL\n/lock – lock the screen\n/ring – ring (find the phone)\n/msg – show a message on the phone\n\n" +
             "📸 REMOTE\n/screen – screenshot\n/rec – record the sound around (the phone shows a notice)\n/files – the child's files · send a file here = to the phone\n\n" +
-            "⚙️ /menu – the button panel\n/unlink – stop this chat\n\n" +
+            "⚙️ /menu – the button panel\n/lang – language (Tiếng Việt)\n/unlink – stop this chat\n\n" +
             "Minutes: 30, 90, 2h, 1h30.",
         "linkAsk" to "👋 This is your family's own KidGuard bot. Send the 6-digit code shown in KidGuard (Settings > Telegram) to link this chat.",
         "linked" to "✅ Linked to %1\$s's phone. This chat now gets SOS, more-time requests and alerts. Use the buttons below or /help.",
@@ -214,6 +223,7 @@ object TgLogic {
         "b.resume" to "▶️ End pause", "b.noLimit" to "No limit", "b.bedOn" to "🌙 On", "b.bedOff" to "☀️ Off",
         "b.plus" to "+%1\$s", "b.sec" to "%1\$d s",
         "kbPh" to "Send a command or tap a button…",
+        "b.lang" to "🇻🇳 Tiếng Việt", "langDone" to "🇬🇧 Switched to English.",
         "busy" to "⏳ Working…", "b.blockMore" to "⛔ Block another", "b.unblockMore" to "✅ Unblock another",
         "botShort" to "Your family's own KidGuard bot: see and manage your child's phone.",
         "botDesc" to "This bot runs on your child's phone itself (KidGuard). Press Start, then send the 6-digit code from KidGuard (Settings > Telegram) to link. Only linked chats can control the phone.",
@@ -294,7 +304,7 @@ object TgLogic {
             listOf(b("limit", "n:limit"), b("bed", "n:bed")),
             listOf(b("apps", "c:apps"), b("events", "c:events")),
             listOf(b("rec", "n:rec"), b("files", "c:files")),
-            listOf(b("help", "c:help"))))
+            listOf(b("help", "c:help"), b("lang", "c:lang " + other(lang)))))
     }
 
     /** A sub-panel (bonus / pause / limit / bed / rec) with a way back; null = no such panel. */

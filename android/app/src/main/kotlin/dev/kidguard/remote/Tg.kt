@@ -27,6 +27,7 @@ object Tg {
     @Volatile private var thread: Thread? = null
     @Volatile private var guard: Guard? = null
     @Volatile private var conflictFixed = false
+    @Volatile private var cmdsSet = false   // command lists / descriptions refreshed once per process (new texts after an update)
     private val work = Executors.newFixedThreadPool(4)   // commands that wait (rec, locate ~30 s, screen) never block polling or each other
     private val fast = Executors.newSingleThreadExecutor()   // button acks: never queued behind a slow command
     private val askMsg = java.util.concurrent.ConcurrentHashMap<Long, Long>()   // chat -> when "💬 Message" asked for the text
@@ -73,13 +74,14 @@ object Tg {
             "tgCode" -> if (s.tgToken.isBlank()) "off" else { s.tgNewCode(); "ok" }
             "tgUnlink" -> {
                 val id = c.optString("chat").toLongOrNull() ?: return "no such chat"
+                val l = s.tgChatLang(id)
                 if (!s.tgRemoveChat(id)) return "no such chat"
-                runCatching { work.execute { runCatching { send(s, id, TgLogic.s(s.tgLang, "unlinked")) } } }; "ok"
+                runCatching { work.execute { runCatching { send(s, id, TgLogic.s(l, "unlinked")) } } }; "ok"
             }
             "tgOff" -> {
                 val tok = s.tgToken; val chats = s.tgChats()
                 s.tgClear(); wake()
-                if (tok.isNotBlank()) work.execute { for (i in 0 until chats.length()) runCatching { call(tok, "sendMessage", JSONObject().put("chat_id", chats.optJSONObject(i).optLong("id")).put("text", TgLogic.s(s.tgLang, "unlinked"))) } }
+                if (tok.isNotBlank()) work.execute { for (i in 0 until chats.length()) runCatching { call(tok, "sendMessage", JSONObject().put("chat_id", chats.optJSONObject(i).optLong("id")).put("text", TgLogic.s(chats.optJSONObject(i).optString("lang").ifBlank { "vi" }, "unlinked"))) } }
                 "ok"
             }
             else -> "unknown"
@@ -106,6 +108,7 @@ object Tg {
                     continue
                 }
                 if (s.tgErr.isNotEmpty()) s.tgErr = ""
+                if (!cmdsSet) { cmdsSet = true; runCatching { work.execute { runCatching { setCommands(tok, s.tgLang) } } } }
                 backoff = 5_000L
                 val a = r.optJSONArray("result") ?: JSONArray()
                 for (i in 0 until a.length()) {
@@ -114,7 +117,7 @@ object Tg {
                     // a tapped button: stop its spinner at once (+ "working…" toast for actions; panels need none)
                     u.optJSONObject("callback_query")?.let { q -> runCatching { fast.execute { runCatching {
                         val d = q.optString("data")
-                        call(tok, "answerCallbackQuery", JSONObject().put("callback_query_id", q.optString("id")).apply { if (!d.startsWith("n:")) put("text", TgLogic.s(s.tgLang, "busy")) }, 8_000)
+                        call(tok, "answerCallbackQuery", JSONObject().put("callback_query_id", q.optString("id")).apply { if (!d.startsWith("n:")) put("text", TgLogic.s(s.tgChatLang(q.optJSONObject("message")?.optJSONObject("chat")?.optLong("id") ?: 0), "busy")) }, 8_000)
                     } } } }
                     runCatching { work.execute { runCatching { update(g, s, u) }.onFailure { Log.w(TAG, "tg update", it) } } }
                 }
@@ -184,20 +187,23 @@ object Tg {
         runCatching { call(tok, "sendChatAction", JSONObject().put("chat_id", chat).put("action", action), 8_000) }
     }
     /** Commands whose answer is a panel / picker: from a button they replace that message. */
-    private val PANELS = setOf("bonus", "pause", "limit", "bed", "rec", "block", "unblock", "files")
+    private val PANELS = setOf("bonus", "pause", "limit", "bed", "rec", "block", "unblock", "files", "lang")
     private fun sendLoc(s: Store, chat: Long, loc: JSONObject) {
         val tok = s.tgToken.ifBlank { return }
         call(tok, "sendLocation", JSONObject().put("chat_id", chat).put("latitude", loc.optDouble("lat")).put("longitude", loc.optDouble("lng"))
             .apply { if (loc.optDouble("acc", 0.0) in 1.0..1500.0) put("horizontal_accuracy", loc.optDouble("acc")) })
     }
-    private fun setCommands(tok: String, lang: String) {
-        val names = listOf("menu", "status", "apps", "locate", "events", "bonus", "pause", "resume", "lock", "ring", "msg", "block", "unblock", "limit", "bed", "screen", "rec", "files", "help", "unlink")
+    /** Command list + descriptions for Telegram's own language (vi, en) and the default (the bot's language). */
+    private fun setCommands(tok: String, lang: String) { for (l in listOf<String?>(null, "vi", "en")) setCommandsFor(tok, l ?: lang, l) }
+    private fun setCommandsFor(tok: String, lang: String, code: String?) {
+        fun body() = JSONObject().apply { if (code != null) put("language_code", code) }
+        val names = listOf("menu", "status", "apps", "locate", "events", "bonus", "pause", "resume", "lock", "ring", "msg", "block", "unblock", "limit", "bed", "screen", "rec", "files", "help", "lang", "unlink")
         val help = TgLogic.s(lang, "help", "").lines().drop(1)
         val desc = names.associateWith { n -> help.firstOrNull { Regex("(^|\\s)/$n(\\s|$)").containsMatchIn(it) && it.contains(" – ") }?.substringAfter("– ")?.substringBefore(" · ")?.take(60) ?: n }
-        call(tok, "setMyCommands", JSONObject().put("commands", JSONArray().apply { names.forEach { put(JSONObject().put("command", it).put("description", desc[it])) } }))
+        call(tok, "setMyCommands", body().put("commands", JSONArray().apply { names.forEach { put(JSONObject().put("command", it).put("description", desc[it])) } }))
         // what an empty chat shows before Start, and the profile line
-        call(tok, "setMyDescription", JSONObject().put("description", TgLogic.s(lang, "botDesc")))
-        call(tok, "setMyShortDescription", JSONObject().put("short_description", TgLogic.s(lang, "botShort")))
+        call(tok, "setMyDescription", body().put("description", TgLogic.s(lang, "botDesc")))
+        call(tok, "setMyShortDescription", body().put("short_description", TgLogic.s(lang, "botShort")))
     }
 
     private fun hm(t: Long) = SimpleDateFormat("HH:mm", Locale.US).format(Date(t))
@@ -210,14 +216,15 @@ object Tg {
         val m = u.optJSONObject("message") ?: return
         val chat = m.optJSONObject("chat") ?: return
         if (chat.optString("type") != "private") return   // groups: never (anyone in the group could act)
-        val id = chat.optLong("id"); val lang = s.tgLang
+        val id = chat.optLong("id")
+        val lang = if (s.tgChatOk(id)) s.tgChatLang(id) else TgLogic.langOf(m.optJSONObject("from")?.optString("language_code"), s.tgLang)
         val text = m.optString("text")
         if (!s.tgChatOk(id)) {
             val code = (TgLogic.parse(text)?.takeIf { it.name == "start" }?.rest ?: text).trim()
             if (Regex("^\\d{6}$").matches(code)) {
                 if (!s.tgTryCode(code)) { send(s, id, TgLogic.s(lang, "badCode")); return }
                 val who = listOf(chat.optString("first_name"), chat.optString("last_name")).filter { it.isNotBlank() }.joinToString(" ").ifBlank { chat.optString("username") }
-                if (!s.tgAddChat(id, who)) { send(s, id, TgLogic.s(lang, "full", TgLogic.MAX_CHATS)); return }
+                if (!s.tgAddChat(id, who, lang)) { send(s, id, TgLogic.s(lang, "full", TgLogic.MAX_CHATS)); return }
                 s.log(R.string.log_tg_linked, who)
                 tick(g, markOnly = true)   // the past is not news to a new chat
                 send(s, id, TgLogic.s(lang, "linked", kidName(g)), TgLogic.replyKb(lang))
@@ -235,7 +242,7 @@ object Tg {
 
     /** [panel] = the message whose button was tapped (0 = typed): panels and pickers replace it instead of piling up. */
     private fun runCmd(g: Guard, s: Store, chat: Long, c: TgLogic.Cmd, panel: Long = 0) {
-        val lang = s.tgLang; val now = System.currentTimeMillis()
+        val lang = s.tgChatLang(chat); val now = System.currentTimeMillis()
         // "bot is typing / sending a photo / ..." in the chat header while it works
         chatAction(s, chat, when (c.name) { "locate" -> "find_location"; "screen" -> "upload_photo"; "rec" -> "record_voice"; "files" -> "upload_document"; else -> "typing" })
         fun show(text: String, kb: JSONObject?) { if (panel > 0) edit(s, chat, panel, text, kb) else send(s, chat, text, kb) }
@@ -245,6 +252,12 @@ object Tg {
         when (c.name) {
             "start", "help" -> send(s, chat, TgLogic.s(lang, "help", kidName(g)), TgLogic.replyKb(lang))
             "menu" -> send(s, chat, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang))
+            "lang" -> {   // /lang, /lang en, /lang vi: this chat only; the reply keyboard is resent in the new language
+                val l = c.args.firstOrNull()?.lowercase()?.let { TgLogic.langOf(it, lang) } ?: TgLogic.other(lang)
+                s.tgSetChatLang(chat, l)
+                send(s, chat, TgLogic.s(l, "langDone"), TgLogic.replyKb(l))
+                if (panel > 0) edit(s, chat, panel, TgLogic.s(l, "menu", kidName(g)), TgLogic.menu(l)) else send(s, chat, TgLogic.s(l, "menu", kidName(g)), TgLogic.menu(l))
+            }
             "status" -> send(s, chat, TgLogic.status(g.currentState(), kidName(g), lang, now, ::hm), TgLogic.statusKb(lang))
             "apps" -> send(s, chat, TgLogic.apps(g.currentState(), lang))
             "events" -> {
@@ -279,7 +292,7 @@ object Tg {
 
     /** The rest of the commands (all take their argument, or need none). */
     private fun runArg(g: Guard, s: Store, chat: Long, c: TgLogic.Cmd, panel: Long = 0) {
-        val lang = s.tgLang; val now = System.currentTimeMillis()
+        val lang = s.tgChatLang(chat); val now = System.currentTimeMillis()
         fun show(text: String, kb: JSONObject?) { if (panel > 0) edit(s, chat, panel, text, kb) else send(s, chat, text, kb) }
         val back = listOf(TgLogic.s(lang, "b.back") to "n:main")
         fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
@@ -337,7 +350,7 @@ object Tg {
     private fun callback(g: Guard, s: Store, q: JSONObject) {
         val chat = q.optJSONObject("message")?.optJSONObject("chat")?.optLong("id") ?: return
         val tok = s.tgToken.ifBlank { return }
-        val d = q.optString("data"); val lang = s.tgLang; val now = System.currentTimeMillis()
+        val d = q.optString("data"); val lang = s.tgChatLang(chat); val now = System.currentTimeMillis()
         if (!s.tgChatOk(chat)) return
         val msgId = q.optJSONObject("message")?.optLong("message_id") ?: 0
         fun done(text: String) {   // the buttons go away, the answer replaces them
@@ -380,7 +393,7 @@ object Tg {
 
     /** A document from a linked parent -> the phone's Download/KidGuard, like a LAN upload (Files.receive). */
     private fun fileIn(g: Guard, s: Store, chat: Long, doc: JSONObject) {
-        val lang = s.tgLang; val tok = s.tgToken
+        val lang = s.tgChatLang(chat); val tok = s.tgToken
         if (doc.optLong("file_size") > TgLogic.TG_FILE_MAX) { send(s, chat, TgLogic.s(lang, "fileBig")); return }
         val f = call(tok, "getFile", JSONObject().put("file_id", doc.optString("file_id"))).optJSONObject("result") ?: run { send(s, chat, TgLogic.s(lang, "fileBig")); return }
         val h = URL("$API/file/bot$tok/${f.optString("file_path")}").openConnection() as HttpURLConnection
@@ -414,9 +427,10 @@ object Tg {
         if (fresh.isEmpty()) return
         s.tgSetSeen(TgLogic.remember(s.tgSeen(), fresh.map { it.first }))   // before sending: a crash must not repeat them
         if (markOnly || s.tgChats().length() == 0) return
-        val name = kidName(g); val lang = s.tgLang
+        val name = kidName(g)
         work.execute {
             for ((k, o) in fresh) broadcast(s) { chat ->
+                val lang = s.tgChatLang(chat)
                 when (k[0]) {
                     's' -> {
                         send(s, chat, TgLogic.s(lang, "aSos", name), TgLogic.keyboard(listOf(listOf(TgLogic.s(lang, "b.locate") to "c:locate", TgLogic.s(lang, "b.status") to "r:status"))))

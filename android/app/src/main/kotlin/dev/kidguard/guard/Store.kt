@@ -245,11 +245,18 @@ class Store private constructor(private val app: Context) {
     /** Linked chats [{id, name, at}], max TgLogic.MAX_CHATS: only these get alerts and may send commands. */
     @Synchronized fun tgChats(): JSONArray = runCatching { JSONArray(p.getString("tgChats", "[]")) }.getOrDefault(JSONArray())
     @Synchronized fun tgChatOk(id: Long): Boolean = tgChats().let { a -> (0 until a.length()).any { a.optJSONObject(it)?.optLong("id") == id } }
-    @Synchronized fun tgAddChat(id: Long, name: String): Boolean {
+    @Synchronized fun tgAddChat(id: Long, name: String, lang: String = tgLang): Boolean {
         val a = tgChats(); if (tgChatOk(id)) return true
         if (a.length() >= TgLogic.MAX_CHATS) return false
-        a.put(JSONObject().put("id", id).put("name", name.take(40)).put("at", System.currentTimeMillis()))
+        a.put(JSONObject().put("id", id).put("name", name.take(40)).put("at", System.currentTimeMillis()).put("lang", lang))
         p.edit().putString("tgChats", a.toString()).commit(); return true
+    }
+    /** The chat's own language ("vi" / "en"); the bot default (page language at tgSet) for an unknown chat. */
+    @Synchronized fun tgChatLang(id: Long): String = tgChats().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }
+        .firstOrNull { it.optLong("id") == id }?.optString("lang")?.takeIf { it == "vi" || it == "en" } } ?: tgLang
+    @Synchronized fun tgSetChatLang(id: Long, lang: String) {
+        val a = tgChats(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optLong("id") == id }?.put("lang", lang)
+        p.edit().putString("tgChats", a.toString()).commit()
     }
     @Synchronized fun tgRemoveChat(id: Long): Boolean {
         val a = tgChats(); val keep = JSONArray(); var hit = false
