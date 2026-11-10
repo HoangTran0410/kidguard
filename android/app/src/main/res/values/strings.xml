@@ -59,6 +59,8 @@
     <string name="diff_dns_pause">safe DNS paused</string>
     <string name="diff_novpn">VPN blocked</string>
     <string name="diff_novpn_off">VPN allowed</string>
+    <string name="diff_tskeep">keep Tailscale on</string>
+    <string name="diff_tskeep_off">Tailscale left alone</string>
     <string name="diff_autoupd">KidGuard auto-update on</string>
     <string name="diff_autoupd_off">KidGuard auto-update off</string>
     <string name="diff_watch">screen-viewing notice on</string>

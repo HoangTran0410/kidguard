@@ -616,7 +616,7 @@ object Policy {
         if (runCatching { d.isAdminActive(a) }.getOrDefault(false)) {
             s.released = false; Watchdog.schedule(ctx); return "failed"
         }
-        s.suspendedByUs = emptySet(); s.tsSeen = false   // Tailscale keep-alive (Ts.keep) stops with us
+        s.suspendedByUs = emptySet()
         restoreDnsWss(ctx, s)   // Private DNS we wrote with WRITE_SECURE_SETTINGS goes back to what the phone had
         removeAccEntry(ctx); AccPause.clear(ctx)   // a bank-app pause must not outlive us
         NotifDots.setOn(ctx, false)

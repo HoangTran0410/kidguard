@@ -50,8 +50,7 @@ const bnavHtml = () => `<nav class="bnav" aria-label="${esc(t("nav.main"))}">${B
 function headHtml() {
   const back = !LOCAL && (APP || onLan() || kids.length > 1 || cur.via === "relay");
   return `<div class="head">${back ? `<button type="button" id="back" class="back${kidList().length > 1 || APP || onLan() ? " mOnly" : ""}" aria-label="${esc(t("list"))}" title="${esc(t("list"))}">${ic("chevron-left")}</button>` : ""}${kidAv(cur)}
-    <div><div class="t1">${esc(cur.name)}</div><div class="st" id="hst"></div></div><span class="savechip" id="saveChip" role="status"></span>
-    <button type="button" id="qsBtn" class="qsb" aria-label="${esc(t("qs.h"))}" title="${esc(t("qs.h"))} ( / )">${ic("search")}</button></div>`;
+    <div><div class="t1">${esc(cur.name)}</div><div class="st" id="hst"></div></div><span class="savechip" id="saveChip" role="status"></span></div>`;
 }
 // header save chip: saving / failed / waiting for the kid's phone (relay) / saved (3 s)
 let savedAt = 0;
@@ -77,6 +76,7 @@ function render(tabClick) {
   ${viewDay ? `<div class="ban t-warn" style="position:sticky;top:8px;z-index:15;margin-bottom:12px"><span class="bi">${ic("history")}</span><div class="x">${t("hist.viewing", esc(dm(viewDay)))}</div><button id="goLive" class="pri pill">${ic("zap")} ${t("hist.live")}</button></div>` : ""}
   ${st && edit && !viewDay && !edit.pinSet && tab !== "set" ? `<div class="ban t-warn"><span class="bi">${ic("key-round")}</span><div class="x">${t("pin.warn")}</div><button id="goPin" class="pri pill">${t("pin.setNow")}</button></div>` : ""}
   <div id="live"></div>
+  <button type="button" id="qsBtn" class="qsbar" title="${esc(t("qs.h"))} ( / )">${ic("search")}<span>${esc(t("qs.bar"))}</span><kbd>/</kbd></button>
   <div id="body"></div></div></div>${bnavHtml()}</div>`;
   a.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => goTab(b.dataset.tab));
   if ($("#qsBtn")) $("#qsBtn").onclick = qsOpen;

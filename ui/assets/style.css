@@ -238,8 +238,12 @@ button.pausing .si{color:var(--warn)}
 .back .si{width:24px;height:24px}
 .savechip{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;flex:none;color:var(--tn,var(--ok))}
 .savechip:empty{display:none}
-.qsb{flex:none;margin-left:auto;width:40px;height:40px;padding:0;border-radius:999px;display:inline-flex;align-items:center;justify-content:center}
-.savechip:not(:empty)+.qsb{margin-left:8px}
+.head .savechip{margin-left:auto}
+/* quick search ("Tìm chức năng"): a full-width search field look under the banners, the label says what it does */
+.qsbar{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;margin:0 0 14px;padding:8px 14px;background:var(--bg);border:1px solid var(--stroke);border-radius:12px;color:var(--sub);font-weight:500;text-align:left;justify-content:flex-start}
+.qsbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qsbar kbd{font:inherit;font-size:12px;border:1px solid var(--stroke);border-radius:6px;padding:1px 7px}
+@media (hover:none){.qsbar kbd{display:none}}
 .qsHit{outline:3px solid var(--primary);outline-offset:2px;transition:outline-color .6s}
 .spin{display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .8s linear infinite;flex:none}
 /* banner stack */

@@ -2,13 +2,16 @@
 // per-kid "seen" flags kept in this browser: the away-from-home tip, the manual key-expiry step
 const kidFlag = (k, n, v) => { const key = "kg." + n + "." + (k.id || k.target || ""); try { if (v === undefined) return localStorage.getItem(key) === "1"; localStorage.setItem(key, "1"); } catch {} return false; };
 // Remote access over Tailscale (state.ts). The auth key is only typed at home (LAN): it never goes through the relay.
+// rule tsKeep: the phone brings a dropped / cleaned-up Tailscale back (Ts.keep). Off by default: Tailscale may be for work.
+const tsKeepRow = () => edit ? `<label class="row" style="margin-top:8px"><input type="checkbox" id="f-tsk" ${edit.tsKeep ? "checked" : ""}><span class="sp">${ic("refresh-cw")} ${t("ts.keep")}</span></label>
+    <p class="mute">${t("ts.keepTip")}</p>` : "";
 function tsCard(lan) {
-  if (isBasic()) return sec("s-ts", "route", t("ts.h"), t("sd.ts"), [t("off")], `${needOwner("Tailscale")}<p class="mute">${t("ts.basic")}</p>`);
+  if (isBasic()) return sec("s-ts", "route", t("ts.h"), t("sd.ts"), edit && edit.tsKeep ? [t("ts.keepB"), "ok"] : [t("off")], `${needOwner("Tailscale")}<p class="mute">${t("ts.basic")}</p>${tsKeepRow()}`);
   const ts = (st && st.ts) || { state: "off" };
   const label = tc("ts.", ts.state, ts.state);
   const cls = { on: "ok", error: "bad", installing: "warn" }[ts.state] || "";
   const url = ts.ip ? `http://${ts.ip}:8770` : "";
-  if (!lan && ts.state === "off") return "";   // relay page: it can only be enabled at home, so an "off" row says nothing
+  if (!lan && ts.state === "off") return sec("s-ts", "route", t("ts.h"), t("sd.ts"), edit && edit.tsKeep ? [t("ts.keepB"), "ok"] : [t("off")], `<p class="mute">${t("ts.homeOnly")}</p>${tsKeepRow()}`);   // relay page: enabling needs home, the keep switch doesn't
   const exp = ts.state === "on" && ts.noExpiry === false && !kidFlag(cur, "tsExp");   // false only from phones that report it
   return sec("s-ts", "route", t("ts.h"), t("sd.ts"), [esc(label), cls], `
     <p class="mute">${t("ts.p")}</p>
@@ -22,6 +25,7 @@ function tsCard(lan) {
     <div class="row"><input id="f-ts-key" class="sp" type="password" autocomplete="off" placeholder="tskey-api-… / tskey-auth-…" aria-label="${esc(t("ts.key"))}"></div>
     <div class="row" style="margin-top:8px"><input id="f-ts-host" class="sp" placeholder="${esc(t("ts.hostPh"))}" aria-label="${esc(t("ts.hostPh"))}" value="${esc(ts.host || "")}"><button id="tsOn" class="pri">${ic("route")} ${ts.state === "off" ? t("turnOn") : t("ts.again")}</button></div>`
       : `<p class="mute">${t("ts.homeOnly")}</p>`}
+    ${ts.state === "off" ? tsKeepRow() : `<p class="mute">${ic("refresh-cw")} ${t("ts.keepOn")}</p>`}
     ${ts.state !== "off" ? `<button id="tsOff" class="bad" style="margin-top:8px">${ic("x")} ${t("ts.remove")}</button>
     <p class="mute">${t("ts.after", esc(ts.host || "kid"))}</p>` : ""}`, ts.state === "error" || exp);
 }
@@ -320,6 +324,7 @@ function setTab(b) {
     const fk = cur;   // typed word: forgetting a relay kid destroys the only token
     if (!(await ask(t(fk.via === "relay" ? "forget.askRelay" : APP ? "forget.askApp" : "forget.askWeb", fk.name), APP ? t("delete") : t("forget"), true, t("forget.word"))) || fk !== cur) return;
     screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); navDown(0); };
+  if ($("#f-tsk")) $("#f-tsk").onchange = e => { if (!edit) return; edit.tsKeep = e.target.checked; changed(); };
   if ($("#f-au")) $("#f-au").onchange = e => { if (!edit) return; edit.autoUpdate = e.target.checked; changed(); };
   if ($("#devOff")) $("#devOff").onclick = () => devOff(false);
   if ($("#devOn")) $("#devOn").onclick = () => devOff(true);

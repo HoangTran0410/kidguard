@@ -94,7 +94,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Chỉ hiện app được phép, đồng hồ thời gian còn lại | ✅ | ✅ | — | Bản Home không có phần quản lý |
 | Chấm thông báo, lịch sử thông báo (chỉ con xem) | ✅ | ✅ | ✅ | Cần quyền đọc thông báo. Lịch sử: 7 ngày / 300 thông báo, không gửi đi đâu |
 | Ẩn Tailscale | Khi KidGuard quản lý Tailscale | Khi KidGuard quản lý Tailscale | Không ẩn | |
-| Tự bật lại Tailscale khi bị tắt / bị dọn | ✅ (+ VPN luôn bật) | ✅ | Không | Gửi lệnh kết nối cho Tailscale; nếu vẫn rớt thì mở Tailscale 1 lần khi đang ở màn home. Bị "buộc dừng" thì phải chờ bước mở. Máy CB cần quyền "hiển thị trên app khác" cho bước mở |
+| Tự bật lại Tailscale khi bị tắt / bị dọn | ✅ (+ VPN luôn bật) | ✅ | Không | Công tắc "Giữ Tailscale luôn bật" (luật `tsKeep`, mặc định tắt; Tailscale do KidGuard cài thì luôn giữ). Gửi lệnh kết nối cho Tailscale; nếu vẫn rớt thì mở Tailscale 1 lần khi đang ở màn home. Bị "buộc dừng" thì phải chờ bước mở. Máy CB cần quyền "hiển thị trên app khác" cho bước mở |
 
 ## 4. Tóm tắt "chỉ LAN" (gồm cả Tailscale và Trên máy con)
 

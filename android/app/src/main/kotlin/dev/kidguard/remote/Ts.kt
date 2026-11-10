@@ -165,7 +165,8 @@ object Ts {
 
     /**
      * Every Guard tick, Device Owner AND basic mode: the parents reach the phone through Tailscale, so it must stay up.
-     * Applies once a tunnel was seen on this phone (Store.tsSeen, set here) or KidGuard manages it (tsWanted).
+     * Applies when KidGuard manages Tailscale (tsWanted) or the parent turned on rule `tsKeep` (default off: a Tailscale
+     * installed for work stays the user's business).
      * Down for [TsLogic.DOWN_MS]: send Tailscale's own CONNECT_VPN broadcast (silent, starts a killed process);
      * still down after [TsLogic.OPEN_AFTER_MS]: open its screen once and go back home, like the bank flow
      * (AccPause.pauseLate): only while our launcher is in front, and only with a background-start right
@@ -176,10 +177,9 @@ object Ts {
         if (findIp().isNotEmpty()) {
             if (downAt != 0L && askAt >= downAt) s.log(R.string.ts_log_back)
             downAt = 0L
-            if (!s.tsSeen) s.tsSeen = true
             return
         }
-        if (!s.tsSeen && !s.tsWanted) return
+        if (!s.tsWanted && !s.rules.tsKeep) { downAt = 0L; return }
         if (downAt == 0L) downAt = now
         val screenOn = runCatching { ctx.getSystemService(android.os.PowerManager::class.java).isInteractive }.getOrDefault(false)
         val onHome = screenOn && fg == ctx.packageName
@@ -398,7 +398,7 @@ object Ts {
 
     /** Takes everything back (also called from release). Synchronous, at most ~15 s. */
     fun undo(ctx: Context, s: Store) {
-        s.tsWanted = false; s.tsKey = ""; s.tsNoExpiry = false; s.tsSeen = false; apiToken = ""
+        s.tsWanted = false; s.tsKey = ""; s.tsNoExpiry = false; apiToken = ""
         if (!Policy.isOwner(ctx)) return
         val d = Policy.dpm(ctx); val a = Policy.admin(ctx)
         runCatching { d.setApplicationRestrictions(a, TsLogic.PKG, Bundle()) }

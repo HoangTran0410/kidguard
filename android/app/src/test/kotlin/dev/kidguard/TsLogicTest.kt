@@ -67,6 +67,12 @@ class TsLogicTest {
         assertNull(TsLogic.deviceId("""{"devices":[{"nodeId":"../x","addresses":["100.9.9.9"]}]}""", "100.9.9.9"))
     }
 
+    @Test fun tsKeepRule() {
+        assertFalse(Rules.fromJson(org.json.JSONObject("{}")).tsKeep)                       // default off
+        assertTrue(Rules.fromJson(Rules(tsKeep = true).toJson()).tsKeep)
+        assertTrue(Rules.fromJson(Rules(tsKeep = true).toJson(persist = true)).tsKeep)
+    }
+
     @Test fun reviveSteps() {
         val m = 60_000L; val big = Long.MAX_VALUE / 2
         assertEquals(0, TsLogic.reviveStep(10_000, big, big, true, true))          // short gap: wait

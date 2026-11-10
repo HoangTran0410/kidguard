@@ -55,6 +55,8 @@ class ResTr(private val ctx: Context) : Tr {
         T.diff_dns_pause -> R.string.diff_dns_pause
         T.diff_novpn -> R.string.diff_novpn
         T.diff_novpn_off -> R.string.diff_novpn_off
+        T.diff_tskeep -> R.string.diff_tskeep
+        T.diff_tskeep_off -> R.string.diff_tskeep_off
         T.diff_autoupd -> R.string.diff_autoupd
         T.diff_autoupd_off -> R.string.diff_autoupd_off
         T.diff_watch -> R.string.diff_watch

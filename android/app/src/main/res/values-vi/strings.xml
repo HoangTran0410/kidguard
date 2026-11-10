@@ -54,6 +54,8 @@
     <string name="diff_dns_pause">tạm tắt DNS an toàn</string>
     <string name="diff_novpn">chặn VPN</string>
     <string name="diff_novpn_off">cho phép VPN</string>
+    <string name="diff_tskeep">giữ Tailscale luôn bật</string>
+    <string name="diff_tskeep_off">không tự bật Tailscale</string>
     <string name="diff_autoupd">bật tự cập nhật KidGuard</string>
     <string name="diff_autoupd_off">tắt tự cập nhật KidGuard</string>
     <string name="diff_watch">báo con khi xem màn hình</string>

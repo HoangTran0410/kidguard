@@ -192,10 +192,10 @@ Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`,
 ### 1.13 Tailscale keep-alive (`remote/Ts.kt` `Ts.keep`, both modes)
 
 - Why: parents reach the phone through Tailscale; HyperOS "clean all" / a Recents swipe / battery saver kill it (seen on Poco 2026-11-10: `am_kill ... OneKeyClean`), and in basic mode there is no always-on VPN.
-- Applies when Tailscale is installed AND (a tunnel was seen on this phone, `Store.tsSeen`, OR KidGuard manages it, `tsWanted`); not in the Home flavor, not after release.
+- Applies when Tailscale is installed AND (rule `tsKeep`, default OFF, page Settings > Tailscale, OR KidGuard manages it, `tsWanted`); not in the Home flavor, not after release. Default off on purpose: a Tailscale installed for work must not be forced on.
 - Steps (`TsLogic.reviveStep`, unit-tested): no `100.64/10` address for 20 s -> explicit broadcast `com.tailscale.ipn.CONNECT_VPN` to `IPNReceiver` (silent, restarts a killed process) every 60 s -> still down after 90 s and our launcher in front with the screen on -> open Tailscale once and go Home (max every 10 min). Logs `ts_log_down` / `ts_log_back` to the parent.
 - Device Owner also has always-on VPN (`Ts.applyPolicy`); a hidden (suspended) Tailscale is never opened, only broadcast to.
-- Gotchas: a force-stopped app gets no broadcasts until opened (hence the open step); the parent can't turn keep-alive off in basic mode (it's the remote-access lifeline); release clears `tsSeen`.
+- Gotchas: a force-stopped app gets no broadcasts until opened (hence the open step); release stops it (`s.released`).
 
 ## 2. Parent <-> phone (LAN, relay, parent app)
 

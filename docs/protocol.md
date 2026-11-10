@@ -35,6 +35,7 @@ shape, say so in your report instead of silently diverging.
   "safeDnsPauseUntil": 0,          // epoch ms (parent clock), 0 = none. While now < it the phone acts as if safeDns were "":
                                    //      Private DNS opportunistic, Chrome/Edge DoH config cleared. Guard's 10 s tick re-applies safe DNS
                                    //      by itself at expiry (no rules change needed). The page's "Pause 30 min" sets now+30 min.
+  "tsKeep": false,                 // NEW 0.9.12 (default false): Ts.keep brings a dropped Tailscale back (CONNECT_VPN broadcast, then open once on home); always on for a Tailscale KidGuard installed (tsWanted)
   "noVpn": false,                  // NEW (default false): DISALLOW_CONFIG_VPN (Device Owner); also kept while our Tailscale access needs it
   "noInstall": false, "noDebug": false,
   "pinShot": true,                 // NEW (default true): 3rd/6th/9th wrong on-device admin PIN / code in a row (>= 2 min apart) ->
