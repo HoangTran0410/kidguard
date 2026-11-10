@@ -55,7 +55,19 @@ class HomeKit(val act: Activity, val pal: Palette, val font: Float = 1f) {
     }
 
     /** Full-width button. primary: the accent with its tested label colour; else text on the sheet with a stroke. */
-    fun pill(t: String, icon: Int?, primary: Boolean, onClick: () -> Unit) = TextView(act).apply {
+    fun pill(t: String, icon: Int?, primary: Boolean, onClick: () -> Unit) = object : TextView(act) {
+        // icon + text centred as one group (Material button): the side padding is set here, before the first frame. It was
+        // a post() after layout, so every Tuỳ chỉnh rebuild drew the icon at the far left for one frame (owner saw it blink).
+        override fun onMeasure(w: Int, h: Int) {
+            val d = compoundDrawablesRelative[0]
+            if (d != null && MeasureSpec.getMode(w) == MeasureSpec.EXACTLY) {
+                val tw = paint.measureText(text.toString()).toInt()
+                val side = ((MeasureSpec.getSize(w) - tw - d.bounds.width() - compoundDrawablePadding) / 2).coerceAtLeast(dp(16))
+                if (paddingLeft != side) setPadding(side, paddingTop, side, paddingBottom)
+            }
+            super.onMeasure(w, h)
+        }
+    }.apply {
         text = t; gravity = Gravity.CENTER; setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f * font)
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         val fg = if (primary) pal.onSolid else pal.text
@@ -63,15 +75,7 @@ class HomeKit(val act: Activity, val pal: Palette, val font: Float = 1f) {
         background = if (primary) fill(pal.solid, 16f) else GradientDrawable().apply { setColor(pal.sheet); cornerRadius = dpf(16f); setStroke(dp(1), pal.stroke) }
         setPadding(dp(16), dp(12), dp(16), dp(12)); minHeight = dp(52)   // grows with a large font
         if (icon != null) {
-            Ic.lead(this, icon, fg)
-            // a wide pill drew the icon at the far left and the text in the middle: pad both sides so icon + text sit
-            // centred as one group (Material button style)
-            addOnLayoutChangeListener { v, l, _, r, _, _, _, _, _ ->
-                val t = v as TextView; val d = t.compoundDrawablesRelative[0] ?: return@addOnLayoutChangeListener
-                val tw = t.paint.measureText(t.text.toString()).toInt()
-                val side = ((r - l - tw - d.bounds.width() - t.compoundDrawablePadding) / 2).coerceAtLeast(dp(16))
-                if (t.paddingLeft != side) t.post { t.setPadding(side, t.paddingTop, side, t.paddingBottom) }
-            }
+            Ic.lead(this, icon, fg)   // centred with the text in onMeasure above
         }
         tap(this, 16f, primary || pal.dark) { onClick() }
         contentDescription = t
