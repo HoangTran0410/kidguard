@@ -11,7 +11,6 @@
     <string name="feat_owner_body">Device Owner lets KidGuard lock the home screen, hide apps, block uninstall and set DNS. It is set up once from a computer or a QR code (remove all accounts from the phone first). The guide has the steps.</string>
     <string name="feat_adb_body">The phone runs adb against itself over Wi-Fi. The guide shows how to turn on Wireless debugging.</string>
     <string name="feat_launcher_use">Use the KidGuard home screen</string>
-    <string name="feat_overlay">Let bank apps reopen by themselves (display over other apps)</string>
     <string name="feat_launcher_off">Turn off the KidGuard home screen</string>
     <string name="feat_launcher_pick">Pick KidGuard as the home app in the phone settings.</string>
     <string name="feat_cap_owner">Device Owner</string>
@@ -41,7 +40,7 @@
     <string name="ft_screen">Screen view and control</string>
     <string name="ft_screen_d">Parents view the screen remotely (Android 11 and up).</string>
     <string name="ft_remote">Remote parent control</string>
-    <string name="ft_remote_d">The parent web page over Wi-Fi or the relay.</string>
+    <string name="ft_remote_d">Parent page over Wi-Fi, Tailscale or the relay, or a Telegram bot.</string>
     <string name="ft_noUninstall">Uninstall protection</string>
     <string name="ft_noUninstall_d">The child cannot remove KidGuard.</string>
     <string name="ft_dns">Web filter (DNS)</string>
@@ -50,4 +49,21 @@
     <string name="feat_wss_body">Needs a one-time permission granted from a computer (scripts/setup.sh, "pm grant"). It stays after Developer options are turned off.</string>
     <string name="ft_lockLocation">Keep location on (lock)</string>
     <string name="ft_lockLocation_d">Stops the child from turning location off.</string>
+    <string name="ms_pin_lock_sub">Adds it to the home screen</string>
+    <string name="st_rc_wifi">Wi-Fi: %1$s</string>
+    <string name="st_rc_ts">Tailscale: %1$s</string>
+    <string name="st_rc_ts_down">Tailscale: not connected</string>
+    <string name="st_rc_relay">Relay (over the Internet): connected</string>
+    <string name="st_rc_relay_wait">Relay (over the Internet): reconnecting…</string>
+    <plurals name="st_rc_tg">
+        <item quantity="one">Telegram: %d parent linked</item>
+        <item quantity="other">Telegram: %d parents linked</item>
+    </plurals>
+    <string name="st_rc_tg_none">Telegram: bot set up, nobody linked yet</string>
+    <string name="ft_bank">Bank apps reopen by themselves</string>
+    <string name="ft_bank_d">KidGuard pauses Accessibility while a bank app opens, then needs this permission to reopen it.</string>
+    <string name="feat_cap_overlay">display over other apps</string>
+    <string name="ft_battery">Battery and autostart</string>
+    <string name="ft_battery_d">So the phone doesn\'t stop KidGuard in the background.</string>
+    <string name="ft_battery_open">Open battery settings</string>
 </resources>

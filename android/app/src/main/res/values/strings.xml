@@ -318,13 +318,13 @@
     <string name="main_update">Update KidGuard (new version)</string>
     <string name="main_update_allow">Turn on \"Allow from this source\" for KidGuard, then tap again</string>
     <string name="main_more">Ask for more time</string>
-    <string name="main_unlock">Enter a parent\'s unlock code</string>
+    <string name="main_unlock">Enter unlock code</string>
     <string name="main_unlocked_until">Unlocked until %1$s · enter another code for more</string>
-    <string name="main_pair_more">Pair another parent device</string>
+    <string name="main_pair_more">Pair another device</string>
     <string name="main_my_rules">My rules</string>
-    <string name="main_log">Log: what my parent changed</string>
+    <string name="main_log">Change log</string>
     <string name="main_reveal">Parents: show the pairing code (hold 5 seconds)</string>
-    <string name="main_recover">Parent lost access? Reopen pairing (hold 10 seconds)</string>
+    <string name="main_recover">Lost access? Re-pair (hold 10 s)</string>
     <string name="main_recover_at">The pairing code appears at %1$s</string>
     <string name="log_recover_req">This phone asked to reopen pairing (opens in 24 hours)</string>
     <string name="ev_recover_req">The child\'s phone asked to reopen pairing: it opens in 24 hours. Set a PIN to cancel.</string>
@@ -332,7 +332,6 @@
     <string name="main_recover_body">For safety, the pairing code shows up after 24 hours and your parent is told right away. If your parent can still manage the phone, setting a PIN cancels this.</string>
     <string name="main_battery">Battery / autostart settings</string>
     <!-- language row: both languages in the label so whoever reads either one finds it; names come from Langs.ALL -->
-    <string name="main_lang">Language / Ngôn ngữ: %1$s</string>
     <string name="lang_title">Language / Ngôn ngữ</string>
     <string name="lang_system">Phone setting</string>
     <string name="main_self">Full setup without a computer (Android 11+)</string>
@@ -355,7 +354,6 @@
         <item quantity="other">Waiting for your parent to answer: %1$d requests</item>
     </plurals>
     <string name="st_sos">SOS sent, waiting for your parent to see it</string>
-    <string name="st_remote">Remote control: on</string>
     <string name="st_last_listen">Last listened: %1$s (%2$s)</string>
     <string name="main_hint_qr">On the parent\'s phone (same Wi-Fi): scan the QR code with the camera, or open a browser at:\n%1$s\nthen enter the code above.</string>
     <string name="main_hint_nowifi">On the parent\'s phone (same Wi-Fi), open a browser at:\n(no Wi-Fi yet)\nthen enter the code above.</string>
@@ -446,15 +444,15 @@
     <string name="q_lock_desc">Locks the screen with one tap</string>
     <string name="q_time_desc">Today\'s screen time left. Tap to ask for more time</string>
     <string name="q_lock_fail">Couldn\'t lock the screen: KidGuard isn\'t fully set up</string>
-    <string name="main_pin_lock">Add a Lock screen button to the home screen</string>
+    <string name="main_pin_lock">Lock screen button</string>
     <string name="main_pin_lock_added">Lock button added to the home screen</string>
     <string name="main_pin_lock_there">The home screen already has the Lock button</string>
     <string name="main_pin_lock_no">This home screen can\'t add shortcuts. Long-press an empty spot and add the KidGuard \"Lock\" widget instead.</string>
-    <string name="main_gestures">Double tap to wake / screen-off gestures</string>
+    <string name="main_gestures">Double tap to wake</string>
     <string name="main_gestures_body">Apps can\'t do this themselves: it\'s a phone setting. KidGuard opens the right page if it can find it.</string>
     <string name="main_gestures_open">Open settings</string>
     <!-- on-device parent page (AdminActivity) + hold-to-confirm buttons -->
-    <string name="main_admin">Parent: manage on this phone</string>
+    <string name="main_admin">Manage on this phone</string>
     <!-- home screen: status card, quick row, "More" sheet -->
     <string name="home_more">More</string>
     <string name="home_more_desc">More options</string>

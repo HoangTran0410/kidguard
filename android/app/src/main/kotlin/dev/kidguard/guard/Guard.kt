@@ -54,6 +54,8 @@ class Guard : Service() {
     private lateinit var work: Handler
     private var http: Http? = null
     private var relay: Relay? = null
+    /** Last good relay sync (0 = never / no relay): the child's status sheet shows whether the relay link is up. */
+    val relayOkAt: Long get() = relay?.lastOk ?: 0L
     @Volatile private var lastState: JSONObject = JSONObject()
     private var lastLocateAt = 0L
     private var lastFullTick = 0L

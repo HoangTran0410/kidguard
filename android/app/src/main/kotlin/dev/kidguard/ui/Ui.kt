@@ -111,7 +111,7 @@ class Ui(val ctx: Context, pal: Palette? = null) {
     }
 
     /** Sheet / list row: tinted icon square, label, chevron. A Button (works with MainActivity.holdToRun). */
-    fun listRow(t: String, icon: Int, chevron: Boolean = true, onClick: () -> Unit): Button = Button(ctx).apply {
+    fun listRow(t: CharSequence, icon: Int, chevron: Boolean = true, onClick: () -> Unit): Button = Button(ctx).apply {
         text = t; isAllCaps = false; textSize = 16f; stateListAnimator = null; setTextColor(this@Ui.text)
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         gravity = Gravity.CENTER_VERTICAL or Gravity.START; textAlignment = View.TEXT_ALIGNMENT_VIEW_START
@@ -123,6 +123,14 @@ class Ui(val ctx: Context, pal: Palette? = null) {
         background = RippleDrawable(ColorStateList.valueOf(Color.argb(40, 128, 128, 128)), null, shape(Color.WHITE, 16))
         layoutParams = LinearLayout.LayoutParams(-1, -2)
         setOnClickListener { onClick() }
+    }
+
+    /** Row text with a smaller grey second line (a current value under the label). */
+    fun twoLine(t: String, sub2: String): CharSequence = android.text.SpannableString("$t\n$sub2").apply {
+        val a = t.length + 1
+        setSpan(android.text.style.AbsoluteSizeSpan(14, true), a, length, 0)
+        setSpan(android.text.style.ForegroundColorSpan(sub), a, length, 0)
+        setSpan(android.text.style.StyleSpan(Typeface.NORMAL), a, length, 0)
     }
 
     /** Small caps section title ("CỦA CON"). */

@@ -129,14 +129,24 @@ object FeaturesSheet {
             }
             body.addView(card)
         }
-        // basic mode + bank apps: without "display over other apps" Android may block reopening the bank after the pause
-        if (!Policy.isOwner(act) && store.rules.accPause.isNotEmpty() && !AccPause.canReopen(act))
-            body.addView(u.listRow(act.getString(R.string.feat_overlay), R.drawable.li_banknote) { sheet.dismiss()
-                open(act, Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + act.packageName)), Intent(Settings.ACTION_SETTINGS))
-            }.apply { (layoutParams as LinearLayout.LayoutParams).topMargin = u.dp(12) })
-        if (battery != null) body.addView(u.listRow(act.getString(R.string.main_battery), R.drawable.li_battery_charging) { sheet.dismiss(); battery() }.apply {
-            (layoutParams as LinearLayout.LayoutParams).topMargin = u.dp(12)
+        // same card look as the features above (they were plain list rows at the bottom)
+        fun actionCard(icon: Int, title: Int, desc: Int, need: String?, btn: String, run: () -> Unit) = body.addView(u.cardBox(14).apply {
+            addView(u.label(act.getString(title), 17f, u.text, true).apply {
+                setCompoundDrawablesRelative(u.badge(icon, u.accent, u.tint, 36, 20, 11), null, null, null)
+                compoundDrawablePadding = u.dp(12); gravity = android.view.Gravity.CENTER_VERTICAL
+            })
+            addView(u.label(act.getString(desc), 14f).apply { setPadding(0, u.dp(6), 0, 0) })
+            if (need != null) addView(u.label(act.getString(R.string.feat_need, need), 14f, u.tone(Ic.WARN), true).apply { setPadding(0, u.dp(8), 0, 0) })
+            addView(u.button(btn, null, false) { sheet.dismiss(); run() })
         })
+        // basic mode + bank apps: without "display over other apps" Android may block reopening the bank after the pause
+        if (!Policy.isOwner(act) && store.rules.accPause.isNotEmpty() && !AccPause.canReopen(act)) {
+            val cap = act.getString(R.string.feat_cap_overlay)
+            actionCard(R.drawable.li_banknote, R.string.ft_bank, R.string.ft_bank_d, cap, act.getString(R.string.feat_fix, cap)) {
+                open(act, Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + act.packageName)), Intent(Settings.ACTION_SETTINGS))
+            }
+        }
+        if (battery != null) actionCard(R.drawable.li_battery_charging, R.string.ft_battery, R.string.ft_battery_d, null, act.getString(R.string.ft_battery_open)) { battery() }
         sheet.show()
         return sheet
     }

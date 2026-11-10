@@ -170,7 +170,7 @@ class MainActivity : Activity() {
         // one screen for "what runs / what's missing" (status rows + features + battery), also from the health line
         devG.addView(u.listRow(getString(R.string.prot_title), R.drawable.li_circle_check) { sheet.dismiss(); showStatus() })
         // kid conveniences: a lock icon on the home screen, and where the phone keeps "double tap to wake"
-        kidG.addView(u.listRow(getString(R.string.main_pin_lock), R.drawable.li_lock) {
+        kidG.addView(u.listRow(u.twoLine(getString(R.string.main_pin_lock), getString(R.string.ms_pin_lock_sub)), R.drawable.li_lock) {
             sheet.dismiss()
             // our own home has no pinned shortcuts (none of any app): put its built-in 1x1 lock widget there instead
             if (Quick.addLockToOwnHome(this)) return@listRow
@@ -179,7 +179,7 @@ class MainActivity : Activity() {
         kidG.addView(u.listRow(getString(R.string.main_gestures), R.drawable.li_smartphone) { sheet.dismiss(); askGestures() })
         // language: harmless, so no PIN (the parent's rules don't depend on it)
         val langName = Langs.ALL.firstOrNull { it.first == Lang.get(this) }?.second ?: getString(R.string.lang_system)
-        kidG.addView(u.listRow(getString(R.string.main_lang, langName), R.drawable.li_globe) { sheet.dismiss(); askLang() })
+        kidG.addView(u.listRow(u.twoLine(getString(R.string.lang_title), langName), R.drawable.li_globe) { sheet.dismiss(); askLang() })
         // check GitHub now: no PIN, it only installs the official newer release (owner: silent; basic: system prompt)
         updRow = u.listRow(getString(R.string.main_check_update, BuildConfig.VERSION_NAME), R.drawable.li_refresh_cw, chevron = false) { checkUpdate() }
         devG.addView(updRow)
@@ -649,7 +649,6 @@ class MainActivity : Activity() {
         if (Listen.active) kidLine(R.drawable.li_mic, Ic.WARN, getString(R.string.notif_listen_title))
         if (s.sos().length() > 0) kidLine(R.drawable.li_siren, Ic.WARN, getString(R.string.st_sos))
         comfortRefresh(s) { icon, tone, text -> kidLine(icon, tone, text) }
-        if (s.relayUrl.isNotBlank()) line(R.drawable.li_globe, Ic.INFO, getString(R.string.st_remote))
         // was in the owner checklist card: can KidGuard turn Accessibility back on by itself
         if (owner) line(R.drawable.li_accessibility, Ic.INFO, getString(if (checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == android.content.pm.PackageManager.PERMISSION_GRANTED) R.string.prov_secure_yes else R.string.prov_secure_no))
         // paired before PINs were mandatory: only a parent's page can set it (never this phone: the child holds it)
@@ -663,7 +662,8 @@ class MainActivity : Activity() {
         val c = s.visiblePairCode()
         val hidden = c == null && s.pairCode() != null     // first pairing, code not revealed yet
         // the pairing card is hidden once paired: its "managed at <url>" line lives in the status details
-        if (c == null && !hidden) line(R.drawable.li_users, Ic.INFO, getString(R.string.main_hint_managed, lan ?: getString(R.string.main_no_wifi)))
+        // once paired: one line per way the parent reaches this phone (Wi-Fi page, Tailscale, relay, Telegram)
+        if (c == null && !hidden) remoteLines(s) { icon, tone, t -> line(icon, tone, t) }
         revealBtn.visibility = if (hidden) View.VISIBLE else View.GONE
         recoverBtn.visibility = if (s.everPaired && c == null && s.rules.pinHash.isBlank()) View.VISIBLE else View.GONE
         holdLabel(recoverBtn, s.recoverAt.takeIf { it > 0 }?.let { getString(R.string.main_recover_at, java.text.SimpleDateFormat("HH:mm dd/MM", java.util.Locale.ROOT).format(java.util.Date(it))) }
@@ -693,6 +693,27 @@ class MainActivity : Activity() {
         ui.removeCallbacks(refreshLoop); ui.postDelayed(refreshLoop, 3000)   // one loop, however often refresh() is called
     }
     private val refreshLoop = Runnable { refresh() }
+
+    /** The parent's ways in, each with its live state. Nothing set up at all -> the old "managed at <url>" line. */
+    private fun remoteLines(s: Store, line: (Int, String, String) -> Unit) {
+        var n = 0
+        val wifi = runCatching { java.net.NetworkInterface.getNetworkInterfaces().toList().filter { it.isUp && it.name.startsWith("wlan") }
+            .flatMap { it.inetAddresses.toList() }.firstOrNull { it is java.net.Inet4Address }?.hostAddress }.getOrNull()
+        if (wifi != null) { n++; line(R.drawable.li_wifi, Ic.INFO, getString(R.string.st_rc_wifi, "http://$wifi:${Guard.PORT}")) }
+        val ts = Ts.findIp()
+        if (ts.isNotEmpty()) { n++; line(R.drawable.li_link, Ic.OK, getString(R.string.st_rc_ts, "http://$ts:${Guard.PORT}")) }
+        else if (s.tsWanted || s.rules.tsKeep) { n++; line(R.drawable.li_link, Ic.WARN, getString(R.string.st_rc_ts_down)) }
+        if (s.relayUrl.isNotBlank()) {
+            n++
+            val up = System.currentTimeMillis() - (Guard.running?.relayOkAt ?: 0L) < 180_000
+            line(R.drawable.li_cloud, if (up) Ic.OK else Ic.WARN, getString(if (up) R.string.st_rc_relay else R.string.st_rc_relay_wait))
+        }
+        if (s.tgToken.isNotBlank()) {
+            n++; val k = s.tgChats().length()
+            line(R.drawable.li_send, if (k > 0) Ic.OK else Ic.INFO, if (k > 0) resources.getQuantityString(R.plurals.st_rc_tg, k, k) else getString(R.string.st_rc_tg_none))
+        }
+        if (n == 0) line(R.drawable.li_users, Ic.INFO, getString(R.string.main_hint_managed, Guard.lanUrl() ?: getString(R.string.main_no_wifi)))
+    }
 
     /** Opening pairing on the child needs the parent's PIN, once one is set; else a child could pair their own browser. */
     private fun askPin() {

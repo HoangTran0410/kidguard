@@ -11,7 +11,6 @@
     <string name="feat_owner_body">Device Owner cho phép khoá màn hình chính, ẩn app, chặn gỡ cài đặt và đổi DNS. Cần cài một lần bằng máy tính hoặc mã QR (xoá hết tài khoản trên máy trước). Xem hướng dẫn để biết các bước.</string>
     <string name="feat_adb_body">Máy tự chạy adb cho chính nó (Wi-Fi). Xem hướng dẫn để bật Gỡ lỗi không dây.</string>
     <string name="feat_launcher_use">Dùng màn hình chính KidGuard</string>
-    <string name="feat_overlay">Cho app ngân hàng tự mở lại (hiển thị trên ứng dụng khác)</string>
     <string name="feat_launcher_off">Tắt màn hình chính KidGuard</string>
     <string name="feat_launcher_pick">Chọn KidGuard làm màn hình chính trong cài đặt của máy.</string>
     <string name="feat_cap_owner">quyền Device Owner</string>
@@ -41,7 +40,7 @@
     <string name="ft_screen">Xem và điều khiển màn hình</string>
     <string name="ft_screen_d">Bố mẹ xem màn hình từ xa (Android 11 trở lên).</string>
     <string name="ft_remote">Bố mẹ quản lý từ xa</string>
-    <string name="ft_remote_d">Trang web của bố mẹ qua Wi-Fi hoặc relay.</string>
+    <string name="ft_remote_d">Trang web bố mẹ qua Wi-Fi, Tailscale, relay, hoặc bot Telegram.</string>
     <string name="ft_noUninstall">Chống gỡ KidGuard</string>
     <string name="ft_noUninstall_d">Bé không gỡ được KidGuard khỏi máy.</string>
     <string name="ft_dns">Lọc web (DNS)</string>
@@ -50,4 +49,20 @@
     <string name="feat_wss_body">Cần cấp quyền một lần qua máy tính (scripts/setup.sh, "pm grant"). Quyền vẫn còn sau khi tắt Tùy chọn nhà phát triển.</string>
     <string name="ft_lockLocation">Giữ vị trí luôn bật</string>
     <string name="ft_lockLocation_d">Không cho con tắt vị trí.</string>
+    <string name="ms_pin_lock_sub">Thêm vào màn hình chính</string>
+    <string name="st_rc_wifi">Wi-Fi: %1$s</string>
+    <string name="st_rc_ts">Tailscale: %1$s</string>
+    <string name="st_rc_ts_down">Tailscale: mất kết nối</string>
+    <string name="st_rc_relay">Relay (qua Internet): đã kết nối</string>
+    <string name="st_rc_relay_wait">Relay (qua Internet): đang kết nối lại…</string>
+    <plurals name="st_rc_tg">
+        <item quantity="other">Telegram: %d phụ huynh đã liên kết</item>
+    </plurals>
+    <string name="st_rc_tg_none">Telegram: đã cài bot, chưa ai liên kết</string>
+    <string name="ft_bank">App ngân hàng tự mở lại</string>
+    <string name="ft_bank_d">KidGuard tạm tắt trợ năng khi mở app ngân hàng, rồi cần quyền này để mở lại app đó.</string>
+    <string name="feat_cap_overlay">hiển thị trên ứng dụng khác</string>
+    <string name="ft_battery">Pin và tự khởi động</string>
+    <string name="ft_battery_d">Để máy không tự tắt KidGuard khi chạy ngầm.</string>
+    <string name="ft_battery_open">Mở cài đặt pin</string>
 </resources>
