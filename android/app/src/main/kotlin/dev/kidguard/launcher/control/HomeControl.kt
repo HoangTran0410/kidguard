@@ -393,13 +393,12 @@ internal fun HomeActivity.openControl() {
     panel.addView(row2, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap + dp(4) })
 
     // row 3, same 4-column grid (every action one round tile, short labels; no wide pills breaking the grid):
-    // notifications (shade), seen notifications, the phone's own quick settings (hotspot, cast, ...; not when rule
-    // launcher.shade closes them at once). Empty slots keep the columns aligned with row 2.
+    // notifications (the system shade; one more pull there = the phone's own quick settings, so no separate tile) and
+    // seen notifications (inbox icon: a second bell read as the same button). Empty slots keep the columns aligned.
     val row3 = LinearLayout(this).apply { gravity = Gravity.TOP }
     val tiles3 = listOfNotNull(
         notif,
-        CcToggle(this, Tile.VOLUME, R.drawable.li_bell_ring, getString(R.string.cc_nlog), tsz, 3).apply { onTap { openNlog() } }.takeIf { NotifLog.enabled && !(shadeOff()) },
-        CcToggle(this, Tile.VOLUME, R.drawable.li_settings_2, getString(R.string.cc_qs), tsz, 3).apply { onTap { closeOverlay(); main.postDelayed({ expandShade(true) }, 120) } }.takeIf { !shadeOff() },
+        CcToggle(this, Tile.VOLUME, R.drawable.li_inbox, getString(R.string.cc_nlog), tsz, 3).apply { onTap { openNlog() } }.takeIf { NotifLog.enabled && !(shadeOff()) },
     )
     tiles3.forEach { row3.addView(it, LinearLayout.LayoutParams(0, -2, 1f)) }
     repeat(4 - tiles3.size) { row3.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f)) }

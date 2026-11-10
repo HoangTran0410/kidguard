@@ -841,7 +841,6 @@
     <string name="cc_focus">Study</string>
     <string name="cc_focus_left">%d min left</string>
     <string name="cc_nlog">History</string>
-    <string name="cc_qs">Quick settings</string>
     <string name="cc_notifs">Notifications</string>
     <string name="cc_bright">Brightness</string>
     <string name="cc_volume">Volume</string>
