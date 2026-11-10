@@ -49,6 +49,19 @@ object ControlLogic {
         }
     }
 
+    private val CONN = setOf(Tile.WIFI, Tile.BT, Tile.DATA)
+
+    /**
+     * [mode] with the tile's current state. Settings not allowed: Wi-Fi / Bluetooth / data may still be turned ON (an off
+     * Wi-Fi also cuts the parent off, and kids got stuck with no way to turn it back on), never OFF. Off + no way of its
+     * own: the small system panel (Wi-Fi / internet) or the Bluetooth "turn on?" dialog, not the Settings app.
+     */
+    fun mode(t: Tile, p: Phone, on: Boolean?): Mode {
+        val m = mode(t, p)
+        if (p.settingsOk || t !in CONN || on == null || m == Mode.HIDDEN) return m
+        return if (on) Mode.LOCKED else if (m == Mode.LOCKED) Mode.PAGE else m
+    }
+
     /** Brightness slider position 0..1 to a setting value: squared, so the dim end gets most of the travel (as Android does). */
     fun brightValue(f: Float, max: Int): Int = (f.coerceIn(0f, 1f).let { it * it } * (max - 1)).toInt() + 1
     fun brightPos(v: Int, max: Int): Float = if (max <= 1) 1f else kotlin.math.sqrt(((v - 1).toFloat() / (max - 1)).coerceIn(0f, 1f))

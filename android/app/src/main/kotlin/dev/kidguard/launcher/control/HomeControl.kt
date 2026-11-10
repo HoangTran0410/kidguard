@@ -133,6 +133,13 @@ internal object CcSys {
         else -> Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + ctx.packageName))
     }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
+    /** Settings locked, connectivity off: the smallest system UI that turns it on (no way into the Settings app). */
+    fun turnOn(ctx: Context, t: Tile): Intent = when (t) {
+        Tile.BT -> Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE)
+        Tile.WIFI, Tile.DATA -> if (Build.VERSION.SDK_INT >= 29) page(ctx, t) else Intent(Settings.ACTION_WIRELESS_SETTINGS)
+        else -> page(ctx, t)
+    }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
     /** Long-press on a connectivity toggle: its full settings page (iOS / One UI / HyperOS); null = no long-press. */
     fun full(t: Tile): Intent? = when (t) {
         Tile.WIFI -> Intent(Settings.ACTION_WIFI_SETTINGS)
@@ -288,7 +295,8 @@ internal fun HomeActivity.openControl() {
     val toggles = mutableListOf<CcToggle>()
     lateinit var refresh: () -> Unit
     fun later() { main.postDelayed({ if (overlay === scrim) refresh() }, 500); main.postDelayed({ if (overlay === scrim) refresh() }, 1600) }
-    fun page(t: Tile) { runCatching { startActivity(CcSys.page(ctx, t)) }.onFailure { toast(R.string.cc_failed) }; closeOverlay() }
+    // settings locked: only the turn-on way (Wi-Fi / internet panel, Bluetooth "turn on?" dialog), never the full Settings page
+    fun page(t: Tile) { runCatching { startActivity(if (ok) CcSys.page(ctx, t) else CcSys.turnOn(ctx, t)) }.onFailure { toast(R.string.cc_failed) }; closeOverlay() }
     fun act(t: Tile, mode: Mode, direct: () -> Boolean) = when (mode) {
         Mode.DIRECT -> { if (!direct()) { if (ok) page(t) else toast(R.string.cc_failed) } else later(); refresh() }
         Mode.PAGE -> page(t)
@@ -298,7 +306,8 @@ internal fun HomeActivity.openControl() {
     fun toggle(t: Tile, icon: Int, label: Int, size: Int, lines: Int = 1, direct: (Boolean) -> Boolean): CcToggle? {
         val m = ControlLogic.mode(t, ph)
         if (m == Mode.HIDDEN) return null
-        return CcToggle(this, t, icon, getString(label), size, lines).also { tg -> tg.mode = m; toggles += tg; tg.onTap { act(t, tg.mode) { direct(tg.on != true) } }
+        return CcToggle(this, t, icon, getString(label), size, lines).also { tg -> tg.mode = m; toggles += tg
+            tg.onTap { if (tg.mode == Mode.LOCKED && tg.on == true && !ok && t in setOf(Tile.WIFI, Tile.BT, Tile.DATA)) toast(R.string.cc_no_off) else act(t, tg.mode) { direct(tg.on != true) } }
             // long-press: the full settings page, only where the kid may open Settings (else it would be a way around the lock)
             CcSys.full(t)?.let { i -> tg.onLong = { if (ok) { runCatching { startActivity(i) }.onFailure { toast(R.string.cc_failed) }; closeOverlay() } else toast(R.string.cc_locked) } }
         }
@@ -478,7 +487,7 @@ internal fun HomeActivity.openControl() {
             val b = CcSys.bright(ctx); val v = runCatching { am?.getStreamVolume(AudioManager.STREAM_MUSIC) }.getOrNull()
             main.post {
                 if (overlay !== scrim) return@post
-                for (t in toggles) t.set(if (t.tile == Tile.TORCH) torchOn else st[t.tile], t.mode)
+                for (t in toggles) { val on = if (t.tile == Tile.TORCH) torchOn else st[t.tile]; t.set(on, ControlLogic.mode(t.tile, ph, on)) }
                 if (b != null && !bright.isPressed) bright.value = ControlLogic.brightPos(b, bMax)
                 if (v != null) vol.value = v.toFloat() / vMax
                 for (f in more) f()

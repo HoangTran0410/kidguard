@@ -386,7 +386,8 @@ class HomeActivity : Activity() {
             return if (cOwner) null else "home"
         }
         if (!bannerSet || now - bannerAt > 20_000) {
-            cOwner = Policy.isOwner(this); cUsage = Usage.granted(this); cLoc = locationOn()
+            // basic mode (admin + accessibility, no Device Owner) is a finished setup too: nothing to "fix" there
+            cOwner = Policy.isOwner(this) || Basic.enforcing(this); cUsage = Usage.granted(this); cLoc = locationOn()
             bannerAt = now; bannerSet = true
         }
         return if (!cOwner && !s.everPaired) null   // standalone use before setup: nothing to nag about

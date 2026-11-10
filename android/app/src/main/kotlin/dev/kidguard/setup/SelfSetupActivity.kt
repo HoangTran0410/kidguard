@@ -14,8 +14,8 @@ import android.os.Looper
 import android.provider.Settings
 import android.text.InputFilter
 import android.text.InputType
+import android.view.Gravity
 import android.view.View
-import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -34,57 +34,79 @@ class SelfSetupActivity : Activity() {
     private lateinit var pairPort: EditText
     private lateinit var connPort: EditText
     private lateinit var wifiOff: CheckBox
-    private lateinit var start: Button
+    private lateinit var start: android.widget.Button
     private lateinit var result: TextView
     private val rows = ArrayList<TextView>()
 
+    private lateinit var u: Ui
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(40), dp(20), dp(24)) }
-        fun text(t: String, size: Float = 15f, bold: Boolean = false, color: String = "#374151") = TextView(this).apply {
-            this.text = t; textSize = size; setTextColor(Color.parseColor(color)); if (bold) setTypeface(typeface, Typeface.BOLD); setPadding(0, dp(6), 0, dp(6))
-        }
-        fun button(t: String, f: () -> Unit) = Button(this).apply { text = t; isAllCaps = false; setOnClickListener { f() } }
-        col.addView(text(getString(R.string.ssa_title), 24f, true, "#111827"))
+        u = Ui(this)
+        // same look as the child screens (MainActivity): app background, cards, rounded buttons, dark mode
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(28), dp(18), dp(28)) }
+        fun body(t: String, color: Int = u.sub) = u.label(t, 15f, color).apply { setLineSpacing(0f, 1.2f); setPadding(0, dp(6), 0, 0) }
+        col.addView(u.label(getString(R.string.ssa_title), 26f, u.text, true))
+        setContentView(ScrollView(this).apply { setBackgroundColor(u.bg); isFillViewport = true; addView(col) })
+        window.statusBarColor = u.bg; window.navigationBarColor = u.bg
+        if (!u.dark) window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (Build.VERSION.SDK_INT >= 27) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
 
         if (Build.VERSION.SDK_INT < 30) {
-            col.addView(text(getString(R.string.ssa_old, Build.VERSION.RELEASE)))
-            setContentView(ScrollView(this).apply { setBackgroundColor(Color.WHITE); addView(col) })
+            col.addView(u.cardBox().apply { addView(body(getString(R.string.ssa_old, Build.VERSION.RELEASE), u.text)) })
             return
         }
-        col.addView(text(getString(R.string.ssa_intro)))
+        col.addView(body(getString(R.string.ssa_intro)))
 
-        col.addView(text(getString(R.string.ssa_s1), 17f, true, "#111827"))
-        col.addView(text(getString(R.string.ssa_s1_d)))
-        col.addView(button(getString(R.string.ssa_s1_btn)) { open(Settings.ACTION_DEVICE_INFO_SETTINGS) })
+        /** One numbered step card: badge + title, explanation, its button. */
+        fun step(n: Int, title: Int, desc: Int, btn: Int, icon: Int, f: () -> Unit) = u.cardBox().apply {
+            addView(LinearLayout(this@SelfSetupActivity).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                addView(TextView(context).apply {
+                    text = "$n"; gravity = Gravity.CENTER; textSize = 15f; setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(u.accent); background = u.shape(u.tint, 999)
+                }, LinearLayout.LayoutParams(dp(30), dp(30)))
+                addView(u.label(getString(title).replace(Regex("^[^.]*\\.\\s*"), ""), 17f, u.text, true),
+                    LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
+            })
+            addView(body(getString(desc)))
+            addView(u.button(getString(btn), icon, false, f))
+        }
+        col.addView(step(1, R.string.ssa_s1, R.string.ssa_s1_d, R.string.ssa_s1_btn, R.drawable.li_smartphone) { open(Settings.ACTION_DEVICE_INFO_SETTINGS) })
+        col.addView(step(2, R.string.ssa_s2, R.string.ssa_s2_d, R.string.ssa_s2_btn, R.drawable.li_wifi) { open(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS) })
+        val s3 = step(3, R.string.ssa_s3, R.string.ssa_s3_d, R.string.ssa_s3_btn, R.drawable.li_bell) { askNotification() }
+        portInfo = body("").apply { textSize = 13f }
+        s3.addView(portInfo)
+        s3.addView(u.label(getString(R.string.ssa_or_here), 14f, u.text, true).apply { setPadding(0, dp(16), 0, 0) })
+        fun field(hint: Int, len: Int) = EditText(this).apply {
+            this.hint = getString(hint); inputType = InputType.TYPE_CLASS_NUMBER; filters = arrayOf(InputFilter.LengthFilter(len))
+            textSize = 16f; setTextColor(u.text); setHintTextColor(u.sub); background = u.shape(u.bg, 14, u.stroke, 1)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) }
+        }
+        code = field(R.string.ssa_code_hint, 6).apply { textSize = 18f }
+        // the port hints are long ("... leave empty ..."): smaller text so they fit one line on a 360 dp screen
+        pairPort = field(R.string.ssa_pair_port_hint, 5).apply { textSize = 13f }
+        connPort = field(R.string.ssa_conn_port_hint, 5).apply { textSize = 13f }
+        listOf(code, pairPort, connPort).forEach { s3.addView(it) }
+        wifiOff = CheckBox(this).apply {
+            text = getString(R.string.ssa_wifi_off); isChecked = true; setTextColor(u.text); textSize = 15f
+            buttonTintList = ColorStateList.valueOf(u.primary)
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) }
+        }
+        s3.addView(wifiOff)
+        start = u.button(getString(R.string.ssa_start), R.drawable.li_play, true) { go() }
+        s3.addView(start)
+        col.addView(s3)
 
-        col.addView(text(getString(R.string.ssa_s2), 17f, true, "#111827"))
-        col.addView(text(getString(R.string.ssa_s2_d)))
-        col.addView(button(getString(R.string.ssa_s2_btn)) { open(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS) })
-
-        col.addView(text(getString(R.string.ssa_s3), 17f, true, "#111827"))
-        col.addView(text(getString(R.string.ssa_s3_d)))
-        col.addView(button(getString(R.string.ssa_s3_btn)) { askNotification() })
-        portInfo = text("", 14f)
-        col.addView(portInfo)
-
-        col.addView(text(getString(R.string.ssa_or_here), 14f))
-        code = EditText(this).apply { hint = getString(R.string.ssa_code_hint); inputType = InputType.TYPE_CLASS_NUMBER; filters = arrayOf(InputFilter.LengthFilter(6)) }
-        col.addView(code)
-        pairPort = EditText(this).apply { hint = getString(R.string.ssa_pair_port_hint); inputType = InputType.TYPE_CLASS_NUMBER; filters = arrayOf(InputFilter.LengthFilter(5)) }
-        col.addView(pairPort)
-        connPort = EditText(this).apply { hint = getString(R.string.ssa_conn_port_hint); inputType = InputType.TYPE_CLASS_NUMBER; filters = arrayOf(InputFilter.LengthFilter(5)) }
-        col.addView(connPort)
-        wifiOff = CheckBox(this).apply { text = getString(R.string.ssa_wifi_off); isChecked = true }
-        col.addView(wifiOff)
-        start = button(getString(R.string.ssa_start)) { go() }
-        col.addView(start)
-
-        col.addView(text(getString(R.string.ssa_progress), 17f, true, "#111827"))
-        for (s in SelfSetup.STEPS) { val r = text(getString(s), 15f); r.compoundDrawablePadding = dp(10); rows.add(r); col.addView(r) }
-        result = text("", 15f, true)
-        col.addView(result)
-        setContentView(ScrollView(this).apply { setBackgroundColor(Color.WHITE); addView(col) })
+        val prog = u.cardBox()
+        prog.addView(u.label(getString(R.string.ssa_progress), 17f, u.text, true))
+        for (s in SelfSetup.STEPS) {
+            val r = u.label(getString(s), 15f, u.text).apply { compoundDrawablePadding = dp(12); gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(8), 0, dp(8)) }
+            rows.add(r); prog.addView(r)
+        }
+        result = u.label("", 15f, u.text, true).apply { setPadding(0, dp(8), 0, 0) }
+        prog.addView(result)
+        col.addView(prog)
 
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
@@ -123,17 +145,18 @@ class SelfSetupActivity : Activity() {
             (if (cp > 0) getString(R.string.ssa_wd_on, cp) else getString(R.string.ssa_wd_off))
         for (i in rows.indices) {
             val (icon, tint) = when (SelfSetup.state[i]) {
-                SelfSetup.STEP_OK -> R.drawable.ic_ok to "#16a34a"
-                SelfSetup.STEP_ERR -> R.drawable.ic_err to "#dc2626"
-                SelfSetup.STEP_RUN -> R.drawable.ic_run to "#2563eb"
-                else -> R.drawable.ic_todo to "#9ca3af"
+                SelfSetup.STEP_OK -> R.drawable.ic_ok to u.tone(Ic.OK)
+                SelfSetup.STEP_ERR -> R.drawable.ic_err to u.danger
+                SelfSetup.STEP_RUN -> R.drawable.ic_run to u.accent
+                else -> R.drawable.ic_todo to u.sub
             }
             rows[i].setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0)
-            rows[i].compoundDrawableTintList = ColorStateList.valueOf(Color.parseColor(tint))
+            rows[i].compoundDrawableTintList = ColorStateList.valueOf(tint)
+            rows[i].setTextColor(if (SelfSetup.state[i] == SelfSetup.STEP_ERR) u.danger else u.text)
         }
-        start.isEnabled = !SelfSetup.running
+        start.isEnabled = !SelfSetup.running; start.alpha = if (SelfSetup.running) 0.5f else 1f
         result.text = SelfSetup.message
-        result.setTextColor(Color.parseColor(if (SelfSetup.done) "#16a34a" else "#dc2626"))
+        result.setTextColor(if (SelfSetup.done) u.tone(Ic.OK) else u.danger)
         if (SelfSetup.done) {
             SelfSetup.done = false
             startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK))

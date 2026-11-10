@@ -837,6 +837,7 @@
     <string name="cc_volume">Volume</string>
     <string name="cc_more">Phone\'s quick settings</string>
     <string name="cc_locked">A parent manages this</string>
+    <string name="cc_no_off">A parent keeps this on</string>
     <string name="cc_failed">This phone does not allow changing it here</string>
     <string name="cc_on">On</string>
     <string name="cc_off">Off</string>

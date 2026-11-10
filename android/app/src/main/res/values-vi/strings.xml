@@ -818,6 +818,7 @@
     <string name="cc_volume">Âm lượng</string>
     <string name="cc_more">Cài đặt nhanh của máy</string>
     <string name="cc_locked">Bố mẹ quản lý mục này</string>
+    <string name="cc_no_off">Bố mẹ không cho tắt mục này</string>
     <string name="cc_failed">Máy không cho đổi mục này ở đây</string>
     <string name="cc_on">Bật</string>
     <string name="cc_off">Tắt</string>

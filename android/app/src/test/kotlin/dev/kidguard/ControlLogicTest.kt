@@ -66,4 +66,17 @@ class ControlLogicTest {
         assertEquals(Mode.HIDDEN, ControlLogic.mode(Tile.DARK, home34.copy(sdk = 28)))
         assertEquals(Mode.DIRECT, ControlLogic.mode(Tile.RINGER, home34))
     }
+
+    @Test fun settingsLockedConnectivityTurnsOnNeverOff() {
+        val basic = home34.copy(settingsOk = false)
+        assertEquals(Mode.PAGE, ControlLogic.mode(Tile.WIFI, basic, false))    // off: panel to turn it on
+        assertEquals(Mode.LOCKED, ControlLogic.mode(Tile.WIFI, basic, true))   // on: can't turn off
+        assertEquals(Mode.PAGE, ControlLogic.mode(Tile.DATA, kid34, false))
+        assertEquals(Mode.LOCKED, ControlLogic.mode(Tile.DATA, kid34, true))
+        assertEquals(Mode.DIRECT, ControlLogic.mode(Tile.BT, kid34, false))    // owner turns it on itself
+        assertEquals(Mode.LOCKED, ControlLogic.mode(Tile.BT, kid34, true))
+        assertEquals(Mode.LOCKED, ControlLogic.mode(Tile.AIRPLANE, kid34.copy(noAirplane = false), false))
+        assertEquals(Mode.LOCKED, ControlLogic.mode(Tile.WIFI, basic, null).let { ControlLogic.mode(Tile.WIFI, basic) })
+        assertEquals(Mode.PAGE, ControlLogic.mode(Tile.WIFI, home34, true))    // settings allowed: unchanged
+    }
 }
