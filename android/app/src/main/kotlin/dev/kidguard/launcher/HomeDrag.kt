@@ -23,15 +23,30 @@ import dev.kidguard.HomeActivity.CellLayout
  * In a folder panel / the picker ([immediate]) the long-press starts the drag at once.
  */
 internal fun HomeActivity.arm(v: View, onLong: () -> Unit, src: () -> DragSt, immediate: Boolean = false, dragView: View = v, press: View? = null) {
-    v.isLongClickable = true
+    // Our own long-press timer (Launcher3's CheckLongPressHelper), not the View's: Android 10+ fires the View's long click AT ONCE
+    // on a "deep press" (the finger flattening as a swipe starts), before the pager has seen enough movement to take the
+    // swipe, so page swipes on the POCO kept opening the app menu. Cancelled once the finger moves past the touch slop.
+    val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
+    val fire = Runnable { if (v.isAttachedToWindow) v.performLongClick() }
     v.setOnTouchListener { _, e ->
         when (e.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { downX = e.rawX; downY = e.rawY; armed = null; pressed(press, true) }
-            MotionEvent.ACTION_MOVE -> if (armed === v && (abs(e.rawX - downX) > dp(8) || abs(e.rawY - downY) > dp(8))) { armed = null; popup?.dismiss(); pressed(press, null); startDrag(dragView, src()) }
+            MotionEvent.ACTION_DOWN -> { downX = e.rawX; downY = e.rawY; armed = null; pressed(press, true)
+                v.removeCallbacks(fire); v.postDelayed(fire, android.view.ViewConfiguration.getLongPressTimeout().toLong()) }
+            MotionEvent.ACTION_MOVE -> {
+                if (abs(e.rawX - downX) > slop || abs(e.rawY - downY) > slop) v.removeCallbacks(fire)
+                if (armed === v && (abs(e.rawX - downX) > dp(8) || abs(e.rawY - downY) > dp(8))) { armed = null; popup?.dismiss(); pressed(press, null); startDrag(dragView, src()) }
+            }
             // a scroll / page swipe taking the gesture sends CANCEL: the icon springs back too
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { armed = null; pressed(press, false) }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { v.removeCallbacks(fire); armed = null; pressed(press, false) }
         }
         false
+    }
+    // TalkBack still offers "long press" (the View's own timer is off below)
+    v.accessibilityDelegate = object : View.AccessibilityDelegate() {
+        override fun onInitializeAccessibilityNodeInfo(host: View, info: android.view.accessibility.AccessibilityNodeInfo) {
+            super.onInitializeAccessibilityNodeInfo(host, info)
+            info.isLongClickable = true; info.addAction(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_LONG_CLICK)
+        }
     }
     v.setOnLongClickListener {
         v.parent?.requestDisallowInterceptTouchEvent(true)
@@ -39,6 +54,7 @@ internal fun HomeActivity.arm(v: View, onLong: () -> Unit, src: () -> DragSt, im
         if (immediate) { pressed(press, null); startDrag(dragView, src()) } else { armed = v; onLong() }
         true
     }
+    v.isLongClickable = false   // after setOnLongClickListener (which turns it back on): only [fire] starts the menu
 }
 
 /**
