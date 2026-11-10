@@ -818,7 +818,7 @@
     <string name="hm_c_text">Text</string>
     <string name="hm_c_font">Text size</string>
     <string name="hm_c_lock_hint">Your parents can lock these settings from their page.</string>
-    <string name="hm_c_reset">Back to the style\'s defaults</string>
+    <string name="hm_c_reset">Reset the look to defaults</string>
     <string name="hm_c_less">Fewer: %1$s</string>
     <string name="hm_c_more">More: %1$s</string>
     <string name="hm_c_selected">selected</string>
@@ -899,4 +899,17 @@
     <string name="nlog_r_app">Removed by the app</string>
     <string name="nlog_r_timeout">Timed out</string>
     <string name="nlog_r_other">Other</string>
+    <string name="hm_lay_title">Saved layouts</string>
+    <string name="hm_lay_save">Save current layout</string>
+    <string name="hm_lay_default">Layout %1$d</string>
+    <string name="hm_lay_name">Layout name</string>
+    <string name="hm_lay_meta">%1$d pages · %2$d apps</string>
+    <string name="hm_lay_current">In use</string>
+    <string name="hm_lay_full">5 layouts saved already: delete one first</string>
+    <string name="hm_lay_applied">Switched to “%1$s”</string>
+    <string name="hm_lay_del_t">Delete “%1$s”?</string>
+    <string name="hm_lay_del_b">Only the saved copy goes; the home screen stays as it is.</string>
+    <string name="hm_lay_rename">Rename</string>
+    <string name="hm_lay_delete">Delete</string>
+    <string name="hm_lay_hint">Save how the home looks now (app and widget places, look, wallpaper) to switch back to it in one tap. Kept on this phone only.</string>
 </resources>

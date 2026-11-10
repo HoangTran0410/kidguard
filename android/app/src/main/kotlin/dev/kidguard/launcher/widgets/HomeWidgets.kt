@@ -38,7 +38,7 @@ internal fun HomeActivity.armWidget(v: View, it: HItem) {
         } else emptyList()
         menu(own + listOf(
             Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { mm -> HomeLayout.take(mm, Src.Item(it.id))?.let { t -> update(HomeLayout.dropRemove(t)) } } },
-            Row(R.drawable.li_pencil, getString(R.string.hm_edit_home), true) { enterEdit(it.id) },
+            Row(R.drawable.li_move, getString(R.string.hm_edit_home), true) { enterEdit(it.id) },
         ), v, head = if (chips.size > 1) MenuHead(getString(R.string.hm_w_size_h), chips = chips) else null)
     }
     val src = { DragSt(Src.Item(it.id), null, "widget", it.w, it.h, it.id, v) }

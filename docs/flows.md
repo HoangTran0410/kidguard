@@ -468,7 +468,7 @@ docs/protocol.md:255); `CustomActivity` HA shows a "need access" note + opens sy
 
 Trigger: menu "Tuỳ chỉnh". Same task, not in recents; reloads home on resume if `HomeFile.load` differs.
 1. `build()` CustomActivity.kt:71 rebuilds only ScrollView content (no scroll jump).
-2. Sections: live preview, 3 presets (be/teen/gon), grid cols/rows steppers, icon size, labels, font face, shape, dock bg/labels,
+2. Sections: live preview, saved layouts (`L/custom/HomeSaved.kt`: up to 5 named home copies in filesDir/layouts/, tap = switch via `HomeBackup.apply`, one undo; presets removed 2026-11-11), grid cols stepper, icon size, labels, font face, shape, dock bg/labels,
    Today on/off, Library on/off, fx (full/lite/auto), dots (off/dot/num), wallpaper (photo + 13 built-ins), blur + dim sliders,
    accent, theme, text size, reset.
 3. `set(f)` 188 -> `guard()` -> `save()` = `HomeFile.save` + `IconCache.clear`; `regrid` 197 offers Undo for a smaller grid; `applyPreset` 208.

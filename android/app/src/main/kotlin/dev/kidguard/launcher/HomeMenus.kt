@@ -152,21 +152,21 @@ internal fun HomeActivity.appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
         Row(R.drawable.li_folder_plus, getString(R.string.hm_f_add), true) { addToFolderSheet(a) },
         lookRow(a),
         // one way into edit mode (the old "Chọn" + "Sửa màn hình chính"): on the grid it starts with this icon picked
-        Row(R.drawable.li_pencil, getString(R.string.hm_edit_home), true) { if (mode == Mode.PANEL) closeOverlay(); enterEdit(item?.id.takeIf { mode == Mode.HOME }) }.takeIf { mode != Mode.DRAWER },
+        Row(R.drawable.li_move, getString(R.string.hm_edit_home), true) { if (mode == Mode.PANEL) closeOverlay(); enterEdit(item?.id.takeIf { mode == Mode.HOME }) }.takeIf { mode != Mode.DRAWER },
     ), v, head = MenuHead(a.label, listOfNotNull(info)))
 }
 
 /** Long-press on a pinned shortcut: take it off the home, or edit the home. */
 internal fun HomeActivity.shortcutMenu(item: HItem, v: View) = menu(listOf(
     Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { m -> update(HomeLayout.removeIds(m, setOf(item.id))) } },
-    Row(R.drawable.li_pencil, getString(R.string.hm_edit_home), true) { enterEdit(item.id) },
+    Row(R.drawable.li_move, getString(R.string.hm_edit_home), true) { enterEdit(item.id) },
 ), v)
 
 internal fun HomeActivity.emptyMenu(x: Int, y: Int) = menu(listOf(
     // Pixel's 3 (widgets / edit / style), most used first. Study mode and seen notifications live in the control center,
     // KidGuard in the drawer (LauncherLogic.show keeps it): 6 rows with two same-looking icons were hard to scan (owner)
     Row(R.drawable.li_layout_grid, getString(R.string.hm_w_title), true) { openPicker() },
-    Row(R.drawable.li_pencil, getString(R.string.hm_edit_home), true) { enterEdit() },
+    Row(R.drawable.li_move, getString(R.string.hm_edit_home), true) { enterEdit() },
     Row(R.drawable.li_sliders_horizontal, getString(R.string.hm_customize), true) { runCatching { startActivity(Intent(this, CustomActivity::class.java)) } },
 ).filterNotNull(), null, x, y)
 

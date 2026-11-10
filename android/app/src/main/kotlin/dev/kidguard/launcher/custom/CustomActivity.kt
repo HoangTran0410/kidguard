@@ -43,6 +43,8 @@ class CustomActivity : Activity() {
     private var wallX = 0                                  // the wallpaper row's own scroll, kept across rebuilds
     private val thumbs = HashMap<String, Bitmap>()         // built-in wallpaper tiles, drawn once
     private var undo: HomeModel? = null
+    private var savedUndo = false                           // a saved layout was just applied: its "Hoàn tác" shows in that section
+    private var undoAt = ""                                 // where its "Hoàn tác" shows: grid | wall | reset
     private var undoPhoto = false                           // the undo also brings the previous wall.jpg back (wall.jpg.prev)
     private var busy = false
     private val locked get() = Store.of(this).rules.launcher.lockCustom
@@ -105,11 +107,9 @@ class CustomActivity : Activity() {
             LinearLayout.LayoutParams(0, -2, 1f))
         col.addView(pv, lp(10))
 
-        section(col, R.string.hm_c_style)
-        val pr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        for ((i, p) in HomeStyle.PRESETS.withIndex()) pr.addView(presetCard(p, p.id == st.preset), LinearLayout.LayoutParams(0, -2, 1f).apply { if (i > 0) leftMargin = dp(8) })
-        col.addView(pr, lp(8))
-
+        // no "Kiểu" (Bé / Teen / Gọn) cards: a tap to look re-gridded the whole home with the undo far below (owner);
+        // every part of a preset has its own control here, and One UI / Pixel have no presets either. Saved layouts instead.
+        savedSection(col, mm)
         section(col, R.string.hm_c_home)
         val home = group()
         home.addView(stepper(s(R.string.hm_c_cols), mm.cols, 3, 5) { regrid(it, mm.rows) })
@@ -134,6 +134,7 @@ class CustomActivity : Activity() {
             k.tap(this, 12f) { NotifDots.ask(this@CustomActivity) }
         })
         col.addView(home, lp(8))
+        undoPill(col, "grid")
 
         section(col, R.string.hm2_c_read)
         val read = group()
@@ -141,10 +142,6 @@ class CustomActivity : Activity() {
         line(read); read.addView(switchRow(s(R.string.hm2_c_calm), st.calm) { v -> set { it.copy(calm = v) } })
         line(read); read.addView(switchRow(s(R.string.hm2_c_solid), st.solid) { v -> set { it.copy(solid = v) } })
         col.addView(read, lp(8))
-        undo?.let { u0 ->
-            col.addView(k.pill(s(R.string.hm_c_undo), R.drawable.li_rotate_ccw, false) { if (!guard()) return@pill; if (undoPhoto) restorePhoto(); save(u0); undo = null; undoPhoto = false; build() },
-                LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
-        }
 
         // first open: what fills the screen now, the sections below the fold right after the first frame (the whole form
         // was 86-139 ms before it on an Oppo A5s); a rebuild (a setting changed) builds it all at once, so nothing flashes
@@ -166,6 +163,7 @@ class CustomActivity : Activity() {
             fx.addView(slider(s(R.string.hm_c_blur), st.blur / 20, 5, "0", "100%") { v -> set { it.copy(blur = v * 20) } })
             fx.addView(slider(s(R.string.hm_c_dim), st.dim / 10, 6, "0", "60%") { v -> set { it.copy(dim = v * 10) } })
             col.addView(fx, lp(8))
+            undoPill(col, "wall")
 
             section(col, R.string.hm_c_accent)
             val ar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -184,8 +182,9 @@ class CustomActivity : Activity() {
 
             gestBackup(col)   // gestures + backup / restore (HomeGestures.kt, HomeBackup.kt)
             if (!locked && !Flavor.HOME) col.addView(note(s(R.string.hm_c_lock_hint), false), lp(14))
-            col.addView(k.pill(s(R.string.hm_c_reset), R.drawable.li_rotate_ccw, false) { if (guard()) applyPreset(HomeStyle.preset(st.preset)) },
+            col.addView(k.pill(s(R.string.hm_c_reset), R.drawable.li_rotate_ccw, false) { if (guard()) resetStyle() },
                 LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+            undoPill(col, "reset")
         }
         if (!first) rest() else {
             // after the first frame is drawn (a View.post before it still ran ahead of that frame: no gain, measured)
@@ -219,7 +218,7 @@ class CustomActivity : Activity() {
         val mm = m ?: return
         val ns = f(mm.style)
         if (ns == mm.style) return
-        undo = null; undoPhoto = false   // "until the next change"
+        undo = null; undoPhoto = false; savedUndo = false   // "until the next change"
         save(mm.copy(style = ns)); build()
     }
 
@@ -230,17 +229,81 @@ class CustomActivity : Activity() {
         val n = HomeLayout.regrid(mm, c, r).copy(autoRows = true)
         if (n.cols == mm.cols && n.rows == mm.rows) return
         // a smaller grid moves things: offer "Hoàn tác" until the next change
-        undo = if (c < mm.cols || r < mm.rows) mm else null; undoPhoto = false
+        undo = if (c < mm.cols || r < mm.rows) mm else null; undoPhoto = false; undoAt = "grid"
         save(n); build()
     }
 
-    private fun applyPreset(p: HomeStyle.Preset) {
+    /** "Về mặc định": the look only (style), never the layout: icons stay where the kid put them. Offers "Hoàn tác". */
+    private fun resetStyle() {
         val mm = m ?: return
-        val g = HomeLayout.regrid(mm, p.cols, p.rows)
-        undoPhoto = false
-        undo = mm   // a preset (and Reset) replaces the whole style: always offer "Hoàn tác" until the next change
-        save(g.copy(autoRows = true, style = HStyle(preset = p.id, labels = p.labels, dockBg = p.dockBg, theme = mm.style.theme)))
-        build()
+        val p = HomeStyle.preset(mm.style.preset)
+        val ns = HStyle(preset = p.id, labels = p.labels, dockBg = p.dockBg, theme = mm.style.theme)
+        if (ns == mm.style) return
+        undoPhoto = false; undo = mm; undoAt = "reset"
+        save(mm.copy(style = ns)); build()
+    }
+
+    /** "Bố cục đã lưu" (HomeSaved): tap = switch (undoable right here), pencil = rename, bin = delete, + = save this one. */
+    private fun savedSection(col: LinearLayout, mm: HomeModel) {
+        section(col, R.string.hm_lay_title)
+        val list = HomeSaved.list(this)
+        val cur = HomeSaved.sig(mm)
+        val g = group()
+        for ((i, e) in list.withIndex()) {
+            if (i > 0) line(g)
+            val on = e.sig == cur
+            val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; minimumHeight = dp(64) }
+            val txt = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, dp(8)) }
+            txt.addView(k.text(e.name, 16f, pal.text, on))
+            txt.addView(k.text(if (on) s(R.string.hm_lay_current) + " · " + s(R.string.hm_lay_meta, e.pages, e.apps) else s(R.string.hm_lay_meta, e.pages, e.apps),
+                13f, if (on) pal.accentText else pal.sub))
+            r.addView(txt, LinearLayout.LayoutParams(0, -2, 1f))
+            fun icon(res: Int, desc: String, act: () -> Unit) = ImageView(this).apply {
+                setImageDrawable(Ic.get(context, res, pal.sub, dp(20))); setPadding(dp(10), dp(10), dp(10), dp(10)); contentDescription = desc
+                k.tap(this, 12f) { act() }
+            }
+            r.addView(icon(R.drawable.li_pencil, s(R.string.hm_lay_rename) + " " + e.name) { if (guard()) nameLayout(e.name) { n -> HomeSaved.rename(this, e, n); build() } }, LinearLayout.LayoutParams(dp(40), dp(40)))
+            r.addView(icon(R.drawable.li_trash_2, s(R.string.hm_lay_delete) + " " + e.name) {
+                if (guard()) Modal(this, Ui(this)).show(R.drawable.li_trash_2, Modal.Tone.WARN, s(R.string.hm_lay_del_t, e.name), s(R.string.hm_lay_del_b), null,
+                    s(R.string.hm_lay_delete), s(R.string.gest_cancel)) { HomeSaved.delete(this, e); build(); true }
+            }, LinearLayout.LayoutParams(dp(40), dp(40)))
+            r.contentDescription = e.name
+            if (!on) k.tap(r, 20f) {
+                if (!guard()) return@tap
+                if (HomeSaved.apply(this, e)) { savedUndo = true; reloadAfterBackup(); Toast.makeText(this, s(R.string.hm_lay_applied, e.name), Toast.LENGTH_SHORT).show() }
+                else Toast.makeText(this, R.string.bk_fail, Toast.LENGTH_LONG).show()
+            }
+            g.addView(r)
+        }
+        if (list.isNotEmpty()) col.addView(g, lp(8))
+        col.addView(k.pill(s(R.string.hm_lay_save), R.drawable.li_plus, false) {
+            if (!guard()) return@pill
+            if (HomeSaved.list(this).size >= HomeSaved.MAX) { Toast.makeText(this, R.string.hm_lay_full, Toast.LENGTH_LONG).show(); return@pill }
+            nameLayout(s(R.string.hm_lay_default, list.size + 1)) { n -> if (HomeSaved.save(this, n) == null) Toast.makeText(this, R.string.bk_fail, Toast.LENGTH_LONG).show(); build() }
+        }, lp(8))
+        if (savedUndo && HomeBackup.hasUndo(this)) col.addView(k.pill(s(R.string.hm_c_undo), R.drawable.li_rotate_ccw, false) {
+            if (guard()) { HomeBackup.undo(this); savedUndo = false; reloadAfterBackup() }
+        }, lp(8))
+        if (list.isEmpty()) col.addView(note(s(R.string.hm_lay_hint), false), lp(8))
+    }
+
+    private fun nameLayout(start: String, done: (String) -> Unit) {
+        val md = Modal(this, Ui(this))
+        val field = md.field(s(R.string.hm_lay_name), 30).apply { setText(start); selectAll() }
+        md.show(R.drawable.li_pencil, Modal.Tone.INFO, s(R.string.hm_lay_name), content = field, ok = s(R.string.hm_t_save), cancel = s(R.string.gest_cancel)) {
+            val n = field.text.toString().trim()
+            if (n.isNotEmpty()) done(n)
+            true
+        }
+        field.requestFocus()
+    }
+
+    /** "Hoàn tác" right under the control that made the change ([at]), not at one fixed place far below it. */
+    private fun undoPill(col: LinearLayout, at: String) {
+        val u0 = undo ?: return
+        if (undoAt != at) return
+        col.addView(k.pill(s(R.string.hm_c_undo), R.drawable.li_rotate_ccw, false) { if (!guard()) return@pill; if (undoPhoto) restorePhoto(); save(u0); undo = null; undoPhoto = false; build() },
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
     }
 
     // ---- controls (colours: HomeStyleTest "part 2 controls") ----
@@ -379,30 +442,6 @@ class CustomActivity : Activity() {
         pop.showAtLocation(root, Gravity.TOP or Gravity.START, x, y)
     }
 
-    private fun presetCard(p: HomeStyle.Preset, sel: Boolean) = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(8), dp(10), dp(8), dp(10))
-        background = GradientDrawable().apply { setColor(pal.sheet); cornerRadius = k.dpf(18f); setStroke(dp(if (sel) 2 else 1), if (sel) pal.accentText else pal.stroke) }
-        addView(object : View(context) {
-            // decorative cells: the accent at half strength on its tint (mock), the label below carries the meaning
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.accentText; alpha = 120 }
-            val bg = Paint().apply { color = pal.tint }
-            override fun onDraw(c: Canvas) {
-                c.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), k.dpf(10f), k.dpf(10f), bg)
-                val pad = k.dpf(6f); val gap = k.dpf(3f)
-                val cw = (width - 2 * pad - (p.cols - 1) * gap) / p.cols; val ch = (height - 2 * pad - (p.rows - 1) * gap) / p.rows
-                for (y in 0 until p.rows) for (x in 0 until p.cols) {
-                    val l = pad + x * (cw + gap); val t = pad + y * (ch + gap)
-                    c.drawRoundRect(l, t, l + cw, t + ch, k.dpf(4f), k.dpf(4f), paint)
-                }
-            }
-        }, LinearLayout.LayoutParams(-1, dp(76)))
-        val name = s(when (p.id) { "be" -> R.string.hm_c_be; "gon" -> R.string.hm_c_gon; else -> R.string.hm_c_teen })
-        addView(k.text(name, 15f, pal.text, true).apply { gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) })
-        addView(k.text(s(R.string.hm_c_grid, p.cols, p.rows), 12f, pal.sub).apply { gravity = Gravity.CENTER; setPadding(0, dp(2), 0, 0) })
-        contentDescription = name + if (sel) ", " + s(R.string.hm_c_selected) else ""
-        k.tap(this, 18f) { if (guard()) applyPreset(p) }
-    }
-
     private fun wallTile(id: String, sel: Boolean) = FrameLayout(this).apply {
         val bmp = thumbs.getOrPut(id) { Wallpaper.draw(id, dp(64), dp(112)) }
         addView(object : View(context) {
@@ -501,7 +540,7 @@ class CustomActivity : Activity() {
                     val before = m
                     set { it.copy(wallKind = "photo", wall = "", dim = if (it.wallKind == "photo") it.dim else 10) }
                     // the old photo (wall.jpg.prev) and style stay one tap away
-                    if (before != null && File(filesDir, Wallpaper.PHOTO + ".prev").exists()) { undo = before; undoPhoto = true; build() }
+                    if (before != null && File(filesDir, Wallpaper.PHOTO + ".prev").exists()) { undo = before; undoPhoto = true; undoAt = "wall"; build() }
                 }
                 else { Toast.makeText(this, R.string.hm_c_pick_fail, Toast.LENGTH_LONG).show(); build() }
             }

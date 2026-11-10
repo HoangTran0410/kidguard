@@ -799,7 +799,7 @@
     <string name="hm_c_text">Chữ</string>
     <string name="hm_c_font">Cỡ chữ</string>
     <string name="hm_c_lock_hint">Bố mẹ có thể khoá phần này từ trang của bố mẹ.</string>
-    <string name="hm_c_reset">Về mặc định của kiểu</string>
+    <string name="hm_c_reset">Về giao diện mặc định</string>
     <string name="hm_c_less">Giảm %1$s</string>
     <string name="hm_c_more">Tăng %1$s</string>
     <string name="hm_c_selected">đang chọn</string>
@@ -880,4 +880,17 @@
     <string name="nlog_r_app">App tự gỡ</string>
     <string name="nlog_r_timeout">Hết giờ</string>
     <string name="nlog_r_other">Khác</string>
+    <string name="hm_lay_title">Bố cục đã lưu</string>
+    <string name="hm_lay_save">Lưu bố cục hiện tại</string>
+    <string name="hm_lay_default">Bố cục %1$d</string>
+    <string name="hm_lay_name">Tên bố cục</string>
+    <string name="hm_lay_meta">%1$d trang · %2$d ứng dụng</string>
+    <string name="hm_lay_current">Đang dùng</string>
+    <string name="hm_lay_full">Đã lưu đủ 5 bố cục: xoá bớt một cái trước</string>
+    <string name="hm_lay_applied">Đã chuyển sang “%1$s”</string>
+    <string name="hm_lay_del_t">Xoá “%1$s”?</string>
+    <string name="hm_lay_del_b">Chỉ xoá bản đã lưu, màn hình chính đang dùng giữ nguyên.</string>
+    <string name="hm_lay_rename">Đổi tên</string>
+    <string name="hm_lay_delete">Xoá</string>
+    <string name="hm_lay_hint">Lưu cách xếp hiện tại (vị trí ứng dụng, tiện ích, giao diện, hình nền) để đổi lại chỉ với một chạm. Chỉ lưu trên máy này.</string>
 </resources>
