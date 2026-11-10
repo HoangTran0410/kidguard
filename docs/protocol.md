@@ -193,6 +193,18 @@ The first capture / first input of a session is logged in the phone log.
   data / Try home network / Try Tailscale). Otherwise the normal page over the relay.
 
 ### Relay (worker), token header `X-KG-Token`, id = 16 hex
+- **WebSocket push channel** (load: an idle socket costs nothing; phone `remote/RelayWs.kt`, worker `Kid.webSocketMessage`):
+  phone `GET /c/<id>/ws` (Upgrade, `X-KG-Token`; only after the first HTTP sync bound the token, else 409) -> 101,
+  hibernatable (`acceptWebSocket`, tag `phone`, a new socket closes the old one). Text `"ping"` -> `"pong"` by the runtime
+  (auto-response: no wake-up, not billed), every 45 s; no byte for 120 s = dead, reconnect. Phone -> `{"t":"sync","n":<int>,
+  acks, state?}` = the `POST /sync` body; reply `{"t":"sync","n":<same>, ...POST /sync reply}` or `{..., "error"}`.
+  Relay -> `{"t":"kick"}` (at most every 2 s) after a parent `POST cmd|live|device|file`, `PUT rules`, or `GET state` when
+  the stored state is > 30 s old: the phone syncs at once (commands now near-instant). Socket up, the phone sends a sync
+  only on a kick, a Guard kick, pending acks, a change outside time/battery/foreground-app fields (`t usedMs leftMs
+  current battery charging screenOn apps[].ms/mb`), or every 5 min (screen on) / 15 min (off). `seen` = last HTTP
+  sync / socket message / auto-response ping (`getWebSocketAutoResponseTimestamp`); written to storage on close only.
+  Socket down or a reply timeout (15 s): the same sync over HTTP, the old 20 s / 60 s polling, reconnect backoff
+  1 min .. 30 min. Live screen frames and files stay on HTTP.
 - Limits: `POST /c/<id>/cmd` -> 429 `queue full` with 20 commands waiting, 413 `too big` over 4 KB of JSON; `PUT /c/<id>/rules`
   -> 413 over 64 KB (the sync reply carries both, and the phone refuses replies over 256 KB).
 - Parent `POST /c/<id>/live` `{}` -> `{"ok":true, "phone": <ms since the phone's last frame or -1>}`; sets

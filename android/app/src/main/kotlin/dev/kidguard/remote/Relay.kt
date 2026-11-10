@@ -12,6 +12,9 @@ import java.net.URL
 /**
  * When the parent is away from home Wi-Fi: the child posts its state to the relay (a Cloudflare Worker the parent
  * owns) and takes back new rules and queued commands. Every 20 s with the screen on, 60 s off.
+ * With the WebSocket up ([RelayWs]): the same sync goes over the socket, only when something the parent cares about
+ * changed, the relay kicks (a parent queued something / is looking), or every [WS_IDLE_ON] / [WS_IDLE_OFF]; HTTP stays
+ * the fallback whenever the socket is down.
  */
 class Relay(private val g: Guard) {
     private val store = Store.of(g)
@@ -27,9 +30,18 @@ class Relay(private val g: Guard) {
     private var lastHash = 0
     private var lastFull = 0L
     private val loopRun = Runnable { loop() }
+    private val ws = RelayWs { h.post { forceSend = true; if (inSync) kickAgain = true else schedule(0) } }
+    private var wsRetryAt = 0L
+    private var wsFails = 0
+    private var forceSend = false
+    private var lastCoarse = 0
+    private var lastSent = 0L
+    private val pingRun = object : Runnable { override fun run() { if (ws.ping()) h.postDelayed(this, RelayWs.PING_MS) } }
+    /** For the state screen / logs: "ws" while the socket is up, else "http". */
+    val transport get() = if (ws.open) "ws" else "http"
 
     fun start() { schedule(0) }
-    fun stop() { h.looper.quitSafely() }
+    fun stop() { ws.close(); h.looper.quitSafely() }
     /** Sync now. Never starts a second chain: while a sync runs it only asks the running one to go again at once. */
     fun kick() { h.post { if (inSync) kickAgain = true else schedule(0) } }
 
@@ -43,13 +55,14 @@ class Relay(private val g: Guard) {
         if (url.isNotBlank() && token.isNotBlank() && rid.isNotBlank()) {
             if (!url.startsWith("https://", ignoreCase = true)) {
                 lastError = "relay needs https://"; delay = 60_000
-            } else runCatching { busy = sync(url, rid, token); fails = 0; runCatching { uploadIcons(url, rid, token) } }.onFailure {
+            } else runCatching { ensureWs(url, rid, token); busy = sync(url, rid, token); fails = 0; runCatching { uploadIcons(url, rid, token) } }.onFailure {
                 lastError = it.message ?: it.javaClass.simpleName; Log.w("KidGuard", "relay", it)
                 fails++
                 // 401 / 409 / 5xx / network: exponential backoff up to 5 min; the next success resets it
                 delay = minOf(300_000L, 20_000L shl minOf(fails - 1, 4))
             }
         }
+        if (url.isBlank() || token.isBlank() || rid.isBlank()) ws.close()
         inSync = false
         if (delay == 0L) {
             val on = g.getSystemService(PowerManager::class.java)?.isInteractive == true
@@ -80,9 +93,37 @@ class Relay(private val g: Guard) {
         }
     }
 
+    /** (Re)connects the socket after the first HTTP sync bound the token; backoff 1 min .. 30 min on failures. */
+    private fun ensureWs(base: String, rid: String, token: String) {
+        val now = System.currentTimeMillis()
+        if (ws.open || lastOk == 0L || now < wsRetryAt) return
+        runCatching { ws.connect(base, rid, token) }.onSuccess {
+            wsFails = 0; forceSend = true
+            h.removeCallbacks(pingRun); h.postDelayed(pingRun, RelayWs.PING_MS)
+            Log.i("KidGuard", "relay ws up")
+        }.onFailure {
+            wsFails++; wsRetryAt = now + minOf(30 * 60_000L, 60_000L shl minOf(wsFails - 1, 5))
+            Log.i("KidGuard", "relay ws: ${it.message} (retry in ${(wsRetryAt - now) / 1000} s)")
+        }
+    }
+
     private fun sync(base: String, rid: String, token: String): Boolean {
         val now = System.currentTimeMillis()
         val state = g.currentState()
+        val viaWs = ws.open
+        if (viaWs) {
+            // socket up: no message unless something the parent sees changed (time / battery / foreground app ignored),
+            // the relay kicked, a command needs its ack, or the idle interval is over
+            val coarse = JSONObject(state.toString()).apply {
+                for (k in arrayOf("t", "usedMs", "leftMs", "current", "battery", "charging", "screenOn")) remove(k)
+                optJSONArray("apps")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { it.remove("ms"); it.remove("mb") } }
+            }.toString().hashCode()
+            val on = g.getSystemService(PowerManager::class.java)?.isInteractive == true
+            val due = now - lastSent >= if (on) WS_IDLE_ON else WS_IDLE_OFF
+            if (!forceSend && acks.length() == 0 && coarse == lastCoarse && !due) return false
+            lastCoarse = coarse
+        }
+        val forced = forceSend; forceSend = false
         // unchanged except time counters => omit the state; a full one at least every 5 min.
         // Per-app ms and usedMs/leftMs tick every sync while an app is open: hash them per minute (one state a minute, not 3).
         val hash = JSONObject(state.toString()).apply {
@@ -90,13 +131,16 @@ class Relay(private val g: Guard) {
             for (k in arrayOf("usedMs", "leftMs")) if (has(k)) put(k, optLong(k) / 60_000)
             optJSONArray("apps")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { it.put("ms", it.optLong("ms") / 60_000) } }
         }.toString().hashCode()
-        val full = hash != lastHash || now - lastFull >= 5 * 60_000L
+        val full = hash != lastHash || now - lastFull >= 5 * 60_000L || (viaWs && forced)
         val req = JSONObject().put("acks", acks)
         if (full) req.put("state", state)
-        val c = open("$base/c/$rid/sync", token).apply { setRequestProperty("Content-Type", "application/json") }
-        try {
-            c.outputStream.use { it.write(req.toString().toByteArray()) }
-            val res = JSONObject(readCapped(c))
+        val res = (if (viaWs) ws.request(JSONObject(req.toString())) else null) ?: run {
+            val c = open("$base/c/$rid/sync", token).apply { setRequestProperty("Content-Type", "application/json") }
+            try { c.outputStream.use { it.write(req.toString().toByteArray()) }; JSONObject(readCapped(c)) } finally { c.disconnect() }
+        }
+        res.optString("error").takeIf { it.isNotEmpty() }?.let { throw RuntimeException("relay: $it") }   // socket reply = HTTP error body
+        lastSent = now
+        run {
             if (full) { lastHash = hash; lastFull = now }
             acks = JSONArray()
             // rules first, but a bad rules reply must never stop the commands below (a release/reboot would be lost)
@@ -121,7 +165,7 @@ class Relay(private val g: Guard) {
             if (res.optBoolean("live")) startLive(base, rid, token)
             if (res.optBoolean("device")) runCatching { DeviceInfo.upload(g, base, rid, token) }.onFailure { Log.w("KidGuard", "device", it) }
             return acks.length() > 0 || res.has("rules")
-        } finally { c.disconnect() }
+        }
     }
 
     // ---- app icons: the relay keeps a 48 px WebP per app so the parent page can show them; each app sent once ----
@@ -203,6 +247,9 @@ class Relay(private val g: Guard) {
 
     companion object {
         private const val MAX_REPLY = 256 * 1024
+        /** Socket up and nothing changed: a state anyway this often (usage minutes, battery). */
+        private const val WS_IDLE_ON = 5 * 60_000L
+        private const val WS_IDLE_OFF = 15 * 60_000L
         /** The author's shared relay, on by default once a parent has paired (Store.defaultRelay). Also in ui/assets/core.js DEFAULT_RELAY. */
         const val DEFAULT_URL = "https://kidguard.99-hoangtran.workers.dev"
     }

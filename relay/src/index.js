@@ -101,7 +101,7 @@ export default {
     }
     const th = req.method === "POST" && env.TG_BOT ? url.pathname.match(/^\/tg\/([0-9a-f]{32})$/) : null;
     if (th) return tgHook(req, env, th[1]);
-    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|file|tg|where)$/);
+    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|file|tg|where|ws)$/);
     if (!m) return json({ error: "not found" }, 404);
     if (env.RL) {
       const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
@@ -140,7 +140,36 @@ export class Kid {
     this.deviceWant = 0;   // parent asked for a device-health snapshot at this ms (memory only, like liveUntil)
   }
 
+  /** Phone connected over the WebSocket (hibernation keeps it across evictions). */
+  phoneWs() { return this.ctx.getWebSockets("phone"); }
+  /** Last time the phone was heard: HTTP sync, or its socket's last message / keep-alive "ping" (a half-dead socket
+   * stops pinging, so an open socket alone never means online). */
+  seenNow(stored) {
+    let t = Math.max(stored || 0, this.seen);
+    for (const ws of this.phoneWs()) {
+      const a = ws.deserializeAttachment() || {};
+      let p = 0; try { p = +(this.ctx.getWebSocketAutoResponseTimestamp(ws) || 0); } catch {}
+      t = Math.max(t, a.at || 0, p);
+    }
+    return t;
+  }
+  /** Ask the phone (WebSocket) to sync now: outgoing messages are free, the phone's sync costs 1/20 request. */
+  kickPhone(now = Date.now()) {
+    if (now - (this.kickedAt || 0) < 2000) return;
+    this.kickedAt = now;
+    for (const ws of this.phoneWs()) try { ws.send('{"t":"kick"}'); } catch {}
+  }
+
   async fetch(req) {
+    const url = new URL(req.url), action = url.pathname.split("/").pop(), m = req.method;
+    const res = await this.handle(req);
+    // parent changes the phone must see now: cmd / rules / live / device ask / a file chunk; a stale state on view
+    if (res.status < 300 && action !== "sync" && action !== "ws" && ((m === "POST" && ["cmd", "live", "device", "file"].includes(action)) || (m === "PUT" && action === "rules")
+        || (m === "GET" && action === "state" && Date.now() - (this.stateAt || 0) > 30e3))) this.kickPhone();
+    return res;
+  }
+
+  async handle(req) {
     const url = new URL(req.url), action = url.pathname.split("/").pop(), id = url.pathname.split("/")[2];
     if (action === "_tg" && req.method === "POST" && req.headers.get("x-kg-internal") === "1") return this.tgIn(await req.json().catch(() => ({})), id);   // from tgHook only: the public route regex never matches `_tg`
     const token = tokenOf(req, url);
@@ -156,6 +185,16 @@ export class Kid {
     }
     if (h !== bound) return json({ error: "not paired" }, 401);
     const now = Date.now();
+    if (action === "ws") {   // the phone's push channel (Relay.kt RelayWs): {"t":"sync",...} = POST sync, server sends {"t":"kick"}
+      if ((req.headers.get("upgrade") || "").toLowerCase() !== "websocket") return json({ error: "websocket only" }, 426);
+      for (const old of this.phoneWs()) try { old.close(1000, "replaced"); } catch {}
+      const [client, server] = Object.values(new WebSocketPair());
+      this.ctx.acceptWebSocket(server, ["phone"]);
+      server.serializeAttachment({ id, nk: netKey(req.headers.get("cf-connecting-ip")), at: now });
+      // "ping" answered by the runtime without waking the object (not billed): the phone's keep-alive
+      this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
+      return new Response(null, { status: 101, webSocket: client });
+    }
     if (action === "icons" && req.method === "POST") {   // phone: {pkg: base64 webp}, each app once
       let o; try { o = await req.json(); } catch { return json({ error: "bad json" }, 400); }
       if (!o || typeof o !== "object" || Array.isArray(o)) return json({ error: "bad json" }, 400);
@@ -231,7 +270,7 @@ export class Kid {
       if (req.method === "POST") this.deviceWant = now;
       else if (req.method !== "GET") return json({ error: "method not allowed" }, 405);
       const d = (await this.s.get("device")) || null;
-      return json({ device: d, asked: this.deviceWant, seen: this.seen });
+      return json({ device: d, asked: this.deviceWant, seen: this.seenNow() });
     }
     if (action === "live") {
       if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -256,39 +295,8 @@ export class Kid {
     }
 
     if (action === "sync" && req.method === "POST") {
-      const state = body.state && typeof body.state === "object" ? body.state : null;
-      if (state && new TextEncoder().encode(JSON.stringify(state)).length > 120e3) return json({ error: "state too big" }, 413);   // DO storage value limit is 128 KiB
-      const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
-      const stored = (await this.s.get("cmds")) || [];
-      const cmds = stored.filter(c => !acks.has(c.id) && live(c, now));
-      const rules = await this.s.get("rules");
-      const puts = {};
-      // destructive commands stay queued until acked (a lost reply must not drop a release); the phone de-dups by id.
-      // `sent` marks the first hand-out: after ONCE_WINDOW they are dropped even if never acked (e.g. the phone released).
-      let changed = cmds.length !== stored.length;
-      for (const c of cmds) if (ONCE.includes(c.type) && !c.sent) { c.sent = now; changed = true; }
-      if (changed) puts.cmds = cmds;
-      this.seen = now;
-      if (now - this.seenWritten >= 60e3) { puts.seen = now; this.seenWritten = now; }
-      // the phone's public network (hashed, last 2: Wi-Fi v4 + v6), for /where "same network"
-      const nk = netKey(req.headers.get("cf-connecting-ip"));
-      if (nk && nk !== this.lastNet) {
-        this.lastNet = nk;
-        const h = await sha256("net:" + nk), ipk = (await this.s.get("ipk")) || [];
-        if (ipk[0] !== h) puts.ipk = [h, ...ipk.filter(x => x !== h)].slice(0, 2);
-      }
-      if (state && Object.keys(state).length) puts.state = state;
-      if (Object.keys(puts).length) await this.s.put(puts);
-      if (state) this.ctx.waitUntil(this.pushNew(state, id).catch(e => console.log("push", String(e))));
-      const out = { cmds };
-      if (this.liveUntil > now) out.live = true;
-      const files = (await this.fileGc(now)).filter(f => f.to === "kid" && f.got.length === f.n).length;
-      if (files) out.files = files;   // the phone then fetches them from /file
-      if (this.deviceWant && now - this.deviceWant < 120e3) out.device = true;
-      const known = state || (await this.s.get("state"));   // the phone omits state when unchanged
-      const have = known && known.rules ? +known.rules.rev || 0 : 0;
-      if (rules && rules.rev > have) out.rules = rules;
-      return json(out);
+      const out = await this.sync(body, id, netKey(req.headers.get("cf-connecting-ip")), now);
+      return out.error ? json({ error: out.error }, out.status) : json(out);
     }
     if (action === "where" && req.method === "GET") {   // /go: where the phone is reachable now
       const [state, seen, ipk] = await Promise.all(["state", "seen", "ipk"].map(k => this.s.get(k)));
@@ -296,12 +304,12 @@ export class Kid {
       const same = !!nk && (ipk || []).includes(await sha256("net:" + nk));
       const ts = state && state.ts && typeof state.ts.ip === "string" && /^100\.[\d.]+$/.test(state.ts.ip) ? state.ts.ip : "";
       const lan = state && typeof state.lan === "string" && /^http:\/\/[\d.]+:\d+$/.test(state.lan) ? state.lan : "";
-      return json({ seen: Math.max(seen || 0, this.seen), lan, ts, same, mode: state && state.mode || "" });
+      return json({ seen: this.seenNow(seen), lan, ts, same, mode: state && state.mode || "" });
     }
     if (action === "state" && req.method === "GET") {
       const [state, rules, seen, cmds] = await Promise.all(["state", "rules", "seen", "cmds"].map(k => this.s.get(k)));
       const st = state ? { ...state, rules: stripPin(state.rules) } : null;
-      return json({ state: st, rules: rules ? stripPin(rules) : null, seen: Math.max(seen || 0, this.seen), pending: (cmds || []).length });
+      return json({ state: st, rules: rules ? stripPin(rules) : null, seen: this.seenNow(seen), pending: (cmds || []).length });
     }
     if (action === "rules" && req.method === "PUT") {
       const [state, old] = await Promise.all([this.s.get("state"), this.s.get("rules")]);
@@ -374,6 +382,62 @@ export class Kid {
   }
 
   /** /file: POST ?fid&i&n&to&size&name (one chunk), GET ?to= (list), GET ?fid&i (chunk), DELETE ?fid. Parent and phone share the token. */
+  /** One phone sync (HTTP POST /sync or a WebSocket {"t":"sync"} message): {cmds, rules?, live?, files?, device?} or {error, status}. */
+  async sync(body, id, nk, now, ws = null) {
+    const state = body.state && typeof body.state === "object" ? body.state : null;
+    if (state && new TextEncoder().encode(JSON.stringify(state)).length > 120e3) return { error: "state too big", status: 413 };   // DO storage value limit is 128 KiB
+    const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
+    const stored = (await this.s.get("cmds")) || [];
+    const cmds = stored.filter(c => !acks.has(c.id) && live(c, now));
+    const rules = await this.s.get("rules");
+    const puts = {};
+    // destructive commands stay queued until acked (a lost reply must not drop a release); the phone de-dups by id.
+    // `sent` marks the first hand-out: after ONCE_WINDOW they are dropped even if never acked (e.g. the phone released).
+    let changed = cmds.length !== stored.length;
+    for (const c of cmds) if (ONCE.includes(c.type) && !c.sent) { c.sent = now; changed = true; }
+    if (changed) puts.cmds = cmds;
+    this.seen = now;
+    // over the WebSocket "seen" = connected (seenNow); written once on close instead of every minute
+    if (!ws && now - this.seenWritten >= 60e3) { puts.seen = now; this.seenWritten = now; }
+    // the phone's public network (hashed, last 2: Wi-Fi v4 + v6), for /where "same network"
+    if (nk && nk !== this.lastNet) {
+      this.lastNet = nk;
+      const h = await sha256("net:" + nk), ipk = (await this.s.get("ipk")) || [];
+      if (ipk[0] !== h) puts.ipk = [h, ...ipk.filter(x => x !== h)].slice(0, 2);
+    }
+    if (state && Object.keys(state).length) { puts.state = state; this.stateAt = now; }
+    if (Object.keys(puts).length) await this.s.put(puts);
+    if (state) this.ctx.waitUntil(this.pushNew(state, id).catch(e => console.log("push", String(e))));
+    const out = { cmds };
+    if (this.liveUntil > now) out.live = true;
+    const files = (await this.fileGc(now)).filter(f => f.to === "kid" && f.got.length === f.n).length;
+    if (files) out.files = files;   // the phone then fetches them from /file
+    if (this.deviceWant && now - this.deviceWant < 120e3) out.device = true;
+    const known = state || (await this.s.get("state"));   // the phone omits state when unchanged
+    const have = known && known.rules ? +known.rules.rev || 0 : 0;
+    if (rules && rules.rev > have) out.rules = rules;
+    return out;
+  }
+
+  async webSocketMessage(ws, msg) {
+    if (typeof msg !== "string" || msg.length > MAX_BODY) return;
+    let b; try { b = JSON.parse(msg); } catch { return; }
+    if (!isObj(b) || b.t !== "sync") return;
+    const a = ws.deserializeAttachment() || {}, now = Date.now();
+    a.at = now; ws.serializeAttachment(a);
+    const out = await this.sync(b, a.id, a.nk, now, ws);
+    try { ws.send(JSON.stringify({ t: "sync", n: b.n, ...out })); } catch {}
+  }
+  async webSocketClose(ws) { await this.closed(ws); }
+  async webSocketError(ws) { await this.closed(ws); }
+  async closed(ws) {
+    const a = ws.deserializeAttachment() || {};
+    let p = 0; try { p = +(this.ctx.getWebSocketAutoResponseTimestamp(ws) || 0); } catch {}
+    try { ws.close(1011, "closed"); } catch {}
+    const last = Math.max(a.at || 0, p, this.seen);   // the phone's last sign of life, not the moment we noticed
+    if (last) { this.seen = last; this.seenWritten = Date.now(); await this.s.put("seen", last); }
+  }
+
   async file(req, url, now) {
     const q = url.searchParams, fid = q.get("fid") || "";
     const buf = req.method === "POST" ? await req.arrayBuffer() : null;   // before any storage read: no other await between get and put below

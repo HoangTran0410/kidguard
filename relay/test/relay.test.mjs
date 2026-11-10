@@ -274,4 +274,30 @@ ck("where: lan, ts, fresh seen",w.lan=="http://192.168.1.9:8770"&&w.ts=="100.79.
 ck("where: same network",w.same===true);
 const w2=await (await W({"cf-connecting-ip":"198.51.100.4"})).json();console.log("  (other network same="+w2.same+")");
 ck("where wrong token 401",(await fetch(`${B}/c/${id6}/where`,{headers:H(BAD)})).status==401);}
+// WebSocket push channel (Relay.kt RelayWs): raw client, Node's WebSocket can't send X-KG-Token
+{const http=await import("node:http"),crypto=await import("node:crypto");const id7="a1b2c3d4e5f6071d";
+const wsOpen=(tok=T)=>new Promise((ok,no)=>{const q=http.request(`${B}/c/${id7}/ws`,{headers:{"x-kg-token":tok,Connection:"Upgrade",Upgrade:"websocket","Sec-WebSocket-Version":"13","Sec-WebSocket-Key":crypto.randomBytes(16).toString("base64")}});
+  q.on("upgrade",(r,sock)=>{const msgs=[];let buf=Buffer.alloc(0),wait=null;
+    sock.on("data",d=>{buf=Buffer.concat([buf,d]);while(buf.length>=2){let n=buf[1]&127,o=2;if(n==126){if(buf.length<4)break;n=buf.readUInt16BE(2);o=4}else if(n==127){if(buf.length<10)break;n=Number(buf.readBigUInt64BE(2));o=10}
+      if(buf.length<o+n)break;const op=buf[0]&15,p=buf.subarray(o,o+n).toString();buf=buf.subarray(o+n);if(op==1){msgs.push(p);if(wait){const w=wait;wait=null;w()}}}});
+    const send=t=>{const p=Buffer.from(t),m=crypto.randomBytes(4),h=p.length<126?Buffer.from([0x81,0x80|p.length]):Buffer.from([0x81,0x80|126,p.length>>8,p.length&255]);sock.write(Buffer.concat([h,m,Buffer.from(p.map((b,i)=>b^m[i&3]))]))};
+    const next=(ms=8000)=>new Promise(r=>{if(msgs.length)return r(msgs.shift());const tm=setTimeout(()=>{wait=null;r(null)},ms);wait=()=>{clearTimeout(tm);r(msgs.shift())}});
+    ok({status:101,send,next,close:()=>sock.destroy()})});
+  q.on("response",r=>{r.resume();ok({status:r.statusCode})});q.on("error",no);q.end();});
+ck("ws before bind 409",(await wsOpen()).status==409);
+await fetch(`${B}/c/${id7}/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{mode:"owner"}})});
+ck("ws wrong token 401",(await wsOpen(BAD)).status==401);
+const w=await wsOpen();ck("ws upgrade 101",w.status==101);
+w.send("ping");ck("ws auto-response pong",(await w.next())=="pong");
+w.send(JSON.stringify({t:"sync",n:7,acks:[],state:{mode:"owner",lan:"http://10.0.0.2:8770"}}));let m=JSON.parse(await w.next());
+ck("ws sync reply = sync shape",m.t=="sync"&&m.n==7&&Array.isArray(m.cmds));
+const st=await (await fetch(`${B}/c/${id7}/state`,{headers:H()})).json();ck("ws sync stored state, seen fresh",st.state.lan=="http://10.0.0.2:8770"&&Date.now()-st.seen<10000);
+await fetch(`${B}/c/${id7}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"ring"})});
+m=await w.next();ck("parent cmd -> kick pushed",m=='{"t":"kick"}');
+w.send(JSON.stringify({t:"sync",n:8,acks:[]}));m=JSON.parse(await w.next());ck("ws sync hands the cmd",m.n==8&&m.cmds.length==1&&m.cmds[0].type=="ring");
+w.send(JSON.stringify({t:"sync",n:9,acks:[m.cmds[0].id]}));m=JSON.parse(await w.next());ck("ws ack clears",m.cmds.length==0);
+const w2=await wsOpen();ck("second ws replaces the first",w2.status==101&&(await w.next(3000))===null);
+w2.send("ping");ck("new ws alive",(await w2.next())=="pong");
+w2.close();await new Promise(r=>setTimeout(r,500));
+const s2=await (await fetch(`${B}/c/${id7}/state`,{headers:H()})).json();ck("closed ws: seen kept (last sign of life)",Date.now()-s2.seen<15000);}
 console.log(pass,"pass",fail,"fail");process.exit(fail?1:0);
