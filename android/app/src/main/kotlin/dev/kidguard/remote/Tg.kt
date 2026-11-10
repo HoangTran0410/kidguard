@@ -171,10 +171,11 @@ object Tg {
         if (r.optInt("error_code") == 403) s.tgRemoveChat(chat)   // the parent blocked the bot
         return r
     }
-    private fun sendFile(s: Store, chat: Long, method: String, field: String, name: String, mime: String, data: ByteArray, caption: String = "") {
-        val tok = s.tgToken.ifBlank { return }
-        val r = upload(tok, method, mapOf("chat_id" to chat.toString(), "caption" to caption.take(1000)), field, name, mime, data)
+    private fun sendFile(s: Store, chat: Long, method: String, field: String, name: String, mime: String, data: ByteArray, caption: String = "", extra: Map<String, String> = emptyMap()): Boolean {
+        val tok = s.tgToken.ifBlank { return false }
+        val r = upload(tok, method, mapOf("chat_id" to chat.toString(), "caption" to caption.take(1000)) + extra, field, name, mime, data)
         if (!r.optBoolean("ok")) Log.w(TAG, "tg $method: ${r.optString("description")}")
+        return r.optBoolean("ok")
     }
     private fun edit(s: Store, chat: Long, msgId: Long, text: String, kb: JSONObject?) {
         val tok = s.tgToken.ifBlank { return }
@@ -335,7 +336,11 @@ object Tg {
                 val out = ByteArrayOutputStream()
                 val t = Thread({ ses.pump(out) }, "tg-rec").apply { start() }
                 Thread.sleep(n * 1000L); ses.close(""); t.join(5_000)
-                sendFile(s, chat, "sendDocument", "document", "kidguard-${SimpleDateFormat("HHmm", Locale.US).format(Date(now))}.aac", "audio/aac", out.toByteArray(), TgLogic.s(lang, "recCap", n, hm(now)))
+                val raw = out.toByteArray(); val name = "kidguard-${SimpleDateFormat("HHmm", Locale.US).format(Date(now))}"; val cap = TgLogic.s(lang, "recCap", n, hm(now))
+                // M4A = a voice message that plays inline; raw .aac only as a file to download (fallback)
+                val m4a = Adts.toM4a(raw, g.cacheDir)
+                if (m4a == null || !sendFile(s, chat, "sendVoice", "voice", "$name.m4a", "audio/mp4", m4a.first, cap, mapOf("duration" to (m4a.second / 1000).toString())))
+                    sendFile(s, chat, "sendDocument", "document", "$name.aac", "audio/aac", raw, cap)
             }
             "files" -> {
                 val l = Files.all(g).filter { it.size <= TgLogic.TG_SEND_MAX }.sortedByDescending { it.at }.take(20)
