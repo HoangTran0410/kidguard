@@ -747,7 +747,8 @@ class HomeActivity : Activity() {
                     else -> null
                 } ?: continue
                 itemViews[it.id] = v; items[it.id] = v
-                cell.addView(v, CellLP(it.x, it.y, it.w, it.h, it.id, it.kind == "widget"))
+                // a 1x1 widget (lock, battery…) is drawn like an app icon + name: it keeps the whole cell like the icons around it
+                cell.addView(v, CellLP(it.x, it.y, it.w, it.h, it.id, it.kind == "widget" && it.w * it.h > 1))
             }
             cell.page = pi
             pager.addView(cell)
