@@ -325,7 +325,7 @@ function rulesWire(b, r) {
   $("#f-hmn").onchange = e => { r.launcher.notes = e.target.checked; changed(); };
   $("#f-hmlock").onchange = e => { r.launcher.lockCustom = e.target.checked; changed(); };
   $("#f-hmshade").onchange = e => { r.launcher.shade = e.target.checked; changed(); };
-  $("#f-nd").onchange = e => { r.noDebug = e.target.checked; changed(); };
+  $("#f-nd").onchange = e => { r.noDebug = e.target.checked; changed(); };   // confirm: CONFIRM["f-nd"] (kid.js)
   bankBind(r);
 }
 // Apps that refuse to open while any accessibility service is on (banks, some wallets / games): the phone turns

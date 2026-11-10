@@ -10,6 +10,8 @@
     <string name="reason_group_limit">nhóm app này đã hết giờ hôm nay</string>
     <string name="reason_new">app mới, chờ bố mẹ cho phép</string>
     <string name="reason_paused">bố mẹ đang tạm dừng máy</string>
+    <string name="reason_settings">bố mẹ quản lý Cài đặt trên máy này</string>
+    <string name="hm_settings_ask">Nhờ bố mẹ bật “Cho con vào Cài đặt”. Wi-Fi, Bluetooth, dữ liệu: vuốt xuống ở bên phải màn hình chính.</string>
     <string name="reason_schedule">đang trong giờ nghỉ</string>
     <string name="reason_bedtime">đã đến giờ đi ngủ</string>
     <string name="reason_daily">đã hết giờ dùng máy hôm nay</string>
@@ -139,7 +141,8 @@
     <string name="log_released">Đã gỡ quyền quản lý</string>
     <string name="log_sos">Con bấm SOS</string>
     <string name="notif_guard_title">KidGuard đang bật</string>
-    <string name="notif_guard_text">Bố mẹ quản lý thời gian dùng máy</string>
+    <string name="notif_guard_text">Bố mẹ quản lý thời gian dùng máy. Giữ thông báo này → tắt để ẩn hẳn, KidGuard vẫn chạy.</string>
+    <string name="ch_guard">KidGuard chạy nền (tắt được, vẫn bảo vệ)</string>
 
     <!-- Basic mode setup card -->
     <string name="basic_title">Cài nhanh không cần máy tính</string>

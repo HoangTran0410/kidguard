@@ -16,6 +16,7 @@ class ResTr(private val ctx: Context) : Tr {
         T.reason_paused -> R.string.reason_paused
         T.reason_schedule -> R.string.reason_schedule
         T.reason_bedtime -> R.string.reason_bedtime
+        T.reason_settings -> R.string.reason_settings
         T.reason_daily -> R.string.reason_daily
         T.ev_zone_in -> R.string.ev_zone_in
         T.ev_zone_out -> R.string.ev_zone_out

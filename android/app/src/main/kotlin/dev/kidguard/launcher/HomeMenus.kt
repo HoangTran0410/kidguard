@@ -28,11 +28,13 @@ internal fun HomeActivity.pausedSheet(a: AppE, reason: String, dv: View0, r: Rul
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
         background = fill(pal.warnTint, 18f); setPadding(dp(14), dp(12), dp(14), dp(12))
     }
-    warnCard.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@pausedSheet, R.drawable.li_clock, pal.onWarn, dp(18))); background = fill(pal.warn); setPadding(dp(8), dp(8), dp(8), dp(8)) },
+    val locked = reason == "settings"
+    warnCard.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@pausedSheet, if (locked) R.drawable.li_lock else R.drawable.li_clock, pal.onWarn, dp(18))); background = fill(pal.warn); setPadding(dp(8), dp(8), dp(8), dp(8)) },
         LinearLayout.LayoutParams(dp(34), dp(34)))
     val txt = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, 0, 0) }
     txt.addView(text(BasicLogic.reasonText(reason, s.tr).replaceFirstChar { it.titlecase() }, 16f, pal.text, true))
-    reopenWhen(r, reason, a.pkg, dv)?.let { txt.addView(text(getString(R.string.hm_reopen, it), 14f, pal.warnText).apply { setPadding(0, dp(3), 0, 0) }) }
+    if (locked) txt.addView(text(getString(R.string.hm_settings_ask), 14f, pal.warnText).apply { setPadding(0, dp(3), 0, 0); includeFontPadding = true })
+    else reopenWhen(r, reason, a.pkg, dv)?.let { txt.addView(text(getString(R.string.hm_reopen, it), 14f, pal.warnText).apply { setPadding(0, dp(3), 0, 0) }) }
     warnCard.addView(txt, LinearLayout.LayoutParams(0, -2, 1f))
     body.addView(warnCard, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(14), dp(12), 0) })
     val note = Notes.clean(r.blockNote, Notes.NOTE_MAX)
@@ -42,7 +44,7 @@ internal fun HomeActivity.pausedSheet(a: AppE, reason: String, dv: View0, r: Rul
         nc.addView(text(note, 15f, pal.text).apply { setPadding(0, dp(4), 0, 0); includeFontPadding = true })
         body.addView(nc, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(10), dp(12), 0) })
     }
-    if (HomeLogic.canAsk(s.everPaired, dv.leftMs, reason)) body.addView(kit.pill(getString(R.string.main_more), R.drawable.li_timer, true) { sh.dismiss(); main.post { acts.askMore() } },
+    if (!locked && HomeLogic.canAsk(s.everPaired, dv.leftMs, reason)) body.addView(kit.pill(getString(R.string.main_more), R.drawable.li_timer, true) { sh.dismiss(); main.post { acts.askMore() } },
         LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(16), dp(12), 0) })
     body.addView(kit.pill(getString(R.string.hm_later), null, false) { sh.dismiss() }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(8), dp(12), 0) })
     sh.show()

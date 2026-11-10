@@ -28,7 +28,10 @@ class LauncherLogicTest {
     }
 
     @Test fun settingsOnlyWhenTheRuleAllows() {
-        assertEquals(Show.HIDE, LauncherLogic.show("com.android.settings", emptyMap(), Rules(), self))
+        assertEquals(Show.PAUSED, LauncherLogic.show("com.android.settings", emptyMap(), Rules(), self))   // greyed + locked, not hidden
+        assertEquals("settings", LauncherLogic.pauseReason("com.android.settings", emptyMap(), false))
+        assertEquals(null, LauncherLogic.pauseReason("com.android.settings", emptyMap(), true))
+        assertEquals("bedtime", LauncherLogic.pauseReason("com.android.settings", mapOf("com.android.settings" to "bedtime"), false))
         assertEquals(Show.OK, LauncherLogic.show("com.android.settings", emptyMap(), Rules(launcher = LauncherRule(on = true, settings = true)), self))
     }
 
@@ -129,7 +132,7 @@ class LauncherLogicTest {
         assertFalse(LauncherLogic.settingsOk(r, owner = true, paired = false))
         assertFalse(LauncherLogic.settingsOk(r, owner = false, paired = true))
         assertEquals(Show.OK, LauncherLogic.show("com.android.settings", emptyMap(), r, "dev.kidguard", settingsOk = true))
-        assertEquals(Show.HIDE, LauncherLogic.show("com.android.settings", emptyMap(), r, "dev.kidguard"))
+        assertEquals(Show.PAUSED, LauncherLogic.show("com.android.settings", emptyMap(), r, "dev.kidguard"))
     }
 
     @Test fun onlyLauncherFramesCountAsLauncherCrash() {

@@ -238,6 +238,9 @@ button.pausing .si{color:var(--warn)}
 .back .si{width:24px;height:24px}
 .savechip{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;flex:none;color:var(--tn,var(--ok))}
 .savechip:empty{display:none}
+.qsb{flex:none;margin-left:auto;width:40px;height:40px;padding:0;border-radius:999px;display:inline-flex;align-items:center;justify-content:center}
+.savechip:not(:empty)+.qsb{margin-left:8px}
+.qsHit{outline:3px solid var(--primary);outline-offset:2px;transition:outline-color .6s}
 .spin{display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .8s linear infinite;flex:none}
 /* banner stack */
 #live:empty{display:none}

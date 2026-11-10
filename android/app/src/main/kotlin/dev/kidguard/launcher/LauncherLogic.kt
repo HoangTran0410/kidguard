@@ -50,8 +50,8 @@ object LauncherLogic {
         pkg in PLUMBING -> Show.HIDE
         pkg == TsLogic.PKG && tsManaged -> Show.HIDE
         pkg in r.hidden || pkg in r.blocked || want[pkg] in HIDE_REASONS -> Show.HIDE
-        pkg in SETTINGS && !settingsOk -> Show.HIDE
-        want[pkg] != null -> Show.PAUSED
+        // shown greyed + locked, not hidden: a hidden Settings app sent the owner hunting for it (and toward uninstalling)
+        want[pkg] != null || (pkg in SETTINGS && !settingsOk) -> Show.PAUSED
         else -> Show.OK
     }
 
@@ -59,6 +59,10 @@ object LauncherLogic {
      * Settings may show: the parent allows it, or nobody manages this phone (no Device Owner, never paired: the user picked
      * our home themselves). Hiding it there was a dead end: no way back to the default-home or navigation settings.
      */
+    /** Why a PAUSED icon is paused: Guard's reason, or "settings" for a Settings app the parent keeps closed. */
+    fun pauseReason(pkg: String, want: Map<String, String>, settingsOk: Boolean): String? =
+        want[pkg] ?: if (pkg in SETTINGS && !settingsOk) "settings" else null
+
     fun settingsOk(r: Rules, owner: Boolean, paired: Boolean) = r.launcher.settings || (!owner && !paired)
 
     /** ms left today for [pkg] under its own limit and its groups' limits (the smallest), -1 when none applies. */

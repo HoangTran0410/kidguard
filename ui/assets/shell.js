@@ -50,7 +50,8 @@ const bnavHtml = () => `<nav class="bnav" aria-label="${esc(t("nav.main"))}">${B
 function headHtml() {
   const back = !LOCAL && (APP || onLan() || kids.length > 1 || cur.via === "relay");
   return `<div class="head">${back ? `<button type="button" id="back" class="back${kidList().length > 1 || APP || onLan() ? " mOnly" : ""}" aria-label="${esc(t("list"))}" title="${esc(t("list"))}">${ic("chevron-left")}</button>` : ""}${kidAv(cur)}
-    <div><div class="t1">${esc(cur.name)}</div><div class="st" id="hst"></div></div><span class="savechip" id="saveChip" role="status"></span></div>`;
+    <div><div class="t1">${esc(cur.name)}</div><div class="st" id="hst"></div></div><span class="savechip" id="saveChip" role="status"></span>
+    <button type="button" id="qsBtn" class="qsb" aria-label="${esc(t("qs.h"))}" title="${esc(t("qs.h"))} ( / )">${ic("search")}</button></div>`;
 }
 // header save chip: saving / failed / waiting for the kid's phone (relay) / saved (3 s)
 let savedAt = 0;
@@ -78,6 +79,7 @@ function render(tabClick) {
   <div id="live"></div>
   <div id="body"></div></div></div>${bnavHtml()}</div>`;
   a.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => goTab(b.dataset.tab));
+  if ($("#qsBtn")) $("#qsBtn").onclick = qsOpen;
   wireSide(a);
   if ($("#goLive")) $("#goLive").onclick = () => { tab = "home"; open(cur); dayOff(); };
   if ($("#back")) $("#back").onclick = () => { goList(); navDown(0); };
@@ -97,6 +99,79 @@ function render(tabClick) {
   // a refresh keeps the page where it was; a tab switch lands on the top of the new tab
   window.scrollTo(0, tabClick ? 0 : pageY);
 }
+// Quick search ("Tìm chức năng"): every section of the page by its title, description and the switches inside,
+// accent-free (also used by the kid app's own admin page, which loads this page). Row: [tab, section id, rules
+// segment, icon, i18n keys (0 = title, 1 = description, 2+ = switches / words inside)]. New section = one row here.
+const QS = [
+  ["rules", "r-daily", "time", "timer", ["daily.h", "sd.daily"]], ["rules", "r-grp", "time", "layout-grid", ["grp.h", "sd.grp"]],
+  ["rules", "r-bed", "time", "moon", ["bed.h", "sd.bed"]], ["rules", "r-wind", "time", "moon", ["wd.h", "sd.wind", "wd.gray", "wd.nudge"]],
+  ["rules", "r-sch", "time", "book-open", ["sch.h", "sd.sch"]], ["rules", "r-chore", "time", "star", ["chore.h", "sd.chore"]],
+  ["rules", "r-more", "safe", "construction", ["more.h", "sd.more", "more.loc", "more.air", "more.new"]],
+  ["rules", "r-dns", "safe", "shield", ["dns.h", "sd.dns", "dns.novpn"]],
+  ["rules", "r-anti", "safe", "lock-keyhole", ["anti.h", "sd.anti", "anti.debug", "anti.install"]],
+  ["rules", "r-home", "safe", "house", ["hm.h", "sd.home", "hm.on", "hm.settings", "hm.shade", "hm.lock", "hm.notes"]],
+  ["rules", "r-kind", "safe", "notebook-pen", ["kn.h", "sd.kind"]], ["rules", "#monCard", "", "eye", ["mon.h", "mon.p"]],
+  ["where", "r-zone", "", "map-pin", ["zone.h", "sd.zone"]], ["where", "r-trk", "", "route", ["trk.h", "sd.trk"]],
+  ["set", "s-pin", "", "key-round", ["pin.h", "pin.p"]], ["set", "r-totp", "", "key-round", ["totp.h", "sd.totp"]],
+  ["set", "s-sys", "", "sliders-horizontal", ["sys.h", "sd.sys", "sys.ring", "sys.media", "sys.alarm", "sys.bright", "sys.timeout", "sys.dnd"]],
+  ["set", "s-dev", "", "code", ["dev.h", "sd.dev", "anti.debug"]], ["set", "s-relay", "", "globe", ["relay.h", "sd.relay"]],
+  ["set", "s-ts", "", "route", ["ts.h", "sd.ts"]], ["set", "s-upd", "", "refresh-cw", ["upd.h", "sd.upd", "upd.auto"]],
+  ["set", "s-tg", "", "send", ["tg.h", "tg.d"]], ["set", "s-feat", "", "list-checks", ["ft.h", "ft.d"]],
+  ["set", "s-paired", "", "smartphone", ["paired.h", "sd.paired"]], ["set", "s-danger", "", "octagon-x", ["set.danger", "sd.danger"]],
+  ["dev", "d-act", "", "zap", ["dv.act"]], ["dev", "d-bat", "", "battery-full", ["dv.bat"]], ["dev", "d-ram", "", "memory-stick", ["dv.ram"]],
+  ["dev", "d-sto", "", "hard-drive", ["dv.sto"]], ["dev", "d-sys", "", "smartphone", ["dv.sys"]],
+];
+const qsFold = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^\p{L}\p{N}\s]/gu, "");   // "Wi-Fi" = "wifi"
+const qsShort = s => s.split(/ \(|\. |: /)[0].slice(0, 80);   // a long switch label: its first clause
+const qsTxt = k => hasT(k) ? String(t(k)).replace(/<[^>]*>/g, "").replace(/\{\d\}/g, "") : "";
+function qsFind(q) {
+  const w = qsFold(q).split(/\s+/).filter(Boolean), has = s => { const f = qsFold(s); return w.every(x => f.includes(x)); }, out = [];
+  for (const [id, i] of NAV) if (navOk(id) && has(t("tab." + id))) out.push({ tab: id, icon: i, title: t("tab." + id), where: "" });
+  for (const [tb, sid, seg, i, keys] of QS) {
+    if (!navOk(tb) || !qsTxt(keys[0])) continue;
+    const where = t("tab." + tb) + (seg ? " › " + t(seg === "time" ? "rules.segTime" : "rules.segSafe") : "");
+    const sw = keys.slice(2).map(qsTxt).filter(Boolean), hit = !has(qsTxt(keys[0])) && sw.find(s => w.length && has(s));
+    if (hit) out.push({ tab: tb, sec: sid, seg, icon: i, title: qsShort(hit), where: where + " › " + qsTxt(keys[0]) });
+    else if (has(keys.map(qsTxt).join(" "))) out.push({ tab: tb, sec: sid, seg, icon: i, title: qsTxt(keys[0]), where });
+  }
+  return out;
+}
+function qsGo(e) {
+  if (e.seg) { rseg = e.seg; try { localStorage.setItem("kg.rseg", rseg); } catch {} }
+  goTab(e.tab);
+  if (!e.sec) return;
+  let n = 0;
+  const find = () => {   // a tab may draw after its data arrives: retry for ~2 s
+    const el = e.sec[0] === "#" ? $(e.sec) : document.querySelector(`[data-sec="${e.sec}"]`);
+    if (!el) { if (++n < 20) setTimeout(find, 100); return; }
+    if (el.classList.contains("cl") && !el.classList.contains("open")) { const h = el.querySelector(".clh"); if (h) h.click(); }
+    el.scrollIntoView({ block: "start", behavior: "smooth" });
+    el.classList.add("qsHit"); setTimeout(() => el.classList.remove("qsHit"), 1800);
+  };
+  setTimeout(find, 30);
+}
+function qsOpen() {
+  if (!cur) return;
+  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("search", t("qs.h"))}
+    <input id="qsIn" type="search" placeholder="${esc(t("qs.ph"))}" autocomplete="off" aria-label="${esc(t("qs.h"))}" style="width:100%;margin:2px 0 10px">
+    <div class="list" id="qsList" style="max-height:60vh;overflow:auto"></div></div>`, (pop, done) => {
+    const inp = pop.querySelector("#qsIn"), L = pop.querySelector("#qsList");
+    const draw = () => {
+      const r = qsFind(inp.value);
+      L.innerHTML = r.length ? r.map((e, i) => `<button type="button" class="li" data-qi="${i}"><span class="ib">${ic(e.icon)}</span><span class="x"><b>${esc(e.title)}</b>${e.where ? `<span class="sub">${esc(e.where)}</span>` : ""}</span>${ic("chevron-right")}</button>`).join("")
+        : `<p class="mute">${t("qs.none")}</p>`;
+      L.querySelectorAll("[data-qi]").forEach(b => b.onclick = () => { done(true); qsGo(r[+b.dataset.qi]); });
+    };
+    inp.oninput = draw;
+    inp.onkeydown = ev => { if (ev.key === "Enter") { const f = L.querySelector("[data-qi]"); if (f) f.click(); } };
+    draw(); setTimeout(() => inp.focus(), 0);
+  });
+}
+document.addEventListener("keydown", e => {   // "/" opens the quick search (not while typing)
+  if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || !cur || askDone) return;
+  const a = document.activeElement; if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return;
+  e.preventDefault(); qsOpen();
+});
 function goTab(id) { const from = tab; tab = id; if (tab === "hist") histDays = null; render(true); navTab(id, from); }
 
 // "Thêm" (phones): everything that is not in the bottom bar, grouped

@@ -54,12 +54,12 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
             if (badge != "off") Dots.draw(c, px, Dots.count(dotPkgs), resources.displayMetrics.density, badge == "num")
         }
     }.also { v -> if (bmp == null) IconCache.async(this, a.pkg, a.cls, iconPx(), round) { b -> if (b != null) { bmp = b; v.invalidate() } } }, FrameLayout.LayoutParams(px, px))
-    val reason = dv.want[a.pkg]
+    val reason = LauncherLogic.pauseReason(a.pkg, dv.want, settingsOk(r))
     if (paused) {
         // clock badge: warn fill + glyph picked for it (HomeStyle tests both), a ring of the sheet colour keeps it off the grey icon
         val bs = (px * 0.36f).toInt().coerceAtLeast(dp(18))
         frame.addView(ImageView(this).apply {
-            setImageDrawable(Ic.get(this@appIcon, R.drawable.li_clock, pal.onWarn, bs))
+            setImageDrawable(Ic.get(this@appIcon, if (reason == "settings") R.drawable.li_lock else R.drawable.li_clock, pal.onWarn, bs))
             background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(pal.warn); setStroke(dp(2), pal.sheet) }
             val pad = (bs * 0.2f).toInt(); setPadding(pad, pad, pad, pad)
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO

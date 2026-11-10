@@ -755,7 +755,9 @@ class Guard : Service() {
 
     private fun foreground(mic: Boolean = false) {
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel("guard", "KidGuard", NotificationManager.IMPORTANCE_MIN))
+        // a swiped-away foreground notification comes back whenever the process restarts (OEM killers do that often):
+        // the lasting way to hide it is turning this channel off, so its name says it is safe to (the service keeps running)
+        nm.createNotificationChannel(NotificationChannel("guard", getString(R.string.ch_guard), NotificationManager.IMPORTANCE_MIN))
         val n = fgNotification()
         val type = ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or (if (mic) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0)
         if (Build.VERSION.SDK_INT >= 34) startForeground(1, n, type)

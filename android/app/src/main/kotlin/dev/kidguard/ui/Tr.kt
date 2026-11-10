@@ -10,7 +10,7 @@ package dev.kidguard
  */
 enum class T {
     reason_blocked, reason_app_limit, reason_group_hours, reason_group_limit, reason_new, reason_paused,
-    reason_schedule, reason_bedtime, reason_daily,
+    reason_schedule, reason_bedtime, reason_daily, reason_settings,
     ev_zone_in, ev_zone_out,
     answer_yes /* plurals */, answer_no, answer_note,
     diff_head, diff_limit, diff_none, diff_min, no_limit, diff_by_day, diff_by_day_off, diff_bed, diff_bed_off,

@@ -30,6 +30,7 @@ object BasicLogic {
         "schedule" -> tr.s(T.reason_schedule)
         "bedtime" -> tr.s(T.reason_bedtime)
         "daily" -> tr.s(T.reason_daily)
+        "settings" -> tr.s(T.reason_settings)
         else -> code
     }
 

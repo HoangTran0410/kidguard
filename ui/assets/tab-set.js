@@ -54,7 +54,7 @@ function devCard() {
 }
 async function devOff(want) {
   want = want === true;
-  if (want && !(await ask(t("dev.askOn"), t("dev.onBtn")))) return;
+  if (want && !(await ask(t("dev.askOn"), t("dev.onBtn")))) return;   // turning off: CONFIRM.devOff (kid.js)
   const k = cur, p = devPend = { kid: k, want, at: Date.now(), ok: 0, fail: "" }; render();
   const r = await cmd({ type: want ? "devOn" : "devOff" }, t(want ? "dev.doneOn" : "dev.done"), false);
   // cmd() already toasted the reason; "ok" / "queued" stay pending until a state settles it (see devPend)

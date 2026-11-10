@@ -14,6 +14,8 @@
     <string name="reason_group_limit">this app group is out of time today</string>
     <string name="reason_new">new app, waiting for your parent\'s OK</string>
     <string name="reason_paused">your parent has paused the phone</string>
+    <string name="reason_settings">your parent manages Settings on this phone</string>
+    <string name="hm_settings_ask">Ask your parent to turn on “Let your kid open Settings”. Wi-Fi, Bluetooth and data: swipe down on the right of the home screen.</string>
     <string name="reason_schedule">it\'s break time</string>
     <string name="reason_bedtime">it\'s bedtime</string>
     <string name="reason_daily">screen time is up for today</string>
@@ -145,7 +147,8 @@
     <string name="log_released">Management removed</string>
     <string name="log_sos">SOS pressed</string>
     <string name="notif_guard_title">KidGuard is on</string>
-    <string name="notif_guard_text">Your parent manages screen time</string>
+    <string name="notif_guard_text">Your parent manages screen time. Long-press this notification → turn off to hide it for good, KidGuard keeps running.</string>
+    <string name="ch_guard">KidGuard in the background (safe to turn off)</string>
 
     <!-- Basic mode setup card -->
     <string name="basic_title">Quick setup, no computer needed</string>

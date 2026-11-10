@@ -118,6 +118,39 @@ $("#askPop").addEventListener("click", e => { if (e.target.id === "askPop" && as
 document.addEventListener("keydown", e => { if (e.key === "Escape" && askDone) askDone(false); });
 // confirm text "ask.<type>" + button "askOk.<type>" for commands that need no extra wording; these are the dangerous ones
 const ASK_BAD = { reboot: 1, unpairAll: 1, tailscaleOff: 1 };
+// One confirm gate for every control with a big effect on the kid's phone or one this page can't undo by itself.
+// id -> { on / off: text when a checkbox is turned on / off, click: text for a button; ok: button label key;
+// safe: not red }. A text is an i18n key or a function. New risky control = one line here, no handler change.
+const CONFIRM = {
+  devOff: { click: () => t("dev.askOff") + " " + t(st && st.dev && st.dev.canOn ? "dev.askOffBack" : "dev.askOffNoBack"), ok: "dev.btn" },
+  "f-nd": { on: "anti.debugAsk" },
+  "f-ni": { on: "anti.installAsk" },
+  "f-nv": { on: "dns.novpnAsk" },
+  "f-na": { on: "more.airAsk" },
+  "f-hm": { on: "hm.askOn", off: "hm.askOff", safe: 1 },
+  "f-mon": { off: "mon.askOff", safe: 1 },
+};
+let confirmPass = null;
+function confirmGate(e) {
+  const el = e.target, c = el && el.id && CONFIRM[el.id];
+  if (!c || el === confirmPass || el.disabled) return;
+  const box = el.type === "checkbox";
+  if (e.type !== (box ? "change" : "click")) return;
+  const key = box ? (el.checked ? c.on : c.off) : c.click;
+  if (!key) return;
+  e.stopImmediatePropagation(); e.preventDefault();
+  const want = el.checked;
+  if (box) el.checked = !want;   // stays as it was until the parent agrees
+  const k = cur, txt = typeof key === "function" ? key() : t(key);
+  ask((k && k.name ? k.name + "\n" : "") + txt, t(c.ok || (box ? (want ? "turnOn" : "turnOff") : "agree")), !c.safe).then(ok => {
+    if (!ok || k !== cur || !el.isConnected) return;
+    confirmPass = el;   // the real handler runs now, synchronously, without asking again
+    try { if (box) { el.checked = want; el.dispatchEvent(new Event("change", { bubbles: true })); } else el.click(); }
+    finally { confirmPass = null; }
+  });
+}
+document.addEventListener("change", confirmGate, true);
+document.addEventListener("click", confirmGate, true);
 const askOf = c => hasT("ask." + c) ? [t("ask." + c), t("askOk." + c), !!ASK_BAD[c]] : null;
 async function cmd(c, okMsg, q) {
   const k = cur, a0 = q || (q === false ? null : askOf(c.type)) || (c.type === "message" ? [t("askMsg", c.text), t("send")] : null);
