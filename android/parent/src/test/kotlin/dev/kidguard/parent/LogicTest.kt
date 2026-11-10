@@ -190,6 +190,13 @@ class LogicTest {
         assertFalse(Logic.allowedRequest("[]", "http://10.0.0.9:8770", "POST", "/api/rules"))
     }
 
+    @Test fun lanKidRelayFallbackAllowed() {
+        val kids = """[{"name":"An","target":"http://192.168.1.5:8770","via":"lan","id":"a","token":"t","relay":{"url":"https://r.example.workers.dev","id":"0123456789abcdef","token":"x"}},{"name":"Bo","target":"http://192.168.1.6:8770","via":"lan","id":"b","token":"t","relay":{"url":"http://plain.example"}}]"""
+        assertTrue(Logic.allowedRequest(kids, "https://r.example.workers.dev", "GET", "/c/0123456789abcdef/state"))
+        assertFalse(Logic.allowedRequest(kids, "http://plain.example", "GET", "/c/b/state"))   // relay must be https
+        assertEquals("https://r.example.workers.dev", Logic.parseKids(kids)[0].relay)
+    }
+
     @Test fun lanFailuresIgnoredOffWifi() {
         assertFalse(Logic.failCounts("lan", false)); assertTrue(Logic.failCounts("lan", true)); assertTrue(Logic.failCounts("relay", false))
         val f = Logic.Seen(false, emptyList(), 0)

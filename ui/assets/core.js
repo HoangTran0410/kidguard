@@ -60,8 +60,9 @@ const load = () => {
   } catch { return []; }
 };
 const save = k => {
-  try { localStorage.setItem(KEY, JSON.stringify(k)); } catch {}
-  if (APP) kgCall("setKids", JSON.stringify(k.filter(x => x.target).map(x => ({ name: x.name, target: x.target, via: x.via, id: x.id, token: x.token, lv: x.lv }))));
+  // healAt / fb / relayTry: per page load only (core.js relocate / learnAddrs)
+  try { localStorage.setItem(KEY, JSON.stringify(k, (key, v) => key === "healAt" || key === "fb" || key === "relayTry" ? undefined : v)); } catch {}
+  if (APP) kgCall("setKids", JSON.stringify(k.filter(x => x.target).map(x => ({ name: x.name, target: x.target, via: x.via, id: x.id, token: x.token, lv: x.lv, relay: x.relay }))));
 };
 let kids = load(), cur = null, st = null, pendingRules = null, timer = null, edit = null, tab = "home", lastErr = "", viewDay = null, histDays = null, cachedAt = 0, seenAt = 0, answered = new Set(), histSel = -1, lastNet = false;
 const onLan = () => !location.pathname.startsWith("/c/") && !isRelayOrigin;
@@ -145,17 +146,93 @@ const KG_NAME = (() => { const u = navigator.userAgent || "";
   const br = APP ? "KidGuard app" : /Edg\//.test(u) ? "Edge" : /OPR\/|Opera/.test(u) ? "Opera" : /SamsungBrowser/.test(u) ? "Samsung Internet" : /Firefox\//.test(u) ? "Firefox" : /Chrome\//.test(u) ? "Chrome" : /Safari\//.test(u) ? "Safari" : "Browser";
   const os = /Android/.test(u) ? "Android" : /iPhone|iPad|iPod/.test(u) ? "iOS" : /Mac OS X|Macintosh/.test(u) ? "Mac" : /Windows/.test(u) ? "Windows" : /CrOS/.test(u) ? "ChromeOS" : /Linux/.test(u) ? "Linux" : "";
   return (br + (os ? " / " + os : "")).replace(/[^\x20-\x7e]/g, "").slice(0, 40); })();
-async function call(k, path, method = "GET", body) {
+async function call1(k, path, method, body) {
   // app mode: a cached snapshot means the phone/relay is unreachable, so commands cannot be delivered
   if (APP && method !== "GET" && viewDay && k === cur) throw new Error(t("e.viewOnly"));
   if (APP && method !== "GET" && cachedAt && k === cur) throw new Error(t("e.cachedOff"));
+  if (k.fb && k.via === "lan" && Date.now() - k.fb < 60000 && relayable(path, method)) { const j = await viaRelay(k, path, method, body); if (path === "/state" && k === cur) cachedAt = 0; return j; }
   let r;
   try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined, signal: direct(k) ? quick(15000) : undefined }); }
   catch (e) { throw errOf("net", APP ? t("e.lost") : null); }
-  if (APP && method === "GET" && path === "/state" && k === cur) cachedAt = +r.headers.get("X-KG-Cached") || 0;
+  const cached = APP && method === "GET" && path === "/state" ? +r.headers.get("X-KG-Cached") || 0 : 0;
+  // app: a cached snapshot = the phone did not answer; a LAN kid that can heal treats it as a network failure
+  if (cached && k.via === "lan" && canHeal(k) && !body) { const e = errOf("net", t("e.lost")); e.cached = r; throw e; }
+  if (APP && method === "GET" && path === "/state" && k === cur) cachedAt = cached;
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw errOf(APP && j.error === "offline" ? "offline" : j.error || ("HTTP " + r.status));
   return j;
+}
+
+// LAN kid whose address changed (DHCP, other Wi-Fi): try the addresses it reported before (state.lan, Tailscale ip),
+// then the ones in its relay state; still nothing -> state / commands / rules over its relay for a minute at a time.
+// Each step is automatic (docs/protocol.md "LAN address heal").
+const LAN_PORT = 8770;
+const canHeal = k => !LOCAL && !!((k.alt && k.alt.length) || k.relay);
+const relayable = (path, method) => (path === "/state" && method === "GET") || (path === "/cmd" && method === "POST") || (path === "/rules" && method === "PUT");
+const addrsOf = s => { if (!s) return [];
+  const out = []; if (typeof s.lan === "string" && /^http:\/\/[\d.]+:\d+$/.test(s.lan)) out.push(s.lan);
+  const ip = s.ts && s.ts.ip; if (typeof ip === "string" && /^100\.[\d.]+$/.test(ip)) out.push(`http://${ip}:${LAN_PORT}`);
+  return out; };
+async function viaRelay(k, path, method, body) {
+  const rl = k.relay, b = (APP ? "/k/" + b64u(rl.url) : rl.url) + "/c/" + encodeURIComponent(rl.id);
+  let r;
+  try { r = await fetch(b + path, { method, headers: { "X-KG-Token": rl.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined, signal: quick(15000) }); }
+  catch (e) { throw errOf("net", APP ? t("e.lost") : null); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw errOf(j.error || ("HTTP " + r.status));
+  return j;
+}
+const healing = new Map();
+function relocate(k) {
+  if (healing.has(k)) return healing.get(k);
+  if (Date.now() - (k.healAt || 0) < 20000) return Promise.resolve(false);
+  k.healAt = Date.now();
+  const tried = new Set([k.target]);
+  const probe = async u => {
+    if (!u || tried.has(u)) return false;
+    tried.add(u);
+    try {
+      const r = await fetch(lanApi(u) + "/hello", { signal: quick(4000) });
+      const h = r.ok ? await r.json() : null;
+      if (h && h.id === k.id) { const from = k.target; k.target = u; k.alt = [from, ...(k.alt || [])].filter(x => x !== u).slice(0, 4); k.fb = 0; save(kids); toast("ok|" + t("lan.moved", u.replace(/^http:\/\//, ""))); return true; }
+    } catch {}
+    return false;
+  };
+  const p = (async () => {
+    for (const u of k.alt || []) if (await probe(u)) return true;
+    if (k.relay) { try { const j = await viaRelay(k, "/state", "GET"); for (const u of addrsOf(j && j.state)) if (await probe(u)) return true; } catch {} }
+    return false;
+  })().finally(() => healing.delete(k));
+  healing.set(k, p);
+  return p;
+}
+async function call(k, path, method = "GET", body) {
+  try { return await call1(k, path, method, body); }
+  catch (e) {
+    if (!e.net || k.via !== "lan" || !canHeal(k) || viewDay) throw e;
+    if (await relocate(k)) return call1(k, path, method, body);
+    if (k.relay && relayable(path, method)) {
+      try { const j = await viaRelay(k, path, method, body); if (path === "/state" && k === cur) cachedAt = 0; if (!k.fb) toast("warn|" + t("lan.viaRelay")); k.fb = Date.now(); return j; } catch {}
+    }
+    if (e.cached) { if (k === cur) cachedAt = +e.cached.headers.get("X-KG-Cached") || 0; return e.cached.json().catch(() => ({})); }
+    throw e;
+  }
+}
+/** After a LAN state: remember the phone's other addresses and (once per page load) its relay credentials. */
+function learnAddrs(k, s) {
+  if (!k || k.via !== "lan" || LOCAL || !s || k.fb) return;
+  const alt = [...new Set([...addrsOf(s), ...(k.alt || [])])].filter(u => u !== k.target).slice(0, 4);
+  let dirty = JSON.stringify(alt) !== JSON.stringify(k.alt || []);
+  if (dirty) k.alt = alt;
+  const url = typeof s.relay === "string" && /^https:\/\//.test(s.relay) ? s.relay : "";
+  if (!url && k.relay) { delete k.relay; dirty = true; }
+  if (dirty) save(kids);
+  if (url && (!k.relay || k.relay.url !== new URL(url).origin) && !k.relayTry) {
+    k.relayTry = 1;   // the same url again: the phone keeps its relay id/token and just returns them (not logged)
+    call1(k, "/cmd", "POST", { type: "relay", url }).then(r => {
+      if (r && /^[0-9a-f]+$/.test(r.id || "") && /^[0-9a-f]{48}$/.test(r.token || "")) { k.relay = { url: new URL(url).origin, id: r.id, token: r.token }; save(kids); }
+    }).catch(() => {});
+  }
 }
 
 // --- boot ---------------------------------------------------------------

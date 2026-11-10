@@ -19,6 +19,7 @@ L.vi = {
   "e.too big": "Dữ liệu quá lớn", "e.state too big": "Dữ liệu quá lớn", "e.bad host": "Địa chỉ máy con không hợp lệ", "e.not live": "Màn hình chưa bật chia sẻ",
   "e.slow down": "Gửi quá nhanh, thử lại sau vài giây", "e.bad token": "Mã ghép không đúng hoặc đã bị huỷ", "e.not paired": "Thiết bị này đã bị huỷ ghép",
   "e.waiting for the phone": "Đang chờ máy con", "e.bad command": "Lệnh không hợp lệ", "e.bad json": "Dữ liệu gửi đi không hợp lệ", "e.not found": "Không tìm thấy",
+  "lan.moved": "Máy con đã đổi địa chỉ, đã tự kết nối lại: {0}", "lan.viaRelay": "Không tới được máy con trong mạng nhà, đang đi qua relay (lệnh chậm 20–60 giây)", 
   "e.http": "Máy chủ lỗi ({0}), thử lại sau", "e.viewOnly": "đang xem lịch sử, chỉ xem", "e.cachedOff": "đang mất kết nối, chưa gửi được", "e.lost": "mất kết nối",
   "via.lan": "mạng nhà / Tailscale", open: "Mở", "app.none": "Chưa có máy nào. Bấm \"Thêm máy của con\" để bắt đầu.", ovN: "Tổng quan {0} con",
   addKid: "Thêm máy của con", "add.lanH": "Mạng nhà hoặc Tailscale", "add.sameOrigin": "Danh sách lưu trong trình duyệt này, theo địa chỉ đang mở. Luôn mở trang từ cùng một máy con để thấy đủ danh sách.",

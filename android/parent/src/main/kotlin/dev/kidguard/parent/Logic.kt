@@ -46,7 +46,8 @@ object Logic {
     }
 
     /** Only a target saved in the kid list (LAN address or relay host) may be forwarded to. */
-    fun allowedTarget(kidsJson: String, target: String) = parseKids(kidsJson).any { it.target == target }
+    /** A saved kid's address, or the relay a LAN kid also syncs to (the page falls back to it, core.js relocate). */
+    fun allowedTarget(kidsJson: String, target: String) = parseKids(kidsJson).any { it.target == target || it.relay == target }
 
     /** Pairing needs a not-yet-saved LAN target: only its hello probe and the pair call, nothing else. */
     fun allowedRequest(kidsJson: String, target: String, method: String, rest: String) =
@@ -113,7 +114,7 @@ object Logic {
 
     // ---- background notifications ----
 
-    class KidCfg(val name: String, val target: String, val via: String, val id: String, val token: String) {
+    class KidCfg(val name: String, val target: String, val via: String, val id: String, val token: String, val relay: String? = null) {
         val key get() = "$target|$id"
     }
 
@@ -124,7 +125,8 @@ object Logic {
             val target = decodeTarget(encodeTarget(o.optString("target"))) ?: return@mapNotNull null
             val via = o.optString("via")
             if (via != "lan" && via != "relay") return@mapNotNull null
-            KidCfg(o.optString("name", "").ifEmpty { "con" }, target, via, o.optString("id"), o.optString("token"))
+            val relay = o.optJSONObject("relay")?.optString("url")?.takeIf { it.startsWith("https://") }?.let { decodeTarget(encodeTarget(it)) }
+            KidCfg(o.optString("name", "").ifEmpty { "con" }, target, via, o.optString("id"), o.optString("token"), relay)
         }
     } catch (e: Exception) { emptyList() }
 

@@ -18,6 +18,7 @@ async function refresh() {
     pendingRules = j.state !== undefined ? j.rules : null;
     seenAt = j.state !== undefined ? +j.seen || 0 : 0;
     lastErr = ""; lastNet = false;
+    if (j.state === undefined) learnAddrs(k, st);   // a LAN answer (relay replies wrap the state)
     settle();
   } catch (e) {
     if (k !== cur) return;

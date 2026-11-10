@@ -12,6 +12,7 @@ L.en = {
   "e.too big": "Data too large", "e.state too big": "Data too large", "e.bad host": "Invalid phone address", "e.not live": "Screen sharing isn't on",
   "e.slow down": "Too fast, try again in a few seconds", "e.bad token": "Pairing key is wrong or was revoked", "e.not paired": "This device was unpaired",
   "e.waiting for the phone": "Waiting for the kid's phone", "e.bad command": "Invalid command", "e.bad json": "Invalid data sent", "e.not found": "Not found",
+  "lan.moved": "The phone changed address, reconnected: {0}", "lan.viaRelay": "Can't reach the phone on the home network, using the relay (commands take 20–60 s)", 
   "e.http": "Server error ({0}), try again later", "e.viewOnly": "viewing history, read-only", "e.cachedOff": "offline, couldn't send", "e.lost": "connection lost",
   "via.lan": "home network / Tailscale", open: "Open", "app.none": "No phones yet. Tap \"Add kid's phone\" to start.", ovN: { one: "Overview · {0} kid", other: "Overview · {0} kids" },
   addKid: "Add kid's phone", "add.lanH": "Home network or Tailscale", "add.sameOrigin": "This list is saved in this browser, per address. Always open the page from the same kid's phone to see the whole list.",

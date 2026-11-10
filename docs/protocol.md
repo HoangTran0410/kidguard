@@ -168,6 +168,16 @@ The first capture / first input of a session is logged in the phone log.
   6 slots, so `/api/state` always finds a thread. Over the limit: `503` (`{"error":"busy"}` for a long route, empty body +
   `Retry-After: 2` when the whole pool is full) instead of a silently closed socket.
 - `/api/hello` answers on any method (no token; the pairing probe).
+- **LAN address heal** (page, `core.js` `relocate` / `learnAddrs`, no phone change): after each LAN `state` the page keeps
+  the phone's other addresses on the saved kid (`alt`, up to 4: `state.lan`, `http://<state.ts.ip>:8770`) and, when
+  `state.relay` is set, sends the `relay` command once per page load with that same url: the phone keeps its relay id/token
+  and returns them, saved as `kid.relay = {url (origin), id, token}`. When a LAN call fails (or the parent app answers
+  with a cached snapshot): probe `alt` then the `lan` / `ts.ip` of the relay state with `GET /api/hello` (4 s, `id` must
+  match), switch `target` and retry ("đã tự kết nối lại" toast). Nothing found: `GET /state`, `POST /cmd`, `PUT /rules`
+  go to the relay for 60 s at a time (toast "đang đi qua relay"; relay reply shapes, commands `queued`), other routes
+  (screen, files, listen) fail as before. One heal attempt per kid per 20 s. Browser: probing works (CORS on `/api`),
+  the relay fallback only in the parent app (the worker sends no CORS). A page served from the phone's old address
+  dies with it (reload from the new one).
 
 ### Relay (worker), token header `X-KG-Token`, id = 16 hex
 - Limits: `POST /c/<id>/cmd` -> 429 `queue full` with 20 commands waiting, 413 `too big` over 4 KB of JSON; `PUT /c/<id>/rules`
@@ -443,7 +453,7 @@ the child over plain http; the WebView itself may only reach `127.0.0.1:<port>` 
   - `GET /app/history/day?k=<t>&p=<rest>&d=2026-11-05` -> `{"day","t","body"}`, 404 if none.
 - **JS bridge** `window.KGApp` (strings): `version()` -> `"1"`; `files()` -> `"true"` (v0.9.8+: the WebView has a file chooser
   (multiple, `ACTION_OPEN_DOCUMENT`) and saves `<a download>` blob/data/same-origin downloads into `Download/KidGuard`; the page checks
-  `window.KGApp && KGApp.files && KGApp.files() === "true"`); internal `dlBegin/dlChunk/dlEnd` (used by the app's injected script only); `setKids(json)` json = `[{name,target,via:"lan"|"relay",id,token}]`
+  `window.KGApp && KGApp.files && KGApp.files() === "true"`); internal `dlBegin/dlChunk/dlEnd` (used by the app's injected script only); `setKids(json)` json = `[{name,target,via:"lan"|"relay",id,token,lv?,relay?}]` (`relay` = `{url,id,token}` of a LAN kid's relay: the proxy also allows that origin)
   (called whenever the list changes); `getNotify()` / `setNotify("true"|"false")` (default true);
   `getHistoryDays()` -> `"0"` (unlimited) | `"30"` ...; `setHistoryDays(n)`; `getLang()` -> `""` (phone setting) | `"en"` | `"vi"`,
   `setLang(code)` same codes, others ignored, same code = no-op: language of the app's own notifications (Android 13+: the
