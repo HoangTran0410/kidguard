@@ -35,6 +35,22 @@ object TsLogic {
     fun sha256Of(text: String): String? =
         text.trim().split(Regex("\\s+")).firstOrNull()?.lowercase()?.takeIf { Regex("[0-9a-f]{64}").matches(it) }
 
+    // Keep-alive ([Ts.keep]): Tailscale killed (HyperOS "clean all", Recents swipe, battery saver) leaves no tunnel.
+    const val RECEIVER = "com.tailscale.ipn.IPNReceiver"
+    const val CONNECT = "com.tailscale.ipn.CONNECT_VPN"
+    const val DOWN_MS = 20_000L            // a short gap (network change, app update) is not a drop
+    const val ASK_EVERY_MS = 60_000L       // the CONNECT_VPN broadcast, silent
+    const val OPEN_AFTER_MS = 90_000L      // still down after the broadcasts: open its screen once
+    const val OPEN_EVERY_MS = 10 * 60_000L
+
+    /** What to do while the tunnel is down: 0 wait, 1 send CONNECT_VPN, 2 open the app once (only on our home screen). */
+    fun reviveStep(downMs: Long, sinceAsk: Long, sinceOpen: Long, onHome: Boolean, canOpen: Boolean): Int = when {
+        downMs < DOWN_MS -> 0
+        downMs >= OPEN_AFTER_MS && onHome && canOpen && sinceOpen >= OPEN_EVERY_MS -> 2
+        sinceAsk >= ASK_EVERY_MS -> 1
+        else -> 0
+    }
+
     /** 100.64.0.0/10 (the tailnet range). */
     fun isTailnet(a: ByteArray): Boolean =
         a.size == 4 && (a[0].toInt() and 0xff) == 100 && (a[1].toInt() and 0xc0) == 0x40
@@ -141,6 +157,51 @@ object Ts {
         s.tsWanted = false; state = "off"; ip = ""; err = ""
         Thread({ runCatching { undo(ctx, s) } }, "ts-off").start()
         return "ok"
+    }
+
+    @Volatile private var downAt = 0L
+    @Volatile private var askAt = 0L
+    @Volatile private var openAt = 0L
+
+    /**
+     * Every Guard tick, Device Owner AND basic mode: the parents reach the phone through Tailscale, so it must stay up.
+     * Applies once a tunnel was seen on this phone (Store.tsSeen, set here) or KidGuard manages it (tsWanted).
+     * Down for [TsLogic.DOWN_MS]: send Tailscale's own CONNECT_VPN broadcast (silent, starts a killed process);
+     * still down after [TsLogic.OPEN_AFTER_MS]: open its screen once and go back home, like the bank flow
+     * (AccPause.pauseLate): only while our launcher is in front, and only with a background-start right
+     * ([AccPause.canReopen]). A Tailscale that was force-stopped gets no broadcasts until it is opened.
+     */
+    fun keep(ctx: Context, s: Store, fg: String?, now: Long) {
+        if (Flavor.HOME || s.released || !installed(ctx)) return
+        if (findIp().isNotEmpty()) {
+            if (downAt != 0L && askAt >= downAt) s.log(R.string.ts_log_back)
+            downAt = 0L
+            if (!s.tsSeen) s.tsSeen = true
+            return
+        }
+        if (!s.tsSeen && !s.tsWanted) return
+        if (downAt == 0L) downAt = now
+        val screenOn = runCatching { ctx.getSystemService(android.os.PowerManager::class.java).isInteractive }.getOrDefault(false)
+        val onHome = screenOn && fg == ctx.packageName
+        val canOpen = AccPause.canReopen(ctx) && !(s.tsWanted && s.tsHide)   // a suspended (hidden) app can't open
+        when (TsLogic.reviveStep(now - downAt, now - askAt, now - openAt, onHome, canOpen)) {
+            1 -> {
+                if (askAt < downAt) s.log(R.string.ts_log_down)
+                askAt = now
+                runCatching { ctx.sendBroadcast(Intent(TsLogic.CONNECT).setClassName(TsLogic.PKG, TsLogic.RECEIVER)) }
+                    .onFailure { Log.w(TAG, "ts connect broadcast", it) }
+            }
+            2 -> {
+                openAt = now; askAt = now
+                Thread({
+                    runCatching {
+                        ctx.packageManager.getLaunchIntentForPackage(TsLogic.PKG)?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)?.let { ctx.startActivity(it) }
+                        Thread.sleep(3_000)
+                        ctx.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }.onFailure { Log.w(TAG, "ts open", it) }
+                }, "ts-open").start()
+            }
+        }
     }
 
     /** Every Guard tick: follow the tunnel address, and re-assert the policy once after a restart. */
@@ -337,7 +398,7 @@ object Ts {
 
     /** Takes everything back (also called from release). Synchronous, at most ~15 s. */
     fun undo(ctx: Context, s: Store) {
-        s.tsWanted = false; s.tsKey = ""; s.tsNoExpiry = false; apiToken = ""
+        s.tsWanted = false; s.tsKey = ""; s.tsNoExpiry = false; s.tsSeen = false; apiToken = ""
         if (!Policy.isOwner(ctx)) return
         val d = Policy.dpm(ctx); val a = Policy.admin(ctx)
         runCatching { d.setApplicationRestrictions(a, TsLogic.PKG, Bundle()) }

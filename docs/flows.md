@@ -4,11 +4,32 @@ Traced from the code on 2026-11-09 (main @ 0c95d99). For each flow: trigger -> s
 **Line numbers drift**: treat `file:123` as a hint and grep the function name. Wire formats are in `docs/protocol.md`
 (the contract); decisions, rejected approaches and known open issues are in `docs/decisions.md`.
 
-Sections: 1 Enforcement (child app) · 2 Parent <-> phone (LAN, relay, parent app) · 3 Kid launcher · 4 Setup, build,
+Sections: 0 Privileges -> flows · 1 Enforcement (child app) · 2 Parent <-> phone (LAN, relay, parent app) · 3 Kid launcher · 4 Setup, build,
 release · 5 Add-a-feature checklists (new command / rule field / state field / worker route).
 
 Path shorthands: `K/` = `android/app/src/main/kotlin/dev/kidguard/`, `L/` = `K/launcher/`, `UI/` = `ui/assets/`,
 `P/` = `android/parent/src/main/kotlin/dev/kidguard/parent/`. Guard section paths are relative to `K/`.
+
+## 0. What KidGuard can do (privileges -> the flows that use them)
+
+Read this before saying "we can't" or building a new mechanism: most needs are already covered by a privilege some
+flow holds. Add a row when a flow starts using a privilege.
+
+| Privilege (how it is granted) | What it allows | Used by |
+|---|---|---|
+| Device Owner (QR / setup / SelfSetup) | suspend / hide apps, user restrictions, silent APK install, always-on VPN, lockNow, reboot, system settings, start activities from the background | `Policy.apply`, `Ts.setup` (installs + logs in Tailscale), `Update`, `AccPause.canReopen` |
+| Device admin (basic mode) | marks basic mode (`Basic.mode`), lockNow | `Basic.kt` |
+| Accessibility service `Acc` | the window in front, global actions (Home, Recents, close quick settings), remote taps, read Settings screens | basic-mode bounce (§1.11), self-protect, remote input (§2.5), `AccPause` bank flow (§1.12) |
+| `WRITE_SECURE_SETTINGS` (adb grant) | turn our accessibility back on, Private DNS, location mode, auto time | `Acc.ensureEnabled`, `Policy.syncDns`, `keepLocation`, `AccPause` resume |
+| Background activity start (Device Owner, or `SYSTEM_ALERT_WINDOW` in basic mode, `AccPause.grantOverlay`) | open another app's screen while KidGuard is in the background | `AccPause.pauseLate` (reopen the bank), `Ts.keep` (open Tailscale), `Ts.setup` |
+| Explicit broadcast to another app's receiver | wake a killed app without UI | `Ts.keep` (Tailscale `CONNECT_VPN`, §1.13) |
+| `KILL_BACKGROUND_PROCESSES` | kill another app's background process | `AccPause` (fresh bank start) |
+| Usage access | foreground app + time per app | `Usage.today` (`use.current` in the tick, also = our launcher when home is in front) |
+| Notification listener | notification history, dots, re-send a notification's tap intent | `NotifLog`, `NotifDots`, `AccPause` deep link |
+| DND policy access | Do Not Disturb on/off | study mode (`FocusStore`), `Sys` |
+| Mic / camera / media projection / location (runtime) | listen, Telegram /rec, wrong-PIN photo, screen view, locate / track | `Listen`, `Tg`, `Shot`, `Proj`, `Guard.trackFix` |
+| Self adb (Wireless debugging against itself) | shell grants, hide / clear in basic mode | `SelfSetup*` |
+| Foreground service + 15 min `Watchdog` alarm + boot receiver | stay alive, restart after kill / reboot | `Guard`, `Watchdog` |
 
 ## 1. Enforcement (child app, `K/guard/`)
 
@@ -159,6 +180,22 @@ Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`,
 - `Basic.mode` (Basic.kt:25): owner | basic (admin active + accessibility on) | setup. `enforcing` = !owner && admin && !released.
 - Blocking only by bounce (see 3). Self-protect: `BasicLogic.selfProtect` (BasicLogic.kt:72) on Settings-like packages scanned at 0.2/0.8/1.8 s (Acc.kt:128-135); needs both a "KidGuard" mention and a destructive control.
 - Hide/clear only through self-adb shell; location lock, restrictions, suspend: not available. Checklist UI: the "Việc cần làm" card `SetupSteps` (`ui/SetupSteps.kt`, both modes).
+
+### 1.12 Bank apps vs accessibility (`guard/AccPause.kt`)
+
+- Why: Vietnamese bank / wallet apps refuse to run while ANY accessibility service is on. Rule `accPause` = package list (default `AccPauseLogic.DEFAULT`).
+- Trigger: the bank comes to the front (`AccPause.tick(use.current)` every tick, or `pauseLate` from the Acc window event).
+- Steps: Home (global action) -> our service really turns off (`disableSelf`) -> kill the bank's background process -> reopen it from the background (its notification's own intent if it was opened from one, `NotifLog.recentClick`, else the launch intent).
+- Resume: with WRITE_SECURE_SETTINGS the service comes back once no bank was in front for 10 min (Device Owner) / 1 min (basic, since basic mode blocks through the service).
+- Gotchas: basic mode needs "display over other apps" for the reopen (`canReopen`; `grantOverlay` tries every 6 h). Release clears the pause (`AccPause.clear`).
+
+### 1.13 Tailscale keep-alive (`remote/Ts.kt` `Ts.keep`, both modes)
+
+- Why: parents reach the phone through Tailscale; HyperOS "clean all" / a Recents swipe / battery saver kill it (seen on Poco 2026-11-10: `am_kill ... OneKeyClean`), and in basic mode there is no always-on VPN.
+- Applies when Tailscale is installed AND (a tunnel was seen on this phone, `Store.tsSeen`, OR KidGuard manages it, `tsWanted`); not in the Home flavor, not after release.
+- Steps (`TsLogic.reviveStep`, unit-tested): no `100.64/10` address for 20 s -> explicit broadcast `com.tailscale.ipn.CONNECT_VPN` to `IPNReceiver` (silent, restarts a killed process) every 60 s -> still down after 90 s and our launcher in front with the screen on -> open Tailscale once and go Home (max every 10 min). Logs `ts_log_down` / `ts_log_back` to the parent.
+- Device Owner also has always-on VPN (`Ts.applyPolicy`); a hidden (suspended) Tailscale is never opened, only broadcast to.
+- Gotchas: a force-stopped app gets no broadcasts until opened (hence the open step); the parent can't turn keep-alive off in basic mode (it's the remote-access lifeline); release clears `tsSeen`.
 
 ## 2. Parent <-> phone (LAN, relay, parent app)
 

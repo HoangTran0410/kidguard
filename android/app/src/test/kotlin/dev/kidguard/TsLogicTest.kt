@@ -66,4 +66,15 @@ class TsLogicTest {
         assertEquals("333", TsLogic.deviceId("""{"devices":[{"id":"333","addresses":["100.9.9.9"]}]}""", "100.9.9.9"))
         assertNull(TsLogic.deviceId("""{"devices":[{"nodeId":"../x","addresses":["100.9.9.9"]}]}""", "100.9.9.9"))
     }
+
+    @Test fun reviveSteps() {
+        val m = 60_000L; val big = Long.MAX_VALUE / 2
+        assertEquals(0, TsLogic.reviveStep(10_000, big, big, true, true))          // short gap: wait
+        assertEquals(1, TsLogic.reviveStep(25_000, big, big, true, true))          // down: broadcast first
+        assertEquals(0, TsLogic.reviveStep(50_000, 25_000, big, true, true))       // broadcast at most every 60 s
+        assertEquals(2, TsLogic.reviveStep(2 * m, 30_000, big, true, true))        // still down on home: open once
+        assertEquals(1, TsLogic.reviveStep(2 * m, m, big, false, true))            // not on home: only broadcast
+        assertEquals(1, TsLogic.reviveStep(2 * m, m, big, true, false))            // no background start right
+        assertEquals(1, TsLogic.reviveStep(5 * m, m, 3 * m, true, true))           // opened 3 min ago: no second open
+    }
 }

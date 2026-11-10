@@ -206,6 +206,8 @@
 
     <!-- Remote access (Ts) -->
     <string name="ts_log_connected">Remote control: connected (%1$s)</string>
+    <string name="ts_log_down">Tailscale dropped (closed or cleaned up): reconnecting it</string>
+    <string name="ts_log_back">Tailscale is connected again</string>
     <string name="ts_err_no_net">Couldn\'t join the network (wrong or expired key, or the phone has no Internet)</string>
     <string name="ts_err_install">install didn\'t finish</string>
     <string name="ts_err_token">Tailscale token refused (expired or wrong)</string>

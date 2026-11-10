@@ -199,7 +199,7 @@ class Guard : Service() {
         opt("accPause") { AccPause.tick(this, use.current, now) }
         opt("acc") { if (!AccPause.active(this)) Acc.ensureEnabled(this) }
         opt("dns") { Policy.syncDns(this, r); Policy.retryDns(this, r) }
-        opt("ts") { Ts.poll(this, store) }
+        opt("ts") { Ts.poll(this, store); Ts.keep(this, store, use.current, now) }
         opt("overlay") { if (now - lastOverlayTry > 6 * 3_600_000L) { lastOverlayTry = now; AccPause.grantOverlay(this, r) } }
         opt("track") { if (r.trackMin > 0 && now - lastTrackTry >= r.trackMin * 60_000L - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) } }
         opt("location") { keepLocation(r) }

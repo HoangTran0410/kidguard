@@ -7,6 +7,7 @@ The child app is also a kid launcher, shipped alone as the "KidGuard Home" flavo
 ## Read first (in this order, only what you need)
 | Need | File |
 |---|---|
+| What KidGuard is allowed to do (Device Owner, accessibility, background start, broadcasts, ...) and which flow uses each: check before saying "can't" or building a new mechanism | `docs/flows.md` §0 |
 | How a feature works end to end (trigger -> steps -> state -> gotchas, with file pointers) | `docs/flows.md` |
 | What was already decided / tried and rejected / OEM quirks / past bugs / open issues | `docs/decisions.md` |
 | Wire formats: rules, state, commands, endpoints, setup steps (**the contract**) | `docs/protocol.md` (900 lines: grep the heading) |

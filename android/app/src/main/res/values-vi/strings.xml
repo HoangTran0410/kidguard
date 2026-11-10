@@ -200,6 +200,8 @@
 
     <!-- Remote access (Ts) -->
     <string name="ts_log_connected">Điều khiển từ xa: đã kết nối (%1$s)</string>
+    <string name="ts_log_down">Tailscale bị tắt (đóng hoặc bị dọn): đang bật lại</string>
+    <string name="ts_log_back">Tailscale đã kết nối lại</string>
     <string name="ts_err_no_net">Chưa vào được mạng (khoá sai, hết hạn hoặc phone chưa có Internet)</string>
     <string name="ts_err_install">cài không xong</string>
     <string name="ts_err_token">Tailscale không nhận token (hết hạn hoặc sai)</string>
