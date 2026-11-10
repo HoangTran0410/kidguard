@@ -2,4 +2,5 @@
 <resources>
     <!-- TalkBack custom action on the home page dots: open all apps (the swipe-up chevron was removed) -->
     <item name="kg_all_apps" type="id" />
+    <item name="kg_rest_scale" type="id" />
 </resources>

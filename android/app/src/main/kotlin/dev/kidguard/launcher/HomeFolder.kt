@@ -197,7 +197,7 @@ internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, co
     // the tapped icon (src itself, or a tile inside it: an App Library group's "+N") is still sunk ([pressed]) and
     // springing back. Settle it at full size before the picture is taken: the picture kept it sunk, and when the close
     // ended the real one popped from sunk to full size (App Library, 11-10)
-    fun settle(v: View) { if (v.scaleX != 1f) pressed(v, null); if (v is android.view.ViewGroup) for (i in 0 until v.childCount) settle(v.getChildAt(i)) }
+    fun settle(v: View) { if (v.scaleX != Motion.rest(v)) pressed(v, null); if (v is android.view.ViewGroup) for (i in 0 until v.childCount) settle(v.getChildAt(i)) }
     src?.let { settle(it) }
     val ghost = src?.let { s ->
         val b = android.graphics.Bitmap.createBitmap(s.width, s.height, android.graphics.Bitmap.Config.ARGB_8888)

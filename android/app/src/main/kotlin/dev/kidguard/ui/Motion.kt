@@ -35,14 +35,20 @@ internal object Motion {
     val SPRING: Interpolator = OvershootInterpolator(2.5f)
 
     /** Sinks [v] to [scale] (over [ms]: a long-press hold uses its own wait) or, scale 1, springs it back. */
+    /** The scale [v] rests at: 1, or what its layout set (a widget card shrunk to fit its cells, tag [R.id.kg_rest_scale]).
+     *  Press and release work around it: springing back to 1 left those cards ~8 % bigger than their cells. */
+    fun rest(v: View): Float = (v.getTag(dev.kidguard.R.id.kg_rest_scale) as? Float) ?: 1f
+
     fun sink(v: View, scale: Float, ms: Long = PRESS) {
         v.animate().cancel()
-        v.animate().scaleX(scale).scaleY(scale).setDuration(ms).setInterpolator(DECEL).start()
+        val s = rest(v) * scale
+        v.animate().scaleX(s).scaleY(s).setDuration(ms).setInterpolator(DECEL).start()
     }
 
     fun release(v: View) {
         v.animate().cancel()
-        if (v.scaleX != 1f || v.scaleY != 1f) v.animate().scaleX(1f).scaleY(1f).setDuration(SLOW).setInterpolator(SPRING).start()
+        val s = rest(v)
+        if (v.scaleX != s || v.scaleY != s) v.animate().scaleX(s).scaleY(s).setDuration(SLOW).setInterpolator(SPRING).start()
     }
 
     /** Arrives at its resting state (alpha 1, scale 1, no offset) from wherever the caller put it. */

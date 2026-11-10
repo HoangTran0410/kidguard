@@ -71,7 +71,7 @@ internal fun pressed(icon: View?, down: Boolean?) {
     when (down) {
         true -> Motion.sink(icon, if (icon.width > 120 * icon.resources.displayMetrics.density) 0.96f else 0.88f)
         false -> Motion.release(icon)
-        null -> { icon.animate().cancel(); icon.scaleX = 1f; icon.scaleY = 1f }
+        null -> { icon.animate().cancel(); val s = Motion.rest(icon); icon.scaleX = s; icon.scaleY = s }
     }
 }
 

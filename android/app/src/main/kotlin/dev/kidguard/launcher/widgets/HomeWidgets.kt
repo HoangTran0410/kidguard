@@ -242,7 +242,8 @@ internal class FitCell(c: android.content.Context) : FrameLayout(c) {
         val top = ((b - t) - ch) / 2
         child.layout(0, top, cw, top + ch)
         child.pivotX = 0f; child.pivotY = ch / 2f
-        child.scaleX = scale; child.scaleY = scale
+        child.setTag(dev.kidguard.R.id.kg_rest_scale, scale)   // the press animation springs back to this, not to 1 (Motion.rest)
+        child.animate().cancel(); child.scaleX = scale; child.scaleY = scale
     }
 }
 
