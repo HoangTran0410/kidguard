@@ -1407,28 +1407,26 @@ class HomeActivity : Activity() {
             shareLabels(cw)
             for (i in 0 until childCount) {
                 val c = getChildAt(i); val lp = c.layoutParams as CellLP
-                val (ix, top, bot) = if (lp.widget) wInset(cw, ch) else Triple(0, 0, 0)
+                val (ix, top, bot) = if (lp.widget) wInset(cw, ch, lp) else Triple(0, 0, 0)
                 c.measure(MeasureSpec.makeMeasureSpec((cw * lp.w - gap - 2 * ix).coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec((ch * lp.h - gap - top - bot).coerceAtLeast(0), MeasureSpec.EXACTLY))
             }
             setMeasuredDimension(W, H)
         }
 
         /**
-         * A widget's edges line up with the icons around it (iOS / Pixel): left / right = the outer icons' edges, top = the
-         * icon's top, bottom = the bottom of the label row. Was: the whole cell span, so every widget stuck out ~10-15 dp past
-         * the icon columns and looked a size bigger than the cells it takes. Returns (side inset, top, bottom) in px.
+         * A widget's side edges line up with the outer icons' edges (iOS / Pixel), and it is inset the same amount top and
+         * bottom so it keeps its cell span's shape. Was: the whole span (sticking out ~15 dp past the icon columns), then
+         * side-only insets, which made a 2x2 on the POCO 22 % taller than wide. One-row widgets get half the vertical inset
+         * (their content is a single line that needs the height). Returns (side, top, bottom) in px.
          */
-        private fun wInset(cw: Int, ch: Int): Triple<Int, Int, Int> {
-            val icon = iconPx()
-            val ix = ((cw - gap - icon) / 2).coerceAtLeast(0)
-            val top = dp(5)                                   // appIcon: box padding 4 dp + frame 1 dp above the glyph
-            val stack = dp(4) + icon + dp(2) + labelH()       // icon box content: padding, frame, label line
-            val bot = (ch - gap - stack).coerceIn(0, (ch - gap) / 3)
-            return Triple(ix, top, bot)
+        private fun wInset(cw: Int, ch: Int, lp: CellLP): Triple<Int, Int, Int> {
+            val ix = ((cw - gap - iconPx()) / 2).coerceIn(0, dp(18))
+            val v = if (lp.h == 1) ix / 2 else ix
+            // cells taller than wide (POCO: 289 x 331 px) would still make a 2x2 17 % tall: cap the height at the square
+            // the same span would have, extra split above and below (iOS widgets keep their shape on every phone)
+            val extra = ((ch - cw) * lp.h).coerceAtLeast(0)
+            return Triple(ix, v + extra / 2, v + extra - extra / 2)
         }
-
-        /** One label line under a grid icon (addLabel: 2 dp gap + text + 1 dp padding each side); 0 when names are off. */
-        private fun labelH(): Int = if (model?.style?.labels == false) 0 else dp(4) + kotlin.math.ceil(labelPx(false) * 1.25f).toInt()
 
         /**
          * One UI: a long name may spill into the free space beside it when the neighbours' names are short (or the cell is
@@ -1476,7 +1474,7 @@ class HomeActivity : Activity() {
             val cw = (r - l - 2 * side) / cols; val ch = ((b - t - paddingTop - paddingBottom) / rows).coerceAtLeast(1)
             for (i in 0 until childCount) {
                 val c = getChildAt(i); val lp = c.layoutParams as CellLP
-                val (ix, top, _) = if (lp.widget) wInset(cw, ch) else Triple(0, 0, 0)
+                val (ix, top, _) = if (lp.widget) wInset(cw, ch, lp) else Triple(0, 0, 0)
                 val x = side + lp.x * cw + gap / 2 + ix; val y = paddingTop + lp.y * ch + gap / 2 + top
                 c.layout(x, y, x + c.measuredWidth, y + c.measuredHeight)
             }
