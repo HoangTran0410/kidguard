@@ -307,7 +307,7 @@
     <string name="main_qr_desc">Mã QR để bố mẹ quét</string>
     <string name="main_sos">SOS: báo bố mẹ ngay</string>
     <string name="main_update">Cập nhật KidGuard (bản mới)</string>
-    <string name="main_update_allow">Bật \"Cho phép từ nguồn này\" cho KidGuard rồi bấm lại</string>
+    <string name="main_update_allow">Bật \"Cho phép từ nguồn này\" rồi bấm lại</string>
     <string name="main_more">Xin thêm giờ</string>
     <string name="main_unlock">Nhập mã mở khoá</string>
     <string name="main_unlocked_until">Đang mở khoá tới %1$s · nhập mã khác để thêm</string>
@@ -421,14 +421,14 @@
     <string name="tl_hm">Còn %1$d giờ %2$d phút</string>
     <string name="tl_none">Không giới hạn</string>
     <string name="home_app">KidGuard Home</string>
-    <string name="home_app_off">Màn hình chính KidGuard đang tắt trên máy này. Đang mở KidGuard.</string>
+    <string name="home_app_off">Màn hình chính KidGuard đang tắt, mở KidGuard</string>
     <string name="q_lock">Khoá màn hình</string>
     <string name="q_lock_short">Khoá</string>
     <string name="q_time">Thời gian còn lại</string>
     <string name="q_today">Hôm nay</string>
     <string name="q_lock_desc">Chạm một lần để khoá màn hình</string>
     <string name="q_time_desc">Thời gian dùng máy còn lại hôm nay. Chạm để xin thêm giờ</string>
-    <string name="q_lock_fail">Không khoá được màn hình: KidGuard chưa cài đặt xong</string>
+    <string name="q_lock_fail">Chưa khoá được: KidGuard chưa cài xong</string>
     <string name="main_pin_lock">Nút khoá màn hình</string>
     <string name="main_pin_lock_added">Đã thêm nút Khoá ra màn hình chính</string>
     <string name="main_pin_lock_there">Màn hình chính đã có nút Khoá rồi</string>
@@ -479,7 +479,7 @@
     <string name="log_tg_linked">Telegram đã liên kết: %1$s</string>
     <string name="admin_shot_note">Sai 3 lần, máy sẽ chụp 1 ảnh bằng camera trước gửi bố mẹ.</string>
     <string name="admin_shot_taken">Sai nhiều lần: đã chụp ảnh gửi bố mẹ</string>
-    <string name="admin_not_ready">Trang quản lý chưa sẵn sàng, thử lại sau vài giây.</string>
+    <string name="admin_not_ready">Trang quản lý chưa sẵn sàng, thử lại sau</string>
     <string name="st_no_pin">Bố mẹ chưa đặt PIN</string>
     <string name="log_admin_open">Bố mẹ mở trang quản lý trên máy này</string>
     <string name="ev_admin_wrong">Có người nhập sai PIN / mã để mở trang quản lý trên máy con</string>

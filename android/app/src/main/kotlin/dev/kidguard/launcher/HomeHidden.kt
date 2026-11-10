@@ -98,7 +98,7 @@ private fun HomeActivity.hiddenCell(a: HomeActivity.AppE, why: String): View {
     box.addView(text(reason, 11f, pal.sub).apply { gravity = Gravity.CENTER; maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END },
         LinearLayout.LayoutParams(-1, -2))
     box.contentDescription = a.label + ": " + reason
-    kit.tap(box, 12f) { toast(a.label + ": " + reasonLong(why)) }
+    kit.tap(box, 12f) { toast(a.label.take(14) + ": " + reasonLong(why)) }
     return box
 }
 
@@ -112,10 +112,10 @@ internal fun HomeActivity.openRelated(intent: android.content.Intent, from: View
     val all = launcherApps().values
     val pkgs = runCatching { packageManager.queryIntentActivities(intent, 0).map { it.activityInfo.packageName } }.getOrDefault(emptyList())
     val a = pkgs.firstNotNullOfOrNull { p -> all.firstOrNull { it.pkg == p } }
-        ?: return android.widget.Toast.makeText(this, R.string.hm_no_app, android.widget.Toast.LENGTH_SHORT).show()
+        ?: return Toasts.show(this, R.string.hm_no_app)
     val s = Store.of(this); val r = s.rules; val dv = decision(r, s)
     val why = LauncherLogic.hiddenReason(a.pkg, dv.want, r, packageName, tsManaged, focusAllowed(dv))
-    if (why != null && why != "plumbing") return android.widget.Toast.makeText(this, a.label + ": " + reasonLong(why), android.widget.Toast.LENGTH_LONG).show()
+    if (why != null && why != "plumbing") return Toasts.show(this, a.label.take(14) + ": " + reasonLong(why), true)
     val reason = LauncherLogic.pauseReason(a.pkg, dv.want, settingsOk(r))
     if (reason != null) pausedSheet(a, reason, dv, r) else launch(a, from)
 }

@@ -10,7 +10,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
-import android.widget.Toast
 import dev.kidguard.HomeActivity.AppE
 import dev.kidguard.HomeActivity.Mode
 import dev.kidguard.HomeActivity.View0
@@ -225,7 +224,7 @@ internal fun HomeActivity.addToFolderSheet(a: AppE) {
     sh.show()
 }
 
-internal fun HomeActivity.toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()
+internal fun HomeActivity.toast(t: String) = Toasts.show(this, t)
 
 internal fun HomeActivity.renameFolder(id: String) {
     val m = model ?: return

@@ -8,7 +8,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Log
-import android.widget.Toast
 
 /**
  * No UI of its own (translucent). Three jobs around the shared folder (Files.kt):
@@ -98,5 +97,5 @@ class ShareInActivity : Activity() {
         contentResolver.query(u, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) it.getString(0) else null }
     }.getOrNull()
 
-    private fun toast(s: String) = Toast.makeText(applicationContext, s, Toast.LENGTH_LONG).show()
+    private fun toast(s: String) = Toasts.show(applicationContext, s, true)
 }

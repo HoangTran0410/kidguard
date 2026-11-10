@@ -26,7 +26,6 @@ import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
-import android.widget.Toast
 import java.io.ByteArrayOutputStream
 import java.io.File
 
@@ -207,7 +206,7 @@ class CustomActivity : Activity() {
     /** false (and a toast) when the parent locked Tuỳ chỉnh. */
     private fun guard(): Boolean {
         if (!locked) return true
-        Toast.makeText(this, R.string.hm_c_locked_short, Toast.LENGTH_SHORT).show()
+        Toasts.show(this, R.string.hm_c_locked_short)
         return false
     }
 
@@ -270,16 +269,16 @@ class CustomActivity : Activity() {
             r.contentDescription = e.name
             if (!on) k.tap(r, 20f) {
                 if (!guard()) return@tap
-                if (HomeSaved.apply(this, e)) { savedUndo = true; reloadAfterBackup(); Toast.makeText(this, s(R.string.hm_lay_applied, e.name), Toast.LENGTH_SHORT).show() }
-                else Toast.makeText(this, R.string.bk_fail, Toast.LENGTH_LONG).show()
+                if (HomeSaved.apply(this, e)) { savedUndo = true; reloadAfterBackup(); Toasts.show(this, s(R.string.hm_lay_applied, e.name)) }
+                else Toasts.show(this, R.string.bk_fail, true)
             }
             g.addView(r)
         }
         if (list.isNotEmpty()) col.addView(g, lp(8))
         col.addView(k.pill(s(R.string.hm_lay_save), R.drawable.li_plus, false) {
             if (!guard()) return@pill
-            if (HomeSaved.list(this).size >= HomeSaved.MAX) { Toast.makeText(this, R.string.hm_lay_full, Toast.LENGTH_LONG).show(); return@pill }
-            nameLayout(s(R.string.hm_lay_default, list.size + 1)) { n -> if (HomeSaved.save(this, n) == null) Toast.makeText(this, R.string.bk_fail, Toast.LENGTH_LONG).show(); build() }
+            if (HomeSaved.list(this).size >= HomeSaved.MAX) { Toasts.show(this, R.string.hm_lay_full, true); return@pill }
+            nameLayout(s(R.string.hm_lay_default, list.size + 1)) { n -> if (HomeSaved.save(this, n) == null) Toasts.show(this, R.string.bk_fail, true); build() }
         }, lp(8))
         if (savedUndo && HomeBackup.hasUndo(this)) col.addView(k.pill(s(R.string.hm_c_undo), R.drawable.li_rotate_ccw, false) {
             if (guard()) { HomeBackup.undo(this); savedUndo = false; reloadAfterBackup() }
@@ -520,7 +519,7 @@ class CustomActivity : Activity() {
         val i = if (Build.VERSION.SDK_INT >= 33) Intent(MediaStore.ACTION_PICK_IMAGES).setType("image/*")
         else Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*")
         runCatching { startActivityForResult(i, 7) }.recoverCatching { startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).setType("image/*"), 7) }
-            .onFailure { Toast.makeText(this, R.string.hm_c_pick_fail, Toast.LENGTH_LONG).show() }
+            .onFailure { Toasts.show(this, R.string.hm_c_pick_fail, true) }
     }
 
     @Deprecated("fine on API 26-34 for one system picker")
@@ -542,7 +541,7 @@ class CustomActivity : Activity() {
                     // the old photo (wall.jpg.prev) and style stay one tap away
                     if (before != null && File(filesDir, Wallpaper.PHOTO + ".prev").exists()) { undo = before; undoPhoto = true; undoAt = "wall"; build() }
                 }
-                else { Toast.makeText(this, R.string.hm_c_pick_fail, Toast.LENGTH_LONG).show(); build() }
+                else { Toasts.show(this, R.string.hm_c_pick_fail, true); build() }
             }
         }.start()
     }
@@ -606,7 +605,7 @@ class CustomActivity : Activity() {
         col.addView(k.pill(s(R.string.bk_save), R.drawable.li_file_down, false) { backupStart() }, lp(8))
         col.addView(k.pill(s(R.string.bk_restore), R.drawable.li_file_up, false) { if (guard()) restoreStart() }, lp(8))
         if (HomeBackup.hasUndo(this)) col.addView(k.pill(s(R.string.bk_undo), R.drawable.li_rotate_ccw, false) {
-            if (guard()) { if (HomeBackup.undo(this)) { reloadAfterBackup(); Toast.makeText(this, R.string.bk_undone, Toast.LENGTH_SHORT).show() } else build() }
+            if (guard()) { if (HomeBackup.undo(this)) { reloadAfterBackup(); Toasts.show(this, R.string.bk_undone) } else build() }
         }, lp(8))
         col.addView(note(s(R.string.bk_hint), false), lp(8))
     }
@@ -631,12 +630,12 @@ class CustomActivity : Activity() {
     private fun backupStart() {
         val name = "kidguard-home-" + java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date()) + ".json"
         runCatching { startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json").putExtra(Intent.EXTRA_TITLE, name), 8) }
-            .onFailure { Toast.makeText(this, R.string.bk_no_picker, Toast.LENGTH_LONG).show() }
+            .onFailure { Toasts.show(this, R.string.bk_no_picker, true) }
     }
 
     private fun restoreStart() {
         runCatching { startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), 9) }
-            .onFailure { Toast.makeText(this, R.string.bk_no_picker, Toast.LENGTH_LONG).show() }
+            .onFailure { Toasts.show(this, R.string.bk_no_picker, true) }
     }
 
     private fun reloadAfterBackup() { m = HomeFile.load(this) ?: m; undo = null; undoPhoto = false; build() }
@@ -646,7 +645,7 @@ class CustomActivity : Activity() {
             Thread {
                 val b = HomeBackup.current(this)
                 val ok = b != null && HomeBackup.write(this, uri, b.first)
-                runOnUiThread { Toast.makeText(this, if (!ok) s(R.string.bk_fail) else if (b!!.second) s(R.string.bk_saved) else s(R.string.bk_saved_nophoto), Toast.LENGTH_LONG).show() }
+                runOnUiThread { Toasts.show(this, if (!ok) s(R.string.bk_fail) else if (b!!.second) s(R.string.bk_saved) else s(R.string.bk_saved_nophoto), true) }
             }.start()
             return
         }
@@ -656,11 +655,11 @@ class CustomActivity : Activity() {
             val gone = if (p != null) HomeBackup.missing(this, p.model) else 0
             runOnUiThread {
                 if (isDestroyed || isFinishing) return@runOnUiThread
-                if (p == null) { Toast.makeText(this, R.string.bk_bad, Toast.LENGTH_LONG).show(); return@runOnUiThread }
+                if (p == null) { Toasts.show(this, R.string.bk_bad, true); return@runOnUiThread }
                 val body = s(R.string.bk_confirm_body, p.model.pages.size, p.model.onHome().size, gone)
                 Modal(this, Ui(this)).show(R.drawable.li_file_up, Modal.Tone.WARN, s(R.string.bk_confirm_title), body, null, s(R.string.bk_restore_ok), s(R.string.gest_cancel)) {
-                    if (HomeBackup.apply(this, p)) { reloadAfterBackup(); Toast.makeText(this, R.string.bk_done, Toast.LENGTH_LONG).show() }
-                    else Toast.makeText(this, R.string.bk_fail, Toast.LENGTH_LONG).show()
+                    if (HomeBackup.apply(this, p)) { reloadAfterBackup(); Toasts.show(this, R.string.bk_done, true) }
+                    else Toasts.show(this, R.string.bk_fail, true)
                     true
                 }
             }

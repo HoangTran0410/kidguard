@@ -71,7 +71,7 @@ object AccPause {
         s.accPaused = had + pkg; s.accLeftAt = 0L
         if (had.isEmpty()) {
             runCatching { s.log(R.string.log_acc_paused, label(ctx, pkg)) }
-            runCatching { android.widget.Toast.makeText(ctx.applicationContext, ctx.getString(R.string.acc_paused_toast), android.widget.Toast.LENGTH_LONG).show() }
+            runCatching { Toasts.show(ctx.applicationContext, ctx.getString(R.string.acc_paused_toast), true) }
         }
         val cr = ctx.contentResolver
         val me = "${ctx.packageName}/${Acc::class.java.name}"

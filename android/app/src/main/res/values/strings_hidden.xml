@@ -14,9 +14,9 @@
     <string name="hm_hid_blocked">Blocked by parents</string>
     <string name="hm_hid_new">Waiting for OK</string>
     <string name="hm_hid_study">Study time</string>
-    <string name="hm_hid_ts_l">your parents use it to reach this phone. It keeps running, it just has no icon.</string>
-    <string name="hm_hid_parent_l">your parents hid it on this phone.</string>
-    <string name="hm_hid_blocked_l">your parents blocked it. Ask them in KidGuard if you need it.</string>
-    <string name="hm_hid_new_l">a new app, waiting for your parents\' OK.</string>
-    <string name="hm_hid_study_l">not a study app. It comes back when study time ends.</string>
+    <string name="hm_hid_ts_l">your parents\' link, still running</string>
+    <string name="hm_hid_parent_l">your parents hid it</string>
+    <string name="hm_hid_blocked_l">blocked by your parents, ask them</string>
+    <string name="hm_hid_new_l">new app, waiting for parents\' OK</string>
+    <string name="hm_hid_study_l">not a study app, back after study</string>
 </resources>

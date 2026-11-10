@@ -13,7 +13,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -238,7 +237,7 @@ internal fun HomeActivity.launch(a: AppE, from: View) {
     if (a.cls.startsWith(Shortcuts.PREFIX)) {
         if (!Flavor.HOME) runCatching { AccPause.pause(this, a.pkg) }
         val opts = ActivityOptions.makeClipRevealAnimation(from, il[0] - fl[0], il[1] - fl[1], icon.width, icon.height).toBundle()
-        if (!Shortcuts.start(this, a.pkg, a.cls.removePrefix(Shortcuts.PREFIX), i.sourceBounds, opts)) Toast.makeText(this, R.string.hm_sc_fail, Toast.LENGTH_SHORT).show()
+        if (!Shortcuts.start(this, a.pkg, a.cls.removePrefix(Shortcuts.PREFIX), i.sourceBounds, opts)) Toasts.show(this, R.string.hm_sc_fail)
         return
     }
     // a bank app checks for accessibility services as it starts: ours goes off before it opens (AccPause)
@@ -249,7 +248,7 @@ internal fun HomeActivity.launch(a: AppE, from: View) {
     // drawn by us from the icon was tried and dropped: only a blank card (no preview of the app), and work on our thread.
     val opts = ActivityOptions.makeClipRevealAnimation(from, il[0] - fl[0], il[1] - fl[1], icon.width, icon.height).toBundle()
     runCatching { startActivity(i, opts) }.recoverCatching { packageManager.getLaunchIntentForPackage(a.pkg)?.let { startActivity(it) } ?: error("none") }
-        .onFailure { Toast.makeText(this, R.string.hm_open_fail, Toast.LENGTH_SHORT).show() }
+        .onFailure { Toasts.show(this, R.string.hm_open_fail) }
 }
 
 internal fun HomeActivity.hhmm(t: Long) = SimpleDateFormat("HH:mm", Locale.ROOT).format(Date(t))

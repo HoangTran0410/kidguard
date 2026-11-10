@@ -20,7 +20,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import android.widget.Toast
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -88,7 +87,7 @@ class NotifDetailActivity : Activity() {
         val body = copyText(e)
         if (body.isNotEmpty()) col.addView(u.button(getString(R.string.nlog_copy), R.drawable.li_file, false) {
             getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("notification", body))
-            Toast.makeText(this, R.string.nlog_copied, Toast.LENGTH_SHORT).show()
+            Toasts.show(this, R.string.nlog_copied)
         })
 
         col.addView(k.text(getString(R.string.nlog_details), 13f, pal.sub, true).apply { setPadding(dp(4), 0, 0, 0) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22); bottomMargin = dp(8) })
@@ -209,9 +208,9 @@ class NotifDetailActivity : Activity() {
 
     private fun reopen(e: NotifEntry) {
         val pi = NotifLog.pendingFor(e.key)
-        if (pi != null && NotifLog.send(this, pi)) { Toast.makeText(this, R.string.nlog_opened_pi, Toast.LENGTH_SHORT).show(); return }
+        if (pi != null && NotifLog.send(this, pi)) { Toasts.show(this, R.string.nlog_opened_pi); return }
         val i = packageManager.getLaunchIntentForPackage(e.pkg)
-        if (i != null && runCatching { startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess) Toast.makeText(this, R.string.nlog_opened_app, Toast.LENGTH_SHORT).show()
-        else Toast.makeText(this, R.string.nlog_gone, Toast.LENGTH_SHORT).show()
+        if (i != null && runCatching { startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess) Toasts.show(this, R.string.nlog_opened_app)
+        else Toasts.show(this, R.string.nlog_gone)
     }
 }

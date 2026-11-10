@@ -316,7 +316,7 @@
     <string name="main_qr_desc">QR code for your parent to scan</string>
     <string name="main_sos">SOS: alert my parent now</string>
     <string name="main_update">Update KidGuard (new version)</string>
-    <string name="main_update_allow">Turn on \"Allow from this source\" for KidGuard, then tap again</string>
+    <string name="main_update_allow">Turn on \"Allow from this source\", then retry</string>
     <string name="main_more">Ask for more time</string>
     <string name="main_unlock">Enter unlock code</string>
     <string name="main_unlocked_until">Unlocked until %1$s · enter another code for more</string>
@@ -436,14 +436,14 @@
     <string name="tl_hm">%1$d h %2$d min left</string>
     <string name="tl_none">No limit</string>
     <string name="home_app">KidGuard Home</string>
-    <string name="home_app_off">The KidGuard home screen is off for this phone. Opening KidGuard.</string>
+    <string name="home_app_off">KidGuard home is off here. Opening KidGuard</string>
     <string name="q_lock">Lock screen</string>
     <string name="q_lock_short">Lock</string>
     <string name="q_time">Screen time left</string>
     <string name="q_today">Today</string>
     <string name="q_lock_desc">Locks the screen with one tap</string>
     <string name="q_time_desc">Today\'s screen time left. Tap to ask for more time</string>
-    <string name="q_lock_fail">Couldn\'t lock the screen: KidGuard isn\'t fully set up</string>
+    <string name="q_lock_fail">Can\'t lock: KidGuard isn\'t fully set up</string>
     <string name="main_pin_lock">Lock screen button</string>
     <string name="main_pin_lock_added">Lock button added to the home screen</string>
     <string name="main_pin_lock_there">The home screen already has the Lock button</string>
@@ -495,7 +495,7 @@
     <string name="log_tg_linked">Telegram linked: %1$s</string>
     <string name="admin_shot_note">After 3 wrong tries, the phone takes one front-camera photo for the parents.</string>
     <string name="admin_shot_taken">Too many wrong tries: a photo was taken for the parents</string>
-    <string name="admin_not_ready">The management page isn\'t ready yet. Try again in a few seconds.</string>
+    <string name="admin_not_ready">Management page not ready, try again soon</string>
     <string name="st_no_pin">Your parent hasn\'t set a PIN yet</string>
     <string name="log_admin_open">A parent opened the management page on this phone</string>
     <string name="ev_admin_wrong">Wrong PIN / code entered to open the management page on the child\'s phone</string>
@@ -666,7 +666,7 @@
     <string name="hm_w_on_home">On home %1$d×%2$d</string>
     <string name="hm_w_add_size">Add %1$s, size %2$d×%3$d</string>
     <string name="hm_w_added">%1$s added</string>
-    <string name="hm_w_already">Already on the home screen: tap a size to resize it</string>
+    <string name="hm_w_already">Already on home: tap a size to resize</string>
     <string name="hm_w_when">When can I play</string>
     <string name="hm_w_when_d">Your day: school, bedtime, free time and how long is left</string>
     <string name="hm_w_earn">Earn more time</string>

@@ -11,7 +11,7 @@
     <string name="prot_title">Protection and permissions</string>
     <string name="prot_status">Now</string>
     <string name="prot_features">Features</string>
-    <string name="acc_paused_toast">KidGuard turned its Accessibility off so this app can open. It comes back 10 minutes after you leave the app.</string>
+    <string name="acc_paused_toast">Accessibility paused for this app, back later</string>
     <string name="log_acc_paused">Accessibility off while an app that needs it off is used (%1$s)</string>
     <string name="log_acc_resumed">Accessibility back on (the app was left)</string>
     <string name="log_acc_resumed_blocked">Accessibility back on early: %1$s (blocked) was opened while it was off for a bank app</string>

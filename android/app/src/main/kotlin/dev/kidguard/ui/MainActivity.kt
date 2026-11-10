@@ -128,7 +128,7 @@ class MainActivity : Activity() {
         col.addView(homeCard)
         // basic mode can't update silently: a downloaded, verified update waits for this tap (owner installs by itself)
         updBtn = u.button(getString(R.string.main_update), R.drawable.li_shield, false) {
-            if (!Update.installInteractive(this)) android.widget.Toast.makeText(this, getString(R.string.main_update_allow), android.widget.Toast.LENGTH_LONG).show()
+            if (!Update.installInteractive(this)) Toasts.show(this, getString(R.string.main_update_allow), true)
         }
         col.addView(updBtn, 1)   // right under the header
         moreBtn = u.button(getString(R.string.main_more), R.drawable.li_timer, true) { askMore() }
@@ -203,7 +203,7 @@ class MainActivity : Activity() {
         val idle = getString(R.string.main_check_update, BuildConfig.VERSION_NAME)
         // the "…" sheet closes on tap, so every phase is also said in a toast (the row text alone was never seen)
         var said = ""
-        fun say(msg: String, long: Boolean = false) { updRow.text = msg; if (msg != said) { said = msg; android.widget.Toast.makeText(this, msg, if (long) android.widget.Toast.LENGTH_LONG else android.widget.Toast.LENGTH_SHORT).show() } }
+        fun say(msg: String, long: Boolean = false) { updRow.text = msg; if (msg != said) { said = msg; Toasts.show(this, msg, long) } }
         fun end(msg: String?) { updPolling = false; if (msg != null) say(msg, true) else updRow.text = idle; if (msg != null) ui.postDelayed({ if (!updPolling) updRow.text = idle }, 6_000) }
         say(getString(R.string.upd_checking))
         val tick = object : Runnable {
@@ -220,7 +220,7 @@ class MainActivity : Activity() {
                     status == "failed" -> end(getString(R.string.upd_failed, st.optString("err").ifBlank { getString(R.string.err_generic) }))
                     status == "ready" -> {
                         if (Update.installInteractive(this@MainActivity)) end(getString(R.string.upd_installing, st.optString("latest")))
-                        else { end(null); android.widget.Toast.makeText(this@MainActivity, getString(R.string.main_update_allow), android.widget.Toast.LENGTH_LONG).show() }
+                        else { end(null); Toasts.show(this@MainActivity, getString(R.string.main_update_allow), true) }
                     }
                     UpdateLogic.newer(st.optString("latest"), Update.current()) -> ui.postDelayed(this, 400)   // between phases
                     else -> end(getString(R.string.upd_current, Update.current()))
@@ -250,7 +250,7 @@ class MainActivity : Activity() {
         if (!PairPin.adminAvailable(pinSet, totpOn, s.everPaired)) return
         // before setup (never paired, no PIN, no Authenticator): no parent to ask, open the page to preview / configure
         if (PairPin.adminOpen(pinSet, totpOn, s.everPaired)) {
-            if (Guard.running == null) { Guard.start(this); android.widget.Toast.makeText(this, getString(R.string.admin_not_ready), android.widget.Toast.LENGTH_SHORT).show(); return }
+            if (Guard.running == null) { Guard.start(this); Toasts.show(this, getString(R.string.admin_not_ready)); return }
             AdminActivity.start(this); return
         }
         fun lockText(left: Long) = ((left + 59_999) / 60_000).toInt().let { resources.getQuantityString(R.plurals.pin_locked, it, it) }

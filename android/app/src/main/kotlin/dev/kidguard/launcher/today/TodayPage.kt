@@ -245,7 +245,7 @@ class TodayPage(
     private fun dial(n: String?) {
         val i = if (n == null) Intent(Intent.ACTION_DIAL) else Intent(Intent.ACTION_DIAL, Uri.parse("tel:$n"))
         runCatching { act.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-            .onFailure { android.widget.Toast.makeText(act, R.string.hm_no_dialer, android.widget.Toast.LENGTH_SHORT).show() }
+            .onFailure { Toasts.show(act, R.string.hm_no_dialer) }
     }
 
     // ---- Lịch ----
@@ -468,7 +468,7 @@ class TodayPage(
                 k.tap(row, 12f) {
                     val i2 = runCatching { Files.viewIntent(act, e.id) }.getOrNull()
                     if (i2 == null || runCatching { act.startActivity(i2.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isFailure)
-                        android.widget.Toast.makeText(act, R.string.hm_t_file_fail, android.widget.Toast.LENGTH_SHORT).show()
+                        Toasts.show(act, R.string.hm_t_file_fail)
                     refreshSoon()
                 }
             }

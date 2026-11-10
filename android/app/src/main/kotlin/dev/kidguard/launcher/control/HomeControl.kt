@@ -29,7 +29,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import dev.kidguard.ControlLogic.Mode
 import dev.kidguard.ControlLogic.Tile
 
@@ -291,7 +290,7 @@ internal fun HomeActivity.openControl() {
     val gap = dp(14); val half = (w - gap) / 2
     val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; isClickable = true }
 
-    fun toast(id: Int) = Toast.makeText(this, id, Toast.LENGTH_SHORT).show()
+    fun toast(id: Int) = Toasts.show(this, id)
     val toggles = mutableListOf<CcToggle>()
     lateinit var refresh: () -> Unit
     fun later() { main.postDelayed({ if (overlay === scrim) refresh() }, 500); main.postDelayed({ if (overlay === scrim) refresh() }, 1600) }

@@ -12,9 +12,9 @@
     <string name="hm_hid_blocked">Bố mẹ chặn</string>
     <string name="hm_hid_new">Chờ bố mẹ duyệt</string>
     <string name="hm_hid_study">Giờ học</string>
-    <string name="hm_hid_ts_l">bố mẹ dùng app này để kết nối với máy. App vẫn chạy, chỉ không có icon.</string>
-    <string name="hm_hid_parent_l">bố mẹ đã ẩn app này trên máy.</string>
-    <string name="hm_hid_blocked_l">bố mẹ đã chặn app này. Cần dùng thì xin bố mẹ trong KidGuard.</string>
-    <string name="hm_hid_new_l">app mới cài, đang chờ bố mẹ đồng ý.</string>
-    <string name="hm_hid_study_l">không phải app học. Hết giờ học sẽ hiện lại.</string>
+    <string name="hm_hid_ts_l">bố mẹ dùng để kết nối, vẫn chạy</string>
+    <string name="hm_hid_parent_l">bố mẹ đã ẩn app này</string>
+    <string name="hm_hid_blocked_l">bố mẹ đã chặn, cần thì xin bố mẹ</string>
+    <string name="hm_hid_new_l">app mới, chờ bố mẹ đồng ý</string>
+    <string name="hm_hid_study_l">không dùng trong giờ học</string>
 </resources>

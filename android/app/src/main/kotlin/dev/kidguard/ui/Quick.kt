@@ -21,7 +21,6 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
 import android.widget.RemoteViews
-import android.widget.Toast
 
 /**
  * The child's shortcuts: a lock button (launcher shortcut, 1x1 widget, Quick Settings tile) and today's time left
@@ -59,7 +58,7 @@ object Quick {
 
     /** [lock] with a toast when it can't. */
     fun lockOrSay(ctx: Context) {
-        if (!lock(ctx)) runCatching { Toast.makeText(ctx.applicationContext, ctx.applicationContext.getString(R.string.q_lock_fail), Toast.LENGTH_LONG).show() }
+        if (!lock(ctx)) runCatching { Toasts.show(ctx.applicationContext, ctx.applicationContext.getString(R.string.q_lock_fail), true) }
     }
 
     private fun prefs(ctx: Context) = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -116,7 +115,7 @@ object Quick {
             val n = HomeLayout.placeWidget(m, "lock", 1, 1, 0) ?: return false
             HomeFile.save(ctx, n); R.string.main_pin_lock_added
         }
-        android.widget.Toast.makeText(ctx, ctx.getString(msg), android.widget.Toast.LENGTH_LONG).show()
+        Toasts.show(ctx, ctx.getString(msg), true)
         runCatching { ctx.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         return true
     }

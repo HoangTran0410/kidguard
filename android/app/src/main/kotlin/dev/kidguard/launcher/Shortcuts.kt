@@ -8,7 +8,6 @@ import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Process
-import android.widget.Toast
 
 /**
  * Apps' pinned shortcuts on the kid home (item kind [HomeLayout.SHORTCUT]). Only the default home may read and start
@@ -57,6 +56,6 @@ class PinShortcutActivity : Activity() {
         val label = (sc.shortLabel ?: sc.longLabel ?: "").toString().ifBlank { sc.`package` }
         if (!req.accept()) return
         HomeFile.save(this, HomeLayout.addShortcut(m, sc.`package`, sc.id, label))
-        Toast.makeText(this, getString(R.string.hm_sc_added, label), Toast.LENGTH_SHORT).show()
+        Toasts.show(this, getString(R.string.hm_sc_added, label))
     }
 }

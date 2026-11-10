@@ -3,7 +3,6 @@ package dev.kidguard
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 
 /**
  * "KidGuard Home": the kid launcher's own icon in the phone's app list (Nova / Niagara style), no detour through
@@ -25,7 +24,7 @@ class HomeEntry : Activity() {
         if (LauncherSafe.wanted(this, s.rules) && LauncherSafe.enabled(this))
             startActivity(Intent(this, HomeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         else {
-            Toast.makeText(this, R.string.home_app_off, Toast.LENGTH_LONG).show()
+            Toasts.show(this, R.string.home_app_off, true)
             startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
         finish()

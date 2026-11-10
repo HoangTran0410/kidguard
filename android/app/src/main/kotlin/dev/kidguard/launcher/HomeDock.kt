@@ -19,7 +19,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import kotlin.math.abs
 import dev.kidguard.HomeActivity.AppE
 import dev.kidguard.HomeActivity.Mode
@@ -53,7 +52,7 @@ internal fun HomeActivity.buildDock(m: HomeModel, all: Map<String, AppE>, show: 
             kit.tap(box, 16f, true) {
                 if (!debounce("dial")) return@tap
                 runCatching { startActivity(Intent(Intent.ACTION_DIAL).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                    .onFailure { Toast.makeText(this, R.string.hm_no_dialer, Toast.LENGTH_SHORT).show() }
+                    .onFailure { Toasts.show(this, R.string.hm_no_dialer) }
             }
             box.isLongClickable = true
             box.setOnLongClickListener { sosMenu(box); true }

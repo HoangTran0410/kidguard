@@ -9,7 +9,6 @@ import android.os.Build
 import android.util.Log
 import android.view.ViewConfiguration
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
 import org.json.JSONObject
 
 /**
@@ -90,7 +89,7 @@ internal fun HomeActivity.gestRun(g: String) {
         GestLogic.TODAY -> if (pager.minPage == 0) pager.snapTo(0)
         GestLogic.APP -> {
             val a = launcherApps()[Gest.app(this, g)]
-            if (a == null) { Toast.makeText(this, R.string.gest_app_gone, Toast.LENGTH_SHORT).show(); return }
+            if (a == null) { Toasts.show(this, R.string.gest_app_gone); return }
             Recent.note(this, a.pkg)
             if (!Flavor.HOME) runCatching { AccPause.pause(this, a.pkg) }
             val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(ComponentName(a.pkg, a.cls))

@@ -156,7 +156,7 @@ class Acc : AccessibilityService() {
         val now = android.os.SystemClock.elapsedRealtime()
         if (now - lastWhy < 4_000) return
         lastWhy = now
-        runCatching { android.widget.Toast.makeText(this, res, android.widget.Toast.LENGTH_LONG).show() }
+        runCatching { Toasts.show(this, res, true) }
     }
 
     private val ctlCache = HashMap<String, List<String>>()
