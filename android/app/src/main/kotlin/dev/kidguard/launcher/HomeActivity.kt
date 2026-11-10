@@ -1121,6 +1121,9 @@ class HomeActivity : Activity() {
      */
     internal inner class SwipeUp(ctx: Context) : FrameLayout(ctx) {
         private var x0 = 0f; private var y0 = 0f; private var up = false; private var downOk = false; private var from = 0f
+        // the finger went down on something that scrolls (another app's list widget, a long list in ours): vertical is its, both
+        // ways (Pixel / Launcher3). Was: only swipe-down checked it, swipe-up always opened the drawer over the list
+        private var onScroll = false
         private var took = false   // a swipe action ran: the rest of this touch is ours, the icon under it gets CANCEL (no tap = no app opened too)
         private var vt: VelocityTracker? = null
         private val slop = ViewConfiguration.get(ctx).scaledTouchSlop
@@ -1129,13 +1132,14 @@ class HomeActivity : Activity() {
         override fun onInterceptTouchEvent(e: MotionEvent): Boolean {
             track(e)
             when (e.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { x0 = e.x; y0 = e.y; up = false; took = false; downOk = !scrollsAt(this, e.x.toInt(), e.y.toInt()) }
+                MotionEvent.ACTION_DOWN -> { x0 = e.x; y0 = e.y; up = false; took = false; onScroll = scrollsAt(this, e.x.toInt(), e.y.toInt()); downOk = !onScroll
+                    if (Perf.on()) android.util.Log.v(Perf.TAG, "swipe down at ${e.x.toInt()},${e.y.toInt()} scroll=$onScroll chain=${hitChain(this, e.x.toInt(), e.y.toInt())}") }
                 MotionEvent.ACTION_MOVE -> {
                     val dy = e.y - y0; val dx = e.x - x0
                     val free = !pager.dragging && pager.page > 0 && !onLibrary() && drag == null && !editing && this@HomeActivity.overlay == null && popup?.isShowing != true
                     val upA = Gest.action(this@HomeActivity, GestLogic.UP); val dnA = Gest.action(this@HomeActivity, GestLogic.DOWN)   // gestures: HomeGestures.kt
                     val upDrawer = upA == GestLogic.DEFAULT || upA == GestLogic.DRAWER
-                    if (free && upDrawer && dy < -slop && abs(dy) > abs(dx) * 1.5f && drawerBegin()) { up = true; from = e.y; drawerAt(0f) }
+                    if (free && !onScroll && upDrawer && dy < -slop && abs(dy) > abs(dx) * 1.5f && drawerBegin()) { up = true; from = e.y; drawerAt(0f) }
                     else if (free && !upDrawer && downOk && drawer == null && GestLogic.swipe(dx, dy, slop.toFloat()) == GestLogic.Dir.UP) { downOk = false; took = true; gestRun(GestLogic.UP) }
                     else if (free && downOk && drawer == null && dy > slop * 2 && dy > abs(dx) * 1.5f) {
                         downOk = false; took = true
@@ -1165,6 +1169,21 @@ class HomeActivity : Activity() {
     }
 
     /** True when a visible view under (x, y) of [g] can scroll vertically (a list widget): its own swipe, not the shade's. */
+    /** Probe only (kgperf): the views under a point, outermost first, with their vertical scroll room (why a swipe went where it did). */
+    internal fun hitChain(g: ViewGroup, x: Int, y: Int, path: String = "", out: StringBuilder = StringBuilder()): String {
+        for (i in g.childCount - 1 downTo 0) {
+            val c = g.getChildAt(i)
+            if (c.visibility != View.VISIBLE) continue
+            val cx = x + g.scrollX - c.left - c.translationX.toInt(); val cy = y + g.scrollY - c.top - c.translationY.toInt()
+            if (cx < 0 || cy < 0 || cx >= c.width || cy >= c.height) continue
+            val me = "$path/${c.javaClass.simpleName}" + (if (c.canScrollVertically(1) || c.canScrollVertically(-1)) "[SCROLL ${c.width}x${c.height}]" else "") + (if (c.scaleX != 1f) "[s${c.scaleX}]" else "")
+            val n = out.length
+            if (c is ViewGroup) hitChain(c, cx, cy, me, out)
+            if (out.length == n) out.append(me).append("{").append(cx).append(',').append(cy).append("} ; ")
+        }
+        return out.toString()
+    }
+
     internal fun scrollsAt(g: ViewGroup, x: Int, y: Int): Boolean {
         for (i in g.childCount - 1 downTo 0) {
             val c = g.getChildAt(i)
