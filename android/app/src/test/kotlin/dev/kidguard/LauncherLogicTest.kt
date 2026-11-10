@@ -141,4 +141,18 @@ class LauncherLogicTest {
         assertFalse(LauncherLogic.isLauncherCrash(listOf("android.os.Handler", "dev.kidguard.Guard", "dev.kidguard.Relay\$run", "dev.kidguard.LauncherSafe")))
         assertFalse(LauncherLogic.isLauncherCrash(emptyList()))
     }
+
+    @Test fun hiddenReasons() {
+        val r = Rules(hidden = setOf("h.p"), blocked = setOf("b.p"))
+        fun why(p: String, want: Map<String, String> = emptyMap(), ts: Boolean = false, study: Set<String>? = null) =
+            LauncherLogic.hiddenReason(p, want, r, "dev.kidguard", ts, study)
+        assertEquals("plumbing", why("com.google.android.gms"))
+        assertEquals("ts", why(TsLogic.PKG, ts = true)); assertNull(why(TsLogic.PKG))
+        assertEquals("parent", why("h.p")); assertEquals("blocked", why("b.p")); assertEquals("blocked", why("x.y", mapOf("x.y" to "blocked")))
+        assertEquals("new", why("n.p", mapOf("n.p" to "new")))
+        assertEquals("study", why("g.p", study = setOf("s.p"))); assertNull(why("s.p", study = setOf("s.p")))
+        assertNull(why("dev.kidguard", study = emptySet())); assertNull(why("ok.p")); assertNull(why("t.p", mapOf("t.p" to "limit")))   // paused = greyed, not hidden
+        // every app show() hides gets a reason (the screen lists all of them)
+        for (p in listOf("com.google.android.gms", "h.p", "b.p")) assertEquals(LauncherLogic.Show.HIDE, LauncherLogic.show(p, emptyMap(), r, "dev.kidguard"))
+    }
 }

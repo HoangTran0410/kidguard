@@ -56,6 +56,22 @@ object LauncherLogic {
     }
 
     /**
+     * Why the drawer leaves [pkg] out, in [show]'s order, plus study mode ([study] = the apps a running session allows):
+     * "plumbing" | "ts" | "parent" (hidden) | "blocked" | "new" (waiting for approval) | "study"; null = listed.
+     * Feeds the drawer's "Hidden apps" screen (HomeHidden.kt).
+     */
+    fun hiddenReason(pkg: String, want: Map<String, String>, r: Rules, self: String, tsManaged: Boolean, study: Set<String>?): String? = when {
+        pkg == self -> null
+        pkg in PLUMBING -> "plumbing"
+        pkg == TsLogic.PKG && tsManaged -> "ts"
+        pkg in r.hidden -> "parent"
+        pkg in r.blocked || want[pkg] == "blocked" -> "blocked"
+        want[pkg] == "new" -> "new"
+        study != null && pkg !in study -> "study"
+        else -> null
+    }
+
+    /**
      * Settings may show: the parent allows it, or nobody manages this phone (no Device Owner, never paired: the user picked
      * our home themselves). Hiding it there was a dead end: no way back to the default-home or navigation settings.
      */

@@ -918,6 +918,11 @@ class HomeActivity : Activity() {
                 setOnEditorActionListener { _, id, _ -> if (id == EditorInfo.IME_ACTION_GO) { firstHit?.performClick(); true } else false }
             }
             bar.addView(search, LayoutParams(0, -2, 1f))
+            // ⋮ -> "Hidden apps" (HomeHidden.kt): what the drawer leaves out, and why
+            bar.addView(ImageView(ctx).apply {
+                setImageDrawable(Ic.get(ctx, R.drawable.li_ellipsis_vertical, pal.sub, dp(20))); setPadding(dp(10), dp(10), dp(10), dp(10)); contentDescription = getString(R.string.hm_more)
+                kit.tap(this, -1f) { menu(listOf(Row(R.drawable.li_eye_off, getString(R.string.hm_hidden_m), true) { hiddenScreen() }), this) }
+            }, LayoutParams(dp(44), dp(44)))
             bar.addView(ImageView(ctx).apply {
                 setImageDrawable(Ic.get(ctx, R.drawable.li_x, pal.sub, dp(20))); setPadding(dp(10), dp(10), dp(10), dp(10)); contentDescription = getString(R.string.close)
                 kit.tap(this, -1f) { if (search.text.isNotEmpty()) search.setText("") else closeDrawer() }

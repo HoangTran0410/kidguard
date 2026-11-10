@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hm_more">Tuỳ chọn khác</string>
+    <string name="hm_hidden_m">App đang ẩn</string>
+    <string name="hm_hidden_t">App đang ẩn (%1$d)</string>
+    <string name="hm_hidden_none">Không có app nào bị ẩn.</string>
+    <plurals name="hm_hidden_sys">
+        <item quantity="other">+ %1$d thành phần hệ thống, không có gì để mở</item>
+    </plurals>
+    <string name="hm_hid_ts">Kết nối của bố mẹ</string>
+    <string name="hm_hid_parent">Bố mẹ ẩn</string>
+    <string name="hm_hid_blocked">Bố mẹ chặn</string>
+    <string name="hm_hid_new">Chờ bố mẹ duyệt</string>
+    <string name="hm_hid_study">Giờ học</string>
+    <string name="hm_hid_ts_l">bố mẹ dùng app này để kết nối với máy. App vẫn chạy, chỉ không có icon.</string>
+    <string name="hm_hid_parent_l">bố mẹ đã ẩn app này trên máy.</string>
+    <string name="hm_hid_blocked_l">bố mẹ đã chặn app này. Cần dùng thì xin bố mẹ trong KidGuard.</string>
+    <string name="hm_hid_new_l">app mới cài, đang chờ bố mẹ đồng ý.</string>
+    <string name="hm_hid_study_l">không phải app học. Hết giờ học sẽ hiện lại.</string>
+</resources>

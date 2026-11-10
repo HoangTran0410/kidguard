@@ -431,6 +431,8 @@ Trigger: swipe up on a home page (`SwipeUp` HA:1073), dock handle, Home button w
 Swipe down on home: x0 > width/2 -> `openControl()` (kid control center), else `expandShade(false)` (reflection on StatusBarManager, HA:1129).
 Gotchas: `Recent.load` is a binder call; must run off main thread (note in Recent.kt) - verify callers.
 
+- ⋮ next to the search field -> menu "Hidden apps" -> `hiddenScreen()` (`L/HomeHidden.kt`): an overlay grid of every app the drawer leaves out with its reason (`LauncherLogic.hiddenReason`, unit-tested, same order as `show()` + study mode): parent-hidden / blocked / waiting for OK / study time / KidGuard-managed Tailscale. Plumbing (Play services & co.) is one count line. A tap only toasts the reason: nothing launches from there (it would bypass the rules). Our own `HomeEntry` is skipped by package, not class name (the Home flavor shares the class).
+
 ### 3.8 Today page ("Hôm nay")
 
 `L/today/TodayPage.kt`; rebuilt on idle (HA:505-510). Cards (hidden ones in `HomeModel.todayHide`, "Tuỳ chọn thẻ" modal):
