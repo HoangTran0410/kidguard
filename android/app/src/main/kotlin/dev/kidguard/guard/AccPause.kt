@@ -128,8 +128,9 @@ object AccPause {
      * The bank came up WITHOUT our launcher (Recents, a notification, a link from another app): it already saw the
      * service on and shows its "turn off accessibility" refusal. Pausing now is too late for this run, so restart it
      * once: Home (a global action of the still-bound service: no background-start limit), kill the bank's process, then
-     * open it fresh with the service already off. The reopen comes from our app while our Home is in front; with another
-     * launcher on a basic-mode phone Android may block it (the kid just taps the bank again). A deep link is lost.
+     * open it fresh with the service already off. Came from a notification tap: that notification's intent is sent again
+     * (deep link kept, NotifLog.recentClick); else the launch intent (deep link lost). Basic mode needs SYSTEM_ALERT_WINDOW
+     * for a background start ([canReopen]); without it Android may block it (the kid taps the bank again).
      */
     fun pauseLate(svc: android.accessibilityservice.AccessibilityService, pkg: String) {
         if (Store.of(svc).rules.accPause.isEmpty()) return
@@ -143,6 +144,10 @@ object AccPause {
             app.getSystemService(android.app.ActivityManager::class.java)?.let { am -> runCatching { am.killBackgroundProcesses(pkg) } }
         }, RELAUNCH_KILL_MS)
         h.postDelayed({
+            // opened by tapping its notification: send that notification's own intent again, so the deep link
+            // (the payment / OTP screen) survives; it is held in memory by the notification history (NotifLog)
+            val pi = runCatching { NotifLog.recentClick(pkg, 8_000) }.getOrNull()
+            if (pi != null && NotifLog.send(app, pi)) return@postDelayed
             runCatching {
                 app.packageManager.getLaunchIntentForPackage(pkg)?.let { i ->
                     app.startActivity(i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK))
