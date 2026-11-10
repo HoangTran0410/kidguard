@@ -583,7 +583,7 @@ object Policy {
             d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED)
             d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT)
         }.onFailure { Log.w(TAG, "camera revoke", it) }
-        runCatching { Shot.clear(ctx) }; runCatching { Tg.clear(s) }
+        runCatching { Shot.clear(ctx) }; runCatching { Tg.clear(s, ctx) }
         s.released = true
         Watchdog.cancel(ctx)
         @Suppress("DEPRECATION") runCatching { d.clearDeviceOwnerApp(ctx.packageName) }
@@ -606,7 +606,7 @@ object Policy {
         val d = dpm(ctx); val a = admin(ctx)
         if (!runCatching { d.isAdminActive(a) }.getOrDefault(false)) return "not owner"
         s.released = true          // Acc and Guard go quiet first (Basic.enforcing checks it)
-        runCatching { Shot.clear(ctx) }; runCatching { Tg.clear(s) }
+        runCatching { Shot.clear(ctx) }; runCatching { Tg.clear(s, ctx) }
         Acc.blocked = emptyMap()
         Watchdog.cancel(ctx)
         runCatching { d.removeActiveAdmin(a) }.onFailure { Log.w(TAG, "removeActiveAdmin", it) }

@@ -46,6 +46,8 @@ const MAX_FRAME = 1024 * 1024;
 const MAX_RULES = 64 * 1024, MAX_CMD = 4096, MAX_CMDS = 20;   // 64 KB + 20 x 4 KB stays far below the phone's 256 KB reply cap
 const KEYS = ["back", "home", "recents", "notifications", "quick", "lock", "power"];
 const PKG = /^[A-Za-z0-9._]{1,200}$/, MAX_ICONS = 400;
+// icon URLs end up in request logs: the page sends ?k=sha256("icon:" + token) (only opens icons), stored at the first authenticated request
+const ICON_KEY = /^[0-9a-f]{64}$/;
 // <img> can't send headers: only the icon GET may carry the token in ?k=
 const tokenOf = (req, url) => req.headers.get("x-kg-token") || (req.method === "GET" && url.pathname.endsWith("/icon") ? url.searchParams.get("k") || "" : "");
 // shared files (docs/protocol.md "Shared files"): <= 10 MB a file in 1 MiB chunks, kept 1 h, deleted once fetched
@@ -56,7 +58,8 @@ const json = (o, status = 200) => new Response(JSON.stringify(o), {
 });
 const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel", "tgSet", "tgOff"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
 const ONCE_WINDOW = 10 * 60e3;
-const SHORT = ["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "devOn", "devOff", "setting"];   // "now" commands: stale after SHORT_TTL
+const GC_MS = 30 * 86400e3;   // a phone not seen for 30 days: everything of this id is deleted (dead pairings, junk binds); a phone that comes back re-binds on its next sync
+const SHORT = ["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "devOn", "devOff", "setting", "reboot", "clearData"];   // "now" commands: stale after SHORT_TTL (a reboot / clear asked while the phone was off must not fire the next day)
 const SHORT_TTL = 10 * 60e3;
 // still wanted? (24 h overall; "now" commands 10 min; a destructive one only shortly after it was first handed to the phone)
 const live = (c, now) => now - (c.at || 0) < (SHORT.includes(c.type) ? SHORT_TTL : 86400e3) && !(c.sent && now - c.sent > ONCE_WINDOW);
@@ -107,8 +110,8 @@ export default {
       const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
       if (!success) return json({ error: "slow down" }, 429);
     }
-    // reject junk before waking a Durable Object
-    if (!/^[0-9a-f]{48}$/.test(tokenOf(req, url))) return json({ error: "not paired" }, 401);
+    // reject junk before waking a Durable Object (an icon GET may carry the icon-only key instead of the token)
+    if (!/^[0-9a-f]{48}$/.test(tokenOf(req, url)) && !(m[2] === "icon" && ICON_KEY.test(url.searchParams.get("k") || ""))) return json({ error: "not paired" }, 401);
     const len = +(req.headers.get("content-length") || 0);
     if (len > limitFor(m[2])) return json({ error: "too big" }, 413);
     const stub = env.KIDS.get(env.KIDS.idFromName(m[1]));
@@ -173,6 +176,11 @@ export class Kid {
     const url = new URL(req.url), action = url.pathname.split("/").pop(), id = url.pathname.split("/")[2];
     if (action === "_tg" && req.method === "POST" && req.headers.get("x-kg-internal") === "1") return this.tgIn(await req.json().catch(() => ({})), id);   // from tgHook only: the public route regex never matches `_tg`
     const token = tokenOf(req, url);
+    if (action === "icon" && req.method === "GET" && ICON_KEY.test(url.searchParams.get("k") || "")) {
+      const ik = await this.s.get("iconKey");
+      if (!ik || ik !== url.searchParams.get("k")) return json({ error: "not paired" }, 401);
+      return this.icon(url);
+    }
     if (!/^[0-9a-f]{48}$/.test(token)) return json({ error: "not paired" }, 401);
     const h = await sha256(token);
     let bound = await this.s.get("tokenHash");
@@ -184,6 +192,7 @@ export class Kid {
       await this.s.put("tokenHash", h); bound = h;
     }
     if (h !== bound) return json({ error: "not paired" }, 401);
+    if (!this.ikSet) { this.ikSet = true; const ik = await sha256("icon:" + token); if ((await this.s.get("iconKey")) !== ik) await this.s.put("iconKey", ik); }
     const now = Date.now();
     if (action === "ws") {   // the phone's push channel (Relay.kt RelayWs): {"t":"sync",...} = POST sync, server sends {"t":"kick"}
       if ((req.headers.get("upgrade") || "").toLowerCase() !== "websocket") return json({ error: "websocket only" }, 426);
@@ -208,13 +217,7 @@ export class Kid {
       await this.s.put(puts);
       return json({ have: list.size });
     }
-    if (action === "icon" && req.method === "GET") {   // parent page <img>: token in ?k=
-      const pkg = url.searchParams.get("pkg") || "";
-      const b64 = PKG.test(pkg) ? await this.s.get("icon:" + pkg) : null;
-      if (!b64) return json({ error: "no icon" }, 404);
-      return new Response(Uint8Array.from(atob(b64), c => c.charCodeAt(0)), { headers: {
-        "content-type": "image/webp", "cache-control": "private, max-age=86400", "x-content-type-options": "nosniff" } });
-    }
+    if (action === "icon" && req.method === "GET") return this.icon(url);   // older pages: the token in ?k=
     if (action === "frame") {
       if (req.method === "POST") {
         const buf = await req.arrayBuffer();
@@ -383,10 +386,28 @@ export class Kid {
 
   /** /file: POST ?fid&i&n&to&size&name (one chunk), GET ?to= (list), GET ?fid&i (chunk), DELETE ?fid. Parent and phone share the token. */
   /** One phone sync (HTTP POST /sync or a WebSocket {"t":"sync"} message): {cmds, rules?, live?, files?, device?} or {error, status}. */
+  async icon(url) {
+    const pkg = url.searchParams.get("pkg") || "";
+    const b64 = PKG.test(pkg) ? await this.s.get("icon:" + pkg) : null;
+    if (!b64) return json({ error: "no icon" }, 404);
+    return new Response(Uint8Array.from(atob(b64), c => c.charCodeAt(0)), { headers: {
+      "content-type": "image/webp", "cache-control": "private, max-age=86400", "x-content-type-options": "nosniff" } });
+  }
+
+  /** Storage GC: armed once per object wake by sync(); see GC_MS. */
+  async alarm() {
+    const now = Date.now(), seen = this.phoneWs().length ? now : Math.max((await this.s.get("seen")) || 0, this.seen || 0);
+    if (now - seen > GC_MS) { await this.s.deleteAll(); return; }
+    await this.s.setAlarm(seen + GC_MS);
+  }
+
   async sync(body, id, nk, now, ws = null) {
+    if (!this.gcArmed) { this.gcArmed = true; if (!(await this.s.getAlarm())) await this.s.setAlarm(now + GC_MS); }
     const state = body.state && typeof body.state === "object" ? body.state : null;
     if (state && new TextEncoder().encode(JSON.stringify(state)).length > 120e3) return { error: "state too big", status: 413 };   // DO storage value limit is 128 KiB
     const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
+    // awaits before the cmds read-modify-write: a parent POST /cmd landing in an await must not be overwritten by a stale list
+    const netHash = nk && nk !== this.lastNet ? await sha256("net:" + nk) : null;
     const stored = (await this.s.get("cmds")) || [];
     const cmds = stored.filter(c => !acks.has(c.id) && live(c, now));
     const rules = await this.s.get("rules");
@@ -400,9 +421,9 @@ export class Kid {
     // over the WebSocket "seen" = connected (seenNow); written once on close instead of every minute
     if (!ws && now - this.seenWritten >= 60e3) { puts.seen = now; this.seenWritten = now; }
     // the phone's public network (hashed, last 2: Wi-Fi v4 + v6), for /where "same network"
-    if (nk && nk !== this.lastNet) {
+    if (netHash) {
       this.lastNet = nk;
-      const h = await sha256("net:" + nk), ipk = (await this.s.get("ipk")) || [];
+      const h = netHash, ipk = (await this.s.get("ipk")) || [];
       if (ipk[0] !== h) puts.ipk = [h, ...ipk.filter(x => x !== h)].slice(0, 2);
     }
     if (state && Object.keys(state).length) { puts.state = state; this.stateAt = now; }

@@ -81,12 +81,23 @@ function drawHist() {
   show();
 }
 
+// The relay logs request URLs: icons there use an icon-only key, sha256("icon:" + token) hex, never the token itself
+// (LAN: the token goes to the phone only). Computed once per kid; the list redraws when it is ready.
+function iconKey(k) {
+  if (k.via === "lan") return k.token;
+  if (k.ik) return k.ik;
+  if (!k.ikP && window.crypto && crypto.subtle) k.ikP = crypto.subtle.digest("SHA-256", new TextEncoder().encode("icon:" + k.token))
+    .then(b => { k.ik = [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); if (cur === k) render(); }).catch(() => {});
+  return k.ikP ? "" : k.token;   // no WebCrypto (plain-http page): the old way
+}
 function icon(x) {
   const l = ((x.label || "?").trim()[0] || "?").toUpperCase(), letter = esc(l), hue = (l.charCodeAt(0) * 47) % 360;
   const st0 = `background:hsl(${hue} 55% 45%);color:#fff`;
   // LAN: the phone draws it; relay: the 48 px copy the phone uploaded; app mode: same paths through the proxy.
   // lazy: a 200-app list fetches only the ~10 on screen first (LAN = one phone-side draw per icon); cached 24 h after
-  return `<span class="ic" style="${st0}"><img alt="" loading="lazy" decoding="async" data-l="${letter}" src="${base(cur)}/icon?pkg=${encodeURIComponent(x.pkg)}&k=${encodeURIComponent(cur.token)}" onload="this.parentNode.style.background='none'" onerror="this.parentNode.textContent=this.dataset.l"></span>`;
+  const kq = iconKey(cur);
+  if (!kq) return `<span class="ic" style="${st0}">${letter}</span>`;   // icon key still being computed: letter for one frame
+  return `<span class="ic" style="${st0}"><img alt="" loading="lazy" decoding="async" data-l="${letter}" src="${base(cur)}/icon?pkg=${encodeURIComponent(x.pkg)}&k=${encodeURIComponent(kq)}" onload="this.parentNode.style.background='none'" onerror="this.parentNode.textContent=this.dataset.l"></span>`;
 }
 function appRow(x) {
   return `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${fmt(x.ms)}${x.suspended || x.blocked ? `<span class="tag bad">${reason(x.blocked)}</span>` : ""}</span></div></div>`;

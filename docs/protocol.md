@@ -353,7 +353,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   clearData update totpSet fileDel`) are delivered **at-least-once**: the worker keeps them until the phone acks the id
   (so a lost reply does not drop a `release`) and the phone de-dups by id. The worker stamps `sent` at the first hand-out
   and drops an unacked one 10 min later (the phone may have released and stopped syncing). "Now" commands (`lock locate
-  message ring wake ringStop listenStop devOn devOff setting`) expire on the worker after **10 min** (others 24 h), so a
+  message ring wake ringStop listenStop devOn devOff setting reboot clearData`) expire on the worker after **10 min** (others 24 h), so a
   `ring` queued overnight does not fire in the morning. The queue refuses at 20 entries (`429 queue full`).
   `answer`: the worker keeps `id` as command id only if it matches `^[\w.-]{1,64}$`, else it makes a UUID; the request id
   is always copied to `req` and the phone answers `req` (falling back to `id` on LAN).
@@ -463,7 +463,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   (answerCallbackQuery, "working…" toast) and commands send sendChatAction (typing / find_location / upload_photo / record_voice).
   setMyShortDescription. The page shows `https://t.me/<bot>?start=<code>` (+ QR): Telegram sends `/start <code>`, which links.
 - /rec answers as a voice message (sendVoice, M4A remuxed from the ADTS stream by `Adts.kt`, plays inline); fallback: the raw .aac as a document.
-  The voice carries a "Download" button (callback `a:<16 hex>`): the same M4A as a document, kept 24 h in cache/tgrec.
+  The voice carries a "Download" button (callback `a:<16 hex>`): the same M4A as a document, kept 7 days in files/tgrec (max 100 MB, pruned early under 500 MB free; deleted on release).
 - Reliability: an alert counts as seen only once at least one chat got it (else retried every 30 s, dropped after 24 h);
   alerts have their own sender thread; one /locate and one /rec at a time ("busy" otherwise); 429 waits retry_after once.
   Link codes: max 3 wrong tries per not-linked chat (plus 5 per code); a new link is announced to the other chats.
@@ -500,6 +500,10 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   Sent pkgs are remembered per relay url+id (prefs `relayIcons`), so each icon goes up once.
 - `GET /c/<id>/icon?pkg=<pkg>&k=<token>` -> `image/webp`, `cache-control: private, max-age=86400`; 404 if unknown.
   The `?k=` token is accepted only on this GET (an `<img>` can't send headers); every other route needs the header.
+  Relay (2026-11-10): the page sends `?k=<sha256("icon:" + token) hex>` instead (request URLs are logged); the worker stores
+  that key at the first authenticated request after each wake. The raw token in `?k=` still works for older pages.
+- Relay storage GC: a phone not seen for 30 days -> the Durable Object deletes everything (DO alarm armed by sync); the
+  phone re-binds on its next sync.
 - The page uses `${base}/icon?pkg=..&k=..` in all modes (LAN, relay, parent-app proxy `/k/<target>/...`).
 
 ## Parent app (v0.5, module `:parent`, `dev.kidguard.parent`)

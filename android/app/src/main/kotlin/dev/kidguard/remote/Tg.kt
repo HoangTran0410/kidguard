@@ -93,7 +93,7 @@ object Tg {
             }
             "tgOff" -> {
                 val tok = s.tgToken; val chats = s.tgChats()
-                s.tgClear(); wake()
+                clear(s, g)
                 if (tok.isNotBlank()) work.execute { for (i in 0 until chats.length()) runCatching { call(tok, "sendMessage", JSONObject().put("chat_id", chats.optJSONObject(i).optLong("id")).put("text", TgLogic.s(chats.optJSONObject(i).optString("lang").ifBlank { "vi" }, "unlinked"))) } }
                 "ok"
             }
@@ -414,11 +414,16 @@ object Tg {
             if (!sendFile(s, chat, "sendDocument", "document", "$name.aac", "audio/aac", raw, cap)) say("fail", TgLogic.err(lang, "upload"))
     }
 
-    /** A recording kept for its "download" button: cache/tgrec/<key>__<name>.m4a, older than 24 h pruned. */
-    private fun recDir(g: Guard) = java.io.File(g.cacheDir, "tgrec").apply { mkdirs() }
+    /**
+     * A recording kept for its "download" button: files/tgrec/<key>__<name>.m4a. Kept 7 days, at most 100 MB, oldest first
+     * dropped early when the phone has < 500 MB free (the voice itself stays in the Telegram chat for good).
+     */
+    private fun recDir(g: android.content.Context) = java.io.File(g.filesDir, "tgrec").apply { mkdirs() }
     private fun keepRec(g: Guard, name: String, b: ByteArray): String? = runCatching {
-        val d = recDir(g); val cut = System.currentTimeMillis() - 24 * 3600_000L
+        val d = recDir(g); val cut = System.currentTimeMillis() - 7 * 86400_000L
         d.listFiles()?.forEach { if (it.lastModified() < cut) it.delete() }
+        val left = (d.listFiles() ?: emptyArray()).sortedBy { it.lastModified() }.toMutableList()
+        while (left.isNotEmpty() && (left.sumOf { it.length() } + b.size > 100L * 1048576 || d.usableSpace < 500L * 1048576)) left.removeAt(0).delete()
         val k = Store.randomHex(8); java.io.File(d, "${k}__$name.m4a").writeBytes(b); k
     }.getOrNull()
 
@@ -549,5 +554,5 @@ object Tg {
     }
 
     /** Release: the bot goes quiet and forgets everything. */
-    fun clear(s: Store) { s.tgClear(); wake() }
+    fun clear(s: Store, ctx: android.content.Context) { s.tgClear(); java.io.File(ctx.filesDir, "tgrec").deleteRecursively(); wake() }
 }
