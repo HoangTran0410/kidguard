@@ -57,7 +57,7 @@ L.vi = {
   "ask.locate": "Lấy vị trí hiện tại của máy con?", "askOk.locate": "Lấy vị trí",
   "ask.reboot": "Khởi động lại máy của con? Máy sẽ tắt vài phút.", "askOk.reboot": "Khởi động lại",
   "ask.openPairing": "Hiện mã ghép trên máy con để ghép thêm máy bố mẹ?\n\nMã chỉ dùng được 10 phút. Máy ghép xong thì kết nối lâu dài, không hết hạn.", "askOk.openPairing": "Hiện mã",
-  "ask.unpairAll": "Huỷ ghép mọi máy bố mẹ, kể cả máy này, và gỡ mọi chat Telegram? Phải ghép lại bằng mã trên máy con (cần PIN).", "askOk.unpairAll": "Huỷ ghép", "unp.word": "HUY", "forget.word": "QUEN",
+  "e.maybeSent": "Mất kết nối giữa chừng nên có thể máy con đã làm rồi. Kiểm tra máy con trước khi thử lại.", "ask.unpairAll": "Huỷ ghép mọi máy bố mẹ, kể cả máy này, và gỡ mọi chat Telegram? Phải ghép lại bằng mã trên máy con (cần PIN).", "askOk.unpairAll": "Huỷ ghép", "unp.word": "HUY", "forget.word": "QUEN",
   "forget.askRelay": "Quên máy “{0}” ở đây?\n\nMáy này điều khiển qua relay và thiết bị này giữ chìa duy nhất. Muốn điều khiển lại phải lấy link hoặc mã ghép mới trên máy con (cần PIN).",
   "ask.tailscaleOff": "Tắt điều khiển qua Tailscale và gỡ app Tailscale khỏi máy con?", "askOk.tailscaleOff": "Tắt",
   "ask.tailscale": "Cài Tailscale lên máy con và vào mạng riêng của bạn?", "askOk.tailscale": "Cài",

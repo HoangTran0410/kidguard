@@ -33,6 +33,7 @@ class Relay(private val g: Guard) {
     private val ws = RelayWs { h.post { forceSend = true; if (inSync) kickAgain = true else schedule(0) } }
     private var wsRetryAt = 0L
     private var wsFails = 0
+    private var wsUpAt = 0L   // when the socket last connected: one that dies within 5 min counts as a failure (flapping network)
     private var forceSend = false
     private var lastCoarse = 0
     private var lastSent = 0L
@@ -96,9 +97,14 @@ class Relay(private val g: Guard) {
     /** (Re)connects the socket after the first HTTP sync bound the token; backoff 1 min .. 30 min on failures. */
     private fun ensureWs(base: String, rid: String, token: String) {
         val now = System.currentTimeMillis()
-        if (ws.open || lastOk == 0L || now < wsRetryAt) return
+        if (ws.open || lastOk == 0L) return
+        if (wsUpAt > 0) {   // it was up and is gone now
+            if (now - wsUpAt >= 5 * 60_000L) wsFails = 0 else { wsFails++; wsRetryAt = now + minOf(30 * 60_000L, 60_000L shl minOf(wsFails - 1, 5)) }
+            wsUpAt = 0
+        }
+        if (now < wsRetryAt) return
         runCatching { ws.connect(base, rid, token) }.onSuccess {
-            wsFails = 0; forceSend = true
+            wsUpAt = now; forceSend = true
             h.removeCallbacks(pingRun); h.postDelayed(pingRun, RelayWs.PING_MS)
             Log.i("KidGuard", "relay ws up")
         }.onFailure {

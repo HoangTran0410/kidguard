@@ -151,9 +151,9 @@ async function call1(k, path, method, body) {
   if (APP && method !== "GET" && viewDay && k === cur) throw new Error(t("e.viewOnly"));
   if (APP && method !== "GET" && cachedAt && k === cur) throw new Error(t("e.cachedOff"));
   if (k.fb && k.via === "lan" && Date.now() - k.fb < 60000 && relayable(path, method)) { const j = await viaRelay(k, path, method, body); if (path === "/state" && k === cur) cachedAt = 0; return j; }
-  let r;
+  let r; const t0 = Date.now();
   try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined, signal: direct(k) ? quick(15000) : undefined }); }
-  catch (e) { throw errOf("net", APP ? t("e.lost") : null); }
+  catch (e) { const x = errOf("net", APP ? t("e.lost") : null); x.late = Date.now() - t0 > 3000; throw x; }   // late = it may have arrived
   const cached = APP && method === "GET" && path === "/state" ? +r.headers.get("X-KG-Cached") || 0 : 0;
   // app: a cached snapshot = the phone did not answer; a LAN kid that can heal treats it as a network failure
   if (cached && k.via === "lan" && canHeal(k) && !body) { const e = errOf("net", t("e.lost")); e.cached = r; throw e; }
@@ -275,10 +275,15 @@ function relocate(k) {
   healing.set(k, p);
   return p;
 }
+const REPLAY_OK = new Set(["lock", "locate", "wake", "ringStop", "listenStop", "sosAck", "setting", "devOn", "devOff", "openPairing"]);
 async function call(k, path, method = "GET", body) {
   try { return await call1(k, path, method, body); }
   catch (e) {
     if (!e.net || k.via !== "lan" || !canHeal(k) || viewDay) throw e;
+    // a LAN command that died mid-way (late) may already have run (reboot / release / update cut the link, a slow release
+    // outlives the 15 s abort): then only harmless-twice ones are retried on another address or the relay.
+    // A fast failure (no route, refused) never reached the phone: retried as before.
+    if (e.late && path === "/cmd" && method === "POST" && !REPLAY_OK.has(body && body.type)) { const m = errOf("net", t("e.maybeSent")); m.maybe = true; throw m; }
     if (await relocate(k)) return call1(k, path, method, body);
     if (k.relay && relayable(path, method)) {
       try { const j = await viaRelay(k, path, method, body); if (path === "/state" && k === cur) cachedAt = 0; if (!k.fb) toast("warn|" + t("lan.viaRelay")); k.fb = Date.now(); return j; } catch {}

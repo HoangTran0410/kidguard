@@ -6,8 +6,23 @@ let gen = 0;   // bumped by every screen change; async work started for an older
 function lastSeen() { return cur && cur.via !== "lan" && seenAt ? Math.max(seenAt, st ? st.t : 0) : (st ? st.t : 0); }
 async function open(k) { const g = ++gen; if (askDone) askDone(false, true); leaveSave(); pairLocal = null; wantReset(); screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); hideDraft = null; noState = false; saveFail(false); render(); if ($("#back")) navTo(1); clearInterval(timer); await refresh(); if (g !== gen) return; clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
 
+// One poll at a time (a hung mobile link must not stack them; one stuck > 30 s no longer blocks). Nobody touched the
+// page for 2 min -> every 30 s instead of 4 / 8 s (a forgotten tab kept the phone syncing its state every 30 s); a touch
+// polls at once and the fast pace is back.
+let pollAt = 0, pollBusy = 0, actAt = Date.now();
+const IDLE_MS = 120000, IDLE_POLL = 30000;
+["pointerdown", "keydown", "wheel", "touchstart"].forEach(ev => addEventListener(ev, () => {
+  const was = Date.now() - actAt > IDLE_MS; actAt = Date.now(); if (was && cur) refresh();
+}, { passive: true, capture: true }));
 async function refresh() {
   if (!cur || viewDay || document.hidden) return;
+  const now = Date.now();
+  if (pollBusy && now - pollBusy < 30000) return;
+  if (now - actAt > IDLE_MS && now - pollAt < IDLE_POLL) return;
+  pollAt = now; pollBusy = now;
+  try { await refresh1(); } finally { pollBusy = 0; }
+}
+async function refresh1() {
   const k = cur;
   try {
     const j = await call(k, "/state");
@@ -30,9 +45,9 @@ async function refresh() {
   const busy = document.activeElement && /^(SELECT|INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
   if (st && st.rules) {
     const nw = pendingRules && pendingRules.rev > st.rules.rev ? pendingRules : st.rules;
-    if (!edit) { edit = norm(structuredClone(nw)); levelsOffer(k); }
+    if (!edit) { edit = norm(structuredClone(nw)); editBase = structuredClone(edit); levelsOffer(k); }
     // another parent (or the child) changed the rules: reload unless we are mid-edit or saving, else a stale page would overwrite them
-    else if ((nw.rev || 0) > (edit.rev || 0) && !saveT && !saveBusy && !busy && !saveFailed) { edit = norm(structuredClone(nw)); lastSig = ""; }
+    else if ((nw.rev || 0) > (edit.rev || 0) && !saveT && !saveBusy && !busy && !saveFailed) { edit = norm(structuredClone(nw)); editBase = structuredClone(edit); lastSig = ""; }
   }
   // redraw the tab only when what it shows changed and nobody is using a control (icons would reload, a select would close)
   const sig = st ? JSON.stringify([tab, st.rules && st.rules.rev, st.apps.map(a => [a.suspended, a.blocked, Math.floor(a.ms / 60000)]),
@@ -58,6 +73,20 @@ function leaveSave() {
 function saveFail(on) { saveFailed = on; const b = $("#saveBar"); if (b) b.style.display = on ? "flex" : "none"; document.body.classList.toggle("sb", !!on); }
 $("#saveRetry").onclick = () => changed();
 // PUT the rules; throws on failure. Used by changed() (debounced) and by approve (needs the result before it answers).
+// Rules are a full replace. When the phone's rules moved on while this page was editing (another parent, the Telegram
+// bot, the kid's phone), only the fields changed here are laid over the newer rules: the other edit is not undone.
+let editBase = null;
+const sameJ = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+function mergeNewer(e) {
+  const srv = pendingRules && st && st.rules && (pendingRules.rev || 0) > (st.rules.rev || 0) ? pendingRules : st && st.rules;
+  if (!srv || !editBase || (srv.rev || 0) <= (editBase.rev || 0)) return false;
+  const n = norm(structuredClone(srv)), mine = {};
+  for (const x of new Set([...Object.keys(e), ...Object.keys(editBase)])) if (x !== "rev" && !sameJ(e[x], editBase[x])) mine[x] = e[x];
+  for (const x of Object.keys(e)) if (!(x in n) && !(x in mine)) delete e[x];
+  Object.assign(e, n, mine);
+  editBase = structuredClone(n);
+  return true;
+}
 async function putRules(k, e) {
   // Preview (phone never paired, no parent PIN yet): the first save sets the parent PIN. It is the same PIN the parent
   // later enters to pair their own phone, and from then on it guards "Bố mẹ quản lý trên máy này".
@@ -70,6 +99,7 @@ async function putRules(k, e) {
   }
   saveBusy++;
   try {
+    if (k === cur && e === edit && mergeNewer(e)) lastSig = "";   // redraw with the merged values
     const body = { ...e }; delete body.pinHash; delete body.pinSet; if (!body.pin) delete body.pin;
     if (Array.isArray(body.zones)) { const n0 = body.zones.length; body.zones = body.zones.filter(zoneOk); if (body.zones.length < n0 && zoneWarn !== n0) toast("warn|" + t("zone.skipped")); zoneWarn = body.zones.length < n0 ? n0 : 0; }
     const sig0 = JSON.stringify(e), r = await call(k, "/rules", "PUT", body); const hadPin = !!body.pin;
@@ -77,6 +107,7 @@ async function putRules(k, e) {
     if (k.via === "lan" && r && typeof r === "object" && JSON.stringify(e) === sig0) { for (const x of Object.keys(e)) delete e[x]; Object.assign(e, norm(r)); }
     else if (r && r.rev) e.rev = r.rev;   // relay: else an older poll (rev of the previous save) looks newer and undoes this edit
     delete e.pin; if (hadPin) e.pinSet = true; delete e.pinHash;
+    if (k === cur && e === edit) editBase = structuredClone(e);
     if (k === cur) saveFail(false);
   } finally { saveBusy--; }
 }
