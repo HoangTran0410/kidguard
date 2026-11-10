@@ -52,4 +52,9 @@
     <string name="hm_w_media">Now playing</string>
     <string name="hm_w_media_d">The music or video playing now: pause, previous, next</string>
     <string name="md_noaccess_sub">Tap to allow it</string>
+    <string name="sk_badge_n">%1$d days</string>
+    <string name="sk_last4w">Last 4 weeks</string>
+    <string name="sk_how">Finish all homework and chores in a day and it counts. Miss a day and the streak starts again.</string>
+    <string name="sk_open_list">Open today\'s list</string>
+    <string name="hm_no_app">No app for this on the phone</string>
 </resources>

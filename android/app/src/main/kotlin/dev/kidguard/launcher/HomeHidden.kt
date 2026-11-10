@@ -38,7 +38,7 @@ private fun HomeActivity.reasonText(why: String): String = getString(when (why) 
     else -> R.string.hm_hid_study
 })
 
-private fun HomeActivity.reasonLong(why: String): String = getString(when (why) {
+internal fun HomeActivity.reasonLong(why: String): String = getString(when (why) {
     "ts" -> R.string.hm_hid_ts_l
     "parent" -> R.string.hm_hid_parent_l
     "blocked" -> R.string.hm_hid_blocked_l
@@ -101,3 +101,24 @@ private fun HomeActivity.hiddenCell(a: HomeActivity.AppE, why: String): View {
     kit.tap(box, 12f) { toast(a.label + ": " + reasonLong(why)) }
     return box
 }
+
+/**
+ * A widget's "open the real thing" (clock -> the clock app, month -> the calendar), through the same rules as its icon:
+ * hidden -> the reason (toast), paused -> the "taking a break" sheet, else launched from [from]. Was: every widget tap
+ * went to the "Hôm nay" page, which shows nothing about the time or the month.
+ */
+internal fun HomeActivity.openRelated(intent: android.content.Intent, from: View) {
+    if (!debounce(intent.action + intent.categories)) return
+    val all = launcherApps().values
+    val pkgs = runCatching { packageManager.queryIntentActivities(intent, 0).map { it.activityInfo.packageName } }.getOrDefault(emptyList())
+    val a = pkgs.firstNotNullOfOrNull { p -> all.firstOrNull { it.pkg == p } }
+        ?: return android.widget.Toast.makeText(this, R.string.hm_no_app, android.widget.Toast.LENGTH_SHORT).show()
+    val s = Store.of(this); val r = s.rules; val dv = decision(r, s)
+    val why = LauncherLogic.hiddenReason(a.pkg, dv.want, r, packageName, tsManaged, focusAllowed(dv))
+    if (why != null && why != "plumbing") return android.widget.Toast.makeText(this, a.label + ": " + reasonLong(why), android.widget.Toast.LENGTH_LONG).show()
+    val reason = LauncherLogic.pauseReason(a.pkg, dv.want, settingsOk(r))
+    if (reason != null) pausedSheet(a, reason, dv, r) else launch(a, from)
+}
+
+internal fun clockIntent() = android.content.Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS)
+internal fun calendarIntent() = android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_APP_CALENDAR)

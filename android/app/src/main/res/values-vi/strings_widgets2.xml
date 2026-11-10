@@ -52,4 +52,9 @@
     <string name="hm_w_media">Đang phát</string>
     <string name="hm_w_media_d">Nhạc hoặc video đang phát: tạm dừng, bài trước, bài tiếp</string>
     <string name="md_noaccess_sub">Chạm để cho phép</string>
+    <string name="sk_badge_n">%1$d ngày</string>
+    <string name="sk_last4w">4 tuần qua</string>
+    <string name="sk_how">Làm xong hết bài tập và việc nhà trong ngày là được tính 1 ngày. Bỏ 1 ngày thì chuỗi bắt đầu lại.</string>
+    <string name="sk_open_list">Mở danh sách việc hôm nay</string>
+    <string name="hm_no_app">Máy chưa có app này</string>
 </resources>

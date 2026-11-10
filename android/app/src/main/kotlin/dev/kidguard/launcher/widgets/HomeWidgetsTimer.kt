@@ -78,8 +78,13 @@ class TimerReceiver : BroadcastReceiver() {
 }
 
 /** The disc: grey track, coloured wedge from 12 o'clock for the time left (full disc = all of it, empty = done). */
-internal class TimerDisc(c: Context, private val track: Int, private val fill: Int) : View(c) {
+internal class TimerDisc(c: Context, private val track: Int, private val fill: Int, private val face: Int = 0, private val ink: Int = 0) : View(c) {
     var frac = 1f
+    /** Centre glyph: what a tap does (play when stopped / paused / done, pause while running); 0 = none (the picker mock). */
+    var glyph = 0
+        set(v) { if (field != v) { field = v; icon = if (v != 0 && ink != 0) Ic.get(context, v, ink, (minOf(width, height) * 0.3f).toInt().coerceAtLeast(1)) else null; invalidate() } }
+    private var icon: android.graphics.drawable.Drawable? = null
+    override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) { val g = glyph; glyph = 0; glyph = g }
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val r = RectF()
     override fun onDraw(cv: Canvas) {
@@ -88,13 +93,21 @@ internal class TimerDisc(c: Context, private val track: Int, private val fill: I
         p.style = Paint.Style.FILL; p.color = track; cv.drawOval(r, p)
         p.color = fill
         if (frac >= 0.999f) cv.drawOval(r, p) else if (frac > 0f) cv.drawArc(r, -90f, -360f * frac, true, p)
+        val ic = icon ?: return
+        // a plate under the glyph, so it reads on both the filled and the empty part of the disc
+        val pr = d * 0.27f
+        p.color = face; cv.drawCircle(r.centerX(), r.centerY(), pr, p)
+        val iw = ic.bounds.width().takeIf { it > 0 } ?: ic.intrinsicWidth
+        val ih = ic.bounds.height().takeIf { it > 0 } ?: ic.intrinsicHeight
+        val x = (r.centerX() - iw / 2f).toInt(); val y = (r.centerY() - ih / 2f).toInt()
+        ic.setBounds(x, y, x + iw, y + ih); ic.draw(cv)
     }
 }
 
 private class TimerBox(val act: HomeActivity, val wide: Boolean) {
     val ctx: Context = act
     val card = act.wCard(!wide)
-    private val disc = TimerDisc(act, (act.pal.sub and 0x00ffffff) or 0x38000000, act.pal.solid)
+    private val disc = TimerDisc(act, (act.pal.sub and 0x00ffffff) or 0x38000000, act.pal.solid, act.pal.sheet, act.pal.text)
     private val time = act.text("", if (wide) 22f else 20f, act.pal.text, true)
     private val phase = act.wSub("")
     private val reset = act.kit.chip("", act.pal.onTint, act.pal.tint, R.drawable.li_rotate_ccw)
@@ -189,6 +202,7 @@ private class TimerBox(val act: HomeActivity, val wide: Boolean) {
         val left = TimerLogic.remaining(s, now)
         val over = s.running && left <= 0
         disc.frac = if (over) 0f else TimerLogic.fraction(s, now)
+        disc.glyph = if (s.running && !over) R.drawable.li_pause else R.drawable.li_play
         disc.invalidate()
         time.text = if (over || s.done) act.getString(R.string.tm_done_short) else TimerLogic.mmss(left)
         time.setTextColor(if (over || s.done) act.pal.warnText else act.pal.text)

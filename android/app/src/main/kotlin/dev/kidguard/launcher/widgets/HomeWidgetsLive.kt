@@ -30,7 +30,7 @@ internal fun HomeActivity.analogWidget(dv: View0, w: Int, h: Int): View {
         if (date.text.toString() != t) date.text = t
         card.contentDescription = "${HomeLogic.clock(v.minute)}. $t"
     }
-    return centred(card).also { wOpen(card) }
+    return centred(card).also { kit.tap(card, 22f) { openRelated(clockIntent(), card) } }
 }
 
 internal fun HomeActivity.monthWidget(dv: View0, w: Int, h: Int): View {
@@ -40,7 +40,7 @@ internal fun HomeActivity.monthWidget(dv: View0, w: Int, h: Int): View {
     val fmt = SimpleDateFormat("EEEE, d MMMM yyyy", resources.configuration.locales[0])
     card.contentDescription = fmt.format(Date(dv.now))
     tickers += { v -> grid.day = v.now; card.contentDescription = fmt.format(Date(v.now)) }
-    return centred(card).also { wOpen(card) }
+    return centred(card).also { kit.tap(card, 22f) { openRelated(calendarIntent(), card) } }
 }
 
 private class Bat(val pct: Int, val charging: Boolean)

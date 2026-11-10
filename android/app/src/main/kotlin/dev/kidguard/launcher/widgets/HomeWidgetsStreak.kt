@@ -39,6 +39,8 @@ internal object StreakStore {
         return Snap(cur, bestEver, day in days, cel, prev)
     }
 
+    fun days(c: Context): Set<Long> = (prefs(c).getString("days", "") ?: "").split(',').mapNotNull { it.toLongOrNull() }.toSet()
+
     /** The celebration is shown: remember it, so a later render does not repeat it. */
     fun celebrated(c: Context, badge: Int) { prefs(c).edit().putInt("prev", badge).apply() }
 }
@@ -136,8 +138,66 @@ internal fun HomeActivity.streakWidget(m: HomeModel, r: Rules, s: Store, w: Int,
         FrameLayout.LayoutParams(-1, -1))
     card.addView(frame, LinearLayout.LayoutParams(-1, -2))
     card.contentDescription = getString(R.string.hm_w_streak) + ": " + getString(R.string.sk_cd, snap.cur, snap.best)
-    wOpen(card)
+    kit.tap(card, 22f) { if (debounce("streak")) streakSheet(snap, complete, todos.isEmpty() && chores.isEmpty()) }
     return centred(card)
+}
+
+/**
+ * Tap on the streak widget: the streak itself (was the "Hôm nay" page, which has no streak on it). Current + best, the
+ * 4 badges with what is left to the next, the last 4 weeks as dots, how a day counts, and a way to today's list.
+ */
+internal fun HomeActivity.streakSheet(snap: StreakStore.Snap, complete: Boolean, empty: Boolean) {
+    val sh = Sheet(this, u, getString(R.string.hm_w_streak))
+    val body = sh.body
+    val big = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM; setPadding(dp(12), dp(4), dp(12), 0) }
+    big.addView(text("${snap.cur}", 44f, pal.accentText, true))
+    big.addView(text(getString(R.string.sk_days), 16f, pal.sub).apply { setPadding(dp(6), 0, 0, dp(8)) })
+    body.addView(big)
+    val next = StreakLogic.next(snap.cur)
+    body.addView(text(getString(R.string.sk_best, snap.best) + (next?.let { " · " + getString(R.string.sk_next, it - snap.cur, it) } ?: ""), 14f, pal.sub)
+        .apply { setPadding(dp(12), 0, dp(12), dp(8)) })
+    // badges: a filled circle when reached, a ring when not, the day count under each
+    val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(8), dp(4), dp(8)) }
+    for (b in StreakLogic.BADGES) {
+        val got = b <= snap.best
+        val cell = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        cell.addView(TextView(this).apply {
+            text = "$b"; textSize = 18f; typeface = android.graphics.Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER; includeFontPadding = false
+            setTextColor(if (got) pal.onSolid else pal.sub)
+            background = if (got) fill(pal.solid, 999f) else GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0); setStroke(dp(2), pal.sub) }
+            contentDescription = getString(if (got) R.string.sk_badge_got else R.string.sk_badge_locked, b)
+        }, LinearLayout.LayoutParams(dp(52), dp(52)))
+        cell.addView(text(getString(R.string.sk_badge_n, b), 12f, if (got) pal.text else pal.sub).apply { gravity = Gravity.CENTER; setPadding(0, dp(4), 0, 0) })
+        row.addView(cell, LinearLayout.LayoutParams(0, -2, 1f))
+    }
+    body.addView(row)
+    // last 28 days, oldest first, 7 per row: filled = done, ring = today (still open), faint = missed
+    body.addView(text(getString(R.string.sk_last4w).uppercase(), 12f, pal.sub, true).apply { letterSpacing = 0.08f; setPadding(dp(12), dp(12), dp(12), dp(6)) })
+    val done = StreakStore.days(this); val today = StreakStore.today()
+    val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(8), 0, dp(8), 0) }
+    for (w in 0 until 4) {
+        val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        for (d in 0 until 7) {
+            val day = today - 27 + w * 7 + d
+            val isDone = day in done
+            val cell = FrameLayout(this)
+            cell.addView(View(this).apply {
+                background = when {
+                    isDone -> fill(pal.solid, 999f)
+                    day == today -> GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0); setStroke(dp(2), pal.accentText) }
+                    else -> fill((pal.sub and 0x00ffffff) or 0x33000000, 999f)
+                }
+            }, FrameLayout.LayoutParams(dp(26), dp(26), Gravity.CENTER))
+            line.addView(cell, LinearLayout.LayoutParams(0, dp(34), 1f))
+        }
+        grid.addView(line)
+    }
+    body.addView(grid)
+    body.addView(text(getString(when { empty -> R.string.sk_empty; complete -> R.string.sk_today_done; else -> R.string.sk_today_open }), 15f, pal.text, true)
+        .apply { setPadding(dp(12), dp(16), dp(12), dp(2)) })
+    body.addView(text(getString(R.string.sk_how), 14f, pal.sub).apply { setPadding(dp(12), 0, dp(12), dp(12)) })
+    body.addView(kit.pill(getString(R.string.sk_open_list), R.drawable.li_list_checks, true) { sh.dismiss(); pager.snapTo(0) })
+    sh.show()
 }
 
 /** Picker mock of the real widget: "7 ngày" big + the 4 badge circles with their numbers (3 and 7 earned). Every child

@@ -65,7 +65,8 @@ internal fun HomeActivity.widgetDesc(type: String) = getString(when (type) {
 // Type scale: head 11sp pal.sub UPPERCASE (letterSpacing 0.08) - value 20-26sp bold (pal.accentText, pal.warnText when low)
 //   - primary line 15-16sp bold pal.text - secondary 12-13sp pal.sub. Icons: Lucide via Ic.get, 16-18 dp, pal.accentText
 //   (or kit.badge(icon, pal.onTint, pal.tint, 40, 20) for a leading round badge). Never raw colours: only pal.*.
-// A tap that "opens more" goes to the "Hôm nay" page (wOpen). Live values (minute, battery) update in place through
+// A tap opens the real thing: clock -> clock app, month -> calendar (openRelated), streak -> its sheet; widgets about the
+// "Hôm nay" content (lists, notes, counts, next) go to that page (wOpen). Live values (minute, battery) update in place through
 // tickers, never by a rebuild.
 
 /** The widget card: vertical (or horizontal) box with the shared fill and padding. */
@@ -122,6 +123,7 @@ internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideN
         inkViews += n
     }
     box.contentDescription = "${t.text}. ${d.text}"
+    kit.tap(box, 22f) { openRelated(clockIntent(), box) }
     return centred(box)
 }
 

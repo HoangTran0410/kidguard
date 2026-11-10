@@ -59,6 +59,9 @@
     <!-- the launcher apps, to list and limit them (Android 11+ package visibility) -->
     <queries>
         <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
+        <!-- clock / calendar widgets open the phone's clock and calendar apps -->
+        <intent><action android:name="android.intent.action.SHOW_ALARMS" /></intent>
+        <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.APP_CALENDAR" /></intent>
         <package android:name="com.tailscale.ipn" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
