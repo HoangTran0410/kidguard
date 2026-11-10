@@ -70,6 +70,10 @@ leftMs apps rules location lan relay log`), plus:
   "history": [                     // NEW: last 7 days before today, newest first
     {"day": "2026-11-05", "ms": 5400000, "top": [{"pkg":"…","label":"…","ms":1200000}]}   // top: up to 5
   ],
+  "net": {"type": "wifi|cell|ethernet|vpn|other|none", "metered": false, "ip": "192.168.1.5",   // 2026-11-10: phone card (tap = details)
+          "ssid": "Home", "rssi": -60, "bars": 3, "ghz": 5.0, "mbps": 433,   // Wi-Fi; ssid only with location permission + location on
+          "carrier": "Viettel",                                             // cell
+          "hwMac": "aa:bb:…"},                                              // Device Owner only (factory MAC); rssi/bars/mbps left out of the relay WS change hash
   "ts": {"state": "off|installing|on|error", "ip": "100.x.y.z", "host": "kid-an", "err": "", "noExpiry": false},  // v0.4: Tailscale (never the key); noExpiry v0.9.6: node key expiry turned off
   "requests": [                    // NEW: the child asked for more time (button on the child's KidGuard screen)
     {"id": "a1b2c3", "t": 1793940898493, "min": 30, "note": "con làm bài tập"}

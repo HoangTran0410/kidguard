@@ -116,6 +116,7 @@ class Relay(private val g: Guard) {
             // the relay kicked, a command needs its ack, or the idle interval is over
             val coarse = JSONObject(state.toString()).apply {
                 for (k in arrayOf("t", "usedMs", "leftMs", "current", "battery", "charging", "screenOn")) remove(k)
+                optJSONObject("net")?.let { for (k in arrayOf("rssi", "bars", "mbps")) it.remove(k) }   // signal wobbles: not a reason to sync
                 optJSONArray("apps")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { it.remove("ms"); it.remove("mb") } }
             }.toString().hashCode()
             val on = g.getSystemService(PowerManager::class.java)?.isInteractive == true

@@ -10,6 +10,9 @@ import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
+import android.telephony.TelephonyManager
+import java.net.Inet4Address
+import java.net.NetworkInterface
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
@@ -124,6 +127,35 @@ object DeviceInfo {
             while (ev.hasNextEvent()) { ev.getNextEvent(e); if (e.eventType == 15 || e.eventType == 16) out += e.eventType to e.timeStamp }
             DeviceLogic.screenOnMs(out, from, now, ctx.getSystemService(PowerManager::class.java)?.isInteractive == true)
         }.getOrNull()
+    }
+
+    /**
+     * state.net (phone card on the parent page): the active network's type plus what is readable without new permissions.
+     * Wi-Fi name needs the location permission + location on (else left out); hwMac = factory MAC, Device Owner only
+     * (Wi-Fi usually joins with a per-network random MAC, which no app can read).
+     */
+    fun netState(ctx: Context): JSONObject {
+        val n = net(ctx)
+        val o = JSONObject().put("type", n.type).put("metered", n.metered)
+        n.rssi?.let { o.put("rssi", it); DeviceLogic.wifiBars(it)?.let { b -> o.put("bars", b) } }
+        runCatching {
+            NetworkInterface.getNetworkInterfaces().toList().filter { it.isUp && !it.isLoopback && !it.name.startsWith("tun") }
+                .sortedBy { if (it.name.startsWith("wlan")) 0 else 1 }
+                .flatMap { it.inetAddresses.toList() }.firstOrNull { it is Inet4Address }?.hostAddress
+        }.getOrNull()?.let { o.put("ip", it) }
+        if (n.type == "wifi") {
+            @Suppress("DEPRECATION")
+            val wi = runCatching { ctx.getSystemService(WifiManager::class.java)?.connectionInfo }.getOrNull()
+            wi?.ssid?.trim('"')?.takeIf { it.isNotBlank() && it != "<unknown ssid>" }?.let { o.put("ssid", it) }
+            wi?.frequency?.takeIf { it > 0 }?.let { o.put("ghz", if (it >= 5925) 6.0 else if (it >= 4900) 5.0 else 2.4) }
+            wi?.linkSpeed?.takeIf { it > 0 }?.let { o.put("mbps", it) }
+        }
+        if (n.type == "cell") runCatching { ctx.getSystemService(TelephonyManager::class.java)?.networkOperatorName }.getOrNull()
+            ?.takeIf { it.isNotBlank() }?.let { o.put("carrier", it) }
+        if (Policy.isOwner(ctx)) runCatching {
+            ctx.getSystemService(android.app.admin.DevicePolicyManager::class.java).getWifiMacAddress(Policy.admin(ctx))
+        }.getOrNull()?.takeIf { it.isNotBlank() }?.let { o.put("hwMac", it) }
+        return o
     }
 
     private fun net(ctx: Context): DeviceLogic.Net {

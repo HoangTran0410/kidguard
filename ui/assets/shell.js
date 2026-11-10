@@ -235,14 +235,32 @@ const banHid = new Set();   // banners hidden with their x: this page session on
 // "Điện thoại của con" card on Hôm nay: connection, battery, screen (was one long line under the kid's name)
 function phoneCard(online) {
   const appOf = p => p && p.startsWith("dev.kidguard") ? "KidGuard" : ((st.apps || []).find(a => a.pkg === p) || {}).label || p;
-  const cell = (tone, i, big, sub) => `<div class="pc"><span class="pci t-${tone}">${ic(i)}</span><b>${big}</b><span class="mute">${sub}</span></div>`;
-  const bat = +st.battery, cur0 = st.screenOn && st.current ? appOf(st.current) : "";
+  const cell = (tone, i, big, sub, id) => `<${id ? `button type="button" id="${id}"` : "div"} class="pc"><span class="pci t-${tone}">${ic(i)}</span><b>${big}</b><span class="mute">${sub}</span></${id ? "button" : "div"}>`;
+  const bat = +st.battery, cur0 = st.screenOn && st.current ? appOf(st.current) : "", n = st.net;
+  // network cell: the real link (Wi-Fi name / carrier / data), not just "online"; tap = details. Old apps send no net.
+  const nIcon = !online || (n && n.type === "none") ? "wifi-off" : n && n.type === "cell" ? "signal" : n && n.type !== "wifi" ? "globe" : "wifi";
+  const nBig = !n ? (online ? t("live.on") : t("live.off")) : esc(n.ssid || n.carrier || tc("dv.n.", n.type, n.type));
   return `<div class="lhead"><h2>${ic("smartphone")} ${t("pc.title")}</h2></div><div class="pcg">`
-    + cell(online ? "ok" : "bad", online ? "wifi" : "wifi-off", online ? t("live.on") : t("live.off"), ago(lastSeen()))
+    + cell(online ? "ok" : "bad", nIcon, nBig, n ? (online ? "" : t("live.off") + " · ") + ago(lastSeen()) : ago(lastSeen()), n ? "pcNet" : "")
     + cell(st.charging ? "ok" : bat <= 15 ? "bad" : bat <= 30 ? "warn" : "info", st.charging ? "zap" : "battery-full", bat + "%", st.charging ? t("pc.charging") : t("pc.battery"))
     + cell(st.screenOn ? "info" : "mute", "smartphone", st.screenOn ? t("pc.on") : t("pc.off"), cur0 ? esc(cur0) : t("pc.screen"))
     + `</div>`;
 }
+function netSheet() {
+  const n = st && st.net; if (!n) return;
+  const kv = (k, v) => v === undefined || v === null || v === "" ? "" : `<div class="dvkv"><span>${k}</span><b>${v}</b></div>`;
+  const ts = st.ts && st.ts.state === "on" && st.ts.ip;
+  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead(n.type === "cell" ? "signal" : "wifi", t("net.h"))}
+    ${kv(t("dv.net"), esc(tc("dv.n.", n.type, n.type)) + (n.metered && n.type !== "none" ? ` <span class="mute" style="font-weight:400">· ${t("dv.metered")}</span>` : ""))}
+    ${n.type === "wifi" ? kv(t("net.ssid"), n.ssid ? esc(n.ssid) : `<span class="mute" style="font-weight:400">${t("net.noSsid")}</span>`) : ""}
+    ${kv(t("net.carrier"), n.carrier && esc(n.carrier))}
+    ${n.rssi != null ? kv(t("net.signal"), (n.bars != null ? n.bars + "/4 · " : "") + n.rssi + " dBm") : ""}
+    ${kv(t("net.band"), n.ghz && n.ghz + " GHz")}${kv(t("net.speed"), n.mbps && n.mbps + " Mbps")}
+    ${kv(t("net.ip"), n.ip && esc(n.ip))}${kv(t("net.ts"), ts && esc(ts))}
+    ${kv(t("net.mac"), n.hwMac && esc(n.hwMac))}${n.hwMac && n.type === "wifi" ? `<p class="mute">${t("net.macNote")}</p>` : ""}
+    ${kv(t("net.seen"), ago(lastSeen()))}</div>`);
+}
+document.addEventListener("click", e => { if (e.target.closest && e.target.closest("#pcNet")) netSheet(); });
 function updateLive() {
   paintSave(); if (tab === "screen") screenCtl();
   const el = $("#live"), hs = $("#hst"); if (!el) return;

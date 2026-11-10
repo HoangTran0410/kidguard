@@ -351,7 +351,8 @@ table.ft,table.ft tbody{display:block;width:100%}table.ft tr{display:flex;flex-w
 /* "Điện thoại của con" card (Hôm nay) + banner buttons */
 .pcg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 12px 12px}
 .pc{display:flex;flex-direction:column;gap:2px;min-width:0;padding:10px;border-radius:14px;background:rgba(127,127,127,.08)}
-.pc b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pc .mute{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc b{font-size:15px;line-height:1.25;overflow:hidden;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+button.pc{text-align:left;border:0;font-weight:400;justify-content:flex-start;align-items:stretch;min-height:0}.pc .mute{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pci{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-size:17px;margin-bottom:4px;color:var(--tn,var(--sub));background:rgba(127,127,127,.14)}
 .pci.t-ok{--tn:var(--ok)}.pci.t-bad{--tn:var(--danger)}.pci.t-warn{--tn:var(--warn)}.pci.t-info{--tn:var(--primary)}.pci.t-mute{--tn:var(--sub)}
 .ban .pill{flex:none;padding:6px 12px;font-size:13px}.ban .banx{flex:none;width:32px;height:32px;padding:0;border:0;background:transparent;display:grid;place-items:center;font-size:18px;color:var(--sub)}

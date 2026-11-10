@@ -396,6 +396,7 @@ class Guard : Service() {
             .put("rules", r.toJson())
             .put("location", store.location ?: JSONObject.NULL)
             .put("lan", lanUrl() ?: JSONObject.NULL)
+            .put("net", runCatching { DeviceInfo.netState(this) }.getOrDefault(JSONObject()))
             .put("relay", store.relayUrl)
             .put("ts", Ts.stateJson(store))
             .put("devices", store.devices())
