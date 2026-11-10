@@ -1351,6 +1351,7 @@ class HomeActivity : Activity() {
         var gridColor = Color.WHITE
         var hl: IntArray? = null
         var hlOk = true
+        var hlWidget = false   // the drop preview takes the widget's box, else the icon's square
         private val panel = Paint(Paint.ANTI_ALIAS_FLAG)
         private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = dp(1).toFloat() }
         private val hlPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -1550,7 +1551,16 @@ class HomeActivity : Activity() {
             val tg = hl
             if (tg != null) {
                 val (x, y, w, h) = tg
-                val l = side + x * cw + gap / 2f; val t = gridTop() + y * ch + gap / 2f; val r = l + w * cw - gap; val b = t + h * ch - gap
+                // the shape the item will take there, not the whole cells: a widget's box, an icon's own square (iOS / One UI)
+                val ci = cw.toInt(); val chi = ch.toInt()
+                val bx = box(ci, chi, CellLP(x, y, w, h, widget = hlWidget))
+                var l = side + x * cw + gap / 2f + bx[0]; var t = gridTop() + y * ch + gap / 2f + bx[1]
+                var r = l + bx[2]; var b = t + bx[3]
+                if (!hlWidget) {
+                    val icon = iconPx().coerceAtMost(minOf(ci, chi) - gap).toFloat()
+                    l = side + x * cw + gap / 2f + (w * cw - gap - icon) / 2f; t = gridTop() + y * ch + gap / 2f + dp(4)
+                    r = l + icon; b = t + icon
+                }
                 if (hlA == 0f) hlR.set(l, t, r, b)
                 else { val k = 1f - Math.pow(0.65, st.toDouble()).toFloat(); hlR.set(hlR.left + (l - hlR.left) * k, hlR.top + (t - hlR.top) * k, hlR.right + (r - hlR.right) * k, hlR.bottom + (b - hlR.bottom) * k) }
                 hlA = minOf(1f, hlA + 0.2f * st)
@@ -1560,7 +1570,8 @@ class HomeActivity : Activity() {
                 // the drop cells: the card colour when it fits, the danger colour when it doesn't
                 val col = if (hlOk) pal.card else Color.argb(150, Color.red(pal.danger), Color.green(pal.danger), Color.blue(pal.danger))
                 hlPaint.color = col; hlPaint.alpha = (Color.alpha(col) * hlA).toInt()
-                kit.drawRound(c, hlR.left, hlR.top, hlR.right, hlR.bottom, hlPaint)
+                val rad = if (hlWidget) kit.dpf(22f) else if (model?.style?.shape != "square") hlR.width() / 2f else hlR.width() * 0.3f
+                kit.drawRound(c, hlR.left, hlR.top, hlR.right, hlR.bottom, hlPaint, rad)
             }
             if (more) postInvalidateOnAnimation() else lastDraw = 0L
             if (!grid) return

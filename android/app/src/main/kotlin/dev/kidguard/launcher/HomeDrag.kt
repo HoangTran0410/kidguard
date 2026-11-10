@@ -326,7 +326,8 @@ internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
         }
     }
     val hl = intArrayOf(a.first, a.second, w, h); val ok = free || sw != null
-    if (!(cl.hl contentEquals hl) || cl.hlOk != ok) { cl.hl = hl; cl.hlOk = ok; cl.invalidate() }
+    val wid = d.kind == "widget"
+    if (!(cl.hl contentEquals hl) || cl.hlOk != ok || cl.hlWidget != wid) { cl.hl = hl; cl.hlOk = ok; cl.hlWidget = wid; cl.invalidate() }
 }
 
 internal fun HomeActivity.showTip(t: String) {
