@@ -1445,20 +1445,24 @@ class HomeActivity : Activity() {
         }
 
         /**
-         * An item's box (x, y offsets inside its cells, width, height). Apps / folders: the whole cells minus the gap. Widgets
-         * (iOS): sides on the outer icons' edges, top on the icon top, and the space below = the space between icon columns,
-         * so the gaps between widgets are the same across and down. With equal pitches ([pitchH]) that is icon edge to icon
-         * edge and a 2x2 is square; with big icons the row needs an icon + label taller than the column (POCO, biggest icon:
-         * 289 x 342 px) and the widget reaches down to the label line instead of leaving a 122 px gap vs 69 px across.
+         * An item's box (x, y offsets inside its cells, width, height). Apps / folders: the whole cells minus the gap.
+         * Widgets (iOS metrics, 390 pt screen: 26 pt margins, 158 pt small widgets, 22 pt between them = 5.6 % of the width):
+         * the outer edges sit on the outer icons' edges, the top on the icon top, and the gap between two widgets is 5.6 %
+         * of the width both across and down, whatever the icon size. Was the gap between icon columns (cw - icon): 31 dp
+         * (8.2 %) at the default icon size, which read as loose next to iOS.
          */
         private fun box(cw: Int, ch: Int, lp: CellLP): IntArray {
             if (!lp.widget) return intArrayOf(0, 0, cw * lp.w - gap, ch * lp.h - gap)
             val icon = iconPx().coerceAtMost(minOf(cw, ch) - gap)
             val ix = ((cw - gap - icon) / 2).coerceAtLeast(0)
             val top = dp(5).coerceAtMost((ch - gap - icon).coerceAtLeast(0))        // appIcon: 4 dp box padding + 1 dp frame
-            val w = (lp.w - 1) * cw + icon
-            val h = lp.h * ch - (cw - icon)                                          // gap below = the gap across (cw - icon)
-            return intArrayOf(ix, top, w, h.coerceAtMost(lp.h * ch - gap - top))
+            val g = ((cols * cw + 2 * side) * 22f / 390f).coerceAtLeast((gap + top).toFloat())
+            val span = cols * cw - (cw - icon)                                      // first icon's left edge to the last icon's right edge
+            val pw = (span + g) / cols                                              // widget column pitch: cols columns, cols-1 gaps of g
+            val x = ix + Math.round(lp.x * (pw - cw))
+            val w = Math.round(lp.w * pw - g)
+            val h = Math.round(lp.h * ch - g).coerceAtMost(lp.h * ch - gap - top)
+            return intArrayOf(x, top, w, h)
         }
 
         /**
