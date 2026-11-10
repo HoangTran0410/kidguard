@@ -458,6 +458,9 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   A persistent reply keyboard (Status, Location, More time, Lock, Menu) is sent on /start, /help and link; its labels (vi or en) map back
   to commands. /bonus /pause /limit /bed /rec without a number show their panel; /msg without text asks with force_reply and takes
   the next plain text (10 min). Any other plain text = the menu. tgSet also sets setMyCommands (menu first), setMyDescription,
+  setMyShortDescription. Pickers (block / unblock / files) and panels opened from a button replace that message and end with « Menu;
+  a picked app turns the picker into the answer (+ "another one"). Every tapped button is acked at once on its own thread
+  (answerCallbackQuery, "working…" toast) and commands send sendChatAction (typing / find_location / upload_photo / record_voice).
   setMyShortDescription. The page shows `https://t.me/<bot>?start=<code>` (+ QR): Telegram sends `/start <code>`, which links.
 - Alerts, every Guard tick, each id once (`tgSeen`, last 80; linking a chat marks the past as seen): every SOS (+ location),
   every request with buttons `ry:<id>:<min>` (bonus + `answer ok`) / `rn:<id>` (`answer` no), every event; a `tamper` event waits up

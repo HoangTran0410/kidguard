@@ -27,7 +27,8 @@ object Tg {
     @Volatile private var thread: Thread? = null
     @Volatile private var guard: Guard? = null
     @Volatile private var conflictFixed = false
-    private val work = Executors.newFixedThreadPool(2)   // commands that wait (rec, locate, screen) never block polling
+    private val work = Executors.newFixedThreadPool(4)   // commands that wait (rec, locate ~30 s, screen) never block polling or each other
+    private val fast = Executors.newSingleThreadExecutor()   // button acks: never queued behind a slow command
     private val askMsg = java.util.concurrent.ConcurrentHashMap<Long, Long>()   // chat -> when "💬 Message" asked for the text
 
     fun start(g: Guard) {
@@ -110,6 +111,11 @@ object Tg {
                 for (i in 0 until a.length()) {
                     val u = a.optJSONObject(i) ?: continue
                     s.tgOffset = u.optLong("update_id") + 1   // before handling: one bad update must not loop forever
+                    // a tapped button: stop its spinner at once (+ "working…" toast for actions; panels need none)
+                    u.optJSONObject("callback_query")?.let { q -> runCatching { fast.execute { runCatching {
+                        val d = q.optString("data")
+                        call(tok, "answerCallbackQuery", JSONObject().put("callback_query_id", q.optString("id")).apply { if (!d.startsWith("n:")) put("text", TgLogic.s(s.tgLang, "busy")) }, 8_000)
+                    } } } }
                     runCatching { work.execute { runCatching { update(g, s, u) }.onFailure { Log.w(TAG, "tg update", it) } } }
                 }
             } catch (e: InterruptedException) {
@@ -173,6 +179,12 @@ object Tg {
         // "message is not modified" (same text) is fine; anything else (too old...) -> a new message
         if (!r.optBoolean("ok") && !r.optString("description").contains("not modified")) send(s, chat, text, kb)
     }
+    private fun chatAction(s: Store, chat: Long, action: String) {
+        val tok = s.tgToken.ifBlank { return }
+        runCatching { call(tok, "sendChatAction", JSONObject().put("chat_id", chat).put("action", action), 8_000) }
+    }
+    /** Commands whose answer is a panel / picker: from a button they replace that message. */
+    private val PANELS = setOf("bonus", "pause", "limit", "bed", "rec", "block", "unblock", "files")
     private fun sendLoc(s: Store, chat: Long, loc: JSONObject) {
         val tok = s.tgToken.ifBlank { return }
         call(tok, "sendLocation", JSONObject().put("chat_id", chat).put("latitude", loc.optDouble("lat")).put("longitude", loc.optDouble("lng"))
@@ -221,8 +233,12 @@ object Tg {
         runCmd(g, s, id, c)
     }
 
-    private fun runCmd(g: Guard, s: Store, chat: Long, c: TgLogic.Cmd) {
+    /** [panel] = the message whose button was tapped (0 = typed): panels and pickers replace it instead of piling up. */
+    private fun runCmd(g: Guard, s: Store, chat: Long, c: TgLogic.Cmd, panel: Long = 0) {
         val lang = s.tgLang; val now = System.currentTimeMillis()
+        // "bot is typing / sending a photo / ..." in the chat header while it works
+        chatAction(s, chat, when (c.name) { "locate" -> "find_location"; "screen" -> "upload_photo"; "rec" -> "record_voice"; "files" -> "upload_document"; else -> "typing" })
+        fun show(text: String, kb: JSONObject?) { if (panel > 0) edit(s, chat, panel, text, kb) else send(s, chat, text, kb) }
         fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
         fun res(r: String, okKey: String, vararg a: Any?) { if (r == "ok") say(okKey, *a) else say("fail", TgLogic.err(lang, r)) }
         fun rules(f: (Rules) -> Rules) { g.setRules(f(s.rules)) }
@@ -244,14 +260,14 @@ object Tg {
                 if (s.location == null) say("noLoc")
             }
             "bonus", "pause", "limit", "bed", "rec" ->
-                if (c.args.isEmpty()) send(s, chat, subTitle(s, c.name, lang), TgLogic.sub(lang, c.name)) else runArg(g, s, chat, c)
+                if (c.args.isEmpty()) show(subTitle(s, c.name, lang), TgLogic.sub(lang, c.name)) else runArg(g, s, chat, c, panel)
             "lock" -> res(g.command(JSONObject().put("type", "lock")), "locked")
             "ring" -> res(g.command(JSONObject().put("type", "ring")), "ringing")
             "msg" -> if (c.rest.isBlank()) {
                 askMsg[chat] = now
                 send(s, chat, TgLogic.s(lang, "msgAsk"), JSONObject().put("force_reply", true).put("input_field_placeholder", TgLogic.s(lang, "msgPh")))
             } else res(g.command(JSONObject().put("type", "message").put("text", c.rest.take(500))), "msgSent")
-            else -> runArg(g, s, chat, c)
+            else -> runArg(g, s, chat, c, panel)
         }
     }
 
@@ -262,8 +278,10 @@ object Tg {
     }
 
     /** The rest of the commands (all take their argument, or need none). */
-    private fun runArg(g: Guard, s: Store, chat: Long, c: TgLogic.Cmd) {
+    private fun runArg(g: Guard, s: Store, chat: Long, c: TgLogic.Cmd, panel: Long = 0) {
         val lang = s.tgLang; val now = System.currentTimeMillis()
+        fun show(text: String, kb: JSONObject?) { if (panel > 0) edit(s, chat, panel, text, kb) else send(s, chat, text, kb) }
+        val back = listOf(TgLogic.s(lang, "b.back") to "n:main")
         fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
         fun res(r: String, okKey: String, vararg a: Any?) { if (r == "ok") say(okKey, *a) else say("fail", TgLogic.err(lang, r)) }
         fun rules(f: (Rules) -> Rules) { g.setRules(f(s.rules)) }
@@ -288,9 +306,9 @@ object Tg {
             "block", "unblock" -> {
                 val un = c.name == "unblock"
                 val list = TgLogic.pickApps(g.currentState(), s.rules.blocked, un).filter { ("b:" + it.first).toByteArray().size <= 64 }
-                if (list.isEmpty()) return say(if (un) "noBlocked" else "noApps")
-                send(s, chat, TgLogic.s(lang, if (un) "unblockPick" else "blockPick"),
-                    TgLogic.keyboard(list.map { (p, l) -> (if (un) "✅ " else "⛔ ") + l to (if (un) "u:" else "b:") + p }.chunked(2)))
+                if (list.isEmpty()) return show(TgLogic.s(lang, if (un) "noBlocked" else "noApps"), TgLogic.keyboard(listOf(back)))
+                show(TgLogic.s(lang, if (un) "unblockPick" else "blockPick"),
+                    TgLogic.keyboard(list.map { (p, l) -> (if (un) "✅ " else "⛔ ") + l to (if (un) "u:" else "b:") + p }.chunked(2) + listOf(back)))
             }
             "screen" -> {
                 say("shotWait")
@@ -308,8 +326,8 @@ object Tg {
             }
             "files" -> {
                 val l = Files.all(g).filter { it.size <= TgLogic.TG_SEND_MAX }.sortedByDescending { it.at }.take(20)
-                if (l.isEmpty()) return say("noFiles")
-                send(s, chat, TgLogic.s(lang, "files"), TgLogic.keyboard(l.map { listOf(it.name.take(40) to "f:" + it.id) }))
+                if (l.isEmpty()) return show(TgLogic.s(lang, "noFiles"), TgLogic.keyboard(listOf(back)))
+                show(TgLogic.s(lang, "files"), TgLogic.keyboard(l.map { listOf(it.name.take(40) to "f:" + it.id) } + listOf(back)))
             }
             "unlink" -> { s.tgRemoveChat(chat); say("unlinked"); g.kick() }
             else -> say("unknown")
@@ -319,9 +337,8 @@ object Tg {
     private fun callback(g: Guard, s: Store, q: JSONObject) {
         val chat = q.optJSONObject("message")?.optJSONObject("chat")?.optLong("id") ?: return
         val tok = s.tgToken.ifBlank { return }
-        runCatching { call(tok, "answerCallbackQuery", JSONObject().put("callback_query_id", q.optString("id"))) }
-        if (!s.tgChatOk(chat)) return
         val d = q.optString("data"); val lang = s.tgLang; val now = System.currentTimeMillis()
+        if (!s.tgChatOk(chat)) return
         val msgId = q.optJSONObject("message")?.optLong("message_id") ?: 0
         fun done(text: String) {   // the buttons go away, the answer replaces them
             runCatching { call(tok, "editMessageReplyMarkup", JSONObject().put("chat_id", chat).put("message_id", msgId).put("reply_markup", JSONObject().put("inline_keyboard", JSONArray()))) }
@@ -329,7 +346,7 @@ object Tg {
         }
         val label = { p: String -> runCatching { g.currentState().optJSONArray("apps") }.getOrNull()?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.firstOrNull { it.optString("pkg") == p }?.optString("label") } ?: p }
         when {
-            d.startsWith("c:") -> TgLogic.fromData(d)?.let { runCmd(g, s, chat, it) }
+            d.startsWith("c:") -> TgLogic.fromData(d)?.let { runCmd(g, s, chat, it, if (it.name in PANELS) msgId else 0) }
             d == "n:main" -> edit(s, chat, msgId, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang))
             d.startsWith("n:") -> { val n = d.removePrefix("n:"); TgLogic.sub(lang, n)?.let { edit(s, chat, msgId, subTitle(s, n, lang), it) } }
             d == "r:status" -> edit(s, chat, msgId, TgLogic.status(g.currentState(), kidName(g), lang, now, ::hm), TgLogic.statusKb(lang))
@@ -345,9 +362,15 @@ object Tg {
                 if (g.command(JSONObject().put("type", "answer").put("id", id).put("ok", false)) != "ok") return done(TgLogic.s(lang, "reqGone"))
                 done(TgLogic.s(lang, "reqNo"))
             }
-            d.startsWith("b:") -> { val p = d.removePrefix("b:"); g.setRules(TgLogic.block(s.rules, p, true, now)); send(s, chat, TgLogic.s(lang, "blocked", label(p))) }
-            d.startsWith("u:") -> { val p = d.removePrefix("u:"); g.setRules(TgLogic.block(s.rules, p, false, now)); send(s, chat, TgLogic.s(lang, "unblockedOne", label(p))) }
+            d.startsWith("b:") || d.startsWith("u:") -> {   // the picker becomes the answer, with "another one" + back
+                val on = d[0] == 'b'; val p = d.substring(2)
+                chatAction(s, chat, "typing")
+                g.setRules(TgLogic.block(s.rules, p, on, now))
+                edit(s, chat, msgId, TgLogic.s(lang, if (on) "blocked" else "unblockedOne", label(p)), TgLogic.keyboard(listOf(listOf(
+                    TgLogic.s(lang, if (on) "b.blockMore" else "b.unblockMore") to (if (on) "c:block" else "c:unblock"), TgLogic.s(lang, "b.back") to "n:main"))))
+            }
             d.startsWith("f:") -> {
+                chatAction(s, chat, "upload_document")
                 val e = Files.get(g, d.removePrefix("f:")) ?: return
                 val bytes = Files.openIn(g, e)?.use { it.readBytes() } ?: return
                 sendFile(s, chat, "sendDocument", "document", e.name, e.mime, bytes)

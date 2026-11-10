@@ -131,6 +131,7 @@ object TgLogic {
         "b.resume" to "▶️ Gỡ cấm", "b.noLimit" to "Bỏ giới hạn", "b.bedOn" to "🌙 Bật", "b.bedOff" to "☀️ Tắt",
         "b.plus" to "+%1\$s", "b.sec" to "%1\$d giây",
         "kbPh" to "Gõ lệnh hoặc bấm nút…",
+        "busy" to "⏳ Đang làm…", "b.blockMore" to "⛔ Chặn app khác", "b.unblockMore" to "✅ Bỏ chặn app khác",
         "botShort" to "Bot KidGuard riêng của nhà bạn: xem và quản lý điện thoại của con.",
         "botDesc" to "Bot này chạy trên chính điện thoại của con (KidGuard). Bấm Bắt đầu rồi gửi mã 6 số trong KidGuard (Cài đặt > Telegram) để liên kết. Chỉ chat đã liên kết mới điều khiển được.",
         // alerts
@@ -213,6 +214,7 @@ object TgLogic {
         "b.resume" to "▶️ End pause", "b.noLimit" to "No limit", "b.bedOn" to "🌙 On", "b.bedOff" to "☀️ Off",
         "b.plus" to "+%1\$s", "b.sec" to "%1\$d s",
         "kbPh" to "Send a command or tap a button…",
+        "busy" to "⏳ Working…", "b.blockMore" to "⛔ Block another", "b.unblockMore" to "✅ Unblock another",
         "botShort" to "Your family's own KidGuard bot: see and manage your child's phone.",
         "botDesc" to "This bot runs on your child's phone itself (KidGuard). Press Start, then send the 6-digit code from KidGuard (Settings > Telegram) to link. Only linked chats can control the phone.",
         "aSos" to "🆘 %1\$s pressed SOS!",
