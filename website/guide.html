@@ -80,6 +80,7 @@
         <li><a href="#away">Khi con ra khỏi nhà</a></li>
         <li><a href="#tailscale">Tailscale</a></li>
         <li><a href="#relay">Relay Cloudflare Worker</a></li>
+        <li><a href="#telegram">Bot Telegram</a></li>
         <li><a href="#features">Tính năng</a></li>
         <li><a href="#iphone">Con dùng iPhone</a></li>
         <li><a href="#remove">Gỡ KidGuard</a></li>
@@ -280,6 +281,25 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
 
   <h3 id="shared-relay">Relay chung (để thử)</h3>
   <p>Làm như trên nhưng dán <code>https://kidguard.99-hoangtran.workers.dev</code>, không cần cài gì. Đổi lại, trạng thái của con đi qua tài khoản Cloudflare của tác giả, và hạn mức miễn phí mỗi ngày dùng chung với mọi người nên có thể hết trong ngày. Dùng hằng ngày thì chuyển sang Tailscale hoặc relay riêng.</p>
+</section>
+
+<section id="telegram">
+  <h2>Bot Telegram <span class="tag ok">Dễ nhất</span></h2>
+  <p>Điều khiển và nhận báo ngay trong Telegram: xem tình hình, cho thêm giờ, khóa máy, tìm vị trí, chụp màn hình, chặn app bằng nút bấm. SOS, xin thêm giờ (có nút Cho / Từ chối), nhập sai PIN (kèm ảnh) tự gửi tới. Không cần Tailscale hay relay: máy con tự chạy bot. Mỗi bé 1 bot riêng.</p>
+  <ol class="steps">
+    <li><b>Tạo bot (1 phút).</b> Trên điện thoại bố mẹ, mở <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> trong Telegram, bấm <b>Bắt đầu</b>, gửi <code>/newbot</code>. Gửi tên bot (vd: <code>Nhà Bin</code>), rồi tên đăng nhập kết thúc bằng <code>bot</code> (vd: <code>nhabin_kidguard_bot</code>; bị trùng thì thêm số).</li>
+    <li><b>Copy token.</b> BotFather trả về 1 dòng dạng <code>123456789:AAH…</code>: chạm vào là copy. Nhấn giữ cả tin → Sao chép cũng được. Giữ kín token.</li>
+    <li><b>Dán vào trang phụ huynh.</b> <b>Cài đặt → Telegram</b>, dán vào ô token (dán cả tin cũng được, trang tự lấy token), bấm <b>Kết nối</b>.</li>
+    <li><b>Liên kết.</b> Trang hiện nút <b>Mở Telegram và liên kết</b> và mã QR. Bấm nút (hoặc quét QR bằng camera điện thoại), Telegram mở bot, bấm <b>Bắt đầu</b>. Bot chào và hiện Menu.</li>
+    <li><b>Thêm người nhận</b> (bố, mẹ, ông bà, tối đa 5): bấm <b>Mã khác</b> và gửi link cho người đó.</li>
+  </ol>
+  <p>Dùng: bấm <b>📋 Menu</b> để bấm nút, hoặc gõ lệnh (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/help</code> xem hết lệnh, <code>/lang</code> đổi Tiếng Việt / English. Gỡ quản lý, huỷ ghép, xoá dữ liệu không làm được qua Telegram.</p>
+  <div class="card faq">
+    <details><summary>Có 2 bé thì sao?</summary><p>Tạo 2 bot (vd: Nhà Bin, Nhà Na), mỗi bot dán vào trang của bé đó. 1 bot chỉ chạy được trên 1 máy con.</p></details>
+    <details><summary>Báo “Token sai” hoặc “đang được nơi khác dùng”?</summary><p>Copy lại cả tin của BotFather và dán. “Nơi khác dùng” nghĩa là bot đã gắn cho máy khác: tạo bot mới cho bé này. Lỡ lộ token: gửi <code>/revoke</code> cho BotFather lấy token mới, dán lại.</p></details>
+    <details><summary>Bấm Bắt đầu mà bot im?</summary><p>Mã liên kết dùng được 15 phút: bấm <b>Mã khác</b>. Máy con phải có mạng (bot chạy trên máy con).</p></details>
+    <details><summary>Tin nhắn đi qua đâu?</summary><p>Qua máy chủ Telegram (không mã hoá đầu cuối). Token chỉ lưu trên máy con. Tắt bot: <b>Cài đặt → Telegram → Tắt bot</b>, máy con quên token.</p></details>
+  </div>
 </section>
 
 <section id="features">

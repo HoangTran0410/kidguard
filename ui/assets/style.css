@@ -370,3 +370,12 @@ button.pc{text-align:left;border:0;font-weight:400;justify-content:flex-start;al
 .tgqr .qrw{width:150px}
 .tgtry .chip{font-family:ui-monospace,Menlo,monospace;margin-left:0}
 a.lnkbtn.pri{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:700}a.lnkbtn.pri:hover{background:var(--primary);filter:brightness(1.12)}
+.tgnote{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--tint)}.tgnote>.si{flex:none;color:var(--accent)}
+.tgsm{font-size:13px}
+.tgchat{display:flex;flex-direction:column;gap:4px;width:100%;max-width:340px;padding:10px;border-radius:14px;background:var(--tint);font-size:13px}
+.tgchat .m{align-self:flex-start;max-width:85%;padding:6px 10px;border-radius:12px 12px 12px 4px;background:var(--card);border:1px solid var(--stroke)}
+.tgchat .m.me{align-self:flex-end;border-radius:12px 12px 4px 12px;background:#229ed9;border-color:#229ed9;color:#fff}
+.tgchat .tok{font-family:ui-monospace,Menlo,monospace;color:#229ed9;text-decoration:underline;word-break:break-all}
+.tgfaq{margin:4px 0 10px}.tgfaq details{border-top:1px solid var(--stroke);padding:8px 0}.tgfaq summary{cursor:pointer;font-weight:600}.tgfaq p{margin:6px 0 0}
+#tgTokOk:empty{display:none}
+.tgsm.t-ok{color:var(--ok)}.tgsm.t-bad{color:var(--danger)}

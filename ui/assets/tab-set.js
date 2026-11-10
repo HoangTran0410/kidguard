@@ -342,13 +342,31 @@ function tgHtml() {
   let body;
   if (!g.on) body = `
     <p>${t("tg.p")}</p>
+    <p class="tgnote">${ic("info")} <span>${t("tg.one")}</span></p>
     <ol class="tgsteps">
       <li><b>${t("tg.s1h")}</b><span class="mute">${t("tg.s1")}</span>
-        <a class="lnkbtn" href="https://t.me/BotFather" target="_blank" rel="noopener">${ic("send")} ${t("tg.openBf")}</a></li>
+        <a class="lnkbtn pri" href="https://t.me/BotFather" target="_blank" rel="noopener">${ic("send")} ${t("tg.openBf")}</a>
+        <div class="tgchat" role="img" aria-label="${esc(t("tg.chatAlt"))}">
+          <span class="m me">/newbot</span>
+          <span class="m">${t("tg.bf1")}</span>
+          <span class="m me">${t("tg.exName")}</span>
+          <span class="m">${t("tg.bf2")}</span>
+          <span class="m me">${t("tg.exUser")}</span>
+          <span class="m">${t("tg.bf3")}<br><span class="tok">123456789:AAH…xyz</span></span>
+        </div>
+        <span class="mute tgsm">${t("tg.taken")}</span></li>
       <li><b>${t("tg.s2h")}</b><span class="mute">${t("tg.s2")}</span></li>
       <li><b>${t("tg.s3h")}</b><span class="mute">${t("tg.s3")}</span>
-        <span class="row"><input id="tgTok" class="sp" type="password" autocomplete="off" spellcheck="false" placeholder="123456789:AA…" aria-label="${esc(t("tg.tok"))}"><button id="tgSet" class="pri">${ic("link")} ${t("tg.connect")}</button></span></li>
+        <span class="row"><input id="tgTok" class="sp" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="123456789:AA…" aria-label="${esc(t("tg.tok"))}"><button type="button" id="tgPaste">${ic("clipboard-paste")} ${t("tg.paste")}</button></span>
+        <span id="tgTokOk" class="tgsm mute" aria-live="polite"></span>
+        <button id="tgSet" class="pri">${ic("link")} ${t("tg.connect")}</button></li>
+      <li><b>${t("tg.s4h")}</b><span class="mute">${t("tg.s4")}</span></li>
     </ol>
+    <div class="tgfaq">
+      <details><summary>${t("tg.q1")}</summary><p>${t("tg.a1")}</p></details>
+      <details><summary>${t("tg.q2")}</summary><p>${t("tg.a2")}</p></details>
+      <details><summary>${t("tg.q3")}</summary><p>${t("tg.a3")}</p></details>
+    </div>
     <p class="mute">${ic("shield")} ${t("tg.privacy")}</p>`;
   else {
     const link = code && g.bot ? `https://t.me/${encodeURIComponent(g.bot)}?start=${code}` : "";
@@ -366,6 +384,7 @@ function tgHtml() {
     ${chats.length ? `<div class="list">${chats.map(c => `<div class="li"><span class="av">${esc((c.name || "?").trim().charAt(0).toUpperCase())}</span><span class="x"><b>${esc(c.name || c.id)}</b><span class="sub mute">${t("tg.since", new Date(c.at).toLocaleDateString(lang))}</span></span><button type="button" class="pill" data-tgun="${esc(c.id)}">${ic("unlink")} ${t("tg.unlink")}</button></div>`).join("")}</div>`
       : `<p class="mute">${t("tg.noChats")}</p>`}
     <h3>${t(chats.length ? "tg.addMore" : "tg.addFirst")}</h3>
+    ${code && chats.length < 5 ? `<p class="mute">${t("tg.linkHow")}</p>` : ""}
     ${add}
     <h3>${t("tg.tryH")}</h3>
     <p class="mute">${t("tg.tryP")}</p>
@@ -376,9 +395,20 @@ function tgHtml() {
 }
 function tgWire() {
   const again = () => setTimeout(refresh, 2500);
+  const TOK = /\d{5,15}:[A-Za-z0-9_-]{30,60}/;
+  const inp = $("#tgTok"), okEl = $("#tgTokOk");
+  const check = () => {   // whole BotFather message pasted -> keep only the token
+    const m = inp.value.match(TOK); if (m && m[0] !== inp.value) inp.value = m[0];
+    okEl.className = "tgsm " + (m ? "t-ok" : inp.value.trim() ? "t-bad" : "mute");
+    okEl.textContent = m ? "✓ " + t("tg.tokOk") : inp.value.trim() ? t("tg.tokBad") : "";
+  };
+  if (inp) { inp.oninput = check; inp.onpaste = () => setTimeout(check, 0); }
+  if ($("#tgPaste")) $("#tgPaste").onclick = async () => {
+    try { inp.value = await navigator.clipboard.readText(); check(); } catch (e) { inp.focus(); toast("warn|" + t("tg.pasteHand")); }
+  };
   if ($("#tgSet")) $("#tgSet").onclick = async () => {
-    const tok = $("#tgTok").value.trim();
-    if (!/^\d{5,15}:[A-Za-z0-9_-]{30,60}$/.test(tok)) { toast("err|" + t("tg.e.bad token")); return; }
+    const tok = (inp.value.match(TOK) || [""])[0];
+    if (!tok) { toast("err|" + t("tg.e.bad token")); inp.focus(); return; }
     await cmd({ type: "tgSet", token: tok, lang, name: (cur && cur.name) || "" }, t("tg.setDone"), false); again();
   };
   if ($("#tgCode")) $("#tgCode").onclick = () => cmd({ type: "tgCode" }, t("tg.codeDone"), false).then(again);

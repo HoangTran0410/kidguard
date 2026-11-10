@@ -166,14 +166,16 @@ Without this the parent app checks every ~15 minutes. With it, SOS and "more tim
 2. **Project settings → Service accounts → Generate new private key**, then: `cd relay && npx wrangler secret put FCM_SA < /path/key.json && npx wrangler deploy`. Delete the key file afterwards.
 3. Open the parent app once: it registers itself with every kid that uses the Worker. The parent's phone needs Google Play services.
 
-### Telegram alerts (optional, no parent app needed)
+### Telegram bot (optional, easiest)
 
-Same events as above (SOS, "more time", new app, tamper) as a plain Telegram message, sent by your Worker. Text only: the kid's name and the kind of alert, no location or notes.
+The child's phone runs your family's own Telegram bot: status, extra time, pause, lock, location, screenshot, block apps, files, all with buttons; SOS, "more time" requests (Allow / No buttons) and wrong-PIN photos arrive by themselves. No Tailscale or relay needed. **One bot per child.**
 
-1. In Telegram talk to @BotFather: `/newbot`, copy the token.
-2. `cd relay && npx wrangler secret put TG_BOT` (paste the token), `npx wrangler deploy`. Or run `TG_BOT_TOKEN=<token> scripts/relay.sh`, which does both and registers the webhook.
-3. Without the script, register the webhook once: `curl "https://api.telegram.org/bot<token>/setWebhook" -d url=https://<your-worker>/tg/$(printf 'tg:%s' "<token>" | shasum -a 256 | cut -c1-32)`
-4. Parent page (relay kid) → Settings → **Telegram alerts** → Link Telegram → Start. Unlink there, or send the `/stop_...` command from the bot's message.
+1. On the parent's phone open [@BotFather](https://t.me/BotFather) in Telegram, tap **Start**, send `/newbot`, then a name (`Bin's home`) and a username ending in `bot` (`binshome_kidguard_bot`).
+2. Copy the token BotFather sends (`123456789:AAH…`; tap it, or copy the whole message).
+3. Parent page → **Settings → Telegram** → paste → **Connect**.
+4. Tap **Open Telegram and link** (or scan the QR) → **Start** in the bot. Add up to 5 people with **Other code**.
+
+In the bot: **📋 Menu** for buttons, `/help` for commands, `/lang` for English / Tiếng Việt. Release, unpair and clear data are not possible over Telegram. Messages go through Telegram's servers; the token stays on the child's phone. Details: [docs/protocol.md](docs/protocol.md) "Telegram bot on the child phone".
 
 ## iPhone / iPad
 

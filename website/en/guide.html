@@ -80,6 +80,7 @@
         <li><a href="#away">Away from home</a></li>
         <li><a href="#tailscale">Tailscale</a></li>
         <li><a href="#relay">Cloudflare Worker relay</a></li>
+        <li><a href="#telegram">Telegram bot</a></li>
         <li><a href="#features">Features</a></li>
         <li><a href="#iphone">Child on an iPhone</a></li>
         <li><a href="#remove">Remove KidGuard</a></li>
@@ -280,6 +281,25 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
 
   <h3 id="shared-relay">Shared relay (to try it)</h3>
   <p>Same as above, but paste <code>https://kidguard.99-hoangtran.workers.dev</code>: nothing to install. In exchange your child's state passes through the author's Cloudflare account, and the free daily quota is shared by everyone, so it can run out for the day. For daily use switch to Tailscale or your own relay.</p>
+</section>
+
+<section id="telegram">
+  <h2>Telegram bot <span class="tag ok">Easiest</span></h2>
+  <p>Control and get alerts right in Telegram: status, extra time, lock, location, screenshot, block apps with buttons. SOS, "more time" requests (with Allow / No buttons) and wrong PINs (with a photo) arrive by themselves. No Tailscale or relay needed: the child's phone runs the bot. One bot per child.</p>
+  <ol class="steps">
+    <li><b>Create a bot (1 minute).</b> On the parent's phone open <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> in Telegram, tap <b>Start</b>, send <code>/newbot</code>. Send a name (e.g. <code>Bin's home</code>), then a username ending in <code>bot</code> (e.g. <code>binshome_kidguard_bot</code>; taken? add digits).</li>
+    <li><b>Copy the token.</b> BotFather answers with a line like <code>123456789:AAH…</code>: tap it to copy. Long-press the whole message → Copy works too. Keep the token secret.</li>
+    <li><b>Paste it in the parent page.</b> <b>Settings → Telegram</b>, paste into the token box (the whole message is fine, the page picks the token out), tap <b>Connect</b>.</li>
+    <li><b>Link.</b> The page shows <b>Open Telegram and link</b> and a QR code. Tap it (or scan the QR with your phone's camera), Telegram opens the bot, tap <b>Start</b>. The bot says hello and shows the Menu.</li>
+    <li><b>Add people</b> (mum, dad, grandparents, up to 5): tap <b>Other code</b> and send them the link.</li>
+  </ol>
+  <p>Use it: tap <b>📋 Menu</b> for buttons, or type commands (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/help</code> lists them all, <code>/lang</code> switches English / Tiếng Việt. Release, unpair and clear data are not possible over Telegram.</p>
+  <div class="card faq">
+    <details><summary>Two children?</summary><p>Make two bots (e.g. Bin's home, Na's home), each pasted on that child's page. One bot runs on one child's phone only.</p></details>
+    <details><summary>“Wrong token” or “used somewhere else”?</summary><p>Copy BotFather's whole message again and paste it. “Used somewhere else” means the bot belongs to another phone: make a new bot for this child. Token leaked? Send <code>/revoke</code> to BotFather for a new one and paste it again.</p></details>
+    <details><summary>Tapped Start, the bot says nothing?</summary><p>A link code works for 15 minutes: tap <b>Other code</b>. The child's phone must be online (the bot runs on it).</p></details>
+    <details><summary>Where do messages go?</summary><p>Through Telegram's servers (not end-to-end encrypted). The token stays on the child's phone. Turn it off: <b>Settings → Telegram → Turn off</b>, the phone forgets the token.</p></details>
+  </div>
 </section>
 
 <section id="features">
