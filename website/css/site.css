@@ -303,3 +303,24 @@ nav a[aria-current="page"]{color:var(--ink);font-weight:700}
 .btn.gai svg{color:#f59e0b}
 .toast{position:fixed;left:50%;bottom:24px;width:max-content;max-width:calc(100vw - 32px);text-align:center;transform:translateX(-50%) translateY(calc(100% + 32px));visibility:hidden;background:var(--card);color:var(--ink);border:1px solid var(--line2);padding:10px 18px;border-radius:12px;font-weight:600;font-size:15px;box-shadow:0 8px 24px var(--shadow);z-index:50}
 .toast.show{transform:translateX(-50%) translateY(0);visibility:visible;transition:transform .25s}
+
+/* screenshot lightbox (js/shots.js) */
+.lb-t{cursor:zoom-in;transition:transform .15s}
+.lb-t:hover{transform:translateY(-3px)}
+.lb-t:focus-visible{outline:2px solid #3b82f6;outline-offset:3px}
+html.lb-on{overflow:hidden}
+.lb{position:fixed;inset:0;z-index:100;background:rgba(5,8,14,.95);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:56px 72px 24px}
+.lb[hidden]{display:none}
+.lb-f{margin:0;display:flex;flex-direction:column;align-items:center;max-height:100%;min-height:0}
+.lb-i{max-height:calc(100vh - 140px);max-height:calc(100dvh - 140px);max-width:100%;width:auto;border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.6);object-fit:contain}
+.lb-c{margin-top:14px;color:#c9d1dc;font-size:15px;text-align:center;line-height:1.5}
+.lb-c b{display:block;color:#fff;font-size:17px}
+.lb-n{position:absolute;top:18px;left:0;right:0;text-align:center;color:#9aa4b2;font-size:14px;pointer-events:none}
+.lb-b{position:absolute;border:0;border-radius:999px;background:rgba(255,255,255,.12);color:#fff;width:48px;height:48px;font-size:26px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.lb-b:hover{background:rgba(255,255,255,.22)}
+.lb-b:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
+.lb-x{top:10px;right:12px;font-size:20px}
+.lb-p{left:12px;top:50%;margin-top:-24px;font-size:34px}
+.lb-q{right:12px;top:50%;margin-top:-24px;font-size:34px}
+@media (max-width:640px){.lb{padding:52px 8px 16px}.lb-p,.lb-q{top:auto;bottom:14px;margin:0}.lb-i{max-height:calc(100dvh - 170px)}}
+@media (prefers-reduced-motion:reduce){.lb-t{transition:none}.lb-t:hover{transform:none}}
