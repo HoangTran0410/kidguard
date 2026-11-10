@@ -40,7 +40,7 @@ L.vi = {
   "pinGate.h": "Đặt PIN của bố mẹ", "pinGate.p": "Máy này đã ghép từ trước nhưng chưa có PIN. Bố mẹ cần đặt PIN trước khi dùng tiếp: PIN để ghép thêm máy và để quản lý ngay trên máy con (thay cho việc chờ 24 giờ). Con không được biết PIN.",
   "pinGate.go": "Đặt PIN", "pinGate.wait": "Đang lưu PIN…", "pinGate.off": "Không lưu được khi đang xem bản lưu cũ. Kết nối lại máy con rồi thử lại.",
   "local.bar": "Quản lý trên máy con · tự thoát sau 5 phút", "local.why": "Trang tự đóng khi tắt màn hình, khi rời trang hoặc sau 5 phút không chạm.", "local.end": "Thoát", "local.over": "Phiên quản lý đã hết.",
-  "list.none": "Chưa có máy nào. Mở link \"điều khiển từ xa\" từ trang của con (khi ở nhà, tab Cài đặt) để thêm.",
+  "st.none": "Chưa có máy nào trên trình duyệt này.", "st.title": "Bắt đầu", "st.more": "Thêm máy", "st.install": "Cài lên máy con", "st.installD": "Mở trang này trên máy con: tải app, kiểm tra và cài từng bước.", "st.qr": "Mã QR Device Owner", "st.qrD": "Máy mới hoặc vừa khôi phục cài đặt gốc: chạm 6 lần ở màn chào rồi quét mã.", "st.pair": "Ghép máy của con", "st.pairD": "Trên máy con: KidGuard → tab Cài đặt → \"Điều khiển từ xa\", mở link đó trên máy bạn.", "st.guide": "Hướng dẫn đầy đủ", "st.guideD": "Từng cách cài, Tailscale, relay, bot Telegram, khi có lỗi.", 
   ov: "Tổng quan", list: "Danh sách", "ov.where": "Các con đang ở đâu", "ov.week": "Thời gian dùng 7 ngày", "ov.report": "Báo cáo tuần",
   "ov.pauseAll": "Dừng tất cả", "ov.resumeAll": "Mở lại tất cả", "ov.pauseGo": "Dừng tất cả", "ov.resumeGo": "Mở lại",
   "ov.pauseAsk": "Cấm dùng máy của cả {0} con đến {1} và khóa màn hình ngay?\nMáy mất kết nối sẽ nhận lệnh khi có mạng lại.", "ov.resumeAsk": "Mở lại máy cho tất cả các con?",

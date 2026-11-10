@@ -324,3 +324,37 @@ html.lb-on{overflow:hidden}
 .lb-q{right:12px;top:50%;margin-top:-24px;font-size:34px}
 @media (max-width:640px){.lb{padding:52px 8px 16px}.lb-p,.lb-q{top:auto;bottom:14px;margin:0}.lb-i{max-height:calc(100dvh - 170px)}}
 @media (prefers-reduced-motion:reduce){.lb-t{transition:none}.lb-t:hover{transform:none}}
+
+/* guide: one icon per section, in the TOC and on the section heading (Lucide, img/ic/*.svg as masks: CSP-safe) */
+.toc a{display:flex;align-items:center;gap:10px;border-radius:8px;padding-left:6px;padding-right:6px;transition:background .15s,color .15s}
+.toc a::before{content:"";flex:none;width:18px;height:18px;background:currentColor;opacity:.75;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
+.toc .sub a::before{width:15px;height:15px;opacity:.6}
+.toc a.on{color:var(--link);font-weight:700;background:var(--link-line);box-shadow:inset 3px 0 0 var(--link)}
+@supports (background:color-mix(in srgb,red 12%,transparent)){.toc a.on{background:color-mix(in srgb,var(--link) 12%,transparent)}}
+.toc a.on::before{opacity:1}
+section[id]>h2{display:flex;align-items:center;gap:14px}
+section[id]>h2::before{content:"";flex:none;width:44px;height:44px;border-radius:12px;background:var(--link);-webkit-mask:var(--ic) center/24px no-repeat,linear-gradient(#000,#000);-webkit-mask-composite:xor;mask:var(--ic) center/24px no-repeat exclude,linear-gradient(#000,#000)}
+.toc a[href="#install"],#install>h2{--ic:url(../img/ic/download.svg)}
+.toc a[href="#install-phone"],#install-phone>h2{--ic:url(../img/ic/smartphone.svg)}
+.toc a[href="#install-qr"],#install-qr>h2{--ic:url(../img/ic/camera.svg)}
+.toc a[href="#install-usb"],#install-usb>h2{--ic:url(../img/ic/hard-drive.svg)}
+.toc a[href="#install-cli"],#install-cli>h2{--ic:url(../img/ic/code.svg)}
+.toc a[href="#install-basic"],#install-basic>h2{--ic:url(../img/ic/shield.svg)}
+.toc a[href="#pair"],#pair>h2{--ic:url(../img/ic/link.svg)}
+.toc a[href="#parent-app"],#parent-app>h2{--ic:url(../img/ic/bell.svg)}
+.toc a[href="#away"],#away>h2{--ic:url(../img/ic/route.svg)}
+.toc a[href="#tailscale"],#tailscale>h2{--ic:url(../img/ic/globe.svg)}
+.toc a[href="#relay"],#relay>h2{--ic:url(../img/ic/layers.svg)}
+.toc a[href="#telegram"],#telegram>h2{--ic:url(../img/ic/send.svg)}
+.toc a[href="#features"],#features>h2{--ic:url(../img/ic/sparkles.svg)}
+.toc a[href="#iphone"],#iphone>h2{--ic:url(../img/ic/smartphone.svg)}
+.toc a[href="#remove"],#remove>h2{--ic:url(../img/ic/trash-2.svg)}
+.toc a[href="#faq"],#faq>h2{--ic:url(../img/ic/circle-help.svg)}
+/* "Ask an AI" hover: lift + warm glow (it had no hover at all) */
+.btn.gai{transition:transform .18s,box-shadow .18s,background .3s}
+.btn.gai svg{transition:transform .3s}
+.btn.gai:hover{transform:translateY(-2px);box-shadow:0 10px 28px -10px rgba(245,158,11,.55),0 6px 18px -10px rgba(37,99,235,.6);background:linear-gradient(var(--card),var(--card)) padding-box,linear-gradient(300deg,var(--pri),#f59e0b) border-box}
+.btn.gai:hover svg{transform:rotate(-12deg) scale(1.15)}
+.btn.gai:active{transform:translateY(0) scale(.98)}
+.btn.gai:focus-visible{outline:2px solid var(--link);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.btn.gai,.btn.gai svg,.toc a{transition:none}.btn.gai:hover{transform:none}.btn.gai:hover svg{transform:none}}

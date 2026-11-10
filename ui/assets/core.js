@@ -467,12 +467,24 @@ function pairScreen(hello, target, prefill = "") {
   };
 }
 
+// The relay's front door (owner 2026-11-11: "/" was a dead end with no phone yet): every way in from one page, as rows
+// (install on the kid's phone, Device Owner QR, how to pair, the guide). Full card when no phone yet, a short one after.
+function startCard(full) {
+  const row = (href, icn, k, ext) => `<a class="go" href="${href}"${ext ? ' target="_blank" rel="noopener"' : ""}><span class="gi">${ic(icn)}</span>`
+    + `<span class="gt"><b>${t("st." + k)}</b>${full ? `<small>${t("st." + k + "D")}</small>` : ""}</span>${ic(ext ? "external-link" : "chevron-right")}</a>`;
+  return `<div class="card start"><h2>${ic("sparkles")} ${t(full ? "st.title" : "st.more")}</h2>${full ? `<p class="sub">${t("st.none")}</p>` : ""}`
+    + row("/install", "download", "install") + row("/qr", "shield", "qr")
+    + (full ? `<div class="go nolink"><span class="gi">${ic("link")}</span><span class="gt"><b>${t("st.pair")}</b><small>${t("st.pairD")}</small></span></div>` : "")
+    + row("https://kid-guard.pages.dev/guide", "book-open", "guide", true) + `</div>`;
+}
+
 function listScreen(list) {
   reScreen = () => listScreen(list);
   $("#app").innerHTML = head("KidGuard") + (list.length ? list.map((k, i) =>
     `<div class="card row"><b class="sp">${ic("user")} ${esc(k.name)}</b><button class="pri" data-i="${i}">${ic("folder-open")} ${t("open")}</button></div>`).join("")
-    : `<div class="card empty"><span class="e">${ic("inbox")}</span><p>${t("list.none")}</p></div>`)
-    + (list.length > 1 ? `<button class="pri" id="ovGo">${ic("layout-grid")} ${t("ovN", list.length)}</button>` : "");
+    : "")
+    + (list.length > 1 ? `<button class="pri" id="ovGo">${ic("layout-grid")} ${t("ovN", list.length)}</button>` : "")
+    + startCard(!list.length);
   $("#app").querySelectorAll("[data-i]").forEach(b => b.onclick = () => open(list[+b.dataset.i]));
   if ($("#ovGo")) $("#ovGo").onclick = () => overview(list, () => listScreen(list));
 }
