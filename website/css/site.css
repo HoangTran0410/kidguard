@@ -125,6 +125,8 @@ details.warnote li+li{margin-top:var(--s1)}
 details.warnote p{margin:var(--s2) 0 0;padding:0;color:var(--muted);font-size:14px}
 
 /* screenshots */
+.gh{margin:var(--s6) 0 var(--s4);font-size:17px;color:var(--ink)}
+.gh:first-child{margin-top:0}
 .gallery{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--s5)}
 .gallery figure{min-width:0}
 .gallery .phone img{aspect-ratio:800/1720;object-fit:cover;object-position:top}

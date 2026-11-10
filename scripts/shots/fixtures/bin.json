@@ -1,0 +1,642 @@
+{
+  "id": "5b1e0c9a7d3f4e21",
+  "t": "@0",
+  "day": "@day:0",
+  "model": "Samsung Galaxy A15",
+  "android": "14",
+  "sdk": 34,
+  "version": "0.9.11",
+  "owner": true,
+  "mode": "owner",
+  "usageAccess": true,
+  "acc": true,
+  "accPaused": [],
+  "accReEnable": true,
+  "locationOn": true,
+  "dev": {
+    "on": false,
+    "adb": false,
+    "canOff": true
+  },
+  "battery": 77,
+  "charging": false,
+  "screenOn": true,
+  "current": "",
+  "usedMs": 4500000,
+  "leftMs": 2700000,
+  "limitMin": 120,
+  "pairUntil": 0,
+  "totpOn": true,
+  "unlockUntil": 0,
+  "net": {
+    "type": "cell",
+    "metered": true,
+    "ip": "10.64.12.8",
+    "carrier": "Viettel",
+    "rssi": -82,
+    "bars": 3
+  },
+  "lan": [
+    "http://192.168.1.24:8770"
+  ],
+  "relay": "https://kidguard.example.workers.dev",
+  "ts": {
+    "state": "on",
+    "ip": "100.101.12.34",
+    "host": "bin-galaxy-a15",
+    "err": "",
+    "noExpiry": true
+  },
+  "tg": {
+    "on": true,
+    "bot": "KidGuardFamily_bot",
+    "err": "",
+    "code": null,
+    "codeUntil": 0,
+    "chats": [
+      {
+        "id": "101",
+        "name": {
+          "vi": "Mẹ",
+          "en": "Mom"
+        },
+        "at": "@-3d",
+        "lang": "vi"
+      },
+      {
+        "id": "102",
+        "name": {
+          "vi": "Bố",
+          "en": "Dad"
+        },
+        "at": "@-3d",
+        "lang": "vi"
+      }
+    ]
+  },
+  "devices": [
+    {
+      "id": "d1",
+      "name": "Chrome / Mac",
+      "at": "@-20d",
+      "last": "@-1m",
+      "self": true
+    },
+    {
+      "id": "d2",
+      "name": "KidGuard app / Android",
+      "at": "@-14d",
+      "last": "@-40m"
+    },
+    {
+      "id": "d3",
+      "name": "relay",
+      "at": "@-14d",
+      "last": "@-2h"
+    }
+  ],
+  "apps": [
+    {
+      "pkg": "com.roblox.client",
+      "label": "Roblox",
+      "ms": 1440000,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.google.android.youtube",
+      "label": "YouTube",
+      "ms": 1260000,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.zing.zalo",
+      "label": "Zalo",
+      "ms": 540000,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.duolingo",
+      "label": "Duolingo",
+      "ms": 480000,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.android.chrome",
+      "label": "Chrome",
+      "ms": 360000,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "org.khanacademy.android",
+      "label": "Khan Academy",
+      "ms": 300000,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.mojang.minecraftpe",
+      "label": "Minecraft",
+      "ms": 120000,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.zhiliaoapp.musically",
+      "label": "TikTok",
+      "ms": 0,
+      "blocked": "blocked",
+      "suspended": true,
+      "protected": false
+    },
+    {
+      "pkg": "com.supercell.clashroyale",
+      "label": "Clash Royale",
+      "ms": 0,
+      "blocked": "new",
+      "suspended": true,
+      "protected": false,
+      "new": true
+    },
+    {
+      "pkg": "com.google.android.apps.photos",
+      "label": "Photos",
+      "ms": 0,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.google.android.apps.maps",
+      "label": "Maps",
+      "ms": 0,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.spotify.music",
+      "label": "Spotify",
+      "ms": 0,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.google.android.calculator",
+      "label": "Calculator",
+      "ms": 0,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.google.android.apps.classroom",
+      "label": "Google Classroom",
+      "ms": 0,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.facebook.orca",
+      "label": "Messenger",
+      "ms": 0,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.google.android.apps.docs",
+      "label": "Drive",
+      "ms": 0,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    }
+  ],
+  "history": [
+    {
+      "day": "@day:-1",
+      "ms": 6300000,
+      "top": [
+        {
+          "pkg": "com.roblox.client",
+          "label": "Roblox",
+          "ms": 2400000
+        },
+        {
+          "pkg": "com.google.android.youtube",
+          "label": "YouTube",
+          "ms": 1800000
+        },
+        {
+          "pkg": "com.zing.zalo",
+          "label": "Zalo",
+          "ms": 900000
+        }
+      ]
+    },
+    {
+      "day": "@day:-2",
+      "ms": 5400000,
+      "top": [
+        {
+          "pkg": "com.google.android.youtube",
+          "label": "YouTube",
+          "ms": 2100000
+        },
+        {
+          "pkg": "com.roblox.client",
+          "label": "Roblox",
+          "ms": 1500000
+        }
+      ]
+    },
+    {
+      "day": "@day:-3",
+      "ms": 6900000,
+      "top": [
+        {
+          "pkg": "com.roblox.client",
+          "label": "Roblox",
+          "ms": 2700000
+        },
+        {
+          "pkg": "com.google.android.youtube",
+          "label": "YouTube",
+          "ms": 2400000
+        }
+      ]
+    },
+    {
+      "day": "@day:-4",
+      "ms": 4200000,
+      "top": [
+        {
+          "pkg": "com.duolingo",
+          "label": "Duolingo",
+          "ms": 1200000
+        },
+        {
+          "pkg": "com.zing.zalo",
+          "label": "Zalo",
+          "ms": 1100000
+        }
+      ]
+    },
+    {
+      "day": "@day:-5",
+      "ms": 9600000,
+      "top": [
+        {
+          "pkg": "com.roblox.client",
+          "label": "Roblox",
+          "ms": 3900000
+        },
+        {
+          "pkg": "com.google.android.youtube",
+          "label": "YouTube",
+          "ms": 3300000
+        },
+        {
+          "pkg": "com.mojang.minecraftpe",
+          "label": "Minecraft",
+          "ms": 1500000
+        }
+      ]
+    },
+    {
+      "day": "@day:-6",
+      "ms": 8400000,
+      "top": [
+        {
+          "pkg": "com.mojang.minecraftpe",
+          "label": "Minecraft",
+          "ms": 3000000
+        },
+        {
+          "pkg": "com.roblox.client",
+          "label": "Roblox",
+          "ms": 2700000
+        }
+      ]
+    },
+    {
+      "day": "@day:-7",
+      "ms": 5100000,
+      "top": [
+        {
+          "pkg": "com.google.android.youtube",
+          "label": "YouTube",
+          "ms": 1900000
+        }
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "id": "r7a2c1",
+      "t": "@-1m",
+      "min": 20,
+      "chore": "c1",
+      "note": {
+        "vi": "con rửa xong rồi",
+        "en": "I washed them already"
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "e1",
+      "t": "@07:08",
+      "kind": "zoneOut",
+      "text": {
+        "vi": "Đã rời Nhà",
+        "en": "Left Home"
+      }
+    },
+    {
+      "id": "e2",
+      "t": "@07:34",
+      "kind": "zoneIn",
+      "text": {
+        "vi": "Đã đến Trường",
+        "en": "Arrived at School"
+      }
+    },
+    {
+      "id": "e3",
+      "t": "@11:42",
+      "kind": "zoneOut",
+      "text": {
+        "vi": "Đã rời Trường",
+        "en": "Left School"
+      }
+    },
+    {
+      "id": "e4",
+      "t": "@12:08",
+      "kind": "zoneIn",
+      "text": {
+        "vi": "Đã đến Nhà",
+        "en": "Arrived at Home"
+      }
+    },
+    {
+      "id": "e5",
+      "t": "@13:22",
+      "kind": "newApp",
+      "text": {
+        "vi": "Đã cài Clash Royale",
+        "en": "Installed Clash Royale"
+      }
+    },
+    {
+      "id": "e5c",
+      "t": "@14:31",
+      "kind": "zoneOut",
+      "text": {
+        "vi": "Đã rời Nhà",
+        "en": "Left Home"
+      }
+    },
+    {
+      "id": "e5b",
+      "t": "@14:56",
+      "kind": "zoneIn",
+      "text": {
+        "vi": "Đã đến Trường",
+        "en": "Arrived at School"
+      }
+    },
+    {
+      "id": "e6",
+      "t": "@15:35",
+      "kind": "zoneOut",
+      "text": {
+        "vi": "Đã rời Trường",
+        "en": "Left School"
+      }
+    }
+  ],
+  "log": [
+    {
+      "t": "@-1m",
+      "m": {
+        "vi": "Bin xin thêm 20 phút",
+        "en": "Bin asked for 20 more minutes"
+      },
+      "k": "req"
+    },
+    {
+      "t": "@-25m",
+      "m": {
+        "vi": "Lệnh: locate → ok",
+        "en": "Lệnh: locate → ok"
+      },
+      "k": "cmd"
+    },
+    {
+      "t": "@-2h",
+      "m": {
+        "vi": "Clash Royale bị chặn: ứng dụng mới",
+        "en": "Clash Royale blocked: new app"
+      },
+      "k": "new_app"
+    },
+    {
+      "t": "@-3h",
+      "m": {
+        "vi": "Bố mẹ đổi luật: giới hạn 90 → 120 phút",
+        "en": "Bố mẹ đổi luật: giới hạn 90 → 120 phút"
+      },
+      "k": "rules"
+    }
+  ],
+  "rules": {
+    "rev": 1793940898493,
+    "dailyMin": 120,
+    "dailyByDay": [
+      120,
+      120,
+      120,
+      120,
+      120,
+      180,
+      180
+    ],
+    "appMin": {
+      "com.roblox.client": 30,
+      "com.google.android.youtube": 45
+    },
+    "blocked": [
+      "com.zhiliaoapp.musically"
+    ],
+    "allow": [
+      "com.duolingo",
+      "org.khanacademy.android",
+      "com.google.android.apps.classroom",
+      "com.google.android.calculator"
+    ],
+    "bedtime": {
+      "on": true,
+      "start": "21:30",
+      "end": "06:30"
+    },
+    "schedules": [
+      {
+        "name": {
+          "vi": "Giờ học",
+          "en": "School hours"
+        },
+        "on": true,
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "start": "07:00",
+        "end": "11:30"
+      },
+      {
+        "name": {
+          "vi": "Làm bài tập",
+          "en": "Homework"
+        },
+        "on": true,
+        "days": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          7
+        ],
+        "start": "19:00",
+        "end": "20:00"
+      }
+    ],
+    "pausedUntil": 0,
+    "bonus": {
+      "day": "@day:0",
+      "min": 0
+    },
+    "blockNew": true,
+    "approved": [],
+    "lockLocation": true,
+    "noAirplane": true,
+    "showWatching": true,
+    "monitor": false,
+    "autoUpdate": true,
+    "safeDns": "family.cloudflare-dns.com",
+    "safeDnsPauseUntil": 0,
+    "tsKeep": true,
+    "noVpn": true,
+    "noInstall": false,
+    "noDebug": true,
+    "pinShot": true,
+    "pinSet": true,
+    "trackMin": 10,
+    "unlockMin": 30,
+    "windDown": {
+      "gray": true,
+      "min": 30,
+      "nudge": true
+    },
+    "lockInfo": {
+      "msg": {
+        "vi": "Máy đang khoá. Gọi bố mẹ nhé!",
+        "en": "Phone is locked. Call your parents!"
+      },
+      "contact": "Mom: 0900 000 000"
+    },
+    "blockNote": "",
+    "hidden": [],
+    "groups": [
+      {
+        "id": "g1",
+        "name": {
+          "vi": "Trò chơi",
+          "en": "Games"
+        },
+        "pkgs": [
+          "com.roblox.client",
+          "com.mojang.minecraftpe",
+          "com.supercell.clashroyale"
+        ],
+        "min": 60,
+        "hours": []
+      }
+    ],
+    "chores": [
+      {
+        "id": "c1",
+        "name": {
+          "vi": "Rửa bát",
+          "en": "Wash the dishes"
+        },
+        "min": 20
+      },
+      {
+        "id": "c2",
+        "name": {
+          "vi": "Đổ rác",
+          "en": "Take out the trash"
+        },
+        "min": 15
+      },
+      {
+        "id": "c3",
+        "name": {
+          "vi": "Đọc sách 30 phút",
+          "en": "Read for 30 min"
+        },
+        "min": 30
+      }
+    ],
+    "zones": [
+      {
+        "id": "z1",
+        "name": {
+          "vi": "Nhà",
+          "en": "Home"
+        },
+        "lat": 21.0212,
+        "lng": 105.8507,
+        "r": 150
+      },
+      {
+        "id": "z2",
+        "name": {
+          "vi": "Trường",
+          "en": "School"
+        },
+        "lat": 21.0296,
+        "lng": 105.8416,
+        "r": 200
+      }
+    ],
+    "accPause": [],
+    "launcher": {}
+  },
+  "location": {
+    "lat": 21.02857,
+    "lng": 105.85236,
+    "acc": 18,
+    "t": "@-4m"
+  }
+}

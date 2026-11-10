@@ -1,0 +1,201 @@
+{
+  "$extends": "bin",
+  "id": "9c4d2e7b1a6f3058",
+  "model": "Xiaomi Redmi 13C",
+  "android": "13",
+  "sdk": 33,
+  "battery": 41,
+  "charging": false,
+  "screenOn": true,
+  "current": "",
+  "usedMs": 7800000,
+  "leftMs": 1200000,
+  "limitMin": 150,
+  "net": {
+    "type": "wifi",
+    "ssid": "HomeWiFi",
+    "ip": "192.168.1.31",
+    "rssi": -55,
+    "bars": 4,
+    "ghz": 5.0,
+    "mbps": 433
+  },
+  "apps": [
+    {
+      "pkg": "com.zing.zalo",
+      "label": "Zalo",
+      "ms": 3000000,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.google.android.youtube",
+      "label": "YouTube",
+      "ms": 2400000,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.instagram.android",
+      "label": "Instagram",
+      "ms": 1500000,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.duolingo",
+      "label": "Duolingo",
+      "ms": 600000,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    },
+    {
+      "pkg": "com.google.android.apps.classroom",
+      "label": "Google Classroom",
+      "ms": 300000,
+      "blocked": null,
+      "suspended": false,
+      "protected": false
+    }
+  ],
+  "history": [
+    {
+      "day": "@day:-1",
+      "ms": 8400000,
+      "top": [
+        {
+          "pkg": "com.zing.zalo",
+          "label": "Zalo",
+          "ms": 3000000
+        },
+        {
+          "pkg": "com.google.android.youtube",
+          "label": "YouTube",
+          "ms": 2400000
+        }
+      ]
+    },
+    {
+      "day": "@day:-2",
+      "ms": 7500000,
+      "top": [
+        {
+          "pkg": "com.zing.zalo",
+          "label": "Zalo",
+          "ms": 3000000
+        },
+        {
+          "pkg": "com.google.android.youtube",
+          "label": "YouTube",
+          "ms": 2400000
+        }
+      ]
+    },
+    {
+      "day": "@day:-3",
+      "ms": 9000000,
+      "top": [
+        {
+          "pkg": "com.zing.zalo",
+          "label": "Zalo",
+          "ms": 3000000
+        },
+        {
+          "pkg": "com.google.android.youtube",
+          "label": "YouTube",
+          "ms": 2400000
+        }
+      ]
+    },
+    {
+      "day": "@day:-4",
+      "ms": 5700000,
+      "top": [
+        {
+          "pkg": "com.zing.zalo",
+          "label": "Zalo",
+          "ms": 3000000
+        },
+        {
+          "pkg": "com.google.android.youtube",
+          "label": "YouTube",
+          "ms": 2400000
+        }
+      ]
+    },
+    {
+      "day": "@day:-5",
+      "ms": 9600000,
+      "top": [
+        {
+          "pkg": "com.zing.zalo",
+          "label": "Zalo",
+          "ms": 3000000
+        },
+        {
+          "pkg": "com.google.android.youtube",
+          "label": "YouTube",
+          "ms": 2400000
+        }
+      ]
+    },
+    {
+      "day": "@day:-6",
+      "ms": 10200000,
+      "top": [
+        {
+          "pkg": "com.zing.zalo",
+          "label": "Zalo",
+          "ms": 3000000
+        },
+        {
+          "pkg": "com.google.android.youtube",
+          "label": "YouTube",
+          "ms": 2400000
+        }
+      ]
+    },
+    {
+      "day": "@day:-7",
+      "ms": 6600000,
+      "top": [
+        {
+          "pkg": "com.zing.zalo",
+          "label": "Zalo",
+          "ms": 3000000
+        },
+        {
+          "pkg": "com.google.android.youtube",
+          "label": "YouTube",
+          "ms": 2400000
+        }
+      ]
+    }
+  ],
+  "requests": [],
+  "events": [],
+  "log": [],
+  "location": {
+    "lat": 21.0212,
+    "lng": 105.8508,
+    "acc": 22,
+    "t": "@-2m"
+  },
+  "rules": {
+    "dailyMin": 150,
+    "dailyByDay": [
+      150,
+      150,
+      150,
+      150,
+      150,
+      210,
+      210
+    ]
+  },
+  "tg": null
+}

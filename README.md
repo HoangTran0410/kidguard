@@ -27,13 +27,22 @@
 
 <table>
 <tr>
-<td align="center"><img src="docs/img/parent-today.webp" height="400" alt="Today"><br><sub>Today: time left, requests, quick actions</sub></td>
-<td align="center"><img src="docs/img/parent-apps.webp" height="400" alt="Apps"><br><sub>Apps: limits, block, approve new</sub></td>
-<td align="center"><img src="docs/img/parent-clean.webp" height="400" alt="Clean up"><br><sub>Clean up: hide OEM apps, heaviest apps</sub></td>
-<td align="center"><img src="docs/img/parent-location.webp" height="400" alt="Location"><br><sub>Where they went, on a map</sub></td>
-<td align="center"><img src="docs/img/child-app.webp" height="400" alt="Child's phone"><br><sub>On the child's phone</sub></td>
+<td align="center"><img src="docs/img/parent-today.webp" height="400" alt="Today: time left, requests"><br><sub>Today: time left, requests</sub></td>
+<td align="center"><img src="docs/img/parent-apps.webp" height="400" alt="Apps: limits, block, approve new"><br><sub>Apps: limits, block, approve new</sub></td>
+<td align="center"><img src="docs/img/parent-rules.webp" height="400" alt="Rules: bedtime, schedules, groups"><br><sub>Rules: bedtime, schedules, groups</sub></td>
+<td align="center"><img src="docs/img/parent-location.webp" height="400" alt="Where they went, on a map"><br><sub>Where they went, on a map</sub></td>
+<td align="center"><img src="docs/img/parent-kids.webp" height="400" alt="All kids on one page"><br><sub>All kids on one page</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/img/kid-today.webp" height="400" alt="Kid launcher: Today page"><br><sub>Kid launcher: Today page</sub></td>
+<td align="center"><img src="docs/img/kid-widgets.webp" height="400" alt="Home screen widgets"><br><sub>Home screen widgets</sub></td>
+<td align="center"><img src="docs/img/kid-control.webp" height="400" alt="Control center"><br><sub>Control center</sub></td>
+<td align="center"><img src="docs/img/kid-custom.webp" height="400" alt="Customize + saved layouts"><br><sub>Customize + saved layouts</sub></td>
+<td align="center"><img src="docs/img/child-app.webp" height="400" alt="KidGuard app on the kid phone"><br><sub>KidGuard app on the kid phone</sub></td>
 </tr>
 </table>
+
+<sub>Parent page with sample data; kid phone shots from a POCO in Vietnamese.</sub>
 
 KidGuard becomes the phone's **Device Owner**, the same Android role a company uses for work phones. That is what lets it lock apps, keep location on and stop itself from being removed, with no root. The parent page (English or Vietnamese) is plain HTML served by the phone itself; nothing goes to a cloud unless you turn on [Away from home](#away-from-home).
 
@@ -82,6 +91,11 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự k
 | Feature | What it does |
 |---|---|
 | ⏱️ **Daily limit** | One number, or one per weekday. When time is up every app (except "Always allowed") locks until midnight. +15 / +30 / +60 min for today |
+| 🏠 **Kid launcher** | KidGuard is also the child's home screen: pages with widgets (clock, timer, streak, now playing, timetable, notes), a **Today** page (time left, schedule, chores, notes, files with parents, SOS / call), an App Library, its own **control center** (Wi-Fi, Bluetooth, torch, sound, study mode), **Customize** (wallpapers, icon size and shape, label size, fonts, light/dark) with **saved layouts** to switch the whole home in one tap. Blocked apps grey out; **Hidden apps** tells the child why each one is gone. Also shipped alone as [KidGuard Home](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-home.apk) |
+| 📚 **Study mode** | The child starts a study session: only study apps stay on the home screen and Do Not Disturb turns on (if allowed); it ends when the child stops it |
+| 🤖 **Telegram bot** | Your own bot runs on the child's phone: alerts, answer time requests, block apps, screenshot, files both ways, from Telegram anywhere. [Setup](#telegram-bot-optional-easiest) |
+| 📷 **Wrong-PIN photo** | From the 3rd wrong PIN the front camera takes a photo for the parent alert (the PIN screen says so; kept 7 days; can be turned off) |
+| 🏦 **Banking apps** | Apps that refuse to open while an accessibility service is on (most Vietnamese banks) still work: KidGuard steps aside while one is open |
 | 🪶 **Lighter phone** ("Dọn máy") | Hide the maker's preinstalled apps the child doesn't use (they stop running and updating; untick to bring back), see the heaviest apps, clear an app's data. Hiding and clearing need Device Owner. No fake "RAM cleaner" |
 | 🔄 **Updates itself** | Once a day the child's phone checks GitHub releases, downloads the new APK and checks its SHA-256. Device Owner installs it silently; basic mode shows the child an **Cập nhật KidGuard** (update) button. Off / "update now": parent page, **Cài đặt**. The parent app notifies when its own update is out |
 | 🙋 **Ask for more time** | A button on the child's phone (15 / 30 / 60 min + a reason); the parent taps Approve or Decline |

@@ -1,0 +1,38 @@
+{
+ "files": [
+  {
+   "id": "a1b2c3d4e5f60001",
+   "name": "Homework-math-week12.pdf",
+   "size": 482000,
+   "dir": "in",
+   "st": "opened",
+   "at": "@-3h"
+  },
+  {
+   "id": "a1b2c3d4e5f60002",
+   "name": "Family-trip-plan.pdf",
+   "size": 1250000,
+   "dir": "in",
+   "st": "delivered",
+   "at": "@-1d"
+  },
+  {
+   "id": "a1b2c3d4e5f60003",
+   "name": "Science-project-photo.jpg",
+   "size": 2860000,
+   "dir": "out",
+   "st": "new",
+   "at": "@-5h"
+  },
+  {
+   "id": "a1b2c3d4e5f60004",
+   "name": "Drawing-for-grandma.png",
+   "size": 940000,
+   "dir": "out",
+   "st": "fetched",
+   "at": "@-2d"
+  }
+ ],
+ "maxLan": 209715200,
+ "maxRelay": 10485760
+}

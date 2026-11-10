@@ -1,0 +1,88 @@
+{
+ "t": "@0",
+ "sdk": 34,
+ "android": "14",
+ "model": "Samsung Galaxy A15",
+ "version": "0.9.11",
+ "uptimeMs": 201600000,
+ "storage": {
+  "total": 128000000000,
+  "free": 61400000000,
+  "apps": [
+   {
+    "pkg": "com.roblox.client",
+    "label": "Roblox",
+    "app": 310000000,
+    "data": 1450000000,
+    "cache": 380000000
+   },
+   {
+    "pkg": "com.mojang.minecraftpe",
+    "label": "Minecraft",
+    "app": 420000000,
+    "data": 980000000,
+    "cache": 120000000
+   },
+   {
+    "pkg": "com.google.android.youtube",
+    "label": "YouTube",
+    "app": 280000000,
+    "data": 210000000,
+    "cache": 540000000
+   },
+   {
+    "pkg": "com.zing.zalo",
+    "label": "Zalo",
+    "app": 240000000,
+    "data": 610000000,
+    "cache": 190000000
+   },
+   {
+    "pkg": "com.google.android.apps.photos",
+    "label": "Photos",
+    "app": 190000000,
+    "data": 330000000,
+    "cache": 90000000
+   },
+   {
+    "pkg": "com.supercell.clashroyale",
+    "label": "Clash Royale",
+    "app": 210000000,
+    "data": 160000000,
+    "cache": 40000000
+   },
+   {
+    "pkg": "com.duolingo",
+    "label": "Duolingo",
+    "app": 150000000,
+    "data": 80000000,
+    "cache": 60000000
+   }
+  ]
+ },
+ "ram": {
+  "total": 4000000000,
+  "avail": 1700000000,
+  "threshold": 300000000,
+  "low": false,
+  "perApp": false,
+  "otherProcs": 0,
+  "procStat": false
+ },
+ "battery": {
+  "pct": 77,
+  "charging": false,
+  "plug": "none",
+  "tempC": 31.5,
+  "health": "good",
+  "voltageMv": 3980,
+  "screenOnMs": 10500000
+ },
+ "net": {
+  "type": "cell",
+  "rssi": null,
+  "bars": null,
+  "metered": true
+ },
+ "clearData": true
+}

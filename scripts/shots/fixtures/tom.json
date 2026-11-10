@@ -1,0 +1,142 @@
+{
+ "$extends": "bin",
+ "id": "2f8a6b1c9e4d7035",
+ "model": "OPPO A17",
+ "android": "13",
+ "sdk": 33,
+ "battery": 92,
+ "charging": true,
+ "screenOn": false,
+ "current": "",
+ "usedMs": 1500000,
+ "leftMs": 3900000,
+ "limitMin": 90,
+ "net": {
+  "type": "wifi",
+  "ssid": "HomeWiFi",
+  "ip": "192.168.1.40",
+  "rssi": -48,
+  "bars": 4,
+  "ghz": 2.4,
+  "mbps": 144
+ },
+ "apps": [
+  {
+   "pkg": "com.mojang.minecraftpe",
+   "label": "Minecraft",
+   "ms": 900000,
+   "blocked": null,
+   "suspended": false,
+   "protected": false
+  },
+  {
+   "pkg": "com.google.android.youtube",
+   "label": "YouTube Kids",
+   "ms": 600000,
+   "blocked": null,
+   "suspended": false,
+   "protected": false
+  }
+ ],
+ "history": [
+  {
+   "day": "@day:-1",
+   "ms": 3600000,
+   "top": [
+    {
+     "pkg": "com.mojang.minecraftpe",
+     "label": "Minecraft",
+     "ms": 2400000
+    }
+   ]
+  },
+  {
+   "day": "@day:-2",
+   "ms": 2700000,
+   "top": [
+    {
+     "pkg": "com.mojang.minecraftpe",
+     "label": "Minecraft",
+     "ms": 2400000
+    }
+   ]
+  },
+  {
+   "day": "@day:-3",
+   "ms": 4800000,
+   "top": [
+    {
+     "pkg": "com.mojang.minecraftpe",
+     "label": "Minecraft",
+     "ms": 2400000
+    }
+   ]
+  },
+  {
+   "day": "@day:-4",
+   "ms": 4200000,
+   "top": [
+    {
+     "pkg": "com.mojang.minecraftpe",
+     "label": "Minecraft",
+     "ms": 2400000
+    }
+   ]
+  },
+  {
+   "day": "@day:-5",
+   "ms": 5700000,
+   "top": [
+    {
+     "pkg": "com.mojang.minecraftpe",
+     "label": "Minecraft",
+     "ms": 2400000
+    }
+   ]
+  },
+  {
+   "day": "@day:-6",
+   "ms": 6000000,
+   "top": [
+    {
+     "pkg": "com.mojang.minecraftpe",
+     "label": "Minecraft",
+     "ms": 2400000
+    }
+   ]
+  },
+  {
+   "day": "@day:-7",
+   "ms": 3300000,
+   "top": [
+    {
+     "pkg": "com.mojang.minecraftpe",
+     "label": "Minecraft",
+     "ms": 2400000
+    }
+   ]
+  }
+ ],
+ "requests": [],
+ "events": [],
+ "log": [],
+ "location": {
+  "lat": 21.0212,
+  "lng": 105.8506,
+  "acc": 15,
+  "t": "@-9m"
+ },
+ "rules": {
+  "dailyMin": 90,
+  "dailyByDay": [
+   90,
+   90,
+   90,
+   90,
+   90,
+   120,
+   120
+  ]
+ },
+ "tg": null
+}
