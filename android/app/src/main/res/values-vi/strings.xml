@@ -893,4 +893,6 @@
     <string name="hm_lay_rename">Đổi tên</string>
     <string name="hm_lay_delete">Xoá</string>
     <string name="hm_lay_hint">Lưu cách xếp hiện tại (vị trí ứng dụng, tiện ích, giao diện, hình nền) để đổi lại chỉ với một chạm. Chỉ lưu trên máy này.</string>
+    <string name="acc_closed_protect">Bố mẹ đã khoá gỡ hoặc dừng KidGuard</string>
+    <string name="acc_closed_clock">Ngày giờ do bố mẹ đặt tự động</string>
 </resources>

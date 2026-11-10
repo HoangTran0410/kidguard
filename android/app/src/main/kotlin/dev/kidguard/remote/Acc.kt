@@ -139,13 +139,34 @@ class Acc : AccessibilityService() {
     private val scan3 = Runnable { scan() }
     private var lastProtectLog = 0L
 
-    /** "KidGuard Home" may be uninstalled / stopped unless it is the phone's HOME now (then it is the kid's launcher). */
-    private fun freeNames(): List<String> {
+    /** Our names to protect: KidGuard, plus "KidGuard Home" while it is the phone's HOME (then it is the kid's launcher). */
+    private fun ourNames(): List<String> {
+        val own = runCatching { applicationInfo.loadLabel(packageManager).toString() }.getOrDefault("KidGuard")
         val home = runCatching {
             packageManager.resolveActivity(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME),
                 android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
         }.getOrNull()
-        return if (home == "dev.kidguard.home") emptyList() else listOf(getString(R.string.home_app))
+        return listOfNotNull("KidGuard", own, getString(R.string.home_app).takeIf { home == "dev.kidguard.home" }).distinct()
+    }
+
+    private var lastWhy = 0L
+    /** Says why the page just closed (owner: a page that vanishes with no word looks like a crash). At most every 4 s:
+     *  the page can be re-opened in a loop. */
+    private fun whyClosed(res: Int) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastWhy < 4_000) return
+        lastWhy = now
+        runCatching { android.widget.Toast.makeText(this, res, android.widget.Toast.LENGTH_LONG).show() }
+    }
+
+    private val ctlCache = HashMap<String, List<String>>()
+    /** The destructive buttons as [pkg] itself words them in the phone's language (AOSP Settings / PackageInstaller string
+     *  names; OEM apps without them fall back to BasicLogic's vi/en lists). Cached per package + locale. */
+    private fun controlsOf(pkg: String): List<String> = ctlCache.getOrPut(pkg + "|" + resources.configuration.locales[0]) {
+        runCatching {
+            val r = packageManager.getResourcesForApplication(pkg)
+            CONTROL_IDS.mapNotNull { n -> r.getIdentifier(n, "string", pkg).takeIf { it != 0 }?.let { id -> runCatching { r.getString(id) }.getOrNull() } }
+        }.getOrDefault(emptyList())
     }
 
     private fun scan() {
@@ -155,15 +176,15 @@ class Acc : AccessibilityService() {
         val root = runCatching { rootInActiveWindow }.getOrNull() ?: return
         val pkg = root.packageName?.toString() ?: return
         if (pkg != scanPkg || !BasicLogic.isSettingsPkg(pkg)) return
-        val labels = listOf("KidGuard", runCatching { applicationInfo.loadLabel(packageManager).toString() }.getOrDefault("KidGuard"))
+        val labels = ourNames()
         val nodes = collectNodes(root, 300)
         if (BasicLogic.isDateTimePage(pkg, nodes)) {
             // basic mode has no DISALLOW_CONFIG_DATE_TIME: the clock page is closed like the uninstall pages
-            performGlobalAction(GLOBAL_ACTION_HOME)
+            performGlobalAction(GLOBAL_ACTION_HOME); whyClosed(R.string.acc_closed_clock)
             val now = System.currentTimeMillis()
             if (now - lastProtectLog > 30_000) { lastProtectLog = now; runCatching { Store.of(this).log(R.string.log_acc_clock) } }
-        } else if (BasicLogic.selfProtect(pkg, nodes, labels, freeNames())) {
-            performGlobalAction(GLOBAL_ACTION_HOME)
+        } else if (BasicLogic.selfProtect(pkg, nodes, labels, controlsOf(pkg))) {
+            performGlobalAction(GLOBAL_ACTION_HOME); whyClosed(R.string.acc_closed_protect)
             val now = System.currentTimeMillis()
             if (now - lastProtectLog > 30_000) {
                 lastProtectLog = now
@@ -204,6 +225,9 @@ class Acc : AccessibilityService() {
     private fun drop() { runCatching { unregisterReceiver(wakeUp) }; main.removeCallbacks(trail); main.removeCallbacks(scan1); main.removeCallbacks(scan2); main.removeCallbacks(scan3); if (running === this) running = null; lastError = "acc off"; hideNotice() }
 
     companion object {
+        /** AOSP string names of the uninstall / stop / deactivate buttons (Settings, PackageInstaller, SettingsLib). */
+        private val CONTROL_IDS = listOf("uninstall_text", "uninstall_all_users_text", "force_stop", "disable_text", "remove_device_admin",
+            "remove_and_uninstall_device_admin", "uninstall_device_admin", "accessibility_service_disable_warning_title", "accessibility_dialog_button_deny")
         @Volatile var running: Acc? = null
         @Volatile var lastError: String = "acc off"
         /** Basic mode: what the rules block right now (package -> reason code), set by Guard each tick; empty in owner mode. */

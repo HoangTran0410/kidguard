@@ -68,10 +68,16 @@ class BasicLogicTest {
         assertTrue(BasicLogic.selfProtect("com.android.settings", n("App info", "KidGuard", "Open", "Uninstall", "Force stop")))
         assertTrue(BasicLogic.selfProtect("com.samsung.android.settings", n("KidGuard", "Uninstall")))
         assertTrue(BasicLogic.selfProtect("com.miui.securitycenter", n("kidguard", "FORCE STOP")))
-        // "KidGuard Home" (not the HOME): its own app info may uninstall it; KidGuard itself stays protected
-        assertFalse(BasicLogic.selfProtect("com.android.settings", n("Thông tin ứng dụng", "KidGuard Home", "Gỡ cài đặt", "Buộc dừng"), free = listOf("KidGuard Home")))
-        assertTrue(BasicLogic.selfProtect("com.android.settings", n("Thông tin ứng dụng", "KidGuard", "Gỡ cài đặt", "Buộc dừng"), free = listOf("KidGuard Home")))
-        assertTrue(BasicLogic.selfProtect("com.android.settings", n("KidGuard Home", "Gỡ cài đặt")))
+        // the name is matched whole: other apps that contain it pass, KidGuard in quotes / with "?" still counts
+        assertFalse(BasicLogic.selfProtect("com.android.settings", n("Thông tin ứng dụng", "KidGuard Home", "Gỡ cài đặt", "Buộc dừng")))
+        assertFalse(BasicLogic.selfProtect("com.android.settings", n("App info", "KidGuard Pro", "Uninstall")))
+        assertTrue(BasicLogic.selfProtect("com.android.settings", n("KidGuard Home", "Gỡ cài đặt"), labels = listOf("KidGuard", "KidGuard Home")))
+        assertTrue(BasicLogic.selfProtect("com.miui.securitycenter", n("Gỡ cài đặt “KidGuard”?", "Gỡ cài đặt")))
+        assertTrue(BasicLogic.names("stop kidguard?", "kidguard")); assertFalse(BasicLogic.names("mykidguard", "kidguard"))
+        // another language: the Settings app's own button text (controls), clickable
+        assertFalse(BasicLogic.selfProtect("com.android.settings", n("Infos sur l'appli", "KidGuard", "Désinstaller", "Forcer l'arrêt")))
+        assertTrue(BasicLogic.selfProtect("com.android.settings", listOf(BasicLogic.Node("KidGuard"), BasicLogic.Node("Désinstaller", clickable = true)),
+            controls = listOf("Désinstaller", "Forcer l'arrêt")))
     }
 
     @Test fun deviceAdminDeactivate() {

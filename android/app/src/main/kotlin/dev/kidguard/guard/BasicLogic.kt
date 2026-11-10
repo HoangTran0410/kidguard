@@ -94,23 +94,36 @@ object BasicLogic {
     }
 
     /**
-     * True when a window of [pkg] mentions KidGuard (one of [labels]) AND offers a destructive control.
+     * True when a window of [pkg] names KidGuard (one of [labels]) AND offers a destructive control.
      * An app list that merely shows "KidGuard" has no such control and passes. KidGuard's own windows are never passed in.
-     * [free]: names that contain a label but are another app that may go (the "KidGuard Home" flavor when it isn't the
-     * phone's HOME: the owner could not uninstall it, its app info page closed at once).
+     * The name is matched whole ([names]): "KidGuard Home" / "KidGuard Pro" are other apps (a substring match closed the
+     * Home flavor's app info, so the owner could not uninstall it). [controls]: the Settings app's own button texts in the
+     * phone's language (Acc reads uninstall_text, force_stop... from its resources), on top of the vi/en lists.
      */
-    fun selfProtect(pkg: String, nodes: List<Node>, labels: Collection<String> = listOf("KidGuard"), free: Collection<String> = emptyList()): Boolean {
+    fun selfProtect(pkg: String, nodes: List<Node>, labels: Collection<String> = listOf("KidGuard"), controls: Collection<String> = emptyList()): Boolean {
         if (!isSettingsPkg(pkg)) return false
         val ls = labels.map { norm(it) }.filter { it.isNotEmpty() }
-        val fs = free.map { norm(it) }.filter { it.isNotEmpty() }
+        val cs = controls.map { norm(it) }.filter { it.length >= 3 }
         var mentions = false; var control = false
         for (n in nodes) {
             val t = norm(n.text)
             if (t.isEmpty()) continue
-            // [free]: names that merely contain a label ("KidGuard Home" while it is not the HOME) are other apps
-            if (ls.any { t.contains(it) } && fs.none { t.contains(it) }) mentions = true
-            if (STRONG_PREFIX.any { t.startsWith(it) } || ACC_DESC.any { t.contains(it) } || (n.clickable && !n.checkable && t in WEAK_CLICK)) control = true
+            if (ls.any { names(t, it) }) mentions = true
+            if (STRONG_PREFIX.any { t.startsWith(it) } || ACC_DESC.any { t.contains(it) } || (n.clickable && !n.checkable && (t in WEAK_CLICK || cs.any { c -> t == c || t.startsWith(c) }))) control = true
             if (mentions && control) return true
+        }
+        return false
+    }
+
+    /** [t] names the app [label] as a whole: not glued to a letter before it, and nothing but punctuation / the end after it
+     *  ("gỡ “kidguard”?", "stop kidguard?" yes; "kidguard home", "mykidguard" no). */
+    fun names(t: String, label: String): Boolean {
+        var i = t.indexOf(label)
+        while (i >= 0) {
+            val before = if (i == 0) ' ' else t[i - 1]
+            val after = t.substring(i + label.length).trimStart()
+            if (!before.isLetterOrDigit() && (after.isEmpty() || !after[0].isLetterOrDigit())) return true
+            i = t.indexOf(label, i + 1)
         }
         return false
     }

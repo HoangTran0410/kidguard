@@ -912,4 +912,6 @@
     <string name="hm_lay_rename">Rename</string>
     <string name="hm_lay_delete">Delete</string>
     <string name="hm_lay_hint">Save how the home looks now (app and widget places, look, wallpaper) to switch back to it in one tap. Kept on this phone only.</string>
+    <string name="acc_closed_protect">Your parents locked removing or stopping KidGuard</string>
+    <string name="acc_closed_clock">Your parents keep the date and time automatic</string>
 </resources>
