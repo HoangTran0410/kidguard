@@ -92,7 +92,18 @@ internal fun HomeActivity.streakWidget(m: HomeModel, r: Rules, s: Store, w: Int,
     val card = wCard()
     val col = LinearLayout(this).apply { orientation = if (w >= 4) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
     val wide = w >= 4
-    fun badges(): View = LinearLayout(this).apply {
+    // never wider than the row: a narrow card (icon-aligned 2x2) shrinks the circles, it never cuts "30"
+    val bMax = dp(if (wide) 34 else 30); val bGap = dp(4)
+    fun badges(): View = object : LinearLayout(this) {
+        override fun onMeasure(wm: Int, hm: Int) {
+            val n = childCount
+            if (n > 0 && MeasureSpec.getMode(wm) != MeasureSpec.UNSPECIFIED) {
+                val sz = minOf(bMax, (MeasureSpec.getSize(wm) - bGap * n) / n).coerceAtLeast(dp(16))
+                for (i in 0 until n) getChildAt(i).layoutParams.let { if (it.width != sz) { it.width = sz; it.height = sz } }
+            }
+            super.onMeasure(wm, hm)
+        }
+    }.apply {
         orientation = LinearLayout.HORIZONTAL
         val best = snap.best
         for (b in StreakLogic.BADGES) {
@@ -103,7 +114,7 @@ internal fun HomeActivity.streakWidget(m: HomeModel, r: Rules, s: Store, w: Int,
                 background = if (got) fill(pal.solid, 999f) else GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0); setStroke(dp(2), pal.sub) }
                 alpha = if (got) 1f else 0.7f
                 contentDescription = getString(if (got) R.string.sk_badge_got else R.string.sk_badge_locked, b)
-            }, LinearLayout.LayoutParams(dp(if (wide) 34 else 30), dp(if (wide) 34 else 30)).apply { rightMargin = dp(4) })
+            }, LinearLayout.LayoutParams(bMax, bMax).apply { rightMargin = bGap })
         }
     }
     val head = wHead(R.drawable.li_circle_check, getString(R.string.hm_w_streak))
