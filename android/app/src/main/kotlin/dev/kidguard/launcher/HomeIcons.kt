@@ -88,7 +88,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     // the icon sinking on touch is the feedback everywhere ([pressed]): no grey ripple over it. In the drawer / a folder the
     // ripple also came ~100 ms late (scroll containers delay the pressed state), so a quick tap showed nothing
     box.foreground = null
-    box.setOnClickListener { if (debounce()) { if (model?.style?.speak == true) ReadAids.say(this, a.label); if (paused) pausedSheet(a, reason ?: "", dv, r) else launch(a, box) } }
+    box.setOnClickListener { if (debounce(a.pkg)) { if (model?.style?.speak == true) ReadAids.say(this, a.label); if (paused) pausedSheet(a, reason ?: "", dv, r) else launch(a, box) } }
     // drag source: where the icon lives
     val src: () -> DragSt = {
         when (mode) {
@@ -189,7 +189,7 @@ internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String
     box.contentDescription = getString(R.string.hm_f_desc, folderName(f), vis.size)
     kit.tap(box, 16f, true)
     box.foreground = null
-    box.setOnClickListener { if (debounce()) openFolder(f.id, grid) }
+    box.setOnClickListener { if (debounce(f.id)) openFolder(f.id, grid) }
     arm(box, {
         menu(listOf(
             Row(R.drawable.li_pencil, getString(R.string.hm_f_rename), true) { renameFolder(f.id) },
@@ -200,10 +200,16 @@ internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String
     return box
 }
 
-internal fun HomeActivity.debounce(): Boolean {
+/**
+ * Tap guard: the same target again within 600 ms is a double tap (one launch, not two); any other target within 250 ms
+ * is the second half of a double tap landing on what just opened under the finger. Was one 600 ms gap for everything:
+ * an app tapped in a folder that was opening (280 ms) did nothing, it felt like waiting for the animation (11-10).
+ */
+internal fun HomeActivity.debounce(target: Any? = null): Boolean {
     val now = android.os.SystemClock.elapsedRealtime()
-    if (now - lastTap < 600) return false
-    lastTap = now; return true
+    val gap = now - lastTap
+    if (gap < 250 || (gap < 600 && target == lastTapOn)) return false
+    lastTap = now; lastTapOn = target; return true
 }
 
 internal fun HomeActivity.launch(a: AppE, from: View) {

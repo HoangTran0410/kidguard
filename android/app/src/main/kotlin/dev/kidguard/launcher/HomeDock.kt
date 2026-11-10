@@ -51,7 +51,7 @@ internal fun HomeActivity.buildDock(m: HomeModel, all: Map<String, AppE>, show: 
             }
             box.contentDescription = getString(R.string.hm_phone)
             kit.tap(box, 16f, true) {
-                if (!debounce()) return@tap
+                if (!debounce("dial")) return@tap
                 runCatching { startActivity(Intent(Intent.ACTION_DIAL).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                     .onFailure { Toast.makeText(this, R.string.hm_no_dialer, Toast.LENGTH_SHORT).show() }
             }

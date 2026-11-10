@@ -127,6 +127,7 @@ class HomeActivity : Activity() {
     internal var model: HomeModel? = null
     internal var key = ""
     internal var lastTap = 0L
+    internal var lastTapOn: Any? = null
     internal var drag: DragSt? = null
     internal var folderDrag: FolderDrag? = null   // a drag re-arranging the open folder (HomeFolder.kt)
     internal var tempPage = false
