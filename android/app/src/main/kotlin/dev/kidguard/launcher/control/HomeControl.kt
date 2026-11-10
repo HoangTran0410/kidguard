@@ -380,34 +380,30 @@ internal fun HomeActivity.openControl() {
     // shade blocked (rule launcher.shade): the bell opens the seen-notifications list instead of a shade that closes at once
     val notif = CcToggle(this, Tile.VOLUME, R.drawable.li_bell, getString(R.string.cc_notifs), tsz, 3).apply {
         onTap { if (shadeOff() && NotifLog.enabled) openNlog() else { closeOverlay(); main.postDelayed({ expandShade(false) }, 120) } } }
+    // study mode: a tile like iOS's Focus (was only in the long-press menu); lit while on, its label = the time left
+    val fs = focusSession()
+    val focus = CcToggle(this, Tile.VOLUME, R.drawable.li_timer, if (fs != null) getString(R.string.cc_focus_left, fs) else getString(R.string.cc_focus), tsz, 3).apply {
+        set(focusState().second, Mode.DIRECT); onTap { closeOverlay(); main.postDelayed({ focusSheet() }, 120) } }
     listOfNotNull(
         toggle(Tile.TORCH, R.drawable.li_flashlight, R.string.cc_torch, tsz, 3) { on -> torchId != null && CcSys.setTorch(ctx, torchId, on) },
         toggle(Tile.ROTATE, R.drawable.li_rotate_ccw, R.string.cc_rotate, tsz, 3) { on -> CcSys.canRotate(ctx) && CcSys.writeSys(ctx, Settings.System.ACCELEROMETER_ROTATION, if (on) 1 else 0) },
         toggle(Tile.DND, R.drawable.li_moon, R.string.cc_dnd, tsz, 3) { on -> CcSys.setDnd(ctx, on) },
-        notif,
+        focus,
     ).forEach { row2.addView(it, LinearLayout.LayoutParams(0, -2, 1f)) }
     panel.addView(row2, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap + dp(4) })
 
-    // the phone's own quick settings, for what the kid's panel does not have (hotspot, cast, …)
-    fun pill(text: Int, icon: Int, go: () -> Unit) = kit.text(if (text != 0) getString(text) else "", 14f, Color.WHITE, true).apply {
-        gravity = Gravity.CENTER; background = kit.fill(0x33FFFFFF, 16f); setPadding(dp(12), dp(12), dp(12), dp(12)); minHeight = dp(48)
-        Ic.lead(this, icon, Color.WHITE); compoundDrawablePadding = dp(8); kit.tap(this, 16f, true) { go() }
-    }
-    // study mode: a wide pill like iOS's Focus in Control Center (it was only in the long-press menu); lit while on
-    val (fText, fOn) = focusState()
-    panel.addView(pill(0, R.drawable.li_timer) { closeOverlay(); main.postDelayed({ focusSheet() }, 120) }.apply {
-        text = fText
-        if (fOn) { background = kit.fill(pal.solid, 16f); setTextColor(pal.onSolid); Ic.lead(this, R.drawable.li_timer, pal.onSolid) }
-    }, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap + dp(6) })
-    // bottom row: seen notifications (one tap, not hidden in the long-press menu) + the phone's quick settings
-    // (rule launcher.shade: the system quick settings close as soon as they open, so no way there)
-    val pills = listOfNotNull(
-        pill(R.string.nlog_menu, R.drawable.li_bell_ring) { openNlog() }.takeIf { NotifLog.enabled },
-        pill(R.string.cc_more, R.drawable.li_settings_2) { closeOverlay(); main.postDelayed({ expandShade(true) }, 120) }.takeIf { !shadeOff() },
+    // row 3, same 4-column grid (every action one round tile, short labels; no wide pills breaking the grid):
+    // notifications (shade), seen notifications, the phone's own quick settings (hotspot, cast, ...; not when rule
+    // launcher.shade closes them at once). Empty slots keep the columns aligned with row 2.
+    val row3 = LinearLayout(this).apply { gravity = Gravity.TOP }
+    val tiles3 = listOfNotNull(
+        notif,
+        CcToggle(this, Tile.VOLUME, R.drawable.li_bell_ring, getString(R.string.cc_nlog), tsz, 3).apply { onTap { openNlog() } }.takeIf { NotifLog.enabled && !(shadeOff()) },
+        CcToggle(this, Tile.VOLUME, R.drawable.li_settings_2, getString(R.string.cc_qs), tsz, 3).apply { onTap { closeOverlay(); main.postDelayed({ expandShade(true) }, 120) } }.takeIf { !shadeOff() },
     )
-    if (pills.isNotEmpty()) panel.addView(LinearLayout(this).apply {
-        pills.forEachIndexed { i, v -> addView(v, LinearLayout.LayoutParams(0, -1, 1f).apply { if (i > 0) marginStart = gap }) }
-    }, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap + dp(6) })
+    tiles3.forEach { row3.addView(it, LinearLayout.LayoutParams(0, -2, 1f)) }
+    repeat(4 - tiles3.size) { row3.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f)) }
+    panel.addView(row3, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap })
 
     // ---- long press on a slider: its detail (HyperOS / iOS pattern), in place of the main panel ----
     val detail = LinearLayout(this).apply {

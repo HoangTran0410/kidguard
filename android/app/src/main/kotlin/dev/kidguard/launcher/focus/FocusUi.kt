@@ -212,6 +212,9 @@ internal fun focusCard(act: android.app.Activity, col: LinearLayout) {
     col.addView(t, LinearLayout.LayoutParams(-1, -2).apply { topMargin = h.dp(12) })
 }
 
+/** Control center: minutes left of a running session (null: none; a parent schedule has no countdown here). */
+internal fun HomeActivity.focusSession(): Int? = FocusStore.expire(this)?.let { FocusLogic.leftMin(it, System.currentTimeMillis()) }
+
 /** Control center: the study mode label ("Đang học bài · còn N phút" while on) and whether it is on. */
 internal fun HomeActivity.focusState(): Pair<String, Boolean> =
     if (FocusStore.mode == FocusLogic.Mode.OFF) getString(R.string.focus_title) to false

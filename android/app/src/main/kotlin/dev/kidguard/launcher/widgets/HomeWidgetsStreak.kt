@@ -140,10 +140,21 @@ internal fun HomeActivity.streakWidget(m: HomeModel, r: Rules, s: Store, w: Int,
     return centred(card)
 }
 
+/** Picker mock of the real widget: "7 ngày" big + the 4 badge circles with their numbers (3 and 7 earned). Every child
+ *  wrap-sized and centred: with the default match-width the "7" sat on the left and the dots were cut off. */
 internal fun HomeActivity.streakPreview(c: LinearLayout) {
-    c.addView(text("7", 22f, pal.accentText, true))
+    val big = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
+    big.addView(text("7", 24f, pal.accentText, true).apply { includeFontPadding = false })
+    big.addView(text(getString(R.string.sk_days), 10f, pal.sub).apply { includeFontPadding = false; setPadding(dp(3), 0, 0, dp(2)) })
+    c.addView(big, LinearLayout.LayoutParams(-2, -2))
     val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-    for ((i, b) in StreakLogic.BADGES.withIndex()) r.addView(View(this).apply { background = if (i < 2) fill(pal.solid, 999f) else GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0); setStroke(dp(1), pal.sub) } },
-        LinearLayout.LayoutParams(dp(9), dp(9)).apply { setMargins(dp(1), dp(3), dp(1), 0) })
-    c.addView(r)
+    for ((i, b) in StreakLogic.BADGES.withIndex()) {
+        val got = i < 2
+        r.addView(TextView(this).apply {
+            text = "$b"; textSize = 8f; typeface = android.graphics.Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER; includeFontPadding = false
+            setTextColor(if (got) pal.onSolid else pal.sub)
+            background = if (got) fill(pal.solid, 999f) else GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0); setStroke(dp(1), pal.sub) }
+        }, LinearLayout.LayoutParams(dp(18), dp(18)).apply { setMargins(dp(2), 0, dp(2), 0) })
+    }
+    c.addView(r, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(6) })
 }
