@@ -28,13 +28,14 @@ data class HItem(
 }
 
 data class HStyle(
-    val preset: String = "teen", val icon: Int = 3, val labels: Boolean = true, val shape: String = "square", val dockBg: Boolean = true, val dockLabels: Boolean = true, val badge: String = "num", val face: String = "sys",
+    val preset: String = "teen", val icon: Int = 2, val labels: Boolean = true, val shape: String = "square", val dockBg: Boolean = true, val dockLabels: Boolean = true, val badge: String = "num", val face: String = "sys",
     val accent: String = "", val theme: String = "auto", val font: Double = 1.0, val wallKind: String = "builtin", val wall: String = "", val dim: Int = 0, val blur: Int = 0,
     val lib: Boolean = true, val fx: String = "auto", val today: Boolean = true,
+    val lbl: String = "m",   // app-name size: "auto" = follows the icon size (the old rule), "s" / "m" / "l" = fixed
     val speak: Boolean = false, val calm: Boolean = false, val solid: Boolean = false,   // reading aids: say the name on tap / launcher animations off / solid label backing
 ) {
     fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels).put("badge", badge).put("face", face).put("lib", lib).put("fx", fx).put("today", today).put("speak", speak).put("calm", calm).put("solid", solid)
-        .put("accent", accent).put("theme", theme).put("font", font)
+        .put("accent", accent).put("theme", theme).put("font", font).put("lbl", lbl)
         .put("wall", JSONObject().put("kind", wallKind).put("id", wall).put("dim", dim).put("blur", blur))
 
     companion object {
@@ -43,7 +44,7 @@ data class HStyle(
             val w = o.optJSONObject("wall") ?: JSONObject()
             return HStyle(
                 preset = o.optString("preset", "teen").takeIf { p -> HomeStyle.PRESETS.any { it.id == p } } ?: "teen",
-                icon = o.optInt("icon", 3).coerceIn(1, 5), labels = o.optBoolean("labels", true),
+                icon = o.optInt("icon", 2).coerceIn(1, 5), labels = o.optBoolean("labels", true),
                 shape = o.optString("shape", "square").takeIf { it == "round" || it == "soft" || it == "square" } ?: "square",
                 dockBg = o.optBoolean("dockBg", true), dockLabels = o.optBoolean("dockLabels", true), badge = o.optString("badge", "num").takeIf { it in setOf("num", "dot", "off") } ?: "num",
                 face = o.optString("face", "sys").takeIf { it in HomeActivity.FACES } ?: "sys",
@@ -56,6 +57,7 @@ data class HStyle(
                 lib = o.optBoolean("lib", true), today = o.optBoolean("today", true),
                 speak = o.optBoolean("speak", false), calm = o.optBoolean("calm", false), solid = o.optBoolean("solid", false),
                 fx = o.optString("fx", "auto").takeIf { it in setOf("auto", "full", "lite") } ?: "auto",
+                lbl = o.optString("lbl", "m").takeIf { it in setOf("auto", "s", "m", "l") } ?: "m",
             )
         }
     }
@@ -111,7 +113,8 @@ object HomeLayout {
         var r = Math.round(availH.toFloat() / cellW).coerceIn(4, MAX_ROWS)
         while (r > 4 && availH / r < minH) r--
         val ratio = availH.toFloat() / cur / cellW
-        return if (cur in 4..MAX_ROWS && ratio in 0.85f..1.2f && availH / cur >= minH) cur else r
+        // growing never moves an icon (only a shrink re-flows), so the square count wins over a smaller near-square one
+        return if (cur in 4..MAX_ROWS && r <= cur && ratio in 0.85f..1.2f && availH / cur >= minH) cur else r
     }
     /** An app's pinned shortcut (ShortcutManager.requestPinShortcut): pkg = the app, cls = the shortcut id, name = its label. */
     const val SHORTCUT = "shortcut"
@@ -646,6 +649,34 @@ object HomeLayout {
      * keeps its cell when it still fits, else takes the first free cell of its page, else moves on to the next page;
      * the order (page, row, col) is kept. Nothing is ever dropped.
      */
+    /**
+     * One automatic row change: the pages before it and right after it. A shrink pushes the misfits to the first free cells
+     * (lossy); when the rows come back and nobody touched the layout in between, [rows] puts every item back where it was
+     * (a bigger icon size took 7 -> 6 rows on the Poco and going back left the page shuffled).
+     */
+    data class GridStep(val cols: Int, val rows: Int, val before: List<List<HItem>>, val after: List<List<HItem>>)
+
+    /** The rows the last automatic shrink came from, while the layout is still exactly what it left; else null. */
+    fun undoRows(m: HomeModel, steps: List<GridStep>): Int? =
+        steps.lastOrNull()?.takeIf { it.after == m.pages && it.cols == m.cols }?.rows
+
+    /** [m] re-gridded to [r] rows with the undo stack [steps]; returns the model and the new stack. */
+    fun rows(m: HomeModel, r: Int, steps: List<GridStep>): Pair<HomeModel, List<GridStep>> {
+        // a stack only chains while the layout is exactly what its last step left
+        var st = if (steps.lastOrNull()?.let { it.after == m.pages && it.cols == m.cols } == true) steps else emptyList()
+        if (r < m.rows) {
+            val n = regrid(m, m.cols, r)
+            return n to (st + GridStep(m.cols, m.rows, m.pages, n.pages)).takeLast(4)
+        }
+        var cur = m
+        while (true) {
+            val top = st.lastOrNull() ?: break
+            if (top.rows > r || top.after != cur.pages) break
+            cur = cur.copy(rows = top.rows, pages = top.before); st = st.dropLast(1)
+        }
+        return (if (cur.rows == r) cur else regrid(cur, cur.cols, r)) to st
+    }
+
     fun regrid(m: HomeModel, cols: Int, rows: Int): HomeModel {
         val c = cols.coerceIn(3, 5); val r = rows.coerceIn(4, MAX_ROWS)
         if (c >= m.cols && r >= m.rows) {

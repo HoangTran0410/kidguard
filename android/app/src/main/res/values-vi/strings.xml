@@ -768,6 +768,9 @@
     <string name="hm_c_small">Nhỏ</string>
     <string name="hm_c_big">Lớn</string>
     <string name="hm_c_labels">Tên ứng dụng</string>
+    <string name="hm_c_lbl">Cỡ tên ứng dụng</string>
+    <string name="hm_c_lbl_auto">Tự động (theo biểu tượng)</string>
+    <string name="hm_c_lbl_m">Vừa</string>
     <string name="hm_c_face">Phông chữ</string>
     <string name="hm_c_face_sys">Mặc định</string>
     <string name="hm_c_face_light">Mảnh</string>

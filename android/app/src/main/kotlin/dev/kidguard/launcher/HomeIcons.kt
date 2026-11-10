@@ -28,8 +28,10 @@ import dev.kidguard.HomeActivity.Row
 
 // ---- app icon ----
 
-internal fun HomeActivity.iconScale(): Float = 0.8f + 0.1f * ((model?.style?.icon ?: 3) - 1)
-internal fun HomeActivity.iconPx(): Int = dp((preset.iconDp * iconScale()).toInt())
+internal fun HomeActivity.iconScale(): Float = 0.8f + 0.1f * ((model?.style?.icon ?: 2) - 1)
+internal fun HomeActivity.rawIconPx(): Int = dp((preset.iconDp * iconScale()).toInt())
+/** The chosen size, capped to the row height (autoRows: rows never change with the icon size). */
+internal fun HomeActivity.iconPx(): Int = rawIconPx().let { if (iconCap > 0) minOf(it, iconCap) else it }
 /** Drawer / folder / library icons: the same size as on home (was 52 dp x scale while home is the preset's size x scale:
  *  the POCO's "teen" 58 dp made home icons 11 % bigger than the drawer's at every setting). Capped to the drawer column. */
 internal fun HomeActivity.listIconPx(): Int {
@@ -136,7 +138,9 @@ internal fun HomeActivity.iconLabel(t: String, list: Boolean, color: Int, lines:
 }
 
 /**
- * Label size follows the icon (Pixel: 12 sp under 48 dp, ~25 %), so a 5x6 grid with small icons gets small labels too.
+ * Label size: fixed by style.lbl (s / m / l = 11 / 12 / 13.5 dp, iOS's 12 pt in the middle), independent of the icon size;
+ * only a column too narrow for it shrinks it (17 % of the cell width: 6 columns on a phone). "auto" = the old rule:
+ * follows the icon (iOS: 12 pt under a 60 pt icon, 20 %), so a 5x6 grid with small icons gets small labels too.
  * The system font scale still counts, damped (sqrt, at most x1.25): at 1.5 the labels were as tall as half an icon.
  * The drawer keeps 12 sp: its icons are a fixed 52 dp.
  */
@@ -144,8 +148,12 @@ internal fun HomeActivity.labelPx(list: Boolean): Float {
     val user = (model?.style?.font?.toFloat() ?: 1f)
     val sys = kotlin.math.sqrt(resources.configuration.fontScale).coerceIn(0.9f, 1.25f)
     // iOS: 12 pt under a 60 pt icon (20 %), regular weight. 25 % made names as tall as a third of the icon and cut them
-    val base = if (list) listIconPx() * 0.21f else iconPx() * 0.2f
-    return (base * sys * user).coerceIn(dpf(10f), dpf(13.5f) * sys * user)
+    if (list) return (listIconPx() * 0.21f * sys * user).coerceIn(dpf(10f), dpf(13.5f) * sys * user)
+    val lbl = model?.style?.lbl ?: "m"
+    if (lbl == "auto") return (iconPx() * 0.2f * sys * user).coerceIn(dpf(10f), dpf(13.5f) * sys * user)
+    val fixed = dpf(when (lbl) { "s" -> 11f; "l" -> 13.5f; else -> 12f }) * sys * user
+    val cell = resources.displayMetrics.widthPixels.toFloat() / (model?.cols ?: 4)
+    return fixed.coerceAtMost(cell * 0.17f).coerceAtLeast(dpf(9f))
 }
 
 /**

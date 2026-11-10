@@ -40,4 +40,25 @@ class FitRowsTest {
         val o = HomeLayout.placeAppWidgetAt(m, "com.w", "com.w.P", 43, 2, 2, 0, 0, 0)!!
         assertEquals(2, o.pages.flatten().size)
     }
+
+    // icon size up (7 -> 6 rows) and back (6 -> 7): every icon returns to its own cell, not the first free ones
+    @Test fun rowShrinkThenGrowRestoresLayout() {
+        val p = listOf(HItem("w1", "widget", 0, 0, 4, 2, type = "clock"),
+            HItem("a1", "app", 0, 6, pkg = "p1"), HItem("a2", "app", 3, 6, pkg = "p2"), HItem("a3", "app", 2, 3, pkg = "p3"))
+        val m = HomeModel(4, 7, listOf(p), emptyList(), HStyle())
+        val (s, st) = HomeLayout.rows(m, 6, emptyList())
+        assertEquals(6, s.rows); assertEquals(1, st.size)
+        val (b, st2) = HomeLayout.rows(s, 7, st)
+        assertEquals(7, b.rows); assertEquals(m.pages, b.pages); assertEquals(0, st2.size)
+        assertEquals(7, HomeLayout.undoRows(s, st)); assertEquals(null, HomeLayout.undoRows(b, st2))
+    }
+
+    // the kid moved something while the grid was small: the stack no longer matches, a plain regrid keeps their move
+    @Test fun editedInBetweenDoesNotRestore() {
+        val m = HomeModel(4, 7, listOf(listOf(HItem("a1", "app", 0, 6, pkg = "p1"))), emptyList(), HStyle())
+        val (s, st) = HomeLayout.rows(m, 6, emptyList())
+        val moved = s.copy(pages = listOf(listOf(HItem("a1", "app", 2, 2, pkg = "p1"))))
+        val (b, _) = HomeLayout.rows(moved, 7, st)
+        assertEquals(moved.pages, b.pages)
+    }
 }

@@ -787,6 +787,9 @@
     <string name="hm_c_small">Small</string>
     <string name="hm_c_big">Big</string>
     <string name="hm_c_labels">App names</string>
+    <string name="hm_c_lbl">Name size</string>
+    <string name="hm_c_lbl_auto">Auto (follows icon)</string>
+    <string name="hm_c_lbl_m">Medium</string>
     <string name="hm_c_face">Font</string>
     <string name="hm_c_face_sys">Default</string>
     <string name="hm_c_face_light">Light</string>

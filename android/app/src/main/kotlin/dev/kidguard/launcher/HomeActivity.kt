@@ -625,10 +625,27 @@ class HomeActivity : Activity() {
         val cellW = (pager.width - 2 * dp(10)) / m.cols
         // what a 1x1 app cell needs (appIcon): 4 dp pad + icon + 2 dp frame + 2 dp margin + one real label line + 2 dp pad, + the 6 dp gap.
         // Measured, not estimated: a guess of 12 sp cut the "g" of "Telegram" at 7 rows on the Poco.
-        val minH = cellMinH()
-        val r = HomeLayout.fitRows(availH, cellW, minH, m.rows)
-        if (r != m.rows) { Log.i("KG.perf", "autoRows ${m.rows} -> $r (h=$availH cw=$cellW min=$minH)"); update(HomeLayout.regrid(m, m.cols, r)) }
+        // rows never follow the icon size (One UI / Pixel): they are fitted for the smallest icon, and a bigger size is capped
+        // to what the row leaves (iconCap). Before, size 5 on the Poco needed 291 px against 283 px rows: 7 -> 6 rows, page shuffled.
+        val over = cellMinH() - iconPx()                       // pads + frame + label line
+        val minH = dp((preset.iconDp * 0.8f).toInt()) + over
+        val steps = GridSteps.load(this)
+        // fitRows keeps a near-square count, so after an automatic shrink (bigger icons) it would never grow back: when the
+        // last shrink is untouched and its rows fit again, go back to them (HomeLayout.rows restores the places too)
+        val back = HomeLayout.undoRows(m, steps)?.takeIf { it > m.rows && HomeLayout.fitRows(availH, cellW, minH, it) == it }
+        val r = back ?: HomeLayout.fitRows(availH, cellW, minH, m.rows)
+        if (r != m.rows) {
+            Log.i("KG.perf", "autoRows ${m.rows} -> $r (h=$availH cw=$cellW min=$minH)")
+            val (n, st) = HomeLayout.rows(m, r, steps)
+            GridSteps.save(this, st, m)
+            update(n)
+        }
+        val cap = (availH / r - over).coerceAtLeast(dp(32))
+        if (cap != iconCap) { val was = iconPx(); iconCap = cap; if (r == m.rows && iconPx() != was) render(true) }
     }
+
+    /** The biggest icon the current rows hold (autoRows), 0 = not measured yet. */
+    internal var iconCap = 0
 
     private var minHKey = 0f; private var minHVal = 0
     /** What a 1x1 app cell needs (appIcon): 4 dp pad + icon + 2 dp frame + 2 dp margin + one real label line + 2 dp pad.

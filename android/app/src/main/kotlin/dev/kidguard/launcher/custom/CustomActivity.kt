@@ -116,6 +116,7 @@ class CustomActivity : Activity() {
         // no rows stepper: rows always follow the screen (cells ~square, HomeLayout.fitRows); picking both made cells oblong
         line(home); home.addView(stepper(s(R.string.hm_c_icon), st.icon, 1, 5) { v -> set { it.copy(icon = v) } })   // 1..5 like "Số cột" (owner: a slider took a whole block)
         line(home); home.addView(switchRow(s(R.string.hm_c_labels), st.labels) { v -> set { it.copy(labels = v) } })
+        if (st.labels || st.dockLabels) { line(home); home.addView(segRow(s(R.string.hm_c_lbl), listOf(s(R.string.hm_c_lbl_auto) to "auto", s(R.string.hm_c_small) to "s", s(R.string.hm_c_lbl_m) to "m", s(R.string.hm_c_big) to "l"), st.lbl) { v -> set { it.copy(lbl = v) } }) }
         line(home); home.addView(segRow(s(R.string.hm_c_face), HomeActivity.FACES.zip(listOf(R.string.hm_c_face_sys, R.string.hm_c_face_light, R.string.hm_c_face_medium, R.string.hm_c_face_condensed, R.string.hm_c_face_serif, R.string.hm2_c_face_easy)).map { (f, r) -> s(r) to f }, st.face) { v -> set { it.copy(face = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_shape), listOf(s(R.string.hm_c_round_opt) to "round", s(R.string.hm_c_soft_opt) to "soft", s(R.string.hm_c_square_opt) to "square"), st.shape) { v -> set { it.copy(shape = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock), st.dockBg) { v -> set { it.copy(dockBg = v) } })
@@ -345,7 +346,11 @@ class CustomActivity : Activity() {
 
     private fun dropdown(anchor: View, items: List<Pair<String, String>>, cur: String, on: (String) -> Unit) {
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = k.sheetCard(16f); setPadding(0, dp(6), 0, dp(6)); elevation = k.dpf(8f) }
-        val pop = android.widget.PopupWindow(list, (anchor.width * 0.6f).toInt().coerceAtLeast(dp(200)), -2, true).apply {
+        // the list scrolls inside the card when it is taller than the room left (it was cut off near the bottom)
+        val scroll = android.widget.ScrollView(this).apply { isVerticalScrollBarEnabled = false; background = k.sheetCard(16f); elevation = k.dpf(8f); clipToOutline = true; addView(list) }
+        list.background = null; list.elevation = 0f
+        val pw = (anchor.width * 0.6f).toInt().coerceAtLeast(dp(200))
+        val pop = android.widget.PopupWindow(scroll, pw, -2, true).apply {
             elevation = k.dpf(8f); setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)); isOutsideTouchable = true
         }
         for ((t, id) in items) {
@@ -358,7 +363,20 @@ class CustomActivity : Activity() {
                 k.tap(this, 0f) { pop.dismiss(); if (!sel) on(id) }
             }, LinearLayout.LayoutParams(-1, -2))
         }
-        pop.showAsDropDown(anchor, anchor.width - pop.width, -dp(6))
+        // below the row when it fits, else above it (Material's exposed dropdown); neither: the side with more room, capped
+        scroll.measure(View.MeasureSpec.makeMeasureSpec(pw, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+        val want = scroll.measuredHeight
+        val root = window.decorView
+        val ins = root.rootWindowInsets
+        val top = (ins?.systemWindowInsetTop ?: 0) + dp(8); val bottom = root.height - (ins?.systemWindowInsetBottom ?: 0) - dp(8)
+        val loc = IntArray(2).also { anchor.getLocationInWindow(it) }
+        val below = bottom - (loc[1] + anchor.height - dp(6)); val above = loc[1] + dp(6) - top
+        val down = want <= below || (want > above && below >= above)
+        val h = minOf(want, if (down) below else above)
+        pop.height = h
+        val x = loc[0] + anchor.width - pw
+        val y = if (down) loc[1] + anchor.height - dp(6) else loc[1] + dp(6) - h
+        pop.showAtLocation(root, Gravity.TOP or Gravity.START, x, y)
     }
 
     private fun presetCard(p: HomeStyle.Preset, sel: Boolean) = LinearLayout(this).apply {
