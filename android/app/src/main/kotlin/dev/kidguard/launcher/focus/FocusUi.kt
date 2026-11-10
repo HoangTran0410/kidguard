@@ -220,5 +220,3 @@ internal fun HomeActivity.focusState(): Pair<String, Boolean> =
     if (FocusStore.mode == FocusLogic.Mode.OFF) getString(R.string.focus_title) to false
     else (chipText?.text?.toString()?.takeIf { it.isNotEmpty() } ?: getString(R.string.focus_title)) to true
 
-/** Long-press menu entry helper. */
-internal fun HomeActivity.focusRow() = HomeActivity.Row(R.drawable.li_timer, getString(R.string.focus_title), true) { focusSheet() }
