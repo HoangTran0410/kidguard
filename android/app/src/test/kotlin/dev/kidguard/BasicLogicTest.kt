@@ -68,6 +68,10 @@ class BasicLogicTest {
         assertTrue(BasicLogic.selfProtect("com.android.settings", n("App info", "KidGuard", "Open", "Uninstall", "Force stop")))
         assertTrue(BasicLogic.selfProtect("com.samsung.android.settings", n("KidGuard", "Uninstall")))
         assertTrue(BasicLogic.selfProtect("com.miui.securitycenter", n("kidguard", "FORCE STOP")))
+        // "KidGuard Home" (not the HOME): its own app info may uninstall it; KidGuard itself stays protected
+        assertFalse(BasicLogic.selfProtect("com.android.settings", n("Thông tin ứng dụng", "KidGuard Home", "Gỡ cài đặt", "Buộc dừng"), free = listOf("KidGuard Home")))
+        assertTrue(BasicLogic.selfProtect("com.android.settings", n("Thông tin ứng dụng", "KidGuard", "Gỡ cài đặt", "Buộc dừng"), free = listOf("KidGuard Home")))
+        assertTrue(BasicLogic.selfProtect("com.android.settings", n("KidGuard Home", "Gỡ cài đặt")))
     }
 
     @Test fun deviceAdminDeactivate() {

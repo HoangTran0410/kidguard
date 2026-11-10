@@ -96,15 +96,19 @@ object BasicLogic {
     /**
      * True when a window of [pkg] mentions KidGuard (one of [labels]) AND offers a destructive control.
      * An app list that merely shows "KidGuard" has no such control and passes. KidGuard's own windows are never passed in.
+     * [free]: names that contain a label but are another app that may go (the "KidGuard Home" flavor when it isn't the
+     * phone's HOME: the owner could not uninstall it, its app info page closed at once).
      */
-    fun selfProtect(pkg: String, nodes: List<Node>, labels: Collection<String> = listOf("KidGuard")): Boolean {
+    fun selfProtect(pkg: String, nodes: List<Node>, labels: Collection<String> = listOf("KidGuard"), free: Collection<String> = emptyList()): Boolean {
         if (!isSettingsPkg(pkg)) return false
         val ls = labels.map { norm(it) }.filter { it.isNotEmpty() }
+        val fs = free.map { norm(it) }.filter { it.isNotEmpty() }
         var mentions = false; var control = false
         for (n in nodes) {
             val t = norm(n.text)
             if (t.isEmpty()) continue
-            if (ls.any { t.contains(it) }) mentions = true
+            // [free]: names that merely contain a label ("KidGuard Home" while it is not the HOME) are other apps
+            if (ls.any { t.contains(it) } && fs.none { t.contains(it) }) mentions = true
             if (STRONG_PREFIX.any { t.startsWith(it) } || ACC_DESC.any { t.contains(it) } || (n.clickable && !n.checkable && t in WEAK_CLICK)) control = true
             if (mentions && control) return true
         }

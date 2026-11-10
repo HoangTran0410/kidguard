@@ -139,6 +139,15 @@ class Acc : AccessibilityService() {
     private val scan3 = Runnable { scan() }
     private var lastProtectLog = 0L
 
+    /** "KidGuard Home" may be uninstalled / stopped unless it is the phone's HOME now (then it is the kid's launcher). */
+    private fun freeNames(): List<String> {
+        val home = runCatching {
+            packageManager.resolveActivity(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME),
+                android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
+        }.getOrNull()
+        return if (home == "dev.kidguard.home") emptyList() else listOf(getString(R.string.home_app))
+    }
+
     private fun scan() {
         if (!basicOn()) return
         // nothing to protect before a parent pairs, and setup itself happens on these Settings pages (accessibility detail, autostart…)
@@ -153,7 +162,7 @@ class Acc : AccessibilityService() {
             performGlobalAction(GLOBAL_ACTION_HOME)
             val now = System.currentTimeMillis()
             if (now - lastProtectLog > 30_000) { lastProtectLog = now; runCatching { Store.of(this).log(R.string.log_acc_clock) } }
-        } else if (BasicLogic.selfProtect(pkg, nodes, labels)) {
+        } else if (BasicLogic.selfProtect(pkg, nodes, labels, freeNames())) {
             performGlobalAction(GLOBAL_ACTION_HOME)
             val now = System.currentTimeMillis()
             if (now - lastProtectLog > 30_000) {
