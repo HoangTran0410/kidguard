@@ -692,8 +692,10 @@ class HomeActivity : Activity() {
                 val cell = reuse.cell
                 // what a drag / press / swap preview may have left on them: hidden source, offsets, press scale
                 for (i in 0 until cell.childCount) cell.getChildAt(i).apply {
-                    animate().cancel(); visibility = View.VISIBLE; alpha = 1f; scaleX = 1f; scaleY = 1f; translationX = 0f; translationY = 0f
-                    (this as? ViewGroup)?.getChildAt(0)?.let { ic -> ic.animate().cancel(); ic.scaleX = 1f; ic.scaleY = 1f }
+                    // back to each view's rest scale (Motion.rest): a widget card shrunk to fit its cells is not 1, and 1 left it
+                    // ~8 % bigger than its cells after every drag
+                    animate().cancel(); visibility = View.VISIBLE; alpha = 1f; Motion.rest(this).let { s -> scaleX = s; scaleY = s }; translationX = 0f; translationY = 0f
+                    (this as? ViewGroup)?.getChildAt(0)?.let { ic -> ic.animate().cancel(); val s = Motion.rest(ic); ic.scaleX = s; ic.scaleY = s }
                 }
                 cell.hl = null; cell.plateOff()
                 inkViews += reuse.ink; clocks += reuse.clocks; tickers += reuse.tickers; itemViews += reuse.items
