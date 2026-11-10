@@ -710,7 +710,7 @@ class HomeActivity : Activity() {
             for (it in p) {
                 val v: View = when (it.kind) {
                     "widget" -> { val w0 = android.os.SystemClock.uptimeMillis(); if (!Flavor.widget(it.type)) null else when (it.type) {
-                        "clock" -> clockWidget(r, dv, it.w, it.h, hasNext)
+                        "clock" -> clockWidget(r, dv, it.w, it.h, hasNext, it.opt == "center")
                         "time" -> timeWidget(r, dv, block, s, it.w)
                         "quick" -> quickWidget(s, it.w)
                         "next" -> nextWidget(r, dv)

@@ -30,7 +30,13 @@ internal fun HomeActivity.armWidget(v: View, it: HItem) {
         val chips = sizes.map { (w, h) ->
             MenuChip("$w×$h", w == it.w && h == it.h) { model?.let { mm -> HomeLayout.resizeWidget(mm, it.id, w, h)?.let { n -> update(n) } ?: noRoom(null) } }
         }
-        menu(listOf(
+        // the widget's own settings first (iOS "Sửa tiện ích" / One UI): the clock's alignment
+        val own = if (it.type == "clock") {
+            val mid = it.opt == "center"
+            listOf(Row(if (mid) R.drawable.li_align_left else R.drawable.li_align_center, getString(if (mid) R.string.hm_c_align_left else R.string.hm_c_align_center), true) {
+                model?.let { mm -> HomeLayout.setOpt(mm, it.id, if (mid) "" else "center")?.let { n -> update(n) } } })
+        } else emptyList()
+        menu(own + listOf(
             Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { mm -> HomeLayout.take(mm, Src.Item(it.id))?.let { t -> update(HomeLayout.dropRemove(t)) } } },
             Row(R.drawable.li_layout_dashboard, getString(R.string.hm_edit_home), true) { enterEdit(it.id) },
         ), v, head = if (chips.size > 1) MenuHead(getString(R.string.hm_w_size_h), chips = chips) else null)
@@ -101,8 +107,7 @@ internal fun HomeActivity.tickClocks(dv: View0) {
     today?.tick(dv.minute)
 }
 
-internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideNext: Boolean): View {
-    val mid = model?.style?.clockAlign == "center"
+internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideNext: Boolean, mid: Boolean = false): View {
     // left: the digits' ink on the icon column's left edge (the box is already there); centre: centred in the cells
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL or (if (mid) Gravity.CENTER_HORIZONTAL else Gravity.START)
         setPadding(if (mid) dp(8) else 0, dp(4), dp(8), dp(4)) }

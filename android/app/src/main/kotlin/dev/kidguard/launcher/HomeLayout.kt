@@ -11,6 +11,7 @@ data class HItem(
     val id: String, val kind: String, val x: Int, val y: Int, val w: Int = 1, val h: Int = 1,
     val pkg: String = "", val cls: String = "", val type: String = "", val name: String = "", val apps: List<String> = emptyList(),
     val awid: Int = 0,                                       // type "app": the AppWidgetHost id of another app's widget
+    val opt: String = "",                                    // a widget's own setting from its long-press menu (clock: "center")
 ) {
     fun toJson(): JSONObject = JSONObject().put("id", id).put("kind", kind).put("x", x).put("y", y).also { o ->
         if (w != 1 || kind == "widget") o.put("w", w)
@@ -21,6 +22,7 @@ data class HItem(
         if (kind == "folder") o.put("name", name).put("apps", JSONArray(apps))
         if (kind == HomeLayout.SHORTCUT) o.put("name", name)
         if (awid != 0) o.put("awid", awid)
+        if (opt.isNotEmpty()) o.put("opt", opt)
     }
     fun covers(cx: Int, cy: Int) = cx in x until x + w && cy in y until y + h
 }
@@ -30,9 +32,8 @@ data class HStyle(
     val accent: String = "", val theme: String = "auto", val font: Double = 1.0, val wallKind: String = "builtin", val wall: String = "", val dim: Int = 0, val blur: Int = 0,
     val lib: Boolean = true, val fx: String = "auto", val today: Boolean = true,
     val speak: Boolean = false, val calm: Boolean = false, val solid: Boolean = false,   // reading aids: say the name on tap / launcher animations off / solid label backing
-    val clockAlign: String = "left",                                                     // big clock widget: "left" | "center"
 ) {
-    fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels).put("badge", badge).put("face", face).put("lib", lib).put("fx", fx).put("today", today).put("speak", speak).put("calm", calm).put("solid", solid).put("clockAlign", clockAlign)
+    fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels).put("badge", badge).put("face", face).put("lib", lib).put("fx", fx).put("today", today).put("speak", speak).put("calm", calm).put("solid", solid)
         .put("accent", accent).put("theme", theme).put("font", font)
         .put("wall", JSONObject().put("kind", wallKind).put("id", wall).put("dim", dim).put("blur", blur))
 
@@ -54,7 +55,6 @@ data class HStyle(
                 dim = w.optInt("dim", 0).coerceIn(0, 60), blur = w.optInt("blur", 0).coerceIn(0, 100),
                 lib = o.optBoolean("lib", true), today = o.optBoolean("today", true),
                 speak = o.optBoolean("speak", false), calm = o.optBoolean("calm", false), solid = o.optBoolean("solid", false),
-                clockAlign = o.optString("clockAlign", "left").takeIf { it == "left" || it == "center" } ?: "left",
                 fx = o.optString("fx", "auto").takeIf { it in setOf("auto", "full", "lite") } ?: "auto",
             )
         }
@@ -271,7 +271,7 @@ object HomeLayout {
                 var it = HItem(j.optString("id").take(16).ifEmpty { "i$pi-$k" }, kind, j.optInt("x", -1), j.optInt("y", -1),
                     j.optInt("w", 1).coerceIn(1, 5), j.optInt("h", 1).coerceIn(1, 6),
                     j.optString("pkg").take(200), j.optString("cls").take(300), j.optString("type"), j.optString("name").take(40),
-                    j.optJSONArray("apps")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() } } ?: emptyList(), j.optInt("awid", 0))
+                    j.optJSONArray("apps")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() } } ?: emptyList(), j.optInt("awid", 0), j.optString("opt").take(20))
                 when (kind) {
                     "widget" -> { if (it.type !in WIDGETS || (it.type == APP && (it.awid == 0 || it.pkg.isEmpty()))) continue; it = it.copy(w = minOf(it.w, cols), h = minOf(it.h, rows), x = minOf(it.x, cols - minOf(it.w, cols))) }
                     "app" -> { if (it.pkg.isEmpty() || !seenPkgs.add(it.pkg)) continue; it = it.copy(w = 1, h = 1) }
@@ -608,6 +608,13 @@ object HomeLayout {
     }
 
     /** Another size for the widget [id]: in place when the new cells are free, else the first place it fits. */
+    /** A widget's own option (its long-press menu), e.g. the clock's alignment. */
+    fun setOpt(m: HomeModel, id: String, opt: String): HomeModel? {
+        val (pi, it) = find(m, id)?.takeIf { it.second.kind == "widget" } ?: return null
+        if (it.opt == opt) return m
+        return setPage(m, pi, m.pages[pi].map { o -> if (o.id == id) o.copy(opt = opt) else o })
+    }
+
     fun resizeWidget(m: HomeModel, id: String, w: Int, h: Int): HomeModel? {
         val (pi, it) = find(m, id)?.takeIf { it.second.kind == "widget" } ?: return null
         val nw = minOf(w, m.cols); val nh = minOf(h, m.rows)
