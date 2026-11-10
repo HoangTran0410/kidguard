@@ -623,10 +623,22 @@ class HomeActivity : Activity() {
         val cellW = (pager.width - 2 * dp(10)) / m.cols
         // what a 1x1 app cell needs (appIcon): 4 dp pad + icon + 2 dp frame + 2 dp margin + one real label line + 2 dp pad, + the 6 dp gap.
         // Measured, not estimated: a guess of 12 sp cut the "g" of "Telegram" at 7 rows on the Poco.
-        val line = if (m.style.labels) iconLabel("Ág", false, Color.WHITE, 1).apply { measure(0, 0) }.measuredHeight else 0
-        val minH = iconPx() + dp(4 + 2 + 2 + 2 + 6) + line
+        val minH = cellMinH()
         val r = HomeLayout.fitRows(availH, cellW, minH, m.rows)
         if (r != m.rows) { Log.i("KG.perf", "autoRows ${m.rows} -> $r (h=$availH cw=$cellW min=$minH)"); update(HomeLayout.regrid(m, m.cols, r)) }
+    }
+
+    private var minHKey = 0f; private var minHVal = 0
+    /** What a 1x1 app cell needs (appIcon): 4 dp pad + icon + 2 dp frame + 2 dp margin + one real label line + 2 dp pad, + the 6 dp gap. */
+    internal fun cellMinH(): Int {
+        val m = model
+        val key = iconPx() * 1000f + labelPx(false) + (if (m?.style?.labels == false) 0.5f else 0f)
+        if (key != minHKey) {
+            // measured, not estimated: a guess of 12 sp cut the "g" of "Telegram" at 7 rows on the Poco
+            val line = if (m?.style?.labels != false) iconLabel("Ág", false, Color.WHITE, 1).apply { measure(0, 0) }.measuredHeight else 0
+            minHVal = iconPx() + dp(4 + 2 + 2 + 2 + 6) + line; minHKey = key
+        }
+        return minHVal
     }
 
     internal fun announce(t: String) = root.announceForAccessibility(t)
@@ -1399,33 +1411,48 @@ class HomeActivity : Activity() {
         }
 
         fun cellW() = (width - 2 * side) / cols
-        fun cellH() = (height - paddingTop - paddingBottom) / rows
+        fun cellH() = pitchH(width, height)
+        /** Top of row 0: the rows are centred when [pitchH] leaves spare height. */
+        fun gridTop() = gridTop(height)
+
+        /**
+         * Row pitch = column pitch where the screen allows (iOS: the gap between icons is the same across and down, which is
+         * what makes a 2x2 widget square and flush with the icons). Never less than an icon + one label line, never more
+         * than the height / rows. POCO: 289 x 331 px cells became 289 x ~302 (label line), the rest centred.
+         */
+        private fun pitchH(W: Int, H: Int): Int {
+            val raw = ((H - paddingTop - paddingBottom) / rows).coerceAtLeast(1)
+            val cw = (W - 2 * side) / cols
+            return if (raw <= cw) raw else maxOf(cw, cellMinH()).coerceAtMost(raw)
+        }
+        private fun gridTop(H: Int) = paddingTop + ((H - paddingTop - paddingBottom) - rows * pitchH(width, H)).coerceAtLeast(0) / 2
 
         override fun onMeasure(w: Int, h: Int) {
             val W = MeasureSpec.getSize(w); val H = MeasureSpec.getSize(h)
-            val cw = (W - 2 * side) / cols; val ch = ((H - paddingTop - paddingBottom) / rows).coerceAtLeast(1)
+            val cw = (W - 2 * side) / cols; val ch = pitchH(W, H)
             shareLabels(cw)
             for (i in 0 until childCount) {
                 val c = getChildAt(i); val lp = c.layoutParams as CellLP
-                val (ix, top, bot) = if (lp.widget) wInset(cw, ch, lp) else Triple(0, 0, 0)
-                c.measure(MeasureSpec.makeMeasureSpec((cw * lp.w - gap - 2 * ix).coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec((ch * lp.h - gap - top - bot).coerceAtLeast(0), MeasureSpec.EXACTLY))
+                val (_, _, ww, wh) = box(cw, ch, lp)
+                c.measure(MeasureSpec.makeMeasureSpec(ww.coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(wh.coerceAtLeast(0), MeasureSpec.EXACTLY))
             }
             setMeasuredDimension(W, H)
         }
 
         /**
-         * A widget's side edges line up with the outer icons' edges (iOS / Pixel), and it is inset the same amount top and
-         * bottom so it keeps its cell span's shape. Was: the whole span (sticking out ~15 dp past the icon columns), then
-         * side-only insets, which made a 2x2 on the POCO 22 % taller than wide. One-row widgets get half the vertical inset
-         * (their content is a single line that needs the height). Returns (side, top, bottom) in px.
+         * An item's box (x, y offsets inside its cells, width, height). Apps / folders: the whole cells minus the gap. Widgets
+         * (iOS): from the first icon's edge to the last icon's edge both ways, so they sit flush with the icon grid; a 2x2 is
+         * square because the row pitch = the column pitch ([pitchH]). A one-row widget keeps the label line below its icon
+         * row (it has one line of content and needs the height). Was the whole cells, ~15 dp past the icons on every side.
          */
-        private fun wInset(cw: Int, ch: Int, lp: CellLP): Triple<Int, Int, Int> {
-            val ix = ((cw - gap - iconPx()) / 2).coerceIn(0, dp(18))
-            val v = if (lp.h == 1) ix / 2 else ix
-            // cells taller than wide (POCO: 289 x 331 px) would still make a 2x2 17 % tall: cap the height at the square
-            // the same span would have, extra split above and below (iOS widgets keep their shape on every phone)
-            val extra = ((ch - cw) * lp.h).coerceAtLeast(0)
-            return Triple(ix, v + extra / 2, v + extra - extra / 2)
+        private fun box(cw: Int, ch: Int, lp: CellLP): IntArray {
+            if (!lp.widget) return intArrayOf(0, 0, cw * lp.w - gap, ch * lp.h - gap)
+            val icon = iconPx().coerceAtMost(minOf(cw, ch) - gap)
+            val ix = ((cw - gap - icon) / 2).coerceAtLeast(0)
+            val top = dp(5).coerceAtMost((ch - gap - icon).coerceAtLeast(0))        // appIcon: 4 dp box padding + 1 dp frame
+            val w = (lp.w - 1) * cw + icon
+            val h = if (lp.h == 1) ch - gap - top else (lp.h - 1) * ch + icon
+            return intArrayOf(ix, top, w, h)
         }
 
         /**
@@ -1471,11 +1498,11 @@ class HomeActivity : Activity() {
         }
 
         override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-            val cw = (r - l - 2 * side) / cols; val ch = ((b - t - paddingTop - paddingBottom) / rows).coerceAtLeast(1)
+            val cw = (r - l - 2 * side) / cols; val ch = pitchH(r - l, b - t); val y0 = gridTop(b - t)
             for (i in 0 until childCount) {
                 val c = getChildAt(i); val lp = c.layoutParams as CellLP
-                val (ix, top, _) = if (lp.widget) wInset(cw, ch, lp) else Triple(0, 0, 0)
-                val x = side + lp.x * cw + gap / 2 + ix; val y = paddingTop + lp.y * ch + gap / 2 + top
+                val (ix, top) = box(cw, ch, lp)
+                val x = side + lp.x * cw + gap / 2 + ix; val y = y0 + lp.y * ch + gap / 2 + top
                 c.layout(x, y, x + c.measuredWidth, y + c.measuredHeight)
             }
         }
@@ -1503,7 +1530,7 @@ class HomeActivity : Activity() {
             val tg = hl
             if (tg != null) {
                 val (x, y, w, h) = tg
-                val l = side + x * cw + gap / 2f; val t = paddingTop + y * ch + gap / 2f; val r = l + w * cw - gap; val b = t + h * ch - gap
+                val l = side + x * cw + gap / 2f; val t = gridTop() + y * ch + gap / 2f; val r = l + w * cw - gap; val b = t + h * ch - gap
                 if (hlA == 0f) hlR.set(l, t, r, b)
                 else { val k = 1f - Math.pow(0.65, st.toDouble()).toFloat(); hlR.set(hlR.left + (l - hlR.left) * k, hlR.top + (t - hlR.top) * k, hlR.right + (r - hlR.right) * k, hlR.bottom + (b - hlR.bottom) * k) }
                 hlA = minOf(1f, hlA + 0.2f * st)
@@ -1521,8 +1548,8 @@ class HomeActivity : Activity() {
             // the item will land in lights up while dragging (hl below), like Pixel / One UI.
             panel.color = Color.argb(28, Color.red(gridColor), Color.green(gridColor), Color.blue(gridColor))
             edge.color = Color.argb(70, Color.red(gridColor), Color.green(gridColor), Color.blue(gridColor))
-            val l0 = side.toFloat() - gap / 2f; val t0 = paddingTop - gap / 2f
-            val r0 = side + cols * cw + gap / 2f; val b0 = paddingTop + rows * ch + gap / 2f
+            val l0 = side.toFloat() - gap / 2f; val t0 = gridTop() - gap / 2f
+            val r0 = side + cols * cw + gap / 2f; val b0 = gridTop() + rows * ch + gap / 2f
             kit.drawRound(c, l0, t0, r0, b0, panel, kit.dpf(22f)); kit.drawRound(c, l0, t0, r0, b0, edge, kit.dpf(22f))
         }
     }

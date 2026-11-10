@@ -53,6 +53,10 @@ internal class KgHostView(ctx: Context) : AppWidgetHostView(ctx) {
 
     override fun onDetachedFromWindow() { removeCallbacks(fire); super.onDetachedFromWindow() }
 
+    // AppWidgetHostView adds the system's default widget padding (~8 dp a side) in setAppWidget. The grid already insets
+    // widgets to the icon edges (CellLayout.box), so that padding pushed other apps' widgets ~8 dp inside the icon columns.
+    override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) = super.setPadding(0, 0, 0, 0)
+
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
         super.onSizeChanged(w, h, ow, oh)
         val d = resources.displayMetrics.density

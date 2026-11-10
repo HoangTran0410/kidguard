@@ -94,7 +94,7 @@ internal fun HomeActivity.cellAt(x: Float, y: Float, d: DragSt): Triple<Int, Pai
     val cl = pageView() ?: return null
     val loc = IntArray(2); val rl = IntArray(2)
     cl.getLocationInWindow(loc); root.getLocationInWindow(rl)
-    val lx = x - (loc[0] - rl[0]); val ly = y - (loc[1] - rl[1]) - cl.paddingTop
+    val lx = x - (loc[0] - rl[0]); val ly = y - (loc[1] - rl[1]) - cl.gridTop()
     val cw = cl.cellW(); val ch = cl.cellH()
     if (cw <= 0 || ch <= 0 || ly < -ch / 2 || ly > m.rows * ch + ch / 2) return null
     val fx = (lx - cl.side) / cw; val fy = ly / ch
