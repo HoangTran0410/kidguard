@@ -79,8 +79,8 @@ object FeaturesSheet {
             "notify" -> act.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 43)
             "battery" -> open(act, Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkg), Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
             "home" -> {
-                // no Device Owner and no parent yet: this is the user's own choice (local opt-in); the owner path forces HOME itself
-                if (!Policy.isOwner(act) && !Store.of(act).everPaired) LauncherSafe.setLocal(act, true)
+                // no Device Owner: make sure the HOME component is enabled right now, so KidGuard is in the list that opens
+                if (!Policy.isOwner(act)) LauncherSafe.setLocal(act, true)
                 open(act, Intent(Settings.ACTION_HOME_SETTINGS), Intent(Settings.ACTION_SETTINGS))
             }
             "owner" -> guide(act, u, R.string.feat_owner_title, R.string.feat_owner_body)
@@ -127,9 +127,6 @@ object FeaturesSheet {
                     else act.getString(R.string.feat_fix, str(act, "feat_cap_", cap))
                 card.addView(u.button(label, null, false) { sheet.dismiss(); fix(act, u, cap, pair) })
             }
-            // launcher with the local opt-in on: a way back (once paired, the parent's rule decides)
-            if (f.id == "launcher" && store.launcherLocal && !caps.owner && !caps.paired)
-                card.addView(u.button(act.getString(R.string.feat_launcher_off), null, false) { sheet.dismiss(); LauncherSafe.setLocal(act, false) })
             body.addView(card)
         }
         if (battery != null) body.addView(u.listRow(act.getString(R.string.main_battery), R.drawable.li_battery_charging) { sheet.dismiss(); battery() }.apply {

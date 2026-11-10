@@ -969,8 +969,9 @@ is done. Source of truth: `guard/Features.kt` (pure, `FeaturesTest`). State adds
 
 Child-app screen "Tính năng và quyền" (Thêm sheet) lists these with a button per missing cap.
 
-Local launcher opt-in (phone only, not in rules): `Store.launcherLocal`. Not owner + never paired ⇒ `wanted` = this flag;
-paired ⇒ the parent's `launcher` rule; owner ⇒ the rule, with the forced HOME. Only the owner path adds the persistent
+Local launcher opt-in (phone only, not in rules): `Store.launcherLocal`. Since 2026-11-10 not owner ⇒ `wanted` = always
+true (KidGuard always listed as a HOME choice; only safe mode / release hide it), the flag is legacy; the page never gates the `launcher.on` checkbox (the
+`home` cap is its result, not a prerequisite); owner ⇒ the rule, with the forced HOME. Only the owner path adds the persistent
 preferred activity. The flag is not sent in state; `release` disables the component as before.
 
 Before setup (never paired, no parent PIN, no Authenticator) "Bố mẹ quản lý trên máy này" opens the local page without a

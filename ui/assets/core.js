@@ -77,7 +77,7 @@ const CAPS = ["owner", "admin", "acc", "usage", "location", "notify", "battery",
 const capName = c => hasT("cap_" + c) ? t("cap_" + c) : c;
 // section id -> feature id (sec() dims the body of a section whose feature is not ok), tab id -> feature id (render())
 const FEAT_SEC = { "r-daily": "limits", "r-grp": "limits", "r-bed": "limits", "r-wind": "limits", "r-sch": "limits", "r-dns": "dns", "r-anti": "noUninstall",
-  "r-home": "launcher", "r-kind": "launcherLock", "r-zone": "location", "r-trk": "location", "cl-sug": "debloat", "cl-rest": "debloat" };
+  "r-kind": "launcherLock", "r-zone": "location", "r-trk": "location", "cl-sug": "debloat", "cl-rest": "debloat" };
 const FEAT_TAB = { apps: "block", screen: "screen", where: "location", rep: "usage" };
 // "Cần: Device Owner, Trợ năng" + how to get it; empty when the feature is available
 function gateNote(id) {

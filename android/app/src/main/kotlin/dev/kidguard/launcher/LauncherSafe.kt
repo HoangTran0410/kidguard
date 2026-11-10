@@ -32,8 +32,9 @@ object LauncherSafe {
         if (inSafeMode(ctx) || s.released) return false
         if (Flavor.HOME) return true
         if (Policy.isOwner(ctx)) return r.launcher.on
-        // no Device Owner: the user picks KidGuard as HOME themselves. Local opt-in before pairing, the parent's rule after
-        return if (s.everPaired) r.launcher.on else s.launcherLocal
+        // no Device Owner: nothing can be forced (the user picks HOME in Settings), so KidGuard is ALWAYS in the HOME list;
+        // hiding it only locked people out (paired + rule off left no way to pick it). Safe mode / released still hide it.
+        return true
     }
 
     private fun homeFilter() = IntentFilter(Intent.ACTION_MAIN).apply {
