@@ -167,6 +167,75 @@ async function call1(k, path, method, body) {
 // then the ones in its relay state; still nothing -> state / commands / rules over its relay for a minute at a time.
 // Each step is automatic (docs/protocol.md "LAN address heal").
 const LAN_PORT = 8770;
+/** The author's shared relay, on by default on paired phones (Relay.DEFAULT_URL in the app). */
+const DEFAULT_RELAY = "https://kidguard.99-hoangtran.workers.dev";
+/** The link that always opens: the relay's /go page (core.js goBoot). */
+const goLink = (url, id, token, name) => `${url}/go#c=${encodeURIComponent(id)}&k=${encodeURIComponent(token)}&n=${encodeURIComponent(name || "")}`;
+const lanLink = (base, id, token, name) => `${base}/#lk=${token}&rc=${encodeURIComponent(id)}&ru=${encodeURIComponent(location.origin)}&n=${encodeURIComponent(name || "")}`;
+const GO_FRESH = 180000;   // the phone syncs at least every 60 s (screen off); 3 min without = offline
+/**
+ * Relay /go#c&k&n: ask the relay where the phone is. Same public network + seen lately -> open its LAN page (faster,
+ * listen works) with the relay token; Back within 90 s (the LAN page did not load) -> stay on the relay with a toast.
+ * Offline -> an error screen with what the relay last saw. Otherwise -> the normal page over the relay.
+ */
+async function goBoot(h) {
+  isRelayOrigin = true;
+  const k = { id: h.get("c"), token: h.get("k"), name: h.get("n") || t("kid"), via: "relay" };
+  kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids);
+  let w = null, err = "";
+  try {
+    const r = await fetch(`/c/${encodeURIComponent(k.id)}/where`, { headers: { "X-KG-Token": k.token }, signal: quick(10000) });
+    w = await r.json().catch(() => null);
+    if (!r.ok) { err = (w && w.error) || "HTTP " + r.status; w = null; }
+  } catch { err = "net"; }
+  const key = "kg.go." + k.id, now = Date.now();
+  let back = false; try { back = now - (+sessionStorage.getItem(key) || 0) < 90000; } catch {}
+  const fresh = w && now - (w.seen || 0) < GO_FRESH;
+  if (fresh && w.same && w.lan && !back) {
+    try { sessionStorage.setItem(key, String(now)); } catch {}
+    location.assign(lanLink(w.lan, k.id, k.token, k.name));   // assign, not replace: Back returns here = "LAN did not load"
+    return;
+  }
+  history.replaceState(null, "", location.pathname);
+  if (err === "not paired" || err === "waiting for the phone") return goError(k, null, t("go.unpaired"));
+  if (!w) return goError(k, null, t("go.relayErr", err === "net" ? t("e.net") : err));
+  if (!fresh) return goError(k, w, w.seen ? t("go.offline", ago(w.seen)) : t("go.never"));
+  open(k);
+  if (back && w.lan) setTimeout(() => toast("warn|" + t("go.lanFail", w.lan.replace(/^http:\/\//, ""))), 800);
+}
+function goError(k, w, why) {
+  const host = u => u.replace(/^http:\/\//, "");
+  const ts = w && w.ts ? `http://${w.ts}:${LAN_PORT}` : "";
+  $("#app").innerHTML = head("KidGuard") + `<div class="card">
+    <h2>${ic("wifi-off")} ${esc(t("go.h", k.name))}</h2>
+    <p><b>${esc(why)}</b></p>
+    ${w && w.seen ? `<p class="mute">${esc(t("go.seen", new Date(w.seen).toLocaleString()))}</p>` : ""}
+    ${w && w.lan ? `<p class="mute">${esc(t("go.lastLan", host(w.lan)))}</p>` : ""}
+    ${w && w.ts ? `<p class="mute">${esc(t("go.ts", w.ts))}</p>` : ""}
+    <p class="mute">${t("go.why")}</p>
+    <div class="row" style="flex-wrap:wrap;gap:8px">
+      <button id="goRetry" class="pri">${ic("refresh-cw")} ${t("go.retry")}</button>
+      ${w ? `<button id="goOpen">${ic("eye")} ${t("go.openAnyway")}</button>` : ""}
+      ${w && w.lan ? `<a class="lnkbtn" href="${esc(lanLink(w.lan, k.id, k.token, k.name))}">${ic("wifi")} ${t("go.tryLan")}</a>` : ""}
+      ${ts ? `<a class="lnkbtn" href="${esc(lanLink(ts, k.id, k.token, k.name))}">${ic("globe")} ${t("go.tryTs")}</a>` : ""}
+    </div></div>`;
+  $("#goRetry").onclick = () => { try { sessionStorage.removeItem("kg.go." + k.id); } catch {} location.replace(goLink(location.origin, k.id, k.token, k.name)); };
+  if ($("#goOpen")) $("#goOpen").onclick = () => open(k);
+}
+/** This phone's page opened from /go: save it as a LAN kid with the relay token and its relay creds, then open it. */
+async function lanFromGo(h) {
+  const token = h.get("lk"), rid = h.get("rc") || "", ru = h.get("ru") || "", name = h.get("n") || t("kid");
+  history.replaceState(null, "", location.pathname + location.search);
+  let hello = null;
+  try { const r = await fetch("/api/hello"); if (r.ok) hello = await r.json(); } catch {}
+  if (!hello || !hello.id) return boot();
+  const k = { id: hello.id, token, name, via: "lan", target: location.origin };
+  if (/^https:\/\//.test(ru) && /^[0-9a-f]{16}$/.test(rid)) k.relay = { url: new URL(ru).origin, id: rid, token };
+  const old = kids.find(x => x.via === "lan" && x.id === hello.id);
+  if (old) { old.target = location.origin; if (k.relay) old.relay = k.relay; save(kids); return open(old); }   // keeps its own token
+  kids = kids.concat(k); save(kids);
+  open(k);
+}
 const canHeal = k => !LOCAL && !!((k.alt && k.alt.length) || k.relay);
 const relayable = (path, method) => (path === "/state" && method === "GET") || (path === "/cmd" && method === "POST") || (path === "/rules" && method === "PUT");
 const addrsOf = s => { if (!s) return [];
@@ -245,6 +314,9 @@ async function boot() {
   // QR from the child's screen: #pair=<6 digits> prefills the code; drop the hash so a reload does not reuse it
   const pc = /^\d{6}$/.test(h.get("pair") || "") ? h.get("pair") : "";
   if (h.has("pair")) history.replaceState(null, "", location.pathname + location.search);
+  // from a relay /go link: this phone's own page with the relay token (also a LAN token on the phone)
+  if (/^[0-9a-f]{48}$/.test(h.get("lk") || "")) return lanFromGo(h);
+  if (location.pathname === "/go" && h.get("c") && h.get("k")) return goBoot(h);
   if (h.get("c") && h.get("k")) {
     isRelayOrigin = true;
     const k = { id: h.get("c"), token: h.get("k"), name: h.get("n") || t("kid"), via: "relay" };

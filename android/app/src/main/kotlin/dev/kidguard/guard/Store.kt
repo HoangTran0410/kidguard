@@ -83,6 +83,18 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var relayId: String
         get() = p.getString("relayId", "")!!
         set(v) { p.edit().putString("relayId", v).apply() }
+    /**
+     * Relay on by default: once a parent has paired, a phone that never had a relay setting gets the shared relay
+     * ([Relay.DEFAULT_URL]) with its own id/token. A parent turning the relay off stores "" (key present) = never again.
+     * True = just turned on.
+     */
+    @Synchronized fun defaultRelay(): Boolean {
+        if (Flavor.HOME || !p.getBoolean("everPaired", false) || p.contains("relayUrl") || relayToken.isNotBlank()) return false
+        val t = addToken()
+        p.edit().putString("relayUrl", Relay.DEFAULT_URL).putString("relayToken", t).putString("relayId", randomHex(8)).apply()
+        touchDevice(t, "relay")
+        return true
+    }
     @get:Synchronized @set:Synchronized var relayUrl: String
         get() = p.getString("relayUrl", "")!!
         set(v) { p.edit().putString("relayUrl", v.trim().trimEnd('/')).apply() }

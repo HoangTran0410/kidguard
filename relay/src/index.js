@@ -81,7 +81,8 @@ const stripPin = (r) => {
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    const page = req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html") ? html
+    // /go#c=<id>&k=<token>: the same page; core.js sends the parent to the phone's LAN address when both are on one network
+    const page = req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/go") ? html
       : req.method === "GET" && url.pathname === "/install" ? install
       : req.method === "GET" && url.pathname === "/qr" ? qr : null;
     if (req.method === "GET" && url.pathname.startsWith("/ui/")) {
@@ -100,7 +101,7 @@ export default {
     }
     const th = req.method === "POST" && env.TG_BOT ? url.pathname.match(/^\/tg\/([0-9a-f]{32})$/) : null;
     if (th) return tgHook(req, env, th[1]);
-    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|file|tg)$/);
+    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|file|tg|where)$/);
     if (!m) return json({ error: "not found" }, 404);
     if (env.RL) {
       const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
@@ -114,6 +115,18 @@ export default {
     return stub.fetch(req);
   },
 };
+
+/** "Same network" key of a client address: the IPv4 address, or the /64 prefix of an IPv6 one (phones keep the prefix,
+ * rotate the rest). "" when unknown. */
+export function netKey(ip) {
+  ip = String(ip || "").trim();
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return ip;
+  if (!/^[0-9a-f:]+$/i.test(ip) || !ip.includes(":")) return "";
+  const [a, b = ""] = ip.toLowerCase().split("::");
+  const head = a ? a.split(":") : [], tail = b ? b.split(":") : [];
+  const full = ip.includes("::") ? [...head, ...Array(8 - head.length - tail.length).fill("0"), ...tail] : head;
+  return full.length === 8 ? full.slice(0, 4).map(x => x.replace(/^0+(?=.)/, "")).join(":") + "::/64" : "";
+}
 
 async function sha256(s) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -257,6 +270,13 @@ export class Kid {
       if (changed) puts.cmds = cmds;
       this.seen = now;
       if (now - this.seenWritten >= 60e3) { puts.seen = now; this.seenWritten = now; }
+      // the phone's public network (hashed, last 2: Wi-Fi v4 + v6), for /where "same network"
+      const nk = netKey(req.headers.get("cf-connecting-ip"));
+      if (nk && nk !== this.lastNet) {
+        this.lastNet = nk;
+        const h = await sha256("net:" + nk), ipk = (await this.s.get("ipk")) || [];
+        if (ipk[0] !== h) puts.ipk = [h, ...ipk.filter(x => x !== h)].slice(0, 2);
+      }
       if (state && Object.keys(state).length) puts.state = state;
       if (Object.keys(puts).length) await this.s.put(puts);
       if (state) this.ctx.waitUntil(this.pushNew(state, id).catch(e => console.log("push", String(e))));
@@ -269,6 +289,14 @@ export class Kid {
       const have = known && known.rules ? +known.rules.rev || 0 : 0;
       if (rules && rules.rev > have) out.rules = rules;
       return json(out);
+    }
+    if (action === "where" && req.method === "GET") {   // /go: where the phone is reachable now
+      const [state, seen, ipk] = await Promise.all(["state", "seen", "ipk"].map(k => this.s.get(k)));
+      const nk = netKey(req.headers.get("cf-connecting-ip"));
+      const same = !!nk && (ipk || []).includes(await sha256("net:" + nk));
+      const ts = state && state.ts && typeof state.ts.ip === "string" && /^100\.[\d.]+$/.test(state.ts.ip) ? state.ts.ip : "";
+      const lan = state && typeof state.lan === "string" && /^http:\/\/[\d.]+:\d+$/.test(state.lan) ? state.lan : "";
+      return json({ seen: Math.max(seen || 0, this.seen), lan, ts, same, mode: state && state.mode || "" });
     }
     if (action === "state" && req.method === "GET") {
       const [state, rules, seen, cmds] = await Promise.all(["state", "rules", "seen", "cmds"].map(k => this.s.get(k)));

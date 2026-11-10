@@ -61,7 +61,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Worker gives every command a random id, so SOS ack uses field `sos`, not `id` (f032b5d)
 - Rules carry `pinAt`; phone takes a relay PIN hash only once (the relay re-sent an old hash and reverted a LAN-changed PIN) (f032b5d)
 - LAN server rejects non-IP / non-.ts.net Host headers (DNS rebinding); CORS on /api only for other KidGuard phones (private IP/LAN name/*.ts.net), never Allow-Credentials (66d8d5d, 4a2a75a)
-- Tailscale first, relay under Advanced; per-family self-host relay (scripts/relay.sh|ps1 deploy to the user's own Cloudflare account) because the shared free relay supports only ~20-50 families (546465e, CEO review)
+- ~~Tailscale first, relay under Advanced; per-family self-host relay because the shared free relay supports only ~20-50 families (546465e, CEO review)~~ REVERSED 2026-11-10 (owner): ease of setup first: the author's relay is on by default once paired, `/go` link always opens; self-host relay = advanced. Load: ~2k syncs + ~1.5k storage writes per kid per day -> free plan ~45 kids; plan = WebSocket hibernation (see support-matrix / protocol when done)
 - Relay state is hashed per minute (usage counters) -> ~3x fewer full states (1747923)
 - Live screen: Android 11+ takeScreenshot via Acc; Android 8-10 via MediaProjection with one child consent (Proj.kt). LAN frame loop up to ~7 fps (3dcd7a0)
 - Listen player uses MediaSource: first sound ~0.3 s instead of ~8 s (ffcebd0)

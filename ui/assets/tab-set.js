@@ -226,8 +226,10 @@ function setTab(b) {
   ${lan ? `<p class="mute" style="margin:0 4px 10px">${t("away.cmp")}</p>` : ""}
   ${tsCard(lan)}
   ${lan ? sec("s-relay", "globe", t("relay.h"), t("sd.relay"), st.relay ? [t("on"), "ok"] : [t("off")], `<p class="mute">${t("relay.p")}</p>
-    <div class="row"><input id="relay" class="sp" placeholder="${esc(t("relay.ph"))}" aria-label="${esc(t("relay.addr"))}" value="${esc(st.relay || "")}"><button id="saveRelay" class="pri">${ic("globe")} ${t("turnOn")}</button></div>
-    <div id="relayOut"></div>`, !!st.relay) : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p></div>`}
+    <div class="row"><input id="relay" class="sp" placeholder="${esc(t("relay.ph"))}" aria-label="${esc(t("relay.addr"))}" value="${esc(st.relay || DEFAULT_RELAY)}"><button id="saveRelay" class="pri">${ic("globe")} ${st.relay ? t("save") : t("turnOn")}</button>${st.relay ? `<button id="offRelay">${t("relay.off")}</button>` : ""}</div>
+    <p class="mute">${t("relay.self")}</p>
+    <div id="relayOut">${cur.relay && st.relay ? relayLinkHtml(goLink(cur.relay.url, cur.relay.id, cur.relay.token, cur.name)) : ""}</div>`, !!st.relay)
+    : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p>${cur.via === "relay" && isRelayOrigin ? relayLinkHtml(goLink(location.origin, cur.id, cur.token, cur.name)) : ""}</div>`}
   ${lan ? "" : `<div id="tgBox"></div>`}
   <div class="dz" style="margin-top:22px">${sec("s-danger", "octagon-x", t("set.danger"), t("sd.danger"), null, `<h2>${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
     <h2 style="margin-top:18px">${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
@@ -282,15 +284,20 @@ function setTab(b) {
       bt.innerHTML = h0; bt.disabled = f.disabled = false; f.focus();   // the PIN stays typed: press again to retry
     } finally { bt.removeAttribute("aria-busy"); }
   };
+  bindCopy();
+  if ($("#offRelay")) $("#offRelay").onclick = async () => {
+    if (!(await ask(t("relay.offAsk"), t("relay.off")))) return;
+    const r = await cmd({ type: "relay", url: "" }, t("turnedOff"), false);
+    if (r) { delete cur.relay; save(kids); refresh(); }
+  };
   if (lan) $("#saveRelay").onclick = async () => {
     const url = $("#relay").value.trim().replace(/\/+$/, "");
     if (!/^https:\/\//.test(url)) return toast("warn|" + t("relay.https"));
     const r = await cmd({ type: "relay", url }, t("turnedOn"));
     if (r && r.token) {
-      const link = `${url}/#c=${encodeURIComponent(r.id)}&k=${encodeURIComponent(r.token)}&n=${encodeURIComponent(cur.name)}`;
-      $("#relayOut").innerHTML = `<p>${ic("smartphone")} ${t("relay.link")}</p><code>${esc(link)}</code>
-        <div class="row" style="margin-top:8px"><button id="copy">${ic("clipboard-copy")} ${t("relay.copy")}</button><a class="lnkbtn" href="${esc(link)}" target="_blank" rel="noopener">${ic("link")} ${t("open")}</a></div>`;
-      $("#copy").onclick = () => { navigator.clipboard?.writeText(link).then(() => toast("ok|" + t("copied")), () => toast("warn|" + t("copyFail"))); };
+      cur.relay = { url: new URL(url).origin, id: r.id, token: r.token }; save(kids);
+      $("#relayOut").innerHTML = relayLinkHtml(goLink(cur.relay.url, r.id, r.token, cur.name));
+      bindCopy();
     }
   };
   if ($("#tsOn")) $("#tsOn").onclick = async () => {
@@ -345,4 +352,13 @@ async function tgDraw() {
       poll(0);
     } catch (e) { toast("err|" + e.message); }
   };
+}
+/** The /go link box (Cài đặt > relay): the link that always opens, whatever the phone's address. */
+function relayLinkHtml(link) {
+  return `<p>${ic("smartphone")} ${t("relay.link")}</p><code id="goLink">${esc(link)}</code>
+    <div class="row" style="margin-top:8px"><button id="copy">${ic("clipboard-copy")} ${t("relay.copy")}</button><a class="lnkbtn" href="${esc(link)}" target="_blank" rel="noopener">${ic("link")} ${t("open")}</a></div>`;
+}
+function bindCopy() {
+  const c = $("#copy"), l = $("#goLink"); if (!c || !l) return;
+  c.onclick = () => { navigator.clipboard?.writeText(l.textContent).then(() => toast("ok|" + t("copied")), () => toast("warn|" + t("copyFail"))); };
 }

@@ -179,6 +179,7 @@ class Guard : Service() {
 
     private fun tick(force: Boolean) {
         runCatching { relabel() }
+        if (runCatching { store.defaultRelay() }.getOrDefault(false)) relay?.kick()
         val now = System.currentTimeMillis()
         // reference for the clock-jump check (see timeReceiver)
         refWall = now; refElapsed = android.os.SystemClock.elapsedRealtime()
@@ -535,8 +536,8 @@ class Guard : Service() {
         "fileUp" -> Files.command(this, t, c)   // shared folder over the relay (Files.kt)
         "fileDel" -> Files.command(this, t, c)
         "relay" -> {
-            store.relayUrl = c.optString("url")
-            if (store.relayToken.isBlank() || store.relayId.isBlank()) { store.relayToken = store.addToken(); store.relayId = Store.randomHex(8); store.touchDevice(store.relayToken, "relay") }
+            store.relayUrl = c.optString("url")   // "" = relay off (kept off: no default again)
+            if (store.relayUrl.isNotBlank() && (store.relayToken.isBlank() || store.relayId.isBlank())) { store.relayToken = store.addToken(); store.relayId = Store.randomHex(8); store.touchDevice(store.relayToken, "relay") }
             relay?.kick(); "ok"
         }
         // no PIN yet: the code shows on the child's screen and nothing else would stop the child pairing first

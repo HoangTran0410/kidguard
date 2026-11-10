@@ -264,4 +264,14 @@ ck("file wrong token 401",(await fetch(`${B}/c/${id5}/file?to=kid`,{headers:H(BA
 ck("file delete ok",(await (await U(`?fid=${fid}`,"DELETE")).json()).ok===true);
 ck("file gone after delete",(await U(`?fid=${fid}&i=0`)).status==404&&(await (await U("?to=kid")).json()).files.length==0);
 ck("cmd fileUp whitelisted",(await (await fetch(`${B}/c/${id5}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"fileUp",file:fid})})).json()).result=="queued");}
+// /go + /where: same public network (cf-connecting-ip: wrangler dev may set its own; both sides then match)
+{const id6="a1b2c3d4e5f6071c",W=(x={})=>fetch(`${B}/c/${id6}/where`,{headers:H(T,x)});
+const g=await fetch(`${B}/go`);ck("/go serves the page",g.status==200&&(await g.text()).includes("/ui/core.js"));
+ck("where before phone 409",(await W()).status==409);
+await fetch(`${B}/c/${id6}/sync`,{method:"POST",headers:H(T,{"cf-connecting-ip":"203.0.113.7"}),body:JSON.stringify({state:{lan:"http://192.168.1.9:8770",ts:{ip:"100.79.11.22"},mode:"basic"}})});
+let w=await (await W({"cf-connecting-ip":"203.0.113.7"})).json();
+ck("where: lan, ts, fresh seen",w.lan=="http://192.168.1.9:8770"&&w.ts=="100.79.11.22"&&Date.now()-w.seen<10000&&w.mode=="basic");
+ck("where: same network",w.same===true);
+const w2=await (await W({"cf-connecting-ip":"198.51.100.4"})).json();console.log("  (other network same="+w2.same+")");
+ck("where wrong token 401",(await fetch(`${B}/c/${id6}/where`,{headers:H(BAD)})).status==401);}
 console.log(pass,"pass",fail,"fail");process.exit(fail?1:0);

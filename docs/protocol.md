@@ -178,6 +178,19 @@ The first capture / first input of a session is logged in the phone log.
   (screen, files, listen) fail as before. One heal attempt per kid per 20 s. Browser: probing works (CORS on `/api`),
   the relay fallback only in the parent app (the worker sends no CORS). A page served from the phone's old address
   dies with it (reload from the new one).
+- **Relay on by default** (`Store.defaultRelay`, each guard tick): once a parent has paired, a phone that never had a
+  relay setting (pref `relayUrl` absent) gets `Relay.DEFAULT_URL` (the author's shared worker, same constant as
+  `DEFAULT_RELAY` in `core.js`) with a new relay id/token (device row "relay"). `relay{url:""}` = relay off: the url is
+  stored empty, the token kept, no default again. Home flavor: never. The page's relay section prefills the default url,
+  shows the `/go` link and a "Tắt relay" button; self-hosting (`scripts/relay.sh|ps1`) is the advanced line.
+- **`/go` link** = `https://<relay>/go#c=<relay id>&k=<relay token>&n=<name>` (the same page as `/`). `core.js goBoot`
+  asks `GET /c/<id>/where` -> `{seen, lan, ts, same, mode}` (`same` = the parent's public address equals one of the
+  phone's last 2 sync addresses: IPv4, or IPv6 /64; stored as sha256 hashes `ipk`). Seen < 3 min + same + lan ->
+  `location.assign(<lan>/#lk=<token>&rc=<relay id>&ru=<relay origin>&n=<name>)`; the phone's page (`lanFromGo`) saves a
+  LAN kid with that token (the relay token is one of the phone's LAN tokens) and `kid.relay`. Back to `/go` within 90 s
+  (sessionStorage `kg.go.<id>`) = the LAN page did not load -> stays on the relay with a toast. Seen >= 3 min / never /
+  401 / relay error -> an error screen (last seen, last LAN address, Tailscale ip, likely causes, Try again / See old
+  data / Try home network / Try Tailscale). Otherwise the normal page over the relay.
 
 ### Relay (worker), token header `X-KG-Token`, id = 16 hex
 - Limits: `POST /c/<id>/cmd` -> 429 `queue full` with 20 commands waiting, 413 `too big` over 4 KB of JSON; `PUT /c/<id>/rules`

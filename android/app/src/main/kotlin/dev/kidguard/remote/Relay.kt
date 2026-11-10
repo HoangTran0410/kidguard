@@ -201,5 +201,9 @@ class Relay(private val g: Guard) {
         }
     }
 
-    private companion object { const val MAX_REPLY = 256 * 1024 }
+    companion object {
+        private const val MAX_REPLY = 256 * 1024
+        /** The author's shared relay, on by default once a parent has paired (Store.defaultRelay). Also in ui/assets/core.js DEFAULT_RELAY. */
+        const val DEFAULT_URL = "https://kidguard.99-hoangtran.workers.dev"
+    }
 }
