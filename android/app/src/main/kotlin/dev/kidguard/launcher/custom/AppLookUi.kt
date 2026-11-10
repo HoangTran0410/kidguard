@@ -1,11 +1,9 @@
 package dev.kidguard
 
-import android.graphics.Outline
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewOutlineProvider
 import android.widget.GridLayout
 import android.widget.EditText
 import android.widget.ImageView
@@ -67,13 +65,13 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
     val preview = ImageView(this)
     fun paintPreview() {
         val d = AppLook.parseSpec(icon)?.let { AppLook.draw(this, it, big) }
-        if (d != null) { preview.setImageDrawable(d); preview.clipToOutline = true }
-        else { preview.clipToOutline = false; IconCache.get(this, a.pkg, "", big, shp)?.let { preview.setImageBitmap(it) } }
+        // the home's own mask (round / soft / square), not a fixed circle: the preview shows what the icon will look like
+        if (d != null) preview.setImageBitmap(IconCache.shaped(d, big, shp))
+        else IconCache.get(this, a.pkg, "", big, shp)?.let { preview.setImageBitmap(it) }
         val sp = AppLook.parseSpec(icon)
         // the ring is the circle's own stroke: foreground holds kit.tap's ripple
         for (t in tiles) t.bg.setStroke(if (sp != null && sp.glyph == t.glyph && sp.value == t.value) dp(3) else 0, pal.text)
     }
-    preview.outlineProvider = object : ViewOutlineProvider() { override fun getOutline(v: View, o: Outline) = o.setOval(0, 0, v.width, v.height) }
     val name = EditText(this).apply {
         hint = a.real; setText(a.label); setSelection(text.length)
         filters = arrayOf(android.text.InputFilter.LengthFilter(AppLook.MAX_LABEL))

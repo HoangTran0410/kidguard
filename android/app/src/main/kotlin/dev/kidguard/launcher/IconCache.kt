@@ -63,6 +63,9 @@ object IconCache {
         return b
     }
 
+    /** [d] in the icon [shape] exactly as the home draws it, not cached (the "Sửa app" preview: a choice not saved yet). */
+    fun shaped(d: Drawable, px: Int, shape: String): Bitmap = render(d, px, shape)
+
     /** The paused look: greyscale at 45 %, drawn by the caller with this paint (no second bitmap in the cache). */
     fun greyPaint(): Paint = grey
 
