@@ -288,6 +288,7 @@ const STEPS = [
     await sh("appops set " + PKG + " WRITE_SETTINGS allow").catch(() => {});
     await sh("cmd notification allow_dnd " + PKG).catch(() => {});
     await sh("cmd notification allow_listener " + PKG + "/" + PKG + ".NotifDots").catch(() => {});
+    await sh("appops set " + PKG + " SYSTEM_ALERT_WINDOW allow").catch(() => {});   // bank app reopen (basic mode)
   }],
   ["Bật dịch vụ Trợ năng", async () => {
     let cur = (await sh("settings get secure enabled_accessibility_services")).split("\n")[0].trim();

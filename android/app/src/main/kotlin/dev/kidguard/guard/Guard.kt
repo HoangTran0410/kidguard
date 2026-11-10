@@ -58,6 +58,7 @@ class Guard : Service() {
     private var lastLocateAt = 0L
     private var lastFullTick = 0L
     private var lastTrackTry = 0L
+    private var lastOverlayTry = 0L
     private var trackBusy = false
     private var stopped = false
     private var released = false   // onCreate saw Store.released: nothing was started, onDestroy has little to undo
@@ -196,6 +197,7 @@ class Guard : Service() {
         opt("acc") { if (!AccPause.active(this)) Acc.ensureEnabled(this) }
         opt("dns") { Policy.syncDns(this, r); Policy.retryDns(this, r) }
         opt("ts") { Ts.poll(this, store) }
+        opt("overlay") { if (now - lastOverlayTry > 6 * 3_600_000L) { lastOverlayTry = now; AccPause.grantOverlay(this, r) } }
         opt("track") { if (r.trackMin > 0 && now - lastTrackTry >= r.trackMin * 60_000L - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) } }
         opt("location") { keepLocation(r) }
         // usage access: reported once per revoke (persisted, so a process restart while revoked does not repeat it), the child is asked to turn it back on

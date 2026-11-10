@@ -85,7 +85,43 @@ object AccPause {
         }
         // the setting change unbinds us a moment later; the service can also stop itself right away
         if (stopSelf) Acc.running?.let { svc -> runCatching { svc.disableSelf() } }
+        watchStart(ctx)
         return had.isEmpty()
+    }
+
+    // ---- basic mode: the service IS the app blocker, so while it is off a blocked app could run freely (open the bank,
+    // switch to a game). A light watch closes that gap: every [WATCH_MS], only while paused, only with the screen on, it
+    // reads the last few seconds of usage events (one binder call, ~1-3 ms, vs the 10 s tick that reads since midnight)
+    // and turns the service back on as soon as a blocked app is in front; Acc.onServiceConnected then bounces it.
+    private const val WATCH_MS = 2_000L
+    private val watchExec by lazy { java.util.concurrent.Executors.newSingleThreadScheduledExecutor() }
+    private var watchFut: java.util.concurrent.ScheduledFuture<*>? = null
+    private var watchFrom = 0L
+    private var watchCur: String? = null
+
+    @Synchronized private fun watchStart(ctx: Context) {
+        if (watchFut != null || Policy.isOwner(ctx)) return
+        val app = ctx.applicationContext
+        watchFrom = System.currentTimeMillis() - 15_000; watchCur = null
+        watchFut = watchExec.scheduleWithFixedDelay({ runCatching { watchStep(app) } }, WATCH_MS, WATCH_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+    }
+
+    @Synchronized private fun watchStop() { watchFut?.cancel(false); watchFut = null }
+
+    private fun watchStep(ctx: Context) {
+        val s = Store.of(ctx)
+        if (s.accPaused.isEmpty()) { watchStop(); return }
+        if (ctx.getSystemService(android.os.PowerManager::class.java)?.isInteractive == false) return
+        val now = System.currentTimeMillis()
+        val usm = ctx.getSystemService(android.app.usage.UsageStatsManager::class.java) ?: return
+        val ev = usm.queryEvents(watchFrom, now); val e = android.app.usage.UsageEvents.Event()
+        while (ev.hasNextEvent()) { ev.getNextEvent(e); if (e.eventType == android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED) watchCur = e.packageName }
+        watchFrom = now - 1_000   // small overlap: events land a little late
+        val pkg = watchCur ?: return
+        if (pkg in s.rules.accPause || pkg in s.accPaused) return
+        if (BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) == null) return
+        synchronized(this) { if (s.accPaused.isNotEmpty()) { resume(ctx, s, s.accPaused, kill = false); runCatching { s.log(R.string.log_acc_resumed_blocked, label(ctx, pkg)) } } }
+        watchStop()
     }
 
     /**
@@ -115,6 +151,15 @@ object AccPause {
         }, RELAUNCH_OPEN_MS)
     }
 
+    /** Can reopen a bank from the background: Device Owner is exempt from the limit, basic mode needs "display over other apps". */
+    fun canReopen(ctx: Context): Boolean = Policy.isOwner(ctx) || android.provider.Settings.canDrawOverlays(ctx)
+
+    /** Basic mode set up before the grant was in setup: give ourselves "display over other apps" through the self-adb shell. */
+    fun grantOverlay(ctx: Context, r: Rules) {
+        if (Flavor.HOME || r.accPause.isEmpty() || canReopen(ctx) || !able(ctx) || !SelfAdb.hasKey(ctx)) return
+        Thread({ runCatching { SelfAdb.run(ctx, "appops set ${ctx.packageName} SYSTEM_ALERT_WINDOW allow") } }, "overlay-grant").start()
+    }
+
     private const val RELAUNCH_KILL_MS = 600L
     private const val RELAUNCH_OPEN_MS = 1000L
 
@@ -124,6 +169,7 @@ object AccPause {
         val paused = s.accPaused
         if (paused.isEmpty()) return
         if (!able(ctx)) { resume(ctx, s, paused, kill = false); return }   // lost owner / permission: never stay off
+        watchStart(ctx)   // after a process restart while paused
         val wait = if (Policy.isOwner(ctx)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS
         val (leftAt, back) = AccPauseLogic.step(current, s.rules.accPause + paused, s.accLeftAt, now, wait)
         if (back) resume(ctx, s, paused, kill = true) else if (leftAt != s.accLeftAt) s.accLeftAt = leftAt
@@ -134,6 +180,7 @@ object AccPause {
             paused.forEach { p -> runCatching { am.killBackgroundProcesses(p) } }
         }
         s.accPaused = emptySet(); s.accLeftAt = 0L
+        watchStop()
         runCatching { s.log(R.string.log_acc_resumed) }
         Acc.ensureEnabled(ctx, quiet = true)
     }

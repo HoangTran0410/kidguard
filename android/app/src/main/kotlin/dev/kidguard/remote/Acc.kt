@@ -43,6 +43,8 @@ class Acc : AccessibilityService() {
         running = this; lastError = ""
         runCatching { Guard.start(this); Watchdog.schedule(this) }
         runCatching { registerReceiver(wakeUp, android.content.IntentFilter(android.content.Intent.ACTION_SCREEN_ON).apply { addAction(android.content.Intent.ACTION_USER_PRESENT) }) }
+        // back on (after a bank pause, a restart): no window event comes for the app already in front, so check it now
+        main.postDelayed({ runCatching { rootInActiveWindow?.packageName?.toString()?.let { if (it != packageName && it !in Store.of(this).rules.accPause) basicGuard(it) } } }, 600)
     }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {

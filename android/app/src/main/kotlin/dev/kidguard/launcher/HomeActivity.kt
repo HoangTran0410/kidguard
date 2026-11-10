@@ -403,6 +403,9 @@ class HomeActivity : Activity() {
 
     // owner / paired change rarely: read once per resume (dialer cache is reset there too)
     private var managedAt = 0L; private var managed = true
+    /** Tailscale installed by KidGuard for the parents' remote access: hidden from the kid (LauncherLogic.show). */
+    private val tsManaged: Boolean get() = !Flavor.HOME && runCatching { Store.of(this).tsWanted }.getOrDefault(false)
+
     internal fun settingsOk(r: Rules): Boolean {
         if (Flavor.HOME) return true
         val now = android.os.SystemClock.elapsedRealtime()
@@ -471,7 +474,7 @@ class HomeActivity : Activity() {
         val s = Store.of(this); val r = s.rules; lap("rules")
         val all = launcherApps(); lap("apps")
         val dv = decision(r, s); lap("decision")
-        val show = focusShow(all.keys.associateWith { LauncherLogic.show(it, dv.want, r, packageName, settingsOk(r)) }, dv); lap("show")
+        val show = focusShow(all.keys.associateWith { LauncherLogic.show(it, dv.want, r, packageName, settingsOk(r), tsManaged) }, dv); lap("show")
         val visible = all.values.filter { show[it.pkg] != LauncherLogic.Show.HIDE }.sortedBy { it.sortKey }; lap("sort")
         var m = model ?: HomeFile.load(this) ?: firstModel(r, visible); lap("model")
         m = HomeLayout.prune(m) { it !in all && !Policy.installed(this, it) }; lap("prune")
@@ -962,7 +965,7 @@ class HomeActivity : Activity() {
             val s = Store.of(context); val r = s.rules
             val all = launcherApps(); val dv = decision(r, s)
             val q = search.text.toString(); val fq = LauncherLogic.fold(q).trim()
-            val shown = all.values.filter { LauncherLogic.show(it.pkg, dv.want, r, packageName, settingsOk(r)) != LauncherLogic.Show.HIDE && LauncherLogic.matchesFolded(it.folded, fq) }
+            val shown = all.values.filter { LauncherLogic.show(it.pkg, dv.want, r, packageName, settingsOk(r), tsManaged) != LauncherLogic.Show.HIDE && LauncherLogic.matchesFolded(it.folded, fq) }
                 .sortedBy { it.sortKey }
             val anyPaused = shown.any { dv.want[it.pkg] != null }
             val sk = listOf(q, shown.joinToString(",") { it.pkg + "=" + it.label }, shown.map { dv.want[it.pkg] }, model?.cols, model?.onHome(), model?.style?.shape,

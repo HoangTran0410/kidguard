@@ -18,7 +18,8 @@ class LauncherLogicTest {
         assertEquals(Show.HIDE, LauncherLogic.show("com.bloat", want, r, self))
         assertEquals(Show.OK, LauncherLogic.show(self, want, r, self))
         assertEquals(Show.HIDE, LauncherLogic.show("com.google.android.gms", want, r, self))
-        assertEquals(Show.HIDE, LauncherLogic.show(TsLogic.PKG, want, r, self))
+        assertEquals(Show.OK, LauncherLogic.show(TsLogic.PKG, want, r, self))   // the user's own Tailscale
+        assertEquals(Show.HIDE, LauncherLogic.show(TsLogic.PKG, want, r, self, tsManaged = true))   // parents' remote access
         // blocked in the rules but the guard has not ticked yet: still hidden
         assertEquals(Show.HIDE, LauncherLogic.show("com.tiktok", emptyMap(), r, self))
         assertEquals(Show.PAUSED, LauncherLogic.show("com.yt", want, r, self))

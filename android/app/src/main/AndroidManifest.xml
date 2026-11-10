@@ -42,6 +42,10 @@
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- basic mode: lets AccPause reopen a bank app from the background (Android blocks background activity starts
+         otherwise when KidGuard is not the HOME in front). Granted by setup over adb (appops) or the Features sheet -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
     <!-- Control center "Không làm phiền" tile: without it the app is not listed on the system's DND access page -->
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <!-- apps without a launcher icon are counted and limited too: needs to see every package -->

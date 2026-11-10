@@ -11,6 +11,7 @@
     <string name="feat_owner_body">Device Owner lets KidGuard lock the home screen, hide apps, block uninstall and set DNS. It is set up once from a computer or a QR code (remove all accounts from the phone first). The guide has the steps.</string>
     <string name="feat_adb_body">The phone runs adb against itself over Wi-Fi. The guide shows how to turn on Wireless debugging.</string>
     <string name="feat_launcher_use">Use the KidGuard home screen</string>
+    <string name="feat_overlay">Let bank apps reopen by themselves (display over other apps)</string>
     <string name="feat_launcher_off">Turn off the KidGuard home screen</string>
     <string name="feat_launcher_pick">Pick KidGuard as the home app in the phone settings.</string>
     <string name="feat_cap_owner">Device Owner</string>

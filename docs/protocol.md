@@ -284,6 +284,8 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
    `cmd notification allow_dnd dev.kidguard` (Do Not Disturb access) and
    `cmd notification allow_listener dev.kidguard/dev.kidguard.NotifDots` (launcher notification dots: counts per app
    only, never stored or sent; writing `enabled_notification_listeners` does not work since Android 8, measured on 8.1)
+   and `appops set dev.kidguard SYSTEM_ALERT_WINDOW allow` (basic mode: lets the bank-app pause reopen the bank from the
+   background; phones set up earlier get it through the self-adb shell, `AccPause.grantOverlay`, or the Features sheet row)
 5. accessibility on: read `settings get secure enabled_accessibility_services`, append
    `dev.kidguard/dev.kidguard.Acc` (`:`-separated, skip if present, treat `null` as empty), write it back, then
    `settings put secure accessibility_enabled 1`

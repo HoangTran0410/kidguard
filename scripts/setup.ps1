@@ -125,6 +125,7 @@ Chk pm grant $Pkg android.permission.WRITE_SECURE_SETTINGS
 Adb shell appops set $Pkg WRITE_SETTINGS allow | Out-Null
 Adb shell cmd notification allow_dnd $Pkg | Out-Null
 Adb shell cmd notification allow_listener "$Pkg/$Pkg.NotifDots" | Out-Null
+Adb shell appops set $Pkg SYSTEM_ALERT_WINDOW allow | Out-Null   # bank app reopen (basic mode)
 
 Write-Host "[5/8] Bật dịch vụ Trợ năng"
 $cur = ((Adb shell settings get secure enabled_accessibility_services) -split "`n")[0].Trim()

@@ -29,9 +29,12 @@ object LauncherLogic {
 
     enum class Show { OK, PAUSED, HIDE }
 
-    /** Never listed: system plumbing that some phones give an icon, settings (unless the rule allows), remote access. */
+    /**
+     * Never listed: system plumbing that some phones give an icon. Tailscale is hidden only when KidGuard manages it
+     * ([show] tsManaged: the parents' remote access, Store.tsWanted); someone's own Tailscale stays a normal app.
+     */
     val PLUMBING = setOf("com.google.android.gms", "com.google.android.gsf", "com.android.stk", "com.android.cellbroadcastreceiver",
-        "com.google.android.cellbroadcastreceiver", "com.google.android.apps.safetyhub", TsLogic.PKG)
+        "com.google.android.cellbroadcastreceiver", "com.google.android.apps.safetyhub")
     val SETTINGS = setOf("com.android.settings", "com.coloros.settings", "com.oppo.settings", "com.miui.securitycenter",
         "com.samsung.android.settings", "com.android.settings.intelligence", "com.google.android.apps.wellbeing")
 
@@ -42,9 +45,10 @@ object LauncherLogic {
      * [want]: Guard's decide() result (pkg -> reason). Blocked by the parent / waiting for approval / hidden ("Dọn máy") /
      * plumbing / settings => [Show.HIDE]; any other reason => greyed with a clock badge; else normal.
      */
-    fun show(pkg: String, want: Map<String, String>, r: Rules, self: String, settingsOk: Boolean = r.launcher.settings): Show = when {
+    fun show(pkg: String, want: Map<String, String>, r: Rules, self: String, settingsOk: Boolean = r.launcher.settings, tsManaged: Boolean = false): Show = when {
         pkg == self -> Show.OK   // KidGuard itself stays findable in the drawer (SOS, xin giờ, "Bố mẹ quản lý trên máy này")
         pkg in PLUMBING -> Show.HIDE
+        pkg == TsLogic.PKG && tsManaged -> Show.HIDE
         pkg in r.hidden || pkg in r.blocked || want[pkg] in HIDE_REASONS -> Show.HIDE
         pkg in SETTINGS && !settingsOk -> Show.HIDE
         want[pkg] != null -> Show.PAUSED

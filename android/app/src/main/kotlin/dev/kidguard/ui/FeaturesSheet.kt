@@ -129,6 +129,11 @@ object FeaturesSheet {
             }
             body.addView(card)
         }
+        // basic mode + bank apps: without "display over other apps" Android may block reopening the bank after the pause
+        if (!Policy.isOwner(act) && store.rules.accPause.isNotEmpty() && !AccPause.canReopen(act))
+            body.addView(u.listRow(act.getString(R.string.feat_overlay), R.drawable.li_banknote) { sheet.dismiss()
+                open(act, Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + act.packageName)), Intent(Settings.ACTION_SETTINGS))
+            }.apply { (layoutParams as LinearLayout.LayoutParams).topMargin = u.dp(12) })
         if (battery != null) body.addView(u.listRow(act.getString(R.string.main_battery), R.drawable.li_battery_charging) { sheet.dismiss(); battery() }.apply {
             (layoutParams as LinearLayout.LayoutParams).topMargin = u.dp(12)
         })

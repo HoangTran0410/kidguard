@@ -117,6 +117,7 @@ chk pm grant $PKG android.permission.WRITE_SECURE_SETTINGS
 adb shell appops set $PKG WRITE_SETTINGS allow >/dev/null 2>&1 || true
 adb shell cmd notification allow_dnd $PKG >/dev/null 2>&1 || true
 adb shell cmd notification allow_listener $PKG/$PKG.NotifDots >/dev/null 2>&1 || true
+adb shell appops set $PKG SYSTEM_ALERT_WINDOW allow >/dev/null 2>&1 || true   # bank app reopen (basic mode)
 
 echo "[5/8] Bật dịch vụ Trợ năng"
 cur=$(adb shell settings get secure enabled_accessibility_services | tr -d '\r' | head -n1)
