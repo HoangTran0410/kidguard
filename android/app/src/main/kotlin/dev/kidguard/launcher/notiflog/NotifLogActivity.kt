@@ -20,7 +20,7 @@ import java.util.Locale
 
 /**
  * Kid launcher "Thông báo đã xem": the notifications of the last 7 days (NotifLog), newest first, grouped by day.
- * Tap a row = open that app (its launch intent: the original PendingIntent is gone). Local only, the parent never sees it.
+ * Tap a row = NotifDetailActivity (full content, times, "open again"). Local only, the parent never sees it.
  */
 class NotifLogActivity : Activity() {
     private lateinit var k: HomeKit
@@ -104,13 +104,7 @@ class NotifLogActivity : Activity() {
         if (e.title.isNotEmpty()) body.addView(k.text(e.title, 15f, pal.text, true).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(3) })
         if (e.text.isNotEmpty()) body.addView(k.text(e.text, 14f, pal.sub).apply { maxLines = 2; ellipsize = TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
         addView(body, LinearLayout.LayoutParams(0, -2, 1f))
-        k.tap(this, 20f) { openApp(e.pkg) }
-    }
-
-    private fun openApp(pkg: String) {
-        val i = packageManager.getLaunchIntentForPackage(pkg)
-        if (i == null) { android.widget.Toast.makeText(this, R.string.nlog_gone, android.widget.Toast.LENGTH_SHORT).show(); return }
-        runCatching { startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        k.tap(this, 20f) { startActivity(Intent(this@NotifLogActivity, NotifDetailActivity::class.java).putExtra(NotifDetailActivity.KEY, e.key)) }
     }
 
     private fun confirmClear() {
