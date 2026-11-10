@@ -10,6 +10,7 @@ The child app is also a kid launcher, shipped alone as the "KidGuard Home" flavo
 | How a feature works end to end (trigger -> steps -> state -> gotchas, with file pointers) | `docs/flows.md` |
 | What was already decided / tried and rejected / OEM quirks / past bugs / open issues | `docs/decisions.md` |
 | Wire formats: rules, state, commands, endpoints, setup steps (**the contract**) | `docs/protocol.md` (900 lines: grep the heading) |
+| Which feature works with which setup (Device Owner / basic / +WSS / +adb / Home) and over which link (LAN / Tailscale / relay) | `docs/support-matrix.md` (update the row in the same commit) |
 | Launcher perf budgets, how to measure, rules (**any launcher UI change**) | `docs/launcher-perf.md`, `scripts/perf.sh` |
 | User-facing docs | `README.md`, `website/guide.html` |
 
