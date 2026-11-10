@@ -168,6 +168,13 @@
             android:taskAffinity="dev.kidguard.home"
             android:screenOrientation="portrait"
             android:theme="@style/AppMain" />
+        <activity
+            android:name=".NotifDetailActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="dev.kidguard.home"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppMain" />
 
         <!-- quick actions (Quick.kt): lock only / time left only; they open nothing but KidGuard. Disabled by release. -->
         <activity

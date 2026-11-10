@@ -29,12 +29,19 @@ class NotifDots : NotificationListenerService() {
         recount()
     }
     override fun onListenerDisconnected() { me = null; publish(emptyMap()) }
-    override fun onNotificationPosted(sbn: StatusBarNotification?) {
+    override fun onNotificationPosted(sbn: StatusBarNotification?, rankingMap: RankingMap?) {
         // the kid's own history (NotifLog): local only, never sent
-        if (sbn != null) runCatching { NotifLog.record(this, sbn) }
+        if (sbn != null) runCatching {
+            val imp = rankingMap?.let { m -> Ranking().takeIf { m.getRanking(sbn.key, it) }?.importance } ?: 0
+            NotifLog.record(this, sbn, imp)
+        }
         recountSoon()
     }
-    override fun onNotificationRemoved(sbn: StatusBarNotification?) = recountSoon()
+    override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
+        if (sbn != null) runCatching { NotifLog.removed(this, sbn, reason) }
+        recountSoon()
+    }
+    override fun onDestroy() { runCatching { NotifLog.flush(this) }; super.onDestroy() }
 
     // a burst (a chat app posting 10 messages, a group cancel) is one binder round trip instead of one per callback
     private val later = Runnable { recount() }
