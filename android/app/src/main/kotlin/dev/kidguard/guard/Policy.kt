@@ -70,6 +70,7 @@ object Policy {
         if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
         if (Build.VERSION.SDK_INT < 29) perms += Manifest.permission.WRITE_EXTERNAL_STORAGE   // parent's files -> Download/KidGuard (Files.kt); 29+ uses MediaStore
         perms += Manifest.permission.RECORD_AUDIO   // "listen around"; the child is always told when it is used (Listen.kt)
+        if (r.pinShot) perms += Manifest.permission.CAMERA   // wrong-PIN photo only (Shot.kt), told on the PIN dialog
         for (p in perms) runCatching {
             d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
         }.onFailure { Log.w(TAG, "grant $p", it) }
@@ -578,6 +579,11 @@ object Policy {
             d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED)
             d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT)
         }.onFailure { Log.w(TAG, "mic revoke", it) }
+        for (p in listOf(Manifest.permission.CAMERA)) runCatching {
+            d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED)
+            d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT)
+        }.onFailure { Log.w(TAG, "camera revoke", it) }
+        runCatching { Shot.clear(ctx) }
         s.released = true
         Watchdog.cancel(ctx)
         @Suppress("DEPRECATION") runCatching { d.clearDeviceOwnerApp(ctx.packageName) }
@@ -600,6 +606,7 @@ object Policy {
         val d = dpm(ctx); val a = admin(ctx)
         if (!runCatching { d.isAdminActive(a) }.getOrDefault(false)) return "not owner"
         s.released = true          // Acc and Guard go quiet first (Basic.enforcing checks it)
+        runCatching { Shot.clear(ctx) }
         Acc.blocked = emptyMap()
         Watchdog.cancel(ctx)
         runCatching { d.removeActiveAdmin(a) }.onFailure { Log.w(TAG, "removeActiveAdmin", it) }

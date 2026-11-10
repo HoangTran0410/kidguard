@@ -205,3 +205,38 @@ function filesTab(b) {
 // a file dropped outside the drop zone must not navigate the page away (and drop the transfers)
 ["dragover", "drop"].forEach(n => window.addEventListener(n, e => { if (tab === "files" && cur && e.dataTransfer && [...e.dataTransfer.types].includes("Files")) { e.preventDefault(); if (n === "drop" && !FXNO) fxSend(e.dataTransfer.files); } }));
 window.addEventListener("beforeunload", e => { if (fx.jobs.some(j => /^(run|wait|queue)$/.test(j.state))) { e.preventDefault(); e.returnValue = ""; } });
+
+// Wrong-PIN photo (rule pinShot): an event with "shot" -> LAN GET /shot/<id>, or relay shotUp + the file channel (one chunk)
+const shotUrls = {};
+async function shotGet(k, id) {
+  if (shotUrls[id]) return shotUrls[id];
+  let blob;
+  if (!fxRelay(k)) {
+    const r = await fetch(base(k) + "/shot/" + id, { headers: fxHdr(k) }).catch(() => { throw errOf("net"); });
+    if (!r.ok) throw errOf(r.status === 404 ? "shot.gone" : "HTTP " + r.status);
+    blob = await r.blob();
+  } else {
+    let meta = ((await call(k, "/file?to=parent").catch(() => ({}))).files || []).find(x => x.fid === id && x.done);
+    if (!meta) await call(k, "/cmd", "POST", { type: "shotUp", shot: id });
+    const end = Date.now() + 3 * 60e3;
+    while (!meta) {
+      await new Promise(s => setTimeout(s, 3000));
+      if (Date.now() > end) throw errOf("timeout");
+      meta = ((await call(k, "/file?to=parent").catch(() => ({}))).files || []).find(x => x.fid === id && x.done) || null;
+    }
+    const r = await fetch(base(k) + `/file?fid=${id}&i=0`, { headers: fxHdr(k) }).catch(() => { throw errOf("net"); });
+    if (!r.ok) throw errOf("HTTP " + r.status);
+    blob = new Blob([await r.arrayBuffer()], { type: "image/jpeg" });
+    fetch(base(k) + "/file?fid=" + id, { method: "DELETE", headers: fxHdr(k) }).catch(() => {});
+  }
+  return (shotUrls[id] = URL.createObjectURL(blob));
+}
+function shotOpen(id) {
+  const k = cur; if (!k || !/^[0-9a-f]{16}$/.test(id)) return;
+  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("camera", t("shot.h"))}
+    <div id="shotBox" class="mute" style="text-align:center;padding:12px 0">${t(fxRelay(k) ? "shot.waitRelay" : "shot.wait")}</div>
+    <p class="mute">${ic("info")} ${t("shot.note")}</p></div>`);
+  shotGet(k, id).then(u => { const b = $("#shotBox"); if (b) b.innerHTML = `<img src="${u}" alt="${esc(t("shot.h"))}" style="max-width:100%;max-height:60vh;border-radius:12px">`; },
+    e => { const b = $("#shotBox"); if (b) b.textContent = e.raw === "shot.gone" ? t("shot.gone") : e.message || t("fx.e.failed"); });
+}
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-shot]"); if (b) shotOpen(b.dataset.shot); });

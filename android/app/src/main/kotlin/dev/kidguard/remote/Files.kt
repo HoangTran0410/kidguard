@@ -279,6 +279,15 @@ object Files {
         }
     }
 
+    /** One small blob (< 1 chunk, e.g. a wrong-PIN photo, Shot.kt) to the relay for the parent, same file channel. */
+    fun pushBytes(c: Context, fid: String, name: String, b: ByteArray) {
+        require(b.size <= FilesLogic.CHUNK && FilesLogic.isId(fid))
+        val (base, token) = relay(c) ?: return
+        val q = "?fid=$fid&i=0&n=1&to=parent&size=${b.size}&name=${URLEncoder.encode(name, "UTF-8")}"
+        val h = conn(base + q, "POST", token).apply { doOutput = true; setRequestProperty("Content-Type", FilesLogic.OCTET); setFixedLengthStreamingMode(b.size) }
+        try { h.outputStream.use { it.write(b) }; if (h.responseCode != 200) throw IOException("relay HTTP ${h.responseCode}") } finally { h.disconnect() }
+    }
+
     /** Sync said files wait for us: fetch each, save it like a LAN upload (same id), then delete it from the relay. */
     fun pull(c: Context) {
         if (!pulling.compareAndSet(false, true)) return

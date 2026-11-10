@@ -10,7 +10,7 @@ class RulesJsonTest {
         rev = 1_700_000_000_123, dailyMin = 90, appMin = mapOf("com.a" to 30, "com.b" to 5),
         blocked = setOf("com.x", "com.y"), bedtimeOn = true, bedStart = "22:00", bedEnd = "07:15",
         allow = setOf("com.phone"), pausedUntil = 1_700_000_999_000, bonusDay = "2026-11-07", bonusMin = 20,
-        noInstall = true, noDebug = true, pinHash = "ab".repeat(32), pinSalt = "salt123",
+        noInstall = true, noDebug = true, pinShot = false, pinHash = "ab".repeat(32), pinSalt = "salt123",
         dailyByDay = listOf(60, 60, 60, 60, 60, 120, 120),
         schedules = listOf(
             Schedule("Học", true, setOf(1, 2, 3, 4, 5), "19:00", "21:00"),

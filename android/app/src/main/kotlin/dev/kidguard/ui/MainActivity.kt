@@ -257,21 +257,37 @@ class MainActivity : Activity() {
         s.adminLockLeft().takeIf { it > 0 }?.let { Modal(this, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, getString(R.string.locked_title), lockText(it)); return }
         val m = Modal(this, ui2)
         val input = m.field(getString(if (pinSet) R.string.admin_field else R.string.unl_hint), 8, pin = true)
-        val body = getString(if (pinSet && totpOn) R.string.admin_body else if (pinSet) R.string.admin_body_pin else R.string.admin_body_totp)
+        val shotOn = s.rules.pinShot && Shot.can(this)
+        val body = getString(if (pinSet && totpOn) R.string.admin_body else if (pinSet) R.string.admin_body_pin else R.string.admin_body_totp) +
+            (if (shotOn) "\n\n" + getString(R.string.admin_shot_note) else "")   // told before, never a hidden camera
         m.show(R.drawable.li_users, Modal.Tone.INFO, getString(R.string.admin_title), body, input, ok = getString(R.string.admin_ok), cancel = getString(R.string.cancel)) {
             if (Guard.running == null) { m.setError(getString(R.string.admin_not_ready)); Guard.start(this); return@show false }
             val tc = android.os.SystemClock.elapsedRealtime()
             val res = s.checkAdmin(input.text.toString())
             android.util.Log.i("KG.perf", "admin check ${android.os.SystemClock.elapsedRealtime() - tc}ms")
+            val shot = res != 1 && s.takeShotDue() && shotOn
+            if (shot) Shot.take(this) { id -> s.attachShot(id); Guard.running?.kick() }
             when (res) {
-                1 -> { AdminActivity.start(this); true }
+                1 -> {
+                    // basic mode: the parent is here, ask once for the camera (Device Owner grants it in Policy.apply)
+                    if (s.rules.pinShot && checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED && !s.camAsked) {
+                        s.camAsked = true
+                        if (runCatching { requestPermissions(arrayOf(android.Manifest.permission.CAMERA), CAM_REQ_ADMIN) }.isSuccess) return@show true   // page opens on the answer
+                    }
+                    AdminActivity.start(this); true
+                }
                 -1 -> { input.setText(""); m.setError(lockText(s.adminLockLeft())); false }
-                else -> { input.setText(""); m.setError(getString(R.string.admin_wrong)); false }
+                else -> { input.setText(""); m.setError(getString(if (shot) R.string.admin_shot_taken else R.string.admin_wrong)); false }
             }
         }
         input.requestFocus()
         // WebView start-up while the PIN is being typed, after the modal has drawn
         ui.postDelayed({ AdminActivity.warm() }, 300)
+    }
+
+    override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, res: IntArray) {
+        super.onRequestPermissionsResult(code, perms, res)
+        if (code == CAM_REQ_ADMIN) AdminActivity.start(this)   // asked right after a correct admin PIN
     }
 
     /** Hold-to-confirm state: the label each button shows when idle (refresh() may change it while a hold runs). */
@@ -947,3 +963,5 @@ class MessageActivity : Activity() {
         }
     }
 }
+
+private const val CAM_REQ_ADMIN = 41   // camera ask after a right admin PIN (basic mode, wrong-PIN photo)

@@ -188,10 +188,10 @@ class Store private constructor(private val app: Context) {
         if (!pinOk && !totpOk) return -1
         if (totpOk && c.length == 6) {
             val step = Totp.check(secret, c, now, p.getLong("totpLast", 0))
-            if (step >= 0) { p.edit().putLong("totpLast", step).putInt("unlockFails", 0).remove("unlockLock").commit(); log(R.string.log_admin_open); return 1 }
+            if (step >= 0) { p.edit().putLong("totpLast", step).putInt("unlockFails", 0).putInt("adminRun", 0).remove("unlockLock").commit(); log(R.string.log_admin_open); return 1 }
         }
         if (pinOk) {
-            if (checkParentPin(c)) { log(R.string.log_admin_open); return 1 }
+            if (checkParentPin(c)) { p.edit().putInt("adminRun", 0).apply(); log(R.string.log_admin_open); return 1 }
         } else {
             // no PIN (or it is locked): the wrong code counts against the Authenticator's own limit
             val f = p.getInt("unlockFails", 0) + 1
@@ -199,7 +199,23 @@ class Store private constructor(private val app: Context) {
             p.edit().putInt("unlockFails", f).putLong("unlockLock", if (lock > 0) now + lock else 0).commit()
         }
         event("tamper", R.string.ev_admin_wrong)
+        val run = p.getInt("adminRun", 0) + 1
+        val due = ShotLogic.due(rules.pinShot, run, p.getLong("shotLast", 0), now)
+        p.edit().putInt("adminRun", run).apply { if (due) putLong("shotLast", now) }.commit()
+        shotDue = due
         return if (adminLockLeft() > 0) -1 else 0
+    }
+    /** Set by a wrong [checkAdmin] when a photo is due (ShotLogic.due); the PIN dialog takes it once ([takeShotDue]). */
+    @Volatile private var shotDue = false
+    fun takeShotDue(): Boolean = shotDue.also { shotDue = false }
+    /** Links photo [id] to the newest wrong-PIN event (last 2 min). */
+    @Synchronized fun attachShot(id: String, now: Long = System.currentTimeMillis()) {
+        val a = events()
+        for (i in a.length() - 1 downTo 0) {
+            val o = a.optJSONObject(i) ?: continue
+            if (o.optString("kind") == "tamper" && now - o.optLong("t") < 120_000 && !o.has("shot")) { o.put("shot", id); break }
+        }
+        p.edit().putString("events", a.toString()).apply()
     }
     /** ms until the on-device admin can be tried again: both ways in must be locked. */
     @Synchronized fun adminLockLeft(): Long {
@@ -207,6 +223,10 @@ class Store private constructor(private val app: Context) {
         val b = if (totpSecret.isNotBlank()) unlockLockLeft() else Long.MAX_VALUE
         return minOf(a, b).takeIf { it != Long.MAX_VALUE } ?: 0
     }
+    /** Basic mode asked the parent once for the camera (wrong-PIN photo); a "deny" is not asked again. */
+    var camAsked: Boolean
+        get() = p.getBoolean("camAsked", false)
+        set(v) { p.edit().putBoolean("camAsked", v).apply() }
     @Volatile var lastPairError = ""; private set
     private fun pairFail(now: Long) {
         val f = p.getInt("wrong", 0) + 1

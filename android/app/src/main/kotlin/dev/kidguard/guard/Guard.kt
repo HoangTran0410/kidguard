@@ -536,6 +536,7 @@ class Guard : Service() {
         "listenStop" -> { Listen.stopAll(); "ok" }
         "fileUp" -> Files.command(this, t, c)   // shared folder over the relay (Files.kt)
         "fileDel" -> Files.command(this, t, c)
+        "shotUp" -> Shot.command(this, c)       // wrong-PIN photo over the relay (Shot.kt)
         "relay" -> {
             store.relayUrl = c.optString("url")   // "" = relay off (kept off: no default again)
             if (store.relayUrl.isNotBlank() && (store.relayToken.isBlank() || store.relayId.isBlank())) { store.relayToken = store.addToken(); store.relayId = Store.randomHex(8); store.touchDevice(store.relayToken, "relay") }

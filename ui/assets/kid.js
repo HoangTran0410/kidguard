@@ -221,7 +221,7 @@ const logRow = l => { const [i, tone] = LOG_IC[l.k] || ["circle"];
 const byDay = (rows, at, draw) => { let last = "", out = "";
   for (const r of rows) { const k = dkey(at(r)); if (k !== last) { last = k; out += `<div class="lgd">${esc(dayLabel(k))}</div>`; } out += draw(r); }
   return out; };
-const evHtml = e => `<div class="row" style="padding:3px 0">${ic(EV_IC[e.kind] || "bell")} <span class="sp">${esc(noEmoji(e.text))}</span><span class="mute">${ago(e.t)}</span></div>`;
+const evHtml = e => `<div class="row" style="padding:3px 0">${ic(EV_IC[e.kind] || "bell")} <span class="sp">${esc(noEmoji(e.text))}${e.shot ? ` <button type="button" class="chip" data-shot="${esc(e.shot)}">${ic("camera")} ${t("shot.btn")}</button>` : ""}</span><span class="mute">${ago(e.t)}</span></div>`;
 const zoneOk = z => z && Number.isFinite(+z.lat) && Number.isFinite(+z.lng) && z.lat !== "" && z.lng !== "" && z.lat !== null && z.lng !== null && Math.abs(+z.lat) <= 90 && Math.abs(+z.lng) <= 180;
 const newId = p => p + Math.random().toString(36).slice(2, 8);
 const clampN = (v, a, b, d) => Math.min(b, Math.max(a, Math.round(+v || d)));

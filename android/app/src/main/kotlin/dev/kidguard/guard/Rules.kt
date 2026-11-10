@@ -144,6 +144,7 @@ data class Rules(
     val bonusMin: Int = 0,
     val noInstall: Boolean = false,
     val noDebug: Boolean = false,
+    val pinShot: Boolean = true,             // wrong on-device admin PIN 3x -> one front-camera photo for the parents (Shot.kt)
     val pinHash: String = "",                // hash of the parent PIN, guards "pair another device" on the child (never sent to the parent)
     val pinSalt: String = "",                // "" = legacy sha256("kg:"+pin); else iterated sha256 with this salt
     val dailyByDay: List<Int> = emptyList(), // Monday..Sunday minutes, or empty; replaces dailyMin when present
@@ -185,7 +186,7 @@ data class Rules(
         .put("allow", JSONArray(allow.sorted()))
         .put("pausedUntil", pausedUntil)
         .put("bonus", JSONObject().put("day", bonusDay).put("min", bonusMin))
-        .put("noInstall", noInstall).put("noDebug", noDebug)
+        .put("noInstall", noInstall).put("noDebug", noDebug).put("pinShot", pinShot)
         .put("pinSet", pinHash.isNotBlank())
         .put("dailyByDay", JSONArray(dailyByDay))
         .put("schedules", JSONArray().apply { schedules.forEach { put(it.toJson()) } })
@@ -254,6 +255,7 @@ data class Rules(
                 bonusMin = bonus.optInt("min", 0).coerceIn(0, 24 * 60),
                 noInstall = o.optBoolean("noInstall", false),
                 noDebug = o.optBoolean("noDebug", false),
+                pinShot = o.optBoolean("pinShot", true),
                 pinHash = if (newPin != null) hashPin(newPin, salt) else o.optString("pinHash", ""),
                 pinSalt = if (newPin != null || o.optString("pinHash", "").isNotEmpty()) salt else "",
                 dailyByDay = o.optJSONArray("dailyByDay")?.let { a ->

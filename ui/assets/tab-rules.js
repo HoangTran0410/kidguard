@@ -174,6 +174,8 @@ function ruleSecs(r) {
     <p class="mute">${ic("info")} ${t("dns.novpn.tip")}</p></div>${isBasic() ? needOwner(t("no.vpn")) : ""}`),
     anti: sec("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span class="sp">${ic("package")} ${t("anti.install")}</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-ps" ${r.pinShot !== false ? "checked" : ""}><span class="sp">${ic("camera")} ${t("anti.shot")}</span></label>
+    <p class="mute">${ic("info")} ${t("anti.shotTip")}</p>
     ${isBasic() ? needOwner() + `<p class="mute">${ic("shield")} ${t("anti.basic")}</p>`
       : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}${bankBox(r)}`),
   };
@@ -325,6 +327,7 @@ function rulesWire(b, r) {
   $("#f-hmn").onchange = e => { r.launcher.notes = e.target.checked; changed(); };
   $("#f-hmlock").onchange = e => { r.launcher.lockCustom = e.target.checked; changed(); };
   $("#f-hmshade").onchange = e => { r.launcher.shade = e.target.checked; changed(); };
+  $("#f-ps").onchange = e => { r.pinShot = e.target.checked; changed(); };
   $("#f-nd").onchange = e => { r.noDebug = e.target.checked; changed(); };   // confirm: CONFIRM["f-nd"] (kid.js)
   bankBind(r);
 }

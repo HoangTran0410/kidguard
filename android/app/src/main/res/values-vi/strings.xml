@@ -474,6 +474,8 @@
     <string name="admin_ok">Mở</string>
     <string name="admin_loading">Đang mở trang quản lý…</string>
     <string name="admin_wrong">Sai mã, thử lại</string>
+    <string name="admin_shot_note">Sai 3 lần, máy sẽ chụp 1 ảnh bằng camera trước gửi bố mẹ.</string>
+    <string name="admin_shot_taken">Sai nhiều lần: đã chụp ảnh gửi bố mẹ</string>
     <string name="admin_not_ready">Trang quản lý chưa sẵn sàng, thử lại sau vài giây.</string>
     <string name="st_no_pin">Bố mẹ chưa đặt PIN</string>
     <string name="log_admin_open">Bố mẹ mở trang quản lý trên máy này</string>

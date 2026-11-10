@@ -24,6 +24,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <!-- "listen around" (LAN / Tailscale): the child always gets a beep + notification, see Listen.kt -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- wrong-PIN photo (rule pinShot, Shot.kt): front camera, told on the PIN dialog -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- parent's files -> public Download/KidGuard on API 26-28 (Device Owner grants it); 29+ uses MediaStore, no permission -->

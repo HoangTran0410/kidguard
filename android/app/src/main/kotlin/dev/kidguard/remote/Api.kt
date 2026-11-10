@@ -74,6 +74,8 @@ class Api(private val g: Guard) {
                 if (store.unpair(id)) { g.kick(); Res.json("""{"result":"ok"}""") } else Res.json("""{"result":"no such device"}""", 404)
             }
             p == "/files" || p.startsWith("/files/") -> Files.api(g, r, p.removePrefix("/files"))   // shared folder only, Files.kt
+            p.startsWith("/shot/") && r.method == "GET" -> Shot.file(g, p.removePrefix("/shot/"))   // wrong-PIN photo (Shot.kt)
+                ?.let { Res(200, "image/jpeg", it.readBytes(), mapOf("Cache-Control" to "private, max-age=86400")) } ?: Res.json("""{"error":"no such photo"}""", 404)
             p == "/rules" && r.method == "PUT" -> {
                 val body = JSONObject(r.text)
                 var incoming = Rules.fromJson(body)

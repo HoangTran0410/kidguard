@@ -490,6 +490,8 @@
     <string name="admin_ok">Open</string>
     <string name="admin_loading">Opening the parent page…</string>
     <string name="admin_wrong">Wrong code, try again</string>
+    <string name="admin_shot_note">After 3 wrong tries, the phone takes one front-camera photo for the parents.</string>
+    <string name="admin_shot_taken">Too many wrong tries: a photo was taken for the parents</string>
     <string name="admin_not_ready">The management page isn\'t ready yet. Try again in a few seconds.</string>
     <string name="st_no_pin">Your parent hasn\'t set a PIN yet</string>
     <string name="log_admin_open">A parent opened the management page on this phone</string>

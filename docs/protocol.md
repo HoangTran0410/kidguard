@@ -37,6 +37,12 @@ shape, say so in your report instead of silently diverging.
                                    //      by itself at expiry (no rules change needed). The page's "Pause 30 min" sets now+30 min.
   "noVpn": false,                  // NEW (default false): DISALLOW_CONFIG_VPN (Device Owner); also kept while our Tailscale access needs it
   "noInstall": false, "noDebug": false,
+  "pinShot": true,                 // NEW (default true): 3rd/6th/9th wrong on-device admin PIN / code in a row (>= 2 min apart) ->
+                                   //      one front-camera JPEG (long side <= 960 px), told on the PIN dialog; the newest `tamper`
+                                   //      event gets `"shot": "<16 hex>"`. Kept 7 days / 20 on the phone, deleted by release.
+                                   //      LAN `GET /api/shot/<id>` -> image/jpeg (404 gone); relay: command `shotUp {shot: <id>}` ->
+                                   //      the phone posts it on the file channel (fid = id, to = parent, n = 1). Device Owner grants
+                                   //      CAMERA; basic mode asks once after a right admin PIN. Not in the Home flavor.
   "accPause": ["com.VCB", "…"],    // NEW: apps that refuse to run while any accessibility service is on (banks by default; parents add any package). Absent = the phone's
                                    //      default list (AccPauseLogic.DEFAULT, ~15 VN banks / wallets); [] = feature off; max 100.
                                    //      Owner mode + WRITE_SECURE_SETTINGS only: when one opens (launcher tap or its window) the
@@ -536,6 +542,7 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
     tick), unless a PIN is set before then.
   - `clock`: "Giờ máy bị đổi" on `ACTION_TIME_CHANGED` with a jump > 2 min versus elapsed time. v0.9.3: also "Múi giờ máy bị đổi: <tz>" on `ACTION_TIMEZONE_CHANGED`.
   - `tamper` (v0.9.3): usage access was switched off (daily / app limits can no longer count).
+  - `tamper` + `"shot": "<id>"`: a wrong on-device admin PIN with a photo (rule `pinShot`, see Rules).
   The child sees the zone list in "Luật của con" (transparency).
 - **Rule-change log**: when rules change, the phone logs a readable diff instead of "Bố mẹ đổi luật", e.g.
   "Bố mẹ đổi luật: giới hạn 120 → 90 phút; giờ ngủ 21:30–06:30". Shown on the child screen ("Nhật ký") and in the page log.
@@ -873,6 +880,8 @@ Code: `Files.kt` (Android), `FilesLogic.kt` (pure: names, caps, listing JSON; `F
 - kid -> parent: command `fileUp {file: <id>}` (outbox files <= 10 MB, else `too big`) makes the phone upload it with
   `fid = id, to = parent`; the page polls `GET ?to=parent` until `done`, downloads the chunks, then `DELETE`s it.
   `fileDel {file: <id>}` = the LAN `DELETE` (deliver-once). Both are in the worker whitelist.
+- Wrong-PIN photo: command `shotUp {shot: <id>}` (not deliver-once; `no such photo` if gone) posts that photo with `fid = id`;
+  the page reads it like a `fileUp` download (one chunk), then `DELETE`s it. LAN: `GET /api/shot/<id>`.
 - Parent app: the proxy streams bodies (up to 210 MB request, LAN `GET /api/files/<id>` response streamed with Content-Length) for `/api/files…` and relay `/c/<id>/file` only; other routes keep the 512 KB cap. The WebView offers a file chooser and saves downloads (bridge `KGApp.files()`).
 
 ### Release
