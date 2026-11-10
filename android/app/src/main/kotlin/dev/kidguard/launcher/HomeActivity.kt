@@ -327,7 +327,9 @@ class HomeActivity : Activity() {
         @Suppress("DEPRECATION")
         for (ri in pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)) {
             val ai = ri.activityInfo ?: continue
-            if (ai.name == HomeEntry::class.java.name) continue   // "KidGuard Home" would open this very screen
+            // our own "KidGuard Home" icon would open this very screen; the other flavor (dev.kidguard.home) has the same
+            // class name but is a separate app: it stays listed
+            if (ai.name == HomeEntry::class.java.name && ai.packageName == packageName) continue
             if (ai.packageName !in out) {
                 // loadLabel is a binder call per app (Samsung routes it through its EDM service): kept on disk ([Labels])
                 val info = ai.applicationInfo
