@@ -422,13 +422,13 @@ internal fun HomeActivity.openPicker() {
     // name. Tap the tile = its first size, tap a pill = that size; the size on the home is the filled pill. Hold the preview
     // to drag the widget onto the home (only one of each kind: a placed one is resized from here instead).
     val types = HomeLayout.SIZES.keys.filter { Flavor.widget(it) }
-    val sq = m.style.shape != "square"
+    val shp = m.style.shape
     var kg: LinearLayout? = null
     var kgRow: LinearLayout? = null
     var kgN = 0
     fun kgCard(): LinearLayout = kg ?: LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = fill(pickSurf(), 22f); setPadding(dp(14), dp(12), dp(14), dp(10)) }.also { c ->
         val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, dp(8)) }
-        head.addView(ImageView(this).apply { setImageBitmap(IconCache.get(this@openPicker, packageName, "", dp(26), sq)) }, LinearLayout.LayoutParams(dp(26), dp(26)))
+        head.addView(ImageView(this).apply { setImageBitmap(IconCache.get(this@openPicker, packageName, "", dp(26), shp)) }, LinearLayout.LayoutParams(dp(26), dp(26)))
         head.addView(text("KidGuard", 15f, pal.text, true).apply { setPadding(dp(10), 0, 0, 0) })
         c.addView(head)
         list.addView(c, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })

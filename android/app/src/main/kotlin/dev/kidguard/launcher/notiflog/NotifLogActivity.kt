@@ -94,8 +94,8 @@ class NotifLogActivity : Activity() {
         val icon = ImageView(this@NotifLogActivity)
         addView(icon, LinearLayout.LayoutParams(dp(40), dp(40)).apply { rightMargin = dp(14) })
         val px = dp(40)
-        IconCache.peek(e.pkg, "", px, true)?.let { icon.setImageBitmap(it) }
-            ?: IconCache.async(this@NotifLogActivity, e.pkg, "", px, true) { b -> if (b != null) icon.setImageBitmap(b) }
+        IconCache.peek(e.pkg, "", px, "round")?.let { icon.setImageBitmap(it) }
+            ?: IconCache.async(this@NotifLogActivity, e.pkg, "", px, "round") { b -> if (b != null) icon.setImageBitmap(b) }
         val body = LinearLayout(this@NotifLogActivity).apply { orientation = LinearLayout.VERTICAL }
         val top = LinearLayout(this@NotifLogActivity).apply { orientation = LinearLayout.HORIZONTAL }
         top.addView(k.text(e.app.ifEmpty { e.pkg }, 12f, pal.sub).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))

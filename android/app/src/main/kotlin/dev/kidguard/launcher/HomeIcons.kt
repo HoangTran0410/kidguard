@@ -45,8 +45,8 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     // the drawer shows the home-size bitmap scaled to its 52 dp: one bitmap per app, not two. Two sizes for ~280 apps did not
     // fit the LRU (Poco: 32 MB), so every rebuild evicted and re-rendered ~350 icons (2 s, 244 frames lost after a bulk move)
     // lazy: an icon not rendered yet (cold start, new app) is drawn by a background thread and shows when ready
-    val round = model?.style?.shape != "square"
-    var bmp = IconCache.peek(a.pkg, a.cls, iconPx(), round)
+    val shp = model?.style?.shape ?: "square"
+    var bmp = IconCache.peek(a.pkg, a.cls, iconPx(), shp)
     val dst = android.graphics.RectF(0f, 0f, px.toFloat(), px.toFloat())
     val fp = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG or android.graphics.Paint.ANTI_ALIAS_FLAG)
     val badge = if (paused) "off" else model?.style?.badge ?: "num"
@@ -60,7 +60,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
             else if (scaled) c.drawBitmap(bmp, null, dst, fp) else c.drawBitmap(bmp, 0f, 0f, null)
             if (badge != "off") Dots.draw(c, px, Dots.count(dotPkgs), resources.displayMetrics.density, badge == "num")
         }
-    }.also { v -> if (bmp == null) IconCache.async(this, a.pkg, a.cls, iconPx(), round) { b -> if (b != null) { bmp = b; v.invalidate() } } }, FrameLayout.LayoutParams(px, px))
+    }.also { v -> if (bmp == null) IconCache.async(this, a.pkg, a.cls, iconPx(), shp) { b -> if (b != null) { bmp = b; v.invalidate() } } }, FrameLayout.LayoutParams(px, px))
     val reason = LauncherLogic.pauseReason(a.pkg, dv.want, settingsOk(r))
     if (paused) {
         // clock badge: warn fill + glyph picked for it (HomeStyle tests both), a ring of the sheet colour keeps it off the grey icon
@@ -168,12 +168,12 @@ internal fun HomeActivity.folderName(f: HItem): String = f.name.ifBlank { getStr
 internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String, LauncherLogic.Show>): View {
     val px = iconPx()
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; setPadding(0, dp(4), 0, dp(2)) }
-    val square = model?.style?.shape == "square"
+    val shp = model?.style?.shape ?: "square"
     val mini = (px * 0.36f).toInt()
     val badge = model?.style?.badge ?: "num"
     val grid = object : View(this), DotHost {
         override val dotPkgs = vis.filter { show[it.pkg] != LauncherLogic.Show.PAUSED }.map { it.pkg }
-        val bmps = vis.take(4).map { IconCache.get(this@folderIcon, it.pkg, it.cls, mini, !square) to (show[it.pkg] == LauncherLogic.Show.PAUSED) }
+        val bmps = vis.take(4).map { IconCache.get(this@folderIcon, it.pkg, it.cls, mini, shp) to (show[it.pkg] == LauncherLogic.Show.PAUSED) }
         override fun onDraw(c: Canvas) {
             val gap = (px - 2 * mini) / 3f
             for ((i, b) in bmps.withIndex()) {
@@ -186,7 +186,7 @@ internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String
     }.apply {
         // the app-icon plate (same shape + glass rim). Dark: pal.card (#1e293b) matched common navy wallpapers, so the
         // folder had no edge; a frosted white fill reads on any wallpaper. Light keeps pal.card (already white-ish)
-        background = android.graphics.drawable.BitmapDrawable(resources, IconCache.plate(px, !square, if (pal.dark) Color.argb(56, 255, 255, 255) else pal.card))
+        background = android.graphics.drawable.BitmapDrawable(resources, IconCache.plate(px, shp, if (pal.dark) Color.argb(56, 255, 255, 255) else pal.card))
     }
     box.clipChildren = false; box.clipToPadding = false   // the badge pokes out above the padding
     box.addView(grid, LinearLayout.LayoutParams(px, px).apply { gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(1); bottomMargin = dp(1) })

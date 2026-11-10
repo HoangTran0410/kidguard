@@ -42,7 +42,7 @@ internal fun HomeActivity.buildDock(m: HomeModel, all: Map<String, AppE>, show: 
         val v: View? = if (i == 0) {
             val d = dialer()
             val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, dp(4), 0, dp(2)) }   // as appIcon
-            val bmp = d?.let { p -> IconCache.get(this, p, all[p]?.cls ?: "", px, m.style.shape != "square") }
+            val bmp = d?.let { p -> IconCache.get(this, p, all[p]?.cls ?: "", px, m.style.shape) }
             box.addView(ImageView(this).apply {
                 if (bmp != null) setImageBitmap(bmp) else { setImageDrawable(Ic.get(context, R.drawable.li_phone, pal.onSolid, dp(26))); background = fill(pal.solid); setPadding(dp(14), dp(14), dp(14), dp(14)) }
             }, LinearLayout.LayoutParams(px, px).apply { bottomMargin = dp(2) })
@@ -160,11 +160,11 @@ internal fun HomeActivity.drawerView(): Drawer = drawerCache?.also { it.refill()
 internal fun HomeActivity.drawerWarm(apps: Collection<AppE>) {
     if (drawerWarming) return
     drawerWarming = true
-    val px = iconPx(); val round = model?.style?.shape != "square"
+    val px = iconPx(); val shp = model?.style?.shape ?: "square"
     val vis = apps.filter { lastShow[it.pkg] != LauncherLogic.Show.HIDE }.sortedBy { it.sortKey }
     Thread {
         android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)   // never ahead of a swipe
-        for (a in vis) runCatching { IconCache.get(this, a.pkg, a.cls, px, round) }
+        for (a in vis) runCatching { IconCache.get(this, a.pkg, a.cls, px, shp) }
         runOnUiThread { drawerWarming = false; if (drawerCache == null && !isFinishing && !busy()) drawerView() }
     }.start()
 }

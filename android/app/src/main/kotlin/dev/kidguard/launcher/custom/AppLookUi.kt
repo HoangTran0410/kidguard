@@ -56,7 +56,7 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
     val cur = AppLook.get(a.pkg, a.cls) ?: AppCustom()
     var icon = cur.icon                       // "" = the original icon
     var color = AppLook.parseSpec(icon)?.color ?: AppLook.COLORS[5]
-    val round = model?.style?.shape != "square"
+    val shp = model?.style?.shape ?: "square"
     val big = dp(64)
     // 6 per row, sized to the sheet (12 dp sheet padding each side, 3 dp gap per side): fixed 48 dp + margins overflowed 360 dp screens
     val cell = (minOf(root.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels, resources.displayMetrics.widthPixels) - dp(24)) / 6
@@ -68,7 +68,7 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
     fun paintPreview() {
         val d = AppLook.parseSpec(icon)?.let { AppLook.draw(this, it, big) }
         if (d != null) { preview.setImageDrawable(d); preview.clipToOutline = true }
-        else { preview.clipToOutline = false; IconCache.get(this, a.pkg, "", big, round)?.let { preview.setImageBitmap(it) } }
+        else { preview.clipToOutline = false; IconCache.get(this, a.pkg, "", big, shp)?.let { preview.setImageBitmap(it) } }
         val sp = AppLook.parseSpec(icon)
         // the ring is the circle's own stroke: foreground holds kit.tap's ripple
         for (t in tiles) t.bg.setStroke(if (sp != null && sp.glyph == t.glyph && sp.value == t.value) dp(3) else 0, pal.text)
@@ -113,7 +113,7 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
     fun choose(spec: String) { icon = spec; paintPreview() }
     val orig = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(12), dp(10), dp(12), dp(6))
-        addView(ImageView(this@appEditSheet).apply { IconCache.get(this@appEditSheet, a.pkg, "", dp(36), round)?.let { setImageBitmap(it) } }, LinearLayout.LayoutParams(dp(36), dp(36)))
+        addView(ImageView(this@appEditSheet).apply { IconCache.get(this@appEditSheet, a.pkg, "", dp(36), shp)?.let { setImageBitmap(it) } }, LinearLayout.LayoutParams(dp(36), dp(36)))
         addView(text(getString(R.string.hm2_icon_orig), 15f, pal.text).apply { setPadding(dp(12), 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
         kit.tap(this, 12f) { choose("") }
         contentDescription = getString(R.string.hm2_icon_orig)

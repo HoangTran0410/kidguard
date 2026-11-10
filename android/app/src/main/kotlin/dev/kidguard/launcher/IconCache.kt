@@ -33,10 +33,10 @@ object IconCache {
     var misses = 0; var missMs = 0L
     fun stats(): String = "icons=$misses/${missMs}ms lru=${lru.size() shr 20}/${MAX_BYTES shr 20}MB".also { misses = 0; missMs = 0 }
 
-    private fun key(pkg: String, cls: String, px: Int, round: Boolean) = "$pkg/$cls@$px${if (round) "r" else "s"}${AppLook.iconKey(pkg, cls)}"
+    private fun key(pkg: String, cls: String, px: Int, shape: String) = "$pkg/$cls@$px${shape.take(2)}${AppLook.iconKey(pkg, cls)}"
 
     /** Only what is already rendered (no load). */
-    fun peek(pkg: String, cls: String, px: Int, round: Boolean): Bitmap? = lru.get(key(pkg, cls, px, round))
+    fun peek(pkg: String, cls: String, px: Int, shape: String): Bitmap? = lru.get(key(pkg, cls, px, shape))
 
     private val worker = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
         Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "kg-icons")
@@ -47,17 +47,17 @@ object IconCache {
      * Lazy icon: rendered on a background thread (~7 ms each, cold, on a POCO), [done] on the main thread. In call order,
      * so the cells built first (the ones on screen) come first.
      */
-    fun async(ctx: Context, pkg: String, cls: String, px: Int, round: Boolean, done: (Bitmap?) -> Unit) {
+    fun async(ctx: Context, pkg: String, cls: String, px: Int, shape: String, done: (Bitmap?) -> Unit) {
         val app = ctx.applicationContext
-        worker.execute { val b = runCatching { get(app, pkg, cls, px, round) }.getOrNull(); main.post { done(b) } }
+        worker.execute { val b = runCatching { get(app, pkg, cls, px, shape) }.getOrNull(); main.post { done(b) } }
     }
 
-    fun get(ctx: Context, pkg: String, cls: String, px: Int, round: Boolean): Bitmap? {
-        val key = key(pkg, cls, px, round)
+    fun get(ctx: Context, pkg: String, cls: String, px: Int, shape: String): Bitmap? {
+        val key = key(pkg, cls, px, shape)
         lru.get(key)?.let { return it }
         val t0 = android.os.SystemClock.uptimeMillis()
         val d = AppLook.drawable(ctx, pkg, cls, px) ?: load(ctx, pkg, cls) ?: return null
-        val b = render(d, px, round)
+        val b = render(d, px, shape)
         lru.put(key, b)
         misses++; missMs += android.os.SystemClock.uptimeMillis() - t0
         return b
@@ -71,32 +71,37 @@ object IconCache {
         if (cls.isNotEmpty()) pm.getActivityIcon(android.content.ComponentName(pkg, cls)) else pm.getApplicationIcon(pkg)
     }.recoverCatching { ctx.packageManager.getApplicationIcon(pkg) }.getOrNull()
 
-    /** Circle, or One UI's squircle (superellipse, n = 5): softer corners than a rounded rect. */
-    private fun shape(px: Int, round: Boolean): Path = Path().apply {
+    /**
+     * The superellipse exponent per icon shape: "round" = circle (2), "soft" = Pixel / One UI's squircle (3: nearly round,
+     * flat sides), "square" = the iOS-like squircle (5: softer corners than a rounded rect).
+     */
+    fun exp(shape: String) = when (shape) { "round" -> 2.0; "soft" -> 3.0; else -> 5.0 }
+
+    private fun shape(px: Int, shape: String): Path = Path().apply {
         val h = px / 2f
-        if (round) { addCircle(h, h, h, Path.Direction.CW); return@apply }
+        if (shape == "round") { addCircle(h, h, h, Path.Direction.CW); return@apply }
+        val e = 2.0 / exp(shape)
         for (k in 0..96) {
             val t = k * 2 * Math.PI / 96
             val ct = Math.cos(t); val st = Math.sin(t)
-            val x = h + h * Math.signum(ct) * Math.pow(Math.abs(ct), 0.4); val y = h + h * Math.signum(st) * Math.pow(Math.abs(st), 0.4)
+            val x = h + h * Math.signum(ct) * Math.pow(Math.abs(ct), e); val y = h + h * Math.signum(st) * Math.pow(Math.abs(st), e)
             if (k == 0) moveTo(x.toFloat(), y.toFloat()) else lineTo(x.toFloat(), y.toFloat())
         }
         close()
     }
 
-    private fun inShape(u: Double, v: Double, round: Boolean) =
-        if (round) u * u + v * v <= 1.0 else Math.pow(Math.abs(u), 5.0) + Math.pow(Math.abs(v), 5.0) <= 1.0
+    private fun inShape(u: Double, v: Double, shape: String) = exp(shape).let { n -> Math.pow(Math.abs(u), n) + Math.pow(Math.abs(v), n) <= 1.0 }
 
-    private fun render(d: Drawable, px: Int, round: Boolean): Bitmap {
+    private fun render(d: Drawable, px: Int, shape: String): Bitmap {
         val b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
         val c = Canvas(b)
-        val clip = shape(px, round)
+        val clip = shape(px, shape)
         if (Build.VERSION.SDK_INT >= 26 && d is AdaptiveIconDrawable) {
             // the layers are 108 dp with a 72 dp safe zone: draw at 150 % so the visible part fills the shape
             val ex = (px * 0.25f).toInt()
             d.background?.let { it.setBounds(-ex, -ex, px + ex, px + ex); it.draw(c) }
             d.foreground?.let { it.setBounds(-ex, -ex, px + ex, px + ex); it.draw(c) }
-        } else legacy(d, px, round, c)
+        } else legacy(d, px, shape, c)
         // the mask with smooth edges (clipPath on a bitmap canvas is not anti-aliased)
         clip.fillType = Path.FillType.INVERSE_WINDING
         c.drawPath(clip, Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) })
@@ -109,9 +114,9 @@ object IconCache {
      * A plain plate in the app-icon shape with the same glass rim, for things that sit in the grid next to app icons
      * (folder background, the 1×1 lock widget), so they line up and read like an icon. Small: drawn per render.
      */
-    fun plate(px: Int, round: Boolean, color: Int): Bitmap {
+    fun plate(px: Int, shape: String, color: Int): Bitmap {
         val b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
-        val c = Canvas(b); val clip = shape(px, round)
+        val c = Canvas(b); val clip = shape(px, shape)
         c.drawPath(clip, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
         glass(c, clip, px)
         return b
@@ -143,7 +148,7 @@ object IconCache {
      *   slightly grey towards the bottom, the light-from-above look of One UI's plates.
      * Measured on the visible pixels (Samsung hands some icons out pre-shaped with a transparent margin).
      */
-    private fun legacy(d: Drawable, px: Int, round: Boolean, c: Canvas) {
+    private fun legacy(d: Drawable, px: Int, shape: String, c: Canvas) {
         val raw = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
         val iw = d.intrinsicWidth.takeIf { it > 0 } ?: px; val ih = d.intrinsicHeight.takeIf { it > 0 } ?: px
         val sc = px.toFloat() / maxOf(iw, ih)
@@ -158,7 +163,7 @@ object IconCache {
         var inN = 0; var opN = 0
         for (y in t..bt step 2) for (x in l..r step 2) {
             val u = (x - l + 0.5) / bw * 2 - 1; val v = (y - t + 0.5) / bh * 2 - 1
-            if (!inShape(u, v, round)) continue
+            if (!inShape(u, v, shape)) continue
             inN++; if ((a[y * px + x] ushr 24) > 200) opN++
         }
         val full = inN > 0 && opN >= inN * 0.96 && minOf(bw, bh) >= maxOf(bw, bh) * 0.92

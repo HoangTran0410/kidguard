@@ -81,8 +81,8 @@ internal fun HomeActivity.hiddenScreen() {
 private fun HomeActivity.hiddenCell(a: HomeActivity.AppE, why: String): View {
     val px = dp(52)
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(2), dp(4), dp(2), dp(4)) }
-    val round = model?.style?.shape != "square"
-    var bmp = IconCache.peek(a.pkg, a.cls, iconPx(), round)
+    val shp = model?.style?.shape ?: "square"
+    var bmp = IconCache.peek(a.pkg, a.cls, iconPx(), shp)
     val dst = RectF(0f, 0f, px.toFloat(), px.toFloat())
     box.addView(object : View(this) {
         override fun onDraw(c: Canvas) {
@@ -90,7 +90,7 @@ private fun HomeActivity.hiddenCell(a: HomeActivity.AppE, why: String): View {
             val p = IconCache.greyPaint(); p.alpha = 115
             c.drawBitmap(b, null, dst, p)
         }
-    }.also { v -> if (bmp == null) IconCache.async(this, a.pkg, a.cls, iconPx(), round) { b -> if (b != null) { bmp = b; v.invalidate() } } },
+    }.also { v -> if (bmp == null) IconCache.async(this, a.pkg, a.cls, iconPx(), shp) { b -> if (b != null) { bmp = b; v.invalidate() } } },
         LinearLayout.LayoutParams(px, px))
     box.addView(text(a.label, 12f, pal.text).apply { gravity = Gravity.CENTER; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, dp(6), 0, 0) },
         LinearLayout.LayoutParams(-1, -2))

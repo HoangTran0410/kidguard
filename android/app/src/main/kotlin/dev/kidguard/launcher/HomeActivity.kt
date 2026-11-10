@@ -63,8 +63,8 @@ class HomeActivity : Activity() {
         /** Width of the drawer's A–Z rail (was 26: it ate into the grid). */
         const val RAIL_DP = 20
         @Volatile var alive = 0; const val FOLDER_MS = 350L; const val SWAP_MS = 220L
-        /** Long-press: the menu waits this long after the lift, so a drag that starts in it never shows the menu (iOS). */
-        const val MENU_MS = 200L
+        /** Long-press: the menu waits this long after the lift (200 ms felt like none on the Poco: measured lift -> menu = 200 ms exactly), so a drag that starts in it never shows the menu (iOS). */
+        const val MENU_MS = 350L
         /** Created once: Typeface.create looked the family up again for every bold label. */
         val MEDIUM: Typeface by lazy { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
         /** Launcher font (style.face), families every Android ships: no font files in the APK. */
@@ -374,7 +374,7 @@ class HomeActivity : Activity() {
     // resolved once per resume / package change (a binder call on every render otherwise)
     private var dialerPkg: String? = null; private var dialerAt = 0L
     private val todayIcon: (AppE, Int) -> View = { a, size ->
-        ImageView(this).apply { IconCache.get(this@HomeActivity, a.pkg, a.cls, dp(size), model?.style?.shape != "square")?.let { setImageBitmap(it) }; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+        ImageView(this).apply { IconCache.get(this@HomeActivity, a.pkg, a.cls, dp(size), model?.style?.shape ?: "square")?.let { setImageBitmap(it) }; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
     }
     internal fun dialer(): String? {
         if (dialerAt == 0L) { dialerPkg = resolvePkg(Intent(Intent.ACTION_DIAL)); dialerAt = 1L }
@@ -1572,7 +1572,7 @@ class HomeActivity : Activity() {
                 // the drop cells: the card colour when it fits, the danger colour when it doesn't
                 val col = if (hlOk) pal.card else Color.argb(150, Color.red(pal.danger), Color.green(pal.danger), Color.blue(pal.danger))
                 hlPaint.color = col; hlPaint.alpha = (Color.alpha(col) * hlA).toInt()
-                val rad = if (hlWidget) kit.dpf(22f) else if (model?.style?.shape != "square") hlR.width() / 2f else hlR.width() * 0.3f
+                val rad = if (hlWidget) kit.dpf(22f) else when (model?.style?.shape) { "round" -> hlR.width() / 2f; "soft" -> hlR.width() * 0.4f; else -> hlR.width() * 0.3f }
                 kit.drawRound(c, hlR.left, hlR.top, hlR.right, hlR.bottom, hlPaint, rad)
             }
             if (more) postInvalidateOnAnimation() else lastDraw = 0L

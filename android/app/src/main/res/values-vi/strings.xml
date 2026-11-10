@@ -757,6 +757,8 @@
     <string name="hm_c_round">tròn</string>
     <string name="hm_c_square_opt">Vuông</string>
     <string name="hm_c_round_opt">Tròn</string>
+    <string name="hm_c_soft">mềm</string>
+    <string name="hm_c_soft_opt">Mềm</string>
     <string name="hm_c_with_labels">có tên</string>
     <string name="hm_c_no_labels">không tên</string>
     <string name="hm_c_style">Kiểu</string>

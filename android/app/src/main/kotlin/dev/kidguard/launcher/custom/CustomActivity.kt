@@ -100,7 +100,7 @@ class CustomActivity : Activity() {
         // live preview
         val pv = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         pv.addView(Preview(mm), LinearLayout.LayoutParams(dp(96), dp(176)))
-        pv.addView(k.text(s(R.string.hm_c_preview, mm.cols, mm.rows, s(if (st.shape == "square") R.string.hm_c_square else R.string.hm_c_round),
+        pv.addView(k.text(s(R.string.hm_c_preview, mm.cols, mm.rows, s(when (st.shape) { "square" -> R.string.hm_c_square; "soft" -> R.string.hm_c_soft; else -> R.string.hm_c_round }),
             s(if (st.labels) R.string.hm_c_with_labels else R.string.hm_c_no_labels)), 14f, pal.sub).apply { setPadding(dp(16), 0, 0, 0); includeFontPadding = true; setLineSpacing(0f, 1.2f) },
             LinearLayout.LayoutParams(0, -2, 1f))
         col.addView(pv, lp(10))
@@ -117,7 +117,7 @@ class CustomActivity : Activity() {
         line(home); home.addView(stepper(s(R.string.hm_c_icon), st.icon, 1, 5) { v -> set { it.copy(icon = v) } })   // 1..5 like "Số cột" (owner: a slider took a whole block)
         line(home); home.addView(switchRow(s(R.string.hm_c_labels), st.labels) { v -> set { it.copy(labels = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_face), HomeActivity.FACES.zip(listOf(R.string.hm_c_face_sys, R.string.hm_c_face_light, R.string.hm_c_face_medium, R.string.hm_c_face_condensed, R.string.hm_c_face_serif, R.string.hm2_c_face_easy)).map { (f, r) -> s(r) to f }, st.face) { v -> set { it.copy(face = v) } })
-        line(home); home.addView(segRow(s(R.string.hm_c_shape), listOf(s(R.string.hm_c_round_opt) to "round", s(R.string.hm_c_square_opt) to "square"), st.shape) { v -> set { it.copy(shape = v) } })
+        line(home); home.addView(segRow(s(R.string.hm_c_shape), listOf(s(R.string.hm_c_round_opt) to "round", s(R.string.hm_c_soft_opt) to "soft", s(R.string.hm_c_square_opt) to "square"), st.shape) { v -> set { it.copy(shape = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock), st.dockBg) { v -> set { it.copy(dockBg = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock_labels), st.dockLabels) { v -> set { it.copy(dockLabels = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_today), st.today) { v -> set { it.copy(today = v) } })
@@ -448,7 +448,7 @@ class CustomActivity : Activity() {
                 else {
                     pFill.color = if (it.kind == "folder") pal.card else pal.solid
                     val s0 = minOf(rr - l, b - t) * (0.6f + 0.1f * st.icon); val cx = (l + rr) / 2; val cy = (t + b) / 2
-                    val rad = if (st.shape == "square") s0 * 0.25f else s0 / 2
+                    val rad = when (st.shape) { "square" -> s0 * 0.25f; "soft" -> s0 * 0.4f; else -> s0 / 2 }
                     c.drawRoundRect(cx - s0 / 2, cy - s0 / 2, cx + s0 / 2, cy + s0 / 2, rad, rad, pFill)
                 }
             }

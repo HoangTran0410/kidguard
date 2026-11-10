@@ -44,7 +44,7 @@ data class HStyle(
             return HStyle(
                 preset = o.optString("preset", "teen").takeIf { p -> HomeStyle.PRESETS.any { it.id == p } } ?: "teen",
                 icon = o.optInt("icon", 3).coerceIn(1, 5), labels = o.optBoolean("labels", true),
-                shape = o.optString("shape", "square").takeIf { it == "round" || it == "square" } ?: "square",
+                shape = o.optString("shape", "square").takeIf { it == "round" || it == "soft" || it == "square" } ?: "square",
                 dockBg = o.optBoolean("dockBg", true), dockLabels = o.optBoolean("dockLabels", true), badge = o.optString("badge", "num").takeIf { it in setOf("num", "dot", "off") } ?: "num",
                 face = o.optString("face", "sys").takeIf { it in HomeActivity.FACES } ?: "sys",
                 accent = o.optString("accent", "").takeIf { a -> a.isEmpty() || HomeStyle.ACCENTS.any { it.id == a } } ?: "",

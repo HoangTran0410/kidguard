@@ -201,7 +201,7 @@ private fun HomeActivity.awProviders(all: Map<String, HomeActivity.AppE>, show: 
  */
 internal fun HomeActivity.awPickerSection(list: LinearLayout, query: String = "", alive: () -> Boolean) {
     val fq = LauncherLogic.fold(query).trim()
-    val sq = model?.style?.shape != "square"
+    val shp = model?.style?.shape ?: "square"
     val (cw, ch) = awCell(); val d = resources.displayMetrics.density; val m = model
     class R0(val info: AppWidgetProviderInfo, val pv: android.graphics.Bitmap?, val name: String)
     class G0(val app: HomeActivity.AppE, val icon: android.graphics.Bitmap?, val rows: List<R0>)
@@ -251,7 +251,7 @@ internal fun HomeActivity.awPickerSection(list: LinearLayout, query: String = ""
             val named = infos.map { it to (runCatching { it.loadLabel(ctx.packageManager) }.getOrNull()?.takeIf { n -> n.isNotBlank() } ?: app.label) }
             val keep = if (fq.isEmpty() || LauncherLogic.fold(app.label).contains(fq)) named else named.filter { LauncherLogic.fold(it.second).contains(fq) }
             if (keep.isEmpty()) continue
-            val icon = IconCache.get(ctx, app.pkg, app.cls, dp(28), sq)
+            val icon = IconCache.get(ctx, app.pkg, app.cls, dp(28), shp)
             q += G0(app, icon, keep.map { (info, name) -> R0(info, thumb(runCatching { info.loadPreviewImage(ctx, 0) ?: info.loadIcon(ctx, 0) }.getOrNull()), name) })
         }
         done.set(true)

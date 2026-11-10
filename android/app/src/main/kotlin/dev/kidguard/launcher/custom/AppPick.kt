@@ -23,7 +23,7 @@ internal fun HomeActivity.appPickSheet(title: String, apps: List<HomeActivity.Ap
     // opened from another sheet ([back] set): stacked on it (no second dim), Save / Back return to it instead of closing both
     val sh = Sheet(this, u, title, stacked = back != null)
     val chosen = chosen0.toMutableSet()
-    val round = model?.style?.shape != "square"
+    val shp = model?.style?.shape ?: "square"
     val ipx = dp(40)
 
     // pinned: search (same look as the drawer's) + save
@@ -60,8 +60,8 @@ internal fun HomeActivity.appPickSheet(title: String, apps: List<HomeActivity.Ap
     }
     fun row(a: HomeActivity.AppE): Row {
         val icon = ImageView(this).apply { importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
-        IconCache.peek(a.pkg, a.cls, ipx, round)?.let { icon.setImageBitmap(it) }
-            ?: IconCache.async(this, a.pkg, a.cls, ipx, round) { b -> if (b != null && sh.showing) icon.setImageBitmap(b) }
+        IconCache.peek(a.pkg, a.cls, ipx, shp)?.let { icon.setImageBitmap(it) }
+            ?: IconCache.async(this, a.pkg, a.cls, ipx, shp) { b -> if (b != null && sh.showing) icon.setImageBitmap(b) }
         val ring = GradientDrawable().apply { shape = GradientDrawable.OVAL }
         val check = ImageView(this).apply { background = ring; scaleType = ImageView.ScaleType.CENTER; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
         val v = LinearLayout(this).apply {

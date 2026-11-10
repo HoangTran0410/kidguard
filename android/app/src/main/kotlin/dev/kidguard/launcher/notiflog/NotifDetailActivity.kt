@@ -143,8 +143,8 @@ class NotifDetailActivity : Activity() {
         val small = ImageView(this)
         head.addView(small, LinearLayout.LayoutParams(dp(20), dp(20)).apply { rightMargin = dp(8) })
         val px = dp(20)
-        IconCache.peek(e.pkg, "", px, true)?.let { small.setImageBitmap(it) }
-            ?: IconCache.async(this, e.pkg, "", px, true) { b -> if (b != null) small.setImageBitmap(b) }
+        IconCache.peek(e.pkg, "", px, "round")?.let { small.setImageBitmap(it) }
+            ?: IconCache.async(this, e.pkg, "", px, "round") { b -> if (b != null) small.setImageBitmap(b) }
         val t0 = e.whenMs.takeIf { it > 0 } ?: e.postTime.takeIf { it > 0 } ?: e.time
         val rel = DateUtils.getRelativeTimeSpanString(t0, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString()
         val header = listOf(e.app.ifEmpty { e.pkg }, e.subText, rel).filter { it.isNotEmpty() }.joinToString(" · ")
