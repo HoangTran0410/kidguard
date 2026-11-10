@@ -389,10 +389,16 @@ internal fun HomeActivity.openControl() {
     panel.addView(row2, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap + dp(4) })
 
     // the phone's own quick settings, for what the kid's panel does not have (hotspot, cast, …)
-    fun pill(text: Int, icon: Int, go: () -> Unit) = kit.text(getString(text), 14f, Color.WHITE, true).apply {
+    fun pill(text: Int, icon: Int, go: () -> Unit) = kit.text(if (text != 0) getString(text) else "", 14f, Color.WHITE, true).apply {
         gravity = Gravity.CENTER; background = kit.fill(0x33FFFFFF, 16f); setPadding(dp(12), dp(12), dp(12), dp(12)); minHeight = dp(48)
         Ic.lead(this, icon, Color.WHITE); compoundDrawablePadding = dp(8); kit.tap(this, 16f, true) { go() }
     }
+    // study mode: a wide pill like iOS's Focus in Control Center (it was only in the long-press menu); lit while on
+    val (fText, fOn) = focusState()
+    panel.addView(pill(0, R.drawable.li_timer) { closeOverlay(); main.postDelayed({ focusSheet() }, 120) }.apply {
+        text = fText
+        if (fOn) { background = kit.fill(pal.solid, 16f); setTextColor(pal.onSolid); Ic.lead(this, R.drawable.li_timer, pal.onSolid) }
+    }, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap + dp(6) })
     // bottom row: seen notifications (one tap, not hidden in the long-press menu) + the phone's quick settings
     // (rule launcher.shade: the system quick settings close as soon as they open, so no way there)
     val pills = listOfNotNull(

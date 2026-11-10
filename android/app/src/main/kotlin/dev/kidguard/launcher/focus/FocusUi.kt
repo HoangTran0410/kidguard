@@ -26,6 +26,22 @@ internal fun HomeActivity.focusShow(show: Map<String, LauncherLogic.Show>, dv: H
     return show.mapValues { (pkg, v) -> if (FocusLogic.visible(mode, pkg, v != LauncherLogic.Show.HIDE, allowed)) v else LauncherLogic.Show.HIDE }
 }
 
+/** The apps study mode lets through right now (fresh, not the last render's), or null when it is off. Drawer + search use it. */
+internal fun HomeActivity.focusAllowed(dv: HomeActivity.View0): Set<String>? {
+    val mode = FocusLogic.mode(FocusStore.expire(this, dv.now), FocusStore.slots(this), dv.now, dv.dow, dv.minute)
+    return if (mode == FocusLogic.Mode.OFF) null else FocusLogic.allowed(FocusStore.study(this), listOf(dialer(), packageName))
+}
+
+/** End of the app drawer while study mode hides apps: "N apps hidden" + "End early" (a session; a parent schedule can't be ended here). */
+internal fun HomeActivity.focusDrawerNote(hidden: Int, onEnd: () -> Unit): android.view.View {
+    val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(24), dp(20), dp(24), dp(8)) }
+    box.addView(text(getString(R.string.focus_hidden, hidden), 14f, pal.sub).apply { gravity = Gravity.CENTER; Ic.lead(this, R.drawable.li_timer, pal.sub); compoundDrawablePadding = dp(8) }, LinearLayout.LayoutParams(-2, -2))
+    val s = FocusStore.expire(this)
+    if (s != null) box.addView(kit.pill(getString(R.string.focus_end), R.drawable.li_x, false) { endFocus(onEnd) }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(10) })
+    else box.addView(text(chipText?.text?.toString() ?: "", 13f, pal.sub).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4) })
+    return box
+}
+
 /** Part of the render key: a mode or session change must rebuild even when the visible app set happens to be the same. */
 internal fun focusKey(ctx: android.content.Context) = FocusStore.mode.name + (chipSession?.end ?: 0L)
 
@@ -74,8 +90,8 @@ private fun HomeActivity.gate(why: Int, then: () -> Unit) {
     }
 }
 
-private fun HomeActivity.endFocus() {
-    val ok = { FocusStore.end(this); key = ""; render(true) }
+private fun HomeActivity.endFocus(after: () -> Unit = {}) {
+    val ok = { FocusStore.end(this); key = ""; render(true); after() }
     if (FocusLogic.needsPin(Flavor.HOME, Store.of(this).rules.pinHash.isNotBlank())) gate(R.string.focus_end_pin, ok)
     else Modal(this, u).show(R.drawable.li_timer, Modal.Tone.INFO, getString(R.string.focus_end_t), getString(R.string.focus_end_b), ok = getString(R.string.focus_end_ok), cancel = getString(R.string.cancel)) { ok(); true }
 }
@@ -84,7 +100,15 @@ private fun HomeActivity.endFocus() {
 
 internal fun HomeActivity.focusSheet() {
     val sh = Sheet(this, u, getString(R.string.focus_title))
+    fillFocus(sh)
+    sh.show()
+}
+
+/** The study sheet's content; rebuilt in place when the app picker (stacked on top of it) saves: Back / Save = back here. */
+private fun HomeActivity.fillFocus(sh: Sheet) {
     val b = sh.body
+    b.removeAllViews()
+    val again = { fillFocus(sh) }
     val lp = { LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(8), dp(12), 0) } }
     val live = FocusStore.expire(this)
     val study = FocusStore.study(this)
@@ -99,25 +123,26 @@ internal fun HomeActivity.focusSheet() {
         if (!FocusStore.dndAccess(this)) b.addView(text(getString(R.string.focus_dnd_off), 13f, pal.sub), lp())
         if (study.isEmpty()) b.addView(text(getString(R.string.focus_apps_empty), 13f, pal.warnText, true), lp())
         for (m in FocusLogic.DURATIONS) b.addView(kit.pill(getString(R.string.focus_start_n, m), R.drawable.li_timer, m == FocusLogic.DURATIONS[1]) {
-            if (FocusStore.study(this).isEmpty()) { sh.dismiss(); main.post { pickStudy() }; return@pill }
+            if (FocusStore.study(this).isEmpty()) { pickStudy(again); return@pill }
             sh.dismiss(); FocusStore.start(this, m); key = ""; render(true)
         }, lp())
     }
-    b.addView(kit.pill(getString(R.string.focus_apps, study.size), null, false) { sh.dismiss(); main.post { pickStudy() } }, lp())
+    b.addView(kit.pill(getString(R.string.focus_apps, study.size), null, false) { pickStudy(again) }, lp())
     val sl = FocusStore.slots(this)
     b.addView(kit.pill(getString(R.string.focus_sched) + " · " + (if (sl.isEmpty()) getString(R.string.focus_sched_none) else sl.size.toString()), R.drawable.li_clock, false) {
         sh.dismiss(); main.post { gate(R.string.focus_sched_pin) { editSlots() } }
     }, lp())
-    sh.show()
 }
 
-private fun HomeActivity.pickStudy() {
+private fun HomeActivity.pickStudy(back: () -> Unit) {
     val chosen = FocusStore.study(this).toMutableSet()
-    val list = launcherApps().values.filter { lastShow[it.pkg] != LauncherLogic.Show.HIDE || it.pkg in chosen }.sortedBy { it.sortKey }
-    appPickSheet(getString(R.string.focus_apps_t), list, chosen) { picked ->
+    // what the parent allows, not lastShow: during study mode that already hides every non-study app (the picker showed only those)
+    val st = Store.of(this); val r = st.rules; val dv = decision(r, st)
+    val list = launcherApps().values.filter { LauncherLogic.show(it.pkg, dv.want, r, packageName, settingsOk(r), tsManaged) != LauncherLogic.Show.HIDE || it.pkg in chosen }.sortedBy { it.sortKey }
+    appPickSheet(getString(R.string.focus_apps_t), list, chosen, back) { picked ->
         val keep = chosen - list.map { it.pkg }.toSet()   // apps not listed (parent-hidden) keep their mark
         FocusStore.setStudy(this, keep + picked.filter { p -> list.any { it.pkg == p } })
-        key = ""; render(true)
+        key = ""; render(true); back()
     }
 }
 
@@ -186,6 +211,11 @@ internal fun focusCard(act: android.app.Activity, col: LinearLayout) {
     }
     col.addView(t, LinearLayout.LayoutParams(-1, -2).apply { topMargin = h.dp(12) })
 }
+
+/** Control center: the study mode label ("Đang học bài · còn N phút" while on) and whether it is on. */
+internal fun HomeActivity.focusState(): Pair<String, Boolean> =
+    if (FocusStore.mode == FocusLogic.Mode.OFF) getString(R.string.focus_title) to false
+    else (chipText?.text?.toString()?.takeIf { it.isNotEmpty() } ?: getString(R.string.focus_title)) to true
 
 /** Long-press menu entry helper. */
 internal fun HomeActivity.focusRow() = HomeActivity.Row(R.drawable.li_timer, getString(R.string.focus_title), true) { focusSheet() }

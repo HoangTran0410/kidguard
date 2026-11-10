@@ -28,4 +28,5 @@
     <string name="focus_remove">Remove</string>
     <string name="app_pick_save">Save (%1$d)</string>
     <string name="app_pick_none">No app matches</string>
+    <string name="focus_hidden">Study time: %d apps are hidden</string>
 </resources>

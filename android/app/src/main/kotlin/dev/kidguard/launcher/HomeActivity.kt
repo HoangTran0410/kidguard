@@ -405,7 +405,7 @@ class HomeActivity : Activity() {
     // owner / paired change rarely: read once per resume (dialer cache is reset there too)
     private var managedAt = 0L; private var managed = true
     /** Tailscale installed by KidGuard for the parents' remote access: hidden from the kid (LauncherLogic.show). */
-    private val tsManaged: Boolean get() = !Flavor.HOME && runCatching { Store.of(this).tsWanted }.getOrDefault(false)
+    internal val tsManaged: Boolean get() = !Flavor.HOME && runCatching { Store.of(this).tsWanted }.getOrDefault(false)
 
     internal fun settingsOk(r: Rules): Boolean {
         if (Flavor.HOME) return true
@@ -966,11 +966,14 @@ class HomeActivity : Activity() {
             val s = Store.of(context); val r = s.rules
             val all = launcherApps(); val dv = decision(r, s)
             val q = search.text.toString(); val fq = LauncherLogic.fold(q).trim()
-            val shown = all.values.filter { LauncherLogic.show(it.pkg, dv.want, r, packageName, settingsOk(r), tsManaged) != LauncherLogic.Show.HIDE && LauncherLogic.matchesFolded(it.folded, fq) }
-                .sortedBy { it.sortKey }
+            // study mode hides every non-study app here too (not only on the home pages), with a note + "End early" at the end
+            val fa = focusAllowed(dv)
+            val ok = all.values.filter { LauncherLogic.show(it.pkg, dv.want, r, packageName, settingsOk(r), tsManaged) != LauncherLogic.Show.HIDE }
+            val hidden = if (fa == null) 0 else ok.count { it.pkg !in fa }
+            val shown = ok.filter { (fa == null || it.pkg in fa) && LauncherLogic.matchesFolded(it.folded, fq) }.sortedBy { it.sortKey }
             val anyPaused = shown.any { dv.want[it.pkg] != null }
             val sk = listOf(q, shown.joinToString(",") { it.pkg + "=" + it.label }, shown.map { dv.want[it.pkg] }, model?.cols, model?.onHome(), model?.style?.shape,
-                model?.style?.icon, if (q.isBlank()) recent.take(12) else "").joinToString("|")
+                model?.style?.icon, if (q.isBlank()) recent.take(12) else "", hidden, FocusStore.session(context)?.end).joinToString("|")
             val k = sk + "|" + listOf(if (anyPaused) dv.minute else 0, if (anyPaused) dv.leftMs / 60_000 else 0, if (anyPaused) r.groups.map { it.hours } else 0).joinToString("|")
             if (k == lastKey) return
             // only the minute moved (a paused app's time left) while the kid is looking at the drawer: rebuilding it under
@@ -978,9 +981,11 @@ class HomeActivity : Activity() {
             if (sk == lastSk && this@HomeActivity.drawer === this && isShown) return
             lastKey = k; lastSk = sk
             unlight(); list.removeAllViews(); cells.clear(); alphaTo.clear(); firstHit = null; fillGen++
+            val note = { if (hidden > 0) list.addView(focusDrawerNote(hidden) { lastKey = ""; refill() }, LayoutParams(-1, -2)) }
             if (shown.isEmpty()) {
                 rail.removeAllViews(); railKey = ""
                 list.addView(text(getString(R.string.hm_no_result, q), 15f, pal.sub).apply { gravity = Gravity.CENTER; setPadding(dp(16), dp(40), dp(16), dp(16)) }, LayoutParams(-1, -2))
+                note()
                 return
             }
             val cols = (model?.cols ?: 4).coerceIn(3, 5)
@@ -1016,7 +1021,8 @@ class HomeActivity : Activity() {
                 while (row.childCount < cols) row.addView(View(context), LayoutParams(0, 1, 1f))
                 list.addView(row, list.childCount - 1, LayoutParams(-1, -2))
             }
-            list.addView(View(context), LayoutParams(-1, dp(24)))   // bottom gap, rows go before it
+            // bottom: the study note (if any) + a gap, in one view: rows go before it
+            list.addView(LinearLayout(context).apply { orientation = VERTICAL; if (hidden > 0) addView(focusDrawerNote(hidden) { lastKey = ""; refill() }, LayoutParams(-1, -2)); addView(View(context), LayoutParams(-1, dp(24))) }, LayoutParams(-1, -2))
             // no "recently used" title: the row over the divider reads as such (owner's call)
             if (rec.size >= 2) {
                 val row = LinearLayout(context).apply { orientation = HORIZONTAL; setPadding(dp(8), dp(6), dp(8), dp(6)); clipChildren = false; clipToPadding = false }

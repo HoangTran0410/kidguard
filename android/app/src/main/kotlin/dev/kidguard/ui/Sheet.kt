@@ -16,15 +16,34 @@ import android.widget.ScrollView
  * Bottom sheet for the child screen's secondary actions ("Thêm"). Built once: [body] keeps its views (MainActivity
  * refresh() keeps updating them while it is closed), [show] / [dismiss] only toggle the dialog. Scrolls past 88% height.
  */
-class Sheet(act: Activity, u: Ui, title: String) {
+class Sheet(act: Activity, u: Ui, title: String, stacked: Boolean = false) {
     val body = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
     /** Stays above the scrolling [body] (a search field). Empty = no space taken. */
     val pinned = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
-    private val d = Dialog(act)
+    /** Back key: runs this instead of closing everything (a sheet opened from another sheet goes back to it). */
+    var onBack: (() -> Unit)? = null
+    private lateinit var box: LinearLayout
+    private lateinit var scrim: android.widget.FrameLayout
+    private var closing = false
+    private val scrimAlpha = if (stacked) 0 else 128
+    // the window does not move: the dim fades and only the sheet slides (Material / iOS sheets). A window animation
+    // slid the dark backdrop up with the sheet.
+    private val d = object : Dialog(act) {
+        override fun dismiss() {
+            if (closing || !isShowing || act.isFinishing || act.isDestroyed || !box.isAttachedToWindow) { closing = false; super.dismiss(); return }
+            closing = true
+            box.animate().cancel(); scrim.animate().cancel()
+            box.animate().translationY(box.height.toFloat()).setDuration(Motion.MED).setInterpolator(Motion.STD).withEndAction { dismiss() }.start()
+            scrim.background?.let { bg -> android.animation.ValueAnimator.ofInt(bg.alpha, 0).apply {
+                duration = Motion.MED; addUpdateListener { bg.alpha = it.animatedValue as Int }; start() } }
+        }
+        @Deprecated("Deprecated in Java")
+        override fun onBackPressed() { val b = onBack; if (b != null && !closing) { onBack = null; dismiss(); b() } else super.onBackPressed() }
+    }
 
     init {
         d.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        val box = LinearLayout(act).apply {
+        box = LinearLayout(act).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply { setColor(u.card); val r = u.dpf(28); cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f) }
             setPadding(u.dp(12), u.dp(10), u.dp(12), u.dp(16))
@@ -50,7 +69,7 @@ class Sheet(act: Activity, u: Ui, title: String) {
                 android.view.MotionEvent.ACTION_MOVE -> if (dragging) box.translationY = (e.rawY - downY).coerceAtLeast(0f)
                 android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> if (dragging) {
                     dragging = false
-                    if (box.translationY > maxOf(u.dp(80).toFloat(), box.height * 0.2f)) box.animate().translationY(box.height.toFloat()).setDuration(Motion.FAST).setInterpolator(Motion.DECEL).withEndAction { d.dismiss(); box.translationY = 0f }.start()
+                    if (box.translationY > maxOf(u.dp(80).toFloat(), box.height * 0.2f)) box.animate().translationY(box.height.toFloat()).setDuration(Motion.FAST).setInterpolator(Motion.DECEL).withEndAction { closing = true; d.dismiss() }.start()
                     else box.animate().translationY(0f).setDuration(Motion.FAST).setInterpolator(Motion.STD).start()
                 }
             }
@@ -61,8 +80,8 @@ class Sheet(act: Activity, u: Ui, title: String) {
         box.addView(scroll, LinearLayout.LayoutParams(-1, -2, 1f))   // weight + wrap: shrinks only when the sheet would not fit (big font, short screen)
         box.isClickable = true   // taps on the sheet itself don't reach the scrim
         // full-window dialog with its own scrim: the navigation bar then takes the sheet's color instead of a dimmed strip
-        val scrim = android.widget.FrameLayout(act).apply {
-            setBackgroundColor(Color.argb(128, 0, 0, 0)); setOnClickListener { d.dismiss() }
+        scrim = android.widget.FrameLayout(act).apply {
+            background = ColorDrawable(Color.BLACK).apply { alpha = scrimAlpha }; setOnClickListener { d.dismiss() }
             setPadding(0, u.dp(40), 0, 0)   // never reaches the status bar
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             addView(box, android.widget.FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
@@ -79,7 +98,7 @@ class Sheet(act: Activity, u: Ui, title: String) {
         d.window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
-            setWindowAnimations(android.R.style.Animation_InputMethod)
+            setWindowAnimations(0)
             setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)   // a search / name field keeps the list above the keyboard
             clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND); addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
             navigationBarColor = u.card; statusBarColor = Color.TRANSPARENT
@@ -90,7 +109,23 @@ class Sheet(act: Activity, u: Ui, title: String) {
     private fun accessibilityHeading(v: View) { if (android.os.Build.VERSION.SDK_INT >= 28) v.isAccessibilityHeading = true }
 
     val showing get() = d.isShowing
-    fun show() { if (!d.isShowing) d.show() }
+    fun show() {
+        if (d.isShowing) return
+        closing = false; box.animate().cancel()
+        box.translationY = 0f; box.visibility = View.INVISIBLE   // measured first: slides in from its own height
+        scrim.background?.alpha = 0
+        d.show()
+        box.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                box.viewTreeObserver.removeOnPreDrawListener(this)
+                box.translationY = box.height.toFloat(); box.visibility = View.VISIBLE
+                box.animate().translationY(0f).setDuration(Motion.SLOW).setInterpolator(Motion.STD).start()
+                scrim.background?.let { bg -> android.animation.ValueAnimator.ofInt(0, scrimAlpha).apply {
+                    duration = Motion.SLOW; addUpdateListener { bg.alpha = it.animatedValue as Int }; start() } }
+                return false
+            }
+        })
+    }
     fun dismiss() { if (d.isShowing) d.dismiss() }
     fun onDismiss(f: () -> Unit) { d.setOnDismissListener { f() } }
 }

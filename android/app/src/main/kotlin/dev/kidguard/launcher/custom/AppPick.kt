@@ -18,9 +18,10 @@ import android.widget.TextView
  * Perf (docs/launcher-perf.md): rows are plain views; the first ~14 are built before the sheet shows, the rest after
  * its first frame in lumps; icons come from IconCache (peek, else async). Search only toggles row visibility.
  */
-internal fun HomeActivity.appPickSheet(title: String, apps: List<HomeActivity.AppE>, chosen0: Set<String>, onSave: (Set<String>) -> Unit) {
+internal fun HomeActivity.appPickSheet(title: String, apps: List<HomeActivity.AppE>, chosen0: Set<String>, back: (() -> Unit)? = null, onSave: (Set<String>) -> Unit) {
     val t0 = Perf.now()
-    val sh = Sheet(this, u, title)
+    // opened from another sheet ([back] set): stacked on it (no second dim), Save / Back return to it instead of closing both
+    val sh = Sheet(this, u, title, stacked = back != null)
     val chosen = chosen0.toMutableSet()
     val round = model?.style?.shape != "square"
     val ipx = dp(40)
@@ -109,6 +110,7 @@ internal fun HomeActivity.appPickSheet(title: String, apps: List<HomeActivity.Ap
             sh.body.post { runCatching { sh.body.viewTreeObserver.removeOnDrawListener(me) }; more(first) }
         }
     })
+    sh.onBack = back
     val built = Perf.now()
     sh.show()
     Perf.firstDraw(sh.body, "appPick", t0, built)

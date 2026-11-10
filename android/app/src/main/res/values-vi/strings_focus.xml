@@ -28,4 +28,5 @@
     <string name="focus_remove">Xoá</string>
     <string name="app_pick_save">Lưu (%1$d)</string>
     <string name="app_pick_none">Không có app nào khớp</string>
+    <string name="focus_hidden">Đang giờ học: đã ẩn %d app</string>
 </resources>
