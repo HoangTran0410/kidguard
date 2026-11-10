@@ -629,14 +629,16 @@ class HomeActivity : Activity() {
     }
 
     private var minHKey = 0f; private var minHVal = 0
-    /** What a 1x1 app cell needs (appIcon): 4 dp pad + icon + 2 dp frame + 2 dp margin + one real label line + 2 dp pad, + the 6 dp gap. */
+    /** What a 1x1 app cell needs (appIcon): 4 dp pad + icon + 2 dp frame + 2 dp margin + one real label line + 2 dp pad.
+     *  No row gap on top (CellLayout.box gives icon cells the whole row): with it the POCO's icon + label needed 310 px against
+     *  a 289 px column, rows grew past the columns and 2x2 widgets came out 34 px taller than wide. */
     internal fun cellMinH(): Int {
         val m = model
         val key = iconPx() * 1000f + labelPx(false) + (if (m?.style?.labels == false) 0.5f else 0f)
         if (key != minHKey) {
             // measured, not estimated: a guess of 12 sp cut the "g" of "Telegram" at 7 rows on the Poco
             val line = if (m?.style?.labels != false) iconLabel("Ág", false, Color.WHITE, 1).apply { measure(0, 0) }.measuredHeight else 0
-            minHVal = iconPx() + dp(4 + 2 + 2 + 2 + 6) + line; minHKey = key
+            minHVal = iconPx() + dp(4 + 2 + 2 + 2) + line; minHKey = key
         }
         return minHVal
     }
@@ -1453,7 +1455,8 @@ class HomeActivity : Activity() {
          * (8.2 %) at the default icon size, which read as loose next to iOS.
          */
         private fun box(cw: Int, ch: Int, lp: CellLP): IntArray {
-            if (!lp.widget) return intArrayOf(0, 0, cw * lp.w - gap, ch * lp.h - gap)
+            // icons: the gap across only; down, the label's own padding and the next icon's 4 dp top pad space the rows (iOS)
+            if (!lp.widget) return intArrayOf(0, 0, cw * lp.w - gap, ch * lp.h)
             val icon = iconPx().coerceAtMost(minOf(cw, ch) - gap)
             val ix = ((cw - gap - icon) / 2).coerceAtLeast(0)
             val top = dp(5).coerceAtMost((ch - gap - icon).coerceAtLeast(0))        // appIcon: 4 dp box padding + 1 dp frame
@@ -1462,8 +1465,12 @@ class HomeActivity : Activity() {
             val pw = (span + g) / cols                                              // widget column pitch: cols columns, cols-1 gaps of g
             val x = ix + Math.round(lp.x * (pw - cw))
             val w = Math.round(lp.w * pw - g)
-            val h = Math.round(lp.h * ch - g).coerceAtMost(lp.h * ch - gap - top)
-            return intArrayOf(x, top, w, h)
+            // down: the same pitch as across (pw), so a 2x2 is square like iOS; rows taller than that (very big icons) leave the
+            // extra below the widget rather than stretch it
+            val h = Math.round(lp.h * minOf(ch.toFloat(), pw.toFloat()) - g).coerceAtMost(lp.h * ch - gap - top)
+            // and placed on that pitch down too (as x across): gaps between widgets equal both ways (POCO: 69 across, was 85 down)
+            val y = top + Math.round(lp.y * (minOf(ch.toFloat(), pw.toFloat()) - ch))
+            return intArrayOf(x, y, w, h)
         }
 
         /**

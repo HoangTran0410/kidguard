@@ -30,8 +30,12 @@ import dev.kidguard.HomeActivity.Row
 
 internal fun HomeActivity.iconScale(): Float = 0.8f + 0.1f * ((model?.style?.icon ?: 3) - 1)
 internal fun HomeActivity.iconPx(): Int = dp((preset.iconDp * iconScale()).toInt())
-/** Drawer / folder / library icons: 52 dp at the default size, scaled by the same "Cỡ biểu tượng" as home (was fixed 52 dp). */
-internal fun HomeActivity.listIconPx(): Int = dp((52 * iconScale()).toInt())
+/** Drawer / folder / library icons: the same size as on home (was 52 dp x scale while home is the preset's size x scale:
+ *  the POCO's "teen" 58 dp made home icons 11 % bigger than the drawer's at every setting). Capped to the drawer column. */
+internal fun HomeActivity.listIconPx(): Int {
+    val cols = (model?.cols ?: 4).coerceIn(3, 5)
+    return iconPx().coerceAtMost(resources.displayMetrics.widthPixels / cols - dp(18))
+}
 
 internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules, mode: Mode, item: HItem? = null, folder: HItem? = null, slot: Int = -1): View {
     val list = mode == Mode.DRAWER || mode == Mode.PANEL     // on an opaque surface: pal.text labels, a "còn x phút" line
@@ -126,7 +130,7 @@ internal fun HomeActivity.addLabel(box: LinearLayout, lbl: TextView, top: Int) {
 internal fun HomeActivity.iconLabel(t: String, list: Boolean, color: Int, lines: Int = 2): TextView = IconLabel(this, lines).apply {
     text = t; setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, labelPx(list))
     setTextColor(color); includeFontPadding = false; typeface = HomeActivity.tf(false)
-    ellipsize = android.text.TextUtils.TruncateAt.END; gravity = Gravity.CENTER; setPadding(dp(4), dp(1), dp(4), dp(1))
+    ellipsize = android.text.TextUtils.TruncateAt.END; gravity = Gravity.CENTER; setPadding(dp(4), 0, dp(4), 0)
     setLineSpacing(0f, 0.92f)
     letterSpacing = ReadAids.spacing(model?.style?.face ?: "sys")
 }
