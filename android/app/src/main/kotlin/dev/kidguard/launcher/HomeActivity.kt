@@ -63,6 +63,8 @@ class HomeActivity : Activity() {
         /** Width of the drawer's A–Z rail (was 26: it ate into the grid). */
         const val RAIL_DP = 20
         @Volatile var alive = 0; const val FOLDER_MS = 350L; const val SWAP_MS = 220L
+        /** Long-press: the menu waits this long after the lift, so a drag that starts in it never shows the menu (iOS). */
+        const val MENU_MS = 200L
         /** Created once: Typeface.create looked the family up again for every bold label. */
         val MEDIUM: Typeface by lazy { Typeface.create("sans-serif-medium", Typeface.NORMAL) }
         /** Launcher font (style.face), families every Android ships: no font files in the APK. */

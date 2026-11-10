@@ -28,21 +28,30 @@ internal fun HomeActivity.arm(v: View, onLong: () -> Unit, src: () -> DragSt, im
     // swipe, so page swipes on the POCO kept opening the app menu. Cancelled once the finger moves past the touch slop.
     val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
     val fire = Runnable { if (v.isAttachedToWindow) v.performLongClick() }
+    // iOS: the hold lifts the item at once (haptic), the menu waits a beat; a finger that starts dragging in that beat never
+    // sees the menu (it popped up with the drag and closed again as the item moved). Let go first: it shows right away.
+    var menuDue = false
+    var fired = false   // the long press happened: the lift must not end in a tap (it launched the app once the menu waited)
+    val menu = Runnable { if (menuDue && armed === v && v.isAttachedToWindow) { menuDue = false; onLong() } }
     v.setOnTouchListener { _, e ->
         when (e.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { downX = e.rawX; downY = e.rawY; armed = null; pressed(press, true)
+            MotionEvent.ACTION_DOWN -> { downX = e.rawX; downY = e.rawY; armed = null; fired = false; pressed(press, true)
                 v.removeCallbacks(fire); v.postDelayed(fire, android.view.ViewConfiguration.getLongPressTimeout().toLong()) }
             MotionEvent.ACTION_MOVE -> {
                 if (abs(e.rawX - downX) > slop || abs(e.rawY - downY) > slop) v.removeCallbacks(fire)
-                if (armed === v && (abs(e.rawX - downX) > dp(8) || abs(e.rawY - downY) > dp(8))) { armed = null; popup?.dismiss(); pressed(press, null); startDrag(dragView, src()) }
+                if (armed === v && (abs(e.rawX - downX) > dp(8) || abs(e.rawY - downY) > dp(8))) { armed = null; menuDue = false; v.removeCallbacks(menu); popup?.dismiss(); pressed(press, null); startDrag(dragView, src()) }
             }
             // a scroll / page swipe taking the gesture sends CANCEL: the icon springs back too
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { v.removeCallbacks(fire); armed = null; pressed(press, false) }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                v.removeCallbacks(fire); v.removeCallbacks(menu)
+                if (menuDue && e.actionMasked == MotionEvent.ACTION_UP) menu.run()   // held then let go inside the beat: menu now
+                menuDue = false; armed = null; pressed(press, false)
+            }
         }
         // A view that isn't clickable (an app widget's host) would not take the DOWN now that it isn't long-clickable either:
         // the rest of the touch went to the pager, never here, and [fire] was never cancelled (every swipe on a widget opened
         // its menu). Take the touch ourselves; clickable views keep their own onTouchEvent (tap, pressed state).
-        e.actionMasked == MotionEvent.ACTION_DOWN && !v.isClickable
+        (e.actionMasked == MotionEvent.ACTION_DOWN && !v.isClickable) || (e.actionMasked == MotionEvent.ACTION_UP && fired.also { if (it) { v.isPressed = false; fired = false } })
     }
     // TalkBack still offers "long press" (the View's own timer is off below)
     v.accessibilityDelegate = object : View.AccessibilityDelegate() {
@@ -55,7 +64,8 @@ internal fun HomeActivity.arm(v: View, onLong: () -> Unit, src: () -> DragSt, im
         if (Perf.on()) android.util.Log.v(Perf.TAG, "long click ${v.javaClass.simpleName}", Throwable())
         v.parent?.requestDisallowInterceptTouchEvent(true)
         v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-        if (immediate) { pressed(press, null); startDrag(dragView, src()) } else { armed = v; onLong() }
+        fired = true
+        if (immediate) { pressed(press, null); startDrag(dragView, src()) } else { armed = v; menuDue = true; v.removeCallbacks(menu); v.postDelayed(menu, HomeActivity.MENU_MS) }
         true
     }
     v.isLongClickable = false   // after setOnLongClickListener (which turns it back on): only [fire] starts the menu
