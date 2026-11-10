@@ -331,26 +331,48 @@ function setTab(b) {
 }
 
 // Telegram bot run by the child phone itself (Tg.kt): the family's own @BotFather token goes to the phone (cmd tgSet),
-// a linked chat sends the 6-digit code shown here. Status comes from state.tg; changes are commands (LAN and relay alike).
+// a chat links with the 6-digit code (or the t.me/<bot>?start=<code> link / QR, which sends "/start <code>").
+// Status comes from state.tg; changes are commands (LAN and relay alike).
+const TG_TRY = ["/status", "/bonus 30", "/pause 60", "/lock", "/locate", "/screen", "/block", "/msg"];
 function tgHtml() {
   const g = st.tg; if (!g) return "";
   const chats = g.chats || [];
   const code = g.code && g.codeUntil > Date.now() ? g.code : "";
-  const body = !g.on
-    ? `<p class="mute">${t("tg.p")}</p>
-      <ol class="mute" style="padding-left:20px;margin:6px 0 10px"><li>${t("tg.s1")} <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a></li><li>${t("tg.s2")}</li><li>${t("tg.s3")}</li></ol>
-      <div class="row"><input id="tgTok" class="sp" type="password" autocomplete="off" spellcheck="false" placeholder="123456789:AA…" aria-label="${esc(t("tg.tok"))}"><button id="tgSet" class="pri">${ic("send")} ${t("tg.connect")}</button></div>
-      <p class="mute">${ic("info")} ${t("tg.privacy")}</p>`
-    : `<p>${ic("send")} ${t("tg.bot")}: ${g.bot ? `<a href="https://t.me/${esc(g.bot)}" target="_blank" rel="noopener">@${esc(g.bot)}</a>` : "—"}</p>
-      ${g.err ? `<p class="t-bad">${ic("triangle-alert")} ${esc(tc("tg.e.", g.err, g.err))}</p>` : ""}
-      <h3 style="margin:12px 0 4px">${t("tg.chats")}</h3>
-      ${chats.map(c => `<div class="row"><span class="sp">${ic("user")} ${esc(c.name || c.id)}</span><button type="button" data-tgun="${esc(c.id)}">${ic("unlink")} ${t("tg.unlink")}</button></div>`).join("") || `<p class="mute">${t("tg.noChats")}</p>`}
-      ${chats.length < 5 ? (code
-        ? `<p style="margin-top:10px">${t("tg.codeP", g.bot ? "@" + esc(g.bot) : "bot")}</p><div class="row"><b style="font-size:28px;letter-spacing:4px">${esc(code)}</b><span class="mute sp">${t("tg.until", hhmm(g.codeUntil))}</span></div>`
-        : `<button id="tgCode" style="margin-top:10px">${ic("key-round")} ${t("tg.newCode")}</button>`) : ""}
-      <p class="mute" style="margin-top:10px">${t("tg.cmds")}</p>
-      <button id="tgOff" class="bad" style="margin-top:6px">${ic("octagon-x")} ${t("tg.off")}</button>`;
-  return sec("s-tg", "send", t("tg.h"), t("tg.d"), g.on ? [chats.length ? t("tg.nChats", chats.length) : t("on"), chats.length ? "ok" : "warn"] : [t("off")], body, false);
+  const bot = g.bot ? "@" + esc(g.bot) : "bot";
+  let body;
+  if (!g.on) body = `
+    <p>${t("tg.p")}</p>
+    <ol class="tgsteps">
+      <li><b>${t("tg.s1h")}</b><span class="mute">${t("tg.s1")}</span>
+        <a class="lnkbtn" href="https://t.me/BotFather" target="_blank" rel="noopener">${ic("send")} ${t("tg.openBf")}</a></li>
+      <li><b>${t("tg.s2h")}</b><span class="mute">${t("tg.s2")}</span></li>
+      <li><b>${t("tg.s3h")}</b><span class="mute">${t("tg.s3")}</span>
+        <span class="row"><input id="tgTok" class="sp" type="password" autocomplete="off" spellcheck="false" placeholder="123456789:AA…" aria-label="${esc(t("tg.tok"))}"><button id="tgSet" class="pri">${ic("link")} ${t("tg.connect")}</button></span></li>
+    </ol>
+    <p class="mute">${ic("shield")} ${t("tg.privacy")}</p>`;
+  else {
+    const link = code && g.bot ? `https://t.me/${encodeURIComponent(g.bot)}?start=${code}` : "";
+    const add = chats.length >= 5 ? `<p class="mute">${t("tg.max")}</p>`
+      : code ? `<div class="totpqr tgqr">${link ? `<div class="qrw" role="img" aria-label="${esc(t("tg.qrAlt"))}">${qrSvg(link)}</div>` : ""}
+          <p>${link ? `<a class="lnkbtn pri" href="${esc(link)}" target="_blank" rel="noopener">${ic("send")} ${t("tg.openLink")}</a><br>` : ""}
+            <span class="mute">${t("tg.codeP", bot)}</span><br><b class="tgcode">${esc(code.slice(0, 3))} ${esc(code.slice(3))}</b><br>
+            <span class="mute">${t("tg.until", hhmm(g.codeUntil))} · </span><button type="button" class="pill" id="tgCode">${ic("refresh-cw")} ${t("tg.again")}</button></p></div>`
+      : `<button id="tgCode" class="pri">${ic("plus")} ${t("tg.newCode")}</button>`;
+    body = `
+    <div class="row tgbot">${ic("send")}<span class="sp"><b>${g.bot ? `<a href="https://t.me/${esc(g.bot)}" target="_blank" rel="noopener">@${esc(g.bot)}</a>` : "—"}</b>
+      <span class="mute">${t("tg.runs")}</span></span>${g.err ? `<span class="tag bad">${ic("triangle-alert")} ${t("tg.errTag")}</span>` : `<span class="tag ok">${t("tg.live")}</span>`}</div>
+    ${g.err ? `<p class="t-bad">${esc(tc("tg.e.", g.err, g.err))}</p>` : ""}
+    <h3>${t("tg.chats")}</h3>
+    ${chats.length ? `<div class="list">${chats.map(c => `<div class="li"><span class="av">${esc((c.name || "?").trim().charAt(0).toUpperCase())}</span><span class="x"><b>${esc(c.name || c.id)}</b><span class="sub mute">${t("tg.since", new Date(c.at).toLocaleDateString(lang))}</span></span><button type="button" class="pill" data-tgun="${esc(c.id)}">${ic("unlink")} ${t("tg.unlink")}</button></div>`).join("")}</div>`
+      : `<p class="mute">${t("tg.noChats")}</p>`}
+    <h3>${t(chats.length ? "tg.addMore" : "tg.addFirst")}</h3>
+    ${add}
+    <h3>${t("tg.tryH")}</h3>
+    <p class="mute">${t("tg.tryP")}</p>
+    <div class="chips tgtry">${TG_TRY.map(c => `<span class="chip">${esc(c)}</span>`).join("")}</div>
+    <p style="margin-top:14px"><button id="tgOff" class="bad">${ic("octagon-x")} ${t("tg.off")}</button></p>`;
+  }
+  return sec("s-tg", "send", t("tg.h"), t("tg.d"), g.on ? (g.err ? [t("tg.errTag"), "bad"] : [chats.length ? t("tg.nChats", chats.length) : t("tg.noChatTag"), chats.length ? "ok" : "warn"]) : [t("off")], body, false);
 }
 function tgWire() {
   const again = () => setTimeout(refresh, 2500);

@@ -27,5 +27,12 @@ for (const c of phone) ck(`phone cmd '${c}' is in worker CMDS or the LAN-only al
 for (const c of LAN_ONLY) ck(`LAN-only '${c}' is not in worker CMDS`, !CMDS.includes(c));
 for (const c of new Set([...phone, ...CMDS])) ck(`'${c}' mentioned in docs/protocol.md`, new RegExp("(^|[\\s`])" + c + "([\\s`{:,.]|$)", "m").test(docs));
 for (const c of ["reboot", "release", "unpairAll"]) ck(`destructive '${c}' is deliver-once`, ONCE.includes(c));
+// every icon the page draws (ic("x"), sec(id, "x", ...), QS table) has a <symbol id="i-x"> in ui/index.html
+{
+  const { readdirSync } = await import("node:fs");
+  const html = rd("ui/index.html"), js = readdirSync(join(root, "ui/assets")).filter(f => f.endsWith(".js") && !f.startsWith("i18n") && f !== "qrcode.js").map(f => rd("ui/assets/" + f)).join("\n");
+  const names = new Set([...js.matchAll(/\bic\("([a-z0-9-]+)"/g), ...js.matchAll(/\bsec\("[^"]+",\s*"([a-z0-9-]+)"/g), ...js.matchAll(/\["[a-z]+", "[^"]*", "[^"]*", "([a-z0-9-]+)", \[/g)].map(m => m[1]));
+  for (const n of names) ck(`icon '${n}' is in ui/index.html`, html.includes(`id="i-${n}"`));
+}
 console.log(pass, "pass", fail, "fail");
 process.exit(fail ? 1 : 0);

@@ -453,6 +453,12 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   /screen (Acc.capture 1280 px -> sendPhoto) /rec N (5-60 s mic, same notice as "listen", AAC document) /files (buttons `f:<id>` ->
   sendDocument, <= 50 MB) ; a document sent to the bot (<= 20 MB) is saved like a LAN upload (Download/KidGuard) /help /unlink.
   Rule edits go through `Guard.setRules` with `rev = max(now, rev + 1)`, so the page sees them as a newer rules object.
+- Buttons (TgLogic.menu/sub/statusKb/replyKb): /menu = inline panel of every command; callback data `c:<command line>` runs it,
+  `n:<panel>` (main, bonus, pause, limit, bed, rec) swaps the panel in place (editMessageText), `r:status` refreshes /status in place.
+  A persistent reply keyboard (Status, Location, More time, Lock, Menu) is sent on /start, /help and link; its labels (vi or en) map back
+  to commands. /bonus /pause /limit /bed /rec without a number show their panel; /msg without text asks with force_reply and takes
+  the next plain text (10 min). Any other plain text = the menu. tgSet also sets setMyCommands (menu first), setMyDescription,
+  setMyShortDescription. The page shows `https://t.me/<bot>?start=<code>` (+ QR): Telegram sends `/start <code>`, which links.
 - Alerts, every Guard tick, each id once (`tgSeen`, last 80; linking a chat marks the past as seen): every SOS (+ location),
   every request with buttons `ry:<id>:<min>` (bonus + `answer ok`) / `rn:<id>` (`answer` no), every event; a `tamper` event waits up
   to 10 s for its wrong-PIN photo and is sent as a photo.

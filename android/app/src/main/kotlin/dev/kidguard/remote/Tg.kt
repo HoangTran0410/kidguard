@@ -28,6 +28,7 @@ object Tg {
     @Volatile private var guard: Guard? = null
     @Volatile private var conflictFixed = false
     private val work = Executors.newFixedThreadPool(2)   // commands that wait (rec, locate, screen) never block polling
+    private val askMsg = java.util.concurrent.ConcurrentHashMap<Long, Long>()   // chat -> when "💬 Message" asked for the text
 
     fun start(g: Guard) {
         guard = g
@@ -166,16 +167,25 @@ object Tg {
         val r = upload(tok, method, mapOf("chat_id" to chat.toString(), "caption" to caption.take(1000)), field, name, mime, data)
         if (!r.optBoolean("ok")) Log.w(TAG, "tg $method: ${r.optString("description")}")
     }
+    private fun edit(s: Store, chat: Long, msgId: Long, text: String, kb: JSONObject?) {
+        val tok = s.tgToken.ifBlank { return }
+        val r = call(tok, "editMessageText", JSONObject().put("chat_id", chat).put("message_id", msgId).put("text", text.take(4000)).apply { if (kb != null) put("reply_markup", kb) })
+        // "message is not modified" (same text) is fine; anything else (too old...) -> a new message
+        if (!r.optBoolean("ok") && !r.optString("description").contains("not modified")) send(s, chat, text, kb)
+    }
     private fun sendLoc(s: Store, chat: Long, loc: JSONObject) {
         val tok = s.tgToken.ifBlank { return }
         call(tok, "sendLocation", JSONObject().put("chat_id", chat).put("latitude", loc.optDouble("lat")).put("longitude", loc.optDouble("lng"))
             .apply { if (loc.optDouble("acc", 0.0) in 1.0..1500.0) put("horizontal_accuracy", loc.optDouble("acc")) })
     }
     private fun setCommands(tok: String, lang: String) {
-        val names = listOf("status", "apps", "locate", "events", "bonus", "pause", "resume", "lock", "ring", "msg", "block", "unblock", "limit", "bed", "screen", "rec", "files", "help", "unlink")
+        val names = listOf("menu", "status", "apps", "locate", "events", "bonus", "pause", "resume", "lock", "ring", "msg", "block", "unblock", "limit", "bed", "screen", "rec", "files", "help", "unlink")
         val help = TgLogic.s(lang, "help", "").lines().drop(1)
-        val desc = names.associateWith { n -> help.firstOrNull { it.contains("/$n") }?.substringAfter("– ")?.substringBefore(" · ")?.take(60) ?: n }
+        val desc = names.associateWith { n -> help.firstOrNull { Regex("(^|\\s)/$n(\\s|$)").containsMatchIn(it) && it.contains(" – ") }?.substringAfter("– ")?.substringBefore(" · ")?.take(60) ?: n }
         call(tok, "setMyCommands", JSONObject().put("commands", JSONArray().apply { names.forEach { put(JSONObject().put("command", it).put("description", desc[it])) } }))
+        // what an empty chat shows before Start, and the profile line
+        call(tok, "setMyDescription", JSONObject().put("description", TgLogic.s(lang, "botDesc")))
+        call(tok, "setMyShortDescription", JSONObject().put("short_description", TgLogic.s(lang, "botShort")))
     }
 
     private fun hm(t: Long) = SimpleDateFormat("HH:mm", Locale.US).format(Date(t))
@@ -198,12 +208,16 @@ object Tg {
                 if (!s.tgAddChat(id, who)) { send(s, id, TgLogic.s(lang, "full", TgLogic.MAX_CHATS)); return }
                 s.log(R.string.log_tg_linked, who)
                 tick(g, markOnly = true)   // the past is not news to a new chat
-                send(s, id, TgLogic.s(lang, "linked", kidName(g))); g.kick()
+                send(s, id, TgLogic.s(lang, "linked", kidName(g)), TgLogic.replyKb(lang))
+                send(s, id, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang)); g.kick()
             } else send(s, id, TgLogic.s(lang, "linkAsk"))
             return
         }
         m.optJSONObject("document")?.let { return fileIn(g, s, id, it) }
-        val c = TgLogic.parse(text) ?: return run { send(s, id, TgLogic.s(lang, "unknown")) }
+        val asked = askMsg.remove(id)?.let { System.currentTimeMillis() - it < 10 * 60_000L } == true
+        val c = TgLogic.parse(text) ?: TgLogic.fromButton(text)
+            ?: if (asked && text.isNotBlank()) TgLogic.Cmd("msg", emptyList(), text.trim()) else null
+        if (c == null) { send(s, id, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang)); return }
         runCmd(g, s, id, c)
     }
 
@@ -213,8 +227,9 @@ object Tg {
         fun res(r: String, okKey: String, vararg a: Any?) { if (r == "ok") say(okKey, *a) else say("fail", TgLogic.err(lang, r)) }
         fun rules(f: (Rules) -> Rules) { g.setRules(f(s.rules)) }
         when (c.name) {
-            "start", "help" -> say("help", kidName(g))
-            "status" -> send(s, chat, TgLogic.status(g.currentState(), kidName(g), lang, now, ::hm))
+            "start", "help" -> send(s, chat, TgLogic.s(lang, "help", kidName(g)), TgLogic.replyKb(lang))
+            "menu" -> send(s, chat, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang))
+            "status" -> send(s, chat, TgLogic.status(g.currentState(), kidName(g), lang, now, ::hm), TgLogic.statusKb(lang))
             "apps" -> send(s, chat, TgLogic.apps(g.currentState(), lang))
             "events" -> {
                 val a = s.events(); val rows = (maxOf(0, a.length() - 10) until a.length()).reversed().mapNotNull { a.optJSONObject(it) }
@@ -228,6 +243,31 @@ object Tg {
                 for (i in 0 until 8) { Thread.sleep(4_000); val l = s.location; if (l != null && l.optLong("t") > before) { sendLoc(s, chat, l); say("locAt", hm(l.optLong("t")), l.optDouble("acc").toInt()); return } }
                 if (s.location == null) say("noLoc")
             }
+            "bonus", "pause", "limit", "bed", "rec" ->
+                if (c.args.isEmpty()) send(s, chat, subTitle(s, c.name, lang), TgLogic.sub(lang, c.name)) else runArg(g, s, chat, c)
+            "lock" -> res(g.command(JSONObject().put("type", "lock")), "locked")
+            "ring" -> res(g.command(JSONObject().put("type", "ring")), "ringing")
+            "msg" -> if (c.rest.isBlank()) {
+                askMsg[chat] = now
+                send(s, chat, TgLogic.s(lang, "msgAsk"), JSONObject().put("force_reply", true).put("input_field_placeholder", TgLogic.s(lang, "msgPh")))
+            } else res(g.command(JSONObject().put("type", "message").put("text", c.rest.take(500))), "msgSent")
+            else -> runArg(g, s, chat, c)
+        }
+    }
+
+    private fun subTitle(s: Store, name: String, lang: String) = when (name) {
+        "bonus" -> TgLogic.s(lang, "subBonus"); "pause" -> TgLogic.s(lang, "subPause"); "rec" -> TgLogic.s(lang, "subRec")
+        "limit" -> TgLogic.s(lang, "subLimit", s.rules.let { r -> val m = if (r.dailyByDay.size == 7) r.dailyByDay[(java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK) + 5) % 7] else r.dailyMin; if (m > 0) TgLogic.fmt(m * 60_000L, lang) else TgLogic.s(lang, "none") })
+        else -> TgLogic.s(lang, "subBed", TgLogic.s(lang, if (s.rules.bedtimeOn) "on" else "off"))
+    }
+
+    /** The rest of the commands (all take their argument, or need none). */
+    private fun runArg(g: Guard, s: Store, chat: Long, c: TgLogic.Cmd) {
+        val lang = s.tgLang; val now = System.currentTimeMillis()
+        fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
+        fun res(r: String, okKey: String, vararg a: Any?) { if (r == "ok") say(okKey, *a) else say("fail", TgLogic.err(lang, r)) }
+        fun rules(f: (Rules) -> Rules) { g.setRules(f(s.rules)) }
+        when (c.name) {
             "bonus" -> {
                 val n = TgLogic.minutes(c.args.firstOrNull() ?: "30", 1, 600) ?: return say("usage", "/bonus 30")
                 val today = Guard.day(now); val r = TgLogic.bonus(s.rules, today, n, now); g.setRules(r); say("bonusDone", n, r.bonusMin)
@@ -252,9 +292,6 @@ object Tg {
                 send(s, chat, TgLogic.s(lang, if (un) "unblockPick" else "blockPick"),
                     TgLogic.keyboard(list.map { (p, l) -> (if (un) "✅ " else "⛔ ") + l to (if (un) "u:" else "b:") + p }.chunked(2)))
             }
-            "lock" -> res(g.command(JSONObject().put("type", "lock")), "locked")
-            "ring" -> res(g.command(JSONObject().put("type", "ring")), "ringing")
-            "msg" -> if (c.rest.isBlank()) say("usage", "/msg …") else res(g.command(JSONObject().put("type", "message").put("text", c.rest.take(500))), "msgSent")
             "screen" -> {
                 say("shotWait")
                 val f = Acc.capture(1280, 80)
@@ -292,6 +329,10 @@ object Tg {
         }
         val label = { p: String -> runCatching { g.currentState().optJSONArray("apps") }.getOrNull()?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.firstOrNull { it.optString("pkg") == p }?.optString("label") } ?: p }
         when {
+            d.startsWith("c:") -> TgLogic.fromData(d)?.let { runCmd(g, s, chat, it) }
+            d == "n:main" -> edit(s, chat, msgId, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang))
+            d.startsWith("n:") -> { val n = d.removePrefix("n:"); TgLogic.sub(lang, n)?.let { edit(s, chat, msgId, subTitle(s, n, lang), it) } }
+            d == "r:status" -> edit(s, chat, msgId, TgLogic.status(g.currentState(), kidName(g), lang, now, ::hm), TgLogic.statusKb(lang))
             d.startsWith("ry:") -> {
                 val (id, min) = d.removePrefix("ry:").split(':').let { it[0] to (it.getOrNull(1)?.toIntOrNull() ?: 15).coerceIn(1, 600) }
                 if ((0 until s.requests().length()).none { s.requests().optJSONObject(it)?.optString("id") == id }) return done(TgLogic.s(lang, "reqGone"))
@@ -354,7 +395,10 @@ object Tg {
         work.execute {
             for ((k, o) in fresh) broadcast(s) { chat ->
                 when (k[0]) {
-                    's' -> { send(s, chat, TgLogic.s(lang, "aSos", name)); s.location?.let { sendLoc(s, chat, it) } }
+                    's' -> {
+                        send(s, chat, TgLogic.s(lang, "aSos", name), TgLogic.keyboard(listOf(listOf(TgLogic.s(lang, "b.locate") to "c:locate", TgLogic.s(lang, "b.status") to "r:status"))))
+                        s.location?.let { sendLoc(s, chat, it) }
+                    }
                     'r' -> {
                         val min = o.optInt("min"); val note = o.optString("note").takeIf { it.isNotBlank() }?.let { "\n“$it”" } ?: ""
                         val opts = (if (min > 0) listOf(min) else listOf(15, 30)).distinct()

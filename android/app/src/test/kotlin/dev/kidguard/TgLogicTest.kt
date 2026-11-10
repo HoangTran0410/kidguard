@@ -98,4 +98,38 @@ class TgLogicTest {
         assertEquals("cần chế độ Device Owner", TgLogic.err("vi", "not owner"))
         assertEquals("weird", TgLogic.err("en", "weird"))
     }
+
+    private fun datas(k: org.json.JSONObject) = k.getJSONArray("inline_keyboard").let { rows ->
+        (0 until rows.length()).flatMap { i -> rows.getJSONArray(i).let { r -> (0 until r.length()).map { r.getJSONObject(it).getString("callback_data") } } } }
+
+    @Test fun menuButtonsAllRun() {
+        for (l in listOf("vi", "en")) {
+            val all = datas(TgLogic.menu(l)) + listOf("bonus", "pause", "limit", "bed", "rec").flatMap { datas(TgLogic.sub(l, it)!!) } + datas(TgLogic.statusKb(l))
+            for (d in all) when {
+                d.startsWith("c:") -> assertTrue(d, TgLogic.fromData(d) != null)
+                d.startsWith("n:") -> assertTrue(d, d == "n:main" || TgLogic.sub(l, d.removePrefix("n:")) != null)
+                else -> assertEquals("r:status", d)
+            }
+            assertTrue(all.all { it.toByteArray().size <= 64 })
+            val texts = TgLogic.menu(l).toString() + TgLogic.statusKb(l) + TgLogic.replyKb(l) + listOf("bonus", "pause", "limit", "bed", "rec").map { TgLogic.sub(l, it) }
+            assertFalse(texts, Regex("\"(b|kbPh)\\.?[a-zA-Z]*\"").containsMatchIn(texts.replace("\"callback_data\"", "")) && texts.contains("\"b."))
+            for (k in listOf("menu", "subBonus", "subPause", "subRec", "msgAsk", "botShort", "botDesc")) assertFalse(k, TgLogic.s(l, k, "x") == k)
+        }
+        assertEquals(TgLogic.Cmd("bonus", listOf("30"), "30"), TgLogic.fromData("c:bonus 30"))
+        assertEquals(TgLogic.Cmd("limit", listOf("0"), "0"), TgLogic.fromData("c:limit 0"))
+        assertNull(TgLogic.sub("vi", "nope"))
+    }
+
+    @Test fun replyKeyboard() {
+        assertEquals("status", TgLogic.fromButton("📊 Tình hình")!!.name)
+        assertEquals("menu", TgLogic.fromButton("📋 Menu")!!.name)
+        assertEquals("locate", TgLogic.fromButton(" 📍 Location ")!!.name)
+        assertNull(TgLogic.fromButton("hello"))
+        assertTrue(TgLogic.replyKb("vi").getBoolean("is_persistent"))
+    }
+
+    @Test fun fmtDropsZero() {
+        assertEquals("2 giờ", TgLogic.fmt(120 * 60_000L, "vi")); assertEquals("1h 30m", TgLogic.fmt(90 * 60_000L, "en"))
+        assertEquals("15 phút", TgLogic.fmt(15 * 60_000L, "vi"))
+    }
 }
