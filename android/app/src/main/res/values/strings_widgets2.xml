@@ -55,6 +55,6 @@
     <string name="sk_badge_n">%1$d days</string>
     <string name="sk_last4w">Last 4 weeks</string>
     <string name="sk_how">Finish all homework and chores in a day and it counts. Miss a day and the streak starts again.</string>
-    <string name="sk_open_list">Open today\'s list</string>
+    <string name="sk_open_list">Today\'s tasks</string>
     <string name="hm_no_app">No app for this on the phone</string>
 </resources>
