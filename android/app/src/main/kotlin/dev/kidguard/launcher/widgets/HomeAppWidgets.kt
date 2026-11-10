@@ -36,14 +36,18 @@ internal class KgHostView(ctx: Context) : AppWidgetHostView(ctx) {
     // the activity's drag check measures from its own down point, which never saw this DOWN (a RemoteViews child took it)
     private val fire = Runnable { stolen = true; (context as? HomeActivity)?.let { it.downX = rx; it.downY = ry }; performLongClick() }
 
-    override fun onInterceptTouchEvent(e: MotionEvent): Boolean {
+    // The timer is cancelled here, not in onInterceptTouchEvent: once the pager took a fast page swipe the CANCEL never reached
+    // our intercept (seen on the POCO: a quick swipe starting on Chrome's search bar opened the widget menu on the next page).
+    override fun dispatchTouchEvent(e: MotionEvent): Boolean {
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> { dx = e.x; dy = e.y; rx = e.rawX; ry = e.rawY; stolen = false; removeCallbacks(fire); postDelayed(fire, ViewConfiguration.getLongPressTimeout().toLong()) }
             MotionEvent.ACTION_MOVE -> if (!stolen && (abs(e.x - dx) > slop || abs(e.y - dy) > slop)) removeCallbacks(fire)
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { removeCallbacks(fire); if (!stolen) return false }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> removeCallbacks(fire)
         }
-        return stolen
+        return super.dispatchTouchEvent(e)
     }
+
+    override fun onInterceptTouchEvent(e: MotionEvent) = stolen
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
         if (!stolen) return super.onTouchEvent(e)

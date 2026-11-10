@@ -39,7 +39,10 @@ internal fun HomeActivity.arm(v: View, onLong: () -> Unit, src: () -> DragSt, im
             // a scroll / page swipe taking the gesture sends CANCEL: the icon springs back too
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { v.removeCallbacks(fire); armed = null; pressed(press, false) }
         }
-        false
+        // A view that isn't clickable (an app widget's host) would not take the DOWN now that it isn't long-clickable either:
+        // the rest of the touch went to the pager, never here, and [fire] was never cancelled (every swipe on a widget opened
+        // its menu). Take the touch ourselves; clickable views keep their own onTouchEvent (tap, pressed state).
+        e.actionMasked == MotionEvent.ACTION_DOWN && !v.isClickable
     }
     // TalkBack still offers "long press" (the View's own timer is off below)
     v.accessibilityDelegate = object : View.AccessibilityDelegate() {
@@ -49,6 +52,7 @@ internal fun HomeActivity.arm(v: View, onLong: () -> Unit, src: () -> DragSt, im
         }
     }
     v.setOnLongClickListener {
+        if (Perf.on()) android.util.Log.v(Perf.TAG, "long click ${v.javaClass.simpleName}", Throwable())
         v.parent?.requestDisallowInterceptTouchEvent(true)
         v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
         if (immediate) { pressed(press, null); startDrag(dragView, src()) } else { armed = v; onLong() }
