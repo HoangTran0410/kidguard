@@ -28,11 +28,14 @@ import dev.kidguard.HomeActivity.Row
 
 // ---- app icon ----
 
-internal fun HomeActivity.iconPx(): Int = dp((preset.iconDp * (0.8f + 0.1f * ((model?.style?.icon ?: 3) - 1))).toInt())
+internal fun HomeActivity.iconScale(): Float = 0.8f + 0.1f * ((model?.style?.icon ?: 3) - 1)
+internal fun HomeActivity.iconPx(): Int = dp((preset.iconDp * iconScale()).toInt())
+/** Drawer / folder / library icons: 52 dp at the default size, scaled by the same "Cỡ biểu tượng" as home (was fixed 52 dp). */
+internal fun HomeActivity.listIconPx(): Int = dp((52 * iconScale()).toInt())
 
 internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules, mode: Mode, item: HItem? = null, folder: HItem? = null, slot: Int = -1): View {
     val list = mode == Mode.DRAWER || mode == Mode.PANEL     // on an opaque surface: pal.text labels, a "còn x phút" line
-    val px = if (list) dp(52) else iconPx()
+    val px = if (list) listIconPx() else iconPx()
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; setPadding(0, dp(4), 0, dp(2)) }
     val frame = FrameLayout(this)
     // the drawer shows the home-size bitmap scaled to its 52 dp: one bitmap per app, not two. Two sizes for ~280 apps did not
@@ -137,7 +140,7 @@ internal fun HomeActivity.labelPx(list: Boolean): Float {
     val user = (model?.style?.font?.toFloat() ?: 1f)
     val sys = kotlin.math.sqrt(resources.configuration.fontScale).coerceIn(0.9f, 1.25f)
     // iOS: 12 pt under a 60 pt icon (20 %), regular weight. 25 % made names as tall as a third of the icon and cut them
-    val base = if (list) dp(52) * 0.21f else iconPx() * 0.2f
+    val base = if (list) listIconPx() * 0.21f else iconPx() * 0.2f
     return (base * sys * user).coerceIn(dpf(10f), dpf(13.5f) * sys * user)
 }
 

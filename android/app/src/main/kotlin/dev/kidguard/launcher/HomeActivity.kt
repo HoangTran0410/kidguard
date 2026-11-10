@@ -1441,9 +1441,10 @@ class HomeActivity : Activity() {
 
         /**
          * An item's box (x, y offsets inside its cells, width, height). Apps / folders: the whole cells minus the gap. Widgets
-         * (iOS): from the first icon's edge to the last icon's edge both ways, so they sit flush with the icon grid; a 2x2 is
-         * square because the row pitch = the column pitch ([pitchH]). A one-row widget keeps the label line below its icon
-         * row (it has one line of content and needs the height). Was the whole cells, ~15 dp past the icons on every side.
+         * (iOS): sides on the outer icons' edges, top on the icon top, and the space below = the space between icon columns,
+         * so the gaps between widgets are the same across and down. With equal pitches ([pitchH]) that is icon edge to icon
+         * edge and a 2x2 is square; with big icons the row needs an icon + label taller than the column (POCO, biggest icon:
+         * 289 x 342 px) and the widget reaches down to the label line instead of leaving a 122 px gap vs 69 px across.
          */
         private fun box(cw: Int, ch: Int, lp: CellLP): IntArray {
             if (!lp.widget) return intArrayOf(0, 0, cw * lp.w - gap, ch * lp.h - gap)
@@ -1451,8 +1452,8 @@ class HomeActivity : Activity() {
             val ix = ((cw - gap - icon) / 2).coerceAtLeast(0)
             val top = dp(5).coerceAtMost((ch - gap - icon).coerceAtLeast(0))        // appIcon: 4 dp box padding + 1 dp frame
             val w = (lp.w - 1) * cw + icon
-            val h = if (lp.h == 1) ch - gap - top else (lp.h - 1) * ch + icon
-            return intArrayOf(ix, top, w, h)
+            val h = lp.h * ch - (cw - icon)                                          // gap below = the gap across (cw - icon)
+            return intArrayOf(ix, top, w, h.coerceAtMost(lp.h * ch - gap - top))
         }
 
         /**
