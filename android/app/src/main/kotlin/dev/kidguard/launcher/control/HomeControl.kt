@@ -376,7 +376,10 @@ internal fun HomeActivity.openControl() {
     // row 2: torch, auto-rotate, Do Not Disturb, notifications
     val tsz = minOf(64, ((w - gap * 3) / 4 / resources.displayMetrics.density).toInt() - 8).coerceAtLeast(44)
     val row2 = LinearLayout(this).apply { gravity = Gravity.TOP }
-    val notif = CcToggle(this, Tile.VOLUME, R.drawable.li_bell, getString(R.string.cc_notifs), tsz, 3).apply { onTap { closeOverlay(); main.postDelayed({ expandShade(false) }, 120) } }
+    fun openNlog() { closeOverlay(); runCatching { startActivity(Intent(this, NotifLogActivity::class.java)) } }
+    // shade blocked (rule launcher.shade): the bell opens the seen-notifications list instead of a shade that closes at once
+    val notif = CcToggle(this, Tile.VOLUME, R.drawable.li_bell, getString(R.string.cc_notifs), tsz, 3).apply {
+        onTap { if (shadeOff() && NotifLog.enabled) openNlog() else { closeOverlay(); main.postDelayed({ expandShade(false) }, 120) } } }
     listOfNotNull(
         toggle(Tile.TORCH, R.drawable.li_flashlight, R.string.cc_torch, tsz, 3) { on -> torchId != null && CcSys.setTorch(ctx, torchId, on) },
         toggle(Tile.ROTATE, R.drawable.li_rotate_ccw, R.string.cc_rotate, tsz, 3) { on -> CcSys.canRotate(ctx) && CcSys.writeSys(ctx, Settings.System.ACCELEROMETER_ROTATION, if (on) 1 else 0) },
@@ -386,13 +389,19 @@ internal fun HomeActivity.openControl() {
     panel.addView(row2, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap + dp(4) })
 
     // the phone's own quick settings, for what the kid's panel does not have (hotspot, cast, …)
-    val more = kit.text(getString(R.string.cc_more), 14f, Color.WHITE, true).apply {
-        gravity = Gravity.CENTER; background = kit.fill(0x33FFFFFF, 16f); setPadding(dp(16), dp(12), dp(16), dp(12)); minHeight = dp(48)
-        Ic.lead(this, R.drawable.li_settings_2, Color.WHITE); compoundDrawablePadding = dp(8)
-        kit.tap(this, 16f, true) { closeOverlay(); main.postDelayed({ expandShade(true) }, 120) }
+    fun pill(text: Int, icon: Int, go: () -> Unit) = kit.text(getString(text), 14f, Color.WHITE, true).apply {
+        gravity = Gravity.CENTER; background = kit.fill(0x33FFFFFF, 16f); setPadding(dp(12), dp(12), dp(12), dp(12)); minHeight = dp(48)
+        Ic.lead(this, icon, Color.WHITE); compoundDrawablePadding = dp(8); kit.tap(this, 16f, true) { go() }
     }
-    // rule launcher.shade: the system quick settings close as soon as they open, so no way there
-    if (!shadeOff()) panel.addView(more, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap + dp(6) })
+    // bottom row: seen notifications (one tap, not hidden in the long-press menu) + the phone's quick settings
+    // (rule launcher.shade: the system quick settings close as soon as they open, so no way there)
+    val pills = listOfNotNull(
+        pill(R.string.nlog_menu, R.drawable.li_bell_ring) { openNlog() }.takeIf { NotifLog.enabled },
+        pill(R.string.cc_more, R.drawable.li_settings_2) { closeOverlay(); main.postDelayed({ expandShade(true) }, 120) }.takeIf { !shadeOff() },
+    )
+    if (pills.isNotEmpty()) panel.addView(LinearLayout(this).apply {
+        pills.forEachIndexed { i, v -> addView(v, LinearLayout.LayoutParams(0, -1, 1f).apply { if (i > 0) marginStart = gap }) }
+    }, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap + dp(6) })
 
     // ---- long press on a slider: its detail (HyperOS / iOS pattern), in place of the main panel ----
     val detail = LinearLayout(this).apply {

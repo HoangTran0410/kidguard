@@ -1107,6 +1107,7 @@ class HomeActivity : Activity() {
      */
     internal inner class SwipeUp(ctx: Context) : FrameLayout(ctx) {
         private var x0 = 0f; private var y0 = 0f; private var up = false; private var downOk = false; private var from = 0f
+        private var took = false   // a swipe action ran: the rest of this touch is ours, the icon under it gets CANCEL (no tap = no app opened too)
         private var vt: VelocityTracker? = null
         private val slop = ViewConfiguration.get(ctx).scaledTouchSlop
         private val minFling = ViewConfiguration.get(ctx).scaledMinimumFlingVelocity * 4f
@@ -1114,25 +1115,26 @@ class HomeActivity : Activity() {
         override fun onInterceptTouchEvent(e: MotionEvent): Boolean {
             track(e)
             when (e.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { x0 = e.x; y0 = e.y; up = false; downOk = !scrollsAt(this, e.x.toInt(), e.y.toInt()) }
+                MotionEvent.ACTION_DOWN -> { x0 = e.x; y0 = e.y; up = false; took = false; downOk = !scrollsAt(this, e.x.toInt(), e.y.toInt()) }
                 MotionEvent.ACTION_MOVE -> {
                     val dy = e.y - y0; val dx = e.x - x0
                     val free = !pager.dragging && pager.page > 0 && !onLibrary() && drag == null && !editing && this@HomeActivity.overlay == null && popup?.isShowing != true
                     val upA = Gest.action(this@HomeActivity, GestLogic.UP); val dnA = Gest.action(this@HomeActivity, GestLogic.DOWN)   // gestures: HomeGestures.kt
                     val upDrawer = upA == GestLogic.DEFAULT || upA == GestLogic.DRAWER
                     if (free && upDrawer && dy < -slop && abs(dy) > abs(dx) * 1.5f && drawerBegin()) { up = true; from = e.y; drawerAt(0f) }
-                    else if (free && !upDrawer && downOk && drawer == null && GestLogic.swipe(dx, dy, slop.toFloat()) == GestLogic.Dir.UP) { downOk = false; gestRun(GestLogic.UP) }
+                    else if (free && !upDrawer && downOk && drawer == null && GestLogic.swipe(dx, dy, slop.toFloat()) == GestLogic.Dir.UP) { downOk = false; took = true; gestRun(GestLogic.UP) }
                     else if (free && downOk && drawer == null && dy > slop * 2 && dy > abs(dx) * 1.5f) {
-                        downOk = false
+                        downOk = false; took = true
                         if (dnA != GestLogic.DEFAULT) gestRun(GestLogic.DOWN) else if (x0 > width / 2f) openControl() else expandShade(false)
                     }
                 }
             }
-            return up
+            return up || took
         }
 
         override fun onTouchEvent(e: MotionEvent): Boolean {
             track(e)
+            if (took) { if (e.actionMasked == MotionEvent.ACTION_UP || e.actionMasked == MotionEvent.ACTION_CANCEL) { took = false; vt?.recycle(); vt = null }; return true }
             if (up) when (e.actionMasked) {
                 MotionEvent.ACTION_MOVE -> drawerAt((from - e.y) / root.height)
                 MotionEvent.ACTION_UP -> { vt?.computeCurrentVelocity(1000); up = false; drawerRelease(vt?.yVelocity ?: 0f, minFling, false) }
