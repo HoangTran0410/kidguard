@@ -136,14 +136,18 @@ object AccPause {
      * open it fresh with the service already off. Came from a notification tap: that notification's intent is sent again
      * (deep link kept, NotifLog.recentClick); else the launch intent (deep link lost). Basic mode needs SYSTEM_ALERT_WINDOW
      * for a background start ([canReopen]); without it Android may block it (the kid taps the bank again).
+     * False = nothing done, the caller treats [pkg] like any other app: without WRITE_SECURE_SETTINGS the service could
+     * never turn itself back on (basic mode would stop blocking for good), and a blocked app is bounced, not restarted.
      */
-    fun pauseLate(svc: android.accessibilityservice.AccessibilityService, pkg: String) {
-        if (Store.of(svc).rules.accPause.isEmpty()) return
+    fun pauseLate(svc: android.accessibilityservice.AccessibilityService, pkg: String): Boolean {
+        if (!able(svc) || pkg !in Store.of(svc).rules.accPause) return false
+        if (BasicLogic.bounceReason(pkg, svc.packageName, Acc.blocked, Acc.prot) != null) return false
         runCatching { svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) }   // before the service goes
         val fresh = pause(svc, pkg, stopSelf = false)
         val dev = runCatching { DevOpts.pause(svc, pkg) }.getOrDefault(false)   // same app may also refuse debugging
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ runCatching { svc.disableSelf() } }, 150)
         if (fresh || dev) relaunch(svc, pkg)
+        return true
     }
 
     /** Kill [pkg]'s process and open it again fresh (its notification intent if it was opened from one). */

@@ -222,9 +222,14 @@ object HomeLayout {
     /** "Ghim vào màn chính": first free cell (no-op when already on the grid or in the dock). */
     fun pin(m: HomeModel, pkg: String): HomeModel = if (pkg in m.onHome()) m else m.copy(pages = place(m.pages, m.cols, m.rows, pkg), seen = m.seen + pkg)
 
-    /** "Bỏ khỏi màn chính": takes the shortcut off the grid / dock (the app stays in the drawer). The phone slot stays. */
+    /** "Bỏ khỏi màn chính": takes the shortcut off the grid / folders / dock (the app stays in the drawer). The phone slot stays. A folder left with 1 app turns back into it. */
     fun remove(m: HomeModel, pkg: String): HomeModel {
-        val pages = m.pages.map { p -> p.filter { !(it.kind == "app" && it.pkg == pkg) } }
+        val pages = m.pages.map { p -> p.mapNotNull { i -> when {
+            i.kind == "app" && i.pkg == pkg -> null
+            i.kind == "folder" && pkg in i.apps -> { val left = i.apps - pkg
+                when (left.size) { 0 -> null; 1 -> i.copy(kind = "app", pkg = left[0], name = "", apps = emptyList()); else -> i.copy(apps = left) } }
+            else -> i
+        } } }
         val dock = m.dock.mapIndexed { i, d -> if (i > 0 && d == pkg) "" else d }
         return trimPages(m.copy(pages = pages, dock = dock, seen = m.seen + pkg))
     }

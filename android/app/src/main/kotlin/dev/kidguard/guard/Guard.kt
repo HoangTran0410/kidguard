@@ -57,6 +57,9 @@ class Guard : Service() {
     /** Last good relay sync (0 = never / no relay): the child's status sheet shows whether the relay link is up. */
     val relayOkAt: Long get() = relay?.lastOk ?: 0L
     @Volatile private var lastState: JSONObject = JSONObject()
+    /** The newest tick's state, not built yet: most ticks have no reader (the relay reads every 20 s, LAN only with a page open). */
+    private val stateTodo = java.util.concurrent.atomic.AtomicReference<(() -> JSONObject)?>(null)
+    private val stateLock = Any()
     private var lastLocateAt = 0L
     private var lastFullTick = 0L
     private var lastTrackTry = 0L
@@ -286,7 +289,8 @@ class Guard : Service() {
         opt("launcher") { launcherTick(r, now) }
         snap = Snap(r, want, use.ms, leftMs, minute, now, Rules.isoDow(today), apps.keys, prot)
         listeners.forEach { l -> main.post { runCatching { l() } } }
-        lastState = state(r, apps, prot, use, want, if (r.monitor) would else emptyMap(), nowSusp, today, now, newApps)
+        val wb = if (r.monitor) would else emptyMap()
+        stateTodo.set { state(r, apps, prot, use, want, wb, nowSusp, today, now, newApps) }
     }
 
     private var wouldSeen: Set<String> = emptySet()
@@ -345,7 +349,7 @@ class Guard : Service() {
     }
 
     /** MB per package, refreshed hourly; null when unknown. */
-    private fun sizeMb(pkg: String, now: Long): Int? {
+    @Synchronized private fun sizeMb(pkg: String, now: Long): Int? {
         if (now - mbAt > 3_600_000L) { mbCache = HashMap(); mbAt = now }
         if (!Usage.granted(this)) return null   // not cached: sizes show as soon as usage access is granted
         return mbCache.getOrPut(pkg) { Policy.sizeMb(this, pkg) ?: -1 }.takeIf { it >= 0 }
@@ -518,7 +522,14 @@ class Guard : Service() {
             .setContentTitle("KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
     }
 
-    fun currentState(): JSONObject = lastState
+    fun currentState(): JSONObject {
+        if (stateTodo.get() == null) return lastState
+        synchronized(stateLock) {
+            val todo = stateTodo.getAndSet(null) ?: return lastState
+            runCatching { lastState = todo() }.onFailure { Log.e("KidGuard", "state", it) }
+            return lastState
+        }
+    }
 
     fun setRules(incoming: Rules, pinChange: Boolean = false) {
         val old = store.rules

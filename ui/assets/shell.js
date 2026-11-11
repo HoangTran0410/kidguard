@@ -86,7 +86,7 @@ function render(tabClick) {
   localWire();
   if ($("#goPin")) $("#goPin").onclick = () => { tab = "set"; render(true); const f = $("#f-pin"); if (f) { f.scrollIntoView({ block: "center" }); f.focus(); } };
   const body = $("#body");
-  if (!st) { updateLive(); body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " " + t("cantConnect", esc(lastErr)) : noState ? ic("hourglass") + " " + t("noState") : ic("hourglass") + " " + t("loading")}</div>`; return; }
+  if (!st) { updateLive(); body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " " + t("cantConnect", esc(lastErr)) : noState ? ic("hourglass") + " " + t("noState") : ic("hourglass") + " " + t("loading")}${lastErr || noState ? `<p style="margin:10px 0 0"><button id="forgetGone" class="sp">${ic("eraser")} ${APP ? t("forget.app") : t("forget.web")}</button></p>` : ""}</div>`; if ($("#forgetGone")) $("#forgetGone").onclick = forgetKid; return; }
   if (!navOk(tab)) tab = "home";
   ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, dev: devTab, set: setTab, hist: histTab, files: filesTab, more: moreTab, log: logTab, rep: repTab, sup: supTab })[tab](body);
   if (viewDay && tab !== "hist") body.querySelectorAll("input,select,textarea").forEach(x => { x.disabled = true; });   // a past day is read-only: any edit would fail "viewOnly" and raise the save-failed bar
@@ -315,14 +315,14 @@ function updateLive() {
   paintSave(); if (tab === "screen") screenCtl();
   const el = $("#live"), hs = $("#hst"); if (!el) return;
   if (!st) { if (hs) hs.innerHTML = `${dot(lastErr ? "bad" : "")}<span>${lastErr ? esc(lastErr) : t("connecting")}</span>`; el.innerHTML = ""; return; }
-  if (viewDay) { if (hs) hs.innerHTML = `${ic("clock")}<span>${t("hist.snap", hhmm(st.t))} · ${+st.battery}%</span>`; el.innerHTML = ""; return; }
+  if (viewDay) { if (hs) { delete hs.dataset.h; hs.innerHTML = `${ic("clock")}<span>${t("hist.snap", hhmm(st.t))} · ${+st.battery}%</span>`; } el.innerHTML = ""; return; }
   const lan = cur.via === "lan", online = onlineNow();
   const lost = lan ? (lastErr || Date.now() - st.t > 300000) : (seenAt && Date.now() - seenAt > 300000);
   const lostFrom = lan ? st.t : seenAt;
   const sk = document.querySelector(".kidn.on");   // sidebar dot is rendered once; keep it in step with the header
   if (sk) { sk.querySelector(".dot")?.remove(); sk.insertAdjacentHTML("beforeend", dot(online ? "on" : "bad")); }
-  if (hs) hs.innerHTML = `${dot(online ? "on" : "bad")}<span>${online ? t("live.on") : t("live.off")} · ${ago(lastSeen())}</span>`;
-  const pc = $("#phoneCard"); if (pc) pc.innerHTML = phoneCard(online);
+  if (hs) { const h = `${dot(online ? "on" : "bad")}<span>${online ? t("live.on") : t("live.off")} · ${ago(lastSeen())}</span>`; if (hs.dataset.h !== h) { hs.dataset.h = h; hs.innerHTML = h; } }
+  const pc = $("#phoneCard"); if (pc) { const h = phoneCard(online); if (pc.dataset.h !== h) { pc.dataset.h = h; pc.innerHTML = h; } }
   const B = [];   // [tone, icon, text]
   if (APP && cachedAt) B.push(["warn", "wifi-off", t("live.cached", hhmm(cachedAt))]);
   if (!lan && lastNet) B.push(["warn", "wifi-off", t("live.selfOff")]);

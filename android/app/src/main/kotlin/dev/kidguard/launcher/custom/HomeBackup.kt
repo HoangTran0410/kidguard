@@ -84,14 +84,15 @@ object HomeBackup {
             if (!tmp.renameTo(File(ctx.filesDir, UNDO))) error("rename")
         }.onFailure { return false }   // no undo copy, no restore
         var m = p.model
-        if (p.photo != null) {
-            runCatching {
-                val tmp = File(ctx.filesDir, Wallpaper.PHOTO + ".tmp"); tmp.writeBytes(p.photo)
-                if (!tmp.renameTo(wallFile(ctx))) error("rename")
-            }.onFailure { m = m.copy(style = m.style.copy(wallKind = "builtin", wall = "")) }
-        } else if (m.style.wallKind == "photo" && !wallFile(ctx).isFile) m = m.copy(style = m.style.copy(wallKind = "builtin", wall = ""))   // photo not in the backup, none here
+        val noPhoto = m.copy(style = m.style.copy(wallKind = "builtin", wall = ""))
+        // the photo goes to a temp file first: the layout is saved before wall.jpg or the gestures are replaced, so a failed write changes nothing
+        val ptmp = File(ctx.filesDir, Wallpaper.PHOTO + ".tmp")
+        val staged = p.photo != null && runCatching { ptmp.writeBytes(p.photo) }.isSuccess
+        if (p.photo != null && !staged) m = noPhoto
+        else if (p.photo == null && m.style.wallKind == "photo" && !wallFile(ctx).isFile) m = noPhoto   // photo not in the backup, none here
+        if (!HomeFile.save(ctx, m)) { ptmp.delete(); return false }
+        if (staged && !runCatching { ptmp.renameTo(wallFile(ctx)) }.getOrDefault(false)) { ptmp.delete(); HomeFile.save(ctx, noPhoto) }
         p.gest?.let { Gest.fromJson(ctx, it) }
-        HomeFile.save(ctx, m)
         IconCache.clear()
         return true
     }

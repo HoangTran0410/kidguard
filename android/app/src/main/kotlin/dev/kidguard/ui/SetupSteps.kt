@@ -53,6 +53,14 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
     }
 
     private fun open(vararg i: Intent) { for (x in i) if (runCatching { act.startActivity(x.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return }
+    /** Asks for [perms]; once Android stops showing its dialog (denied twice) the tap opens the app's settings page instead. */
+    private fun request(code: Int, vararg perms: String) {
+        val p = act.getSharedPreferences("setup_ask", android.content.Context.MODE_PRIVATE)
+        val silent = p.getBoolean(perms[0], false) && perms.none { act.shouldShowRequestPermissionRationale(it) }
+        if (silent) return open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${act.packageName}")))
+        p.edit().putBoolean(perms[0], true).apply()
+        act.requestPermissions(perms, code)
+    }
     private fun s(id: Int) = act.getString(id).replace(Regex("^\\d+\\.\\s*"), "")   // old strings carry "3. ": the list numbers itself
 
     private fun steps(): List<Step> {
@@ -72,13 +80,13 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
             val fine = c.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
             val locOk = Basic.locationOk(c)
             if (!fine || locOk) out += Step(s(R.string.basic_loc), s(R.string.basic_loc_d), locOk) {
-                c.requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 41)
+                request(41, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
             } else out += Step(s(R.string.basic_loc_bg), s(R.string.basic_loc_bg_d), false) {
                 if (Build.VERSION.SDK_INT >= 30) open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg))
                 c.requestPermissions(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), 42)
             }
             if (Build.VERSION.SDK_INT >= 33) out += Step(s(R.string.basic_notif), s(R.string.basic_notif_d), Basic.notifyOk(c)) {
-                c.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 43)
+                request(43, Manifest.permission.POST_NOTIFICATIONS)
             }
         }
         out += Step(s(R.string.basic_battery), s(R.string.basic_battery_d), Basic.batteryOk(c)) {

@@ -206,6 +206,12 @@ class NotifDetailActivity : Activity() {
     // ---- open again ----
 
     private fun reopen(e: NotifEntry) {
+        // same hidden / paused check as an icon tap (LauncherLogic.show), so a blocked app is never started just to be bounced
+        val st = Store.of(this); val r = st.rules
+        val own = !Flavor.HOME && runCatching { Policy.isOwner(this) || st.everPaired }.getOrDefault(false)
+        val tsOn = !Flavor.HOME && runCatching { st.tsWanted }.getOrDefault(false)
+        val show = LauncherLogic.show(e.pkg, Guard.snap?.want ?: emptyMap(), r, packageName, Flavor.HOME || LauncherLogic.settingsOk(r, owner = own, paired = false), tsOn)
+        if (show != LauncherLogic.Show.OK) { Toasts.show(this, R.string.nlog_gone); return }
         val pi = NotifLog.pendingFor(e.key)
         if (pi != null && NotifLog.send(this, pi)) { Toasts.show(this, R.string.nlog_opened_pi); return }
         val i = packageManager.getLaunchIntentForPackage(e.pkg)

@@ -114,7 +114,9 @@ object Logic {
 
     // ---- background notifications ----
 
-    class KidCfg(val name: String, val target: String, val via: String, val id: String, val token: String, val relay: String? = null) {
+    class KidCfg(val name: String, val target: String, val via: String, val id: String, val token: String, val relay: String? = null, val relayId: String = "", val relayToken: String = "") {
+        /** A LAN kid that also has relay credentials: reachable from other networks. */
+        val hasRelay get() = relay != null && relayId.isNotEmpty() && relayToken.isNotEmpty()
         val key get() = "$target|$id"
     }
 
@@ -125,8 +127,9 @@ object Logic {
             val target = decodeTarget(encodeTarget(o.optString("target"))) ?: return@mapNotNull null
             val via = o.optString("via")
             if (via != "lan" && via != "relay") return@mapNotNull null
-            val relay = o.optJSONObject("relay")?.optString("url")?.takeIf { it.startsWith("https://") }?.let { decodeTarget(encodeTarget(it)) }
-            KidCfg(o.optString("name", "").ifEmpty { "con" }, target, via, o.optString("id"), o.optString("token"), relay)
+            val ro = o.optJSONObject("relay")
+            val relay = ro?.optString("url")?.takeIf { it.startsWith("https://") }?.let { decodeTarget(encodeTarget(it)) }
+            KidCfg(o.optString("name", "").ifEmpty { "con" }, target, via, o.optString("id"), o.optString("token"), relay, ro?.optString("id") ?: "", ro?.optString("token") ?: "")
         }
     } catch (e: Exception) { emptyList() }
 
@@ -153,7 +156,25 @@ object Logic {
     class Outcome(val events: List<Event>, val state: NotifyState)
 
     /** A failed fetch of a LAN kid says nothing while this phone is off Wi-Fi (mobile data cannot reach 192.168.x.x). */
-    fun failCounts(via: String, onWifi: Boolean) = via != "lan" || onWifi
+    fun failCounts(via: String, onWifi: Boolean, hasRelay: Boolean = false, sameNet: Boolean = true) = via != "lan" || hasRelay || (onWifi && sameNet)
+
+    /** True unless [target] is a private IPv4 literal outside every own (address, prefix); hostnames, Tailscale 100.x and no own address -> true. */
+    fun onKidSubnet(target: String, own: List<Pair<String, Int>>): Boolean {
+        fun ip(s: String): Long? {
+            val p = s.split("."); if (p.size != 4) return null
+            var v = 0L
+            for (x in p) { val n = x.toIntOrNull() ?: return null; if (n !in 0..255) return null; v = v * 256 + n }
+            return v
+        }
+        val host = Regex("^https?://(\\d{1,3}(?:\\.\\d{1,3}){3})").find(target)?.groupValues?.get(1) ?: return true
+        val t = ip(host) ?: return true
+        if (t shr 24 == 100L || own.isEmpty()) return true
+        return own.any { (a, pre) ->
+            val o = ip(a) ?: return@any false
+            val mask = if (pre <= 0) 0L else (0xFFFFFFFFL shl (32 - pre.coerceAtMost(32))) and 0xFFFFFFFFL
+            (o and mask) == (t and mask)
+        }
+    }
 
     /** Notify once per event: a new child request id, and the transition to "lost > 30 min". */
     fun evaluate(name: String, seen: Seen, st: NotifyState, now: Long, failCounts: Boolean = true, tr: Tr): Outcome {

@@ -90,6 +90,11 @@ internal fun HomeActivity.gestRun(g: String) {
         GestLogic.APP -> {
             val a = launcherApps()[Gest.app(this, g)]
             if (a == null) { Toasts.show(this, R.string.gest_app_gone); return }
+            // the icon tap's rules: hidden -> reason toast, paused -> the break sheet; nothing is started for them
+            val st = Store.of(this); val r = st.rules; val dv = decision(r, st)
+            val why = LauncherLogic.hiddenReason(a.pkg, dv.want, r, packageName, tsManaged, focusAllowed(dv))
+            if (why != null && why != "plumbing") { Toasts.show(this, a.label.take(14) + ": " + reasonLong(why), true); return }
+            LauncherLogic.pauseReason(a.pkg, dv.want, settingsOk(r))?.let { pausedSheet(a, it, dv, r); return }
             Recent.note(this, a.pkg)
             val vw = !Flavor.HOME && runCatching { AccPause.pause(this, a.pkg); DevOpts.pause(this, a.pkg); VpnPause.pause(this, a.pkg) }.getOrDefault(false)
             val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(ComponentName(a.pkg, a.cls))

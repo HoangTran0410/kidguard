@@ -21,6 +21,12 @@
     <plurals name="ans_granted">
         <item quantity="other">Đã cho thêm %1$d phút</item>
     </plurals>
+    <plurals name="ans_queued">
+        <item quantity="other">Đã gửi +%1$d phút, có hiệu lực khi máy con có mạng</item>
+    </plurals>
+    <plurals name="ans_half">
+        <item quantity="other">Đã cộng %1$d phút, đang báo lại cho con. Đừng cho thêm lần nữa trên trang</item>
+    </plurals>
     <string name="ans_declined">Đã từ chối</string>
     <string name="ans_already">Yêu cầu này đã được trả lời rồi</string>
     <string name="ans_failed">Không gửi được, mở trang</string>

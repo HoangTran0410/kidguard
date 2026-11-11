@@ -36,7 +36,9 @@ object Tg {
     private val sending = java.util.concurrent.ConcurrentHashMap<String, Long>()   // alert key -> retry not before (MAX = in flight)
     private val seenLock = Any(); private val rulesLock = Any()
     private val locBusy = java.util.concurrent.atomic.AtomicBoolean(); private val recBusy = java.util.concurrent.atomic.AtomicBoolean()
-    private val strangerTries = java.util.concurrent.ConcurrentHashMap<Long, Int>()   // wrong link codes per chat (one stranger can't burn the code)
+    private fun <V> capped(n: Int): MutableMap<Long, V> = java.util.Collections.synchronizedMap(object : LinkedHashMap<Long, V>() {
+        override fun removeEldestEntry(e: MutableMap.MutableEntry<Long, V>?) = size > n })   // oldest entries drop first
+    private val strangerTries = capped<Int>(500)   // wrong link codes per chat (one stranger can't burn the code)
     private val fast = Executors.newSingleThreadExecutor()   // button acks: never queued behind a slow command
     private val askMsg = java.util.concurrent.ConcurrentHashMap<Long, Long>()   // chat -> when "💬 Message" asked for the text
 
@@ -247,6 +249,13 @@ object Tg {
     /** Rule edits from several workers / chats: read-modify-write one at a time. */
     private fun editRules(g: Guard, s: Store, f: (Rules) -> Rules): Rules = synchronized(rulesLock) { f(s.rules).also { g.setRules(it) } }
 
+    private val strangerReplied = capped<Long>(500)   // chat -> last reply time: at most one reply per 5 s to an unlinked chat
+    private fun strangerReply(s: Store, id: Long, text: String) {
+        val now = System.currentTimeMillis()
+        if (now - (strangerReplied[id] ?: 0L) < 5_000L) return   // a parent typing a wrong code must still see "wrong code"
+        strangerReplied[id] = now; send(s, id, text)
+    }
+
     // ---------------- updates ----------------
     private fun update(g: Guard, s: Store, u: JSONObject) {
         u.optJSONObject("callback_query")?.let { return callback(g, s, it) }
@@ -260,7 +269,7 @@ object Tg {
             val code = (TgLogic.parse(text)?.takeIf { it.name == "start" }?.rest ?: text).trim()
             if (Regex("^\\d{6}$").matches(code)) {
                 val n = strangerTries.merge(id, 1, Int::plus) ?: 1
-                if (n > TgLogic.CHAT_TRIES || !s.tgTryCode(code)) { send(s, id, TgLogic.s(lang, "badCode")); return }
+                if (n > TgLogic.CHAT_TRIES || !s.tgTryCode(code)) { strangerReply(s, id, TgLogic.s(lang, "badCode")); return }
                 strangerTries.remove(id)
                 val who = listOf(chat.optString("first_name"), chat.optString("last_name")).filter { it.isNotBlank() }.joinToString(" ").ifBlank { chat.optString("username") }
                 if (!s.tgAddChat(id, who, lang)) { send(s, id, TgLogic.s(lang, "full", TgLogic.MAX_CHATS)); return }
@@ -270,7 +279,7 @@ object Tg {
                 tick(g, markOnly = true)   // the past is not news to a new chat
                 send(s, id, TgLogic.s(lang, "linked", kidName(g)), TgLogic.replyKb(lang))
                 send(s, id, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang)); g.kick()
-            } else send(s, id, TgLogic.s(lang, "linkAsk"))
+            } else strangerReply(s, id, TgLogic.s(lang, "linkAsk"))
             return
         }
         m.optJSONObject("document")?.let { return fileIn(g, s, id, it) }
@@ -445,9 +454,10 @@ object Tg {
             d == "r:status" -> edit(s, chat, msgId, TgLogic.status(g.currentState(), kidName(g), lang, now, ::hm), TgLogic.statusKb(lang))
             d.startsWith("ry:") -> {
                 val (id, min) = d.removePrefix("ry:").split(':').let { it[0] to (it.getOrNull(1)?.toIntOrNull() ?: 15).coerceIn(1, 600) }
-                if ((0 until s.requests().length()).none { s.requests().optJSONObject(it)?.optString("id") == id }) return done(TgLogic.s(lang, "reqGone"))
+                // the answer command claims the request (removeRequest is atomic): only the winner adds the bonus
+                // "req", not "id": a repeated command id is answered "ok" without running (Guard.command), which would let a second tap through
+                if (g.command(JSONObject().put("type", "answer").put("req", id).put("ok", true).put("min", min)) != "ok") return done(TgLogic.s(lang, "reqGone"))
                 editRules(g, s) { TgLogic.bonus(it, Guard.day(now), min, now) }
-                g.command(JSONObject().put("type", "answer").put("id", id).put("ok", true).put("min", min))
                 done(TgLogic.s(lang, "reqYes", min))
             }
             d.startsWith("rn:") -> {

@@ -31,17 +31,18 @@ object HomeFile {
         }
     }
 
-    @Synchronized fun save(ctx: Context, m: HomeModel) {
+    /** True when [m] is on disk (or already was); callers that don't care can ignore it. */
+    @Synchronized fun save(ctx: Context, m: HomeModel): Boolean {
         AppLook.set(m.custom)
-        if (m == cache) return
+        if (m == cache) return true
         // the cache is set only after the file is in place, so a failed write is tried again by the next save
-        runCatching {
+        return runCatching {
             val tmp = File(ctx.filesDir, "$NAME.tmp")
             tmp.writeText(m.toJson().toString())
             // rename replaces the target atomically (Android: rename(2)); no delete first, which could lose the file
             if (!tmp.renameTo(file(ctx))) error("rename failed")
             cache = m
-        }.onFailure { Log.w("KidGuard", "home.json write", it) }
+        }.onFailure { Log.w("KidGuard", "home.json write", it) }.isSuccess
     }
 
     /** After the 2nd crash in 5 min: start over (style and layout). */

@@ -120,11 +120,12 @@ class Relay(private val g: Guard) {
     private fun sync(base: String, rid: String, token: String): Boolean {
         val now = System.currentTimeMillis()
         val state = g.currentState()
+        val stateText by lazy(LazyThreadSafetyMode.NONE) { state.toString() }   // one serialisation for the coarse and the minute-hash copies
         val viaWs = ws.open
         if (viaWs) {
             // socket up: no message unless something the parent sees changed (time / battery / foreground app ignored),
             // the relay kicked, a command needs its ack, or the idle interval is over
-            val coarse = JSONObject(state.toString()).apply {
+            val coarse = JSONObject(stateText).apply {
                 for (k in arrayOf("t", "usedMs", "leftMs", "current", "battery", "charging", "screenOn")) remove(k)
                 optJSONObject("net")?.let { for (k in arrayOf("rssi", "bars", "mbps")) it.remove(k) }   // signal wobbles: not a reason to sync
                 optJSONArray("apps")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { it.remove("ms"); it.remove("mb") } }
@@ -137,7 +138,7 @@ class Relay(private val g: Guard) {
         val forced = forceSend; forceSend = false
         // unchanged except time counters => omit the state; a full one at least every 5 min.
         // Per-app ms and usedMs/leftMs tick every sync while an app is open: hash them per minute (one state a minute, not 3).
-        val hash = JSONObject(state.toString()).apply {
+        val hash = JSONObject(stateText).apply {
             remove("t")
             for (k in arrayOf("usedMs", "leftMs")) if (has(k)) put(k, optLong(k) / 60_000)
             optJSONArray("apps")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { it.put("ms", it.optLong("ms") / 60_000) } }

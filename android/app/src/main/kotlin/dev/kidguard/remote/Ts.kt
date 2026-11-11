@@ -133,6 +133,7 @@ object Ts {
         val k = key.trim()
         if (!TsLogic.validKey(k)) return "bad key"
         if (busy) return "busy"
+        if (!s.tsWanted) s.tsOurs = !installed(ctx)   // already on the phone: the family's own app, never uninstalled by us
         if (TsLogic.isApiToken(k)) { apiToken = k; expTries = 0; s.tsKey = "" } else { apiToken = ""; s.tsKey = k }
         s.tsNoExpiry = false; s.tsHost = TsLogic.hostName(hostRaw, s.id); s.tsWanted = true; s.tsHide = true
         startSetup(ctx, s)
@@ -154,8 +155,9 @@ object Ts {
     /** Command `tailscaleOff`. */
     fun disable(ctx: Context, s: Store): String {
         if (!Policy.isOwner(ctx)) return "not owner"
+        val was = s.tsWanted
         s.tsWanted = false; state = "off"; ip = ""; err = ""
-        Thread({ runCatching { undo(ctx, s) } }, "ts-off").start()
+        Thread({ runCatching { undo(ctx, s, was) } }, "ts-off").start()
         return "ok"
     }
 
@@ -397,17 +399,21 @@ object Ts {
         }, "ts-hide").start()
     }
 
-    /** Takes everything back (also called from release). Synchronous, at most ~15 s. */
-    fun undo(ctx: Context, s: Store) {
+    /**
+     * Takes everything back (also called from release). Synchronous, at most ~15 s. [was] = KidGuard managed Tailscale
+     * until now: a Tailscale the family runs on its own (never set up through us) keeps its always-on VPN, and the app
+     * is uninstalled only when we installed it ([Store.tsOurs]).
+     */
+    fun undo(ctx: Context, s: Store, was: Boolean = s.tsWanted) {
         s.tsWanted = false; s.tsKey = ""; s.tsNoExpiry = false; apiToken = ""
         if (!Policy.isOwner(ctx)) return
         val d = Policy.dpm(ctx); val a = Policy.admin(ctx)
-        runCatching { d.setApplicationRestrictions(a, TsLogic.PKG, Bundle()) }
-        runCatching { d.setAlwaysOnVpnPackage(a, null, false) }
+        if (was) runCatching { d.setApplicationRestrictions(a, TsLogic.PKG, Bundle()) }
+        if (was && runCatching { d.getAlwaysOnVpnPackage(a) }.getOrNull() == TsLogic.PKG) runCatching { d.setAlwaysOnVpnPackage(a, null, false) }
         runCatching { d.setUninstallBlocked(a, TsLogic.PKG, false) }
         Policy.applyVpnLock(ctx, d, a, !s.released && s.rules.noVpn)   // tsWanted is already false: only the rule noVpn can keep it
         runCatching { d.setPackagesSuspended(a, arrayOf(TsLogic.PKG), false) }
-        if (installed(ctx)) runCatching {
+        if (was && s.tsOurs && installed(ctx)) runCatching {
             val done = CountDownLatch(1)
             val r = object : BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { done.countDown() } }
             val act = "dev.kidguard.TS_UNINSTALL"

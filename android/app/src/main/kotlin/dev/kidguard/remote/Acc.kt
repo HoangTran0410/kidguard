@@ -44,7 +44,7 @@ class Acc : AccessibilityService() {
         runCatching { Guard.start(this); Watchdog.schedule(this) }
         runCatching { registerReceiver(wakeUp, android.content.IntentFilter(android.content.Intent.ACTION_SCREEN_ON).apply { addAction(android.content.Intent.ACTION_USER_PRESENT) }) }
         // back on (after a bank pause, a restart): no window event comes for the app already in front, so check it now
-        main.postDelayed({ runCatching { rootInActiveWindow?.packageName?.toString()?.let { if (it != packageName && it !in Store.of(this).rules.accPause) basicGuard(it) } } }, 600)
+        main.postDelayed({ runCatching { rootInActiveWindow?.packageName?.toString()?.let { if (it != packageName) basicGuard(it) } } }, 600)
     }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {
@@ -55,7 +55,7 @@ class Acc : AccessibilityService() {
         if (e.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = e.packageName?.toString() ?: return
         // a bank app that refuses accessibility services came up without our launcher (Recents, a link): step aside now
-        if (pkg in Store.of(this).rules.accPause) { AccPause.pauseLate(this, pkg); return }
+        if (pkg in Store.of(this).rules.accPause && AccPause.pauseLate(this, pkg)) return
         // an app that refuses a VPN (accessibility may stay on): VPN off, and restart it once if it already saw the tunnel
         // an app that refuses debugging only (accessibility stays on): debugging off, restarted once adbd is down
         if (pkg in Store.of(this).rules.devPause && DevOpts.pause(this, pkg)) {

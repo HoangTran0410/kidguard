@@ -35,11 +35,18 @@ object Push {
         fun post(k: Logic.KidCfg, off: Boolean) = Net.call("POST", "${k.target}/c/${k.id}/push",
             mapOf("X-KG-Token" to k.token, "Content-Type" to "application/json"),
             JSONObject().put("fcm", token).apply { if (off) put("off", true) }.toString().toByteArray(), 15_000).status
-        for (k in removed.filter { it.via == "relay" }) post(k, true)
-        for (k in Logic.parseKids(Store.kids(c)).filter { it.via == "relay" }) {
+        val relayKids = Logic.parseKids(Store.kids(c)).filter { it.via == "relay" }
+        // saves that touch nothing relevant (rules edits, tab state) must not re-POST to every relay kid
+        val sig = (listOf(token, Store.notify(c).toString()) + relayKids.map { "${it.id}|${it.target}|${it.token}" }.sorted()).joinToString("\n")
+        val rm = removed.filter { it.via == "relay" }
+        if (rm.isEmpty() && sig == Store.pushSig(c)) return
+        for (k in rm) post(k, true)
+        var ok = true
+        for (k in relayKids) {
             val st = post(k, !Store.notify(c))
-            if (st != 200) Log.w("KGParent", "push register ${k.id}: $st")
+            if (st != 200) { ok = false; Log.w("KGParent", "push register ${k.id}: $st") }
         }
+        if (ok) Store.setPushSig(c, sig)
     }
 
     /** Called for every incoming data message. Marks the event seen so the background check does not repeat it. */

@@ -404,6 +404,11 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var tsKey: String
         get() = p.getString("tsKey", "")!!
         set(v) { p.edit().putString("tsKey", v).commit() }
+    /** KidGuard installed Tailscale itself (default true: phones set up before this flag). False = it was already on
+     *  the phone, so turning remote access off / release leaves the app installed. */
+    @get:Synchronized @set:Synchronized var tsOurs: Boolean
+        get() = p.getBoolean("tsOurs", true)
+        set(v) { p.edit().putBoolean("tsOurs", v).commit() }
     @get:Synchronized @set:Synchronized var tsHost: String
         get() = p.getString("tsHost", "")!!
         set(v) { p.edit().putString("tsHost", v).apply() }

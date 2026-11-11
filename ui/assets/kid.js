@@ -22,6 +22,9 @@ async function refresh() {
   pollAt = now; pollBusy = now;
   try { await refresh1(); } finally { pollBusy = 0; }
 }
+async function sameKid(k) {
+  try { const r = await fetch(lanApi(k.target) + "/hello", { signal: quick(4000) }); const h = r.ok ? await r.json() : null; return !!h && h.id === k.id; } catch { return false; }
+}
 async function refresh1() {
   const k = cur;
   try {
@@ -40,7 +43,8 @@ async function refresh1() {
     lastErr = e.message;
     lastNet = !!e.net;
     if (LOCAL && e.raw === "not paired") return localOver();   // the on-device session expired
-    if (e.raw === "not paired" || /not paired/.test(e.message)) { gen++; clearInterval(timer); cur = null; kids = kids.filter(x => x !== k); save(kids); navDown(0); toast(t("e.not paired")); return setTimeout(boot, 1000); }
+    // a LAN address can now belong to ANOTHER KidGuard phone (it answers 401 to our token): forget the kid only when /hello still names it
+    if ((e.raw === "not paired" || /not paired/.test(e.message)) && (k.via !== "lan" || await sameKid(k)) && k === cur) { gen++; clearInterval(timer); cur = null; kids = kids.filter(x => x !== k); save(kids); navDown(0); toast(t("e.not paired")); return setTimeout(boot, 1000); }
   }
   const busy = document.activeElement && /^(SELECT|INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
   if (st && st.rules) {
@@ -88,7 +92,15 @@ function mergeNewer(e) {
   editBase = structuredClone(n);
   return true;
 }
-async function putRules(k, e) {
+// PUTs per kid run one after another: two quick edits over a slow relay must not land out of order (the body is built when its turn comes, so it carries the latest edit)
+const putQ = new WeakMap();
+function putRules(k, e) {
+  saveBusy++;   // counted from the moment it is queued: a poll must not reload the rules under a waiting save
+  const run = (putQ.get(k) || Promise.resolve()).then(() => putRules1(k, e));
+  putQ.set(k, run.catch(() => {}));
+  return run.finally(() => { saveBusy--; });
+}
+async function putRules1(k, e) {
   // Preview (phone never paired, no parent PIN yet): the first save sets the parent PIN. It is the same PIN the parent
   // later enters to pair their own phone, and from then on it guards "Bố mẹ quản lý trên máy này".
   if (!e.pinSet && !e.pin && st && st.caps && st.caps.paired === false) {
@@ -317,8 +329,10 @@ function tplSummary(tp) {
 const reachKids = () => APP || onLan() ? homeKids() : kids.filter(k => k.via === "relay");
 async function kidRules(k) {
   const j = await call(k, "/state");
-  const r = j.rules ?? (j.state && j.state.rules);   // relay: {state, rules (sent, not yet taken)}; LAN: the state itself
-  if (!r) throw new Error(t("noData"));
+  // relay: {state, rules (last PUT, kept after the phone took it)}; LAN: the state itself. The stored PUT wins only while newer
+  const s = j.state !== undefined ? j.state || {} : j;
+  const r = j.state !== undefined && j.rules && j.rules.rev > ((s.rules || {}).rev || 0) ? j.rules : s.rules;
+  if (!r || typeof r !== "object" || !Object.keys(r).length) throw new Error(t("noData"));
   return r;
 }
 // First-pairing starting levels: same template machinery (tplFields), plus 3 extra fields only these carry (docs/protocol.md "Starting levels").
@@ -368,7 +382,7 @@ async function tplMulti(tp) {
     const { k, r } = rows[i];
     try {
       if (k === k0 && e0 === edit) { clearTimeout(saveT); saveT = null; Object.assign(edit, tplFields(tp.rules)); try { await putRules(k, edit); } catch (er) { if (k === cur) saveFail(true); throw er; } }
-      else await putRules(k, { ...r, ...tplFields(tp.rules) });
+      else await putRules(k, { ...(await kidRules(k)), ...tplFields(tp.rules) });   // read again: the dialog may have stayed open
       ok++;
     } catch (er) { bad.push(k.name + ": " + er.message); }
   }

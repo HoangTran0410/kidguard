@@ -269,8 +269,8 @@ class HomeActivity : Activity() {
         }
         Guard.poke(this)
         NotifDots.onChange = dotRx
-        NotifDots.setOn(this, (model ?: HomeFile.load(this))?.style?.badge != "off")
         model = null          // Tuỳ chỉnh may have changed home.json (HomeFile's cache)
+        NotifDots.setOn(this, HomeFile.load(this)?.style?.badge != "off")
         // apps stay: pkgRx lives from the first resume to onDestroy, so installs / updates while an app is in front reach
         // it (re-querying every launcher activity on each return home cost an Oppo A5s 6-7 ms)
         dialerAt = 0L; bannerSet = false
@@ -283,6 +283,7 @@ class HomeActivity : Activity() {
         Guard.listeners.remove(listener)
         timeRx?.let { runCatching { unregisterReceiver(it) } }; timeRx = null
         popup?.dismiss()
+        main.removeCallbacks(renderRetry)   // an open folder keeps busy() true: no rebuild loop behind another app
         pager.dragging = false   // a gesture cut by an app switch must not keep busy() true (the home would never rebuild)
         super.onPause()
     }
@@ -482,6 +483,7 @@ class HomeActivity : Activity() {
         val dv = decision(r, s); lap("decision")
         val show = focusShow(all.keys.associateWith { LauncherLogic.show(it, dv.want, r, packageName, settingsOk(r), tsManaged) }, dv); lap("show")
         val visible = all.values.filter { show[it.pkg] != LauncherLogic.Show.HIDE }.sortedBy { it.sortKey }; lap("sort")
+        if (!lifecycleStarted) model = null   // behind Tuỳ chỉnh: our copy may be older than what it just saved
         var m = model ?: HomeFile.load(this) ?: firstModel(r, visible); lap("model")
         m = HomeLayout.prune(m) { it !in all && !Policy.installed(this, it) }; lap("prune")
         val dial = dialer()

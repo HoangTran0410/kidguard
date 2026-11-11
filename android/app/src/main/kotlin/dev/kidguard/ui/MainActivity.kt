@@ -608,6 +608,7 @@ class MainActivity : Activity() {
         if (launcherPal().toString() != palKey) { recreate(); return }   // light / dark or accent changed in the launcher's Tuỳ chỉnh
         launched = false   // back from a screen we opened (see onStop)
         holding = null; holdBase.forEach { (b, t) -> b.text = t }   // a hint left over from before the pause
+        if (::updRow.isInitialized && !updPolling) updRow.text = getString(R.string.main_check_update, BuildConfig.VERSION_NAME)
         val t0 = android.os.SystemClock.elapsedRealtime()
         refresh()
         (android.os.SystemClock.elapsedRealtime() - t0).let { if (it > 16) android.util.Log.i("KG.perf", "main refresh ${it}ms") }
@@ -639,7 +640,7 @@ class MainActivity : Activity() {
             if (runCatching { startActivity(i); true }.getOrDefault(false)) return
         }
     }
-    override fun onPause() { super.onPause(); ui.removeCallbacksAndMessages(null) }
+    override fun onPause() { super.onPause(); ui.removeCallbacksAndMessages(null); updPolling = false }   // the poll callback is gone: let the row be tapped again
     override fun onDestroy() { sheet.dismiss(); super.onDestroy() }
 
     /**

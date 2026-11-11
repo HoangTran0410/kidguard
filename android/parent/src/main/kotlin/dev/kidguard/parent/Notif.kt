@@ -99,27 +99,34 @@ object Notif {
     /** True while this notification is still in the shade (a late location must not bring back a dismissed SOS). */
     fun showing(c: Context, k: Logic.KidCfg, key: String) = runCatching { nm(c).activeNotifications.any { it.id == nid(k, key) } }.getOrDefault(false)
 
-    /** Answers a request: (bonus rules PUT +) `answer` cmd over the kid's own transport, same as the page's request card. */
-    fun answer(k: Logic.KidCfg, req: String, ok: Boolean, min: Int): Act.Res {
+    /**
+     * Answers a request: (bonus rules PUT +) `answer` cmd over the kid's own transport, same as the page's request card.
+     * [bonusDone]: an earlier run already saved the bonus, so only the `answer` is sent (never the minutes twice).
+     */
+    fun answer(k: Logic.KidCfg, req: String, ok: Boolean, min: Int, bonusDone: Boolean = false, onBonus: () -> Unit = {}): Act.Res {
         val base = k.target + (if (k.via == "lan") "/api" else "/c/${k.id}")
         val h = mapOf("X-KG-Token" to k.token, "Content-Type" to "application/json")
         val s = Net.call("GET", "$base/state", h, null, 15_000)
         if (s.status != 200) return Act.Res.FAIL
         val body = runCatching { JSONObject(String(s.body, Charsets.UTF_8)) }.getOrNull() ?: return Act.Res.FAIL
         if (!Act.hasRequest(body, k.via, req)) return Act.Res.ALREADY   // answered on the page / another parent phone
-        if (ok) {
+        if (ok && !bonusDone) {
             val day = Act.stateOf(body, k.via)?.optString("day").orEmpty()
             val rules = Act.pickRules(body, k.via)
             if (day.isEmpty() || rules == null) return Act.Res.FAIL
             val p = Net.call("PUT", "$base/rules", h, Act.bonusRules(rules, day, min).toString().toByteArray(), 15_000)
             if (p.status != 200) return Act.Res.FAIL
+            onBonus()
         }
         val r = Net.call("POST", "$base/cmd", h, Act.answerCmd(req, ok, min).toString().toByteArray(), 15_000)
-        return Act.cmdResult(r.status, String(r.body, Charsets.UTF_8))
+        val res = Act.cmdResult(r.status, String(r.body, Charsets.UTF_8))
+        return if (ok && res == Act.Res.FAIL) Act.Res.HALF else res
     }
 
     fun resultText(c: Context, res: Act.Res, ok: Boolean, min: Int): String = when (res) {
         Act.Res.OK -> if (ok) c.resources.getQuantityString(R.plurals.ans_granted, min, min) else c.getString(R.string.ans_declined)
+        Act.Res.QUEUED -> if (ok) c.resources.getQuantityString(R.plurals.ans_queued, min, min) else c.getString(R.string.ans_declined)
+        Act.Res.HALF -> c.resources.getQuantityString(R.plurals.ans_half, min, min)
         Act.Res.ALREADY -> c.getString(R.string.ans_already)
         Act.Res.FAIL -> c.getString(R.string.ans_failed)
     }
@@ -156,15 +163,21 @@ class AnswerJob : JobService() {
         val c = applicationContext
         val x = p.extras
         Thread({
+            var again = false
             val k = Notif.kidOf(c, x.getString("kid"))
             val req = x.getString("req").orEmpty()
             if (k != null && req.isNotEmpty()) {
                 val ok = x.getBoolean("ok"); val min = x.getInt("min")
-                val res = runCatching { Notif.answer(k, req, ok, min) }.getOrDefault(Act.Res.FAIL)
-                if (res == Act.Res.FAIL) Store.dropAnswer(c, Notif.kidHash(k), req)   // the page can still answer it; a new tap too
+                val kh = Notif.kidHash(k); val bonus = "bonus:$req"
+                val had = ok && Store.hasAnswer(c, kh, bonus)
+                val res = runCatching { Notif.answer(k, req, ok, min, had) { Store.takeAnswer(c, kh, bonus) } }
+                    .getOrElse { if (ok && Store.hasAnswer(c, kh, bonus)) Act.Res.HALF else Act.Res.FAIL }
+                    .let { if (it == Act.Res.FAIL && had) Act.Res.HALF else it }
+                if (res == Act.Res.FAIL) Store.dropAnswer(c, kh, req)   // the page can still answer it; a new tap too
                 Notif.result(c, k, req, Notif.resultText(c, res, ok, min))
+                again = res == Act.Res.HALF   // minutes are saved: only the `answer` is sent again (JobScheduler backoff)
             }
-            jobFinished(p, false)
+            jobFinished(p, again)
         }, "kg-answer").start()
         return true
     }

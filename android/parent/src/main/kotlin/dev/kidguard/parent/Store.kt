@@ -11,6 +11,9 @@ object Store {
 
     fun kids(c: Context): String = p(c).getString("kids", "[]") ?: "[]"
     fun setKids(c: Context, json: String) { p(c).edit().putString("kids", json).apply() }
+    /** What the relay kids were last told successfully (see [Push.send]); "" = never. */
+    fun pushSig(c: Context): String = p(c).getString("pushSig", "") ?: ""
+    fun setPushSig(c: Context, v: String) { p(c).edit().putString("pushSig", v).apply() }
     fun notify(c: Context): Boolean = p(c).getBoolean("notify", true)
     fun setNotify(c: Context, v: Boolean) { p(c).edit().putBoolean("notify", v).apply() }
     /** History retention in days, 0 = unlimited (default). */
@@ -37,6 +40,11 @@ object Store {
         for (i in from until a.length()) out.put(a.optString(i))
         p(c).edit().putString("answered", out.put(k).toString()).commit()
         true
+    }
+    fun hasAnswer(c: Context, kid: String, req: String): Boolean = synchronized(this) {
+        val k = sha("$kid|$req").take(24)
+        val a = org.json.JSONArray(p(c).getString("answered", "[]") ?: "[]")
+        (0 until a.length()).any { a.optString(it) == k }
     }
     fun dropAnswer(c: Context, kid: String, req: String) = synchronized(this) {
         val k = sha("$kid|$req").take(24)

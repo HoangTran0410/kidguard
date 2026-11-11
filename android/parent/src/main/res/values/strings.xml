@@ -28,6 +28,14 @@
         <item quantity="one">Gave %1$d more minute</item>
         <item quantity="other">Gave %1$d more minutes</item>
     </plurals>
+    <plurals name="ans_queued">
+        <item quantity="one">+%1$d minute sent, it applies when the phone is online</item>
+        <item quantity="other">+%1$d minutes sent, they apply when the phone is online</item>
+    </plurals>
+    <plurals name="ans_half">
+        <item quantity="one">%1$d minute added, still telling the child. Don\'t grant it again on the page</item>
+        <item quantity="other">%1$d minutes added, still telling the child. Don\'t grant it again on the page</item>
+    </plurals>
     <string name="ans_declined">Declined</string>
     <string name="ans_already">This request was already answered</string>
     <string name="ans_failed">Couldn\'t send it, tap to open the page</string>

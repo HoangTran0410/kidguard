@@ -84,6 +84,19 @@ class HomeEditTest {
         assertEquals(m.pages, HomeLayout.appendNew(m, listOf("com.app1")).pages)
     }
 
+    @Test fun removeTakesAnAppOutOfItsFolder() {
+        val a1 = app(base, "com.app1"); val a2 = app(base, "com.app2"); val a3 = app(base, "com.app3")
+        val m1 = HomeLayout.dropOnto(HomeLayout.take(base, Src.Item(a1.id))!!, a2.id, "F")!!
+        val f = m1.pages.flatten().single { it.kind == "folder" }
+        val m2 = HomeLayout.dropOnto(HomeLayout.take(m1, Src.Item(a3.id))!!, f.id, "F")!!
+        val r = HomeLayout.remove(m2, "com.app1")
+        assertFalse("com.app1" in r.onHome()); assertTrue("com.app1" in r.seen)
+        assertEquals(2, r.pages.flatten().single { it.kind == "folder" }.apps.size)
+        val r2 = HomeLayout.remove(r, "com.app2")   // 1 app left: the folder is that app again
+        assertFalse(r2.pages.flatten().any { it.kind == "folder" })
+        assertTrue("com.app3" in r2.onHome() && "com.app2" !in r2.onHome())
+    }
+
     @Test fun addToFolderFromMenu() {
         val a2 = app(base, "com.app2")
         val m = HomeLayout.addTo(base, "com.app5", a2.id, "F")!!

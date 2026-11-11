@@ -257,6 +257,12 @@ async function sysSend(key, v) {
   sysDraw();
 }
 
+// Also on the "can't connect" card (shell.js): a phone that is gone for good has no Settings tab to forget it from
+async function forgetKid() {
+  const fk = cur;   // typed word: forgetting a relay kid destroys the only token
+  if (!fk || !(await ask(t(fk.via === "relay" ? "forget.askRelay" : APP ? "forget.askApp" : "forget.askWeb", fk.name), APP ? t("delete") : t("forget"), true, t("forget.word"))) || fk !== cur) return;
+  screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); navDown(0);
+}
 function setTab(b) {
   const lan = cur.via === "lan", S = ruleSecs(edit);
   if (Array.isArray(st.devices) && !st.devices.some(d => d.self) && !devIds.has(cur.token)) { const k = cur; devIdOf(k).then(id => { if (id && k === cur && tab === "set") { lastSig = ""; render(); } }); }
@@ -383,10 +389,7 @@ function setTab(b) {
   };
   clearInterval(pairTick.i); pairTick.i = setInterval(pairTick, 1000); pairTick();
   $("#unpair").onclick = async () => { await cmd({ type: "unpairAll" }, undefined, [t("ask.unpairAll"), t("askOk.unpairAll"), true, t("unp.word")]); };
-  $("#forget").onclick = async () => {
-    const fk = cur;   // typed word: forgetting a relay kid destroys the only token
-    if (!(await ask(t(fk.via === "relay" ? "forget.askRelay" : APP ? "forget.askApp" : "forget.askWeb", fk.name), APP ? t("delete") : t("forget"), true, t("forget.word"))) || fk !== cur) return;
-    screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); navDown(0); };
+  $("#forget").onclick = forgetKid;
   if ($("#f-tsk")) $("#f-tsk").onchange = e => { if (!edit) return; edit.tsKeep = e.target.checked; changed(); };
   if ($("#f-au")) $("#f-au").onchange = e => { if (!edit) return; edit.autoUpdate = e.target.checked; changed(); };
   if ($("#devOff")) $("#devOff").onclick = () => devOff(false);

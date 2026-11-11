@@ -69,7 +69,7 @@ class CheckJob : JobService() {
             val onWifi = onWifi(cm)
             val out = synchronized(Store) {   // a push may mark the same event seen meanwhile ([Push.handle])
                 val old = Logic.NotifyState.fromJson(Store.notifyState(c, k.key))
-                val o = Logic.evaluate(k.name, seen, old, now, Logic.failCounts(k.via, onWifi), tr = ResTr(c))
+                val o = Logic.evaluate(k.name, seen, old, now, Logic.failCounts(k.via, onWifi, k.hasRelay, Logic.onKidSubnet(k.target, ownV4(cm))), tr = ResTr(c))
                 // can't show notifications: keep the events unseen so they fire once the permission is back
                 if (o.events.isEmpty() || canPost) Store.setNotifyState(c, k.key, o.state.toJson())
                 o
@@ -86,14 +86,32 @@ class CheckJob : JobService() {
             c.getSystemService(NotificationManager::class.java).notify(0x6b68 + (k.key.hashCode() and 0xfff), n)
         }
 
+        /**
+         * null = really unpaired. A LAN 401/403 counts only when /api/hello (no token) still names this kid: the saved IP may now
+         * belong to another KidGuard phone, which rejects our token. A LAN kid that is unreachable falls back to its relay.
+         */
         fun fetch(k: Logic.KidCfg): Logic.Seen? {
-            val url = k.target + (if (k.via == "lan") "/api/state" else "/c/${k.id}/state")
-            val r = Net.call("GET", url, mapOf("X-KG-Token" to k.token), null, 15_000)
+            val r = fetchOne(k.target, k.via == "lan", k.id, k.token)
+            if (k.via != "lan" || (r != null && r.fetchOk)) return r
+            if (r == null && sameKid(k)) return null
+            if (k.hasRelay) fetchOne(k.relay!!, false, k.relayId, k.relayToken)?.let { if (it.fetchOk) return it }
+            return Logic.Seen(false, emptyList(), 0)
+        }
+
+        private fun sameKid(k: Logic.KidCfg): Boolean {
+            val h = Net.call("GET", k.target + "/api/hello", emptyMap(), null, 6_000)
+            if (h.status != 200) return false
+            return try { JSONObject(String(h.body, Charsets.UTF_8)).optString("id") == k.id } catch (e: Exception) { false }
+        }
+
+        private fun fetchOne(target: String, lan: Boolean, id: String, token: String): Logic.Seen? {
+            val url = target + (if (lan) "/api/state" else "/c/$id/state")
+            val r = Net.call("GET", url, mapOf("X-KG-Token" to token), null, 15_000)
             if (r.status == 401 || r.status == 403) return null
             if (r.status != 200) return Logic.Seen(false, emptyList(), 0)
             return try {
                 val o = JSONObject(String(r.body, Charsets.UTF_8))
-                val st = if (k.via == "lan") o else o.optJSONObject("state") ?: JSONObject()
+                val st = if (lan) o else o.optJSONObject("state") ?: JSONObject()
                 val rq = st.optJSONArray("requests")
                 val list = (0 until (rq?.length() ?: 0)).mapNotNull { i ->
                     val x = rq!!.optJSONObject(i) ?: return@mapNotNull null
@@ -111,8 +129,15 @@ class CheckJob : JobService() {
                     if (id.isEmpty() || text.isEmpty()) null else Logic.Ev(id, text.take(120), x.optLong("t"), x.optString("kind"), Act.locOf(JSONObject().put("location", x.optJSONObject("loc"))))
                 }
                 val accOff = st.optString("mode") == "basic" && st.optJSONObject("basic")?.optBoolean("acc", true) == false
-                Logic.Seen(true, list, if (k.via == "lan") st.optLong("t") else o.optLong("seen"), sos, evs, accOff, Act.locOf(st))
+                Logic.Seen(true, list, if (lan) st.optLong("t") else o.optLong("seen"), sos, evs, accOff, Act.locOf(st))
             } catch (e: Exception) { Logic.Seen(false, emptyList(), 0) }
+        }
+
+        /** (address, prefix length) of this phone's IPv4 addresses on the active network. */
+        private fun ownV4(cm: ConnectivityManager): List<Pair<String, Int>> {
+            val net = cm.activeNetwork ?: return emptyList()
+            return cm.getLinkProperties(net)?.linkAddresses
+                ?.filter { it.address is java.net.Inet4Address }?.map { (it.address.hostAddress ?: "") to it.prefixLength } ?: emptyList()
         }
 
         /** Wi-Fi or Ethernet is the active network (a LAN kid is only reachable from there). */

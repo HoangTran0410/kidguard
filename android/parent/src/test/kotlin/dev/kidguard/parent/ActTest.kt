@@ -74,7 +74,7 @@ class ActTest {
         assertTrue(Act.hasRequest(relayBody, "relay", "r1")); assertFalse(Act.hasRequest(relayBody, "relay", "r2"))
         assertTrue(Act.hasRequest(relayBody.getJSONObject("state"), "lan", "r1"))
         assertEquals(Act.Res.OK, Act.cmdResult(200, """{"result":"ok"}"""))
-        assertEquals(Act.Res.OK, Act.cmdResult(200, """{"result":"queued"}"""))
+        assertEquals(Act.Res.QUEUED, Act.cmdResult(200, """{"result":"queued"}"""))
         assertEquals(Act.Res.ALREADY, Act.cmdResult(200, """{"result":"no such request"}"""))
         assertEquals(Act.Res.FAIL, Act.cmdResult(429, """{"error":"queue full"}"""))
         assertEquals(Act.Res.FAIL, Act.cmdResult(null, ""))

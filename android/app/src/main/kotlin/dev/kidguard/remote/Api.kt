@@ -119,11 +119,16 @@ class Api(private val g: Guard) {
 
     private fun track(days: Int): org.json.JSONArray = store.track(days)
 
+    private val iconCache = java.util.Collections.synchronizedMap(object : LinkedHashMap<String, ByteArray>(64, 0.75f, true) {
+        override fun removeEldestEntry(e: MutableMap.MutableEntry<String, ByteArray>?) = size > 200 })   // access-ordered LRU of PNG bytes
+
     private fun icon(pkg: String): Res {
+        iconCache[pkg]?.let { return Res(200, "image/png", it) }
         val d = runCatching { g.packageManager.getApplicationIcon(pkg) }.getOrNull() ?: return Res.text("no icon", 404)
         val bmp = Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888)
         d.setBounds(0, 0, 96, 96); d.draw(Canvas(bmp))
         val out = ByteArrayOutputStream(); bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
-        return Res(200, "image/png", out.toByteArray())
+        val png = out.toByteArray(); iconCache[pkg] = png
+        return Res(200, "image/png", png)
     }
 }

@@ -69,14 +69,16 @@ object Act {
         return o
     }
 
-    enum class Res { OK, ALREADY, FAIL }
+    /** QUEUED: the relay holds it until the phone is online. HALF: the bonus is saved, the `answer` is not sent yet. */
+    enum class Res { OK, QUEUED, ALREADY, HALF, FAIL }
 
     /** A cmd reply: LAN `{result: "ok" | "no such request" | …}`, relay `{result: "queued"}`. */
     fun cmdResult(status: Int?, body: String): Res {
         if (status != 200) return Res.FAIL
         val r = runCatching { JSONObject(body).optString("result") }.getOrDefault("")
         return when (r) {
-            "", "ok", "queued" -> Res.OK
+            "", "ok" -> Res.OK
+            "queued" -> Res.QUEUED
             "no such request" -> Res.ALREADY
             else -> Res.FAIL
         }

@@ -59,7 +59,15 @@ object SelfAdb {
      * paired: setup step), "wss" (no WRITE_SECURE_SETTINGS), "blocked" (debugging disallowed), "wifi" (Wireless debugging
      * needs Wi-Fi), null = it can.
      */
-    fun why(ctx: Context): String? = when {
+    fun why(ctx: Context): String? {
+        val now = System.currentTimeMillis()
+        whyCache?.let { if (now - it.first < WHY_MS) return it.second }
+        return whyNow(ctx).also { whyCache = now to it }   // the state builder asks on every build; [invalidate] drops it
+    }
+    private const val WHY_MS = 60_000L
+    @Volatile private var whyCache: Pair<Long, String?>? = null
+
+    private fun whyNow(ctx: Context): String? = when {
         android.os.Build.VERSION.SDK_INT < 30 -> "sdk"
         !hasKey(ctx) -> "key"
         canOpen(ctx) -> null   // cheap checks first: no mDNS probe in the normal case
@@ -112,7 +120,7 @@ object SelfAdb {
     }
 
     /** Forget the cached answer (after a failed command or when the user paired again). */
-    fun invalidate() { readyAt = 0L }
+    fun invalidate() { readyAt = 0L; whyCache = null }
 
     /** Under [lock]. */
     private fun connect(ctx: Context): Boolean {

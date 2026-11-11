@@ -289,6 +289,7 @@ object Files {
     }
 
     /** Sync said files wait for us: fetch each, save it like a LAN upload (same id), then delete it from the relay. */
+    private val warned = java.util.Collections.synchronizedSet(HashSet<String>())   // fids the parent already heard a failure for
     fun pull(c: Context) {
         if (!pulling.compareAndSet(false, true)) return
         Thread({
@@ -313,8 +314,13 @@ object Files {
                         }
                     }
                     val (e, code) = if (get(c, fid) != null) null to "dup" else receive(c, f.optString("name"), if (size <= FilesLogic.MAX_RELAY) size else -1, null, ins, fid)
-                    // network trouble: keep it on the relay for the next sync; anything else will not get better
-                    if (e != null || code != "failed") { val d = conn("$base?fid=$fid", "DELETE", token); runCatching { d.responseCode }; d.disconnect() }
+                    // network trouble or a full phone: keep it on the relay (1 h TTL) for the next sync; anything else will not get better
+                    val retry = e == null && (code == "failed" || code == "no space")
+                    if (e == null && code != "dup" && !(retry && !warned.add(fid))) {   // tell the parent once per file
+                        if (warned.size > 100) warned.clear()
+                        runCatching { Store.of(c).log(if (code == "no space") R.string.log_file_nospace else R.string.log_file_dropped, f.optString("name"), code) }
+                    }
+                    if (!retry) { val d = conn("$base?fid=$fid", "DELETE", token); runCatching { d.responseCode }; d.disconnect() }
                 }
             } catch (x: Exception) { Log.w(TAG, "file pull", x) } finally { pulling.set(false) }
         }, "file-pull").start()

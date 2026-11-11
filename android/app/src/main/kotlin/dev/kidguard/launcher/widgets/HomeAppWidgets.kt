@@ -269,6 +269,8 @@ internal fun HomeActivity.awPickerSection(list: LinearLayout, query: String = ""
 // ---- add flow: allocate id -> bind (ask when needed) -> configure -> place ----
 
 internal fun HomeActivity.awAdd(info: AppWidgetProviderInfo) {
+    // the picker's list was read earlier: the app may have been hidden / blocked since
+    lastShow[info.provider.packageName].let { if (it == null || it == LauncherLogic.Show.HIDE) { closeOverlay(); return toast(getString(R.string.hm_aw_hidden)) } }
     closeOverlay()
     // a still-unplaced id from an earlier try (bind prompt dismissed, configure left open) would leak in the host
     aw.pendingId.takeIf { it != 0 && it !in (aw.seen ?: emptySet()) }?.let { old -> runCatching { awHost().deleteAppWidgetId(old) } }
