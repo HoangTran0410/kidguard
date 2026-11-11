@@ -460,6 +460,7 @@
     <string name="main_gestures_body">Apps can\'t do this themselves: it\'s a phone setting. KidGuard opens the right page if it can find it.</string>
     <string name="main_gestures_open">Open settings</string>
     <!-- on-device parent page (AdminActivity) + hold-to-confirm buttons -->
+    <string name="main_support">Report a problem to the developer</string>
     <string name="main_admin">Manage on this phone</string>
     <!-- home screen: status card, quick row, "More" sheet -->
     <string name="home_more">More</string>

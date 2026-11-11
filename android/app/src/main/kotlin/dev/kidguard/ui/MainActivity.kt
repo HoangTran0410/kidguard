@@ -143,6 +143,9 @@ class MainActivity : Activity() {
         // "Bố mẹ quản lý trên máy này": first in the sheet's parent group (self-contained: askAdmin + refresh visibility)
         adminBtn = u.listRow(getString(R.string.main_admin), R.drawable.li_users) { sheet.dismiss(); askAdmin() }
         parentG.addView(adminBtn, 1)
+        // report a problem to the developer (Support.kt): the same PIN, then the page's "Gửi lỗi" tab
+        supportBtn = u.listRow(getString(R.string.main_support), R.drawable.li_message_circle) { sheet.dismiss(); askAdmin("sup") }
+        parentG.addView(supportBtn)
         col.addView(u.cardBox(4).apply { addView(u.listRow(getString(R.string.main_my_rules), R.drawable.li_shield) { showMyRules() }) },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         kidG.addView(u.listRow(getString(R.string.main_log), R.drawable.li_scroll_text) { sheet.dismiss(); showLog() })
@@ -244,7 +247,8 @@ class MainActivity : Activity() {
     }
 
     /** "Bố mẹ quản lý trên máy này": the parent PIN or a current Authenticator code opens the full page here (AdminActivity). */
-    private fun askAdmin() {
+    private fun askAdmin(tab: String? = null) {
+        AdminActivity.nextTab = tab
         val s = Store.of(this)
         val pinSet = s.rules.pinHash.isNotBlank(); val totpOn = s.totpSecret.isNotBlank()
         if (!PairPin.adminAvailable(pinSet, totpOn, s.everPaired)) return
@@ -391,6 +395,7 @@ class MainActivity : Activity() {
     private lateinit var moreBtn: View
     private lateinit var unlockBtn: Button
     private lateinit var adminBtn: Button
+    private lateinit var supportBtn: Button
     private var qrFor: String? = null
 
     // ---- home layout: status card ("hero"), the "Thêm" sheet, the status details modal ----
@@ -620,6 +625,7 @@ class MainActivity : Activity() {
         (if (s.everPaired) 1f else 0.45f).let { a -> listOf(sosBtn, ciArrived, ciPickup).forEach { it.alpha = a } }
         unlockBtn.visibility = if (s.totpSecret.isNotBlank()) View.VISIBLE else View.GONE
         adminBtn.visibility = if (PairPin.adminAvailable(s.rules.pinHash.isNotBlank(), s.totpSecret.isNotBlank(), s.everPaired)) View.VISIBLE else View.GONE
+        supportBtn.visibility = adminBtn.visibility
         unlockBtn.text = s.unlockUntil.takeIf { it > System.currentTimeMillis() }?.let { getString(R.string.main_unlocked_until, java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(it))) }
             ?: getString(R.string.main_unlock)
         updBtn.visibility = if (!owner && Update.apk(this).exists() && UpdateLogic.newer(Update.stateJson(this).optString("latest"), Update.current())) View.VISIBLE else View.GONE

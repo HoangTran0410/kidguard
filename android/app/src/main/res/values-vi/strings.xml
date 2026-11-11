@@ -445,6 +445,7 @@
     <string name="main_gestures_body">Ứng dụng không tự làm được việc này, đây là cài đặt của điện thoại. KidGuard sẽ mở đúng trang cài đặt nếu tìm thấy.</string>
     <string name="main_gestures_open">Mở cài đặt</string>
     <!-- on-device parent page (AdminActivity) + hold-to-confirm buttons -->
+    <string name="main_support">Gửi lỗi cho nhà phát triển</string>
     <string name="main_admin">Quản lý trên máy này</string>
     <!-- home screen: status card, quick row, "Thêm" sheet -->
     <string name="home_more">Thêm</string>
