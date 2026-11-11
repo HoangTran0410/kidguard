@@ -277,7 +277,11 @@
     <string name="ss_code_6">Mã phải đủ 6 số</string>
     <string name="ssa_title">Tự cài KidGuard, không cần máy tính</string>
     <string name="ssa_old">Máy này dùng Android %1$s (dưới 11) nên không tự cài được. Cần cắm máy tính chạy setup.sh (xem README), hoặc cài lại máy rồi quét mã QR.</string>
-    <string name="ssa_intro">Máy sẽ tự \"nói chuyện\" với chính nó qua Gỡ lỗi không dây. Cần Wi-Fi, và máy chưa đăng nhập tài khoản nào (Google, Samsung, Xiaomi...). Làm lần lượt 3 bước:</string>
+    <string name="ssa_s1_ok">Đã bật Tuỳ chọn nhà phát triển</string>
+    <string name="ssa_s2_ok">Gỡ lỗi không dây đang bật</string>
+    <string name="ssa_need_wifi">Máy đang không dùng Wi-Fi: vào Wi-Fi rồi bật Gỡ lỗi không dây (4G không dùng được).</string>
+    <string name="ssa_s3_ok">Đã ghép xong: KidGuard tự dùng được adb (ẩn app, dọn máy). Ghép lại chỉ khi có lỗi.</string>
+    <string name="ssa_intro">Máy sẽ tự \"nói chuyện\" với chính nó qua Gỡ lỗi không dây (cần Wi-Fi). Để thành Device Owner máy phải chưa đăng nhập tài khoản nào (Google, Samsung, Xiaomi...); máy đã có tài khoản vẫn ghép được để KidGuard tự ẩn app, dọn máy. Làm lần lượt 3 bước:</string>
     <string name="ssa_s1">Bước 1. Bật Tuỳ chọn nhà phát triển</string>
     <string name="ssa_s1_d">Vào Giới thiệu về điện thoại, bấm 7 lần vào \"Số hiệu bản tạo\" (Build number).</string>
     <string name="ssa_s1_btn">Mở Giới thiệu về điện thoại</string>

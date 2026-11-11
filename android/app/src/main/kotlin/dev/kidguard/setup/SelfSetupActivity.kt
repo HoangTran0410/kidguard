@@ -59,17 +59,22 @@ class SelfSetupActivity : Activity() {
 
         /** One numbered step card: badge + title, explanation, its button. */
         fun step(n: Int, title: Int, desc: Int, btn: Int, icon: Int, f: () -> Unit) = u.cardBox().apply {
+            val badge = TextView(context).apply {
+                text = "$n"; gravity = Gravity.CENTER; textSize = 15f; setTypeface(typeface, Typeface.BOLD)
+                setTextColor(u.accent); background = u.shape(u.tint, 999)
+            }
+            val note = u.label("", 14f, u.sub, true).apply { setPadding(0, dp(8), 0, 0); visibility = View.GONE }
+            val button = u.button(getString(btn), icon, false, f)
+            marks.add(StepMark(n, badge, note, button))
             addView(LinearLayout(this@SelfSetupActivity).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                addView(TextView(context).apply {
-                    text = "$n"; gravity = Gravity.CENTER; textSize = 15f; setTypeface(typeface, Typeface.BOLD)
-                    setTextColor(u.accent); background = u.shape(u.tint, 999)
-                }, LinearLayout.LayoutParams(dp(30), dp(30)))
+                addView(badge, LinearLayout.LayoutParams(dp(30), dp(30)))
                 addView(u.label(getString(title).replace(Regex("^[^.]*\\.\\s*"), ""), 17f, u.text, true),
                     LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) })
             })
             addView(body(getString(desc)))
-            addView(u.button(getString(btn), icon, false, f))
+            addView(note)
+            addView(button)
         }
         col.addView(step(1, R.string.ssa_s1, R.string.ssa_s1_d, R.string.ssa_s1_btn, R.drawable.li_smartphone) { open(Settings.ACTION_DEVICE_INFO_SETTINGS) })
         col.addView(step(2, R.string.ssa_s2, R.string.ssa_s2_d, R.string.ssa_s2_btn, R.drawable.li_wifi) { open(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS) })
@@ -139,7 +144,34 @@ class SelfSetupActivity : Activity() {
         tick()
     }
 
+    private class StepMark(val n: Int, val badge: TextView, val note: TextView, val button: View)
+    private val marks = ArrayList<StepMark>()
+
+    /**
+     * Live status per step (owner 2026-11-11: "bật dev mode rồi sao nó vẫn hiện nút"): a done step gets a green tick,
+     * a note and no button; step 2 warns when the phone is not on Wi-Fi (Wireless debugging needs it).
+     */
+    private fun stepMarks() {
+        val g = { k: String -> runCatching { Settings.Global.getInt(contentResolver, k, 0) == 1 }.getOrDefault(false) }
+        val wifi = runCatching { getSystemService(android.net.ConnectivityManager::class.java).let { cm ->
+            cm.getNetworkCapabilities(cm.activeNetwork)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true } }.getOrDefault(false)
+        for (m in marks) {
+            val (done, note) = when (m.n) {
+                1 -> g(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED).let { it to if (it) getString(R.string.ssa_s1_ok) else null }
+                2 -> g("adb_wifi_enabled").let { on -> (on && wifi) to when { on && wifi -> getString(R.string.ssa_s2_ok); !wifi -> getString(R.string.ssa_need_wifi); else -> null } }
+                else -> SelfAdb.hasKey(this).let { it to if (it) getString(R.string.ssa_s3_ok) else null }
+            }
+            m.badge.text = if (done) "✓" else "${m.n}"
+            m.badge.setTextColor(if (done) u.bg else u.accent)
+            m.badge.background = u.shape(if (done) u.tone(Ic.OK) else u.tint, 999)
+            m.note.visibility = if (note != null) View.VISIBLE else View.GONE
+            m.note.text = note ?: ""; m.note.setTextColor(if (done) u.tone(Ic.OK) else u.danger)
+            if (m.n != 3) m.button.visibility = if (done) View.GONE else View.VISIBLE   // step 3's button re-pairs: keep it
+        }
+    }
+
     private fun tick() {
+        stepMarks()
         val pp = SelfSetup.pairingPort; val cp = SelfSetup.connectPort
         portInfo.text = (if (pp > 0) getString(R.string.ssa_pair_seen, pp) else getString(R.string.ssa_pair_none)) + " " +
             (if (cp > 0) getString(R.string.ssa_wd_on, cp) else getString(R.string.ssa_wd_off))

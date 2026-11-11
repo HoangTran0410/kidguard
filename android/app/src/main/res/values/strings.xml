@@ -286,7 +286,11 @@
     <string name="ss_code_6">The code must be 6 digits</string>
     <string name="ssa_title">Set up KidGuard without a computer</string>
     <string name="ssa_old">This phone runs Android %1$s (older than 11), so it can\'t set itself up. Connect a computer and run setup.sh (see the README), or reset the phone and scan the QR code.</string>
-    <string name="ssa_intro">The phone will \"talk\" to itself over Wireless debugging. It needs Wi-Fi, and no accounts signed in on the phone (Google, Samsung, Xiaomi...). Do these 3 steps in order:</string>
+    <string name="ssa_s1_ok">Developer options are on</string>
+    <string name="ssa_s2_ok">Wireless debugging is on</string>
+    <string name="ssa_need_wifi">The phone isn\'t on Wi-Fi: join Wi-Fi, then turn on Wireless debugging (mobile data won\'t work).</string>
+    <string name="ssa_s3_ok">Paired: KidGuard can use adb by itself (hide apps, clean-up). Pair again only if something fails.</string>
+    <string name="ssa_intro">The phone \"talks\" to itself over Wireless debugging (needs Wi-Fi). To become Device Owner it must have no account signed in (Google, Samsung, Xiaomi...); a phone with accounts can still pair so KidGuard hides apps and cleans up by itself. Do the 3 steps in order:</string>
     <string name="ssa_s1">Step 1. Turn on Developer options</string>
     <string name="ssa_s1_d">Open About phone and tap \"Build number\" 7 times.</string>
     <string name="ssa_s1_btn">Open About phone</string>
