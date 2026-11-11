@@ -921,4 +921,5 @@
     <string name="log_pin_reset_cancel">PIN reset request cancelled</string>
     <string name="log_dev_paused">USB debugging / Developer options paused for a banking app</string>
     <string name="log_dev_restored">USB debugging back on as before the banking app</string>
+    <string name="log_bank_list">Banking app list updated: %1$d added, %2$d removed</string>
 </resources>

@@ -1,0 +1,71 @@
+{
+ "v": 1,
+ "about": "KidGuard: apps that refuse accessibility / USB debugging; phones add new entries daily (android BankList.kt)",
+ "apps": [
+  {
+   "pkg": "com.VCB",
+   "name": "Vietcombank"
+  },
+  {
+   "pkg": "com.vnpay.bidv",
+   "name": "BIDV SmartBanking"
+  },
+  {
+   "pkg": "com.vietinbank.ipay",
+   "name": "VietinBank iPay"
+  },
+  {
+   "pkg": "com.vnpay.Agribank3g",
+   "name": "Agribank E-Mobile Banking"
+  },
+  {
+   "pkg": "com.mbmobile",
+   "name": "MB Bank"
+  },
+  {
+   "pkg": "vn.com.techcombank.bb.app",
+   "name": "Techcombank"
+  },
+  {
+   "pkg": "mobile.acb.com.vn",
+   "name": "ACB ONE"
+  },
+  {
+   "pkg": "com.vnpay.vpbankonline",
+   "name": "VPBank NEO"
+  },
+  {
+   "pkg": "com.tpb.mb.gprsandroid",
+   "name": "TPBank Mobile"
+  },
+  {
+   "pkg": "com.sacombank.ewallet",
+   "name": "Sacombank Pay"
+  },
+  {
+   "pkg": "com.vnpay.hdbank",
+   "name": "HDBank"
+  },
+  {
+   "pkg": "vn.shb.mbanking",
+   "name": "SHB"
+  },
+  {
+   "pkg": "com.vib.myvib2",
+   "name": "MyVIB"
+  },
+  {
+   "pkg": "com.mservice.momotransfer",
+   "name": "MoMo"
+  },
+  {
+   "pkg": "vn.com.vng.zalopay",
+   "name": "ZaloPay"
+  },
+  {
+   "pkg": "xyz.be.cake",
+   "name": "Cake by VPBank"
+  }
+ ],
+ "drop": []
+}

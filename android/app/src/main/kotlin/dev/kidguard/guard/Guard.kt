@@ -277,6 +277,7 @@ class Guard : Service() {
         } }
         opt("history") { if (now - store.historyAt > 3_600_000) store.saveHistory(history(now, apps.keys, prot, apps), now) }
         opt("update") { Update.maybe(this, r, now) }
+        opt("bankList") { BankList.maybe(this, now) }
         opt("launcher") { launcherTick(r, now) }
         snap = Snap(r, want, use.ms, leftMs, minute, now, Rules.isoDow(today), apps.keys, prot)
         listeners.forEach { l -> main.post { runCatching { l() } } }

@@ -537,6 +537,14 @@ class Store private constructor(private val app: Context) {
         get() = p.getStringSet("accPaused", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("accPaused", v).commit() }
     /** When the last paused app left the front (0 = one is in front). */
+    /** Bank-app packages any list ever offered ([BankList]); null = never set (use BankListLogic.LEGACY). */
+    @get:Synchronized @set:Synchronized var bankSeen: Set<String>?
+        get() = if (p.contains("bankSeen")) p.getStringSet("bankSeen", emptySet())!!.toSet() else null
+        set(v) { p.edit().putStringSet("bankSeen", v ?: emptySet()).apply() }
+    @get:Synchronized @set:Synchronized var bankListAt: Long
+        get() = p.getLong("bankListAt", 0)
+        set(v) { p.edit().putLong("bankListAt", v).apply() }
+
     /** Debugging switched off for a bank app ([DevOpts.bankPause], DevLogic.mask), 0 = nothing to put back. */
     @get:Synchronized @set:Synchronized var devPaused: Int
         get() = p.getInt("devPaused", 0)

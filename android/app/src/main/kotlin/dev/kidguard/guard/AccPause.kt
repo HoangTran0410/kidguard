@@ -69,6 +69,8 @@ object AccPause {
     @Synchronized fun pause(ctx: Context, pkg: String, stopSelf: Boolean = true): Boolean {
         val s = Store.of(ctx)
         if (pkg !in s.rules.accPause || !able(ctx)) return false
+        // a blocked app never pauses the blocker, whatever list it is on (the list also comes from the website: BankList)
+        if (BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) != null) return false
         val had = s.accPaused
         s.accPaused = had + pkg; s.accLeftAt = 0L
         runCatching { DevOpts.bankPause(ctx) }   // banks also refuse USB / wireless debugging (My MobiFone 50052)

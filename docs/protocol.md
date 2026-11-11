@@ -44,7 +44,7 @@ shape, say so in your report instead of silently diverging.
                                    //      LAN `GET /api/shot/<id>` -> image/jpeg (404 gone); relay: command `shotUp {shot: <id>}` ->
                                    //      the phone posts it on the file channel (fid = id, to = parent, n = 1). Device Owner grants
                                    //      CAMERA; basic mode asks once after a right admin PIN. Not in the Home flavor.
-  "accPause": ["com.VCB", "…"],    // NEW: apps that refuse to run while any accessibility service is on (banks by default; parents add any package). Absent = the phone's
+  "accPause": ["com.VCB", "…"],    // NEW: apps that refuse to run while any accessibility service is on (banks by default; parents add any package). The phone also adds new entries from kid-guard.pages.dev/data/bank-apps.json once a day (never re-adds one the parent removed). Absent = the phone's
                                    //      default list (AccPauseLogic.DEFAULT, ~15 VN banks / wallets); [] = feature off; max 100.
                                    //      Owner mode + WRITE_SECURE_SETTINGS only: when one opens (launcher tap or its window) the
                                    //      phone removes its own accessibility service, and puts it back once none has been in front
