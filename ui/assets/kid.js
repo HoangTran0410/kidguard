@@ -52,7 +52,8 @@ async function refresh1() {
   // redraw the tab only when what it shows changed and nobody is using a control (icons would reload, a select would close)
   const sig = st ? JSON.stringify([tab, st.rules && st.rules.rev, st.apps.map(a => [a.suspended, a.blocked, Math.floor(a.ms / 60000)]),
     st.location && st.location.t, (st.log || []).length, (st.track || []).length, Math.floor(st.usedMs / 60000), lastErr, cachedAt, viewDay,
-    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, st.totpOn, st.unlockUntil, (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(","), (st.preinstalled || []).map(x => (x.hidden ? 1 : 0) + (x.refused ? 2 : 0)).join(""), (st.devices || []).map(d => d.id + d.name).join(","), (st.rules && st.rules.hidden || []).join(",")]) : lastErr + (noState ? "|nostate" : "");
+    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, st.totpOn, st.unlockUntil, (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(","), (st.preinstalled || []).map(x => (x.hidden ? 1 : 0) + (x.refused ? 2 : 0)).join(""), (st.devices || []).map(d => d.id + d.name).join(","), (st.rules && st.rules.hidden || []).join(","),
+    st.sh && [st.sh.busy, st.sh.tcp, st.sh.tcpUp, (st.sh.log || []).map(e => e.at).join(",")], st.support && [st.support.busy, st.support.err, st.support.code, (st.support.msgs || []).length]]) : lastErr + (noState ? "|nostate" : "");
   if (tab === "screen") updateLive();   // never redraw the screen tab: the <img> updates by itself
   else if (sig !== lastSig && !busy) { lastSig = sig; render(); } else updateLive();
   if (tab === "files" && k === cur) fxSync();   // shared folder list + relay upload delivery (its own redraw)

@@ -636,7 +636,7 @@ class Guard : Service() {
         else -> "unknown"
     }
 
-    private fun devOff(): String = also { store.adbTcp = false; store.adbTcpPrev = -1 }.let { DevOpts.off(this) }.also { if (it == "ok") store.log(R.string.log_dev_off) }
+    private fun devOff(): String = also { Shell.tcpOff(this, restore = false) }.let { DevOpts.off(this) }.also { if (it == "ok") store.log(R.string.log_dev_off) }
 
     /** On the Guard thread, loop stopped first so no tick races with it. */
     private fun release(): String {
@@ -648,9 +648,9 @@ class Guard : Service() {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
             Listen.stopAll(); Proj.stop(this); Ring.stop(this); wifiLock(false)
-            runCatching { Shell.tcpOff(this) }
             runCatching { GrayFx.restore(this, store) }.onFailure { Log.w("KidGuard", "grayscale restore", it) }   // the loop puts it back if release fails
             val r = runCatching { Policy.release(this, store) }.getOrElse { Log.w("KidGuard", "release", it); "failed" }
+            if (r == "ok") runCatching { Shell.tcpOff(this) }   // a failed release keeps everything, port 5555 too
             res.set(r)
             // anything but "ok" (e.g. "failed: N app còn bị ẩn") means we are still in charge: keep enforcing
             if (r != "ok") { stopped = false; wifiLock(true); work.post(loopRun); store.log(R.string.log_release_fail, r) }

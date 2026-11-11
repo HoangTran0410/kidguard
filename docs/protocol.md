@@ -159,9 +159,11 @@ v0.9.7:
 - `shClear`: empties `sh.log`. `adbTcp {on, pin}` (gated): on = USB debugging kept on and adbd `tcpip:5555`
   (classic `adb connect <ip>:5555`), re-opened by the Guard tick after a reboot (every 10 min while closed), paused while
   a bank app has debugging off; off (also `devOff` and release) = `usb:` then Developer options / USB debugging back as
-  before. Answers `ok | no adb | blocked`.
+  before; port 5555 survives adbd restarts until a reboot, so a pending `usb:` (`Store.adbTcpReset`) is retried by the tick
+  while 5555 is still served. Answers `ok | no adb | blocked`. Worker: ONCE but not SHORT (an "off" must never be dropped).
+  `support` is ONCE + SHORT too (a leaked link must not replay reports into the 20/day census quota).
 - State `sh` (v0.9.14): `{can, busy, tcp, tcpUp, port, log: [{at, cmd, ms, out | err}]}`, last 8, memory only;
-  `out` ≤ 8000 chars; `err` = `adb` (no answer / timeout) or an `adbWhy` code (`sdk key wss blocked wifi`).
+  `out` ≤ 6000 chars for the newest two, 300 for older ones (state stays < ~14 KB for the relay); `err` = `adb` (no answer / timeout) or an `adbWhy` code (`sdk key wss blocked wifi`).
 
 ### PIN-gated commands (v0.9.13, `guard/CmdGate.kt`)
 `release unpairAll unpair clearData reboot relay tailscaleOff openPairing totpSet tgSet tgCode tgOff pinSet pinResetCancel adbShell adbTcp`

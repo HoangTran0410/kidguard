@@ -14,7 +14,7 @@ import android.util.Log
 object SelfAdb {
     private const val TAG = AdbPortFinder.TAG
     private const val OK_MS = 60_000L        // how long a "ready" answer is trusted
-    private const val NO_MS = 30_000L        // ... a "not ready" answer
+    private const val NO_MS = 300_000L       // ... a "not ready" answer (each probe = an mDNS discovery; ensure() invalidates)
     private const val CMD_TIMEOUT_MS = 25_000L
 
     private val lock = Any()
@@ -62,11 +62,11 @@ object SelfAdb {
     fun why(ctx: Context): String? = when {
         android.os.Build.VERSION.SDK_INT < 30 -> "sdk"
         !hasKey(ctx) -> "key"
-        ready(ctx) -> null
+        canOpen(ctx) -> null   // cheap checks first: no mDNS probe in the normal case
+        ready(ctx) -> null     // Wireless debugging switched on by hand, without WSS / Wi-Fi checks
         !Sys.wss(ctx) -> "wss"
         runCatching { (ctx.getSystemService(Context.USER_SERVICE) as android.os.UserManager).hasUserRestriction(android.os.UserManager.DISALLOW_DEBUGGING_FEATURES) }.getOrDefault(false) -> "blocked"
-        !canOpen(ctx) -> "wifi"
-        else -> null
+        else -> "wifi"
     }
 
     fun canOpen(ctx: Context): Boolean = android.os.Build.VERSION.SDK_INT >= 30 && hasKey(ctx) && Sys.wss(ctx) && runCatching {
@@ -161,8 +161,10 @@ object SelfAdb {
                 val m = manager(ctx)
                 if (!m.isConnected && !connect(ctx)) return@runCatching null
                 val s = m.openStream(dest)
+                val finished = java.util.concurrent.atomic.AtomicBoolean(false)   // never hold [lock] forever (tick, Shell, AutoGrant wait on it)
+                Thread { Thread.sleep(10_000); if (!finished.get()) runCatching { s.close() } }.apply { isDaemon = true }.start()
                 val out = runCatching { s.openInputStream().readBytes().toString(Charsets.UTF_8).trim() }.getOrDefault("")
-                runCatching { s.close() }; out
+                finished.set(true); runCatching { s.close() }; out
             }.onFailure { Log.w(TAG, "self service $dest", it) }.getOrNull().also { runCatching { manager(ctx).disconnect() }; invalidate() }
         }
     }

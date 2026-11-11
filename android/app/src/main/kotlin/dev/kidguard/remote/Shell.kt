@@ -18,7 +18,8 @@ import org.json.JSONObject
  */
 object Shell {
     private const val KEEP = 8
-    private const val MAX_OUT = 8_000
+    private const val MAX_OUT = 6_000      // newest two entries in full
+    private const val OLD_OUT = 300        // older ones: a head only, so state `sh` stays < ~14 KB (relay state size)
     const val PORT = 5555
     private const val RETRY_MS = 10 * 60_000L
 
@@ -59,7 +60,13 @@ object Shell {
     /** State `sh` (docs/protocol.md). */
     fun state(ctx: Context): JSONObject = JSONObject().put("can", can(ctx)).put("busy", busy)
         .put("tcp", Store.of(ctx).adbTcp).put("tcpUp", tcpUp).put("port", PORT)
-        .put("log", JSONArray(synchronized(log) { log.toList() }))
+        .put("log", JSONArray().also { a ->
+            val all = synchronized(log) { log.toList() }
+            all.forEachIndexed { i, e ->
+                val o = e.optString("out", "")
+                a.put(if (i >= all.size - 2 || o.length <= OLD_OUT) e else JSONObject(e.toString()).put("out", o.take(OLD_OUT) + "\n…"))
+            }
+        })
 
     private fun listening(): Boolean = runCatching {
         java.net.Socket().use { it.connect(java.net.InetSocketAddress("127.0.0.1", PORT), 300); true }
@@ -74,20 +81,25 @@ object Shell {
         if (!DevOpts.canOn(ctx)) return "blocked"
         if (s.adbTcpPrev < 0) s.adbTcpPrev = (if (global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED)) 1 else 0) or
             (if (global(ctx, Settings.Global.ADB_ENABLED)) 2 else 0)
-        s.adbTcp = true; lastTry = 0L
+        s.adbTcp = true; s.adbTcpReset = 0L; lastTry = 0L
         tick(ctx, System.currentTimeMillis())
         return "ok"
     }
 
     /** Off: adbd back to USB only (best effort), then Developer options / USB debugging as they were. No blocking work. */
-    fun tcpOff(ctx: Context) {
+    fun tcpOff(ctx: Context, restore: Boolean = true) {
         val s = Store.of(ctx)
         val was = s.adbTcp; val prev = s.adbTcpPrev
         s.adbTcp = false; s.adbTcpPrev = -1; tcpUp = false
         if (!was) return
+        // service.adb.tcp.port outlives adbd restarts until a reboot: until `usb:` went through, any later adbd start
+        // (devOn, a bank-pause resume) would listen on 5555 again. [tick] retries it while adbd runs.
+        s.adbTcpReset = System.currentTimeMillis()
+        if (prev >= 0 && prev and 2 == 0 && s.devPaused and 2 != 0) s.devPaused = s.devPaused and 2.inv()   // bank resume: don't turn USB debugging back on
+        if (!restore) return
         val app = ctx.applicationContext
         Thread({
-            if (listening()) runCatching { SelfAdb.service(app, "usb:") }
+            resetPort(app)
             val cr = app.contentResolver
             if (prev >= 0 && prev and 2 == 0) runCatching { Settings.Global.putInt(cr, Settings.Global.ADB_ENABLED, 0) }
             if (prev >= 0 && prev and 1 == 0) runCatching { Settings.Global.putInt(cr, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) }
@@ -95,17 +107,36 @@ object Shell {
         }, "adb-tcp-off").start()
     }
 
-    /** Guard tick: while `adbTcp` is on (and no bank app has debugging paused), keep port 5555 open. */
+    /** `usb:` if 5555 is still served after we turned it off; done = flag cleared (also by a reboot, which drops the property). */
+    private fun resetPort(app: Context) {
+        val s = Store.of(app)
+        val at = s.adbTcpReset
+        if (at == 0L || s.adbTcp) return
+        if (System.currentTimeMillis() - android.os.SystemClock.elapsedRealtime() > at) { s.adbTcpReset = 0L; return }   // rebooted since
+        if (!listening()) return
+        if (SelfAdb.service(app, "usb:") != null && !listening()) s.adbTcpReset = 0L
+    }
+
+    /** Guard tick: while `adbTcp` is on (and no bank app has debugging paused), keep port 5555 open; after off, close it. */
     fun tick(ctx: Context, now: Long) {
         val s = Store.of(ctx)
-        if (!s.adbTcp || tcpBusy) return
+        if (tcpBusy) return
+        if (!s.adbTcp) {
+            if (s.adbTcpReset != 0L && now - lastTry >= RETRY_MS && listening()) {
+                lastTry = now; tcpBusy = true
+                val app = ctx.applicationContext
+                Thread({ try { resetPort(app) } finally { tcpBusy = false } }, "adb-tcp-reset").start()
+            }
+            return
+        }
         if (s.devApps.isNotEmpty()) { tcpUp = false; return }
+        tcpUp = listening()   // loopback connect, sub-ms: no thread for the common case
+        if (tcpUp || now - lastTry < RETRY_MS || !DevOpts.canOn(ctx)) return
         val app = ctx.applicationContext
         tcpBusy = true
         Thread({
             try {
-                tcpUp = listening()
-                if (!tcpUp && now - lastTry >= RETRY_MS && DevOpts.canOn(app)) {
+                run {
                     lastTry = now
                     if (!global(app, Settings.Global.ADB_ENABLED)) DevOpts.on(app)
                     val r = SelfAdb.service(app, "tcpip:$PORT")
