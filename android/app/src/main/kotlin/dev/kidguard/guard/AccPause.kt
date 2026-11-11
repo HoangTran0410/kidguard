@@ -37,6 +37,7 @@ object AccPauseLogic {
         "com.vib.myvib2",                   // MyVIB
         "com.mservice.momotransfer",        // MoMo
         "vn.com.vng.zalopay",               // ZaloPay
+        "vms.com.vn.mymobifone",            // My MobiFone (refuses USB debugging, error 50052; owner 2026-11-11)
     )
 
     /** Tick step while paused: new "left at" time (0 = a paused app is in front) and whether to turn the service back on. */
@@ -69,7 +70,7 @@ object AccPause {
         if (pkg !in s.rules.accPause || !able(ctx)) return false
         val had = s.accPaused
         s.accPaused = had + pkg; s.accLeftAt = 0L
-        runCatching { DevOpts.bankPause(ctx) }   // banks also refuse USB / wireless debugging (MB Bank 50052)
+        runCatching { DevOpts.bankPause(ctx) }   // banks also refuse USB / wireless debugging (My MobiFone 50052)
         if (had.isEmpty()) {
             runCatching { s.log(R.string.log_acc_paused, label(ctx, pkg)) }
             runCatching { Toasts.show(ctx.applicationContext, ctx.getString(R.string.acc_paused_toast), true) }

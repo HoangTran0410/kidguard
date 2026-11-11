@@ -43,7 +43,7 @@ object DevOpts {
         return (if (ok) "ok" else "failed: " + (err ?: "still off")).also { if (it != "ok") Log.w("KidGuard", "devOn: $it") }
     }
 
-    // ---- bank apps (owner 2026-11-11, MB Bank error 50052 "USB debugging on"): with the accessibility pause
+    // ---- bank apps (owner 2026-11-11, My MobiFone error 50052 "USB debugging on"): with the accessibility pause
     // (AccPause) debugging goes off too, and exactly what was on comes back when the service resumes.
 
     /** Bank is opening: switch debugging off, remember what was on ([DevLogic] mask in Store.devPaused). */
