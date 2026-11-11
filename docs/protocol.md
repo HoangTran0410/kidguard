@@ -44,7 +44,8 @@ shape, say so in your report instead of silently diverging.
                                    //      LAN `GET /api/shot/<id>` -> image/jpeg (404 gone); relay: command `shotUp {shot: <id>}` ->
                                    //      the phone posts it on the file channel (fid = id, to = parent, n = 1). Device Owner grants
                                    //      CAMERA; basic mode asks once after a right admin PIN. Not in the Home flavor.
-  "accPause": ["com.VCB", "…"],    // NEW: apps that refuse to run while any accessibility service is on (banks by default; parents add any package). The phone also adds new entries from kid-guard.pages.dev/data/bank-apps.json once a day (never re-adds one the parent removed). Absent = the phone's
+  "accPause": ["com.VCB", "…"],    // NEW: apps that refuse to run while any accessibility service is on (banks by default; parents add any package). The phone also adds new entries from kid-guard.pages.dev/data/bank-apps.json once a day (never re-adds one the parent removed); that file is `{"v":1,"apps":[{"pkg","name","acc":true,"vpn":false}],"drop":[]}`. Absent = the phone's
+  "vpnPause": ["xyz.be.cake"],    // NEW (v0.9.13): apps that refuse to run with a VPN up: Tailscale DISCONNECT_VPN while used (owner mode also lifts always-on VPN, put back after); independent of accPause. Absent = ["xyz.be.cake"]. Also fed by the website list (apps[].vpn).
                                    //      default list (AccPauseLogic.DEFAULT, ~15 VN banks / wallets); [] = feature off; max 100.
                                    //      Owner mode + WRITE_SECURE_SETTINGS only: when one opens (launcher tap or its window) the
                                    //      phone removes its own accessibility service, and puts it back once none has been in front
@@ -66,6 +67,8 @@ leftMs apps rules location lan relay log`), plus:
   "version": "0.9.4",
   "acc": true,                     // NEW: accessibility service connected (live screen / remote control available)
   "accPaused": [],                 // NEW: packages it is turned off for right now (rules.accPause); non-empty = acc false on purpose
+  "vpnPaused": [],                 // NEW: packages the VPN is off for right now (rules.vpnPause)
+  "vpnStuck": false,               // NEW: a VPN stayed up after the pause (another VPN app, or always-on set in Settings in basic mode)
   "accReEnable": true,             // NEW: the app holds WRITE_SECURE_SETTINGS (can re-enable acc itself)
   "locationOn": true,              // NEW: system location switch
   "dev": {"on": true, "adb": false, "canOff": true},   // v0.9.6: Developer options on; USB or (API 30+) wireless debugging on; app holds WRITE_SECURE_SETTINGS or is Device Owner

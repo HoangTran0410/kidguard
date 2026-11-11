@@ -16,4 +16,5 @@
     <string name="log_acc_resumed">Đã bật lại Trợ năng (đã rời app)</string>
     <string name="log_acc_resumed_blocked">Bật lại Trợ năng sớm: con mở %1$s (đang bị chặn) trong lúc tạm tắt cho app ngân hàng</string>
     <string name="st_acc_paused">Trợ năng tạm tắt: đang dùng app cần tắt Trợ năng</string>
+    <string name="vpn_paused_toast">Tạm tắt VPN cho app này, sẽ bật lại</string>
 </resources>

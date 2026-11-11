@@ -235,20 +235,25 @@ internal fun HomeActivity.launch(a: AppE, from: View) {
     i.sourceBounds = android.graphics.Rect(il[0], il[1], il[0] + icon.width, il[1] + icon.height)
     Recent.note(this, a.pkg)
     if (a.cls.startsWith(Shortcuts.PREFIX)) {
-        if (!Flavor.HOME) runCatching { AccPause.pause(this, a.pkg) }
+        if (!Flavor.HOME) runCatching { AccPause.pause(this, a.pkg); VpnPause.pause(this, a.pkg) }
         val opts = ActivityOptions.makeClipRevealAnimation(from, il[0] - fl[0], il[1] - fl[1], icon.width, icon.height).toBundle()
         if (!Shortcuts.start(this, a.pkg, a.cls.removePrefix(Shortcuts.PREFIX), i.sourceBounds, opts)) Toasts.show(this, R.string.hm_sc_fail)
         return
     }
     // a bank app checks for accessibility services as it starts: ours goes off before it opens (AccPause)
     if (!Flavor.HOME) runCatching { AccPause.pause(this, a.pkg) }
+    // an app that refuses a VPN: the tunnel was just told to close, give it a moment before the app looks (VpnPause)
+    val vpnWait = !Flavor.HOME && runCatching { VpnPause.pause(this, a.pkg) }.getOrDefault(false)
     // The system's zoom: the app's real window grows out of the icon (Oppo, ColorOS 8.1). HyperOS grows it from the screen
     // centre for any third-party home and plays it only when the home window shows the system wallpaper (theme AppHome),
     // else it slides apps in from the side (measured on a Poco, HyperOS 3, same as a third-party iOS launcher). A zoom
     // drawn by us from the icon was tried and dropped: only a blank card (no preview of the app), and work on our thread.
     val opts = ActivityOptions.makeClipRevealAnimation(from, il[0] - fl[0], il[1] - fl[1], icon.width, icon.height).toBundle()
-    runCatching { startActivity(i, opts) }.recoverCatching { packageManager.getLaunchIntentForPackage(a.pkg)?.let { startActivity(it) } ?: error("none") }
-        .onFailure { Toasts.show(this, R.string.hm_open_fail) }
+    val go = {
+        runCatching { startActivity(i, opts) }.recoverCatching { packageManager.getLaunchIntentForPackage(a.pkg)?.let { startActivity(it) } ?: error("none") }
+            .onFailure { Toasts.show(this, R.string.hm_open_fail) }
+    }
+    if (vpnWait) from.postDelayed({ go() }, VpnPause.LAUNCH_DELAY_MS) else go()
 }
 
 internal fun HomeActivity.hhmm(t: Long) = SimpleDateFormat("HH:mm", Locale.ROOT).format(Date(t))

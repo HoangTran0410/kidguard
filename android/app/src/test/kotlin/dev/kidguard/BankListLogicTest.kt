@@ -34,9 +34,24 @@ class BankListLogicTest {
     }
 
     @Test fun parseValidates() {
-        val (apps, drop) = BankListLogic.parse("""{"v":1,"apps":[{"pkg":"com.VCB","name":"VCB"},{"pkg":"bad pkg"},{"pkg":"x"}],"drop":["a.b","!!"]}""")!!
-        assertEquals(setOf("com.VCB"), apps); assertEquals(setOf("a.b"), drop)
+        val l = BankListLogic.parse("""{"v":1,"apps":[{"pkg":"com.VCB","name":"VCB"},{"pkg":"xyz.be.cake","acc":true,"vpn":true},{"pkg":"only.vpn","acc":false,"vpn":true},{"pkg":"bad pkg"},{"pkg":"x"}],"drop":["a.b","!!"]}""")!!
+        assertEquals(setOf("com.VCB", "xyz.be.cake"), l.acc)
+        assertEquals(setOf("xyz.be.cake", "only.vpn"), l.vpn)
+        assertEquals(setOf("a.b"), l.drop)
         assertNull(BankListLogic.parse("not json"))
         assertNull(BankListLogic.parse("""{"apps":[]}"""))
+    }
+
+    @Test fun vpnSnapRoundTrip() {
+        assertEquals("tailscale.x" to true, VpnPauseLogic.unsnap(VpnPauseLogic.snap("tailscale.x", true)))
+        assertEquals("a.b" to false, VpnPauseLogic.unsnap(VpnPauseLogic.snap("a.b", false)))
+        assertEquals("", VpnPauseLogic.snap(null, true))
+        assertNull(VpnPauseLogic.unsnap("")); assertNull(VpnPauseLogic.unsnap("garbage"))
+    }
+
+    @Test fun rulesKeepVpnPause() {
+        val r = Rules.fromJson(Rules(vpnPause = setOf("a.b")).toJson())
+        assertEquals(setOf("a.b"), r.vpnPause)
+        assertEquals(VpnPauseLogic.DEFAULT, Rules.fromJson(org.json.JSONObject("{}")).vpnPause)
     }
 }

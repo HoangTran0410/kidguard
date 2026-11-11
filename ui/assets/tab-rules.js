@@ -336,7 +336,9 @@ function rulesWire(b, r) {
 // for one not installed yet. Picked apps first, then A-Z.
 function bankBox(r) {
   if (!Array.isArray(r.accPause)) return "";
+  const stuck = st.vpnStuck ? `<div class="alert warn" style="margin-top:8px">${ic("triangle-alert")} ${t("bank.vpnStuck")}</div>` : "";
   return `<h4 style="margin:14px 0 4px">${ic("landmark")} ${t("bank.h")}</h4><p class="mute">${t("bank.p")}</p>
+    ${Array.isArray(r.vpnPause) ? `<p class="mute">${t("bank.vpnP")}</p>` : ""}${stuck}
     <details id="bk" style="margin-top:6px"><summary id="bk-n"></summary>
     <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" style="margin-top:8px">
     <div id="bk-list" style="max-height:300px;overflow:auto;margin-top:6px"></div>
@@ -345,17 +347,24 @@ function bankBox(r) {
 }
 function bankBind(r) {
   const list = $("#bk-list"); if (!list) return;
+  const vpnOk = Array.isArray(r.vpnPause);   // older phones: accessibility only
   const fill = () => {
-    const have = new Set(r.accPause), apps = st.apps || [], inst = new Set(apps.map(a => a.pkg));
-    const rows = apps.map(a => ({ pkg: a.pkg, label: a.label, on: have.has(a.pkg) }))
-      .concat(r.accPause.filter(p => !inst.has(p)).map(p => ({ pkg: p, label: p, on: true, gone: true })))
-      .sort((a, b) => (b.on - a.on) || a.label.localeCompare(b.label));
-    $("#bk-n").textContent = t("bank.n", r.accPause.length);
-    list.innerHTML = rows.map(a => `<label class="row" data-q="${esc((a.label + " " + a.pkg).toLowerCase())}"><input type="checkbox" data-bank="${esc(a.pkg)}" ${a.on ? "checked" : ""}>
-      <span class="sp">${esc(a.label)}${a.gone ? ` <span class="mute">· ${t("bank.notInst")}</span>` : ""}</span></label>`).join("");
+    const acc = new Set(r.accPause), vpn = new Set(vpnOk ? r.vpnPause : []), apps = st.apps || [], inst = new Set(apps.map(a => a.pkg));
+    const listed = [...new Set([...acc, ...vpn])];
+    const rows = apps.map(a => ({ pkg: a.pkg, label: a.label }))
+      .concat(listed.filter(p => !inst.has(p)).map(p => ({ pkg: p, label: p, gone: true })))
+      .map(a => ({ ...a, acc: acc.has(a.pkg), vpn: vpn.has(a.pkg) }))
+      .sort((a, b) => ((b.acc || b.vpn) - (a.acc || a.vpn)) || a.label.localeCompare(b.label));
+    const count = () => { $("#bk-n").textContent = t("bank.n", new Set([...r.accPause, ...(vpnOk ? r.vpnPause : [])]).size); };
+    count();
+    const box = (a, k, txt) => `<label class="bkc"><input type="checkbox" data-bank="${esc(a.pkg)}" data-k="${k}" ${a[k] ? "checked" : ""}>${txt}</label>`;
+    list.innerHTML = rows.map(a => `<div class="row bkr" data-q="${esc((a.label + " " + a.pkg).toLowerCase())}">
+      <span class="sp">${esc(a.label)}${a.gone ? ` <span class="mute">· ${t("bank.notInst")}</span>` : ""}</span>
+      ${box(a, "acc", t("bank.acc"))}${vpnOk ? box(a, "vpn", "VPN") : ""}</div>`).join("");
     list.querySelectorAll("[data-bank]").forEach(c => c.onchange = () => {
-      const s = new Set(r.accPause); c.checked ? s.add(c.dataset.bank) : s.delete(c.dataset.bank);
-      r.accPause = [...s]; changed(); $("#bk-n").textContent = t("bank.n", r.accPause.length);
+      const key = c.dataset.k === "vpn" ? "vpnPause" : "accPause";
+      const s = new Set(r[key]); c.checked ? s.add(c.dataset.bank) : s.delete(c.dataset.bank);
+      r[key] = [...s]; changed(); count();
     });
     filt();
   };

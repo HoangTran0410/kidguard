@@ -174,6 +174,7 @@ object Ts {
      */
     fun keep(ctx: Context, s: Store, fg: String?, now: Long) {
         if (Flavor.HOME || s.released || !installed(ctx)) return
+        if (VpnPause.active(ctx)) { downAt = 0L; return }   // turned off on purpose for a bank app (VpnPause)
         if (findIp().isNotEmpty()) {
             if (downAt != 0L && askAt >= downAt) s.log(R.string.ts_log_back)
             downAt = 0L
@@ -211,7 +212,7 @@ object Ts {
         if (since == 0L) since = System.currentTimeMillis()
         // not installed yet (the download failed, or the phone restarted halfway): try again, at most every 5 minutes
         if (!installed(ctx) && Policy.isOwner(ctx) && s.tsKey.isNotEmpty() && System.currentTimeMillis() - lastTry > 5 * 60_000L) { startSetup(ctx, s); return }
-        if (!asserted && Policy.isOwner(ctx) && installed(ctx)) {
+        if (!asserted && Policy.isOwner(ctx) && installed(ctx) && !VpnPause.active(ctx)) {   // not during a bank-app VPN pause
             asserted = true
             Thread({ runCatching { applyPolicy(ctx, s, suspend = null) } }, "ts-assert").start()
             if (state == "off") state = "installing"

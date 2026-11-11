@@ -922,4 +922,6 @@
     <string name="log_dev_paused">USB debugging / Developer options paused for a banking app</string>
     <string name="log_dev_restored">USB debugging back on as before the banking app</string>
     <string name="log_bank_list">Banking app list updated: %1$d added, %2$d removed</string>
+    <string name="log_vpn_paused">VPN paused for %1$s</string>
+    <string name="log_vpn_resumed">VPN back on after the banking app</string>
 </resources>

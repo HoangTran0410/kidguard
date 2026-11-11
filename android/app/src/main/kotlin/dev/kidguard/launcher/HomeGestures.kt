@@ -91,7 +91,7 @@ internal fun HomeActivity.gestRun(g: String) {
             val a = launcherApps()[Gest.app(this, g)]
             if (a == null) { Toasts.show(this, R.string.gest_app_gone); return }
             Recent.note(this, a.pkg)
-            if (!Flavor.HOME) runCatching { AccPause.pause(this, a.pkg) }
+            if (!Flavor.HOME) runCatching { AccPause.pause(this, a.pkg); VpnPause.pause(this, a.pkg) }
             val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(ComponentName(a.pkg, a.cls))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
             runCatching { startActivity(i) }

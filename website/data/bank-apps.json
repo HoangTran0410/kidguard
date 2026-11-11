@@ -1,70 +1,102 @@
 {
  "v": 1,
- "about": "KidGuard: apps that refuse accessibility / USB debugging; phones add new entries daily (android BankList.kt)",
+ "about": "KidGuard: apps that refuse accessibility (acc, also pauses USB debugging) or a VPN (vpn); phones add new entries daily (android BankList.kt)",
  "apps": [
   {
    "pkg": "com.VCB",
-   "name": "Vietcombank"
+   "name": "Vietcombank",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "com.vnpay.bidv",
-   "name": "BIDV SmartBanking"
+   "name": "BIDV SmartBanking",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "com.vietinbank.ipay",
-   "name": "VietinBank iPay"
+   "name": "VietinBank iPay",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "com.vnpay.Agribank3g",
-   "name": "Agribank E-Mobile Banking"
+   "name": "Agribank E-Mobile Banking",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "com.mbmobile",
-   "name": "MB Bank"
+   "name": "MB Bank",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "vn.com.techcombank.bb.app",
-   "name": "Techcombank"
+   "name": "Techcombank",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "mobile.acb.com.vn",
-   "name": "ACB ONE"
+   "name": "ACB ONE",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "com.vnpay.vpbankonline",
-   "name": "VPBank NEO"
+   "name": "VPBank NEO",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "com.tpb.mb.gprsandroid",
-   "name": "TPBank Mobile"
+   "name": "TPBank Mobile",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "com.sacombank.ewallet",
-   "name": "Sacombank Pay"
+   "name": "Sacombank Pay",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "com.vnpay.hdbank",
-   "name": "HDBank"
+   "name": "HDBank",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "vn.shb.mbanking",
-   "name": "SHB"
+   "name": "SHB",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "com.vib.myvib2",
-   "name": "MyVIB"
+   "name": "MyVIB",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "com.mservice.momotransfer",
-   "name": "MoMo"
+   "name": "MoMo",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "vn.com.vng.zalopay",
-   "name": "ZaloPay"
+   "name": "ZaloPay",
+   "acc": true,
+   "vpn": false
   },
   {
    "pkg": "xyz.be.cake",
-   "name": "Cake by VPBank"
+   "name": "Cake by VPBank",
+   "acc": true,
+   "vpn": true
   }
  ],
  "drop": []

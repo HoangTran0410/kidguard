@@ -537,21 +537,42 @@ class Store private constructor(private val app: Context) {
         get() = p.getStringSet("accPaused", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("accPaused", v).commit() }
     /** When the last paused app left the front (0 = one is in front). */
-    /** Bank-app packages any list ever offered ([BankList]); null = never set (use BankListLogic.LEGACY). */
-    @get:Synchronized @set:Synchronized var bankSeen: Set<String>?
-        get() = if (p.contains("bankSeen")) p.getStringSet("bankSeen", emptySet())!!.toSet() else null
-        set(v) { p.edit().putStringSet("bankSeen", v ?: emptySet()).apply() }
-    @get:Synchronized @set:Synchronized var bankListAt: Long
-        get() = p.getLong("bankListAt", 0)
-        set(v) { p.edit().putLong("bankListAt", v).apply() }
-
+    @get:Synchronized @set:Synchronized var accLeftAt: Long
+        get() = p.getLong("accLeftAt", 0L)
+        set(v) { p.edit().putLong("accLeftAt", v).apply() }
     /** Debugging switched off for a bank app ([DevOpts.bankPause], DevLogic.mask), 0 = nothing to put back. */
     @get:Synchronized @set:Synchronized var devPaused: Int
         get() = p.getInt("devPaused", 0)
         set(v) { p.edit().putInt("devPaused", v).commit() }
-    @get:Synchronized @set:Synchronized var accLeftAt: Long
-        get() = p.getLong("accLeftAt", 0L)
-        set(v) { p.edit().putLong("accLeftAt", v).apply() }
+    /** Bank-app packages any website/bundled list ever offered ([BankList]), per pause kind; null = never set. */
+    @get:Synchronized @set:Synchronized var bankSeen: Set<String>?
+        get() = if (p.contains("bankSeen")) p.getStringSet("bankSeen", emptySet())!!.toSet() else null
+        set(v) { p.edit().putStringSet("bankSeen", v ?: emptySet()).apply() }
+    @get:Synchronized @set:Synchronized var vpnSeen: Set<String>?
+        get() = if (p.contains("vpnSeen")) p.getStringSet("vpnSeen", emptySet())!!.toSet() else null
+        set(v) { p.edit().putStringSet("vpnSeen", v ?: emptySet()).apply() }
+    @get:Synchronized @set:Synchronized var bankListAt: Long
+        get() = p.getLong("bankListAt", 0)
+        set(v) { p.edit().putLong("bankListAt", v).apply() }
+    /** Apps the VPN is paused for right now ([VpnPause]); empty = not paused. */
+    @get:Synchronized @set:Synchronized var vpnPaused: Set<String>
+        get() = p.getStringSet("vpnPaused", emptySet())!!.toSet()
+        set(v) { p.edit().putStringSet("vpnPaused", v).commit() }
+    @get:Synchronized @set:Synchronized var vpnLeftAt: Long
+        get() = p.getLong("vpnLeftAt", 0L)
+        set(v) { p.edit().putLong("vpnLeftAt", v).apply() }
+    /** Owner mode: the always-on VPN we took off ("1|pkg" = with lockdown), "" = none. */
+    @get:Synchronized @set:Synchronized var vpnSnap: String
+        get() = p.getString("vpnSnap", "") ?: ""
+        set(v) { p.edit().putString("vpnSnap", v).commit() }
+    /** Tailscale was up and we sent it DISCONNECT_VPN: send CONNECT_VPN on resume. */
+    @get:Synchronized @set:Synchronized var vpnTs: Boolean
+        get() = p.getBoolean("vpnTs", false)
+        set(v) { p.edit().putBoolean("vpnTs", v).commit() }
+    /** A VPN stayed up after the pause (another VPN app, or always-on set in Settings on a basic-mode phone). */
+    @get:Synchronized @set:Synchronized var vpnStuck: Boolean
+        get() = p.getBoolean("vpnStuck", false)
+        set(v) { p.edit().putBoolean("vpnStuck", v).apply() }
     @get:Synchronized @set:Synchronized var loggedNew: Set<String>
         get() = p.getStringSet("loggedNew", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("loggedNew", v).apply() }

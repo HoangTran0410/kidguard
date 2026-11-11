@@ -903,4 +903,6 @@
     <string name="log_dev_paused">Tạm tắt gỡ lỗi USB / Tuỳ chọn nhà phát triển cho app ngân hàng</string>
     <string name="log_dev_restored">Bật lại gỡ lỗi USB như trước khi mở app ngân hàng</string>
     <string name="log_bank_list">Danh sách app ngân hàng cập nhật: thêm %1$d, bỏ %2$d</string>
+    <string name="log_vpn_paused">Tạm tắt VPN cho %1$s</string>
+    <string name="log_vpn_resumed">Bật lại VPN sau app ngân hàng</string>
 </resources>

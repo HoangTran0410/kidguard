@@ -74,6 +74,7 @@ object AccPause {
         val had = s.accPaused
         s.accPaused = had + pkg; s.accLeftAt = 0L
         runCatching { DevOpts.bankPause(ctx) }   // banks also refuse USB / wireless debugging (My MobiFone 50052)
+        runCatching { VpnPause.pause(ctx, pkg) }   // on that list too: the tunnel goes in the same step
         if (had.isEmpty()) {
             runCatching { s.log(R.string.log_acc_paused, label(ctx, pkg)) }
             runCatching { Toasts.show(ctx.applicationContext, ctx.getString(R.string.acc_paused_toast), true) }
@@ -139,12 +140,17 @@ object AccPause {
      */
     fun pauseLate(svc: android.accessibilityservice.AccessibilityService, pkg: String) {
         if (Store.of(svc).rules.accPause.isEmpty()) return
-        runCatching { svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) }
+        runCatching { svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) }   // before the service goes
         val fresh = pause(svc, pkg, stopSelf = false)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ runCatching { svc.disableSelf() } }, 150)
+        if (fresh) relaunch(svc, pkg)
+    }
+
+    /** Kill [pkg]'s process and open it again fresh (its notification intent if it was opened from one). */
+    fun relaunch(svc: android.accessibilityservice.AccessibilityService, pkg: String) {
+        runCatching { svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) }
         val app = svc.applicationContext
         val h = android.os.Handler(android.os.Looper.getMainLooper())
-        h.postDelayed({ runCatching { svc.disableSelf() } }, 150)
-        if (!fresh) return
         h.postDelayed({
             app.getSystemService(android.app.ActivityManager::class.java)?.let { am -> runCatching { am.killBackgroundProcesses(pkg) } }
         }, RELAUNCH_KILL_MS)

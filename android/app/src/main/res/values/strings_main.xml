@@ -16,4 +16,5 @@
     <string name="log_acc_resumed">Accessibility back on (the app was left)</string>
     <string name="log_acc_resumed_blocked">Accessibility back on early: %1$s (blocked) was opened while it was off for a bank app</string>
     <string name="st_acc_paused">Accessibility paused: an app that needs it off is in use</string>
+    <string name="vpn_paused_toast">VPN paused for this app, back later</string>
 </resources>
