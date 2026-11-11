@@ -172,11 +172,11 @@ function ruleSecs(r) {
     ${isBasic() && canFeat("dns") ? `<p class="mute">${ic("info")} ${t("dns.basicWss")}</p>` : ""}
     <div class="${isBasic() ? "gated" : ""}"><label class="row" style="margin-top:8px"><input type="checkbox" id="f-nv" ${r.noVpn ? "checked" : ""}><span class="sp">${ic("shield")} ${t("dns.novpn")}</span></label>
     <p class="mute">${ic("info")} ${t("dns.novpn.tip")}</p></div>${isBasic() ? needOwner(t("no.vpn")) : ""}`),
-    anti: sec("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span class="sp">${ic("package")} ${t("anti.install")}</span></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-ps" ${r.pinShot !== false ? "checked" : ""}><span class="sp">${ic("camera")} ${t("anti.shot")}</span></label>
+    anti: sec("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ps" ${r.pinShot !== false ? "checked" : ""}><span class="sp">${ic("camera")} ${t("anti.shot")}</span></label>
     <p class="mute">${ic("info")} ${t("anti.shotTip")}</p>
-    ${isBasic() ? needOwner() + `<p class="mute">${ic("shield")} ${t("anti.basic")}</p>`
+    <div class="${isBasic() ? "gated" : ""}" style="margin-top:8px"><label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span class="sp">${ic("package")} ${t("anti.install")}</span></label>
+    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label></div>
+    ${isBasic() ? needOwner(t("no.anti")) + `<p class="mute">${ic("shield")} ${t("anti.basic")}</p>`
       : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}${bankBox(r)}`),
   };
 }
@@ -359,7 +359,8 @@ function bankBind(r) {
     });
     filt();
   };
-  const filt = () => { const q = ($("#bk-q").value || "").trim().toLowerCase(); list.querySelectorAll("[data-q]").forEach(l => l.hidden = !!q && !l.dataset.q.includes(q)); };
+  const fold = v => String(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase();   // "ngan hang" finds "Ngân hàng"
+  const filt = () => { const q = fold(($("#bk-q").value || "").trim()); list.querySelectorAll("[data-q]").forEach(l => l.hidden = !!q && !fold(l.dataset.q).includes(q)); };
   $("#bk-q").oninput = filt;
   $("#bk-add").onclick = () => {
     const v = $("#bk-pkg").value.trim(), ok = /^[A-Za-z][\w]*(\.[A-Za-z_][\w]*)+$/.test(v) && v.length <= 200;

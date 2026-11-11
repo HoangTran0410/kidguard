@@ -329,6 +329,7 @@ L.vi = {
   "pin.rstCancelled": "Đã huỷ yêu cầu đặt lại PIN",
   "tip.h": "Giải thích",
   "tip.more": "Xem giải thích",
+  "no.anti": "chặn cài app mới và chặn Tuỳ chọn nhà phát triển / ADB",
   "pin.bad": "PIN 4–8 số",
   "notif.h": "Thông báo", "notif.p": "Thông báo trên máy này (con xin thêm giờ, mất kết nối)",
   "notif.blocked": "Android đang chặn thông báo của KidGuard: bật lại trong Cài đặt > Ứng dụng > KidGuard Parent > Thông báo.",

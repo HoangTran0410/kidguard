@@ -65,7 +65,7 @@ object DevOpts {
         val mask = s.devPaused
         if (mask == 0) return
         s.devPaused = 0
-        if (s.rules.noDebug || blocked(ctx)) return   // the parent forbade debugging while the bank was open: stay off
+        if (blocked(ctx)) return   // debugging got forbidden meanwhile (rule noDebug = DISALLOW_DEBUGGING_FEATURES, owner mode only): stay off
         val can = canWrite(ctx); val owner = Policy.isOwner(ctx)
         for (k in DevLogic.restoreKeys(mask, Build.VERSION.SDK_INT >= 30)) {
             val key = if (k == "adb") Settings.Global.ADB_ENABLED else if (k == "dev") Settings.Global.DEVELOPMENT_SETTINGS_ENABLED else ADB_WIFI

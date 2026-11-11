@@ -69,7 +69,7 @@ const onLan = () => !location.pathname.startsWith("/c/") && !isRelayOrigin;
 let isRelayOrigin = false;
 // v0.7 basic mode: no Device Owner (old phones without mode = owner as before)
 const isBasic = () => !!(st && st.mode && st.mode !== "owner");
-const needOwner = (what = t("no.this")) => `<p class="mute">${ic("lock")} ${t("needOwner", what)}</p>`;
+const needOwner = (what = t("no.this")) => `<p class="mute keep">${ic("lock")} ${t("needOwner", what)}</p>`;
 // Feature gating (state.features / state.caps from phones >= 0.9.8; an older phone has neither = everything counts as available).
 const feat = id => { const f = st && Array.isArray(st.features) && st.features.find(x => x.id === id); return f ? { ok: !!f.ok, missing: f.missing || [] } : { ok: true, missing: [] }; };
 // usable on this phone? Phones with state.features say so (owner OR a capability alternative, e.g. WRITE_SECURE_SETTINGS); older ones: not in basic mode
