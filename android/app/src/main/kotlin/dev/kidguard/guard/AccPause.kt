@@ -37,6 +37,7 @@ object AccPauseLogic {
         "com.vib.myvib2",                   // MyVIB
         "com.mservice.momotransfer",        // MoMo
         "vn.com.vng.zalopay",               // ZaloPay
+        "xyz.be.cake",                      // Cake by VPBank (refuses any accessibility service: "read what you type"; owner 2026-11-11)
         "vms.com.vn.mymobifone",            // My MobiFone (refuses USB debugging, error 50052; owner 2026-11-11)
     )
 
