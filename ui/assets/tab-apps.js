@@ -111,7 +111,9 @@ const canClear = () => !st || !st.android || !(parseInt(st.android, 10) < 9);
 function cleanTab(b) {
   // No Device Owner: the phone hides via its own Wireless-debugging adb and sends state.preinstalled only while that works
   const owner = !isBasic() && st.owner !== false;
-  if (!owner && !st.preinstalled) { b.innerHTML = `<div class="card"><p class="mute">${ic("lock")} ${t("clean.needAdb")}</p></div>`; return; }
+  // basic: adbWhy (sdk / key / wss / blocked / wifi) says what is missing; old phones send none (generic text)
+  const why = !owner && st.adbWhy ? `<p class="mute">${ic("wifi")} ${t("clean.why." + st.adbWhy)}</p>` : "";
+  if (!owner && !st.preinstalled) { b.innerHTML = `<div class="card"><p class="mute">${ic("lock")} ${t(st.adbWhy ? "clean.why." + st.adbWhy : "clean.needAdb")}</p></div>`; return; }
   if (!st.preinstalled) { b.innerHTML = `<div class="card"><p class="mute">${ic("hourglass")} ${t("clean.noList")}</p></div>`; return; }
   const pre = st.preinstalled, saved = new Set(edit.hidden), S = cleanStat();
   const draft = () => hideDraft || saved;
@@ -121,7 +123,7 @@ function cleanTab(b) {
   const row = x => `<label class="app"><input type="checkbox" data-hd="${esc(x.pkg)}" ${draft().has(x.pkg) ? "checked" : ""}><div class="nm"><b>${esc(x.label)}</b><span class="mute">${esc(x.pkg)}${x.mb ? " · " + mbTxt(x.mb) : ""}${x.suggest ? `<span class="tag warn">${t("clean.sug")}</span>` : ""}${TAG[S.of(x)] || ""}</span></div></label>`;
   const pc = v => S.want ? (v / S.want * 100).toFixed(1) + "%" : "0";
   const nSug = pre.filter(x => x.suggest).length;
-  b.innerHTML = `<div class="card"><h2>${ic("sparkles")} ${t("clean.h")}</h2>
+  b.innerHTML = `<div class="card"><h2>${ic("sparkles")} ${t("clean.h")}</h2>${why}
     <p class="mute" style="margin:0">${t("clean.p", "<b>" + pre.filter(x => x.hidden && !x.refused).length + "</b>")}</p>
     ${S.want ? `<div class="prog" role="img" aria-label="${esc(t("hd.sum", S.ok, S.want))}"><i style="width:${pc(S.ok)}"></i><i class="b" style="width:${pc(S.ref)}"></i><i class="w" style="width:${pc(S.wait)}"></i></div>
       <div><b>${t("hd.sum", S.ok, S.want)}</b>${S.ref ? ` · <span class="err">${t("hd.refN", S.ref)}</span>` : ""}${S.wait ? ` · <span class="mute">${t("hd.waitN", S.wait)}</span>` : ""}</div>

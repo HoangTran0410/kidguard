@@ -688,7 +688,9 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
   `setApplicationHidden(true)` on each (skipping the never-hide set) and un-hides what it hid before and is no longer
   listed (it remembers its own set, like suspend; shell path: `pm disable-user --user 0` / `pm enable --user 0`, at most 20 packages per pass, the loop continues next tick). Unknown / not installed entries are kept and ignored.
   **release** un-hides every app KidGuard hid (owner path: `setApplicationHidden(false)`; shell path: `pm enable`, see below).
-- **State** `preinstalled: [{"pkg","label","hidden":bool,"suggest":bool,"mb":int|null}]` (Device Owner, or a working self-adb shell; refreshed at
+- **State** `adbWhy` (basic mode, 0.9.14; absent = the self-adb shell works): why KidGuard's own adb can't run now:
+  `sdk` (< Android 11), `key` (self-setup never done), `wss`, `blocked` (debugging disallowed), `wifi` (not on Wi-Fi).
+- **State** `preinstalled: [{"pkg","label","hidden":bool,"suggest":bool,"mb":int|null}]` (Device Owner, or self-adb set up: `adbWhy` absent / `wifi` / `wss`, changes then wait; refreshed at
   most every 10 min): system apps the parent may hide = system / preinstalled packages with a launcher activity, plus
   any in the suggest list that are installed, plus anything currently hidden. Never lists the never-hide set.
   `suggest` = on the curated bloat list (OEM stores, browsers, music / video, game helpers, ads / analytics, preinstalled

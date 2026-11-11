@@ -54,6 +54,21 @@ object SelfAdb {
     private val closer = android.os.Handler(android.os.Looper.getMainLooper())
 
     /** The window can be opened: paired key, Android 11+, WRITE_SECURE_SETTINGS, no debugging restriction, on Wi-Fi. */
+    /**
+     * Why KidGuard's own adb can't run now (state `adbWhy`, the page says what to do): "sdk" (< Android 11), "key" (never
+     * paired: setup step), "wss" (no WRITE_SECURE_SETTINGS), "blocked" (debugging disallowed), "wifi" (Wireless debugging
+     * needs Wi-Fi), null = it can.
+     */
+    fun why(ctx: Context): String? = when {
+        android.os.Build.VERSION.SDK_INT < 30 -> "sdk"
+        !hasKey(ctx) -> "key"
+        ready(ctx) -> null
+        !Sys.wss(ctx) -> "wss"
+        runCatching { (ctx.getSystemService(Context.USER_SERVICE) as android.os.UserManager).hasUserRestriction(android.os.UserManager.DISALLOW_DEBUGGING_FEATURES) }.getOrDefault(false) -> "blocked"
+        !canOpen(ctx) -> "wifi"
+        else -> null
+    }
+
     fun canOpen(ctx: Context): Boolean = android.os.Build.VERSION.SDK_INT >= 30 && hasKey(ctx) && Sys.wss(ctx) && runCatching {
         !(ctx.getSystemService(Context.USER_SERVICE) as android.os.UserManager).hasUserRestriction(android.os.UserManager.DISALLOW_DEBUGGING_FEATURES) &&
             ctx.getSystemService(android.net.ConnectivityManager::class.java).let { cm ->

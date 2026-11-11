@@ -424,7 +424,14 @@ class Guard : Service() {
             .put("launcher", runCatching { LauncherSafe.state(this, r, HomeFile.styleId(this), HomeFile.pages(this)) }.getOrDefault(JSONObject()))
             .put("notes", runCatching { KidNotes.stateJson(HomeFile.load(this)?.notes) }.getOrDefault(org.json.JSONArray()))   // the kid's notes shared with parents
             .put("sys", Sys.state(this))
-            .also { if (!Policy.isOwner(this)) it.put("basic", Basic.status(this)); if (Policy.isOwner(this) || SelfAdb.ready(this) || SelfAdb.canOpen(this)) it.put("preinstalled", preinstalled(prot, now)) }
+            .also {
+                val owner = Policy.isOwner(this)
+                if (!owner) it.put("basic", Basic.status(this))
+                // basic: the list shows once KidGuard's adb was set up (hides then wait for Wi-Fi); adbWhy says what is missing now
+                val why = if (owner) null else SelfAdb.why(this)
+                if (why != null) it.put("adbWhy", why)
+                if (owner || why == null || why == "wifi" || why == "wss") it.put("preinstalled", preinstalled(prot, now))
+            }
     }
 
     /**
