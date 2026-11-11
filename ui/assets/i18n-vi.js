@@ -327,6 +327,8 @@ L.vi = {
   "pin.rstPending": "Đang chờ đặt lại PIN (quên PIN): PIN mới có hiệu lực lúc {0}. Không phải bạn gửi? Huỷ ngay.",
   "pin.rstCancel": "Huỷ",
   "pin.rstCancelled": "Đã huỷ yêu cầu đặt lại PIN",
+  "tip.h": "Giải thích",
+  "tip.more": "Xem giải thích",
   "pin.bad": "PIN 4–8 số",
   "notif.h": "Thông báo", "notif.p": "Thông báo trên máy này (con xin thêm giờ, mất kết nối)",
   "notif.blocked": "Android đang chặn thông báo của KidGuard: bật lại trong Cài đặt > Ứng dụng > KidGuard Parent > Thông báo.",

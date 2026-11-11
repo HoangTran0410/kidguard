@@ -324,6 +324,8 @@ L.en = {
   "pin.rstPending": "PIN reset pending (forgot PIN): the new PIN takes effect at {0}. Not you? Cancel now.",
   "pin.rstCancel": "Cancel",
   "pin.rstCancelled": "PIN reset cancelled",
+  "tip.h": "Details",
+  "tip.more": "Show details",
   "pin.bad": "PIN must be 4–8 digits",
   "notif.h": "Notifications", "notif.p": "Notifications on this phone (time requests, lost connection)",
   "notif.blocked": "Android is blocking KidGuard's notifications: turn them back on in Settings > Apps > KidGuard Parent > Notifications.",

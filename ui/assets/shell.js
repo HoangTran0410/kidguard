@@ -732,3 +732,47 @@ function appSettings() {
 }
 // from the kid screens: leave the kid, then show the settings on the list's place
 function goAppSettings() { if (cur || ov) goList(); appSettings(); }
+
+// Long help text (owner 2026-11-11: "chữ nhiều quá, giấu vào nút info"): every plain p.mute in the page longer than
+// TIP_MIN chars shows only its first sentence + an ⓘ button; a tap opens the whole text in a sheet (bottom sheet on
+// phones, dialog on desktop) titled after the nearest heading / checkbox. One place for every tab: a MutationObserver
+// on #app. Left alone: lines with an id (code updates them), controls or links inside, and text inside sheets.
+const TIP_MIN = 120, tipFull = new WeakMap();
+function tipShort(s) {
+  const m = s.match(/^(.{20,110}?[.!?])(\s|$)/);
+  if (m && m[1].length < s.length - 10) return m[1];
+  const c = s.slice(0, 90); return c.slice(0, Math.max(c.lastIndexOf(" "), 60)) + "…";
+}
+function tipTitle(p) {
+  const prev = p.previousElementSibling;   // the line right under a checkbox / sub-heading explains that one
+  if (prev && /^(H3|H4|LABEL)$/.test(prev.tagName) && prev.textContent.trim()) return prev.textContent.trim().slice(0, 90);
+  for (let e = p; e && e.id !== "app"; e = e.parentElement) {
+    if (e.classList && e.classList.contains("cl")) { const b = e.querySelector(".clr b"); if (b) return b.textContent.trim(); }
+    if (e.classList && e.classList.contains("card")) { const h = e.querySelector("h2, h3"); if (h && h.textContent.trim()) return h.textContent.trim().slice(0, 90); }
+  }
+  return t("tip.h");
+}
+function tipScan(root) {
+  root.querySelectorAll("p.mute:not([data-tip]):not([id])").forEach(p => {
+    p.dataset.tip = "";
+    if (p.closest("#askPop, .dp") || p.querySelector("button, input, select, textarea, a, details")) return;
+    const txt = p.textContent.replace(/\s+/g, " ").trim();
+    if (txt.length <= TIP_MIN) return;
+    tipFull.set(p, p.innerHTML);
+    const f = p.firstElementChild, lead = f && f.tagName.toLowerCase() === "svg" && p.firstChild === f ? f.outerHTML + " " : "";   // keep the line's own icon
+    p.innerHTML = `${lead}${esc(tipShort(txt))} <button type="button" class="tipb" aria-label="${esc(t("tip.more"))}">${ic("info")}</button>`;
+    p.classList.add("tipc");
+  });
+}
+// range fill: the track left of the thumb in the accent colour (style.css --p); WebKit has no ::range-progress
+const rangeFill = r => { const lo = +r.min || 0, hi = r.max === "" ? 100 : +r.max; r.style.setProperty("--p", (hi > lo ? (r.value - lo) / (hi - lo) * 100 : 0) + "%"); };
+document.addEventListener("input", e => { if (e.target.type === "range") rangeFill(e.target); });
+let tipQ = false;
+const tipObs = new MutationObserver(() => { if (tipQ) return; tipQ = true; requestAnimationFrame(() => { tipQ = false; const a = $("#app"); if (a) tipScan(a); document.querySelectorAll("input[type=range]").forEach(rangeFill); }); });
+tipObs.observe(document.body, { childList: true, subtree: true });   // body: sheets (#askPop) have sliders too
+if ($("#app")) tipScan($("#app"));
+document.addEventListener("click", e => {
+  const p = e.target.closest && e.target.closest("p.tipc"); if (!p || !tipFull.has(p)) return;
+  e.preventDefault();
+  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("info", esc(tipTitle(p)))}<div class="tipx">${tipFull.get(p)}</div></div>`);
+});
