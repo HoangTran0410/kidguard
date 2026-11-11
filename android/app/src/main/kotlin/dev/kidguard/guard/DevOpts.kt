@@ -43,6 +43,38 @@ object DevOpts {
         return (if (ok) "ok" else "failed: " + (err ?: "still off")).also { if (it != "ok") Log.w("KidGuard", "devOn: $it") }
     }
 
+    // ---- bank apps (owner 2026-11-11, MB Bank error 50052 "USB debugging on"): with the accessibility pause
+    // (AccPause) debugging goes off too, and exactly what was on comes back when the service resumes.
+
+    /** Bank is opening: switch debugging off, remember what was on ([DevLogic] mask in Store.devPaused). */
+    fun bankPause(ctx: Context) {
+        val s = Store.of(ctx)
+        if (s.devPaused != 0 || !canOff(ctx)) return
+        val mask = DevLogic.mask(global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED), global(ctx, Settings.Global.ADB_ENABLED),
+            Build.VERSION.SDK_INT >= 30 && global(ctx, ADB_WIFI))
+        if (mask == 0) return
+        s.devPaused = mask
+        val r = off(ctx)
+        runCatching { s.log(R.string.log_dev_paused) }
+        if (r != "ok") Log.w("KidGuard", "bank devOff: $r")
+    }
+
+    /** The pause ended (or release): put back what [bankPause] turned off, unless debugging got forbidden meanwhile. */
+    fun bankResume(ctx: Context) {
+        val s = Store.of(ctx)
+        val mask = s.devPaused
+        if (mask == 0) return
+        s.devPaused = 0
+        if (s.rules.noDebug || blocked(ctx)) return   // the parent forbade debugging while the bank was open: stay off
+        val can = canWrite(ctx); val owner = Policy.isOwner(ctx)
+        for (k in DevLogic.restoreKeys(mask, Build.VERSION.SDK_INT >= 30)) {
+            val key = if (k == "adb") Settings.Global.ADB_ENABLED else if (k == "dev") Settings.Global.DEVELOPMENT_SETTINGS_ENABLED else ADB_WIFI
+            val ok = can && runCatching { Settings.Global.putInt(ctx.contentResolver, key, 1) }.getOrDefault(false)
+            if (!ok && owner && k == "adb") runCatching { Policy.dpm(ctx).setGlobalSetting(Policy.admin(ctx), key, "1") }
+        }
+        runCatching { s.log(R.string.log_dev_restored) }
+    }
+
     /** Wireless debugging, USB debugging, then Developer options itself. Returns "ok", "not allowed" or "failed: ...". */
     fun off(ctx: Context): String {
         val can = canWrite(ctx); val owner = Policy.isOwner(ctx)
@@ -62,6 +94,14 @@ object DevOpts {
 
 /** Pure part of [DevOpts] (unit-tested). */
 object DevLogic {
+    /** What was on before a bank pause: bit 1 Developer options, 2 USB debugging, 4 wireless debugging. */
+    fun mask(dev: Boolean, adb: Boolean, wifi: Boolean): Int = (if (dev) 1 else 0) or (if (adb) 2 else 0) or (if (wifi) 4 else 0)
+
+    /** Settings to switch back on, in order (Developer options first: debugging needs it). */
+    fun restoreKeys(mask: Int, api30: Boolean): List<String> = buildList {
+        if (mask and 1 != 0) add("dev"); if (mask and 2 != 0) add("adb"); if (api30 && mask and 4 != 0) add("wifi")
+    }
+
     fun verdict(canOff: Boolean, stillOn: Boolean, err: String?): String = when {
         !canOff -> "not allowed"
         !stillOn -> "ok"

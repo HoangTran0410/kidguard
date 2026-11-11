@@ -69,6 +69,7 @@ object AccPause {
         if (pkg !in s.rules.accPause || !able(ctx)) return false
         val had = s.accPaused
         s.accPaused = had + pkg; s.accLeftAt = 0L
+        runCatching { DevOpts.bankPause(ctx) }   // banks also refuse USB / wireless debugging (MB Bank 50052)
         if (had.isEmpty()) {
             runCatching { s.log(R.string.log_acc_paused, label(ctx, pkg)) }
             runCatching { Toasts.show(ctx.applicationContext, ctx.getString(R.string.acc_paused_toast), true) }
@@ -188,10 +189,11 @@ object AccPause {
         watchStop()
         runCatching { s.log(R.string.log_acc_resumed) }
         Acc.ensureEnabled(ctx, quiet = true)
+        runCatching { DevOpts.bankResume(ctx) }
     }
 
     /** Release: forget the pause (Acc's own release takes the service out anyway). */
-    fun clear(ctx: Context) { val s = Store.of(ctx); s.accPaused = emptySet(); s.accLeftAt = 0L }
+    fun clear(ctx: Context) { val s = Store.of(ctx); s.accPaused = emptySet(); s.accLeftAt = 0L; runCatching { DevOpts.bankResume(ctx) } }
 
     private fun label(ctx: Context, pkg: String) = runCatching {
         val pm = ctx.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()

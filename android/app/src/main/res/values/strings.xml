@@ -919,4 +919,6 @@
     <string name="ev_pin_reset_done">Parent PIN was reset (forgot-PIN request from 24 hours ago)</string>
     <string name="log_pin_changed">Parent PIN changed</string>
     <string name="log_pin_reset_cancel">PIN reset request cancelled</string>
+    <string name="log_dev_paused">USB debugging / Developer options paused for a banking app</string>
+    <string name="log_dev_restored">USB debugging back on as before the banking app</string>
 </resources>

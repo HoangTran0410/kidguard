@@ -537,6 +537,10 @@ class Store private constructor(private val app: Context) {
         get() = p.getStringSet("accPaused", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("accPaused", v).commit() }
     /** When the last paused app left the front (0 = one is in front). */
+    /** Debugging switched off for a bank app ([DevOpts.bankPause], DevLogic.mask), 0 = nothing to put back. */
+    @get:Synchronized @set:Synchronized var devPaused: Int
+        get() = p.getInt("devPaused", 0)
+        set(v) { p.edit().putInt("devPaused", v).commit() }
     @get:Synchronized @set:Synchronized var accLeftAt: Long
         get() = p.getLong("accLeftAt", 0L)
         set(v) { p.edit().putLong("accLeftAt", v).apply() }
