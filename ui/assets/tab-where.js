@@ -44,6 +44,24 @@ function stopsOf(pts) {
   if (c) out.push(c);
   return out.filter(s => s.n >= 2 && s.end - s.start >= 5 * 60000);
 }
+// Journey (owner 2026-11-11: "rời nhà lúc hh:mm, tới trường lúc hh:mm"): each stop with its arrive / leave time, the trip
+// between two stops (time, km) in between. Names: the parent's zones, else the day's first spot, else "a stop".
+// "Left at" = the stop's last point: the phone stores the last same-spot fix right before the first moved one (Store.addTrack).
+function journey(pts, sp, home, isToday) {
+  if (!sp.length) return `<div class="mute">${t("where.noStops")}</div>`;
+  const lastT = pts[pts.length - 1][0], km = (a, b) => { let d = 0; for (let i = 1; i < pts.length; i++) if (pts[i][0] > a && pts[i][0] <= b) d += hav(pts[i - 1][1], pts[i - 1][2], pts[i][1], pts[i][2]); return d / 1000; };
+  const kmS = v => v.toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return `<div class="jr">` + sp.map((s, i) => {
+    const z = scrZone(s.lat, s.lon), atHome = !z && home && hav(home[1], home[2], s.lat, s.lon) < 150;
+    const name = z || (atHome ? t("jr.start") : t("jr.place")), first = i === 0 && pts[0][0] >= s.start, here = s.end >= lastT;
+    const arr = first ? "" : `<span class="tag">${ic("log-in")} ${t("jr.arr", hhmm(s.start))}</span>`;
+    const lv = here ? `<span class="tag on">${isToday ? t("jr.here") : t("jr.endDay")}</span>` : `<span class="tag">${ic("log-out")} ${t("jr.lv", hhmm(s.end))}</span>`;
+    const nx = sp[i + 1], trip = !here && nx ? `<button type="button" class="jrt stb" data-stt="${s.end}" aria-label="${esc(t("tl.go", hhmm(s.end)))}">${ic("footprints")} ${t("jr.trip", fmt(nx.start - s.end), kmS(km(s.end, nx.start)))}</button>` : "";
+    return `<div class="jrs"><span class="jri">${z || !atHome ? ic("map-pin") : ic("house")}</span><div class="sp" style="min-width:0">
+      <button type="button" class="stb" data-stt="${s.start}" aria-label="${esc(t("tl.go", hhmm(s.start)))}"><b>${esc(name)}</b> <span class="mute">· ${fmt(s.end - s.start)}</span></button>
+      <div class="jrm">${arr}${lv}</div></div><a class="btn rb" style="width:40px;height:40px;min-height:40px" href="https://www.google.com/maps?q=${+s.lat},${+s.lon}" target="_blank" rel="noopener" aria-label="Google Maps" title="Google Maps">${ic("map")}</a></div>${trip}`;
+  }).join("") + `</div>` + (sp.some(s => scrZone(s.lat, s.lon)) ? "" : `<p class="mute" style="margin:8px 0 0">${ic("lightbulb")} ${t("jr.tip")}</p>`);
+}
 function fitView(pts, w, h) {
   const xs = pts.map(p => wx(p[2])), ys = pts.map(p => wy(p[1])), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
   let z = 17; while (z > 2 && ((x1 - x0) * 256 * 2 ** z > w - 70 || (y1 - y0) * 256 * 2 ** z > h - 70)) z--;
@@ -250,8 +268,7 @@ function whereTab(b) {
     <div class="row" style="margin-top:12px;flex-wrap:nowrap"><div class="sp" style="min-width:0">${l ? `<b>${ic("pin")} ${t("where.lastH")}</b><div class="mute">${ic("clock")} ${ago(l.t)} · ${t("acc", "~" + Math.round(l.acc))}</div>` : `<span class="mute">${t("where.noLoc")}</span>`}</div>
       ${l ? `<a class="btn rb" href="https://www.google.com/maps?q=${+l.lat},${+l.lng}" target="_blank" rel="noopener" aria-label="${esc(t("where.gmaps"))}" title="${esc(t("where.gmaps"))}">${ic("external-link")}</a>` : ""}</div>
     <button id="loc2" class="pri act" style="width:100%;margin-top:12px;height:52px">${ic("map-pin")} ${t("where.locNew")}</button><p class="mute" style="margin-bottom:0">${ic("refresh-cw")} ${t("where.auto")}</p></div></div>
-  <div>${pts.length ? `<div class="card"><h2>${ic("pause")} ${t("where.stops")}</h2>
-      ${sp.map(s => { const z = scrZone(s.lat, s.lon); return `<div class="row" style="padding:2px 0;flex-wrap:nowrap"><button type="button" class="stb" data-stt="${s.start}" aria-label="${esc(t("tl.go", hhmm(s.start)))}">${z || !home || hav(home[1], home[2], s.lat, s.lon) >= 150 ? ic("map-pin") : ic("house")} <span class="sp"><b>${hhmm(s.start)}–${hhmm(s.end)}</b> · ${fmt(s.end - s.start)}${z ? ` · ${esc(z)}` : ""}</span></button><a class="btn rb" style="width:40px;height:40px;min-height:40px" href="https://www.google.com/maps?q=${+s.lat},${+s.lon}" target="_blank" rel="noopener" aria-label="Google Maps" title="Google Maps">${ic("map")}</a></div>`; }).join("") || `<div class="mute">${t("where.noStops")}</div>`}</div>` : ""}
+  <div>${pts.length ? `<div class="card"><h2>${ic("route")} ${t("jr.h")}</h2>${journey(pts, sp, home, isToday)}</div>` : ""}
     ${S ? `<div id="rsx">${S.zone}${S.trk}</div>` : ""}</div></div>`;
   $("#loc2").onclick = () => act("loc2", () => cmd({ type: "locate" }, t("where.locating"), false), askOf("locate"));
   actPaint();

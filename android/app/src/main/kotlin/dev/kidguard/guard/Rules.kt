@@ -160,7 +160,7 @@ data class Rules(
     val vpnPause: Set<String> = VpnPauseLogic.DEFAULT,   // apps that refuse to run with a VPN up: Tailscale off while they are used (VpnPause)
     val accPause: Set<String> = AccPauseLogic.DEFAULT,
     val devPause: Set<String> = DevPauseLogic.DEFAULT,   // apps that refuse USB / wireless debugging: Developer options off while used (DevOpts.pause)   // bank apps: our accessibility service is off while they are used (AccPause)
-    val trackMin: Int = 10,                  // location history every N minutes: 0 (off), 5, 10, 15, 30, 60
+    val trackMin: Int = 5,                   // location history every N minutes: 0 (off), 1, 5, 10, 15, 30, 60 (default 5 since 0.9.14, was 10)
     val showWatching: Boolean = true,        // child sees "parent is watching / controlling" while the screen is viewed
     val autoUpdate: Boolean = true,          // daily check of GitHub releases; owner installs silently, basic asks the child
     val chores: List<Chore> = emptyList(),   // max 20
@@ -297,13 +297,13 @@ data class Rules(
                 vpnPause = if (o.has("vpnPause")) o.optJSONArray("vpnPause").strings().take(100).toSet() else VpnPauseLogic.DEFAULT,
                 accPause = if (o.has("accPause")) o.optJSONArray("accPause").strings().take(100).toSet() else AccPauseLogic.DEFAULT,
                 devPause = if (o.has("devPause")) o.optJSONArray("devPause").strings().take(100).toSet() else DevPauseLogic.DEFAULT,
-                trackMin = o.optInt("trackMin", 10).takeIf { it in TRACK_STEPS } ?: 10,
+                trackMin = o.optInt("trackMin", 5).takeIf { it in TRACK_STEPS } ?: 5,
                 safeDnsPauseUntil = o.optLong("safeDnsPauseUntil", 0).coerceAtLeast(0),
                 safeDns = o.optString("safeDns", "").trim().lowercase().takeIf { it.matches(DNS_HOST) } ?: "",
             )
         }
 
-        val TRACK_STEPS = setOf(0, 5, 10, 15, 30, 60)
+        val TRACK_STEPS = setOf(0, 1, 5, 10, 15, 30, 60)
         val UNLOCK_STEPS = setOf(15, 30, 60, 120)
         private val DNS_HOST = Regex("[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?")
 
@@ -400,7 +400,8 @@ object Track {
     const val MIN_MOVE_M = 30.0
     const val MAX_GAP_MS = 60 * 60_000L
     const val KEEP_MS = 7 * 24 * 3_600_000L
-    const val MAX_POINTS = 2100              // 7 days at the 5-min step = 2016
+    const val MAX_POINTS = 3000              // 7 days: still = 1 point / 10 min (1008), moving at the 1-min step ~2 h a day (840)
+    const val STILL_GAP_MS = 10 * 60_000L    // same spot: one point per 10 min whatever the step (owner 2026-11-11: 1-min step)
 
     /** Metres between two points (haversine). */
     fun meters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
@@ -410,12 +411,26 @@ object Track {
         return 2 * r * Math.asin(Math.sqrt(a))
     }
 
-    /** Same-spot points are kept once per interval (minus slack for a late tick), so the parent's timeline has no hour-long holes. */
-    fun gapFor(everyMin: Int): Long = (everyMin * 60_000L - 90_000L).coerceIn(60_000L, MAX_GAP_MS)
+    /**
+     * Same-spot points are kept once per interval (minus slack for a late tick), at least [STILL_GAP_MS] apart, so a
+     * child sitting at school on the 1-min step does not add 60 points an hour; leaving is still exact (Store.addTrack
+     * keeps the last unstored same-spot fix and stores it just before the first moved point).
+     */
+    fun gapFor(everyMin: Int): Long = (everyMin * 60_000L - 90_000L).coerceIn(STILL_GAP_MS, MAX_GAP_MS)
 
-    /** Store a new point? Yes when there is none yet, it moved >= 30 m from the last stored one, or >= [gapMs] passed. */
-    fun shouldStore(lastT: Long?, lastLat: Double, lastLon: Double, t: Long, lat: Double, lon: Double, gapMs: Long = MAX_GAP_MS): Boolean =
-        lastT == null || t - lastT >= gapMs || meters(lastLat, lastLon, lat, lon) >= MIN_MOVE_M
+    const val BAD_ACC_M = 150                // a cell-tower fix: never counts as moving, only fills a gap
+
+    /**
+     * Moved, not GPS jitter (owner 2026-11-11: indoors a still phone wanders 20-60 m): the distance beats both fixes'
+     * accuracy radius and [MIN_MOVE_M]. Accuracy 0 = unknown (old points) = no extra margin.
+     */
+    fun moved(lastLat: Double, lastLon: Double, lastAcc: Int, lat: Double, lon: Double, acc: Int): Boolean =
+        acc in 0..BAD_ACC_M && meters(lastLat, lastLon, lat, lon) >= maxOf(MIN_MOVE_M, maxOf(lastAcc, acc).toDouble())
+
+    /** Store a new point? Yes when there is none yet, it [moved] from the last stored one, or >= [gapMs] passed. */
+    fun shouldStore(lastT: Long?, lastLat: Double, lastLon: Double, t: Long, lat: Double, lon: Double, gapMs: Long = MAX_GAP_MS,
+                    lastAcc: Int = 0, acc: Int = 0): Boolean =
+        lastT == null || t - lastT >= gapMs || moved(lastLat, lastLon, lastAcc, lat, lon, acc)
 }
 
 /** Pure guards for the LAN server and the PIN / pairing brute-force limits (unit tested). */

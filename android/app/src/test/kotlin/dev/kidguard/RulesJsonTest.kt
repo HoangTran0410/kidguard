@@ -51,7 +51,7 @@ class RulesJsonTest {
 
     @Test fun badValuesFallBackToDefaults() {
         val r = Rules.fromJson(JSONObject("""{"dailyMin":99999,"trackMin":7,"safeDns":"bad host!","bedtime":{"start":"25:99"}}"""))
-        assertEquals(24 * 60, r.dailyMin); assertEquals(10, r.trackMin); assertEquals("", r.safeDns); assertEquals("21:30", r.bedStart)
+        assertEquals(24 * 60, r.dailyMin); assertEquals(5, r.trackMin); assertEquals("", r.safeDns); assertEquals("21:30", r.bedStart)
     }
 
     @Test fun badChoresAndZonesAreDropped() {

@@ -399,10 +399,12 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
 - **HTML pages** (worker `/`, `/install`, phone LAN `/`) send `X-Frame-Options: DENY` and a CSP with `frame-ancestors 'none'`.
 
 ## Location history (v0.2.1)
-- Rules: `"trackMin": 10` (0 = no history points, allowed 0/5/10/15/30/60; default 10). Independently the Guard refreshes `state.location` (last fix, zone in/out events) every 15 min, also with `trackMin=0`.
+- Rules: `"trackMin": 5` (0 = no history points, allowed 0/1/5/10/15/30/60; default 5 since 0.9.14, was 10; a phone before 0.9.14 turns 1 into its default). Independently the Guard refreshes `state.location` (last fix, zone in/out events) every 15 min, also with `trackMin=0`.
 - Phone (Guard): every `trackMin` minutes takes one fix (getCurrentLocation API 30+, else requestSingleUpdate,
-  timeout 30 s, else lastKnown if < 2× trackMin old). Store a point only if moved ≥ 30 m from the last stored point OR
-  ≥ 60 min since the last stored point. Keep 7 days, max 2000 points (drop oldest). Point = `[t, lat, lon, acc]`
+  timeout 30 s, else lastKnown if < 2× trackMin old). Store a point only if it MOVED from the last stored point (distance ≥ max(30 m, the larger accuracy of the two
+  fixes); a fix worse than ±150 m never counts as moving) OR the same-spot gap passed (max(trackMin − 1.5 min, 10 min), cap 60 min).
+  Leaving: the newest unstored same-spot fix (memory) is stored right before the first moved point, so a stop's last point = the leave time.
+  Page "Hành trình": stops (100 m cluster, ≥ 5 min) named by zone, with arrive = first point, leave = last point, trip time + km between. Keep 7 days, max 3000 points (drop oldest). Point = `[t, lat, lon, acc]`
   (t ms, lat/lon 5 decimals, acc m int). Permissions: manifest declares ACCESS_BACKGROUND_LOCATION; as Device Owner
   call `setPermissionGrantState(GRANTED)` for FINE/COARSE/BACKGROUND location.
 - State: `"track": [[t,lat,lon,acc], …]` = points since local midnight of YESTERDAY (keeps state small).

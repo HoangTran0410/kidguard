@@ -458,13 +458,21 @@ class Store private constructor(private val app: Context) {
     @Synchronized private fun trackAll(): JSONArray = runCatching { JSONArray(p.getString("track", "[]")) }.getOrDefault(JSONArray())
 
     /** Adds a point if [Track.shouldStore]; keeps 7 days and at most 2000 points. Returns true if stored. */
+    @Volatile private var stillFix: JSONArray? = null   // newest same-spot fix not stored (memory only)
     @Synchronized fun addTrack(t: Long, lat: Double, lon: Double, acc: Int, gapMs: Long = Track.MAX_GAP_MS): Boolean {
         val a = trackAll()
         val last = if (a.length() > 0) a.optJSONArray(a.length() - 1) else null
-        if (!Track.shouldStore(last?.optLong(0), last?.optDouble(1) ?: 0.0, last?.optDouble(2) ?: 0.0, t, lat, lon, gapMs)) return false
+        if (!Track.shouldStore(last?.optLong(0), last?.optDouble(1) ?: 0.0, last?.optDouble(2) ?: 0.0, t, lat, lon, gapMs, last?.optInt(3) ?: 0, acc)) {
+            if (acc > Track.BAD_ACC_M) return false   // a vague fix is no "still here" either
+            stillFix = JSONArray().put(t).put(Math.round(lat * 1e5) / 1e5).put(Math.round(lon * 1e5) / 1e5).put(acc); return false
+        }
+        // moved away: first the last fix still at the old spot, so the page's "left at" is that time, not up to 10 min early
+        val still = stillFix?.takeIf { last != null && it.optLong(0) > last.optLong(0) && Track.moved(last.optDouble(1), last.optDouble(2), last.optInt(3), lat, lon, acc) }
+        stillFix = null
         val keep = JSONArray()
-        val from = maxOf(0, a.length() - (Track.MAX_POINTS - 1))
+        val from = maxOf(0, a.length() - (Track.MAX_POINTS - 2))
         for (i in from until a.length()) { val q = a.optJSONArray(i) ?: continue; if (t - q.optLong(0) <= Track.KEEP_MS) keep.put(q) }
+        if (still != null) keep.put(still)
         keep.put(JSONArray().put(t).put(Math.round(lat * 1e5) / 1e5).put(Math.round(lon * 1e5) / 1e5).put(acc))
         p.edit().putString("track", keep.toString()).apply()
         return true

@@ -38,10 +38,11 @@ class PinTrackTest {
     }
 
     @Test fun trackMin() {
-        assertEquals(10, Rules.fromJson(JSONObject("{}")).trackMin)
+        assertEquals(5, Rules.fromJson(JSONObject("{}")).trackMin)
         assertEquals(0, Rules.fromJson(JSONObject("""{"trackMin":0}""")).trackMin)
         assertEquals(30, Rules.fromJson(JSONObject("""{"trackMin":30}""")).trackMin)
-        assertEquals(10, Rules.fromJson(JSONObject("""{"trackMin":7}""")).trackMin)
+        assertEquals(1, Rules.fromJson(JSONObject("""{"trackMin":1}""")).trackMin)
+        assertEquals(5, Rules.fromJson(JSONObject("""{"trackMin":7}""")).trackMin)
     }
 
     @Test fun trackFilter() {
@@ -52,7 +53,10 @@ class PinTrackTest {
         assertTrue(Track.shouldStore(t, 10.0, 106.0, t + 3_600_000, 10.0, 106.0))        // 60 min, same spot
         assertTrue(Track.shouldStore(t, 10.0, 106.0, t + 600_000, 10.0, 106.0, Track.gapFor(10)))    // 10-min step, same spot: kept
         assertFalse(Track.shouldStore(t, 10.0, 106.0, t + 240_000, 10.0, 106.0, Track.gapFor(10)))   // a quicker re-fix: not kept
-        assertEquals(3_510_000L, Track.gapFor(60)); assertEquals(210_000L, Track.gapFor(5))
+        assertEquals(3_510_000L, Track.gapFor(60)); assertEquals(600_000L, Track.gapFor(5)); assertEquals(600_000L, Track.gapFor(1))   // still: >= 10 min apart
+        // GPS jitter: 45 m apart with ±50 m fixes is not a move; 80 m is; a ±300 m tower fix never is
+        assertFalse(Track.moved(10.0, 106.0, 50, 10.0004, 106.0, 20)); assertTrue(Track.moved(10.0, 106.0, 50, 10.00072, 106.0, 20))
+        assertFalse(Track.moved(10.0, 106.0, 10, 10.01, 106.0, 300)); assertTrue(Track.moved(10.0, 106.0, 0, 10.0003, 106.0, 0))
         assertEquals(111_195.0, Track.meters(10.0, 106.0, 11.0, 106.0), 200.0)
     }
 }
