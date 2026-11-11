@@ -91,8 +91,15 @@ class AdminActivity : Activity() {
         w.webViewClient = object : WebViewClient() {
             override fun onPageCommitVisible(v: WebView, url: String) { if (url.startsWith(ParentSession.ORIGIN)) ui.postDelayed({ ready("visible") }, 120) }
             override fun onPageFinished(v: WebView, url: String) { if (url.startsWith(ParentSession.ORIGIN)) ready("finished") }
-            // only our own page: any other navigation (links to GitHub, the relay, …) is dropped
-            override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest) = !ours(r.url)
+            // only our own page loads here. A link the parent TAPPED (Open @BotFather, GitHub, the guide) opens in its app /
+            // the browser (owner 2026-11-11: the BotFather button did nothing); leaving ends the session (onStop), as by design.
+            override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest): Boolean {
+                if (ours(r.url)) return false
+                if (r.url.scheme == "https" && r.hasGesture()) runCatching {
+                    startActivity(Intent(Intent.ACTION_VIEW, r.url).addCategory(Intent.CATEGORY_BROWSABLE))
+                }
+                return true
+            }
             override fun shouldInterceptRequest(v: WebView, r: WebResourceRequest): WebResourceResponse? =
                 if (ours(r.url) || (r.url.scheme == "https" && r.url.host in TILE_HOSTS)) null
                 else WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), "".byteInputStream())

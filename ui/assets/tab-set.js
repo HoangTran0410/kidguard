@@ -6,7 +6,10 @@ const kidFlag = (k, n, v) => { const key = "kg." + n + "." + (k.id || k.target |
 const tsKeepRow = () => edit ? `<label class="row" style="margin-top:8px"><input type="checkbox" id="f-tsk" ${edit.tsKeep ? "checked" : ""}><span class="sp">${ic("refresh-cw")} ${t("ts.keep")}</span></label>
     <p class="mute">${t("ts.keepTip")}</p>` : "";
 function tsCard(lan) {
-  if (isBasic()) return sec("s-ts", "route", t("ts.h"), t("sd.ts"), edit && edit.tsKeep ? [t("ts.keepB"), "ok"] : [t("off")], `${needOwner("Tailscale")}<p class="mute">${t("ts.basic")}</p>${tsKeepRow()}`);
+  // basic mode: KidGuard can't install / sign in Tailscale (needs Device Owner), but a Tailscale set up by hand works and "keep on" (Ts.keep) too
+  if (isBasic()) { const bi = (st && st.ts && st.ts.ip) || "";
+    return sec("s-ts", "route", t("ts.h"), t("sd.ts"), bi ? [t("ts.on"), "ok"] : edit && edit.tsKeep ? [t("ts.keepB"), "ok"] : [t("off")],
+      `${bi ? `<p>${ic("link")} <code>${esc("http://" + bi + ":8770")}</code></p>` : ""}<p class="mute">${ic("info")} ${t("ts.basicOwn")}</p><p class="mute">${t("ts.basic")}</p>${tsKeepRow()}`); }
   const ts = (st && st.ts) || { state: "off" };
   const label = tc("ts.", ts.state, ts.state);
   const cls = { on: "ok", error: "bad", installing: "warn" }[ts.state] || "";
@@ -66,11 +69,21 @@ async function devOff(want) {
   clearTimeout(devOff.t); devOff.t = setTimeout(() => { if (devPend === p && tab === "set") render(); }, 181000);
   render(); setTimeout(refresh, r && r.result === "queued" ? 15000 : 1500);
 }
-// "Chức năng & quyền": every feature with ok / the permissions it still needs (state.features, phone >= 0.9.9)
+// "Chức năng & quyền": every feature with ok / the permissions it still needs (state.features, phone >= 0.9.9).
+// A row opens where that feature is set up (owner 2026-11-11), through the feature search's qsGo: [tab, section, rules segment, apps sub-tab].
+const FEAT_GO = { launcher: ["rules", "r-home", "safe"], launcherLock: ["rules", "r-home", "safe"], debloat: ["apps", "", "", "clean"],
+  limits: ["rules", "r-daily", "time"], block: ["apps", "", "", "list"], usage: ["rep"], location: ["where"], screen: ["screen"],
+  remote: ["set", "s-relay"], noUninstall: ["rules", "r-anti", "safe"], dns: ["rules", "r-dns", "safe"], lockLocation: ["rules", "r-more", "safe"] };
+function featGo(id) {
+  const g = FEAT_GO[id]; if (!g || !navOk(g[0])) return;
+  if (g[3]) { appsSub = g[3]; try { localStorage.setItem("kg.appsSub", g[3]); } catch {} }
+  qsGo({ tab: g[0], sec: g[1] || "", seg: g[2] || "" });
+}
 function featCard() {
   const F = Array.isArray(st.features) ? st.features : null; if (!F) return "";
   const n = F.filter(f => f.ok).length;
-  const rows = F.map(f => `<tr class="${f.ok ? "" : "no"}"><th scope="row">${esc(hasT("ft_" + f.id) ? t("ft_" + f.id) : f.id)}</th>
+  const name = f => esc(hasT("ft_" + f.id) ? t("ft_" + f.id) : f.id);
+  const rows = F.map(f => `<tr class="${f.ok ? "" : "no"}"><th scope="row">${FEAT_GO[f.id] && navOk(FEAT_GO[f.id][0]) ? `<button type="button" class="ftgo" data-ft="${esc(f.id)}">${name(f)} ${ic("chevron-right")}</button>` : name(f)}</th>
     <td>${f.ok ? `<span class="tag ok">${ic("check")} ${t("ft.ok")}</span>` : `<span class="tag warn">${ic("lock")} ${t("cap_need", esc((f.missing || []).map(capName).join(", ") || "?"))}</span>`}</td></tr>`).join("");
   return sec("s-feat", "list-checks", t("ft.h"), t("ft.d"), [`${n}/${F.length}`, n === F.length ? "ok" : "warn"], `<div class="tblw"><table class="ft"><tbody>${rows}</tbody></table></div>
     <p class="mute">${t("ft.p")}</p>`, n < F.length);
@@ -85,7 +98,7 @@ function updCard() {
     : u.status === "failed" ? `${ic("triangle-alert")} ${t("errX", esc(u.err || t("upd.unknown")))}` : has ? t("upd.has", v) : t("upd.latest");
   const busy = u.status === "downloading" || u.status === "installing" || u.status === "checking";
   return sec("s-upd", "refresh-cw", t("upd.h"), t("sd.upd"), has ? [t("upd.has", v), "warn"] : [esc(st.version || "?"), "ok"], `
-    <p>${t("upd.kid", "<b>" + esc(st.version || "?") + "</b>")} · ${line}${u.checkedAt ? ` <span class="mute">· ${t("upd.checked", ago(u.checkedAt))}</span>` : ""}</p>
+    <p style="overflow-wrap:anywhere">${t("upd.kid", "<b>" + esc(st.version || "?") + "</b>")} · ${line}${u.checkedAt ? ` <span class="mute">· ${t("upd.checked", ago(u.checkedAt))}</span>` : ""}</p>
     <label class="row"><input type="checkbox" id="f-au" ${edit && edit.autoUpdate ? "checked" : ""}><span class="sp">${t("upd.auto")}</span></label>
     <div class="row" style="margin-top:8px"><button id="updNow" ${busy ? "disabled" : ""}>${ic("refresh-cw")} ${t("upd.now")}</button></div>`, has || busy || u.status === "failed");
 }
@@ -233,7 +246,8 @@ function setTab(b) {
   ${lan ? `<p class="mute" style="margin:0 4px 10px">${t("away.cmp")}</p>` : ""}
   ${tsCard(lan)}
   ${lan ? sec("s-relay", "globe", t("relay.h"), t("sd.relay"), st.relay ? [t("on"), "ok"] : [t("off")], `<p class="mute">${t("relay.p")}</p>
-    <div class="row"><input id="relay" class="sp" placeholder="${esc(t("relay.ph"))}" aria-label="${esc(t("relay.addr"))}" value="${esc(st.relay || DEFAULT_RELAY)}"><button id="saveRelay" class="pri">${ic("globe")} ${st.relay ? t("save") : t("turnOn")}</button>${st.relay ? `<button id="offRelay">${t("relay.off")}</button>` : ""}</div>
+    <input id="relay" placeholder="${esc(t("relay.ph"))}" aria-label="${esc(t("relay.addr"))}" value="${esc(st.relay || DEFAULT_RELAY)}" autocapitalize="off" autocorrect="off" spellcheck="false" style="width:100%">
+    <div class="row" style="margin-top:8px"><button id="saveRelay" class="pri">${ic("globe")} ${st.relay ? t("save") : t("turnOn")}</button>${st.relay ? `<button id="offRelay">${t("relay.off")}</button>` : ""}</div>
     <p class="mute">${t("relay.self")}</p>
     <div id="relayOut">${cur.relay && st.relay ? relayLinkHtml(goLink(cur.relay.url, cur.relay.id, cur.relay.token, cur.name)) : ""}</div>`, !!st.relay)
     : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p>${cur.via === "relay" && isRelayOrigin ? relayLinkHtml(goLink(location.origin, cur.id, cur.token, cur.name)) : ""}</div>`}
@@ -346,6 +360,7 @@ function setTab(b) {
   if ($("#f-au")) $("#f-au").onchange = e => { if (!edit) return; edit.autoUpdate = e.target.checked; changed(); };
   if ($("#devOff")) $("#devOff").onclick = () => devOff(false);
   if ($("#devOn")) $("#devOn").onclick = () => devOff(true);
+  for (const x of document.querySelectorAll(".ftgo")) x.onclick = () => featGo(x.dataset.ft);
   if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, t("upd.sent"), [t("upd.ask"), t("upd.ok")]).then(() => setTimeout(refresh, 4000));
   tgWire();
   $("#release").onclick = async () => {
@@ -368,7 +383,7 @@ function tgHtml() {
     <p class="tgnote">${ic("info")} <span>${t("tg.one")}</span></p>
     <ol class="tgsteps">
       <li><b>${t("tg.s1h")}</b><span class="mute">${t("tg.s1")}</span>
-        <a class="lnkbtn pri" href="https://t.me/BotFather" target="_blank" rel="noopener">${ic("send")} ${t("tg.openBf")}</a>
+        <a class="lnkbtn pri" href="https://t.me/BotFather" target="_blank" rel="noopener">${ic("send")} ${t("tg.openBf")}</a>${LOCAL ? `<span class="mute tgsm">${ic("info")} ${t("tg.localBf")}</span>` : ""}
         <div class="tgchat" role="img" aria-label="${esc(t("tg.chatAlt"))}">
           <span class="m me">/newbot</span>
           <span class="m">${t("tg.bf1")}</span>

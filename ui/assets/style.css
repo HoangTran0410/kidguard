@@ -192,10 +192,10 @@ button.pausing .si{color:var(--warn)}
 .fxdrop{border:2px dashed var(--stroke2);border-radius:18px;padding:20px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;margin:8px 0;text-align:center}.fxdrop.on{border-color:var(--accent);background:var(--tint)}
 .fxrow{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--stroke)}.fxrow:first-child{border-top:0}.fxm{min-width:0}.fxn{overflow-wrap:anywhere}.fxb{display:flex;gap:6px;flex:none}.fxrow .bar{margin:6px 0 0}
 .fxb button{min-width:44px;border-radius:22px}
-#toast{position:fixed;z-index:80;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#0f172a;color:#f1f5f9;padding:11px 16px;border-radius:14px;display:none;max-width:calc(100vw - 32px);box-shadow:none;font-size:14px}
+#toast{position:fixed;z-index:80;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#0f172a;color:#f1f5f9;padding:11px 16px;border-radius:14px;display:none;width:max-content;max-width:calc(100vw - 32px);box-shadow:none;font-size:14px;overflow-wrap:anywhere}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]) #toast{background:#f1f5f9;color:#0f172a}}
 :root[data-theme=dark] #toast{background:#f1f5f9;color:#0f172a}
-@media(min-width:960px){#toast{bottom:28px;left:calc(50% + 132px)}}
+@media(min-width:960px){#toast{bottom:28px;left:calc(50% + 132px);max-width:calc(100vw - 296px)}}
 
 /* ===== shell: sidebar (>= 960 px) + bottom nav (phones) ===== */
 .shell{min-height:100vh;display:flex}
@@ -351,7 +351,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none;
 .needline .tag{white-space:normal}.needline{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:0 0 10px}
 .gated{opacity:.5;pointer-events:none;-webkit-user-select:none;user-select:none}
 .cl.gate>h2 .clh{opacity:.85}
-table.ft,table.ft tbody{display:block;width:100%}table.ft tr{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:4px 10px;padding:8px 0}table.ft th{flex:1 1 150px;min-width:0;text-align:left;font-weight:600;padding:0;overflow-wrap:break-word}table.ft td{flex:0 1 auto;max-width:100%;margin-left:auto;padding:0;text-align:right}table.ft td .tag{white-space:normal;text-align:left;margin:0}table.ft tr+tr{border-top:1px solid var(--stroke)}
+table.ft,table.ft tbody{display:block;width:100%}table.ft tr{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:4px 10px;padding:8px 0}table.ft th{flex:1 1 150px;min-width:0;text-align:left;font-weight:600;padding:0;overflow-wrap:break-word}table.ft td{flex:0 1 auto;max-width:100%;margin-left:auto;padding:0;text-align:right}table.ft td .tag{white-space:normal;text-align:left;margin:0}table.ft tr+tr{border-top:1px solid var(--stroke)}.ftgo{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:600;color:inherit;min-height:32px;overflow-wrap:anywhere}.ftgo svg{width:16px;height:16px;opacity:.55;flex:none}.ftgo:hover,.ftgo:focus-visible{color:var(--pri)}.ftgo:focus-visible{outline:2px solid var(--pri);outline-offset:2px;border-radius:6px}
 
 /* "Điện thoại của con" card (Hôm nay) + banner buttons */
 .pcg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 12px 12px}

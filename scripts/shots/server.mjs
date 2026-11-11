@@ -12,6 +12,8 @@ const UI = path.resolve(HERE, "../../ui");
 const FIX = path.join(HERE, "fixtures");
 const arg = (n, d) => { const i = process.argv.indexOf("--" + n); return i > 0 ? process.argv[i + 1] : d; };
 const LANG = arg("lang", "vi");
+// --patch file.json: fields merged over every /state (e.g. {"mode":"basic","owner":false} to see basic mode)
+const PATCH = arg("patch") ? JSON.parse(fs.readFileSync(arg("patch"), "utf8")) : {};
 const KIDS = arg("kids", "bin:8771").split(",").map(s => s.split(":")).map(([k, p]) => [k, +p]);
 
 // "now" of the story: today 16:20 local unless --now is given (the page clock is shifted to the same instant by shoot.mjs)
@@ -117,7 +119,7 @@ function serve(name) {
       if (m) { const f = path.join(UI, "assets", m[1] + "." + m[2]); return fs.existsSync(f) ? send(200, TYPES["." + m[2]], fs.readFileSync(f)) : send(404, "text/plain", "not found"); }
       if (!p.startsWith("/api/")) return send(404, "text/plain", "not found");
       const a = p.slice(4);
-      const st = () => stateOf(name);
+      const st = () => Object.assign(stateOf(name), PATCH);
       if (a === "/hello") return json({ id: st().id, pairing: false, pin: true, pairPin: true, owner: true, mode: "owner" });
       if (a === "/state") return json(st());
       if (a === "/rules" && req.method === "PUT") { try { const r = JSON.parse(text); delete r.pin; r.pinSet = true; r.rev = Date.now(); rulesOf[name] = r; return json({ result: "ok", rules: r }); } catch { return json({ error: "bad json" }, 400); } }

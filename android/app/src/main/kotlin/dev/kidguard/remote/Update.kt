@@ -88,7 +88,7 @@ object Update {
         runs++
         val app = ctx.applicationContext
         Thread({
-            try { run(app, force) } catch (e: Throwable) { Log.e(TAG, "update", e); status = "failed"; err = (e.message ?: app.getString(R.string.err_generic)).take(120) }
+            try { run(app, force) } catch (e: Throwable) { Log.e(TAG, "update", e); status = "failed"; err = errText(app, e) }
             finally { busy.set(false) }
         }, "update").start()
         return true
@@ -198,7 +198,7 @@ object Update {
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
                     s.commit(pend.intentSender)
                 }
-            }.onFailure { status = "failed"; err = (it.message ?: app.getString(R.string.err_generic)).take(120) }
+            }.onFailure { Log.e(TAG, "update install", it); status = "failed"; err = errText(app, it) }
         }, "update-ui").start()
         return true
     }
@@ -212,6 +212,20 @@ object Update {
     }
 
     fun failed(msg: String) { status = "failed"; err = msg.take(120) }
+
+    /**
+     * What the parent page shows for a failed run. Our own messages pass through; a raw platform exception
+     * ("java.security.cert.CertPathValidatorException: Trust anchor…", Poco 2026-11-11) becomes a sentence a parent can act on.
+     */
+    private fun errText(ctx: Context, e: Throwable): String {
+        val chain = generateSequence(e) { it.cause }.take(6).toList()
+        return when {
+            e is IllegalStateException && !e.message.isNullOrBlank() -> e.message!!.take(160)
+            chain.any { it is javax.net.ssl.SSLException || it is java.security.GeneralSecurityException } -> ctx.getString(R.string.upd_err_tls)
+            chain.any { it is java.io.IOException } -> ctx.getString(R.string.upd_err_net)
+            else -> (e.javaClass.simpleName + ": " + (e.message ?: ctx.getString(R.string.err_generic))).take(160)
+        }
+    }
 
     /** Release / unpair: drop a waiting download and its notification. */
     fun forget(ctx: Context) {

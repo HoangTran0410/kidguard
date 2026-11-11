@@ -222,6 +222,8 @@
     <!-- Self-update -->
     <string name="upd_err_bad_tag">version %1$s is not valid</string>
     <string name="upd_err_github">GitHub answered HTTP %1$d</string>
+    <string name="upd_err_tls">could not connect securely to GitHub (the network or a VPN / ad blocker on the phone intercepts HTTPS, or the clock is wrong)</string>
+    <string name="upd_err_net">no connection to GitHub (offline or blocked), trying again in an hour</string>
     <string name="upd_err_version">couldn\'t read the version</string>
     <string name="upd_err_sha">update SHA-256 doesn\'t match</string>
     <string name="upd_err_save">couldn\'t save the update</string>

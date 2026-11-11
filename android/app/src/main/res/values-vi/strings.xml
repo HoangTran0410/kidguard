@@ -216,6 +216,8 @@
     <!-- Self-update -->
     <string name="upd_err_bad_tag">bản %1$s không hợp lệ</string>
     <string name="upd_err_github">GitHub trả lời HTTP %1$d</string>
+    <string name="upd_err_tls">không kết nối an toàn được tới GitHub (mạng, VPN hoặc app chặn quảng cáo trên máy chặn HTTPS, hoặc giờ máy sai)</string>
+    <string name="upd_err_net">không kết nối được GitHub (mất mạng hoặc bị chặn), thử lại sau 1 giờ</string>
     <string name="upd_err_version">không đọc được phiên bản</string>
     <string name="upd_err_sha">sai SHA-256 của bản cập nhật</string>
     <string name="upd_err_save">không lưu được bản cập nhật</string>

@@ -38,7 +38,7 @@ function windBody(r) {
 const lockPrev = r => [r.lockInfo.msg, r.lockInfo.contact].map(s => s.replace(/\s+/g, " ").trim()).filter(Boolean).join(" · ");
 function kindStatus(r) {
   const p = lockPrev(r), basic = isBasic();
-  return (p ? `<p class="mute">${ic("eye")} ${t("kn.preview", esc(p))}</p>` : `<p class="mute">${t("kn.noLock")}</p>`) + (basic ? needOwner(t("kn.lock")) : "");
+  return (p ? `<p class="mute">${ic("eye")} ${t("kn.preview", esc(p))}</p>` : `<p class="mute">${t("kn.noLock")}</p>`) + (basic ? `<p class="mute keep">${ic("lock")} ${t("kn.basic")}</p>` : "");
 }
 function kindBody(r) {
   return `    <b>${ic("lock")} ${t("kn.lock")}</b>
@@ -115,7 +115,7 @@ function homeBody(r) {
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmlock" ${L.lockCustom ? "checked" : ""}><span class="sp">${ic("lock")} ${t("hm.lock")}</span></label>
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmshade" ${L.shade ? "checked" : ""}><span class="sp">${ic("bell-off")} ${t("hm.shade")}<br><span class="mute">${t("hm.shadeHint")}</span></span></label>
     ${homeStatus(r)}${kidNotes()}
-    <p class="mute">${ic("lightbulb")} ${t("hm.tip")}</p>${isBasic() ? needOwner(t("hm.owner")) : ""}`;
+    <p class="mute">${ic("lightbulb")} ${t("hm.tip")}</p>${isBasic() ? `<p class="mute keep">${ic("info")} ${t("hm.basic")}</p>` : ""}`;
 }
 function ruleSecs(r) {
   const C = ruleChips(r);
