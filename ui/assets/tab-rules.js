@@ -341,7 +341,8 @@ function bankBox(r) {
     ${Array.isArray(r.vpnPause) ? `<p class="mute">${t("bank.vpnP")}</p>` : ""}${stuck}
     <details id="bk" style="margin-top:6px"><summary id="bk-n"></summary>
     <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" style="margin-top:8px">
-    <div id="bk-list" style="max-height:300px;overflow:auto;margin-top:6px"></div>
+    <div class="bkt" role="table" aria-label="${esc(t("bank.h"))}" style="margin-top:6px"><div class="bkh${Array.isArray(r.vpnPause) ? "" : " n1"}" role="row"><span role="columnheader">${t("bank.colApp")}</span><span role="columnheader">${t("bank.colAcc")}</span>${Array.isArray(r.vpnPause) ? `<span role="columnheader">VPN</span>` : ""}</div>
+    <div id="bk-list" role="rowgroup"></div></div>
     <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="bk-pkg" class="sp" placeholder="${esc(t("bank.pkg"))}" autocapitalize="off" spellcheck="false" style="min-width:0">
     <button class="btn" id="bk-add" type="button">${t("bank.add")}</button></div><p class="mute" id="bk-err" hidden>${t("bank.bad")}</p></details>`;
 }
@@ -357,9 +358,10 @@ function bankBind(r) {
       .sort((a, b) => ((b.acc || b.vpn) - (a.acc || a.vpn)) || a.label.localeCompare(b.label));
     const count = () => { $("#bk-n").textContent = t("bank.n", new Set([...r.accPause, ...(vpnOk ? r.vpnPause : [])]).size); };
     count();
-    const box = (a, k, txt) => `<label class="bkc"><input type="checkbox" data-bank="${esc(a.pkg)}" data-k="${k}" ${a[k] ? "checked" : ""}>${txt}</label>`;
-    list.innerHTML = rows.map(a => `<div class="row bkr" data-q="${esc((a.label + " " + a.pkg).toLowerCase())}">
-      <span class="sp">${esc(a.label)}${a.gone ? ` <span class="mute">· ${t("bank.notInst")}</span>` : ""}</span>
+    // a table: the column names (Accessibility / VPN) once in the sticky header, a bare checkbox per cell (owner 2026-11-11)
+    const box = (a, k, txt) => `<span role="cell"><input type="checkbox" data-bank="${esc(a.pkg)}" data-k="${k}" ${a[k] ? "checked" : ""} aria-label="${esc(txt + ": " + a.label)}"></span>`;
+    list.innerHTML = rows.map(a => `<div class="bkr${vpnOk ? "" : " n1"}" role="row" data-q="${esc((a.label + " " + a.pkg).toLowerCase())}">
+      <span class="bkn" role="cell" title="${esc(a.pkg)}">${esc(a.label)}${a.gone ? ` <span class="mute">· ${t("bank.notInst")}</span>` : ""}</span>
       ${box(a, "acc", t("bank.acc"))}${vpnOk ? box(a, "vpn", "VPN") : ""}</div>`).join("");
     list.querySelectorAll("[data-bank]").forEach(c => c.onchange = () => {
       const key = c.dataset.k === "vpn" ? "vpnPause" : "accPause";

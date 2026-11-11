@@ -15,6 +15,43 @@ import org.json.JSONObject
 object DevOpts {
     private const val ADB_WIFI = "adb_wifi_enabled"   // Settings.Global.ADB_WIFI_ENABLED is @hide (API 30+)
 
+    /** When [bankPause] last turned debugging off (elapsedRealtime), 0 = not in this process. */
+    @Volatile var offAt = 0L; private set
+
+    /**
+     * adbd keeps running ~1 s after adb_enabled goes to 0 (Poco, HyperOS: setting 12.128, AppSealing kill 50052 at 12.790,
+     * adbd gone 13.228). A bank opened in that gap still sees debugging, so the launcher holds the start until this says
+     * adbd is down. Unknown (property not readable by an app on some builds): a fixed [ADBD_UNKNOWN_MS].
+     */
+    fun adbdUp(): Boolean? = runCatching {
+        Class.forName("android.os.SystemProperties").getMethod("get", String::class.java, String::class.java)
+            .invoke(null, "init.svc.adbd", "") as String
+    }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { it == "running" || it == "restarting" }
+
+    const val ADBD_POLL_MS = 100L
+    const val ADBD_WAIT_MAX_MS = 3000L
+    const val ADBD_UNKNOWN_MS = 1600L  // measured gap 1.1 s (Poco) + margin
+    const val ADBD_MARGIN_MS = 250L   // after adbd exits, the USB function switch still settles
+
+    /**
+     * Run [go] on [h] once debugging that [bankPause] just turned off is really off: at once when nothing was turned off in
+     * the last few seconds, else when adbd is down (+ a margin), at most [ADBD_WAIT_MAX_MS]; never sooner than [minMs].
+     */
+    fun afterOff(h: android.os.Handler, minMs: Long = 0L, go: () -> Unit) {
+        val t0 = android.os.SystemClock.elapsedRealtime()
+        val fresh = offAt != 0L && t0 - offAt < ADBD_WAIT_MAX_MS
+        if (!fresh) { if (minMs > 0) h.postDelayed(go, minMs) else go(); return }
+        val tick = object : Runnable { override fun run() {
+            val el = android.os.SystemClock.elapsedRealtime() - t0
+            val up = adbdUp()
+            val cap = if (up == null) ADBD_UNKNOWN_MS else ADBD_WAIT_MAX_MS   // can't read the property: a fixed wait
+            if (el < cap && up != false) { h.postDelayed(this, ADBD_POLL_MS); return }
+            val rest = maxOf(minMs - el, if (up == false) ADBD_MARGIN_MS else 0L)
+            if (rest > 0) h.postDelayed(go, rest) else go()
+        } }
+        tick.run()
+    }
+
     private fun global(ctx: Context, key: String) = runCatching { Settings.Global.getInt(ctx.contentResolver, key, 0) == 1 }.getOrDefault(false)
     private fun canWrite(ctx: Context) = ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == PackageManager.PERMISSION_GRANTED
 
@@ -55,6 +92,7 @@ object DevOpts {
         if (mask == 0) return
         s.devPaused = mask
         val r = off(ctx)
+        if (r == "ok") offAt = android.os.SystemClock.elapsedRealtime()
         runCatching { s.log(R.string.log_dev_paused) }
         if (r != "ok") Log.w("KidGuard", "bank devOff: $r")
     }

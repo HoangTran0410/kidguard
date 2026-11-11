@@ -240,6 +240,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Ring had no stop; mic banner stuck without stop button; ring pressable while listening; LAN dropped on screen-off (user complaint 11-07) -> stateful actions, WifiLock
 - Toast `position:fixed;left:50%;translateX(-50%)` shrink-fits into the remaining 50% of the viewport -> wrapped lines: needs `width:max-content` + max-width (2026-11-11). Update errors showed raw exceptions ("java.security.cert…", no spaces, overflowed): `Update.errText` maps TLS / network to a sentence, the line wraps anywhere.
 - On-device parent page (AdminActivity) dropped every non-own navigation, so `target=_blank` links (Open @BotFather) did nothing: a TAPPED https link now opens outside (ACTION_VIEW, like the parent app); leaving still ends the session (onStop).
+- Bank still refused after the debugging pause (2026-11-11, Poco, My MobiFone 50052): adb_enabled=0 at 12.128 but adbd lived until 13.228 and AppSealing killed the app at 12.790 -> launcher (icon, shortcut, gesture) and the Acc relaunch wait for `init.svc.adbd` to leave running (`DevOpts.afterOff`, poll 100 ms, max 3 s; unreadable property = fixed 1.6 s). Avoid: never assume a settings write stops a daemon at once.
 
 ## 5. OPEN BACKLOG (older reviews; most "unverified" against current code)
 - Usage-access off = limits dead (event + banner only; DO can't lock the appop); Usage.kt misses an app already in front at midnight (unverified)

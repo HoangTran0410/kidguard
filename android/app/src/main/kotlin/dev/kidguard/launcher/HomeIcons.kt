@@ -235,9 +235,11 @@ internal fun HomeActivity.launch(a: AppE, from: View) {
     i.sourceBounds = android.graphics.Rect(il[0], il[1], il[0] + icon.width, il[1] + icon.height)
     Recent.note(this, a.pkg)
     if (a.cls.startsWith(Shortcuts.PREFIX)) {
-        if (!Flavor.HOME) runCatching { AccPause.pause(this, a.pkg); VpnPause.pause(this, a.pkg) }
+        val vw = !Flavor.HOME && runCatching { AccPause.pause(this, a.pkg); VpnPause.pause(this, a.pkg) }.getOrDefault(false)
         val opts = ActivityOptions.makeClipRevealAnimation(from, il[0] - fl[0], il[1] - fl[1], icon.width, icon.height).toBundle()
-        if (!Shortcuts.start(this, a.pkg, a.cls.removePrefix(Shortcuts.PREFIX), i.sourceBounds, opts)) Toasts.show(this, R.string.hm_sc_fail)
+        DevOpts.afterOff(from.handler ?: android.os.Handler(mainLooper), if (vw) VpnPause.LAUNCH_DELAY_MS else 0L) {
+            if (!Shortcuts.start(this, a.pkg, a.cls.removePrefix(Shortcuts.PREFIX), i.sourceBounds, opts)) Toasts.show(this, R.string.hm_sc_fail)
+        }
         return
     }
     // a bank app checks for accessibility services as it starts: ours goes off before it opens (AccPause)
@@ -253,7 +255,8 @@ internal fun HomeActivity.launch(a: AppE, from: View) {
         runCatching { startActivity(i, opts) }.recoverCatching { packageManager.getLaunchIntentForPackage(a.pkg)?.let { startActivity(it) } ?: error("none") }
             .onFailure { Toasts.show(this, R.string.hm_open_fail) }
     }
-    if (vpnWait) from.postDelayed({ go() }, VpnPause.LAUNCH_DELAY_MS) else go()
+    // also after a fresh debugging pause: adbd lingers ~1 s and AppSealing banks (My MobiFone 50052) look in that gap
+    DevOpts.afterOff(from.handler ?: android.os.Handler(mainLooper), if (vpnWait) VpnPause.LAUNCH_DELAY_MS else 0L) { go() }
 }
 
 internal fun HomeActivity.hhmm(t: Long) = SimpleDateFormat("HH:mm", Locale.ROOT).format(Date(t))

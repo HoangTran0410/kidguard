@@ -154,17 +154,17 @@ object AccPause {
         h.postDelayed({
             app.getSystemService(android.app.ActivityManager::class.java)?.let { am -> runCatching { am.killBackgroundProcesses(pkg) } }
         }, RELAUNCH_KILL_MS)
-        h.postDelayed({
+        h.postDelayed({ DevOpts.afterOff(h) {
             // opened by tapping its notification: send that notification's own intent again, so the deep link
             // (the payment / OTP screen) survives; it is held in memory by the notification history (NotifLog)
             val pi = runCatching { NotifLog.recentClick(pkg, 8_000) }.getOrNull()
-            if (pi != null && NotifLog.send(app, pi)) return@postDelayed
+            if (pi != null && NotifLog.send(app, pi)) return@afterOff
             runCatching {
                 app.packageManager.getLaunchIntentForPackage(pkg)?.let { i ->
                     app.startActivity(i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK))
                 }
             }
-        }, RELAUNCH_OPEN_MS)
+        } }, RELAUNCH_OPEN_MS)
     }
 
     /** Can reopen a bank from the background: Device Owner is exempt from the limit, basic mode needs "display over other apps". */

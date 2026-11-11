@@ -108,7 +108,8 @@ const QS = [
   ["rules", "r-sch", "time", "book-open", ["sch.h", "sd.sch"]], ["rules", "r-chore", "time", "star", ["chore.h", "sd.chore"]],
   ["rules", "r-more", "safe", "construction", ["more.h", "sd.more", "more.loc", "more.air", "more.new"]],
   ["rules", "r-dns", "safe", "shield", ["dns.h", "sd.dns", "dns.novpn"]],
-  ["rules", "r-anti", "safe", "lock-keyhole", ["anti.h", "sd.anti", "anti.debug", "anti.install", "anti.shot", "bank.h"]],
+  ["rules", "r-anti", "safe", "lock-keyhole", ["anti.h", "sd.anti", "anti.debug", "anti.install", "anti.shot"]],
+  ["rules", "r-anti", "safe", "landmark", ["bank.h", "bank.colAcc"]],
   ["rules", "r-home", "safe", "house", ["hm.h", "sd.home", "hm.on", "hm.settings", "hm.shade", "hm.lock", "hm.notes"]],
   ["rules", "r-kind", "safe", "notebook-pen", ["kn.h", "sd.kind"]], ["rules", "#monCard", "", "eye", ["mon.h", "mon.p"]],
   ["where", "r-zone", "", "map-pin", ["zone.h", "sd.zone"]], ["where", "r-trk", "", "route", ["trk.h", "sd.trk"]],
@@ -124,15 +125,26 @@ const QS = [
 const qsFold = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^\p{L}\p{N}\s]/gu, "");   // "Wi-Fi" = "wifi"
 const qsShort = s => s.split(/ \(|\. |: /)[0].slice(0, 80);   // a long switch label: its first clause
 const qsTxt = k => hasT(k) ? String(t(k)).replace(/<[^>]*>/g, "").replace(/\{\d\}/g, "") : "";
-function qsFind(q) {
-  const w = qsFold(q).split(/\s+/).filter(Boolean), has = s => { const f = qsFold(s); return w.every(x => f.includes(x)); }, out = [];
+// one typo / missing letter allowed (3+ letters: whole words; 4+: also word starts) ("ngan hag", "tro nang", "vnp"): edit distance <= 1
+const qsNear = (a, b) => { if (Math.abs(a.length - b.length) > 1) return false; let i = 0, j = 0, d = 0;
+  while (i < a.length && j < b.length) { if (a[i] === b[j]) { i++; j++; continue; } if (++d > 1) return false;
+    if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; } }
+  return d + (a.length - i) + (b.length - j) <= 1; };
+const qsWord = (x, f, toks) => f.includes(x) || (x.length >= 3 && toks.some(k => (k.length >= 3 && qsNear(x, k)) || (x.length >= 4 && qsNear(x, k.slice(0, x.length)))));
+// exact (accent-free substring) matches first; only when none, allow a typo per word
+function qsFind(q) { const r = qsFind1(q, false); return r.length || !q.trim() ? r : qsFind1(q, true); }
+function qsFind1(q, near) {
+  const w = qsFold(q).split(/\s+/).filter(Boolean), out = [];
+  const has = s => { const f = qsFold(s), toks = f.split(/\s+/); return w.every(x => f.includes(x) || (near && qsWord(x, f, toks))); };
+  // kw.<title key>: words people search with that the UI doesn't say (i18n, comma list), e.g. "momo" finds the app-pause list
+  const kw = k0 => hasT("kw." + k0) ? String(t("kw." + k0)).replace(/,/g, " ") : "";
   for (const [id, i] of NAV) if (navOk(id) && has(t("tab." + id))) out.push({ tab: id, icon: i, title: t("tab." + id), where: "" });
   for (const [tb, sid, seg, i, keys] of QS) {
     if (!navOk(tb) || !qsTxt(keys[0])) continue;
     const where = t("tab." + tb) + (seg ? " › " + t(seg === "time" ? "rules.segTime" : "rules.segSafe") : "");
     const sw = keys.slice(2).map(qsTxt).filter(Boolean), hit = !has(qsTxt(keys[0])) && sw.find(s => w.length && has(s));
     if (hit) out.push({ tab: tb, sec: sid, seg, icon: i, title: qsShort(hit), where: where + " › " + qsTxt(keys[0]) });
-    else if (has(keys.map(qsTxt).join(" "))) out.push({ tab: tb, sec: sid, seg, icon: i, title: qsTxt(keys[0]), where });
+    else if (has(keys.map(qsTxt).join(" ") + " " + kw(keys[0]))) out.push({ tab: tb, sec: sid, seg, icon: i, title: qsTxt(keys[0]), where });
   }
   return out;
 }
