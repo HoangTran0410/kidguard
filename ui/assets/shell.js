@@ -202,11 +202,70 @@ function moreTab(b) {
   if ($("#moreApp")) $("#moreApp").onclick = () => goAppSettings();
   if ($("#moreList")) $("#moreList").onclick = () => { goList(); navDown(0); };
 }
-// "Nhật ký": events + the phone's own log
+// "Nhật ký": events + the phone's own log, one day at a time (the phone keeps 50 + 50 lines, so the page keeps what it has
+// seen per kid in localStorage: 90 days / 1500 each) with a day strip + date picker, counts by type as filter chips, paged rows
+const LG_PAGE = 50, LG_KEEP = 1500, LG_DAYS = 90;
+const LG_CAT = { alert: ["pin_wrong", "usage_off", "totp_off", "release_fail", "released", "sos", "acc_settings", "proj_denied", "listen_err", "dns_fallback"],
+  parent: ["cmd", "rules", "control", "view_start", "listen_start", "listen_done", "ring_stopped", "checkin", "admin_open", "dev_off", "dev_on", "cleared", "totp_on", "paired", "unlock"],
+  apps: ["new_app", "suspended", "unsuspended", "recover_open", "recover_req", "acc_rebind", "acc_reenabled", "acc_paused", "acc_resumed"],
+  loc: ["loc_fixed", "zone", "tz"] };
+const lgCat = l => { const k = l.k || ""; for (const c in LG_CAT) if (LG_CAT[c].indexOf(k) >= 0) return c; return /^setting_/.test(k) ? "parent" : "other"; };
+let lgDay = "", lgEv = "", lgLg = "", lgNEv = LG_PAGE, lgNLg = LG_PAGE, lgMem = null;
+function lgMerge() {
+  if (!cur || !st) return null;
+  const key = "kg.lg." + cur.id;
+  if (!lgMem || lgMem.key !== key) {
+    let o = null; try { o = JSON.parse(localStorage.getItem(key) || "null"); } catch {}
+    lgMem = { key, ev: o && Array.isArray(o.ev) ? o.ev : [], lg: o && Array.isArray(o.lg) ? o.lg : [] };
+  }
+  let ch = false;
+  const add = (dst, src, id) => { const seen = new Set(dst.map(id)); for (const x of src || []) if (x && x.t && !seen.has(id(x))) { dst.push(x); seen.add(id(x)); ch = true; } };
+  add(lgMem.ev, st.events, e => e.id || e.t + "|" + e.text);
+  add(lgMem.lg, st.log, l => l.t + "|" + l.m);
+  if (ch) {
+    const min = Date.now() - LG_DAYS * 864e5;
+    lgMem.ev = lgMem.ev.filter(x => x.t >= min).sort((a, b) => a.t - b.t).slice(-LG_KEEP);
+    lgMem.lg = lgMem.lg.filter(x => x.t >= min).sort((a, b) => a.t - b.t).slice(-LG_KEEP);
+    try { localStorage.setItem(key, JSON.stringify({ ev: lgMem.ev, lg: lgMem.lg })); } catch {}
+  }
+  return lgMem;
+}
+const lgCount = (rows, f) => { const m = {}; for (const r of rows) { const k = f(r); m[k] = (m[k] || 0) + 1; } return m; };
 function logTab(b) {
-  const ev = (st.events || []).slice().reverse(), lg = (st.log || []).slice(-60).reverse();
-  b.innerHTML = `<div class="card"><h2>${ic("bell")} ${t("events")}</h2>${ev.map(evHtml).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}</div>
-  <div class="card"><h2>${ic("notebook-pen")} ${t("log")}</h2>${byDay(lg, l => l.t, logRow) || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}</div>`;
+  const m = lgMerge() || { ev: st.events || [], lg: st.log || [] }, today = dkey(Date.now());
+  if (!lgDay) lgDay = today;
+  const evAll = m.ev.filter(e => dkey(e.t) === lgDay), lgAll = m.lg.filter(l => dkey(l.t) === lgDay);
+  const evC = lgCount(evAll, e => e.kind || "other"), lgC = lgCount(lgAll, lgCat);
+  if (lgEv && !evC[lgEv]) lgEv = ""; if (lgLg && !lgC[lgLg]) lgLg = "";
+  const evRows = (lgEv ? evAll.filter(e => (e.kind || "other") === lgEv) : evAll).slice().reverse();
+  const lgRows = (lgLg ? lgAll.filter(l => lgCat(l) === lgLg) : lgAll).slice().reverse();
+  const tot = {}; for (const e of m.ev) { const k = dkey(e.t); tot[k] = (tot[k] || 0) + 1; } for (const l of m.lg) { const k = dkey(l.t); tot[k] = (tot[k] || 0) + 1; }
+  const days = []; for (let i = 0; i < 14; i++) days.push(dkey(Date.now() - i * 864e5));
+  if (days.indexOf(lgDay) < 0) days.push(lgDay);
+  const first = dkey(Math.min(...m.ev.map(e => e.t), ...m.lg.map(l => l.t), Date.now()));
+  const chip = (attr, v, cur_, n, label) => `<button type="button" data-${attr}="${v}" class="${cur_ === v ? "on" : ""}" aria-pressed="${cur_ === v}">${label} <b>${n}</b></button>`;
+  const chips = (attr, C, sel, all, name, icon) => `<div class="chips scroll" role="group" aria-label="${esc(name)}">${chip(attr, "", sel, all, t("lg.all"))}${Object.keys(C).sort((a, c) => C[c] - C[a]).map(k => chip(attr, k, sel, C[k], `${icon ? ic(icon(k)) + " " : ""}${(attr === "fe" ? tc("lg.k.", k, k) : t("lg.c." + k))}`)).join("")}</div>`;
+  const more = (rows, n, id) => rows.length > n ? `<button type="button" class="sm" id="${id}" style="width:100%;margin-top:8px">${t("lg.more", Math.min(LG_PAGE, rows.length - n), rows.length - n)}</button>` : "";
+  const none = `<div class="empty"><span class="e">${ic("inbox")}</span>${t("lg.none")}</div>`;
+  b.innerHTML = `<div class="card"><h2>${ic("calendar")} ${esc(dayLabel(lgDay))}</h2>
+    <div class="row nw" style="gap:8px"><button type="button" class="sm" id="lgPrev" aria-label="${esc(t("lg.prev"))}" ${lgDay <= first ? "disabled" : ""}>${ic("chevron-left")}</button>
+      <input type="date" id="lgPick" class="sp" value="${lgDay}" min="${first}" max="${today}" aria-label="${esc(t("pickDay"))}" style="min-height:40px;min-width:0">
+      <button type="button" class="sm" id="lgNext" aria-label="${esc(t("lg.next"))}" ${lgDay >= today ? "disabled" : ""}>${ic("chevron-right")}</button></div>
+    <div class="chips scroll" style="margin-top:8px" role="group" aria-label="${esc(t("lg.days"))}">${days.map(d => `<button type="button" data-d="${d}" class="${d === lgDay ? "on" : ""}" aria-pressed="${d === lgDay}">${d === today ? t("today") : dm(d)} <b>${tot[d] || 0}</b></button>`).join("")}</div>
+    <p class="mute" style="margin-top:8px">${t("lg.note")}</p></div>
+  <div class="card"><h2>${ic("bell")} ${t("events")}</h2>${evAll.length ? chips("fe", evC, lgEv, evAll.length, t("events"), k => EV_IC[k] || "bell") : ""}
+    <div style="margin-top:6px">${evRows.slice(0, lgNEv).map(evHtml).join("") || none}</div>${more(evRows, lgNEv, "lgMoreE")}</div>
+  <div class="card"><h2>${ic("notebook-pen")} ${t("log")}</h2>${lgAll.length ? chips("fl", lgC, lgLg, lgAll.length, t("log"), 0) : ""}
+    <div>${lgRows.slice(0, lgNLg).map(logRow).join("") || none}</div>${more(lgRows, lgNLg, "lgMoreL")}</div>`;
+  const go = d => { lgDay = d; lgEv = lgLg = ""; lgNEv = lgNLg = LG_PAGE; render(); };
+  const shift = n => go(dkey(new Date(+lgDay.slice(0, 4), +lgDay.slice(5, 7) - 1, +lgDay.slice(8, 10) + n, 12).getTime()));
+  $("#lgPrev").onclick = () => shift(-1); $("#lgNext").onclick = () => shift(1);
+  $("#lgPick").onchange = e => { const v = e.target.value; if (/^\d{4}-\d\d-\d\d$/.test(v)) go(v > today ? today : v); };
+  b.querySelectorAll("[data-d]").forEach(x => x.onclick = () => go(x.dataset.d));
+  b.querySelectorAll("[data-fe]").forEach(x => x.onclick = () => { lgEv = x.dataset.fe; lgNEv = LG_PAGE; render(); });
+  b.querySelectorAll("[data-fl]").forEach(x => x.onclick = () => { lgLg = x.dataset.fl; lgNLg = LG_PAGE; render(); });
+  if ($("#lgMoreE")) $("#lgMoreE").onclick = () => { lgNEv += LG_PAGE; render(); };
+  if ($("#lgMoreL")) $("#lgMoreL").onclick = () => { lgNLg += LG_PAGE; render(); };
 }
 // "Gửi lỗi": a report to the developer (phone command `support`, Support.kt) and the thread of replies (`supportSay`)
 const SUP_KINDS = ["block", "time", "relay", "location", "launcher", "bank", "battery", "other"];
