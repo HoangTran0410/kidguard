@@ -153,6 +153,20 @@ object SelfAdb {
         return null
     }
 
+    /** Opens an adbd service other than shell (e.g. `tcpip:5555`, `usb:`); adbd restarts, so the link is dropped after. */
+    fun service(ctx: Context, dest: String): String? {
+        if (!ensure(ctx)) return null
+        return synchronized(lock) {
+            runCatching {
+                val m = manager(ctx)
+                if (!m.isConnected && !connect(ctx)) return@runCatching null
+                val s = m.openStream(dest)
+                val out = runCatching { s.openInputStream().readBytes().toString(Charsets.UTF_8).trim() }.getOrDefault("")
+                runCatching { s.close() }; out
+            }.onFailure { Log.w(TAG, "self service $dest", it) }.getOrNull().also { runCatching { manager(ctx).disconnect() }; invalidate() }
+        }
+    }
+
     /**
      * Pairing only (no Device Owner steps): shows the "enter the pairing code" notification and opens Developer options.
      * The code typed there runs [SelfSetup.start] in pair-only mode: pair, connect, done.

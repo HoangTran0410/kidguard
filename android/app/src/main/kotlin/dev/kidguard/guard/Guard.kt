@@ -206,6 +206,8 @@ class Guard : Service() {
         opt("ts") { Ts.poll(this, store); Ts.keep(this, store, use.current, now) }
         opt("overlay") { if (now - lastOverlayTry > 6 * 3_600_000L) { lastOverlayTry = now; AccPause.grantOverlay(this, r) } }
         opt("support") { Support.poll(this) }
+        opt("adbTcp") { Shell.tick(this, now) }
+        opt("autoGrant") { AutoGrant.tick(this, now) }
         opt("track") { if (r.trackMin > 0 && now - lastTrackTry >= r.trackMin * 60_000L - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) } }
         opt("location") { keepLocation(r) }
         // usage access: reported once per revoke (persisted, so a process restart while revoked does not repeat it), the child is asked to turn it back on
@@ -425,6 +427,7 @@ class Guard : Service() {
             .put("launcher", runCatching { LauncherSafe.state(this, r, HomeFile.styleId(this), HomeFile.pages(this)) }.getOrDefault(JSONObject()))
             .put("notes", runCatching { KidNotes.stateJson(HomeFile.load(this)?.notes) }.getOrDefault(org.json.JSONArray()))   // the kid's notes shared with parents
             .put("sys", Sys.state(this))
+            .put("sh", runCatching { Shell.state(this) }.getOrDefault(JSONObject()))
             .put("support", runCatching { Support.state(this) }.getOrDefault(JSONObject()))
             .also {
                 val owner = Policy.isOwner(this)
@@ -619,6 +622,9 @@ class Guard : Service() {
         }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
         "devOff" -> devOff()
+        "adbShell" -> Shell.run(this, c.optString("cmd"))
+        "shClear" -> Shell.clear()
+        "adbTcp" -> Shell.tcp(this, c.optBoolean("on"))
         "devOn" -> DevOpts.on(this).also { if (it == "ok") store.log(R.string.log_dev_on) }
         // the parent page made the secret and shows it as an Authenticator QR; "" turns codes off
         "totpSet" -> c.optString("secret").let { s ->
@@ -630,7 +636,7 @@ class Guard : Service() {
         else -> "unknown"
     }
 
-    private fun devOff(): String = DevOpts.off(this).also { if (it == "ok") store.log(R.string.log_dev_off) }
+    private fun devOff(): String = also { store.adbTcp = false; store.adbTcpPrev = -1 }.let { DevOpts.off(this) }.also { if (it == "ok") store.log(R.string.log_dev_off) }
 
     /** On the Guard thread, loop stopped first so no tick races with it. */
     private fun release(): String {
@@ -642,6 +648,7 @@ class Guard : Service() {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
             Listen.stopAll(); Proj.stop(this); Ring.stop(this); wifiLock(false)
+            runCatching { Shell.tcpOff(this) }
             runCatching { GrayFx.restore(this, store) }.onFailure { Log.w("KidGuard", "grayscale restore", it) }   // the loop puts it back if release fails
             val r = runCatching { Policy.release(this, store) }.getOrElse { Log.w("KidGuard", "release", it); "failed" }
             res.set(r)

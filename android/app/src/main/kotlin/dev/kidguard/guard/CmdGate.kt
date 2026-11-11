@@ -10,7 +10,7 @@ package dev.kidguard
 object CmdGate {
     val GATED = setOf(
         "release", "unpairAll", "unpair", "clearData", "reboot", "relay", "tailscaleOff", "openPairing",
-        "totpSet", "tgSet", "tgCode", "tgOff", "pinSet", "pinResetCancel",
+        "totpSet", "tgSet", "tgCode", "tgOff", "pinSet", "pinResetCancel", "adbShell", "adbTcp",
     )
 
     /** "Forgot the PIN": a new PIN set without the old one applies after this, with an alert to every parent at once. */

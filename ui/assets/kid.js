@@ -188,7 +188,7 @@ document.addEventListener("click", confirmGate, true);
 const askOf = c => hasT("ask." + c) ? [t("ask." + c), t("askOk." + c), !!ASK_BAD[c]] : null;
 // Commands the phone runs only with the parent PIN (or an Authenticator code) inside: guard/CmdGate.kt, protocol
 // "PIN-gated commands". Phones before 0.9.13 have no gate (no state.pinResetAt): nothing asked there.
-const GATED = new Set(["release", "unpairAll", "unpair", "clearData", "reboot", "relay", "tailscaleOff", "openPairing", "totpSet", "tgSet", "tgCode", "tgOff", "pinSet", "pinResetCancel"]);
+const GATED = new Set(["release", "unpairAll", "unpair", "clearData", "reboot", "relay", "tailscaleOff", "openPairing", "totpSet", "tgSet", "tgCode", "tgOff", "pinSet", "pinResetCancel", "adbShell", "adbTcp"]);
 const gateOn = () => !!(st && "pinResetAt" in st && ((edit && edit.pinSet) || st.totpOn));
 let pinMem = null;   // {token, pin, at}: the PIN typed for this kid in the last 2 min (a "Dọn máy" run sends clearData per app)
 const pinField = () => `<input id="askPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="${esc(t("pin.cmdPh"))}" aria-label="${esc(t("pin.cmdPh"))}" style="width:100%;margin-bottom:6px">

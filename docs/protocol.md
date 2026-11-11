@@ -152,9 +152,19 @@ v0.9.7:
   `ok | not allowed | blocked | failed: <reason>` (`blocked` = the `noDebug` rule's DISALLOW_DEBUGGING_FEATURES is set).
   State `dev.canOn` (bool, v0.9.7) says whether it can work; the page shows the button only then. Logs `log_dev_on`.
   In the worker whitelist (repeatable).
+- `adbShell {cmd, pin}` (gated, v0.9.14, `remote/Shell.kt`): runs `cmd` (≤ 2000 chars) as the adb shell user through the
+  phone's own paired adbd (`SelfAdb`: Android 11+, WRITE_SECURE_SETTINGS, Wi-Fi; opens the debugging window itself).
+  Answers at once `ok | busy | empty | no adb`; the output comes in state `sh.log` (LAN and relay alike). 25 s timeout.
+  Not on Telegram. Worker: whitelist, ONCE, SHORT (a shell command 10 min late is dropped).
+- `shClear`: empties `sh.log`. `adbTcp {on, pin}` (gated): on = USB debugging kept on and adbd `tcpip:5555`
+  (classic `adb connect <ip>:5555`), re-opened by the Guard tick after a reboot (every 10 min while closed), paused while
+  a bank app has debugging off; off (also `devOff` and release) = `usb:` then Developer options / USB debugging back as
+  before. Answers `ok | no adb | blocked`.
+- State `sh` (v0.9.14): `{can, busy, tcp, tcpUp, port, log: [{at, cmd, ms, out | err}]}`, last 8, memory only;
+  `out` ≤ 8000 chars; `err` = `adb` (no answer / timeout) or an `adbWhy` code (`sdk key wss blocked wifi`).
 
 ### PIN-gated commands (v0.9.13, `guard/CmdGate.kt`)
-`release unpairAll unpair clearData reboot relay tailscaleOff openPairing totpSet tgSet tgCode tgOff pinSet pinResetCancel`
+`release unpairAll unpair clearData reboot relay tailscaleOff openPairing totpSet tgSet tgCode tgOff pinSet pinResetCancel adbShell adbTcp`
 carry `pin`: the parent PIN or a current Authenticator code. The PHONE checks it (LAN and relay alike), sharing the lockout
 of the on-device admin (5 free tries, then 5, 10, 20 … 320 min per try; PIN and Authenticator locks are separate).
 `relay {url}` with the URL the phone already has is not gated (the page re-reads the relay link with it). No PIN and no

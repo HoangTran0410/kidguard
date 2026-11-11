@@ -69,6 +69,36 @@ async function devOff(want) {
   clearTimeout(devOff.t); devOff.t = setTimeout(() => { if (devPend === p && tab === "set") render(); }, 181000);
   render(); setTimeout(refresh, r && r.result === "queued" ? 15000 : 1500);
 }
+// adb terminal (state.sh, owner 2026-11-11): `adbShell` runs one shell command through the phone's own paired adb
+// (PIN-gated, output comes back in the next state, LAN or relay); `adbTcp` keeps `adb connect <ip>:5555` open.
+let shText = "";
+function shCard() {
+  const s = st.sh; if (!s) return "";
+  const host = (() => { try { return new URL(st.lan).hostname; } catch { return ""; } })();
+  if (!s.can) return sec("s-sh", "terminal", t("sh.h"), t("sd.sh"), [t("sh.off"), ""], `<p class="mute">${ic("circle-help")} ${t("sh.cant")}</p>`, false);
+  const log = (s.log || []).slice().reverse().map(e => `<div class="card" style="margin:8px 0;padding:8px 10px">
+    <div class="mute" style="font-size:12px">${esc(ago(e.at))} · ${e.ms || 0} ms</div>
+    <div style="font-family:ui-monospace,Menlo,monospace;font-size:13px;word-break:break-all"><b>$ ${esc(e.cmd)}</b></div>
+    <pre style="margin:6px 0 0;white-space:pre-wrap;word-break:break-all;font-size:12px;max-height:320px;overflow:auto">${e.err ? `<span style="color:var(--bad)">${esc(tc("sh.err.", e.err, t("sh.errX", e.err)))}</span>` : esc(e.out || t("sh.empty"))}</pre></div>`).join("");
+  const tcp = s.tcp ? (s.tcpUp ? `<p>${ic("check")} ${t("sh.tcpUp")}<br><code>adb connect ${esc(host || "IP")}:${s.port || 5555}</code></p>` : `<p class="mute">${ic("hourglass")} ${t("sh.tcpWait")}</p>`) : "";
+  return sec("s-sh", "terminal", t("sh.h"), t("sd.sh"), [s.tcp ? t("sh.tcpOn") : t("sh.on"), s.tcp ? "warn" : ""], `<p class="mute">${t("sh.p")}</p>
+    <div class="row" style="gap:6px"><input id="f-sh" class="sp" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="2000" placeholder="pm list packages -3" aria-label="${esc(t("sh.h"))}" value="${esc(shText)}" style="font-family:ui-monospace,Menlo,monospace">
+    <button id="shRun" ${s.busy ? "disabled" : ""}>${ic(s.busy ? "hourglass" : "play")} ${t(s.busy ? "sh.busy" : "sh.run")}</button></div>
+    ${log}${log ? `<button id="shClear">${ic("eraser")} ${t("sh.clear")}</button>` : ""}
+    <hr style="margin:14px 0;border:0;border-top:1px solid var(--line)">
+    <label class="row" style="gap:8px"><input type="checkbox" id="f-shTcp" ${s.tcp ? "checked" : ""}> <b>${t("sh.tcp")}</b></label>
+    <p class="mute" style="font-size:13px">${t("sh.tcpP")}</p>${tcp}`, !!(s.log && s.log.length) || s.tcp);
+}
+async function shRun() {
+  const el = $("#f-sh"), v = (el && el.value || "").trim(); if (!v) return;
+  shText = v;
+  const r = await cmd({ type: "adbShell", cmd: v }, t("sh.sent"), [t("sh.ask", v), t("sh.run")]);
+  if (r && (r.result === "ok" || r.result === "queued")) { shText = ""; [1500, 5000, 15000, 30000].forEach(ms => setTimeout(refresh, ms)); }
+}
+async function shTcp(on) {
+  const r = await cmd({ type: "adbTcp", on }, t(on ? "sh.tcpSent" : "sh.tcpOffSent"), [t(on ? "sh.tcpAsk" : "sh.tcpAskOff"), t(on ? "sh.tcpBtn" : "sh.tcpOffBtn"), on]);
+  if (!r) render(); else [2000, 15000].forEach(ms => setTimeout(refresh, ms));
+}
 // "Chức năng & quyền": every feature with ok / the permissions it still needs (state.features, phone >= 0.9.9).
 // A row opens where that feature is set up (owner 2026-11-11), through the feature search's qsGo: [tab, section, rules segment, apps sub-tab].
 const FEAT_GO = { launcher: ["rules", "r-home", "safe"], launcherLock: ["rules", "r-home", "safe"], debloat: ["apps", "", "", "clean"],
@@ -264,6 +294,7 @@ function setTab(b) {
   ${updCard()}
   ${sec("s-sys", "sliders-horizontal", t("sys.h"), t("sd.sys"), null, `<div id="sysCard"></div>`)}
   ${devCard()}
+  ${shCard()}
   ${APP ? "" : `<div class="card"><h2>${ic("smartphone")} ${t("a2hs.h")}</h2><p class="mute">${t("a2hs.p")}</p></div>`}
   </div></div>`;
   rulesWire($("#rsx"), edit);
@@ -360,6 +391,9 @@ function setTab(b) {
   if ($("#f-au")) $("#f-au").onchange = e => { if (!edit) return; edit.autoUpdate = e.target.checked; changed(); };
   if ($("#devOff")) $("#devOff").onclick = () => devOff(false);
   if ($("#devOn")) $("#devOn").onclick = () => devOff(true);
+  if ($("#shRun")) { $("#shRun").onclick = shRun; $("#f-sh").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); shRun(); } }; $("#f-sh").oninput = e => { shText = e.target.value; }; }
+  if ($("#shClear")) $("#shClear").onclick = () => cmd({ type: "shClear" }, t("sh.cleared"), false).then(() => setTimeout(refresh, 1500));
+  if ($("#f-shTcp")) $("#f-shTcp").onchange = e => shTcp(e.target.checked);
   for (const x of document.querySelectorAll(".ftgo")) x.onclick = () => featGo(x.dataset.ft);
   if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, t("upd.sent"), [t("upd.ask"), t("upd.ok")]).then(() => setTimeout(refresh, 4000));
   tgWire();

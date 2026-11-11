@@ -131,6 +131,7 @@
     <string name="ch_warn">Time-up warnings</string>
     <string name="log_cmd">Command: %1$s → %2$s</string>
     <string name="log_cleared">Parent cleared data: %1$s</string>
+    <string name="log_autogrant">Granted %1$s missing permissions itself (on-phone adb)</string>
     <string name="log_dev_on">Parent turned Developer options and USB debugging back on</string>
     <string name="log_dev_off">Parent turned off Developer options and USB debugging</string>
     <string name="log_totp_off">Unlock codes turned off</string>

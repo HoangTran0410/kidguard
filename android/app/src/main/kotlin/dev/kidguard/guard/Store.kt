@@ -560,6 +560,13 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var devApps: Set<String>
         get() = p.getStringSet("devApps", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("devApps", v).commit() }
+    /** Rule-less switch `adbTcp` (Shell): keep `adb connect <ip>:5555` open; [adbTcpPrev] = Developer options / USB debugging before (bit 1 / 2, -1 none). */
+    var adbTcp: Boolean
+        get() = p.getBoolean("adbTcp", false)
+        set(v) { p.edit().putBoolean("adbTcp", v).commit() }
+    var adbTcpPrev: Int
+        get() = p.getInt("adbTcpPrev", -1)
+        set(v) { p.edit().putInt("adbTcpPrev", v).commit() }
     @get:Synchronized @set:Synchronized var devLeftAt: Long
         get() = p.getLong("devLeftAt", 0L)
         set(v) { p.edit().putLong("devLeftAt", v).apply() }
