@@ -548,6 +548,16 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var bankSeen: Set<String>?
         get() = if (p.contains("bankSeen")) p.getStringSet("bankSeen", emptySet())!!.toSet() else null
         set(v) { p.edit().putStringSet("bankSeen", v ?: emptySet()).apply() }
+    /** Apps the debugging pause is on for right now ([DevOpts.pause]); [devPaused] holds what to put back. */
+    @get:Synchronized @set:Synchronized var devApps: Set<String>
+        get() = p.getStringSet("devApps", emptySet())!!.toSet()
+        set(v) { p.edit().putStringSet("devApps", v).commit() }
+    @get:Synchronized @set:Synchronized var devLeftAt: Long
+        get() = p.getLong("devLeftAt", 0L)
+        set(v) { p.edit().putLong("devLeftAt", v).apply() }
+    @get:Synchronized @set:Synchronized var devSeen: Set<String>?
+        get() = if (p.contains("devSeen")) p.getStringSet("devSeen", emptySet())!!.toSet() else null
+        set(v) { p.edit().putStringSet("devSeen", v ?: emptySet()).apply() }
     @get:Synchronized @set:Synchronized var vpnSeen: Set<String>?
         get() = if (p.contains("vpnSeen")) p.getStringSet("vpnSeen", emptySet())!!.toSet() else null
         set(v) { p.edit().putStringSet("vpnSeen", v ?: emptySet()).apply() }

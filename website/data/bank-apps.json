@@ -1,102 +1,125 @@
 {
  "v": 1,
- "about": "KidGuard: apps that refuse accessibility (acc, also pauses USB debugging) or a VPN (vpn); phones add new entries daily (android BankList.kt)",
+ "about": "KidGuard: apps that refuse accessibility (acc), USB debugging (dev) or a VPN (vpn); phones add new entries daily (android BankList.kt)",
  "apps": [
   {
    "pkg": "com.VCB",
    "name": "Vietcombank",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "com.vnpay.bidv",
    "name": "BIDV SmartBanking",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "com.vietinbank.ipay",
    "name": "VietinBank iPay",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "com.vnpay.Agribank3g",
    "name": "Agribank E-Mobile Banking",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "com.mbmobile",
    "name": "MB Bank",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "vn.com.techcombank.bb.app",
    "name": "Techcombank",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "mobile.acb.com.vn",
    "name": "ACB ONE",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "com.vnpay.vpbankonline",
    "name": "VPBank NEO",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "com.tpb.mb.gprsandroid",
    "name": "TPBank Mobile",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "com.sacombank.ewallet",
    "name": "Sacombank Pay",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "com.vnpay.hdbank",
    "name": "HDBank",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "vn.shb.mbanking",
    "name": "SHB",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "com.vib.myvib2",
    "name": "MyVIB",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "com.mservice.momotransfer",
    "name": "MoMo",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "vn.com.vng.zalopay",
    "name": "ZaloPay",
    "acc": true,
-   "vpn": false
+   "vpn": false,
+   "dev": false
   },
   {
    "pkg": "xyz.be.cake",
    "name": "Cake by VPBank",
    "acc": true,
-   "vpn": true
+   "vpn": true,
+   "dev": false
+  },
+  {
+   "pkg": "vms.com.vn.mymobifone",
+   "name": "My MobiFone",
+   "acc": true,
+   "vpn": false,
+   "dev": true
   }
  ],
  "drop": []

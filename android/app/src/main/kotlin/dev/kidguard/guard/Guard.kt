@@ -200,6 +200,7 @@ class Guard : Service() {
         opt("focus") { FocusStore.expire(this, now) }   // a study session that ended: DND back (launcher may be gone)
         opt("accPause") { AccPause.tick(this, use.current, now) }
         opt("vpnPause") { VpnPause.tick(this, use.current, now) }
+        opt("devPause") { DevOpts.tick(this, use.current, now) }
         opt("acc") { if (!AccPause.active(this)) Acc.ensureEnabled(this) }
         opt("dns") { Policy.syncDns(this, r); Policy.retryDns(this, r) }
         opt("ts") { Ts.poll(this, store); Ts.keep(this, store, use.current, now) }
@@ -388,7 +389,7 @@ class Guard : Service() {
             .put("pairUntil", store.pairOpenUntil())
             .put("pinResetAt", store.pinResetAt)
             .put("totpOn", store.totpSecret.isNotBlank()).put("unlockUntil", store.unlockUntil.takeIf { it > now } ?: 0)
-            .put("acc", Acc.isOn(this)).put("accPaused", JSONArray(store.accPaused.sorted())).put("vpnPaused", JSONArray(store.vpnPaused.sorted())).put("vpnStuck", store.vpnStuck)
+            .put("acc", Acc.isOn(this)).put("accPaused", JSONArray(store.accPaused.sorted())).put("vpnPaused", JSONArray(store.vpnPaused.sorted())).put("devPaused", JSONArray(store.devApps.sorted())).put("vpnStuck", store.vpnStuck)
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
             .put("locationOn", locationOn())
             .put("dev", DevOpts.state(this))

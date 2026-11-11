@@ -73,7 +73,6 @@ object AccPause {
         if (BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) != null) return false
         val had = s.accPaused
         s.accPaused = had + pkg; s.accLeftAt = 0L
-        runCatching { DevOpts.bankPause(ctx) }   // banks also refuse USB / wireless debugging (My MobiFone 50052)
         runCatching { VpnPause.pause(ctx, pkg) }   // on that list too: the tunnel goes in the same step
         if (had.isEmpty()) {
             runCatching { s.log(R.string.log_acc_paused, label(ctx, pkg)) }
@@ -142,8 +141,9 @@ object AccPause {
         if (Store.of(svc).rules.accPause.isEmpty()) return
         runCatching { svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) }   // before the service goes
         val fresh = pause(svc, pkg, stopSelf = false)
+        val dev = runCatching { DevOpts.pause(svc, pkg) }.getOrDefault(false)   // same app may also refuse debugging
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ runCatching { svc.disableSelf() } }, 150)
-        if (fresh) relaunch(svc, pkg)
+        if (fresh || dev) relaunch(svc, pkg)
     }
 
     /** Kill [pkg]'s process and open it again fresh (its notification intent if it was opened from one). */
@@ -199,11 +199,10 @@ object AccPause {
         watchStop()
         runCatching { s.log(R.string.log_acc_resumed) }
         Acc.ensureEnabled(ctx, quiet = true)
-        runCatching { DevOpts.bankResume(ctx) }
     }
 
     /** Release: forget the pause (Acc's own release takes the service out anyway). */
-    fun clear(ctx: Context) { val s = Store.of(ctx); s.accPaused = emptySet(); s.accLeftAt = 0L; runCatching { DevOpts.bankResume(ctx) } }
+    fun clear(ctx: Context) { val s = Store.of(ctx); s.accPaused = emptySet(); s.accLeftAt = 0L }
 
     private fun label(ctx: Context, pkg: String) = runCatching {
         val pm = ctx.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()

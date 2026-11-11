@@ -12,10 +12,17 @@ import org.json.JSONObject
  * Developer options / USB + wireless debugging. Banking apps refuse to open while these are on,
  * so the parent can turn them off ("devOff"). Needs WRITE_SECURE_SETTINGS (granted at setup) or Device Owner.
  */
+/** Bundled list of apps that refuse debugging; more come from the website list (BankList, `dev`). */
+object DevPauseLogic {
+    val DEFAULT: Set<String> = setOf(
+        "vms.com.vn.mymobifone",            // My MobiFone (INKA AppSealing, error 50052; owner 2026-11-11)
+    )
+}
+
 object DevOpts {
     private const val ADB_WIFI = "adb_wifi_enabled"   // Settings.Global.ADB_WIFI_ENABLED is @hide (API 30+)
 
-    /** When [bankPause] last turned debugging off (elapsedRealtime), 0 = not in this process. */
+    /** When [pause] last turned debugging off (elapsedRealtime), 0 = not in this process. */
     @Volatile var offAt = 0L; private set
 
     /**
@@ -34,7 +41,7 @@ object DevOpts {
     const val ADBD_MARGIN_MS = 250L   // after adbd exits, the USB function switch still settles
 
     /**
-     * Run [go] on [h] once debugging that [bankPause] just turned off is really off: at once when nothing was turned off in
+     * Run [go] on [h] once debugging that [pause] just turned off is really off: at once when nothing was turned off in
      * the last few seconds, else when adbd is down (+ a margin), at most [ADBD_WAIT_MAX_MS]; never sooner than [minMs].
      */
     fun afterOff(h: android.os.Handler, minMs: Long = 0L, go: () -> Unit) {
@@ -83,21 +90,45 @@ object DevOpts {
     // ---- bank apps (owner 2026-11-11, My MobiFone error 50052 "USB debugging on"): with the accessibility pause
     // (AccPause) debugging goes off too, and exactly what was on comes back when the service resumes.
 
-    /** Bank is opening: switch debugging off, remember what was on ([DevLogic] mask in Store.devPaused). */
-    fun bankPause(ctx: Context) {
+    /**
+     * An app on `rules.devPause` is opening (owner 2026-11-11: split from the accessibility pause, most banks only check
+     * accessibility, My MobiFone checks debugging): switch debugging off, remember what was on (Store.devPaused).
+     * True = turned off just now (the caller holds the start: [afterOff]); a toast says the app opens in a moment.
+     */
+    @Synchronized fun pause(ctx: Context, pkg: String): Boolean {
+        if (Flavor.HOME) return false
         val s = Store.of(ctx)
-        if (s.devPaused != 0 || !canOff(ctx)) return
+        if (pkg !in s.rules.devPause) return false
+        if (BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) != null) return false   // never for a blocked app
+        s.devApps = s.devApps + pkg; s.devLeftAt = 0L
+        if (s.devPaused != 0 || !canOff(ctx)) return false
         val mask = DevLogic.mask(global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED), global(ctx, Settings.Global.ADB_ENABLED),
             Build.VERSION.SDK_INT >= 30 && global(ctx, ADB_WIFI))
-        if (mask == 0) return
+        if (mask == 0) return false
         s.devPaused = mask
         val r = off(ctx)
-        if (r == "ok") offAt = android.os.SystemClock.elapsedRealtime()
+        if (r != "ok") { Log.w("KidGuard", "bank devOff: $r"); return false }
+        offAt = android.os.SystemClock.elapsedRealtime()
+        val label = runCatching { val pm = ctx.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
         runCatching { s.log(R.string.log_dev_paused) }
-        if (r != "ok") Log.w("KidGuard", "bank devOff: $r")
+        runCatching { Toasts.show(ctx.applicationContext, ctx.getString(R.string.dev_paused_toast, label), true) }
+        return true
     }
 
-    /** The pause ended (or release): put back what [bankPause] turned off, unless debugging got forbidden meanwhile. */
+    /** Guard tick: the same "left for a while" timing as the other pauses, then debugging comes back. */
+    @Synchronized fun tick(ctx: Context, current: String?, now: Long) {
+        val s = Store.of(ctx)
+        val apps = s.devApps
+        if (apps.isEmpty()) { if (s.devPaused != 0) bankResume(ctx); return }   // from a version where accessibility drove it
+        val wait = if (Policy.isOwner(ctx)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS
+        val (leftAt, back) = AccPauseLogic.step(current, s.rules.devPause + apps, s.devLeftAt, now, wait)
+        if (back) { s.devApps = emptySet(); s.devLeftAt = 0L; bankResume(ctx) } else if (leftAt != s.devLeftAt) s.devLeftAt = leftAt
+    }
+
+    /** Release: put debugging back as it was and forget the pause. */
+    fun clearPause(ctx: Context) { val s = Store.of(ctx); s.devApps = emptySet(); s.devLeftAt = 0L; runCatching { bankResume(ctx) } }
+
+    /** The pause ended (or release): put back what [pause] turned off, unless debugging got forbidden meanwhile. */
     fun bankResume(ctx: Context) {
         val s = Store.of(ctx)
         val mask = s.devPaused

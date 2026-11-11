@@ -11,7 +11,8 @@
     <string name="prot_title">Bảo vệ và quyền</string>
     <string name="prot_status">Hiện tại</string>
     <string name="prot_features">Tính năng</string>
-    <string name="acc_paused_toast">Tạm tắt Trợ năng, gỡ lỗi cho app này, sẽ bật lại</string>
+    <string name="acc_paused_toast">Tạm tắt Trợ năng cho app này, sẽ bật lại</string>
+    <string name="dev_paused_toast">Đang tắt gỡ lỗi USB để mở %1$s…</string>
     <string name="log_acc_paused">Tạm tắt Trợ năng khi dùng app cần tắt Trợ năng (%1$s)</string>
     <string name="log_acc_resumed">Đã bật lại Trợ năng (đã rời app)</string>
     <string name="log_acc_resumed_blocked">Bật lại Trợ năng sớm: con mở %1$s (đang bị chặn) trong lúc tạm tắt cho app ngân hàng</string>

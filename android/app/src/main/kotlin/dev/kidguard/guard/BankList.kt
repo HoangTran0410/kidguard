@@ -23,7 +23,7 @@ object BankList {
     fun maybe(g: Guard, now: Long) {
         if (Flavor.HOME) return
         val s = Store.of(g)
-        if (!bundledDone) { bundledDone = true; apply(g, s, BankListLogic.Parsed(AccPauseLogic.DEFAULT, VpnPauseLogic.DEFAULT, emptySet())) }
+        if (!bundledDone) { bundledDone = true; apply(g, s, BankListLogic.Parsed(AccPauseLogic.DEFAULT, VpnPauseLogic.DEFAULT, emptySet(), DevPauseLogic.DEFAULT)) }
         if (now - s.bankListAt < BankListLogic.DAY_MS || now - triedAt < RETRY_MS) return
         triedAt = now
         Thread({
@@ -32,7 +32,7 @@ object BankList {
                 c.connectTimeout = 15_000; c.readTimeout = 15_000
                 val body = try { if (c.responseCode == 200) c.inputStream.use { it.readBytes().take(64_000).toByteArray().toString(Charsets.UTF_8) } else null } finally { c.disconnect() }
                 val l = body?.let { BankListLogic.parse(it) } ?: return@runCatching
-                apply(g, s, BankListLogic.Parsed(AccPauseLogic.DEFAULT + l.acc, VpnPauseLogic.DEFAULT + l.vpn, l.drop))
+                apply(g, s, BankListLogic.Parsed(AccPauseLogic.DEFAULT + l.acc, VpnPauseLogic.DEFAULT + l.vpn, l.drop, DevPauseLogic.DEFAULT + l.dev))
                 s.bankListAt = System.currentTimeMillis()
             }.onFailure { Log.w("KidGuard", "bank list", it) }
         }, "bankList").start()
@@ -42,10 +42,13 @@ object BankList {
         val r = s.rules
         val (acc, accSeen) = BankListLogic.merge(r.accPause, s.bankSeen ?: BankListLogic.LEGACY, l.acc, l.drop)
         val (vpn, vpnSeen) = BankListLogic.merge(r.vpnPause, s.vpnSeen ?: emptySet(), l.vpn, l.drop)
-        s.bankSeen = accSeen; s.vpnSeen = vpnSeen
-        if (acc == r.accPause && vpn == r.vpnPause) return
-        g.setRules(r.copy(accPause = acc, vpnPause = vpn, rev = maxOf(r.rev + 1, System.currentTimeMillis())))
-        runCatching { s.log(R.string.log_bank_list, (acc - r.accPause).size + (vpn - r.vpnPause).size, (r.accPause - acc).size + (r.vpnPause - vpn).size) }
+        // debugging list (split from accessibility 2026-11-11): bundled + website `dev`, same add-once rule
+        val (dev, devSeen) = BankListLogic.merge(r.devPause, s.devSeen ?: emptySet(), l.dev, l.drop)
+        s.bankSeen = accSeen; s.vpnSeen = vpnSeen; s.devSeen = devSeen
+        if (acc == r.accPause && vpn == r.vpnPause && dev == r.devPause) return
+        g.setRules(r.copy(accPause = acc, vpnPause = vpn, devPause = dev, rev = maxOf(r.rev + 1, System.currentTimeMillis())))
+        runCatching { s.log(R.string.log_bank_list, (acc - r.accPause).size + (vpn - r.vpnPause).size + (dev - r.devPause).size,
+            (r.accPause - acc).size + (r.vpnPause - vpn).size + (r.devPause - dev).size) }
     }
 }
 
@@ -58,24 +61,25 @@ object BankListLogic {
     /** What phones before the website list were offered (the bundled list up to 0.9.12): the rest counts as new. */
     val LEGACY: Set<String> = AccPauseLogic.DEFAULT - setOf("xyz.be.cake", "vms.com.vn.mymobifone")
 
-    class Parsed(val acc: Set<String>, val vpn: Set<String>, val drop: Set<String>)
+    class Parsed(val acc: Set<String>, val vpn: Set<String>, val drop: Set<String>, val dev: Set<String> = emptySet())
 
     /**
-     * {"v":1,"apps":[{"pkg":..,"name":..,"acc":true,"vpn":false}],"drop":[..]}; `acc` defaults to true (the first
-     * lists had only that kind), `vpn` to false. Null = not a valid list. Bad entries are skipped.
+     * {"v":1,"apps":[{"pkg":..,"name":..,"acc":true,"vpn":false,"dev":false}],"drop":[..]}; `acc` defaults to true (the
+     * first lists had only that kind), `vpn` and `dev` to false. Null = not a valid list. Bad entries are skipped.
      */
     fun parse(json: String): Parsed? = runCatching {
         val o = JSONObject(json)
         val a = o.getJSONArray("apps")
-        val acc = HashSet<String>(); val vpn = HashSet<String>()
+        val acc = HashSet<String>(); val vpn = HashSet<String>(); val dev = HashSet<String>()
         for (i in 0 until minOf(a.length(), MAX)) {
             val e = a.optJSONObject(i) ?: continue; val p = e.optString("pkg").takeIf(::ok) ?: continue
             if (e.optBoolean("acc", true)) acc += p
             if (e.optBoolean("vpn", false)) vpn += p
+            if (e.optBoolean("dev", false)) dev += p
         }
         val d = o.optJSONArray("drop")
         val drop = if (d == null) emptySet() else (0 until minOf(d.length(), MAX)).mapNotNull { d.optString(it).takeIf(::ok) }.toSet()
-        if (acc.isEmpty() && vpn.isEmpty()) null else Parsed(acc, vpn, drop)
+        if (acc.isEmpty() && vpn.isEmpty() && dev.isEmpty()) null else Parsed(acc, vpn, drop, dev)
     }.getOrNull()
 
     fun ok(p: String) = p.length <= 200 && PKG.matches(p)

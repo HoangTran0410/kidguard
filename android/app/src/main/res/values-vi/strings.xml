@@ -939,8 +939,8 @@
     <string name="ev_pin_reset_done">PIN phụ huynh đã được đặt lại (yêu cầu quên PIN 24 giờ trước)</string>
     <string name="log_pin_changed">Đã đổi PIN phụ huynh</string>
     <string name="log_pin_reset_cancel">Đã huỷ yêu cầu đặt lại PIN</string>
-    <string name="log_dev_paused">Tạm tắt gỡ lỗi USB / Tuỳ chọn nhà phát triển cho app ngân hàng</string>
-    <string name="log_dev_restored">Bật lại gỡ lỗi USB như trước khi mở app ngân hàng</string>
+    <string name="log_dev_paused">Tạm tắt gỡ lỗi USB / Tuỳ chọn nhà phát triển cho app không chịu chạy khi bật</string>
+    <string name="log_dev_restored">Bật lại gỡ lỗi USB như trước khi mở app đó</string>
     <string name="log_bank_list">Danh sách app ngân hàng cập nhật: thêm %1$d, bỏ %2$d</string>
     <string name="log_vpn_paused">Tạm tắt VPN cho %1$s</string>
     <string name="log_vpn_resumed">Bật lại VPN sau app ngân hàng</string>

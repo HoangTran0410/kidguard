@@ -53,5 +53,9 @@ class BankListLogicTest {
         val r = Rules.fromJson(Rules(vpnPause = setOf("a.b")).toJson())
         assertEquals(setOf("a.b"), r.vpnPause)
         assertEquals(VpnPauseLogic.DEFAULT, Rules.fromJson(org.json.JSONObject("{}")).vpnPause)
+        assertEquals(setOf("c.d"), Rules.fromJson(Rules(devPause = setOf("c.d")).toJson()).devPause)
+        assertEquals(DevPauseLogic.DEFAULT, Rules.fromJson(org.json.JSONObject("{}")).devPause)
+        val l = BankListLogic.parse("""{"apps":[{"pkg":"a.b","dev":true,"acc":false},{"pkg":"c.d"}]}""")!!
+        assertEquals(setOf("a.b"), l.dev); assertEquals(setOf("c.d"), l.acc)
     }
 }

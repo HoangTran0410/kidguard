@@ -334,37 +334,44 @@ function rulesWire(b, r) {
 // Apps that refuse to open while any accessibility service is on (banks, some wallets / games): the phone turns
 // KidGuard's off while one is used (rules.accPause; owner mode, or basic mode set up over adb). Any app can be picked; a package name can be typed
 // for one not installed yet. Picked apps first, then A-Z.
+// Columns, one per thing an app may refuse (owner 2026-11-11: split, an app may check accessibility and not debugging).
+// Older phones: no devPause = the accessibility box also pauses debugging; no vpnPause = no VPN column.
+function bankCols(r) {
+  const dev = Array.isArray(r.devPause);
+  return [{ k: "accPause", h: t(dev ? "bank.colAcc" : "bank.colAccDev") }]
+    .concat(dev ? [{ k: "devPause", h: t("bank.colDev") }] : [], Array.isArray(r.vpnPause) ? [{ k: "vpnPause", h: "VPN" }] : []);
+}
 function bankBox(r) {
   if (!Array.isArray(r.accPause)) return "";
   const stuck = st.vpnStuck ? `<div class="alert warn" style="margin-top:8px">${ic("triangle-alert")} ${t("bank.vpnStuck")}</div>` : "";
+  const cols = bankCols(r), gt = `grid-template-columns:minmax(0,1fr) repeat(${cols.length},var(--bkw))`;
   return `<h4 style="margin:14px 0 4px">${ic("landmark")} ${t("bank.h")}</h4><p class="mute">${t("bank.p")}</p>
     ${Array.isArray(r.vpnPause) ? `<p class="mute">${t("bank.vpnP")}</p>` : ""}${stuck}
     <details id="bk" style="margin-top:6px"><summary id="bk-n"></summary>
     <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" style="margin-top:8px">
-    <div class="bkt" role="table" aria-label="${esc(t("bank.h"))}" style="margin-top:6px"><div class="bkh${Array.isArray(r.vpnPause) ? "" : " n1"}" role="row"><span role="columnheader">${t("bank.colApp")}</span><span role="columnheader">${t("bank.colAcc")}</span>${Array.isArray(r.vpnPause) ? `<span role="columnheader">VPN</span>` : ""}</div>
+    <div class="bkt" role="table" aria-label="${esc(t("bank.h"))}" style="margin-top:6px"><div class="bkh" role="row" style="${gt}"><span role="columnheader">${t("bank.colApp")}</span>${cols.map(c => `<span role="columnheader">${esc(c.h)}</span>`).join("")}</div>
     <div id="bk-list" role="rowgroup"></div></div>
     <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="bk-pkg" class="sp" placeholder="${esc(t("bank.pkg"))}" autocapitalize="off" spellcheck="false" style="min-width:0">
     <button class="btn" id="bk-add" type="button">${t("bank.add")}</button></div><p class="mute" id="bk-err" hidden>${t("bank.bad")}</p></details>`;
 }
 function bankBind(r) {
   const list = $("#bk-list"); if (!list) return;
-  const vpnOk = Array.isArray(r.vpnPause);   // older phones: accessibility only
+  const cols = bankCols(r), gt = `grid-template-columns:minmax(0,1fr) repeat(${cols.length},var(--bkw))`;
   const fill = () => {
-    const acc = new Set(r.accPause), vpn = new Set(vpnOk ? r.vpnPause : []), apps = st.apps || [], inst = new Set(apps.map(a => a.pkg));
-    const listed = [...new Set([...acc, ...vpn])];
+    const sets = cols.map(c => new Set(r[c.k])), apps = st.apps || [], inst = new Set(apps.map(a => a.pkg));
+    const any = p => sets.some(x => x.has(p));
+    const listed = [...new Set(cols.flatMap(c => r[c.k]))];
     const rows = apps.map(a => ({ pkg: a.pkg, label: a.label }))
       .concat(listed.filter(p => !inst.has(p)).map(p => ({ pkg: p, label: p, gone: true })))
-      .map(a => ({ ...a, acc: acc.has(a.pkg), vpn: vpn.has(a.pkg) }))
-      .sort((a, b) => ((b.acc || b.vpn) - (a.acc || a.vpn)) || a.label.localeCompare(b.label));
-    const count = () => { $("#bk-n").textContent = t("bank.n", new Set([...r.accPause, ...(vpnOk ? r.vpnPause : [])]).size); };
+      .sort((a, b) => (any(b.pkg) - any(a.pkg)) || a.label.localeCompare(b.label));
+    const count = () => { $("#bk-n").textContent = t("bank.n", new Set(cols.flatMap(c => r[c.k])).size); };
     count();
-    // a table: the column names (Accessibility / VPN) once in the sticky header, a bare checkbox per cell (owner 2026-11-11)
-    const box = (a, k, txt) => `<span role="cell"><input type="checkbox" data-bank="${esc(a.pkg)}" data-k="${k}" ${a[k] ? "checked" : ""} aria-label="${esc(txt + ": " + a.label)}"></span>`;
-    list.innerHTML = rows.map(a => `<div class="bkr${vpnOk ? "" : " n1"}" role="row" data-q="${esc((a.label + " " + a.pkg).toLowerCase())}">
+    // a table: the column names once in the sticky header, a bare checkbox per cell (owner 2026-11-11)
+    list.innerHTML = rows.map(a => `<div class="bkr" role="row" style="${gt}" data-q="${esc((a.label + " " + a.pkg).toLowerCase())}">
       <span class="bkn" role="cell" title="${esc(a.pkg)}">${esc(a.label)}${a.gone ? ` <span class="mute">· ${t("bank.notInst")}</span>` : ""}</span>
-      ${box(a, "acc", t("bank.acc"))}${vpnOk ? box(a, "vpn", "VPN") : ""}</div>`).join("");
+      ${cols.map((c, i) => `<span role="cell"><input type="checkbox" data-bank="${esc(a.pkg)}" data-k="${c.k}" ${sets[i].has(a.pkg) ? "checked" : ""} aria-label="${esc(c.h + ": " + a.label)}"></span>`).join("")}</div>`).join("");
     list.querySelectorAll("[data-bank]").forEach(c => c.onchange = () => {
-      const key = c.dataset.k === "vpn" ? "vpnPause" : "accPause";
+      const key = c.dataset.k;
       const s = new Set(r[key]); c.checked ? s.add(c.dataset.bank) : s.delete(c.dataset.bank);
       r[key] = [...s]; changed(); count();
     });
