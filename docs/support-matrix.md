@@ -68,6 +68,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | **Nghe xung quanh** | ✅ | ✅ | ✅ | ✅ | ❌ | **Chỉ LAN / Tailscale** (Relay không có đường âm thanh). Cần quyền micro |
 | Chụp ảnh người nhập sai PIN (trang quản lý trên máy) | ✅ | ✅ | ✅ | ✅ | ✅ | DO tự cấp quyền camera; CB: bố mẹ cho phép 1 lần sau khi mở đúng PIN. Không có trong bản Home. Relay: tải qua kênh file |
 | Bot Telegram (/status, /bonus, /lock, /block, /locate, /screen, /rec, file…) | ✅ | ✅ | ✅ | ✅ | ⚠️ | Cần internet trên máy con, không cần relay/LAN. /screen cần Trợ năng (Android 11+), /rec cần quyền micro, /lock cần Quản trị thiết bị |
+| Gửi lỗi cho nhà phát triển (Thêm › Gửi lỗi, cả trang quản lý trên máy) | ✅ | ✅ | ✅ | ✅ | ✅ | Máy con tự gửi tới worker `tvr-census` (cần internet). Không có trong bản KidGuard Home (không có Guard) |
 | Gửi/nhận file | ✅ | ✅ | ✅ | ✅ | ⚠️ | LAN tới 200 MB/file; Relay tới 10 MB/file, 8 file / 32 MB, giữ 1 h |
 | Khởi động lại máy | ✅ | ❌ | ❌ | ❌ | ✅ | |
 | Bật/tắt Tùy chọn nhà phát triển (`devOn`/`devOff`) | ✅ | ❌ | ✅ | ✅ | ✅ | Cần WSS. Không chạy khi bật luật "chặn gỡ lỗi" |

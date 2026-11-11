@@ -205,6 +205,7 @@ class Guard : Service() {
         opt("dns") { Policy.syncDns(this, r); Policy.retryDns(this, r) }
         opt("ts") { Ts.poll(this, store); Ts.keep(this, store, use.current, now) }
         opt("overlay") { if (now - lastOverlayTry > 6 * 3_600_000L) { lastOverlayTry = now; AccPause.grantOverlay(this, r) } }
+        opt("support") { Support.poll(this) }
         opt("track") { if (r.trackMin > 0 && now - lastTrackTry >= r.trackMin * 60_000L - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) } }
         opt("location") { keepLocation(r) }
         // usage access: reported once per revoke (persisted, so a process restart while revoked does not repeat it), the child is asked to turn it back on
@@ -424,6 +425,7 @@ class Guard : Service() {
             .put("launcher", runCatching { LauncherSafe.state(this, r, HomeFile.styleId(this), HomeFile.pages(this)) }.getOrDefault(JSONObject()))
             .put("notes", runCatching { KidNotes.stateJson(HomeFile.load(this)?.notes) }.getOrDefault(org.json.JSONArray()))   // the kid's notes shared with parents
             .put("sys", Sys.state(this))
+            .put("support", runCatching { Support.state(this) }.getOrDefault(JSONObject()))
             .also {
                 val owner = Policy.isOwner(this)
                 if (!owner) it.put("basic", Basic.status(this))
@@ -576,6 +578,8 @@ class Guard : Service() {
         "shotUp" -> Shot.command(this, c)       // wrong-PIN photo over the relay (Shot.kt)
         "tgSet" -> Tg.command(this, t, c)   // Telegram bot on this phone (Tg.kt)
         "tgCode" -> Tg.command(this, t, c)
+        "support" -> Support.send(this, c.optString("kind"), c.optString("text"), c.optString("pkg").ifBlank { null }, "parent")   // report to the developer (Support.kt)
+        "supportSay" -> Support.say(this, c.optString("text"))
         "tgUnlink" -> Tg.command(this, t, c)
         "tgOff" -> Tg.command(this, t, c)
         "relay" -> {

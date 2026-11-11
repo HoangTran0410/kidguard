@@ -1,8 +1,8 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // ---- shell: one NAV list feeds the desktop sidebar and the phone bottom bar ("Thêm" holds the rest) ----
-const NAV = [["home", "house"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["screen", "smartphone"], ["dev", "cpu"], ["files", "folder-open"], ["log", "notebook-pen"], ["rep", "chart-column"], ["hist", "history"], ["set", "settings"]];
+const NAV = [["home", "house"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["screen", "smartphone"], ["dev", "cpu"], ["files", "folder-open"], ["log", "notebook-pen"], ["rep", "chart-column"], ["hist", "history"], ["set", "settings"], ["sup", "message-square"]];
 const BNAV = [["home", "house"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["more", "ellipsis"]];
-const MORE_TABS = new Set(["more", "screen", "dev", "files", "log", "rep", "hist", "set"]);
+const MORE_TABS = new Set(["more", "screen", "dev", "files", "log", "rep", "hist", "set", "sup"]);
 const navOk = id => !(viewDay && (id === "screen" || id === "dev" || id === "files")) && (id !== "hist" || APP);
 // the kids this page can switch between (same list the old "Danh sách" screen showed)
 const kidList = () => APP ? kids.filter(k => k.target) : kids.filter(k => k.via === (onLan() ? "lan" : "relay"));
@@ -88,7 +88,7 @@ function render(tabClick) {
   const body = $("#body");
   if (!st) { updateLive(); body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " " + t("cantConnect", esc(lastErr)) : noState ? ic("hourglass") + " " + t("noState") : ic("hourglass") + " " + t("loading")}</div>`; return; }
   if (!navOk(tab)) tab = "home";
-  ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, dev: devTab, set: setTab, hist: histTab, files: filesTab, more: moreTab, log: logTab, rep: repTab })[tab](body);
+  ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, dev: devTab, set: setTab, hist: histTab, files: filesTab, more: moreTab, log: logTab, rep: repTab, sup: supTab })[tab](body);
   if (viewDay && tab !== "hist") body.querySelectorAll("input,select,textarea").forEach(x => { x.disabled = true; });   // a past day is read-only: any edit would fail "viewOnly" and raise the save-failed bar
   const gn = FEAT_TAB[tab] ? gateNote(FEAT_TAB[tab]) : "";
   if (gn) {   // move the nodes (not innerHTML) so the handlers the tab just wired survive
@@ -193,7 +193,7 @@ function moreTab(b) {
   const grp = (h, rows) => rows.join("") ? `<div class="sec">${h}</div><div class="list">${rows.join("")}</div>` : "";
   b.innerHTML = grp(t("sec.kid"), [li("screen", "smartphone", t("more.screenS")), li("dev", "cpu", t("more.devS")), li("files", "folder-open", t("more.filesS"))])
     + grp(t("sec.track"), [li("log", "notebook-pen", t("more.logS")), li("rep", "chart-column", t("more.repS")), li("hist", "history", t("hist.h"))])
-    + grp(t("sec.manage"), [li("set", "settings", t("more.setS")),
+    + grp(t("sec.manage"), [li("set", "settings", t("more.setS")), li("sup", "message-square", t("more.supS")),
       L.length > 1 && !LOCAL ? `<button type="button" class="li" id="moreOv"><span class="ib">${ic("users")}</span><span class="x"><b>${t("nav.family")}</b><span class="sub">${t("ovN", L.length)}</span></span>${ic("chevron-right")}</button>` : "",
       !LOCAL && (APP || kids.length > 1 || cur.via === "relay") ? `<button type="button" class="li" id="moreList"><span class="ib">${ic("list")}</span><span class="x"><b>${t("list")}</b></span>${ic("chevron-right")}</button>` : ""])
     + `<div class="sec">${t("set.general")}</div>${APP ? `<div class="list"><button type="button" class="li" id="moreApp"><span class="ib">${ic("settings")}</span><span class="x"><b>${t("au.h")}</b></span>${ic("chevron-right")}</button></div>` : `<div class="card row">${langSel()}<span class="sp"></span>${themeBtn()}</div>`}`;
@@ -207,6 +207,44 @@ function logTab(b) {
   const ev = (st.events || []).slice().reverse(), lg = (st.log || []).slice(-60).reverse();
   b.innerHTML = `<div class="card"><h2>${ic("bell")} ${t("events")}</h2>${ev.map(evHtml).join("") || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}</div>
   <div class="card"><h2>${ic("notebook-pen")} ${t("log")}</h2>${byDay(lg, l => l.t, logRow) || `<div class="empty"><span class="e">${ic("inbox")}</span>${t("empty")}</div>`}</div>`;
+}
+// "Gửi lỗi": a report to the developer (phone command `support`, Support.kt) and the thread of replies (`supportSay`)
+const SUP_KINDS = ["block", "time", "relay", "location", "launcher", "bank", "battery", "other"];
+let supKind = "other", supText = "", supPkg = "", supReply = "";
+function supTab(b) {
+  const s = st.support || {}, msgs = s.msgs || [];
+  const apps = (st.apps || []).slice().sort((x, y) => (x.label || x.pkg).localeCompare(y.label || y.pkg));
+  const status = s.busy ? `<p class="mute">${ic("hourglass")} ${t("sup.busy")}</p>`
+    : s.err ? `<p class="t-bad">${ic("triangle-alert")} ${esc(tc("sup.err.", s.err, t("errX", s.err)))}</p>` : "";
+  b.innerHTML = `<div class="card"><h2>${ic("message-square")} ${t("sup.h")}</h2><p class="mute">${t("sup.intro")}</p>
+    <details><summary>${t("sup.whatH")}</summary><p class="mute">${t("sup.what")}</p><p class="mute">${t("sup.never")}</p></details>
+    <div class="sec">${t("sup.kind")}</div>
+    <div class="chips" role="group" aria-label="${esc(t("sup.kind"))}">${SUP_KINDS.map(k => `<button type="button" data-sk="${k}" class="${supKind === k ? "on" : ""}" aria-pressed="${supKind === k}">${t("sup.k." + k)}</button>`).join("")}</div>
+    <label class="sec" for="f-supText">${t("sup.say")}</label>
+    <textarea id="f-supText" rows="3" maxlength="1000" style="width:100%" placeholder="${esc(t("sup.sayPh"))}">${esc(supText)}</textarea>
+    <label class="sec" for="f-supPkg">${t("sup.app")}</label>
+    <select id="f-supPkg" style="width:100%"><option value="">${esc(t("sup.appNone"))}</option>${apps.map(a => `<option value="${esc(a.pkg)}" ${a.pkg === supPkg ? "selected" : ""}>${esc(a.label || a.pkg)}</option>`).join("")}</select>
+    <p class="mute">${t("sup.appNote")}</p>
+    <div class="row" style="margin-top:10px"><button type="button" id="supSend" class="pri" ${s.busy ? "disabled" : ""}>${ic("send")} ${t("sup.send")}</button></div>
+    ${status}
+    ${s.code ? `<div class="ban t-ok" style="margin-top:10px"><span class="bi">${ic("hash")}</span><div class="x"><b>${t("sup.code", esc(s.code))}</b><br>${t("sup.codeNote")}${s.left >= 0 ? " " + t("sup.left", s.left) : ""}</div></div>` : ""}</div>
+  ${s.code ? `<div class="card"><h2>${ic("message-square")} ${t("sup.thread")}</h2>
+    ${msgs.map(m => `<div class="li"><span class="x"><b>${t(m.who === "dev" ? "sup.dev" : "sup.you")}</b> <span class="mute">${esc(new Date(m.at).toLocaleString())}</span><span class="sub" style="white-space:pre-wrap">${esc(m.text)}</span></span></div>`).join("") || `<p class="mute">${t("sup.noReply")}</p>`}
+    <textarea id="f-supReply" rows="2" maxlength="1000" style="width:100%;margin-top:8px" placeholder="${esc(t("sup.replyPh"))}">${esc(supReply)}</textarea>
+    <div class="row" style="margin-top:8px"><button type="button" id="supSay">${ic("send")} ${t("sup.reply")}</button></div></div>` : ""}`;
+  b.querySelectorAll("[data-sk]").forEach(x => x.onclick = () => { supKind = x.dataset.sk; render(); });
+  $("#f-supText").oninput = e => { supText = e.target.value; };
+  $("#f-supPkg").onchange = e => { supPkg = e.target.value; };
+  $("#supSend").onclick = async () => {
+    const r = await cmd({ type: "support", kind: supKind, text: supText.trim(), pkg: supPkg }, t("sup.sent"), [t("sup.ask"), t("sup.send")]);
+    if (r) { supText = ""; supPkg = ""; render(); }
+  };
+  if ($("#f-supReply")) $("#f-supReply").oninput = e => { supReply = e.target.value; };
+  if ($("#supSay")) $("#supSay").onclick = async () => {
+    if (!supReply.trim()) return;
+    const r = await cmd({ type: "supportSay", text: supReply.trim() }, t("sent"), false);
+    if (r) { supReply = ""; render(); }
+  };
 }
 // "Báo cáo tuần": 7-day bars + this kid's weekly report + most used today
 function repTab(b) {

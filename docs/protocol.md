@@ -1070,6 +1070,23 @@ SOS row (not removable; unpaired ⇒ dials 112), today's timeline (schedules, gr
 chores (`rules.chores`: "Xong" sends the same request as the main screen with the chore id) + homework (`todo`), notes,
 and the Download/KidGuard folder (files from the parent, red dot = not opened yet). A KidGuard button opens the main app.
 
+## Support report to the developer (2026-11-11, `remote/Support.kt`)
+
+Shared with tv-remote: the census worker `https://tvr-census.99-hoangtran.workers.dev` (`dev/census/src/support.js` in the
+tv-remote repo; the owner reads with its `support.py`, app `kidguard`). The PHONE talks to it, never the page (no CSP change).
+- Command `support {kind, text?, pkg?}`: `kind` one of `block time relay location launcher bank battery other`; `text` <= 1000
+  chars; `pkg` = one app the parent chose (else none). Answers `ok` (sending in the background) or `busy`.
+  The phone POSTs `/v1/support {id (uuid4, per install), app:"kidguard", v, model, report}` and keeps `{code, key}`.
+- Command `supportSay {text}`: the parent writes on the thread (`/v1/support/say`). `no code` / `empty` / `ok`.
+- State `support: {busy?, err? (limit|net|http N), code?, made?, left?, msgs?: [{who: "dev"|"you", text, at}]}`; replies are
+  asked (`/v1/support/thread`) every 6 h while the code is < 14 days old (the worker's keep), and right after a send / say.
+- Report = allow-list (`Support.facts`): version, flavor, device, ROM, SDK, WebView, owner/mode/basic, caps, features, adbWhy,
+  acc, usage, locationOn, dev, battery, update, launcher, sys, ts/tg/net (named sub-keys only), relay default|own|off + last OK
+  age, counts of apps and paused lists, names of rules that are on; plus this process's logcat (800 lines) and the last crash
+  (`files/last_crash.txt`, any thread, `App.onCreate`). Everything through `SupportScrub` (keys, tokens, PINs, long hex, bot
+  token, emails, MACs, SSIDs, coordinates, public IPs, non-ASCII words, non-system package / host names -> `app#hash`).
+  Never: location / track, notifications, notes, photos, files, app list / usage. No live look (tv-remote has one).
+
 ## Features and permissions
 What works with which permission, so the child app and the web page can show it before the heavy setup (Device Owner)
 is done. Source of truth: `guard/Features.kt` (pure, `FeaturesTest`). State adds (absent = older app):
