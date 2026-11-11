@@ -115,7 +115,7 @@ const QS = [
   ["where", "r-zone", "", "map-pin", ["zone.h", "sd.zone"]], ["where", "r-trk", "", "route", ["trk.h", "sd.trk"]],
   ["set", "s-pin", "", "key-round", ["pin.h", "pin.p"]], ["set", "r-totp", "", "key-round", ["totp.h", "sd.totp"]],
   ["set", "s-sys", "", "sliders-horizontal", ["sys.h", "sd.sys", "sys.ring", "sys.media", "sys.alarm", "sys.bright", "sys.timeout", "sys.dnd"]],
-  ["set", "s-dev", "", "code", ["dev.h", "sd.dev", "anti.debug"]], ["set", "s-relay", "", "globe", ["relay.h", "sd.relay"]],
+  ["set", "s-dev", "", "code", ["dev.h", "sd.dev", "anti.debug"]], ["set", "s-sh", "", "terminal", ["sh.h", "sd.sh", "sh.tcp"]], ["set", "s-relay", "", "globe", ["relay.h", "sd.relay"]],
   ["set", "s-ts", "", "route", ["ts.h", "sd.ts"]], ["set", "s-upd", "", "refresh-cw", ["upd.h", "sd.upd", "upd.auto"]],
   ["set", "s-tg", "", "send", ["tg.h", "tg.d"]], ["set", "s-feat", "", "list-checks", ["ft.h", "ft.d"]],
   ["set", "s-paired", "", "smartphone", ["paired.h", "sd.paired"]], ["set", "s-danger", "", "octagon-x", ["set.danger", "sd.danger"]],
