@@ -110,7 +110,7 @@ Order of writes (first writer wins, `p !in out`):
 
 - Suspend: loop only (Guard.kt:191-197). `want.keys` vs `store.suspendedByUs`; failures from DPM (returned array) are not recorded as suspended (Policy.kt:239-245). Logs `log_suspended/unsuspended`. `nowSusp` is persisted only when changed.
 - `goHome()` (:592) when the front app was just suspended (accessibility HOME first, else startActivity).
-- Hide ("Dọn máy"): `applyHidden` (Guard.kt:238) when `rules.hidden`/`hiddenByUs`/never-set changed or every 10 min. Owner => `setApplicationHidden`; non-owner => self-adb `pm disable-user` (`hideViaShell` Policy.kt:271, needs Wireless debugging). Refusals tracked in `refusedHide` (Debloat.refusedAfter). State prefs: `hid` (owner), `shellOff` (shell), `hideRefused`.
+- Hide ("Dọn máy"): `applyHidden` (Guard.kt:238) when `rules.hidden`/`hiddenByUs`/never-set changed or every 10 min. Owner => `setApplicationHidden`; non-owner => self-adb (falls back to `pm uninstall -k --user 0` when disable is refused, e.g. HyperOS) `pm disable-user` (`hideViaShell` Policy.kt:271, needs Wireless debugging). Refusals tracked in `refusedHide` (Debloat.refusedAfter). State prefs: `hid` (owner), `shellOff` (shell), `hideRefused`.
 - Never-hide set = protected + self + Tailscale pkg (Policy.kt:250).
 
 ### 1.6 Location

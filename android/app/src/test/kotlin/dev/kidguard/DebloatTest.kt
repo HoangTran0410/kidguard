@@ -97,8 +97,9 @@ class DebloatRefusedTest {
     }
 
     @Test fun shellCommands() {
-        assertEquals("pm disable-user --user 0 com.heytap.market", Debloat.disableCmd("com.heytap.market"))
-        assertEquals("pm enable --user 0 com.heytap.market", Debloat.enableCmd("com.heytap.market"))
+        assertTrue(Debloat.disableCmd("com.heytap.market")!!.startsWith("pm disable-user --user 0 com.heytap.market "))
+        assertTrue(Debloat.disableCmd("com.heytap.market")!!.endsWith("|| pm uninstall -k --user 0 com.heytap.market"))
+        assertEquals("cmd package install-existing --user 0 com.heytap.market >/dev/null 2>&1; pm enable --user 0 com.heytap.market", Debloat.enableCmd("com.heytap.market"))
         assertEquals("pm clear --user 0 com.heytap.market", Debloat.clearCmd("com.heytap.market"))
         for (bad in listOf("a.b; reboot", "x y.z", "", "nodot", "a.b\nc.d")) {
             assertEquals(bad, null, Debloat.disableCmd(bad)); assertEquals(null, Debloat.enableCmd(bad)); assertEquals(null, Debloat.clearCmd(bad))
@@ -109,6 +110,8 @@ class DebloatRefusedTest {
         assertTrue(Debloat.disableOk("Package com.x.y new state: disabled-user"))
         assertFalse(Debloat.disableOk("Exception occurred while executing 'disable-user': java.lang.SecurityException"))
         assertFalse(Debloat.disableOk(""))
+        assertTrue(Debloat.disableOk("Success\n"))   // HyperOS fallback: removed for user 0
+        assertFalse(Debloat.disableOk("Failure [DELETE_FAILED_INTERNAL_ERROR]"))
         assertTrue(Debloat.enableOk("Package com.x.y new state: enabled"))
         assertTrue(Debloat.enableOk("Package com.x.y new state: default"))
         assertFalse(Debloat.enableOk("Error: java.lang.IllegalArgumentException: Unknown package"))

@@ -698,7 +698,7 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
 (system-only since Android 8).
 - **Rules** `hidden: ["pkg", …]` (Device Owner, or the self-adb shell below): preinstalled apps the parent hid. The phone calls
   `setApplicationHidden(true)` on each (skipping the never-hide set) and un-hides what it hid before and is no longer
-  listed (it remembers its own set, like suspend; shell path: `pm disable-user --user 0` / `pm enable --user 0`, at most 20 packages per pass, the loop continues next tick). Unknown / not installed entries are kept and ignored.
+  listed (it remembers its own set, like suspend; shell path: `pm disable-user --user 0`, or `pm uninstall -k --user 0` when the OS refuses it (HyperOS) / `cmd package install-existing` + `pm enable --user 0`, at most 20 packages per pass, the loop continues next tick). Unknown / not installed entries are kept and ignored.
   **release** un-hides every app KidGuard hid (owner path: `setApplicationHidden(false)`; shell path: `pm enable`, see below).
 - **State** `adbWhy` (basic mode, 0.9.14; absent = the self-adb shell works): why KidGuard's own adb can't run now:
   `sdk` (< Android 11), `key` (self-setup never done), `wss`, `blocked` (debugging disallowed), `wifi` (not on Wi-Fi).

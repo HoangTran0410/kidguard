@@ -130,12 +130,18 @@ object Debloat {
     const val SHELL_BATCH = 20
 
     /** Reversible "hide" through the shell: disabled for user 0 (the data stays). Null for an invalid package name (never build a command from it). */
-    fun disableCmd(pkg: String): String? = if (validPkg(pkg)) "pm disable-user --user 0 $pkg" else null
-    fun enableCmd(pkg: String): String? = if (validPkg(pkg)) "pm enable --user 0 $pkg" else null
+    /**
+     * `pm disable-user`, or when the OS refuses it (HyperOS 3: "Cannot disable system packages"; `pm hide` refused too)
+     * `pm uninstall -k --user 0`: the APK and data stay, [enableCmd] brings it back with `install-existing`.
+     */
+    fun disableCmd(pkg: String): String? = if (validPkg(pkg))
+        "pm disable-user --user 0 $pkg 2>&1 | grep -q 'new state: disabled-user' && echo 'new state: disabled-user' || pm uninstall -k --user 0 $pkg" else null
+    /** Undoes either way of [disableCmd] (`install-existing` is a no-op for an app that is still installed). */
+    fun enableCmd(pkg: String): String? = if (validPkg(pkg)) "cmd package install-existing --user 0 $pkg >/dev/null 2>&1; pm enable --user 0 $pkg" else null
     fun clearCmd(pkg: String): String? = if (validPkg(pkg)) "pm clear --user 0 $pkg" else null
 
     /** `pm disable-user` prints "Package x new state: disabled-user"; `pm enable` prints "... new state: enabled". Anything else is a failure. */
-    fun disableOk(out: String) = out.contains("new state: disabled-user")
+    fun disableOk(out: String) = out.contains("new state: disabled-user") || out.trim().equals("Success", ignoreCase = true)   // Success = removed for the user
     fun enableOk(out: String) = out.contains("new state: enabled") || out.contains("new state: default")
     fun clearOk(out: String) = out.trim().equals("Success", ignoreCase = true)
 

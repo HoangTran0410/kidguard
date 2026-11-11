@@ -409,9 +409,11 @@ object Policy {
         return now
     }
 
-    /** Disabled for the user (by us or anyone): what `pm disable-user` sets. */
+    /** Disabled for the user (`pm disable-user`) or removed for the user with the APK kept (`pm uninstall -k --user 0`, see [Debloat.disableCmd]). */
     private fun disabledByUser(ctx: Context, pkg: String): Boolean = runCatching {
-        ctx.packageManager.getApplicationEnabledSetting(pkg) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER
+        @Suppress("DEPRECATION") val ai = ctx.packageManager.getApplicationInfo(pkg, PackageManager.MATCH_UNINSTALLED_PACKAGES)
+        ai.flags and android.content.pm.ApplicationInfo.FLAG_INSTALLED == 0 ||
+            ctx.packageManager.getApplicationEnabledSetting(pkg) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER
     }.getOrDefault(false)
 
     /**
