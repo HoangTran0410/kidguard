@@ -24,6 +24,8 @@ jobs:
           files=$(grep -o 'src="/ui/[a-z0-9-]*\.js"' ui/index.html | sed 's|src="/ui/|ui/assets/|; s|"$||')
           for f in $files; do node --check "$f"; done
           cat $files > /tmp/page.js && node --check /tmp/page.js
+      - name: Feature search covers every section
+        run: node scripts/check-search.mjs
   relay:
     runs-on: ubuntu-latest
     timeout-minutes: 15

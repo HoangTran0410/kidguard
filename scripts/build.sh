@@ -18,6 +18,7 @@ if [ -n "${TRUSTSTORE:-}" ]; then
   export JAVA_OPTS="$T"
   OPTS=(-Dorg.gradle.jvmargs="-Xmx2g $T")
 fi
+node scripts/check-search.mjs   # every page section must be findable in the feature search
 (cd android && ./gradlew -q ${OPTS[@]+"${OPTS[@]}"} testKidDebugUnitTest assembleKidRelease assembleHomeRelease :parent:testDebugUnitTest :parent:assembleRelease)
 mkdir -p build
 cp android/app/build/outputs/apk/kid/release/app-kid-release.apk build/kidguard.apk

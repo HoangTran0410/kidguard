@@ -26,6 +26,8 @@ When you settle something durable (a decision, a rejected approach, a platform q
 - UI text Vietnamese + English, always both (`res/values` + `res/values-vi`, `ui/assets/i18n-en.js` + `i18n-vi.js`); code and comments English.
 - Rules JSON is a full replace on the phone (`Rules.fromJson` is the allow-list): the page must always send the whole object.
 - New relay command ⇒ worker whitelist `CMDS` + protocol "Commands" + (destructive) `ONCE` list. Checklist: `docs/flows.md` §5.
+- New page section (`sec("id", ...)`) ⇒ an entry in the feature search `QS` (`ui/assets/shell.js`), keys in both i18n files;
+  `node scripts/check-search.mjs` fails otherwise (CI + `build.sh`).
 - New `ui/assets` file ⇒ `<script defer>` tag in `ui/index.html` (order matters, shared globals: never redeclare a
   top-level name) AND import + map entry in `relay/src/index.js`.
 - HTML responses: `X-Frame-Options: DENY` + CSP; a new external origin goes into CSP on both phone (`Http.kt`) and worker (`relay/src/index.js` `CSP`).
