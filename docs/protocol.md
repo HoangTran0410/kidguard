@@ -160,7 +160,7 @@ v0.9.7:
   (classic `adb connect <ip>:5555`), re-opened by the Guard tick after a reboot (every 10 min while closed), paused while
   a bank app has debugging off; off (also `devOff` and release) = `usb:` then Developer options / USB debugging back as
   before; port 5555 survives adbd restarts until a reboot, so a pending `usb:` (`Store.adbTcpReset`) is retried by the tick
-  while 5555 is still served. Answers `ok | no adb | blocked`. Worker: ONCE but not SHORT (an "off" must never be dropped).
+  while 5555 is still served. Answers `ok | no adb | blocked`. While 5555 is served, `adbShell` itself connects to `127.0.0.1:5555` first (paired key, no prompt wait), so it runs without Wi-Fi / Wireless debugging (mobile data); `sh.can` is then true even without WSS. Worker: ONCE but not SHORT (an "off" must never be dropped).
   `support` is ONCE + SHORT too (a leaked link must not replay reports into the 20/day census quota).
 - State `sh` (v0.9.14): `{can, busy, tcp, tcpUp, port, log: [{at, cmd, ms, out | err}]}`, last 8, memory only;
   `out` ≤ 6000 chars for the newest two, 300 for older ones (state stays < ~14 KB for the relay); `err` = `adb` (no answer / timeout) or an `adbWhy` code (`sdk key wss blocked wifi`).

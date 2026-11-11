@@ -29,7 +29,7 @@ object Shell {
     @Volatile private var lastTry = 0L
     @Volatile private var tcpBusy = false
 
-    fun can(ctx: Context) = android.os.Build.VERSION.SDK_INT >= 30 && SelfAdb.hasKey(ctx) && Sys.wss(ctx)
+    fun can(ctx: Context) = android.os.Build.VERSION.SDK_INT >= 30 && SelfAdb.hasKey(ctx) && (Sys.wss(ctx) || SelfAdb.viaTcp)   // port 5555 open: no WSS / Wi-Fi needed
 
     fun run(ctx: Context, cmd: String): String {
         val c = cmd.trim().take(2000)

@@ -8,7 +8,7 @@ import android.util.Log
 /**
  * A shell for non-Device-Owner phones: KidGuard talks to the phone's own adbd over Wireless debugging (Android 11+),
  * using the key paired once through [SelfSetup]. Used by "Dọn máy" (pm disable-user / pm enable / pm clear).
- * Wireless debugging must be on and the phone on Wi-Fi. With WRITE_SECURE_SETTINGS, [ensure] turns it on for the job and
+ * Wireless debugging must be on and the phone on Wi-Fi, unless adbd already serves port 5555 (then any network, see [connect]). With WRITE_SECURE_SETTINGS, [ensure] turns it on for the job and
  * off again afterwards (the "window"), so Developer options can stay off for banking apps.
  */
 object SelfAdb {
@@ -22,6 +22,9 @@ object SelfAdb {
     private var finder: AdbPortFinder? = null
     @Volatile private var readyAt = 0L
     @Volatile private var readyVal = false
+    private const val TCP_PORT = 5555
+    /** The last link went over adbd's plain TCP port 5555 (adb tcpip): no Wi-Fi / Wireless debugging needed, works on 3G. */
+    @Volatile var viaTcp = false; private set
 
     /** The one key/certificate manager of the process (SelfSetup uses it too). */
     fun manager(ctx: Context): SelfAdbManager = synchronized(lock) { mgr ?: SelfAdbManager(ctx.applicationContext).also { mgr = it } }
@@ -126,6 +129,13 @@ object SelfAdb {
     private fun connect(ctx: Context): Boolean {
         val m = manager(ctx)
         if (m.isConnected) return true
+        // adbd listening on 5555 (adb tcpip / "Mở cổng 5555"): our key paired once is accepted there, on any network.
+        // Never wait for the "Allow debugging?" prompt (the default timeout is infinite and we hold [lock]): an unknown key just fails.
+        m.setTimeout(10, java.util.concurrent.TimeUnit.SECONDS); m.setThrowOnUnauthorised(true)
+        if (tcpOpen() && runCatching { m.connect("127.0.0.1", TCP_PORT) }.onFailure { Log.w(TAG, "self connect :$TCP_PORT", it) }.getOrDefault(false)) {
+            viaTcp = true; return true
+        }
+        viaTcp = false
         val f = finder ?: AdbPortFinder(ctx, AdbPortFinder.CONNECT).also { finder = it }
         f.start()
         var left = 15
@@ -135,6 +145,10 @@ object SelfAdb {
         if (port == 0) return false
         return runCatching { m.connect("127.0.0.1", port) }.onFailure { Log.w(TAG, "self connect", it) }.getOrDefault(false)
     }
+
+    private fun tcpOpen(): Boolean = runCatching {
+        java.net.Socket().use { it.connect(java.net.InetSocketAddress("127.0.0.1", TCP_PORT), 300); true }
+    }.getOrDefault(false)
 
     /** Runs a shell command and returns its trimmed output, or null when there is no shell / it timed out. Off the main thread. */
     fun run(ctx: Context, cmd: String): String? {
