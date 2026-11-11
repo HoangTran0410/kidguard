@@ -665,12 +665,13 @@ class Store private constructor(private val app: Context) {
     fun log(id: Int, vararg a: Any) = log(app.getString(id, *a), runCatching { app.resources.getResourceEntryName(id).removePrefix("log_") }.getOrDefault(""))
     fun event(kind: String, id: Int, vararg a: Any) = addEvent(Ev(kind, app.getString(id, *a)))
 
-    /** Recent events for the parent: commands done, apps paused. Last 50. */
+    /** Recent events for the parent: commands done, apps paused. Last 50 here (state); all of them 90 days in [HistDb]. */
     @Synchronized fun log(msg: String, kind: String = "") {
         val a = runCatching { JSONArray(p.getString("log", "[]")) }.getOrDefault(JSONArray())
         a.put(JSONObject().put("t", System.currentTimeMillis()).put("m", msg).apply { if (kind.isNotEmpty()) put("k", kind) })
         val keep = JSONArray(); for (i in maxOf(0, a.length() - 50) until a.length()) keep.put(a.get(i))
         p.edit().putString("log", keep.toString()).apply()
+        HistDb.addLog(app, System.currentTimeMillis(), kind, msg)   // the long history (90 days), written off this thread
     }
     @Synchronized fun logs(): JSONArray = runCatching { JSONArray(p.getString("log", "[]")) }.getOrDefault(JSONArray())
 
@@ -681,6 +682,7 @@ class Store private constructor(private val app: Context) {
         val o = JSONObject().put("id", randomHex(3)).put("t", now).put("kind", e.kind).put("text", e.text)
         if (e.zone != null) o.put("zone", e.zone)
         p.edit().putString("events", Events.prune(events().put(o), now).toString()).apply()
+        HistDb.addEvent(app, now, o.optString("id"), e.kind, e.text, e.zone)
     }
 
     /** Zones: the next location fix only records where the child is (set after the zone list changed). */

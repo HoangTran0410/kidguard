@@ -106,6 +106,8 @@ class Api(private val g: Guard) {
                 runCatching { Acc.input(JSONObject(r.text)) }.getOrDefault("bad input")).toString())
             p == "/device" -> Res.json(DeviceInfo.get(g, if (r.query["fresh"] == "1") DeviceLogic.FRESH_MS else DeviceLogic.TTL_MS).toString())   // "Máy" view, cached 60 s
             p == "/track" -> Res.json(JSONObject().put("track", track(((r.query["days"]?.toIntOrNull()) ?: 7).coerceIn(1, 7))).toString())
+            // Nhật ký: one local day of log lines + events from the 90-day history (docs/protocol.md "Log history")
+            p == "/logday" -> HistDb.day(g, r.query["day"] ?: "")?.let { Res.json(it.toString()) } ?: Res.json("""{"error":"bad day"}""", 400)
             p == "/icon" -> icon(r.query["pkg"] ?: "")
             // LAN / Tailscale only (the relay has no audio route): AAC stream of the mic; the child is always told
             p == "/listen" && r.method == "GET" -> {

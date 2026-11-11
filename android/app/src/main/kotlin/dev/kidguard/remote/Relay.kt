@@ -182,6 +182,7 @@ class Relay(private val g: Guard) {
             lastOk = System.currentTimeMillis(); lastError = ""
             if (res.optBoolean("live")) startLive(base, rid, token)
             if (res.optBoolean("device")) runCatching { DeviceInfo.upload(g, base, rid, token) }.onFailure { Log.w("KidGuard", "device", it) }
+            res.optString("logday").takeIf { HistLogic.validDay(it) }?.let { d -> runCatching { HistDb.upload(g, base, rid, token, d) }.onFailure { Log.w("KidGuard", "logday", it) } }
             return acks.length() > 0 || res.has("rules") || res.optBoolean("full").also { if (it) forceSend = true }
         }
     }

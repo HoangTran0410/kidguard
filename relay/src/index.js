@@ -41,7 +41,7 @@ const UI = {
   "start.js": ui_start_js,
 };
 
-const MAX_BODY = 256 * 1024, MAX_DEVICE = 32 * 1024;
+const MAX_BODY = 256 * 1024, MAX_DEVICE = 32 * 1024, MAX_LOGDAY = 100 * 1024, KEEP_LOGDAYS = 4;
 const MAX_FRAME = 1024 * 1024;
 const MAX_RULES = 64 * 1024, MAX_CMD = 4096, MAX_CMDS = 20;   // 64 KB + 20 x 4 KB stays far below the phone's 256 KB reply cap
 const KEYS = ["back", "home", "recents", "notifications", "quick", "lock", "power"];
@@ -104,7 +104,7 @@ export default {
     }
     const th = req.method === "POST" && env.TG_BOT ? url.pathname.match(/^\/tg\/([0-9a-f]{32})$/) : null;
     if (th) return tgHook(req, env, th[1]);
-    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|file|tg|where|ws)$/);
+    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws)$/);
     if (!m) return json({ error: "not found" }, 404);
     if (env.RL) {
       const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
@@ -140,6 +140,7 @@ export class Kid {
   constructor(ctx, env) {
     this.ctx = ctx; this.s = ctx.storage; this.env = env || {};
     this.liveUntil = 0; this.frame = null; this.seq = Date.now(); this.seen = 0; this.seenWritten = 0; this.inputs = []; this.waiters = new Set();
+    this.lgdWant = new Map();   // day -> ms the parent asked for that log day (memory only)
     this.deviceWant = 0;   // parent asked for a device-health snapshot at this ms (memory only, like liveUntil)
   }
 
@@ -167,7 +168,7 @@ export class Kid {
     const url = new URL(req.url), action = url.pathname.split("/").pop(), m = req.method;
     const res = await this.handle(req);
     // parent changes the phone must see now: cmd / rules / live / device ask / a file chunk; a stale state on view
-    if (res.status < 300 && action !== "sync" && action !== "ws" && ((m === "POST" && ["cmd", "live", "device", "file"].includes(action)) || (m === "PUT" && action === "rules")
+    if (res.status < 300 && action !== "sync" && action !== "ws" && ((m === "POST" && ["cmd", "live", "device", "logday", "file"].includes(action)) || (m === "PUT" && action === "rules")
         || (m === "GET" && action === "state" && Date.now() - (this.stateAt || 0) > 30e3))) this.kickPhone();
     return res;
   }
@@ -274,6 +275,26 @@ export class Kid {
       else if (req.method !== "GET") return json({ error: "method not allowed" }, 405);
       const d = (await this.s.get("device")) || null;
       return json({ device: d, asked: this.deviceWant, seen: this.seenNow() });
+    }
+    // "Nhật ký" history, one day: parent POST {day} asks (the next sync reply says "logday": day) and gets the last stored
+    // copy of that day; the phone PUTs {day, days, ev, lg, cut} (<= 100 KB). The last KEEP_LOGDAYS days stay stored.
+    if (action === "logday") {
+      const dayOk = d => typeof d === "string" && /^\d{4}-\d\d-\d\d$/.test(d);
+      if (req.method === "PUT") {
+        if (!isObj(body) || !dayOk(body.day)) return json({ error: "bad day" }, 400);
+        if (JSON.stringify(body).length > MAX_LOGDAY) return json({ error: "too big" }, 413);
+        const idx = ((await this.s.get("lgdIdx")) || []).filter(d => d !== body.day); idx.push(body.day);
+        const drop = idx.splice(0, Math.max(0, idx.length - KEEP_LOGDAYS));
+        await this.s.put({ ["lgd:" + body.day]: { ...body, at: now }, lgdIdx: idx });
+        if (drop.length) await this.s.delete(drop.map(d => "lgd:" + d));
+        this.lgdWant.delete(body.day);
+        return json({ ok: true });
+      }
+      const day = req.method === "POST" ? body.day : url.searchParams.get("day");
+      if (!dayOk(day)) return json({ error: "bad day" }, 400);
+      if (req.method === "POST") { this.lgdWant.set(day, now); if (this.lgdWant.size > 8) this.lgdWant.delete(this.lgdWant.keys().next().value); }
+      else if (req.method !== "GET") return json({ error: "method not allowed" }, 405);
+      return json({ logday: (await this.s.get("lgd:" + day)) || null, asked: this.lgdWant.get(day) || 0, seen: this.seenNow() });
     }
     if (action === "live") {
       if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
@@ -445,6 +466,7 @@ export class Kid {
     const files = (await this.fileGc(now)).filter(f => f.to === "kid" && f.got.length === f.n).length;
     if (files) out.files = files;   // the phone then fetches them from /file
     if (this.deviceWant && now - this.deviceWant < 120e3) out.device = true;
+    for (const [d, at] of this.lgdWant) { if (now - at < 120e3) { out.logday = d; break; } this.lgdWant.delete(d); }   // one day per sync
     const known = state || (await this.s.get("state"));   // the phone omits state when unchanged
     const have = known && known.rules ? +known.rules.rev || 0 : 0;
     if (rules && rules.rev > have) out.rules = rules;

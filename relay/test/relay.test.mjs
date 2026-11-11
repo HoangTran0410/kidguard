@@ -176,6 +176,23 @@ ck("device GET does not ask",!(await (await PD("sync",{})).json()).device);
 ck("device PUT >32KB 413",(await PD("device",{x:"a".repeat(40000)},"PUT")).status==413);
 ck("device PUT array 400",(await PD("device",[1],"PUT")).status==400);
 ck("device wrong token 401",(await fetch(`${B}/c/${idd}/device`,{headers:H(BAD)})).status==401);}
+// ---- Nhật ký history ("logday"): parent POST {day} asks, sync says logday:<day>, phone PUTs the day, parent reads it ----
+{const idl=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),PL=(p,o,m="POST")=>fetch(`${B}/c/${idl}/${p}`,{method:m,headers:H(),body:o===undefined?undefined:JSON.stringify(o)});
+await PL("sync",{state:{t:1}});
+ck("logday: not asked -> sync has no logday",!(await (await PL("sync",{})).json()).logday);
+ck("logday POST bad day 400",(await PL("logday",{day:"x"})).status==400&&(await PL("logday",{})).status==400);
+let l=await (await PL("logday",{day:"2026-11-10"})).json();ck("logday POST asks, none stored yet",l.logday===null&&l.asked>0);
+ck("logday: sync names the day",(await (await PL("sync",{})).json()).logday==="2026-11-10");
+ck("logday PUT bad day 400",(await PL("logday",{day:"nope"},"PUT")).status==400);
+ck("logday PUT ok",(await (await PL("logday",{day:"2026-11-10",days:{"2026-11-10":2},ev:[{id:"a",t:1,kind:"x",text:"y"}],lg:[{t:2,m:"z"}],cut:false},"PUT")).json()).ok===true);
+ck("logday: ask cleared after the PUT",!(await (await PL("sync",{})).json()).logday);
+l=await (await fetch(`${B}/c/${idl}/logday?day=2026-11-10`,{headers:H()})).json();ck("logday GET returns stored + at",l.logday&&l.logday.ev.length==1&&l.logday.lg.length==1&&l.logday.at>0&&l.logday.days["2026-11-10"]===2);
+ck("logday GET does not ask",!(await (await PL("sync",{})).json()).logday);
+ck("logday PUT >100KB 413",(await PL("logday",{day:"2026-11-09",lg:[{m:"a".repeat(110000)}]},"PUT")).status==413);
+for(const d of ["2026-11-01","2026-11-02","2026-11-03","2026-11-04","2026-11-05"])await PL("logday",{day:d,ev:[],lg:[]},"PUT");
+l=await (await fetch(`${B}/c/${idl}/logday?day=2026-11-10`,{headers:H()})).json();ck("logday keeps only the newest 4 days",l.logday===null);
+l=await (await fetch(`${B}/c/${idl}/logday?day=2026-11-05`,{headers:H()})).json();ck("logday newest still there",!!l.logday);
+ck("logday wrong token 401",(await fetch(`${B}/c/${idl}/logday?day=2026-11-05`,{headers:H(BAD)})).status==401);}
 // ---- remote phone settings: key whitelist + number/boolean value ----
 {const ids=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),PS=(p,o)=>fetch(`${B}/c/${ids}/${p}`,{method:"POST",headers:H(),body:JSON.stringify(o)});
 await PS("sync",{state:{t:1}});

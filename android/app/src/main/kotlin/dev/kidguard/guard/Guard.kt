@@ -665,7 +665,7 @@ class Guard : Service() {
             res.set(r)
             // anything but "ok" (e.g. "failed: N app còn bị ẩn") means we are still in charge: keep enforcing
             if (r != "ok") { stopped = false; wifiLock(true); work.post(loopRun); store.log(R.string.log_release_fail, r) }
-            else { store.log(R.string.log_released); runCatching { Files.wipeOutbox(this) } }   // received files stay in Download
+            else { store.log(R.string.log_released); runCatching { Files.wipeOutbox(this) }; HistDb.wipe(this) }   // received files stay in Download
             // finished after the caller gave up ("failed" was answered): still go away, we are released
             if (!state.compareAndSet(0, 1) && r == "ok") Handler(mainLooper).postDelayed({ stopSelf() }, 2_000)
             done.countDown()

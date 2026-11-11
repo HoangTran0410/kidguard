@@ -202,8 +202,10 @@ function moreTab(b) {
   if ($("#moreApp")) $("#moreApp").onclick = () => goAppSettings();
   if ($("#moreList")) $("#moreList").onclick = () => { goList(); navDown(0); };
 }
-// "Nhật ký": events + the phone's own log, one day at a time (the phone keeps 50 + 50 lines, so the page keeps what it has
-// seen per kid in localStorage: 90 days / 1500 each) with a day strip + date picker, counts by type as filter chips, paged rows
+// "Nhật ký": events + the phone's own log, one day at a time with a day strip + date picker, counts by type as filter chips,
+// paged rows. The phone keeps 90 days (docs/protocol.md "Log history"): the page asks it for the chosen day (LAN GET
+// /logday?day=, relay POST /logday + poll) and gets the per-day counts of the strip with it. A phone / worker without
+// that route (404) falls back to what the state carries (last 50 each) kept per kid in localStorage (90 days / 1500 each).
 const LG_PAGE = 50, LG_KEEP = 1500, LG_DAYS = 90;
 const LG_CAT = { alert: ["pin_wrong", "usage_off", "totp_off", "release_fail", "released", "sos", "acc_settings", "proj_denied", "listen_err", "dns_fallback"],
   parent: ["cmd", "rules", "control", "view_start", "listen_start", "listen_done", "ring_stopped", "checkin", "admin_open", "dev_off", "dev_on", "cleared", "totp_on", "paired", "unlock"],
@@ -230,35 +232,70 @@ function lgMerge() {
   }
   return lgMem;
 }
+let lgx = null;   // {k, cache: {day: {d, tried, busy, err}}, days: {day: rows} (last answer), old}
+async function lgLoad(day, force) {
+  const k = cur; if (!k) return;
+  if (!lgx || lgx.k !== k) lgx = { k, cache: {}, days: null, old: false };
+  const me = lgx, c = me.cache[day] || (me.cache[day] = {});
+  if (c.busy || me.old) return;
+  if (!force && c.tried && (day !== dkey(Date.now()) || Date.now() - c.tried < 60000)) return;   // a past day is final; today refreshes at most every minute
+  c.busy = true; c.err = ""; c.tried = Date.now();
+  const gone = () => lgx !== me || cur !== k || tab !== "log";
+  const draw = () => { if (!gone() && lgDay === day && $("#body")) logTab($("#body")); };
+  const take = j => { c.d = j; if (j.days) me.days = j.days; };
+  const old = e => e.raw === "not found" || e.raw === "HTTP 404";
+  try {
+    if (k.via === "lan") take(await call(k, "/logday?day=" + day));
+    else {
+      let j = await call(k, "/logday", "POST", { day });
+      const asked = +j.asked || 0, fresh = x => x && (!asked || +x.at >= asked);
+      if (j.logday) take(j.logday);
+      draw();
+      for (let i = 0; !fresh(j.logday) && i < 25 && !gone(); i++) {   // the phone answers on its next sync (<= ~1 min)
+        await new Promise(r => setTimeout(r, 3000));
+        j = await call(k, "/logday?day=" + day).catch(() => ({}));
+        if (fresh(j.logday)) take(j.logday);
+      }
+      if (!fresh(j.logday) && !gone() && !c.d) throw { raw: "timeout", message: t("dv.old") };
+    }
+  } catch (e) { if (old(e)) me.old = true; else c.err = e.message || String(e.raw || e); }
+  c.busy = false; draw();
+}
 const lgCount = (rows, f) => { const m = {}; for (const r of rows) { const k = f(r); m[k] = (m[k] || 0) + 1; } return m; };
 function logTab(b) {
-  const m = lgMerge() || { ev: st.events || [], lg: st.log || [] }, today = dkey(Date.now());
+  const today = dkey(Date.now());
   if (!lgDay) lgDay = today;
-  const evAll = m.ev.filter(e => dkey(e.t) === lgDay), lgAll = m.lg.filter(l => dkey(l.t) === lgDay);
+  lgLoad(lgDay);
+  const c = lgx && lgx.k === cur && lgx.cache[lgDay] || {}, oldPhone = !!(lgx && lgx.k === cur && lgx.old);
+  const m = oldPhone ? lgMerge() || { ev: st.events || [], lg: st.log || [] } : null;
+  const evAll = m ? m.ev.filter(e => dkey(e.t) === lgDay) : c.d && c.d.ev || [], lgAll = m ? m.lg.filter(l => dkey(l.t) === lgDay) : c.d && c.d.lg || [];
   const evC = lgCount(evAll, e => e.kind || "other"), lgC = lgCount(lgAll, lgCat);
   if (lgEv && !evC[lgEv]) lgEv = ""; if (lgLg && !lgC[lgLg]) lgLg = "";
   const evRows = (lgEv ? evAll.filter(e => (e.kind || "other") === lgEv) : evAll).slice().reverse();
   const lgRows = (lgLg ? lgAll.filter(l => lgCat(l) === lgLg) : lgAll).slice().reverse();
-  const tot = {}; for (const e of m.ev) { const k = dkey(e.t); tot[k] = (tot[k] || 0) + 1; } for (const l of m.lg) { const k = dkey(l.t); tot[k] = (tot[k] || 0) + 1; }
+  let tot = lgx && lgx.k === cur && lgx.days;
+  if (m) { tot = {}; for (const e of m.ev) { const k = dkey(e.t); tot[k] = (tot[k] || 0) + 1; } for (const l of m.lg) { const k = dkey(l.t); tot[k] = (tot[k] || 0) + 1; } }
+  tot = tot || {};
   const days = []; for (let i = 0; i < 14; i++) days.push(dkey(Date.now() - i * 864e5));
   if (days.indexOf(lgDay) < 0) days.push(lgDay);
-  const first = dkey(Math.min(...m.ev.map(e => e.t), ...m.lg.map(l => l.t), Date.now()));
+  const first = dkey(Math.min(Date.now() - 90 * 864e5, ...Object.keys(tot).map(d => new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10), 12).getTime())));
   const chip = (attr, v, cur_, n, label) => `<button type="button" data-${attr}="${v}" class="${cur_ === v ? "on" : ""}" aria-pressed="${cur_ === v}">${label} <b>${n}</b></button>`;
   const chips = (attr, C, sel, all, name, icon) => `<div class="chips scroll" role="group" aria-label="${esc(name)}">${chip(attr, "", sel, all, t("lg.all"))}${Object.keys(C).sort((a, c) => C[c] - C[a]).map(k => chip(attr, k, sel, C[k], `${icon ? ic(icon(k)) + " " : ""}${(attr === "fe" ? tc("lg.k.", k, k) : t("lg.c." + k))}`)).join("")}</div>`;
   const more = (rows, n, id) => rows.length > n ? `<button type="button" class="sm" id="${id}" style="width:100%;margin-top:8px">${t("lg.more", Math.min(LG_PAGE, rows.length - n), rows.length - n)}</button>` : "";
-  const none = `<div class="empty"><span class="e">${ic("inbox")}</span>${t("lg.none")}</div>`;
+  const wait = !m && !c.d, none = wait ? (c.err ? `<div class="empty"><span class="e">${ic("triangle-alert")}</span>${esc(t("lg.err", c.err))}<br><button type="button" class="sm" data-lgretry>${t("lg.retry")}</button></div>` : `<div class="empty"><span class="e">${ic("hourglass")}</span>${t("lg.loading")}</div>`) : `<div class="empty"><span class="e">${ic("inbox")}</span>${t("lg.none")}</div>`;
   b.innerHTML = `<div class="card"><h2>${ic("calendar")} ${esc(dayLabel(lgDay))}</h2>
     <div class="row nw" style="gap:8px"><button type="button" class="sm" id="lgPrev" aria-label="${esc(t("lg.prev"))}" ${lgDay <= first ? "disabled" : ""}>${ic("chevron-left")}</button>
       <input type="date" id="lgPick" class="sp" value="${lgDay}" min="${first}" max="${today}" aria-label="${esc(t("pickDay"))}" style="min-height:40px;min-width:0">
       <button type="button" class="sm" id="lgNext" aria-label="${esc(t("lg.next"))}" ${lgDay >= today ? "disabled" : ""}>${ic("chevron-right")}</button></div>
     <div class="chips scroll" style="margin-top:8px" role="group" aria-label="${esc(t("lg.days"))}">${days.map(d => `<button type="button" data-d="${d}" class="${d === lgDay ? "on" : ""}" aria-pressed="${d === lgDay}">${d === today ? t("today") : dm(d)} <b>${tot[d] || 0}</b></button>`).join("")}</div>
-    <p class="mute" style="margin-top:8px">${t("lg.note")}</p></div>
+    <p class="mute" style="margin-top:8px">${t(oldPhone ? "lg.noteOld" : "lg.note")}</p>${c.d && c.d.cut ? `<p class="mute">${t("lg.cut")}</p>` : ""}</div>
   <div class="card"><h2>${ic("bell")} ${t("events")}</h2>${evAll.length ? chips("fe", evC, lgEv, evAll.length, t("events"), k => EV_IC[k] || "bell") : ""}
     <div style="margin-top:6px">${evRows.slice(0, lgNEv).map(evHtml).join("") || none}</div>${more(evRows, lgNEv, "lgMoreE")}</div>
   <div class="card"><h2>${ic("notebook-pen")} ${t("log")}</h2>${lgAll.length ? chips("fl", lgC, lgLg, lgAll.length, t("log"), 0) : ""}
     <div>${lgRows.slice(0, lgNLg).map(logRow).join("") || none}</div>${more(lgRows, lgNLg, "lgMoreL")}</div>`;
   const go = d => { lgDay = d; lgEv = lgLg = ""; lgNEv = lgNLg = LG_PAGE; render(); };
   const shift = n => go(dkey(new Date(+lgDay.slice(0, 4), +lgDay.slice(5, 7) - 1, +lgDay.slice(8, 10) + n, 12).getTime()));
+  b.querySelectorAll("[data-lgretry]").forEach(x => x.onclick = () => lgLoad(lgDay, true));
   $("#lgPrev").onclick = () => shift(-1); $("#lgNext").onclick = () => shift(1);
   $("#lgPick").onchange = e => { const v = e.target.value; if (/^\d{4}-\d\d-\d\d$/.test(v)) go(v > today ? today : v); };
   b.querySelectorAll("[data-d]").forEach(x => x.onclick = () => go(x.dataset.d));

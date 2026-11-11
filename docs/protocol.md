@@ -894,6 +894,21 @@ Only volume, brightness, screen timeout and Do Not Disturb; anything else goes t
   scripts and the child updater use `kidguard.apk`/`kidguard.apk.sha256`; never rename them) and versioned copies
   `kidguard-<v>.apk`, `kidguard-parent-<v>.apk` for people downloading by hand (website/README link these).
 
+## Log history, the "Nhật ký" tab (after 0.9.14)
+- The phone keeps every log line and event 90 days / 30,000 rows (`HistDb.kt`, SQLite `kghist.db`, table `h`, index on `t`;
+  pure part `HistLogic.kt`); rows older than that go hourly. The 50 + 50 rows already in prefs are imported once when the
+  file is created. Writes are queued on a background thread. A successful `release` deletes the file.
+- State is unchanged: `"log"` and `"events"` still carry only the latest 50 each (older pages keep working from them).
+- One day, in the phone's time zone: LAN `GET /api/logday?day=2026-11-10` -> `{"day", "days": {"yyyy-MM-dd": rows, ...last 90 days,
+  only days with rows}, "ev": [event objects], "lg": [log objects], "cut": false}`; ev / lg are shaped like state `events` / `log`,
+  oldest first, at most 500 rows and 90 KB (the newest kept, `cut: true`). A bad day -> 400 `{"error":"bad day"}`.
+- Relay, same shape as "Device health": parent `POST /c/<id>/logday {"day"}` asks and gets `{"logday": <last stored copy of that day +
+  "at"> | null, "asked": <worker ms>, "seen": ms}`; `GET /c/<id>/logday?day=` only reads. While asked (< 2 min, memory, up to 8 days)
+  the sync reply has `"logday": "<day>"` (one day per sync); the phone then `PUT /c/<id>/logday` with the answer above (413 over
+  100 KB, 400 bad day), which clears that ask. The worker keeps the last 4 days stored. The page shows the stored copy at once and polls
+  `GET` every 3 s (max ~75 s) until `logday.at >= asked`. Not a command: nothing in the queue or the whitelist.
+- Page: day strip counts come from `days`; an old phone / worker (404) falls back to the state's rows kept in localStorage.
+
 ## Device health, the "Máy" tab (after 0.9.5)
 - State adds `"sdk": 34` (Build.VERSION.SDK_INT) next to `android`.
 - On demand only, never in the state poll. Built by `DeviceInfo.kt` (pure part `DeviceLogic.kt`), cached 60 s on the phone.
