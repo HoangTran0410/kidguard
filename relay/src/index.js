@@ -406,7 +406,14 @@ export class Kid {
 
   async sync(body, id, nk, now, ws = null) {
     if (!this.gcArmed) { this.gcArmed = true; if (!(await this.s.getAlarm())) await this.s.setAlarm(now + GC_MS); }
-    const state = body.state && typeof body.state === "object" ? body.state : null;
+    let state = body.state && typeof body.state === "object" ? body.state : null;
+    // a partial state (only what changed since the last sync, see mergeState) is applied on the stored one;
+    // nothing stored (first sync after a GC, a wiped object) => ask the phone for a whole one
+    let needWhole = false;
+    if (state && state._part) {
+      const old = await this.s.get("state");
+      if (old) state = mergeState(old, state); else { state = null; needWhole = true; }
+    }
     if (state && new TextEncoder().encode(JSON.stringify(state)).length > 120e3) return { error: "state too big", status: 413 };   // DO storage value limit is 128 KiB
     const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
     // awaits before the cmds read-modify-write: a parent POST /cmd landing in an await must not be overwritten by a stale list
@@ -432,7 +439,8 @@ export class Kid {
     if (state && Object.keys(state).length) { puts.state = state; this.stateAt = now; }
     if (Object.keys(puts).length) await this.s.put(puts);
     if (state) this.ctx.waitUntil(this.pushNew(state, id).catch(e => console.log("push", String(e))));
-    const out = { cmds };
+    const out = { cmds, merge: 1 };   // merge: this worker takes partial states (the phone sends whole ones until it sees it)
+    if (needWhole) out.full = true;
     if (this.liveUntil > now) out.live = true;
     const files = (await this.fileGc(now)).filter(f => f.to === "kid" && f.got.length === f.n).length;
     if (files) out.files = files;   // the phone then fetches them from /file
@@ -561,6 +569,33 @@ export class Kid {
     }
     if (dead.size) await this.s.put("push", tokens.filter(t => !dead.has(t)));
   }
+}
+
+/**
+ * Applies a partial state from the phone (bandwidth, owner 2026-11-11: whole states were ~20 MB/day) on [old]:
+ * top-level keys replace, `_drop` removes keys, `_apps` = {set: [app objects], del: [pkg]} merged by pkg (then sorted by
+ * use like the phone does), `_trk` = {from, add}: points appended (only newer than the last stored one: a resend after a
+ * lost reply must not double them), then points older than `from` (the phone's 2-day window) dropped.
+ */
+export function mergeState(old, part) {
+  const s = { ...old };
+  for (const [k, v] of Object.entries(part)) if (k[0] !== "_") s[k] = v;
+  for (const k of Array.isArray(part._drop) ? part._drop : []) if (typeof k === "string") delete s[k];
+  const a = part._apps;
+  if (a && typeof a === "object") {
+    const by = new Map((Array.isArray(old.apps) ? old.apps : []).map(x => [x && x.pkg, x]));
+    for (const p of Array.isArray(a.del) ? a.del : []) by.delete(p);
+    for (const x of Array.isArray(a.set) ? a.set : []) if (x && typeof x.pkg === "string") by.set(x.pkg, x);
+    s.apps = [...by.values()].sort((x, y) => (+y.ms || 0) - (+x.ms || 0));
+  }
+  const tk = part._trk;
+  if (tk && typeof tk === "object") {
+    const cur = Array.isArray(old.track) ? old.track : [];
+    const last = cur.length ? +cur[cur.length - 1][0] || 0 : 0;
+    const add = (Array.isArray(tk.add) ? tk.add : []).filter(p => Array.isArray(p) && +p[0] > last);
+    s.track = cur.concat(add).filter(p => +p[0] >= (+tk.from || 0));
+  }
+  return s;
 }
 
 // ---- FCM HTTP v1 (optional; secret FCM_SA = the Firebase service-account JSON) ----

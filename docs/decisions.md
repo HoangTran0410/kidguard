@@ -140,6 +140,8 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 
 - Location history (2026-11-11, owner): 1-min step added, default 5 min (was 10). Same spot = one point per 10 min whatever the step; "moved" = distance beats max(30 m, either fix's accuracy), a ±150 m+ fix never moves; the last same-spot fix is stored before the first moved one so "Rời X hh:mm" is exact. Page shows a journey (arrive / leave per stop, trip time + km) instead of a bare stop list.
 
+- Relay bandwidth (2026-11-11, Poco netstats: ~20 MB/day up, 1.5-2 MB down): whole states (2-day track, every app) went on every change and every 5 min. Now partial states (changed keys, apps per pkg, new track points; worker `mergeState`), whole only until the worker says `merge`, on `full`, or every 6 h. Telegram long-poll (~1.5 KB/min down) kept.
+
 ## 2. REJECTED / DON'T RETRY
 - `DevicePolicyManager.setStatusBarDisabled` for shade blocking: also sets mDisableNotificationEffects, silencing ALL notification sound/vibration/heads-up (measured API 34). Also don't use lock-task status bar flags. Use Acc quick-settings closing (11-09)
 - Self-drawn app-open zoom animation: unnecessary once the window shows the wallpaper (HyperOS then plays the system zoom) (11-09)

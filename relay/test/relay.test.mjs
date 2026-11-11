@@ -109,6 +109,14 @@ ck("CSP allows OSM tiles",(await fetch(`${B}/`)).headers.get("content-security-p
 const track=Array.from({length:700},(_,i)=>[1.7e12+i,10.123456,106.123456,12.5]);
 r=await P2("sync",JSON.stringify({state:{track}}));ck("sync with ~700-point track (<120KB) ok",r.status==200);
 r=await P2("sync",JSON.stringify({state:{big:"a".repeat(125000)}}));ck("state >120KB -> 413",r.status==413);
+// partial states (bandwidth): keys replace, _drop, _apps by pkg (re-sorted by ms), _trk appends newer points + trims to `from`
+{const G=async()=>(await (await fetch(`${B}/c/${id2}/state`,{headers:H()})).json()).state;
+j=await S({state:{t:1,battery:50,gone:1,apps:[{pkg:"a",ms:5},{pkg:"b",ms:3}],track:[[10,1,1,5],[20,1,1,5]]}});ck("sync says merge:1",j.merge===1&&!j.full);
+j=await S({state:{_part:1,t:2,_drop:["gone"],_apps:{set:[{pkg:"b",ms:9},{pkg:"c",ms:1}],del:["a"]},_trk:{from:20,add:[[20,1,1,5],[30,2,2,5]]}}});
+let g=await G();ck("partial merged: key, drop, apps, track",j.merge===1&&g.t===2&&g.battery===50&&!("gone" in g)&&g.apps.map(x=>x.pkg).join()==="b,c"&&g.track.map(p=>p[0]).join()==="20,30");
+j=await S({state:{_part:1,track:[]}});g=await G();ck("partial whole track replace",g.track.length===0&&g.battery===50);
+j=await (await fetch(`${B}/c/5555aaaa5555aaaa/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{_part:1,t:1}})})).json();ck("partial with nothing stored -> full:true",j.full===true);
+}
 // icons: phone uploads base64 webp once, <img> reads with ?k=
 {const b64=Buffer.from("RIFF0000WEBPVP8 ").toString("base64");
 r=await P2("icons",JSON.stringify({"com.example.game":b64,"bad pkg!":b64,"x.y":"not base64 !!"}));j=await r.json();ck("icons: valid one stored, junk skipped",r.status==200&&j.have==1);

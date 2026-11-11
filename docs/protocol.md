@@ -252,7 +252,7 @@ The first capture / first input of a session is logged in the phone log.
 - Parent `POST /c/<id>/input` body = input object -> `{"result":"queued"}` (queue max 50, delivered on the next frame reply).
 - Frames live only in Durable Object memory (never storage).
 - Phone `POST /c/<id>/sync` body `{state?, acks: [cmd ids]}` (`state` omitted when unchanged, see v0.2.1) -> reply
-  `{cmds: [...], rules?, live?, files?, device?}`: `rules` only when the worker's `rules.rev` is higher than the `state.rules.rev`
+  `{cmds: [...], merge: 1, full?, rules?, live?, files?, device?}`: `rules` only when the worker's `rules.rev` is higher than the `state.rules.rev`
   it knows; the phone takes them only if `rules.rev` > its own (so a phone clock ahead of the worker's makes relay edits
   wait until the worker rev catches up; LAN saves stamp `rev = max(old+1, phone now)`); `files` = number of
   parent -> kid files waiting; `device` = the parent asked for a device-info upload.
@@ -386,7 +386,14 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   to turn it back on, and logs `usage_on` when it returns) and `dnsPausedUntil` (ms, 0 when no pause is running).
   A `tamper` event is also raised once per package when a non-system app becomes the default HOME (it stays exempt from limits).
 - **Relay sync**: the phone may omit `state` when nothing but `t` and sub-minute time counters (`usedMs`, `leftMs`, `apps[].ms`)
-  changed; it sends a full state at least every 5 min. So on the relay `state.t` can be minutes old: "online" = `seen`, not `t`.
+  changed; it sends a state at least every 5 min. So on the relay `state.t` can be minutes old: "online" = `seen`, not `t`.
+- **Partial state** (0.9.14, bandwidth): every sync reply carries `"merge": 1` from a worker that can merge. Until the phone
+  has seen it (and after a relay change) it sends whole states; then only what changed since the last state the worker took:
+  `{"_part":1, <changed top-level keys>, "_drop":[removed keys], "_apps":{"set":[app objects],"del":[pkg]},
+  "_trk":{"from":<first point t>,"add":[new points]}}` (or a whole `"track"` when the old last point is gone). The worker
+  merges onto the stored state (`mergeState`: apps by pkg then sorted by `ms` desc, track points only newer than the last
+  stored one, then `t >= from`). Nothing stored => reply `"full": true` (state ignored, acks still taken) and the phone sends
+  a whole state next. A whole state at least every 6 h.
   The worker writes `seen` at most once per minute.
 - **Live input**: the worker answers `POST /input` with `409 {"error":"not live"}` when `liveUntil < now`, and drops
   queued inputs older than 5 s when delivering. Frame `seq` starts at `Date.now()` so it stays increasing across restarts.

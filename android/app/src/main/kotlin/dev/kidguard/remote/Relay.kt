@@ -37,6 +37,10 @@ class Relay(private val g: Guard) {
     private var forceSend = false
     private var lastCoarse = 0
     private var lastSent = 0L
+    private val diff = StateDiff()      // partial states once the worker says `merge` (bandwidth)
+    private var canMerge = false
+    private var lastWhole = 0L
+    private var diffFor = ""            // the relay the diff is about: a new one (re-pointed) starts from a whole state
     private val pingRun = object : Runnable { override fun run() { if (ws.ping()) h.postDelayed(this, RelayWs.PING_MS) } }
     /** For the state screen / logs: "ws" while the socket is up, else "http". */
     val transport get() = if (ws.open) "ws" else "http"
@@ -140,7 +144,10 @@ class Relay(private val g: Guard) {
         }.toString().hashCode()
         val full = hash != lastHash || now - lastFull >= 5 * 60_000L || (viaWs && forced)
         val req = JSONObject().put("acks", acks)
-        if (full) req.put("state", state)
+        if ("$base/$rid" != diffFor) { diffFor = "$base/$rid"; diff.reset(); canMerge = false }
+        // a whole state until the worker can merge, and every 6 h anyway (a hash clash must not hide a change for long)
+        val whole = !canMerge || now - lastWhole >= WHOLE_MS
+        val sent = if (full) diff.build(state, whole).also { req.put("state", it.first) } else null
         val res = (if (viaWs) ws.request(JSONObject(req.toString())) else null) ?: run {
             val c = open("$base/c/$rid/sync", token).apply { setRequestProperty("Content-Type", "application/json") }
             try { c.outputStream.use { it.write(req.toString().toByteArray()) }; JSONObject(readCapped(c)) } finally { c.disconnect() }
@@ -149,6 +156,9 @@ class Relay(private val g: Guard) {
         lastSent = now
         run {
             if (full) { lastHash = hash; lastFull = now }
+            canMerge = res.optInt("merge") == 1
+            if (res.optBoolean("full") || !canMerge) { diff.reset(); if (res.optBoolean("full")) lastHash = 0 }   // nothing to merge on / can't merge
+            else if (sent != null) { diff.commit(sent.second); if (sent.first === state) lastWhole = now }
             acks = JSONArray()
             // rules first, but a bad rules reply must never stop the commands below (a release/reboot would be lost)
             runCatching { res.optJSONObject("rules")?.let { r ->
@@ -171,7 +181,7 @@ class Relay(private val g: Guard) {
             lastOk = System.currentTimeMillis(); lastError = ""
             if (res.optBoolean("live")) startLive(base, rid, token)
             if (res.optBoolean("device")) runCatching { DeviceInfo.upload(g, base, rid, token) }.onFailure { Log.w("KidGuard", "device", it) }
-            return acks.length() > 0 || res.has("rules")
+            return acks.length() > 0 || res.has("rules") || res.optBoolean("full").also { if (it) forceSend = true }
         }
     }
 
@@ -255,6 +265,7 @@ class Relay(private val g: Guard) {
     companion object {
         private const val MAX_REPLY = 256 * 1024
         /** Socket up and nothing changed: a state anyway this often (usage minutes, battery). */
+        private const val WHOLE_MS = 6 * 3600_000L
         private const val WS_IDLE_ON = 5 * 60_000L
         private const val WS_IDLE_OFF = 15 * 60_000L
         /** The author's shared relay, on by default once a parent has paired (Store.defaultRelay). Also in ui/assets/core.js DEFAULT_RELAY. */
