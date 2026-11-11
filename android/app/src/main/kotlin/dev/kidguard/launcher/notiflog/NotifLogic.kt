@@ -109,7 +109,7 @@ object NotifLogic {
 
     fun toJson(list: List<NotifEntry>): String = JSONArray().also { a -> for (e in list) a.put(toObj(e)) }.toString()
 
-    private fun toObj(e: NotifEntry) = JSONObject().put("k", e.key).put("t", e.time).put("p", e.pkg).put("a", e.app).put("ti", e.title).put("tx", e.text).apply {
+    fun toObj(e: NotifEntry) = JSONObject().put("k", e.key).put("t", e.time).put("p", e.pkg).put("a", e.app).put("ti", e.title).put("tx", e.text).apply {
         // optional parts are written only when set: an old-style entry costs the same bytes as before
         if (e.postTime != 0L) put("pt", e.postTime)
         if (e.whenMs != 0L) put("w", e.whenMs)
@@ -133,7 +133,7 @@ object NotifLogic {
 
     private fun strs(a: JSONArray?): List<String> = if (a == null) emptyList() else (0 until a.length()).map { a.optString(it) }
 
-    private fun fromObj(o: JSONObject): NotifEntry {
+    fun fromObj(o: JSONObject): NotifEntry {
         val text = o.optString("tx")
         val ms = o.optJSONArray("ms")
         return NotifEntry(

@@ -30,7 +30,7 @@ import java.util.Locale
  * Local only, the parent never sees it.
  */
 class NotifDetailActivity : Activity() {
-    companion object { const val KEY = "key" }
+    companion object { const val KEY = "key"; const val ID = "id" }
 
     private lateinit var k: HomeKit
     private lateinit var pal: Palette
@@ -54,8 +54,7 @@ class NotifDetailActivity : Activity() {
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = if (dark) 0 else (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or if (Build.VERSION.SDK_INT >= 26) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
         show(null)
-        val key = intent.getStringExtra(KEY).orEmpty()
-        NotifLog.read(this) { l -> if (!isDestroyed && !isFinishing) show(l.firstOrNull { it.key == key } ?: NotifEntry("", 0, "", "", "", "")) }
+        NotifLog.byId(this, intent.getLongExtra(ID, -1L)) { e -> if (!isDestroyed && !isFinishing) show(e) }
     }
 
     private fun scaffold(): Pair<ScrollView, LinearLayout> {

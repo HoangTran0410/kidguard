@@ -19,10 +19,11 @@ import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 /**
- * The kid's notification history ("I swiped it before reading"). Local only: one file in the app's private storage
- * (+ small images in notiflog_img/), never in state JSON, never sent anywhere, the parent can't see it.
- * 7 days / 300 entries (NotifLogic). Fed by the notification listener (NotifDots); all disk / image work runs on one
- * background thread; the list lives in memory and is written at most once per [SAVE_DELAY_MS].
+ * The kid's notification history ("I swiped it before reading"). Local only: an SQLite file in the app's private
+ * storage (+ small images in notiflog_img/), never in state JSON, never sent anywhere, the parent can't see it.
+ * Kept 7 / 30 / 90 days (default 30, the screen's menu), images [NotifQ.IMG_DAYS]. Fed by the notification listener
+ * (NotifDots); all disk / image work runs on one background thread. Was a JSON file of 7 days / 300 entries rewritten
+ * every 3 s and drawn whole (owner 2026-11-11: too short): that file is imported once and deleted.
  */
 object NotifLog {
     /** One switch for the whole feature (no setting yet). */
@@ -31,44 +32,73 @@ object NotifLog {
     private const val HELD_MAX = 50
 
     private val io = ScheduledThreadPoolExecutor(1)
-    // everything below up to [held] is touched only on [io]
-    private var cache: List<NotifEntry>? = null
-    private var dirty = false
-    private var pendingSave: ScheduledFuture<*>? = null
-    private val gone = HashSet<String>()   // image files to delete after the next successful write
+    private var db: android.database.sqlite.SQLiteDatabase? = null   // opened and used only on [io]
+    private var trimmedAt = 0L
 
-    private fun file(ctx: Context) = File(ctx.filesDir, "notiflog.json")
     private fun dir(ctx: Context) = File(ctx.filesDir, "notiflog_img")
     fun imageFile(ctx: Context, name: String): File = File(dir(ctx), name)
+    private fun prefs(ctx: Context) = ctx.getSharedPreferences("notiflog", Context.MODE_PRIVATE)
 
-    private fun load(ctx: Context): List<NotifEntry> = cache ?: NotifLogic.fromJson(runCatching { file(ctx).readText() }.getOrNull()).also {
-        cache = it
-        // images left behind by a crash between the image write and the list write
-        val used = NotifLogic.refs(it)
-        runCatching { dir(ctx).listFiles()?.forEach { f -> if (f.name !in used) f.delete() } }
+    /** Days kept (7 / 30 / 90). */
+    fun keepDays(ctx: Context): Int = prefs(ctx).getInt("days", NotifQ.KEEP_DEFAULT).let { if (it in NotifQ.KEEP_DAYS) it else NotifQ.KEEP_DEFAULT }
+    fun setKeepDays(ctx: Context, d: Int) {
+        val app = ctx.applicationContext
+        prefs(app).edit().putInt("days", d).apply()
+        io.execute { trimmedAt = 0; trim(app, System.currentTimeMillis()) }
     }
 
-    /** New list in memory now, on disk within [SAVE_DELAY_MS] (one write however many notifications arrive). */
-    private fun mutate(ctx: Context, l: List<NotifEntry>) {
-        gone += NotifLogic.orphans(cache ?: emptyList(), l)
-        cache = l; dirty = true
-        if (pendingSave == null) pendingSave = io.schedule({ writeNow(ctx) }, SAVE_DELAY_MS, TimeUnit.MILLISECONDS)
-    }
-
-    private fun writeNow(ctx: Context) {
-        pendingSave = null
-        val l = cache ?: return
-        if (dirty) {
-            val ok = runCatching { val f = file(ctx); val t = File(f.path + ".tmp"); t.writeText(NotifLogic.toJson(l)); t.renameTo(f) }.getOrDefault(false)
-            if (!ok) return
-            dirty = false
+    private class Helper(ctx: Context) : android.database.sqlite.SQLiteOpenHelper(ctx, "notiflog.db", null, 1) {
+        override fun onCreate(d: android.database.sqlite.SQLiteDatabase) {
+            d.execSQL("CREATE TABLE n (id INTEGER PRIMARY KEY AUTOINCREMENT, k TEXT NOT NULL, t INTEGER NOT NULL, d INTEGER NOT NULL, m INTEGER NOT NULL, p TEXT NOT NULL, a TEXT NOT NULL, kd TEXT NOT NULL, live INTEGER NOT NULL, f TEXT NOT NULL, j TEXT NOT NULL)")
+            d.execSQL("CREATE INDEX n_t ON n(t)"); d.execSQL("CREATE INDEX n_d ON n(d)"); d.execSQL("CREATE INDEX n_k ON n(k)")
         }
-        for (n in gone) runCatching { File(dir(ctx), n).delete() }
-        gone.clear()
+        override fun onUpgrade(d: android.database.sqlite.SQLiteDatabase, o: Int, n: Int) {}
     }
 
-    /** Writes now (service going away, so the last 3 s are not lost). */
-    fun flush(ctx: Context) { val app = ctx.applicationContext; io.execute { pendingSave?.cancel(false); writeNow(app) } }
+    private fun db(ctx: Context): android.database.sqlite.SQLiteDatabase = db ?: Helper(ctx).writableDatabase.also { d ->
+        db = d
+        // the old JSON history (7 days / 300): import once
+        val old = File(ctx.filesDir, "notiflog.json")
+        if (old.exists()) {
+            val l = NotifLogic.fromJson(runCatching { old.readText() }.getOrNull())
+            d.beginTransaction()
+            try { for (e in l) d.insert("n", null, values(e)); d.setTransactionSuccessful() } finally { d.endTransaction() }
+            old.delete(); File(old.path + ".tmp").delete()
+        }
+    }
+
+    private fun values(e: NotifEntry): android.content.ContentValues {
+        val c = java.util.Calendar.getInstance()
+        return android.content.ContentValues().apply {
+            put("k", e.key); put("t", e.time); put("d", NotifQ.day(e.time, c)); put("m", NotifQ.minute(e.time, c))
+            put("p", e.pkg); put("a", e.app); put("kd", NotifQ.kind(e.category, e.msgs.isNotEmpty()))
+            put("live", if (e.removedAt == 0L) 1 else 0); put("f", NotifQ.searchText(e)); put("j", NotifLogic.toObj(e).toString())
+        }
+    }
+
+    private fun entry(j: String): NotifEntry? = runCatching { NotifLogic.fromObj(org.json.JSONObject(j)) }.getOrNull()
+
+    /** The newest row of [key]: (id, entry). */
+    private fun last(d: android.database.sqlite.SQLiteDatabase, key: String): Pair<Long, NotifEntry>? =
+        d.rawQuery("SELECT id, j FROM n WHERE k = ? ORDER BY id DESC LIMIT 1", arrayOf(key)).use { c ->
+            if (c.moveToFirst()) entry(c.getString(1))?.let { c.getLong(0) to it } else null
+        }
+
+    /** Old rows out (days kept, [NotifQ.MAX_ROWS]); images older than [NotifQ.IMG_DAYS]. At most hourly. */
+    private fun trim(ctx: Context, now: Long) {
+        if (now - trimmedAt < 3_600_000L) return
+        trimmedAt = now
+        val d = db(ctx)
+        runCatching {
+            d.delete("n", "t < ?", arrayOf((now - keepDays(ctx) * NotifLogic.DAY_MS).toString()))
+            d.execSQL("DELETE FROM n WHERE id <= (SELECT id FROM n ORDER BY id DESC LIMIT 1 OFFSET ${NotifQ.MAX_ROWS})")
+        }
+        val old = now - NotifQ.IMG_DAYS * NotifLogic.DAY_MS
+        runCatching { dir(ctx).listFiles()?.forEach { f -> if (f.lastModified() < old) f.delete() } }
+    }
+
+    /** Nothing to buffer any more (each change is one row); kept for the listener's onDestroy. */
+    fun flush(ctx: Context) {}
 
     // ---- PendingIntents (memory only: lost with the process, that is the point of "recent") ----
 
@@ -148,12 +178,22 @@ object NotifLog {
         val picBmp = x.get(Notification.EXTRA_PICTURE) as? Bitmap
         val picIcon = if (Build.VERSION.SDK_INT >= 31) x.get(Notification.EXTRA_PICTURE_ICON) as? Icon else null
         io.execute {
-            val l = load(app)
-            if (NotifLogic.isRepeat(l, e)) return@execute   // progress ticks etc.: no image work either
-            val li = saveImg(app, NotifLogic.imgName(e.key, e.postTime, 'l'), bitmapOf(app, largeIcon, largeBmp), NotifLogic.ICON_PX, NotifLogic.ICON_PX, 80)
-            val pic = saveImg(app, NotifLogic.imgName(e.key, e.postTime, 'p'), bitmapOf(app, picIcon, picBmp), NotifLogic.PIC_W, NotifLogic.PIC_H, 75)
-            val added = NotifLogic.add(l, e.copy(largeIcon = li, picture = pic), now)
-            mutate(app, added)
+            runCatching {
+                val d = db(app)
+                val old = last(d, e.key)
+                val live = old != null && old.second.removedAt == 0L
+                if (live && NotifLogic.isRepeat(listOf(old!!.second), e)) return@execute   // progress ticks etc.: no image work either
+                val li = saveImg(app, NotifLogic.imgName(e.key, e.postTime, 'l'), bitmapOf(app, largeIcon, largeBmp), NotifLogic.ICON_PX, NotifLogic.ICON_PX, 80)
+                val pic = saveImg(app, NotifLogic.imgName(e.key, e.postTime, 'p'), bitmapOf(app, picIcon, picBmp), NotifLogic.PIC_W, NotifLogic.PIC_H, 75)
+                val ne = e.copy(largeIcon = li, picture = pic)
+                // an update of a notification still showing replaces its row (chat threads grow in place); after it was
+                // dismissed, the same key is a new notification and gets a row of its own
+                if (live) {
+                    d.update("n", values(ne), "id = ?", arrayOf(old!!.first.toString()))
+                    for (f in NotifLogic.refs(old.second) - NotifLogic.refs(ne).toSet()) runCatching { File(dir(app), f).delete() }
+                } else d.insert("n", null, values(ne))
+                trim(app, now)
+            }
         }
     }
 
@@ -165,9 +205,12 @@ object NotifLog {
         val now = System.currentTimeMillis()
         synchronized(held) { held[s.key]?.let { it.rec = it.rec.copy(removedAt = now, reason = code) } }
         io.execute {
-            val l = load(app)
-            val n = NotifLogic.markRemoved(l, s.key, s.postTime, now, code)
-            if (n !== l) mutate(app, n)
+            runCatching {
+                val d = db(app)
+                val (id, e) = last(d, s.key) ?: return@execute
+                val n = NotifLogic.markRemoved(listOf(e), s.key, s.postTime, now, code)
+                if (n[0] !== e) d.update("n", values(n[0]), "id = ?", arrayOf(id.toString()))
+            }
         }
     }
 
@@ -206,28 +249,60 @@ object NotifLog {
         }
     }
 
-    // ---- reading ----
+    // ---- reading (all on io, results on the main thread) ----
 
-    /** Newest first; [done] runs on the main thread. */
-    fun read(ctx: Context, done: (List<NotifEntry>) -> Unit) {
+    private fun <T> onIo(ctx: Context, work: (android.database.sqlite.SQLiteDatabase) -> T, done: (T) -> Unit) {
         val app = ctx.applicationContext
         io.execute {
-            val all = load(app)
-            val t = NotifLogic.trim(all, System.currentTimeMillis())
-            if (t.size != all.size) mutate(app, t)
-            val l = t.asReversed()
-            Handler(Looper.getMainLooper()).post { done(l) }
+            val r = runCatching { trim(app, System.currentTimeMillis()); work(db(app)) }.getOrNull() ?: return@execute
+            Handler(Looper.getMainLooper()).post { done(r) }
         }
     }
+
+    /** A page of rows matching [f], newest first: (row id, entry). */
+    fun page(ctx: Context, f: NotifFilter, offset: Int, done: (List<Pair<Long, NotifEntry>>) -> Unit) = onIo(ctx, { d ->
+        val (w, a) = NotifQ.where(f)
+        d.rawQuery("SELECT id, j FROM n WHERE $w ORDER BY t DESC, id DESC LIMIT ${NotifQ.PAGE} OFFSET $offset", a).use { c ->
+            val out = ArrayList<Pair<Long, NotifEntry>>(c.count)
+            while (c.moveToNext()) entry(c.getString(1))?.let { out += c.getLong(0) to it }
+            out
+        }
+    }, done)
+
+    /** Everything the screen needs besides the rows: per-day counts of [month0]..[month1] (other filters applied),
+     *  apps and kinds with counts (other filters applied), and the total. */
+    class Overview(val days: Map<Int, Int>, val apps: List<Triple<String, String, Int>>, val kinds: Map<String, Int>, val total: Int, val oldest: Long)
+
+    fun overview(ctx: Context, f: NotifFilter, month0: Int, month1: Int, done: (Overview) -> Unit) = onIo(ctx, { d ->
+        val days = HashMap<Int, Int>()
+        NotifQ.where(f, skipDays = true).let { (w, a) ->
+            d.rawQuery("SELECT d, COUNT(*) FROM n WHERE $w AND d >= $month0 AND d <= $month1 GROUP BY d", a).use { c -> while (c.moveToNext()) days[c.getInt(0)] = c.getInt(1) }
+        }
+        val apps = ArrayList<Triple<String, String, Int>>()
+        NotifQ.where(f, skipPkgs = true).let { (w, a) ->
+            d.rawQuery("SELECT p, MAX(a), COUNT(*) AS c FROM n WHERE $w GROUP BY p ORDER BY c DESC LIMIT 200", a).use { c -> while (c.moveToNext()) apps += Triple(c.getString(0), c.getString(1) ?: "", c.getInt(2)) }
+        }
+        val kinds = HashMap<String, Int>()
+        NotifQ.where(f, skipKinds = true).let { (w, a) ->
+            d.rawQuery("SELECT kd, COUNT(*) FROM n WHERE $w GROUP BY kd", a).use { c -> while (c.moveToNext()) kinds[c.getString(0)] = c.getInt(1) }
+        }
+        val total = NotifQ.where(f).let { (w, a) -> d.rawQuery("SELECT COUNT(*) FROM n WHERE $w", a).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 } }
+        val oldest = d.rawQuery("SELECT MIN(t) FROM n", null).use { c -> if (c.moveToFirst()) c.getLong(0) else 0L }
+        Overview(days, apps, kinds, total, oldest)
+    }, done)
+
+    /** One row by id (detail screen); an empty entry if it is gone. */
+    fun byId(ctx: Context, id: Long, done: (NotifEntry) -> Unit) = onIo(ctx, { d ->
+        d.rawQuery("SELECT j FROM n WHERE id = ?", arrayOf(id.toString())).use { c -> if (c.moveToFirst()) entry(c.getString(0)) else null }
+            ?: NotifEntry("", 0, "", "", "", "")
+    }, done)
 
     fun clear(ctx: Context) {
         val app = ctx.applicationContext
         synchronized(held) { held.clear() }
         io.execute {
-            load(app)
-            mutate(app, emptyList())
+            runCatching { db(app).delete("n", null, null) }
             runCatching { dir(app).listFiles()?.forEach { it.delete() } }
-            pendingSave?.cancel(false); writeNow(app)
         }
     }
 }
