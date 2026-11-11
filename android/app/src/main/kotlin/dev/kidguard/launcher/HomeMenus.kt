@@ -59,6 +59,7 @@ internal class MenuChip(val label: String, val on: Boolean, val run: () -> Unit)
 
 internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: Int = 0, head: MenuHead? = null) {
     popup?.dismiss()
+    val t0 = Perf.now()
     val focus = menuFocus(anchor)
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = fill(pal.sheet, 16f); setPadding(0, dp(6), 0, dp(6)); elevation = dpf(8f) }
     // 250dp, wider with a big system font, never wider than the screen; taller than the screen scrolls
@@ -107,6 +108,7 @@ internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: In
     val fy = py.coerceAtMost(root.height - insB - h - dp(8)).coerceAtLeast(insT + dp(8)) + rl[1]
     pw.animationStyle = 0   // our own zoom below, not the system fade
     pw.showAtLocation(root, Gravity.TOP or Gravity.START, fx, fy)
+    Perf.firstDraw(scroll, "menu", t0)
     // grows out of the pressed icon (One UI / Pixel), not popped in place
     scroll.pivotX = (cx - fx).toFloat().coerceIn(0f, mw.toFloat()); scroll.pivotY = (cy - fy).toFloat().coerceIn(0f, h.toFloat())
     scroll.scaleX = 0.6f; scroll.scaleY = 0.6f; scroll.alpha = 0f

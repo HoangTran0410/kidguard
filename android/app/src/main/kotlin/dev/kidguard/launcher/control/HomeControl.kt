@@ -279,6 +279,7 @@ internal class CcSlider(val act: HomeActivity, private val icon: Int, label: Str
 
 internal fun HomeActivity.openControl() {
     if (overlay != null) return
+    val t0 = Perf.now()
     val ctx = applicationContext
     val rules = if (Flavor.HOME) null else Store.of(this).rules
     val ok = rules?.let { settingsOk(it) } ?: true
@@ -516,6 +517,7 @@ internal fun HomeActivity.openControl() {
         }
         true
     }
+    Perf.firstDraw(scrim, "cc", t0)
     showOverlay(scrim)
     overlayExit = { done ->
         if (torchId != null) runCatching { getSystemService(CameraManager::class.java)?.unregisterTorchCallback(torchCb) }

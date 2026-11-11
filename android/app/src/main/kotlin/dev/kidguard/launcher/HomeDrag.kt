@@ -32,7 +32,7 @@ internal fun HomeActivity.arm(v: View, onLong: () -> Unit, src: () -> DragSt, im
     // sees the menu (it popped up with the drag and closed again as the item moved). Let go first: it shows right away.
     var menuDue = false
     var fired = false   // the long press happened: the lift must not end in a tap (it launched the app once the menu waited)
-    val menu = Runnable { if (menuDue && armed === v && v.isAttachedToWindow) { menuDue = false; if (Perf.on()) android.util.Log.v(Perf.TAG, "lp menu ${android.os.SystemClock.uptimeMillis()}"); onLong() } }
+    val menu = Runnable { if (menuDue && armed === v && v.isAttachedToWindow) { menuDue = false; if (Perf.on()) android.util.Log.v(Perf.TAG, "lp menu ${android.os.SystemClock.uptimeMillis()}"); Perf.time("lp onLong") { onLong() } } }
     v.setOnTouchListener { _, e ->
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> { downX = e.rawX; downY = e.rawY; armed = null; fired = false; pressed(press, true); if (Perf.on()) android.util.Log.v(Perf.TAG, "lp down ${android.os.SystemClock.uptimeMillis()}")
