@@ -12,7 +12,7 @@ class FeaturesTest {
         val s = Features.status(Caps())
         assertEquals(Features.TABLE.map { it.first }, s.map { it.id })
         assertTrue(s.none { it.ok })
-        assertEquals(listOf("owner"), f(Caps(), "debloat").missing)   // fewest missing, first on ties
+        assertEquals(listOf("adb"), f(Caps(), "debloat").missing)   // fewest missing, first on ties
         assertEquals(listOf("owner"), f(Caps(), "limits").missing)
         assertEquals(listOf("owner"), f(Caps(), "block").missing)
         assertEquals(listOf("admin"), f(Caps(acc = true), "block").missing)

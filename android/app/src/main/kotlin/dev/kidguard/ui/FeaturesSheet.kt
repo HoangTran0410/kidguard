@@ -19,7 +19,7 @@ object FeatureCaps {
         owner = Policy.isOwner(ctx), admin = Basic.adminActive(ctx), acc = Acc.isOn(ctx), usage = Usage.granted(ctx),
         location = Basic.locationOk(ctx), notify = Basic.notifyOk(ctx), battery = Basic.batteryOk(ctx),
         home = LauncherSafe.homeIsOurs(ctx),
-        adb = runCatching { SelfAdb.ready(ctx) }.getOrDefault(false),
+        adb = runCatching { SelfAdb.why(ctx).let { it == null || it == "wifi" || it == "wss" } }.getOrDefault(false),
         paired = Store.of(ctx).everPaired,
         wss = Sys.wss(ctx),
     )

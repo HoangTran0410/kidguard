@@ -13,7 +13,7 @@ data class Caps(
     val notify: Boolean = false,     // notifications
     val battery: Boolean = false,    // battery optimisation off
     val home: Boolean = false,       // KidGuard is the default HOME app
-    val adb: Boolean = false,        // self-ADB usable (the phone can run adb against itself)
+    val adb: Boolean = false,        // self-ADB set up (paired once; it may wait for Wi-Fi: SelfAdb.why "wifi" / "wss")
     val paired: Boolean = false,     // a parent has paired (store.everPaired)
     val wss: Boolean = false,        // WRITE_SECURE_SETTINGS granted (pm grant at setup; survives Developer options being turned off)
 ) {
@@ -34,7 +34,7 @@ object Features {
     val TABLE: List<Pair<String, List<List<String>>>> = listOf(
         "launcher" to listOf(listOf("home")),
         "launcherLock" to listOf(listOf("owner")),
-        "debloat" to listOf(listOf("owner"), listOf("adb")),
+        "debloat" to listOf(listOf("adb"), listOf("owner")),   // adb first: Device Owner needs a reset phone, adb does not
         "limits" to listOf(listOf("owner"), listOf("acc", "usage", "admin")),
         // basic mode only bounces while the device admin is on too (Basic.enforcing)
         "block" to listOf(listOf("owner"), listOf("acc", "admin")),
