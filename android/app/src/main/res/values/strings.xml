@@ -460,6 +460,20 @@
     <string name="main_gestures_body">Apps can\'t do this themselves: it\'s a phone setting. KidGuard opens the right page if it can find it.</string>
     <string name="main_gestures_open">Open settings</string>
     <!-- on-device parent page (AdminActivity) + hold-to-confirm buttons -->
+    <string name="sup_hint">What happened? (optional)</string>
+    <string name="sup_body">Sends KidGuard\'s technical status to the developer. No location, notifications, notes, photos or app list. No PIN needed.\n\nThe developer replies on the parent page: More › Report a problem.\n\nForgot the PIN? On the parent page: Settings › Forgot PIN? (the new PIN works after 24 hours).</string>
+    <string name="sup_send">Send</string>
+    <string name="sup_sending">Sending…</string>
+    <string name="sup_busy">Another report is being sent, wait a moment</string>
+    <string name="sup_done_title">Sent</string>
+    <string name="sup_done">Support code: %1$s\n\nThe developer has it. Replies show on the parent page (More › Report a problem); the phone asks every 6 hours.</string>
+    <string name="sup_fail_title">Not sent</string>
+    <string name="sup_fail_limit">Too many reports today, try again tomorrow.</string>
+    <string name="sup_fail_net">Could not send, check the connection and try again.</string>
+    <string name="sup_next">Next</string>
+    <string name="sup_confirm_title">Confirm sending</string>
+    <string name="sup_confirm">Type the text below to send:\n\n%1$s</string>
+    <string name="sup_confirm_wrong">Not quite, type the text above again</string>
     <string name="main_support">Report a problem to the developer</string>
     <string name="main_admin">Manage on this phone</string>
     <!-- home screen: status card, quick row, "More" sheet -->

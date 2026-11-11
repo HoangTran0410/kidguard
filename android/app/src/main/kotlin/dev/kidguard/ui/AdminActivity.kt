@@ -121,8 +121,6 @@ class AdminActivity : Activity() {
         /** "Mức bắt đầu" answered (a level or "Tự chỉnh sau"): this page's localStorage dies with the session, the phone remembers. */
         @JavascriptInterface fun lvOffered(): Boolean = Store.of(this@AdminActivity).lvOffered
         @JavascriptInterface fun lvDone() { Store.of(this@AdminActivity).lvOffered = true }
-        /** The tab the page opens on ("sup" from the KidGuard menu's "Gửi lỗi"), once; "" = the page's default. */
-        @JavascriptInterface fun startTab(): String = (nextTab ?: "").also { nextTab = null }
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent?): Boolean { ParentSession.touch(); return super.dispatchTouchEvent(ev) }
@@ -166,9 +164,6 @@ class AdminActivity : Activity() {
 
         /** Loads the WebView engine while the parent types the PIN (its first start costs ~1 s on an old phone, on the main thread). */
         fun warm() { runCatching { CookieManager.getInstance() } }
-
-        /** Set before the PIN is asked (MainActivity.askAdmin): the page opens on this tab. */
-        @Volatile var nextTab: String? = null
 
         /** Opens a session and the page. Call only after [Store.checkAdmin] said yes. */
         fun start(a: Activity) {

@@ -48,7 +48,6 @@ async function localBoot() {
   try { const r = await fetch("/api/hello"); if (r.ok) hello = await r.json(); } catch {}
   if (!hello || !hello.id) return localOver();
   let lv = 0; try { lv = window.KGLocal.lvOffered() ? 1 : 0; } catch {}
-  try { if (window.KGLocal.startTab() === "sup") tab = "sup"; } catch {}   // the KidGuard menu's "Gửi lỗi cho nhà phát triển"
   open({ id: hello.id, token: "", name: t("kid"), via: "lan", lv });   // not in `kids`: never saved (the phone keeps `lv`)
 }
 const b64u = s => btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");

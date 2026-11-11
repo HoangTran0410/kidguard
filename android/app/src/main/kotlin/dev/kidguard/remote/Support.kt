@@ -93,6 +93,12 @@ object Support {
         p.edit().putString("msgs", out.toString()).putLong("asked", System.currentTimeMillis()).apply()
     }
 
+    /** When the newest code was made (0 = none) and the last send's error ("" = none): the phone's own send dialog waits on these. */
+    fun made(ctx: Context): Long = prefs(ctx).let { if (it.getString("code", null) == null) 0L else it.getLong("made", 0) }
+    fun code(ctx: Context): String = prefs(ctx).getString("code", null) ?: ""
+    fun lastErr(): String = err
+    fun sending(): Boolean = busy
+
     /** State `support`: {busy, err, code, made, left, msgs:[{who: dev|you, text, at}]}. */
     fun state(ctx: Context): JSONObject {
         val p = prefs(ctx); val o = JSONObject()

@@ -445,6 +445,20 @@
     <string name="main_gestures_body">Ứng dụng không tự làm được việc này, đây là cài đặt của điện thoại. KidGuard sẽ mở đúng trang cài đặt nếu tìm thấy.</string>
     <string name="main_gestures_open">Mở cài đặt</string>
     <!-- on-device parent page (AdminActivity) + hold-to-confirm buttons -->
+    <string name="sup_hint">Chuyện gì xảy ra? (không bắt buộc)</string>
+    <string name="sup_body">Gửi tình trạng kỹ thuật của KidGuard cho nhà phát triển. Không gửi vị trí, thông báo, ghi chú, ảnh hay danh sách app. Không cần PIN.\n\nNhà phát triển trả lời ở trang phụ huynh: Thêm › Gửi lỗi.\n\nQuên PIN? Trên trang phụ huynh: Cài đặt › Quên PIN? (PIN mới có hiệu lực sau 24 giờ).</string>
+    <string name="sup_send">Gửi</string>
+    <string name="sup_sending">Đang gửi…</string>
+    <string name="sup_busy">Đang gửi một báo cáo khác, chờ chút nhé</string>
+    <string name="sup_done_title">Đã gửi</string>
+    <string name="sup_done">Mã hỗ trợ: %1$s\n\nNhà phát triển đã nhận được. Trả lời sẽ hiện ở trang phụ huynh (Thêm › Gửi lỗi), máy con hỏi 6 giờ một lần.</string>
+    <string name="sup_fail_title">Chưa gửi được</string>
+    <string name="sup_fail_limit">Hôm nay đã gửi nhiều quá, mai thử lại nhé.</string>
+    <string name="sup_fail_net">Không gửi được, kiểm tra mạng rồi thử lại.</string>
+    <string name="sup_next">Tiếp</string>
+    <string name="sup_confirm_title">Xác nhận gửi</string>
+    <string name="sup_confirm">Gõ đúng chuỗi dưới đây để gửi:\n\n%1$s</string>
+    <string name="sup_confirm_wrong">Chưa đúng, gõ lại chuỗi ở trên nhé</string>
     <string name="main_support">Gửi lỗi cho nhà phát triển</string>
     <string name="main_admin">Quản lý trên máy này</string>
     <!-- home screen: status card, quick row, "Thêm" sheet -->

@@ -1078,6 +1078,8 @@ without `--app kidguard` tv-remote's tools leave KidGuard out (list, `said`, cra
 - Command `support {kind, text?, pkg?}`: `kind` one of `block time relay location launcher bank battery other`; `text` <= 1000
   chars; `pkg` = one app the parent chose (else none). Answers `ok` (sending in the background) or `busy`.
   The phone POSTs `/v1/support {id (uuid4, per install), app:"kidguard", v, model, report}` and keeps `{code, key}`.
+- The child phone's KidGuard menu "Gửi lỗi cho nhà phát triển" sends too, with NO PIN but a typed random 6-letter confirm (against a child pressing it), kind `other`, from `phone`, and shows the code;
+  the thread is read and answered only on the parent page.
 - Command `supportSay {text}`: the parent writes on the thread (`/v1/support/say`). `no code` / `empty` / `ok`.
 - State `support: {busy?, err? (limit|net|http N), code?, made?, left?, msgs?: [{who: "dev"|"you", text, at}]}`; replies are
   asked (`/v1/support/thread`) every 6 h while the code is < 14 days old (the worker's keep), and right after a send / say.

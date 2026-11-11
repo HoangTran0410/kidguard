@@ -144,7 +144,8 @@ class MainActivity : Activity() {
         adminBtn = u.listRow(getString(R.string.main_admin), R.drawable.li_users) { sheet.dismiss(); askAdmin() }
         parentG.addView(adminBtn, 1)
         // report a problem to the developer (Support.kt): the same PIN, then the page's "Gửi lỗi" tab
-        supportBtn = u.listRow(getString(R.string.main_support), R.drawable.li_message_circle) { sheet.dismiss(); askAdmin("sup") }
+        // no PIN on purpose (owner 2026-11-11: a parent who forgot the PIN must still reach the developer); replies stay on the parent page
+        supportBtn = u.listRow(getString(R.string.main_support), R.drawable.li_message_circle) { sheet.dismiss(); askSupport() }
         parentG.addView(supportBtn)
         col.addView(u.cardBox(4).apply { addView(u.listRow(getString(R.string.main_my_rules), R.drawable.li_shield) { showMyRules() }) },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
@@ -246,9 +247,44 @@ class MainActivity : Activity() {
         }
     }
 
+    /** "Gửi lỗi cho nhà phát triển" without the PIN: a short note + the scrubbed report (Support.kt), then the code. */
+    private fun askSupport() {
+        val m = Modal(this, ui2)
+        val input = m.field(getString(R.string.sup_hint), 300)
+        m.show(R.drawable.li_message_circle, Modal.Tone.INFO, getString(R.string.main_support), getString(R.string.sup_body), input,
+            ok = getString(R.string.sup_next), cancel = getString(R.string.cancel)) { confirmSupport(input.text.toString()); true }
+    }
+
+    /** Against a child pressing it for fun (owner 2026-11-11): type a random 6-letter string shown here, then it sends. */
+    private fun confirmSupport(note: String) {
+        val abc = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+        val want = (1..6).map { abc[java.security.SecureRandom().nextInt(abc.length)] }.joinToString("")
+        val m = Modal(this, ui2)
+        val input = m.field(want, 6).apply { inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS; gravity = android.view.Gravity.CENTER; letterSpacing = 0.2f }
+        m.show(R.drawable.li_message_circle, Modal.Tone.INFO, getString(R.string.sup_confirm_title), getString(R.string.sup_confirm, want), input,
+            ok = getString(R.string.sup_send), cancel = getString(R.string.cancel)) {
+            if (input.text.toString().trim().uppercase() != want) { m.setError(getString(R.string.sup_confirm_wrong)); return@show false }
+            val before = Support.made(this)
+            if (Support.send(this, "other", note, null, "phone") != "ok") { m.setError(getString(R.string.sup_busy)); return@show false }
+            Toasts.show(this, getString(R.string.sup_sending))
+            val t0 = System.currentTimeMillis()
+            val wait = object : Runnable { override fun run() {
+                if (isFinishing) return
+                val made = Support.made(this@MainActivity)
+                when {
+                    made > before -> Modal(this@MainActivity, ui2).show(R.drawable.li_circle_check, Modal.Tone.INFO, getString(R.string.sup_done_title),
+                        getString(R.string.sup_done, Support.code(this@MainActivity)))
+                    !Support.sending() && Support.lastErr().isNotEmpty() -> Modal(this@MainActivity, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN,
+                        getString(R.string.sup_fail_title), getString(if (Support.lastErr() == "limit") R.string.sup_fail_limit else R.string.sup_fail_net))
+                    System.currentTimeMillis() - t0 < 40_000 -> ui.postDelayed(this, 1_000)
+                }
+            } }
+            ui.postDelayed(wait, 1_000); true
+        }
+    }
+
     /** "Bố mẹ quản lý trên máy này": the parent PIN or a current Authenticator code opens the full page here (AdminActivity). */
-    private fun askAdmin(tab: String? = null) {
-        AdminActivity.nextTab = tab
+    private fun askAdmin() {
         val s = Store.of(this)
         val pinSet = s.rules.pinHash.isNotBlank(); val totpOn = s.totpSecret.isNotBlank()
         if (!PairPin.adminAvailable(pinSet, totpOn, s.everPaired)) return
@@ -625,7 +661,6 @@ class MainActivity : Activity() {
         (if (s.everPaired) 1f else 0.45f).let { a -> listOf(sosBtn, ciArrived, ciPickup).forEach { it.alpha = a } }
         unlockBtn.visibility = if (s.totpSecret.isNotBlank()) View.VISIBLE else View.GONE
         adminBtn.visibility = if (PairPin.adminAvailable(s.rules.pinHash.isNotBlank(), s.totpSecret.isNotBlank(), s.everPaired)) View.VISIBLE else View.GONE
-        supportBtn.visibility = adminBtn.visibility
         unlockBtn.text = s.unlockUntil.takeIf { it > System.currentTimeMillis() }?.let { getString(R.string.main_unlocked_until, java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(it))) }
             ?: getString(R.string.main_unlock)
         updBtn.visibility = if (!owner && Update.apk(this).exists() && UpdateLogic.newer(Update.stateJson(this).optString("latest"), Update.current())) View.VISIBLE else View.GONE
