@@ -201,7 +201,7 @@ L.en = {
   "pk.bonusBtn": "Extra time…", "pk.pauseBtn": "Pause…", "pk.active": "Paused until {0}", "pk.tapEdit": "tap to end or change", "pk.leftN": "{0} left",
   "pk.bonusNow": "Already gave {0} extra min today", "pk.bonusDone": "Gave {0} extra", "pk.unpaused": "Pause ended",
   "as.list": "App list", "as.clean": "Clean up", "as.space": "Storage",
-  "hd.ok": "Hidden", "hd.refused": "Phone won't hide", "hd.waiting": "Waiting for phone…", "hd.showing": "Showing again…",
+  "hd.ok": "Hidden", "hd.noAdb": "Waiting for on-phone adb", "hd.refused": "Phone won't hide", "hd.waiting": "Waiting for phone…", "hd.showing": "Showing again…",
   "hd.sum": "Hid {0}/{1} apps", "hd.refN": { one: "{0} app the phone won't hide", other: "{0} apps the phone won't hide" }, "hd.waitN": { one: "{0} app waiting for the phone", other: "{0} apps waiting for the phone" },
   "hd.refTip": "\"Phone won't hide\": the phone maker locks that app (ColorOS / Oppo locks Game Center, App Market, Themes…). KidGuard retries every 10 minutes; untick it and Save to stop trying. To keep the kid out of it, block it in the App list instead.",
   "hd.sugH": "Suggested", "hd.sugD": "Maker apps few people use, and apps hidden now", "hd.restH": "Other system apps", "hd.restD": "Hide only if you're sure your kid doesn't need it",

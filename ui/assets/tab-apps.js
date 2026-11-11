@@ -100,9 +100,11 @@ const mbTxt = m => m >= 1024 ? (m / 1024).toLocaleString(lang, { minimumFraction
 function cleanStat() {
   const pre = (st && st.preinstalled) || [], saved = new Set((edit && edit.hidden) || []), took = new Set((st && st.rules && st.rules.hidden) || []);
   // preinstalled[].refused (phone >= 0.9.8): the OS said no to hiding it, so it counts as not hidden whatever "hidden" says
-  const of = x => { const h = x.hidden && !x.refused; return saved.has(x.pkg) ? (x.refused ? "ref" : took.has(x.pkg) ? (h ? "ok" : "ref") : "wait") : (h && took.has(x.pkg) ? "show" : ""); };
+  // basic mode without its own adb (adbWhy set): nothing can be hidden yet; that is "waiting for adb", not "the phone refused"
+  const noAdb = !!(st && st.adbWhy && (isBasic() || st.owner === false));
+  const of = x => { const h = x.hidden && !x.refused; const s = saved.has(x.pkg) ? (x.refused ? "ref" : took.has(x.pkg) ? (h ? "ok" : "ref") : "wait") : (h && took.has(x.pkg) ? "show" : ""); return s === "ref" && noAdb && !x.refused ? "adb" : s; };
   const n = { want: 0, ok: 0, ref: 0, wait: 0, of };
-  pre.forEach(x => { const s = of(x); if (saved.has(x.pkg)) { n.want++; if (s === "ok" || s === "ref" || s === "wait") n[s]++; } });
+  pre.forEach(x => { const s = of(x); if (saved.has(x.pkg)) { n.want++; if (s === "ok" || s === "ref" || s === "wait") n[s]++; else if (s === "adb") n.wait++; } });
   return n;
 }
 const sameSet = (a, b) => a.size === b.size && [...a].every(x => b.has(x));
@@ -119,7 +121,7 @@ function cleanTab(b) {
   const draft = () => hideDraft || saved;
   const sug = pre.filter(x => x.suggest || saved.has(x.pkg) || x.hidden), rest = pre.filter(x => !sug.includes(x));
   const TAG = { ok: `<span class="tag ok">${ic("check")} ${t("hd.ok")}</span>`, ref: `<span class="tag bad">${ic("ban")} ${t("hd.refused")}</span>`,
-    wait: `<span class="tag">${ic("hourglass")} ${t("hd.waiting")}</span>`, show: `<span class="tag">${ic("hourglass")} ${t("hd.showing")}</span>` };
+    wait: `<span class="tag">${ic("hourglass")} ${t("hd.waiting")}</span>`, adb: `<span class="tag warn">${ic("lock")} ${t("hd.noAdb")}</span>`, show: `<span class="tag">${ic("hourglass")} ${t("hd.showing")}</span>` };
   const row = x => `<label class="app"><input type="checkbox" data-hd="${esc(x.pkg)}" ${draft().has(x.pkg) ? "checked" : ""}><div class="nm"><b>${esc(x.label)}</b><span class="mute">${esc(x.pkg)}${x.mb ? " · " + mbTxt(x.mb) : ""}${x.suggest ? `<span class="tag warn">${t("clean.sug")}</span>` : ""}${TAG[S.of(x)] || ""}</span></div></label>`;
   const pc = v => S.want ? (v / S.want * 100).toFixed(1) + "%" : "0";
   const nSug = pre.filter(x => x.suggest).length;

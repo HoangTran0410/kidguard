@@ -204,7 +204,7 @@ L.vi = {
   "pk.bonusBtn": "Cho thêm giờ…", "pk.pauseBtn": "Cấm dùng…", "pk.active": "Đang cấm tới {0}", "pk.tapEdit": "bấm để gỡ/sửa", "pk.leftN": "còn {0}",
   "pk.bonusNow": "Hôm nay đã cho thêm {0} phút", "pk.bonusDone": "Đã cho thêm {0}", "pk.unpaused": "Đã gỡ cấm",
   "as.list": "Danh sách app", "as.clean": "Dọn máy", "as.space": "Dung lượng",
-  "hd.ok": "Đã ẩn", "hd.refused": "Máy không cho ẩn", "hd.waiting": "Chờ máy con…", "hd.showing": "Đang hiện lại…",
+  "hd.ok": "Đã ẩn", "hd.refused": "Máy không cho ẩn", "hd.noAdb": "Chờ adb trên máy", "hd.waiting": "Chờ máy con…", "hd.showing": "Đang hiện lại…",
   "hd.sum": "Đã ẩn {0}/{1} app", "hd.refN": "{0} app máy không cho ẩn", "hd.waitN": "{0} app đang chờ máy con",
   "hd.refTip": "\"Máy không cho ẩn\": hãng điện thoại khoá app đó (ColorOS / Oppo khoá Trung tâm game, Cửa hàng, Chủ đề…). KidGuard vẫn thử lại mỗi 10 phút; bỏ tích rồi Lưu để thôi thử. Muốn chặn hẳn thì chặn app đó ở tab Danh sách app.",
   "hd.sugH": "Nên ẩn", "hd.sugD": "App cài sẵn của hãng ít ai dùng, và app đang ẩn", "hd.restH": "App hệ thống khác", "hd.restD": "Chỉ ẩn khi chắc con không cần",
