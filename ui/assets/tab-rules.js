@@ -344,7 +344,7 @@ function bankCols(r) {
 function bankBox(r) {
   if (!Array.isArray(r.accPause)) return "";
   const stuck = st.vpnStuck ? `<div class="alert warn" style="margin-top:8px">${ic("triangle-alert")} ${t("bank.vpnStuck")}</div>` : "";
-  const cols = bankCols(r), gt = `grid-template-columns:minmax(0,1fr) repeat(${cols.length},var(--bkw))`;
+  const cols = bankCols(r), gt = `grid-template-columns:minmax(var(--bkn),1fr) repeat(${cols.length},var(--bkw));min-width:calc(var(--bkn) + ${cols.length} * (var(--bkw) + 4px) + 16px)`;
   return `<h4 style="margin:14px 0 4px">${ic("landmark")} ${t("bank.h")}</h4><p class="mute">${t("bank.p")}</p>
     ${Array.isArray(r.vpnPause) ? `<p class="mute">${t("bank.vpnP")}</p>` : ""}${stuck}
     <details id="bk" style="margin-top:6px"><summary id="bk-n"></summary>
@@ -356,7 +356,7 @@ function bankBox(r) {
 }
 function bankBind(r) {
   const list = $("#bk-list"); if (!list) return;
-  const cols = bankCols(r), gt = `grid-template-columns:minmax(0,1fr) repeat(${cols.length},var(--bkw))`;
+  const cols = bankCols(r), gt = `grid-template-columns:minmax(var(--bkn),1fr) repeat(${cols.length},var(--bkw));min-width:calc(var(--bkn) + ${cols.length} * (var(--bkw) + 4px) + 16px)`;
   const fill = () => {
     const sets = cols.map(c => new Set(r[c.k])), apps = st.apps || [], inst = new Set(apps.map(a => a.pkg));
     const any = p => sets.some(x => x.has(p));
@@ -368,7 +368,7 @@ function bankBind(r) {
     count();
     // a table: the column names once in the sticky header, a bare checkbox per cell (owner 2026-11-11)
     list.innerHTML = rows.map(a => `<div class="bkr" role="row" style="${gt}" data-q="${esc((a.label + " " + a.pkg).toLowerCase())}">
-      <span class="bkn" role="cell" title="${esc(a.pkg)}">${esc(a.label)}${a.gone ? ` <span class="mute">· ${t("bank.notInst")}</span>` : ""}</span>
+      <span class="bka" role="cell" title="${esc(a.pkg)}">${icon(a)}<span class="bkn">${esc(a.label)}${a.gone ? ` <span class="mute">· ${t("bank.notInst")}</span>` : ""}</span></span>
       ${cols.map((c, i) => `<span role="cell"><input type="checkbox" data-bank="${esc(a.pkg)}" data-k="${c.k}" ${sets[i].has(a.pkg) ? "checked" : ""} aria-label="${esc(c.h + ": " + a.label)}"></span>`).join("")}</div>`).join("");
     list.querySelectorAll("[data-bank]").forEach(c => c.onchange = () => {
       const key = c.dataset.k;
