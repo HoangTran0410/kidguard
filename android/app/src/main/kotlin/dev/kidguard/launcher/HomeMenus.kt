@@ -313,9 +313,11 @@ internal fun HomeActivity.closeOverlay() {
     val v = overlay ?: return
     overlay = null
     // the widget picker has a search box: its keyboard must not outlive the overlay
-    runCatching { v.findFocus()?.clearFocus(); (getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(v.windowToken, 0) }
+    // (not for the control center: no text field there, and the IME call relayouted the window, 16 ms, Oppo A5s)
+    if (v !== ccKeep?.scrim) runCatching { v.findFocus()?.clearFocus(); (getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(v.windowToken, 0) }
     val ex = overlayExit; overlayExit = null
-    val done = { root.removeView(v); if (drag == null) main.post { render(false) } }
+    // the control center stays in the root, hidden (CcKeep): nothing in the home changed, so no re-render either
+    val done = if (v === ccKeep?.scrim) ({ v.visibility = View.INVISIBLE }) else ({ root.removeView(v); if (drag == null) main.post { render(false) } })
     if (ex != null) ex(done) else done()
 }
 
@@ -353,3 +355,4 @@ internal fun HomeActivity.menuFocus(anchor: View?): MenuFocus {
     Motion.fade(f, 1f)
     return f
 }
+

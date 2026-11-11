@@ -123,6 +123,9 @@ class HomeActivity : Activity() {
     internal var drawer: Drawer? = null
     internal var popup: PopupWindow? = null
     internal var overlayExit: ((() -> Unit) -> Unit)? = null   // the open folder's closing animation (then the callback)
+    // control center built ahead, 2 s after the home shows, when the swipe down opens it (not mapped to another action)
+    private val ccPre = Runnable { if (hasWindowFocus() && overlay == null && Gest.action(this, GestLogic.DOWN) == GestLogic.DEFAULT) prebuildControl() }
+    internal var ccKeep: CcKeep? = null           // the control center, built once and kept hidden (HomeControl.kt)
     internal var overlay: View? = null            // folder panel or widget picker (views, not dialogs: a drag survives them)
     internal var apps: Map<String, AppE>? = null
     private var appsLook = -1   // AppLook.version the cached [apps] labels were read with
@@ -251,6 +254,7 @@ class HomeActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        main.removeCallbacks(ccPre); main.postDelayed(ccPre, 2000)
         val gen = ++recentGen   // a slower older load must not overwrite a newer result
         Thread {
             val r = Recent.load(applicationContext)

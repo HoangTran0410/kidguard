@@ -277,19 +277,62 @@ internal class CcSlider(val act: HomeActivity, private val icon: Int, label: Str
     }
 }
 
+/**
+ * The control center is built once and kept in the home root, INVISIBLE while closed (rule 10): building ~80 views and
+ * adding them to the root was a 40 ms first frame on every open (Oppo A5s). Rebuilt only when what it shows changes
+ * ([key]: rules / settings lock, phone caps, size, insets, focus, notification access); built ahead after the home shows.
+ */
+internal class CcKeep(val key: List<Any?>, val ph: ControlLogic.Phone, val scrim: FrameLayout, val show: () -> Unit) { @Volatile var stale = false }
+
+// cheap parts only: the phone's caps (camera, permissions, DND access: ~10 ms of binder calls) are checked off the UI
+// thread after each open and mark the kept panel stale for the next one
+private fun HomeActivity.ccKey(): List<Any?> {
+    val rules = if (Flavor.HOME) null else Store.of(this).rules
+    val ok = rules?.let { settingsOk(it) } ?: true
+    return listOf(ok, rules?.noAirplane, root.width, root.height, insL, insR, insT, NotifDots.granted(this),
+        NotifLog.enabled, shadeOff(), focusSession(), focusState().second, resources.configuration.fontScale)
+}
+
 internal fun HomeActivity.openControl() {
     if (overlay != null) return
     val t0 = Perf.now()
+    val key = ccKey()
+    val k = ccKeep?.takeIf { it.key == key && !it.stale && it.scrim.parent === root } ?: run {
+        ccKeep?.let { root.removeView(it.scrim) }
+        buildControl(key, ccPhone(key)).also { ccKeep = it }
+    }
+    Perf.firstDraw(k.scrim, "cc", t0)
+    k.show()
+    val ctx = applicationContext
+    Thread { val p = ccPhone(key, ctx); if (p != k.ph) k.stale = true }.start()
+}
+
+private fun HomeActivity.ccPhone(key: List<Any?>, ctx: android.content.Context = applicationContext) =
+    CcSys.phone(ctx, key[0] as Boolean, if (Flavor.HOME) null else Store.of(ctx).rules)
+
+/** Build the control center ahead (idle, home shown) so the first swipe only shows it. */
+internal fun HomeActivity.prebuildControl() {
+    if (overlay != null || root.width == 0) return
+    val key = ccKey()
+    if (ccKeep?.let { it.key == key && !it.stale && it.scrim.parent === root } == true) return
+    ccKeep?.let { root.removeView(it.scrim) }
+    ccKeep = buildControl(key, ccPhone(key))
+}
+
+private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): CcKeep {
     val ctx = applicationContext
     val rules = if (Flavor.HOME) null else Store.of(this).rules
-    val ok = rules?.let { settingsOk(it) } ?: true
-    val ph = CcSys.phone(ctx, ok, rules)
+    val ok = key[0] as Boolean
     val torchId = if (ph.flash) CcSys.torchId(ctx) else null
 
-    val scrim = FrameLayout(this).apply { setBackgroundColor(0xEB0B1220.toInt()); isClickable = true; contentDescription = getString(R.string.cc_title) }
+    // dim = the scrim's colour animated, never view alpha on this full-screen group: on the Oppo A5s (PowerVR GE8320) a
+    // fading parent went to an offscreen layer every frame, 21-80 ms frames on open and close
+    val dim = android.graphics.drawable.ColorDrawable(0xEB0B1220.toInt()).apply { alpha = 0 }
+    val scrim = FrameLayout(this).apply { background = dim; isClickable = true; contentDescription = getString(R.string.cc_title) }
     val w = minOf(root.width - insL - insR - dp(40), dp(400))
     val gap = dp(14); val half = (w - gap) / 2
-    val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; isClickable = true }
+    // alpha straight on the children while it fades in: a hardware layer cost 9-12 ms of upload on each open (Oppo A5s)
+    val panel = object : LinearLayout(this) { override fun hasOverlappingRendering() = false }.apply { orientation = LinearLayout.VERTICAL; isClickable = true }
 
     fun toast(id: Int) = Toasts.show(this, id)
     val toggles = mutableListOf<CcToggle>()
@@ -365,12 +408,13 @@ internal fun HomeActivity.openControl() {
 
     // what plays now (HomeMedia.kt), only while something does, like the system control centers
     // no notification access: the card asks for it, but only where the kid may open Settings (KidGuard Home, or allowed)
+    var mediaCard: View? = null; var mediaLp: LinearLayout.LayoutParams? = null
     if (NotifDots.granted(this) || ok) {
         val media = MediaCard(this, true).apply {
             background = GlassCard(0x33FFFFFF, dpf(26f), dpf(1f), true); setPadding(dp(12), dp(12), dp(8), dp(12)); visibility = View.GONE
             onState = { has -> visibility = if (has) View.VISIBLE else View.GONE }
         }
-        panel.addView(media, LinearLayout.LayoutParams(w, -2).apply { topMargin = gap })
+        mediaLp = LinearLayout.LayoutParams(w, -2).apply { topMargin = gap }; mediaCard = media
     }
 
     // row 2: torch, auto-rotate, Do Not Disturb, notifications
@@ -416,7 +460,7 @@ internal fun HomeActivity.openControl() {
         detail.removeAllViews()
         val head = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
         head.addView(ImageView(this).apply {
-            setImageDrawable(Ic.get(this@openControl, R.drawable.li_arrow_left, Color.WHITE, dp(22))); scaleType = ImageView.ScaleType.CENTER
+            setImageDrawable(Ic.get(this@buildControl, R.drawable.li_arrow_left, Color.WHITE, dp(22))); scaleType = ImageView.ScaleType.CENTER
             contentDescription = getString(R.string.hm_c_back); kit.tap(this, -1f) { back?.invoke() }
         }, LinearLayout.LayoutParams(dp(44), dp(44)))
         head.addView(kit.text(getString(title), 17f, Color.WHITE, true).apply { setPadding(dp(4), 0, 0, 0) })
@@ -486,7 +530,6 @@ internal fun HomeActivity.openControl() {
         override fun onTorchModeChanged(id: String, enabled: Boolean) { if (id == torchId) { torchOn = enabled; main.post { if (overlay === scrim) refresh() } } }
         override fun onTorchModeUnavailable(id: String) { if (id == torchId) { torchOn = null; main.post { if (overlay === scrim) refresh() } } }
     }
-    if (torchId != null) runCatching { getSystemService(CameraManager::class.java)?.registerTorchCallback(torchCb, main) }
 
     refresh = {
         Thread {
@@ -517,20 +560,44 @@ internal fun HomeActivity.openControl() {
         }
         true
     }
-    Perf.firstDraw(scrim, "cc", t0)
-    showOverlay(scrim)
-    overlayExit = { done ->
-        if (torchId != null) runCatching { getSystemService(CameraManager::class.java)?.unregisterTorchCallback(torchCb) }
-        window.attributes = window.attributes.apply { screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
-        panel.animate().alpha(0f).translationY(-dpf(24f)).setDuration(Motion.FAST).setInterpolator(Motion.DECEL).start()
-        Motion.fade(scrim, 0f, end = done)
+    scrim.visibility = View.INVISIBLE
+    root.addView(scrim, FrameLayout.LayoutParams(-1, -1))
+    val show = {
+        if (back != null) { back = null; extras.clear(); detail.visibility = View.GONE; detail.removeAllViews(); panel.visibility = View.VISIBLE }
+        mediaCard?.let { m -> if (m.parent == null) panel.addView(m, 1, mediaLp) }
+        overlay = scrim
+        if (root.indexOfChild(scrim) != root.childCount - 1) scrim.bringToFront()   // above a folder / menu view added since
+        overlayExit = { done ->
+            if (torchId != null) runCatching { getSystemService(CameraManager::class.java)?.unregisterTorchCallback(torchCb) }
+            // only when a drag set it: re-setting the window attributes relayouts the window (Oppo: 25-55 ms close frames)
+            if (window.attributes.screenBrightness != android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE)
+                window.attributes = window.attributes.apply { screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
+            panel.animate().alpha(0f).translationY(-dpf(24f)).setDuration(Motion.FAST).setInterpolator(Motion.DECEL).start()
+            ccDim(dim, 0, Motion.FAST) { mediaCard?.let { m -> panel.removeView(m) }; done() }
+        }
+        scrim.visibility = View.VISIBLE
+        // slide + fade only: a scale re-rasterized every label each frame (glyph uploads, Oppo A5s)
+        panel.alpha = 0f; panel.translationY = -dpf(32f)
+        ccDim(dim, 255, Motion.MED)
+        Motion.enter(panel, Motion.SLOW)
+        refresh()
+        // binder calls after the first frame, not in the swipe's own frame
+        main.post {
+            if (overlay !== scrim) return@post
+            if (torchId != null) runCatching { getSystemService(CameraManager::class.java)?.registerTorchCallback(torchCb, main) }
+            announce(getString(R.string.cc_title))
+        }
+        Unit
     }
-    scrim.alpha = 0f; panel.alpha = 0f; panel.translationY = -dpf(32f); panel.scaleX = 0.96f; panel.scaleY = 0.96f
-    Motion.fade(scrim, 1f)
-    Motion.enter(panel, Motion.SLOW)
-    refresh()
-    announce(getString(R.string.cc_title))
+    return CcKeep(key, ph, scrim, show)
 }
+
+private fun ccDim(d: android.graphics.drawable.Drawable, to: Int, ms: Long, end: (() -> Unit)? = null) =
+    android.animation.ValueAnimator.ofInt(d.alpha, to).apply {
+        duration = ms; interpolator = Motion.DECEL
+        addUpdateListener { d.alpha = it.animatedValue as Int }
+        if (end != null) addListener(object : android.animation.AnimatorListenerAdapter() { override fun onAnimationEnd(a: android.animation.Animator) { end() } })
+    }.start()
 
 /** Rule launcher.shade is on and the accessibility service closes the system quick settings. */
 internal fun HomeActivity.shadeOff() = !Flavor.HOME && LauncherSafe.shadeBlocked && Acc.running != null
