@@ -46,7 +46,8 @@ class SelfSetupActivity : Activity() {
         // same look as the child screens (MainActivity): app background, cards, rounded buttons, dark mode
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(28), dp(18), dp(28)) }
         fun body(t: String, color: Int = u.sub) = u.label(t, 15f, color).apply { setLineSpacing(0f, 1.2f); setPadding(0, dp(6), 0, 0) }
-        col.addView(u.label(getString(R.string.ssa_title), 26f, u.text, true))
+        pairMode = intent.getBooleanExtra(EXTRA_PAIR, false)
+        col.addView(u.label(getString(if (pairMode) R.string.ssa_pair_title else R.string.ssa_title), 26f, u.text, true))
         setContentView(ScrollView(this).apply { setBackgroundColor(u.bg); isFillViewport = true; addView(col) })
         window.statusBarColor = u.bg; window.navigationBarColor = u.bg
         if (!u.dark) window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (Build.VERSION.SDK_INT >= 27) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
@@ -55,7 +56,7 @@ class SelfSetupActivity : Activity() {
             col.addView(u.cardBox().apply { addView(body(getString(R.string.ssa_old, Build.VERSION.RELEASE), u.text)) })
             return
         }
-        col.addView(body(getString(R.string.ssa_intro)))
+        col.addView(body(getString(if (pairMode) R.string.ssa_pair_intro else R.string.ssa_intro)))
 
         /** One numbered step card: badge + title, explanation, its button. */
         fun step(n: Int, title: Int, desc: Int, btn: Int, icon: Int, f: () -> Unit) = u.cardBox().apply {
@@ -98,14 +99,14 @@ class SelfSetupActivity : Activity() {
             buttonTintList = ColorStateList.valueOf(u.primary)
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) }
         }
-        s3.addView(wifiOff)
+        if (!pairMode) s3.addView(wifiOff)   // pair mode never reaches the step it is for
         start = u.button(getString(R.string.ssa_start), R.drawable.li_play, true) { go() }
         s3.addView(start)
         col.addView(s3)
 
         val prog = u.cardBox()
         prog.addView(u.label(getString(R.string.ssa_progress), 17f, u.text, true))
-        for (s in SelfSetup.STEPS) {
+        for (s in if (pairMode) SelfSetup.STEPS.take(1).toIntArray() else SelfSetup.STEPS) {
             val r = u.label(getString(s), 15f, u.text).apply { compoundDrawablePadding = dp(12); gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(8), 0, dp(8)) }
             rows.add(r); prog.addView(r)
         }
@@ -130,7 +131,7 @@ class SelfSetupActivity : Activity() {
     }
 
     private fun askNotification() {
-        SelfSetup.pairOnly = false   // the full setup, not SelfAdb.pair
+        SelfSetup.pairOnly = pairMode   // pair mode (Dọn máy without Device Owner): pair + connect only
         SelfSetup.startDiscovery(this)
         SelfSetup.askCodeNotification(this)
         open(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
@@ -139,9 +140,16 @@ class SelfSetupActivity : Activity() {
     private fun go() {
         val c = code.text.toString().filter { it.isDigit() }
         if (c.length != 6) { result.text = getString(R.string.ssa_code_6); return }
-        SelfSetup.turnOffWifi = wifiOff.isChecked
-        SelfSetup.start(this, c, pairPort.text.toString().toIntOrNull() ?: 0, connPort.text.toString().toIntOrNull() ?: 0)
+        SelfSetup.turnOffWifi = !pairMode && wifiOff.isChecked
+        SelfSetup.start(this, c, pairPort.text.toString().toIntOrNull() ?: 0, connPort.text.toString().toIntOrNull() ?: 0, pairOnly = pairMode)
         tick()
+    }
+
+    private var pairMode = false
+
+    companion object {
+        /** true: only pair KidGuard's own adb (FeaturesSheet "adb trên máy"), none of the Device Owner steps. */
+        const val EXTRA_PAIR = "pair"
     }
 
     private class StepMark(val n: Int, val badge: TextView, val note: TextView, val button: View)

@@ -84,9 +84,10 @@ object FeaturesSheet {
                 open(act, Intent(Settings.ACTION_HOME_SETTINGS), Intent(Settings.ACTION_SETTINGS))
             }
             "owner" -> guide(act, u, R.string.feat_owner_title, R.string.feat_owner_body)
+            // the guided 3-step screen (live status per step), pairing only: the bare Developer options page + a code
+            // notification left people lost (owner 2026-11-11: "user không biết lấy mã ở đâu")
             "adb" -> if (Build.VERSION.SDK_INT >= 30) {
-                open(act, Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS), Intent(Settings.ACTION_SETTINGS))
-                runCatching { SelfAdb.pair(act) }
+                runCatching { act.startActivity(Intent(act, SelfSetupActivity::class.java).putExtra(SelfSetupActivity.EXTRA_PAIR, true)) }
             } else guide(act, u, R.string.feat_cap_adb, R.string.feat_adb_body)
             "wss" -> guide(act, u, R.string.feat_cap_wss, R.string.feat_wss_body)
             "paired" -> pair()

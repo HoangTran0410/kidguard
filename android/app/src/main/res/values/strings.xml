@@ -290,6 +290,8 @@
     <string name="ssa_s2_ok">Wireless debugging is on</string>
     <string name="ssa_need_wifi">The phone isn\'t on Wi-Fi: join Wi-Fi, then turn on Wireless debugging (mobile data won\'t work).</string>
     <string name="ssa_s3_ok">Paired: KidGuard can use adb by itself (hide apps, clean-up). Pair again only if something fails.</string>
+    <string name="ssa_pair_title">Let KidGuard use adb</string>
+    <string name="ssa_pair_intro">To hide preinstalled apps and clean up without Device Owner (no reset), KidGuard pairs once with this phone\'s own Wireless debugging. Needs Wi-Fi. Do the 3 steps in order; a done step gets a ✓:</string>
     <string name="ssa_intro">The phone \"talks\" to itself over Wireless debugging (needs Wi-Fi). To become Device Owner it must have no account signed in (Google, Samsung, Xiaomi...); a phone with accounts can still pair so KidGuard hides apps and cleans up by itself. Do the 3 steps in order:</string>
     <string name="ssa_s1">Step 1. Turn on Developer options</string>
     <string name="ssa_s1_d">Open About phone and tap \"Build number\" 7 times.</string>
