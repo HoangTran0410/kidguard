@@ -88,7 +88,8 @@ class Api(private val g: Guard) {
                 val c = JSONObject(r.text)
                 if (c.optString("type") == "relay") {
                     val res = g.command(c)
-                    Res.json(JSONObject().put("result", res).put("id", store.relayId).put("token", store.relayToken).put("url", store.relayUrl).toString())
+                    // the relay link only after the command ran (a wrong / missing PIN must not hand it out)
+                    Res.json(JSONObject().put("result", res).apply { if (res == "ok") put("id", store.relayId).put("token", store.relayToken).put("url", store.relayUrl) }.toString())
                 } else {
                     val t0 = android.os.SystemClock.elapsedRealtime()
                     val res = g.command(c)

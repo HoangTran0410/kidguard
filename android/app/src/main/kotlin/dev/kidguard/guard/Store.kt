@@ -122,7 +122,11 @@ class Store private constructor(private val app: Context) {
     /** Checks the parent PIN with the lockout: true = right; false = wrong or locked (see [pinLockLeft]). */
     @Synchronized fun checkParentPin(pin: String): Boolean {
         if (pinLockLeft() > 0) return false
-        if (rules.checkPin(pin)) { p.edit().putInt("pinFails", 0).remove("pinLock").commit(); return true }
+        if (rules.checkPin(pin)) {
+            p.edit().putInt("pinFails", 0).remove("pinLock").commit()
+            if (pinResetAt > 0) { clearPinReset(); log(R.string.log_pin_reset_cancel) }   // whoever knows the PIN is still here: no reset
+            return true
+        }
         val f = p.getInt("pinFails", 0) + 1
         val lock = Safety.pinLockMs(f)
         p.edit().putInt("pinFails", f).putLong("pinLock", if (lock > 0) System.currentTimeMillis() + lock else 0).commit()
@@ -307,6 +311,39 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var recoverAt: Long
         get() = p.getLong("recoverAt", 0)
         set(v) { p.edit().putLong("recoverAt", v).apply() }
+
+    /**
+     * The PIN (or a current Authenticator code) carried by a gated command ([CmdGate]). Shares the lockouts of the
+     * on-device admin. 1 = right, 2 = nothing to check (no PIN and no Authenticator yet), 3 = none given (not counted),
+     * 0 = wrong (a `tamper` event naming the command), -1 = locked.
+     */
+    @Synchronized fun checkCmdPin(code: String, what: String, now: Long = System.currentTimeMillis()): Int {
+        val secret = totpSecret
+        if (rules.pinHash.isBlank() && secret.isBlank()) return 2
+        val c = code.filter { it.isDigit() }
+        if (c.isEmpty()) return 3
+        val pinOk = rules.pinHash.isNotBlank() && pinLockLeft() == 0L
+        val totpOk = secret.isNotBlank() && unlockLockLeft() == 0L
+        if (!pinOk && !totpOk) return -1
+        if (totpOk && c.length == 6) {
+            val step = Totp.check(secret, c, now, p.getLong("totpLast", 0))
+            if (step >= 0) { p.edit().putLong("totpLast", step).putInt("unlockFails", 0).remove("unlockLock").commit(); return 1 }
+        }
+        if (pinOk) { if (checkParentPin(c)) return 1 }
+        else {
+            val f = p.getInt("unlockFails", 0) + 1
+            val lock = Safety.pinLockMs(f)
+            p.edit().putInt("unlockFails", f).putLong("unlockLock", if (lock > 0) now + lock else 0).commit()
+        }
+        event("tamper", R.string.ev_cmd_pin, what)
+        return if (adminLockLeft() > 0) -1 else 0
+    }
+
+    /** "Forgot the PIN" (`pinReset`): the new PIN's salted hash waits here until [pinResetAt]; 0 = none pending. */
+    @get:Synchronized val pinResetAt: Long get() = p.getLong("pinResetAt", 0)
+    @Synchronized fun pinResetPending(): Pair<String, String> = (p.getString("pinResetHash", "") ?: "") to (p.getString("pinResetSalt", "") ?: "")
+    @Synchronized fun setPinReset(hash: String, salt: String, at: Long) { p.edit().putString("pinResetHash", hash).putString("pinResetSalt", salt).putLong("pinResetAt", at).commit() }
+    @Synchronized fun clearPinReset() { p.edit().remove("pinResetHash").remove("pinResetSalt").remove("pinResetAt").commit() }
 
     /** Base32 Authenticator secret set by a parent (`totpSet` command), "" = off. Never sent back to any parent. */
     @get:Synchronized @set:Synchronized var totpSecret: String

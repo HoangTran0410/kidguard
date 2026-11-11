@@ -914,4 +914,9 @@
     <string name="hm_lay_hint">Save how the home looks now (app and widget places, look, wallpaper) to switch back to it in one tap. Kept on this phone only.</string>
     <string name="acc_closed_protect">Your parents locked removing or stopping KidGuard</string>
     <string name="acc_closed_clock">Your parents keep the date and time automatic</string>
+    <string name="ev_cmd_pin">Command %1$s refused: wrong PIN / code</string>
+    <string name="ev_pin_reset">Parent PIN reset requested (forgot PIN). The new PIN applies at %1$s; enter the old PIN anywhere to cancel</string>
+    <string name="ev_pin_reset_done">Parent PIN was reset (forgot-PIN request from 24 hours ago)</string>
+    <string name="log_pin_changed">Parent PIN changed</string>
+    <string name="log_pin_reset_cancel">PIN reset request cancelled</string>
 </resources>

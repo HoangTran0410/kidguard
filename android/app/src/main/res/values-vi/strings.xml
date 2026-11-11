@@ -895,4 +895,9 @@
     <string name="hm_lay_hint">Lưu cách xếp hiện tại (vị trí ứng dụng, tiện ích, giao diện, hình nền) để đổi lại chỉ với một chạm. Chỉ lưu trên máy này.</string>
     <string name="acc_closed_protect">Bố mẹ đã khoá gỡ hoặc dừng KidGuard</string>
     <string name="acc_closed_clock">Ngày giờ do bố mẹ đặt tự động</string>
+    <string name="ev_cmd_pin">Lệnh %1$s bị từ chối: sai PIN / mã</string>
+    <string name="ev_pin_reset">Có yêu cầu đặt lại PIN phụ huynh (quên PIN). PIN mới áp dụng lúc %1$s; nhập PIN cũ ở bất kỳ đâu để huỷ</string>
+    <string name="ev_pin_reset_done">PIN phụ huynh đã được đặt lại (yêu cầu quên PIN 24 giờ trước)</string>
+    <string name="log_pin_changed">Đã đổi PIN phụ huynh</string>
+    <string name="log_pin_reset_cancel">Đã huỷ yêu cầu đặt lại PIN</string>
 </resources>

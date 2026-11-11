@@ -222,7 +222,10 @@ function setTab(b) {
   ${sec("s-pin", "key-round", t("pin.h"), t("pin.p"), edit.pinSet ? [t("pin.isSet"), "ok"] : [t("pin.notSet"), "warn"], `
     ${edit.pinSet ? "" : `<div class="alert warn">${ic("triangle-alert")} ${t("pin.none")}</div>`}
     <p class="mute">${edit.pinSet ? t("pin.change") : t("pin.set")}</p>
-    <div class="row"><input class="sp" style="min-width:8em" id="f-pin" inputmode="numeric" type="password" placeholder="${esc(t("pin.ph"))}" aria-label="${esc(t("pin.new"))}" maxlength="8" autocomplete="new-password"><button id="savePin">${ic("key-round")} ${edit.pinSet ? t("pin.changeB") : t("pin.setB")}</button></div>`, !edit.pinSet)}
+    <div class="row"><input class="sp" style="min-width:8em" id="f-pin" inputmode="numeric" type="password" placeholder="${esc(t("pin.ph"))}" aria-label="${esc(t("pin.new"))}" maxlength="8" autocomplete="new-password"><button id="savePin">${ic("key-round")} ${edit.pinSet ? t("pin.changeB") : t("pin.setB")}</button></div>
+    ${edit.pinSet && "pinResetAt" in st ? (st.pinResetAt > 0
+      ? `<div class="alert warn" style="margin-top:10px">${ic("triangle-alert")} ${esc(t("pin.rstPending", new Date(st.pinResetAt).toLocaleString()))} <button id="pinRstX" class="sp" style="margin-left:6px">${t("pin.rstCancel")}</button></div>`
+      : `<p style="margin:8px 0 0"><button id="pinRst" class="sp">${ic("key-round")} ${t("pin.forgot")}</button></p>`) : ""}`, !edit.pinSet || st.pinResetAt > 0)}
   <div id="rsx">${S.totp}</div>
   ${sec("s-paired", "smartphone", t("paired.h"), t("sd.paired"), Array.isArray(st.devices) ? [String(st.devices.length)] : null, `${Array.isArray(st.devices) ? devsHtml() : `<p class="mute">${t("dev.old")}</p>`}
     <div class="row" style="margin-top:10px"><button id="openPair" class="sp">${ic("lock-open")} ${t("paired.add")}</button><button id="forget" class="sp">${ic("eraser")} ${APP ? t("forget.app") : t("forget.web")}</button></div><div id="pairOut" class="mute" style="margin-top:8px"></div>`, st.pairUntil > Date.now())}
@@ -253,10 +256,12 @@ function setTab(b) {
   b.querySelectorAll("[data-unp]").forEach(x => x.onclick = async () => {
     const d = (st.devices || []).find(o => o.id === x.dataset.unp); if (!d) return;
     const k = cur, self = d.self || d.id === devIds.get(k.token), nm = d.name || t("dev.noName");
-    if (!(await ask(t(self ? "dev.askSelf" : "dev.ask", nm), t("dev.unpair"), true))) return;
+    const q = [t(self ? "dev.askSelf" : "dev.ask", nm), t("dev.unpair"), true], body = { type: "unpair", id: d.id };
+    if (gateOn()) { const pin = await askPin(k, q); if (pin == null) return; body.pin = pin; }
+    else if (!(await ask(...q))) return;
     x.disabled = true;
     let r;
-    try { r = await call(k, "/cmd", "POST", { type: "unpair", id: d.id }); }
+    try { r = await call(k, "/cmd", "POST", body); if (pinRefused(r)) { x.disabled = false; return; } }
     catch (e) {   // LAN answers 404 {"result":"no such device"} when it is already gone
       if (/404|no such device/.test(e.message)) { toast("warn|" + t("cr.unpair.no such device")); refresh().catch(() => {}); }
       else toast("err|" + t("errX", e.message));
@@ -274,9 +279,22 @@ function setTab(b) {
   if (APP) $("#f-days").onchange = e => kgCall("setHistoryDays", e.target.value);
   $("#saveName").onclick = () => { cur.name = $("#f-name").value || t("kid"); save(kids); render(); };
   // saved right away (not the 0.5 s debounce) so the button can show sending -> saved / failed
+  // forgot the PIN: the new one applies after 24 h, every parent is alerted now, the old PIN anywhere cancels it (CmdGate)
+  if ($("#pinRst")) $("#pinRst").onclick = async () => {
+    let n = "";
+    const ok = await ask(t("pin.forgotAsk"), t("pin.forgotB"), true, "", `<input id="askPin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8" placeholder="${esc(t("pin.new"))}" aria-label="${esc(t("pin.new"))}" style="width:100%;margin-bottom:12px">`,
+      () => { n = ($("#askPin") || {}).value || ""; return /^\d{4,8}$/.test(n); });
+    if (ok) await cmd({ type: "pinReset", new: n }, t("pin.rstSent"), null);
+  };
+  if ($("#pinRstX")) $("#pinRstX").onclick = () => cmd({ type: "pinResetCancel" }, t("pin.rstCancelled"), null);
   $("#savePin").onclick = async () => {
     const f = $("#f-pin"), bt = $("#savePin"), p = f.value, k = cur, e = edit;
     if (!/^\d{4,8}$/.test(p)) { toast("warn|" + t("pin.bad")); f.focus(); return; }
+    if (e.pinSet && st && "pinResetAt" in st) {   // a set PIN changes only with the old one (pinSet), never by a rules save
+      const r = await cmd({ type: "pinSet", new: p }, t("pin.saved"), [t("pin.askChange"), t("pin.changeB")]);
+      if (r && !String(r.result || "").startsWith("failed")) f.value = "";
+      return;
+    }
     clearTimeout(saveT); saveT = null; e.pin = p;
     const h0 = bt.innerHTML; bt.disabled = f.disabled = true; bt.setAttribute("aria-busy", "true"); bt.innerHTML = `<i class="spin"></i> ${t("act.sending")}`;
     try {

@@ -270,6 +270,7 @@ class Guard : Service() {
         // the app in front just got suspended: send the child home (the system's own "paused" dialog shows when they tap it again)
         if (use.current != null && use.current in nowSusp && use.current !in had) goHome()
         opt("locate") { if (now - lastLocateAt > 15 * 60_000) { lastLocateAt = now; locate() } }
+        opt("pinReset") { if (CmdGate.resetDue(store.pinResetAt, now)) { val (h, salt) = store.pinResetPending(); if (h.isNotBlank()) { putPin(h, salt); store.event("tamper", R.string.ev_pin_reset_done) } else store.clearPinReset() } }
         opt("recover") { store.recoverAt.takeIf { it > 0 }?.let { at ->   // child's "lost the link" request (MainActivity): a PIN cancels it
             if (store.rules.pinHash.isNotBlank()) store.recoverAt = 0
             else if (now >= at) { store.recoverAt = 0; store.openPairing(); store.log(R.string.log_recover_open) }
@@ -383,6 +384,7 @@ class Guard : Service() {
             .put("id", store.id).put("t", now).put("day", today)
             .put("model", "${Build.MANUFACTURER} ${Build.MODEL}").put("android", Build.VERSION.RELEASE).put("sdk", Build.VERSION.SDK_INT).put("version", BuildConfig.VERSION_NAME)
             .put("pairUntil", store.pairOpenUntil())
+            .put("pinResetAt", store.pinResetAt)
             .put("totpOn", store.totpSecret.isNotBlank()).put("unlockUntil", store.unlockUntil.takeIf { it > now } ?: 0)
             .put("acc", Acc.isOn(this)).put("accPaused", JSONArray(store.accPaused.sorted()))
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
@@ -503,11 +505,13 @@ class Guard : Service() {
 
     fun currentState(): JSONObject = lastState
 
-    fun setRules(incoming: Rules) {
+    fun setRules(incoming: Rules, pinChange: Boolean = false) {
         val old = store.rules
         if (incoming.rev < old.rev) return
-        // a rules PUT without pin / pinHash keeps the old PIN
-        val r = if (incoming.pinHash.isBlank()) incoming.copy(pinHash = old.pinHash, pinSalt = old.pinSalt) else incoming
+        // a rules PUT without pin / pinHash keeps the old PIN; a rules PUT (LAN or relay) may set the FIRST PIN but never
+        // replace one: that takes pinSet with the old PIN, or pinReset's 24 h wait (CmdGate)
+        val keep = incoming.pinHash.isBlank() || (old.pinHash.isNotBlank() && !pinChange)
+        val r = if (keep) incoming.copy(pinHash = old.pinHash, pinSalt = old.pinSalt) else incoming
         store.rules = r
         if (::work.isInitialized) work.post { runCatching { Policy.apply(this, r) } }
         if (r.noDebug && !old.noDebug) devOff()   // "no debugging" switched on: also turn Developer options off once
@@ -522,13 +526,31 @@ class Guard : Service() {
         val id = c.optString("id")
         // written with commit() before anything runs (a reboot / release must not run twice after a restart)
         if (id.isNotBlank() && !store.markCmd(id)) { Log.i("KidGuard", "duplicate command $id ($t)"); return "ok" }
-        val res = runCatching { run(t, c) }.getOrElse { Log.w("KidGuard", "command $t", it); "failed" }
+        val res = runCatching { gate(t, c) ?: run(t, c) }.getOrElse { Log.w("KidGuard", "command $t", it); "failed" }
         // a failed run (e.g. release: "failed: N apps still hidden") may be re-sent with the same id and must run again, not answer "ok"
         if (id.isNotBlank() && res.startsWith("failed")) store.unmarkCmd(id)
         // a done `setting` writes its own log line (log_setting_*)
         if (t != "relay" && t != "release" && !(t == "setting" && res == "ok")) runCatching { store.log(R.string.log_cmd, t, res) }
         kick()
         return res
+    }
+
+    /** [CmdGate]: null = may run; else the "failed: pin..." answer (failed = the same id may be re-sent with the right PIN). */
+    private fun gate(t: String, c: JSONObject): String? {
+        if (!CmdGate.needs(t, if (c.has("url")) c.optString("url") else null, store.relayUrl)) return null
+        return when (store.checkCmdPin(c.optString("pin"), t)) {
+            1, 2 -> null
+            3 -> "failed: pin needed"
+            -1 -> "failed: pin locked"
+            else -> "failed: pin"
+        }
+    }
+
+    /** Sets the parent PIN (pinSet / a due pinReset): the only ways to replace a PIN once one is set. */
+    private fun putPin(hash: String, salt: String) {
+        val r = store.rules
+        setRules(r.copy(pinHash = hash, pinSalt = salt, rev = maxOf(r.rev + 1, System.currentTimeMillis())), pinChange = true)
+        store.clearPinReset()
     }
 
     private fun run(t: String, c: JSONObject): String = when (t) {
@@ -553,6 +575,17 @@ class Guard : Service() {
         }
         // no PIN yet: the code shows on the child's screen and nothing else would stop the child pairing first
         "openPairing" -> if (store.everPaired && store.rules.pinHash.isBlank()) "set PIN first" else { store.openPairing(); "ok" }
+        "pinSet" -> CmdGate.newPin(c.optString("new"))?.let { n ->   // the old PIN was checked by gate()
+            val salt = Rules.salt8(); putPin(Rules.hashPin(n, salt), salt); store.log(R.string.log_pin_changed); "ok"
+        } ?: "failed: bad pin"
+        // forgot the PIN: no old one needed, but it only applies after CmdGate.RESET_MS and every parent hears of it now
+        "pinReset" -> if (store.rules.pinHash.isBlank()) "no pin" else CmdGate.newPin(c.optString("new"))?.let { n ->
+            val salt = Rules.salt8(); val at = System.currentTimeMillis() + CmdGate.RESET_MS
+            store.setPinReset(Rules.hashPin(n, salt), salt, at)
+            store.event("tamper", R.string.ev_pin_reset, java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(at)))
+            "ok"
+        } ?: "failed: bad pin"
+        "pinResetCancel" -> { if (store.pinResetAt > 0) { store.clearPinReset(); store.log(R.string.log_pin_reset_cancel) }; "ok" }
         "unpairAll" -> { store.clearTokens(); store.tgUnlinkAll(); Tg.wake(); "ok" }   // Telegram chats control the phone too
         "unpair" -> if (store.unpair(c.optString("id"))) { relay?.kick(); kick(); "ok" } else "no such device"
         "answer" -> {

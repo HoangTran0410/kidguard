@@ -139,10 +139,13 @@ function ask(text, ok = t("agree"), danger = false, typed = "", extra = "", coll
   return new Promise(res => {
     const done = (v, auto) => { if (askDone !== done) return; askDone = null; askAuto = !!auto; pop.style.display = "none"; pop.innerHTML = ""; res(v); };
     askDone = done;
-    $("#askNo").onclick = () => done(false); $("#askOk").onclick = () => { if (collect && !collect()) return; done(true); };
-    if (collect) { const upd = () => { $("#askOk").disabled = !collect(); }; pop.querySelectorAll("input").forEach(c => { c.oninput = c.onchange = upd; }); upd(); }
-    if (typed) { const i = $("#askIn"); const flat = v => String(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();   // "GỠ" = "GO" = "go": any keyboard works
-      i.oninput = () => { $("#askOk").disabled = flat(i.value) !== flat(typed); }; i.focus(); } else $(danger ? "#askNo" : "#askOk").focus();   // Enter must not confirm a reboot / unpair
+    const flat = v => String(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();   // "GỠ" = "GO" = "go": any keyboard works
+    const okNow = () => (!typed || flat($("#askIn").value) === flat(typed)) && (!collect || collect());
+    $("#askNo").onclick = () => done(false); $("#askOk").onclick = () => { if (!okNow()) return; done(true); };
+    if (typed || collect) { const upd = () => { $("#askOk").disabled = !okNow(); }; pop.querySelectorAll("input").forEach(c => { c.oninput = c.onchange = upd; }); upd(); }
+    const first = pop.querySelector("#askIn, #askPin");
+    if (first) first.focus(); else $(danger ? "#askNo" : "#askOk").focus();   // Enter must not confirm a reboot / unpair
+    if (collect) pop.querySelectorAll("input").forEach(c => { c.onkeydown = e => { if (e.key === "Enter" && okNow()) $("#askOk").click(); }; });
   });
 }
 $("#askPop").addEventListener("click", e => { if (e.target.id === "askPop" && askDone) askDone(false); });
@@ -183,14 +186,42 @@ function confirmGate(e) {
 document.addEventListener("change", confirmGate, true);
 document.addEventListener("click", confirmGate, true);
 const askOf = c => hasT("ask." + c) ? [t("ask." + c), t("askOk." + c), !!ASK_BAD[c]] : null;
+// Commands the phone runs only with the parent PIN (or an Authenticator code) inside: guard/CmdGate.kt, protocol
+// "PIN-gated commands". Phones before 0.9.13 have no gate (no state.pinResetAt): nothing asked there.
+const GATED = new Set(["release", "unpairAll", "unpair", "clearData", "reboot", "relay", "tailscaleOff", "openPairing", "totpSet", "tgSet", "tgCode", "tgOff", "pinSet", "pinResetCancel"]);
+const gateOn = () => !!(st && "pinResetAt" in st && ((edit && edit.pinSet) || st.totpOn));
+let pinMem = null;   // {token, pin, at}: the PIN typed for this kid in the last 2 min (a "Dọn máy" run sends clearData per app)
+const pinField = () => `<input id="askPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="${esc(t("pin.cmdPh"))}" aria-label="${esc(t("pin.cmdPh"))}" style="width:100%;margin-bottom:6px">
+  <p class="mute" style="margin:0 0 12px;font-size:13px">${esc(t("pin.cmdWhy"))}</p>`;
+/** Confirm dialog [a] (or a plain "enter the PIN" one) with a PIN field. Resolves the PIN, or null when cancelled. */
+async function askPin(k, a) {
+  if (pinMem && pinMem.token === k.token && Date.now() - pinMem.at < 120000) { if (!a || await ask(...a)) return pinMem.pin; return null; }
+  let pin = "";
+  const [text, ok, danger, typed] = a || [t("pin.cmdAsk"), t("agree"), false, ""];
+  const yes = await ask(text, ok, danger, typed || "", pinField(), () => { const v = ($("#askPin") || {}).value || ""; pin = v; return /^\d{4,8}$/.test(v); });
+  return yes ? pin : null;
+}
+/** A gated command's answer: true when it was a PIN refusal (toast shown, remembered PIN dropped). */
+function pinRefused(r) {
+  const x = r && typeof r.result === "string" && r.result.startsWith("failed: pin") ? r.result : "";
+  if (!x) return false;
+  pinMem = null;
+  toast("err|" + t(x === "failed: pin locked" ? "pin.cmdLocked" : x === "failed: pin needed" ? "pin.cmdNeeded" : "pin.cmdWrong"));
+  return true;
+}
 async function cmd(c, okMsg, q) {
   const k = cur, a0 = q || (q === false ? null : askOf(c.type)) || (c.type === "message" ? [t("askMsg", c.text), t("send")] : null);
   // dangerous: name the kid in the text, so a dialog for A can never be mistaken for B
   const a = a0 && a0[2] && k && k.name ? [k.name + "\n" + a0[0], ...a0.slice(1)] : a0;
-  if (a && !(await ask(...a))) return;
+  if (GATED.has(c.type) && gateOn() && !c.pin) {
+    const pin = await askPin(k, a || (k && k.name ? [k.name + "\n" + t("pin.cmdAsk"), t("agree")] : null));
+    if (pin == null) return;
+    c = { ...c, pin };
+  } else if (a && !(await ask(...a))) return;
   if (k !== cur) return;   // the screen changed while the dialog was open (notification tap): never send A's command to B
   try {
     const r = await call(k, "/cmd", "POST", c);
+    if (c.pin) { if (pinRefused(r)) return; pinMem = { token: k.token, pin: c.pin, at: Date.now() }; }
     if (r && r.result && !["ok", "queued", "no such sos"].includes(r.result) && !(c.type === "tailscale" || c.type === "openPairing")) { toast("err|" + tc("cr." + c.type + ".", r.result, t("cmd.answer", r.result))); return; }
     if (r && r.result === "queued") {   // relay: only stored, the phone runs it on its next poll
       const on = Date.now() - lastSeen() < (k.via === "lan" ? 30000 : 120000);

@@ -148,6 +148,23 @@ v0.9.7:
   State `dev.canOn` (bool, v0.9.7) says whether it can work; the page shows the button only then. Logs `log_dev_on`.
   In the worker whitelist (repeatable).
 
+### PIN-gated commands (v0.9.13, `guard/CmdGate.kt`)
+`release unpairAll unpair clearData reboot relay tailscaleOff openPairing totpSet tgSet tgCode tgOff pinSet pinResetCancel`
+carry `pin`: the parent PIN or a current Authenticator code. The PHONE checks it (LAN and relay alike), sharing the lockout
+of the on-device admin (5 free tries, then 5, 10, 20 … 320 min per try; PIN and Authenticator locks are separate).
+`relay {url}` with the URL the phone already has is not gated (the page re-reads the relay link with it). No PIN and no
+Authenticator set = nothing to check. Results: `failed: pin needed` (no `pin`, not counted), `failed: pin` (wrong, a
+`tamper` event names the command), `failed: pin locked`; `failed…` frees the id, so the same id may be re-sent with the
+right PIN. LAN `relay` returns `id/token/url` only when the result is `ok`. The worker only checks the shape
+(`pin` 0–8 digits, `new` 4–8 digits). Phones before 0.9.13 ignore `pin`; the page asks for it only when
+`state.pinResetAt` exists.
+- `pinSet {pin, new}` (gated): the ONLY way to replace a set PIN. Rules PUTs (LAN, relay `pinHash`, Telegram) may set the
+  FIRST PIN but never replace one (`Guard.setRules(pinChange=false)` keeps the old hash).
+- `pinReset {new}` (not gated, "forgot the PIN"): stored on the phone, applied after 24 h (`state.pinResetAt`, 0 = none),
+  `tamper` event to every parent at once; the right PIN entered anywhere (admin screen, any gated command) or
+  `pinResetCancel` cancels it. A new `pinReset` replaces the pending one and restarts the 24 h.
+- Worker: `pinSet pinReset pinResetCancel` are in `CMDS`, `ONCE` and `SHORT` (10 min).
+
 ## Live screen and remote control
 
 ### Acc companion API (Kotlin, in `Acc.kt`)
