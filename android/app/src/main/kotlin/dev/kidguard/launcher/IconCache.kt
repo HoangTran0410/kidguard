@@ -29,11 +29,16 @@ object IconCache {
     private val grey = Paint(Paint.FILTER_BITMAP_FLAG).apply { colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) }) }
 
     fun clear() = lru.evictAll()
+
+    /** Icon edge + face from Tuỳ chỉnh (HStyle.rim / fill); part of every cache key, so a change re-renders. */
+    @Volatile var rim = "top"; private set
+    @Volatile var fill = "app"; private set
+    fun look(r: String, f: String) { rim = r; fill = f }
     /** Perf counters for KG.perf (reset by the reader): icons rendered (cache misses) and the time they took. */
     var misses = 0; var missMs = 0L
     fun stats(): String = "icons=$misses/${missMs}ms lru=${lru.size() shr 20}/${MAX_BYTES shr 20}MB".also { misses = 0; missMs = 0 }
 
-    private fun key(pkg: String, cls: String, px: Int, shape: String) = "$pkg/$cls@$px${shape.take(2)}${AppLook.iconKey(pkg, cls)}"
+    private fun key(pkg: String, cls: String, px: Int, shape: String) = "$pkg/$cls@$px${shape.take(2)}$rim$fill${AppLook.iconKey(pkg, cls)}"
 
     /** Only what is already rendered (no load). */
     fun peek(pkg: String, cls: String, px: Int, shape: String): Bitmap? = lru.get(key(pkg, cls, px, shape))
@@ -109,6 +114,7 @@ object IconCache {
         clip.fillType = Path.FillType.INVERSE_WINDING
         c.drawPath(clip, Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR) })
         edge(b, c, clip, px)
+        sheen(c, clip, px)
         glass(c, clip, px)
         return b
     }
@@ -121,24 +127,51 @@ object IconCache {
         val b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
         val c = Canvas(b); val clip = shape(px, shape)
         c.drawPath(clip, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
+        sheen(c, clip, px)
         glass(c, clip, px)
         return b
     }
 
     /**
-     * The glass rim (iOS 26 / LauncherOS): a thin light line on the top-left and bottom-right corners, fading out along
-     * the sides, so the icon reads as a lit pane and its logo stands out. Drawn once into the cached bitmap: free per frame.
+     * The icon edge, drawn once into the cached bitmap (free per frame), inside the mask:
+     * - "top": a hairline lit from above, fading towards the bottom, the same on left and right (default);
+     * - "line": an even faint hairline all round;
+     * - "glass": the iOS 26 / LauncherOS diagonal (top-left + bottom-right lit). Owner 2026-11-12: from afar the two
+     *   lit corners read as a skewed, squashed logo, hence no longer the default;
+     * - "none".
      */
     private fun glass(c: Canvas, clip: Path, px: Int) {
+        if (rim == "none") return
         clip.fillType = Path.FillType.WINDING
         val w = (px / 72f).coerceAtLeast(1.2f)
         val p = px.toFloat()
         c.save(); c.clipPath(clip)
         c.drawPath(clip, Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE; strokeWidth = w * 2
-            shader = android.graphics.LinearGradient(0f, 0f, p, p,
-                intArrayOf(0xB3FFFFFF.toInt(), 0x00FFFFFF, 0x00FFFFFF, 0x80FFFFFF.toInt()), floatArrayOf(0f, 0.32f, 0.68f, 1f),
-                android.graphics.Shader.TileMode.CLAMP)
+            when (rim) {
+                "line" -> color = 0x59FFFFFF
+                "glass" -> shader = android.graphics.LinearGradient(0f, 0f, p, p,
+                    intArrayOf(0xB3FFFFFF.toInt(), 0x00FFFFFF, 0x00FFFFFF, 0x80FFFFFF.toInt()), floatArrayOf(0f, 0.32f, 0.68f, 1f),
+                    android.graphics.Shader.TileMode.CLAMP)
+                else -> shader = android.graphics.LinearGradient(0f, 0f, 0f, p,
+                    intArrayOf(0xA6FFFFFF.toInt(), 0x40FFFFFF, 0x1AFFFFFF), floatArrayOf(0f, 0.5f, 1f), android.graphics.Shader.TileMode.CLAMP)
+            }
+        })
+        c.restore()
+    }
+
+    /**
+     * "sheen": soft light from above over the whole face (white 20 % at the top, clear by the middle, a light shade at the
+     * bottom), the depth iOS icons have, on any app's flat background. "app" leaves the icon as the app draws it.
+     */
+    private fun sheen(c: Canvas, clip: Path, px: Int) {
+        if (fill != "sheen") return
+        clip.fillType = Path.FillType.WINDING
+        val p = px.toFloat()
+        c.save(); c.clipPath(clip)
+        c.drawRect(0f, 0f, p, p, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = android.graphics.LinearGradient(0f, 0f, 0f, p, intArrayOf(0x33FFFFFF, 0x00FFFFFF, 0x00000000, 0x1F000000),
+                floatArrayOf(0f, 0.5f, 0.6f, 1f), android.graphics.Shader.TileMode.CLAMP)
         })
         c.restore()
     }

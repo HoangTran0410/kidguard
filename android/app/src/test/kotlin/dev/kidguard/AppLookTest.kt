@@ -68,6 +68,10 @@ class AppLookTest {
         assertEquals("easy", st.face); assertTrue(st.speak && st.calm && st.solid)
         val old = HStyle.fromJson(org.json.JSONObject("""{"preset":"teen"}"""))
         assertFalse(old.speak || old.calm || old.solid)
+        assertEquals("top" to "app", old.rim to old.fill)   // defaults for a home.json from before the option
+        val rf = HomeLayout.parse(model(style = HStyle(rim = "glass", fill = "sheen")).toJson().toString())!!.style
+        assertEquals("glass" to "sheen", rf.rim to rf.fill)
+        assertEquals("top", HStyle.fromJson(org.json.JSONObject("""{"rim":"neon","fill":"x"}""")).rim)
         assertEquals("sys", HStyle.fromJson(org.json.JSONObject("""{"face":"comic"}""")).face)
     }
 

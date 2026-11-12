@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="hm_more">Tuỳ chọn khác</string>
+    <string name="hm_drawer_kb">Tự mở bàn phím</string>
     <string name="hm_hidden_m">App đang ẩn</string>
     <string name="hm_hidden_t">App đang ẩn (%1$d)</string>
     <string name="hm_hidden_none">Không có app nào bị ẩn.</string>

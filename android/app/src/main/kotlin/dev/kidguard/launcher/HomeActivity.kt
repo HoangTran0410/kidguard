@@ -125,7 +125,9 @@ class HomeActivity : Activity() {
     internal var overlayExit: ((() -> Unit) -> Unit)? = null   // the open folder's closing animation (then the callback)
     // control center built ahead, 2 s after the home shows, when the swipe down opens it (not mapped to another action)
     private val ccPre = Runnable { if (hasWindowFocus() && overlay == null && Gest.action(this, GestLogic.DOWN) == GestLogic.DEFAULT) prebuildControl() }
-    internal var ccKeep: CcKeep? = null           // the control center, built once and kept hidden (HomeControl.kt)
+    internal var ccKeep: CcKeep? = null
+    /** The drawer being opened should focus its search box once open (swipe-up "search", or ⋮ "Tự mở bàn phím"). */
+    internal var kbOnOpen = false           // the control center, built once and kept hidden (HomeControl.kt)
     internal var overlay: View? = null            // folder panel or widget picker (views, not dialogs: a drag survives them)
     internal var apps: Map<String, AppE>? = null
     private var appsLook = -1   // AppLook.version the cached [apps] labels were read with
@@ -493,6 +495,7 @@ class HomeActivity : Activity() {
         val dial = dialer()
         m = HomeLayout.appendNew(m, visible.map { it.pkg }.filter { it != dial })
         if (m != model) { HomeFile.save(this, m); model = m }
+        IconCache.look(m.style.rim, m.style.fill)
         lap("new")
         awSync(m); lap("aw")
         preset = HomeStyle.preset(m.style.preset)
@@ -969,7 +972,9 @@ class HomeActivity : Activity() {
             // ⋮ -> "Hidden apps" (HomeHidden.kt): what the drawer leaves out, and why
             bar.addView(ImageView(ctx).apply {
                 setImageDrawable(Ic.get(ctx, R.drawable.li_ellipsis_vertical, pal.sub, dp(20))); setPadding(dp(10), dp(10), dp(10), dp(10)); contentDescription = getString(R.string.hm_more)
-                kit.tap(this, -1f) { menu(listOf(Row(R.drawable.li_eye_off, getString(R.string.hm_hidden_m), true) { hiddenScreen() }), this) }
+                kit.tap(this, -1f) { val kb = Gest.drawerKb(this@HomeActivity); menu(listOf(
+                    Row(if (kb) R.drawable.li_check else R.drawable.li_square, getString(R.string.hm_drawer_kb), true) { Gest.setDrawerKb(this@HomeActivity, !kb) },
+                    Row(R.drawable.li_eye_off, getString(R.string.hm_hidden_m), true) { hiddenScreen() }), this) }
             }, LayoutParams(dp(44), dp(44)))
             bar.addView(ImageView(ctx).apply {
                 setImageDrawable(Ic.get(ctx, R.drawable.li_x, pal.sub, dp(20))); setPadding(dp(10), dp(10), dp(10), dp(10)); contentDescription = getString(R.string.close)
@@ -1185,8 +1190,10 @@ class HomeActivity : Activity() {
                     val dy = e.y - y0; val dx = e.x - x0
                     val free = !pager.dragging && pager.page > 0 && !onLibrary() && drag == null && !editing && this@HomeActivity.overlay == null && popup?.isShowing != true
                     val upA = Gest.action(this@HomeActivity, GestLogic.UP); val dnA = Gest.action(this@HomeActivity, GestLogic.DOWN)   // gestures: HomeGestures.kt
-                    val upDrawer = upA == GestLogic.DEFAULT || upA == GestLogic.DRAWER
-                    if (free && !onScroll && upDrawer && dy < -slop && abs(dy) > abs(dx) * 1.5f && drawerBegin()) { up = true; from = e.y; drawerAt(0f) }
+                    // "search" rides the finger like the drawer (owner 2026-11-12: a small flick used to open it full with the
+                    // keyboard); the search box is focused only once the drawer settles open (drawerDone)
+                    val upDrawer = upA == GestLogic.DEFAULT || upA == GestLogic.DRAWER || upA == GestLogic.SEARCH
+                    if (free && !onScroll && upDrawer && dy < -slop && abs(dy) > abs(dx) * 1.5f && drawerBegin()) { up = true; from = e.y; drawerAt(0f); kbOnOpen = upA == GestLogic.SEARCH || Gest.drawerKb(this@HomeActivity) }
                     else if (free && !upDrawer && downOk && drawer == null && GestLogic.swipe(dx, dy, slop.toFloat()) == GestLogic.Dir.UP) { downOk = false; took = true; gestRun(GestLogic.UP) }
                     else if (free && downOk && drawer == null && dy > slop * 2 && dy > abs(dx) * 1.5f) {
                         downOk = false; took = true

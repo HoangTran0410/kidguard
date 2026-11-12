@@ -227,6 +227,8 @@ internal fun HomeActivity.drawerSettle(open: Boolean, vy: Float = 0f) {
 internal fun HomeActivity.drawerDone(open: Boolean) {
     val d = drawer ?: return
     drawerAnim = null
+    val kb = kbOnOpen; kbOnOpen = false
+    if (open && kb) d.search.let { s -> s.requestFocus(); (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(s, 0) }
     content.setLayerType(View.LAYER_TYPE_NONE, null)
     if (open) {
         // the drawer is opaque: stop drawing the home and the wallpaper under it while it scrolls
@@ -246,7 +248,7 @@ internal fun HomeActivity.drawerDone(open: Boolean) {
 }
 
 internal fun HomeActivity.openDrawer() {
-    if (drawer == null) { if (!drawerBegin()) return; drawerAt(0f) } else drawerBegin()
+    if (drawer == null) { if (!drawerBegin()) return; drawerAt(0f); kbOnOpen = Gest.drawerKb(this) } else drawerBegin()
     drawerSettle(true)
 }
 

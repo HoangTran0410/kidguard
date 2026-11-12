@@ -32,13 +32,15 @@ data class HStyle(
     val accent: String = "", val theme: String = "auto", val font: Double = 1.0, val wallKind: String = "builtin", val wall: String = "", val dim: Int = 0, val blur: Int = 0,
     val lib: Boolean = true, val fx: String = "auto", val today: Boolean = true,
     val lbl: String = "m",   // app-name size: "auto" = follows the icon size (the old rule), "s" / "m" / "l" = fixed
+    val rim: String = "top", val fill: String = "app",   // icon edge (top = lit from above, line, glass = the old diagonal, none) / face (app = as the app draws it, sheen = iOS-like light)
     val speak: Boolean = false, val calm: Boolean = false, val solid: Boolean = false,   // reading aids: say the name on tap / launcher animations off / solid label backing
 ) {
     fun toJson(): JSONObject = JSONObject().put("preset", preset).put("icon", icon).put("labels", labels).put("shape", shape).put("dockBg", dockBg).put("dockLabels", dockLabels).put("badge", badge).put("face", face).put("lib", lib).put("fx", fx).put("today", today).put("speak", speak).put("calm", calm).put("solid", solid)
-        .put("accent", accent).put("theme", theme).put("font", font).put("lbl", lbl)
+        .put("rim", rim).put("fill", fill).put("accent", accent).put("theme", theme).put("font", font).put("lbl", lbl)
         .put("wall", JSONObject().put("kind", wallKind).put("id", wall).put("dim", dim).put("blur", blur))
 
     companion object {
+        val RIMS = listOf("top", "line", "glass", "none"); val FILLS = listOf("app", "sheen")
         fun fromJson(o: JSONObject?): HStyle {
             if (o == null) return HStyle()
             val w = o.optJSONObject("wall") ?: JSONObject()
@@ -58,6 +60,8 @@ data class HStyle(
                 speak = o.optBoolean("speak", false), calm = o.optBoolean("calm", false), solid = o.optBoolean("solid", false),
                 fx = o.optString("fx", "auto").takeIf { it in setOf("auto", "full", "lite") } ?: "auto",
                 lbl = o.optString("lbl", "m").takeIf { it in setOf("auto", "s", "m", "l") } ?: "m",
+                rim = o.optString("rim", "top").takeIf { it in RIMS } ?: "top",
+                fill = o.optString("fill", "app").takeIf { it in FILLS } ?: "app",
             )
         }
     }

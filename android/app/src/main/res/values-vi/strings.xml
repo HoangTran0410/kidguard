@@ -814,6 +814,14 @@
     <string name="hm_c_align_left">Căn trái</string>
     <string name="hm_c_align_center">Căn giữa</string>
     <string name="hm_c_shape">Hình biểu tượng</string>
+    <string name="hm_c_rim">Viền biểu tượng</string>
+    <string name="hm_c_rim_top">Sáng từ trên</string>
+    <string name="hm_c_rim_line">Viền mảnh</string>
+    <string name="hm_c_rim_glass">Kính chéo</string>
+    <string name="hm_c_rim_none">Không viền</string>
+    <string name="hm_c_fill">Nền biểu tượng</string>
+    <string name="hm_c_fill_app">Như app</string>
+    <string name="hm_c_fill_sheen">Ánh sáng (iOS)</string>
     <string name="hm_c_dock">Nền thanh dưới</string>
     <string name="hm_c_dock_labels">Tên ứng dụng ở thanh dưới</string>
     <string name="hm_c_dots">Chấm thông báo</string>

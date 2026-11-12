@@ -833,6 +833,14 @@
     <string name="hm_c_align_left">Align left</string>
     <string name="hm_c_align_center">Centre</string>
     <string name="hm_c_shape">Icon shape</string>
+    <string name="hm_c_rim">Icon edge</string>
+    <string name="hm_c_rim_top">Lit from above</string>
+    <string name="hm_c_rim_line">Thin line</string>
+    <string name="hm_c_rim_glass">Diagonal glass</string>
+    <string name="hm_c_rim_none">None</string>
+    <string name="hm_c_fill">Icon background</string>
+    <string name="hm_c_fill_app">As the app</string>
+    <string name="hm_c_fill_sheen">Soft light (iOS)</string>
     <string name="hm_c_dock">Dock background</string>
     <string name="hm_c_dock_labels">App names in the dock</string>
     <string name="hm_c_dots">Notification dots</string>

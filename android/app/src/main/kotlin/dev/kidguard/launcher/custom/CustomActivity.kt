@@ -118,6 +118,8 @@ class CustomActivity : Activity() {
         if (st.labels || st.dockLabels) { line(home); home.addView(segRow(s(R.string.hm_c_lbl), listOf(s(R.string.hm_c_lbl_auto) to "auto", s(R.string.hm_c_small) to "s", s(R.string.hm_c_lbl_m) to "m", s(R.string.hm_c_big) to "l"), st.lbl) { v -> set { it.copy(lbl = v) } }) }
         line(home); home.addView(segRow(s(R.string.hm_c_face), HomeActivity.FACES.zip(listOf(R.string.hm_c_face_sys, R.string.hm_c_face_light, R.string.hm_c_face_medium, R.string.hm_c_face_condensed, R.string.hm_c_face_serif, R.string.hm2_c_face_easy)).map { (f, r) -> s(r) to f }, st.face) { v -> set { it.copy(face = v) } })
         line(home); home.addView(segRow(s(R.string.hm_c_shape), listOf(s(R.string.hm_c_round_opt) to "round", s(R.string.hm_c_soft_opt) to "soft", s(R.string.hm_c_square_opt) to "square"), st.shape) { v -> set { it.copy(shape = v) } })
+        line(home); home.addView(segRow(s(R.string.hm_c_rim), listOf(s(R.string.hm_c_rim_top) to "top", s(R.string.hm_c_rim_line) to "line", s(R.string.hm_c_rim_glass) to "glass", s(R.string.hm_c_rim_none) to "none"), st.rim) { v -> set { it.copy(rim = v) } })
+        line(home); home.addView(segRow(s(R.string.hm_c_fill), listOf(s(R.string.hm_c_fill_app) to "app", s(R.string.hm_c_fill_sheen) to "sheen"), st.fill) { v -> set { it.copy(fill = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock), st.dockBg) { v -> set { it.copy(dockBg = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_dock_labels), st.dockLabels) { v -> set { it.copy(dockLabels = v) } })
         line(home); home.addView(switchRow(s(R.string.hm_c_today), st.today) { v -> set { it.copy(today = v) } })

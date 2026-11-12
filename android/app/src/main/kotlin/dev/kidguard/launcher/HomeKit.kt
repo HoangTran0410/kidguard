@@ -115,6 +115,7 @@ class GlassCard(color: Int, radius: Float, private val w: Float, dark: Boolean) 
         super.draw(c)
         val b = bounds; val h = w / 2
         r.set(b.left + h, b.top + h, b.right - h, b.bottom - h)
+        if (IconCache.rim == "none") return
         rim.alpha = alpha   // the rim fades with the pane (folder card morphing into its icon)
         c.drawRoundRect(r, rad - h, rad - h, rim)
     }

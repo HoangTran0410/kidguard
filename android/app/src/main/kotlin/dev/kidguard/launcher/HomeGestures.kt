@@ -45,14 +45,20 @@ object Gest {
         cache = null
     }
 
-    /** For backups: {"dbl":{"a":..,"app":..},"up":..,"down":..}. */
+    /** Drawer ⋮ "Tự mở bàn phím": every drawer opened from the home focuses the search box (off: only the "search" gesture). */
+    fun drawerKb(ctx: Context): Boolean = prefs(ctx).getBoolean("drawerKb", false)
+    fun setDrawerKb(ctx: Context, on: Boolean) = prefs(ctx).edit().putBoolean("drawerKb", on).apply()
+
+    /** For backups: {"dbl":{"a":..,"app":..},"up":..,"down":..,"drawerKb":bool}. */
     fun toJson(ctx: Context) = JSONObject().also { o ->
         GestLogic.GESTURES.forEach { g -> o.put(g, JSONObject().put("a", load(ctx)[g]?.first ?: GestLogic.default(g)).put("app", app(ctx, g))) }
+        o.put("drawerKb", drawerKb(ctx))
     }
 
     fun fromJson(ctx: Context, o: JSONObject?) {
         o ?: return
         for (g in GestLogic.GESTURES) { val j = o.optJSONObject(g) ?: continue; set(ctx, g, j.optString("a", GestLogic.default(g)).take(16), j.optString("app").take(200)) }
+        if (o.has("drawerKb")) setDrawerKb(ctx, o.optBoolean("drawerKb"))
     }
 
     /** Lock is offered only where it works: kid flavor (the home flavor has no admin / accessibility) with Device Owner, admin or accessibility (API 28+). */
@@ -79,10 +85,7 @@ object Gest {
 /** Runs the action of gesture [g] (the caller keeps the old behaviour for "default"). */
 internal fun HomeActivity.gestRun(g: String) {
     when (Gest.action(this, g)) {
-        GestLogic.SEARCH -> {
-            openDrawer()
-            main.postDelayed({ drawer?.search?.let { s -> s.requestFocus(); (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(s, 0) } }, 260)
-        }
+        GestLogic.SEARCH -> { val was = drawer != null; openDrawer(); if (!was) kbOnOpen = true }   // keyboard once it is fully open (drawerDone)
         GestLogic.DRAWER -> openDrawer()
         GestLogic.SHADE -> Gest.shade(this)
         GestLogic.LOCK -> if (Gest.lockOk(this)) Quick.lockOrSay(this)

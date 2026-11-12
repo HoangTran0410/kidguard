@@ -2,6 +2,7 @@
 <resources>
     <!-- drawer ⋮ menu + "Hidden apps" screen (launcher/HomeHidden.kt) -->
     <string name="hm_more">More options</string>
+    <string name="hm_drawer_kb">Open keyboard</string>
     <string name="hm_hidden_m">Hidden apps</string>
     <string name="hm_hidden_t">Hidden apps (%1$d)</string>
     <string name="hm_hidden_none">No hidden apps.</string>
