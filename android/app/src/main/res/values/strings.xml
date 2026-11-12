@@ -1033,7 +1033,7 @@
     <string name="nst_imp_default">With sound</string>
     <string name="nst_imp_high">Pops on screen</string>
     <string name="nst_apps">By app</string>
-    <string name="nst_mostly">mostly %1$s</string>
+    <string name="nst_mostly">peak %1$s</string>
     <string name="nst_noisy">Sends a lot, almost never opened</string>
     <string name="nst_all_apps">See all %1$d apps</string>
     <string name="nst_bars_max">Busiest day: %1$d. Touch a bar for each day.</string>

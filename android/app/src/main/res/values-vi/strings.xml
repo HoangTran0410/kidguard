@@ -1013,7 +1013,7 @@
     <string name="nst_imp_default">Có âm thanh</string>
     <string name="nst_imp_high">Hiện lên màn hình</string>
     <string name="nst_apps">Theo app</string>
-    <string name="nst_mostly">hay gửi lúc %1$s</string>
+    <string name="nst_mostly">nhiều nhất lúc %1$s</string>
     <string name="nst_noisy">Gửi nhiều nhưng hầu như không mở</string>
     <string name="nst_all_apps">Xem cả %1$d app</string>
     <string name="nst_bars_max">Ngày nhiều nhất: %1$d. Chạm vào cột để xem từng ngày.</string>

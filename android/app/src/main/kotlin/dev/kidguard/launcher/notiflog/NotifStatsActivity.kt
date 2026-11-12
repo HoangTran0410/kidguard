@@ -287,9 +287,10 @@ class NotifStatsActivity : Activity() {
             val bits = listOfNotNull(
                 getString(R.string.nst_per_day, if (per >= 10 || per < 0.05f) Math.round(per).toString() else String.format(loc, "%.1f", per)),
                 if (rate >= 0) getString(R.string.nst_opened_n, rate) else null,
-                NotifStats.peak(a.hours).takeIf { it >= 0 }?.let { getString(R.string.nst_mostly, hours(it)) },
+                NotifStats.peak(a.hours).takeIf { it >= 0 }?.let { getString(R.string.nst_mostly, "${it}h") },   // "17h": "17–18 giờ" cut the line
             )
-            body.addView(k.text(bits.joinToString(" · "), 12f, pal.sub).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+            // wraps instead of an ellipsis (owner: the peak hour was cut off)
+            body.addView(k.text(bits.joinToString(" · "), 12f, pal.sub).apply { setLineSpacing(0f, 1.15f) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
             if (NotifStats.noisy(a.n, a.clicked, days)) body.addView(k.text(getString(R.string.nst_noisy), 12f, pal.warnText, true), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
             row.addView(body, LinearLayout.LayoutParams(0, -2, 1f))
             k.tap(row, 20f) { startActivity(Intent(this, NotifStatsActivity::class.java).putExtra(PKG, a.pkg)) }
