@@ -218,7 +218,7 @@ internal fun HomeActivity.addToFolderSheet(a: AppE) {
     val others = m.pages.flatten().filter { it.kind == "app" && it.pkg != a.pkg && lastShow[it.pkg]?.let { s -> s != LauncherLogic.Show.HIDE } == true }
         .mapNotNull { it to (all[it.pkg] ?: return@mapNotNull null) }.sortedBy { it.second.sortKey }
     if (others.isNotEmpty()) sh.body.addView(text(getString(R.string.hm_f_new_with), 13f, pal.sub, true).apply { setPadding(dp(16), dp(14), dp(16), dp(4)) })
-    for ((it, e) in others) sh.body.addView(rowOf(ImageView(this).apply { setImageBitmap(IconCache.get(this@addToFolderSheet, e.pkg, e.cls, dp(40), model?.style?.shape ?: "square")) }, e.label) {
+    for ((it, e) in others) sh.body.addView(rowOf(ImageView(this).apply { setImageBitmap(IconCache.get(this@addToFolderSheet, e.pkg, e.cls, dp(40), model?.style?.shape ?: "soft")) }, e.label) {
         val name = autoName(e.pkg, a.pkg)
         HomeLayout.addTo(m, a.pkg, it.id, name)?.let { n -> update(n); toast(getString(R.string.hm_f_added, name)) }
     })

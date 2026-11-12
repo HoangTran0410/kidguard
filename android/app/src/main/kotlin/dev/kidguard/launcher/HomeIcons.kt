@@ -46,7 +46,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     // the drawer shows the home-size bitmap scaled to its 52 dp: one bitmap per app, not two. Two sizes for ~280 apps did not
     // fit the LRU (Poco: 32 MB), so every rebuild evicted and re-rendered ~350 icons (2 s, 244 frames lost after a bulk move)
     // lazy: an icon not rendered yet (cold start, new app) is drawn by a background thread and shows when ready
-    val shp = model?.style?.shape ?: "square"
+    val shp = model?.style?.shape ?: "soft"
     var bmp = IconCache.peek(a.pkg, a.cls, iconPx(), shp)
     val dst = android.graphics.RectF(0f, 0f, px.toFloat(), px.toFloat())
     val fp = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG or android.graphics.Paint.ANTI_ALIAS_FLAG)
@@ -175,7 +175,7 @@ internal fun HomeActivity.folderName(f: HItem): String = f.name.ifBlank { getStr
 internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String, LauncherLogic.Show>): View {
     val px = iconPx()
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; setPadding(0, dp(4), 0, dp(2)) }
-    val shp = model?.style?.shape ?: "square"
+    val shp = model?.style?.shape ?: "soft"
     val mini = (px * 0.36f).toInt()
     val badge = model?.style?.badge ?: "num"
     val grid = object : View(this), DotHost {

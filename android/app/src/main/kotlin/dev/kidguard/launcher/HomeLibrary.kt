@@ -77,7 +77,7 @@ internal fun HomeActivity.libraryFill() {
     val all = launcherApps()
     val set = all.keys
     val stale = installed?.first != set
-    val px = iconPx(); val shp = model?.style?.shape ?: "square"
+    val px = iconPx(); val shp = model?.style?.shape ?: "soft"
     val vis = all.values.filter { lastShow[it.pkg] != null && lastShow[it.pkg] != LauncherLogic.Show.HIDE }
     // off the main thread: first install times (a binder call per app) and the icons not on the home yet (~7 ms each:
     // a row of the library built on the main thread was a 100 ms frame right after a cold start). Then one fill.
@@ -185,7 +185,7 @@ internal class LibraryPage(private val act: HomeActivity) : ScrollView(act) {
 
     /** Up to 4 small icons in a 2×2, drawn from the home-size cached bitmaps. */
     private fun minis(apps: List<AppE>): View = object : View(act) {
-        val bm = apps.map { IconCache.get(act, it.pkg, it.cls, act.iconPx(), act.model?.style?.shape ?: "square") }
+        val bm = apps.map { IconCache.get(act, it.pkg, it.cls, act.iconPx(), act.model?.style?.shape ?: "soft") }
         val p = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
         val rr = RectF()
         override fun onDraw(c: Canvas) {

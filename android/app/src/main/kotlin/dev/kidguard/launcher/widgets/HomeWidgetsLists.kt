@@ -65,7 +65,7 @@ internal fun HomeActivity.noteWidget(m: HomeModel, w: Int, h: Int): View {
 }
 
 private fun HomeActivity.usageIcon(a: AppE, size: Int): ImageView {
-    val bmp = IconCache.get(this, a.pkg, a.cls, dp(size), model?.style?.shape ?: "square")
+    val bmp = IconCache.get(this, a.pkg, a.cls, dp(size), model?.style?.shape ?: "soft")
     return ImageView(this).apply { bmp?.let { setImageBitmap(it) }; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
 }
 

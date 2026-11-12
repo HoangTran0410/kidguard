@@ -23,7 +23,7 @@ internal fun HomeActivity.appPickSheet(title: String, apps: List<HomeActivity.Ap
     // opened from another sheet ([back] set): stacked on it (no second dim), Save / Back return to it instead of closing both
     val sh = Sheet(this, u, title, stacked = back != null)
     val chosen = chosen0.toMutableSet()
-    val shp = model?.style?.shape ?: "square"
+    val shp = model?.style?.shape ?: "soft"
     val ipx = dp(40)
 
     // pinned: search (same look as the drawer's) + save

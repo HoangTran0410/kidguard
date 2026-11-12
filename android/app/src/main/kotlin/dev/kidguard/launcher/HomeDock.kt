@@ -159,7 +159,7 @@ internal fun HomeActivity.drawerView(): Drawer = drawerCache?.also { it.refill()
 internal fun HomeActivity.drawerWarm(apps: Collection<AppE>) {
     if (drawerWarming) return
     drawerWarming = true
-    val px = iconPx(); val shp = model?.style?.shape ?: "square"
+    val px = iconPx(); val shp = model?.style?.shape ?: "soft"
     val vis = apps.filter { lastShow[it.pkg] != LauncherLogic.Show.HIDE }.sortedBy { it.sortKey }
     Thread {
         android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)   // never ahead of a swipe

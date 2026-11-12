@@ -381,7 +381,7 @@ class HomeActivity : Activity() {
     // resolved once per resume / package change (a binder call on every render otherwise)
     private var dialerPkg: String? = null; private var dialerAt = 0L
     private val todayIcon: (AppE, Int) -> View = { a, size ->
-        ImageView(this).apply { IconCache.get(this@HomeActivity, a.pkg, a.cls, dp(size), model?.style?.shape ?: "square")?.let { setImageBitmap(it) }; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+        ImageView(this).apply { IconCache.get(this@HomeActivity, a.pkg, a.cls, dp(size), model?.style?.shape ?: "soft")?.let { setImageBitmap(it) }; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
     }
     internal fun dialer(): String? {
         if (dialerAt == 0L) { dialerPkg = resolvePkg(Intent(Intent.ACTION_DIAL)); dialerAt = 1L }

@@ -201,7 +201,7 @@ private fun HomeActivity.awProviders(all: Map<String, HomeActivity.AppE>, show: 
  */
 internal fun HomeActivity.awPickerSection(list: LinearLayout, query: String = "", alive: () -> Boolean) {
     val fq = LauncherLogic.fold(query).trim()
-    val shp = model?.style?.shape ?: "square"
+    val shp = model?.style?.shape ?: "soft"
     val (cw, ch) = awCell(); val d = resources.displayMetrics.density; val m = model
     class R0(val info: AppWidgetProviderInfo, val pv: android.graphics.Bitmap?, val name: String)
     class G0(val app: HomeActivity.AppE, val icon: android.graphics.Bitmap?, val rows: List<R0>)

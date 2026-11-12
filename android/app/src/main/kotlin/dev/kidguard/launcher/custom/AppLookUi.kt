@@ -54,7 +54,7 @@ internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
     val cur = AppLook.get(a.pkg, a.cls) ?: AppCustom()
     var icon = cur.icon                       // "" = the original icon
     var color = AppLook.parseSpec(icon)?.color ?: AppLook.COLORS[5]
-    val shp = model?.style?.shape ?: "square"
+    val shp = model?.style?.shape ?: "soft"
     val big = dp(64)
     // 6 per row, sized to the sheet (12 dp sheet padding each side, 3 dp gap per side): fixed 48 dp + margins overflowed 360 dp screens
     val cell = (minOf(root.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels, resources.displayMetrics.widthPixels) - dp(24)) / 6

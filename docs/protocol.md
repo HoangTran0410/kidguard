@@ -1045,7 +1045,7 @@ crash count and the safe mode, and a layout reset by a crash in the last 24 h co
 ### `home.json` (phone only, app files dir)
 ```
 {"v":1, "grid":{"cols":3-5,"rows":4-7,"auto":bool}, "pages":[{"items":[item…]}…], "dock":[{"pkg":"@phone"},{"pkg":pkg|""}×3],
- "style":{"preset":"be|teen|gon","icon":1-5 (default 2),"labels":bool,"shape":"square|soft|round","rim":"top|line|glass|none" (default top),"fill":"app|sheen" (default app),"dockBg":bool,"dockLabels":bool,"badge":"num|dot|off","face":"sys|light|medium|condensed|serif|easy","speak":false,"calm":false,"solid":false,"accent":"<id>"|"",
+ "style":{"preset":"be|teen|gon","icon":1-5 (default 2),"labels":bool,"shape":"square|soft|round" (default soft),"rim":"top|line|glass|none" (default top),"fill":"app|sheen" (default sheen),"dockBg":bool,"dockLabels":bool,"badge":"num|dot|off","face":"sys|light|medium|condensed|serif|easy","speak":false,"calm":false,"solid":false,"accent":"<id>"|"",
           "theme":"light|dark|auto","font":0.85|1.0|1.15|1.3,"lbl":"auto|s|m|l","wall":{"kind":"builtin|photo","id":"<wall id>","dim":0-60,"blur":0-100},"lib":true,"fx":"auto|full|lite","today":true},
  "seen":[pkg…], "notes":[note…], "todo":[todo…], "timetable":{"1".."7":{"am":[subject…],"pm":[subject…]},"bells":{"am":[[start,end]…],"pm":[…]}}, "todayHide":[card…]}
 ```

@@ -81,7 +81,7 @@ internal fun HomeActivity.hiddenScreen() {
 private fun HomeActivity.hiddenCell(a: HomeActivity.AppE, why: String): View {
     val px = dp(52)
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(2), dp(4), dp(2), dp(4)) }
-    val shp = model?.style?.shape ?: "square"
+    val shp = model?.style?.shape ?: "soft"
     var bmp = IconCache.peek(a.pkg, a.cls, iconPx(), shp)
     val dst = RectF(0f, 0f, px.toFloat(), px.toFloat())
     box.addView(object : View(this) {
