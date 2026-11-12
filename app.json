@@ -5,12 +5,12 @@
     "appName": "KidGuard",
     "appType": "app",
     "version": {
-      "code": 1,
-      "name": "0.1.0"
+      "code": 2,
+      "name": "0.2.0"
     },
     "icon": "icon.png",
     "vender": "zepp",
-    "description": "KidGuard screen time on the watch"
+    "description": "KidGuard for parents: screen time, requests, lock, ring, location"
   },
   "permissions": [
     "data:os.device.info",
@@ -28,11 +28,17 @@
       "module": {
         "page": {
           "pages": [
-            "page/index"
+            "page/index",
+            "page/pick",
+            "page/apps",
+            "page/info"
           ]
         },
         "app-side": {
           "path": "app-side/index"
+        },
+        "setting": {
+          "path": "setting/index"
         }
       },
       "platforms": [

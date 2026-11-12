@@ -1,16 +1,201 @@
+msgid "loading"
+msgstr "Đang tải…"
+
+msgid "noPhone"
+msgstr "Không nối được điện thoại"
+
+msgid "retry"
+msgstr "Thử lại"
+
+msgid "nextKid"
+msgstr "Đổi con ›"
+
+msgid "online"
+msgstr "đang kết nối"
+
+msgid "seen"
+msgstr "lần cuối %1"
+
+msgid "demo"
+msgstr "dữ liệu mẫu"
+
+msgid "sosAt"
+msgstr "SOS lúc %1"
+
+msgid "sosDone"
+msgstr "Đã xử lý"
+
+msgid "where"
+msgstr "Vị trí"
+
+msgid "ring"
+msgstr "Đổ chuông"
+
+msgid "reqLine"
+msgstr "Con xin thêm %1'"
+
+msgid "yes"
+msgstr "Đồng ý"
+
+msgid "no"
+msgstr "Từ chối"
+
+msgid "granted"
+msgstr "Đã cho thêm %1'"
+
+msgid "denied"
+msgstr "Đã từ chối"
+
 msgid "left"
 msgstr "còn lại hôm nay"
-msgid "askMore"
-msgstr "Xin thêm 15'"
+
 msgid "used"
-msgstr "Đã dùng"
-msgid "phone"
-msgstr "Pin máy"
+msgstr "Đã dùng %1"
+
+msgid "pausedTill"
+msgstr "Tạm dừng tới %1"
+
+msgid "bedLine"
+msgstr "Giờ ngủ %1–%2"
+
+msgid "battery"
+msgstr "Pin máy %1"
+
 msgid "now"
-msgstr "Đang mở:"
-msgid "demo"
-msgstr "(dữ liệu mẫu)"
+msgstr "Đang mở: %1"
+
+msgid "screenOn"
+msgstr "Màn hình bật"
+
+msgid "screenOff"
+msgstr "Màn hình tắt"
+
+msgid "pending"
+msgstr "%1 lệnh chưa tới máy"
+
+msgid "more"
+msgstr "Thêm giờ"
+
+msgid "bonusClear"
+msgstr "Bỏ giờ thêm hôm nay"
+
+msgid "resume"
+msgstr "Tiếp tục"
+
+msgid "pause"
+msgstr "Tạm dừng"
+
+msgid "pauseH"
+msgstr "Tạm dừng máy con"
+
+msgid "lock"
+msgstr "Khoá máy"
+
+msgid "tapAgain"
+msgstr "Chạm lần nữa"
+
+msgid "ringStart"
+msgstr "Đổ chuông"
+
+msgid "ringStop"
+msgstr "Dừng chuông"
+
+msgid "msg"
+msgstr "Nhắn"
+
+msgid "m1"
+msgstr "Về nhà ăn cơm nhé"
+
+msgid "m2"
+msgstr "Gọi cho bố mẹ ngay"
+
+msgid "m3"
+msgstr "Đến giờ đi ngủ rồi"
+
+msgid "m4"
+msgstr "Cất máy, học bài nhé"
+
+msgid "m5"
+msgstr "Bố mẹ đang tới đón"
+
+msgid "apps"
+msgstr "Chặn app"
+
+msgid "bedOff"
+msgstr "Tắt giờ ngủ"
+
+msgid "bedOn"
+msgstr "Bật giờ ngủ"
+
+msgid "limit"
+msgstr "Giới hạn"
+
+msgid "limitH"
+msgstr "Giới hạn mỗi ngày"
+
+msgid "limitByDay"
+msgstr "(đặt chung cho cả 7 ngày)"
+
+msgid "noLimit"
+msgstr "Không giới hạn"
+
+msgid "events"
+msgstr "Sự kiện"
+
+msgid "refresh"
+msgstr "Làm mới"
+
+msgid "justNow"
+msgstr "vừa xong"
+
+msgid "minAgo"
+msgstr "%1 phút trước"
+
+msgid "hAgo"
+msgstr "%1 giờ trước"
+
+msgid "dAgo"
+msgstr "%1 ngày trước"
+
+msgid "fail"
+msgstr "Lỗi"
+
 msgid "sent"
-msgstr "Đã gửi bố mẹ"
-msgid "noConn"
-msgstr "Mất kết nối"
+msgstr "Đã gửi"
+
+msgid "demoSent"
+msgstr "Dữ liệu mẫu: chưa gửi"
+
+msgid "sending"
+msgstr "Đang gửi…"
+
+msgid "appsH"
+msgstr "Ứng dụng hôm nay"
+
+msgid "appsHint"
+msgstr "Chạm để chặn / bỏ chặn"
+
+msgid "noApps"
+msgstr "Chưa có app nào"
+
+msgid "unblocked"
+msgstr "Đã bỏ chặn %1"
+
+msgid "blocked"
+msgstr "Đã chặn %1"
+
+msgid "noEvents"
+msgstr "Chưa có sự kiện"
+
+msgid "fixLine"
+msgstr "Cập nhật %1 · ±%2 m"
+
+msgid "noLoc"
+msgstr "Chưa có vị trí"
+
+msgid "locate"
+msgstr "Lấy vị trí mới"
+
+msgid "locateSent"
+msgstr "Đã gửi, chờ khoảng 30 giây"
+

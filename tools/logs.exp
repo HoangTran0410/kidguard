@@ -1,0 +1,16 @@
+# Connect over Developer Bridge and print the watch / side-service logs for N seconds (default 180).
+set secs [expr {[llength $argv] ? [lindex $argv 0] : 180}]
+cd [file dirname [file dirname [file normalize [info script]]]]
+set timeout 60
+spawn zeus bridge
+expect -re {bridge\$}
+send "connect\r"
+expect {
+  -re {Use arrow keys} { sleep 1; send "\r"; exp_continue }
+  -re {(?i)successfully connected} {}
+  timeout { puts "\nCONNECT TIMEOUT"; exit 1 }
+}
+set timeout $secs
+expect timeout {}
+send "exit\r"
+expect eof

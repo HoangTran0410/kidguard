@@ -1,16 +1,201 @@
+msgid "loading"
+msgstr "Loading…"
+
+msgid "noPhone"
+msgstr "Can't reach the phone"
+
+msgid "retry"
+msgstr "Retry"
+
+msgid "nextKid"
+msgstr "Next kid ›"
+
+msgid "online"
+msgstr "online"
+
+msgid "seen"
+msgstr "last seen %1"
+
+msgid "demo"
+msgstr "demo data"
+
+msgid "sosAt"
+msgstr "SOS at %1"
+
+msgid "sosDone"
+msgstr "Handled"
+
+msgid "where"
+msgstr "Location"
+
+msgid "ring"
+msgstr "Ring"
+
+msgid "reqLine"
+msgstr "Asks for %1' more"
+
+msgid "yes"
+msgstr "Allow"
+
+msgid "no"
+msgstr "Deny"
+
+msgid "granted"
+msgstr "Gave %1' more"
+
+msgid "denied"
+msgstr "Denied"
+
 msgid "left"
 msgstr "left today"
-msgid "askMore"
-msgstr "Ask +15 min"
+
 msgid "used"
-msgstr "Used"
-msgid "phone"
-msgstr "Phone"
+msgstr "Used %1"
+
+msgid "pausedTill"
+msgstr "Paused until %1"
+
+msgid "bedLine"
+msgstr "Bedtime %1–%2"
+
+msgid "battery"
+msgstr "Battery %1"
+
 msgid "now"
-msgstr "Now:"
-msgid "demo"
-msgstr "(demo data)"
+msgstr "Using: %1"
+
+msgid "screenOn"
+msgstr "Screen on"
+
+msgid "screenOff"
+msgstr "Screen off"
+
+msgid "pending"
+msgstr "%1 commands not delivered"
+
+msgid "more"
+msgstr "More time"
+
+msgid "bonusClear"
+msgstr "Remove today's extra"
+
+msgid "resume"
+msgstr "Resume"
+
+msgid "pause"
+msgstr "Pause"
+
+msgid "pauseH"
+msgstr "Pause the phone"
+
+msgid "lock"
+msgstr "Lock"
+
+msgid "tapAgain"
+msgstr "Tap again"
+
+msgid "ringStart"
+msgstr "Ring"
+
+msgid "ringStop"
+msgstr "Stop ringing"
+
+msgid "msg"
+msgstr "Message"
+
+msgid "m1"
+msgstr "Come home for dinner"
+
+msgid "m2"
+msgstr "Call us now"
+
+msgid "m3"
+msgstr "Time for bed"
+
+msgid "m4"
+msgstr "Put the phone away and study"
+
+msgid "m5"
+msgstr "We're coming to pick you up"
+
+msgid "apps"
+msgstr "Block apps"
+
+msgid "bedOff"
+msgstr "Bedtime off"
+
+msgid "bedOn"
+msgstr "Bedtime on"
+
+msgid "limit"
+msgstr "Limit"
+
+msgid "limitH"
+msgstr "Daily limit"
+
+msgid "limitByDay"
+msgstr "(same for all 7 days)"
+
+msgid "noLimit"
+msgstr "No limit"
+
+msgid "events"
+msgstr "Events"
+
+msgid "refresh"
+msgstr "Refresh"
+
+msgid "justNow"
+msgstr "just now"
+
+msgid "minAgo"
+msgstr "%1 min ago"
+
+msgid "hAgo"
+msgstr "%1 h ago"
+
+msgid "dAgo"
+msgstr "%1 d ago"
+
+msgid "fail"
+msgstr "Error"
+
 msgid "sent"
-msgstr "Sent to parents"
-msgid "noConn"
-msgstr "No connection"
+msgstr "Sent"
+
+msgid "demoSent"
+msgstr "Demo data: not sent"
+
+msgid "sending"
+msgstr "Sending…"
+
+msgid "appsH"
+msgstr "Today's apps"
+
+msgid "appsHint"
+msgstr "Tap to block / unblock"
+
+msgid "noApps"
+msgstr "No apps yet"
+
+msgid "unblocked"
+msgstr "Unblocked %1"
+
+msgid "blocked"
+msgstr "Blocked %1"
+
+msgid "noEvents"
+msgstr "No events yet"
+
+msgid "fixLine"
+msgstr "Updated %1 · ±%2 m"
+
+msgid "noLoc"
+msgstr "No location yet"
+
+msgid "locate"
+msgstr "Get a fresh fix"
+
+msgid "locateSent"
+msgstr "Sent, wait about 30 s"
+
