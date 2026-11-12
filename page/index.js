@@ -15,7 +15,6 @@ function fmt(ms) {
 Page(
   BasePage({
     build() {
-      hmUI.createWidget(hmUI.widget.TEXT, { ...L.title, text: "KidGuard" });
       this.bg = hmUI.createWidget(hmUI.widget.ARC, { ...L.arc, color: 0x333333, start_angle: -90, end_angle: 270 });
       this.arc = hmUI.createWidget(hmUI.widget.ARC, { ...L.arc, color: ACCENT, start_angle: -90, end_angle: -90 });
       this.big = hmUI.createWidget(hmUI.widget.TEXT, { ...L.big, text: "…" });
@@ -48,8 +47,8 @@ Page(
         `${getText("phone")} ${s.battery >= 0 ? s.battery + "%" : "?"}${s.charging ? " ⚡" : ""}`,
       ];
       if (s.current) lines.push(`${getText("now")} ${s.current}`);
-      if (s.demo) lines.push(getText("demo"));
       this.info.setProperty(hmUI.prop.TEXT, lines.join("\n"));
+      if (s.demo) hmUI.showToast({ text: getText("demo") });
     },
     askMore() {
       this.request({ method: "ASK_MORE", params: { min: 15 } })
