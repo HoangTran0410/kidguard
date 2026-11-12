@@ -102,7 +102,15 @@
     <!-- Guard -->
     <string name="ev_tz">Múi giờ máy bị đổi: %1$s</string>
     <string name="log_tz">Múi giờ bị đổi: %1$s</string>
-    <string name="ev_clock">Giờ máy bị đổi</string>
+    <string name="ev_clock_ahead">Giờ máy bị chỉnh nhanh %3$s: máy hiện %1$s, giờ thật %2$s</string>
+    <string name="ev_clock_behind">Giờ máy bị chỉnh chậm %3$s: máy hiện %1$s, giờ thật %2$s</string>
+    <string name="ev_dur_m">%1$d phút</string>
+    <string name="ev_dur_hm">%1$d giờ %2$d phút</string>
+    <string name="ev_dur_dh">%1$d ngày %2$d giờ</string>
+    <string name="ev_autotime_fixed">\"Ngày giờ tự động\" bị tắt: KidGuard đã bật lại</string>
+    <string name="ev_autotime_left">\"Ngày giờ tự động\" bị tắt: KidGuard không bật lại được (thiếu quyền)</string>
+    <string name="ev_autotz_fixed">\"Múi giờ tự động\" bị tắt: KidGuard đã bật lại</string>
+    <string name="ev_autotz_left">\"Múi giờ tự động\" bị tắt: KidGuard không bật lại được (thiếu quyền)</string>
     <string name="log_loc_fixed">Vị trí bị tắt, đã bật lại</string>
     <string name="log_usage_on">Quyền theo dõi sử dụng đã bật lại</string>
     <string name="ch_usage">Quyền theo dõi giờ dùng</string>

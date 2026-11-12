@@ -53,6 +53,17 @@ class EventsTest {
         assertTrue(Events.clockJumped(1_000_000, 5_000, 1_060_000 - 3_600_000, 65_000))
     }
 
+    @Test fun clockTextSaysShownRealAndOffset() {
+        val tz = java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh")
+        val ref = 1_794_448_800_000L   // 2026-11-12 09:00 +07
+        // set 2 h 5 min fast, 60 s after the reference
+        assertEquals("Giờ máy bị chỉnh nhanh 2 giờ 5 phút: máy hiện 11:06, giờ thật 09:01",
+            Events.clockText(ref, 0, ref + 60_000 + 125 * 60_000, 60_000, TestTr.VI, tz))
+        // set back a day: dates shown
+        assertEquals("Phone clock set 1 days 0 h slow: shows 09:01 11/11, real time 09:01 12/11",
+            Events.clockText(ref, 0, ref + 60_000 - 86_400_000, 60_000, TestTr.EN, tz))
+    }
+
     @Test fun pruneAgeAndCount() {
         val now = 10L * Events.KEEP_MS
         val a = JSONArray().put(JSONObject().put("id", "old").put("t", now - Events.KEEP_MS - 1))

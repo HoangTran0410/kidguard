@@ -20,6 +20,15 @@ class ResTr(private val ctx: Context) : Tr {
         T.reason_daily -> R.string.reason_daily
         T.ev_zone_in -> R.string.ev_zone_in
         T.ev_zone_out -> R.string.ev_zone_out
+        T.ev_clock_ahead -> R.string.ev_clock_ahead
+        T.ev_clock_behind -> R.string.ev_clock_behind
+        T.ev_dur_m -> R.string.ev_dur_m
+        T.ev_dur_hm -> R.string.ev_dur_hm
+        T.ev_dur_dh -> R.string.ev_dur_dh
+        T.ev_autotime_fixed -> R.string.ev_autotime_fixed
+        T.ev_autotime_left -> R.string.ev_autotime_left
+        T.ev_autotz_fixed -> R.string.ev_autotz_fixed
+        T.ev_autotz_left -> R.string.ev_autotz_left
         T.answer_yes -> R.plurals.answer_yes
         T.answer_no -> R.string.answer_no
         T.answer_note -> R.string.answer_note

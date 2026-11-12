@@ -11,7 +11,8 @@ package dev.kidguard
 enum class T {
     reason_blocked, reason_app_limit, reason_group_hours, reason_group_limit, reason_new, reason_paused,
     reason_schedule, reason_bedtime, reason_daily, reason_settings,
-    ev_zone_in, ev_zone_out,
+    ev_zone_in, ev_zone_out, ev_clock_ahead, ev_clock_behind, ev_dur_m, ev_dur_hm, ev_dur_dh,
+    ev_autotime_fixed, ev_autotime_left, ev_autotz_fixed, ev_autotz_left,
     answer_yes /* plurals */, answer_no, answer_note,
     diff_head, diff_limit, diff_none, diff_min, no_limit, diff_by_day, diff_by_day_off, diff_bed, diff_bed_off,
     diff_sched_n, diff_sched, diff_blocked, diff_allow, app_hidden, app_unhidden, diff_pause, diff_pause_off,

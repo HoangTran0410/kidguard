@@ -43,6 +43,17 @@ object Events {
     fun clockJumped(refWall: Long, refElapsed: Long, nowWall: Long, nowElapsed: Long): Boolean =
         Math.abs((nowWall - refWall) - (nowElapsed - refElapsed)) > CLOCK_JUMP_MS
 
+    /** The clock-jump event text: what the phone shows now, what the time really is (reference + elapsed), how far off. */
+    fun clockText(refWall: Long, refElapsed: Long, nowWall: Long, nowElapsed: Long, tr: Tr, tz: java.util.TimeZone = java.util.TimeZone.getDefault()): String {
+        val real = refWall + (nowElapsed - refElapsed); val off = nowWall - real
+        val day = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.ROOT).apply { timeZone = tz }
+        val sameDay = day.format(java.util.Date(nowWall)) == day.format(java.util.Date(real))
+        val f = java.text.SimpleDateFormat(if (sameDay) "HH:mm" else "HH:mm dd/MM", java.util.Locale.ROOT).apply { timeZone = tz }
+        val m = (Math.abs(off) + 30_000) / 60_000
+        val d = when { m < 60 -> tr.s(T.ev_dur_m, m.toInt()); m < 24 * 60 -> tr.s(T.ev_dur_hm, (m / 60).toInt(), (m % 60).toInt()); else -> tr.s(T.ev_dur_dh, (m / 1440).toInt(), (m % 1440 / 60).toInt()) }
+        return tr.s(if (off > 0) T.ev_clock_ahead else T.ev_clock_behind, f.format(java.util.Date(nowWall)), f.format(java.util.Date(real)), d)
+    }
+
     /** Newest last, drops entries older than 7 days (and times in the future of [now] are kept), keeps the last 50. */
     fun prune(a: JSONArray, now: Long): JSONArray {
         val keep = ArrayList<JSONObject>()

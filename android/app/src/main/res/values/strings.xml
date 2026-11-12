@@ -108,7 +108,15 @@
     <!-- Guard -->
     <string name="ev_tz">Phone time zone changed: %1$s</string>
     <string name="log_tz">Time zone changed: %1$s</string>
-    <string name="ev_clock">Phone clock was changed</string>
+    <string name="ev_clock_ahead">Phone clock set %3$s fast: shows %1$s, real time %2$s</string>
+    <string name="ev_clock_behind">Phone clock set %3$s slow: shows %1$s, real time %2$s</string>
+    <string name="ev_dur_m">%1$d min</string>
+    <string name="ev_dur_hm">%1$d h %2$d min</string>
+    <string name="ev_dur_dh">%1$d days %2$d h</string>
+    <string name="ev_autotime_fixed">\"Automatic date &amp; time\" was turned off: KidGuard turned it back on</string>
+    <string name="ev_autotime_left">\"Automatic date &amp; time\" was turned off: KidGuard cannot turn it back on (no permission)</string>
+    <string name="ev_autotz_fixed">\"Automatic time zone\" was turned off: KidGuard turned it back on</string>
+    <string name="ev_autotz_left">\"Automatic time zone\" was turned off: KidGuard cannot turn it back on (no permission)</string>
     <string name="log_loc_fixed">Location was off, turned it back on</string>
     <string name="log_usage_on">Usage access is back on</string>
     <string name="ch_usage">Usage access</string>

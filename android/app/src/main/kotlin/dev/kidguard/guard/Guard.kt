@@ -79,7 +79,10 @@ class Guard : Service() {
                 val tz = java.util.TimeZone.getDefault().id
                 store.event("clock", R.string.ev_tz, tz); store.log(R.string.log_tz, tz); relay?.kick()
             }
-            else if (Events.clockJumped(refWall, refElapsed, w, e)) runCatching { store.event("clock", R.string.ev_clock); store.log(R.string.ev_clock); relay?.kick() }
+            else if (Events.clockJumped(refWall, refElapsed, w, e)) runCatching {
+                val txt = Events.clockText(refWall, refElapsed, w, e, ResTr(this@Guard))
+                store.addEvent(Ev("clock", txt)); store.log(txt); relay?.kick()
+            }
             refWall = w; refElapsed = e
         }
     }
@@ -87,17 +90,18 @@ class Guard : Service() {
     /** Basic mode: keep automatic time / time zone on (WRITE_SECURE_SETTINGS, else only report); stops with release (Basic.enforcing). */
     private fun clockGuard() {
         val can = checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        var tamper = false
+        val said = ArrayList<String>()
         for (tz in listOf(false, true)) {
             val key = if (tz) android.provider.Settings.Global.AUTO_TIME_ZONE else android.provider.Settings.Global.AUTO_TIME
             val now = android.provider.Settings.Global.getInt(contentResolver, key, -1)
             val fix = BasicLogic.clockFix(now, if (tz) prevAutoTz else prevAuto, can)
             if (fix.write) runCatching { android.provider.Settings.Global.putInt(contentResolver, key, 1) }
-            if (fix.log) tamper = true
+            if (fix.log) said += getString(when { tz && fix.write -> R.string.ev_autotz_fixed; tz -> R.string.ev_autotz_left; fix.write -> R.string.ev_autotime_fixed; else -> R.string.ev_autotime_left })
             val seen = if (fix.write) 1 else now   // a rewrite means the next tick reads 1; a failed one logs only once (prev = 0)
             if (tz) prevAutoTz = seen else prevAuto = seen
         }
-        if (tamper) { store.event("clock", R.string.ev_clock); store.log(R.string.ev_clock); relay?.kick() }
+        for (txt in said) { store.addEvent(Ev("clock", txt)); store.log(txt) }
+        if (said.isNotEmpty()) relay?.kick()
     }
     private val pkgReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
