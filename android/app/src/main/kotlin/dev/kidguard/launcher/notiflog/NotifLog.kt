@@ -47,12 +47,34 @@ object NotifLog {
         io.execute { trimmedAt = 0; trim(app, System.currentTimeMillis()) }
     }
 
-    private class Helper(ctx: Context) : android.database.sqlite.SQLiteOpenHelper(ctx, "notiflog.db", null, 1) {
+    // v2 (2026-11-12, stats screen): ch / cn channel id + name, rs removal reason, im importance, index on p
+    private class Helper(ctx: Context) : android.database.sqlite.SQLiteOpenHelper(ctx, "notiflog.db", null, 2) {
         override fun onCreate(d: android.database.sqlite.SQLiteDatabase) {
             d.execSQL("CREATE TABLE n (id INTEGER PRIMARY KEY AUTOINCREMENT, k TEXT NOT NULL, t INTEGER NOT NULL, d INTEGER NOT NULL, m INTEGER NOT NULL, p TEXT NOT NULL, a TEXT NOT NULL, kd TEXT NOT NULL, live INTEGER NOT NULL, f TEXT NOT NULL, j TEXT NOT NULL)")
             d.execSQL("CREATE INDEX n_t ON n(t)"); d.execSQL("CREATE INDEX n_d ON n(d)"); d.execSQL("CREATE INDEX n_k ON n(k)")
+            v2(d)
         }
-        override fun onUpgrade(d: android.database.sqlite.SQLiteDatabase, o: Int, n: Int) {}
+        override fun onUpgrade(d: android.database.sqlite.SQLiteDatabase, o: Int, n: Int) {
+            if (o < 2) {
+                v2(d)
+                // fill the new columns from each row's JSON, once (60k rows at most)
+                d.rawQuery("SELECT id, j FROM n", null).use { c ->
+                    while (c.moveToNext()) {
+                        val e = entry(c.getString(1)) ?: continue
+                        d.update("n", android.content.ContentValues().apply { cols(this, e) }, "id = ?", arrayOf(c.getLong(0).toString()))
+                    }
+                }
+            }
+        }
+        private fun v2(d: android.database.sqlite.SQLiteDatabase) {
+            for (c in listOf("ch", "cn", "rs")) d.execSQL("ALTER TABLE n ADD COLUMN $c TEXT NOT NULL DEFAULT ''")
+            d.execSQL("ALTER TABLE n ADD COLUMN im INTEGER NOT NULL DEFAULT 0")
+            d.execSQL("CREATE INDEX n_p ON n(p, d)")
+        }
+    }
+
+    private fun cols(v: android.content.ContentValues, e: NotifEntry) {
+        v.put("ch", e.channel); v.put("cn", e.channelName); v.put("rs", e.reason); v.put("im", e.importance)
     }
 
     private fun db(ctx: Context): android.database.sqlite.SQLiteDatabase = db ?: Helper(ctx).writableDatabase.also { d ->
@@ -73,6 +95,7 @@ object NotifLog {
             put("k", e.key); put("t", e.time); put("d", NotifQ.day(e.time, c)); put("m", NotifQ.minute(e.time, c))
             put("p", e.pkg); put("a", e.app); put("kd", NotifQ.kind(e.category, e.msgs.isNotEmpty()))
             put("live", if (e.removedAt == 0L) 1 else 0); put("f", NotifQ.searchText(e)); put("j", NotifLogic.toObj(e).toString())
+            cols(this, e)
         }
     }
 
@@ -145,7 +168,7 @@ object NotifLog {
 
     /** Called from the listener thread: reads the extras now, writes (and encodes images) on the io thread. */
     @Suppress("DEPRECATION")
-    fun record(ctx: Context, s: StatusBarNotification, importance: Int = 0) {
+    fun record(ctx: Context, s: StatusBarNotification, importance: Int = 0, channelName: String = "") {
         if (!enabled || !wanted(s)) return
         val n = s.notification
         val x = n.extras
@@ -170,6 +193,7 @@ object NotifLog {
             msgs = messages(x),
             actions = (n.actions ?: emptyArray()).mapNotNull { it.title?.toString()?.take(40) }.take(NotifLogic.MAX_ACTIONS),
             progress = prog, group = n.group.orEmpty().take(80), priority = n.priority, importance = importance,
+            channelName = channelName.take(80),
         )
         n.contentIntent?.let { pi -> synchronized(held) { held.remove(s.key); held[s.key] = Held(ClickRec(s.key, s.packageName, 0, ""), pi) } }
         // images: grab the references here, decode / scale / encode on io
@@ -289,6 +313,41 @@ object NotifLog {
         val total = NotifQ.where(f).let { (w, a) -> d.rawQuery("SELECT COUNT(*) FROM n WHERE $w", a).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 } }
         val oldest = d.rawQuery("SELECT MIN(t) FROM n", null).use { c -> if (c.moveToFirst()) c.getLong(0) else 0L }
         Overview(days, apps, kinds, total, oldest)
+    }, done)
+
+    /** Raw numbers for the stats screen, days [d0]..[d1] (yyyymmdd), one app if [pkg] is set; [p0]..[p1] = the period
+     *  before, for the change. Shaped by [NotifStats]. */
+    fun stats(ctx: Context, d0: Int, d1: Int, p0: Int, p1: Int, pkg: String?, done: (NotifStats.Raw) -> Unit) = onIo(ctx, { d ->
+        val pw = if (pkg != null) " AND p = ?" else ""
+        fun args(vararg x: Any) = (x.map { it.toString() } + listOfNotNull(pkg)).toTypedArray()
+        val cells = ArrayList<NotifStats.Cell>()
+        d.rawQuery("SELECT d, m / 60, COUNT(*) FROM n WHERE d >= ? AND d <= ?$pw GROUP BY 1, 2", args(d0, d1)).use { c ->
+            while (c.moveToNext()) cells += NotifStats.Cell(c.getInt(0), c.getInt(1), c.getInt(2))
+        }
+        val prev = d.rawQuery("SELECT COUNT(*) FROM n WHERE d >= ? AND d <= ?$pw", args(p0, p1)).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+        val opened = d.rawQuery("SELECT rs, COUNT(*) FROM n WHERE d >= ? AND d <= ?$pw GROUP BY rs", args(d0, d1)).use { c ->
+            HashMap<String, Int>().also { m -> while (c.moveToNext()) m[c.getString(0)] = c.getInt(1) }
+        }
+        val apps = ArrayList<NotifStats.AppRaw>()
+        if (pkg == null) {
+            val hours = HashMap<String, IntArray>()
+            d.rawQuery("SELECT p, m / 60, COUNT(*) FROM n WHERE d >= ? AND d <= ? GROUP BY 1, 2", args(d0, d1)).use { c ->
+                while (c.moveToNext()) hours.getOrPut(c.getString(0)) { IntArray(24) }[c.getInt(1).coerceIn(0, 23)] += c.getInt(2)
+            }
+            d.rawQuery("SELECT p, MAX(a), COUNT(*), SUM(rs = 'click'), SUM(kd = 'promo') FROM n WHERE d >= ? AND d <= ? GROUP BY p ORDER BY 3 DESC", args(d0, d1)).use { c ->
+                while (c.moveToNext()) apps += NotifStats.AppRaw(c.getString(0), c.getString(1) ?: "", c.getInt(2), c.getInt(3), c.getInt(4), hours[c.getString(0)] ?: IntArray(24))
+            }
+        }
+        val chans = ArrayList<NotifStats.ChanRaw>()
+        if (pkg != null) {
+            // per channel: counts in the period, name + importance from its newest row (any time)
+            d.rawQuery("SELECT ch, COUNT(*), SUM(rs = 'click'), (SELECT cn FROM n x WHERE x.p = n.p AND x.ch = n.ch AND x.cn <> '' ORDER BY x.id DESC LIMIT 1), " +
+                "(SELECT im FROM n x WHERE x.p = n.p AND x.ch = n.ch ORDER BY x.id DESC LIMIT 1) FROM n WHERE d >= ? AND d <= ? AND p = ? GROUP BY ch ORDER BY 2 DESC", args(d0, d1)).use { c ->
+                while (c.moveToNext()) chans += NotifStats.ChanRaw(c.getString(0) ?: "", c.getString(3) ?: "", c.getInt(1), c.getInt(2), c.getInt(4))
+            }
+        }
+        val name = if (pkg != null) d.rawQuery("SELECT a FROM n WHERE p = ? ORDER BY id DESC LIMIT 1", arrayOf(pkg)).use { c -> if (c.moveToFirst()) c.getString(0) else "" } else ""
+        NotifStats.Raw(cells, prev, opened, apps, chans, name)
     }, done)
 
     /** One row by id (detail screen); an empty entry if it is gone. */

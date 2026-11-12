@@ -108,7 +108,7 @@ class NotifDetailActivity : Activity() {
             row(if (e.reason == NotifLogic.R_CLICK) R.string.nlog_d_clicked else R.string.nlog_d_removed, at(e.removedAt))
             row(R.string.nlog_d_reason, getString(reasonRes(e.reason)))
         }
-        row(R.string.nlog_d_channel, e.channel)
+        row(R.string.nlog_d_channel, if (e.channelName.isNotEmpty() && e.channelName != e.channel) "${e.channelName} (${e.channel})" else e.channel)
         row(R.string.nlog_d_category, e.category)
         row(R.string.nlog_d_group, e.group)
         row(R.string.nlog_d_progress, e.progress)

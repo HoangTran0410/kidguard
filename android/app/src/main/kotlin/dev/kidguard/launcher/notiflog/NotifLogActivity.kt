@@ -32,6 +32,7 @@ import java.util.Locale
  * Tap a row = NotifDetailActivity. Local only, the parent never sees it.
  */
 class NotifLogActivity : Activity() {
+    companion object { const val PKG = "pkg" }   // open filtered to one app (from the stats screen)
     private lateinit var k: HomeKit
     private lateinit var pal: Palette
     private lateinit var u: Ui
@@ -67,6 +68,7 @@ class NotifLogActivity : Activity() {
         window.statusBarColor = pal.bg; window.navigationBarColor = pal.bg
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = if (dark) 0 else (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or if (Build.VERSION.SDK_INT >= 26) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
+        intent.getStringExtra(PKG)?.takeIf { it.isNotEmpty() }?.let { f = f.copy(pkgs = setOf(it)) }
         setContentView(frame())
     }
 
@@ -78,8 +80,14 @@ class NotifLogActivity : Activity() {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(pal.bg) }
         val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(16), dp(8), dp(12), 0) }
         head.addView(iconBtn(R.drawable.li_arrow_left, getString(R.string.hm_c_back), 24) { finish() })
-        head.addView(k.text(getString(R.string.nlog_title), 22f, pal.text, true).apply { setPadding(dp(8), 0, 0, 0); maxLines = 1; ellipsize = TextUtils.TruncateAt.END },
+        // shrinks to fit next to 3 buttons (narrow phones, big font) instead of cutting the title
+        head.addView(k.text(getString(R.string.nlog_title), 22f, pal.text, true).apply { setPadding(dp(8), 0, 0, 0); maxLines = 1
+            setAutoSizeTextTypeUniformWithConfiguration(15, 22, 1, android.util.TypedValue.COMPLEX_UNIT_SP) },
             LinearLayout.LayoutParams(0, -2, 1f))
+        head.addView(iconBtn(R.drawable.li_chart_column, getString(R.string.nst_title), 22) {
+            // filtered to one app: that app's stats
+            startActivity(Intent(this, NotifStatsActivity::class.java).apply { f.pkgs.singleOrNull()?.let { putExtra(NotifStatsActivity.PKG, it) } })
+        })
         head.addView(iconBtn(R.drawable.li_search, getString(R.string.nlog_search_hint), 22) { toggleSearch() })
         head.addView(iconBtn(R.drawable.li_ellipsis_vertical, getString(R.string.nlog_options), 22) { options() })
         root.addView(head, LinearLayout.LayoutParams(-1, -2))

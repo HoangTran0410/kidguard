@@ -18,6 +18,7 @@ data class NotifEntry(
     val lines: List<String> = emptyList(), val msgs: List<NotifMsg> = emptyList(), val actions: List<String> = emptyList(),
     val progress: String = "", val group: String = "", val priority: Int = 0, val importance: Int = 0,
     val largeIcon: String = "", val picture: String = "",
+    val channelName: String = "",   // the channel's user-visible name (Ranking.channel), "" on old rows
 ) {
     /** The tap time (removed by a click), 0 if it was not clicked. */
     val clickedAt: Long get() = if (reason == NotifLogic.R_CLICK) removedAt else 0
@@ -116,6 +117,7 @@ object NotifLogic {
         if (e.removedAt != 0L) put("ra", e.removedAt)
         if (e.reason.isNotEmpty()) put("rr", e.reason)
         if (e.channel.isNotEmpty()) put("ch", e.channel)
+        if (e.channelName.isNotEmpty()) put("cn", e.channelName)
         if (e.category.isNotEmpty()) put("ca", e.category)
         if (e.subText.isNotEmpty()) put("st", e.subText)
         if (e.summary.isNotEmpty()) put("su", e.summary)
@@ -144,7 +146,7 @@ object NotifLogic {
             lines = strs(o.optJSONArray("ln")), actions = strs(o.optJSONArray("ac")),
             msgs = if (ms == null) emptyList() else (0 until ms.length()).map { val m = ms.getJSONObject(it); NotifMsg(m.optString("s"), m.optString("t")) },
             progress = o.optString("pg"), group = o.optString("g"), priority = o.optInt("pr"), importance = o.optInt("im"),
-            largeIcon = o.optString("li"), picture = o.optString("pic"),
+            largeIcon = o.optString("li"), picture = o.optString("pic"), channelName = o.optString("cn"),
         )
     }
 

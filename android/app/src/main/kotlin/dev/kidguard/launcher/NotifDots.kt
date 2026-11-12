@@ -32,8 +32,8 @@ class NotifDots : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification?, rankingMap: RankingMap?) {
         // the kid's own history (NotifLog): local only, never sent
         if (sbn != null) runCatching {
-            val imp = rankingMap?.let { m -> Ranking().takeIf { m.getRanking(sbn.key, it) }?.importance } ?: 0
-            NotifLog.record(this, sbn, imp)
+            val rk = rankingMap?.let { m -> Ranking().takeIf { m.getRanking(sbn.key, it) } }
+            NotifLog.record(this, sbn, rk?.importance ?: 0, runCatching { rk?.channel?.name?.toString() }.getOrNull().orEmpty())
         }
         recountSoon()
     }
