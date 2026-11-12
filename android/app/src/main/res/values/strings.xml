@@ -1022,7 +1022,7 @@
     <string name="nst_opened_note">were tapped</string>
     <string name="nst_opened_n">%1$d%% opened</string>
     <string name="nst_settings">Settings</string>
-    <string name="nst_see">See notifications</string>
+    <string name="nst_see">History</string>
     <string name="nst_settings_note">Turn the app off, or turn off / silence single categories, in the phone settings.</string>
     <string name="nst_settings_locked">Phone settings are locked by your parents, so they cannot open.</string>
     <string name="nst_channels">Notification categories</string>

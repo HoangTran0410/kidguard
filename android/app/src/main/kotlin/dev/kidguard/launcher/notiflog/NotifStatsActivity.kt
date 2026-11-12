@@ -200,11 +200,12 @@ class NotifStatsActivity : Activity() {
         val p = pkg ?: return
         val ok = settingsOk() && !own(p)
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        row.addView(k.pill(getString(R.string.nst_settings), R.drawable.li_settings, true) { if (ok) openSettings(p, null) }.apply { if (!ok) alpha = 0.4f },
+        row.addView(k.pill(getString(R.string.nst_settings), R.drawable.li_settings, true) { if (ok) openSettings(p, null) }.apply { maxLines = 1; if (!ok) alpha = 0.4f },
             LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = dp(5) })
-        row.addView(k.pill(getString(R.string.nst_see), R.drawable.li_bell, false) {
+        // "History": "Xem thông báo" wrapped to 2 lines on a 393 dp phone (Poco) beside the icon
+        row.addView(k.pill(getString(R.string.nst_see), R.drawable.li_list, false) {
             startActivity(Intent(this, NotifLogActivity::class.java).putExtra(NotifLogActivity.PKG, p))
-        }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(5) })
+        }.apply { maxLines = 1 }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(5) })
         col.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
         val note = when { own(p) -> null; !ok -> getString(R.string.nst_settings_locked); else -> getString(R.string.nst_settings_note) }
         if (note != null) col.addView(k.text(note, 12f, pal.sub).apply { setPadding(dp(4), 0, dp(4), 0); setLineSpacing(0f, 1.15f) },

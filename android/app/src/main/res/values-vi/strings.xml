@@ -1002,7 +1002,7 @@
     <string name="nst_opened_note">được bấm vào xem</string>
     <string name="nst_opened_n">mở %1$d%%</string>
     <string name="nst_settings">Cài đặt</string>
-    <string name="nst_see">Xem thông báo</string>
+    <string name="nst_see">Lịch sử</string>
     <string name="nst_settings_note">Tắt app, hoặc chỉ tắt / để im lặng từng hạng mục, trong cài đặt của máy.</string>
     <string name="nst_settings_locked">Cài đặt máy đang bị bố mẹ khoá, nên không mở được.</string>
     <string name="nst_channels">Hạng mục thông báo</string>
