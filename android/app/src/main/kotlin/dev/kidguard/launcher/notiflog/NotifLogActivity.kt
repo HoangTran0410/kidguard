@@ -45,7 +45,6 @@ class NotifLogActivity : Activity() {
     private val rows = ArrayList<Pair<Long, NotifEntry>>()
     private var more = false
     private var gen = 0   // drops answers of an older query
-    private var searchOpen = false
 
     private lateinit var col: LinearLayout
     private lateinit var scroll: ScrollView
@@ -80,32 +79,50 @@ class NotifLogActivity : Activity() {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(pal.bg) }
         val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(16), dp(8), dp(12), 0) }
         head.addView(iconBtn(R.drawable.li_arrow_left, getString(R.string.hm_c_back), 24) { finish() })
-        // shrinks to fit next to 3 buttons (narrow phones, big font) instead of cutting the title
-        head.addView(k.text(getString(R.string.nlog_title), 22f, pal.text, true).apply { setPadding(dp(8), 0, 0, 0); maxLines = 1
-            setAutoSizeTextTypeUniformWithConfiguration(15, 22, 1, android.util.TypedValue.COMPLEX_UNIT_SP) },
+        head.addView(k.text(getString(R.string.nlog_title), 22f, pal.text, true).apply { setPadding(dp(8), 0, 0, 0); maxLines = 1; ellipsize = TextUtils.TruncateAt.END },
             LinearLayout.LayoutParams(0, -2, 1f))
-        head.addView(iconBtn(R.drawable.li_chart_column, getString(R.string.nst_title), 22) {
-            // filtered to one app: that app's stats
-            startActivity(Intent(this, NotifStatsActivity::class.java).apply { f.pkgs.singleOrNull()?.let { putExtra(NotifStatsActivity.PKG, it) } })
-        })
-        head.addView(iconBtn(R.drawable.li_search, getString(R.string.nlog_search_hint), 22) { toggleSearch() })
         head.addView(iconBtn(R.drawable.li_ellipsis_vertical, getString(R.string.nlog_options), 22) { options() })
         root.addView(head, LinearLayout.LayoutParams(-1, -2))
+        root.isFocusableInTouchMode = true   // the search field does not take focus (and the keyboard) on open
+        // always-visible search bar + a tinted round stats button (owner: the two header glyphs were hard to see;
+        // Google Files / Photos put search in a bar and the extra screen in a filled button beside it)
+        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(14), 0, dp(4), 0)
+            background = GradientDrawable().apply { setColor(pal.sheet); cornerRadius = k.dpf(999f); setStroke(dp(1), pal.stroke) }
+        }
+        box.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@NotifLogActivity, R.drawable.li_search, pal.sub, dp(20))) }, LinearLayout.LayoutParams(dp(20), dp(20)))
+        val clear = ImageView(this).apply {
+            setImageDrawable(Ic.get(this@NotifLogActivity, R.drawable.li_x, pal.sub, dp(18))); val pd = dp(11); setPadding(pd, pd, pd, pd)
+            contentDescription = getString(R.string.nlog_reset); visibility = View.GONE; k.tap(this, -1f) { clearSearch() }
+        }
         search = EditText(this).apply {
             hint = getString(R.string.nlog_search_hint); setSingleLine(); textSize = 16f
-            setTextColor(pal.text); setHintTextColor(pal.sub)
-            background = GradientDrawable().apply { setColor(pal.sheet); cornerRadius = k.dpf(16f); setStroke(dp(1), pal.stroke) }
-            setPadding(dp(16), dp(12), dp(16), dp(12)); visibility = View.GONE
+            setTextColor(pal.text); setHintTextColor(pal.sub); background = null
+            setPadding(dp(10), dp(12), dp(4), dp(12))
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+            setOnEditorActionListener { v, _, _ -> getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(v.windowToken, 0); v.clearFocus(); true }
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
                 override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
                 override fun afterTextChanged(s: Editable?) {
+                    clear.visibility = if (s.isNullOrEmpty()) View.GONE else View.VISIBLE
                     h.removeCallbacksAndMessages("q")
                     h.postAtTime({ val q = s?.toString().orEmpty(); if (q != f.q) { f = f.copy(q = q); reload() } }, "q", android.os.SystemClock.uptimeMillis() + 300)
                 }
             })
         }
-        root.addView(search, LinearLayout.LayoutParams(-1, -2).apply { leftMargin = dp(16); rightMargin = dp(16); topMargin = dp(8) })
+        box.addView(search, LinearLayout.LayoutParams(0, -2, 1f))
+        box.addView(clear, LinearLayout.LayoutParams(dp(40), dp(40)))
+        bar.addView(box, LinearLayout.LayoutParams(0, dp(48), 1f))
+        bar.addView(ImageView(this).apply {
+            setImageDrawable(Ic.get(this@NotifLogActivity, R.drawable.li_chart_column, pal.onTint, dp(22))); val pd = dp(13); setPadding(pd, pd, pd, pd)
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(pal.tint) }
+            contentDescription = getString(R.string.nst_title)
+            // filtered to one app: that app's stats
+            k.tap(this, -1f) { startActivity(Intent(this@NotifLogActivity, NotifStatsActivity::class.java).apply { f.pkgs.singleOrNull()?.let { putExtra(NotifStatsActivity.PKG, it) } }) }
+        }, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginStart = dp(10) })
+        root.addView(bar, LinearLayout.LayoutParams(-1, -2).apply { leftMargin = dp(16); rightMargin = dp(16); topMargin = dp(8) })
         scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
         col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(4), dp(16), dp(28)) }
         scroll.addView(col)
@@ -119,14 +136,11 @@ class NotifLogActivity : Activity() {
         layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
     }
 
-    private fun toggleSearch() {
-        val im = getSystemService(InputMethodManager::class.java)
-        searchOpen = !searchOpen
-        if (searchOpen) { search.visibility = View.VISIBLE; search.requestFocus(); im.showSoftInput(search, 0) }
-        else {
-            im.hideSoftInputFromWindow(search.windowToken, 0); search.visibility = View.GONE
-            if (search.text.isNotEmpty()) search.setText("")
-        }
+    /** Empties the search (reloads through the watcher) and drops the keyboard. */
+    private fun clearSearch() {
+        getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(search.windowToken, 0)
+        search.clearFocus()
+        if (search.text.isNotEmpty()) search.setText("")
     }
 
     // ---- data ----
@@ -337,7 +351,7 @@ class NotifLogActivity : Activity() {
 
     private fun resetFilters() {
         f = NotifFilter(q = f.q)
-        if (f.q.isNotEmpty()) { searchOpen = true; toggleSearch() }   // closes the field and clears the text (reloads)
+        if (f.q.isNotEmpty()) clearSearch()   // clears the text (reloads)
         else reload()
     }
 
