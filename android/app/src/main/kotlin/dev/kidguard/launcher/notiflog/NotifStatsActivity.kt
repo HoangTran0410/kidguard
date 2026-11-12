@@ -369,6 +369,11 @@ class NotifStatsActivity : Activity() {
             val labH get() = dp(16).toFloat()
             fun cw() = (width - labW) / 24f
             fun ch() = (height - labH) / 7f
+            // square cells: the height follows the width (24 columns), whatever the phone width
+            override fun onMeasure(w: Int, h: Int) {
+                val wd = MeasureSpec.getSize(w)
+                setMeasuredDimension(wd, (labH + 7 * (wd - labW) / 24f).toInt())
+            }
             override fun onDraw(c: Canvas) {
                 val cw = cw(); val chh = ch(); val g = dp(2).toFloat()
                 p.textAlign = Paint.Align.LEFT; p.color = pal.sub
@@ -397,7 +402,7 @@ class NotifStatsActivity : Activity() {
                 return true
             }
         }
-        box.addView(chart, LinearLayout.LayoutParams(-1, dp(7 * 22 + 16)).apply { topMargin = dp(10) })
+        box.addView(chart, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
         // legend: less .. more
         val leg = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL or Gravity.END }
         leg.addView(k.text(getString(R.string.nst_less), 11f, pal.sub).apply { setPadding(0, 0, dp(6), 0) })
