@@ -61,7 +61,7 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
             else if (scaled) c.drawBitmap(bmp, null, dst, fp) else c.drawBitmap(bmp, 0f, 0f, null)
             if (badge != "off") Dots.draw(c, px, Dots.count(dotPkgs), resources.displayMetrics.density, badge == "num")
         }
-    }.also { v -> if (bmp == null) IconCache.async(this, a.pkg, a.cls, iconPx(), shp) { b -> if (b != null) { bmp = b; v.invalidate() } } }, FrameLayout.LayoutParams(px, px))
+    }.also { v -> if (bmp == null) IconCache.async(this, a.pkg, a.cls, iconPx(), shp, soon = mode == Mode.PANEL) { b -> if (b != null) { bmp = b; v.invalidate() } } }, FrameLayout.LayoutParams(px, px))
     val reason = LauncherLogic.pauseReason(a.pkg, dv.want, settingsOk(r))
     if (paused) {
         // clock badge: warn fill + glyph picked for it (HomeStyle tests both), a ring of the sheet colour keeps it off the grey icon

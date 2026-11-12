@@ -28,7 +28,8 @@ object IconCache {
     }
     private val grey = Paint(Paint.FILTER_BITMAP_FLAG).apply { colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) }) }
 
-    fun clear() = lru.evictAll()
+    fun clear() { if (Perf.on()) android.util.Log.v(Perf.TAG, "icons clear lru=${lru.size() shr 20}MB"); lru.evictAll() }
+    private val queued = java.util.concurrent.atomic.AtomicInteger()
 
     /** Icon edge + face from Tuỳ chỉnh (HStyle.rim / fill); part of every cache key, so a change re-renders. */
     @Volatile var rim = "top"; private set
@@ -43,18 +44,29 @@ object IconCache {
     /** Only what is already rendered (no load). */
     fun peek(pkg: String, cls: String, px: Int, shape: String): Bitmap? = lru.get(key(pkg, cls, px, shape))
 
-    private val worker = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+    // a deque, so an icon the kid is looking at now ([soon]: an open folder) jumps the queue. Measured on the Poco
+    // (2026-11-12): a style change re-renders ~150 icons (home + drawer) in ~1.3 s, and a folder opened meanwhile waited
+    // behind 108 of them (~0.9 s of empty slots)
+    private val todo = java.util.concurrent.LinkedBlockingDeque<Runnable>()
+    private val worker = java.util.concurrent.ThreadPoolExecutor(1, 1, 0L, java.util.concurrent.TimeUnit.MILLISECONDS, todo) { r ->
         Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "kg-icons")
-    }
+    }.apply { prestartCoreThread() }
     private val main by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
 
     /**
      * Lazy icon: rendered on a background thread (~7 ms each, cold, on a POCO), [done] on the main thread. In call order,
-     * so the cells built first (the ones on screen) come first.
+     * so the cells built first (the ones on screen) come first; [soon] (an open folder's apps) goes ahead of the queue.
      */
-    fun async(ctx: Context, pkg: String, cls: String, px: Int, shape: String, done: (Bitmap?) -> Unit) {
+    fun async(ctx: Context, pkg: String, cls: String, px: Int, shape: String, soon: Boolean = false, done: (Bitmap?) -> Unit) {
         val app = ctx.applicationContext
-        worker.execute { val b = runCatching { get(app, pkg, cls, px, shape) }.getOrNull(); main.post { done(b) } }
+        val t0 = android.os.SystemClock.uptimeMillis(); val ahead = if (soon) 0 else queued.get(); queued.incrementAndGet()
+        val job = Runnable {
+            val t1 = android.os.SystemClock.uptimeMillis()
+            val b = runCatching { get(app, pkg, cls, px, shape) }.getOrNull(); queued.decrementAndGet()
+            if (Perf.on()) android.util.Log.v(Perf.TAG, "icon async $pkg@$px wait=${t1 - t0}ms render=${android.os.SystemClock.uptimeMillis() - t1}ms ahead=$ahead lru=${lru.size() shr 20}/${MAX_BYTES shr 20}MB")
+            main.post { done(b) }
+        }
+        if (soon) todo.offerFirst(job) else worker.execute(job)   // the one worker thread is always up (prestarted, never times out)
     }
 
     fun get(ctx: Context, pkg: String, cls: String, px: Int, shape: String): Bitmap? {
