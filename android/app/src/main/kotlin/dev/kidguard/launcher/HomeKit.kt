@@ -96,7 +96,7 @@ class HomeKit(val act: Activity, val pal: Palette, val font: Float = 1f) {
  * hairline lit on the top-left and bottom-right corners that fades along the sides (iOS 26 / LauncherOS). A plain
  * GradientDrawable underneath (setColor / cornerRadius keep working); the rim shader is rebuilt only on a size change.
  */
-class GlassCard(color: Int, radius: Float, private val w: Float, dark: Boolean) : GradientDrawable() {
+class GlassCard(color: Int, radius: Float, private val w: Float, private val dark: Boolean) : GradientDrawable() {
     private val rim = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { style = android.graphics.Paint.Style.STROKE; strokeWidth = w }
     private val r = android.graphics.RectF()
     private val rad = radius
@@ -105,17 +105,31 @@ class GlassCard(color: Int, radius: Float, private val w: Float, dark: Boolean) 
     private val a1 = if (dark) 0x38FFFFFF else 0x1F000000
     init { setColor(color); cornerRadius = radius }
 
-    override fun onBoundsChange(b: android.graphics.Rect) {
-        super.onBoundsChange(b)
-        rim.shader = android.graphics.LinearGradient(b.left.toFloat(), b.top.toFloat(), b.right.toFloat(), b.bottom.toFloat(),
-            intArrayOf(a0, a0 and 0x00FFFFFF, a1 and 0x00FFFFFF, a1), floatArrayOf(0f, 0.35f, 0.65f, 1f), android.graphics.Shader.TileMode.CLAMP)
+    private var made = ""   // the rim style the shader was built for (Tuỳ chỉnh "Viền biểu tượng" also styles panes)
+
+    override fun onBoundsChange(b: android.graphics.Rect) { super.onBoundsChange(b); made = "" }
+
+    /** Same look as the icon rim (IconCache.glass): "top" lit from above, "line" even, "glass" the diagonal one. */
+    private fun shade(b: android.graphics.Rect, style: String) {
+        made = style
+        val l = b.left.toFloat(); val t = b.top.toFloat()
+        rim.shader = null; rim.color = a0
+        when (style) {
+            "line" -> rim.color = if (dark) 0x59FFFFFF else 0x1F000000   // a white line vanishes on a light pane
+            "glass" -> rim.shader = android.graphics.LinearGradient(l, t, b.right.toFloat(), b.bottom.toFloat(),
+                intArrayOf(a0, a0 and 0x00FFFFFF, a1 and 0x00FFFFFF, a1), floatArrayOf(0f, 0.35f, 0.65f, 1f), android.graphics.Shader.TileMode.CLAMP)
+            else -> rim.shader = android.graphics.LinearGradient(l, t, l, b.bottom.toFloat(),
+                intArrayOf(a0, (a0 and 0x00FFFFFF) or ((a0 ushr 24) * 2 / 5 shl 24), a1), floatArrayOf(0f, 0.5f, 1f), android.graphics.Shader.TileMode.CLAMP)
+        }
     }
 
     override fun draw(c: android.graphics.Canvas) {
         super.draw(c)
         val b = bounds; val h = w / 2
         r.set(b.left + h, b.top + h, b.right - h, b.bottom - h)
-        if (IconCache.rim == "none") return
+        val style = IconCache.rim
+        if (style == "none") return
+        if (style != made) shade(b, style)
         rim.alpha = alpha   // the rim fades with the pane (folder card morphing into its icon)
         c.drawRoundRect(r, rad - h, rad - h, rim)
     }
