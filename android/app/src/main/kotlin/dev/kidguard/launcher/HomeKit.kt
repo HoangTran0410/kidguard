@@ -105,6 +105,7 @@ class GlassCard(color: Int, radius: Float, private val w: Float, private val dar
     private val a1 = if (dark) 0x38FFFFFF else 0x1F000000
     init { setColor(color); cornerRadius = radius }
 
+    private var lineA = 255
     private var made = ""   // the rim style the shader was built for (Tuỳ chỉnh "Viền biểu tượng" also styles panes)
 
     override fun onBoundsChange(b: android.graphics.Rect) { super.onBoundsChange(b); made = "" }
@@ -115,11 +116,13 @@ class GlassCard(color: Int, radius: Float, private val w: Float, private val dar
         val l = b.left.toFloat(); val t = b.top.toFloat()
         rim.shader = null; rim.color = a0
         when (style) {
-            "line" -> rim.color = if (dark) 0x59FFFFFF else 0x1F000000   // a white line vanishes on a light pane
+            // a pane's edge is long: the icon's alphas read as a bright white frame (owner 2026-11-12), so panes use about half
+            "line" -> { rim.color = if (dark) 0x24FFFFFF else 0x1A000000; lineA = rim.alpha }   // a white line vanishes on a light pane
             "glass" -> rim.shader = android.graphics.LinearGradient(l, t, b.right.toFloat(), b.bottom.toFloat(),
                 intArrayOf(a0, a0 and 0x00FFFFFF, a1 and 0x00FFFFFF, a1), floatArrayOf(0f, 0.35f, 0.65f, 1f), android.graphics.Shader.TileMode.CLAMP)
             else -> rim.shader = android.graphics.LinearGradient(l, t, l, b.bottom.toFloat(),
-                intArrayOf(a0, (a0 and 0x00FFFFFF) or ((a0 ushr 24) * 2 / 5 shl 24), a1), floatArrayOf(0f, 0.5f, 1f), android.graphics.Shader.TileMode.CLAMP)
+                if (dark) intArrayOf(0x40FFFFFF, 0x14FFFFFF, 0x0AFFFFFF) else intArrayOf(0x99FFFFFF.toInt(), 0x00FFFFFF, 0x14000000),
+                floatArrayOf(0f, 0.3f, 1f), android.graphics.Shader.TileMode.CLAMP)
         }
     }
 
@@ -130,7 +133,9 @@ class GlassCard(color: Int, radius: Float, private val w: Float, private val dar
         val style = IconCache.rim
         if (style == "none") return
         if (style != made) shade(b, style)
-        rim.alpha = alpha   // the rim fades with the pane (folder card morphing into its icon)
+        // the rim fades with the pane (folder card morphing into its icon); Paint.alpha REPLACES a plain colour's alpha
+        // (it only multiplies a shader), so the "line" colour's own alpha is folded in here
+        rim.alpha = if (rim.shader == null) lineA * alpha / 255 else alpha
         c.drawRoundRect(r, rad - h, rad - h, rim)
     }
 }

@@ -1033,7 +1033,7 @@ class HomeActivity : Activity() {
             val shown = ok.filter { (fa == null || it.pkg in fa) && LauncherLogic.matchesFolded(it.folded, fq) }.sortedBy { it.sortKey }
             val anyPaused = shown.any { dv.want[it.pkg] != null }
             val sk = listOf(q, shown.joinToString(",") { it.pkg + "=" + it.label }, shown.map { dv.want[it.pkg] }, model?.cols, model?.onHome(), model?.style?.shape,
-                model?.style?.icon, if (q.isBlank()) recent.take(12) else "", hidden, FocusStore.session(context)?.end).joinToString("|")
+                model?.style?.icon, model?.style?.rim, model?.style?.fill, if (q.isBlank()) recent.take(12) else "", hidden, FocusStore.session(context)?.end).joinToString("|")
             val k = sk + "|" + listOf(if (anyPaused) dv.minute else 0, if (anyPaused) dv.leftMs / 60_000 else 0, if (anyPaused) r.groups.map { it.hours } else 0).joinToString("|")
             if (k == lastKey) return
             // only the minute moved (a paused app's time left) while the kid is looking at the drawer: rebuilding it under
