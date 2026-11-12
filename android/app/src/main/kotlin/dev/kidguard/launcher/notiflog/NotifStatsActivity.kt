@@ -325,7 +325,7 @@ class NotifStatsActivity : Activity() {
         val df = SimpleDateFormat("EEE d/M", loc)
         fun dateOf(d: Int) = Calendar.getInstance().apply { clear(); set(d / 10000, d / 100 % 100 - 1, d % 100) }.time
         val chart = object : View(this) {
-            val p = Paint(Paint.ANTI_ALIAS_FLAG); val r = RectF(); var sel = -1
+            val p = Paint(Paint.ANTI_ALIAS_FLAG); val r = RectF(); var sel = -1; var was = -1; var wasCap: CharSequence = ""
             override fun onDraw(c: Canvas) {
                 val max = (v.maxOrNull() ?: 0).coerceAtLeast(1)
                 val slot = width / v.size.toFloat(); val gap = (slot * 0.25f).coerceAtMost(dp(6).toFloat())
@@ -346,11 +346,14 @@ class NotifStatsActivity : Activity() {
             override fun onTouchEvent(e: MotionEvent): Boolean {
                 when (e.actionMasked) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                        if (e.actionMasked == MotionEvent.ACTION_DOWN) { was = sel; wasCap = cap.text }
                         claim(this, e)
                         val i = (e.x / (width / v.size.toFloat())).toInt().coerceIn(0, v.lastIndex)
                         if (i != sel) { sel = i; invalidate(); cap.text = df.format(dateOf(days[i])).replaceFirstChar { it.titlecase(loc) } + ": " + resources.getQuantityString(R.plurals.nlog_total, v[i], v[i]) }
                     }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { scrubbing = false; sel = -1; invalidate(); cap.text = idle }
+                    // the last bar stays picked with its numbers; a page scroll that began here puts the old pick back
+                    MotionEvent.ACTION_UP -> scrubbing = false
+                    MotionEvent.ACTION_CANCEL -> { scrubbing = false; sel = was; invalidate(); cap.text = wasCap }
                 }
                 return true
             }
@@ -379,7 +382,7 @@ class NotifStatsActivity : Activity() {
         val alphas = intArrayOf(0, 0x38, 0x70, 0xA8, 0xFF)
         val chart = object : View(this) {
             val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = k.dpf(10f) * resources.configuration.fontScale.coerceAtMost(1.3f) }
-            val r = RectF(); var sr = -1; var sc = -1
+            val r = RectF(); var sr = -1; var sc = -1; var was = -1; var wasCap: CharSequence = ""
             val labW get() = dp(26).toFloat()
             val labH get() = dp(16).toFloat()
             fun cw() = (width - labW) / 24f
@@ -409,11 +412,14 @@ class NotifStatsActivity : Activity() {
             override fun onTouchEvent(e: MotionEvent): Boolean {
                 when (e.actionMasked) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                        if (e.actionMasked == MotionEvent.ACTION_DOWN) { was = sr * 24 + sc; wasCap = cap.text }
                         claim(this, e)
                         val h = ((e.x - labW) / cw()).toInt().coerceIn(0, 23); val row = (e.y / ch()).toInt().coerceIn(0, 6)
                         if (h != sc || row != sr) { sc = h; sr = row; invalidate(); cap.text = wdName(row) + ", " + hours(h) + ": " + resources.getQuantityString(R.plurals.nlog_total, m[row][h], m[row][h]) }
                     }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { scrubbing = false; sc = -1; sr = -1; invalidate(); cap.text = idle }
+                    // the last cell stays picked with its numbers; a page scroll that began here puts the old pick back
+                    MotionEvent.ACTION_UP -> scrubbing = false
+                    MotionEvent.ACTION_CANCEL -> { scrubbing = false; sr = if (was < 0) -1 else was / 24; sc = if (was < 0) -1 else was % 24; invalidate(); cap.text = wasCap }
                 }
                 return true
             }
