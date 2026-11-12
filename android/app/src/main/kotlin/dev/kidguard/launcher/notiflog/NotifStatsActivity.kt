@@ -301,6 +301,20 @@ class NotifStatsActivity : Activity() {
 
     // ---- charts ----
 
+    private var downX = 0f; private var downY = 0f; private var scrubbing = false
+    /**
+     * Scrub vs page scroll: a finger that moves sideways first takes the chart (then it may roam in 2D, the page holds
+     * still); one that moves up / down first is the ScrollView's (it intercepts past its own slop and sends CANCEL).
+     */
+    private fun claim(v: View, e: MotionEvent) {
+        if (e.actionMasked == MotionEvent.ACTION_DOWN) { downX = e.x; downY = e.y; scrubbing = false; return }
+        val dx = Math.abs(e.x - downX); val dy = Math.abs(e.y - downY)
+        if (!scrubbing && dx > android.view.ViewConfiguration.get(this).scaledTouchSlop / 2f && dx > dy) {
+            scrubbing = true; v.parent.requestDisallowInterceptTouchEvent(true)
+        }
+    }
+
+
     /** A bar per day, today solid; touch a bar = its date and count in the caption. */
     private fun bars(v: IntArray, days: List<Int>): View {
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -332,10 +346,11 @@ class NotifStatsActivity : Activity() {
             override fun onTouchEvent(e: MotionEvent): Boolean {
                 when (e.actionMasked) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                        claim(this, e)
                         val i = (e.x / (width / v.size.toFloat())).toInt().coerceIn(0, v.lastIndex)
                         if (i != sel) { sel = i; invalidate(); cap.text = df.format(dateOf(days[i])).replaceFirstChar { it.titlecase(loc) } + ": " + resources.getQuantityString(R.plurals.nlog_total, v[i], v[i]) }
                     }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { sel = -1; invalidate(); cap.text = idle }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { scrubbing = false; sel = -1; invalidate(); cap.text = idle }
                 }
                 return true
             }
@@ -394,10 +409,11 @@ class NotifStatsActivity : Activity() {
             override fun onTouchEvent(e: MotionEvent): Boolean {
                 when (e.actionMasked) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                        claim(this, e)
                         val h = ((e.x - labW) / cw()).toInt().coerceIn(0, 23); val row = (e.y / ch()).toInt().coerceIn(0, 6)
                         if (h != sc || row != sr) { sc = h; sr = row; invalidate(); cap.text = wdName(row) + ", " + hours(h) + ": " + resources.getQuantityString(R.plurals.nlog_total, m[row][h], m[row][h]) }
                     }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { sc = -1; sr = -1; invalidate(); cap.text = idle }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { scrubbing = false; sc = -1; sr = -1; invalidate(); cap.text = idle }
                 }
                 return true
             }
