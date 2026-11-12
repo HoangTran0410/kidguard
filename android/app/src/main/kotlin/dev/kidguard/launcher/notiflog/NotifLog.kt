@@ -205,11 +205,13 @@ object NotifLog {
             runCatching {
                 val d = db(app)
                 val old = last(d, e.key)
-                val live = old != null && old.second.removedAt == 0L
-                if (live && NotifLogic.isRepeat(listOf(old!!.second), e)) return@execute   // progress ticks etc.: no image work either
+                // a held one shown at its time is the same row again, keeping its arrival time (stats count it there)
+                val back = old != null && old.second.reason == NotifLogic.R_HOLD
+                val live = old != null && (old.second.removedAt == 0L || back)
+                if (live && !back && NotifLogic.isRepeat(listOf(old!!.second), e)) return@execute   // progress ticks etc.: no image work either
                 val li = saveImg(app, NotifLogic.imgName(e.key, e.postTime, 'l'), bitmapOf(app, largeIcon, largeBmp), NotifLogic.ICON_PX, NotifLogic.ICON_PX, 80)
                 val pic = saveImg(app, NotifLogic.imgName(e.key, e.postTime, 'p'), bitmapOf(app, picIcon, picBmp), NotifLogic.PIC_W, NotifLogic.PIC_H, 75)
-                val ne = e.copy(largeIcon = li, picture = pic)
+                val ne = e.copy(largeIcon = li, picture = pic).let { if (back) it.copy(time = old!!.second.time) else it }
                 // an update of a notification still showing replaces its row (chat threads grow in place); after it was
                 // dismissed, the same key is a new notification and gets a row of its own
                 if (live) {
@@ -313,6 +315,11 @@ object NotifLog {
         val total = NotifQ.where(f).let { (w, a) -> d.rawQuery("SELECT COUNT(*) FROM n WHERE $w", a).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 } }
         val oldest = d.rawQuery("SELECT MIN(t) FROM n", null).use { c -> if (c.moveToFirst()) c.getLong(0) else 0L }
         Overview(days, apps, kinds, total, oldest)
+    }, done)
+
+    /** Notifications [pkg] posted today (the long-press menu's line), on the main thread. */
+    fun today(ctx: Context, pkg: String, done: (Int) -> Unit) = onIo(ctx, { d ->
+        d.rawQuery("SELECT COUNT(*) FROM n WHERE p = ? AND d = ?", arrayOf(pkg, NotifQ.day(System.currentTimeMillis()).toString())).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
     }, done)
 
     /** Raw numbers for the stats screen, days [d0]..[d1] (yyyymmdd), one app if [pkg] is set; [p0]..[p1] = the period

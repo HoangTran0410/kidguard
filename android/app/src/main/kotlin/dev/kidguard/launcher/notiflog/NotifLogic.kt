@@ -41,6 +41,8 @@ object NotifLogic {
 
     const val R_CLICK = "click"; const val R_SWIPE = "swipe"; const val R_CLEAR = "clear"
     const val R_APP = "app"; const val R_TIMEOUT = "timeout"; const val R_OTHER = "other"
+    /** Snoozed by NotifHold: the same row comes back to life when the system shows it again. */
+    const val R_HOLD = "hold"
 
     /** NotificationListenerService.REASON_* (ints are stable API) -> short code. */
     fun reason(r: Int): String = when (r) {
@@ -48,6 +50,7 @@ object NotifLogic {
         2 -> R_SWIPE            // REASON_CANCEL (user dismissed one)
         3 -> R_CLEAR            // REASON_CANCEL_ALL (clear all)
         8, 9 -> R_APP           // REASON_APP_CANCEL / _ALL
+        18 -> R_HOLD            // REASON_SNOOZED (NotifHold)
         19 -> R_TIMEOUT         // REASON_TIMEOUT
         else -> R_OTHER
     }

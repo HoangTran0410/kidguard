@@ -120,7 +120,7 @@ class NotifDetailActivity : Activity() {
 
     private fun reasonRes(r: String) = when (r) {
         NotifLogic.R_CLICK -> R.string.nlog_r_click; NotifLogic.R_SWIPE -> R.string.nlog_r_swipe; NotifLogic.R_CLEAR -> R.string.nlog_r_clear
-        NotifLogic.R_APP -> R.string.nlog_r_app; NotifLogic.R_TIMEOUT -> R.string.nlog_r_timeout; else -> R.string.nlog_r_other
+        NotifLogic.R_APP -> R.string.nlog_r_app; NotifLogic.R_TIMEOUT -> R.string.nlog_r_timeout; NotifLogic.R_HOLD -> R.string.nlog_r_hold; else -> R.string.nlog_r_other
     }
 
     /** Everything readable in one string (what "Copy text" puts on the clipboard). */

@@ -1041,4 +1041,29 @@
     <string name="nst_heat_hint">Touch a cell to see its count.</string>
     <string name="nst_less">Less</string>
     <string name="nst_more">More</string>
+    <string name="nlog_r_hold">Held (bundle / mute)</string>
+    <string name="nst_hold">Hold this app\'s notifications</string>
+    <string name="nst_hold_off">Normal</string>
+    <string name="nst_hold_off_sub">Shown as they arrive</string>
+    <string name="nst_hold_bundle">Bundle</string>
+    <string name="nst_hold_bundle_sub">Shown only at 8:00, 12:00 and 18:00</string>
+    <string name="nst_hold_hour">Mute for 1 hour</string>
+    <string name="nst_hold_morning">Mute until tomorrow morning</string>
+    <string name="nst_hold_until">Until %1$s</string>
+    <string name="nst_hold_tomorrow">%1$s tomorrow</string>
+    <string name="nst_hold_note">Held notifications show up at their time and still open and reply as usual. Calls, alarms and directions always show at once.</string>
+    <string name="nst_hold_need">Needs notification access (Notification dots in Customize).</string>
+    <string name="nst_held_bundle">Bundling notifications</string>
+    <string name="nst_held_mute">Muted</string>
+    <plurals name="nst_hold_waiting">
+        <item quantity="one">%1$d notification waiting, shows at %2$s</item>
+        <item quantity="other">%1$d notifications waiting, show at %2$s</item>
+    </plurals>
+    <string name="hm_app_notifs">App notifications</string>
+    <string name="hm_used_today">Today %1$s</string>
+    <string name="hm_left_today">%1$s left</string>
+    <plurals name="hm_notifs_today">
+        <item quantity="one">%1$d notification</item>
+        <item quantity="other">%1$d notifications</item>
+    </plurals>
 </resources>

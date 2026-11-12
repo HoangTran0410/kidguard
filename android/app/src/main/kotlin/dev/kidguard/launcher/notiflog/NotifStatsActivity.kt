@@ -118,7 +118,7 @@ class NotifStatsActivity : Activity() {
         col.addView(rangeChips(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         val s = NotifStats.summary(r, days)
         col.addView(tiles(s), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
-        if (pkg != null) actions()
+        if (pkg != null) { actions(); pkg?.takeIf { !own(it) }?.let { holdCard(it) } }
         if (s.total == 0) {
             col.addView(k.text(getString(R.string.nst_empty, range), 15f, pal.sub).apply { gravity = Gravity.CENTER; setLineSpacing(0f, 1.2f) },
                 LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(32); leftMargin = dp(24); rightMargin = dp(24) })
@@ -212,6 +212,60 @@ class NotifStatsActivity : Activity() {
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
     }
 
+    /**
+     * "Giữ thông báo": normal / bundle at NotifHold.SLOTS / mute 1 h / mute until 7:00, as radio rows (one choice, its
+     * effect in the row's second line), then what is waiting and when it shows. Calls / alarms are never held.
+     */
+    private fun holdCard(p: String) {
+        section(getString(R.string.nst_hold))
+        val now = System.currentTimeMillis()
+        val cur = NotifHold.get(this, p)
+        val can = NotifDots.granted(this)
+        val hm = SimpleDateFormat("HH:mm", loc)
+        fun whenText(t: Long): String {
+            val same = Calendar.getInstance().apply { timeInMillis = t }.get(Calendar.DAY_OF_YEAR) == Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+            return if (same) hm.format(t) else getString(R.string.nst_hold_tomorrow, hm.format(t))
+        }
+        val hour = now + 3600_000L
+        val morning = NotifHold.nextAt(now, NotifHold.MORNING)
+        val mute = cur?.mode == NotifHold.MUTE
+        val muteHour = mute && cur!!.until < morning - 60_000L
+        class Opt(val title: String, val sub: String, val on: Boolean, val set: NotifHold.Hold?)
+        val opts = listOf(
+            Opt(getString(R.string.nst_hold_off), getString(R.string.nst_hold_off_sub), cur == null, null),
+            Opt(getString(R.string.nst_hold_bundle), getString(R.string.nst_hold_bundle_sub), cur?.mode == NotifHold.BUNDLE, NotifHold.Hold(NotifHold.BUNDLE)),
+            Opt(getString(R.string.nst_hold_hour), getString(R.string.nst_hold_until, whenText(if (muteHour) cur!!.until else hour)), muteHour, NotifHold.Hold(NotifHold.MUTE, hour)),
+            Opt(getString(R.string.nst_hold_morning), getString(R.string.nst_hold_until, whenText(if (mute && !muteHour) cur!!.until else morning)),
+                mute && !muteHour, NotifHold.Hold(NotifHold.MUTE, morning)),
+        )
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = k.sheetCard(20f) }
+        opts.forEachIndexed { i, o ->
+            if (i > 0) box.addView(View(this).apply { setBackgroundColor(pal.stroke) }, LinearLayout.LayoutParams(-1, dp(1)).apply { leftMargin = dp(52) })
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(14), dp(11), dp(14), dp(11)) }
+            // a radio mark: thick accent ring when chosen
+            row.addView(View(this).apply {
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setStroke(dp(if (o.on) 6 else 2), if (o.on) pal.solid else pal.sub) }
+            }, LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginEnd = dp(16) })
+            val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            body.addView(k.text(o.title, 15f, pal.text, o.on))
+            body.addView(k.text(o.sub, 12f, pal.sub).apply { setPadding(0, dp(2), 0, 0) })
+            row.addView(body, LinearLayout.LayoutParams(0, -2, 1f))
+            row.contentDescription = o.title + ", " + o.sub
+            if (!can) row.alpha = 0.4f
+            else k.tap(row, 20f) { if (!o.on) { NotifHold.set(this, p, o.set); reload() } }
+            box.addView(row, LinearLayout.LayoutParams(-1, -2))
+        }
+        col.addView(box, LinearLayout.LayoutParams(-1, -2))
+        val wait = NotifHold.waiting(this, p, now)
+        val note = buildList {
+            if (!can) add(getString(R.string.nst_hold_need))
+            if (wait.isNotEmpty()) add(resources.getQuantityString(R.plurals.nst_hold_waiting, wait.size, wait.size, whenText(wait.first())))
+            add(getString(R.string.nst_hold_note))
+        }.joinToString("\n")
+        col.addView(k.text(note, 12f, pal.sub).apply { setPadding(dp(4), 0, dp(4), 0); setLineSpacing(0f, 1.15f) },
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+    }
+
     /** The system page: one channel if [channel] is set (the OEM may not have it: the app page then). */
     private fun openSettings(p: String, channel: String?) {
         val app = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, p)
@@ -270,6 +324,7 @@ class NotifStatsActivity : Activity() {
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = k.sheetCard(20f) }
         val max = list.first().n
         val shown = if (allApps) list else list.take(15)
+        val holds = NotifHold.all(this)
         shown.forEachIndexed { i, a ->
             if (i > 0) box.addView(View(this).apply { setBackgroundColor(pal.stroke) }, LinearLayout.LayoutParams(-1, dp(1)).apply { leftMargin = dp(64) })
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(14), dp(11), dp(14), dp(11)) }
@@ -291,7 +346,11 @@ class NotifStatsActivity : Activity() {
             )
             // wraps instead of an ellipsis (owner: the peak hour was cut off)
             body.addView(k.text(bits.joinToString(" · "), 12f, pal.sub).apply { setLineSpacing(0f, 1.15f) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
-            if (NotifStats.noisy(a.n, a.clicked, days)) body.addView(k.text(getString(R.string.nst_noisy), 12f, pal.warnText, true), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
+            val h = holds[a.pkg]
+            // held: says so (in the accent); else the noisy mark
+            if (h != null) body.addView(k.text(getString(if (h.mode == NotifHold.BUNDLE) R.string.nst_held_bundle else R.string.nst_held_mute), 12f, pal.solid, true),
+                LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
+            else if (NotifStats.noisy(a.n, a.clicked, days)) body.addView(k.text(getString(R.string.nst_noisy), 12f, pal.warnText, true), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
             row.addView(body, LinearLayout.LayoutParams(0, -2, 1f))
             k.tap(row, 20f) { startActivity(Intent(this, NotifStatsActivity::class.java).putExtra(PKG, a.pkg)) }
             box.addView(row, LinearLayout.LayoutParams(-1, -2))

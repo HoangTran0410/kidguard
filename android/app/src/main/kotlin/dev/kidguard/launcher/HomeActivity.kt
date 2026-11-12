@@ -276,7 +276,7 @@ class HomeActivity : Activity() {
         Guard.poke(this)
         NotifDots.onChange = dotRx
         model = null          // Tuỳ chỉnh may have changed home.json (HomeFile's cache)
-        NotifDots.setOn(this, HomeFile.load(this)?.style?.badge != "off")
+        NotifDots.setOn(this, HomeFile.load(this)?.style?.badge != "off" || NotifHold.any(this))   // a hold needs the listener even with dots off
         // apps stay: pkgRx lives from the first resume to onDestroy, so installs / updates while an app is in front reach
         // it (re-querying every launcher activity on each return home cost an Oppo A5s 6-7 ms)
         dialerAt = 0L; bannerSet = false

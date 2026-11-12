@@ -10,6 +10,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
+import android.widget.TextView
 import dev.kidguard.HomeActivity.AppE
 import dev.kidguard.HomeActivity.Mode
 import dev.kidguard.HomeActivity.View0
@@ -52,8 +53,12 @@ internal fun HomeActivity.pausedSheet(a: AppE, reason: String, dv: View0, r: Rul
 // ---- menus ----
 
 
-/** Optional menu header: a title with small icon buttons on the right (e.g. app info), and/or one row of choice chips. */
-internal class MenuHead(val title: String?, val buttons: List<HeadBtn> = emptyList(), val chips: List<MenuChip> = emptyList())
+/**
+ * Optional menu header: a title with small icon buttons on the right (e.g. app info), and/or one row of choice chips.
+ * [info] fills a small line under the title (it may set the text later, from a background read).
+ */
+internal class MenuHead(val title: String?, val buttons: List<HeadBtn> = emptyList(), val chips: List<MenuChip> = emptyList(),
+                        val info: ((TextView) -> Unit)? = null)
 internal class HeadBtn(val icon: Int, val desc: String, val run: () -> Unit)
 internal class MenuChip(val label: String, val on: Boolean, val run: () -> Unit)
 
@@ -125,6 +130,11 @@ private fun HomeActivity.menuHead(box: LinearLayout, h: MenuHead, pw: PopupWindo
             contentDescription = b.desc; kit.tap(this, 20f) { pw.dismiss(); b.run() }
         }, LinearLayout.LayoutParams(dp(40), dp(40)))
     }, LinearLayout.LayoutParams(-1, -2))
+    h.info?.let { fill ->
+        val tv = text("", 13f, pal.sub).apply { setPadding(dp(16), 0, dp(16), dp(6)); setLineSpacing(0f, 1.1f); visibility = View.GONE }
+        box.addView(tv, LinearLayout.LayoutParams(-1, -2))
+        fill(tv)
+    }
     if (h.chips.isNotEmpty()) box.addView(android.widget.HorizontalScrollView(this).apply {
         isHorizontalScrollBarEnabled = false
         addView(LinearLayout(context).apply {
@@ -152,9 +162,40 @@ internal fun HomeActivity.appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
         Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { if (mode == Mode.PANEL) closeOverlay(); update(HomeLayout.remove(m, a.pkg)) }.takeIf { placed || mode != Mode.DRAWER },
         Row(R.drawable.li_folder_plus, getString(R.string.hm_f_add), true) { addToFolderSheet(a) },
         lookRow(a),
+        // its notification stats + hold (gom / tạm im): only where the history is kept
+        Row(R.drawable.li_chart_column, getString(R.string.hm_app_notifs), true) {
+            if (mode == Mode.PANEL) closeOverlay()
+            startActivity(Intent(this, NotifStatsActivity::class.java).putExtra(NotifStatsActivity.PKG, a.pkg))
+        }.takeIf { NotifDots.granted(this) && !a.pkg.startsWith("dev.kidguard") },
         // one way into edit mode (the old "Chọn" + "Sửa màn hình chính"): on the grid it starts with this icon picked
         Row(R.drawable.li_move, getString(R.string.hm_edit_home), true) { if (mode == Mode.PANEL) closeOverlay(); enterEdit(item?.id.takeIf { mode == Mode.HOME }) }.takeIf { mode != Mode.DRAWER },
-    ), v, head = MenuHead(a.label, listOfNotNull(info)))
+    ), v, head = MenuHead(a.label, listOfNotNull(info)) { tv -> appInfoLine(a.pkg, tv) })
+}
+
+/**
+ * "Hôm nay 45 phút · còn 15 phút · 12 thông báo" under the app's name (Digital Wellbeing / One UI show today's use
+ * there): time from the Guard's last decision (no extra usage query), the tightest limit left (app, group, daily),
+ * the notification count read from the history afterwards. Parts that don't apply are left out.
+ */
+private fun HomeActivity.appInfoLine(pkg: String, tv: TextView) {
+    fun dur(ms: Long) = HomeLogic.hm(ms).let { (h, m) -> if (h == 0) getString(R.string.home_m, m) else if (m == 0) getString(R.string.home_h, h) else getString(R.string.home_hm, h, m) }
+    val parts = mutableListOf<String>()
+    runCatching {
+        val s = Store.of(this); val r = s.rules
+        val dv = decision(r, s)
+        val used = dv.usage[pkg] ?: 0L
+        if (used >= 60_000L) parts += getString(R.string.hm_used_today, dur(used))
+        // monitor-only rules block nothing; apps on the allow list don't count against the daily limit
+        if (!Flavor.HOME && pkg !in dv.prot && !r.monitor) {
+            val left = listOf(LauncherLogic.appLeftMs(r, dv.usage, pkg), if (pkg in r.allow) -1L else dv.leftMs).filter { it >= 0 }.minOrNull()
+            if (left != null) parts += getString(R.string.hm_left_today, dur(left))
+        }
+    }
+    fun show() { tv.text = parts.joinToString(" · "); tv.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE }
+    show()
+    if (NotifDots.granted(this)) NotifLog.today(this, pkg) { n ->
+        if (n > 0 && tv.isAttachedToWindow) { parts += resources.getQuantityString(R.plurals.hm_notifs_today, n, n); show() }
+    }
 }
 
 /** Long-press on a pinned shortcut: take it off the home, or edit the home. */

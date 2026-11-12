@@ -98,7 +98,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Có trong danh sách màn hình chính | Khi luật bật | Luôn có | Luôn có | CB: chỉ ẩn khi crash liên tục hoặc đã gỡ quản lý |
 | Ép làm màn hình chính, con không đổi được | ✅ | ❌ | ❌ | `launcherLock` |
 | Chỉ hiện app được phép, đồng hồ thời gian còn lại | ✅ | ✅ | — | Bản Home không có phần quản lý |
-| Chấm thông báo, lịch sử + thống kê thông báo (chỉ con xem) | ✅ | ✅ | ✅ | Cần quyền đọc thông báo. Lịch sử: giữ 7 / 30 / 90 ngày, không gửi đi đâu. Nút "Cài đặt" (tắt app / từng hạng mục) mở cài đặt máy: tắt khi bố mẹ khoá Cài đặt |
+| Chấm thông báo, lịch sử + thống kê thông báo (chỉ con xem) | ✅ | ✅ | ✅ | Cần quyền đọc thông báo. Lịch sử: giữ 7 / 30 / 90 ngày, không gửi đi đâu. Nút "Cài đặt" (tắt app / từng hạng mục) mở cài đặt máy: tắt khi bố mẹ khoá Cài đặt. Giữ thông báo của 1 app (gom 8h/12h/18h, tạm im 1 giờ / đến 7h) bằng snooze của Android; cuộc gọi, báo thức không bao giờ bị giữ. Bấm lâu icon: phút dùng hôm nay, còn bao lâu, số thông báo |
 | Ẩn Tailscale | Khi KidGuard quản lý Tailscale | Khi KidGuard quản lý Tailscale | Không ẩn | |
 | Tự bật lại Tailscale khi bị tắt / bị dọn | ✅ (+ VPN luôn bật) | ✅ | Không | Công tắc "Giữ Tailscale luôn bật" (luật `tsKeep`, mặc định tắt; Tailscale do KidGuard cài thì luôn giữ). Gửi lệnh kết nối cho Tailscale; nếu vẫn rớt thì mở Tailscale 1 lần khi đang ở màn home. Bị "buộc dừng" thì phải chờ bước mở. Máy CB cần quyền "hiển thị trên app khác" cho bước mở |
 

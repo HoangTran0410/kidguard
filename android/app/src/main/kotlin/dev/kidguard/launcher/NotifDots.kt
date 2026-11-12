@@ -35,6 +35,8 @@ class NotifDots : NotificationListenerService() {
             val rk = rankingMap?.let { m -> Ranking().takeIf { m.getRanking(sbn.key, it) } }
             NotifLog.record(this, sbn, rk?.importance ?: 0, runCatching { rk?.channel?.name?.toString() }.getOrNull().orEmpty())
         }
+        // an app the kid holds (gom / tạm im): snoozed until its time, after it is in the history
+        if (sbn != null) runCatching { NotifHold.onPosted(this, sbn) }
         recountSoon()
     }
     override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {

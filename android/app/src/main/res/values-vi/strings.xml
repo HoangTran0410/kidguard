@@ -1021,4 +1021,27 @@
     <string name="nst_heat_hint">Chạm vào một ô để xem số thông báo.</string>
     <string name="nst_less">Ít</string>
     <string name="nst_more">Nhiều</string>
+    <string name="nlog_r_hold">Đang giữ (gom / tạm im)</string>
+    <string name="nst_hold">Giữ thông báo của app này</string>
+    <string name="nst_hold_off">Bình thường</string>
+    <string name="nst_hold_off_sub">Hiện ngay khi đến</string>
+    <string name="nst_hold_bundle">Gom lại</string>
+    <string name="nst_hold_bundle_sub">Chỉ hiện lúc 8h, 12h và 18h</string>
+    <string name="nst_hold_hour">Tạm im 1 giờ</string>
+    <string name="nst_hold_morning">Tạm im đến sáng mai</string>
+    <string name="nst_hold_until">Đến %1$s</string>
+    <string name="nst_hold_tomorrow">%1$s ngày mai</string>
+    <string name="nst_hold_note">Thông báo được giữ lại rồi hiện đúng giờ, vẫn bấm và trả lời được như thường. Cuộc gọi, báo thức, chỉ đường luôn hiện ngay.</string>
+    <string name="nst_hold_need">Cần bật quyền đọc thông báo (Chấm thông báo trong Tuỳ chỉnh).</string>
+    <string name="nst_held_bundle">Đang gom thông báo</string>
+    <string name="nst_held_mute">Đang tạm im</string>
+    <plurals name="nst_hold_waiting">
+        <item quantity="other">%1$d thông báo đang chờ, hiện lúc %2$s</item>
+    </plurals>
+    <string name="hm_app_notifs">Thông báo của app</string>
+    <string name="hm_used_today">Hôm nay %1$s</string>
+    <string name="hm_left_today">còn %1$s</string>
+    <plurals name="hm_notifs_today">
+        <item quantity="other">%1$d thông báo</item>
+    </plurals>
 </resources>

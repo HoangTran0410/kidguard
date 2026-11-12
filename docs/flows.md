@@ -25,7 +25,7 @@ flow holds. Add a row when a flow starts using a privilege.
 | Explicit broadcast to another app's receiver | wake a killed app without UI | `Ts.keep` (Tailscale `CONNECT_VPN`, §1.13) |
 | `KILL_BACKGROUND_PROCESSES` | kill another app's background process | `AccPause` (fresh bank start) |
 | Usage access | foreground app + time per app | `Usage.today` (`use.current` in the tick, also = our launcher when home is in front) |
-| Notification listener | notification history + stats, dots, re-send a notification's tap intent | `NotifLog`, `NotifStats`, `NotifDots`, `AccPause` deep link |
+| Notification listener | notification history + stats, dots, re-send a notification's tap intent, hold an app's notifications (snoozeNotification until 8/12/18 h or a mute end) | `NotifLog`, `NotifStats`, `NotifHold`, `NotifDots`, `AccPause` deep link |
 | DND policy access | Do Not Disturb on/off | study mode (`FocusStore`), `Sys` |
 | Mic / camera / media projection / location (runtime) | listen, Telegram /rec, wrong-PIN photo, screen view, locate / track | `Listen`, `Tg`, `Shot`, `Proj`, `Guard.trackFix` |
 | Self adb (Wireless debugging against itself) | shell grants, hide / clear in basic mode | `SelfSetup*` |
