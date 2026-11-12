@@ -1102,6 +1102,11 @@ and the Download/KidGuard folder (files from the parent, red dot = not opened ye
 Shared with tv-remote: the census worker `https://tvr-census.99-hoangtran.workers.dev` (`dev/census/src/support.js` in the
 tv-remote repo). The owner reads with `python3 ~/Desktop/Github/tv-remote/dev/census/support.py --app kidguard [CODE] [--reply "…"]`;
 without `--app kidguard` tv-remote's tools leave KidGuard out (list, `said`, crashwatch's news into tv-remote sessions). The PHONE talks to it, never the page (no CSP change).
+- Crashes, automatic (2026-11-12): a crash of any thread is written to `files/crash_pending.json` and the next app start
+  POSTs it (15 s later) to `/v1/crash` `{id: random uuid4 per install, app:"kidguard", v: versionName (+"-home"), where:"kotlin",
+  kind, msg, stack (SupportScrub), dev:{brand, model, android, sdk, hw, board, device}}`; deleted on any 2xx/4xx, kept when
+  offline. Emulators are dropped by the worker. Read: `python3 ~/Desktop/Github/tv-remote/dev/census/crashes.py --app kidguard [SIG]`
+  (without `--app kidguard` tv-remote's lists leave them out; crashwatch shows a macOS notice "KidGuard: N crash mới" only).
 - Command `support {kind, text?, pkg?}`: `kind` one of `block time relay location launcher bank battery other`; `text` <= 1000
   chars; `pkg` = one app the parent chose (else none). Answers `ok` (sending in the background) or `busy`.
   The phone POSTs `/v1/support {id (uuid4, per install), app:"kidguard", v, model, report}` and keeps `{code, key}`.

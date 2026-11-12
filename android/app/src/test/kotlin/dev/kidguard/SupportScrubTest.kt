@@ -42,3 +42,11 @@ class SupportScrubTest {
         assertEquals(s(x), s(s(x)))
     }
 }
+
+class CrashScrubTest {
+    /** The auto crash report (Support.sendCrash) goes through the same scrub: our frames and file:line must survive it. */
+    @org.junit.Test fun stackKeepsFrames() {
+        val s = "java.lang.IllegalStateException: boom\n\tat dev.kidguard.HomeActivity.render0(HomeActivity.kt:498)\n\tat android.os.Handler.dispatchMessage(Handler.java:106)"
+        org.junit.Assert.assertEquals(s, SupportScrub.text(s, null))
+    }
+}

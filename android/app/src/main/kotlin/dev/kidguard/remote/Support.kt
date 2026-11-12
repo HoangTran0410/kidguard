@@ -191,14 +191,48 @@ object Support {
 
     const val CRASH_FILE = "last_crash.txt"
 
+    private const val PENDING = "crash_pending.json"
+
     fun watchCrashes(ctx: Context) {
         val app = ctx.applicationContext
         val old = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { t, e ->
             runCatching { File(app.filesDir, CRASH_FILE).writeText("thread ${t.name}, v${BuildConfig.VERSION_NAME}\n" + Log.getStackTraceString(e).take(16_000)) }
+            // sent by the next start (sendCrash): a dying process has no time for the network
+            runCatching { File(app.filesDir, PENDING).writeText(JSONObject().put("kind", e.javaClass.name).put("msg", e.message ?: "")
+                .put("stack", e.stackTraceToString().take(16_000)).toString()) }
             old?.uncaughtException(t, e)
         }
     }
+
+    /**
+     * The last crash, sent by itself (owner 2026-11-12: "gửi tự động") to the census worker's crash table shared with
+     * tv-remote (app "kidguard"; tv-remote's tools leave these rows out, read with `crashes.py --app kidguard`). Scrubbed like a
+     * support report; one random install id (the worker hashes it, caps 20 a day). Kept for the next start when offline.
+     */
+    fun sendCrash(ctx: Context) {
+        val app = ctx.applicationContext
+        val f = File(app.filesDir, PENDING)
+        if (!f.exists()) return
+        Thread {
+            Thread.sleep(15_000)   // not during the (re)start the crash just caused
+            runCatching {
+                val p = JSONObject(f.readText())
+                val id = prefs(app).getString("crashId", null) ?: java.util.UUID.randomUUID().toString().also { prefs(app).edit().putString("crashId", it).apply() }
+                val code = post("/v1/crash", crashBody(id, p.optString("kind"), p.optString("msg"), p.optString("stack"))).first
+                if (code in 200..499) f.delete()   // 4xx (bad / enough for today) would fail the same way again
+            }.onFailure { if (it is org.json.JSONException) f.delete() }
+        }.apply { isDaemon = true; name = "kg-crash" }.start()
+    }
+
+    private fun crashBody(id: String, kind: String, msg: String, stack: String) = JSONObject()
+        .put("id", id).put("app", "kidguard").put("v", BuildConfig.VERSION_NAME + if (Flavor.HOME) "-home" else "").put("where", "kotlin")
+        .put("kind", SupportScrub.text(kind, null).take(120).ifBlank { "Error" })
+        .put("msg", SupportScrub.text(msg, null).replace(Regex("\\s+"), " ").trim().take(300))
+        .put("stack", SupportScrub.text(stack, null).trim().take(8192))
+        // hw / board / device: the worker drops emulators by them
+        .put("dev", JSONObject().put("brand", Build.BRAND).put("model", Build.MODEL).put("android", Build.VERSION.RELEASE).put("sdk", Build.VERSION.SDK_INT)
+            .put("hw", Build.HARDWARE).put("board", Build.BOARD).put("device", Build.DEVICE))
 }
 
 /**
