@@ -240,7 +240,8 @@ object Tg {
     }
 
     private fun hm(t: Long) = SimpleDateFormat("HH:mm", Locale.US).format(Date(t))
-    private fun kidName(g: Guard) = Store.of(g).tgName.ifBlank { "KidGuard" }
+    /** The child's name plus the phone model: a family with several phones (or a test emulator) sees which one spoke. */
+    private fun kidName(g: Guard) = Store.of(g).tgName.ifBlank { "KidGuard" } + " · " + android.os.Build.MODEL
     /** f(chat) for every linked chat; returns how many succeeded. */
     private fun broadcast(s: Store, f: (Long) -> Boolean): Int { val a = s.tgChats(); var ok = 0
         for (i in 0 until a.length()) a.optJSONObject(i)?.optLong("id")?.let { id -> if (runCatching { f(id) }.onFailure { Log.w(TAG, "tg send: " + redact(it)) }.getOrDefault(false)) ok++ }
@@ -555,7 +556,7 @@ object Tg {
             }
             else -> {
                 val kind = o.optString("kind")
-                val text = TgLogic.s(lang, when (kind) { "newApp" -> "aNewApp"; "tamper" -> "aTamper"; else -> "aEvent" }, o.optString("text"))
+                val text = TgLogic.s(lang, when (kind) { "newApp" -> "aNewApp"; "tamper" -> "aTamper"; else -> "aEvent" }, o.optString("text"), name)
                 val shot = o.optString("shot").takeIf { it.isNotBlank() }?.let { Shot.file(g, it) }?.takeIf { it.exists() }
                 (shot != null && sendStream(s, chat, "sendPhoto", "photo", "kidguard-${shot.nameWithoutExtension}.jpg", "image/jpeg", shot.inputStream(), shot.length(), text))
                     || ok(send(s, chat, text))
