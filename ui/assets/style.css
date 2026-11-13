@@ -398,7 +398,7 @@ a.go:active{transform:scale(.99)}
 /* long help text folded to one sentence + ⓘ (shell.js tipScan) */
 p.tipc{cursor:pointer}
 .tipb{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;min-height:0;width:26px;height:26px;padding:0;margin:-3px 0 0 2px;border:0;border-radius:50%;background:var(--chip);color:inherit}
-.tipb .si{width:16px;height:16px}
+.tipb .si{width:16px;height:16px}.tipb{position:relative}.tipb::after{content:"";position:absolute;inset:-9px}
 .tipx{white-space:pre-line;line-height:1.55}.tipx .si{vertical-align:-3px}
 /* Controls (owner 2026-11-11: "checkbox, slider hiện đại giống web"). A setting row (label.row with its checkbox first)
    is a trailing switch like Android / iOS settings; picker lists (.app) keep a rounded checkbox. Knob = a gradient layer,

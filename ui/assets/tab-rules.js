@@ -351,10 +351,10 @@ function bankBox(r) {
     ${st.bankList ? `<p class="mute">${pendHtml("bklist", bankListHtml)}</p>` : ""}
     ${Array.isArray(r.tcpPause) ? `<p class="mute">${t("bank.tcpP")}</p>` : ""}    ${Array.isArray(r.vpnPause) ? `<p class="mute">${t("bank.vpnP")}</p>` : ""}${stuck}
     <details id="bk" style="margin-top:6px"><summary id="bk-n"></summary>
-    <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" style="margin-top:8px">
+    <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" aria-label="${esc(t("bank.find"))}" style="margin-top:8px">
     <div class="bkt" role="table" aria-label="${esc(t("bank.h"))}" style="margin-top:6px"><div class="bkh" role="row" style="${gt}"><span role="columnheader">${t("bank.colApp")}</span>${cols.map(c => `<span role="columnheader">${esc(c.h)}</span>`).join("")}</div>
     <div id="bk-list" role="rowgroup"></div></div>
-    <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="bk-pkg" class="sp" placeholder="${esc(t("bank.pkg"))}" autocapitalize="off" spellcheck="false" style="min-width:0">
+    <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="bk-pkg" class="sp" placeholder="${esc(t("bank.pkg"))}" aria-label="${esc(t("bank.pkg"))}" autocapitalize="off" spellcheck="false" style="min-width:0">
     <button class="btn" id="bk-add" type="button">${t("bank.add")}</button></div><p class="mute" id="bk-err" hidden>${t("bank.bad")}</p></details>`;
 }
 function bankBind(r) {

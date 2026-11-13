@@ -32,7 +32,7 @@ const SHOTS = [
   { name: "kids", js: `overview(kids, () => {})`, ready: `document.querySelector("#ovKids .ovk, #ovKids .card, #ovKids > *") && !document.querySelector("#ovKids .spin")`, settle: 1200 },
   { name: "today", js: `goTab("home")`, ready: `document.querySelector(".hero")` },
   { name: "apps", js: `goTab("apps")`, ready: `document.querySelector(".app .ic")`, settle: 800 },
-  { name: "rules", js: `goTab("rules")`, ready: `document.querySelector("[data-sec]")`, open: ["r-bed", "r-sch"], shut: ["r-daily"], scrollTo: "[data-sec=r-daily]" },
+  { name: "rules", poke: 1, js: `goTab("rules")`, ready: `document.querySelector("[data-sec]")`, open: ["r-bed", "r-sch"], shut: ["r-daily"], scrollTo: "[data-sec=r-daily]" },
   { name: "where", js: `goTab("where")`, ready: `document.querySelector("#map .layer")`, tiles: true, settle: 800 },
   { name: "screen", js: `goTab("screen")`, ready: `document.querySelector("#s-img") && document.querySelector("#s-img").complete && document.querySelector("#s-img").naturalWidth > 0`, settle: 800 },
   { name: "files", js: `goTab("files")`, ready: `document.querySelector("#fxOut .app, #fxOut .li, #fxOut > *")`, settle: 600 },
@@ -65,6 +65,53 @@ const layoutAudit = String(() => {
   return out.filter((x, i) => !out.slice(0, i).some(y => y.startsWith("sticks out") && x.startsWith("sticks out") && x.includes(y.split(": ").slice(1).join(": ").slice(0, 12)))).slice(0, 40);
 });
 
+// Runs in the page: labels that are i18n keys, controls with the same / nearly the same label (two switches for one thing),
+// tap targets under 40 px, controls without a name.
+const uxLint = String(() => {
+  const out = [], vis = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== "hidden"; };
+  const keyLike = /(^|\s)([a-z][a-zA-Z]*\.[a-zA-Z][a-zA-Z0-9.]*)(?=\s|$)/;
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n; (n = w.nextNode());) { const m = keyLike.exec(n.nodeValue.trim()); if (m && !/\.(com|net|org|vn|dev|io|app|json|apk|js)\b/.test(m[2]) && !/^\d/.test(m[2]) && n.parentElement && vis(n.parentElement)) out.push("i18n key shown as text: " + m[2]); }
+  const ctl = [...document.querySelectorAll("input[type=checkbox], select, input[type=radio]")].filter(vis);
+  const lab = e => ((e.closest("label") || {}).innerText || (e.id && (document.querySelector('label[for="' + e.id + '"]') || {}).innerText) || e.getAttribute("aria-label") || "").trim().replace(/\s+/g, " ");
+  const words = s => new Set(s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").split(/[^a-z0-9]+/).filter(x => x.length > 1));
+  const L = ctl.map(e => [e, lab(e), words(lab(e))]).filter(x => x[2].size >= 2);
+  for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
+    const [a, la, wa] = L[i], [b, lb, wb] = L[j]; if (a.closest(".bkt") && b.closest(".bkt")) continue;   // per-app table rows repeat on purpose
+    const inter = [...wa].filter(x => wb.has(x)).length, sim = inter / Math.min(wa.size, wb.size);
+    if (sim >= 0.75 && la !== "" && (a.closest("[data-sec]") || {}).dataset?.sec !== undefined) out.push("similar controls: \"" + la.slice(0, 50) + "\" [" + (a.closest("[data-sec]") || { dataset: {} }).dataset.sec + "] ~ \"" + lb.slice(0, 50) + "\" [" + (b.closest("[data-sec]") || { dataset: {} }).dataset.sec + "]");
+  }
+  for (const e of [...document.querySelectorAll("button, select, input:not([type=checkbox]):not([type=radio]):not([type=hidden]), [role=button]")].filter(vis)) {
+    const r = e.getBoundingClientRect(), nm = (e.textContent || e.getAttribute("aria-label") || e.title || e.value || "").trim();
+    if (!nm && !(e.labels && e.labels.length)) out.push("control without a name: " + e.tagName.toLowerCase() + (e.id ? "#" + e.id : "." + (e.className || "").toString().split(" ")[0]));
+    // WCAG 2.2 AA target size is 24 px; a ::after with a negative inset (e.g. .tipb) grows the hit area beyond the box
+    const ext = Math.max(0, -(parseFloat(getComputedStyle(e, "::after").top) || 0));
+    if (Math.min(r.height, r.width) + 2 * ext < 24) out.push("small tap target " + Math.round(r.width) + "x" + Math.round(r.height) + ": " + (nm.slice(0, 30) || e.tagName.toLowerCase() + (e.id ? "#" + e.id : "")));
+  }
+  return [...new Set(out)].slice(0, 40);
+});
+// Flip every checkbox / pick every select option (then put it back); exceptions are collected by the caller.
+const poke = String(() => {
+  const out = [], vis = e => e.getBoundingClientRect().height > 0;
+  const fire = (e, t) => e.dispatchEvent(new Event(t, { bubbles: true }));
+  for (const e of [...document.querySelectorAll("#rsx input[type=checkbox], #rsx select")]) {
+    if (!vis(e) || e.disabled || !document.contains(e)) continue;
+    try {
+      if (e.type === "checkbox") { e.checked = !e.checked; fire(e, "change"); if (document.contains(e)) { e.checked = !e.checked; fire(e, "change"); } }
+      else { const v = e.value; for (const o of [...e.options].filter(o => !o.disabled)) { e.value = o.value; fire(e, "change"); if (!document.contains(e)) break; } if (document.contains(e)) { e.value = v; fire(e, "change"); } }
+    } catch (x) { out.push("poke " + (e.id || e.name) + ": " + x.message); }
+  }
+  return out;
+});
+// The phone replaces its rules with what the page sends: every PUT must carry the whole object.
+const putCheck = String(() => {
+  const out = [], ps = (window.__puts || []).map(b => { try { return JSON.parse(b); } catch { return null; } });
+  if (!ps.length) return ["no rules PUT after changing controls"];
+  const need = Object.keys(edit || {}).filter(k => !["pin", "pinSet", "pinHash"].includes(k));   // the page never sends these back
+  ps.forEach((p, i) => { if (!p) return out.push("rules PUT #" + i + " is not JSON"); const miss = need.filter(k => !(k in p)); if (miss.length) out.push("rules PUT #" + i + " misses " + miss.slice(0, 8).join(",")); });
+  return [...new Set(out)];
+});
+
 // ---- tiny CDP client ------------------------------------------------------------------
 async function connect(url) {
   const ws = new WebSocket(url); let id = 0; const wait = new Map(); const ev = [];
@@ -91,6 +138,8 @@ async function shootLang(lang) {
     // before any page script: saved kids + language + theme, and a clock fixed at 16:20 (the server's story time) that keeps ticking
     await c.send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => {
       try { const o = ${NOW} - Date.now(), D = Date; globalThis.Date = class extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + o); } static now() { return D.now() + o; } }; } catch {}
+      if (${AUDIT}) { window.confirm = () => false; window.alert = () => {}; window.prompt = () => null;
+        window.__puts = []; const F = window.fetch; window.fetch = (u, o) => { try { if (o && o.method === "PUT" && String(u).includes("/rules")) window.__puts.push(o.body); } catch {} return F(u, o); }; }
       try { localStorage.setItem("kg.kids", ${JSON.stringify(kidsSeed())}); localStorage.setItem("kg.lang", "${lang}"); localStorage.setItem("kg.theme", "${THEME}"); } catch {}
     })()` });
     const errors = [];
@@ -110,6 +159,8 @@ async function shootLang(lang) {
         await evalIn(c, `document.querySelectorAll("[data-sec]").forEach(s => { secOpen[s.dataset.sec] = 1; s.classList.add("open"); const h = s.querySelector(".clh"); if (h) h.setAttribute("aria-expanded", "true"); }); 0`);
         await sleep(700);
         for (const f of await evalIn(c, `(${layoutAudit})()`)) errors.push(shot.name + ": " + f);
+        for (const f of await evalIn(c, `(${uxLint})()`)) errors.push(shot.name + ": " + f);
+        if (shot.poke) { for (const f of await evalIn(c, `(${poke})()`)) errors.push(shot.name + ": " + f); await sleep(1500); for (const f of await evalIn(c, `(${putCheck})()`)) errors.push(shot.name + ": " + f); }
       }
       if (!AUDIT && shot.scrollTo) await evalIn(c, `(() => { const e = document.querySelector(${JSON.stringify(shot.scrollTo)}); if (e) window.scrollTo(0, e.getBoundingClientRect().top + scrollY - 12); })()`);
       await sleep(500);

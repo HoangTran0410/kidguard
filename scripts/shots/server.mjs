@@ -122,7 +122,7 @@ function serve(name) {
       const st = () => Object.assign(stateOf(name), PATCH);
       if (a === "/hello") return json({ id: st().id, pairing: false, pin: true, pairPin: true, owner: true, mode: "owner" });
       if (a === "/state") return json(st());
-      if (a === "/rules" && req.method === "PUT") { try { const r = JSON.parse(text); delete r.pin; r.pinSet = true; r.rev = Date.now(); rulesOf[name] = r; return json({ result: "ok", rules: r }); } catch { return json({ error: "bad json" }, 400); } }
+      if (a === "/rules" && req.method === "PUT") { try { const r = JSON.parse(text); delete r.pin; r.pinSet = true; r.rev = Date.now(); rulesOf[name] = r; return json(r); } catch { return json({ error: "bad json" }, 400); } }
       if (a === "/cmd") return json({ result: "ok" });
       if (a === "/live") return json({ result: "ok" });
       if (a === "/track") return json({ track: name === "bin" ? trackOf() : [] });
