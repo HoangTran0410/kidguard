@@ -114,7 +114,7 @@ L.vi = {
   "fx.e.length required": "thiếu độ dài file", "fx.e.incomplete": "bị ngắt giữa chừng", "fx.e.no space": "máy con hết chỗ trống", "fx.e.failed": "máy con không lưu được", "fx.e.relay full": "relay đang đầy, thử lại sau",
   "fx.e.gone": "file không còn trên máy con", "fx.e.no such file": "file không còn", "fx.e.timeout": "máy con không phản hồi (đang mất mạng?)", "fx.e.expired": "hết hạn trên relay (1 giờ)", "fx.e.net": "mất kết nối",
   cantConnect: "Không kết nối được: {0}", noState: "Máy con chưa kết nối relay lần nào", "hist.snap": "Ảnh chụp lúc {0}", "live.cached": "Mất kết nối · dữ liệu lúc {0}",
-  "live.on": "Đang kết nối", "live.off": "Mất kết nối", "live.upd": "cập nhật {0}", scrOnApp: "màn hình bật · {0}", scrOn: "màn hình bật",
+  "ov.phoneErr": "Máy con báo lỗi: {0}", "live.phoneErr": "Máy con có trả lời nhưng báo lỗi: {0}. Thử lại sau ít phút. Vẫn lỗi thì mở app KidGuard trên máy con.", "live.on": "Đang kết nối", "live.off": "Mất kết nối", "live.upd": "cập nhật {0}", scrOnApp: "màn hình bật · {0}", scrOn: "màn hình bật",
   "live.pending": "Luật mới đang chờ máy con nhận", "live.selfOff": "Điện thoại/máy tính này đang mất mạng, chưa biết tình trạng máy con",
   "live.lost": "Mất liên lạc với máy con từ {0}. Có thể máy tắt, mất mạng, hoặc KidGuard bị tắt (vd. vuốt khỏi đa nhiệm). Muốn bật lại: mở app KidGuard trên máy con", "live.mic": "Micro máy con đang bật (bố mẹ đang nghe) từ {0}",
   "live.usage": "Con đã tắt quyền theo dõi sử dụng — giới hạn giờ không hoạt động (máy đang nhắc con bật lại)", "live.dns": "DNS an toàn bị từ chối: {0}",

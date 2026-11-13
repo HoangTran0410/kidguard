@@ -103,6 +103,7 @@ ${cells}<rect x="14" y="548" width="332" height="76" rx="26" fill="#ffffff33"/>$
 
 // ---- http ------------------------------------------------------------------------------
 const TYPES = { ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8" };
+let FAULT = "ok";
 function serve(name) {
   return http.createServer((req, res) => {
     const u = new URL(req.url, "http://x"), p = u.pathname;
@@ -117,7 +118,12 @@ function serve(name) {
       if (p === "/" || p === "/index.html") return send(200, "text/html; charset=utf-8", fs.readFileSync(path.join(UI, "index.html")));
       let m = /^\/ui\/([a-z0-9][a-z0-9-]*)\.(js|css)$/.exec(p);
       if (m) { const f = path.join(UI, "assets", m[1] + "." + m[2]); return fs.existsSync(f) ? send(200, TYPES["." + m[2]], fs.readFileSync(f)) : send(404, "text/plain", "not found"); }
+      // test switch (shoot.mjs --faults): ok | down (connection dropped) | e500 (phone error) | slow (15 s, then ok)
+      if (p === "/__fault") { FAULT = u.searchParams.get("m") || "ok"; return send(200, "text/plain", FAULT); }
       if (!p.startsWith("/api/")) return send(404, "text/plain", "not found");
+      if (FAULT === "down") return req.socket.destroy();
+      if (FAULT === "e500" && p !== "/api/icon") return json({ error: "boom" }, 500);
+      if (FAULT === "slow" && !req.__late) { req.__late = 1; return setTimeout(() => req.emit("end"), 15000); }
       const a = p.slice(4);
       const st = () => Object.assign(stateOf(name), PATCH);
       if (a === "/hello") return json({ id: st().id, pairing: false, pin: true, pairPin: true, owner: true, mode: "owner" });

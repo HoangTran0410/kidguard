@@ -24,7 +24,8 @@ document.addEventListener("click", e => {
 });
 const bonusGiven = new Set();   // "kid:requestId" whose extra-time bonus is already saved
 const reqN = () => st && !viewDay ? (st.requests || []).filter(q => !answered.has(q.id)).length : 0;
-const onlineNow = () => st && Date.now() - lastSeen() < (cur && cur.via === "lan" ? 30000 : 120000);
+// LAN: the last poll failing counts at once (else the header stays green under a red "lost" banner)
+const onlineNow = () => st && !(cur && cur.via === "lan" && lastErr) && Date.now() - lastSeen() < (cur && cur.via === "lan" ? 30000 : 120000);
 // --- "waiting for the phone" helpers (audit 2026-11-13): a wait always says WHY (offline since / adb link) and offers a retry.
 // pendHtml(id, html(), act?): a span the 5 s ticker refreshes by itself (the text depends on time, a state poll may not redraw it);
 // a button with data-pact="<id>" runs act().
@@ -484,7 +485,9 @@ function updateLive() {
   const B = [];   // [tone, icon, text]
   if (APP && cachedAt) B.push(["warn", "wifi-off", t("live.cached", hhmm(cachedAt))]);
   if (!lan && lastNet) B.push(["warn", "wifi-off", t("live.selfOff")]);
-  if (lost && !(!lan && lastNet)) B.push(["bad", "siren", t("live.lost", hhmm(lostFrom)) + (lastErr && lan ? " (" + esc(lastErr) + ")" : "")]);
+  // LAN, the phone answered with an error: it is on and reachable, so not "off / no network"
+  if (lan && lastErr && !lastNet) B.push(["bad", "siren", t("live.phoneErr", esc(lastErr))]);
+  else if (lost && !(!lan && lastNet)) B.push(["bad", "siren", t("live.lost", hhmm(lostFrom)) + (lastErr && lan ? " (" + esc(lastErr) + ")" : "")]);
   B.push(...modeBans());
   { const rb = rebootLine(), lc = locLine(); if (rb) B.push(rb); if (lc) B.push(lc); }
   // bank-app pauses (audit 2026-11-13): what is off, for which app, when it comes back, and "turn back on now"

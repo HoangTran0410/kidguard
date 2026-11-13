@@ -28,7 +28,7 @@ async function ovLoad() {
   const o = ov; if (!o || document.hidden) return;
   await Promise.all(o.data.map(async d => {
     try { const j = await call(d.k, "/state"); d.st = j.state !== undefined ? j.state : j; d.seen = j.state !== undefined ? +j.seen || 0 : 0; d.err = ""; }
-    catch (e) { d.err = e.message; }
+    catch (e) { d.err = e.net ? e.message : t("ov.phoneErr", e.message); }   // a raw phone error alone ("not paired") says nothing
   }));
   if (ov === o) ovDraw();
 }

@@ -108,7 +108,7 @@ L.en = {
   "fx.e.length required": "file length missing", "fx.e.incomplete": "the transfer was cut", "fx.e.no space": "the kid's phone is full", "fx.e.failed": "the phone could not save it", "fx.e.relay full": "the relay is full, try later",
   "fx.e.gone": "the file is no longer on the phone", "fx.e.no such file": "the file is gone", "fx.e.timeout": "the phone did not answer (offline?)", "fx.e.expired": "expired on the relay (1 hour)", "fx.e.net": "connection lost",
   cantConnect: "Couldn't connect: {0}", noState: "The kid's phone hasn't reached the relay yet", "hist.snap": "Snapshot at {0}", "live.cached": "Offline · data from {0}",
-  "live.on": "Online", "live.off": "Offline", "live.upd": "updated {0}", scrOnApp: "screen on · {0}", scrOn: "screen on",
+  "ov.phoneErr": "The phone reported an error: {0}", "live.phoneErr": "The phone answered with an error: {0}. Try again in a few minutes. Still failing? Open KidGuard on the phone.", "live.on": "Online", "live.off": "Offline", "live.upd": "updated {0}", scrOnApp: "screen on · {0}", scrOn: "screen on",
   "live.pending": "New rules waiting for the kid's phone to pick them up", "live.selfOff": "This phone/computer is offline, so the kid's phone status is unknown",
   "live.lost": "Lost contact with the kid's phone since {0}. It may be off, offline, or KidGuard was stopped (maybe swiped away in Recents). To restart: open the KidGuard app on the kid's phone", "live.mic": "The kid's microphone is on (a parent is listening) since {0}",
   "live.usage": "Your kid turned off usage access: time limits don't work (the phone asks them to turn it back on)", "live.dns": "Safe DNS was refused: {0}",

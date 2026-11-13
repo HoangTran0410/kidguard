@@ -20,6 +20,9 @@ const THEME = arg("theme", "dark");
 const W = +arg("width", 400);
 // --audit: every section open, full-page shot, and a layout report (what sticks out of the screen, what is clipped)
 const AUDIT = process.argv.includes("--audit");
+// --faults ok? no: after each shot, the server goes down / answers 500 / answers after 15 s; the page refreshes and saves once,
+// then a shot <name>-<fault>.png and a report of what the parent sees (toast, error lines) and what breaks
+const FAULTS = process.argv.includes("--faults") ? ["down", "e500", "slow"] : [];
 const CHROME = process.env.CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PORTS = { bin: 8771, mia: 8772, tom: 8773 };
 const CDP = 9333;
@@ -142,7 +145,7 @@ async function shootLang(lang) {
         window.__puts = []; const F = window.fetch; window.fetch = (u, o) => { try { if (o && o.method === "PUT" && String(u).includes("/rules")) window.__puts.push(o.body); } catch {} return F(u, o); }; }
       try { localStorage.setItem("kg.kids", ${JSON.stringify(kidsSeed())}); localStorage.setItem("kg.lang", "${lang}"); localStorage.setItem("kg.theme", "${THEME}"); } catch {}
     })()` });
-    const errors = [];
+    const errors = [], faultLog = [];
     for (const shot of SHOTS) {
       if (ONLY && !ONLY.includes(shot.name)) continue;
       // fresh page per shot: no state leaks between them
@@ -162,6 +165,26 @@ async function shootLang(lang) {
         for (const f of await evalIn(c, `(${uxLint})()`)) errors.push(shot.name + ": " + f);
         if (shot.poke) { for (const f of await evalIn(c, `(${poke})()`)) errors.push(shot.name + ": " + f); await sleep(1500); for (const f of await evalIn(c, `(${putCheck})()`)) errors.push(shot.name + ": " + f); }
       }
+      for (const f of FAULTS) {
+        await fetch(`http://127.0.0.1:${PORTS.bin}/__fault?m=${f}`);
+        const ex0 = c.events.length;
+        await evalIn(c, `window.__toasts = []; { const el = document.querySelector("#toast"); if (el && !el.__obs) { el.__obs = new MutationObserver(() => { const s = el.innerText.trim(); if (s && window.__toasts.at(-1) !== s) window.__toasts.push(s); }); el.__obs.observe(el, { childList: true, subtree: true, characterData: true }); } }
+          ${shot.name === "kids" ? "overview(kids, () => {});" : `refresh1().catch(e => window.__toasts.push("refresh threw: " + e.message));`}
+          { const x = document.querySelector("#rsx input[type=checkbox]:not(:disabled)"); if (x) { x.checked = !x.checked; x.dispatchEvent(new Event("change", { bubbles: true })); } } 0`);
+        await sleep(f === "slow" ? 4000 : 9000);
+        const seen = await evalIn(c, `({ toasts: window.__toasts, busy: [...document.querySelectorAll(".spin, [aria-busy=true]")].filter(e => e.getBoundingClientRect().height > 0).length,
+          err: [...document.querySelectorAll("#live > *, #hst, [role=alert], #ovKids .bad, #ovKids .mute")].filter(e => e.getBoundingClientRect().height > 0).map(e => e.innerText.trim().replace(/\\s+/g, " ").slice(0, 70)).filter(Boolean).slice(0, 4),
+          txt: (document.body.innerText.match(/.{0,40}(\\b(undefined|NaN|\\[object|HTTP \\d+|Failed to fetch|TypeError))\\b.{0,30}/i) || [""])[0] })`);
+        const rs = await c.send("Page.captureScreenshot", { format: "png" });
+        fs.writeFileSync(path.join(outDir, shot.name + "-" + f + ".png"), Buffer.from(rs.data, "base64"));
+        const tag = shot.name + " [" + f + "]";
+        faultLog.push(tag + ": toasts=" + JSON.stringify(seen.toasts) + " busy=" + seen.busy + " errs=" + JSON.stringify(seen.err));
+        if (seen.txt) errors.push(tag + ": raw text shown: " + seen.txt.replace(/\s+/g, " "));
+        if (f !== "slow" && !seen.toasts.length && !seen.err.length) errors.push(tag + ": nothing tells the parent it failed");
+        for (const e of c.events.slice(ex0).filter(e => e.method === "Runtime.exceptionThrown")) errors.push(tag + ": js exception: " + (e.params.exceptionDetails.exception?.description || e.params.exceptionDetails.text).split("\n")[0]);
+        await fetch(`http://127.0.0.1:${PORTS.bin}/__fault?m=ok`);
+        if (f === "slow") await sleep(12000);   // let the slow reply land: a late answer must not undo or break anything
+      }
       if (!AUDIT && shot.scrollTo) await evalIn(c, `(() => { const e = document.querySelector(${JSON.stringify(shot.scrollTo)}); if (e) window.scrollTo(0, e.getBoundingClientRect().top + scrollY - 12); })()`);
       await sleep(500);
       const txt = await evalIn(c, `document.body.innerText`);
@@ -172,6 +195,7 @@ async function shootLang(lang) {
     }
     for (const e of c.events.filter(e => e.method === "Runtime.exceptionThrown")) errors.push("js exception: " + (e.params.exceptionDetails.exception?.description || e.params.exceptionDetails.text).split("\n")[0]);
     c.close(); await fetch(`http://127.0.0.1:${CDP}/json/close/${tgt.id}`).catch(() => {});
+    if (faultLog.length) console.log(lang + " FAULTS:\n  " + faultLog.join("\n  "));
     if (errors.length) console.log(lang + " WARN:\n  " + [...new Set(errors)].join("\n  "));
   } finally { srv.kill(); await new Promise(r => srv.once("exit", r)); }
 }
