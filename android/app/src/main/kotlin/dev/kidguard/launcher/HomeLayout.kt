@@ -12,6 +12,7 @@ data class HItem(
     val pkg: String = "", val cls: String = "", val type: String = "", val name: String = "", val apps: List<String> = emptyList(),
     val awid: Int = 0,                                       // type "app": the AppWidgetHost id of another app's widget
     val opt: String = "",                                    // a widget's own setting from its long-press menu (clock: "center")
+    val names: Map<String, String> = emptyMap(),             // folder: label of each shortcut entry in [apps] (entry -> label); packages need none
 ) {
     fun toJson(): JSONObject = JSONObject().put("id", id).put("kind", kind).put("x", x).put("y", y).also { o ->
         if (w != 1 || kind == "widget") o.put("w", w)
@@ -19,7 +20,11 @@ data class HItem(
         if (pkg.isNotEmpty()) o.put("pkg", pkg)
         if (cls.isNotEmpty()) o.put("cls", cls)
         if (type.isNotEmpty()) o.put("type", type)
-        if (kind == "folder") o.put("name", name).put("apps", JSONArray(apps))
+        if (kind == "folder") {
+            o.put("name", name).put("apps", JSONArray(apps))
+            val n = names.filterKeys { it in apps }
+            if (n.isNotEmpty()) o.put("names", JSONObject().also { j -> n.forEach { (k, v) -> j.put(k, v) } })
+        }
         if (kind == HomeLayout.SHORTCUT) o.put("name", name)
         if (awid != 0) o.put("awid", awid)
         if (opt.isNotEmpty()) o.put("opt", opt)
@@ -83,7 +88,7 @@ data class HomeModel(
         .put("todayHide", JSONArray(todayHide.sorted())).also { o -> if (custom.isNotEmpty()) o.put("custom", AppLook.toJson(custom)) }
 
     /** Packages on the grid (folders included) or in the dock. */
-    fun onHome(): Set<String> = pages.flatten().filter { it.kind != HomeLayout.SHORTCUT }.flatMap { if (it.kind == "folder") it.apps else listOf(it.pkg) }.filter { it.isNotEmpty() }.toSet() +
+    fun onHome(): Set<String> = pages.flatten().filter { it.kind != HomeLayout.SHORTCUT }.flatMap { if (it.kind == "folder") it.apps.filter { e -> !HomeLayout.isShortcutEntry(e) } else listOf(it.pkg) }.filter { it.isNotEmpty() }.toSet() +
         dock.filter { it.isNotEmpty() && !it.startsWith("@") }
 }
 
@@ -122,6 +127,27 @@ object HomeLayout {
     }
     /** An app's pinned shortcut (ShortcutManager.requestPinShortcut): pkg = the app, cls = the shortcut id, name = its label. */
     const val SHORTCUT = "shortcut"
+
+    // A folder's [HItem.apps] entry is a package, or "sc:" + package + "/" + shortcut id (a pinned shortcut, e.g. a web app).
+    fun isShortcutEntry(e: String) = e.startsWith(Shortcuts.PREFIX)
+    fun scEntry(pkg: String, id: String) = Shortcuts.PREFIX + pkg + "/" + id
+    /** The app behind a folder entry (a shortcut's own app). */
+    fun pkgOf(e: String) = if (isShortcutEntry(e)) e.removePrefix(Shortcuts.PREFIX).substringBefore("/") else e
+    fun scIdOf(e: String) = if (isShortcutEntry(e)) e.removePrefix(Shortcuts.PREFIX).substringAfter("/", "") else ""
+    /** The folder entry of a grid item (an app or a shortcut). */
+    fun entryOf(i: HItem) = if (i.kind == SHORTCUT) scEntry(i.pkg, i.cls) else i.pkg
+    /** The grid item a folder entry becomes when it leaves its folder or is the only one left. */
+    fun itemOfEntry(f: HItem, e: String, id: String = f.id, x: Int = f.x, y: Int = f.y) =
+        if (isShortcutEntry(e)) HItem(id, SHORTCUT, x, y, pkg = pkgOf(e), cls = scIdOf(e), name = f.names[e] ?: "")
+        else HItem(id, "app", x, y, pkg = e)
+    /** [f] with [apps] as its entries (labels of the others dropped); one entry left = that app / shortcut again; none = null. */
+    private fun folderWith(f: HItem, apps: List<String>): HItem? = when (apps.size) {
+        0 -> null
+        1 -> itemOfEntry(f, apps[0])
+        else -> f.copy(apps = apps, names = f.names.filterKeys { it in apps })
+    }
+    private fun namesOf(items: List<HItem>): Map<String, String> =
+        items.flatMap { i -> if (i.kind == SHORTCUT) listOf(entryOf(i) to i.name) else i.names.toList() }.filter { it.second.isNotEmpty() }.toMap()
     val KINDS = setOf("app", "widget", "folder", SHORTCUT)
 
     /** Widget ids are "w" + n, apps "a" + n: unique inside one model. */
@@ -230,12 +256,12 @@ object HomeLayout {
     fun remove(m: HomeModel, pkg: String): HomeModel {
         val pages = m.pages.map { p -> p.mapNotNull { i -> when {
             i.kind == "app" && i.pkg == pkg -> null
-            i.kind == "folder" && pkg in i.apps -> { val left = i.apps - pkg
-                when (left.size) { 0 -> null; 1 -> i.copy(kind = "app", pkg = left[0], name = "", apps = emptyList()); else -> i.copy(apps = left) } }
+            i.kind == SHORTCUT && entryOf(i) == pkg -> null
+            i.kind == "folder" && pkg in i.apps -> folderWith(i, i.apps - pkg)
             else -> i
         } } }
         val dock = m.dock.mapIndexed { i, d -> if (i > 0 && d == pkg) "" else d }
-        return trimPages(m.copy(pages = pages, dock = dock, seen = m.seen + pkg))
+        return trimPages(m.copy(pages = pages, dock = dock, seen = if (isShortcutEntry(pkg)) m.seen else m.seen + pkg))
     }
 
     /** Empty pages after the first are dropped. */
@@ -249,7 +275,7 @@ object HomeLayout {
         val pages = m.pages.map { p -> p.mapNotNull { i ->
             when (i.kind) {
                 "app", SHORTCUT -> i.takeIf { !gone(i.pkg) }
-                "folder" -> i.copy(apps = i.apps.filter { !gone(it) }).let { f -> when (f.apps.size) { 0 -> null; 1 -> f.copy(kind = "app", pkg = f.apps[0], name = "", apps = emptyList()); else -> f } }
+                "folder" -> folderWith(i, i.apps.filter { !gone(pkgOf(it)) })
                 else -> i
             }
         } }
@@ -283,16 +309,17 @@ object HomeLayout {
                 var it = HItem(j.optString("id").take(16).ifEmpty { "i$pi-$k" }, kind, j.optInt("x", -1), j.optInt("y", -1),
                     j.optInt("w", 1).coerceIn(1, 5), j.optInt("h", 1).coerceIn(1, 6),
                     j.optString("pkg").take(200), j.optString("cls").take(300), j.optString("type"), j.optString("name").take(40),
-                    j.optJSONArray("apps")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() } } ?: emptyList(), j.optInt("awid", 0), j.optString("opt").take(20))
+                    j.optJSONArray("apps")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() } } ?: emptyList(), j.optInt("awid", 0), j.optString("opt").take(20),
+                    j.optJSONObject("names")?.let { n -> n.keys().asSequence().associateWith { k -> n.optString(k).take(40) } } ?: emptyMap())
                 when (kind) {
                     "widget" -> { if (it.type !in WIDGETS || (it.type == APP && (it.awid == 0 || it.pkg.isEmpty()))) continue; it = it.copy(w = minOf(it.w, cols), h = minOf(it.h, rows), x = minOf(it.x, cols - minOf(it.w, cols))) }
                     "app" -> { if (it.pkg.isEmpty() || !seenPkgs.add(it.pkg)) continue; it = it.copy(w = 1, h = 1) }
-                    SHORTCUT -> { if (it.pkg.isEmpty() || it.cls.isEmpty() || !seenShortcuts.add(it.pkg + "/" + it.cls)) continue; it = it.copy(w = 1, h = 1, type = "", apps = emptyList()) }
+                    SHORTCUT -> { if (it.pkg.isEmpty() || it.cls.isEmpty() || !seenShortcuts.add(it.pkg + "/" + it.cls)) continue; it = it.copy(w = 1, h = 1, type = "", apps = emptyList(), names = emptyMap()) }
                     "folder" -> {
-                        val apps = it.apps.filter { seenPkgs.add(it) }.distinct().take(FOLDER_MAX)
+                        val apps = it.apps.filter { e -> if (isShortcutEntry(e)) (pkgOf(e).isNotEmpty() && scIdOf(e).isNotEmpty() && seenShortcuts.add(e.removePrefix(Shortcuts.PREFIX))) else seenPkgs.add(e) }.distinct().take(FOLDER_MAX)
                         if (apps.isEmpty()) continue
-                        // a folder of one is that app again
-                        it = if (apps.size == 1) it.copy(kind = "app", w = 1, h = 1, pkg = apps[0], name = "", apps = emptyList()) else it.copy(w = 1, h = 1, apps = apps)
+                        // a folder of one is that app (or shortcut) again
+                        it = if (apps.size == 1) itemOfEntry(it, apps[0]).copy(id = it.id) else it.copy(w = 1, h = 1, apps = apps, names = it.names.filterKeys { k -> k in apps })
                     }
                 }
                 if (free(out, cols, rows, it.x, it.y, it.w, it.h)) out += it
@@ -387,10 +414,9 @@ object HomeLayout {
             Taken(m.copy(dock = m.dock.mapIndexed { i, d -> if (i == src.slot) "" else d }), HItem(idFor(m, "a"), "app", 0, 0, pkg = pkg), dock = src.slot)
         }
         is Src.InFolder -> find(m, src.folder)?.takeIf { it.second.kind == "folder" && src.pkg in it.second.apps }?.let { (pi, f) ->
-            val left = f.apps - src.pkg
-            val repl = when (left.size) { 0 -> null; 1 -> f.copy(kind = "app", pkg = left[0], name = "", apps = emptyList()); else -> f.copy(apps = left) }
+            val repl = folderWith(f, f.apps - src.pkg)
             val m2 = setPage(m, pi, m.pages[pi].mapNotNull { if (it.id == f.id) repl else it })
-            Taken(m2, HItem(idFor(m2, "a"), "app", 0, 0, pkg = src.pkg))
+            Taken(m2, itemOfEntry(f, src.pkg, id = idFor(m2, if (isShortcutEntry(src.pkg)) "s" else "a"), x = 0, y = 0))
         }
         is Src.NewWidget -> if (src.type !in WIDGETS) null
             else Taken(m, HItem(idFor(m, "w"), "widget", 0, 0, minOf(src.w, m.cols), minOf(src.h, m.rows), type = src.type))
@@ -440,12 +466,13 @@ object HomeLayout {
      * app + folder = one more app in it. Null when it can't (a widget or a folder dragged, a full folder).
      */
     fun dropOnto(t: Taken, targetId: String, name: String): HomeModel? {
-        if (t.item.kind != "app") return null
+        if (t.item.kind != "app" && t.item.kind != SHORTCUT) return null
         val m = t.m
         val (pi, target) = find(m, targetId) ?: return null
+        val e = entryOf(t.item)
         val repl = when (target.kind) {
-            "app" -> if (target.pkg == t.item.pkg) return null else HItem(idFor(m, "f"), "folder", target.x, target.y, name = name.take(40), apps = listOf(target.pkg, t.item.pkg))
-            "folder" -> if (target.apps.size >= FOLDER_MAX || t.item.pkg in target.apps) return null else target.copy(apps = target.apps + t.item.pkg)
+            "app", SHORTCUT -> if (entryOf(target) == e) return null else HItem(idFor(m, "f"), "folder", target.x, target.y, name = name.take(40), apps = listOf(entryOf(target), e), names = namesOf(listOf(target, t.item)))
+            "folder" -> if (target.apps.size >= FOLDER_MAX || e in target.apps) return null else target.copy(apps = target.apps + e, names = target.names + namesOf(listOf(t.item)))
             else -> return null
         }
         return trimPages(setPage(m, pi, m.pages[pi].map { if (it.id == targetId) repl else it }))
@@ -483,7 +510,7 @@ object HomeLayout {
     }
 
     /** "Bỏ khỏi màn chính" target: what was taken stays off the home (apps stay in the drawer and are not re-added). */
-    fun dropRemove(t: Taken): HomeModel = trimPages(t.m.copy(seen = t.m.seen + listOf(t.item.pkg).filter { it.isNotEmpty() } + t.item.apps))
+    fun dropRemove(t: Taken): HomeModel = trimPages(t.m.copy(seen = t.m.seen + listOf(t.item.pkg).filter { it.isNotEmpty() && t.item.kind != SHORTCUT } + t.item.apps.filter { !isShortcutEntry(it) }))
 
     fun rename(m: HomeModel, id: String, name: String): HomeModel {
         val n = name.trim().take(40)
@@ -493,17 +520,18 @@ object HomeLayout {
 
     /** Takes [pkg] off the grid / dock / other folders, wherever it is (the menu's "Thêm vào thư mục" starts here). */
     fun detach(m: HomeModel, pkg: String): Taken {
-        m.pages.flatten().firstOrNull { it.kind == "app" && it.pkg == pkg }?.let { return take(m, Src.Item(it.id))!! }
+        m.pages.flatten().firstOrNull { (it.kind == "app" && it.pkg == pkg) || (it.kind == SHORTCUT && entryOf(it) == pkg) }?.let { return take(m, Src.Item(it.id))!! }
         m.pages.flatten().firstOrNull { it.kind == "folder" && pkg in it.apps }?.let { return take(m, Src.InFolder(it.id, pkg))!! }
         val slot = m.dock.indexOf(pkg)
         if (slot > 0) return take(m, Src.Dock(slot))!!
+        if (isShortcutEntry(pkg)) return Taken(m, HItem(idFor(m, "s"), SHORTCUT, 0, 0, pkg = pkgOf(pkg), cls = scIdOf(pkg)))
         return Taken(m, HItem(idFor(m, "a"), "app", 0, 0, pkg = pkg))
     }
 
     /** "Thêm vào thư mục": [pkg] into the folder or onto the app [targetId] (then a new folder [name]). */
     fun addTo(m: HomeModel, pkg: String, targetId: String, name: String): HomeModel? {
         val t = detach(m, pkg)
-        return dropOnto(t.copy(m = t.m.copy(seen = t.m.seen + pkg)), targetId, name)
+        return dropOnto(t.copy(m = t.m.copy(seen = t.m.seen + pkgOf(pkg))), targetId, name)
     }
 
     // ---- edit mode (several items at once, POCO / One UI) ----
@@ -519,7 +547,7 @@ object HomeLayout {
     }
 
     /** Apps behind grid items (a folder's apps; widgets have none): they stay in the drawer and are never re-added. */
-    private fun pkgsOf(items: List<HItem>) = items.flatMap { when (it.kind) { "app" -> listOf(it.pkg); "folder" -> it.apps; else -> emptyList() } }.filter { it.isNotEmpty() }
+    private fun pkgsOf(items: List<HItem>) = items.flatMap { when (it.kind) { "app" -> listOf(it.pkg); SHORTCUT -> emptyList(); "folder" -> it.apps.filter { e -> !isShortcutEntry(e) }; else -> emptyList() } }.filter { it.isNotEmpty() }
 
     /** "Bỏ khỏi màn chính" on the picked items (apps, folders, widgets). */
     fun removeIds(m: HomeModel, ids: Set<String>): HomeModel {
@@ -540,11 +568,12 @@ object HomeLayout {
      * in reading order. Picked widgets stay where they are. Null: fewer than 2 apps or more than [FOLDER_MAX].
      */
     fun group(m: HomeModel, ids: Collection<String>, name: String): HomeModel? {
-        val items = picked(m, ids).filter { it.second.kind == "app" || it.second.kind == "folder" }
-        val apps = pkgsOf(items.map { it.second }).distinct()
+        val items = picked(m, ids).filter { it.second.kind == "app" || it.second.kind == "folder" || it.second.kind == SHORTCUT }
+        val apps = items.flatMap { (_, i) -> if (i.kind == "folder") i.apps else listOf(entryOf(i)) }.filter { it.isNotEmpty() }.distinct()
         if (apps.size < 2 || apps.size > FOLDER_MAX) return null
         val (pi, first) = items.first()
-        val folder = if (first.kind == "folder") first.copy(apps = apps) else HItem(idFor(m, "f"), "folder", first.x, first.y, name = name.take(40), apps = apps)
+        val nm = namesOf(items.map { it.second })
+        val folder = if (first.kind == "folder") first.copy(apps = apps, names = nm) else HItem(idFor(m, "f"), "folder", first.x, first.y, name = name.take(40), apps = apps, names = nm)
         val merged = items.map { it.second.id }.toSet() - first.id
         val pages = m.pages.mapIndexed { i, p -> p.filter { it.id !in merged }.map { if (i == pi && it.id == first.id) folder else it } }
         return compact(m.copy(pages = pages))
@@ -590,7 +619,7 @@ object HomeLayout {
 
     /** A layout taken from KidGuard Home: other apps' widgets are bound to that app's widget host, so they cannot come along. */
     fun imported(m: HomeModel): HomeModel =
-        trimPages(m.copy(pages = m.pages.map { p -> p.filter { !(it.kind == "widget" && it.type == APP) && it.kind != SHORTCUT } }))   // shortcuts are pinned to that app too
+        trimPages(m.copy(pages = m.pages.map { p -> p.filter { !(it.kind == "widget" && it.type == APP) && it.kind != SHORTCUT }.mapNotNull { i -> if (i.kind == "folder") folderWith(i, i.apps.filter { e -> !isShortcutEntry(e) }) else i } }))   // shortcuts are pinned to that app too
 
     /**
      * A pinned shortcut accepted from an app: the first free cell from the first page on, else a new page. The same

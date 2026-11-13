@@ -180,4 +180,77 @@ class HomeLayoutTest {
         assertEquals(f.toSet(), m.pages.flatten().filter { it.kind == "app" }.map { it.pkg }.toSet())
         assertEquals(m, HomeLayout.appendNew(m, all))   // the others are "seen": they stay in the drawer
     }
+
+    // ---- shortcuts inside folders ----
+    private fun scModel(): HomeModel {
+        var m = HomeLayout.fresh("teen", apps.take(3), listOf("com.sms"))
+        m = HomeLayout.addShortcut(m, "com.brave", "pwa1", "Zalo Web")
+        m = HomeLayout.addShortcut(m, "com.brave", "pwa2", "Mail Web")
+        return m
+    }
+    private fun sc(m: HomeModel, id: String) = m.pages.flatten().single { it.kind == HomeLayout.SHORTCUT && it.cls == id }
+
+    @Test fun shortcutOnShortcutMakesAFolderAndTakesBackOut() {
+        val m = scModel()
+        val a = sc(m, "pwa1"); val b = sc(m, "pwa2")
+        val t = HomeLayout.take(m, HomeLayout.Src.Item(a.id))!!
+        val n = HomeLayout.dropOnto(t, b.id, "Web")!!
+        val f = n.pages.flatten().single { it.kind == "folder" }
+        val ea = HomeLayout.scEntry("com.brave", "pwa1"); val eb = HomeLayout.scEntry("com.brave", "pwa2")
+        assertEquals(listOf(eb, ea), f.apps)
+        assertEquals(mapOf(ea to "Zalo Web", eb to "Mail Web"), f.names)
+        assertEquals(m.onHome(), n.onHome())        // a shortcut never counts as its app on the home
+        assertTrue(n.pages.flatten().none { it.kind == HomeLayout.SHORTCUT })
+        // an app joins it too; a shortcut joins a folder of apps
+        val withApp = HomeLayout.dropOnto(HomeLayout.take(n, HomeLayout.Src.Item(n.pages.flatten().first { it.kind == "app" }.id))!!, f.id, "")!!
+        assertEquals(3, withApp.pages.flatten().single { it.kind == "folder" }.apps.size)
+        // reorder keeps the labels
+        val r = HomeLayout.reorderFolder(n, f.id, listOf(ea, eb))!!
+        assertEquals(listOf(ea, eb), r.pages.flatten().single { it.kind == "folder" }.apps)
+        // take one out: it is a shortcut item again (label kept) and the folder of one turns back into a shortcut
+        val out = HomeLayout.take(n, HomeLayout.Src.InFolder(f.id, ea))!!
+        assertEquals(HomeLayout.SHORTCUT, out.item.kind)
+        assertEquals(Triple("com.brave", "pwa1", "Zalo Web"), Triple(out.item.pkg, out.item.cls, out.item.name))
+        val left = out.m.pages.flatten().single { it.id == f.id }
+        assertEquals(HomeLayout.SHORTCUT to "pwa2", left.kind to left.cls); assertEquals("Mail Web", left.name)
+        // a shortcut folder dragged by "Gom nhóm" with an app
+        val g = HomeLayout.group(m, listOf(a.id, b.id, m.pages.flatten().first { it.kind == "app" }.id), "")!!
+        assertEquals(3, g.pages.flatten().single { it.kind == "folder" }.apps.size)
+    }
+
+    @Test fun oldFolderJsonLoadsUnchangedAndNamesRoundTrip() {
+        val old = """{"v":1,"grid":{"cols":4,"rows":5},"pages":[{"items":[{"id":"f1","kind":"folder","x":0,"y":0,"name":"F","apps":["com.a","com.b"]}]}],"dock":[{"pkg":"@phone"}]}"""
+        val m = HomeLayout.parse(old)!!
+        val f = m.pages[0].single()
+        assertEquals(listOf("com.a", "com.b"), f.apps); assertTrue(f.names.isEmpty())
+        assertFalse(f.toJson().has("names"))          // serialized only when non-empty
+        val e = HomeLayout.scEntry("com.brave", "x/1")
+        val m2 = m.copy(pages = listOf(listOf(f.copy(apps = f.apps + e, names = mapOf(e to "X one")))))
+        val j = m2.toJson().toString()
+        val back = HomeLayout.parse(j)!!.pages[0].single()
+        assertEquals(listOf("com.a", "com.b", e), back.apps); assertEquals(mapOf(e to "X one"), back.names)
+        assertEquals("com.brave", HomeLayout.pkgOf(e)); assertEquals("x/1", HomeLayout.scIdOf(e)); assertEquals("com.a", HomeLayout.pkgOf("com.a"))
+    }
+
+    @Test fun uninstalledAppsShortcutLeavesFolderAndImportDropsIt() {
+        val m = scModel()
+        val a = sc(m, "pwa1"); val b = sc(m, "pwa2")
+        val n = HomeLayout.dropOnto(HomeLayout.take(m, HomeLayout.Src.Item(a.id))!!, b.id, "")!!
+        val withApp = HomeLayout.addTo(n, "com.app1", n.pages.flatten().single { it.kind == "folder" }.id, "")!!
+        assertEquals(3, withApp.pages.flatten().single { it.kind == "folder" }.apps.size)
+        // the browser goes: both shortcuts leave, the folder of the app left turns back into it
+        val gone = HomeLayout.prune(withApp) { it == "com.brave" }
+        assertTrue(gone.pages.flatten().none { it.kind == "folder" || it.kind == HomeLayout.SHORTCUT })
+        assertTrue(gone.pages.flatten().any { it.kind == "app" && it.pkg == "com.app1" })
+        // another app goes: the folder keeps its shortcuts and their labels
+        val keep = HomeLayout.prune(withApp) { it == "com.app1" }.pages.flatten().single { it.kind == "folder" }
+        assertEquals(2, keep.apps.size); assertEquals(2, keep.names.size)
+        // imported from KidGuard Home: shortcuts leave the folders too
+        val imp = HomeLayout.imported(withApp)
+        assertTrue(imp.pages.flatten().none { it.kind == "folder" })
+        // duplicate entries in a stored folder are loaded once
+        val e = HomeLayout.scEntry("com.brave", "pwa1")
+        val dup = HomeLayout.parse(n.copy(pages = listOf(listOf(n.pages.flatten().single { it.kind == "folder" }.copy(apps = listOf(e, e, "com.z"))))).toJson().toString())!!
+        assertEquals(listOf(e, "com.z"), dup.pages[0].single().apps)
+    }
 }

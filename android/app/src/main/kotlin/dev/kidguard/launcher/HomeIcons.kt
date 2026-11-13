@@ -100,13 +100,13 @@ internal fun HomeActivity.appIcon(a: AppE, paused: Boolean, dv: View0, r: Rules,
     // drag source: where the icon lives
     val src: () -> DragSt = {
         when (mode) {
-            Mode.HOME -> DragSt(Src.Item(item!!.id), null, item.kind, 1, 1, item.id, box)   // a shortcut can't go into a folder
+            Mode.HOME -> DragSt(Src.Item(item!!.id), null, item.kind, 1, 1, item.id, box)
             Mode.DOCK -> DragSt(Src.Dock(slot), null, "app", 1, 1, null, box)
-            Mode.PANEL -> DragSt(Src.InFolder(folder!!.id, a.pkg), null, "app", 1, 1, null, null)
+            Mode.PANEL -> DragSt(Src.InFolder(folder!!.id, a.entry()), null, if (a.cls.startsWith(Shortcuts.PREFIX)) HomeLayout.SHORTCUT else "app", 1, 1, null, null)
             Mode.DRAWER -> DragSt(null, a.pkg, "app", 1, 1, null, null)
         }
     }
-    arm(box, { if (item?.kind == HomeLayout.SHORTCUT) shortcutMenu(item, box) else appMenu(a, box, mode, item) }, src, press = frame)   // in a folder too: menu first, moving the finger drags (iOS)
+    arm(box, { if (a.cls.startsWith(Shortcuts.PREFIX)) shortcutMenu(a, mode, item, box) else appMenu(a, box, mode, item) }, src, press = frame)   // in a folder too: menu first, moving the finger drags (iOS)
     return box
 }
 

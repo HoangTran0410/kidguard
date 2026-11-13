@@ -299,7 +299,7 @@ internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
     val (pi, a, under) = cellAt(x, y, d) ?: run { clearCell(); return }
     val cl = pageView() ?: return
     // folder: only after the finger rests on the middle of an app / folder icon for HomeActivity.FOLDER_MS; passing over = move
-    if (under != null && d.kind == "app" && (under.kind == "app" || under.kind == "folder") && nearCentre(under, x, y)) {
+    if (under != null && (d.kind == "app" || d.kind == HomeLayout.SHORTCUT) && (under.kind == "app" || under.kind == "folder" || under.kind == HomeLayout.SHORTCUT) && nearCentre(under, x, y)) {
         if (hoverId == under.id) return
         clearCell()
         hoverId = under.id
@@ -309,7 +309,7 @@ internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
             if (hoverId != u.id) return@Runnable
             folderReady = true
             itemViews[u.id]?.let { v -> folderPlate(v); v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY) }
-            val name = if (u.kind == "folder") folderName(u) else launcherApps()[u.pkg]?.label ?: ""
+            val name = if (u.kind == "folder") folderName(u) else if (u.kind == HomeLayout.SHORTCUT) u.name.ifBlank { launcherApps()[u.pkg]?.label ?: "" } else launcherApps()[u.pkg]?.label ?: ""
             showTip(getString(if (u.kind == "folder") R.string.hm_f_drop_into else R.string.hm_f_drop_make, name))
         }.also { main.postDelayed(it, HomeActivity.FOLDER_MS) }
         return
@@ -373,8 +373,8 @@ internal fun HomeActivity.drop(x: Float, y: Float, d: DragSt): Boolean {
         dockTarget(x, y, d) != null -> dockTarget(x, y, d)!!.let { (slot, k) -> if (slot >= 0) HomeLayout.dropDock(t, slot) else HomeLayout.insertDock(t, k) }
         dockSlot(x, y) >= 0 -> null
         else -> cellAt(x, y, d)?.let { (pi, a, under) ->
-            if (folderReady && under != null && under.id == hoverId && d.kind == "app")
-                HomeLayout.dropOnto(t, under.id, if (under.kind == "app") autoName(under.pkg, t.item.pkg) else "")
+            if (folderReady && under != null && under.id == hoverId && (d.kind == "app" || d.kind == HomeLayout.SHORTCUT))
+                HomeLayout.dropOnto(t, under.id, if (under.kind == "app" && t.item.kind == "app") autoName(under.pkg, t.item.pkg) else "")
             else HomeLayout.dropMove(t, pi, a.first, a.second)
         }
     }
@@ -410,7 +410,7 @@ internal fun HomeActivity.landNow() {
     val all = m.pages.flatten()
     var pop = false
     val v: View = d.id?.let { itemViews[it] }
-        ?: all.firstOrNull { pkg != null && it.kind == "app" && it.pkg == pkg }?.let { itemViews[it.id] }
+        ?: all.firstOrNull { pkg != null && (it.kind == "app" || it.kind == HomeLayout.SHORTCUT) && HomeLayout.entryOf(it) == pkg }?.let { itemViews[it.id] }
         ?: all.firstOrNull { pkg != null && it.kind == "folder" && pkg in it.apps }?.let { pop = true; itemViews[it.id] }
         ?: m.dock.indexOf(pkg ?: "").takeIf { it > 0 }?.let { dockViews.getOrNull(it) }
         ?: return
