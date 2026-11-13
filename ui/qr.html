@@ -79,6 +79,35 @@
 
 <script src="/ui/qrcode.js"></script>
 <script>
+// Language: Vietnamese is the source text, English comes from this table (same kg.lang key as the parent page; ?lang=en|vi switches).
+var KG_EN = {"QR cài KidGuard": "KidGuard install QR", "Cài KidGuard lên điện thoại mới / vừa khôi phục cài đặt gốc bằng cách quét mã QR. Không cần máy tính, không cần cáp.": "Install KidGuard on a new or just factory-reset phone by scanning a QR code. No computer, no cable.", "1. Tuỳ chọn": "1. Options", "Địa chỉ file kidguard.apk": "Address of the kidguard.apk file", "Tên Wi-Fi (không bắt buộc)": "Wi-Fi name (optional)", "để trống nếu tự chọn Wi-Fi trên điện thoại": "leave empty to pick the Wi-Fi on the phone", "Mật khẩu Wi-Fi": "Wi-Fi password", "Kiểu bảo mật Wi-Fi": "Wi-Fi security type", "Không mật khẩu": "No password", "Giữ nguyên ứng dụng hệ thống (bắt buộc, nếu không điện thoại mất gọi/tin nhắn/bàn phím)": "Keep the system apps (required, otherwise the phone loses calls, messages and keyboard)", "Mật khẩu Wi-Fi chỉ nằm trong mã QR trên màn hình này, trang không gửi đi đâu.": "The Wi-Fi password only lives in the QR code on this screen. The page sends it nowhere.", "2. Mã QR": "2. QR code", "3. Các bước": "3. Steps", "Khôi phục cài đặt gốc điện thoại của con (Cài đặt > Hệ thống > Đặt lại).": "Factory-reset your child's phone (Settings > System > Reset).", "Mất hết dữ liệu": "Everything on it is erased", ", và máy chưa được đăng nhập tài khoản nào.": ", and no account may be signed in on it.", "Máy khởi động lại vào màn hình": "The phone restarts into the", "\"Chào mừng\" / \"Welcome\"": "\"Welcome\" screen", ": chạm": ": tap", "6 lần": "6 times", "vào cùng một chỗ trên màn hình (ví dụ chữ \"Chào mừng\") cho tới khi hiện máy quét QR. Có thể phải tải thêm trình quét, cần Wi-Fi.": "on the same spot of the screen (for example the word \"Welcome\") until the QR scanner appears. It may need to download a scanner first, so Wi-Fi is needed.", "Nếu máy hỏi, kết nối Wi-Fi (bỏ qua nếu đã điền Wi-Fi ở trên).": "If asked, connect to Wi-Fi (skip it if you filled in the Wi-Fi above).", "Quét mã QR ở trên. Chờ máy tải và cài KidGuard (vài phút), làm theo các bước máy hiện ra.": "Scan the QR code above. Wait while the phone downloads and installs KidGuard (a few minutes), and follow the steps it shows.", "Mở": "Open", ", làm hết mục": ", and finish the", "\"Bước còn lại\"": "\"Remaining steps\"", "(bật quyền theo dõi sử dụng, bật Trợ năng, cài đặt pin).": "section (turn on usage access, turn on Accessibility, battery settings).", "Ghép máy của bố mẹ: làm theo hướng dẫn trên màn hình KidGuard (mã 6 số).": "Pair your own phone: follow the guide on the KidGuard screen (6-digit code).", "Máy Android 10 trở lên. Cần cài trên máy": "Android 10 or newer. It has to be installed on a", "mới hoặc vừa khôi phục": "new or just reset phone", ", không cài được lên máy đang dùng. Muốn cài bằng máy tính:": ", it can't be installed on a phone already in use. To install with a computer:", "trang cài bằng cáp USB": "use the USB cable install page", "Thiếu mã chữ ký (checksum). Hãy build lại bằng ./build.sh.": "The signature checksum is missing. Build again with ./build.sh.", "Địa chỉ file APK phải bắt đầu bằng https://": "The APK address must start with https://", "Sẵn sàng quét": "Ready to scan", "Không tạo được mã QR (chữ quá dài?). Rút ngắn địa chỉ APK hoặc mật khẩu Wi-Fi.": "Could not make the QR code (text too long?). Shorten the APK address or the Wi-Fi password."};
+var LANG = (function () {
+  try {
+    var q = /[?&]lang=(vi|en)/.exec(location.search);
+    if (q) { localStorage.setItem("kg.lang", q[1]); return q[1]; }
+    var s = localStorage.getItem("kg.lang"); if (s === "vi" || s === "en") return s;
+  } catch (e) {}
+  var l = navigator.languages || [navigator.language || ""];
+  for (var i = 0; i < l.length; i++) { var b = String(l[i]).toLowerCase().split("-")[0]; if (b === "vi" || b === "en") return b; }
+  return "en";
+})();
+function T(s) { return LANG === "en" && KG_EN[s] !== undefined ? KG_EN[s] : s; }
+(function () {
+  document.documentElement.lang = LANG;
+  if (LANG === "en") {
+    var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), n, todo = [];
+    while ((n = w.nextNode())) { var t = n.nodeValue.replace(/\s+/g, " ").trim(); if (t && KG_EN[t] !== undefined && !/^(SCRIPT|STYLE)$/.test(n.parentNode.nodeName)) todo.push([n, t]); }
+    todo.forEach(function (x) { x[0].nodeValue = x[0].nodeValue.replace(/\S[\s\S]*\S|\S/, function () { return KG_EN[x[1]]; }); });
+    document.title = T(document.title);
+    Array.prototype.forEach.call(document.querySelectorAll("[placeholder]"), function (e) { e.placeholder = T(e.placeholder); });
+  }
+  var a = document.createElement("a");
+  a.href = "?lang=" + (LANG === "en" ? "vi" : "en"); a.textContent = LANG === "en" ? "Tiếng Việt" : "English";
+  a.style.cssText = "float:right;font-size:15px";
+  document.querySelector("main").insertBefore(a, document.querySelector("main").firstChild);
+})();
+</script>
+<script>
 "use strict";
 // Defaults written by build.sh from the signing certificate of build/kidguard.apk (same values as ui/provision.json).
 const DEF = /*KG*/{"component":"dev.kidguard/dev.kidguard.Admin","checksum":"ikkBjVdOn0kJ2sfCNG_q8PFlxidRsPOiHmvgCg6kToE","apkUrl":"https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk"}/*KG*/;
@@ -125,16 +154,16 @@ function draw(canvas, m) {
 function render() {
   const apkUrl = $("apk").value.trim();
   const msg = $("qrmsg");
-  if (!DEF.checksum) { msg.innerHTML = ICA + " Thiếu mã chữ ký (checksum). Hãy build lại bằng ./build.sh."; msg.className = "msg bad"; return; }
-  if (!/^https:\/\/\S+$/.test(apkUrl)) { msg.innerHTML = ICA + " Địa chỉ file APK phải bắt đầu bằng https://"; msg.className = "msg bad"; return; }
+  if (!DEF.checksum) { msg.innerHTML = ICA + " " + T("Thiếu mã chữ ký (checksum). Hãy build lại bằng ./build.sh."); msg.className = "msg bad"; return; }
+  if (!/^https:\/\/\S+$/.test(apkUrl)) { msg.innerHTML = ICA + " " + T("Địa chỉ file APK phải bắt đầu bằng https://"); msg.className = "msg bad"; return; }
   const text = payload({ component: DEF.component, checksum: DEF.checksum, apkUrl, ssid: $("ssid").value, pw: $("pw").value, sec: $("sec").value });
   try {
     const m = matrix(text);
     draw($("qr"), m);
-    msg.innerHTML = ICK + " Sẵn sàng quét (" + m.length + "×" + m.length + ")";
+    msg.innerHTML = ICK + " " + T("Sẵn sàng quét") + " (" + m.length + "×" + m.length + ")";
     msg.className = "msg";
   } catch (e) {
-    msg.innerHTML = ICA + " Không tạo được mã QR (chữ quá dài?). Rút ngắn địa chỉ APK hoặc mật khẩu Wi-Fi.";
+    msg.innerHTML = ICA + " " + T("Không tạo được mã QR (chữ quá dài?). Rút ngắn địa chỉ APK hoặc mật khẩu Wi-Fi.");
     msg.className = "msg bad";
   }
 }

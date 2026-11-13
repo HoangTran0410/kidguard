@@ -111,11 +111,14 @@ internal fun HomeActivity.openRelated(intent: android.content.Intent, from: View
     if (!debounce(intent.action + intent.categories)) return
     val all = launcherApps().values
     val pkgs = runCatching { packageManager.queryIntentActivities(intent, 0).map { it.activityInfo.packageName } }.getOrDefault(emptyList())
-    val a = pkgs.firstNotNullOfOrNull { p -> all.firstOrNull { it.pkg == p } }
-        ?: return Toasts.show(this, R.string.hm_no_app)
+    val cands = pkgs.mapNotNull { p -> all.firstOrNull { it.pkg == p } }.distinctBy { it.pkg }
+    if (cands.isEmpty()) return Toasts.show(this, R.string.hm_no_app)
     val s = Store.of(this); val r = s.rules; val dv = decision(r, s)
-    val why = LauncherLogic.hiddenReason(a.pkg, dv.want, r, packageName, tsManaged, focusAllowed(dv))
-    if (why != null && why != "plumbing") return Toasts.show(this, a.label.take(14) + ": " + reasonLong(why), true)
+    fun hid(a: HomeActivity.AppE) = LauncherLogic.hiddenReason(a.pkg, dv.want, r, packageName, tsManaged, focusAllowed(dv)).takeIf { it != "plumbing" }
+    // the first resolver may be hidden while another one is fine: use the first one that is not hidden; the toast names the first
+    val a = cands.firstOrNull { hid(it) == null } ?: cands[0]
+    val why = hid(a)
+    if (why != null) return Toasts.show(this, a.label.take(14) + ": " + reasonLong(why), true)
     val reason = LauncherLogic.pauseReason(a.pkg, dv.want, settingsOk(r))
     if (reason != null) pausedSheet(a, reason, dv, r) else launch(a, from)
 }

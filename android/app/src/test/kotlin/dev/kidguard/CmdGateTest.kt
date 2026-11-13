@@ -25,6 +25,10 @@ class CmdGateTest {
         assertTrue(CmdGate.needs("relay", "", ""))                                // "off" when already off: still gated (no free probe)
     }
 
+    @Test fun relayRenewIsAlwaysGated() {
+        assertTrue(CmdGate.needs("relay", "https://r.example.dev", "https://r.example.dev", renew = true))
+    }
+
     @Test fun newPinShape() {
         assertEquals("1234", CmdGate.newPin("1234"))
         assertEquals("12345678", CmdGate.newPin("12345678"))

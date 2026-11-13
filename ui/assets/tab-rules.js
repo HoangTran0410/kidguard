@@ -224,7 +224,7 @@ function rulesWire(b, r) {
   const $ = s => b.querySelector(s) || document.createElement("i");
   // chips follow edits that don't redraw the tab (selects, checkboxes, typing)
   const chips = () => setTimeout(() => { if (!b.isConnected || !edit) return; const c = ruleChips(edit); Object.keys(c).forEach(k => setChip(b, "r-" + k, c[k])); });
-  b.addEventListener("change", chips); b.addEventListener("input", chips);
+  if (!b._kgChips) { b._kgChips = 1; b.addEventListener("change", chips); b.addEventListener("input", chips); }   // b outlives renders: once only
   b.querySelectorAll("[data-g]").forEach(box => {
     const i = +box.dataset.g, g = r.groups[i];
     $("#f-gn" + i).oninput = e => { g.name = e.target.value.slice(0, 40); changed(); };

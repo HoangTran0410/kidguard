@@ -41,6 +41,10 @@ object AccPauseLogic {
         "vms.com.vn.mymobifone",            // My MobiFone (refuses USB debugging, error 50052; owner 2026-11-11)
     )
 
+    /** Basic mode, a bank app paused the service: resume at once when a blocked app comes up, or a Settings / installer page
+     *  (the service also guards those; audit L1: they were unguarded for up to 60 s). */
+    fun resumeFor(bounce: String?, pkg: String, everPaired: Boolean): Boolean = bounce != null || (everPaired && BasicLogic.isSettingsPkg(pkg))
+
     /** Tick step while paused: new "left at" time (0 = a paused app is in front) and whether to turn the service back on. */
     fun step(current: String?, list: Set<String>, leftAt: Long, now: Long, resumeMs: Long = RESUME_MS): Pair<Long, Boolean> = when {
         current != null && current in list -> 0L to false
@@ -124,7 +128,7 @@ object AccPause {
         watchFrom = now - 1_000   // small overlap: events land a little late
         val pkg = watchCur ?: return
         if (pkg in s.rules.accPause || pkg in s.accPaused) return
-        if (BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) == null) return
+        if (!AccPauseLogic.resumeFor(BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot), pkg, s.everPaired)) return
         synchronized(this) { if (s.accPaused.isNotEmpty()) { resume(ctx, s, s.accPaused, kill = false); runCatching { s.log(R.string.log_acc_resumed_blocked, label(ctx, pkg)) } } }
         watchStop()
     }

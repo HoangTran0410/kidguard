@@ -210,6 +210,8 @@ class NotifDetailActivity : Activity() {
         val st = Store.of(this); val r = st.rules
         val own = !Flavor.HOME && runCatching { Policy.isOwner(this) || st.everPaired }.getOrDefault(false)
         val tsOn = !Flavor.HOME && runCatching { st.tsWanted }.getOrDefault(false)
+        // no Guard snapshot yet (cold start, managed phone): the time limits are unknown, so open nothing rather than guess "allowed"
+        if (!Flavor.HOME && Guard.snap == null && (own || r.launcher.on)) { Toasts.show(this, R.string.nlog_gone); return }
         val show = LauncherLogic.show(e.pkg, Guard.snap?.want ?: emptyMap(), r, packageName, Flavor.HOME || LauncherLogic.settingsOk(r, owner = own, paired = false), tsOn)
         if (show != LauncherLogic.Show.OK) { Toasts.show(this, R.string.nlog_gone); return }
         val pi = NotifLog.pendingFor(e.key)

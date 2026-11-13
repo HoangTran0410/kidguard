@@ -130,6 +130,8 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean,
             PlaybackState.STATE_SKIPPING_TO_PREVIOUS, PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM)
         val l = (list ?: runCatching { msm.getActiveSessions(cn) }.getOrNull().orEmpty())
             .filter { it.metadata != null && it.playbackState?.state in live }
+            // a hidden / paused / time-limited app is hidden here like its icon: no title, no controls for its session
+            .filter { c -> act.lastShow[c.packageName].let { st -> st != LauncherLogic.Show.HIDE && st != LauncherLogic.Show.PAUSED } }
         val best = l.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING } ?: l.firstOrNull()
         if (best?.sessionToken != ctl?.sessionToken) {
             ctl?.unregisterCallback(cb); ctl = best

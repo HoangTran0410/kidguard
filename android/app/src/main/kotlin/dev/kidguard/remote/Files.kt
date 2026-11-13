@@ -84,7 +84,7 @@ object Files {
                 val raw = runCatching { URLDecoder.decode(seg.replace("+", "%2B"), "UTF-8") }.getOrNull() ?: return err("bad name", 400)
                 val ins = r.input ?: return err("no body", 400)
                 val (e, code) = receive(c, raw, r.length, r.header("content-type"), ins, r.query["id"])
-                if (e == null) err(code, when (code) { "too big" -> 413; "no space" -> 507; "failed" -> 500; else -> 400 })
+                if (e == null) err(code, when (code) { "too big" -> 413; "no space", "quota" -> 507; "failed" -> 500; else -> 400 })
                 else Res.json(JSONObject().put("file", e.toJson()).toString())
             }
             !FilesLogic.isId(seg) -> err("not found", 404)
@@ -130,9 +130,11 @@ object Files {
     fun receive(c: Context, raw: String, len: Long, typeHint: String?, ins: InputStream, wantId: String? = null): Pair<Entry?, String> {
         val name0 = FilesLogic.cleanName(raw) ?: return null to "bad name"
         FilesLogic.sizeError(len, FilesLogic.MAX_LAN)?.let { return null to it }
+        val inbox = all(c).filter { it.dir == FilesLogic.IN }
+        FilesLogic.intakeError(len, inbox.sumOf { it.size })?.let { return null to it }
         val id = wantId?.takeIf { FilesLogic.isId(it) && get(c, it) == null } ?: newId()
         val mime = mimeOf(name0, typeHint)
-        val takenIdx = all(c).filter { it.dir == FilesLogic.IN }.map { it.name.lowercase() }.toSet()
+        val takenIdx = inbox.map { it.name.lowercase() }.toSet()
         return try {
             val (loc, name) = if (Build.VERSION.SDK_INT >= 29) writeMediaStore(c, FilesLogic.unique(name0) { it.lowercase() in takenIdx }, mime, len, ins)
                 else writeLegacy(c, name0, takenIdx, len, ins)

@@ -191,20 +191,21 @@ object Update {
      */
     private fun installQuiet(ctx: Context, f: File): Boolean {
         if (Build.VERSION.SDK_INT < 31 || !ctx.packageManager.canRequestPackageInstalls()) return false
+        var open = -1   // a session left behind by any failure below is abandoned (audit L26): a stale one blocks the next install
+        val pi = ctx.packageManager.packageInstaller
         return runCatching {
-            val pi = ctx.packageManager.packageInstaller
             val p = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
                 setAppPackageName(ctx.packageName); setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
             }
-            val id = pi.createSession(p)
+            val id = pi.createSession(p); open = id
             try { pi.openSession(id).use { s -> f.inputStream().use { i -> s.openWrite("kg", 0, f.length()).use { o -> i.copyTo(o); s.fsync(o) } } } }
             catch (e: Throwable) { runCatching { pi.abandonSession(id) }; throw e }
             status = "installing"
             // success replaces this process before we get here; "needs the child" comes back as err_user_action
             val res = pi.openSession(id).use { s -> Ts.commitAndWait(ctx, s, "dev.kidguard.SELF_UPDATE") }
-            if (res != null) Log.i(TAG, "quiet update refused: $res")
+            if (res != null) { Log.i(TAG, "quiet update refused: $res"); runCatching { pi.abandonSession(id) } }
             res == null
-        }.getOrElse { Log.w(TAG, "quiet update", it); false }
+        }.getOrElse { Log.w(TAG, "quiet update", it); if (open >= 0) runCatching { pi.abandonSession(open) }; false }
     }
 
     /** Basic mode, from the child's tap: needs "install unknown apps" for KidGuard, then the system asks to confirm. */

@@ -9,6 +9,7 @@ USB debugging, plug it in. Accounts of ordinary apps (Zalo, Facebook, Telegram..
 off for a moment, restarts the phone once, makes KidGuard Device Owner, and turns the apps back on (always, also on error).
 After setup you can sign in to the phone accounts again.
 Several devices attached: set $env:ANDROID_SERIAL = "<serial>" first.
+Downloaded APK is checked against kidguard.apk.sha256 and refused if that cannot be fetched ($env:KG_ALLOW_UNVERIFIED = "1" skips the check).
 Undo: from the parent's page, Settings > "Gỡ quyền quản lý", then uninstall the app.
 Steps are the same as docs/protocol.md "Setup steps" (setup.sh and ui/install.html do the same).
 #>
@@ -17,6 +18,11 @@ $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ProgressPreference = "SilentlyContinue"
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+# An APK path given on the command line is resolved against where you ran the script, before we cd next to it.
+if ($Apk) {
+    if (-not (Test-Path -LiteralPath $Apk -PathType Leaf)) { Write-Host "LỖI: Không thấy file APK: $Apk"; exit 1 }
+    $Apk = (Resolve-Path -LiteralPath $Apk).Path
+}
 if ($PSScriptRoot) { Set-Location -Path $PSScriptRoot } else { Set-Location -Path (Get-Location).Path }
 $Pkg = "dev.kidguard"
 $Acc = "$Pkg/$Pkg.Acc"
@@ -25,19 +31,30 @@ $Acc = "$Pkg/$Pkg.Acc"
 if (-not $Apk) {
     foreach ($c in @("kidguard.apk", "..\build\kidguard.apk")) { if (Test-Path $c) { $Apk = $c; break } }
 }
-if (-not $Apk -or -not (Test-Path $Apk)) {
+if (-not $Apk) {
     Write-Host "[..] Không thấy file kidguard.apk, tải bản mới nhất…"
     $rel = "https://github.com/HoangTran0410/kidguard/releases/latest/download"
     $Apk = Join-Path $env:TEMP "kidguard.apk"
     Invoke-WebRequest -UseBasicParsing -Uri "$rel/kidguard.apk" -OutFile $Apk
+    # Windows PowerShell 5.1 returns .Content as byte[] for this response: save to a file and read it as text
     $want = $null
-    try { $want = ((Invoke-WebRequest -UseBasicParsing -Uri "$rel/kidguard.apk.sha256").Content -split "\s+")[0].Trim().ToLower() } catch { }
+    $shaFile = Join-Path $env:TEMP "kidguard.apk.sha256"
+    try {
+        Invoke-WebRequest -UseBasicParsing -Uri "$rel/kidguard.apk.sha256" -OutFile $shaFile
+        $want = ((Get-Content -Path $shaFile -Raw) -split "\s+" | Where-Object { $_ })[0].Trim().ToLower()
+    } catch { $want = $null }
+    if ($want -and $want -notmatch '^[0-9a-f]{64}$') { $want = $null }
     if ($want) {
         $got = (Get-FileHash -Algorithm SHA256 -Path $Apk).Hash.ToLower()
         if ($got -ne $want) { Write-Host "LỖI: Sai mã kiểm tra SHA-256 của kidguard.apk (muốn $want, được $got). Dừng."; exit 1 }
         Write-Host "OK Đã kiểm tra SHA-256 của kidguard.apk"
+    } elseif ($env:KG_ALLOW_UNVERIFIED -eq "1") {
+        Write-Host "[!] Không tải được kidguard.apk.sha256, bỏ qua kiểm tra vì KG_ALLOW_UNVERIFIED=1."
     } else {
-        Write-Host "[!] Không có kidguard.apk.sha256 trên bản phát hành, không kiểm tra được tính toàn vẹn."
+        # fail closed: no checksum = stop, unless KG_ALLOW_UNVERIFIED=1 (you accept installing an unverified APK)
+        Write-Host "LỖI: Không tải được kidguard.apk.sha256 nên không kiểm tra được tính toàn vẹn. Dừng."
+        Write-Host '→ Thử lại khi có mạng, hoặc truyền file APK đã tải: setup.ps1 kidguard.apk. Chấp nhận rủi ro: $env:KG_ALLOW_UNVERIFIED = "1"'
+        exit 1
     }
 }
 
@@ -66,7 +83,13 @@ function Adb {
     return ($o -join "`n").Replace("`r", "")
 }
 
-$devs = @((Adb devices) -split "`n" | Select-Object -Skip 1 | Where-Object { $_ -match "\sdevice$" })
+$devList = (Adb devices) -split "`n" | Select-Object -Skip 1
+if (@($devList | Where-Object { $_ -match "\sunauthorized$" }).Count -gt 0) {
+    Write-Host 'Máy đã cắm nhưng chưa cho phép gỡ lỗi USB: nhìn màn hình điện thoại, bấm "Cho phép" (tick "Luôn cho phép"), rồi chạy lại.'
+    Write-Host (Adb devices)
+    exit 1
+}
+$devs = @($devList | Where-Object { $_ -match "\sdevice$" })
 if ($env:ANDROID_SERIAL) { $devs = @($devs | Where-Object { ($_ -split "\s+")[0] -eq $env:ANDROID_SERIAL }) }
 if ($devs.Count -ne 1) {
     Write-Host "Cần đúng 1 máy đã cắm và cho phép gỡ lỗi USB (đang thấy: $($devs.Count))"
@@ -95,14 +118,26 @@ function Chk {
 
 # --- app accounts are kept: their apps are turned off during the Device Owner step, then always turned back on ---
 $OffFile = Join-Path $env:LOCALAPPDATA "kidguard\apps-off.txt"   # survives a crash / Ctrl-C: the next run turns them on first
-$script:Off = @()
+$script:Off = @(); $script:ReenableFailed = $false
 function Reenable {
     if ($script:Off.Count -eq 0) { return }
     $list = @($script:Off); $script:Off = @()
     Write-Host "[*] Bật lại các app đã tắt tạm: $($list -join ' ')"
     for ($i = 0; $i -lt 60; $i++) { if ((Adb shell echo ok) -match "ok") { break }; Start-Sleep -Seconds 2 }   # the phone may still be restarting
-    foreach ($p in $list) { Write-Host (Adb shell pm enable $p) }
-    Remove-Item $OffFile -Force -ErrorAction SilentlyContinue
+    $left = @()
+    foreach ($p in $list) {
+        $o = Adb shell pm enable $p
+        Write-Host $o
+        if ($o -notmatch "enabled") { $left += $p }
+    }
+    if ($left.Count -gt 0) {   # keep the record of the ones that failed: the next run turns them on first
+        New-Item -ItemType Directory -Force -Path (Split-Path $OffFile) | Out-Null
+        Set-Content -Path $OffFile -Value ($left -join " ") -NoNewline
+        Write-Host "[!] Chưa bật lại được: $($left -join ' '). Cắm máy rồi chạy lại script này (sẽ bật lại trước), hoặc trên máy: Cài đặt > Ứng dụng, bật các app đó."
+        $script:ReenableFailed = $true
+    } else {
+        Remove-Item $OffFile -Force -ErrorAction SilentlyContinue
+    }
 }
 # Fail: stop the script after turning the apps back on. Ctrl-C: the next run turns them on first (apps-off.txt).
 function Fail { Reenable; exit 1 }
@@ -111,6 +146,7 @@ if (Test-Path $OffFile) {
     $script:Off = @((Get-Content $OffFile -Raw) -split "\s+" | Where-Object { $_ })
     Write-Host "[!] Lần chạy trước còn app bị tắt tạm, bật lại trước."
     Reenable
+    if ($script:ReenableFailed) { exit 1 }
 }
 
 Write-Host "[1/8] Cài app"
@@ -207,7 +243,7 @@ Adb shell appops set $Pkg REQUEST_INSTALL_PACKAGES allow | Out-Null   # self-upd
 Write-Host "[5/8] Bật dịch vụ Trợ năng"
 $cur = ((Adb shell settings get secure enabled_accessibility_services) -split "`n")[0].Trim()
 if ($cur -eq "null") { $cur = "" }
-if ((":$cur:") -notlike "*:${Acc}:*") {
+if ((":${cur}:") -notlike "*:${Acc}:*") {
     if ($cur) { $cur = "${cur}:${Acc}" } else { $cur = $Acc }
 }
 if ($cur.Contains("'")) { Write-Host "LỖI: Danh sách trợ năng có ký tự lạ: $cur"; Fail }

@@ -6,6 +6,7 @@
     <string name="hm2_name_hint">Tên (gốc: %1$s)</string>
     <string name="hm2_icon_orig">Icon gốc</string>
     <string name="hm2_icon_color">Màu</string>
+    <string name="hm_hex_label">Mã màu hex</string>
     <string name="hm2_icon_glyphs">Biểu tượng</string>
     <string name="hm2_icon_emoji">Emoji</string>
     <string name="hm2_c_read">Dễ đọc</string>

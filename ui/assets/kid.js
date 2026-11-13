@@ -83,11 +83,33 @@ $("#saveRetry").onclick = () => changed();
 // bot, the kid's phone), only the fields changed here are laid over the newer rules: the other edit is not undone.
 let editBase = null;
 const sameJ = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// Array fields (blocked, zones, chores...) and the appMin map merge per item, three-way against editBase: an item only
+// the other parent added/removed/edited survives, an item edited on both sides takes this page's version.
+const itemKey = o => typeof o === "string" ? "s:" + o : o && typeof o === "object" ? "o:" + (o.pkg || o.id || o.name || JSON.stringify(o)) : "j:" + JSON.stringify(o);
+function mergeList(mine, base, srv) {
+  const idx = a => { const m = new Map(); for (const o of a) m.set(itemKey(o), o); return m.size === a.length ? m : null; };
+  const M = idx(mine), B = idx(base), S = idx(srv);
+  if (!M || !B || !S) return mine;   // duplicate keys: no safe per-item merge, this page's list wins
+  const out = [];
+  for (const [k, o] of S) { if (B.has(k) && !M.has(k)) continue; out.push(B.has(k) && M.has(k) && !sameJ(M.get(k), B.get(k)) ? M.get(k) : o); }
+  for (const [k, o] of M) if (!B.has(k) && !S.has(k)) out.push(o);
+  return out;
+}
+function mergeMap(mine, base, srv) {
+  const out = { ...srv };
+  for (const k of new Set([...Object.keys(mine), ...Object.keys(base)])) if (!sameJ(mine[k], base[k])) { if (k in mine) out[k] = mine[k]; else delete out[k]; }
+  return out;
+}
 function mergeNewer(e) {
   const srv = pendingRules && st && st.rules && (pendingRules.rev || 0) > (st.rules.rev || 0) ? pendingRules : st && st.rules;
   if (!srv || !editBase || (srv.rev || 0) <= (editBase.rev || 0)) return false;
   const n = norm(structuredClone(srv)), mine = {};
   for (const x of new Set([...Object.keys(e), ...Object.keys(editBase)])) if (x !== "rev" && !sameJ(e[x], editBase[x])) mine[x] = e[x];
+  const plain = v => v && typeof v === "object" && !Array.isArray(v);
+  for (const x of Object.keys(mine)) {
+    if (Array.isArray(mine[x]) && Array.isArray(editBase[x]) && Array.isArray(n[x])) mine[x] = mergeList(mine[x], editBase[x], n[x]);
+    else if (x === "appMin" && plain(mine[x]) && plain(editBase[x]) && plain(n[x])) mine[x] = mergeMap(mine[x], editBase[x], n[x]);
+  }
   for (const x of Object.keys(e)) if (!(x in n) && !(x in mine)) delete e[x];
   Object.assign(e, n, mine);
   editBase = structuredClone(n);
@@ -116,12 +138,16 @@ async function putRules1(k, e) {
     if (k === cur && e === edit && mergeNewer(e)) lastSig = "";   // redraw with the merged values
     const body = { ...e }; delete body.pinHash; delete body.pinSet; if (!body.pin) delete body.pin;
     if (Array.isArray(body.zones)) { const n0 = body.zones.length; body.zones = body.zones.filter(zoneOk); if (body.zones.length < n0 && zoneWarn !== n0) toast("warn|" + t("zone.skipped")); zoneWarn = body.zones.length < n0 ? n0 : 0; }
-    const sig0 = JSON.stringify(e), r = await call(k, "/rules", "PUT", body); const hadPin = !!body.pin;
+    const sig0 = JSON.stringify(e), hadPin = !!body.pin, sent = structuredClone(e);   // sent = what this PUT carries = the next merge base (edits made while it is in flight stay "mine")
+    if (Array.isArray(body.zones)) sent.zones = structuredClone(body.zones);
+    delete sent.pin; delete sent.pinHash; if (hadPin) sent.pinSet = true;
+    const r = await call(k, "/rules", "PUT", body); let took = false;
     // LAN: the reply is the phone's normalized rules; take it only if nothing was toggled meanwhile (else keep the edit, just the rev)
-    if (k.via === "lan" && r && typeof r === "object" && JSON.stringify(e) === sig0) { for (const x of Object.keys(e)) delete e[x]; Object.assign(e, norm(r)); }
+    if (k.via === "lan" && r && typeof r === "object" && JSON.stringify(e) === sig0) { for (const x of Object.keys(e)) delete e[x]; Object.assign(e, norm(r)); took = true; }
     else if (r && r.rev) e.rev = r.rev;   // relay: else an older poll (rev of the previous save) looks newer and undoes this edit
     delete e.pin; if (hadPin) e.pinSet = true; delete e.pinHash;
-    if (k === cur && e === edit) editBase = structuredClone(e);
+    if (k === cur && e === edit) { if (took) editBase = structuredClone(e); else { if (e.rev) sent.rev = e.rev; editBase = sent; } }
+    if (k === cur) { savedAt = Date.now(); paintSave(); setTimeout(paintSave, 3100); }
     if (k === cur) saveFail(false);
   } finally { saveBusy--; }
 }
@@ -281,7 +307,7 @@ const totpHtml = s => `<div class="alert warn" style="margin-top:10px">${s.queue
     <p class="mute">${t("totp.share")}</p>
     <button id="totpDone">${ic("check")} ${t("totp.done")}</button></div>`;
 // ---- v0.6: events, chores, zones, templates ----
-const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand", launcher: "house" };
+const EV_IC = { zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand", launcher: "house", adminOpen: "key-round" };
 // phone log line kind (log[].k, protocol) -> icon + tone; lines from older phones have no k
 const LOG_IC = { pin_wrong: ["key-round", "bad"], unlock: ["lock-open"], paired: ["link"], tz: ["globe"], loc_fixed: ["map-pin"],
   usage_off: ["triangle-alert", "bad"], new_app: ["package"], suspended: ["pause"], unsuspended: ["play"], recover_open: ["refresh-cw"],

@@ -261,4 +261,14 @@ class LogicTest {
         for (r in listOf("/api/files", "/api/files/ab12", "/c/x1/file", "/c/x1/file?fid=a&i=0")) assertTrue(r, Logic.isFilesPath(r))
         for (r in listOf("/api/filesx", "/api/state", "/c/x1/cmd", "/c/x1/file/y", "/api/pair")) assertFalse(r, Logic.isFilesPath(r))
     }
+
+    @Test fun phoneContentTypeIsAllowListed() {
+        assertEquals("application/json; charset=utf-8", Logic.safeType("application/json; charset=utf-8"))
+        assertEquals("Image/JPEG", Logic.safeType("Image/JPEG"))
+        assertEquals("application/octet-stream", Logic.safeType("text/html; charset=utf-8"))
+        assertEquals("application/octet-stream", Logic.safeType("image/svg+xml"))
+        assertEquals("application/octet-stream", Logic.safeType("application/xhtml+xml"))
+        assertEquals("application/octet-stream", Logic.safeType(null))
+        assertEquals("application/octet-stream", Logic.safeType(""))
+    }
 }

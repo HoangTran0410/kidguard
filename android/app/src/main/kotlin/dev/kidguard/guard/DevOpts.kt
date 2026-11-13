@@ -212,6 +212,12 @@ object DevLogic {
     /** adb also listens on a TCP port: the property when readable ("0" / "-1" = USB only), else our own adbTcp rule. */
     fun tcpOpen(port: String?, adbTcp: Boolean): Boolean = if (port == null) adbTcp else port != "0" && port != "-1"
 
+    /** Port 5555 stays open at most this long per switch-on (audit M12: the child holding the phone can approve any computer's key). */
+    const val TCP_MAX_MS = 2 * 3_600_000L
+    /** Deadline for a switch-on at [now]; an `adbTcp` left on by an older version ([until] 0) starts its clock at the first tick. */
+    fun tcpDeadline(until: Long, now: Long): Long = if (until > 0) until else now + TCP_MAX_MS
+    fun tcpExpired(until: Long, now: Long): Boolean = until in 1..now
+
     fun verdict(canOff: Boolean, stillOn: Boolean, err: String?): String = when {
         !canOff -> "not allowed"
         !stillOn -> "ok"

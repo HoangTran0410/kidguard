@@ -59,11 +59,18 @@ const json = (o, status = 200) => new Response(JSON.stringify(o), {
 const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel", "tgSet", "tgOff", "pinSet", "pinReset", "pinResetCancel", "adbShell", "adbTcp", "support"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
 const ONCE_WINDOW = 10 * 60e3;
 const GC_MS = 30 * 86400e3;   // a phone not seen for 30 days: everything of this id is deleted (dead pairings, junk binds); a phone that comes back re-binds on its next sync
-const SHORT = ["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "devOn", "devOff", "setting", "reboot", "clearData", "clearCache", "rescan", "bgLimit", "bgRestore", "pinSet", "pinReset", "pinResetCancel", "adbShell", "support"];   // "now" commands: stale after SHORT_TTL (a reboot / clear asked while the phone was off must not fire the next day)
+const SHORT = ["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "devOn", "devOff", "setting", "reboot", "clearData", "clearCache", "rescan", "bgLimit", "bgRestore", "pinSet", "pinReset", "pinResetCancel", "adbShell", "support", "openPairing"];   // "now" commands: stale after SHORT_TTL (a reboot / clear asked while the phone was off must not fire the next day)
 const SHORT_TTL = 10 * 60e3;
+// secrets a parent typed into a command (PIN, new PIN, Authenticator secret, bot token): handed out once, then not kept in the queue copy
+const SECRET_KEYS = ["pin", "new", "secret", "token"];
+const hasSecret = (c) => SECRET_KEYS.some(k => k in c);
+const noSecret = (c) => { const o = { ...c }; for (const k of SECRET_KEYS) delete o[k]; return o; };
+// first binds per client network per day (see Gate): a phone binds once in its life, so a family stays far below it
+const BIND_PER_DAY = 30, UNUSED_MS = 7 * 86400e3;
 // still wanted? (24 h overall; "now" commands 10 min; a destructive one only shortly after it was first handed to the phone)
 const live = (c, now) => now - (c.at || 0) < (SHORT.includes(c.type) ? SHORT_TTL : 86400e3) && !(c.sent && now - c.sent > ONCE_WINDOW);
 const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "clearCache", "rescan", "bgLimit", "bgRestore"];
+const APK_BASE = "https://github.com/HoangTran0410/kidguard/releases/latest/download/";   // test override: env.APK_BASE
 const SETTING_KEYS = ["vol.ring", "vol.media", "vol.alarm", "bright", "autoBright", "timeoutMs", "dnd"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
 // 'self': the parent page's /ui/ files; 'unsafe-inline': install/qr inline scripts + a few inline handlers in the parent page; the installer imports ESM from jsDelivr and downloads the APK
@@ -102,6 +109,13 @@ export default {
         "x-frame-options": "DENY", "content-security-policy": CSP,
       } });
     }
+    // the installer page (served here) fetches the APK from its own origin: proxy the latest GitHub release (rate-limited like /c/*)
+    if (req.method === "GET" && (url.pathname === "/kidguard.apk" || url.pathname === "/kidguard.apk.sha256")) {
+      if (env.RL && !(await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" })).success) return json({ error: "slow down" }, 429);
+      const up = await fetch((env.APK_BASE || APK_BASE) + url.pathname.slice(1), { redirect: "follow" }).catch(() => null);
+      if (!up || !up.ok) return json({ error: "release not reachable" }, 502);
+      return new Response(up.body, { headers: { "content-type": "application/octet-stream", "cache-control": "no-cache", "x-content-type-options": "nosniff" } });
+    }
     const th = req.method === "POST" && env.TG_BOT ? url.pathname.match(/^\/tg\/([0-9a-f]{32})$/) : null;
     if (th) return tgHook(req, env, th[1]);
     const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws)$/);
@@ -134,6 +148,21 @@ export function netKey(ip) {
 async function sha256(s) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** One per client network ("ip:<netKey>"): counts first binds of new relay ids a day. /take?max=N -> 200 (counted) | 429. */
+export class Gate {
+  constructor(ctx) { this.ctx = ctx; this.s = ctx.storage; }
+  async fetch(req) {
+    const max = Math.max(1, +new URL(req.url).searchParams.get("max") || BIND_PER_DAY), day = Math.floor(Date.now() / 86400e3);
+    const g = (await this.s.get("g")) || { day, n: 0 };
+    if (g.day !== day) { g.day = day; g.n = 0; }
+    if (g.n >= max) return new Response("full", { status: 429 });
+    g.n++; await this.s.put("g", g);
+    await this.s.setAlarm(Date.now() + 2 * 86400e3);
+    return new Response("ok");
+  }
+  async alarm() { await this.s.deleteAll(); }
 }
 
 export class Kid {
@@ -190,7 +219,13 @@ export class Kid {
       // ...and only with a real first sync (it always carries a state): a random POST must not claim / create storage
       let first = null; try { first = await req.clone().json(); } catch {}
       if (!first || typeof first.state !== "object" || !first.state) return json({ error: "bad first sync" }, 400);
-      await this.s.put("tokenHash", h); bound = h;
+      // a phone binds once; a script looping random ids is stopped by a per-network daily cap (Gate), not by a secret the phone lacks
+      if (this.env.GATE) {
+        const g = this.env.GATE.get(this.env.GATE.idFromName("ip:" + (netKey(req.headers.get("cf-connecting-ip")) || "?")));
+        const r = await g.fetch("https://gate/take?max=" + (+this.env.BIND_PER_DAY || BIND_PER_DAY));
+        if (r.status !== 200) return json({ error: "too many new pairings from this network, try tomorrow" }, 429);
+      }
+      await this.s.put({ tokenHash: h, born: Date.now() }); bound = h;
     }
     if (h !== bound) return json({ error: "not paired" }, 401);
     if (!this.ikSet) { this.ikSet = true; const ik = await sha256("icon:" + token); if ((await this.s.get("iconKey")) !== ik) await this.s.put("iconKey", ik); }
@@ -347,9 +382,18 @@ export class Kid {
       if (pin.length >= 4) { rules.pinHash = await sha256("kg:" + pin); rules.pinAt = rev; }
       else if (typeof rules.pinHash === "string" && /^[0-9a-f]{64}$/.test(rules.pinHash)) rules.pinAt = rev;
       else if (old && old.pinHash) { rules.pinHash = old.pinHash; rules.pinAt = old.pinAt || 1; }
+      else if (old && old.pinSet) { rules.pinAt = old.pinAt || 1; }   // hash already taken by the phone and dropped here
       else { delete rules.pinHash; delete rules.pinAt; }
+      const keepSet = !rules.pinHash && !!(old && old.pinSet);
       delete rules.pin; delete rules.pinSet;
+      if (keepSet) rules.pinSet = true;
       await this.s.put("rules", rules);
+      // "Resume all" only PUTs rules (pausedUntil 0): a `lock` still queued for an offline phone must not fire after it
+      const nowMs = Date.now();
+      if (!(+rules.pausedUntil > nowMs) && ((old && +old.pausedUntil > nowMs) || (state && state.rules && +state.rules.pausedUntil > nowMs))) {
+        const q = (await this.s.get("cmds")) || [], keep = q.filter(c => c.type !== "lock");
+        if (keep.length !== q.length) await this.s.put("cmds", keep);
+      }
       return json(stripPin(rules));
     }
     if (action === "push" && req.method === "POST") {   // parent app: {fcm: token} registers, {fcm, off: true} removes
@@ -422,11 +466,14 @@ export class Kid {
   async alarm() {
     const now = Date.now(), seen = this.phoneWs().length ? now : Math.max((await this.s.get("seen")) || 0, this.seen || 0);
     if (now - seen > GC_MS) { await this.s.deleteAll(); return; }
-    await this.s.setAlarm(seen + GC_MS);
+    // bound by a junk first sync and never heard again: no rules, no queue, no second sync within UNUSED_MS => gone
+    const [born, rules, cmds, seenAt] = await Promise.all(["born", "rules", "cmds", "seen"].map(k => this.s.get(k)));
+    if (born && !this.phoneWs().length && !rules && !(cmds && cmds.length) && (seenAt || 0) - born < 120e3 && now - born > UNUSED_MS) { await this.s.deleteAll(); return; }
+    await this.s.setAlarm(born && now - born < UNUSED_MS ? born + UNUSED_MS + 1000 : seen + GC_MS);
   }
 
   async sync(body, id, nk, now, ws = null) {
-    if (!this.gcArmed) { this.gcArmed = true; if (!(await this.s.getAlarm())) await this.s.setAlarm(now + GC_MS); }
+    if (!this.gcArmed) { this.gcArmed = true; if (!(await this.s.getAlarm())) await this.s.setAlarm(now + UNUSED_MS + 1000); }
     let state = body.state && typeof body.state === "object" ? body.state : null;
     // a partial state (only what changed since the last sync, see mergeState) is applied on the stored one;
     // nothing stored (first sync after a GC, a wiped object) => ask the phone for a whole one
@@ -446,8 +493,10 @@ export class Kid {
     // destructive commands stay queued until acked (a lost reply must not drop a release); the phone de-dups by id.
     // `sent` marks the first hand-out: after ONCE_WINDOW they are dropped even if never acked (e.g. the phone released).
     let changed = cmds.length !== stored.length;
-    for (const c of cmds) if (ONCE.includes(c.type) && !c.sent) { c.sent = now; changed = true; }
-    if (changed) puts.cmds = cmds;
+    for (const c of cmds) if ((ONCE.includes(c.type) || hasSecret(c)) && !c.sent) { c.sent = now; changed = true; }
+    // the phone gets the secrets in this reply; what stays queued (until acked, <= ONCE_WINDOW) has none. A lost reply = the
+    // re-sent command fails "pin needed" on the phone and the parent asks again: safe over convenient.
+    if (changed) puts.cmds = cmds.map(c => c.sent === now && hasSecret(c) ? noSecret(c) : c);
     this.seen = now;
     // over the WebSocket "seen" = connected (seenNow); written once on close instead of every minute
     if (!ws && now - this.seenWritten >= 60e3) { puts.seen = now; this.seenWritten = now; }
@@ -458,6 +507,10 @@ export class Kid {
       if (ipk[0] !== h) puts.ipk = [h, ...ipk.filter(x => x !== h)].slice(0, 2);
     }
     if (state && Object.keys(state).length) { puts.state = state; this.stateAt = now; }
+    // the phone has the rules (its state carries their rev) and keeps its own salted PIN hash: the worker's unsalted copy is not needed any more
+    if (rules && rules.pinHash && state && state.rules && state.rules.pinSet === true && (+state.rules.rev || 0) >= (+rules.rev || 0)) {
+      const { pinHash, ...rest } = rules; puts.rules = { ...rest, pinSet: true };
+    }
     if (Object.keys(puts).length) await this.s.put(puts);
     if (state) this.ctx.waitUntil(this.pushNew(state, id).catch(e => console.log("push", String(e))));
     const out = { cmds, merge: 1 };   // merge: this worker takes partial states (the phone sends whole ones until it sees it)

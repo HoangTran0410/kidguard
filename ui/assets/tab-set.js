@@ -78,6 +78,15 @@ async function devOff(want) {
 // adb terminal (state.sh, owner 2026-11-11): `adbShell` runs one shell command through the phone's own paired adb
 // (PIN-gated, output comes back in the next state, LAN or relay); `adbTcp` keeps `adb connect <ip>:5555` open.
 let shText = "";
+// After unpairing a parent device: the /go relay link is the same for every parent, so offer to make a new one
+// (phone: relay{url, renew:true} answers a new id/token; an older phone answers the old ones = unchanged).
+async function relayRenew(k, nm, direct) {
+  if (!direct && !(await ask(t("relay.sharedAsk", nm), t("relay.renewGo")))) return;
+  const old = k.relay && k.relay.token, r = await cmd({ type: "relay", url: st.relay, renew: true }, undefined, false);
+  if (!r || k !== cur) return;
+  if (r.token && r.token !== old && /^[0-9a-f]+$/.test(r.id || "")) { k.relay = { url: (k.relay && k.relay.url) || r.url || st.relay, id: r.id, token: r.token }; save(kids); toast("ok|" + t("relay.renewDone")); lastSig = ""; render(); }
+  else toast("warn|" + t("relay.renewSame"));
+}
 function shCard() {
   const s = st.sh; if (!s) return "";
   const host = (() => { try { return new URL(st.lan).hostname; } catch { return ""; } })();
@@ -90,7 +99,7 @@ function shCard() {
   const wait = s.tcpWhy ? t("sh.tcpWhy." + s.tcpWhy) : t("sh.tcpWait");
   const tcp = s.tcp ? (s.tcpUp ? `<p>${ic("check")} ${t("sh.tcpUp")}<br><code>adb connect ${esc(host || "IP")}:${s.port || 5555}</code></p>`
     : `<p class="mute">${ic("hourglass")} ${wait}</p><button id="shTcpNow">${ic("refresh-cw")} ${t("sh.tcpNow")}</button>`) : "";
-  return sec("s-sh", "terminal", t("sh.h"), t("sd.sh"), [s.tcp ? t(s.tcpUp ? "sh.tcpOn" : "sh.tcpPend") : t("sh.on"), s.tcp ? "warn" : ""], `<p class="mute">${t("sh.p")}</p>
+  return sec("s-sh", "terminal", t("sh.h"), t("sd.sh"), [s.tcp ? t(s.tcpUp ? "sh.tcpOn" : "sh.tcpPend") + (+st.adbTcpUntil > Date.now() ? " · " + t("sh.tcpUntil", hhmm(+st.adbTcpUntil)) : "") : +st.adbTcpUntil > Date.now() ? t("sh.tcpOn") + " · " + t("sh.tcpUntil", hhmm(+st.adbTcpUntil)) : t("sh.on"), s.tcp || +st.adbTcpUntil > Date.now() ? "warn" : ""], `<p class="mute">${t("sh.p")}</p>
     <div class="row" style="gap:6px"><input id="f-sh" class="sp" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="2000" placeholder="pm list packages -3" aria-label="${esc(t("sh.h"))}" value="${esc(shText)}" style="font-family:ui-monospace,Menlo,monospace">
     <button id="shRun" ${s.busy ? "disabled" : ""}>${ic(s.busy ? "hourglass" : "play")} ${t(s.busy ? "sh.busy" : "sh.run")}</button></div>
     ${log}${log ? `<button id="shClear">${ic("eraser")} ${t("sh.clear")}</button>` : ""}
@@ -302,10 +311,12 @@ function setTab(b) {
   ${lan ? sec("s-relay", "globe", t("relay.h"), t("sd.relay"), st.relay ? [t("on"), "ok"] : [t("off")], `<p class="mute">${t("relay.p")}</p>
     <input id="relay" placeholder="${esc(t("relay.ph"))}" aria-label="${esc(t("relay.addr"))}" value="${esc(st.relay || DEFAULT_RELAY)}" autocapitalize="off" autocorrect="off" spellcheck="false" style="width:100%">
     <div class="row" style="margin-top:8px"><button id="saveRelay" class="pri">${ic("globe")} ${st.relay ? t("save") : t("turnOn")}</button>${st.relay ? `<button id="offRelay">${t("relay.off")}</button>` : ""}</div>
+    ${st.relayBig ? `<p class="mute">${ic("info")} ${t("relay.big")}</p>` : ""}
+    ${st.relayShared ? `<p class="mute">${ic("triangle-alert")} ${t("relay.shared")}</p><button id="relayRenewNow">${ic("refresh-cw")} ${t("relay.renewGo")}</button>` : ""}
     ${st.relay && st.relayOk !== undefined ? `<p class="mute">${pendHtml("relayok", relayOkHtml)}</p>` : ""}
     <p class="mute">${t("relay.self")}</p>
     <div id="relayOut">${cur.relay && st.relay ? relayLinkHtml(goLink(cur.relay.url, cur.relay.id, cur.relay.token, cur.name)) : ""}</div>`, !!st.relay)
-    : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p>${cur.via === "relay" && isRelayOrigin ? relayLinkHtml(goLink(location.origin, cur.id, cur.token, cur.name)) : ""}</div>`}
+    : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p>${st.relayBig ? `<p class="mute">${ic("info")} ${t("relay.big")}</p>` : ""}${cur.via === "relay" && isRelayOrigin ? relayLinkHtml(goLink(location.origin, cur.id, cur.token, cur.name)) : ""}</div>`}
   ${tgHtml()}
   <div class="dz" style="margin-top:22px">${sec("s-danger", "octagon-x", t("set.danger"), t("sd.danger"), null, `<h2>${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
     <h2 style="margin-top:18px">${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
@@ -340,6 +351,7 @@ function setTab(b) {
     if (r && r.result && r.result !== "ok" && r.result !== "queued") { toast("err|" + tc("cr.unpair.", r.result, t("cmd.answer", r.result))); x.disabled = false; return; }
     toast((r && r.result === "queued" ? "send|" : "ok|") + t(r && r.result === "queued" ? "dev.queued" : "dev.unpaired", nm));
     if (k !== cur) return;
+    if (!self && d.name !== "relay" && k.via === "lan" && k.relay && st.relay) relayRenew(k, nm);   // the relay link is shared by every parent: offer a new one
     if (self) {   // this browser's token is gone: back to pairing, never a dead page
       gen++; clearInterval(timer); screenStop(); earStop(); cur = null; kids = kids.filter(o => o !== k); save(kids); navDown(0); return setTimeout(boot, 800);
     }
@@ -417,6 +429,7 @@ function setTab(b) {
   if ($("#shClear")) $("#shClear").onclick = () => cmd({ type: "shClear" }, t("sh.cleared"), false).then(() => setTimeout(refresh, 1500));
   if ($("#f-shTcp")) $("#f-shTcp").onchange = e => shTcp(e.target.checked);
   if ($("#shTcpNow")) $("#shTcpNow").onclick = shTcpNow;
+  if ($("#relayRenewNow")) $("#relayRenewNow").onclick = () => relayRenew(cur, "", true);
   for (const x of document.querySelectorAll(".ftgo")) x.onclick = () => featGo(x.dataset.ft);
   if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, t("upd.sent"), [t("upd.ask"), t("upd.ok")]).then(() => setTimeout(refresh, 4000));
   tgWire();

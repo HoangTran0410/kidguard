@@ -260,14 +260,14 @@ class CustomActivity : Activity() {
                 13f, if (on) pal.accentText else pal.sub))
             r.addView(txt, LinearLayout.LayoutParams(0, -2, 1f))
             fun icon(res: Int, desc: String, act: () -> Unit) = ImageView(this).apply {
-                setImageDrawable(Ic.get(context, res, pal.sub, dp(20))); setPadding(dp(10), dp(10), dp(10), dp(10)); contentDescription = desc
+                setImageDrawable(Ic.get(context, res, pal.sub, dp(20))); setPadding(dp(14), dp(14), dp(14), dp(14)); contentDescription = desc   // 48 dp hit area, 20 dp icon
                 k.tap(this, 12f) { act() }
             }
-            r.addView(icon(R.drawable.li_pencil, s(R.string.hm_lay_rename) + " " + e.name) { if (guard()) nameLayout(e.name) { n -> HomeSaved.rename(this, e, n); build() } }, LinearLayout.LayoutParams(dp(40), dp(40)))
+            r.addView(icon(R.drawable.li_pencil, s(R.string.hm_lay_rename) + " " + e.name) { if (guard()) nameLayout(e.name) { n -> HomeSaved.rename(this, e, n); build() } }, LinearLayout.LayoutParams(dp(48), dp(48)))
             r.addView(icon(R.drawable.li_trash_2, s(R.string.hm_lay_delete) + " " + e.name) {
                 if (guard()) Modal(this, Ui(this)).show(R.drawable.li_trash_2, Modal.Tone.WARN, s(R.string.hm_lay_del_t, e.name), s(R.string.hm_lay_del_b), null,
                     s(R.string.hm_lay_delete), s(R.string.gest_cancel)) { HomeSaved.delete(this, e); build(); true }
-            }, LinearLayout.LayoutParams(dp(40), dp(40)))
+            }, LinearLayout.LayoutParams(dp(48), dp(48)))
             r.contentDescription = e.name
             if (!on) k.tap(r, 20f) {
                 if (!guard()) return@tap
@@ -332,12 +332,12 @@ class CustomActivity : Activity() {
     private fun stepper(label: String, v: Int, min: Int, max: Int, on: (Int) -> Unit) = row(label).apply {
         fun btn(icon: Int, enabled: Boolean, desc: String, d: Int) = ImageView(context).apply {
             setImageDrawable(Ic.get(context, icon, if (enabled) pal.onTint else pal.sub, dp(20)))
-            background = k.fill(if (enabled) pal.tint else pal.bg, 12f); setPadding(dp(10), dp(10), dp(10), dp(10)); contentDescription = desc
+            background = android.graphics.drawable.InsetDrawable(k.fill(if (enabled) pal.tint else pal.bg, 12f), dp(4)); setPadding(dp(14), dp(14), dp(14), dp(14)); contentDescription = desc   // 40 dp look, 48 dp hit area
             k.tap(this, 12f) { if (enabled) on(v + d) }
         }
-        addView(btn(R.drawable.li_minus, v > min, s(R.string.hm_c_less, label), -1), LinearLayout.LayoutParams(dp(40), dp(40)))
+        addView(btn(R.drawable.li_minus, v > min, s(R.string.hm_c_less, label), -1), LinearLayout.LayoutParams(dp(48), dp(48)))
         addView(k.text(v.toString(), 18f, pal.text, true).apply { gravity = Gravity.CENTER; minWidth = dp(40) }, LinearLayout.LayoutParams(-2, -2))
-        addView(btn(R.drawable.li_plus, v < max, s(R.string.hm_c_more, label), 1), LinearLayout.LayoutParams(dp(40), dp(40)))
+        addView(btn(R.drawable.li_plus, v < max, s(R.string.hm_c_more, label), 1), LinearLayout.LayoutParams(dp(48), dp(48)))
     }
 
     // label above, the bar full width under it (Android Settings): a 150 dp bar beside the label squeezed

@@ -54,6 +54,12 @@ object LauncherSafe {
      */
     @Volatile var shadeBlocked = false; private set
 
+    /** After a process restart [shadeBlocked] would stay false until the first Guard tick: read it back from the stored rules. */
+    fun restoreShade(ctx: Context) {
+        if (shadeBlocked || Flavor.HOME) return
+        runCatching { val r = Store.of(ctx).rules; if (wanted(ctx, r)) shadeBlocked = r.launcher.shade }
+    }
+
     private fun on(ctx: Context) {
         val was = enabled(ctx)
         // first time on: the kid keeps the home screen they made in KidGuard Home (before that app is hidden below)

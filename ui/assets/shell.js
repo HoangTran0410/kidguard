@@ -1002,5 +1002,5 @@ document.addEventListener("click", e => {
     if (r && r.result === "in use") toast(t("bk.inUse"));
     [2000, 8000].forEach(ms => setTimeout(refresh, ms));
   });
-  if (e.target.closest("#saveResend") && cur && edit) { pendSince = Date.now(); putRules(cur, edit); }
+  if (e.target.closest("#saveResend") && cur && edit) { pendSince = Date.now(); putRules(cur, edit).catch(er => { toast("err|" + t("errX", er.message)); saveFail(true); }); }
 });

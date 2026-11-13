@@ -161,6 +161,12 @@ object TgLogic {
         "e.no mic permission" to "chưa có quyền micro",
         "e.notice blocked" to "thông báo của KidGuard đang bị tắt trên máy con",
         "e.not owner" to "cần chế độ Device Owner",
+        "e.empty" to "tệp trống (0 byte)", "e.quota" to "thư mục KidGuard trên máy con đã đủ 1 GB, xoá bớt rồi gửi lại", "e.no space" to "máy con hết chỗ trống", "e.too big" to "tệp quá lớn", "e.incomplete" to "tệp gửi chưa đủ, thử lại",
+        "e.timeout" to "máy con không trả lời kịp, thử lại", "e.busy" to "máy con đang bận việc khác, thử lại sau vài giây",
+        "e.capture failed" to "chụp màn hình không được, thử lại", "e.need consent" to "máy con chưa cho phép chia sẻ màn hình (hộp xin phép hiện trên máy con)",
+        "e.denied" to "máy con đã từ chối chia sẻ màn hình", "e.listening" to "đang nghe xung quanh, dừng lại rồi thử lại", "e.ringing" to "máy con đang đổ chuông, chờ xong rồi thử lại",
+        "e.mic blocked" to "micro bị chặn (đang có cuộc gọi / app khác dùng micro)", "e.mic failed" to "không mở được micro",
+        "tooOld" to "⏳ Lệnh này gửi đã lâu (%1\$d phút trước) nên chưa chạy. Gửi lại nếu vẫn cần.",
     )
     private val EN = mapOf(
         "help" to "🤖 KidGuard – %1\$s's phone\n" +
@@ -247,13 +253,27 @@ object TgLogic {
         "e.no mic permission" to "no microphone permission",
         "e.notice blocked" to "KidGuard's notifications are off on the phone",
         "e.not owner" to "needs Device Owner mode",
+        "e.empty" to "the file is empty (0 bytes)", "e.quota" to "KidGuard's folder on the phone already holds 1 GB, delete some and send again", "e.no space" to "the phone is out of space", "e.too big" to "the file is too big", "e.incomplete" to "the file did not arrive completely, try again",
+        "e.timeout" to "the phone did not answer in time, try again", "e.busy" to "the phone is busy, try again in a few seconds",
+        "e.capture failed" to "couldn't capture the screen, try again", "e.need consent" to "screen sharing isn't allowed on the phone yet (a prompt shows on the phone)",
+        "e.denied" to "screen sharing was refused on the phone", "e.listening" to "listening around is on, stop it and try again", "e.ringing" to "the phone is ringing, wait until it stops",
+        "e.mic blocked" to "the microphone is blocked (a call / another app uses it)", "e.mic failed" to "couldn't open the microphone",
+        "tooOld" to "⏳ This command was sent a while ago (%1\$d min) so it did not run. Send it again if you still need it.",
     )
 
     fun s(lang: String, key: String, vararg a: Any?): String {
         val f = (if (lang == "en") EN else VI)[key] ?: EN[key] ?: key
         return if (a.isEmpty()) f else String.format(java.util.Locale.ROOT, f, *a)
     }
-    fun err(lang: String, why: String) = (if (lang == "en") EN else VI)["e.$why"] ?: why
+    /** A reason from the phone as a sentence in [lang]; "capture failed (5)" matches "capture failed"; unknown = as is. */
+    fun err(lang: String, why: String): String { val m = if (lang == "en") EN else VI; return m["e.$why"] ?: m["e." + why.substringBefore(" (")] ?: why }
+
+    /** Typed commands that change something on the phone (the rest only read). Too old ones are not run ([tooOld]). */
+    private val READ_ONLY = setOf("start", "help", "menu", "lang", "status", "apps", "events", "files")
+    fun isAction(name: String) = name !in READ_ONLY
+    const val MAX_AGE_MS = 10 * 60_000L
+    /** [dateSec] = Telegram message.date (0 = unknown, never old). */
+    fun tooOld(dateSec: Long, nowMs: Long): Boolean = dateSec > 0 && nowMs - dateSec * 1000 > MAX_AGE_MS
 
     /** /status text from the state JSON (Guard.currentState). [hm] formats a time of day. */
     fun status(st: JSONObject, name: String, lang: String, now: Long, hm: (Long) -> String): String {

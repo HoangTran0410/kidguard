@@ -10,10 +10,19 @@ rules = [{ type = "Text", globs = ["**/*.html", "**/ui/assets/*.js", "**/ui/asse
 name = "KIDS"
 class_name = "Kid"
 
+# first-bind counter per client network (H4: stops a script creating Kid objects without limit)
+[[durable_objects.bindings]]
+name = "GATE"
+class_name = "Gate"
+
 # SQLite-backed Durable Objects run on the Workers free plan
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Kid"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Gate"]
 
 # Per-IP rate limit on /c/* (free plan). Stops a single client looping random ids to burn the daily quota;
 # one family (phone sync every 20 s + a parent watching the live screen) stays far below it.

@@ -267,6 +267,10 @@
         <item quantity="other">failed: %1$d apps still hidden</item>
     </plurals>
 
+    <plurals name="release_bg_left">
+        <item quantity="one">%1$d app is still background-limited. It is freed at the next start if Wireless debugging is on (or in Settings > Apps > Battery)</item>
+        <item quantity="other">%1$d apps are still background-limited. They are freed at the next start if Wireless debugging is on (or in Settings > Apps > Battery)</item>
+    </plurals>
     <plurals name="release_shell_left">
         <item quantity="one">%1$d app we disabled is still off. It comes back at the next start if Wireless debugging is on (or enable it in Settings > Apps)</item>
         <item quantity="other">%1$d apps we disabled are still off. They come back at the next start if Wireless debugging is on (or enable them in Settings > Apps)</item>
@@ -302,6 +306,7 @@
     <string name="ss_restart">KidGuard turned off %1$s for a moment. The phone restarts once; setup goes on by itself after unlock.</string>
     <string name="ss_resume_run">Setup is going on after the restart</string>
     <string name="ss_resume_late">The restart took too long, so setup stopped. Run it again.</string>
+    <string name="ss_conn_lost">Lost the connection to this phone while finishing. Pair Wireless debugging again, then run setup again.</string>
     <string name="ss_resume_noadb">Could not reach Wireless debugging after the restart (is Wi-Fi on?)</string>
     <string name="ss_apps_back">Your apps are back on: %1$s.</string>
     <string name="ss_apps_off">Turn these apps back on in Settings &gt; Apps: %1$s.</string>
@@ -537,10 +542,9 @@
     <string name="home_version">KidGuard %1$s</string>
     <string name="home_sos">SOS</string>
     <string name="admin_title">Manage on this phone</string>
-    <string name="admin_body">Parent: enter your PIN or a current Authenticator code. The page closes when the screen turns off, you leave it, or 5 minutes pass without a touch.</string>
     <string name="admin_body_pin">Parent: enter your PIN. The page closes when the screen turns off, you leave it, or 5 minutes pass without a touch.</string>
     <string name="admin_body_totp">Parent: enter a current Authenticator code. The page closes when the screen turns off, you leave it, or 5 minutes pass without a touch.</string>
-    <string name="admin_field">PIN or 6-digit code</string>
+    <string name="admin_field">PIN</string>
     <string name="admin_ok">Open</string>
     <string name="admin_loading">Opening the parent page…</string>
     <string name="admin_wrong">Wrong code, try again</string>
@@ -550,6 +554,13 @@
     <string name="admin_not_ready">Management page not ready, try again soon</string>
     <string name="st_no_pin">Your parent hasn\'t set a PIN yet</string>
     <string name="log_admin_open">A parent opened the management page on this phone</string>
+    <string name="log_relay_rotated">Relay link replaced: every old relay link stopped working</string>
+    <string name="log_adb_tcp_timeout">Wi-Fi debugging (port 5555) closed by itself after 2 hours</string>
+    <string name="ev_rules_bad_restored">The rules file on the child\'s phone was unreadable; the last good copy was restored</string>
+    <string name="ev_rules_bad">The rules file on the child\'s phone was unreadable and there is no copy: no limits apply until you save the rules again</string>
+    <string name="log_admin_open_code">A parent opened the management page on this phone with an Authenticator code (no PIN is set)</string>
+    <string name="ev_admin_open_pin">The management page was opened on the child\'s phone with the PIN</string>
+    <string name="ev_admin_open_code">The management page was opened on the child\'s phone with an Authenticator code (no PIN is set)</string>
     <string name="ev_admin_wrong">Wrong PIN / code entered to open the management page on the child\'s phone</string>
     <plurals name="hold_left">
         <item quantity="one">Keep holding… %1$d second</item>

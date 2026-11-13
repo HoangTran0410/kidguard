@@ -309,7 +309,11 @@ object SelfSetup {
         if (!step(4, "pm grant $PKG android.permission.WRITE_SECURE_SETTINGS")) return
         optionalGrants(::sh)
         mark(app, 5, STEP_RUN)
-        enableAccessibility(::sh)
+        val accErr = enableAccessibility(::sh)
+        if (accErr != null) {
+            state[5] = STEP_ERR; message = accErr.ifBlank { app.getString(R.string.ss_cmd_fail) }
+            notifyFinal(app, app.getString(R.string.ss_failed, message)); return
+        }
         state[5] = STEP_OK
         if (!step(6, "dumpsys deviceidle whitelist +$PKG") { !it.contains("Unknown", true) && !it.contains("Exception", true) }) return
         // ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off): lock-card hint (read while the link is up)
@@ -332,10 +336,17 @@ object SelfSetup {
         runCatching { sh("appops set $PKG REQUEST_INSTALL_PACKAGES allow") }   // self-update without asking (basic mode)
     }
 
-    private fun enableAccessibility(sh: (String) -> String) {
+    /** Adds our service to enabled_accessibility_services and turns accessibility on. Returns the error text, or null when both writes went through. */
+    private fun enableAccessibility(sh: (String) -> String): String? {
         val merged = SelfSetupLogic.withAccessibility(sh("settings get secure enabled_accessibility_services"), ACC)
-        if (merged != null) sh("settings put secure enabled_accessibility_services '$merged'")
-        sh("settings put secure accessibility_enabled 1")
+        if (merged != null) {
+            // single-quoted for the phone's shell: refuse a value that could break out of the quotes (same as setup.sh)
+            if (merged.contains('\'')) return merged
+            val r = sh("settings put secure enabled_accessibility_services '$merged'")
+            if (!SelfSetupLogic.ok(r)) return r
+        }
+        val r = sh("settings put secure accessibility_enabled 1")
+        return if (SelfSetupLogic.ok(r)) null else r
     }
 
     // ---- keep the child's app accounts: turn their apps off, restart once, set Device Owner, turn them on ----
@@ -385,7 +396,9 @@ object SelfSetup {
     }
 
     private fun resumeJob(app: Context, store: Store, pend: SelfSetupLogic.Pending) {
-        fun sh(cmd: String): String = SelfAdb.run(app, cmd) ?: ""
+        // null = no shell (Wireless debugging dropped): that is a failure, never an empty "ok" answer
+        var lost = false
+        fun sh(cmd: String): String = SelfAdb.run(app, cmd) ?: run { lost = true; "" }
         var err: String? = null
         if (!Policy.isOwner(app)) {
             val start = System.currentTimeMillis()
@@ -409,10 +422,12 @@ object SelfSetup {
         }
         if (err == null) {
             val r1 = sh("appops set $PKG GET_USAGE_STATS allow"); val r2 = sh("pm grant $PKG android.permission.WRITE_SECURE_SETTINGS")
-            if (!SelfSetupLogic.ok(r1)) err = r1 else if (!SelfSetupLogic.ok(r2)) err = r2
+            if (lost) err = app.getString(R.string.ss_conn_lost)
+            else if (!SelfSetupLogic.ok(r1)) err = r1 else if (!SelfSetupLogic.ok(r2)) err = r2
             else {
-                optionalGrants(::sh); enableAccessibility(::sh)
-                sh("dumpsys deviceidle whitelist +$PKG")
+                optionalGrants(::sh); err = enableAccessibility(::sh)
+                if (err == null) { val r3 = sh("dumpsys deviceidle whitelist +$PKG"); if (!SelfSetupLogic.ok(r3)) err = r3 }
+                if (lost) err = app.getString(R.string.ss_conn_lost)
             }
         }
         finishApps(app, store, pend, err)

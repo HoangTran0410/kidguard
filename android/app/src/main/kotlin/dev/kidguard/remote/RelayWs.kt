@@ -11,7 +11,7 @@ import java.net.Socket
 import java.net.URL
 import java.security.MessageDigest
 import java.security.SecureRandom
-import java.util.concurrent.SynchronousQueue
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLSocket
@@ -29,7 +29,8 @@ class RelayWs(private val onKick: () -> Unit) {
     @Volatile private var out: OutputStream? = null
     @Volatile var open = false; private set
     @Volatile private var lastIn = 0L
-    private val replies = SynchronousQueue<JSONObject>()
+    // capacity 1, not a SynchronousQueue: a reply that lands before request() reaches poll() must wait there, not be dropped
+    private val replies = ArrayBlockingQueue<JSONObject>(1)
     @Volatile private var waiting = -1
     private var n = 0
 
@@ -65,7 +66,7 @@ class RelayWs(private val onKick: () -> Unit) {
         if (!open) return null
         val id = ++n
         waiting = id
-        replies.poll()   // drop a stale reply
+        replies.clear()   // drop a stale reply
         if (!send(body.put("t", "sync").put("n", id).toString())) return null
         val r = replies.poll(timeoutMs, TimeUnit.MILLISECONDS)
         waiting = -1

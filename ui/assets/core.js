@@ -131,7 +131,7 @@ function todayLimit(r, day) { const b = baseLimit(r, day); return b ? b + (r.bon
 const direct = k => !APP && k.via === "lan" && k.target && k.target !== location.origin ? k.target : "";
 const lanApi = target => (APP ? "/k/" + b64u(target) : target === location.origin ? "" : target) + "/api";
 // an unreachable phone on the LAN would hang a fetch for the whole TCP timeout
-const quick = ms => typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(ms) : undefined;
+const quick = ms => { if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms); if (typeof AbortController !== "function") return undefined; const c = new AbortController(); setTimeout(() => c.abort(), ms); return c.signal; };   // Chrome < 103: no AbortSignal.timeout
 function base(k) { return (APP ? "/k/" + b64u(k.target) : direct(k)) + (k.via === "lan" ? "/api" : "/c/" + encodeURIComponent(k.id)); }
 // the kids the home list shows: app = every kid with an address; LAN browser = every LAN kid saved on this origin
 const homeKids = () => APP ? kids.filter(k => k.target) : kids.filter(k => k.via === "lan");

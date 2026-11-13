@@ -144,6 +144,7 @@ class Guard : Service() {
         http = Http(this, Api(this)).also { it.start(PORT) }
         relay = Relay(this).also { it.start() }
         Tg.start(this)   // Telegram bot on this phone (idle without a token)
+        runCatching { LauncherSafe.restoreShade(this) }   // Acc has shadeBlocked before any home screen
         work.post(loopRun)
     }
 
@@ -429,7 +430,7 @@ class Guard : Service() {
             .put("lan", lanUrl() ?: JSONObject.NULL)
             .put("net", runCatching { DeviceInfo.netState(this) }.getOrDefault(JSONObject()))
             .put("tg", runCatching { Tg.state(store) }.getOrDefault(JSONObject()))
-            .put("relay", store.relayUrl)
+            .put("relay", store.relayUrl).put("relayShared", store.relayShared).put("adbTcpUntil", store.adbTcpUntil.takeIf { store.adbTcp } ?: 0)
             .put("ts", Ts.stateJson(store))
             .put("grayErr", GrayFx.lastErr)
             .put("autoGrant", JSONObject().put("left", AutoGrant.left).put("at", AutoGrant.lastAt).put("next", AutoGrant.nextAt()).put("err", AutoGrant.err))
@@ -556,14 +557,20 @@ class Guard : Service() {
         }
     }
 
+    private val rulesLock = Any()
     fun setRules(incoming: Rules, pinChange: Boolean = false) {
-        val old = store.rules
-        if (incoming.rev < old.rev) return
-        // a rules PUT without pin / pinHash keeps the old PIN; a rules PUT (LAN or relay) may set the FIRST PIN but never
-        // replace one: that takes pinSet with the old PIN, or pinReset's 24 h wait (CmdGate)
-        val keep = incoming.pinHash.isBlank() || (old.pinHash.isNotBlank() && !pinChange)
-        val r = if (keep) incoming.copy(pinHash = old.pinHash, pinSalt = old.pinSalt) else incoming
-        store.rules = r
+        // read - compare - write as one step: LAN and relay saving at the same moment must not lose the PIN of one or
+        // the rev check of the other (audit L5)
+        val (old, r) = synchronized(rulesLock) {
+            val old = store.rules
+            if (incoming.rev < old.rev) return
+            // a rules PUT without pin / pinHash keeps the old PIN; a rules PUT (LAN or relay) may set the FIRST PIN but never
+            // replace one: that takes pinSet with the old PIN, or pinReset's 24 h wait (CmdGate)
+            val keep = incoming.pinHash.isBlank() || (old.pinHash.isNotBlank() && !pinChange)
+            val r = if (keep) incoming.copy(pinHash = old.pinHash, pinSalt = old.pinSalt) else incoming
+            store.rules = r
+            old to r
+        }
         if (::work.isInitialized) work.post { runCatching { Policy.apply(this, r) } }
         if (r.noDebug && !old.noDebug) devOff()   // "no debugging" switched on: also turn Developer options off once
         if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r, store.tr), "rules")
@@ -588,7 +595,7 @@ class Guard : Service() {
 
     /** [CmdGate]: null = may run; else the "failed: pin..." answer (failed = the same id may be re-sent with the right PIN). */
     private fun gate(t: String, c: JSONObject): String? {
-        if (!CmdGate.needs(t, if (c.has("url")) c.optString("url") else null, store.relayUrl)) return null
+        if (!CmdGate.needs(t, if (c.has("url")) c.optString("url") else null, store.relayUrl, c.optBoolean("renew"))) return null
         return when (store.checkCmdPin(c.optString("pin"), t)) {
             1, 2 -> null
             3 -> "failed: pin needed"
@@ -624,6 +631,7 @@ class Guard : Service() {
         "relay" -> {
             store.relayUrl = c.optString("url")   // "" = relay off (kept off: no default again)
             if (store.relayUrl.isNotBlank() && (store.relayToken.isBlank() || store.relayId.isBlank())) { store.relayToken = store.addToken(); store.relayId = Store.randomHex(8); store.touchDevice(store.relayToken, "relay") }
+            if (c.optBoolean("renew") && store.relayUrl.isNotBlank()) { store.rotateRelay(); store.log(R.string.log_relay_rotated) }   // `relayShared` clears; the reply carries the new id + token
             relay?.kick(); "ok"
         }
         // no PIN yet: the code shows on the child's screen and nothing else would stop the child pairing first

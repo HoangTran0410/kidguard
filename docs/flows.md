@@ -260,13 +260,13 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 - Page: `cmd(c, okMsg, q)` `kid.js:109`: confirm via `ask()` (text keys `ask.<type>`/`askOk.<type>`; `ASK_BAD` = reboot/unpairAll/tailscaleOff), then `POST <base>/cmd`. Result handling: `"ok"|"queued"|"no such sos"` OK, any other string = toast `cr.<type>.<result>`.
 - LAN: `Api.kt:85` -> `Guard.command` (`Guard.kt:424`) synchronous; reply `{result}`. `Guard.run` (`Guard.kt:~437-478`) is the command table.
 - Relay: `index.js:292`: whitelist `CMDS` (:58), extra validation for `clearData` pkg and `setting` key/value, queue max 20 (`queue full` 429), <=4 KB, id = body.id if it matches `^[\w.-]{1,64}$` else UUID, `at=now`. Reply `{result:"queued"}`; page warns "phone offline" if `now - lastSeen > 120 s` (`kid.js:116`).
-- Delivery: `sync` reply `cmds` = all non-acked, <24 h old. `ONCE` list (`index.js:57`: reboot release unpairAll unpair clearData update totpSet fileDel) is removed from the DO queue at hand-out; others stay until the phone's next sync carries `acks`.
+- Delivery: `sync` reply `cmds` = all non-acked, <24 h old. `ONCE` list (`relay/src/index.js` `ONCE`: destructive commands) is handed out until acked but only within `ONCE_WINDOW` (10 min) of the first hand-out; others stay until the phone's next sync carries `acks`. `SHORT` commands ("now" actions) go stale after `SHORT_TTL` (10 min), the rest after 24 h.
 - Phone: `Relay.kt:111-117`: `Guard.command` for each (try/catch, ack always), `markCmd(id)` (`Store.kt:298`, commit(), last 100 ids) skips repeats but answers "ok". Result of a relay command is not returned to the page: it shows up in state/`log` (`Command: x -> res`).
 - LAN-only on purpose: `relay`, `tailscale` (secret key must not sit in the queue). Contract test enforces whitelist parity: `relay/test/contract.test.mjs`.
 - Wire: protocol "Commands" (+ "Action states", "Remote phone settings", "Self-update", "Shared files").
 - Gotchas:
-  - Non-ONCE commands live up to 24 h: a `lock`/`ring`/`wake`/`message`/`setting`/`devOff` queued while the phone is offline fires whenever it returns.
-  - ONCE commands are lost if the sync reply is lost after the worker removed them (no re-delivery), and `Relay.sync` handles `rules` (`Relay.kt:102`, no runCatching) before `cmds`: a parse/apply exception there aborts the loop before a delivered `release` runs.
+  - Non-`SHORT` commands live up to 24 h; `lock`/`ring`/`wake`/`message`/`setting`/`devOff` are `SHORT` (10 min), so they no longer fire the next day.
+  - ONCE commands are re-delivered until acked (within `ONCE_WINDOW`); `Relay.sync` applies `rules` inside its own `runCatching`, so a bad rules reply cannot stop a delivered `release`.
   - `markCmd` strips `.` from ids; for `unpair`/`answer` the worker reuses the body's `id` (device/request id) as command id, so a re-sent `answer` for the same request id is deduped ("ok") even if the first failed.
   - LAN commands carry no id unless the page sets one (`setting` does, `tab-set.js:204`).
 
@@ -510,7 +510,7 @@ Crash fallback: uncaught handler counts while `HomeActivity.alive>0`; 2 in 5 min
 ## 4. Setup, build, release
 
 ### 4.0 Facts
-- Version: `android/gradle.properties` `kg.version=0.9.10`, `kg.code=19` (one place, both apps; `app/build.gradle.kts:15-16`, `parent/build.gradle.kts:32-33`).
+- Version: `android/gradle.properties` `kg.version` + `kg.code` (one place, both apps; `app/build.gradle.kts:15-16`, `parent/build.gradle.kts:32-33`).
 - Package `dev.kidguard`; Device Owner admin `dev.kidguard/.Admin`; accessibility `dev.kidguard/dev.kidguard.Acc`; LAN port 8770.
 - Flavors (`app/build.gradle.kts:21-25`): `kid` (`dev.kidguard`, kidguard.apk), `home` (`dev.kidguard.home`, kidguard-home.apk, launcher only, no libadb native libs `:64-69`). Parent app = `:parent` (`dev.kidguard.parent`, kidguard-parent.apk).
 - One signing key `android/app/signing.jks` (git-ignored, pw hardcoded in both build.gradle files, `app/build.gradle.kts:26-33`, `parent/build.gradle.kts:38`). Same key = self-update works, QR checksum valid, HomeExport provider trusts Home.
@@ -537,7 +537,7 @@ Contract: `docs/protocol.md:248-265` "Setup steps" (9 items). AGENTS.md says set
 
 #### 1c. WebUSB installer `ui/install.html` (Chrome/Edge, no tools)
 - Trigger: `/install` on the worker (`relay/src/index.js:80`) or open file. Tango ADB bundled inline (`install.html:132-136`; rebuild `ui/vendor/build.sh`).
-- `:162-190` connect; `:199-226` `loadApk`: tries `fetch("kidguard.apk")` same-origin, else file picker (`isApk` PK check). No SHA-256 check.
+- `:162-190` connect; `:199-226` `loadApk`: tries `fetch("kidguard.apk")` same-origin, else file picker (`isApk` PK check). SHA-256 checked against `kidguard.apk.sha256` (fail closed) and package `dev.kidguard` checked in the picked file (`isKidGuardApk`); the worker has no `/kidguard.apk` route yet, so on the relay it always falls to the picker (GitHub release downloads send no CORS headers).
 - `:233-` `sh`/`must` same error regex; steps at ~`:262-310`: `pm install -r -g /data/local/tmp/kidguard.apk` (push via sync, then rm), `dpm set-device-owner`, usage stats, secure settings + optional trio, accessibility merge, deviceidle, `am start`, LAN IP via wlan0 / route, ColorOS check.
 - Step 1b in JS: `planAccounts` (same as `SelfSetupLogic.planAccounts`), list in `localStorage["kg.appsOff"]`, `adb.power.reboot()` then `reconnectAfterReboot` (`manager.getDevices()`, same serial, 3 min), `reenableApps()` in the `finally` of the install click + banner `#appsoff` (button reconnects first). Not run in a real browser/WebUSB.
 - Gotcha: another adb server holding the USB interface -> message at `:190` ("adb kill-server").

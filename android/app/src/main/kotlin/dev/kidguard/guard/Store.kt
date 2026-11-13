@@ -27,9 +27,17 @@ class Store private constructor(private val app: Context) {
             // (1-5 ms of JSON per read on an Oppo A5s)
             val raw = p.getString("rules", null)
             if (raw == rulesRaw) rulesObj?.let { return it }
-            return (raw?.let { runCatching { Rules.fromJson(JSONObject(it)) }.getOrNull() } ?: Rules()).also { rulesRaw = raw; rulesObj = it }
+            val parsed = raw?.let { runCatching { Rules.fromJson(JSONObject(it)) }.getOrNull() }
+            if (parsed == null && raw != null) {
+                // unreadable (a torn write): the last readable copy, not "no limits" (audit L3); the parents hear of it
+                val good = p.getString("rulesGood", null)?.let { g -> runCatching { Rules.fromJson(JSONObject(g)) }.getOrNull() }
+                if (raw != rulesBad) { rulesBad = raw; runCatching { event("tamper", if (good != null) R.string.ev_rules_bad_restored else R.string.ev_rules_bad) } }
+                if (good != null) { p.edit().putString("rules", p.getString("rulesGood", null)).apply(); rulesRaw = null; rulesObj = null; return good }
+            }
+            return (parsed ?: Rules()).also { rulesRaw = raw; rulesObj = it }
         }
-        set(v) { p.edit().putString("rules", v.toJson(persist = true).toString()).apply() }
+        set(v) { val j = v.toJson(persist = true).toString(); p.edit().putString("rules", j).putString("rulesGood", j).apply() }
+    private var rulesBad: String? = null
 
     /** Tokens of paired parent browsers. Kept as sha256, the token itself only lives in the parent's browser. */
     @Synchronized fun tokenOk(t: String?): Boolean = !t.isNullOrBlank() && sha256(t) in tokenHashes()
@@ -39,7 +47,7 @@ class Store private constructor(private val app: Context) {
         p.edit().putStringSet("tokens", tokenHashes() + sha256(t)).apply()
         return t
     }
-    @Synchronized fun clearTokens() { pending.clear(); p.edit().remove("tokens").remove("relayToken").remove("relayId").remove("devs").apply() }
+    @Synchronized fun clearTokens() { pending.clear(); p.edit().remove("tokens").remove("relayToken").remove("relayId").remove("relayShared").remove("devs").apply() }
 
     /** Name / first seen / last seen of each paired token (keyed by its sha256), see [Paired]. */
     @Synchronized private fun devMeta(): Map<String, Paired.Dev> {
@@ -69,7 +77,8 @@ class Store private constructor(private val app: Context) {
     @Synchronized fun unpair(id: String): Boolean {
         val hs = tokenHashes(); val h = Paired.find(hs, id) ?: return false
         val e = p.edit().putStringSet("tokens", hs - h)
-        if (relayToken.isNotBlank() && sha256(relayToken) == h) e.remove("relayToken").remove("relayId")
+        if (relayToken.isNotBlank() && sha256(relayToken) == h) e.remove("relayToken").remove("relayId").remove("relayShared")
+        else if (relayToken.isNotBlank()) e.putBoolean("relayShared", true)   // the removed device may still hold the shared relay link (H3)
         e.commit()
         putDevMeta(Paired.prune(devMeta(), hs - h))
         return true
@@ -79,6 +88,18 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var relayToken: String
         get() = p.getString("relayToken", "")!!
         set(v) { p.edit().putString("relayToken", v).apply() }
+    /** True after a device was removed while a relay link exists: that device may still hold the shared link, so the parent should rotate it ([rotateRelay]). */
+    @get:Synchronized val relayShared: Boolean get() = relayToken.isNotBlank() && p.getBoolean("relayShared", false)
+    /** New relay id + token; the old token is revoked. The link the page shows changes, every old link stops working. */
+    @Synchronized fun rotateRelay() {
+        val old = relayToken
+        val keep = tokenHashes() - (if (old.isNotBlank()) sha256(old) else "")
+        p.edit().putStringSet("tokens", keep).remove("relayShared").commit()
+        putDevMeta(Paired.prune(devMeta(), keep))
+        val t = addToken()
+        p.edit().putString("relayToken", t).putString("relayId", randomHex(8)).commit()
+        touchDevice(t, "relay")
+    }
     /** The relay's name for this phone; new with each relay token, so a revoked link can't come back. */
     @get:Synchronized @set:Synchronized var relayId: String
         get() = p.getString("relayId", "")!!
@@ -117,21 +138,43 @@ class Store private constructor(private val app: Context) {
     }
 
     /** ms until the parent PIN may be tried again (0 = now). Shared by the child screen and `/api/pair`. */
-    @Synchronized fun pinLockLeft(): Long = maxOf(0, p.getLong("pinLock", 0) - System.currentTimeMillis())
+    @Synchronized fun pinLockLeft(): Long = lockLeft("pinLock")
+
+    // Lockouts count on the monotonic clock (basic mode can change the wall clock); after a reboot the wall clock is the
+    // only thing left, capped at the original length (audit L6, [Lockout]).
+    private fun bootCount(): Int = runCatching { android.provider.Settings.Global.getInt(app.contentResolver, "boot_count", -1) }.getOrDefault(-1)
+    private fun lockLeft(key: String): Long {
+        val wall = p.getLong(key, 0); if (wall == 0L) return 0
+        return Lockout.left(wall, p.getLong(key + "E", 0), p.getInt(key + "B", -2), bootCount(), System.currentTimeMillis(),
+            android.os.SystemClock.elapsedRealtime(), p.getLong(key + "D", Long.MAX_VALUE))
+    }
+    private fun SharedPreferences.Editor.putLock(key: String, lockMs: Long, now: Long): SharedPreferences.Editor =
+        if (lockMs > 0) putLong(key, now + lockMs).putLong(key + "E", android.os.SystemClock.elapsedRealtime() + lockMs).putInt(key + "B", bootCount()).putLong(key + "D", lockMs)
+        else clearLock(key)
+    private fun SharedPreferences.Editor.clearLock(key: String): SharedPreferences.Editor = remove(key).remove(key + "E").remove(key + "B").remove(key + "D")
+
+    /**
+     * PIN checks (this, [checkAdmin], [checkCmdPin], [tryPair]) queue on [pinGate], not on the Store monitor: the
+     * 10k-round hash must not stall tick / state readers while someone spams PINs (audit L4). Lock order: pinGate, then Store.
+     */
+    private val pinGate = Any()
 
     /** Checks the parent PIN with the lockout: true = right; false = wrong or locked (see [pinLockLeft]). */
-    @Synchronized fun checkParentPin(pin: String): Boolean {
+    fun checkParentPin(pin: String): Boolean = synchronized(pinGate) {
         if (pinLockLeft() > 0) return false
-        if (rules.checkPin(pin)) {
-            p.edit().putInt("pinFails", 0).remove("pinLock").commit()
-            if (pinResetAt > 0) { clearPinReset(); log(R.string.log_pin_reset_cancel) }   // whoever knows the PIN is still here: no reset
-            return true
+        val ok = rules.checkPin(pin)   // the slow hash, outside the Store monitor
+        synchronized(this) {
+            if (ok) {
+                p.edit().putInt("pinFails", 0).clearLock("pinLock").commit()
+                if (pinResetAt > 0) { clearPinReset(); log(R.string.log_pin_reset_cancel) }   // whoever knows the PIN is still here: no reset
+                return true
+            }
+            val f = p.getInt("pinFails", 0) + 1
+            val lock = Safety.pinLockMs(f)
+            p.edit().putInt("pinFails", f).putLock("pinLock", lock, System.currentTimeMillis()).commit()
+            if (lock > 0) log(R.string.log_pin_wrong, f, (lock / 60_000).toInt())
         }
-        val f = p.getInt("pinFails", 0) + 1
-        val lock = Safety.pinLockMs(f)
-        p.edit().putInt("pinFails", f).putLong("pinLock", if (lock > 0) System.currentTimeMillis() + lock else 0).commit()
-        if (lock > 0) log(R.string.log_pin_wrong, f, (lock / 60_000).toInt())
-        return false
+        false
     }
 
     /**
@@ -139,7 +182,8 @@ class Store private constructor(private val app: Context) {
      * (the child can see the code, never the PIN). Every 3rd wrong guess makes a new code and blocks for a while.
      * Returns the token, or null with [lastPairError] = closed | wait | pin locked | wrong pin | wrong code.
      */
-    @Synchronized fun tryPair(code: String, pin: String, newPin: String = ""): String? {
+    fun tryPair(code: String, pin: String, newPin: String = ""): String? = synchronized(pinGate) { tryPairLocked(code, pin, newPin) }
+    @Synchronized private fun tryPairLocked(code: String, pin: String, newPin: String): String? {
         val now = System.currentTimeMillis()
         if (p.getLong("pairBlock", 0) > now) { lastPairError = "wait"; return null }
         val want = pairCode() ?: run { lastPairError = "closed"; return null }
@@ -174,33 +218,38 @@ class Store private constructor(private val app: Context) {
             .remove("pairUntil").remove("pairCode").putInt("wrong", 0).remove("pairBlock").remove("recoverAt")
         val r = rules
         if (pp.hash.isNotEmpty() && r.pinHash.isBlank())
-            e.putString("rules", r.copy(pinHash = pp.hash, pinSalt = pp.salt, rev = maxOf(r.rev + 1, now)).toJson(persist = true).toString())
+            r.copy(pinHash = pp.hash, pinSalt = pp.salt, rev = maxOf(r.rev + 1, now)).toJson(persist = true).toString().let { j -> e.putString("rules", j).putString("rulesGood", j) }
         e.commit()
         pending.clear()
         return true
     }
 
     /**
-     * "Bố mẹ quản lý trên máy này": the parent PIN (shared lockout with pairing) or a current Authenticator code.
-     * Returns 1 = right, 0 = wrong (a `tamper` event for the parents), -1 = locked (see [adminLockLeft]).
+     * "Bố mẹ quản lý trên máy này": the parent PIN. An Authenticator code opens it only while no PIN is set ([AdminAuth]:
+     * the code is read out to the child for a temporary unlock, so with a PIN it must not also be the admin key).
+     * Returns 1 = right (a parent event says how it was opened), 0 = wrong (a `tamper` event for the parents), -1 = locked
+     * (see [adminLockLeft]).
      */
-    @Synchronized fun checkAdmin(code: String, now: Long = System.currentTimeMillis()): Int {
+    fun checkAdmin(code: String, now: Long = System.currentTimeMillis()): Int = synchronized(pinGate) {
         val c = code.filter { it.isDigit() }
         val secret = totpSecret
-        val pinOk = rules.pinHash.isNotBlank() && pinLockLeft() == 0L
-        val totpOk = secret.isNotBlank() && unlockLockLeft() == 0L
-        if (!pinOk && !totpOk) return -1
-        if (totpOk && c.length == 6) {
+        val pinSet = rules.pinHash.isNotBlank()
+        val w = AdminAuth.ways(pinSet, pinLockLeft() > 0, secret.isNotBlank(), unlockLockLeft() > 0)
+        if (w.none) return -1
+        if (w.code && c.length == 6) {
             val step = Totp.check(secret, c, now, p.getLong("totpLast", 0))
-            if (step >= 0) { p.edit().putLong("totpLast", step).putInt("unlockFails", 0).putInt("adminRun", 0).remove("unlockLock").commit(); log(R.string.log_admin_open); return 1 }
+            if (step >= 0) {
+                p.edit().putLong("totpLast", step).putInt("unlockFails", 0).putInt("adminRun", 0).clearLock("unlockLock").commit()
+                log(R.string.log_admin_open_code); event("tamper", R.string.ev_admin_open_code); return 1
+            }
         }
-        if (pinOk) {
-            if (checkParentPin(c)) { p.edit().putInt("adminRun", 0).apply(); log(R.string.log_admin_open); return 1 }
+        if (w.pin) {
+            if (checkParentPin(c)) { p.edit().putInt("adminRun", 0).apply(); log(R.string.log_admin_open); event("adminOpen", R.string.ev_admin_open_pin); return 1 }
         } else {
-            // no PIN (or it is locked): the wrong code counts against the Authenticator's own limit
+            // no PIN: the wrong code counts against the Authenticator's own limit
             val f = p.getInt("unlockFails", 0) + 1
             val lock = Safety.pinLockMs(f)
-            p.edit().putInt("unlockFails", f).putLong("unlockLock", if (lock > 0) now + lock else 0).commit()
+            p.edit().putInt("unlockFails", f).putLock("unlockLock", lock, now).commit()
         }
         event("tamper", R.string.ev_admin_wrong)
         val run = p.getInt("adminRun", 0) + 1
@@ -221,12 +270,9 @@ class Store private constructor(private val app: Context) {
         }
         p.edit().putString("events", a.toString()).apply()
     }
-    /** ms until the on-device admin can be tried again: both ways in must be locked. */
-    @Synchronized fun adminLockLeft(): Long {
-        val a = if (rules.pinHash.isNotBlank()) pinLockLeft() else Long.MAX_VALUE
-        val b = if (totpSecret.isNotBlank()) unlockLockLeft() else Long.MAX_VALUE
-        return minOf(a, b).takeIf { it != Long.MAX_VALUE } ?: 0
-    }
+    /** ms until the on-device admin can be tried again (the PIN lockout when a PIN is set, else the Authenticator's). */
+    @Synchronized fun adminLockLeft(): Long =
+        AdminAuth.lockLeft(rules.pinHash.isNotBlank(), pinLockLeft(), totpSecret.isNotBlank(), unlockLockLeft())
     // ---- Telegram bot on this phone (Tg.kt). The token never leaves the phone (not in state, not in rules). ----
     var tgToken: String
         get() = p.getString("tgToken", "") ?: ""
@@ -313,27 +359,27 @@ class Store private constructor(private val app: Context) {
         set(v) { p.edit().putLong("recoverAt", v).apply() }
 
     /**
-     * The PIN (or a current Authenticator code) carried by a gated command ([CmdGate]). Shares the lockouts of the
-     * on-device admin. 1 = right, 2 = nothing to check (no PIN and no Authenticator yet), 3 = none given (not counted),
+     * The PIN carried by a gated command ([CmdGate]); an Authenticator code only while no PIN is set ([AdminAuth]).
+     * Shares the lockouts of the on-device admin. 1 = right, 2 = nothing to check (no PIN and no Authenticator yet), 3 = none given (not counted),
      * 0 = wrong (a `tamper` event naming the command), -1 = locked.
      */
-    @Synchronized fun checkCmdPin(code: String, what: String, now: Long = System.currentTimeMillis()): Int {
+    fun checkCmdPin(code: String, what: String, now: Long = System.currentTimeMillis()): Int = synchronized(pinGate) {
         val secret = totpSecret
-        if (rules.pinHash.isBlank() && secret.isBlank()) return 2
+        val pinSet = rules.pinHash.isNotBlank()
+        if (!pinSet && secret.isBlank()) return 2
         val c = code.filter { it.isDigit() }
         if (c.isEmpty()) return 3
-        val pinOk = rules.pinHash.isNotBlank() && pinLockLeft() == 0L
-        val totpOk = secret.isNotBlank() && unlockLockLeft() == 0L
-        if (!pinOk && !totpOk) return -1
-        if (totpOk && c.length == 6) {
+        val w = AdminAuth.ways(pinSet, pinLockLeft() > 0, secret.isNotBlank(), unlockLockLeft() > 0)
+        if (w.none) return -1
+        if (w.code && c.length == 6) {
             val step = Totp.check(secret, c, now, p.getLong("totpLast", 0))
-            if (step >= 0) { p.edit().putLong("totpLast", step).putInt("unlockFails", 0).remove("unlockLock").commit(); return 1 }
+            if (step >= 0) { p.edit().putLong("totpLast", step).putInt("unlockFails", 0).clearLock("unlockLock").commit(); return 1 }
         }
-        if (pinOk) { if (checkParentPin(c)) return 1 }
+        if (w.pin) { if (checkParentPin(c)) return 1 }
         else {
             val f = p.getInt("unlockFails", 0) + 1
             val lock = Safety.pinLockMs(f)
-            p.edit().putInt("unlockFails", f).putLong("unlockLock", if (lock > 0) now + lock else 0).commit()
+            p.edit().putInt("unlockFails", f).putLock("unlockLock", lock, now).commit()
         }
         event("tamper", R.string.ev_cmd_pin, what)
         return if (adminLockLeft() > 0) -1 else 0
@@ -355,7 +401,7 @@ class Store private constructor(private val app: Context) {
         get() = p.getLong("unlockUntil", 0)
         set(v) { p.edit().putLong("unlockUntil", v).apply() }
 
-    @Synchronized fun unlockLockLeft(): Long = maxOf(0, p.getLong("unlockLock", 0) - System.currentTimeMillis())
+    @Synchronized fun unlockLockLeft(): Long = lockLeft("unlockLock")
 
     /** Child typed a parent's Authenticator code: minutes unlocked, or 0 (wrong / reused / locked, see [unlockLockLeft]). */
     @Synchronized fun tryUnlock(code: String, now: Long = System.currentTimeMillis()): Int {
@@ -365,12 +411,12 @@ class Store private constructor(private val app: Context) {
         if (step < 0) {
             val f = p.getInt("unlockFails", 0) + 1
             val lock = Safety.pinLockMs(f)
-            p.edit().putInt("unlockFails", f).putLong("unlockLock", if (lock > 0) now + lock else 0).commit()
+            p.edit().putInt("unlockFails", f).putLock("unlockLock", lock, now).commit()
             if (f == 5) event("tamper", R.string.ev_unlock_wrong)
             return 0
         }
         val min = rules.unlockMin
-        p.edit().putLong("totpLast", step).putInt("unlockFails", 0).remove("unlockLock")
+        p.edit().putLong("totpLast", step).putInt("unlockFails", 0).clearLock("unlockLock")
             .putLong("unlockUntil", maxOf(now, p.getLong("unlockUntil", 0)) + min * 60_000L).commit()
         log(R.string.log_unlock, min)
         event("unlock", R.string.ev_unlock, min)
@@ -574,6 +620,10 @@ class Store private constructor(private val app: Context) {
     var adbTcp: Boolean
         get() = p.getBoolean("adbTcp", false)
         set(v) { p.edit().putBoolean("adbTcp", v).commit() }
+    /** Wall-clock ms when `adbTcp` closes by itself ([DevLogic.TCP_MAX_MS] after the switch-on); 0 = none. */
+    var adbTcpUntil: Long
+        get() = p.getLong("adbTcpUntil", 0L)
+        set(v) { p.edit().putLong("adbTcpUntil", v).apply() }
     /** When `adbTcp` was turned off and port 5555 may still need an adbd `usb:` (0 = nothing pending). */
     var adbTcpReset: Long
         get() = p.getLong("adbTcpReset", 0L)

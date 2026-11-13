@@ -114,7 +114,7 @@ class Proxy(private val ctx: Context, val port: Int) {
         }
         if (res.status == null) return Res.json("{\"error\":\"offline\"}", 502)
         val h = HashMap(res.headers)
-        return Res(res.status, res.type, res.body, h)
+        return Res(res.status, Logic.safeType(res.type), res.body, h)
     }
 
     /** Shared-files routes: request body streamed up, a LAN download streamed down (never buffered; docs/protocol.md "Shared files"). */
@@ -136,7 +136,7 @@ class Proxy(private val ctx: Context, val port: Int) {
                 }
             }
             val code = c.responseCode
-            val type = c.contentType ?: "application/octet-stream"
+            val type = Logic.safeType(c.contentType)
             if (code == 200 && r.method == "GET" && c.contentLengthLong >= 0 && rest0(r).startsWith("/api/files/")) {
                 val conn = c; c = null
                 return Res(200, type, ByteArray(0), stream = { out ->
@@ -163,9 +163,9 @@ class Proxy(private val ctx: Context, val port: Int) {
         if (c.responseCode != 200) {
             val b = runCatching { c.errorStream?.use { it.readBytes() } }.getOrNull() ?: ByteArray(0)
             c.disconnect()
-            return Res(c.responseCode, c.contentType ?: "application/json", b)
+            return Res(c.responseCode, Logic.safeType(c.contentType ?: "application/json"), b)
         }
-        return Res(200, c.contentType ?: "audio/aac", ByteArray(0), stream = { out ->
+        return Res(200, Logic.safeType(c.contentType ?: "audio/aac"), ByteArray(0), stream = { out ->
             try { c.inputStream.use { ins -> val buf = ByteArray(4096); while (true) { val n = ins.read(buf); if (n < 0) break; out.write(buf, 0, n); out.flush() } } }
             catch (e: Exception) { /* either side closed */ } finally { runCatching { c.disconnect() } }
         })

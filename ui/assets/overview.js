@@ -1,10 +1,11 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // --- all kids at once: cards, one map, 7 days side by side ------------------------
 const KC = ["#2563eb", "#db2777", "#16a34a", "#d97706", "#7c3aed", "#0891b2"];
+let ovLoading = false;
 let ov = null;   // {list, back, data: [{k, st, seen, err}]}
 async function overview(list, back) {
   const g = ++gen; if (askDone) askDone(false, true); clearInterval(timer); cur = null; mv = null;
-  ovRes = null; ovBusy = false; ov = { list, back, data: list.map(k => ({ k, st: null, seen: 0, err: "" })) };
+  ovRes = null; ovBusy = false; ovLoading = false; ov = { list, back, data: list.map(k => ({ k, st: null, seen: 0, err: "" })) };
   ovShell();
   navTo(1);
   ovDraw();
@@ -25,11 +26,12 @@ function ovShell() {
   $("#ovBack").onclick = () => { gen++; clearInterval(timer); const b = ov.back; ov = null; b(); navDown(0); };
 }
 async function ovLoad() {
-  const o = ov; if (!o || document.hidden) return;
-  await Promise.all(o.data.map(async d => {
+  const o = ov; if (!o || document.hidden || ovLoading) return;   // hidden tab: the visibilitychange handler reloads on return; a slow relay must not stack polls
+  ovLoading = true;
+  try { await Promise.all(o.data.map(async d => {
     try { const j = await call(d.k, "/state"); d.st = j.state !== undefined ? j.state : j; d.seen = j.state !== undefined ? +j.seen || 0 : 0; d.err = ""; }
     catch (e) { d.err = e.net ? e.message : t("ov.phoneErr", e.message); }   // a raw phone error alone ("not paired") says nothing
-  }));
+  })); } finally { ovLoading = false; }
   if (ov === o) ovDraw();
 }
 function ovOnline(d) { return d.st && (d.k.via === "lan" ? !d.err && Date.now() - d.st.t < 30000 : d.seen && Date.now() - d.seen < 120000); }

@@ -150,7 +150,7 @@ private fun HomeActivity.menuHead(box: LinearLayout, h: MenuHead, pw: PopupWindo
         for (b in h.buttons) addView(ImageView(context).apply {
             setImageDrawable(Ic.get(context, b.icon, pal.text, dp(18))); scaleType = ImageView.ScaleType.CENTER
             contentDescription = b.desc; kit.tap(this, 20f) { pw.dismiss(); b.run() }
-        }, LinearLayout.LayoutParams(dp(40), dp(40)))
+        }, LinearLayout.LayoutParams(dp(48), dp(48)))
     }, LinearLayout.LayoutParams(-1, -2))
     h.info?.let { fill ->
         // owner 2026-11-13: the line opens the usage stats, so it looks like a row (chart icon, chevron) and is always there

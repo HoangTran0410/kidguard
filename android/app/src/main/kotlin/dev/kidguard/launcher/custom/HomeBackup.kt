@@ -83,7 +83,7 @@ object HomeBackup {
             val tmp = File(ctx.filesDir, "$UNDO.tmp"); tmp.writeText(before.first)
             if (!tmp.renameTo(File(ctx.filesDir, UNDO))) error("rename")
         }.onFailure { return false }   // no undo copy, no restore
-        var m = p.model
+        var m = if (Flavor.HOME) HomeLayout.dropWidgets(p.model) { Flavor.widget(it) } else p.model   // Home flavor: parent widgets would sit invisible on occupied cells
         val noPhoto = m.copy(style = m.style.copy(wallKind = "builtin", wall = ""))
         // the photo goes to a temp file first: the layout is saved before wall.jpg or the gestures are replaced, so a failed write changes nothing
         val ptmp = File(ctx.filesDir, Wallpaper.PHOTO + ".tmp")

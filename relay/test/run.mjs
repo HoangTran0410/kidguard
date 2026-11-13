@@ -28,6 +28,8 @@ createServer((q, s) => {
       const m = JSON.parse(b).message; sent.push(m);
       return m.token.startsWith("dead") ? out(404, { error: { status: "NOT_FOUND" } }) : out(200, { name: "x" });
     }
+    if (q.url === "/rel/kidguard.apk") { s.writeHead(200, { "content-type": "text/plain" }); return s.end("APKBYTES"); }
+    if (q.url === "/rel/kidguard.apk.sha256") { s.writeHead(200); return s.end("abc  kidguard.apk\n"); }
     if (q.url === "/_sent") return out(200, sent);
     // fake Telegram: /bot<TG_TOKEN>/getMe, /sendMessage (recorded), GET /_tg
     if (q.url === `/bot${TG_TOKEN}/getMe`) return out(200, { ok: true, result: { username: "kg_test_bot" } });
@@ -37,7 +39,7 @@ createServer((q, s) => {
   });
 }).listen(MOCK, "127.0.0.1");
 const envFile = join(mkdtempSync(join(tmpdir(), "kg-")), ".env");
-writeFileSync(envFile, `FCM_SA='${JSON.stringify(sa)}'\nFCM_URL=http://127.0.0.1:${MOCK}\nTG_BOT=${TG_TOKEN}\nTG_URL=http://127.0.0.1:${MOCK}\n`);
+writeFileSync(envFile, `FCM_SA='${JSON.stringify(sa)}'\nFCM_URL=http://127.0.0.1:${MOCK}\nTG_BOT=${TG_TOKEN}\nTG_URL=http://127.0.0.1:${MOCK}\nBIND_PER_DAY=60\nAPK_BASE=http://127.0.0.1:${MOCK}/rel/\n`);
 
 // fresh local Durable Object storage every run: tests with fixed kid ids must not see the last run's queue / rules
 rmSync(".wrangler/state", { recursive: true, force: true });

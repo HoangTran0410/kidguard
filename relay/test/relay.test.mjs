@@ -329,4 +329,35 @@ const w2=await wsOpen();ck("second ws replaces the first",w2.status==101&&(await
 w2.send("ping");ck("new ws alive",(await w2.next())=="pong");
 w2.close();await new Promise(r=>setTimeout(r,500));
 const s2=await (await fetch(`${B}/c/${id7}/state`,{headers:H()})).json();ck("closed ws: seen kept (last sign of life)",Date.now()-s2.seen<15000);}
+// ---- audit M3: secrets leave the queue after the first hand-out; the worker drops its unsalted PIN hash once the phone has it ----
+{const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),idm=rh(16),Tm=rh(48),sleep2=ms=>new Promise(r=>setTimeout(r,ms));
+const Q=async(p,o,m="POST")=>{for(let i=0;;i++){const r=await fetch(`${B}/c/${idm}/${p}`,{method:m,headers:{"x-kg-token":Tm,"content-type":"application/json"},body:m=="GET"?undefined:JSON.stringify(o)});if((r.status!=429&&r.status!=503)||i>=20)return r;await sleep2(1500);}};
+await Q("sync",{state:{rules:{rev:1}}});
+await Q("cmd",{type:"tgSet",token:"123456:secret-bot-token",pin:"1234"});
+let a=await (await Q("sync",{})).json(),c0=a.cmds.find(c=>c.type=="tgSet");
+ck("M3: first hand-out carries token + pin",!!c0&&c0.token=="123456:secret-bot-token"&&c0.pin=="1234");
+a=await (await Q("sync",{})).json();const c1=a.cmds.find(c=>c.type=="tgSet");
+ck("M3: queued copy after hand-out has no token / pin",!!c1&&!("token" in c1)&&!("pin" in c1)&&c1.id==c0.id);
+await Q("sync",{acks:[c0.id]});a=await (await Q("sync",{})).json();ck("M3: acked command gone",!a.cmds.some(c=>c.type=="tgSet"));
+await Q("rules",{dailyMin:60,pin:"4321"},"PUT");
+a=await (await Q("sync",{state:{rules:{rev:1}}})).json();ck("M3: phone still gets pinHash until it has the rules",!!(a.rules&&a.rules.pinHash));
+await Q("sync",{state:{rules:{rev:Date.now()+1e6,pinSet:true}}});
+a=await (await Q("sync",{state:{rules:{rev:1,pinSet:true}}})).json();
+ck("M3: worker dropped its pinHash once the phone reported the rules + pinSet",!!a.rules&&!("pinHash" in a.rules)&&a.rules.pinSet===true);
+a=await (await Q("rules",{dailyMin:70},"PUT")).json();ck("M3: later PUT without pin keeps pinSet",a.pinSet===true&&a.dailyMin==70);}
+// ---- M13 apk proxy, L17 resume drops a queued lock ----
+{const a=await fetch(`${B}/kidguard.apk`);ck("M13: /kidguard.apk proxied, octet-stream, no-cache",a.status==200&&(await a.text())=="APKBYTES"&&a.headers.get("content-type")=="application/octet-stream"&&a.headers.get("cache-control")=="no-cache"&&a.headers.get("x-content-type-options")=="nosniff");
+ck("M13: sha256 proxied",(await (await fetch(`${B}/kidguard.apk.sha256`)).text()).startsWith("abc"));
+const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),idl=rh(16),Tl=rh(48);
+const Q=async(p,o,m="POST")=>{for(let i=0;;i++){const r=await fetch(`${B}/c/${idl}/${p}`,{method:m,headers:{"x-kg-token":Tl,"content-type":"application/json"},body:JSON.stringify(o)});if((r.status!=429&&r.status!=503)||i>=20)return r;await new Promise(z=>setTimeout(z,1500));}};
+await Q("sync",{state:{rules:{rev:1}}});
+await Q("rules",{dailyMin:60,pausedUntil:Date.now()+36e5},"PUT");await Q("cmd",{type:"lock"});await Q("cmd",{type:"ring"});
+await Q("rules",{dailyMin:60,pausedUntil:0},"PUT");
+const a2=await (await Q("sync",{})).json();ck("L17: resume (pausedUntil 0) drops the queued lock, keeps other commands",!a2.cmds.some(c=>c.type=="lock")&&a2.cmds.some(c=>c.type=="ring"));}
+// ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
+{const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;
+for(let i=0;i<90&&!blocked;i++){const idn=rh(16),r=await fetch(`${B}/c/${idn}/sync`,{method:"POST",headers:{"x-kg-token":rh(48),"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});
+if(r.status==200)ok++;else if(r.status==429){const t=await r.text();if(/too many new pairings/.test(t))blocked=i+1;else await new Promise(z=>setTimeout(z,1500));}}
+ck(`H4: new binds from one network stop at the daily cap (ok ${ok}, blocked at ${blocked})`,blocked>0&&ok<=60);
+ck("H4: an already bound kid keeps syncing past the cap",(await fetch(`${B}/c/${id}/sync`,{method:"POST",headers:{"x-kg-token":T,"content-type":"application/json"},body:"{}"})).status==200);}
 console.log(pass,"pass",fail,"fail");process.exit(fail?1:0);

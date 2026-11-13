@@ -172,6 +172,7 @@ class HomeActivity : Activity() {
 
         super.onCreate(b)
         LauncherSafe.watch(this)
+        LauncherSafe.restoreShade(this)
         alive++
         if (LauncherSafe.takeReset(this)) { HomeFile.reset(this); IconCache.clear() }
         u = Ui(this, pal); kit = HomeKit(this, pal)

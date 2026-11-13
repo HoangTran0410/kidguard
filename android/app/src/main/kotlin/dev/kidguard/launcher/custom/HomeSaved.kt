@@ -63,5 +63,16 @@ object HomeSaved {
         write(ctx, e.copy(name = name.trim().take(30)), o.getJSONObject("layout")); true
     }.getOrDefault(false)
 
+    /** Other apps' widget host ids that a saved layout or the undo step still references: the home must not delete them
+     *  from the host when it leaves the screen, or switching back / Undo brings a "gone" card. Reads files: call off the main thread. */
+    fun referencedWidgetIds(ctx: Context): Set<Int> {
+        val out = HashSet<Int>()
+        (dir(ctx).listFiles { f -> f.name.endsWith(".json") } ?: emptyArray()).forEach { f ->
+            runCatching { HomeLayout.parse(JSONObject(f.readText()).optJSONObject("layout")?.toString())?.let { out += HomeLayout.appWidgetIds(it) } }
+        }
+        runCatching { HomeBackup.parse(File(ctx.filesDir, "home.undo.json").readText())?.let { out += HomeLayout.appWidgetIds(it.model) } }
+        return out
+    }
+
     fun delete(ctx: Context, e: Entry) { File(dir(ctx), "${e.id}.json").delete(); File(dir(ctx), "${e.id}.jpg").delete() }
 }

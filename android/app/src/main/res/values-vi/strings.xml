@@ -260,6 +260,9 @@
         <item quantity="other">failed: %1$d app còn bị ẩn</item>
     </plurals>
 
+    <plurals name="release_bg_left">
+        <item quantity="other">%1$d app vẫn đang bị giới hạn chạy nền. Sẽ được gỡ ở lần khởi động tới nếu Gỡ lỗi không dây đang bật (hoặc ở Cài đặt > Ứng dụng > Pin)</item>
+    </plurals>
     <plurals name="release_shell_left">
         <item quantity="other">%1$d app đã tắt chưa bật lại được. Sẽ bật lại ở lần mở sau, khi Gỡ lỗi không dây đang bật (hoặc bật tay trong Cài đặt > Ứng dụng)</item>
     </plurals>
@@ -293,6 +296,7 @@
     <string name="ss_restart">KidGuard đã tắt tạm %1$s. Máy khởi động lại một lần; mở khoá xong việc cài tự chạy tiếp.</string>
     <string name="ss_resume_run">Đang cài tiếp sau khi khởi động lại</string>
     <string name="ss_resume_late">Máy khởi động lại quá lâu nên đã dừng. Chạy cài lại.</string>
+    <string name="ss_conn_lost">Mất kết nối với máy này khi đang làm nốt. Ghép nối lại Gỡ lỗi không dây rồi chạy cài đặt lại.</string>
     <string name="ss_resume_noadb">Không vào được Gỡ lỗi không dây sau khi khởi động lại (Wi-Fi đã bật chưa?)</string>
     <string name="ss_apps_back">Các app đã bật lại: %1$s.</string>
     <string name="ss_apps_off">Bật lại các app này trong Cài đặt &gt; Ứng dụng: %1$s.</string>
@@ -521,10 +525,9 @@
     <string name="home_version">KidGuard %1$s</string>
     <string name="home_sos">SOS</string>
     <string name="admin_title">Quản lý trên máy này</string>
-    <string name="admin_body">Bố mẹ nhập PIN hoặc mã Authenticator đang hiện. Trang tự đóng khi tắt màn hình, rời trang, hoặc 5 phút không chạm.</string>
     <string name="admin_body_pin">Bố mẹ nhập PIN. Trang tự đóng khi tắt màn hình, rời trang, hoặc 5 phút không chạm.</string>
     <string name="admin_body_totp">Bố mẹ nhập mã Authenticator đang hiện. Trang tự đóng khi tắt màn hình, rời trang, hoặc 5 phút không chạm.</string>
-    <string name="admin_field">PIN hoặc mã 6 số</string>
+    <string name="admin_field">PIN</string>
     <string name="admin_ok">Mở</string>
     <string name="admin_loading">Đang mở trang quản lý…</string>
     <string name="admin_wrong">Sai mã, thử lại</string>
@@ -534,6 +537,13 @@
     <string name="admin_not_ready">Trang quản lý chưa sẵn sàng, thử lại sau</string>
     <string name="st_no_pin">Bố mẹ chưa đặt PIN</string>
     <string name="log_admin_open">Bố mẹ mở trang quản lý trên máy này</string>
+    <string name="log_relay_rotated">Đã đổi link relay: mọi link relay cũ ngừng hoạt động</string>
+    <string name="log_adb_tcp_timeout">Gỡ lỗi qua mạng (cổng 5555) đã tự đóng sau 2 giờ</string>
+    <string name="ev_rules_bad_restored">Tệp quy tắc trên máy con bị hỏng; đã khôi phục bản tốt gần nhất</string>
+    <string name="ev_rules_bad">Tệp quy tắc trên máy con bị hỏng và không có bản sao: chưa có giới hạn nào cho đến khi bạn lưu lại quy tắc</string>
+    <string name="log_admin_open_code">Bố mẹ mở trang quản lý trên máy này bằng mã Authenticator (chưa đặt PIN)</string>
+    <string name="ev_admin_open_pin">Trang quản lý trên máy con vừa được mở bằng PIN</string>
+    <string name="ev_admin_open_code">Trang quản lý trên máy con vừa được mở bằng mã Authenticator (chưa đặt PIN)</string>
     <string name="ev_admin_wrong">Có người nhập sai PIN / mã để mở trang quản lý trên máy con</string>
     <plurals name="hold_left">
         <item quantity="other">Giữ tiếp… %1$d giây</item>

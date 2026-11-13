@@ -29,7 +29,7 @@ internal fun HomeActivity.colorPick(start: Int, done: (Int) -> Unit) {
         background = u.shape(u.bg, 12, u.stroke, 1); setPadding(dp(12), dp(8), dp(12), dp(8))
         filters = arrayOf(android.text.InputFilter.LengthFilter(7))
         inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
-        contentDescription = "Hex"
+        contentDescription = getString(R.string.hm_hex_label)
     }
     top.addView(hexIn, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(12) })
     box.addView(top)

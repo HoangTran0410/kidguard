@@ -6,9 +6,17 @@
 # off for a moment, restarts the phone once, makes KidGuard Device Owner, and turns the apps back on (always, also on error).
 # After setup you can sign in to the phone accounts again.
 # Several devices attached: export ANDROID_SERIAL=<serial> first.
+# Downloaded APK is checked against kidguard.apk.sha256 and refused if that cannot be fetched (KG_ALLOW_UNVERIFIED=1 skips the check).
 # Undo: from the parent's page, Settings > "Gỡ quyền quản lý", then uninstall the app.
 # Steps are the same as docs/protocol.md "Setup steps" (setup.ps1 and ui/install.html do the same).
 set -euo pipefail
+# An APK path given on the command line is resolved against where you ran the script, before we cd next to it.
+ARG_APK=""
+for a in "$@"; do case "$a" in -y|--yes) ;; *) ARG_APK="$a" ;; esac; done
+if [ -n "$ARG_APK" ]; then
+  [ -f "$ARG_APK" ] || { echo "LỖI: Không thấy file APK: $ARG_APK"; exit 1; }
+  ARG_APK="$(cd "$(dirname "$ARG_APK")" && pwd)/$(basename "$ARG_APK")"
+fi
 cd "$(dirname "$0")"
 PKG=dev.kidguard
 ACC="$PKG/$PKG.Acc"
@@ -17,22 +25,27 @@ YES=0
 if [ "${1:-}" = "-y" ] || [ "${1:-}" = "--yes" ]; then YES=1; shift; fi
 
 # --- APK ---
-APK="${1:-}"
+APK="$ARG_APK"
 if [ -z "$APK" ]; then
   for c in kidguard.apk ../build/kidguard.apk; do [ -f "$c" ] && APK=$c && break; done
 fi
-if [ -z "$APK" ] || [ ! -f "$APK" ]; then
+if [ -z "$APK" ]; then
   echo "[..] Không thấy file kidguard.apk, tải bản mới nhất…"
   REL=https://github.com/HoangTran0410/kidguard/releases/latest/download
   APK="$(mktemp -d)/kidguard.apk"
   curl -fL -o "$APK" "$REL/kidguard.apk"
+  # fail closed: no checksum = stop, unless KG_ALLOW_UNVERIFIED=1 (you accept installing an unverified APK)
   if SUM=$(curl -fsL "$REL/kidguard.apk.sha256" 2>/dev/null) && [ -n "$SUM" ]; then
     want=$(printf '%s' "$SUM" | awk '{print tolower($1)}')
     if command -v sha256sum >/dev/null 2>&1; then got=$(sha256sum "$APK" | awk '{print $1}'); else got=$(shasum -a 256 "$APK" | awk '{print $1}'); fi
     if [ "$want" != "$got" ]; then echo "LỖI: Sai mã kiểm tra SHA-256 của kidguard.apk (muốn $want, được $got). Dừng."; exit 1; fi
     echo "OK Đã kiểm tra SHA-256 của kidguard.apk"
+  elif [ "${KG_ALLOW_UNVERIFIED:-}" = "1" ]; then
+    echo "[!] Không tải được kidguard.apk.sha256, bỏ qua kiểm tra vì KG_ALLOW_UNVERIFIED=1."
   else
-    echo "[!] Không có kidguard.apk.sha256 trên bản phát hành, không kiểm tra được tính toàn vẹn."
+    echo "LỖI: Không tải được kidguard.apk.sha256 nên không kiểm tra được tính toàn vẹn. Dừng."
+    echo "→ Thử lại khi có mạng, hoặc truyền file APK đã tải: ./setup.sh kidguard.apk. Chấp nhận rủi ro: KG_ALLOW_UNVERIFIED=1 ./setup.sh"
+    exit 1
   fi
 fi
 
@@ -57,6 +70,11 @@ if ! command -v adb >/dev/null 2>&1; then
   export PATH="$TOOLS/platform-tools:$PATH"
 fi
 
+devs=$(adb devices | tr -d '\r')
+if printf '%s\n' "$devs" | awk 'NR>1 && $2=="unauthorized"{f=1} END{exit !f}'; then
+  echo "Máy đã cắm nhưng chưa cho phép gỡ lỗi USB: nhìn màn hình điện thoại, bấm \"Cho phép\" (tick \"Luôn cho phép\"), rồi chạy lại."
+  printf '%s\n' "$devs"; exit 1
+fi
 if [ -n "${ANDROID_SERIAL:-}" ]; then
   adb devices | awk 'NR>1 && $2=="device"{print $1}' | grep -qxF "$ANDROID_SERIAL" || { echo "Không thấy máy $ANDROID_SERIAL (ANDROID_SERIAL)"; adb devices; exit 1; }
 else
@@ -72,6 +90,9 @@ if [ "$YES" != "1" ]; then
   read -r ans </dev/tty || ans=n
   case "$ans" in y|Y) ;; *) echo "Đã huỷ."; exit 1 ;; esac
 fi
+
+# true when KidGuard is Device Owner (captured first, no `| grep -q`: with pipefail an early-closed pipe reads as failure)
+is_do() { local d; d=$(adb shell dumpsys device_policy 2>/dev/null || true); case "$d" in *"admin=ComponentInfo{$PKG/$PKG.Admin}"*) return 0 ;; *) return 1 ;; esac; }
 
 # adb shell often exits 0 on failure: run a command, show its output, stop if it looks like an error.
 chk() {
@@ -89,22 +110,31 @@ chk() {
 
 # --- app accounts are kept: their apps are turned off during the Device Owner step, then always turned back on ---
 OFFFILE="$HOME/.kidguard/apps-off.txt"   # survives a crash / Ctrl-C: the next run turns them on first
-OFF=""
+OFF=""; REENABLE_FAILED=0
 reenable() {
-  local list="$OFF" p i
+  local list="$OFF" p i out left=""
   [ -n "$list" ] || return 0
   OFF=""
   echo "[*] Bật lại các app đã tắt tạm:$list"
   for i in $(seq 1 60); do adb shell true >/dev/null 2>&1 && break; sleep 2; done   # the phone may still be restarting
-  for p in $list; do adb shell pm enable "$p" 2>&1 | tr -d '\r' || true; done
-  rm -f "$OFFFILE"
+  for p in $list; do
+    out=$(adb shell pm enable "$p" 2>&1 | tr -d '\r' || true); echo "$out"
+    case "$out" in *enabled*) ;; *) left="$left $p" ;; esac
+  done
+  if [ -n "$left" ]; then   # keep the record of the ones that failed: the next run turns them on first
+    mkdir -p "$(dirname "$OFFFILE")"; printf '%s' "${left# }" > "$OFFFILE"
+    echo "[!] Chưa bật lại được:$left. Cắm máy rồi chạy lại script này (sẽ bật lại trước), hoặc trên máy: Cài đặt > Ứng dụng, bật các app đó."
+    REENABLE_FAILED=1
+  else
+    rm -f "$OFFFILE"
+  fi
 }
 trap reenable EXIT
 trap 'exit 130' INT TERM
-if [ -s "$OFFFILE" ]; then OFF=$(cat "$OFFFILE"); echo "[!] Lần chạy trước còn app bị tắt tạm, bật lại trước."; reenable; fi
+if [ -s "$OFFFILE" ]; then OFF=$(cat "$OFFFILE"); echo "[!] Lần chạy trước còn app bị tắt tạm, bật lại trước."; reenable; [ "$REENABLE_FAILED" = 0 ] || exit 1; fi
 
 echo "[1/8] Cài app"
-if ! out=$(adb install -r -g "$APK" 2>&1) || ! printf '%s' "$out" | grep -q Success; then
+if ! out=$(adb install -r -g "$APK" 2>&1) || [[ "$out" != *Success* ]]; then
   echo "LỖI: $out"
   case "$out" in
     *INSTALL_FAILED_UPDATE_INCOMPATIBLE*) echo "→ Máy đã có bản KidGuard ký khác. Gỡ app cũ trước (Cài đặt > Ứng dụng > KidGuard > Gỡ), rồi chạy lại." ;;
@@ -119,7 +149,7 @@ fi
 # Accounts block Device Owner. App accounts (authenticator = ordinary app) are kept: turn that app off (its accounts
 # stop counting), restart once (Android caches the check until boot), then set Device Owner and turn the apps back on.
 # Accounts of system apps (Google, Xiaomi, Samsung, Oppo...) must be removed by hand.
-if ! adb shell dumpsys device_policy | grep -q "admin=ComponentInfo{$PKG/$PKG.Admin}"; then
+if ! is_do; then
   dump=$(adb shell dumpsys account | tr -d '\r')
   accts=$(printf '%s\n' "$dump" | sed -n 's/.*Account {name=\([^,}]*\), type=\([^}]*\)}.*/\2|\1/p' | sort -u)
   if [ -n "$accts" ]; then
@@ -129,7 +159,7 @@ if ! adb shell dumpsys device_policy | grep -q "admin=ComponentInfo{$PKG/$PKG.Ad
     while IFS='|' read -r type name; do
       pkg=$(printf '%s\n' "$auth" | awk -F'|' -v t="$type" '$1==t{print $2; exit}')
       [ -n "$pkg" ] || continue   # authenticator not listed: the account is hidden already
-      if printf '%s\n' "$third" | grep -qxF "$pkg" && printf '%s' "$pkg" | grep -Eq '^[A-Za-z0-9_.]+$'; then
+      if grep -qxF "$pkg" <<<"$third" && [[ "$pkg" =~ ^[A-Za-z0-9_.]+$ ]]; then
         case " $disable " in *" $pkg "*) ;; *) disable="$disable $pkg" ;; esac
       else
         remove="$remove
@@ -167,11 +197,12 @@ echo "[2/8] Đặt KidGuard làm Device Owner"
 out=$(adb shell dpm set-device-owner $PKG/.Admin 2>&1 || true)
 # after our restart Android still says "accounts" for up to ~30 s (it re-checks them in the background): try again
 for i in $(seq 1 24); do
-  [ -n "$OFF" ] && printf '%s' "$out" | grep -qi 'accounts' || break
+  [ -n "$OFF" ] || break
+  case "$out" in *[Aa]ccounts*) ;; *) break ;; esac
   echo "    Máy đang kiểm tra lại tài khoản, thử lại sau 5 giây…"; sleep 5
   out=$(adb shell dpm set-device-owner $PKG/.Admin 2>&1 || true)
 done
-if ! adb shell dumpsys device_policy | grep -q "admin=ComponentInfo{$PKG/$PKG.Admin}"; then
+if ! is_do; then
   echo "$out"
   cat <<'EOT'
 

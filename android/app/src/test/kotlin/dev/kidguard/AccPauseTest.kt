@@ -2,6 +2,7 @@ package dev.kidguard
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -43,5 +44,12 @@ class AccPauseTest {
         assertEquals(emptySet<String>(), Rules.fromJson(JSONObject("""{"accPause":[]}""")).accPause)
         val r = Rules.fromJson(JSONObject("""{"accPause":["a.b","c.d"]}"""))
         assertEquals(setOf("a.b", "c.d"), Rules.fromJson(r.toJson()).accPause)
+    }
+
+    @Test fun resumesForSettingsPagesOnlyWhenPaired() {
+        assertTrue(AccPauseLogic.resumeFor("blocked", "com.x", false))
+        assertTrue(AccPauseLogic.resumeFor(null, "com.android.settings", true))
+        assertFalse(AccPauseLogic.resumeFor(null, "com.android.settings", false))
+        assertFalse(AccPauseLogic.resumeFor(null, "com.zing", true))
     }
 }

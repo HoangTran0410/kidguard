@@ -263,4 +263,19 @@ class HomeLayoutTest {
         val dup = HomeLayout.parse(n.copy(pages = listOf(listOf(n.pages.flatten().single { it.kind == "folder" }.copy(apps = listOf(e, e, "com.z"))))).toJson().toString())!!
         assertEquals(listOf(e, "com.z"), dup.pages[0].single().apps)
     }
+
+    @Test fun duplicateAppWidgetIdsAreLoadedOnce() {
+        val a = HItem("w1", "widget", 0, 0, 2, 1, pkg = "com.a", cls = "A", type = HomeLayout.APP, awid = 7)
+        val b = a.copy(id = "w2", y = 2, pkg = "com.b")
+        val m = HomeLayout.parse("""{"grid":{"cols":4,"rows":6},"pages":[{"items":[${a.toJson()},${b.toJson()}]}]}""")!!
+        assertEquals(listOf("w1"), m.pages.flatten().map { it.id })
+    }
+
+    @Test fun dropWidgetsFreesTheirCells() {
+        val a = HItem("w1", "widget", 0, 0, 2, 1, type = "usage")
+        val b = HItem("w2", "widget", 2, 0, 2, 1, type = "clock")
+        val m = HomeLayout.parse("""{"grid":{"cols":4,"rows":6},"pages":[{"items":[${a.toJson()},${b.toJson()}]}]}""")!!
+        val r = HomeLayout.dropWidgets(m) { it == "clock" }
+        assertEquals(listOf("w2"), r.pages.flatten().map { it.id })
+    }
 }

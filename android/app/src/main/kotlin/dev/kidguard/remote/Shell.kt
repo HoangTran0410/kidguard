@@ -85,6 +85,7 @@ object Shell {
         if (s.adbTcpPrev < 0) s.adbTcpPrev = (if (global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED)) 1 else 0) or
             (if (global(ctx, Settings.Global.ADB_ENABLED)) 2 else 0)
         s.adbTcp = true; s.adbTcpReset = 0L; lastTry = 0L
+        s.adbTcpUntil = System.currentTimeMillis() + DevLogic.TCP_MAX_MS
         // asked now (switch, or "open now" while on): a debugging pause whose app is no longer in front ends early,
         // instead of holding the port for its 10-minute resume wait
         if (s.devApps.isNotEmpty()) {
@@ -99,7 +100,7 @@ object Shell {
     fun tcpOff(ctx: Context, restore: Boolean = true) {
         val s = Store.of(ctx)
         val was = s.adbTcp; val prev = s.adbTcpPrev
-        s.adbTcp = false; s.adbTcpPrev = -1; tcpUp = false
+        s.adbTcp = false; s.adbTcpPrev = -1; s.adbTcpUntil = 0L; tcpUp = false
         if (!was) return
         // service.adb.tcp.port outlives adbd restarts until a reboot: until `usb:` went through, any later adbd start
         // (devOn, a bank-pause resume) would listen on 5555 again. [tick] retries it while adbd runs.
@@ -138,6 +139,10 @@ object Shell {
             }
             return
         }
+        // the port closes by itself after DevLogic.TCP_MAX_MS: switching it on again is a parent's decision
+        val until = DevLogic.tcpDeadline(s.adbTcpUntil, now)
+        if (until != s.adbTcpUntil) s.adbTcpUntil = until
+        if (DevLogic.tcpExpired(until, now)) { tcpOff(ctx); runCatching { s.log(R.string.log_adb_tcp_timeout) }; Guard.running?.kick(); return }
         if (s.devApps.isNotEmpty()) { tcpUp = false; why = "bank"; return }
         tcpUp = listening()
         if (tcpUp) why = ""   // loopback connect, sub-ms: no thread for the common case

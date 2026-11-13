@@ -49,6 +49,8 @@ private fun HomeActivity.tile(glyph: Boolean, value: String, color: Int, sz: Int
  * puts the original name + icon back at once. Replaces three separate menu rows (rename / icon / restore).
  */
 internal fun HomeActivity.appEditSheet(a: HomeActivity.AppE) {
+    // rule launcher.lockCustom: rename / icon edit are part of Tuỳ chỉnh, so they are locked with it
+    if (!Flavor.HOME && Store.of(this).rules.launcher.lockCustom) return Toasts.show(this, R.string.hm_c_locked_short)
     val t0 = Perf.now()
     val sh = Sheet(this, u, getString(R.string.hm2_edit_title))
     val cur = AppLook.get(a.pkg, a.cls) ?: AppCustom()

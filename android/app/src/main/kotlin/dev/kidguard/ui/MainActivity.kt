@@ -292,7 +292,7 @@ class MainActivity : Activity() {
         }
     }
 
-    /** "Bố mẹ quản lý trên máy này": the parent PIN or a current Authenticator code opens the full page here (AdminActivity). */
+    /** "Bố mẹ quản lý trên máy này": the parent PIN (an Authenticator code only while no PIN is set) opens the full page here (AdminActivity). */
     private fun askAdmin() {
         val s = Store.of(this)
         val pinSet = s.rules.pinHash.isNotBlank(); val totpOn = s.totpSecret.isNotBlank()
@@ -307,7 +307,7 @@ class MainActivity : Activity() {
         val m = Modal(this, ui2)
         val input = m.field(getString(if (pinSet) R.string.admin_field else R.string.unl_hint), 8, pin = true)
         val shotOn = s.rules.pinShot && Shot.can(this)
-        val body = getString(if (pinSet && totpOn) R.string.admin_body else if (pinSet) R.string.admin_body_pin else R.string.admin_body_totp) +
+        val body = getString(if (pinSet) R.string.admin_body_pin else R.string.admin_body_totp) +
             (if (shotOn) "\n\n" + getString(R.string.admin_shot_note) else "")   // told before, never a hidden camera
         m.show(R.drawable.li_users, Modal.Tone.INFO, getString(R.string.admin_title), body, input, ok = getString(R.string.admin_ok), cancel = getString(R.string.cancel)) {
             if (Guard.running == null) { m.setError(getString(R.string.admin_not_ready)); Guard.start(this); return@show false }

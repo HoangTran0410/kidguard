@@ -70,7 +70,15 @@ class Api(private val g: Guard) {
             // devices: the cached list, with the caller's own row marked self (a paired token only; the on-device session has none)
             p == "/state" -> Res.json(g.currentState().let { st -> if (token == null || ParentSession.valid(session)) st else JSONObject(st.toString()).put("devices", store.devices(token)) }.toString())
             p == "/unpair" && r.method == "POST" -> {
-                val id = runCatching { JSONObject(r.text).optString("id") }.getOrDefault("")
+                val o = runCatching { JSONObject(r.text) }.getOrDefault(JSONObject())
+                val id = o.optString("id")
+                // PIN-gated like the `unpair` command (CmdGate): a leaked link / the child must not remove parents
+                when (store.checkCmdPin(o.optString("pin"), "unpair")) {
+                    1, 2 -> {}
+                    -1 -> return Res.json("""{"result":"failed: pin locked"}""", 429)
+                    3 -> return Res.json("""{"result":"failed: pin needed"}""", 403)
+                    else -> return Res.json("""{"result":"failed: pin"}""", 403)
+                }
                 if (store.unpair(id)) { g.kick(); Res.json("""{"result":"ok"}""") } else Res.json("""{"result":"no such device"}""", 404)
             }
             p == "/files" || p.startsWith("/files/") -> Files.api(g, r, p.removePrefix("/files"))   // shared folder only, Files.kt

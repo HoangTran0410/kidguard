@@ -93,7 +93,7 @@ class NotifLogActivity : Activity() {
         }
         box.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@NotifLogActivity, R.drawable.li_search, pal.sub, dp(20))) }, LinearLayout.LayoutParams(dp(20), dp(20)))
         val clear = ImageView(this).apply {
-            setImageDrawable(Ic.get(this@NotifLogActivity, R.drawable.li_x, pal.sub, dp(18))); val pd = dp(11); setPadding(pd, pd, pd, pd)
+            setImageDrawable(Ic.get(this@NotifLogActivity, R.drawable.li_x, pal.sub, dp(18))); val pd = dp(15); setPadding(pd, pd, pd, pd)   // 48 dp hit area
             contentDescription = getString(R.string.nlog_reset); visibility = View.GONE; k.tap(this, -1f) { clearSearch() }
         }
         search = EditText(this).apply {
@@ -113,7 +113,7 @@ class NotifLogActivity : Activity() {
             })
         }
         box.addView(search, LinearLayout.LayoutParams(0, -2, 1f))
-        box.addView(clear, LinearLayout.LayoutParams(dp(40), dp(40)))
+        box.addView(clear, LinearLayout.LayoutParams(dp(48), dp(48)))
         bar.addView(box, LinearLayout.LayoutParams(0, dp(48), 1f))
         bar.addView(ImageView(this).apply {
             setImageDrawable(Ic.get(this@NotifLogActivity, R.drawable.li_chart_column, pal.onTint, dp(22))); val pd = dp(13); setPadding(pd, pd, pd, pd)

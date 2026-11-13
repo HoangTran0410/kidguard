@@ -32,7 +32,7 @@ class Res(val code: Int, val type: String, val body: ByteArray, val headers: Map
 
 /** A tiny HTTP/1.1 server (one request per connection), enough for the parent's page on the LAN. */
 class Http(private val tag: Any, private val handler: (Req) -> Res) {
-    private companion object { const val LONG_SLOTS = 6 }
+    private companion object { const val LONG_SLOTS = 6; const val MAX_PER_HOST = 14 }
     private var server: ServerSocket? = null
     @Volatile private var stopped = false
     // 16 workers (idle ones time out) + 32 queued. Long-running routes (listen, screen, file bodies) may hold at most
@@ -44,19 +44,33 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
 
     constructor(g: Guard, api: Api) : this(g, api::handle)
 
+    // Open connections per remote address: one silent host opening sockets must not take all 16 workers + the queue
+    // from the parent's page (audit L10). The page itself uses a handful (6 long slots + short calls).
+    private val perHost = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicInteger>()
+    private fun release(host: String) { perHost[host]?.let { if (it.decrementAndGet() <= 0) perHost.remove(host, it) } }
+
     fun start(port: Int) {
         Thread({
             while (!stopped) {
+                var s: ServerSocket? = null
                 try {
-                    val s = ServerSocket(port).also { server = it }
+                    s = ServerSocket(port).also { server = it }
                     while (!s.isClosed) {
                         val c = s.accept()
-                        try { pool.execute { safe(c) } } catch (e: RejectedExecutionException) { busy(c) }
+                        c.soTimeout = 15_000   // also for a connection still waiting in the queue
+                        val host = c.inetAddress?.hostAddress ?: "?"
+                        if (perHost.getOrPut(host) { java.util.concurrent.atomic.AtomicInteger() }.incrementAndGet() > MAX_PER_HOST) { release(host); busy(c); continue }
+                        try { pool.execute { try { safe(c) } finally { release(host) } } } catch (e: RejectedExecutionException) { release(host); busy(c) }
                     }
                 } catch (e: BindException) {
                     Log.w("KidGuard", "http bind $port failed, retry in 2s", e)
                     try { Thread.sleep(2000) } catch (_: InterruptedException) { return@Thread }
-                } catch (e: SocketException) { /* stopped */ } catch (e: Exception) { Log.e("KidGuard", "http", e) }
+                } catch (e: SocketException) { /* stopped, or an accept error: re-bind below */ } catch (e: Exception) { Log.e("KidGuard", "http", e) }
+                finally {
+                    // close before binding again: a still-bound old socket made every new bind fail for good (audit M4)
+                    runCatching { s?.close() }
+                    if (!stopped) try { Thread.sleep(500) } catch (_: InterruptedException) { return@Thread }
+                }
             }
         }, "http").start()
     }

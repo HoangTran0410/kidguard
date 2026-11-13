@@ -307,6 +307,7 @@ object HomeLayout {
         val pa = o.optJSONArray("pages") ?: JSONArray()
         val seenPkgs = HashSet<String>()
         val seenShortcuts = HashSet<String>()
+        val seenAw = HashSet<Int>()
         val misplaced = ArrayList<HItem>()
         var pages = (0 until minOf(pa.length(), 20)).map { pi ->
             val items = pa.optJSONObject(pi)?.optJSONArray("items") ?: JSONArray()
@@ -321,7 +322,7 @@ object HomeLayout {
                     j.optJSONArray("apps")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() } } ?: emptyList(), j.optInt("awid", 0), j.optString("opt").take(20),
                     j.optJSONObject("names")?.let { n -> n.keys().asSequence().associateWith { k -> n.optString(k).take(40) } } ?: emptyMap())
                 when (kind) {
-                    "widget" -> { if (it.type !in WIDGETS || (it.type == APP && (it.awid == 0 || it.pkg.isEmpty()))) continue; it = it.copy(w = minOf(it.w, cols), h = minOf(it.h, rows), x = minOf(it.x, cols - minOf(it.w, cols))) }
+                    "widget" -> { if (it.type !in WIDGETS || (it.type == APP && (it.awid == 0 || it.pkg.isEmpty() || !seenAw.add(it.awid)))) continue; it = it.copy(w = minOf(it.w, cols), h = minOf(it.h, rows), x = minOf(it.x, cols - minOf(it.w, cols))) }
                     "app" -> { if (it.pkg.isEmpty() || !seenPkgs.add(it.pkg)) continue; it = it.copy(w = 1, h = 1) }
                     SHORTCUT -> { if (it.pkg.isEmpty() || it.cls.isEmpty() || !seenShortcuts.add(it.pkg + "/" + it.cls)) continue; it = it.copy(w = 1, h = 1, type = "", apps = emptyList(), names = emptyMap()) }
                     "folder" -> {
@@ -625,6 +626,11 @@ object HomeLayout {
         val t = take(m, Src.NewAppWidget(pkg, cls, w, h)) ?: return null
         return dropMove(t.copy(item = t.item.copy(awid = awid)), page, x, y) ?: placeAppWidget(m, pkg, cls, awid, w, h, page)
     }
+
+    /** Widgets whose type [ok] refuses leave the layout (KidGuard Home has no parent widgets: they would be invisible but keep their cells). */
+    fun dropWidgets(m: HomeModel, ok: (String) -> Boolean): HomeModel =
+        if (m.pages.none { p -> p.any { it.kind == "widget" && !ok(it.type) } }) m
+        else trimPages(m.copy(pages = m.pages.map { p -> p.filter { !(it.kind == "widget" && !ok(it.type)) } }))
 
     /** A layout taken from KidGuard Home: other apps' widgets are bound to that app's widget host, so they cannot come along. */
     fun imported(m: HomeModel): HomeModel =

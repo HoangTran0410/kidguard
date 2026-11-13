@@ -110,7 +110,16 @@ internal fun HomeActivity.awSync(m: HomeModel) {
             else { if (p !in now) runCatching { awHost().deleteAppWidgetId(p) }; awPend(0) }
         }
         if (now.isNotEmpty() && !aw.listening && lifecycleStarted) awStart(); return }
-    for (id in before - now) { runCatching { aw.host?.deleteAppWidgetId(id) }; aw.views.remove(id) }
+    val gone = before - now
+    for (id in gone) aw.views.remove(id)
+    // saved layouts / the undo step may still show these ids: delete only those nothing references (files read off the main thread)
+    if (gone.isNotEmpty()) {
+        val app = applicationContext
+        Thread {
+            val keep = runCatching { HomeSaved.referencedWidgetIds(app) }.getOrNull()
+            if (keep != null) runOnUiThread { for (id in gone) if (id !in keep && id !in (aw.seen ?: emptySet())) runCatching { aw.host?.deleteAppWidgetId(id) } }
+        }.start()
+    }
     if (before.isEmpty() && now.isNotEmpty() && !aw.listening && lifecycleStarted) awStart()
 }
 
@@ -163,14 +172,15 @@ internal fun HomeActivity.awSizes(it: HItem): List<Pair<Int, Int>> {
 /** The widget for [it]; a locked card when its app is hidden / blocked, a small one when the app is gone. */
 internal fun HomeActivity.appWidget(it: HItem, show: Map<String, LauncherLogic.Show>): View? {
     val label = launcherApps()[it.pkg]?.label ?: it.pkg
-    val st = show[it.pkg]
+    // the real provider decides, not the pkg written in the layout file (a hand-edited backup could name an allowed app)
+    val info = runCatching { awMgr().getAppWidgetInfo(it.awid) }.getOrNull()
+    val st = show[info?.provider?.packageName ?: it.pkg]
     if (st == null || st == LauncherLogic.Show.HIDE || st == LauncherLogic.Show.PAUSED) {
         val card = wCard().apply { gravity = Gravity.CENTER_VERTICAL }
         card.addView(wHead(R.drawable.li_lock, label))
         card.addView(wSub(getString(if (st == LauncherLogic.Show.PAUSED) R.string.hm_aw_paused else R.string.hm_aw_hidden), 2))
         return centred(card)
     }
-    val info = runCatching { awMgr().getAppWidgetInfo(it.awid) }.getOrNull()
     if (info == null) {
         val card = wCard()
         card.addView(wEmpty(getString(R.string.hm_aw_gone)))
@@ -270,7 +280,7 @@ internal fun HomeActivity.awPickerSection(list: LinearLayout, query: String = ""
 
 internal fun HomeActivity.awAdd(info: AppWidgetProviderInfo) {
     // the picker's list was read earlier: the app may have been hidden / blocked since
-    lastShow[info.provider.packageName].let { if (it == null || it == LauncherLogic.Show.HIDE) { closeOverlay(); return toast(getString(R.string.hm_aw_hidden)) } }
+    lastShow[info.provider.packageName].let { if (it == null || it == LauncherLogic.Show.HIDE || it == LauncherLogic.Show.PAUSED) { closeOverlay(); return toast(getString(if (it == LauncherLogic.Show.PAUSED) R.string.hm_aw_paused else R.string.hm_aw_hidden)) } }
     closeOverlay()
     // a still-unplaced id from an earlier try (bind prompt dismissed, configure left open) would leak in the host
     aw.pendingId.takeIf { it != 0 && it !in (aw.seen ?: emptySet()) }?.let { old -> runCatching { awHost().deleteAppWidgetId(old) } }
@@ -285,6 +295,8 @@ internal fun HomeActivity.awAdd(info: AppWidgetProviderInfo) {
 
 private fun HomeActivity.awConfigure(id: Int) {
     val info = awMgr().getAppWidgetInfo(id) ?: return awFail(id)
+    // the app may have been paused / hidden since the bind prompt: its configure screen is a way into the app
+    lastShow[info.provider.packageName].let { if (it == null || it == LauncherLogic.Show.HIDE || it == LauncherLogic.Show.PAUSED) { awFail(id); return toast(getString(R.string.hm_aw_paused)) } }
     if (info.configure == null) return awPlace(id)
     if (runCatching { awHost().startAppWidgetConfigureActivityForResult(this, id, 0, REQ_CONF, null) }.isFailure) awFail(id)
 }

@@ -108,7 +108,12 @@ v0.1: `lock locate message{text} ring relay{url} openPairing unpairAll release`.
   The worker keeps `id` as the command id (it is 8 hex chars, so it passes the id check); do not send other ids. Revoking
   the device you are using is allowed (it gets 401 next request and must re-pair). If that device was the relay link
   (the one named `relay`), the relay token / id are cleared too, so the phone stops syncing until the relay is set up again.
-  LAN also has `POST /api/unpair {"id"}` -> `{"result":"ok"}` or 404 `{"result":"no such device"}`. `release` is not affected
+  Any other device removed while a relay link exists sets state `relayShared: true` (the relay id + token are shared by every
+  relay parent, so the removed device may still hold them): the page offers `relay {url, renew:true}` (PIN-gated, LAN only like
+  `relay`), which makes a new relay id + token, revokes the old token and clears `relayShared`; the reply carries the new
+  `id`, `token`, `url` like a plain `relay` call. Old relay links stop working.
+  LAN also has `POST /api/unpair {"id", "pin"}` (PIN-gated like the command, 2026-11-13) -> `{"result":"ok"}`, 404 `{"result":"no such device"}`,
+  403 `{"result":"failed: pin needed"|"failed: pin"}`, 429 `failed: pin locked`. `release` is not affected
   (it still clears every token).
 - **State** `devices: [{"id","name","at","last","self"?:true}]`: paired parent devices, oldest pairing first. `id` = first 8 hex
   of sha256(token) (non-secret; the token never leaves the parent's browser). `name` = the page's optional `X-KG-Name`
@@ -170,14 +175,15 @@ v0.9.7:
   before; port 5555 survives adbd restarts until a reboot, so a pending `usb:` (`Store.adbTcpReset`) is retried by the tick
   while 5555 is still served. Answers `ok | no adb | blocked`. While 5555 is served, `adbShell` itself connects to `127.0.0.1:5555` first (paired key, no prompt wait), so it runs without Wi-Fi / Wireless debugging (mobile data); `sh.can` is then true even without WSS. Worker: ONCE but not SHORT (an "off" must never be dropped).
   `support` is ONCE + SHORT too (a leaked link must not replay reports into the 20/day census quota).
+- State `adbTcpUntil` (ms epoch, 0 = off / none): `adbTcp on` closes port 5555 by itself after 2 h (`DevLogic.TCP_MAX_MS`); the page shows a chip. Sending `adbTcp on` again restarts the 2 h.
 - State `sh` (v0.9.14): `{can, busy, tcp, tcpUp, tcpWhy, port, log: [{at, cmd, ms, out | err}]}` (`tcpWhy` 2026-11-13: "bank" = held by a bank pause, "link" = no adb link, needs Wi-Fi, "" = trying), last 8, memory only;
   `out` ≤ 6000 chars for the newest two, 300 for older ones (state stays < ~14 KB for the relay); `err` = `adb` (no answer / timeout) or an `adbWhy` code (`sdk key wss blocked wifi`).
 
 ### PIN-gated commands (v0.9.13, `guard/CmdGate.kt`)
 `release unpairAll unpair clearData reboot relay tailscaleOff openPairing totpSet tgSet tgCode tgOff pinSet pinResetCancel adbShell adbTcp`
-carry `pin`: the parent PIN or a current Authenticator code. The PHONE checks it (LAN and relay alike), sharing the lockout
-of the on-device admin (5 free tries, then 5, 10, 20 … 320 min per try; PIN and Authenticator locks are separate).
-`relay {url}` with the URL the phone already has is not gated (the page re-reads the relay link with it). No PIN and no
+carry `pin`: the parent PIN (an Authenticator code only while NO PIN is set, owner 2026-11-13: the code is read out to the child for unlocks, so it must not also be the admin key). The PHONE checks it (LAN and relay alike), sharing the lockout
+of the on-device admin (5 free tries, then 5, 10, 20 … 320 min per try; PIN and Authenticator locks are separate; lockouts run on the monotonic clock, a reboot falls back to the wall clock capped at the original length).
+`relay {url}` with the URL the phone already has is not gated (the page re-reads the relay link with it); `renew:true` always is. No PIN and no
 Authenticator set = nothing to check. Results: `failed: pin needed` (no `pin`, not counted), `failed: pin` (wrong, a
 `tamper` event names the command), `failed: pin locked`; `failed…` frees the id, so the same id may be re-sent with the
 right PIN. LAN `relay` returns `id/token/url` only when the result is `ok`. The worker only checks the shape
@@ -417,8 +423,11 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   clearData update totpSet fileDel`) are delivered **at-least-once**: the worker keeps them until the phone acks the id
   (so a lost reply does not drop a `release`) and the phone de-dups by id. The worker stamps `sent` at the first hand-out
   and drops an unacked one 10 min later (the phone may have released and stopped syncing). "Now" commands (`lock locate
-  message ring wake ringStop listenStop devOn devOff setting reboot clearData clearCache rescan bgLimit bgRestore`) expire on the worker after **10 min** (others 24 h), so a
+  message ring wake ringStop listenStop devOn devOff setting reboot clearData clearCache rescan bgLimit bgRestore openPairing pinSet pinReset pinResetCancel adbShell support`; list = `SHORT`, TTL `SHORT_TTL` = 10 min) expire on the worker after **10 min** (others 24 h), so a
   `ring` queued overnight does not fire in the morning. The queue refuses at 20 entries (`429 queue full`).
+  `ONCE_WINDOW` (10 min): a command handed out and not acked within it is dropped (also any command that carried a secret).
+  Secrets in a queued command (`pin`, `new`, `secret`, `token`): the first hand-out to the phone carries them, the copy that
+  stays queued until the ack has none (a re-send after a lost reply fails `pin needed` on the phone: ask again).
   `answer`: the worker keeps `id` as command id only if it matches `^[\w.-]{1,64}$`, else it makes a UUID; the request id
   is always copied to `req` and the phone answers `req` (falling back to `id` on LAN).
 - **State** adds `dnsError` (`""` or a short reason when the Private DNS host was rejected; the phone then falls back
@@ -576,7 +585,20 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   Relay (2026-11-10): the page sends `?k=<sha256("icon:" + token) hex>` instead (request URLs are logged); the worker stores
   that key at the first authenticated request after each wake. The raw token in `?k=` still works for older pages.
 - Relay storage GC: a phone not seen for 30 days -> the Durable Object deletes everything (DO alarm armed by sync); the
-  phone re-binds on its next sync.
+  phone re-binds on its next sync. An id bound but never heard again (no second sync, no rules, no queue) within 7 days is
+  deleted too (`UNUSED_MS`, `born`).
+- `GET /kidguard.apk` and `/kidguard.apk.sha256` (worker only, same per-IP rate limit): proxy of the latest GitHub release asset
+  (`content-type: application/octet-stream`, `no-cache`, `nosniff`; 502 `release not reachable`); `ui/install.html` fetches them relative.
+- Resume drops a queued `lock`: a rules PUT with `pausedUntil` not in the future, while the stored rules or the phone's state
+  had one in the future ("Resume all" only PUTs rules), deletes every still-queued `lock` of that kid (other commands stay).
+- First bind cap (audit H4): a first sync that would create an id counts against the client network (`netKey`: IPv4 or
+  IPv6 /64) in a `Gate` Durable Object, `BIND_PER_DAY` = 30 a day (env var overrides, tests use 60); beyond it
+  `429 {"error":"too many new pairings from this network, try tomorrow"}`. Already bound ids are never affected.
+- Rules `pinHash` on the worker (unsalted `sha256("kg:"+pin)`, handed to the phone once): dropped as soon as the phone's
+  state shows `rules.pinSet: true` and `rules.rev` >= the stored one; the stored rules then carry `pinSet: true` only.
+- Sync state over 120 KB: `413 state too big`. The phone then sends a trimmed state (no `events`, `track`; apps reduced to
+  `pkg label ms blocked suspended protected new`) with **`relayBig: true`** for 30 min, then tries the whole one again.
+  A kick after a failed sync no longer skips the retry backoff.
 - The page uses `${base}/icon?pkg=..&k=..` in all modes (LAN, relay, parent-app proxy `/k/<target>/...`).
 
 ## Parent app (v0.5, module `:parent`, `dev.kidguard.parent`)
@@ -641,7 +663,7 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
   "Bố mẹ đã đồng ý / chưa đồng ý" notification ("… Bố mẹ nhắn: <note>").
 - **Zones / events**: the phone checks each new location fix against `zones` (inside = distance <= r; leaving needs
   distance > r + 50 m so a fix at the edge doesn't flap); fixes with accuracy > 300 m are ignored and appends events. State NEW:
-  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing|checkin|launcher", "text": "Đã đến Nhà"}]`,
+  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing|checkin|launcher|adminOpen", "text": "Đã đến Nhà"}]`,
   newest last, at most 50, older than 7 days dropped. `text` is free text for people, in the child app's language
   (English or Vietnamese, from the phone / per-app language; the examples here are the Vietnamese ones). The same goes for
   log lines (`log[].m`; NEW `log[].k` = kind, the string id without `log_`: `pin_wrong`, `unlock`, `paired`, `tz`,

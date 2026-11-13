@@ -66,4 +66,10 @@ class FilesLogicTest {
     @Test fun disposition() {
         assertEquals("attachment; filename=\"b_i t_p.pdf\"; filename*=UTF-8''b%C3%A0i%20t%E1%BA%ADp.pdf", FilesLogic.disposition("bài tập.pdf"))
     }
+
+    @Test fun intakeRejectsEmptyAndOverQuota() {
+        org.junit.Assert.assertEquals("empty", FilesLogic.intakeError(0, 0))
+        org.junit.Assert.assertNull(FilesLogic.intakeError(10, 0))
+        org.junit.Assert.assertEquals("quota", FilesLogic.intakeError(10, FilesLogic.MAX_IN_TOTAL))
+    }
 }

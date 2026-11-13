@@ -104,12 +104,14 @@
     <p class="msg">Bấm nút, chọn điện thoại trong hộp hiện ra. Rồi nhìn màn hình điện thoại và bấm <b>"Cho phép"</b> (tick "Luôn cho phép máy tính này").</p>
     <button id="connect"><svg class="si" aria-hidden="true"><use href="#i-plug"/></svg> Kết nối điện thoại</button>
     <div id="connmsg" class="msg"></div>
+    <details id="connraw" class="hide"><summary class="msg">Xem chi tiết lỗi</summary><pre id="connrawtxt"></pre></details>
   </section>
 
   <section id="s3" class="card off">
     <h2><svg class="si" aria-hidden="true"><use href="#i-package"/></svg> 3. File ứng dụng</h2>
     <div id="apkmsg" class="msg"><svg class="si" aria-hidden="true"><use href="#i-search"/></svg> Đang tìm kidguard.apk…</div>
     <input type="file" id="apkfile" accept=".apk" class="hide">
+    <a id="apkdl" class="hide" href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk" target="_blank" rel="noopener" style="color:var(--pri)"><svg class="si" aria-hidden="true"><use href="#i-package"/></svg> Tải kidguard.apk</a>
     <button id="pick" class="alt hide"><svg class="si" aria-hidden="true"><use href="#i-folder-open"/></svg> Chọn file kidguard.apk</button>
     <button id="install" disabled><svg class="si" aria-hidden="true"><use href="#i-rocket"/></svg> Bắt đầu cài</button>
   </section>
@@ -142,6 +144,34 @@
 `)throw new Error(t);return t}async disable(){let e=await this.adb.createSocketAndWait("usb:");if(e!==`restarting in USB mode
 `)throw new Error(e);return e}};var nt=class{#e;get transport(){return this.#e}get serial(){return this.#e.serial}get maxPayloadSize(){return this.#e.maxPayloadSize}get banner(){return this.#e.banner}get disconnected(){return this.#e.disconnected}get clientFeatures(){return this.#e.clientFeatures}get deviceFeatures(){return this.banner.features}subprocess;power;reverse;tcpip;constructor(e){this.#e=e,this.subprocess=new Xe(this),this.power=new qe(this),this.reverse=new Oe(this),this.tcpip=new rt(this)}canUseFeature(e){return this.clientFeatures.includes(e)&&this.deviceFeatures.includes(e)}async createSocket(e){return this.#e.connect(e)}async createSocketAndWait(e){return await(await this.createSocket(e)).readable.pipeThrough(new te).pipeThrough(new j)}getProp(e){return this.subprocess.noneProtocol.spawnWaitText(["getprop",e]).then(t=>t.trim())}rm(e,t){let n=["rm"];if(t?.recursive&&n.push("-r"),t?.force&&n.push("-f"),Array.isArray(e))for(let i of e)n.push(we(i));else n.push(we(e));return n.push("</dev/null"),this.subprocess.noneProtocol.spawnWaitText(n)}async sync(){let e=await this.createSocket("sync:");return new tt(this,e)}async framebuffer(){return ar(this)}async close(){await this.#e.close()}};var it={Product:"ro.product.name",Model:"ro.product.model",Device:"ro.product.device",Features:"features"},st=class r{static parse(e){let t,n,i,s,o=[],a=e.split("::");if(a.length>1){t=a[0].trim()||void 0;let c=a[1];for(let l of c.split(";")){if(!l)continue;let h=l.split("=");if(h.length!==2)continue;let[L,S]=h;switch(L){case it.Product:n=S;break;case it.Model:i=S;break;case it.Device:s=S;break;case it.Features:o=S.split(",");break}}}return new r(t,n,i,s,o)}#e;get state(){return this.#e}#t;get product(){return this.#t}#r;get model(){return this.#r}#n;get device(){return this.#n}#i=[];get features(){return this.#i}constructor(e,t,n,i,s){this.#e=e,this.#t=t,this.#r=n,this.#n=i,this.#i=s}};function Bt(r,e,t){let n=0n;for(let i=0;i<t%8;i+=1)n=n<<8n|BigInt(r[e+i]);for(let i=e+t%8;i<e+t;i+=8){n<<=64n;let s=Gt(r,i);n|=s}return n}function Pt(r,e,t,n,i){if(i)for(;n>0n;)Vt(r,e,n),e+=8,n>>=64n;else{let s=e+t-8;for(;n>0n;)Ft(r,s,n),s-=8,n>>=64n}}function O(r,e){e=e+1;let t=r[e];if(e+=1,t&128){let n=t&127;t=0;for(let i=0;i<n;i+=1)t=t<<8|r[e],e+=1}return{offset:e,length:t}}function Tr(r){let e=O(r,0).offset,t=O(r,e);e=t.offset+t.length,t=O(r,e),e=t.offset+t.length,e=O(r,e).offset,e=O(r,e).offset,t=O(r,e),e=t.offset+t.length;let n=O(r,e);e=n.offset+n.length;let i=O(r,e);e=i.offset+i.length;let s=O(r,e),o=Bt(r,n.offset,n.length),a=Bt(r,s.offset,s.length);return[o,a]}function kr(r,e){let t=r%e;return t>0?t:t+(e>0?e:-e)}function bn(r,e){if(r=kr(r,e),!r||e<2)return NaN;let t=[],n=e;for(;n;)[r,n]=[n,r%n],t.push({a:r,b:n});if(r!==1)return NaN;let i=1,s=0;for(let o=t.length-2;o>=0;o-=1)[i,s]=[s,i-s*Math.floor(t[o].a/t[o].b)];return kr(s,e)}var ne=2048/8,gn=ne/4;function Lt(){return 8+ne+ne+4}function Nr(r,e){let t,n=Lt();if(!e)e=new Uint8Array(n),t="Uint8Array";else{if(e.length<n)throw new TypeError("output buffer is too small");t="number"}let i=new DataView(e.buffer,e.byteOffset,e.length),s=0;i.setUint32(s,gn,!0),s+=4;let[o]=Tr(r),a=-bn(Number(o%2n**32n),2**32);i.setInt32(s,a,!0),s+=4,Pt(e,s,ne,o,!0),s+=ne;let c=2n**4096n%o;return Pt(e,s,ne,c,!0),s+=ne,i.setUint32(s,65537,!0),t==="Uint8Array"?e:n}function xn(r,e,t){if(t===1n)return 0n;let n=1n;for(r=r%t;e>0n;)BigInt.asUintN(1,e)===1n&&(n=n*r%t),r=r*r%t,e>>=1n;return n}var Cr=20,Rr=48,Sn=4,En=5,An=6,Nt=new Uint8Array([Rr,13+Cr,Rr,9,An,5,43,14,3,2,26,En,0,Sn,Cr]);function Br(r,e){let[t,n]=Tr(r),i=new Uint8Array(256),s=0;i[s]=0,s+=1,i[s]=1,s+=1;let o=i.length-Nt.length-e.length-1;for(;s<o;)i[s]=255,s+=1;i[s]=0,s+=1,i.set(Nt,s),s+=Nt.length,i.set(e,s);let a=xn(Bt(i,0,i.length),n,t);return Pt(i,0,i.length,a,!1),i}var E={Auth:1213486401,Close:1163086915,Connect:1314410051,Okay:1497451343,Open:1313165391,Write:1163154007},fe=y({command:d,arg0:d,arg1:d,payloadLength:d,checksum:d,magic:Xt},{littleEndian:!0}),nc=X(fe,{payload:z("payloadLength")});function at(r){return r.reduce((e,t)=>e+t,0)}var ot=class extends ve{constructor(){let e=new Uint8Array(fe.size);super({transform:async(t,n)=>{await t.tryConsume(async i=>{let s=i;s.payloadLength=s.payload.length,fe.serialize(s,e),await b.ReadableStream.enqueue(n,e),s.payloadLength&&await b.ReadableStream.enqueue(n,s.payload)})}})}};var ct={Token:1,Signature:2,PublicKey:3},In=async function*(r,e){for await(let t of r.iterateKeys()){let n=await e();if(n.arg0!==ct.Token)return;let i=Br(t.buffer,n.payload);yield{command:E.Auth,arg0:ct.Signature,arg1:0,payload:i}}},vn=async function*(r,e){if((await e()).arg0!==ct.Token)return;let n;for await(let c of r.iterateKeys()){n=c;break}n||(n=await r.generateKey());let i=Lt(),[s]=At(i),o=n.name?.length?R(n.name):f,a=new Uint8Array(s+(o.length?o.length+1:0)+1);Nr(n.buffer,a),lr(a.subarray(0,i),a),o.length&&(a[s]=32,a.set(o,s+1)),yield{command:E.Auth,arg0:ct.PublicKey,arg1:0,payload:a}},Pr=[In,vn],lt=class{authenticators;#e;#t=new p;#r;constructor(e,t){this.authenticators=e,this.#e=t}#n=()=>this.#t.promise;async*#i(){for(let e of this.authenticators)for await(let t of e(this.#e,this.#n))this.#t=new p,yield t}async process(e){this.#r||(this.#r=this.#i()),this.#t.resolve(e);let t=await this.#r.next();if(t.done)throw new Error("No authenticator can handle the request");return t.value}dispose(){this.#r?.return?.()}};var ye=class{#e;localId;remoteId;localCreated;service;#t;#r;get readable(){return this.#t}#n;writable;#i=!1;#s=new p;get closed(){return this.#s.promise}#c;get socket(){return this.#c}#a;#o=0;constructor(e){this.#e=e.dispatcher,this.localId=e.localId,this.remoteId=e.remoteId,this.localCreated=e.localCreated,this.service=e.service,this.#t=new U(t=>{this.#r=t}),this.writable=new k.WritableStream({start:t=>{this.#n=t,t.signal.addEventListener("abort",()=>{this.#a?.reject(t.signal.reason)})},write:async t=>{let n=t.length,i=this.#e.options.maxPayloadSize;for(let s=0,o=i;s<n;s=o,o+=i){let a=t.subarray(s,o);await this.#l(a)}}}),this.#c=new Ut(this),this.#o=e.availableWriteBytes}async#l(e){let t=e.length;for(;this.#o<t;){let n=new p;this.#a=n,await n.promise}this.#o===1/0?this.#o=-1:this.#o-=t,await this.#e.sendPacket(E.Write,this.localId,this.remoteId,e)}async enqueue(e){await this.#r.enqueue(e)}ack(e){this.#o+=e,this.#a?.resolve()}async close(){if(!this.#i){this.#i=!0,this.#a?.reject(new Error("Socket closed"));try{this.#n.error(new Error("Socket closed"))}catch{}await this.#e.sendPacket(E.Close,this.localId,this.remoteId,f)}}dispose(){this.#r.close(),this.#s.resolve(void 0)}},Ut=class{#e;get localId(){return this.#e.localId}get remoteId(){return this.#e.remoteId}get localCreated(){return this.#e.localCreated}get service(){return this.#e.service}get readable(){return this.#e.readable}get writable(){return this.#e.writable}get closed(){return this.#e.closed}constructor(e){this.#e=e}close(){return this.#e.close()}};var dt=class{#e=new Se(1);#t=new Map;#r;options;#n=!1;#i=new p;get disconnected(){return this.#i.promise}#s=new Map;#c=new $;constructor(e,t){this.options=t,this.options.initialDelayedAckBytes<0&&(this.options.initialDelayedAckBytes=0),e.readable.pipeTo(new w({write:async(n,i)=>{switch(n.command){case E.Close:await this.#a(n);break;case E.Okay:this.#o(n);break;case E.Open:await this.#h(n);break;case E.Write:this.#u(n).catch(s=>{i.error(s)});break;default:throw new Error(`Unknown command: ${n.command.toString(16)}`)}}}),{preventCancel:t.preserveConnection??!1,signal:this.#c.signal}).then(()=>{this.#d()},n=>{this.#n||this.#i.reject(n),this.#d()}),this.#r=e.writable.getWriter()}async#a(e){if(e.arg0===0&&this.#e.reject(e.arg1,new Error("Socket open failed")))return;let t=this.#t.get(e.arg1);if(t){await t.close(),t.dispose(),this.#t.delete(e.arg1);return}}#o(e){let t;if(this.options.initialDelayedAckBytes!==0){if(e.payload.length!==4)throw new Error("Invalid OKAY packet. Payload size should be 4");t=se(e.payload,0)}else{if(e.payload.length!==0)throw new Error("Invalid OKAY packet. Payload size should be 0");t=1/0}if(this.#e.resolve(e.arg1,{remoteId:e.arg0,availableWriteBytes:t}))return;let n=this.#t.get(e.arg1);if(n){n.ack(t);return}this.sendPacket(E.Close,e.arg1,e.arg0,f)}#l(e,t,n){let i;return this.options.initialDelayedAckBytes!==0?(i=new Uint8Array(4),Kt(i,0,n)):i=f,this.sendPacket(E.Okay,e,t,i)}async#h(e){let[t]=this.#e.add();this.#e.resolve(t,void 0);let n=e.arg0,i=e.arg1,s=W(e.payload);if(s.endsWith("\0")&&(s=s.substring(0,s.length-1)),this.options.initialDelayedAckBytes===0){if(i!==0)throw new Error("Invalid OPEN packet. arg1 should be 0");i=1/0}else if(i===0)throw new Error("Invalid OPEN packet. arg1 should be greater than 0");let o=this.#s.get(s);if(!o){await this.sendPacket(E.Close,0,n,f);return}let a=new ye({dispatcher:this,localId:t,remoteId:n,localCreated:!1,service:s,availableWriteBytes:i});try{await o(a.socket),this.#t.set(t,a),await this.#l(t,n,this.options.initialDelayedAckBytes)}catch{await this.sendPacket(E.Close,0,n,f)}}async#u(e){let t=this.#t.get(e.arg1);if(!t)throw new Error(`Unknown local socket id: ${e.arg1}`);let n=!1,i=[(async()=>{await t.enqueue(e.payload),await this.#l(e.arg1,e.arg0,e.payload.length),n=!0})()];this.options.readTimeLimit&&i.push((async()=>{if(await Wt(this.options.readTimeLimit),!n)throw new Error(`readable of \`${t.service}\` has stalled for ${this.options.readTimeLimit} milliseconds`)})()),await Promise.race(i)}async createSocket(e){this.options.appendNullToServiceString&&(e+="\0");let[t,n]=this.#e.add();await this.sendPacket(E.Open,t,this.options.initialDelayedAckBytes,e);let{remoteId:i,availableWriteBytes:s}=await n,o=new ye({dispatcher:this,localId:t,remoteId:i,localCreated:!0,service:e,availableWriteBytes:s});return this.#t.set(t,o),o.socket}addReverseTunnel(e,t){this.#s.set(e,t)}removeReverseTunnel(e){this.#s.delete(e)}clearReverseTunnels(){this.#s.clear()}async sendPacket(e,t,n,i){if(typeof i=="string"&&(i=R(i)),i.length>this.options.maxPayloadSize)throw new TypeError("payload too large");await b.WritableStream.write(this.#r,{command:e,arg0:t,arg1:n,payload:i,checksum:this.options.calculateChecksum?at(i):0,magic:e^4294967295})}async close(){await Promise.all(Array.from(this.#t.values(),e=>e.close())),this.#n=!0,this.#c.abort(),this.options.preserveConnection?this.#r.releaseLock():await this.#r.close()}#d(){for(let e of this.#t.values())e.dispose();this.#i.resolve()}};var kn=16777217,Lr=[g.ShellV2,g.Cmd,g.StatV2,g.ListV2,g.FixedPushMkdir,"apex",g.Abb,"fixed_push_symlink_timestamp",g.AbbExec,"remount_shell","track_app",g.SendReceiveV2,"sendrecv_v2_brotli","sendrecv_v2_lz4","sendrecv_v2_zstd","sendrecv_v2_dry_run_send",g.DelayedAck],Cn=32*1024*1024,ht=class r{static async authenticate({serial:e,connection:t,credentialStore:n,authenticators:i=Pr,features:s=Lr,initialDelayedAckBytes:o=Cn,...a}){let c=16777217,l=1024*1024,h=new p,L=new lt(i,n),S=new $,u=t.readable.pipeTo(new w({async write(m){switch(m.command){case E.Connect:c=Math.min(c,m.arg0),l=Math.min(l,m.arg1),h.resolve(W(m.payload));break;case E.Auth:{let Y=await L.process(m);await N(Y);break}default:break}}}),{preventCancel:!0,signal:S.signal}).then(()=>{h.reject(new Error("Connection closed unexpectedly"))},m=>{h.reject(m)}),v=t.writable.getWriter();async function N(m){m.checksum=at(m.payload),m.magic=m.command^4294967295,await b.WritableStream.write(v,m)}let G=s.slice();if(o<=0){let m=s.indexOf(g.DelayedAck);m!==-1&&G.splice(m,1)}let B;try{await N({command:E.Connect,arg0:c,arg1:l,payload:R(`host::features=${G.join(",")}`)}),B=await h.promise}finally{S.abort(),v.releaseLock(),await u}return new r({serial:e,connection:t,version:c,maxPayloadSize:l,banner:B,features:G,initialDelayedAckBytes:o,...a})}#e;get connection(){return this.#e}#t;#r;get serial(){return this.#r}#n;get protocolVersion(){return this.#n}get maxPayloadSize(){return this.#t.options.maxPayloadSize}#i;get banner(){return this.#i}get disconnected(){return this.#t.disconnected}#s;get clientFeatures(){return this.#s}constructor({serial:e,connection:t,version:n,banner:i,features:s=Lr,initialDelayedAckBytes:o,...a}){if(this.#r=e,this.#e=t,this.#i=st.parse(i),this.#s=s,s.includes(g.DelayedAck)){if(o<=0)throw new TypeError("`initialDelayedAckBytes` must be greater than 0 when DelayedAck feature is enabled.");this.#i.features.includes(g.DelayedAck)||(o=0)}else o=0;let c,l;n>=kn?(c=!1,l=!1):(c=!0,l=!0),this.#t=new dt(t,{calculateChecksum:c,appendNullToServiceString:l,initialDelayedAckBytes:o,...a}),this.#n=n}connect(e){return this.#t.createSocket(e)}addReverseTunnel(e,t){return t||(t=`localabstract:reverse_${Math.random().toString().substring(2)}`),this.#t.addReverseTunnel(t,e),t}removeReverseTunnel(e){this.#t.removeReverseTunnel(e)}clearReverseTunnels(){this.#t.clearReverseTunnels()}close(){return this.#t.close()}};function Ur(r,e){e<0||e>=r.length||(r[e]=r[r.length-1],r.length-=1)}var ut=class extends Error{constructor(e){super("The device is already in used by another program",{cause:e})}};function be(r,e){return typeof r=="object"&&r!==null&&"name"in r&&r.name===e}function Rn(r){return r.classCode!==void 0&&r.subclassCode!==void 0&&r.protocolCode!==void 0}function Tn(r,e){return r.interfaceClass===e.classCode&&r.interfaceSubclass===e.subclassCode&&r.interfaceProtocol===e.protocolCode}function Nn(r,e){for(let t of r.configurations)for(let n of t.interfaces)for(let i of n.alternates)if(Tn(i,e))return{configuration:t,interface_:n,alternate:i}}function Dr(r){return r.toString(16).padStart(4,"0")}function Dt(r){return r.serialNumber?r.serialNumber:Dr(r.vendorId)+"x"+Dr(r.productId)}function zr(r){if(r.length===0)throw new TypeError("No endpoints given");let e,t;for(let n of r)switch(n.direction){case"in":if(e=n,t)return{inEndpoint:e,outEndpoint:t};break;case"out":if(t=n,e)return{inEndpoint:e,outEndpoint:t};break}throw e?t?new Error("unreachable"):new TypeError("No output endpoint found."):new TypeError("No input endpoint found.")}function Bn(r,e){return e.vendorId!==void 0&&r.vendorId!==e.vendorId||e.productId!==void 0&&r.productId!==e.productId||e.serialNumber!==void 0&&Dt(r)!==e.serialNumber?!1:Rn(e)?Nn(r,e)||!1:!0}function he(r,e,t){if(t&&t.length>0&&he(r,t))return!1;for(let n of e){let i=Bn(r,n);if(i)return i}return!1}var pt={classCode:255,subclassCode:66,protocolCode:1};function ge(r){return!r||r.length===0?[pt]:r.map(e=>({...e,classCode:e.classCode??pt.classCode,subclassCode:e.subclassCode??pt.subclassCode,protocolCode:e.protocolCode??pt.protocolCode}))}var zt=class{#e;get device(){return this.#e}#t;get inEndpoint(){return this.#t}#r;get outEndpoint(){return this.#r}#n;get readable(){return this.#n}#i;get writable(){return this.#i}constructor(e,t,n,i){this.#e=e,this.#t=t,this.#r=n;let s=!1,o=new De({close:async()=>{try{s=!0,await e.raw.close()}catch{}},dispose:()=>{s=!0,i.removeEventListener("disconnect",a)}});function a(l){l.device===e.raw&&o.dispose().catch(Me)}i.addEventListener("disconnect",a),this.#n=o.wrapReadable(new I({pull:async l=>{let h=await this.#s();h?l.enqueue(h):l.close()}},{highWaterMark:0}));let c=n.packetSize-1;this.#i=sr(o.createWritable(new k.WritableStream({write:async l=>{try{await e.raw.transferOut(n.endpointNumber,cr(l)),c&&(l.length&c)===0&&await e.raw.transferOut(n.endpointNumber,f)}catch(h){if(s)return;throw h}}})),new ot)}async#s(){try{for(;;){let e=await this.#e.raw.transferIn(this.#t.endpointNumber,this.#t.packetSize);if(e.data.byteLength!==24)continue;let t=new Uint8Array(e.data.buffer),n=new Ee(t),i=fe.deserialize(n);if(i.magic===(i.command^4294967295)){if(i.payloadLength!==0){let s=await this.#e.raw.transferIn(this.#t.endpointNumber,i.payloadLength);i.payload=new Uint8Array(s.data.buffer)}else i.payload=f;return i}}}catch(e){if(be(e,"NetworkError")&&(await new Promise(t=>{setTimeout(()=>{t()},100)}),closed))return;throw e}}},V=class r{static DeviceBusyError=ut;#e;#t;#r;get raw(){return this.#r}#n;get serial(){return this.#n}get name(){return this.#r.productName}constructor(e,t,n){this.#r=e,this.#n=Dt(e),this.#e=t,this.#t=n}async#i(){this.#r.opened||await this.#r.open();let{configuration:e,interface_:t,alternate:n}=this.#e;if(this.#r.configuration?.configurationValue!==e.configurationValue&&await this.#r.selectConfiguration(e.configurationValue),!t.claimed)try{await this.#r.claimInterface(t.interfaceNumber)}catch(i){throw be(i,"NetworkError")?new r.DeviceBusyError(i):i}return t.alternate.alternateSetting!==n.alternateSetting&&await this.#r.selectAlternateInterface(t.interfaceNumber,n.alternateSetting),zr(n.endpoints)}async connect(){let{inEndpoint:e,outEndpoint:t}=await this.#i();return new zt(this,e,t,this.#t)}};var mt=class r{static async create(e,t={}){let n=await e.getDevices();return new r(e,n,t)}#e;#t;#r;#n=new re;onDeviceAdd=this.#n.event;#i=new re;onDeviceRemove=this.#i.event;#s=new _e;onListChange=this.#s.event;current=[];constructor(e,t,n={}){this.#e=ge(n.filters),this.#t=n.exclusionFilters,this.#r=e,this.current=t.map(i=>this.#c(i)).filter(i=>!!i),this.#s.fire(this.current),this.#r.addEventListener("connect",this.#a),this.#r.addEventListener("disconnect",this.#o)}#c(e){let t=he(e,this.#e,this.#t);if(t)return new V(e,t,this.#r)}#a=e=>{let t=this.#c(e.device);if(!t||this.current.some(i=>i.raw===t.raw))return;let n=this.current.slice();n.push(t),this.current=n,this.#n.fire([t]),this.#s.fire(this.current)};#o=e=>{let t=this.current.findIndex(n=>n.raw===e.device);if(t!==-1){let n=this.current[t],i=this.current.slice();Ur(i,t),this.current=i,this.#i.fire([n]),this.#s.fire(this.current)}};stop(){this.#r.removeEventListener("connect",this.#a),this.#r.removeEventListener("disconnect",this.#o),this.#n.dispose(),this.#i.dispose(),this.#s.dispose()}};var wt=class r{static BROWSER=typeof globalThis.navigator<"u"&&globalThis.navigator.usb?new r(globalThis.navigator.usb):void 0;#e;constructor(e){this.#e=e}async requestDevice(e={}){let t=ge(e.filters);try{let n=await this.#e.requestDevice({filters:t,exclusionFilters:e.exclusionFilters}),i=he(n,t,e.exclusionFilters);return i?(this.#e.dispatchEvent(new USBConnectionEvent("connect",{device:n})),new V(n,i,this.#e)):void 0}catch(n){if(be(n,"NotFoundError"))return;throw n}}async getDevices(e={}){let t=ge(e.filters),n=await this.#e.getDevices(),i=[];for(let s of n){let o=he(s,t,e.exclusionFilters);o&&i.push(new V(s,o,this.#e))}return i}trackDevices(e={}){return mt.create(this.#e,e)}};function _r(){return new Promise((r,e)=>{let t=indexedDB.open("Tango",1);t.onerror=()=>{e(t.error)},t.onupgradeneeded=()=>{t.result.createObjectStore("Authentication",{autoIncrement:!0})},t.onsuccess=()=>{let n=t.result;r(n)}})}async function Pn(r){let e=await _r();return new Promise((t,n)=>{let i=e.transaction("Authentication","readwrite"),o=i.objectStore("Authentication").add(r);o.onerror=()=>{n(o.error)},o.onsuccess=()=>{t()},i.onerror=()=>{n(i.error)},i.oncomplete=()=>{e.close()}})}async function Ln(){let r=await _r();return new Promise((e,t)=>{let n=r.transaction("Authentication","readonly"),s=n.objectStore("Authentication").getAll();s.onerror=()=>{t(s.error)},s.onsuccess=()=>{e(s.result)},n.onerror=()=>{t(n.error)},n.oncomplete=()=>{r.close()}})}var xe=class{#e;constructor(e="Tango"){this.#e=e}async generateKey(){let{privateKey:e}=await crypto.subtle.generateKey({name:"RSASSA-PKCS1-v1_5",modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:"SHA-1"},!0,["sign","verify"]),t=new Uint8Array(await crypto.subtle.exportKey("pkcs8",e));return await Pn(t),{buffer:t,name:`${this.#e}@${globalThis.location.hostname}`}}async*iterateKeys(){for(let e of await Ln())yield{buffer:e,name:`${this.#e}@${globalThis.location.hostname}`}}};return Or(Un);})();
 </script><!--TANGO-END-->
+<script>
+// Language: Vietnamese is the source text, English comes from this table (same kg.lang key as the parent page; ?lang=en|vi switches).
+var KG_EN = {"Cài KidGuard": "Install KidGuard","Cài lên điện thoại của con, làm từng bước.": "Install it on your child's phone, step by step.","Mất khoảng 3 phút.": "Takes about 3 minutes.","Máy mới hoặc vừa khôi phục cài đặt gốc, không có máy tính?": "New or just factory-reset phone, no computer?","Cài bằng mã QR": "Install with a QR code","Còn app đang bị tắt tạm": "Some apps are still switched off","từ lần cài trước (": "from the last install (","). Cắm máy của con rồi bấm nút để bật lại.": "). Plug in your child's phone and press the button to switch them back on.","Bật lại các app": "Switch the apps back on","Trình duyệt này chưa cài được": "This browser can't install yet","Trang này cần": "This page needs","hoặc": "or","trên máy tính (hoặc Chrome trên điện thoại Android có dây OTG). Safari, Firefox và iPhone không dùng được.": "on a computer (or Chrome on an Android phone with an OTG cable). Safari, Firefox and iPhone don't work.","Hoặc chạy file cài trên máy tính:": "Or run the installer file on a computer:","(Mac/Linux) hay": "(Mac/Linux) or","(Windows).": "(Windows).","1. Chuẩn bị điện thoại của con": "1. Prepare your child's phone","Xoá tài khoản của máy": "Remove the phone's accounts",": Cài đặt > Tài khoản (Google, Samsung, Xiaomi, Oppo…). Tài khoản của app (Zalo, Facebook…) cứ để nguyên: máy khởi động lại một lần khi cài. Cài xong đăng nhập lại được.": ": Settings > Accounts (Google, Samsung, Xiaomi, Oppo…). Keep the accounts of ordinary apps (Zalo, Facebook…): the phone restarts once during install. After install you can sign in again.","Bật": "Turn on","Tuỳ chọn nhà phát triển": "Developer options",": Cài đặt > Giới thiệu điện thoại, chạm 7 lần vào \"Số bản dựng\".": ": Settings > About phone, tap \"Build number\" 7 times.","Trong Tuỳ chọn nhà phát triển, bật": "In Developer options, turn on","Gỡ lỗi USB": "USB debugging","Xiaomi/Redmi/POCO: bật thêm": "Xiaomi/Redmi/POCO: also turn on","Gỡ lỗi USB (Cài đặt bảo mật)": "USB debugging (Security settings)","và": "and","Cài qua USB": "Install via USB","Cắm cáp USB từ điện thoại của con vào máy này.": "Plug the USB cable from your child's phone into this computer.","Tôi đã làm xong các việc trên": "I did all of the above","2. Kết nối điện thoại": "2. Connect the phone","Bấm nút, chọn điện thoại trong hộp hiện ra. Rồi nhìn màn hình điện thoại và bấm": "Press the button and pick the phone in the box that appears. Then look at the phone screen and tap","\"Cho phép\"": "\"Allow\"","(tick \"Luôn cho phép máy tính này\").": "(tick \"Always allow this computer\").","Kết nối điện thoại": "Connect the phone","3. File ứng dụng": "3. App file","Đang tìm kidguard.apk…": "Looking for kidguard.apk…","Chọn file kidguard.apk": "Choose the kidguard.apk file","Tải kidguard.apk": "Download kidguard.apk","Bắt đầu cài": "Start install","4. Đang cài": "4. Installing","Xem chi tiết": "Show details","Xong rồi": "Done","Trên": "On","điện thoại của bố mẹ": "your own phone","(cùng Wi-Fi), mở trình duyệt vào địa chỉ:": "(same Wi-Fi), open this address in the browser:","Nhập": "Enter the","mã 6 số": "6-digit code","đang hiện trên điện thoại của con.": "shown on your child's phone.","Vào tab": "Open the","Cài đặt": "Settings",", đặt": " tab and set your","PIN của bố mẹ": "Parent PIN","Giờ có thể đăng nhập lại tài khoản trên máy con và rút cáp.": "Now you can sign in to the accounts on your child's phone again and unplug the cable.","Oppo/Realme/OnePlus (ColorOS): mở Đa nhiệm, kéo thẻ KidGuard xuống để khoá (biểu tượng ổ khoá), và trong Quản lý điện thoại cho KidGuard \"Tự khởi chạy\" + chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app và Trợ năng.": "Oppo/Realme/OnePlus (ColorOS): open Recents, pull the KidGuard card down to lock it (lock icon), and in Phone Manager allow KidGuard \"Auto-launch\" + background. Swiping KidGuard out of Recents on ColorOS stops the app and Accessibility completely.","Gỡ: trang bố mẹ > Cài đặt > \"Gỡ quyền quản lý\", rồi gỡ app như thường.": "To undo: parent page > Settings > \"Remove management\", then uninstall the app as usual.","Không đặt được Device Owner. Thường là vì:": "Could not set Device Owner. Usually because:","Máy còn tài khoản của máy: Cài đặt > Tài khoản, xoá hết (Google, Samsung, Xiaomi…), chạy lại.": "The phone still has accounts: Settings > Accounts, remove them all (Google, Samsung, Xiaomi…), then run again.","Máy có nhiều người dùng / Không gian thứ hai / Thư mục bảo mật: xoá đi.": "The phone has several users / Second space / Secure folder: remove them.","Xiaomi: bật thêm \"Gỡ lỗi USB (Cài đặt bảo mật)\" trong Tuỳ chọn nhà phát triển.": "Xiaomi: also turn on \"USB debugging (Security settings)\" in Developer options.","Đã có app quản lý khác (Device Owner): gỡ nó trước.": "Another management app (Device Owner) is already there: remove it first.","Đang kết nối… nhìn màn hình điện thoại, bấm \"Cho phép\".": "Connecting… look at the phone screen and tap \"Allow\".","Chưa chọn điện thoại nào. Bấm lại và chọn máy. Không thấy máy trong danh sách? Rút cáp, cắm lại, trên điện thoại chọn chế độ USB \"Truyền tệp\" và kiểm tra đã bật Gỡ lỗi USB.": "No phone chosen. Press again and pick the phone. Not in the list? Unplug and replug the cable, set the phone's USB mode to \"File transfer\" and check USB debugging is on.","Đã kết nối: ": "Connected: ","Máy đang bị chương trình khác giữ (thường là adb trên máy tính). Mở cửa sổ lệnh, gõ: adb kill-server, rồi rút cáp, cắm lại, tải lại trang (F5).": "Another program is holding the phone (usually adb on this computer). Open a command window, type: adb kill-server, then unplug and replug the cable and reload the page (F5).","Không kết nối được. Hãy rút cáp USB, cắm lại, tải lại trang (F5) rồi làm lại. Kiểm tra đã bật Gỡ lỗi USB và bấm \"Cho phép\" trên điện thoại.": "Could not connect. Unplug the USB cable, replug it, reload the page (F5) and try again. Check USB debugging is on and tap \"Allow\" on the phone.","Sai mã kiểm tra SHA-256 của kidguard.apk. Dừng.": "The SHA-256 checksum of kidguard.apk is wrong. Stopped.","Không kiểm tra được mã SHA-256 của kidguard.apk nên không dùng bản này. Tải file về rồi chọn nó.": "Could not check the SHA-256 checksum of kidguard.apk, so it is not used. Download the file and choose it.","Đã có kidguard.apk": "Got kidguard.apk","Chưa có sẵn file ứng dụng. Chọn file kidguard.apk đã tải về.": "The app file is not ready here. Choose the kidguard.apk you downloaded.","không phải file APK hợp lệ. Chọn lại kidguard.apk.": "is not a valid APK file. Choose kidguard.apk again.","không phải bản KidGuard (dev.kidguard). Chọn đúng kidguard.apk, không phải kidguard-home.apk hay kidguard-parent.apk.": "is not the KidGuard app (dev.kidguard). Choose kidguard.apk, not kidguard-home.apk or kidguard-parent.apk.","Đã chọn ": "Chosen ","→ Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật \"Tắt giám sát quyền\" (Disable permission monitoring), rồi chạy lại.": "→ Oppo/Realme/OnePlus (ColorOS): Developer options > turn on \"Disable permission monitoring\", then run again.","→ Máy đã có bản KidGuard ký khác. Gỡ app cũ trước (Cài đặt > Ứng dụng > KidGuard > Gỡ), rồi bấm cài lại.": "→ The phone has a KidGuard build signed differently. Uninstall the old app first (Settings > Apps > KidGuard > Uninstall), then install again.","→ Máy chặn cài qua USB. Xiaomi: bật \"Cài qua USB\" và \"Gỡ lỗi USB (Cài đặt bảo mật)\"; rồi bấm Cho phép trên máy.": "→ The phone blocks installs over USB. Xiaomi: turn on \"Install via USB\" and \"USB debugging (Security settings)\", then tap Allow on the phone.","→ Android của máy quá cũ cho bản KidGuard này.": "→ This phone's Android is too old for this KidGuard version.","→ Máy hết bộ nhớ. Xoá bớt ứng dụng/ảnh rồi bấm cài lại.": "→ The phone is out of storage. Delete some apps/photos, then install again.","→ Máy có bản KidGuard mới hơn. Gỡ app cũ trước rồi bấm cài lại.": "→ The phone has a newer KidGuard. Uninstall the old app first, then install again.","→ Mất kết nối với điện thoại. Rút cáp, cắm lại, tải lại trang (F5) rồi làm lại.": "→ Lost the connection to the phone. Unplug and replug the cable, reload the page (F5) and try again.","→ Lệnh trên điện thoại không thành công. Chi tiết kỹ thuật nằm ở mục \"Xem chi tiết\" bên dưới.": "→ A command on the phone did not work. Technical details are under \"Show details\" below.","Bật lại các app đã tắt tạm: ": "Switching the apps back on: ","Chưa kết nối được máy. Xem bước 2 bên dưới, rồi bấm lại.": "Could not connect to the phone. See step 2 below, then press again.","Chưa bật lại hết. Trên máy con: Cài đặt > Ứng dụng, bật các app trong danh sách.": "Not all are back on. On the child's phone: Settings > Apps, turn on the apps in the list.","Đã bật lại các app.": "The apps are back on.","Máy đã khởi động lại nhưng trang chưa nối lại được.": "The phone restarted but this page could not reconnect.","Máy đã khởi động lại nhưng trang chưa nối lại được. Mở khoá màn hình, kiểm tra cáp USB, rồi bấm \"Kết nối điện thoại\" và \"Bắt đầu cài\" lại: cài tiếp từ đây và bật lại các app đã tắt tạm.": "The phone restarted but this page could not reconnect. Unlock the screen, check the USB cable, then press \"Connect the phone\" and \"Start install\" again: it carries on from here and switches the paused apps back on.","Cài app": "Install the app","Giữ đăng nhập các app (nếu cần, máy khởi động lại một lần)": "Keep app sign-ins (if needed, the phone restarts once)","Đặt KidGuard làm Device Owner": "Make KidGuard the Device Owner","Cấp quyền xem thời gian dùng app": "Grant permission to see app usage time","Cấp quyền ghi cài đặt bảo mật": "Grant permission to write secure settings","Bật dịch vụ Trợ năng": "Turn on the Accessibility service","Cho chạy nền, không bị tiết kiệm pin": "Allow background running, no battery saving","Mở app": "Open the app","Lấy địa chỉ cho bố mẹ": "Get the address for the parent","pm install thất bại": "pm install failed","Cần xoá các tài khoản của máy trước:": "Remove the phone's accounts first:","→ Cài đặt > Mật khẩu và tài khoản, xoá chúng rồi chạy lại. Tài khoản của app (Zalo, Facebook…) cứ để nguyên. Cài xong đăng nhập lại, dữ liệu vẫn còn.": "→ Settings > Passwords and accounts, remove them, then run again. Keep the accounts of ordinary apps (Zalo, Facebook…). After install sign in again, your data is still there.","Giữ đăng nhập các app: ": "Keeping sign-ins of the apps: ",". Tắt tạm, khởi động lại máy một lần (khoảng 1 phút), rồi cài tiếp.": ". Switching them off for a moment, restarting the phone once (about 1 minute), then continuing.","Không tắt được ": "Could not switch off ","Khởi động lại máy…": "Restarting the phone…","Máy đã lên lại.": "The phone is back up.","Máy đang kiểm tra lại tài khoản, thử lại sau 5 giây…": "The phone is re-checking accounts, trying again in 5 seconds…","Danh sách trợ năng có ký tự lạ: ": "The accessibility list has an odd character: ","LỖI: ": "ERROR: ","Bước": "Step","lỗi.": "failed.","Sửa xong bấm lại \"Bắt đầu cài\" (cài lại không mất gì).": "When fixed, press \"Start install\" again (reinstalling loses nothing).","Nếu lỗi lặp lại: rút cáp, cắm lại, tải lại trang (F5). Hoặc bấm \"Kết nối điện thoại\" lại để thử lần nữa.": "If it keeps failing: unplug and replug the cable, reload the page (F5). Or press \"Connect the phone\" to try once more.","<IP của máy con>": "<child phone IP>","Xem chi tiết lỗi": "Show error details"};
+var LANG = (function () {
+  try {
+    var q = /[?&]lang=(vi|en)/.exec(location.search);
+    if (q) { localStorage.setItem("kg.lang", q[1]); return q[1]; }
+    var s = localStorage.getItem("kg.lang"); if (s === "vi" || s === "en") return s;
+  } catch (e) {}
+  var l = navigator.languages || [navigator.language || ""];
+  for (var i = 0; i < l.length; i++) { var b = String(l[i]).toLowerCase().split("-")[0]; if (b === "vi" || b === "en") return b; }
+  return "en";
+})();
+function T(s) { return LANG === "en" && KG_EN[s] !== undefined ? KG_EN[s] : s; }
+(function () {
+  document.documentElement.lang = LANG;
+  if (LANG === "en") {
+    var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), n, todo = [];
+    while ((n = w.nextNode())) { var t = n.nodeValue.replace(/\s+/g, " ").trim(); if (t && KG_EN[t] !== undefined && !/^(SCRIPT|STYLE)$/.test(n.parentNode.nodeName)) todo.push([n, t]); }
+    todo.forEach(function (x) { x[0].nodeValue = x[0].nodeValue.replace(/\S[\s\S]*\S|\S/, function () { return KG_EN[x[1]]; }); });
+    document.title = T(document.title);
+  }
+  var a = document.createElement("a");
+  a.href = "?lang=" + (LANG === "en" ? "vi" : "en"); a.textContent = LANG === "en" ? "Tiếng Việt" : "English";
+  a.style.cssText = "float:right;font-size:15px;color:var(--pri)";
+  document.querySelector("main").insertBefore(a, document.querySelector("main").firstChild);
+})();
+</script>
 <script type="module">
 const { Adb, AdbDaemonTransport, AdbDaemonWebUsbDeviceManager, AdbDaemonWebUsbDevice, AdbWebCredentialStore } = Tango;
 
@@ -153,11 +183,12 @@ const enable = (id, on) => $(id).classList.toggle("off", !on);
 const setMsg = (id, text, cls) => { const e = $(id); e.textContent = text; e.className = "msg" + (cls ? " " + cls : ""); };
 const log = (t) => { const p = $("log"); p.textContent += t + "\n"; p.scrollTop = p.scrollHeight; };
 
-const DO_HELP = `Không đặt được Device Owner. Thường là vì:
-  - Máy còn tài khoản của máy: Cài đặt > Tài khoản, xoá hết (Google, Samsung, Xiaomi…), chạy lại.
-  - Máy có nhiều người dùng / Không gian thứ hai / Thư mục bảo mật: xoá đi.
-  - Xiaomi: bật thêm "Gỡ lỗi USB (Cài đặt bảo mật)" trong Tuỳ chọn nhà phát triển.
-  - Đã có app quản lý khác (Device Owner): gỡ nó trước.`;
+const DO_HELP = () => T("Không đặt được Device Owner. Thường là vì:") + "\n  - " + [
+  "Máy còn tài khoản của máy: Cài đặt > Tài khoản, xoá hết (Google, Samsung, Xiaomi…), chạy lại.",
+  "Máy có nhiều người dùng / Không gian thứ hai / Thư mục bảo mật: xoá đi.",
+  "Xiaomi: bật thêm \"Gỡ lỗi USB (Cài đặt bảo mật)\" trong Tuỳ chọn nhà phát triển.",
+  "Đã có app quản lý khác (Device Owner): gỡ nó trước.",
+].map(T).join("\n  - ");
 
 const manager = AdbDaemonWebUsbDeviceManager.BROWSER;
 if (!manager) {
@@ -172,11 +203,12 @@ $("ready").onchange = (e) => enable("s2", e.target.checked);
 // ---- 2. connect ----
 async function doConnect() {
   $("connect").disabled = true;
-  setMsg("connmsg", "Đang kết nối… nhìn màn hình điện thoại, bấm \"Cho phép\".");
+  setMsg("connmsg", T("Đang kết nối… nhìn màn hình điện thoại, bấm \"Cho phép\"."));
+  $("connraw").classList.add("hide");
   let device = null;
   try {
     device = await manager.requestDevice();
-    if (!device) { setMsg("connmsg", "Chưa chọn điện thoại nào. Bấm lại và chọn máy. Không thấy máy trong danh sách? Rút cáp, cắm lại, trên điện thoại chọn chế độ USB \"Truyền tệp\" và kiểm tra đã bật Gỡ lỗi USB.", "bad"); $("connect").disabled = false; return false; }
+    if (!device) { setMsg("connmsg", T("Chưa chọn điện thoại nào. Bấm lại và chọn máy. Không thấy máy trong danh sách? Rút cáp, cắm lại, trên điện thoại chọn chế độ USB \"Truyền tệp\" và kiểm tra đã bật Gỡ lỗi USB."), "bad"); $("connect").disabled = false; return false; }
     const connection = await device.connect();
     const transport = await AdbDaemonTransport.authenticate({
       serial: device.serial,
@@ -184,7 +216,7 @@ async function doConnect() {
       credentialStore: new AdbWebCredentialStore("KidGuard"),
     });
     adb = new Adb(transport);
-    setMsg("connmsg", "Đã kết nối: " + (device.name || device.serial), "ok");
+    setMsg("connmsg", T("Đã kết nối: ") + (device.name || device.serial), "ok");
     $("connect").classList.add("hide");
     enable("s3", true);
     loadApk();
@@ -194,9 +226,10 @@ async function doConnect() {
     // release the USB interface so a retry (or adb on this PC) is not blocked
     try { await (device && device.raw && device.raw.close && device.raw.close()); } catch (_) {}
     if (e instanceof AdbDaemonWebUsbDevice.DeviceBusyError) {
-      setMsg("connmsg", "Máy đang bị chương trình khác giữ (thường là adb trên máy tính). Mở cửa sổ lệnh, gõ: adb kill-server, rồi rút cáp, cắm lại, tải lại trang (F5).", "bad");
+      setMsg("connmsg", T("Máy đang bị chương trình khác giữ (thường là adb trên máy tính). Mở cửa sổ lệnh, gõ: adb kill-server, rồi rút cáp, cắm lại, tải lại trang (F5)."), "bad");
     } else {
-      setMsg("connmsg", "Không kết nối được: " + (e && e.message || e) + ". Hãy rút cáp USB, cắm lại, tải lại trang (F5) rồi làm lại. Kiểm tra đã bật Gỡ lỗi USB và bấm \"Cho phép\" trên điện thoại.", "bad");
+      setMsg("connmsg", T("Không kết nối được. Hãy rút cáp USB, cắm lại, tải lại trang (F5) rồi làm lại. Kiểm tra đã bật Gỡ lỗi USB và bấm \"Cho phép\" trên điện thoại."), "bad");
+      $("connrawtxt").textContent = String(e && e.message || e); $("connraw").classList.remove("hide");   // raw error only in the details
     }
     $("connect").disabled = false;
     return false;
@@ -207,6 +240,34 @@ $("connect").onclick = doConnect;
 // ---- 3. APK ----
 // an APK is a zip: must start with PK\x03\x04
 const isApk = (b) => b.length > 1000 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 3 && b[3] === 4;
+// Is it the KidGuard app (package dev.kidguard) and not kidguard-home / kidguard-parent? The binary AndroidManifest.xml
+// holds the package name as a string-pool entry: exactly "dev.kidguard" (UTF-16 or UTF-8), whereas the Home flavor has "dev.kidguard.home".
+async function isKidGuardApk(b) {
+  try {
+    const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    let e = -1;
+    for (let i = b.length - 22; i >= Math.max(0, b.length - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; }
+    if (e < 0) return false;
+    let p = dv.getUint32(e + 16, true);
+    for (let n = dv.getUint16(e + 10, true); n > 0 && p + 46 <= b.length; n--) {
+      const nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+      if (new TextDecoder().decode(b.subarray(p + 46, p + 46 + nl)) === "AndroidManifest.xml") {
+        const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), lh = dv.getUint32(p + 42, true);
+        const ds = lh + 30 + dv.getUint16(lh + 26, true) + dv.getUint16(lh + 28, true);
+        let m = b.subarray(ds, ds + csize);
+        if (method === 8) m = new Uint8Array(await new Response(new Blob([m]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+        else if (method !== 0) return false;
+        const u16 = [PKG.length, 0]; for (const c of PKG) u16.push(c.charCodeAt(0), 0); u16.push(0, 0);
+        const u8 = [PKG.length, PKG.length]; for (const c of PKG) u8.push(c.charCodeAt(0)); u8.push(0);
+        const has = (a) => { outer: for (let i = 0; i + a.length <= m.length; i++) { for (let j = 0; j < a.length; j++) if (m[i + j] !== a[j]) continue outer; return true; } return false; };
+        return has(u16) || has(u8);
+      }
+      p += 46 + nl + xl + cl;
+    }
+  } catch (_) {}
+  return false;
+}
+const showPicker = () => { $("pick").classList.remove("hide"); $("apkdl").classList.remove("hide"); };
 
 async function loadApk() {
   if (apkBytes) { $("install").disabled = false; return; }
@@ -217,25 +278,31 @@ async function loadApk() {
       apkBytes = new Uint8Array(await r.arrayBuffer());
     }
   } catch (_) { /* fall through to picker */ }
-  if (apkBytes && !isApk(apkBytes)) apkBytes = null;
-  // integrity: compare with kidguard.apk.sha256 next to it when the server has one (same as setup.sh); skipped if absent
-  if (apkBytes && window.crypto && crypto.subtle) {
+  if (apkBytes && !(isApk(apkBytes) && await isKidGuardApk(apkBytes))) apkBytes = null;
+  // integrity, fail closed: the APK served here must match kidguard.apk.sha256 next to it (same as setup.sh); no checksum = not used, pick the file by hand
+  if (apkBytes) {
+    let verified = false, mismatch = false;
     try {
       const sr = await fetch("kidguard.apk.sha256", { cache: "no-store" });
       const want = sr.ok ? ((await sr.text()).trim().split(/\s+/)[0] || "").toLowerCase() : "";
-      if (/^[0-9a-f]{64}$/.test(want)) {
+      if (/^[0-9a-f]{64}$/.test(want) && window.crypto && crypto.subtle) {
         const got = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", apkBytes))).map((x) => x.toString(16).padStart(2, "0")).join("");
-        if (got !== want) { apkBytes = null; setMsg("apkmsg", "Sai mã kiểm tra SHA-256 của kidguard.apk. Dừng.", "bad"); $("pick").classList.remove("hide"); return; }
+        if (got === want) verified = true; else mismatch = true;
       }
     } catch (_) { /* no checksum available */ }
+    if (!verified) {
+      apkBytes = null; showPicker();
+      setMsg("apkmsg", T(mismatch ? "Sai mã kiểm tra SHA-256 của kidguard.apk. Dừng." : "Không kiểm tra được mã SHA-256 của kidguard.apk nên không dùng bản này. Tải file về rồi chọn nó."), "bad");
+      return;
+    }
   }
   if (apkBytes && apkBytes.length > 1000) {
-    setMsg("apkmsg", "Đã có kidguard.apk (" + (apkBytes.length / 1048576).toFixed(1) + " MB).", "ok");
+    setMsg("apkmsg", T("Đã có kidguard.apk") + " (" + (apkBytes.length / 1048576).toFixed(1) + " MB).", "ok");
     $("install").disabled = false;
   } else {
     apkBytes = null;
-    setMsg("apkmsg", "Chưa có sẵn file ứng dụng. Chọn file kidguard.apk đã tải về.");
-    $("pick").classList.remove("hide");
+    setMsg("apkmsg", T("Chưa có sẵn file ứng dụng. Chọn file kidguard.apk đã tải về."));
+    showPicker();
   }
 }
 $("pick").onclick = () => $("apkfile").click();
@@ -243,9 +310,10 @@ $("apkfile").onchange = async (e) => {
   const f = e.target.files[0];
   if (!f) return;
   const b = new Uint8Array(await f.arrayBuffer());
-  if (!isApk(b)) { apkBytes = null; $("install").disabled = true; setMsg("apkmsg", f.name + " không phải file APK hợp lệ. Chọn lại kidguard.apk.", "bad"); return; }
+  if (!isApk(b)) { apkBytes = null; $("install").disabled = true; setMsg("apkmsg", f.name + " " + T("không phải file APK hợp lệ. Chọn lại kidguard.apk."), "bad"); return; }
+  if (!(await isKidGuardApk(b))) { apkBytes = null; $("install").disabled = true; setMsg("apkmsg", f.name + " " + T("không phải bản KidGuard (dev.kidguard). Chọn đúng kidguard.apk, không phải kidguard-home.apk hay kidguard-parent.apk."), "bad"); return; }
   apkBytes = b;
-  setMsg("apkmsg", "Đã chọn " + f.name + " (" + (apkBytes.length / 1048576).toFixed(1) + " MB).", "ok");
+  setMsg("apkmsg", T("Đã chọn ") + f.name + " (" + (apkBytes.length / 1048576).toFixed(1) + " MB).", "ok");
   $("install").disabled = false;
 };
 
@@ -259,7 +327,19 @@ const sh = async (cmd) => {
 const BAD = /Error|Exception|denied|Failure/i;
 // ColorOS blocks adb from granting permissions until "Disable permission monitoring" is on
 const PERM_MON = /UPDATE_APP_OPS_STATS|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS/;
-const must = async (cmd) => { const out = await sh(cmd); if (BAD.test(out)) throw new Error(out.trim() + (PERM_MON.test(out) ? "\n→ Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật \"Tắt giám sát quyền\" (Disable permission monitoring), rồi chạy lại." : "")); return out; };
+const must = async (cmd) => { const out = await sh(cmd); if (BAD.test(out)) { const e = new Error(out.trim()); e.perm = PERM_MON.test(out); throw e; } return out; };
+// The parent sees a short sentence; the raw adb text stays in the details (log).
+function friendly(e) {
+  const m = String(e && e.message || e);
+  if (e && e.perm) return T("→ Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật \"Tắt giám sát quyền\" (Disable permission monitoring), rồi chạy lại.");
+  if (/INSTALL_FAILED_UPDATE_INCOMPATIBLE/.test(m)) return T("→ Máy đã có bản KidGuard ký khác. Gỡ app cũ trước (Cài đặt > Ứng dụng > KidGuard > Gỡ), rồi bấm cài lại.");
+  if (/INSTALL_FAILED_USER_RESTRICTED|INSTALL_FAILED_ABORTED/.test(m)) return T("→ Máy chặn cài qua USB. Xiaomi: bật \"Cài qua USB\" và \"Gỡ lỗi USB (Cài đặt bảo mật)\"; rồi bấm Cho phép trên máy.");
+  if (/INSTALL_FAILED_OLDER_SDK/.test(m)) return T("→ Android của máy quá cũ cho bản KidGuard này.");
+  if (/INSTALL_FAILED_INSUFFICIENT_STORAGE/.test(m)) return T("→ Máy hết bộ nhớ. Xoá bớt ứng dụng/ảnh rồi bấm cài lại.");
+  if (/INSTALL_FAILED_VERSION_DOWNGRADE/.test(m)) return T("→ Máy có bản KidGuard mới hơn. Gỡ app cũ trước rồi bấm cài lại.");
+  if (/closed|disconnect|device not found|offline|NetworkError|LIBUSB|transfer/i.test(m)) return T("→ Mất kết nối với điện thoại. Rút cáp, cắm lại, tải lại trang (F5) rồi làm lại.");
+  return T("→ Lệnh trên điện thoại không thành công. Chi tiết kỹ thuật nằm ở mục \"Xem chi tiết\" bên dưới.");
+}
 
 async function pushApk(remote) {
   const sync = await adb.sync();
@@ -305,7 +385,7 @@ function planAccounts(dump, thirdParty) {
 async function reenableApps() {
   const list = getOff();
   if (!list.length || !adb) return;
-  log("Bật lại các app đã tắt tạm: " + list.join(", "));
+  log(T("Bật lại các app đã tắt tạm: ") + list.join(", "));
   const left = [];
   for (const p of list) { const out = await sh("pm enable " + p); if (!/enabled/i.test(out)) left.push(p); }
   setOff(left); showOff();
@@ -313,10 +393,10 @@ async function reenableApps() {
 $("reenable").onclick = async () => {
   $("reenable").disabled = true;
   try {
-    if (!adb && !(await doConnect())) { setMsg("appsoffmsg", "Chưa kết nối được máy. Xem bước 2 bên dưới, rồi bấm lại.", "bad"); return; }
+    if (!adb && !(await doConnect())) { setMsg("appsoffmsg", T("Chưa kết nối được máy. Xem bước 2 bên dưới, rồi bấm lại."), "bad"); return; }
     await reenableApps();
-    if (getOff().length) setMsg("appsoffmsg", "Chưa bật lại hết. Trên máy con: Cài đặt > Ứng dụng, bật các app trong danh sách.", "bad");
-    else setMsg("appsoffmsg", "Đã bật lại các app.", "ok");
+    if (getOff().length) setMsg("appsoffmsg", T("Chưa bật lại hết. Trên máy con: Cài đặt > Ứng dụng, bật các app trong danh sách."), "bad");
+    else setMsg("appsoffmsg", T("Đã bật lại các app."), "ok");
     try { await adb.close(); } catch (_) {}
     adb = null;
   } finally { $("reenable").disabled = false; }
@@ -341,7 +421,7 @@ async function reconnectAfterReboot(serial) {
     } catch (_) { try { await d.raw.close(); } catch (_) {} }
   }
   const e = new Error("Máy đã khởi động lại nhưng trang chưa nối lại được.");
-  e.help = "Máy đã khởi động lại nhưng trang chưa nối lại được. Mở khoá màn hình, kiểm tra cáp USB, rồi bấm \"Kết nối điện thoại\" và \"Bắt đầu cài\" lại: cài tiếp từ đây và bật lại các app đã tắt tạm.";
+  e.help = T("Máy đã khởi động lại nhưng trang chưa nối lại được. Mở khoá màn hình, kiểm tra cáp USB, rồi bấm \"Kết nối điện thoại\" và \"Bắt đầu cài\" lại: cài tiếp từ đây và bật lại các app đã tắt tạm.");
   throw e;
 }
 
@@ -350,7 +430,7 @@ const STEPS = [
     await pushApk("/data/local/tmp/kidguard.apk");
     const out = await sh("pm install -r -g /data/local/tmp/kidguard.apk");
     await sh("rm -f /data/local/tmp/kidguard.apk");
-    if (!/Success/.test(out)) throw new Error(out.trim() || "pm install thất bại");
+    if (!/Success/.test(out)) throw new Error(out.trim() || T("pm install thất bại"));
   }],
   ["Giữ đăng nhập các app (nếu cần, máy khởi động lại một lần)", async () => {
     if ((await sh("dumpsys device_policy")).includes("admin=ComponentInfo{" + PKG + "/" + PKG + ".Admin}")) return;
@@ -360,36 +440,36 @@ const STEPS = [
     const plan = planAccounts(dump, third);
     if (plan.remove.length) {
       const e = new Error("Cần xoá các tài khoản của máy trước: " + plan.remove.join(", "));
-      e.help = "Cần xoá các tài khoản của máy trước:\n  - " + plan.remove.join("\n  - ") + "\n→ Cài đặt > Mật khẩu và tài khoản, xoá chúng rồi chạy lại. Tài khoản của app (Zalo, Facebook…) cứ để nguyên. Cài xong đăng nhập lại, dữ liệu vẫn còn.";
+      e.help = T("Cần xoá các tài khoản của máy trước:") + "\n  - " + plan.remove.join("\n  - ") + "\n" + T("→ Cài đặt > Mật khẩu và tài khoản, xoá chúng rồi chạy lại. Tài khoản của app (Zalo, Facebook…) cứ để nguyên. Cài xong đăng nhập lại, dữ liệu vẫn còn.");
       throw e;
     }
     if (!plan.disable.length) return;
-    log("Giữ đăng nhập các app: " + plan.disable.join(", ") + ". Tắt tạm, khởi động lại máy một lần (khoảng 1 phút), rồi cài tiếp.");
+    log(T("Giữ đăng nhập các app: ") + plan.disable.join(", ") + T(". Tắt tạm, khởi động lại máy một lần (khoảng 1 phút), rồi cài tiếp."));
     const serial = adb.serial || (adb.transport && adb.transport.serial);
     setOff(plan.disable); showOff();
     for (const p of plan.disable) {
       const out = await sh("pm disable-user --user 0 " + p);
-      if (!/disabled/.test(out)) throw new Error("Không tắt được " + p + ": " + out.trim());
+      if (!/disabled/.test(out)) throw new Error(T("Không tắt được ") + p + ": " + out.trim());
     }
     await sleep(14000); await sh("sync");   // Android writes the app state to disk ~10 s later: rebooting sooner loses it
-    log("Khởi động lại máy…");
+    log(T("Khởi động lại máy…"));
     try { await adb.power.reboot(); } catch (_) {}
     try { await adb.close(); } catch (_) {}
     adb = null;
     adb = await reconnectAfterReboot(serial);
-    log("Máy đã lên lại.");
+    log(T("Máy đã lên lại."));
   }],
   ["Đặt KidGuard làm Device Owner", async () => {
     let out = await sh("dpm set-device-owner " + PKG + "/.Admin");
     // after our restart Android still says "accounts" for up to ~30 s (it re-checks them in the background): try again
     for (let i = 0; i < 24 && getOff().length && /accounts/i.test(out); i++) {
-      log("Máy đang kiểm tra lại tài khoản, thử lại sau 5 giây…");
+      log(T("Máy đang kiểm tra lại tài khoản, thử lại sau 5 giây…"));
       await sleep(5000);
       out = await sh("dpm set-device-owner " + PKG + "/.Admin");
     }
     const dump = await sh("dumpsys device_policy");
     if (!dump.includes("admin=ComponentInfo{" + PKG + "/" + PKG + ".Admin}")) {
-      const e = new Error(out.trim()); e.help = DO_HELP; throw e;
+      const e = new Error(out.trim()); e.help = DO_HELP(); throw e;
     }
   }],
   ["Cấp quyền xem thời gian dùng app", async () => { await must("appops set " + PKG + " GET_USAGE_STATS allow"); }],
@@ -408,7 +488,7 @@ const STEPS = [
     const list = cur ? cur.split(":") : [];
     if (!list.includes(ACC)) list.push(ACC);
     const val = list.join(":");
-    if (val.includes("'")) throw new Error("Danh sách trợ năng có ký tự lạ: " + val);
+    if (val.includes("'")) throw new Error(T("Danh sách trợ năng có ký tự lạ: ") + val);
     // single quotes: adb shell re-parses the line on the phone, so "$" in existing entries must not expand
     await must("settings put secure enabled_accessibility_services '" + val + "'");
     await must("settings put secure accessibility_enabled 1");
@@ -435,7 +515,7 @@ $("install").onclick = async () => {
   ol.innerHTML = "";
   const rows = STEPS.map(([name], i) => {
     const li = document.createElement("li");
-    li.innerHTML = '<span class="mark"><svg class="si" aria-hidden="true"><use href="#i-circle-dashed"/></svg></span>' + (i + 1) + "/" + STEPS.length + " " + name;
+    li.innerHTML = '<span class="mark"><svg class="si" aria-hidden="true"><use href="#i-circle-dashed"/></svg></span>' + (i + 1) + "/" + STEPS.length + " " + T(name);
     ol.appendChild(li);
     return li;
   });
@@ -449,10 +529,10 @@ $("install").onclick = async () => {
         mark(i, "ok", "circle-check");
       } catch (e) {
         mark(i, "bad", "circle-x");
-        log("LỖI: " + (e && e.message || e));
+        log(T("LỖI: ") + (e && e.message || e));   // raw text: details only
         const f = $("fail");
-        f.textContent = (e.help ? e.help + "\n\n" : "Bước \"" + STEPS[i][0] + "\" lỗi: ") + (e.help ? "" : (e && e.message || e) + "\n") +
-          "\nSửa xong bấm lại \"Bắt đầu cài\" (cài lại không mất gì).";
+        f.textContent = (e.help ? e.help : T("Bước") + " \"" + T(STEPS[i][0]) + "\" " + T("lỗi.") + "\n" + friendly(e)) +
+          "\n\n" + T("Sửa xong bấm lại \"Bắt đầu cài\" (cài lại không mất gì).");
         f.classList.remove("hide");
         failed = true;
         break;
@@ -469,11 +549,11 @@ $("install").onclick = async () => {
     // Connection is closed: ask the parent to reconnect before retrying.
     $("connect").classList.remove("hide");
     $("connect").disabled = false;
-    setMsg("connmsg", "Nếu lỗi lặp lại: rút cáp, cắm lại, tải lại trang (F5). Hoặc bấm \"Kết nối điện thoại\" lại để thử lần nữa.");
+    setMsg("connmsg", T("Nếu lỗi lặp lại: rút cáp, cắm lại, tải lại trang (F5). Hoặc bấm \"Kết nối điện thoại\" lại để thử lần nữa."));
     $("s4").querySelector("details").open = true;
     return;
   }
-  $("lan").textContent = "http://" + (window.__ip || "<IP của máy con>") + ":8770";
+  $("lan").textContent = "http://" + (window.__ip || T("<IP của máy con>")) + ":8770";
   $("coloros").classList.toggle("hide", !window.__coloros);
   $("done").classList.remove("hide");
   $("done").scrollIntoView({ behavior: "smooth" });

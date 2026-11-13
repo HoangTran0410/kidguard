@@ -80,6 +80,17 @@ object Logic {
     /** Only the state snapshot of a kid is cached (LAN /api/state, relay /c/<id>/state). */
     fun isStatePath(method: String, rest: String) = method == "GET" && STATE_PATHS.matches(rest)
 
+    private val SAFE_TYPES = setOf("application/json", "text/plain", "image/jpeg", "image/png", "image/webp", "image/gif", "audio/aac", "audio/mp4", "audio/mpeg", "application/octet-stream")
+    /**
+     * The Content-Type the proxy hands to the WebView for something the phone answered (audit L31). The proxy origin has
+     * the KGApp bridge, so a phone (or a shared file) answering `text/html` / SVG must not render there: anything outside
+     * the few types the page really loads is served as a download (octet-stream). Parameters (charset) are kept.
+     */
+    fun safeType(t: String?): String {
+        val base = t?.substringBefore(';')?.trim()?.lowercase().orEmpty()
+        return if (base in SAFE_TYPES) t!!.trim() else "application/octet-stream"
+    }
+
     /** Serve the stored snapshot when the live request failed: network error / timeout / 5xx. */
     fun useCache(status: Int?, networkError: Boolean) = networkError || status == null || status >= 500
 

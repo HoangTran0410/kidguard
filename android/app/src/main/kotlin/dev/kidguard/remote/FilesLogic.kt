@@ -60,6 +60,15 @@ object FilesLogic {
         else -> null
     }
 
+    /** All files a parent may leave in the phone's Download/KidGuard through the app (sum of the index): one full disk is no use to anyone. */
+    const val MAX_IN_TOTAL = 1024L * 1024 * 1024
+    /** "empty" for a zero-byte file, "quota" when [used] + [len] goes past [MAX_IN_TOTAL]; null = ok. */
+    fun intakeError(len: Long, used: Long): String? = when {
+        len <= 0 -> "empty"
+        used + len > MAX_IN_TOTAL -> "quota"
+        else -> null
+    }
+
     fun chunks(size: Long) = maxOf(1L, (size + CHUNK - 1) / CHUNK).toInt()
 
     fun ext(name: String) = name.substringAfterLast('.', "").lowercase().takeIf { it.length in 1..10 && it.all(Char::isLetterOrDigit) } ?: ""

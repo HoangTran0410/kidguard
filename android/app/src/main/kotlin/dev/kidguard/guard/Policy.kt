@@ -36,10 +36,14 @@ object Policy {
     fun dpm(ctx: Context): DevicePolicyManager = ctx.getSystemService(DevicePolicyManager::class.java)
     fun isOwner(ctx: Context) = dpm(ctx).isDeviceOwnerApp(ctx.packageName)
 
-    private val BASE = listOf(
+    // Android 14 / 15 profiles that would be a second, unmanaged space (clone app, private space): as string keys, guarded by SDK_INT
+    private const val NO_CLONE_PROFILE = "no_add_clone_profile"      // DISALLOW_ADD_CLONE_PROFILE, API 34
+    private const val NO_PRIVATE_PROFILE = "no_add_private_profile"  // DISALLOW_ADD_PRIVATE_PROFILE, API 35
+    private val BASE: List<String> get() = listOf(
         UserManager.DISALLOW_FACTORY_RESET, UserManager.DISALLOW_SAFE_BOOT,
         UserManager.DISALLOW_ADD_USER, UserManager.DISALLOW_CONFIG_DATE_TIME,
-    )
+    ) + (if (Build.VERSION.SDK_INT >= 34) listOf(NO_CLONE_PROFILE) else emptyList()) +
+        (if (Build.VERSION.SDK_INT >= 35) listOf(NO_PRIVATE_PROFILE) else emptyList())
     private val INSTALL = listOf(UserManager.DISALLOW_INSTALL_APPS, UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES)
 
     /** Restrictions + self-protection + the permissions the guard needs. Safe to call again and again. */
@@ -48,7 +52,7 @@ object Policy {
         val d = dpm(ctx); val a = admin(ctx)
         runCatching { savePrior(ctx, r) }.onFailure { Log.w(TAG, "save prior", it) }
         runCatching {
-            BASE.forEach { d.addUserRestriction(a, it) }
+            BASE.forEach { runCatching { d.addUserRestriction(a, it) } }   // one refusing key must not skip the rest
             // a rules save during a self-update session must not put "no installs" back under it (Update.installing)
             INSTALL.forEach { if (r.noInstall && !Update.installing) d.addUserRestriction(a, it) else d.clearUserRestriction(a, it) }
             if (r.noDebug) d.addUserRestriction(a, UserManager.DISALLOW_DEBUGGING_FEATURES)
@@ -436,8 +440,12 @@ object Policy {
     /** After release: apps we could not re-enable (no Wireless debugging then) are retried at every start while the shell works. */
     fun retryShellEnable(ctx: Context) {
         val s = Store.of(ctx)
-        if (s.shellDisabled.isEmpty() || !SelfAdb.hasKey(ctx) || !retrying.compareAndSet(false, true)) return
-        Thread({ try { runCatching { enableShellDisabled(ctx, s) } } finally { retrying.set(false) } }, "shellenable").apply { isDaemon = true }.start()
+        // bgLimited is only still set after a release when the undo failed (no Wireless debugging then): retried here too (audit M9)
+        if ((s.shellDisabled.isEmpty() && s.bgLimited.isEmpty()) || !SelfAdb.hasKey(ctx) || !retrying.compareAndSet(false, true)) return
+        Thread({ try {
+            if (s.shellDisabled.isNotEmpty()) runCatching { enableShellDisabled(ctx, s) }
+            if (s.bgLimited.isNotEmpty()) runCatching { Health.bgRestore(ctx, s) }
+        } finally { retrying.set(false) } }, "shellenable").apply { isDaemon = true }.start()
     }
 
     /** True when [pkg] is present, hidden apps included. */
@@ -552,6 +560,14 @@ object Policy {
      * Call it on the Guard thread with the loop stopped. Returns "ok", "not owner" or "failed" (still Device Owner).
      */
     fun release(ctx: Context, s: Store): String {
+        val res = releaseAll(ctx, s)
+        // background limits (appops) that could not go back (no Wireless debugging): kept in Store.bgLimited, retried at the next start
+        val bg = s.bgLimited.size
+        if (bg > 0) s.log(ctx.resources.getQuantityString(R.plurals.release_bg_left, bg, bg))
+        return res
+    }
+
+    private fun releaseAll(ctx: Context, s: Store): String {
         runCatching { Health.bgRestore(ctx, s) }.onFailure { Log.w(TAG, "bg restore", it) }   // background limits we set (appops) go back to allow, both modes
         runCatching { FocusStore.release(ctx) }   // study mode: session, DND we set, schedule
         if (!isOwner(ctx)) {

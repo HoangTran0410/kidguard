@@ -30,6 +30,7 @@ class Relay(private val g: Guard) {
     private var lastHash = 0
     private var lastFull = 0L
     private val loopRun = Runnable { loop() }
+    private val slow = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "relay-slow").apply { isDaemon = true } }
     private val ws = RelayWs { h.post { forceSend = true; if (inSync) kickAgain = true else schedule(0) } }
     private var wsRetryAt = 0L
     private var wsFails = 0
@@ -40,15 +41,20 @@ class Relay(private val g: Guard) {
     private val diff = StateDiff()      // partial states once the worker says `merge` (bandwidth)
     private var canMerge = false
     private var lastWhole = 0L
+    private var bigUntil = 0L           // the relay refused the whole state (413): until then send a trimmed one (events / tracks / app details dropped)
     private var diffFor = ""            // the relay the diff is about: a new one (re-pointed) starts from a whole state
     private val pingRun = object : Runnable { override fun run() { if (ws.ping()) h.postDelayed(this, RelayWs.PING_MS) } }
     /** For the state screen / logs: "ws" while the socket is up, else "http". */
     val transport get() = if (ws.open) "ws" else "http"
 
     fun start() { schedule(0) }
-    fun stop() { ws.close(); h.looper.quitSafely() }
+    fun stop() { ws.close(); slow.shutdown(); h.looper.quitSafely() }
     /** Sync now. Never starts a second chain: while a sync runs it only asks the running one to go again at once. */
-    fun kick() { h.post { wsRetryAt = 0L; wsFails = 0; if (inSync) kickAgain = true else schedule(0) } }
+    fun kick() { h.post {
+        // after failures the backoff stays: a kick (every rules change, event, battery step) must not hammer a relay that is down / refusing
+        if (fails > 0) return@post
+        wsRetryAt = 0L; wsFails = 0; if (inSync) kickAgain = true else schedule(0)
+    } }
 
     private fun schedule(ms: Long) { h.removeCallbacks(loopRun); h.postDelayed(loopRun, ms) }
 
@@ -62,6 +68,7 @@ class Relay(private val g: Guard) {
                 lastError = "relay needs https://"; delay = 60_000
             } else runCatching { ensureWs(url, rid, token); busy = sync(url, rid, token); fails = 0; runCatching { uploadIcons(url, rid, token) } }.onFailure {
                 lastError = it.message ?: it.javaClass.simpleName; Log.w("KidGuard", "relay", it)
+                if (RelayTrim.isTooBig(lastError)) bigUntil = System.currentTimeMillis() + BIG_RETRY_MS
                 fails++
                 // 401 / 409 / 5xx / network: exponential backoff up to 5 min; the next success resets it
                 delay = minOf(300_000L, 20_000L shl minOf(fails - 1, 4))
@@ -119,7 +126,9 @@ class Relay(private val g: Guard) {
 
     private fun sync(base: String, rid: String, token: String): Boolean {
         val now = System.currentTimeMillis()
-        val state = g.currentState()
+        val big = now < bigUntil
+        // state `relayBig: true` = this one was trimmed to fit the relay's 120 KB cap (the page may say so)
+        val state = g.currentState().let { if (big) RelayTrim.trim(it) else it }
         val stateText by lazy(LazyThreadSafetyMode.NONE) { state.toString() }   // one serialisation for the coarse and the minute-hash copies
         val viaWs = ws.open
         if (viaWs) {
@@ -147,7 +156,7 @@ class Relay(private val g: Guard) {
         val req = JSONObject().put("acks", acks)
         if ("$base/$rid" != diffFor) { diffFor = "$base/$rid"; diff.reset(); canMerge = false }
         // a whole state until the worker can merge, and every 6 h anyway (a hash clash must not hide a change for long)
-        val whole = !canMerge || now - lastWhole >= WHOLE_MS
+        val whole = !canMerge || big || now - lastWhole >= WHOLE_MS
         val sent = if (full) diff.build(state, whole).also { req.put("state", it.first) } else null
         val res = (if (viaWs) ws.request(JSONObject(req.toString())) else null) ?: run {
             val c = open("$base/c/$rid/sync", token).apply { setRequestProperty("Content-Type", "application/json") }
@@ -175,7 +184,9 @@ class Relay(private val g: Guard) {
             for (i in 0 until cmds.length()) {
                 val cmd = cmds.optJSONObject(i) ?: continue
                 // Guard de-dups by cmd "id"; we ack every command, even one that failed or throws
-                if (cmd.optString("type") != "relay") runCatching { g.command(cmd) }.onFailure { Log.w("KidGuard", "cmd", it) }
+                // tgSet makes ~6 Telegram calls (Tg.command): off the sync thread, or every other command and the next sync wait for them
+                if (cmd.optString("type") == "tgSet") slow.execute { runCatching { g.command(cmd) }.onFailure { Log.w("KidGuard", "cmd", it) } }
+                else if (cmd.optString("type") != "relay") runCatching { g.command(cmd) }.onFailure { Log.w("KidGuard", "cmd", it) }
                 acks.put(cmd.optString("id"))
             }
             if (res.optInt("files") > 0) Files.pull(g)   // parent -> kid files waiting on the relay (own thread)
@@ -268,9 +279,29 @@ class Relay(private val g: Guard) {
         private const val MAX_REPLY = 256 * 1024
         /** Socket up and nothing changed: a state anyway this often (usage minutes, battery). */
         private const val WHOLE_MS = 6 * 3600_000L
+        private const val BIG_RETRY_MS = 30 * 60_000L   // then try the whole state again (apps may have been removed)
         private const val WS_IDLE_ON = 5 * 60_000L
         private const val WS_IDLE_OFF = 15 * 60_000L
         /** The author's shared relay, on by default once a parent has paired (Store.defaultRelay). Also in ui/assets/core.js DEFAULT_RELAY. */
         const val DEFAULT_URL = "https://kidguard.99-hoangtran.workers.dev"
+    }
+}
+
+/** Pure: what to drop when the relay says the state is over its 120 KB cap (worker `state too big` / HTTP 413). */
+object RelayTrim {
+    fun isTooBig(msg: String) = msg.contains("state too big") || msg.contains("HTTP 413")
+
+    /** A copy without the bulky lists; apps keep only what the page needs to list them. Flags `relayBig`. */
+    fun trim(state: JSONObject): JSONObject {
+        val o = JSONObject(state.toString())
+        for (k in arrayOf("events", "track")) o.remove(k)
+        o.optJSONArray("apps")?.let { a ->
+            val slim = JSONArray()
+            for (i in 0 until a.length()) a.optJSONObject(i)?.let { x ->
+                slim.put(JSONObject().apply { for (k in arrayOf("pkg", "label", "ms", "blocked", "suspended", "protected", "new")) if (x.has(k)) put(k, x.get(k)) })
+            }
+            o.put("apps", slim)
+        }
+        return o.put("relayBig", true)
     }
 }

@@ -144,7 +144,7 @@ object Tg {
                 }
             } catch (e: InterruptedException) {
                 // wake(): token / chats changed
-            } catch (e: Exception) {
+            } catch (e: Throwable) {   // an Error must not end the thread for good (audit L27); tick() also restarts a dead one
                 if (Thread.interrupted()) continue
                 Log.i(TAG, "tg poll: ${e.javaClass.simpleName}")
                 idle(backoff); backoff = minOf(backoff * 2, 60_000L)   // capped: commands answer within a minute of the network coming back
@@ -291,6 +291,9 @@ object Tg {
         val c = TgLogic.parse(text) ?: TgLogic.fromButton(text)
             ?: if (asked && text.isNotBlank()) TgLogic.Cmd("msg", emptyList(), text.trim()) else null
         if (c == null) { send(s, id, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang)); return }
+        // Telegram keeps undelivered messages ~24 h: a /lock typed while the phone was off must not fire the next morning (audit M8)
+        val now = System.currentTimeMillis()
+        if (TgLogic.isAction(c.name) && TgLogic.tooOld(m.optLong("date"), now)) { send(s, id, TgLogic.s(lang, "tooOld", (now - m.optLong("date") * 1000) / 60_000)); return }
         runCmd(g, s, id, c)
     }
 
@@ -513,6 +516,7 @@ object Tg {
     fun tick(g: Guard, markOnly: Boolean = false) {
         val s = Store.of(g)
         if (s.tgToken.isBlank()) return
+        start(g)   // no-op while the poll thread lives; brings a dead one back
         val now = System.currentTimeMillis()
         val seen = s.tgSeen().toHashSet()
         val sos = s.sos(); val reqs = s.requests(); val evs = s.events()
