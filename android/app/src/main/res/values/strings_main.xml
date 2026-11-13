@@ -18,4 +18,16 @@
     <string name="log_acc_resumed_blocked">Accessibility back on early: %1$s (blocked) was opened while it was off for a bank app</string>
     <string name="st_acc_paused">Accessibility paused: an app that needs it off is in use</string>
     <string name="vpn_paused_toast">VPN paused for this app, back later</string>
+    <string name="pa_title">Open %1$s?</string>
+    <string name="pa_body">This app refuses to run while these are on, so KidGuard turns them off first:</string>
+    <string name="pa_acc_t">KidGuard accessibility</string>
+    <string name="pa_acc_b">Meanwhile: no screen view / remote control, quick settings not blocked (basic mode: no app blocking). Comes back by itself 10 min after you leave the app.</string>
+    <string name="pa_dev_t">USB debugging</string>
+    <string name="pa_dev_b">Meanwhile: no adb (computer, adb terminal, Clean up phone, auto-grant). Comes back by itself when you leave the app.</string>
+    <string name="pa_tcp_t">adb over the network (port 5555)</string>
+    <string name="pa_tcp_b">Meanwhile and after: no adb from a computer over Tailscale on mobile data, and KidGuard\'s own adb (Clean up phone, adb terminal, auto-grant) only works on Wi-Fi. Does NOT come back by itself on mobile data: it reopens within ~10 min once the phone is on Wi-Fi, or plug in a computer and run: adb tcpip 5555</string>
+    <string name="pa_vpn_t">VPN (Tailscale)</string>
+    <string name="pa_vpn_b">Meanwhile: the parent page over Tailscale / LAN can\'t reach the phone (the relay still works). Comes back by itself when you leave the app.</string>
+    <string name="pa_noask">Don\'t ask again for this app</string>
+    <string name="pa_open">Open</string>
 </resources>

@@ -226,7 +226,12 @@ internal fun HomeActivity.debounce(target: Any? = null): Boolean {
     lastTap = now; lastTapOn = target; return true
 }
 
+/** Opens [a]; a bank-type app first says what its pause turns off (pauseAsk). */
 internal fun HomeActivity.launch(a: AppE, from: View) {
+    if (Flavor.HOME) launchNow(a, from) else pauseAsk(a.pkg, a.label) { launchNow(a, from) }
+}
+
+private fun HomeActivity.launchNow(a: AppE, from: View) {
     val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(ComponentName(a.pkg, a.cls))
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
     // the icon picture inside the cell (cell > box > icon), where the app grows from, like Launcher3's clip reveal

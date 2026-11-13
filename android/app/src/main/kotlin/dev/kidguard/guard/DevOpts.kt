@@ -17,6 +17,8 @@ object DevPauseLogic {
     val DEFAULT: Set<String> = setOf(
         "vms.com.vn.mymobifone",            // My MobiFone (INKA AppSealing, error 50052; owner 2026-11-11)
     )
+    /** Also refuse adb over the network (the port property, not just debugging): owner 2026-11-13, split so others keep the port. */
+    val TCP_DEFAULT: Set<String> = setOf("vms.com.vn.mymobifone")
 }
 
 object DevOpts {
@@ -111,22 +113,24 @@ object DevOpts {
     @Synchronized fun pause(ctx: Context, pkg: String): Boolean {
         if (Flavor.HOME) return false
         val s = Store.of(ctx)
-        if (pkg !in s.rules.devPause) return false
+        val dev = pkg in s.rules.devPause; val tcp = pkg in s.rules.tcpPause
+        if (!dev && !tcp) return false
         if (BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) != null) return false   // never for a blocked app
         s.devApps = s.devApps + pkg; s.devLeftAt = 0L
-        if (s.devPaused != 0 || !canOff(ctx)) return false
-        val mask = DevLogic.mask(global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED), global(ctx, Settings.Global.ADB_ENABLED),
-            Build.VERSION.SDK_INT >= 30 && global(ctx, ADB_WIFI))
-        if (mask == 0) return false
-        s.devPaused = mask
-        if (DevLogic.tcpOpen(prop("service.adb.tcp.port"), s.adbTcp)) {
+        if (!canOff(ctx)) return false
+        val port = tcp && tcpNow(ctx)
+        val mask = if (dev && s.devPaused == 0) DevLogic.mask(global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED), global(ctx, Settings.Global.ADB_ENABLED),
+            Build.VERSION.SDK_INT >= 30 && global(ctx, ADB_WIFI)) else 0
+        if (mask == 0 && !port) return false
+        if (mask != 0) s.devPaused = mask
+        if (port) {
             // off the main thread (our adb is a socket); [afterOff] holds the start until it is done
             closing = true; offAt = android.os.SystemClock.elapsedRealtime()
             val app = ctx.applicationContext
             Thread({
                 try {
-                    Log.i("KidGuard", "bank: adb usb: " + runCatching { SelfAdb.service(app, "usb:") }.getOrNull())
-                    off(app).let { if (it != "ok") Log.w("KidGuard", "bank devOff: $it") }
+                    Log.i("KidGuard", "bank: adb usb: " + runCatching { if (SelfAdb.ready(app)) SelfAdb.service(app, "usb:") else "no adb" }.getOrNull())
+                    if (mask != 0) off(app).let { if (it != "ok") Log.w("KidGuard", "bank devOff: $it") }
                     offAt = android.os.SystemClock.elapsedRealtime()
                 } finally { closing = false }
             }, "bank-adb-usb").start()
@@ -141,13 +145,21 @@ object DevOpts {
         return true
     }
 
+    /** adb listens on a TCP port right now (adbd up, port property set): what `tcpPause` closes. */
+    fun tcpNow(ctx: Context): Boolean = adbdUp() != false && global(ctx, Settings.Global.ADB_ENABLED) &&
+        DevLogic.tcpOpen(prop("service.adb.tcp.port"), Store.of(ctx).adbTcp)
+
+    /** Debugging is on right now (what `devPause` turns off). */
+    fun debugNow(ctx: Context): Boolean = global(ctx, Settings.Global.ADB_ENABLED) || global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED) ||
+        (Build.VERSION.SDK_INT >= 30 && global(ctx, ADB_WIFI))
+
     /** Guard tick: the same "left for a while" timing as the other pauses, then debugging comes back. */
     @Synchronized fun tick(ctx: Context, current: String?, now: Long) {
         val s = Store.of(ctx)
         val apps = s.devApps
         if (apps.isEmpty()) { if (s.devPaused != 0) bankResume(ctx); return }   // from a version where accessibility drove it
         val wait = if (Policy.isOwner(ctx)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS
-        val (leftAt, back) = AccPauseLogic.step(current, s.rules.devPause + apps, s.devLeftAt, now, wait)
+        val (leftAt, back) = AccPauseLogic.step(current, s.rules.devPause + s.rules.tcpPause + apps, s.devLeftAt, now, wait)
         if (back) { s.devApps = emptySet(); s.devLeftAt = 0L; bankResume(ctx) } else if (leftAt != s.devLeftAt) s.devLeftAt = leftAt
     }
 

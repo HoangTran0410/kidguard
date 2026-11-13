@@ -98,11 +98,13 @@ internal fun HomeActivity.gestRun(g: String) {
             val why = LauncherLogic.hiddenReason(a.pkg, dv.want, r, packageName, tsManaged, focusAllowed(dv))
             if (why != null && why != "plumbing") { Toasts.show(this, a.label.take(14) + ": " + reasonLong(why), true); return }
             LauncherLogic.pauseReason(a.pkg, dv.want, settingsOk(r))?.let { pausedSheet(a, it, dv, r); return }
-            Recent.note(this, a.pkg)
-            val vw = !Flavor.HOME && runCatching { AccPause.pause(this, a.pkg); DevOpts.pause(this, a.pkg); VpnPause.pause(this, a.pkg) }.getOrDefault(false)
-            val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(ComponentName(a.pkg, a.cls))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-            DevOpts.afterOff(android.os.Handler(mainLooper), if (vw) VpnPause.LAUNCH_DELAY_MS else 0L) { runCatching { startActivity(i) } }
+            pauseAsk(a.pkg, a.label) {
+                Recent.note(this, a.pkg)
+                val vw = !Flavor.HOME && runCatching { AccPause.pause(this, a.pkg); DevOpts.pause(this, a.pkg); VpnPause.pause(this, a.pkg) }.getOrDefault(false)
+                val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(ComponentName(a.pkg, a.cls))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                DevOpts.afterOff(android.os.Handler(mainLooper), if (vw) VpnPause.LAUNCH_DELAY_MS else 0L) { runCatching { startActivity(i) } }
+            }
         }
     }
 }

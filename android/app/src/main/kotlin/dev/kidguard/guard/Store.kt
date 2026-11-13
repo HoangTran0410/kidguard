@@ -588,6 +588,10 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var bankListAt: Long
         get() = p.getLong("bankListAt", 0)
         set(v) { p.edit().putLong("bankListAt", v).apply() }
+    /** Apps whose "what goes off" popup was turned off on the kid home ([pauseAsk]). */
+    @get:Synchronized @set:Synchronized var pauseNoAsk: Set<String>
+        get() = p.getStringSet("pauseNoAsk", emptySet())!!.toSet()
+        set(v) { p.edit().putStringSet("pauseNoAsk", v).apply() }
     /** Apps the VPN is paused for right now ([VpnPause]); empty = not paused. */
     @get:Synchronized @set:Synchronized var vpnPaused: Set<String>
         get() = p.getStringSet("vpnPaused", emptySet())!!.toSet()

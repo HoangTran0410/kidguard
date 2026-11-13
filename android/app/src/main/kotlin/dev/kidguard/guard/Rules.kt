@@ -160,6 +160,7 @@ data class Rules(
     val vpnPause: Set<String> = VpnPauseLogic.DEFAULT,   // apps that refuse to run with a VPN up: Tailscale off while they are used (VpnPause)
     val accPause: Set<String> = AccPauseLogic.DEFAULT,
     val devPause: Set<String> = DevPauseLogic.DEFAULT,   // apps that refuse USB / wireless debugging: Developer options off while used (DevOpts.pause)   // bank apps: our accessibility service is off while they are used (AccPause)
+    val tcpPause: Set<String> = DevPauseLogic.TCP_DEFAULT,   // apps that refuse adb over the network (service.adb.tcp.port set): `adb usb` while used; the port comes back only with Wi-Fi (DevOpts.pause)
     val trackMin: Int = 5,                   // location history every N minutes: 0 (off), 1, 5, 10, 15, 30, 60 (default 5 since 0.9.14, was 10)
     val showWatching: Boolean = true,        // child sees "parent is watching / controlling" while the screen is viewed
     val autoUpdate: Boolean = true,          // daily check of GitHub releases; owner installs silently, basic asks the child
@@ -194,7 +195,7 @@ data class Rules(
         .put("dailyByDay", JSONArray(dailyByDay))
         .put("schedules", JSONArray().apply { schedules.forEach { put(it.toJson()) } })
         .put("blockNew", blockNew).put("approved", JSONArray(approved.sorted()))
-        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("safeDnsPauseUntil", safeDnsPauseUntil).put("noVpn", noVpn).put("tsKeep", tsKeep).put("trackMin", trackMin).put("vpnPause", JSONArray(vpnPause.sorted())).put("accPause", JSONArray(accPause.sorted())).put("devPause", JSONArray(devPause.sorted()))
+        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("safeDnsPauseUntil", safeDnsPauseUntil).put("noVpn", noVpn).put("tsKeep", tsKeep).put("trackMin", trackMin).put("vpnPause", JSONArray(vpnPause.sorted())).put("accPause", JSONArray(accPause.sorted())).put("devPause", JSONArray(devPause.sorted())).put("tcpPause", JSONArray(tcpPause.sorted()))
         .put("showWatching", showWatching).put("autoUpdate", autoUpdate)
         .put("chores", JSONArray().apply { chores.forEach { put(it.toJson()) } })
         .put("zones", JSONArray().apply { zones.forEach { put(it.toJson()) } })
@@ -297,6 +298,7 @@ data class Rules(
                 vpnPause = if (o.has("vpnPause")) o.optJSONArray("vpnPause").strings().take(100).toSet() else VpnPauseLogic.DEFAULT,
                 accPause = if (o.has("accPause")) o.optJSONArray("accPause").strings().take(100).toSet() else AccPauseLogic.DEFAULT,
                 devPause = if (o.has("devPause")) o.optJSONArray("devPause").strings().take(100).toSet() else DevPauseLogic.DEFAULT,
+                tcpPause = if (o.has("tcpPause")) o.optJSONArray("tcpPause").strings().take(100).toSet() else DevPauseLogic.TCP_DEFAULT,
                 trackMin = o.optInt("trackMin", 5).takeIf { it in TRACK_STEPS } ?: 5,
                 safeDnsPauseUntil = o.optLong("safeDnsPauseUntil", 0).coerceAtLeast(0),
                 safeDns = o.optString("safeDns", "").trim().lowercase().takeIf { it.matches(DNS_HOST) } ?: "",

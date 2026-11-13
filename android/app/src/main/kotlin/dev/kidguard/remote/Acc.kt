@@ -58,7 +58,7 @@ class Acc : AccessibilityService() {
         if (pkg in Store.of(this).rules.accPause && AccPause.pauseLate(this, pkg)) return
         // an app that refuses a VPN (accessibility may stay on): VPN off, and restart it once if it already saw the tunnel
         // an app that refuses debugging only (accessibility stays on): debugging off, restarted once adbd is down
-        if (pkg in Store.of(this).rules.devPause && DevOpts.pause(this, pkg)) {
+        if (Store.of(this).rules.let { pkg in it.devPause || pkg in it.tcpPause } && DevOpts.pause(this, pkg)) {
             if (pkg in Store.of(this).rules.vpnPause) VpnPause.pause(this, pkg)
             AccPause.relaunch(this, pkg); return
         }

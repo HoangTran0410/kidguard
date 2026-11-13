@@ -336,17 +336,19 @@ function rulesWire(b, r) {
 // for one not installed yet. Picked apps first, then A-Z.
 // Columns, one per thing an app may refuse (owner 2026-11-11: split, an app may check accessibility and not debugging).
 // Older phones: no devPause = the accessibility box also pauses debugging; no vpnPause = no VPN column.
+// tcpPause (2026-11-13): also close adb over the network (`adb usb`); split from devPause since the port only comes back on Wi-Fi.
 function bankCols(r) {
   const dev = Array.isArray(r.devPause);
   return [{ k: "accPause", h: t(dev ? "bank.colAcc" : "bank.colAccDev") }]
-    .concat(dev ? [{ k: "devPause", h: t("bank.colDev") }] : [], Array.isArray(r.vpnPause) ? [{ k: "vpnPause", h: "VPN" }] : []);
+    .concat(dev ? [{ k: "devPause", h: t("bank.colDev") }] : [], Array.isArray(r.tcpPause) ? [{ k: "tcpPause", h: t("bank.colTcp") }] : [],
+      Array.isArray(r.vpnPause) ? [{ k: "vpnPause", h: "VPN" }] : []);
 }
 function bankBox(r) {
   if (!Array.isArray(r.accPause)) return "";
   const stuck = st.vpnStuck ? `<div class="alert warn" style="margin-top:8px">${ic("triangle-alert")} ${t("bank.vpnStuck")}</div>` : "";
   const cols = bankCols(r), gt = `grid-template-columns:minmax(var(--bkn),1fr) repeat(${cols.length},var(--bkw));min-width:calc(var(--bkn) + ${cols.length} * (var(--bkw) + 4px) + 16px)`;
   return `<h4 style="margin:14px 0 4px">${ic("landmark")} ${t("bank.h")}</h4><p class="mute">${t("bank.p")}</p>
-    ${Array.isArray(r.vpnPause) ? `<p class="mute">${t("bank.vpnP")}</p>` : ""}${stuck}
+    ${Array.isArray(r.tcpPause) ? `<p class="mute">${t("bank.tcpP")}</p>` : ""}    ${Array.isArray(r.vpnPause) ? `<p class="mute">${t("bank.vpnP")}</p>` : ""}${stuck}
     <details id="bk" style="margin-top:6px"><summary id="bk-n"></summary>
     <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" style="margin-top:8px">
     <div class="bkt" role="table" aria-label="${esc(t("bank.h"))}" style="margin-top:6px"><div class="bkh" role="row" style="${gt}"><span role="columnheader">${t("bank.colApp")}</span>${cols.map(c => `<span role="columnheader">${esc(c.h)}</span>`).join("")}</div>

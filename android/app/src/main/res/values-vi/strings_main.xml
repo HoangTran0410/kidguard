@@ -18,4 +18,16 @@
     <string name="log_acc_resumed_blocked">Bật lại Trợ năng sớm: con mở %1$s (đang bị chặn) trong lúc tạm tắt cho app ngân hàng</string>
     <string name="st_acc_paused">Trợ năng tạm tắt: đang dùng app cần tắt Trợ năng</string>
     <string name="vpn_paused_toast">Tạm tắt VPN cho app này, sẽ bật lại</string>
+    <string name="pa_title">Mở %1$s?</string>
+    <string name="pa_body">App này không chạy khi các mục dưới đang bật, nên KidGuard sẽ tắt chúng trước:</string>
+    <string name="pa_acc_t">Trợ năng KidGuard</string>
+    <string name="pa_acc_b">Trong lúc đó: không xem / điều khiển màn hình từ xa, không chặn cài đặt nhanh (chế độ cơ bản: không chặn app). Tự bật lại 10 phút sau khi rời app.</string>
+    <string name="pa_dev_t">Gỡ lỗi USB</string>
+    <string name="pa_dev_b">Trong lúc đó: không có adb (máy tính, cửa sổ lệnh adb, Dọn máy, tự cấp quyền). Tự bật lại khi rời app.</string>
+    <string name="pa_tcp_t">adb qua mạng (cổng 5555)</string>
+    <string name="pa_tcp_b">Trong lúc đó và cả sau đó: máy tính không vào adb qua Tailscale khi dùng 4G, adb của KidGuard (Dọn máy, cửa sổ lệnh adb, tự cấp quyền) chỉ chạy khi có Wi-Fi. KHÔNG tự mở lại khi dùng 4G: tự mở trong ~10 phút khi máy bắt Wi-Fi, hoặc cắm máy tính và chạy: adb tcpip 5555</string>
+    <string name="pa_vpn_t">VPN (Tailscale)</string>
+    <string name="pa_vpn_b">Trong lúc đó: trang quản lý qua Tailscale / LAN không vào được máy (relay vẫn chạy). Tự bật lại khi rời app.</string>
+    <string name="pa_noask">Không hỏi lại cho app này</string>
+    <string name="pa_open">Mở</string>
 </resources>
