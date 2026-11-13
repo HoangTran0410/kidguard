@@ -769,7 +769,8 @@ class HomeActivity : Activity() {
                     }
                     "folder" -> {
                         // never stored filtered: what shows is decided at each render; one visible app shows as that app
-                        val vis = it.apps.mapNotNull { p -> all[p]?.takeIf { a -> show[a.pkg] != LauncherLogic.Show.HIDE } }
+                        // (a shortcut inside it follows its app's rule like the grid branch above)
+                        val vis = it.apps.mapNotNull { e -> entryApp(it, e, all)?.takeIf { a -> show[a.pkg] != LauncherLogic.Show.HIDE } }
                         when (vis.size) {
                             0 -> null
                             1 -> appIcon(vis[0], show[vis[0].pkg] == LauncherLogic.Show.PAUSED, dv, r, Mode.HOME, it)

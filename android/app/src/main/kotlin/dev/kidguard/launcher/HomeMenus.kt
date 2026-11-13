@@ -259,11 +259,21 @@ private fun HomeActivity.appInfoLine(pkg: String, tv: TextView) {
     }
 }
 
-/** Long-press on a pinned shortcut: take it off the home, or edit the home. */
-internal fun HomeActivity.shortcutMenu(item: HItem, v: View) = menu(listOf(
-    Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { m -> update(HomeLayout.removeIds(m, setOf(item.id))) } },
-    Row(R.drawable.li_move, getString(R.string.hm_edit_home), true) { enterEdit(item.id) },
+/** Long-press on a pinned shortcut (on the grid or inside a folder): take it off the home, or edit the home. */
+internal fun HomeActivity.shortcutMenu(a: AppE, mode: Mode, item: HItem?, v: View) = menu(listOf(
+    Row(R.drawable.li_folder_plus, getString(R.string.hm_f_add), true) { addToFolderSheet(a) },
+    Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { if (mode == Mode.PANEL) closeOverlay(); model?.let { m -> update(HomeLayout.remove(m, a.entry())) } },
+    Row(R.drawable.li_move, getString(R.string.hm_edit_home), true) { if (mode == Mode.PANEL) closeOverlay(); enterEdit(item?.id.takeIf { mode == Mode.HOME }) },
 ), v)
+
+/** The app a folder entry shows: a package's own, or a shortcut as an [AppE] whose cls is [Shortcuts.PREFIX] + id (its app's label until named). */
+internal fun HomeActivity.entryApp(f: HItem, e: String, all: Map<String, AppE>): AppE? {
+    val a = all[HomeLayout.pkgOf(e)] ?: return null
+    return if (HomeLayout.isShortcutEntry(e)) AppE(a.pkg, Shortcuts.PREFIX + HomeLayout.scIdOf(e), f.names[e]?.ifBlank { null } ?: a.label) else a
+}
+
+/** The folder entry of an icon: its package, or "sc:pkg/id" for a shortcut. */
+internal fun AppE.entry() = if (cls.startsWith(Shortcuts.PREFIX)) HomeLayout.scEntry(pkg, cls.removePrefix(Shortcuts.PREFIX)) else pkg
 
 internal fun HomeActivity.emptyMenu(x: Int, y: Int) = menu(listOf(
     // Pixel's 3 (widgets / edit / style), most used first. Study mode and seen notifications live in the control center,
@@ -304,6 +314,7 @@ internal fun HomeActivity.autoName(a: String, b: String): String {
 /** "Thêm vào thư mục": the folders on the home, then "a new folder with" each other app on the grid. */
 internal fun HomeActivity.addToFolderSheet(a: AppE) {
     val m = model ?: return
+    val me = a.entry()
     val all = launcherApps()
     val sh = Sheet(this, u, getString(R.string.hm_f_add_title, a.label))
     fun rowOf(icon: View, label: String, run: () -> Unit) = LinearLayout(this).apply {
@@ -313,16 +324,16 @@ internal fun HomeActivity.addToFolderSheet(a: AppE) {
         kit.tap(this, 12f) { sh.dismiss(); run() }
         contentDescription = label
     }
-    val folders = m.pages.flatten().filter { it.kind == "folder" && a.pkg !in it.apps && lastShow.let { s -> it.apps.any { p -> s[p] != null && s[p] != LauncherLogic.Show.HIDE } } }
+    val folders = m.pages.flatten().filter { it.kind == "folder" && me !in it.apps && lastShow.let { s -> it.apps.any { p -> HomeLayout.pkgOf(p).let { k -> s[k] != null && s[k] != LauncherLogic.Show.HIDE } } } }
     for (f in folders) sh.body.addView(rowOf(kit.badge(R.drawable.li_folder, pal.onTint, pal.tint, 40, 20, square = true), folderName(f)) {
-        HomeLayout.addTo(m, a.pkg, f.id, "")?.let { update(it); toast(getString(R.string.hm_f_added, folderName(f))) } ?: toast(getString(R.string.hm_f_full))
+        HomeLayout.addTo(m, me, f.id, "")?.let { update(it); toast(getString(R.string.hm_f_added, folderName(f))) } ?: toast(getString(R.string.hm_f_full))
     })
-    val others = m.pages.flatten().filter { it.kind == "app" && it.pkg != a.pkg && lastShow[it.pkg]?.let { s -> s != LauncherLogic.Show.HIDE } == true }
-        .mapNotNull { it to (all[it.pkg] ?: return@mapNotNull null) }.sortedBy { it.second.sortKey }
+    val others = m.pages.flatten().filter { (it.kind == "app" || it.kind == HomeLayout.SHORTCUT) && HomeLayout.entryOf(it) != me && lastShow[it.pkg]?.let { s -> s != LauncherLogic.Show.HIDE } == true }
+        .mapNotNull { it to (entryApp(it, HomeLayout.entryOf(it), all) ?: return@mapNotNull null) }.sortedBy { it.second.sortKey }
     if (others.isNotEmpty()) sh.body.addView(text(getString(R.string.hm_f_new_with), 13f, pal.sub, true).apply { setPadding(dp(16), dp(14), dp(16), dp(4)) })
     for ((it, e) in others) sh.body.addView(rowOf(ImageView(this).apply { setImageBitmap(IconCache.get(this@addToFolderSheet, e.pkg, e.cls, dp(40), model?.style?.shape ?: "soft")) }, e.label) {
-        val name = autoName(e.pkg, a.pkg)
-        HomeLayout.addTo(m, a.pkg, it.id, name)?.let { n -> update(n); toast(getString(R.string.hm_f_added, name)) }
+        val name = if (it.kind == "app" && !HomeLayout.isShortcutEntry(me)) autoName(e.pkg, a.pkg) else ""
+        HomeLayout.addTo(m, me, it.id, name)?.let { n -> update(n); toast(getString(R.string.hm_f_added, name)) }
     })
     if (folders.isEmpty() && others.isEmpty()) sh.body.addView(text(getString(R.string.hm_f_none), 15f, pal.sub).apply { setPadding(dp(16), dp(16), dp(16), dp(16)) })
     sh.show()
@@ -354,9 +365,9 @@ internal fun HomeActivity.openFolder(id: String, from: View? = null) {
     val dv = lastView ?: return
     val r = Store.of(this).rules
     val all = launcherApps()
-    val vis = f.apps.mapNotNull { p -> all[p]?.takeIf { lastShow[p] != null && lastShow[p] != LauncherLogic.Show.HIDE } }
+    val vis = f.apps.mapNotNull { e -> entryApp(f, e, all)?.takeIf { lastShow[it.pkg] != null && lastShow[it.pkg] != LauncherLogic.Show.HIDE } }
     if (vis.isEmpty()) return
-    folderSheet(folderName(f), "folder:$id", { renameFolder(id) }, vis.map { a -> appIcon(a, lastShow[a.pkg] == LauncherLogic.Show.PAUSED, dv, r, Mode.PANEL, folder = f) to a.pkg }, from, "folderGrid")
+    folderSheet(folderName(f), "folder:$id", { renameFolder(id) }, vis.map { a -> appIcon(a, lastShow[a.pkg] == LauncherLogic.Show.PAUSED, dv, r, Mode.PANEL, folder = f) to a.entry() }, from, "folderGrid")
 }
 
 /**

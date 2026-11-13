@@ -104,7 +104,7 @@ private fun HomeActivity.editBars() {
         btn(R.drawable.li_sliders_horizontal, getString(R.string.hm_customize)) { exitEdit(); runCatching { startActivity(Intent(this, CustomActivity::class.java)) } }
     } else {
         val items = m.pages.flatten().filter { it.id in picked }
-        val apps = items.sumOf { when (it.kind) { "app" -> 1; "folder" -> it.apps.size; else -> 0 } }
+        val apps = items.sumOf { when (it.kind) { "app", HomeLayout.SHORTCUT -> 1; "folder" -> it.apps.size; else -> 0 } }
         btn(R.drawable.li_x, getString(R.string.hm_e_none)) { picked.clear(); for (i in 1 until pager.childCount) pager.getChildAt(i).invalidate(); editBars() }
         btn(R.drawable.li_folder_plus, getString(R.string.hm_e_group), apps >= 2) { group() }
         btn(R.drawable.li_move, getString(R.string.hm_e_move)) { v -> moveMenu(v) }
@@ -123,9 +123,9 @@ private fun HomeActivity.editBars() {
 
 private fun HomeActivity.group() {
     val m = model ?: return
-    val items = m.pages.flatten().filter { it.id in picked && (it.kind == "app" || it.kind == "folder") }
-    val pk = items.flatMap { if (it.kind == "folder") it.apps else listOf(it.pkg) }
-    val name = if (pk.size >= 2) autoName(pk[0], pk[1]) else ""
+    val items = m.pages.flatten().filter { it.id in picked && (it.kind == "app" || it.kind == "folder" || it.kind == HomeLayout.SHORTCUT) }
+    val pk = items.flatMap { if (it.kind == "folder") it.apps else listOf(HomeLayout.entryOf(it)) }
+    val name = if (pk.size >= 2 && !HomeLayout.isShortcutEntry(pk[0]) && !HomeLayout.isShortcutEntry(pk[1])) autoName(pk[0], pk[1]) else ""
     val out = HomeLayout.group(m, picked.toList(), name) ?: run { toast(getString(R.string.hm_f_full)); return }
     applyEdit(out)
 }
