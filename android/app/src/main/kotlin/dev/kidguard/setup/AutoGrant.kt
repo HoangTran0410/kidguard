@@ -16,6 +16,9 @@ object AutoGrant {
     @Volatile private var lastTry = 0L
     @Volatile private var running = false
 
+    /** A parent command touched adb (adbTcp / devOn / adbShell): try again on the next tick. */
+    fun soon() { lastTry = 0L }
+
     /** The shell commands for what is missing now (empty = all granted). */
     fun missing(ctx: Context): List<String> {
         val p = ctx.packageName
@@ -33,9 +36,10 @@ object AutoGrant {
 
     fun tick(ctx: Context, now: Long) {
         if (Flavor.HOME || running || now - lastTry < EVERY_MS || SelfSetup.running || !SelfAdb.hasKey(ctx)) return
-        lastTry = now
         val cmds = missing(ctx)
-        if (cmds.isEmpty() || !SelfAdb.canOpen(ctx) && !SelfAdb.ready(ctx)) return
+        // nothing missing / no adb link yet: look again in 2 min, not 30 (the slot is for real attempts; audit 2026-11-13)
+        if (cmds.isEmpty() || !SelfAdb.canOpen(ctx) && !SelfAdb.ready(ctx)) { lastTry = now - EVERY_MS + 2 * 60_000L; return }
+        lastTry = now
         running = true
         val app = ctx.applicationContext
         Thread({

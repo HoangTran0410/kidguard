@@ -27,6 +27,9 @@ object Shell {
     @Volatile private var busy = false
     @Volatile private var tcpUp = false
     @Volatile private var lastTry = 0L
+    /** Why the port is not open yet (state `sh.tcpWhy`): "bank" = a bank app's pause holds it, "link" = no adb link
+     *  (port closed and Wireless debugging needs Wi-Fi), "" = trying / nothing known. */
+    @Volatile private var why = ""
     @Volatile private var tcpBusy = false
 
     fun can(ctx: Context) = android.os.Build.VERSION.SDK_INT >= 30 && SelfAdb.hasKey(ctx) && (Sys.wss(ctx) || SelfAdb.viaTcp)   // port 5555 open: no WSS / Wi-Fi needed
@@ -59,7 +62,7 @@ object Shell {
 
     /** State `sh` (docs/protocol.md). */
     fun state(ctx: Context): JSONObject = JSONObject().put("can", can(ctx)).put("busy", busy)
-        .put("tcp", Store.of(ctx).adbTcp).put("tcpUp", tcpUp).put("port", PORT)
+        .put("tcp", Store.of(ctx).adbTcp).put("tcpUp", tcpUp).put("tcpWhy", why).put("port", PORT)
         .put("log", JSONArray().also { a ->
             val all = synchronized(log) { log.toList() }
             all.forEachIndexed { i, e ->
@@ -76,12 +79,18 @@ object Shell {
 
     fun tcp(ctx: Context, on: Boolean): String {
         val s = Store.of(ctx)
-        if (!on) { tcpOff(ctx); return "ok" }
+        if (!on) { lastTry = 0L; tcpOff(ctx); return "ok" }
         if (!can(ctx)) return "no adb"
         if (!DevOpts.canOn(ctx)) return "blocked"
         if (s.adbTcpPrev < 0) s.adbTcpPrev = (if (global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED)) 1 else 0) or
             (if (global(ctx, Settings.Global.ADB_ENABLED)) 2 else 0)
         s.adbTcp = true; s.adbTcpReset = 0L; lastTry = 0L
+        // asked now (switch, or "open now" while on): a debugging pause whose app is no longer in front ends early,
+        // instead of holding the port for its 10-minute resume wait
+        if (s.devApps.isNotEmpty()) {
+            val cur = runCatching { Usage.today(ctx).current }.getOrNull()
+            if (cur == null || cur !in s.devApps) DevOpts.clearPause(ctx)
+        }
         tick(ctx, System.currentTimeMillis())
         return "ok"
     }
@@ -129,8 +138,9 @@ object Shell {
             }
             return
         }
-        if (s.devApps.isNotEmpty()) { tcpUp = false; return }
-        tcpUp = listening()   // loopback connect, sub-ms: no thread for the common case
+        if (s.devApps.isNotEmpty()) { tcpUp = false; why = "bank"; return }
+        tcpUp = listening()
+        if (tcpUp) why = ""   // loopback connect, sub-ms: no thread for the common case
         if (tcpUp || now - lastTry < RETRY_MS || !DevOpts.canOn(ctx)) return
         val app = ctx.applicationContext
         tcpBusy = true
@@ -139,9 +149,11 @@ object Shell {
                 run {
                     lastTry = now
                     if (!global(app, Settings.Global.ADB_ENABLED)) DevOpts.on(app)
+                    why = ""
                     val r = SelfAdb.service(app, "tcpip:$PORT")
                     Log.i("KidGuard", "adb tcpip $PORT: $r")
                     repeat(10) { if (!tcpUp) { Thread.sleep(500); tcpUp = listening() } }
+                    why = if (tcpUp) "" else if (r == null) "link" else ""
                     Guard.running?.kick()
                 }
             } finally { tcpBusy = false }

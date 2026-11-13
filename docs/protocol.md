@@ -157,13 +157,13 @@ v0.9.7:
   phone's own paired adbd (`SelfAdb`: Android 11+, WRITE_SECURE_SETTINGS, Wi-Fi; opens the debugging window itself).
   Answers at once `ok | busy | empty | no adb`; the output comes in state `sh.log` (LAN and relay alike). 25 s timeout.
   Not on Telegram. Worker: whitelist, ONCE, SHORT (a shell command 10 min late is dropped).
-- `shClear`: empties `sh.log`. `adbTcp {on, pin}` (gated): on = USB debugging kept on and adbd `tcpip:5555`
+- `shClear`: empties `sh.log`. `adbTcp {on, pin}` (gated): on (also sent again as "Open now": retries at once and ends a debugging pause whose app is no longer in front) = USB debugging kept on and adbd `tcpip:5555`
   (classic `adb connect <ip>:5555`), re-opened by the Guard tick after a reboot (every 10 min while closed), paused while
   a bank app has debugging off; off (also `devOff` and release) = `usb:` then Developer options / USB debugging back as
   before; port 5555 survives adbd restarts until a reboot, so a pending `usb:` (`Store.adbTcpReset`) is retried by the tick
   while 5555 is still served. Answers `ok | no adb | blocked`. While 5555 is served, `adbShell` itself connects to `127.0.0.1:5555` first (paired key, no prompt wait), so it runs without Wi-Fi / Wireless debugging (mobile data); `sh.can` is then true even without WSS. Worker: ONCE but not SHORT (an "off" must never be dropped).
   `support` is ONCE + SHORT too (a leaked link must not replay reports into the 20/day census quota).
-- State `sh` (v0.9.14): `{can, busy, tcp, tcpUp, port, log: [{at, cmd, ms, out | err}]}`, last 8, memory only;
+- State `sh` (v0.9.14): `{can, busy, tcp, tcpUp, tcpWhy, port, log: [{at, cmd, ms, out | err}]}` (`tcpWhy` 2026-11-13: "bank" = held by a bank pause, "link" = no adb link, needs Wi-Fi, "" = trying), last 8, memory only;
   `out` ≤ 6000 chars for the newest two, 300 for older ones (state stays < ~14 KB for the relay); `err` = `adb` (no answer / timeout) or an `adbWhy` code (`sdk key wss blocked wifi`).
 
 ### PIN-gated commands (v0.9.13, `guard/CmdGate.kt`)

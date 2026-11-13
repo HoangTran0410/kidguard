@@ -465,7 +465,7 @@ L.en = {
   "sh.err.wss": "Missing the secure-settings permission", "sh.err.blocked": "Debugging is blocked (rule \"Block debugging\")", "sh.err.key": "On-phone adb isn't paired yet", "sh.err.sdk": "Needs Android 11 or newer",
   "sh.tcp": "Open adb port 5555 (connect a computer without a cable)", "sh.tcpOn": "port 5555 open",
   "sh.tcpP": "Like adb tcpip 5555, but the phone does it itself, also after a restart. USB debugging stays on (turned off while a banking app is open). A computer connecting the first time must still be allowed on the phone. While the port is open, the adb commands above also work when the kid's phone only has mobile data (after a restart it needs Wi-Fi once to reopen). Turn it off when you're done.",
-  "sh.tcpUp": "Open. On a computer on the same Wi-Fi type:", "sh.tcpWait": "Opening the port… (needs Wi-Fi, can take a few minutes)",
+  "sh.tcpUp": "Open. On a computer on the same Wi-Fi type:", "sh.tcpWait": "Opening the port… (needs Wi-Fi, can take a few minutes)", "sh.tcpPend": "port 5555 waiting", "sh.tcpNow": "Open now", "sh.tcpWhy.bank": "Waiting: a bank app (adb port column) closed it. Tap Open now once you have left that app.", "sh.tcpWhy.link": "Can't reach adb: the port is closed and Wireless debugging needs Wi-Fi. Join a Wi-Fi network (no internet needed), then tap Open now; or plug in a computer and run adb tcpip 5555.",
   "sh.tcpAsk": "Open adb port 5555 on your kid's phone? Anyone on the same Wi-Fi can see the port (they still have to be allowed on the phone).", "sh.tcpBtn": "Open port",
   "sh.tcpAskOff": "Close adb port 5555 and put Developer options back as they were?", "sh.tcpOffBtn": "Close port",
   "sh.tcpSent": "Opening port 5555", "sh.tcpOffSent": "Port 5555 closed",

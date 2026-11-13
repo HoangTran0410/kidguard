@@ -468,7 +468,7 @@ L.vi = {
   "sh.err.wss": "Thiếu quyền ghi cài đặt bảo mật", "sh.err.blocked": "Gỡ lỗi đang bị chặn (luật \"Chặn gỡ lỗi\")", "sh.err.key": "Chưa ghép adb trên máy", "sh.err.sdk": "Cần Android 11 trở lên",
   "sh.tcp": "Mở cổng adb 5555 (cắm máy tính không cần dây)", "sh.tcpOn": "cổng 5555 mở",
   "sh.tcpP": "Giống lệnh adb tcpip 5555 nhưng máy tự làm, kể cả sau khi khởi động lại. Gỡ lỗi USB sẽ luôn bật (tự tắt khi mở app ngân hàng). Máy tính lần đầu kết nối vẫn phải bấm Cho phép trên máy con. Khi cổng mở, lệnh adb ở trên chạy được cả khi máy con chỉ có 3G/4G (sau khởi động lại cần Wi-Fi một lần để mở lại). Tắt khi không dùng.",
-  "sh.tcpUp": "Đang mở. Trên máy tính cùng Wi-Fi gõ:", "sh.tcpWait": "Đang mở cổng… (cần Wi-Fi, có thể mất vài phút)",
+  "sh.tcpUp": "Đang mở. Trên máy tính cùng Wi-Fi gõ:", "sh.tcpWait": "Đang mở cổng… (cần Wi-Fi, có thể mất vài phút)", "sh.tcpPend": "cổng 5555 đang chờ", "sh.tcpNow": "Mở ngay", "sh.tcpWhy.bank": "Đang chờ: app ngân hàng (cột Cổng adb) vừa đóng cổng. Rời app đó rồi bấm Mở ngay.", "sh.tcpWhy.link": "Không vào được adb: cổng đã đóng và Gỡ lỗi không dây cần Wi-Fi. Bắt một Wi-Fi bất kỳ (không cần có internet) rồi bấm Mở ngay; hoặc cắm máy tính chạy adb tcpip 5555.",
   "sh.tcpAsk": "Mở cổng adb 5555 trên máy con? Ai cùng Wi-Fi cũng thấy cổng này (vẫn phải được chấp nhận trên máy).", "sh.tcpBtn": "Mở cổng",
   "sh.tcpAskOff": "Đóng cổng adb 5555 và trả tuỳ chọn nhà phát triển về như cũ?", "sh.tcpOffBtn": "Đóng cổng",
   "sh.tcpSent": "Đang mở cổng 5555", "sh.tcpOffSent": "Đã đóng cổng 5555",

@@ -637,10 +637,10 @@ class Guard : Service() {
         }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
         "devOff" -> devOff()
-        "adbShell" -> Shell.run(this, c.optString("cmd"))
+        "adbShell" -> { SelfAdb.invalidate(); AutoGrant.soon(); Shell.run(this, c.optString("cmd")) }
         "shClear" -> Shell.clear()
-        "adbTcp" -> Shell.tcp(this, c.optBoolean("on"))
-        "devOn" -> DevOpts.on(this).also { if (it == "ok") store.log(R.string.log_dev_on) }
+        "adbTcp" -> { SelfAdb.invalidate(); AutoGrant.soon(); Shell.tcp(this, c.optBoolean("on")) }
+        "devOn" -> DevOpts.on(this).also { if (it == "ok") { store.log(R.string.log_dev_on); SelfAdb.invalidate(); AutoGrant.soon() } }
         // the parent page made the secret and shows it as an Authenticator QR; "" turns codes off
         "totpSet" -> c.optString("secret").let { s ->
             if (s.isNotEmpty() && Totp.decode(s) == null) "bad secret"

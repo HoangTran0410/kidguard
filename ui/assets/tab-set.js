@@ -80,8 +80,11 @@ function shCard() {
     <div class="mute" style="font-size:12px">${esc(ago(e.at))} · ${e.ms || 0} ms</div>
     <div style="font-family:ui-monospace,Menlo,monospace;font-size:13px;word-break:break-all"><b>$ ${esc(e.cmd)}</b></div>
     <pre style="margin:6px 0 0;white-space:pre-wrap;word-break:break-all;font-size:12px;max-height:320px;overflow:auto">${e.err ? `<span style="color:var(--bad)">${esc(tc("sh.err.", e.err, t("sh.errX", e.err)))}</span>` : esc(e.out || t("sh.empty"))}</pre></div>`).join("");
-  const tcp = s.tcp ? (s.tcpUp ? `<p>${ic("check")} ${t("sh.tcpUp")}<br><code>adb connect ${esc(host || "IP")}:${s.port || 5555}</code></p>` : `<p class="mute">${ic("hourglass")} ${t("sh.tcpWait")}</p>`) : "";
-  return sec("s-sh", "terminal", t("sh.h"), t("sd.sh"), [s.tcp ? t("sh.tcpOn") : t("sh.on"), s.tcp ? "warn" : ""], `<p class="mute">${t("sh.p")}</p>
+  // not open yet: why (a bank app's pause / no adb link = needs Wi-Fi) + "open now" (resets the 10-minute retry; owner 2026-11-13)
+  const wait = s.tcpWhy ? t("sh.tcpWhy." + s.tcpWhy) : t("sh.tcpWait");
+  const tcp = s.tcp ? (s.tcpUp ? `<p>${ic("check")} ${t("sh.tcpUp")}<br><code>adb connect ${esc(host || "IP")}:${s.port || 5555}</code></p>`
+    : `<p class="mute">${ic("hourglass")} ${wait}</p><button id="shTcpNow">${ic("refresh-cw")} ${t("sh.tcpNow")}</button>`) : "";
+  return sec("s-sh", "terminal", t("sh.h"), t("sd.sh"), [s.tcp ? t(s.tcpUp ? "sh.tcpOn" : "sh.tcpPend") : t("sh.on"), s.tcp ? "warn" : ""], `<p class="mute">${t("sh.p")}</p>
     <div class="row" style="gap:6px"><input id="f-sh" class="sp" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="2000" placeholder="pm list packages -3" aria-label="${esc(t("sh.h"))}" value="${esc(shText)}" style="font-family:ui-monospace,Menlo,monospace">
     <button id="shRun" ${s.busy ? "disabled" : ""}>${ic(s.busy ? "hourglass" : "play")} ${t(s.busy ? "sh.busy" : "sh.run")}</button></div>
     ${log}${log ? `<button id="shClear">${ic("eraser")} ${t("sh.clear")}</button>` : ""}
@@ -94,6 +97,10 @@ async function shRun() {
   shText = v;
   const r = await cmd({ type: "adbShell", cmd: v }, t("sh.sent"), [t("sh.ask", v), t("sh.run")]);
   if (r && (r.result === "ok" || r.result === "queued")) { shText = ""; [1500, 5000, 15000, 30000].forEach(ms => setTimeout(refresh, ms)); }
+}
+async function shTcpNow() {
+  const r = await cmd({ type: "adbTcp", on: true }, t("sh.tcpSent"));
+  if (r) [2000, 8000, 20000].forEach(ms => setTimeout(refresh, ms));
 }
 async function shTcp(on) {
   const r = await cmd({ type: "adbTcp", on }, t(on ? "sh.tcpSent" : "sh.tcpOffSent"), [t(on ? "sh.tcpAsk" : "sh.tcpAskOff"), t(on ? "sh.tcpBtn" : "sh.tcpOffBtn"), on]);
@@ -397,6 +404,7 @@ function setTab(b) {
   if ($("#shRun")) { $("#shRun").onclick = shRun; $("#f-sh").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); shRun(); } }; $("#f-sh").oninput = e => { shText = e.target.value; }; }
   if ($("#shClear")) $("#shClear").onclick = () => cmd({ type: "shClear" }, t("sh.cleared"), false).then(() => setTimeout(refresh, 1500));
   if ($("#f-shTcp")) $("#f-shTcp").onchange = e => shTcp(e.target.checked);
+  if ($("#shTcpNow")) $("#shTcpNow").onclick = shTcpNow;
   for (const x of document.querySelectorAll(".ftgo")) x.onclick = () => featGo(x.dataset.ft);
   if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, t("upd.sent"), [t("upd.ask"), t("upd.ok")]).then(() => setTimeout(refresh, 4000));
   tgWire();
