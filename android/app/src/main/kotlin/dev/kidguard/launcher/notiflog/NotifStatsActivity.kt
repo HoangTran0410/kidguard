@@ -47,6 +47,7 @@ class NotifStatsActivity : Activity() {
     private lateinit var col: LinearLayout
     private lateinit var title: TextView
     private lateinit var headIcon: ImageView
+    private lateinit var sub: TextView
 
     override fun getResources(): android.content.res.Resources = Lang.res(baseContext) ?: super.getResources()
 
@@ -81,9 +82,14 @@ class NotifStatsActivity : Activity() {
         headIcon = ImageView(this).apply { visibility = View.GONE }
         head.addView(headIcon, LinearLayout.LayoutParams(dp(32), dp(32)).apply { marginStart = dp(8) })
         title = k.text(getString(R.string.nst_title), 22f, pal.text, true).apply { setPadding(dp(8), 0, 0, 0); maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
-        head.addView(title, LinearLayout.LayoutParams(0, -2, 1f))
+        // one app: its name, and under it what this screen is (same as the usage screen)
+        val names = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        names.addView(title)
+        sub = k.text(getString(R.string.nst_title), 13f, pal.sub).apply { setPadding(dp(8), 0, 0, 0); visibility = View.GONE }
+        names.addView(sub)
+        head.addView(names, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(head, LinearLayout.LayoutParams(-1, -2))
-        pkg?.let { p -> headIcon.visibility = View.VISIBLE; icon(p, dp(32)) { headIcon.setImageBitmap(it) } }
+        pkg?.let { p -> headIcon.visibility = View.VISIBLE; sub.visibility = View.VISIBLE; icon(p, dp(32)) { headIcon.setImageBitmap(it) } }
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
         col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(4), dp(16), dp(28)) }
         scroll.addView(col)
