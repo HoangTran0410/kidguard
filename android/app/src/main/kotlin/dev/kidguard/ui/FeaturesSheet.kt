@@ -61,6 +61,20 @@ object FeaturesSheet {
         }
     }
 
+    /**
+     * "Chống lách": what a child can still do against basic mode, what Device Owner closes, and what upgrading costs
+     * (accounts) BEFORE the parent starts it. Upgrade = the on-phone setup (Android 11+), else the guide.
+     */
+    fun tamper(act: Activity, u: Ui) {
+        val onPhone = Build.VERSION.SDK_INT >= 30
+        Modal(act, u).show(R.drawable.li_shield, Modal.Tone.WARN, act.getString(R.string.tamper_title), act.getString(R.string.tamper_body),
+            ok = act.getString(if (onPhone) R.string.tamper_go else R.string.feat_guide), cancel = act.getString(R.string.feat_close)) {
+            if (onPhone) runCatching { act.startActivity(Intent(act, SelfSetupActivity::class.java)) }
+            else open(act, Intent(Intent.ACTION_VIEW, Uri.parse(GUIDE)))
+            true
+        }
+    }
+
     /** The system screen that grants [cap]. [pair] starts the child app's pairing flow. */
     fun fix(act: Activity, u: Ui, cap: String, pair: () -> Unit) {
         val pkg = Uri.parse("package:${act.packageName}")
@@ -86,7 +100,7 @@ object FeaturesSheet {
                 if (!Policy.isOwner(act)) LauncherSafe.setLocal(act, true)
                 open(act, Intent(Settings.ACTION_HOME_SETTINGS), Intent(Settings.ACTION_SETTINGS))
             }
-            "owner" -> guide(act, u, R.string.feat_owner_title, R.string.feat_owner_body)
+            "owner" -> tamper(act, u)
             // the guided 3-step screen (live status per step), pairing only: the bare Developer options page + a code
             // notification left people lost (owner 2026-11-11: "user không biết lấy mã ở đâu")
             "adb" -> if (Build.VERSION.SDK_INT >= 30) {
@@ -112,8 +126,20 @@ object FeaturesSheet {
             body.addView(u.section(act.getString(R.string.prot_features)))
         }
         body.addView(u.label(act.getString(R.string.feat_intro), 14f).apply { setPadding(pad, u.dp(6), pad, u.dp(6)) })
+        // same card look as the features above (they were plain list rows at the bottom)
+        fun actionCard(icon: Int, title: Int, desc: Int, need: String?, btn: String, run: () -> Unit) = body.addView(u.cardBox(14).apply {
+            addView(u.label(act.getString(title), 17f, u.text, true).apply {
+                setCompoundDrawablesRelative(u.badge(icon, u.accent, u.tint, 36, 20, 11), null, null, null)
+                compoundDrawablePadding = u.dp(12); gravity = android.view.Gravity.CENTER_VERTICAL
+            })
+            addView(u.label(act.getString(desc), 14f).apply { setPadding(0, u.dp(6), 0, 0) })
+            if (need != null) addView(u.label(act.getString(R.string.feat_need, need), 14f, u.tone(Ic.WARN), true).apply { setPadding(0, u.dp(8), 0, 0) })
+            addView(u.button(btn, null, false) { sheet.dismiss(); run() })
+        })
         val caps = FeatureCaps.of(act)
         val store = Store.of(act)
+        // basic mode: say up front that it can be bypassed and what Device Owner adds (owner 2026-11-13)
+        if (!caps.owner) actionCard(R.drawable.li_shield, R.string.tamper_card, R.string.tamper_card_d, null, act.getString(R.string.tamper_see)) { tamper(act, u) }
         for (f in Features.status(caps)) {
             val card = u.cardBox(14)
             val name = u.label(str(act, "ft_", f.id), 17f, u.text, true).apply {
@@ -133,16 +159,6 @@ object FeaturesSheet {
             }
             body.addView(card)
         }
-        // same card look as the features above (they were plain list rows at the bottom)
-        fun actionCard(icon: Int, title: Int, desc: Int, need: String?, btn: String, run: () -> Unit) = body.addView(u.cardBox(14).apply {
-            addView(u.label(act.getString(title), 17f, u.text, true).apply {
-                setCompoundDrawablesRelative(u.badge(icon, u.accent, u.tint, 36, 20, 11), null, null, null)
-                compoundDrawablePadding = u.dp(12); gravity = android.view.Gravity.CENTER_VERTICAL
-            })
-            addView(u.label(act.getString(desc), 14f).apply { setPadding(0, u.dp(6), 0, 0) })
-            if (need != null) addView(u.label(act.getString(R.string.feat_need, need), 14f, u.tone(Ic.WARN), true).apply { setPadding(0, u.dp(8), 0, 0) })
-            addView(u.button(btn, null, false) { sheet.dismiss(); run() })
-        })
         // basic mode + bank apps: without "display over other apps" Android may block reopening the bank after the pause
         if (!Policy.isOwner(act) && store.rules.accPause.isNotEmpty() && !AccPause.canReopen(act)) {
             val cap = act.getString(R.string.feat_cap_overlay)

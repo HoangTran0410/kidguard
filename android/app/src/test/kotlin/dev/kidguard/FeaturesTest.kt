@@ -32,6 +32,11 @@ class FeaturesTest {
         assertFalse(f(c, "limits").ok); assertEquals(listOf("usage"), f(c, "limits").missing)
     }
 
+    @Test fun launcherLockBasic() {
+        assertTrue(f(Caps(home = true, acc = true), "launcherLock").ok)
+        assertFalse(f(Caps(acc = true), "launcherLock").ok)
+    }
+
     @Test fun adbIsAnAlternativeForDebloat() {
         assertTrue(f(Caps(adb = true), "debloat").ok)
         assertTrue(f(Caps(), "debloat").missing.size == 1)

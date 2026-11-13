@@ -292,6 +292,7 @@ class Guard : Service() {
         opt("update") { Update.maybe(this, r, now) }
         opt("bankList") { BankList.maybe(this, now) }
         opt("launcher") { launcherTick(r, now) }
+        opt("homeLock") { LauncherLock.tick(this, r, now) }
         snap = Snap(r, want, use.ms, leftMs, minute, now, Rules.isoDow(today), apps.keys, prot)
         listeners.forEach { l -> main.post { runCatching { l() } } }
         val wb = if (r.monitor) would else emptyMap()

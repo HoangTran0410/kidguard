@@ -129,7 +129,11 @@ function featCard() {
   const rows = F.map(f => `<tr class="${f.ok ? "" : "no"}"><th scope="row">${FEAT_GO[f.id] && navOk(FEAT_GO[f.id][0]) ? `<button type="button" class="ftgo" data-ft="${esc(f.id)}">${name(f)} ${ic("chevron-right")}</button>` : name(f)}</th>
     <td>${f.ok ? `<span class="tag ok">${ic("check")} ${t("ft.ok")}</span>` : `<span class="tag warn">${ic("lock")} ${t("cap_need", esc((f.missing || []).map(capName).join(", ") || "?"))}</span>`}</td></tr>`).join("");
   const ag = st.autoGrant, agL = ag && +ag.left > 0 ? `<div class="alert warn">${ic("hourglass")} <span>${t("ag.left", +ag.left)}${ag.next > Date.now() ? ", " + t("ag.next", hhmm(ag.next)) : ""}${ag.err ? " · " + esc(tc("ag.err.", ag.err, ag.err)) : ""}${ag.at > 0 ? ` <span class="mute">· ${t("ag.at", ago(ag.at))}</span>` : ""}</span></div>` : "";
-  return sec("s-feat", "list-checks", t("ft.h"), t("ft.d"), [`${n}/${F.length}`, n === F.length ? "ok" : "warn"], `${agL}<div class="tblw"><table class="ft"><tbody>${rows}</tbody></table></div>
+  // basic mode: it can be bypassed; what Device Owner adds and what upgrading costs, before anyone starts it (owner 2026-11-13)
+  const tamper = st.caps && st.caps.owner === false ? `<div class="alert warn">${ic("shield")} <span>${t("tm.d")}
+    <details><summary>${t("tm.see")}</summary><ul>${["tm.l1", "tm.l2", "tm.l3"].map(k => `<li>${t(k)}</li>`).join("")}</ul>
+    <p>${t("tm.do")}</p><p><b>${t("tm.before")}</b></p><ul>${["tm.b1", "tm.b2", "tm.b3"].map(k => `<li>${t(k)}</li>`).join("")}</ul></details></span></div>` : "";
+  return sec("s-feat", "list-checks", t("ft.h"), t("ft.d"), [`${n}/${F.length}`, n === F.length ? "ok" : "warn"], `${agL}${tamper}<div class="tblw"><table class="ft"><tbody>${rows}</tbody></table></div>
     <p class="mute">${t("ft.p")}</p>`, n < F.length || !!agL);
 }
 function updCard() {

@@ -8,4 +8,8 @@
     <string name="bn_clock_b">Bố mẹ giữ ngày giờ tự động. Trang đồng hồ đã đóng. Sai giờ sẽ hỏng giới hạn thời gian.</string>
     <string name="bn_protect_t">Trang này đã bị khoá</string>
     <string name="bn_protect_b">Bố mẹ đã khoá việc gỡ, dừng hay đổi KidGuard. Trang đã đóng.</string>
+    <string name="acc_closed_home">Bố mẹ đã khoá màn hình chính</string>
+    <string name="bn_home_t">Màn hình chính đã bị khoá</string>
+    <string name="bn_home_b">Bố mẹ giữ KidGuard làm màn hình chính. Trang đổi màn hình chính đã đóng.</string>
+    <string name="log_acc_home">Con mở trang chọn màn hình chính, đã đưa về màn hình chính KidGuard</string>
 </resources>

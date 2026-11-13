@@ -83,6 +83,7 @@ object LauncherSafe {
     /** Undo: clear our preferred HOME and disable the component. Used by rule off, safe mode and release. */
     fun off(ctx: Context, goHome: Boolean) {
         shadeBlocked = false
+        LauncherLock.off(ctx)
         val was = enabled(ctx)
         if (Policy.isOwner(ctx)) runCatching { Policy.dpm(ctx).clearPackagePersistentPreferredActivities(Policy.admin(ctx), ctx.packageName) }
             .onFailure { Log.w(TAG, "launcher clear preferred", it) }

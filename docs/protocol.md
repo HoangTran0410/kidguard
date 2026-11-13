@@ -1008,8 +1008,10 @@ Optional home screen on the kid's phone (`HomeActivity`, category HOME). Device 
 `{"on": false, "settings": false, "notes": true, "lockCustom": false, "style": "", "shade": false}`. Missing = all defaults (off).
 - `on`: enable the `.HomeActivity` component (manifest default: disabled) + `addPersistentPreferredActivity(HOME)` so Home
   opens it with no chooser. `on:false`, `release` (before `clearDeviceOwnerApp`) and `releaseBasic` clear the preferred
-  activity and disable the component; the stock launcher comes back. Not Device Owner ⇒ the rule only enables the component
-  (no forced HOME: the user picks KidGuard in Settings) and only once paired; before pairing the child app's local opt-in
+  activity and disable the component; the stock launcher comes back. Not Device Owner ⇒ the rule enables the component
+  (the user picks KidGuard in Settings) and, once paired and while KidGuard is HOME, `LauncherLock` (Acc closes the "Home app"
+  page / HOME chooser, bounces another launcher's HOME activity to ours; self-adb `cmd package set-home-activity` re-asserts it when
+  available; `LauncherSafe.off` clears it via `clearPackagePreferredActivities`) and only once paired; before pairing the child app's local opt-in
   ("Tính năng và quyền" → launcher) decides. See "Features and permissions".
 - `settings`: the kid may open system Settings: the Settings app shows, and the KidGuard control center opens settings pages (a toggle it can't flip directly, long-press on Wi-Fi / Bluetooth / airplane / data, the media card's notification-access ask); off, the Settings app stays in the grid / drawer greyed with a lock badge (tap: "bố mẹ quản lý Cài đặt" sheet; hiding it made owners think it was gone) and those say "a parent manages this", except Wi-Fi / Bluetooth / data, which the kid can still turn ON (own toggle, the Wi-Fi / internet panel, or the Bluetooth turn-on dialog) but not off (hidden by default; always shown on a phone nobody manages: no Device Owner and never paired, where the user picked the launcher themselves). `notes`: show `blockNote` in the "app tạm nghỉ" sheet.
 - `lockCustom`: makes the kid's "Tuỳ chỉnh" screen read-only (style, grid, wallpaper, colours, text size) with a note
@@ -1142,7 +1144,7 @@ is done. Source of truth: `guard/Features.kt` (pure, `FeaturesTest`). State adds
 | id | alternatives (any one) | note |
 |---|---|---|
 | `launcher` | `home` | works without Device Owner and without pairing (local opt-in, below) |
-| `launcherLock` | `owner` | persistent preferred HOME |
+| `launcherLock` | `owner` or `home`+`acc` | owner: persistent preferred HOME; basic (rule `launcher.on`): Acc closes the Home-app picker + bounces another launcher, self-adb `set-home-activity` optional |
 | `debloat` | `owner` or `adb` | |
 | `limits` | `owner` or `acc`+`usage`+`admin` | basic mode bounces with Accessibility; needs usage and device admin |
 | `block` | `owner` or `acc`+`admin` | `Basic.enforcing` also needs the device admin |

@@ -7,8 +7,6 @@
     <string name="feat_fix">Turn on: %1$s</string>
     <string name="feat_close">Close</string>
     <string name="feat_guide">Open the setup guide</string>
-    <string name="feat_owner_title">Device Owner</string>
-    <string name="feat_owner_body">Device Owner lets KidGuard lock the home screen, hide apps, block uninstall and set DNS. Set it up once from a computer or QR code. Remove all accounts from the phone first. The guide has the steps.</string>
     <string name="feat_adb_body">The phone runs adb on itself over Wi-Fi. Turn on Wireless debugging: see the guide.</string>
     <string name="feat_launcher_use">Use the KidGuard home screen</string>
     <string name="feat_launcher_off">Turn off the KidGuard home screen</string>
@@ -78,4 +76,10 @@
     <string name="ft_tailscale_d">Reach the phone directly from anywhere through Tailscale.</string>
     <string name="feat_cap_adbNet">adb port 5555</string>
     <string name="feat_cap_vpn">VPN (Tailscale) on</string>
+    <string name="tamper_card">Tamper protection</string>
+    <string name="tamper_card_d">Basic mode: a child who knows phones can get around it. Device Owner closes those ways.</string>
+    <string name="tamper_see">See how a child gets around it</string>
+    <string name="tamper_go">Upgrade to Device Owner</string>
+    <string name="tamper_title">Tamper protection with Device Owner</string>
+    <string name="tamper_body">In basic mode the child can still:\n• Start in Safe Mode: every block is gone for a while.\n• Turn off accessibility, or the phone turns it off: apps are no longer blocked.\n• Factory reset the phone, change the clock.\n\nDevice Owner closes these ways at system level. A blocked app stays locked; it does not open first and get pushed out.\n\nBefore you upgrade:\n• Remove every account in Settings → Accounts: Google, Xiaomi, Samsung... and app ones like WhatsApp or Telegram. Sign in again after setup; online data stays. There is no way to keep them: Android refuses while any account is on the phone.\n• Needs Android 11 or later and Wi-Fi, or a computer.</string>
 </resources>

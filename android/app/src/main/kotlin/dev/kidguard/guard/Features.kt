@@ -42,7 +42,8 @@ object Features {
     /** id -> alternatives; one alternative with every cap granted makes the feature usable. Order = display order. */
     val TABLE: List<Pair<String, List<List<String>>>> = listOf(
         "launcher" to listOf(listOf("home")),
-        "launcherLock" to listOf(listOf("owner")),
+        // basic: KidGuard is HOME + accessibility closes the picker / bounces another launcher; self-adb is optional (re-sets the default, no flash)
+        "launcherLock" to listOf(listOf("owner"), listOf("home", "acc")),
         "debloat" to listOf(listOf("adb"), listOf("owner")),   // adb first: Device Owner needs a reset phone, adb does not
         "limits" to listOf(listOf("owner"), listOf("acc", "usage", "admin")),
         // basic mode only bounces while the device admin is on too (Basic.enforcing)

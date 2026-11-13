@@ -64,7 +64,7 @@ class Acc : AccessibilityService() {
             AccPause.relaunch(this, pkg); return
         }
         if (pkg in Store.of(this).rules.vpnPause && VpnPause.pause(this, pkg)) { AccPause.relaunch(this, pkg); return }
-        if (pkg != packageName) basicGuard(pkg)
+        if (pkg != packageName) basicGuard(pkg, e.className?.toString())
         if (TaskLogic.dropTasks(pkg, e.className?.toString(), packageName, homes())) dropTasks()
         if (pkg == lastPkg) return
         lastPkg = pkg
@@ -110,6 +110,21 @@ class Acc : AccessibilityService() {
         }
     }.getOrDefault(false)
 
+    private var homeActSet: Set<String>? = null
+    /** "pkg/cls" of every real HOME activity (Settings' FallbackHome left out). */
+    private fun homeActs(): Set<String> = homeActSet ?: runCatching {
+        packageManager.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME), 0)
+            .filter { !it.activityInfo.name.endsWith("FallbackHome") && !BasicLogic.isSettingsPkg(it.activityInfo.packageName) }
+            .map { it.activityInfo.packageName + "/" + it.activityInfo.name }.toSet()
+    }.getOrDefault(emptySet()).also { homeActSet = it }
+
+    /** Start OUR launcher explicitly (a plain HOME intent would open the other default). */
+    private fun openOurHome() {
+        runCatching { startActivity(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME)
+            .setComponent(LauncherSafe.comp(this)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            .onFailure { performGlobalAction(GLOBAL_ACTION_HOME) }
+    }
+
     private var homeSet: Set<String>? = null
     private fun homes(): Set<String> = homeSet ?: runCatching {
         packageManager.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME), 0)
@@ -129,11 +144,14 @@ class Acc : AccessibilityService() {
     }
 
     /** Basic mode (no Device Owner): bounce blocked apps and Settings pages that would remove KidGuard. Owner mode: no-op. */
-    private fun basicGuard(pkg: String) {
+    private fun basicGuard(pkg: String, cls: String? = null) {
         if (!basicOn()) return
         val reason = BasicLogic.bounceReason(pkg, packageName, blocked, prot)
         if (reason != null) { bounceApp(this, pkg, reason); return }
-        if (BasicLogic.isSettingsPkg(pkg)) {
+        // home lock without Device Owner: another launcher came up -> ours (not Recents: only a real HOME activity counts)
+        if (LauncherLock.on && LauncherLockLogic.otherHome(pkg, cls, packageName, homeActs())) { openOurHome(); return }
+        if (BasicLogic.isSettingsPkg(pkg) || (LauncherLock.on && LauncherLockLogic.isChooser(pkg, cls))) {
+            scanCls = cls
             // the page text is often not there yet when the event fires: look at 0.2 s, 0.8 s and 1.8 s
             main.removeCallbacks(scan1); main.removeCallbacks(scan2); main.removeCallbacks(scan3)
             scanPkg = pkg
@@ -142,6 +160,7 @@ class Acc : AccessibilityService() {
     }
 
     private var scanPkg = ""
+    private var scanCls: String? = null
     private val scan1 = Runnable { scan() }
     private val scan2 = Runnable { scan() }
     private val scan3 = Runnable { scan() }
@@ -185,10 +204,15 @@ class Acc : AccessibilityService() {
         if (!Store.of(this).everPaired) return
         val root = runCatching { rootInActiveWindow }.getOrNull() ?: return
         val pkg = root.packageName?.toString() ?: return
-        if (pkg != scanPkg || !BasicLogic.isSettingsPkg(pkg)) return
+        if (pkg != scanPkg || !(BasicLogic.isSettingsPkg(pkg) || LauncherLockLogic.isChooser(pkg, scanCls))) return
         val labels = ourNames()
         val nodes = collectNodes(root, 300)
-        if (BasicLogic.isDateTimePage(pkg, nodes)) {
+        if (LauncherLock.on && LauncherLockLogic.homePicker(pkg, scanCls, nodes.map { it.text }, BasicLogic::isSettingsPkg)) {
+            // the child may not pick another home app while the parent locks the home screen
+            openOurHome(); whyClosed(R.string.acc_closed_home, R.string.bn_home_t, R.string.bn_home_b)
+            val now = System.currentTimeMillis()
+            if (now - lastProtectLog > 30_000) { lastProtectLog = now; runCatching { Store.of(this).log(R.string.log_acc_home) } }
+        } else if (BasicLogic.isDateTimePage(pkg, nodes)) {
             // basic mode has no DISALLOW_CONFIG_DATE_TIME: the clock page is closed like the uninstall pages
             performGlobalAction(GLOBAL_ACTION_HOME); whyClosed(R.string.acc_closed_clock, R.string.bn_clock_t, R.string.bn_clock_b)
             val now = System.currentTimeMillis()

@@ -8,4 +8,8 @@
     <string name="bn_clock_b">Your parents keep date and time automatic. The clock page was closed. A wrong clock breaks time limits.</string>
     <string name="bn_protect_t">This page is locked</string>
     <string name="bn_protect_b">Your parents locked uninstalling, stopping or changing KidGuard. The page was closed.</string>
+    <string name="acc_closed_home">Your parents locked the home screen</string>
+    <string name="bn_home_t">Home screen is locked</string>
+    <string name="bn_home_b">Your parents keep KidGuard as the home screen. The page to change it was closed.</string>
+    <string name="log_acc_home">The home app picker was opened; went back to the KidGuard home screen</string>
 </resources>
