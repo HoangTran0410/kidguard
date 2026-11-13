@@ -386,7 +386,7 @@ L.en = {
   "save.saving": "Saving…",
   "save.saved": "Saved",
   "save.failed": "Not saved",
-  "save.pending": "Waiting for the phone",
+  "save.pending": "Waiting for the phone", "bk.acc": "accessibility", "bk.dev": "USB debugging", "bk.live": "Paused for {0}: {1}.", "bk.backAt": "Back by itself at {0}.", "bk.backLeave": "Back 10 min after the kid leaves the app.", "bk.endNow": "Turn back on now", "bk.endSent": "Turning back on…", "bk.inUse": "The kid is using that app right now: try again after they leave it.", "save.lastSeen": "phone last seen {0}", "save.resend": "Resend", "chip.locOff": "location off on the phone", "chip.dnsErr": "phone refused it", "chip.pausedTo": "paused until {0}", "hm.stSafe": "Turned off after crashing 3 times.", "hm.stSafeTo": "comes back at {0}", "dev.bankPaused": "Off on purpose while the kid uses {0} (that app refuses debugging); it comes back by itself. To turn it on now use 'Turn back on now' in the top bar.",
   "act.off": "Stop",
   "act.timeout": "The kid's phone did not answer, try again",
   "act.ringing": "Ringing",

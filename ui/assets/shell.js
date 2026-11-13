@@ -53,13 +53,15 @@ function headHtml() {
     <div><div class="t1">${esc(cur.name)}</div><div class="st" id="hst"></div></div><span class="savechip" id="saveChip" role="status"></span></div>`;
 }
 // header save chip: saving / failed / waiting for the kid's phone (relay) / saved (3 s)
-let savedAt = 0;
+let savedAt = 0, pendSince = 0;
 function paintSave() {
   const c = $("#saveChip"); if (!c) return;
   const wait = pendingRules && st && st.rules && pendingRules.rev > st.rules.rev;
+  if (!wait) pendSince = 0;
   const h = saveFailed ? `<span class="tag bad">${ic("triangle-alert")} ${t("save.failed")}</span>`
     : saveT || saveBusy ? `<span class="tag t-info"><i class="spin" style="width:12px;height:12px"></i> ${t("save.saving")}</span>`
-    : wait ? `<span class="tag warn">${ic("hourglass")} ${t("save.pending")}</span>`
+    : wait ? `<span class="tag warn">${ic("hourglass")} ${t("save.pending")}${(pendSince = pendSince || Date.now()) && Date.now() - pendSince > 90000
+        ? " · " + t("save.lastSeen", lastSeen() ? ago(lastSeen()) : "?") + ` <button type="button" class="pill" id="saveResend">${t("save.resend")}</button>` : ""}</span>`
     : Date.now() - savedAt < 3000 ? `<span class="tag ok">${ic("check")} ${t("save.saved")}</span>` : "";
   if (c.innerHTML !== h) c.innerHTML = h;
 }
@@ -437,7 +439,14 @@ function updateLive() {
   if (!lan && lastNet) B.push(["warn", "wifi-off", t("live.selfOff")]);
   if (lost && !(!lan && lastNet)) B.push(["bad", "siren", t("live.lost", hhmm(lostFrom)) + (lastErr && lan ? " (" + esc(lastErr) + ")" : "")]);
   B.push(...modeBans());
-  if ((st.accPaused || []).length) B.push(["info", "landmark", t("live.accBank", esc(st.accPaused.map(p => ((st.apps || []).find(a => a.pkg === p) || {}).label || p).join(", ")))]);
+  // bank-app pauses (audit 2026-11-13): what is off, for which app, when it comes back, and "turn back on now"
+  const bkApps = [...new Set([...(st.accPaused || []), ...(st.vpnPaused || []), ...(st.devPaused || [])])];
+  if (bkApps.length) {
+    const what = [(st.accPaused || []).length && t("bk.acc"), (st.vpnPaused || []).length && "VPN", (st.devPaused || []).length && t("bk.dev")].filter(Boolean).join(", ");
+    const when = st.bankBackAt ? t("bk.backAt", hhmm(st.bankBackAt)) : t("bk.backLeave");
+    B.push(["info", "landmark", t("bk.live", esc(bkApps.map(p => ((st.apps || []).find(a => a.pkg === p) || {}).label || p).join(", ")), what) + " " + when
+      + (st.bankBackAt !== undefined ? ` <button type="button" class="pill" id="bankEndBtn">${ic("refresh-cw")} ${t("bk.endNow")}</button>` : "")]);
+  }
   else if (st.acc === false) B.push(["warn", "triangle-alert", t("live.acc")]);
   if (st.usageAccess === false || st.usageOff) B.push(["bad", "triangle-alert", t("live.usage")]);
   if (st.dnsError) B.push(["warn", "triangle-alert", t("live.dns", esc(st.dnsError))]);
@@ -934,4 +943,13 @@ document.addEventListener("click", e => {
   const p = e.target.closest && e.target.closest("p.tipc"); if (!p || !tipFull.has(p)) return;
   e.preventDefault();
   sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("info", esc(tipTitle(p)))}<div class="tipx">${tipFull.get(p)}</div></div>`);
+});
+
+// live-bar / save-chip buttons (their HTML is rebuilt on every poll: delegated once)
+document.addEventListener("click", e => {
+  if (e.target.closest("#bankEndBtn")) cmd({ type: "bankEnd" }, t("bk.endSent")).then(r => {
+    if (r && r.result === "in use") toast(t("bk.inUse"));
+    [2000, 8000].forEach(ms => setTimeout(refresh, ms));
+  });
+  if (e.target.closest("#saveResend") && cur && edit) { pendSince = Date.now(); putRules(cur, edit); }
 });

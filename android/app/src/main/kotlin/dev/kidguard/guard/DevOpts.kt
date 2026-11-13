@@ -140,7 +140,7 @@ object DevOpts {
             offAt = android.os.SystemClock.elapsedRealtime()
         }
         val label = runCatching { val pm = ctx.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
-        runCatching { s.log(R.string.log_dev_paused) }
+        runCatching { s.log(if (port) R.string.log_tcp_closed else R.string.log_dev_paused, label) }
         runCatching { Toasts.show(ctx.applicationContext, ctx.getString(R.string.dev_paused_toast, label), true) }
         return true
     }

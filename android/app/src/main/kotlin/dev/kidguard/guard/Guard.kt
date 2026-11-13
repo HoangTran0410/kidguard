@@ -400,7 +400,7 @@ class Guard : Service() {
             .put("pairUntil", store.pairOpenUntil())
             .put("pinResetAt", store.pinResetAt)
             .put("totpOn", store.totpSecret.isNotBlank()).put("unlockUntil", store.unlockUntil.takeIf { it > now } ?: 0)
-            .put("acc", Acc.isOn(this)).put("accPaused", JSONArray(store.accPaused.sorted())).put("vpnPaused", JSONArray(store.vpnPaused.sorted())).put("devPaused", JSONArray(store.devApps.sorted())).put("vpnStuck", store.vpnStuck)
+            .put("acc", Acc.isOn(this)).put("accPaused", JSONArray(store.accPaused.sorted())).put("vpnPaused", JSONArray(store.vpnPaused.sorted())).put("devPaused", JSONArray(store.devApps.sorted())).put("bankBackAt", bankBackAt()).put("vpnStuck", store.vpnStuck)
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
             .put("locationOn", locationOn())
             .put("dev", DevOpts.state(this))
@@ -637,6 +637,7 @@ class Guard : Service() {
         }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
         "devOff" -> devOff()
+        "bankEnd" -> bankEnd()
         "adbShell" -> { SelfAdb.invalidate(); AutoGrant.soon(); Shell.run(this, c.optString("cmd")) }
         "shClear" -> Shell.clear()
         "adbTcp" -> { SelfAdb.invalidate(); AutoGrant.soon(); Shell.tcp(this, c.optBoolean("on")) }
@@ -649,6 +650,25 @@ class Guard : Service() {
         "setting" -> Sys.set(this, store, c)
         "release" -> release()
         else -> "unknown"
+    }
+
+    /** When the bank-app pauses end by themselves (epoch ms): 0 = an app is still in front / none paused. */
+    private fun bankBackAt(): Long {
+        val wait = if (Policy.isOwner(this)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS
+        val left = listOfNotNull(store.accLeftAt.takeIf { store.accPaused.isNotEmpty() }, store.vpnLeftAt.takeIf { store.vpnPaused.isNotEmpty() },
+            store.devLeftAt.takeIf { store.devApps.isNotEmpty() })
+        return if (left.isEmpty() || 0L in left) 0L else left.max() + wait
+    }
+
+    /** Parent: end the bank-app pauses now (accessibility, VPN, debugging) unless that app is in front right now. */
+    private fun bankEnd(): String {
+        val all = store.accPaused + store.vpnPaused + store.devApps
+        if (all.isEmpty()) return "ok"
+        val cur = runCatching { Usage.today(this).current }.getOrNull()
+        if (cur != null && cur in all) return "in use"
+        runCatching { AccPause.endNow(this) }; runCatching { VpnPause.endNow(this) }; runCatching { DevOpts.clearPause(this) }
+        SelfAdb.invalidate(); AutoGrant.soon()
+        return "ok"
     }
 
     private fun devOff(): String = also { Shell.tcpOff(this, restore = false) }.let { DevOpts.off(this) }.also { if (it == "ok") store.log(R.string.log_dev_off) }

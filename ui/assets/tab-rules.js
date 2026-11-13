@@ -78,9 +78,9 @@ function ruleChips(r) {
     bed: r.bedtime.on ? on(hm(r.bedtime.start) + "–" + hm(r.bedtime.end), !!timeWarn(r.bedtime, true)) : off,
     sch: schOn.length ? [t("chip.nSch", schOn.length), schOn.some(x => timeWarn(x, true, true)) ? "warn" : "ok"] : r.schedules.length ? off : none,
     zone: r.zones.length ? [t("chip.nZone", r.zones.length), "ok"] : none,
-    trk: r.trackMin ? on(t("chip.every", fmt(r.trackMin * 60000))) : off,
+    trk: r.trackMin ? (st.locationOn === false ? [t("chip.locOff"), "warn"] : on(t("chip.every", fmt(r.trackMin * 60000)), !canFeat("location"))) : off,
     more: more ? on(more + "/3", basic) : off,
-    dns: r.safeDns || r.noVpn ? on(esc((dns ? dns[1] : r.safeDns) || t("dns.novpn.short")), r.safeDns && !r.noVpn ? basic && !canFeat("dns") : basic) : off,
+    dns: r.safeDns && st.dnsError ? [t("chip.dnsErr"), "bad"] : r.safeDns && st.dnsPausedUntil > Date.now() ? [t("chip.pausedTo", hhmm(st.dnsPausedUntil)), "warn"] : r.safeDns || r.noVpn ? on(esc((dns ? dns[1] : r.safeDns) || t("dns.novpn.short")), r.safeDns && !r.noVpn ? basic && !canFeat("dns") : basic) : off,
     anti: anti ? on(anti + "/2", basic) : off,
     wind: windChip(r),
     home: r.launcher.on ? on(t({ be: "hm.sBe", teen: "hm.sTeen", gon: "hm.sGon" }[r.launcher.style] || "hm.sAuto"), basic || !!(st.launcher && st.launcher.err)) : off,
@@ -96,8 +96,9 @@ function homeStatus(r) {
   const L = st.launcher;
   if (!r.launcher.on && !(L && L.on)) return "";
   const [k, w] = !L ? ["hm.stOld", 1] : L.err === "not owner" ? ["hm.stNoOwner", 1] : L.err === "crash" ? ["hm.stCrash", 1] : L.err === "home" ? ["hm.stHome", 1]
-    : L.on && r.launcher.on ? ["hm.stOn", 0] : ["hm.stWait", 0];
-  return `<p class="${w ? "" : "mute"}" id="hmSt">${ic(w ? "triangle-alert" : k === "hm.stOn" ? "circle-check" : "loader")} ${t(k)}</p>`;
+    : L.safeUntil > Date.now() ? ["hm.stSafe", 1] : L.on && r.launcher.on ? ["hm.stOn", 0] : ["hm.stWait", 0];
+  const why = k === "hm.stSafe" ? t("hm.stSafeTo", hhmm(L.safeUntil)) : k === "hm.stWait" && Date.now() - lastSeen() > 120000 ? t("save.lastSeen", ago(lastSeen())) : "";
+  return `<p class="${w ? "" : "mute"}" id="hmSt">${ic(w ? "triangle-alert" : k === "hm.stOn" ? "circle-check" : "loader")} ${t(k)}${why ? " · " + why : ""}</p>`;
 }
 // the kid's own notes marked "Bố mẹ xem được" on their phone (state.notes, newest first); read-only here
 function kidNotes() {

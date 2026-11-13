@@ -157,6 +157,7 @@ v0.9.7:
   phone's own paired adbd (`SelfAdb`: Android 11+, WRITE_SECURE_SETTINGS, Wi-Fi; opens the debugging window itself).
   Answers at once `ok | busy | empty | no adb`; the output comes in state `sh.log` (LAN and relay alike). 25 s timeout.
   Not on Telegram. Worker: whitelist, ONCE, SHORT (a shell command 10 min late is dropped).
+- `bankEnd` (2026-11-13): end the bank-app pauses now (accessibility, VPN, debugging) instead of after the 10-minute wait; result `in use` while that app is in front. State `bankBackAt` = when they end by themselves (epoch ms, 0 = an app still in front / none). `ts.why` = "bank" while the VPN pause holds Tailscale.
 - `shClear`: empties `sh.log`. `adbTcp {on, pin}` (gated): on (also sent again as "Open now": retries at once and ends a debugging pause whose app is no longer in front) = USB debugging kept on and adbd `tcpip:5555`
   (classic `adb connect <ip>:5555`), re-opened by the Guard tick after a reboot (every 10 min while closed), paused while
   a bank app has debugging off; off (also `devOff` and release) = `usb:` then Developer options / USB debugging back as

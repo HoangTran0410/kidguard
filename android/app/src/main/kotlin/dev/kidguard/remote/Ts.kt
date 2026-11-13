@@ -117,7 +117,7 @@ object Ts {
     @Volatile private var expTries = 0
 
     /** Never includes the auth key or token. noExpiry: the node key won't expire (else the page asks to turn it off by hand). */
-    fun stateJson(s: Store): JSONObject = JSONObject().put("state", state).put("ip", ip).put("host", s.tsHost).put("err", err).put("noExpiry", s.tsNoExpiry)
+    fun stateJson(s: Store): JSONObject = JSONObject().put("state", state).put("ip", ip).put("host", s.tsHost).put("err", err).put("noExpiry", s.tsNoExpiry).put("why", if (s.vpnPaused.isNotEmpty()) "bank" else "")
 
     fun installed(ctx: Context) = runCatching { ctx.packageManager.getPackageInfo(TsLogic.PKG, 0); true }.getOrDefault(false)
 

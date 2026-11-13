@@ -99,6 +99,9 @@ object VpnPause {
         if (ts || snap != null) runCatching { s.log(R.string.log_vpn_resumed) }
     }
 
+    /** Parent's "end now" (command bankEnd). */
+    @Synchronized fun endNow(ctx: Context) { val s = Store.of(ctx); if (s.vpnPaused.isNotEmpty()) resume(ctx, s) }
+
     /** Release: Tailscale back on; the always-on VPN is not put back (it was ours, and release takes it off: Ts.undo). */
     fun clear(ctx: Context) {
         val s = Store.of(ctx); val ts = s.vpnTs

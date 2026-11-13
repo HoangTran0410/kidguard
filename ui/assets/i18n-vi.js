@@ -389,7 +389,7 @@ L.vi = {
   "save.saving": "Đang lưu…",
   "save.saved": "Đã lưu",
   "save.failed": "Chưa lưu được",
-  "save.pending": "Chờ máy con nhận",
+  "save.pending": "Chờ máy con nhận", "bk.acc": "trợ năng", "bk.dev": "gỡ lỗi USB", "bk.live": "Đang tạm tắt cho {0}: {1}.", "bk.backAt": "Tự bật lại lúc {0}.", "bk.backLeave": "Tự bật lại 10 phút sau khi con rời app.", "bk.endNow": "Bật lại ngay", "bk.endSent": "Đang bật lại…", "bk.inUse": "Con đang dùng app đó: đợi con thoát app rồi thử lại.", "save.lastSeen": "máy con thấy lần cuối {0}", "save.resend": "Gửi lại", "chip.locOff": "máy con đang tắt vị trí", "chip.dnsErr": "máy con từ chối", "chip.pausedTo": "tạm tắt tới {0}", "hm.stSafe": "Đã tắt sau 3 lần lỗi.", "hm.stSafeTo": "tự bật lại lúc {0}", "dev.bankPaused": "Đang cố ý tắt trong lúc con dùng {0} (app đó không chạy khi bật gỡ lỗi); sẽ tự bật lại. Muốn bật ngay: bấm 'Bật lại ngay' ở thanh trên cùng.",
   "act.off": "Tắt",
   "act.timeout": "Máy con không trả lời, thử lại",
   "act.ringing": "Đang đổ chuông",

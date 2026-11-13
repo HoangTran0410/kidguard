@@ -205,6 +205,9 @@ object AccPause {
         Acc.ensureEnabled(ctx, quiet = true)
     }
 
+    /** Parent's "end now" (command bankEnd): the service comes back now instead of after the 10-minute wait. */
+    @Synchronized fun endNow(ctx: Context) { val s = Store.of(ctx); val p = s.accPaused; if (p.isNotEmpty()) resume(ctx, s, p, kill = true) }
+
     /** Release: forget the pause (Acc's own release takes the service out anyway). */
     fun clear(ctx: Context) { val s = Store.of(ctx); s.accPaused = emptySet(); s.accLeftAt = 0L }
 

@@ -53,11 +53,12 @@ function devCard() {
   else if (p && !p.fail && p.ok && st.t > p.ok + 5000) p.fail = t("dev.reOn");
   else if (p && !p.fail && st.t > p.at + 90000) p.fail = t("dev.stillOn");
   else if (p && !p.fail && Date.now() - p.at > 180000) p.fail = t("dev.timeout");
+  const bk = (st.devPaused || []).length ? `<div class="alert info">${ic("landmark")} ${t("dev.bankPaused", esc(st.devPaused.map(x => ((st.apps || []).find(a => a.pkg === x) || {}).label || x).join(", ")))}</div>` : "";
   const busy = p && !p.fail && on !== p.want, fail = p && p.fail ? `<div class="alert warn">${ic("triangle-alert")} ${t(p.want ? "dev.failOn" : "dev.fail", esc(p.fail))}</div>` : "";
   return sec("s-dev", "code", t("dev.h"), t("sd.dev"), [on ? t("dev.on") : t("dev.off"), on ? "warn" : "ok"], on ? `<p class="mute">${t("dev.p")}${d.adb ? " " + t("dev.adb") : ""}</p>
     ${fail}
-    ${d.canOff ? `<button id="devOff" ${busy ? "disabled" : ""}>${ic(busy ? "hourglass" : "x")} ${busy ? t("dev.pend") : t("dev.btn")}</button>` : `<p class="mute">${ic("circle-help")} ${t("dev.cant")}</p>`}` : `<p class="mute">${ic("check")} ${t("dev.offP")}</p>${fail}
-    ${d.canOn ? `<button id="devOn" ${busy ? "disabled" : ""}>${ic(busy ? "hourglass" : "code")} ${busy ? t("dev.pendOn") : t("dev.onBtn")}</button>` : ""}`, on || !!fail);
+    ${d.canOff ? `<button id="devOff" ${busy ? "disabled" : ""}>${ic(busy ? "hourglass" : "x")} ${busy ? t("dev.pend") : t("dev.btn")}</button>` : `<p class="mute">${ic("circle-help")} ${t("dev.cant")}</p>`}` : `${bk || `<p class="mute">${ic("check")} ${t("dev.offP")}</p>`}${fail}
+    ${d.canOn && !bk ? `<button id="devOn" ${busy ? "disabled" : ""}>${ic(busy ? "hourglass" : "code")} ${busy ? t("dev.pendOn") : t("dev.onBtn")}</button>` : ""}`, on || !!fail);
 }
 async function devOff(want) {
   want = want === true;
