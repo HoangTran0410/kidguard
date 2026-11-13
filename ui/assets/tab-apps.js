@@ -63,7 +63,11 @@ function appsList(b) {
     const vis = visible();
     $("#list").innerHTML = vis.map(x => {
       const m = mode(x.pkg), nw = isNew(x);
-      const info = `<div class="nm"><b>${esc(x.label)}</b><span class="mute">${t("todayV", fmt(x.ms))}${x.suspended || x.blocked ? `<span class="tag bad">${reason(x.blocked)}</span>` : ""}${nw ? `<span class="tag" style="background:#fef3c7;color:#92400e">${ic("sparkles")} ${t("newInst")}</span>` : ""}${m === "block" ? `<span class="tag bad">${ic("octagon-x")} ${t("block")}</span>` : m === "allow" ? `<span class="tag" title="${esc(t("allow"))}">${ic("star")}</span>` : m === "limit" ? `<span class="tag">${ic("timer")} ${t("fmt.m", edit.appMin[x.pkg])}</span>` : ""}</span></div>`;
+      // ONE tag: the enforced state, only when the dropdown beside it does not already say it (A2.7)
+      const on = x.suspended || x.blocked, tag = nw ? `<span class="tag" style="background:#fef3c7;color:#92400e">${ic("sparkles")} ${t("newInst")}</span>`
+        : on ? (m === "block" && x.blocked === "blocked" ? "" : `<span class="tag bad">${reason(x.blocked)}</span>`)
+        : m === "block" ? `<span class="tag warn">${ic("hourglass")} ${t("app.waitPhone")}</span>` : "";
+      const info = `<div class="nm"><b>${esc(x.label)}</b><span class="mute">${t("todayV", fmt(x.ms))}${tag}</span></div>`;
       if (sel.on) return `<label class="app r"><input type="checkbox" data-c="${esc(x.pkg)}" ${sel.set.has(x.pkg) ? "checked" : ""}>${icon(x)}${info}</label>`;
       return `<div class="app${nw ? "" : " r"}">${icon(x)}${info}
       ${nw ? `<button class="pri" data-ok="${esc(x.pkg)}">${ic("circle-check")} ${t("permit")}</button>` : ""}

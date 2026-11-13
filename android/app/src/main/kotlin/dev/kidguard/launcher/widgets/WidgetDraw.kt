@@ -71,15 +71,18 @@ internal class MonthGrid(ctx: Context, private val text: Int, private val sub: I
         val padX = width * 0.04f
         val colW = (width - 2 * padX) / 7f
         val lineH = height / (weeks + 2.3f)
-        val ts = minOf(lineH * 0.5f, colW * 0.42f) * scale.coerceAtMost(1.15f)
+        val sd = resources.displayMetrics.scaledDensity * scale.coerceAtMost(1.15f)
+        // type scale (WType): never above the shared sizes, smaller when the cell is
+        val ts = WType.cap(minOf(lineH * 0.5f, colW * 0.42f) * scale.coerceAtMost(1.15f), WType.BODY, sd)
+        val tsTitle = WType.cap(ts, WType.TITLE, sd); val tsHead = WType.cap(ts * 0.8f, WType.CAPTION, sd)
         // title
-        p.typeface = bold; p.textSize = ts * 1.0f; p.color = head; p.textAlign = Paint.Align.LEFT
-        p.letterSpacing = 0.04f
+        p.typeface = bold; p.textSize = tsTitle; p.color = head; p.textAlign = Paint.Align.LEFT
+        p.letterSpacing = 0.08f
         c.drawText(title, padX + colW * 0.15f, lineH * 0.78f, p)
         p.letterSpacing = 0f
         p.textAlign = Paint.Align.CENTER
         // weekday initials
-        p.typeface = bold; p.textSize = ts * 0.8f; p.color = sub
+        p.typeface = bold; p.textSize = tsHead; p.color = sub
         for ((i, s) in heads(first).withIndex()) c.drawText(s, padX + colW * (i + 0.5f), lineH * 1.9f, p)
         // days
         p.textSize = ts

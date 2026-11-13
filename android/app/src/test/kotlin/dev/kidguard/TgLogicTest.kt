@@ -155,4 +155,82 @@ class TgLogicTest {
         assertNull(TgLogic.codeNow("", 59_000))
         assertFalse(TgLogic.isAction("code"))
     }
+
+    private fun req(id: String = "ab12", kind: String = "time", min: Int = 30) = JSONObject().put("id", id).put("at", now).put("kind", kind).put("min", min).put("pkg", "com.x").put("app", "Game")
+
+    @Test fun requestButtonsHalfSameDouble() {
+        assertEquals(listOf(15, 30, 60), TgLogic.reqOpts(30))
+        assertEquals(listOf(5, 15, 30), TgLogic.reqOpts(15))
+        assertEquals(listOf(15, 30, 60), TgLogic.reqOpts(0))
+        assertEquals(listOf(300, 600), TgLogic.reqOpts(600).filter { it >= 300 })
+        val d = datas(TgLogic.reqKb("vi", req()))
+        assertEquals(listOf("ry:ab12:15", "ry:ab12:30", "ry:ab12:60", "rn:ab12"), d)
+        assertEquals(listOf("ra:ab12", "rb:ab12"), datas(TgLogic.reqKb("en", req(kind = "app"))))
+        assertTrue(TgLogic.reqText("vi", "An", req(kind = "app")).contains("Game"))
+        // a remind is a new alert key, the first one keeps the plain key
+        assertEquals("r:ab12", TgLogic.reqKey(req()))
+        assertEquals("r:ab12@${now + 1000}", TgLogic.reqKey(req().put("remindAt", now + 1000)))
+    }
+
+    @Test fun staleTapsAfterGap() {
+        assertEquals(0, TgLogic.gapMin(0, now))
+        assertEquals(0, TgLogic.gapMin(now - 60_000, now))
+        assertEquals(25, TgLogic.gapMin(now - 25 * 60_000, now))
+        assertTrue(TgLogic.isActionData("ry:ab12:30")); assertTrue(TgLogic.isActionData("c:lock")); assertTrue(TgLogic.isActionData("k:1"))
+        assertFalse(TgLogic.isActionData("n:main")); assertFalse(TgLogic.isActionData("r:status")); assertFalse(TgLogic.isActionData("c:status")); assertFalse(TgLogic.isActionData("f:1"))
+        assertTrue(TgLogic.s("vi", "gapOld", 25).contains("25"))
+    }
+
+    @Test fun giveUsesGrant() {
+        val r = Rules()
+        val (daily, pass1) = TgLogic.give(r, "", 30, now, "2027-01-15")
+        assertFalse(pass1); assertEquals(30, daily.bonusMin); assertTrue(daily.rev > r.rev)
+        val (bed, pass2) = TgLogic.give(r, "bedtime", 30, now, "2027-01-15")
+        assertTrue(pass2); assertEquals(now + 30 * 60_000L, bed.passUntil); assertEquals(0, bed.bonusMin)
+    }
+
+    @Test fun approveAndLimitAndLost() {
+        val r = Rules(blocked = setOf("a"), approved = setOf("b"))
+        assertEquals(setOf("a2") + "a", TgLogic.approve(r, "a2", false, now).blocked)
+        TgLogic.approve(r, "a", true, now).let { assertTrue("a" in it.approved); assertFalse("a" in it.blocked) }
+        val w = Rules(dailyByDay = listOf(60, 60, 90, 90, 90, 120, 120))
+        assertTrue(TgLogic.limitDiffers(w)); assertFalse(TgLogic.limitDiffers(Rules(dailyByDay = List(7) { 60 }))); assertFalse(TgLogic.limitDiffers(Rules(dailyMin = 60)))
+        assertEquals(listOf(60, 60, 45, 90, 90, 120, 120), TgLogic.limitToday(w, 45, 3, now).dailyByDay)
+        assertEquals(List(7) { 45 }, TgLogic.limit(w, 45, now).dailyByDay)
+        assertEquals("all" to "120", TgLogic.limitArgs(listOf("all", "120"))); assertEquals("today" to "90", TgLogic.limitArgs(listOf("today", "90"))); assertEquals("" to "90", TgLogic.limitArgs(listOf("90")))
+        assertEquals(setOf("c:limit all 90", "c:limit today 90", "n:main"), datas(TgLogic.limitAskKb("vi", 90)).toSet())
+        val l = TgLogic.lost(Rules(), true, "x".repeat(300), now); assertTrue(l.lostOn); assertEquals(200, l.lostMsg.length)
+        assertEquals("Call 0912", TgLogic.lostMsgOf(TgLogic.parse("/lost on Call 0912")!!)); assertEquals("hi", TgLogic.lostMsgOf(TgLogic.parse("/lost hi")!!))
+        assertNull(TgLogic.lostMsgOf(TgLogic.parse("/lost")!!)); assertNull(TgLogic.lostMsgOf(TgLogic.parse("/lost off")!!)); assertNull(TgLogic.lostMsgOf(TgLogic.parse("/lost go")!!))
+    }
+
+    @Test fun alertLevels() {
+        for (imp in listOf("sos", "important", "info")) assertTrue(TgLogic.quietOk("all", imp))
+        assertTrue(TgLogic.quietOk("important", "important")); assertFalse(TgLogic.quietOk("important", "info")); assertTrue(TgLogic.quietOk("important", "sos"))
+        assertFalse(TgLogic.quietOk("sos", "important")); assertFalse(TgLogic.quietOk("sos", "info")); assertTrue(TgLogic.quietOk("sos", "sos"))
+        assertEquals("sos", TgLogic.importance("sos", true)); assertEquals("important", TgLogic.importance("tamper", true)); assertEquals("info", TgLogic.importance("battery", false))
+        assertTrue(datas(TgLogic.quietKb("vi", "sos")).contains("c:quiet important"))
+    }
+
+    @Test fun undoOnlyWhatChanged() {
+        val before = Rules(bonusDay = "d", bonusMin = 10, pausedUntil = 5)
+        val after = before.copy(bonusMin = 40)
+        val cur = after.copy(pausedUntil = 999)   // a later edit of something else stays
+        val u = TgLogic.undo(cur, before, after, now)
+        assertEquals(10, u.bonusMin); assertEquals(999, u.pausedUntil); assertTrue(u.rev >= cur.rev)
+    }
+
+    @Test fun answeredAndNowAndStatus() {
+        val hm = { _: Long -> "20:14" }
+        assertEquals("✅ Bố đã cho 15 phút lúc 20:14", TgLogic.answered("vi", "Bố", true, "time", 15, "", now, hm))
+        assertEquals("❎ Mom said no at 20:14", TgLogic.answered("en", "Mom", false, "time", 0, "", now, hm))
+        assertTrue(TgLogic.answered("vi", "Bố", true, "app", 0, "Game", now, hm).contains("Game"))
+        val st = JSONObject().put("now", JSONObject().put("why", "bedtime").put("until", now + 1000))
+        assertTrue(TgLogic.status(st, "An", "vi", now, hm).contains("giờ ngủ (tới 20:14)"))
+        assertEquals("", TgLogic.nowLine(JSONObject().put("now", JSONObject().put("why", "")), "en", hm))
+        assertEquals("com.a", TgLogic.newAppPkg(JSONObject().put("apps", JSONArray().put(JSONObject().put("pkg", "com.a").put("label", "Game").put("new", true)).put(JSONObject().put("pkg", "com.b").put("label", "Game").put("new", false))), "Installed Game"))
+        for (l in listOf("vi", "en")) for (k in TgLogic.menu(l).toString().let { listOf("b.requests", "b.quiet", "b.lost", "aReqApp", "lostAsk", "limitAsk", "groupHint", "passDone", "undone", "ansSos", "ansGone", "sosGot")}) assertFalse(k, TgLogic.s(l, k) == k)
+        assertTrue(datas(TgLogic.menu("vi")).containsAll(listOf("c:requests", "c:quiet", "c:lost")))
+        assertEquals("Vị trí lúc 20:14 (sai số ~30 m)", TgLogic.pinLabel("vi", JSONObject().put("t", now).put("acc", 30.0), now, hm))
+    }
 }

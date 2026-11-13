@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="log_pin_wrong_local">Wrong PIN typed on this phone %1$d times, locked for %2$d min</string>
+    <string name="ev_req_remind">Your child is still waiting for an answer: %1$d more minutes</string>
+    <string name="ev_req_remind_app">Your child is still waiting for an answer: open %1$s</string>
+    <string name="ev_lost_on">Lost mode is on: the phone locks again every time it is opened</string>
+    <string name="ev_lost_off">Lost mode is off</string>
+    <string name="ev_sim">The SIM card changed (%1$s)</string>
+    <string name="ev_sim_absent">removed</string>
+    <string name="ev_sim_other">another carrier or SIM</string>
+    <string name="ev_released">KidGuard management was removed from this phone</string>
+    <string name="ev_release_failed">Removing KidGuard failed: the phone is still managed</string>
+    <string name="ev_one_more">Took the extra minute (%1$s)</string>
+    <string name="ev_tamper_page">Opened a Settings page to turn KidGuard off or uninstall it</string>
+    <string name="ev_tamper_clock">Opened the date and time settings</string>
+    <string name="ev_tamper_acc_off">The accessibility service is off: apps are not blocked until it is back on</string>
+    <string name="ev_tamper_boot">The phone was restarted</string>
+    <string name="lost_default_msg">This phone is lost. Please call the owner.</string>
+    <string name="lost_info">%1$s · %2$s</string>
+    <string name="notif_sos_seen">Your parent has seen your SOS</string>
+    <string name="support_bed">Bedtime. Opens again at %1$s.</string>
+    <string name="support_bed_ask">Bedtime. Opens again at %1$s. You can ask for more time in KidGuard.</string>
+    <string name="support_sched">%1$s. Opens again at %2$s.</string>
+    <string name="support_sched_ask">%1$s. Opens again at %2$s. You can ask for more time in KidGuard.</string>
+    <string name="support_pause">Your parent paused apps until %1$s.</string>
+    <string name="support_daily">Today\'s screen time is used up. Opens again tomorrow.</string>
+    <string name="support_daily_ask">Today\'s screen time is used up. You can ask for more time in KidGuard.</string>
+    <string name="support_lost">This phone is locked. Please call the owner.</string>
+    <string name="support_break">A break</string>
+    <string name="answer_app_yes">Your parent said yes: you can use %1$s today</string>
+    <string name="answer_app_always">Your parent said yes: you can always use %1$s</string>
+    <string name="lost_parent_off">Parent: turn off lost mode</string>
+</resources>

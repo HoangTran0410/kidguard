@@ -79,11 +79,45 @@ class LogicTest {
     @Test fun lostNotifiedOnceThenResets() {
         val base = Logic.NotifyState(init = true)
         val o1 = Logic.evaluate("An", seen(act = now - 31 * 60_000), base, now, tr = TestTr.VI)
-        assertEquals(listOf("Mất kết nối với máy của An"), o1.events.map { it.text })
+        assertEquals(listOf("Máy của An offline từ " + Logic.hhmm(now - 31 * 60_000)), o1.events.map { it.text })
         assertTrue(Logic.evaluate("An", seen(act = now - 40 * 60_000), o1.state, now, tr = TestTr.VI).events.isEmpty())
         val back = Logic.evaluate("An", seen(act = now), o1.state, now, tr = TestTr.VI)
         assertFalse(back.state.lost)
+        assertEquals(listOf("lost"), back.clear)   // the "offline since" notice is dismissed when the phone is back
         assertEquals(1, Logic.evaluate("An", seen(act = now - 31 * 60_000), back.state, now, tr = TestTr.VI).events.size)
+    }
+
+    @Test fun lostIsSilentAtBedtime() {
+        val o = Logic.evaluate("An", Logic.Seen(true, emptyList(), now - 40 * 60_000, bedtime = true), Logic.NotifyState(init = true), now, tr = TestTr.VI)
+        assertTrue(o.events.isEmpty()); assertTrue(o.state.lost)
+    }
+
+    @Test fun appRequestEvent() {
+        val o = Logic.evaluate("An", Logic.Seen(true, listOf("r1" to 0), now, appReqs = mapOf("r1" to "YouTube")), Logic.NotifyState(init = true), now, tr = TestTr.VI)
+        assertEquals(listOf("An xin mở YouTube"), o.events.map { it.text }); assertTrue(o.events[0].app)
+    }
+
+    @Test fun grantRulesFollowsNowWhy() {
+        val r = org.json.JSONObject("""{"dailyMin":60,"pinSet":true,"bonus":{"day":"2026-11-13","min":10}}""")
+        for (why in listOf(null, "", "daily")) {
+            val o = Logic.grantRules(r, why, "2026-11-13", 1_000_000L, 15)
+            assertEquals(25, o.getJSONObject("bonus").getInt("min")); assertFalse(o.has("passUntil")); assertFalse(o.has("pinSet"))
+        }
+        for (why in listOf("bedtime", "schedule", "paused", "pass")) {
+            val o = Logic.grantRules(r, why, "2026-11-13", 1_000_000L, 15)
+            assertEquals(1_000_000L + 900_000L, o.getLong("passUntil")); assertEquals(10, o.getJSONObject("bonus").getInt("min"))
+        }
+        // a pass still running extends from its end, not from now
+        val r2 = org.json.JSONObject(r.toString()).put("passUntil", 5_000_000L)
+        assertEquals(5_900_000L, Logic.grantRules(r2, "pass", "2026-11-13", 1_000_000L, 15).getLong("passUntil"))
+    }
+
+    @Test fun approveAppRules() {
+        val r = org.json.JSONObject("""{"blocked":["a.b","c.d"],"approved":["x.y"],"pinHash":"h"}""")
+        val o = Logic.approveAppRules(r, "a.b")
+        assertEquals(setOf("a.b", "x.y"), (0 until o.getJSONArray("approved").length()).map { o.getJSONArray("approved").getString(it) }.toSet())
+        assertEquals(listOf("c.d"), (0 until o.getJSONArray("blocked").length()).map { o.getJSONArray("blocked").getString(it) })
+        assertFalse(o.has("pinHash"))
     }
 
     @Test fun accessibilityOffNotifiedOncePerTransition() {

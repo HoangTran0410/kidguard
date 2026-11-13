@@ -7,7 +7,7 @@ Android 8+ on the child's phone. Parent: any browser (iPhone included) or the An
 ## Two apps and a web page
 
 - **Child app** (kidguard.apk, on the child's phone): enforces the rules, suspends apps, sends location, serves the parent page on port 8770 of the phone. Download: https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk
-- **Parent page**: plain HTML served by the child's phone. At home open `http://<phone IP>:8770` and type the 6-digit code shown on the child's phone (or scan the QR it shows). Away from home use Tailscale (recommended, direct, end-to-end encrypted), your own Cloudflare Worker relay (free, run `scripts/relay.sh` or `scripts/relay.ps1`), or the author's shared relay (quota shared by everyone). Set a parent PIN in Settings: without it the phone refuses to pair another browser.
+- **Parent page**: plain HTML served by the child's phone. At home open `http://<phone IP>:8770` and type the 6-digit pairing code (the last setup screen shows it with a QR for 10 minutes; later hold "Bố mẹ: hiện mã ghép" for 5 s) or scan the QR. Away from home use Tailscale (recommended, direct, end-to-end encrypted), your own Cloudflare Worker relay (free, run `scripts/relay.sh` or `scripts/relay.ps1`), or the author's shared relay (quota shared by everyone). Set a parent PIN in the pairing form: without it the phone refuses to pair another browser.
 - **Parent app** (kidguard-parent.apk, optional, Android): the browser is enough, but the app adds notifications (SOS, time requests, accessibility turned off) and shows the last data when the child's phone is offline. Download: https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk
 - **KidGuard Home** (kidguard-home.apk, < 1 MB, Android 8+): the kid launcher alone (iOS-style home, App Library, Today page, widgets), its own package dev.kidguard.home; no parental control, no Device Owner, no special permissions.
 
@@ -25,7 +25,7 @@ Order (v0.9.8). Only step 4 needs the child's phone accounts (Google, Samsung, X
    - Command line: `scripts/setup.sh` (macOS / Linux) or `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1` (Windows); downloads adb if missing.
 5. Pair the parent's phone or browser (home Wi-Fi or relay).
 
-Basic mode (no Device Owner, accounts stay) is what steps 1-3 give you: tap "Cài nhanh không cần máy tính" and turn on each item of the checklist (device admin, accessibility, usage access, location, battery). Weaker: blocked apps are closed back to the home screen instead of greyed out; no family DNS, no blocking installs / USB debugging, no reboot, no Tailscale; Safe Mode stops the blocking. It can be switched to Device Owner later (step 4).
+Basic mode (no Device Owner, accounts stay) is what steps 1-3 give you: follow the "To do" list and turn on each item (device admin, accessibility, usage access, location, battery). Weaker: blocked apps are closed back to the home screen instead of greyed out; no family DNS, no blocking installs / USB debugging, no reboot, no Tailscale; Safe Mode stops the blocking. It can be switched to Device Owner later (step 4).
 
 Xiaomi, Oppo, Vivo, Samsung: let KidGuard run in the background (battery / autostart settings).
 

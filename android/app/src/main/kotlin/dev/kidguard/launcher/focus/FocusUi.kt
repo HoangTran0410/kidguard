@@ -15,6 +15,9 @@ import java.util.Calendar
 
 private var chipText: TextView? = null
 private var chipSession: FocusLogic.Session? = null
+/** A session started by hand can be undone without the PIN until this time (a mis-tap would hide every app for 25-60 min). */
+private var undoUntil = 0L
+private const val UNDO_MS = 10_000L
 
 /** Render hook: the show map with every non-study app hidden while study mode (session or schedule) is on. Parent blocks stay as they are. */
 internal fun HomeActivity.focusShow(show: Map<String, LauncherLogic.Show>, dv: HomeActivity.View0): Map<String, LauncherLogic.Show> {
@@ -61,6 +64,14 @@ internal fun HomeActivity.focusChip() {
     col.addView(t, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(14), dp(6), dp(14), dp(2)) })
     bannerBox.addView(col, android.widget.FrameLayout.LayoutParams(-1, -2))
     chipText = t
+    if (chipSession != null && System.currentTimeMillis() < undoUntil) {
+        val undo = text(getString(R.string.focus_undo), 14f, pal.text, true).apply {
+            gravity = Gravity.CENTER; background = fill(pal.sheet, 18f); setPadding(dp(14), dp(8), dp(14), dp(8)); elevation = dpf(2f)
+            kit.tap(this, 18f, true) { undoUntil = 0L; FocusStore.end(this@focusChip); key = ""; render(true) }
+        }
+        col.addView(undo, LinearLayout.LayoutParams(-2, -2).apply { setMargins(dp(14), dp(6), dp(14), dp(2)); gravity = Gravity.CENTER_HORIZONTAL })
+        main.postDelayed({ if (chipSession != null) { key = ""; render(true) } }, UNDO_MS + 150)
+    }
     focusTick()
 }
 
@@ -77,14 +88,14 @@ internal fun HomeActivity.focusTick() {
 // ---- gate (parent PIN) ----
 
 /** Runs [then] at once (Home flavor / no PIN), else after the parent PIN is typed right. */
-private fun HomeActivity.gate(why: Int, then: () -> Unit) {
+private fun HomeActivity.gate(why: Int, title: Int = R.string.focus_end_t, button: Int = R.string.focus_end_ok, then: () -> Unit) {
     val s = Store.of(this)
     if (!FocusLogic.needsPin(Flavor.HOME, s.rules.pinHash.isNotBlank())) { then(); return }
     fun lockText(left: Long) = ((left + 59_999) / 60_000).toInt().let { resources.getQuantityString(R.plurals.pin_locked, it, it) }
     s.pinLockLeft().takeIf { it > 0 }?.let { Modal(this, u).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, getString(R.string.locked_title), lockText(it)); return }
     val m = Modal(this, u)
     val input = m.field(getString(R.string.pin_field), 12, pin = true)
-    m.show(R.drawable.li_shield, Modal.Tone.INFO, getString(R.string.focus_end_t), getString(why), input, ok = getString(R.string.focus_end_ok), cancel = getString(R.string.cancel)) {
+    m.show(R.drawable.li_shield, Modal.Tone.INFO, getString(title), getString(why), KidNow.withForgot(this, u, input), ok = getString(button), cancel = getString(R.string.cancel)) {
         if (s.checkParentPin(input.text.toString().filter { it.isDigit() })) { then(); true }
         else { input.setText(""); m.setError(s.pinLockLeft().takeIf { it > 0 }?.let { lockText(it) } ?: getString(R.string.pin_wrong)); false }
     }
@@ -92,7 +103,7 @@ private fun HomeActivity.gate(why: Int, then: () -> Unit) {
 
 private fun HomeActivity.endFocus(after: () -> Unit = {}) {
     val ok = { FocusStore.end(this); key = ""; render(true); after() }
-    if (FocusLogic.needsPin(Flavor.HOME, Store.of(this).rules.pinHash.isNotBlank())) gate(R.string.focus_end_pin, ok)
+    if (FocusLogic.needsPin(Flavor.HOME, Store.of(this).rules.pinHash.isNotBlank())) gate(R.string.focus_end_pin, then = ok)
     else Modal(this, u).show(R.drawable.li_timer, Modal.Tone.INFO, getString(R.string.focus_end_t), getString(R.string.focus_end_b), ok = getString(R.string.focus_end_ok), cancel = getString(R.string.cancel)) { ok(); true }
 }
 
@@ -124,13 +135,13 @@ private fun HomeActivity.fillFocus(sh: Sheet) {
         if (study.isEmpty()) b.addView(text(getString(R.string.focus_apps_empty), 13f, pal.warnText, true), lp())
         for (m in FocusLogic.DURATIONS) b.addView(kit.pill(getString(R.string.focus_start_n, m), R.drawable.li_timer, m == FocusLogic.DURATIONS[1]) {
             if (FocusStore.study(this).isEmpty()) { pickStudy(again); return@pill }
-            sh.dismiss(); FocusStore.start(this, m); key = ""; render(true)
+            sh.dismiss(); FocusStore.start(this, m); undoUntil = System.currentTimeMillis() + UNDO_MS; key = ""; render(true)
         }, lp())
     }
     b.addView(kit.pill(getString(R.string.focus_apps, study.size), null, false) { pickStudy(again) }, lp())
     val sl = FocusStore.slots(this)
     b.addView(kit.pill(getString(R.string.focus_sched) + " · " + (if (sl.isEmpty()) getString(R.string.focus_sched_none) else sl.size.toString()), R.drawable.li_clock, false) {
-        sh.dismiss(); main.post { gate(R.string.focus_sched_pin) { editSlots() } }
+        sh.dismiss(); main.post { gate(R.string.focus_sched_pin, R.string.focus_sched_t, R.string.focus_gate_ok) { editSlots() } }
     }, lp())
 }
 

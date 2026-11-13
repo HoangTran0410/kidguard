@@ -3,7 +3,9 @@
 <resources>
     <string name="app_name">KidGuard Phụ huynh</string>
     <string name="err_port">Không mở được cổng nội bộ</string>
-    <string name="ch_events">Thông báo từ máy của con</string>
+    <string name="ch_requests">Xin thêm giờ và cảnh báo quan trọng</string>
+    <string name="ch_info">Thông báo khác từ máy của con</string>
+    <string name="ch_offline">Máy con mất kết nối</string>
     <string name="ch_sos">SOS từ con</string>
     <string name="upd_title">Có bản KidGuard Phụ huynh mới (%1$s)</string>
     <string name="upd_text">Bấm để mở app và cài bản mới</string>
@@ -11,8 +13,10 @@
         <item quantity="other">%1$s xin thêm %2$d phút</item>
     </plurals>
     <string name="ev_sos">%1$s bấm SOS lúc %2$s</string>
-    <string name="ev_lost">Mất kết nối với máy của %1$s</string>
+    <string name="ev_offline">Máy của %1$s offline từ %2$s</string>
+    <string name="ev_request_app">%1$s xin mở %2$s</string>
     <string name="ev_unpaired">Máy của %1$s không nhận app này nữa. Ghép lại bằng mã trên máy con.</string>
+    <string name="ev_unpaired_relay">Máy của %1$s không nhận app này nữa. Thêm lại bằng link mới từ máy con.</string>
     <string name="ev_acc_off">%1$s đã tắt Trợ năng của KidGuard: app không bị chặn nữa</string>
     <string name="act_grant">+%1$d phút</string>
     <string name="act_decline">Từ chối</string>
@@ -33,4 +37,10 @@
     <string name="dl_ok">Đã lưu vào Tải xuống/KidGuard: %1$s</string>
     <string name="dl_fail">Không lưu được %1$s</string>
     <string name="files_nopicker">Không mở được trình chọn file</string>
+    <string name="act_approve">Cho mở</string>
+    <string name="ans_approved">Đã cho mở</string>
+    <string name="ans_approved_queued">Đã cho mở, áp dụng khi máy con online</string>
+    <string name="ans_half_app">Đã cho mở, đang báo cho con. Đừng bấm lại</string>
+    <string name="test_title">Thông báo thử</string>
+    <string name="test_text">Hoạt động tốt: cảnh báo từ máy con sẽ hiện như thế này.</string>
 </resources>

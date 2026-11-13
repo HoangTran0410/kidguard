@@ -161,10 +161,18 @@ object Logic {
     class Loc(val lat: Double, val lng: Double, val t: Long)   // state.location (last fix)
     class Seen(val fetchOk: Boolean, val requests: List<Pair<String, Int>>, val activityT: Long, val sos: List<Pair<String, Long>> = emptyList(), val events: List<Ev> = emptyList(),
                val accOff: Boolean = false,   // v0.7 basic mode: the child turned KidGuard's accessibility off (no blocking)
-               val loc: Loc? = null)
+               val loc: Loc? = null,
+               val appReqs: Map<String, String> = emptyMap(),   // 0.9.16: request id -> app label of the open "may I open this app" requests (kind "app")
+               val bedtime: Boolean = false)   // state.now.why == "bedtime": a phone that goes quiet now is just asleep
+
     /** key: unique per event, used as notification id. [min]: a request's minutes; [loc]: the kid's last fix (SOS "show location"). */
-    class Event(val key: String, val text: String, val min: Int = 0, val loc: Loc? = null)
-    class Outcome(val events: List<Event>, val state: NotifyState)
+    class Event(val key: String, val text: String, val min: Int = 0, val loc: Loc? = null,
+                val app: Boolean = false,         // an "open this app" request: buttons Approve / Decline instead of minutes
+                val important: Boolean = false)   // tamper / lost / released: the "requests" channel instead of the quiet "info" one
+    /** [clear]: notification keys to dismiss (the phone is back: "offline since" is no longer true). */
+    class Outcome(val events: List<Event>, val state: NotifyState, val clear: List<String> = emptyList())
+    /** Event kinds that matter as much as a request (C7). */
+    fun importantKind(kind: String) = kind == "tamper" || kind == "lost" || kind == "released"
 
     /** A failed fetch of a LAN kid says nothing while this phone is off Wi-Fi (mobile data cannot reach 192.168.x.x). */
     fun failCounts(via: String, onWifi: Boolean, hasRelay: Boolean = false, sameNet: Boolean = true) = via != "lan" || hasRelay || (onWifi && sameNet)
@@ -191,31 +199,35 @@ object Logic {
     fun evaluate(name: String, seen: Seen, st: NotifyState, now: Long, failCounts: Boolean = true, tr: Tr): Outcome {
         if (!seen.fetchOk && !failCounts) return Outcome(emptyList(), st)   // unreachable for a reason that says nothing about the kid
         val events = ArrayList<Event>()
+        val clear = ArrayList<String>()
         var ids = st.seenIds
         var lost = st.lost
         var failSince = st.failSince
         if (seen.fetchOk) {
             failSince = 0L
             // the first look at a kid only records what is already there (no burst of old requests)
-            if (st.init) for ((id, min) in seen.requests) if (id !in ids) events.add(Event("req:$id", tr.q(T.ev_request, min, name, min), min))
+            if (st.init) for ((id, min) in seen.requests) if (id !in ids)
+                events.add(seen.appReqs[id]?.let { Event("req:$id", tr.s(T.ev_request_app, name, it), app = true) } ?: Event("req:$id", tr.q(T.ev_request, min, name, min), min))
             // SOS: also on the first look, unless it is old (the child may have pressed it before the app was set up)
             for ((id, t) in seen.sos) if ("s:$id" !in ids && now - t < SOS_FRESH_MS) events.add(Event("sos:$id", tr.s(T.ev_sos, name, hhmm(t)), loc = seen.loc))
             // events (zones, battery, new app, clock): same rule as requests, plus a one-time silent look per kid so an app
             // update does not replay the 50 events a phone already holds; stale ones are recorded but not shown
-            if (st.evInit) for (e in seen.events) if ("e:${e.id}" !in ids && now - e.t < EV_FRESH_MS) events.add(if (e.kind == "checkin") Event("ci:${e.id}", "$name: ${e.text}", loc = e.loc ?: seen.loc) else Event("ev:${e.id}", "$name: ${e.text}"))
+            if (st.evInit) for (e in seen.events) if ("e:${e.id}" !in ids && now - e.t < EV_FRESH_MS) events.add(if (e.kind == "checkin") Event("ci:${e.id}", "$name: ${e.text}", loc = e.loc ?: seen.loc) else Event("ev:${e.id}", "$name: ${e.text}", important = importantKind(e.kind)))
             val current = seen.sos.map { "s:" + it.first } + seen.requests.map { it.first } + seen.events.map { "e:" + it.id }
             ids = (ids + current).let { all -> if (all.size > 300) current.toSet() else all }
             val isLost = seen.activityT > 0 && now - seen.activityT > LOST_MS
-            if (isLost && !lost) events.add(Event("lost", tr.s(T.ev_lost, name)))
+            // asleep at bedtime is not news (the phone is switched off every night); coming back dismisses the notice
+            if (isLost && !lost && !seen.bedtime) events.add(Event("lost", tr.s(T.ev_offline, name, hhmm(seen.activityT))))
+            if (!isLost && lost) clear.add("lost")
             lost = isLost
-            if (seen.accOff && !st.accOff) events.add(Event("acc", tr.s(T.ev_acc_off, name)))
+            if (seen.accOff && !st.accOff) events.add(Event("acc", tr.s(T.ev_acc_off, name), important = true))
         } else {
             if (failSince == 0L) failSince = now
             val isLost = now - failSince > LOST_MS
-            if (isLost && !lost) events.add(Event("lost", tr.s(T.ev_lost, name)))
+            if (isLost && !lost) events.add(Event("lost", tr.s(T.ev_offline, name, hhmm(failSince))))
             if (isLost) lost = true
         }
-        return Outcome(events, NotifyState(ids, lost, failSince, true, st.evInit || seen.fetchOk, if (seen.fetchOk) seen.accOff else st.accOff))
+        return Outcome(events, NotifyState(ids, lost, failSince, true, st.evInit || seen.fetchOk, if (seen.fetchOk) seen.accOff else st.accOff), clear)
     }
 
     /**
@@ -247,6 +259,31 @@ object Logic {
     /** FCM {kind: "ev", kid, ...} means "check this kid now" (the check itself notifies "<name>: <text>" once per event id). */
     fun pushCheckKid(kids: List<KidCfg>, data: Map<String, String>): KidCfg? =
         if (data["kind"] == "ev") kids.firstOrNull { it.via == "relay" && it.id == data["kid"] } else null
+
+    // ---- answering a request (0.9.16, contract C1 / C3) ----
+
+    /**
+     * The grant rule, same as the page's grant(min) and the phone's Grant.apply: while nothing special holds (state `now.why` is ""
+     * or "daily") raise today's bonus; otherwise (bedtime, schedule, paused, ...) `passUntil = max(now, passUntil) + min`.
+     * PIN fields are dropped (the page / phone keep their own). [nowWhy] null (an older phone, no `now`) = "".
+     */
+    fun grantRules(rules: JSONObject, nowWhy: String?, day: String, nowMs: Long, add: Int): JSONObject {
+        if (nowWhy.isNullOrEmpty() || nowWhy == "daily") return Act.bonusRules(rules, day, add)
+        val o = JSONObject(rules.toString())
+        o.put("passUntil", maxOf(nowMs, o.optLong("passUntil")) + add * 60_000L)
+        o.remove("pinHash"); o.remove("pinSet"); o.remove("pin")
+        return o
+    }
+
+    /** Approving an app request: [pkg] joins `approved` and leaves `blocked` (full rules back, PIN fields dropped). */
+    fun approveAppRules(rules: JSONObject, pkg: String): JSONObject {
+        val o = JSONObject(rules.toString())
+        fun list(k: String) = o.optJSONArray(k)?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList()
+        o.put("approved", JSONArray((list("approved") + pkg).distinct().sorted()))
+        o.put("blocked", JSONArray(list("blocked").filter { it != pkg }))
+        o.remove("pinHash"); o.remove("pinSet"); o.remove("pin")
+        return o
+    }
 
     // --- app update (same rules as the child's UpdateLogic) ---
     const val RELEASES = "https://github.com/HoangTran0410/kidguard/releases/latest"

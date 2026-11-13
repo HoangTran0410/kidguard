@@ -36,8 +36,8 @@ internal class MediaCard(private val act: HomeActivity, private val cc: Boolean,
         outlineProvider = object : ViewOutlineProvider() { override fun getOutline(v: View, o: Outline) { o.setRoundRect(0, 0, v.width, v.height, act.dpf(12f)) } }
         clipToOutline = true
     }
-    private val title = act.text("", if (cc) 15f else 14f, fg, true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
-    private val artist = act.text("", 12f, dim).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
+    private val title = act.text("", if (cc) WType.BODY else WType.BODY, fg, true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
+    private val artist = act.text("", WType.CAPTION, dim).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
     private val prev = btn(R.drawable.li_skip_back, R.string.md_prev) { ctl?.transportControls?.skipToPrevious() }
     private val play = btn(R.drawable.li_play, R.string.md_play) { toggle() }
     private val next = btn(R.drawable.li_skip_forward, R.string.md_next) { ctl?.transportControls?.skipToNext() }

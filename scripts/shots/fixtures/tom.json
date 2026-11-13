@@ -117,6 +117,7 @@
    ]
   }
  ],
+ "now": { "why": "lost", "until": 0, "name": "" },
  "requests": [],
  "events": [],
  "log": [],
@@ -127,6 +128,10 @@
   "t": "@-9m"
  },
  "rules": {
+  "passUntil": 0,
+  "lostOn": true,
+  "lostMsg": { "vi": "Máy bị lạc, xin gọi số dưới đây", "en": "This phone is lost, please call the number below" },
+  "lostPhone": "0901 234 567",
   "dailyMin": 90,
   "dailyByDay": [
    90,

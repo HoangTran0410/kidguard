@@ -24,8 +24,9 @@ object Warn {
         fun minutesTo(start: Int) = (start - minuteOfDay + 1440) % 1440
         fun startDow(delta: Int) = if (minuteOfDay + delta >= 1440) (if (dow == 7) 1 else dow + 1) else dow
         if (r.bedtimeOn) {
-            val s = Rules.parseHm(r.bedStart); val e = Rules.parseHm(r.bedEnd)
-            if (s != null && e != null && !Rules.inWindow(minuteOfDay, s, e)) {
+            val night = bedTonight(r, today)
+            val s = night?.first
+            if (s != null && bedEndNow(r, minuteOfDay, today) == null) {
                 val d = minutesTo(s)
                 if (d in 1..LEAD_MIN && "$today:bed" !in sent) out += Due(setOf("$today:bed"), tr.s(T.warn_bed, LEAD_MIN))
                 // v0.9.7 wind-down nudge, a gentle one before the 5-minute heads-up

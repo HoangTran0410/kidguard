@@ -39,6 +39,11 @@
     <string name="app_unhidden">Hiện lại app: %1$s</string>
     <string name="diff_pause">tạm dừng máy</string>
     <string name="diff_pause_off">bỏ tạm dừng</string>
+    <string name="diff_pass">mở máy tới %1$s</string>
+    <string name="diff_pass_off">kết thúc giờ thêm</string>
+    <string name="diff_lost">bật chế độ thất lạc</string>
+    <string name="diff_lost_off">tắt chế độ thất lạc</string>
+    <string name="diff_bed_nights">đổi giờ ngủ theo đêm</string>
     <string name="diff_bonus">thưởng +%1$d phút</string>
     <string name="diff_bonus_off">bỏ thưởng giờ</string>
     <string name="diff_chores_n">việc nhà %1$d → %2$d</string>
@@ -168,8 +173,6 @@
     <string name="ch_guard">KidGuard chạy nền (tắt được, vẫn bảo vệ)</string>
 
     <!-- Basic mode setup card -->
-    <string name="basic_title">Cài nhanh không cần máy tính</string>
-    <string name="basic_intro">Làm lần lượt từng bước. Mỗi nút mở đúng màn hình cần bật. Bật xong, bấm Quay lại.</string>
     <string name="basic_admin">1. Bật quyền quản trị thiết bị</string>
     <string name="basic_admin_d">Để KidGuard khoá máy được và không bị gỡ khi chưa có bố mẹ.</string>
     <string name="basic_admin_expl">KidGuard cần quyền này để khoá màn hình và chống bị gỡ.</string>
@@ -182,7 +185,7 @@
     <string name="basic_loc_bg">4. Vị trí: cho phép \"Luôn cho phép\"</string>
     <string name="basic_loc_bg_d">Để bố mẹ thấy vị trí cả khi KidGuard đang đóng. Ở màn hình tiếp theo, chọn \"Luôn cho phép\".</string>
     <string name="basic_notif">5. Cho phép thông báo</string>
-    <string name="basic_notif_d">Để con thấy lời nhắc và lý do khi app bị khoá.</string>
+    <string name="basic_notif_d">Để bạn thấy lời nhắc và lý do khi app bị khoá.</string>
     <string name="basic_battery">6. Không giới hạn pin cho KidGuard</string>
     <string name="basic_battery_d">Nếu không, máy có thể tắt KidGuard để tiết kiệm pin.</string>
     <string name="basic_update">Cho KidGuard tự cập nhật</string>
@@ -251,7 +254,7 @@
     <string name="upd_cancelled">đã huỷ</string>
 
     <!-- Policy -->
-    <string name="policy_support">App này đang tạm bị chặn. Con có thể xin thêm giờ trong KidGuard.</string>
+    <string name="policy_support">App này đang tạm bị chặn. Bạn có thể xin thêm giờ trong KidGuard.</string>
     <string name="dns_refused">DNS %1$s bị từ chối (mã %2$d)</string>
     <string name="dns_fallback">Mạng này không dùng được DNS an toàn. Tạm tắt 30 phút để máy không mất mạng.</string>
     <string name="log_dns_fallback">DNS an toàn làm mất mạng, tạm tắt 30 phút</string>
@@ -287,7 +290,7 @@
     <string name="ss_failed">Chưa cài được: %1$s</string>
     <string name="ss_perm_mon">Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật \"Tắt giám sát quyền\" (Disable permission monitoring), rồi làm lại.</string>
     <string name="ss_no_pair_port">Không thấy cổng ghép nối. Hãy mở lại hộp thoại \"Ghép thiết bị bằng mã ghép nối\" rồi thử lại.</string>
-    <string name="ss_pair_fail">Ghép nối không thành công (sai mã hoặc hộp thoại đã đóng).</string>
+    <string name="ss_pair_fail">Ghép nối không thành công (sai mã hoặc mã đã hết hạn). Mở lại \"Ghép thiết bị bằng mã\" để lấy mã mới, rồi nhập ngay trong thông báo.</string>
     <string name="ss_no_conn_port">Ghép nối xong nhưng không thấy cổng kết nối. Hãy tắt rồi bật lại \"Gỡ lỗi không dây\".</string>
     <string name="ss_conn_fail">Không kết nối được tới chính máy này: %1$s</string>
     <string name="ss_cmd_fail">lệnh không thành công</string>
@@ -340,7 +343,7 @@
     <string name="ssa_wd_off">Gỡ lỗi không dây chưa bật.</string>
 
     <!-- Child main screen -->
-    <string name="main_tagline">Giúp con dùng điện thoại an toàn</string>
+    <string name="main_tagline">Dùng điện thoại an toàn</string>
     <string name="main_code_label">MÃ GHÉP ĐÔI</string>
     <string name="main_code_left">MÃ GHÉP ĐÔI · CÒN %1$s</string>
     <string name="main_code_under1">DƯỚI 1 PHÚT</string>
@@ -353,7 +356,7 @@
     <string name="main_unlock">Nhập mã mở khoá</string>
     <string name="main_unlocked_until">Đang mở khoá tới %1$s · nhập mã khác để thêm</string>
     <string name="main_pair_more">Ghép thêm máy bố mẹ</string>
-    <string name="main_my_rules">Luật của con</string>
+    <string name="main_my_rules">Luật của bạn</string>
     <string name="main_log">Nhật ký thay đổi</string>
     <string name="main_reveal">Bố mẹ: hiện mã ghép (giữ 5 giây)</string>
     <string name="main_recover">Mất liên kết? Ghép lại (giữ 10 giây)</string>
@@ -371,7 +374,7 @@
     </plurals>
     <string name="st_owner">Đang được bố mẹ quản lý</string>
     <string name="st_basic">Chế độ cơ bản: KidGuard đang bảo vệ</string>
-    <string name="st_unfinished">Chưa cài xong: làm các bước trong khung \"Cài nhanh\" bên dưới</string>
+    <string name="st_unfinished">Chưa cài xong: làm các bước trong khung \"Việc cần làm\" bên dưới</string>
     <string name="st_no_usage">Chưa có quyền xem thời gian dùng app</string>
     <string name="st_running">Đang chạy</string>
     <string name="st_starting">Đang khởi động…</string>
@@ -426,10 +429,10 @@
     <string name="log_title">Nhật ký</string>
     <string name="log_sub">20 dòng gần nhất, mới nhất ở trên.</string>
     <string name="sos_q">Gửi SOS cho bố mẹ?</string>
-    <string name="sos_q_body">Bố mẹ sẽ nhận báo khẩn cấp kèm vị trí của con.</string>
+    <string name="sos_q_body">Bố mẹ sẽ nhận báo khẩn cấp kèm vị trí của bạn.</string>
     <string name="sos_send">Gửi SOS</string>
     <string name="sos_done">Đã báo cho bố mẹ</string>
-    <string name="sos_done_body">Bố mẹ sẽ thấy báo SOS và vị trí của con.</string>
+    <string name="sos_done_body">Bố mẹ sẽ thấy báo SOS và vị trí của bạn.</string>
     <string name="sos_again">Vừa gửi rồi</string>
     <string name="sos_again_body">Bố mẹ sẽ thấy ngay khi máy có mạng.</string>
     <plurals name="unl_locked">
@@ -441,16 +444,16 @@
     <string name="unl_ok">Mở khoá</string>
     <string name="unl_done">Đã mở khoá</string>
     <plurals name="unl_done_body">
-        <item quantity="other">Con dùng được thêm %1$d phút.</item>
+        <item quantity="other">Bạn dùng được thêm %1$d phút.</item>
     </plurals>
     <string name="unl_wrong">Sai mã hoặc mã đã dùng, thử lại</string>
     <string name="more_note">Lý do (không bắt buộc)</string>
     <string name="more_other">Khác: tự chọn số phút</string>
-    <string name="more_body">Chọn số phút con muốn xin bố mẹ.</string>
+    <string name="more_body">Chọn số phút muốn xin bố mẹ.</string>
     <string name="more_body_chores">Làm việc nhà để xin thêm giờ, hoặc tự chọn số phút. Bố mẹ sẽ quyết định.</string>
     <string name="log_more">Con xin thêm giờ</string>
     <string name="more_sent">Đã gửi cho bố mẹ</string>
-    <string name="more_sent_body">Con sẽ nhận thông báo khi bố mẹ trả lời.</string>
+    <string name="more_sent_body">Bạn sẽ nhận thông báo khi bố mẹ trả lời.</string>
     <string name="more_fail">Chưa gửi được</string>
     <string name="more_fail_body">Đang có quá nhiều yêu cầu chờ bố mẹ trả lời.</string>
     <string name="msg_title">Bố mẹ nhắn</string>
@@ -497,7 +500,7 @@
     <!-- home screen: status card, quick row, "Thêm" sheet -->
     <string name="home_more">Thêm</string>
     <string name="home_more_desc">Thêm tuỳ chọn</string>
-    <string name="home_sec_kid">Của con</string>
+    <string name="home_sec_kid">Của bạn</string>
     <string name="home_sec_parent">Bố mẹ</string>
     <string name="home_sec_device">Máy &amp; cài đặt</string>
     <string name="log_yesterday">Hôm qua</string>
@@ -533,6 +536,7 @@
     <string name="admin_ok">Mở</string>
     <string name="admin_loading">Đang mở trang quản lý…</string>
     <string name="admin_wrong">Sai mã, thử lại</string>
+    <string name="ev_tg_bad">Token bot Telegram không còn dùng được: tạo token mới ở @BotFather rồi dán vào KidGuard</string>
     <string name="log_tg_linked">Telegram đã liên kết: %1$s</string>
     <string name="admin_shot_note">Sai 3 lần, máy sẽ chụp 1 ảnh bằng camera trước gửi bố mẹ.</string>
     <string name="admin_shot_taken">Sai nhiều lần: đã chụp ảnh gửi bố mẹ</string>
@@ -561,20 +565,20 @@
     <string name="policy_support_long">App này đang tạm nghỉ theo luật bố mẹ đặt. Cần dùng? Mở KidGuard, bấm \"Xin thêm giờ\", hoặc nói với bố mẹ.</string>
     <string name="policy_note">Bố mẹ nhắn: %1$s</string>
     <string name="st_gray">Màn hình đen trắng: sắp đến giờ ngủ</string>
-    <string name="main_ci_arrived">Con tới nơi rồi</string>
-    <string name="main_ci_pickup">Đón con với</string>
+    <string name="main_ci_arrived">Tới nơi rồi</string>
+    <string name="main_ci_pickup">Nhờ đón</string>
     <string name="main_ci_sent">%1$s · đã gửi %2$s</string>
     <string name="ev_ci_arrived">Con báo: đã tới nơi</string>
     <string name="ev_ci_pickup">Con nhờ: đón con với</string>
     <string name="log_checkin">Con bấm \"%1$s\"</string>
     <string name="ci_done">Đã báo bố mẹ</string>
-    <string name="ci_done_loc">Bố mẹ sẽ thấy tin này và vị trí của con.</string>
+    <string name="ci_done_loc">Bố mẹ sẽ thấy tin này và vị trí của bạn.</string>
     <string name="ci_done_noloc">Bố mẹ sẽ thấy tin này. Máy đang lấy vị trí, có là gửi kèm.</string>
     <string name="ci_again">Vừa gửi rồi</string>
-    <string name="ci_again_body">Con vừa bấm nút này. Đợi 1 phút rồi bấm lại nếu cần.</string>
-    <string name="ci_q_arrived">Báo bố mẹ: con tới nơi rồi?</string>
-    <string name="ci_q_pickup">Nhờ bố mẹ đến đón con?</string>
-    <string name="ci_q_body">Bố mẹ sẽ nhận được tin này kèm vị trí của con.</string>
+    <string name="ci_again_body">Bạn vừa bấm nút này. Đợi 1 phút rồi bấm lại nếu cần.</string>
+    <string name="ci_q_arrived">Báo bố mẹ: bạn tới nơi rồi?</string>
+    <string name="ci_q_pickup">Nhờ bố mẹ đến đón?</string>
+    <string name="ci_q_body">Bố mẹ sẽ nhận được tin này kèm vị trí của bạn.</string>
     <string name="ci_send">Gửi</string>
     <string name="more_quick">Bấm một nút để gửi ngay, hoặc tự chọn bên dưới.</string>
     <string name="tpl_homework">+15 phút làm bài</string>
@@ -641,7 +645,7 @@
     <string name="hm_114">114 · Cứu hoả</string>
     <string name="hm_115">115 · Cấp cứu</string>
     <string name="hm_q_arrived">Tới nơi</string>
-    <string name="hm_q_pickup">Đón con</string>
+    <string name="hm_q_pickup">Nhờ đón</string>
     <string name="hm_q_more">Xin giờ</string>
     <string name="hm_q_sent">Đã gửi</string>
     <string name="hm_q_sent_at">Đã gửi %1$s</string>
@@ -697,7 +701,7 @@
     <string name="hm_w_time">Thời gian còn lại</string>
     <string name="hm_w_time_d">Giờ dùng máy còn lại hôm nay</string>
     <string name="hm_w_quick">Nút nhanh</string>
-    <string name="hm_w_quick_d">SOS, tới nơi, đón con, xin giờ</string>
+    <string name="hm_w_quick_d">SOS, tới nơi, nhờ đón, xin giờ</string>
     <string name="hm_w_next">Lịch tiếp theo</string>
     <string name="hm_w_next_d">Việc tiếp theo hôm nay</string>
     <string name="hm_w_next_at">Tiếp theo · %1$s</string>
@@ -717,7 +721,7 @@
     <string name="hm_w_earn">Kiếm thêm giờ</string>
     <string name="hm_w_earn_d">Làm việc nhà để được thêm giờ</string>
     <string name="hm_w_msg">Lời nhắn bố mẹ</string>
-    <string name="hm_w_msg_d">Tin mới nhất bố mẹ gửi cho con</string>
+    <string name="hm_w_msg_d">Tin mới nhất bố mẹ gửi cho bạn</string>
     <string name="hm_w_class">Thời khoá biểu</string>
     <string name="hm_w_class_d">Tiết đang học, môn hôm nay, mai mang gì; 4×4 xem cả tuần</string>
     <string name="hm_w_apps_title">Tiện ích của ứng dụng khác</string>
@@ -737,10 +741,10 @@
     <string name="hm_w_todo_empty">Chưa có bài tập. Bấm để thêm</string>
     <string name="hm_w_more">+%1$d nữa</string>
     <string name="hm_w_usage">Đã dùng hôm nay</string>
-    <string name="hm_w_usage_d">Ứng dụng con dùng nhiều nhất hôm nay</string>
+    <string name="hm_w_usage_d">Ứng dụng dùng nhiều nhất hôm nay</string>
     <string name="hm_w_usage_none">Hôm nay chưa dùng ứng dụng nào</string>
     <string name="hm_w_note">Ghi chú</string>
-    <string name="hm_w_note_d">Ghi chú mới nhất của con</string>
+    <string name="hm_w_note_d">Ghi chú mới nhất của bạn</string>
     <string name="hm_t_title">Hôm nay</string>
     <string name="hm_t_now_card">Bây giờ</string>
     <string name="hm_t_hi_morning">Chào buổi sáng</string>
@@ -748,7 +752,7 @@
     <string name="hm_t_hi_afternoon">Chào buổi chiều</string>
     <string name="hm_t_hi_evening">Chào buổi tối</string>
     <string name="hm_t_hi_night">Khuya rồi, đi ngủ thôi</string>
-    <string name="hm_t_nice_day">Chúc con một ngày vui vẻ!</string>
+    <string name="hm_t_nice_day">Chúc bạn một ngày vui vẻ!</string>
     <string name="hm_t_locked">Đang khoá: %s</string>
     <string name="hm_t_class_now">Đang học %1$s (tiết %2$d), hết lúc %3$s</string>
     <string name="hm_t_recess">Ra chơi, vào lớp lúc %s</string>
@@ -790,7 +794,7 @@
     <string name="hm_t_homework">Bài tập</string>
     <string name="hm_t_done_state">Đã xong</string>
     <string name="hm_t_add_homework">Thêm bài tập</string>
-    <string name="hm_t_chore_sent">Bố mẹ sẽ xem và cộng giờ cho con.</string>
+    <string name="hm_t_chore_sent">Bố mẹ sẽ xem và cộng giờ cho bạn.</string>
     <string name="hm_t_homework_hint">Ví dụ: Toán trang 12</string>
     <string name="hm_t_add">Thêm</string>
     <string name="hm_t_drop_q">Xoá bài tập này?</string>
@@ -804,11 +808,11 @@
     <string name="hm_t_share">Bố mẹ xem được</string>
     <string name="hm_t_add_note">Ghi chú mới</string>
     <string name="hm_t_note_hint">Viết gì đó…</string>
-    <string name="hm_t_share_sub">Tắt: chỉ mình con đọc được.</string>
+    <string name="hm_t_share_sub">Tắt: chỉ mình bạn đọc được.</string>
     <string name="hm_t_edit_note">Sửa ghi chú</string>
     <string name="hm_t_save">Lưu</string>
     <string name="hm_t_files">File với bố mẹ</string>
-    <string name="hm_t_to_parent">Con gửi · %1$s</string>
+    <string name="hm_t_to_parent">Bạn gửi · %1$s</string>
     <string name="hm_t_fetched">Bố mẹ đã tải</string>
     <string name="hm_t_from_parent">Bố mẹ gửi · %1$s</string>
     <string name="hm_t_new">Mới</string>
@@ -923,7 +927,7 @@
     <string name="nlog_clear">Xoá hết</string>
     <string name="nlog_clear_body">Xoá danh sách trên điện thoại này. Không khôi phục được.</string>
     <string name="nlog_clear_ok">Xoá</string>
-    <string name="nlog_empty">Chưa có gì.\nThông báo được giữ %1$d ngày, kể cả khi con đã vuốt bỏ. Chạm để xem chi tiết.</string>
+    <string name="nlog_empty">Chưa có gì.\nThông báo được giữ %1$d ngày, kể cả khi bạn đã vuốt bỏ. Chạm để xem chi tiết.</string>
     <string name="nlog_today">Hôm nay</string>
     <string name="nlog_yesterday">Hôm qua</string>
     <string name="nlog_gone">App này không mở được lúc này</string>

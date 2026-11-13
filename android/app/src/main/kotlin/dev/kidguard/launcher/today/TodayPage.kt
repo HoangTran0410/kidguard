@@ -113,7 +113,7 @@ class TodayPage(
         row.addView(t, LinearLayout.LayoutParams(0, -2, 1f))
         if (Flavor.HOME) { col.addView(row, lp(0)); return }   // KidGuard Home: no parent to call, no SOS
         // call: a number in the lock-screen contact ("Gọi mẹ 0912…"), else just the phone app
-        val num = Regex("\\+?\\d[\\d .-]{6,}\\d").find(r.lockContact)?.value?.replace(Regex("[ .-]"), "")
+        val num = KidNow.parentNumber(r)
         row.addView(ImageView(act).apply {
             setImageDrawable(Ic.get(act, R.drawable.li_phone, pal.text, dp(22))); scaleType = ImageView.ScaleType.CENTER
             background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(pal.sheet); setStroke(dp(1), pal.stroke) }
@@ -123,7 +123,7 @@ class TodayPage(
         row.addView(ImageView(act).apply {
             setImageDrawable(Ic.get(act, R.drawable.li_siren, pal.onDanger, dp(24))); scaleType = ImageView.ScaleType.CENTER
             background = k.circle(pal.danger); contentDescription = s(R.string.main_sos)
-            k.tap(this, 26f) { if (st.everPaired) acts.askSos() else dial("112") }
+            k.tap(this, 26f) { acts.askSos() }   // not paired: it explains that it calls 112 and offers the call
         }, LinearLayout.LayoutParams(dp(52), dp(52)))
         col.addView(row, lp(0))
     }
@@ -347,10 +347,7 @@ class TodayPage(
             Modal(act, u).show(R.drawable.li_link, Modal.Tone.INFO, s(R.string.hm_pair_title), s(R.string.hm_pair_body), ok = s(R.string.hm_open_kg), cancel = s(R.string.cancel)) { openMain(); true }
             return
         }
-        val ok = st.addRequest(ch.min, "", ch.id)
-        if (ok) { st.log(R.string.log_more); Guard.poke(act) }
-        Modal(act, u).show(if (ok) R.drawable.li_send else R.drawable.li_triangle_alert, if (ok) Modal.Tone.OK else Modal.Tone.WARN,
-            s(if (ok) R.string.more_sent else R.string.more_fail), s(if (ok) R.string.hm_t_chore_sent else R.string.more_fail_body))
+        acts.sendChore(ch)
         refreshSoon()
     }
 

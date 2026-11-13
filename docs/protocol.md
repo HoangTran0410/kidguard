@@ -121,8 +121,11 @@ v0.1: `lock locate message{text} ring relay{url} openPairing unpairAll release`.
   pairing / last LAN request (`last` moves at most every 5 min; 0 for phones paired before this). `self: true` marks the
   caller's own row on LAN `/api/state` only; the relay-cached state has no `self`, the page can compute its own id as
   sha256(token).slice(0,8).
-- `answer {id, ok: bool, min?}`: the parent answered a time request. The page ALSO grants the time itself by
-  saving rules (`bonus`), the command only removes the request and tells the child (notification).
+- `answer {req, ok: bool, min?, note?, always?}`: the parent answered the open request (`req` = request id; `id` is the fallback, since the
+  relay fills `id` with the command id). The command only removes the request, stores `lastAnswer` and tells the child (notification); the
+  parent side ALSO edits the rules (full replace). Time request (`kind` "time"): grant `min` = if `now.why` is "" or "daily" raise today's
+  `bonus`, else `passUntil = max(now, passUntil) + min`. App request (`kind` "app", `pkg`/`app`): on ok add `pkg` to `approved` and remove it from
+  `blocked`; `always: true` only changes the child's wording (the approval is permanent either way).
 - `reboot`: DevicePolicyManager.reboot.
 `release` must also undo every v0.2 restriction (location, airplane, private DNS, accessibility allowlist).
 It also disables the child's lock / time-left Quick Settings tiles, home-screen widgets and lock shortcuts (`Quick.kt`;
@@ -282,8 +285,13 @@ The first capture / first input of a session is logged in the phone log.
   it knows; the phone takes them only if `rules.rev` > its own (so a phone clock ahead of the worker's makes relay edits
   wait until the worker rev catches up; LAN saves stamp `rev = max(old+1, phone now)`); `files` = number of
   parent -> kid files waiting; `device` = the parent asked for a device-info upload.
-- Parent `GET /c/<id>/state` -> `{state, rules, seen, pending}`: `state` the last synced state (`rules` inside it with `pinSet`
+- Parent `GET /c/<id>/state` -> `{state, rules, seen, pending, expired}`: `expired` = last 10 commands the worker dropped unrun
+  (SHORT 10 min / 24 h / ONCE window): `[{id, type, res: "expired", at}]`; the page turns "sent" into "expired, not run".
+  The phone's own receipts are `state.done`. `state` the last synced state (`rules` inside it with `pinSet`
   instead of `pinHash`), `rules` the worker's copy, `seen` ms of the last sync, `pending` = queued command count.
+- Command `unlockEnd` (0.9.16): ends an Authenticator unlock now (`unlockUntil = 0`); not PIN-gated, not ONCE, SHORT.
+- `POST /c/<id>/forget` (token header, same auth as sync): deletes everything stored for this id (state, rules, queue, push
+  tokens, Telegram link) and closes the sockets; sent by the phone when it is released. A later sync of the same id binds anew.
 - Input `ms` (swipe duration) is clamped to **50..3000** by both the worker and `Acc.kt`.
 - `GET /c/<id>/state` already returns `seen` (ms of the phone's last sync): the page warns when `now - seen > 5 min`.
 - The worker also serves `GET /install` -> `ui/install.html`.
@@ -544,6 +552,19 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   a picked app turns the picker into the answer (+ "another one"). Every tapped button is acked at once on its own thread
   (answerCallbackQuery, "working…" toast) and commands send sendChatAction (typing / find_location / upload_photo / record_voice).
   setMyShortDescription. The page shows `https://t.me/<bot>?start=<code>` (+ QR): Telegram sends `/start <code>`, which links.
+- 0.9.16 (Tg): every "more time" tap (request buttons, /bonus, panel +N) goes through `Grant.apply` with `now.why` (pass during
+  bedtime / schedule / pause, today's bonus otherwise). Request alert buttons are N/2, N, 2N (rounded to 5) `ry:<req>:<min>` + `rn:<req>`;
+  kind "app" requests and "installed X" alerts get `ra:<req>` / `rb:<req>` / `ay:<pkg>` / `an:<pkg>` (rules `approved` / `blocked` edit; the
+  answer command gets `always: true`). `/requests` (menu button) re-sends the open requests with buttons. Each alert's message ids are kept per chat
+  (memory): any answer, from any chat or the page / app (the request vanishing from `requests[]`, `lastAnswer`), edits every copy to
+  "<who> đã cho 15 phút lúc 20:14". A getUpdates batch after a gap > 10 min (`tgLastOk`) does not run action callbacks: "máy con vừa online lại sau N phút".
+  A double tap (same chat+message+data within 4 s) runs once. Panel +N / pause / limit edit the panel into the result + `z:<key>` Undo (restores
+  only the fields that edit changed). SOS alert: buttons `k:<sos>` (runs `sosAck`), the last stored fix as a pin + a "Vị trí lúc HH:mm, sai số ~N m"
+  label (old = "cũ"), a second pin when a fix newer than the press arrives (the SOS already triggers `locate`). `/limit N` with differing per-weekday
+  limits asks "mọi ngày / chỉ hôm nay" (`/limit all|today N`). `/quiet all|important|sos` per chat (`chats[].quiet`): info events are sent with
+  `disable_notification`, below the level they are skipped (`Events.important`); SOS always. `/lost [on <msg>]` = confirm buttons, `c:lost go` sets
+  rules `lostOn` (+ `lostMsg`), `/lost off`. `/status` shows `now` (why + until). A command in a group chat gets one reply per 10 min
+  ("open a private chat"). 401/404 raises event kind `tg` once. setMyCommands has requests, quiet, lost.
 - /rec answers as a voice message (sendVoice, M4A remuxed from the ADTS stream by `Adts.kt`, plays inline); fallback: the raw .aac as a document.
   The voice carries a "Download" button (callback `a:<16 hex>`): the same M4A as a document, kept 7 days in files/tgrec (max 100 MB, pruned early under 500 MB free; deleted on release).
 - Reliability: an alert counts as seen only once at least one chat got it (else retried every 30 s, dropped after 24 h);
@@ -1248,3 +1269,20 @@ code (`PairPin.adminOpen`); with a PIN or TOTP, or once paired, the code is requ
 The page skips its PIN gate while `caps.paired` is false (preview) and instead asks for a new parent PIN (twice) on the
 first rules save; the PUT carries it as `"pin"`. That PIN then guards the local page and is the PIN the parent enters
 when pairing their own phone (`/api/pair`), so it follows the parent from preview to pairing.
+
+## 0.9.16 phone core (rules, state, events)
+- **Rules** (all allow-listed, missing = default): `passUntil` ms (0 = none; `decide()` lifts everything but blocked/new while `max(unlockUntil, passUntil) > now`);
+  `bedByDay` = `[]` or exactly 7 strings Mon..Sun = the night STARTING that day, each `"HH:mm-HH:mm"` or `""` (no bedtime; early-morning minutes
+  belong to the previous day's entry; any bad entry drops the whole list); `oneMore` bool (default true: the child may take +1 minute once per lock period);
+  `lostOn`, `lostMsg` (<= 200), `lostPhone` (<= 20).
+- **Grant** (`Grant.apply`): `now.why` "" or "daily" raises today's `bonusMin`; anything else sets `passUntil = max(now, passUntil) + min`.
+- **State** `now: {why, until, name}` (why: lost > paused > schedule > bedtime > daily; "pass"/"code" while a pass / Authenticator unlock is in force; `until` ms, 0 = unknown);
+  `done: [{id,type,res,at}]` last 10 command results (relay and LAN); `lastAnswer: {ok,min,kind,app,at}|null`; `lost: {on,applied,ringStopped}`; `oneMore` bool = the +1 minute can be taken now.
+- **Requests** (`requests[]`, at most one open): `{id, at, t(=at), remindAt, kind: "time"|"app", min, note, chore?, tpl?, pkg?, app?}`. A new ask while one is open = remind (same id, `remindAt` = now,
+  rate-limited to 5 min, raises an `request` event whose dedup key is `r:<id>:<remindAt>`). Dropped on the first tick of a new local day. `answer {req, ok, min?, note?, always?}`: for kind "app" the parent side edits `approved`/`blocked`.
+- **Events**: `lost` (on/off), `sim` (state/operator/carrier changed; no ICCID: a swap inside the same carrier is not seen), `released` (before teardown, one relay sync + Telegram tick), `releaseFail`,
+  `oneMore` (info), `tamper` (basic mode: uninstall/turn-off page, clock page, accessibility off, reboot; rate-limited 10 min per key, 60 min for accessibility off). `Events.important`: sos, tamper, lost, request.
+- **Lost mode**: `lockNow` on enter and on every `USER_PRESENT` (basic: message card); lock-screen info = `lostMsg · lostPhone`; fix every 5 min; alarm 5 min every 15 until `ringStop` or lost off; `release` clears it.
+- **Release**: event `released`, one final relay sync, then `POST /c/<id>/forget` with the kid token, then teardown (a failed release raises `releaseFail`).
+- **PIN counters**: PIN / Authenticator code typed on the child phone (on-device admin) use their own counter + lockout; remote attempts keep `pinFails`/`pinLock`.
+- **Support message** (Device Owner): refreshed when `now` changes: "until HH:mm" for bedtime / schedule / pause, "ask" wording only when paired and askable; the parent's `blockNote` wins; lost mode swaps it.

@@ -17,10 +17,13 @@ param([string]$Apk = "", [Alias("y")][switch]$Yes)
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ProgressPreference = "SilentlyContinue"
+# Language: Vietnamese when the Windows culture is vi-*, else English. Override: $env:KG_LANG = "vi" or "en"
+$KgVi = if ($env:KG_LANG) { $env:KG_LANG -eq "vi" } else { (Get-Culture).Name -like "vi*" }
+function T([string]$vi, [string]$en) { if ($KgVi) { $vi } else { $en } }
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 # An APK path given on the command line is resolved against where you ran the script, before we cd next to it.
 if ($Apk) {
-    if (-not (Test-Path -LiteralPath $Apk -PathType Leaf)) { Write-Host "LỖI: Không thấy file APK: $Apk"; exit 1 }
+    if (-not (Test-Path -LiteralPath $Apk -PathType Leaf)) { Write-Host (T "LỖI: Không thấy file APK: $Apk" "ERROR: APK file not found: $Apk"); exit 1 }
     $Apk = (Resolve-Path -LiteralPath $Apk).Path
 }
 if ($PSScriptRoot) { Set-Location -Path $PSScriptRoot } else { Set-Location -Path (Get-Location).Path }
@@ -64,9 +67,9 @@ if (-not $adb) {
     $dir = Join-Path $env:LOCALAPPDATA "kidguard"
     $local = Join-Path $dir "platform-tools\adb.exe"
     if (-not (Test-Path $local)) {
-        Write-Host "Máy chưa có adb (công cụ Google để nói chuyện với điện thoại, ~10 MB)."
-        $ans = Read-Host "Tải về $dir ? [y/N]"
-        if ($ans -notmatch '^[yY]') { Write-Host "Đã huỷ. Cài adb rồi chạy lại."; exit 1 }
+        Write-Host (T "Máy chưa có adb (công cụ Google để nói chuyện với điện thoại, ~10 MB)." "adb (Google tool to talk to the phone, ~10 MB) is not installed.")
+        $ans = Read-Host (T "Tải về $dir ? [y/N]" "Download to $dir ? [y/N]")
+        if ($ans -notmatch '^[yY]') { Write-Host (T "Đã huỷ. Cài adb rồi chạy lại." "Cancelled. Install adb and run again."); exit 1 }
         New-Item -ItemType Directory -Force -Path $dir | Out-Null
         $zip = Join-Path $dir "pt.zip"
         Invoke-WebRequest -UseBasicParsing -Uri "https://dl.google.com/android/repository/platform-tools-latest-windows.zip" -OutFile $zip
@@ -85,24 +88,33 @@ function Adb {
 
 $devList = (Adb devices) -split "`n" | Select-Object -Skip 1
 if (@($devList | Where-Object { $_ -match "\sunauthorized$" }).Count -gt 0) {
-    Write-Host 'Máy đã cắm nhưng chưa cho phép gỡ lỗi USB: nhìn màn hình điện thoại, bấm "Cho phép" (tick "Luôn cho phép"), rồi chạy lại.'
+    Write-Host (T 'Máy đã cắm nhưng chưa cho phép gỡ lỗi USB: nhìn màn hình điện thoại, bấm "Cho phép" (tick "Luôn cho phép"), rồi chạy lại.' 'Phone is plugged in but USB debugging is not allowed: look at the phone screen, tap "Allow" (tick "Always allow"), then run again.')
     Write-Host (Adb devices)
     exit 1
 }
 $devs = @($devList | Where-Object { $_ -match "\sdevice$" })
 if ($env:ANDROID_SERIAL) { $devs = @($devs | Where-Object { ($_ -split "\s+")[0] -eq $env:ANDROID_SERIAL }) }
 if ($devs.Count -ne 1) {
-    Write-Host "Cần đúng 1 máy đã cắm và cho phép gỡ lỗi USB (đang thấy: $($devs.Count))"
+    if ($devs.Count -eq 0 -and -not $env:ANDROID_SERIAL) {
+        Write-Host (T "Không thấy máy nào. Kiểm tra lần lượt:" "No phone found. Check, one by one:")
+        Write-Host (T '  1. Cáp: dùng cáp có truyền dữ liệu (không phải cáp chỉ sạc), cắm thẳng vào máy tính.' '  1. Cable: use a data cable (not charge-only), plugged straight into the computer.')
+        Write-Host (T '  2. Trên máy con: kéo thông báo USB xuống, chọn "Truyền tệp" (File transfer), không chọn "Chỉ sạc".' '  2. On the phone: pull down the USB notification and pick "File transfer", not "Charging only".')
+        Write-Host (T '  3. Mở khoá màn hình máy con, giữ màn hình sáng.' '  3. Unlock the phone screen and keep it on.')
+        Write-Host (T '  4. Bật Gỡ lỗi USB (Tuỳ chọn nhà phát triển) và bấm "Cho phép" khi máy hỏi.' '  4. Turn on USB debugging (Developer options) and tap "Allow" when the phone asks.')
+        Write-Host (T '  5. Windows: cài driver USB của hãng máy (Samsung, Xiaomi, Oppo…), rồi rút cắm lại.' "  5. Windows: install the phone maker's USB driver (Samsung, Xiaomi, Oppo...), then replug the cable.")
+        exit 1
+    }
+    Write-Host (T "Cần đúng 1 máy đã cắm và cho phép gỡ lỗi USB (đang thấy: $($devs.Count)). Nhiều máy: đặt `$env:ANDROID_SERIAL." "Exactly 1 phone with USB debugging allowed is needed (found: $($devs.Count)). Several phones: set `$env:ANDROID_SERIAL.")
     Write-Host (Adb devices)
     exit 1
 }
 
 $model = (Adb shell getprop ro.product.model).Trim()
 $ver = (Adb shell getprop ro.build.version.release).Trim()
-Write-Host "[*] Máy đang cắm: $model (Android $ver)"
+Write-Host (T "[*] Máy đang cắm: $model (Android $ver)" "[*] Phone plugged in: $model (Android $ver)")
 if (-not $Yes) {
-    $ans = Read-Host "Đây là máy của con? [y/N]"
-    if ($ans -notmatch '^[yY]') { Write-Host "Đã huỷ."; exit 1 }
+    $ans = Read-Host (T "Đây là máy của con? [y/N]" "Is this your child's phone? [y/N]")
+    if ($ans -notmatch '^[yY]') { Write-Host (T "Đã huỷ." "Cancelled."); exit 1 }
 }
 
 # adb shell often exits 0 on failure: run a command, stop if the output looks like an error.
@@ -265,8 +277,9 @@ if (-not $ip -and (Adb shell ip route get 1.1.1.1) -match "\bsrc (\d+\.\d+\.\d+\
 if (-not $ip) { $ip = "<IP của máy con>" }
 Reenable
 Write-Host ""
-Write-Host "OK Xong. Trên điện thoại bố mẹ (cùng Wi-Fi), mở: http://${ip}:8770"
-Write-Host "-> rồi nhập mã 6 số đang hiện trên máy con. Giờ có thể đăng nhập lại tài khoản trên máy con."
+Write-Host (T "OK Xong. Trên điện thoại bố mẹ (cùng Wi-Fi), mở: http://${ip}:8770" "OK Done. On the parent's phone (same Wi-Fi), open: http://${ip}:8770")
+Write-Host (T '-> rồi nhập mã ghép 6 số: màn hình cuối trên máy con hiện mã trong 10 phút (sau đó: giữ nút "Bố mẹ: hiện mã ghép" 5 giây), và đặt PIN trong form ghép.' '-> then type the 6-digit pairing code: the last screen on the child''s phone shows it for 10 minutes (later: hold "Bố mẹ: hiện mã ghép" for 5 seconds), and set a PIN in the pairing form.')
+Write-Host (T "-> Giờ có thể đăng nhập lại tài khoản trên máy con." "-> You can now sign in to the phone accounts on the child's phone again.")
 # ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off)
 if ("$(Adb shell 'getprop ro.build.version.opporom; getprop ro.build.version.oplusrom')".Trim()) {
     Write-Host '-> Oppo/Realme/OnePlus (ColorOS): mở Đa nhiệm, kéo thẻ KidGuard xuống để khoá (biểu tượng ổ khoá), và trong Quản lý điện thoại cho KidGuard "Tự khởi chạy" + chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app và Trợ năng.'

@@ -8,7 +8,7 @@ package dev.kidguard.parent
  * Each entry's name IS the resource name in res/values(-xx)/strings.xml (a `<plurals>` when used through [Tr.q]).
  * Text the child phone sends (state.events[].text) is shown as it is: it comes in the child phone's language.
  */
-enum class T { ev_request /* plurals */, ev_sos, ev_lost, ev_acc_off }
+enum class T { ev_request /* plurals */, ev_request_app, ev_sos, ev_offline, ev_acc_off }
 
 /** Looks up user-visible text. [s]: a plain string with format args; [q]: a plural picked by [n] (args as given). */
 interface Tr {

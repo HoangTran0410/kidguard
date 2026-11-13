@@ -49,6 +49,11 @@ class ResTr(private val ctx: Context) : Tr {
         T.app_unhidden -> R.string.app_unhidden
         T.diff_pause -> R.string.diff_pause
         T.diff_pause_off -> R.string.diff_pause_off
+        T.diff_pass -> R.string.diff_pass
+        T.diff_pass_off -> R.string.diff_pass_off
+        T.diff_lost -> R.string.diff_lost
+        T.diff_lost_off -> R.string.diff_lost_off
+        T.diff_bed_nights -> R.string.diff_bed_nights
         T.diff_bonus -> R.string.diff_bonus
         T.diff_bonus_off -> R.string.diff_bonus_off
         T.diff_chores_n -> R.string.diff_chores_n

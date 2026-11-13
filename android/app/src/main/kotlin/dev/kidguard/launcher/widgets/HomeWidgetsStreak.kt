@@ -109,7 +109,7 @@ internal fun HomeActivity.streakWidget(m: HomeModel, r: Rules, s: Store, w: Int,
         for (b in StreakLogic.BADGES) {
             val got = b <= best
             addView(TextView(this@streakWidget).apply {
-                text = "$b"; textSize = 12f; typeface = android.graphics.Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER; includeFontPadding = false
+                text = "$b"; textSize = WType.CAPTION; typeface = android.graphics.Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER; includeFontPadding = false
                 setTextColor(if (got) pal.onSolid else pal.sub)
                 background = if (got) fill(pal.solid, 999f) else GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0); setStroke(dp(2), pal.sub) }
                 alpha = if (got) 1f else 0.7f
@@ -119,8 +119,8 @@ internal fun HomeActivity.streakWidget(m: HomeModel, r: Rules, s: Store, w: Int,
     }
     val head = wHead(R.drawable.li_circle_check, getString(R.string.hm_w_streak))
     val big = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
-    big.addView(text("${snap.cur}", if (wide) 40f else 34f, pal.accentText, true))
-    big.addView(text(getString(R.string.sk_days), 13f, pal.sub).apply { setPadding(dp(5), 0, 0, dp(5)) })
+    big.addView(text("${snap.cur}", WType.HERO, pal.accentText, true))
+    big.addView(text(getString(R.string.sk_days), WType.BODY, pal.sub).apply { setPadding(dp(5), 0, 0, dp(5)) })
     val celebrated = snap.celebrate
     val status = when {
         celebrated != null -> getString(R.string.sk_new_badge, celebrated)
@@ -129,19 +129,20 @@ internal fun HomeActivity.streakWidget(m: HomeModel, r: Rules, s: Store, w: Int,
         else -> getString(R.string.sk_today_open)
     }
     val next = StreakLogic.next(snap.cur)
-    val sub = getString(R.string.sk_best, snap.best) + (next?.let { " · " + getString(R.string.sk_next, it - snap.cur, it) } ?: "")
-    val statusV = text(status, 12f, if (celebrated != null || complete) pal.accentText else pal.sub, celebrated != null).apply { maxLines = 2 }
+    val sub = getString(R.string.sk_best, snap.best)
+    val toNext = next?.let { getString(R.string.sk_next, it - snap.cur, it) }
+    val statusV = text(status, WType.CAPTION, if (celebrated != null || complete) pal.accentText else pal.sub, celebrated != null).apply { maxLines = 2 }
     if (wide) {
         val left = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         left.addView(head); left.addView(big)
         val right = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        right.addView(badges()); right.addView(wSub(sub, 2).apply { setPadding(0, dp(6), 0, 0) }); right.addView(statusV)
+        right.addView(badges()); right.addView(wFit(sub + (toNext?.let { " · $it" } ?: ""), WType.CAPTION, pal.sub).apply { setPadding(0, dp(6), 0, 0) }); right.addView(statusV)
         col.addView(left, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(16) }); col.addView(right, LinearLayout.LayoutParams(0, -2, 1f))
     } else {
         col.addView(head); col.addView(big)
         col.addView(wSub(getString(R.string.sk_best, snap.best)))
         col.addView(badges(), LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(6) })
-        col.addView(statusV.apply { setPadding(0, dp(4), 0, 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+        col.addView(statusV.apply { setPadding(0, dp(4), 0, 0) })
     }
     val frame = FrameLayout(this)
     frame.addView(col, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_VERTICAL))
@@ -161,11 +162,11 @@ internal fun HomeActivity.streakSheet(snap: StreakStore.Snap, complete: Boolean,
     val sh = Sheet(this, u, getString(R.string.hm_w_streak))
     val body = sh.body
     val big = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM; setPadding(dp(12), dp(4), dp(12), 0) }
-    big.addView(text("${snap.cur}", 44f, pal.accentText, true))
-    big.addView(text(getString(R.string.sk_days), 16f, pal.sub).apply { setPadding(dp(6), 0, 0, dp(8)) })
+    big.addView(text("${snap.cur}", WType.HERO, pal.accentText, true))
+    big.addView(text(getString(R.string.sk_days), WType.BODY, pal.sub).apply { setPadding(dp(6), 0, 0, dp(8)) })
     body.addView(big)
     val next = StreakLogic.next(snap.cur)
-    body.addView(text(getString(R.string.sk_best, snap.best) + (next?.let { " · " + getString(R.string.sk_next, it - snap.cur, it) } ?: ""), 14f, pal.sub)
+    body.addView(text(getString(R.string.sk_best, snap.best) + (next?.let { "\n" + getString(R.string.sk_next, it - snap.cur, it) } ?: ""), WType.BODY, pal.sub)
         .apply { setPadding(dp(12), 0, dp(12), dp(8)) })
     // badges: a filled circle when reached, a ring when not, the day count under each
     val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(8), dp(4), dp(8)) }
@@ -173,17 +174,17 @@ internal fun HomeActivity.streakSheet(snap: StreakStore.Snap, complete: Boolean,
         val got = b <= snap.best
         val cell = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
         cell.addView(TextView(this).apply {
-            text = "$b"; textSize = 18f; typeface = android.graphics.Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER; includeFontPadding = false
+            text = "$b"; textSize = WType.VALUE; typeface = android.graphics.Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER; includeFontPadding = false
             setTextColor(if (got) pal.onSolid else pal.sub)
             background = if (got) fill(pal.solid, 999f) else GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0); setStroke(dp(2), pal.sub) }
             contentDescription = getString(if (got) R.string.sk_badge_got else R.string.sk_badge_locked, b)
         }, LinearLayout.LayoutParams(dp(52), dp(52)))
-        cell.addView(text(getString(R.string.sk_badge_n, b), 12f, if (got) pal.text else pal.sub).apply { gravity = Gravity.CENTER; setPadding(0, dp(4), 0, 0) })
+        cell.addView(text(getString(R.string.sk_badge_n, b), WType.CAPTION, if (got) pal.text else pal.sub).apply { gravity = Gravity.CENTER; setPadding(0, dp(4), 0, 0) })
         row.addView(cell, LinearLayout.LayoutParams(0, -2, 1f))
     }
     body.addView(row)
     // last 28 days, oldest first, 7 per row: filled = done, ring = today (still open), faint = missed
-    body.addView(text(getString(R.string.sk_last4w).uppercase(), 12f, pal.sub, true).apply { letterSpacing = 0.08f; setPadding(dp(12), dp(12), dp(12), dp(6)) })
+    body.addView(text(getString(R.string.sk_last4w).uppercase(), WType.CAPTION, pal.sub, true).apply { letterSpacing = 0.08f; setPadding(dp(12), dp(12), dp(12), dp(6)) })
     val done = StreakStore.days(this); val today = StreakStore.today()
     val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(8), 0, dp(8), 0) }
     for (w in 0 until 4) {
@@ -204,9 +205,9 @@ internal fun HomeActivity.streakSheet(snap: StreakStore.Snap, complete: Boolean,
         grid.addView(line)
     }
     body.addView(grid)
-    body.addView(text(getString(when { empty -> R.string.sk_empty; complete -> R.string.sk_today_done; else -> R.string.sk_today_open }), 15f, pal.text, true)
+    body.addView(text(getString(when { empty -> R.string.sk_empty; complete -> R.string.sk_today_done; else -> R.string.sk_today_open }), WType.BODY, pal.text, true)
         .apply { setPadding(dp(12), dp(16), dp(12), dp(2)) })
-    body.addView(text(getString(R.string.sk_how), 14f, pal.sub).apply { setPadding(dp(12), 0, dp(12), dp(12)) })
+    body.addView(text(getString(R.string.sk_how), WType.BODY, pal.sub).apply { setPadding(dp(12), 0, dp(12), dp(12)) })
     body.addView(kit.pill(getString(R.string.sk_open_list), R.drawable.li_list_checks, true) { sh.dismiss(); pager.snapTo(0) })
     sh.show()
 }

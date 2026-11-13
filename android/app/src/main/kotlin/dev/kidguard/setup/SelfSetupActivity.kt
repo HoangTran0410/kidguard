@@ -199,6 +199,8 @@ class SelfSetupActivity : Activity() {
         result.setTextColor(if (SelfSetup.done) u.tone(Ic.OK) else u.danger)
         if (SelfSetup.done) {
             SelfSetup.done = false
+            // the parent is holding the phone: show the pairing code + QR on the next screen for 10 minutes (A4.1)
+            if (!pairMode && !Store.of(this).everPaired) Store.of(this).codeRevealUntil = System.currentTimeMillis() + 10 * 60_000L
             startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK))
             finish(); return
         }

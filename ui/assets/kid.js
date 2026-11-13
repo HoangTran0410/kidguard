@@ -25,10 +25,13 @@ async function refresh() {
 async function sameKid(k) {
   try { const r = await fetch(lanApi(k.target) + "/hello", { signal: quick(4000) }); const h = r.ok ? await r.json() : null; return !!h && h.id === k.id; } catch { return false; }
 }
+let retryShow = false;   // a poll is in flight after an error: the banner says "retrying", not the old error
 async function refresh1() {
   const k = cur;
+  if (lastErr && st) { retryShow = true; updateLive(); }
   try {
     const j = await call(k, "/state");
+    retryShow = false;
     if (k !== cur || viewDay) return;
     // LAN: the state itself; relay: {state, rules (sent, not yet taken), seen}
     st = j.state !== undefined ? j.state : j;
@@ -36,10 +39,12 @@ async function refresh1() {
     noState = j.state === null;
     pendingRules = j.state !== undefined ? j.rules : null;
     seenAt = j.state !== undefined ? +j.seen || 0 : 0;
+    rcSync(k, j.state !== undefined ? j.expired : null);   // command receipts (st.done + the worker's expired list)
     lastErr = ""; lastNet = false;
     if (j.state === undefined) learnAddrs(k, st);   // a LAN answer (relay replies wrap the state)
     settle();
   } catch (e) {
+    retryShow = false;
     if (k !== cur) return;
     lastErr = e.message;
     lastNet = !!e.net;
@@ -57,7 +62,7 @@ async function refresh1() {
   // redraw the tab only when what it shows changed and nobody is using a control (icons would reload, a select would close)
   const sig = st ? JSON.stringify([tab, st.rules && st.rules.rev, st.apps.map(a => [a.suspended, a.blocked, Math.floor(a.ms / 60000)]),
     st.location && st.location.t, (st.log || []).length, ((st.log || []).slice(-1)[0] || {}).t, (st.track || []).length, Math.floor(st.usedMs / 60000), lastErr, cachedAt, viewDay,
-    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, st.totpOn, st.unlockUntil, (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(","), (st.preinstalled || []).map(x => (x.hidden ? 1 : 0) + (x.refused ? 2 : 0)).join(""), (st.devices || []).map(d => d.id + d.name).join(","), (st.rules && st.rules.hidden || []).join(","),
+    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, st.totpOn, st.unlockUntil, st.now && st.now.why, (st.requests || []).map(q => q.remindAt || 0).join(), rc.map(x => x.s).join(), (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(","), (st.preinstalled || []).map(x => (x.hidden ? 1 : 0) + (x.refused ? 2 : 0)).join(""), (st.devices || []).map(d => d.id + d.name).join(","), (st.rules && st.rules.hidden || []).join(","),
     st.sh && [st.sh.busy, st.sh.tcp, st.sh.tcpUp, (st.sh.log || []).map(e => e.at).join(",")], st.support && [st.support.busy, st.support.err, st.support.code, (st.support.msgs || []).length]]) : lastErr + (noState ? "|nostate" : "");
   if (tab === "screen") updateLive();   // never redraw the screen tab: the <img> updates by itself
   else if (sig !== lastSig && !busy) { lastSig = sig; render(); } else updateLive();
@@ -151,6 +156,8 @@ async function putRules1(k, e) {
     if (k === cur) saveFail(false);
   } finally { saveBusy--; }
 }
+// a failed call as one sentence (same wording as the live banner): the phone answered with an error vs no network
+const errSentence = er => er && er.net ? t("errX", er.message) : t("save.phoneErr", er && er.message || "?");
 function changed() {
   clearTimeout(saveT);
   if (viewDay) return;   // history snapshot: read-only
@@ -159,7 +166,7 @@ function changed() {
   saveT = setTimeout(async () => {
     saveT = null;
     try { await putRules(k, e); toast(k.via === "lan" ? "ok|" + t("saved") : "send|" + t("sentRelay")); }
-    catch (er) { toast("err|" + t("errX", er.message)); if (k === cur) saveFail(true); }
+    catch (er) { toast("err|" + errSentence(er)); if (k === cur) saveFail(true); }
   }, 500);
 }
 
@@ -203,6 +210,7 @@ const CONFIRM = {
   "f-na": { on: "more.airAsk" },
   "f-hm": { on: "hm.askOn", off: "hm.askOff", safe: 1 },
   "f-mon": { off: "mon.askOff", safe: 1 },
+  "f-lost": { on: "lost.askOn", off: "lost.askOff", safe: 1 },
 };
 let confirmPass = null;
 function confirmGate(e) {
@@ -249,6 +257,8 @@ function pinRefused(r) {
   toast("err|" + t(x === "failed: pin locked" ? "pin.cmdLocked" : x === "failed: pin needed" ? "pin.cmdNeeded" : "pin.cmdWrong"));
   return true;
 }
+// Commands the worker drops after 10 min when the phone is offline (relay/src/index.js SHORT): a "now" action must not run later by surprise
+const SHORT_CMDS = new Set(["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "devOn", "devOff", "setting", "reboot", "clearData", "clearCache", "rescan", "bgLimit", "bgRestore", "pinSet", "pinReset", "pinResetCancel", "adbShell", "support", "openPairing", "unlockEnd"]);
 async function cmd(c, okMsg, q) {
   const k = cur, a0 = q || (q === false ? null : askOf(c.type)) || (c.type === "message" ? [t("askMsg", c.text), t("send")] : null);
   // dangerous: name the kid in the text, so a dialog for A can never be mistaken for B
@@ -259,16 +269,87 @@ async function cmd(c, okMsg, q) {
     c = { ...c, pin };
   } else if (a && !(await ask(...a))) return;
   if (k !== cur) return;   // the screen changed while the dialog was open (notification tap): never send A's command to B
+  const plain = { ...c }; delete plain.pin; delete plain.id;
+  // relay: our own command id, so the phone's receipt (state.done) or the worker's (expired) can be matched; an answer keeps the request in `req`
+  if (k.via !== "lan" && !c.id) c = { ...c, id: newId("p") };
   try {
     const r = await call(k, "/cmd", "POST", c);
-    if (c.pin) { if (pinRefused(r)) return; pinMem = { token: k.token, pin: c.pin, at: Date.now() }; }
+    if (c.pin) { if (pinRefused(r)) return; if (!r || r.result !== "queued") pinMem = { token: k.token, pin: c.pin, at: Date.now() }; }   // queued: the phone has not checked the PIN yet
     if (r && r.result && !["ok", "queued", "no such sos"].includes(r.result) && !(c.type === "tailscale" || c.type === "openPairing")) { toast("err|" + tc("cr." + c.type + ".", r.result, t("cmd.answer", r.result))); return; }
     if (r && r.result === "queued") {   // relay: only stored, the phone runs it on its next poll
-      const on = Date.now() - lastSeen() < (k.via === "lan" ? 30000 : 120000);
-      toast(on ? "send|" + t("cmd.queued") : "warn|" + t("cmd.queuedOff"));
+      const on = Date.now() - lastSeen() < (k.via === "lan" ? 30000 : 120000), gated = !!c.pin, short = SHORT_CMDS.has(c.type);
+      toast(gated ? "send|" + t("cmd.queuedPin") : on ? "send|" + t("cmd.queued") : short ? "warn|" + t("cmd.queuedShort") : "warn|" + t("cmd.queuedOff"));
+      rcAdd(k, c, plain);
     } else toast("ok|" + (okMsg || t("sent")));
     return r || {};
-  } catch (e) { toast("err|" + t("errX", e.message)); }
+  } catch (e) { toast("err|" + errSentence(e)); }
+}
+
+// ---- command receipts (0.9.16, contract C4): a queued relay command is remembered by id until the phone says it ran
+// (state.done) or the worker says it dropped it (expired). s: sent | ok | fail | expired.
+const RC_TYPES = new Set(["lock", "wake", "ring", "locate", "message", "reboot", "release", "unpairAll", "unpair", "clearData", "clearCache", "pinSet", "pinReset", "adbShell", "devOn", "devOff", "unlockEnd", "openPairing", "totpSet", "tgSet", "tgOff", "relay", "tailscaleOff", "answer"]);
+let rc = [];   // [{k, id, type, c (the command without its PIN), pin (memory only, until a receipt), at, s, res, doneAt}]
+function rcAdd(k, c, plain) {
+  if (!RC_TYPES.has(c.type) || !c.id) return;
+  rc = rc.filter(x => !(x.k === k && x.type === c.type && x.s !== "sent")).concat({ k, id: c.id, type: c.type, c: plain, pin: c.pin || "", at: Date.now(), s: "sent" }).slice(-8);
+  updateLive();
+}
+const rcTtl = type => SHORT_CMDS.has(type) ? 10 * 60e3 : 24 * 3600e3;
+function rcSync(k, expired) {
+  if (!rc.length || !st) return;
+  const done = new Map((st.done || []).map(d => [d.id, d])), exp = new Map((expired || []).map(d => [d.id, d])), now = Date.now();
+  for (const x of rc) {
+    if (x.k !== k || x.s !== "sent") continue;
+    const d = done.get(x.id), e = exp.get(x.id);
+    if (d) {
+      x.doneAt = +d.at || now; x.res = String(d.res || "");
+      x.s = x.res === "ok" ? "ok" : "fail";
+      if (x.s === "ok" && x.pin) pinMem = { token: k.token, pin: x.pin, at: now };   // the phone accepted this PIN: only now is it worth remembering
+      if (x.res.startsWith("failed: pin")) pinMem = null;
+    } else if (e || now - x.at > rcTtl(x.type) + 60000) x.s = "expired";
+    if (x.s !== "sent") x.pin = "";
+  }
+}
+// a banner line per receipt of the open kid: [tone, icon, html]; fresh answers fade after a minute, bad ones stay until closed
+function rcBans() {
+  const now = Date.now(), out = [];
+  rc = rc.filter(x => !(x.s === "ok" && now - (x.doneAt || x.at) > 60000) && now - x.at < 36 * 3600e3);
+  for (const x of rc) {
+    if (x.k !== cur) continue;
+    const name = tc("cl.", x.type, x.type), id = esc(x.id);
+    const btn = x.s === "expired" ? ` <button type="button" class="pill" data-rcr="${id}">${ic("refresh-cw")} ${t("rc.resend")}</button>` : "";
+    const close = x.s === "sent" || x.s === "ok" ? "" : `<button type="button" class="banx" data-rcx="${id}" aria-label="${esc(t("ban.hide"))}" title="${esc(t("ban.hide"))}">${ic("x")}</button>`;
+    const body = x.s === "sent" ? t(x.pin ? "rc.sentPin" : SHORT_CMDS.has(x.type) ? "rc.sentShort" : "rc.sentLong", esc(name))
+      : x.s === "ok" ? t("rc.ok", esc(name), hhmm(x.doneAt || x.at))
+      : x.s === "expired" ? t("rc.expired", esc(name))
+      : t("rc.fail", esc(name), esc(x.res.startsWith("failed: pin") ? t(x.res === "failed: pin locked" ? "pin.cmdLocked" : x.res === "failed: pin needed" ? "pin.cmdNeeded" : "pin.cmdWrong") : tc("cr." + x.type + ".", x.res, tc("cr.", x.res, x.res))));
+    out.push([x.s === "ok" ? "ok" : x.s === "sent" ? "info" : "warn", x.s === "ok" ? "check" : x.s === "sent" ? "hourglass" : "triangle-alert", body + btn, null, null, close]);
+  }
+  return out;
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("[data-rcr],[data-rcx]"); if (!b) return;
+  const id = b.dataset.rcr || b.dataset.rcx, x = rc.find(o => o.id === id); if (!x) return;
+  if (b.dataset.rcx) { rc = rc.filter(o => o !== x); return updateLive(); }
+  rc = rc.filter(o => o !== x); updateLive();
+  if (x.k === cur) cmd({ ...x.c }, null, false);   // sends again; a PIN-gated one asks for the PIN again
+});
+
+// ---- more time (0.9.16, contract C1): ONE rule for the page, the phone (Grant.apply) and the parent app (Logic.kt)
+// now.why "" / "daily": today's bonus; any other lock (bedtime, school, pause, app limit...): a timed pass `passUntil`
+function grantApply(r, s, min) {
+  const why = s && s.now ? s.now.why || "" : "", day = (s && s.day) || dkey(Date.now());
+  if (why === "" || why === "daily") { const c0 = r.bonus && r.bonus.day === day ? +r.bonus.min || 0 : 0; r.bonus = { day, min: c0 + min }; return "daily"; }
+  r.passUntil = Math.max(Date.now(), +r.passUntil || 0) + min * 60000; return "pass";
+}
+const grantToast = (kind, r, min) => kind === "pass" ? t("pass.done", fmt(min * 60000), whenTxt(r.passUntil)) : t("pk.bonusDone", fmt(min * 60000));
+/** Give the open kid more time and save it. Throws when the save fails (the rules are put back). */
+async function grant(min) {
+  const k = cur, e = edit, prev = { bonus: e.bonus, passUntil: e.passUntil };
+  clearTimeout(saveT); saveT = null;
+  const kind = grantApply(e, st, min);
+  try { await putRules(k, e); } catch (er) { if (e === edit) Object.assign(e, prev); throw er; }
+  return kind;
 }
 
 // Authenticator (RFC 6238) secret: made here, sent once with `totpSet`, the phone never sends it back
@@ -373,6 +454,12 @@ const LV_D = [
 const rulesUntouched = r => !r.dailyMin && !(r.dailyByDay || []).length && !(r.bedtime && r.bedtime.on) && !(r.schedules || []).length
   && !(r.blocked || []).length && !(r.allow || []).length && !Object.keys(r.appMin || {}).length && !(r.groups || []).length
   && !(r.zones || []).length && !(r.hidden || []).length && !r.blockNew && !r.safeDns && !r.noInstall && !r.pausedUntil;
+// the 4 things a starting level sets, one line each (A4.9): time per day, bedtime, new apps, web filter + installs
+function lvLines(r) {
+  const by = r.dailyByDay && r.dailyByDay.length === 7, mn = by ? Math.min(...r.dailyByDay) : 0, mx = by ? Math.max(...r.dailyByDay) : 0, b = r.bedtime || {};
+  return [by && mn !== mx ? t("lv.l.limBy", mn, mx) : t("lv.l.lim", by ? mn : r.dailyMin), t("lv.l.bed", b.start, b.end),
+    t(r.blockNew ? "lv.l.newOn" : "lv.l.newOff"), t(r.safeDns ? "lv.l.dnsOn" : "lv.l.dnsOff") + (r.noInstall ? " · " + t("lv.l.noInst") : "")];
+}
 let lvBusy = false;
 async function levelsOffer(k) {
   if (lvBusy || k.lv || !edit) return;
@@ -382,7 +469,7 @@ async function levelsOffer(k) {
   lvBusy = true;
   let pick = "balanced";
   const row = id => { const d = LV_D.find(x => x.id === id);
-    return `<label class="app"><input type="radio" name="lv" value="${id}" ${id === pick ? "checked" : ""}><span class="nm"><b>${esc(t("lv." + id))}</b><span class="mute">${tplSummary(d)}${d.rules.blockNew ? " · " + esc(t("lv.new")) : ""}${d.rules.safeDns ? " · " + esc(t("lv.dns")) : ""}${d.rules.noInstall ? " · " + esc(t("lv.noinst")) : ""}</span></span></label>`; };
+    return `<label class="app"><input type="radio" name="lv" value="${id}" ${id === pick ? "checked" : ""}><span class="nm"><b>${esc(t("lv." + id))}</b><span class="mute">${lvLines(d.rules).map(esc).join("<br>")}</span></span></label>`; };
   const extra = `<div role="radiogroup" aria-label="${esc(t("lv.title"))}" style="margin-bottom:8px">${LV_D.map(d => row(d.id)).join("")}<label class="app"><input type="radio" name="lv" value="later"><span class="nm"><b>${esc(t("lv.later"))}</b></span></label></div>`;
   const collect = () => { const c = document.querySelector('#askPop input[name="lv"]:checked'); if (!c) return false; pick = c.value; return true; };
   const ok = await ask(t("lv.ask", k.name), t("lv.go"), false, "", extra, collect);

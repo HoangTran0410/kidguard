@@ -27,8 +27,11 @@ class CheckJob : JobService() {
     override fun onStopJob(p: JobParameters) = false
 
     companion object {
-        const val CHANNEL = "kg_events"
+        /** Channels (C7): sos = high, requests (more time + tamper / lost / released) = default, info = low, offline = low. */
         const val SOS_CHANNEL = "kg_sos"
+        const val REQ_CHANNEL = "kg_requests"
+        const val INFO_CHANNEL = "kg_info"
+        const val OFFLINE_CHANNEL = "kg_offline"
         private const val PERIODIC = 1
         private const val ONCE = 2
 
@@ -44,12 +47,18 @@ class CheckJob : JobService() {
 
         fun channel(c: Context) {
             val nm = c.getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(NotificationChannel(CHANNEL, c.getString(R.string.ch_events), NotificationManager.IMPORTANCE_DEFAULT))
+            nm.deleteNotificationChannel("kg_events")   // before 0.9.16: one default-importance channel for everything
+            nm.createNotificationChannel(NotificationChannel(REQ_CHANNEL, c.getString(R.string.ch_requests), NotificationManager.IMPORTANCE_DEFAULT))
+            nm.createNotificationChannel(NotificationChannel(INFO_CHANNEL, c.getString(R.string.ch_info), NotificationManager.IMPORTANCE_LOW))
+            nm.createNotificationChannel(NotificationChannel(OFFLINE_CHANNEL, c.getString(R.string.ch_offline), NotificationManager.IMPORTANCE_LOW))
             nm.createNotificationChannel(NotificationChannel(SOS_CHANNEL, c.getString(R.string.ch_sos), NotificationManager.IMPORTANCE_HIGH))
         }
 
         fun run(c: Context) {
             runCatching { checkUpdate(c) }.onFailure { android.util.Log.w("KGParent", "update check", it) }
+            Store.setCheckAt(c, System.currentTimeMillis())
+            // the worker drops push tokens after 30 quiet days and a failed registration was never retried: once a day, again
+            if (Store.notify(c) && System.currentTimeMillis() - Store.pushAt(c) >= 24 * 3_600_000L) Push.sync(c, force = true)
             if (!Store.notify(c)) return
             for (k in Logic.parseKids(Store.kids(c))) runKid(c, k)
         }
@@ -75,13 +84,15 @@ class CheckJob : JobService() {
                 o
             }
             if (canPost) for (e in out.events) post(c, k, e)
+            for (key in out.clear) Notif.cancel(c, k, key)
         }
 
         private fun postUnpaired(c: Context, k: Logic.KidCfg) {
             channel(c)
             val pi = PendingIntent.getActivity(c, 10, Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
-            val text = c.getString(R.string.ev_unpaired, k.name)
-            val n = android.app.Notification.Builder(c, CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle("KidGuard")
+            // a relay kid is not paired by a code on the phone: it needs a new link
+            val text = c.getString(if (k.via == "relay") R.string.ev_unpaired_relay else R.string.ev_unpaired, k.name)
+            val n = android.app.Notification.Builder(c, REQ_CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle("KidGuard")
                 .setContentText(text).setStyle(android.app.Notification.BigTextStyle().bigText(text)).setContentIntent(pi).setAutoCancel(true).build()
             c.getSystemService(NotificationManager::class.java).notify(0x6b68 + (k.key.hashCode() and 0xfff), n)
         }
@@ -117,6 +128,11 @@ class CheckJob : JobService() {
                     val x = rq!!.optJSONObject(i) ?: return@mapNotNull null
                     x.optString("id").takeIf { it.isNotEmpty() }?.let { it to x.optInt("min") }
                 }
+                val appReqs = (0 until (rq?.length() ?: 0)).mapNotNull { i ->
+                    val x = rq!!.optJSONObject(i) ?: return@mapNotNull null
+                    if (x.optString("kind") != "app" || x.optString("id").isEmpty()) null
+                    else x.optString("id") to x.optString("app").ifEmpty { x.optString("pkg") }.take(60)
+                }.toMap()
                 val sa = st.optJSONArray("sos")
                 val sos = (0 until (sa?.length() ?: 0)).mapNotNull { i ->
                     val x = sa!!.optJSONObject(i) ?: return@mapNotNull null
@@ -129,7 +145,7 @@ class CheckJob : JobService() {
                     if (id.isEmpty() || text.isEmpty()) null else Logic.Ev(id, text.take(120), x.optLong("t"), x.optString("kind"), Act.locOf(JSONObject().put("location", x.optJSONObject("loc"))))
                 }
                 val accOff = st.optString("mode") == "basic" && st.optJSONObject("basic")?.optBoolean("acc", true) == false
-                Logic.Seen(true, list, if (lan) st.optLong("t") else o.optLong("seen"), sos, evs, accOff, Act.locOf(st))
+                Logic.Seen(true, list, if (lan) st.optLong("t") else o.optLong("seen"), sos, evs, accOff, Act.locOf(st), appReqs, st.optJSONObject("now")?.optString("why") == "bedtime")
             } catch (e: Exception) { Logic.Seen(false, emptyList(), 0) }
         }
 
@@ -158,7 +174,7 @@ class CheckJob : JobService() {
             Store.setUpdateNotified(c, tag)
             channel(c)
             val pi = PendingIntent.getActivity(c, 9, Intent(c, MainActivity::class.java).putExtra(MainActivity.EXTRA_SETTINGS, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
-            val n = android.app.Notification.Builder(c, CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle(c.getString(R.string.upd_title, tag))
+            val n = android.app.Notification.Builder(c, INFO_CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle(c.getString(R.string.upd_title, tag))
                 .setContentText(c.getString(R.string.upd_text)).setContentIntent(pi).setAutoCancel(true).build()
             c.getSystemService(NotificationManager::class.java).notify(0x6b67, n)
         }

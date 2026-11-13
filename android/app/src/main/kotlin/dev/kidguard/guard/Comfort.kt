@@ -12,8 +12,15 @@ object WindDown {
     const val NUDGE_MIN = 10
 
     /** Grayscale wanted now: bedtime on, wind-down on, and [minute] is inside [bedStart - windMin, bedEnd). */
-    fun active(r: Rules, minute: Int): Boolean {
+    fun active(r: Rules, minute: Int, today: String = ""): Boolean {
         if (!r.bedtimeOn || !r.windGray) return false
+        if (r.bedByDay.size == 7 && today.isNotEmpty()) {
+            if (bedEndNow(r, minute, today) != null) return true
+            val (s, e) = bedTonight(r, today) ?: return false
+            if (s == e) return false
+            val from = ((s - r.windMin) % 1440 + 1440) % 1440
+            return from <= s && minute in from until s || (from > s && (minute >= from || minute < s))
+        }
         val s = Rules.parseHm(r.bedStart) ?: return false
         val e = Rules.parseHm(r.bedEnd) ?: return false
         if (s == e) return false
@@ -75,6 +82,10 @@ object Notes {
     /** "Máy của Bin · Gọi mẹ 09xx"; "" when both are empty (then the lock screen info is cleared). */
     fun lockText(msg: String, contact: String): String = listOf(clean(msg, MSG_MAX), clean(contact, MSG_MAX)).filter { it.isNotEmpty() }.joinToString(" · ")
 
+    /** Lost mode lock-screen text: "msg · phone" (msg <= 200, phone <= 20 chars); "" when both are empty. */
+    fun lostText(msg: String, phone: String): String =
+        listOf(clean(msg, Rules.LOST_MSG_MAX), clean(phone, Rules.LOST_PHONE_MAX)).filter { it.isNotEmpty() }.joinToString(" · ")
+
     /** Short support message (Settings "disabled by admin" dialog, shown by the system): the parent note, else the default. */
     fun short(note: String, def: String): String = clean(note, NOTE_MAX).ifEmpty { def }
 
@@ -131,4 +142,9 @@ object ReqTpl {
 
     /** The request note: the template's label, then what the child typed (100 chars max like the free form). */
     fun note(label: String, typed: String): String = listOf(label.trim(), typed.trim()).filter { it.isNotEmpty() }.joinToString(": ").take(100)
+}
+
+/** A3.1: which phone-wide reasons the child can still ask about (the same rule as the launcher's HomeLogic.canAsk). */
+object SupportMsg {
+    fun canAsk(why: String, paired: Boolean): Boolean = paired && (why == "bedtime" || why == "schedule" || why == "daily")
 }

@@ -40,6 +40,11 @@ import java.util.Locale
 class Boot : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {   // BOOT_COMPLETED, MY_PACKAGE_REPLACED
         Guard.start(context); Watchdog.schedule(context)
+        // A6.6 basic mode: a restart is how a child gets out of a blocked state or shakes off a service: tell the parents (once per 10 min)
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) runCatching {
+            val st = Store.of(context)
+            if (st.everPaired && Basic.enforcing(context)) st.tamper("boot", R.string.ev_tamper_boot)
+        }
         SelfSetup.resume(context)   // a self-setup restart (accounts kept) is waiting: finish it, turn the apps back on
         if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) LauncherSafe.afterUpdate(context)
     }
@@ -86,6 +91,25 @@ class Guard : Service() {
             }
             refWall = w; refElapsed = e
         }
+    }
+    /** Lost mode: every unlock locks the phone again (Device Owner lockNow; basic mode shows the message card instead). */
+    private val userPresent = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (!::work.isInitialized || store.released || !store.rules.lostOn || System.currentTimeMillis() < lostGraceUntil) return
+            work.postDelayed({ if (store.rules.lostOn && !store.released) lockForLost(store.rules) }, 800)
+        }
+    }
+    /**
+     * The card (message + call-back number + "Parent: turn off") comes first, so a parent holding a phone with no network can
+     * still end lost mode with the PIN / Authenticator code; Device Owner locks again after [LOST_CARD_MS] unless they did.
+     */
+    @Volatile var lostGraceUntil = 0L
+    private fun lockForLost(r: Rules) {
+        if (System.currentTimeMillis() < lostGraceUntil) return
+        runCatching { MessageActivity.show(this, Notes.lostText(r.lostMsg.ifBlank { getString(R.string.lost_default_msg) }, r.lostPhone), lost = true) }
+        if (Policy.isOwner(this)) work.postDelayed({
+            if (store.rules.lostOn && !store.released && System.currentTimeMillis() >= lostGraceUntil) Policy.lockNow(this)
+        }, LOST_CARD_MS)
     }
     private var prevAuto = -1; private var prevAutoTz = -1
     /** Basic mode: keep automatic time / time zone on (WRITE_SECURE_SETTINGS, else only report); stops with release (Basic.enforcing). */
@@ -139,6 +163,7 @@ class Guard : Service() {
                 addAction(Intent.ACTION_PACKAGE_ADDED); addAction(Intent.ACTION_PACKAGE_REMOVED); addDataScheme("package")
             })
         }
+        runCatching { registerReceiver(userPresent, IntentFilter(Intent.ACTION_USER_PRESENT)) }
         runCatching { registerReceiver(timeReceiver, IntentFilter(Intent.ACTION_TIME_CHANGED).apply { addAction(Intent.ACTION_TIMEZONE_CHANGED) }) }
         wifiLock(true)
         http = Http(this, Api(this)).also { it.start(PORT) }
@@ -161,6 +186,7 @@ class Guard : Service() {
         running = null
         runCatching { unregisterReceiver(pkgReceiver) }
         runCatching { unregisterReceiver(timeReceiver) }
+        runCatching { unregisterReceiver(userPresent) }
         runCatching { contentResolver.unregisterContentObserver(locObserver) }
         runCatching { contentResolver.unregisterContentObserver(dnsObserver) }
         Listen.stopAll(); Proj.stop(this); Ring.stop(this)
@@ -250,18 +276,26 @@ class Guard : Service() {
             store.loggedNew = (store.loggedNew + n).intersect(apps.keys)
         }
         opt("battery") { batteryCheck() }
+        opt("requests") { store.expireRequests(now) }   // an open request ends with the day
+        opt("sim") { simCheck() }
         val newApps = if (r.blockNew) fresh else emptySet()
         val leftMs = dailyLeftMs(r, use.ms, today, apps.keys, prot)
         opt("warn") { if (!r.monitor) Warn.due(r, leftMs, minute, today, store.warned(today), store.tr)?.let { w ->
             store.markWarned(today, w.keys); notifyWarn(w.text)
         } }
         // v0.9.7 bedtime wind-down: grayscale (re-applied if the child switched it off, put back afterwards)
-        windActive = WindDown.active(r, minute)
+        windActive = WindDown.active(r, minute, today)
         runCatching { GrayFx.tick(this, store, windActive) }.onFailure { Log.w("KidGuard", "wind-down", it) }
         // monitor only: decide() still runs (pure) so the parent sees what strict mode would do, but nothing is enforced:
         // `want` (empty) feeds suspend / bounce / launcher / tile, `would` feeds state.wouldBlock + the log
         val would = decide(r, use.ms, minute, now, today, apps.keys, prot, newApps, store.unlockUntil)
         val want = enforced(r, would)
+        // C2: why the phone as a whole is limited now; feeds the state, the block text (A3.1) and Grant
+        val nw = if (r.monitor && !r.lostOn) NowWhy("", 0) else nowWhy(r, minute, now, today, use.ms, apps.keys, prot, store.unlockUntil)
+        lastNow = nw
+        opt("supportMsg") { Policy.noteNow(this, r, nw) }
+        opt("lost") { lostTick(r, now) }
+        opt("accOff") { if (Basic.enforcing(this) && store.everPaired && !Acc.isOn(this) && !AccPause.active(this)) store.tamper("accoff", R.string.ev_tamper_acc_off, gapMs = 60 * 60_000L) }
         logWould(if (r.monitor) would else emptyMap(), apps)
         // time-left tile / widget: pushed only when the text changes
         runCatching { Quick.publish(this, QuickLogic.timeLeftText(leftMs, QuickLogic.phoneBlock(want), store.tr)) }
@@ -300,6 +334,50 @@ class Guard : Service() {
         listeners.forEach { l -> main.post { runCatching { l() } } }
         val wb = if (r.monitor) would else emptyMap()
         stateTodo.set { state(r, apps, prot, use, want, wb, nowSusp, today, now, newApps) }
+    }
+
+    @Volatile private var lastNow = NowWhy("", 0)
+
+    /** SIM state / operator changed since the last tick (no dangerous permission needed, see [SimLogic]). */
+    private fun simCheck() {
+        val (sig, changed) = SimLogic.step(store.simSig, Sim.sig(this))
+        if (sig != store.simSig) store.simSig = sig
+        if (changed) { store.event("sim", R.string.ev_sim, getString(if (sig == "absent") R.string.ev_sim_absent else R.string.ev_sim_other)); store.log(R.string.ev_sim, sig); relay?.kick() }
+    }
+
+    /** Lost mode (C5): edges (on / off), a fix every 5 min, a 5-minute alarm every 15 min until `ringStop`. Locking on each unlock is [userPresent]. */
+    private fun lostTick(r: Rules, now: Long) {
+        if (r.lostOn) {
+            if (!store.lostApplied) {
+                store.lostApplied = true; store.lostRingStopped = false; store.lostLocateAt = 0; store.lostRingAt = 0
+                store.event("lost", R.string.ev_lost_on); store.log(R.string.ev_lost_on)
+                lockForLost(r); relay?.kick()
+            }
+            if (now - store.lostLocateAt >= LOST_LOCATE_MS) { store.lostLocateAt = now; locate() }
+            if (!store.lostRingStopped && now - store.lostRingAt >= LOST_RING_EVERY_MS) { store.lostRingAt = now; Ring.start(this, LOST_RING_MS) }
+        } else if (store.lostApplied) {
+            store.lostApplied = false; store.lostRingStopped = false
+            if (Ring.active) Ring.stop(this)
+            store.event("lost", R.string.ev_lost_off); store.log(R.string.ev_lost_off); relay?.kick()
+        }
+    }
+
+    /**
+     * "+1 minute" for the child (rules.oneMore): once per lock period, only while bedtime / a schedule / the daily limit is
+     * what locks the phone. A local 1-minute unlock (unlockUntil), recorded as an info event. True = taken.
+     */
+    fun oneMore(): Boolean {
+        val sn = snap ?: return false
+        val now = System.currentTimeMillis()
+        val r = store.rules
+        val cal = Calendar.getInstance().apply { timeInMillis = now }
+        val nw = nowWhy(r, cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE), now, day(now), sn.usageMs, sn.apps, sn.prot, store.unlockUntil)
+        if (!OneMore.allowed(r, nw, store.oneMoreKey)) return false
+        store.oneMoreKey = OneMore.key(nw) ?: return false
+        store.unlockUntil = maxOf(store.unlockUntil, now) + OneMore.MS
+        store.event("oneMore", R.string.ev_one_more, nw.why); store.log(R.string.ev_one_more, nw.why)
+        kick()
+        return true
     }
 
     private var wouldSeen: Set<String> = emptySet()
@@ -441,6 +519,11 @@ class Guard : Service() {
             .put("history", store.history)
             .put("track", store.track(2))
             .put("requests", store.requests())
+            .put("lastAnswer", store.lastAnswer() ?: JSONObject.NULL)
+            .put("now", lastNow.toJson())
+            .put("done", store.done())
+            .put("lost", JSONObject().put("on", r.lostOn).put("applied", store.lostApplied).put("ringStopped", store.lostRingStopped))
+            .put("oneMore", OneMore.allowed(r, lastNow, store.oneMoreKey))
             .put("sos", store.sos())
             .put("listen", Listen.state(this))
             .put("files", Files.state(this))
@@ -521,11 +604,11 @@ class Guard : Service() {
         return out
     }
 
-    private fun notifyChild(text: String) {
+    private fun notifyChild(text: String, id: Int = 2) {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel("answer", getString(R.string.ch_answer), NotificationManager.IMPORTANCE_HIGH))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        nm.notify(2, Notification.Builder(this, "answer").setSmallIcon(android.R.drawable.ic_lock_lock)
+        nm.notify(id, Notification.Builder(this, "answer").setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentTitle("KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
     }
 
@@ -587,6 +670,8 @@ class Guard : Service() {
         val res = runCatching { gate(t, c) ?: run(t, c) }.getOrElse { Log.w("KidGuard", "command $t", it); "failed" }
         // a failed run (e.g. release: "failed: N apps still hidden") may be re-sent with the same id and must run again, not answer "ok"
         if (id.isNotBlank() && res.startsWith("failed")) store.unmarkCmd(id)
+        // C4: the last 10 results, so the page can say "ran at HH:mm" / why it was refused instead of "sent"
+        if (id.isNotBlank()) runCatching { store.recordDone(id, t, res) }
         // a done `setting` writes its own log line (log_setting_*)
         if (t != "relay" && t != "release" && !(t == "setting" && res == "ok")) runCatching { store.log(R.string.log_cmd, t, res) }
         kick()
@@ -616,7 +701,8 @@ class Guard : Service() {
         "locate" -> { locate(); "ok" }
         "message" -> { MessageActivity.show(this, c.optString("text").take(500)); "ok" }
         "ring" -> Ring.start(this)
-        "ringStop" -> Ring.stop(this)
+        "ringStop" -> { if (store.rules.lostOn) store.lostRingStopped = true; Ring.stop(this) }   // lost mode: this also ends the 15-minute alarm loop
+        "unlockEnd" -> { store.unlockUntil = 0; store.clearLastAnswer(); "ok" }   // end an Authenticator unlock / "+1 minute" now (not PIN-gated)
         "wake" -> Wake.now(this)
         "listenStop" -> { Listen.stopAll(); "ok" }
         "fileUp" -> Files.command(this, t, c)   // shared folder over the relay (Files.kt)
@@ -651,10 +737,22 @@ class Guard : Service() {
         "unpair" -> if (store.unpair(c.optString("id"))) { relay?.kick(); kick(); "ok" } else "no such device"
         "answer" -> {
             val req = store.removeRequest(c.optString("req").ifBlank { c.optString("id") })   // relay: "req" = the request id (the command id may be a UUID)
-            if (req != null) notifyChild(Events.answerText(c.optBoolean("ok"), c.optInt("min", req.optInt("min")), c.optString("note"), store.tr))
+            if (req != null) {
+                val ok = c.optBoolean("ok"); val kind = req.optString("kind", "time"); val note = Notes.clean(c.optString("note"), 200)
+                if (kind == "app") {   // the parent side already edited the rules (approved / blocked); here the child hears of it
+                    val label = req.optString("app").ifBlank { req.optString("pkg") }
+                    store.setLastAnswer(ok, 0, "app", label)
+                    val base = if (!ok) getString(R.string.answer_no) else getString(if (c.optBoolean("always")) R.string.answer_app_always else R.string.answer_app_yes, label)
+                    notifyChild(if (note.isEmpty()) base else getString(R.string.answer_note, base, note))
+                } else {
+                    val min = c.optInt("min", req.optInt("min"))
+                    store.setLastAnswer(ok, if (ok) min else 0, "time", "")
+                    notifyChild(Events.answerText(ok, min, c.optString("note"), store.tr))
+                }
+            }
             if (req != null) "ok" else "no such request"
         }
-        "sosAck" -> if (store.ackSos(c.optString("sos").ifBlank { "all" }) > 0) "ok" else "no such sos"   // not "id": the relay fills that in
+        "sosAck" -> if (store.ackSos(c.optString("sos").ifBlank { "all" }) > 0) { notifyChild(getString(R.string.notif_sos_seen), 9); "ok" } else "no such sos"   // A3.3: the child hears "seen"   // not "id": the relay fills that in
         "reboot" -> if (Policy.isOwner(this)) runCatching { Policy.dpm(this).reboot(Policy.admin(this)); "ok" }.getOrElse { "failed" } else "not owner"
         "tailscale" -> Ts.enable(this, store, c.optString("authKey"), c.optString("hostname"))
         "tailscaleOff" -> Ts.disable(this, store)
@@ -716,13 +814,21 @@ class Guard : Service() {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
             Listen.stopAll(); Proj.stop(this); Ring.stop(this); wifiLock(false)
+            // C8: the parents hear of it (event -> relay + Telegram) BEFORE the tokens go; the relay creds are kept for the forget call
+            val creds = Triple(store.relayUrl, store.relayId, store.relayToken)
+            runCatching {
+                store.event("released", R.string.ev_released)
+                synchronized(stateLock) { lastState = JSONObject(lastState.toString()).put("events", store.events()); stateTodo.set(null) }
+                Tg.tick(this)
+                relay?.finalSync(4_000)
+            }.onFailure { Log.w("KidGuard", "release notice", it) }
             runCatching { GrayFx.restore(this, store) }.onFailure { Log.w("KidGuard", "grayscale restore", it) }   // the loop puts it back if release fails
             val r = runCatching { Policy.release(this, store) }.getOrElse { Log.w("KidGuard", "release", it); "failed" }
             if (r == "ok") runCatching { Shell.tcpOff(this) }   // a failed release keeps everything, port 5555 too
             res.set(r)
             // anything but "ok" (e.g. "failed: N app còn bị ẩn") means we are still in charge: keep enforcing
-            if (r != "ok") { stopped = false; wifiLock(true); work.post(loopRun); store.log(R.string.log_release_fail, r) }
-            else { store.log(R.string.log_released); runCatching { Files.wipeOutbox(this) }; HistDb.wipe(this) }   // received files stay in Download
+            if (r != "ok") { stopped = false; wifiLock(true); work.post(loopRun); store.log(R.string.log_release_fail, r); runCatching { store.addEvent(Ev("releaseFail", getString(R.string.ev_release_failed))) } }
+            else { store.log(R.string.log_released); runCatching { Files.wipeOutbox(this) }; HistDb.wipe(this); runCatching { Relay.forget(creds.first, creds.second, creds.third) } }   // the worker deletes this kid's data   // received files stay in Download
             // finished after the caller gave up ("failed" was answered): still go away, we are released
             if (!state.compareAndSet(0, 1) && r == "ok") Handler(mainLooper).postDelayed({ stopSelf() }, 2_000)
             done.countDown()
@@ -901,6 +1007,13 @@ class Guard : Service() {
     companion object {
         const val PORT = 8770
         const val TICK_MS = 10_000L
+        const val LOST_CARD_MS = 20_000L   // lost mode: the card stays this long before the relock
+        const val LOST_LOCATE_MS = 5 * 60_000L
+        const val LOST_RING_EVERY_MS = 15 * 60_000L
+        const val LOST_RING_MS = 5 * 60_000L
+
+        /** The child's "+1 minute" ([oneMore]); false when no Guard runs or it is not allowed now. */
+        fun oneMore(): Boolean = running?.oneMore() ?: false
         @Volatile var running: Guard? = null
 
         /** What the last tick decided, for the kid launcher (HomeActivity): it filters with the same decide() result. */

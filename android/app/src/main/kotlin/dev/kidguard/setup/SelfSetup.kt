@@ -130,6 +130,18 @@ object SelfSetupLogic {
     /** ColorOS (Oppo/Realme/OnePlus) refuses adb permission grants until "Disable permission monitoring" is on. */
     fun permMonitoring(out: String) = Regex("UPDATE_APP_OPS_STATS|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS").containsMatchIn(out)
 
+    /** String resource for a `dpm set-device-owner` refusal (second user / another owner / accounts / already set up), else null. */
+    fun ownerFail(out: String): Int? {
+        val o = out.lowercase()
+        return when {
+            "several users" in o || "already some users" in o || "other users" in o -> R.string.ss_do_users
+            "already some accounts" in o || "accounts on the device" in o -> R.string.ss_do_accounts
+            "device owner is already set" in o || "already has a device owner" in o || "already a device owner" in o -> R.string.ss_do_owner
+            "provisioned" in o || "already been set up" in o || "set up already" in o -> R.string.ss_do_provisioned
+            else -> null
+        }
+    }
+
     private val ACCOUNT = Regex("""Account \{name=([^,}]*), type=([^}]*)\}""")
 
     /** Accounts listed by `dumpsys account` as "name (type)". */
@@ -282,6 +294,8 @@ object SelfSetup {
             val out = sh(cmd); Log.i(AdbPortFinder.TAG, "$cmd -> $out")
             val good = if (need != null) need(out) else SelfSetupLogic.ok(out)
             if (!good) { state[i] = STEP_ERR; message = out.ifBlank { app.getString(R.string.ss_cmd_fail) }
+                // `dpm set-device-owner` refusals come with a raw Java exception: say what to do instead (the raw text stays in logcat)
+                if (i == 2) SelfSetupLogic.ownerFail(out)?.let { message = app.getString(it) }
                 if (SelfSetupLogic.permMonitoring(out)) message += "\n" + app.getString(R.string.ss_perm_mon)
                 notifyFinal(app, app.getString(R.string.ss_failed, message)); return false }
             state[i] = STEP_OK; return true

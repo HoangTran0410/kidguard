@@ -108,7 +108,7 @@ private class TimerBox(val act: HomeActivity, val wide: Boolean) {
     val ctx: Context = act
     val card = act.wCard(!wide)
     private val disc = TimerDisc(act, (act.pal.sub and 0x00ffffff) or 0x38000000, act.pal.solid, act.pal.sheet, act.pal.text)
-    private val time = act.text("", if (wide) 22f else 20f, act.pal.text, true)
+    private val time = act.text("", if (wide) WType.VALUE_L else WType.VALUE, act.pal.text, true)
     private val phase = act.wSub("")
     private val reset = act.kit.chip("", act.pal.onTint, act.pal.tint, R.drawable.li_rotate_ccw)
     private val chips = ArrayList<Pair<TextView, Int>>()       // minutes; 0 = pomodoro; -1 = custom
@@ -141,7 +141,7 @@ private class TimerBox(val act: HomeActivity, val wide: Boolean) {
             card.addView(disc, LinearLayout.LayoutParams(d, d))
             card.addView(time, LinearLayout.LayoutParams(-2, -2).apply { topMargin = act.dp(3) })
             val row = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setPadding(0, act.dp(4), 0, 0) }
-            row.addView(chip(-2).apply { textSize = 11f }); row.addView(reset)
+            row.addView(chip(-2).apply { textSize = WType.CAPTION }); row.addView(reset)
             card.addView(row)
         }
         card.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
@@ -153,7 +153,7 @@ private class TimerBox(val act: HomeActivity, val wide: Boolean) {
 
     /** -2 = the single 2x2 chip: shows the choice, a tap steps through 5 / 10 / 15 / 25 / pomodoro / custom. */
     private fun chip(m: Int): TextView {
-        val t = act.kit.chip("", act.pal.onTint, act.pal.tint).apply { textSize = if (wide) 11f else 12f; setPadding(act.dp(8), act.dp(5), act.dp(8), act.dp(5)) }
+        val t = act.kit.chip("", act.pal.onTint, act.pal.tint).apply { textSize = WType.CAPTION; setPadding(act.dp(8), act.dp(5), act.dp(8), act.dp(5)) }
         act.kit.tap(t, 999f, true) { pick(m) }
         chips += t to m
         return t
@@ -248,5 +248,5 @@ internal fun HomeActivity.timerWidget(w: Int, h: Int): View = centred(TimerBox(t
 
 internal fun HomeActivity.timerPreview(c: LinearLayout) {
     c.addView(TimerDisc(this, (pal.sub and 0x00ffffff) or 0x38000000, pal.solid).apply { frac = 0.62f }, LinearLayout.LayoutParams(dp(34), dp(34)))
-    c.addView(text("15:00", 11f, pal.text, true), LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(3) })
+    c.addView(text("15:00", WType.TITLE, pal.text, true), LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(3) })
 }

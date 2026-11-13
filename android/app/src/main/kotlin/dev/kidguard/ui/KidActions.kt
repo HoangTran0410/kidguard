@@ -33,22 +33,98 @@ class KidActions(private val act: Activity, private val u: Ui, private val onCha
 
     /** SOS: one confirm (no pocket presses), then the state carries it to the parent with a fresh location. */
     fun askSos() {
+        val s = Store.of(act)
+        if (!s.everPaired) { sosUnpaired(); return }
         Modal(act, u).show(R.drawable.li_siren, Modal.Tone.DANGER, act.getString(R.string.sos_q), act.getString(R.string.sos_q_body),
             ok = act.getString(R.string.sos_send), cancel = act.getString(R.string.cancel)) {
             val g = Guard.running
-            val ok = if (g != null) g.sos() else { val o = Store.of(act).addSos(); if (o != null) Guard.start(act); o != null }
+            val ok = if (g != null) g.sos() else { val o = s.addSos(); if (o != null) Guard.start(act); o != null }
             onChange()
             ui.post {
-                if (ok) Modal(act, u).show(R.drawable.li_circle_check, Modal.Tone.OK, act.getString(R.string.sos_done), act.getString(R.string.sos_done_body))
-                else Modal(act, u).show(R.drawable.li_siren, Modal.Tone.WARN, act.getString(R.string.sos_again), act.getString(R.string.sos_again_body))
+                val online = KidNow.online(act)
+                val num = KidNow.parentNumber(s.rules)
+                when {
+                    !ok -> Modal(act, u).show(R.drawable.li_siren, Modal.Tone.WARN, act.getString(R.string.sos_again), act.getString(R.string.sos_again_body))
+                    online -> Modal(act, u).show(R.drawable.li_circle_check, Modal.Tone.OK, act.getString(R.string.sos_done), act.getString(R.string.sos_done_body))
+                    // nothing left the phone yet: say so, and offer a call when we know whom to call
+                    num != null -> Modal(act, u).show(R.drawable.li_phone, Modal.Tone.WARN, act.getString(R.string.sos_offline_t), act.getString(R.string.sos_offline_b),
+                        ok = act.getString(R.string.sos_call), cancel = act.getString(R.string.cancel)) { KidNow.dial(act, num); true }
+                    else -> Modal(act, u).show(R.drawable.li_siren, Modal.Tone.WARN, act.getString(R.string.sos_offline_t), act.getString(R.string.sos_offline_b))
+                }
             }
             true
         }
     }
 
+    /** Not paired: SOS reaches nobody, so say that it calls 112 and let the child decide. */
+    private fun sosUnpaired() {
+        Modal(act, u).show(R.drawable.li_siren, Modal.Tone.DANGER, act.getString(R.string.sos_unpaired_t), act.getString(R.string.sos_unpaired_b),
+            ok = act.getString(R.string.sos_call_112), cancel = act.getString(R.string.cancel)) { KidNow.dial(act, "112"); true }
+    }
+
+    // ---- requests: one open request at a time (contract C3); the kid sees "waiting" + "remind" and the last answer ----
+
+    /** "Đã xin lúc 14:05, đang chờ bố mẹ" while a request is open, else null. */
+    fun pendingText(): String? = Store.of(act).openRequest()?.let { act.getString(R.string.req_pending_at, KidNow.hhmm(it.optLong("at"))) }
+
+    /** The parent's last answer ("Bố mẹ đã cho thêm 15 phút"), kept by the store until the next unlock / day; else null. */
+    fun answerText(): String? = Store.of(act).lastAnswer()?.let { a ->
+        when {
+            !a.optBoolean("ok") -> act.getString(R.string.req_ans_no)
+            a.optString("kind") == "app" -> act.getString(R.string.req_ans_app, a.optString("app"))
+            else -> act.getString(R.string.req_ans_time, a.optInt("min"))
+        }
+    }
+
+    /** Raises the open request again (same id on the store side; the parent alert is rate-limited there). */
+    fun remind() {
+        val s = Store.of(act)
+        val o = s.openRequest() ?: return
+        val res = s.addRequest(o.optString("kind", "time"), o.optInt("min"), o.optString("note"), o.optString("pkg").ifEmpty { null },
+            o.optString("app").ifEmpty { null }, o.optString("chore").ifEmpty { null }, o.optString("tpl").ifEmpty { null })
+        reported(res, 0)
+    }
+
+    /** What the child sees after a send: new = the "sent" card, remind / wait = a short toast. */
+    private fun reported(res: String, body: Int) {
+        val s = Store.of(act)
+        if (res != "wait") { if (res == "new") s.log(R.string.log_more); Guard.poke(act) }
+        onChange()
+        ui.post {
+            when (res) {
+                "new" -> Modal(act, u).show(R.drawable.li_send, Modal.Tone.OK, act.getString(R.string.more_sent), act.getString(if (body != 0) body else R.string.more_sent_body))
+                "remind" -> Toasts.show(act, R.string.req_reminded)
+                else -> Toasts.show(act, R.string.req_remind_wait)
+            }
+        }
+    }
+
+    /** A request is already open: show it with "Nhắc lại" instead of a second ask. */
+    private fun pendingCard() {
+        Modal(act, u).show(R.drawable.li_clock, Modal.Tone.INFO, act.getString(R.string.req_pending_t), pendingText(),
+            ok = act.getString(R.string.req_remind), cancel = act.getString(R.string.cancel)) { remind(); true }
+    }
+
+    /** Ask to open a blocked / new app: kind "app" with the package and its label. */
+    fun askApp(pkg: String, label: String) {
+        if (Store.of(act).openRequest() != null) { pendingCard(); return }
+        Modal(act, u).show(R.drawable.li_send, Modal.Tone.INFO, act.getString(R.string.req_app_q, label), act.getString(R.string.req_app_body),
+            ok = act.getString(R.string.send), cancel = act.getString(R.string.cancel)) {
+            reported(Store.of(act).addRequest("app", 0, "", pkg, label), R.string.req_app_sent); true
+        }
+    }
+
+    /** "Xong" on a chore: a time request tagged with the chore id. */
+    fun sendChore(ch: Chore) {
+        val s = Store.of(act)
+        if (s.openRequest() != null) { pendingCard(); return }
+        reported(s.addRequest("time", ch.min, "", chore = ch.id), R.string.hm_t_chore_sent)
+    }
+
     /** The child asks for 15 / 30 / 60 more minutes, with an optional short note; the parent sees it in the state. */
     fun askMore() {
         val s = Store.of(act)
+        if (s.openRequest() != null) { pendingCard(); return }
         val mins = intArrayOf(15, 30, 60)
         val chores = s.rules.chores
         val m = Modal(act, u)
@@ -61,13 +137,8 @@ class KidActions(private val act: Activity, private val u: Ui, private val onCha
         val tplBox = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
         tplBox.addView(u.label(act.getString(R.string.more_quick), 13f), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
         for (tp in ReqTpl.ALL) tplBox.addView(u.button(act.getString(tplLabel(tp.id)), R.drawable.li_send, false) {
-            val ok = s.addRequest(tp.min, ReqTpl.note(act.getString(tplLabel(tp.id)), note.text.toString()), tpl = tp.id)
-            if (ok) { s.log(R.string.log_more); Guard.poke(act) }
-            dlg?.dismiss(); onChange()
-            ui.post {
-                if (ok) Modal(act, u).show(R.drawable.li_send, Modal.Tone.OK, act.getString(R.string.more_sent), act.getString(R.string.more_sent_body))
-                else Modal(act, u).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, act.getString(R.string.more_fail), act.getString(R.string.more_fail_body))
-            }
+            val res = s.addRequest("time", tp.min, ReqTpl.note(act.getString(tplLabel(tp.id)), note.text.toString()), tpl = tp.id)
+            dlg?.dismiss(); reported(res, 0)
         }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
         val box = LinearLayout(act).apply {
             orientation = LinearLayout.VERTICAL
@@ -78,13 +149,8 @@ class KidActions(private val act: Activity, private val u: Ui, private val onCha
         }
         dlg = m.show(R.drawable.li_timer, Modal.Tone.INFO, act.getString(R.string.main_more), act.getString(if (chores.isEmpty()) R.string.more_body else R.string.more_body_chores), ScrollView(act).apply { addView(box) }, ok = act.getString(R.string.send), cancel = act.getString(R.string.cancel)) {
             val chore = chorePick?.selected?.let { chores.getOrNull(it) }
-            val ok = if (chore != null) s.addRequest(chore.min, note.text.toString(), chore.id) else s.addRequest(mins[pick.selected.coerceIn(0, 2)], note.text.toString())
-            if (ok) { s.log(R.string.log_more); Guard.poke(act) }
-            onChange()
-            ui.post {
-                if (ok) Modal(act, u).show(R.drawable.li_send, Modal.Tone.OK, act.getString(R.string.more_sent), act.getString(R.string.more_sent_body))
-                else Modal(act, u).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, act.getString(R.string.more_fail), act.getString(R.string.more_fail_body))
-            }
+            val res = if (chore != null) s.addRequest("time", chore.min, note.text.toString(), chore = chore.id) else s.addRequest("time", mins[pick.selected.coerceIn(0, 2)], note.text.toString())
+            reported(res, 0)
             true
         }
     }

@@ -10,28 +10,32 @@ class ActTest {
         val y = Act.answerCmd("r1", true, 15)
         assertEquals("answer", y.getString("type")); assertEquals("r1", y.getString("id")); assertTrue(y.getBoolean("ok")); assertEquals(15, y.getInt("min"))
         assertFalse(y.has("note"))
-        assertEquals(setOf("type", "id", "ok", "min"), y.keys().asSequence().toSet())
+        assertEquals(setOf("type", "id", "req", "ok", "min"), y.keys().asSequence().toSet())
         // page: cmd({type: "answer", id, ok: false, ...}) has no min
         val n = Act.answerCmd("r1", false, 30)
-        assertEquals(setOf("type", "id", "ok"), n.keys().asSequence().toSet()); assertFalse(n.getBoolean("ok"))
+        assertEquals(setOf("type", "id", "req", "ok"), n.keys().asSequence().toSet()); assertFalse(n.getBoolean("ok"))
         assertEquals("ok", Act.answerCmd("r1", true, 15, "  ok  ").getString("note"))
         assertFalse(Act.answerCmd("r1", true, 15, "   ").has("note"))
         assertEquals(200, Act.answerCmd("r1", true, 15, "x".repeat(300)).getString("note").length)
     }
 
     @Test fun grantChoices() {
+        // N and 2N (rounded to 5); the "N/2" button does not fit Android's 3 actions
         assertEquals(listOf(15, 30), Act.grantChoices(0))
         assertEquals(listOf(15, 30), Act.grantChoices(15))
-        assertEquals(listOf(15, 30), Act.grantChoices(30))
-        assertEquals(listOf(20, 30), Act.grantChoices(20))
-        assertEquals(listOf(10, 30), Act.grantChoices(10))
-        assertEquals(listOf(30, 60), Act.grantChoices(60))
+        assertEquals(listOf(30, 60), Act.grantChoices(30))
+        assertEquals(listOf(20, 40), Act.grantChoices(20))
+        assertEquals(listOf(10, 20), Act.grantChoices(10))
+        assertEquals(listOf(7, 15), Act.grantChoices(7))
+        assertEquals(listOf(60, 120), Act.grantChoices(60))
+        assertEquals(listOf(600), Act.grantChoices(600))
         assertEquals(listOf(15, 30), Act.grantChoices(9999))
     }
 
     @Test fun actionsPerEvent() {
-        assertEquals(listOf(Act.A(Act.GRANT, 15), Act.A(Act.GRANT, 30), Act.A(Act.DECLINE)), Act.actionsFor("req:r1", 30))
-        assertEquals(listOf(Act.A(Act.GRANT, 20), Act.A(Act.GRANT, 30), Act.A(Act.DECLINE)), Act.actionsFor("req:r1", 20))
+        assertEquals(listOf(Act.A(Act.GRANT, 30), Act.A(Act.GRANT, 60), Act.A(Act.DECLINE)), Act.actionsFor("req:r1", 30))
+        assertEquals(listOf(Act.A(Act.GRANT, 20), Act.A(Act.GRANT, 40), Act.A(Act.DECLINE)), Act.actionsFor("req:r1", 20))
+        assertEquals(listOf(Act.A(Act.APPROVE), Act.A(Act.DECLINE)), Act.actionsFor("req:r1", 0, app = true))
         assertEquals(listOf(Act.A(Act.MAP)), Act.actionsFor("sos:s1"))
         assertEquals(listOf(Act.A(Act.MAP)), Act.actionsFor("ci:c1"))   // v0.9.7 check-in
         assertEquals(emptyList<Act.A>(), Act.actionsFor("ev:e1"))

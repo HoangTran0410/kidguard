@@ -161,7 +161,7 @@ const QS = [
   ["rules", "r-anti", "safe", "landmark", ["bank.h", "bank.colAcc"]],
   ["rules", "r-home", "safe", "house", ["hm.h", "sd.home", "hm.on", "hm.settings", "hm.shade", "hm.lock", "hm.notes"]],
   ["rules", "r-kind", "safe", "notebook-pen", ["kn.h", "sd.kind"]], ["rules", "#monCard", "", "eye", ["mon.h", "mon.p"]],
-  ["where", "r-zone", "", "map-pin", ["zone.h", "sd.zone"]], ["where", "r-trk", "", "route", ["trk.h", "sd.trk"]],
+  ["where", "r-lost", "", "siren", ["lost.h", "sd.lost", "lost.on", "lost.msg", "lost.phone"]], ["where", "r-zone", "", "map-pin", ["zone.h", "sd.zone"]], ["where", "r-trk", "", "route", ["trk.h", "sd.trk"]],
   ["set", "s-pin", "", "key-round", ["pin.h", "pin.p"]], ["set", "r-totp", "", "key-round", ["totp.h", "sd.totp"]],
   ["set", "s-sys", "", "sliders-horizontal", ["sys.h", "sd.sys", "sys.ring", "sys.media", "sys.alarm", "sys.bright", "sys.timeout", "sys.dnd"]],
   ["set", "s-dev", "", "code", ["dev.h", "sd.dev", "anti.debug"]], ["set", "s-sh", "", "terminal", ["sh.h", "sd.sh", "sh.tcp"]], ["set", "s-relay", "", "globe", ["relay.h", "sd.relay"]],
@@ -486,8 +486,10 @@ function updateLive() {
   if (APP && cachedAt) B.push(["warn", "wifi-off", t("live.cached", hhmm(cachedAt))]);
   if (!lan && lastNet) B.push(["warn", "wifi-off", t("live.selfOff")]);
   // LAN, the phone answered with an error: it is on and reachable, so not "off / no network"
-  if (lan && lastErr && !lastNet) B.push(["bad", "siren", t("live.phoneErr", esc(lastErr))]);
+  if (lan && lastErr && !lastNet && retryShow) B.push(["info", "loader", t("live.retrying")]);   // a retry is in flight: not the old error
+  else if (lan && lastErr && !lastNet) B.push(["bad", "siren", t("live.phoneErr", esc(lastErr))]);
   else if (lost && !(!lan && lastNet)) B.push(["bad", "siren", t("live.lost", hhmm(lostFrom)) + (lastErr && lan ? " (" + esc(lastErr) + ")" : "")]);
+  B.unshift(...rcBans());   // command receipts: what the parent just sent comes first
   B.push(...modeBans());
   { const rb = rebootLine(), lc = locLine(); if (rb) B.push(rb); if (lc) B.push(lc); }
   // bank-app pauses (audit 2026-11-13): what is off, for which app, when it comes back, and "turn back on now"
@@ -503,7 +505,7 @@ function updateLive() {
   if (st.dnsError) B.push(["warn", "triangle-alert", t("live.dns", esc(st.dnsError))]);
   if (st.locationOn === false) B.push(["warn", "triangle-alert", t("live.locOff")]);
   const B2 = B.filter(x => !(x[3] && banHid.has(x[3])));
-  const ban = x => `<div class="ban t-${x[0]}" role="status"><span class="bi">${ic(x[1])}</span><div class="x">${x[2]}</div>${x[4] ? `<button type="button" class="pill" data-band="${x[3]}">${t("ban.why")}</button><button type="button" class="banx" data-banx="${x[3]}" aria-label="${esc(t("ban.hide"))}" title="${esc(t("ban.hide"))}">${ic("x")}</button>` : ""}</div>`;
+  const ban = x => `<div class="ban t-${x[0]}" role="status"><span class="bi">${ic(x[1])}</span><div class="x">${x[2]}</div>${x[5] || ""}${x[4] ? `<button type="button" class="pill" data-band="${x[3]}">${t("ban.why")}</button><button type="button" class="banx" data-banx="${x[3]}" aria-label="${esc(t("ban.hide"))}" title="${esc(t("ban.hide"))}">${ic("x")}</button>` : ""}</div>`;
   const strip = $("#strip") ? "" : stripHtml();   // home has its own spot under the round buttons
   el.innerHTML = sosHtml() + ciHtml() + strip + (banAll ? B2 : B2.slice(0, 1)).map(ban).join("")
     + (B2.length > 1 ? `<button type="button" class="more-ban" id="banMore" aria-expanded="${banAll}">${ic(banAll ? "chevron-down" : "chevron-right")} ${banAll ? t("ban.less") : t("ban.more", B2.length - 1)}</button>` : "");
@@ -766,6 +768,8 @@ function untilOf(hm) {   // "HH:MM" -> next such moment (today if still ahead, e
   const [h, m] = String(hm).split(":").map(Number); if (!(h >= 0 && m >= 0)) return 0;
   const d = new Date(); d.setHours(h, m, 0, 0); if (d.getTime() <= Date.now() + 30000) d.setDate(d.getDate() + 1); return d.getTime();
 }
+// "more time" is a timed pass unless the daily limit is what stops the phone (contract C1)
+const passMode = () => { const w = st && st.now && st.now.why || ""; return w !== "" && w !== "daily"; };
 function pickTime(kind, active, onOk, onClear) {
   if (askDone) askDone(false, true);
   const pause = kind === "pause", pop = $("#askPop");
@@ -783,8 +787,8 @@ function pickTime(kind, active, onOk, onClear) {
       : `<label class="row stp"><span>${t("pk.untilL")}</span><input id="pkAt" type="time" value="${esc(s.at)}" aria-label="${esc(t("pk.at"))}"></label>`}
       <div class="chips" style="margin:10px 0" role="group" aria-label="${esc(t("pk.quick"))}">${chips.map(([c]) => { const on = typeof c === "string" ? s.mode === "at" && s.at === c : s.mode === "dur" && ms() === c * 60000;
         return `<button type="button" data-pc="${c}" class="${on ? "on" : ""}" aria-pressed="${on}">${typeof c === "string" ? t("pk.am6") : fmt(c * 60000)}</button>`; }).join("")}</div>
-      <div class="pks" role="status">${ok() ? `<b>${pause ? t("pk.sumPause", whenTxt(end)) : t("pk.sumBonus", fmt(v))}</b> <span class="mute">· ${pause ? fmt(v) : t("pk.today")}</span>` : `<span class="err">${t("pk.bad")}</span>`}</div>
-      ${pause ? `<p class="mute" style="margin:6px 0 12px">${t("pause.askNote")}</p>` : `<p class="mute" style="margin:6px 0 12px">${t("pk.bonusNote")}</p>`}
+      <div class="pks" role="status">${ok() ? `<b>${pause ? t("pk.sumPause", whenTxt(end)) : t("pk.sumBonus", fmt(v))}</b> <span class="mute">· ${pause ? fmt(v) : passMode() ? t("pk.passTill", whenTxt(end)) : t("pk.today")}</span>` : `<span class="err">${t("pk.bad")}</span>`}</div>
+      ${pause ? `<p class="mute" style="margin:6px 0 12px">${t("pause.askNote")}</p>` : `<p class="mute" style="margin:6px 0 12px">${t(passMode() ? "pk.passNote" : "pk.bonusNote")}</p>`}
       <div class="row"><button type="button" id="askNo" class="sp">${ic("x")} ${t("cancel")}</button><button type="button" id="askOk" class="sp pri" ${ok() ? "" : "disabled"}>${ic("check")} ${t(pause ? (active ? "pk.update" : "pause.ok") : "pk.give")}</button></div>
       ${onClear ? `<button type="button" id="pkClear" class="bad" style="width:100%;margin-top:8px">${ic(pause ? "play" : "trash-2")} ${t(pause ? "unpause" : "home.unbonus")}</button>` : ""}</div>`;
     pop.querySelectorAll("[data-pm]").forEach(x => x.onclick = () => { s.mode = x.dataset.pm; redraw("[data-pm][aria-selected=true]"); });
@@ -803,7 +807,7 @@ function pickTime(kind, active, onOk, onClear) {
   };
   // the summary line follows typing without redrawing (the input keeps focus)
   const sum = () => { const v = ms(), end = s.mode === "at" ? untilOf(s.at) : Date.now() + v, el = pop.querySelector(".pks");
-    el.innerHTML = ok() ? `<b>${pause ? t("pk.sumPause", whenTxt(end)) : t("pk.sumBonus", fmt(v))}</b> <span class="mute">· ${pause ? fmt(v) : t("pk.today")}</span>` : `<span class="err">${t("pk.bad")}</span>`;
+    el.innerHTML = ok() ? `<b>${pause ? t("pk.sumPause", whenTxt(end)) : t("pk.sumBonus", fmt(v))}</b> <span class="mute">· ${pause ? fmt(v) : passMode() ? t("pk.passTill", whenTxt(end)) : t("pk.today")}</span>` : `<span class="err">${t("pk.bad")}</span>`;
     $("#askOk").disabled = !ok();
     pop.querySelectorAll("[data-pc]").forEach(x => { const c = x.dataset.pc, on = c.includes(":") ? s.mode === "at" && s.at === c : s.mode === "dur" && v === c * 60000; x.classList.toggle("on", on); x.setAttribute("aria-pressed", on); }); };
   const redraw = f => { draw(); const x = f && pop.querySelector(f); if (x) x.focus(); };
@@ -825,26 +829,30 @@ function sheet(html, wire) {
 const sheetHead = (icn, title) => `<div class="shh"><h2 id="askT">${ic(icn)} ${title}</h2><button type="button" class="close" id="askNo" aria-label="${esc(t("close"))}">${ic("x")}</button></div>`;
 
 // time request: compact card on home; note, canned replies and minute chips live in the "Trả lời…" sheet
-const reqChips = q => [15, 30, 45, 60].includes(+q.min) ? [15, 30, 45, 60] : [15, 30, 45, 60, +q.min].sort((a, c) => a - c);
+// N/2, N, 2N (5-minute steps, at least 5); the kid's own N is the middle one
+const reqChips = q => { const n = Math.max(5, +q.min || 15); return [...new Set([Math.max(5, Math.round(n / 2 / 5) * 5), n, Math.min(240, n * 2)])]; };
+const reqRemind = q => q.remindAt && q.at && q.remindAt - q.at > 30000 ? ` <span class="tag warn" style="margin:0">${ic("bell")} ${t("req.again", ago(q.remindAt))}</span>` : "";
 function reqCard(q, r) {
-  const ch = q.chore ? (r.chores || []).find(c => c.id === q.chore) : null, m = reqMin[q.id] || +q.min, id = esc(q.id), note = (reqNote[q.id] || "").trim();
-  return `<div class="card req" role="group" aria-label="${esc(t("req.aria"))}"><div class="row" style="flex-wrap:nowrap;align-items:flex-start"><span class="ib t-warn" style="color:var(--warn);background:rgba(217,119,6,.16)">${ic("hand")}</span>
-    <div class="sp" style="min-width:0"><b>${t("req.asks", esc(cur.name), +q.min)}</b>${q.t ? ` <span class="mute">· ${ago(q.t)}</span>` : ""}
+  const app = q.kind === "app", ch = q.chore ? (r.chores || []).find(c => c.id === q.chore) : null, m = reqMin[q.id] || +q.min, id = esc(q.id), note = (reqNote[q.id] || "").trim();
+  const head = app ? t("req.appAsks", esc(cur.name), esc(q.app || q.pkg || "?")) : t("req.asks", esc(cur.name), +q.min);
+  return `<div class="card req" role="group" aria-label="${esc(t("req.aria"))}"><div class="row" style="flex-wrap:nowrap;align-items:flex-start"><span class="ib t-warn" style="color:var(--warn);background:rgba(217,119,6,.16)">${ic(app ? "package" : "hand")}</span>
+    <div class="sp" style="min-width:0"><b>${head}</b>${q.at || q.t ? ` <span class="mute">· ${ago(q.at || q.t)}</span>` : ""}${reqRemind(q)}
     ${q.chore ? `<div style="margin-top:4px"><span class="tag warn" style="margin:0">${ic("star")} ${t("req.chore")}</span> <span class="tag">${esc(ch ? ch.name : t("req.choreGone"))}</span></div>` : ""}
     ${q.note ? `<div class="mute" style="margin-top:4px">${t("req.note", esc(q.note))}</div>` : ""}
     ${note ? `<div class="mute" style="margin-top:4px">${ic("message-square")} ${esc(note)}</div>` : ""}</div></div>
-    <div class="row" style="margin-top:12px"><button class="pri" data-yes="${id}" data-min="${m}">${ic("circle-check")} ${t("req.yes", m)}</button><button data-no="${id}">${ic("circle-x")} ${t("req.no")}</button><button data-reply="${id}">${ic("message-square")} ${t("req.replyBtn")}</button></div></div>`;
+    ${app ? "" : `<div class="chips" style="margin-top:10px" role="group" aria-label="${esc(t("minutes"))}">${reqChips(q).map(v => `<button type="button" data-rm="${id}" data-v="${v}" class="${v === m ? "on" : ""}" aria-pressed="${v === m}">${t("fmt.m", v)}</button>`).join("")}</div>`}
+    <div class="row" style="margin-top:12px"><button class="pri" data-yes="${id}" data-min="${m}">${ic("circle-check")} ${app ? t("req.appYes") : t("req.yes", m)}</button><button data-no="${id}">${ic("circle-x")} ${t("req.no")}</button><button data-reply="${id}">${ic("message-square")} ${t("req.replyBtn")}</button></div></div>`;
 }
 function replySheet(q, today) {
   const m = reqMin[q.id] || +q.min, id = esc(q.id);
-  return sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("hand", t("req.asks", esc(cur.name), +q.min))}
+  return sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead(q.kind === "app" ? "package" : "hand", q.kind === "app" ? t("req.appAsks", esc(cur.name), esc(q.app || q.pkg || "?")) : t("req.asks", esc(cur.name), +q.min))}
     ${q.note ? `<p class="mute" style="margin-top:0">${t("req.note", esc(q.note))}</p>` : ""}
     <label class="mute" for="f-rn-${id}" style="display:block;margin-top:6px">${t("req.reply")}</label>
     <input id="f-rn-${id}" data-rn="${id}" maxlength="200" autocomplete="off" placeholder="${esc(t("req.replyPh"))}" style="width:100%;margin-top:6px" value="${esc(reqNote[q.id] || "")}">
     <div class="chips" style="margin-top:8px" role="group" aria-label="${esc(t("req.cannedAria"))}">${t("req.canned").map(c => `<button type="button" data-cr="${id}" data-v="${esc(c)}" class="${reqNote[q.id] === c ? "on" : ""}" aria-pressed="${reqNote[q.id] === c}">${esc(c)}</button>`).join("")}</div>
-    <div class="mute" style="margin-top:14px">${t("minutes")}</div>
-    <div class="chips" style="margin-top:6px" role="group" aria-label="${esc(t("minutes"))}">${reqChips(q).map(v => `<button type="button" data-rm="${id}" data-v="${v}" class="${v === m ? "on" : ""}" aria-pressed="${v === m}">${t("fmt.m", v)}</button>`).join("")}</div>
-    <div class="row" style="margin-top:16px"><button class="sp" data-no="${id}">${ic("circle-x")} ${t("req.no")}</button><button class="sp pri" data-yes="${id}" data-min="${m}">${ic("circle-check")} ${t("req.yes", m)}</button></div></div>`,
+    ${q.kind === "app" ? "" : `<div class="mute" style="margin-top:14px">${t("minutes")}</div>
+    <div class="chips" style="margin-top:6px" role="group" aria-label="${esc(t("minutes"))}">${reqChips(q).map(v => `<button type="button" data-rm="${id}" data-v="${v}" class="${v === m ? "on" : ""}" aria-pressed="${v === m}">${t("fmt.m", v)}</button>`).join("")}</div>`}
+    <div class="row" style="margin-top:16px"><button class="sp" data-no="${id}">${ic("circle-x")} ${t("req.no")}</button><button class="sp pri" data-yes="${id}" data-min="${m}">${ic("circle-check")} ${q.kind === "app" ? t("req.appYes") : t("req.yes", m)}</button></div></div>`,
     pop => wireReq(pop, today, true));
 }
 function wireReq(b, today, inSheet) {
@@ -866,25 +874,26 @@ function wireReq(b, today, inSheet) {
   const doneReq = id => { delete reqMin[id]; delete reqNote[id]; };
   const after = () => { if (cur) render(); };
   b.querySelectorAll("[data-yes]").forEach(x => x.onclick = async () => {
-    const id = x.dataset.yes, note = noteOf(id);
-    if (!(await ask(t("req.askYes", +x.dataset.min) + (note ? "\n" + t("req.askNote", note) : "")))) return;
-    const n = +x.dataset.min, cur0 = edit.bonus && edit.bonus.day === today ? edit.bonus.min : 0;
-    const k = cur, e = edit, prev = e.bonus;
-    // idempotent per request: if the bonus was saved but `answer` failed, the next tap only re-sends the answer (never adds the bonus twice)
+    const id = x.dataset.yes, note = noteOf(id), q = (st.requests || []).find(o => o.id === id) || {}, app = q.kind === "app";
+    if (!(await ask((app ? t("req.askApp", q.app || q.pkg || "?") : t("req.askYes", +x.dataset.min)) + (note ? "\n" + t("req.askNote", note) : "")))) return;
+    const n = +x.dataset.min, k = cur, e = edit, prev = { bonus: e.bonus, passUntil: e.passUntil, approved: e.approved, blocked: e.blocked };
+    // idempotent per request: if the change was saved but `answer` failed, the next tap only re-sends the answer (never gives the time twice)
+    let kind = "daily";
     if (!bonusGiven.has((k.target || "") + k.id + ":" + id)) {
       clearTimeout(saveT); saveT = null;
-      e.bonus = { day: today, min: cur0 + n };
-      try { await putRules(k, e); } catch (er) { if (e === edit) e.bonus = prev; toast("err|" + t("req.bonusFail", er.message)); return; }   // card stays
+      if (app) { e.approved = [...new Set([...e.approved, q.pkg])]; e.blocked = e.blocked.filter(v => v !== q.pkg); } else kind = grantApply(e, st, n);
+      try { await putRules(k, e); } catch (er) { if (e === edit) Object.assign(e, prev); toast("err|" + t("req.bonusFail", er.message)); return; }   // card stays
       bonusGiven.add((k.target || "") + k.id + ":" + id);
     }
     if (k !== cur) return;
-    if (await cmd({ type: "answer", id, ok: true, min: n, ...(note ? { note } : {}) }, t("req.yesDone", n), false)) { answered.add(id); doneReq(id); }
+    const ans = app ? { type: "answer", req: id, ok: true, always: true, ...(k.via === "lan" ? { id } : {}) } : { type: "answer", req: id, ok: true, min: n, ...(k.via === "lan" ? { id } : {}) };
+    if (await cmd({ ...ans, ...(note ? { note } : {}) }, app ? t("req.appDone", q.app || q.pkg || "?") : kind === "pass" ? t("pass.done", fmt(n * 60000), whenTxt(e.passUntil)) : t("req.yesDone", n), false)) { answered.add(id); doneReq(id); }
     after();
   });
   b.querySelectorAll("[data-no]").forEach(x => x.onclick = async () => {
     const id = x.dataset.no, note = noteOf(id);
     if (!(await ask(t("req.askNo") + (note ? "\n" + t("req.askNote", note) : ""), t("req.no"), true))) return;
-    if (await cmd({ type: "answer", id, ok: false, ...(note ? { note } : {}) }, t("req.noDone"), false)) { answered.add(id); doneReq(id); }
+    if (await cmd({ type: "answer", req: id, ok: false, ...(cur.via === "lan" ? { id } : {}), ...(note ? { note } : {}) }, t("req.noDone"), false)) { answered.add(id); doneReq(id); }
     after();
   });
   if (!inSheet) b.querySelectorAll("[data-reply]").forEach(x => x.onclick = () => { const q = (st.requests || []).find(o => o.id === x.dataset.reply); if (q) replySheet(q, today).then(() => { if (cur && tab === "home") render(); }); });
@@ -919,6 +928,22 @@ function updBoxHtml() {
     <div class="row">${inst ? `<button class="pri sp" id="updInst" data-tag="${esc(u.tag || "")}">${ic("download")} ${t("au.install", u.tag || "")}</button>` : ""}
     <button class="${inst ? "" : "pri "}sp" id="updChk" ${busy ? "disabled" : ""}>${ic("refresh-cw")} ${t("au.check", v)}</button></div>`;
 }
+// "Do alerts arrive?" card: only in the parent app build that has notifHealth
+function notifHealthHtml() {
+  let h = null;
+  try { if (APP && window.KGApp && typeof KGApp.notifHealth === "function") h = JSON.parse(kgCall("notifHealth") || "null"); } catch {}
+  if (!h) return "";
+  const line = (ok, txt) => `<p class="${ok ? "mute" : "err"}">${ic(ok ? "check" : "triangle-alert")} ${txt}</p>`;
+  const push = { off: t("nh.pushOff"), none: t("nh.pushNone"), wait: t("nh.pushWait"), ok: t("nh.pushOk", h.pushAt ? hhmm(h.pushAt) : ""), fail: t("nh.pushFail") }[h.push] || "";
+  return `<div class="card" id="nhBox"><h2>${ic("bell")} ${t("nh.h")}</h2>
+    ${line(!!h.lastCheck, h.lastCheck ? t("nh.check", hhmm(h.lastCheck)) : t("nh.checkNever"))}
+    ${push ? line(h.push !== "fail", push) : ""}
+    ${line(!!h.battery, h.battery ? t("nh.batOk") : t("nh.batOn"))}
+    ${line(h.enabled && h.perm, h.enabled && h.perm ? t("nh.permOk") : t("nh.permOff"))}
+    <div class="row">${h.battery ? "" : `<button class="sp" id="nhBat">${ic("battery-charging")} ${t("nh.batBtn")}</button>`}
+    ${h.perm ? "" : `<button class="sp" id="nhPerm">${ic("bell-ring")} ${t("nh.permBtn")}</button>`}
+    <button class="sp" id="nhTest">${ic("send")} ${t("nh.test")}</button></div></div>`;
+}
 // one history entry while it is open, so Android Back returns to the list (popstate in overview.js) instead of leaving the app
 let appSetOn = false;
 function appSetClose() { if (!appSetOn) return; if (history.state && history.state.appSet) history.back(); else { appSetOn = false; appBoot(); } }   // popstate does the rest
@@ -933,6 +958,7 @@ function appSettings() {
     <label class="row"><input type="checkbox" id="f-notify" ${wantOn ? "checked" : ""}><span class="sp">${t("notif.p")}</span></label>
     <p class="mute">${notifOn ? t("au.nOn") : wantOn ? ic("triangle-alert") + " " + t("notif.blocked") : t("au.nOff")}</p>
     <button id="nSet">${ic("settings")} ${t("au.nOpen")}</button></div>
+  ${notifHealthHtml()}
   <div class="card"><h2>${ic("download")} ${t("au.upd")}</h2><div id="updBox">${updBoxHtml()}</div></div>
   <div class="card row"><b class="sp">${ic("book-open")} ${t("au.guide")}</b><a class="btn" href="https://kid-guard.pages.dev/${lang === "en" ? "en/" : ""}guide.html" target="_blank" rel="noopener">${ic("external-link")} ${t("open")}</a></div>
   <button id="abk">${ic("list")} ${t("back")}</button>`;
@@ -945,6 +971,13 @@ function appSettings() {
   $("#nSet").onclick = () => kgCall("openNotifSettings");
   // one delegated handler: updBox is redrawn by kgUpd
   $("#app").onclick = e => {
+    const n = e.target.closest && e.target.closest("#nhBat, #nhPerm, #nhTest");
+    if (n) {
+      if (n.id === "nhBat") kgCall("openBatterySettings");
+      else if (n.id === "nhPerm") { const r = kgCall("askNotif"); if (r === "ok") toast("ok|" + t("nh.permOk")); setTimeout(appSettings, 1500); }
+      else toast(kgCall("sendTest") === "ok" ? "ok|" + t("nh.sent") : "warn|" + t("notif.blockedShort"));
+      return;
+    }
     const b = e.target.closest && e.target.closest("#updChk, #updInst"); if (!b || b.disabled) return;
     if (b.id === "updChk") kgCall("checkUpdate"); else kgCall("installUpdate", b.dataset.tag);
   };

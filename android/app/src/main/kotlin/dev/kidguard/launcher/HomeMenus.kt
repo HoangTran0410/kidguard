@@ -44,8 +44,33 @@ internal fun HomeActivity.pausedSheet(a: AppE, reason: String, dv: View0, r: Rul
         nc.addView(text(note, 15f, pal.text).apply { setPadding(0, dp(4), 0, 0); includeFontPadding = true })
         body.addView(nc, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(10), dp(12), 0) })
     }
-    if (!locked && HomeLogic.canAsk(s.everPaired, dv.leftMs, reason)) body.addView(kit.pill(getString(R.string.main_more), R.drawable.li_timer, true) { sh.dismiss(); main.post { acts.askMore() } },
-        LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(16), dp(12), 0) })
+    // what the phone as a whole is doing now (lost / paused / a limit): asking only where a yes can change something
+    val nw = nowWhy(r, dv.minute, dv.now, dv.today, dv.usage, dv.apps, dv.prot, s.unlockUntil)
+    if (nw.why == "lost") KidNow.line(this, nw)?.let { body.addView(text(it, 14f, pal.warnText, true).apply { setPadding(0, 0, 0, 0) }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(14), dp(10), dp(14), 0) }) }
+    val pending = acts.pendingText()
+    val canAsk = !locked && !Flavor.HOME && KidNow.canAsk(nw) && HomeLogic.canAsk(s.everPaired, dv.leftMs, reason)
+    if (pending != null && !locked && s.everPaired) {
+        // asked already: when, and "Nhắc lại" instead of a second ask
+        body.addView(text(pending, 15f, pal.text, true), LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(14), dp(16), dp(14), 0) })
+        body.addView(kit.pill(getString(R.string.req_remind), R.drawable.li_bell, false) { sh.dismiss(); main.post { acts.remind() } },
+            LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(10), dp(12), 0) })
+    } else {
+        // the parent's last answer stays here until the next unlock
+        acts.answerText()?.let { body.addView(text(it, 15f, pal.text, true), LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(14), dp(16), dp(14), 0) }) }
+        if (canAsk) {
+            // a blocked / new app is asked for by name (kind "app"); a time limit asks for more time
+            val appAsk = reason == "blocked" || reason == "new"
+            body.addView(kit.pill(if (appAsk) getString(R.string.req_app_ask, a.label) else getString(R.string.main_more), R.drawable.li_timer, true) {
+                sh.dismiss(); main.post { if (appAsk) acts.askApp(a.pkg, a.label) else acts.askMore() } },
+                LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(16), dp(12), 0) })
+        }
+    }
+    // "+1 phút": once per lock period, only where a limit the parent set locks the phone
+    if (!locked && !Flavor.HOME && OneMore.allowed(r, nw, s.oneMoreKey) && reason in setOf("bedtime", "schedule", "daily")) {
+        body.addView(kit.pill(getString(R.string.one_more), R.drawable.li_plus, false) {
+            sh.dismiss(); main.post { if (KidNow.takeOneMore(this)) Toasts.show(this, R.string.one_more_done) }
+        }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(8), dp(12), 0) })
+    }
     body.addView(kit.pill(getString(R.string.hm_later), null, false) { sh.dismiss() }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(12), dp(8), dp(12), 0) })
     sh.show()
 }

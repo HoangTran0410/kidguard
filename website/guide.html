@@ -35,7 +35,7 @@
 <span id="menu" class="menu-t" aria-hidden="true"></span>
 <header>
   <div class="wrap">
-    <a class="brand" href="./"><img src="img/icon.svg?v=53fa2372eb" width="26" height="26" alt="">KidGuard <small><span class="ver">v0.9.15</span></small></a>
+    <a class="brand" href="./"><img src="img/icon.svg?v=53fa2372eb" width="26" height="26" alt="">KidGuard <small><span class="ver">v0.9.16</span></small></a>
     <a class="burger open" href="#menu" aria-label="Mở menu"><i></i></a>
     <a class="burger shut" href="#_" aria-label="Đóng menu"><i></i></a>
     <nav aria-label="Menu">
@@ -94,7 +94,7 @@
   <h2>Cài lên máy con</h2>
   <ol class="steps">
     <li><b>Cài APK và mở app.</b> Không cần xóa tài khoản, chưa cần cài đặt gì. Đã dùng được ngay: launcher cho con (bật trên máy), <b>Dọn máy</b> <span class="tag weak">Beta</span> (chỉ cần ghép Gỡ lỗi không dây, app tự chạy <code>pm disable-user</code> trên chính máy) và <b>Bố mẹ quản lý trên máy này</b> (trang phụ huynh ngay trên máy con, ở chế độ xem trước: mục thiếu quyền sẽ mờ và ghi rõ cần quyền gì).</li>
-    <li><b>Đặt PIN phụ huynh:</b> trang hỏi ở lần lưu luật đầu tiên. PIN này khóa trang trên máy con, và là PIN bạn nhập khi ghép điện thoại của mình ở bước 5.</li>
+    <li><b>Đặt PIN phụ huynh:</b> form ghép (bước 5) bắt đặt PIN. PIN này khóa trang trên máy con và cho phép ghép thêm máy bố mẹ.</li>
     <li><b>Cấp quyền khi cần</b>, theo bảng <a href="./#quyen">chức năng nào cần quyền gì</a>: trợ năng, quyền truy cập dữ liệu sử dụng, quản trị thiết bị, vị trí…</li>
     <li><b>Tùy chọn, mạnh nhất: Device Owner</b> (cách A–D bên dưới). <b>Chỉ bước này</b> mới cần xóa tài khoản của máy (Google, Samsung, Xiaomi…); tài khoản của app (Zalo, Facebook…) được giữ.</li>
     <li><b>Ghép điện thoại hoặc trình duyệt của bố mẹ</b> (Wi-Fi nhà hoặc relay, xem <a href="#away">Từ xa</a>).</li>
@@ -103,13 +103,13 @@
   <div class="warnote">
     <p><b>Chỉ khi làm Device Owner (cách A–D):</b> Android chỉ cho app làm Device Owner khi máy <b>không có tài khoản nào</b>. KidGuard giữ được tài khoản của app, còn tài khoản của máy thì phải xóa trước.</p>
     <p><b>Tài khoản của máy</b> (Google, Samsung, Xiaomi, Oppo/HeyTap…): vào <b>Cài đặt → Tài khoản</b> trên máy con, xóa chúng. Cài xong đăng nhập lại, mọi thứ quay về.</p>
-    <p><b>Giữ đăng nhập các app</b> (Zalo, Facebook, Telegram…): tự động. KidGuard tắt tạm các app đó, <b>máy khởi động lại một lần</b> (khoảng 1 phút), cài xong rồi bật lại. Cách A (QR) không cần: máy mới chưa có tài khoản. Cách B, C, D đều làm được; cách tự cài trên máy sẽ cài tiếp sau khi mở khóa màn hình, và báo bằng thông báo. Nếu có tài khoản của máy, KidGuard dừng và nói rõ tài khoản nào cần xóa.</p>
+    <p><b>Giữ đăng nhập các app</b> (Zalo, Facebook, Telegram…): tự động. KidGuard tắt tạm các app đó, <b>máy khởi động lại một lần</b> (khoảng 1 phút), cài xong rồi bật lại. Cách B (QR) không cần: máy mới chưa có tài khoản. Cách B, C, D đều làm được; cách tự cài trên máy sẽ cài tiếp sau khi mở khóa màn hình, và báo bằng thông báo. Nếu có tài khoản của máy, KidGuard dừng và nói rõ tài khoản nào cần xóa.</p>
     <p>Làm tay (nếu cần): <code>adb shell pm disable-user --user 0 &lt;tên gói&gt;</code>, chờ 15 giây, <code>adb shell sync</code>, <code>adb reboot</code>, chờ khoảng 30 giây sau khi máy lên, cài Device Owner, rồi <code>adb shell pm enable &lt;tên gói&gt;</code>. Xem tài khoản thuộc app nào: <code>adb shell dumpsys account</code>.</p>
   </div>
 
   <article id="install-phone">
     <h3>A. Ngay trên điện thoại <span class="tag ok">Khuyên dùng</span></h3>
-    <p class="need">Cần: Android 11+, Wi-Fi. Không cần máy tính.</p>
+    <p class="need">Cần: Android 11+, Wi-Fi. Không cần máy tính. Tài khoản của máy (Google, Samsung…) phải xóa trước: KidGuard dừng và nói rõ tài khoản nào cần xóa.</p>
     <ol class="steps">
       <li><a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk">Tải file APK</a> trên máy con, cài và mở KidGuard.</li>
       <li>Bấm <b>Cài đầy đủ không cần máy tính (Android 11+)</b>.</li>
@@ -169,7 +169,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <h3>E. Chế độ cơ bản <span class="tag weak">Yếu hơn</span></h3>
     <p class="need">Cần: mọi Android 8+. Không cần máy tính, không cần xóa tài khoản. Dành cho máy cũ không có màn hình QR, không có máy tính hay cáp.</p>
     <ol class="steps">
-      <li>Cài file APK, mở KidGuard, bấm <b>Cài nhanh không cần máy tính</b>.</li>
+      <li>Cài file APK, mở KidGuard, làm theo danh sách <b>Việc cần làm</b> ngay trên màn hình.</li>
       <li>Bật lần lượt từng mục: quản trị thiết bị, Trợ năng, truy cập dữ liệu sử dụng, vị trí (chọn <b>Luôn cho phép</b>), thông báo, pin.</li>
       <li>Mỗi nút mở đúng màn hình hệ thống: bật lên rồi bấm Quay lại.</li>
     </ol>
@@ -186,17 +186,17 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
 
 <section id="pair">
   <h2>Mở trang phụ huynh</h2>
-  <p>Cài xong, máy con hiện một <b>mã 6 số</b> và một <b>mã QR</b>.</p>
+  <p>Cài xong, màn hình cuối trên máy con hiện <b>mã ghép 6 số</b> và <b>mã QR</b> trong 10 phút. Hết 10 phút hoặc muốn ghép sau: bố mẹ giữ nút <b>Bố mẹ: hiện mã ghép</b> 5 giây trên màn hình KidGuard.</p>
   <ol class="steps">
     <li>Trên điện thoại của bạn (cùng Wi-Fi với máy con), quét mã QR bằng camera. Trang mở ra với mã điền sẵn.</li>
     <li>Hoặc mở trình duyệt, vào <code>http://&lt;IP máy con&gt;:8770</code> và gõ mã 6 số.</li>
-    <li>Vào tab <b>Cài đặt</b>, đặt <b>PIN phụ huynh</b>. Chưa có PIN thì máy con không cho ghép thêm trình duyệt khác.</li>
+    <li>Đặt <b>PIN phụ huynh</b> ngay trong form ghép. Chưa có PIN thì máy con không cho ghép thêm trình duyệt khác.</li>
     <li>Đăng nhập lại tài khoản trên máy con (nếu đã xóa) và rút cáp.</li>
     <li>Xiaomi, Oppo, Vivo, Samsung: trên máy con bấm <b>Cài đặt pin / tự khởi động</b>, cho KidGuard chạy nền.</li>
     <li>Muốn quản lý cả khi con ra ngoài: xem <a href="#away">Khi con ra khỏi nhà</a>.</li>
   </ol>
   <p class="tip"><b>Oppo / Realme / OnePlus (ColorOS):</b> mở Đa nhiệm, kéo thẻ KidGuard xuống để khóa (biểu tượng ổ khóa). Trong Quản lý điện thoại, cho KidGuard “Tự khởi chạy” và chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app.</p>
-  <p>Ở Wi-Fi nhà trang chạy HTTP thường: chỉ dùng ở mạng bạn tin tưởng. Mỗi trình duyệt ghép một lần bằng mã 6 số, ghép thêm cần PIN phụ huynh.</p>
+  <p>Ở Wi-Fi nhà trang chạy HTTP thường: chỉ dùng ở mạng bạn tin tưởng. Mỗi trình duyệt ghép một lần bằng mã ghép 6 số, ghép thêm cần PIN phụ huynh.</p>
 </section>
 
 <section id="parent-app">
@@ -205,7 +205,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
   <ol class="steps">
     <li><a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk">Tải app bố mẹ</a> và cài lên điện thoại của bạn.</li>
     <li>Mở app, bấm <b>Thêm máy của con</b>.</li>
-    <li>Ở nhà: gõ địa chỉ hiện trên màn hình KidGuard của con, rồi mã 6 số.</li>
+    <li>Ở nhà: gõ địa chỉ hiện trên màn hình KidGuard của con, rồi mã ghép 6 số (giữ nút <b>Bố mẹ: hiện mã ghép</b> 5 giây nếu chưa thấy).</li>
     <li>Ngoài nhà: dán link relay (dạng <code>https://…/#c=…&amp;k=…</code>) lấy trong <b>Cài đặt → Kết nối</b> (relay đã bật sẵn), xem <a href="#relay">relay</a>.</li>
     <li>Có từ 2 con: mục <b>Tổng quan</b> hiện tất cả các con trên một trang.</li>
   </ol>
@@ -250,7 +250,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li><b>Liên kết.</b> Trang hiện nút <b>Mở Telegram và liên kết</b> và mã QR. Bấm nút (hoặc quét QR bằng camera điện thoại), Telegram mở bot, bấm <b>Bắt đầu</b>. Bot chào và hiện Menu.</li>
     <li><b>Thêm người nhận</b> (bố, mẹ, ông bà, tối đa 5): bấm <b>Mã khác</b> và gửi link cho người đó.</li>
   </ol>
-  <p>Dùng: bấm <b>📋 Menu</b> để bấm nút, hoặc gõ lệnh (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/code</code> gửi mã mở khoá 6 số để đọc cho con (không cần mở app Authenticator); <code>/help</code> xem hết lệnh, <code>/lang</code> đổi Tiếng Việt / English. Gỡ quản lý, huỷ ghép, xoá dữ liệu không làm được qua Telegram.</p>
+  <p>Dùng: bấm <b>📋 Menu</b> để bấm nút, hoặc gõ lệnh (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/requests</code> xem yêu cầu đang chờ, <code>/lost</code> bật / tắt chế độ thất lạc, <code>/quiet</code> chọn mức báo; <code>/code</code> gửi mã mở khoá 6 số để đọc cho con (không cần mở app Authenticator); <code>/help</code> xem hết lệnh, <code>/lang</code> đổi Tiếng Việt / English. Gỡ quản lý, huỷ ghép, xoá dữ liệu không làm được qua Telegram.</p>
   <div class="card faq">
     <details><summary>Có 2 bé thì sao?</summary><p>Tạo 2 bot (vd: Nhà Bin, Nhà Na), mỗi bot dán vào trang của bé đó. 1 bot chỉ chạy được trên 1 máy con.</p></details>
     <details><summary>Báo “Token sai” hoặc “đang được nơi khác dùng”?</summary><p>Copy lại cả tin của BotFather và dán. “Nơi khác dùng” nghĩa là bot đã gắn cho máy khác: tạo bot mới cho bé này. Lỡ lộ token: gửi <code>/revoke</code> cho BotFather lấy token mới, dán lại.</p></details>
@@ -324,6 +324,8 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
         <div><dt>Giới hạn mỗi ngày</dt><dd>Một con số, hoặc theo từng thứ. Hết giờ, mọi app (trừ “Luôn cho phép”) khóa đến nửa đêm. Thêm +15 / +30 / +60 phút cho hôm nay.</dd></div>
         <div><dt>Giờ ngủ, lịch</dt><dd>Giờ ngủ mỗi ngày, cộng khung giờ theo thứ (giờ học thứ 2–6), qua được nửa đêm.</dd></div>
         <div><dt>Báo trước khi khóa</dt><dd>Con nhận thông báo 5 phút và 1 phút trước khi hết giờ, đến giờ ngủ hay lịch khóa.</dd></div>
+        <div><dt>Thêm giờ luôn có tác dụng</dt><dd>Duyệt xin thêm giờ lúc giờ ngủ hay giờ học: máy con mở trong N phút, rồi khóa lại. Bấm <b>Kết thúc</b> để khóa sớm.</dd></div>
+        <div><dt>Giờ ngủ từng đêm, +1 phút</dt><dd>Giờ ngủ riêng cho mỗi đêm (đêm đi học khác cuối tuần). Khi khóa, con tự xin được <b>+1 phút</b> để lưu bài, một lần mỗi lần khóa. Tắt được.</dd></div>
         <div><dt>Tạm dừng ngay</dt><dd>30 phút, 1 giờ, hoặc đến 6 giờ sáng.</dd></div>
         <div><dt>Xin thêm giờ</dt><dd>Con chọn 15 / 30 / 60 phút kèm lý do, bố mẹ duyệt hoặc từ chối.</dd></div>
         <div><dt>Việc nhà</dt><dd>Bố mẹ liệt kê việc (“Rửa bát +20 phút”), con chọn khi xin giờ. Duyệt kèm lời nhắn nếu muốn.</dd></div>
@@ -350,6 +352,8 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
         <div><dt>Xem màn hình</dt><dd>Màn hình con trực tiếp (Android 11+, ~3 khung hình/giây). Con luôn được báo là bố mẹ đang xem.</dd></div>
         <div><dt>Điều khiển từ xa</dt><dd>Chạm, vuốt, nhấn giữ, Quay lại / Màn hình chính / Đa nhiệm, gõ chữ.</dd></div>
         <div><dt>Nghe xung quanh</dt><dd>Tối đa 10 phút mỗi lần, chỉ qua Wi-Fi nhà hoặc Tailscale. Con luôn biết: tiếng bíp, thông báo, chấm micro của Android.</dd></div>
+        <div><dt>Chế độ thất lạc</dt><dd>Tab <b>Vị trí</b>: bật là máy khóa ngay và khóa lại mỗi lần mở, màn hình khóa hiện lời nhắn + số của bạn, định vị 5 phút một lần, đổ chuông 5 phút mỗi 15 phút. Tắt thì mọi thứ về như cũ. Báo cả khi đổi SIM.</dd></div>
+        <div><dt>Mức báo</dt><dd>Chỉ SOS, mất máy, mở khóa bằng mã và xin giờ báo to; còn lại báo êm. Telegram: <code>/quiet</code> chọn tất cả / quan trọng / chỉ SOS cho từng người. App bố mẹ báo “offline từ HH:mm” và bỏ qua giờ ngủ của con.</dd></div>
         <div><dt>Cảnh báo</dt><dd>Đến / rời vùng, pin còn 15 %, cài app mới, đổi giờ máy.</dd></div>
       </dl>
     </div>

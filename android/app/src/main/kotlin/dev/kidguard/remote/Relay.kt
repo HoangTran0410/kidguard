@@ -56,6 +56,21 @@ class Relay(private val g: Guard) {
         wsRetryAt = 0L; wsFails = 0; if (inSync) kickAgain = true else schedule(0)
     } }
 
+    /** Release (C8): one last whole-state sync on the relay thread (the `released` event goes out), waits at most [timeoutMs]. */
+    fun finalSync(timeoutMs: Long) {
+        val l = java.util.concurrent.CountDownLatch(1)
+        h.post {
+            try {
+                val url = store.relayUrl.trim().trimEnd('/'); val token = store.relayToken; val rid = store.relayId
+                if (url.startsWith("https://", ignoreCase = true) && token.isNotBlank() && rid.isNotBlank()) {
+                    forceSend = true; lastHash = 0; lastFull = 0
+                    runCatching { sync(url, rid, token) }.onFailure { Log.w("KidGuard", "final sync", it) }
+                }
+            } finally { l.countDown() }
+        }
+        l.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+    }
+
     private fun schedule(ms: Long) { h.removeCallbacks(loopRun); h.postDelayed(loopRun, ms) }
 
     private fun loop() {
@@ -276,6 +291,17 @@ class Relay(private val g: Guard) {
     }
 
     companion object {
+        /** Release (C8): asks the worker to delete everything it keeps for [rid] (`POST /c/<id>/forget`, kid token). Blocking, short timeouts; false = not done. */
+        fun forget(base: String, rid: String, token: String): Boolean = runCatching {
+            val b = base.trim().trimEnd('/')
+            if (!b.startsWith("https://", ignoreCase = true) || rid.isBlank() || token.isBlank()) return false
+            val c = (URL("$b/c/$rid/forget").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"; connectTimeout = 5_000; readTimeout = 5_000; doOutput = true; instanceFollowRedirects = false
+                setRequestProperty("X-KG-Token", token); setRequestProperty("Content-Type", "application/json")
+            }
+            try { c.outputStream.use { it.write("{}".toByteArray()) }; c.responseCode in 200..299 } finally { c.disconnect() }
+        }.getOrDefault(false)
+
         private const val MAX_REPLY = 256 * 1024
         /** Socket up and nothing changed: a state anyway this often (usage minutes, battery). */
         private const val WHOLE_MS = 6 * 3600_000L

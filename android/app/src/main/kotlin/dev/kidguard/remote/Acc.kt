@@ -216,13 +216,13 @@ class Acc : AccessibilityService() {
             // basic mode has no DISALLOW_CONFIG_DATE_TIME: the clock page is closed like the uninstall pages
             performGlobalAction(GLOBAL_ACTION_HOME); whyClosed(R.string.acc_closed_clock, R.string.bn_clock_t, R.string.bn_clock_b)
             val now = System.currentTimeMillis()
-            if (now - lastProtectLog > 30_000) { lastProtectLog = now; runCatching { Store.of(this).log(R.string.log_acc_clock) } }
+            if (now - lastProtectLog > 30_000) { lastProtectLog = now; runCatching { Store.of(this).log(R.string.log_acc_clock); Store.of(this).tamper("clock", R.string.ev_tamper_clock); Guard.running?.kick() } }
         } else if (BasicLogic.selfProtect(pkg, nodes, labels, controlsOf(pkg))) {
             performGlobalAction(GLOBAL_ACTION_HOME); whyClosed(R.string.acc_closed_protect, R.string.bn_protect_t, R.string.bn_protect_b)
             val now = System.currentTimeMillis()
             if (now - lastProtectLog > 30_000) {
                 lastProtectLog = now
-                runCatching { Store.of(this).log(R.string.log_acc_settings) }
+                runCatching { Store.of(this).log(R.string.log_acc_settings); Store.of(this).tamper("page", R.string.ev_tamper_page); Guard.running?.kick() }
             }
         }
     }
@@ -295,6 +295,7 @@ class Acc : AccessibilityService() {
             }
             runCatching {
                 val label = runCatching { ctx.packageManager.getApplicationInfo(pkg, 0).loadLabel(ctx.packageManager).toString() }.getOrDefault(pkg)
+                if (a != null && dev.kidguard.BlockCard.show(a, label, pkg, code)) return   // B14: overlay card with reason + Ask
                 val nm = ctx.getSystemService(NotificationManager::class.java)
                 nm.createNotificationChannel(NotificationChannel("kg_block", ctx.getString(R.string.ch_block), NotificationManager.IMPORTANCE_HIGH))
                 nm.notify(7400 + (pkg.hashCode() and 0xff), Notification.Builder(ctx, "kg_block").setSmallIcon(android.R.drawable.ic_lock_lock)

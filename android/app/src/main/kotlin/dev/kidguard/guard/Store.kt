@@ -159,20 +159,30 @@ class Store private constructor(private val app: Context) {
      */
     private val pinGate = Any()
 
-    /** Checks the parent PIN with the lockout: true = right; false = wrong or locked (see [pinLockLeft]). */
-    fun checkParentPin(pin: String): Boolean = synchronized(pinGate) {
-        if (pinLockLeft() > 0) return false
+    /** ms until the PIN may be typed again ON this phone (the child-side admin has its own counter, audit A6.2: a child cannot lock the parents' remote access). */
+    @Synchronized fun localPinLockLeft(): Long = lockLeft("aPinLock")
+    /** Same for an Authenticator code typed on this phone. */
+    @Synchronized fun localUnlockLockLeft(): Long = lockLeft("aUnlockLock")
+
+    /** Checks the parent PIN with the lockout: true = right; false = wrong or locked (see [pinLockLeft]). Remote use (page, relay, pairing). */
+    fun checkParentPin(pin: String): Boolean = checkPinCounter(pin, "pinFails", "pinLock", true)
+
+    /** The PIN typed on the child phone ([checkAdmin]): own counter and lockout. */
+    private fun checkLocalPin(pin: String): Boolean = checkPinCounter(pin, "aPinFails", "aPinLock", false)
+
+    private fun checkPinCounter(pin: String, failsKey: String, lockKey: String, remote: Boolean): Boolean = synchronized(pinGate) {
+        if (lockLeft(lockKey) > 0) return false
         val ok = rules.checkPin(pin)   // the slow hash, outside the Store monitor
         synchronized(this) {
             if (ok) {
-                p.edit().putInt("pinFails", 0).clearLock("pinLock").commit()
+                p.edit().putInt(failsKey, 0).clearLock(lockKey).commit()
                 if (pinResetAt > 0) { clearPinReset(); log(R.string.log_pin_reset_cancel) }   // whoever knows the PIN is still here: no reset
                 return true
             }
-            val f = p.getInt("pinFails", 0) + 1
+            val f = p.getInt(failsKey, 0) + 1
             val lock = Safety.pinLockMs(f)
-            p.edit().putInt("pinFails", f).putLock("pinLock", lock, System.currentTimeMillis()).commit()
-            if (lock > 0) log(R.string.log_pin_wrong, f, (lock / 60_000).toInt())
+            p.edit().putInt(failsKey, f).putLock(lockKey, lock, System.currentTimeMillis()).commit()
+            if (lock > 0) log(if (remote) R.string.log_pin_wrong else R.string.log_pin_wrong_local, f, (lock / 60_000).toInt())
         }
         false
     }
@@ -234,22 +244,22 @@ class Store private constructor(private val app: Context) {
         val c = code.filter { it.isDigit() }
         val secret = totpSecret
         val pinSet = rules.pinHash.isNotBlank()
-        val w = AdminAuth.ways(pinSet, pinLockLeft() > 0, secret.isNotBlank(), unlockLockLeft() > 0)
+        val w = AdminAuth.ways(pinSet, localPinLockLeft() > 0, secret.isNotBlank(), localUnlockLockLeft() > 0)
         if (w.none) return -1
         if (w.code && c.length == 6) {
             val step = Totp.check(secret, c, now, p.getLong("totpLast", 0))
             if (step >= 0) {
-                p.edit().putLong("totpLast", step).putInt("unlockFails", 0).putInt("adminRun", 0).clearLock("unlockLock").commit()
+                p.edit().putLong("totpLast", step).putInt("aUnlockFails", 0).putInt("adminRun", 0).clearLock("aUnlockLock").commit()
                 log(R.string.log_admin_open_code); event("tamper", R.string.ev_admin_open_code); return 1
             }
         }
         if (w.pin) {
-            if (checkParentPin(c)) { p.edit().putInt("adminRun", 0).apply(); log(R.string.log_admin_open); event("adminOpen", R.string.ev_admin_open_pin); return 1 }
+            if (checkLocalPin(c)) { p.edit().putInt("adminRun", 0).apply(); log(R.string.log_admin_open); event("adminOpen", R.string.ev_admin_open_pin); return 1 }
         } else {
             // no PIN (or it is locked): the wrong code counts against the Authenticator's own limit
-            val f = p.getInt("unlockFails", 0) + 1
+            val f = p.getInt("aUnlockFails", 0) + 1
             val lock = Safety.pinLockMs(f)
-            p.edit().putInt("unlockFails", f).putLock("unlockLock", lock, now).commit()
+            p.edit().putInt("aUnlockFails", f).putLock("aUnlockLock", lock, now).commit()
         }
         event("tamper", R.string.ev_admin_wrong)
         val run = p.getInt("adminRun", 0) + 1
@@ -272,7 +282,7 @@ class Store private constructor(private val app: Context) {
     }
     /** ms until the on-device admin can be tried again (the PIN lockout when a PIN is set, else the Authenticator's). */
     @Synchronized fun adminLockLeft(): Long =
-        AdminAuth.lockLeft(rules.pinHash.isNotBlank(), pinLockLeft(), totpSecret.isNotBlank(), unlockLockLeft())
+        AdminAuth.lockLeft(rules.pinHash.isNotBlank(), localPinLockLeft(), totpSecret.isNotBlank(), localUnlockLockLeft())
     // ---- Telegram bot on this phone (Tg.kt). The token never leaves the phone (not in state, not in rules). ----
     var tgToken: String
         get() = p.getString("tgToken", "") ?: ""
@@ -308,6 +318,17 @@ class Store private constructor(private val app: Context) {
         val a = tgChats(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optLong("id") == id }?.put("lang", lang)
         p.edit().putString("tgChats", a.toString()).commit()
     }
+    /** Alert level of a chat: "all" (default) / "important" / "sos" (TgLogic.quietOk). */
+    @Synchronized fun tgChatQuiet(id: Long): String = tgChats().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }
+        .firstOrNull { it.optLong("id") == id }?.optString("quiet")?.takeIf { it == "important" || it == "sos" } } ?: "all"
+    @Synchronized fun tgSetChatQuiet(id: Long, level: String) {
+        val a = tgChats(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optLong("id") == id }?.put("quiet", level)
+        p.edit().putString("tgChats", a.toString()).commit()
+    }
+    /** When the last getUpdates succeeded: a long gap = the phone was offline (old button taps are not run). */
+    var tgLastOk: Long
+        get() = p.getLong("tgLastOk", 0)
+        set(v) { p.edit().putLong("tgLastOk", v).apply() }
     @Synchronized fun tgUnlinkAll() { p.edit().remove("tgChats").commit() }
     @Synchronized fun tgRemoveChat(id: Long): Boolean {
         val a = tgChats(); val keep = JSONArray(); var hit = false
@@ -360,7 +381,7 @@ class Store private constructor(private val app: Context) {
 
     /**
      * The PIN carried by a gated command ([CmdGate]), or an Authenticator code as its backup ([AdminAuth]).
-     * Shares the lockouts of the on-device admin. 1 = right, 2 = nothing to check (no PIN and no Authenticator yet), 3 = none given (not counted),
+     * Remote counters (not the on-device admin's, see [checkAdmin]). 1 = right, 2 = nothing to check (no PIN and no Authenticator yet), 3 = none given (not counted),
      * 0 = wrong (a `tamper` event naming the command), -1 = locked.
      */
     fun checkCmdPin(code: String, what: String, now: Long = System.currentTimeMillis()): Int = synchronized(pinGate) {
@@ -418,6 +439,7 @@ class Store private constructor(private val app: Context) {
         val min = rules.unlockMin
         p.edit().putLong("totpLast", step).putInt("unlockFails", 0).clearLock("unlockLock")
             .putLong("unlockUntil", maxOf(now, p.getLong("unlockUntil", 0)) + min * 60_000L).commit()
+        p.edit().putString("lastAns", "").apply()   // the parent's last answer is old news once a code unlocked
         log(R.string.log_unlock, min)
         event("unlock", R.string.ev_unlock, min)
         return min
@@ -675,25 +697,113 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized val history: JSONArray get() = runCatching { JSONArray(p.getString("hist", "[]")) }.getOrDefault(JSONArray())
     @Synchronized fun saveHistory(a: JSONArray, at: Long) { p.edit().putString("hist", a.toString()).putLong("histAt", at).apply() }
 
-    /** "More time, please" from the child, max 5. */
+    // ---- Requests (0.9.16, C3): at most ONE open request; asking again = "remind" (same id, `at` kept, `remindAt` = now,
+    // the parent alert is raised again, at most once per 5 min). Dropped at the first tick of a new local day. ----
+    /** The open request(s) for the state: a list of 0 or 1. Each {id, at, t (= at, older readers), remindAt, kind: "time"|"app", min, note, chore?, tpl?, pkg?, app?}. */
     @Synchronized fun requests(): JSONArray = runCatching { JSONArray(p.getString("reqs", "[]")) }.getOrDefault(JSONArray())
-    /** [chore]: id of a parent's chore (then [min] is that chore's minutes); the parent still decides. */
-    @Synchronized fun addRequest(min: Int, note: String, chore: String? = null, tpl: String? = null): Boolean {
-        val a = requests()
-        if (a.length() >= 5) return false
-        val o = JSONObject().put("id", randomHex(3)).put("t", System.currentTimeMillis()).put("min", min).put("note", note.trim().take(100))
-        if (!chore.isNullOrBlank()) o.put("chore", chore)
-        if (!tpl.isNullOrBlank()) o.put("tpl", tpl)   // v0.9.7 ReqTpl id
-        a.put(o)
-        p.edit().putString("reqs", a.toString()).apply()
-        return true
+    /** The one open request, or null. */
+    @Synchronized fun openRequest(): JSONObject? = requests().optJSONObject(0)
+
+    /**
+     * The kid asks. "new" = stored (the parent hears of it), "remind" = one was open: same id, parent alerted again,
+     * "wait" = one is open and was raised less than [REMIND_MS] ago (nothing changes). [chore]: id of a parent's chore ([min] is its minutes).
+     */
+    @Synchronized fun addRequest(kind: String, min: Int, note: String, pkg: String? = null, app: String? = null, chore: String? = null, tpl: String? = null,
+                                 now: Long = System.currentTimeMillis()): String {
+        val k = if (kind == "app") "app" else "time"
+        fun fill(o: JSONObject) {
+            o.put("kind", k).put("min", min).put("note", note.trim().take(100))
+            for ((key, v) in listOf("chore" to chore, "tpl" to tpl, "pkg" to pkg, "app" to app)) if (!v.isNullOrBlank()) o.put(key, v.take(80)) else o.remove(key)
+        }
+        val cur = openRequest()
+        if (cur == null) {
+            val o = JSONObject().put("id", randomHex(3)).put("at", now).put("t", now).put("remindAt", 0L)
+            fill(o)
+            p.edit().putString("reqs", JSONArray().put(o).toString()).putString("lastAns", "").apply()
+            return "new"
+        }
+        if (now - maxOf(cur.optLong("at"), cur.optLong("remindAt")) < REMIND_MS) return "wait"
+        fill(cur); cur.put("remindAt", now)
+        p.edit().putString("reqs", JSONArray().put(cur).toString()).apply()
+        // a plain event so Telegram / the parent app raise it again (the request id did not change); kind "request" is important
+        addEvent(Ev("request", if (k == "app") str(R.string.ev_req_remind_app, app?.takeIf { it.isNotBlank() } ?: pkg ?: "") else str(R.string.ev_req_remind, min)))
+        return "remind"
     }
+
+    /** Old signature (before 0.9.16): a time request. True = stored or reminded. Kept so callers keep compiling; new code uses the kind form. */
+    @Synchronized fun addRequest(min: Int, note: String, chore: String? = null, tpl: String? = null): Boolean =
+        addRequest("time", min, note, chore = chore, tpl = tpl) != "wait"
+
     /** Removes request [id]; returns it (for the notification) or null. */
     @Synchronized fun removeRequest(id: String): JSONObject? {
         val a = requests(); val keep = JSONArray(); var hit: JSONObject? = null
         for (i in 0 until a.length()) { val o = a.getJSONObject(i); if (o.optString("id") == id) hit = o else keep.put(o) }
         if (hit != null) p.edit().putString("reqs", keep.toString()).apply()
         return hit
+    }
+
+    /** First tick of a new local day: the open request goes (a stale "please" tomorrow is noise). True = one was dropped. */
+    @Synchronized fun expireRequests(now: Long): Boolean {
+        val o = openRequest() ?: return false
+        if (Guard.day(o.optLong("at")) == Guard.day(now)) return false
+        p.edit().putString("reqs", "[]").apply()
+        return true
+    }
+
+    /** The parent's last answer {ok, min, kind, app, at}, kept until the next unlock or the day ends; null = none. */
+    @Synchronized fun lastAnswer(now: Long = System.currentTimeMillis()): JSONObject? {
+        val o = runCatching { JSONObject(p.getString("lastAns", "") ?: "") }.getOrNull() ?: return null
+        return o.takeIf { Guard.day(it.optLong("at")) == Guard.day(now) }
+    }
+    @Synchronized fun setLastAnswer(ok: Boolean, min: Int, kind: String, app: String, now: Long = System.currentTimeMillis()) {
+        p.edit().putString("lastAns", JSONObject().put("ok", ok).put("min", min).put("kind", kind).put("app", app).put("at", now).toString()).apply()
+    }
+    @Synchronized fun clearLastAnswer() { p.edit().putString("lastAns", "").apply() }
+
+    // ---- Command receipts (C4): the last 10 results, state `done: [{id, type, res, at}]` ----
+    @Synchronized fun done(): JSONArray = runCatching { JSONArray(p.getString("done", "[]")) }.getOrDefault(JSONArray())
+    @Synchronized fun recordDone(id: String, type: String, res: String, now: Long = System.currentTimeMillis()) {
+        if (id.isBlank()) return
+        val keep = ArrayList<JSONObject>(); val a = done()
+        for (i in 0 until a.length()) a.optJSONObject(i)?.let { if (it.optString("id") != id) keep += it }
+        keep += JSONObject().put("id", id).put("type", type).put("res", res.take(80)).put("at", now)
+        p.edit().putString("done", JSONArray().also { j -> keep.takeLast(DONE_MAX).forEach { j.put(it) } }.toString()).apply()
+    }
+
+    // ---- Lost mode runtime flags (rules lostOn / lostMsg / lostPhone are the parent's switch) ----
+    /** We applied lost mode (locked, events sent): the tick compares it with rules.lostOn to see on / off edges. */
+    @get:Synchronized @set:Synchronized var lostApplied: Boolean
+        get() = p.getBoolean("lostApplied", false)
+        set(v) { p.edit().putBoolean("lostApplied", v).commit() }
+    @get:Synchronized @set:Synchronized var lostLocateAt: Long
+        get() = p.getLong("lostLocateAt", 0)
+        set(v) { p.edit().putLong("lostLocateAt", v).apply() }
+    /** Start of the last lost-mode ring; 0 = none yet. */
+    @get:Synchronized @set:Synchronized var lostRingAt: Long
+        get() = p.getLong("lostRingAt", 0)
+        set(v) { p.edit().putLong("lostRingAt", v).apply() }
+    /** The parent sent `ringStop` during lost mode: no more rings until lost mode is turned off and on again. */
+    @get:Synchronized @set:Synchronized var lostRingStopped: Boolean
+        get() = p.getBoolean("lostRingStopped", false)
+        set(v) { p.edit().putBoolean("lostRingStopped", v).apply() }
+
+    /** [SimLogic] signature of the last SIM seen ("" = none yet). */
+    @get:Synchronized @set:Synchronized var simSig: String
+        get() = p.getString("simSig", "") ?: ""
+        set(v) { p.edit().putString("simSig", v).apply() }
+
+    /** [OneMore.key] of the lock period in which the child already took the extra minute. */
+    @get:Synchronized @set:Synchronized var oneMoreKey: String
+        get() = p.getString("oneMoreKey", "") ?: ""
+        set(v) { p.edit().putString("oneMoreKey", v).apply() }
+
+    /** A `tamper` event at most once per [gapMs] for [key] (basic-mode attempts repeat every second while a page is open). True = raised. */
+    @Synchronized fun tamper(key: String, id: Int, vararg a: Any, gapMs: Long = 10 * 60_000L, now: Long = System.currentTimeMillis()): Boolean {
+        val k = "tamperAt_$key"
+        if (now - p.getLong(k, 0) in 0 until gapMs) return false
+        p.edit().putLong(k, now).apply()
+        event("tamper", id, *a)
+        return true
     }
 
     /** SOS presses from the child, newest last, max 10; the parent clears them with `sosAck`. */
@@ -804,6 +914,8 @@ class Store private constructor(private val app: Context) {
         set(v) { p.edit().putString("ownerPending", v).commit() }
 
     companion object {
+        const val REMIND_MS = 5 * 60_000L
+        const val DONE_MAX = 10
         @Volatile private var inst: Store? = null
         fun of(ctx: Context): Store = inst ?: synchronized(this) { inst ?: Store(ctx.applicationContext).also { inst = it } }
 

@@ -176,7 +176,10 @@
       ]
     }
   ],
-  "requests": [],
+  "now": { "why": "bedtime", "until": "@14h", "name": "" },
+  "requests": [
+    { "id": "r9b3d4", "kind": "app", "at": "@-4m", "remindAt": "@-1m", "min": 0, "pkg": "com.supercell.clashroyale", "app": "Clash Royale", "note": { "vi": "bạn con đều chơi", "en": "my friends all play it" } }
+  ],
   "events": [],
   "log": [],
   "location": {
@@ -186,6 +189,12 @@
     "t": "@-2m"
   },
   "rules": {
+    "passUntil": 0,
+    "bedByDay": ["21:30-06:30", "21:30-06:30", "21:30-06:30", "21:30-06:30", "22:30-07:30", "22:30-07:30", "21:30-06:30"],
+    "oneMore": true,
+    "lostOn": false,
+    "lostMsg": "",
+    "lostPhone": "",
     "dailyMin": 150,
     "dailyByDay": [
       150,

@@ -178,6 +178,12 @@ data class Rules(
     val launcher: LauncherRule = LauncherRule(), // v0.9.9 kid launcher (HomeActivity), owner only
     val kidClean: Boolean = false,           // the child may tap "Dọn dẹp" on the main screen (Policy.clearCaches only, KidClean)
     val monitor: Boolean = false,            // "monitor only": measure + report, never suspend / bounce / grey out; decide() still runs (state.wouldBlock)
+    val passUntil: Long = 0,                 // 0.9.16 "more time": until this ms everything but blocked / new is lifted (Grant.apply, like unlockUntil but from the parent)
+    val bedByDay: List<String> = emptyList(), // 0.9.16 bedtime per night: 7 x "HH:mm-HH:mm" or "" (Mon..Sun = the night STARTING that day); empty = bedStart/bedEnd every night
+    val oneMore: Boolean = true,             // 0.9.16 the child may take +1 minute once per lock period (Guard.oneMore)
+    val lostOn: Boolean = false,             // 0.9.16 lost mode (Policy / Guard)
+    val lostMsg: String = "",                // lock-screen text in lost mode, LOST_MSG_MAX
+    val lostPhone: String = "",              // number to call, LOST_PHONE_MAX
 ) {
     /** The Private DNS host that should be active at [nowMs]: "" while paused or off. */
     fun dnsHost(nowMs: Long = System.currentTimeMillis()): String = if (nowMs < safeDnsPauseUntil) "" else safeDns
@@ -205,6 +211,8 @@ data class Rules(
         .put("windDown", JSONObject().put("gray", windGray).put("min", windMin).put("nudge", windNudge))
         .put("lockInfo", JSONObject().put("msg", lockMsg).put("contact", lockContact)).put("blockNote", blockNote)
         .put("launcher", launcher.toJson()).put("monitor", monitor).put("kidClean", kidClean)
+        .put("passUntil", passUntil).put("bedByDay", JSONArray(bedByDay)).put("oneMore", oneMore)
+        .put("lostOn", lostOn).put("lostMsg", lostMsg).put("lostPhone", lostPhone)
         .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
 
     /** True when [pin] matches the stored hash (legacy or salted). False when no PIN is set. */
@@ -289,6 +297,14 @@ data class Rules(
                 launcher = LauncherRule.fromJson(o.optJSONObject("launcher")),
                 monitor = o.optBoolean("monitor", false),
                 kidClean = o.optBoolean("kidClean", false),
+                passUntil = o.optLong("passUntil", 0).coerceAtLeast(0),
+                bedByDay = o.optJSONArray("bedByDay")?.let { a ->
+                    (0 until a.length()).map { a.optString(it, "").trim() }.takeIf { l -> l.size == 7 && l.all { it.isEmpty() || parseBedDay(it) != null } }
+                } ?: emptyList(),
+                oneMore = o.optBoolean("oneMore", true),
+                lostOn = o.optBoolean("lostOn", false),
+                lostMsg = Notes.clean(o.optString("lostMsg", ""), LOST_MSG_MAX),
+                lostPhone = Notes.clean(o.optString("lostPhone", ""), LOST_PHONE_MAX),
                 blockNew = o.optBoolean("blockNew", false),
                 approved = o.optJSONArray("approved").strings(),
                 lockLocation = o.optBoolean("lockLocation", true),
@@ -305,6 +321,17 @@ data class Rules(
                 safeDnsPauseUntil = o.optLong("safeDnsPauseUntil", 0).coerceAtLeast(0),
                 safeDns = o.optString("safeDns", "").trim().lowercase().takeIf { it.matches(DNS_HOST) } ?: "",
             )
+        }
+
+        const val LOST_MSG_MAX = 200
+        const val LOST_PHONE_MAX = 20
+
+        /** "21:30-06:30" -> (1290, 390), or null. */
+        fun parseBedDay(s: String): Pair<Int, Int>? {
+            val p = s.split("-")
+            if (p.size != 2) return null
+            val a = parseHm(p[0].trim()) ?: return null; val b = parseHm(p[1].trim()) ?: return null
+            return a to b
         }
 
         val TRACK_STEPS = setOf(0, 1, 5, 10, 15, 30, 60)
@@ -370,10 +397,7 @@ fun decide(
     }
     if (r.blockNew) for (p in newApps) if (p !in free && p !in r.approved && p !in out) out[p] = "new"
 
-    val bed = r.bedtimeOn && run {
-        val s = Rules.parseHm(r.bedStart); val e = Rules.parseHm(r.bedEnd)
-        s != null && e != null && Rules.inWindow(minuteOfDay, s, e)
-    }
+    val bed = bedEndNow(r, minuteOfDay, today) != null
     val sched = r.schedules.any { it.active(minuteOfDay, dow) }
     val paused = r.pausedUntil > nowMs
     val base = baseLimitMin(r, today)
@@ -382,8 +406,70 @@ fun decide(
     val overDaily = base > 0 && used >= limit * 60_000L
     val all = when { paused -> "paused"; sched -> "schedule"; bed -> "bedtime"; overDaily -> "daily"; else -> null }
     if (all != null) for (p in launchable) if (p !in free && p !in out) out[p] = all
-    if (unlockUntil > nowMs) out.entries.removeAll { it.value != "blocked" && it.value != "new" }
+    if (maxOf(unlockUntil, r.passUntil) > nowMs) out.entries.removeAll { it.value != "blocked" && it.value != "new" }
     return out
+}
+
+/**
+ * Minute of day when the bedtime that is active at [minute] ends, or null when none is. With [Rules.bedByDay] the entry of the
+ * night that STARTED the same day applies from its start to midnight; the early-morning part belongs to the previous day's entry.
+ */
+fun bedEndNow(r: Rules, minute: Int, today: String): Int? {
+    if (!r.bedtimeOn) return null
+    if (r.bedByDay.size != 7) {
+        val s = Rules.parseHm(r.bedStart) ?: return null; val e = Rules.parseHm(r.bedEnd) ?: return null
+        return e.takeIf { Rules.inWindow(minute, s, e) }
+    }
+    val i = Rules.isoDow(today) - 1
+    Rules.parseBedDay(r.bedByDay[i])?.let { (s, e) ->
+        if (s < e) { if (minute in s until e) return e } else if (s > e && minute >= s) return e
+    }
+    Rules.parseBedDay(r.bedByDay[(i + 6) % 7])?.let { (s, e) -> if (s > e && minute < e) return e }
+    return null
+}
+
+/** (start, end) minutes of the night that starts on [today] (bedByDay entry, else bedStart/bedEnd), null when bedtime is off or that night has none. */
+fun bedTonight(r: Rules, today: String): Pair<Int, Int>? {
+    if (!r.bedtimeOn) return null
+    if (r.bedByDay.size == 7) return Rules.parseBedDay(r.bedByDay[Rules.isoDow(today) - 1])
+    val s = Rules.parseHm(r.bedStart) ?: return null; val e = Rules.parseHm(r.bedEnd) ?: return null
+    return s to e
+}
+
+/** Why the phone as a whole is limited right now ([why] "" = free), until when (ms, 0 = unknown) and the schedule [name]. Contract C2. */
+data class NowWhy(val why: String, val until: Long, val name: String = "") {
+    fun toJson(): JSONObject = JSONObject().put("why", why).put("until", until).put("name", name)
+}
+
+/**
+ * The phone-wide reason, same inputs as decide(). lost > paused > schedule > bedtime > daily; a pass ("pass" = passUntil,
+ * "code" = Authenticator unlockUntil) lifts all of them except lost, so while one is in force it is the answer.
+ */
+fun nowWhy(
+    r: Rules, minuteOfDay: Int, nowMs: Long, today: String, usageMs: Map<String, Long>,
+    launchable: Set<String>, protected: Set<String>, unlockUntil: Long = 0,
+): NowWhy {
+    if (r.lostOn) return NowWhy("lost", 0)
+    val minStart = nowMs - nowMs % 60_000L
+    fun at(endMinute: Int) = minStart + (((endMinute - minuteOfDay) % 1440 + 1440) % 1440).let { if (it == 0) 1440 else it } * 60_000L
+    val pass = r.passUntil.takeIf { it > nowMs } ?: 0L
+    val code = unlockUntil.takeIf { it > nowMs } ?: 0L
+    if (pass > 0 || code > 0) return if (code > pass) NowWhy("code", code) else NowWhy("pass", pass)
+    if (r.pausedUntil > nowMs) return NowWhy("paused", r.pausedUntil)
+    val dow = Rules.isoDow(today)
+    val act = r.schedules.filter { it.active(minuteOfDay, dow) }
+    if (act.isNotEmpty()) {
+        val s = act.maxByOrNull { (((Rules.parseHm(it.end) ?: 0) - minuteOfDay) % 1440 + 1440) % 1440 }!!
+        return NowWhy("schedule", at(Rules.parseHm(s.end) ?: 0), s.name)
+    }
+    bedEndNow(r, minuteOfDay, today)?.let { return NowWhy("bedtime", at(it)) }
+    val base = baseLimitMin(r, today)
+    if (base > 0) {
+        val free = protected + r.allow
+        val used = usageMs.filterKeys { it in launchable && it !in free }.values.sum()
+        if (used >= (base + if (r.bonusDay == today) r.bonusMin else 0) * 60_000L) return NowWhy("daily", at(0))
+    }
+    return NowWhy("", 0)
 }
 
 /** What is actually enforced: [would] (decide()'s result), or nothing in monitor-only mode. Pure. */

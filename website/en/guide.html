@@ -35,7 +35,7 @@
 <span id="menu" class="menu-t" aria-hidden="true"></span>
 <header>
   <div class="wrap">
-    <a class="brand" href="./"><img src="../img/icon.svg?v=53fa2372eb" width="26" height="26" alt="">KidGuard <small><span class="ver">v0.9.15</span></small></a>
+    <a class="brand" href="./"><img src="../img/icon.svg?v=53fa2372eb" width="26" height="26" alt="">KidGuard <small><span class="ver">v0.9.16</span></small></a>
     <a class="burger open" href="#menu" aria-label="Open menu"><i></i></a>
     <a class="burger shut" href="#_" aria-label="Close menu"><i></i></a>
     <nav aria-label="Menu">
@@ -94,7 +94,7 @@
   <h2>Install on the child's phone</h2>
   <ol class="steps">
     <li><b>Install the APK and open the app.</b> No need to remove accounts, no setup yet. These already work: the kid launcher (opt-in on the phone), <b>Dọn máy</b> (debloat) <span class="tag weak">Beta</span> (only needs wireless-debugging pairing; the app runs <code>pm disable-user</code> against the phone itself), and <b>Bố mẹ quản lý trên máy này</b> (the parent page on the child's phone, in preview mode: features that need more permissions are greyed out with a note saying which one).</li>
-    <li><b>Set the parent PIN:</b> the page asks on the first rules save. It protects the page on this phone, and it is the PIN you type when pairing your own phone in step 5.</li>
+    <li><b>Set the parent PIN:</b> the pairing form (step 5) makes you set one. It protects the page on this phone and allows pairing more parent phones.</li>
     <li><b>Grant permissions as needed</b>, following the <a href="./#permissions">feature and permission table</a>: accessibility, usage access, device admin, location…</li>
     <li><b>Optional, strongest: Device Owner</b> (ways A-D below). <b>Only this step</b> needs every account removed from the child's phone first.</li>
     <li><b>Pair the parent's phone or browser</b> (home Wi-Fi or relay, see <a href="#away">Away from home</a>).</li>
@@ -109,7 +109,7 @@
 
   <article id="install-phone">
     <h3>A. On the phone itself <span class="tag ok">Recommended</span></h3>
-    <p class="need">Needs: Android 11+, Wi-Fi. No computer.</p>
+    <p class="need">Needs: Android 11+, Wi-Fi. No computer. Phone accounts (Google, Samsung…) must be removed first: KidGuard stops and says which ones.</p>
     <ol class="steps">
       <li><a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk">Download the APK</a> on the child's phone, install it and open KidGuard.</li>
       <li>Tap <b>Full setup without a computer (Android 11+)</b>.</li>
@@ -169,7 +169,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <h3>E. Basic mode <span class="tag weak">Weaker</span></h3>
     <p class="need">Needs: any Android 8+. No computer, accounts can stay. For old phones with no QR screen and no computer or cable.</p>
     <ol class="steps">
-      <li>Install the APK, open KidGuard, tap <b>Quick setup, no computer needed</b>.</li>
+      <li>Install the APK, open KidGuard, follow the <b>To do</b> list on the screen.</li>
       <li>Turn on each item in order: device admin, accessibility, usage access, location (choose <b>Allow all the time</b>), notifications, battery.</li>
       <li>Each button opens the right system screen: turn the setting on, then press Back.</li>
     </ol>
@@ -186,11 +186,11 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
 
 <section id="pair">
   <h2>Open the parent page</h2>
-  <p>After setup the child's phone shows a <b>6-digit code</b> and a <b>QR code</b>.</p>
+  <p>The last setup screen on the child's phone shows a <b>6-digit pairing code</b> and a <b>QR code</b> for 10 minutes. Later: hold <b>Bố mẹ: hiện mã ghép</b> (parents: show pairing code) for 5 seconds on the KidGuard screen.</p>
   <ol class="steps">
     <li>On your phone (same Wi-Fi as the child's), scan the QR with the camera. The page opens with the code filled in.</li>
-    <li>Or open a browser at <code>http://&lt;child phone IP&gt;:8770</code> and type the 6-digit code.</li>
-    <li>Open the <b>Settings</b> tab and set a <b>parent PIN</b>. Without it the child's phone refuses to pair another browser.</li>
+    <li>Or open a browser at <code>http://&lt;child phone IP&gt;:8770</code> and type the 6-digit pairing code.</li>
+    <li>Set a <b>parent PIN</b> in the pairing form. Without it the child's phone refuses to pair another browser.</li>
     <li>Sign back in to the accounts on the child's phone (if you removed them) and unplug the cable.</li>
     <li>Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap <b>Battery / autostart settings</b> and let KidGuard run in the background.</li>
     <li>To manage when your child is out too: see <a href="#away">Away from home</a>.</li>
@@ -205,7 +205,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
   <ol class="steps">
     <li><a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk">Download the parent app</a> and install it on your phone.</li>
     <li>Open it and tap <b>Add kid's phone</b>.</li>
-    <li>At home: type the address shown on the child's KidGuard screen, then the 6-digit code.</li>
+    <li>At home: type the address shown on the child's KidGuard screen, then the 6-digit pairing code (hold <b>Bố mẹ: hiện mã ghép</b> for 5 s if you see none).</li>
     <li>Away from home: paste the relay link (like <code>https://…/#c=…&amp;k=…</code>) from <b>Settings → Connection</b> (the relay is already on), see <a href="#relay">relay</a>.</li>
     <li>Two kids or more: <b>Overview</b> shows every kid on one page.</li>
   </ol>
@@ -250,7 +250,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li><b>Link.</b> The page shows <b>Open Telegram and link</b> and a QR code. Tap it (or scan the QR with your phone's camera), Telegram opens the bot, tap <b>Start</b>. The bot says hello and shows the Menu.</li>
     <li><b>Add people</b> (mum, dad, grandparents, up to 5): tap <b>Other code</b> and send them the link.</li>
   </ol>
-  <p>Use it: tap <b>📋 Menu</b> for buttons, or type commands (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/code</code> sends the 6-digit unlock code to read out to your kid (no Authenticator app needed); <code>/help</code> lists them all, <code>/lang</code> switches English / Tiếng Việt. Release, unpair and clear data are not possible over Telegram.</p>
+  <p>Use it: tap <b>📋 Menu</b> for buttons, or type commands (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/requests</code> lists open requests, <code>/lost</code> turns lost mode on / off, <code>/quiet</code> sets the alert level; <code>/code</code> sends the 6-digit unlock code to read out to your kid (no Authenticator app needed); <code>/help</code> lists them all, <code>/lang</code> switches English / Tiếng Việt. Release, unpair and clear data are not possible over Telegram.</p>
   <div class="card faq">
     <details><summary>Two children?</summary><p>Make two bots (e.g. Bin's home, Na's home), each pasted on that child's page. One bot runs on one child's phone only.</p></details>
     <details><summary>“Wrong token” or “used somewhere else”?</summary><p>Copy BotFather's whole message again and paste it. “Used somewhere else” means the bot belongs to another phone: make a new bot for this child. Token leaked? Send <code>/revoke</code> to BotFather for a new one and paste it again.</p></details>
@@ -324,6 +324,8 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
         <div><dt>Daily limit</dt><dd>One number, or one per weekday. When time is up every app (except “Always allowed”) locks until midnight. +15 / +30 / +60 min for today.</dd></div>
         <div><dt>Bedtime, schedules</dt><dd>Bedtime every day, plus windows on chosen days (school hours Mon–Fri); can cross midnight.</dd></div>
         <div><dt>Heads-up before locking</dt><dd>The child gets a notification 5 min and 1 min before the limit, bedtime or a schedule locks the phone.</dd></div>
+        <div><dt>More time always works</dt><dd>Approve a request during bedtime or school hours: the phone opens for N minutes, then locks again. Tap <b>End</b> to lock early.</dd></div>
+        <div><dt>Bedtime per night, +1 min</dt><dd>A separate bedtime for each night (school nights differ from weekends). When it locks, the child can take <b>+1 minute</b> once per lock to save their work. Can be turned off.</dd></div>
         <div><dt>Pause now</dt><dd>30 min, 1 h, or until 6 am.</dd></div>
         <div><dt>Ask for more time</dt><dd>15 / 30 / 60 min plus a reason; the parent approves or declines.</dd></div>
         <div><dt>Chores</dt><dd>The parent lists chores (“Wash the dishes +20 min”); the child picks one when asking. Approve with a note if you like.</dd></div>
@@ -350,6 +352,8 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
         <div><dt>See the screen</dt><dd>The child's screen live (Android 11+, ~3 fps). The child is told the parent is viewing.</dd></div>
         <div><dt>Remote control</dt><dd>Tap, swipe, long press, Back / Home / Recents, type text.</dd></div>
         <div><dt>Listen around</dt><dd>At most 10 min at a time, home Wi-Fi or Tailscale only. The child always knows: a beep, a notification, Android's mic dot.</dd></div>
+        <div><dt>Lost mode</dt><dd><b>Where</b> tab: turning it on locks the phone at once and again on every unlock, shows your message + number on the lock screen, locates every 5 min and rings 5 min in every 15. Turn it off and everything goes back. Also alerts on a SIM change.</dd></div>
+        <div><dt>Alert levels</dt><dd>Only SOS, lost, tamper and requests make noise; the rest arrive quietly. Telegram: <code>/quiet</code> picks all / important / SOS only per person. The parent app says “offline since HH:mm” and skips the child's bedtime.</dd></div>
         <div><dt>Alerts</dt><dd>Arrived / left a zone, battery at 15 %, a new app installed, the clock changed.</dd></div>
       </dl>
     </div>

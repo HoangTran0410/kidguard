@@ -25,13 +25,14 @@ object Push {
     }
 
     /** Registers this phone's FCM token with every relay kid; [removed] relay kids get it unregistered. */
-    fun sync(c: Context, removed: List<Logic.KidCfg> = emptyList()) {
+    fun sync(c: Context, removed: List<Logic.KidCfg> = emptyList(), force: Boolean = false) {
         app(c) ?: return
-        FirebaseMessaging.getInstance().token.addOnSuccessListener { t -> Thread({ send(c, t, removed) }, "kg-push").start() }
+        FirebaseMessaging.getInstance().token.addOnSuccessListener { t -> Thread({ send(c, t, removed, force) }, "kg-push").start() }
             .addOnFailureListener { Log.w("KGParent", "fcm token", it) }
     }
 
-    private fun send(c: Context, token: String, removed: List<Logic.KidCfg>) {
+    /** [force]: register again even when nothing changed (the worker forgets tokens after 30 quiet days; a failed run is retried). */
+    private fun send(c: Context, token: String, removed: List<Logic.KidCfg>, force: Boolean) {
         fun post(k: Logic.KidCfg, off: Boolean) = Net.call("POST", "${k.target}/c/${k.id}/push",
             mapOf("X-KG-Token" to k.token, "Content-Type" to "application/json"),
             JSONObject().put("fcm", token).apply { if (off) put("off", true) }.toString().toByteArray(), 15_000).status
@@ -39,7 +40,7 @@ object Push {
         // saves that touch nothing relevant (rules edits, tab state) must not re-POST to every relay kid
         val sig = (listOf(token, Store.notify(c).toString()) + relayKids.map { "${it.id}|${it.target}|${it.token}" }.sorted()).joinToString("\n")
         val rm = removed.filter { it.via == "relay" }
-        if (rm.isEmpty() && sig == Store.pushSig(c)) return
+        if (!force && rm.isEmpty() && sig == Store.pushSig(c)) return
         for (k in rm) post(k, true)
         var ok = true
         for (k in relayKids) {
@@ -47,6 +48,15 @@ object Push {
             if (st != 200) { ok = false; Log.w("KGParent", "push register ${k.id}: $st") }
         }
         if (ok) Store.setPushSig(c, sig)
+        Store.setPushRes(c, if (ok) "ok" else "fail", System.currentTimeMillis())
+    }
+
+    /** One word for the page's health card: "off" (no FCM in this build), "none" (no relay kid), "ok", "fail" / "wait" (never run). */
+    fun status(c: Context): String = when {
+        !enabled -> "off"
+        Logic.parseKids(Store.kids(c)).none { it.via == "relay" } -> "none"
+        Store.pushRes(c).isEmpty() -> "wait"
+        else -> Store.pushRes(c)
     }
 
     /** Called for every incoming data message. Marks the event seen so the background check does not repeat it. */

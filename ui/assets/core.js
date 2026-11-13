@@ -111,6 +111,9 @@ function norm(e) {
   e.schedules = e.schedules || []; e.approved = e.approved || []; e.safeDns = e.safeDns || ""; e.safeDnsPauseUntil = +e.safeDnsPauseUntil || 0; e.noVpn = !!e.noVpn;
   e.trackMin = e.trackMin === undefined ? 5 : +e.trackMin; e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.showWatching = e.showWatching !== false; e.autoUpdate = e.autoUpdate !== false; e.tsKeep = !!e.tsKeep; e.blockNew = !!e.blockNew; e.monitor = !!e.monitor;
   e.kidClean = !!e.kidClean;
+  e.passUntil = +e.passUntil || 0;   // 0.9.16 timed pass (docs/protocol.md "More time")
+  e.bedByDay = Array.isArray(e.bedByDay) && e.bedByDay.length === 7 ? e.bedByDay.map(x => String(x || "")) : []; e.oneMore = e.oneMore !== false;
+  e.lostOn = !!e.lostOn; e.lostMsg = String(e.lostMsg || "").slice(0, 200); e.lostPhone = String(e.lostPhone || "").slice(0, 20);
   e.blocked = e.blocked || []; e.allow = e.allow || []; e.appMin = e.appMin || {};
   e.chores = Array.isArray(e.chores) ? e.chores : []; e.zones = Array.isArray(e.zones) ? e.zones : [];
   e.groups = Array.isArray(e.groups) ? e.groups : []; e.unlockMin = [15, 30, 60, 120].includes(+e.unlockMin) ? +e.unlockMin : 30;
@@ -343,15 +346,30 @@ async function boot() {
   listScreen(relayKids);
 }
 
+// kid list row: name, then (once the state arrives) online dot + last seen + battery (A5.10)
+const kidRow = (k, i) => `<div class="card row"><span class="sp" style="min-width:0"><b>${ic("user")} ${esc(k.name)}</b><span class="mute kb" data-kb="${i}" style="display:block">${APP ? (k.via === "lan" ? t("via.lan") : "relay") : "&nbsp;"}</span></span><button class="pri" data-i="${i}">${ic("folder-open")} ${t("open")}</button></div>`;
+async function kidBrief(list) {
+  const root = $("#app");
+  await Promise.all(list.map(async (k, i) => {
+    const el = () => { const e = root.querySelector(`[data-kb="${i}"]`); return e && e.isConnected ? e : null; };
+    try {
+      const j = await call(k, "/state"), s = j.state !== undefined ? j.state : j;
+      if (!s) return el() && (el().innerHTML = `${dot("")} ${t("kb.never")}`);
+      const seen = j.state !== undefined ? +j.seen || 0 : s.t, on = k.via === "lan" ? Date.now() - s.t < 30000 : seen && Date.now() - seen < 120000;
+      if (el()) el().innerHTML = `${dot(on ? "on" : "bad")} ${on ? t("ov.online") : t("ov.offline", ago(seen || s.t))} · ${ic("battery-full")} ${+s.battery}%${s.charging ? ic("zap") : ""}`;
+    } catch { if (el()) el().innerHTML = `${dot("bad")} ${t("kb.noAnswer")}`; }
+  }));
+}
 // --- app mode: kid list, add-kid ---------------------------------------------
 function appBoot() {
   save(kids);   // tell the app the current list once on load
   const list = homeKids(); reScreen = appBoot;
   $("#app").innerHTML = head("KidGuard") + (list.length ? list.map((k, i) =>
-    `<div class="card row"><b class="sp">${ic("user")} ${esc(k.name)}${APP ? ` <span class="mute">· ${k.via === "lan" ? t("via.lan") : "relay"}</span>` : ""}</b><button class="pri" data-i="${i}">${ic("folder-open")} ${t("open")}</button></div>`).join("")
+    kidRow(k, i)).join("")
     : `<div class="card empty"><span class="e">${ic("inbox")}</span><p>${t("app.none")}</p></div>`) +
     `<div class="row">${list.length > 1 ? `<button class="pri sp" id="ovGo">${ic("layout-grid")} ${t("ovN", list.length)}</button>` : ""}<button class="${list.length > 1 ? "" : "pri "}sp" id="addKid">${ic("plus")} ${t("addKid")}</button></div>`;
   $("#app").querySelectorAll("[data-i]").forEach(b => b.onclick = () => open(list[+b.dataset.i]));
+  kidBrief(list);
   $("#addKid").onclick = addScreen;
   if ($("#ovGo")) $("#ovGo").onclick = () => overview(list, appBoot);
   appOpenKid();
@@ -482,10 +500,11 @@ function startCard(full) {
 function listScreen(list) {
   reScreen = () => listScreen(list);
   $("#app").innerHTML = head("KidGuard") + (list.length ? list.map((k, i) =>
-    `<div class="card row"><b class="sp">${ic("user")} ${esc(k.name)}</b><button class="pri" data-i="${i}">${ic("folder-open")} ${t("open")}</button></div>`).join("")
+    kidRow(k, i)).join("")
     : "")
     + (list.length > 1 ? `<button class="pri" id="ovGo">${ic("layout-grid")} ${t("ovN", list.length)}</button>` : "")
     + startCard(!list.length);
   $("#app").querySelectorAll("[data-i]").forEach(b => b.onclick = () => open(list[+b.dataset.i]));
+  kidBrief(list);
   if ($("#ovGo")) $("#ovGo").onclick = () => overview(list, () => listScreen(list));
 }

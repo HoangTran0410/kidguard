@@ -19,10 +19,7 @@ private fun HomeActivity.earnDone(ch: Chore, st: Store) {
         Modal(this, u).show(R.drawable.li_link, Modal.Tone.INFO, getString(R.string.hm_pair_title), getString(R.string.hm_pair_body), ok = getString(R.string.hm_open_kg), cancel = getString(R.string.cancel)) { openMain(); true }
         return
     }
-    val ok = st.addRequest(ch.min, "", ch.id)
-    if (ok) { st.log(R.string.log_more); Guard.poke(this) }
-    Modal(this, u).show(if (ok) R.drawable.li_send else R.drawable.li_triangle_alert, if (ok) Modal.Tone.OK else Modal.Tone.WARN,
-        getString(if (ok) R.string.more_sent else R.string.more_fail), getString(if (ok) R.string.hm_t_chore_sent else R.string.more_fail_body))
+    acts.sendChore(ch)
     key = ""; render(true)
 }
 
@@ -154,8 +151,8 @@ internal fun HomeActivity.classWidget(m: HomeModel, dv: View0, w: Int, h: Int): 
 private fun HomeActivity.stepper(label: String, init: Int, min: Int, max: Int, step: Int, fmt: (Int) -> String): Pair<View, () -> Int> {
     var v = init.coerceIn(min, max)
     val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(4), 0, dp(4)) }
-    row.addView(text(label, 14f, pal.text).apply { maxLines = 2 }, LinearLayout.LayoutParams(0, -2, 1f))
-    val value = text(fmt(v), 15f, pal.text, true).apply { gravity = Gravity.CENTER }
+    row.addView(text(label, WType.BODY, pal.text).apply { maxLines = 2 }, LinearLayout.LayoutParams(0, -2, 1f))
+    val value = text(fmt(v), WType.BODY, pal.text, true).apply { gravity = Gravity.CENTER }
     fun btn(icon: Int, d: Int) = android.widget.ImageView(this).apply {
         setImageDrawable(Ic.get(this@stepper, icon, pal.onTint, dp(18))); background = fill(pal.tint, 999f); setPadding(dp(9), dp(9), dp(9), dp(9))
         kit.tap(this, 999f) { v = (v + d).coerceIn(min, max); value.text = fmt(v) }
@@ -185,12 +182,12 @@ internal fun HomeActivity.openTimetable(startDow: Int, tab: Int = 0) {
     }
     sheet.addView(View(this).apply { background = fill(pal.stroke) }, LinearLayout.LayoutParams(dp(36), dp(4)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(12) })
     val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-    head.addView(text(getString(R.string.hm_wk_edit_title), 22f, pal.text, true), LinearLayout.LayoutParams(0, -2, 1f))
+    head.addView(text(getString(R.string.hm_wk_edit_title), WType.VALUE_L, pal.text, true), LinearLayout.LayoutParams(0, -2, 1f))
     head.addView(kit.chip(getString(R.string.hm_wk_done), pal.onSolid, pal.solid).apply { kit.tap(this, 999f, true) { closeOverlay() } })
     sheet.addView(head)
     val modes = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; background = fill(pal.tint, 999f); setPadding(dp(3), dp(3), dp(3), dp(3)) }
     sheet.addView(modes, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
-    val hint = text("", 13f, pal.sub).apply { setPadding(0, dp(8), 0, dp(8)) }
+    val hint = text("", WType.BODY, pal.sub).apply { setPadding(0, dp(8), 0, dp(8)) }
     sheet.addView(hint)
     val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, 0, 0, dp(8)) }
     val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -253,10 +250,10 @@ internal fun HomeActivity.openTimetable(startDow: Int, tab: Int = 0) {
     fun row(lead: String, leadSub: String?, main: String, mainColor: Int, tap: (() -> Unit)?, hold: (() -> Unit)?) = list.addView(LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), dp(9), dp(4), dp(9))
         val l = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        l.addView(text(lead, 13f, pal.text, true))
-        if (leadSub != null) l.addView(text(leadSub, 11f, pal.sub))
+        l.addView(text(lead, WType.BODY, pal.text, true))
+        if (leadSub != null) l.addView(text(leadSub, WType.TITLE, pal.sub))
         addView(l, LinearLayout.LayoutParams(dp(92), -2))
-        addView(text(main, if (mainColor == pal.sub) 14f else 16f, mainColor).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END; setPadding(dp(8), 0, dp(8), 0) }, LinearLayout.LayoutParams(0, -2, 1f))
+        addView(text(main, if (mainColor == pal.sub) WType.BODY else WType.BODY, mainColor).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END; setPadding(dp(8), 0, dp(8), 0) }, LinearLayout.LayoutParams(0, -2, 1f))
         if (tap != null) kit.tap(this, 12f) { tap() }
         if (hold != null) { isLongClickable = true; setOnLongClickListener { hold(); true } }
     }, LinearLayout.LayoutParams(-1, -2))
@@ -271,12 +268,12 @@ internal fun HomeActivity.openTimetable(startDow: Int, tab: Int = 0) {
             saveTt(TimetableLogic.withBells(tt(), pm, TimetableLogic.shift(b, i, get() - gap))); rebuild(); true
         }
     }
-    fun gapRow(t: String, tap: (() -> Unit)? = null) = list.addView(text(t, 12f, pal.accentText).apply {
+    fun gapRow(t: String, tap: (() -> Unit)? = null) = list.addView(text(t, WType.CAPTION, pal.accentText).apply {
         gravity = Gravity.CENTER; background = fill(pal.tint, 999f); setPadding(dp(10), dp(6), dp(10), dp(6))
         if (tap != null) { Ic.lead(this, R.drawable.li_clock, pal.accentText); compoundDrawablePadding = dp(6); kit.tap(this, 999f) { tap() } }
     }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(dp(24), dp(3), dp(24), dp(3)) })
-    fun section(t: String) = list.addView(text(t.uppercase(), 12f, pal.accentText, true).apply { letterSpacing = 0.08f; setPadding(dp(4), dp(12), 0, dp(2)) })
-    fun action(icon: Int, label: String, go: () -> Unit) = list.addView(text(label, 14f, pal.accentText, true).apply {
+    fun section(t: String) = list.addView(text(t.uppercase(), WType.CAPTION, pal.accentText, true).apply { letterSpacing = 0.08f; setPadding(dp(4), dp(12), 0, dp(2)) })
+    fun action(icon: Int, label: String, go: () -> Unit) = list.addView(text(label, WType.BODY, pal.accentText, true).apply {
         setPadding(dp(4), dp(12), dp(4), dp(12)); Ic.lead(this, icon, pal.accentText); compoundDrawablePadding = dp(8); gravity = Gravity.CENTER_VERTICAL
         kit.tap(this, 10f) { go() }
     }, LinearLayout.LayoutParams(-2, -2))
@@ -286,7 +283,7 @@ internal fun HomeActivity.openTimetable(startDow: Int, tab: Int = 0) {
         modes.removeAllViews(); tabs.removeAllViews(); list.removeAllViews()
         for ((k, lab) in listOf(R.string.hm_wk_tab_day, R.string.hm_wk_tab_week, R.string.hm_wk_tab_bells).withIndex()) {
             val sel = k == mode
-            modes.addView(text(getString(lab), 14f, if (sel) pal.onSolid else pal.onTint, true).apply {
+            modes.addView(text(getString(lab), WType.BODY, if (sel) pal.onSolid else pal.onTint, true).apply {
                 gravity = Gravity.CENTER; background = if (sel) fill(pal.solid, 999f) else null
                 kit.tap(this, 999f, sel) { mode = k; scroll.scrollTo(0, 0); rebuild() }
             }, LinearLayout.LayoutParams(0, dp(36), 1f))
@@ -297,7 +294,7 @@ internal fun HomeActivity.openTimetable(startDow: Int, tab: Int = 0) {
                 hint.text = getString(R.string.hm_wk_edit_hint); tabs.visibility = View.VISIBLE
                 for (d in 1..7) {
                     val sel = d == cur
-                    tabs.addView(text(dayName(d), 14f, if (sel) pal.onSolid else pal.onTint, true).apply {
+                    tabs.addView(text(dayName(d), WType.BODY, if (sel) pal.onSolid else pal.onTint, true).apply {
                         gravity = Gravity.CENTER; background = fill(if (sel) pal.solid else pal.tint, 999f)
                         kit.tap(this, 999f, sel) { cur = d; rebuild() }
                     }, LinearLayout.LayoutParams(0, dp(38), 1f).apply { rightMargin = if (d < 7) dp(4) else 0 })
@@ -349,11 +346,11 @@ internal fun HomeActivity.openTimetable(startDow: Int, tab: Int = 0) {
                     }
                     val acts = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
                     list.addView(acts)
-                    if (b.size < TimetableLogic.MAX_SESSION) acts.addView(text(getString(R.string.hm_wk_add_period), 14f, pal.accentText, true).apply {
+                    if (b.size < TimetableLogic.MAX_SESSION) acts.addView(text(getString(R.string.hm_wk_add_period), WType.BODY, pal.accentText, true).apply {
                         setPadding(dp(4), dp(10), dp(16), dp(10)); Ic.lead(this, R.drawable.li_plus, pal.accentText); compoundDrawablePadding = dp(6)
                         kit.tap(this, 10f) { editBell(pm, null) }
                     })
-                    acts.addView(text(getString(R.string.hm_wk_quick), 14f, pal.accentText, true).apply {
+                    acts.addView(text(getString(R.string.hm_wk_quick), WType.BODY, pal.accentText, true).apply {
                         setPadding(dp(4), dp(10), dp(4), dp(10)); Ic.lead(this, R.drawable.li_clock, pal.accentText); compoundDrawablePadding = dp(6)
                         kit.tap(this, 10f) { quick(pm) }
                     })
@@ -370,7 +367,7 @@ internal fun HomeActivity.openTimetable(startDow: Int, tab: Int = 0) {
 }
 
 internal fun HomeActivity.earnPreview(c: LinearLayout) {
-    c.addView(text(getString(R.string.hm_wk_total, 45), 13f, pal.accentText, true))
+    c.addView(text(getString(R.string.hm_wk_total, 45), WType.BODY, pal.accentText, true))
     c.addView(kit.chip(getString(R.string.hm_wk_done_btn, 15), pal.onSolid, pal.solid).apply { textSize = 9f }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4) })
 }
 

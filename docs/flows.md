@@ -450,6 +450,13 @@ Gotchas: `Recent.load` is a binder call; must run off main thread (note in Recen
 Rule (0c95d99): cards show an empty state with a way to fill them, never vanish; data the parent owns gets explanatory text, not a create button.
 Home flavor: only now, sched, tomorrow, notes (HOME_CARDS).
 
+#### 3.8b Kid-side asks (0.9.16, `K/ui/KidActions.kt`, `KidNow.kt`)
+- One open request (`Store.openRequest`): the block sheet (`HomeMenus.pausedSheet`) and "Xin thêm giờ" show "Đã xin lúc HH:mm, đang chờ bố mẹ" + "Nhắc lại" (`addRequest` -> new / remind / wait toast); the parent's last answer (`Store.lastAnswer`) stays on the sheet. Blocked / new app: "Xin mở <app>" = kind `app` with pkg + label.
+- "+1 phút" on the sheet: `OneMore.allowed(rules, nowWhy, store.oneMoreKey)` -> `Guard.oneMore()`. No Ask when `nowWhy` is lost / paused.
+- SOS: unpaired -> modal "calls 112"; paired + offline -> "Chưa có mạng" + "Gọi bố mẹ" (`KidNow.parentNumber`: `lostPhone`, else a number in the lock-screen contact); online -> "Đã gửi".
+- Basic mode: `K/ui/BlockCard.kt` is the block card (reason / reopen time / Ask / OK). `Acc.bounceApp` should call `BlockCard.show(service, label, pkg, code)` before posting its notification.
+- Study mode: 10 s "Hoàn tác" under the chip after a hand start (no PIN); `gate()` takes title + button.
+
 ### 3.9 Widgets
 
 Own: `Flavor.widget(type)` filters; types clock, analog, month, time, next, quick, todo, note, counts, usage, battery, lock, when,
@@ -518,6 +525,8 @@ Crash fallback: uncaught handler counts while `HomeActivity.alive>0`; 2 in 5 min
 
 ### 4.1 SETUP flows (all end in: KidGuard is Device Owner + 4 grants + accessibility on)
 Contract: `docs/protocol.md:248-265` "Setup steps" (9 items). AGENTS.md says setup.sh, setup.ps1, install.html, SelfSetup.kt must stay in sync.
+
+First run on the child app (`SetupSteps.chooser`): "Đầy đủ (khuyên dùng)" -> SelfSetupActivity, "Cơ bản" -> the checklist (flag `setup_ask/firstChoice`). Setup end (SelfSetup done, or the checklist complete = last row "Ghép máy bố mẹ") opens the pairing code + QR for 10 min (`Store.codeRevealUntil`). After release (`Store.released`) MainActivity shows one card (`rel_title`).
 
 #### 1a. QR provisioning (factory-reset phone, setup wizard)
 - Trigger: parent opens `/qr` (worker `relay/src/index.js:81` serves `ui/qr.html`; also static in repo `ui/qr.html`), fills Wi-Fi + APK URL, child taps 6x on the welcome screen and scans.

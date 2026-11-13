@@ -354,6 +354,28 @@ await Q("sync",{state:{rules:{rev:1}}});
 await Q("rules",{dailyMin:60,pausedUntil:Date.now()+36e5},"PUT");await Q("cmd",{type:"lock"});await Q("cmd",{type:"ring"});
 await Q("rules",{dailyMin:60,pausedUntil:0},"PUT");
 const a2=await (await Q("sync",{})).json();ck("L17: resume (pausedUntil 0) drops the queued lock, keeps other commands",!a2.cmds.some(c=>c.type=="lock")&&a2.cmds.some(c=>c.type=="ring"));}
+// ---- C4 expired receipts + C8 forget (SHORT_TTL_MS=5000 in run.mjs) ----
+{const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),ide=rh(16),Te=rh(48);
+const Q=async(p,o,m="POST")=>{for(let i=0;;i++){const r=await fetch(`${B}/c/${ide}/${p}`,{method:m,headers:{"x-kg-token":Te,"content-type":"application/json"},body:JSON.stringify(o)});if((r.status!=429&&r.status!=503)||i>=20)return r;await new Promise(z=>setTimeout(z,1500));}};
+await Q("sync",{state:{rules:{rev:1}}});
+ck("unlockEnd whitelisted",(await (await Q("cmd",{type:"unlockEnd",id:"ue1"})).json()).result=="queued");
+await Q("cmd",{type:"ring",id:"rg1"});
+let a=await (await Q("sync",{acks:["ue1"]})).json();   // ring handed out but not acked
+ck("fresh state has no expired",Array.isArray((await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json()).expired)&&!(await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json()).expired.length);
+await new Promise(z=>setTimeout(z,5600));
+await Q("cmd",{type:"message",text:"x",id:"m1"});   // a parent POST drops the stale ring too
+const st=await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json();
+ck("C4: stale SHORT command is reported expired",st.expired.some(e=>e.id=="rg1"&&e.type=="ring"&&e.res=="expired"&&e.at>0)&&!st.expired.some(e=>e.id=="ue1"));
+await Q("cmd",{type:"ring",id:"rg2"});await new Promise(z=>setTimeout(z,5600));await Q("sync",{});
+ck("C4: expiry found on a phone sync too",(await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json()).expired.some(e=>e.id=="rg2"));
+for(let i=0;i<12;i++){await Q("cmd",{type:"ring",id:"x"+i});await new Promise(z=>setTimeout(z,300));}
+await new Promise(z=>setTimeout(z,5600));await Q("sync",{});
+const ex=(await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json()).expired;
+ck("C4: expired keeps the last 10",ex.length==10&&ex[9].id=="x11");
+ck("C8: forget with a wrong token 401",(await fetch(`${B}/c/${ide}/forget`,{method:"POST",headers:{"x-kg-token":BAD}})).status==401);
+r=await Q("forget",{});ck("C8: forget ok",(await r.json()).result=="forgotten");
+r=await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}});ck("C8: after forget the id is unbound (409 waiting for the phone)",r.status==409);
+r=await Q("sync",{state:{rules:{rev:1}}});ck("C8: the same id can bind again after forget",r.status==200);}
 // ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;
 for(let i=0;i<90&&!blocked;i++){const idn=rh(16),r=await fetch(`${B}/c/${idn}/sync`,{method:"POST",headers:{"x-kg-token":rh(48),"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});

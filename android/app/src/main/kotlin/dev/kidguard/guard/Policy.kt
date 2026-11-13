@@ -81,13 +81,48 @@ object Policy {
         runCatching { LauncherSafe.apply(ctx, r) }.onFailure { Log.w(TAG, "launcher", it) }   // v0.9.9 kid launcher (HOME)
     }
 
-    /** v0.9.7: friendly support messages (+ the parent's note) and the lock-screen owner info ("" clears it). */
+    /** The phone-wide reason the support message was last written for (Guard.tick feeds it through [noteNow]). */
+    @Volatile private var nowKey = ""
+    @Volatile private var nowState = NowWhy("", 0)
+
+    /**
+     * A3.1: the short support message ("disabled by admin" dialog) says why the phone is locked and when it opens again.
+     * Called every tick; rewrites the DPM text only when the reason / end / "can ask" changed. Device Owner only.
+     */
+    fun noteNow(ctx: Context, r: Rules, nw: NowWhy) {
+        val key = "${nw.why}|${nw.until}|${nw.name}|${r.lostOn}|${Store.of(ctx).everPaired}|${r.blockNote}"
+        if (key == nowKey) return
+        nowKey = key; nowState = nw
+        if (!isOwner(ctx)) return
+        runCatching { applyNotes(ctx, dpm(ctx), admin(ctx), r) }
+    }
+
+    private fun hhmm(ms: Long) = java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(ms))
+
+    /** The text for the current phone-wide reason; null = nothing special (the default sentence applies). */
+    private fun reasonSupport(ctx: Context, r: Rules): String? {
+        val nw = nowState
+        val ask = SupportMsg.canAsk(nw.why, Store.of(ctx).everPaired)
+        fun until() = hhmm(nw.until)
+        return when {
+            r.lostOn || nw.why == "lost" -> ctx.getString(R.string.support_lost)
+            nw.why == "bedtime" && nw.until > 0 -> ctx.getString(if (ask) R.string.support_bed_ask else R.string.support_bed, until())
+            nw.why == "schedule" && nw.until > 0 -> ctx.getString(if (ask) R.string.support_sched_ask else R.string.support_sched, nw.name.ifBlank { ctx.getString(R.string.support_break) }, until())
+            nw.why == "paused" && nw.until > 0 -> ctx.getString(R.string.support_pause, until())
+            nw.why == "daily" -> ctx.getString(if (ask) R.string.support_daily_ask else R.string.support_daily)
+            else -> null
+        }
+    }
+
+    /** v0.9.7: friendly support messages (+ the parent's note) and the lock-screen owner info ("" clears it). Lost mode (0.9.16) swaps both. */
     private fun applyNotes(ctx: Context, d: DevicePolicyManager, a: ComponentName, r: Rules) {
         val note = Notes.clean(r.blockNote, Notes.NOTE_MAX)
-        runCatching { d.setShortSupportMessage(a, Notes.short(note, ctx.getString(R.string.policy_support))) }.onFailure { Log.w(TAG, "short support", it) }
+        val why = reasonSupport(ctx, r)
+        val def = why ?: ctx.getString(R.string.policy_support)
+        runCatching { d.setShortSupportMessage(a, if (r.lostOn) def else Notes.short(note, def)) }.onFailure { Log.w(TAG, "short support", it) }
         runCatching { d.setLongSupportMessage(a, Notes.long(ctx.getString(R.string.policy_support_long), note.takeIf { it.isNotEmpty() }?.let { ctx.getString(R.string.policy_note, it) })) }
             .onFailure { Log.w(TAG, "long support", it) }
-        val info = Notes.lockText(r.lockMsg, r.lockContact)
+        val info = if (r.lostOn) Notes.lostText(r.lostMsg.ifBlank { ctx.getString(R.string.lost_default_msg) }, r.lostPhone) else Notes.lockText(r.lockMsg, r.lockContact)
         runCatching { d.setDeviceOwnerLockScreenInfo(a, info.ifEmpty { null }) }.onFailure { Log.w(TAG, "lock screen info", it) }
     }
 
@@ -627,7 +662,7 @@ object Policy {
         if (!isOwner(ctx)) {
             NotifDots.setOn(ctx, false)   // only once Device Owner is really gone (a failed release keeps the badge listener)
             if (shellLeft > 0) s.log(ctx.resources.getQuantityString(R.plurals.release_shell_left, shellLeft, shellLeft))
-            s.clearTokens(); Quick.setEnabled(ctx, false); return "ok"
+            clearLost(s); s.clearTokens(); Quick.setEnabled(ctx, false); return "ok"
         }
         // still Device Owner: put the protection back (the loop re-suspends apps) and keep the parents' tokens
         s.released = false
@@ -635,6 +670,12 @@ object Policy {
         runCatching { apply(ctx, s.rules) }.onFailure { Log.w(TAG, "re-apply after failed release", it) }
         Watchdog.schedule(ctx)
         return "failed"
+    }
+
+    /** Release: lost mode must not outlive us (rules flag, runtime flags; the lock-screen text is cleared with the owner info; the ring was stopped). */
+    private fun clearLost(s: Store) {
+        s.lostApplied = false; s.lostRingStopped = false; s.lostRingAt = 0
+        if (s.rules.lostOn || s.rules.passUntil > 0) s.rules = s.rules.copy(lostOn = false, passUntil = 0)
     }
 
     /** Basic mode: stop blocking, drop the device admin (the app can be uninstalled again), forget the parents. "not owner" when there is no admin. */
@@ -658,6 +699,7 @@ object Policy {
         NotifDots.setOn(ctx, false)
         runCatching { LauncherSafe.off(ctx, goHome = true) }   // only owner mode can turn it on, but never leave it behind
         runCatching { Acc.running?.disableSelf() }
+        clearLost(s)
         s.clearTokens()
         Quick.setEnabled(ctx, false)   // lock tile / widget / shortcuts: nothing left to lock with
         return "ok"

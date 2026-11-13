@@ -15,6 +15,10 @@ object Events {
     const val BATTERY_REARM = 30
     const val CLOCK_JUMP_MS = 2 * 60_000L
 
+    /** Alert level (C7): these kinds are "important" (Telegram /quiet, parent app channels); every other kind is info. */
+    val IMPORTANT = setOf("sos", "tamper", "lost", "request")
+    fun important(kind: String): Boolean = kind in IMPORTANT
+
     /**
      * Zones the fix is in, and the events it causes. Inside = distance <= r; a zone already inside is left only
      * beyond r + 50 m (no flapping at the edge). [record] = true (first fix after a rules change) only updates the set.
@@ -85,6 +89,9 @@ object Events {
             (o.hidden - n.hidden).sorted().take(3).forEach { p += tr.s(T.app_unhidden, it) }
         }
         if (o.pausedUntil != n.pausedUntil) p += tr.s(if (n.pausedUntil > 0) T.diff_pause else T.diff_pause_off)
+        if (o.passUntil != n.passUntil) p += if (n.passUntil > 0) tr.s(T.diff_pass, java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(java.util.Date(n.passUntil))) else tr.s(T.diff_pass_off)
+        if (o.lostOn != n.lostOn) p += tr.s(if (n.lostOn) T.diff_lost else T.diff_lost_off)
+        if (o.bedByDay != n.bedByDay) p += tr.s(T.diff_bed_nights)
         if (o.bonusDay != n.bonusDay || o.bonusMin != n.bonusMin) p += if (n.bonusMin > 0) tr.s(T.diff_bonus, n.bonusMin) else tr.s(T.diff_bonus_off)
         if (o.chores != n.chores) p += if (o.chores.size != n.chores.size) tr.s(T.diff_chores_n, o.chores.size, n.chores.size) else tr.s(T.diff_chores)
         if (o.zones != n.zones) p += if (o.zones.size != n.zones.size) tr.s(T.diff_zones_n, o.zones.size, n.zones.size) else tr.s(T.diff_zones)

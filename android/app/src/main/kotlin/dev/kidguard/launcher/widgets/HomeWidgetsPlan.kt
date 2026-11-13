@@ -58,7 +58,7 @@ internal fun HomeActivity.whenWidget(r: Rules, dv: View0, block: String?, w: Int
     val card = wCard()
     if (big) card.addView(wHead(R.drawable.li_clock, getString(R.string.hm_w_when)))
     card.addView(bar, LinearLayout.LayoutParams(-1, -2))
-    val line = wMain("", 1).apply { textSize = if (big) 16f else 14f }
+    val line = wMain("", 1).apply { textSize = if (big) WType.VALUE else WType.BODY }
     card.addView(line, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
     val next = if (big) wSub("").also { card.addView(it) } else null
     val rows = ArrayList<GroupRow>()
@@ -128,7 +128,7 @@ internal fun HomeActivity.msgWidget(s: Store, w: Int, h: Int): View {
     }
     if (note.isNotEmpty()) {
         val from = getString(R.string.hm_wp_msg_from)
-        if (small) card.addView(text(from.uppercase(), 11f, pal.sub, true).apply { letterSpacing = 0.08f; maxLines = 1 })
+        if (small) card.addView(text(from.uppercase(), WType.TITLE, pal.sub, true).apply { letterSpacing = 0.08f; maxLines = 1 })
         card.addView(wMain(note, if (small) 2 else 4), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
         if (!small) card.addView(wSub(from), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
         cd += ". $from: $note"

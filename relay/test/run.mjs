@@ -39,7 +39,7 @@ createServer((q, s) => {
   });
 }).listen(MOCK, "127.0.0.1");
 const envFile = join(mkdtempSync(join(tmpdir(), "kg-")), ".env");
-writeFileSync(envFile, `FCM_SA='${JSON.stringify(sa)}'\nFCM_URL=http://127.0.0.1:${MOCK}\nTG_BOT=${TG_TOKEN}\nTG_URL=http://127.0.0.1:${MOCK}\nBIND_PER_DAY=60\nAPK_BASE=http://127.0.0.1:${MOCK}/rel/\n`);
+writeFileSync(envFile, `FCM_SA='${JSON.stringify(sa)}'\nFCM_URL=http://127.0.0.1:${MOCK}\nTG_BOT=${TG_TOKEN}\nTG_URL=http://127.0.0.1:${MOCK}\nBIND_PER_DAY=60\nSHORT_TTL_MS=5000\nAPK_BASE=http://127.0.0.1:${MOCK}/rel/\n`);
 
 // fresh local Durable Object storage every run: tests with fixed kid ids must not see the last run's queue / rules
 rmSync(".wrangler/state", { recursive: true, force: true });

@@ -34,6 +34,44 @@ class Bridge(private val a: MainActivity) {
         Store.setKids(a, org.json.JSONArray(json).toString())   // throws (ignored by WebView) on invalid JSON
         val now = Logic.parseKids(Store.kids(a)).map { it.key }.toSet()
         Push.sync(a.applicationContext, old.filter { it.key !in now })
+        // the permission is asked when the first kid is added (not cold at launch: the parent sees why)
+        if (old.isEmpty() && now.isNotEmpty() && Store.notify(a)) askNotif()
+    }
+    /**
+     * Asks for the notification permission once; when it was already asked (Android 13 shows no second dialog) or it is
+     * granted but the app's notifications are off, opens the system page. Returns "ok" | "asked" | "settings".
+     */
+    @JavascriptInterface fun askNotif(): String {
+        if (CheckJob.canNotify(a.applicationContext)) return "ok"
+        val needPerm = Build.VERSION.SDK_INT >= 33 && a.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (needPerm && !Store.notifAsked(a)) {
+            Store.setNotifAsked(a)
+            a.runOnUiThread { a.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1) }
+            return "asked"
+        }
+        openNotifSettings()
+        return "settings"
+    }
+    /**
+     * "Do alerts arrive?" card. JSON: {enabled (app switch), perm (OS allows notifications), lastCheck (ms of the last background
+     * check, 0 = never), push ("off" no FCM in this build | "none" no relay kid | "wait" | "ok" | "fail"), pushAt (ms), battery
+     * (true = this app is exempt from battery optimisation), sdk}.
+     */
+    @JavascriptInterface fun notifHealth(): String {
+        val c = a.applicationContext
+        val pm = c.getSystemService(android.os.PowerManager::class.java)
+        return org.json.JSONObject().put("enabled", Store.notify(a)).put("perm", CheckJob.canNotify(c)).put("lastCheck", Store.checkAt(a))
+            .put("push", Push.status(c)).put("pushAt", Store.pushAt(a)).put("battery", pm?.isIgnoringBatteryOptimizations(c.packageName) == true)
+            .put("sdk", Build.VERSION.SDK_INT).toString()
+    }
+    /** Posts a test notification: "ok" | "blocked" (permission or the app's notifications are off). */
+    @JavascriptInterface fun sendTest(): String = if (Notif.test(a.applicationContext)) "ok" else "blocked"
+    /** The system's one-tap "let KidGuard run in the background" dialog; the full battery page when that is refused. */
+    @JavascriptInterface fun openBatterySettings() {
+        a.runOnUiThread {
+            val ok = runCatching { a.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, android.net.Uri.parse("package:" + a.packageName))) }.isSuccess
+            if (!ok) runCatching { a.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
+        }
     }
     @JavascriptInterface fun setNotify(v: String) {
         Store.setNotify(a, v == "true")
@@ -103,8 +141,9 @@ class MainActivity : Activity() {
             proxy = it
         }
         CheckJob.channel(this)
-        if (Build.VERSION.SDK_INT >= 33 && Store.notify(this) && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        // no cold permission prompt on a fresh install: the bridge asks when the first kid is added (setKids). Upgrades with kids ask here.
+        if (Build.VERSION.SDK_INT >= 33 && Store.notify(this) && Logic.parseKids(Store.kids(this)).isNotEmpty() && !Store.notifAsked(this) &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) { Store.setNotifAsked(this); requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1) }
         CheckJob.schedule(this)
         Push.sync(applicationContext)
 

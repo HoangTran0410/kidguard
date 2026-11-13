@@ -59,8 +59,8 @@ const json = (o, status = 200) => new Response(JSON.stringify(o), {
 const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel", "tgSet", "tgOff", "pinSet", "pinReset", "pinResetCancel", "adbShell", "adbTcp", "support"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
 const ONCE_WINDOW = 10 * 60e3;
 const GC_MS = 30 * 86400e3;   // a phone not seen for 30 days: everything of this id is deleted (dead pairings, junk binds); a phone that comes back re-binds on its next sync
-const SHORT = ["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "devOn", "devOff", "setting", "reboot", "clearData", "clearCache", "rescan", "bgLimit", "bgRestore", "pinSet", "pinReset", "pinResetCancel", "adbShell", "support", "openPairing"];   // "now" commands: stale after SHORT_TTL (a reboot / clear asked while the phone was off must not fire the next day)
-const SHORT_TTL = 10 * 60e3;
+const SHORT = ["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "devOn", "devOff", "setting", "reboot", "clearData", "clearCache", "rescan", "bgLimit", "bgRestore", "pinSet", "pinReset", "pinResetCancel", "adbShell", "support", "openPairing", "unlockEnd"];   // "now" commands: stale after SHORT_TTL (a reboot / clear asked while the phone was off must not fire the next day)
+let SHORT_TTL = 10 * 60e3;   // env.SHORT_TTL_MS overrides (tests only)
 // secrets a parent typed into a command (PIN, new PIN, Authenticator secret, bot token): handed out once, then not kept in the queue copy
 const SECRET_KEYS = ["pin", "new", "secret", "token"];
 const hasSecret = (c) => SECRET_KEYS.some(k => k in c);
@@ -69,7 +69,10 @@ const noSecret = (c) => { const o = { ...c }; for (const k of SECRET_KEYS) delet
 const BIND_PER_DAY = 30, UNUSED_MS = 7 * 86400e3;
 // still wanted? (24 h overall; "now" commands 10 min; a destructive one only shortly after it was first handed to the phone)
 const live = (c, now) => now - (c.at || 0) < (SHORT.includes(c.type) ? SHORT_TTL : 86400e3) && !(c.sent && now - c.sent > ONCE_WINDOW);
-const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "clearCache", "rescan", "bgLimit", "bgRestore"];
+/** Receipts for commands dropped unrun (TTL / ONCE window): newest last, at most EXPIRED_N, shown to the parent as state `expired`. */
+const EXPIRED_N = 10;
+const expiredOf = (list, dropped, now) => [...(list || []), ...dropped.map(c => ({ id: c.id, type: c.type, res: "expired", at: now }))].slice(-EXPIRED_N);
+const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "unlockEnd", "clearCache", "rescan", "bgLimit", "bgRestore"];
 const APK_BASE = "https://github.com/HoangTran0410/kidguard/releases/latest/download/";   // test override: env.APK_BASE
 const SETTING_KEYS = ["vol.ring", "vol.media", "vol.alarm", "bright", "autoBright", "timeoutMs", "dnd"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
@@ -118,7 +121,7 @@ export default {
     }
     const th = req.method === "POST" && env.TG_BOT ? url.pathname.match(/^\/tg\/([0-9a-f]{32})$/) : null;
     if (th) return tgHook(req, env, th[1]);
-    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws)$/);
+    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget)$/);
     if (!m) return json({ error: "not found" }, 404);
     if (env.RL) {
       const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
@@ -168,6 +171,7 @@ export class Gate {
 export class Kid {
   constructor(ctx, env) {
     this.ctx = ctx; this.s = ctx.storage; this.env = env || {};
+    if (+this.env.SHORT_TTL_MS > 0) SHORT_TTL = +this.env.SHORT_TTL_MS;
     this.liveUntil = 0; this.frame = null; this.seq = Date.now(); this.seen = 0; this.seenWritten = 0; this.inputs = []; this.waiters = new Set();
     this.lgdWant = new Map();   // day -> ms the parent asked for that log day (memory only)
     this.deviceWant = 0;   // parent asked for a device-health snapshot at this ms (memory only, like liveUntil)
@@ -228,6 +232,12 @@ export class Kid {
       await this.s.put({ tokenHash: h, born: Date.now() }); bound = h;
     }
     if (h !== bound) return json({ error: "not paired" }, 401);
+    if (action === "forget" && req.method === "POST") {   // the phone is released: delete everything of this id (same token auth as sync)
+      for (const w of this.phoneWs()) { try { w.close(1000, "forgotten"); } catch {} }
+      await this.s.deleteAlarm().catch(() => {}); await this.s.deleteAll();
+      this.seen = 0; this.stateAt = 0; this.ikSet = false;
+      return json({ result: "forgotten" });
+    }
     if (!this.ikSet) { this.ikSet = true; const ik = await sha256("icon:" + token); if ((await this.s.get("iconKey")) !== ik) await this.s.put("iconKey", ik); }
     const now = Date.now();
     if (action === "ws") {   // the phone's push channel (Relay.kt RelayWs): {"t":"sync",...} = POST sync, server sends {"t":"kick"}
@@ -368,7 +378,7 @@ export class Kid {
     if (action === "state" && req.method === "GET") {
       const [state, rules, seen, cmds] = await Promise.all(["state", "rules", "seen", "cmds"].map(k => this.s.get(k)));
       const st = state ? { ...state, rules: stripPin(state.rules) } : null;
-      return json({ state: st, rules: rules ? stripPin(rules) : null, seen: this.seenNow(seen), pending: (cmds || []).length });
+      return json({ state: st, rules: rules ? stripPin(rules) : null, seen: this.seenNow(seen), pending: (cmds || []).length, expired: (await this.s.get("expired")) || [] });
     }
     if (action === "rules" && req.method === "PUT") {
       const [state, old] = await Promise.all([this.s.get("state"), this.s.get("rules")]);
@@ -426,7 +436,8 @@ export class Kid {
       if ((type === "pinSet" || type === "pinReset") && !/^\d{4,8}$/.test(String(body.new || ""))) return json({ error: "bad pin" }, 400);
       if (type === "setting" && !(SETTING_KEYS.includes(body.key) && (typeof body.value === "boolean" || Number.isFinite(body.value)))) return json({ error: "bad setting" }, 400);
       // expired commands are only dropped on a phone sync: don't let them fill the queue
-      const cmds = ((await this.s.get("cmds")) || []).filter(c => live(c, now));
+      const stored = (await this.s.get("cmds")) || [], cmds = stored.filter(c => live(c, now));
+      if (cmds.length !== stored.length) await this.s.put("expired", expiredOf(await this.s.get("expired"), stored.filter(c => !live(c, now)), now));
       // full queue: refuse instead of silently dropping the oldest (it may be a pending release)
       if (cmds.length >= MAX_CMDS) return json({ error: "queue full" }, 429);
       const c = { ...body, type, id: typeof body.id === "string" && /^[\w.-]{1,64}$/.test(body.id) ? body.id : crypto.randomUUID(), at: now };
@@ -493,10 +504,12 @@ export class Kid {
     // destructive commands stay queued until acked (a lost reply must not drop a release); the phone de-dups by id.
     // `sent` marks the first hand-out: after ONCE_WINDOW they are dropped even if never acked (e.g. the phone released).
     let changed = cmds.length !== stored.length;
+    const dropped = stored.filter(c => !acks.has(c.id) && !live(c, now));
     for (const c of cmds) if ((ONCE.includes(c.type) || hasSecret(c)) && !c.sent) { c.sent = now; changed = true; }
     // the phone gets the secrets in this reply; what stays queued (until acked, <= ONCE_WINDOW) has none. A lost reply = the
     // re-sent command fails "pin needed" on the phone and the parent asks again: safe over convenient.
     if (changed) puts.cmds = cmds.map(c => c.sent === now && hasSecret(c) ? noSecret(c) : c);
+    if (dropped.length) puts.expired = expiredOf(await this.s.get("expired"), dropped, now);
     this.seen = now;
     // over the WebSocket "seen" = connected (seenNow); written once on close instead of every minute
     if (!ws && now - this.seenWritten >= 60e3) { puts.seen = now; this.seenWritten = now; }
@@ -625,7 +638,7 @@ export class Kid {
   async pushNew(state, id) {
     const now = Date.now(), ev = [];
     for (const s of Array.isArray(state.sos) ? state.sos : []) if (s && now - +s.t < 6 * 3600e3) ev.push({ kind: "sos", eid: "s:" + s.id, t: +s.t });
-    for (const r of Array.isArray(state.requests) ? state.requests : []) if (r && now - +r.t < 3600e3) ev.push({ kind: "req", eid: "r:" + r.id, t: +r.t, min: +r.min || 0 });
+    for (const r of Array.isArray(state.requests) ? state.requests : []) if (r && now - +r.t < 3600e3) ev.push({ kind: "req", eid: "r:" + r.id, t: +r.t, min: +r.min || 0, app: r.kind === "app" });
     for (const e of Array.isArray(state.events) ? state.events : []) if (e && now - +e.t < 3600e3 && /^[\w-]{1,24}$/.test(String(e.id)))
       ev.push({ kind: "ev", eid: "e:" + e.id, t: +e.t, ek: String(e.kind || "").slice(0, 12) });   // no text / zone name to Google
     if (!ev.length) return;
@@ -639,7 +652,7 @@ export class Kid {
     if (!tokens.length) return;
     const dead = new Set();
     for (const e of fresh) for (const t of tokens) {
-      const st = await fcmSend(this.env, t, { kind: e.kind, kid: id, eid: e.eid, t: String(e.t), ...(e.kind === "ev" ? { ek: e.ek } : { min: String(e.min || "") }) });
+      const st = await fcmSend(this.env, t, { kind: e.kind === "req" && e.app ? "ev" : e.kind, kid: id, eid: e.eid, t: String(e.t), ...(e.kind === "ev" ? { ek: e.ek || "req" } : e.kind === "req" && e.app ? { ek: "req" } : { min: String(e.min || "") }) });
       if (st === 404) dead.add(t);   // UNREGISTERED: the app was removed or re-installed (a 400 may be our own config: keep the token)
     }
     if (dead.size) await this.s.put("push", tokens.filter(t => !dead.has(t)));

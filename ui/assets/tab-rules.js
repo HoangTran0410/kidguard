@@ -77,7 +77,8 @@ function ruleChips(r) {
     grp: r.groups.length ? [t("chip.nGrp", r.groups.length), r.groups.some(g => !(g.pkgs || []).length) ? "warn" : "ok"] : none,
     totp: st.totpOn === undefined ? null : st.totpOn ? on() : off,
     chore: r.chores.length ? [t("chip.nChore", r.chores.length), "ok"] : none,
-    bed: r.bedtime.on ? on(hm(r.bedtime.start) + "–" + hm(r.bedtime.end), !!timeWarn(r.bedtime, true)) : off,
+    bed: r.bedtime.on ? (r.bedByDay.length ? on(t("bed.by")) : on(hm(r.bedtime.start) + "–" + hm(r.bedtime.end), !!timeWarn(r.bedtime, true))) : off,
+    lost: r.lostOn ? [t("lost.chipOn"), "bad"] : off,
     sch: schOn.length ? [t("chip.nSch", schOn.length), schOn.some(x => timeWarn(x, true, true)) ? "warn" : "ok"] : r.schedules.length ? off : none,
     zone: r.zones.length ? [t("chip.nZone", r.zones.length), "ok"] : none,
     trk: r.trackMin ? (st.locationOn === false ? [t("chip.locOff"), "warn"] : on(t("chip.every", fmt(r.trackMin * 60000)), !canFeat("location"))) : off,
@@ -91,7 +92,7 @@ function ruleChips(r) {
 }
 // Rules: one list, two groups under a small heading (time / blocking & safety; sub-tabs hid half the features, owner 2026-11-13). Zones + location log live in the "Vị trí" tab, the Authenticator in
 // "Cài đặt"; the same section HTML (ruleSecs) and wiring (rulesWire) serve all three, wiring only what is on screen.
-const RSEG = { time: ["daily", "grp", "bed", "wind", "sch", "chore"], safe: ["more", "dns", "anti", "home", "kind"] };
+const RSEG = { time: ["daily", "chore", "grp", "bed", "wind", "sch"], safe: ["more", "dns", "anti", "home", "kind"] };
 // v0.9.9 kid launcher: the phone answers with state.launcher {on, home, err, style, locked, pages}
 function homeStatus(r) {
   const L = st.launcher;
@@ -118,6 +119,30 @@ function homeBody(r) {
     <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmshade" ${L.shade ? "checked" : ""}><span class="sp">${ic("bell-off")} ${t("hm.shade")}<br><span class="mute">${t("hm.shadeHint")}</span></span></label>
     ${homeStatus(r)}${kidNotes()}
     <p class="mute">${ic("lightbulb")} ${t("hm.tip")}</p>${isBasic() ? `<p class="mute keep">${ic("info")} ${t("hm.basic")}</p>` : ""}`;
+}
+// bedtime: one window every night, or one per night (rules.bedByDay: Mon..Sun = the night STARTING that day, "HH:mm-HH:mm" or "")
+// lost mode (0.9.16, docs/protocol.md "Lost mode"): rules lostOn / lostMsg / lostPhone; the phone does the rest
+function lostBody(r) {
+  return `    <label class="row"><input type="checkbox" id="f-lost" ${r.lostOn ? "checked" : ""}><span class="sp">${ic("siren")} <b>${t("lost.on")}</b></span></label>
+    <p class="${r.lostOn ? "" : "mute"}">${r.lostOn ? ic("triangle-alert") + " " + t("lost.stOn") : t("lost.offP")}</p>
+    <label for="f-lostm" style="display:block;margin-top:10px">${t("lost.msg")}</label>
+    <input id="f-lostm" maxlength="200" autocomplete="off" placeholder="${esc(t("lost.msgPh"))}" style="width:100%;margin-top:6px" value="${esc(r.lostMsg)}">
+    <label for="f-lostp" style="display:block;margin-top:10px">${t("lost.phone")}</label>
+    <input id="f-lostp" type="tel" inputmode="tel" maxlength="20" autocomplete="off" placeholder="${esc(t("lost.phonePh"))}" style="width:100%;margin-top:6px" value="${esc(r.lostPhone)}">
+    <p class="mute">${ic("lightbulb")} ${t("lost.tip")}</p>`;
+}
+function bedBody(r) {
+  const by = r.bedByDay.length === 7, wdl = t("wdl");
+  const rows = by ? `<div style="margin-top:8px">${r.bedByDay.map((v, i) => { const [a, b] = v.split("-"), on = !!v;
+    return `<div class="row bn" data-bn="${i}" style="margin-top:6px"><label class="row bnl"><input type="checkbox" data-bnon="${i}" ${on ? "checked" : ""} aria-label="${esc(t("bed.nightOn", wdl[i]))}"> ${esc(wdl[i])}</label>
+      <span class="row tm">${on ? `<input type="time" data-bns="${i}" aria-label="${esc(t("start") + " " + wdl[i])}" value="${esc(a)}"> – <input type="time" data-bne="${i}" aria-label="${esc(t("end") + " " + wdl[i])}" value="${esc(b)}">` : `<span class="mute">${t("bed.noNight")}</span>`}</span></div>`; }).join("")}</div>
+    <p class="mute">${t("bed.byTip")}</p>` : "";
+  return `    <label class="row"><input type="checkbox" id="f-bed" ${r.bedtime.on ? "checked" : ""}> ${ic("moon")} ${t("on")}</label>
+    <div class="row" style="margin-top:8px"><select id="f-bmode" aria-label="${esc(t("bed.h"))}"><option value="same" ${by ? "" : "selected"}>${t("bed.same")}</option><option value="by" ${by ? "selected" : ""}>${t("bed.by")}</option></select>
+    ${by ? "" : `<span class="sp"></span><span class="row tm">${t("from")} <input type="time" id="f-bs" aria-label="${esc(t("start"))}" value="${esc(r.bedtime.start)}"> ${t("to")} <input type="time" id="f-be" aria-label="${esc(t("end"))}" value="${esc(r.bedtime.end)}"></span>`}</div>
+    ${rows}
+    <div id="bedW">${by ? "" : timeWarn(r.bedtime, r.bedtime.on)}</div>
+    <label class="row" style="margin-top:10px"><input type="checkbox" id="f-om" ${r.oneMore ? "checked" : ""}><span class="sp">${ic("clock")} ${t("om.on")}<br><span class="mute">${t("om.hint")}</span></span></label>`;
 }
 function ruleSecs(r) {
   const C = ruleChips(r);
@@ -148,9 +173,8 @@ function ruleSecs(r) {
     chore: sec("r-chore", "star", t("chore.h"), t("sd.chore"), C.chore, `    ${r.chores.map((c, i) => `<div class="app" data-c="${i}"><input class="sp" id="f-cn${i}" data-f="name" maxlength="40" placeholder="${esc(t("chore.namePh"))}" aria-label="${esc(t("chore.name"))}" value="${esc(c.name)}"><label class="row">+<input type="number" id="f-cm${i}" data-f="min" min="5" max="120" step="5" inputmode="numeric" aria-label="${esc(t("minutes"))}" style="width:5.5em" value="${+c.min || 20}"> ${t("minShort")}</label><button class="bad" data-cdel="${i}" aria-label="${esc(t("chore.del"))}">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("chore.none")}</p>`}
     <button id="addChore" ${r.chores.length >= 20 ? "disabled" : ""}>${ic("plus")} ${t("chore.add")}</button>
     <p class="mute">${ic("lightbulb")} ${t("chore.tip")}</p>`),
-    bed: sec("r-bed", "moon", t("bed.h"), t("sd.bed"), C.bed, `    <div class="row"><label class="row"><input type="checkbox" id="f-bed" ${r.bedtime.on ? "checked" : ""}> ${ic("moon")} ${t("on")}</label>
-    <span class="sp"></span><span class="row tm">${t("from")} <input type="time" id="f-bs" aria-label="${esc(t("start"))}" value="${esc(r.bedtime.start)}"> ${t("to")} <input type="time" id="f-be" aria-label="${esc(t("end"))}" value="${esc(r.bedtime.end)}"></span></div>
-    <div id="bedW">${timeWarn(r.bedtime, r.bedtime.on)}</div>`),
+    bed: sec("r-bed", "moon", t("bed.h"), t("sd.bed"), C.bed, bedBody(r)),
+    lost: sec("r-lost", "siren", t("lost.h"), t("sd.lost"), C.lost, lostBody(r)),
     wind: sec("r-wind", "moon", t("wd.h"), t("sd.wind"), C.wind, windBody(r)),
     kind: sec("r-kind", "notebook-pen", t("kn.h"), t("sd.kind"), C.kind, kindBody(r)),
     home: sec("r-home", "house", t("hm.h"), t("sd.home"), C.home, homeBody(r)),
@@ -314,10 +338,19 @@ function rulesWire(b, r) {
   $("#f-dns").addEventListener("change", () => dnsP());
   dnsP();
   $("#f-nv").onchange = e => { r.noVpn = e.target.checked; changed(); };
-  const bw = () => { $("#bedW").innerHTML = timeWarn(r.bedtime, r.bedtime.on); };
+  const bw = () => { $("#bedW").innerHTML = r.bedByDay.length ? "" : timeWarn(r.bedtime, r.bedtime.on); };
   $("#f-bed").onchange = e => { r.bedtime.on = e.target.checked; bw(); changed(); };
   $("#f-bs").onchange = e => { r.bedtime.start = e.target.value; bw(); changed(); };
   $("#f-be").onchange = e => { r.bedtime.end = e.target.value; bw(); changed(); };
+  $("#f-bmode").onchange = e => { const w = r.bedtime.start + "-" + r.bedtime.end; r.bedByDay = e.target.value === "by" ? Array(7).fill(/^\d\d:\d\d-\d\d:\d\d$/.test(w) ? w : "21:30-06:30") : []; changed(); document.activeElement.blur(); render(); };
+  const bedSet = (i, a, b) => { r.bedByDay[i] = a && b ? a + "-" + b : ""; changed(); };
+  b.querySelectorAll("[data-bnon]").forEach(x => x.onchange = () => { const i = +x.dataset.bnon, w = r.bedtime.start + "-" + r.bedtime.end; r.bedByDay[i] = x.checked ? (/^\d\d:\d\d-\d\d:\d\d$/.test(w) ? w : "21:30-06:30") : ""; changed(); render(); });
+  b.querySelectorAll("[data-bns]").forEach(x => x.onchange = () => { const i = +x.dataset.bns, y = b.querySelector(`[data-bne="${i}"]`); bedSet(i, x.value, y && y.value); });
+  b.querySelectorAll("[data-bne]").forEach(x => x.onchange = () => { const i = +x.dataset.bne, y = b.querySelector(`[data-bns="${i}"]`); bedSet(i, y && y.value, x.value); });
+  $("#f-om").onchange = e => { r.oneMore = e.target.checked; changed(); };
+  $("#f-lost").onchange = e => { r.lostOn = e.target.checked; changed(); render(); };
+  $("#f-lostm").oninput = e => { r.lostMsg = e.target.value.slice(0, 200); changed(); };
+  $("#f-lostp").oninput = e => { r.lostPhone = e.target.value.replace(/[^\d+\-() ]/g, "").slice(0, 20); changed(); };
   wireComfort(b, r);
   $("#f-hm").onchange = e => { r.launcher.on = e.target.checked; changed(); };
   $("#f-hms").onchange = e => { r.launcher.style = e.target.value; changed(); };

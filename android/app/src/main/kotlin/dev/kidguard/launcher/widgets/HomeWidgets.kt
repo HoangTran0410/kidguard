@@ -85,15 +85,15 @@ internal fun HomeActivity.wCard(vertical: Boolean = true) = LinearLayout(this).a
 internal fun HomeActivity.wHead(icon: Int, label: String, end: String? = null): View {
     val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, dp(6)) }
     row.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@wHead, icon, pal.accentText, dp(14))); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }, LinearLayout.LayoutParams(dp(14), dp(14)))
-    row.addView(text(label.uppercase(), 11f, pal.sub, true).apply { letterSpacing = 0.08f; setPadding(dp(6), 0, dp(4), 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
-    if (end != null) row.addView(text(end, 12f, pal.sub, true))
+    row.addView(text(label.uppercase(), WType.TITLE, pal.sub, true).apply { letterSpacing = 0.08f; setPadding(dp(6), 0, dp(4), 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
+    if (end != null) row.addView(text(end, WType.CAPTION, pal.sub, true))
     return row
 }
 
 /** Primary / secondary / empty lines of the scale above. */
-internal fun HomeActivity.wMain(t: String, lines: Int = 1) = text(t, 15f, pal.text, true).apply { maxLines = lines; ellipsize = android.text.TextUtils.TruncateAt.END }
-internal fun HomeActivity.wSub(t: String, lines: Int = 1) = text(t, 12f, pal.sub).apply { maxLines = lines; ellipsize = android.text.TextUtils.TruncateAt.END }
-internal fun HomeActivity.wEmpty(t: String) = text(t, 13f, pal.sub).apply { maxLines = 2; setPadding(0, dp(2), 0, dp(2)) }
+internal fun HomeActivity.wMain(t: String, lines: Int = 1) = text(t, WType.BODY, pal.text, true).apply { maxLines = lines; ellipsize = android.text.TextUtils.TruncateAt.END }
+internal fun HomeActivity.wSub(t: String, lines: Int = 1) = text(t, WType.CAPTION, pal.sub).apply { maxLines = lines; ellipsize = android.text.TextUtils.TruncateAt.END }
+internal fun HomeActivity.wEmpty(t: String) = text(t, WType.BODY, pal.sub).apply { maxLines = 2; setPadding(0, dp(2), 0, dp(2)) }
 
 /** Tap = open the "Hôm nay" page (ripple in the card's corner radius). */
 internal fun HomeActivity.wOpen(v: View) = kit.tap(v, 22f) { pager.snapTo(0) }
@@ -125,7 +125,7 @@ internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideN
     clocks += t to d
     // one place for "what's next": the "Lịch tiếp theo" widget when it is on the home, else here
     if (!hideNext) LauncherLogic.nextEvent(r, dv.minute, dv.dow)?.let { (min, name) ->
-        val n = text(if (name.isEmpty()) getString(R.string.hm_next_bed, HomeLogic.clock(min)) else getString(R.string.hm_next, name, HomeLogic.clock(min)), 13f, Color.WHITE)
+        val n = text(if (name.isEmpty()) getString(R.string.hm_next_bed, HomeLogic.clock(min)) else getString(R.string.hm_next, name, HomeLogic.clock(min)), WType.BODY, Color.WHITE)
             .apply { setPadding(if (mid) dp(6) else 0, dp(2), dp(6), dp(2)); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
         box.addView(n, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(2) })
         inkViews += n
@@ -275,21 +275,21 @@ internal fun HomeActivity.timeWidget(r: Rules, dv: View0, block: String?, s: Sto
         if (!small) row.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@timeWidget, icon, pal.onWarn, dp(18))); background = fill(pal.warn); setPadding(dp(8), dp(8), dp(8), dp(8)) },
             LinearLayout.LayoutParams(dp(34), dp(34)).apply { rightMargin = dp(12) })
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        col.addView(text(BasicLogic.reasonText(block, s.tr).replaceFirstChar { it.titlecase() }, if (small) 15f else 18f, pal.text, true).apply { maxLines = 2 })
+        col.addView(text(BasicLogic.reasonText(block, s.tr).replaceFirstChar { it.titlecase() }, if (small) WType.BODY else WType.VALUE, pal.text, true).apply { maxLines = 2 })
         val wh = reopenWhen(r, block, "", dv)?.let { getString(R.string.hm_reopen, it) }
         val line = when { wh != null && canAsk -> getString(R.string.hm_reopen_ask, wh); wh != null -> wh; canAsk -> getString(R.string.main_more); else -> null }
-        if (line != null) col.addView(text(line, 13f, pal.warnText).apply { setPadding(0, dp(3), 0, 0); maxLines = 2 })
+        if (line != null) col.addView(text(line, WType.BODY, pal.warnText).apply { setPadding(0, dp(3), 0, 0); maxLines = 2 })
         row.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
         box.addView(row)
     } else {
         box.background = card()
-        box.addView(text(getString(R.string.home_left).uppercase(), 11f, pal.sub, true).apply { letterSpacing = 0.08f })
+        box.addView(text(getString(R.string.home_left).uppercase(), WType.TITLE, pal.sub, true).apply { letterSpacing = 0.08f })
         if (dv.leftMs < 0) {
-            box.addView(text(getString(R.string.tl_none), if (small) 18f else 22f, pal.text, true).apply { setPadding(0, dp(4), 0, 0) })
-            if (r.bedtimeOn && !small) box.addView(text(getString(R.string.home_bed, r.bedStart, r.bedEnd), 13f, pal.sub).apply { setPadding(0, dp(3), 0, 0) })
+            box.addView(text(getString(R.string.tl_none), if (small) WType.VALUE else WType.VALUE_L, pal.text, true).apply { setPadding(0, dp(4), 0, 0) })
+            if (r.bedtimeOn && !small) box.addView(text(getString(R.string.home_bed, r.bedStart, r.bedEnd), WType.BODY, pal.sub).apply { setPadding(0, dp(3), 0, 0) })
         } else {
             val low = dv.leftMs < 10 * 60_000L
-            box.addView(text(dur(dv.leftMs), if (small) 20f else 26f, if (low) pal.warnText else pal.accentText, true).apply { setPadding(0, dp(4), 0, dp(8)); maxLines = 1 })
+            box.addView(text(dur(dv.leftMs), if (small) WType.VALUE else WType.HERO, if (low) pal.warnText else pal.accentText, true).apply { setPadding(0, dp(4), 0, dp(8)); maxLines = 1 })
             val limitMs = (baseLimitMin(r, dv.today) + if (r.bonusDay == dv.today) r.bonusMin else 0) * 60_000L
             val used = dv.usage.filterKeys { it in dv.apps && it !in dv.prot && it !in r.allow }.values.sum()
             val bar = FrameLayout(this).apply { background = fill(pal.stroke, 3f) }
@@ -299,8 +299,8 @@ internal fun HomeActivity.timeWidget(r: Rules, dv: View0, block: String?, s: Sto
             box.addView(bar, LinearLayout.LayoutParams(-1, dp(6)))
             if (!small) {
                 val ln = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(7), 0, 0) }
-                ln.addView(text(getString(R.string.home_used, dur(used)), 12f, pal.sub), LinearLayout.LayoutParams(0, -2, 1f))
-                ln.addView(text(getString(R.string.home_limit, dur(limitMs)), 12f, pal.sub))
+                ln.addView(text(getString(R.string.home_used, dur(used)), WType.CAPTION, pal.sub), LinearLayout.LayoutParams(0, -2, 1f))
+                ln.addView(text(getString(R.string.home_limit, dur(limitMs)), WType.CAPTION, pal.sub))
                 box.addView(ln)
             }
         }
@@ -323,7 +323,7 @@ internal fun HomeActivity.quickWidget(s: Store, w: Int): View {
         Triple(R.drawable.li_siren, Pair(pal.danger, pal.onDanger), Pair(if (s.sos().length() > 0) getString(R.string.hm_q_sent) else getString(R.string.home_sos), pal.dangerText)) to { acts.askSos() },
         Triple(R.drawable.li_map_pin, Pair(pal.tint, pal.onTint), Pair(ci("arrived", R.string.hm_q_arrived), pal.text)) to { acts.askCheckin("arrived") },
         Triple(R.drawable.li_car, Pair(pal.tint, pal.onTint), Pair(ci("pickup", R.string.hm_q_pickup), pal.text)) to { acts.askCheckin("pickup") },
-        Triple(R.drawable.li_timer, Pair(pal.solid, pal.onSolid), Pair(if (s.requests().length() > 0) getString(R.string.hm_q_wait) else getString(R.string.hm_q_more), pal.text)) to { acts.askMore() },
+        Triple(R.drawable.li_timer, Pair(pal.solid, pal.onSolid), Pair(if (s.openRequest() != null) getString(R.string.hm_q_wait) else getString(R.string.hm_q_more), pal.text)) to { acts.askMore() },
     )
     val circle = if (w >= 4 && preset.id == "be") 56 else 48
     for ((spec, run) in items) {
@@ -334,7 +334,7 @@ internal fun HomeActivity.quickWidget(s: Store, w: Int): View {
                 setImageDrawable(Ic.get(context, icon, fills.second, dp(22))); background = fill(fills.first)
                 val p = dp((circle - 22) / 2); setPadding(p, p, p, p)
             }, LinearLayout.LayoutParams(dp(circle), dp(circle)))
-            addView(text(lab.first, 12f, lab.second, true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, dp(6), 0, 0); gravity = Gravity.CENTER })
+            addView(text(lab.first, WType.CAPTION, lab.second, true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, dp(6), 0, 0); gravity = Gravity.CENTER })
             contentDescription = lab.first
             // ripple in a rounded mask + no grey focus box (the SOS button used to keep one after a tap)
             kit.tap(this, 14f) {
@@ -355,11 +355,11 @@ internal fun HomeActivity.nextWidget(r: Rules, dv: View0): View {
     val ev = LauncherLogic.today(r, dv.minute, dv.dow).firstOrNull { it.state == "now" || it.state == "next" }
     box.addView(kit.badge(when (ev?.kind) { "bed" -> R.drawable.li_moon; "group" -> R.drawable.li_timer; else -> R.drawable.li_calendar }, pal.onTint, pal.tint, 40, 20))
     val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, dp(4), 0) }
-    if (ev == null) col.addView(text(getString(R.string.hm_t_no_more), 15f, pal.text, true))
+    if (ev == null) col.addView(text(getString(R.string.hm_t_no_more), WType.BODY, pal.text, true))
     else {
-        col.addView(text((if (ev.state == "now") getString(R.string.hm_t_now) else getString(R.string.hm_w_next_at, HomeLogic.clock(ev.start))).uppercase(), 11f, pal.accentText, true).apply { letterSpacing = 0.06f })
+        col.addView(text((if (ev.state == "now") getString(R.string.hm_t_now) else getString(R.string.hm_w_next_at, HomeLogic.clock(ev.start))).uppercase(), WType.TITLE, pal.accentText, true).apply { letterSpacing = 0.06f })
         val name = when (ev.kind) { "bed" -> getString(R.string.hm_t_bed); "group" -> getString(R.string.hm_t_group, ev.name); else -> ev.name.ifBlank { getString(R.string.hm_t_lock) } }
-        col.addView(text(name, 16f, pal.text, true).apply { setPadding(0, dp(3), 0, 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+        col.addView(text(name, WType.BODY, pal.text, true).apply { setPadding(0, dp(3), 0, 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
     }
     box.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
     box.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@nextWidget, R.drawable.li_chevron_right, pal.sub, dp(18))); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }, LinearLayout.LayoutParams(dp(18), dp(18)))
@@ -372,12 +372,12 @@ internal fun HomeActivity.nextWidget(r: Rules, dv: View0): View {
 internal fun HomeActivity.countsWidget(r: Rules, m: HomeModel): View {
     val (chores, notes, files) = TodayPage.counts(this, r, m)
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL; background = card(); setPadding(dp(14), dp(12), dp(14), dp(12)) }
-    box.addView(text(getString(R.string.hm_t_title), 14f, pal.text, true).apply { setPadding(0, 0, 0, dp(6)) })
+    box.addView(text(getString(R.string.hm_t_title), WType.BODY, pal.text, true).apply { setPadding(0, 0, 0, dp(6)) })
     for ((ic, lab, n) in listOf(Triple(R.drawable.li_list_checks, R.string.hm_w_c_chores, chores), Triple(R.drawable.li_sticky_note, R.string.hm_w_c_notes, notes), Triple(R.drawable.li_file, R.string.hm_w_c_files, files))) {
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(5), 0, dp(5)) }
         row.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@countsWidget, ic, pal.accentText, dp(16))) }, LinearLayout.LayoutParams(dp(16), dp(16)))
-        row.addView(text(getString(lab), 13f, pal.text).apply { setPadding(dp(8), 0, dp(4), 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
-        row.addView(text(n.toString(), 14f, pal.text, true))
+        row.addView(text(getString(lab), WType.BODY, pal.text).apply { setPadding(dp(8), 0, dp(4), 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
+        row.addView(text(n.toString(), WType.BODY, pal.text, true))
         box.addView(row)
     }
     kit.tap(box, 22f) { pager.snapTo(0) }
@@ -399,7 +399,7 @@ internal fun HomeActivity.openPicker() {
         setPadding(dp(20) + insL, dp(10), dp(20) + insR, dp(12) + imeB)
     }
     sheet.addView(View(this).apply { background = fill(pal.stroke) }, LinearLayout.LayoutParams(dp(36), dp(4)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(12) })
-    sheet.addView(text(getString(R.string.hm_w_title), 22f, pal.text, true))
+    sheet.addView(text(getString(R.string.hm_w_title), WType.VALUE_L, pal.text, true))
     // search (POCO's picker has one on top): our widgets by name / description, other apps' by app or widget name
     val search = android.widget.EditText(this)
     val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; background = fill(pickSurf(), 22f); setPadding(dp(14), 0, dp(6), 0) }
@@ -429,7 +429,7 @@ internal fun HomeActivity.openPicker() {
     fun kgCard(): LinearLayout = kg ?: LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = fill(pickSurf(), 22f); setPadding(dp(14), dp(12), dp(14), dp(10)) }.also { c ->
         val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, 0, 0, dp(8)) }
         head.addView(ImageView(this).apply { setImageBitmap(IconCache.get(this@openPicker, packageName, "", dp(26), shp)) }, LinearLayout.LayoutParams(dp(26), dp(26)))
-        head.addView(text("KidGuard", 15f, pal.text, true).apply { setPadding(dp(10), 0, 0, 0) })
+        head.addView(text("KidGuard", WType.BODY, pal.text, true).apply { setPadding(dp(10), 0, 0, 0) })
         c.addView(head)
         list.addView(c, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
         kg = c
@@ -445,7 +445,7 @@ internal fun HomeActivity.openPicker() {
         val pv = ScaleBox(this, dp(124), dp(84), maxH = dp(104), pad = dp(8))   // one base the plate's shape: every mock ~100 %, none shrunk to a corner
             .apply { background = fill(pickSurf(), 18f); addView(preview(type).apply { setPadding(0, 0, 0, 0); background = null; (this as? ViewGroup)?.getChildAt(0)?.background = null }) }
         tile.addView(pv, LinearLayout.LayoutParams(-1, -2))
-        tile.addView(text(widgetLabel(type), 13f, pal.text, true).apply { gravity = Gravity.CENTER; maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, dp(6), 0, dp(6)) }, LinearLayout.LayoutParams(-1, -2))
+        tile.addView(text(widgetLabel(type), WType.BODY, pal.text, true).apply { gravity = Gravity.CENTER; maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, dp(6), 0, dp(6)) }, LinearLayout.LayoutParams(-1, -2))
         val pills = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         for ((w, h) in sizes) {
             val cur = placed != null && placed.w == w && placed.h == h
@@ -539,7 +539,7 @@ internal fun HomeActivity.preview(type: String): View {
     val c = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = fill(pal.sheet, 10f); setPadding(dp(8), dp(4), dp(8), dp(4)) }
     when (type) {
         "time" -> {
-            c.addView(text(dur(65 * 60_000L), 13f, pal.accentText, true))
+            c.addView(text(dur(65 * 60_000L), WType.BODY, pal.accentText, true))
             c.addView(View(this).apply { background = fill(pal.solid, 2f) }, LinearLayout.LayoutParams(dp(60), dp(4)).apply { topMargin = dp(5) })
         }
         "quick" -> {
@@ -550,10 +550,10 @@ internal fun HomeActivity.preview(type: String): View {
         }
         "next" -> {
             c.addView(text(HomeLogic.clock(17 * 60), 10f, pal.sub))
-            c.addView(text(getString(R.string.hm_t_next), 12f, pal.text, true).apply { Ic.lead(this, R.drawable.li_calendar, pal.accentText); compoundDrawablePadding = dp(4) })
+            c.addView(text(getString(R.string.hm_t_next), WType.CAPTION, pal.text, true).apply { Ic.lead(this, R.drawable.li_calendar, pal.accentText); compoundDrawablePadding = dp(4) })
         }
         "clock" -> {
-            c.addView(text(HomeLogic.clock(lastView?.minute ?: 980), 22f, pal.text, true))
+            c.addView(text(HomeLogic.clock(lastView?.minute ?: 980), WType.VALUE_L, pal.text, true))
             c.addView(text(SimpleDateFormat("EEE d/M", resources.configuration.locales[0]).format(Date()), 10f, pal.sub))
         }
         "analog" -> analogPreview(c)

@@ -10,7 +10,8 @@ class ResTr(private val ctx: Context) : Tr {
     private fun id(k: T): Int = when (k) {
         T.ev_request -> R.plurals.ev_request
         T.ev_sos -> R.string.ev_sos
-        T.ev_lost -> R.string.ev_lost
+        T.ev_offline -> R.string.ev_offline
+        T.ev_request_app -> R.string.ev_request_app
         T.ev_acc_off -> R.string.ev_acc_off
     }
 }

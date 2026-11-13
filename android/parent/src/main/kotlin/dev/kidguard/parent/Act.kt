@@ -12,7 +12,7 @@ import java.util.Locale
 object Act {
     /** One notification button. [min] for GRANT. */
     data class A(val type: String, val min: Int = 0)
-    const val GRANT = "grant"; const val DECLINE = "decline"; const val MAP = "map"; const val CALL = "call"
+    const val APPROVE = "approve"; const val GRANT = "grant"; const val DECLINE = "decline"; const val MAP = "map"; const val CALL = "call"
 
     /** The request id of a "req:<id>" event key, else null. */
     fun reqId(key: String): String? = key.takeIf { it.startsWith("req:") && it.length > 4 }?.substring(4)
@@ -21,24 +21,24 @@ object Act {
     fun isCheckin(key: String) = key.startsWith("ci:")
 
     /**
-     * Two grant buttons (Android shows 3 actions; the third is Decline). Default +15 / +30; when the child asked for
-     * another amount, that amount replaces the nearer default so the parent can give exactly what was asked.
+     * Android shows 3 actions: [N, 2N, Decline] where N = what the child asked for (default 15 -> 15 / 30) and 2N is rounded
+     * to 5 (cap 600). "N/2" is left to the page's amount picker (a 4th button does not fit). 0.9.16 (was 15 / 30 or the asked + 30).
      */
-    fun grantChoices(reqMin: Int): List<Int> = when {
-        reqMin <= 0 || reqMin == 15 || reqMin == 30 || reqMin > 600 -> listOf(15, 30)
-        reqMin < 30 -> listOf(reqMin, 30).sorted()
-        else -> listOf(30, reqMin)
+    fun grantChoices(reqMin: Int): List<Int> {
+        val n = if (reqMin <= 0 || reqMin > 600) 15 else reqMin
+        val twice = minOf(600, maxOf(5, (n * 2 + 2) / 5 * 5))
+        return if (twice == n) listOf(n) else listOf(n, twice)
     }
 
-    fun actionsFor(key: String, reqMin: Int = 0, phone: String? = null): List<A> = when {
-        reqId(key) != null -> grantChoices(reqMin).map { A(GRANT, it) } + A(DECLINE)
+    fun actionsFor(key: String, reqMin: Int = 0, phone: String? = null, app: Boolean = false): List<A> = when {
+        reqId(key) != null -> (if (app) listOf(A(APPROVE)) else grantChoices(reqMin).map { A(GRANT, it) }) + A(DECLINE)
         isSos(key) -> listOf(A(MAP)) + (if (phone.isNullOrBlank()) emptyList() else listOf(A(CALL)))
         isCheckin(key) -> listOf(A(MAP))
         else -> emptyList()
     }
 
     /** The command the page sends for a request answer: `answer {id, ok, min?, note?}` (note <= 200 chars). */
-    fun answerCmd(id: String, ok: Boolean, min: Int = 0, note: String? = null): JSONObject = JSONObject().put("type", "answer").put("id", id).put("ok", ok).apply {
+    fun answerCmd(id: String, ok: Boolean, min: Int = 0, note: String? = null): JSONObject = JSONObject().put("type", "answer").put("id", id).put("req", id).put("ok", ok).apply {
         if (ok) put("min", min)
         note?.trim()?.take(200)?.takeIf { it.isNotEmpty() }?.let { put("note", it) }
     }
@@ -68,6 +68,15 @@ object Act {
         o.remove("pinHash"); o.remove("pinSet"); o.remove("pin")
         return o
     }
+
+    /** The open request [id] in the state (kind "time" when the field is missing), or null. */
+    fun requestOf(body: JSONObject, via: String, id: String): JSONObject? {
+        val a = stateOf(body, via)?.optJSONArray("requests") ?: return null
+        return (0 until a.length()).mapNotNull { a.optJSONObject(it) }.firstOrNull { it.optString("id") == id }
+    }
+
+    /** state.now.why ("" when the phone sends none). */
+    fun nowWhy(body: JSONObject, via: String): String = stateOf(body, via)?.optJSONObject("now")?.optString("why").orEmpty()
 
     /** QUEUED: the relay holds it until the phone is online. HALF: the bonus is saved, the `answer` is not sent yet. */
     enum class Res { OK, QUEUED, ALREADY, HALF, FAIL }

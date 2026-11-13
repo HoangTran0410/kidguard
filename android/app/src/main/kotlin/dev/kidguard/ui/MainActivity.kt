@@ -82,6 +82,14 @@ class MainActivity : Activity() {
             setOnClickListener { sheet.show() }
         }, LinearLayout.LayoutParams(dp(48), dp(48)))
         col.addView(head)
+        colRoot = col; headView = head
+        // after a release (parent removed KidGuard's management): one honest card instead of rows that read as broken
+        releasedCard = u.cardBox(18).apply {
+            visibility = View.GONE
+            addView(u.label(getString(R.string.rel_title), 18f, u.text, true))
+            addView(u.label(getString(R.string.rel_body), 15f, u.sub).apply { setLineSpacing(0f, 1.15f); setPadding(0, dp(8), 0, 0) })
+        }
+        col.addView(releasedCard, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) })
         // "Việc cần làm · 3/7": every setup step (both modes), right under the header until all are done
         steps = SetupSteps(this, u)
         col.addView(steps.box)
@@ -302,14 +310,15 @@ class MainActivity : Activity() {
             if (Guard.running == null) { Guard.start(this); Toasts.show(this, getString(R.string.admin_not_ready)); return }
             AdminActivity.start(this); return
         }
-        fun lockText(left: Long) = ((left + 59_999) / 60_000).toInt().let { resources.getQuantityString(R.plurals.pin_locked, it, it) }
+        // a PIN lock says "PIN", a lock of the Authenticator code (no PIN set) says "code"
+        fun lockText(left: Long) = ((left + 59_999) / 60_000).toInt().let { if (pinSet) resources.getQuantityString(R.plurals.pin_locked, it, it) else getString(R.string.code_locked, it) }
         s.adminLockLeft().takeIf { it > 0 }?.let { Modal(this, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, getString(R.string.locked_title), lockText(it)); return }
         val m = Modal(this, ui2)
         val input = m.field(getString(when { pinSet && totpOn -> R.string.admin_field_both; pinSet -> R.string.admin_field; else -> R.string.unl_hint }), 8, pin = true)
         val shotOn = s.rules.pinShot && Shot.can(this)
         val body = getString(when { pinSet && totpOn -> R.string.admin_body_both; pinSet -> R.string.admin_body_pin; else -> R.string.admin_body_totp }) +
             (if (shotOn) "\n\n" + getString(R.string.admin_shot_note) else "")   // told before, never a hidden camera
-        m.show(R.drawable.li_users, Modal.Tone.INFO, getString(R.string.admin_title), body, input, ok = getString(R.string.admin_ok), cancel = getString(R.string.cancel)) {
+        m.show(R.drawable.li_users, Modal.Tone.INFO, getString(R.string.admin_title), body, KidNow.withForgot(this, ui2, input), ok = getString(R.string.admin_ok), cancel = getString(R.string.cancel)) {
             if (Guard.running == null) { m.setError(getString(R.string.admin_not_ready)); Guard.start(this); return@show false }
             val tc = android.os.SystemClock.elapsedRealtime()
             val res = s.checkAdmin(input.text.toString())
@@ -323,6 +332,7 @@ class MainActivity : Activity() {
                         s.camAsked = true
                         if (runCatching { requestPermissions(arrayOf(android.Manifest.permission.CAMERA), CAM_REQ_ADMIN) }.isSuccess) return@show true   // page opens on the answer
                     }
+                    Guard.running?.lostGraceUntil = System.currentTimeMillis() + 10 * 60_000L   // lost mode: no relock while the parent is here
                     AdminActivity.start(this); true
                 }
                 -1 -> { input.setText(""); m.setError(lockText(s.adminLockLeft())); false }
@@ -699,9 +709,14 @@ class MainActivity : Activity() {
         refresh()
         (android.os.SystemClock.elapsedRealtime() - t0).let { if (it > 16) android.util.Log.i("KG.perf", "main refresh ${it}ms") }
         // the time-left tile / widget: "ask for more time" (only once a parent is paired, like the button)
+        if (intent?.getBooleanExtra(EXTRA_ADMIN, false) == true) { intent.removeExtra(EXTRA_ADMIN); ui.post { askAdmin() } }   // lost card: "Parent: turn off"
         if (intent?.getBooleanExtra(Quick.EXTRA_MORE, false) == true) {
             intent.removeExtra(Quick.EXTRA_MORE)
-            if (Store.of(this).everPaired) ui.post { askMore() }
+            if (Store.of(this).everPaired) {
+                val ap = intent.getStringExtra(BlockCard.EXTRA_ASK_PKG); val al = intent.getStringExtra(BlockCard.EXTRA_ASK_LABEL)
+                intent.removeExtra(BlockCard.EXTRA_ASK_PKG); intent.removeExtra(BlockCard.EXTRA_ASK_LABEL)
+                ui.post { if (ap != null) acts.askApp(ap, al ?: ap) else askMore() }   // from the basic-mode block card
+            }
         }
     }
 
@@ -738,8 +753,23 @@ class MainActivity : Activity() {
     override fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?) { launched = true; super.startActivityForResult(intent, requestCode, options) }
     override fun onStop() { super.onStop(); if (!isChangingConfigurations && !launched && !isFinishing) finishAndRemoveTask() }
 
+    private lateinit var colRoot: LinearLayout
+    private lateinit var headView: View
+    private lateinit var releasedCard: LinearLayout
+    private var releasedShown = false
+
+    /** True = released: only the header and the "KidGuard đã gỡ quyền quản lý" card show. A new setup brings the normal screen back. */
+    private fun showReleased(s: Store): Boolean {
+        if (!s.released) { if (releasedShown) { releasedShown = false; recreate() }; return false }
+        releasedShown = true
+        for (i in 0 until colRoot.childCount) colRoot.getChildAt(i).let { it.visibility = if (it === headView || it === releasedCard) View.VISIBLE else View.GONE }
+        health.text = ""; ui.removeCallbacks(refreshLoop)
+        return true
+    }
+
     private fun refresh() {
         val s = Store.of(this)
+        if (showReleased(s)) return
         val owner = Policy.isOwner(this)
         val usage = Usage.granted(this)
         // SOS / more time only reach someone once a parent has paired
@@ -1044,6 +1074,8 @@ class MessageActivity : Activity() {
         card.addView(ui.button(getString(R.string.msg_read), R.drawable.li_thumbs_up, true) {
             runCatching { getSystemService(NotificationManager::class.java).cancel(NID) }; finish() }.apply {
             background = android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(Color.argb(60, 255, 255, 255)), ui.shape(ui.primary, 27), null) })
+        if (intent.getBooleanExtra("lost", false)) card.addView(ui.button(getString(R.string.lost_parent_off), R.drawable.li_users, false) {
+            runCatching { startActivity(Intent(this, MainActivity::class.java).putExtra(EXTRA_ADMIN, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)) }; finish() })
         root.addView(card)
         setContentView(root)
         window.statusBarColor = ui.bg; window.navigationBarColor = ui.bg
@@ -1087,8 +1119,8 @@ class MessageActivity : Activity() {
 
     companion object {
         private const val NID = 3
-        fun show(ctx: Context, text: String) {
-            val i = Intent(ctx, MessageActivity::class.java).putExtra("text", text)
+        fun show(ctx: Context, text: String, lost: Boolean = false) {
+            val i = Intent(ctx, MessageActivity::class.java).putExtra("text", text).putExtra("lost", lost)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             runCatching { ctx.startActivity(i) }
             // background activity starts can be blocked: a heads-up notification with a full-screen intent shows it anyway
@@ -1113,4 +1145,5 @@ class MessageActivity : Activity() {
     }
 }
 
+const val EXTRA_ADMIN = "kg.admin"
 private const val CAM_REQ_ADMIN = 41   // camera ask after a right admin PIN (basic mode, wrong-PIN photo)

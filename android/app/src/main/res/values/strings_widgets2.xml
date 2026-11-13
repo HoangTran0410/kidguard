@@ -23,7 +23,7 @@
     <string name="hm_w_streak_d">Days in a row with homework and chores done. Badges at 3, 7, 14 and 30 days.</string>
     <string name="sk_days">days</string>
     <string name="sk_best">Best: %1$d</string>
-    <string name="sk_next">%1$d more to %2$d</string>
+    <string name="sk_next">%1$d more to reach %2$d</string>
     <string name="sk_today_done">Today: all done!</string>
     <string name="sk_today_open">Today: tasks left</string>
     <string name="sk_empty">Add homework to start a streak</string>

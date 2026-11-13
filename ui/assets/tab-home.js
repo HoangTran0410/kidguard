@@ -5,6 +5,25 @@ function awayTip() {
   return `<div class="card mt16"><h2>${ic("route")} ${t("away.h")}</h2><p class="mute">${t("away.p")}</p>
     <div class="row"><button type="button" id="awayGo" class="pri">${ic("chevron-right")} ${t("away.go")}</button><button type="button" id="awayNo">${t("away.later")}</button></div></div>`;
 }
+// "Right now" (state.now, contract C2): why the phone is limited as a whole, until when. The page's own unsaved pass edits count at once.
+function nowOf(r) {
+  const n = st.now || { why: "", until: 0, name: "" }, pu = +r.passUntil || 0;
+  if (n.why !== "lost" && pu > Date.now() && n.why !== "code") return { why: "pass", until: pu, name: "" };
+  if (n.why === "pass" && pu <= Date.now()) return { why: "", until: 0, name: "" };   // ended here, the phone has not synced it yet
+  return n;
+}
+// text of one state: "Đang giờ ngủ, mở lại 06:30" ...; key now.<why> (no end known) or now.<why>U (with {0} = when)
+const nowText = n => n.why ? t("now." + n.why + (n.until ? "U" : ""), n.until ? whenTxt(n.until) : "", esc(n.name ? "(" + n.name + ")" : "")) : "";
+// a new app waiting for approval (rules.blockNew): one row with [Cho phép] [Chặn]
+function newAppsCard(r) {
+  if (!r.blockNew) return "";
+  const L = (st.apps || []).filter(x => x.new && !r.approved.includes(x.pkg) && !r.blocked.includes(x.pkg));
+  if (!L.length) return "";
+  return `<div class="card req" role="group" aria-label="${esc(t("na.aria"))}"><div class="row" style="flex-wrap:nowrap;align-items:flex-start"><span class="ib t-warn" style="color:var(--warn);background:rgba(217,119,6,.16)">${ic("sparkles")}</span><b class="sp">${t("na.h", L.length)}</b></div>
+    ${L.slice(0, 3).map(x => `<div class="app" style="margin-top:8px">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${t("na.sub", esc(cur.name))}</span></div></div>
+    <div class="row"><button class="pri sp" data-naok="${esc(x.pkg)}">${ic("circle-check")} ${t("permit")}</button><button class="sp" data-nano="${esc(x.pkg)}">${ic("ban")} ${t("na.block")}</button></div>`).join("")}
+    ${L.length > 3 ? `<button type="button" class="lfoot" id="naMore">${t("na.more", L.length - 3)} ${ic("chevron-right")}</button>` : ""}</div>`;
+}
 function homeTab(b) {
   const r = edit || st.rules, today = st.day, limit = edit ? todayLimit(r, today) : (st.limitMin ?? r.dailyMin);
   const reqs = (st.requests || []).filter(q => !answered.has(q.id));
@@ -13,20 +32,23 @@ function homeTab(b) {
   const bonusMin = r.bonus && r.bonus.day === today ? +r.bonus.min || 0 : 0;
   const blockedNow = st.apps.filter(x => x.suspended);
   // the solid button follows the situation: can use the phone -> "Cấm dùng…"; paused / out of time -> "Cho thêm giờ…"
-  const out = pausedLeft > 0 || (limit && left <= 0);
+  const nw = nowOf(r), lockWhy = nw.why && nw.why !== "daily", lostNow = nw.why === "lost" || r.lostOn;
   const pauseB = cls => `<button type="button" id="pauseGo" class="${pausedLeft > 0 ? "pausing " + cls.replace("pri ", "") : cls}">${pausedLeft > 0 ? `${ic("pause")} <span><b>${t("pk.active", whenTxt(r.pausedUntil))}</b> · ${t("pk.tapEdit")}</span>` : `${ic("pause")} ${t("pk.pauseBtn")}`}</button>`;
-  const bonusB = cls => limit ? `<button type="button" id="bonusGo" class="${cls}">${ic("plus")} ${t("pk.bonusBtn")}${bonusMin ? ` <span class="tag ok">+${t("fmt.m", bonusMin)}</span>` : ""}</button>` : "";
+  const out = pausedLeft > 0 || (limit && left <= 0) || lockWhy;
+  // more time always works (grant): daily bonus when the limit is the reason, else a timed pass
+  const bonusB = cls => lostNow ? "" : `<button type="button" id="bonusGo" class="${cls}">${ic("plus")} ${t("pk.bonusBtn")}${bonusMin ? ` <span class="tag ok">+${t("fmt.m", bonusMin)}</span>` : ""}</button>`;
   const top = st.apps.filter(x => x.ms > 60000).slice(0, 3), mx = Math.max(1, ...top.map(x => x.ms));
   const ev = (st.events || []).slice(-3).reverse();
   b.innerHTML = `<div class="g2 w"><div>
   ${reqs.map(q => reqCard(q, r)).join("")}
+  ${newAppsCard(r)}
   <section class="hero" aria-label="${esc(t("today"))}">
-    <div class="lab">${limit ? t(left > 0 ? "hero.left" : "hero.out") : t("hero.used")}</div>
-    <div class="big">${limit ? fmt(Math.max(0, left)) : fmt(used)}</div>
-    <div class="meta"><span>${limit ? t("hero.usedOf", fmt(used), fmt(limit * 60000)) + (bonusMin ? " " + t("home.incl", bonusMin) : "") : t("home.noLim")}</span>${blockedNow.length ? `<button type="button" class="chip t-bad" id="blkGo">${ic("ban")} ${t("lockedN", blockedNow.length)} ›</button>` : ""}</div>
-    ${limit ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ""}
+    <div class="lab">${lockWhy ? nowText(nw) : limit ? t(left > 0 ? "hero.left" : "hero.out") : t("hero.used")}</div>
+    ${lockWhy ? (nw.until ? `<div class="big">${fmt(nw.until - Date.now())}</div>` : "") : `<div class="big">${limit ? fmt(Math.max(0, left)) : fmt(used)}</div>`}
+    <div class="meta"><span>${lockWhy && limit ? t("hero.leftLine", fmt(Math.max(0, left)), fmt(used), fmt(limit * 60000)) : limit ? t("hero.usedOf", fmt(used), fmt(limit * 60000)) + (bonusMin ? " " + t("home.incl", bonusMin) : "") : t("home.noLim")}</span>${blockedNow.length ? `<button type="button" class="chip t-bad" id="blkGo">${ic("ban")} ${t("lockedN", blockedNow.length)} ›</button>` : ""}${nw.why === "pass" || nw.why === "code" ? `<button type="button" class="chip" id="passEnd">${ic("square")} ${t("pass.end")}</button>` : ""}</div>
+    ${limit && !lockWhy ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ""}
     ${out ? bonusB("pri hb") + pauseB(limit ? "hb2" : "pri hb") : pauseB("pri hb") + bonusB("hb2")}
-    ${limit ? "" : `<p class="mute" style="margin:10px 0 0">${t("home.noLimHint")}</p>`}
+    ${limit || lockWhy ? "" : `<p class="mute" style="margin:10px 0 0">${t("home.noLimHint")}</p>`}
   </section>
   <div class="quick" role="group" aria-label="${esc(t("now"))}">
     <button type="button" id="lock" class="tile act"></button><button type="button" id="ring" class="tile act"></button><button type="button" id="loc" class="tile act"></button>
@@ -50,8 +72,16 @@ function homeTab(b) {
   b.querySelectorAll("[data-go]").forEach(x => x.onclick = () => goTab(x.dataset.go));
   if ($("#blkGo")) $("#blkGo").onclick = () => { sel.f = "blocked"; appsSub = "list"; goTab("apps"); };
   if ($("#bonusGo")) $("#bonusGo").onclick = () => pickTime("bonus", bonusMin ? t("pk.bonusNow", bonusMin) : "",
-    m => { const c0 = edit.bonus && edit.bonus.day === today ? edit.bonus.min : 0; edit.bonus = { day: today, min: c0 + m }; changed(); toast("ok|" + t("pk.bonusDone", fmt(m * 60000))); render(); },
+    m => { const kind = grantApply(edit, st, m); changed(); toast("ok|" + grantToast(kind, edit, m)); render(); },
     bonusMin ? () => { edit.bonus = { day: today, min: 0 }; changed(); render(); } : null);
+  if ($("#passEnd")) $("#passEnd").onclick = async () => {
+    if (nw.why === "code") { if (await cmd({ type: "unlockEnd" }, t("pass.ended"), [t("pass.askEnd"), t("pass.end")])) render(); return; }
+    if (!(await ask(t("pass.askEnd"), t("pass.end")))) return;
+    edit.passUntil = 0; changed(); toast("ok|" + t("pass.ended")); render();
+  };
+  b.querySelectorAll("[data-naok]").forEach(x => x.onclick = () => { edit.approved.push(x.dataset.naok); changed(); toast("ok|" + t("permitted")); render(); });
+  b.querySelectorAll("[data-nano]").forEach(x => x.onclick = () => { if (!edit.blocked.includes(x.dataset.nano)) edit.blocked.push(x.dataset.nano); changed(); toast("ok|" + t("na.blocked")); render(); });
+  if ($("#naMore")) $("#naMore").onclick = () => { sel.f = "new"; appsSub = "list"; goTab("apps"); };
   $("#pauseGo").onclick = () => pickTime("pause", pausedLeft > 0 ? t("pk.active", whenTxt(r.pausedUntil)) + " · " + t("pk.leftN", fmt(pausedLeft)) : "",
     until => { edit.pausedUntil = until; changed(); toast("ok|" + t("pk.sumPause", whenTxt(until))); render(); },
     pausedLeft > 0 ? () => { edit.pausedUntil = 0; changed(); toast("ok|" + t("pk.unpaused")); render(); } : null);

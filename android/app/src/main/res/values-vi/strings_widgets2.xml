@@ -23,7 +23,7 @@
     <string name="hm_w_streak_d">Số ngày liên tiếp làm xong bài tập và việc nhà. Huy hiệu ở mốc 3, 7, 14, 30 ngày.</string>
     <string name="sk_days">ngày</string>
     <string name="sk_best">Kỷ lục: %1$d</string>
-    <string name="sk_next">còn %1$d ngày đến %2$d</string>
+    <string name="sk_next">còn %1$d ngày tới mốc %2$d</string>
     <string name="sk_today_done">Hôm nay: xong hết rồi!</string>
     <string name="sk_today_open">Hôm nay: còn việc</string>
     <string name="sk_empty">Thêm bài tập để bắt đầu chuỗi</string>

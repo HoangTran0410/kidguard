@@ -69,7 +69,7 @@ Android only lets an app become Device Owner while the phone has **no accounts**
 | 🔳 **Scan a QR** | a new or factory-reset phone, stock-like Android (Pixel, Samsung, Nokia…). Some skins drop the 6-tap screen (e.g. Oppo / Realme ColorOS on Android 8–9): use the USB way | On the welcome screen tap 6 times on an empty spot, scan the [QR](https://kidguard.99-hoangtran.workers.dev/qr). The phone downloads KidGuard over Wi-Fi and sets it up; open it and finish the short checklist. |
 | 🌐 **Browser + USB cable** | Chrome or Edge on a computer | Turn on **USB debugging**, plug in, open [/install](https://kidguard.99-hoangtran.workers.dev/install), press Connect. No adb needed. |
 | ⌨️ **Command line** | macOS, Linux or Windows | `scripts/setup.sh` (downloads adb if missing, `-y` skips questions) or `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1` |
-| 🟡 **Basic mode** (no Device Owner) | any Android 8+, nothing else. For old phones with no QR screen and no computer / cable | Install the APK, open KidGuard, tap **Quick setup, no computer needed** and turn on each item of the list (device admin, accessibility, usage access, location, battery). Accounts can stay. |
+| 🟡 **Basic mode** (no Device Owner) | any Android 8+, nothing else. For old phones with no QR screen and no computer / cable | Install the APK, open KidGuard, follow the **To do** list and turn on each item (device admin, accessibility, usage access, location, battery). Accounts can stay. |
 
 **Basic mode is weaker.** Blocked apps are closed back to the home screen instead of greyed out, and KidGuard leaves the
 screens that would uninstall or turn it off. Not available: family DNS, blocking app installs / USB debugging, locking
@@ -77,12 +77,12 @@ airplane mode / location / clock, reboot, Tailscale. A child who boots into **Sa
 accessibility off stops the blocking (the parent page shows a red warning and the parent app notifies). Use Device Owner
 when you can; a basic phone can be switched later with any of the ways above.
 
-Then the child's phone shows a **6-digit code** and a **QR code**. On the parent's phone (same Wi-Fi) scan the QR with the camera (it opens the page with the code filled in), or open `http://<phone IP>:8770` and type the code, and in **Settings** set a **parent PIN** (without it the phone refuses to pair another browser).
+Then the last setup screen on the child's phone shows a **6-digit pairing code** and a **QR code** for 10 minutes (later: hold **Bố mẹ: hiện mã ghép** for 5 s). On the parent's phone (same Wi-Fi) scan the QR with the camera (it opens the page with the code filled in), or open `http://<phone IP>:8770` and type the code, and set a **parent PIN** in the pairing form (without it the phone refuses to pair another browser).
 
 **Parent app (Android, optional).** The browser is enough, but the app adds notifications (SOS, time requests, accessibility
 turned off) and shows the last data when the child's phone is offline. Install [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk) on the
 parent's phone, open it, tap **Add kid's phone**, type the address shown on the child's phone and then
-the 6-digit code (away from home: paste the Worker link from the child's Settings). iPhone: use the browser ([below](#iphone--ipad)).
+the 6-digit pairing code (away from home: paste the Worker link from the child's Settings). iPhone: use the browser ([below](#iphone--ipad)).
 
 Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Battery / autostart settings** and let KidGuard run in the background.
 

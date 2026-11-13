@@ -10,11 +10,15 @@
 # Undo: from the parent's page, Settings > "Gỡ quyền quản lý", then uninstall the app.
 # Steps are the same as docs/protocol.md "Setup steps" (setup.ps1 and ui/install.html do the same).
 set -euo pipefail
+# Language: Vietnamese when $LC_ALL / $LANG starts with "vi", else English. Override: KG_LANG=vi|en ./setup.sh
+case "${KG_LANG:-${LC_ALL:-${LANG:-}}}" in vi*) KG_LANG=vi ;; *) KG_LANG=en ;; esac
+T() { if [ "$KG_LANG" = vi ]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }   # T "vi" "en"
+L() { T "$1" "$2"; echo; }
 # An APK path given on the command line is resolved against where you ran the script, before we cd next to it.
 ARG_APK=""
 for a in "$@"; do case "$a" in -y|--yes) ;; *) ARG_APK="$a" ;; esac; done
 if [ -n "$ARG_APK" ]; then
-  [ -f "$ARG_APK" ] || { echo "LỖI: Không thấy file APK: $ARG_APK"; exit 1; }
+  [ -f "$ARG_APK" ] || { L "LỖI: Không thấy file APK: $ARG_APK" "ERROR: APK file not found: $ARG_APK"; exit 1; }
   ARG_APK="$(cd "$(dirname "$ARG_APK")" && pwd)/$(basename "$ARG_APK")"
 fi
 cd "$(dirname "$0")"
@@ -58,10 +62,10 @@ if ! command -v adb >/dev/null 2>&1; then
       Linux) OS=linux ;;
       *) echo "Cần adb (Android platform-tools): https://developer.android.com/tools/releases/platform-tools"; exit 1 ;;
     esac
-    echo "Máy chưa có adb (công cụ Google để nói chuyện với điện thoại, ~10 MB)."
-    printf "Tải về %s ? [y/N] " "$TOOLS"
+    L "Máy chưa có adb (công cụ Google để nói chuyện với điện thoại, ~10 MB)." "adb (Google tool to talk to the phone, ~10 MB) is not installed."
+    printf "$(T "Tải về %s ? [y/N] " "Download to %s ? [y/N] ")" "$TOOLS"
     read -r ans </dev/tty || ans=n
-    case "$ans" in y|Y) ;; *) echo "Đã huỷ. Cài adb rồi chạy lại."; exit 1 ;; esac
+    case "$ans" in y|Y) ;; *) L "Đã huỷ. Cài adb rồi chạy lại." "Cancelled. Install adb and run again."; exit 1 ;; esac
     mkdir -p "$TOOLS"
     curl -fL -o "$TOOLS/pt.zip" "https://dl.google.com/android/repository/platform-tools-latest-$OS.zip"
     unzip -qo "$TOOLS/pt.zip" -d "$TOOLS"
@@ -72,23 +76,32 @@ fi
 
 devs=$(adb devices | tr -d '\r')
 if printf '%s\n' "$devs" | awk 'NR>1 && $2=="unauthorized"{f=1} END{exit !f}'; then
-  echo "Máy đã cắm nhưng chưa cho phép gỡ lỗi USB: nhìn màn hình điện thoại, bấm \"Cho phép\" (tick \"Luôn cho phép\"), rồi chạy lại."
+  L "Máy đã cắm nhưng chưa cho phép gỡ lỗi USB: nhìn màn hình điện thoại, bấm \"Cho phép\" (tick \"Luôn cho phép\"), rồi chạy lại." "Phone is plugged in but USB debugging is not allowed: look at the phone screen, tap \"Allow\" (tick \"Always allow\"), then run again."
   printf '%s\n' "$devs"; exit 1
 fi
 if [ -n "${ANDROID_SERIAL:-}" ]; then
-  adb devices | awk 'NR>1 && $2=="device"{print $1}' | grep -qxF "$ANDROID_SERIAL" || { echo "Không thấy máy $ANDROID_SERIAL (ANDROID_SERIAL)"; adb devices; exit 1; }
+  adb devices | awk 'NR>1 && $2=="device"{print $1}' | grep -qxF "$ANDROID_SERIAL" || { L "Không thấy máy $ANDROID_SERIAL (ANDROID_SERIAL)" "Phone $ANDROID_SERIAL (ANDROID_SERIAL) not found"; adb devices; exit 1; }
 else
   n=$(adb devices | awk 'NR>1 && $2=="device"' | wc -l | tr -d ' ')
-  [ "$n" = "1" ] || { echo "Cần đúng 1 máy đã cắm và cho phép gỡ lỗi USB (đang thấy: $n)"; adb devices; exit 1; }
+  if [ "$n" = "0" ]; then
+    L "Không thấy máy nào. Kiểm tra lần lượt:" "No phone found. Check, one by one:"
+    L "  1. Cáp: dùng cáp có truyền dữ liệu (không phải cáp chỉ sạc), cắm thẳng vào máy tính." "  1. Cable: use a data cable (not charge-only), plugged straight into the computer."
+    L "  2. Trên máy con: kéo thông báo USB xuống, chọn \"Truyền tệp\" (File transfer), không chọn \"Chỉ sạc\"." "  2. On the phone: pull down the USB notification and pick \"File transfer\", not \"Charging only\"."
+    L "  3. Mở khoá màn hình máy con, giữ màn hình sáng." "  3. Unlock the phone screen and keep it on."
+    L "  4. Bật Gỡ lỗi USB (Tuỳ chọn nhà phát triển) và bấm \"Cho phép\" khi máy hỏi." "  4. Turn on USB debugging (Developer options) and tap \"Allow\" when the phone asks."
+    L "  5. Windows: cài driver USB của hãng máy (Samsung, Xiaomi, Oppo…). macOS / Linux: không cần driver." "  5. Windows: install the phone maker's USB driver (Samsung, Xiaomi, Oppo...). macOS / Linux: no driver needed."
+    exit 1
+  fi
+  [ "$n" = "1" ] || { L "Cần đúng 1 máy đã cắm và cho phép gỡ lỗi USB (đang thấy: $n). Nhiều máy: export ANDROID_SERIAL=<serial>." "Exactly 1 phone with USB debugging allowed is needed (found: $n). Several phones: export ANDROID_SERIAL=<serial>."; adb devices; exit 1; }
 fi
 
 model=$(adb shell getprop ro.product.model | tr -d '\r')
 ver=$(adb shell getprop ro.build.version.release | tr -d '\r')
-echo "[*] Máy đang cắm: $model (Android $ver)"
+L "[*] Máy đang cắm: $model (Android $ver)" "[*] Phone plugged in: $model (Android $ver)"
 if [ "$YES" != "1" ]; then
-  printf "Đây là máy của con? [y/N] "
+  printf "$(T "Đây là máy của con? [y/N] " "Is this your child's phone? [y/N] ")"
   read -r ans </dev/tty || ans=n
-  case "$ans" in y|Y) ;; *) echo "Đã huỷ."; exit 1 ;; esac
+  case "$ans" in y|Y) ;; *) L "Đã huỷ." "Cancelled."; exit 1 ;; esac
 fi
 
 # true when KidGuard is Device Owner (captured first, no `| grep -q`: with pipefail an early-closed pipe reads as failure)
@@ -251,8 +264,9 @@ ip=$(adb shell ip -4 addr show wlan0 2>/dev/null | awk '/inet /{print $2}' | cut
 [ -n "$ip" ] || ip=$(adb shell ip route get 1.1.1.1 2>/dev/null | tr -d '\r' | awk '{for(i=1;i<NF;i++) if($i=="src"){print $(i+1); exit}}')
 reenable
 echo
-echo "OK Xong. Trên điện thoại bố mẹ (cùng Wi-Fi), mở: http://${ip:-<IP của máy con>}:8770"
-echo "-> rồi nhập mã 6 số đang hiện trên máy con. Giờ có thể đăng nhập lại tài khoản của máy (Google, Samsung…) trên máy con."
+L "OK Xong. Trên điện thoại bố mẹ (cùng Wi-Fi), mở: http://${ip:-<IP của máy con>}:8770" "OK Done. On the parent's phone (same Wi-Fi), open: http://${ip:-<child phone IP>}:8770"
+L "-> rồi nhập mã ghép 6 số: màn hình cuối trên máy con hiện mã trong 10 phút (sau đó: giữ nút \"Bố mẹ: hiện mã ghép\" 5 giây), và đặt PIN trong form ghép." "-> then type the 6-digit pairing code: the last screen on the child's phone shows it for 10 minutes (later: hold \"Bố mẹ: hiện mã ghép\" for 5 seconds), and set a PIN in the pairing form."
+L "-> Giờ có thể đăng nhập lại tài khoản của máy (Google, Samsung…) trên máy con." "-> You can now sign in to the phone accounts (Google, Samsung...) on the child's phone again."
 # ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off)
 if [ -n "$(adb shell 'getprop ro.build.version.opporom; getprop ro.build.version.oplusrom' | tr -d '[:space:]')" ]; then
   echo '-> Oppo/Realme/OnePlus (ColorOS): mở Đa nhiệm, kéo thẻ KidGuard xuống để khoá (biểu tượng ổ khoá), và trong Quản lý điện thoại cho KidGuard "Tự khởi chạy" + chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app và Trợ năng.'

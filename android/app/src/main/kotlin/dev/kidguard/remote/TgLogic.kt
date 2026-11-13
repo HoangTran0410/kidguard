@@ -78,11 +78,11 @@ object TgLogic {
         "help" to "🤖 KidGuard – máy của %1\$s\n" +
             "Bấm 📋 Menu (hoặc /menu) để dùng nút bấm, khỏi gõ lệnh. Hoặc gõ:\n\n" +
             "👀 XEM\n/status – tình hình: giờ dùng, pin, mạng, app đang mở\n/locate – vị trí hiện tại\n/apps – app dùng nhiều hôm nay\n/events – cảnh báo gần đây\n\n" +
-            "⏱ THỜI GIAN\n/code – mã mở khoá 6 số (đọc cho con, hoặc mở phần bố mẹ trên máy con)\n/bonus 30 – cho thêm 30 phút hôm nay\n/pause 60 – cấm dùng 60 phút\n/resume – gỡ cấm dùng\n/limit 120 – giới hạn mỗi ngày (0 = bỏ)\n/bed – bật/tắt giờ ngủ\n\n" +
+            "⏱ THỜI GIAN\n/requests – lời xin đang chờ (bấm nút để trả lời)\n/code – mã mở khoá 6 số (đọc cho con, hoặc mở phần bố mẹ trên máy con)\n/bonus 30 – cho thêm 30 phút (qua cả giờ ngủ / lịch / cấm)\n/pause 60 – cấm dùng 60 phút\n/resume – gỡ cấm dùng\n/limit 120 – giới hạn mỗi ngày (0 = bỏ; giới hạn khác nhau theo thứ thì hỏi trước)\n/bed – bật/tắt giờ ngủ\n\n" +
             "📱 APP\n/block – chọn app để chặn\n/unblock – bỏ chặn app\n\n" +
-            "🎛 ĐIỀU KHIỂN\n/lock – khoá màn hình\n/ring – đổ chuông (tìm máy)\n/msg – hiện lời nhắn trên máy con\n\n" +
+            "🎛 ĐIỀU KHIỂN\n/lock – khoá màn hình\n/ring – đổ chuông (tìm máy)\n/msg – hiện lời nhắn trên máy con\n/lost – chế độ thất lạc (bật cần xác nhận; /lost off để tắt)\n\n" +
             "📸 TỪ XA\n/screen – chụp màn hình\n/rec – ghi âm xung quanh (máy con có thông báo)\n/files – file của con · gửi file vào đây = chuyển sang máy con\n\n" +
-            "⚙️ /menu – bảng nút bấm\n/lang – đổi ngôn ngữ (English)\n/unlink – ngừng nhận ở chat này\n\n" +
+            "⚙️ /menu – bảng nút bấm\n/quiet – mức báo của chat này: mọi cảnh báo · quan trọng · chỉ SOS\n/lang – đổi ngôn ngữ (English)\n/unlink – ngừng nhận ở chat này\n\n" +
             "Số phút viết kiểu 30, 90, 2h, 1h30.",
         "linkAsk" to "👋 Đây là bot KidGuard riêng của nhà bạn. Gửi mã 6 số đang hiện trong KidGuard (Cài đặt > Telegram) để liên kết chat này.",
         "linked" to "✅ Đã liên kết với máy của %1\$s. Từ giờ chat này nhận báo SOS, xin thêm giờ, cảnh báo. Bấm nút bên dưới hoặc /help.",
@@ -92,7 +92,7 @@ object TgLogic {
         "unknown" to "Không hiểu lệnh. Bấm 📋 Menu hoặc gõ /help.",
         "ok" to "Xong.",
         "fail" to "Không làm được: %1\$s",
-        "status" to "📱 %1\$s\nĐã dùng: %2\$s%3\$s\nPin: %4\$s\nMạng: %5\$s\nĐang mở: %6\$s\nMàn hình: %7\$s%8\$s%9\$s",
+        "status" to "📱 %1\$s\nĐã dùng: %2\$s%3\$s\nPin: %4\$s\nMạng: %5\$s\nĐang mở: %6\$s\nMàn hình: %7\$s%10\$s%8\$s%9\$s",
         "left" to " · còn %1\$s",
         "noLimit" to " (không giới hạn)",
         "pausedTo" to "\n⛔ Đang cấm dùng tới %1\$s",
@@ -168,17 +168,43 @@ object TgLogic {
         "e.capture failed" to "chụp màn hình không được, thử lại", "e.need consent" to "máy con chưa cho phép chia sẻ màn hình (hộp xin phép hiện trên máy con)",
         "e.denied" to "máy con đã từ chối chia sẻ màn hình", "e.listening" to "đang nghe xung quanh, dừng lại rồi thử lại", "e.ringing" to "máy con đang đổ chuông, chờ xong rồi thử lại",
         "e.mic blocked" to "micro bị chặn (đang có cuộc gọi / app khác dùng micro)", "e.mic failed" to "không mở được micro",
+        "b.requests" to "🙋 Lời xin", "b.quiet" to "🔕 Mức báo", "b.lost" to "📵 Thất lạc", "b.sosAck" to "✅ Đã nhận", "b.undo" to "↩️ Hoàn tác",
+        "b.allow" to "✅ Cho dùng", "b.deny" to "⛔ Chặn", "b.all" to "Mọi ngày", "b.today" to "Chỉ hôm nay", "b.cancel" to "Huỷ",
+        "b.lostGo" to "📵 Bật chế độ thất lạc", "b.lostOff" to "✅ Tắt chế độ thất lạc",
+        "noReqs" to "Không có lời xin nào đang chờ.", "reqsTitle" to "🙋 %1\$d lời xin đang chờ:",
+        "gapOld" to "⏳ Máy con vừa online lại sau %1\$d phút, bấm lại nếu vẫn cần.",
+        "groupHint" to "Mở chat riêng với bot để liên kết (bot không điều khiển trong nhóm).",
+        "subQuiet" to "🔕 Chat này muốn nhận báo mức nào? (hiện tại: %1\$s)",
+        "q.all" to "Mọi cảnh báo", "q.important" to "Quan trọng", "q.sos" to "Chỉ SOS",
+        "quietDone" to "Mức báo của chat này: %1\$s. (Cảnh báo thường luôn tới không kêu chuông.)",
+        "passDone" to "Đã cho thêm %1\$d phút, dùng được tới %2\$s (đang %3\$s nên không tính vào giới hạn ngày).",
+        "bonusPanel" to "✅ Đã cho thêm %1\$d phút hôm nay (tổng thêm %2\$d phút).",
+        "pausePanel" to "⏸ Cấm dùng tới %1\$s.", "limitPanel" to "⏱ Giới hạn mỗi ngày: %1\$s.",
+        "undone" to "↩️ Đã hoàn tác.", "undoGone" to "Không hoàn tác được nữa.",
+        "limitAsk" to "Giới hạn đang khác nhau theo thứ (%1\$s). Đặt %2\$s cho:", "limitTodayDone" to "Giới hạn hôm nay: %1\$s (các ngày khác giữ nguyên).",
+        "lostAsk" to "📵 Bật chế độ thất lạc cho %1\$s?\nMáy khoá ngay và khoá lại mỗi lần mở, hiện lời nhắn + số gọi lại, đổ chuông, định vị mỗi 5 phút.%2\$s",
+        "lostMsgLine" to "\nLời nhắn: “%1\$s”", "lostIs" to "📵 Chế độ thất lạc đang BẬT.",
+        "lostOnDone" to "📵 Đã bật chế độ thất lạc.", "lostOffDone" to "Đã tắt chế độ thất lạc.", "lostNone" to "Chế độ thất lạc đang tắt.",
+        "aReqApp" to "🙋 %1\$s xin mở app %2\$s%3\$s", "aNewAppQ" to "Cho %1\$s dùng?",
+        "who.app" to "Bố mẹ (trang / app)",
+        "ansYes" to "✅ %1\$s đã cho %2\$d phút lúc %3\$s", "ansNo" to "❎ %1\$s đã từ chối lúc %2\$s",
+        "ansAppYes" to "✅ %1\$s đã cho dùng %2\$s lúc %3\$s", "ansAppNo" to "⛔ %1\$s đã chặn %2\$s lúc %3\$s",
+        "ansGone" to "Lời xin này đã được trả lời hoặc hết hạn.", "ansSos" to "✅ %1\$s đã nhận SOS lúc %2\$s",
+        "w.lost" to "thất lạc", "w.paused" to "cấm dùng", "w.schedule" to "giờ học / lịch", "w.bedtime" to "giờ ngủ", "w.daily" to "hết giờ trong ngày",
+        "w.pass" to "được cho thêm giờ", "w.code" to "đã mở khoá bằng mã",
+        "nowLine" to "\n⏱ Bây giờ: %1\$s%2\$s", "nowUntil" to " (tới %1\$s)",
+        "sosGot" to "Đã nhận SOS.",
         "tooOld" to "⏳ Lệnh này gửi đã lâu (%1\$d phút trước) nên chưa chạy. Gửi lại nếu vẫn cần.",
     )
     private val EN = mapOf(
         "help" to "🤖 KidGuard – %1\$s's phone\n" +
             "Tap 📋 Menu (or /menu) for buttons, no typing needed. Or send:\n\n" +
             "👀 SEE\n/status – time used, battery, network, open app\n/locate – where the phone is\n/apps – most used apps today\n/events – recent alerts\n\n" +
-            "⏱ TIME\n/code – 6-digit unlock code (read it to your kid, or open the parent page on the phone)\n/bonus 30 – 30 more minutes today\n/pause 60 – no phone for 60 min\n/resume – end the pause\n/limit 120 – daily limit (0 = none)\n/bed – bedtime on/off\n\n" +
+            "⏱ TIME\n/requests – open requests (tap a button to answer)\n/code – 6-digit unlock code (read it to your kid, or open the parent page on the phone)\n/bonus 30 – 30 more minutes (also through bedtime / schedule / pause)\n/pause 60 – no phone for 60 min\n/resume – end the pause\n/limit 120 – daily limit (0 = none; asks first when the limit differs by weekday)\n/bed – bedtime on/off\n\n" +
             "📱 APPS\n/block – pick an app to block\n/unblock – unblock an app\n\n" +
-            "🎛 CONTROL\n/lock – lock the screen\n/ring – ring (find the phone)\n/msg – show a message on the phone\n\n" +
+            "🎛 CONTROL\n/lock – lock the screen\n/ring – ring (find the phone)\n/msg – show a message on the phone\n/lost – lost mode (needs a confirm; /lost off to end)\n\n" +
             "📸 REMOTE\n/screen – screenshot\n/rec – record the sound around (the phone shows a notice)\n/files – the child's files · send a file here = to the phone\n\n" +
-            "⚙️ /menu – the button panel\n/lang – language (Tiếng Việt)\n/unlink – stop this chat\n\n" +
+            "⚙️ /menu – the button panel\n/quiet – this chat's alert level: all · important · SOS only\n/lang – language (Tiếng Việt)\n/unlink – stop this chat\n\n" +
             "Minutes: 30, 90, 2h, 1h30.",
         "linkAsk" to "👋 This is your family's own KidGuard bot. Send the 6-digit code shown in KidGuard (Settings > Telegram) to link this chat.",
         "linked" to "✅ Linked to %1\$s's phone. This chat now gets SOS, more-time requests and alerts. Use the buttons below or /help.",
@@ -188,7 +214,7 @@ object TgLogic {
         "unknown" to "Unknown command. Tap 📋 Menu or send /help.",
         "ok" to "Done.",
         "fail" to "Could not do it: %1\$s",
-        "status" to "📱 %1\$s\nUsed: %2\$s%3\$s\nBattery: %4\$s\nNetwork: %5\$s\nOpen app: %6\$s\nScreen: %7\$s%8\$s%9\$s",
+        "status" to "📱 %1\$s\nUsed: %2\$s%3\$s\nBattery: %4\$s\nNetwork: %5\$s\nOpen app: %6\$s\nScreen: %7\$s%10\$s%8\$s%9\$s",
         "left" to " · %1\$s left",
         "noLimit" to " (no limit)",
         "pausedTo" to "\n⛔ No phone until %1\$s",
@@ -262,6 +288,32 @@ object TgLogic {
         "e.capture failed" to "couldn't capture the screen, try again", "e.need consent" to "screen sharing isn't allowed on the phone yet (a prompt shows on the phone)",
         "e.denied" to "screen sharing was refused on the phone", "e.listening" to "listening around is on, stop it and try again", "e.ringing" to "the phone is ringing, wait until it stops",
         "e.mic blocked" to "the microphone is blocked (a call / another app uses it)", "e.mic failed" to "couldn't open the microphone",
+        "b.requests" to "🙋 Requests", "b.quiet" to "🔕 Alert level", "b.lost" to "📵 Lost", "b.sosAck" to "✅ Got it", "b.undo" to "↩️ Undo",
+        "b.allow" to "✅ Allow", "b.deny" to "⛔ Block", "b.all" to "Every day", "b.today" to "Today only", "b.cancel" to "Cancel",
+        "b.lostGo" to "📵 Turn on lost mode", "b.lostOff" to "✅ Turn off lost mode",
+        "noReqs" to "No request is waiting.", "reqsTitle" to "🙋 %1\$d request(s) waiting:",
+        "gapOld" to "⏳ The phone just came back online after %1\$d min, tap again if you still need it.",
+        "groupHint" to "Open a private chat with the bot to link (the bot does not take commands in groups).",
+        "subQuiet" to "🔕 Which alerts should this chat get? (now: %1\$s)",
+        "q.all" to "All alerts", "q.important" to "Important", "q.sos" to "SOS only",
+        "quietDone" to "This chat's alert level: %1\$s. (Normal alerts always arrive without a ring.)",
+        "passDone" to "Gave %1\$d more minutes, usable until %2\$s (it is %3\$s now, so it does not count against the daily limit).",
+        "bonusPanel" to "✅ %1\$d more minutes today (%2\$d extra in total).",
+        "pausePanel" to "⏸ No phone until %1\$s.", "limitPanel" to "⏱ Daily limit: %1\$s.",
+        "undone" to "↩️ Undone.", "undoGone" to "Can't undo any more.",
+        "limitAsk" to "The limit differs by weekday (%1\$s). Set %2\$s for:", "limitTodayDone" to "Today's limit: %1\$s (other days unchanged).",
+        "lostAsk" to "📵 Turn on lost mode for %1\$s?\nThe phone locks now and on every unlock, shows a message + call-back number, rings, and locates every 5 min.%2\$s",
+        "lostMsgLine" to "\nMessage: “%1\$s”", "lostIs" to "📵 Lost mode is ON.",
+        "lostOnDone" to "📵 Lost mode is on.", "lostOffDone" to "Lost mode is off.", "lostNone" to "Lost mode is off.",
+        "aReqApp" to "🙋 %1\$s asks to open %2\$s%3\$s", "aNewAppQ" to "Allow %1\$s?",
+        "who.app" to "A parent (page / app)",
+        "ansYes" to "✅ %1\$s gave %2\$d min at %3\$s", "ansNo" to "❎ %1\$s said no at %2\$s",
+        "ansAppYes" to "✅ %1\$s allowed %2\$s at %3\$s", "ansAppNo" to "⛔ %1\$s blocked %2\$s at %3\$s",
+        "ansGone" to "This request was already answered or expired.", "ansSos" to "✅ %1\$s got the SOS at %2\$s",
+        "w.lost" to "lost mode", "w.paused" to "paused", "w.schedule" to "a schedule", "w.bedtime" to "bedtime", "w.daily" to "out of time today",
+        "w.pass" to "extra time", "w.code" to "unlocked by code",
+        "nowLine" to "\n⏱ Right now: %1\$s%2\$s", "nowUntil" to " (until %1\$s)",
+        "sosGot" to "SOS acknowledged.",
         "tooOld" to "⏳ This command was sent a while ago (%1\$d min) so it did not run. Send it again if you still need it.",
     )
 
@@ -273,7 +325,7 @@ object TgLogic {
     fun err(lang: String, why: String): String { val m = if (lang == "en") EN else VI; return m["e.$why"] ?: m["e." + why.substringBefore(" (")] ?: why }
 
     /** Typed commands that change something on the phone (the rest only read). Too old ones are not run ([tooOld]). */
-    private val READ_ONLY = setOf("start", "help", "menu", "lang", "status", "apps", "events", "files", "code")
+    private val READ_ONLY = setOf("start", "help", "menu", "lang", "status", "apps", "events", "files", "code", "requests", "quiet")
     fun isAction(name: String) = name !in READ_ONLY
     const val MAX_AGE_MS = 10 * 60_000L
 
@@ -304,7 +356,7 @@ object TgLogic {
         val paused = if (pu > now) s(lang, "pausedTo", hm(pu)) else ""
         val reqs = st.optJSONArray("requests")?.length() ?: 0
         return s(lang, "status", name, fmt(used, lang), left, bat, net, cur, s(lang, if (st.optBoolean("screenOn")) "on" else "off"), paused,
-            if (reqs > 0) s(lang, "reqs", reqs) else "")
+            if (reqs > 0) s(lang, "reqs", reqs) else "", nowLine(st, lang, hm))
     }
 
     /** Top [n] apps used today (> 1 min): "• YouTube – 1 giờ 5 phút". */
@@ -342,8 +394,9 @@ object TgLogic {
             listOf(b("limit", "n:limit"), b("bed", "n:bed")),
             listOf(b("apps", "c:apps"), b("events", "c:events")),
             listOf(b("rec", "n:rec"), b("files", "c:files")),
-            listOf(b("code", "c:code"), b("help", "c:help")),
-            listOf(b("lang", "c:lang " + other(lang)))))
+            listOf(b("requests", "c:requests"), b("lost", "c:lost")),
+            listOf(b("quiet", "c:quiet"), b("code", "c:code")),
+            listOf(b("help", "c:help"), b("lang", "c:lang " + other(lang)))))
     }
 
     /** A sub-panel (bonus / pause / limit / bed / rec) with a way back; null = no such panel. */
@@ -380,6 +433,119 @@ object TgLogic {
     }
     /** "c:bonus 30" -> Cmd("bonus", ["30"]) (callback data never has the slash). */
     fun fromData(d: String) = if (d.startsWith("c:")) parse("/" + d.removePrefix("c:")) else null
+
+    // ---------------- 0.9.16: grant, requests, alert levels, lost, undo ----------------
+    const val GAP_MS = 10 * 60_000L
+    /** Minutes of offline gap before this poll (0 = no gap worth mentioning). [prevOk] = 0 unknown. */
+    fun gapMin(prevOk: Long, nowMs: Long): Int = if (prevOk > 0 && nowMs - prevOk > GAP_MS) ((nowMs - prevOk) / 60_000).toInt() else 0
+    /** Button data that changes something (an old tap of it is not run after an offline gap). */
+    fun isActionData(d: String): Boolean = when {
+        d.startsWith("c:") -> fromData(d)?.let { isAction(it.name) } ?: false
+        d.startsWith("n:") || d == "r:status" || d.startsWith("f:") || d.startsWith("a:") -> false
+        else -> true
+    }
+
+    /** Request buttons: N/2, N, 2N (halves / doubles rounded to 5, 5..600), N alone as "N" when [min] > 0; no amount = 15 / 30 / 60. */
+    fun reqOpts(min: Int): List<Int> {
+        fun r5(x: Int) = maxOf(5, ((x + 2) / 5) * 5)
+        if (min <= 0) return listOf(15, 30, 60)
+        val n = min.coerceIn(1, 600)
+        return listOf(r5(n / 2), n, minOf(600, r5(n * 2))).distinct().sorted()
+    }
+    fun reqId(o: JSONObject) = o.optString("id")
+    fun reqAt(o: JSONObject) = o.optLong("at", o.optLong("t"))
+    fun reqText(lang: String, name: String, o: JSONObject): String {
+        val note = o.optString("note").takeIf { it.isNotBlank() }?.let { "\n“$it”" } ?: ""
+        val min = o.optInt("min")
+        return if (o.optString("kind") == "app") s(lang, "aReqApp", name, o.optString("app").ifBlank { o.optString("pkg") }, note)
+        else s(lang, "aReq", name, if (min > 0) s(lang, "min", min) else s(lang, "time"), note)
+    }
+    fun reqKb(lang: String, o: JSONObject): JSONObject {
+        val id = reqId(o)
+        if (o.optString("kind") == "app") return keyboard(listOf(listOf(s(lang, "b.allow") to "ra:$id", s(lang, "b.deny") to "rb:$id")))
+        return keyboard(listOf(reqOpts(o.optInt("min")).map { s(lang, "yes", it) to "ry:$id:$it" } + (s(lang, "no") to "rn:$id")))
+    }
+    /** Alert key of a request: a remind (remindAt after at) is a new alert. */
+    fun reqKey(o: JSONObject): String = "r:" + reqId(o) + (o.optLong("remindAt").takeIf { it > reqAt(o) }?.let { "@$it" } ?: "")
+
+    /** "More time" from every Telegram path: [Grant.apply] picks pass (bedtime / school / pause) or the daily bonus. Second = it was a pass. */
+    fun give(r: Rules, why: String, min: Int, now: Long, today: String): Pair<Rules, Boolean> {
+        val g = Grant.apply(r, now, why, min, today)
+        return bump(r, g, now) to (g.passUntil != r.passUntil)
+    }
+    fun whyOf(st: JSONObject): String = st.optJSONObject("now")?.optString("why").orEmpty()
+    fun whyName(lang: String, why: String) = s(lang, "w.$why")
+    fun nowLine(st: JSONObject, lang: String, hm: (Long) -> String): String {
+        val n = st.optJSONObject("now") ?: return ""
+        val w = n.optString("why"); if (w.isEmpty()) return ""
+        val name = if (w == "schedule" && n.optString("name").isNotBlank()) whyName(lang, w) + " " + n.optString("name") else whyName(lang, w)
+        val until = n.optLong("until")
+        return s(lang, "nowLine", name, if (until > 0) s(lang, "nowUntil", hm(until)) else "")
+    }
+
+    /** App request / new app: approved = allowed (off the blocked list), otherwise blocked (off the approved list). */
+    fun approve(r: Rules, pkg: String, ok: Boolean, now: Long) = bump(r, r.copy(
+        approved = if (ok) r.approved + pkg else r.approved - pkg, blocked = if (ok) r.blocked - pkg else r.blocked + pkg), now)
+    /** The package of an "installed X" event: the apps the state flags as new whose label is in the text (longest label wins). */
+    fun newAppPkg(st: JSONObject, text: String): String? {
+        val a = st.optJSONArray("apps") ?: return null
+        return (0 until a.length()).mapNotNull { a.optJSONObject(it) }.filter { it.optBoolean("new") && it.optString("label").isNotBlank() && text.contains(it.optString("label")) }
+            .maxByOrNull { it.optString("label").length }?.optString("pkg")?.takeIf { ("ay:$it").toByteArray().size <= 64 }
+    }
+    fun newAppKb(lang: String, pkg: String) = keyboard(listOf(listOf(s(lang, "b.allow") to "ay:$pkg", s(lang, "b.deny") to "an:$pkg")))
+
+    /** Text of an answered alert: [who] answered at [at]. [ok] false = declined. [kind] time | app. */
+    fun answered(lang: String, who: String, ok: Boolean, kind: String, min: Int, app: String, at: Long, hm: (Long) -> String): String = when {
+        kind == "app" -> s(lang, if (ok) "ansAppYes" else "ansAppNo", who, app, hm(at))
+        ok -> s(lang, "ansYes", who, min, hm(at))
+        else -> s(lang, "ansNo", who, hm(at))
+    }
+
+    /** Alert importance -> does a chat at [level] (all | important | sos) get it? importance: "sos" | "important" | "info". */
+    fun quietOk(level: String, importance: String) = when (importance) { "sos" -> true; "important" -> level != "sos"; else -> level == "all" }
+    fun importance(kind: String, important: Boolean) = if (kind == "sos") "sos" else if (important) "important" else "info"
+    fun quietKb(lang: String, cur: String) = keyboard(listOf(listOf("all", "important", "sos").map { (if (it == cur) "✔ " else "") + s(lang, "q.$it") to "c:quiet $it" }, listOf(s(lang, "b.back") to "n:main")))
+
+    /** True when the per-weekday limits are not all the same (a plain "/limit 120" would flatten them). */
+    fun limitDiffers(r: Rules) = r.dailyByDay.size == 7 && r.dailyByDay.distinct().size > 1
+    /** Only [dow] (ISO 1..7) gets [min]; the other days keep their value. */
+    fun limitToday(r: Rules, min: Int, dow: Int, now: Long): Rules {
+        val l = (if (r.dailyByDay.size == 7) r.dailyByDay else List(7) { r.dailyMin }).toMutableList().also { it[(dow - 1).coerceIn(0, 6)] = min }
+        return bump(r, r.copy(dailyByDay = l), now)
+    }
+    fun limitAskKb(lang: String, min: Int) = keyboard(listOf(listOf(s(lang, "b.all") to "c:limit all $min", s(lang, "b.today") to "c:limit today $min"), listOf(s(lang, "b.cancel") to "n:main")))
+    /** "/limit all 120" / "/limit today 120" / "/limit 120" -> (scope, minutes text). */
+    fun limitArgs(args: List<String>): Pair<String, String?> = when (args.firstOrNull()?.lowercase()) {
+        "all", "every" -> "all" to args.getOrNull(1); "today", "homnay" -> "today" to args.getOrNull(1); else -> "" to args.firstOrNull() }
+    fun limitSummary(r: Rules, lang: String): String { val d = if (lang == "en") listOf("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su") else listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
+        return r.dailyByDay.mapIndexed { i, m -> d[i] + " " + (if (m > 0) fmt(m * 60_000L, lang) else "—") }.joinToString(" · ") }
+
+    fun lost(r: Rules, on: Boolean, msg: String?, now: Long) = bump(r, r.copy(lostOn = on, lostMsg = (msg ?: r.lostMsg).take(200)), now)
+    fun lostKb(lang: String, on: Boolean) = keyboard(listOf(
+        if (on) listOf(s(lang, "b.lostOff") to "c:lost off") else listOf(s(lang, "b.lostGo") to "c:lost go"),
+        listOf(s(lang, "b.cancel") to "n:main")))
+    /** "/lost", "/lost on <msg>", "/lost <msg>" -> optional message; "off" / "go" are not messages. */
+    fun lostMsgOf(c: Cmd): String? {
+        val f = c.args.firstOrNull()?.lowercase() ?: return null
+        if (f == "off") return null
+        return (if (f in setOf("on", "go")) c.rest.drop(f.length) else c.rest).trim().takeIf { it.isNotEmpty() }
+    }
+
+    /** Undo of a panel change: only the fields that [after] changed against [before] go back (other edits since stay). */
+    fun undo(cur: Rules, before: Rules, after: Rules, now: Long): Rules {
+        var r = cur
+        if (after.bonusDay != before.bonusDay || after.bonusMin != before.bonusMin) r = r.copy(bonusDay = before.bonusDay, bonusMin = before.bonusMin)
+        if (after.passUntil != before.passUntil) r = r.copy(passUntil = before.passUntil)
+        if (after.pausedUntil != before.pausedUntil) r = r.copy(pausedUntil = before.pausedUntil)
+        if (after.dailyMin != before.dailyMin) r = r.copy(dailyMin = before.dailyMin)
+        if (after.dailyByDay != before.dailyByDay) r = r.copy(dailyByDay = before.dailyByDay)
+        return bump(cur, r, now)
+    }
+    fun undoKb(lang: String, key: String) = keyboard(listOf(listOf(s(lang, "b.undo") to "z:$key", s(lang, "b.back") to "n:main")))
+    fun sosKb(lang: String, id: String) = keyboard(listOf(listOf(s(lang, "b.sosAck") to "k:$id"), listOf(s(lang, "b.locate") to "c:locate", s(lang, "b.status") to "r:status")))
+    /** Label for a map pin: "Vị trí lúc 20:14 (sai số ~30 m)" or the "old" wording when over 5 min old. */
+    fun pinLabel(lang: String, loc: JSONObject, now: Long, hm: (Long) -> String): String =
+        s(lang, if (now - loc.optLong("t") > 5 * 60_000L) "locOld" else "locAt", hm(loc.optLong("t")), loc.optDouble("acc", 0.0).toInt())
 
     /** Alert ids already sent: the newest [max] kept. */
     fun remember(seen: List<String>, add: Collection<String>, max: Int = 80) = (seen + add).distinct().takeLast(max)

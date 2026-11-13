@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 0.9.16 kid side: requests (waiting / remind / last answer), +1 minute, block reasons, honest SOS, first run, release -->
+    <string name="req_pending_at">Đã xin lúc %1$s, đang chờ bố mẹ</string>
+    <string name="req_pending_t">Đang chờ bố mẹ</string>
+    <string name="req_remind">Nhắc lại</string>
+    <string name="req_reminded">Đã nhắc bố mẹ</string>
+    <string name="req_remind_wait">Vừa nhắc rồi. Vài phút nữa nhắc lại nhé.</string>
+    <string name="req_ans_time">Bố mẹ đã cho thêm %1$d phút</string>
+    <string name="req_ans_app">Bố mẹ cho mở %1$s</string>
+    <string name="req_ans_no">Bố mẹ chưa đồng ý</string>
+    <string name="req_app_ask">Xin mở %1$s</string>
+    <string name="req_app_q">Xin bố mẹ cho mở %1$s?</string>
+    <string name="req_app_body">Bố mẹ sẽ nhận tin và có thể đồng ý.</string>
+    <string name="req_app_sent">Đã gửi. Bố mẹ trả lời ở đây.</string>
+    <string name="one_more">+1 phút</string>
+    <string name="one_more_done">Thêm 1 phút. Lưu việc đang làm nhé.</string>
+    <string name="nw_lost">Máy đang ở chế độ thất lạc</string>
+    <string name="nw_paused">Bố mẹ đang tạm khoá máy</string>
+    <string name="nw_paused_until">Bố mẹ đang tạm khoá máy tới %1$s</string>
+    <string name="nw_schedule">%1$s, mở lại %2$s</string>
+    <string name="nw_quiet">Giờ nghỉ, mở lại %1$s</string>
+    <string name="nw_bed">Giờ ngủ, mở lại %1$s</string>
+    <string name="nw_daily">Hết giờ hôm nay, mai dùng lại</string>
+    <string name="nw_pass">Được thêm giờ tới %1$s</string>
+    <string name="sos_offline_t">Chưa có mạng</string>
+    <string name="sos_offline_b">SOS đã lưu và sẽ gửi ngay khi máy có mạng. Bạn có thể gọi bố mẹ ngay.</string>
+    <string name="sos_call">Gọi bố mẹ</string>
+    <string name="sos_unpaired_t">Chưa nối với bố mẹ</string>
+    <string name="sos_unpaired_b">Máy chưa nối với bố mẹ nên SOS gọi 112 (khẩn cấp).</string>
+    <string name="sos_call_112">Gọi 112</string>
+    <string name="focus_undo">Hoàn tác</string>
+    <string name="focus_gate_ok">Mở</string>
+    <string name="fr_title">Cài KidGuard theo cách nào?</string>
+    <string name="fr_full">Đầy đủ (khuyên dùng)</string>
+    <string name="fr_full_d">Khoá mạnh nhất, khó lách. Khoảng 5 phút, cần Wi-Fi.</string>
+    <string name="fr_basic">Cơ bản</string>
+    <string name="fr_basic_d">Vài bước ngay trên máy này. Yếu hơn: trẻ có thể lách.</string>
+    <string name="step_pair_parent">Ghép máy bố mẹ</string>
+    <string name="step_pair_parent_d">Hiện mã và mã QR trong 10 phút. Bố mẹ quét hoặc nhập mã trên trang quản lý.</string>
+    <string name="ss_do_users">Máy có người dùng hoặc không gian thứ hai. Xoá nó trong Cài đặt > Hệ thống > Nhiều người dùng (cả Không gian thứ hai, Nhân bản ứng dụng, Hồ sơ công việc), rồi chạy lại.</string>
+    <string name="ss_do_owner">Đã có app khác làm quản lý thiết bị. Gỡ nó, hoặc khôi phục cài đặt gốc, rồi chạy lại.</string>
+    <string name="ss_do_accounts">Máy còn tài khoản. Xoá trong Cài đặt > Mật khẩu &amp; tài khoản, rồi chạy lại. Tài khoản app (Zalo, Facebook) giữ được.</string>
+    <string name="ss_do_provisioned">Máy đã thiết lập xong nên Android không cho thêm quản lý thiết bị khi còn tài khoản hoặc người dùng khác. Xoá chúng trước, hoặc khôi phục cài đặt gốc.</string>
+    <string name="pin_forgot">Quên PIN? Trên trang bố mẹ: Cài đặt > Quên PIN, hoặc nhập mã Authenticator.</string>
+    <string name="code_locked">Nhập sai mã nhiều lần. Thử lại sau %1$d phút.</string>
+    <string name="rel_title">KidGuard đã gỡ quyền quản lý</string>
+    <string name="rel_body">Máy này không còn bị giới hạn. Gỡ KidGuard như app thường, hoặc cài lại từ đầu.</string>
+    <string name="bc_ask">Xin thêm giờ</string>
+</resources>

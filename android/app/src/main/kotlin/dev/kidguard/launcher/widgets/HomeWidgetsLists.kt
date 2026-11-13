@@ -36,7 +36,7 @@ internal fun HomeActivity.todoWidget(m: HomeModel, w: Int, h: Int): View {
             else background = GradientDrawable().apply { setColor(pal.card); cornerRadius = dpf(6f); setStroke(dp(2), pal.sub) }
             setPadding(dp(3), dp(3), dp(3), dp(3)); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }, LinearLayout.LayoutParams(dp(20), dp(20)).apply { rightMargin = dp(10) })
-        row.addView(text(td.text, 14f, if (td.done) pal.sub else pal.text, !td.done).apply {
+        row.addView(text(td.text, WType.BODY, if (td.done) pal.sub else pal.text, !td.done).apply {
             maxLines = 1; ellipsize = TextUtils.TruncateAt.END
             if (td.done) paintFlags = paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
         }, LinearLayout.LayoutParams(0, -2, 1f))
@@ -56,7 +56,7 @@ internal fun HomeActivity.noteWidget(m: HomeModel, w: Int, h: Int): View {
     val n = notes.firstOrNull()
     if (n == null) card.addView(wEmpty(getString(R.string.hm_t_no_notes)))
     else {
-        card.addView(text(n.text, 15f, pal.text).apply { maxLines = if (h >= 2) 5 else 4; ellipsize = TextUtils.TruncateAt.END })
+        card.addView(text(n.text, WType.BODY, pal.text).apply { maxLines = if (h >= 2) 5 else 4; ellipsize = TextUtils.TruncateAt.END })
         if (n.t > 0) card.addView(wSub(noteFmt.format(Date(n.t))).apply { setPadding(0, dp(4), 0, 0) })
     }
     card.contentDescription = getString(R.string.hm_w_note) + (n?.let { ". " + it.text } ?: "")
@@ -82,11 +82,11 @@ internal fun HomeActivity.usageWidget(dv: View0, all: Map<String, AppE>, w: Int,
     }
     if (h < 2) {
         val card = wCard(false)
-        val sum = text(dur(total), 20f, pal.accentText, true).apply { maxLines = 1; setPadding(0, dp(2), 0, 0) }
+        val sum = text(dur(total), WType.VALUE, pal.accentText, true).apply { maxLines = 1; setPadding(0, dp(2), 0, 0) }
         val row = DropRow(this, sum)
         card.addView(row, LinearLayout.LayoutParams(-1, -2))
         val left = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        left.addView(text(title.uppercase(), 11f, pal.sub, true).apply { letterSpacing = 0.08f; maxLines = 1; ellipsize = TextUtils.TruncateAt.END })
+        left.addView(text(title.uppercase(), WType.TITLE, pal.sub, true).apply { letterSpacing = 0.08f; maxLines = 1; ellipsize = TextUtils.TruncateAt.END })
         left.addView(sum)
         row.addView(left, LinearLayout.LayoutParams(0, -2, 1f))
         for (e in top.take(3)) {
@@ -94,7 +94,7 @@ internal fun HomeActivity.usageWidget(dv: View0, all: Map<String, AppE>, w: Int,
             val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
             col.addView(usageIcon(a, 28), LinearLayout.LayoutParams(dp(28), dp(28)))
             // short form, never ellipsized ("1 …" said nothing); DropRow drops a column instead when it does not fit
-            col.addView(text(durShort(e.value), 12f, pal.sub).apply { maxLines = 1; setPadding(0, dp(2), 0, 0) })
+            col.addView(text(durShort(e.value), WType.CAPTION, pal.sub).apply { maxLines = 1; setPadding(0, dp(2), 0, 0) })
             col.contentDescription = "${a.label}. ${dur(e.value)}"
             row.addView(col, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(10) })
         }
@@ -109,7 +109,7 @@ internal fun HomeActivity.usageWidget(dv: View0, all: Map<String, AppE>, w: Int,
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(4), 0, dp(4)) }
         row.addView(usageIcon(a, 24), LinearLayout.LayoutParams(dp(24), dp(24)).apply { rightMargin = dp(10) })
         val mid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        mid.addView(wMain(a.label).apply { textSize = 14f })
+        mid.addView(wMain(a.label).apply { textSize = WType.BODY })
         val f = (e.value / max).coerceIn(0.03f, 1f)
         val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; background = fill(pal.stroke, 2f) }
         bar.addView(View(this).apply { background = fill(pal.solid, 2f) }, LinearLayout.LayoutParams(0, -1, f))

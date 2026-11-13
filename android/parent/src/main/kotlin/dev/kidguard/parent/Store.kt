@@ -14,6 +14,16 @@ object Store {
     /** What the relay kids were last told successfully (see [Push.send]); "" = never. */
     fun pushSig(c: Context): String = p(c).getString("pushSig", "") ?: ""
     fun setPushSig(c: Context, v: String) { p(c).edit().putString("pushSig", v).apply() }
+    /** Last background check (ms): the page's "do alerts arrive?" card shows it. */
+    fun checkAt(c: Context): Long = p(c).getLong("chkAt", 0)
+    fun setCheckAt(c: Context, t: Long) { p(c).edit().putLong("chkAt", t).apply() }
+    /** Last push registration run: [pushAt] ms and its result "ok" | "fail" ("" = never). Retried daily by [CheckJob]. */
+    fun pushRes(c: Context): String = p(c).getString("pushRes", "") ?: ""
+    fun pushAt(c: Context): Long = p(c).getLong("pushAt", 0)
+    fun setPushRes(c: Context, res: String, t: Long) { p(c).edit().putString("pushRes", res).putLong("pushAt", t).apply() }
+    /** The notification permission was asked once (a second denial needs the system settings page). */
+    fun notifAsked(c: Context): Boolean = p(c).getBoolean("notifAsked", false)
+    fun setNotifAsked(c: Context) { p(c).edit().putBoolean("notifAsked", true).apply() }
     fun notify(c: Context): Boolean = p(c).getBoolean("notify", true)
     fun setNotify(c: Context, v: Boolean) { p(c).edit().putBoolean("notify", v).apply() }
     /** History retention in days, 0 = unlimited (default). */

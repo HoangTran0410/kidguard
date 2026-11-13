@@ -269,7 +269,7 @@ function whereTab(b) {
       ${l ? `<a class="btn rb" href="https://www.google.com/maps?q=${+l.lat},${+l.lng}" target="_blank" rel="noopener" aria-label="${esc(t("where.gmaps"))}" title="${esc(t("where.gmaps"))}">${ic("external-link")}</a>` : ""}</div>
     <button id="loc2" class="pri act" style="width:100%;margin-top:12px;height:52px">${ic("map-pin")} ${t("where.locNew")}</button><p class="mute" style="margin-bottom:0">${ic("refresh-cw")} ${t("where.auto")}</p></div></div>
   <div>${pts.length ? `<div class="card"><h2>${ic("route")} ${t("jr.h")}</h2>${journey(pts, sp, home, isToday)}</div>` : ""}
-    ${S ? `<div id="rsx">${S.zone}${S.trk}</div>` : ""}</div></div>`;
+    ${S ? `<div id="rsx">${S.lost}${S.zone}${S.trk}</div>` : ""}</div></div>`;
   $("#loc2").onclick = () => act("loc2", () => cmd({ type: "locate" }, t("where.locating"), false).then(r => { if (r) locStart(); return r; }), askOf("locate"));
   actPaint();
   if ($("#rsx")) rulesWire($("#rsx"), edit);

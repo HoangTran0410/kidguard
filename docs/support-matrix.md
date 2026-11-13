@@ -38,6 +38,8 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Chức năng | DO | CB | +WSS | +adb | Relay | Ghi chú |
 |---|---|---|---|---|---|---|
 | Giới hạn giờ, lịch, giờ ngủ, nhóm app | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | CB: đẩy về Home bằng Trợ năng (cần Trợ năng + Dữ liệu sử dụng + Quản trị) |
+| Thêm giờ luôn có tác dụng (`passUntil`, nút Kết thúc, `unlockEnd`) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | Duyệt lúc giờ ngủ / lịch / hết giờ: mở N phút rồi khóa lại. Chặn thật và app mới vẫn chặn. CB: như giới hạn giờ (đẩy về Home) |
+| Giờ ngủ từng đêm (`bedByDay`) + "+1 phút" (`oneMore`) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | CB: như giờ ngủ. +1 phút là pass 1 phút cục bộ, một lần mỗi lần khóa |
 | Chặn app | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | Như trên. DO chặn cả app mới trước lần mở đầu; CB chặn khi mở |
 | Tạm dừng nhạc/video của app bị đẩy ra | — | ✅ | ✅ | ✅ | — | Cần quyền đọc thông báo |
 | App ngân hàng (tạm tắt Trợ năng, `accPause`) | ✅ | ❌ | ✅ | ✅ | ✅ | Cần WSS để bật lại. CB: lúc tạm tắt, KidGuard xem app đang mở 2 s/lần, mở app bị chặn thì bật lại ngay. Mở lại app ngân hàng từ nền: DO tự được, CB cần quyền "hiển thị trên ứng dụng khác". Mở từ thông báo thì giữ deep link |
@@ -72,6 +74,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Xem màn hình + điều khiển | ✅ | ✅ | ✅ | ✅ | ✅ | Android 11+, cần Trợ năng. Relay ~3 khung/giây, LAN nhanh hơn |
 | **Nghe xung quanh** | ✅ | ✅ | ✅ | ✅ | ❌ | **Chỉ LAN / Tailscale** (Relay không có đường âm thanh). Cần quyền micro |
 | Chụp ảnh người nhập sai PIN (trang quản lý trên máy) | ✅ | ✅ | ✅ | ✅ | ✅ | DO tự cấp quyền camera; CB: bố mẹ cho phép 1 lần sau khi mở đúng PIN. Không có trong bản Home. Relay: tải qua kênh file |
+| Chế độ thất lạc (`lostOn`) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | DO: `lockNow` mỗi lần mở máy, lời nhắn + số trên màn hình khóa. CB: thẻ phủ toàn màn hình (Safe Mode vẫn lách). Cả hai: định vị 5 phút/lần, đổ chuông 5 phút mỗi 15 phút. Telegram `/lost` |
 | Bot Telegram (/status, /bonus, /lock, /block, /locate, /screen, /rec, file…) | ✅ | ✅ | ✅ | ✅ | ⚠️ | Cần internet trên máy con, không cần relay/LAN. /screen cần Trợ năng (Android 11+), /rec cần quyền micro, /lock cần Quản trị thiết bị |
 | Gửi lỗi cho nhà phát triển (Thêm › Gửi lỗi, cả trang quản lý trên máy) | ✅ | ✅ | ✅ | ✅ | ✅ | Máy con tự gửi tới worker `tvr-census` (cần internet). Không có trong bản KidGuard Home (không có Guard) |
 | Tự gửi crash cho nhà phát triển (lần mở app sau khi crash) | ✅ | ✅ | ✅ | ✅ | ✅ | Worker `tvr-census` `/v1/crash` (cần internet, chờ tới lần có mạng). Có cả bản KidGuard Home (`v` thêm `-home`) |
@@ -93,7 +96,10 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | SOS, xin thêm giờ (hiện trên trang) | ✅ | ✅ | |
 | Đẩy thông báo tức thì (FCM) tới app bố mẹ | ❌ | ✅ | Cần secret `FCM_SA` trên worker |
 | Bot Telegram trên máy con (xem, điều khiển, báo) | ✅ | ✅ | Không phụ thuộc LAN/relay: máy con tự nối Telegram. Trang chỉ dùng để dán token + lấy mã liên kết. (Legacy: báo qua bot của worker, `TG_BOT`, trang không dùng nữa: cách cũ, trang không còn dùng) |
-| Báo mất kết nối | ⚠️ | ✅ | App bố mẹ kiểm tra định kỳ |
+| Báo mất kết nối | ⚠️ | ✅ | App bố mẹ kiểm tra định kỳ. Chữ "offline từ HH:mm", tự gỡ khi máy về, bỏ qua giờ ngủ của con |
+| Biên nhận lệnh ("Đã chạy HH:mm" / lý do từ chối / "Hết hạn") | ❌ | ✅ | Chỉ relay (máy con giữ 10 kết quả cuối `done`, worker giữ `expired`). LAN trả kết quả ngay trong phản hồi |
+| Sức khoẻ thông báo (lần kiểm tra cuối, Gửi thử, pin, đã đăng ký đẩy) | ❌ | ✅ | Chỉ app bố mẹ (Android) |
+| Mức báo (tất cả / quan trọng / chỉ SOS) | ✅ | ✅ | Telegram `/quiet` từng người; app bố mẹ có kênh sos / requests / info / offline |
 
 ### 3.5 Launcher (màn hình chính của con)
 

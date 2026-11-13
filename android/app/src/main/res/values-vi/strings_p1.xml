@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="log_pin_wrong_local">Nhập sai PIN trên máy này %1$d lần, khoá %2$d phút</string>
+    <string name="ev_req_remind">Con vẫn đang chờ trả lời: xin thêm %1$d phút</string>
+    <string name="ev_req_remind_app">Con vẫn đang chờ trả lời: xin mở %1$s</string>
+    <string name="ev_lost_on">Chế độ thất lạc đang bật: máy khoá lại mỗi lần mở</string>
+    <string name="ev_lost_off">Đã tắt chế độ thất lạc</string>
+    <string name="ev_sim">Thẻ SIM đã đổi (%1$s)</string>
+    <string name="ev_sim_absent">đã bị rút</string>
+    <string name="ev_sim_other">sang nhà mạng hoặc SIM khác</string>
+    <string name="ev_released">KidGuard đã gỡ quyền quản lý khỏi máy này</string>
+    <string name="ev_release_failed">Gỡ KidGuard không được: máy vẫn đang được quản lý</string>
+    <string name="ev_one_more">Con đã lấy thêm 1 phút (%1$s)</string>
+    <string name="ev_tamper_page">Con mở trang Cài đặt để tắt hoặc gỡ KidGuard</string>
+    <string name="ev_tamper_clock">Con mở cài đặt ngày giờ</string>
+    <string name="ev_tamper_acc_off">Dịch vụ trợ năng đang tắt: app chưa bị chặn cho tới khi bật lại</string>
+    <string name="ev_tamper_boot">Máy vừa khởi động lại</string>
+    <string name="lost_default_msg">Máy này bị thất lạc. Xin gọi cho chủ máy.</string>
+    <string name="lost_info">%1$s · %2$s</string>
+    <string name="notif_sos_seen">Bố mẹ đã thấy tin SOS của con</string>
+    <string name="support_bed">Giờ ngủ. Mở lại lúc %1$s.</string>
+    <string name="support_bed_ask">Giờ ngủ. Mở lại lúc %1$s. Con có thể xin thêm giờ trong KidGuard.</string>
+    <string name="support_sched">%1$s. Mở lại lúc %2$s.</string>
+    <string name="support_sched_ask">%1$s. Mở lại lúc %2$s. Con có thể xin thêm giờ trong KidGuard.</string>
+    <string name="support_pause">Bố mẹ đang tạm dừng app tới %1$s.</string>
+    <string name="support_daily">Hôm nay con đã dùng hết giờ. Mai mở lại.</string>
+    <string name="support_daily_ask">Hôm nay con đã dùng hết giờ. Con có thể xin thêm giờ trong KidGuard.</string>
+    <string name="support_lost">Máy này đang bị khoá. Xin gọi cho chủ máy.</string>
+    <string name="support_break">Giờ nghỉ</string>
+    <string name="answer_app_yes">Bố mẹ đồng ý: hôm nay con được dùng %1$s</string>
+    <string name="answer_app_always">Bố mẹ đồng ý: con được dùng %1$s luôn</string>
+    <string name="lost_parent_off">Bố mẹ: tắt chế độ thất lạc</string>
+</resources>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 0.9.16 kid side: requests (waiting / remind / last answer), +1 minute, block reasons, honest SOS, first run, release -->
+    <string name="req_pending_at">Asked at %1$s, waiting for your parent</string>
+    <string name="req_pending_t">Waiting for your parent</string>
+    <string name="req_remind">Remind</string>
+    <string name="req_reminded">Reminded your parent</string>
+    <string name="req_remind_wait">Just reminded. Try again in a few minutes.</string>
+    <string name="req_ans_time">Your parent gave you %1$d more minutes</string>
+    <string name="req_ans_app">Your parent let you open %1$s</string>
+    <string name="req_ans_no">Your parent said not now</string>
+    <string name="req_app_ask">Ask to open %1$s</string>
+    <string name="req_app_q">Ask your parent to open %1$s?</string>
+    <string name="req_app_body">Your parent gets a message and can say yes.</string>
+    <string name="req_app_sent">Sent. Your parent will answer here.</string>
+    <string name="one_more">+1 minute</string>
+    <string name="one_more_done">1 more minute. Save what you are doing.</string>
+    <string name="nw_lost">This phone is in lost mode</string>
+    <string name="nw_paused">Your parent paused the phone</string>
+    <string name="nw_paused_until">Your parent paused the phone until %1$s</string>
+    <string name="nw_schedule">%1$s, opens again %2$s</string>
+    <string name="nw_quiet">Quiet hours, opens again %1$s</string>
+    <string name="nw_bed">Bedtime, opens again %1$s</string>
+    <string name="nw_daily">Out of time today, back tomorrow</string>
+    <string name="nw_pass">More time until %1$s</string>
+    <string name="sos_offline_t">No connection yet</string>
+    <string name="sos_offline_b">SOS is saved and goes out as soon as the phone has a connection. You can call your parent now.</string>
+    <string name="sos_call">Call your parent</string>
+    <string name="sos_unpaired_t">Not linked to a parent yet</string>
+    <string name="sos_unpaired_b">This phone is not linked to a parent, so SOS calls 112 (emergency).</string>
+    <string name="sos_call_112">Call 112</string>
+    <string name="focus_undo">Undo</string>
+    <string name="focus_gate_ok">Open</string>
+    <string name="fr_title">How do you want to set KidGuard up?</string>
+    <string name="fr_full">Full (recommended)</string>
+    <string name="fr_full_d">Strongest lock, hard to get around. About 5 minutes, needs Wi-Fi.</string>
+    <string name="fr_basic">Basic</string>
+    <string name="fr_basic_d">A few steps on this phone. Weaker: a clever kid can get around it.</string>
+    <string name="step_pair_parent">Link the parent\'s phone</string>
+    <string name="step_pair_parent_d">Shows a code and a QR for 10 minutes. The parent scans it or types the code on the parent page.</string>
+    <string name="ss_do_users">There is a second user or space on this phone. Remove it in Settings > System > Multiple users (also Second space, Dual apps, Work profile), then run setup again.</string>
+    <string name="ss_do_owner">Another app is already the device manager. Remove it, or reset the phone to factory settings, then run setup again.</string>
+    <string name="ss_do_accounts">The phone still has accounts. Remove them in Settings > Passwords &amp; accounts, then run setup again. App accounts (Zalo, Facebook) can stay.</string>
+    <string name="ss_do_provisioned">This phone is already set up, so Android refuses a new device manager while it has accounts or other users. Remove them first, or reset the phone.</string>
+    <string name="pin_forgot">Forgot the PIN? On the parent page open Settings > Forgot PIN, or type an Authenticator code.</string>
+    <string name="code_locked">Too many wrong codes. Try again in %1$d min.</string>
+    <string name="rel_title">KidGuard no longer manages this phone</string>
+    <string name="rel_body">This phone has no limits now. Uninstall KidGuard like any app, or set it up again from the start.</string>
+    <string name="bc_ask">Ask for more time</string>
+</resources>

@@ -28,6 +28,8 @@
   "pairUntil": 0,
   "totpOn": true,
   "unlockUntil": 0,
+  "now": { "why": "pass", "until": "@40m", "name": "" },
+  "done": [{ "id": "p1a2b3", "type": "lock", "res": "ok", "at": "@-3m" }],
   "net": {
     "type": "cell",
     "metered": true,
@@ -531,6 +533,12 @@
       }
     ],
     "pausedUntil": 0,
+    "passUntil": "@40m",
+    "bedByDay": [],
+    "oneMore": true,
+    "lostOn": false,
+    "lostMsg": "",
+    "lostPhone": "",
     "bonus": {
       "day": "@day:0",
       "min": 0

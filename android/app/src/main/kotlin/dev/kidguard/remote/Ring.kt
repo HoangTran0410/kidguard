@@ -42,8 +42,8 @@ object Ring {
 
     fun state(): org.json.JSONObject = org.json.JSONObject().put("on", active).put("since", since)
 
-    /** "ok" | "listening" (ringing would drown out the parent listening) | "failed". Again while ringing = start the 20 s over. */
-    fun start(ctx: Context): String {
+    /** "ok" | "listening" (ringing would drown out the parent listening) | "failed". Again while ringing = start the 20 s over. [maxMs]: lost mode rings 5 min. */
+    fun start(ctx: Context, maxMs: Long = MAX_MS): String {
         ActionLogic.conflict("ring", ringing = active, listening = Listen.active)?.let { return it }
         val c = ctx.applicationContext
         var res = "ok"
@@ -61,7 +61,7 @@ object Ring {
                 since = System.currentTimeMillis()
                 notice(c)
             }.onFailure { Log.w("KidGuard", "ring", it); res = "failed"; stopNow(c) }
-            if (res == "ok") main.postDelayed(end, MAX_MS)
+            if (res == "ok") main.postDelayed(end, maxMs)
         }
         Guard.running?.kick()
         return res

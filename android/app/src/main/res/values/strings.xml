@@ -44,6 +44,11 @@
     <string name="app_unhidden">App shown again: %1$s</string>
     <string name="diff_pause">phone paused</string>
     <string name="diff_pause_off">pause lifted</string>
+    <string name="diff_pass">open until %1$s</string>
+    <string name="diff_pass_off">extra time ended</string>
+    <string name="diff_lost">lost mode on</string>
+    <string name="diff_lost_off">lost mode off</string>
+    <string name="diff_bed_nights">bedtime per night changed</string>
     <string name="diff_bonus">bonus +%1$d min</string>
     <string name="diff_bonus_off">bonus removed</string>
     <string name="diff_chores_n">chores %1$d → %2$d</string>
@@ -174,8 +179,6 @@
     <string name="ch_guard">KidGuard in the background (safe to turn off)</string>
 
     <!-- Basic mode setup card -->
-    <string name="basic_title">Quick setup, no computer needed</string>
-    <string name="basic_intro">Do the steps in order. Each button opens the right screen. Turn it on, then press Back.</string>
     <string name="basic_admin">1. Turn on device admin</string>
     <string name="basic_admin_d">So KidGuard can lock the phone and can\'t be removed without a parent.</string>
     <string name="basic_admin_expl">KidGuard needs this to lock the screen and to stop being uninstalled.</string>
@@ -297,7 +300,7 @@
     <string name="ss_failed">Setup failed: %1$s</string>
     <string name="ss_perm_mon">Oppo/Realme/OnePlus (ColorOS): in Developer options turn on \"Disable permission monitoring\", then try again.</string>
     <string name="ss_no_pair_port">Pairing port not found. Open the \"Pair device with pairing code\" dialog again and retry.</string>
-    <string name="ss_pair_fail">Pairing failed (wrong code, or the dialog was closed).</string>
+    <string name="ss_pair_fail">Pairing failed (wrong code, or the code expired). Open \"Pair device with pairing code\" again to get a new code, then type it in the notification right away.</string>
     <string name="ss_no_conn_port">Paired, but the connection port wasn\'t found. Turn \"Wireless debugging\" off and on again.</string>
     <string name="ss_conn_fail">Couldn\'t connect to this phone: %1$s</string>
     <string name="ss_cmd_fail">command failed</string>
@@ -383,7 +386,7 @@
     </plurals>
     <string name="st_owner">Managed by your parent</string>
     <string name="st_basic">Basic mode: KidGuard is protecting this phone</string>
-    <string name="st_unfinished">Setup not finished: do the steps in \"Quick setup\" below</string>
+    <string name="st_unfinished">Setup not finished: do the steps in \"To do\" below</string>
     <string name="st_no_usage">No usage access yet</string>
     <string name="st_running">Running</string>
     <string name="st_starting">Starting…</string>
@@ -550,6 +553,7 @@
     <string name="admin_ok">Open</string>
     <string name="admin_loading">Opening the parent page…</string>
     <string name="admin_wrong">Wrong code, try again</string>
+    <string name="ev_tg_bad">Telegram bot token no longer works: make a new one with @BotFather and paste it in KidGuard</string>
     <string name="log_tg_linked">Telegram linked: %1$s</string>
     <string name="admin_shot_note">After 3 wrong tries, the phone takes one front-camera photo for the parents.</string>
     <string name="admin_shot_taken">Too many wrong tries: a photo was taken for the parents</string>

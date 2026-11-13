@@ -72,7 +72,7 @@ internal fun HomeActivity.batteryWidget(w: Int): View {
     card.addView(row, LinearLayout.LayoutParams(-2, -2))
     row.addView(glyph, LinearLayout.LayoutParams(dp(30), dp(17)).apply { rightMargin = dp(10) })
     val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
-    val value = text("${b0.pct}%", 22f, if (b0.pct < 20 && !b0.charging) pal.warnText else pal.accentText, true).apply { maxLines = 1 }
+    val value = text("${b0.pct}%", WType.VALUE_L, if (b0.pct < 20 && !b0.charging) pal.warnText else pal.accentText, true).apply { maxLines = 1 }
     val line = wSub(batLine(b0), 2).apply { setAutoSizeTextTypeUniformWithConfiguration(8, 12, 1, TypedValue.COMPLEX_UNIT_SP); layoutParams = LinearLayout.LayoutParams(-1, dp(32)) }
     col.addView(value); col.addView(line)
     row.addView(col, LinearLayout.LayoutParams(-2, -2))
@@ -102,7 +102,7 @@ internal fun HomeActivity.monthPreview(c: LinearLayout) {
 internal fun HomeActivity.batteryPreview(c: LinearLayout) {
     c.gravity = Gravity.CENTER
     c.addView(BatteryGlyph(this, pal.sub, pal.solid, pal.warn).apply { level = 70 }, LinearLayout.LayoutParams(dp(32), dp(18)))
-    c.addView(text("70%", 12f, pal.accentText, true).apply { setPadding(0, dp(3), 0, 0); gravity = Gravity.CENTER })
+    c.addView(text("70%", WType.CAPTION, pal.accentText, true).apply { setPadding(0, dp(3), 0, 0); gravity = Gravity.CENTER })
 }
 
 /** One tap turns the screen off (the same path as the "Khoá màn hình" home-screen widget / quick tile: [Quick.lock]). 1×1 = the round button only. */
@@ -138,7 +138,7 @@ internal fun HomeActivity.lockWidget(w: Int): View {
     val card = wCard(false)
     card.addView(disc(40), LinearLayout.LayoutParams(dp(40), dp(40)).apply { rightMargin = dp(12) })
     // shrinks to fit a half-width cell at a big font scale (font 1.6 on the Oppo cut "Khoá màn hình" to "Khoá màn")
-    card.addView(text(label, 15f, pal.text, true).apply { maxLines = 2; gravity = Gravity.CENTER_VERTICAL; setAutoSizeTextTypeUniformWithConfiguration(9, 15, 1, TypedValue.COMPLEX_UNIT_SP) }, LinearLayout.LayoutParams(0, dp(44), 1f))
+    card.addView(text(label, WType.BODY, pal.text, true).apply { maxLines = 2; gravity = Gravity.CENTER_VERTICAL; setAutoSizeTextTypeUniformWithConfiguration(9, 14, 1, TypedValue.COMPLEX_UNIT_SP) }, LinearLayout.LayoutParams(0, dp(44), 1f))
     card.contentDescription = label
     kit.tap(card, 22f) { dev.kidguard.Quick.lockOrSay(this) }
     return centred(card)
