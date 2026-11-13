@@ -4,4 +4,5 @@
     <string name="menu_uninstall">Gỡ app</string>
     <string name="menu_uninstall_off">Gỡ app: nhờ bố mẹ</string>
     <string name="menu_usage_open">Xem chi tiết sử dụng</string>
+    <string name="menu_usage_none">Hôm nay chưa dùng</string>
 </resources>

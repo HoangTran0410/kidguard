@@ -153,9 +153,21 @@ private fun HomeActivity.menuHead(box: LinearLayout, h: MenuHead, pw: PopupWindo
         }, LinearLayout.LayoutParams(dp(40), dp(40)))
     }, LinearLayout.LayoutParams(-1, -2))
     h.info?.let { fill ->
-        val tv = text("", 13f, pal.sub).apply { setPadding(dp(16), dp(10), dp(16), dp(10)); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; visibility = View.GONE }
-        box.addView(tv, LinearLayout.LayoutParams(-1, -2))
-        h.infoRun?.let { run -> kit.tap(tv, 0f) { pw.dismiss(); run() }; tv.contentDescription = getString(R.string.menu_usage_open) }
+        // owner 2026-11-13: the line opens the usage stats, so it looks like a row (chart icon, chevron) and is always there
+        val tv = text("", 13f, pal.sub).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
+        val run = h.infoRun
+        if (run == null) {
+            tv.setPadding(dp(16), dp(10), dp(16), dp(10)); tv.visibility = View.GONE
+            box.addView(tv, LinearLayout.LayoutParams(-1, -2))
+        } else box.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(16), 0, dp(12), 0); minimumHeight = dp(40)
+            addView(ImageView(context).apply { setImageDrawable(Ic.get(context, R.drawable.li_chart_column, pal.sub, dp(16))) },
+                LinearLayout.LayoutParams(dp(16), dp(16)).apply { rightMargin = dp(8) })
+            addView(tv, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(ImageView(context).apply { setImageDrawable(Ic.get(context, R.drawable.li_chevron_right, pal.sub, dp(16))) }, LinearLayout.LayoutParams(dp(16), dp(16)))
+            contentDescription = getString(R.string.menu_usage_open)
+            kit.tap(this, 0f) { pw.dismiss(); run() }
+        }, LinearLayout.LayoutParams(-1, -2))
         fill(tv)
     }
     if (h.chips.isNotEmpty()) box.addView(android.widget.HorizontalScrollView(this).apply {
@@ -233,14 +245,14 @@ private fun HomeActivity.appInfoLine(pkg: String, tv: TextView) {
         val s = Store.of(this); val r = s.rules
         val dv = decision(r, s)
         val used = dv.usage[pkg] ?: 0L
-        if (used >= 60_000L) parts += getString(R.string.hm_used_today, dur(used))
+        parts += if (used >= 60_000L) getString(R.string.hm_used_today, dur(used)) else getString(R.string.menu_usage_none)
         // monitor-only rules block nothing; apps on the allow list don't count against the daily limit
         if (!Flavor.HOME && pkg !in dv.prot && !r.monitor) {
             val left = listOf(LauncherLogic.appLeftMs(r, dv.usage, pkg), if (pkg in r.allow) -1L else dv.leftMs).filter { it >= 0 }.minOrNull()
             if (left != null) parts += getString(R.string.hm_left_today, dur(left))
         }
     }
-    fun show() { tv.text = parts.joinToString(" · "); tv.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE }
+    fun show() { tv.text = parts.joinToString(" · ").ifEmpty { getString(R.string.menu_usage_open) }; tv.visibility = View.VISIBLE }
     show()
     if (NotifDots.granted(this)) NotifLog.today(this, pkg) { n ->
         if (n > 0 && tv.isAttachedToWindow) { parts += resources.getQuantityString(R.plurals.hm_notifs_today, n, n); show() }

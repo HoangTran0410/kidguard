@@ -4,4 +4,5 @@
     <string name="menu_uninstall">Uninstall</string>
     <string name="menu_uninstall_off">Uninstall: ask a parent</string>
     <string name="menu_usage_open">Open usage details</string>
+    <string name="menu_usage_none">Not used today</string>
 </resources>
