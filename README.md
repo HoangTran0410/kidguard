@@ -65,11 +65,11 @@ Android only lets an app become Device Owner while the phone has **no accounts**
 
 | Way | Needs | Steps |
 |---|---|---|
-| 📱 **On the phone itself** | Android 11+, Wi-Fi | Install the APK, open KidGuard, tap **Cài đầy đủ không cần máy tính (Android 11+)** (full setup without a computer). Turn on Developer options → **Wireless debugging** → *Pair with code*, type the 6 digits into KidGuard's notification. It does the rest and turns wireless debugging off again. |
+| 📱 **On the phone itself** | Android 11+, Wi-Fi | Install the APK, open KidGuard, tap **Full setup without a computer (Android 11+)**. Turn on Developer options → **Wireless debugging** → *Pair with code*, type the 6 digits into KidGuard's notification. It does the rest and turns wireless debugging off again. |
 | 🔳 **Scan a QR** | a new or factory-reset phone, stock-like Android (Pixel, Samsung, Nokia…). Some skins drop the 6-tap screen (e.g. Oppo / Realme ColorOS on Android 8–9): use the USB way | On the welcome screen tap 6 times on an empty spot, scan the [QR](https://kidguard.99-hoangtran.workers.dev/qr). The phone downloads KidGuard over Wi-Fi and sets it up; open it and finish the short checklist. |
 | 🌐 **Browser + USB cable** | Chrome or Edge on a computer | Turn on **USB debugging**, plug in, open [/install](https://kidguard.99-hoangtran.workers.dev/install), press Connect. No adb needed. |
 | ⌨️ **Command line** | macOS, Linux or Windows | `scripts/setup.sh` (downloads adb if missing, `-y` skips questions) or `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1` |
-| 🟡 **Basic mode** (no Device Owner) | any Android 8+, nothing else. For old phones with no QR screen and no computer / cable | Install the APK, open KidGuard, tap **Cài nhanh không cần máy tính** and turn on each item of the list (device admin, accessibility, usage access, location, battery). Accounts can stay. |
+| 🟡 **Basic mode** (no Device Owner) | any Android 8+, nothing else. For old phones with no QR screen and no computer / cable | Install the APK, open KidGuard, tap **Quick setup, no computer needed** and turn on each item of the list (device admin, accessibility, usage access, location, battery). Accounts can stay. |
 
 **Basic mode is weaker.** Blocked apps are closed back to the home screen instead of greyed out, and KidGuard leaves the
 screens that would uninstall or turn it off. Not available: family DNS, blocking app installs / USB debugging, locking
@@ -77,14 +77,14 @@ airplane mode / location / clock, reboot, Tailscale. A child who boots into **Sa
 accessibility off stops the blocking (the parent page shows a red warning and the parent app notifies). Use Device Owner
 when you can; a basic phone can be switched later with any of the ways above.
 
-Then the child's phone shows a **6-digit code** and a **QR code**. On the parent's phone (same Wi-Fi) scan the QR with the camera (it opens the page with the code filled in), or open `http://<phone IP>:8770` and type the code, and in **Cài đặt** (Settings) set a **parent PIN** (without it the phone refuses to pair another browser).
+Then the child's phone shows a **6-digit code** and a **QR code**. On the parent's phone (same Wi-Fi) scan the QR with the camera (it opens the page with the code filled in), or open `http://<phone IP>:8770` and type the code, and in **Settings** set a **parent PIN** (without it the phone refuses to pair another browser).
 
 **Parent app (Android, optional).** The browser is enough, but the app adds notifications (SOS, time requests, accessibility
 turned off) and shows the last data when the child's phone is offline. Install [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk) on the
-parent's phone, open it, tap **Thêm máy của con** (add the child's phone), type the address shown on the child's phone and then
+parent's phone, open it, tap **Add kid's phone**, type the address shown on the child's phone and then
 the 6-digit code (away from home: paste the Worker link from the child's Settings). iPhone: use the browser ([below](#iphone--ipad)).
 
-Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự khởi động** (battery / autostart) and let KidGuard run in the background.
+Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Battery / autostart settings** and let KidGuard run in the background.
 
 ## Features
 
@@ -97,15 +97,15 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự k
 | 📷 **Wrong-PIN photo** | From the 3rd wrong PIN the front camera takes a photo for the parent alert (the PIN screen says so; kept 7 days; can be turned off) |
 | 🏦 **Banking apps** | Apps that refuse to open while accessibility, USB debugging or a VPN is on (most Vietnamese banks, Cake, My MobiFone) still work: per app, KidGuard pauses accessibility + debugging and/or Tailscale while one is open, then puts back exactly what was on. The list updates itself from the website |
 | 🔐 **PIN for dangerous commands** | Release, unpair, reboot, clear data, relay / Telegram / PIN changes need the parent PIN or an Authenticator code, so a leaked parent link is not enough; "forgot PIN" resets after 24 h with an alert |
-| 🪶 **Lighter phone** ("Dọn máy") | Hide the maker's preinstalled apps the child doesn't use (they stop running and updating; untick to bring back), see the heaviest apps, clear an app's data. Hiding and clearing need Device Owner. No fake "RAM cleaner" |
-| 🔄 **Updates itself** | Once a day the child's phone checks GitHub releases, downloads the new APK and checks its SHA-256. Device Owner installs it silently; basic mode shows the child an **Cập nhật KidGuard** (update) button. Off / "update now": parent page, **Cài đặt**. The parent app notifies when its own update is out |
+| 🪶 **Lighter phone** ("Lighten the phone") | Hide the maker's preinstalled apps the child doesn't use (they stop running and updating; untick to bring back), see the heaviest apps, clear an app's data. Hiding and clearing need Device Owner. No fake "RAM cleaner" |
+| 🔄 **Updates itself** | Once a day the child's phone checks GitHub releases, downloads the new APK and checks its SHA-256. Device Owner installs it silently; basic mode shows the child an **Update KidGuard (new version)** button. Off / "update now": parent page, **Settings**. The parent app notifies when its own update is out |
 | 🙋 **Ask for more time** | A button on the child's phone (15 / 30 / 60 min + a reason); the parent taps Approve or Decline |
 | 🧹 **Chores** | The parent lists chores ("Wash the dishes +20 min"); the child picks one when asking for time. The parent approves, optionally with a note the child sees |
 | 🗂️ **App groups** | Put apps in a group ("Games", "Social") with one shared daily limit, and/or hours when they may be used ("YouTube only 19:00–20:00": a group of one app) |
 | 🔑 **Unlock code (Google Authenticator)** | Works with no network on either phone: the parent reads 6 digits from Google Authenticator, the child types them and gets 15–120 min free of limits (fully blocked apps stay blocked). Each code works once; the parent gets an event |
 | 🌐 **Languages** | English and Vietnamese in the parent page and both apps, with a language picker in each (no PIN needed on the child phone). Adding a language is one dictionary on the page plus one `values-xx` folder in the apps. |
 | ⚠️ **Heads-up before locking** | The child gets a notification 5 min and 1 min before the limit, bedtime or a schedule locks the phone |
-| 🧒 **Luật của con** | The child can see their own rules: time left, bedtime, schedules, allowed apps, zones, and whether location, screen view and listening are on. Plus a log of what the parents changed |
+| 🧒 **My rules** | The child can see their own rules: time left, bedtime, schedules, allowed apps, zones, and whether location, screen view and listening are on. Plus a log of what the parents changed |
 | 📦 **Per app** | Normal, N minutes a day, Block, or Always allowed. **Select many** to change them at once |
 | 🆕 **New apps** | Optionally locked until a parent approves them |
 | 🌙 **Bedtime and schedules** | Bedtime every day, plus windows on chosen days (school hours Mon–Fri); can cross midnight |
@@ -119,10 +119,10 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Cài đặt pin / tự k
 | 🔔 **Alerts** | Arrived / left a zone, battery at 15 %, a new app installed, the clock changed |
 | 📊 **History** | Screen time for 7 days, top apps per day; **weekly report** per kid (total, daily average, top apps, versus the week before) |
 | 📋 **Rule templates** | School day, Weekend, Summer holiday, Exams, or save your own; apply to one kid or several at once |
-| 👨‍👩‍👧 **All kids at once** | With 2+ kids, **Tổng quan** (overview): a card per kid (online, battery, phone, app in use, time used / limit, requests, SOS), every kid's latest location on one map, 7 days of screen time side by side. Parent app, or the Worker page with several relay kids |
+| 👨‍👩‍👧 **All kids at once** | With 2+ kids, **Overview**: a card per kid (online, battery, phone, app in use, time used / limit, requests, SOS), every kid's latest location on one map, 7 days of screen time side by side. Parent app, or the Worker page with several relay kids |
 | 🛡️ **Tamper-proof** | Blocks uninstall, force stop, factory reset from Settings, Safe Mode, new users, changing the clock, airplane mode. A watchdog restarts it; accessibility turns itself back on. Optional: family DNS filter (AdGuard / Cloudflare / CleanBrowsing), block installs, block USB debugging |
 | 🔒 **Commands** | Lock the screen, ring, full-screen message, restart the phone |
-| ↩️ **Undo everything** | Parent page → Settings → **Gỡ quyền quản lý** (remove management): every app unlocked, every restriction lifted, then uninstall like any app |
+| ↩️ **Undo everything** | Parent page → Settings → **Remove controls**: every app unlocked, every restriction lifted, then uninstall like any app |
 
 Locked apps use Android's own `setPackagesSuspended`: the icon turns grey and opening it says the parent paused it.
 
@@ -156,11 +156,11 @@ At home the parent page talks to the kid's phone over Wi-Fi. When the kid is at 
 
 1. On the parent's phone install **Tailscale** and sign in (Google / Apple / Microsoft account: this also makes your free Tailscale account).
 2. Open [login.tailscale.com/admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → **Generate access token** → **Generate** → copy it. (An auth key also works, but then you must do step 4 by hand.)
-3. In the parent page (on home Wi-Fi): **Cài đặt → Điều khiển từ xa qua Tailscale**, paste the key, press **Bật**. The kid's phone downloads the official Tailscale app (SHA-256 checked), installs it silently, joins your network and hides the app (about a minute); the card then shows **Đã kết nối** and an address like `http://100.x.y.z:8770`.
-4. With the access token the kid's phone makes its own one-off key and turns off Tailscale's 180-day key expiry for itself, then forgets the token (never stored); the card shows **không hết hạn**. With an auth key instead: in [login.tailscale.com/admin/machines](https://login.tailscale.com/admin/machines), on the kid's phone row → **⋯ → Disable key expiry** (the page reminds you), or Tailscale signs the phone out after 180 days.
-5. On the parent's phone open that address (with Tailscale on). Several kids: add each one's address from the same page (**Thêm máy của con**).
+3. In the parent page (on home Wi-Fi): **Settings → Remote control via Tailscale**, paste the key, press **Turn on**. The kid's phone downloads the official Tailscale app (SHA-256 checked), installs it silently, joins your network and hides the app (about a minute); the card then shows **Connected** and an address like `http://100.x.y.z:8770`.
+4. With the access token the kid's phone makes its own one-off key and turns off Tailscale's 180-day key expiry for itself, then forgets the token (never stored); the card shows **never expires**. With an auth key instead: in [login.tailscale.com/admin/machines](https://login.tailscale.com/admin/machines), on the kid's phone row → **⋯ → Disable key expiry** (the page reminds you), or Tailscale signs the phone out after 180 days.
+5. On the parent's phone open that address (with Tailscale on). Several kids: add each one's address from the same page (**Add kid's phone**).
 
-The key is only accepted on home Wi-Fi and stays on the child's phone (never sent through the Worker). The child cannot turn the VPN off, change VPN settings or uninstall Tailscale; KidGuard's safe-DNS filter keeps working. **Tắt và gỡ Tailscale** (or Release) removes it all; then delete the device in the Tailscale admin console (**Machines**), since an uninstalled app cannot log itself out.
+The key is only accepted on home Wi-Fi and stays on the child's phone (never sent through the Worker). The child cannot turn the VPN off, change VPN settings or uninstall Tailscale; KidGuard's safe-DNS filter keeps working. **Turn off and remove Tailscale** (or Release) removes it all; then delete the device in the Tailscale admin console (**Machines**), since an uninstalled app cannot log itself out.
 
 ### Your own relay (advanced)
 
@@ -173,7 +173,7 @@ scripts/relay.sh          # Windows: powershell -ExecutionPolicy Bypass -File sc
 
 It installs the tools, opens the Cloudflare login in your browser (make a free account there if needed), deploys, and prints your relay address (`https://kidguard.<you>.workers.dev`). Run it again to update; `--delete` (`-Delete`) removes it.
 
-Then in the parent page (on home Wi-Fi): **Cài đặt → relay Cloudflare Worker**, paste the address, press **Bật**, open the link it shows on the parent's phone (or add it in the parent app).
+Then in the parent page (on home Wi-Fi): **Settings → Open from anywhere (relay)** → *Use your own Cloudflare Worker instead of the shared relay*, paste the address, press **Turn on**, open the link it shows on the parent's phone (or add it in the parent app).
 
 ### Shared relay
 
@@ -198,7 +198,7 @@ The child's phone runs your family's own Telegram bot: status, extra time, pause
 3. Parent page → **Settings → Telegram** → paste → **Connect**.
 4. Tap **Open Telegram and link** (or scan the QR) → **Start** in the bot. Add up to 5 people with **Other code**.
 
-In the bot: **📋 Menu** for buttons, `/help` for commands, `/lang` for English / Tiếng Việt. Release, unpair and clear data are not possible over Telegram. Messages go through Telegram's servers; the token stays on the child's phone. Details: [docs/protocol.md](docs/protocol.md) "Telegram bot on the child phone".
+In the bot: **📋 Menu** for buttons, `/help` for commands, `/lang` for English / Vietnamese. Release, unpair and clear data are not possible over Telegram. Messages go through Telegram's servers; the token stays on the child's phone. Details: [docs/protocol.md](docs/protocol.md) "Telegram bot on the child phone".
 
 ## iPhone / iPad
 
@@ -221,7 +221,7 @@ setup is not affected (the phone downloads the app itself).
 
 **Known limits**
 
-- **PIN forgotten:** any browser or parent app that is still paired can set a new PIN in Settings (a rules save accepts a new PIN without the old one). Without one: if an Authenticator was set up, its current 6-digit code opens "Bố mẹ quản lý trên máy này" on the child's phone, and the same Settings page sets a new PIN. If the PIN was never set, holding "Parent lost access?" on the child's screen reopens pairing after 24 h (the parent is told). PIN forgotten and every paired device and the Authenticator lost: no way back in the app (factory reset or an adb reinstall only); keep the PIN and set up the Authenticator.
+- **PIN forgotten:** any browser or parent app that is still paired can set a new PIN in Settings (a rules save accepts a new PIN without the old one). Without one: if an Authenticator was set up, its current 6-digit code opens "Parent controls on this phone" on the child's phone, and the same Settings page sets a new PIN. If the PIN was never set, holding "Parent lost access?" on the child's screen reopens pairing after 24 h (the parent is told). PIN forgotten and every paired device and the Authenticator lost: no way back in the app (factory reset or an adb reinstall only); keep the PIN and set up the Authenticator.
 - A factory reset from the hardware keys (recovery) still works; KidGuard is then gone and the parent page shows "disconnected".
 - Live screen and remote control need Android 11+. On Android 8–10 the child can force stop KidGuard (it starts again on reboot).
 - Apps that mark their screen secure (banking…) show black.
