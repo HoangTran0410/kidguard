@@ -32,4 +32,5 @@
         <item quantity="one">%1$d open</item>
         <item quantity="other">%1$d opens</item>
     </plurals>
+    <string name="ust_all">Usage time: all apps</string>
 </resources>

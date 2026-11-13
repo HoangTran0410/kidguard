@@ -33,6 +33,7 @@ import java.util.Locale
 class UsageStatsActivity : Activity() {
     companion object {
         const val PKG = "pkg"
+        private const val FROM_LIST = "fromList"
         /** Opens the screen; [pkg] != null = the detail of that app. Safe from any context (service, widget, menu). */
         fun open(ctx: Context, pkg: String? = null) {
             val i = Intent(ctx, UsageStatsActivity::class.java)
@@ -58,6 +59,7 @@ class UsageStatsActivity : Activity() {
     private var allApps = false
     private lateinit var col: LinearLayout
     private lateinit var title: TextView
+    private lateinit var sub: TextView
     private lateinit var headIcon: ImageView
 
     override fun getResources(): android.content.res.Resources = Lang.res(baseContext) ?: super.getResources()
@@ -94,10 +96,15 @@ class UsageStatsActivity : Activity() {
         headIcon = ImageView(this).apply { visibility = View.GONE }
         head.addView(headIcon, LinearLayout.LayoutParams(dp(32), dp(32)).apply { marginStart = dp(8) })
         title = k.text(getString(R.string.ust_title), 22f, pal.text, true).apply { setPadding(dp(8), 0, 0, 0); maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
-        head.addView(title, LinearLayout.LayoutParams(0, -2, 1f))
+        // one app: its name, and under it what this screen is (owner 2026-11-13: "MoMo" alone did not say "usage time")
+        val names = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        names.addView(title)
+        sub = k.text(getString(R.string.ust_title), 13f, pal.sub).apply { setPadding(dp(8), 0, 0, 0); visibility = View.GONE }
+        names.addView(sub)
+        head.addView(names, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(head, LinearLayout.LayoutParams(-1, -2))
         pkg?.let { p ->
-            headIcon.visibility = View.VISIBLE; title.text = lbl(p)
+            headIcon.visibility = View.VISIBLE; title.text = lbl(p); sub.visibility = View.VISIBLE
             IconCache.peek(p, "", dp(32), "round")?.let { headIcon.setImageBitmap(it) } ?: IconCache.async(this, p, "", dp(32), "round") { b -> if (b != null) headIcon.setImageBitmap(b) }
         }
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
@@ -210,9 +217,13 @@ class UsageStatsActivity : Activity() {
         if (s.all { it == 0L }) col.addView(emptyText(R.string.ust_empty_week), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(24); leftMargin = dp(24); rightMargin = dp(24) })
         section(getString(R.string.ust_daily))
         col.addView(card(bars(s, d)), LinearLayout.LayoutParams(-1, -2))
+        // every app's usage: back to the list when it opened this one, else open the list (from the app menu / notif stats)
+        col.addView(k.pill(getString(R.string.ust_all), R.drawable.li_chart_column, false) {
+            if (intent.getBooleanExtra(FROM_LIST, false)) finish() else startActivity(Intent(this, UsageStatsActivity::class.java))
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(18) })
         col.addView(k.pill(getString(R.string.nst_title), R.drawable.li_bell, false) {
             startActivity(Intent(this, NotifStatsActivity::class.java).putExtra(NotifStatsActivity.PKG, p))
-        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(18) })
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
     }
 
     private fun emptyText(res: Int) = k.text(getString(res), 15f, pal.sub).apply { gravity = Gravity.CENTER; setLineSpacing(0f, 1.2f) }
@@ -290,7 +301,7 @@ class UsageStatsActivity : Activity() {
                 body.addView(k.text(resources.getQuantityString(R.plurals.ust_opens, n, n), 12f, pal.sub), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
             }
             row.addView(body, LinearLayout.LayoutParams(0, -2, 1f))
-            k.tap(row, 20f) { startActivity(Intent(this, UsageStatsActivity::class.java).putExtra(PKG, a.pkg)) }
+            k.tap(row, 20f) { startActivity(Intent(this, UsageStatsActivity::class.java).putExtra(PKG, a.pkg).putExtra(FROM_LIST, true)) }
             box.addView(row, LinearLayout.LayoutParams(-1, -2))
         }
         col.addView(box, LinearLayout.LayoutParams(-1, -2))

@@ -30,4 +30,5 @@
     <plurals name="ust_opens">
         <item quantity="other">Mở %1$d lần</item>
     </plurals>
+    <string name="ust_all">Thời gian dùng: tất cả app</string>
 </resources>
