@@ -51,6 +51,10 @@ object TsLogic {
         else -> 0
     }
 
+    /** VpnService tunnels are tunN. Carriers hand out 100.64.0.0/10 too (CGNAT, e.g. Viettel 4G `ccmni3` 100.118.x),
+     *  so the range alone said "Tailscale up" while it was dead and keep-alive never fired (Poco 2026-11-13). */
+    fun isTunnel(name: String?): Boolean = name != null && name.startsWith("tun")
+
     /** 100.64.0.0/10 (the tailnet range). */
     fun isTailnet(a: ByteArray): Boolean =
         a.size == 4 && (a[0].toInt() and 0xff) == 100 && (a[1].toInt() and 0xc0) == 0x40
@@ -122,7 +126,7 @@ object Ts {
     fun installed(ctx: Context) = runCatching { ctx.packageManager.getPackageInfo(TsLogic.PKG, 0); true }.getOrDefault(false)
 
     fun findIp(): String = runCatching {
-        NetworkInterface.getNetworkInterfaces().toList().filter { it.isUp }
+        NetworkInterface.getNetworkInterfaces().toList().filter { it.isUp && TsLogic.isTunnel(it.name) }
             .flatMap { it.inetAddresses.toList() }
             .firstOrNull { it is Inet4Address && TsLogic.isTailnet(it.address) }?.hostAddress ?: ""
     }.getOrDefault("")

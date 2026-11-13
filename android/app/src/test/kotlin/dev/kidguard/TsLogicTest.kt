@@ -31,6 +31,13 @@ class TsLogicTest {
         assertFalse(TsLogic.isTailnet(byteArrayOf(100, 64)))
     }
 
+    @Test fun onlyTunnelInterfaces() {
+        assertTrue(TsLogic.isTunnel("tun0"))
+        assertFalse(TsLogic.isTunnel("ccmni3"))   // 4G CGNAT 100.118.x is not Tailscale
+        assertFalse(TsLogic.isTunnel("wlan0"))
+        assertFalse(TsLogic.isTunnel(null))
+    }
+
     @Test fun keyAndHost() {
         assertTrue(TsLogic.validKey("tskey-auth-kABC123CNTRL-abcdefghijklmnop"))
         assertFalse(TsLogic.validKey("short"))
