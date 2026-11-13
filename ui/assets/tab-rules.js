@@ -363,12 +363,13 @@ function bankBind(r) {
     const listed = [...new Set(cols.flatMap(c => r[c.k]))];
     const rows = apps.map(a => ({ pkg: a.pkg, label: a.label }))
       .concat(listed.filter(p => !inst.has(p)).map(p => ({ pkg: p, label: p, gone: true })))
-      .sort((a, b) => (any(b.pkg) - any(a.pkg)) || a.label.localeCompare(b.label));
+      .sort((a, b) => (!!a.gone - !!b.gone) || (any(b.pkg) - any(a.pkg)) || a.label.localeCompare(b.label));   // not installed: last, under their own heading (owner 2026-11-13: the inline tag was easy to miss)
+    const gone = rows.filter(a => a.gone).length;
     const count = () => { $("#bk-n").textContent = t("bank.n", new Set(cols.flatMap(c => r[c.k])).size); };
     count();
     // a table: the column names once in the sticky header, a bare checkbox per cell (owner 2026-11-11)
-    list.innerHTML = rows.map(a => `<div class="bkr" role="row" style="${gt}" data-q="${esc((a.label + " " + a.pkg).toLowerCase())}">
-      <span class="bka" role="cell" title="${esc(a.pkg)}">${icon(a)}<span class="bkn">${esc(a.label)}${a.gone ? ` <span class="mute">· ${t("bank.notInst")}</span>` : ""}</span></span>
+    list.innerHTML = rows.map((a, i) => `${a.gone && (i === 0 || !rows[i - 1].gone) ? `<div class="bksub" role="row"><span role="cell">${t("bank.goneH", gone)}</span></div>` : ""}<div class="bkr${a.gone ? " gone" : ""}" role="row" style="${gt}" data-q="${esc((a.label + " " + a.pkg).toLowerCase())}">
+      <span class="bka" role="cell" title="${esc(a.pkg + (a.gone ? " · " + t("bank.notInst") : ""))}">${icon(a)}<span class="bkn">${esc(a.label)}</span></span>
       ${cols.map((c, i) => `<span role="cell"><input type="checkbox" data-bank="${esc(a.pkg)}" data-k="${c.k}" ${sets[i].has(a.pkg) ? "checked" : ""} aria-label="${esc(c.h + ": " + a.label)}"></span>`).join("")}</div>`).join("");
     list.querySelectorAll("[data-bank]").forEach(c => c.onchange = () => {
       const key = c.dataset.k;
@@ -378,7 +379,8 @@ function bankBind(r) {
     filt();
   };
   const fold = v => String(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase();   // "ngan hang" finds "Ngân hàng"
-  const filt = () => { const q = fold(($("#bk-q").value || "").trim()); list.querySelectorAll("[data-q]").forEach(l => l.hidden = !!q && !fold(l.dataset.q).includes(q)); };
+  const filt = () => { const q = fold(($("#bk-q").value || "").trim()); list.querySelectorAll("[data-q]").forEach(l => l.hidden = !!q && !fold(l.dataset.q).includes(q));
+    const h = list.querySelector(".bksub"); if (h) h.hidden = !list.querySelector(".bkr.gone:not([hidden])"); };
   $("#bk-q").oninput = filt;
   $("#bk-add").onclick = () => {
     const v = $("#bk-pkg").value.trim(), ok = /^[A-Za-z][\w]*(\.[A-Za-z_][\w]*)+$/.test(v) && v.length <= 200;
