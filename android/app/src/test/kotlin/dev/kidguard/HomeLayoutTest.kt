@@ -180,4 +180,14 @@ class HomeLayoutTest {
         assertEquals(f.toSet(), m.pages.flatten().filter { it.kind == "app" }.map { it.pkg }.toSet())
         assertEquals(m, HomeLayout.appendNew(m, all))   // the others are "seen": they stay in the drawer
     }
+    @Test fun shortcutLabelRejectsIds() {
+        val p = "com.miui.securitycenter"
+        assertFalse(HomeLayout.shortcutLabelOk("com.miui.securitycenter:shortcut_clean", p, "x"))
+        assertFalse(HomeLayout.shortcutLabelOk("com.other.app.Clean", p, "x"))
+        assertFalse(HomeLayout.shortcutLabelOk("clean_id", p, "clean_id"))
+        assertFalse(HomeLayout.shortcutLabelOk(" ", p, "x"))
+        assertTrue(HomeLayout.shortcutLabelOk("Dọn dẹp", p, "x"))
+        assertTrue(HomeLayout.shortcutLabelOk("Clean", p, "x"))
+        assertTrue(HomeLayout.shortcutLabelOk("v1.2", p, "x"))
+    }
 }

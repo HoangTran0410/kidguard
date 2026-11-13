@@ -122,6 +122,15 @@ object HomeLayout {
     }
     /** An app's pinned shortcut (ShortcutManager.requestPinShortcut): pkg = the app, cls = the shortcut id, name = its label. */
     const val SHORTCUT = "shortcut"
+    /**
+     * A shortcut label fit to show: not blank, not its id or package (MIUI's Security "Clean" shortcut hands
+     * "com.miui.securitycenter:shortcut…" to a third-party home: a label from a resource only its own home resolves).
+     */
+    fun shortcutLabelOk(s: String?, pkg: String, id: String): Boolean {
+        val t = s?.trim().orEmpty()
+        if (t.isEmpty() || t == id || t == pkg || t.startsWith("$pkg:") || t.startsWith("$pkg/")) return false
+        return !(' ' !in t && Regex("""^[A-Za-z]\w*(\.[A-Za-z]\w*)+([:/#][\w.:/#-]*)?$""").matches(t))
+    }
     val KINDS = setOf("app", "widget", "folder", SHORTCUT)
 
     /** Widget ids are "w" + n, apps "a" + n: unique inside one model. */

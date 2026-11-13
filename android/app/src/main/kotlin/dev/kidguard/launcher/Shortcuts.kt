@@ -31,6 +31,13 @@ object Shortcuts {
         info(ctx, pkg, id)?.let { i -> runCatching { la(ctx)?.getShortcutIconDrawable(i, ctx.resources.displayMetrics.densityDpi) }.getOrNull() }
             ?: runCatching { ctx.packageManager.getApplicationIcon(pkg) }.getOrNull()
 
+    /** Best label: the app's short / long label (again from the pinned list), else "" (the caller shows the app's name). */
+    fun label(ctx: Context, pkg: String, id: String, vararg first: CharSequence?): String {
+        (first.asList()).forEach { if (HomeLayout.shortcutLabelOk(it?.toString(), pkg, id)) return it.toString().trim() }
+        val i = info(ctx, pkg, id) ?: return ""
+        return listOf(i.shortLabel, i.longLabel).firstOrNull { HomeLayout.shortcutLabelOk(it?.toString(), pkg, id) }?.toString()?.trim() ?: ""
+    }
+
     /** False when it can't start (disabled by its app, not pinned, we are not the default home). */
     fun start(ctx: Context, pkg: String, id: String, bounds: Rect?, opts: Bundle?): Boolean =
         runCatching { la(ctx)!!.startShortcut(pkg, id, bounds, opts, Process.myUserHandle()); true }.getOrDefault(false)
@@ -53,8 +60,10 @@ class PinShortcutActivity : Activity() {
         if (req.requestType != LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT || !req.isValid) return
         val sc = req.shortcutInfo ?: return
         val m = HomeFile.load(this) ?: return
-        val label = (sc.shortLabel ?: sc.longLabel ?: "").toString().ifBlank { sc.`package` }
         if (!req.accept()) return
+        // after accept() it is pinned, so the system's own copy (labels resolved) can be read too; else the app's name
+        val label = Shortcuts.label(this, sc.`package`, sc.id, sc.shortLabel, sc.longLabel)
+            .ifEmpty { runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(sc.`package`, 0)).toString() }.getOrDefault(sc.`package`) }
         HomeFile.save(this, HomeLayout.addShortcut(m, sc.`package`, sc.id, label))
         Toasts.show(this, getString(R.string.hm_sc_added, label))
     }
