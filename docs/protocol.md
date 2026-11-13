@@ -362,9 +362,28 @@ The first capture / first input of a session is logged in the phone log.
   forgets the kid as before.
 
 ## Setup steps (scripts/setup.sh, scripts/setup.ps1, the web installer and the in-app self-setup `SelfSetup.kt` do the same, in this order)
-Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am start`, LAN URL: it already runs inside the app) and adds an accounts pre-check and Wi-Fi-off; the other three rely on `dpm set-device-owner` failing when accounts exist.
-1. `adb install -r -g kidguard.apk`
-2. `adb shell dpm set-device-owner dev.kidguard/.Admin` (verify with `dumpsys device_policy`)
+Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am start`, LAN URL: it already runs inside the app) and Wi-Fi-off is only in it; step 1b (app accounts) is on all four.
+1. `adb install -r -g kidguard.apk` (SelfSetup: the app is installed already)
+1b. **Keep app accounts** (skipped when already Device Owner or when `dumpsys account` lists no account). Parse `dumpsys account`:
+   accounts = `Account {name=N, type=T}`; authenticator of T = the package in
+   `AuthenticatorDescription {type=T}, ComponentInfo{PKG/CLASS}` (RegisteredServicesCache section; no entry = the account is
+   hidden already, ignore it). PKG listed by `pm list packages -3` (non-system) = keepable, otherwise (system app: Google,
+   Xiaomi, Samsung, Oppo/HeyTap, or a preinstalled app) the account must be removed by the parent: stop with a message
+   naming `name (type)` and "remove phone accounts in Settings > Accounts, app accounts can stay". Keepable packages:
+   `pm disable-user --user 0 PKG` (output contains `disabled`) each, wait **>= 14 s** (Android writes the app state ~10 s
+   later; a reboot sooner loses it), `sync`, reboot (every Android version), wait for `sys.boot_completed`=1, go on with
+   step 2. Right after the boot Android still answers "already some accounts" for up to ~30 s (DPMS re-checks in the
+   background): retry `set-device-owner` every 5 s (about 2 min). Afterwards, **always** (also after any error / Ctrl-C /
+   page reload): `pm enable PKG` for each, verified (`pm list packages -d`). Where the list is kept: setup.sh
+   `~/.kidguard/apps-off.txt`, setup.ps1 `%LOCALAPPDATA%\kidguard\apps-off.txt` (the next run enables them first),
+   install.html `localStorage["kg.appsOff"]` (banner "Bật lại các app"; after the reboot the page reconnects through
+   `manager.getDevices()` or asks to press Connect again), SelfSetup `Store.ownerPending` = `startedAt|wifiOff|pkg,pkg`.
+   SelfSetup cannot survive the reboot in-process: it grants WRITE_SECURE_SETTINGS, stores `ownerPending`, reboots; `Boot`
+   (BOOT_COMPLETED) and `Guard.onCreate` call `SelfSetup.resume`: turn Wireless debugging on (`SelfAdb.ensure`, the paired
+   key persists), steps 2-6 over self-adb, enable the apps, notification with the result. A pending record older than 10 min
+   skips the Device Owner steps and only enables the apps (the apps stay listed, and are retried at every boot / app start,
+   while no shell is available). The resume waits for the first unlock after boot (BOOT_COMPLETED is not direct-boot aware).
+2. `adb shell dpm set-device-owner dev.kidguard/.Admin` (verify with `dumpsys device_policy`; retry after 1b, see there)
 3. `adb shell appops set dev.kidguard GET_USAGE_STATS allow`
 4. `adb shell pm grant dev.kidguard android.permission.WRITE_SECURE_SETTINGS`
    then, optional (errors ignored, for remote phone settings): `appops set dev.kidguard WRITE_SETTINGS allow` and

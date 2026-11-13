@@ -528,21 +528,23 @@ Contract: `docs/protocol.md:248-265` "Setup steps" (9 items). AGENTS.md says set
 - Gotchas: checksum is tied to signing.jks (AGENTS.md); `ui/provision.json` is rewritten by build.sh; QR needs Android 10+ wizard flow ("QR 6 taps"); apkUrl must be https and fetched by the wizard (GitHub latest redirect).
 
 #### 1b. scripts/setup.sh (macOS/Linux) and scripts/setup.ps1 (Windows), USB adb
-- Trigger: user runs `./setup.sh [-y] [apk]` with USB debugging on, accounts removed.
+- Trigger: user runs `./setup.sh [-y] [apk]` with USB debugging on, phone accounts removed (app accounts stay: step 1b below). Several devices: `ANDROID_SERIAL=<serial>`.
 - setup.sh steps: APK pick `:18-34` (local `kidguard.apk`, `../build/kidguard.apk`, else download latest + sha256 verify); adb or offer to download platform-tools `:37-55`; exactly 1 device `:57-58`; confirm model `:60-67`; `chk()` treats output matching Error|Exception|denied|Failure as failure `:70-81`.
   [1] `adb install -r -g` `:84`; [2] `dpm set-device-owner` + verify via dumpsys `:97-98`; [3] GET_USAGE_STATS `:112`; [4] WRITE_SECURE_SETTINGS `:115` + optional WRITE_SETTINGS, allow_dnd, allow_listener NotifDots `:117-119`; [5] accessibility merge `:122-131`; [6] deviceidle whitelist `:134`; [7] `am start MainActivity` `:137`; [8] print LAN URL `:141-144`; ColorOS hint `:147-148`.
 - setup.ps1 same order: install `:93`, owner `:105`, grants `:120-127`, a11y `:130-138`, idle `:141`, start `:144`, ColorOS `:155`.
-- Gotchas: needs all accounts removed (DO restriction); Xiaomi needs "Install via USB" + "USB debugging (Security settings)"; ColorOS needs "Disable permission monitoring" (hint printed on error); INSTALL_FAILED_UPDATE_INCOMPATIBLE = different signature (setup.sh:87).
+- Step 1b (both scripts, after install): `dumpsys account` -> keepable app authenticators (`pm list packages -3`) -> `pm disable-user`, wait 14 s, `sync`, `adb reboot`, wait boot, `set-device-owner` retried up to 2 min ("accounts" lingers ~30 s after boot), then ALWAYS `pm enable` (EXIT trap / `Fail` + `apps-off.txt` for a crash). Phone (system-authenticator) accounts: stop + message. Tested on an Android 14 AVD (setup.sh); setup.ps1 not run.
+- Gotchas: needs phone accounts (system authenticators) removed (DO restriction); the reboot sooner than ~10 s after `pm disable-user` loses the state; Xiaomi needs "Install via USB" + "USB debugging (Security settings)"; ColorOS needs "Disable permission monitoring" (hint printed on error); INSTALL_FAILED_UPDATE_INCOMPATIBLE = different signature (setup.sh:87).
 
 #### 1c. WebUSB installer `ui/install.html` (Chrome/Edge, no tools)
 - Trigger: `/install` on the worker (`relay/src/index.js:80`) or open file. Tango ADB bundled inline (`install.html:132-136`; rebuild `ui/vendor/build.sh`).
 - `:162-190` connect; `:199-226` `loadApk`: tries `fetch("kidguard.apk")` same-origin, else file picker (`isApk` PK check). No SHA-256 check.
 - `:233-` `sh`/`must` same error regex; steps at ~`:262-310`: `pm install -r -g /data/local/tmp/kidguard.apk` (push via sync, then rm), `dpm set-device-owner`, usage stats, secure settings + optional trio, accessibility merge, deviceidle, `am start`, LAN IP via wlan0 / route, ColorOS check.
+- Step 1b in JS: `planAccounts` (same as `SelfSetupLogic.planAccounts`), list in `localStorage["kg.appsOff"]`, `adb.power.reboot()` then `reconnectAfterReboot` (`manager.getDevices()`, same serial, 3 min), `reenableApps()` in the `finally` of the install click + banner `#appsoff` (button reconnects first). Not run in a real browser/WebUSB.
 - Gotcha: another adb server holding the USB interface -> message at `:190` ("adb kill-server").
 
 #### 1d. SelfSetup on-phone (no PC): Wireless debugging against itself
 - Trigger: MainActivity list row `ui/MainActivity.kt:174` (`main_self`) -> `setup/SelfSetupActivity.kt`.
-- `SelfAdb.kt` (adb key/cert in filesDir, libadb-android + Conscrypt), `SelfSetup.kt`: mDNS port finders `:86-125`; `start()` `:185`; `job()` `:202-278`: pair `:204-210` -> connect `:212-217` -> accounts check via `dumpsys account` `:253-260` (aborts if any) -> owner `:256` -> usage `:257` -> secure `:258` + optional trio `:260-262` -> a11y `:263-267` -> idle `:267` -> ColorOS probe -> optional `adb_wifi_enabled 0` `:271` -> `Guard.start`. Pair code entered from notification reply box (`:290-300`) because the pairing dialog closes when leaving Settings.
+- `SelfAdb.kt` (adb key/cert in filesDir, libadb-android + Conscrypt), `SelfSetup.kt`: mDNS port finders `:86-125`; `start()` `:185`; `job()` `:202-278`: pair `:204-210` -> connect `:212-217` -> accounts via `dumpsys account`: system-authenticator accounts abort; app accounts -> `restartForAccounts` (grant WSS, `Store.ownerPending`, `pm disable-user`, 14 s, `sync`, `reboot`) and the job ends; after boot `SelfSetup.resume` (from `Boot` and `Guard.onCreate`) reconnects self-adb (`SelfAdb.ensure`), retries `set-device-owner` while Android says "accounts", does the grants, `pm enable` the apps, notification (`finishApps`). Stale > 10 min = apps only. Needs the first unlock after boot. Not run on a real phone -> owner `:256` -> usage `:257` -> secure `:258` + optional trio `:260-262` -> a11y `:263-267` -> idle `:267` -> ColorOS probe -> optional `adb_wifi_enabled 0` `:271` -> `Guard.start`. Pair code entered from notification reply box (`:290-300`) because the pairing dialog closes when leaving Settings.
 - `pairOnly` mode (`:169,:218-222`) = pair only, keeps shell for later (used by SelfAdb.pair for features without full setup).
 - Requires an APK already installed (it is the installer itself) and Wi-Fi; Home flavor strips its native libs, so Home cannot self-setup.
 - Pure helpers (unit-tested `SelfSetupLogicTest`): `ok`, `permMonitoring`, `accounts`, `withAccessibility` (`SelfSetup.kt:130-145`).
@@ -559,7 +561,7 @@ Contract: `docs/protocol.md:248-265` "Setup steps" (9 items). AGENTS.md says set
 | am start | 7 | yes | yes | yes | NO (app already in foreground) |
 | LAN URL | 8 | yes | yes | yes | NO (app shows it) |
 | ColorOS hint | 9 | yes | yes | yes | yes |
-Extra only in SelfSetup: accounts pre-check, optional Wi-Fi-debugging off. Rule for edits: change protocol.md "Setup steps" + all 4 in one commit.
+Extra only in SelfSetup: optional Wi-Fi-debugging off; its step 1b runs across a reboot (`resume`). Rule for edits: change protocol.md "Setup steps" + all 4 in one commit.
 
 ### 4.2 BUILD flow
 - Trigger: `scripts/build.sh` (JDK 17, SDK 35, `ANDROID_HOME` default `~/Library/Android/sdk`; `TRUSTSTORE=` for TLS proxy `:15-19`).

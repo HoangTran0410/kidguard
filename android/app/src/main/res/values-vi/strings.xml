@@ -278,8 +278,14 @@
     <string name="ss_no_conn_port">Ghép nối xong nhưng không thấy cổng kết nối. Hãy tắt rồi bật lại \"Gỡ lỗi không dây\".</string>
     <string name="ss_conn_fail">Không kết nối được tới chính máy này: %1$s</string>
     <string name="ss_cmd_fail">lệnh không thành công</string>
-    <string name="ss_accounts">Cần xoá tài khoản trên máy trước: %1$s. Vào Cài đặt > Mật khẩu và tài khoản, xoá hết rồi thử lại. Cài xong đăng nhập lại được.</string>
     <string name="ss_coloros">Oppo/Realme/OnePlus (ColorOS): mở Đa nhiệm, kéo thẻ KidGuard xuống để khoá (ổ khoá). Trong Quản lý điện thoại, bật \"Tự khởi chạy\" và chạy nền cho KidGuard. Vuốt KidGuard khỏi Đa nhiệm sẽ tắt hẳn app và Trợ năng.</string>
+    <string name="ss_accounts">Cần xoá các tài khoản của điện thoại trước: %1$s. Vào Cài đặt &gt; Mật khẩu và tài khoản, xoá rồi thử lại. Tài khoản app (Zalo, Facebook...) cứ để nguyên. Cài xong đăng nhập lại, dữ liệu vẫn còn.</string>
+    <string name="ss_restart">KidGuard đã tắt tạm %1$s. Máy khởi động lại một lần; mở khoá xong việc cài tự chạy tiếp.</string>
+    <string name="ss_resume_run">Đang cài tiếp sau khi khởi động lại</string>
+    <string name="ss_resume_late">Máy khởi động lại quá lâu nên đã dừng. Chạy cài lại.</string>
+    <string name="ss_resume_noadb">Không vào được Gỡ lỗi không dây sau khi khởi động lại (Wi-Fi đã bật chưa?)</string>
+    <string name="ss_apps_back">Các app đã bật lại: %1$s.</string>
+    <string name="ss_apps_off">Bật lại các app này trong Cài đặt &gt; Ứng dụng: %1$s.</string>
     <string name="ss_done">Xong. KidGuard đã được cài quyền quản lý.</string>
     <string name="ch_selfsetup">Tự cài KidGuard</string>
     <string name="ss_code_label">Mã 6 số</string>
@@ -296,7 +302,7 @@
     <string name="ssa_s3_ok">Đã ghép xong: KidGuard tự dùng được adb (ẩn app, dọn máy). Ghép lại chỉ khi có lỗi.</string>
     <string name="ssa_pair_title">Cho KidGuard tự dùng adb</string>
     <string name="ssa_pair_intro">KidGuard ghép 1 lần với Gỡ lỗi không dây của máy này để ẩn app cài sẵn và dọn máy, không cần reset. Cần Wi-Fi. Làm 3 bước, xong có dấu ✓:</string>
-    <string name="ssa_intro">Máy tự nối với chính nó qua Gỡ lỗi không dây (cần Wi-Fi). Muốn thành Device Owner, máy chưa được đăng nhập tài khoản nào (Google, Samsung, Xiaomi...). Máy đã có tài khoản vẫn ghép được: KidGuard ẩn app, dọn máy. Làm 3 bước:</string>
+    <string name="ssa_intro">Máy tự nối với chính nó qua Gỡ lỗi không dây (cần Wi-Fi). Muốn thành Device Owner, phải xoá tài khoản của máy (Google, Samsung, Xiaomi...) trước; tài khoản app (Zalo, Facebook...) giữ nguyên, máy khởi động lại một lần. Máy đã có tài khoản vẫn ghép được: KidGuard ẩn app, dọn máy. Làm 3 bước:</string>
     <string name="ssa_s1">Bước 1. Bật Tuỳ chọn nhà phát triển</string>
     <string name="ssa_s1_d">Vào Giới thiệu về điện thoại, bấm 7 lần vào \"Số hiệu bản tạo\" (Build number).</string>
     <string name="ssa_s1_btn">Mở Giới thiệu về điện thoại</string>
@@ -1047,4 +1053,12 @@
     <plurals name="hm_notifs_today">
         <item quantity="other">%1$d thông báo</item>
     </plurals>
+    <string name="tiles_edit">Sửa</string>
+    <string name="tiles_title">Ô trên màn chính</string>
+    <string name="tiles_on">Đang hiện</string>
+    <string name="tiles_add">Thêm ra màn chính</string>
+    <string name="tiles_none">Chỉ còn ô SOS. Chọn thêm ở dưới.</string>
+    <string name="tiles_full">Tối đa %d ô. Bỏ bớt một ô để thêm.</string>
+    <string name="tiles_remove_x">Bỏ %s</string>
+    <string name="tiles_add_x">Thêm %s</string>
 </resources>

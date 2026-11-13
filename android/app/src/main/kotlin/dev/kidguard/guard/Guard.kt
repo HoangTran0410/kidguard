@@ -40,6 +40,7 @@ import java.util.Locale
 class Boot : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {   // BOOT_COMPLETED, MY_PACKAGE_REPLACED
         Guard.start(context); Watchdog.schedule(context)
+        SelfSetup.resume(context)   // a self-setup restart (accounts kept) is waiting: finish it, turn the apps back on
         if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) LauncherSafe.afterUpdate(context)
     }
 }
@@ -122,6 +123,7 @@ class Guard : Service() {
         work = Handler(HandlerThread("guard").apply { start() }.looper)
         running = this
         Watchdog.schedule(this)
+        runCatching { SelfSetup.resume(this) }   // safety net: apps turned off for a self-setup restart come back
         runCatching { Ring.restoreAfterDeath(this) }
         work.post { runCatching { Policy.apply(this, store.rules) }; Quick.setEnabled(this, true) }   // off the main thread: DPM calls can block
         @Suppress("DEPRECATION") runCatching {   // location switched off: back on at once (rule lockLocation), not at the next tick

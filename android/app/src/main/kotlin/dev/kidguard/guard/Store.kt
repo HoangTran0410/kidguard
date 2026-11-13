@@ -743,6 +743,11 @@ class Store private constructor(private val app: Context) {
 
     @Synchronized fun wipe() { p.edit().clear().apply() }
 
+    /** Self-setup restart in progress, see `SelfSetupLogic.Pending` ("" = none): the apps turned off to keep their accounts. commit(): a reboot follows. */
+    @get:Synchronized @set:Synchronized var ownerPending: String
+        get() = p.getString("ownerPending", "") ?: ""
+        set(v) { p.edit().putString("ownerPending", v).commit() }
+
     companion object {
         @Volatile private var inst: Store? = null
         fun of(ctx: Context): Store = inst ?: synchronized(this) { inst ?: Store(ctx.applicationContext).also { inst = it } }

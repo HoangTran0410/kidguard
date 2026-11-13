@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Installs KidGuard on the child's phone over ADB and makes it the Device Owner (macOS / Linux).
 #   ./setup.sh [-y|--yes] [path/to/kidguard.apk]   (default: kidguard.apk next to this script or ../build/kidguard.apk, else the latest release)
-# Before: on the phone, remove every account (Settings > Accounts: Google, Samsung, Xiaomi...), turn on
-# USB debugging, plug it in. After setup you can sign in to the accounts again.
+# Before: on the phone, remove the phone accounts (Settings > Accounts: Google, Samsung, Xiaomi, Oppo...), turn on
+# USB debugging, plug it in. Accounts of ordinary apps (Zalo, Facebook, Telegram...) stay: this script turns those apps
+# off for a moment, restarts the phone once, makes KidGuard Device Owner, and turns the apps back on (always, also on error).
+# After setup you can sign in to the phone accounts again.
+# Several devices attached: export ANDROID_SERIAL=<serial> first.
 # Undo: from the parent's page, Settings > "Gỡ quyền quản lý", then uninstall the app.
 # Steps are the same as docs/protocol.md "Setup steps" (setup.ps1 and ui/install.html do the same).
 set -euo pipefail
@@ -54,8 +57,12 @@ if ! command -v adb >/dev/null 2>&1; then
   export PATH="$TOOLS/platform-tools:$PATH"
 fi
 
-n=$(adb devices | awk 'NR>1 && $2=="device"' | wc -l | tr -d ' ')
-[ "$n" = "1" ] || { echo "Cần đúng 1 máy đã cắm và cho phép gỡ lỗi USB (đang thấy: $n)"; adb devices; exit 1; }
+if [ -n "${ANDROID_SERIAL:-}" ]; then
+  adb devices | awk 'NR>1 && $2=="device"{print $1}' | grep -qxF "$ANDROID_SERIAL" || { echo "Không thấy máy $ANDROID_SERIAL (ANDROID_SERIAL)"; adb devices; exit 1; }
+else
+  n=$(adb devices | awk 'NR>1 && $2=="device"' | wc -l | tr -d ' ')
+  [ "$n" = "1" ] || { echo "Cần đúng 1 máy đã cắm và cho phép gỡ lỗi USB (đang thấy: $n)"; adb devices; exit 1; }
+fi
 
 model=$(adb shell getprop ro.product.model | tr -d '\r')
 ver=$(adb shell getprop ro.build.version.release | tr -d '\r')
@@ -80,6 +87,22 @@ chk() {
   fi
 }
 
+# --- app accounts are kept: their apps are turned off during the Device Owner step, then always turned back on ---
+OFFFILE="$HOME/.kidguard/apps-off.txt"   # survives a crash / Ctrl-C: the next run turns them on first
+OFF=""
+reenable() {
+  local list="$OFF" p i
+  [ -n "$list" ] || return 0
+  OFF=""
+  echo "[*] Bật lại các app đã tắt tạm:$list"
+  for i in $(seq 1 60); do adb shell true >/dev/null 2>&1 && break; sleep 2; done   # the phone may still be restarting
+  for p in $list; do adb shell pm enable "$p" 2>&1 | tr -d '\r' || true; done
+  rm -f "$OFFFILE"
+}
+trap reenable EXIT
+trap 'exit 130' INT TERM
+if [ -s "$OFFFILE" ]; then OFF=$(cat "$OFFFILE"); echo "[!] Lần chạy trước còn app bị tắt tạm, bật lại trước."; reenable; fi
+
 echo "[1/8] Cài app"
 if ! out=$(adb install -r -g "$APK" 2>&1) || ! printf '%s' "$out" | grep -q Success; then
   echo "LỖI: $out"
@@ -93,14 +116,67 @@ if ! out=$(adb install -r -g "$APK" 2>&1) || ! printf '%s' "$out" | grep -q Succ
   exit 1
 fi
 
+# Accounts block Device Owner. App accounts (authenticator = ordinary app) are kept: turn that app off (its accounts
+# stop counting), restart once (Android caches the check until boot), then set Device Owner and turn the apps back on.
+# Accounts of system apps (Google, Xiaomi, Samsung, Oppo...) must be removed by hand.
+if ! adb shell dumpsys device_policy | grep -q "admin=ComponentInfo{$PKG/$PKG.Admin}"; then
+  dump=$(adb shell dumpsys account | tr -d '\r')
+  accts=$(printf '%s\n' "$dump" | sed -n 's/.*Account {name=\([^,}]*\), type=\([^}]*\)}.*/\2|\1/p' | sort -u)
+  if [ -n "$accts" ]; then
+    auth=$(printf '%s\n' "$dump" | sed -n 's/.*AuthenticatorDescription {type=\([^}]*\)}, ComponentInfo{\([^/}]*\)\/.*/\1|\2/p')
+    third=$(adb shell pm list packages -3 | tr -d '\r' | sed 's/^package://')
+    disable=""; remove=""
+    while IFS='|' read -r type name; do
+      pkg=$(printf '%s\n' "$auth" | awk -F'|' -v t="$type" '$1==t{print $2; exit}')
+      [ -n "$pkg" ] || continue   # authenticator not listed: the account is hidden already
+      if printf '%s\n' "$third" | grep -qxF "$pkg" && printf '%s' "$pkg" | grep -Eq '^[A-Za-z0-9_.]+$'; then
+        case " $disable " in *" $pkg "*) ;; *) disable="$disable $pkg" ;; esac
+      else
+        remove="$remove
+  - $name ($type)"
+      fi
+    done <<EOA
+$accts
+EOA
+    if [ -n "$remove" ]; then
+      echo "LỖI: Cần xoá các tài khoản của máy trước:$remove"
+      echo "→ Cài đặt > Mật khẩu và tài khoản, xoá chúng rồi chạy lại. Tài khoản của app (Zalo, Facebook…) cứ để nguyên. Cài xong đăng nhập lại, dữ liệu vẫn còn."
+      exit 1
+    fi
+    if [ -n "$disable" ]; then
+      echo "[*] Giữ đăng nhập các app:$disable"
+      echo "    Tắt tạm các app này, khởi động lại máy một lần (khoảng 1 phút), rồi cài tiếp. Sẽ tự bật lại các app."
+      mkdir -p "$(dirname "$OFFFILE")"; printf '%s' "${disable# }" > "$OFFFILE"
+      OFF="${disable# }"
+      for p in $OFF; do
+        out=$(adb shell pm disable-user --user 0 "$p" 2>&1 | tr -d '\r' || true)
+        case "$out" in *disabled*) ;; *) echo "LỖI: không tắt được $p: $out"; exit 1 ;; esac
+      done
+      sleep 14; adb shell sync   # Android writes the app state to disk ~10 s later: rebooting sooner loses it
+      echo "[*] Khởi động lại máy…"
+      adb reboot
+      sleep 5; adb wait-for-device
+      for i in $(seq 1 90); do [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && break; sleep 2; done
+      [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] || { echo "LỖI: máy không khởi động xong sau 3 phút (các app sẽ được bật lại khi máy lên)."; exit 1; }
+      sleep 3
+    fi
+  fi
+fi
+
 echo "[2/8] Đặt KidGuard làm Device Owner"
 out=$(adb shell dpm set-device-owner $PKG/.Admin 2>&1 || true)
+# after our restart Android still says "accounts" for up to ~30 s (it re-checks them in the background): try again
+for i in $(seq 1 24); do
+  [ -n "$OFF" ] && printf '%s' "$out" | grep -qi 'accounts' || break
+  echo "    Máy đang kiểm tra lại tài khoản, thử lại sau 5 giây…"; sleep 5
+  out=$(adb shell dpm set-device-owner $PKG/.Admin 2>&1 || true)
+done
 if ! adb shell dumpsys device_policy | grep -q "admin=ComponentInfo{$PKG/$PKG.Admin}"; then
   echo "$out"
   cat <<'EOT'
 
 Không đặt được Device Owner. Thường là vì:
-  - Máy còn tài khoản: Cài đặt > Tài khoản, xoá hết (Google, Samsung, Xiaomi…), chạy lại.
+  - Máy còn tài khoản của máy: Cài đặt > Tài khoản, xoá hết (Google, Samsung, Xiaomi…), chạy lại.
   - Máy có nhiều người dùng / Không gian thứ hai / Thư mục bảo mật: xoá đi.
   - Xiaomi: bật thêm "Gỡ lỗi USB (Cài đặt bảo mật)" trong Tuỳ chọn nhà phát triển.
   - Đã có app quản lý khác (Device Owner): gỡ nó trước.
@@ -142,9 +218,10 @@ sleep 3
 echo "[8/8] Địa chỉ cho bố mẹ"
 ip=$(adb shell ip -4 addr show wlan0 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | tr -d '\r')
 [ -n "$ip" ] || ip=$(adb shell ip route get 1.1.1.1 2>/dev/null | tr -d '\r' | awk '{for(i=1;i<NF;i++) if($i=="src"){print $(i+1); exit}}')
+reenable
 echo
 echo "OK Xong. Trên điện thoại bố mẹ (cùng Wi-Fi), mở: http://${ip:-<IP của máy con>}:8770"
-echo "-> rồi nhập mã 6 số đang hiện trên máy con. Giờ có thể đăng nhập lại tài khoản trên máy con."
+echo "-> rồi nhập mã 6 số đang hiện trên máy con. Giờ có thể đăng nhập lại tài khoản của máy (Google, Samsung…) trên máy con."
 # ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off)
 if [ -n "$(adb shell 'getprop ro.build.version.opporom; getprop ro.build.version.oplusrom' | tr -d '[:space:]')" ]; then
   echo '-> Oppo/Realme/OnePlus (ColorOS): mở Đa nhiệm, kéo thẻ KidGuard xuống để khoá (biểu tượng ổ khoá), và trong Quản lý điện thoại cho KidGuard "Tự khởi chạy" + chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app và Trợ năng.'

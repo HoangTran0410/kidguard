@@ -13,12 +13,12 @@ Android 8+ on the child's phone. Parent: any browser (iPhone included) or the An
 
 ## Setup in short
 
-Order (v0.9.8). Only step 4 needs the child's phone to have no accounts.
+Order (v0.9.8). Only step 4 needs the child's phone accounts (Google, Samsung, Xiaomi...) removed; app accounts are kept.
 
 1. Install the APK on the child's phone and open it. No account removal, no setup needed. Already working: the kid launcher (opt-in on the phone), "Dọn máy" (debloat; beta without Device Owner, needs only wireless-debugging pairing, the phone runs `pm disable-user` against itself), and "Bố mẹ quản lý trên máy này" (the parent page on the child's phone, in preview mode: features that need more permissions are greyed with a note naming the permission).
 2. On the first rules save the page asks for a parent PIN. It protects the on-device page, and the parent types the same PIN when pairing their own phone.
 3. Grant permissions as needed, following the table below: accessibility, usage access, device admin, location, battery...
-4. Optional, strongest: Device Owner. Android only allows it while the phone has no accounts (Google, Samsung, Xiaomi...): remove them first, then sign back in after setup. Ways:
+4. Optional, strongest: Device Owner. Android only allows it while the phone has no accounts. App accounts (Zalo, Facebook...) are kept (the setup turns those apps off, restarts the phone once, turns them on); phone accounts (Google, Samsung, Xiaomi...) must be removed first, then sign back in after setup. Ways:
    - On the phone itself (Android 11+, Wi-Fi): tap the full-setup button; turn on Developer options > Wireless debugging > Pair with code and type the 6 digits into KidGuard's notification. The phone runs adb against itself.
    - QR provisioning (new or factory-reset phone, stock-like Android): on the welcome screen tap 6 times on an empty spot, scan the QR at https://kidguard.99-hoangtran.workers.dev/qr. Some skins drop the 6-tap screen (e.g. Oppo / Realme ColorOS on Android 8-9): use the USB way.
    - Browser + USB cable (Chrome or Edge on a computer): turn on USB debugging, plug in, open https://kidguard.99-hoangtran.workers.dev/install (WebUSB installer, no adb needed).

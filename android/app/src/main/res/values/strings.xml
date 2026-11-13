@@ -287,8 +287,14 @@
     <string name="ss_no_conn_port">Paired, but the connection port wasn\'t found. Turn \"Wireless debugging\" off and on again.</string>
     <string name="ss_conn_fail">Couldn\'t connect to this phone: %1$s</string>
     <string name="ss_cmd_fail">command failed</string>
-    <string name="ss_accounts">Remove the accounts on this phone first: %1$s. Go to Settings > Passwords &amp; accounts, remove them all, then retry. You can sign back in after setup.</string>
     <string name="ss_coloros">Oppo/Realme/OnePlus (ColorOS): open Recents, pull the KidGuard card down to lock it (padlock). In Phone Manager, allow KidGuard \"Auto-launch\" and background running. Swiping KidGuard out of Recents stops the app and Accessibility for good.</string>
+    <string name="ss_accounts">Remove these phone accounts first: %1$s. Go to Settings &gt; Passwords &amp; accounts, remove them, then retry. App accounts (Zalo, Facebook...) can stay. Sign back in after setup; your data stays.</string>
+    <string name="ss_restart">KidGuard turned off %1$s for a moment. The phone restarts once; setup goes on by itself after unlock.</string>
+    <string name="ss_resume_run">Setup is going on after the restart</string>
+    <string name="ss_resume_late">The restart took too long, so setup stopped. Run it again.</string>
+    <string name="ss_resume_noadb">Could not reach Wireless debugging after the restart (is Wi-Fi on?)</string>
+    <string name="ss_apps_back">Your apps are back on: %1$s.</string>
+    <string name="ss_apps_off">Turn these apps back on in Settings &gt; Apps: %1$s.</string>
     <string name="ss_done">Done. KidGuard is now the device manager.</string>
     <string name="ch_selfsetup">KidGuard self-setup</string>
     <string name="ss_code_label">6-digit code</string>
@@ -305,7 +311,7 @@
     <string name="ssa_s3_ok">Paired: KidGuard can use adb by itself (hide apps, clean-up). Pair again only if something fails.</string>
     <string name="ssa_pair_title">Let KidGuard use adb</string>
     <string name="ssa_pair_intro">KidGuard pairs once with this phone\'s Wireless debugging to hide preinstalled apps and clean up, no reset. Needs Wi-Fi. Do 3 steps; each gets a ✓ when done:</string>
-    <string name="ssa_intro">The phone connects to itself over Wireless debugging (needs Wi-Fi). Device Owner needs a phone with no account signed in (Google, Samsung, Xiaomi...). With accounts it still pairs: KidGuard hides apps and cleans up. Do 3 steps:</string>
+    <string name="ssa_intro">The phone connects to itself over Wireless debugging (needs Wi-Fi). Device Owner needs the phone accounts (Google, Samsung, Xiaomi...) removed first; app accounts (Zalo, Facebook...) stay, and the phone restarts once. With accounts it still pairs: KidGuard hides apps and cleans up. Do 3 steps:</string>
     <string name="ssa_s1">Step 1. Turn on Developer options</string>
     <string name="ssa_s1_d">Open About phone and tap \"Build number\" 7 times.</string>
     <string name="ssa_s1_btn">Open About phone</string>
@@ -1069,4 +1075,12 @@
         <item quantity="one">%1$d notification</item>
         <item quantity="other">%1$d notifications</item>
     </plurals>
+    <string name="tiles_edit">Edit</string>
+    <string name="tiles_title">Tiles on the main screen</string>
+    <string name="tiles_on">Shown</string>
+    <string name="tiles_add">Add to the main screen</string>
+    <string name="tiles_none">Only SOS is left. Pick more below.</string>
+    <string name="tiles_full">%d tiles at most. Remove one to add another.</string>
+    <string name="tiles_remove_x">Remove %s</string>
+    <string name="tiles_add_x">Add %s</string>
 </resources>

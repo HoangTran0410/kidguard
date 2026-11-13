@@ -73,6 +73,12 @@
   <h1><svg class="si" aria-hidden="true"><use href="#i-shield"/></svg> Cài KidGuard</h1>
   <p class="sub">Cài lên điện thoại của con, làm từng bước. <svg class="si" aria-hidden="true"><use href="#i-timer"/></svg> Mất khoảng 3 phút.<br>Máy mới hoặc vừa khôi phục cài đặt gốc, không có máy tính? <a href="qr" style="color:var(--pri)">Cài bằng mã QR</a>.</p>
 
+  <div id="appsoff" class="warn hide">
+    <p><b>Còn app đang bị tắt tạm</b> từ lần cài trước (<span id="appsofflist"></span>). Cắm máy của con rồi bấm nút để bật lại.</p>
+    <button id="reenable" class="alt"><svg class="si" aria-hidden="true"><use href="#i-undo-2"/></svg> Bật lại các app</button>
+    <div id="appsoffmsg" class="msg"></div>
+  </div>
+
   <div id="nowebusb" class="card hide">
     <h2><svg class="si" aria-hidden="true"><use href="#i-ban"/></svg> Trình duyệt này chưa cài được</h2>
     <p>Trang này cần <b>Chrome</b> hoặc <b>Edge</b> trên máy tính (hoặc Chrome trên điện thoại Android có dây OTG).
@@ -84,7 +90,7 @@
   <section id="s1" class="card">
     <h2><svg class="si" aria-hidden="true"><use href="#i-smartphone"/></svg> 1. Chuẩn bị điện thoại của con</h2>
     <ul class="chk">
-      <li><svg class="si" aria-hidden="true"><use href="#i-trash-2"/></svg> <b>Xoá hết tài khoản</b>: Cài đặt &gt; Tài khoản (Google, Samsung, Xiaomi…). Cài xong đăng nhập lại được.</li>
+      <li><svg class="si" aria-hidden="true"><use href="#i-trash-2"/></svg> <b>Xoá tài khoản của máy</b>: Cài đặt &gt; Tài khoản (Google, Samsung, Xiaomi, Oppo…). Tài khoản của app (Zalo, Facebook…) cứ để nguyên: máy khởi động lại một lần khi cài. Cài xong đăng nhập lại được.</li>
       <li><svg class="si" aria-hidden="true"><use href="#i-wrench"/></svg> Bật <b>Tuỳ chọn nhà phát triển</b>: Cài đặt &gt; Giới thiệu điện thoại, chạm 7 lần vào "Số bản dựng".</li>
       <li><svg class="si" aria-hidden="true"><use href="#i-bug"/></svg> Trong Tuỳ chọn nhà phát triển, bật <b>Gỡ lỗi USB</b>.</li>
       <li><svg class="si" aria-hidden="true"><use href="#i-triangle-alert"/></svg> Xiaomi/Redmi/POCO: bật thêm <b>Gỡ lỗi USB (Cài đặt bảo mật)</b> và <b>Cài qua USB</b>.</li>
@@ -148,7 +154,7 @@ const setMsg = (id, text, cls) => { const e = $(id); e.textContent = text; e.cla
 const log = (t) => { const p = $("log"); p.textContent += t + "\n"; p.scrollTop = p.scrollHeight; };
 
 const DO_HELP = `Không đặt được Device Owner. Thường là vì:
-  - Máy còn tài khoản: Cài đặt > Tài khoản, xoá hết (Google, Samsung, Xiaomi…), chạy lại.
+  - Máy còn tài khoản của máy: Cài đặt > Tài khoản, xoá hết (Google, Samsung, Xiaomi…), chạy lại.
   - Máy có nhiều người dùng / Không gian thứ hai / Thư mục bảo mật: xoá đi.
   - Xiaomi: bật thêm "Gỡ lỗi USB (Cài đặt bảo mật)" trong Tuỳ chọn nhà phát triển.
   - Đã có app quản lý khác (Device Owner): gỡ nó trước.`;
@@ -164,13 +170,13 @@ let adb = null, apkBytes = null;
 $("ready").onchange = (e) => enable("s2", e.target.checked);
 
 // ---- 2. connect ----
-$("connect").onclick = async () => {
+async function doConnect() {
   $("connect").disabled = true;
   setMsg("connmsg", "Đang kết nối… nhìn màn hình điện thoại, bấm \"Cho phép\".");
   let device = null;
   try {
     device = await manager.requestDevice();
-    if (!device) { setMsg("connmsg", "Chưa chọn điện thoại nào. Bấm lại và chọn máy. Không thấy máy trong danh sách? Rút cáp, cắm lại, trên điện thoại chọn chế độ USB \"Truyền tệp\" và kiểm tra đã bật Gỡ lỗi USB.", "bad"); $("connect").disabled = false; return; }
+    if (!device) { setMsg("connmsg", "Chưa chọn điện thoại nào. Bấm lại và chọn máy. Không thấy máy trong danh sách? Rút cáp, cắm lại, trên điện thoại chọn chế độ USB \"Truyền tệp\" và kiểm tra đã bật Gỡ lỗi USB.", "bad"); $("connect").disabled = false; return false; }
     const connection = await device.connect();
     const transport = await AdbDaemonTransport.authenticate({
       serial: device.serial,
@@ -182,6 +188,7 @@ $("connect").onclick = async () => {
     $("connect").classList.add("hide");
     enable("s3", true);
     loadApk();
+    return true;
   } catch (e) {
     adb = null;
     // release the USB interface so a retry (or adb on this PC) is not blocked
@@ -192,8 +199,10 @@ $("connect").onclick = async () => {
       setMsg("connmsg", "Không kết nối được: " + (e && e.message || e) + ". Hãy rút cáp USB, cắm lại, tải lại trang (F5) rồi làm lại. Kiểm tra đã bật Gỡ lỗi USB và bấm \"Cho phép\" trên điện thoại.", "bad");
     }
     $("connect").disabled = false;
+    return false;
   }
-};
+}
+$("connect").onclick = doConnect;
 
 // ---- 3. APK ----
 // an APK is a zip: must start with PK\x03\x04
@@ -267,6 +276,75 @@ async function pushApk(remote) {
   log("push " + remote + " (" + apkBytes.length + " bytes)");
 }
 
+// ---- app accounts are kept: their apps are turned off during the Device Owner step, then always turned back on ----
+// The list lives in localStorage so a page reload (or a failed reconnect) still lets the parent turn them back on.
+const OFFKEY = "kg.appsOff", PKG_OK = /^[A-Za-z0-9_.]+$/;
+const getOff = () => { try { return JSON.parse(localStorage.getItem(OFFKEY) || "[]").filter((p) => PKG_OK.test(p)); } catch (_) { return []; } };
+const setOff = (l) => { try { l.length ? localStorage.setItem(OFFKEY, JSON.stringify(l)) : localStorage.removeItem(OFFKEY); } catch (_) {} };
+const showOff = () => { const l = getOff(); $("appsoff").classList.toggle("hide", !l.length); $("appsofflist").textContent = l.join(", "); };
+showOff();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Pure parsing of `dumpsys account` (same as SelfSetupLogic.planAccounts): [disable] = authenticator packages that are
+// ordinary apps (their accounts are kept), [remove] = accounts of system apps (Google, Xiaomi, Samsung, Oppo...).
+function planAccounts(dump, thirdParty) {
+  const auth = {};
+  for (const m of dump.matchAll(/AuthenticatorDescription \{type=([^}]*)\}, ComponentInfo\{([^/}]+)\//g)) auth[m[1]] = m[2];
+  const seen = new Set(), disable = [], remove = [];
+  for (const m of dump.matchAll(/Account \{name=([^,}]*), type=([^}]*)\}/g)) {
+    const label = m[1] + " (" + m[2] + ")";
+    if (seen.has(label)) continue; seen.add(label);
+    const pkg = auth[m[2]];
+    if (!pkg) continue;   // authenticator not listed: the account is hidden already
+    if (thirdParty.has(pkg) && PKG_OK.test(pkg)) { if (!disable.includes(pkg)) disable.push(pkg); } else remove.push(label);
+  }
+  return { disable, remove };
+}
+
+// Turns every app in the list back on (always: after success, after an error, from the banner).
+async function reenableApps() {
+  const list = getOff();
+  if (!list.length || !adb) return;
+  log("Bật lại các app đã tắt tạm: " + list.join(", "));
+  const left = [];
+  for (const p of list) { const out = await sh("pm enable " + p); if (!/enabled/i.test(out)) left.push(p); }
+  setOff(left); showOff();
+}
+$("reenable").onclick = async () => {
+  $("reenable").disabled = true;
+  try {
+    if (!adb && !(await doConnect())) { setMsg("appsoffmsg", "Chưa kết nối được máy. Xem bước 2 bên dưới, rồi bấm lại.", "bad"); return; }
+    await reenableApps();
+    if (getOff().length) setMsg("appsoffmsg", "Chưa bật lại hết. Trên máy con: Cài đặt > Ứng dụng, bật các app trong danh sách.", "bad");
+    else setMsg("appsoffmsg", "Đã bật lại các app.", "ok");
+    try { await adb.close(); } catch (_) {}
+    adb = null;
+  } finally { $("reenable").disabled = false; }
+};
+
+// After `adb reboot` the USB device goes away and comes back: find it again among the devices this page may already use.
+async function reconnectAfterReboot(serial) {
+  const end = Date.now() + 180000;
+  while (Date.now() < end) {
+    await sleep(3000);
+    let devs = [];
+    try { devs = await manager.getDevices(); } catch (_) {}
+    const d = devs.find((x) => x.serial === serial) || (devs.length === 1 ? devs[0] : null);
+    if (!d) continue;
+    try {
+      const connection = await d.connect();
+      const transport = await AdbDaemonTransport.authenticate({ serial: d.serial, connection, credentialStore: new AdbWebCredentialStore("KidGuard") });
+      const a = new Adb(transport);
+      const up = (await a.subprocess.noneProtocol.spawnWaitText("getprop sys.boot_completed")).trim();
+      if (up === "1") return a;
+      try { await a.close(); } catch (_) {}
+    } catch (_) { try { await d.raw.close(); } catch (_) {} }
+  }
+  const e = new Error("Máy đã khởi động lại nhưng trang chưa nối lại được.");
+  e.help = "Máy đã khởi động lại nhưng trang chưa nối lại được. Mở khoá màn hình, kiểm tra cáp USB, rồi bấm \"Kết nối điện thoại\" và \"Bắt đầu cài\" lại: cài tiếp từ đây và bật lại các app đã tắt tạm.";
+  throw e;
+}
+
 const STEPS = [
   ["Cài app", async () => {
     await pushApk("/data/local/tmp/kidguard.apk");
@@ -274,8 +352,41 @@ const STEPS = [
     await sh("rm -f /data/local/tmp/kidguard.apk");
     if (!/Success/.test(out)) throw new Error(out.trim() || "pm install thất bại");
   }],
+  ["Giữ đăng nhập các app (nếu cần, máy khởi động lại một lần)", async () => {
+    if ((await sh("dumpsys device_policy")).includes("admin=ComponentInfo{" + PKG + "/" + PKG + ".Admin}")) return;
+    const dump = await sh("dumpsys account");
+    if (!/Account \{name=/.test(dump)) return;
+    const third = new Set((await sh("pm list packages -3")).split("\n").map((l) => l.trim().replace(/^package:/, "")).filter(Boolean));
+    const plan = planAccounts(dump, third);
+    if (plan.remove.length) {
+      const e = new Error("Cần xoá các tài khoản của máy trước: " + plan.remove.join(", "));
+      e.help = "Cần xoá các tài khoản của máy trước:\n  - " + plan.remove.join("\n  - ") + "\n→ Cài đặt > Mật khẩu và tài khoản, xoá chúng rồi chạy lại. Tài khoản của app (Zalo, Facebook…) cứ để nguyên. Cài xong đăng nhập lại, dữ liệu vẫn còn.";
+      throw e;
+    }
+    if (!plan.disable.length) return;
+    log("Giữ đăng nhập các app: " + plan.disable.join(", ") + ". Tắt tạm, khởi động lại máy một lần (khoảng 1 phút), rồi cài tiếp.");
+    const serial = adb.serial || (adb.transport && adb.transport.serial);
+    setOff(plan.disable); showOff();
+    for (const p of plan.disable) {
+      const out = await sh("pm disable-user --user 0 " + p);
+      if (!/disabled/.test(out)) throw new Error("Không tắt được " + p + ": " + out.trim());
+    }
+    await sleep(14000); await sh("sync");   // Android writes the app state to disk ~10 s later: rebooting sooner loses it
+    log("Khởi động lại máy…");
+    try { await adb.power.reboot(); } catch (_) {}
+    try { await adb.close(); } catch (_) {}
+    adb = null;
+    adb = await reconnectAfterReboot(serial);
+    log("Máy đã lên lại.");
+  }],
   ["Đặt KidGuard làm Device Owner", async () => {
-    const out = await sh("dpm set-device-owner " + PKG + "/.Admin");
+    let out = await sh("dpm set-device-owner " + PKG + "/.Admin");
+    // after our restart Android still says "accounts" for up to ~30 s (it re-checks them in the background): try again
+    for (let i = 0; i < 24 && getOff().length && /accounts/i.test(out); i++) {
+      log("Máy đang kiểm tra lại tài khoản, thử lại sau 5 giây…");
+      await sleep(5000);
+      out = await sh("dpm set-device-owner " + PKG + "/.Admin");
+    }
     const dump = await sh("dumpsys device_policy");
     if (!dump.includes("admin=ComponentInfo{" + PKG + "/" + PKG + ".Admin}")) {
       const e = new Error(out.trim()); e.help = DO_HELP; throw e;
@@ -348,6 +459,8 @@ $("install").onclick = async () => {
       }
     }
   } finally {
+    // The apps turned off for their accounts always come back (success or error); without a connection the banner keeps the list.
+    try { await reenableApps(); } catch (_) {}
     // Close the ADB connection so the phone/USB interface is released.
     try { await adb.close(); } catch (_) {}
     adb = null;

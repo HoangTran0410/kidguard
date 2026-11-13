@@ -135,6 +135,50 @@ object SelfSetupLogic {
     /** Accounts listed by `dumpsys account` as "name (type)". */
     fun accounts(dump: String): List<String> = ACCOUNT.findAll(dump).map { "${it.groupValues[1]} (${it.groupValues[2]})" }.distinct().toList()
 
+    /** One account of `dumpsys account`. */
+    data class Acct(val name: String, val type: String) { val label get() = "$name ($type)" }
+
+    private val AUTH = Regex("""AuthenticatorDescription \{type=([^}]*)\}, ComponentInfo\{([^/}]+)/""")
+
+    /** Account type -> package of its authenticator (the RegisteredServicesCache section of `dumpsys account`). */
+    fun authenticators(dump: String): Map<String, String> = AUTH.findAll(dump).associate { it.groupValues[1] to it.groupValues[2] }
+
+    /** Package names of a `pm list packages` output ("package:a.b"). */
+    fun packages(out: String): Set<String> = out.lineSequence().map { it.trim() }.filter { it.startsWith("package:") }.map { it.removePrefix("package:").trim() }.filter { it.isNotEmpty() }.toSet()
+
+    /**
+     * What to do about the accounts: [disable] = authenticator packages to turn off for the Device Owner step (their
+     * accounts then do not count; they come back when the app is enabled again), [keep] = the accounts that are kept,
+     * [remove] = accounts of a system authenticator (Google, Xiaomi, Samsung, Oppo...: not safe to turn off), which the
+     * parent must remove. An account whose authenticator is not listed is hidden already: ignored.
+     */
+    data class AccountPlan(val disable: List<String>, val keep: List<String>, val remove: List<String>)
+
+    /** [thirdParty] = `pm list packages -3` (a preinstalled or updated system app is not in it, so it counts as system). */
+    fun planAccounts(dump: String, thirdParty: Set<String>): AccountPlan {
+        val auth = authenticators(dump)
+        val disable = LinkedHashSet<String>(); val keep = ArrayList<String>(); val remove = ArrayList<String>()
+        for (a in ACCOUNT.findAll(dump).map { Acct(it.groupValues[1], it.groupValues[2]) }.distinct()) {
+            val pkg = auth[a.type] ?: continue
+            if (pkg in thirdParty && PKG_OK.matches(pkg)) { disable += pkg; keep += a.label } else remove += a.label
+        }
+        return AccountPlan(disable.toList(), keep, remove)
+    }
+
+    private val PKG_OK = Regex("[A-Za-z0-9_.]+")   // goes into a shell line
+
+    /** Restart in progress (Store.ownerPending): when it started, whether to turn Wireless debugging off at the end, and the packages turned off. */
+    data class Pending(val at: Long, val wifiOff: Boolean, val pkgs: List<String>)
+    const val PENDING_MAX_MS = 10 * 60_000L
+    fun encodePending(p: Pending) = "${p.at}|${if (p.wifiOff) 1 else 0}|${p.pkgs.joinToString(",")}"
+    fun decodePending(s: String): Pending? {
+        val f = s.split('|'); if (f.size != 3) return null
+        val at = f[0].toLongOrNull() ?: return null
+        return Pending(at, f[1] == "1", f[2].split(',').filter { PKG_OK.matches(it) })
+    }
+    /** Too old to go on with set-device-owner: only turn the apps back on. */
+    fun pendingStale(p: Pending, now: Long) = now - p.at > PENDING_MAX_MS || now < p.at
+
     /** New value for enabled_accessibility_services, or null if our entry is already there. */
     fun withAccessibility(current: String, entry: String): String? {
         val cur = current.trim().let { if (it == "null") "" else it }
@@ -243,13 +287,18 @@ object SelfSetup {
             state[i] = STEP_OK; return true
         }
 
-        // 2) accounts
+        // 2) accounts: app accounts (Zalo, Facebook...) are kept: their apps are turned off, the phone restarts once (Android
+        // caches the account check until boot), the steps go on in [resume] and the apps are turned back on. Phone accounts must go.
         mark(app, 1, STEP_RUN)
-        val acc = SelfSetupLogic.accounts(sh("dumpsys account"))
-        if (acc.isNotEmpty()) {
-            state[1] = STEP_ERR
-            message = app.getString(R.string.ss_accounts, acc.joinToString(", "))
-            notifyFinal(app, message); runCatching { m.disconnect() }; return
+        val dump = sh("dumpsys account")
+        if (SelfSetupLogic.accounts(dump).isNotEmpty() && !Policy.isOwner(app)) {
+            val plan = SelfSetupLogic.planAccounts(dump, SelfSetupLogic.packages(sh("pm list packages -3")))
+            if (plan.remove.isNotEmpty()) {
+                state[1] = STEP_ERR
+                message = app.getString(R.string.ss_accounts, plan.remove.joinToString(", "))
+                notifyFinal(app, message); runCatching { m.disconnect() }; return
+            }
+            if (plan.disable.isNotEmpty()) { restartForAccounts(app, plan.disable, ::sh); return }
         }
         state[1] = STEP_OK
         // 3..7 (same as setup.sh, minus install)
@@ -258,15 +307,9 @@ object SelfSetup {
         else if (!step(2, "dpm set-device-owner $PKG/.Admin") { it.contains("Success") }) { runCatching { m.disconnect() }; return }
         if (!step(3, "appops set $PKG GET_USAGE_STATS allow")) return
         if (!step(4, "pm grant $PKG android.permission.WRITE_SECURE_SETTINGS")) return
-        // optional (remote phone settings): brightness / screen timeout and Do Not Disturb; old Android may not know them
-        runCatching { sh("appops set $PKG WRITE_SETTINGS allow") }; runCatching { sh("cmd notification allow_dnd $PKG") }
-        runCatching { sh("cmd notification allow_listener $PKG/$PKG.NotifDots") }   // launcher notification dots
-        runCatching { sh("appops set $PKG SYSTEM_ALERT_WINDOW allow") }   // bank app reopen (basic mode)
-        runCatching { sh("appops set $PKG REQUEST_INSTALL_PACKAGES allow") }   // self-update without asking (basic mode)
+        optionalGrants(::sh)
         mark(app, 5, STEP_RUN)
-        val merged = SelfSetupLogic.withAccessibility(sh("settings get secure enabled_accessibility_services"), ACC)
-        if (merged != null) sh("settings put secure enabled_accessibility_services '$merged'")
-        sh("settings put secure accessibility_enabled 1")
+        enableAccessibility(::sh)
         state[5] = STEP_OK
         if (!step(6, "dumpsys deviceidle whitelist +$PKG") { !it.contains("Unknown", true) && !it.contains("Exception", true) }) return
         // ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off): lock-card hint (read while the link is up)
@@ -279,6 +322,128 @@ object SelfSetup {
         stopDiscovery()
         notifyFinal(app, message)
         Guard.start(app)
+    }
+
+    /** Optional grants (errors ignored): remote phone settings, Do Not Disturb, notification dots, bank-app reopen, silent updates. */
+    private fun optionalGrants(sh: (String) -> String) {
+        runCatching { sh("appops set $PKG WRITE_SETTINGS allow") }; runCatching { sh("cmd notification allow_dnd $PKG") }
+        runCatching { sh("cmd notification allow_listener $PKG/$PKG.NotifDots") }   // launcher notification dots
+        runCatching { sh("appops set $PKG SYSTEM_ALERT_WINDOW allow") }   // bank app reopen (basic mode)
+        runCatching { sh("appops set $PKG REQUEST_INSTALL_PACKAGES allow") }   // self-update without asking (basic mode)
+    }
+
+    private fun enableAccessibility(sh: (String) -> String) {
+        val merged = SelfSetupLogic.withAccessibility(sh("settings get secure enabled_accessibility_services"), ACC)
+        if (merged != null) sh("settings put secure enabled_accessibility_services '$merged'")
+        sh("settings put secure accessibility_enabled 1")
+    }
+
+    // ---- keep the child's app accounts: turn their apps off, restart once, set Device Owner, turn them on ----
+
+    /** Turns [pkgs] off (their accounts stop counting), remembers it in Store, restarts the phone. [resume] goes on after the boot. */
+    private fun restartForAccounts(app: Context, pkgs: List<String>, sh: (String) -> String) {
+        val store = Store.of(app)
+        fun undo() { pkgs.forEach { runCatching { sh("pm enable $it") } }; store.ownerPending = "" }
+        // Wireless debugging has to come back by itself after the restart: needs this permission
+        if (!SelfSetupLogic.ok(sh("pm grant $PKG android.permission.WRITE_SECURE_SETTINGS"))) {
+            state[1] = STEP_ERR; message = app.getString(R.string.ss_cmd_fail); notifyFinal(app, app.getString(R.string.ss_failed, message)); return
+        }
+        store.ownerPending = SelfSetupLogic.encodePending(SelfSetupLogic.Pending(System.currentTimeMillis(), turnOffWifi, pkgs))   // before the first disable: a crash in between still turns them on
+        for (p in pkgs) {
+            val out = sh("pm disable-user --user 0 $p")
+            if (!out.contains("disabled")) {
+                undo(); state[1] = STEP_ERR; message = out.ifBlank { app.getString(R.string.ss_cmd_fail) }
+                notifyFinal(app, app.getString(R.string.ss_failed, message)); return
+            }
+        }
+        Thread.sleep(14_000); sh("sync")   // Android writes the app state to disk ~10 s later: rebooting sooner loses it
+        state[1] = STEP_OK
+        message = app.getString(R.string.ss_restart, pkgs.joinToString(", "))
+        notifyFinal(app, message)
+        Log.i(AdbPortFinder.TAG, "restart for accounts, apps off: $pkgs")
+        runCatching { sh("reboot") }
+    }
+
+    @Volatile private var resuming = false
+
+    /**
+     * After the restart (BOOT_COMPLETED) and on every app start: finish what [restartForAccounts] began, and in every case
+     * turn the apps back on. Runs in the background; does nothing when no restart is pending.
+     */
+    fun resume(ctx: Context) {
+        val app = ctx.applicationContext
+        val store = Store.of(app)
+        val raw = store.ownerPending
+        if (raw.isEmpty()) return
+        val pend = SelfSetupLogic.decodePending(raw) ?: run { store.ownerPending = ""; return }
+        synchronized(this) { if (resuming || running) return; resuming = true }
+        Thread({
+            try { resumeJob(app, store, pend) }
+            catch (e: Throwable) { Log.w(AdbPortFinder.TAG, "resume", e); runCatching { finishApps(app, store, pend, e.message ?: e.toString()) } }
+            finally { resuming = false }
+        }, "selfsetup-resume").start()
+    }
+
+    private fun resumeJob(app: Context, store: Store, pend: SelfSetupLogic.Pending) {
+        fun sh(cmd: String): String = SelfAdb.run(app, cmd) ?: ""
+        var err: String? = null
+        if (!Policy.isOwner(app)) {
+            val start = System.currentTimeMillis()
+            if (SelfSetupLogic.pendingStale(pend, start)) err = app.getString(R.string.ss_resume_late)
+            else {
+                notifyProgress(app, app.getString(R.string.ss_resume_run))
+                val deadline = minOf(pend.at + SelfSetupLogic.PENDING_MAX_MS, start + 4 * 60_000L)   // Wi-Fi and Wireless debugging come up some time after boot
+                var out: String? = null
+                while (System.currentTimeMillis() < deadline) {
+                    SelfAdb.invalidate(); out = SelfAdb.run(app, "dpm set-device-owner $PKG/.Admin")
+                    // null = no shell yet; "accounts" = Android re-checks them in the background for ~30 s after boot (measured)
+                    if (out != null && !out.contains("accounts", true)) break
+                    Thread.sleep(8000)
+                }
+                err = when {
+                    Policy.isOwner(app) -> null
+                    out == null -> app.getString(R.string.ss_resume_noadb)
+                    else -> out.ifBlank { app.getString(R.string.ss_cmd_fail) }
+                }
+            }
+        }
+        if (err == null) {
+            val r1 = sh("appops set $PKG GET_USAGE_STATS allow"); val r2 = sh("pm grant $PKG android.permission.WRITE_SECURE_SETTINGS")
+            if (!SelfSetupLogic.ok(r1)) err = r1 else if (!SelfSetupLogic.ok(r2)) err = r2
+            else {
+                optionalGrants(::sh); enableAccessibility(::sh)
+                sh("dumpsys deviceidle whitelist +$PKG")
+            }
+        }
+        finishApps(app, store, pend, err)
+    }
+
+    /** Always: apps back on. Then tell the parent how it went. [err] = why the steps did not finish, or null. */
+    private fun finishApps(app: Context, store: Store, pend: SelfSetupLogic.Pending, err: String?) {
+        val left = enableApps(app, pend.pkgs)
+        if (left.isEmpty()) store.ownerPending = ""   // else it stays: the next boot / app start tries again
+        if (err == null && pend.wifiOff) runCatching { android.provider.Settings.Global.putInt(app.contentResolver, "adb_wifi_enabled", 0) }
+        val text = buildString {
+            if (err == null) append(app.getString(R.string.ss_done)) else append(app.getString(R.string.ss_failed, err))
+            if (left.isEmpty()) append("\n").append(app.getString(R.string.ss_apps_back, pend.pkgs.joinToString(", ")))
+            else append("\n").append(app.getString(R.string.ss_apps_off, left.joinToString(", ")))
+        }
+        message = text; done = err == null && left.isEmpty()
+        notifyFinal(app, text)
+        Guard.start(app)
+    }
+
+    /** `pm enable` each; returns the ones still off (empty = all back). Without a shell nothing can be turned on: they stay in the list. */
+    private fun enableApps(app: Context, pkgs: List<String>): List<String> {
+        var left = pkgs
+        repeat(3) {
+            for (p in left) SelfAdb.run(app, "pm enable $p")
+            val off = SelfAdb.run(app, "pm list packages -d")?.let { SelfSetupLogic.packages(it) }
+            if (off != null) left = left.filter { it in off }
+            if (left.isEmpty()) return left
+            SelfAdb.invalidate(); Thread.sleep(3000)
+        }
+        return left
     }
 
     // ---- notification with a reply box: the pairing dialog closes if the user leaves Settings, so the code is typed here ----

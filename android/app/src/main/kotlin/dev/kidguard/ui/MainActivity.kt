@@ -105,18 +105,26 @@ class MainActivity : Activity() {
         hint = TextView(this).apply { textSize = 15f; setTextColor(u.sub); setLineSpacing(0f, 1.15f) }
         pairCard.addView(hint)
         col.addView(pairCard)
-        // quick row: frequent kid actions as round tiles (SOS keeps its confirm modal, see askSos)
-        val quick = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; weightSum = 4f; isBaselineAligned = false }
-        fun tileLp() = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(2); marginEnd = dp(2) }
+        // quick tiles: SOS first (keeps its confirm modal, see askSos), then the tiles the child picked (KidTilesLogic), then Edit
+        quickBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         sosBtn = u.tile(getString(R.string.home_sos), R.drawable.li_siren, u.danger) { if (paired(R.string.home_sos)) askSos() }.apply { contentDescription = getString(R.string.main_sos) }
-        quick.addView(sosBtn, tileLp())
         // v0.9.7 check-ins: secondary, no alarm (see askCheckin)
         ciArrived = u.tile(getString(R.string.main_ci_arrived), R.drawable.li_map_pin, u.accent) { if (paired(R.string.main_ci_arrived)) askCheckin("arrived") }
-        quick.addView(ciArrived, tileLp())
         ciPickup = u.tile(getString(R.string.main_ci_pickup), R.drawable.li_car, u.accent) { if (paired(R.string.main_ci_pickup)) askCheckin("pickup") }
-        quick.addView(ciPickup, tileLp())
-        quick.addView(u.tile(getString(R.string.q_lock_short), R.drawable.li_lock, u.accent) { Quick.lockOrSay(this) }.apply { contentDescription = getString(R.string.q_lock) }, tileLp())
-        col.addView(quick, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
+        tiles = linkedMapOf(
+            "sos" to sosBtn, "arrived" to ciArrived, "pickup" to ciPickup,
+            "lock" to u.tile(getString(R.string.q_lock_short), R.drawable.li_lock, u.accent) { Quick.lockOrSay(this) }.apply { contentDescription = getString(R.string.q_lock) },
+            "more" to u.tile(getString(R.string.main_more), R.drawable.li_timer, u.accent) { if (paired(R.string.main_more)) askMore() },
+            "usage" to u.tile(getString(R.string.ust_title), R.drawable.li_chart_column, u.accent) { runCatching { startActivity(Intent(this, UsageStatsActivity::class.java)) } },
+            "nlog" to u.tile(getString(R.string.nlog_title), R.drawable.li_bell, u.accent) { runCatching { startActivity(Intent(this, NotifLogActivity::class.java)) } },
+            "files" to u.tile(getString(R.string.files_menu), R.drawable.li_send, u.accent) { if (paired(R.string.files_menu)) ShareInActivity.pick(this) },
+            "log" to u.tile(getString(R.string.main_log), R.drawable.li_scroll_text, u.accent) { showLog() },
+            "edit" to u.tile(getString(R.string.tiles_edit), R.drawable.li_pencil, u.accent) { editTiles() },
+        )
+        // long-press on any tile = edit too (Android Quick Settings / iOS Control Center habit)
+        tiles.forEach { (id, b) -> if (id != "sos") b.setOnLongClickListener { editTiles(); true } }
+        layoutTiles()
+        col.addView(quickBox, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         // Kid Home: offered on the main screen while it isn't the home screen (it used to hide in "Tính năng và quyền")
         homeCard = u.cardBox(16).apply { (layoutParams as LinearLayout.LayoutParams).topMargin = dp(22) }
         homeCard.addView(u.label(getString(R.string.kh_title), 18f, u.text, true).apply {
@@ -424,7 +432,56 @@ class MainActivity : Activity() {
     }
 
     private lateinit var qr: ImageView
-    private lateinit var sosBtn: View
+    private lateinit var sosBtn: Button
+    private lateinit var quickBox: LinearLayout
+    private lateinit var tiles: Map<String, Button>
+    private val TILE_ICONS = mapOf("arrived" to R.drawable.li_map_pin, "pickup" to R.drawable.li_car, "lock" to R.drawable.li_lock,
+        "more" to R.drawable.li_timer, "usage" to R.drawable.li_chart_column, "nlog" to R.drawable.li_bell,
+        "files" to R.drawable.li_send, "log" to R.drawable.li_scroll_text)
+    private fun tilePrefs() = applicationContext.getSharedPreferences("quick", MODE_PRIVATE)
+    private fun picked() = KidTilesLogic.parse(tilePrefs().getString("tiles", null))
+
+    /** Rows of 4: SOS, the picked tiles, Edit (KidTilesLogic.rows). */
+    private fun layoutTiles() {
+        quickBox.removeAllViews()
+        tiles.values.forEach { (it.parent as? android.view.ViewGroup)?.removeView(it) }
+        KidTilesLogic.rows(picked()).forEachIndexed { i, ids ->
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; weightSum = KidTilesLogic.PER_ROW.toFloat(); isBaselineAligned = false }
+            ids.forEach { id -> tiles[id]?.let { row.addView(it, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(2); marginEnd = dp(2) }) } }
+            quickBox.addView(row, LinearLayout.LayoutParams(-1, -2).apply { if (i > 0) topMargin = dp(14) })
+        }
+    }
+
+    /** "Ô trên màn chính": shown tiles (tap = remove), then the rest (tap = add), max KidTilesLogic.MAX. */
+    private fun editTiles() {
+        val sh = Sheet(this, ui2, getString(R.string.tiles_title))
+        fun fill() {
+            sh.body.removeAllViews()
+            val cur = picked()
+            fun row(id: String, on: Boolean): View {
+                val b = tiles[id] ?: return View(this)
+                return ui2.listRow(b.text, TILE_ICONS[id] ?: R.drawable.li_settings, chevron = false) {
+                    val next = if (on) KidTilesLogic.remove(cur, id) else KidTilesLogic.add(cur, id)
+                    if (next == cur) { Toasts.show(this, getString(R.string.tiles_full, KidTilesLogic.MAX), true); return@listRow }
+                    tilePrefs().edit().putString("tiles", KidTilesLogic.join(next)).apply()
+                    layoutTiles(); fill()
+                }.apply {
+                    setCompoundDrawablesRelative(compoundDrawablesRelative[0], null,
+                        Ic.get(this@MainActivity, if (on) R.drawable.li_circle_minus else R.drawable.li_plus, if (on) ui2.danger else ui2.accent, dp(22)), null)
+                    contentDescription = getString(if (on) R.string.tiles_remove_x else R.string.tiles_add_x, b.text)
+                }
+            }
+            sh.body.addView(ui2.section(getString(R.string.tiles_on)))
+            sh.body.addView(ui2.cardBox(4).apply { cur.forEach { addView(row(it, true)) } })
+            if (cur.isEmpty()) sh.body.addView(ui2.label(getString(R.string.tiles_none), 14f).apply { setPadding(dp(12), dp(4), dp(12), 0) })
+            val add = KidTilesLogic.addable(cur)
+            if (add.isNotEmpty()) {
+                sh.body.addView(ui2.section(getString(R.string.tiles_add)))
+                sh.body.addView(ui2.cardBox(4).apply { add.forEach { addView(row(it, false)) } })
+            }
+        }
+        fill(); sh.show()
+    }
     private lateinit var ciArrived: Button
     private lateinit var ciPickup: Button
     private lateinit var updBtn: View

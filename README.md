@@ -61,7 +61,7 @@ KidGuard becomes the phone's **Device Owner**, the same Android role a company u
 
 ## Install
 
-Android only lets an app become Device Owner while the phone has **no accounts** (Google, Samsung, Xiaomi…). Remove them first, install, then sign back in: everything comes back.
+Android only lets an app become Device Owner while the phone has **no accounts**. Accounts of ordinary apps (Zalo, Facebook, Telegram…) are kept: KidGuard turns those apps off for a moment and the phone restarts once during setup. **Phone accounts** (Google, Samsung, Xiaomi, Oppo…) must be removed first (Settings → Accounts); sign back in after, everything comes back.
 
 | Way | Needs | Steps |
 |---|---|---|

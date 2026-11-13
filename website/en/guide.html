@@ -101,9 +101,10 @@
   </ol>
   <p>There are five ways to install; pick one. Ways A to D make KidGuard the phone's <b>Device Owner</b> (the Android role a company uses for work phones): it can lock apps and can't be removed, no root needed. Way E skips this but is weaker.</p>
   <div class="warnote">
-    <p><b>Only for Device Owner (ways A-D):</b> Android only lets an app become Device Owner while the phone has <b>no accounts</b> (Google, Samsung, Xiaomi…).</p>
-    <p>On the child's phone open <b>Settings → Accounts</b> and remove them all. Sign back in after setup: everything comes back.</p>
-    <p><b>Keep apps signed in</b> <span class="tag weak">Beta</span> Android only counts accounts of enabled apps. With <a href="#install-usb">way C</a> (computer), instead of removing the Facebook, Messenger, OneDrive… accounts, disable those apps for a moment: <code>adb shell pm disable-user --user 0 &lt;package&gt;</code>, set up Device Owner, then turn them back on: <code>adb shell pm enable &lt;package&gt;</code>. The apps stay signed in. Google and Samsung accounts still have to be removed (system apps, not safe to disable). Which app owns which account: <code>adb shell dumpsys account</code>. Only partly tested (Galaxy A51, Android 13).</p>
+    <p><b>Only for Device Owner (ways A-D):</b> Android only lets an app become Device Owner while the phone has <b>no accounts</b>. KidGuard keeps app accounts; phone accounts must be removed first.</p>
+    <p><b>Phone accounts</b> (Google, Samsung, Xiaomi, Oppo/HeyTap…): on the child's phone open <b>Settings → Accounts</b> and remove them. Sign back in after setup: everything comes back.</p>
+    <p><b>Keep apps signed in</b> (Zalo, Facebook, Telegram…): automatic. KidGuard turns those apps off for a moment, <b>the phone restarts once</b> (about 1 minute), setup finishes, and the apps are turned back on. Way A (QR) does not need it: a new phone has no accounts yet. Ways B, C, D all do it; the on-phone setup carries on after you unlock the screen and tells you with a notification. If a phone account is there, KidGuard stops and names the account to remove.</p>
+    <p>By hand (if needed): <code>adb shell pm disable-user --user 0 &lt;package&gt;</code>, wait 15 seconds, <code>adb shell sync</code>, <code>adb reboot</code>, wait about 30 seconds after the phone is up, set up Device Owner, then <code>adb shell pm enable &lt;package&gt;</code>. Which app owns which account: <code>adb shell dumpsys account</code>.</p>
   </div>
 
   <article id="install-phone">
@@ -138,7 +139,7 @@
     <h3>C. Computer and USB cable</h3>
     <p class="need">Needs: a computer with Chrome or Edge, a USB cable. No adb to install. About 3 minutes.</p>
     <ol class="steps">
-      <li>On the child's phone: remove every account (<b>Settings → Accounts</b>).</li>
+      <li>On the child's phone: remove the phone accounts (Google, Samsung, Xiaomi, Oppo…) in <b>Settings → Accounts</b>. Leave app accounts alone.</li>
       <li>Turn on Developer options: <b>Settings → About phone</b>, tap <b>Build number</b> 7 times.</li>
       <li>In Developer options, turn on <b>USB debugging</b>. Xiaomi / Redmi / POCO: also turn on <b>USB debugging (Security settings)</b> and <b>Install via USB</b>.</li>
       <li>Plug the phone into the computer and open the <a href="https://kidguard.99-hoangtran.workers.dev/install" target="_blank" rel="noopener">installer page</a> in Chrome or Edge.</li>
