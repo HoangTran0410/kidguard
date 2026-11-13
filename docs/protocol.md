@@ -530,7 +530,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   (`/start <code>` or the 6 digits); max 5 chats; a chat that blocks the bot (403) is dropped.
 - State: `"tg": {"on", "bot": "<username>", "err": "", "chats": [{"id": "<string>", "name", "at"}], "code": "123456"|null, "codeUntil"}`.
 - Commands in the chat (TgLogic, vi/en texts): /status /apps /locate (last fix + a fresh one within ~30 s, sendLocation) /events
-  /bonus N (bonus today += N, 1-600) /pause N (pausedUntil = now+N min) /resume /lock /ring /msg <text>
+  /code (current Authenticator code + seconds left + next code, read-only; "off" text when no secret) /bonus N (bonus today += N, 1-600) /pause N (pausedUntil = now+N min) /resume /lock /ring /msg <text>
   /block, /unblock (app buttons `b:<pkg>` / `u:<pkg>`) /limit N (dailyMin, or 7 x N when dailyByDay is set; 0 = none) /bed on|off
   /screen (Acc.capture 1280 px -> sendPhoto) /rec N (5-60 s mic, same notice as "listen", AAC document) /files (buttons `f:<id>` ->
   sendDocument, <= 50 MB) ; a document sent to the bot (<= 20 MB) is saved like a LAN upload (Download/KidGuard) /help /unlink.

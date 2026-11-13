@@ -145,4 +145,14 @@ class TgLogicTest {
         assertTrue(TgLogic.s("vi", "help", "Bin").contains("/lang") && TgLogic.s("en", "help", "Bin").contains("/lang"))
         assertTrue(TgLogic.menu("en").toString().contains("Status") && TgLogic.menu("vi").toString().contains("Tình hình"))
     }
+
+    @Test fun codeNowGivesCurrentCodeSecondsLeftAndNext() {
+        val secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"   // RFC 6238 SHA1 key "12345678901234567890"
+        val (c, left, next) = TgLogic.codeNow(secret, 59_000)!!
+        assertEquals("287082", c)                         // RFC vector 94287082 at T=59 s, last 6 digits
+        assertEquals(1, left)
+        assertEquals(Totp.code(Totp.decode(secret)!!, 2), next)
+        assertNull(TgLogic.codeNow("", 59_000))
+        assertFalse(TgLogic.isAction("code"))
+    }
 }

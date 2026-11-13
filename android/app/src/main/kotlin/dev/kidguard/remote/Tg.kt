@@ -230,7 +230,7 @@ object Tg {
     private fun setCommands(tok: String, lang: String) { for (l in listOf<String?>(null, "vi", "en")) setCommandsFor(tok, l ?: lang, l) }
     private fun setCommandsFor(tok: String, lang: String, code: String?) {
         fun body() = JSONObject().apply { if (code != null) put("language_code", code) }
-        val names = listOf("menu", "status", "apps", "locate", "events", "bonus", "pause", "resume", "lock", "ring", "msg", "block", "unblock", "limit", "bed", "screen", "rec", "files", "help", "lang", "unlink")
+        val names = listOf("menu", "status", "apps", "locate", "events", "bonus", "pause", "resume", "lock", "ring", "msg", "block", "unblock", "limit", "bed", "screen", "rec", "files", "code", "help", "lang", "unlink")
         val help = TgLogic.s(lang, "help", "").lines().drop(1)
         val desc = names.associateWith { n -> help.firstOrNull { Regex("(^|\\s)/$n(\\s|$)").containsMatchIn(it) && it.contains(" – ") }?.substringAfter("– ")?.substringBefore(" · ")?.take(60) ?: n }
         call(tok, "setMyCommands", body().put("commands", JSONArray().apply { names.forEach { put(JSONObject().put("command", it).put("description", desc[it])) } }))
@@ -327,6 +327,7 @@ object Tg {
 
             "bonus", "pause", "limit", "bed", "rec" ->
                 if (c.args.isEmpty()) show(subTitle(s, c.name, lang), TgLogic.sub(lang, c.name)) else runArg(g, s, chat, c, panel)
+            "code" -> TgLogic.codeNow(s.totpSecret, now)?.let { (c1, left, c2) -> say("code", c1, left, c2) } ?: say("codeOff")
             "lock" -> res(g.command(JSONObject().put("type", "lock")), "locked")
             "ring" -> res(g.command(JSONObject().put("type", "ring")), "ringing")
             "msg" -> if (c.rest.isBlank()) {

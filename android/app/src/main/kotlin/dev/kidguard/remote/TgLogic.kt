@@ -78,7 +78,7 @@ object TgLogic {
         "help" to "🤖 KidGuard – máy của %1\$s\n" +
             "Bấm 📋 Menu (hoặc /menu) để dùng nút bấm, khỏi gõ lệnh. Hoặc gõ:\n\n" +
             "👀 XEM\n/status – tình hình: giờ dùng, pin, mạng, app đang mở\n/locate – vị trí hiện tại\n/apps – app dùng nhiều hôm nay\n/events – cảnh báo gần đây\n\n" +
-            "⏱ THỜI GIAN\n/bonus 30 – cho thêm 30 phút hôm nay\n/pause 60 – cấm dùng 60 phút\n/resume – gỡ cấm dùng\n/limit 120 – giới hạn mỗi ngày (0 = bỏ)\n/bed – bật/tắt giờ ngủ\n\n" +
+            "⏱ THỜI GIAN\n/code – mã mở khoá 6 số (đọc cho con, hoặc mở phần bố mẹ trên máy con)\n/bonus 30 – cho thêm 30 phút hôm nay\n/pause 60 – cấm dùng 60 phút\n/resume – gỡ cấm dùng\n/limit 120 – giới hạn mỗi ngày (0 = bỏ)\n/bed – bật/tắt giờ ngủ\n\n" +
             "📱 APP\n/block – chọn app để chặn\n/unblock – bỏ chặn app\n\n" +
             "🎛 ĐIỀU KHIỂN\n/lock – khoá màn hình\n/ring – đổ chuông (tìm máy)\n/msg – hiện lời nhắn trên máy con\n\n" +
             "📸 TỪ XA\n/screen – chụp màn hình\n/rec – ghi âm xung quanh (máy con có thông báo)\n/files – file của con · gửi file vào đây = chuyển sang máy con\n\n" +
@@ -140,7 +140,9 @@ object TgLogic {
         "b.resume" to "▶️ Gỡ cấm", "b.noLimit" to "Bỏ giới hạn", "b.bedOn" to "🌙 Bật", "b.bedOff" to "☀️ Tắt",
         "b.plus" to "+%1\$s", "b.sec" to "%1\$d giây",
         "kbPh" to "Gõ lệnh hoặc bấm nút…",
-        "b.lang" to "🇬🇧 English", "langDone" to "🇻🇳 Đã chuyển sang Tiếng Việt.",
+        "b.lang" to "🇬🇧 English", "b.code" to "🔑 Mã mở khoá",
+        "code" to "🔑 Mã: %1\$s (còn %2\$d giây)\nMã kế tiếp: %3\$s\nCon nhập ở ô Mở khoá để hết giới hạn; mã cũng mở được phần bố mẹ trên máy con (bạn sẽ nhận cảnh báo). Mỗi mã dùng 1 lần.",
+        "codeOff" to "🔑 Chưa bật mã mở khoá. Bật ở trang phụ huynh, mục Mã mở khoá (Google Authenticator).", "langDone" to "🇻🇳 Đã chuyển sang Tiếng Việt.",
         "busy" to "⏳ Đang làm…", "b.recFile" to "⬇️ Tải file ghi âm", "busyOne" to "⏳ Đang làm việc này cho một yêu cầu khác, đợi xong rồi thử lại.",
         "newLink" to "🔗 Một chat Telegram mới vừa liên kết với máy: %1\$s. Không phải bạn hay người nhà? Gỡ trong KidGuard (Cài đặt > Telegram).",
         "locOld" to "Vị trí cũ lúc %1\$s (sai số ~%2\$d m), đang lấy vị trí mới…", "b.blockMore" to "⛔ Chặn app khác", "b.unblockMore" to "✅ Bỏ chặn app khác",
@@ -172,7 +174,7 @@ object TgLogic {
         "help" to "🤖 KidGuard – %1\$s's phone\n" +
             "Tap 📋 Menu (or /menu) for buttons, no typing needed. Or send:\n\n" +
             "👀 SEE\n/status – time used, battery, network, open app\n/locate – where the phone is\n/apps – most used apps today\n/events – recent alerts\n\n" +
-            "⏱ TIME\n/bonus 30 – 30 more minutes today\n/pause 60 – no phone for 60 min\n/resume – end the pause\n/limit 120 – daily limit (0 = none)\n/bed – bedtime on/off\n\n" +
+            "⏱ TIME\n/code – 6-digit unlock code (read it to your kid, or open the parent page on the phone)\n/bonus 30 – 30 more minutes today\n/pause 60 – no phone for 60 min\n/resume – end the pause\n/limit 120 – daily limit (0 = none)\n/bed – bedtime on/off\n\n" +
             "📱 APPS\n/block – pick an app to block\n/unblock – unblock an app\n\n" +
             "🎛 CONTROL\n/lock – lock the screen\n/ring – ring (find the phone)\n/msg – show a message on the phone\n\n" +
             "📸 REMOTE\n/screen – screenshot\n/rec – record the sound around (the phone shows a notice)\n/files – the child's files · send a file here = to the phone\n\n" +
@@ -233,7 +235,9 @@ object TgLogic {
         "b.resume" to "▶️ End pause", "b.noLimit" to "No limit", "b.bedOn" to "🌙 On", "b.bedOff" to "☀️ Off",
         "b.plus" to "+%1\$s", "b.sec" to "%1\$d s",
         "kbPh" to "Send a command or tap a button…",
-        "b.lang" to "🇻🇳 Tiếng Việt", "langDone" to "🇬🇧 Switched to English.",
+        "b.lang" to "🇻🇳 Tiếng Việt", "b.code" to "🔑 Unlock code",
+        "code" to "🔑 Code: %1\$s (%2\$d s left)\nNext code: %3\$s\nYour kid types it in the Unlock box to lift the limits; it also opens the parent page on the phone (you get an alert). Each code works once.",
+        "codeOff" to "🔑 Unlock codes are off. Turn them on in the parent page, Unlock codes (Google Authenticator).", "langDone" to "🇬🇧 Switched to English.",
         "busy" to "⏳ Working…", "b.recFile" to "⬇️ Download the recording", "busyOne" to "⏳ Already doing this for another request, try again when it's done.",
         "newLink" to "🔗 A new Telegram chat just linked to the phone: %1\$s. Not you or family? Remove it in KidGuard (Settings > Telegram).",
         "locOld" to "Old location from %1\$s (~%2\$d m), getting a fresh one…", "b.blockMore" to "⛔ Block another", "b.unblockMore" to "✅ Unblock another",
@@ -269,9 +273,16 @@ object TgLogic {
     fun err(lang: String, why: String): String { val m = if (lang == "en") EN else VI; return m["e.$why"] ?: m["e." + why.substringBefore(" (")] ?: why }
 
     /** Typed commands that change something on the phone (the rest only read). Too old ones are not run ([tooOld]). */
-    private val READ_ONLY = setOf("start", "help", "menu", "lang", "status", "apps", "events", "files")
+    private val READ_ONLY = setOf("start", "help", "menu", "lang", "status", "apps", "events", "files", "code")
     fun isAction(name: String) = name !in READ_ONLY
     const val MAX_AGE_MS = 10 * 60_000L
+
+    /** `/code`: the current Authenticator code, seconds it has left, and the next one; null = no valid secret. */
+    fun codeNow(secret: String, nowMs: Long): Triple<String, Int, String>? {
+        val key = Totp.decode(secret) ?: return null
+        val t = nowMs / 30_000
+        return Triple(Totp.code(key, t), (30 - (nowMs / 1000) % 30).toInt(), Totp.code(key, t + 1))
+    }
     /** [dateSec] = Telegram message.date (0 = unknown, never old). */
     fun tooOld(dateSec: Long, nowMs: Long): Boolean = dateSec > 0 && nowMs - dateSec * 1000 > MAX_AGE_MS
 
@@ -331,7 +342,8 @@ object TgLogic {
             listOf(b("limit", "n:limit"), b("bed", "n:bed")),
             listOf(b("apps", "c:apps"), b("events", "c:events")),
             listOf(b("rec", "n:rec"), b("files", "c:files")),
-            listOf(b("help", "c:help"), b("lang", "c:lang " + other(lang)))))
+            listOf(b("code", "c:code"), b("help", "c:help")),
+            listOf(b("lang", "c:lang " + other(lang)))))
     }
 
     /** A sub-panel (bonus / pause / limit / bed / rec) with a way back; null = no such panel. */
