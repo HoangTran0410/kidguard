@@ -236,7 +236,7 @@ L.en = {
   "hl.c.cache.ok": "Caches are small ({0})", "hl.c.cache.bad": "Caches take {0}", "hl.c.cache.why": "Safe to clear: apps rebuild them.",
   "hl.c.bg.ok": "Few apps run in the background ({0})", "hl.c.bg.bad": "{0} apps may run in the background", "hl.c.bg.why": "Saves battery and memory.",
   "hl.c.battery.ok": "Battery {0}", "hl.c.battery.bad": "Battery low ({0})", "hl.c.battery.why": "Charge the phone.",
-  "cr.bgLimit.no adb": "The kid's phone has no KidGuard adb link now (needs Wireless debugging).", "cr.bgLimit.failed": "The kid's phone could not limit background apps.", "cr.bgRestore.no adb": "No adb link now: some apps are still limited.",
+  "cr.bgLimit.no adb": "The kid's phone has no KidGuard adb link now (needs Wireless debugging).", "cr.bgLimit.failed": "The kid's phone could not limit background apps.", "cr.bgLimit.unsupported": "The child phone's Android is too old (needs Android 9+).", "cr.bgRestore.no adb": "No adb link now: some apps are still limited.",
   "hd.ok": "Hidden", "hd.noAdb": "Waiting for adb on the phone", "hd.refused": "Phone won't hide", "hd.waiting": "Waiting for phone…", "hd.showing": "Showing again…",
   "hd.sum": "Hid {0}/{1} apps", "hd.refN": { one: "{0} app the phone won't hide", other: "{0} apps the phone won't hide" }, "hd.waitN": { one: "{0} app waiting for the phone", other: "{0} apps waiting for the phone" },
   "hd.refTip": "\"Phone won't hide\": the phone maker locks this app (e.g. ColorOS locks Game Center, App Market). KidGuard retries every 10 min. To stop, untick it and Save. To keep the kid out, block it in the App list.",

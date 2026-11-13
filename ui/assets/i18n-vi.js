@@ -239,7 +239,7 @@ L.vi = {
   "hl.c.cache.ok": "Cache nhỏ ({0})", "hl.c.cache.bad": "Cache chiếm {0}", "hl.c.cache.why": "Xoá an toàn: app tự tạo lại.",
   "hl.c.bg.ok": "Ít app chạy nền ({0})", "hl.c.bg.bad": "{0} app được chạy nền", "hl.c.bg.why": "Đỡ hao pin và RAM.",
   "hl.c.battery.ok": "Pin {0}", "hl.c.battery.bad": "Pin yếu ({0})", "hl.c.battery.why": "Cắm sạc cho máy.",
-  "cr.bgLimit.no adb": "Máy con chưa có adb riêng của KidGuard (cần Gỡ lỗi không dây).", "cr.bgLimit.failed": "Máy con không hạn chế được app chạy nền.", "cr.bgRestore.no adb": "Chưa có adb: vài app vẫn bị hạn chế.",
+  "cr.bgLimit.no adb": "Máy con chưa có adb riêng của KidGuard (cần Gỡ lỗi không dây).", "cr.bgLimit.failed": "Máy con không hạn chế được app chạy nền.",  "cr.bgLimit.unsupported": "Android trên máy con quá cũ (cần Android 9+).", "cr.bgRestore.no adb": "Chưa có adb: vài app vẫn bị hạn chế.",
   "hd.ok": "Đã ẩn", "hd.refused": "Máy không cho ẩn", "hd.noAdb": "Chờ adb trên máy con", "hd.waiting": "Chờ máy con…", "hd.showing": "Đang hiện lại…",
   "hd.sum": "Đã ẩn {0}/{1} app", "hd.refN": "{0} app máy không cho ẩn", "hd.waitN": "{0} app đang chờ máy con",
   "hd.refTip": "\"Máy không cho ẩn\": hãng máy khoá app này (vd. ColorOS khoá Trung tâm game, Cửa hàng). KidGuard thử lại mỗi 10 phút. Muốn thôi: bỏ tích rồi Lưu. Muốn con không vào được: chặn ở tab Danh sách app.",

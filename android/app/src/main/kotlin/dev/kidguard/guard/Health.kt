@@ -105,6 +105,7 @@ object Health {
 
     /** "bgLimit": RUN_ANY_IN_BACKGROUND -> ignore for the candidates that still allow it. [only] = the parent's list (still filtered). "ok" | "no adb" | "failed". */
     fun bgLimit(ctx: Context, s: Store, only: Collection<String>?): String {
+        if (Build.VERSION.SDK_INT < 28) return "unsupported"   // RUN_ANY_IN_BACKGROUND is API 28+ (Oppo 8.1: "Unknown operation string")
         val cand = bgCandidates(ctx, s).let { c -> if (only.isNullOrEmpty()) c else c.intersect(only.toSet()) }
         val modes = bgModes(ctx, cand) ?: return "no adb"
         val todo = cand.filter { modes[it] == true }
