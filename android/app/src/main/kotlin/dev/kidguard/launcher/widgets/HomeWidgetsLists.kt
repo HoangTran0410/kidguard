@@ -78,7 +78,7 @@ internal fun HomeActivity.usageWidget(dv: View0, all: Map<String, AppE>, w: Int,
         val card = wCard()
         card.addView(wHead(R.drawable.li_timer, title))
         card.addView(wEmpty(getString(R.string.hm_w_usage_none)))
-        return centred(card)
+        return centred(card).also { usageOpen(card) }
     }
     if (h < 2) {
         val card = wCard(false)
@@ -99,7 +99,7 @@ internal fun HomeActivity.usageWidget(dv: View0, all: Map<String, AppE>, w: Int,
             row.addView(col, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(10) })
         }
         card.contentDescription = "$title. ${dur(total)}"
-        return centred(card)
+        return centred(card).also { usageOpen(card) }
     }
     val card = wCard()
     card.addView(wHead(R.drawable.li_timer, title, dur(total)))
@@ -120,8 +120,11 @@ internal fun HomeActivity.usageWidget(dv: View0, all: Map<String, AppE>, w: Int,
         row.contentDescription = "${a.label}. ${dur(e.value)}"
         card.addView(row, LinearLayout.LayoutParams(-1, -2))
     }
-    return centred(card)
+    return centred(card).also { usageOpen(card) }
 }
+
+/** Tap = the full app-usage screen. */
+private fun HomeActivity.usageOpen(v: View) = kit.tap(v, 22f) { UsageStatsActivity.open(this) }
 
 private fun HomeActivity.bar(wDp: Int, color: Int = pal.sub) = View(this).apply { background = fill(color, 2f) }
     .let { v -> v to LinearLayout.LayoutParams(dp(wDp), dp(4)).apply { topMargin = dp(4) } }

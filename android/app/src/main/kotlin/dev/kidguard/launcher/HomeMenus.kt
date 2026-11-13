@@ -58,35 +58,56 @@ internal fun HomeActivity.pausedSheet(a: AppE, reason: String, dv: View0, r: Rul
  * [info] fills a small line under the title (it may set the text later, from a background read).
  */
 internal class MenuHead(val title: String?, val buttons: List<HeadBtn> = emptyList(), val chips: List<MenuChip> = emptyList(),
-                        val info: ((TextView) -> Unit)? = null)
+                        val info: ((TextView) -> Unit)? = null, val infoRun: (() -> Unit)? = null)
 internal class HeadBtn(val icon: Int, val desc: String, val run: () -> Unit)
 internal class MenuChip(val label: String, val on: Boolean, val run: () -> Unit)
 
-internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: Int = 0, head: MenuHead? = null) {
+/** A menu row; [danger] = red label (Uninstall). */
+internal class MRow(val row: Row, val danger: Boolean = false)
+
+internal fun HomeActivity.menu(rows: List<Row>, anchor: View?, x: Int = 0, y: Int = 0, head: MenuHead? = null) =
+    menuGroups(listOf(rows.map { MRow(it) }), anchor, x, y, head)
+
+/**
+ * iOS 17 look: one translucent rounded panel, 44 dp rows (label left, icon at the right end), hairlines inside a group,
+ * a thicker band between groups. Nothing is built that the first frame doesn't show.
+ */
+internal fun HomeActivity.menuGroups(groups: List<List<MRow>>, anchor: View?, x: Int = 0, y: Int = 0, head: MenuHead? = null) {
     popup?.dismiss()
     val t0 = Perf.now()
     val focus = menuFocus(anchor)
-    val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = fill(pal.sheet, 16f); setPadding(0, dp(6), 0, dp(6)); elevation = dpf(8f) }
+    val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
     // 250dp, wider with a big system font, never wider than the screen; taller than the screen scrolls
     val mw = minOf(dp((250 * resources.configuration.fontScale.coerceIn(1f, 1.4f)).toInt()), root.width - dp(16))
     val maxH = root.height - insT - insB - dp(24)
+    val panelBg = android.graphics.drawable.GradientDrawable().apply { setColor(pal.sheet and 0x00FFFFFF or (0xEE shl 24)); cornerRadius = dpf(14f) }
     val scroll = object : android.widget.ScrollView(this) {
         override fun onMeasure(w: Int, h: Int) = super.onMeasure(w, View.MeasureSpec.makeMeasureSpec(maxH, View.MeasureSpec.AT_MOST))
-    }.apply { isVerticalScrollBarEnabled = false; background = fill(pal.sheet, 16f); elevation = shadow(8f); addView(box) }
-    box.background = null; box.elevation = 0f
+    }.apply { isVerticalScrollBarEnabled = false; background = panelBg; elevation = shadow(8f); clipToOutline = true; addView(box) }
     val pw = PopupWindow(scroll, mw, ViewGroup.LayoutParams.WRAP_CONTENT, true)
+    val hair = pal.sub and 0x00FFFFFF or 0x33000000
     if (head != null) menuHead(box, head, pw)
-    for (r in rows) box.addView(LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(14), dp(12), dp(14), dp(12))
-        val c = if (r.enabled) pal.text else pal.sub
-        addView(ImageView(context).apply { setImageDrawable(Ic.get(context, r.icon, if (r.enabled) pal.onTint else pal.sub, dp(18))); background = fill(if (r.enabled) pal.tint else pal.bg); setPadding(dp(6), dp(6), dp(6), dp(6)) },
-            LinearLayout.LayoutParams(dp(30), dp(30)))
-        addView(text(r.label, 15f, c).apply { setPadding(dp(12), 0, 0, 0); maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
-        isEnabled = r.enabled
-        kit.tap(this, 10f)
-        if (r.enabled) setOnClickListener { pw.dismiss(); r.run() }
-        contentDescription = r.label
-    }, LinearLayout.LayoutParams(-1, -2))
+    var first = true
+    for (g in groups) {
+        if (g.isEmpty()) continue
+        if (!first) box.addView(View(this).apply { setBackgroundColor(pal.sub and 0x00FFFFFF or 0x22000000) }, LinearLayout.LayoutParams(-1, dp(7)))
+        first = false
+        g.forEachIndexed { i, mr ->
+            val r = mr.row
+            if (i > 0) box.addView(View(this).apply { setBackgroundColor(hair) }, LinearLayout.LayoutParams(-1, 1).apply { leftMargin = dp(16) })
+            val c = if (!r.enabled) pal.sub else if (mr.danger) pal.dangerText else pal.text
+            box.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(16), 0, dp(14), 0); minimumHeight = dp(44)
+                addView(text(r.label, 16f, c).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, dp(4), dp(8), dp(4)) }, LinearLayout.LayoutParams(0, -2, 1f))
+                addView(ImageView(context).apply { setImageDrawable(Ic.get(context, r.icon, c, dp(20))); scaleType = ImageView.ScaleType.CENTER },
+                    LinearLayout.LayoutParams(dp(22), dp(22)))
+                isEnabled = r.enabled
+                kit.tap(this, 0f)
+                if (r.enabled) setOnClickListener { pw.dismiss(); r.run() }
+                contentDescription = r.label
+            }, LinearLayout.LayoutParams(-1, -2))
+        }
+    }
     pw.elevation = shadow(8f)
     pw.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
     pw.setOnDismissListener {
@@ -131,8 +152,9 @@ private fun HomeActivity.menuHead(box: LinearLayout, h: MenuHead, pw: PopupWindo
         }, LinearLayout.LayoutParams(dp(40), dp(40)))
     }, LinearLayout.LayoutParams(-1, -2))
     h.info?.let { fill ->
-        val tv = text("", 13f, pal.sub).apply { setPadding(dp(16), 0, dp(16), dp(6)); setLineSpacing(0f, 1.1f); visibility = View.GONE }
+        val tv = text("", 13f, pal.sub).apply { setPadding(dp(16), dp(10), dp(16), dp(10)); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; visibility = View.GONE }
         box.addView(tv, LinearLayout.LayoutParams(-1, -2))
+        h.infoRun?.let { run -> kit.tap(tv, 0f) { pw.dismiss(); run() }; tv.contentDescription = getString(R.string.menu_usage_open) }
         fill(tv)
     }
     if (h.chips.isNotEmpty()) box.addView(android.widget.HorizontalScrollView(this).apply {
@@ -146,30 +168,56 @@ private fun HomeActivity.menuHead(box: LinearLayout, h: MenuHead, pw: PopupWindo
             }, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(6) })
         })
     }, LinearLayout.LayoutParams(-1, -2))
-    box.addView(View(this).apply { setBackgroundColor(pal.sub and 0x00FFFFFF or 0x33000000) }, LinearLayout.LayoutParams(-1, 1).apply { setMargins(dp(14), dp(2), dp(14), dp(4)) })
+    if (h.info != null || h.chips.isNotEmpty() || h.title != null || h.buttons.isNotEmpty())
+        box.addView(View(this).apply { setBackgroundColor(pal.sub and 0x00FFFFFF or 0x22000000) }, LinearLayout.LayoutParams(-1, dp(7)))
 }
 
 internal fun HomeActivity.appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
     val m = model ?: return
     val placed = a.pkg in m.onHome()
-    // the system's app details (storage, notifications, permissions) as the header's (i) like Pixel / One UI. Only when
-    // the parent lets the kid open Settings: otherwise this would be a way into it.
-    val info = HeadBtn(R.drawable.li_info, getString(R.string.hm_app_info)) {
-        runCatching { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${a.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-    }.takeIf { settingsOk(Store.of(this).rules) }
-    menu(listOfNotNull(
+    val rules = Store.of(this).rules
+    // top level = what's used most (iOS: Edit Home Screen / Remove / Share / Remove App); the rest is behind "More…"
+    val g1 = listOfNotNull(
         Row(R.drawable.li_pin, getString(if (placed) R.string.hm_pinned else R.string.hm_pin), !placed) { update(HomeLayout.pin(m, a.pkg)); if (drawer != null) closeDrawer() }.takeIf { mode == Mode.DRAWER },
         Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { if (mode == Mode.PANEL) closeOverlay(); update(HomeLayout.remove(m, a.pkg)) }.takeIf { placed || mode != Mode.DRAWER },
-        Row(R.drawable.li_folder_plus, getString(R.string.hm_f_add), true) { addToFolderSheet(a) },
-        lookRow(a),
-        // its notification stats + hold (gom / tạm im): only where the history is kept
-        Row(R.drawable.li_chart_column, getString(R.string.hm_app_notifs), true) {
-            if (mode == Mode.PANEL) closeOverlay()
-            startActivity(Intent(this, NotifStatsActivity::class.java).putExtra(NotifStatsActivity.PKG, a.pkg))
-        }.takeIf { NotifDots.granted(this) && !a.pkg.startsWith("dev.kidguard") },
         // one way into edit mode (the old "Chọn" + "Sửa màn hình chính"): on the grid it starts with this icon picked
         Row(R.drawable.li_move, getString(R.string.hm_edit_home), true) { if (mode == Mode.PANEL) closeOverlay(); enterEdit(item?.id.takeIf { mode == Mode.HOME }) }.takeIf { mode != Mode.DRAWER },
-    ), v, head = MenuHead(a.label, listOfNotNull(info)) { tv -> appInfoLine(a.pkg, tv) })
+    )
+    // the system's app details only when the parent lets the kid open Settings: otherwise this would be a way into it
+    val info = Row(R.drawable.li_info, getString(R.string.hm_app_info), true) {
+        runCatching { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${a.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }.takeIf { settingsOk(rules) }
+    // rare ones, built only when "More…" is tapped
+    val more = Row(R.drawable.li_ellipsis, getString(R.string.menu_more), true) {
+        menuGroups(listOf(listOfNotNull(
+            Row(R.drawable.li_folder_plus, getString(R.string.hm_f_add), true) { addToFolderSheet(a) },
+            lookRow(a),
+            // its notification stats + hold (gom / tạm im): only where the history is kept
+            Row(R.drawable.li_chart_column, getString(R.string.hm_app_notifs), true) {
+                if (mode == Mode.PANEL) closeOverlay()
+                startActivity(Intent(this, NotifStatsActivity::class.java).putExtra(NotifStatsActivity.PKG, a.pkg))
+            }.takeIf { NotifDots.granted(this) && !a.pkg.startsWith("dev.kidguard") },
+        ).map { MRow(it) }), v)
+    }
+    val un = uninstallRow(a.pkg, rules)
+    menuGroups(listOf(g1, listOfNotNull(info, more), listOfNotNull(un)).map { g -> g.map { if (it === un) MRow(it, true) else MRow(it) } }, v,
+        head = MenuHead(null, info = { tv -> appInfoLine(a.pkg, tv) }, infoRun = { UsageStatsActivity.open(this, a.pkg) }))
+}
+
+/**
+ * iOS "Remove App": red, last group. Hidden for KidGuard itself and for system apps that can't be removed; greyed with
+ * the reason where the parent's rules (no installs, Settings closed) or the system (uninstall blocked) refuse.
+ */
+private fun HomeActivity.uninstallRow(pkg: String, r: Rules): Row? {
+    if (pkg == packageName || pkg.startsWith("dev.kidguard")) return null
+    val ai = runCatching { packageManager.getApplicationInfo(pkg, 0) }.getOrNull() ?: return null
+    if (ai.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0 && ai.flags and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP == 0) return null
+    val refused = !Flavor.HOME && (r.noInstall || !settingsOk(r)) ||
+        runCatching { Policy.dpm(this).isUninstallBlocked(null, pkg) }.getOrDefault(false)
+    if (refused) return Row(R.drawable.li_trash_2, getString(R.string.menu_uninstall_off), false) {}
+    return Row(R.drawable.li_trash_2, getString(R.string.menu_uninstall), true) {
+        runCatching { startActivity(Intent(Intent.ACTION_DELETE, android.net.Uri.parse("package:$pkg")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
 }
 
 /**

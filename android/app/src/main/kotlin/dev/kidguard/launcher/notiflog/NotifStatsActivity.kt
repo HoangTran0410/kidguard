@@ -122,6 +122,9 @@ class NotifStatsActivity : Activity() {
         if (s.total == 0) {
             col.addView(k.text(getString(R.string.nst_empty, range), 15f, pal.sub).apply { gravity = Gravity.CENTER; setLineSpacing(0f, 1.2f) },
                 LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(32); leftMargin = dp(24); rightMargin = dp(24) })
+            // no notifications is no reason to hide the way to the time screen
+            col.addView(k.pill(getString(R.string.ust_title), R.drawable.li_timer, false) { UsageStatsActivity.open(this, pkg) },
+                LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(18) })
             return
         }
         if (pkg != null && r.chans.isNotEmpty()) channels(r.chans, s.total)
@@ -130,6 +133,8 @@ class NotifStatsActivity : Activity() {
         section(getString(R.string.nst_heat))
         col.addView(card(heat(NotifStats.heat(r.cells))), LinearLayout.LayoutParams(-1, -2))
         if (pkg == null) apps(r.apps, NotifStats.covered(days, r.cells))
+        col.addView(k.pill(getString(R.string.ust_title), R.drawable.li_timer, false) { UsageStatsActivity.open(this, pkg) },
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(18) })
     }
 
     private fun rangeChips(): View {

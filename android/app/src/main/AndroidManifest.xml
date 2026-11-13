@@ -183,6 +183,13 @@
             android:screenOrientation="portrait"
             android:theme="@style/AppMain" />
         <activity
+            android:name=".UsageStatsActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="dev.kidguard.home"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppMain" />
+        <activity
             android:name=".NotifDetailActivity"
             android:exported="false"
             android:excludeFromRecents="true"

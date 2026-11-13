@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ust_title">App usage</string>
+    <string name="ust_today">Today</string>
+    <string name="ust_week">7 days</string>
+    <string name="ust_last7">Last 7 days</string>
+    <string name="ust_total">Total</string>
+    <string name="ust_yesterday">Yesterday</string>
+    <string name="ust_per_day">Per day</string>
+    <string name="ust_most">Most used</string>
+    <string name="ust_most_day">Busiest day</string>
+    <string name="ust_apps_n">Apps used</string>
+    <string name="ust_daily">Each day</string>
+    <string name="ust_bars_hint">Touch a bar for each day.</string>
+    <string name="ust_apps">By app</string>
+    <string name="ust_all_apps">All %1$d apps</string>
+    <string name="ust_empty_today">No app used yet today.</string>
+    <string name="ust_empty_week">No app used in the last 7 days.</string>
+    <string name="ust_need">Turn on usage access to see app time.</string>
+    <string name="ust_need_btn">Open settings</string>
+    <string name="ust_need_locked">Ask a parent to turn it on.</string>
+    <string name="ust_limit">Limit</string>
+    <string name="ust_none">None</string>
+    <string name="ust_left">Left today</string>
+    <string name="ust_limit_note">Limit %1$s a day</string>
+    <string name="ust_opened">Opened</string>
+    <plurals name="ust_times">
+        <item quantity="one">%1$d time</item>
+        <item quantity="other">%1$d times</item>
+    </plurals>
+    <plurals name="ust_opens">
+        <item quantity="one">%1$d open</item>
+        <item quantity="other">%1$d opens</item>
+    </plurals>
+</resources>

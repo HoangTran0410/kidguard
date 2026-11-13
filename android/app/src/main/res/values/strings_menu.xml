@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="menu_more">More…</string>
+    <string name="menu_uninstall">Uninstall</string>
+    <string name="menu_uninstall_off">Uninstall: ask a parent</string>
+    <string name="menu_usage_open">Open usage details</string>
+</resources>

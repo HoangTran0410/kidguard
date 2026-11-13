@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ust_title">Thời gian dùng app</string>
+    <string name="ust_today">Hôm nay</string>
+    <string name="ust_week">7 ngày</string>
+    <string name="ust_last7">7 ngày qua</string>
+    <string name="ust_total">Tổng</string>
+    <string name="ust_yesterday">Hôm qua</string>
+    <string name="ust_per_day">Mỗi ngày</string>
+    <string name="ust_most">Dùng nhiều nhất</string>
+    <string name="ust_most_day">Ngày nhiều nhất</string>
+    <string name="ust_apps_n">App đã dùng</string>
+    <string name="ust_daily">Từng ngày</string>
+    <string name="ust_bars_hint">Chạm vào cột để xem từng ngày.</string>
+    <string name="ust_apps">Theo app</string>
+    <string name="ust_all_apps">Cả %1$d app</string>
+    <string name="ust_empty_today">Hôm nay chưa dùng app nào.</string>
+    <string name="ust_empty_week">7 ngày qua chưa dùng app nào.</string>
+    <string name="ust_need">Bật quyền truy cập dữ liệu sử dụng để xem thời gian dùng app.</string>
+    <string name="ust_need_btn">Mở cài đặt</string>
+    <string name="ust_need_locked">Nhờ bố mẹ bật giúp.</string>
+    <string name="ust_limit">Giới hạn</string>
+    <string name="ust_none">Không có</string>
+    <string name="ust_left">Còn lại hôm nay</string>
+    <string name="ust_limit_note">Giới hạn %1$s mỗi ngày</string>
+    <string name="ust_opened">Đã mở</string>
+    <plurals name="ust_times">
+        <item quantity="other">%1$d lần</item>
+    </plurals>
+    <plurals name="ust_opens">
+        <item quantity="other">Mở %1$d lần</item>
+    </plurals>
+</resources>

@@ -63,6 +63,23 @@ object Usage {
         return Today(total, last)
     }
 
+    /** Times each app came to the front in [from, now] (an app that is already in front when the screen wakes counts once). */
+    fun opens(ctx: Context, from: Long, now: Long): Map<String, Int> {
+        val um = ctx.getSystemService(UsageStatsManager::class.java) ?: return emptyMap()
+        val ev = um.queryEvents(from, now) ?: return emptyMap()
+        val seq = ArrayList<String>()
+        val e = UsageEvents.Event()
+        while (ev.hasNextEvent()) {
+            ev.getNextEvent(e)
+            @Suppress("DEPRECATION")
+            when (e.eventType) {
+                UsageEvents.Event.MOVE_TO_FOREGROUND -> seq += e.packageName
+                SCREEN_NON_INTERACTIVE, KEYGUARD_SHOWN, DEVICE_SHUTDOWN -> seq += ""
+            }
+        }
+        return UsageStatsLogic.opens(seq).filterKeys { it.isNotEmpty() }
+    }
+
     private const val CARRY_MS = 6 * 3_600_000L
     private const val SCREEN_NON_INTERACTIVE = 16
     private const val KEYGUARD_SHOWN = 17
