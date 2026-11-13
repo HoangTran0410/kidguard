@@ -31,4 +31,5 @@
         <item quantity="other">Mở %1$d lần</item>
     </plurals>
     <string name="ust_all">Thời gian dùng: tất cả app</string>
+    <string name="bars_avg_v">Đường đứt: trung bình %1$s mỗi ngày</string>
 </resources>

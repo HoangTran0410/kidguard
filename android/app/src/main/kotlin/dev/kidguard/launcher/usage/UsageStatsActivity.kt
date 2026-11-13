@@ -345,6 +345,13 @@ class UsageStatsActivity : Activity() {
                 if (avg > 0) {
                     p.color = pal.sub; p.strokeWidth = dp(1).toFloat(); p.pathEffect = android.graphics.DashPathEffect(floatArrayOf(dp(4).toFloat(), dp(4).toFloat()), 0f)
                     val y = h - h * avg / max; c.drawLine(0f, y, width.toFloat(), y, p); p.pathEffect = null
+                    // its value at the right end (owner 2026-11-13: the line alone said nothing), on a pill over the bars
+                    val tx = dur(avg); p.textSize = k.dpf(11f); p.style = Paint.Style.FILL
+                    val tw = p.measureText(tx); val pad = k.dpf(5f); val th = p.textSize
+                    val ty = (y - k.dpf(4f)).coerceAtLeast(th + pad)
+                    r.set(width - tw - pad * 2, ty - th - pad / 2, width.toFloat(), ty + pad / 2)
+                    p.color = pal.sheet; c.drawRoundRect(r, k.dpf(8f), k.dpf(8f), p)
+                    p.color = pal.sub; c.drawText(tx, width - tw - pad, ty - k.dpf(1f), p)
                 }
             }
             override fun onTouchEvent(e: MotionEvent): Boolean {
@@ -366,7 +373,7 @@ class UsageStatsActivity : Activity() {
         val wd = getString(R.string.nlog_wd).split(',')
         for (i in v.indices) lab.addView(k.text(wd[(cal(d, i).get(Calendar.DAY_OF_WEEK) + 5) % 7].trim(), 11f, pal.sub).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(0, -2, 1f))
         box.addView(lab, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
-        box.addView(k.text(getString(R.string.nst_bars_avg), 11f, pal.sub), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+        box.addView(k.text(if (avg > 0) getString(R.string.bars_avg_v, dur(avg)) else getString(R.string.nst_bars_avg), 11f, pal.sub), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
         return box
     }
 }

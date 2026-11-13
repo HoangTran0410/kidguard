@@ -385,6 +385,7 @@ class NotifStatsActivity : Activity() {
     private fun bars(v: IntArray, days: List<Int>): View {
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val avg = v.sum().toFloat() / v.size
+        val avgN = Math.round(avg).let { resources.getQuantityString(R.plurals.nlog_total, it, it) }
         val idle = getString(R.string.nst_bars_max, v.maxOrNull() ?: 0)
         val cap = k.text(idle, 13f, pal.sub)
         box.addView(cap)
@@ -407,6 +408,13 @@ class NotifStatsActivity : Activity() {
                 if (avg > 0) {
                     p.color = pal.sub; p.strokeWidth = dp(1).toFloat(); p.pathEffect = android.graphics.DashPathEffect(floatArrayOf(dp(4).toFloat(), dp(4).toFloat()), 0f)
                     val y = h - h * avg / max; c.drawLine(0f, y, width.toFloat(), y, p); p.pathEffect = null
+                    // its value at the right end (owner 2026-11-13: the line alone said nothing), on a pill over the bars
+                    val tx = avgN; p.textSize = k.dpf(11f); p.style = Paint.Style.FILL
+                    val tw = p.measureText(tx); val pad = k.dpf(5f); val th = p.textSize
+                    val ty = (y - k.dpf(4f)).coerceAtLeast(th + pad)
+                    r.set(width - tw - pad * 2, ty - th - pad / 2, width.toFloat(), ty + pad / 2)
+                    p.color = pal.sheet; c.drawRoundRect(r, k.dpf(8f), k.dpf(8f), p)
+                    p.color = pal.sub; c.drawText(tx, width - tw - pad, ty - k.dpf(1f), p)
                 }
             }
             override fun onTouchEvent(e: MotionEvent): Boolean {
@@ -433,7 +441,7 @@ class NotifStatsActivity : Activity() {
             lab.addView(k.text(sd.format(dateOf(days[at])), 11f, pal.sub).apply { gravity = when (i) { 0 -> Gravity.START; 1 -> Gravity.CENTER; else -> Gravity.END } }, LinearLayout.LayoutParams(0, -2, 1f))
         }
         box.addView(lab, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
-        box.addView(k.text(getString(R.string.nst_bars_avg), 11f, pal.sub), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+        box.addView(k.text(if (avg > 0) getString(R.string.bars_avg_v, avgN) else getString(R.string.nst_bars_avg), 11f, pal.sub), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
         return box
     }
 

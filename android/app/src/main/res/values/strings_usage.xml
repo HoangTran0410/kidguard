@@ -33,4 +33,5 @@
         <item quantity="other">%1$d opens</item>
     </plurals>
     <string name="ust_all">Usage time: all apps</string>
+    <string name="bars_avg_v">Dashed line: average %1$s a day</string>
 </resources>
