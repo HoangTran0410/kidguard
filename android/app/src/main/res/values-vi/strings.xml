@@ -902,6 +902,7 @@
     <string name="cc_off">Tắt</string>
     <string name="hm_sc_added">Đã thêm \"%1$s\" ra màn hình chính</string>
     <string name="hm_sc_fail">Lối tắt này không mở được lúc này</string>
+    <string name="hm_sc_app">Lối tắt hỏng nên mở app thay</string>
     <string name="hm_sc_rm">Lối tắt rời màn hình chính. App vẫn còn.</string>
     <string name="main_need_pair_title">%1$s: cần ghép với bố mẹ trước</string>
     <string name="main_need_pair_body">Máy này chưa ghép với máy bố mẹ nên chưa gửi được tin.\n\nCách ghép: bố mẹ giữ nút \"Bố mẹ: hiện mã ghép\" ở đầu màn hình này 5 giây, rồi quét mã bằng máy bố mẹ.</string>

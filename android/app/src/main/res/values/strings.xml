@@ -921,6 +921,7 @@
     <string name="cc_off">Off</string>
     <string name="hm_sc_added">Added "%1$s" to the home screen</string>
     <string name="hm_sc_fail">This shortcut can\'t open now</string>
+    <string name="hm_sc_app">Shortcut broken, opened the app instead</string>
     <string name="hm_sc_rm">The shortcut leaves the home screen. The app stays.</string>
     <string name="main_need_pair_title">%1$s: pair with a parent first</string>
     <string name="main_need_pair_body">This phone isn\'t paired with a parent\'s phone, so it can\'t send the message.\n\nTo pair: a parent holds \"Parents: show the pairing code\" at the top of this screen for 5 seconds, then scans the code.</string>

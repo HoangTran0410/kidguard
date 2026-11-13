@@ -243,7 +243,12 @@ private fun HomeActivity.launchNow(a: AppE, from: View) {
         val vw = !Flavor.HOME && runCatching { AccPause.pause(this, a.pkg); DevOpts.pause(this, a.pkg); VpnPause.pause(this, a.pkg) }.getOrDefault(false)
         val opts = ActivityOptions.makeClipRevealAnimation(from, il[0] - fl[0], il[1] - fl[1], icon.width, icon.height).toBundle()
         DevOpts.afterOff(from.handler ?: android.os.Handler(mainLooper), if (vw) VpnPause.LAUNCH_DELAY_MS else 0L) {
-            if (!Shortcuts.start(this, a.pkg, a.cls.removePrefix(Shortcuts.PREFIX), i.sourceBounds, opts)) Toasts.show(this, R.string.hm_sc_fail)
+            if (!Shortcuts.start(this, a.pkg, a.cls.removePrefix(Shortcuts.PREFIX), i.sourceBounds, opts)) {
+                // a broken shortcut (MIUI Security "Clean" points at com.miui.cleanmaster, missing on global ROMs): open its app instead
+                val app = packageManager.getLaunchIntentForPackage(a.pkg)?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (app != null && runCatching { startActivity(app.also { x -> x.sourceBounds = i.sourceBounds }, opts); true }.getOrDefault(false)) Toasts.show(this, R.string.hm_sc_app)
+                else Toasts.show(this, R.string.hm_sc_fail)
+            }
         }
         return
     }
