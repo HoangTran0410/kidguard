@@ -959,7 +959,12 @@ Only volume, brightness, screen timeout and Do Not Disturb; anything else goes t
 - **Command** `bgLimit {pkgs?}` (short-lived, not PIN-gated): self-adb `cmd appops set <pkg> RUN_ANY_IN_BACKGROUND ignore` for user (non-system) apps that
   still allow it, except KidGuard, the parent app, the default launcher / keyboards / dialer / SMS, `rules.allow`, `accPause` / `vpnPause` / `devPause` /
   `tcpPause`, Tailscale. `pkgs` narrows the list (still filtered). The apps changed are remembered (`Store.bgLimited`). Result `"ok"` | `"no adb"` | `"failed"`.
-  **Command** `bgRestore {}` sets exactly those back to `allow` ("ok" | `"no adb"` while some are left). `release` does the same (both modes).
+  **Command** `bgRestore {pkgs?}` sets exactly those back to `allow` (`pkgs` = per-app undo, still only apps in `Store.bgLimited`; "ok" | `"no adb"` while some of the asked are left).
+  `release` does the same for all (both modes).
+- **State per app** (`apps[]`, added 2026-11-13, from the 10-min measure, patched at once after bgLimit / bgRestore): `bg` (true = background allowed, false = restricted; omitted
+  when unknown / no adb / Android < 9), `bgMine` (true = KidGuard restricted it), `bgKeep` (true = a user app that can never be restricted: the `bgLimit` filter above),
+  `bgIdle` (true = allowed, no foreground use and no notification in the last 7 days; only when usage access + notification access + >= 7 days of notification history exist, else never sent).
+  `health.checks[devOpts].v` = 2: Developer options on but KidGuard's own adb is usable (it needs them): `ok` true, 0 points, `fix` still true (`devOff` kills adb features).
 - **Rule** `kidClean` (see Rules JSON): the kid-side tile runs only `Policy.clearCaches` (caches, never app data, accounts or permissions), once per 10 min,
   logs `kid_clean`. The child never gets `bgLimit`.
 

@@ -317,6 +317,21 @@ object NotifLog {
         Overview(days, apps, kinds, total, oldest)
     }, done)
 
+    /** Packages that posted a notification in the last [days] days (Health "idle" hint); blocks up to 3 s, so call it off the main thread. null = unknown (history kept for fewer days, or the read failed). */
+    fun postersSince(ctx: Context, days: Int): Set<String>? {
+        if (keepDays(ctx) < days) return null
+        val out = java.util.concurrent.atomic.AtomicReference<Set<String>?>(null)
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val app = ctx.applicationContext
+        io.execute {
+            try {
+                val from = NotifQ.day(System.currentTimeMillis() - days * 86_400_000L)
+                out.set(db(app).rawQuery("SELECT DISTINCT p FROM n WHERE d >= ?", arrayOf(from.toString())).use { c -> val r = HashSet<String>(); while (c.moveToNext()) r += c.getString(0); r })
+            } catch (_: Exception) {} finally { latch.countDown() }
+        }
+        return if (latch.await(3, TimeUnit.SECONDS)) out.get() else null
+    }
+
     /** Notifications [pkg] posted today (the long-press menu's line), on the main thread. */
     fun today(ctx: Context, pkg: String, done: (Int) -> Unit) = onIo(ctx, { d ->
         d.rawQuery("SELECT COUNT(*) FROM n WHERE p = ? AND d = ?", arrayOf(pkg, NotifQ.day(System.currentTimeMillis()).toString())).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }

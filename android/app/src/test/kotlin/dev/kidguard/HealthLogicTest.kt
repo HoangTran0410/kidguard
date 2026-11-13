@@ -25,4 +25,9 @@ class HealthLogicTest {
     }
     @Test fun lowBatteryOkWhileCharging() = assertTrue(HealthLogic.evaluate(HealthLogic.In(battery = 5, charging = true)).checks.first { it.id == "battery" }.ok)
     @Test fun stores() { assertTrue(HealthLogic.isStore("com.android.vending")); assertFalse(HealthLogic.isStore(null)); assertFalse(HealthLogic.isStore("com.android.shell")) }
+    @Test fun devOptsUsedByOwnAdbIsInfo() {
+        val r = HealthLogic.evaluate(HealthLogic.In(devOpts = true, ownAdb = true, canDevOff = true))
+        val c = r.checks.first { it.id == "devOpts" }
+        assertTrue(c.ok); assertEquals(2, c.value); assertEquals(100, r.score)
+    }
 }

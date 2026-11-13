@@ -399,7 +399,8 @@ class Guard : Service() {
         apps.entries.sortedByDescending { use.ms[it.key] ?: 0 }.forEach { (p, label) ->
             list.put(JSONObject().put("pkg", p).put("label", label.take(40)).put("ms", use.ms[p] ?: 0).put("mb", sizeMb(p, now) ?: JSONObject.NULL)
                 .also { o -> cacheMb(p, now).takeIf { it > 0 }?.let { o.put("cache", it) }; if (!Debloat.canClear(p, packageName, never)) o.put("noClear", true) }
-                .put("blocked", want[p] ?: JSONObject.NULL).put("suspended", p in susp).put("protected", p in prot).put("new", p in newApps))
+                .put("blocked", want[p] ?: JSONObject.NULL).put("suspended", p in susp).put("protected", p in prot).put("new", p in newApps)
+                .also { o -> Health.appFields(p, store, o) })
         }
         val bm = getSystemService(BatteryManager::class.java)
         val pm = getSystemService(PowerManager::class.java)
@@ -657,7 +658,7 @@ class Guard : Service() {
         }
         "rescan" -> { forgetSizes(); preAt = 0L; kick(); "ok" }
         "bgLimit" -> Health.bgLimit(this, store, c.optJSONArray("pkgs")?.let { a -> (0 until a.length()).map { a.optString(it) } }).also { if (it == "ok") kick() }
-        "bgRestore" -> Health.bgRestore(this, store).also { if (it == "ok") kick() }
+        "bgRestore" -> Health.bgRestore(this, store, c.optJSONArray("pkgs")?.let { a -> (0 until a.length()).map { a.optString(it) } }).also { if (it == "ok") kick() }
         "clearCache" -> Policy.clearCaches(this).also { if (it == "ok") { forgetSizes(); store.log(R.string.log_cleared_cache); kick() } }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
         "devOff" -> devOff()

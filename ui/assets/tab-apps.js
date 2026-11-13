@@ -163,58 +163,168 @@ let healthBusy = "";   // fix-all / single fix running: the i18n key of the step
 let scanBusy = 0;       // rescan sent at (ms): the "Quét lại" button spins, the list is locked
 // ---- "Sức khoẻ máy": state.health {score, checks[{id, ok, w, fix, v}], limited} (docs/protocol.md "Phone health"). The score comes from the phone.
 const HL_GROUPS = [["safe", "shield", ["devOpts", "installs", "admins", "sideload", "patch"]], ["speed", "zap", ["storage", "cache", "bg"]], ["bat", "battery-full", ["battery"]]];
-const HL_CMD = { cache: { type: "clearCache" }, bg: { type: "bgLimit" }, devOpts: { type: "devOff" } };   // fix-all order: cache, bg, devOpts
-const HL_ORDER = ["cache", "bg", "devOpts"];
-let hlResult = null;   // {at, ok, n}: last fix-all line
+const HL_ORDER = ["cache", "bg", "devOpts"];   // review order: devOpts last (it takes KidGuard's own adb away)
+const HL_STEP = {   // id -> the command and the i18n key of the busy line
+  cache: () => ({ id: "cache", c: { type: "clearCache" }, busy: "hl.s.cache" }),
+  bg: pkgs => ({ id: "bg", n: pkgs.length, c: { type: "bgLimit", pkgs }, busy: "hl.s.bg" }),
+  devOpts: () => ({ id: "dev", c: { type: "devOff" }, busy: "hl.s.dev" }),
+};
+let hlResult = null;   // {at, items:[{id, n, r: ok | queued | fail | noadb}]}: what the last run did, per step
+let hlSheetDraw = null;   // redraw of the open review / background sheet (a command finished)
+const hlOwn = c => !!c && c.id === "devOpts" && c.v === 2;   // on, but KidGuard's own adb uses it: info, not an issue
 function hlVal(c) { return c.id === "cache" ? mbTxt(c.v) : c.id === "patch" ? t("hl.days", c.v) : c.id === "storage" ? c.v + "%" : c.id === "battery" ? c.v + "%" : c.v; }
+const bgIdleList = () => (st.apps || []).filter(x => x.bgIdle && x.bg === true && !x.bgKeep).map(x => x.pkg);
+const bgMineList = () => (st.apps || []).filter(x => x.bgMine).map(x => x.pkg);
+// one confirm text for every fix: what it does, what the child notices, what changes in KidGuard, how to undo
+function hlAskText(id) {
+  const own = id === "devOpts" && hlOwn(((st.health || {}).checks || []).find(c => c.id === "devOpts")), k = own ? "devOwn" : id;
+  const undo = id === "devOpts" ? t(st && st.dev && st.dev.canOn ? "dev.askOffBack" : "dev.askOffNoBack") : t("hl.i." + k + ".undo");
+  return [["what", t("hl.i." + k + ".what")], ["notice", t("hl.i." + k + ".notice")], ["kg", t("hl.i." + k + ".kg")], ["undo", undo]].map(([a, s]) => t("hl.k." + a) + " " + s).join("\n");
+}
+const hlResLine = it => t("hl.ri." + it.id, it.n) + ": " + t("hl.r." + it.r);
+function hlBusyBox(key, icn) { return `<div class="cbusy" role="status" aria-live="polite" style="margin:12px 0"><div class="cbusy-h"><span class="cbusy-ic">${ic(icn || "sparkles")}</span><span><b>${t(key)}</b><br><span class="mute">${t("hl.busy")}</span></span></div><div class="cbusy-bar"><i></i></div></div>`; }
+function hlResBox(since) {
+  if (!hlResult || hlResult.at < (since || Date.now() - 6 * 3600000)) return "";
+  const bad = hlResult.items.some(i => i.r === "fail" || i.r === "noadb");
+  return `<div class="alert ${bad ? "warn" : "ok"}" style="margin:10px 0;font-weight:400;font-size:14px;white-space:pre-line">${ic(bad ? "triangle-alert" : "circle-check")} ${hhmm(hlResult.at)}\n${hlResult.items.map(hlResLine).map(esc).join("\n")}</div>`;
+}
 function healthCard() {
   const h = st && st.health;
   if (!h || !Array.isArray(h.checks)) return `<div class="card"><h2 style="margin:0">${ic("heart-pulse")} ${t("hl.h")}</h2><p class="mute">${ic("hourglass")} ${t("hl.old")}</p></div>`;
   const sc = Math.max(0, Math.min(100, +h.score || 0)), tone = sc >= 80 ? "var(--ok)" : sc >= 50 ? "var(--warn)" : "var(--bad)", C = 2 * Math.PI * 52;
   const by = Object.fromEntries(h.checks.map(c => [c.id, c])), fixes = HL_ORDER.filter(i => by[i] && !by[i].ok && by[i].fix), busy = !!(healthBusy || cacheBusy || scanBusy);
-  const row = c => `<div class="app" style="align-items:center"><span style="color:${c.ok ? "var(--ok)" : "var(--warn)"};flex:none">${ic(c.ok ? "check" : "triangle-alert")}</span>
-    <div class="nm"><b>${t("hl.c." + c.id + (c.ok ? ".ok" : ".bad"), hlVal(c))}</b>${c.ok ? "" : `<span class="mute">${t("hl.c." + c.id + ".why")}</span>`}</div>
-    ${c.fix ? `<button type="button" class="sm" data-hlfix="${c.id}"${busy ? " disabled" : ""}>${ic("sparkles")} ${t("hl.fix")}</button>` : ""}</div>`;
-  const groups = HL_GROUPS.map(([g, i, ids]) => { const cs = ids.map(x => by[x]).filter(Boolean); return cs.length ? `<h3 style="margin:14px 0 2px;font-size:14px">${ic(i)} ${t("hl.g." + g)}</h3>${cs.map(row).join("")}` : ""; }).join("");
   const lim = +h.limited || 0;
+  const btn = c => {
+    if (c.id === "bg") return c.fix || lim ? `<button type="button" class="sm" data-hlbg="1">${ic("list-checks")} ${t("hl.bgOpen")}</button>` : "";
+    if (!c.fix) return "";
+    return `<button type="button" class="sm${hlOwn(c) ? " bad" : ""}" data-hlfix="${c.id}"${busy ? " disabled" : ""}>${ic("sparkles")} ${t(hlOwn(c) ? "hl.devOffOwn" : "hl.fix")}</button>`;
+  };
+  const row = c => { const own = hlOwn(c);
+    return `<div class="app" style="align-items:center"><span style="color:${own ? "var(--accent)" : c.ok ? "var(--ok)" : "var(--warn)"};flex:none">${ic(own ? "info" : c.ok ? "check" : "triangle-alert")}</span>
+    <div class="nm"><b>${own ? t("hl.c.devOpts.own") : t("hl.c." + c.id + (c.ok ? ".ok" : ".bad"), hlVal(c))}</b>${own ? `<span class="mute">${t("hl.c.devOpts.ownWhy")}</span>` : c.ok ? "" : `<span class="mute">${t("hl.c." + c.id + ".why")}</span>`}</div>
+    ${btn(c)}</div>`; };
+  const groups = HL_GROUPS.map(([g, i, ids]) => { const cs = ids.map(x => by[x]).filter(Boolean); return cs.length ? `<h3 style="margin:14px 0 2px;font-size:14px">${ic(i)} ${t("hl.g." + g)}</h3>${cs.map(row).join("")}` : ""; }).join("");
   return `<div class="card" id="healthCard"><h2 style="margin:0 0 8px">${ic("heart-pulse")} ${t("hl.h")}</h2>
     <div style="display:flex;align-items:center;gap:16px"><svg viewBox="0 0 120 120" width="112" height="112" role="img" aria-label="${esc(t("hl.score", sc))}" style="flex:none"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--track)" stroke-width="10"/>
       <circle cx="60" cy="60" r="52" fill="none" stroke="${tone}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(C * sc / 100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 60 60)"/>
       <text x="60" y="68" text-anchor="middle" font-size="30" font-weight="700" fill="currentColor">${sc}</text></svg>
       <div class="sp"><b style="font-size:17px">${t(sc >= 80 ? "hl.good" : sc >= 50 ? "hl.mid" : "hl.low")}</b><p class="mute" style="margin:2px 0 8px;font-size:13px">${t(fixes.length ? "hl.nFix" : "hl.noFix", fixes.length)}</p>
-      ${fixes.length ? `<button type="button" id="hlAll" class="pri"${busy ? " disabled" : ""}>${ic("sparkles")} ${t("hl.fixAll")}</button>` : ""}</div></div>
-    ${healthBusy ? `<div class="cbusy" role="status" aria-live="polite" style="margin-top:12px"><div class="cbusy-h"><span class="cbusy-ic">${ic("sparkles")}</span><span><b>${t(healthBusy)}</b><br><span class="mute">${t("hl.busy")}</span></span></div><div class="cbusy-bar"><i></i></div></div>`
-      : hlResult && Date.now() - hlResult.at < 6 * 3600000 ? `<p class="mute" style="margin:10px 0 0">${ic(hlResult.ok ? "circle-check" : "triangle-alert")} ${t(hlResult.ok ? "hl.done" : "hl.partial", hhmm(hlResult.at))}</p>` : ""}
+      ${fixes.length ? `<button type="button" id="hlAll" class="pri"${busy ? " disabled" : ""}>${ic("list-checks")} ${t("hl.review")}</button>` : ""}</div></div>
+    ${healthBusy ? hlBusyBox(healthBusy) : hlResBox()}
     <div${busy ? ' class="cbusy-lock" inert aria-disabled="true"' : ""}>${groups}
     ${lim ? `<button type="button" id="hlBack" class="sm" style="margin-top:10px">${ic("undo-2")} ${t("hl.back", lim)}</button>` : ""}
     <label class="row" style="margin-top:14px"><input type="checkbox" id="f-kc" ${edit && edit.kidClean ? "checked" : ""}${edit ? "" : " disabled"}><span class="sp">${ic("eraser")} ${t("hl.kc")}<br><span class="mute" style="font-size:13px">${t("hl.kcP")}</span></span></label></div>
     <p class="mute" style="margin-bottom:0">${ic("lightbulb")} ${t("hl.note")}</p></div>`;
 }
-async function hlRun(ids) {
-  if (healthBusy || cacheBusy || scanBusy) return;
-  const names = { cache: "hl.s.cache", bg: "hl.s.bg", devOpts: "hl.s.dev" }; let ok = 0, bad = 0;
-  for (const id of ids) {
-    healthBusy = names[id]; if (tab === "apps") spaceTabRedraw();
-    const r = await cmd(HL_CMD[id], null, false);   // one by one: the phone's adb runs commands in turn
-    if (r && (r.result === "ok" || r.result === "queued")) ok++; else bad++;
+function hlDraw() { if (tab === "apps") spaceTabRedraw(); if (hlSheetDraw) hlSheetDraw(); }
+// runs the steps one by one (the phone's adb runs commands in turn); busy line + locked list the whole time, result per step at the end
+async function hlExec(steps) {
+  if (healthBusy || cacheBusy || scanBusy || !steps.length) return false;
+  const items = [];
+  for (const s of steps) {
+    healthBusy = s.busy; hlDraw();
+    const r = await cmd(s.c, null, false);
+    items.push({ id: s.id, n: s.n, r: !r ? (st && st.clearCache ? "fail" : "noadb") : r.result === "queued" ? "queued" : "ok" });
     if (!r) break;
   }
-  healthBusy = ""; hlResult = { at: Date.now(), ok: !bad && ok > 0, n: ok };
-  await refresh();
+  healthBusy = ""; hlResult = { at: Date.now(), items }; hlDraw();
+  await refresh(); hlDraw();
+  return items.every(i => i.r === "ok" || i.r === "queued");
 }
 function spaceTabRedraw() { const p = $("#subp"); if (p && appsSub === "space") spaceTab(p); }
-function healthBind(b) {
-  const all = b.querySelector("#hlAll");
-  if (all) all.onclick = async () => {
-    const h = st && st.health; if (!h) return;
-    const ids = HL_ORDER.filter(i => h.checks.some(c => c.id === i && !c.ok && c.fix));
-    if (ids.length && await ask(t("hl.askAll", ids.map(i => t("hl.s." + i)).join(", ")), t("hl.fixAll"))) hlRun(ids);
+// "Xem & sửa": every proposed change with a switch, its effect and its undo; nothing runs before "Chạy"
+function hlReview() {
+  const h = st && st.health; if (!h) return;
+  const by = Object.fromEntries(h.checks.map(c => [c.id, c])), ids = HL_ORDER.filter(i => by[i] && !by[i].ok && by[i].fix);
+  const idle = bgIdleList(), sel = new Set(ids.filter(i => i === "cache"));   // only the safe one starts ticked
+  const info = {
+    cache: [t("hl.rv.cache", mbTxt(by.cache ? by.cache.v : 0)), t("hl.rv.cache.e"), t("hl.rv.cache.u")],
+    bg: [t("hl.rv.bg", idle.length), t("hl.rv.bg.e"), t("hl.rv.bg.u")],
+    devOpts: [t("hl.rv.dev"), t("hl.rv.dev.e") + (st.dev && st.dev.canOn ? "" : " " + t("dev.askOffNoBack")), t(st.dev && st.dev.canOn ? "dev.askOffBack" : "dev.askOffNoBack")],
   };
-  b.querySelectorAll("[data-hlfix]").forEach(x => x.onclick = async () => {
-    const id = x.dataset.hlfix;
-    if (id === "devOpts" ? await ask(t("dev.askOff") + " " + t(st && st.dev && st.dev.canOn ? "dev.askOffBack" : "dev.askOffNoBack"), t("dev.btn")) : id === "bg" ? await ask(t("hl.askBg"), t("hl.fix")) : true) hlRun([id]);
+  const body = () => `<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("list-checks", t("hl.review"))}
+    <p class="mute" style="margin:0 0 8px">${t("hl.reviewP")}</p>
+    ${ids.map(i => i === "bg" && !idle.length
+      ? `<div class="row" style="margin:8px 0;align-items:flex-start;flex-wrap:nowrap"><span class="sp"><b>${t("hl.rv.bgPick")}</b><br><span class="mute">${t("hl.rv.bgNone")}</span></span><button type="button" class="sm" data-rvbg="1">${ic("list-checks")} ${t("hl.bgOpen")}</button></div>`
+      : `<label class="row" style="margin:8px 0;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" data-rv="${i}"${sel.has(i) ? " checked" : ""}><span class="sp"><b>${esc(info[i][0])}</b><br><span class="mute">${esc(info[i][1])}</span><br><span class="mute">${ic("undo-2")} ${esc(info[i][2])}</span></span></label>`).join("")}
+    <div class="row" style="margin-top:14px"><button type="button" class="pri sp" id="rvGo">${ic("check")} <span id="rvGoT"></span></button></div></div>`;
+  sheet(body(), (pop, done) => {
+    const upd = () => { const go = pop.querySelector("#rvGo"); go.disabled = !sel.size; pop.querySelector("#rvGoT").textContent = sel.size ? t("hl.run", sel.size) : t("hl.runNone"); };
+    pop.querySelectorAll("[data-rv]").forEach(c => c.onchange = () => { c.checked ? sel.add(c.dataset.rv) : sel.delete(c.dataset.rv); upd(); });
+    const pk = pop.querySelector("[data-rvbg]"); if (pk) pk.onclick = () => { done(false); hlBgSheet(); };
+    pop.querySelector("#rvGo").onclick = () => { const steps = HL_ORDER.filter(i => sel.has(i)).map(i => HL_STEP[i](idle)); done(true); hlExec(steps); };
+    upd();
   });
-  const bk = b.querySelector("#hlBack"); if (bk) bk.onclick = async () => { if (healthBusy) return; healthBusy = "hl.s.back"; spaceTabRedraw(); try { await cmd({ type: "bgRestore" }, t("hl.backDone"), false); } finally { healthBusy = ""; } await refresh(); };
+}
+// "Hạn chế app chạy nền": every app with its own switch; locked rows say why; per-app undo; nothing runs before the confirm step
+function hlBgSheet() {
+  let q = "", stage = "list", live = true; const sel = new Set(), t0 = Date.now();
+  const apps = () => (st.apps || []).filter(x => x.bg !== undefined || x.bgKeep || x.bgMine).sort((a, b) => (a.label || "").localeCompare(b.label || ""));
+  const rowOf = x => {
+    if (x.bgKeep) return `<div class="app" style="align-items:center">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${ic("lock")} ${t("hl.bg.keep")}</span></div></div>`;
+    if (x.bg === false) return `<div class="app" style="align-items:center">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${t(x.bgMine ? "hl.bg.mine" : "hl.bg.other")}</span></div>${x.bgMine ? `<button type="button" class="sm" data-bgun="${esc(x.pkg)}" aria-label="${esc(t("hl.bg.undo") + " " + x.label)}">${ic("undo-2")} ${t("hl.bg.undo")}</button>` : ""}</div>`;
+    return `<label class="row" style="flex-wrap:nowrap;padding:4px 0"><input type="checkbox" data-bgs="${esc(x.pkg)}"${sel.has(x.pkg) ? " checked" : ""}>${icon(x)}<span class="sp"><b>${esc(x.label)}</b>${x.bgIdle ? `<br><span class="mute">${t("hl.bg.idle")}</span>` : ""}</span></label>`;
+  };
+  const list = () => { const s = q.trim().toLowerCase(), a = apps().filter(x => !s || (x.label || "").toLowerCase().includes(s) || x.pkg.toLowerCase().includes(s)); return a.length ? a.map(rowOf).join("") : `<p class="mute">${t("hl.bg.none")}</p>`; };
+  const nameOf = p => ((st.apps || []).find(x => x.pkg === p) || { label: p }).label;
+  const pop = () => $("#askPop");
+  const draw = () => {
+    const p = pop(); if (!live || !p) return;
+    const all = apps(), run = all.filter(x => x.bg === true).length, mine = bgMineList(), idle = bgIdleList(), n = sel.size, adb = !!st.clearCache;
+    if (stage === "confirm") {
+      const names = [...sel].map(nameOf), shown = names.slice(0, 8).join(", ") + (names.length > 8 ? " +" + (names.length - 8) : "");
+      p.innerHTML = `<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("triangle-alert", t("hl.bg.confirmH", n))}
+        <p style="margin:0 0 8px">${esc(shown)}</p><div style="white-space:pre-line;margin-bottom:12px">${esc(["what", "notice", "kg", "undo"].map(a => t("hl.k." + a) + " " + t("hl.i.bg." + a)).join("\n"))}</div>
+        <div class="row"><button type="button" class="sp" id="bgBack">${ic("arrow-left")} ${t("hl.bg.back")}</button><button type="button" class="sp bad" id="bgOk">${ic("check")} ${t("hl.bg.go", n)}</button></div></div>`;
+      p.querySelector("#askNo").onclick = () => { stage = "list"; draw(); };
+      p.querySelector("#bgBack").onclick = () => { stage = "list"; draw(); };
+      p.querySelector("#bgOk").onclick = () => { const pk = [...sel]; sel.clear(); stage = "list"; run2([HL_STEP.bg(pk)]); };
+      return;
+    }
+    const busy = !!(healthBusy || cacheBusy || scanBusy);
+    p.innerHTML = `<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("zap", t("hl.bg.h"))}
+      <p class="mute" style="margin:0 0 8px">${t("hl.bg.sub", run, mine.length)}</p>
+      ${healthBusy ? hlBusyBox(healthBusy, "zap") : hlResBox(t0)}
+      ${adb ? "" : `<div class="alert warn" style="margin:0 0 8px;font-weight:400;font-size:14px">${ic("triangle-alert")} ${t("hl.bg.noAdb")}</div>`}
+      <div${busy || !adb ? ' class="cbusy-lock" inert aria-disabled="true"' : ""}>
+      <input id="bgQ" type="search" placeholder="${esc(t("hl.bg.search"))}" aria-label="${esc(t("hl.bg.search"))}" value="${esc(q)}" style="width:100%;margin-bottom:8px">
+      <div class="chips" style="margin-bottom:8px"><button type="button" id="bgSug"${idle.length ? "" : " disabled"}>${ic("sparkles")} ${t("hl.bg.sug", idle.length)}</button><button type="button" id="bgClr"${n ? "" : " hidden"}>${ic("x")} ${t("hl.bg.clr")}</button></div>
+      ${idle.length ? "" : `<p class="mute" style="margin:0 0 8px;font-size:13px">${t("hl.bg.sugWhy")}</p>`}
+      <div id="bgList">${list()}</div>
+      <div class="row" style="margin-top:14px"><button type="button" class="pri sp" id="bgGo"${n ? "" : " disabled"}>${ic("check")} ${n ? t("hl.bg.limit", n) : t("hl.bg.pick")}</button></div>
+      ${mine.length ? `<div class="row" style="margin-top:8px"><button type="button" class="sp" id="bgAll">${ic("undo-2")} ${t("hl.bg.undoAll", mine.length)}</button></div>` : ""}</div></div>`;
+    wire(p);
+  };
+  const wire = p => {
+    p.querySelector("#askNo").onclick = () => { if (askDone) askDone(false); };
+    const bind = () => {
+      p.querySelectorAll("[data-bgs]").forEach(c => c.onchange = () => { c.checked ? sel.add(c.dataset.bgs) : sel.delete(c.dataset.bgs); upd(); });
+      p.querySelectorAll("[data-bgun]").forEach(b => b.onclick = () => run2([{ id: "back", n: 1, c: { type: "bgRestore", pkgs: [b.dataset.bgun] }, busy: "hl.s.back" }]));
+    };
+    const upd = () => { const g = p.querySelector("#bgGo"); g.disabled = !sel.size; g.lastChild.textContent = " " + (sel.size ? t("hl.bg.limit", sel.size) : t("hl.bg.pick")); p.querySelector("#bgClr").hidden = !sel.size; };
+    bind();
+    const qi = p.querySelector("#bgQ"); if (qi) qi.oninput = () => { q = qi.value; p.querySelector("#bgList").innerHTML = list(); bind(); };   // only the list: the box keeps its focus
+    const sg = p.querySelector("#bgSug"); if (sg) sg.onclick = () => { bgIdleList().forEach(x => sel.add(x)); draw(); };
+    const cl = p.querySelector("#bgClr"); if (cl) cl.onclick = () => { sel.clear(); draw(); };
+    const go = p.querySelector("#bgGo"); if (go) go.onclick = () => { if (sel.size) { stage = "confirm"; draw(); } };
+    const al = p.querySelector("#bgAll"); if (al) al.onclick = () => { const m = bgMineList(); run2([{ id: "back", n: m.length, c: { type: "bgRestore" }, busy: "hl.s.back" }]); };
+  };
+  const run2 = async steps => { await hlExec(steps); };
+  hlSheetDraw = draw;
+  sheet("").then(() => { live = false; if (hlSheetDraw === draw) hlSheetDraw = null; });
+  draw();
+}
+function healthBind(b) {
+  const all = b.querySelector("#hlAll"); if (all) all.onclick = hlReview;
+  b.querySelectorAll("[data-hlbg]").forEach(x => x.onclick = hlBgSheet);
+  b.querySelectorAll("[data-hlfix]").forEach(x => x.onclick = async () => {
+    const id = x.dataset.hlfix, c = ((st.health || {}).checks || []).find(y => y.id === id), own = hlOwn(c);
+    if (await ask(hlAskText(id), t(own ? "hl.devOffOwn" : id === "devOpts" ? "dev.btn" : "hl.fix"), id === "devOpts")) hlExec([HL_STEP[id]([])]);
+  });
+  const bk = b.querySelector("#hlBack"); if (bk) bk.onclick = async () => {
+    const m = bgMineList().length || +(st.health || {}).limited || 0;
+    if (await ask(t("hl.askBack", m), t("hl.bg.undoAll", m))) hlExec([{ id: "back", n: m, c: { type: "bgRestore" }, busy: "hl.s.back" }]);
+  };
   const kc = b.querySelector("#f-kc"); if (kc) kc.onchange = e => { if (!edit) return; edit.kidClean = e.target.checked; changed(); };
 }
 function spaceTab(b) {

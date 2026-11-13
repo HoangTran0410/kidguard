@@ -22,12 +22,17 @@ object Health {
     private const val TTL = 600_000L
     private const val OP = "RUN_ANY_IN_BACKGROUND"
     private const val BATCH = 25
-    private class Slow(val sideloaded: Int, val bg: Int?, val at: Long)
+    private data class Slow(val sideloaded: Int, val bg: Int?, val at: Long, val modes: Map<String, Boolean>, val user: Set<String>, val cand: Set<String>, val idle: Set<String>)
     @Volatile private var slow: Slow? = null
     @Volatile private var running = false
 
     /** Measure again at the next state (after a fix). */
-    fun invalidate() { slow = null }
+    fun invalidate() { slow = slow?.copy(at = 0) }   // keeps the last numbers on screen until the new measure lands
+
+    /** After a successful appops change: show the new mode at once (the re-measure takes a while). */
+    private fun patch(pkgs: Collection<String>, allowed: Boolean) {
+        slow = slow?.let { o -> val m = o.modes + pkgs.associateWith { allowed }; o.copy(modes = m, bg = if (o.bg != null) m.count { it.value } else null) }
+    }
 
     private fun userApps(ctx: Context): List<String> = runCatching {
         ctx.packageManager.getInstalledApplications(0)
@@ -62,14 +67,35 @@ object Health {
         return out
     }
 
+    /** Candidates with no use and no notification in 7 days ("Gợi ý"). Empty when either is unknown (no usage access / notification access / short history): never a guess. */
+    private fun idleApps(ctx: Context, cand: Set<String>): Set<String> = runCatching {
+        if (!Usage.granted(ctx) || !NotifDots.granted(ctx)) return emptySet()
+        val used = Usage.range(ctx, Usage.midnightAgo(7), System.currentTimeMillis()).ms.filterValues { it > 0 }.keys
+        val posted = NotifLog.postersSince(ctx, 7) ?: return emptySet()
+        cand - used - posted
+    }.getOrDefault(emptySet())
+
+    /** Per-app fields for state.apps[]: bg (true allowed / false restricted, omitted when unknown), bgMine, bgKeep (never restrictable, user apps only), bgIdle. */
+    fun appFields(pkg: String, s: Store, o: JSONObject) {
+        val sl = slow
+        val mine = pkg in s.bgLimited
+        if (mine) o.put("bgMine", true)
+        if (sl == null) { if (mine) o.put("bg", false); return }
+        if (mine) o.put("bg", false) else sl.modes[pkg]?.let { o.put("bg", it) }
+        if (pkg in sl.user && pkg !in sl.cand) o.put("bgKeep", true)
+        if (pkg in sl.idle && sl.modes[pkg] == true) o.put("bgIdle", true)
+    }
+
     private fun measure(ctx: Context, s: Store) {
         if (running) return
         running = true
         Thread {
             try {
                 val side = userApps(ctx).count { !HealthLogic.isStore(installer(ctx, it)) }
-                val bg = if (SelfAdb.ready(ctx)) bgModes(ctx, bgCandidates(ctx, s))?.count { it.value } else null
-                slow = Slow(side, bg, System.currentTimeMillis())
+                val cand = bgCandidates(ctx, s)
+                val modes = if (SelfAdb.ready(ctx)) bgModes(ctx, cand) else null
+                val bg = modes?.count { it.value }
+                slow = Slow(side, bg, System.currentTimeMillis(), modes ?: emptyMap(), userApps(ctx).toSet(), cand, idleApps(ctx, cand))
             } catch (e: Exception) { Log.w(TAG, "health measure", e) } finally { running = false }
         }.apply { isDaemon = true }.start()
     }
@@ -97,7 +123,7 @@ object Health {
         val bm = ctx.getSystemService(BatteryManager::class.java)
         val bat = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
         val r = HealthLogic.evaluate(HealthLogic.In(dev, installs, patchDays(), free, cacheMb, sl?.sideloaded, bat, bm?.isCharging == true, sl?.bg, admins,
-            canDevOff = DevOpts.canOff(ctx), canCache = clearCacheOk, canBg = clearCacheOk))
+            ownAdb = clearCacheOk, canDevOff = DevOpts.canOff(ctx), canCache = clearCacheOk, canBg = clearCacheOk))
         val limited = s.bgLimited.size
         return JSONObject().put("score", r.score).put("limited", limited).put("at", sl?.at ?: 0L)
             .put("checks", JSONArray().apply { r.checks.forEach { put(JSONObject().put("id", it.id).put("ok", it.ok).put("w", it.weight).put("fix", it.fixable).put("v", it.value)) } })
@@ -112,7 +138,7 @@ object Health {
         var done = s.bgLimited; var bad = 0
         for (chunk in todo.chunked(BATCH)) {
             val out = SelfAdb.run(ctx, chunk.joinToString("; ") { "cmd appops set $it $OP ignore" }) ?: return if (done.size > s.bgLimited.size) { s.bgLimited = done; "failed" } else "no adb"
-            if (out.isNotBlank()) { bad += chunk.size; Log.w(TAG, "bgLimit: $out") } else done = done + chunk
+            if (out.isNotBlank()) { bad += chunk.size; Log.w(TAG, "bgLimit: $out") } else { done = done + chunk; patch(chunk, false) }
             s.bgLimited = done
         }
         invalidate()
@@ -121,18 +147,19 @@ object Health {
         return "ok"
     }
 
-    /** Puts back what [bgLimit] changed (command "bgRestore", release). Only packages we changed. "ok" | "no adb". Nothing to do = "ok". */
-    fun bgRestore(ctx: Context, s: Store): String {
-        val ours = s.bgLimited
+    /** Puts back what [bgLimit] changed (command "bgRestore", release). Only packages we changed; [only] narrows it to those (per-app undo). "ok" | "no adb". Nothing to do = "ok". */
+    fun bgRestore(ctx: Context, s: Store, only: Collection<String>? = null): String {
+        val ours = if (only.isNullOrEmpty()) s.bgLimited else s.bgLimited.intersect(only.toSet())
         if (ours.isEmpty()) return "ok"
-        var left = ours
+        var left = s.bgLimited
         for (chunk in ours.filter { Debloat.validPkg(it) }.chunked(BATCH)) {
             val out = SelfAdb.run(ctx, chunk.joinToString("; ") { "cmd appops set $it $OP allow" }) ?: break
-            if (out.isBlank()) left = left - chunk.toSet()
+            if (out.isBlank()) { left = left - chunk.toSet(); patch(chunk, true) }
         }
+        val undone = s.bgLimited.size - left.size
         s.bgLimited = left
         invalidate()
-        if (left.isEmpty()) s.log(R.string.log_bg_restore, ours.size)
-        return if (left.isEmpty()) "ok" else "no adb"
+        if (undone > 0) s.log(R.string.log_bg_restore, undone)
+        return if (left.intersect(ours).isEmpty()) "ok" else "no adb"
     }
 }

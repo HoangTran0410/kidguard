@@ -167,7 +167,7 @@ const QS = [
   ["set", "s-ts", "", "route", ["ts.h", "sd.ts"]], ["set", "s-upd", "", "refresh-cw", ["upd.h", "sd.upd", "upd.auto"]],
   ["set", "s-tg", "", "send", ["tg.h", "tg.d"]], ["set", "s-feat", "", "list-checks", ["ft.h", "ft.d"]],
   ["set", "s-paired", "", "smartphone", ["paired.h", "sd.paired"]], ["set", "s-danger", "", "octagon-x", ["set.danger", "sd.danger"]],
-  ["apps", "#healthCard", "", "heart-pulse", ["hl.h", "hl.sub", "hl.fixAll", "hl.kc"]],
+  ["apps", "#healthCard", "", "heart-pulse", ["hl.h", "hl.sub", "hl.review", "hl.bg.h", "hl.kc"]],
   ["dev", "d-act", "", "zap", ["dv.act"]], ["dev", "d-bat", "", "battery-full", ["dv.bat"]], ["dev", "d-ram", "", "memory-stick", ["dv.ram"]],
   ["dev", "d-sto", "", "hard-drive", ["dv.sto"]], ["dev", "d-sys", "", "smartphone", ["dv.sys"]],
 ];
