@@ -750,7 +750,8 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
 - **Command** `clearCache {}` (short-lived, not PIN-gated: nothing is lost): every app's cache, `pm trim-caches 999G` via the
   self-adb shell in both modes; logins and data stay. Per app is impossible from shell (`pm clear --cache-only` is silently
   ignored for uid 2000 and hangs, API 34). Result `"ok"` | `"no adb"` | `"failed"`. Offered when **State** `clearCache: true` (self-adb usable: `SelfAdb.why` null / `wifi` / `wss`). **State** `apps[].mb` = appBytes + dataBytes
-  (dataBytes already includes the cache; before 0.9.16 the cache was counted twice), `apps[].cache` = cache MB, only when > 0.
+  (dataBytes already includes the cache; before 0.9.16 the cache was counted twice), `apps[].cache` = cache MB, only when > 0;
+  `apps[].noClear: true` = clearData would answer "protected" (system / KidGuard / never-clear set): the page hides its button.
 - **Self-adb shell (no Device Owner)**: `setup/SelfAdb.kt`. KidGuard pairs once with the phone's own Wireless debugging
   (same flow as the self-setup, `SelfAdb.pair`: notification with the 6-digit code, pair + connect only, none of the
   Device Owner steps) and then runs `pm` as the adb shell user. `SelfAdb.ready` = a paired key exists and the local adbd

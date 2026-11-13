@@ -395,9 +395,10 @@ class Guard : Service() {
     private fun state(r: Rules, apps: Map<String, String>, prot: Set<String>, use: Usage.Today, want: Map<String, String>, would: Map<String, String>,
                       susp: Set<String>, today: String, now: Long, newApps: Set<String>): JSONObject {
         val list = JSONArray()
+        val never = Policy.neverHide(this, prot)
         apps.entries.sortedByDescending { use.ms[it.key] ?: 0 }.forEach { (p, label) ->
             list.put(JSONObject().put("pkg", p).put("label", label.take(40)).put("ms", use.ms[p] ?: 0).put("mb", sizeMb(p, now) ?: JSONObject.NULL)
-                .also { o -> cacheMb(p, now).takeIf { it > 0 }?.let { o.put("cache", it) } }
+                .also { o -> cacheMb(p, now).takeIf { it > 0 }?.let { o.put("cache", it) }; if (!Debloat.canClear(p, packageName, never)) o.put("noClear", true) }
                 .put("blocked", want[p] ?: JSONObject.NULL).put("suspended", p in susp).put("protected", p in prot).put("new", p in newApps))
         }
         val bm = getSystemService(BatteryManager::class.java)
