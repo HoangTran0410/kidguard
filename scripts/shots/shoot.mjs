@@ -17,6 +17,9 @@ const OUT = path.resolve(arg("out", path.join(HERE, "out")));
 const LANGS = arg("lang", "vi,en").split(",");
 const ONLY = arg("only", "") ? arg("only").split(",") : null;
 const THEME = arg("theme", "dark");
+const W = +arg("width", 400);
+// --audit: every section open, full-page shot, and a layout report (what sticks out of the screen, what is clipped)
+const AUDIT = process.argv.includes("--audit");
 const CHROME = process.env.CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PORTS = { bin: 8771, mia: 8772, tom: 8773 };
 const CDP = 9333;
@@ -36,6 +39,32 @@ const SHOTS = [
   { name: "settings-away", js: `goTab("set")`, ready: `document.querySelector("#awaySec")`, open: ["s-tg"], shut: ["s-ts", "s-relay"], scrollTo: "#awaySec", settle: 600 },
 ];
 
+// Runs in the page. Reports (1) visible elements whose box ends past the screen edge and are not inside a sideways
+// scroller, (2) text cut by an overflow:hidden box (not a deliberate ellipsis / line clamp), (3) page wider than the screen.
+const layoutAudit = String(() => {
+  const vw = document.documentElement.clientWidth, out = [], seen = new Set();
+  const name = e => { const t = (e.innerText || e.value || e.getAttribute("aria-label") || "").trim().replace(/\s+/g, " ").slice(0, 50);
+    const sec = e.closest("[data-sec]"); return (sec ? "[" + sec.dataset.sec + "] " : "") + e.tagName.toLowerCase() + (e.id ? "#" + e.id : e.className && typeof e.className === "string" ? "." + e.className.split(" ")[0] : "") + (t ? ' "' + t + '"' : ""); };
+  const scroller = e => { for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) { const o = getComputedStyle(p).overflowX; if (o === "auto" || o === "scroll") return true; } return false; };
+  if (document.documentElement.scrollWidth > vw + 1) out.push("page is " + document.documentElement.scrollWidth + "px wide on a " + vw + "px screen");
+  for (const e of document.querySelectorAll("body *")) {
+    if (e.closest("#map")) continue;   // map tiles overhang on purpose
+    const cs = getComputedStyle(e); if (cs.display === "none" || cs.visibility === "hidden" || cs.position === "fixed") continue;
+    const r = e.getBoundingClientRect(); if (!r.width || !r.height) continue;
+    if (r.right > vw + 1 && !scroller(e)) { const k = "o" + name(e); if (!seen.has(k)) { seen.add(k); out.push("sticks out " + Math.round(r.right - vw) + "px: " + name(e)); } }
+    // cut by the nearest ancestor that clips sideways (card corners, collapsible bodies): the bug a screen-edge check misses
+    for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) {
+      const o = getComputedStyle(p).overflowX; if (o === "visible") continue;
+      if (o === "auto" || o === "scroll") break;
+      const pr = p.getBoundingClientRect(), cut = Math.round(r.right - pr.right);
+      if (cut > 1) { const k = "c" + name(e); if (!seen.has(k)) { seen.add(k); out.push("cut off " + cut + "px by " + name(p).split(' "')[0] + ": " + name(e)); } }
+      break;
+    }
+  }
+  // only the outermost offender of each chain is useful
+  return out.filter((x, i) => !out.slice(0, i).some(y => y.startsWith("sticks out") && x.startsWith("sticks out") && x.includes(y.split(": ").slice(1).join(": ").slice(0, 12)))).slice(0, 40);
+});
+
 // ---- tiny CDP client ------------------------------------------------------------------
 async function connect(url) {
   const ws = new WebSocket(url); let id = 0; const wait = new Map(); const ev = [];
@@ -50,13 +79,13 @@ const kidsSeed = () => JSON.stringify(Object.entries(PORTS).map(([n, p], i) => (
 
 async function shootLang(lang) {
   const outDir = path.join(OUT, lang); fs.mkdirSync(outDir, { recursive: true });
-  const srv = spawn(process.execPath, [path.join(HERE, "server.mjs"), "--lang", lang, "--now", String(NOW), "--kids", Object.entries(PORTS).map(([k, p]) => k + ":" + p).join(",")], { stdio: "inherit" });
+  const srv = spawn(process.execPath, [path.join(HERE, "server.mjs"), "--lang", lang, "--now", String(NOW), "--kids", Object.entries(PORTS).map(([k, p]) => k + ":" + p).join(","), ...(arg("patch") ? ["--patch", path.resolve(arg("patch"))] : [])], { stdio: "inherit" });
   await sleep(600);
   try {
     const tgt = await (await fetch(`http://127.0.0.1:${CDP}/json/new?about:blank`, { method: "PUT" })).json();
     const c = await connect(tgt.webSocketDebuggerUrl);
     await c.send("Page.enable"); await c.send("Runtime.enable");
-    await c.send("Emulation.setDeviceMetricsOverride", { width: 400, height: 860, deviceScaleFactor: 2, mobile: true });
+    await c.send("Emulation.setDeviceMetricsOverride", { width: W, height: 860, deviceScaleFactor: 2, mobile: true });
     await c.send("Emulation.setTouchEmulationEnabled", { enabled: true });
     await c.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: THEME }] });
     // before any page script: saved kids + language + theme, and a clock fixed at 16:20 (the server's story time) that keeps ticking
@@ -77,11 +106,16 @@ async function shootLang(lang) {
       if (shot.tiles) { await sleep(500); await until(c, `[...document.querySelectorAll("#map img")].length > 0 && [...document.querySelectorAll("#map img")].every(i => i.complete && i.naturalWidth > 0)`, 20000) || errors.push(shot.name + ": map tiles not all loaded"); }
       await sleep(shot.settle || 400);
       if (Object.keys(secs).length) await evalIn(c, `Object.entries(${JSON.stringify(secs)}).forEach(([id, on]) => { const s = document.querySelector('[data-sec="' + id + '"]'); if (s) { s.classList.toggle("open", !!on); const h = s.querySelector(".clh"); if (h) h.setAttribute("aria-expanded", String(!!on)); } }); 0`);
-      if (shot.scrollTo) await evalIn(c, `(() => { const e = document.querySelector(${JSON.stringify(shot.scrollTo)}); if (e) window.scrollTo(0, e.getBoundingClientRect().top + scrollY - 12); })()`);
+      if (AUDIT) {
+        await evalIn(c, `document.querySelectorAll("[data-sec]").forEach(s => { secOpen[s.dataset.sec] = 1; s.classList.add("open"); const h = s.querySelector(".clh"); if (h) h.setAttribute("aria-expanded", "true"); }); 0`);
+        await sleep(700);
+        for (const f of await evalIn(c, `(${layoutAudit})()`)) errors.push(shot.name + ": " + f);
+      }
+      if (!AUDIT && shot.scrollTo) await evalIn(c, `(() => { const e = document.querySelector(${JSON.stringify(shot.scrollTo)}); if (e) window.scrollTo(0, e.getBoundingClientRect().top + scrollY - 12); })()`);
       await sleep(500);
       const txt = await evalIn(c, `document.body.innerText`);
-      if (/\b(error|undefined|NaN|\[object)/i.test(txt) || /lỗi/i.test(txt)) errors.push(shot.name + ": suspicious text in page (error/undefined/NaN)");
-      const r = await c.send("Page.captureScreenshot", { format: "png" });
+      { const m = txt.match(/.{0,40}(\b(error|undefined|NaN|\[object)|(?<!gỡ )lỗi).{0,40}/i); if (m) errors.push(shot.name + ": suspicious text: " + m[0].replace(/\s+/g, " ")); }
+      const r = await c.send("Page.captureScreenshot", AUDIT ? { format: "png", captureBeyondViewport: true, clip: await evalIn(c, `({ x: 0, y: 0, width: innerWidth, height: Math.min(document.documentElement.scrollHeight, 16000), scale: 1 })`) } : { format: "png" });
       fs.writeFileSync(path.join(outDir, shot.name + ".png"), Buffer.from(r.data, "base64"));
       console.log(lang, shot.name);
     }
