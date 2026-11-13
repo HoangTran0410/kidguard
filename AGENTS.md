@@ -72,7 +72,7 @@ Flavor `home` (`dev.kidguard.home`): launcher only, `src/home/AndroidManifest.xm
 - Quick: `cd android && ./gradlew assembleKidRelease assembleHomeRelease testKidDebugUnitTest :parent:testDebugUnitTest`.
   Debug install: `:app:installKidDebug` / `:app:installHomeDebug`.
 - Worker: `cd relay && npm ci && npm test` (starts `wrangler dev` on :8793; one run at a time).
-- After editing `ui/assets/*.js`: `node --check` each file (CI does this).
+- After editing `ui/assets/*.js`: `node --check` each file AND `scripts/check-js.sh` (esbuild: catches a reassigned `const` that blanks a whole tab; CI + build.sh run both).
 - Nothing tests `ui/*.html` or on-device behaviour: say so in reports; real-phone checks are the user's.
 - Release steps (bump, build, tag, GitHub release assets, relay + site deploy): `docs/flows.md` §4.3.
   Deploys (`wrangler deploy`, Pages) need the owner's OK.

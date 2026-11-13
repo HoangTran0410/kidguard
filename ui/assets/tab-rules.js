@@ -67,7 +67,8 @@ function wireComfort(b, r) {
 // one-line status chip per rules section: [text, tone] (tone: ok = active, warn = active but has a problem)
 function ruleChips(r) {
   const on = (x, w) => [t("on") + (x ? " · " + x : ""), w ? "warn" : "ok"], off = [t("off")], none = [t("chip.none")];
-  const hm = s => esc(s || "?"), basic = isBasic(), noEnf = false;
+  const hm = s => esc(s || "?"), basic = isBasic();
+  let noEnf = false;
   const dns = DNS().find(d => d[0] === r.safeDns);
   const schOn = r.schedules.filter(x => x.on), more = [r.blockNew, r.lockLocation, r.noAirplane].filter(Boolean).length, anti = [r.noInstall, r.noDebug].filter(Boolean).length;
   return {

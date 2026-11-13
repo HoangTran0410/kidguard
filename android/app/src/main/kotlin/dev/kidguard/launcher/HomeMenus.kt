@@ -85,12 +85,13 @@ internal fun HomeActivity.menuGroups(groups: List<List<MRow>>, anchor: View?, x:
         override fun onMeasure(w: Int, h: Int) = super.onMeasure(w, View.MeasureSpec.makeMeasureSpec(maxH, View.MeasureSpec.AT_MOST))
     }.apply { isVerticalScrollBarEnabled = false; background = panelBg; elevation = shadow(8f); clipToOutline = true; addView(box) }
     val pw = PopupWindow(scroll, mw, ViewGroup.LayoutParams.WRAP_CONTENT, true)
-    val hair = pal.sub and 0x00FFFFFF or 0x33000000
+    // owner 2026-11-13: separators read too heavy; iOS-like faint band (~7 %) between groups, hairline ~13 %
+    val hair = pal.sub and 0x00FFFFFF or 0x22000000
     if (head != null) menuHead(box, head, pw)
     var first = true
     for (g in groups) {
         if (g.isEmpty()) continue
-        if (!first) box.addView(View(this).apply { setBackgroundColor(pal.sub and 0x00FFFFFF or 0x22000000) }, LinearLayout.LayoutParams(-1, dp(7)))
+        if (!first) box.addView(View(this).apply { setBackgroundColor(pal.sub and 0x00FFFFFF or 0x12000000) }, LinearLayout.LayoutParams(-1, dp(6)))
         first = false
         g.forEachIndexed { i, mr ->
             val r = mr.row
@@ -169,7 +170,7 @@ private fun HomeActivity.menuHead(box: LinearLayout, h: MenuHead, pw: PopupWindo
         })
     }, LinearLayout.LayoutParams(-1, -2))
     if (h.info != null || h.chips.isNotEmpty() || h.title != null || h.buttons.isNotEmpty())
-        box.addView(View(this).apply { setBackgroundColor(pal.sub and 0x00FFFFFF or 0x22000000) }, LinearLayout.LayoutParams(-1, dp(7)))
+        box.addView(View(this).apply { setBackgroundColor(pal.sub and 0x00FFFFFF or 0x12000000) }, LinearLayout.LayoutParams(-1, dp(6)))
 }
 
 internal fun HomeActivity.appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {

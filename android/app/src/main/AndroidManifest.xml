@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- launcher long-press "Uninstall": ACTION_DELETE is dropped silently without it (API 28+) -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- launcher: swipe down on the home pulls the notification shade (normal permission) -->
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
