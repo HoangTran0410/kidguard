@@ -159,42 +159,100 @@ function cleanTab(b) {
 }
 let spaceAll = false;   // "Xem tất cả": the heavy list starts at 15 rows
 let cacheBusy = 0;      // clearCache sent at (ms): animated busy box until the answer, across redraws; the list is locked
+let healthBusy = "";   // fix-all / single fix running: the i18n key of the step now; the list is locked, one command at a time
 let scanBusy = 0;       // rescan sent at (ms): the "Quét lại" button spins, the list is locked
+// ---- "Sức khoẻ máy": state.health {score, checks[{id, ok, w, fix, v}], limited} (docs/protocol.md "Phone health"). The score comes from the phone.
+const HL_GROUPS = [["safe", "shield", ["devOpts", "installs", "admins", "sideload", "patch"]], ["speed", "zap", ["storage", "cache", "bg"]], ["bat", "battery-full", ["battery"]]];
+const HL_CMD = { cache: { type: "clearCache" }, bg: { type: "bgLimit" }, devOpts: { type: "devOff" } };   // fix-all order: cache, bg, devOpts
+const HL_ORDER = ["cache", "bg", "devOpts"];
+let hlResult = null;   // {at, ok, n}: last fix-all line
+function hlVal(c) { return c.id === "cache" ? mbTxt(c.v) : c.id === "patch" ? t("hl.days", c.v) : c.id === "storage" ? c.v + "%" : c.id === "battery" ? c.v + "%" : c.v; }
+function healthCard() {
+  const h = st && st.health;
+  if (!h || !Array.isArray(h.checks)) return `<div class="card"><h2 style="margin:0">${ic("heart-pulse")} ${t("hl.h")}</h2><p class="mute">${ic("hourglass")} ${t("hl.old")}</p></div>`;
+  const sc = Math.max(0, Math.min(100, +h.score || 0)), tone = sc >= 80 ? "var(--ok)" : sc >= 50 ? "var(--warn)" : "var(--bad)", C = 2 * Math.PI * 52;
+  const by = Object.fromEntries(h.checks.map(c => [c.id, c])), fixes = HL_ORDER.filter(i => by[i] && !by[i].ok && by[i].fix), busy = !!(healthBusy || cacheBusy || scanBusy);
+  const row = c => `<div class="app" style="align-items:center"><span style="color:${c.ok ? "var(--ok)" : "var(--warn)"};flex:none">${ic(c.ok ? "check" : "triangle-alert")}</span>
+    <div class="nm"><b>${t("hl.c." + c.id + (c.ok ? ".ok" : ".bad"), hlVal(c))}</b>${c.ok ? "" : `<span class="mute">${t("hl.c." + c.id + ".why")}</span>`}</div>
+    ${c.fix ? `<button type="button" class="sm" data-hlfix="${c.id}"${busy ? " disabled" : ""}>${ic("sparkles")} ${t("hl.fix")}</button>` : ""}</div>`;
+  const groups = HL_GROUPS.map(([g, i, ids]) => { const cs = ids.map(x => by[x]).filter(Boolean); return cs.length ? `<h3 style="margin:14px 0 2px;font-size:14px">${ic(i)} ${t("hl.g." + g)}</h3>${cs.map(row).join("")}` : ""; }).join("");
+  const lim = +h.limited || 0;
+  return `<div class="card" id="healthCard"><h2 style="margin:0 0 8px">${ic("heart-pulse")} ${t("hl.h")}</h2>
+    <div style="display:flex;align-items:center;gap:16px"><svg viewBox="0 0 120 120" width="112" height="112" role="img" aria-label="${esc(t("hl.score", sc))}" style="flex:none"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--track)" stroke-width="10"/>
+      <circle cx="60" cy="60" r="52" fill="none" stroke="${tone}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(C * sc / 100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 60 60)"/>
+      <text x="60" y="68" text-anchor="middle" font-size="30" font-weight="700" fill="currentColor">${sc}</text></svg>
+      <div class="sp"><b style="font-size:17px">${t(sc >= 80 ? "hl.good" : sc >= 50 ? "hl.mid" : "hl.low")}</b><p class="mute" style="margin:2px 0 8px;font-size:13px">${t(fixes.length ? "hl.nFix" : "hl.noFix", fixes.length)}</p>
+      ${fixes.length ? `<button type="button" id="hlAll" class="pri"${busy ? " disabled" : ""}>${ic("sparkles")} ${t("hl.fixAll")}</button>` : ""}</div></div>
+    ${healthBusy ? `<div class="cbusy" role="status" aria-live="polite" style="margin-top:12px"><div class="cbusy-h"><span class="cbusy-ic">${ic("sparkles")}</span><span><b>${t(healthBusy)}</b><br><span class="mute">${t("hl.busy")}</span></span></div><div class="cbusy-bar"><i></i></div></div>`
+      : hlResult && Date.now() - hlResult.at < 6 * 3600000 ? `<p class="mute" style="margin:10px 0 0">${ic(hlResult.ok ? "circle-check" : "triangle-alert")} ${t(hlResult.ok ? "hl.done" : "hl.partial", hhmm(hlResult.at))}</p>` : ""}
+    <div${busy ? ' class="cbusy-lock" inert aria-disabled="true"' : ""}>${groups}
+    ${lim ? `<button type="button" id="hlBack" class="sm" style="margin-top:10px">${ic("undo-2")} ${t("hl.back", lim)}</button>` : ""}
+    <label class="row" style="margin-top:14px"><input type="checkbox" id="f-kc" ${edit && edit.kidClean ? "checked" : ""}${edit ? "" : " disabled"}><span class="sp">${ic("eraser")} ${t("hl.kc")}<br><span class="mute" style="font-size:13px">${t("hl.kcP")}</span></span></label></div>
+    <p class="mute" style="margin-bottom:0">${ic("lightbulb")} ${t("hl.note")}</p></div>`;
+}
+async function hlRun(ids) {
+  if (healthBusy || cacheBusy || scanBusy) return;
+  const names = { cache: "hl.s.cache", bg: "hl.s.bg", devOpts: "hl.s.dev" }; let ok = 0, bad = 0;
+  for (const id of ids) {
+    healthBusy = names[id]; if (tab === "apps") spaceTabRedraw();
+    const r = await cmd(HL_CMD[id], null, false);   // one by one: the phone's adb runs commands in turn
+    if (r && (r.result === "ok" || r.result === "queued")) ok++; else bad++;
+    if (!r) break;
+  }
+  healthBusy = ""; hlResult = { at: Date.now(), ok: !bad && ok > 0, n: ok };
+  await refresh();
+}
+function spaceTabRedraw() { const p = $("#subp"); if (p && appsSub === "space") spaceTab(p); }
+function healthBind(b) {
+  const all = b.querySelector("#hlAll");
+  if (all) all.onclick = async () => {
+    const h = st && st.health; if (!h) return;
+    const ids = HL_ORDER.filter(i => h.checks.some(c => c.id === i && !c.ok && c.fix));
+    if (ids.length && await ask(t("hl.askAll", ids.map(i => t("hl.s." + i)).join(", ")), t("hl.fixAll"))) hlRun(ids);
+  };
+  b.querySelectorAll("[data-hlfix]").forEach(x => x.onclick = async () => {
+    const id = x.dataset.hlfix;
+    if (id === "devOpts" ? await ask(t("dev.askOff") + " " + t(st && st.dev && st.dev.canOn ? "dev.askOffBack" : "dev.askOffNoBack"), t("dev.btn")) : id === "bg" ? await ask(t("hl.askBg"), t("hl.fix")) : true) hlRun([id]);
+  });
+  const bk = b.querySelector("#hlBack"); if (bk) bk.onclick = async () => { if (healthBusy) return; healthBusy = "hl.s.back"; spaceTabRedraw(); try { await cmd({ type: "bgRestore" }, t("hl.backDone"), false); } finally { healthBusy = ""; } await refresh(); };
+  const kc = b.querySelector("#f-kc"); if (kc) kc.onchange = e => { if (!edit) return; edit.kidClean = e.target.checked; changed(); };
+}
 function spaceTab(b) {
   const all = (st.apps || []).filter(x => x.mb > 0).sort((a, b) => b.mb - a.mb), heavy = spaceAll ? all : all.slice(0, 15);
   // basic mode: `pm clear` through the self-adb shell (any Android version), usable while state.preinstalled is sent
   const owner = !isBasic() && st.owner !== false, cc = owner ? canClear() : !!st.preinstalled;
   // clearCache: every app's cache at once (`pm trim-caches` via KidGuard's own adb, both modes); per app is not possible
   const cacheMb = (st.apps || []).reduce((n, x) => n + (+x.cache || 0), 0), cache = !!st.clearCache && cacheMb >= 50;
-  const busy = !!(cacheBusy || scanBusy);
-  b.innerHTML = `<div class="card"><div style="display:flex;align-items:center;gap:8px"><h2 style="flex:1;margin:0">${ic("hard-drive")} ${t("clean.heavy")}</h2>
+  const busy = !!(cacheBusy || scanBusy || healthBusy);
+  b.innerHTML = healthCard() + `<div class="card"><div style="display:flex;align-items:center;gap:8px"><h2 style="flex:1;margin:0">${ic("hard-drive")} ${t("clean.heavy")}</h2>
     ${st.sizesAt !== undefined ? `<button type="button" id="spScan" class="sm"${busy ? " disabled" : ""}>${scanBusy ? '<i class="spin"></i>' : ic("refresh-cw")} ${t(scanBusy ? "clean.scanning" : "clean.scan")}</button>` : ""}</div>
     ${st.sizesAt ? `<p class="mute" style="margin:4px 0 10px;font-size:13px">${t("clean.measured", hhmm(st.sizesAt))}</p>` : `<div style="height:10px"></div>`}
     ${owner && !cc ? `<div class="alert warn" style="margin:0 0 8px;font-weight:400;font-size:13px">${ic("triangle-alert")} ${t("clean.oldOs", esc(st.android))}</div>` : ""}
-    ${cacheBusy ? `<div class="cbusy" role="status" aria-live="polite"><div class="cbusy-h"><span class="cbusy-ic">${ic("eraser")}</span><span><b>${t("clean.cacheBusyT")}</b><br><span class="mute">${t("clean.cacheBusy")}</span></span></div><div class="cbusy-bar"><i></i></div></div>`
-      : cache ? `<button type="button" id="spCache"${scanBusy ? " disabled" : ""} class="sp" style="width:100%;display:flex;gap:12px;align-items:center;text-align:start;margin:0 0 6px">${ic("eraser")}<span><b>${t("clean.cacheBtn", mbTxt(cacheMb))}</b><br><span class="mute" style="font-size:13px;font-weight:400">${t("clean.cacheSub")}</span></span></button>` : ""}
+    ${cacheBusy && !healthBusy ? `<div class="cbusy" role="status" aria-live="polite"><div class="cbusy-h"><span class="cbusy-ic">${ic("eraser")}</span><span><b>${t("clean.cacheBusyT")}</b><br><span class="mute">${t("clean.cacheBusy")}</span></span></div><div class="cbusy-bar"><i></i></div></div>`
+      : cache && !healthBusy ? `<button type="button" id="spCache"${scanBusy ? " disabled" : ""} class="sp" style="width:100%;display:flex;gap:12px;align-items:center;text-align:start;margin:0 0 6px">${ic("eraser")}<span><b>${t("clean.cacheBtn", mbTxt(cacheMb))}</b><br><span class="mute" style="font-size:13px;font-weight:400">${t("clean.cacheSub")}</span></span></button>` : ""}
     ${!cacheBusy && st.cacheCleared && Date.now() - st.cacheCleared.at < 6 * 3600000 ? `<p class="mute" style="margin:0 0 8px">${ic("circle-check")} ${t("clean.cacheDone", hhmm(st.cacheCleared.at), mbTxt(+st.cacheCleared.mb || 0))}</p>` : ""}
     <div${busy ? ' class="cbusy-lock" inert aria-disabled="true"' : ""}>${heavy.length ? heavy.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${mbTxt(x.mb)}${x.cache > 0 ? " · " + t("clean.cacheOf", mbTxt(x.cache)) : ""}</span></div>${cc && !x.protected && !x.noClear ? `<button type="button" data-clr="${esc(x.pkg)}" class="sm bad" aria-label="${esc(t("clean.clear") + " " + x.label)}">${ic("trash-2")} ${t("delete")}</button>` : ""}</div>`).join("")
       + (all.length > heavy.length ? `<button type="button" id="spAll" class="sm" style="margin-top:8px">${t("clean.all", all.length)}</button>` : "")
       : `<p class="mute">${t("clean.noSize")}</p>`}</div>
     <p class="mute">${ic("lightbulb")} ${cc ? t("clean.tipOwner") + " " : ""}${cc ? "" : t("clean.tipBasic") + " "}${t("clean.tipRam")}</p></div>`;
+  healthBind(b);
   const more = b.querySelector("#spAll"); if (more) more.onclick = () => { spaceAll = true; spaceTab(b); };
   const cb = b.querySelector("#spCache");
   const sc = b.querySelector("#spScan");
   if (sc) sc.onclick = async () => {
-    if (cacheBusy || scanBusy) return;
+    if (cacheBusy || scanBusy || healthBusy) return;
     scanBusy = Date.now(); spaceTab(b);
     try { await cmd({ type: "rescan" }, t("clean.scanned"), false); } finally { scanBusy = 0; }
     await refresh();
   };
   if (cb) cb.onclick = async () => {
-    if (cacheBusy || scanBusy) return;
+    if (cacheBusy || scanBusy || healthBusy) return;
     cacheBusy = Date.now(); spaceTab(b);   // one run at a time: the phone's adb runs commands one by one
     try { await cmd({ type: "clearCache" }, t("clean.clearedCache"), false); } finally { cacheBusy = 0; }
     await refresh();   // the phone rebuilds its state right after (kick), sizes measured again
   };
   b.querySelectorAll("[data-clr]").forEach(x => x.onclick = () => {
-    if (cacheBusy || scanBusy) return;
+    if (cacheBusy || scanBusy || healthBusy) return;
     const a = (st.apps || []).find(y => y.pkg === x.dataset.clr); if (!a) return;
     cmd({ type: "clearData", pkg: a.pkg }, t("clean.cleared", a.label),
       [t("clean.askClear", a.label), t("delete"), true]).then(() => setTimeout(refresh, 2000));

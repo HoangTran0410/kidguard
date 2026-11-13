@@ -45,6 +45,9 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Dọn máy (ẩn app cài sẵn) | ✅ | ❌ | ❌ | ✅ | ✅ | +adb: `pm disable-user`, chỉ trên Wi-Fi |
 | Xoá dữ liệu app (`clearData`) | ✅ (API 28+) | ❌ | ❌ | ✅ | ✅ | |
 | Xoá cache mọi app (`clearCache`) | ⚠️ | ❌ | ❌ | ✅ | ✅ | Cần adb riêng của KidGuard ở cả 2 chế độ (`pm trim-caches`); không xoá cache từng app được |
+| Sức khoẻ máy: điểm + kiểm tra (`state.health`) | ✅ | ✅ | ✅ | ✅ | — | Không cần adb. Thiếu giá trị nào thì bỏ kiểm tra đó (vd. "chặn cài ngoài" chỉ có ở Device Owner) |
+| Hạn chế app chạy nền (`bgLimit` / `bgRestore`) | ⚠️ | ❌ | ❌ | ✅ | ✅ | Cần adb riêng của KidGuard (`cmd appops RUN_ANY_IN_BACKGROUND`); release trả lại |
+| Con tự dọn cache (`kidClean`) | ⚠️ | ❌ | ❌ | ✅ | ✅ | Chỉ `clearCache`, 10 phút/lần; cần adb riêng như trên |
 | Chặn cài app, chặn gỡ lỗi USB | ✅ | ❌ | ❌ | ❌ | ✅ | |
 | Chống gỡ KidGuard | ✅ | ⚠️ | ⚠️ | ⚠️ | — | CB: Quản trị thiết bị + Trợ năng đóng các trang gỡ/tắt. Safe Mode vẫn lách |
 

@@ -449,6 +449,7 @@ class Guard : Service() {
             .put("launcher", runCatching { LauncherSafe.state(this, r, HomeFile.styleId(this), HomeFile.pages(this)) }.getOrDefault(JSONObject()))
             .put("notes", runCatching { KidNotes.stateJson(HomeFile.load(this)?.notes) }.getOrDefault(org.json.JSONArray()))   // the kid's notes shared with parents
             .put("sys", Sys.state(this))
+            .put("health", runCatching { Health.state(this, store, (0 until list.length()).sumOf { list.getJSONObject(it).optInt("cache") }, SelfAdb.why(this).let { w -> w == null || w == "wifi" || w == "wss" }) }.getOrDefault(JSONObject()))
             .put("sh", runCatching { Shell.state(this) }.getOrDefault(JSONObject()))
             .put("support", runCatching { Support.state(this) }.getOrDefault(JSONObject()))
             .also {
@@ -655,6 +656,8 @@ class Guard : Service() {
             res
         }
         "rescan" -> { forgetSizes(); preAt = 0L; kick(); "ok" }
+        "bgLimit" -> Health.bgLimit(this, store, c.optJSONArray("pkgs")?.let { a -> (0 until a.length()).map { a.optString(it) } }).also { if (it == "ok") kick() }
+        "bgRestore" -> Health.bgRestore(this, store).also { if (it == "ok") kick() }
         "clearCache" -> Policy.clearCaches(this).also { if (it == "ok") { forgetSizes(); store.log(R.string.log_cleared_cache); kick() } }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
         "devOff" -> devOff()

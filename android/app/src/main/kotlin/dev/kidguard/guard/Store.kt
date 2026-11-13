@@ -511,6 +511,11 @@ class Store private constructor(private val app: Context) {
         get() = p.getStringSet("shellOff", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("shellOff", v).commit() }
 
+    /** Apps whose background running Health.bgLimit switched off (RUN_ANY_IN_BACKGROUND ignore): the only ones Health.bgRestore / release set back to allow. */
+    @get:Synchronized @set:Synchronized var bgLimited: Set<String>
+        get() = p.getStringSet("bgLim", emptySet())!!.toSet()
+        set(v) { p.edit().putStringSet("bgLim", v).commit() }
+
     @get:Synchronized @set:Synchronized var location: JSONObject?
         get() = p.getString("loc", null)?.let { runCatching { JSONObject(it) }.getOrNull() }
         set(v) { p.edit().putString("loc", v?.toString()).apply() }

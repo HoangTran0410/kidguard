@@ -140,6 +140,15 @@
     <string name="log_cmd">Command: %1$s → %2$s</string>
     <string name="log_cleared">Parent cleared data: %1$s</string>
     <string name="log_cleared_cache">Parent cleared every app\'s cache</string>
+    <string name="log_kid_clean">Child cleaned app caches, %d MB freed</string>
+    <string name="log_bg_limit">Parent limited background running of %d apps</string>
+    <string name="log_bg_restore">Background running of %d apps put back</string>
+    <string name="kc_tile">Clean up</string>
+    <string name="kc_busy">Cleaning…</string>
+    <string name="kc_done">Cleaned. %s more free</string>
+    <string name="kc_done0">Cleaned. Nothing more to free</string>
+    <string name="kc_wait">Just cleaned. Try again in %d min</string>
+    <string name="kc_fail">Could not clean now. Try later</string>
     <string name="log_file_nospace">File "%1$s" from the parent was not saved: phone storage is full (retrying for up to 1 hour)</string>
     <string name="log_file_dropped">File "%1$s" from the parent was not saved (%2$s)</string>
     <string name="log_autogrant">Granted %1$s missing permissions itself (on-phone adb)</string>

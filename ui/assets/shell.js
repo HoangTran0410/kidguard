@@ -167,6 +167,7 @@ const QS = [
   ["set", "s-ts", "", "route", ["ts.h", "sd.ts"]], ["set", "s-upd", "", "refresh-cw", ["upd.h", "sd.upd", "upd.auto"]],
   ["set", "s-tg", "", "send", ["tg.h", "tg.d"]], ["set", "s-feat", "", "list-checks", ["ft.h", "ft.d"]],
   ["set", "s-paired", "", "smartphone", ["paired.h", "sd.paired"]], ["set", "s-danger", "", "octagon-x", ["set.danger", "sd.danger"]],
+  ["apps", "#healthCard", "", "heart-pulse", ["hl.h", "hl.sub", "hl.fixAll", "hl.kc"]],
   ["dev", "d-act", "", "zap", ["dv.act"]], ["dev", "d-bat", "", "battery-full", ["dv.bat"]], ["dev", "d-ram", "", "memory-stick", ["dv.ram"]],
   ["dev", "d-sto", "", "hard-drive", ["dv.sto"]], ["dev", "d-sys", "", "smartphone", ["dv.sys"]],
 ];
@@ -198,6 +199,7 @@ function qsFind1(q, near) {
 }
 function qsGo(e) {
   if (e.seg) { rseg = e.seg; try { localStorage.setItem("kg.rseg", rseg); } catch {} }
+  if (e.sec === "#healthCard") { appsSub = "space"; try { localStorage.setItem("kg.appsSub", "space"); } catch {} }   // the health card lives in Ứng dụng › Sức khoẻ máy
   goTab(e.tab);
   if (!e.sec) return;
   let n = 0;

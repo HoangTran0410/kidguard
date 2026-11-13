@@ -110,6 +110,7 @@ function norm(e) {
   e.dailyByDay = Array.isArray(e.dailyByDay) && e.dailyByDay.length === 7 ? e.dailyByDay : [];
   e.schedules = e.schedules || []; e.approved = e.approved || []; e.safeDns = e.safeDns || ""; e.safeDnsPauseUntil = +e.safeDnsPauseUntil || 0; e.noVpn = !!e.noVpn;
   e.trackMin = e.trackMin === undefined ? 5 : +e.trackMin; e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.showWatching = e.showWatching !== false; e.autoUpdate = e.autoUpdate !== false; e.tsKeep = !!e.tsKeep; e.blockNew = !!e.blockNew; e.monitor = !!e.monitor;
+  e.kidClean = !!e.kidClean;
   e.blocked = e.blocked || []; e.allow = e.allow || []; e.appMin = e.appMin || {};
   e.chores = Array.isArray(e.chores) ? e.chores : []; e.zones = Array.isArray(e.zones) ? e.zones : [];
   e.groups = Array.isArray(e.groups) ? e.groups : []; e.unlockMin = [15, 30, 60, 120].includes(+e.unlockMin) ? +e.unlockMin : 30;

@@ -25,6 +25,7 @@ shape, say so in your report instead of silently diverging.
                                    //      Basic mode with `caps.wss`: Guard re-writes Settings.Secure location_mode when it goes off (observer + tick); release stops it
   "noAirplane": true,              // NEW (default true): airplane mode disallowed
   "showWatching": true,            // v0.4 (default true): child sees the "watching / controlling" notification
+  "kidClean": false,               // v0.9.18 (default false): the child gets a "Dọn dẹp" tile on the main screen = Policy.clearCaches only (once per 10 min, never bgLimit)
   "monitor": false,                // v0.9.11 (default false): "monitor only". Phone still measures + reports; decide() still runs but NOTHING is enforced (no suspend / bounce / grey launcher / heads-up warnings). Device-level restrictions (Policy.apply: noInstall, DNS, location lock, ...) stay as configured. Turning it on unsuspends our suspensions on the next tick
   "autoUpdate": true,              // v0.9 (default true): daily self-update from GitHub releases (see "Self-update")
   "safeDns": "",                   // NEW: "" = off, else a Private DNS host, e.g. "family.adguard-dns.com",
@@ -416,7 +417,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   clearData update totpSet fileDel`) are delivered **at-least-once**: the worker keeps them until the phone acks the id
   (so a lost reply does not drop a `release`) and the phone de-dups by id. The worker stamps `sent` at the first hand-out
   and drops an unacked one 10 min later (the phone may have released and stopped syncing). "Now" commands (`lock locate
-  message ring wake ringStop listenStop devOn devOff setting reboot clearData clearCache rescan`) expire on the worker after **10 min** (others 24 h), so a
+  message ring wake ringStop listenStop devOn devOff setting reboot clearData clearCache rescan bgLimit bgRestore`) expire on the worker after **10 min** (others 24 h), so a
   `ring` queued overnight does not fire in the morning. The queue refuses at 20 entries (`429 queue full`).
   `answer`: the worker keeps `id` as command id only if it matches `^[\w.-]{1,64}$`, else it makes a UUID; the request id
   is always copied to `req` and the phone answers `req` (falling back to `id` on LAN).
@@ -945,6 +946,22 @@ Only volume, brightness, screen timeout and Do Not Disturb; anything else goes t
   100 KB, 400 bad day), which clears that ask. The worker keeps the last 4 days stored. The page shows the stored copy at once and polls
   `GET` every 3 s (max ~75 s) until `logday.at >= asked`. Not a command: nothing in the queue or the whitelist.
 - Page: day strip counts come from `days`; an old phone / worker (404) falls back to the state's rows kept in localStorage.
+
+### Phone health (the "Sức khoẻ máy" tab, `guard/Health.kt`, `HealthLogic.kt`)
+- **State** `health: {score, limited, at, checks[]}`. `score` 0-100 = 100 minus the weight of every failed check (`HealthLogic`, honest: no fake
+  "speed up %", no virus scan). `checks[] = {id, ok, w, fix, v}`: `w` = points lost (0 when ok), `fix` = the page can fix it with one command,
+  `v` = value (count / MB / % / days). A check whose value is unknown on this phone is left out. Ids: `devOpts` (fix `devOff`), `installs` (owner only:
+  DISALLOW_INSTALL_UNKNOWN_SOURCES / INSTALL_APPS not set), `admins` (device admins besides KidGuard), `sideload` (user apps not from a store;
+  installer via `getInstallSourceInfo`), `patch` (security patch older than 180 days), `storage` (free < 20 %), `cache` (>= 200 MB, fix `clearCache`),
+  `bg` (user apps allowed to run in the background, >= 10, fix `bgLimit`; needs the self-adb shell), `battery` (< 15 % and not charging).
+  `limited` = apps whose background running we switched off (`Store.bgLimited`). `sideload` / `bg` are measured on a thread at most every 10 min, so
+  they are missing from the first state after start. `at` = when (ms, 0 = not yet).
+- **Command** `bgLimit {pkgs?}` (short-lived, not PIN-gated): self-adb `cmd appops set <pkg> RUN_ANY_IN_BACKGROUND ignore` for user (non-system) apps that
+  still allow it, except KidGuard, the parent app, the default launcher / keyboards / dialer / SMS, `rules.allow`, `accPause` / `vpnPause` / `devPause` /
+  `tcpPause`, Tailscale. `pkgs` narrows the list (still filtered). The apps changed are remembered (`Store.bgLimited`). Result `"ok"` | `"no adb"` | `"failed"`.
+  **Command** `bgRestore {}` sets exactly those back to `allow` ("ok" | `"no adb"` while some are left). `release` does the same (both modes).
+- **Rule** `kidClean` (see Rules JSON): the kid-side tile runs only `Policy.clearCaches` (caches, never app data, accounts or permissions), once per 10 min,
+  logs `kid_clean`. The child never gets `bgLimit`.
 
 ## Device health, the "Máy" tab (after 0.9.5)
 - State adds `"sdk": 34` (Build.VERSION.SDK_INT) next to `android`.

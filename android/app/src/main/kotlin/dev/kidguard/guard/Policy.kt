@@ -552,6 +552,7 @@ object Policy {
      * Call it on the Guard thread with the loop stopped. Returns "ok", "not owner" or "failed" (still Device Owner).
      */
     fun release(ctx: Context, s: Store): String {
+        runCatching { Health.bgRestore(ctx, s) }.onFailure { Log.w(TAG, "bg restore", it) }   // background limits we set (appops) go back to allow, both modes
         runCatching { FocusStore.release(ctx) }   // study mode: session, DND we set, schedule
         if (!isOwner(ctx)) {
             val off = enableShellDisabled(ctx, s)

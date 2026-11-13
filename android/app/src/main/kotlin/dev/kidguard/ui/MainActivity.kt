@@ -119,6 +119,7 @@ class MainActivity : Activity() {
             "nlog" to u.tile(getString(R.string.nlog_title), R.drawable.li_bell, u.accent) { runCatching { startActivity(Intent(this, NotifLogActivity::class.java)) } },
             "files" to u.tile(getString(R.string.files_menu), R.drawable.li_send, u.accent) { if (paired(R.string.files_menu)) ShareInActivity.pick(this) },
             "log" to u.tile(getString(R.string.main_log), R.drawable.li_scroll_text, u.accent) { showLog() },
+            "clean" to u.tile(getString(R.string.kc_tile), R.drawable.li_eraser, u.accent) { runClean() },
             "edit" to u.tile(getString(R.string.tiles_edit), R.drawable.li_pencil, u.accent) { editTiles() },
         )
         // long-press on any tile = edit too (Android Quick Settings / iOS Control Center habit)
@@ -437,9 +438,36 @@ class MainActivity : Activity() {
     private lateinit var tiles: Map<String, Button>
     private val TILE_ICONS = mapOf("arrived" to R.drawable.li_map_pin, "pickup" to R.drawable.li_car, "lock" to R.drawable.li_lock,
         "more" to R.drawable.li_timer, "usage" to R.drawable.li_chart_column, "nlog" to R.drawable.li_bell,
-        "files" to R.drawable.li_send, "log" to R.drawable.li_scroll_text)
+        "files" to R.drawable.li_send, "log" to R.drawable.li_scroll_text, "clean" to R.drawable.li_eraser)
     private fun tilePrefs() = applicationContext.getSharedPreferences("quick", MODE_PRIVATE)
-    private fun picked() = KidTilesLogic.parse(tilePrefs().getString("tiles", null))
+    private fun cleanOk() = Store.of(this).rules.kidClean
+    private fun picked() = KidTilesLogic.parse(tilePrefs().getString("tiles", null), cleanOk())
+    private var cleaning = false
+
+    /**
+     * "Dọn dẹp" tile (rule kidClean): ONLY Policy.clearCaches, on its own thread, once per 10 min. Caches only: no app data, accounts or permissions.
+     * Never bgLimit: that stays a parent command.
+     */
+    private fun runClean() {
+        val s = Store.of(this)
+        if (!s.rules.kidClean || cleaning) return
+        val wait = KidTilesLogic.cleanWaitMin(tilePrefs().getLong("cleanAt", 0L), System.currentTimeMillis())
+        if (wait > 0) { Toasts.show(this, getString(R.string.kc_wait, wait), true); return }
+        val b = tiles["clean"] ?: return
+        cleaning = true; b.isEnabled = false; b.text = getString(R.string.kc_busy)
+        Thread {
+            val res = runCatching { Policy.clearCaches(applicationContext) }.getOrDefault("failed")
+            val mb = Policy.lastCacheClear?.second ?: 0
+            if (res == "ok") {
+                tilePrefs().edit().putLong("cleanAt", System.currentTimeMillis()).apply()
+                s.log(R.string.log_kid_clean, mb)
+            }
+            ui.post {
+                cleaning = false; b.isEnabled = true; b.text = getString(R.string.kc_tile)
+                if (!isFinishing) Toasts.show(this, if (res != "ok") getString(R.string.kc_fail) else if (mb > 0) getString(R.string.kc_done, KidTilesLogic.mbText(mb)) else getString(R.string.kc_done0), true)
+            }
+        }.apply { isDaemon = true }.start()
+    }
 
     /** Rows of 4: SOS, the picked tiles, Edit (KidTilesLogic.rows). */
     private fun layoutTiles() {
@@ -461,7 +489,7 @@ class MainActivity : Activity() {
             fun row(id: String, on: Boolean): View {
                 val b = tiles[id] ?: return View(this)
                 return ui2.listRow(b.text, TILE_ICONS[id] ?: R.drawable.li_settings, chevron = false) {
-                    val next = if (on) KidTilesLogic.remove(cur, id) else KidTilesLogic.add(cur, id)
+                    val next = if (on) KidTilesLogic.remove(cur, id) else KidTilesLogic.add(cur, id, cleanOk())
                     if (next == cur) { Toasts.show(this, getString(R.string.tiles_full, KidTilesLogic.MAX), true); return@listRow }
                     tilePrefs().edit().putString("tiles", KidTilesLogic.join(next)).apply()
                     layoutTiles(); fill()
@@ -474,7 +502,7 @@ class MainActivity : Activity() {
             sh.body.addView(ui2.section(getString(R.string.tiles_on)))
             sh.body.addView(ui2.cardBox(4).apply { cur.forEach { addView(row(it, true)) } })
             if (cur.isEmpty()) sh.body.addView(ui2.label(getString(R.string.tiles_none), 14f).apply { setPadding(dp(12), dp(4), dp(12), 0) })
-            val add = KidTilesLogic.addable(cur)
+            val add = KidTilesLogic.addable(cur, cleanOk())
             if (add.isNotEmpty()) {
                 sh.body.addView(ui2.section(getString(R.string.tiles_add)))
                 sh.body.addView(ui2.cardBox(4).apply { add.forEach { addView(row(it, false)) } })
@@ -664,6 +692,7 @@ class MainActivity : Activity() {
         super.onResume()
         if (launcherPal().toString() != palKey) { recreate(); return }   // light / dark or accent changed in the launcher's Tuỳ chỉnh
         launched = false   // back from a screen we opened (see onStop)
+        if (::quickBox.isInitialized) layoutTiles()   // the parents may have switched "Dọn dẹp" on / off
         holding = null; holdBase.forEach { (b, t) -> b.text = t }   // a hint left over from before the pause
         if (::updRow.isInitialized && !updPolling) updRow.text = getString(R.string.main_check_update, BuildConfig.VERSION_NAME)
         val t0 = android.os.SystemClock.elapsedRealtime()

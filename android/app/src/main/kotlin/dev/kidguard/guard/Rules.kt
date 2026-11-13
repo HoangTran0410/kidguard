@@ -176,6 +176,7 @@ data class Rules(
     val lockContact: String = "",
     val blockNote: String = "",              // v0.9.7 parent note on the block message, Notes.NOTE_MAX
     val launcher: LauncherRule = LauncherRule(), // v0.9.9 kid launcher (HomeActivity), owner only
+    val kidClean: Boolean = false,           // the child may tap "Dọn dẹp" on the main screen (Policy.clearCaches only, KidClean)
     val monitor: Boolean = false,            // "monitor only": measure + report, never suspend / bounce / grey out; decide() still runs (state.wouldBlock)
 ) {
     /** The Private DNS host that should be active at [nowMs]: "" while paused or off. */
@@ -203,7 +204,7 @@ data class Rules(
         .put("groups", JSONArray().apply { groups.forEach { put(it.toJson()) } }).put("unlockMin", unlockMin)
         .put("windDown", JSONObject().put("gray", windGray).put("min", windMin).put("nudge", windNudge))
         .put("lockInfo", JSONObject().put("msg", lockMsg).put("contact", lockContact)).put("blockNote", blockNote)
-        .put("launcher", launcher.toJson()).put("monitor", monitor)
+        .put("launcher", launcher.toJson()).put("monitor", monitor).put("kidClean", kidClean)
         .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
 
     /** True when [pin] matches the stored hash (legacy or salted). False when no PIN is set. */
@@ -287,6 +288,7 @@ data class Rules(
                 blockNote = Notes.clean(o.optString("blockNote", ""), Notes.NOTE_MAX),
                 launcher = LauncherRule.fromJson(o.optJSONObject("launcher")),
                 monitor = o.optBoolean("monitor", false),
+                kidClean = o.optBoolean("kidClean", false),
                 blockNew = o.optBoolean("blockNew", false),
                 approved = o.optJSONArray("approved").strings(),
                 lockLocation = o.optBoolean("lockLocation", true),
