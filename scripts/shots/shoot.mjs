@@ -25,7 +25,10 @@ const AUDIT = process.argv.includes("--audit");
 const FAULTS = process.argv.includes("--faults") ? ["down", "e500", "slow"] : [];
 const CHROME = process.env.CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PORTS = { bin: 8771, mia: 8772, tom: 8773 };
-const CDP = 9333;
+// --cdp <port>: attach to a browser that is already running (Android WebView via adb forward, see README) instead of
+// starting desktop Chrome; the page keeps the device's own size
+const EXT = +arg("cdp", 0);
+const CDP = EXT || 9333;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const NOW = (() => { const d = new Date(); d.setHours(16, 20, 0, 0); return d.getTime(); })();
 
@@ -34,7 +37,7 @@ const NOW = (() => { const d = new Date(); d.setHours(16, 20, 0, 0); return d.ge
 const SHOTS = [
   { name: "kids", js: `overview(kids, () => {})`, ready: `document.querySelector("#ovKids .ovk, #ovKids .card, #ovKids > *") && !document.querySelector("#ovKids .spin")`, settle: 1200 },
   { name: "today", js: `goTab("home")`, ready: `document.querySelector(".hero")` },
-  { name: "apps", js: `goTab("apps")`, ready: `document.querySelector(".app .ic")`, settle: 800 },
+  { name: "apps", js: `appsSub = "list"; goTab("apps")`, ready: `document.querySelector(".app .ic")`, settle: 800 },
   { name: "rules", poke: 1, js: `goTab("rules")`, ready: `document.querySelector("[data-sec]")`, open: ["r-bed", "r-sch"], shut: ["r-daily"], scrollTo: "[data-sec=r-daily]" },
   { name: "where", js: `goTab("where")`, ready: `document.querySelector("#map .layer")`, tiles: true, settle: 800 },
   { name: "screen", js: `goTab("screen")`, ready: `document.querySelector("#s-img") && document.querySelector("#s-img").complete && document.querySelector("#s-img").naturalWidth > 0`, settle: 800 },
@@ -51,7 +54,7 @@ const layoutAudit = String(() => {
   const scroller = e => { for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) { const o = getComputedStyle(p).overflowX; if (o === "auto" || o === "scroll") return true; } return false; };
   if (document.documentElement.scrollWidth > vw + 1) out.push("page is " + document.documentElement.scrollWidth + "px wide on a " + vw + "px screen");
   for (const e of document.querySelectorAll("body *")) {
-    if (e.closest("#map")) continue;   // map tiles overhang on purpose
+    if (e.closest("#map") || e.closest("svg")) continue;   // map tiles overhang on purpose; icon geometry is not layout
     const cs = getComputedStyle(e); if (cs.display === "none" || cs.visibility === "hidden" || cs.position === "fixed") continue;
     const r = e.getBoundingClientRect(); if (!r.width || !r.height) continue;
     if (r.right > vw + 1 && !scroller(e)) { const k = "o" + name(e); if (!seen.has(k)) { seen.add(k); out.push("sticks out " + Math.round(r.right - vw) + "px: " + name(e)); } }
@@ -90,6 +93,11 @@ const uxLint = String(() => {
     // WCAG 2.2 AA target size is 24 px; a ::after with a negative inset (e.g. .tipb) grows the hit area beyond the box
     const ext = Math.max(0, -(parseFloat(getComputedStyle(e, "::after").top) || 0));
     if (Math.min(r.height, r.width) + 2 * ext < 24) out.push("small tap target " + Math.round(r.width) + "x" + Math.round(r.height) + ": " + (nm.slice(0, 30) || e.tagName.toLowerCase() + (e.id ? "#" + e.id : "")));
+  }
+  // one card saying the same first sentence twice (two "Needs Device Owner." notes for one switch)
+  for (const sec of document.querySelectorAll("[data-sec]")) {
+    const firsts = [...sec.querySelectorAll("p, .mute, .note")].filter(e => vis(e) && !e.querySelector("p")).map(e => (/^([^.!?]{9,60})[.!?]\s/.exec(e.innerText.trim()) || [])[1]).filter(Boolean);   // whole sentences only (list rows repeat on purpose)
+    const dup = firsts.find((x, i) => firsts.indexOf(x) !== i); if (dup) out.push("repeated note in [" + sec.dataset.sec + "]: \"" + dup + "\"");
   }
   return [...new Set(out)].slice(0, 40);
 });
@@ -132,26 +140,33 @@ async function shootLang(lang) {
   const srv = spawn(process.execPath, [path.join(HERE, "server.mjs"), "--lang", lang, "--now", String(NOW), "--kids", Object.entries(PORTS).map(([k, p]) => k + ":" + p).join(","), ...(arg("patch") ? ["--patch", path.resolve(arg("patch"))] : [])], { stdio: "inherit" });
   await sleep(600);
   try {
-    const tgt = await (await fetch(`http://127.0.0.1:${CDP}/json/new?about:blank`, { method: "PUT" })).json();
+    const tgt = EXT ? (await (await fetch(`http://127.0.0.1:${CDP}/json/list`)).json()).find(x => x.type === "page")
+      : await (await fetch(`http://127.0.0.1:${CDP}/json/new?about:blank`, { method: "PUT" })).json();
     const c = await connect(tgt.webSocketDebuggerUrl);
     await c.send("Page.enable"); await c.send("Runtime.enable");
-    await c.send("Emulation.setDeviceMetricsOverride", { width: W, height: 860, deviceScaleFactor: 2, mobile: true });
-    await c.send("Emulation.setTouchEmulationEnabled", { enabled: true });
+    // parent app WebView: its own page (served by its proxy, which forwards to the fake kids); its real kid list is put back after
+    const PAGE = EXT ? new URL(tgt.url).origin + "/" : `http://127.0.0.1:${PORTS.bin}/`;
+    const keep = EXT ? await evalIn(c, `window.KGApp ? KGApp.getKids() : null`) : null;
+    if (!EXT) { await c.send("Emulation.setDeviceMetricsOverride", { width: W, height: 860, deviceScaleFactor: 2, mobile: true });
+      await c.send("Emulation.setTouchEmulationEnabled", { enabled: true }); }
     await c.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: THEME }] });
     // before any page script: saved kids + language + theme, and a clock fixed at 16:20 (the server's story time) that keeps ticking
-    await c.send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => {
+    const { identifier: seedId } = await c.send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => {
       try { const o = ${NOW} - Date.now(), D = Date; globalThis.Date = class extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + o); } static now() { return D.now() + o; } }; } catch {}
       if (${AUDIT}) { window.confirm = () => false; window.alert = () => {}; window.prompt = () => null;
         window.__puts = []; const F = window.fetch; window.fetch = (u, o) => { try { if (o && o.method === "PUT" && String(u).includes("/rules")) window.__puts.push(o.body); } catch {} return F(u, o); }; }
       try { localStorage.setItem("kg.kids", ${JSON.stringify(kidsSeed())}); localStorage.setItem("kg.lang", "${lang}"); localStorage.setItem("kg.theme", "${THEME}"); } catch {}
     })()` });
     const errors = [], faultLog = [];
+    // parent app: the bridge exists only once the page runs, and its proxy forwards only to kids in its own list
+    if (EXT) { await c.send("Page.navigate", { url: PAGE }); await until(c, `!!window.KGApp && document.readyState === "complete"`, 15000); await evalIn(c, `KGApp.setKids(${JSON.stringify(kidsSeed())}); 0`); }
     for (const shot of SHOTS) {
       if (ONLY && !ONLY.includes(shot.name)) continue;
       // fresh page per shot: no state leaks between them
-      await c.send("Page.navigate", { url: `http://127.0.0.1:${PORTS.bin}/` });
+      await c.send("Page.navigate", { url: PAGE });
       await sleep(400);
-      if (!(await until(c, `typeof st !== "undefined" && st && st.apps && document.querySelector(".hero")`, 20000))) errors.push(shot.name + ": page did not open the kid");
+      if (EXT && await until(c, `typeof kids !== "undefined" && kids.some(k => k.name === "Bin") && document.readyState === "complete" && typeof screenStop === "function"`, 15000)) await evalIn(c, `open(kids.find(k => k.name === "Bin")); 0`);   // app: the page starts on the kid list
+      if (!(await until(c, `typeof st !== "undefined" && st && st.apps && document.querySelector(".hero")`, 20000))) errors.push(shot.name + ": page did not open the kid (" + await evalIn(c, `JSON.stringify({ u: location.href, kids: typeof kids !== "undefined" ? kids.map(k => k.name) : null, cur: typeof cur !== "undefined" && cur ? cur.name : null, err: typeof lastErr !== "undefined" ? lastErr : null })`) + ")");
       const secs = Object.fromEntries([...(shot.open || []).map(i => [i, 1]), ...(shot.shut || []).map(i => [i, 0])]);
       await evalIn(c, `Object.assign(secOpen, ${JSON.stringify(secs)}); ${shot.js}; 0`);
       if (!(await until(c, shot.ready, 20000))) errors.push(shot.name + ": not ready (" + shot.ready.slice(0, 50) + ")");
@@ -189,18 +204,28 @@ async function shootLang(lang) {
       await sleep(500);
       const txt = await evalIn(c, `document.body.innerText`);
       { const m = txt.match(/.{0,40}(\b(error|undefined|NaN|\[object)|(?<!gỡ )lỗi).{0,40}/i); if (m) errors.push(shot.name + ": suspicious text: " + m[0].replace(/\s+/g, " ")); }
-      const r = await c.send("Page.captureScreenshot", AUDIT ? { format: "png", captureBeyondViewport: true, clip: await evalIn(c, `({ x: 0, y: 0, width: innerWidth, height: Math.min(document.documentElement.scrollHeight, 16000), scale: 1 })`) } : { format: "png" });
+      // Android WebView: captureBeyondViewport repeats the viewport (header/nav printed many times): one shot per section
+      if (EXT && AUDIT) {
+        const ids = await evalIn(c, `[...document.querySelectorAll("[data-sec]")].map(s => s.dataset.sec)`);
+        for (const id of ids) {
+          await evalIn(c, `(() => { const s = document.querySelector('[data-sec="${id}"]'); window.scrollTo(0, s.getBoundingClientRect().top + scrollY - 120); })()`); await sleep(250);
+          const rr = await c.send("Page.captureScreenshot", { format: "png" });
+          fs.writeFileSync(path.join(outDir, shot.name + "-" + id + ".png"), Buffer.from(rr.data, "base64"));
+        }
+      }
+      const r = await c.send("Page.captureScreenshot", AUDIT && !EXT ? { format: "png", captureBeyondViewport: true, clip: await evalIn(c, `({ x: 0, y: 0, width: innerWidth, height: Math.min(document.documentElement.scrollHeight, 16000), scale: 1 })`) } : { format: "png" });
       fs.writeFileSync(path.join(outDir, shot.name + ".png"), Buffer.from(r.data, "base64"));
       console.log(lang, shot.name);
     }
     for (const e of c.events.filter(e => e.method === "Runtime.exceptionThrown")) errors.push("js exception: " + (e.params.exceptionDetails.exception?.description || e.params.exceptionDetails.text).split("\n")[0]);
-    c.close(); await fetch(`http://127.0.0.1:${CDP}/json/close/${tgt.id}`).catch(() => {});
+    if (EXT && keep != null) { await c.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: seedId }).catch(() => {}); await evalIn(c, `KGApp.setKids(${JSON.stringify(keep)}); localStorage.setItem("kg.kids", ${JSON.stringify(keep)}); 0`); await c.send("Page.navigate", { url: PAGE }); }
+    c.close(); if (!EXT) await fetch(`http://127.0.0.1:${CDP}/json/close/${tgt.id}`).catch(() => {});
     if (faultLog.length) console.log(lang + " FAULTS:\n  " + faultLog.join("\n  "));
     if (errors.length) console.log(lang + " WARN:\n  " + [...new Set(errors)].join("\n  "));
   } finally { srv.kill(); await new Promise(r => srv.once("exit", r)); }
 }
 const prof = fs.mkdtempSync(path.join(os.tmpdir(), "kgshots-"));
-const chrome = spawn(CHROME, ["--headless=new", `--remote-debugging-port=${CDP}`, `--user-data-dir=${prof}`, "--hide-scrollbars", "--force-color-profile=srgb", "--no-first-run", "--disable-gpu", "--window-size=400,860", "about:blank"], { stdio: "ignore" });
+const chrome = EXT ? { kill() {} } : spawn(CHROME, ["--headless=new", `--remote-debugging-port=${CDP}`, `--user-data-dir=${prof}`, "--hide-scrollbars", "--force-color-profile=srgb", "--no-first-run", "--disable-gpu", "--window-size=400,860", "about:blank"], { stdio: "ignore" });
 for (let i = 0; i < 40; i++) { try { await fetch(`http://127.0.0.1:${CDP}/json/version`); break; } catch { await sleep(300); } }
 try { for (const l of LANGS) await shootLang(l); }
 finally { chrome.kill(); await sleep(500); fs.rmSync(prof, { recursive: true, force: true }); }

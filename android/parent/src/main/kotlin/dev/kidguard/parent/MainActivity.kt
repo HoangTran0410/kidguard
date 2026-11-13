@@ -157,6 +157,8 @@ class MainActivity : Activity() {
             }
         }
         setContentView(w)
+        // debug build only: lets scripts/shots/shoot.mjs --cdp drive the real Android WebView (layout bugs desktop Chrome misses)
+        if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) WebView.setWebContentsDebuggingEnabled(true)
         // never restoreState: the cookie secret changes with the process, page state lives in JS/localStorage
         w.loadUrl("$origin/s/${proxy.secret}")
         Log.i("KGParent", "page $origin")

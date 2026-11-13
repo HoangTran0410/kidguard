@@ -178,7 +178,7 @@ select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none;border-radi
 @media (prefers-reduced-motion:reduce){.clb,.cl.open .clb,.clh .chev{transition:none}.tile.on b::after{animation:none}}
 /* segmented control */
 .seg{display:flex;gap:2px;background:var(--track);border-radius:14px;padding:3px;margin:0 0 14px}
-.seg button{flex:1 1 0;min-width:0;background:none;border:0;border-radius:11px;padding:6px;min-height:40px;color:var(--sub);font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg button{flex:1 1 0;min-width:0;background:none;border:0;border-radius:11px;padding:6px;min-height:40px;color:var(--sub);font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:normal;line-height:1.15;text-align:center;overflow-wrap:anywhere}.seg button>svg{flex:none}
 .seg button[aria-selected=true]{background:var(--card);color:var(--text);box-shadow:none}
 .seg .n{font-size:11px;font-weight:800;background:var(--warn);color:#fff;border-radius:8px;padding:0 5px;line-height:16px}
 @media (max-width:380px){.seg button .si{display:none}}
