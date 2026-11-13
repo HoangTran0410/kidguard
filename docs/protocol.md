@@ -416,7 +416,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   clearData update totpSet fileDel`) are delivered **at-least-once**: the worker keeps them until the phone acks the id
   (so a lost reply does not drop a `release`) and the phone de-dups by id. The worker stamps `sent` at the first hand-out
   and drops an unacked one 10 min later (the phone may have released and stopped syncing). "Now" commands (`lock locate
-  message ring wake ringStop listenStop devOn devOff setting reboot clearData`) expire on the worker after **10 min** (others 24 h), so a
+  message ring wake ringStop listenStop devOn devOff setting reboot clearData clearCache`) expire on the worker after **10 min** (others 24 h), so a
   `ring` queued overnight does not fire in the morning. The queue refuses at 20 entries (`429 queue full`).
   `answer`: the worker keeps `id` as command id only if it matches `^[\w.-]{1,64}$`, else it makes a UUID; the request id
   is always copied to `req` and the phone answers `req` (falling back to `id` on LAN).
@@ -747,6 +747,10 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
 - **Command** `clearData {pkg}` (deliver-once): owner on Android 9+ = `DevicePolicyManager.clearApplicationUserData`; without
   Device Owner = `pm clear --user 0 <pkg>` through the self-adb shell (any Android 11+).
   Result `"ok"` | `"not owner"` (no owner and no shell) | `"unsupported"` (owner, Android < 9) | `"protected"` (never-clear set or KidGuard) | `"failed"`.
+- **Command** `clearCache {}` (short-lived, not PIN-gated: nothing is lost): every app's cache, `pm trim-caches 999G` via the
+  self-adb shell in both modes; logins and data stay. Per app is impossible from shell (`pm clear --cache-only` is silently
+  ignored for uid 2000 and hangs, API 34). Result `"ok"` | `"no adb"` | `"failed"`. Offered when **State** `clearCache: true` (self-adb usable: `SelfAdb.why` null / `wifi` / `wss`). **State** `apps[].mb` = appBytes + dataBytes
+  (dataBytes already includes the cache; before 0.9.16 the cache was counted twice), `apps[].cache` = cache MB, only when > 0.
 - **Self-adb shell (no Device Owner)**: `setup/SelfAdb.kt`. KidGuard pairs once with the phone's own Wireless debugging
   (same flow as the self-setup, `SelfAdb.pair`: notification with the 6-digit code, pair + connect only, none of the
   Device Owner steps) and then runs `pm` as the adb shell user. `SelfAdb.ready` = a paired key exists and the local adbd

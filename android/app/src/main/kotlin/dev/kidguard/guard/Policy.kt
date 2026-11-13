@@ -459,6 +459,16 @@ object Policy {
      * Clears an app's data (DevicePolicyManager.clearApplicationUserData, Android 9+). "ok" | "not owner" | "unsupported" | "protected" | "failed".
      * Blocks up to 5 s for the system's answer, so call it off the main thread.
      */
+    /**
+     * Every app's cache (logins and data stay) through the self-adb shell, both modes: `pm trim-caches` asks the system to free
+     * that much, which drops all caches. Per app is not possible: `pm clear --cache-only` needs INTERNAL_DELETE_CACHE_FILES,
+     * shell (uid 2000) is "silently ignored" and the command hangs (measured API 34). "ok" | "no adb" | "failed".
+     */
+    fun clearCaches(ctx: Context): String {
+        val out = SelfAdb.run(ctx, "pm trim-caches 999G") ?: return "no adb"
+        return if (out.isBlank() || out.equals("Success", true)) "ok" else "failed"
+    }
+
     fun clearData(ctx: Context, pkg: String): String {
         if (!isOwner(ctx)) {   // no Device Owner: `pm clear` through the self-adb shell
             val cmd = Debloat.clearCmd(pkg)
@@ -522,10 +532,11 @@ object Policy {
     }
 
     /** app + data + cache in MB, or null (no usage access, hidden app, old Android…). */
-    fun sizeMb(ctx: Context, pkg: String): Int? = runCatching {
+    /** [total MB, cache MB]. dataBytes already includes cacheBytes (StorageStats docs): adding both counted the cache twice. */
+    fun sizesMb(ctx: Context, pkg: String): IntArray? = runCatching {
         val ss = ctx.getSystemService(android.app.usage.StorageStatsManager::class.java)
         val st = ss.queryStatsForPackage(android.os.storage.StorageManager.UUID_DEFAULT, pkg, android.os.Process.myUserHandle())
-        ((st.appBytes + st.dataBytes + st.cacheBytes) / 1_048_576L).toInt()
+        intArrayOf(((st.appBytes + st.dataBytes) / 1_048_576L).toInt(), (st.cacheBytes / 1_048_576L).toInt())
     }.getOrNull()
 
     fun lockNow(ctx: Context) = runCatching { dpm(ctx).lockNow() }.isSuccess

@@ -139,6 +139,7 @@
     <string name="ch_warn">Time-up warnings</string>
     <string name="log_cmd">Command: %1$s → %2$s</string>
     <string name="log_cleared">Parent cleared data: %1$s</string>
+    <string name="log_cleared_cache">Parent cleared every app\'s cache</string>
     <string name="log_file_nospace">File "%1$s" from the parent was not saved: phone storage is full (retrying for up to 1 hour)</string>
     <string name="log_file_dropped">File "%1$s" from the parent was not saved (%2$s)</string>
     <string name="log_autogrant">Granted %1$s missing permissions itself (on-phone adb)</string>

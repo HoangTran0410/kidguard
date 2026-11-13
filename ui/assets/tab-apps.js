@@ -157,15 +157,23 @@ function cleanTab(b) {
   b.querySelectorAll("[data-hd]").forEach(c => c.onchange = () => { const s = new Set(draft()); c.checked ? s.add(c.dataset.hd) : s.delete(c.dataset.hd); setD(s); bar(); });
   bar();
 }
+let spaceAll = false;   // "Xem tất cả": the heavy list starts at 15 rows
 function spaceTab(b) {
-  const heavy = (st.apps || []).filter(x => x.mb > 0).sort((a, b) => b.mb - a.mb).slice(0, 15);
+  const all = (st.apps || []).filter(x => x.mb > 0).sort((a, b) => b.mb - a.mb), heavy = spaceAll ? all : all.slice(0, 15);
   // basic mode: `pm clear` through the self-adb shell (any Android version), usable while state.preinstalled is sent
   const owner = !isBasic() && st.owner !== false, cc = owner ? canClear() : !!st.preinstalled;
+  // clearCache: every app's cache at once (`pm trim-caches` via KidGuard's own adb, both modes); per app is not possible
+  const cacheMb = (st.apps || []).reduce((n, x) => n + (+x.cache || 0), 0), cache = !!st.clearCache && cacheMb >= 50;
   b.innerHTML = `<div class="card"><h2>${ic("hard-drive")} ${t("clean.heavy")}</h2>
     ${owner && !cc ? `<div class="alert warn" style="margin:0 0 8px;font-weight:400;font-size:13px">${ic("triangle-alert")} ${t("clean.oldOs", esc(st.android))}</div>` : ""}
-    ${heavy.length ? heavy.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${mbTxt(x.mb)}</span></div>${cc && !x.protected ? `<button type="button" data-clr="${esc(x.pkg)}" class="bad">${ic("trash-2")} ${t("clean.clear")}</button>` : ""}</div>`).join("")
+    ${cache ? `<button type="button" id="spCache" class="sp" style="width:100%;display:flex;gap:12px;align-items:center;text-align:start;margin:0 0 6px">${ic("eraser")}<span><b>${t("clean.cacheBtn", mbTxt(cacheMb))}</b><br><span class="mute" style="font-size:13px;font-weight:400">${t("clean.cacheSub")}</span></span></button>` : ""}
+    ${heavy.length ? heavy.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${mbTxt(x.mb)}${x.cache > 0 ? " · " + t("clean.cacheOf", mbTxt(x.cache)) : ""}</span></div>${cc && !x.protected ? `<button type="button" data-clr="${esc(x.pkg)}" class="sm bad" aria-label="${esc(t("clean.clear") + " " + x.label)}">${ic("trash-2")} ${t("delete")}</button>` : ""}</div>`).join("")
+      + (all.length > heavy.length ? `<button type="button" id="spAll" class="sm" style="margin-top:8px">${t("clean.all", all.length)}</button>` : "")
       : `<p class="mute">${t("clean.noSize")}</p>`}
     <p class="mute">${ic("lightbulb")} ${cc ? t("clean.tipOwner") + " " : ""}${cc ? "" : t("clean.tipBasic") + " "}${t("clean.tipRam")}</p></div>`;
+  const more = b.querySelector("#spAll"); if (more) more.onclick = () => { spaceAll = true; spaceTab(b); };
+  const cb = b.querySelector("#spCache");
+  if (cb) cb.onclick = () => cmd({ type: "clearCache" }, t("clean.clearedCache"), false).then(() => setTimeout(refresh, 3000));
   b.querySelectorAll("[data-clr]").forEach(x => x.onclick = () => {
     const a = (st.apps || []).find(y => y.pkg === x.dataset.clr); if (!a) return;
     cmd({ type: "clearData", pkg: a.pkg }, t("clean.cleared", a.label),

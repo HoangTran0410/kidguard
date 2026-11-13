@@ -133,6 +133,7 @@
     <string name="ch_warn">Báo trước khi hết giờ</string>
     <string name="log_cmd">Lệnh: %1$s → %2$s</string>
     <string name="log_cleared">Bố mẹ xoá dữ liệu: %1$s</string>
+    <string name="log_cleared_cache">Bố mẹ xoá cache mọi app</string>
     <string name="log_file_nospace">Tệp "%1$s" từ bố mẹ chưa lưu được: bộ nhớ máy đầy (thử lại tối đa 1 giờ)</string>
     <string name="log_file_dropped">Tệp "%1$s" từ bố mẹ không lưu được (%2$s)</string>
     <string name="log_autogrant">Tự cấp lại %1$s quyền còn thiếu (adb trên máy)</string>

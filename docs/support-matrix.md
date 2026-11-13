@@ -44,6 +44,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | App ngân hàng: tạm tắt VPN (`vpnPause`) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | Chỉ tắt được Tailscale. DO: gỡ tạm cả "VPN luôn bật" rồi đặt lại. CB: "VPN luôn bật" đặt trong Cài đặt thì không gỡ được (trang báo `vpnStuck`). Trong lúc tắt không vào qua Tailscale; relay vẫn chạy. |
 | Dọn máy (ẩn app cài sẵn) | ✅ | ❌ | ❌ | ✅ | ✅ | +adb: `pm disable-user`, chỉ trên Wi-Fi |
 | Xoá dữ liệu app (`clearData`) | ✅ (API 28+) | ❌ | ❌ | ✅ | ✅ | |
+| Xoá cache mọi app (`clearCache`) | ⚠️ | ❌ | ❌ | ✅ | ✅ | Cần adb riêng của KidGuard ở cả 2 chế độ (`pm trim-caches`); không xoá cache từng app được |
 | Chặn cài app, chặn gỡ lỗi USB | ✅ | ❌ | ❌ | ❌ | ✅ | |
 | Chống gỡ KidGuard | ✅ | ⚠️ | ⚠️ | ⚠️ | — | CB: Quản trị thiết bị + Trợ năng đóng các trang gỡ/tắt. Safe Mode vẫn lách |
 

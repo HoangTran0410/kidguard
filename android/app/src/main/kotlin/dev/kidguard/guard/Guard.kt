@@ -322,7 +322,7 @@ class Guard : Service() {
 
     private var hideKey = ""; private var hideAt = 0L
     private var preCache: JSONArray = JSONArray(); private var preAt = 0L
-    private var mbCache = HashMap<String, Int>(); private var mbAt = 0L   // -1 = unknown
+    private var mbCache = HashMap<String, IntArray>(); private var mbAt = 0L   // [total, cache] MB; [-1, 0] = unknown
 
     private var shellOffLogged = false
     /** Hide / un-hide per rules.hidden when the rules or the never-hide set changed (or every 10 min, an app may have been installed).
@@ -360,8 +360,12 @@ class Guard : Service() {
     @Synchronized private fun sizeMb(pkg: String, now: Long): Int? {
         if (now - mbAt > 3_600_000L) { mbCache = HashMap(); mbAt = now }
         if (!Usage.granted(this)) return null   // not cached: sizes show as soon as usage access is granted
-        return mbCache.getOrPut(pkg) { Policy.sizeMb(this, pkg) ?: -1 }.takeIf { it >= 0 }
+        return sizes(pkg)[0].takeIf { it >= 0 }
     }
+    @Synchronized private fun sizes(pkg: String): IntArray = mbCache.getOrPut(pkg) { Policy.sizesMb(this, pkg) ?: intArrayOf(-1, 0) }
+    @Synchronized private fun cacheMb(pkg: String, now: Long): Int = if (sizeMb(pkg, now) == null) 0 else sizes(pkg)[1]
+    @Synchronized private fun forgetSize(pkg: String) { mbCache.remove(pkg) }
+    @Synchronized private fun forgetSizes() { mbCache = HashMap(); mbAt = System.currentTimeMillis() }
 
     private fun preinstalled(prot: Set<String>, now: Long): JSONArray {
         if (now - preAt > 10 * 60_000L) {
@@ -393,6 +397,7 @@ class Guard : Service() {
         val list = JSONArray()
         apps.entries.sortedByDescending { use.ms[it.key] ?: 0 }.forEach { (p, label) ->
             list.put(JSONObject().put("pkg", p).put("label", label.take(40)).put("ms", use.ms[p] ?: 0).put("mb", sizeMb(p, now) ?: JSONObject.NULL)
+                .also { o -> cacheMb(p, now).takeIf { it > 0 }?.let { o.put("cache", it) } }
                 .put("blocked", want[p] ?: JSONObject.NULL).put("suspended", p in susp).put("protected", p in prot).put("new", p in newApps))
         }
         val bm = getSystemService(BatteryManager::class.java)
@@ -452,6 +457,8 @@ class Guard : Service() {
                 val why = if (owner) null else SelfAdb.why(this)
                 if (why != null) it.put("adbWhy", why)
                 if (owner || why == null || why == "wifi" || why == "wss") it.put("preinstalled", preinstalled(prot, now))
+                // clearCache needs KidGuard's own adb in both modes (no DPM call for caches)
+                SelfAdb.why(this).let { w -> it.put("clearCache", w == null || w == "wifi" || w == "wss") }
             }
     }
 
@@ -641,9 +648,10 @@ class Guard : Service() {
         "clearData" -> {
             val pkg = c.optString("pkg")
             val res = Policy.clearData(this, pkg)
-            if (res == "ok") store.log(R.string.log_cleared, Policy.labelOf(this, pkg))
+            if (res == "ok") { forgetSize(pkg); store.log(R.string.log_cleared, Policy.labelOf(this, pkg)) }
             res
         }
+        "clearCache" -> Policy.clearCaches(this).also { if (it == "ok") { forgetSizes(); store.log(R.string.log_cleared_cache) } }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
         "devOff" -> devOff()
         "bankEnd" -> bankEnd()
