@@ -41,7 +41,7 @@ internal object PauseAsk {
         val canDev = runCatching { DevOpts.canOff(ctx) }.getOrDefault(false)
         runCatching { if (canDev && pkg in r.devPause && s.devPaused == 0 && DevOpts.debugNow(ctx)) out += Kind.DEV }
         runCatching { if (canDev && pkg in r.tcpPause && DevOpts.tcpNow(ctx)) out += Kind.TCP }
-        runCatching { if ((pkg in r.vpnPause || pkg in r.accPause) && s.vpnPaused.isEmpty() && VpnPause.vpnUp(ctx)) out += Kind.VPN }
+        runCatching { if (pkg in r.vpnPause && s.vpnPaused.isEmpty() && VpnPause.vpnUp(ctx)) out += Kind.VPN }
         return out
     }
 }
