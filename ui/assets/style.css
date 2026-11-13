@@ -423,3 +423,15 @@ input[type=range]:disabled{opacity:.45;cursor:default}
 #bk{min-width:0}.bkt{--bkw:48px;--bkn:190px;max-height:320px;overflow:auto;width:0;min-width:100%;border:1px solid var(--stroke);border-radius:12px;max-width:100%;-webkit-overflow-scrolling:touch}.bkh,.bkr{display:grid;align-items:center;gap:4px;padding:8px 6px 8px 10px}.bkh{position:sticky;top:0;z-index:1;background:var(--card);border-bottom:1px solid var(--stroke);font-size:11px;font-weight:600;color:var(--sub);line-height:1.2}.bkh>span+span,.bkr>span+span{text-align:center;display:flex;justify-content:center}.bkr+.bkr{border-top:1px solid var(--stroke)}.bkr[hidden]{display:none}.bksub{position:sticky;left:0;padding:12px 10px 6px;border-top:1px solid var(--stroke);font-size:12px;font-weight:600;color:var(--sub)}.bksub[hidden]{display:none}.bkr.gone .bka>*{opacity:.55}.bka{display:flex;align-items:center;gap:8px;min-width:0;position:sticky;left:0;z-index:1;background:var(--card);align-self:stretch;margin:-8px 0 -8px -10px;padding:8px 0 8px 10px}.bkh>span:first-child{position:sticky;left:0;background:var(--card)}.bka .ic{width:28px;height:28px;flex:none;font-size:13px;border-radius:8px}.bka .ic img{width:100%;height:100%}.bkn{min-width:0;overflow:hidden;overflow-wrap:anywhere;line-height:1.25;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 
 .jr{display:flex;flex-direction:column}.jrs{display:flex;align-items:flex-start;gap:10px;padding:6px 0}.jri{width:32px;height:32px;border-radius:50%;background:var(--tint);color:var(--primary);display:grid;place-items:center;flex:none}.jrm{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.jrt{margin:0 0 0 15px;padding:4px 0 4px 26px;border-left:2px dashed var(--stroke2);color:var(--sub);font-size:13px;text-align:left;background:none;min-height:0;width:auto}
+
+/* "Xoá cache mọi app" running: eraser wiggles, an indeterminate bar slides; the app list below is locked (inert + dimmed) */
+.cbusy{border:1px solid var(--accent);border-radius:16px;padding:12px 14px;margin:0 0 8px;background:var(--tint)}
+.cbusy-h{display:flex;gap:12px;align-items:center}.cbusy-h .mute{font-size:13px}
+.cbusy-ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none;color:var(--accent);background:var(--card);animation:cbw 1.1s ease-in-out infinite;transform-origin:50% 80%}
+.cbusy-ic .si{width:22px;height:22px}
+.cbusy-bar{height:6px;border-radius:3px;background:var(--track);overflow:hidden;margin-top:12px;position:relative}
+.cbusy-bar>i{position:absolute;top:0;bottom:0;width:40%;border-radius:3px;background:var(--accent);animation:cbs 1.4s ease-in-out infinite}
+@keyframes cbw{0%,100%{transform:translateX(-3px) rotate(-14deg)}50%{transform:translateX(3px) rotate(14deg)}}
+@keyframes cbs{0%{left:-40%}100%{left:100%}}
+.cbusy-lock{opacity:.45;pointer-events:none;filter:grayscale(.4);transition:opacity .2s}
+@media (prefers-reduced-motion:reduce){.cbusy-ic,.cbusy-bar>i{animation-duration:3s}}

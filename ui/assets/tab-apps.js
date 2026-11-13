@@ -158,23 +158,43 @@ function cleanTab(b) {
   bar();
 }
 let spaceAll = false;   // "Xem tất cả": the heavy list starts at 15 rows
+let cacheBusy = 0;      // clearCache sent at (ms): animated busy box until the answer, across redraws; the list is locked
+let scanBusy = 0;       // rescan sent at (ms): the "Quét lại" button spins, the list is locked
 function spaceTab(b) {
   const all = (st.apps || []).filter(x => x.mb > 0).sort((a, b) => b.mb - a.mb), heavy = spaceAll ? all : all.slice(0, 15);
   // basic mode: `pm clear` through the self-adb shell (any Android version), usable while state.preinstalled is sent
   const owner = !isBasic() && st.owner !== false, cc = owner ? canClear() : !!st.preinstalled;
   // clearCache: every app's cache at once (`pm trim-caches` via KidGuard's own adb, both modes); per app is not possible
   const cacheMb = (st.apps || []).reduce((n, x) => n + (+x.cache || 0), 0), cache = !!st.clearCache && cacheMb >= 50;
-  b.innerHTML = `<div class="card"><h2>${ic("hard-drive")} ${t("clean.heavy")}</h2>
+  const busy = !!(cacheBusy || scanBusy);
+  b.innerHTML = `<div class="card"><div style="display:flex;align-items:center;gap:8px"><h2 style="flex:1;margin:0">${ic("hard-drive")} ${t("clean.heavy")}</h2>
+    ${st.sizesAt !== undefined ? `<button type="button" id="spScan" class="sm"${busy ? " disabled" : ""}>${scanBusy ? '<i class="spin"></i>' : ic("refresh-cw")} ${t(scanBusy ? "clean.scanning" : "clean.scan")}</button>` : ""}</div>
+    ${st.sizesAt ? `<p class="mute" style="margin:4px 0 10px;font-size:13px">${t("clean.measured", hhmm(st.sizesAt))}</p>` : `<div style="height:10px"></div>`}
     ${owner && !cc ? `<div class="alert warn" style="margin:0 0 8px;font-weight:400;font-size:13px">${ic("triangle-alert")} ${t("clean.oldOs", esc(st.android))}</div>` : ""}
-    ${cache ? `<button type="button" id="spCache" class="sp" style="width:100%;display:flex;gap:12px;align-items:center;text-align:start;margin:0 0 6px">${ic("eraser")}<span><b>${t("clean.cacheBtn", mbTxt(cacheMb))}</b><br><span class="mute" style="font-size:13px;font-weight:400">${t("clean.cacheSub")}</span></span></button>` : ""}
-    ${heavy.length ? heavy.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${mbTxt(x.mb)}${x.cache > 0 ? " · " + t("clean.cacheOf", mbTxt(x.cache)) : ""}</span></div>${cc && !x.protected && !x.noClear ? `<button type="button" data-clr="${esc(x.pkg)}" class="sm bad" aria-label="${esc(t("clean.clear") + " " + x.label)}">${ic("trash-2")} ${t("delete")}</button>` : ""}</div>`).join("")
+    ${cacheBusy ? `<div class="cbusy" role="status" aria-live="polite"><div class="cbusy-h"><span class="cbusy-ic">${ic("eraser")}</span><span><b>${t("clean.cacheBusyT")}</b><br><span class="mute">${t("clean.cacheBusy")}</span></span></div><div class="cbusy-bar"><i></i></div></div>`
+      : cache ? `<button type="button" id="spCache"${scanBusy ? " disabled" : ""} class="sp" style="width:100%;display:flex;gap:12px;align-items:center;text-align:start;margin:0 0 6px">${ic("eraser")}<span><b>${t("clean.cacheBtn", mbTxt(cacheMb))}</b><br><span class="mute" style="font-size:13px;font-weight:400">${t("clean.cacheSub")}</span></span></button>` : ""}
+    ${!cacheBusy && st.cacheCleared && Date.now() - st.cacheCleared.at < 6 * 3600000 ? `<p class="mute" style="margin:0 0 8px">${ic("circle-check")} ${t("clean.cacheDone", hhmm(st.cacheCleared.at), mbTxt(+st.cacheCleared.mb || 0))}</p>` : ""}
+    <div${busy ? ' class="cbusy-lock" inert aria-disabled="true"' : ""}>${heavy.length ? heavy.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${mbTxt(x.mb)}${x.cache > 0 ? " · " + t("clean.cacheOf", mbTxt(x.cache)) : ""}</span></div>${cc && !x.protected && !x.noClear ? `<button type="button" data-clr="${esc(x.pkg)}" class="sm bad" aria-label="${esc(t("clean.clear") + " " + x.label)}">${ic("trash-2")} ${t("delete")}</button>` : ""}</div>`).join("")
       + (all.length > heavy.length ? `<button type="button" id="spAll" class="sm" style="margin-top:8px">${t("clean.all", all.length)}</button>` : "")
-      : `<p class="mute">${t("clean.noSize")}</p>`}
+      : `<p class="mute">${t("clean.noSize")}</p>`}</div>
     <p class="mute">${ic("lightbulb")} ${cc ? t("clean.tipOwner") + " " : ""}${cc ? "" : t("clean.tipBasic") + " "}${t("clean.tipRam")}</p></div>`;
   const more = b.querySelector("#spAll"); if (more) more.onclick = () => { spaceAll = true; spaceTab(b); };
   const cb = b.querySelector("#spCache");
-  if (cb) cb.onclick = () => cmd({ type: "clearCache" }, t("clean.clearedCache"), false).then(() => setTimeout(refresh, 3000));
+  const sc = b.querySelector("#spScan");
+  if (sc) sc.onclick = async () => {
+    if (cacheBusy || scanBusy) return;
+    scanBusy = Date.now(); spaceTab(b);
+    try { await cmd({ type: "rescan" }, t("clean.scanned"), false); } finally { scanBusy = 0; }
+    await refresh();
+  };
+  if (cb) cb.onclick = async () => {
+    if (cacheBusy || scanBusy) return;
+    cacheBusy = Date.now(); spaceTab(b);   // one run at a time: the phone's adb runs commands one by one
+    try { await cmd({ type: "clearCache" }, t("clean.clearedCache"), false); } finally { cacheBusy = 0; }
+    await refresh();   // the phone rebuilds its state right after (kick), sizes measured again
+  };
   b.querySelectorAll("[data-clr]").forEach(x => x.onclick = () => {
+    if (cacheBusy || scanBusy) return;
     const a = (st.apps || []).find(y => y.pkg === x.dataset.clr); if (!a) return;
     cmd({ type: "clearData", pkg: a.pkg }, t("clean.cleared", a.label),
       [t("clean.askClear", a.label), t("delete"), true]).then(() => setTimeout(refresh, 2000));

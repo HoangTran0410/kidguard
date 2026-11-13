@@ -204,7 +204,7 @@ L.en = {
   "clean.noList": "The kid's phone hasn't sent its preinstalled app list (needs KidGuard 0.8 or later).", "clean.heavy": "Largest apps",
   "clean.cacheOf": "cache {0}", "clean.all": "Show all ({0} apps)",
   "clean.cacheBtn": "Clear every app's cache · frees {0}", "clean.cacheSub": "Logins and data stay. Apps download it again when needed.",
-  "clean.clearedCache": "Cleared every app's cache",
+  "clean.clearedCache": "Cleared every app's cache", "clean.cacheBusy": "Can take a few minutes for many GB. The list is locked meanwhile.", "clean.cacheBusyT": "Clearing every app's cache…", "clean.scan": "Rescan", "clean.scanning": "Scanning…", "clean.scanned": "Storage measured again", "clean.measured": "Measured at {0}", "clean.cacheDone": "Caches cleared at {0} · {1} freed",
   "clean.clear": "Clear data", "clean.noSize": "No storage figures yet (needs <b>Usage access</b> on the kid's phone, KidGuard 0.8+).",
   "clean.tipOwner": "Clear data = the app is like freshly installed (logins, messages and files saved in it are gone).", "clean.tipBasic": "On the kid's phone: Settings → Apps → pick the app → Uninstall / Disable.",
   "clean.tipRam": "There's no \"clean RAM\" button: Android manages memory itself, and killing background apps just makes them restart and use more battery.",

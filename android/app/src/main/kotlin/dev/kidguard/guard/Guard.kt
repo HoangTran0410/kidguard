@@ -460,6 +460,8 @@ class Guard : Service() {
                 if (owner || why == null || why == "wifi" || why == "wss") it.put("preinstalled", preinstalled(prot, now))
                 // clearCache needs KidGuard's own adb in both modes (no DPM call for caches)
                 SelfAdb.why(this).let { w -> it.put("clearCache", w == null || w == "wifi" || w == "wss") }
+                it.put("sizesAt", mbAt)
+                Policy.lastCacheClear?.let { (at, mb) -> it.put("cacheCleared", JSONObject().put("at", at).put("mb", mb)) }
             }
     }
 
@@ -652,7 +654,8 @@ class Guard : Service() {
             if (res == "ok") { forgetSize(pkg); store.log(R.string.log_cleared, Policy.labelOf(this, pkg)) }
             res
         }
-        "clearCache" -> Policy.clearCaches(this).also { if (it == "ok") { forgetSizes(); store.log(R.string.log_cleared_cache) } }
+        "rescan" -> { forgetSizes(); preAt = 0L; kick(); "ok" }
+        "clearCache" -> Policy.clearCaches(this).also { if (it == "ok") { forgetSizes(); store.log(R.string.log_cleared_cache); kick() } }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
         "devOff" -> devOff()
         "bankEnd" -> bankEnd()

@@ -207,7 +207,7 @@ L.vi = {
   "clean.noList": "Máy con chưa gửi danh sách app cài sẵn (cần KidGuard 0.8 trở lên).", "clean.heavy": "App nặng nhất",
   "clean.cacheOf": "cache {0}", "clean.all": "Xem tất cả ({0} app)",
   "clean.cacheBtn": "Xoá cache mọi app · trống thêm {0}", "clean.cacheSub": "Giữ đăng nhập và dữ liệu. App tự tải lại khi cần.",
-  "clean.clearedCache": "Đã xoá cache mọi app",
+  "clean.clearedCache": "Đã xoá cache mọi app", "clean.cacheBusy": "Có thể mất vài phút nếu nhiều GB. Danh sách tạm khoá.", "clean.cacheBusyT": "Đang xoá cache mọi app…", "clean.scan": "Quét lại", "clean.scanning": "Đang quét…", "clean.scanned": "Đã quét lại dung lượng", "clean.measured": "Đo lúc {0}", "clean.cacheDone": "Đã xoá cache lúc {0} · trống thêm {1}",
   "clean.clear": "Xoá dữ liệu", "clean.noSize": "Chưa có số liệu dung lượng (cần quyền <b>Truy cập dữ liệu sử dụng</b> trên máy con, KidGuard 0.8+).",
   "clean.tipOwner": "Xoá dữ liệu = app về như mới cài (mất đăng nhập, tin nhắn, file lưu trong app).", "clean.tipBasic": "Trên máy con: Cài đặt → Ứng dụng → chọn app → Gỡ cài đặt / Tắt.",
   "clean.tipRam": "Không có nút \"dọn RAM\": Android tự quản lý, tắt app chạy nền chỉ làm nó mở lại và tốn pin hơn.",

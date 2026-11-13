@@ -416,7 +416,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   clearData update totpSet fileDel`) are delivered **at-least-once**: the worker keeps them until the phone acks the id
   (so a lost reply does not drop a `release`) and the phone de-dups by id. The worker stamps `sent` at the first hand-out
   and drops an unacked one 10 min later (the phone may have released and stopped syncing). "Now" commands (`lock locate
-  message ring wake ringStop listenStop devOn devOff setting reboot clearData clearCache`) expire on the worker after **10 min** (others 24 h), so a
+  message ring wake ringStop listenStop devOn devOff setting reboot clearData clearCache rescan`) expire on the worker after **10 min** (others 24 h), so a
   `ring` queued overnight does not fire in the morning. The queue refuses at 20 entries (`429 queue full`).
   `answer`: the worker keeps `id` as command id only if it matches `^[\w.-]{1,64}$`, else it makes a UUID; the request id
   is always copied to `req` and the phone answers `req` (falling back to `id` on LAN).
@@ -751,6 +751,10 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
   self-adb shell in both modes; logins and data stay. Per app is impossible from shell (`pm clear --cache-only` is silently
   ignored for uid 2000 and hangs, API 34). Result `"ok"` | `"no adb"` | `"failed"`. Offered when **State** `clearCache: true` (self-adb usable: `SelfAdb.why` null / `wifi` / `wss`). **State** `apps[].mb` = appBytes + dataBytes
   (dataBytes already includes the cache; before 0.9.16 the cache was counted twice), `apps[].cache` = cache MB, only when > 0;
+  **State** `cacheCleared: {at, mb}` = last clearCache since the app started (MB freed, StatFs before/after); the command
+  answers only when `pm trim-caches` is done (can take minutes for many GB), the phone rebuilds its state right after.
+  **Command** `rescan {}`: drops the cached app sizes (1 h) and the preinstalled list, rebuilds the state now ("ok").
+  **State** `sizesAt` = when the sizes in `apps[].mb` were measured (ms, 0 = not yet).
   `apps[].noClear: true` = clearData would answer "protected" (system / KidGuard / never-clear set): the page hides its button.
 - **Self-adb shell (no Device Owner)**: `setup/SelfAdb.kt`. KidGuard pairs once with the phone's own Wireless debugging
   (same flow as the self-setup, `SelfAdb.pair`: notification with the 6-digit code, pair + connect only, none of the

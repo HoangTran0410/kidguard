@@ -465,9 +465,15 @@ object Policy {
      * shell (uid 2000) is "silently ignored" and the command hangs (measured API 34). "ok" | "no adb" | "failed".
      */
     fun clearCaches(ctx: Context): String {
+        val free = { runCatching { android.os.StatFs(android.os.Environment.getDataDirectory().path).availableBytes }.getOrDefault(0L) }
+        val before = free()
         val out = SelfAdb.run(ctx, "pm trim-caches 999G") ?: return "no adb"
-        return if (out.isBlank() || out.equals("Success", true)) "ok" else "failed"
+        if (!(out.isBlank() || out.equals("Success", true))) return "failed"
+        lastCacheClear = System.currentTimeMillis() to ((free() - before).coerceAtLeast(0L) / 1_048_576L).toInt()
+        return "ok"
     }
+    /** (when, MB freed) of the last clearCache, for the page's result line; memory only. */
+    @Volatile var lastCacheClear: Pair<Long, Int>? = null
 
     fun clearData(ctx: Context, pkg: String): String {
         if (!isOwner(ctx)) {   // no Device Owner: `pm clear` through the self-adb shell
