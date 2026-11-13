@@ -12,7 +12,7 @@
     </plurals>
     <string name="ev_sos">%1$s bấm SOS lúc %2$s</string>
     <string name="ev_lost">Mất kết nối với máy của %1$s</string>
-    <string name="ev_unpaired">Máy của %1$s không còn nhận app này (đã bị huỷ ghép). Hãy ghép lại bằng mã trên máy con.</string>
+    <string name="ev_unpaired">Máy của %1$s không nhận app này nữa. Ghép lại bằng mã trên máy con.</string>
     <string name="ev_acc_off">%1$s đã tắt Trợ năng của KidGuard: app không bị chặn nữa</string>
     <string name="act_grant">+%1$d phút</string>
     <string name="act_decline">Từ chối</string>
@@ -25,7 +25,7 @@
         <item quantity="other">Đã gửi +%1$d phút, có hiệu lực khi máy con có mạng</item>
     </plurals>
     <plurals name="ans_half">
-        <item quantity="other">Đã cộng %1$d phút, đang báo lại cho con. Đừng cho thêm lần nữa trên trang</item>
+        <item quantity="other">Đã cộng %1$d phút, đang báo con. Đừng cho thêm trên trang</item>
     </plurals>
     <string name="ans_declined">Đã từ chối</string>
     <string name="ans_already">Yêu cầu này đã được trả lời rồi</string>

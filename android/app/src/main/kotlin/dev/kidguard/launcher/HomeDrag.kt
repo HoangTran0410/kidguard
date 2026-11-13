@@ -87,10 +87,12 @@ internal fun pressed(icon: View?, down: Boolean?) {
 }
 
 internal fun HomeActivity.startDrag(v: View, d: DragSt) {
-    libraryOut()
     if (drag != null || !v.isAttachedToWindow) return
     val ok = runCatching { v.startDragAndDrop(null, View.DragShadowBuilder(v), d, 0) }.getOrDefault(false)
     if (!ok) return
+    // only once the drag runs: an icon held in the App Library sits inside it, taking the library out first detached the
+    // icon, the drag never started (no DRAG_ENDED -> no libraryBack) and the library page was gone until the next restart
+    libraryOut()
     drag = d
     // inside an open folder: re-arrange there first; the home takes over when the finger leaves the panel
     if (folderDragBegin(v, d)) return

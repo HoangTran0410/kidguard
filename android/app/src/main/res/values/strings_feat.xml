@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="feat_title">Features and permissions</string>
-    <string name="feat_intro">See what each feature needs. Many work right away, without the full setup.</string>
+    <string name="feat_intro">See what each feature needs. Many work with no full setup.</string>
     <string name="feat_ok">Ready to use</string>
     <string name="feat_need">Needs: %1$s</string>
     <string name="feat_fix">Turn on: %1$s</string>
     <string name="feat_close">Close</string>
     <string name="feat_guide">Open the setup guide</string>
     <string name="feat_owner_title">Device Owner</string>
-    <string name="feat_owner_body">Device Owner lets KidGuard lock the home screen, hide apps, block uninstall and set DNS. It is set up once from a computer or a QR code (remove all accounts from the phone first). The guide has the steps.</string>
-    <string name="feat_adb_body">The phone runs adb against itself over Wi-Fi. The guide shows how to turn on Wireless debugging.</string>
+    <string name="feat_owner_body">Device Owner lets KidGuard lock the home screen, hide apps, block uninstall and set DNS. Set it up once from a computer or QR code. Remove all accounts from the phone first. The guide has the steps.</string>
+    <string name="feat_adb_body">The phone runs adb on itself over Wi-Fi. Turn on Wireless debugging: see the guide.</string>
     <string name="feat_launcher_use">Use the KidGuard home screen</string>
     <string name="feat_launcher_off">Turn off the KidGuard home screen</string>
     <string name="feat_launcher_pick">Pick KidGuard as the home app in the phone settings.</string>
@@ -46,7 +46,7 @@
     <string name="ft_dns">Web filter (DNS)</string>
     <string name="ft_dns_d">Block bad sites on the whole phone.</string>
     <string name="feat_cap_wss">Secure settings permission</string>
-    <string name="feat_wss_body">Needs a one-time permission granted from a computer (scripts/setup.sh, "pm grant"). It stays after Developer options are turned off.</string>
+    <string name="feat_wss_body">Needs a one-time permission from a computer (scripts/setup.sh, \"pm grant\"). It stays after Developer options go off.</string>
     <string name="ft_lockLocation">Keep location on (lock)</string>
     <string name="ft_lockLocation_d">Stops the child from turning location off.</string>
     <string name="ms_pin_lock_sub">Adds it to the home screen</string>
@@ -60,10 +60,22 @@
         <item quantity="other">Telegram: %d parents linked</item>
     </plurals>
     <string name="st_rc_tg_none">Telegram: bot set up, nobody linked yet</string>
-    <string name="ft_bank">Bank apps reopen by themselves</string>
-    <string name="ft_bank_d">KidGuard pauses Accessibility while a bank app opens, then needs this permission to reopen it.</string>
+    <string name="ft_bank">Accessibility back on after bank apps</string>
+    <string name="ft_bank_d">Bank apps turn Accessibility off for a while. This permission turns it back on.</string>
     <string name="feat_cap_overlay">display over other apps</string>
     <string name="ft_battery">Battery and autostart</string>
     <string name="ft_battery_d">So the phone doesn\'t stop KidGuard in the background.</string>
     <string name="ft_battery_open">Open battery settings</string>
+    <string name="pa_lost">Stops working: %1$s.</string>
+    <string name="pa_lost_none">No KidGuard feature stops on this phone.</string>
+    <string name="ft_adbShell">adb terminal</string>
+    <string name="ft_adbShell_d">Run shell commands on the phone from the parent page.</string>
+    <string name="ft_autoGrant">Auto-grant permissions</string>
+    <string name="ft_autoGrant_d">Missing permissions are granted again by the phone itself.</string>
+    <string name="ft_pcAdb">adb from a computer</string>
+    <string name="ft_pcAdb_d">adb connect &lt;ip&gt;:5555 over Wi-Fi or Tailscale, also on mobile data.</string>
+    <string name="ft_tailscale">Parent page over Tailscale</string>
+    <string name="ft_tailscale_d">Reach the phone directly from anywhere through Tailscale.</string>
+    <string name="feat_cap_adbNet">adb port 5555</string>
+    <string name="feat_cap_vpn">VPN (Tailscale) on</string>
 </resources>

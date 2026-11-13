@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="feat_title">Tính năng và quyền</string>
-    <string name="feat_intro">Xem mỗi tính năng cần quyền gì. Nhiều tính năng dùng được ngay, không cần cài đặt đầy đủ.</string>
+    <string name="feat_intro">Mỗi tính năng cần quyền gì. Nhiều tính năng dùng được ngay.</string>
     <string name="feat_ok">Đang dùng được</string>
     <string name="feat_need">Cần: %1$s</string>
     <string name="feat_fix">Bật: %1$s</string>
     <string name="feat_close">Đóng</string>
     <string name="feat_guide">Xem hướng dẫn cài đặt</string>
     <string name="feat_owner_title">Quyền Device Owner</string>
-    <string name="feat_owner_body">Device Owner cho phép khoá màn hình chính, ẩn app, chặn gỡ cài đặt và đổi DNS. Cần cài một lần bằng máy tính hoặc mã QR (xoá hết tài khoản trên máy trước). Xem hướng dẫn để biết các bước.</string>
-    <string name="feat_adb_body">Máy tự chạy adb cho chính nó (Wi-Fi). Xem hướng dẫn để bật Gỡ lỗi không dây.</string>
+    <string name="feat_owner_body">Device Owner cho KidGuard khoá màn hình chính, ẩn app, chặn gỡ app và đổi DNS. Cài một lần bằng máy tính hoặc mã QR. Xoá hết tài khoản trên máy trước. Các bước có trong hướng dẫn.</string>
+    <string name="feat_adb_body">Máy tự chạy adb qua Wi-Fi. Bật Gỡ lỗi không dây theo hướng dẫn.</string>
     <string name="feat_launcher_use">Dùng màn hình chính KidGuard</string>
     <string name="feat_launcher_off">Tắt màn hình chính KidGuard</string>
     <string name="feat_launcher_pick">Chọn KidGuard làm màn hình chính trong cài đặt của máy.</string>
@@ -46,7 +46,7 @@
     <string name="ft_dns">Lọc web (DNS)</string>
     <string name="ft_dns_d">Chặn trang web xấu cho cả máy.</string>
     <string name="feat_cap_wss">quyền cài đặt bảo mật</string>
-    <string name="feat_wss_body">Cần cấp quyền một lần qua máy tính (scripts/setup.sh, "pm grant"). Quyền vẫn còn sau khi tắt Tùy chọn nhà phát triển.</string>
+    <string name="feat_wss_body">Cấp quyền một lần từ máy tính (scripts/setup.sh, \"pm grant\"). Quyền vẫn còn khi tắt Tùy chọn nhà phát triển.</string>
     <string name="ft_lockLocation">Giữ vị trí luôn bật</string>
     <string name="ft_lockLocation_d">Không cho con tắt vị trí.</string>
     <string name="ms_pin_lock_sub">Thêm vào màn hình chính</string>
@@ -59,10 +59,22 @@
         <item quantity="other">Telegram: %d phụ huynh đã liên kết</item>
     </plurals>
     <string name="st_rc_tg_none">Telegram: đã cài bot, chưa ai liên kết</string>
-    <string name="ft_bank">App ngân hàng tự mở lại</string>
-    <string name="ft_bank_d">KidGuard tạm tắt trợ năng khi mở app ngân hàng, rồi cần quyền này để mở lại app đó.</string>
+    <string name="ft_bank">Tự bật lại Trợ năng sau app ngân hàng</string>
+    <string name="ft_bank_d">App ngân hàng làm Trợ năng tạm tắt. Quyền này giúp tự bật lại.</string>
     <string name="feat_cap_overlay">hiển thị trên ứng dụng khác</string>
     <string name="ft_battery">Pin và tự khởi động</string>
     <string name="ft_battery_d">Để máy không tự tắt KidGuard khi chạy ngầm.</string>
     <string name="ft_battery_open">Mở cài đặt pin</string>
+    <string name="pa_lost">Không dùng được: %1$s.</string>
+    <string name="pa_lost_none">Không tính năng KidGuard nào bị ảnh hưởng trên máy này.</string>
+    <string name="ft_adbShell">Lệnh adb</string>
+    <string name="ft_adbShell_d">Chạy lệnh shell trên máy con từ trang quản lý.</string>
+    <string name="ft_autoGrant">Tự cấp lại quyền</string>
+    <string name="ft_autoGrant_d">Quyền bị mất được máy tự cấp lại.</string>
+    <string name="ft_pcAdb">adb từ máy tính</string>
+    <string name="ft_pcAdb_d">adb connect &lt;ip&gt;:5555 qua Wi-Fi hoặc Tailscale, cả khi dùng 4G.</string>
+    <string name="ft_tailscale">Trang quản lý qua Tailscale</string>
+    <string name="ft_tailscale_d">Vào thẳng máy con từ bất cứ đâu qua Tailscale.</string>
+    <string name="feat_cap_adbNet">cổng adb 5555</string>
+    <string name="feat_cap_vpn">VPN (Tailscale) bật</string>
 </resources>

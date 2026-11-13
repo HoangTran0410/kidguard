@@ -10,7 +10,25 @@ import android.widget.LinearLayout
  * is no popup: the pause then happens on the app's first window (Acc), as before.
  */
 internal object PauseAsk {
+    /** name.lowercase() = the row in [Features.PAUSES] (FeaturesTest checks it). */
     enum class Kind { ACC, DEV, TCP, VPN }
+
+    /** Title + body per kind: what goes off, which features stop (from Features.TABLE / PAUSES), how it comes back. */
+    fun lines(ctx: android.content.Context, kinds: List<Kind>): List<Pair<String, String>> {
+        val caps = runCatching { FeatureCaps.of(ctx) }.getOrDefault(Caps())
+        return kinds.map { k ->
+            val (t, back) = when (k) {
+                Kind.ACC -> R.string.pa_acc_t to R.string.pa_acc_b
+                Kind.DEV -> R.string.pa_dev_t to R.string.pa_dev_b
+                Kind.TCP -> R.string.pa_tcp_t to R.string.pa_tcp_b
+                Kind.VPN -> R.string.pa_vpn_t to R.string.pa_vpn_b
+            }
+            val lost = Features.lost(caps, k.name.lowercase()).map { id ->
+                ctx.resources.getIdentifier("ft_$id", "string", ctx.packageName).let { if (it != 0) ctx.getString(it) else id } }
+            val stops = if (lost.isEmpty()) ctx.getString(R.string.pa_lost_none) else ctx.getString(R.string.pa_lost, lost.joinToString(", "))
+            ctx.getString(t) to stops + "\n" + ctx.getString(back)
+        }
+    }
 
     /** What opening [pkg] would turn off now, in the order shown. */
     fun kinds(ctx: android.content.Context, pkg: String): List<Kind> {
@@ -34,16 +52,10 @@ internal fun HomeActivity.pauseAsk(pkg: String, label: String, go: () -> Unit) {
     val st = Store.of(this)
     if (ks.isEmpty() || pkg in st.pauseNoAsk) { go(); return }
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-    for (k in ks) {
-        val (t, b) = when (k) {
-            PauseAsk.Kind.ACC -> R.string.pa_acc_t to R.string.pa_acc_b
-            PauseAsk.Kind.DEV -> R.string.pa_dev_t to R.string.pa_dev_b
-            PauseAsk.Kind.TCP -> R.string.pa_tcp_t to R.string.pa_tcp_b
-            PauseAsk.Kind.VPN -> R.string.pa_vpn_t to R.string.pa_vpn_b
-        }
-        box.addView(u.label("• " + getString(t), 15f, u.text, true),
+    for ((t, b) in PauseAsk.lines(this, ks)) {
+        box.addView(u.label("• " + t, 15f, u.text, true),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(10) })
-        box.addView(u.label(getString(b), 13f, u.sub).apply { setLineSpacing(0f, 1.15f); setPadding(u.dp(12), u.dp(2), 0, 0) })
+        box.addView(u.label(b, 13f, u.sub).apply { setLineSpacing(0f, 1.15f); setPadding(u.dp(12), u.dp(2), 0, 0) })
     }
     val cb = CheckBox(this).apply { text = getString(R.string.pa_noask); setTextColor(u.sub); textSize = 14f }
     box.addView(cb, LinearLayout.LayoutParams(-2, -2).apply { topMargin = u.dp(12) })

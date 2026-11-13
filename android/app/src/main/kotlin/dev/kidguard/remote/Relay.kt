@@ -48,7 +48,7 @@ class Relay(private val g: Guard) {
     fun start() { schedule(0) }
     fun stop() { ws.close(); h.looper.quitSafely() }
     /** Sync now. Never starts a second chain: while a sync runs it only asks the running one to go again at once. */
-    fun kick() { h.post { if (inSync) kickAgain = true else schedule(0) } }
+    fun kick() { h.post { wsRetryAt = 0L; wsFails = 0; if (inSync) kickAgain = true else schedule(0) } }
 
     private fun schedule(ms: Long) { h.removeCallbacks(loopRun); h.postDelayed(loopRun, ms) }
 

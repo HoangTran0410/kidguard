@@ -88,6 +88,11 @@ leftMs apps rules location lan relay log`), plus:
           "carrier": "Viettel",                                             // cell
           "hwMac": "aa:bb:…"},                                              // Device Owner only (factory MAC); rssi/bars/mbps left out of the relay WS change hash
   "ts": {"state": "off|installing|on|error", "ip": "100.x.y.z", "host": "kid-an", "err": "", "noExpiry": false},  // v0.4: Tailscale (never the key); noExpiry v0.9.6: node key expiry turned off
+  "ts.why": "",  // NEW 2026-11-13: why Tailscale is not being revived now: "bank" (VPN pause) | "bg-start" (no right to open an app from the background) | "hidden" (app suspended) | "screen-off" | "not-home" (our launcher not in front) | "wait" (10-min gate between opens; command `tailscale` resets it) | "" (nothing / reviving)
+  "grayErr": "",  // NEW: last wind-down grayscale error ("" = fine, "no permission" | "write failed")
+  "autoGrant": {"left": 0, "at": 0, "next": 0, "err": ""},  // NEW: permissions still missing at the last tick, last real attempt (ms), next allowed attempt (ms), err "" | "no adb"
+  "bankList": {"at": 0, "err": ""},  // NEW: last successful fetch of the website bank-app list (ms, 0 = never), last fetch error ("" = fine)
+  "relayOk": 0,  // NEW: epoch ms of the last successful relay sync (0 = never)
   "requests": [                    // NEW: the child asked for more time (button on the child's KidGuard screen)
     {"id": "a1b2c3", "t": 1793940898493, "min": 30, "note": "con làm bài tập"}
   ]
@@ -1127,7 +1132,7 @@ without `--app kidguard` tv-remote's tools leave KidGuard out (list, `said`, cra
 ## Features and permissions
 What works with which permission, so the child app and the web page can show it before the heavy setup (Device Owner)
 is done. Source of truth: `guard/Features.kt` (pure, `FeaturesTest`). State adds (absent = older app):
-- `caps`: `{"owner","admin","acc","usage","location","notify","battery","home","adb","paired","wss"}`, all bool. `wss` = KidGuard holds WRITE_SECURE_SETTINGS (granted once by `pm grant` at setup; it stays after Developer options / debugging are turned off). `home` = KidGuard
+- `caps`: `{"owner","admin","acc","usage","location","notify","battery","home","adb","paired","wss","adbNet","vpn"}`, all bool. `adbNet` = adb listens on port 5555 (DevOpts.tcpNow); `vpn` = a VPN (Tailscale) is up. `wss` = KidGuard holds WRITE_SECURE_SETTINGS (granted once by `pm grant` at setup; it stays after Developer options / debugging are turned off). `home` = KidGuard
   is the default HOME app now; `adb` = the phone can run adb against itself (false until that flow exists); `paired` = `everPaired`.
 - `features`: `[{"id","ok":bool,"missing":["acc","admin"]}]` in display order. `ok` = one alternative has every cap;
   otherwise `missing` = the alternative with the fewest missing caps (first on ties).
@@ -1146,6 +1151,14 @@ is done. Source of truth: `guard/Features.kt` (pure, `FeaturesTest`). State adds
 | `noUninstall` | `owner` or `admin` | |
 | `dns` | `owner` or `wss` | private DNS; without Device Owner raw `Settings.Global` writes (Chrome/Edge DoH-off stays owner-only) |
 | `lockLocation` | `owner` or `wss` | location kept on; `wss` = raw `location_mode` write (unverified on Android 10+) |
+| `adbShell` | `adb` | parent page adb terminal |
+| `autoGrant` | `adb` | missing permissions granted again by the phone's own adb |
+| `pcAdb` | `adbNet` | `adb connect <ip>:5555` from a computer (Wi-Fi / Tailscale) |
+| `tailscale` | `vpn` | parent page / adb over Tailscale |
+
+Bank-app pauses as caps (`Features.PAUSES`): `acc` → acc; `dev` → adb + adbNet; `tcp` → adbNet; `vpn` → vpn. The kid
+popup / notification before such an app lists `Features.lost(caps, pause)` = features that work now and would not
+without those caps. New pause kind or feature ⇒ a row there; `FeaturesTest` fails on a missing row or name string.
 
 Child-app screen "Tính năng và quyền" (Thêm sheet) lists these with a button per missing cap.
 

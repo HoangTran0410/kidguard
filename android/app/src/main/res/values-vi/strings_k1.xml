@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ch_pause">Thông báo app ngân hàng</string>
+    <string name="bp_title">Đã mở %1$s: KidGuard tạm tắt</string>
+    <string name="bn_ok">Đã hiểu</string>
+    <string name="bn_who">Chỉ bố mẹ mới đổi được, trong trang quản lý KidGuard.</string>
+    <string name="bn_clock_t">Ngày giờ đã bị khoá</string>
+    <string name="bn_clock_b">Bố mẹ giữ ngày giờ tự động. Trang đồng hồ đã đóng. Sai giờ sẽ hỏng giới hạn thời gian.</string>
+    <string name="bn_protect_t">Trang này đã bị khoá</string>
+    <string name="bn_protect_b">Bố mẹ đã khoá việc gỡ, dừng hay đổi KidGuard. Trang đã đóng.</string>
+</resources>

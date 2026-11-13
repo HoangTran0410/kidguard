@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="loc_kept">Location is kept on by your parent</string>
+    <string name="sus_hint">%1$s is off for now: %2$s.</string>
+    <string name="cc_this_setting">This setting</string>
+    <string name="cc_locked_body">%1$s is managed by a parent on this phone. Ask them if you need it changed.</string>
+    <string name="cc_no_off_body">A parent keeps %1$s on. You can\'t turn it off here.</string>
+    <string name="cc_failed_body">This phone does not allow changing %1$s from here.</string>
+</resources>

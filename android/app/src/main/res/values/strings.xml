@@ -120,8 +120,8 @@
     <string name="log_loc_fixed">Location was off, turned it back on</string>
     <string name="log_usage_on">Usage access is back on</string>
     <string name="ch_usage">Usage access</string>
-    <string name="usage_off_note">Usage access is off, so time limits don\'t work. Tap to turn it back on.</string>
-    <string name="ev_foreign_home">%1$s is now the default home screen (not a system app: it is not limited)</string>
+    <string name="usage_off_note">Usage access is off: time limits don\'t work. Tap to turn it on.</string>
+    <string name="ev_foreign_home">%1$s is now the default home screen. It\'s not a system app, so it isn\'t limited</string>
     <string name="log_foreign_home">Non-system default home screen: %1$s</string>
     <string name="log_dns_paused">Safe DNS paused by the parent</string>
     <string name="log_dns_resumed">Safe DNS is back on</string>
@@ -160,44 +160,44 @@
     <string name="log_released">Management removed</string>
     <string name="log_sos">SOS pressed</string>
     <string name="notif_guard_title">KidGuard is on</string>
-    <string name="notif_guard_text">Your parent manages screen time. Long-press this notification → turn off to hide it for good, KidGuard keeps running.</string>
+    <string name="notif_guard_text">Your parent manages screen time. To hide this: long-press → turn off. KidGuard keeps running.</string>
     <string name="ch_guard">KidGuard in the background (safe to turn off)</string>
 
     <!-- Basic mode setup card -->
     <string name="basic_title">Quick setup, no computer needed</string>
-    <string name="basic_intro">Do the steps below in order. Each button opens the right screen: turn the setting on, then press Back.</string>
+    <string name="basic_intro">Do the steps in order. Each button opens the right screen. Turn it on, then press Back.</string>
     <string name="basic_admin">1. Turn on device admin</string>
     <string name="basic_admin_d">So KidGuard can lock the phone and can\'t be removed without a parent.</string>
     <string name="basic_admin_expl">KidGuard needs this to lock the screen and to stop being uninstalled.</string>
     <string name="basic_acc">2. Turn on Accessibility for KidGuard</string>
-    <string name="basic_acc_d">Open Accessibility, pick KidGuard, turn it on. It blocks locked apps and keeps KidGuard from being switched off.</string>
+    <string name="basic_acc_d">Open Accessibility → KidGuard → turn on. It blocks locked apps and keeps KidGuard running.</string>
     <string name="basic_usage">3. Allow usage access</string>
     <string name="basic_usage_d">Pick KidGuard and turn on \"Permit\". It counts the time spent in each app.</string>
     <string name="basic_loc">4. Allow location</string>
     <string name="basic_loc_d">So your parent knows where you are. Choose \"Precise\" and \"While using the app\" here.</string>
     <string name="basic_loc_bg">4. Location: choose \"Allow all the time\"</string>
-    <string name="basic_loc_bg_d">So your parent can see the location even when KidGuard isn\'t open. Choose \"Allow all the time\" on the next screen.</string>
+    <string name="basic_loc_bg_d">So your parent sees the location even when KidGuard is closed. On the next screen, choose \"Allow all the time\".</string>
     <string name="basic_notif">5. Allow notifications</string>
     <string name="basic_notif_d">So you see reminders, and why an app is locked.</string>
     <string name="basic_battery">6. No battery limits for KidGuard</string>
     <string name="basic_battery_d">Otherwise the phone may stop KidGuard to save battery.</string>
     <string name="basic_autostart">Allow autostart (Oppo, Xiaomi, Vivo…)</string>
-    <string name="basic_play_protect">Blocked by Google Play Protect (\"App blocked to protect your device\")? Open Play Store → profile picture → Play Protect → ⚙ → turn off \"Scan apps with Play Protect\", finish the steps here, then turn it back on.</string>
+    <string name="basic_play_protect">Blocked by Google Play Protect? Open Play Store → profile picture → Play Protect → ⚙ → turn off \"Scan apps with Play Protect\". Turn it back on after setup.</string>
 
     <!-- Device Owner checklist -->
     <string name="prov_usage">Turn on usage access</string>
     <string name="acc_restricted">Allow restricted settings (Android 13+)</string>
-    <string name="acc_restricted_d">If Accessibility says "Restricted setting": tap OK, open this, tap ⋮ (top right) → "Allow restricted settings", confirm, then turn on Accessibility again.</string>
+    <string name="acc_restricted_d">Accessibility says \"Restricted setting\"? Tap OK, open this, tap ⋮ (top right) → \"Allow restricted settings\". Then turn Accessibility on again.</string>
     <string name="prov_acc">Turn on KidGuard Accessibility</string>
     <string name="prov_title">Steps left</string>
     <string name="prov_intro">Turn on these 2 permissions so KidGuard works fully</string>
     <string name="prov_done">Done: %1$s</string>
     <string name="prov_secure_yes">Turns Accessibility back on by itself: yes</string>
-    <string name="prov_secure_no">Optional: turning Accessibility back on by itself needs a computer or Wireless debugging</string>
+    <string name="prov_secure_no">Optional: for Accessibility to come back by itself, use a computer or Wireless debugging</string>
 
     <!-- Accessibility -->
     <string name="log_acc_clock">The Date and time page was opened; went back to the home screen</string>
-    <string name="log_acc_settings">The uninstall / turn-off page for KidGuard was opened; went back to the home screen</string>
+    <string name="log_acc_settings">Child opened the KidGuard turn-off / uninstall page; sent back to the home screen</string>
     <string name="ch_block">Locked apps</string>
     <string name="notif_blocked">%1$s is locked: %2$s</string>
     <string name="log_acc_rebind">Accessibility not connected, binding again</string>
@@ -221,7 +221,7 @@
     <string name="ts_log_connected">Remote control: connected (%1$s)</string>
     <string name="ts_log_down">Tailscale dropped (closed or cleaned up): reconnecting it</string>
     <string name="ts_log_back">Tailscale is connected again</string>
-    <string name="ts_err_no_net">Couldn\'t join the network (wrong or expired key, or the phone has no Internet)</string>
+    <string name="ts_err_no_net">Couldn\'t join the network: wrong or expired key, or no Internet</string>
     <string name="ts_err_install">install didn\'t finish</string>
     <string name="ts_err_token">Tailscale token refused (expired or wrong)</string>
     <string name="ts_log_noexpiry">Remote control: key expiry turned off</string>
@@ -233,7 +233,7 @@
     <!-- Self-update -->
     <string name="upd_err_bad_tag">version %1$s is not valid</string>
     <string name="upd_err_github">GitHub answered HTTP %1$d</string>
-    <string name="upd_err_tls">could not connect securely to GitHub (the network or a VPN / ad blocker on the phone intercepts HTTPS, or the clock is wrong)</string>
+    <string name="upd_err_tls">can\'t connect securely to GitHub: a network, VPN or ad blocker is intercepting HTTPS, or the clock is wrong</string>
     <string name="upd_err_net">no connection to GitHub (offline or blocked), trying again in an hour</string>
     <string name="upd_err_version">couldn\'t read the version</string>
     <string name="upd_err_sha">update SHA-256 doesn\'t match</string>
@@ -245,9 +245,9 @@
     <string name="upd_cancelled">cancelled</string>
 
     <!-- Policy -->
-    <string name="policy_support">This app is paused for now. You can ask your parent for more time in KidGuard.</string>
+    <string name="policy_support">This app is blocked for now. You can ask for more time in KidGuard.</string>
     <string name="dns_refused">DNS %1$s was refused (code %2$d)</string>
-    <string name="dns_fallback">Safe DNS doesn\'t work on this network: off for 30 minutes so the phone stays online</string>
+    <string name="dns_fallback">Safe DNS doesn\'t work on this network. Off for 30 minutes to keep the phone online.</string>
     <string name="log_dns_fallback">Safe DNS broke the connection, off for 30 minutes</string>
     <!-- a `release` command result: keep the "failed: " prefix -->
     <plurals name="release_stuck">
@@ -256,8 +256,8 @@
     </plurals>
 
     <plurals name="release_shell_left">
-        <item quantity="one">%1$d app we disabled is still disabled: it is re-enabled when Wireless debugging is on at the next start (or enable it in Settings > Apps)</item>
-        <item quantity="other">%1$d apps we disabled are still disabled: they are re-enabled when Wireless debugging is on at the next start (or enable them in Settings > Apps)</item>
+        <item quantity="one">%1$d app we disabled is still off. It comes back at the next start if Wireless debugging is on (or enable it in Settings > Apps)</item>
+        <item quantity="other">%1$d apps we disabled are still off. They come back at the next start if Wireless debugging is on (or enable them in Settings > Apps)</item>
     </plurals>
     <!-- Listening -->
     <plurals name="listen_about">
@@ -285,8 +285,8 @@
     <string name="ss_no_conn_port">Paired, but the connection port wasn\'t found. Turn \"Wireless debugging\" off and on again.</string>
     <string name="ss_conn_fail">Couldn\'t connect to this phone: %1$s</string>
     <string name="ss_cmd_fail">command failed</string>
-    <string name="ss_accounts">The phone still has accounts, remove them first: %1$s. Go to Settings > Passwords &amp; accounts, remove them all and retry (you can sign back in after setup).</string>
-    <string name="ss_coloros">Oppo/Realme/OnePlus (ColorOS): open Recents, pull the KidGuard card down to lock it (padlock icon), and in Phone Manager allow KidGuard \"Auto-launch\" + background running. Swiping KidGuard out of Recents on ColorOS stops the app and its Accessibility for good.</string>
+    <string name="ss_accounts">Remove the accounts on this phone first: %1$s. Go to Settings > Passwords &amp; accounts, remove them all, then retry. You can sign back in after setup.</string>
+    <string name="ss_coloros">Oppo/Realme/OnePlus (ColorOS): open Recents, pull the KidGuard card down to lock it (padlock). In Phone Manager, allow KidGuard \"Auto-launch\" and background running. Swiping KidGuard out of Recents stops the app and Accessibility for good.</string>
     <string name="ss_done">Done. KidGuard is now the device manager.</string>
     <string name="ch_selfsetup">KidGuard self-setup</string>
     <string name="ss_code_label">6-digit code</string>
@@ -296,14 +296,14 @@
     <string name="ss_running">KidGuard is setting itself up</string>
     <string name="ss_code_6">The code must be 6 digits</string>
     <string name="ssa_title">Set up KidGuard without a computer</string>
-    <string name="ssa_old">This phone runs Android %1$s (older than 11), so it can\'t set itself up. Connect a computer and run setup.sh (see the README), or reset the phone and scan the QR code.</string>
+    <string name="ssa_old">Android %1$s (older than 11) can\'t set itself up. Connect a computer and run setup.sh (see the README), or reset the phone and scan the QR code.</string>
     <string name="ssa_s1_ok">Developer options are on</string>
     <string name="ssa_s2_ok">Wireless debugging is on</string>
-    <string name="ssa_need_wifi">The phone isn\'t on Wi-Fi: join Wi-Fi, then turn on Wireless debugging (mobile data won\'t work).</string>
+    <string name="ssa_need_wifi">The phone isn\'t on Wi-Fi. Join Wi-Fi, then turn on Wireless debugging (mobile data won\'t work).</string>
     <string name="ssa_s3_ok">Paired: KidGuard can use adb by itself (hide apps, clean-up). Pair again only if something fails.</string>
     <string name="ssa_pair_title">Let KidGuard use adb</string>
-    <string name="ssa_pair_intro">To hide preinstalled apps and clean up without Device Owner (no reset), KidGuard pairs once with this phone\'s own Wireless debugging. Needs Wi-Fi. Do the 3 steps in order; a done step gets a ✓:</string>
-    <string name="ssa_intro">The phone \"talks\" to itself over Wireless debugging (needs Wi-Fi). To become Device Owner it must have no account signed in (Google, Samsung, Xiaomi...); a phone with accounts can still pair so KidGuard hides apps and cleans up by itself. Do the 3 steps in order:</string>
+    <string name="ssa_pair_intro">KidGuard pairs once with this phone\'s Wireless debugging to hide preinstalled apps and clean up, no reset. Needs Wi-Fi. Do 3 steps; each gets a ✓ when done:</string>
+    <string name="ssa_intro">The phone connects to itself over Wireless debugging (needs Wi-Fi). Device Owner needs a phone with no account signed in (Google, Samsung, Xiaomi...). With accounts it still pairs: KidGuard hides apps and cleans up. Do 3 steps:</string>
     <string name="ssa_s1">Step 1. Turn on Developer options</string>
     <string name="ssa_s1_d">Open About phone and tap \"Build number\" 7 times.</string>
     <string name="ssa_s1_btn">Open About phone</string>
@@ -311,7 +311,7 @@
     <string name="ssa_s2_d">In Developer options, turn on \"Wireless debugging\" and allow this Wi-Fi.</string>
     <string name="ssa_s2_btn">Open Developer options</string>
     <string name="ssa_s3">Step 3. Enter the pairing code</string>
-    <string name="ssa_s3_d">Tap the button below. Then in Wireless debugging, tap \"Pair device with pairing code\". The dialog closes if you leave Settings, so the code goes into a notification: pull down the notification shade, tap \"Enter pairing code\" and type the 6 digits.</string>
+    <string name="ssa_s3_d">Tap the button below. Then in Wireless debugging, tap \"Pair device with pairing code\". Enter the code in the notification: pull the shade down, tap \"Enter pairing code\", type the 6 digits. (Leaving Settings closes the dialog.)</string>
     <string name="ssa_s3_btn">Show the code box in a notification</string>
     <string name="ssa_or_here">Or type it here (if the notification doesn\'t show):</string>
     <string name="ssa_code_hint">6-digit pairing code</string>
@@ -348,7 +348,7 @@
     <string name="log_recover_req">This phone asked to reopen pairing (opens in 24 hours)</string>
     <string name="ev_recover_req">The child\'s phone asked to reopen pairing: it opens in 24 hours. Set a PIN to cancel.</string>
     <string name="main_recover_title">Pairing opens in 24 hours</string>
-    <string name="main_recover_body">For safety, the pairing code shows up after 24 hours and your parent is told right away. If your parent can still manage the phone, setting a PIN cancels this.</string>
+    <string name="main_recover_body">The pairing code shows after 24 hours, and your parent is told right away. A parent who can still manage the phone sets a PIN to cancel.</string>
     <string name="main_battery">Battery / autostart settings</string>
     <!-- language row: both languages in the label so whoever reads either one finds it; names come from Langs.ALL -->
     <string name="lang_title">Language / Ngôn ngữ</string>
@@ -360,12 +360,12 @@
     </plurals>
     <string name="st_owner">Managed by your parent</string>
     <string name="st_basic">Basic mode: KidGuard is protecting this phone</string>
-    <string name="st_unfinished">Setup not finished: do the steps in the \"Quick setup\" box below</string>
+    <string name="st_unfinished">Setup not finished: do the steps in \"Quick setup\" below</string>
     <string name="st_no_usage">No usage access yet</string>
     <string name="st_running">Running</string>
     <string name="st_starting">Starting…</string>
     <string name="st_acc_on">Accessibility: on</string>
-    <string name="st_acc_off">KidGuard\'s Accessibility is off → turn it back on in Settings > Accessibility</string>
+    <string name="st_acc_off">KidGuard Accessibility is off → turn it on in Settings > Accessibility</string>
     <string name="st_loc_on">Location: on</string>
     <string name="st_loc_off">Location: off</string>
     <plurals name="st_pending">
@@ -376,11 +376,11 @@
     <string name="st_last_listen">Last listened: %1$s (%2$s)</string>
     <string name="main_hint_qr">On the parent\'s phone (same Wi-Fi): scan the QR code with the camera, or open a browser at:\n%1$s\nthen enter the code above.</string>
     <string name="main_hint_nowifi">On the parent\'s phone (same Wi-Fi), open a browser at:\n(no Wi-Fi yet)\nthen enter the code above.</string>
-    <string name="main_hint_hidden">Not paired with a parent yet. A parent holds the \"show the pairing code\" button below for 5 seconds to start.</string>
+    <string name="main_hint_hidden">Not paired yet. A parent holds the \"show the pairing code\" button below for 5 seconds.</string>
     <string name="main_hint_managed">Your parent manages this phone at:\n%1$s</string>
     <string name="main_no_wifi">(no Wi-Fi yet)</string>
     <string name="pin_need_title">PIN needed</string>
-    <string name="pin_need_body">Parents: set a PIN on the management page before pairing another device.</string>
+    <string name="pin_need_body">Parents: set a PIN on the parent page first, then pair another phone.</string>
     <plurals name="pin_locked">
         <item quantity="one">Too many wrong PINs. Try again in %1$d minute.</item>
         <item quantity="other">Too many wrong PINs. Try again in %1$d minutes.</item>
@@ -429,7 +429,7 @@
     </plurals>
     <string name="unl_hint">6 digits</string>
     <string name="unl_title">Unlock code</string>
-    <string name="unl_body">Your parent opens Google Authenticator and reads out KidGuard\'s 6 digits. Each code works once and unlocks %1$d minutes (fully blocked apps stay blocked).</string>
+    <string name="unl_body">Your parent opens Google Authenticator and reads out KidGuard\'s 6 digits. Each code works once and unlocks %1$d minutes. Fully blocked apps stay blocked.</string>
     <string name="unl_ok">Unlock</string>
     <string name="unl_done">Unlocked</string>
     <plurals name="unl_done_body">
@@ -519,9 +519,9 @@
     <string name="home_version">KidGuard %1$s</string>
     <string name="home_sos">SOS</string>
     <string name="admin_title">Manage on this phone</string>
-    <string name="admin_body">Parent: enter your PIN or a current Authenticator code. The page closes when the screen turns off, when you leave it, or after 5 minutes without a touch.</string>
-    <string name="admin_body_pin">Parent: enter your PIN. The page closes when the screen turns off, when you leave it, or after 5 minutes without a touch.</string>
-    <string name="admin_body_totp">Parent: enter a current Authenticator code. The page closes when the screen turns off, when you leave it, or after 5 minutes without a touch.</string>
+    <string name="admin_body">Parent: enter your PIN or a current Authenticator code. The page closes when the screen turns off, you leave it, or 5 minutes pass without a touch.</string>
+    <string name="admin_body_pin">Parent: enter your PIN. The page closes when the screen turns off, you leave it, or 5 minutes pass without a touch.</string>
+    <string name="admin_body_totp">Parent: enter a current Authenticator code. The page closes when the screen turns off, you leave it, or 5 minutes pass without a touch.</string>
     <string name="admin_field">PIN or 6-digit code</string>
     <string name="admin_ok">Open</string>
     <string name="admin_loading">Opening the parent page…</string>
@@ -547,7 +547,7 @@
     </plurals>
     <!-- v0.9.7 comfort: wind-down, lock-screen info, block note, check-in, request templates -->
     <string name="warn_bed10">%1$d minutes until bedtime</string>
-    <string name="policy_support_long">KidGuard helps you and your parent keep a good routine. This app is resting for now, by the rules your parent set. If you need it, open KidGuard and tap \"Ask for more time\", or talk to your parent.</string>
+    <string name="policy_support_long">This app is resting by your parent\'s rules. Need it? Open KidGuard and tap \"Ask for more time\", or talk to your parent.</string>
     <string name="policy_note">From your parent: %1$s</string>
     <string name="st_gray">Screen is black and white: bedtime is near</string>
     <string name="main_ci_arrived">I\'ve arrived</string>
@@ -649,7 +649,7 @@
     <string name="hm_b_location">Location is off</string>
     <string name="hm_b_acc">KidGuard accessibility is off</string>
     <string name="hm_xiaomi_nav_t">Navigation will use 3 buttons</string>
-    <string name="hm_xiaomi_nav_b">On Xiaomi, Redmi and POCO phones, any home screen other than Xiaomi\'s switches gesture navigation to 3 buttons. The system does this and there is no setting to keep gestures. Go back to Xiaomi\'s home screen to get gestures again.</string>
+    <string name="hm_xiaomi_nav_b">On Xiaomi, Redmi and POCO, a non-Xiaomi home screen switches gestures to 3 buttons. The system does this; no setting keeps gestures. Pick Xiaomi\'s home screen again to get gestures back.</string>
     <string name="hm_xiaomi_nav_ok">Continue</string>
     <string name="hm_b_home">Not set as home screen yet</string>
     <string name="hm_b_guard">KidGuard is restarting</string>
@@ -658,7 +658,7 @@
     <string name="hm_no_dialer">This phone has no phone app</string>
     <string name="hm_paused_desc">%1$s, paused: %2$s</string>
     <string name="hm_page">Page %1$d of %2$d</string>
-    <string name="ev_launcher_crash">Kid home screen crashed 3 times in 5 minutes: switched off for 24 h (%1$s)</string>
+    <string name="ev_launcher_crash">Kid home screen crashed 3 times in 5 minutes. Switched off for 24 h (%1$s)</string>
     <!-- kid launcher part 2 -->
     <string name="hm_d_rail">Alphabet: drag to jump</string>
     <string name="hm_e_no_room">Not enough room there</string>
@@ -905,13 +905,13 @@
     <string name="hm_sc_fail">This shortcut can\'t open now</string>
     <string name="hm_sc_rm">The shortcut leaves the home screen. The app stays.</string>
     <string name="main_need_pair_title">%1$s: pair with a parent first</string>
-    <string name="main_need_pair_body">This button sends a message to a parent\'s phone. This phone isn\'t paired with one yet, so there\'s nobody to send it to.\n\nTo pair: a parent holds \"Parents: show the pairing code\" at the top of this screen for 5 seconds, then scans the code from their phone.</string>
+    <string name="main_need_pair_body">This phone isn\'t paired with a parent\'s phone, so it can\'t send the message.\n\nTo pair: a parent holds \"Parents: show the pairing code\" at the top of this screen for 5 seconds, then scans the code.</string>
     <string name="nlog_title">Notification history</string>
     <string name="nlog_menu">Notification history</string>
     <string name="nlog_clear">Clear all</string>
     <string name="nlog_clear_body">Deletes the list on this phone. It can\'t be undone.</string>
     <string name="nlog_clear_ok">Clear</string>
-    <string name="nlog_empty">Nothing here yet.\nNotifications stay here for %1$d days, even after you swipe them away. Tap one to see its details.</string>
+    <string name="nlog_empty">Nothing here yet.\nNotifications are kept %1$d days, even after you swipe them away. Tap one for details.</string>
     <string name="nlog_today">Today</string>
     <string name="nlog_yesterday">Yesterday</string>
     <string name="nlog_gone">This app can\'t open now</string>
@@ -991,16 +991,16 @@
     <string name="hm_lay_del_b">Only the saved copy goes; the home screen stays as it is.</string>
     <string name="hm_lay_rename">Rename</string>
     <string name="hm_lay_delete">Delete</string>
-    <string name="hm_lay_hint">Save how the home looks now (app and widget places, look, wallpaper) to switch back to it in one tap. Kept on this phone only.</string>
+    <string name="hm_lay_hint">Save the current home layout (app and widget places, look, wallpaper) to switch back in one tap. Kept on this phone only.</string>
     <string name="acc_closed_protect">Your parents locked removing or stopping KidGuard</string>
     <string name="acc_closed_clock">Your parents keep the date and time automatic</string>
     <string name="ev_cmd_pin">Command %1$s refused: wrong PIN / code</string>
-    <string name="ev_pin_reset">Parent PIN reset requested (forgot PIN). The new PIN applies at %1$s; enter the old PIN anywhere to cancel</string>
+    <string name="ev_pin_reset">PIN reset requested (forgot PIN). New PIN applies at %1$s. Enter the old PIN anywhere to cancel</string>
     <string name="ev_pin_reset_done">Parent PIN was reset (forgot-PIN request from 24 hours ago)</string>
     <string name="log_pin_changed">Parent PIN changed</string>
     <string name="log_pin_reset_cancel">PIN reset request cancelled</string>
-    <string name="log_tcp_closed">adb port 5555 closed for %1$s: it comes back only once the phone is on Wi-Fi (or over a USB cable)</string>
-    <string name="log_dev_paused">USB debugging / Developer options paused for an app that refuses it</string>
+    <string name="log_tcp_closed">adb port 5555 closed for %1$s. Reopens on Wi-Fi or over a USB cable</string>
+    <string name="log_dev_paused">USB debugging / Developer options paused for an app that won\'t run with them on</string>
     <string name="log_dev_restored">USB debugging back on as before that app</string>
     <string name="log_bank_list">Banking app list updated: %1$d added, %2$d removed</string>
     <string name="log_vpn_paused">VPN paused for %1$s</string>
@@ -1052,7 +1052,7 @@
     <string name="nst_hold_morning">Mute until tomorrow morning</string>
     <string name="nst_hold_until">Until %1$s</string>
     <string name="nst_hold_tomorrow">%1$s tomorrow</string>
-    <string name="nst_hold_note">Held notifications show up at their time and still open and reply as usual. Calls, alarms and directions always show at once.</string>
+    <string name="nst_hold_note">Held notifications show at their time and work as usual. Calls, alarms and directions show at once.</string>
     <string name="nst_hold_need">Needs notification access (Notification dots in Customize).</string>
     <string name="nst_held_bundle">Bundling notifications</string>
     <string name="nst_held_mute">Muted</string>

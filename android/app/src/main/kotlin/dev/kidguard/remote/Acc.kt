@@ -49,6 +49,7 @@ class Acc : AccessibilityService() {
 
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {
         if (e == null) return
+        SuspendHint.onEvent(this, e)
         if (LauncherSafe.shadeBlocked && (e.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED || e.packageName?.toString() in SHADE_PKGS)) {
             main.removeCallbacks(shadeCheck); main.post(shadeCheck)
         }
@@ -157,9 +158,11 @@ class Acc : AccessibilityService() {
     }
 
     private var lastWhy = 0L
-    /** Says why the page just closed (owner: a page that vanishes with no word looks like a crash). At most every 4 s:
-     *  the page can be re-opened in a loop. */
-    private fun whyClosed(res: Int) {
+    /** Says why the page just closed (owner: a page that vanishes with no word looks like a crash). First time: a card
+     *  ([BlockNotice]: what, why, who can change it, OK). A repeat inside its quiet window (the page re-opened in a loop):
+     *  only the short toast, at most every 4 s. [title]/[body] are the card's texts, [res] the toast. */
+    private fun whyClosed(res: Int, title: Int, body: Int) {
+        if (runCatching { BlockNotice.show(this, title, body) }.getOrDefault(false)) { lastWhy = android.os.SystemClock.elapsedRealtime(); return }
         val now = android.os.SystemClock.elapsedRealtime()
         if (now - lastWhy < 4_000) return
         lastWhy = now
@@ -187,11 +190,11 @@ class Acc : AccessibilityService() {
         val nodes = collectNodes(root, 300)
         if (BasicLogic.isDateTimePage(pkg, nodes)) {
             // basic mode has no DISALLOW_CONFIG_DATE_TIME: the clock page is closed like the uninstall pages
-            performGlobalAction(GLOBAL_ACTION_HOME); whyClosed(R.string.acc_closed_clock)
+            performGlobalAction(GLOBAL_ACTION_HOME); whyClosed(R.string.acc_closed_clock, R.string.bn_clock_t, R.string.bn_clock_b)
             val now = System.currentTimeMillis()
             if (now - lastProtectLog > 30_000) { lastProtectLog = now; runCatching { Store.of(this).log(R.string.log_acc_clock) } }
         } else if (BasicLogic.selfProtect(pkg, nodes, labels, controlsOf(pkg))) {
-            performGlobalAction(GLOBAL_ACTION_HOME); whyClosed(R.string.acc_closed_protect)
+            performGlobalAction(GLOBAL_ACTION_HOME); whyClosed(R.string.acc_closed_protect, R.string.bn_protect_t, R.string.bn_protect_b)
             val now = System.currentTimeMillis()
             if (now - lastProtectLog > 30_000) {
                 lastProtectLog = now

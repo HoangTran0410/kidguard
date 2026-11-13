@@ -117,7 +117,7 @@ object Ts {
     @Volatile private var expTries = 0
 
     /** Never includes the auth key or token. noExpiry: the node key won't expire (else the page asks to turn it off by hand). */
-    fun stateJson(s: Store): JSONObject = JSONObject().put("state", state).put("ip", ip).put("host", s.tsHost).put("err", err).put("noExpiry", s.tsNoExpiry).put("why", if (s.vpnPaused.isNotEmpty()) "bank" else "")
+    fun stateJson(s: Store): JSONObject = JSONObject().put("state", state).put("ip", ip).put("host", s.tsHost).put("err", err).put("noExpiry", s.tsNoExpiry).put("why", if (s.vpnPaused.isNotEmpty()) "bank" else keepWhy)
 
     fun installed(ctx: Context) = runCatching { ctx.packageManager.getPackageInfo(TsLogic.PKG, 0); true }.getOrDefault(false)
 
@@ -136,6 +136,7 @@ object Ts {
         if (!s.tsWanted) s.tsOurs = !installed(ctx)   // already on the phone: the family's own app, never uninstalled by us
         if (TsLogic.isApiToken(k)) { apiToken = k; expTries = 0; s.tsKey = "" } else { apiToken = ""; s.tsKey = k }
         s.tsNoExpiry = false; s.tsHost = TsLogic.hostName(hostRaw, s.id); s.tsWanted = true; s.tsHide = true
+        openAt = 0L   // the parent asked: the 10-minute gate between screen opens does not apply
         startSetup(ctx, s)
         return "ok"
     }
@@ -164,6 +165,8 @@ object Ts {
     @Volatile private var downAt = 0L
     @Volatile private var askAt = 0L
     @Volatile private var openAt = 0L
+    /** Why [keep] is not opening Tailscale right now: "" | bg-start | hidden | screen-off | not-home | wait (state `ts.why`). */
+    @Volatile private var keepWhy = ""
 
     /**
      * Every Guard tick, Device Owner AND basic mode: the parents reach the phone through Tailscale, so it must stay up.
@@ -175,18 +178,27 @@ object Ts {
      * ([AccPause.canReopen]). A Tailscale that was force-stopped gets no broadcasts until it is opened.
      */
     fun keep(ctx: Context, s: Store, fg: String?, now: Long) {
-        if (Flavor.HOME || s.released || !installed(ctx)) return
-        if (VpnPause.active(ctx)) { downAt = 0L; return }   // turned off on purpose for a bank app (VpnPause)
+        if (Flavor.HOME || s.released || !installed(ctx)) { keepWhy = ""; return }
+        if (VpnPause.active(ctx)) { downAt = 0L; keepWhy = ""; return }   // turned off on purpose for a bank app (VpnPause)
         if (findIp().isNotEmpty()) {
             if (downAt != 0L && askAt >= downAt) s.log(R.string.ts_log_back)
-            downAt = 0L
+            downAt = 0L; keepWhy = ""
             return
         }
-        if (!s.tsWanted && !s.rules.tsKeep) { downAt = 0L; return }
+        if (!s.tsWanted && !s.rules.tsKeep) { downAt = 0L; keepWhy = ""; return }
         if (downAt == 0L) downAt = now
         val screenOn = runCatching { ctx.getSystemService(android.os.PowerManager::class.java).isInteractive }.getOrDefault(false)
         val onHome = screenOn && fg == ctx.packageName
         val canOpen = AccPause.canReopen(ctx) && !(s.tsWanted && s.tsHide)   // a suspended (hidden) app can't open
+        keepWhy = when {
+            now - downAt < TsLogic.OPEN_AFTER_MS -> ""
+            !screenOn -> "screen-off"
+            fg != ctx.packageName -> "not-home"
+            s.tsWanted && s.tsHide -> "hidden"
+            !AccPause.canReopen(ctx) -> "bg-start"
+            now - openAt < TsLogic.OPEN_EVERY_MS -> "wait"
+            else -> ""
+        }
         when (TsLogic.reviveStep(now - downAt, now - askAt, now - openAt, onHome, canOpen)) {
             1 -> {
                 if (askAt < downAt) s.log(R.string.ts_log_down)

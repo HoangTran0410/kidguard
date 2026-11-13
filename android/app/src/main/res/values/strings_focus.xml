@@ -24,7 +24,7 @@
     <string name="focus_bad_range">The end must be after the start.</string>
     <string name="focus_no_day">Pick at least one day.</string>
     <string name="focus_dnd_on">Do Not Disturb is on while you study.</string>
-    <string name="focus_dnd_off">To also silence notifications, give KidGuard Do Not Disturb access in Settings.</string>
+    <string name="focus_dnd_off">To silence notifications too, allow Do Not Disturb for KidGuard in Settings.</string>
     <string name="focus_remove">Remove</string>
     <string name="app_pick_save">Save (%1$d)</string>
     <string name="app_pick_none">No app matches</string>

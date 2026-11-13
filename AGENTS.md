@@ -23,7 +23,7 @@ When you settle something durable (a decision, a rejected approach, a platform q
   (the relay contract test checks commands are named there).
 - `release` must undo every restriction we add. New restriction ⇒ also undo it in `Policy.release` / `Guard.release`.
 - Every Kotlin file is `package dev.kidguard` (folders are for reading only; manifest + Device Owner admin bind to it).
-- UI text Vietnamese + English, always both (`res/values` + `res/values-vi`, `ui/assets/i18n-en.js` + `i18n-vi.js`); code and comments English.
+- UI text: follow `docs/copy.md` (outcome first, one idea per sentence, short, glossary words). - UI text Vietnamese + English, always both (`res/values` + `res/values-vi`, `ui/assets/i18n-en.js` + `i18n-vi.js`); code and comments English.
 - Rules JSON is a full replace on the phone (`Rules.fromJson` is the allow-list): the page must always send the whole object.
 - New relay command ⇒ worker whitelist `CMDS` + protocol "Commands" + (destructive) `ONCE` list. Checklist: `docs/flows.md` §5.
 - New page section (`sec("id", ...)`) ⇒ an entry in the feature search `QS` (`ui/assets/shell.js`), keys in both i18n files;

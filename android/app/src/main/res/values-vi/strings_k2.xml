@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="loc_kept">Vị trí được bố mẹ giữ bật</string>
+    <string name="sus_hint">%1$s đang tạm tắt: %2$s.</string>
+    <string name="cc_this_setting">Cài đặt này</string>
+    <string name="cc_locked_body">%1$s do bố mẹ quản lý trên máy này. Cần đổi thì hỏi bố mẹ nhé.</string>
+    <string name="cc_no_off_body">Bố mẹ giữ %1$s luôn bật. Không tắt được ở đây.</string>
+    <string name="cc_failed_body">Máy này không cho đổi %1$s từ đây.</string>
+</resources>

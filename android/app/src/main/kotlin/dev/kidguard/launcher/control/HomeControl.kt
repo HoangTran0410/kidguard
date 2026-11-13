@@ -335,24 +335,34 @@ private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): 
     val panel = object : LinearLayout(this) { override fun hasOverlappingRendering() = false }.apply { orientation = LinearLayout.VERTICAL; isClickable = true }
 
     fun toast(id: Int) = Toasts.show(this, id)
+    // a locked / refused tile explains itself in a small dialog (who, what to do); tap-time only, nothing on the render path
+    fun tileName(t: Tile?) = getString(when (t) {
+        Tile.WIFI -> R.string.cc_wifi; Tile.BT -> R.string.cc_bt; Tile.AIRPLANE -> R.string.cc_air; Tile.DATA -> R.string.cc_data
+        Tile.BRIGHT -> R.string.cc_bright; else -> R.string.cc_this_setting })
+    fun explain(t: Tile?, kind: Int, name: String = tileName(t)) {
+        val locked = kind != R.string.cc_failed
+        runCatching { Modal(this).show(if (locked) R.drawable.li_lock else R.drawable.li_triangle_alert, if (locked) Modal.Tone.INFO else Modal.Tone.WARN,
+            name, getString(when (kind) { R.string.cc_no_off -> R.string.cc_no_off_body; R.string.cc_failed -> R.string.cc_failed_body; else -> R.string.cc_locked_body }, name)) }
+            .onFailure { toast(kind) }
+    }
     val toggles = mutableListOf<CcToggle>()
     lateinit var refresh: () -> Unit
     fun later() { main.postDelayed({ if (overlay === scrim) refresh() }, 500); main.postDelayed({ if (overlay === scrim) refresh() }, 1600) }
     // settings locked: only the turn-on way (Wi-Fi / internet panel, Bluetooth "turn on?" dialog), never the full Settings page
-    fun page(t: Tile) { runCatching { startActivity(if (ok) CcSys.page(ctx, t) else CcSys.turnOn(ctx, t)) }.onFailure { toast(R.string.cc_failed) }; closeOverlay() }
+    fun page(t: Tile) { runCatching { startActivity(if (ok) CcSys.page(ctx, t) else CcSys.turnOn(ctx, t)) }.onFailure { explain(t, R.string.cc_failed) }; closeOverlay() }
     fun act(t: Tile, mode: Mode, direct: () -> Boolean) = when (mode) {
-        Mode.DIRECT -> { if (!direct()) { if (ok) page(t) else toast(R.string.cc_failed) } else later(); refresh() }
+        Mode.DIRECT -> { if (!direct()) { if (ok) page(t) else explain(t, R.string.cc_failed) } else later(); refresh() }
         Mode.PAGE -> page(t)
-        Mode.LOCKED -> toast(R.string.cc_locked)
+        Mode.LOCKED -> explain(t, R.string.cc_locked)
         Mode.HIDDEN -> {}
     }
     fun toggle(t: Tile, icon: Int, label: Int, size: Int, lines: Int = 1, direct: (Boolean) -> Boolean): CcToggle? {
         val m = ControlLogic.mode(t, ph)
         if (m == Mode.HIDDEN) return null
         return CcToggle(this, t, icon, getString(label), size, lines).also { tg -> tg.mode = m; toggles += tg
-            tg.onTap { if (tg.mode == Mode.LOCKED && tg.on == true && !ok && t in setOf(Tile.WIFI, Tile.BT, Tile.DATA)) toast(R.string.cc_no_off) else act(t, tg.mode) { direct(tg.on != true) } }
+            tg.onTap { if (tg.mode == Mode.LOCKED && tg.on == true && !ok && t in setOf(Tile.WIFI, Tile.BT, Tile.DATA)) explain(t, R.string.cc_no_off) else act(t, tg.mode) { direct(tg.on != true) } }
             // long-press: the full settings page, only where the kid may open Settings (else it would be a way around the lock)
-            CcSys.full(t)?.let { i -> tg.onLong = { if (ok) { runCatching { startActivity(i) }.onFailure { toast(R.string.cc_failed) }; closeOverlay() } else toast(R.string.cc_locked) } }
+            CcSys.full(t)?.let { i -> tg.onLong = { if (ok) { runCatching { startActivity(i) }.onFailure { explain(t, R.string.cc_failed) }; closeOverlay() } else explain(t, R.string.cc_locked) } }
         }
     }
 
@@ -377,7 +387,7 @@ private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): 
     fun mkBright() = CcSlider(this, R.drawable.li_sun, getString(R.string.cc_bright)).apply {
         mode = ControlLogic.mode(Tile.BRIGHT, ph)
         var last = 0L
-        onBlocked = { if (mode == Mode.PAGE) page(Tile.BRIGHT) else toast(R.string.cc_locked) }
+        onBlocked = { if (mode == Mode.PAGE) page(Tile.BRIGHT) else explain(Tile.BRIGHT, R.string.cc_locked) }
         onChange = { f, done ->
             val now = android.os.SystemClock.uptimeMillis()
             if (done || now - last > 40) {
@@ -394,7 +404,7 @@ private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): 
     fun mkVol(stream: Int, icon: Int, label: Int) = CcSlider(this, icon, getString(label)).apply {
         val max = am?.getStreamMaxVolume(stream)?.coerceAtLeast(1) ?: 1
         mode = if (am == null || am.isVolumeFixed) Mode.LOCKED else Mode.DIRECT
-        onBlocked = { toast(R.string.cc_failed) }
+        onBlocked = { explain(null, R.string.cc_failed, getString(label)) }
         // ring at 0 switches the phone to vibrate / silent: refused without Do Not Disturb access, so guarded
         onChange = { f, _ -> runCatching { am?.setStreamVolume(stream, Math.round(f * max), 0) } }
     }

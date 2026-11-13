@@ -22,6 +22,8 @@ object FeatureCaps {
         adb = runCatching { SelfAdb.why(ctx).let { it == null || it == "wifi" || it == "wss" } }.getOrDefault(false),
         paired = Store.of(ctx).everPaired,
         wss = Sys.wss(ctx),
+        adbNet = runCatching { DevOpts.tcpNow(ctx) }.getOrDefault(false),
+        vpn = runCatching { VpnPause.vpnUp(ctx) }.getOrDefault(false),
     )
 
     fun caps(ctx: Context, c: Caps = of(ctx)): JSONObject = JSONObject().also { o -> c.toMap().forEach { (k, v) -> o.put(k, v) } }
@@ -40,6 +42,7 @@ object FeaturesSheet {
         "limits" to R.drawable.li_timer, "block" to R.drawable.li_octagon_x, "usage" to R.drawable.li_list_checks,
         "location" to R.drawable.li_map_pin, "screen" to R.drawable.li_eye, "remote" to R.drawable.li_link,
         "noUninstall" to R.drawable.li_shield, "dns" to R.drawable.li_globe, "lockLocation" to R.drawable.li_map_pin,
+        "adbShell" to R.drawable.li_monitor, "autoGrant" to R.drawable.li_shield, "pcAdb" to R.drawable.li_laptop, "tailscale" to R.drawable.li_link,
     )
 
     private fun str(act: Activity, prefix: String, id: String): String {

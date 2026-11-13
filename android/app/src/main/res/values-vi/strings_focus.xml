@@ -24,7 +24,7 @@
     <string name="focus_bad_range">Giờ kết thúc phải sau giờ bắt đầu.</string>
     <string name="focus_no_day">Chọn ít nhất một ngày.</string>
     <string name="focus_dnd_on">Đang bật Không làm phiền khi học.</string>
-    <string name="focus_dnd_off">Muốn tắt tiếng thông báo, hãy cấp cho KidGuard quyền Không làm phiền trong Cài đặt.</string>
+    <string name="focus_dnd_off">Muốn tắt tiếng thông báo: cấp quyền Không làm phiền cho KidGuard trong Cài đặt.</string>
     <string name="focus_remove">Xoá</string>
     <string name="app_pick_save">Lưu (%1$d)</string>
     <string name="app_pick_none">Không có app nào khớp</string>

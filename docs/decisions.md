@@ -8,6 +8,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 ## 1. DECIDED
 
 ### Process / agents
+- 2026-11-13 UI text follows `docs/copy.md` (outcome first, one idea per sentence, short, glossary); owner: "must read every word" = rewrite.
 - Design briefs must name 3-4 reference products (Pixel, Nova, iOS, Niagara) and give a "references -> what we took" table; each action has exactly one entry point; no status chip unless something is wrong; no stray section titles on canvas screens — owner rejected launcher mock v2 (11-07)
 - UI/UX reviews must walk every action through idle/pending/active/stop/fail/screen-off/double-press/conflict on a running phone, not static screenshots; phone-reported state is source of truth (11-07, ux-review-must-walk-states)
 - Launcher changes: build + install BOTH kid and home APKs; check resolved HOME (`cmd package resolve-activity -a android.intent.action.MAIN -c android.intent.category.HOME`) first; Poco's default home is dev.kidguard.home (11-09)
@@ -20,6 +21,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - `kg.code` must go up every release (self-updater refuses equal versionCode); build.sh writes `.sha256` assets, self-update needs them (042d72a; v0.9.0 shipped stale hand-made ones)
 
 ### Enforcement (Device Owner / basic mode)
+- 2026-11-13 What a bank-app pause takes away is computed: `Features.PAUSES` (pause -> caps) + `Features.lost()` over `Features.TABLE`; the kid popup / notification never carry hand-written feature lists (FeaturesTest fails on a missing row / name).
 - Release (`release` cmd) must undo every restriction; a failed release re-applies policy + watchdog, keeps parent tokens and keeps enforcing (1747923, f032b5d). Release aborts with "failed: N app còn bị ẩn" if a Dọn máy-hidden app can't be un-hidden
 - Basic mode (no Device Owner) exists for phones that can't be DO without a PC (no QR setup, Android <11): accessibility bounces blocked apps HOME, bounces Settings/installer pages that would uninstall/deactivate/force-stop us; self-protection only after first pairing (43b298f, 831bf98)
 - Features without full setup: feature->capability table (Features.kt, state.caps/features); launcher works without DO via local opt-in before pairing, parent rule after; only owner forces home (d1c75da)
@@ -259,6 +261,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - On-device parent page (AdminActivity) dropped every non-own navigation, so `target=_blank` links (Open @BotFather) did nothing: a TAPPED https link now opens outside (ACTION_VIEW, like the parent app); leaving still ends the session (onStop).
 - Bank still refused after the debugging pause (2026-11-11, Poco, My MobiFone 50052): adb_enabled=0 at 12.128 but adbd lived until 13.228 and AppSealing killed the app at 12.790 -> launcher (icon, shortcut, gesture) and the Acc relaunch wait for `init.svc.adbd` to leave running (`DevOpts.afterOff`, poll 100 ms, max 3 s; unreadable property = fixed 1.6 s). Avoid: never assume a settings write stops a daemon at once.
 - Bank vs adb over the network (2026-11-13, Poco, My MobiFone 50052): debugging off + adbd gone 0.3 s before the start, still refused; `service.adb.tcp.port`=5555 survives adb_enabled=0 (until reboot) and AppSealing reads it. After `adb usb` (port prop 0) it opened. The devPause now runs `usb:` over our own adb first when the port is set (`DevLogic.tcpOpen`; unreadable prop = rule adbTcp), off the main thread, `afterOff` holds the start (max 6 s). Cost: after the resume the port reopens only through Shell.tick, which needs Wi-Fi (or the port) for our adb: on 4G the 5555 port stays closed until Wi-Fi.
+- App Library gone after holding an icon in it: `startDrag` took the library out before `startDragAndDrop`, detaching the held icon -> no drag, no DRAG_ENDED, no `libraryBack` -> start the drag first, then `libraryOut` (2026-11-13). Avoid: never detach a gesture source before its gesture starts.
 
 ## 5. OPEN BACKLOG (older reviews; most "unverified" against current code)
 - Usage-access off = limits dead (event + banner only; DO can't lock the appop); Usage.kt misses an app already in front at midnight (unverified)

@@ -10,7 +10,7 @@ function timeWarn(x, on, sch) {
 }
 // ---- v0.9.7 wind-down + messages on the kid's phone (rules tab) ----
 function windChip(r) {
-  const w = r.windDown, ws = st && st.windDown, bad = !r.bedtime.on || (ws && (ws.perm === false || ws.err));
+  const w = r.windDown, ws = st && st.windDown, bad = !r.bedtime.on || (ws && (ws.perm === false || ws.err)) || !!(w.gray && st && st.grayErr);
   if (!w.gray && !w.nudge) return [t("off")];
   return [t("on") + " · " + [w.gray && t("chip.gray"), w.nudge && t("chip.nudge")].filter(Boolean).join(", "), bad ? "warn" : "ok"];
 }
@@ -20,6 +20,7 @@ function windStatus(r) {   // idle / active / failure / conflict, below the cont
   if ((w.gray || w.nudge) && !r.bedtime.on) out.push(al("warn", "triangle-alert", t("wd.needBed")));
   if (w.gray && ws && ws.perm === false) out.push(al("warn", "triangle-alert", t("wd.perm")));
   else if (w.gray && ws && ws.err) out.push(al("warn", "triangle-alert", t("wd.fail", esc(ws.err))));
+  if (w.gray && st && st.grayErr) out.push(al("warn", "triangle-alert", t("wd.grayErr", esc(st.grayErr))));
   if (saved && (saved.gray !== w.gray || +saved.min !== +w.min || saved.nudge !== w.nudge)) out.push(`<p class="mute">${ic("hourglass")} ${t("wd.unsaved")}</p>`);
   else if (w.gray && r.bedtime.on && ws) {
     const s = String(r.bedtime.start || "21:30").split(":").map(Number), m = ((s[0] * 60 + s[1] - w.min) % 1440 + 1440) % 1440;
@@ -66,7 +67,7 @@ function wireComfort(b, r) {
 // one-line status chip per rules section: [text, tone] (tone: ok = active, warn = active but has a problem)
 function ruleChips(r) {
   const on = (x, w) => [t("on") + (x ? " · " + x : ""), w ? "warn" : "ok"], off = [t("off")], none = [t("chip.none")];
-  const hm = s => esc(s || "?"), basic = isBasic();
+  const hm = s => esc(s || "?"), basic = isBasic(), noEnf = false;
   const dns = DNS().find(d => d[0] === r.safeDns);
   const schOn = r.schedules.filter(x => x.on), more = [r.blockNew, r.lockLocation, r.noAirplane].filter(Boolean).length, anti = [r.noInstall, r.noDebug].filter(Boolean).length;
   return {
@@ -79,9 +80,9 @@ function ruleChips(r) {
     sch: schOn.length ? [t("chip.nSch", schOn.length), schOn.some(x => timeWarn(x, true, true)) ? "warn" : "ok"] : r.schedules.length ? off : none,
     zone: r.zones.length ? [t("chip.nZone", r.zones.length), "ok"] : none,
     trk: r.trackMin ? (st.locationOn === false ? [t("chip.locOff"), "warn"] : on(t("chip.every", fmt(r.trackMin * 60000)), !canFeat("location"))) : off,
-    more: more ? on(more + "/3", basic) : off,
+    more: more ? (noEnf = basic || st.owner === false || (r.blockNew && !canFeat("block")) || (r.lockLocation && !canFeat("lockLocation")), on(more + "/3" + (noEnf ? " · " + t("chip.noEnf") : ""), noEnf)) : off,
     dns: r.safeDns && st.dnsError ? [t("chip.dnsErr"), "bad"] : r.safeDns && st.dnsPausedUntil > Date.now() ? [t("chip.pausedTo", hhmm(st.dnsPausedUntil)), "warn"] : r.safeDns || r.noVpn ? on(esc((dns ? dns[1] : r.safeDns) || t("dns.novpn.short")), r.safeDns && !r.noVpn ? basic && !canFeat("dns") : basic) : off,
-    anti: anti ? on(anti + "/2", basic) : off,
+    anti: anti ? (noEnf = basic || st.owner === false || (r.noDebug && !canFeat("noUninstall")), on(anti + "/2" + (noEnf ? " · " + t("chip.noEnf") : ""), noEnf)) : off,
     wind: windChip(r),
     home: r.launcher.on ? on(t({ be: "hm.sBe", teen: "hm.sTeen", gon: "hm.sGon" }[r.launcher.style] || "hm.sAuto"), basic || !!(st.launcher && st.launcher.err)) : off,
     kind: (n => n.length ? [n.join(" · "), "ok"] : off)([(r.lockInfo.msg || r.lockInfo.contact) && t("chip.lock"), r.blockNote && t("chip.note")].filter(Boolean)),
@@ -344,11 +345,14 @@ function bankCols(r) {
     .concat(dev ? [{ k: "devPause", h: t("bank.colDev") }] : [], Array.isArray(r.tcpPause) ? [{ k: "tcpPause", h: t("bank.colTcp") }] : [],
       Array.isArray(r.vpnPause) ? [{ k: "vpnPause", h: "VPN" }] : []);
 }
+// "list updated <ago>" / why the daily fetch of the bank-app list failed (state.bankList {at, err}, newer phones)
+const bankListHtml = () => { const b = st && st.bankList; if (!b) return ""; return b.err ? `<span class="err">${ic("triangle-alert")} ${t("bank.listErr", esc(b.err))}</span>${b.at > 0 ? " · " + t("bank.listAt", ago(b.at)) : ""}` : b.at > 0 ? `${ic("check")} ${t("bank.listAt", ago(b.at))}` : `${ic("hourglass")} ${t("bank.listNone")}`; };
 function bankBox(r) {
   if (!Array.isArray(r.accPause)) return "";
   const stuck = st.vpnStuck ? `<div class="alert warn" style="margin-top:8px">${ic("triangle-alert")} ${t("bank.vpnStuck")}</div>` : "";
   const cols = bankCols(r), gt = `grid-template-columns:minmax(var(--bkn),1fr) repeat(${cols.length},var(--bkw));min-width:calc(var(--bkn) + ${cols.length} * (var(--bkw) + 4px) + 16px)`;
   return `<h4 style="margin:14px 0 4px">${ic("landmark")} ${t("bank.h")}</h4><p class="mute">${t("bank.p")}</p>
+    ${st.bankList ? `<p class="mute">${pendHtml("bklist", bankListHtml)}</p>` : ""}
     ${Array.isArray(r.tcpPause) ? `<p class="mute">${t("bank.tcpP")}</p>` : ""}    ${Array.isArray(r.vpnPause) ? `<p class="mute">${t("bank.vpnP")}</p>` : ""}${stuck}
     <details id="bk" style="margin-top:6px"><summary id="bk-n"></summary>
     <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" style="margin-top:8px">

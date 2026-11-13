@@ -25,6 +25,52 @@ document.addEventListener("click", e => {
 const bonusGiven = new Set();   // "kid:requestId" whose extra-time bonus is already saved
 const reqN = () => st && !viewDay ? (st.requests || []).filter(q => !answered.has(q.id)).length : 0;
 const onlineNow = () => st && Date.now() - lastSeen() < (cur && cur.via === "lan" ? 30000 : 120000);
+// --- "waiting for the phone" helpers (audit 2026-11-13): a wait always says WHY (offline since / adb link) and offers a retry.
+// pendHtml(id, html(), act?): a span the 5 s ticker refreshes by itself (the text depends on time, a state poll may not redraw it);
+// a button with data-pact="<id>" runs act().
+const PEND = {};
+function pendHtml(id, html, act) { PEND[id] = { html, act }; return `<span data-pend="${id}">${html()}</span>`; }
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-pact]"); const p = b && PEND[b.dataset.pact]; if (p && p.act) p.act(b); });
+// "" = the phone answers; else why it does not (offline since ...)
+function offWhy() {
+  if (!cur || !st || viewDay) return "";
+  const seen = lastSeen();
+  return cur.via === "lan" ? (lastErr ? t("pw.off", ago(seen)) : "") : seen && Date.now() - seen > 180000 ? t("pw.off", ago(seen)) : "";
+}
+// why a change the phone has to apply is not applied yet: offline first, else the adb link reason (st.adbWhy, basic mode)
+const waitWhy = adb => offWhy() || (adb && st && st.adbWhy && hasT("clean.why." + st.adbWhy) ? t("clean.why." + st.adbWhy) : "");
+// Reboot: no boot time in the state, so "restarted" = the phone went quiet (> GAP) and then synced again
+let rbPend = null;
+function rebootStart() { rbPend = { kid: cur, at: Date.now(), gap: 0, done: 0 }; updateLive(); }
+function rebootLine() {
+  const p = rbPend; if (!p) return null;
+  if (p.kid !== cur || !st || viewDay) return null;
+  const now = Date.now(), seen = lastSeen(), GAP = cur.via === "lan" ? 20000 : 40000;
+  if (!p.done) {
+    if (!p.gap && now - seen > GAP && seen >= p.at - 60000) p.gap = seen;
+    else if (p.gap && seen > p.gap && now - seen < GAP) p.done = now;
+  }
+  if (p.done) { if (now - p.done > 20000) { rbPend = null; return null; } return ["info", "check", t("pw.rbDone")]; }
+  if (now - p.at > 180000) { if (now - p.at > 240000) { rbPend = null; return null; } return ["warn", "triangle-alert", t("pw.rbNo")]; }
+  return ["info", "hourglass", t("pw.rbWait")];
+}
+// Locate: no new fix 60 s after pressing = say why
+let locPend = null;
+function locStart() { locPend = { kid: cur, at: Date.now() }; }
+function locLine() {
+  const p = locPend; if (!p) return null;
+  if (p.kid !== cur || !st || viewDay) return null;
+  const now = Date.now();
+  if (st.location && st.location.t >= p.at) { locPend = null; return null; }
+  if (now - p.at > 300000) { locPend = null; return null; }
+  if (now - p.at < 60000) return null;
+  const why = st.locationOn === false ? t("pw.locOff") : !canFeat("location") ? t("pw.locPerm") : !onlineNow() ? t("pw.locOffline", ago(lastSeen())) : t("pw.locSlow");
+  return ["warn", "map-pin", why];
+}
+setInterval(() => {
+  document.querySelectorAll("[data-pend]").forEach(e => { const p = PEND[e.dataset.pend]; if (p) { const h = p.html(); if (e.innerHTML !== h) e.innerHTML = h; } });
+  if (cur && st && (rbPend || locPend)) updateLive();
+}, 5000);
 function sideHtml(on) {
   const L = kidList();
   const kidsH = L.length > 6
@@ -439,6 +485,7 @@ function updateLive() {
   if (!lan && lastNet) B.push(["warn", "wifi-off", t("live.selfOff")]);
   if (lost && !(!lan && lastNet)) B.push(["bad", "siren", t("live.lost", hhmm(lostFrom)) + (lastErr && lan ? " (" + esc(lastErr) + ")" : "")]);
   B.push(...modeBans());
+  { const rb = rebootLine(), lc = locLine(); if (rb) B.push(rb); if (lc) B.push(lc); }
   // bank-app pauses (audit 2026-11-13): what is off, for which app, when it comes back, and "turn back on now"
   const bkApps = [...new Set([...(st.accPaused || []), ...(st.vpnPaused || []), ...(st.devPaused || [])])];
   if (bkApps.length) {
@@ -848,7 +895,7 @@ function moreSheet() {
     pop => {
       pop.querySelector("#wake").onclick = () => act("wake", () => cmd({ type: "wake" }, t("wake.done"), false));
       const e1 = pop.querySelector("#ear1"); if (e1) e1.onclick = () => earOn() ? micStop() : ringOn() ? toast("warn|" + t("act.noEar")) : earStart();
-      const rb = pop.querySelector("#reboot"); if (rb) rb.onclick = () => cmd({ type: "reboot" }, t("reboot.done"));
+      const rb = pop.querySelector("#reboot"); if (rb) rb.onclick = () => cmd({ type: "reboot" }, t("reboot.done")).then(r => { if (r) rebootStart(); });
       pop.querySelector("#send").onclick = () => { const tx = $("#msg").value.trim(); if (!tx) return $("#msg").focus();
         const sb = pop.querySelector("#send"); if (sb.disabled) return; sb.disabled = true;   // no double send while the dialog / request is in flight
         cmd({ type: "message", text: tx }, t("msg.done")).then(r => { if (r && $("#msg") && $("#msg").value.trim() === tx) $("#msg").value = ""; }).finally(() => { sb.disabled = false; }); };

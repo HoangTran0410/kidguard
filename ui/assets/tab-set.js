@@ -5,11 +5,15 @@ const kidFlag = (k, n, v) => { const key = "kg." + n + "." + (k.id || k.target |
 // rule tsKeep: the phone brings a dropped / cleaned-up Tailscale back (Ts.keep). Off by default: Tailscale may be for work.
 const tsKeepRow = () => edit ? `<label class="row" style="margin-top:8px"><input type="checkbox" id="f-tsk" ${edit.tsKeep ? "checked" : ""}><span class="sp">${ic("refresh-cw")} ${t("ts.keep")}</span></label>
     <p class="mute">${t("ts.keepTip")}</p>` : "";
+// last successful sync with the relay (state.relayOk, ms; 0 = none yet); > 10 min = the page can't reach the phone away from home
+const relayOkHtml = () => { const ok = st && +st.relayOk; if (!ok) return `<span class="err">${ic("triangle-alert")} ${t("relay.syncNone")}</span>`; return Date.now() - ok > 600000 ? `<span class="err">${ic("triangle-alert")} ${t("relay.syncOld", ago(ok))}</span>` : `${ic("check")} ${t("relay.sync", ago(ok))}`; };
+// why KidGuard has not brought Tailscale back yet (state.ts.why)
+const tsWhyHtml = ts => ts && ts.why && hasT("ts.why." + ts.why) ? `<p class="mute">${ic("hourglass")} ${t("ts.why." + ts.why)}</p>` : "";
 function tsCard(lan) {
   // basic mode: KidGuard can't install / sign in Tailscale (needs Device Owner), but a Tailscale set up by hand works and "keep on" (Ts.keep) too
   if (isBasic()) { const bi = (st && st.ts && st.ts.ip) || "";
     return sec("s-ts", "route", t("ts.h"), t("sd.ts"), bi ? [t("ts.on"), "ok"] : edit && edit.tsKeep ? [t("ts.keepB"), "ok"] : [t("off")],
-      `${bi ? `<p>${ic("link")} <code>${esc("http://" + bi + ":8770")}</code></p>` : ""}<p class="mute">${ic("info")} ${t("ts.basicOwn")}</p><p class="mute">${t("ts.basic")}</p>${tsKeepRow()}`); }
+      `${bi ? `<p>${ic("link")} <code>${esc("http://" + bi + ":8770")}</code></p>` : ""}${tsWhyHtml(st && st.ts)}<p class="mute">${ic("info")} ${t("ts.basicOwn")}</p><p class="mute">${t("ts.basic")}</p>${tsKeepRow()}`); }
   const ts = (st && st.ts) || { state: "off" };
   const label = tc("ts.", ts.state, ts.state);
   const cls = { on: "ok", error: "bad", installing: "warn" }[ts.state] || "";
@@ -20,6 +24,7 @@ function tsCard(lan) {
     <p class="mute">${t("ts.p")}</p>
     ${ts.host ? `<p>${t("ts.host", "<b>" + esc(ts.host) + "</b>")}</p>` : ""}
     ${ts.err ? `<div class="alert warn">${ic("triangle-alert")} ${esc(ts.err)}</div>` : ""}
+    ${tsWhyHtml(ts)}
     ${url ? `<p>${ic("link")} <code>${esc(url)}</code>${ts.noExpiry ? ` <span class="tag ok">${t("ts.noExp")}</span>` : ""}</p>` : ""}
     ${exp ? `<div class="alert warn">${ic("triangle-alert")} <span>${t("ts.expP", "<b>" + esc(ts.host || "kid") + "</b>")}
       <span class="row" style="margin-top:8px"><a class="lnkbtn" href="https://login.tailscale.com/admin/machines" target="_blank" rel="noopener">${ic("link")} ${t("ts.machines")}</a><button type="button" id="tsExpOk">${ic("check")} ${t("ts.expDone")}</button></span></span></div>` : ""}
@@ -123,8 +128,9 @@ function featCard() {
   const name = f => esc(hasT("ft_" + f.id) ? t("ft_" + f.id) : f.id);
   const rows = F.map(f => `<tr class="${f.ok ? "" : "no"}"><th scope="row">${FEAT_GO[f.id] && navOk(FEAT_GO[f.id][0]) ? `<button type="button" class="ftgo" data-ft="${esc(f.id)}">${name(f)} ${ic("chevron-right")}</button>` : name(f)}</th>
     <td>${f.ok ? `<span class="tag ok">${ic("check")} ${t("ft.ok")}</span>` : `<span class="tag warn">${ic("lock")} ${t("cap_need", esc((f.missing || []).map(capName).join(", ") || "?"))}</span>`}</td></tr>`).join("");
-  return sec("s-feat", "list-checks", t("ft.h"), t("ft.d"), [`${n}/${F.length}`, n === F.length ? "ok" : "warn"], `<div class="tblw"><table class="ft"><tbody>${rows}</tbody></table></div>
-    <p class="mute">${t("ft.p")}</p>`, n < F.length);
+  const ag = st.autoGrant, agL = ag && +ag.left > 0 ? `<div class="alert warn">${ic("hourglass")} <span>${t("ag.left", +ag.left)}${ag.next > Date.now() ? ", " + t("ag.next", hhmm(ag.next)) : ""}${ag.err ? " · " + esc(tc("ag.err.", ag.err, ag.err)) : ""}${ag.at > 0 ? ` <span class="mute">· ${t("ag.at", ago(ag.at))}</span>` : ""}</span></div>` : "";
+  return sec("s-feat", "list-checks", t("ft.h"), t("ft.d"), [`${n}/${F.length}`, n === F.length ? "ok" : "warn"], `${agL}<div class="tblw"><table class="ft"><tbody>${rows}</tbody></table></div>
+    <p class="mute">${t("ft.p")}</p>`, n < F.length || !!agL);
 }
 function updCard() {
   const u = st.update; if (!u) return "";   // child older than 0.9: no self-update
@@ -292,6 +298,7 @@ function setTab(b) {
   ${lan ? sec("s-relay", "globe", t("relay.h"), t("sd.relay"), st.relay ? [t("on"), "ok"] : [t("off")], `<p class="mute">${t("relay.p")}</p>
     <input id="relay" placeholder="${esc(t("relay.ph"))}" aria-label="${esc(t("relay.addr"))}" value="${esc(st.relay || DEFAULT_RELAY)}" autocapitalize="off" autocorrect="off" spellcheck="false" style="width:100%">
     <div class="row" style="margin-top:8px"><button id="saveRelay" class="pri">${ic("globe")} ${st.relay ? t("save") : t("turnOn")}</button>${st.relay ? `<button id="offRelay">${t("relay.off")}</button>` : ""}</div>
+    ${st.relay && st.relayOk !== undefined ? `<p class="mute">${pendHtml("relayok", relayOkHtml)}</p>` : ""}
     <p class="mute">${t("relay.self")}</p>
     <div id="relayOut">${cur.relay && st.relay ? relayLinkHtml(goLink(cur.relay.url, cur.relay.id, cur.relay.token, cur.name)) : ""}</div>`, !!st.relay)
     : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p>${cur.via === "relay" && isRelayOrigin ? relayLinkHtml(goLink(location.origin, cur.id, cur.token, cur.name)) : ""}</div>`}

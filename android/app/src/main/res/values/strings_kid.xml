@@ -51,11 +51,11 @@
     <string name="hm_wk_recess_len">Break length</string>
     <string name="hm_wk_min">%1$d min</string>
     <string name="hm_wk_none">None</string>
-    <string name="hm_wk_bells_hint">Same times every day. Tap a period to change its start and length, tap a break to change how long it is, hold a period to remove it</string>
+    <string name="hm_wk_bells_hint">Same times every day. Tap a period to change its start and length, a break to change its length. Hold a period to remove it.</string>
     <string name="hm_wk_week_hint">Tap a cell to type the subject</string>
     <string name="hm_wk_change">Change of period</string>
     <string name="hm_wk_change_bells">Change bell times</string>
-    <string name="hm_wk_gap_hint">The periods after it move with it</string>
+    <string name="hm_wk_gap_hint">The periods after it move too</string>
     <string name="hm_c_fx">Effects</string>
     <string name="hm_c_fx_full">Full</string>
     <string name="hm_c_fx_lite">Light</string>

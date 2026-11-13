@@ -266,6 +266,7 @@ class Guard : Service() {
         // persisted BEFORE the DPM call: a crash in between must not leave suspended apps untracked (the loop could never undo them)
         if ((want.keys - had).isNotEmpty()) store.suspendedByUs = had + want.keys
         val nowSusp = Policy.suspendExactly(this, want.keys, had)
+        SuspendHint.update(want)
         if (nowSusp != had) {
             (nowSusp - had).takeIf { it.isNotEmpty() }?.let { store.log(R.string.log_suspended, it.joinToString { p -> apps[p] ?: p }, want[it.first()] ?: "") }
             (had - nowSusp).takeIf { it.isNotEmpty() }?.let { store.log(R.string.log_unsuspended, it.joinToString { p -> apps[p] ?: p }) }
@@ -420,6 +421,10 @@ class Guard : Service() {
             .put("tg", runCatching { Tg.state(store) }.getOrDefault(JSONObject()))
             .put("relay", store.relayUrl)
             .put("ts", Ts.stateJson(store))
+            .put("grayErr", GrayFx.lastErr)
+            .put("autoGrant", JSONObject().put("left", AutoGrant.left).put("at", AutoGrant.lastAt).put("next", AutoGrant.nextAt()).put("err", AutoGrant.err))
+            .put("bankList", JSONObject().put("at", store.bankListAt).put("err", BankList.lastErr))
+            .put("relayOk", relayOkAt)
             .put("devices", store.devices())
             .put("log", store.logs())
             .put("history", store.history)
@@ -470,6 +475,7 @@ class Guard : Service() {
                     .onFailure { Log.w("KidGuard", "location mode (wss)", it) }
         }
         if (!locFixLogged) { locFixLogged = true; store.log(R.string.log_loc_fixed) }
+        if (locationOn()) LocHint.maybe(this)   // once per 5 min, screen on only
     }
     private val locObserver by lazy {
         object : android.database.ContentObserver(work) { override fun onChange(self: Boolean) { runCatching { keepLocation(store.rules) } } }

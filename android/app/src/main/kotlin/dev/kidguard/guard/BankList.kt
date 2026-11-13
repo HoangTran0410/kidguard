@@ -18,6 +18,7 @@ object BankList {
     private const val RETRY_MS = 3_600_000L
     @Volatile private var triedAt = 0L
     @Volatile private var bundledDone = false
+    @Volatile var lastErr = ""   // state `bankList.err`: "" = last fetch fine (or none yet)
 
     /** Guard tick: the bundled lists once per process, the website list once a day (retry in an hour when it fails). */
     fun maybe(g: Guard, now: Long) {
@@ -25,16 +26,16 @@ object BankList {
         val s = Store.of(g)
         if (!bundledDone) { bundledDone = true; apply(g, s, BankListLogic.Parsed(AccPauseLogic.DEFAULT, VpnPauseLogic.DEFAULT, emptySet(), DevPauseLogic.DEFAULT)) }
         if (now - s.bankListAt < BankListLogic.DAY_MS || now - triedAt < RETRY_MS) return
-        triedAt = now
+        triedAt = now; lastErr = ""
         Thread({
             runCatching {
                 val c = URL(URL).openConnection() as HttpURLConnection
                 c.connectTimeout = 15_000; c.readTimeout = 15_000
-                val body = try { if (c.responseCode == 200) c.inputStream.use { it.readBytes().take(64_000).toByteArray().toString(Charsets.UTF_8) } else null } finally { c.disconnect() }
-                val l = body?.let { BankListLogic.parse(it) } ?: return@runCatching
+                val body = try { if (c.responseCode == 200) c.inputStream.use { it.readBytes().take(64_000).toByteArray().toString(Charsets.UTF_8) } else { lastErr = "http ${c.responseCode}"; null } } finally { c.disconnect() }
+                val l = body?.let { BankListLogic.parse(it) } ?: run { if (lastErr.isEmpty()) lastErr = "bad list"; return@runCatching }
                 apply(g, s, BankListLogic.Parsed(AccPauseLogic.DEFAULT + l.acc, VpnPauseLogic.DEFAULT + l.vpn, l.drop, DevPauseLogic.DEFAULT + l.dev))
-                s.bankListAt = System.currentTimeMillis()
-            }.onFailure { Log.w("KidGuard", "bank list", it) }
+                s.bankListAt = System.currentTimeMillis(); lastErr = ""
+            }.onFailure { lastErr = it.javaClass.simpleName.take(40); Log.w("KidGuard", "bank list", it) }
         }, "bankList").start()
     }
 

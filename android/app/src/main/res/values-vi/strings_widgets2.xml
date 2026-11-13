@@ -2,7 +2,7 @@
 <resources>
     <string name="ch_timer">Hẹn giờ</string>
     <string name="hm_w_timer">Hẹn giờ</string>
-    <string name="hm_w_timer_d">Đĩa màu nhỏ dần khi thời gian trôi; 5 / 10 / 15 / 25 phút, tự chọn hoặc pomodoro; hết giờ có chuông</string>
+    <string name="hm_w_timer_d">Đĩa nhỏ dần khi hết giờ: 5, 10, 15, 25 phút, tự chọn hoặc pomodoro. Hết giờ có chuông.</string>
     <string name="tm_done">Hết giờ rồi!</string>
     <string name="tm_work_over">Hết giờ làm việc. Nghỉ 5 phút nhé!</string>
     <string name="tm_break_over">Hết giờ nghỉ. Sẵn sàng 25 phút tiếp theo chưa?</string>
@@ -20,7 +20,7 @@
     <string name="tm_custom_hint">Số phút (1-180)</string>
 
     <string name="hm_w_streak">Chuỗi ngày</string>
-    <string name="hm_w_streak_d">Số ngày liên tiếp làm xong bài tập và việc nhà; kỷ lục và huy hiệu 3, 7, 14, 30 ngày</string>
+    <string name="hm_w_streak_d">Số ngày liên tiếp làm xong bài tập và việc nhà. Huy hiệu ở mốc 3, 7, 14, 30 ngày.</string>
     <string name="sk_days">ngày</string>
     <string name="sk_best">Kỷ lục: %1$d</string>
     <string name="sk_next">còn %1$d ngày đến %2$d</string>
@@ -54,7 +54,7 @@
     <string name="md_noaccess_sub">Chạm để cho phép</string>
     <string name="sk_badge_n">%1$d ngày</string>
     <string name="sk_last4w">4 tuần qua</string>
-    <string name="sk_how">Làm xong hết bài tập và việc nhà trong ngày là được tính 1 ngày. Bỏ 1 ngày thì chuỗi bắt đầu lại.</string>
+    <string name="sk_how">Làm xong hết bài tập và việc nhà trong ngày thì được tính 1 ngày. Bỏ 1 ngày, chuỗi bắt đầu lại.</string>
     <string name="sk_open_list">Việc hôm nay</string>
     <string name="hm_no_app">Máy chưa có app này</string>
 </resources>

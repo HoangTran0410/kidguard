@@ -142,11 +142,15 @@ object AccPause {
     fun pauseLate(svc: android.accessibilityservice.AccessibilityService, pkg: String): Boolean {
         if (!able(svc) || pkg !in Store.of(svc).rules.accPause) return false
         if (BasicLogic.bounceReason(pkg, svc.packageName, Acc.blocked, Acc.prot) != null) return false
+        val ks = runCatching { PauseAsk.kinds(svc, pkg) }.getOrDefault(emptyList())   // what is on NOW (before it goes off)
         runCatching { svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) }   // before the service goes
         val fresh = pause(svc, pkg, stopSelf = false)
         val dev = runCatching { DevOpts.pause(svc, pkg) }.getOrDefault(false)   // same app may also refuse debugging
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ runCatching { svc.disableSelf() } }, 150)
-        if (fresh || dev) relaunch(svc, pkg)
+        if (fresh || dev) {
+            runCatching { PauseNotice.show(svc, pkg, label(svc, pkg), ks) }   // tells afterwards what went off (no time to ask)
+            relaunch(svc, pkg)
+        }
         return true
     }
 

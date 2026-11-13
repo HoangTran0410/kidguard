@@ -14,7 +14,7 @@
     <string name="gest_today">Open Today page</string>
     <string name="gest_app">Open an app…</string>
     <string name="gest_app_named">Open %1$s</string>
-    <string name="gest_hint">Only on empty space; dragging, edit mode and widget scrolling are not affected.</string>
+    <string name="gest_hint">Only on empty space. Dragging, edit mode and widgets work as before.</string>
     <string name="gest_pick_app">Choose an app</string>
     <string name="gest_cancel">Cancel</string>
     <string name="gest_app_gone">That app is not available</string>
@@ -28,9 +28,9 @@
     <string name="bk_fail">Could not save</string>
     <string name="bk_saved">Backup saved</string>
     <string name="bk_saved_nophoto">Backup saved (the photo wallpaper was left out)</string>
-    <string name="bk_bad">This is not a usable KidGuard backup</string>
+    <string name="bk_bad">Not a valid KidGuard backup</string>
     <string name="bk_confirm_title">Restore this backup?</string>
-    <string name="bk_confirm_body">%1$d pages, %2$d apps (%3$d not installed here, they stay hidden). Your current home screen is replaced; you can undo once.</string>
+    <string name="bk_confirm_body">%1$d pages, %2$d apps (%3$d not installed here, they stay hidden). This replaces your home screen. You can undo once.</string>
     <string name="bk_restore_ok">Restore</string>
     <string name="bk_done">Restored</string>
 </resources>

@@ -51,11 +51,11 @@
     <string name="hm_wk_recess_len">Ra chơi</string>
     <string name="hm_wk_min">%1$d phút</string>
     <string name="hm_wk_none">Không</string>
-    <string name="hm_wk_bells_hint">Giờ chung cho mọi ngày. Bấm tiết để đổi giờ vào và độ dài, bấm ra chơi để đổi số phút, giữ tiết để xoá</string>
+    <string name="hm_wk_bells_hint">Giờ chung cho mọi ngày. Bấm tiết để đổi giờ vào và độ dài, bấm ra chơi để đổi số phút. Giữ tiết để xoá.</string>
     <string name="hm_wk_week_hint">Bấm vào ô để nhập môn</string>
     <string name="hm_wk_change">Chuyển tiết</string>
     <string name="hm_wk_change_bells">Đổi giờ học, giờ ra chơi</string>
-    <string name="hm_wk_gap_hint">Các tiết sau tự lùi / tiến theo</string>
+    <string name="hm_wk_gap_hint">Các tiết sau tự dời theo</string>
     <string name="hm_c_fx">Hiệu ứng</string>
     <string name="hm_c_fx_full">Đầy đủ</string>
     <string name="hm_c_fx_lite">Nhẹ</string>

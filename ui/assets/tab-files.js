@@ -94,7 +94,7 @@ async function fxGet(f) {
       if (got < f.size) throw errOf("incomplete");
     } else {
       if (f.size > FX.relay) throw errOf("relayBig", t("fx.e.relayBig", fxSize(FX.relay)));
-      job.state = "wait"; fxPaint();
+      job.state = "wait"; job.at = Date.now(); fxPaint();
       await call(k, "/cmd", "POST", { type: "fileUp", file: f.id });   // the phone puts it on the relay (next sync)
       let meta = null; const end = Date.now() + 5 * 60e3;
       while (!meta) {
@@ -120,6 +120,13 @@ async function fxGet(f) {
   } catch (e) { job.state = e.raw === "abort" ? "stop" : "err"; job.err = fxErr(e); }
   job.abort = null; fxPaint(); fxLoad(k);
 }
+// "waiting for the phone" too long: download = ask the phone again (fileUp); upload = drop the relay copy and send the file again
+function fxResend(job) {
+  if (job.state !== "wait") return; const k = job.kid;
+  if (job.kind === "down") { call(k, "/cmd", "POST", { type: "fileUp", file: job.fid }).then(() => toast("send|" + t("pw.resent"))).catch(e => toast("err|" + fxErr(e))); return; }
+  if (job.fid) fetch(base(k) + "/file?fid=" + job.fid, { method: "DELETE", headers: fxHdr(k) }).catch(() => {});
+  job.state = "queue"; job.pct = 0; job.fid = null; fxPaint(); fxPump(); toast("send|" + t("pw.resent"));
+}
 function fxCancel(job) { if (!/^(queue|run|wait)$/.test(job.state)) return; const a = job.abort; job.state = "stop"; job.err = t("fx.stopped"); if (a) a(); else if (job.kind === "up" && job.fid && fxRelay(job.kid)) fetch(base(job.kid) + "/file?fid=" + job.fid, { method: "DELETE", headers: fxHdr(job.kid) }).catch(() => {}); fxPaint(); }
 async function fxDel(f) {
   if (!(await ask(t(f.dir === "in" ? "fx.delInAsk" : "fx.delOutAsk", f.name), t("fx.del"), true))) return;
@@ -140,7 +147,7 @@ function fxSync() {
   fxLoad(); fxPaint();
 }
 const fxTxt = j => j.state === "queue" ? t("fx.q") : j.state === "run" ? t(j.kind === "up" ? "fx.up" : "fx.getting", Math.floor(j.pct * 100))
-  : j.state === "wait" ? t(j.kind === "up" ? "fx.upWait" : "fx.getWait") : j.state === "done" ? t(j.kind === "up" ? "fx.upDone" : "fx.got")
+  : j.state === "wait" ? t(j.kind === "up" ? "fx.upWait" : "fx.getWait") + (offWhy() ? " · " + offWhy() : "") : j.state === "done" ? t(j.kind === "up" ? "fx.upDone" : "fx.got")
   : j.state === "stop" ? t("fx.stopped") : t("fx.err", j.err);
 const fxBar = j => /^(run|wait|queue)$/.test(j.state) ? `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.floor(j.pct * 100)}" data-fxb="${j.id}"><i data-fxp="${j.id}" style="width:${Math.floor(j.pct * 100)}%"></i></div>` : "";
 const fxTone = j => j.state === "done" ? "ok" : j.state === "err" ? "bad" : "";
@@ -161,6 +168,7 @@ function fxDraw() {
   J.innerHTML = jobs.filter(j => j.kind === "up").map(j => row(j.name, fxSize(j.size),
     `<div class="mute" role="status" data-fxt="${j.id}"${fxTone(j) ? ` style="color:var(--${fxTone(j)})"` : ""}>${esc(fxTxt(j))}</div>`, fxBar(j),
     (/^(queue|run|wait)$/.test(j.state) ? `<button data-fx="cancel" data-id="${j.id}">${ic("x")} ${t("fx.cancel")}</button>` : "") +
+    (j.state === "wait" && j.file && !j.big ? `<button data-fx="resend" data-id="${j.id}">${ic("refresh-cw")} ${t("pw.resend")}</button>` : "") +
     (/^(err|stop)$/.test(j.state) && j.file && !j.big ? xb("retry", j.id, "refresh-cw", t("fx.retry")) : "") +
     (/^(done|err|stop)$/.test(j.state) ? xb("dismiss", j.id, "x", t("fx.dismiss")) : ""))).join("");
   const out = files.filter(f => f.dir === "out"), inn = files.filter(f => f.dir === "in");
@@ -169,7 +177,7 @@ function fxDraw() {
     const st2 = j ? `<div class="mute" role="status" data-fxt="${j.id}"${fxTone(j) ? ` style="color:var(--${fxTone(j)})"` : ""}>${esc(fxTxt(j))}</div>` : "";
     const busy = j && /^(run|wait)$/.test(j.state);
     return row(f.name, meta(f), st2, j ? fxBar(j) : "",
-      (FXNO ? "" : busy ? `<button data-fx="cancel" data-id="${j.id}">${ic("x")} ${t("fx.cancel")}</button>`
+      (FXNO ? "" : busy ? `<button data-fx="cancel" data-id="${j.id}">${ic("x")} ${t("fx.cancel")}</button>${j.state === "wait" ? `<button data-fx="resend" data-id="${j.id}">${ic("refresh-cw")} ${t("pw.resend")}</button>` : ""}`
         : `<button class="pri" data-fx="get" data-id="${f.id}">${ic(j && j.state === "done" ? "check" : j && j.state === "err" ? "refresh-cw" : "download")} ${t(j && j.state === "done" ? "fx.got" : j && j.state === "err" ? "fx.retry" : "fx.get")}</button>`) +
       xb("del", f.id, "trash-2", t("fx.del"), "bad"));
   }).join("") : `<p class="mute">${t("fx.none")} ${t("fx.fromKidP")}</p>`;
@@ -198,6 +206,7 @@ function filesTab(b) {
     const id = el.dataset.id, job = fx.jobs.find(j => j.id === id), f = fxFiles().find(x => x.id === id);
     ({ cancel: () => job && fxCancel(job), dismiss: () => { fx.jobs = fx.jobs.filter(j => j !== job); fxPaint(); },
        retry: () => { if (job) { job.state = "queue"; job.pct = 0; job.fid = null; fxPaint(); fxPump(); } },
+       resend: () => job && fxResend(job),
        get: () => f && fxGet(f), del: () => f && fxDel(f) })[el.dataset.fx]();
   };
   fxDraw(); fxLoad();

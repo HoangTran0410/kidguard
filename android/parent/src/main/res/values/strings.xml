@@ -18,7 +18,7 @@
     </plurals>
     <string name="ev_sos">%1$s pressed SOS at %2$s</string>
     <string name="ev_lost">Lost connection to %1$s\'s phone</string>
-    <string name="ev_unpaired">%1$s\'s phone no longer accepts this app (unpaired). Pair again with a code from the kid\'s phone.</string>
+    <string name="ev_unpaired">%1$s\'s phone no longer accepts this app. Pair again with a code from the kid\'s phone.</string>
     <string name="ev_acc_off">%1$s turned off KidGuard\'s Accessibility: apps are no longer blocked</string>
     <string name="act_grant">+%1$d min</string>
     <string name="act_decline">Decline</string>
@@ -33,8 +33,8 @@
         <item quantity="other">+%1$d minutes sent, they apply when the phone is online</item>
     </plurals>
     <plurals name="ans_half">
-        <item quantity="one">%1$d minute added, still telling the child. Don\'t grant it again on the page</item>
-        <item quantity="other">%1$d minutes added, still telling the child. Don\'t grant it again on the page</item>
+        <item quantity="one">%1$d minute added, telling the child. Don\'t grant it again</item>
+        <item quantity="other">%1$d minutes added, telling the child. Don\'t grant it again</item>
     </plurals>
     <string name="ans_declined">Declined</string>
     <string name="ans_already">This request was already answered</string>

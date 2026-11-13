@@ -96,6 +96,7 @@ function appsList(b) {
 // Per-app result comes from the phone's report: state.rules.hidden = what the phone has taken, preinstalled[].hidden = isApplicationHidden.
 // Wanted + taken + still not hidden = the phone refused (ColorOS refuses some of its own apps, e.g. the game center / store / themes).
 let hideDraft = null;
+let hideSentAt = null;   // {k, at}: when the hide list was last sent; a wait older than 10 min reads "not applied"
 const mbTxt = m => m >= 1024 ? (m / 1024).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " GB" : m + " MB";
 function cleanStat() {
   const pre = (st && st.preinstalled) || [], saved = new Set((edit && edit.hidden) || []), took = new Set((st && st.rules && st.rules.hidden) || []);
@@ -119,6 +120,10 @@ function cleanTab(b) {
   if (!st.preinstalled) { b.innerHTML = `<div class="card"><p class="mute">${ic("hourglass")} ${t("clean.noList")}</p></div>`; return; }
   const pre = st.preinstalled, saved = new Set(edit.hidden), S = cleanStat();
   const draft = () => hideDraft || saved;
+  // waiting rows: say why (phone offline since / adb link) + Retry; 10 min after the send it reads "not applied"
+  const hdWait = () => { const n = cleanStat().wait; if (!n) return ""; const late = hideSentAt && hideSentAt.k === cur && Date.now() - hideSentAt.at > 600000, why = waitWhy(true);
+    return `<div class="alert ${late ? "warn" : "info"}" style="font-weight:400;font-size:13px">${ic(late ? "triangle-alert" : "hourglass")} <span>${t(late ? "pw.hdLate" : "pw.hdWait", n)}${why ? " · " + esc(why) : ""}</span> <button type="button" data-pact="hdwait">${ic("refresh-cw")} ${t("pw.retry")}</button></div>`; };
+  const hdRetry = () => { const k = cur; if (!k || !edit || viewDay) return; putRules(k, edit).then(() => { hideSentAt = { k, at: Date.now() }; toast("send|" + t("pw.resent")); setTimeout(refresh, 1500); }).catch(e => toast("err|" + t("errX", e.message))); };
   const sug = pre.filter(x => x.suggest || saved.has(x.pkg) || x.hidden), rest = pre.filter(x => !sug.includes(x));
   const TAG = { ok: `<span class="tag ok">${ic("check")} ${t("hd.ok")}</span>`, ref: `<span class="tag bad">${ic("ban")} ${t("hd.refused")}</span>`,
     wait: `<span class="tag">${ic("hourglass")} ${t("hd.waiting")}</span>`, adb: `<span class="tag warn">${ic("lock")} ${t("hd.noAdb")}</span>`, show: `<span class="tag">${ic("hourglass")} ${t("hd.showing")}</span>` };
@@ -129,6 +134,7 @@ function cleanTab(b) {
     <p class="mute" style="margin:0">${t("clean.p", "<b>" + pre.filter(x => x.hidden && !x.refused).length + "</b>")}</p>
     ${S.want ? `<div class="prog" role="img" aria-label="${esc(t("hd.sum", S.ok, S.want))}"><i style="width:${pc(S.ok)}"></i><i class="b" style="width:${pc(S.ref)}"></i><i class="w" style="width:${pc(S.wait)}"></i></div>
       <div><b>${t("hd.sum", S.ok, S.want)}</b>${S.ref ? ` · <span class="err">${t("hd.refN", S.ref)}</span>` : ""}${S.wait ? ` · <span class="mute">${t("hd.waitN", S.wait)}</span>` : ""}</div>
+      ${S.wait ? pendHtml("hdwait", hdWait, hdRetry) : ""}
       ${S.ref ? `<div class="alert warn" style="font-weight:400;font-size:13px">${ic("triangle-alert")} ${t("hd.refTip")}</div>` : ""}` : ""}</div>
   ${sec("cl-sug", "sparkles", t("hd.sugH"), t("hd.sugD"), [t("hd.nApps", sug.length)], sug.map(row).join("") || `<p class="mute">${t("clean.noSug")}</p>`, true)}
   ${rest.length ? sec("cl-rest", "layers", t("hd.restH"), t("hd.restD"), [t("hd.nApps", rest.length)], rest.map(row).join("")) : ""}
@@ -144,7 +150,7 @@ function cleanTab(b) {
     if ($("#hdSave")) $("#hdSave").onclick = async () => {
       if (!(await ask(t("hd.ask", add, rem), t("save")))) return;
       edit.hidden = [...draft()]; hideDraft = null; changed();   // one PUT with the whole rules.hidden
-      toast("ok|" + t("hd.sent")); cleanTab(b); setTimeout(refresh, 1500);
+      hideSentAt = { k: cur, at: Date.now() }; { const w = waitWhy(true); toast(w ? "warn|" + t("hd.sentOff", w) : "ok|" + t("hd.sent")); } cleanTab(b); setTimeout(refresh, 1500);
     };
   };
   const setD = s => { hideDraft = sameSet(s, saved) ? null : s; };
@@ -272,7 +278,7 @@ function devTab(b) {
 function wireDev(b, apps) {
   const x = $("#dvRef"); if (x) x.onclick = () => devLoad(true);
   const c = $("#dvClean"); if (c) c.onclick = () => { tab = "apps"; appsSub = "clean"; try { localStorage.setItem("kg.appsSub", "clean"); } catch {} render(true); };
-  const r = $("#dvBoot"); if (r) r.onclick = async () => { const k0 = cur, ar = askOf("reboot"); if (!(await ask(k0.name + "\n" + ar[0], ...ar.slice(1))) || k0 !== cur) return; dvRun("dvBoot", () => cmd({ type: "reboot" }, t("reboot.done"), false)); };
+  const r = $("#dvBoot"); if (r) r.onclick = async () => { const k0 = cur, ar = askOf("reboot"); if (!(await ask(k0.name + "\n" + ar[0], ...ar.slice(1))) || k0 !== cur) return; dvRun("dvBoot", () => cmd({ type: "reboot" }, t("reboot.done"), false).then(r => { if (r) rebootStart(); return r; })); };
   (apps || []).forEach((a, i) => { const e = $("#dvc" + i); if (e && !e.disabled) e.onclick = async () => {
     if (!(await ask(t("clean.askClear", a.label), t("delete"), true))) return;
     dvRun("dvc" + i, () => cmd({ type: "clearData", pkg: a.pkg }, t("clean.cleared", a.label), false)).then(() => setTimeout(() => devLoad(true), 3000));

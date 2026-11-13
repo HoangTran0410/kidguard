@@ -2,7 +2,7 @@
 <resources>
     <string name="ch_timer">Timer</string>
     <string name="hm_w_timer">Timer</string>
-    <string name="hm_w_timer_d">A disc that shrinks as time runs out; 5 / 10 / 15 / 25 min, your own time or pomodoro; rings when done</string>
+    <string name="hm_w_timer_d">Shrinking disc timer: 5, 10, 15, 25 min, your own time or pomodoro. Rings when done.</string>
     <string name="tm_done">Time is up!</string>
     <string name="tm_work_over">Work time is over. Take a 5 minute break!</string>
     <string name="tm_break_over">Break is over. Ready for the next 25 minutes?</string>
@@ -20,7 +20,7 @@
     <string name="tm_custom_hint">Minutes (1-180)</string>
 
     <string name="hm_w_streak">Day streak</string>
-    <string name="hm_w_streak_d">Days in a row you finished your homework and chores; best streak and badges at 3, 7, 14 and 30 days</string>
+    <string name="hm_w_streak_d">Days in a row with homework and chores done. Badges at 3, 7, 14 and 30 days.</string>
     <string name="sk_days">days</string>
     <string name="sk_best">Best: %1$d</string>
     <string name="sk_next">%1$d more to %2$d</string>
@@ -54,7 +54,7 @@
     <string name="md_noaccess_sub">Tap to allow it</string>
     <string name="sk_badge_n">%1$d days</string>
     <string name="sk_last4w">Last 4 weeks</string>
-    <string name="sk_how">Finish all homework and chores in a day and it counts. Miss a day and the streak starts again.</string>
+    <string name="sk_how">Finish all homework and chores in a day to count it. Miss a day and the streak restarts.</string>
     <string name="sk_open_list">Today\'s tasks</string>
     <string name="hm_no_app">No app for this on the phone</string>
 </resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ch_pause">Bank app notices</string>
+    <string name="bp_title">%1$s opened: KidGuard is off for now</string>
+    <string name="bn_ok">Got it</string>
+    <string name="bn_who">Only your parents can change this, in the KidGuard parent page.</string>
+    <string name="bn_clock_t">Date and time are locked</string>
+    <string name="bn_clock_b">Your parents keep date and time automatic. The clock page was closed. A wrong clock breaks time limits.</string>
+    <string name="bn_protect_t">This page is locked</string>
+    <string name="bn_protect_b">Your parents locked uninstalling, stopping or changing KidGuard. The page was closed.</string>
+</resources>

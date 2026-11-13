@@ -26,7 +26,11 @@ class ToastsTest {
     @Test fun toastStringsFitTwoLines() {
         val used = File("src/main/kotlin").walk().filter { it.extension == "kt" }.flatMap { f ->
             f.readLines().mapIndexedNotNull { i, l -> if (call.containsMatchIn(l)) l to "${f.name}:${i + 1}" else null }
-        }.flatMap { (l, at) -> id.findAll(l).map { it.groupValues[1] to at } }.toMap()
+        }.flatMap { (l, at) ->
+            // whyClosed(toast, cardTitle, cardBody): only the first id is a toast (the card text is shown by BlockNotice)
+            val ids = id.findAll(l).map { it.groupValues[1] }.toList()
+            (if ("whyClosed(" in l && !call.containsMatchIn(l.replace(Regex("""\bwhyClosed\([^)]*\)"""), ""))) ids.take(1) else ids).map { it to at }
+        }.toMap()
         assertTrue("found no toast strings: scan broken?", used.size > 30)
         val bad = mutableListOf<String>()
         for (dir in listOf("values", "values-vi")) {

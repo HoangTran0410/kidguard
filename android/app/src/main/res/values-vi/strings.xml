@@ -114,13 +114,13 @@
     <string name="log_loc_fixed">Vị trí bị tắt, đã bật lại</string>
     <string name="log_usage_on">Quyền theo dõi sử dụng đã bật lại</string>
     <string name="ch_usage">Quyền theo dõi giờ dùng</string>
-    <string name="usage_off_note">Quyền theo dõi giờ dùng đang tắt nên giới hạn giờ không hoạt động. Chạm để bật lại.</string>
-    <string name="ev_foreign_home">%1$s vừa thành màn hình chính mặc định (không phải app hệ thống: không bị giới hạn)</string>
+    <string name="usage_off_note">Quyền theo dõi giờ dùng đang tắt: giới hạn giờ không chạy. Chạm để bật lại.</string>
+    <string name="ev_foreign_home">%1$s thành màn hình chính mặc định. Không phải app hệ thống nên không bị giới hạn</string>
     <string name="log_foreign_home">Màn hình chính mặc định không phải của hệ thống: %1$s</string>
     <string name="log_dns_paused">Bố mẹ tạm tắt DNS an toàn</string>
     <string name="log_dns_resumed">DNS an toàn đã bật lại</string>
     <string name="log_usage_off">Quyền theo dõi sử dụng bị tắt</string>
-    <string name="ev_usage_off">Quyền theo dõi giờ dùng bị tắt: giới hạn giờ không tính được</string>
+    <string name="ev_usage_off">Quyền theo dõi giờ dùng bị tắt: không tính được giới hạn giờ</string>
     <string name="log_new_app">Cài mới: %1$s</string>
     <string name="ev_new_app">Đã cài %1$s</string>
     <string name="log_suspended">Tạm khoá: %1$s (%2$s)</string>
@@ -154,44 +154,44 @@
     <string name="log_released">Đã gỡ quyền quản lý</string>
     <string name="log_sos">Con bấm SOS</string>
     <string name="notif_guard_title">KidGuard đang bật</string>
-    <string name="notif_guard_text">Bố mẹ quản lý thời gian dùng máy. Giữ thông báo này → tắt để ẩn hẳn, KidGuard vẫn chạy.</string>
+    <string name="notif_guard_text">Bố mẹ quản lý giờ dùng máy. Muốn ẩn thông báo này: giữ → tắt. KidGuard vẫn chạy.</string>
     <string name="ch_guard">KidGuard chạy nền (tắt được, vẫn bảo vệ)</string>
 
     <!-- Basic mode setup card -->
     <string name="basic_title">Cài nhanh không cần máy tính</string>
-    <string name="basic_intro">Làm lần lượt từng bước bên dưới. Mỗi nút mở đúng màn hình cần bật; bật xong bấm Quay lại.</string>
+    <string name="basic_intro">Làm lần lượt từng bước. Mỗi nút mở đúng màn hình cần bật. Bật xong, bấm Quay lại.</string>
     <string name="basic_admin">1. Bật quyền quản trị thiết bị</string>
     <string name="basic_admin_d">Để KidGuard khoá máy được và không bị gỡ khi chưa có bố mẹ.</string>
     <string name="basic_admin_expl">KidGuard cần quyền này để khoá màn hình và chống bị gỡ.</string>
     <string name="basic_acc">2. Bật Trợ năng cho KidGuard</string>
-    <string name="basic_acc_d">Vào Trợ năng, chọn KidGuard, bật. Dùng để chặn app bị khoá và giữ KidGuard không bị tắt.</string>
+    <string name="basic_acc_d">Vào Trợ năng → KidGuard → bật. Để chặn app bị khoá và giữ KidGuard luôn chạy.</string>
     <string name="basic_usage">3. Cho phép xem thời gian dùng app</string>
     <string name="basic_usage_d">Chọn KidGuard rồi bật \"Cho phép\". Dùng để đếm giờ dùng từng app.</string>
     <string name="basic_loc">4. Cho phép vị trí</string>
     <string name="basic_loc_d">Để bố mẹ biết con đang ở đâu. Chọn \"Chính xác\" và \"Khi dùng ứng dụng\" ở bước này.</string>
     <string name="basic_loc_bg">4. Vị trí: cho phép \"Luôn cho phép\"</string>
-    <string name="basic_loc_bg_d">Để bố mẹ xem vị trí cả khi con không mở KidGuard. Chọn \"Luôn cho phép\" (Always) ở màn hình tiếp theo.</string>
+    <string name="basic_loc_bg_d">Để bố mẹ thấy vị trí cả khi KidGuard đang đóng. Ở màn hình tiếp theo, chọn \"Luôn cho phép\".</string>
     <string name="basic_notif">5. Cho phép thông báo</string>
     <string name="basic_notif_d">Để con thấy lời nhắc và lý do khi app bị khoá.</string>
     <string name="basic_battery">6. Không giới hạn pin cho KidGuard</string>
-    <string name="basic_battery_d">Nếu không, máy có thể tự tắt KidGuard khi tiết kiệm pin.</string>
+    <string name="basic_battery_d">Nếu không, máy có thể tắt KidGuard để tiết kiệm pin.</string>
     <string name="basic_autostart">Cho phép tự khởi động (Oppo, Xiaomi, Vivo…)</string>
-    <string name="basic_play_protect">Bị Google Play Protect chặn (\"App blocked to protect your device\")? Mở CH Play → ảnh đại diện → Play Protect → ⚙ → tắt \"Quét ứng dụng bằng Play Protect\", làm xong các bước ở đây rồi bật lại.</string>
+    <string name="basic_play_protect">Bị Google Play Protect chặn? Mở CH Play → ảnh đại diện → Play Protect → ⚙ → tắt \"Quét ứng dụng bằng Play Protect\". Cài xong thì bật lại.</string>
 
     <!-- Device Owner checklist -->
     <string name="prov_usage">Bật quyền theo dõi sử dụng</string>
     <string name="acc_restricted">Cho phép cài đặt bị hạn chế (Android 13+)</string>
-    <string name="acc_restricted_d">Nếu Trợ năng báo "Cài đặt bị hạn chế": bấm OK, mở mục này, bấm ⋮ (góc trên bên phải) → "Cho phép cài đặt bị hạn chế", xác nhận, rồi bật lại Trợ năng.</string>
+    <string name="acc_restricted_d">Trợ năng báo \"Cài đặt bị hạn chế\"? Bấm OK, mở mục này, bấm ⋮ (góc trên phải) → \"Cho phép cài đặt bị hạn chế\". Rồi bật lại Trợ năng.</string>
     <string name="prov_acc">Bật Trợ năng KidGuard</string>
     <string name="prov_title">Bước còn lại</string>
     <string name="prov_intro">Bật 2 quyền này để KidGuard chạy đầy đủ</string>
     <string name="prov_done">Đã xong: %1$s</string>
     <string name="prov_secure_yes">Tự bật lại Trợ năng: có</string>
-    <string name="prov_secure_no">Tuỳ chọn: tự bật lại Trợ năng cần máy tính hoặc Gỡ lỗi không dây</string>
+    <string name="prov_secure_no">Tuỳ chọn: muốn Trợ năng tự bật lại, cần máy tính hoặc Gỡ lỗi không dây</string>
 
     <!-- Accessibility -->
     <string name="log_acc_clock">Con mở trang Ngày và giờ, đã đưa về màn hình chính</string>
-    <string name="log_acc_settings">Con mở trang gỡ / tắt KidGuard, đã đưa về màn hình chính</string>
+    <string name="log_acc_settings">Con mở trang tắt / gỡ KidGuard, đã đưa về màn hình chính</string>
     <string name="ch_block">App đang bị khoá</string>
     <string name="notif_blocked">%1$s đang bị khoá: %2$s</string>
     <string name="log_acc_rebind">Trợ năng không kết nối, thử bind lại</string>
@@ -215,7 +215,7 @@
     <string name="ts_log_connected">Điều khiển từ xa: đã kết nối (%1$s)</string>
     <string name="ts_log_down">Tailscale bị tắt (đóng hoặc bị dọn): đang bật lại</string>
     <string name="ts_log_back">Tailscale đã kết nối lại</string>
-    <string name="ts_err_no_net">Chưa vào được mạng (khoá sai, hết hạn hoặc phone chưa có Internet)</string>
+    <string name="ts_err_no_net">Chưa vào được mạng: khoá sai, hết hạn, hoặc máy chưa có Internet</string>
     <string name="ts_err_install">cài không xong</string>
     <string name="ts_err_token">Tailscale không nhận token (hết hạn hoặc sai)</string>
     <string name="ts_log_noexpiry">Điều khiển từ xa: đã tắt hạn khoá</string>
@@ -227,7 +227,7 @@
     <!-- Self-update -->
     <string name="upd_err_bad_tag">bản %1$s không hợp lệ</string>
     <string name="upd_err_github">GitHub trả lời HTTP %1$d</string>
-    <string name="upd_err_tls">không kết nối an toàn được tới GitHub (mạng, VPN hoặc app chặn quảng cáo trên máy chặn HTTPS, hoặc giờ máy sai)</string>
+    <string name="upd_err_tls">không kết nối an toàn được tới GitHub: mạng, VPN hoặc app chặn quảng cáo đang chặn HTTPS, hoặc giờ máy sai</string>
     <string name="upd_err_net">không kết nối được GitHub (mất mạng hoặc bị chặn), thử lại sau 1 giờ</string>
     <string name="upd_err_version">không đọc được phiên bản</string>
     <string name="upd_err_sha">sai SHA-256 của bản cập nhật</string>
@@ -239,9 +239,9 @@
     <string name="upd_cancelled">đã huỷ</string>
 
     <!-- Policy -->
-    <string name="policy_support">Bố mẹ đang tạm khoá ứng dụng này. Con có thể xin thêm giờ trong KidGuard nhé.</string>
+    <string name="policy_support">App này đang tạm bị chặn. Con có thể xin thêm giờ trong KidGuard.</string>
     <string name="dns_refused">DNS %1$s bị từ chối (mã %2$d)</string>
-    <string name="dns_fallback">Mạng hiện tại không dùng được DNS an toàn, tạm tắt 30 phút để con không mất mạng</string>
+    <string name="dns_fallback">Mạng này không dùng được DNS an toàn. Tạm tắt 30 phút để máy không mất mạng.</string>
     <string name="log_dns_fallback">DNS an toàn làm mất mạng, tạm tắt 30 phút</string>
     <!-- a `release` command result: keep the "failed: " prefix -->
     <plurals name="release_stuck">
@@ -249,7 +249,7 @@
     </plurals>
 
     <plurals name="release_shell_left">
-        <item quantity="other">%1$d app đã tắt vẫn chưa bật lại: sẽ bật lại khi Gỡ lỗi không dây đang bật ở lần mở sau (hoặc bật trong Cài đặt > Ứng dụng)</item>
+        <item quantity="other">%1$d app đã tắt chưa bật lại được. Sẽ bật lại ở lần mở sau, khi Gỡ lỗi không dây đang bật (hoặc bật tay trong Cài đặt > Ứng dụng)</item>
     </plurals>
     <!-- Listening -->
     <plurals name="listen_about">
@@ -276,8 +276,8 @@
     <string name="ss_no_conn_port">Ghép nối xong nhưng không thấy cổng kết nối. Hãy tắt rồi bật lại \"Gỡ lỗi không dây\".</string>
     <string name="ss_conn_fail">Không kết nối được tới chính máy này: %1$s</string>
     <string name="ss_cmd_fail">lệnh không thành công</string>
-    <string name="ss_accounts">Máy còn tài khoản, cần xoá trước: %1$s. Vào Cài đặt > Mật khẩu và tài khoản, xoá hết rồi thử lại (cài xong đăng nhập lại được).</string>
-    <string name="ss_coloros">Oppo/Realme/OnePlus (ColorOS): mở Đa nhiệm, kéo thẻ KidGuard xuống để khoá (biểu tượng ổ khoá), và trong Quản lý điện thoại cho KidGuard \"Tự khởi chạy\" + chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app và Trợ năng.</string>
+    <string name="ss_accounts">Cần xoá tài khoản trên máy trước: %1$s. Vào Cài đặt > Mật khẩu và tài khoản, xoá hết rồi thử lại. Cài xong đăng nhập lại được.</string>
+    <string name="ss_coloros">Oppo/Realme/OnePlus (ColorOS): mở Đa nhiệm, kéo thẻ KidGuard xuống để khoá (ổ khoá). Trong Quản lý điện thoại, bật \"Tự khởi chạy\" và chạy nền cho KidGuard. Vuốt KidGuard khỏi Đa nhiệm sẽ tắt hẳn app và Trợ năng.</string>
     <string name="ss_done">Xong. KidGuard đã được cài quyền quản lý.</string>
     <string name="ch_selfsetup">Tự cài KidGuard</string>
     <string name="ss_code_label">Mã 6 số</string>
@@ -287,14 +287,14 @@
     <string name="ss_running">KidGuard đang tự cài</string>
     <string name="ss_code_6">Mã phải đủ 6 số</string>
     <string name="ssa_title">Tự cài KidGuard, không cần máy tính</string>
-    <string name="ssa_old">Máy này dùng Android %1$s (dưới 11) nên không tự cài được. Cần cắm máy tính chạy setup.sh (xem README), hoặc cài lại máy rồi quét mã QR.</string>
+    <string name="ssa_old">Máy dùng Android %1$s (dưới 11), không tự cài được. Cắm máy tính chạy setup.sh (xem README), hoặc cài lại máy rồi quét mã QR.</string>
     <string name="ssa_s1_ok">Đã bật Tuỳ chọn nhà phát triển</string>
     <string name="ssa_s2_ok">Gỡ lỗi không dây đang bật</string>
-    <string name="ssa_need_wifi">Máy đang không dùng Wi-Fi: vào Wi-Fi rồi bật Gỡ lỗi không dây (4G không dùng được).</string>
+    <string name="ssa_need_wifi">Máy chưa dùng Wi-Fi. Vào Wi-Fi, rồi bật Gỡ lỗi không dây (4G không được).</string>
     <string name="ssa_s3_ok">Đã ghép xong: KidGuard tự dùng được adb (ẩn app, dọn máy). Ghép lại chỉ khi có lỗi.</string>
     <string name="ssa_pair_title">Cho KidGuard tự dùng adb</string>
-    <string name="ssa_pair_intro">Để ẩn app cài sẵn, dọn máy mà không cần Device Owner (không phải reset máy), KidGuard ghép với Gỡ lỗi không dây của chính máy này một lần. Cần Wi-Fi. Làm lần lượt 3 bước, bước xong sẽ có dấu ✓:</string>
-    <string name="ssa_intro">Máy sẽ tự \"nói chuyện\" với chính nó qua Gỡ lỗi không dây (cần Wi-Fi). Để thành Device Owner máy phải chưa đăng nhập tài khoản nào (Google, Samsung, Xiaomi...); máy đã có tài khoản vẫn ghép được để KidGuard tự ẩn app, dọn máy. Làm lần lượt 3 bước:</string>
+    <string name="ssa_pair_intro">KidGuard ghép 1 lần với Gỡ lỗi không dây của máy này để ẩn app cài sẵn và dọn máy, không cần reset. Cần Wi-Fi. Làm 3 bước, xong có dấu ✓:</string>
+    <string name="ssa_intro">Máy tự nối với chính nó qua Gỡ lỗi không dây (cần Wi-Fi). Muốn thành Device Owner, máy chưa được đăng nhập tài khoản nào (Google, Samsung, Xiaomi...). Máy đã có tài khoản vẫn ghép được: KidGuard ẩn app, dọn máy. Làm 3 bước:</string>
     <string name="ssa_s1">Bước 1. Bật Tuỳ chọn nhà phát triển</string>
     <string name="ssa_s1_d">Vào Giới thiệu về điện thoại, bấm 7 lần vào \"Số hiệu bản tạo\" (Build number).</string>
     <string name="ssa_s1_btn">Mở Giới thiệu về điện thoại</string>
@@ -302,7 +302,7 @@
     <string name="ssa_s2_d">Trong Tuỳ chọn nhà phát triển, bật \"Gỡ lỗi không dây\" (Wireless debugging) và cho phép Wi-Fi này.</string>
     <string name="ssa_s2_btn">Mở Tuỳ chọn nhà phát triển</string>
     <string name="ssa_s3">Bước 3. Nhập mã ghép nối</string>
-    <string name="ssa_s3_d">Bấm nút dưới đây. Rồi trong Gỡ lỗi không dây, bấm \"Ghép thiết bị bằng mã ghép nối\". Hộp thoại sẽ tắt nếu con rời màn hình Cài đặt, nên mã được nhập ở thông báo: kéo thanh thông báo xuống, bấm \"Nhập mã ghép\" và gõ mã 6 số.</string>
+    <string name="ssa_s3_d">Bấm nút dưới. Rồi trong Gỡ lỗi không dây, bấm \"Ghép thiết bị bằng mã ghép nối\". Nhập mã ở thông báo: kéo thanh thông báo xuống, bấm \"Nhập mã ghép\", gõ 6 số. (Rời Cài đặt là hộp thoại tắt.)</string>
     <string name="ssa_s3_btn">Hiện ô nhập mã ở thông báo</string>
     <string name="ssa_or_here">Hoặc nhập ngay tại đây (nếu thông báo không hiện):</string>
     <string name="ssa_code_hint">Mã ghép nối 6 số</string>
@@ -337,9 +337,9 @@
     <string name="main_recover">Mất liên kết? Ghép lại (giữ 10 giây)</string>
     <string name="main_recover_at">Mã ghép sẽ hiện lúc %1$s</string>
     <string name="log_recover_req">Máy con yêu cầu mở ghép lại (mở sau 24 giờ)</string>
-    <string name="ev_recover_req">Máy con yêu cầu mở ghép lại: sẽ mở sau 24 giờ. Đặt PIN để huỷ.</string>
+    <string name="ev_recover_req">Máy con xin mở ghép lại: mở sau 24 giờ. Đặt PIN để huỷ.</string>
     <string name="main_recover_title">Sẽ mở ghép sau 24 giờ</string>
-    <string name="main_recover_body">Để an toàn, mã ghép hiện sau 24 giờ và bố mẹ được báo ngay. Nếu bố mẹ vẫn còn quản lý được, hãy đặt mã PIN để huỷ.</string>
+    <string name="main_recover_body">Mã ghép sẽ hiện sau 24 giờ, bố mẹ được báo ngay. Bố mẹ còn quản lý được máy thì đặt PIN để huỷ.</string>
     <string name="main_battery">Cài đặt pin / tự khởi động</string>
     <string name="lang_title">Ngôn ngữ / Language</string>
     <string name="lang_system">Theo điện thoại</string>
@@ -349,12 +349,12 @@
     </plurals>
     <string name="st_owner">Đang được bố mẹ quản lý</string>
     <string name="st_basic">Chế độ cơ bản: KidGuard đang bảo vệ</string>
-    <string name="st_unfinished">Chưa cài xong: làm lần lượt các bước trong khung \"Cài nhanh\" bên dưới</string>
+    <string name="st_unfinished">Chưa cài xong: làm các bước trong khung \"Cài nhanh\" bên dưới</string>
     <string name="st_no_usage">Chưa có quyền xem thời gian dùng app</string>
     <string name="st_running">Đang chạy</string>
     <string name="st_starting">Đang khởi động…</string>
     <string name="st_acc_on">Trợ năng: bật</string>
-    <string name="st_acc_off">Trợ năng của KidGuard đã bị tắt → vào Cài đặt > Trợ năng bật lại</string>
+    <string name="st_acc_off">Trợ năng KidGuard đang tắt → bật lại trong Cài đặt > Trợ năng</string>
     <string name="st_loc_on">Vị trí: bật</string>
     <string name="st_loc_off">Vị trí: tắt</string>
     <plurals name="st_pending">
@@ -364,11 +364,11 @@
     <string name="st_last_listen">Lần nghe gần nhất: %1$s (%2$s)</string>
     <string name="main_hint_qr">Trên máy bố mẹ (cùng Wi-Fi): quét mã QR bằng camera, hoặc mở trình duyệt:\n%1$s\nrồi nhập mã ở trên.</string>
     <string name="main_hint_nowifi">Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n(chưa có Wi-Fi)\nrồi nhập mã ở trên.</string>
-    <string name="main_hint_hidden">Chưa ghép với máy bố mẹ. Bố mẹ giữ nút \"hiện mã ghép\" bên dưới 5 giây để bắt đầu ghép.</string>
+    <string name="main_hint_hidden">Chưa ghép với máy bố mẹ. Bố mẹ giữ nút \"hiện mã ghép\" bên dưới 5 giây để ghép.</string>
     <string name="main_hint_managed">Bố mẹ quản lý tại:\n%1$s</string>
     <string name="main_no_wifi">(chưa có Wi-Fi)</string>
     <string name="pin_need_title">Cần mã PIN</string>
-    <string name="pin_need_body">Bố mẹ hãy đặt mã PIN trong trang quản lý trước khi ghép thêm máy.</string>
+    <string name="pin_need_body">Bố mẹ đặt PIN trong trang quản lý trước, rồi mới ghép thêm máy.</string>
     <plurals name="pin_locked">
         <item quantity="other">Nhập sai PIN nhiều lần. Thử lại sau %1$d phút.</item>
     </plurals>
@@ -415,7 +415,7 @@
     </plurals>
     <string name="unl_hint">6 số</string>
     <string name="unl_title">Mã mở khoá</string>
-    <string name="unl_body">Bố mẹ mở Google Authenticator, đọc 6 số của KidGuard. Mỗi mã dùng được một lần, mở khoá %1$d phút (app bị chặn hẳn vẫn bị chặn).</string>
+    <string name="unl_body">Bố mẹ mở Google Authenticator và đọc 6 số của KidGuard. Mỗi mã dùng 1 lần, mở khoá %1$d phút. App bị chặn hẳn vẫn bị chặn.</string>
     <string name="unl_ok">Mở khoá</string>
     <string name="unl_done">Đã mở khoá</string>
     <plurals name="unl_done_body">
@@ -503,9 +503,9 @@
     <string name="home_version">KidGuard %1$s</string>
     <string name="home_sos">SOS</string>
     <string name="admin_title">Quản lý trên máy này</string>
-    <string name="admin_body">Bố mẹ nhập PIN hoặc mã Authenticator đang hiện. Trang tự đóng khi tắt màn hình, khi rời trang hoặc sau 5 phút không chạm.</string>
-    <string name="admin_body_pin">Bố mẹ nhập PIN. Trang tự đóng khi tắt màn hình, khi rời trang hoặc sau 5 phút không chạm.</string>
-    <string name="admin_body_totp">Bố mẹ nhập mã Authenticator đang hiện. Trang tự đóng khi tắt màn hình, khi rời trang hoặc sau 5 phút không chạm.</string>
+    <string name="admin_body">Bố mẹ nhập PIN hoặc mã Authenticator đang hiện. Trang tự đóng khi tắt màn hình, rời trang, hoặc 5 phút không chạm.</string>
+    <string name="admin_body_pin">Bố mẹ nhập PIN. Trang tự đóng khi tắt màn hình, rời trang, hoặc 5 phút không chạm.</string>
+    <string name="admin_body_totp">Bố mẹ nhập mã Authenticator đang hiện. Trang tự đóng khi tắt màn hình, rời trang, hoặc 5 phút không chạm.</string>
     <string name="admin_field">PIN hoặc mã 6 số</string>
     <string name="admin_ok">Mở</string>
     <string name="admin_loading">Đang mở trang quản lý…</string>
@@ -528,7 +528,7 @@
     </plurals>
     <!-- v0.9.7 comfort: wind-down, lock-screen info, block note, check-in, request templates -->
     <string name="warn_bed10">Còn %1$d phút nữa là giờ ngủ</string>
-    <string name="policy_support_long">KidGuard giúp con và bố mẹ cùng giữ giờ giấc. Ứng dụng này đang tạm nghỉ theo luật bố mẹ đặt. Nếu cần dùng, con mở KidGuard và bấm \"Xin thêm giờ\", hoặc nói với bố mẹ nhé.</string>
+    <string name="policy_support_long">App này đang tạm nghỉ theo luật bố mẹ đặt. Cần dùng? Mở KidGuard, bấm \"Xin thêm giờ\", hoặc nói với bố mẹ.</string>
     <string name="policy_note">Bố mẹ nhắn: %1$s</string>
     <string name="st_gray">Màn hình đen trắng: sắp đến giờ ngủ</string>
     <string name="main_ci_arrived">Con tới nơi rồi</string>
@@ -630,7 +630,7 @@
     <string name="hm_b_location">Vị trí đang tắt</string>
     <string name="hm_b_acc">Trợ năng của KidGuard đang tắt</string>
     <string name="hm_xiaomi_nav_t">Điều hướng sẽ thành 3 nút</string>
-    <string name="hm_xiaomi_nav_b">Trên máy Xiaomi, Redmi, POCO, dùng màn hình chính không phải của Xiaomi sẽ chuyển điều hướng cử chỉ thành 3 nút. Đây là do hệ thống, không có cài đặt nào giữ được cử chỉ. Chọn lại màn hình chính của Xiaomi để có cử chỉ lại.</string>
+    <string name="hm_xiaomi_nav_b">Trên Xiaomi, Redmi, POCO: màn hình chính không phải của Xiaomi sẽ đổi cử chỉ thành 3 nút. Đây là do hệ thống, không có cài đặt giữ cử chỉ. Chọn lại màn hình chính Xiaomi để có cử chỉ.</string>
     <string name="hm_xiaomi_nav_ok">Tiếp tục</string>
     <string name="hm_b_home">Chưa đặt làm màn hình chính</string>
     <string name="hm_b_guard">KidGuard đang khởi động lại</string>
@@ -639,7 +639,7 @@
     <string name="hm_no_dialer">Máy không có ứng dụng gọi điện</string>
     <string name="hm_paused_desc">%1$s, đang tạm nghỉ: %2$s</string>
     <string name="hm_page">Trang %1$d / %2$d</string>
-    <string name="ev_launcher_crash">Màn hình chính của bé lỗi 3 lần trong 5 phút: đã tắt 24 giờ (%1$s)</string>
+    <string name="ev_launcher_crash">Màn hình chính của con lỗi 3 lần trong 5 phút. Đã tắt 24 giờ (%1$s)</string>
     <!-- kid launcher part 2 -->
     <string name="hm_d_rail">Bảng chữ cái: kéo để nhảy tới</string>
     <string name="hm_e_no_room">Không đủ chỗ</string>
@@ -886,13 +886,13 @@
     <string name="hm_sc_fail">Lối tắt này không mở được lúc này</string>
     <string name="hm_sc_rm">Lối tắt rời màn hình chính. App vẫn còn.</string>
     <string name="main_need_pair_title">%1$s: cần ghép với bố mẹ trước</string>
-    <string name="main_need_pair_body">Nút này gửi tin tới máy bố mẹ. Máy này chưa ghép với máy bố mẹ nào nên chưa gửi được.\n\nCách ghép: bố mẹ giữ nút \"Bố mẹ: hiện mã ghép\" ở đầu màn hình này 5 giây, rồi quét mã bằng máy bố mẹ.</string>
+    <string name="main_need_pair_body">Máy này chưa ghép với máy bố mẹ nên chưa gửi được tin.\n\nCách ghép: bố mẹ giữ nút \"Bố mẹ: hiện mã ghép\" ở đầu màn hình này 5 giây, rồi quét mã bằng máy bố mẹ.</string>
     <string name="nlog_title">Thông báo đã xem</string>
     <string name="nlog_menu">Thông báo đã xem</string>
     <string name="nlog_clear">Xoá hết</string>
     <string name="nlog_clear_body">Xoá danh sách trên điện thoại này. Không khôi phục được.</string>
     <string name="nlog_clear_ok">Xoá</string>
-    <string name="nlog_empty">Chưa có gì.\nThông báo được giữ ở đây %1$d ngày, kể cả khi con đã vuốt bỏ. Chạm vào để xem chi tiết.</string>
+    <string name="nlog_empty">Chưa có gì.\nThông báo được giữ %1$d ngày, kể cả khi con đã vuốt bỏ. Chạm để xem chi tiết.</string>
     <string name="nlog_today">Hôm nay</string>
     <string name="nlog_yesterday">Hôm qua</string>
     <string name="nlog_gone">App này không mở được lúc này</string>
@@ -971,16 +971,16 @@
     <string name="hm_lay_del_b">Chỉ xoá bản đã lưu, màn hình chính đang dùng giữ nguyên.</string>
     <string name="hm_lay_rename">Đổi tên</string>
     <string name="hm_lay_delete">Xoá</string>
-    <string name="hm_lay_hint">Lưu cách xếp hiện tại (vị trí ứng dụng, tiện ích, giao diện, hình nền) để đổi lại chỉ với một chạm. Chỉ lưu trên máy này.</string>
+    <string name="hm_lay_hint">Lưu kiểu sắp xếp hiện tại (vị trí app, tiện ích, giao diện, hình nền) để quay lại bằng 1 chạm. Chỉ lưu trên máy này.</string>
     <string name="acc_closed_protect">Bố mẹ đã khoá gỡ hoặc dừng KidGuard</string>
     <string name="acc_closed_clock">Ngày giờ do bố mẹ đặt tự động</string>
     <string name="ev_cmd_pin">Lệnh %1$s bị từ chối: sai PIN / mã</string>
-    <string name="ev_pin_reset">Có yêu cầu đặt lại PIN phụ huynh (quên PIN). PIN mới áp dụng lúc %1$s; nhập PIN cũ ở bất kỳ đâu để huỷ</string>
+    <string name="ev_pin_reset">Có yêu cầu đặt lại PIN (quên PIN). PIN mới có hiệu lực lúc %1$s. Nhập PIN cũ ở bất kỳ đâu để huỷ</string>
     <string name="ev_pin_reset_done">PIN phụ huynh đã được đặt lại (yêu cầu quên PIN 24 giờ trước)</string>
     <string name="log_pin_changed">Đã đổi PIN phụ huynh</string>
     <string name="log_pin_reset_cancel">Đã huỷ yêu cầu đặt lại PIN</string>
-    <string name="log_tcp_closed">Đã đóng cổng adb 5555 cho %1$s: chỉ mở lại khi máy bắt Wi-Fi (hoặc cắm cáp USB)</string>
-    <string name="log_dev_paused">Tạm tắt gỡ lỗi USB / Tuỳ chọn nhà phát triển cho app không chịu chạy khi bật</string>
+    <string name="log_tcp_closed">Đã đóng cổng adb 5555 cho %1$s. Mở lại khi máy bắt Wi-Fi hoặc cắm cáp USB</string>
+    <string name="log_dev_paused">Đã tạm tắt gỡ lỗi USB / Tuỳ chọn nhà phát triển cho app không chạy khi các mục này bật</string>
     <string name="log_dev_restored">Bật lại gỡ lỗi USB như trước khi mở app đó</string>
     <string name="log_bank_list">Danh sách app ngân hàng cập nhật: thêm %1$d, bỏ %2$d</string>
     <string name="log_vpn_paused">Tạm tắt VPN cho %1$s</string>
@@ -1032,7 +1032,7 @@
     <string name="nst_hold_morning">Tạm im đến sáng mai</string>
     <string name="nst_hold_until">Đến %1$s</string>
     <string name="nst_hold_tomorrow">%1$s ngày mai</string>
-    <string name="nst_hold_note">Thông báo được giữ lại rồi hiện đúng giờ, vẫn bấm và trả lời được như thường. Cuộc gọi, báo thức, chỉ đường luôn hiện ngay.</string>
+    <string name="nst_hold_note">Thông báo được giữ lại, hiện đúng giờ. Vẫn bấm và trả lời như thường. Cuộc gọi, báo thức, chỉ đường hiện ngay.</string>
     <string name="nst_hold_need">Cần bật quyền đọc thông báo (Chấm thông báo trong Tuỳ chỉnh).</string>
     <string name="nst_held_bundle">Đang gom thông báo</string>
     <string name="nst_held_mute">Đang tạm im</string>
