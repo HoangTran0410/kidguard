@@ -45,6 +45,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Tailscale: auth key only typed on LAN, never queued on relay (`tailscaleOff` whitelisted only); API access token mints the kid's own key and disables its 180-day expiry; token memory-only (882cd92, 678c8ba)
 - showWatching rule (default true); notice switches to "Bố mẹ đang điều khiển máy" after first input; log always records (882cd92)
 - Self-update from GitHub releases: daily check (rule autoUpdate default on) or `update` cmd (deliver-once); checks sha256 + package + versionCode; DO installs silently, basic shows notification + button (e461efe)
+- (2026-11-13) Basic mode self-update without the child (Android 12+): `setRequireUserAction(USER_ACTION_NOT_REQUIRED)` + `UPDATE_PACKAGES_WITHOUT_USER_ACTION` + appops REQUEST_INSTALL_PACKAGES granted at setup (4 setup paths, AutoGrant, on-phone step). Only works once KidGuard is its own installer of record (an adb / browser install is not), so the first update after setup may still ask; refused -> the old notification. Setup never granted "install unknown apps" before v0.9.16: the child got the permission prompt at update time.
 - Large-font support: modals scroll with pinned buttons, widgets scale to cell, sheets keep clear of ColorOS nav bar (d1c75da)
 
 - Pairing code reveal before the first pairing (`MainActivity.kt` `everPaired` gate, hold 5 s) is accepted: at that point the parent holds the phone for setup. Forgotten-PIN recovery paths are listed in `docs/flows.md` section 1.9; no extra recovery mechanism on purpose.

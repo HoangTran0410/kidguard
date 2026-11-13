@@ -92,6 +92,10 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         out += Step(s(R.string.basic_battery), s(R.string.basic_battery_d), Basic.batteryOk(c)) {
             open(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkg), Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         }
+        // basic mode, Android 12+: updates install by themselves (Update.installQuiet) instead of asking the child later
+        if (!owner && Build.VERSION.SDK_INT >= 31) out += Step(s(R.string.basic_update), s(R.string.basic_update_d), c.packageManager.canRequestPackageInstalls()) {
+            open(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, pkg), Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg))
+        }
         autostartIntent(c)?.let { i ->
             out += Step(c.getString(R.string.step_autostart), c.getString(R.string.step_autostart_d), Store.of(c).autostartOk, manual = true) { open(i) }
         }

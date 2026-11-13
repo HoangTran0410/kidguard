@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
     <!-- basic mode self-update: the child confirms the system install screen (Device Owner installs without it) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- basic mode: self-update without the child's tap (Android 12+, Update.installQuiet) -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Wi-Fi signal (RSSI) for the parent's "Máy" view on API 26-28 -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />

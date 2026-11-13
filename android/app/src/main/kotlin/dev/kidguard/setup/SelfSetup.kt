@@ -262,6 +262,7 @@ object SelfSetup {
         runCatching { sh("appops set $PKG WRITE_SETTINGS allow") }; runCatching { sh("cmd notification allow_dnd $PKG") }
         runCatching { sh("cmd notification allow_listener $PKG/$PKG.NotifDots") }   // launcher notification dots
         runCatching { sh("appops set $PKG SYSTEM_ALERT_WINDOW allow") }   // bank app reopen (basic mode)
+        runCatching { sh("appops set $PKG REQUEST_INSTALL_PACKAGES allow") }   // self-update without asking (basic mode)
         mark(app, 5, STEP_RUN)
         val merged = SelfSetupLogic.withAccessibility(sh("settings get secure enabled_accessibility_services"), ACC)
         if (merged != null) sh("settings put secure enabled_accessibility_services '$merged'")

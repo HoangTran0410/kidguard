@@ -175,6 +175,8 @@
     <string name="basic_notif_d">Để con thấy lời nhắc và lý do khi app bị khoá.</string>
     <string name="basic_battery">6. Không giới hạn pin cho KidGuard</string>
     <string name="basic_battery_d">Nếu không, máy có thể tắt KidGuard để tiết kiệm pin.</string>
+    <string name="basic_update">Cho KidGuard tự cập nhật</string>
+    <string name="basic_update_d">Bật "Cho phép từ nguồn này". Bản mới sẽ tự cài, bé không phải bấm gì.</string>
     <string name="basic_autostart">Cho phép tự khởi động (Oppo, Xiaomi, Vivo…)</string>
     <string name="basic_play_protect">Bị Google Play Protect chặn? Mở CH Play → ảnh đại diện → Play Protect → ⚙ → tắt \"Quét ứng dụng bằng Play Protect\". Cài xong thì bật lại.</string>
 

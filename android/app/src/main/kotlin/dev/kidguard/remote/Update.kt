@@ -111,6 +111,7 @@ object Update {
         }
         try { verifyPackage(ctx, f) } catch (e: IllegalStateException) { prefs(ctx).edit().putString("badTag", tag).apply(); done(); throw e }
         if (Policy.isOwner(ctx)) { status = "installing"; installSilently(ctx, f) }
+        else if (installQuiet(ctx, f)) status = ""
         else { status = "ready"; if (force || prefs(ctx).getString("notified", "") != tag) { notifyChild(ctx, tag); prefs(ctx).edit().putString("notified", tag).apply() } }
         done()
         if (force) Log.i(TAG, "update to $tag requested by parent")
@@ -180,6 +181,30 @@ object Update {
             }
             status = ""
         } finally { installing = false; runCatching { Policy.apply(ctx, Store.of(ctx).rules) } }
+    }
+
+    /**
+     * Basic mode without the child: Android 12+ lets an app update itself silently when it holds "install unknown apps"
+     * (setup grants it by appops) and is the package's installer of record (true after one update through our own
+     * session; an adb / browser install is not). Anything else (older Android, HyperOS asking anyway) -> false, and
+     * the caller falls back to the notification.
+     */
+    private fun installQuiet(ctx: Context, f: File): Boolean {
+        if (Build.VERSION.SDK_INT < 31 || !ctx.packageManager.canRequestPackageInstalls()) return false
+        return runCatching {
+            val pi = ctx.packageManager.packageInstaller
+            val p = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+                setAppPackageName(ctx.packageName); setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+            }
+            val id = pi.createSession(p)
+            try { pi.openSession(id).use { s -> f.inputStream().use { i -> s.openWrite("kg", 0, f.length()).use { o -> i.copyTo(o); s.fsync(o) } } } }
+            catch (e: Throwable) { runCatching { pi.abandonSession(id) }; throw e }
+            status = "installing"
+            // success replaces this process before we get here; "needs the child" comes back as err_user_action
+            val res = pi.openSession(id).use { s -> Ts.commitAndWait(ctx, s, "dev.kidguard.SELF_UPDATE") }
+            if (res != null) Log.i(TAG, "quiet update refused: $res")
+            res == null
+        }.getOrElse { Log.w(TAG, "quiet update", it); false }
     }
 
     /** Basic mode, from the child's tap: needs "install unknown apps" for KidGuard, then the system asks to confirm. */

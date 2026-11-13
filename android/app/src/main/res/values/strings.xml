@@ -181,6 +181,8 @@
     <string name="basic_notif_d">So you see reminders, and why an app is locked.</string>
     <string name="basic_battery">6. No battery limits for KidGuard</string>
     <string name="basic_battery_d">Otherwise the phone may stop KidGuard to save battery.</string>
+    <string name="basic_update">Let KidGuard update itself</string>
+    <string name="basic_update_d">Turn on "Allow from this source". New versions then install by themselves, with nothing for the child to tap.</string>
     <string name="basic_autostart">Allow autostart (Oppo, Xiaomi, Vivo…)</string>
     <string name="basic_play_protect">Blocked by Google Play Protect? Open Play Store → profile picture → Play Protect → ⚙ → turn off \"Scan apps with Play Protect\". Turn it back on after setup.</string>
 

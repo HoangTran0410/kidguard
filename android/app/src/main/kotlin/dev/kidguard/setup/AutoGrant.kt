@@ -36,6 +36,8 @@ object AutoGrant {
                 if (Build.VERSION.SDK_INT >= 29) add("pm grant $p android.permission.ACCESS_BACKGROUND_LOCATION")
             }
             if (!Basic.notifyOk(ctx)) add("pm grant $p android.permission.POST_NOTIFICATIONS")
+            // self-update without the child (Update.installQuiet); the setup steps grant it too
+            if (!ctx.packageManager.canRequestPackageInstalls()) add("appops set $p REQUEST_INSTALL_PACKAGES allow")
         }
     }
 
