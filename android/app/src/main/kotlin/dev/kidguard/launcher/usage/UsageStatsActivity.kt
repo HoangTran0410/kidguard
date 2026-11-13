@@ -43,7 +43,7 @@ class UsageStatsActivity : Activity() {
     }
 
     /** [days]: foreground ms per package, oldest first, last = today. */
-    private class Data(val days: List<Map<String, Long>>, val dayStarts: List<Long>, val opens: Map<String, Int>)
+    private class Data(val days: List<Map<String, Long>>, val dayStarts: List<Long>, val opens: Map<String, Int>, val skips: Set<String>, val at: Long, val labels: Map<String, String>)
 
     private lateinit var k: HomeKit
     private lateinit var pal: Palette
@@ -53,6 +53,8 @@ class UsageStatsActivity : Activity() {
     private var pkg: String? = null
     private var today = false          // list: false = 7 days
     private var gen = 0
+    /** Last read: the Today / 7 days switch and "all apps" only redraw from it (re-reading 7 days of events lagged, owner 2026-11-13). */
+    private var data: Data? = null
     private var allApps = false
     private lateinit var col: LinearLayout
     private lateinit var title: TextView
@@ -95,7 +97,7 @@ class UsageStatsActivity : Activity() {
         head.addView(title, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(head, LinearLayout.LayoutParams(-1, -2))
         pkg?.let { p ->
-            headIcon.visibility = View.VISIBLE; title.text = IconCache.label(this, p)
+            headIcon.visibility = View.VISIBLE; title.text = lbl(p)
             IconCache.peek(p, "", dp(32), "round")?.let { headIcon.setImageBitmap(it) } ?: IconCache.async(this, p, "", dp(32), "round") { b -> if (b != null) headIcon.setImageBitmap(b) }
         }
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false }
@@ -107,6 +109,10 @@ class UsageStatsActivity : Activity() {
 
     // ---- data (off the main thread) ----
 
+    /** Redraw from the last read when it is fresh (< 60 s), else read again. */
+    private fun lbl(p: String) = data?.labels?.get(p) ?: IconCache.label(this, p)
+    private fun redraw() { val d = data; if (d != null && System.currentTimeMillis() - d.at < 60_000) render(d) else reload() }
+
     private fun reload() {
         val g = ++gen
         if (!Usage.granted(this)) { renderNeed(); return }
@@ -117,7 +123,11 @@ class UsageStatsActivity : Activity() {
             val starts = List(n) { Usage.midnightAgo(n - 1 - it, now) }
             val days = List(n) { i -> Usage.range(app, starts[i], if (i == n - 1) now else starts[i + 1]).ms }
             val opens = runCatching { Usage.opens(app, starts.last(), now) }.getOrDefault(emptyMap())
-            runOnUiThread { if (g == gen && !isFinishing) render(Data(days, starts, opens)) }
+            // which packages to leave out, once here: getLaunchIntentForPackage per app per day on the UI thread was the lag
+            val all = days.flatMap { it.keys }.toSet()
+            val skips = all.filterTo(HashSet()) { skip(it) }
+            val labels = (all - skips).associateWith { IconCache.label(app, it) }
+            runOnUiThread { if (g == gen && !isFinishing) { val d = Data(days, starts, opens, skips, now, labels); data = d; render(d) } }
         }.start()
     }
 
@@ -160,16 +170,16 @@ class UsageStatsActivity : Activity() {
 
     private fun renderList(d: Data) {
         col.addView(chips(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
-        val totals = UsageStatsLogic.totals(d.days, ::skip)
+        val totals = UsageStatsLogic.totals(d.days) { it in d.skips }
         val n = if (today) 1 else UsageStatsLogic.DAYS
-        val rows = UsageStatsLogic.rows(d.days, n, ::skip)
+        val rows = UsageStatsLogic.rows(d.days, n) { it in d.skips }
         val sum = if (today) totals.last() else totals.sum()
         val avg = UsageStatsLogic.avg(totals)
         val yest = totals[totals.size - 2]
         col.addView(tiles(
             Triple(getString(R.string.ust_total), dur(sum), getString(if (today) R.string.ust_today else R.string.ust_last7)),
             if (today) Triple(getString(R.string.ust_yesterday), dur(yest), null) else Triple(getString(R.string.ust_per_day), dur(avg), null),
-            if (today) Triple(getString(R.string.ust_most), rows.firstOrNull()?.let { IconCache.label(this, it.pkg) } ?: "–", rows.firstOrNull()?.let { dur(it.ms) })
+            if (today) Triple(getString(R.string.ust_most), rows.firstOrNull()?.let { lbl(it.pkg) } ?: "–", rows.firstOrNull()?.let { dur(it.ms) })
             else Triple(getString(R.string.ust_most_day), UsageStatsLogic.peak(totals).takeIf { it >= 0 }?.let { dayName(d, it) } ?: "–", UsageStatsLogic.peak(totals).takeIf { it >= 0 }?.let { dur(totals[it]) }),
             Triple(getString(R.string.ust_apps_n), rows.size.toString(), null),
         ), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
@@ -214,7 +224,7 @@ class UsageStatsActivity : Activity() {
             row.addView(k.chip(label, if (on) pal.onSolid else pal.text, if (on) pal.solid else pal.sheet, null).apply {
                 textSize = 14f; setPadding(dp(14), dp(9), dp(14), dp(9))
                 if (!on) background = GradientDrawable().apply { setColor(pal.sheet); cornerRadius = k.dpf(999f); setStroke(dp(1), pal.stroke) }
-                k.tap(this, 999f) { if (today != isToday) { today = isToday; allApps = false; reload() } }
+                k.tap(this, 999f) { if (today != isToday) { today = isToday; allApps = false; redraw() } }
             }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(8) })
         }
         return row
@@ -272,7 +282,7 @@ class UsageStatsActivity : Activity() {
             IconCache.peek(a.pkg, "", dp(36), "round")?.let { ic.setImageBitmap(it) } ?: IconCache.async(this, a.pkg, "", dp(36), "round") { b -> if (b != null) ic.setImageBitmap(b) }
             val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-            top.addView(k.text(IconCache.label(this, a.pkg), 15f, pal.text, true).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
+            top.addView(k.text(lbl(a.pkg), 15f, pal.text, true).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, -2, 1f))
             top.addView(k.text(dur(a.ms), 15f, pal.text, true).apply { setPadding(dp(8), 0, 0, 0) })
             body.addView(top)
             body.addView(share(a.ms, max), LinearLayout.LayoutParams(-1, dp(4)).apply { topMargin = dp(6) })
@@ -284,7 +294,7 @@ class UsageStatsActivity : Activity() {
             box.addView(row, LinearLayout.LayoutParams(-1, -2))
         }
         col.addView(box, LinearLayout.LayoutParams(-1, -2))
-        if (!allApps && rows.size > shown.size) col.addView(k.pill(getString(R.string.ust_all_apps, rows.size), null, false) { allApps = true; reload() },
+        if (!allApps && rows.size > shown.size) col.addView(k.pill(getString(R.string.ust_all_apps, rows.size), null, false) { allApps = true; redraw() },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
     }
 
