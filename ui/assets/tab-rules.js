@@ -70,7 +70,7 @@ function ruleChips(r) {
   const hm = s => esc(s || "?"), basic = isBasic();
   let noEnf = false;
   const dns = DNS().find(d => d[0] === r.safeDns);
-  const schOn = r.schedules.filter(x => x.on), more = [r.blockNew, r.lockLocation, r.noAirplane].filter(Boolean).length, anti = [r.noInstall, r.noDebug].filter(Boolean).length;
+  const schOn = r.schedules.filter(x => x.on), more = [r.blockNew || r.noInstall, r.lockLocation, r.noAirplane].filter(Boolean).length;
   return {
     tpl: [t("chip.nTpl", allTpl().length)],
     daily: r.dailyByDay.length ? on(t("daily.by")) : r.dailyMin ? on(t("chip.perDay", fmt(r.dailyMin * 60000))) : off,
@@ -81,17 +81,16 @@ function ruleChips(r) {
     sch: schOn.length ? [t("chip.nSch", schOn.length), schOn.some(x => timeWarn(x, true, true)) ? "warn" : "ok"] : r.schedules.length ? off : none,
     zone: r.zones.length ? [t("chip.nZone", r.zones.length), "ok"] : none,
     trk: r.trackMin ? (st.locationOn === false ? [t("chip.locOff"), "warn"] : on(t("chip.every", fmt(r.trackMin * 60000)), !canFeat("location"))) : off,
-    more: more ? (noEnf = basic || st.owner === false || (r.blockNew && !canFeat("block")) || (r.lockLocation && !canFeat("lockLocation")), on(more + "/3" + (noEnf ? " · " + t("chip.noEnf") : ""), noEnf)) : off,
+    more: more ? (noEnf = basic || st.owner === false || (r.blockNew && !r.noInstall && !canFeat("block")) || (r.lockLocation && !canFeat("lockLocation")), on(more + "/3" + (noEnf ? " · " + t("chip.noEnf") : ""), noEnf)) : off,
     dns: r.safeDns && st.dnsError ? [t("chip.dnsErr"), "bad"] : r.safeDns && st.dnsPausedUntil > Date.now() ? [t("chip.pausedTo", hhmm(st.dnsPausedUntil)), "warn"] : r.safeDns || r.noVpn ? on(esc((dns ? dns[1] : r.safeDns) || t("dns.novpn.short")), r.safeDns && !r.noVpn ? basic && !canFeat("dns") : basic) : off,
-    anti: anti ? (noEnf = basic || st.owner === false || (r.noDebug && !canFeat("noUninstall")), on(anti + "/2" + (noEnf ? " · " + t("chip.noEnf") : ""), noEnf)) : off,
+    anti: r.noDebug ? (noEnf = basic || st.owner === false || !canFeat("noUninstall"), on(noEnf ? t("chip.noEnf") : undefined, noEnf)) : off,
     wind: windChip(r),
     home: r.launcher.on ? on(t({ be: "hm.sBe", teen: "hm.sTeen", gon: "hm.sGon" }[r.launcher.style] || "hm.sAuto"), basic || !!(st.launcher && st.launcher.err)) : off,
     kind: (n => n.length ? [n.join(" · "), "ok"] : off)([(r.lockInfo.msg || r.lockInfo.contact) && t("chip.lock"), r.blockNote && t("chip.note")].filter(Boolean)),
   };
 }
-// Rules: two sub-tabs (time / blocking & safety). Zones + location log live in the "Vị trí" tab, the Authenticator in
+// Rules: one list, two groups under a small heading (time / blocking & safety; sub-tabs hid half the features, owner 2026-11-13). Zones + location log live in the "Vị trí" tab, the Authenticator in
 // "Cài đặt"; the same section HTML (ruleSecs) and wiring (rulesWire) serve all three, wiring only what is on screen.
-let rseg = (() => { try { return localStorage.getItem("kg.rseg") === "safe" ? "safe" : "time"; } catch { return "time"; } })();
 const RSEG = { time: ["daily", "grp", "bed", "wind", "sch", "chore"], safe: ["more", "dns", "anti", "home", "kind"] };
 // v0.9.9 kid launcher: the phone answers with state.launcher {on, home, err, style, locked, pages}
 function homeStatus(r) {
@@ -165,7 +164,7 @@ function ruleSecs(r) {
     <p class="mute">${ic("lightbulb")} ${t("zone.tip")}</p>`),
     trk: sec("r-trk", "route", t("trk.h"), t("sd.trk"), C.trk, `    <select id="f-tm" aria-label="${esc(t("trk.h"))}">${[0, 1, 5, 10, 15, 30, 60].map(v => `<option value="${v}" ${r.trackMin === v ? "selected" : ""}>${v ? fmt(v * 60000) : t("off")}</option>`).join("")}${[0, 1, 5, 10, 15, 30, 60].includes(r.trackMin) ? "" : `<option selected value="${r.trackMin}">${fmt(r.trackMin * 60000)}</option>`}</select>
     <p class="mute">${ic("map")} ${t("trk.tip")}</p>`),
-    more: sec("r-more", "construction", t("more.h"), t("sd.more"), C.more, `    ${gateNote("block")}<div class="${feat("block").ok ? "" : "gated"}"><label class="row"><input type="checkbox" id="f-bn" ${r.blockNew ? "checked" : ""}><span class="sp">${ic("sparkles")} ${t("more.new")}</span></label></div>
+    more: sec("r-more", "construction", t("more.h"), t("sd.more"), C.more, `    ${gateNote("block")}<label class="row"><span class="sp">${ic("package")} ${t("ni.h")}</span><select id="f-bn" aria-label="${esc(t("ni.h"))}">${[["off", "ni.off", 0], ["ask", "ni.ask", !feat("block").ok], ["none", "ni.none", isBasic()]].map(([v, k, dis]) => `<option value="${v}" ${(r.noInstall ? "none" : r.blockNew ? "ask" : "off") === v ? "selected" : ""} ${dis && !(v === "none" ? r.noInstall : v === "ask" && r.blockNew && !r.noInstall) ? "disabled" : ""}>${t(k)}</option>`).join("")}</select></label>${isBasic() ? needOwner(t("no.ni")) : ""}
     ${canFeat("lockLocation") ? "" : gateNote("lockLocation") || needOwner(t("no.loc"))}<div class="${canFeat("lockLocation") ? "" : "gated"}"><label class="row" style="margin-top:8px"><input type="checkbox" id="f-ll" ${r.lockLocation ? "checked" : ""}><span class="sp">${ic("map-pin")} ${t("more.loc")}</span></label></div>
     <div class="${isBasic() ? "gated" : ""}"><label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span class="sp">${ic("plane")} ${t("more.air")}</span></label></div>${isBasic() ? needOwner(t("no.air")) : ""}`),
     dns: sec("r-dns", "shield", t("dns.h"), t("sd.dns"), C.dns, `    <select id="f-dns" aria-label="${esc(t("dns.h"))}">${DNS().map(([v, n, ss]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}${ss ? " · " + t("dns.ss") : ""}</option>`).join("")}<option value="__c" ${r.safeDns && !DNS().some(d => d[0] === r.safeDns) ? "selected" : ""}>${t("dns.custom")}</option></select>
@@ -177,8 +176,7 @@ function ruleSecs(r) {
     <p class="mute">${ic("info")} ${t("dns.novpn.tip")}</p></div>${isBasic() ? needOwner(t("no.vpn")) : ""}`),
     anti: sec("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ps" ${r.pinShot !== false ? "checked" : ""}><span class="sp">${ic("camera")} ${t("anti.shot")}</span></label>
     <p class="mute">${ic("info")} ${t("anti.shotTip")}</p>
-    <div class="${isBasic() ? "gated" : ""}" style="margin-top:8px"><label class="row"><input type="checkbox" id="f-ni" ${r.noInstall ? "checked" : ""}><span class="sp">${ic("package")} ${t("anti.install")}</span></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label></div>
+    <div class="${isBasic() ? "gated" : ""}" style="margin-top:8px"><label class="row"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label></div>
     ${isBasic() ? needOwner(t("no.anti")) + `<p class="mute">${ic("shield")} ${t("anti.basic")}</p>`
       : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}${bankBox(r)}`),
   };
@@ -189,12 +187,10 @@ function monWould() {   // monitor only: what strict mode would block right now 
 }
 function rulesTab(b) {
   const r = edit, S = ruleSecs(r), segs = [["time", "timer", t("rules.segTime")], ["safe", "shield", t("rules.segSafe")]];
-  b.innerHTML = `<div class="rtop"><div class="seg" role="tablist" aria-label="${esc(t("tab.rules"))}">${segs.map(([id, i, n]) => `<button type="button" role="tab" data-rseg="${id}" aria-selected="${rseg === id}">${ic(i)}<span>${n}</span></button>`).join("")}</div>
-    <button type="button" class="pill" id="tplOpen" aria-haspopup="dialog">${ic("layers")} ${t("tpl.apply")}</button></div>
+  b.innerHTML = `<div class="rtop"><span class="sp"></span><button type="button" class="pill" id="tplOpen" aria-haspopup="dialog">${ic("layers")} ${t("tpl.apply")}</button></div>
     <div class="card" id="monCard"><label class="row"><input type="checkbox" id="f-mon" ${r.monitor ? "checked" : ""}><span class="sp">${ic("eye")} <b>${t("mon.h")}</b></span></label>
     <p class="mute">${t("mon.p")}</p>${r.monitor ? `<p class="mute" id="monWould">${monWould()}</p>` : ""}</div>
-    <div id="rsx" role="tabpanel">${RSEG[rseg].map(k => S[k]).join("")}</div>`;
-  b.querySelectorAll("[data-rseg]").forEach(x => x.onclick = () => { rseg = x.dataset.rseg; try { localStorage.setItem("kg.rseg", rseg); } catch {} rulesTab(b); const f = b.querySelector(`[data-rseg="${rseg}"]`); if (f) f.focus(); });
+    <div id="rsx">${segs.map(([id, i, n]) => `<div class="lhead"><h2>${ic(i)} ${n}</h2></div>${RSEG[id].map(k => S[k]).join("")}`).join("")}</div>`;
   $("#tplOpen").onclick = tplSheet;
   $("#f-mon").onchange = e => { if (!edit) return; edit.monitor = e.target.checked; changed(); rulesTab(b); };
   rulesWire($("#rsx"), r);
@@ -294,7 +290,7 @@ function rulesWire(b, r) {
   });
   $("#addSch").onclick = () => { r.schedules.push({ name: t("sch.class"), on: true, days: [1, 2, 3, 4, 5], start: "07:00", end: "11:30" }); changed(); render(); };
   $("#f-tm").onchange = e => { r.trackMin = +e.target.value; changed(); };
-  $("#f-bn").onchange = e => { r.blockNew = e.target.checked; changed(); };
+  $("#f-bn").onchange = e => { const v = e.target.value; r.blockNew = v !== "off"; r.noInstall = v === "none"; changed(); };
   $("#f-ll").onchange = e => { r.lockLocation = e.target.checked; changed(); };
   $("#f-na").onchange = e => { r.noAirplane = e.target.checked; changed(); };
   $("#f-dns").onchange = e => {
@@ -323,7 +319,6 @@ function rulesWire(b, r) {
   $("#f-bs").onchange = e => { r.bedtime.start = e.target.value; bw(); changed(); };
   $("#f-be").onchange = e => { r.bedtime.end = e.target.value; bw(); changed(); };
   wireComfort(b, r);
-  $("#f-ni").onchange = e => { r.noInstall = e.target.checked; changed(); };
   $("#f-hm").onchange = e => { r.launcher.on = e.target.checked; changed(); };
   $("#f-hms").onchange = e => { r.launcher.style = e.target.value; changed(); };
   $("#f-hmset").onchange = e => { r.launcher.settings = e.target.checked; changed(); };

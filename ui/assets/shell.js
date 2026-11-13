@@ -154,9 +154,9 @@ const QS = [
   ["rules", "r-daily", "time", "timer", ["daily.h", "sd.daily"]], ["rules", "r-grp", "time", "layout-grid", ["grp.h", "sd.grp"]],
   ["rules", "r-bed", "time", "moon", ["bed.h", "sd.bed"]], ["rules", "r-wind", "time", "moon", ["wd.h", "sd.wind", "wd.gray", "wd.nudge"]],
   ["rules", "r-sch", "time", "book-open", ["sch.h", "sd.sch"]], ["rules", "r-chore", "time", "star", ["chore.h", "sd.chore"]],
-  ["rules", "r-more", "safe", "construction", ["more.h", "sd.more", "more.loc", "more.air", "more.new"]],
+  ["rules", "r-more", "safe", "construction", ["more.h", "sd.more", "more.loc", "more.air", "ni.h", "ni.ask", "ni.none"]],
   ["rules", "r-dns", "safe", "shield", ["dns.h", "sd.dns", "dns.novpn"]],
-  ["rules", "r-anti", "safe", "lock-keyhole", ["anti.h", "sd.anti", "anti.debug", "anti.install", "anti.shot"]],
+  ["rules", "r-anti", "safe", "lock-keyhole", ["anti.h", "sd.anti", "anti.debug", "anti.shot"]],
   ["rules", "r-anti", "safe", "landmark", ["bank.h", "bank.colAcc"]],
   ["rules", "r-home", "safe", "house", ["hm.h", "sd.home", "hm.on", "hm.settings", "hm.shade", "hm.lock", "hm.notes"]],
   ["rules", "r-kind", "safe", "notebook-pen", ["kn.h", "sd.kind"]], ["rules", "#monCard", "", "eye", ["mon.h", "mon.p"]],
@@ -198,7 +198,6 @@ function qsFind1(q, near) {
   return out;
 }
 function qsGo(e) {
-  if (e.seg) { rseg = e.seg; try { localStorage.setItem("kg.rseg", rseg); } catch {} }
   if (e.sec === "#healthCard") { appsSub = "space"; try { localStorage.setItem("kg.appsSub", "space"); } catch {} }   // the health card lives in Ứng dụng › Sức khoẻ máy
   goTab(e.tab);
   if (!e.sec) return;

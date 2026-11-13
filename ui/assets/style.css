@@ -168,7 +168,7 @@ select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none;border-radi
 .cl.open .clh .chev{transform:rotate(180deg)}
 .clb{display:grid;grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows .2s ease,visibility 0s linear .2s}
 .cl.open .clb{grid-template-rows:1fr;visibility:visible;transition:grid-template-rows .2s ease,visibility 0s;border-top:1px solid var(--stroke)}
-.clb>div{min-height:0;overflow:hidden}
+.clb{grid-template-columns:minmax(0,1fr)}.clb>div{min-height:0;min-width:0;overflow:hidden}
 .clb>div>div{padding:12px 16px 18px}
 .cl.open .clb>div{overflow:visible}
 /* "Thiết bị" key/value rows */
