@@ -1,19 +1,20 @@
 package dev.kidguard
 
 /**
- * Which secret opens the on-device parent page and passes the PIN-gated commands (audit H1, owner decision 2026-11-13).
- * The Authenticator code is read out to the child for a temporary unlock, so while a parent PIN exists only the PIN
- * counts for admin; the code is the admin key only when no PIN is set yet (recovery). Pure, unit-tested.
+ * Which secret opens the on-device parent page and passes the PIN-gated commands (owner 2026-11-13): the parent PIN,
+ * and an Authenticator code as its backup (also while the PIN is locked). A code can be read out to the child for an
+ * unlock, so opening admin with a code always raises a `tamper` event (Telegram alert). Pure, unit-tested.
  */
 object AdminAuth {
     /** [pin] = the PIN can be tried now; [code] = an Authenticator code can be tried now. */
     data class Ways(val pin: Boolean, val code: Boolean) { val none get() = !pin && !code }
 
     fun ways(pinSet: Boolean, pinLocked: Boolean, totpSet: Boolean, totpLocked: Boolean) =
-        Ways(pin = pinSet && !pinLocked, code = totpSet && !pinSet && !totpLocked)
+        Ways(pin = pinSet && !pinLocked, code = totpSet && !totpLocked)
 
-    /** ms until a retry: the PIN lockout when a PIN is set, else the Authenticator lockout; 0 = nothing to wait for. */
+    /** ms until a retry: the shorter of the lockouts that apply (one open way = 0); 0 = nothing to wait for. */
     fun lockLeft(pinSet: Boolean, pinLockMs: Long, totpSet: Boolean, totpLockMs: Long): Long = when {
+        pinSet && totpSet -> minOf(pinLockMs, totpLockMs)
         pinSet -> pinLockMs
         totpSet -> totpLockMs
         else -> 0

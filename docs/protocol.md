@@ -181,7 +181,7 @@ v0.9.7:
 
 ### PIN-gated commands (v0.9.13, `guard/CmdGate.kt`)
 `release unpairAll unpair clearData reboot relay tailscaleOff openPairing totpSet tgSet tgCode tgOff pinSet pinResetCancel adbShell adbTcp`
-carry `pin`: the parent PIN (an Authenticator code only while NO PIN is set, owner 2026-11-13: the code is read out to the child for unlocks, so it must not also be the admin key). The PHONE checks it (LAN and relay alike), sharing the lockout
+carry `pin`: the parent PIN or a current Authenticator code (its backup, also while the PIN is locked; an admin open by code raises a `tamper` event). The PHONE checks it (LAN and relay alike), sharing the lockout
 of the on-device admin (5 free tries, then 5, 10, 20 … 320 min per try; PIN and Authenticator locks are separate; lockouts run on the monotonic clock, a reboot falls back to the wall clock capped at the original length).
 `relay {url}` with the URL the phone already has is not gated (the page re-reads the relay link with it); `renew:true` always is. No PIN and no
 Authenticator set = nothing to check. Results: `failed: pin needed` (no `pin`, not counted), `failed: pin` (wrong, a

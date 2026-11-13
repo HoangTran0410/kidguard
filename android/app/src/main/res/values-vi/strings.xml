@@ -525,6 +525,8 @@
     <string name="home_version">KidGuard %1$s</string>
     <string name="home_sos">SOS</string>
     <string name="admin_title">Quản lý trên máy này</string>
+    <string name="admin_body_both">Bố mẹ nhập PIN hoặc mã Authenticator đang hiện. Trang tự đóng khi tắt màn hình, rời trang, hoặc 5 phút không chạm.</string>
+    <string name="admin_field_both">PIN hoặc mã 6 số</string>
     <string name="admin_body_pin">Bố mẹ nhập PIN. Trang tự đóng khi tắt màn hình, rời trang, hoặc 5 phút không chạm.</string>
     <string name="admin_body_totp">Bố mẹ nhập mã Authenticator đang hiện. Trang tự đóng khi tắt màn hình, rời trang, hoặc 5 phút không chạm.</string>
     <string name="admin_field">PIN</string>
@@ -541,9 +543,9 @@
     <string name="log_adb_tcp_timeout">Gỡ lỗi qua mạng (cổng 5555) đã tự đóng sau 2 giờ</string>
     <string name="ev_rules_bad_restored">Tệp quy tắc trên máy con bị hỏng; đã khôi phục bản tốt gần nhất</string>
     <string name="ev_rules_bad">Tệp quy tắc trên máy con bị hỏng và không có bản sao: chưa có giới hạn nào cho đến khi bạn lưu lại quy tắc</string>
-    <string name="log_admin_open_code">Bố mẹ mở trang quản lý trên máy này bằng mã Authenticator (chưa đặt PIN)</string>
+    <string name="log_admin_open_code">Bố mẹ mở trang quản lý trên máy này bằng mã Authenticator</string>
     <string name="ev_admin_open_pin">Trang quản lý trên máy con vừa được mở bằng PIN</string>
-    <string name="ev_admin_open_code">Trang quản lý trên máy con vừa được mở bằng mã Authenticator (chưa đặt PIN)</string>
+    <string name="ev_admin_open_code">Trang quản lý trên máy con vừa được mở bằng mã Authenticator. Nếu không phải bố mẹ mở, có thể con đã dùng mã mở khoá</string>
     <string name="ev_admin_wrong">Có người nhập sai PIN / mã để mở trang quản lý trên máy con</string>
     <plurals name="hold_left">
         <item quantity="other">Giữ tiếp… %1$d giây</item>

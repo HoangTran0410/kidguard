@@ -6,25 +6,28 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AdminAuthTest {
-    @Test fun withPinOnlyThePinCounts() {
+    @Test fun withPinTheCodeIsTheBackup() {
         val w = AdminAuth.ways(pinSet = true, pinLocked = false, totpSet = true, totpLocked = false)
-        assertTrue(w.pin); assertFalse(w.code)
+        assertTrue(w.pin); assertTrue(w.code)
     }
 
-    @Test fun lockedPinIsNotRescuedByTheCode() {
+    @Test fun lockedPinIsRescuedByTheCode() {
         val w = AdminAuth.ways(pinSet = true, pinLocked = true, totpSet = true, totpLocked = false)
-        assertTrue(w.none)
+        assertFalse(w.pin); assertTrue(w.code)
+        assertTrue(AdminAuth.ways(true, true, true, true).none)
+        assertTrue(AdminAuth.ways(true, true, false, false).none)
     }
 
-    @Test fun noPinKeepsTheCodeAsRecovery() {
+    @Test fun noPinKeepsTheCode() {
         val w = AdminAuth.ways(pinSet = false, pinLocked = false, totpSet = true, totpLocked = false)
         assertFalse(w.pin); assertTrue(w.code)
         assertTrue(AdminAuth.ways(false, false, true, true).none)
         assertTrue(AdminAuth.ways(false, false, false, false).none)
     }
 
-    @Test fun lockLeftFollowsTheWayThatIsInUse() {
+    @Test fun lockLeftIsTheShorterOfTheWaysInUse() {
         assertEquals(5_000L, AdminAuth.lockLeft(true, 5_000, true, 9_000))
+        assertEquals(5_000L, AdminAuth.lockLeft(true, 5_000, false, 9_000))
         assertEquals(9_000L, AdminAuth.lockLeft(false, 5_000, true, 9_000))
         assertEquals(0L, AdminAuth.lockLeft(false, 5_000, false, 9_000))
     }

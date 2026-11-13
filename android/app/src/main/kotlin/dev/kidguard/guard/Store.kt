@@ -225,8 +225,8 @@ class Store private constructor(private val app: Context) {
     }
 
     /**
-     * "Bố mẹ quản lý trên máy này": the parent PIN. An Authenticator code opens it only while no PIN is set ([AdminAuth]:
-     * the code is read out to the child for a temporary unlock, so with a PIN it must not also be the admin key).
+     * "Bố mẹ quản lý trên máy này": the parent PIN, or an Authenticator code as its backup ([AdminAuth]; a code raises a
+     * `tamper` event because it may be one read out to the child for an unlock).
      * Returns 1 = right (a parent event says how it was opened), 0 = wrong (a `tamper` event for the parents), -1 = locked
      * (see [adminLockLeft]).
      */
@@ -246,7 +246,7 @@ class Store private constructor(private val app: Context) {
         if (w.pin) {
             if (checkParentPin(c)) { p.edit().putInt("adminRun", 0).apply(); log(R.string.log_admin_open); event("adminOpen", R.string.ev_admin_open_pin); return 1 }
         } else {
-            // no PIN: the wrong code counts against the Authenticator's own limit
+            // no PIN (or it is locked): the wrong code counts against the Authenticator's own limit
             val f = p.getInt("unlockFails", 0) + 1
             val lock = Safety.pinLockMs(f)
             p.edit().putInt("unlockFails", f).putLock("unlockLock", lock, now).commit()
@@ -359,7 +359,7 @@ class Store private constructor(private val app: Context) {
         set(v) { p.edit().putLong("recoverAt", v).apply() }
 
     /**
-     * The PIN carried by a gated command ([CmdGate]); an Authenticator code only while no PIN is set ([AdminAuth]).
+     * The PIN carried by a gated command ([CmdGate]), or an Authenticator code as its backup ([AdminAuth]).
      * Shares the lockouts of the on-device admin. 1 = right, 2 = nothing to check (no PIN and no Authenticator yet), 3 = none given (not counted),
      * 0 = wrong (a `tamper` event naming the command), -1 = locked.
      */

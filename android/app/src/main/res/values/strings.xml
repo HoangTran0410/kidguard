@@ -542,6 +542,8 @@
     <string name="home_version">KidGuard %1$s</string>
     <string name="home_sos">SOS</string>
     <string name="admin_title">Manage on this phone</string>
+    <string name="admin_body_both">Parent: enter your PIN or a current Authenticator code. The page closes when the screen turns off, you leave it, or 5 minutes pass without a touch.</string>
+    <string name="admin_field_both">PIN or 6-digit code</string>
     <string name="admin_body_pin">Parent: enter your PIN. The page closes when the screen turns off, you leave it, or 5 minutes pass without a touch.</string>
     <string name="admin_body_totp">Parent: enter a current Authenticator code. The page closes when the screen turns off, you leave it, or 5 minutes pass without a touch.</string>
     <string name="admin_field">PIN</string>
@@ -558,9 +560,9 @@
     <string name="log_adb_tcp_timeout">Wi-Fi debugging (port 5555) closed by itself after 2 hours</string>
     <string name="ev_rules_bad_restored">The rules file on the child\'s phone was unreadable; the last good copy was restored</string>
     <string name="ev_rules_bad">The rules file on the child\'s phone was unreadable and there is no copy: no limits apply until you save the rules again</string>
-    <string name="log_admin_open_code">A parent opened the management page on this phone with an Authenticator code (no PIN is set)</string>
+    <string name="log_admin_open_code">A parent opened the management page on this phone with an Authenticator code</string>
     <string name="ev_admin_open_pin">The management page was opened on the child\'s phone with the PIN</string>
-    <string name="ev_admin_open_code">The management page was opened on the child\'s phone with an Authenticator code (no PIN is set)</string>
+    <string name="ev_admin_open_code">The management page was opened on the child\'s phone with an Authenticator code. If you did not do it, your kid may have used an unlock code</string>
     <string name="ev_admin_wrong">Wrong PIN / code entered to open the management page on the child\'s phone</string>
     <plurals name="hold_left">
         <item quantity="one">Keep holding… %1$d second</item>
