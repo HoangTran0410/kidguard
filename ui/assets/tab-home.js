@@ -84,7 +84,7 @@ function drawHist() {
 // The relay logs request URLs: icons there use an icon-only key, sha256("icon:" + token) hex, never the token itself
 // (LAN: the token goes to the phone only). Computed once per kid; the list redraws when it is ready.
 function iconKey(k) {
-  if (k.via === "lan") return k.token;
+  if (k.via === "lan") return k.token || (LOCAL ? "-" : "");   // on-device page: the cookie authenticates, token is ""
   if (k.ik) return k.ik;
   if (!k.ikP && window.crypto && crypto.subtle) k.ikP = crypto.subtle.digest("SHA-256", new TextEncoder().encode("icon:" + k.token))
     .then(b => { k.ik = [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); if (cur === k) render(); }).catch(() => {});

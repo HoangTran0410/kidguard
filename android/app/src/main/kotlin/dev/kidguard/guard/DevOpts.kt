@@ -30,10 +30,20 @@ object DevOpts {
      * adbd gone 13.228). A bank opened in that gap still sees debugging, so the launcher holds the start until this says
      * adbd is down. Unknown (property not readable by an app on some builds): a fixed [ADBD_UNKNOWN_MS].
      */
-    fun adbdUp(): Boolean? = runCatching {
+    fun adbdUp(): Boolean? = prop("init.svc.adbd")?.let { it == "running" || it == "restarting" }
+
+    private fun prop(name: String): String? = runCatching {
         Class.forName("android.os.SystemProperties").getMethod("get", String::class.java, String::class.java)
-            .invoke(null, "init.svc.adbd", "") as String
-    }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { it == "running" || it == "restarting" }
+            .invoke(null, name, "") as String
+    }.getOrNull()?.takeIf { it.isNotEmpty() }
+
+    /**
+     * adb over the network (`adb tcpip 5555`, rule adbTcp): `service.adb.tcp.port` stays set after adb_enabled goes to 0,
+     * and My MobiFone (AppSealing) refuses to run while it is (owner, Poco 2026-11-13: debugging off + adbd gone, still
+     * error 50052; after `adb usb` it opened). So the bank pause runs `usb:` first, through our own adb, while adbd still runs.
+     */
+    @Volatile var closing = false; private set
+    const val CLOSE_WAIT_MAX_MS = 6000L
 
     const val ADBD_POLL_MS = 100L
     const val ADBD_WAIT_MAX_MS = 3000L
@@ -46,10 +56,13 @@ object DevOpts {
      */
     fun afterOff(h: android.os.Handler, minMs: Long = 0L, go: () -> Unit) {
         val t0 = android.os.SystemClock.elapsedRealtime()
-        val fresh = offAt != 0L && t0 - offAt < ADBD_WAIT_MAX_MS
+        val fresh = closing || (offAt != 0L && t0 - offAt < ADBD_WAIT_MAX_MS)
         if (!fresh) { if (minMs > 0) h.postDelayed(go, minMs) else go(); return }
+        var t1 = t0   // the adbd wait starts once the `usb:` step is over
         val tick = object : Runnable { override fun run() {
-            val el = android.os.SystemClock.elapsedRealtime() - t0
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (closing && now - t0 < CLOSE_WAIT_MAX_MS) { t1 = now; h.postDelayed(this, ADBD_POLL_MS); return }
+            val el = now - t1
             val up = adbdUp()
             val cap = if (up == null) ADBD_UNKNOWN_MS else ADBD_WAIT_MAX_MS   // can't read the property: a fixed wait
             if (el < cap && up != false) { h.postDelayed(this, ADBD_POLL_MS); return }
@@ -106,9 +119,22 @@ object DevOpts {
             Build.VERSION.SDK_INT >= 30 && global(ctx, ADB_WIFI))
         if (mask == 0) return false
         s.devPaused = mask
-        val r = off(ctx)
-        if (r != "ok") { Log.w("KidGuard", "bank devOff: $r"); return false }
-        offAt = android.os.SystemClock.elapsedRealtime()
+        if (DevLogic.tcpOpen(prop("service.adb.tcp.port"), s.adbTcp)) {
+            // off the main thread (our adb is a socket); [afterOff] holds the start until it is done
+            closing = true; offAt = android.os.SystemClock.elapsedRealtime()
+            val app = ctx.applicationContext
+            Thread({
+                try {
+                    Log.i("KidGuard", "bank: adb usb: " + runCatching { SelfAdb.service(app, "usb:") }.getOrNull())
+                    off(app).let { if (it != "ok") Log.w("KidGuard", "bank devOff: $it") }
+                    offAt = android.os.SystemClock.elapsedRealtime()
+                } finally { closing = false }
+            }, "bank-adb-usb").start()
+        } else {
+            val r = off(ctx)
+            if (r != "ok") { Log.w("KidGuard", "bank devOff: $r"); return false }
+            offAt = android.os.SystemClock.elapsedRealtime()
+        }
         val label = runCatching { val pm = ctx.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
         runCatching { s.log(R.string.log_dev_paused) }
         runCatching { Toasts.show(ctx.applicationContext, ctx.getString(R.string.dev_paused_toast, label), true) }
@@ -170,6 +196,9 @@ object DevLogic {
     fun restoreKeys(mask: Int, api30: Boolean): List<String> = buildList {
         if (mask and 1 != 0) add("dev"); if (mask and 2 != 0) add("adb"); if (api30 && mask and 4 != 0) add("wifi")
     }
+
+    /** adb also listens on a TCP port: the property when readable ("0" / "-1" = USB only), else our own adbTcp rule. */
+    fun tcpOpen(port: String?, adbTcp: Boolean): Boolean = if (port == null) adbTcp else port != "0" && port != "-1"
 
     fun verdict(canOff: Boolean, stillOn: Boolean, err: String?): String = when {
         !canOff -> "not allowed"

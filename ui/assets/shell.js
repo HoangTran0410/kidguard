@@ -159,6 +159,19 @@ function qsGo(e) {
     if (el.classList.contains("cl") && !el.classList.contains("open")) { const h = el.querySelector(".clh"); if (h) h.click(); }
     el.scrollIntoView({ block: "start", behavior: "smooth" });
     el.classList.add("qsHit"); setTimeout(() => el.classList.remove("qsHit"), 1800);
+    // first visit of a tab: sections above still grow after the jump (data, icons, the keyboard closing), so the smooth
+    // scroll lands short (owner 2026-11-13: had to search twice). Re-aim while the target's page position moves, ~2 s,
+    // until the finger touches the page.
+    let last = null, k = 0, quit = false;
+    const stop = () => { quit = true; };
+    for (const ev of ["touchstart", "wheel", "keydown"]) addEventListener(ev, stop, { once: true, passive: true });
+    const again = () => {
+      if (quit || ++k > 10 || !el.isConnected) return;
+      const y = el.getBoundingClientRect().top + scrollY;
+      if (last !== null && Math.abs(y - last) > 4) el.scrollIntoView({ block: "start" });
+      last = y; setTimeout(again, 200);
+    };
+    setTimeout(again, 250);
   };
   setTimeout(find, 30);
 }

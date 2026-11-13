@@ -20,4 +20,12 @@ class DevLogicTest {
         assertEquals(listOf("dev", "adb"), DevLogic.restoreKeys(7, false))   // no wireless debugging before API 30
         assertEquals(listOf("dev"), DevLogic.restoreKeys(1, true))
     }
+
+    @Test fun tcpOpen() {
+        assertEquals(true, DevLogic.tcpOpen("5555", false))
+        assertEquals(false, DevLogic.tcpOpen("0", true))    // after `adb usb`
+        assertEquals(false, DevLogic.tcpOpen("-1", true))
+        assertEquals(true, DevLogic.tcpOpen(null, true))    // property unreadable: our own rule decides
+        assertEquals(false, DevLogic.tcpOpen(null, false))
+    }
 }
