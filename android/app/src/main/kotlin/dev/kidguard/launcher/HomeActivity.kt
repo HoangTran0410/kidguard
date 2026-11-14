@@ -1549,7 +1549,11 @@ class HomeActivity : Activity() {
                 var el = minOf(over / 2f, roomL); var er = minOf(over / 2f, roomR)
                 val rest = over - el - er
                 if (rest > 0f) { val addL = minOf(rest, roomL - el); el += addL; er = minOf(roomR, er + rest - addL) }
-                lp.leftMargin = -kotlin.math.ceil(el).toInt(); lp.rightMargin = -kotlin.math.ceil(er).toInt()
+                // The box is a CENTER_HORIZONTAL LinearLayout: it places a child at (space - width) / 2 + leftMargin - rightMargin,
+                // so margins of -el / -er only land right when el == er. Uneven borrowing shifted the name (el - er) / 2 further
+                // into the roomier side and it touched the neighbour ("Zepp" + "KidGuard Phụ h…" on the owner's POCO, 2026-11-14).
+                // These margins give width inner + el + er AND left edge -el (wrap-content "solid" labels: centred in that span).
+                lp.leftMargin = -kotlin.math.ceil((3 * el + er) / 4f).toInt(); lp.rightMargin = -kotlin.math.ceil((el + 3 * er) / 4f).toInt()
             }
         }
 
