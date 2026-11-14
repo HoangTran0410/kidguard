@@ -1,5 +1,6 @@
 import * as hmUI from "@zos/ui";
 import { getText } from "@zos/i18n";
+import { LocalStorage } from "@zos/storage";
 import { DEVICE_WIDTH as W } from "./config/device";
 
 // Tiny column layout for scrolling pages: widgets are stacked top to bottom below the system
@@ -135,4 +136,45 @@ export function done(res, okText) {
   }
   toast(res.result === "demo" ? t("demoSent") : okText || t("sent"));
   return true;
+}
+
+// page.request() never settles when the phone (Zepp app side service) is gone: give up after `ms`.
+export function ask(page, req, ms = 12000) {
+  return Promise.race([
+    page.request(req),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)),
+  ]);
+}
+
+// ---- command receipts: the side service returns our command id; the phone's answer shows up in
+// state.done (ran / refused) or the relay's expired list. The id waits in local storage so the home page
+// (after a pick page went back) can poll it a few times.
+const rcls = new LocalStorage();
+
+export function rcSave(kid, id, label) {
+  try {
+    rcls.setItem("rc", JSON.stringify({ kid, id, label, at: Date.now(), n: 0 }));
+  } catch (e) {}
+}
+
+export function rcLoad() {
+  try {
+    const o = JSON.parse(rcls.getItem("rc", "null"));
+    return o && o.id && Date.now() - o.at < 10 * 60000 ? o : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function rcClear() {
+  try {
+    rcls.removeItem("rc");
+  } catch (e) {}
+}
+
+// One poll: returns {s: "ok"|"fail"|"expired"|"wait", res?}. Gives up (-> "wait") after 6 polls.
+export function rcPoll(page, o) {
+  return ask(page, { method: "RECEIPT", params: { kid: o.kid, id: o.id } }, 8000)
+    .then((r) => (r && r.r ? { s: r.r, res: r.res } : { s: "wait" }))
+    .catch(() => ({ s: "wait" }));
 }

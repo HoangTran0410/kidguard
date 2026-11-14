@@ -8,6 +8,9 @@ import { BaseSideService } from "@zeppos/zml/base-side";
 // Kids come from the settings page: the relay link "https://…/go#c=<id>&k=<token>&n=<name>"
 // shown in the parent page (Settings > connection). Stored as JSON in settingsStorage "kids".
 
+const MIN = 60000;
+const newId = () => "w" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
 const store = () => settings.settingsStorage;
 
 function kids() {
@@ -88,14 +91,21 @@ function summary(k, j) {
     current: s.screenOn === false ? "" : (cur && cur.label) || "",
     loc: loc ? { lat: loc.lat, lng: loc.lng, acc: Math.round(loc.acc || 0), t: loc.t || 0 } : null,
     zone: zoneEv ? { t: zoneEv.t, text: zoneEv.text } : null,
+    now: s.now ? { why: String(s.now.why || ""), until: s.now.until || 0, name: String(s.now.name || "").slice(0, 24) } : { why: "", until: 0, name: "" },
+    pass: +r.passUntil || 0,
+    lost: !!((s.lost && s.lost.on) || r.lostOn),
+    lostMsg: String(r.lostMsg || "").slice(0, 200),
+    lostPhone: String(r.lostPhone || "").slice(0, 20),
     sos: (s.sos || []).map((x) => ({ id: x.id, t: x.t })),
-    req: (s.requests || []).slice(-3).map((x) => ({ id: x.id, t: x.t, min: x.min, note: (x.note || "").slice(0, 60) })),
+    req: (s.requests || []).slice(-1).map((x) => ({
+      id: x.id, t: x.at || x.t || 0, again: x.remindAt || 0, kind: x.kind === "app" ? "app" : "time", min: x.min || 0,
+      pkg: x.pkg || "", app: String(x.app || x.pkg || "").slice(0, 24), note: (x.note || "").slice(0, 60),
+    })),
     events: (s.events || []).slice(-10).reverse().map((e) => ({ t: e.t, text: (e.text || e.kind || "").slice(0, 60) })),
     apps,
   };
 }
 
-const MIN = 60000;
 function demoState() {
   const now = Date.now();
   return {
@@ -105,8 +115,9 @@ function demoState() {
     current: "YouTube Kids",
     loc: { lat: 21.0285, lng: 105.8542, acc: 18, t: now - 4 * MIN },
     zone: { t: now - 50 * MIN, text: "Đã đến Nhà" },
+    now: { why: "", until: 0, name: "" }, pass: 0, lost: false, lostMsg: "", lostPhone: "",
     sos: [],
-    req: [{ id: "demo1", t: now - 2 * MIN, min: 30, note: "con làm xong bài tập rồi" }],
+    req: [{ id: "demo1", t: now - 2 * MIN, again: 0, kind: "time", min: 30, pkg: "", app: "", note: "con làm xong bài tập rồi" }],
     events: [
       { t: now - 50 * MIN, text: "Đã đến Nhà" },
       { t: now - 3 * 60 * MIN, text: "Đã rời Trường" },
@@ -122,13 +133,37 @@ function demoState() {
 
 // ---------- rules edits (read newest, change one thing, PUT the whole object) ----------
 
-function editRules(r, op, day) {
+// Same rule as the page's grantApply (kid.js) and the phone's Grant.apply:
+// now.why "" / "daily" -> today's bonus; any other lock -> timed pass passUntil.
+function grantApply(r, st, min, day) {
+  const why = st && st.now ? st.now.why || "" : "";
+  if (why === "" || why === "daily") {
+    const c0 = r.bonus && r.bonus.day === day ? +r.bonus.min || 0 : 0;
+    r.bonus = { day, min: Math.min(600, c0 + min) };
+    return "daily";
+  }
+  r.passUntil = Math.max(Date.now(), +r.passUntil || 0) + min * MIN;
+  return "pass";
+}
+
+function editRules(r, op, day, st) {
   const now = Date.now();
-  const cur = r.bonus && r.bonus.day === day ? r.bonus.min || 0 : 0;
   switch (op.k) {
-    case "bonus":
-      r.bonus = { day, min: Math.max(0, Math.min(600, cur + op.n)) };
+    case "grant":
+      grantApply(r, st, op.n, day);
       break;
+    case "passEnd":
+      r.passUntil = 0;
+      break;
+    case "lost":
+      r.lostOn = !!op.on;
+      if (op.on && !r.lostMsg) r.lostMsg = String(op.msg || "").slice(0, 200);
+      break;
+    case "appOk": {
+      r.approved = [...new Set([...(r.approved || []), op.p])];
+      r.blocked = (r.blocked || []).filter((v) => v !== op.p);
+      break;
+    }
     case "bonusClear":
       r.bonus = { day, min: 0 };
       break;
@@ -161,7 +196,7 @@ function editRules(r, op, day) {
 async function changeRules(k, op) {
   const j = await http(k, "/state");
   const day = (j.state && j.state.day) || "";
-  const r = editRules(JSON.parse(JSON.stringify(newestRules(j))), op, day);
+  const r = editRules(JSON.parse(JSON.stringify(newestRules(j))), op, day, j.state);
   delete r.pinHash;
   delete r.pinSet;
   delete r.pin;
@@ -183,17 +218,32 @@ async function handle(req) {
     case "STATE":
       return { state: summary(k, await http(k, "/state")) };
     case "CMD": {
-      const c = p.c || {};
+      // our own command id: the phone's receipt (state.done) or the worker's (expired) is matched on it
+      const c = { ...(p.c || {}), id: newId() };
       const j = await http(k, "/cmd", "POST", c);
-      return { result: j.result || "queued" };
+      const res = j.result || "queued";
+      if (res !== "queued" && res !== "ok" && res !== "no such sos") throw new Error(res);
+      return { result: res, id: c.id };
+    }
+    case "RECEIPT": {
+      const j = await http(k, "/state");
+      const d = ((j.state && j.state.done) || []).find((x) => x.id === p.id);
+      if (d) return { r: d.res === "ok" ? "ok" : "fail", res: String(d.res || "").slice(0, 40) };
+      if ((j.expired || []).some((x) => x.id === p.id)) return { r: "expired" };
+      return { r: "wait" };
     }
     case "RULES":
       return { result: await changeRules(k, p.op) };
     case "ANSWER": {
-      // same order as the page: grant the bonus first, then tell the child (answer removes the request)
-      if (p.ok) await changeRules(k, { k: "bonus", n: p.min });
-      await http(k, "/cmd", "POST", { type: "answer", id: p.id, ok: !!p.ok, min: p.ok ? p.min : undefined });
-      return { result: "ok" };
+      // same order as the page: edit the rules first, then tell the child (answer removes the request)
+      const app = p.kind === "app";
+      if (p.ok) await changeRules(k, app ? { k: "appOk", p: p.pkg } : { k: "grant", n: p.min });
+      const id = newId();
+      const j = await http(k, "/cmd", "POST", {
+        type: "answer", req: p.req, id, ok: !!p.ok,
+        ...(p.ok && app ? { always: true } : {}), ...(p.ok && !app ? { min: p.min } : {}),
+      });
+      return { result: j.result || "ok", id };
     }
     default:
       throw new Error("bad method");

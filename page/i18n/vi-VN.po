@@ -23,7 +23,7 @@ msgid "sosAt"
 msgstr "SOS lúc %1"
 
 msgid "sosDone"
-msgstr "Đã xử lý"
+msgstr "Đã nhận"
 
 msgid "where"
 msgstr "Vị trí"
@@ -199,3 +199,71 @@ msgstr "Lấy vị trí mới"
 msgid "locateSent"
 msgstr "Đã gửi, chờ khoảng 30 giây"
 
+msgid "answer"
+msgstr "Trả lời"
+
+msgid "reqApp"
+msgstr "Con xin mở %1"
+
+msgid "reqAgain"
+msgstr "Nhắc lại %1"
+
+msgid "yesMin"
+msgstr "Cho %1'"
+
+msgid "appAllowed"
+msgstr "Đã cho dùng %1"
+
+msgid "until"
+msgstr "đến %1"
+
+msgid "whyDaily"
+msgstr "Hết giờ hôm nay"
+
+msgid "whyPaused"
+msgstr "Đang tạm dừng"
+
+msgid "whySchedule"
+msgstr "Đang giờ học"
+
+msgid "whyBed"
+msgstr "Đang giờ ngủ"
+
+msgid "whyPass"
+msgstr "Đang được thêm giờ"
+
+msgid "whyCode"
+msgstr "Đã mở bằng mã"
+
+msgid "lostOnLine"
+msgstr "MẤT MÁY: đang bật"
+
+msgid "lostOn"
+msgstr "Báo mất máy"
+
+msgid "lostOff"
+msgstr "Tắt báo mất"
+
+msgid "lostOnDone"
+msgstr "Đã bật báo mất máy"
+
+msgid "lostOffDone"
+msgstr "Đã tắt báo mất máy"
+
+msgid "lostMsgDefault"
+msgstr "Máy này bị mất. Xin gọi cho bố mẹ."
+
+msgid "passEnd"
+msgstr "Kết thúc"
+
+msgid "rcOk"
+msgstr "%1: máy con đã chạy"
+
+msgid "rcFail"
+msgstr "%1: máy con từ chối"
+
+msgid "rcExpired"
+msgstr "%1: hết hạn, chưa chạy"
+
+msgid "rcWait"
+msgstr "%1: chờ máy con…"

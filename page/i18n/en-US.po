@@ -23,7 +23,7 @@ msgid "sosAt"
 msgstr "SOS at %1"
 
 msgid "sosDone"
-msgstr "Handled"
+msgstr "Got it"
 
 msgid "where"
 msgstr "Location"
@@ -199,3 +199,71 @@ msgstr "Get a fresh fix"
 msgid "locateSent"
 msgstr "Sent, wait about 30 s"
 
+msgid "answer"
+msgstr "Answer"
+
+msgid "reqApp"
+msgstr "Wants to open %1"
+
+msgid "reqAgain"
+msgstr "Asked again %1"
+
+msgid "yesMin"
+msgstr "Give %1'"
+
+msgid "appAllowed"
+msgstr "%1 allowed"
+
+msgid "until"
+msgstr "until %1"
+
+msgid "whyDaily"
+msgstr "Out of time today"
+
+msgid "whyPaused"
+msgstr "Paused"
+
+msgid "whySchedule"
+msgstr "School time"
+
+msgid "whyBed"
+msgstr "Bedtime"
+
+msgid "whyPass"
+msgstr "Extra time on"
+
+msgid "whyCode"
+msgstr "Unlocked by code"
+
+msgid "lostOnLine"
+msgstr "LOST MODE is on"
+
+msgid "lostOn"
+msgstr "Lost phone"
+
+msgid "lostOff"
+msgstr "Lost mode off"
+
+msgid "lostOnDone"
+msgstr "Lost mode on"
+
+msgid "lostOffDone"
+msgstr "Lost mode off"
+
+msgid "lostMsgDefault"
+msgstr "This phone is lost. Please call my parents."
+
+msgid "passEnd"
+msgstr "End extra time"
+
+msgid "rcOk"
+msgstr "%1: done on the phone"
+
+msgid "rcFail"
+msgstr "%1: phone refused"
+
+msgid "rcExpired"
+msgstr "%1: expired, not run"
+
+msgid "rcWait"
+msgstr "%1: waiting for the phone…"

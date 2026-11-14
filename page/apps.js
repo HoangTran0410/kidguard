@@ -1,5 +1,5 @@
 import { BasePage } from "@zeppos/zml/base-page";
-import { Col, C, t, fmtMin, done, toast } from "../utils/ui";
+import { Col, C, t, fmtMin, done, toast, ask } from "../utils/ui";
 
 // Today's apps by use; tap = block / unblock (rules.blocked, whole rules object re-sent by the side service).
 
@@ -18,7 +18,7 @@ Page(
       this.load();
     },
     load() {
-      this.request({ method: "STATE", params: { kid: this.kid } })
+      ask(this, { method: "STATE", params: { kid: this.kid } })
         .then((r) => (r.error ? this.err(r.error) : this.render(r.state)))
         .catch(() => this.err(t("noPhone")));
     },
@@ -39,7 +39,7 @@ Page(
           if (busy) return;
           busy = true;
           toast(t("sending"));
-          this.request({ method: "RULES", params: { kid: this.kid, op: { k: "block", p: a.p, on: !a.b } } })
+          ask(this, { method: "RULES", params: { kid: this.kid, op: { k: "block", p: a.p, on: !a.b } } })
             .then((r) => {
               busy = false;
               if (done(r, a.b ? t("unblocked", a.l) : t("blocked", a.l))) this.load();

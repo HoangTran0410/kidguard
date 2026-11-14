@@ -4,7 +4,7 @@ import { LocalStorage } from "@zos/storage";
 import { Vibrator } from "@zos/sensor";
 import { BasePage } from "@zeppos/zml/base-page";
 import { DEVICE_WIDTH as W } from "../utils/config/device";
-import { Col, C, t, fmtMin, ago, hhmm, twoTap, done, toast, PAD } from "../utils/ui";
+import { Col, C, t, fmtMin, ago, hhmm, twoTap, done, toast, PAD, ask, rcSave, rcLoad, rcClear, rcPoll } from "../utils/ui";
 
 // Parent home: one kid at a time (tap the name to switch). Data comes from the side service
 // on the parent's phone, which reads the KidGuard relay.
@@ -25,24 +25,52 @@ function go(url, params) {
 
 Page(
   BasePage({
-    state: { kid: 0, kids: [], s: null, err: "" },
+    state: { kid: 0, kids: [], s: null, err: "", rc: null },
     onInit() {
       this.state.kid = +ls.getItem("kid", 0) || 0;
     },
     build() {
       this.col = new Col();
-      this.col.text(t("loading"), { color: C.mute });
+      this.render();
       this.loadKids();
       this.timer = setInterval(() => this.load(), 30000);
     },
     onResume() {
       this.load();
+      this.rcStart();
     },
     onDestroy() {
       if (this.timer) clearInterval(this.timer);
+      if (this.rcTimer) clearTimeout(this.rcTimer);
+    },
+    // receipt of the last command: poll a few times (3 s apart, 6 tries), show ran / refused / expired
+    rcStart() {
+      const o = rcLoad();
+      if (!o || o.kid !== this.state.kid) return;
+      if (this.rcTimer) clearTimeout(this.rcTimer);
+      this.state.rc = { label: o.label, s: "wait" };
+      this.render();
+      const step = (n) => {
+        rcPoll(this, o).then((r) => {
+          if (r.s === "wait" && n < 6) {
+            this.rcTimer = setTimeout(() => step(n + 1), 3000);
+            return;
+          }
+          this.state.rc = { label: o.label, s: r.s, res: r.res };
+          rcClear();
+          if (r.s === "ok") {
+            this.rcTimer = setTimeout(() => {
+              this.state.rc = null;
+              this.render();
+            }, 20000);
+          }
+          this.render();
+        });
+      };
+      this.rcTimer = setTimeout(() => step(1), 2000);
     },
     loadKids() {
-      this.request({ method: "KIDS" })
+      ask(this, { method: "KIDS" })
         .then(({ kids = [] }) => {
           this.state.kids = kids;
           if (this.state.kid >= kids.length) this.state.kid = 0;
@@ -51,7 +79,7 @@ Page(
         .catch(() => this.showErr(t("noPhone")));
     },
     load() {
-      this.request({ method: "STATE", params: { kid: this.state.kid } })
+      ask(this, { method: "STATE", params: { kid: this.state.kid } })
         .then((r) => {
           if (r.error) return this.showErr(r.error);
           this.state.s = r.state;
@@ -64,13 +92,57 @@ Page(
       this.state.err = e;
       this.render();
     },
-    act(method, params, okText) {
-      return this.request({ method, params: { kid: this.state.kid, ...params } })
+    act(method, params, okText, label) {
+      return ask(this, { method, params: { kid: this.state.kid, ...params } })
         .then((r) => {
-          if (done(r, okText)) setTimeout(() => this.load(), 1500);
+          if (done(r, okText)) {
+            if (r.id) {
+              rcSave(this.state.kid, r.id, label || okText || t("sent"));
+              this.rcStart();
+            }
+            setTimeout(() => this.load(), 1500);
+          }
           return r;
         })
         .catch(() => toast(t("noPhone")));
+    },
+    answerItems(x) {
+      if (x.kind === "app") {
+        return [
+          { label: t("yes"), m: "ANSWER", p: { req: x.id, ok: true, kind: "app", pkg: x.pkg }, ok: t("appAllowed", x.app || "?"), rl: t("answer") },
+          { label: t("no"), m: "ANSWER", p: { req: x.id, ok: false, kind: "app" }, ok: t("denied"), rl: t("answer") },
+        ];
+      }
+      // N/2, N, 2N in 5-minute steps (same as the page), N = what the kid asked for
+      const n = Math.max(5, +x.min || 15);
+      const chips = [...new Set([Math.max(5, Math.round(n / 2 / 5) * 5), n, Math.min(240, n * 2)])];
+      return chips
+        .map((m) => ({ label: t("yesMin", m), m: "ANSWER", p: { req: x.id, ok: true, kind: "time", min: m }, ok: t("granted", m), rl: t("answer") }))
+        .concat([{ label: t("no"), m: "ANSWER", p: { req: x.id, ok: false, kind: "time" }, ok: t("denied"), rl: t("answer") }]);
+    },
+    // "right now": short and kid-friendly; empty when the phone is simply in use
+    nowLine(s) {
+      const n = s.now || {};
+      if (s.lost) return t("lostOnLine");
+      const until = n.until ? "\n" + t("until", hhmm(n.until)) : "";
+      switch (n.why) {
+        case "":
+          return "";
+        case "daily":
+          return t("whyDaily") + until;
+        case "paused":
+          return t("whyPaused") + until;
+        case "schedule":
+          return t("whySchedule") + (n.name ? ": " + n.name : "") + until;
+        case "bedtime":
+          return t("whyBed") + until;
+        case "pass":
+          return t("whyPass") + until;
+        case "code":
+          return t("whyCode") + until;
+        default:
+          return n.why + until;
+      }
     },
     switchKid() {
       const n = this.state.kids.length;
@@ -100,6 +172,13 @@ Page(
         size: 22, color: online ? 0x66bb6a : C.amber,
       });
       if (this.state.err) col.text(this.state.err, { size: 22, color: C.red });
+      const rc = this.state.rc;
+      if (rc) {
+        const key = rc.s === "ok" ? "rcOk" : rc.s === "fail" ? "rcFail" : rc.s === "expired" ? "rcExpired" : "rcWait";
+        col.text(t(key, rc.label || "") + (rc.s === "fail" && rc.res ? ` (${rc.res})` : ""), {
+          size: 22, color: rc.s === "ok" ? 0x66bb6a : rc.s === "wait" ? C.mute : rc.s === "fail" ? C.red : C.amber,
+        });
+      }
 
       // vibrate once per new SOS / request while the app is open
       const sig = s.sos.map((x) => x.id).concat(s.req.map((x) => x.id)).join(",");
@@ -113,22 +192,29 @@ Page(
           go("page/pick", {
             kid: this.state.kid, title: t("sosAt", hhmm(x.t)),
             items: [
-              { label: t("sosDone"), m: "CMD", p: { c: { type: "sosAck", sos: x.id } } },
+              { label: t("sosDone"), m: "CMD", p: { c: { type: "sosAck", sos: x.id } }, rl: t("sosDone") },
               { label: t("where"), page: "page/info", pp: { kind: "loc", kid: this.state.kid } },
               { label: t("ring"), m: "CMD", p: { c: { type: "ring" } } },
             ],
           }), { color: C.red, press: C.redP });
       });
 
-      // time requests
+      // one open request (time or app): tap Answer -> N/2, N, 2N minutes (as the page) or Allow / Deny
       s.req.forEach((x) => {
         col.gap(6);
-        col.text(t("reqLine", x.min) + (x.note ? `\n“${x.note}”` : ""), { size: 24, color: 0xffcc80 });
-        col.row(
-          { label: t("yes"), color: C.green, press: C.greenP, fn: () => this.act("ANSWER", { id: x.id, ok: true, min: x.min }, t("granted", x.min)) },
-          { label: t("no"), fn: () => this.act("ANSWER", { id: x.id, ok: false }, t("denied")) }
-        );
+        const app = x.kind === "app";
+        const head = app ? t("reqApp", x.app || "?") : t("reqLine", x.min);
+        const again = x.again && x.t && x.again - x.t > 30000 ? "\n" + t("reqAgain", ago(x.again)) : "";
+        col.text(head + again + (x.note ? `\n“${x.note}”` : ""), { size: 24, color: 0xffcc80 });
+        col.btn(t("answer"), () => go("page/pick", { kid: this.state.kid, title: head, items: this.answerItems(x) }), { color: C.amber, press: C.amberP, h: 60 });
       });
+
+      // right now: why the phone is locked / on a pass, and until when
+      const nowLine = this.nowLine(s);
+      if (nowLine) {
+        col.gap(4);
+        col.text(nowLine, { size: 24, color: s.lost ? C.red : 0xffcc80 });
+      }
 
       // ring with minutes left
       col.gap(8);
@@ -158,7 +244,8 @@ Page(
       col.row(
         { label: t("more"), color: C.green, press: C.greenP, fn: () => go("page/pick", {
           ...kidOpt, title: t("more"),
-          items: [15, 30, 60, 120].map((n) => ({ label: `+${n >= 60 ? n / 60 + "h" : n + "'"}`, m: "RULES", p: { op: { k: "bonus", n } }, ok: t("granted", n) }))
+          items: [15, 30, 60, 120].map((n) => ({ label: `+${n >= 60 ? n / 60 + "h" : n + "'"}`, m: "RULES", p: { op: { k: "grant", n } }, ok: t("granted", n) }))
+            .concat(s.pass > Date.now() ? [{ label: t("passEnd"), m: "RULES", p: { op: { k: "passEnd" } } }] : [])
             .concat(s.bonus ? [{ label: t("bonusClear"), m: "RULES", p: { op: { k: "bonusClear" } } }] : []),
         }) },
         paused
@@ -170,7 +257,7 @@ Page(
       );
       const half = (W - 2 * PAD - 12) / 2;
       const yRow = col.y;
-      twoTap(col, t("lock"), t("tapAgain"), () => this.act("CMD", { c: { type: "lock" } }), { x: PAD, w: half, size: 26, color: C.red, press: C.redP, advance: false });
+      twoTap(col, t("lock"), t("tapAgain"), () => this.act("CMD", { c: { type: "lock" } }, undefined, t("lock")), { x: PAD, w: half, size: 26, color: C.red, press: C.redP, advance: false });
       col.y = yRow;
       col.btn(t("ring"), () => go("page/pick", {
         ...kidOpt, title: t("ring"),
@@ -197,6 +284,9 @@ Page(
         }) },
         { label: t("events"), fn: () => go("page/info", { kind: "events", kid: this.state.kid }) }
       );
+      twoTap(col, s.lost ? t("lostOff") : t("lostOn"), t("tapAgain"),
+        () => this.act("RULES", { op: { k: "lost", on: !s.lost, msg: t("lostMsgDefault") } }, s.lost ? t("lostOffDone") : t("lostOnDone")),
+        s.lost ? { color: C.blue, press: C.blueP } : { color: C.red, press: C.redP });
       col.btn(t("refresh"), () => { toast(t("loading")); this.load(); }, { h: 56, size: 24 });
       col.end();
     },

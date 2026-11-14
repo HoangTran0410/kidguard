@@ -1,5 +1,5 @@
 import { BasePage } from "@zeppos/zml/base-page";
-import { Col, C, t, ago, hhmm, done, toast } from "../utils/ui";
+import { Col, C, t, ago, hhmm, done, toast, ask, rcSave } from "../utils/ui";
 
 // Read-only pages: kind "loc" (last location + ask for a fresh fix) or "events" (zone / battery / new app …).
 
@@ -18,7 +18,7 @@ Page(
       this.load();
     },
     load() {
-      this.request({ method: "STATE", params: { kid: this.o.kid } })
+      ask(this, { method: "STATE", params: { kid: this.o.kid } })
         .then((r) => (r.error ? this.err(r.error) : this.render(r.state)))
         .catch(() => this.err(t("noPhone")));
     },
@@ -47,8 +47,9 @@ Page(
       col.gap(8);
       col.btn(t("locate"), () => {
         toast(t("sending"));
-        this.request({ method: "CMD", params: { kid: this.o.kid, c: { type: "locate" } } })
+        ask(this, { method: "CMD", params: { kid: this.o.kid, c: { type: "locate" } } })
           .then((r) => {
+            if (r && r.id) rcSave(this.o.kid, r.id, t("where"));
             if (done(r, t("locateSent"))) setTimeout(() => this.load(), 30000);
           })
           .catch(() => toast(t("noPhone")));

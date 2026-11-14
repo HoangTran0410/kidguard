@@ -1,8 +1,8 @@
 import { back, push } from "@zos/router";
 import { BasePage } from "@zeppos/zml/base-page";
-import { Col, C, t, done, toast } from "../utils/ui";
+import { Col, C, t, done, toast, ask, rcSave } from "../utils/ui";
 
-// Generic option list. params: {kid, title, items: [{label, m, p, ok?} | {label, page, pp}]}
+// Generic option list. params: {kid, title, items: [{label, m, p, ok?, rl?} | {label, page, pp}]}
 // m = side-service method (CMD / RULES / ANSWER), p = its params; a tap runs it and goes back.
 
 Page(
@@ -26,10 +26,13 @@ Page(
           if (busy) return;
           busy = true;
           toast(t("sending"));
-          this.request({ method: it.m, params: { kid: o.kid, ...(it.p || {}) } })
+          ask(this, { method: it.m, params: { kid: o.kid, ...(it.p || {}) } })
             .then((r) => {
               busy = false;
-              if (done(r, it.ok)) back();
+              if (done(r, it.ok)) {
+                if (r.id) rcSave(o.kid, r.id, it.rl || it.label);
+                back();
+              }
             })
             .catch(() => {
               busy = false;
