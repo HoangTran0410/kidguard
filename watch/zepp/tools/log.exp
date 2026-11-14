@@ -1,0 +1,22 @@
+# install the built app, then keep the bridge open and print the watch + side-service console for $env(LOGSEC) s
+set timeout 60
+cd [file dirname [file dirname [file normalize [info script]]]]
+spawn zeus bridge
+expect -re {bridge\$|>\s*$|\$ $}
+sleep 2
+send "connect\r"
+expect {
+  -re {Use arrow keys} { sleep 1; send "\r"; exp_continue }
+  -re {(?i)success|connected} {}
+  timeout { puts "\nCONNECT TIMEOUT"; exit 1 }
+}
+sleep 2
+send "install\r"
+set timeout 180
+expect {
+  -re {Use arrow keys} { sleep 1; send "\r"; exp_continue }
+  -re {Install lite app result: success} { puts "\nKG-INSTALLED" }
+  timeout { puts "\nINSTALL TIMEOUT" }
+}
+set timeout $env(LOGSEC)
+expect -re {NEVER_MATCHES_KG} {}

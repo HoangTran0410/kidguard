@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
+    <iq:application entry="KgApp" id="f4637bd0ddaf4cdfa5d7e71c69a0ac37" launcherIcon="@Drawables.LauncherIcon" minSdkVersion="4.2.0" name="@Strings.AppName" type="watch-app">
+        <iq:products>
+            <iq:product id="fenix7"/>
+            <iq:product id="venu3"/>
+            <iq:product id="fr265"/>
+            <iq:product id="vivoactive5"/>
+        </iq:products>
+        <iq:permissions>
+            <iq:uses-permission id="Communications"/>
+        </iq:permissions>
+        <iq:languages>
+            <iq:language>eng</iq:language>
+            <iq:language>vie</iq:language>
+        </iq:languages>
+        <iq:barrels/>
+    </iq:application>
+</iq:manifest>

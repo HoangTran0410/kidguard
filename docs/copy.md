@@ -15,7 +15,7 @@ popups, website). Goal: **understood at a glance**, by a parent in a hurry or a 
 6. **Buttons = verb (+ object)**: "Mở", "Bật lại ngay", "Gửi lại". Never "OK" when a verb fits. Cancel = "Huỷ" / "Cancel".
 7. **Say how it comes back** when something is turned off or blocked: "Tự bật lại khi rời app", "Mở lại khi có Wi-Fi".
 8. **Numbers as digits**, units short: "10 phút", "5555", "3 lần".
-9. **Status text = real state** reported by the phone, never the switch alone (docs/decisions.md 2026-11-13).
+9. **Status text = real state** reported by the phone, never the switch alone (docs/decisions/page.md 2026-11-13).
 10. **VI and EN say the same thing**, each natural in its language (not word-for-word). Both always exist.
 11. Emphasis sparingly: one bold/CAPS word per message at most, only for the surprising part ("KHÔNG tự mở lại").
 

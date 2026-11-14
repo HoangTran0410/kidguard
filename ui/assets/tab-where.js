@@ -54,12 +54,11 @@ function journey(pts, sp, home, isToday) {
   return `<div class="jr">` + sp.map((s, i) => {
     const z = scrZone(s.lat, s.lon), atHome = !z && home && hav(home[1], home[2], s.lat, s.lon) < 150;
     const name = z || (atHome ? t("jr.start") : t("jr.place")), first = i === 0 && pts[0][0] >= s.start, here = s.end >= lastT;
-    const arr = first ? "" : `<span class="tag">${ic("log-in")} ${t("jr.arr", hhmm(s.start))}</span>`;
-    const lv = here ? `<span class="tag on">${isToday ? t("jr.here") : t("jr.endDay")}</span>` : `<span class="tag">${ic("log-out")} ${t("jr.lv", hhmm(s.end))}</span>`;
+    const tm = `<div class="jtm">${first ? "" : `<b>${hhmm(s.start)}</b>`}${here ? `<span class="on">${isToday ? t("jr.here") : t("jr.endDay")}</span>` : `<span>${hhmm(s.end)}</span>`}</div>`;
     const nx = sp[i + 1], trip = !here && nx ? `<button type="button" class="jrt stb" data-stt="${s.end}" aria-label="${esc(t("tl.go", hhmm(s.end)))}">${ic("footprints")} ${t("jr.trip", fmt(nx.start - s.end), kmS(km(s.end, nx.start)))}</button>` : "";
-    return `<div class="jrs"><span class="jri">${z || !atHome ? ic("map-pin") : ic("house")}</span><div class="sp" style="min-width:0">
-      <button type="button" class="stb" data-stt="${s.start}" aria-label="${esc(t("tl.go", hhmm(s.start)))}"><b>${esc(name)}</b> <span class="mute">· ${fmt(s.end - s.start)}</span></button>
-      <div class="jrm">${arr}${lv}</div></div><a class="btn rb" style="width:40px;height:40px;min-height:40px" href="https://www.google.com/maps?q=${+s.lat},${+s.lon}" target="_blank" rel="noopener" aria-label="Google Maps" title="Google Maps">${ic("map")}</a></div>${trip}`;
+    return `<div class="jrs${here ? " here" : ""}">${tm}<span class="jrd">${z || !atHome ? "" : ic("house")}</span>
+      <button type="button" class="stb" data-stt="${s.start}" aria-label="${esc(t("tl.go", hhmm(s.start)))}"><b>${esc(name)}</b><span class="mute">${fmt(s.end - s.start)}</span></button>
+      <a class="jmap" href="https://www.google.com/maps?q=${+s.lat},${+s.lon}" target="_blank" rel="noopener" aria-label="Google Maps" title="Google Maps">${ic("map")}</a></div>${trip}`;
   }).join("") + `</div>` + (sp.some(s => scrZone(s.lat, s.lon)) ? "" : `<p class="mute" style="margin:8px 0 0">${ic("lightbulb")} ${t("jr.tip")}</p>`);
 }
 function fitView(pts, w, h) {

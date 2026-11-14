@@ -15,7 +15,7 @@ import android.view.animation.PathInterpolator
  *  - [MED]   200: things arriving (menu, sheet, dialog, detail panel, fade in).
  *  - [SLOW]  250: big surfaces (control center, edit-mode zoom, grid reflow, release spring).
  * Tuned moves with a reason in their comment keep their own numbers (folder zoom 280/220, drag drop, drawer fling,
- * the streak flame): they are listed in docs/decisions.md, change them there.
+ * the streak flame): they are listed in docs/decisions/launcher.md, change them there.
  *
  * Easings (shared instances; interpolators are stateless):
  *  - [STD]    Material "emphasized decelerate" (0.2, 0, 0, 1): a surface moving to its place.

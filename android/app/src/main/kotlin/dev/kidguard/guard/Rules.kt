@@ -185,6 +185,9 @@ data class Rules(
     val lostOn: Boolean = false,             // 0.9.16 lost mode (Policy / Guard)
     val lostMsg: String = "",                // lock-screen text in lost mode, LOST_MSG_MAX
     val lostPhone: String = "",              // number to call, LOST_PHONE_MAX
+    val lostLock: Boolean = true,            // 0.9.21 lost mode locks the phone (+ message card) on enter and every unlock
+    val lostRing: Boolean = true,            // 0.9.21 lost mode rings 5 min every 15 min (locating is always on)
+    val msgs: List<String> = emptyList(),    // 0.9.21 the parent's own quick messages (page + watch), MSGS_MAX x MSG_MAX
 ) {
     /** The Private DNS host that should be active at [nowMs]: "" while paused or off. */
     fun dnsHost(nowMs: Long = System.currentTimeMillis()): String = if (nowMs < safeDnsPauseUntil) "" else safeDns
@@ -213,7 +216,8 @@ data class Rules(
         .put("lockInfo", JSONObject().put("msg", lockMsg).put("contact", lockContact)).put("blockNote", blockNote)
         .put("launcher", launcher.toJson()).put("monitor", monitor).put("kidClean", kidClean)
         .put("passUntil", passUntil).put("bedByDay", JSONArray(bedByDay)).put("oneMore", oneMore)
-        .put("lostOn", lostOn).put("lostMsg", lostMsg).put("lostPhone", lostPhone)
+        .put("lostOn", lostOn).put("lostMsg", lostMsg).put("lostPhone", lostPhone).put("lostLock", lostLock).put("lostRing", lostRing)
+        .put("msgs", JSONArray(msgs))
         .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
 
     /** True when [pin] matches the stored hash (legacy or salted). False when no PIN is set. */
@@ -306,6 +310,9 @@ data class Rules(
                 lostOn = o.optBoolean("lostOn", false),
                 lostMsg = Notes.clean(o.optString("lostMsg", ""), LOST_MSG_MAX),
                 lostPhone = Notes.clean(o.optString("lostPhone", ""), LOST_PHONE_MAX),
+                msgs = o.optJSONArray("msgs").strings().map { Notes.clean(it, MSG_MAX) }.filter { it.isNotBlank() }.distinct().take(MSGS_MAX),
+                lostLock = o.optBoolean("lostLock", true),
+                lostRing = o.optBoolean("lostRing", true),
                 blockNew = o.optBoolean("blockNew", false),
                 approved = o.optJSONArray("approved").strings(),
                 lockLocation = o.optBoolean("lockLocation", true),
@@ -326,6 +333,8 @@ data class Rules(
         }
 
         const val LOST_MSG_MAX = 200
+        const val MSGS_MAX = 12
+        const val MSG_MAX = 120
         const val LOST_PHONE_MAX = 20
 
         /** "21:30-06:30" -> (1290, 390), or null. */

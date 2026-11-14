@@ -419,6 +419,18 @@ await new Promise(z=>setTimeout(z,6600));
 ck("watch: an expired code answers 404 to the watch",(await GET(c2)).status==404);
 ck("watch: attach to an expired code 404",(await ATT(c2)).status==404);
 ck("watch: credentials of an expired code are not handed out",(await GET(c3)).status==404);
+// state?watch=1: small view for watches + tile-only key (Garmin image requests carry no headers)
+{const apps=Array.from({length:150},(_,i)=>({pkg:"p"+i,label:"App "+i+" "+"x".repeat(40),ms:i*1000,icon:"y".repeat(200)}));
+await fetch(`${B}/c/${idw}/sync`,{method:"POST",headers:{"x-kg-token":Tw,"content-type":"application/json"},body:JSON.stringify({state:{t:2,leftMs:60000,battery:50,current:"p149",now:{why:"daily",until:0},location:{lat:10.7,lng:106.7,acc:12,t:1},apps,events:Array.from({length:40},(_,i)=>({t:i,kind:"k",text:"e"+i})),requests:[{id:"r1",at:1,kind:"time",min:15}],done:[]}})});
+const full=await (await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":Tw}})).text();
+const wr=await fetch(`${B}/c/${idw}/state?watch=1`,{headers:{"x-kg-token":Tw}}),wt=await wr.text(),wj=JSON.parse(wt);
+ck(`watch=1: much smaller than the full state (${wt.length} vs ${full.length} B)`,wr.status==200&&wt.length<full.length/4&&wt.length<16000);
+ck("watch=1: keeps scalars, now, location, requests; top 15 apps without icons; current label",wj.state.leftMs===60000&&wj.state.battery===50&&wj.state.now.why=="daily"&&wj.state.location.lat==10.7&&wj.state.requests.length==1&&wj.state.apps.length==15&&wj.state.apps[0].pkg=="p149"&&!wj.state.apps[0].icon&&wj.state.currentLabel.startsWith("App 149")&&wj.state.events.length==10);
+ck("watch=1: tileKey = sha256('tile:'+token), seen + queue present",wj.tileKey==createHash("sha256").update("tile:"+Tw).digest("hex")&&typeof wj.seen=="number"&&Array.isArray(wj.queue));
+ck("tile with a wrong k 401",(await fetch(`${B}/c/${idw}/tile?z=16&x=1&y=1&k=${"0".repeat(64)}`)).status==401);
+ck("tile with the right k passes auth (bad coords -> 400)",(await fetch(`${B}/c/${idw}/tile?z=3&x=1&y=1&k=${wj.tileKey}`)).status==400);
+ck("tile k of another kid 401",(await fetch(`${B}/c/${id}/tile?z=16&x=1&y=1&k=${wj.tileKey}`)).status==401);
+ck("icon route does not accept the tile key",(await fetch(`${B}/c/${idw}/icon?p=a&k=${wj.tileKey}`)).status==401);}
 }
 // ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;

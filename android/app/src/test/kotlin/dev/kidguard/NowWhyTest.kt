@@ -2,6 +2,7 @@ package dev.kidguard
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -102,6 +103,15 @@ class NowWhyTest {
     @Test fun lostFieldsRoundTripAndAreClamped() {
         val r = Rules.fromJson(Rules(lostOn = true, lostMsg = "x".repeat(300), lostPhone = "0901 234 567").toJson())
         assertTrue(r.lostOn); assertEquals(200, r.lostMsg.length); assertEquals("0901 234 567", r.lostPhone)
+        assertTrue(r.lostLock); assertTrue(r.lostRing)   // missing = on (0.9.21)
+        val off = Rules.fromJson(Rules(lostOn = true, lostLock = false, lostRing = false).toJson())
+        assertFalse(off.lostLock); assertFalse(off.lostRing)
+    }
+
+    @Test fun quickMessagesAreCleanedAndCapped() {
+        val r = Rules.fromJson(Rules(msgs = listOf("Về ăn cơm", "", "Về ăn cơm", "y".repeat(200)) + List(20) { "m$it" }).toJson())
+        assertEquals("Về ăn cơm", r.msgs[0]); assertEquals(120, r.msgs[1].length); assertEquals(Rules.MSGS_MAX, r.msgs.size)
+        assertTrue(Rules.fromJson(Rules().toJson()).msgs.isEmpty())
     }
 
     @Test fun importantEventKinds() {

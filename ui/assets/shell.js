@@ -901,20 +901,43 @@ function wireReq(b, today, inSheet) {
 // "Thêm" round button: wake, listen, message, restart
 function moreSheet() {
   sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("zap", t("now"))}
-    <div class="grid"><button type="button" id="wake" class="act"></button>${cur.via === "lan" && !viewDay ? `<button type="button" id="ear1" class="act"></button>` : ""}${isBasic() ? "" : `<button type="button" id="reboot" class="bad">${ic("refresh-cw")} ${t("reboot")}</button>`}</div>
-    ${cur.via === "lan" ? "" : `<p class="mute">${ic("ear")} ${t("ear.lanOnly")}</p>`}
-    <label class="mute" for="msg" style="display:block;margin:16px 0 6px">${t("msg.h")}</label>
-    <div class="row"><input id="msg" class="sp" placeholder="${esc(t("msgPh"))}" maxlength="300"><button type="button" id="send" class="pri">${ic("send")} ${t("send")}</button></div></div>`,
-    pop => {
+    <div class="grid"><button type="button" id="scrGo"${navOk("screen") ? "" : " disabled"}>${ic("smartphone")} ${t("more.scr")}</button><button type="button" id="wake" class="act"></button>${cur.via === "lan" && !viewDay ? `<button type="button" id="ear1" class="act"></button>` : ""}${isBasic() ? "" : `<button type="button" id="reboot" class="bad">${ic("refresh-cw")} ${t("reboot")}</button>`}</div>
+    ${cur.via === "lan" ? "" : `<p class="mute">${ic("ear")} ${t("ear.lanOnly")}</p>`}</div>`,
+    (pop, done) => {
+      pop.querySelector("#scrGo").onclick = () => { done(false); goTab("screen"); };
       pop.querySelector("#wake").onclick = () => act("wake", () => cmd({ type: "wake" }, t("wake.done"), false));
       const e1 = pop.querySelector("#ear1"); if (e1) e1.onclick = () => earOn() ? micStop() : ringOn() ? toast("warn|" + t("act.noEar")) : earStart();
       const rb = pop.querySelector("#reboot"); if (rb) rb.onclick = () => cmd({ type: "reboot" }, t("reboot.done")).then(r => { if (r) rebootStart(); });
+      actPaint();
+    });
+}
+// "Nhắn" tile: a message on the kid's screen; saved messages one tap away (same list as the watch)
+function msgSheet() {
+  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("message-square", t("msg.tile"))}
+    <label class="mute" for="msg" style="display:block;margin:0 0 6px">${t("msg.h")}</label>
+    <div class="row"><input id="msg" class="sp" placeholder="${esc(t("msgPh"))}" maxlength="300"><button type="button" id="send" class="pri">${ic("send")} ${t("send")}</button></div>
+    <div id="qmBox"></div></div>`,
+    pop => {
       pop.querySelector("#send").onclick = () => { const tx = $("#msg").value.trim(); if (!tx) return $("#msg").focus();
         const sb = pop.querySelector("#send"); if (sb.disabled) return; sb.disabled = true;   // no double send while the dialog / request is in flight
         cmd({ type: "message", text: tx }, t("msg.done")).then(r => { if (r && $("#msg") && $("#msg").value.trim() === tx) $("#msg").value = ""; }).finally(() => { sb.disabled = false; }); };
       pop.querySelector("#msg").onkeydown = e => { if (e.key === "Enter") pop.querySelector("#send").click(); };
-      actPaint();
+      pop.querySelector("#msg").oninput = qmDraw;
+      qmDraw();
     });
+}
+// Saved quick messages (rules.msgs, also listed on the watch): a tap fills the box (Send stays the one way to send),
+// x removes, "Lưu làm mẫu" keeps what is typed. Saved through the normal rules save (changed()).
+function qmDraw() {
+  const box = $("#qmBox"), inp = $("#msg"); if (!box || !inp) return;
+  const list = (edit && edit.msgs) || [], tx = inp.value.trim().slice(0, 120);
+  const canSave = edit && !viewDay && tx && !list.includes(tx) && list.length < 12;
+  box.innerHTML = `${list.length || canSave ? `<p class="mute" style="margin:12px 0 6px">${t("qm.h")}</p>` : ""}<div class="qms">${list.map((m, i) =>
+    `<span class="qm"><button type="button" class="qmu" data-q="${i}">${esc(m)}</button><button type="button" class="qmx" data-x="${i}" aria-label="${esc(t("qm.del", m))}">${ic("x")}</button></span>`).join("")}</div>
+    ${canSave ? `<button type="button" id="qmSave" class="sp" style="margin-top:8px">${ic("plus")} ${t("qm.save")}</button>` : list.length >= 12 && tx && !list.includes(tx) ? `<p class="mute">${t("qm.full")}</p>` : ""}`;
+  box.querySelectorAll("[data-q]").forEach(b => b.onclick = () => { inp.value = list[+b.dataset.q]; inp.focus(); qmDraw(); });
+  box.querySelectorAll("[data-x]").forEach(b => b.onclick = () => { edit.msgs = list.filter((_, i) => i !== +b.dataset.x); changed(); qmDraw(); });
+  const sv = $("#qmSave"); if (sv) sv.onclick = () => { edit.msgs = list.concat(tx); changed(); toast("ok|" + t("qm.saved")); qmDraw(); };
 }
 // ---- parent app only: "Cài đặt app" (language, theme, notifications, update, guide); the gear in head() and the "Thêm" sheet open it ----
 let appUpd = { st: "idle" };   // idle | checking | ok | new | fail | perm | dl(pct) | inst | dlfail; pushed by the app through kgUpd()

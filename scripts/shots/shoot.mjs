@@ -39,6 +39,8 @@ const SHOTS = [
   ...[1, 2, 3, 4].map(n => ({ name: "wiz" + n, js: `wizOpen(cur, ${n}, false)`, ready: `document.querySelector("#wizPop .wz")`, settle: 300 })),   // the guided setup, one shot per step
   { name: "today", js: `goTab("home")`, ready: `document.querySelector(".hero")` },
   { name: "apps", js: `appsSub = "list"; goTab("apps")`, ready: `document.querySelector(".app .ic")`, settle: 800 },
+  { name: "space", js: `appsSub = "space"; goTab("apps")`, ready: `document.querySelector("#subp .card")`, settle: 600 },
+  { name: "more", js: `goTab("home"); moreSheet()`, ready: `document.querySelector("#scrGo")`, settle: 400 },
   { name: "rules", poke: 1, js: `goTab("rules")`, ready: `document.querySelector("[data-sec]")`, open: ["r-bed", "r-sch"], shut: ["r-daily"], scrollTo: "[data-sec=r-daily]" },
   { name: "where", js: `goTab("where")`, ready: `document.querySelector("#map .layer")`, tiles: true, settle: 800 },
   { name: "screen", js: `goTab("screen")`, ready: `document.querySelector("#s-img") && document.querySelector("#s-img").complete && document.querySelector("#s-img").naturalWidth > 0`, settle: 800 },

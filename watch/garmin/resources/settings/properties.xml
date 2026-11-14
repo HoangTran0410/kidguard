@@ -1,0 +1,5 @@
+<resources>
+    <properties>
+        <property id="relay" type="string"></property>
+    </properties>
+</resources>

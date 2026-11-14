@@ -1,0 +1,380 @@
+msgid "loading"
+msgstr "Đang tải…"
+
+msgid "noPhone"
+msgstr "Không nối được điện thoại"
+
+msgid "retry"
+msgstr "Thử lại"
+
+msgid "nextKid"
+msgstr "Đổi con ›"
+
+msgid "online"
+msgstr "đang kết nối"
+
+msgid "seen"
+msgstr "lần cuối %1"
+
+msgid "demo"
+msgstr "dữ liệu mẫu"
+
+msgid "sosAt"
+msgstr "SOS lúc %1"
+
+msgid "sosDone"
+msgstr "Đã nhận"
+
+msgid "where"
+msgstr "Vị trí"
+
+msgid "ring"
+msgstr "Đổ chuông"
+
+msgid "reqLine"
+msgstr "Con xin thêm %1'"
+
+msgid "yes"
+msgstr "Đồng ý"
+
+msgid "no"
+msgstr "Từ chối"
+
+msgid "granted"
+msgstr "Đã cho thêm %1'"
+
+msgid "denied"
+msgstr "Đã từ chối"
+
+msgid "left"
+msgstr "còn lại hôm nay"
+
+msgid "used"
+msgstr "Đã dùng %1"
+
+msgid "pausedTill"
+msgstr "Tạm dừng tới %1"
+
+msgid "bedLine"
+msgstr "Giờ ngủ %1–%2"
+
+msgid "battery"
+msgstr "Pin máy %1"
+
+msgid "now"
+msgstr "Đang mở: %1"
+
+msgid "screenOn"
+msgstr "Màn hình bật"
+
+msgid "screenOff"
+msgstr "Màn hình tắt"
+
+msgid "pending"
+msgstr "%1 lệnh chưa tới máy"
+
+msgid "more"
+msgstr "Thêm giờ"
+
+msgid "bonusClear"
+msgstr "Bỏ giờ thêm hôm nay"
+
+msgid "resume"
+msgstr "Tiếp tục"
+
+msgid "pause"
+msgstr "Tạm dừng"
+
+msgid "pauseH"
+msgstr "Tạm dừng máy con"
+
+msgid "lock"
+msgstr "Khoá máy"
+
+msgid "tapAgain"
+msgstr "Chạm lần nữa"
+
+msgid "ringStart"
+msgstr "Đổ chuông"
+
+msgid "ringStop"
+msgstr "Dừng chuông"
+
+msgid "msg"
+msgstr "Nhắn"
+
+msgid "m1"
+msgstr "Về nhà ăn cơm nhé"
+
+msgid "m2"
+msgstr "Gọi cho bố mẹ ngay"
+
+msgid "m3"
+msgstr "Đến giờ đi ngủ rồi"
+
+msgid "m4"
+msgstr "Cất máy, học bài nhé"
+
+msgid "m5"
+msgstr "Bố mẹ đang tới đón"
+
+msgid "apps"
+msgstr "Chặn app"
+
+msgid "bedOff"
+msgstr "Tắt giờ ngủ"
+
+msgid "bedOn"
+msgstr "Bật giờ ngủ"
+
+msgid "limit"
+msgstr "Giới hạn"
+
+msgid "limitH"
+msgstr "Giới hạn mỗi ngày"
+
+msgid "limitByDay"
+msgstr "(đặt chung cho cả 7 ngày)"
+
+msgid "noLimit"
+msgstr "Không giới hạn"
+
+msgid "events"
+msgstr "Sự kiện"
+
+msgid "refresh"
+msgstr "Làm mới"
+
+msgid "justNow"
+msgstr "vừa xong"
+
+msgid "minAgo"
+msgstr "%1 phút trước"
+
+msgid "hAgo"
+msgstr "%1 giờ trước"
+
+msgid "dAgo"
+msgstr "%1 ngày trước"
+
+msgid "fail"
+msgstr "Lỗi"
+
+msgid "sent"
+msgstr "Đã gửi"
+
+msgid "demoSent"
+msgstr "Dữ liệu mẫu: chưa gửi"
+
+msgid "sending"
+msgstr "Đang gửi…"
+
+msgid "appsH"
+msgstr "Ứng dụng hôm nay"
+
+msgid "appsHint"
+msgstr "Chạm để chặn / bỏ chặn"
+
+msgid "noApps"
+msgstr "Chưa có app nào"
+
+msgid "unblocked"
+msgstr "Đã bỏ chặn %1"
+
+msgid "blocked"
+msgstr "Đã chặn %1"
+
+msgid "noEvents"
+msgstr "Chưa có sự kiện"
+
+msgid "fixLine"
+msgstr "Cập nhật %1 · ±%2 m"
+
+msgid "noLoc"
+msgstr "Chưa có vị trí"
+
+msgid "locate"
+msgstr "Lấy vị trí mới"
+
+msgid "locateSent"
+msgstr "Đã gửi, chờ khoảng 30 giây"
+
+msgid "answer"
+msgstr "Trả lời"
+
+msgid "reqApp"
+msgstr "Con xin mở %1"
+
+msgid "reqAgain"
+msgstr "Nhắc lại %1"
+
+msgid "yesMin"
+msgstr "Cho %1'"
+
+msgid "appAllowed"
+msgstr "Đã cho dùng %1"
+
+msgid "until"
+msgstr "đến %1"
+
+msgid "whyDaily"
+msgstr "Hết giờ hôm nay"
+
+msgid "whyPaused"
+msgstr "Đang tạm dừng"
+
+msgid "whySchedule"
+msgstr "Đang giờ học"
+
+msgid "whyBed"
+msgstr "Đang giờ ngủ"
+
+msgid "whyPass"
+msgstr "Đang được thêm giờ"
+
+msgid "whyCode"
+msgstr "Đã mở bằng mã"
+
+msgid "lostOnLine"
+msgstr "MẤT MÁY: đang bật"
+
+msgid "lostOn"
+msgstr "Báo mất máy"
+
+msgid "lostOff"
+msgstr "Tắt báo mất"
+
+msgid "lostOnDone"
+msgstr "Đã bật báo mất máy"
+
+msgid "lostOffDone"
+msgstr "Đã tắt báo mất máy"
+
+msgid "lostMsgDefault"
+msgstr "Máy này bị mất. Xin gọi cho bố mẹ."
+
+msgid "passEnd"
+msgstr "Kết thúc"
+
+msgid "rcOk"
+msgstr "%1: máy con đã chạy"
+
+msgid "rcFail"
+msgstr "%1: máy con từ chối"
+
+msgid "rcExpired"
+msgstr "%1: hết hạn, chưa chạy"
+
+msgid "rcWait"
+msgstr "%1: chờ máy con…"
+
+msgid "connect"
+msgstr "Kết nối"
+
+msgid "pairHow"
+msgstr "Trang KidGuard → Cài đặt → Đồng hồ: nhập mã"
+
+msgid "timeLeft"
+msgstr "Còn %1"
+
+msgid "tryDemo"
+msgstr "Xem thử"
+
+msgid "connected"
+msgstr "Đã kết nối"
+
+msgid "addKid"
+msgstr "Thêm con"
+
+msgid "noKids"
+msgstr "Chưa kết nối con nào"
+
+msgid "mapLoading"
+msgstr "Đang tải bản đồ %1/%2"
+
+msgid "mapFail"
+msgstr "Chưa có bản đồ, chỉ hiện chữ"
+
+msgid "find"
+msgstr "Chỉ đường"
+
+msgid "askFresh"
+msgstr "Hỏi vị trí mới"
+
+msgid "kidAge"
+msgstr "Vị trí %1"
+
+msgid "gpsOk"
+msgstr "GPS đồng hồ: tốt"
+
+msgid "gpsWait"
+msgstr "Đang tìm GPS…"
+
+msgid "compassCal"
+msgstr "La bàn cần hiệu chỉnh: vẽ số 8 bằng cổ tay"
+
+msgid "compassWait"
+msgstr "Đang chờ la bàn…"
+
+msgid "decSep"
+msgstr ","
+
+msgid "sentX"
+msgstr "Đã gửi: %1"
+
+msgid "cancel"
+msgstr "Huỷ"
+
+msgid "kidsH"
+msgstr "Các con"
+
+msgid "queueH"
+msgstr "Lệnh chưa tới máy"
+
+msgid "queueNone"
+msgstr "Không còn lệnh nào chờ"
+
+msgid "queueWhy"
+msgstr "Máy con nhận lệnh khi có mạng. Lệnh quá hạn sẽ tự huỷ."
+
+msgid "dirN"
+msgstr "B"
+
+msgid "dirE"
+msgstr "Đ"
+
+msgid "dirS"
+msgstr "N"
+
+msgid "dirW"
+msgstr "T"
+
+msgid "toward"
+msgstr "hướng %1"
+
+msgid "nearHint"
+msgstr "Rất gần, trong sai số ~%1 m: mũi tên có thể sai. Đổ chuông để tìm."
+
+msgid "d8_0"
+msgstr "Bắc"
+
+msgid "d8_1"
+msgstr "Đông Bắc"
+
+msgid "d8_2"
+msgstr "Đông"
+
+msgid "d8_3"
+msgstr "Đông Nam"
+
+msgid "d8_4"
+msgstr "Nam"
+
+msgid "d8_5"
+msgstr "Tây Nam"
+
+msgid "d8_6"
+msgstr "Tây"
+
+msgid "d8_7"
+msgstr "Tây Bắc"

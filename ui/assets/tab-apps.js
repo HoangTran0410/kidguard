@@ -1,5 +1,5 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
-const sel = { on: false, set: new Set(), f: "all", limOpen: false, q: "" };   // q: the search text (kept across redraws: a filter chip, a state refresh)
+const sel = { on: false, set: new Set(), f: "all", limOpen: false, q: "", n: 40 };   // n: rows built so far (kept across a state redraw)   // q: the search text (kept across redraws: a filter chip, a state refresh)
 // "Ứng dụng" tab: segmented sub-tabs (app list / hide preinstalled / storage), last one remembered
 let appsSub = (() => { try { return localStorage.getItem("kg.appsSub") || "list"; } catch { return "list"; } })();
 function appsTab(b) {
@@ -60,9 +60,9 @@ function appsList(b) {
       apply("lim", p => { edit.blocked = edit.blocked.filter(v => v !== p); edit.allow = edit.allow.filter(v => v !== p); edit.appMin[p] = m; }, m);
     };
   };
-  const draw = () => {
-    const vis = visible();
-    $("#list").innerHTML = vis.map(x => {
+  // a 150-app list = ~1200 nodes (a <select> per row): build 40 rows, then 40 more when the end scrolls near
+  let vis = [], shown = 0, io = null;
+  const rowHtml = x => {
       const m = mode(x.pkg), nw = isNew(x);
       // ONE tag: the enforced state, only when the dropdown beside it does not already say it (A2.7)
       const on = x.suspended || x.blocked, tag = nw ? `<span class="tag" style="background:#fef3c7;color:#92400e">${ic("sparkles")} ${t("newInst")}</span>`
@@ -79,20 +79,39 @@ function appsList(b) {
         <option value="block" ${m === "block" ? "selected" : ""}>${t("block")}</option>
         <option value="allow" ${m === "allow" ? "selected" : ""}>${t("allow")}</option>
       </select></div>`;
-    }).join("") || `<div class="empty"><span class="e">${ic("circle-dashed")}</span>${t("apps.none")}</div>`;
-    $("#list").querySelectorAll("[data-ok]").forEach(bt => bt.onclick = () => { edit.approved.push(bt.dataset.ok); changed(); draw(); toast("ok|" + t("permitted")); });
-    $("#list").querySelectorAll("[data-c]").forEach(c => c.onchange = () => { c.checked ? sel.set.add(c.dataset.c) : sel.set.delete(c.dataset.c); drawBar(); });
-    $("#list").querySelectorAll("select").forEach(s => s.onchange = () => {
+  };
+  const bindRows = box => {
+    box.querySelectorAll("[data-ok]").forEach(bt => bt.onclick = () => { edit.approved.push(bt.dataset.ok); changed(); draw(); toast("ok|" + t("permitted")); });
+    box.querySelectorAll("[data-c]").forEach(c => c.onchange = () => { c.checked ? sel.set.add(c.dataset.c) : sel.set.delete(c.dataset.c); drawBar(); });
+    box.querySelectorAll("select").forEach(s => s.onchange = () => {
       const p = s.dataset.p, v = s.value;
       edit.blocked = edit.blocked.filter(x => x !== p); edit.allow = edit.allow.filter(x => x !== p); delete edit.appMin[p];
       if (v === "block") edit.blocked.push(p); else if (v === "allow") edit.allow.push(p); else if (v !== "normal") edit.appMin[p] = +v;
       changed();
     });
+  };
+  const more = () => {
+    const l = $("#list"); if (!l) return;
+    const old = l.querySelector(".lmore"); if (old) old.remove();
+    const box = document.createElement("div"); box.innerHTML = vis.slice(shown, shown + 40).map(rowHtml).join(""); shown = Math.min(vis.length, shown + 40); sel.n = Math.max(40, shown);
+    bindRows(box); l.append(...box.childNodes);
+    if (shown < vis.length) {
+      const m = document.createElement("button"); m.type = "button"; m.className = "sm lmore"; m.style.marginTop = "8px";
+      m.innerHTML = `${ic("chevron-down")} ${t("apps.more", vis.length - shown)}`; m.onclick = more; l.append(m);   // also a button: no IntersectionObserver / a screen reader
+      if (io) io.observe(m);
+    }
+  };
+  const draw = () => {
+    vis = visible(); shown = 0;
+    if (io) io.disconnect();
+    io = window.IntersectionObserver ? new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) more(); }, { rootMargin: "600px" }) : null;
+    const l = $("#list"); l.innerHTML = vis.length ? "" : `<div class="empty"><span class="e">${ic("circle-dashed")}</span>${t("apps.none")}</div>`;
+    const want = sel.n; if (vis.length) do more(); while (shown < Math.min(want, vis.length));
     drawBar();
   };
-  $("#f-q").oninput = e => { sel.q = e.target.value; draw(); };
+  $("#f-q").oninput = e => { sel.q = e.target.value; sel.n = 40; draw(); };
   $("#selTog").onclick = () => { sel.on = !sel.on; sel.set.clear(); sel.limOpen = false; appsList(b); };
-  b.querySelectorAll("#flt [data-f]").forEach(x => x.onclick = () => { sel.f = x.dataset.f; appsList(b); });
+  b.querySelectorAll("#flt [data-f]").forEach(x => x.onclick = () => { sel.f = x.dataset.f; sel.n = 40; appsList(b); });
   draw();
 }
 
@@ -162,7 +181,7 @@ function cleanTab(b) {
   b.querySelectorAll("[data-hd]").forEach(c => c.onchange = () => { const s = new Set(draft()); c.checked ? s.add(c.dataset.hd) : s.delete(c.dataset.hd); setD(s); bar(); });
   bar();
 }
-let spaceAll = false;   // "Xem tất cả": the heavy list starts at 15 rows
+let spaceN = 15;   // heavy list rows shown: starts at 15, "Xem thêm" adds 20
 let cacheBusy = 0;      // clearCache sent at (ms): animated busy box until the answer, across redraws; the list is locked
 let healthBusy = "";   // fix-all / single fix running: the i18n key of the step now; the list is locked, one command at a time
 let scanBusy = 0;       // rescan sent at (ms): the "Quét lại" button spins, the list is locked
@@ -233,7 +252,9 @@ async function hlExec(steps) {
     if (!r) break;
   }
   healthBusy = ""; hlResult = { at: Date.now(), items }; hlDraw();
+  // the phone rebuilds its state on the tick the command kicks: the poll right after may still carry the old app list
   await refresh(); hlDraw();
+  setTimeout(() => refresh().then(hlDraw), 2500);
   return items.every(i => i.r === "ok" || i.r === "queued");
 }
 function spaceTabRedraw() { const p = $("#subp"); if (p && appsSub === "space") spaceTab(p); }
@@ -333,7 +354,7 @@ function healthBind(b) {
   const kc = b.querySelector("#f-kc"); if (kc) kc.onchange = e => { if (!edit) return; edit.kidClean = e.target.checked; changed(); };
 }
 function spaceTab(b) {
-  const all = (st.apps || []).filter(x => x.mb > 0).sort((a, b) => b.mb - a.mb), heavy = spaceAll ? all : all.slice(0, 15);
+  const all = (st.apps || []).filter(x => x.mb > 0).sort((a, b) => b.mb - a.mb), heavy = all.slice(0, spaceN);
   // basic mode: `pm clear` through the self-adb shell (any Android version), usable while state.preinstalled is sent
   const owner = !isBasic() && st.owner !== false, cc = owner ? canClear() : !!st.preinstalled;
   // clearCache: every app's cache at once (`pm trim-caches` via KidGuard's own adb, both modes); per app is not possible
@@ -347,11 +368,11 @@ function spaceTab(b) {
       : cache && !healthBusy ? `<button type="button" id="spCache"${scanBusy ? " disabled" : ""} class="sp" style="width:100%;display:flex;gap:12px;align-items:center;text-align:start;margin:0 0 6px">${ic("eraser")}<span><b>${t("clean.cacheBtn", mbTxt(cacheMb))}</b><br><span class="mute" style="font-size:13px;font-weight:400">${t("clean.cacheSub")}</span></span></button>` : ""}
     ${!cacheBusy && st.cacheCleared && Date.now() - st.cacheCleared.at < 6 * 3600000 ? `<p class="mute" style="margin:0 0 8px">${ic("circle-check")} ${t("clean.cacheDone", hhmm(st.cacheCleared.at), mbTxt(+st.cacheCleared.mb || 0))}</p>` : ""}
     <div${busy ? ' class="cbusy-lock" inert aria-disabled="true"' : ""}>${heavy.length ? heavy.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${mbTxt(x.mb)}${x.cache > 0 ? " · " + t("clean.cacheOf", mbTxt(x.cache)) : ""}</span></div>${cc && !x.protected && !x.noClear ? `<button type="button" data-clr="${esc(x.pkg)}" class="sm bad" aria-label="${esc(t("clean.clear") + " " + x.label)}">${ic("trash-2")} ${t("delete")}</button>` : ""}</div>`).join("")
-      + (all.length > heavy.length ? `<button type="button" id="spAll" class="sm" style="margin-top:8px">${t("clean.all", all.length)}</button>` : "")
+      + (all.length > heavy.length ? `<button type="button" id="spAll" class="sm" style="margin-top:8px">${ic("chevron-down")} ${t("clean.more", Math.min(20, all.length - heavy.length), all.length - heavy.length)}</button>` : "")
       : `<p class="mute">${t("clean.noSize")}</p>`}</div>
     <p class="mute">${ic("lightbulb")} ${cc ? t("clean.tipOwner") + " " : ""}${cc ? "" : t("clean.tipBasic") + " "}${t("clean.tipRam")}</p></div>`;
   healthBind(b);
-  const more = b.querySelector("#spAll"); if (more) more.onclick = () => { spaceAll = true; spaceTab(b); };
+  const more = b.querySelector("#spAll"); if (more) more.onclick = () => { spaceN += 20; spaceTab(b); };
   const cb = b.querySelector("#spCache");
   const sc = b.querySelector("#spScan");
   if (sc) sc.onclick = async () => {

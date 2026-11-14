@@ -52,7 +52,7 @@ function homeTab(b) {
   </section>
   <div class="quick" role="group" aria-label="${esc(t("now"))}">
     <button type="button" id="lock" class="tile act"></button><button type="button" id="ring" class="tile act"></button><button type="button" id="loc" class="tile act"></button>
-    <button type="button" id="scrGo" class="tile" ${navOk("screen") ? "" : "disabled"}><b>${ic("smartphone")}</b><span>${t("tab.screen")}</span></button>
+    <button type="button" id="msgGo" class="tile" aria-haspopup="dialog"><b>${ic("message-square")}</b><span>${t("msg.tile")}</span></button>
     <button type="button" id="moreAct" class="tile" aria-haspopup="dialog"><b>${ic("ellipsis")}</b><span>${t("nav.more")}</span></button>
   </div>
   <div id="strip"></div>
@@ -88,8 +88,8 @@ function homeTab(b) {
   $("#lock").onclick = () => act("lock", () => screenOff() ? cmd({ type: "wake" }, t("wake.done"), false) : cmd({ type: "lock" }, t("lock.done"), false), screenOff() ? null : askOf("lock"));
   $("#ring").onclick = () => ringOn() ? ringStop() : earOn() ? toast("warn|" + t("act.noRing")) : act("ring", async () => { const r = await cmd({ type: "ring" }, t("ring.done"), false); if (r && r.result !== "queued") expect("ring", true, "ring"); return r; }, askOf("ring"));
   $("#loc").onclick = () => act("loc", () => cmd({ type: "locate" }, t("locate.done"), false).then(r => { if (r) locStart(); return r; }), askOf("locate"));
-  $("#scrGo").onclick = () => goTab("screen");
   $("#moreAct").onclick = moreSheet;
+  $("#msgGo").onclick = msgSheet;
   actPaint();
 }
 

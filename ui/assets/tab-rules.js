@@ -125,6 +125,9 @@ function homeBody(r) {
 function lostBody(r) {
   return `    <label class="row"><input type="checkbox" id="f-lost" ${r.lostOn ? "checked" : ""}><span class="sp">${ic("siren")} <b>${t("lost.on")}</b></span></label>
     <p class="${r.lostOn ? "" : "mute"}">${r.lostOn ? ic("triangle-alert") + " " + t("lost.stOn") : t("lost.offP")}</p>
+    <label class="row" style="margin-top:6px"><input type="checkbox" id="f-lostL" ${r.lostLock ? "checked" : ""}><span class="sp">${ic("lock")} ${t("lost.lock")}</span></label>
+    <label class="row"><input type="checkbox" id="f-lostR" ${r.lostRing ? "checked" : ""}><span class="sp">${ic("bell")} ${t("lost.ring")}</span></label>
+    <p class="mute" style="margin-top:2px">${ic("map-pin")} ${t("lost.locAlways")}</p>
     <label for="f-lostm" style="display:block;margin-top:10px">${t("lost.msg")}</label>
     <input id="f-lostm" maxlength="200" autocomplete="off" placeholder="${esc(t("lost.msgPh"))}" style="width:100%;margin-top:6px" value="${esc(r.lostMsg)}">
     <label for="f-lostp" style="display:block;margin-top:10px">${t("lost.phone")}</label>
@@ -354,6 +357,8 @@ function rulesWire(b, r) {
   b.querySelectorAll("[data-bne]").forEach(x => x.onchange = () => { const i = +x.dataset.bne, y = b.querySelector(`[data-bns="${i}"]`); bedSet(i, y && y.value, x.value); });
   $("#f-om").onchange = e => { r.oneMore = e.target.checked; changed(); };
   $("#f-lost").onchange = e => { r.lostOn = e.target.checked; changed(); render(); };
+  $("#f-lostL").onchange = e => { r.lostLock = e.target.checked; changed(); };
+  $("#f-lostR").onchange = e => { r.lostRing = e.target.checked; changed(); };
   $("#f-lostm").oninput = e => { r.lostMsg = e.target.value.slice(0, 200); changed(); };
   $("#f-lostp").oninput = e => { r.lostPhone = e.target.value.replace(/[^\d+\-() ]/g, "").slice(0, 20); changed(); };
   wireComfort(b, r);

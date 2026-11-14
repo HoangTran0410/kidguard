@@ -1,0 +1,66 @@
+{
+  "configVersion": "v3",
+  "app": {
+    "appId": 22062,
+    "appName": "KidGuard",
+    "appType": "app",
+    "version": {
+      "code": 19,
+      "name": "0.7.11"
+    },
+    "icon": "icon.png",
+    "vender": "zepp",
+    "description": "KidGuard for parents: screen time, requests, lock, ring, location"
+  },
+  "permissions": [
+    "data:os.device.info",
+    "device:os.local_storage",
+    "device:os.geolocation",
+    "device:os.compass"
+  ],
+  "runtime": {
+    "apiVersion": {
+      "compatible": "3.0.0",
+      "target": "3.0.0",
+      "minVersion": "3.0"
+    }
+  },
+  "targets": {
+    "common": {
+      "module": {
+        "page": {
+          "pages": [
+            "page/index",
+            "page/pick",
+            "page/apps",
+            "page/info",
+            "page/find",
+            "page/pair",
+            "page/kids"
+          ]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        },
+        "setting": {
+          "path": "setting/index"
+        }
+      },
+      "platforms": [
+        {
+          "st": "s",
+          "dw": 432
+        }
+      ]
+    }
+  },
+  "i18n": {
+    "en-US": {
+      "appName": "KidGuard"
+    },
+    "vi-VN": {
+      "appName": "KidGuard"
+    }
+  },
+  "defaultLanguage": "en-US"
+}

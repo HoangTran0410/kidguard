@@ -107,8 +107,8 @@ class Guard : Service() {
     /** Lost mode: every unlock locks the phone again (Device Owner lockNow; basic mode shows the message card instead). */
     private val userPresent = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (!::work.isInitialized || store.released || !store.rules.lostOn || System.currentTimeMillis() < lostGraceUntil) return
-            work.postDelayed({ if (store.rules.lostOn && !store.released) lockForLost(store.rules) }, 800)
+            if (!::work.isInitialized || store.released || !store.rules.lostOn || !store.rules.lostLock || System.currentTimeMillis() < lostGraceUntil) return
+            work.postDelayed({ if (store.rules.lostOn && store.rules.lostLock && !store.released) lockForLost(store.rules) }, 800)
         }
     }
     /**
@@ -120,7 +120,7 @@ class Guard : Service() {
         if (System.currentTimeMillis() < lostGraceUntil) return
         runCatching { MessageActivity.show(this, Notes.lostText(r.lostMsg.ifBlank { getString(R.string.lost_default_msg) }, r.lostPhone), lost = true) }
         if (Policy.isOwner(this)) work.postDelayed({
-            if (store.rules.lostOn && !store.released && System.currentTimeMillis() >= lostGraceUntil) Policy.lockNow(this)
+            if (store.rules.lostOn && store.rules.lostLock && !store.released && System.currentTimeMillis() >= lostGraceUntil) Policy.lockNow(this)
         }, LOST_CARD_MS)
     }
     private var prevAuto = -1; private var prevAutoTz = -1
@@ -371,10 +371,11 @@ class Guard : Service() {
             if (!store.lostApplied) {
                 store.lostApplied = true; store.lostRingStopped = false; store.lostLocateAt = 0; store.lostRingAt = 0
                 store.event("lost", R.string.ev_lost_on); store.log(R.string.ev_lost_on)
-                lockForLost(r); relay?.kick()
+                if (r.lostLock) lockForLost(r); relay?.kick()
             }
             if (now - store.lostLocateAt >= LOST_LOCATE_MS) { store.lostLocateAt = now; locate() }
-            if (!store.lostRingStopped && now - store.lostRingAt >= LOST_RING_EVERY_MS) { store.lostRingAt = now; Ring.start(this, LOST_RING_MS) }
+            if (!r.lostRing) { if (Ring.active && store.lostRingAt > 0 && now - store.lostRingAt < LOST_RING_MS) { store.lostRingAt = 0; Ring.stop(this) } }   // parent turned ringing off mid-alarm
+            else if (!store.lostRingStopped && now - store.lostRingAt >= LOST_RING_EVERY_MS) { store.lostRingAt = now; Ring.start(this, LOST_RING_MS) }
         } else if (store.lostApplied) {
             store.lostApplied = false; store.lostRingStopped = false
             if (Ring.active) Ring.stop(this)

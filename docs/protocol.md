@@ -290,7 +290,7 @@ The first capture / first input of a session is logged in the phone log.
 - Parent `GET /c/<id>/state` -> `{state, rules, seen, pending, expired}`: `expired` = last 10 commands the worker dropped unrun
   (SHORT 10 min / 24 h / ONCE window): `[{id, type, res: "expired", at}]`; the page turns "sent" into "expired, not run".
   The phone's own receipts are `state.done`. `state` the last synced state (`rules` inside it with `pinSet`
-  instead of `pinHash`), `rules` the worker's copy, `seen` ms of the last sync, `pending` = queued command count.
+  instead of `pinHash`), `rules` the worker's copy, `seen` ms of the last sync, `pending` = queued command count, `queue` = the live queued commands `[{id, type, at}]` (last 20, no payload: the watch lists what has not reached the phone yet).
 - Command `unlockEnd` (0.9.16): ends an Authenticator unlock now (`unlockUntil = 0`); not PIN-gated, not ONCE, SHORT.
 - `POST /c/<id>/forget` (token header, same auth as sync): deletes everything stored for this id (state, rules, queue, push
   tokens, Telegram link) and closes the sockets; sent by the phone when it is released. A later sync of the same id binds anew.
@@ -1285,7 +1285,8 @@ when pairing their own phone (`/api/pair`), so it follows the parent from previe
 - **Rules** (all allow-listed, missing = default): `passUntil` ms (0 = none; `decide()` lifts everything but blocked/new while `max(unlockUntil, passUntil) > now`);
   `bedByDay` = `[]` or exactly 7 strings Mon..Sun = the night STARTING that day, each `"HH:mm-HH:mm"` or `""` (no bedtime; early-morning minutes
   belong to the previous day's entry; any bad entry drops the whole list); `oneMore` bool (default true: the child may take +1 minute once per lock period);
-  `lostOn`, `lostMsg` (<= 200), `lostPhone` (<= 20).
+  `lostOn`, `lostMsg` (<= 200), `lostPhone` (<= 20), `lostLock` / `lostRing` bool (0.9.21, default true: lock on enter + every unlock / the 15-minute alarm; locating every 5 min is always on).
+- 0.9.21 rules `msgs`: the parent's saved quick messages, list of strings (<= 12, each <= 120, blanks / repeats dropped). Edited in the message sheet of the page ("Lưu làm mẫu"), listed by the watch's "Nhắn" (built-in texts when empty); sent as an ordinary `message{text}` command.
 - **Grant** (`Grant.apply`): `now.why` "" or "daily" raises today's `bonusMin`; anything else sets `passUntil = max(now, passUntil) + min`.
 - **State** `now: {why, until, name}` (why: lost > paused > schedule > bedtime > daily; "pass"/"code" while a pass / Authenticator unlock is in force; `until` ms, 0 = unknown);
   `done: [{id,type,res,at}]` last 10 command results (relay and LAN); `lastAnswer: {ok,min,kind,app,at}|null`; `lost: {on,applied,ringStopped}`; `oneMore` bool = the +1 minute can be taken now.
@@ -1293,12 +1294,12 @@ when pairing their own phone (`/api/pair`), so it follows the parent from previe
   rate-limited to 5 min, raises an `request` event whose dedup key is `r:<id>:<remindAt>`). Dropped on the first tick of a new local day. `answer {req, ok, min?, note?, always?}`: for kind "app" the parent side edits `approved`/`blocked`.
 - **Events**: `lost` (on/off), `sim` (state/operator/carrier changed; no ICCID: a swap inside the same carrier is not seen), `released` (before teardown, one relay sync + Telegram tick), `releaseFail`,
   `oneMore` (info), `tamper` (basic mode: uninstall/turn-off page, clock page, accessibility off, reboot; rate-limited 10 min per key, 60 min for accessibility off). `Events.important`: sos, tamper, lost, request.
-- **Lost mode**: `lockNow` on enter and on every `USER_PRESENT` (basic: message card); lock-screen info = `lostMsg · lostPhone`; fix every 5 min; alarm 5 min every 15 until `ringStop` or lost off; `release` clears it.
+- **Lost mode**: (when `lostLock`) `lockNow` on enter and on every `USER_PRESENT` (basic: message card); lock-screen info = `lostMsg · lostPhone`; fix every 5 min; alarm 5 min every 15 until `ringStop` or lost off; `release` clears it.
 - **Release**: event `released`, one final relay sync, then `POST /c/<id>/forget` with the kid token, then teardown (a failed release raises `releaseFail`).
 - **PIN counters**: PIN / Authenticator code typed on the child phone (on-device admin) use their own counter + lockout; remote attempts keep `pinFails`/`pinLock`.
 - **Support message** (Device Owner): refreshed when `now` changes: "until HH:mm" for bedtime / schedule / pause, "ask" wording only when paired and askable; the parent's `blockNote` wins; lost mode swaps it.
 
-## Watch connect (after 0.9.18, Zepp watch app `watch/`)
+## Watch connect (after 0.9.18, Zepp watch app `watch/zepp/`)
 Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone involvement; the phone needs no new version).
 - `POST /w/new` body `{"sh": "<sha256 hex of the watch's secret, 64 chars>"}` (no auth, body <= 512 B) -> `200 {"code": "123456", "exp": <ms>}`.
   Code = random 6 digits (collision retried), valid 10 min (`WATCH_TTL`), stored in Durable Object `w:<code>` as `{sh, exp}`; the secret itself never reaches the relay. Errors: 400 bad json / sh, 405 method, 413, 429 (`slow down` per-IP, or `too many codes from this network, try tomorrow`: 30 codes per network per day), 503 `try again`.
@@ -1308,3 +1309,6 @@ Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone 
 - Token choice: the relay stores one `sha256(token)` per kid (bound by the phone's first sync), so the watch receives the same token as the `/go` link; per-device tokens exist only on the phone (`Store.addToken`, LAN pairing). A watch therefore does not appear as its own row in "paired devices" (its requests say `X-KG-Name: Zepp watch`, but the relay does not record names); "renew relay link" cuts it off.
 - Watch side service: default relay `https://kidguard.99-hoangtran.workers.dev` (= `DEFAULT_RELAY`), overridable in the Zepp settings page; polls ~3 s while the connect screen is open; appends `{url,id,token,name}` to settingsStorage `kids` (the shape the Zepp settings page stores).
 - Parent page: Settings > "Đồng hồ" / "Watch" (`s-watch`): 6-digit input + Connect; shown only when the kid has a relay (relay kid, or LAN kid with `relay` on).
+- `GET /c/<id>/tile?z=&x=&y=` (watch map, after 0.9.21): one OpenStreetMap tile (PNG) fetched by the worker and edge-cached 7 days. Auth like every parent route (`X-KG-Token`); `z` 13-18, `x`/`y` inside the zoom (else 400 `bad tile`); 502 `tile <status>` when OSM fails. Why: some networks block `tile.openstreetmap.org` (DNS -> 127.0.0.1) while the relay works; the watch side service falls back to OSM directly.
+  Also accepted without `X-KG-Token` when `k=<tileKey>` is in the query (`tileKey = sha256hex("tile:" + token)`, given by `state?watch=1`): for watches whose image request cannot send headers (Garmin `makeImageRequest`). The key only fetches OSM tiles; wrong / other kid's key = 401.
+- `GET /c/<id>/state?watch=1` (after 0.9.21): the same auth and keys as `/state` but small (~2-6 KB, Garmin's reply limit): `state` = every scalar field of the phone state as is, plus `now`, `location`, `lost` objects, `requests` (last 3), `done` (last 10), `sos` (last 3), `events` (last 10, `{t,kind,text<=80}`), `apps` = 15 most used `{pkg,label<=24,ms}` (no icons), `currentLabel`; `rules` whole (watches edit them with the full-replace PUT); `seen`, `pending`, `queue` (last 10), `expired` (last 10), `tileKey`.

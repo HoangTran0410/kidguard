@@ -126,20 +126,38 @@ export default {
     const th = req.method === "POST" && env.TG_BOT ? url.pathname.match(/^\/tg\/([0-9a-f]{32})$/) : null;
     if (th) return tgHook(req, env, th[1]);
     if (url.pathname === "/w/new" || /^\/w\/\d{6}$/.test(url.pathname)) return watchRoute(req, env, url);
-    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch)$/);
+    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile)$/);
     if (!m) return json({ error: "not found" }, 404);
     if (env.RL) {
       const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
       if (!success) return json({ error: "slow down" }, 429);
     }
     // reject junk before waking a Durable Object (an icon GET may carry the icon-only key instead of the token)
-    if (!/^[0-9a-f]{48}$/.test(tokenOf(req, url)) && !(m[2] === "icon" && ICON_KEY.test(url.searchParams.get("k") || ""))) return json({ error: "not paired" }, 401);
+    if (!/^[0-9a-f]{48}$/.test(tokenOf(req, url)) && !((m[2] === "icon" || m[2] === "tile") && ICON_KEY.test(url.searchParams.get("k") || ""))) return json({ error: "not paired" }, 401);
     const len = +(req.headers.get("content-length") || 0);
     if (len > limitFor(m[2])) return json({ error: "too big" }, 413);
     const stub = env.KIDS.get(env.KIDS.idFromName(m[1]));
     return stub.fetch(req);
   },
 };
+
+/** GET state?watch=1 (docs/protocol.md "Watch connect"): what a watch shows, small enough for Garmin (~8-16 KB).
+ * Scalars of the state as they are, the few lists a watch reads cut short, `apps` = the 15 most used; rules whole
+ * (minus the phone's copy inside state) because watches edit them with a full-replace PUT. */
+function watchState(st, rules) {
+  if (!st) return { state: null, rules };
+  const s = {};
+  for (const [k, v] of Object.entries(st)) if (v === null || typeof v !== "object") s[k] = v;
+  for (const k of ["now", "location", "lost"]) if (st[k] && typeof st[k] === "object") s[k] = st[k];
+  const last = (k, n) => Array.isArray(st[k]) ? st[k].slice(-n) : [];
+  s.requests = last("requests", 3); s.done = last("done", 10); s.sos = last("sos", 3);
+  s.events = last("events", 10).map(e => ({ t: e.t, kind: e.kind, text: String(e.text || "").slice(0, 80) }));
+  s.apps = (Array.isArray(st.apps) ? st.apps : []).filter(a => a && a.label).sort((a, b) => (b.ms || 0) - (a.ms || 0)).slice(0, 15)
+    .map(a => ({ pkg: a.pkg, label: String(a.label).slice(0, 24), ms: a.ms || 0 }));
+  const cur = (Array.isArray(st.apps) ? st.apps : []).find(a => a && a.pkg === st.current);
+  if (cur) s.currentLabel = String(cur.label || "").slice(0, 24);
+  return { state: s, rules: rules || (st.rules || null) };
+}
 
 /** /w/new (watch asks for a code) and /w/<code> (watch polls with its secret). No auth: the watch has no kid yet; limits instead. */
 async function watchRoute(req, env, url) {
@@ -279,6 +297,13 @@ export class Kid {
       if (!ik || ik !== url.searchParams.get("k")) return json({ error: "not paired" }, 401);
       return this.icon(url);
     }
+    // map tile by a tile-only key (sha256("tile:" + token), from state?watch=1): Garmin's image request cannot send headers.
+    // The key fetches OSM tiles and nothing else, so a leaked URL reveals no kid data.
+    if (action === "tile" && req.method === "GET" && !req.headers.get("x-kg-token") && ICON_KEY.test(url.searchParams.get("k") || "")) {
+      const tk = await this.s.get("tileKey");
+      if (!tk || tk !== url.searchParams.get("k")) return json({ error: "not paired" }, 401);
+      return this.tile(req, url);
+    }
     if (!/^[0-9a-f]{48}$/.test(token)) return json({ error: "not paired" }, 401);
     const h = await sha256(token);
     let bound = await this.s.get("tokenHash");
@@ -312,7 +337,13 @@ export class Kid {
       const r = await this.env.WATCH.get(this.env.WATCH.idFromName("w:" + b.code)).fetch("https://w/attach", { method: "POST", body: JSON.stringify({ url: url.origin, id, token, name }) });
       return json(r.status === 200 ? { ok: true } : { error: r.status === 409 ? "code already used" : "no such code" }, r.status === 200 ? 200 : r.status === 409 ? 409 : 404);
     }
-    if (!this.ikSet) { this.ikSet = true; const ik = await sha256("icon:" + token); if ((await this.s.get("iconKey")) !== ik) await this.s.put("iconKey", ik); }
+    if (action === "tile") return req.method === "GET" ? this.tile(req, url) : json({ error: "method" }, 405);
+    if (!this.ikSet) {
+      this.ikSet = true;
+      const [ik, tk] = await Promise.all([sha256("icon:" + token), sha256("tile:" + token)]);
+      const [oi, ot] = await Promise.all([this.s.get("iconKey"), this.s.get("tileKey")]);
+      if (oi !== ik || ot !== tk) await this.s.put({ iconKey: ik, tileKey: tk });
+    }
     const now = Date.now();
     if (action === "ws") {   // the phone's push channel (Relay.kt RelayWs): {"t":"sync",...} = POST sync, server sends {"t":"kick"}
       if ((req.headers.get("upgrade") || "").toLowerCase() !== "websocket") return json({ error: "websocket only" }, 426);
@@ -459,7 +490,11 @@ export class Kid {
     if (action === "state" && req.method === "GET") {
       const [state, rules, seen, cmds] = await Promise.all(["state", "rules", "seen", "cmds"].map(k => this.s.get(k)));
       const st = state ? { ...state, rules: stripPin(state.rules) } : null;
-      return json({ state: st, rules: rules ? stripPin(rules) : null, seen: this.seenNow(seen), pending: (cmds || []).length, expired: (await this.s.get("expired")) || [] });
+      if (url.searchParams.get("watch") === "1") return json({ ...watchState(st, rules ? stripPin(rules) : null), seen: this.seenNow(seen), pending: (cmds || []).length,
+        queue: (cmds || []).filter(c => live(c, Date.now())).slice(-10).map(c => ({ id: c.id, type: c.type, at: c.at })),
+        expired: ((await this.s.get("expired")) || []).slice(-10), tileKey: await sha256("tile:" + token) });
+      return json({ state: st, rules: rules ? stripPin(rules) : null, seen: this.seenNow(seen), pending: (cmds || []).length,
+        queue: (cmds || []).filter(c => live(c, Date.now())).slice(-20).map(c => ({ id: c.id, type: c.type, at: c.at })), expired: (await this.s.get("expired")) || [] });
     }
     if (action === "rules" && req.method === "PUT") {
       const [state, old] = await Promise.all([this.s.get("state"), this.s.get("rules")]);
@@ -546,6 +581,22 @@ export class Kid {
 
   /** /file: POST ?fid&i&n&to&size&name (one chunk), GET ?to= (list), GET ?fid&i (chunk), DELETE ?fid. Parent and phone share the token. */
   /** One phone sync (HTTP POST /sync or a WebSocket {"t":"sync"} message): {cmds, rules?, live?, files?, device?} or {error, status}. */
+  /** OSM map tile for the watches: some networks block tile.openstreetmap.org (DNS -> 127.0.0.1); paired callers
+   * (X-KG-Token) or the tile-only key `k`; edge-cached 7 days. */
+  async tile(req, url) {
+    const [z, x, y] = ["z", "x", "y"].map(k => +url.searchParams.get(k));
+    if (![z, x, y].every(Number.isInteger) || z < 13 || z > 18 || x < 0 || y < 0 || x >= 2 ** z || y >= 2 ** z) return json({ error: "bad tile" }, 400);
+    const src = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`, key = new Request(src);
+    let r = await caches.default.match(key).catch(() => null);
+    if (!r) {
+      const up = await fetch(src, { headers: { "User-Agent": "KidGuardRelay/1 (map for the KidGuard watch app; +https://kid-guard.pages.dev)" } }).catch(() => null);
+      if (!up || !up.ok) return json({ error: "tile " + (up ? up.status : "unreachable") }, 502);
+      r = new Response(await up.arrayBuffer(), { headers: { "content-type": "image/png", "cache-control": "public, max-age=604800" } });
+      await caches.default.put(key, r.clone()).catch(() => {});
+    }
+    return new Response(r.body, { headers: { "content-type": "image/png", "cache-control": "private, max-age=604800", "x-content-type-options": "nosniff" } });
+  }
+
   async icon(url) {
     const pkg = url.searchParams.get("pkg") || "";
     const b64 = PKG.test(pkg) ? await this.s.get("icon:" + pkg) : null;

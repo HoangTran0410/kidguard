@@ -40,6 +40,7 @@ class MainActivity : Activity() {
     private lateinit var codeLabel: TextView
     private lateinit var hint: TextView
     private lateinit var pairBtn: Button
+    private lateinit var pairStop: Button
     private lateinit var steps: SetupSteps
     private lateinit var homeCard: LinearLayout
     private var palKey = ""
@@ -112,6 +113,9 @@ class MainActivity : Activity() {
         pairCard.addView(qr, LinearLayout.LayoutParams(dp(208), dp(208)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(10) })
         hint = TextView(this).apply { textSize = 15f; setTextColor(u.sub); setLineSpacing(0f, 1.15f) }
         pairCard.addView(hint)
+        // a code opened by a parent ("pair another device") can be closed now instead of waiting 10 min; closing only refuses pairing, it opens nothing
+        pairStop = u.button(getString(R.string.main_code_stop), R.drawable.li_x, false) { Store.of(this@MainActivity).closePairing(); refresh() }.apply { visibility = View.GONE }
+        pairCard.addView(pairStop, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
         col.addView(pairCard)
         // quick tiles: SOS first (keeps its confirm modal, see askSos), then the tiles the child picked (KidTilesLogic), then Edit
         quickBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -848,6 +852,7 @@ class MainActivity : Activity() {
             hint.setCompoundDrawablesRelative(null, null, null, null)
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             pairBtn.visibility = View.GONE
+            pairStop.visibility = if (s.everPaired) View.VISIBLE else View.GONE
         } else {
             code.visibility = View.GONE; codeLabel.visibility = View.GONE; qr.visibility = View.GONE; qrFor = null
             hint.gravity = Gravity.START
@@ -855,6 +860,7 @@ class MainActivity : Activity() {
                 else getString(R.string.main_hint_managed, lan ?: getString(R.string.main_no_wifi)); Ic.lead(hint, R.drawable.li_users, ui2.sub)
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             pairBtn.visibility = if (hidden) View.GONE else View.VISIBLE
+            pairStop.visibility = View.GONE
         }
         heroRefresh(s)
         ui.removeCallbacks(refreshLoop); ui.postDelayed(refreshLoop, 3000)   // one loop, however often refresh() is called

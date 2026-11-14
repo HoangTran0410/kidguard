@@ -1,0 +1,37 @@
+# XcodeGen spec: `brew install xcodegen && xcodegen generate` makes KidGuardWatch.xcodeproj (not committed).
+# Standalone watch-only app (WKApplication, no iPhone app, no WatchConnectivity): talks to the relay with URLSession.
+name: KidGuardWatch
+options:
+  bundleIdPrefix: dev.kidguard
+  deploymentTarget:
+    watchOS: "10.0"
+  developmentLanguage: en
+packages:
+  KidGuardCore:
+    path: Core
+targets:
+  KidGuardWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: App
+        excludes: ["Info.plist"]
+    dependencies:
+      - package: KidGuardCore
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: KidGuard
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [en, vi]
+        WKApplication: true
+        # no WKCompanionAppBundleIdentifier: the app installs from the watch's App Store / via Xcode, runs alone
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.kidguard.watch
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: NO
+        # signing: set DEVELOPMENT_TEAM to the owner's team id (Xcode > Signing & Capabilities), never commit it
+        CODE_SIGN_STYLE: Automatic

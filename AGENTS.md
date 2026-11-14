@@ -9,13 +9,13 @@ The child app is also a kid launcher, shipped alone as the "KidGuard Home" flavo
 |---|---|
 | What KidGuard is allowed to do (Device Owner, accessibility, background start, broadcasts, ...) and which flow uses each: check before saying "can't" or building a new mechanism | `docs/flows.md` §0 |
 | How a feature works end to end (trigger -> steps -> state -> gotchas, with file pointers) | `docs/flows.md` |
-| What was already decided / tried and rejected / OEM quirks / past bugs / open issues | `docs/decisions.md` |
+| What was already decided / tried and rejected / OEM quirks / past bugs / open issues | `docs/decisions/` (index: `README.md`; one file per area) |
 | Wire formats: rules, state, commands, endpoints, setup steps (**the contract**) | `docs/protocol.md` (900 lines: grep the heading) |
 | Which feature works with which setup (Device Owner / basic / +WSS / +adb / Home) and over which link (LAN / Tailscale / relay) | `docs/support-matrix.md` (update the row in the same commit) |
 | Launcher perf budgets, how to measure, rules (**any launcher UI change**) | `docs/launcher-perf.md`, `scripts/perf.sh` |
 | User-facing docs | `README.md`, `website/guide.html` |
 
-Before designing or "fixing" something, grep `docs/decisions.md` for it: many ideas were already measured and dropped.
+Before designing or "fixing" something, grep the area file in `docs/decisions/` for it: many ideas were already measured and dropped.
 When you settle something durable (a decision, a rejected approach, a platform quirk), add one line there in the same commit.
 
 ## Hard rules
@@ -44,7 +44,7 @@ When you settle something durable (a decision, a rejected approach, a platform q
 ## Layout (where is X)
 Root: `android/` (Gradle: `app/` child app with flavors `kid` + `home`, `parent/` parent app), `ui/` (parent page +
 installers, also the APK assets dir and imported by the worker), `relay/` (Cloudflare Worker + Durable Object), `website/`
-(static site kid-guard.pages.dev), `watch/` (Zepp OS parent app for Amazfit Bip Max: `app-side/` runs in the Zepp phone app and talks to the relay like the page, `page/` = watch screens; build `cd watch && npm ci && zeus build`, install `tools/install.exp` = the owner's watch, ask first), `docs/`, `scripts/` (build, setup, relay deploy). Build outputs: `build/`.
+(static site kid-guard.pages.dev), `watch/` (parent watch apps, one folder per platform, shared contract in `watch/README.md`: `zepp/` Zepp OS for the owner's Amazfit Bip Max (`app-side/` runs in the Zepp phone app and talks to the relay like the page, `page/` = watch screens; build `cd watch/zepp && npm ci && npx zeus build`, install `tools/install.exp` = the owner's watch, ask first), `wearos/`, `garmin/`, `apple/`; each has a README in the flows.md style), `docs/`, `scripts/` (build, setup, relay deploy). Build outputs: `build/`.
 
 `K/` = `android/app/src/main/kotlin/dev/kidguard/`:
 | Area | Files |
@@ -80,7 +80,7 @@ Flavor `home` (`dev.kidguard.home`): launcher only, `src/home/AndroidManifest.xm
 - Release steps (bump, build, tag, GitHub release assets, relay + site deploy): `docs/flows.md` §4.3.
   Deploys (`wrangler deploy`, Pages) need the owner's OK.
 
-## Common gotchas (more in `docs/decisions.md` §3)
+## Common gotchas (more in `docs/decisions/platforms.md`)
 - Android 8.1 / ColorOS: adb grants need "Disable permission monitoring"; Recents swipe = force-stop; stable inset 0.
 - Old WebView (Chrome < 111, e.g. Oppo = 101): `color-mix()` only inside `@supports`; no fallback-line trick.
 - HyperOS: the home window must show the wallpaper (`windowShowWallpaper` in BOTH `values` and `values-night` themes)

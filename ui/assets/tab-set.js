@@ -404,6 +404,7 @@ function setTab(b) {
       cur.relay = { url: new URL(url).origin, id: r.id, token: r.token }; save(kids);
       $("#relayOut").innerHTML = relayLinkHtml(goLink(cur.relay.url, r.id, r.token, cur.name));
       bindCopy();
+      refresh();   // st.relay + cur.relay now set: the Watch section (and others that need the relay) redraw with their inputs
     }
   };
   if ($("#tsOn")) $("#tsOn").onclick = async () => {

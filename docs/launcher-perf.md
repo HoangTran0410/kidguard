@@ -2,7 +2,7 @@
 
 The kid launcher is the phone's home screen: it is on screen more than any app, and the slowest test phone (Oppo A5s,
 Android 8.1, JIT only, 60 Hz) is a real kid's phone. **Every launcher change that adds or changes UI is measured on a
-real phone before it is committed**, and the numbers go in the commit message (and `docs/decisions.md` if they teach
+real phone before it is committed**, and the numbers go in the commit message (and `docs/decisions/launcher.md` if they teach
 something). "Builds and looks fine" is not a perf check.
 
 ## 1. Budgets (Oppo A5s, release build, warm = 2nd open onward)
@@ -26,7 +26,7 @@ Device rules first: memory note *test-devices-rules* (Oppo: restore layouts, wak
 type the PIN; POCO = owner's daily phone, install only).
 
 ```sh
-cd android && ./gradlew --no-watch-fs assembleKidRelease        # release: debug numbers are 2-7x off (decisions.md)
+cd android && ./gradlew --no-watch-fs assembleKidRelease        # release: debug numbers are 2-7x off (docs/decisions/launcher.md)
 adb -s $S install -r app/build/outputs/apk/kid/release/app-kid-release.apk   # debug + release share the key
 scripts/perf.sh $S on            # kgperf probe on (off by default in every build)
 scripts/perf.sh $S reset; <do the action 3x with adb input>; scripts/perf.sh $S frames; scripts/perf.sh $S log
@@ -42,7 +42,7 @@ scripts/perf.sh $S reset; <do the action 3x with adb input>; scripts/perf.sh $S 
 - Window animations (sheet slide, app open) run in the system compositor: a slow app frame delays the content, it does
   not stutter the slide itself. Still count it: the kid sees the empty sheet.
 
-## 3. Rules (each one came from a measured problem; see decisions.md for the numbers)
+## 3. Rules (each one came from a measured problem; see docs/decisions/launcher.md for the numbers)
 
 **Build less, later**
 1. First frame = only what is visible. Below the fold / grids are built after the first frame is DRAWN: an
@@ -71,7 +71,7 @@ scripts/perf.sh $S reset; <do the action 3x with adb input>; scripts/perf.sh $S 
 
 **Don't optimise blind**
 12. Measure first, then fix the biggest cost, then measure again with the same steps. A "fix" without a before/after
-    number is not a fix (several were tried and dropped: decisions.md §2).
+    number is not a fix (several were tried and dropped: docs/decisions/launcher.md "Rejected").
 
 ## 4. Checklist for a launcher PR / commit
 
@@ -84,4 +84,4 @@ scripts/perf.sh $S reset; <do the action 3x with adb input>; scripts/perf.sh $S 
       1.3 and on a 4- and a 5-column grid (emulator: `settings put system font_scale 1.3`). A label beside a value
       must not be squeezed to 0 (a weight-1 label next to a wrap-content value: "Vuốt lên" went 1 letter per line),
       a number must never be ellipsized ("1 …"). Build + unit tests say nothing about this.
-- [ ] A durable lesson (a trick that worked or didn't) = one line in `docs/decisions.md`.
+- [ ] A durable lesson (a trick that worked or didn't) = one line in `docs/decisions/launcher.md`.

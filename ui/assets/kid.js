@@ -4,7 +4,7 @@ let noState = false;   // relay answered {state: null}: the child never synced
 let gen = 0;   // bumped by every screen change; async work started for an older screen drops its result
 // relay: the phone sends the state only when it changed, so its sync time (seen) says "online", not state.t
 function lastSeen() { return cur && cur.via !== "lan" && seenAt ? Math.max(seenAt, st ? st.t : 0) : (st ? st.t : 0); }
-async function open(k) { const g = ++gen; if (askDone) askDone(false, true); leaveSave(); pairLocal = null; wantReset(); screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); sel.q = ""; hideDraft = null; noState = false; saveFail(false); render(); if ($("#back")) navTo(1); clearInterval(timer); await refresh(); if (g !== gen) return; clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
+async function open(k) { const g = ++gen; if (askDone) askDone(false, true); leaveSave(); pairLocal = null; wantReset(); screenStop(); earStop(); cur = k; cachedAt = 0; viewDay = null; histDays = null; st = null; edit = null; trk = []; trkLoaded = 0; mv = null; sel.on = false; sel.set.clear(); sel.q = ""; sel.n = 40; spaceN = 15; hideDraft = null; noState = false; lastSig = ""; saveFail(false); render(); if ($("#back")) navTo(1); clearInterval(timer); await refresh(); if (g !== gen) return; clearInterval(timer); timer = setInterval(refresh, k.via === "lan" ? 4000 : 8000); }
 
 // One poll at a time (a hung mobile link must not stack them; one stuck > 30 s no longer blocks). Nobody touched the
 // page for 2 min -> every 30 s instead of 4 / 8 s (a forgotten tab kept the phone syncing its state every 30 s); a touch
@@ -60,16 +60,19 @@ async function refresh1() {
     else if ((nw.rev || 0) > (edit.rev || 0) && !saveT && !saveBusy && !busy && !saveFailed) { edit = norm(structuredClone(nw)); editBase = structuredClone(edit); lastSig = ""; }
   }
   // redraw the tab only when what it shows changed and nobody is using a control (icons would reload, a select would close)
-  const sig = st ? JSON.stringify([tab, st.rules && st.rules.rev, st.apps.map(a => [a.suspended, a.blocked, Math.floor(a.ms / 60000)]),
+  const sig = st ? JSON.stringify([tab, st.rules && st.rules.rev, st.apps.map(a => [a.suspended, a.blocked, Math.floor(a.ms / 60000), a.bg, a.bgMine]),
     st.location && st.location.t, (st.log || []).length, ((st.log || []).slice(-1)[0] || {}).t, (st.track || []).length, Math.floor(st.usedMs / 60000), lastErr, cachedAt, viewDay,
     (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, st.totpOn, st.unlockUntil, st.now && st.now.why, (st.requests || []).map(q => q.remindAt || 0).join(), rc.map(x => x.s).join(), (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(","), (st.preinstalled || []).map(x => (x.hidden ? 1 : 0) + (x.refused ? 2 : 0)).join(""), (st.devices || []).map(d => d.id + d.name).join(","), (st.rules && st.rules.hidden || []).join(","),
     st.sh && [st.sh.busy, st.sh.tcp, st.sh.tcpUp, (st.sh.log || []).map(e => e.at).join(",")], st.support && [st.support.busy, st.support.err, st.support.code, (st.support.msgs || []).length]]) : lastErr + (noState ? "|nostate" : "");
+  // background-limit fields (bg / bgMine) change a few seconds after the command, on the phone's next tick: redraw the open "App chạy nền" sheet then
+  const bgSig = st ? (st.apps || []).map(a => (a.bg === false ? 1 : 0) + (a.bgMine ? 2 : 0)).join("") : "";
+  if (bgSig !== lastBgSig) { const was = lastBgSig; lastBgSig = bgSig; if (was && typeof hlSheetDraw === "function" && hlSheetDraw && !busy) hlSheetDraw(); }
   if (tab === "screen") updateLive();   // never redraw the screen tab: the <img> updates by itself
   else if (sig !== lastSig && !busy) { lastSig = sig; render(); } else updateLive();
   if (tab === "files" && k === cur) fxSync();   // shared folder list + relay upload delivery (its own redraw)
   if (tab === "set") sysDraw();   // the phone-settings card follows st.sys by itself
 }
-let lastSig = "";
+let lastSig = "", lastBgSig = "";
 
 let saveT = null, saveBusy = 0, saveFailed = false;
 let zoneWarn = 0;   // zone count we already warned about (a zone without valid coordinates is not saved)

@@ -1,0 +1,7 @@
+<resources>
+    <settings>
+        <setting propertyKey="@Properties.relay" title="@Strings.RelayTitle">
+            <settingConfig type="alphaNumeric" />
+        </setting>
+    </settings>
+</resources>

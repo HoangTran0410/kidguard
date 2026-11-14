@@ -113,7 +113,8 @@ function norm(e) {
   e.kidClean = !!e.kidClean;
   e.passUntil = +e.passUntil || 0;   // 0.9.16 timed pass (docs/protocol.md "More time")
   e.bedByDay = Array.isArray(e.bedByDay) && e.bedByDay.length === 7 ? e.bedByDay.map(x => String(x || "")) : []; e.oneMore = e.oneMore !== false;
-  e.lostOn = !!e.lostOn; e.lostMsg = String(e.lostMsg || "").slice(0, 200); e.lostPhone = String(e.lostPhone || "").slice(0, 20);
+  e.lostOn = !!e.lostOn; e.lostMsg = String(e.lostMsg || "").slice(0, 200); e.lostPhone = String(e.lostPhone || "").slice(0, 20); e.lostLock = e.lostLock !== false; e.lostRing = e.lostRing !== false;
+  e.msgs = (Array.isArray(e.msgs) ? e.msgs : []).map(x => String(x || "").trim().slice(0, 120)).filter(Boolean).slice(0, 12);
   e.blocked = e.blocked || []; e.allow = e.allow || []; e.appMin = e.appMin || {};
   e.chores = Array.isArray(e.chores) ? e.chores : []; e.zones = Array.isArray(e.zones) ? e.zones : [];
   e.groups = Array.isArray(e.groups) ? e.groups : []; e.unlockMin = [15, 30, 60, 120].includes(+e.unlockMin) ? +e.unlockMin : 30;

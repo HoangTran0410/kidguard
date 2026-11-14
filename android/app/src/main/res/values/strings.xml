@@ -357,6 +357,7 @@
 
     <!-- Child main screen -->
     <string name="main_tagline">Helping kids use their phone safely</string>
+    <string name="main_code_stop">Turn off code now</string>
     <string name="main_code_label">PAIRING CODE</string>
     <string name="main_code_left">PAIRING CODE · %1$s LEFT</string>
     <string name="main_code_under1">UNDER 1 MIN</string>

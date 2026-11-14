@@ -347,6 +347,7 @@
 
     <!-- Child main screen -->
     <string name="main_tagline">Dùng điện thoại an toàn</string>
+    <string name="main_code_stop">Tắt mã ngay</string>
     <string name="main_code_label">MÃ GHÉP ĐÔI</string>
     <string name="main_code_left">MÃ GHÉP ĐÔI · CÒN %1$s</string>
     <string name="main_code_under1">DƯỚI 1 PHÚT</string>

@@ -1,0 +1,8 @@
+# developer key: never commit (generate with openssl, keep it outside the repo)
+*.der
+*.pem
+developer_key*
+bin/
+*.prg
+*.iq
+*.prg.debug.xml

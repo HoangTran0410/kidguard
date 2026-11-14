@@ -2,7 +2,7 @@
 
 Traced from the code on 2026-11-09 (main @ 0c95d99). For each flow: trigger -> steps -> where state lives -> gotchas.
 **Line numbers drift**: treat `file:123` as a hint and grep the function name. Wire formats are in `docs/protocol.md`
-(the contract); decisions, rejected approaches and known open issues are in `docs/decisions.md`.
+(the contract); decisions, rejected approaches and known open issues are in `docs/decisions/` (one file per area, index in `README.md`).
 
 Sections: 0 Privileges -> flows · 1 Enforcement (child app) · 2 Parent <-> phone (LAN, relay, parent app) · 3 Kid launcher · 4 Setup, build,
 release · 5 Add-a-feature checklists (new command / rule field / state field / worker route).
@@ -336,9 +336,9 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 - Steps: text goes through `addRelayLink` (relay link) or the kid QR `http://host[:port]/#pair=<6 digits>`; anything else is ignored, never opened as a URL. Settings shows an invite QR (relay link) for the other parent.
 - Gotchas: plain browsers have no scan button; no Play services = toast + manual entry.
 
-### 2.13 Connect a Zepp watch (after 0.9.18, `watch/`, `relay/src/index.js` `watchRoute` + `Watch`)
-- Trigger: watch with no kid (or "Thêm con") opens `page/pair` (`watch/page/pair.js`): big 6-digit code, time left, "Xem thử" = demo phone only when tapped.
-- Steps: watch -> `PAIR_NEW` to the side service (`watch/app-side/index.js`, runs in the Zepp app) -> `POST <relay>/w/new {sh=sha256(secret)}` -> `{code, exp}` (DO `w:<code>`, 10 min). Side service polls `PAIR_POLL` ~3 s -> `GET /w/<code>` + `X-KG-Secret`. Parent page: Settings > Watch (`UI/tab-set.js` `watchCard/watchGo`) -> `POST /c/<id>/watch {code,name}` with the kid's normal relay auth (`index.js` Kid.handle `watch`; LAN kids go through `viaRelay` with `k.relay`) -> relay attaches `{url, id, token, name}` to the code. Next poll returns it once and deletes the entry; side service appends it to settingsStorage `kids`; watch shows name + "Đã kết nối" and goes home.
+### 2.13 Connect a Zepp watch (after 0.9.18, `watch/zepp/`, `relay/src/index.js` `watchRoute` + `Watch`)
+- Trigger: watch with no kid (or "Thêm con") opens `page/pair` (`watch/zepp/page/pair.js`): big 6-digit code, time left, "Xem thử" = demo phone only when tapped.
+- Steps: watch -> `PAIR_NEW` to the side service (`watch/zepp/app-side/index.js`, runs in the Zepp app) -> `POST <relay>/w/new {sh=sha256(secret)}` -> `{code, exp}` (DO `w:<code>`, 10 min). Side service polls `PAIR_POLL` ~3 s -> `GET /w/<code>` + `X-KG-Secret`. Parent page: Settings > Watch (`UI/tab-set.js` `watchCard/watchGo`) -> `POST /c/<id>/watch {code,name}` with the kid's normal relay auth (`index.js` Kid.handle `watch`; LAN kids go through `viaRelay` with `k.relay`) -> relay attaches `{url, id, token, name}` to the code. Next poll returns it once and deletes the entry; side service appends it to settingsStorage `kids`; watch shows name + "Đã kết nối" and goes home.
 - Token: the relay keeps ONE token per phone (sha256 bound by the phone's first sync; only the phone can mint paired-device tokens, over LAN), so the watch gets the same token as the `/go` link. No separate "Zepp watch" device in "paired devices": removing it = renew the relay link (`relayRenew`), which also logs out the other parents.
 - Gotchas: relay URL before any kid = `DEFAULT_RELAY` (or settingsStorage `relay`, settings page). The code is only a rendezvous: whoever has the kid token can attach it, whoever has the secret can fetch it. `/w/new` is capped per network (Gate `wip:`, 30/day). Expired codes: lazy check + alarm.
 - Wire: protocol "Watch connect".

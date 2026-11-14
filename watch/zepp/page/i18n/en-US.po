@@ -1,0 +1,380 @@
+msgid "loading"
+msgstr "Loading…"
+
+msgid "noPhone"
+msgstr "Can't reach the phone"
+
+msgid "retry"
+msgstr "Retry"
+
+msgid "nextKid"
+msgstr "Next kid ›"
+
+msgid "online"
+msgstr "online"
+
+msgid "seen"
+msgstr "last seen %1"
+
+msgid "demo"
+msgstr "demo data"
+
+msgid "sosAt"
+msgstr "SOS at %1"
+
+msgid "sosDone"
+msgstr "Got it"
+
+msgid "where"
+msgstr "Location"
+
+msgid "ring"
+msgstr "Ring"
+
+msgid "reqLine"
+msgstr "Asks for %1' more"
+
+msgid "yes"
+msgstr "Allow"
+
+msgid "no"
+msgstr "Deny"
+
+msgid "granted"
+msgstr "Gave %1' more"
+
+msgid "denied"
+msgstr "Denied"
+
+msgid "left"
+msgstr "left today"
+
+msgid "used"
+msgstr "Used %1"
+
+msgid "pausedTill"
+msgstr "Paused until %1"
+
+msgid "bedLine"
+msgstr "Bedtime %1–%2"
+
+msgid "battery"
+msgstr "Battery %1"
+
+msgid "now"
+msgstr "Using: %1"
+
+msgid "screenOn"
+msgstr "Screen on"
+
+msgid "screenOff"
+msgstr "Screen off"
+
+msgid "pending"
+msgstr "%1 commands not delivered"
+
+msgid "more"
+msgstr "More time"
+
+msgid "bonusClear"
+msgstr "Remove today's extra"
+
+msgid "resume"
+msgstr "Resume"
+
+msgid "pause"
+msgstr "Pause"
+
+msgid "pauseH"
+msgstr "Pause the phone"
+
+msgid "lock"
+msgstr "Lock"
+
+msgid "tapAgain"
+msgstr "Tap again"
+
+msgid "ringStart"
+msgstr "Ring"
+
+msgid "ringStop"
+msgstr "Stop ringing"
+
+msgid "msg"
+msgstr "Message"
+
+msgid "m1"
+msgstr "Come home for dinner"
+
+msgid "m2"
+msgstr "Call us now"
+
+msgid "m3"
+msgstr "Time for bed"
+
+msgid "m4"
+msgstr "Put the phone away and study"
+
+msgid "m5"
+msgstr "We're coming to pick you up"
+
+msgid "apps"
+msgstr "Block apps"
+
+msgid "bedOff"
+msgstr "Bedtime off"
+
+msgid "bedOn"
+msgstr "Bedtime on"
+
+msgid "limit"
+msgstr "Limit"
+
+msgid "limitH"
+msgstr "Daily limit"
+
+msgid "limitByDay"
+msgstr "(same for all 7 days)"
+
+msgid "noLimit"
+msgstr "No limit"
+
+msgid "events"
+msgstr "Events"
+
+msgid "refresh"
+msgstr "Refresh"
+
+msgid "justNow"
+msgstr "just now"
+
+msgid "minAgo"
+msgstr "%1 min ago"
+
+msgid "hAgo"
+msgstr "%1 h ago"
+
+msgid "dAgo"
+msgstr "%1 d ago"
+
+msgid "fail"
+msgstr "Error"
+
+msgid "sent"
+msgstr "Sent"
+
+msgid "demoSent"
+msgstr "Demo data: not sent"
+
+msgid "sending"
+msgstr "Sending…"
+
+msgid "appsH"
+msgstr "Today's apps"
+
+msgid "appsHint"
+msgstr "Tap to block / unblock"
+
+msgid "noApps"
+msgstr "No apps yet"
+
+msgid "unblocked"
+msgstr "Unblocked %1"
+
+msgid "blocked"
+msgstr "Blocked %1"
+
+msgid "noEvents"
+msgstr "No events yet"
+
+msgid "fixLine"
+msgstr "Updated %1 · ±%2 m"
+
+msgid "noLoc"
+msgstr "No location yet"
+
+msgid "locate"
+msgstr "Get a fresh fix"
+
+msgid "locateSent"
+msgstr "Sent, wait about 30 s"
+
+msgid "answer"
+msgstr "Answer"
+
+msgid "reqApp"
+msgstr "Wants to open %1"
+
+msgid "reqAgain"
+msgstr "Asked again %1"
+
+msgid "yesMin"
+msgstr "Give %1'"
+
+msgid "appAllowed"
+msgstr "%1 allowed"
+
+msgid "until"
+msgstr "until %1"
+
+msgid "whyDaily"
+msgstr "Out of time today"
+
+msgid "whyPaused"
+msgstr "Paused"
+
+msgid "whySchedule"
+msgstr "School time"
+
+msgid "whyBed"
+msgstr "Bedtime"
+
+msgid "whyPass"
+msgstr "Extra time on"
+
+msgid "whyCode"
+msgstr "Unlocked by code"
+
+msgid "lostOnLine"
+msgstr "LOST MODE is on"
+
+msgid "lostOn"
+msgstr "Lost phone"
+
+msgid "lostOff"
+msgstr "Lost mode off"
+
+msgid "lostOnDone"
+msgstr "Lost mode on"
+
+msgid "lostOffDone"
+msgstr "Lost mode off"
+
+msgid "lostMsgDefault"
+msgstr "This phone is lost. Please call my parents."
+
+msgid "passEnd"
+msgstr "End extra time"
+
+msgid "rcOk"
+msgstr "%1: done on the phone"
+
+msgid "rcFail"
+msgstr "%1: phone refused"
+
+msgid "rcExpired"
+msgstr "%1: expired, not run"
+
+msgid "rcWait"
+msgstr "%1: waiting for the phone…"
+
+msgid "connect"
+msgstr "Connect"
+
+msgid "pairHow"
+msgstr "KidGuard page → Settings → Watch: enter the code"
+
+msgid "timeLeft"
+msgstr "%1 left"
+
+msgid "tryDemo"
+msgstr "Try demo"
+
+msgid "connected"
+msgstr "Connected"
+
+msgid "addKid"
+msgstr "Add kid"
+
+msgid "noKids"
+msgstr "No kid connected"
+
+msgid "mapLoading"
+msgstr "Loading map %1/%2"
+
+msgid "mapFail"
+msgstr "Map unavailable, showing text only"
+
+msgid "find"
+msgstr "Find"
+
+msgid "askFresh"
+msgstr "Ask for a new location"
+
+msgid "kidAge"
+msgstr "Kid location %1"
+
+msgid "gpsOk"
+msgstr "Watch GPS: OK"
+
+msgid "gpsWait"
+msgstr "Looking for GPS..."
+
+msgid "compassCal"
+msgstr "Compass needs calibration: draw a figure 8 with your wrist"
+
+msgid "compassWait"
+msgstr "Waiting for the compass..."
+
+msgid "decSep"
+msgstr "."
+
+msgid "sentX"
+msgstr "Sent: %1"
+
+msgid "cancel"
+msgstr "Cancel"
+
+msgid "kidsH"
+msgstr "Kids"
+
+msgid "queueH"
+msgstr "Not on the phone yet"
+
+msgid "queueNone"
+msgstr "Nothing waiting"
+
+msgid "queueWhy"
+msgstr "The phone gets them when it is online. Old ones expire by themselves."
+
+msgid "dirN"
+msgstr "N"
+
+msgid "dirE"
+msgstr "E"
+
+msgid "dirS"
+msgstr "S"
+
+msgid "dirW"
+msgstr "W"
+
+msgid "toward"
+msgstr "toward %1"
+
+msgid "nearHint"
+msgstr "Very close, within ~%1 m GPS error: the arrow may be wrong. Ring the phone to find it."
+
+msgid "d8_0"
+msgstr "north"
+
+msgid "d8_1"
+msgstr "north-east"
+
+msgid "d8_2"
+msgstr "east"
+
+msgid "d8_3"
+msgstr "south-east"
+
+msgid "d8_4"
+msgstr "south"
+
+msgid "d8_5"
+msgstr "south-west"
+
+msgid "d8_6"
+msgstr "west"
+
+msgid "d8_7"
+msgstr "north-west"
