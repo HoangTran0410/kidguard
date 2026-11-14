@@ -73,8 +73,9 @@ internal class MonthGrid(ctx: Context, private val text: Int, private val sub: I
         val lineH = height / (weeks + 2.3f)
         val sd = resources.displayMetrics.scaledDensity * scale.coerceAtMost(1.15f)
         // type scale (WType): never above the shared sizes, smaller when the cell is
-        val ts = WType.cap(minOf(lineH * 0.5f, colW * 0.42f) * scale.coerceAtMost(1.15f), WType.BODY, sd)
-        val tsTitle = WType.cap(ts, WType.TITLE, sd); val tsHead = WType.cap(ts * 0.8f, WType.CAPTION, sd)
+        // the WType sizes, only smaller when a line is too short for them (digits ~0.75 of a line, like iOS / HyperOS)
+        val ts = WType.cap(minOf(lineH * 0.75f, colW * 0.45f), WType.BODY, sd)
+        val tsTitle = WType.cap(lineH * 0.8f, WType.TITLE, sd); val tsHead = WType.cap(lineH * 0.62f, WType.CAPTION, sd)
         // title
         p.typeface = bold; p.textSize = tsTitle; p.color = head; p.textAlign = Paint.Align.LEFT
         p.letterSpacing = 0.08f

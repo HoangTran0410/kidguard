@@ -36,7 +36,10 @@ internal fun HomeActivity.analogWidget(dv: View0, w: Int, h: Int): View {
 internal fun HomeActivity.monthWidget(dv: View0, w: Int, h: Int): View {
     val card = wCard().apply { setPadding(dp(8), dp(8), dp(8), dp(8)) }
     val grid = MonthGrid(this, pal.text, pal.sub, pal.solid, pal.onSolid, model?.style?.font?.toFloat() ?: 1f, pal.accentText).apply { day = dv.now; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
-    card.addView(grid, LinearLayout.LayoutParams(-1, dp(if (h >= 2) 170 else 120)))
+    // the grid takes the cell's height (FitCell grows the card to it) instead of a fixed 170 dp that a 2-row cell then
+    // scaled down, text included; minimumHeight is what it asks for before that
+    grid.minimumHeight = dp(if (h >= 2) 150 else 110)
+    card.addView(grid, LinearLayout.LayoutParams(-1, 0, 1f))
     val fmt = SimpleDateFormat("EEEE, d MMMM yyyy", resources.configuration.locales[0])
     card.contentDescription = fmt.format(Date(dv.now))
     tickers += { v -> grid.day = v.now; card.contentDescription = fmt.format(Date(v.now)) }

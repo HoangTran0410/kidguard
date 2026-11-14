@@ -217,6 +217,9 @@ internal class FitRow(c: android.content.Context, private val drop: View) : Line
 
 internal fun HomeActivity.dur(ms: Long) = HomeLogic.hm(ms).let { (h, m) -> if (h == 0) getString(R.string.home_m, m) else if (m == 0) getString(R.string.home_h, h) else getString(R.string.home_hm, h, m) }
 
+/** A card that can fit a cell height by shrinking its graphics (icons, gaps), so its text keeps the [WType] sizes. */
+internal interface FitsHeight { fun fitHeight(px: Int) }
+
 /** The card fills its cells (content centred in it); taller content is scaled down to fit ([FitCell]). */
 internal fun HomeActivity.centred(v: View): View = FitCell(this).apply { clipChildren = false; addView(v, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_VERTICAL)) }
 
@@ -230,6 +233,8 @@ internal class FitCell(c: android.content.Context) : FrameLayout(c) {
         val child = getChildAt(0)
         val ws = MeasureSpec.getSize(w); val hs = MeasureSpec.getSize(h)
         if (child == null || child.visibility == View.GONE || MeasureSpec.getMode(h) != MeasureSpec.EXACTLY || ws == 0 || hs == 0) { super.onMeasure(w, h); return }
+        // a card that can shrink its graphics (not its text) does so first: scaling would shrink the text off the WType scale
+        (child as? FitsHeight)?.fitHeight(hs)
         var s = 1f
         var cw = ws; var ch = 0
         for (i in 0 until 3) {
@@ -311,7 +316,18 @@ internal fun HomeActivity.timeWidget(r: Rules, dv: View0, block: String?, s: Sto
 }
 
 internal fun HomeActivity.quickWidget(s: Store, w: Int): View {
-    val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; background = card(); setPadding(dp(6), dp(10), dp(6), dp(10)) }
+    val circles = ArrayList<View>(4); val labels = ArrayList<TextView>(4)
+    val circle = if (w >= 4 && preset.id == "be") 56 else 48
+    // a 1-row cell is shorter than circle + label: the circles shrink (down to 30 dp), the labels stay WType.CAPTION
+    val row = object : LinearLayout(this), FitsHeight {
+        override fun fitHeight(px: Int) {
+            val lab = labels.firstOrNull() ?: return
+            val fm = lab.paint.fontMetricsInt
+            val fixed = paddingTop + paddingBottom + dp(4 + 4 + 6) + (fm.descent - fm.ascent)
+            val sz = (px - fixed).coerceIn(dp(30), dp(circle))
+            for (c in circles) c.layoutParams.let { if (it.height != sz) { it.width = sz; it.height = sz; val p = (sz - dp(22)) / 2; c.setPadding(p, p, p, p) } }
+        }
+    }.apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; background = card(); setPadding(dp(6), dp(10), dp(6), dp(10)) }
     val paired = s.everPaired
     val today = Guard.day(System.currentTimeMillis())
     fun ci(ck: String, base: Int): String {
@@ -325,7 +341,6 @@ internal fun HomeActivity.quickWidget(s: Store, w: Int): View {
         Triple(R.drawable.li_car, Pair(pal.tint, pal.onTint), Pair(ci("pickup", R.string.hm_q_pickup), pal.text)) to { acts.askCheckin("pickup") },
         Triple(R.drawable.li_timer, Pair(pal.solid, pal.onSolid), Pair(if (s.openRequest() != null) getString(R.string.hm_q_wait) else getString(R.string.hm_q_more), pal.text)) to { acts.askMore() },
     )
-    val circle = if (w >= 4 && preset.id == "be") 56 else 48
     for ((spec, run) in items) {
         val (icon, fills, lab) = spec
         val b = LinearLayout(this).apply {
@@ -333,8 +348,9 @@ internal fun HomeActivity.quickWidget(s: Store, w: Int): View {
             addView(ImageView(context).apply {
                 setImageDrawable(Ic.get(context, icon, fills.second, dp(22))); background = fill(fills.first)
                 val p = dp((circle - 22) / 2); setPadding(p, p, p, p)
+                circles += this
             }, LinearLayout.LayoutParams(dp(circle), dp(circle)))
-            addView(text(lab.first, WType.CAPTION, lab.second, true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, dp(6), 0, 0); gravity = Gravity.CENTER })
+            addView(text(lab.first, WType.CAPTION, lab.second, true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, dp(6), 0, 0); gravity = Gravity.CENTER; labels += this })
             contentDescription = lab.first
             // ripple in a rounded mask + no grey focus box (the SOS button used to keep one after a tap)
             kit.tap(this, 14f) {
