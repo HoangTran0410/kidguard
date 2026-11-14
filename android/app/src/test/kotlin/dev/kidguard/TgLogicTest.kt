@@ -265,4 +265,28 @@ class TgLogicTest {
         assertEquals(1_000L, TgLogic.pollWaitMs(429, 0, 0))
         assertEquals(listOf(5_000L, 10_000L, 20_000L, 40_000L, 60_000L, 60_000L), (0..5).map { TgLogic.pollWaitMs(502, 5, it) })
     }
+
+    @Test fun strangerChatBlockExpires() {
+        val m = HashMap<Long, Pair<Int, Long>>()
+        for (i in 1..2) { assertTrue(TgLogic.chatMayTry(m, 7, now)); TgLogic.chatMiss(m, 7, now) }
+        assertTrue(TgLogic.chatMayTry(m, 7, now))            // 3rd try still allowed
+        TgLogic.chatMiss(m, 7, now)                          // 3rd miss starts the block
+        assertFalse(TgLogic.chatMayTry(m, 7, now + 1))
+        assertFalse(TgLogic.chatMayTry(m, 7, now + TgLogic.CHAT_BLOCK_MS - 1))
+        assertTrue(TgLogic.chatMayTry(m, 8, now))            // other chats unaffected
+        assertTrue(TgLogic.chatMayTry(m, 7, now + TgLogic.CHAT_BLOCK_MS))   // 15 min later: fresh tries
+        TgLogic.chatMiss(m, 7, now + TgLogic.CHAT_BLOCK_MS)
+        assertTrue(TgLogic.chatMayTry(m, 7, now + TgLogic.CHAT_BLOCK_MS))   // counter restarted at 1
+    }
+
+    @Test fun commandAgeSplit() {
+        val dateSec = now / 1000 - 30 * 60       // 30 min old
+        assertTrue(TgLogic.tooOld(dateSec, now, "lock")); assertTrue(TgLogic.tooOld(dateSec, now, "ring"))
+        assertTrue(TgLogic.tooOld(dateSec, now, "wake")); assertTrue(TgLogic.tooOld(dateSec, now, "pinreset"))
+        assertTrue(TgLogic.tooOld(dateSec, now, "unlink"))
+        assertFalse(TgLogic.tooOld(dateSec, now, "limit")); assertFalse(TgLogic.tooOld(dateSec, now, "bonus"))
+        assertTrue(TgLogic.tooOld(now / 1000 - 61 * 60, now, "limit"))
+        assertFalse(TgLogic.tooOld(now / 1000 - 5 * 60, now, "lock"))
+        assertFalse(TgLogic.tooOld(0, now, "lock"))
+    }
 }

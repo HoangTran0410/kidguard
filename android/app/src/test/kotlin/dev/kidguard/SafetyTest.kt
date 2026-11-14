@@ -10,7 +10,10 @@ class SafetyTest {
         assertEquals(0, Safety.pinLockMs(4))
         assertEquals(5 * 60_000L, Safety.pinLockMs(5))
         assertEquals(10 * 60_000L, Safety.pinLockMs(6))
-        assertEquals(64 * 5 * 60_000L, Safety.pinLockMs(50))   // capped
+        assertEquals(20 * 60_000L, Safety.pinLockMs(7))
+        assertEquals(30 * 60_000L, Safety.pinLockMs(8))
+        assertEquals(30 * 60_000L, Safety.pinLockMs(9))
+        assertEquals(30 * 60_000L, Safety.pinLockMs(50))   // capped at 30 min
     }
 
     @Test fun pinTriesLeft() {
@@ -27,6 +30,9 @@ class SafetyTest {
         assertEquals(0, Safety.pairBlockMs(4))
         assertEquals(60_000L, Safety.pairBlockMs(6))
         assertEquals(120_000L, Safety.pairBlockMs(9))
+        assertEquals(240_000L, Safety.pairBlockMs(3 * 4))      // 30 s x 8 = 4 min, under the cap
+        assertEquals(5 * 60_000L, Safety.pairBlockMs(3 * 5))   // 8 min capped
+        assertEquals(5 * 60_000L, Safety.pairBlockMs(3 * 40))
     }
 
     @Test fun uiAsset() {

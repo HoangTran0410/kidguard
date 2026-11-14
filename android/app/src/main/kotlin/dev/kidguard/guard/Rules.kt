@@ -584,14 +584,16 @@ object Safety {
     fun backoffMs(fails: Int, free: Int, baseMs: Long): Long =
         if (fails < free) 0 else baseMs shl minOf(fails - free, 6)
 
-    /** PIN: 5 free tries, then 5 min, 10 min, … */
-    fun pinLockMs(fails: Int): Long = backoffMs(fails, 5, 5 * 60_000L)
+    /** PIN: 5 free tries, then 5, 10, 20, 30 min, then 30 min per try (owner 2026-11-15: a longer lock only hurts the parent). */
+    const val PIN_LOCK_MAX_MS = 30 * 60_000L
+    fun pinLockMs(fails: Int): Long = minOf(backoffMs(fails, 5, 5 * 60_000L), PIN_LOCK_MAX_MS)
 
     /** Wrong PIN tries left before the lockout, given [fails] so far (0 = the next wrong one locks). */
     fun pinTriesLeft(fails: Int): Int = maxOf(0, 5 - fails)
 
-    /** Pairing: every 3rd wrong guess (code or PIN) makes a new code and blocks for 30 s, 60 s, … */
-    fun pairBlockMs(fails: Int): Long = if (fails > 0 && fails % 3 == 0) backoffMs(fails / 3, 1, 30_000L) else 0
+    /** Pairing: every 3rd wrong guess (code or PIN) makes a new code and blocks for 30 s, 60 s, … (cap 5 min) */
+    const val PAIR_BLOCK_MAX_MS = 5 * 60_000L
+    fun pairBlockMs(fails: Int): Long = if (fails > 0 && fails % 3 == 0) minOf(backoffMs(fails / 3, 1, 30_000L), PAIR_BLOCK_MAX_MS) else 0
 
     private val UI = Regex("""/ui/([a-z0-9][a-z0-9-]{0,40})\.(js|css)""")
 

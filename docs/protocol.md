@@ -153,8 +153,8 @@ v0.4:
 - v0.9.6: `/api/pair` also takes `newPin` and refuses to pair without a PIN when none is set; see "v0.9.6" below.
 - LAN `GET /api/hello` adds `pin: bool`. `POST /api/pair {code, pin?}`: `pin` is required once a PIN is set (the child
   can see the code, never the PIN). Errors `{error, wait}`: 403 `wrong code | wrong pin`, 429 `wait | pin locked`,
-  403 `closed`. Every 3rd wrong guess makes a new code and blocks pairing for 30 s, doubling (cap 32 min).
-  The PIN (child screen and /pair share one counter): 5 free tries, then locked 5 min, doubling (cap 320 min).
+  403 `closed`. Every 3rd wrong guess makes a new code and blocks pairing for 30 s, doubling (cap 5 min).
+  The PIN (child screen and /pair share one counter): 5 free tries, then locked 5 min, doubling (cap 30 min).
 - The LAN server answers 403 `bad host` unless `Host` is an IP literal, `localhost`, a single-label name or `*.ts.net`
   (DNS rebinding).
 - `tailscale {authKey, hostname?}`: phone downloads the official Tailscale APK (SHA-256 checked), installs it silently,
@@ -202,7 +202,7 @@ v0.9.7:
 ### PIN-gated commands (v0.9.13, `guard/CmdGate.kt`)
 `release unpairAll unpair clearData reboot relay tailscaleOff openPairing totpSet tgSet tgCode tgOff pinSet pinResetCancel adbShell adbTcp`
 carry `pin`: the parent PIN or a current Authenticator code (its backup, also while the PIN is locked; an admin open by code raises a `tamper` event). The PHONE checks it (LAN and relay alike), sharing the lockout
-of the on-device admin (5 free tries, then 5, 10, 20 … 320 min per try; PIN and Authenticator locks are separate; lockouts run on the monotonic clock, a reboot falls back to the wall clock capped at the original length).
+of the on-device admin (5 free tries, then 5, 10, 20, 30 min, then 30 min per try; PIN and Authenticator locks are separate; lockouts run on the monotonic clock, a reboot falls back to the wall clock capped at the original length).
 `relay {url}` with the URL the phone already has is not gated (the page re-reads the relay link with it); `renew:true` always is. No PIN and no
 Authenticator set = nothing to check. Results: `failed: pin needed` (no `pin`, not counted), `failed: pin` (wrong, a
 `tamper` event names the command), `failed: pin locked`; `failed…` frees the id, so the same id may be re-sent with the
@@ -592,7 +592,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   The voice carries a "Download" button (callback `a:<16 hex>`): the same M4A as a document, kept 7 days in files/tgrec (max 100 MB, pruned early under 500 MB free; deleted on release).
 - Reliability: an alert counts as seen only once at least one chat got it (else retried every 30 s, dropped after 24 h);
   alerts have their own sender thread; one /locate and one /rec at a time ("busy" otherwise); 429 waits retry_after once.
-  Link codes: max 3 wrong tries per not-linked chat (plus 5 per code); a new link is announced to the other chats.
+  Link codes: max 3 wrong tries per not-linked chat, then that chat is ignored for 15 min (in memory) and may try again (plus 5 per code). Typed action commands older than 10 min (lock, ring, wake, release, reboot, clearData, unpair, unlink, lost, pin*) or 60 min (all others) are refused; a new link is announced to the other chats.
   `unpairAll` also unlinks every Telegram chat (the bot token stays). A photo sent to the bot is saved like a file.
 - Language per chat (`chats[].lang`): set at link from the Telegram user's `language_code` (vi* -> vi, else en; none -> the bot
   language from tgSet), changed with /lang [vi|en] or the 🌐 menu button; alerts and answers use it. setMyCommands /
@@ -863,7 +863,7 @@ data. No "RAM cleaner" / killing background apps (they restart; costs battery) a
   the phone takes it). The phone keeps it in its own prefs and never sends it back; a new secret ends any unlock.
 - **Child screen** "Nhập mã mở khoá của bố mẹ" (only when a secret is set): a code within ±1 step that is newer than the
   last used one sets `unlockUntil = max(now, unlockUntil) + unlockMin`. Until then `decide()` keeps only `blocked`
-  and `new`. Wrong codes: 5 free, then 5 min doubling (own counter, not the PIN's; the child-side unlock and the on-device admin check each count their own wrong codes against this secret, so the two paths have separate 5-try budgets; with a PIN set, a wrong admin code counts against the PIN counter); the 5th wrong one sends a `tamper`
+  and `new`. Wrong codes: 5 free, then 5 min doubling, cap 30 min (own counter, not the PIN's; the child-side unlock and the on-device admin check each count their own wrong codes against this secret, so the two paths have separate 5-try budgets; with a PIN set, a wrong admin code counts against the PIN counter); the 5th wrong one sends a `tamper`
   event. Each use sends event `unlock` "Con đã mở khoá bằng mã của bố mẹ: N phút" and a log line.
 - **State** `totpOn: bool`, `unlockUntil: ms` (0 = not unlocked). Missing `totpOn` = phone older than 0.9.4.
 

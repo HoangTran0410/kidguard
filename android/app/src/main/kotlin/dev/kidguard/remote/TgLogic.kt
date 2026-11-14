@@ -11,7 +11,21 @@ object TgLogic {
     const val MAX_CHATS = 5
     const val CODE_MS = 15 * 60_000L
     const val CODE_TRIES = 5
-    const val CHAT_TRIES = 3   // wrong codes from one not-linked chat before it is ignored (until the app restarts)
+    const val CHAT_TRIES = 3   // wrong codes from one not-linked chat before it is ignored
+    const val CHAT_BLOCK_MS = 15 * 60_000L   // ...for this long after its 3rd miss, then it may try again
+
+    /** Wrong-code gate per not-linked chat, in memory: id -> (misses, blocked-until ms). Pure, pass the map. */
+    fun chatMayTry(m: MutableMap<Long, Pair<Int, Long>>, id: Long, now: Long): Boolean {
+        val (n, until) = m[id] ?: return true
+        if (n < CHAT_TRIES) return true
+        if (now < until) return false
+        m.remove(id); return true   // block over: a fresh set of tries
+    }
+    /** Record a wrong code; the 3rd miss starts the [CHAT_BLOCK_MS] block. */
+    fun chatMiss(m: MutableMap<Long, Pair<Int, Long>>, id: Long, now: Long) {
+        val n = (m[id]?.first ?: 0) + 1
+        m[id] = n to (if (n >= CHAT_TRIES) now + CHAT_BLOCK_MS else 0L)
+    }
     const val POLL_S = 50                       // getUpdates long-poll seconds (one open request, ~1.5 KB / min idle)
     const val REC_DEF = 20; const val REC_MAX = 60
     const val TG_FILE_MAX = 20L * 1024 * 1024   // Bot API download limit (parent -> kid documents)
@@ -337,7 +351,11 @@ object TgLogic {
     /** Typed commands that change something on the phone (the rest only read). Too old ones are not run ([tooOld]). */
     private val READ_ONLY = setOf("start", "help", "menu", "lang", "status", "apps", "events", "files", "code", "requests", "quiet")
     fun isAction(name: String) = name !in READ_ONLY
-    const val MAX_AGE_MS = 10 * 60_000L
+    const val MAX_AGE_MS = 10 * 60_000L          // urgent / destructive typed commands
+    const val MAX_AGE_OTHER_MS = 60 * 60_000L    // every other typed action (owner 2026-11-15: friction without protection)
+    /** Typed commands that stay 10 min: time-critical (lock, ring, wake) and destructive (release, reboot, clearData, unpair, unlink, lost, pin*). */
+    val URGENT = setOf("lock", "ring", "wake", "release", "reboot", "cleardata", "unpair", "unlink", "lost")
+    fun isUrgent(name: String) = name in URGENT || name.startsWith("pin")
 
     /** `/code`: the current Authenticator code, seconds it has left, and the next one; null = no valid secret. */
     fun codeNow(secret: String, nowMs: Long): Triple<String, Int, String>? {
@@ -346,7 +364,8 @@ object TgLogic {
         return Triple(Totp.code(key, t), (30 - (nowMs / 1000) % 30).toInt(), Totp.code(key, t + 1))
     }
     /** [dateSec] = Telegram message.date (0 = unknown, never old). */
-    fun tooOld(dateSec: Long, nowMs: Long): Boolean = dateSec > 0 && nowMs - dateSec * 1000 > MAX_AGE_MS
+    fun tooOld(dateSec: Long, nowMs: Long, name: String = ""): Boolean =
+        dateSec > 0 && nowMs - dateSec * 1000 > (if (isUrgent(name)) MAX_AGE_MS else MAX_AGE_OTHER_MS)
 
     /** /status text from the state JSON (Guard.currentState). [hm] formats a time of day. */
     fun status(st: JSONObject, name: String, lang: String, now: Long, hm: (Long) -> String): String {

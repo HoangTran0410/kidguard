@@ -38,7 +38,7 @@ object Tg {
     private val locBusy = java.util.concurrent.atomic.AtomicBoolean(); private val recBusy = java.util.concurrent.atomic.AtomicBoolean()
     private fun <V> capped(n: Int): MutableMap<Long, V> = java.util.Collections.synchronizedMap(object : LinkedHashMap<Long, V>() {
         override fun removeEldestEntry(e: MutableMap.MutableEntry<Long, V>?) = size > n })   // oldest entries drop first
-    private val strangerTries = capped<Int>(500)   // wrong link codes per chat (one stranger can't burn the code)
+    private val strangerTries = capped<Pair<Int, Long>>(500)   // wrong link codes per chat + blocked-until (TgLogic.chatMayTry) (one stranger can't burn the code)
     private val fast = Executors.newSingleThreadExecutor()   // button acks: never queued behind a slow command
     private val askMsg = java.util.concurrent.ConcurrentHashMap<Long, Long>()   // chat -> when "💬 Message" asked for the text
     /** One alert as sent to one chat: edited when anyone answers (kept in memory; after a restart old buttons just say "answered"). */
@@ -307,8 +307,9 @@ object Tg {
         if (!s.tgChatOk(id)) {
             val code = (TgLogic.parse(text)?.takeIf { it.name == "start" }?.rest ?: text).trim()
             if (Regex("^\\d{6}$").matches(code)) {
-                val n = strangerTries.merge(id, 1, Int::plus) ?: 1
-                if (n > TgLogic.CHAT_TRIES || !s.tgTryCode(code)) { strangerReply(s, id, TgLogic.s(lang, "badCode")); return }
+                val t0 = System.currentTimeMillis()
+                if (!TgLogic.chatMayTry(strangerTries, id, t0)) { strangerReply(s, id, TgLogic.s(lang, "badCode")); return }
+                if (!s.tgTryCode(code)) { TgLogic.chatMiss(strangerTries, id, t0); strangerReply(s, id, TgLogic.s(lang, "badCode")); return }
                 strangerTries.remove(id)
                 val who = listOf(chat.optString("first_name"), chat.optString("last_name")).filter { it.isNotBlank() }.joinToString(" ").ifBlank { chat.optString("username") }
                 if (!s.tgAddChat(id, who, lang)) { send(s, id, TgLogic.s(lang, "full", TgLogic.MAX_CHATS)); return }
@@ -331,7 +332,7 @@ object Tg {
         if (c == null) { send(s, id, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang)); return }
         // Telegram keeps undelivered messages ~24 h: a /lock typed while the phone was off must not fire the next morning (audit M8)
         val now = System.currentTimeMillis()
-        if (TgLogic.isAction(c.name) && TgLogic.tooOld(m.optLong("date"), now)) { send(s, id, TgLogic.s(lang, "tooOld", (now - m.optLong("date") * 1000) / 60_000)); return }
+        if (TgLogic.isAction(c.name) && TgLogic.tooOld(m.optLong("date"), now, c.name)) { send(s, id, TgLogic.s(lang, "tooOld", (now - m.optLong("date") * 1000) / 60_000)); return }
         runCmd(g, s, id, c)
     }
 
