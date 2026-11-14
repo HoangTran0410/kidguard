@@ -228,6 +228,16 @@ class Guard : Service() {
     /** An optional tick step: a failure here must never skip the suspend / hide enforcement below (logged at most once a minute per step). */
     private inline fun opt(name: String, f: () -> Unit) { try { f() } catch (e: Throwable) { optFail(name, e) } }
 
+    private var bedCache: Triple<Long, Long, Boolean?> = Triple(0L, 0L, null)   // (window start, computed at, result)
+    /** Evening summary: was the phone left alone in last night's bedtime window? null = no bedtime / per-night times / unknown. Cached 10 min (a usage query). */
+    private fun bedKept(r: Rules, apps: Set<String>, prot: Set<String>, now: Long): Boolean? {
+        if (r.bedByDay.isNotEmpty()) return null
+        val w = Digest.bedWindow(r.bedtimeOn, r.bedStart, r.bedEnd, now) ?: return null
+        if (bedCache.first == w.first && now - bedCache.second < 600_000L) return bedCache.third
+        val res = runCatching { Digest.bedKept(Usage.range(this, w.first, w.second).ms.filterKeys { it in apps && it !in prot && it !in r.allow }.values.sum()) }.getOrNull()
+        bedCache = Triple(w.first, now, res); return res
+    }
+
     private fun tick(force: Boolean) {
         runCatching { relabel() }
         runCatching { Tg.tick(this) }.onFailure { Log.w("KidGuard", "tg tick", it) }   // alerts to linked Telegram chats
@@ -540,6 +550,7 @@ class Guard : Service() {
             .put("history", store.history)
             .put("track", store.track(2))
             .put("requests", store.requests())
+            .put("digest", JSONObject().put("days", store.dgDays(now)).put("bedKept", bedKept(r, apps.keys, prot, now)))
             .put("lastAnswer", store.lastAnswer() ?: JSONObject.NULL)
             .put("now", lastNow.toJson())
             .put("done", store.done())
@@ -771,6 +782,7 @@ class Guard : Service() {
                     notifyChild(Events.answerText(ok, min, c.optString("note"), store.tr))
                 }
             }
+            if (req != null) store.dgBump("answered")
             if (req != null) "ok" else "no such request"
         }
         "sosAck" -> if (store.ackSos(c.optString("sos").ifBlank { "all" }) > 0) { notifyChild(getString(R.string.notif_sos_seen), 9); "ok" } else "no such sos"   // A3.3: the child hears "seen"   // not "id": the relay fills that in

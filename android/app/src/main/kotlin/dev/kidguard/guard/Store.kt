@@ -324,6 +324,17 @@ class Store private constructor(private val app: Context) {
     /** Alert level of a chat: "all" (default) / "important" / "sos" (TgLogic.quietOk). */
     @Synchronized fun tgChatQuiet(id: Long): String = tgChats().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }
         .firstOrNull { it.optLong("id") == id }?.optString("quiet")?.takeIf { it == "important" || it == "sos" } } ?: "all"
+    /** Evening summary of a chat (/digest): on, time "HH:mm", last day sent. Off by default. */
+    @Synchronized fun tgChatDigest(id: Long): Triple<Boolean, String, String> = tgChats().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }
+        .firstOrNull { it.optLong("id") == id } }?.let { Triple(it.optBoolean("digest"), it.optString("digestAt").ifBlank { Digest.DEFAULT_AT }, it.optString("digestDay")) } ?: Triple(false, Digest.DEFAULT_AT, "")
+    @Synchronized fun tgSetChatDigest(id: Long, on: Boolean? = null, at: String? = null, day: String? = null) {
+        val a = tgChats(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optLong("id") == id }?.let { o ->
+            if (on != null) o.put("digest", on); if (at != null) o.put("digestAt", at); if (day != null) o.put("digestDay", day) }
+        p.edit().putString("tgChats", a.toString()).commit()
+    }
+    /** Evening summary counters per day (asked / answered / blocked / tamper, 8 days): [Digest.bump] / [Digest.days]. Wiped with the prefs on release. */
+    @Synchronized fun dgBump(key: String, now: Long = System.currentTimeMillis()) { p.edit().putString("dg", Digest.bump(p.getString("dg", "{}"), Guard.day(now), key)).apply() }
+    @Synchronized fun dgDays(now: Long = System.currentTimeMillis()): JSONArray = Digest.days(p.getString("dg", "{}"), Guard.day(now))
     @Synchronized fun tgSetChatQuiet(id: Long, level: String) {
         val a = tgChats(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optLong("id") == id }?.put("quiet", level)
         p.edit().putString("tgChats", a.toString()).commit()
@@ -723,6 +734,7 @@ class Store private constructor(private val app: Context) {
             val o = JSONObject().put("id", randomHex(3)).put("at", now).put("t", now).put("remindAt", 0L)
             fill(o)
             p.edit().putString("reqs", JSONArray().put(o).toString()).putString("lastAns", "").apply()
+            dgBump("asked", now)
             return "new"
         }
         if (now - maxOf(cur.optLong("at"), cur.optLong("remindAt")) < REMIND_MS) return "wait"
@@ -843,6 +855,7 @@ class Store private constructor(private val app: Context) {
         a.put(JSONObject().put("t", System.currentTimeMillis()).put("m", msg).apply { if (kind.isNotEmpty()) put("k", kind) })
         val keep = JSONArray(); for (i in maxOf(0, a.length() - 50) until a.length()) keep.put(a.get(i))
         p.edit().putString("log", keep.toString()).apply()
+        if (kind == "suspended") dgBump("blocked")
         HistDb.addLog(app, System.currentTimeMillis(), kind, msg)   // the long history (90 days), written off this thread
     }
     @Synchronized fun logs(): JSONArray = runCatching { JSONArray(p.getString("log", "[]")) }.getOrDefault(JSONArray())
@@ -853,6 +866,7 @@ class Store private constructor(private val app: Context) {
         val now = System.currentTimeMillis()
         val o = JSONObject().put("id", randomHex(3)).put("t", now).put("kind", e.kind).put("text", e.text)
         if (e.zone != null) o.put("zone", e.zone)
+        if (e.kind == "tamper") dgBump("tamper", now)
         p.edit().putString("events", Events.prune(events().put(o), now).toString()).apply()
         HistDb.addEvent(app, now, o.optString("id"), e.kind, e.text, e.zone)
     }

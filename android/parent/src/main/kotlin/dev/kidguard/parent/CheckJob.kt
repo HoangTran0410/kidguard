@@ -85,6 +85,19 @@ class CheckJob : JobService() {
             }
             if (canPost) for (e in out.events) post(c, k, e)
             for (key in out.clear) Notif.cancel(c, k, key)
+            runCatching { digest(c, k, seen, now) }.onFailure { android.util.Log.w("KGParent", "digest", it) }
+        }
+
+        /** Evening summary (setting in the app's settings): once a day after the chosen time, plus the weekly one on Sunday. Silent info channel. */
+        private fun digest(c: Context, k: Logic.KidCfg, seen: Logic.Seen, now: Long) {
+            val inp = seen.digest ?: return
+            val day = dev.kidguard.Digest.dayKey(now, java.util.TimeZone.getDefault())
+            if (!canNotify(c) || !dev.kidguard.Digest.due(Store.digestOn(c), Store.digestAt(c), Store.digestDay(c, k.key), now)) return
+            Store.setDigestDay(c, k.key, day)
+            val lang = if (c.resources.configuration.locales[0].language == "vi") "vi" else "en"
+            val msgs = dev.kidguard.Digest.messages(dev.kidguard.Digest.Input(k.name, inp.usedMs, inp.limitMin, inp.top, inp.history, inp.days, inp.bedKept), lang, now)
+            channel(c)
+            msgs.forEachIndexed { i, m -> Notif.postDigest(c, k, m, i) }
         }
 
         private fun postUnpaired(c: Context, k: Logic.KidCfg) {
@@ -145,7 +158,8 @@ class CheckJob : JobService() {
                     if (id.isEmpty() || text.isEmpty()) null else Logic.Ev(id, text.take(120), x.optLong("t"), x.optString("kind"), Act.locOf(JSONObject().put("location", x.optJSONObject("loc"))))
                 }
                 val accOff = st.optString("mode") == "basic" && st.optJSONObject("basic")?.optBoolean("acc", true) == false
-                Logic.Seen(true, list, if (lan) st.optLong("t") else o.optLong("seen"), sos, evs, accOff, Act.locOf(st), appReqs, st.optJSONObject("now")?.optString("why") == "bedtime")
+                Logic.Seen(true, list, if (lan) st.optLong("t") else o.optLong("seen"), sos, evs, accOff, Act.locOf(st), appReqs, st.optJSONObject("now")?.optString("why") == "bedtime",
+                    runCatching { dev.kidguard.Digest.fromState(st, "") }.getOrNull())
             } catch (e: Exception) { Logic.Seen(false, emptyList(), 0) }
         }
 

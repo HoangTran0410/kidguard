@@ -53,6 +53,7 @@ android {
     }
     // the same single-file parent page the child phone and the worker serve
     sourceSets["main"].assets.srcDirs("../../ui")
+    sourceSets["main"].java.srcDir("../shared")   // Digest.kt: one evening-summary builder for the child app (Telegram) and the parent app (notification)
     androidResources {
         ignoreAssetsPatterns += listOf("!install.html", "!qr.html", "!provision.json", "!vendor")
         // UI languages: English (res/values, default) + Vietnamese (res/values-vi). Also drops libraries' other languages.

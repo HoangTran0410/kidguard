@@ -970,6 +970,15 @@ function notifHealthHtml() {
 // one history entry while it is open, so Android Back returns to the list (popstate in overview.js) instead of leaving the app
 let appSetOn = false;
 function appSetClose() { if (!appSetOn) return; if (history.state && history.state.appSet) history.back(); else { appSetOn = false; appBoot(); } }   // popstate does the rest
+// evening summary (parent app notification): on/off + time, kept by the app (KGApp.getDigest / setDigest), off by default
+function digestCardHtml() {
+  let d; try { d = JSON.parse(kgCall("getDigest") || ""); } catch { d = null; }
+  if (!d) return "";
+  return `<div class="card"><h2>${ic("moon")} ${t("dg.h")}</h2>
+    <label class="row"><input type="checkbox" id="f-dg" ${d.on ? "checked" : ""}><span class="sp">${t("dg.p")}</span></label>
+    <label class="row"><span class="sp">${t("dg.at")}</span><input type="time" id="f-dgat" value="${esc(d.at || "20:00")}"></label>
+    <p class="mute">${t("dg.n")}</p></div>`;
+}
 function appSettings() {
   reScreen = appSettings;
   if (!appSetOn) { appSetOn = true; try { history.pushState({ kg: navLvl() + 1, appSet: 1 }, ""); } catch {} }
@@ -981,6 +990,7 @@ function appSettings() {
     <label class="row"><input type="checkbox" id="f-notify" ${wantOn ? "checked" : ""}><span class="sp">${t("notif.p")}</span></label>
     <p class="mute">${notifOn ? t("au.nOn") : wantOn ? ic("triangle-alert") + " " + t("notif.blocked") : t("au.nOff")}</p>
     <button id="nSet">${ic("settings")} ${t("au.nOpen")}</button></div>
+  ${digestCardHtml()}
   ${notifHealthHtml()}
   <div class="card"><h2>${ic("download")} ${t("au.upd")}</h2><div id="updBox">${updBoxHtml()}</div></div>
   <div class="card row"><b class="sp">${ic("book-open")} ${t("au.guide")}</b><a class="btn" href="https://kid-guard.pages.dev/${lang === "en" ? "en/" : ""}guide.html" target="_blank" rel="noopener">${ic("external-link")} ${t("open")}</a></div>
@@ -992,6 +1002,8 @@ function appSettings() {
   });
   $("#f-notify").onchange = e => { kgCall("setNotify", e.target.checked ? "true" : "false"); if (e.target.checked) setTimeout(() => { if (kgCall("canNotify") === "false") toast("warn|" + t("notif.blockedShort")); appSettings(); }, 1500); else appSettings(); };
   $("#nSet").onclick = () => kgCall("openNotifSettings");
+  const dgSave = () => kgCall("setDigest", $("#f-dg").checked ? "true" : "false", $("#f-dgat").value || "20:00");
+  if ($("#f-dg")) { $("#f-dg").onchange = dgSave; $("#f-dgat").onchange = dgSave; }
   // one delegated handler: updBox is redrawn by kgUpd
   $("#app").onclick = e => {
     const n = e.target.closest && e.target.closest("#nhBat, #nhPerm, #nhTest");

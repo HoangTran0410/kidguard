@@ -96,6 +96,8 @@ leftMs apps rules location lan relay log`), plus:
   "autoGrant": {"left": 0, "at": 0, "next": 0, "err": ""},  // NEW: permissions still missing at the last tick, last real attempt (ms), next allowed attempt (ms), err "" | "no adb"
   "bankList": {"at": 0, "err": ""},  // NEW: last successful fetch of the website bank-app list (ms, 0 = never), last fetch error ("" = fine)
   "relayOk": 0,  // NEW: epoch ms of the last successful relay sync (0 = never)
+  "digest": {"days": [{"day": "2026-11-14", "asked": 2, "answered": 1, "blocked": 3, "tamper": 0}],   // 2026-11-14 evening summary: today first, up to 7 days, counters kept 8 days by the phone
+             "bedKept": true},     // last night's bedtime window: true = under 1 min of use, false = used, null = no bedtime / per-night times (bedByDay) / no usage access
   "requests": [                    // NEW: the child asked for more time (button on the child's KidGuard screen)
     {"id": "a1b2c3", "t": 1793940898493, "min": 30, "note": "con làm bài tập"}
   ]
@@ -725,6 +727,14 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
 - **Weekly report (page only)**: the overview has "Báo cáo tuần": per kid total and daily average over the last 7 days
   (`history`), top 3 apps, requests count, compared with the 7 days before when available (needs 14 days of history: rare, the phone keeps 7). Requests are
   counted from the log, so approximate.
+
+- **Evening summary (2026-11-14)**: a short daily message (and a weekly one on Sunday): screen time vs limit, top 3 apps, requests asked / answered,
+  apps locked, tamper tries, bedtime kept. One builder, `android/shared/Digest.kt` (compiled into the child app and the parent app), input = the state
+  (`usedMs`, `limitMin`, `apps`, `history`, `digest`). Off by default, two places: (1) parent app: settings card, KGApp `getDigest()` -> `{"on","at"}` / `setDigest("true"|"false", "HH:mm")`
+  (default 20:00); `CheckJob` shows it as a notification (info channel) after that time, once a day per kid, from the same state fetch (LAN or relay). Needs a successful fetch
+  that evening (a kid unreachable until the next day gets nothing for the missed day). (2) Telegram, sent by the phone (no worker cron): `/digest` = state + preview of today, `/digest on|off|HH:mm` per chat
+  (`tg.chats[].digest`, `digestAt`, `digestDay` kept on the phone, not in state). Counters: asked = new request, answered = `answer` command done, blocked = log kind `suspended`, tamper = event kind `tamper` (a wrong PIN counts only when it raises that event).
+  Weekly numbers = today + the 6 days of `history`. Release wipes the counters with the prefs and the chats with `tgOff`.
 
 ## v0.6 other changes
 - Before the first pairing the child screen hides the code and QR; a parent reveals them with a 5 s long-press (10 min).
