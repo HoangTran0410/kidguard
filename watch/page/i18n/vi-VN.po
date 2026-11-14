@@ -294,3 +294,27 @@ msgstr "Đang tải bản đồ %1/%2"
 
 msgid "mapFail"
 msgstr "Chưa có bản đồ, chỉ hiện chữ"
+
+msgid "find"
+msgstr "Chỉ đường"
+
+msgid "askFresh"
+msgstr "Hỏi vị trí mới"
+
+msgid "kidAge"
+msgstr "Vị trí %1"
+
+msgid "gpsOk"
+msgstr "GPS đồng hồ: tốt"
+
+msgid "gpsWait"
+msgstr "Đang tìm GPS…"
+
+msgid "compassCal"
+msgstr "La bàn cần hiệu chỉnh: vẽ số 8 bằng cổ tay"
+
+msgid "compassWait"
+msgstr "Đang chờ la bàn…"
+
+msgid "decSep"
+msgstr ","

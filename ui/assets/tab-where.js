@@ -267,7 +267,7 @@ function whereTab(b) {
     : `<div class="empty"><span class="e">${ic("map")}</span>${t("where.noPts", ic("map-pin"))}</div>`}
     <div class="row" style="margin-top:12px;flex-wrap:nowrap"><div class="sp" style="min-width:0">${l ? `<b>${ic("pin")} ${t("where.lastH")}</b><div class="mute">${ic("clock")} ${ago(l.t)} · ${t("acc", "~" + Math.round(l.acc))}</div>` : `<span class="mute">${t("where.noLoc")}</span>`}</div>
       ${l ? `<a class="btn rb" href="https://www.google.com/maps?q=${+l.lat},${+l.lng}" target="_blank" rel="noopener" aria-label="${esc(t("where.gmaps"))}" title="${esc(t("where.gmaps"))}">${ic("external-link")}</a>` : ""}</div>
-    <button id="loc2" class="pri act" style="width:100%;margin-top:12px;height:52px">${ic("map-pin")} ${t("where.locNew")}</button><p class="mute" style="margin-bottom:0">${ic("refresh-cw")} ${t("where.auto")}</p></div></div>
+    <button id="loc2" class="pri act" style="width:100%;margin-top:12px;height:52px">${ic("map-pin")} ${t("where.locNew")}</button>${l ? `<a class="btn" style="width:100%;margin-top:8px;height:48px;display:flex;align-items:center;justify-content:center;gap:6px" href="https://www.google.com/maps/dir/?api=1&destination=${+l.lat},${+l.lng}" target="_blank" rel="noopener">${ic("route")} ${t("where.dir")}</a>` : ""}<p class="mute" style="margin-bottom:0">${ic("refresh-cw")} ${t("where.auto")}</p></div></div>
   <div>${pts.length ? `<div class="card"><h2>${ic("route")} ${t("jr.h")}</h2>${journey(pts, sp, home, isToday)}</div>` : ""}
     ${S ? `<div id="rsx">${S.lost}${S.zone}${S.trk}</div>` : ""}</div></div>`;
   $("#loc2").onclick = () => act("loc2", () => cmd({ type: "locate" }, t("where.locating"), false).then(r => { if (r) locStart(); return r; }), askOf("locate"));

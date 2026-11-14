@@ -333,7 +333,7 @@ L.en = {
   "hist.fail": "Couldn't read the data for {0}", "hist.h": "History saved on this phone", "hist.pick": "Pick a day (days with data are bold) to look back, read-only.",
   "hist.none": "No days saved yet. Data is saved each time the app opens and reaches the kid's phone.",
   "where.h": "Movement history", "where.tap": "Tap a dot to see the time", "where.start": "start", "where.last": "latest", "where.pts": { one: "{0} point", other: "{0} points" }, "where.stops": "Stops",
-  "where.noStops": "No stops of 5 minutes or more", "where.noPts": "No points yet: turn on {0} Record location in Rules", "where.lastH": "Last known location", "where.gmaps": "Open Google Maps",
+  "where.noStops": "No stops of 5 minutes or more", "where.noPts": "No points yet: turn on {0} Record location in Rules", "where.lastH": "Last known location", "where.dir": "Directions to your child (Google Maps)", "where.gmaps": "Open Google Maps",
   "where.noLoc": "No location yet. Turn on Location on the kid's phone, then tap Locate.", "where.locNew": "Get new location", "where.auto": "The kid's phone records its location on the interval set in the Rules tab.",
   "where.locating": "Getting location…",
   "tl.play": "Play the day", "tl.pause": "Pause", "tl.aria": "Time of day", "tl.none": "no location at this time",

@@ -63,6 +63,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Vị trí, lịch sử, vùng an toàn | ✅ | ✅ | ✅ | ✅ | ✅ | Cần quyền vị trí (cả nền) |
 | Nhật ký (sự kiện + dòng nhật ký, 90 ngày, xem theo ngày) | ✅ | ✅ | ✅ | ✅ | ✅ | Máy con lưu SQLite 90 ngày; LAN `GET /api/logday`, Relay hỏi theo ngày (trễ ≤ ~1 phút). Máy/worker cũ: chỉ 50 dòng gần nhất |
 | Giữ vị trí luôn bật | ✅ | ❌ | ⚠️ | ⚠️ | ✅ | +WSS: ghi `location_mode`, chưa kiểm trên Android 10+ |
+| Chỉ đường tới con (Google Maps, tab Vị trí) | ✅ | ✅ | ✅ | ✅ | ✅ | cần vị trí máy con; mở app/web Google Maps chỉ đường |
 | Khoá đổi giờ | ✅ | ⚠️ | ✅ | ✅ | — | CB: Trợ năng đóng trang Ngày & giờ. +WSS: bật lại giờ tự động |
 | Tailscale tự cài + tự đăng nhập | ✅ | ❌ | ❌ | ❌ | ❌ | **Chỉ LAN**: khoá Tailscale không bao giờ nằm trong hàng đợi Relay. Tắt (`tailscaleOff`) thì qua Relay được. Máy CB tự cài Tailscale bằng tay vẫn dùng đường Tailscale được |
 

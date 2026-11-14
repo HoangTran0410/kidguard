@@ -336,7 +336,7 @@ L.vi = {
   "hist.fail": "Không đọc được dữ liệu ngày {0}", "hist.h": "Lịch sử đã lưu trên máy này", "hist.pick": "Chọn ngày (ngày có dữ liệu được tô đậm) để xem lại, chỉ xem.",
   "hist.none": "Chưa có ngày nào được lưu. Dữ liệu được lưu mỗi khi mở app và kết nối được với máy con.",
   "where.h": "Lịch sử di chuyển", "where.tap": "Chạm vào chấm để xem giờ", "where.start": "bắt đầu", "where.last": "mới nhất", "where.pts": "{0} điểm", "where.stops": "Điểm dừng",
-  "where.noStops": "Không có điểm dừng nào ≥ 5 phút", "where.noPts": "Chưa có điểm nào — bật {0} Ghi vị trí trong Luật", "where.lastH": "Vị trí gần nhất", "where.gmaps": "Mở Google Maps",
+  "where.noStops": "Không có điểm dừng nào ≥ 5 phút", "where.noPts": "Chưa có điểm nào — bật {0} Ghi vị trí trong Luật", "where.lastH": "Vị trí gần nhất", "where.dir": "Chỉ đường tới con (Google Maps)", "where.gmaps": "Mở Google Maps",
   "where.noLoc": "Chưa có vị trí. Bật Vị trí trên máy con rồi bấm Lấy vị trí.", "where.locNew": "Lấy vị trí mới", "where.auto": "Máy con tự ghi vị trí theo chu kỳ đặt trong tab Luật.",
   "where.locating": "Đang lấy vị trí…",
   "tl.play": "Phát lại cả ngày", "tl.pause": "Tạm dừng", "tl.aria": "Thời điểm trong ngày", "tl.none": "chưa có vị trí lúc này",

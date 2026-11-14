@@ -1,4 +1,5 @@
 import * as hmUI from "@zos/ui";
+import { push } from "@zos/router";
 import { LocalStorage } from "@zos/storage";
 import TransferFile from "@zos/ble/TransferFile";
 import { BasePage } from "@zeppos/zml/base-page";
@@ -66,6 +67,7 @@ Page(
           { label: "+", fn: () => this.zoom(1) }
         );
       }
+      if (s.loc) col.btn(t("find"), () => push({ url: "page/find", params: JSON.stringify({ kid: this.o.kid }) }), { color: C.green, press: C.greenP });
       col.btn(t("locate"), () => {
         toast(t("sending"));
         ask(this, { method: "CMD", params: { kid: this.o.kid, c: { type: "locate" } } })

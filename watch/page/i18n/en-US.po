@@ -294,3 +294,27 @@ msgstr "Loading map %1/%2"
 
 msgid "mapFail"
 msgstr "Map unavailable, showing text only"
+
+msgid "find"
+msgstr "Find"
+
+msgid "askFresh"
+msgstr "Ask for a new location"
+
+msgid "kidAge"
+msgstr "Kid location %1"
+
+msgid "gpsOk"
+msgstr "Watch GPS: OK"
+
+msgid "gpsWait"
+msgstr "Looking for GPS..."
+
+msgid "compassCal"
+msgstr "Compass needs calibration: draw a figure 8 with your wrist"
+
+msgid "compassWait"
+msgstr "Waiting for the compass..."
+
+msgid "decSep"
+msgstr "."

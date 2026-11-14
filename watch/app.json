@@ -5,8 +5,8 @@
     "appName": "KidGuard",
     "appType": "app",
     "version": {
-      "code": 5,
-      "name": "0.5.0"
+      "code": 6,
+      "name": "0.6.0"
     },
     "icon": "icon.png",
     "vender": "zepp",
@@ -14,7 +14,9 @@
   },
   "permissions": [
     "data:os.device.info",
-    "device:os.local_storage"
+    "device:os.local_storage",
+    "device:os.geolocation",
+    "device:os.compass"
   ],
   "runtime": {
     "apiVersion": {
@@ -32,6 +34,7 @@
             "page/pick",
             "page/apps",
             "page/info",
+            "page/find",
             "page/pair"
           ]
         },
