@@ -59,7 +59,7 @@ const limitFor = (action) => action === "frame" ? MAX_FRAME : action === "file" 
 const WATCH_TTL = 10 * 60e3, WATCH_PER_DAY = 30;
 // Pair from anywhere (docs/protocol.md "Pair over relay"): a code the unpaired phone shows (/p/new) or an invite the parent made (/p/inv)
 const PAIR_TTL = 15 * 60e3, INVITE_TTL = 3 * 3600e3, PAIR_PER_DAY = 100, INVITE_PER_DAY = 30, PAIR_JOINS = 5;
-// Wrong codes per client network: a rolling PAIR_MISS_WIN window, not a per-day cap (one bad actor must not lock a whole network
+// Wrong codes per client network: a fixed PAIR_MISS_WIN window (starts at the first miss; a burst at a window edge can double it once), not a per-day cap (one bad actor must not lock a whole network
 // out of pairing for a day). Math: a wrong guess does not name a code, so the risk is hitting ANY live 6-digit code:
 // P(hit) ~ live codes x guesses / 10^6. 20 misses / 10 min, a code living 15 min => <= ~30 guesses per code lifetime per network;
 // even 1000 live codes at once = ~3 % per network per code lifetime, and each hit still needs the kid phone's PIN / the PAIR_JOINS cap.
@@ -92,7 +92,7 @@ const expiredOf = (list, dropped, now) => [...(list || []), ...dropped.map(c => 
 const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "unlockEnd", "clearCache", "rescan", "bgLimit", "bgRestore", "fixPerms"];
 const APK_BASE = "https://github.com/HoangTran0410/kidguard/releases/latest/download/";   // test override: env.APK_BASE
 // idempotent commands a newer copy may replace when the queue is full: type -> target field that must match too (null = the type alone)
-const REPLACE = { lock: null, locate: null, ring: null, wake: null, ringStop: null, listenStop: null, devOn: null, devOff: null, setting: "key", clearCache: null, rescan: null, bgLimit: null, bgRestore: null, fixPerms: null, openPairing: null, unlockEnd: null, bankEnd: null, fileUp: "file" };
+const REPLACE = { lock: null, locate: null, ring: null, wake: null, ringStop: null, listenStop: null, devOn: null, devOff: null, setting: "key", clearCache: null, rescan: null, fixPerms: null, openPairing: null, unlockEnd: null, bankEnd: null, fileUp: "file" };
 const SETTING_KEYS = ["vol.ring", "vol.media", "vol.alarm", "bright", "autoBright", "timeoutMs", "dnd"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
 // 'self': the parent page's /ui/ files; 'unsafe-inline': install/qr inline scripts + a few inline handlers in the parent page; the installer imports ESM from jsDelivr and downloads the APK
@@ -214,7 +214,7 @@ async function pairRoute(req, env, url) {
   if (req.method !== (POSTS ? "POST" : "GET")) return json({ error: "method" }, 405);
   if (+(req.headers.get("content-length") || 0) > 512) return json({ error: "too big" }, 413);
   const net = netKey(req.headers.get("cf-connecting-ip")) || "?";
-  // -> 0 = allowed, else the epoch ms when this network may try again (win = rolling window in ms, none = until the UTC day ends)
+  // -> 0 = allowed, else the epoch ms when this network may try again (win = fixed window in ms, none = until the UTC day ends)
   const gate = async (name, max, peek, win) => {
     if (!env.GATE) return 0;
     const r = await env.GATE.get(env.GATE.idFromName(name + ":" + net)).fetch("https://gate/take?max=" + max + (peek ? "&peek=1" : "") + (win ? "&win=" + win : ""));
@@ -369,7 +369,7 @@ async function sha256(s) {
 }
 
 /** One per client network ("ip:<netKey>"): counts first binds of new relay ids a day. /take?max=N[&win=ms][&peek=1] -> 200 (counted) | 429 (body = retryAt ms epoch).
- *  No `win`: UTC-day counter (resets at the next UTC midnight). With `win`: rolling window that starts at the first count and resets win ms later. */
+ *  No `win`: UTC-day counter (resets at the next UTC midnight). With `win`: fixed window that starts at the first count and resets win ms later. */
 export class Gate {
   constructor(ctx) { this.ctx = ctx; this.s = ctx.storage; }
   async fetch(req) {
