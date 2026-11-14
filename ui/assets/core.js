@@ -386,7 +386,7 @@ window.kgAppOpen = appOpenKid;
 function addScreen() {
   const keep = [($("#addr") || {}).value || "", ($("#rlink") || {}).value || ""]; reScreen = addScreen;
   $("#app").innerHTML = head(t("addKid")) + `
-  ${APP ? `<div class="card"><h2>${ic("scan-line")} ${t("scan.h")}</h2><p class="mute">${t("scan.p")}</p><button class="pri" id="scanGo">${ic("scan-line")} ${t("scan.go")}</button></div>` : ""}
+  ${APP ? `<div class="card"><h2>${ic("scan-line")} ${t("scan.h")}</h2><p class="mute">${t("scan.p")}</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="pri" id="scanGo">${ic("scan-line")} ${t("scan.go")}</button><button id="scanImg">${ic("image")} ${t("scan.img")}</button></div></div>` : ""}
   <div class="card"><h2>${ic("wifi")} ${t("add.lanH")}</h2>
     <p class="mute">${t("add.lanP")}</p>
     <div class="pairf"><input id="addr" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="192.168.1.5" aria-label="${esc(t("add.addr"))}" value="${esc(keep[0])}"><button class="pri" id="lanGo">${ic("link")} ${t("add.connect")}</button></div><p class="err" id="e1"></p>
@@ -403,6 +403,7 @@ function addScreen() {
   };
   if ($("#rGo")) $("#rGo").onclick = () => { if (!addRelayLink($("#rlink").value)) $("#e2").textContent = t("add.badLink"); };
   if ($("#scanGo")) $("#scanGo").onclick = () => { try { KGApp.scanQr(); } catch { toast("err|" + t("scan.none")); } };
+  if ($("#scanImg")) $("#scanImg").onclick = () => { try { KGApp.scanImg(); } catch { toast("err|" + t("scan.none")); } };
 }
 // the one parser for a relay link (typed, pasted or scanned): https + #c=<id>&k=<token>[&n=<name>]; anything else is refused
 function addRelayLink(text) {
@@ -417,6 +418,7 @@ function addRelayLink(text) {
 // parent app: KGApp.scanQr() answers kgScan({text} | {st: "cancel" | "fail"}). Only our two link formats are acted on:
 // a relay link (addRelayLink) or the kid phone's own QR http://<host>[:port]/#pair=<6 digits>. Never navigates anywhere.
 window.kgScan = o => {
+  if (o && o.st === "none") return toast("err|" + t("scan.noQr"));
   if (!o || !o.text) return;
   if (addRelayLink(o.text)) return;
   try {

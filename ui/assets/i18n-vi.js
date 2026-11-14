@@ -26,7 +26,7 @@ L.vi = {
   addKid: "Thêm máy của con", "add.lanH": "Mạng nhà hoặc Tailscale", "add.sameOrigin": "Danh sách lưu trong trình duyệt này, theo địa chỉ đang mở. Luôn mở trang từ cùng một máy con để thấy đủ danh sách.",
   "add.lanP": "Nhập địa chỉ máy con (ví dụ 192.168.1.5 hoặc kid-an.tail123.ts.net, cổng mặc định 8770). Xem trên màn hình KidGuard của con.",
   "add.addr": "Địa chỉ máy con", "add.connect": "Kết nối", "add.relayH": "Qua relay Cloudflare Worker",
-  "scan.h": "Quét mã QR", "scan.p": "Quét mã trên máy con (màn Ghép đôi), hoặc QR của link điều khiển từ xa của bố mẹ khác (Cài đặt > Từ xa).", "scan.go": "Quét QR", "scan.none": "App này chưa có trình quét", "scan.bad": "Mã QR này không phải của KidGuard", "scan.qrAlt": "Mã QR của link điều khiển từ xa", "scan.invite": "Bố/mẹ khác: mở app KidGuard, bấm Thêm, rồi Quét QR.",
+  "scan.h": "Quét mã QR", "scan.p": "Quét mã trên máy con (màn Ghép đôi), hoặc QR của link điều khiển từ xa của bố mẹ khác (Cài đặt > Từ xa).", "scan.go": "Quét QR", "scan.img": "Chọn ảnh", "scan.noQr": "Không thấy mã QR trong ảnh này", "scan.none": "App này chưa có trình quét", "scan.bad": "Mã QR này không phải của KidGuard", "scan.qrAlt": "Mã QR của link điều khiển từ xa", "scan.invite": "Bố/mẹ khác: mở app KidGuard, bấm Thêm, rồi Quét QR.",
   "add.relayP": "Dán link điều khiển từ xa (dạng https://…/#c=…&amp;k=…) lấy từ Cài đặt trên máy con.",
   "add.relayPh": "https://kidguard.ten-ban.workers.dev/#c=…&k=…", "add.relayLink": "Link relay", add: "Thêm", back: "Quay lại",
   "add.badAddr": "Địa chỉ không hợp lệ", "add.badLink": "Link không đúng dạng https://…/#c=…&k=…", connecting: "Đang kết nối…",

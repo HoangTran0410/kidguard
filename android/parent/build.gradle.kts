@@ -66,7 +66,8 @@ android {
 
 dependencies {
     implementation("com.google.firebase:firebase-messaging:24.1.0")
-    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")   // QR scanner of the add-kid screen (Play services; no camera permission)
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")   // QR from a photo (scanImg); model from Play services, not bundled   // QR scanner of the add-kid screen (Play services; no camera permission)
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
 }

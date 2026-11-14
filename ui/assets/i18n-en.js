@@ -19,7 +19,7 @@ L.en = {
   addKid: "Add kid's phone", "add.lanH": "Home network or Tailscale", "add.sameOrigin": "This list is saved in this browser, per address. Always open the page from the same kid's phone to see the whole list.",
   "add.lanP": "Enter the kid's phone address (e.g. 192.168.1.5 or kid-an.tail123.ts.net, default port 8770). It's shown on the KidGuard screen on the kid's phone.",
   "add.addr": "Kid's phone address", "add.connect": "Connect", "add.relayH": "Via a Cloudflare Worker relay",
-  "scan.h": "Scan a QR code", "scan.p": "Scan the code on the kid's phone (Pair screen), or the QR of a parent's remote link (Settings > Remote).", "scan.go": "Scan QR", "scan.none": "No scanner in this app", "scan.bad": "That QR is not a KidGuard code", "scan.qrAlt": "QR code of the remote link", "scan.invite": "Another parent: open the KidGuard app, tap Add, then Scan QR.",
+  "scan.h": "Scan a QR code", "scan.p": "Scan the code on the kid's phone (Pair screen), or the QR of a parent's remote link (Settings > Remote).", "scan.go": "Scan QR", "scan.img": "Pick a photo", "scan.noQr": "No QR code in that photo", "scan.none": "No scanner in this app", "scan.bad": "That QR is not a KidGuard code", "scan.qrAlt": "QR code of the remote link", "scan.invite": "Another parent: open the KidGuard app, tap Add, then Scan QR.",
   "add.relayP": "Paste the remote-control link (like https://…/#c=…&amp;k=…) from Settings on the kid's phone.",
   "add.relayPh": "https://kidguard.your-name.workers.dev/#c=…&k=…", "add.relayLink": "Relay link", add: "Add", back: "Back",
   "add.badAddr": "Invalid address", "add.badLink": "The link should look like https://…/#c=…&k=…", connecting: "Connecting…",

@@ -104,6 +104,8 @@ class Bridge(private val a: MainActivity) {
      * when closed, `kgScan({st:"fail"})` when the scanner is unavailable (the app also shows a toast). Page validates the text.
      */
     @JavascriptInterface fun scanQr() { a.runOnUiThread { a.scanQr() } }
+    /** Picks a photo (system picker, no storage permission) and reads a QR code in it; answers like [scanQr]. */
+    @JavascriptInterface fun scanImg() { a.runOnUiThread { a.scanImg() } }
     @JavascriptInterface fun appVersion(): String = BuildConfig.VERSION_NAME
     /** Checks GitHub now; progress and result arrive as `kgUpd({st: checking|ok|new|fail, tag})` on the page. */
     @JavascriptInterface fun checkUpdate() = Updater.check(a)
@@ -127,6 +129,7 @@ class MainActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(req: Int, res: Int, data: android.content.Intent?) {
+        if (req == REQ_IMG) { val u = data?.data; if (res == RESULT_OK && u != null) readQr(u) else scanSend(org.json.JSONObject().put("st", "cancel")); return }
         if (req != REQ_PICK) return super.onActivityResult(req, res, data)
         val cb = chooser ?: return
         chooser = null
@@ -231,6 +234,27 @@ class MainActivity : Activity() {
                 .addOnFailureListener { fail() }
         } catch (e: Throwable) { fail() }
     }
+    private fun scanSend(o: org.json.JSONObject) { web?.evaluateJavascript("window.kgScan && kgScan(" + o + ")", null) }
+    fun scanImg() {
+        val i = if (android.os.Build.VERSION.SDK_INT >= 33) android.content.Intent(android.provider.MediaStore.ACTION_PICK_IMAGES)
+            else android.content.Intent(android.content.Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(android.content.Intent.CATEGORY_OPENABLE)
+        try { startActivityForResult(i, REQ_IMG) } catch (e: Exception) { Toast.makeText(this, R.string.files_nopicker, Toast.LENGTH_LONG).show(); scanSend(org.json.JSONObject().put("st", "fail")) }
+    }
+    /** ML Kit barcode reader (Play services model, QR only) on the picked photo; no QR -> kgScan({st:"none"}). */
+    private fun readQr(u: android.net.Uri) {
+        val fail = { Toast.makeText(this, R.string.scan_fail, Toast.LENGTH_LONG).show(); scanSend(org.json.JSONObject().put("st", "fail")); Unit }
+        try {
+            val img = com.google.mlkit.vision.common.InputImage.fromFilePath(this, u)
+            val opt = com.google.mlkit.vision.barcode.BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_QR_CODE).build()
+            com.google.mlkit.vision.barcode.BarcodeScanning.getClient(opt).process(img)
+                .addOnSuccessListener { l ->
+                    val txt = l.firstOrNull { !it.rawValue.isNullOrEmpty() }?.rawValue
+                    scanSend(if (txt == null) org.json.JSONObject().put("st", "none") else org.json.JSONObject().put("text", txt.take(2000)))
+                }
+                .addOnFailureListener { fail() }
+        } catch (e: Throwable) { fail() }
+    }
     /** Updater -> page: one JSON state, on the main thread. */
     fun push(o: org.json.JSONObject) { runOnUiThread { web?.evaluateJavascript("window.kgUpd && kgUpd(" + o + ")", null) } }
     override fun onNewIntent(i: android.content.Intent) {
@@ -249,5 +273,5 @@ class MainActivity : Activity() {
     override fun onResume() { super.onResume(); web?.onResume() }
     override fun onDestroy() { web?.destroy(); web = null; super.onDestroy() }
 
-    companion object { const val REQ_PICK = 71; @Volatile var proxy: Proxy? = null; @Volatile var openKid: String? = null; @Volatile var openSettings = false; const val EXTRA_SETTINGS = "kg.settings" }
+    companion object { const val REQ_PICK = 71; const val REQ_IMG = 72; @Volatile var proxy: Proxy? = null; @Volatile var openKid: String? = null; @Volatile var openSettings = false; const val EXTRA_SETTINGS = "kg.settings" }
 }
