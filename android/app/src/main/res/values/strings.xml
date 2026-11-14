@@ -160,6 +160,9 @@
     <string name="log_file_push_fail">Could not send "%1$s" to the parent. Check this phone\'s network, then try again.</string>
     <string name="log_file_dropped">File "%1$s" from the parent was not saved (%2$s)</string>
     <string name="log_autogrant">Granted %1$s missing permissions itself (on-phone adb)</string>
+    <string name="log_fixperms">Fix from a parent: %1$s granted again, %2$s need a tap on the phone</string>
+    <string name="ch_fix">Permissions to turn on</string>
+    <string name="fix_note">A parent asked you to turn on: %1$s. Tap to open it.</string>
     <string name="log_dev_on">Parent turned Developer options and USB debugging back on</string>
     <string name="log_dev_off">Parent turned off Developer options and USB debugging</string>
     <string name="log_totp_off">Unlock codes turned off</string>

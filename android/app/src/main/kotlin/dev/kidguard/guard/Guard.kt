@@ -532,6 +532,7 @@ class Guard : Service() {
             .put("relay", store.relayUrl).put("relayShared", store.relayShared).put("adbTcpUntil", store.adbTcpUntil.takeIf { store.adbTcp } ?: 0)
             .put("ts", Ts.stateJson(store))
             .put("grayErr", GrayFx.lastErr)
+            .put("missing", JSONArray(FixPerms.missing(this).also { m -> fixMiss = m })).put("fixPerms", FixPerms.state(this, fixMiss))
             .put("autoGrant", JSONObject().put("left", AutoGrant.left).put("at", AutoGrant.lastAt).put("next", AutoGrant.nextAt()).put("err", AutoGrant.err))
             .put("bankList", JSONObject().put("at", store.bankListAt).put("err", BankList.lastErr))
             .put("relayOk", relayOkAt)
@@ -651,6 +652,8 @@ class Guard : Service() {
         nm.notify(6, Notification.Builder(this, "warn").setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
     }
+
+    private var fixMiss: List<String> = emptyList()
 
     fun currentState(): JSONObject {
         if (stateTodo.get() == null) return lastState
@@ -786,6 +789,7 @@ class Guard : Service() {
         "rescan" -> { forgetSizes(); preAt = 0L; kick(); "ok" }
         "bgLimit" -> Health.bgLimit(this, store, c.optJSONArray("pkgs")?.let { a -> (0 until a.length()).map { a.optString(it) } }).also { if (it == "ok") kick() }
         "bgRestore" -> Health.bgRestore(this, store, c.optJSONArray("pkgs")?.let { a -> (0 until a.length()).map { a.optString(it) } }).also { if (it == "ok") kick() }
+        "fixPerms" -> FixPerms.fix(this)
         "clearCache" -> Policy.clearCaches(this).also { if (it == "ok") { forgetSizes(); store.log(R.string.log_cleared_cache); kick() } }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
         "devOff" -> devOff()
@@ -834,7 +838,7 @@ class Guard : Service() {
         work.postAtFrontOfQueue {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
-            Listen.stopAll(); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff()
+            Listen.stopAll(); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff(); FixPerms.release(this)
             // C8: the parents hear of it (event -> relay + Telegram) BEFORE the tokens go; the relay creds are kept for the forget call
             val creds = Triple(store.relayUrl, store.relayId, store.relayToken)
             runCatching {
