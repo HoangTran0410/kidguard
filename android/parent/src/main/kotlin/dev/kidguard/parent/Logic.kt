@@ -231,7 +231,7 @@ object Logic {
             val quiet = seen.bedtime && now - seen.activityT < BEDTIME_QUIET_MS
             if (isLost && !lost && !quiet) events.add(Event("lost", tr.s(T.ev_offline, name, hhmm(seen.activityT))))
             if (!isLost && lost) clear.add("lost")
-            lost = isLost && !quiet
+            lost = isLost && (lost || !quiet)   // already notified stays notified (no second notice, the clear still runs)
             if (seen.accOff && !st.accOff) events.add(Event("acc", tr.s(T.ev_acc_off, name), important = true))
         } else {
             if (failSince == 0L) failSince = now

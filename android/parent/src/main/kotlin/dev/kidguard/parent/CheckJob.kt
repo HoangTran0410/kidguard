@@ -60,7 +60,7 @@ class CheckJob : JobService() {
             runCatching { checkUpdate(c) }.onFailure { android.util.Log.w("KGParent", "update check", it) }
             Store.setCheckAt(c, System.currentTimeMillis())
             // the worker drops push tokens after 30 quiet days and a failed registration was never retried: once a day, again
-            if (Store.notify(c) && (Store.pushRes(c) == "fail" || System.currentTimeMillis() - Store.pushAt(c) >= 24 * 3_600_000L)) Push.sync(c, force = true)   // a failed registration is retried on every run
+            if (Store.notify(c) && (System.currentTimeMillis() - Store.pushAt(c) >= if (Store.pushRes(c) == "fail") 3_600_000L else 24 * 3_600_000L)) Push.sync(c, force = true)   // a failed registration: hourly (no Play services = stays "fail"), else daily
             if (!Store.notify(c)) {   // no alerts wanted, but a widget still needs fresh numbers
                 if (KidWidget.active(c)) KidWidget.refreshAll(c)
                 return
