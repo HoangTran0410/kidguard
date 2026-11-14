@@ -54,7 +54,9 @@ const ICON_KEY = /^[0-9a-f]{64}$/;
 const tokenOf = (req, url) => req.headers.get("x-kg-token") || (req.method === "GET" && url.pathname.endsWith("/icon") ? url.searchParams.get("k") || "" : "");
 // shared files (docs/protocol.md "Shared files"): <= 10 MB a file in 1 MiB chunks, kept 1 h, deleted once fetched
 const FILE_CHUNK = 1048576, FILE_MAX = 10 * 1048576, FILE_TTL = 3600e3, FILE_N = 8, FILE_TOTAL = 32 * 1048576, FID = /^[0-9a-f]{16}$/;
-const limitFor = (action) => action === "frame" ? MAX_FRAME : action === "file" ? FILE_CHUNK : MAX_BODY;
+const limitFor = (action) => action === "frame" ? MAX_FRAME : action === "file" ? FILE_CHUNK : action === "watch" ? 512 : MAX_BODY;
+// Zepp watch connect (docs/protocol.md "Watch connect"): a code on the watch, typed into the parent page
+const WATCH_TTL = 10 * 60e3, WATCH_PER_DAY = 30;
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
@@ -123,7 +125,8 @@ export default {
     }
     const th = req.method === "POST" && env.TG_BOT ? url.pathname.match(/^\/tg\/([0-9a-f]{32})$/) : null;
     if (th) return tgHook(req, env, th[1]);
-    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget)$/);
+    if (url.pathname === "/w/new" || /^\/w\/\d{6}$/.test(url.pathname)) return watchRoute(req, env, url);
+    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch)$/);
     if (!m) return json({ error: "not found" }, 404);
     if (env.RL) {
       const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
@@ -137,6 +140,65 @@ export default {
     return stub.fetch(req);
   },
 };
+
+/** /w/new (watch asks for a code) and /w/<code> (watch polls with its secret). No auth: the watch has no kid yet; limits instead. */
+async function watchRoute(req, env, url) {
+  if (env.RL && !(await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" })).success) return json({ error: "slow down" }, 429);
+  if (!env.WATCH) return json({ error: "not available" }, 501);
+  const isNew = url.pathname === "/w/new";
+  if (req.method !== (isNew ? "POST" : "GET")) return json({ error: "method" }, 405);
+  if (+(req.headers.get("content-length") || 0) > 512) return json({ error: "too big" }, 413);
+  if (!isNew) {
+    const sec = req.headers.get("x-kg-secret") || "";
+    if (!/^[0-9a-f]{32,128}$/.test(sec)) return json({ error: "forbidden" }, 403);
+    const r = await env.WATCH.get(env.WATCH.idFromName("w:" + url.pathname.slice(3))).fetch("https://w/take?sh=" + await sha256(sec));
+    return new Response(r.body, { status: r.status, headers: r.headers });
+  }
+  let b; try { b = await req.json(); } catch { return json({ error: "bad json" }, 400); }
+  if (!b || !/^[0-9a-f]{64}$/.test(b.sh || "")) return json({ error: "bad json" }, 400);
+  if (env.GATE) {   // codes per client network per day: a script must not create Durable Objects without limit
+    const g = env.GATE.get(env.GATE.idFromName("wip:" + (netKey(req.headers.get("cf-connecting-ip")) || "?")));
+    if ((await g.fetch("https://gate/take?max=" + (+env.WATCH_PER_DAY || WATCH_PER_DAY))).status !== 200) return json({ error: "too many codes from this network, try tomorrow" }, 429);
+  }
+  for (let i = 0; i < 6; i++) {
+    const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e6).padStart(6, "0");
+    const r = await env.WATCH.get(env.WATCH.idFromName("w:" + code)).fetch("https://w/new", { method: "POST", body: JSON.stringify({ sh: b.sh }) });
+    if (r.status === 200) return json({ code, exp: (await r.json()).exp });
+  }
+  return json({ error: "try again" }, 503);
+}
+
+/** One code waiting for a parent page ("w:<code>"): {sh, exp, creds?}; deleted when taken, expired (lazy + alarm). */
+export class Watch {
+  constructor(ctx, env) { this.ctx = ctx; this.s = ctx.storage; this.ttl = +(env && env.WATCH_TTL_MS) > 0 ? +env.WATCH_TTL_MS : WATCH_TTL; }   // env.WATCH_TTL_MS: tests only
+  async fetch(req) {
+    const url = new URL(req.url), op = url.pathname.slice(1), now = Date.now();
+    let w = await this.s.get("w");
+    if (w && w.exp <= now) { await this.wipe(); w = null; }
+    if (op === "new") {
+      if (w) return json({ error: "taken" }, 409);
+      let b = {}; try { b = await req.json(); } catch {}
+      const exp = now + this.ttl;
+      await this.s.put("w", { sh: String(b.sh), exp }); await this.s.setAlarm(exp + 1000);
+      return json({ exp });
+    }
+    if (!w) return json({ error: "no such code" }, 404);
+    if (op === "attach") {
+      if (w.creds) return json({ error: "already used" }, 409);
+      w.creds = await req.json(); await this.s.put("w", w);
+      return json({ ok: true, exp: w.exp });
+    }
+    if (op === "take") {
+      if (url.searchParams.get("sh") !== w.sh) return json({ error: "forbidden" }, 403);
+      if (!w.creds) return json({ waiting: true, exp: w.exp });
+      await this.wipe();   // one shot: the credentials leave the relay with this reply
+      return json(w.creds);
+    }
+    return json({ error: "not found" }, 404);
+  }
+  async wipe() { await this.s.deleteAlarm().catch(() => {}); await this.s.deleteAll(); }
+  async alarm() { await this.s.deleteAll(); }
+}
 
 /** "Same network" key of a client address: the IPv4 address, or the /64 prefix of an IPv6 one (phones keep the prefix,
  * rotate the rest). "" when unknown. */
@@ -239,6 +301,16 @@ export class Kid {
       await this.s.deleteAlarm().catch(() => {}); await this.s.deleteAll();
       this.seen = 0; this.stateAt = 0; this.ikSet = false;
       return json({ result: "forgotten" });
+    }
+    if (action === "watch") {   // a Zepp watch shows a 6-digit code; the parent page sends it here, authenticated like any parent call
+      if (req.method !== "POST") return json({ error: "method" }, 405);
+      if (!this.env.WATCH) return json({ error: "not available" }, 501);
+      let b; try { b = await req.json(); } catch { return json({ error: "bad json" }, 400); }
+      if (!b || !/^\d{6}$/.test(String(b.code || ""))) return json({ error: "bad code" }, 400);
+      const name = String(b.name || "").replace(/[\u0000-\u001f]/g, "").slice(0, 20);
+      // the relay has ONE token per phone (the phone binds sha256 of it): the watch gets the same link data the parent page shows, not a device of its own
+      const r = await this.env.WATCH.get(this.env.WATCH.idFromName("w:" + b.code)).fetch("https://w/attach", { method: "POST", body: JSON.stringify({ url: url.origin, id, token, name }) });
+      return json(r.status === 200 ? { ok: true } : { error: r.status === 409 ? "code already used" : "no such code" }, r.status === 200 ? 200 : r.status === 409 ? 409 : 404);
     }
     if (!this.ikSet) { this.ikSet = true; const ik = await sha256("icon:" + token); if ((await this.s.get("iconKey")) !== ik) await this.s.put("iconKey", ik); }
     const now = Date.now();

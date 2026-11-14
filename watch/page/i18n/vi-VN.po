@@ -267,3 +267,24 @@ msgstr "%1: hết hạn, chưa chạy"
 
 msgid "rcWait"
 msgstr "%1: chờ máy con…"
+
+msgid "connect"
+msgstr "Kết nối"
+
+msgid "pairHow"
+msgstr "Trang KidGuard → Cài đặt → Đồng hồ: nhập mã"
+
+msgid "timeLeft"
+msgstr "Còn %1"
+
+msgid "tryDemo"
+msgstr "Xem thử"
+
+msgid "connected"
+msgstr "Đã kết nối"
+
+msgid "addKid"
+msgstr "Thêm con"
+
+msgid "noKids"
+msgstr "Chưa kết nối con nào"

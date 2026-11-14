@@ -166,6 +166,7 @@ same commit. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
 - Relay bandwidth (2026-11-11, Poco netstats: ~20 MB/day up, 1.5-2 MB down): whole states (2-day track, every app) went on every change and every 5 min. Now partial states (changed keys, apps per pkg, new track points; worker `mergeState`), whole only until the worker says `merge`, on `full`, or every 6 h. Telegram long-poll (~1.5 KB/min down) kept.
 
 - Dọn máy in basic mode (2026-11-11, owner asked "cần Device Owner à?"): no, it works through the self-adb shell, but the list was hidden whenever that shell was down (Poco on 4G) and the page blamed "no Device Owner". Now the list shows once self-adb is set up, hides wait for Wi-Fi, and state `adbWhy` drives an exact reason.
+- 2026-11-14 Watch connect is a 6-digit code (TV-pairing), not a pasted link: the watch asks the relay for a code (`POST /w/new`, DO `w:<code>`, 10 min), the parent page sends it with the kid's relay auth (`POST /c/<id>/watch`), the side service fetches `{url,id,token,name}` once with its secret. Token = the kid's one relay token (no per-device tokens exist on the relay; only the phone can mint them over LAN); demo phone only after "Xem thử". Paste-the-link stays as a fallback in the Zepp settings page.
 
 ## 2. REJECTED / DON'T RETRY
 - `DevicePolicyManager.setStatusBarDisabled` for shade blocking: also sets mDisableNotificationEffects, silencing ALL notification sound/vibration/heads-up (measured API 34). Also don't use lock-task status bar flags. Use Acc quick-settings closing (11-09)

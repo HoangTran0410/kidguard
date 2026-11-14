@@ -1,5 +1,6 @@
-// Settings page inside the Zepp app (parent's phone): add / remove kids by pasting the relay link
-// the KidGuard parent page shows under Settings > connection: https://<relay>/go#c=<id>&k=<token>&n=<name>
+// Settings page inside the Zepp app (parent's phone): list / remove kids. Kids are added with a code from the
+// watch (Kết nối screen -> KidGuard page, Settings > Watch); fallback: paste the relay link the parent page shows
+// under Settings > connection: https://<relay>/go#c=<id>&k=<token>&n=<name>. Optional: relay address override.
 
 function parse(link) {
   try {
@@ -43,10 +44,11 @@ AppSettingsPage({
       Text({ bold: true, style: { fontSize: "20px", marginBottom: "6px" } }, "KidGuard"),
       Text(
         { style: { fontSize: "14px", color: "#666", marginBottom: "12px" } },
-        "Trang bố mẹ → Cài đặt → Kết nối: chép link relay (https://…/go#c=…) rồi dán vào đây.\n" +
-          "Parent page → Settings → connection: copy the relay link and paste it here."
+        "Cách nhanh: mở KidGuard trên đồng hồ → \"Kết nối\" để lấy mã 6 số, rồi nhập mã ở trang KidGuard → Cài đặt → Đồng hồ.\n" +
+          "Quick way: open KidGuard on the watch → Connect to get a 6-digit code, then enter it on the KidGuard page → Settings → Watch."
       ),
       Section({ title: kids.length ? "Các con / Kids" : "Chưa có / None yet" }, list),
+      Text({ style: { fontSize: "13px", color: "#888", margin: "10px 0 4px" } }, "Hoặc dán link relay / Or paste the relay link (Settings → connection):"),
       TextInput({
         label: "Dán link relay / Paste relay link",
         placeholder: "https://…/go#c=…&k=…&n=…",
@@ -58,6 +60,15 @@ AppSettingsPage({
           }
           st.setItem("err", "");
           save(kids.filter((x) => x.id !== k.id).concat(k));
+        },
+      }),
+      TextInput({
+        label: "Relay (tuỳ chọn / optional)",
+        placeholder: "https://kidguard.99-hoangtran.workers.dev",
+        defaultValue: st.getItem("relay") || "",
+        onChange: (v) => {
+          const r = String(v || "").trim().replace(/\/+$/, "");
+          if (!r || /^https:\/\/[^/#?\s]+$/.test(r)) st.setItem("relay", r);
         },
       }),
       st.getItem("err") ? Text({ style: { color: "#f44336", fontSize: "14px" } }, st.getItem("err")) : null,

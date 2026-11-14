@@ -5,8 +5,8 @@
     "appName": "KidGuard",
     "appType": "app",
     "version": {
-      "code": 3,
-      "name": "0.3.0"
+      "code": 4,
+      "name": "0.4.0"
     },
     "icon": "icon.png",
     "vender": "zepp",
@@ -31,7 +31,8 @@
             "page/index",
             "page/pick",
             "page/apps",
-            "page/info"
+            "page/info",
+            "page/pair"
           ]
         },
         "app-side": {

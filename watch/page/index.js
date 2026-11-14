@@ -28,6 +28,7 @@ Page(
     state: { kid: 0, kids: [], s: null, err: "", rc: null },
     onInit() {
       this.state.kid = +ls.getItem("kid", 0) || 0;
+      ls.removeItem("demo");   // the demo phone is only shown after "Xem thử", per launch
     },
     build() {
       this.col = new Col();
@@ -36,7 +37,7 @@ Page(
       this.timer = setInterval(() => this.load(), 30000);
     },
     onResume() {
-      this.load();
+      this.loadKids();
       this.rcStart();
     },
     onDestroy() {
@@ -73,7 +74,21 @@ Page(
       ask(this, { method: "KIDS" })
         .then(({ kids = [] }) => {
           this.state.kids = kids;
+          this.state.kid = +ls.getItem("kid", 0) || 0;
           if (this.state.kid >= kids.length) this.state.kid = 0;
+          if (!kids.length) {
+            // no kid yet: connect screen once per launch; "Xem thử" (demo phone) only when chosen there
+            if (ls.getItem("demo", "") === "1") this.state.kid = -1;
+            else {
+              this.state.s = null;
+              this.state.err = "";
+              if (!this.askedPair) {
+                this.askedPair = true;
+                go("page/pair", {});
+              }
+              return this.render();
+            }
+          }
           this.load();
         })
         .catch(() => this.showErr(t("noPhone")));
@@ -158,6 +173,11 @@ Page(
       const s = this.state.s;
       const kidOpt = { kid: this.state.kid };
 
+      if (!s && !this.state.kids.length && this.state.kid !== -1 && !this.state.err) {
+        col.text(t("noKids"), { color: C.mute });
+        col.btn(t("connect"), () => go("page/pair", {}), { color: C.green, press: C.greenP });
+        return;
+      }
       if (!s) {
         col.text(this.state.err || t("loading"), { color: this.state.err ? C.red : C.mute });
         col.btn(t("retry"), () => this.loadKids());
@@ -288,6 +308,7 @@ Page(
         () => this.act("RULES", { op: { k: "lost", on: !s.lost, msg: t("lostMsgDefault") } }, s.lost ? t("lostOffDone") : t("lostOnDone")),
         s.lost ? { color: C.blue, press: C.blueP } : { color: C.red, press: C.redP });
       col.btn(t("refresh"), () => { toast(t("loading")); this.load(); }, { h: 56, size: 24 });
+      col.btn(t("addKid"), () => go("page/pair", {}), { h: 56, size: 24 });
       col.end();
     },
   })

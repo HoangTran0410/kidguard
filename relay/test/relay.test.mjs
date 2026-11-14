@@ -382,6 +382,44 @@ ck("C8: forget with a wrong token 401",(await fetch(`${B}/c/${ide}/forget`,{meth
 r=await Q("forget",{});ck("C8: forget ok",(await r.json()).result=="forgotten");
 r=await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}});ck("C8: after forget the id is unbound (409 waiting for the phone)",r.status==409);
 r=await Q("sync",{state:{rules:{rev:1}}});ck("C8: the same id can bind again after forget",r.status==200);}
+// ---- watch connect: /w/new, POST /c/<id>/watch, GET /w/<code> (docs/protocol.md "Watch connect") ----
+{const {createHash,randomBytes}=await import("node:crypto");
+const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),idw=rh(16),Tw=rh(48);
+const sec=randomBytes(16).toString("hex"),sh=createHash("sha256").update(sec).digest("hex");
+const W=(p,o={})=>fetch(`${B}${p}`,o);
+const NEW=async(h=sh)=>W("/w/new",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sh:h})});
+const GET=(code,s=sec)=>W(`/w/${code}`,{headers:s?{"x-kg-secret":s}:{}});
+const ATT=(code,t=Tw,name="Bin")=>fetch(`${B}/c/${idw}/watch`,{method:"POST",headers:{"x-kg-token":t,"content-type":"application/json"},body:JSON.stringify({code,name})});
+await fetch(`${B}/c/${idw}/sync`,{method:"POST",headers:{"x-kg-token":Tw,"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});
+r=await NEW();j=await r.json();const code=j.code;
+ck("watch: /w/new gives a 6-digit code + exp = now + TTL (6 s here, 10 min in production)",r.status==200&&/^\d{6}$/.test(code)&&j.exp-Date.now()>3500&&j.exp-Date.now()<=6000);
+ck("watch: /w/new with a bad sh 400",(await NEW("abc")).status==400);
+ck("watch: /w/new GET 405",(await W("/w/new")).status==405);
+r=await GET(code);j=await r.json();ck("watch: poll before attach = waiting",r.status==200&&j.waiting===true);
+ck("watch: wrong secret 403",(await GET(code,"ee".repeat(16))).status==403);
+ck("watch: no secret 403",(await GET(code,"")).status==403);
+ck("watch: unknown code 404",(await GET("000000")).status==404||(await GET("000000")).status==403);
+ck("watch: attach without a token 401",(await fetch(`${B}/c/${idw}/watch`,{method:"POST",body:JSON.stringify({code})})).status==401);
+ck("watch: attach with a wrong token 401",(await ATT(code,BAD)).status==401);
+ck("watch: attach with a bad code 400",(await ATT("12ab")).status==400);
+ck("watch: attach to a code nobody asked for 404",(await ATT("000001")).status==404);
+ck("watch: attach GET 405",(await fetch(`${B}/c/${idw}/watch`,{headers:{"x-kg-token":Tw}})).status==405);
+ck("watch: attach body >512 B 413",(await fetch(`${B}/c/${idw}/watch`,{method:"POST",headers:{"x-kg-token":Tw},body:JSON.stringify({code,name:"a".repeat(600)})})).status==413);
+ck("watch: still waiting after failed attaches",(await (await GET(code)).json()).waiting===true);
+r=await ATT(code);ck("watch: attach ok",r.status==200&&(await r.json()).ok===true);
+ck("watch: a second attach 409",(await ATT(code)).status==409);
+ck("watch: attached but wrong secret still 403 (creds not leaked)",(await GET(code,"ee".repeat(16))).status==403);
+r=await GET(code);j=await r.json();
+ck("watch: one fetch returns {url,id,token,name}",r.status==200&&j.id==idw&&j.token==Tw&&j.name=="Bin"&&j.url==B&&!j.waiting);
+ck("watch: the entry is gone after the fetch (404)",(await GET(code)).status==404);
+ck("watch: attach after take 404",(await ATT(code)).status==404);
+// expiry: unattached code, then an attached-but-never-fetched one: both gone after the TTL
+const c2=(await (await NEW()).json()).code,c3=(await (await NEW()).json()).code;await ATT(c3);
+await new Promise(z=>setTimeout(z,6600));
+ck("watch: an expired code answers 404 to the watch",(await GET(c2)).status==404);
+ck("watch: attach to an expired code 404",(await ATT(c2)).status==404);
+ck("watch: credentials of an expired code are not handed out",(await GET(c3)).status==404);
+}
 // ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;
 for(let i=0;i<90&&!blocked;i++){const idn=rh(16),r=await fetch(`${B}/c/${idn}/sync`,{method:"POST",headers:{"x-kg-token":rh(48),"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});

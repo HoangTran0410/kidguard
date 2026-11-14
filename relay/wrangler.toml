@@ -15,6 +15,11 @@ class_name = "Kid"
 name = "GATE"
 class_name = "Gate"
 
+# Zepp watch connect codes ("w:<code>", 10 min, deleted when taken)
+[[durable_objects.bindings]]
+name = "WATCH"
+class_name = "Watch"
+
 # SQLite-backed Durable Objects run on the Workers free plan
 [[migrations]]
 tag = "v1"
@@ -23,6 +28,10 @@ new_sqlite_classes = ["Kid"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["Gate"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["Watch"]
 
 # Per-IP rate limit on /c/* (free plan). Stops a single client looping random ids to burn the daily quota;
 # one family (phone sync every 20 s + a parent watching the live screen) stays far below it.

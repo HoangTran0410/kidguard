@@ -318,6 +318,7 @@ function setTab(b) {
     <div id="relayOut">${cur.relay && st.relay ? relayLinkHtml(goLink(cur.relay.url, cur.relay.id, cur.relay.token, cur.name)) : ""}</div>`, !!st.relay)
     : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p>${st.relayBig ? `<p class="mute">${ic("info")} ${t("relay.big")}</p>` : ""}${cur.via === "relay" && isRelayOrigin ? relayLinkHtml(goLink(location.origin, cur.id, cur.token, cur.name)) : ""}</div>`}
   ${tgHtml()}
+  ${watchCard()}
   <div class="dz" style="margin-top:22px">${sec("s-danger", "octagon-x", t("set.danger"), t("sd.danger"), null, `<h2>${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
     <h2 style="margin-top:18px">${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
     <button id="release" class="bad">${ic("octagon-x")} ${t("rel.btn")}</button>`)}</div>
@@ -431,6 +432,7 @@ function setTab(b) {
   if ($("#f-shTcp")) $("#f-shTcp").onchange = e => shTcp(e.target.checked);
   if ($("#shTcpNow")) $("#shTcpNow").onclick = shTcpNow;
   if ($("#relayRenewNow")) $("#relayRenewNow").onclick = () => relayRenew(cur, "", true);
+  if ($("#watchGo")) { $("#watchGo").onclick = watchGo; $("#f-wcode").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); watchGo(); } }; $("#f-wcode").oninput = e => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 6); }; }
   for (const x of document.querySelectorAll(".ftgo")) x.onclick = () => featGo(x.dataset.ft);
   if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, t("upd.sent"), [t("upd.ask"), t("upd.ok")]).then(() => setTimeout(refresh, 4000));
   tgWire();
@@ -524,6 +526,27 @@ function tgWire() {
   if ($("#tgOff")) $("#tgOff").onclick = () => cmd({ type: "tgOff" }, t("tg.offDone"), [t("tg.offAsk"), t("tg.off"), true]).then(again);
   document.querySelectorAll("[data-tgun]").forEach(b => b.onclick = () => cmd({ type: "tgUnlink", chat: b.dataset.tgun }, t("tg.unDone"), [t("tg.unAsk"), t("tg.unlink"), true]).then(again));
 }
+// Amazfit / Zepp watch (watch/ in the repo): the watch shows a 6-digit code, we send it to the relay together with
+// this kid's relay login (POST /c/<id>/watch, docs/protocol.md "Watch connect"). Needs the relay: a LAN-only kid has none.
+function watchCard() {
+  const ok = cur.via === "relay" || !!(cur.relay && st.relay);
+  return sec("s-watch", "watch", t("watch.h"), t("sd.watch"), null, ok
+    ? `<p class="mute">${t("watch.p")}</p>
+    <div class="row"><input class="sp" style="min-width:8em" id="f-wcode" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="${esc(t("watch.ph"))}" aria-label="${esc(t("watch.code"))}" autocomplete="off"><button id="watchGo" class="pri">${ic("watch")} ${t("watch.go")}</button></div>`
+    : `<p class="mute">${ic("info")} ${t("watch.needRelay")}</p>`, false);
+}
+async function watchGo() {
+  const f = $("#f-wcode"), bt = $("#watchGo"), code = f.value.trim(), k = cur;
+  if (!/^\d{6}$/.test(code)) { toast("warn|" + t("watch.bad")); f.focus(); return; }
+  const body = { code, name: k.name }, h0 = bt.innerHTML;
+  bt.disabled = true; bt.setAttribute("aria-busy", "true");
+  try {
+    await (k.via === "relay" ? call(k, "/watch", "POST", body) : viaRelay(k, "/watch", "POST", body));
+    toast("ok|" + t("watch.done", k.name)); if (k === cur && $("#f-wcode")) f.value = "";
+  } catch (er) { toast("err|" + t("errX", er.message)); if (k === cur) f.focus(); }
+  finally { if ($("#watchGo") === bt) { bt.disabled = false; bt.removeAttribute("aria-busy"); bt.innerHTML = h0; } }
+}
+
 /** The /go link box (Cài đặt > relay): the link that always opens, whatever the phone's address. */
 function relayLinkHtml(link) {
   return `<p>${ic("smartphone")} ${t("relay.link")}</p><code id="goLink">${esc(link)}</code>

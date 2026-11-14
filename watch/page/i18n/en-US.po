@@ -267,3 +267,24 @@ msgstr "%1: expired, not run"
 
 msgid "rcWait"
 msgstr "%1: waiting for the phone…"
+
+msgid "connect"
+msgstr "Connect"
+
+msgid "pairHow"
+msgstr "KidGuard page → Settings → Watch: enter the code"
+
+msgid "timeLeft"
+msgstr "%1 left"
+
+msgid "tryDemo"
+msgstr "Try demo"
+
+msgid "connected"
+msgstr "Connected"
+
+msgid "addKid"
+msgstr "Add kid"
+
+msgid "noKids"
+msgstr "No kid connected"
