@@ -10,7 +10,7 @@ Every watch talks to the **relay only** (Cloudflare Worker), never to the child 
 | `garmin/` | Garmin Connect IQ | Monkey C | `monkeyc` from the Connect IQ SDK | first version |
 | `apple/` | watchOS 10+ | Swift + SwiftUI | Xcode | first version |
 
-Each folder has its own `README.md` in the style of `docs/flows.md`: trigger -> steps -> state -> gotchas, with file pointers.
+Each folder has its own `README.md` in the style of `docs/flows/`: trigger -> steps -> state -> gotchas, with file pointers.
 
 ## Shared contract (all watches do the same thing)
 Wire formats live in `docs/protocol.md` (the contract); this is the short list a watch needs.

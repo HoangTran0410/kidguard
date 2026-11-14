@@ -29,3 +29,4 @@ Index and the rule for adding lines: `README.md`.
 
 ## Rejected / don't retry
 - Same-origin APK hosting on the website (/dl/): reverted, back to GitHub release links (9d75f23)
+- (2026-11-14) Agent token cost: `docs/flows.md` (~21k tokens whole) split into `docs/flows/<area>.md` (§ numbers kept); `docs/protocol.md` stays ONE file (contract test + setup scripts read it, one grep target) but a whole-file Read of it, `HomeActivity.kt`, `ui/install.html`, `ui/qr.html` is blocked by `.claude/hooks/big-read.py` (project `.claude/settings.json`): grep the heading, Read with offset/limit <= 200.

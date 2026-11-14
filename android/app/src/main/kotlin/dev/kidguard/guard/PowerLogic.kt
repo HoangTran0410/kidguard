@@ -2,7 +2,7 @@ package dev.kidguard
 
 /**
  * Pure battery decisions of the Guard (unit-tested): when the Wi-Fi radio is kept out of power save, and how often a
- * phone that is lying still takes a location fix. See docs/flows.md §1.6 / §1.8.
+ * phone that is lying still takes a location fix. See docs/flows/enforcement.md §1.6 / §1.8.
  */
 object PowerLogic {
     /** The LAN page / a stream was used this recently: keep Wi-Fi out of power save so the next calls answer fast. */

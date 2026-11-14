@@ -7,8 +7,8 @@ The child app is also a kid launcher, shipped alone as the "KidGuard Home" flavo
 ## Read first (in this order, only what you need)
 | Need | File |
 |---|---|
-| What KidGuard is allowed to do (Device Owner, accessibility, background start, broadcasts, ...) and which flow uses each: check before saying "can't" or building a new mechanism | `docs/flows.md` §0 |
-| How a feature works end to end (trigger -> steps -> state -> gotchas, with file pointers) | `docs/flows.md` |
+| What KidGuard is allowed to do (Device Owner, accessibility, background start, broadcasts, ...) and which flow uses each: check before saying "can't" or building a new mechanism | `docs/flows/README.md` §0 |
+| How a feature works end to end (trigger -> steps -> state -> gotchas, with file pointers) | `docs/flows/` (index `README.md`) |
 | What was already decided / tried and rejected / OEM quirks / past bugs / open issues | `docs/decisions/` (index: `README.md`; one file per area) |
 | Wire formats: rules, state, commands, endpoints, setup steps (**the contract**) | `docs/protocol.md` (900 lines: grep the heading) |
 | Which feature works with which setup (Device Owner / basic / +WSS / +adb / Home) and over which link (LAN / Tailscale / relay) | `docs/support-matrix.md` (update the row in the same commit) |
@@ -25,7 +25,7 @@ When you settle something durable (a decision, a rejected approach, a platform q
 - Every Kotlin file is `package dev.kidguard` (folders are for reading only; manifest + Device Owner admin bind to it).
 - UI text: follow `docs/copy.md` (outcome first, one idea per sentence, short, glossary words). - UI text Vietnamese + English, always both (`res/values` + `res/values-vi`, `ui/assets/i18n-en.js` + `i18n-vi.js`); code and comments English.
 - Rules JSON is a full replace on the phone (`Rules.fromJson` is the allow-list): the page must always send the whole object.
-- New relay command ⇒ worker whitelist `CMDS` + protocol "Commands" + (destructive) `ONCE` list. Checklist: `docs/flows.md` §5.
+- New relay command ⇒ worker whitelist `CMDS` + protocol "Commands" + (destructive) `ONCE` list. Checklist: `docs/flows/checklists.md`.
 - New page section (`sec("id", ...)`) ⇒ an entry in the feature search `QS` (`ui/assets/shell.js`), keys in both i18n files;
   `node scripts/check-search.mjs` fails otherwise (CI + `build.sh`).
 - New `ui/assets` file ⇒ `<script defer>` tag in `ui/index.html` (order matters, shared globals: never redeclare a
@@ -44,7 +44,7 @@ When you settle something durable (a decision, a rejected approach, a platform q
 ## Layout (where is X)
 Root: `android/` (Gradle: `app/` child app with flavors `kid` + `home`, `parent/` parent app), `ui/` (parent page +
 installers, also the APK assets dir and imported by the worker), `relay/` (Cloudflare Worker + Durable Object), `website/`
-(static site kid-guard.pages.dev), `watch/` (parent watch apps, one folder per platform, shared contract in `watch/README.md`: `zepp/` Zepp OS for the owner's Amazfit Bip Max (`app-side/` runs in the Zepp phone app and talks to the relay like the page, `page/` = watch screens; build `cd watch/zepp && npm ci && npx zeus build`, install `tools/install.exp` = the owner's watch, ask first), `wearos/`, `garmin/`, `apple/`; each has a README in the flows.md style), `docs/`, `scripts/` (build, setup, relay deploy). Build outputs: `build/`.
+(static site kid-guard.pages.dev), `watch/` (parent watch apps, one folder per platform, shared contract in `watch/README.md`: `zepp/` Zepp OS for the owner's Amazfit Bip Max (`app-side/` runs in the Zepp phone app and talks to the relay like the page, `page/` = watch screens; build `cd watch/zepp && npm ci && npx zeus build`, install `tools/install.exp` = the owner's watch, ask first), `wearos/`, `garmin/`, `apple/`; each has a README in the docs/flows/ style), `docs/`, `scripts/` (build, setup, relay deploy). Build outputs: `build/`.
 
 `K/` = `android/app/src/main/kotlin/dev/kidguard/`:
 | Area | Files |
@@ -77,7 +77,7 @@ Flavor `home` (`dev.kidguard.home`): launcher only, `src/home/AndroidManifest.xm
   `--patch basic.json` = `{"mode":"basic","owner":false}`): every section open, full-page PNGs, prints what sticks out of
   the screen / is cut by a card. LOOK at the PNGs of the tab you changed before handing it to the owner.
 - Nothing tests `ui/*.html` or on-device behaviour: say so in reports; real-phone checks are the user's.
-- Release steps (bump, build, tag, GitHub release assets, relay + site deploy): `docs/flows.md` §4.3.
+- Release steps (bump, build, tag, GitHub release assets, relay + site deploy): `docs/flows/setup-build.md` §4.3.
   Deploys (`wrangler deploy`, Pages) need the owner's OK.
 
 ## Common gotchas (more in `docs/decisions/platforms.md`)

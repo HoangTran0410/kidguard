@@ -2,7 +2,7 @@
 
 Read the file of the area you touch before proposing a design or "fix": most ideas in these files were already tried,
 measured or rejected ("reversed in X" marks a change of mind). Dates are 2026-11-xx; `(abc1234)` = commit with the
-details; "unverified" = not re-checked against current code. Flows: `docs/flows.md`. Wire contract: `docs/protocol.md`.
+details; "unverified" = not re-checked against current code. Flows: `docs/flows/` (index `README.md`). Wire contract: `docs/protocol.md`.
 
 **RULE:** when you decide or learn something durable, add ONE line under the right heading (`## Decided`,
 `## Rejected / don't retry`, `## Past bugs (cause -> fix -> avoid)`) of the right area file, in the same commit.
