@@ -76,11 +76,15 @@ class RelayPair(private val g: Guard) {
         }
         val on = g.getSystemService(PowerManager::class.java)?.isInteractive == true
         val code = store.visiblePairCode()
-        if (pendTok.isNotEmpty() && offered.isNotEmpty()) return if (poll(url, offered, false)) 2_000 else 3_000   // answered: wait for `taken` even with the screen off
+        if (pendTok.isNotEmpty() && offered.isNotEmpty()) {   // answered: wait for `taken` even with the screen off, but not past the code's life
+            if (now - offeredAt > 15 * 60_000L) { offered = ""; pendTok = "" } else return if (poll(url, offered, false)) 2_000 else 3_000
+        }
         if (!on || code == null) return 15_000   // the screen shows no code: don't look now, but keep the offer (same secret) so the code stays ours
         if (code != offered || now - offeredAt > 10 * 60_000L) {
             if (secret.isEmpty() || code != offered) secret = Store.randomHex(16)
             val st = call(url, "POST", "/p/new", JSONObject().put("sh", Store.sha256(secret)).put("code", code), false).first
+            // 409 on our own code = a parent's request waits there (no renew then): read it with our secret; a 403 (not ours) ends as Gone
+            if (st == 409 && code == offered) { offeredAt = now; poll(url, code, false); return 2_000 }
             if (st == 409) { store.newPairCode(); return 1_000 }   // somebody else holds this code on the relay: use another
             if (st != 200) return 20_000
             offered = code; offeredAt = now
@@ -93,7 +97,7 @@ class RelayPair(private val g: Guard) {
         val (st, body) = call(url, "GET", "/p/$key", null, true)
         when (val p = RelayPairLogic.parsePoll(st, body)) {
             RelayPairLogic.Poll.Waiting -> return false
-            RelayPairLogic.Poll.Gone -> { if (invite) store.clearInvite() else { offered = ""; pendTok = "" }; return false }
+            RelayPairLogic.Poll.Gone -> { if (invite) store.clearInvite() else offered = ""; pendTok = ""; return false }
             RelayPairLogic.Poll.Taken -> {
                 val ok = pendTok.isNotEmpty() && store.commitRelayPair(pendTok, pendId, url)
                 pendTok = ""; offered = ""
