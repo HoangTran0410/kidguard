@@ -118,7 +118,7 @@ async function shTcpNow() {
   if (r) [2000, 8000, 20000].forEach(ms => setTimeout(refresh, ms));
 }
 async function shTcp(on) {
-  const r = await cmd({ type: "adbTcp", on }, t(on ? "sh.tcpSent" : "sh.tcpOffSent"), [t(on ? "sh.tcpAsk" : "sh.tcpAskOff"), t(on ? "sh.tcpBtn" : "sh.tcpOffBtn"), on]);
+  const r = await cmd({ type: "adbTcp", on }, t(on ? "sh.tcpSent" : "sh.tcpOffSent"), on ? [t("sh.tcpAsk"), t("sh.tcpBtn"), true] : false);
   if (!r) render(); else [2000, 15000].forEach(ms => setTimeout(refresh, ms));
 }
 // "Chức năng & quyền": every feature with ok / the permissions it still needs (state.features, phone >= 0.9.9).

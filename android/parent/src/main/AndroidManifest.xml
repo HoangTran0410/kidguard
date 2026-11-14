@@ -53,6 +53,14 @@
         <!-- notification buttons (answer a time request); only our own explicit, immutable PendingIntents reach it -->
         <receiver android:name=".AnswerReceiver" android:exported="false" />
 
+        <!-- reboot / app update: schedule the background check again -->
+        <receiver android:name=".BootReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- home-screen widget; buttons are our own explicit, immutable PendingIntents (not exported: the system's update broadcast still reaches it) -->
         <receiver android:name=".KidWidget" android:exported="false">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>

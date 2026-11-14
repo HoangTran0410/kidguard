@@ -89,7 +89,19 @@ class LogicTest {
 
     @Test fun lostIsSilentAtBedtime() {
         val o = Logic.evaluate("An", Logic.Seen(true, emptyList(), now - 40 * 60_000, bedtime = true), Logic.NotifyState(init = true), now, tr = TestTr.VI)
-        assertTrue(o.events.isEmpty()); assertTrue(o.state.lost)
+        assertTrue(o.events.isEmpty()); assertFalse(o.state.lost)
+        // still unreachable 13 h after the last contact: the notice fires once
+        val late = Logic.evaluate("An", Logic.Seen(true, emptyList(), now - 13 * 3600_000L, bedtime = true), o.state, now, tr = TestTr.VI)
+        assertEquals(1, late.events.size); assertTrue(late.state.lost)
+    }
+
+    @Test fun oldSosFiresAfterFirstLookButNotOnIt() {
+        val old = now - 20 * 3600_000L
+        val seen = Logic.Seen(true, emptyList(), now, sos = listOf("x1" to old))
+        assertEquals(listOf("sos:x1"), Logic.evaluate("An", seen, Logic.NotifyState(init = true), now, tr = TestTr.VI).events.map { it.key })
+        assertTrue(Logic.evaluate("An", seen, Logic.NotifyState(init = false), now, tr = TestTr.VI).events.isEmpty())
+        val ancient = Logic.Seen(true, emptyList(), now, sos = listOf("x2" to now - 49 * 3600_000L))
+        assertTrue(Logic.evaluate("An", ancient, Logic.NotifyState(init = true), now, tr = TestTr.VI).events.isEmpty())
     }
 
     @Test fun appRequestEvent() {

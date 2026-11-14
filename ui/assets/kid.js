@@ -211,9 +211,8 @@ const CONFIRM = {
   "f-ni": { on: "anti.installAsk" },
   "f-nv": { on: "dns.novpnAsk" },
   "f-na": { on: "more.airAsk" },
-  "f-hm": { on: "hm.askOn", off: "hm.askOff", safe: 1 },
-  "f-mon": { off: "mon.askOff", safe: 1 },
-  "f-lost": { on: "lost.askOn", off: "lost.askOff", safe: 1 },
+  "f-hm": { on: "hm.askOn", safe: 1 },
+  "f-lost": { on: "lost.askOn", safe: 1 },
 };
 let confirmPass = null;
 function confirmGate(e) {
@@ -239,14 +238,15 @@ document.addEventListener("click", confirmGate, true);
 const askOf = c => hasT("ask." + c) ? [t("ask." + c), t("askOk." + c), !!ASK_BAD[c]] : null;
 // Commands the phone runs only with the parent PIN (or an Authenticator code) inside: guard/CmdGate.kt, protocol
 // "PIN-gated commands". Phones before 0.9.13 have no gate (no state.pinResetAt): nothing asked there.
+const GATED_OFF_FREE = c => c.type === "adbTcp" && !c.on;   // closing the adb port needs no PIN (phone: CmdGate.needs)
 const GATED = new Set(["release", "unpairAll", "unpair", "clearData", "reboot", "relay", "tailscaleOff", "openPairing", "totpSet", "tgSet", "tgCode", "tgOff", "pinSet", "pinResetCancel", "adbShell", "adbTcp"]);
 const gateOn = () => !!(st && "pinResetAt" in st && ((edit && edit.pinSet) || st.totpOn));
-let pinMem = null;   // {token, pin, at}: the PIN typed for this kid in the last 2 min (a "Dọn máy" run sends clearData per app)
+let pinMem = null;   // {token, pin, at}: the PIN typed for this kid in the last 5 min, sliding (a "Dọn máy" run sends clearData per app)
 const pinField = () => `<input id="askPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="${esc(t("pin.cmdPh"))}" aria-label="${esc(t("pin.cmdPh"))}" style="width:100%;margin-bottom:6px">
   <p class="mute" style="margin:0 0 12px;font-size:13px">${esc(t("pin.cmdWhy"))}</p>`;
 /** Confirm dialog [a] (or a plain "enter the PIN" one) with a PIN field. Resolves the PIN, or null when cancelled. */
 async function askPin(k, a) {
-  if (pinMem && pinMem.token === k.token && Date.now() - pinMem.at < 120000) { if (!a || await ask(...a)) return pinMem.pin; return null; }
+  if (pinMem && pinMem.token === k.token && Date.now() - pinMem.at < 300000) { if (!a || await ask(...a)) { pinMem.at = Date.now(); return pinMem.pin; } return null; }
   let pin = "";
   const [text, ok, danger, typed] = a || [t("pin.cmdAsk"), t("agree"), false, ""];
   const yes = await ask(text, ok, danger, typed || "", pinField(), () => { const v = ($("#askPin") || {}).value || ""; pin = v; return /^\d{4,8}$/.test(v); });
@@ -266,7 +266,7 @@ async function cmd(c, okMsg, q) {
   const k = cur, a0 = q || (q === false ? null : askOf(c.type)) || (c.type === "message" ? [t("askMsg", c.text), t("send")] : null);
   // dangerous: name the kid in the text, so a dialog for A can never be mistaken for B
   const a = a0 && a0[2] && k && k.name ? [k.name + "\n" + a0[0], ...a0.slice(1)] : a0;
-  if (GATED.has(c.type) && gateOn() && !c.pin) {
+  if (GATED.has(c.type) && !GATED_OFF_FREE(c) && gateOn() && !c.pin) {
     const pin = await askPin(k, a || (k && k.name ? [k.name + "\n" + t("pin.cmdAsk"), t("agree")] : null));
     if (pin == null) return;
     c = { ...c, pin };

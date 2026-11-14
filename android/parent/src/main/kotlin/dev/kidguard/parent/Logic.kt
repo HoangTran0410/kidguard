@@ -10,7 +10,9 @@ import java.util.Base64
 
 object Logic {
     const val LOST_MS = 30 * 60_000L
-    const val SOS_FRESH_MS = 6 * 3600_000L
+    const val SOS_FRESH_MS = 6 * 3600_000L        // first look at a kid only: older SOS may predate the setup
+    const val SOS_MAX_MS = 48 * 3600_000L          // later looks: an SOS not yet notified always fires (a phone that was dead overnight)
+    const val BEDTIME_QUIET_MS = 12 * 3600_000L    // an offline phone at bedtime is silent only this long
     const val EV_FRESH_MS = 6 * 3600_000L
 
     fun hhmm(ms: Long, zone: ZoneId = ZoneId.systemDefault()): String =
@@ -217,7 +219,7 @@ object Logic {
             if (st.init) for ((id, min) in seen.requests) if (id !in ids)
                 events.add(seen.appReqs[id]?.let { Event("req:$id", tr.s(T.ev_request_app, name, it), app = true) } ?: Event("req:$id", tr.q(T.ev_request, min, name, min), min))
             // SOS: also on the first look, unless it is old (the child may have pressed it before the app was set up)
-            for ((id, t) in seen.sos) if ("s:$id" !in ids && now - t < SOS_FRESH_MS) events.add(Event("sos:$id", tr.s(T.ev_sos, name, hhmm(t)), loc = seen.loc))
+            for ((id, t) in seen.sos) if ("s:$id" !in ids && now - t < (if (st.init) SOS_MAX_MS else SOS_FRESH_MS)) events.add(Event("sos:$id", tr.s(T.ev_sos, name, hhmm(t)), loc = seen.loc))
             // events (zones, battery, new app, clock): same rule as requests, plus a one-time silent look per kid so an app
             // update does not replay the 50 events a phone already holds; stale ones are recorded but not shown
             if (st.evInit) for (e in seen.events) if ("e:${e.id}" !in ids && now - e.t < EV_FRESH_MS) events.add(if (e.kind == "checkin") Event("ci:${e.id}", "$name: ${e.text}", loc = e.loc ?: seen.loc) else Event("ev:${e.id}", "$name: ${e.text}", important = importantKind(e.kind)))
@@ -225,9 +227,11 @@ object Logic {
             ids = (ids + current).let { all -> if (all.size > 300) current.toSet() else all }
             val isLost = seen.activityT > 0 && now - seen.activityT > LOST_MS
             // asleep at bedtime is not news (the phone is switched off every night); coming back dismisses the notice
-            if (isLost && !lost && !seen.bedtime) events.add(Event("lost", tr.s(T.ev_offline, name, hhmm(seen.activityT))))
+            // (only while the last contact is < 12 h old; `lost` stays false while silent so the notice still fires later)
+            val quiet = seen.bedtime && now - seen.activityT < BEDTIME_QUIET_MS
+            if (isLost && !lost && !quiet) events.add(Event("lost", tr.s(T.ev_offline, name, hhmm(seen.activityT))))
             if (!isLost && lost) clear.add("lost")
-            lost = isLost
+            lost = isLost && (lost || !quiet)   // already notified stays notified (no second notice, the clear still runs)
             if (seen.accOff && !st.accOff) events.add(Event("acc", tr.s(T.ev_acc_off, name), important = true))
         } else {
             if (failSince == 0L) failSince = now

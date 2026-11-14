@@ -721,7 +721,7 @@ class Guard : Service() {
 
     /** [CmdGate]: null = may run; else the "failed: pin..." answer (failed = the same id may be re-sent with the right PIN). */
     private fun gate(t: String, c: JSONObject): String? {
-        if (!CmdGate.needs(t, if (c.has("url")) c.optString("url") else null, store.relayUrl, c.optBoolean("renew"))) return null
+        if (!CmdGate.needs(t, if (c.has("url")) c.optString("url") else null, store.relayUrl, c.optBoolean("renew"), c.optBoolean("on"))) return null
         return when (store.checkCmdPin(c.optString("pin"), t)) {
             1, 2 -> null
             3 -> "failed: pin needed"
