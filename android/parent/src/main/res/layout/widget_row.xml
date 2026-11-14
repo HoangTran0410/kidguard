@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_row"
+    android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+    android:orientation="horizontal" android:gravity="center_vertical"
+    android:paddingStart="8dp" android:paddingEnd="4dp" android:paddingTop="2dp" android:paddingBottom="2dp">
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+        <TextView android:id="@+id/w_name" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:singleLine="true" android:ellipsize="end" android:textStyle="bold" android:textSize="15sp" android:textColor="@color/w_text" />
+        <TextView android:id="@+id/w_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:singleLine="true" android:ellipsize="end" android:textSize="14sp" android:textColor="@color/w_text" />
+        <TextView android:id="@+id/w_seen" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:singleLine="true" android:ellipsize="end" android:textSize="12sp" android:textColor="@color/w_sub" />
+    </LinearLayout>
+    <TextView android:id="@+id/w_lock" android:layout_width="wrap_content" android:layout_height="36dp"
+        android:minWidth="56dp" android:gravity="center" android:paddingStart="10dp" android:paddingEnd="10dp" android:layout_marginStart="6dp"
+        android:background="@drawable/w_btn" android:singleLine="true" android:textSize="13sp" android:textStyle="bold"
+        android:textColor="@color/w_text" android:text="@string/w_lock" />
+    <TextView android:id="@+id/w_plus" android:layout_width="wrap_content" android:layout_height="36dp"
+        android:minWidth="56dp" android:gravity="center" android:paddingStart="10dp" android:paddingEnd="10dp" android:layout_marginStart="6dp"
+        android:background="@drawable/w_btn" android:singleLine="true" android:textSize="13sp" android:textStyle="bold"
+        android:textColor="@color/w_text" android:text="@string/w_plus" />
+</LinearLayout>

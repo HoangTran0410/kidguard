@@ -59,8 +59,12 @@ class CheckJob : JobService() {
             Store.setCheckAt(c, System.currentTimeMillis())
             // the worker drops push tokens after 30 quiet days and a failed registration was never retried: once a day, again
             if (Store.notify(c) && System.currentTimeMillis() - Store.pushAt(c) >= 24 * 3_600_000L) Push.sync(c, force = true)
-            if (!Store.notify(c)) return
+            if (!Store.notify(c)) {   // no alerts wanted, but a widget still needs fresh numbers
+                if (KidWidget.active(c)) KidWidget.refreshAll(c)
+                return
+            }
             for (k in Logic.parseKids(Store.kids(c))) runKid(c, k)
+            KidWidget.update(c)   // redraw even when nothing could be fetched: "seen N min ago" ages
         }
 
         /** The check for one kid (also called by an FCM "ev" push, [Push.handle]). */
@@ -74,6 +78,7 @@ class CheckJob : JobService() {
                 return
             }
             if (Store.unpairedSeen(c, k.key)) Store.setUnpairedSeen(c, k.key, false)
+            KidWidget.save(c, k, seen)
             val canPost = canNotify(c)
             val onWifi = onWifi(cm)
             val out = synchronized(Store) {   // a push may mark the same event seen meanwhile ([Push.handle])
@@ -145,7 +150,10 @@ class CheckJob : JobService() {
                     if (id.isEmpty() || text.isEmpty()) null else Logic.Ev(id, text.take(120), x.optLong("t"), x.optString("kind"), Act.locOf(JSONObject().put("location", x.optJSONObject("loc"))))
                 }
                 val accOff = st.optString("mode") == "basic" && st.optJSONObject("basic")?.optBoolean("acc", true) == false
-                Logic.Seen(true, list, if (lan) st.optLong("t") else o.optLong("seen"), sos, evs, accOff, Act.locOf(st), appReqs, st.optJSONObject("now")?.optString("why") == "bedtime")
+                Logic.Seen(true, list, if (lan) st.optLong("t") else o.optLong("seen"), sos, evs, accOff, Act.locOf(st), appReqs, st.optJSONObject("now")?.optString("why") == "bedtime",
+                    if (st.length() == 0) null   // relay kid that never synced: nothing to show
+                    else WidgetLogic.Snap(st.optJSONObject("now")?.optString("why").orEmpty(), st.optInt("limitMin"), if (st.has("leftMs")) st.optLong("leftMs") else -1,
+                        if (lan) st.optLong("t") else o.optLong("seen"), System.currentTimeMillis()))
             } catch (e: Exception) { Logic.Seen(false, emptyList(), 0) }
         }
 

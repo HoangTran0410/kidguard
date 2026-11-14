@@ -53,4 +53,30 @@
     <string name="test_title">Test notification</string>
     <string name="test_text">It works: alerts from your child\'s phone will show up like this.</string>
     <string name="scan_fail">Scanner unavailable here (needs Google Play services). Type the address or paste the link instead.</string>
+    <string name="w_desc">Time left, Lock and +15 min for each child</string>
+    <string name="w_empty">Add a child in KidGuard Parent</string>
+    <string name="w_lock">Lock</string>
+    <string name="w_plus">+%1$d min</string>
+    <string name="w_left">%1$s left</string>
+    <string name="w_nolimit">No limit today</string>
+    <string name="w_locked">Locked</string>
+    <string name="w_paused">Paused</string>
+    <string name="w_bedtime">Bedtime</string>
+    <string name="w_nodata">No data yet</string>
+    <string name="w_seen_never">Not seen yet</string>
+    <string name="w_seen_now">Seen just now</string>
+    <plurals name="w_seen_min">
+        <item quantity="one">Seen %1$d min ago</item>
+        <item quantity="other">Seen %1$d min ago</item>
+    </plurals>
+    <plurals name="w_seen_hour">
+        <item quantity="one">Seen %1$d hour ago</item>
+        <item quantity="other">Seen %1$d hours ago</item>
+    </plurals>
+    <plurals name="w_seen_day">
+        <item quantity="one">Seen %1$d day ago</item>
+        <item quantity="other">Seen %1$d days ago</item>
+    </plurals>
+    <string name="w_sent">Sent</string>
+    <string name="w_failed">Not sent. Tap to open</string>
 </resources>

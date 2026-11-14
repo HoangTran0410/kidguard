@@ -37,6 +37,11 @@ object Store {
     fun setUpdateNotified(c: Context, tag: String) { p(c).edit().putString("updTag", tag).apply() }
     fun notifyState(c: Context, key: String): String? = p(c).getString("ns:" + sha(key), null)
     fun setNotifyState(c: Context, key: String, json: String) { p(c).edit().putString("ns:" + sha(key), json).apply() }
+    /** Home-screen widget ([KidWidget]): last state per kid hash and the transient button feedback (JSON, no tokens). */
+    fun widgetData(c: Context): String = p(c).getString("wgData", "{}") ?: "{}"
+    fun setWidgetData(c: Context, json: String) { p(c).edit().putString("wgData", json).apply() }
+    fun widgetFb(c: Context): String = p(c).getString("wgFb", "{}") ?: "{}"
+    fun setWidgetFb(c: Context, json: String) { p(c).edit().putString("wgFb", json).apply() }
     /** A kid whose token was refused (401/403) is announced once; cleared when it answers again. */
     fun unpairedSeen(c: Context, key: String): Boolean = p(c).getBoolean("unp:" + sha(key), false)
     fun setUnpairedSeen(c: Context, key: String, v: Boolean) { p(c).edit().putBoolean("unp:" + sha(key), v).apply() }
