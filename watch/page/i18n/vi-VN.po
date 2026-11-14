@@ -288,3 +288,9 @@ msgstr "Thêm con"
 
 msgid "noKids"
 msgstr "Chưa kết nối con nào"
+
+msgid "mapLoading"
+msgstr "Đang tải bản đồ %1/%2"
+
+msgid "mapFail"
+msgstr "Chưa có bản đồ, chỉ hiện chữ"

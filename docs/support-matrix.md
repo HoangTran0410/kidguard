@@ -100,6 +100,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Báo mất kết nối | ⚠️ | ✅ | App bố mẹ kiểm tra định kỳ. Chữ "offline từ HH:mm", tự gỡ khi máy về, bỏ qua giờ ngủ của con |
 | Biên nhận lệnh ("Đã chạy HH:mm" / lý do từ chối / "Hết hạn") | ❌ | ✅ | Chỉ relay (máy con giữ 10 kết quả cuối `done`, worker giữ `expired`). LAN trả kết quả ngay trong phản hồi |
 | Kết nối đồng hồ Amazfit bằng mã 6 số (Cài đặt › Đồng hồ, `POST /c/<id>/watch`) | ❌ | ✅ | Cần relay bật cho bé đó (kể cả máy con ghép qua LAN: trang gọi relay của nó). Không cần phiên bản máy con mới: chỉ worker + trang. Đồng hồ dùng chung token relay của máy con |
+| Bản đồ vị trí của con trên đồng hồ Amazfit (trang "Vị trí": ô OSM 2x2, zoom 13-18, vòng vùng an toàn) | ❌ | ✅ | Qua relay như đồng hồ; cần điện thoại bố mẹ có mạng (tải ô bản đồ OpenStreetMap), lỗi thì chỉ hiện chữ. Chưa đo trên đồng hồ thật |
 | Sức khoẻ thông báo (lần kiểm tra cuối, Gửi thử, pin, đã đăng ký đẩy) | ❌ | ✅ | Chỉ app bố mẹ (Android) |
 | Mức báo (tất cả / quan trọng / chỉ SOS) | ✅ | ✅ | Telegram `/quiet` từng người; app bố mẹ có kênh sos / requests / info / offline |
 | Thiết lập 4 bước sau khi ghép (`wizard.js`; mở lại ở Cài đặt "Thiết lập lại từ đầu") | ✅ | ✅ | Trang bố mẹ, mọi trình duyệt / app. Lưu một lần ở "Xong" |

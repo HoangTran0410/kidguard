@@ -288,3 +288,9 @@ msgstr "Add kid"
 
 msgid "noKids"
 msgstr "No kid connected"
+
+msgid "mapLoading"
+msgstr "Loading map %1/%2"
+
+msgid "mapFail"
+msgstr "Map unavailable, showing text only"

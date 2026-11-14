@@ -176,6 +176,7 @@ function summary(k, j) {
     screenOn: s.screenOn !== false,
     current: s.screenOn === false ? "" : (cur && cur.label) || "",
     loc: loc ? { lat: loc.lat, lng: loc.lng, acc: Math.round(loc.acc || 0), t: loc.t || 0 } : null,
+    zones: (r.zones || []).slice(0, 10).map((z) => ({ n: String(z.name || "").slice(0, 16), lat: z.lat, lng: z.lng, r: z.r })),
     zone: zoneEv ? { t: zoneEv.t, text: zoneEv.text } : null,
     now: s.now ? { why: String(s.now.why || ""), until: s.now.until || 0, name: String(s.now.name || "").slice(0, 24) } : { why: "", until: 0, name: "" },
     pass: +r.passUntil || 0,
@@ -201,6 +202,7 @@ function demoState() {
     current: "YouTube Kids",
     loc: { lat: 21.0285, lng: 105.8542, acc: 18, t: now - 4 * MIN },
     zone: { t: now - 50 * MIN, text: "Đã đến Nhà" },
+    zones: [{ n: "Nhà", lat: 21.0285, lng: 105.8542, r: 150 }],
     now: { why: "", until: 0, name: "" }, pass: 0, lost: false, lostMsg: "", lostPhone: "",
     sos: [],
     req: [{ id: "demo1", t: now - 2 * MIN, again: 0, kind: "time", min: 30, pkg: "", app: "", note: "con làm xong bài tập rồi" }],
@@ -290,6 +292,54 @@ async function changeRules(k, op) {
   return "ok";
 }
 
+// ---------- map tiles (OpenStreetMap) ----------
+// Tile policy (operations.osmfoundation.org/policies/tiles): few requests, cache, identify the app. We fetch only the
+// 4 tiles the watch lacks (it asks), never bulk, and remember what we already converted for a week.
+// Chain: network.downloader.downloadFile (PNG) -> image.convert (PNG -> format the watch shows) -> transferFile outbox.
+const TILE_UA = { "User-Agent": "KidGuardWatch/0.5 (Zepp OS parent app; https://kid-guard.pages.dev)", Referer: "https://kid-guard.pages.dev/" };
+const TILE_TTL = 7 * 24 * 3600000;
+
+function dlTile(url, path) {
+  return new Promise((ok, bad) => {
+    const task = network.downloader.downloadFile({ url, timeout: 20000, filePath: path, headers: TILE_UA });
+    task.onSuccess = (e) => (!e || !e.statusCode || e.statusCode === 200 ? ok() : bad(new Error("tile HTTP " + e.statusCode)));
+    task.onFail = (e) => bad(new Error((e && e.message) || "tile download"));
+  });
+}
+
+// enqueue only: the reply must not wait for the slow Bluetooth transfer (the watch's inbox shows the tile when it lands)
+function send(path, name) {
+  transferFile.getOutbox().enqueueFile(path, { type: "image", name });
+}
+
+async function oneTile(z, x, y) {
+  const name = `${z}/${x}/${y}`;
+  const out = `data://download/kgt_${z}_${x}_${y}`;
+  let idx = {};
+  try { idx = JSON.parse(store().getItem("tc") || "{}"); } catch (e) {}
+  const fresh = idx[name] && Date.now() - idx[name] < TILE_TTL;
+  if (!fresh) {
+    const png = out + ".png";
+    await dlTile(`https://tile.openstreetmap.org/${z}/${x}/${y}.png`, png);
+    await image.convert({ filePath: png, targetFilePath: out });
+    idx[name] = Date.now();
+    Object.keys(idx).sort((a, b) => idx[b] - idx[a]).slice(40).forEach((k) => delete idx[k]);
+    store().setItem("tc", JSON.stringify(idx));
+  }
+  send(out, name);
+}
+
+// list: [{z,x,y}] (max 4). Resolves when every tile is queued to the watch; per-tile failures are counted, not fatal.
+async function tiles(list) {
+  const l = (Array.isArray(list) ? list : []).slice(0, 4).filter((t) => {
+    const n = Math.pow(2, t.z);
+    return t.z >= 13 && t.z <= 18 && Number.isInteger(t.x) && Number.isInteger(t.y) && t.x >= 0 && t.y >= 0 && t.x < n && t.y < n;
+  });
+  let fail = 0;
+  await Promise.all(l.map((t) => oneTile(t.z, t.x, t.y).catch(() => { fail++; })));
+  return { n: l.length, fail };
+}
+
 // ---------- requests from the watch ----------
 
 async function handle(req) {
@@ -297,6 +347,7 @@ async function handle(req) {
   if (req.method === "KIDS") return { kids: kids().map((k) => k.name || k.id) };
   if (req.method === "PAIR_NEW") return await pairNew();
   if (req.method === "PAIR_POLL") return await pairPoll(String(p.code || ""));
+  if (req.method === "TILES") return await tiles(p.list);
   const k = kidAt(p.kid);
   if (k.demo) {
     if (req.method === "STATE") return { state: demoState() };
