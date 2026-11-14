@@ -33,9 +33,10 @@ Xiaomi, Oppo, Vivo, Samsung: let KidGuard run in the background (battery / autos
 
 - Daily screen-time limit (one number or per weekday), +15 / +30 / +60 min for today; per-app limits, block, always allowed; app groups with a shared limit or allowed hours; new apps locked until a parent approves.
 - Bedtime and schedules (can cross midnight), pause now, heads-up notification 5 min and 1 min before a lock.
-- Ask for more time (child asks, parent approves), chores that earn time, Google Authenticator unlock code that works offline.
+- Ask for more time (child asks, parent approves with N/2, N or 2N; works at bedtime as a timed pass), ask to open a blocked app, chores that earn time, Google Authenticator unlock code that works offline.
 - Location: locate now, location forced on, 7-day history on an OpenStreetMap map, zones (arrived / left alerts), alerts (battery 15 %, new app, clock changed).
 - History and a weekly report per kid; rule templates; an overview of all kids at once.
+- Lost mode (relock, message + number, locate, ring); command receipts (ran / refused / expired); quiet alert levels; 4-step guided setup after pairing; scan QR to add a kid (parent app); factory reset protection (Device Owner, Android 11+, needs the Google account's numeric ID).
 - SOS button on the child's phone; see the child's screen live and remote control (Android 11+); listen around (one way, at most 10 min, home Wi-Fi or Tailscale only, the child is always told); lock, ring, message, restart.
 - Lighter phone: hide preinstalled apps, see the heaviest apps. Family DNS filter, block installs and USB debugging (Device Owner only).
 - Tamper-proof: blocks uninstall, force stop, factory reset from Settings, Safe Mode, new users, changing the clock. Undo everything: Settings > remove management lifts every restriction, then uninstall like any app.

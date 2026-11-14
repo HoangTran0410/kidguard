@@ -101,6 +101,8 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Biên nhận lệnh ("Đã chạy HH:mm" / lý do từ chối / "Hết hạn") | ❌ | ✅ | Chỉ relay (máy con giữ 10 kết quả cuối `done`, worker giữ `expired`). LAN trả kết quả ngay trong phản hồi |
 | Sức khoẻ thông báo (lần kiểm tra cuối, Gửi thử, pin, đã đăng ký đẩy) | ❌ | ✅ | Chỉ app bố mẹ (Android) |
 | Mức báo (tất cả / quan trọng / chỉ SOS) | ✅ | ✅ | Telegram `/quiet` từng người; app bố mẹ có kênh sos / requests / info / offline |
+| Thiết lập 4 bước sau khi ghép (`wizard.js`; mở lại ở Cài đặt "Thiết lập lại từ đầu") | ✅ | ✅ | Trang bố mẹ, mọi trình duyệt / app. Lưu một lần ở "Xong" |
+| Quét QR thêm máy con, QR mời phụ huynh còn lại | ❌ | ✅ | Chỉ app bố mẹ (Android; quét bằng Google code scanner, thiếu Play services thì nhập tay). Trình duyệt không có nút quét |
 
 ### 3.5 Launcher (màn hình chính của con)
 
@@ -110,6 +112,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Ép làm màn hình chính, con không đổi được | ✅ | ⚠️ | ❌ | `launcherLock` (basic: Trợ năng đóng trang "Màn hình chính" + đưa launcher khác về KidGuard, adb tự đặt lại mặc định nếu có; lách được bằng Safe Mode / tắt Trợ năng) |
 | Chỉ hiện app được phép, đồng hồ thời gian còn lại | ✅ | ✅ | — | Bản Home không có phần quản lý |
 | Chấm thông báo, lịch sử + thống kê thông báo (chỉ con xem) | ✅ | ✅ | ✅ | Cần quyền đọc thông báo. Lịch sử: giữ 7 / 30 / 90 ngày, không gửi đi đâu. Nút "Cài đặt" (tắt app / từng hạng mục) mở cài đặt máy: tắt khi bố mẹ khoá Cài đặt. Giữ thông báo của 1 app (gom 8h/12h/18h, tạm im 1 giờ / đến 7h) bằng snooze của Android; cuộc gọi, báo thức không bao giờ bị giữ. Bấm lâu icon: phút dùng hôm nay, còn bao lâu, số thông báo |
+| Thẻ "Tuần này của bạn" trên trang Hôm nay | ✅ | ✅ | — | Bản `kid` thôi, Home không có. Từ `Usage.range` 7 ngày + chuỗi danh sách; ẩn khi chưa có gì để khen |
 | Ẩn Tailscale | Khi KidGuard quản lý Tailscale | Khi KidGuard quản lý Tailscale | Không ẩn | |
 | Tự bật lại Tailscale khi bị tắt / bị dọn | ✅ (+ VPN luôn bật) | ✅ | Không | Công tắc "Giữ Tailscale luôn bật" (luật `tsKeep`, mặc định tắt; Tailscale do KidGuard cài thì luôn giữ). Gửi lệnh kết nối cho Tailscale; nếu vẫn rớt thì mở Tailscale 1 lần khi đang ở màn home. Bị "buộc dừng" thì phải chờ bước mở. Máy CB cần quyền "hiển thị trên app khác" cho bước mở |
 

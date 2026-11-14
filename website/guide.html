@@ -196,6 +196,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li>Muốn quản lý cả khi con ra ngoài: xem <a href="#away">Khi con ra khỏi nhà</a>.</li>
   </ol>
   <p class="tip"><b>Oppo / Realme / OnePlus (ColorOS):</b> mở Đa nhiệm, kéo thẻ KidGuard xuống để khóa (biểu tượng ổ khóa). Trong Quản lý điện thoại, cho KidGuard “Tự khởi chạy” và chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app.</p>
+  <p><b>Lần đầu: 4 bước nhanh.</b> Ghép xong, trang dẫn bạn qua <b>mức bắt đầu</b> (Nhẹ nhàng, Cân bằng hay Nghiêm), <b>app hay dùng</b> (cho phép, bình thường hoặc chặn), <b>giờ ngủ và giới hạn mỗi ngày</b>, và <b>con thấy gì</b>. Bấm <b>Xong</b> mới lưu. Làm lại bất cứ lúc nào: <b>Cài đặt → Thiết lập lại từ đầu</b>.</p>
   <p>Ở Wi-Fi nhà trang chạy HTTP thường: chỉ dùng ở mạng bạn tin tưởng. Mỗi trình duyệt ghép một lần bằng mã ghép 6 số, ghép thêm cần PIN phụ huynh.</p>
 </section>
 
@@ -207,10 +208,13 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li>Mở app, bấm <b>Thêm máy của con</b>.</li>
     <li>Ở nhà: gõ địa chỉ hiện trên màn hình KidGuard của con, rồi mã ghép 6 số (giữ nút <b>Bố mẹ: hiện mã ghép</b> 5 giây nếu chưa thấy).</li>
     <li>Ngoài nhà: dán link relay (dạng <code>https://…/#c=…&amp;k=…</code>) lấy trong <b>Cài đặt → Kết nối</b> (relay đã bật sẵn), xem <a href="#relay">relay</a>.</li>
+    <li>Nhanh hơn: bấm <b>Quét QR</b> và quét mã trên máy con (hoặc mã QR link trong <b>Cài đặt → Kết nối</b>). Chỉ nhận link của KidGuard.</li>
+    <li>Phụ huynh còn lại: <b>Cài đặt → Mở từ xa (relay)</b> hiện mã QR; người đó quét bằng app bố mẹ của họ.</li>
     <li>Có từ 2 con: mục <b>Tổng quan</b> hiện tất cả các con trên một trang.</li>
   </ol>
   <p><b>Dễ hơn:</b> <a href="#telegram">bot Telegram</a> gửi SOS và xin thêm giờ tới ngay, không cần app hay build.</p>
   <p>Thông báo xin thêm giờ có nút <b>+15 / +30 phút</b> và <b>Từ chối</b> ngay trên thông báo. App kiểm tra khoảng 15 phút một lần. Muốn SOS tới trong vài giây (qua Worker và Firebase), cần tự build app: xem <a href="https://github.com/HoangTran0410/kidguard#instant-sos-notifications-optional" target="_blank" rel="noopener">README</a>.</p>
+  <p><b>Kiểm tra thông báo:</b> app có thẻ sức khỏe (<b>Cài đặt</b>) cho biết thông báo có tới được bạn không (quyền, kênh, tiết kiệm pin, lần kiểm tra cuối) và sửa từng lỗi bằng một chạm. Máy con mất mạng hiện &ldquo;mất mạng từ HH:mm&rdquo;.</p>
   <p>Bố mẹ dùng iPhone: không có app, dùng trình duyệt (Safari) là đủ.</p>
 </section>
 
@@ -373,6 +377,8 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
         <div><dt>Thư mục, thư viện</dt><dd>Thư mục mở từ chính biểu tượng, giữ để xếp lại. <b>Thư viện ứng dụng</b> ở trang cuối: gợi ý, mới cài, theo nhóm, tìm kiếm.</dd></div>
         <div><dt>Widget</dt><dd>Đồng hồ, lịch tháng, giờ còn lại, thời khóa biểu (sáng/chiều, giờ chuông, cả tuần), việc nhà, ghi chú, pin, khóa màn hình; thêm cả widget của app khác.</dd></div>
         <div><dt>Trang &ldquo;Hôm nay&rdquo;</dt><dd>Vuốt phải từ trang 1. Nút SOS và Gọi luôn ở trên. Thẻ <b>Bây giờ</b> (tiết đang học, còn bao lâu tới giờ ngủ), <b>Thời gian dùng máy</b> (xin thêm giờ), <b>Ngày mai</b> (từ 17h), việc nhà, ghi chú, <b>File với bố mẹ</b> (con gửi file cho bố mẹ ngay tại đây). <b>Tuỳ chỉnh thẻ</b> ở cuối trang; tắt cả trang trong Tuỳ chỉnh.</dd></div>
+        <div><dt>Tuần này</dt><dd>Thẻ &ldquo;Tuần này của bạn&rdquo; trên trang Hôm nay: số ngày trong giới hạn, chuỗi hiện tại, danh sách đã xong. Chưa có gì để khen thì thẻ ẩn.</dd></div>
+        <div><dt>Yêu cầu</dt><dd>Mỗi con chỉ một yêu cầu đang mở: con thấy <b>đang chờ</b> và bấm <b>Nhắc lại</b>, rồi thấy câu trả lời. Con cũng xin mở được app đang bị chặn hoặc app mới. Bạn trả lời bằng <b>N/2</b>, <b>N</b> hoặc <b>2N</b> phút, trên trang, trong app bố mẹ hoặc Telegram (<code>/requests</code>); trả lời xong mọi nơi cùng cập nhật. Yêu cầu chưa trả lời hết hạn lúc nửa đêm.</dd></div>
         <div><dt>Tuỳ chỉnh</dt><dd>Giữ chỗ trống trên màn hình chính: <b>Tiện ích</b>, <b>Sửa màn hình chính</b>, <b>Tuỳ chỉnh</b>. Trong Tuỳ chỉnh: hình nền (làm mờ, làm tối), số cột, cỡ biểu tượng (số hàng không đổi), hình biểu tượng (tròn, vuông, squircle), cỡ chữ, phông, sáng/tối, màu nhấn, chấm thông báo, hiệu ứng Đầy đủ / Nhẹ / Tự động. Có <b>Hoàn tác</b> ngay dưới mục vừa đổi.</dd></div>
         <div><dt>Bố cục đã lưu</dt><dd><b>Lưu bố cục hiện tại</b> (tối đa 5, đặt tên): cả trang, dock, giao diện và ảnh nền. Chạm một bố cục để đổi cả màn hình chính, có hoàn tác. Chỉ lưu trên máy.</dd></div>
         <div><dt>Trung tâm điều khiển</dt><dd>Vuốt xuống ở nửa phải màn hình chính: Wi-Fi, Bluetooth, máy bay, dữ liệu, đèn pin, tự xoay, Không làm phiền, độ sáng, âm lượng, đang phát, <b>Học bài</b>. Nửa trái là thông báo.</dd></div>
@@ -387,6 +393,9 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
       <h3>Giữ chắc</h3>
       <dl>
         <div><dt>Khó phá</dt><dd>Chặn gỡ app, buộc dừng, khôi phục gốc từ Cài đặt, Safe Mode, người dùng mới, đổi giờ, chế độ máy bay. Có watchdog tự bật lại.</dd></div>
+        <div><dt>Chống khôi phục gốc</dt><dd>Device Owner, Android 11+. Sau khi khôi phục từ recovery, máy đòi tài khoản Google của bố mẹ. Cần <b>ID số</b> của tài khoản (không phải email); trang chỉ cách lấy. <b>ID sai có thể khóa máy vĩnh viễn sau khi khôi phục.</b> Tự tắt khi gỡ quyền quản lý.</dd></div>
+        <div><dt>Còn mấy lần nhập PIN</dt><dd>Nhập sai PIN trên máy con thì máy báo còn mấy lần. <b>Quên PIN?</b> chỉ cách đặt lại (chờ 24 giờ, có cảnh báo).</dd></div>
+        <div><dt>Biên nhận lệnh</dt><dd>Mỗi lệnh hiện <b>đã gửi</b>, rồi <b>đã chạy HH:mm</b>, <b>bị từ chối</b> hoặc <b>hết hạn</b> (có nút <b>Gửi lại</b>). PIN sai qua relay không bị nhớ.</dd></div>
         <div><dt>Tùy chọn</dt><dd>Lọc DNS gia đình (AdGuard / Cloudflare / CleanBrowsing), chặn cài app, chặn Gỡ lỗi USB.</dd></div>
         <div><dt>Lệnh nhanh</dt><dd>Khóa màn hình, đổ chuông, tin nhắn toàn màn hình, khởi động lại máy.</dd></div>
       </dl>

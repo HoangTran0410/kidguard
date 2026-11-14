@@ -99,7 +99,16 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Battery / autostart sett
 | 🔐 **PIN for dangerous commands** | Release, unpair, reboot, clear data, relay / Telegram / PIN changes need the parent PIN or an Authenticator code, so a leaked parent link is not enough; "forgot PIN" resets after 24 h with an alert |
 | 🪶 **Lighter phone** ("Lighten the phone") | Hide the maker's preinstalled apps the child doesn't use (they stop running and updating; untick to bring back), see the heaviest apps, clear an app's data. Hiding and clearing need Device Owner. No fake "RAM cleaner" |
 | 🔄 **Updates itself** | Once a day the child's phone checks GitHub releases, downloads the new APK and checks its SHA-256. Device Owner installs it silently; basic mode shows the child an **Update KidGuard (new version)** button. Off / "update now": parent page, **Settings**. The parent app notifies when its own update is out |
-| 🙋 **Ask for more time** | A button on the child's phone (15 / 30 / 60 min + a reason); the parent taps Approve or Decline |
+| 🙋 **Ask for more time** | A button on the child's phone (15 / 30 / 60 min + a reason, or ask to open a blocked / new app). One open request per kid: the child sees "waiting" and can remind; the parent answers N/2, N or 2N on the page, parent app or Telegram (`/requests`), and every copy updates. Approving opens the phone for that time even during bedtime or school hours (a timed pass); **End** locks early |
+| 📥 **Right now** | One line on the Today page, kid overview and Telegram `/status`: why the phone is open or locked now and until when |
+| 🧾 **Command receipts** | Every command shows sent, then ran / refused / expired (with **Resend**); over the relay too |
+| 📍 **Lost mode** | Locks the phone and again on every unlock, shows your message + number on a card (a parent can end it on the phone with the PIN or code), locates every 5 min, rings, tells you on a SIM change. Telegram `/lost` |
+| 🌙 **Bedtime per night** | A separate bedtime per night; the child can take **+1 minute** once per lock to save work |
+| 🔕 **Alert levels** | Only SOS, lost, tamper and requests make noise; the rest are silent. Telegram `/quiet`; parent app channels, "offline since" notice and a notification health card |
+| 🧭 **Guided setup** | After pairing, 4 steps: level (Full / Basic), top apps, bedtime + daily limit, what the kid sees. Reopen in Settings. Setup on the phone ends on the pairing code + QR (10 min) and a first-run Full / Basic chooser |
+| 📷 **Scan QR (parent app)** | Add a kid by scanning the code; Settings shows an invite QR for the other parent |
+| 🏁 **Factory reset protection** | Device Owner, Android 11+: after a reset from recovery the phone asks for the parent's Google account (numeric ID, how-to in the page; a wrong ID can lock the phone). Undone on release |
+| 🏆 **Your week** | Kid card on Today: days within the limit, current run, finished lists |
 | 🧹 **Chores** | The parent lists chores ("Wash the dishes +20 min"); the child picks one when asking for time. The parent approves, optionally with a note the child sees |
 | 🗂️ **App groups** | Put apps in a group ("Games", "Social") with one shared daily limit, and/or hours when they may be used ("YouTube only 19:00–20:00": a group of one app) |
 | 🔑 **Unlock code (Google Authenticator)** | Works with no network on either phone: the parent reads 6 digits from Google Authenticator, the child types them and gets 15–120 min free of limits (fully blocked apps stay blocked). Each code works once; the parent gets an event |
@@ -111,7 +120,7 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Battery / autostart sett
 | 🌙 **Bedtime and schedules** | Bedtime every day, plus windows on chosen days (school hours Mon–Fri); can cross midnight |
 | ⏸️ **Pause now** | 30 min, 1 h, until 6 am |
 | 👀 **See the screen** | The child's screen live in the page (Android 11+, ~3 fps). The child sees "Your parent is viewing the screen" |
-| 🆘 **SOS** | A red button on the child's phone: the parent page shows a banner with the time and a fresh location; the parent app notifies in seconds through the Worker + [Firebase push](#instant-sos-notifications-optional), else within ~15 min |
+| 🆘 **SOS** | A red button on the child's phone (offline it offers a call button, never says "sent"): the parent page shows a banner with the time and a fresh location and an "Acknowledged" reply; the parent app notifies in seconds through the Worker + [Firebase push](#instant-sos-notifications-optional), else within ~15 min |
 | 👂 **Listen around** | The parent hears the child's microphone, one way, at most 10 min at a time. **Home Wi-Fi or Tailscale only** (not through the Worker). The child is always told: a beep, a notification "Your parent is listening" and Android's mic dot; this cannot be turned off |
 | 🕹️ **Remote control** | Tap, swipe, long press, Back / Home / Recents, type into the focused field |
 | 📍 **Location** | Locate now, location forced on (the child cannot turn it off), **7-day history** on an OpenStreetMap map with stops |

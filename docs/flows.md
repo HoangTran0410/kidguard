@@ -200,6 +200,17 @@ Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`,
 - Device Owner also has always-on VPN (`Ts.applyPolicy`); a hidden (suspended) Tailscale is never opened, only broadcast to.
 - Gotchas: a force-stopped app gets no broadcasts until opened (hence the open step); release stops it (`s.released`).
 
+### 1.14 Factory reset protection (0.9.17, `guard/Frp.kt`, `Policy.applyFrp`)
+- Trigger: rule `frpIds` (numeric Google account ids; `Frp.ids` sanitises) saved from the page (Settings: field, how-to, warning).
+- Steps: `Policy.apply` -> `applyFrp` -> `setFactoryResetProtectionPolicy` (Device Owner, Android 11+); empty list = `null` policy. State `frp` says applied / unsupported.
+- Undo: `Policy.release` clears it.
+- Gotchas: the API takes the numeric id, not the email (no in-app way to read it); a wrong id can brick the phone after a reset; not testable without a reset.
+
+### 1.15 Lost mode card escape (0.9.16, `Guard.lockForLost`, `MessageActivity`)
+- Trigger: rule `lostOn` (+ `lostMsg`, `lostPhone`) from page / parent app / Telegram `/lost`.
+- Steps: on `USER_PRESENT` (not SCREEN_ON) show the card (message, call-back number, "Parent: turn off"); Device Owner `lockNow` again after `LOST_CARD_MS` (20 s). A right PIN / Authenticator code on the card sets `lostGraceUntil` (10 min): no relock, so a parent holding an offline phone can end lost mode on the page. `lostTick` locates every 5 min and loops the ring; a SIM change raises an event.
+- Gotchas: Basic mode shows the card only (no `lockNow`); `lostOn` wins over `monitor` in `nowWhy`.
+
 ## 2. Parent <-> phone (LAN, relay, parent app)
 
 Paths are relative to the repo root. `K/` = `android/app/src/main/kotlin/dev/kidguard/`, `UI/` = `ui/assets/`, `P/` = `android/parent/src/main/kotlin/dev/kidguard/parent/`.
@@ -312,6 +323,16 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 ### 2.10 Parent app specifics (P/)
 - `MainActivity.kt` loads `/s/<secret>`; JS bridge `KGApp` (protocol "Parent app"); `Store.kt` holds kid list; `CheckJob.kt` ~15 min job fetches each kid's state, notifies on new `requests`, `sos`, lost contact; `Act.kt` notification actions replay the page's flows natively (GET state, PUT rules `bonus`, `answer`); `Push.kt`/`Notif.kt` FCM data messages from the worker (`pushNew` `index.js:366`, `POST /c/<id>/push` registers token, optional secret `FCM_SA`).
 - Proxy forwards only `X-KG-Token, X-KG-W, X-KG-H, Content-Type` (`Proxy.kt:100`).
+
+### 2.11 Guided setup wizard (0.9.17, `UI/wizard.js`)
+- Trigger: first load of a freshly paired kid (`wizAuto(k)` from `kid.js`); reopen from Settings "Thiết lập lại từ đầu" (`wizOpen`).
+- Steps: 4 steps (level, top apps allow / normal / block, bedtime + daily limit, what the kid sees) on a COPY of the rules fields; one save at Done (`putRules`, whole object). Step kept per kid in localStorage.
+- Gotchas: Escape / close before Done saves nothing; replaces the old `levelsOffer` dialog; keep `wizard.js` in `index.html` + `relay/src/index.js` map.
+
+### 2.12 Scan QR to add a kid / invite a parent (0.9.17, parent app only)
+- Trigger: "Scan QR" on add-kid (`core.js` `#scanGo`) -> bridge `KGApp.scanQr()` -> `P/MainActivity.scanQr` (Google code scanner, no CAMERA permission) -> `window.kgScan({text} | {st})`.
+- Steps: text goes through `addRelayLink` (relay link) or the kid QR `http://host[:port]/#pair=<6 digits>`; anything else is ignored, never opened as a URL. Settings shows an invite QR (relay link) for the other parent.
+- Gotchas: plain browsers have no scan button; no Play services = toast + manual entry.
 
 ## 3. Kid launcher
 
@@ -457,6 +478,10 @@ Home flavor: only now, sched, tomorrow, notes (HOME_CARDS).
 - SOS: unpaired -> modal "calls 112"; paired + offline -> "Chưa có mạng" + "Gọi bố mẹ" (`KidNow.parentNumber`: `lostPhone`, else a number in the lock-screen contact); online -> "Đã gửi".
 - Basic mode: `K/ui/BlockCard.kt` is the block card (reason / reopen time / Ask / OK). `Acc.bounceApp` should call `BlockCard.show(service, label, pkg, code)` before posting its notification.
 - Study mode: 10 s "Hoàn tác" under the chip after a hand start (no PIN); `gate()` takes title + button.
+
+#### 3.8c Kid "Tuần này của bạn" (0.9.17, `L/today/KidWins.kt`)
+- Trigger: Today rebuild. Steps: days within the daily limit + current run from `Usage.range` over 7 days (off the UI thread), list-finished days from `StreakStore`; card is hidden when there is nothing to celebrate and in the Home flavor.
+- Gotchas: no stored history (OEM usage retention varies); chores done and bedtime kept are not counted (no record).
 
 ### 3.9 Widgets
 

@@ -196,6 +196,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li>To manage when your child is out too: see <a href="#away">Away from home</a>.</li>
   </ol>
   <p class="tip"><b>Oppo / Realme / OnePlus (ColorOS):</b> open Recents and pull the KidGuard card down to lock it (padlock icon). In Phone Manager allow KidGuard to autostart and run in the background. Swiping KidGuard away in Recents on ColorOS stops the app completely.</p>
+  <p><b>First time: 4 quick steps.</b> Right after pairing the page walks you through <b>starting level</b> (Light, Balanced or Strict), your <b>top apps</b> (allow, normal or block), <b>bedtime and daily limit</b>, and <b>what the kid sees</b>. Nothing is saved until <b>Done</b>. Redo it any time: <b>Settings → Set up again</b>.</p>
   <p>On home Wi-Fi the page is plain HTTP: use it only on networks you trust. Each browser pairs once with the 6-digit code; pairing more needs the parent PIN.</p>
 </section>
 
@@ -207,10 +208,13 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li>Open it and tap <b>Add kid's phone</b>.</li>
     <li>At home: type the address shown on the child's KidGuard screen, then the 6-digit pairing code (hold <b>Bố mẹ: hiện mã ghép</b> for 5 s if you see none).</li>
     <li>Away from home: paste the relay link (like <code>https://…/#c=…&amp;k=…</code>) from <b>Settings → Connection</b> (the relay is already on), see <a href="#relay">relay</a>.</li>
+    <li>Easier: tap <b>Scan QR</b> and scan the code on the child's phone (or the link QR from <b>Settings → Connection</b>). Only KidGuard links are accepted.</li>
+    <li>The other parent: <b>Settings → Open from anywhere (relay)</b> shows a QR; they scan it in their parent app.</li>
     <li>Two kids or more: <b>Overview</b> shows every kid on one page.</li>
   </ol>
   <p><b>Easier:</b> the <a href="#telegram">Telegram bot</a> delivers SOS and more-time requests at once, no app or build needed.</p>
   <p>A time request notification has <b>+15 / +30 min</b> and <b>Decline</b> buttons right on it. The app checks about every 15 minutes. For SOS in seconds (through the Worker and Firebase) you build the app yourself: see the <a href="https://github.com/HoangTran0410/kidguard#instant-sos-notifications-optional" target="_blank" rel="noopener">README</a>.</p>
+  <p><b>Notifications check:</b> the app has a health card (<b>Settings</b>) that says if alerts can reach you (permission, channels, battery saver, last check) and fixes each in one tap. Offline phones show &ldquo;offline since HH:mm&rdquo;.</p>
   <p>Parent on an iPhone: there is no app, the browser (Safari) is enough.</p>
 </section>
 
@@ -373,6 +377,8 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
         <div><dt>Folders, library</dt><dd>Folders open from their icon; hold to re-arrange. <b>App Library</b> on the last page: suggestions, recently added, categories, search.</dd></div>
         <div><dt>Widgets</dt><dd>Clock, month, time left, timetable (morning/afternoon, bell times, whole week), chores, notes, battery, lock screen; other apps' widgets too.</dd></div>
         <div><dt>&ldquo;Today&rdquo; page</dt><dd>Swipe right from page 1. SOS and Call always sit on top. Cards: <b>Right now</b> (class now, time until bedtime), <b>Screen time</b> (ask for more), <b>Tomorrow</b> (from 5 pm), chores, notes, <b>Files with parents</b> (the kid can send a file from here). <b>Choose cards</b> at the end; turn the whole page off in Customize.</dd></div>
+        <div><dt>This week</dt><dd>&ldquo;Your week&rdquo; card on Today: days within the daily limit, the current run, finished lists. It hides when there is nothing to celebrate.</dd></div>
+        <div><dt>Requests</dt><dd>One open request per kid: the child sees <b>waiting</b> and can <b>Remind</b>, then the last answer. The child can also ask to open a blocked or new app. You answer with <b>N/2</b>, <b>N</b> or <b>2N</b> minutes, on the page, in the parent app or in Telegram (<code>/requests</code>); once answered it updates everywhere. Unanswered requests expire at midnight.</dd></div>
         <div><dt>Customize</dt><dd>Hold an empty spot on the home screen: <b>Widgets</b>, <b>Edit Home Screen</b>, <b>Customize</b>. In Customize: wallpaper (blur, dim), columns, icon size (rows stay the same), icon shape (circle, square, squircle), label size, font, light/dark, accent colour, notification dots, effects Full / Light / Auto. <b>Undo</b> appears right under what you changed.</dd></div>
         <div><dt>Saved layouts</dt><dd><b>Save current layout</b> (up to 5, named): pages, dock, look and photo wallpaper. Tap one to switch the whole home, with undo. Stored on the phone only.</dd></div>
         <div><dt>Control center</dt><dd>Swipe down on the right half of the home screen: Wi-Fi, Bluetooth, airplane, data, torch, rotation, Do Not Disturb, brightness, volume, now playing, <b>Study</b>. The left half opens notifications.</dd></div>
@@ -387,6 +393,9 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
       <h3>Hard to break</h3>
       <dl>
         <div><dt>Tamper-proof</dt><dd>Blocks uninstall, force stop, factory reset from Settings, Safe Mode, new users, changing the clock, airplane mode. A watchdog restarts it.</dd></div>
+        <div><dt>Factory reset protection</dt><dd>Device Owner, Android 11+. After a reset from recovery the phone asks for the parent's Google account. Needs that account's <b>numeric ID</b> (not the email); the page shows how to get it. <b>A wrong ID can lock the phone for good after a reset.</b> Turned off when you remove controls.</dd></div>
+        <div><dt>PIN tries left</dt><dd>A wrong PIN on the child's phone says how many tries are left. <b>Forgot PIN?</b> shows how to reset (24 h wait, with an alert).</dd></div>
+        <div><dt>Command receipts</dt><dd>Every command shows <b>sent</b>, then <b>ran HH:mm</b>, <b>refused</b> or <b>expired</b> (with <b>Resend</b>). A wrong PIN over the relay is not remembered.</dd></div>
         <div><dt>Optional</dt><dd>Family DNS filter (AdGuard / Cloudflare / CleanBrowsing), block installs, block USB debugging.</dd></div>
         <div><dt>Commands</dt><dd>Lock the screen, ring, full-screen message, restart the phone.</dd></div>
       </dl>
