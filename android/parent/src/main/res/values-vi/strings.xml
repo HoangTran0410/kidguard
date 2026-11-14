@@ -44,4 +44,27 @@
     <string name="test_title">Thông báo thử</string>
     <string name="test_text">Hoạt động tốt: cảnh báo từ máy con sẽ hiện như thế này.</string>
     <string name="scan_fail">Máy này không có trình quét (cần Google Play services). Hãy gõ địa chỉ hoặc dán link.</string>
+    <string name="w_desc">Thời gian còn lại, Khoá và +15 phút cho từng con</string>
+    <string name="w_empty">Thêm con trong KidGuard Phụ huynh</string>
+    <string name="w_lock">Khoá</string>
+    <string name="w_plus">+%1$d phút</string>
+    <string name="w_left">Còn %1$s</string>
+    <string name="w_nolimit">Hôm nay không giới hạn</string>
+    <string name="w_locked">Đã khoá</string>
+    <string name="w_paused">Tạm tắt</string>
+    <string name="w_bedtime">Giờ ngủ</string>
+    <string name="w_nodata">Chưa có dữ liệu</string>
+    <string name="w_seen_never">Chưa thấy máy con</string>
+    <string name="w_seen_now">Vừa thấy</string>
+    <plurals name="w_seen_min">
+        <item quantity="other">Thấy %1$d phút trước</item>
+    </plurals>
+    <plurals name="w_seen_hour">
+        <item quantity="other">Thấy %1$d giờ trước</item>
+    </plurals>
+    <plurals name="w_seen_day">
+        <item quantity="other">Thấy %1$d ngày trước</item>
+    </plurals>
+    <string name="w_sent">Đã gửi</string>
+    <string name="w_failed">Chưa gửi. Chạm để mở</string>
 </resources>

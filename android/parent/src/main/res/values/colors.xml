@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- home-screen widget (KidWidget) -->
+    <color name="w_bg">#F5F5F7</color>
+    <color name="w_text">#1C1B1F</color>
+    <color name="w_sub">#5F6368</color>
+    <color name="w_btn">#E1E4E8</color>
+    <color name="w_warn">#B3261E</color>
+</resources>

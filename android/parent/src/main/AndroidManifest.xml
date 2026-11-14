@@ -52,6 +52,12 @@
         <!-- notification buttons (answer a time request); only our own explicit, immutable PendingIntents reach it -->
         <receiver android:name=".AnswerReceiver" android:exported="false" />
 
+        <!-- home-screen widget; buttons are our own explicit, immutable PendingIntents (not exported: the system's update broadcast still reaches it) -->
+        <receiver android:name=".KidWidget" android:exported="false">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/kid_widget_info" />
+        </receiver>
+
         <service android:name=".PushService" android:exported="false">
             <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter>
         </service>

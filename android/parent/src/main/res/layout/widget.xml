@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_root"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/w_bg" android:padding="6dp">
+    <!-- one widget_row per kid (max 3) is added here by KidWidget -->
+    <LinearLayout android:id="@+id/w_rows" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" />
+    <TextView android:id="@+id/w_empty" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:gravity="center" android:padding="12dp" android:visibility="gone"
+        android:textColor="@color/w_sub" android:textSize="14sp" android:text="@string/w_empty" />
+</FrameLayout>
