@@ -161,6 +161,9 @@ class Store private constructor(private val app: Context) {
 
     /** ms until the PIN may be typed again ON this phone (the child-side admin has its own counter, audit A6.2: a child cannot lock the parents' remote access). */
     @Synchronized fun localPinLockLeft(): Long = lockLeft("aPinLock")
+    /** Wrong PIN tries left on this phone's own counter ([checkAdmin]) / the parent counter ([checkParentPin]); shown in the PIN dialogs. */
+    @Synchronized fun localPinTriesLeft(): Int = Safety.pinTriesLeft(p.getInt("aPinFails", 0))
+    @Synchronized fun pinTriesLeft(): Int = Safety.pinTriesLeft(p.getInt("pinFails", 0))
     /** Same for an Authenticator code typed on this phone. */
     @Synchronized fun localUnlockLockLeft(): Long = lockLeft("aUnlockLock")
 

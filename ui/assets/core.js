@@ -108,7 +108,7 @@ const WD_STEPS = [0, 15, 30, 45, 60];
 function norm(e) {
   e.hidden = Array.isArray(e.hidden) ? e.hidden : [];   // v0.8 preinstalled apps hidden by the parent
   e.dailyByDay = Array.isArray(e.dailyByDay) && e.dailyByDay.length === 7 ? e.dailyByDay : [];
-  e.schedules = e.schedules || []; e.approved = e.approved || []; e.safeDns = e.safeDns || ""; e.safeDnsPauseUntil = +e.safeDnsPauseUntil || 0; e.noVpn = !!e.noVpn;
+  e.schedules = e.schedules || []; e.approved = e.approved || []; e.safeDns = e.safeDns || ""; e.safeDnsPauseUntil = +e.safeDnsPauseUntil || 0; e.noVpn = !!e.noVpn; e.frpIds = Array.isArray(e.frpIds) ? e.frpIds.map(String) : [];
   e.trackMin = e.trackMin === undefined ? 5 : +e.trackMin; e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.showWatching = e.showWatching !== false; e.autoUpdate = e.autoUpdate !== false; e.tsKeep = !!e.tsKeep; e.blockNew = !!e.blockNew; e.monitor = !!e.monitor;
   e.kidClean = !!e.kidClean;
   e.passUntil = +e.passUntil || 0;   // 0.9.16 timed pass (docs/protocol.md "More time")
@@ -386,6 +386,7 @@ window.kgAppOpen = appOpenKid;
 function addScreen() {
   const keep = [($("#addr") || {}).value || "", ($("#rlink") || {}).value || ""]; reScreen = addScreen;
   $("#app").innerHTML = head(t("addKid")) + `
+  ${APP ? `<div class="card"><h2>${ic("scan-line")} ${t("scan.h")}</h2><p class="mute">${t("scan.p")}</p><button class="pri" id="scanGo">${ic("scan-line")} ${t("scan.go")}</button></div>` : ""}
   <div class="card"><h2>${ic("wifi")} ${t("add.lanH")}</h2>
     <p class="mute">${t("add.lanP")}</p>
     <div class="pairf"><input id="addr" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="192.168.1.5" aria-label="${esc(t("add.addr"))}" value="${esc(keep[0])}"><button class="pri" id="lanGo">${ic("link")} ${t("add.connect")}</button></div><p class="err" id="e1"></p>
@@ -400,20 +401,35 @@ function addScreen() {
     if (!/^[A-Za-z0-9.-]+(:\d{1,5})?$/.test(a)) return $("#e1").textContent = t("add.badAddr");
     lanHello("http://" + (a.includes(":") ? a : a + ":8770"));
   };
-  if ($("#rGo")) $("#rGo").onclick = () => {
-    try {
-      const u = new URL($("#rlink").value.trim()), h = new URLSearchParams(u.hash.slice(1));
-      if (u.protocol !== "https:" || !h.get("c") || !h.get("k")) throw 0;
-      const k = { id: h.get("c"), token: h.get("k"), name: h.get("n") || t("kid"), via: "relay", target: u.origin };
-      kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids); open(k);
-    } catch { $("#e2").textContent = t("add.badLink"); }
-  };
+  if ($("#rGo")) $("#rGo").onclick = () => { if (!addRelayLink($("#rlink").value)) $("#e2").textContent = t("add.badLink"); };
+  if ($("#scanGo")) $("#scanGo").onclick = () => { try { KGApp.scanQr(); } catch { toast("err|" + t("scan.none")); } };
 }
+// the one parser for a relay link (typed, pasted or scanned): https + #c=<id>&k=<token>[&n=<name>]; anything else is refused
+function addRelayLink(text) {
+  try {
+    const u = new URL(String(text).trim()), h = new URLSearchParams(u.hash.slice(1));
+    if (u.protocol !== "https:" || !h.get("c") || !h.get("k")) return false;
+    const k = { id: h.get("c"), token: h.get("k"), name: h.get("n") || t("kid"), via: "relay", target: u.origin };
+    kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids); open(k);
+    return true;
+  } catch { return false; }
+}
+// parent app: KGApp.scanQr() answers kgScan({text} | {st: "cancel" | "fail"}). Only our two link formats are acted on:
+// a relay link (addRelayLink) or the kid phone's own QR http://<host>[:port]/#pair=<6 digits>. Never navigates anywhere.
+window.kgScan = o => {
+  if (!o || !o.text) return;
+  if (addRelayLink(o.text)) return;
+  try {
+    const u = new URL(o.text.trim()), c = new URLSearchParams(u.hash.slice(1)).get("pair") || "";
+    if (u.protocol === "http:" && /^[A-Za-z0-9.-]+$/.test(u.hostname) && /^\d{6}$/.test(c)) return lanHello("http://" + u.hostname + ":" + (u.port || 8770), c);
+  } catch {}
+  toast("err|" + t("scan.bad"));
+};
 // plain screens (list / add / pair): one centred column (#app.solo); render() and the overview clear it
 // back: a sub-screen (app settings) shows a back arrow instead of the logo, and no settings gear
 const head = (title, back) => { $("#app").className = "solo"; return `<div class="row" style="margin-bottom:14px">${back ? `<button type="button" class="rb" id="appSetBack" aria-label="${esc(t("back"))}" title="${esc(t("back"))}">${ic("arrow-left")}</button>` : `<span class="badge">${ic("shield")}</span>`}<h1 class="sp" style="margin:0">${title}</h1>${back ? "" : APP ? `<button type="button" class="rb" id="appSetBtn" aria-label="${esc(t("au.h"))}" title="${esc(t("au.h"))}">${ic("settings")}</button>` : `${langSel()}${themeBtn()}`}</div>`; };
 document.addEventListener("click", e => { if (APP && e.target.closest && e.target.closest("#appSetBtn")) appSettings(); });
-async function lanHello(target) {
+async function lanHello(target, code = "") {
   const e = $("#e1"); if (e) e.textContent = t("connecting");
   try {
     const r = await fetch(lanApi(target) + "/hello", { signal: APP ? undefined : quick(8000) });
@@ -421,7 +437,7 @@ async function lanHello(target) {
     if (!hello || !hello.id) throw 0;
     const k = kids.find(x => x.via === "lan" && x.id === hello.id);
     if (k) { k.target = target; save(kids); return open(k); }
-    pairScreen(hello, target);
+    pairScreen(hello, target, code);
   } catch { if ($("#e1")) $("#e1").textContent = t("add.fail", target.replace("http://", "")); else toast("err|" + t("add.failShort")); }
 }
 

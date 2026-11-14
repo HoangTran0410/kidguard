@@ -69,6 +69,7 @@ object Policy {
         }
         applyNotes(ctx, d, a, r)
         applyNet(ctx, d, a, r)
+        applyFrp(d, a, r.frpIds)
         val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
         if (Build.VERSION.SDK_INT >= 29) perms += Manifest.permission.ACCESS_BACKGROUND_LOCATION
         if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
@@ -160,6 +161,22 @@ object Policy {
             }.onFailure { Log.w(TAG, "restore dns off", it) }
         }
     }
+
+    @Volatile var frpFailed = false
+    /** Factory reset protection (Android 11+): only the listed Google accounts can set the phone up again after a reset. Empty = policy cleared. */
+    private fun applyFrp(d: DevicePolicyManager, a: ComponentName, ids: List<String>) {
+        if (Build.VERSION.SDK_INT < 30) return
+        runCatching {
+            if (ids.isEmpty()) d.setFactoryResetProtectionPolicy(a, null)
+            else d.setFactoryResetProtectionPolicy(a, android.app.admin.FactoryResetProtectionPolicy.Builder()
+                .setFactoryResetProtectionAccounts(ids).setFactoryResetProtectionEnabled(true).build())
+            frpFailed = false
+        }.onFailure { frpFailed = true; Log.w(TAG, "frp", it) }
+    }
+    /** True while our FRP policy is set on the phone. */
+    fun frpActive(ctx: Context): Boolean = Build.VERSION.SDK_INT >= 30 && runCatching {
+        dpm(ctx).getFactoryResetProtectionPolicy(admin(ctx))?.isFactoryResetProtectionEnabled == true
+    }.getOrDefault(false)
 
     /** Location, airplane mode and Private DNS (the "safe DNS" filter). Each piece is separate so one failing doesn't stop the rest. */
     private fun applyNet(ctx: Context, d: DevicePolicyManager, a: ComponentName, r: Rules) {
@@ -632,6 +649,7 @@ object Policy {
         Update.forget(ctx)
         (BASE + INSTALL + UserManager.DISALLOW_DEBUGGING_FEATURES + UserManager.DISALLOW_APPS_CONTROL).forEach { runCatching { d.clearUserRestriction(a, it) } }
         runCatching { d.setUninstallBlocked(a, ctx.packageName, false) }
+        applyFrp(d, a, emptyList())
         applyNet(ctx, d, a, Rules(lockLocation = false, noAirplane = false, safeDns = ""))
         if (Build.VERSION.SDK_INT >= 30) runCatching { d.setUserControlDisabledPackages(a, emptyList()) }
         else @Suppress("DEPRECATION") runCatching { d.setAutoTimeRequired(a, false) }

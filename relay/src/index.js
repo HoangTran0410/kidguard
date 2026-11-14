@@ -18,6 +18,7 @@ import ui_shell_js from "../../ui/assets/shell.js";
 import ui_tab_home_js from "../../ui/assets/tab-home.js";
 import ui_tab_apps_js from "../../ui/assets/tab-apps.js";
 import ui_tab_rules_js from "../../ui/assets/tab-rules.js";
+import ui_wizard_js from "../../ui/assets/wizard.js";
 import ui_tab_screen_js from "../../ui/assets/tab-screen.js";
 import ui_tab_where_js from "../../ui/assets/tab-where.js";
 import ui_tab_set_js from "../../ui/assets/tab-set.js";
@@ -35,6 +36,7 @@ const UI = {
   "tab-home.js": ui_tab_home_js,
   "tab-apps.js": ui_tab_apps_js,
   "tab-rules.js": ui_tab_rules_js,
+  "wizard.js": ui_wizard_js,
   "tab-screen.js": ui_tab_screen_js,
   "tab-where.js": ui_tab_where_js,
   "tab-set.js": ui_tab_set_js,

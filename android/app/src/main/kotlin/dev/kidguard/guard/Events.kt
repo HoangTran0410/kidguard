@@ -101,6 +101,7 @@ object Events {
             p += tr.s(if (n.safeDnsPauseUntil > 0) T.diff_dns_pause else T.diff_dns, n.safeDns)
         if (o.safeDns != n.safeDns) p += tr.s(if (n.safeDns.isNotEmpty()) T.diff_dns else T.diff_dns_off, n.safeDns)
         if (o.noVpn != n.noVpn) p += tr.s(if (n.noVpn) T.diff_novpn else T.diff_novpn_off)
+        if (o.frpIds != n.frpIds) p += tr.s(if (n.frpIds.isNotEmpty()) T.diff_frp else T.diff_frp_off)
         if (o.tsKeep != n.tsKeep) p += tr.s(if (n.tsKeep) T.diff_tskeep else T.diff_tskeep_off)
         if (o.autoUpdate != n.autoUpdate) p += tr.s(if (n.autoUpdate) T.diff_autoupd else T.diff_autoupd_off)
         if (o.showWatching != n.showWatching) p += tr.s(if (n.showWatching) T.diff_watch else T.diff_watch_off)

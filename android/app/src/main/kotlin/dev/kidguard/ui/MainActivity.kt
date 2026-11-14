@@ -336,7 +336,16 @@ class MainActivity : Activity() {
                     AdminActivity.start(this); true
                 }
                 -1 -> { input.setText(""); m.setError(lockText(s.adminLockLeft())); false }
-                else -> { input.setText(""); m.setError(getString(if (shot) R.string.admin_shot_taken else R.string.admin_wrong)); false }
+                else -> {
+                    input.setText("")
+                    val left = s.localPinTriesLeft()
+                    m.setError(when {
+                        shot -> getString(R.string.admin_shot_taken)
+                        pinSet && left in 1..4 -> resources.getQuantityString(R.plurals.pin_wrong_left, left, left)
+                        else -> getString(R.string.admin_wrong)
+                    })
+                    false
+                }
             }
         }
         input.requestFocus()
@@ -888,11 +897,11 @@ class MainActivity : Activity() {
         }
         val m = Modal(this, ui2)
         val input = m.field(getString(R.string.pin_field), 12, pin = true)
-        m.show(R.drawable.li_shield, Modal.Tone.INFO, getString(R.string.pin_title), getString(R.string.pin_body), input, ok = getString(R.string.pin_ok), cancel = getString(R.string.cancel)) {
+        m.show(R.drawable.li_shield, Modal.Tone.INFO, getString(R.string.pin_title), getString(R.string.pin_body), KidNow.withForgot(this, ui2, input), ok = getString(R.string.pin_ok), cancel = getString(R.string.cancel)) {
             if (s.checkParentPin(input.text.toString().filter { it.isDigit() })) { s.openPairing(); refresh(); true }
             else {
                 input.setText("")
-                m.setError(s.pinLockLeft().takeIf { it > 0 }?.let { lockText(it) } ?: getString(R.string.pin_wrong))
+                m.setError(s.pinLockLeft().takeIf { it > 0 }?.let { lockText(it) } ?: s.pinTriesLeft().takeIf { it in 1..4 }?.let { resources.getQuantityString(R.plurals.pin_wrong_left, it, it) } ?: getString(R.string.pin_wrong))
                 false
             }
         }

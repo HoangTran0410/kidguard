@@ -57,6 +57,8 @@
     <string name="diff_dns">DNS an toàn %1$s</string>
     <string name="diff_dns_off">tắt DNS an toàn</string>
     <string name="diff_dns_pause">tạm tắt DNS an toàn</string>
+    <string name="diff_frp">đặt bảo vệ khôi phục cài đặt gốc</string>
+    <string name="diff_frp_off">bỏ bảo vệ khôi phục cài đặt gốc</string>
     <string name="diff_novpn">chặn VPN</string>
     <string name="diff_novpn_off">cho phép VPN</string>
     <string name="diff_tskeep">giữ Tailscale luôn bật</string>
@@ -394,6 +396,9 @@
     <string name="main_no_wifi">(chưa có Wi-Fi)</string>
     <string name="pin_need_title">Cần mã PIN</string>
     <string name="pin_need_body">Bố mẹ đặt PIN trong trang quản lý trước, rồi mới ghép thêm máy.</string>
+    <plurals name="pin_wrong_left">
+        <item quantity="other">Sai PIN, còn %1$d lần</item>
+    </plurals>
     <plurals name="pin_locked">
         <item quantity="other">Nhập sai PIN nhiều lần. Thử lại sau %1$d phút.</item>
     </plurals>
@@ -787,6 +792,10 @@
     <string name="hm_t_now">Đang diễn ra</string>
     <string name="hm_t_next">Sắp tới</string>
     <string name="hm_t_chores">Việc nhà và bài tập</string>
+    <string name="hm_t_wins">Tuần này của bạn</string>
+    <string name="hm_t_wins_within">%1$d/%2$d ngày dùng đúng giờ</string>
+    <string name="hm_t_wins_streak">Chuỗi %d ngày đúng giờ</string>
+    <string name="hm_t_wins_list">Làm xong danh sách %d ngày</string>
     <string name="hm_t_plus_min">+%1$d phút</string>
     <string name="hm_t_wait">Chờ bố mẹ</string>
     <string name="hm_t_done">Xong</string>

@@ -940,8 +940,8 @@ function notifHealthHtml() {
     ${push ? line(h.push !== "fail", push) : ""}
     ${line(!!h.battery, h.battery ? t("nh.batOk") : t("nh.batOn"))}
     ${line(h.enabled && h.perm, h.enabled && h.perm ? t("nh.permOk") : t("nh.permOff"))}
-    <div class="row">${h.battery ? "" : `<button class="sp" id="nhBat">${ic("battery-charging")} ${t("nh.batBtn")}</button>`}
-    ${h.perm ? "" : `<button class="sp" id="nhPerm">${ic("bell-ring")} ${t("nh.permBtn")}</button>`}
+    <div class="row">${h.battery ? "" : `<button class="sp" id="nhBat">${ic("battery-full")} ${t("nh.batBtn")}</button>`}
+    ${h.perm ? "" : `<button class="sp" id="nhPerm">${ic("bell")} ${t("nh.permBtn")}</button>`}
     <button class="sp" id="nhTest">${ic("send")} ${t("nh.test")}</button></div></div>`;
 }
 // one history entry while it is open, so Android Back returns to the list (popstate in overview.js) instead of leaving the app

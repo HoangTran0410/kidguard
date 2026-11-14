@@ -435,3 +435,13 @@ input[type=range]:disabled{opacity:.45;cursor:default}
 @keyframes cbs{0%{left:-40%}100%{left:100%}}
 .cbusy-lock{opacity:.45;pointer-events:none;filter:grayscale(.4);transition:opacity .2s}
 @media (prefers-reduced-motion:reduce){.cbusy-ic,.cbusy-bar>i{animation-duration:3s}}
+
+/* guided setup (wizard.js): same sheet as #askPop, one layer lower so the PIN prompt opens above it */
+#wizPop{position:fixed;top:0;right:0;bottom:0;left:0;z-index:40;background:var(--scrim);display:none;align-items:flex-end;justify-content:center}
+#wizPop .dp{background:var(--card);color:var(--text);border-radius:28px 28px 0 0;padding:10px 20px calc(20px + env(safe-area-inset-bottom));width:100%;max-width:560px;max-height:92vh;overflow:auto}
+#wizPop .dp::before{content:"";display:block;width:36px;height:4px;border-radius:2px;background:var(--stroke2);margin:0 auto 14px}
+@media(min-width:960px){#wizPop{align-items:center}#wizPop .dp{width:440px;border-radius:24px;padding:24px}#wizPop .dp::before{display:none}}
+#wizPop .row>button.sp{min-height:52px;font-size:16px}
+.wzd{display:flex;gap:6px;margin:8px 0 12px}.wzd span{flex:1;height:4px;border-radius:2px;background:var(--stroke2)}.wzd span.on,.wzd span.dn{background:var(--accent)}.wzd span.dn{opacity:.5}
+.wza{padding:6px 0 10px;border-bottom:1px solid var(--stroke2)}.wza .app{padding:4px 0}.wzs button{flex:1;min-width:0;padding:0 6px}
+.wzi{display:flex;gap:12px;align-items:center;padding:10px 0}.wzi .cli{flex:none}

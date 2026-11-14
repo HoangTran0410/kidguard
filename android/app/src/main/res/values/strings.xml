@@ -62,6 +62,8 @@
     <string name="diff_dns">safe DNS %1$s</string>
     <string name="diff_dns_off">safe DNS off</string>
     <string name="diff_dns_pause">safe DNS paused</string>
+    <string name="diff_frp">factory reset protection set</string>
+    <string name="diff_frp_off">factory reset protection cleared</string>
     <string name="diff_novpn">VPN blocked</string>
     <string name="diff_novpn_off">VPN allowed</string>
     <string name="diff_tskeep">keep Tailscale on</string>
@@ -407,6 +409,10 @@
     <string name="main_no_wifi">(no Wi-Fi yet)</string>
     <string name="pin_need_title">PIN needed</string>
     <string name="pin_need_body">Parents: set a PIN on the parent page first, then pair another phone.</string>
+    <plurals name="pin_wrong_left">
+        <item quantity="one">Wrong PIN, %1$d try left</item>
+        <item quantity="other">Wrong PIN, %1$d tries left</item>
+    </plurals>
     <plurals name="pin_locked">
         <item quantity="one">Too many wrong PINs. Try again in %1$d minute.</item>
         <item quantity="other">Too many wrong PINs. Try again in %1$d minutes.</item>
@@ -807,6 +813,10 @@
     <string name="hm_t_now">Now</string>
     <string name="hm_t_next">Up next</string>
     <string name="hm_t_chores">Chores and homework</string>
+    <string name="hm_t_wins">Your week</string>
+    <string name="hm_t_wins_within">%1$d of %2$d days within your screen time</string>
+    <string name="hm_t_wins_streak">%d days in a row on time</string>
+    <string name="hm_t_wins_list">Finished your list on %d days</string>
     <string name="hm_t_plus_min">+%1$d min</string>
     <string name="hm_t_wait">Waiting for parents</string>
     <string name="hm_t_done">Done</string>

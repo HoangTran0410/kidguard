@@ -55,7 +55,7 @@ async function refresh1() {
   const busy = document.activeElement && /^(SELECT|INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
   if (st && st.rules) {
     const nw = pendingRules && pendingRules.rev > st.rules.rev ? pendingRules : st.rules;
-    if (!edit) { edit = norm(structuredClone(nw)); editBase = structuredClone(edit); levelsOffer(k); }
+    if (!edit) { edit = norm(structuredClone(nw)); editBase = structuredClone(edit); wizAuto(k); }
     // another parent (or the child) changed the rules: reload unless we are mid-edit or saving, else a stale page would overwrite them
     else if ((nw.rev || 0) > (edit.rev || 0) && !saveT && !saveBusy && !busy && !saveFailed) { edit = norm(structuredClone(nw)); editBase = structuredClone(edit); lastSig = ""; }
   }
@@ -460,24 +460,7 @@ function lvLines(r) {
   return [by && mn !== mx ? t("lv.l.limBy", mn, mx) : t("lv.l.lim", by ? mn : r.dailyMin), t("lv.l.bed", b.start, b.end),
     t(r.blockNew ? "lv.l.newOn" : "lv.l.newOff"), t(r.safeDns ? "lv.l.dnsOn" : "lv.l.dnsOff") + (r.noInstall ? " · " + t("lv.l.noInst") : "")];
 }
-let lvBusy = false;
-async function levelsOffer(k) {
-  if (lvBusy || k.lv || !edit) return;
-  const mark = () => { k.lv = 1; save(kids); if (LOCAL) try { window.KGLocal.lvDone(); } catch {} };
-  // Rules already set => never offer, never overwrite. A never-paired preview phone is fine: the first save asks for the PIN in putRules.
-  if (!rulesUntouched(edit)) return mark();
-  lvBusy = true;
-  let pick = "balanced";
-  const row = id => { const d = LV_D.find(x => x.id === id);
-    return `<label class="app"><input type="radio" name="lv" value="${id}" ${id === pick ? "checked" : ""}><span class="nm"><b>${esc(t("lv." + id))}</b><span class="mute">${lvLines(d.rules).map(esc).join("<br>")}</span></span></label>`; };
-  const extra = `<div role="radiogroup" aria-label="${esc(t("lv.title"))}" style="margin-bottom:8px">${LV_D.map(d => row(d.id)).join("")}<label class="app"><input type="radio" name="lv" value="later"><span class="nm"><b>${esc(t("lv.later"))}</b></span></label></div>`;
-  const collect = () => { const c = document.querySelector('#askPop input[name="lv"]:checked'); if (!c) return false; pick = c.value; return true; };
-  const ok = await ask(t("lv.ask", k.name), t("lv.go"), false, "", extra, collect);
-  const auto = askAuto; lvBusy = false; if (ok || !auto) mark();   // dismissed by another dialog / screen change: offer again later
-  const lv = LV_D.find(x => x.id === pick);
-  if (!ok || !lv || k !== cur || !edit || !rulesUntouched(edit)) return;   // re-check: someone may have edited while the dialog was open
-  Object.assign(edit, tplFields(lv.rules, LV_F)); changed(); render();
-}
+// the first-pairing offer is the guided setup in wizard.js (wizAuto); lvLines / LV_D above feed its first step
 async function tplApply(tp) {
   if (!(await ask(t("tpl.askOne", tp.name, cur.name), t("apply")))) return;
   Object.assign(edit, tplFields(tp.rules)); changed(); render();

@@ -13,6 +13,14 @@ class SafetyTest {
         assertEquals(64 * 5 * 60_000L, Safety.pinLockMs(50))   // capped
     }
 
+    @Test fun pinTriesLeft() {
+        assertEquals(4, Safety.pinTriesLeft(1))
+        assertEquals(1, Safety.pinTriesLeft(4))
+        assertEquals(0, Safety.pinTriesLeft(5))
+        assertEquals(0, Safety.pinTriesLeft(40))
+        assertEquals(Safety.pinTriesLeft(4) == 1, Safety.pinLockMs(5) > 0 && Safety.pinLockMs(4) == 0L)
+    }
+
     @Test fun pairBlock() {
         assertEquals(0, Safety.pairBlockMs(1)); assertEquals(0, Safety.pairBlockMs(2))
         assertEquals(30_000L, Safety.pairBlockMs(3))

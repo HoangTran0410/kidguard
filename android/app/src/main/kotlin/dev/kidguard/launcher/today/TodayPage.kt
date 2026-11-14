@@ -54,6 +54,7 @@ class TodayPage(
         if ("time" !in hide) screen(st, r, dv, block, all, icon)
         if ("sched" !in hide) schedule(r, dv.minute, dv.dow)
         if ("chores" !in hide) chores(r, st)
+        if ("wins" !in hide) wins(r, dv)
         if ("tomorrow" !in hide) tomorrow(dv)
         if ("notes" !in hide) notes()
         if ("files" !in hide) files()
@@ -77,9 +78,9 @@ class TodayPage(
 
     // ---- choose cards ----
 
-    private val cardIds0 = listOf("now", "time", "sched", "chores", "tomorrow", "notes", "files")
+    private val cardIds0 = listOf("now", "time", "sched", "chores", "wins", "tomorrow", "notes", "files")
     private val cardIds = listOf("now" to R.string.hm_t_now_card, "time" to R.string.hm_t_screen, "sched" to R.string.hm_t_schedule,
-        "chores" to R.string.hm_t_chores, "tomorrow" to R.string.hm_t_tomorrow_card, "notes" to R.string.hm_t_notes, "files" to R.string.hm_t_files).filter { Flavor.card(it.first) }
+        "chores" to R.string.hm_t_chores, "wins" to R.string.hm_t_wins, "tomorrow" to R.string.hm_t_tomorrow_card, "notes" to R.string.hm_t_notes, "files" to R.string.hm_t_files).filter { Flavor.card(it.first) }
 
     private fun pickCards() {
         val m0 = model() ?: return
@@ -339,6 +340,25 @@ class TodayPage(
             setPadding(dp(4), dp(12), dp(4), dp(4)); Ic.lead(this, R.drawable.li_plus, pal.accentText); compoundDrawablePadding = dp(8); gravity = Gravity.CENTER_VERTICAL
             k.tap(this, 10f) { addHomework() }
         }, LinearLayout.LayoutParams(-2, -2))
+        col.addView(c, lp())
+    }
+
+    // ---- Tuần này của bạn: positive feedback, hidden until there is something to celebrate (never on Home flavor) ----
+
+    private fun wins(r: Rules, dv: HomeActivity.View0) {
+        if (Flavor.HOME) return
+        KidWins.refresh(act, r, dv.apps, dv.prot) { refreshSoon() }   // off the UI thread; the card appears when the result is in
+        val w = KidWins.cached()?.takeIf { it.any } ?: return
+        val c = card()
+        title(c, R.drawable.li_trophy, s(R.string.hm_t_wins))
+        fun line(icon: Int, t: String) = c.addView(LinearLayout(act).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(10), 0, 0)
+            addView(ImageView(act).apply { setImageDrawable(Ic.get(act, icon, pal.accentText, dp(20))); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }, LinearLayout.LayoutParams(dp(20), dp(20)))
+            addView(k.text(t, 15f, pal.text, true).apply { setPadding(dp(10), 0, 0, 0); maxLines = 2 }, LinearLayout.LayoutParams(0, -2, 1f))
+        })
+        if (w.within > 0) line(R.drawable.li_circle_check, s(R.string.hm_t_wins_within, w.within, w.counted))
+        if (w.streak >= 2) line(R.drawable.li_flame, s(R.string.hm_t_wins_streak, w.streak))
+        if (w.listDays > 0) line(R.drawable.li_star, s(R.string.hm_t_wins_list, w.listDays))
         col.addView(c, lp())
     }
 

@@ -52,4 +52,5 @@
     <string name="ans_half_app">Allowed, telling the child. Don\'t allow it again</string>
     <string name="test_title">Test notification</string>
     <string name="test_text">It works: alerts from your child\'s phone will show up like this.</string>
+    <string name="scan_fail">Scanner unavailable here (needs Google Play services). Type the address or paste the link instead.</string>
 </resources>

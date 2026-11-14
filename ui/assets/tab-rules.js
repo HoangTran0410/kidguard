@@ -190,7 +190,11 @@ function ruleSecs(r) {
     <p class="mute">${ic("map")} ${t("trk.tip")}</p>`),
     more: sec("r-more", "construction", t("more.h"), t("sd.more"), C.more, `    ${gateNote("block")}<label for="f-bn" style="display:block">${ic("package")} ${t("ni.h")}</label><select id="f-bn" style="width:100%;margin:6px 0 0">${[["off", "ni.off", 0], ["ask", "ni.ask", !feat("block").ok], ["none", "ni.none", isBasic()]].map(([v, k, dis]) => `<option value="${v}" ${(r.noInstall ? "none" : r.blockNew ? "ask" : "off") === v ? "selected" : ""} ${dis && !(v === "none" ? r.noInstall : v === "ask" && r.blockNew && !r.noInstall) ? "disabled" : ""}>${t(k)}</option>`).join("")}</select>
     ${canFeat("lockLocation") ? "" : gateNote("lockLocation")}<div class="${canFeat("lockLocation") ? "" : "gated"}"><label class="row" style="margin-top:8px"><input type="checkbox" id="f-ll" ${r.lockLocation ? "checked" : ""}><span class="sp">${ic("map-pin")} ${t("more.loc")}</span></label></div>
-    <div class="${isBasic() ? "gated" : ""}"><label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span class="sp">${ic("plane")} ${t("more.air")}</span></label></div>${moreOwnerNote(r)}`),
+    <div class="${isBasic() ? "gated" : ""}"><label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span class="sp">${ic("plane")} ${t("more.air")}</span></label></div>${moreOwnerNote(r)}
+    <div class="${isBasic() ? "gated" : ""}" style="margin-top:12px"><label for="f-frp" style="display:block">${ic("shield")} ${t("frp.h")}</label>
+    <input type="text" id="f-frp" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(t("frp.ph"))}" value="${esc((r.frpIds || []).join(" "))}" style="width:100%;margin-top:6px">
+    <p class="mute" id="frpS">${frpStatus(r)}</p>
+    <details><summary>${t("frp.how")}</summary><p class="mute">${t("frp.tip")}</p></details></div>${isBasic() ? needOwner(t("no.frp")) : ""}`),
     dns: sec("r-dns", "shield", t("dns.h"), t("sd.dns"), C.dns, `    <select id="f-dns" aria-label="${esc(t("dns.h"))}">${DNS().map(([v, n, ss]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}${ss ? " · " + t("dns.ss") : ""}</option>`).join("")}<option value="__c" ${r.safeDns && !DNS().some(d => d[0] === r.safeDns) ? "selected" : ""}>${t("dns.custom")}</option></select>
     <input type="text" id="f-dnsc" placeholder="dns.example.com" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(DNS().some(d => d[0] === r.safeDns) ? "" : r.safeDns)}" style="margin-top:8px;${r.safeDns && !DNS().some(d => d[0] === r.safeDns) ? "" : "display:none"}" aria-label="${esc(t("dns.custom"))}">
     <div id="dnsP"></div>
@@ -337,6 +341,7 @@ function rulesWire(b, r) {
   };
   $("#f-dns").addEventListener("change", () => dnsP());
   dnsP();
+  $("#f-frp").onchange = e => { const ids = [...new Set(e.target.value.split(/[^0-9]+/).filter(x => x.length >= 10 && x.length <= 30))].slice(0, 5); r.frpIds = ids; e.target.value = ids.join(" "); changed(); };
   $("#f-nv").onchange = e => { r.noVpn = e.target.checked; changed(); };
   const bw = () => { $("#bedW").innerHTML = r.bedByDay.length ? "" : timeWarn(r.bedtime, r.bedtime.on); };
   $("#f-bed").onchange = e => { r.bedtime.on = e.target.checked; bw(); changed(); };
@@ -429,6 +434,11 @@ function bankBind(r) {
 
 
 // "Chặn thêm": one Device Owner note for every lock in the card that can't work here (was one note per switch)
+// Factory reset protection: state.frp = unsupported | off | on | error (phone side), rules.frpIds = Google account IDs
+function frpStatus(r) {
+  const f = st.frp, n = (r.frpIds || []).length;
+  return f === "unsupported" ? `${ic("info")} ${t("frp.unsup")}` : f === "error" ? `${ic("triangle-alert")} ${t("frp.err")}` : n && f === "on" ? `${ic("check")} ${t("frp.on", n)}` : n ? `${ic("clock")} ${t("frp.wait")}` : `${ic("info")} ${t("frp.off")}`;
+}
 function moreOwnerNote(r) {
   const w = [];
   if (isBasic() && r.noInstall) w.push(t("no.ni"));

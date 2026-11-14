@@ -66,6 +66,7 @@ android {
 
 dependencies {
     implementation("com.google.firebase:firebase-messaging:24.1.0")
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")   // QR scanner of the add-kid screen (Play services; no camera permission)
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
 }

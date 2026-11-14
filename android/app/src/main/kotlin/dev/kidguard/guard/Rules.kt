@@ -156,6 +156,7 @@ data class Rules(
     val safeDns: String = "",                // Private DNS host, "" = off
     val safeDnsPauseUntil: Long = 0,         // epoch ms: while now < this the phone behaves as if safeDns were "" (0 = no pause)
     val noVpn: Boolean = false,
+    val frpIds: List<String> = emptyList(),  // Google account IDs (digits) that can unlock the phone after a factory reset; empty = Google default (Device Owner, Android 11+)
     val tsKeep: Boolean = false,             // Ts.keep: bring a dropped Tailscale back (off: someone's own Tailscale is left alone)              // Device Owner: DISALLOW_CONFIG_VPN (no VPN apps / settings for the child)
     val vpnPause: Set<String> = VpnPauseLogic.DEFAULT,   // apps that refuse to run with a VPN up: Tailscale off while they are used (VpnPause)
     val accPause: Set<String> = AccPauseLogic.DEFAULT,
@@ -202,7 +203,7 @@ data class Rules(
         .put("dailyByDay", JSONArray(dailyByDay))
         .put("schedules", JSONArray().apply { schedules.forEach { put(it.toJson()) } })
         .put("blockNew", blockNew).put("approved", JSONArray(approved.sorted()))
-        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("safeDns", safeDns).put("safeDnsPauseUntil", safeDnsPauseUntil).put("noVpn", noVpn).put("tsKeep", tsKeep).put("trackMin", trackMin).put("vpnPause", JSONArray(vpnPause.sorted())).put("accPause", JSONArray(accPause.sorted())).put("devPause", JSONArray(devPause.sorted())).put("tcpPause", JSONArray(tcpPause.sorted()))
+        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("frpIds", JSONArray(frpIds)).put("safeDns", safeDns).put("safeDnsPauseUntil", safeDnsPauseUntil).put("noVpn", noVpn).put("tsKeep", tsKeep).put("trackMin", trackMin).put("vpnPause", JSONArray(vpnPause.sorted())).put("accPause", JSONArray(accPause.sorted())).put("devPause", JSONArray(devPause.sorted())).put("tcpPause", JSONArray(tcpPause.sorted()))
         .put("showWatching", showWatching).put("autoUpdate", autoUpdate)
         .put("chores", JSONArray().apply { chores.forEach { put(it.toJson()) } })
         .put("zones", JSONArray().apply { zones.forEach { put(it.toJson()) } })
@@ -312,6 +313,7 @@ data class Rules(
                 showWatching = o.optBoolean("showWatching", true),
                 autoUpdate = o.optBoolean("autoUpdate", true),
                 noVpn = o.optBoolean("noVpn", false),
+                frpIds = Frp.ids(o.optJSONArray("frpIds")),
                 tsKeep = o.optBoolean("tsKeep", false),
                 vpnPause = if (o.has("vpnPause")) o.optJSONArray("vpnPause").strings().take(100).toSet() else VpnPauseLogic.DEFAULT,
                 accPause = if (o.has("accPause")) o.optJSONArray("accPause").strings().take(100).toSet() else AccPauseLogic.DEFAULT,
@@ -531,6 +533,9 @@ object Safety {
 
     /** PIN: 5 free tries, then 5 min, 10 min, … */
     fun pinLockMs(fails: Int): Long = backoffMs(fails, 5, 5 * 60_000L)
+
+    /** Wrong PIN tries left before the lockout, given [fails] so far (0 = the next wrong one locks). */
+    fun pinTriesLeft(fails: Int): Int = maxOf(0, 5 - fails)
 
     /** Pairing: every 3rd wrong guess (code or PIN) makes a new code and blocks for 30 s, 60 s, … */
     fun pairBlockMs(fails: Int): Long = if (fails > 0 && fails % 3 == 0) backoffMs(fails / 3, 1, 30_000L) else 0

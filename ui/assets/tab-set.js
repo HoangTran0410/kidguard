@@ -326,6 +326,7 @@ function setTab(b) {
   <div class="card"><h2>${ic("user")} ${t("set.name")}</h2><div class="row"><input id="f-name" class="sp" aria-label="${esc(t("set.name"))}" value="${esc(cur.name)}"><button id="saveName">${ic("save")} ${t("save")}</button></div></div>
   ${APP ? `<div class="card"><h2>${ic("history")} ${t("keep.h")}</h2><select id="f-days" aria-label="${esc(t("keep.h"))}">${["0", "30", "90", "365"].map(v => `<option value="${v}" ${String(kgCall("getHistoryDays") || "0") === v ? "selected" : ""}>${+v ? t("days", +v) : t("noLimitC")}</option>`).join("")}</select>
     <p class="mute">${t("keep.p")}</p></div>` : ""}
+  <div class="card"><h2>${ic("sparkles")} ${t("wz.redo")}</h2><p class="mute">${t("wz.redoP")}</p><button type="button" id="wizRedo">${ic("refresh-cw")} ${t("wz.redoGo")}</button></div>
   ${featCard()}
   ${updCard()}
   ${sec("s-sys", "sliders-horizontal", t("sys.h"), t("sd.sys"), null, `<div id="sysCard"></div>`)}
@@ -526,6 +527,7 @@ function tgWire() {
 /** The /go link box (Cài đặt > relay): the link that always opens, whatever the phone's address. */
 function relayLinkHtml(link) {
   return `<p>${ic("smartphone")} ${t("relay.link")}</p><code id="goLink">${esc(link)}</code>
+    <div class="totpqr"><div class="qrw" role="img" aria-label="${esc(t("scan.qrAlt"))}">${qrSvg(link)}</div><p>${ic("scan-line")} ${t("scan.invite")}</p></div>
     <div class="row" style="margin-top:8px"><button id="copy">${ic("clipboard-copy")} ${t("relay.copy")}</button><a class="lnkbtn" href="${esc(link)}" target="_blank" rel="noopener">${ic("link")} ${t("open")}</a></div>`;
 }
 function bindCopy() {

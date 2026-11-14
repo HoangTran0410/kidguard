@@ -38,6 +38,8 @@ shape, say so in your report instead of silently diverging.
                                    //      by itself at expiry (no rules change needed). The page's "Pause 30 min" sets now+30 min.
   "tsKeep": false,                 // NEW 0.9.12 (default false): Ts.keep brings a dropped Tailscale back (CONNECT_VPN broadcast, then open once on home); always on for a Tailscale KidGuard installed (tsWanted)
   "noVpn": false,                  // NEW (default false): DISALLOW_CONFIG_VPN (Device Owner); also kept while our Tailscale access needs it
+  "frpIds": [],                    // NEW (default []): Google account IDs (digits, 10..30 chars, max 5) for factory reset protection
+                                   //   (Device Owner, Android 11+: setFactoryResetProtectionPolicy); [] = policy cleared. Undone in release.
   "noInstall": false, "noDebug": false,
   "pinShot": true,                 // NEW (default true): 3rd/6th/9th wrong on-device admin PIN / code in a row (>= 2 min apart) ->
                                    //      one front-camera JPEG (long side <= 960 px), told on the PIN dialog; the newest `tamper`
@@ -438,7 +440,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   stays queued until the ack has none (a re-send after a lost reply fails `pin needed` on the phone: ask again).
   `answer`: the worker keeps `id` as command id only if it matches `^[\w.-]{1,64}$`, else it makes a UUID; the request id
   is always copied to `req` and the phone answers `req` (falling back to `id` on LAN).
-- **State** adds `dnsError` (`""` or a short reason when the Private DNS host was rejected; the phone then falls back
+- **State** adds `frp` (`unsupported` < Android 11 or not owner | `off` | `on` | `error` set refused) and `dnsError` (`""` or a short reason when the Private DNS host was rejected; the phone then falls back
   to opportunistic DNS and clears the restriction so the child keeps internet) and keeps `usageAccess` (page warns when false).
   Also `usageOff` (= `!usageAccess`; the phone raised one `tamper` event for this revoke, shows the child a notification
   to turn it back on, and logs `usage_on` when it returns) and `dnsPausedUntil` (ms, 0 when no pause is running).

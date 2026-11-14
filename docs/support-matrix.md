@@ -59,6 +59,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 |---|---|---|---|---|---|---|
 | DNS an toàn (Private DNS) | ✅ | ❌ | ✅ | ✅ | ✅ | +WSS: ghi `Settings.Global`, tự sửa lại nếu con đổi. Tắt DoH của Chrome/Edge chỉ DO |
 | Chặn VPN, chặn chế độ máy bay | ✅ | ❌ | ❌ | ❌ | ✅ | |
+| Khoá máy theo tài khoản Google sau khi khôi phục (`frpIds`) | ✅ (Android 11+) | ❌ | ❌ | ❌ | ✅ | Cần ID số của tài khoản Google (không phải email). Sai ID = máy có thể khoá vĩnh viễn sau khi reset. |
 | Vị trí, lịch sử, vùng an toàn | ✅ | ✅ | ✅ | ✅ | ✅ | Cần quyền vị trí (cả nền) |
 | Nhật ký (sự kiện + dòng nhật ký, 90 ngày, xem theo ngày) | ✅ | ✅ | ✅ | ✅ | ✅ | Máy con lưu SQLite 90 ngày; LAN `GET /api/logday`, Relay hỏi theo ngày (trễ ≤ ~1 phút). Máy/worker cũ: chỉ 50 dòng gần nhất |
 | Giữ vị trí luôn bật | ✅ | ❌ | ⚠️ | ⚠️ | ✅ | +WSS: ghi `location_mode`, chưa kiểm trên Android 10+ |

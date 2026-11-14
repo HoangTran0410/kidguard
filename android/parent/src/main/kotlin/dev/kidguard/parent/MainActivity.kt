@@ -99,6 +99,11 @@ class Bridge(private val a: MainActivity) {
     @JavascriptInterface fun openNotifSettings() {
         a.runOnUiThread { runCatching { a.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, a.packageName)) } }
     }
+    /**
+     * Opens Google's code scanner (Play services; no camera permission). The text arrives as `kgScan({text})`; `kgScan({st:"cancel"})`
+     * when closed, `kgScan({st:"fail"})` when the scanner is unavailable (the app also shows a toast). Page validates the text.
+     */
+    @JavascriptInterface fun scanQr() { a.runOnUiThread { a.scanQr() } }
     @JavascriptInterface fun appVersion(): String = BuildConfig.VERSION_NAME
     /** Checks GitHub now; progress and result arrive as `kgUpd({st: checking|ok|new|fail, tag})` on the page. */
     @JavascriptInterface fun checkUpdate() = Updater.check(a)
@@ -213,6 +218,18 @@ class MainActivity : Activity() {
         if (i?.getBooleanExtra(EXTRA_SETTINGS, false) != true) return false
         openSettings = true
         return true
+    }
+    fun scanQr() {
+        fun send(o: org.json.JSONObject) { web?.evaluateJavascript("window.kgScan && kgScan(" + o + ")", null) }
+        val fail = { Toast.makeText(this, R.string.scan_fail, Toast.LENGTH_LONG).show(); send(org.json.JSONObject().put("st", "fail")); Unit }
+        try {
+            val opt = com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions.Builder()
+                .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_QR_CODE).build()
+            com.google.mlkit.vision.codescanner.GmsBarcodeScanning.getClient(this, opt).startScan()
+                .addOnSuccessListener { send(org.json.JSONObject().put("text", (it.rawValue ?: "").take(2000))) }
+                .addOnCanceledListener { send(org.json.JSONObject().put("st", "cancel")) }
+                .addOnFailureListener { fail() }
+        } catch (e: Throwable) { fail() }
     }
     /** Updater -> page: one JSON state, on the main thread. */
     fun push(o: org.json.JSONObject) { runOnUiThread { web?.evaluateJavascript("window.kgUpd && kgUpd(" + o + ")", null) } }
