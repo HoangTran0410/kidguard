@@ -21,9 +21,10 @@ object CmdGate {
     /**
      * True when [type] needs the PIN. `relay` with the URL it already has only hands out the existing relay link
      * (the page learns it on LAN: `core.js` learnAddrs), so only a change of URL (incl. "" = off) is gated, and `renew` (new id + token: cuts every old link) always.
+     * `adbTcp` needs it only with [on] = true (owner 2026-11-15: closing the port only reduces risk).
      */
-    fun needs(type: String, url: String? = null, relayUrl: String = "", renew: Boolean = false): Boolean =
-        type in GATED && (renew || !(type == "relay" && url != null && norm(url) == norm(relayUrl) && relayUrl.isNotBlank()))
+    fun needs(type: String, url: String? = null, relayUrl: String = "", renew: Boolean = false, on: Boolean = true): Boolean =
+        type in GATED && !(type == "adbTcp" && !on) && (renew || !(type == "relay" && url != null && norm(url) == norm(relayUrl) && relayUrl.isNotBlank()))
 
     /** A valid new PIN (4–8 digits) or null. */
     fun newPin(s: String?): String? = s?.filter { it.isDigit() }?.takeIf { it.length in 4..8 && it.length == s.trim().length }

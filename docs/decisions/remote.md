@@ -65,3 +65,4 @@ Index and the rule for adding lines: `README.md`.
 - Parent app WebView render process gone killed the app -> recreate activity (7fc1506)
 - Broken pipe on LAN server killed the whole app (Oppo dropbox) -> catch (5f03cbe, Http.kt:61)
 - (2026-11-15) Parent app name under the launcher icon = `launcher_name` "KG Bố mẹ" / "KG Parent" (owner: "KidGuard Phụ huynh" too long, ellipsized); `app_name` stays full in Settings and docs.
+- (2026-11-15) `adbTcp {on:false}` needs no PIN (CmdGate.needs `on` param; closing only reduces risk), `on:true` still gated. Parent app: SOS not yet notified fires up to 48 h old (6 h only on a kid's first look); offline notice at bedtime is silent only while last contact < 12 h and no longer sets `lost` (fires later); FCM registration retried on every CheckJob run while "fail"; CheckJob rescheduled when no run for > 1 h + BootReceiver (boot / package replaced).

@@ -25,6 +25,12 @@ class CmdGateTest {
         assertTrue(CmdGate.needs("relay", "", ""))                                // "off" when already off: still gated (no free probe)
     }
 
+    @Test fun adbTcpOnlyOpeningNeedsPin() {
+        assertTrue(CmdGate.needs("adbTcp", on = true))
+        assertFalse(CmdGate.needs("adbTcp", on = false))
+        assertTrue(CmdGate.needs("adbShell", on = false))
+    }
+
     @Test fun relayRenewIsAlwaysGated() {
         assertTrue(CmdGate.needs("relay", "https://r.example.dev", "https://r.example.dev", renew = true))
     }
