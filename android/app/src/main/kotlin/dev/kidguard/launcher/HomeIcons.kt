@@ -207,7 +207,7 @@ internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String
     arm(box, {
         menu(listOf(
             Row(R.drawable.li_pencil, getString(R.string.hm_f_rename), true) { renameFolder(f.id) },
-            Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { mm -> HomeLayout.take(mm, Src.Item(f.id))?.let { update(HomeLayout.dropRemove(it)) } } },
+            Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { model?.let { mm -> HomeLayout.take(mm, Src.Item(f.id))?.let { askDropRemove(mm, HomeLayout.dropRemove(it), it.item) } } },
             Row(R.drawable.li_move, getString(R.string.hm_edit_home), true) { enterEdit(f.id) },
         ), box)
     }, { DragSt(Src.Item(f.id), null, "folder", 1, 1, f.id, box) }, press = grid)

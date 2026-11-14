@@ -280,7 +280,7 @@ object NotifLog {
     private fun <T> onIo(ctx: Context, work: (android.database.sqlite.SQLiteDatabase) -> T, done: (T) -> Unit) {
         val app = ctx.applicationContext
         io.execute {
-            val r = runCatching { trim(app, System.currentTimeMillis()); work(db(app)) }.getOrNull() ?: return@execute
+            val r = runCatching { trim(app, System.currentTimeMillis()); work(db(app)) }.onFailure { android.util.Log.w("KidGuard", "notif log read", it) }.getOrNull() ?: return@execute
             Handler(Looper.getMainLooper()).post { done(r) }
         }
     }

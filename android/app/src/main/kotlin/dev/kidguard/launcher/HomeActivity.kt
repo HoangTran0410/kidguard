@@ -108,6 +108,7 @@ class HomeActivity : Activity() {
     internal lateinit var wallView: WallSurface
     internal var wall: Bitmap? = null
     internal var wallKey = ""
+    private var wallRev = Wallpaper.rev
     internal lateinit var content: SwipeUp
     internal lateinit var chrome: LinearLayout
     /** Floats over the pages: the edit / drop bar on top, the drag tip above the dots. Its contents never move the grid. */
@@ -530,7 +531,7 @@ class HomeActivity : Activity() {
             s.raw("sos"), checkinKey(s), s.raw("reqs"), r.blockNote, r.launcher, dark, files,
             r.chores, r.schedules, r.groups.map { it.hours }, r.bedtimeOn, r.bedStart, r.bedEnd, r.lockContact, focusKey(this)).joinToString("|")
         lap("key")
-        if (!force && k == key) { tickClocks(dv); focusTick(); lap.done("same"); return }
+        if (!force && k == key) { if (wallRev != Wallpaper.rev && !busy()) { wallRev = Wallpaper.rev; ensureWall() }; tickClocks(dv); focusTick(); lap.done("same"); return }
         if (busy()) { main.removeCallbacks(renderRetry); main.postDelayed(renderRetry, 1500); return }   // never rebuild under a finger / an open panel
         key = k
         // everything the page views depend on except the grid pages themselves (and dock / seen, which no page shows)
@@ -1621,7 +1622,7 @@ class HomeActivity : Activity() {
 
     override fun dispatchKeyEvent(e: KeyEvent): Boolean {
         // typing on a hardware keyboard on the home screen opens search
-        if (drawer == null && overlay == null && pager.page > 0 && e.action == KeyEvent.ACTION_DOWN && e.isPrintingKey) { openDrawer(); drawer?.search?.let { it.requestFocus(); it.append(e.unicodeChar.toChar().toString()) }; return true }
+        if (drawer == null && overlay == null && !editing && drag == null && pager.page > 0 && e.action == KeyEvent.ACTION_DOWN && e.isPrintingKey) { openDrawer(); drawer?.search?.let { it.requestFocus(); it.append(e.unicodeChar.toChar().toString()) }; return true }
         return super.dispatchKeyEvent(e)
     }
 }

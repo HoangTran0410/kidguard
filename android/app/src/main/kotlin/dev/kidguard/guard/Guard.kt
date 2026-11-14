@@ -70,6 +70,18 @@ class Guard : Service() {
     private var lastFullTick = 0L
     private var lastTrackTry = 0L
     private var lastOverlayTry = 0L
+    // location pace (LocPace): same-spot fixes in a row with the screen off; the motion sensor ends the slow pace
+    private var stillRuns = 0
+    private var paceFix: DoubleArray? = null   // lat, lng, acc of the last fix that counted
+    private var screenWasOn = true
+    private var motionArmed = false
+    private val motion = object : android.hardware.TriggerEventListener() {
+        override fun onTrigger(e: android.hardware.TriggerEvent?) {
+            if (::work.isInitialized) work.post { motionArmed = false; if (stillRuns > 0) { stillRuns = 0; lastTrackTry = 0L; lastLocateAt = 0L; kick() } }
+        }
+    }
+    /** Last request on the LAN server (Api): the Wi-Fi lock follows it on Android 10+ (PowerLogic.wifiPerf). */
+    @Volatile private var lanUsedAt = 0L
     private var trackBusy = false
     private var stopped = false
     private var released = false   // onCreate saw Store.released: nothing was started, onDestroy has little to undo
@@ -165,7 +177,7 @@ class Guard : Service() {
         }
         runCatching { registerReceiver(userPresent, IntentFilter(Intent.ACTION_USER_PRESENT)) }
         runCatching { registerReceiver(timeReceiver, IntentFilter(Intent.ACTION_TIME_CHANGED).apply { addAction(Intent.ACTION_TIMEZONE_CHANGED) }) }
-        wifiLock(true)
+        wifiSync()
         http = Http(this, Api(this)).also { it.start(PORT) }
         relay = Relay(this).also { it.start() }
         Tg.start(this)   // Telegram bot on this phone (idle without a token)
@@ -190,7 +202,7 @@ class Guard : Service() {
         runCatching { contentResolver.unregisterContentObserver(locObserver) }
         runCatching { contentResolver.unregisterContentObserver(dnsObserver) }
         Listen.stopAll(); Proj.stop(this); Ring.stop(this)
-        wifiLock(false)
+        wifiLock(false); motionOff()
         http?.stop(); relay?.stop(); Tg.stop()
         work.looper.quitSafely()
         super.onDestroy()
@@ -223,8 +235,11 @@ class Guard : Service() {
         val now = System.currentTimeMillis()
         // reference for the clock-jump check (see timeReceiver)
         refWall = now; refElapsed = android.os.SystemClock.elapsedRealtime()
+        opt("wifi") { wifiSync() }
         // screen off: nothing is being used, a full pass once a minute is enough
-        if (!force && getSystemService(PowerManager::class.java)?.isInteractive == false && now - lastFullTick < 60_000) return
+        val screenOn = getSystemService(PowerManager::class.java)?.isInteractive != false
+        if (screenOn) { screenWasOn = true; stillRuns = 0 }   // in the child's hand: normal location pace
+        if (!force && !screenOn && now - lastFullTick < 60_000) return
         lastFullTick = now
         val r = store.rules
         val (apps, prot) = Policy.cached(this)
@@ -244,7 +259,8 @@ class Guard : Service() {
         opt("support") { Support.poll(this) }
         opt("adbTcp") { Shell.tick(this, now) }
         opt("autoGrant") { AutoGrant.tick(this, now) }
-        opt("track") { if (r.trackMin > 0 && now - lastTrackTry >= r.trackMin * 60_000L - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) } }
+        val slow = LocPace.slow(stillRuns, motionArmed)
+        opt("track") { if (r.trackMin > 0 && now - lastTrackTry >= LocPace.trackEveryMs(r.trackMin, slow) - 5_000L) { lastTrackTry = now; trackFix(r.trackMin) } }
         opt("location") { keepLocation(r) }
         // usage access: reported once per revoke (persisted, so a process restart while revoked does not repeat it), the child is asked to turn it back on
         if (!Usage.granted(this)) {
@@ -319,7 +335,11 @@ class Guard : Service() {
         else use.current?.takeIf { it in want && it !in nowSusp }?.let { cur -> BasicLogic.bounceReason(cur, packageName, want, prot)?.let { Acc.bounceApp(this, cur, it) } }
         // the app in front just got suspended: send the child home (the system's own "paused" dialog shows when they tap it again)
         if (use.current != null && use.current in nowSusp && use.current !in had) goHome()
-        opt("locate") { if (now - lastLocateAt > 15 * 60_000) { lastLocateAt = now; locate() } }
+        opt("locate") { if (now - lastLocateAt > LocPace.LOCATE_MS) {
+            val fix = store.location
+            // history fixes that are fresh and fine already are the "last location": no second (60 s) fix on top
+            if (LocPace.locateDue(now - lastLocateAt, now - (fix?.optLong("t") ?: 0L), fix?.optDouble("acc", 0.0)?.toInt() ?: 0, r.trackMin, slow)) { lastLocateAt = now; locate() }
+        } }
         opt("pinReset") { if (CmdGate.resetDue(store.pinResetAt, now)) { val (h, salt) = store.pinResetPending(); if (h.isNotBlank()) { putPin(h, salt); store.event("tamper", R.string.ev_pin_reset_done) } else store.clearPinReset() } }
         opt("recover") { store.recoverAt.takeIf { it > 0 }?.let { at ->   // child's "lost the link" request (MainActivity): a PIN cancels it
             if (store.rules.pinHash.isNotBlank()) store.recoverAt = 0
@@ -813,7 +833,7 @@ class Guard : Service() {
         work.postAtFrontOfQueue {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
-            Listen.stopAll(); Proj.stop(this); Ring.stop(this); wifiLock(false)
+            Listen.stopAll(); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff()
             // C8: the parents hear of it (event -> relay + Telegram) BEFORE the tokens go; the relay creds are kept for the forget call
             val creds = Triple(store.relayUrl, store.relayId, store.relayToken)
             runCatching {
@@ -827,7 +847,7 @@ class Guard : Service() {
             if (r == "ok") runCatching { Shell.tcpOff(this) }   // a failed release keeps everything, port 5555 too
             res.set(r)
             // anything but "ok" (e.g. "failed: N app còn bị ẩn") means we are still in charge: keep enforcing
-            if (r != "ok") { stopped = false; wifiLock(true); work.post(loopRun); store.log(R.string.log_release_fail, r); runCatching { store.addEvent(Ev("releaseFail", getString(R.string.ev_release_failed))) } }
+            if (r != "ok") { stopped = false; wifiSync(); work.post(loopRun); store.log(R.string.log_release_fail, r); runCatching { store.addEvent(Ev("releaseFail", getString(R.string.ev_release_failed))) } }
             else { store.log(R.string.log_released); runCatching { Files.wipeOutbox(this) }; HistDb.wipe(this); runCatching { Relay.forget(creds.first, creds.second, creds.third) } }   // the worker deletes this kid's data   // received files stay in Download
             // finished after the caller gave up ("failed" was answered): still go away, we are released
             if (!state.compareAndSet(0, 1) && r == "ok") Handler(mainLooper).postDelayed({ stopSelf() }, 2_000)
@@ -839,24 +859,52 @@ class Guard : Service() {
         return res.get()
     }
 
+    /** A fix becomes the "last location" (state `location`) unless a newer / finer one is already there. [zones]: also zone in / out events. */
+    private fun saveLoc(l: Location?, zones: Boolean = true) {
+        if (l == null) return
+        val old = store.location
+        if (old != null && old.optLong("t") > l.time) return
+        // network then gps answer within seconds: keep the finer one
+        if (old != null && l.time - old.optLong("t") < 60_000 && l.hasAccuracy() && old.optDouble("acc", 1e9) < l.accuracy) return
+        // an old cached fix (getLastKnownLocation after a long gap) must not fire zone in/out events
+        if (zones && System.currentTimeMillis() - l.time < 10 * 60_000) zoneFix(l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else 0f)
+        store.location = JSONObject().put("lat", l.latitude).put("lng", l.longitude).put("acc", l.accuracy.toDouble()).put("t", l.time).put("src", l.provider ?: "")
+        if (store.fillCheckins(store.location!!)) relay?.kick()   // a check-in pressed before this fix gets it
+    }
+
+    /**
+     * Battery (LocPace): counts fresh fixes in a row at the same spot with the screen off. From the second one the
+     * pace slows down, but only while the significant-motion sensor is armed: it wakes the phone when it is carried
+     * away, and [motion] takes a fix at once. No such sensor (or it refuses) = the normal pace stays. Work thread.
+     */
+    private fun pace(l: Location) {
+        val acc = if (l.hasAccuracy()) l.accuracy.toInt() else 0
+        val prev = paceFix
+        val same = prev != null && LocPace.same(prev[0], prev[1], prev[2].toInt(), l.latitude, l.longitude, acc)
+        stillRuns = LocPace.step(stillRuns, prev != null, same, screenWasOn, acc)
+        if (acc <= Track.BAD_ACC_M) { paceFix = doubleArrayOf(l.latitude, l.longitude, acc.toDouble()); screenWasOn = false }
+        if (stillRuns >= LocPace.STILL_FIXES && !motionArmed) motionArmed = runCatching {
+            val sm = getSystemService(android.hardware.SensorManager::class.java)
+            val sensor = sm?.getDefaultSensor(android.hardware.Sensor.TYPE_SIGNIFICANT_MOTION)
+            sensor != null && sm.requestTriggerSensor(motion, sensor)
+        }.getOrDefault(false)
+    }
+    private fun motionOff() = runCatching {
+        if (!motionArmed) return@runCatching
+        motionArmed = false; stillRuns = 0
+        val sm = getSystemService(android.hardware.SensorManager::class.java)
+        sm?.getDefaultSensor(android.hardware.Sensor.TYPE_SIGNIFICANT_MOTION)?.let { sm.cancelTriggerSensor(motion, it) }
+    }
+
     @SuppressLint("MissingPermission")
     private fun locate() {
         val lm = getSystemService(LocationManager::class.java) ?: return
-        fun save(l: Location?) {
-            if (l == null) return
-            val old = store.location
-            if (old != null && old.optLong("t") > l.time) return
-            // network then gps answer within seconds: keep the finer one
-            if (old != null && l.time - old.optLong("t") < 60_000 && l.hasAccuracy() && old.optDouble("acc", 1e9) < l.accuracy) return
-            // an old cached fix (getLastKnownLocation after a long gap) must not fire zone in/out events
-            if (System.currentTimeMillis() - l.time < 10 * 60_000) zoneFix(l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else 0f)
-            store.location = JSONObject().put("lat", l.latitude).put("lng", l.longitude).put("acc", l.accuracy.toDouble()).put("t", l.time).put("src", l.provider ?: "")
-            if (store.fillCheckins(store.location!!)) relay?.kick()   // a check-in pressed before this fix gets it
-        }
         for (p in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER))
-            runCatching { if (lm.isProviderEnabled(p)) save(lm.getLastKnownLocation(p)) }
-        oneFix(lm, 60_000, each = true) { l -> if (l != null) { save(l); kick() } }
+            runCatching { if (lm.isProviderEnabled(p)) saveLoc(lm.getLastKnownLocation(p)) }
+        oneFix(lm, 60_000, each = true) { l -> if (l != null) { saveLoc(l); if (trackOff()) pace(l); kick() } }
     }
+    /** History off: the 15-min fixes are the only ones, so they drive the pace. */
+    private fun trackOff() = store.rules.trackMin <= 0
 
     /** Providers to ask for one fix. Fused alone when it exists; else network AND gps together, first answer wins:
      *  on Android 8-10 there is no fused provider, and gps alone never answers indoors, so the history got a point
@@ -917,6 +965,8 @@ class Guard : Service() {
             trackBusy = false
             val l = got ?: fallback() ?: return@oneFix
             zoneFix(l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else 0f)
+            saveLoc(l, zones = false)   // also the "last location": the separate 15-min fix can then be skipped (LocPace.locateDue)
+            if (got != null) pace(l)    // a cached fallback fix proves nothing about now
             // a fix's own clock can lag (cached network fix); stamp it now when it is that recent, so same-spot points space out evenly
             val now = System.currentTimeMillis()
             val t = if (l.time <= 0 || now - l.time < 2 * 60_000) now else l.time
@@ -959,9 +1009,17 @@ class Guard : Service() {
 
     private var wifi: android.net.wifi.WifiManager.WifiLock? = null
 
+    /** A LAN request came in (any thread): Wi-Fi out of power save now, not at the next tick. */
+    fun lanUsed() {
+        lanUsedAt = System.currentTimeMillis()
+        if (wifi?.isHeld != true && ::work.isInitialized && !stopped) work.post { if (!stopped) wifiSync() }
+    }
+    private fun wifiSync() { wifiLock(PowerLogic.wifiPerf(Build.VERSION.SDK_INT, System.currentTimeMillis() - lanUsedAt, Listen.active || Proj.state == "on")) }
+
     /**
-     * Held while the service runs: some ROMs (ColorOS on Android 8.1) put Wi-Fi to sleep with the screen off and the
-     * LAN page / listen stream drop. Costs some standby battery (radio stays out of power save); released on stop / release.
+     * Some ROMs (ColorOS on Android 8.1) put Wi-Fi to sleep with the screen off and the LAN page / listen stream drop:
+     * there it is held while the service runs. Costs standby battery (radio stays out of power save), so on Android 10+
+     * it is held only while the LAN page / a stream is in use ([wifiSync], PowerLogic.wifiPerf); released on stop / release.
      */
     @Suppress("DEPRECATION")
     private fun wifiLock(on: Boolean) = runCatching {

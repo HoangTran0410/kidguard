@@ -151,6 +151,7 @@
     <string name="kc_wait">Vừa dọn xong. Thử lại sau %d phút</string>
     <string name="kc_fail">Chưa dọn được. Thử lại sau</string>
     <string name="log_file_nospace">Tệp "%1$s" từ bố mẹ chưa lưu được: bộ nhớ máy đầy (thử lại tối đa 1 giờ)</string>
+    <string name="log_file_push_fail">Chưa gửi được "%1$s" cho bố mẹ. Kiểm tra mạng của máy này rồi thử lại.</string>
     <string name="log_file_dropped">Tệp "%1$s" từ bố mẹ không lưu được (%2$s)</string>
     <string name="log_autogrant">Tự cấp lại %1$s quyền còn thiếu (adb trên máy)</string>
     <string name="log_dev_on">Bố mẹ đã bật lại Tuỳ chọn nhà phát triển và gỡ lỗi USB</string>
@@ -617,6 +618,8 @@
     <string name="hm_min_left">còn %1$d phút</string>
     <string name="hm_pin">Ghim vào màn chính</string>
     <string name="hm_pinned">Đã ở màn chính</string>
+    <string name="hm_t_full">Danh sách đã đầy. Xoá bớt một mục trước nhé.</string>
+    <string name="hm_pin_done">Đã thêm vào màn chính</string>
     <string name="hm_e_tap">Chạm để chọn</string>
     <string name="hm_e_n">Đã chọn %d</string>
     <string name="hm_e_done">Xong</string>

@@ -632,6 +632,14 @@ object HomeLayout {
         if (m.pages.none { p -> p.any { it.kind == "widget" && !ok(it.type) } }) m
         else trimPages(m.copy(pages = m.pages.map { p -> p.filter { !(it.kind == "widget" && !ok(it.type)) } }))
 
+    /**
+     * A layout read from a backup file: another app's widget stays only when [ok] says its host id is still this widget
+     * on this phone. An id from another phone (or one freed since) would show an empty card, or somebody else's widget.
+     */
+    fun keepAppWidgets(m: HomeModel, ok: (HItem) -> Boolean): HomeModel =
+        if (m.pages.none { p -> p.any { it.kind == "widget" && it.type == APP && !ok(it) } }) m
+        else trimPages(m.copy(pages = m.pages.map { p -> p.filter { !(it.kind == "widget" && it.type == APP && !ok(it)) } }))
+
     /** A layout taken from KidGuard Home: other apps' widgets are bound to that app's widget host, so they cannot come along. */
     fun imported(m: HomeModel): HomeModel =
         trimPages(m.copy(pages = m.pages.map { p -> p.filter { !(it.kind == "widget" && it.type == APP) && it.kind != SHORTCUT }.mapNotNull { i -> if (i.kind == "folder") folderWith(i, i.apps.filter { e -> !isShortcutEntry(e) }) else i } }))   // shortcuts are pinned to that app too

@@ -61,6 +61,9 @@ class CustomActivity : Activity() {
     }
 
     private var dotsNeed = false
+    // photo -> another photo (or its undo / a restored backup) leaves the style as it was: the home screen's render key
+    // does not move, so tell it to look at the file again
+    override fun onPause() { super.onPause(); Wallpaper.rev++ }
     override fun onResume() {
         super.onResume()
         if (m != null && HomeFile.load(this) !== m) { m = HomeFile.load(this) ?: m; build() }
@@ -293,8 +296,8 @@ class CustomActivity : Activity() {
         val field = md.field(s(R.string.hm_lay_name), 30).apply { setText(start); selectAll() }
         md.show(R.drawable.li_pencil, Modal.Tone.INFO, s(R.string.hm_lay_name), content = field, ok = s(R.string.hm_t_save), cancel = s(R.string.gest_cancel)) {
             val n = field.text.toString().trim()
-            if (n.isNotEmpty()) done(n)
-            true
+            if (n.isEmpty()) return@show false   // stay open: closing without saving looked like it worked
+            done(n); true
         }
         field.requestFocus()
     }
@@ -653,7 +656,10 @@ class CustomActivity : Activity() {
         }
         if (!guard()) return   // the parent locked Tuỳ chỉnh: no restore
         Thread {
-            val p = HomeBackup.parse(HomeBackup.read(this, uri))
+            // other apps' widgets come back only when their host id is still that widget here (a file from another phone: dropped)
+            val mgr = android.appwidget.AppWidgetManager.getInstance(this)
+            val p = HomeBackup.parse(HomeBackup.read(this, uri))?.let { b -> HomeBackup.Parsed(HomeLayout.keepAppWidgets(b.model) { i ->
+                runCatching { mgr.getAppWidgetInfo(i.awid)?.provider?.let { c -> c.packageName == i.pkg && c.className == i.cls } }.getOrNull() == true }, b.gest, b.photo, b.version) }
             val gone = if (p != null) HomeBackup.missing(this, p.model) else 0
             runOnUiThread {
                 if (isDestroyed || isFinishing) return@runOnUiThread

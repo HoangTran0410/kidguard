@@ -216,7 +216,7 @@ internal fun HomeActivity.appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
     val rules = Store.of(this).rules
     // top level = what's used most (iOS: Edit Home Screen / Remove / Share / Remove App); the rest is behind "More…"
     val g1 = listOfNotNull(
-        Row(R.drawable.li_pin, getString(if (placed) R.string.hm_pinned else R.string.hm_pin), !placed) { update(HomeLayout.pin(m, a.pkg)); if (drawer != null) closeDrawer() }.takeIf { mode == Mode.DRAWER },
+        Row(R.drawable.li_pin, getString(if (placed) R.string.hm_pinned else R.string.hm_pin), !placed) { update(HomeLayout.pin(m, a.pkg)); if (drawer != null) closeDrawer(); toast(getString(R.string.hm_pin_done)) }.takeIf { mode == Mode.DRAWER },
         Row(R.drawable.li_circle_minus, getString(R.string.hm_unpin), true) { if (mode == Mode.PANEL) closeOverlay(); update(HomeLayout.remove(m, a.pkg)) }.takeIf { placed || mode != Mode.DRAWER },
         // one way into edit mode (the old "Chọn" + "Sửa màn hình chính"): on the grid it starts with this icon picked
         Row(R.drawable.li_move, getString(R.string.hm_edit_home), true) { if (mode == Mode.PANEL) closeOverlay(); enterEdit(item?.id.takeIf { mode == Mode.HOME }) }.takeIf { mode != Mode.DRAWER },
@@ -358,7 +358,7 @@ internal fun HomeActivity.addToFolderSheet(a: AppE) {
     if (others.isNotEmpty()) sh.body.addView(text(getString(R.string.hm_f_new_with), 13f, pal.sub, true).apply { setPadding(dp(16), dp(14), dp(16), dp(4)) })
     for ((it, e) in others) sh.body.addView(rowOf(ImageView(this).apply { setImageBitmap(IconCache.get(this@addToFolderSheet, e.pkg, e.cls, dp(40), model?.style?.shape ?: "soft")) }, e.label) {
         val name = if (it.kind == "app" && !HomeLayout.isShortcutEntry(me)) autoName(e.pkg, a.pkg) else ""
-        HomeLayout.addTo(m, me, it.id, name)?.let { n -> update(n); toast(getString(R.string.hm_f_added, name)) }
+        HomeLayout.addTo(m, me, it.id, name)?.let { n -> update(n); toast(getString(R.string.hm_f_added, n.pages.flatten().firstOrNull { f -> f.kind == "folder" && me in f.apps }?.let { f -> folderName(f) } ?: name)) }
     })
     if (folders.isEmpty() && others.isEmpty()) sh.body.addView(text(getString(R.string.hm_f_none), 15f, pal.sub).apply { setPadding(dp(16), dp(16), dp(16), dp(16)) })
     sh.show()

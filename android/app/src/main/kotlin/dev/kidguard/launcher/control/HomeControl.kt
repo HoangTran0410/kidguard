@@ -351,7 +351,7 @@ private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): 
     // settings locked: only the turn-on way (Wi-Fi / internet panel, Bluetooth "turn on?" dialog), never the full Settings page
     fun page(t: Tile) { runCatching { startActivity(if (ok) CcSys.page(ctx, t) else CcSys.turnOn(ctx, t)) }.onFailure { explain(t, R.string.cc_failed) }; closeOverlay() }
     fun act(t: Tile, mode: Mode, direct: () -> Boolean) = when (mode) {
-        Mode.DIRECT -> { if (!direct()) { if (ok) page(t) else explain(t, R.string.cc_failed) } else later(); refresh() }
+        Mode.DIRECT -> { if (!direct()) { if (ok && t != Tile.TORCH) page(t) else explain(t, R.string.cc_failed) } else later(); refresh() }
         Mode.PAGE -> page(t)
         Mode.LOCKED -> explain(t, R.string.cc_locked)
         Mode.HIDDEN -> {}
@@ -464,6 +464,7 @@ private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): 
         background = GlassCard(0x33FFFFFF, dpf(30f), dpf(1f), true); setPadding(dp(16), dp(10), dp(16), dp(18))
     }
     var back: (() -> Unit)? = null
+    var detailOwn: List<CcToggle> = emptyList()
     // read off the UI thread with the rest of refresh; each returns the UI update to run
     val extras = mutableListOf<() -> (() -> Unit)>()
     fun showDetail(title: Int, body: View, own: List<CcToggle>) {
@@ -477,6 +478,7 @@ private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): 
         detail.addView(head)
         detail.addView(body, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         panel.visibility = View.GONE; detail.visibility = View.VISIBLE
+        detailOwn = own
         detail.alpha = 0f; detail.scaleX = 0.96f; detail.scaleY = 0.96f
         Motion.enter(detail)
         back = {
@@ -542,11 +544,12 @@ private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): 
     }
 
     refresh = {
+        val ex = extras.toList()
         Thread {
             val st = mapOf(Tile.WIFI to CcSys.wifi(ctx), Tile.BT to CcSys.btOn(ctx), Tile.AIRPLANE to CcSys.airplane(ctx), Tile.DATA to CcSys.data(ctx),
                 Tile.ROTATE to CcSys.rotate(ctx), Tile.DND to CcSys.dnd(ctx),
                 Tile.AUTO_BRIGHT to CcSys.autoBright(ctx), Tile.NIGHT to CcSys.night(ctx), Tile.DARK to CcSys.dark(ctx))
-            val more = extras.toList().map { it() }
+            val more = ex.map { it() }
             val b = CcSys.bright(ctx); val v = runCatching { am?.getStreamVolume(AudioManager.STREAM_MUSIC) }.getOrNull()
             main.post {
                 if (overlay !== scrim) return@post
@@ -573,7 +576,7 @@ private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): 
     scrim.visibility = View.INVISIBLE
     root.addView(scrim, FrameLayout.LayoutParams(-1, -1))
     val show = {
-        if (back != null) { back = null; extras.clear(); detail.visibility = View.GONE; detail.removeAllViews(); panel.visibility = View.VISIBLE }
+        if (back != null) { back = null; extras.clear(); toggles.removeAll(detailOwn); detailOwn = emptyList(); detail.visibility = View.GONE; detail.removeAllViews(); panel.visibility = View.VISIBLE }
         mediaCard?.let { m -> if (m.parent == null) panel.addView(m, 1, mediaLp) }
         overlay = scrim
         if (root.indexOfChild(scrim) != root.childCount - 1) scrim.bringToFront()   // above a folder / menu view added since

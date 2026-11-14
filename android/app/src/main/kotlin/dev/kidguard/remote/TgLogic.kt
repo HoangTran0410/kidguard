@@ -154,6 +154,7 @@ object TgLogic {
         "aNewApp" to "📦 %2\$s: %1\$s",
         "aTamper" to "⚠️ %2\$s: %1\$s",
         "aEvent" to "🔔 %2\$s: %1\$s",
+        "aDigest" to "🔔 %2\$s: %1\$d thông báo mới",
         "yes" to "Cho %1\$d phút", "no" to "Từ chối",
         "reqYes" to "Đã cho %1\$d phút.", "reqNo" to "Đã từ chối.", "reqGone" to "Lời xin này đã được trả lời.",
         "min" to "%1\$d phút", "time" to "thời gian",
@@ -274,6 +275,7 @@ object TgLogic {
         "aNewApp" to "📦 %2\$s: %1\$s",
         "aTamper" to "⚠️ %2\$s: %1\$s",
         "aEvent" to "🔔 %2\$s: %1\$s",
+        "aDigest" to "🔔 %2\$s: %1\$d new alerts",
         "yes" to "Give %1\$d min", "no" to "Say no",
         "reqYes" to "Gave %1\$d minutes.", "reqNo" to "Said no.", "reqGone" to "This request was already answered.",
         "min" to "%1\$d more minutes", "time" to "more time",
@@ -546,6 +548,41 @@ object TgLogic {
     /** Label for a map pin: "Vị trí lúc 20:14 (sai số ~30 m)" or the "old" wording when over 5 min old. */
     fun pinLabel(lang: String, loc: JSONObject, now: Long, hm: (Long) -> String): String =
         s(lang, if (now - loc.optLong("t") > 5 * 60_000L) "locOld" else "locAt", hm(loc.optLong("t")), loc.optDouble("acc", 0.0).toInt())
+
+    // ---------------- long texts, bursts, poll errors ----------------
+    const val MSG_MAX = 4000        // Telegram refuses a text above 4096 characters
+    /**
+     * A long answer (/events, /apps on a full phone) as several messages instead of one cut at the limit: split at line
+     * ends, a single over-long line is cut hard. Never an empty part; a short text is one part.
+     */
+    fun split(text: String, max: Int = MSG_MAX): List<String> {
+        if (text.length <= max) return listOf(text)
+        val out = ArrayList<String>(); val cur = StringBuilder()
+        fun flush() { if (cur.isNotEmpty()) { out += cur.toString(); cur.setLength(0) } }
+        for (line in text.split('\n')) {
+            var l = line
+            if (cur.isNotEmpty() && cur.length + 1 + l.length > max) flush()
+            while (l.length > max) { flush(); out += l.take(max); l = l.drop(max) }
+            if (cur.isNotEmpty()) cur.append('\n')
+            cur.append(l)
+        }
+        flush()
+        return out.ifEmpty { listOf(text.take(max)) }
+    }
+
+    const val DIGEST_MIN = 4        // this many plain events waiting at once (the phone was offline) = one message, not a ping each
+    /** Plain events (no buttons, no photo) can share one message; tamper / new app / SOS / requests never do. */
+    fun digestable(key: String, kind: String, hasShot: Boolean) = key.startsWith("e:") && kind != "tamper" && kind != "newApp" && !hasShot
+    /** One message for several events, oldest first: a header with the count, then "• HH:mm text" lines. */
+    fun digest(lang: String, name: String, items: List<Pair<Long, String>>, hm: (Long) -> String): String =
+        s(lang, "aDigest", items.size, name) + "\n" + items.sortedBy { it.first }.joinToString("\n") { (t, x) -> "• " + hm(t) + " " + x }
+
+    /**
+     * How long to wait after getUpdates answered "not ok" (not 401 / 404 / 409, those have their own handling):
+     * 429 = as long as Telegram says (retry_after, 1 s .. 5 min); anything else (5xx) doubles from 5 s up to 1 min.
+     */
+    fun pollWaitMs(code: Int, retryAfterS: Long, fails: Int): Long =
+        if (code == 429) retryAfterS.coerceIn(1, 300) * 1000 else minOf(60_000L, 5_000L shl fails.coerceIn(0, 4))
 
     /** Alert ids already sent: the newest [max] kept. */
     fun remember(seen: List<String>, add: Collection<String>, max: Int = 80) = (seen + add).distinct().takeLast(max)

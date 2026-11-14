@@ -195,8 +195,11 @@ class NotifLogActivity : Activity() {
         col.addView(sum, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
 
         if (rows.isEmpty()) {
-            val msg = if (filtered) getString(R.string.nlog_nomatch) else getString(R.string.nlog_empty, NotifLog.keepDays(this))
-            col.addView(k.text(msg, 15f, pal.sub).apply { gravity = Gravity.CENTER; setLineSpacing(0f, 1.2f) },
+            // no notification access: nothing can be logged, so say that (and open the switch) instead of "nothing here yet"
+            val need = !filtered && !NotifDots.granted(this)
+            val msg = if (filtered) getString(R.string.nlog_nomatch) else if (need) getString(R.string.hm_c_dots_need) else getString(R.string.nlog_empty, NotifLog.keepDays(this))
+            col.addView(k.text(msg, 15f, if (need) pal.accentText else pal.sub).apply { gravity = Gravity.CENTER; setLineSpacing(0f, 1.2f)
+                if (need) { setPadding(dp(12), dp(12), dp(12), dp(12)); k.tap(this, 12f) { NotifDots.ask(this@NotifLogActivity) } } },
                 LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(40); leftMargin = dp(24); rightMargin = dp(24) })
             return
         }

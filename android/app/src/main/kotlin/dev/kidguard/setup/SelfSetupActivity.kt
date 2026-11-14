@@ -99,6 +99,9 @@ class SelfSetupActivity : Activity() {
             buttonTintList = ColorStateList.valueOf(u.primary)
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) }
         }
+        // the code is usually typed in the notification (PairCodeReceiver), never through go(): the box must count there too
+        SelfSetup.turnOffWifi = !pairMode && wifiOff.isChecked
+        wifiOff.setOnCheckedChangeListener { _, on -> SelfSetup.turnOffWifi = !pairMode && on }
         if (!pairMode) s3.addView(wifiOff)   // pair mode never reaches the step it is for
         start = u.button(getString(R.string.ssa_start), R.drawable.li_play, true) { go() }
         s3.addView(start)

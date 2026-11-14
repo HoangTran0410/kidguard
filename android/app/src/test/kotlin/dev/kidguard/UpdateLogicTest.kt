@@ -36,4 +36,15 @@ class UpdateLogicTest {
         assertFalse(off.autoUpdate)
         assertTrue(Events.ruleDiff(Rules(), off, TestTr.VI).contains("tắt tự cập nhật KidGuard"))
     }
+
+    @Test fun installWaitsForScreenOff() {
+        assertTrue(UpdateLogic.installNow(force = true, screenOn = true, waitedMs = 0))          // the parent pressed "update"
+        assertTrue(UpdateLogic.installNow(force = false, screenOn = false, waitedMs = 0))
+        assertFalse(UpdateLogic.installNow(force = false, screenOn = true, waitedMs = 3 * 3600_000L))
+        assertTrue(UpdateLogic.installNow(force = false, screenOn = true, waitedMs = UpdateLogic.DAY_MS))   // a screen that never goes off
+    }
+
+    @Test fun tsRetryGrows() {
+        assertEquals(listOf(5L, 5L, 30L, 360L, 360L), (0..4).map { TsLogic.retryMs(it) / 60_000L })
+    }
 }

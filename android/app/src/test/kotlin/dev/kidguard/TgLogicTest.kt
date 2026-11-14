@@ -233,4 +233,36 @@ class TgLogicTest {
         assertTrue(datas(TgLogic.menu("vi")).containsAll(listOf("c:requests", "c:quiet", "c:lost")))
         assertEquals("Vị trí lúc 20:14 (sai số ~30 m)", TgLogic.pinLabel("vi", JSONObject().put("t", now).put("acc", 30.0), now, hm))
     }
+
+    @Test fun splitLongText() {
+        assertEquals(listOf("short"), TgLogic.split("short"))
+        assertEquals(listOf(""), TgLogic.split(""))
+        val lines = (1..300).joinToString("\n") { "line $it " + "x".repeat(30) }
+        val parts = TgLogic.split(lines)
+        assertTrue(parts.size > 1)
+        assertTrue(parts.all { it.isNotEmpty() && it.length <= TgLogic.MSG_MAX })
+        assertEquals(lines, parts.joinToString("\n"))                       // cut only at line ends, nothing lost
+        val one = "y".repeat(9000)                                          // one over-long line: cut hard
+        assertEquals(listOf(4000, 4000, 1000), TgLogic.split(one).map { it.length })
+        assertEquals(listOf("ab", "cd", "e"), TgLogic.split("ab\ncd\ne", 2))
+        assertEquals(listOf("a\nb", "c"), TgLogic.split("a\nb\nc", 3))
+    }
+
+    @Test fun digest() {
+        assertTrue(TgLogic.digestable("e:1", "zoneIn", false))
+        assertFalse(TgLogic.digestable("e:1", "tamper", false))             // has its own buttons
+        assertFalse(TgLogic.digestable("e:1", "newApp", false))
+        assertFalse(TgLogic.digestable("e:1", "pinFail", true))             // comes with a photo
+        assertFalse(TgLogic.digestable("s:1", "", false))                   // SOS: always its own message
+        val d = TgLogic.digest("en", "Bi", listOf(200L to "second", 100L to "first"), { "t$it" })
+        assertEquals("🔔 Bi: 2 new alerts\n• t100 first\n• t200 second", d)
+        assertTrue(TgLogic.digest("vi", "Bi", listOf(1L to "a"), { "" }).startsWith("🔔 Bi: 1 thông báo mới"))
+    }
+
+    @Test fun pollWait() {
+        assertEquals(7_000L, TgLogic.pollWaitMs(429, 7, 0))                 // as long as Telegram says
+        assertEquals(300_000L, TgLogic.pollWaitMs(429, 99_999, 3))
+        assertEquals(1_000L, TgLogic.pollWaitMs(429, 0, 0))
+        assertEquals(listOf(5_000L, 10_000L, 20_000L, 40_000L, 60_000L, 60_000L), (0..5).map { TgLogic.pollWaitMs(502, 5, it) })
+    }
 }

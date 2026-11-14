@@ -377,7 +377,10 @@ class TodayPage(
         md.show(R.drawable.li_list_checks, Modal.Tone.INFO, s(R.string.hm_t_add_homework), content = f, ok = s(R.string.hm_t_add), cancel = s(R.string.cancel)) {
             val mm = model() ?: return@show true
             val l = KidNotes.addTodo(KidNotes.todos(mm.todo), f.text.toString())
-            if (l.size == KidNotes.todos(mm.todo).size) return@show f.text.isBlank()
+            if (l.size == KidNotes.todos(mm.todo).size) {   // blank = just close; a full list says so (it used to do nothing)
+                if (f.text.isNotBlank()) md.setError(s(R.string.hm_t_full))
+                return@show f.text.isBlank()
+            }
             save(mm.copy(todo = KidNotes.todosJson(l))); true
         }
         f.requestFocus()
@@ -444,9 +447,15 @@ class TodayPage(
             setPadding(dp(4), dp(14), dp(4), dp(4)); Ic.lead(this, R.drawable.li_trash_2, pal.dangerText); compoundDrawablePadding = dp(8); gravity = Gravity.CENTER_VERTICAL
             k.tap(this, 10f) { confirmDropNote(n, dlg) }
         }, LinearLayout.LayoutParams(-2, -2))
-        dlg = Modal(act, u).show(R.drawable.li_sticky_note, Modal.Tone.INFO, s(if (n == null) R.string.hm_t_add_note else R.string.hm_t_edit_note), content = box,
+        val md = Modal(act, u)
+        dlg = md.show(R.drawable.li_sticky_note, Modal.Tone.INFO, s(if (n == null) R.string.hm_t_add_note else R.string.hm_t_edit_note), content = box,
             ok = s(R.string.hm_t_save), cancel = s(R.string.cancel)) {
-            model()?.let { mm -> putNote(mm, n?.id, f.text.toString(), sw.isChecked) }; true
+            val mm = model() ?: return@show true
+            // an emptied note = delete: ask like the Delete row does (Save used to delete it at once)
+            if (n != null && f.text.isBlank()) { confirmDropNote(n, dlg); return@show false }
+            // a new note over the limit used to push the oldest one out without a word
+            if (n == null && f.text.isNotBlank() && KidNotes.notes(mm.notes).size >= KidNotes.NOTES_MAX) { md.setError(s(R.string.hm_t_full)); return@show false }
+            putNote(mm, n?.id, f.text.toString(), sw.isChecked); true
         }
         if (n == null) f.requestFocus()
     }

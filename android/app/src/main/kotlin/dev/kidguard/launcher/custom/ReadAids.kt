@@ -72,7 +72,10 @@ object ReadAids {
         runCatching {
             lateinit var t: TextToSpeech
             t = TextToSpeech(ctx.applicationContext) { status ->
-                if (status != TextToSpeech.SUCCESS) { tts = null; ready = false; return@TextToSpeech }
+                if (status != TextToSpeech.SUCCESS) {   // no speech engine on this phone: say so, a silent button looks broken
+                    tts = null; ready = false; pending = null
+                    main.post { Toasts.show(ctx.applicationContext, ctx.getString(R.string.hm2_read_none), true) }; return@TextToSpeech
+                }
                 runCatching { if (voiceOk(t.isLanguageAvailable(Locale("vi", "VN")))) t.language = Locale("vi", "VN") }
                 ready = true
                 pending?.let { speakNow(it) }; pending = null

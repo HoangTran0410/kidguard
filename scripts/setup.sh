@@ -27,6 +27,7 @@ ACC="$PKG/$PKG.Acc"
 
 YES=0
 if [ "${1:-}" = "-y" ] || [ "${1:-}" = "--yes" ]; then YES=1; shift; fi
+for a in "$@"; do case "$a" in -y|--yes) YES=1 ;; esac; done   # also after the APK path
 
 # --- APK ---
 APK="$ARG_APK"
@@ -132,7 +133,8 @@ reenable() {
   for i in $(seq 1 60); do adb shell true >/dev/null 2>&1 && break; sleep 2; done   # the phone may still be restarting
   for p in $list; do
     out=$(adb shell pm enable "$p" 2>&1 | tr -d '\r' || true); echo "$out"
-    case "$out" in *enabled*) ;; *) left="$left $p" ;; esac
+    # "Unknown package" = the record is from another phone (one file per computer): nothing to turn on here, not a failure
+    case "$out" in *enabled*|*"Unknown package"*) ;; *) left="$left $p" ;; esac
   done
   if [ -n "$left" ]; then   # keep the record of the ones that failed: the next run turns them on first
     mkdir -p "$(dirname "$OFFFILE")"; printf '%s' "${left# }" > "$OFFFILE"

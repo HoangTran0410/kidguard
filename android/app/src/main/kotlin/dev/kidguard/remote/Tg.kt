@@ -113,7 +113,7 @@ object Tg {
 
     // ---------------- polling ----------------
     private fun loop(my: Int) {
-        var backoff = 5_000L
+        var backoff = 5_000L; var notOk = 0
         while (guard != null && gen == my) {
             val g = guard ?: break
             val s = Store.of(g)
@@ -126,10 +126,12 @@ object Tg {
                     when (r.optInt("error_code")) {
                         401, 404 -> { if (s.tgErr != "bad token") runCatching { s.event("tg", R.string.ev_tg_bad) }; s.tgErr = "bad token"; idle(30 * 60_000L) }
                         409 -> { s.tgErr = "conflict"; if (!conflictFixed) { conflictFixed = true; runCatching { call(tok, "deleteWebhook", JSONObject()) } }; idle(60_000L) }
-                        else -> idle(backoff)
+                        // flood limit / Telegram's own trouble: wait as told, or longer each time (was a fixed 5 s for ever)
+                        else -> idle(TgLogic.pollWaitMs(r.optInt("error_code"), r.optJSONObject("parameters")?.optLong("retry_after", 5) ?: 5, notOk++))
                     }
                     continue
                 }
+                notOk = 0
                 val gap = TgLogic.gapMin(s.tgLastOk, System.currentTimeMillis()); s.tgLastOk = System.currentTimeMillis()
                 if (s.tgErr.isNotEmpty()) s.tgErr = ""
                 if (!cmdsSet) { cmdsSet = true; runCatching { work.execute { runCatching { setCommands(tok, s.tgLang) } } } }
@@ -206,8 +208,15 @@ object Tg {
     private fun mid(r: JSONObject?) = r?.optJSONObject("result")?.optLong("message_id") ?: 0L
     private fun send(s: Store, chat: Long, text: String, kb: JSONObject? = null, silent: Boolean = false): JSONObject? {
         val tok = s.tgToken.ifBlank { return null }
-        val r = call(tok, "sendMessage", JSONObject().put("chat_id", chat).put("text", text.take(4000)).apply { if (kb != null) put("reply_markup", kb); if (silent) put("disable_notification", true) })
-        if (r.optInt("error_code") == 403) s.tgRemoveChat(chat)   // the parent blocked the bot
+        // a long text goes out whole, as several messages (the buttons under the last one); the reply of the last part is returned
+        val parts = TgLogic.split(text)
+        var r: JSONObject? = null
+        for ((i, part) in parts.withIndex()) {
+            val last = i == parts.size - 1
+            r = call(tok, "sendMessage", JSONObject().put("chat_id", chat).put("text", part).apply { if (kb != null && last) put("reply_markup", kb); if (silent) put("disable_notification", true) })
+            if (r.optInt("error_code") == 403) { s.tgRemoveChat(chat); break }   // the parent blocked the bot
+            if (!r.optBoolean("ok")) break
+        }
         return r
     }
     private fun sendFile(s: Store, chat: Long, method: String, field: String, name: String, mime: String, data: ByteArray, caption: String = "", extra: Map<String, String> = emptyMap()): Boolean =
@@ -221,7 +230,8 @@ object Tg {
     }
     private fun edit(s: Store, chat: Long, msgId: Long, text: String, kb: JSONObject?) {
         val tok = s.tgToken.ifBlank { return }
-        val r = call(tok, "editMessageText", JSONObject().put("chat_id", chat).put("message_id", msgId).put("text", text.take(4000)).apply { if (kb != null) put("reply_markup", kb) })
+        if (text.length > TgLogic.MSG_MAX) { send(s, chat, text, kb); return }   // an edit cannot become several messages
+        val r = call(tok, "editMessageText", JSONObject().put("chat_id", chat).put("message_id", msgId).put("text", text).apply { if (kb != null) put("reply_markup", kb) })
         // "message is not modified" (same text) is fine; anything else (too old...) -> a new message
         if (!r.optBoolean("ok") && !r.optString("description").contains("not modified")) send(s, chat, text, kb)
     }
@@ -647,7 +657,14 @@ object Tg {
         if (todo.isEmpty()) return
         val name = kidName(g)
         alerts.execute {
+            // several plain events at once (the phone was offline): one message per chat instead of a ping each
+            val plain = todo.filter { (k, o) -> TgLogic.digestable(k, o.optString("kind"), o.optString("shot").isNotBlank()) }.takeIf { it.size >= TgLogic.DIGEST_MIN } ?: emptyList()
+            if (plain.isNotEmpty()) {
+                val n = runCatching { digest(s, name, plain) }.getOrDefault(0)
+                for ((k, _) in plain) if (n > 0) { synchronized(seenLock) { s.tgSetSeen(TgLogic.remember(s.tgSeen(), listOf(k))) }; sending.remove(k) } else sending[k] = System.currentTimeMillis() + 30_000L
+            }
             for ((k, o) in todo) {
+                if (plain.any { it.first == k }) continue
                 val n = runCatching { alert(g, s, name, k, o) }.getOrDefault(0)
                 if (n > 0) { synchronized(seenLock) { s.tgSetSeen(TgLogic.remember(s.tgSeen(), listOf(k))) }; sending.remove(k) }
                 else sending[k] = System.currentTimeMillis() + 30_000L
@@ -672,6 +689,16 @@ object Tg {
                 else TgLogic.answered(l, TgLogic.s(l, "who.app"), la.optBoolean("ok"), la.optString("kind").ifBlank { "time" }, la.optInt("min"), la.optString("app"), la.optLong("at").takeIf { it > 0 } ?: now, ::hm)
             }
         }
+    }
+
+    /** [items] as one message per chat (each chat only what its alert level lets through; silent when all of it is "info"). */
+    private fun digest(s: Store, name: String, items: List<Pair<String, JSONObject>>): Int = broadcast(s) { chat ->
+        val lang = s.tgChatLang(chat); val level = s.tgChatQuiet(chat)
+        val mine = items.map { it.second }.map { o -> o to TgLogic.importance(o.optString("kind"), runCatching { Events.important(o.optString("kind")) }.getOrDefault(false)) }
+            .filter { TgLogic.quietOk(level, it.second) }
+        if (mine.isEmpty()) return@broadcast true
+        if (mine.size == 1) return@broadcast ok(send(s, chat, TgLogic.s(lang, "aEvent", mine[0].first.optString("text"), name), null, mine[0].second == "info"))
+        ok(send(s, chat, TgLogic.digest(lang, name, mine.map { it.first.optLong("t") to it.first.optString("text") }, ::hm), null, mine.all { it.second == "info" }))
     }
 
     /** One alert to every linked chat; how many got it (a chat whose alert level skips it counts as served). */

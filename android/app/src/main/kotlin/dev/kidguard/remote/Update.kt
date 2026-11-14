@@ -39,6 +39,13 @@ object UpdateLogic {
     }
 
     fun apkUrl(tag: String, name: String) = "$GH/$REPO/releases/download/v$tag/$name"
+
+    /**
+     * Install the downloaded update now? The install replaces the process (the kid launcher restarts, a listen / screen
+     * session ends), so the daily automatic one waits for the screen to be off; the parent's own "update" ([force]) and
+     * a phone whose screen never goes off for [DAY_MS] do not wait.
+     */
+    fun installNow(force: Boolean, screenOn: Boolean, waitedMs: Long): Boolean = force || !screenOn || waitedMs >= DAY_MS
 }
 
 /**
@@ -59,6 +66,9 @@ object Update {
     @Volatile var runs = 0; private set
     /** True while the owner install session runs: [Policy.apply] then leaves the install restrictions lifted. */
     @Volatile var installing = false; private set
+    /** A verified download waits for the screen to go off (UpdateLogic.installNow); since when (0 = not waiting). Memory only: a restart checks again within the hour. */
+    @Volatile private var waitingSince = 0L
+    private fun screenOn(ctx: Context) = ctx.getSystemService(android.os.PowerManager::class.java)?.isInteractive != false
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("update", Context.MODE_PRIVATE)
     fun apk(ctx: Context) = File(ctx.filesDir, "update.apk")
@@ -77,6 +87,8 @@ object Update {
     /** From the guard tick: at most once a day, on its own thread. */
     fun maybe(ctx: Context, r: Rules, now: Long) {
         if (!r.autoUpdate) return
+        // downloaded and checked, waiting for the screen to go off: this runs once a minute then (Guard tick)
+        if (waitingSince > 0) { if (UpdateLogic.installNow(false, screenOn(ctx), now - waitingSince)) start(ctx, false); return }
         if (now - prefs(ctx).getLong("at", 0) < UpdateLogic.DAY_MS) return
         if (now - triedAt < 3_600_000) return   // offline / GitHub down: try again in an hour, not every tick
         triedAt = now; start(ctx, false)
@@ -110,6 +122,14 @@ object Update {
             download(ctx, tag, f); prefs(ctx).edit().putString("apkTag", tag).apply()
         }
         try { verifyPackage(ctx, f) } catch (e: IllegalStateException) { prefs(ctx).edit().putString("badTag", tag).apply(); done(); throw e }
+        // an install that needs nobody (owner, or basic mode's quiet self-update) restarts the app: not in the middle of the child's use
+        val silent = Policy.isOwner(ctx) || (Build.VERSION.SDK_INT >= 31 && ctx.packageManager.canRequestPackageInstalls())
+        val now = System.currentTimeMillis()
+        if (silent && !UpdateLogic.installNow(force, screenOn(ctx), if (waitingSince > 0) now - waitingSince else 0)) {
+            if (waitingSince == 0L) { waitingSince = now; Log.i(TAG, "update $tag ready, installs when the screen is off") }
+            status = ""; return   // no done(): [maybe] comes back
+        }
+        waitingSince = 0
         if (Policy.isOwner(ctx)) { status = "installing"; installSilently(ctx, f) }
         else if (installQuiet(ctx, f)) status = ""
         else { status = "ready"; if (force || prefs(ctx).getString("notified", "") != tag) { notifyChild(ctx, tag); prefs(ctx).edit().putString("notified", tag).apply() } }

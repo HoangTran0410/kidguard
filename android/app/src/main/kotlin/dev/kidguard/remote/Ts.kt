@@ -26,6 +26,9 @@ object TsLogic {
     const val PKG = "com.tailscale.ipn"
     const val BASE = "https://pkgs.tail" + "scale.com/stable/"
 
+    /** Gap before the next automatic setup try after [fails] failed ones in a row: 5 min, 30 min, then 6 h (each try is a ~40 MB download). */
+    fun retryMs(fails: Int): Long = when { fails <= 1 -> 5 * 60_000L; fails == 2 -> 30 * 60_000L; else -> 6 * 3_600_000L }
+
     /** The universal APK file name from `?mode=json`, or null if it isn't a plain file name. */
     fun apkName(json: String): String? = runCatching {
         JSONObject(json).optJSONObject("APKs")?.optString("universal", "")
@@ -146,12 +149,15 @@ object Ts {
     }
 
     @Volatile private var lastTry = 0L
+    /** Setups that failed in a row: the retry gap grows (TsLogic.retryMs), each try downloads the whole Tailscale APK. */
+    @Volatile private var setupFails = 0
 
     private fun startSetup(ctx: Context, s: Store) {
         state = "installing"; err = ""; ip = ""; since = System.currentTimeMillis(); asserted = false; lastTry = since
         busy = true
         Thread({
-            try { setup(ctx, s) } catch (e: Exception) {
+            try { setup(ctx, s); setupFails = 0 } catch (e: Exception) {
+                setupFails++
                 Log.w(TAG, "remote access setup", e); state = "error"; err = (e.message ?: ctx.getString(R.string.err_generic)).take(120)
             } finally { busy = false }
         }, "ts-setup").start()
@@ -182,14 +188,15 @@ object Ts {
      * ([AccPause.canReopen]). A Tailscale that was force-stopped gets no broadcasts until it is opened.
      */
     fun keep(ctx: Context, s: Store, fg: String?, now: Long) {
-        if (Flavor.HOME || s.released || !installed(ctx)) { keepWhy = ""; return }
+        // off (the common case): nothing to keep alive, so no package / interface lookups every tick
+        if (Flavor.HOME || s.released || (!s.tsWanted && !s.rules.tsKeep)) { downAt = 0L; keepWhy = ""; return }
+        if (!installed(ctx)) { keepWhy = ""; return }
         if (VpnPause.active(ctx)) { downAt = 0L; keepWhy = ""; return }   // turned off on purpose for a bank app (VpnPause)
         if (findIp().isNotEmpty()) {
             if (downAt != 0L && askAt >= downAt) s.log(R.string.ts_log_back)
             downAt = 0L; keepWhy = ""
             return
         }
-        if (!s.tsWanted && !s.rules.tsKeep) { downAt = 0L; keepWhy = ""; return }
         if (downAt == 0L) downAt = now
         val screenOn = runCatching { ctx.getSystemService(android.os.PowerManager::class.java).isInteractive }.getOrDefault(false)
         val onHome = screenOn && fg == ctx.packageName
@@ -229,7 +236,7 @@ object Ts {
         if (busy) return
         if (since == 0L) since = System.currentTimeMillis()
         // not installed yet (the download failed, or the phone restarted halfway): try again, at most every 5 minutes
-        if (!installed(ctx) && Policy.isOwner(ctx) && s.tsKey.isNotEmpty() && System.currentTimeMillis() - lastTry > 5 * 60_000L) { startSetup(ctx, s); return }
+        if (!installed(ctx) && Policy.isOwner(ctx) && s.tsKey.isNotEmpty() && System.currentTimeMillis() - lastTry > TsLogic.retryMs(setupFails)) { startSetup(ctx, s); return }
         if (!asserted && Policy.isOwner(ctx) && installed(ctx) && !VpnPause.active(ctx)) {   // not during a bank-app VPN pause
             asserted = true
             Thread({ runCatching { applyPolicy(ctx, s, suspend = null) } }, "ts-assert").start()
@@ -315,7 +322,7 @@ object Ts {
     private fun httpGet(ctx: Context, url: String): HttpURLConnection {
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 15_000; c.readTimeout = 30_000; c.instanceFollowRedirects = true
-        if (c.responseCode != 200) throw IllegalStateException(ctx.getString(R.string.err_http, c.responseCode))
+        if (c.responseCode != 200) { val code = c.responseCode; c.disconnect(); throw IllegalStateException(ctx.getString(R.string.err_http, code)) }
         return c
     }
 
@@ -344,11 +351,14 @@ object Ts {
             val pi = ctx.packageManager.packageInstaller
             val p = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply { setAppPackageName(TsLogic.PKG) }
             val id = pi.createSession(p)
-            pi.openSession(id).use { ses ->
-                apk.inputStream().use { i -> ses.openWrite("ts", 0, apk.length()).use { o -> i.copyTo(o); ses.fsync(o) } }
-                val res = commitAndWait(ctx, ses, "dev.kidguard.TS_INSTALL")
-                if (res != null) throw IllegalStateException(ctx.getString(R.string.err_install, res))
-            }
+            // a session that did not end in an install is dropped: each retry would leave another staged 40 MB APK behind
+            try {
+                pi.openSession(id).use { ses ->
+                    apk.inputStream().use { i -> ses.openWrite("ts", 0, apk.length()).use { o -> i.copyTo(o); ses.fsync(o) } }
+                    val res = commitAndWait(ctx, ses, "dev.kidguard.TS_INSTALL")
+                    if (res != null) throw IllegalStateException(ctx.getString(R.string.err_install, res))
+                }
+            } catch (e: Throwable) { runCatching { pi.abandonSession(id) }; throw e }
         } finally { runCatching { Policy.apply(ctx, s.rules) } }
     }
 

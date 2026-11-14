@@ -334,8 +334,10 @@ The first capture / first input of a session is logged in the phone log.
   ring banners have their own stop button.
 - All three (`wake`, `ringStop`, `listenStop`) are in the worker whitelist. `release` also stops ringing, the screen
   projection, listening, and drops the Wi-Fi lock.
-- **Wi-Fi lock**: the service holds a `WIFI_MODE_FULL_HIGH_PERF` lock while it runs (some ROMs, e.g. ColorOS 8.1, put
-  Wi-Fi to sleep with the screen off and the LAN page drops). Costs some standby battery. Released on stop / release.
+- **Wi-Fi lock**: Android 8-9: the service holds a `WIFI_MODE_FULL_HIGH_PERF` lock while it runs (ColorOS 8.1 puts
+  Wi-Fi to sleep with the screen off and the LAN page drops). Android 10+ (0.9.18): held only for 3 min after each
+  `/api` call and while listen / screen view runs (`PowerLogic.wifiPerf`); idle hours keep Wi-Fi power save, so the
+  first LAN call after a long pause may take a moment longer. Released on stop / release.
 
 ## Staying alive (v0.9.6)
 - **ColorOS Recents swipe = real force-stop** (`com.coloros.athena` calls force-stop): process dead, package
@@ -466,7 +468,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
 - **HTML pages** (worker `/`, `/install`, phone LAN `/`) send `X-Frame-Options: DENY` and a CSP with `frame-ancestors 'none'`.
 
 ## Location history (v0.2.1)
-- Rules: `"trackMin": 5` (0 = no history points, allowed 0/1/5/10/15/30/60; default 5 since 0.9.14, was 10; a phone before 0.9.14 turns 1 into its default). Independently the Guard refreshes `state.location` (last fix, zone in/out events) every 15 min, also with `trackMin=0`.
+- Rules: `"trackMin": 5` (0 = no history points, allowed 0/1/5/10/15/30/60; default 5 since 0.9.14, was 10; a phone before 0.9.14 turns 1 into its default). Independently the Guard refreshes `state.location` (last fix, zone in/out events) every 15 min, also with `trackMin=0`. Since 0.9.18 a good history fix (accuracy <= 100 m) is also written to `state.location`, and the separate 15-min fix is skipped while those keep it fresh. A phone lying still (2 same-spot fixes with the screen off, significant-motion sensor armed) drops to one history fix per 15 min and one refresh per hour until the sensor fires or the screen turns on (`LocPace`); no sensor = no slow pace.
 - Phone (Guard): every `trackMin` minutes takes one fix (getCurrentLocation API 30+, else requestSingleUpdate,
   timeout 30 s, else lastKnown if < 2× trackMin old). Store a point only if it MOVED from the last stored point (distance ≥ max(30 m, the larger accuracy of the two
   fixes); a fix worse than ±150 m never counts as moving) OR the same-spot gap passed (max(trackMin − 1.5 min, 10 min), cap 60 min).
@@ -538,6 +540,10 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
 - The phone long-polls `getUpdates` (timeout 50 s, offset kept), from Guard start; idle without a token. 401/404 -> `err: "bad token"`,
   409 -> `err: "conflict"` (another poller / webhook; one deleteWebhook try). Private chats only. An unlinked chat may only send the code
   (`/start <code>` or the 6 digits); max 5 chats; a chat that blocks the bot (403) is dropped.
+  Other getUpdates errors: 429 waits `parameters.retry_after` (1 s .. 5 min), anything else 5 s doubling to 60 s (0.9.18).
+  A text above 4000 characters goes out as several messages split at line ends (buttons under the last). 4 or more plain
+  events waiting at once (phone was offline) = one message per chat ("N new alerts" + one line each); tamper, new app,
+  events with a photo, SOS and requests are always their own message.
 - State: `"tg": {"on", "bot": "<username>", "err": "", "chats": [{"id": "<string>", "name", "at"}], "code": "123456"|null, "codeUntil"}`.
 - Commands in the chat (TgLogic, vi/en texts): /status /apps /locate (last fix + a fresh one within ~30 s, sendLocation) /events
   /code (current Authenticator code + seconds left + next code, read-only; "off" text when no secret) /bonus N (bonus today += N, 1-600) /pause N (pausedUntil = now+N min) /resume /lock /ring /msg <text>
@@ -602,7 +608,8 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
 - Relay: after each successful sync the phone sends up to 30 not-yet-sent icons:
   `POST /c/<id>/icons` (token header) body `{"<pkg>": "<base64 48 px WebP>", ...}` -> `{"have": n}`.
   pkg must match `[A-Za-z0-9._]{1,200}`, junk entries are skipped, max 400 icons per kid (`icon:<pkg>` in DO storage).
-  Sent pkgs are remembered per relay url+id (prefs `relayIcons`), so each icon goes up once.
+  Sent pkgs are remembered per relay url+id (prefs `relayIcons`), so each icon goes up once; a removed app is forgotten.
+  A full list drops the icons of pkgs that are not in the stored `state.apps` (0.9.18).
 - `GET /c/<id>/icon?pkg=<pkg>&k=<token>` -> `image/webp`, `cache-control: private, max-age=86400`; 404 if unknown.
   The `?k=` token is accepted only on this GET (an `<img>` can't send headers); every other route needs the header.
   Relay (2026-11-10): the page sends `?k=<sha256("icon:" + token) hex>` instead (request URLs are logged); the worker stores
@@ -1087,6 +1094,8 @@ Code: `Files.kt` (Android), `FilesLogic.kt` (pure: names, caps, listing JSON; `F
 - kid -> parent: command `fileUp {file: <id>}` (outbox files <= 10 MB, else `too big`) makes the phone upload it with
   `fid = id, to = parent`; the page polls `GET ?to=parent` until `done`, downloads the chunks, then `DELETE`s it.
   `fileDel {file: <id>}` = the LAN `DELETE` (deliver-once). Both are in the worker whitelist.
+  `fileUp` / `shotUp` "ok" = the upload started (a second one for the same file while it runs is ignored); a failed
+  upload adds a log line (`state.log`). Files nobody fetched are removed by the DO alarm at the 1 h TTL (0.9.18).
 - Wrong-PIN photo: command `shotUp {shot: <id>}` (not deliver-once; `no such photo` if gone) posts that photo with `fid = id`;
   the page reads it like a `fileUp` download (one chunk), then `DELETE`s it. LAN: `GET /api/shot/<id>`.
 - Parent app: the proxy streams bodies (up to 210 MB request, LAN `GET /api/files/<id>` response streamed with Content-Length) for `/api/files…` and relay `/c/<id>/file` only; other routes keep the 512 KB cap. The WebView offers a file chooser and saves downloads (bridge `KGApp.files()`).

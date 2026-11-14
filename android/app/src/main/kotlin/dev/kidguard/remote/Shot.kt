@@ -52,7 +52,7 @@ object Shot {
     fun command(c: Context, o: JSONObject): String {
         val f = file(c, o.optString("shot")) ?: return "no such photo"
         Thread({ runCatching { Files.pushBytes(c, f.nameWithoutExtension, "kidguard-${f.nameWithoutExtension}.jpg", f.readBytes()) }
-            .onFailure { Log.w(TAG, "shot push", it) } }, "shot-push").start()
+            .onFailure { Log.w(TAG, "shot push", it); Files.pushFailed(c, "kidguard-${f.nameWithoutExtension}.jpg") } }, "shot-push").start()
         return "ok"
     }
 
@@ -98,6 +98,10 @@ object Shot {
                 override fun onOpened(d: CameraDevice) {
                     cam = d
                     if (finished) { d.close(); return }
+                    // createCaptureSession throws when the camera was taken away meanwhile: uncaught here it would kill the whole Guard process
+                    try { session(d) } catch (e: Exception) { Log.w(TAG, "shot session", e); end() }
+                }
+                private fun session(d: CameraDevice) {
                     @Suppress("DEPRECATION")
                     d.createCaptureSession(listOf(r.surface), object : CameraCaptureSession.StateCallback() {
                         override fun onConfigured(s: CameraCaptureSession) {
@@ -114,8 +118,9 @@ object Shot {
                         override fun onConfigureFailed(s: CameraCaptureSession) { end() }
                     }, h)
                 }
-                override fun onDisconnected(d: CameraDevice) { end() }
-                override fun onError(d: CameraDevice, e: Int) { Log.w(TAG, "shot camera error $e"); end() }
+                // before onOpened `cam` is still null: take [d] so end() closes it and the camera is not left held
+                override fun onDisconnected(d: CameraDevice) { cam = d; end() }
+                override fun onError(d: CameraDevice, e: Int) { Log.w(TAG, "shot camera error $e"); cam = d; end() }
             }, h)
         } catch (e: Exception) { Log.w(TAG, "shot", e); end() }
     }

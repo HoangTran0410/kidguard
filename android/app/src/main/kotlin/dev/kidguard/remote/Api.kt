@@ -14,6 +14,7 @@ class Api(private val g: Guard) {
      * [Safety.corsOriginOk] (another KidGuard phone's page), never with Allow-Credentials. Auth stays the token.
      */
     fun handle(r: Req): Res {
+        g.lanUsed()
         if (!r.path.startsWith("/api/")) return route(r)
         val origin = r.header("origin")?.takeIf { Safety.corsOriginOk(it) }
         if (r.method == "OPTIONS") {

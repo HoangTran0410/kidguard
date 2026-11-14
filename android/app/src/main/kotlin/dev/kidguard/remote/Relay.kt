@@ -218,7 +218,10 @@ class Relay(private val g: Guard) {
         val apps = g.currentState().optJSONArray("apps") ?: return
         val p = g.getSharedPreferences("relayIcons", 0)
         val key = "$base|$rid"; val sent = p.getStringSet(key, emptySet())!!.toMutableSet()
-        val todo = (0 until apps.length()).mapNotNull { apps.optJSONObject(it)?.optString("pkg")?.takeIf { s -> s.isNotEmpty() && s !in sent } }.take(30)
+        val here = (0 until apps.length()).mapNotNull { apps.optJSONObject(it)?.optString("pkg")?.takeIf { s -> s.isNotEmpty() } }
+        // a removed app is forgotten (the worker drops its icon when its list is full): installed again, it is sent again
+        if (here.isNotEmpty() && sent.retainAll(here.toSet())) p.edit().putStringSet(key, sent.toSet()).apply()
+        val todo = here.filter { it !in sent }.take(30)
         if (todo.isEmpty()) return
         val body = JSONObject()
         for (pkg in todo) iconWebp(pkg)?.let { body.put(pkg, android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP)) }

@@ -248,7 +248,8 @@ object Files {
         return when (t) {
             "fileDel" -> if (delete(c, id)) "ok" else "no such file"
             "fileUp" -> if (e.size > FilesLogic.MAX_RELAY) "too big" else {
-                Thread({ runCatching { push(c, e) }.onFailure { Log.w(TAG, "file push", it) } }, "file-push").start(); "ok"
+                // "ok" = started; a failed upload is said in the log the parent reads (it used to be silent: the page waited for nothing)
+                if (!pushing.add(e.id)) "ok" else { Thread({ try { runCatching { push(c, e) }.onFailure { Log.w(TAG, "file push", it); pushFailed(c, e.name) } } finally { pushing.remove(e.id) } }, "file-push").start(); "ok" }
             }
             else -> "unknown"
         }
@@ -265,6 +266,10 @@ object Files {
         requestMethod = method; connectTimeout = 10_000; readTimeout = 30_000; instanceFollowRedirects = false
         setRequestProperty("X-KG-Token", token)
     }
+
+    private val pushing = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()   // uploads in flight: a double tap is one upload
+    private val pullRetryAt = java.util.concurrent.ConcurrentHashMap<String, Long>()    // relay file that failed here -> not before
+    fun pushFailed(c: Context, name: String) { runCatching { Store.of(c).log(R.string.log_file_push_fail, name) }; Guard.running?.kick() }
 
     private fun push(c: Context, e: Entry) {
         val (base, token) = relay(c) ?: return
@@ -303,6 +308,8 @@ object Files {
                     val f = list!!.optJSONObject(k) ?: continue
                     val fid = f.optString("fid"); if (!f.optBoolean("done") || !FilesLogic.isId(fid)) continue
                     val size = f.optLong("size"); val n = f.optInt("n")
+                    // it failed here a moment ago (write error, network): not the same 10 MB again on every sync
+                    if ((pullRetryAt[fid] ?: 0L) > System.currentTimeMillis()) continue
                     val ins = object : InputStream() {
                         var i = 0; var cur: InputStream = java.io.ByteArrayInputStream(ByteArray(0))
                         override fun read(): Int { val b = ByteArray(1); return if (read(b, 0, 1) < 0) -1 else b[0].toInt() and 0xff }
@@ -318,6 +325,7 @@ object Files {
                     val (e, code) = if (get(c, fid) != null) null to "dup" else receive(c, f.optString("name"), if (size <= FilesLogic.MAX_RELAY) size else -1, null, ins, fid)
                     // network trouble or a full phone: keep it on the relay (1 h TTL) for the next sync; anything else will not get better
                     val retry = e == null && (code == "failed" || code == "no space")
+                    if (retry) { if (pullRetryAt.size > 100) pullRetryAt.clear(); pullRetryAt[fid] = System.currentTimeMillis() + FilesLogic.PULL_RETRY_MS } else pullRetryAt.remove(fid)
                     if (e == null && code != "dup" && !(retry && !warned.add(fid))) {   // tell the parent once per file
                         if (warned.size > 100) warned.clear()
                         runCatching { Store.of(c).log(if (code == "no space") R.string.log_file_nospace else R.string.log_file_dropped, f.optString("name"), code) }

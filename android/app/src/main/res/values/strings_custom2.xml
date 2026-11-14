@@ -3,6 +3,7 @@
     <string name="hm2_icon">Icon</string>
     <string name="hm2_restore">Restore original</string>
     <string name="hm2_read_page">Read aloud</string>
+    <string name="hm2_read_none">This phone has no reading voice installed</string>
     <string name="hm2_name_hint">Name (original: %1$s)</string>
     <string name="hm2_icon_orig">Original icon</string>
     <string name="hm2_icon_color">Colour</string>

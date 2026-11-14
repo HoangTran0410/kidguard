@@ -174,7 +174,7 @@ private class TimerBox(val act: HomeActivity, val wide: Boolean) {
         val f = md.field(act.getString(R.string.tm_custom_hint), 3).apply { inputType = InputType.TYPE_CLASS_NUMBER }
         md.show(R.drawable.li_timer, Modal.Tone.INFO, act.getString(R.string.tm_custom), content = f, ok = act.getString(R.string.hm_t_add), cancel = act.getString(R.string.cancel)) {
             val n = f.text.toString().trim().toIntOrNull()
-            if (n == null || n < 1 || n > TimerLogic.MAX_MIN) return@show f.text.isBlank()
+            if (n == null || n < 1 || n > TimerLogic.MAX_MIN) { if (f.text.isNotBlank()) md.setError(act.getString(R.string.tm_custom_hint)); return@show f.text.isBlank() }
             set(TimerLogic.choose(n)); true
         }
         f.requestFocus()

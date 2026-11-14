@@ -375,6 +375,8 @@ internal fun HomeActivity.drop(x: Float, y: Float, d: DragSt): Boolean {
         else -> cellAt(x, y, d)?.let { (pi, a, under) ->
             if (folderReady && under != null && under.id == hoverId && (d.kind == "app" || d.kind == HomeLayout.SHORTCUT))
                 HomeLayout.dropOnto(t, under.id, if (under.kind == "app" && t.item.kind == "app") autoName(under.pkg, t.item.pkg) else "")
+                    // a full folder refuses the icon: say why instead of a silent spring back
+                    ?: null.also { if (under.kind == "folder" && under.apps.size >= HomeLayout.FOLDER_MAX) toast(getString(R.string.hm_f_full)) }
             else HomeLayout.dropMove(t, pi, a.first, a.second)
         }
     }
@@ -386,7 +388,7 @@ internal fun HomeActivity.drop(x: Float, y: Float, d: DragSt): Boolean {
 }
 
 
-private fun HomeActivity.askDropRemove(before: HomeModel, after: HomeModel, item: HItem) {
+internal fun HomeActivity.askDropRemove(before: HomeModel, after: HomeModel, item: HItem) {
     val (title, body) = if (item.kind == "folder") getString(R.string.hm_e_rm_q, folderName(item)) to getString(R.string.hm_e_rm_folder, item.apps.size)
         else getString(R.string.hm_e_rm_widget_q) to getString(R.string.hm_e_rm_widget)
     main.post {

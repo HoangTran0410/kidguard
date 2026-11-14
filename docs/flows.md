@@ -118,6 +118,7 @@ Order of writes (first writer wins, `p !in out`):
 - `keepLocation(r)` (Guard.kt:353): owner + `lockLocation` + location off => API30+ `setLocationEnabled(true)`; API<30 `setSecureSetting(LOCATION_MODE)` then WSS fallback. Runs every tick and instantly from `locObserver` (:367, ContentObserver on LOCATION_MODE/PROVIDERS_ALLOWED).
 - Policy side: `applyNet` (Policy.kt:92) `lockLocation` => `setLocationEnabled(true)` + `DISALLOW_CONFIG_LOCATION`, else clear.
 - Two independent location timers:
+  - Pace (`guard/PowerLogic.kt` `LocPace`, 0.9.18): a good `trackFix` (acc <= 100 m) also becomes pref `loc`, and the 15-min `locate()` is skipped while those are fresh (`locateDue`). 2 same-spot fixes with the screen off + `TYPE_SIGNIFICANT_MOTION` armed (`Guard.pace`) = slow pace (history >= 15 min, locate hourly); the sensor firing or screen on = normal pace and a fix at once. No sensor = never slow.
   - `locate()` (Guard.kt:508) every 15 min and on `locate`/SOS/check-in commands -> pref `loc` (last fix) + zone events (only if fix < 10 min old, acc <= 300 m, :517, :293).
   - `trackFix(trackMin)` (:574) every `trackMin` (0 = off): one fix (30 s), fallback last-known < 2x interval -> `Store.addTrack` (Store.kt:310; keep 7 d, <= 2000 pts, stores if moved >= 30 m or gap elapsed, `Track.gapFor`). Pref `track`.
 - `fixProviders` (:529): fused (API 31+) else network+gps together; listeners always removed (no leaked GPS).
@@ -312,6 +313,7 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 ### 2.8 Self-update
 - Trigger: rule `autoUpdate` (daily, `Update.maybe` `remote/Update.kt:78` from `Guard.kt:213`) or `cmd update` (ONCE) from `tab-set.js:317` -> `Guard.run "update"` -> `Update.start(force=true)` (`Update.kt:86`).
 - Steps (`Update.kt:97 run`): `HEAD github.com/HoangTran0410/kidguard/releases/latest` (no redirect) -> tag; `newer()`; download `kidguard.apk` + `.sha256`, hash check; `verifyPackage` (same package, higher versionCode; bad tag remembered); Device Owner = silent PackageInstaller session, else notify child ("ready").
+- The automatic (daily) silent install waits for the screen to be off (`UpdateLogic.installNow`, re-checked every Guard minute pass, 24 h cap): it replaces the process, i.e. the kid's launcher. `cmd update` never waits.
 - State `update {latest,status,err,checkedAt}` -> page card. Release assets must keep fixed names (`kidguard.apk`, `kidguard-parent.apk` + `.sha256`).
 - Wire: protocol "Self-update (v0.9)". Parent app has its own: `P/CheckJob.kt` daily HEAD + `P/Updater.kt` (download + system installer), bridge `KGApp.checkUpdate/installUpdate`.
 - Gotchas: `kg.code` in `android/gradle.properties` must rise every release. Home flavor has no INTERNET/Guard so it never self-updates (manifest `home/AndroidManifest.xml`); not covered by this path.

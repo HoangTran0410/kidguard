@@ -8,6 +8,7 @@ import org.json.JSONObject
  * It is a folder of what was SENT (parent -> kid "in", kid -> parent "out"), never a view of the phone's storage.
  */
 object FilesLogic {
+    const val PULL_RETRY_MS = 10 * 60_000L   // a relay file that could not be saved is tried again this much later (it lives 1 h there)
     const val MAX_LAN = 200L * 1024 * 1024      // one LAN upload / one shared file
     const val MAX_RELAY = 10L * 1024 * 1024     // through the worker (1 MiB chunks in the Durable Object)
     const val CHUNK = 1024 * 1024

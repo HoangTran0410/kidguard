@@ -157,6 +157,7 @@
     <string name="kc_wait">Just cleaned. Try again in %d min</string>
     <string name="kc_fail">Could not clean now. Try later</string>
     <string name="log_file_nospace">File "%1$s" from the parent was not saved: phone storage is full (retrying for up to 1 hour)</string>
+    <string name="log_file_push_fail">Could not send "%1$s" to the parent. Check this phone\'s network, then try again.</string>
     <string name="log_file_dropped">File "%1$s" from the parent was not saved (%2$s)</string>
     <string name="log_autogrant">Granted %1$s missing permissions itself (on-phone adb)</string>
     <string name="log_dev_on">Parent turned Developer options and USB debugging back on</string>
@@ -638,6 +639,8 @@
     <string name="hm_min_left">%1$d min left</string>
     <string name="hm_pin">Pin to home screen</string>
     <string name="hm_pinned">Already on the home screen</string>
+    <string name="hm_t_full">This list is full. Delete one first.</string>
+    <string name="hm_pin_done">Added to the home screen</string>
     <string name="hm_e_tap">Tap items to select</string>
     <string name="hm_e_n">%d selected</string>
     <string name="hm_e_done">Done</string>

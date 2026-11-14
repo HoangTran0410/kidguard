@@ -140,7 +140,8 @@ function Reenable {
     foreach ($p in $list) {
         $o = Adb shell pm enable $p
         Write-Host $o
-        if ($o -notmatch "enabled") { $left += $p }
+        # "Unknown package" = the record is from another phone (one file per computer): nothing to turn on here, not a failure
+        if ($o -notmatch "enabled|Unknown package") { $left += $p }
     }
     if ($left.Count -gt 0) {   # keep the record of the ones that failed: the next run turns them on first
         New-Item -ItemType Directory -Force -Path (Split-Path $OffFile) | Out-Null

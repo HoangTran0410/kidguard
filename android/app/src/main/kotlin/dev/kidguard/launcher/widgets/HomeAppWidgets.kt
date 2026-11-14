@@ -310,7 +310,8 @@ private fun HomeActivity.awFail(id: Int) {
 private fun HomeActivity.awPlace(id: Int) {
     awPend(0)
     val info = awMgr().getAppWidgetInfo(id) ?: return awFail(id)
-    val m = model ?: return awFail(id)
+    // the widget's setup screen can push us out of memory: the result then arrives before the first render
+    val m = model ?: HomeFile.load(this) ?: return awFail(id)
     val (w, h) = awDefaultCells(info)
     val at = aw.dropAt; aw.dropAt = null
     val n = if (at != null) HomeLayout.placeAppWidgetAt(m, info.provider.packageName, info.provider.className, id, w, h, at.first, at.second, at.third)
@@ -324,7 +325,8 @@ private fun HomeActivity.awPlace(id: Int) {
 /** Result of the bind prompt / the widget's own configure screen. */
 internal fun HomeActivity.awResult(req: Int, res: Int, data: Intent?) {
     if (req != REQ_BIND && req != REQ_CONF) return
-    val id = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, 0)?.takeIf { it != 0 } ?: aw.pendingId
+    val id = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, 0)?.takeIf { it != 0 } ?: aw.pendingId.takeIf { it != 0 }
+        ?: getSharedPreferences("launcher", Context.MODE_PRIVATE).getInt("awPending", 0)   // recreated: awSync has not read it back yet
     if (id == 0) return
     if (res != Activity.RESULT_OK) { runCatching { aw.host?.deleteAppWidgetId(id) }; awPend(0); aw.dropAt = null; return }
     if (req == REQ_BIND) awConfigure(id) else awPlace(id)

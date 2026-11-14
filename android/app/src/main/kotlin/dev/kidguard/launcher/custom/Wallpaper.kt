@@ -194,6 +194,8 @@ object Wallpaper {
     }.getOrNull()
 
     const val PHOTO = "wall.jpg"
+    /** Bumped when Tuỳ chỉnh may have replaced the photo file (same style, new picture): the home screen then re-checks the file once. */
+    @Volatile var rev = 0
 
     /**
      * Frosted wallpaper (POCO's "làm mờ hình nền"): [pct] 0-100. Done once per wallpaper change, never per frame: shrink to

@@ -1,5 +1,5 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
-const sel = { on: false, set: new Set(), f: "all", limOpen: false };
+const sel = { on: false, set: new Set(), f: "all", limOpen: false, q: "" };   // q: the search text (kept across redraws: a filter chip, a state refresh)
 // "Ứng dụng" tab: segmented sub-tabs (app list / hide preinstalled / storage), last one remembered
 let appsSub = (() => { try { return localStorage.getItem("kg.appsSub") || "list"; } catch { return "list"; } })();
 function appsTab(b) {
@@ -22,9 +22,10 @@ function appsList(b) {
   const isNew = x => x.new && !edit.approved.includes(x.pkg);
   const FILT = [["all", t("f.all")], ["new", ic("sparkles") + " " + t("f.new")], ["blocked", ic("octagon-x") + " " + t("f.blocked")], ["limited", ic("timer") + " " + t("f.limited")]];
   const pass = x => { const m = mode(x.pkg); return sel.f === "all" || (sel.f === "new" && isNew(x)) || (sel.f === "blocked" && (m === "block" || x.suspended)) || (sel.f === "limited" && m === "limit"); };
-  const visible = () => { const q = ($("#f-q").value || "").toLowerCase(); return st.apps.filter(x => !x.protected && pass(x) && (!q || x.label.toLowerCase().includes(q) || x.pkg.includes(q))); };
+  // "trinh duyet" finds "Trình duyệt"; the package name matches as typed
+  const visible = () => { const raw = sel.q.trim().toLowerCase(), q = qsFold(raw); return st.apps.filter(x => !x.protected && pass(x) && (!raw || (q && qsFold(x.label).includes(q)) || x.pkg.toLowerCase().includes(raw))); };
   b.innerHTML = `<div class="card"><div class="row"><h2 class="sp" style="margin:0">${ic("puzzle")} ${t("apps.h", st.apps.length)}</h2><button id="selTog" class="sm${sel.on ? " pri" : ""}">${sel.on ? ic("x") + " " + t("sel.exit") : ic("square-check") + " " + t("sel.on")}</button></div>
-    <input id="f-q" placeholder="${esc(t("apps.search"))}" aria-label="${esc(t("apps.search"))}" style="width:100%;margin:10px 0 6px">
+    <input id="f-q" type="search" value="${esc(sel.q)}" placeholder="${esc(t("apps.search"))}" aria-label="${esc(t("apps.search"))}" style="width:100%;margin:10px 0 6px">
     <div class="chips scroll" id="flt">${FILT.map(([v, n]) => `<button data-f="${v}" class="${sel.f === v ? "on" : ""}">${n}</button>`).join("")}</div>
     <div id="list"></div><p class="mute">${ic("lightbulb")} ${t("apps.tip")}</p></div>
     ${sel.on ? `<div class="bulk" id="bulk"></div>` : ""}`;
@@ -89,7 +90,7 @@ function appsList(b) {
     });
     drawBar();
   };
-  $("#f-q").oninput = draw;
+  $("#f-q").oninput = e => { sel.q = e.target.value; draw(); };
   $("#selTog").onclick = () => { sel.on = !sel.on; sel.set.clear(); sel.limOpen = false; appsList(b); };
   b.querySelectorAll("#flt [data-f]").forEach(x => x.onclick = () => { sel.f = x.dataset.f; appsList(b); });
   draw();

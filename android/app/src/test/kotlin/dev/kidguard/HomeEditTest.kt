@@ -249,4 +249,16 @@ class HomeEditTest {
         assertEquals(m.pages, im.pages)   // its page was only that widget: gone too
         assertEquals(withOther.timetable.toString(), im.timetable.toString())
     }
+
+    @Test fun restoredFileKeepsOnlyAppWidgetsThisPhoneStillHas() {
+        val m = HomeLayout.fresh("teen", (1..6).map { "a$it" }, emptyList(), parent = false)
+        val mine = HItem("w8", "widget", 0, 0, 2, 2, pkg = "p", cls = "c", type = HomeLayout.APP, awid = 7)
+        val foreign = HItem("w9", "widget", 0, 0, 2, 2, pkg = "p", cls = "c", type = HomeLayout.APP, awid = 99)
+        val all = m.copy(pages = m.pages + listOf(listOf(mine), listOf(foreign)))
+        val kept = HomeLayout.keepAppWidgets(all) { it.awid == 7 }
+        assertEquals(m.pages + listOf(listOf(mine)), kept.pages)   // the unknown id leaves, and its now-empty page with it
+        assertTrue(HomeLayout.keepAppWidgets(all) { true } === all)   // nothing to drop: the same model (no save, no rebuild)
+        // KidGuard's own widgets are never asked about
+        assertEquals(m.pages, HomeLayout.keepAppWidgets(m) { false }.pages)
+    }
 }

@@ -297,7 +297,7 @@ object SelfSetup {
                 // `dpm set-device-owner` refusals come with a raw Java exception: say what to do instead (the raw text stays in logcat)
                 if (i == 2) SelfSetupLogic.ownerFail(out)?.let { message = app.getString(it) }
                 if (SelfSetupLogic.permMonitoring(out)) message += "\n" + app.getString(R.string.ss_perm_mon)
-                notifyFinal(app, app.getString(R.string.ss_failed, message)); return false }
+                notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return false }   // every failed step lets the adb link go
             state[i] = STEP_OK; return true
         }
 
@@ -326,7 +326,7 @@ object SelfSetup {
         val accErr = enableAccessibility(::sh)
         if (accErr != null) {
             state[5] = STEP_ERR; message = accErr.ifBlank { app.getString(R.string.ss_cmd_fail) }
-            notifyFinal(app, app.getString(R.string.ss_failed, message)); return
+            notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return
         }
         state[5] = STEP_OK
         if (!step(6, "dumpsys deviceidle whitelist +$PKG") { !it.contains("Unknown", true) && !it.contains("Exception", true) }) return
@@ -370,12 +370,21 @@ object SelfSetup {
         val store = Store.of(app)
         fun undo() { pkgs.forEach { runCatching { sh("pm enable $it") } }; store.ownerPending = "" }
         // Wireless debugging has to come back by itself after the restart: needs this permission
-        if (!SelfSetupLogic.ok(sh("pm grant $PKG android.permission.WRITE_SECURE_SETTINGS"))) {
-            state[1] = STEP_ERR; message = app.getString(R.string.ss_cmd_fail); notifyFinal(app, app.getString(R.string.ss_failed, message)); return
+        val grant = sh("pm grant $PKG android.permission.WRITE_SECURE_SETTINGS")
+        if (!SelfSetupLogic.ok(grant)) {
+            // ColorOS without "Disable permission monitoring" fails here first on a phone with app accounts: same hint as step 4
+            state[1] = STEP_ERR; message = grant.ifBlank { app.getString(R.string.ss_cmd_fail) }
+            if (SelfSetupLogic.permMonitoring(grant)) message += "\n" + app.getString(R.string.ss_perm_mon)
+            notifyFinal(app, app.getString(R.string.ss_failed, message)); return
         }
         store.ownerPending = SelfSetupLogic.encodePending(SelfSetupLogic.Pending(System.currentTimeMillis(), turnOffWifi, pkgs))   // before the first disable: a crash in between still turns them on
         for (p in pkgs) {
-            val out = sh("pm disable-user --user 0 $p")
+            // the link dropping here throws: the apps already turned off come back now, not at the next boot / Guard start
+            // (the note of what is off is dropped only when every app really came back; else [resume] still does it)
+            val out = try { sh("pm disable-user --user 0 $p") } catch (e: Exception) {
+                if (pkgs.all { q -> runCatching { sh("pm enable $q") }.isSuccess }) store.ownerPending = ""
+                throw e
+            }
             if (!out.contains("disabled")) {
                 undo(); state[1] = STEP_ERR; message = out.ifBlank { app.getString(R.string.ss_cmd_fail) }
                 notifyFinal(app, app.getString(R.string.ss_failed, message)); return
@@ -430,7 +439,8 @@ object SelfSetup {
                 err = when {
                     Policy.isOwner(app) -> null
                     out == null -> app.getString(R.string.ss_resume_noadb)
-                    else -> out.ifBlank { app.getString(R.string.ss_cmd_fail) }
+                    // the same sentence as the first run for a known refusal (several users, already provisioned...), not the raw dpm text
+                    else -> SelfSetupLogic.ownerFail(out)?.let { app.getString(it) } ?: out.ifBlank { app.getString(R.string.ss_cmd_fail) }
                 }
             }
         }

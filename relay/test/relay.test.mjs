@@ -292,7 +292,13 @@ ck("file bad to 400",(await U(`?fid=0011223344556678&i=0&n=1&to=evil&size=1&name
 ck("file wrong token 401",(await fetch(`${B}/c/${id5}/file?to=kid`,{headers:H(BAD)})).status==401);
 ck("file delete ok",(await (await U(`?fid=${fid}`,"DELETE")).json()).ok===true);
 ck("file gone after delete",(await U(`?fid=${fid}&i=0`)).status==404&&(await (await U("?to=kid")).json()).files.length==0);
-ck("cmd fileUp whitelisted",(await (await fetch(`${B}/c/${id5}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"fileUp",file:fid})})).json()).result=="queued");}
+ck("cmd fileUp whitelisted",(await (await fetch(`${B}/c/${id5}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"fileUp",file:fid})})).json()).result=="queued");
+// icons: a full list (400) drops the icons of apps that are no longer in the phone's state
+const ic=Buffer.from("RIFF0000WEBPVP8 ").toString("base64"),IP=o=>fetch(`${B}/c/${id5}/icons`,{method:"POST",headers:H(),body:JSON.stringify(o)}).then(r=>r.json());
+await fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{apps:[{pkg:"keep.me",ms:1}]}})});
+let ij=await IP(Object.fromEntries([["keep.me",ic],...Array.from({length:399},(_,i)=>["old.a"+i,ic])]));ck("icons: 400 stored",ij.have==400);
+ij=await IP({"new.one":ic});ck("icons full: removed apps' icons make room",ij.have==2);
+ck("icons full: kept app still there, old one gone",(await fetch(`${B}/c/${id5}/icon?pkg=keep.me&k=${T}`)).status==200&&(await fetch(`${B}/c/${id5}/icon?pkg=old.a7&k=${T}`)).status==404&&(await fetch(`${B}/c/${id5}/icon?pkg=new.one&k=${T}`)).status==200);}
 // /go + /where: same public network (cf-connecting-ip: wrangler dev may set its own; both sides then match)
 {const id6="a1b2c3d4e5f6071c",W=(x={})=>fetch(`${B}/c/${id6}/where`,{headers:H(T,x)});
 const g=await fetch(`${B}/go`);ck("/go serves the page",g.status==200&&(await g.text()).includes("/ui/core.js"));

@@ -256,6 +256,13 @@ export class Kid {
       let o; try { o = await req.json(); } catch { return json({ error: "bad json" }, 400); }
       if (!o || typeof o !== "object" || Array.isArray(o)) return json({ error: "bad json" }, 400);
       const list = new Set((await this.s.get("iconList")) || []), puts = {};
+      // full (years of installs and removals): icons of apps no longer on the phone make room, else a new app never gets one
+      if (list.size + Object.keys(o).length > MAX_ICONS) {
+        const st = await this.s.get("state"), here = new Set((st && Array.isArray(st.apps) ? st.apps : []).map(a => a && a.pkg));
+        const gone = here.size ? [...list].filter(k => !here.has(k)) : [];
+        for (let i = 0; i < gone.length; i += 128) await this.s.delete(gone.slice(i, i + 128).map(k => "icon:" + k));
+        gone.forEach(k => list.delete(k));
+      }
       for (const [pkg, b64] of Object.entries(o)) {
         if (!PKG.test(pkg) || typeof b64 !== "string" || b64.length > 16000 || !/^[A-Za-z0-9+/=]+$/.test(b64)) continue;
         if (!list.has(pkg) && list.size >= MAX_ICONS) continue;
@@ -479,10 +486,12 @@ export class Kid {
   async alarm() {
     const now = Date.now(), seen = this.phoneWs().length ? now : Math.max((await this.s.get("seen")) || 0, this.seen || 0);
     if (now - seen > GC_MS) { await this.s.deleteAll(); return; }
+    const files = await this.fileGc(now);   // expired shared files go now; the ones left bring the next alarm forward
     // bound by a junk first sync and never heard again: no rules, no queue, no second sync within UNUSED_MS => gone
     const [born, rules, cmds, seenAt] = await Promise.all(["born", "rules", "cmds", "seen"].map(k => this.s.get(k)));
     if (born && !this.phoneWs().length && !rules && !(cmds && cmds.length) && (seenAt || 0) - born < 120e3 && now - born > UNUSED_MS) { await this.s.deleteAll(); return; }
-    await this.s.setAlarm(born && now - born < UNUSED_MS ? born + UNUSED_MS + 1000 : seen + GC_MS);
+    const next = born && now - born < UNUSED_MS ? born + UNUSED_MS + 1000 : seen + GC_MS;
+    await this.s.setAlarm(Math.max(now + 1000, files.length ? Math.min(next, Math.min(...files.map(f => f.at)) + FILE_TTL + 60e3) : next));
   }
 
   async sync(body, id, nk, now, ws = null) {
@@ -570,7 +579,7 @@ export class Kid {
       return json({ files: list.filter(f => f.to === to).map(f => ({ fid: f.fid, name: f.name, size: f.size, n: f.n, at: f.at, done: f.got.length === f.n })), max: FILE_MAX, chunk: FILE_CHUNK });
     }
     if (!FID.test(fid)) return json({ error: "bad id" }, 400);
-    let f = list.find(x => x.fid === fid);
+    let f = list.find(x => x.fid === fid), fresh = false;
     const key = (i) => "fc:" + fid + ":" + i;
     if (req.method === "POST") {
       if (!f) {
@@ -579,13 +588,16 @@ export class Kid {
         if (size > FILE_MAX) return json({ error: "too big" }, 413);
         if (n !== Math.max(1, Math.ceil(size / FILE_CHUNK))) return json({ error: "bad file" }, 400);
         if (list.length >= FILE_N || list.reduce((s, x) => s + x.size, 0) + size > FILE_TOTAL) return json({ error: "relay full" }, 507);
-        f = { fid, to, name, size, n, at: now, got: [] }; list.push(f);
+        f = { fid, to, name, size, n, at: now, got: [] }; list.push(f); fresh = true;
       }
       const i = Number(q.get("i"));
       if (!Number.isInteger(i) || i < 0 || i >= f.n) return json({ error: "bad chunk" }, 400);
       if (buf.byteLength !== (i < f.n - 1 ? FILE_CHUNK : f.size - FILE_CHUNK * (f.n - 1))) return json({ error: "bad chunk" }, 400);
       if (!f.got.includes(i)) f.got.push(i);
       await this.s.put({ [key(i)]: buf, files: list });
+      // nobody fetched it and no sync / file call comes any more (phone off, page closed): the alarm removes the chunks at
+      // the 1 h TTL, they used to stay (up to 32 MB) until the next request for this kid, or the 30-day GC
+      if (fresh) { const due = now + FILE_TTL + 60e3, al = await this.s.getAlarm(); if (!al || al > due) await this.s.setAlarm(due); }
       return json({ ok: true, done: f.got.length === f.n });
     }
     if (!f) return json({ error: "no such file" }, 404);

@@ -1,7 +1,11 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // --- live screen + remote control -------------------------------------------
 // Runs independently of the 4 s state poll (refresh() never redraws the screen tab).
-const scr = { gen: 0, url: null, seq: 0, frames: [], lat: 0, liveT: null, view: false, err: "", msg: "", off: false };   // off: the last frame answer was "screen off"
+const scr = { gen: 0, url: null, seq: 0, frames: [], lat: 0, liveT: null, view: false, err: "", msg: "", off: false, blob: null, idle: false };   // off: the last frame answer was "screen off"
+// Nobody touched the page for 5 min: stop asking for frames (the kid's phone keeps capturing and uploading as long as we ask,
+// and its "a parent is watching" notice stays up). One button brings the picture back.
+const SCR_IDLE = 300000;
+function screenIdle() { const b = scr.blob; screenStop(); scr.idle = true; scr.blob = b; screenMsg(""); screenCtl(); }   // the last picture can still be saved
 // screen errors from the phone (Acc.lastError): keys "se.<code>"
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const errText = e => tc("se.", e, e ? t("se.unknown", e) : "");
@@ -17,25 +21,31 @@ function showFrame(blob, lat) {
   const old = scr.url; scr.url = URL.createObjectURL(blob);
   const img = $("#s-img"); if (img) img.src = scr.url;
   if (old) URL.revokeObjectURL(old);
+  if (!scr.blob) { scr.blob = blob; screenCtl(); } else scr.blob = blob;
   scr.lat = lat; scr.frames.push(performance.now()); screenMsg(""); screenStat(); if (scr.off) { scr.off = false; screenCtl(); }
 }
 function screenStop() {
   scr.gen++; clearInterval(scr.liveT); scr.liveT = null;
   if (scr.url) { URL.revokeObjectURL(scr.url); scr.url = null; }
-  scr.frames = []; scr.seq = 0; scr.msg = "";
+  scr.frames = []; scr.seq = 0; scr.msg = ""; scr.blob = null; scr.idle = false;
 }
 function screenStart() {
   if (!cur || document.hidden) return;
   const gen = ++scr.gen, k = cur; clearInterval(scr.liveT);
+  // a redraw of the tab (state changed) is not somebody watching: stay paused until a tap / key (they move actAt)
+  if (scr.idle && Date.now() - actAt >= SCR_IDLE) { screenCtl(); return; }
+  if (scr.idle) { scr.idle = false; screenCtl(); }
+  const idle = () => { if (Date.now() - actAt < SCR_IDLE) return false; if (scr.gen === gen) screenIdle(); return true; };
   const img = $("#s-img"); if (img && scr.url) img.src = scr.url;
   screenMsg(scr.msg || t("connecting"));
   const alive = () => scr.gen === gen && tab === "screen";
   let fails = 0;   // "timeout" answers in a row (the phone's capture is still waking up)
   if (k.via === "lan") (async () => {
-    while (alive()) {
+    while (alive() && !idle()) {
       const t0 = performance.now();
       try {
-        const r = await fetch(base(k) + "/screen?max=720&q=50", { headers: { "X-KG-Token": k.token }, cache: "no-store" });
+        // a dead Wi-Fi link can hold the request open for minutes: give up after 12 s and ask again
+        const r = await fetch(base(k) + "/screen?max=720&q=50", { headers: { "X-KG-Token": k.token }, cache: "no-store", signal: quick(12000) });
         if (!r.ok) { const j = await r.json().catch(() => ({}));
           if (j.error === "timeout" && fails < 3) { fails++; if (alive()) screenMsg(t("connecting")); await sleep(600 * 2 ** fails); continue; }   // 1.2 / 2.4 / 4.8 s
           if (alive()) { screenMsg(errText(j.error) || t("scr.cant")); screenOffErr(j.error); } await sleep(1500); continue; }
@@ -50,9 +60,9 @@ function screenStart() {
     ping(); scr.liveT = setInterval(ping, 10000);
     (async () => {
       screenMsg(t("scr.wait"));
-      while (alive()) {
+      while (alive() && !idle()) {
         try {
-          const r = await fetch(base(k) + "/frame?after=" + scr.seq, { headers: { "X-KG-Token": k.token }, cache: "no-store" });
+          const r = await fetch(base(k) + "/frame?after=" + scr.seq, { headers: { "X-KG-Token": k.token }, cache: "no-store", signal: quick(20000) });   // the worker answers within ~5 s
           if (!alive()) break;
           if (r.status === 204) { const e = r.headers.get("X-KG-Err");
             if (e === "timeout" && fails < 3) { fails++; screenMsg(t("scr.wait")); await sleep(600 * 2 ** fails); continue; }
@@ -67,7 +77,7 @@ function screenStart() {
   }
 }
 // hidden page (tab in background, parent app paused): the poll timers skip their fetch; catch up at once when shown again
-document.addEventListener("visibilitychange", () => { if (document.hidden) screenStop(); else { if (cur && tab === "screen") screenStart(); if (cur) refresh(); else if (ov) ovLoad(); } });
+document.addEventListener("visibilitychange", () => { if (document.hidden) screenStop(); else { actAt = Date.now(); if (cur && tab === "screen") screenStart(); if (cur) refresh(); else if (ov) ovLoad(); } });
 
 async function sendInput(o, show = m => toast("warn|" + m)) {
   if (scr.view || !cur || screenOff()) return false;
@@ -87,6 +97,8 @@ function screenCtl() {
   const so = $("#s-off"); if (!so) return;
   const off = screenOff(), lock = off || scr.view;
   so.hidden = !off; $("#s-box").classList.toggle("off", off);
+  const si = $("#s-idle"); if (si) si.hidden = !scr.idle || off;
+  const sv = $("#s-save"); if (sv) sv.disabled = !scr.blob;
   document.querySelectorAll("#s-btns button, #s-nav button").forEach(x => x.disabled = lock);
   $("#f-stxt").disabled = lock; $("#s-send").disabled = lock || !$("#f-stxt").value;
   if (off) actPaint();
@@ -96,9 +108,10 @@ function screenTab(b) {
   b.innerHTML = `<div class="card"><div class="row"><h2 class="sp" style="margin:0">${ic("smartphone")} ${t("scr.h")}</h2>
     <label class="row"><input type="checkbox" id="s-view" ${scr.view ? "checked" : ""}> ${ic("eye")} ${t("scr.view")}</label></div>
     <div class="alert warn" id="s-off" hidden style="margin-top:10px">${ic("moon")}<span class="sp"><b>${t("so.h")}</b><br><span class="mute">${t("so.p")}</span></span><button type="button" id="wake" class="act pri"></button></div>
+    <div class="alert info" id="s-idle" hidden style="margin-top:10px">${ic("pause")}<span class="sp">${t("scr.idle")}</span><button type="button" id="s-resume" class="pri">${ic("play")} ${t("scr.resume")}</button></div>
     <div class="scr ${scr.view ? "view" : ""}" id="s-box" style="margin-top:10px"><img id="s-img" alt="${esc(t("scr.h"))}" draggable="false"><div class="scr-msg" id="s-msg"></div><svg class="gst" id="s-gst" aria-hidden="true"></svg></div>
     <div class="snav" id="s-nav" role="group" aria-label="${esc(t("key.nav"))}"><button data-key="back" aria-label="${esc(t("back"))}" title="${esc(t("back"))}">${ic("arrow-left")}</button><button data-key="home" aria-label="${esc(t("key.home"))}" title="${esc(t("key.home"))}">${ic("circle")}</button><button data-key="recents" aria-label="${esc(t("key.recents"))}" title="${esc(t("key.recents"))}">${ic("square")}</button></div>
-    <div class="mute" id="s-stat" style="margin:4px 0"></div>
+    <div class="row" style="margin:4px 0"><span class="mute sp" id="s-stat"></span><button type="button" id="s-save" class="sm" disabled>${ic("download")} ${t("scr.save")}</button></div>
     <div class="spad" id="s-btns">
       <div class="swp" role="group" aria-label="${esc(t("swp.h"))}"><span class="slab2">${t("swp.h")}</span>
         <button data-sw="up" class="u" aria-label="${esc(t("swp.up"))}" title="${esc(t("swp.up"))}">${ic("arrow-up")}</button>
@@ -154,6 +167,10 @@ function screenTab(b) {
   tx.oninput = () => { terr.textContent = ""; screenCtl(); };
   tx.onkeydown = e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); send(); } };
   $("#s-send").onclick = send;
+  $("#s-resume").onclick = () => screenStart();
+  // keeps the frame on screen now (a later frame replaces scr.blob, not this copy)
+  $("#s-save").onclick = () => { const b = scr.blob; if (!b) return; const d = new Date(), p = n => String(n).padStart(2, "0");
+    fxSave(b, `kidguard-${(cur && cur.name || "kid").replace(/[^\p{L}\p{N}_-]+/gu, "_").slice(0, 30)}-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.jpg`); toast("ok|" + t("scr.saved")); };
   $("#wake").onclick = () => act("wake", () => cmd({ type: "wake" }, t("wake.done"), false));
   screenCtl();
   let down = null;
