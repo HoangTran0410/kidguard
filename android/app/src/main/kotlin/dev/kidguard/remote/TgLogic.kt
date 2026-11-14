@@ -354,7 +354,8 @@ object TgLogic {
     const val MAX_AGE_MS = 10 * 60_000L          // urgent / destructive typed commands
     const val MAX_AGE_OTHER_MS = 60 * 60_000L    // every other typed action (owner 2026-11-15: friction without protection)
     /** Typed commands that stay 10 min: time-critical (lock, ring, wake) and destructive (release, reboot, clearData, unpair, unlink, lost, pin*). */
-    val URGENT = setOf("lock", "ring", "wake", "release", "reboot", "cleardata", "unpair", "unlink", "lost")
+    val URGENT = setOf("lock", "ring", "wake", "release", "reboot", "cleardata", "unpair", "unlink", "lost",
+        "rec", "screen", "locate", "msg")   // moment-bound / privacy: a mic or screen grab an hour late is not what the parent asked
     fun isUrgent(name: String) = name in URGENT || name.startsWith("pin")
 
     /** `/code`: the current Authenticator code, seconds it has left, and the next one; null = no valid secret. */
