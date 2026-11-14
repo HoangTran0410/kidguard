@@ -572,7 +572,6 @@
     <string name="st_no_pin">Your parent hasn\'t set a PIN yet</string>
     <string name="log_admin_open">A parent opened the management page on this phone</string>
     <string name="log_relay_rotated">Relay link replaced: every old relay link stopped working</string>
-    <string name="log_adb_tcp_timeout">Wi-Fi debugging (port 5555) closed by itself after 2 hours</string>
     <string name="ev_rules_bad_restored">The rules file on the child\'s phone was unreadable; the last good copy was restored</string>
     <string name="ev_rules_bad">The rules file on the child\'s phone was unreadable and there is no copy: no limits apply until you save the rules again</string>
     <string name="log_admin_open_code">A parent opened the management page on this phone with an Authenticator code</string>

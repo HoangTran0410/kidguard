@@ -195,7 +195,7 @@ v0.9.7:
   before; port 5555 survives adbd restarts until a reboot, so a pending `usb:` (`Store.adbTcpReset`) is retried by the tick
   while 5555 is still served. Answers `ok | no adb | blocked`. While 5555 is served, `adbShell` itself connects to `127.0.0.1:5555` first (paired key, no prompt wait), so it runs without Wi-Fi / Wireless debugging (mobile data); `sh.can` is then true even without WSS. Worker: ONCE but not SHORT (an "off" must never be dropped).
   `support` is ONCE + SHORT too (a leaked link must not replay reports into the 20/day census quota).
-- State `adbTcpUntil` (ms epoch, 0 = off / none): `adbTcp on` closes port 5555 by itself after 2 h (`DevLogic.TCP_MAX_MS`); the page shows a chip. Sending `adbTcp on` again restarts the 2 h.
+- (removed 2026-11-15) State `adbTcpUntil` / the 2 h auto-close: `adbTcp on` keeps port 5555 open until `adbTcp off`, `devOff` or release.
 - State `sh` (v0.9.14): `{can, busy, tcp, tcpUp, tcpWhy, port, log: [{at, cmd, ms, out | err}]}` (`tcpWhy` 2026-11-13: "bank" = held by a bank pause, "link" = no adb link, needs Wi-Fi, "" = trying), last 8, memory only;
   `out` ≤ 6000 chars for the newest two, 300 for older ones (state stays < ~14 KB for the relay); `err` = `adb` (no answer / timeout) or an `adbWhy` code (`sdk key wss blocked wifi`).
 

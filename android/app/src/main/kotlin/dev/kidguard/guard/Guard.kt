@@ -545,7 +545,7 @@ class Guard : Service() {
             .put("lan", lanUrl() ?: JSONObject.NULL)
             .put("net", runCatching { DeviceInfo.netState(this) }.getOrDefault(JSONObject()))
             .put("tg", runCatching { Tg.state(store) }.getOrDefault(JSONObject()))
-            .put("relay", store.relayUrl).put("relayShared", store.relayShared).put("adbTcpUntil", store.adbTcpUntil.takeIf { store.adbTcp } ?: 0)
+            .put("relay", store.relayUrl).put("relayShared", store.relayShared)
             .put("ts", Ts.stateJson(store))
             .put("grayErr", GrayFx.lastErr)
             .put("missing", JSONArray(FixPerms.missing(this).also { m -> fixMiss = m })).put("fixPerms", FixPerms.state(this, fixMiss))

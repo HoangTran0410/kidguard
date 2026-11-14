@@ -530,7 +530,7 @@ L.vi = {
   "sh.tcp": "Mở cổng adb 5555 (cắm máy tính không cần dây)", "sh.tcpOn": "cổng 5555 mở",
   "sh.tcpP": "Giống lệnh adb tcpip 5555, nhưng máy tự làm, cả sau khi khởi động lại. Gỡ lỗi USB luôn bật (tắt khi con mở app ngân hàng). Máy tính mới vẫn phải bấm Cho phép trên máy con. Khi cổng mở, lệnh adb ở trên chạy cả khi máy con chỉ có 4G. Sau khởi động lại cần Wi-Fi một lần để mở lại. Xong việc thì tắt.",
   "sh.tcpUp": "Đang mở. Trên máy tính cùng Wi-Fi, gõ:", "sh.tcpWait": "Đang mở cổng… (cần Wi-Fi, có thể mất vài phút)", "sh.tcpPend": "cổng 5555 đang chờ", "sh.tcpNow": "Mở ngay", "sh.tcpWhy.bank": "Đang chờ: app ngân hàng (cột Cổng adb) vừa đóng cổng. Rời app đó rồi bấm Mở ngay.", "sh.tcpWhy.link": "Chưa có kết nối adb: cổng đã đóng và Gỡ lỗi không dây cần Wi-Fi. Bắt Wi-Fi bất kỳ (không cần internet), rồi bấm Mở ngay. Hoặc cắm máy tính và chạy adb tcpip 5555.",
-  "sh.tcpAsk": "Mở cổng adb 5555 trên máy con? Ai cùng Wi-Fi cũng thấy cổng, và con có thể bấm cho phép bất kỳ máy tính nào trên máy con: máy tính đó sẽ điều khiển được máy con. Chỉ mở khi cần.", "sh.tcpUntil": "mở tới {0}", "sh.tcpBtn": "Mở cổng",
+  "sh.tcpAsk": "Mở cổng adb 5555 trên máy con? Ai cùng Wi-Fi cũng thấy cổng, và con có thể bấm cho phép bất kỳ máy tính nào trên máy con: máy tính đó sẽ điều khiển được máy con. Cổng mở đến khi bố mẹ đóng: chỉ mở khi cần.", "sh.tcpBtn": "Mở cổng",
   "sh.tcpAskOff": "Đóng cổng adb 5555 và trả tuỳ chọn nhà phát triển về như cũ?", "sh.tcpOffBtn": "Đóng cổng",
   "sh.tcpSent": "Đang mở cổng 5555", "sh.tcpOffSent": "Đã đóng cổng 5555",
   "cr.adbShell.no adb": "Máy con chưa có adb trên máy", "cr.adbShell.busy": "Lệnh trước còn đang chạy", "cr.adbShell.empty": "Chưa nhập lệnh",

@@ -31,11 +31,4 @@ class DevLogicTest {
         assertEquals(false, DevLogic.tcpOpen(null, false))
     }
 
-    @Test fun tcpPortClosesAfterTwoHours() {
-        assertFalse(DevLogic.tcpExpired(0, 1_000))
-        assertFalse(DevLogic.tcpExpired(5_000, 4_999))
-        assertTrue(DevLogic.tcpExpired(5_000, 5_000))
-        assertEquals(1_000 + DevLogic.TCP_MAX_MS, DevLogic.tcpDeadline(0, 1_000))   // left on by an older version: clock starts now
-        assertEquals(7_000L, DevLogic.tcpDeadline(7_000, 1_000))
-    }
 }

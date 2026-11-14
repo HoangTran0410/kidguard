@@ -99,7 +99,7 @@ function shCard() {
   const wait = s.tcpWhy ? t("sh.tcpWhy." + s.tcpWhy) : t("sh.tcpWait");
   const tcp = s.tcp ? (s.tcpUp ? `<p>${ic("check")} ${t("sh.tcpUp")}<br><code>adb connect ${esc(host || "IP")}:${s.port || 5555}</code></p>`
     : `<p class="mute">${ic("hourglass")} ${wait}</p><button id="shTcpNow">${ic("refresh-cw")} ${t("sh.tcpNow")}</button>`) : "";
-  return sec("s-sh", "terminal", t("sh.h"), t("sd.sh"), [s.tcp ? t(s.tcpUp ? "sh.tcpOn" : "sh.tcpPend") + (+st.adbTcpUntil > Date.now() ? " · " + t("sh.tcpUntil", hhmm(+st.adbTcpUntil)) : "") : +st.adbTcpUntil > Date.now() ? t("sh.tcpOn") + " · " + t("sh.tcpUntil", hhmm(+st.adbTcpUntil)) : t("sh.on"), s.tcp || +st.adbTcpUntil > Date.now() ? "warn" : ""], `<p class="mute">${t("sh.p")}</p>
+  return sec("s-sh", "terminal", t("sh.h"), t("sd.sh"), [s.tcp ? t(s.tcpUp ? "sh.tcpOn" : "sh.tcpPend") : t("sh.on"), s.tcp ? "warn" : ""], `<p class="mute">${t("sh.p")}</p>
     <div class="row" style="gap:6px"><input id="f-sh" class="sp" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="2000" placeholder="pm list packages -3" aria-label="${esc(t("sh.h"))}" value="${esc(shText)}" style="font-family:ui-monospace,Menlo,monospace">
     <button id="shRun" ${s.busy ? "disabled" : ""}>${ic(s.busy ? "hourglass" : "play")} ${t(s.busy ? "sh.busy" : "sh.run")}</button></div>
     ${log}${log ? `<button id="shClear">${ic("eraser")} ${t("sh.clear")}</button>` : ""}

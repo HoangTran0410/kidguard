@@ -554,7 +554,6 @@
     <string name="st_no_pin">Bố mẹ chưa đặt PIN</string>
     <string name="log_admin_open">Bố mẹ mở trang quản lý trên máy này</string>
     <string name="log_relay_rotated">Đã đổi link relay: mọi link relay cũ ngừng hoạt động</string>
-    <string name="log_adb_tcp_timeout">Gỡ lỗi qua mạng (cổng 5555) đã tự đóng sau 2 giờ</string>
     <string name="ev_rules_bad_restored">Tệp quy tắc trên máy con bị hỏng; đã khôi phục bản tốt gần nhất</string>
     <string name="ev_rules_bad">Tệp quy tắc trên máy con bị hỏng và không có bản sao: chưa có giới hạn nào cho đến khi bạn lưu lại quy tắc</string>
     <string name="log_admin_open_code">Bố mẹ mở trang quản lý trên máy này bằng mã Authenticator</string>

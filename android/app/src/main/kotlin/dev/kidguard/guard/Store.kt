@@ -691,10 +691,6 @@ class Store private constructor(private val app: Context) {
     var adbTcp: Boolean
         get() = p.getBoolean("adbTcp", false)
         set(v) { p.edit().putBoolean("adbTcp", v).commit() }
-    /** Wall-clock ms when `adbTcp` closes by itself ([DevLogic.TCP_MAX_MS] after the switch-on); 0 = none. */
-    var adbTcpUntil: Long
-        get() = p.getLong("adbTcpUntil", 0L)
-        set(v) { p.edit().putLong("adbTcpUntil", v).apply() }
     /** When `adbTcp` was turned off and port 5555 may still need an adbd `usb:` (0 = nothing pending). */
     var adbTcpReset: Long
         get() = p.getLong("adbTcpReset", 0L)
