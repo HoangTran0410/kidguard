@@ -21,7 +21,21 @@ class Store private constructor(private val app: Context) {
     /** A stored JSON string as is: a cheap "did it change" key (no parse). */
     @Synchronized fun raw(k: String): String = p.getString(k, "") ?: ""
 
-    @get:Synchronized @set:Synchronized var rules: Rules
+    /**
+     * What is ENFORCED now: the stored rules with an active timed mode laid over them (Rules.effective). Read-only on purpose:
+     * every writer (setRules, release, PIN, Telegram edits) works on [baseRules] or a mode would be baked into the base.
+     */
+    val rules: Rules
+        @Synchronized get() {
+            val b = baseRules; val m = b.mode ?: return b
+            val now = System.currentTimeMillis()
+            if (b === effBase && now < effUntil) effObj?.let { return it }
+            return b.effective(now).also { effBase = b; effObj = it; effUntil = m.until }
+        }
+    private var effBase: Rules? = null; private var effObj: Rules? = null; private var effUntil = 0L
+
+    /** The stored rules as the parent sees and edits them (incl. `mode`). */
+    @get:Synchronized @set:Synchronized var baseRules: Rules
         get() {
             // parsed once per stored string: Rules is immutable, and the launcher + Guard read it many times a minute
             // (1-5 ms of JSON per read on an Oppo A5s)
@@ -229,7 +243,7 @@ class Store private constructor(private val app: Context) {
         val pp = pending.take(sha256(t), now) ?: return false
         val e = p.edit().putStringSet("tokens", tokenHashes() + sha256(t)).putBoolean("everPaired", true)
             .remove("pairUntil").remove("pairCode").putInt("wrong", 0).remove("pairBlock").remove("recoverAt")
-        val r = rules
+        val r = baseRules
         if (pp.hash.isNotEmpty() && r.pinHash.isBlank())
             r.copy(pinHash = pp.hash, pinSalt = pp.salt, rev = maxOf(r.rev + 1, now)).toJson(persist = true).toString().let { j -> e.putString("rules", j).putString("rulesGood", j) }
         e.commit()

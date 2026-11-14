@@ -88,10 +88,10 @@ class Api(private val g: Guard) {
             p == "/rules" && r.method == "PUT" -> {
                 val body = JSONObject(r.text)
                 var incoming = Rules.fromJson(body)
-                if (!body.has("pin") && !body.has("pinHash")) incoming = incoming.copy(pinHash = store.rules.pinHash, pinSalt = store.rules.pinSalt)   // both: a salted hash without its salt never matches
-                val rev = maxOf(store.rules.rev + 1, System.currentTimeMillis())
+                if (!body.has("pin") && !body.has("pinHash")) incoming = incoming.copy(pinHash = store.baseRules.pinHash, pinSalt = store.baseRules.pinSalt)   // both: a salted hash without its salt never matches
+                val rev = maxOf(store.baseRules.rev + 1, System.currentTimeMillis())
                 g.setRules(incoming.copy(rev = rev))
-                Res.json(store.rules.toJson().also { it.put("pinSet", store.rules.pinHash.isNotEmpty()); it.remove("pinHash") }.toString())
+                Res.json(store.baseRules.toJson().also { it.put("pinSet", store.baseRules.pinHash.isNotEmpty()); it.remove("pinHash") }.toString())
             }
             p == "/cmd" && r.method == "POST" -> {
                 val c = JSONObject(r.text)

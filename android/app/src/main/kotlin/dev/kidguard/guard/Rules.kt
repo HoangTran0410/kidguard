@@ -130,6 +130,34 @@ object Totp {
 }
 
 /** What the parent set. Plain data + JSON, so the same shape travels over LAN and the relay. */
+/**
+ * A timed mode (0.9.22, "Sick day until 20:00"): [over] is a partial rules JSON (only [OVER_KEYS]) laid over the base rules
+ * while now < [until] (epoch ms: timezone-free, so it ends at the same instant on the phone and on the parent's screen).
+ * The phone reverts by itself, offline: [Rules.effective] ignores an expired mode, the tick drops it from the stored rules.
+ */
+data class Mode(val name: String, val until: Long, val over: JSONObject) {
+    fun active(nowMs: Long) = nowMs < until
+    fun toJson(): JSONObject = JSONObject().put("name", name).put("until", until).put("rules", over)
+
+    companion object {
+        const val NAME_MAX = 24
+        /** What a mode may change. Everything else (PIN, lost mode, zones, launcher, DNS, ...) stays the base rules' business. */
+        val OVER_KEYS = setOf("dailyMin", "dailyByDay", "appMin", "blocked", "allow", "bedtime", "bedByDay", "schedules", "groups",
+            "blockNew", "noInstall", "monitor", "windDown", "oneMore")
+
+        fun fromJson(o: JSONObject?): Mode? {
+            o ?: return null
+            val until = o.optLong("until", 0)
+            val name = Notes.clean(o.optString("name", ""), NAME_MAX)
+            if (until <= 0 || name.isBlank()) return null
+            val src = o.optJSONObject("rules") ?: JSONObject()
+            val over = JSONObject()
+            OVER_KEYS.forEach { k -> if (src.has(k)) over.put(k, src.get(k)) }
+            return Mode(name, until, over)
+        }
+    }
+}
+
 data class Rules(
     val rev: Long = 0,                       // ms of the last edit; the newer one wins
     val dailyMin: Int = 0,                   // 0 = no daily limit
@@ -188,7 +216,21 @@ data class Rules(
     val lostLock: Boolean = true,            // 0.9.21 lost mode locks the phone (+ message card) on enter and every unlock
     val lostRing: Boolean = true,            // 0.9.21 lost mode rings 5 min every 15 min (locating is always on)
     val msgs: List<String> = emptyList(),    // 0.9.21 the parent's own quick messages (page + watch), MSGS_MAX x MSG_MAX
+    val mode: Mode? = null,                  // 0.9.22 timed mode: overrides for a while, then gone by itself (see Mode)
 ) {
+    /**
+     * The rules the phone enforces at [nowMs]: the base rules with an active [mode] laid over them. Expired or no mode = the
+     * base without the mode. PIN, rev and the mode itself never come from the override.
+     */
+    fun effective(nowMs: Long): Rules {
+        val m = mode ?: return this
+        if (!m.active(nowMs) || m.over.length() == 0) return copy(mode = null)
+        val j = toJson(persist = true)
+        j.remove("mode")
+        m.over.keys().forEach { k -> j.put(k, m.over.get(k)) }
+        return fromJson(j).copy(pinHash = pinHash, pinSalt = pinSalt, rev = rev, mode = m)
+    }
+
     /** The Private DNS host that should be active at [nowMs]: "" while paused or off. */
     fun dnsHost(nowMs: Long = System.currentTimeMillis()): String = if (nowMs < safeDnsPauseUntil) "" else safeDns
 
@@ -218,6 +260,7 @@ data class Rules(
         .put("passUntil", passUntil).put("bedByDay", JSONArray(bedByDay)).put("oneMore", oneMore)
         .put("lostOn", lostOn).put("lostMsg", lostMsg).put("lostPhone", lostPhone).put("lostLock", lostLock).put("lostRing", lostRing)
         .put("msgs", JSONArray(msgs))
+        .also { if (mode != null) it.put("mode", mode.toJson()) }
         .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
 
     /** True when [pin] matches the stored hash (legacy or salted). False when no PIN is set. */
@@ -310,6 +353,7 @@ data class Rules(
                 lostOn = o.optBoolean("lostOn", false),
                 lostMsg = Notes.clean(o.optString("lostMsg", ""), LOST_MSG_MAX),
                 lostPhone = Notes.clean(o.optString("lostPhone", ""), LOST_PHONE_MAX),
+                mode = Mode.fromJson(o.optJSONObject("mode")),
                 msgs = o.optJSONArray("msgs").strings().map { Notes.clean(it, MSG_MAX) }.filter { it.isNotBlank() }.distinct().take(MSGS_MAX),
                 lostLock = o.optBoolean("lostLock", true),
                 lostRing = o.optBoolean("lostRing", true),
