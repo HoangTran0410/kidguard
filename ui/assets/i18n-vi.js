@@ -382,6 +382,7 @@ L.vi = {
   "tip.more": "Xem giải thích",
   "no.anti": "chặn Tuỳ chọn nhà phát triển / ADB", "no.ni": "không cho cài app",
   "pin.bad": "PIN 4–8 số",
+  "dg.h": "Tóm tắt buổi tối", "dg.p": "Gửi tóm tắt mỗi tối", "dg.at": "Giờ gửi", "dg.n": "Giờ màn hình, app dùng nhiều, xin thêm giờ, app bị khoá và giờ ngủ. Chủ nhật thêm tóm tắt tuần.",
   "notif.h": "Thông báo", "notif.p": "Thông báo trên máy này (con xin thêm giờ, mất kết nối)",
   "notif.blocked": "Android đang chặn thông báo của KidGuard: bật lại trong Cài đặt > Ứng dụng > KidGuard Parent > Thông báo.",
   "notif.blockedShort": "Android đang chặn thông báo, bật trong Cài đặt của app",

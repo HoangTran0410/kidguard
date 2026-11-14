@@ -84,6 +84,9 @@ class Bridge(private val a: MainActivity) {
     /** Rule templates (page "Mẫu luật"); same reason as getKids. */
     @JavascriptInterface fun getTpl(): String = Store.tpl(a)
     @JavascriptInterface fun setTpl(json: String) = Store.setTpl(a, json)
+    /** Evening summary setting: `{"on": false, "at": "20:00"}` / set with on = "true"|"false" and at = "HH:mm". */
+    @JavascriptInterface fun getDigest(): String = org.json.JSONObject().put("on", Store.digestOn(a)).put("at", Store.digestAt(a)).toString()
+    @JavascriptInterface fun setDigest(on: String, at: String) { Store.setDigest(a, on == "true", at) }
     @JavascriptInterface fun getNotify() = Store.notify(a).toString()
     /** "true" when the OS lets us show notifications (permission + not disabled in settings). */
     @JavascriptInterface fun canNotify() = CheckJob.canNotify(a.applicationContext).toString()

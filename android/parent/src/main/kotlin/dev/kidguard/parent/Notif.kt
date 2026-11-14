@@ -82,6 +82,14 @@ object Notif {
         }
     }
 
+    /** The evening summary ([dev.kidguard.Digest]): [m] is the text, [n] 0 = daily, 1 = weekly (own notification). */
+    fun postDigest(c: Context, k: Logic.KidCfg, m: String, n: Int) {
+        val title = m.substringBefore("\n")
+        val nt = Notification.Builder(c, CheckJob.INFO_CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle(title).setContentText(m.substringAfter("\n").replace("\n", " · "))
+            .setStyle(Notification.BigTextStyle().bigText(m.substringAfter("\n"))).setContentIntent(openKid(c, k)).setAutoCancel(true).build()
+        nm(c).notify(nid(k, "digest$n"), nt)
+    }
+
     /** One summary per kid so several kids' alerts stack per kid instead of one long list. Silent: the children alert. */
     private fun summary(c: Context, k: Logic.KidCfg) {
         val n = Notification.Builder(c, CheckJob.INFO_CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle(k.name).setSubText(k.name)

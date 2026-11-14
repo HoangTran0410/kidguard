@@ -82,7 +82,7 @@ object TgLogic {
             "📱 APP\n/block – chọn app để chặn\n/unblock – bỏ chặn app\n\n" +
             "🎛 ĐIỀU KHIỂN\n/lock – khoá màn hình\n/ring – đổ chuông (tìm máy)\n/msg – hiện lời nhắn trên máy con\n/lost – chế độ thất lạc (bật cần xác nhận; /lost off để tắt)\n\n" +
             "📸 TỪ XA\n/screen – chụp màn hình\n/rec – ghi âm xung quanh (máy con có thông báo)\n/files – file của con · gửi file vào đây = chuyển sang máy con\n\n" +
-            "⚙️ /menu – bảng nút bấm\n/quiet – mức báo của chat này: mọi cảnh báo · quan trọng · chỉ SOS\n/lang – đổi ngôn ngữ (English)\n/unlink – ngừng nhận ở chat này\n\n" +
+            "⚙️ /menu – bảng nút bấm\n/quiet – mức báo của chat này: mọi cảnh báo · quan trọng · chỉ SOS\n/digest – tóm tắt mỗi tối (bật · tắt · giờ)\n/lang – đổi ngôn ngữ (English)\n/unlink – ngừng nhận ở chat này\n\n" +
             "Số phút viết kiểu 30, 90, 2h, 1h30.",
         "linkAsk" to "👋 Đây là bot KidGuard riêng của nhà bạn. Gửi mã 6 số đang hiện trong KidGuard (Cài đặt > Telegram) để liên kết chat này.",
         "linked" to "✅ Đã liên kết với máy của %1\$s. Từ giờ chat này nhận báo SOS, xin thêm giờ, cảnh báo. Bấm nút bên dưới hoặc /help.",
@@ -177,6 +177,10 @@ object TgLogic {
         "groupHint" to "Mở chat riêng với bot để liên kết (bot không điều khiển trong nhóm).",
         "subQuiet" to "🔕 Chat này muốn nhận báo mức nào? (hiện tại: %1\$s)",
         "q.all" to "Mọi cảnh báo", "q.important" to "Quan trọng", "q.sos" to "Chỉ SOS",
+        "digestOn" to "Đã bật tóm tắt mỗi tối lúc %1\$s (Chủ nhật thêm tóm tắt tuần). Đổi giờ: /digest 21:00. Tắt: /digest off.",
+        "digestOff" to "Đã tắt tóm tắt mỗi tối.",
+        "digestIs" to "Tóm tắt mỗi tối: bật lúc %1\$s. Đổi giờ: /digest 21:00. Tắt: /digest off. Hôm nay đến giờ này:",
+        "digestIsOff" to "Tóm tắt mỗi tối: tắt. Bật: /digest on (lúc %1\$s) hoặc /digest 21:00. Hôm nay đến giờ này:",
         "quietDone" to "Mức báo của chat này: %1\$s. (Cảnh báo thường luôn tới không kêu chuông.)",
         "passDone" to "Đã cho thêm %1\$d phút, dùng được tới %2\$s (đang %3\$s nên không tính vào giới hạn ngày).",
         "bonusPanel" to "✅ Đã cho thêm %1\$d phút hôm nay (tổng thêm %2\$d phút).",
@@ -205,7 +209,7 @@ object TgLogic {
             "📱 APPS\n/block – pick an app to block\n/unblock – unblock an app\n\n" +
             "🎛 CONTROL\n/lock – lock the screen\n/ring – ring (find the phone)\n/msg – show a message on the phone\n/lost – lost mode (needs a confirm; /lost off to end)\n\n" +
             "📸 REMOTE\n/screen – screenshot\n/rec – record the sound around (the phone shows a notice)\n/files – the child's files · send a file here = to the phone\n\n" +
-            "⚙️ /menu – the button panel\n/quiet – this chat's alert level: all · important · SOS only\n/lang – language (Tiếng Việt)\n/unlink – stop this chat\n\n" +
+            "⚙️ /menu – the button panel\n/quiet – this chat's alert level: all · important · SOS only\n/digest – evening summary (on · off · time)\n/lang – language (Tiếng Việt)\n/unlink – stop this chat\n\n" +
             "Minutes: 30, 90, 2h, 1h30.",
         "linkAsk" to "👋 This is your family's own KidGuard bot. Send the 6-digit code shown in KidGuard (Settings > Telegram) to link this chat.",
         "linked" to "✅ Linked to %1\$s's phone. This chat now gets SOS, more-time requests and alerts. Use the buttons below or /help.",
@@ -298,6 +302,10 @@ object TgLogic {
         "groupHint" to "Open a private chat with the bot to link (the bot does not take commands in groups).",
         "subQuiet" to "🔕 Which alerts should this chat get? (now: %1\$s)",
         "q.all" to "All alerts", "q.important" to "Important", "q.sos" to "SOS only",
+        "digestOn" to "Evening summary on at %1\$s (plus a weekly one on Sunday). Change the time: /digest 21:00. Stop: /digest off.",
+        "digestOff" to "Evening summary off.",
+        "digestIs" to "Evening summary: on at %1\$s. Change the time: /digest 21:00. Stop: /digest off. Today so far:",
+        "digestIsOff" to "Evening summary: off. Start: /digest on (at %1\$s) or /digest 21:00. Today so far:",
         "quietDone" to "This chat's alert level: %1\$s. (Normal alerts always arrive without a ring.)",
         "passDone" to "Gave %1\$d more minutes, usable until %2\$s (it is %3\$s now, so it does not count against the daily limit).",
         "bonusPanel" to "✅ %1\$d more minutes today (%2\$d extra in total).",

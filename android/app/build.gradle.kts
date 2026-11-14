@@ -46,6 +46,7 @@ android {
     }
     // one UI for the APK (LAN) and the worker (away): ui/index.html + ui/assets/
     sourceSets["main"].assets.srcDirs("../../ui")
+    sourceSets["main"].java.srcDir("../shared")   // Digest.kt: one evening-summary builder for the child app (Telegram) and the parent app (notification)
     // the apps serve only index.html + assets/; the installer pages + their bundle are for the worker / a browser
     androidResources {
         ignoreAssetsPatterns += listOf("!install.html", "!qr.html", "!provision.json", "!vendor")

@@ -379,6 +379,7 @@ L.en = {
   "tip.more": "Show details",
   "no.anti": "blocking Developer options / ADB", "no.ni": "blocking installs",
   "pin.bad": "PIN must be 4–8 digits",
+  "dg.h": "Evening summary", "dg.p": "Send a summary every evening", "dg.at": "Time", "dg.n": "Screen time, top apps, requests, locks and bedtime. Sunday adds the week.",
   "notif.h": "Notifications", "notif.p": "Notifications on this phone (time requests, lost connection)",
   "notif.blocked": "Android is blocking KidGuard's notifications: turn them back on in Settings > Apps > KidGuard Parent > Notifications.",
   "notif.blockedShort": "Android is blocking notifications, turn them on in the app's settings",

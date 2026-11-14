@@ -26,6 +26,12 @@ object Store {
     fun setNotifAsked(c: Context) { p(c).edit().putBoolean("notifAsked", true).apply() }
     fun notify(c: Context): Boolean = p(c).getBoolean("notify", true)
     fun setNotify(c: Context, v: Boolean) { p(c).edit().putBoolean("notify", v).apply() }
+    /** Evening summary notification (off by default): on, time "HH:mm", last day shown per kid. */
+    fun digestOn(c: Context): Boolean = p(c).getBoolean("dgOn", false)
+    fun digestAt(c: Context): String = p(c).getString("dgAt", "20:00") ?: "20:00"
+    fun setDigest(c: Context, on: Boolean, at: String) { p(c).edit().putBoolean("dgOn", on).putString("dgAt", if (dev.kidguard.Digest.minutes(at) != null) at else "20:00").apply() }
+    fun digestDay(c: Context, key: String): String = p(c).getString("dgd:" + sha(key), "") ?: ""
+    fun setDigestDay(c: Context, key: String, day: String) { p(c).edit().putString("dgd:" + sha(key), day).apply() }
     /** History retention in days, 0 = unlimited (default). */
     fun tpl(c: Context): String = p(c).getString("tpl", "[]") ?: "[]"
     fun setTpl(c: Context, json: String) { if (json.length <= 50_000) p(c).edit().putString("tpl", json).apply() }

@@ -77,6 +77,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | **Nghe xung quanh** | ✅ | ✅ | ✅ | ✅ | ❌ | **Chỉ LAN / Tailscale** (Relay không có đường âm thanh). Cần quyền micro |
 | Chụp ảnh người nhập sai PIN (trang quản lý trên máy) | ✅ | ✅ | ✅ | ✅ | ✅ | DO tự cấp quyền camera; CB: bố mẹ cho phép 1 lần sau khi mở đúng PIN. Không có trong bản Home. Relay: tải qua kênh file |
 | Chế độ thất lạc (`lostOn`) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | DO: `lockNow` mỗi lần mở máy, lời nhắn + số trên màn hình khóa. CB: thẻ phủ toàn màn hình (Safe Mode vẫn lách). Cả hai: định vị 5 phút/lần, đổ chuông 5 phút mỗi 15 phút. Telegram `/lost` |
+| Tóm tắt buổi tối (`/digest` Telegram, thông báo app phụ huynh) | ✅ | ✅ | ✅ | ✅ | ❌ | Mặc định tắt. Giờ ngủ "giữ đúng" cần quyền xem mức dùng. Qua LAN/Tailscale/relay đều được (app phụ huynh cần lấy được trạng thái buổi tối) |
 | Bot Telegram (/status, /bonus, /lock, /block, /locate, /screen, /rec, file…) | ✅ | ✅ | ✅ | ✅ | ⚠️ | Cần internet trên máy con, không cần relay/LAN. /screen cần Trợ năng (Android 11+), /rec cần quyền micro, /lock cần Quản trị thiết bị |
 | Gửi lỗi cho nhà phát triển (Thêm › Gửi lỗi, cả trang quản lý trên máy) | ✅ | ✅ | ✅ | ✅ | ✅ | Máy con tự gửi tới worker `tvr-census` (cần internet). Không có trong bản KidGuard Home (không có Guard) |
 | Tự gửi crash cho nhà phát triển (lần mở app sau khi crash) | ✅ | ✅ | ✅ | ✅ | ✅ | Worker `tvr-census` `/v1/crash` (cần internet, chờ tới lần có mạng). Có cả bản KidGuard Home (`v` thêm `-home`) |

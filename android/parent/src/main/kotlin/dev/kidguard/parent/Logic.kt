@@ -164,7 +164,8 @@ object Logic {
                val loc: Loc? = null,
                val appReqs: Map<String, String> = emptyMap(),   // 0.9.16: request id -> app label of the open "may I open this app" requests (kind "app")
                val bedtime: Boolean = false,   // state.now.why == "bedtime": a phone that goes quiet now is just asleep
-               val snap: WidgetLogic.Snap? = null)   // 0.9.22: what the home-screen widget shows ([KidWidget])
+               val snap: WidgetLogic.Snap? = null,   // 0.9.22: what the home-screen widget shows ([KidWidget])
+               val digest: dev.kidguard.Digest.Input? = null)   // evening summary data, null when the state could not be read
 
     /** key: unique per event, used as notification id. [min]: a request's minutes; [loc]: the kid's last fix (SOS "show location"). */
     class Event(val key: String, val text: String, val min: Int = 0, val loc: Loc? = null,

@@ -259,7 +259,7 @@ object Tg {
     private fun setCommands(tok: String, lang: String) { for (l in listOf<String?>(null, "vi", "en")) setCommandsFor(tok, l ?: lang, l) }
     private fun setCommandsFor(tok: String, lang: String, code: String?) {
         fun body() = JSONObject().apply { if (code != null) put("language_code", code) }
-        val names = listOf("menu", "status", "apps", "locate", "events", "bonus", "pause", "resume", "lock", "ring", "msg", "block", "unblock", "limit", "bed", "screen", "rec", "files", "code", "requests", "quiet", "lost", "help", "lang", "unlink")
+        val names = listOf("menu", "status", "apps", "locate", "events", "bonus", "pause", "resume", "lock", "ring", "msg", "block", "unblock", "limit", "bed", "screen", "rec", "files", "code", "requests", "quiet", "digest", "lost", "help", "lang", "unlink")
         val help = TgLogic.s(lang, "help", "").lines().drop(1)
         val desc = names.associateWith { n -> help.firstOrNull { Regex("(^|\\s)/$n(\\s|$)").containsMatchIn(it) && it.contains(" – ") }?.substringAfter("– ")?.substringBefore(" · ")?.take(60) ?: n }
         call(tok, "setMyCommands", body().put("commands", JSONArray().apply { names.forEach { put(JSONObject().put("command", it).put("description", desc[it])) } }))
@@ -375,6 +375,19 @@ object Tg {
                 val l = c.args.firstOrNull()?.lowercase()?.takeIf { it == "all" || it == "important" || it == "sos" }
                 if (l != null) { s.tgSetChatQuiet(chat, l); show(TgLogic.s(lang, "quietDone", TgLogic.s(lang, "q.$l")), TgLogic.quietKb(lang, l)) }
                 else s.tgChatQuiet(chat).let { cur -> show(TgLogic.s(lang, "subQuiet", TgLogic.s(lang, "q.$cur")), TgLogic.quietKb(lang, cur)) }
+            }
+            "digest" -> {   // evening summary: /digest on|off|HH:mm, none = state + a preview now
+                val a = c.args.firstOrNull()?.lowercase()
+                val (on0, at0, _) = s.tgChatDigest(chat)
+                when {
+                    a == "on" -> { s.tgSetChatDigest(chat, on = true); say("digestOn", at0) }
+                    a == "off" -> { s.tgSetChatDigest(chat, on = false); say("digestOff") }
+                    a != null && Digest.minutes(a) != null -> { s.tgSetChatDigest(chat, on = true, at = "%02d:%02d".format(Digest.minutes(a)!! / 60, Digest.minutes(a)!! % 60)); say("digestOn", s.tgChatDigest(chat).second) }
+                    else -> {
+                        say(if (on0) "digestIs" else "digestIsOff", at0)
+                        send(s, chat, Digest.daily(Digest.fromState(g.currentState(), kidName(g)), lang))
+                    }
+                }
             }
             "lost" -> {
                 val first = c.args.firstOrNull()?.lowercase(); val on = s.rules.lostOn
@@ -636,6 +649,7 @@ object Tg {
         if (s.tgToken.isBlank()) return
         start(g)   // no-op while the poll thread lives; brings a dead one back
         val now = System.currentTimeMillis()
+        if (!markOnly) digestTick(g, s, now)
         if (copies.isNotEmpty()) alerts.execute { runCatching { resolveGone(s, now) } }
         val seen = s.tgSeen().toHashSet()
         val sos = s.sos(); val reqs = s.requests(); val evs = s.events()
@@ -671,6 +685,24 @@ object Tg {
             }
         }
     }
+
+    /** Evening summary: every chat that turned it on (/digest) gets today's message once after its time; on Sunday the weekly one follows. */
+    private fun digestTick(g: Guard, s: Store, now: Long) {
+        val chats = s.tgChats(); val today = Digest.dayKey(now, java.util.TimeZone.getDefault())
+        val due = (0 until chats.length()).mapNotNull { chats.optJSONObject(it)?.optLong("id") }.filter { id ->
+            val (on, at, last) = s.tgChatDigest(id); Digest.due(on, at, last, now) && (digestBusy[id] ?: 0L) <= now }
+        if (due.isEmpty()) return
+        due.forEach { digestBusy[it] = now + 30_000L }
+        alerts.execute {
+            val inp = Digest.fromState(g.currentState(), kidName(g))
+            for (id in due) {
+                val lang = s.tgChatLang(id)
+                val sent = runCatching { Digest.messages(inp, lang, now).map { ok(send(s, id, it, null, true)) }.all { it } }.getOrDefault(false)
+                if (sent) { s.tgSetChatDigest(id, day = today); digestBusy.remove(id) }
+            }
+        }
+    }
+    private val digestBusy = capped<Long>(20)
 
     /** Alerts whose request / SOS is gone (answered on the page, in the parent app, by another chat, or expired): every copy says so. */
     private fun resolveGone(s: Store, now: Long) {
