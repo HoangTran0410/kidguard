@@ -44,7 +44,7 @@ When you settle something durable (a decision, a rejected approach, a platform q
 ## Layout (where is X)
 Root: `android/` (Gradle: `app/` child app with flavors `kid` + `home`, `parent/` parent app), `ui/` (parent page +
 installers, also the APK assets dir and imported by the worker), `relay/` (Cloudflare Worker + Durable Object), `website/`
-(static site kid-guard.pages.dev), `docs/`, `scripts/` (build, setup, relay deploy). Build outputs: `build/`.
+(static site kid-guard.pages.dev), `watch/` (Zepp OS parent app for Amazfit Bip Max: `app-side/` runs in the Zepp phone app and talks to the relay like the page, `page/` = watch screens; build `cd watch && npm ci && zeus build`, install `tools/install.exp` = the owner's watch, ask first), `docs/`, `scripts/` (build, setup, relay deploy). Build outputs: `build/`.
 
 `K/` = `android/app/src/main/kotlin/dev/kidguard/`:
 | Area | Files |
