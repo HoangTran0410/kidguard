@@ -17,6 +17,10 @@ function applyTheme() { if (theme === "auto") document.documentElement.removeAtt
 applyTheme();
 const themeBtn = () => `<button type="button" class="rb" data-theme-btn aria-label="${esc(t("theme.h") + ": " + t("theme." + theme))}" title="${esc(t("theme.h") + ": " + t("theme." + theme))}">${ic(theme === "auto" ? "sun-moon" : theme === "dark" ? "moon" : "sun")}</button>`;
 document.addEventListener("click", e => {
+  if (e.target.closest("#fixPermsBtn")) cmd({ type: "fixPerms" }, t("fp.sent"), false).then(r => {
+    if (r && r.result === "none") toast(t("fp.none"));
+    [2000, 6000, 15000].forEach(ms => setTimeout(refresh, ms));
+  });
   const b = e.target.closest && e.target.closest("[data-theme-btn]"); if (!b) return;
   theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]; try { localStorage.setItem("kg.theme", theme); } catch {}
   applyTheme(); document.querySelectorAll("[data-theme-btn]").forEach(x => { x.outerHTML = themeBtn(); });
@@ -500,8 +504,14 @@ function updateLive() {
     B.push(["info", "landmark", t("bk.live", esc(bkApps.map(p => ((st.apps || []).find(a => a.pkg === p) || {}).label || p).join(", ")), what) + " " + when
       + (st.bankBackAt !== undefined ? ` <button type="button" class="pill" id="bankEndBtn">${ic("refresh-cw")} ${t("bk.endNow")}</button>` : "")]);
   }
-  else if (st.acc === false) B.push(["warn", "triangle-alert", t("live.acc")]);
-  if (st.usageAccess === false || st.usageOff) B.push(["bad", "triangle-alert", t("live.usage")]);
+  else if (st.acc === false && !Array.isArray(st.missing)) B.push(["warn", "triangle-alert", t("live.acc")]);
+  if (Array.isArray(st.missing) && st.missing.length) {   // phones >= 0.9.22: one band, one Fix (docs/protocol.md "missing")
+    const m = st.missing, fp = st.fixPerms || {}, names = m.map(capName).join(", "), tap = (fp.tap || []).filter(x => m.includes(x));
+    B.push(["bad", "triangle-alert", (m.length === 1 ? t("fp.live1", esc(names)) : t("fp.live", m.length, esc(names)))
+      + (fp.busy ? ` <span class="mute">${t("fp.busy")}</span>` : tap.length && Date.now() - fp.at < 3600e3 ? ` <span class="mute">${t("fp.tap", esc(tap.map(capName).join(", ")))}</span>` : "")
+      + (fp.busy ? "" : ` <button type="button" class="pill" id="fixPermsBtn">${ic("wrench")} ${t("fp.btn")}</button>`)]);
+  }
+  if ((st.usageAccess === false || st.usageOff) && !Array.isArray(st.missing)) B.push(["bad", "triangle-alert", t("live.usage")]);
   if (st.dnsError) B.push(["warn", "triangle-alert", t("live.dns", esc(st.dnsError))]);
   if (st.locationOn === false) B.push(["warn", "triangle-alert", t("live.locOff")]);
   const B2 = B.filter(x => !(x[3] && banHid.has(x[3])));

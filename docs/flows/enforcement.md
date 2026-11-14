@@ -145,6 +145,8 @@ Trigger: command `release` (relay: deliver-once; LAN: `POST /api/cmd`). `Guard.c
 
 ### 1.10 Other commands in `Guard.run` (Guard.kt:436)
 
+`fixPerms` (2026-11-14, `guard/FixPerms.kt`): `missing(ctx)` = state `missing` (admin/acc basic only, usage, listener, location, notify, battery). `fix`: thread -> DO `setPermissionGrantState` (location, notifications) + `Acc.ensureEnabled` (WSS) -> `AutoGrant.missing` cmds over `SelfAdb.run` if the link is up -> what is left: `ask` starts the first Settings screen (only if `AccPause.canReopen`) + notification id 8 (channel `fix`). Result `ok|working|none`, details in state `fixPerms`. Page: live band `#fixPermsBtn` in `shell.js`. Not covered: OEM auto-start (undetectable).
+
 Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`, `clearData`, `setting` -> `Sys.set`, `devOff/devOn` -> DevOpts, `relay` (relay URL/token), `unpair/unpairAll`, `answer`, `sosAck`, `update`, tailscale*, file*. `Sys`: volume via AudioManager; brightness/timeout via DPM.setSystemSetting (owner) else Settings.System; DND via NotificationManager (needs policy access); state cached 60 s (Sys.kt:36) and must read back or "not applied".
 
 ### 1.11 Basic mode (no Device Owner)

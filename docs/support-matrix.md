@@ -85,6 +85,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Bật/tắt Tùy chọn nhà phát triển (`devOn`/`devOff`) | ✅ | ❌ | ✅ | ✅ | ✅ | Cần WSS. Không chạy khi bật luật "chặn gỡ lỗi" |
 | Lệnh adb từ xa (`adbShell`, Cài đặt › Lệnh adb) + mở cổng 5555 (`adbTcp`) | ✅* | ✅* | ✅* | ✅ | ✅ | *Cần adb trên máy đã ghép (Android 11+, WSS, Wi-Fi). Cần PIN mỗi lệnh. Không qua Telegram |
 | Tự cấp lại quyền thiếu (usage, thông báo, pin, vị trí) | – | ✅* | ✅* | ✅ | – | *Khi đã ghép adb trên máy; 30 phút/lần, lùi 6 giờ nếu máy hãng chặn |
+| Nút "Sửa" khi máy con mất quyền (`fixPerms`, thẻ "N thứ đang tắt") | – | ⚠️ | ⚠️ | ✅ | ✅ | DO: tự cấp vị trí + thông báo (DPM); Trợ năng tự bật lại khi có WSS; còn lại qua adb trên máy nếu đã ghép. Phần còn thiếu: mở đúng màn hình Cài đặt trên máy con (DO / quyền hiển thị trên app khác mở được từ nền) + thông báo bấm để mở; CB vẫn cần con chạm. Không phát hiện được trang tự khởi động của hãng (OEM) |
 | Cài đặt máy (âm lượng, độ sáng, hẹn giờ tắt màn hình, Không làm phiền) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | Âm lượng luôn được; độ sáng/hẹn giờ cần quyền "sửa cài đặt hệ thống"; Không làm phiền cần quyền DND |
 | Tự cập nhật KidGuard | ✅ im lặng | ⚠️ | ⚠️ | ⚠️ | ✅ | CB: tải và kiểm tra sẵn, con phải bấm cài |
 | Đổi relay (`relay`) | ✅ | ✅ | ✅ | ✅ | ❌ | **Chỉ LAN**: đổi chính đường relay |

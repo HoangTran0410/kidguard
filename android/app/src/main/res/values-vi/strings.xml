@@ -154,6 +154,9 @@
     <string name="log_file_push_fail">Chưa gửi được "%1$s" cho bố mẹ. Kiểm tra mạng của máy này rồi thử lại.</string>
     <string name="log_file_dropped">Tệp "%1$s" từ bố mẹ không lưu được (%2$s)</string>
     <string name="log_autogrant">Tự cấp lại %1$s quyền còn thiếu (adb trên máy)</string>
+    <string name="log_fixperms">Phụ huynh bấm Sửa: %1$s quyền đã cấp lại, %2$s cần chạm trên máy</string>
+    <string name="ch_fix">Quyền cần bật</string>
+    <string name="fix_note">Phụ huynh nhờ con bật: %1$s. Chạm để mở.</string>
     <string name="log_dev_on">Bố mẹ đã bật lại Tuỳ chọn nhà phát triển và gỡ lỗi USB</string>
     <string name="log_dev_off">Bố mẹ đã tắt Tuỳ chọn nhà phát triển và gỡ lỗi USB</string>
     <string name="log_totp_off">Đã tắt mã mở khoá</string>
