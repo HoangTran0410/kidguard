@@ -143,9 +143,11 @@ function base(k) { return (APP ? "/k/" + b64u(k.target) : direct(k)) + (k.via ==
 // the kids the home list shows: app = every kid with an address; LAN browser = every LAN kid saved on this origin
 const homeKids = () => APP ? kids.filter(k => k.target) : kids.filter(k => k.via === "lan");
 // Error with a readable message (keys "e.<code>"); .raw keeps the original code for logic ("not live", "not paired"), .net = our own network failed
-function errOf(raw, msg) {
+function errOf(raw, msg, retryAt) {
   let m = msg || tc("e.", raw, "");
   if (!m) { const h = /^HTTP (\d+)$/.exec(raw); m = h ? t("e.http", h[1]) : raw; }
+  // relay 429 with a reset time (daily caps): say when it works again
+  if (retryAt > Date.now()) { const d = new Date(retryAt); m += " " + t("e.retryAt", retryAt - Date.now() > 12 * 3600e3 ? d.toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })); }
   const e = new Error(m); e.raw = raw; e.net = raw === "net"; return e;
 }
 // X-KG-Name: how this browser shows up in the kid's "paired parent devices" list (state.devices[].name). ASCII only:
@@ -167,7 +169,7 @@ async function call1(k, path, method, body) {
   if (cached && k.via === "lan" && canHeal(k) && !body) { const e = errOf("net", t("e.lost")); e.cached = r; throw e; }
   if (APP && method === "GET" && path === "/state" && k === cur) cachedAt = cached;
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw errOf(APP && j.error === "offline" ? "offline" : j.error || ("HTTP " + r.status));
+  if (!r.ok) throw errOf(APP && j.error === "offline" ? "offline" : j.error || ("HTTP " + r.status), null, j.retryAt);
   return j;
 }
 
@@ -256,7 +258,7 @@ async function viaRelay(k, path, method, body) {
   try { r = await fetch(b + path, { method, headers: { "X-KG-Token": rl.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined, signal: quick(15000) }); }
   catch (e) { throw errOf("net", APP ? t("e.lost") : null); }
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw errOf(j.error || ("HTTP " + r.status));
+  if (!r.ok) throw errOf(j.error || ("HTTP " + r.status), null, j.retryAt);
   return j;
 }
 const healing = new Map();

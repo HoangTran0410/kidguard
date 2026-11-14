@@ -15,7 +15,7 @@ L.vi = {
   "rs.blocked": "Đã chặn", "rs.appLimit": "Hết giờ app", "rs.groupHours": "Ngoài giờ nhóm", "rs.groupLimit": "Hết giờ nhóm", "rs.new": "Chờ duyệt",
   "rs.paused": "Tạm dừng", "rs.schedule": "Lịch", "rs.bedtime": "Giờ ngủ", "rs.daily": "Hết giờ ngày", "rs.locked": "Đã khoá",
   off: "Tắt", on: "Bật", turnOn: "Bật", turnOff: "Tắt", turnedOn: "Đã bật", turnedOff: "Đã tắt",
-  "e.net": "Không có mạng hoặc không tới được máy con", "e.offline": "mất kết nối, chưa có dữ liệu", "e.queue full": "Hàng đợi lệnh đầy, thử lại sau",
+  "e.net": "Không có mạng hoặc không tới được máy con", "e.offline": "mất kết nối, chưa có dữ liệu", "e.queue full": "Hàng đợi lệnh đầy, thử lại sau", "e.retryAt": "Thử lại lúc {0}.", "e.too many new pairings from this network, try tomorrow": "Hôm nay mạng này đã ghép quá nhiều máy mới.", "e.too many invites from this network, try tomorrow": "Hôm nay mạng này đã tạo quá nhiều lời mời.", "pe.too many wrong codes": "Mạng này nhập sai mã quá nhiều lần, thử lại sau {0} phút",
   "e.too big": "Dữ liệu quá lớn", "e.state too big": "Dữ liệu quá lớn", "e.bad host": "Địa chỉ máy con không hợp lệ", "e.not live": "Màn hình chưa bật chia sẻ",
   "e.slow down": "Gửi quá nhanh, thử lại sau vài giây", "e.bad token": "Mã ghép không đúng hoặc đã bị huỷ", "e.not paired": "Thiết bị này đã bị huỷ ghép",
   "e.waiting for the phone": "Đang chờ máy con", "e.bad command": "Lệnh không hợp lệ", "e.bad json": "Dữ liệu gửi đi không hợp lệ", "e.not found": "Không tìm thấy",

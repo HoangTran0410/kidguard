@@ -71,12 +71,12 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 - Page: `cmd(c, okMsg, q)` `kid.js:109`: confirm via `ask()` (text keys `ask.<type>`/`askOk.<type>`; `ASK_BAD` = reboot/unpairAll/tailscaleOff), then `POST <base>/cmd`. Result handling: `"ok"|"queued"|"no such sos"` OK, any other string = toast `cr.<type>.<result>`.
 - LAN: `Api.kt:85` -> `Guard.command` (`Guard.kt:424`) synchronous; reply `{result}`. `Guard.run` (`Guard.kt:~437-478`) is the command table.
 - Relay: `index.js:292`: whitelist `CMDS` (:58), extra validation for `clearData` pkg and `setting` key/value, queue max 20 (`queue full` 429), <=4 KB, id = body.id if it matches `^[\w.-]{1,64}$` else UUID, `at=now`. Reply `{result:"queued"}`; page warns "phone offline" if `now - lastSeen > 120 s` (`kid.js:116`).
-- Delivery: `sync` reply `cmds` = all non-acked, <24 h old. `ONCE` list (`relay/src/index.js` `ONCE`: destructive commands) is handed out until acked but only within `ONCE_WINDOW` (10 min) of the first hand-out; others stay until the phone's next sync carries `acks`. `SHORT` commands ("now" actions) go stale after `SHORT_TTL` (10 min), the rest after 24 h.
+- Delivery: `sync` reply `cmds` = all non-acked, <24 h old. `ONCE` list (`relay/src/index.js` `ONCE`: destructive commands) is handed out until acked but only within `ONCE_WINDOW` (1 h) of the first hand-out; others stay until the phone's next sync carries `acks`. `SHORT` commands ("now" actions) go stale after `SHORT_TTL` (10 min), the rest after 24 h.
 - Phone: `Relay.kt:111-117`: `Guard.command` for each (try/catch, ack always), `markCmd(id)` (`Store.kt:298`, commit(), last 100 ids) skips repeats but answers "ok". Result of a relay command is not returned to the page: it shows up in state/`log` (`Command: x -> res`).
 - LAN-only on purpose: `relay`, `tailscale` (secret key must not sit in the queue). Contract test enforces whitelist parity: `relay/test/contract.test.mjs`.
 - Wire: protocol "Commands" (+ "Action states", "Remote phone settings", "Self-update", "Shared files").
 - Gotchas:
-  - Non-`SHORT` commands live up to 24 h; `lock`/`ring`/`wake`/`message`/`setting`/`devOff` are `SHORT` (10 min), so they no longer fire the next day.
+  - Non-`SHORT` commands live up to 24 h; only the time-critical ones (`lock ring wake message reboot pin*` ...) are `SHORT` (10 min; `setting`/`devOff` are 24 h since 2026-11-15), so they no longer fire the next day.
   - ONCE commands are re-delivered until acked (within `ONCE_WINDOW`); `Relay.sync` applies `rules` inside its own `runCatching`, so a bad rules reply cannot stop a delivered `release`.
   - `markCmd` strips `.` from ids; for `unpair`/`answer` the worker reuses the body's `id` (device/request id) as command id, so a re-sent `answer` for the same request id is deduped ("ok") even if the first failed.
   - LAN commands carry no id unless the page sets one (`setting` does, `tab-set.js:204`).

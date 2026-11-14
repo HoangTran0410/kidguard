@@ -185,7 +185,7 @@ v0.9.7:
 - `adbShell {cmd, pin}` (gated, v0.9.14, `remote/Shell.kt`): runs `cmd` (≤ 2000 chars) as the adb shell user through the
   phone's own paired adbd (`SelfAdb`: Android 11+, WRITE_SECURE_SETTINGS, Wi-Fi; opens the debugging window itself).
   Answers at once `ok | busy | empty | no adb`; the output comes in state `sh.log` (LAN and relay alike). 25 s timeout.
-  Not on Telegram. Worker: whitelist, ONCE, SHORT (a shell command 10 min late is dropped).
+  Not on Telegram. Worker: whitelist, ONCE, SHORT (a shell command 10 min late is dropped; ONCE window 1 h).
 - `bankEnd` (2026-11-13): end the bank-app pauses now (accessibility, VPN, debugging) instead of after the 10-minute wait; result `in use` while that app is in front. State `bankBackAt` = when they end by themselves (epoch ms, 0 = an app still in front / none). `ts.why` = "bank" while the VPN pause holds Tailscale.
 - `fixPerms` (2026-11-14, `guard/FixPerms.kt`, repeatable, SHORT, not PIN-gated: it only turns our own permissions back on): the page's "N things are off" Fix. The phone first grants what it can alone (Device Owner: location + notifications via `setPermissionGrantState`; our accessibility service via WRITE_SECURE_SETTINGS; the setup's grants over self-adb = `AutoGrant`), then for what is left opens the exact Settings screen on the kid phone (background start: Device Owner or overlay right) and posts a tap-to-open notification (id 8, channel `fix`, cleared when nothing is missing and on release). Answers `ok | working | none` (`working` = the grants run in the background; read state `fixPerms`; `none` = nothing was missing).
 - State `missing` (2026-11-14): ids still off, in order, of `admin acc` (basic mode only) `usage listener location notify battery` (`listener` = notification access, `battery` = battery optimisation). `[]` = all fine; an old phone has no field (page: nothing shown). State `fixPerms` `{busy, at, fixed: [ids], tap: [ids]}`: the last Fix (`fixed` = got back by the phone itself, `tap` = still need a tap on the phone; only ids still in `missing`). OEM auto-start pages are not detectable, so they are not listed.
@@ -194,7 +194,7 @@ v0.9.7:
   a bank app has debugging off; off (also `devOff` and release) = `usb:` then Developer options / USB debugging back as
   before; port 5555 survives adbd restarts until a reboot, so a pending `usb:` (`Store.adbTcpReset`) is retried by the tick
   while 5555 is still served. Answers `ok | no adb | blocked`. While 5555 is served, `adbShell` itself connects to `127.0.0.1:5555` first (paired key, no prompt wait), so it runs without Wi-Fi / Wireless debugging (mobile data); `sh.can` is then true even without WSS. Worker: ONCE but not SHORT (an "off" must never be dropped).
-  `support` is ONCE + SHORT too (a leaked link must not replay reports into the 20/day census quota).
+  `support` is ONCE (not SHORT since 2026-11-15: 24 h life, 1 h ONCE window) (a leaked link must not replay reports into the 20/day census quota).
 - (removed 2026-11-15) State `adbTcpUntil` / the 2 h auto-close: `adbTcp on` keeps port 5555 open until `adbTcp off`, `devOff` or release.
 - State `sh` (v0.9.14): `{can, busy, tcp, tcpUp, tcpWhy, port, log: [{at, cmd, ms, out | err}]}` (`tcpWhy` 2026-11-13: "bank" = held by a bank pause, "link" = no adb link, needs Wi-Fi, "" = trying), last 8, memory only;
   `out` ≤ 6000 chars for the newest two, 300 for older ones (state stays < ~14 KB for the relay); `err` = `adb` (no answer / timeout) or an `adbWhy` code (`sdk key wss blocked wifi`).
@@ -214,7 +214,7 @@ right PIN. LAN `relay` returns `id/token/url` only when the result is `ok`. The 
 - `pinReset {new}` (not gated, "forgot the PIN"): stored on the phone, applied after 24 h (`state.pinResetAt`, 0 = none),
   `tamper` event to every parent at once; the right PIN entered anywhere (admin screen, any gated command) or
   `pinResetCancel` cancels it. A new `pinReset` replaces the pending one and restarts the 24 h.
-- Worker: `pinSet pinReset pinResetCancel` are in `CMDS`, `ONCE` and `SHORT` (10 min).
+- Worker: `pinSet pinReset pinResetCancel` are in `CMDS`, `ONCE` and `SHORT` (10 min; a PIN change nobody waits for must not fire later).
 
 ## Live screen and remote control
 
@@ -284,7 +284,7 @@ The first capture / first input of a session is logged in the phone log.
   sync / socket message / auto-response ping (`getWebSocketAutoResponseTimestamp`); written to storage on close only.
   Socket down or a reply timeout (15 s): the same sync over HTTP, the old 20 s / 60 s polling, reconnect backoff
   1 min .. 30 min. Live screen frames and files stay on HTTP.
-- Limits: `POST /c/<id>/cmd` -> 429 `queue full` with 20 commands waiting, 413 `too big` over 4 KB of JSON; `PUT /c/<id>/rules`
+- Limits: `POST /c/<id>/cmd` -> 429 `queue full` with 20 commands waiting that a new one cannot replace (a full queue first drops a still-queued, not yet handed out older copy of the same repeatable type, same `key` for `setting` / same `file` for `fileUp`; never a destructive ONCE one), 413 `too big` over 4 KB of JSON; `PUT /c/<id>/rules`
   -> 413 over 64 KB (the sync reply carries both, and the phone refuses replies over 256 KB).
 - Parent `POST /c/<id>/live` `{}` -> `{"ok":true, "phone": <ms since the phone's last frame or -1>}`; sets
   `liveUntil = now + 20 s`. The page calls it every 10 s while the viewer is open.
@@ -303,7 +303,7 @@ The first capture / first input of a session is logged in the phone log.
   wait until the worker rev catches up; LAN saves stamp `rev = max(old+1, phone now)`); `files` = number of
   parent -> kid files waiting; `device` = the parent asked for a device-info upload.
 - Parent `GET /c/<id>/state` -> `{state, rules, seen, pending, expired}`: `expired` = last 10 commands the worker dropped unrun
-  (SHORT 10 min / 24 h / ONCE window): `[{id, type, res: "expired", at}]`; the page turns "sent" into "expired, not run".
+  (SHORT 10 min / 24 h / ONCE window 1 h): `[{id, type, res: "expired", at}]`; the page turns "sent" into "expired, not run".
   The phone's own receipts are `state.done`. `state` the last synced state (`rules` inside it with `pinSet`
   instead of `pinHash`), `rules` the worker's copy, `seen` ms of the last sync, `pending` = queued command count, `queue` = the live queued commands `[{id, type, at}]` (last 20, no payload: the watch lists what has not reached the phone yet).
 - Command `unlockEnd` (0.9.16): ends an Authenticator unlock now (`unlockUntil = 0`); not PIN-gated, not ONCE, SHORT.
@@ -449,10 +449,10 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   are applied inside `runCatching`). **Destructive commands** (the worker `ONCE` list: `reboot release unpairAll unpair
   clearData update totpSet fileDel`) are delivered **at-least-once**: the worker keeps them until the phone acks the id
   (so a lost reply does not drop a `release`) and the phone de-dups by id. The worker stamps `sent` at the first hand-out
-  and drops an unacked one 10 min later (the phone may have released and stopped syncing). "Now" commands (`lock locate
-  message ring wake ringStop listenStop devOn devOff setting reboot clearData clearCache rescan bgLimit bgRestore fixPerms openPairing pinSet pinReset pinResetCancel adbShell support`; list = `SHORT`, TTL `SHORT_TTL` = 10 min) expire on the worker after **10 min** (others 24 h), so a
-  `ring` queued overnight does not fire in the morning. The queue refuses at 20 entries (`429 queue full`).
-  `ONCE_WINDOW` (10 min): a command handed out and not acked within it is dropped (also any command that carried a secret).
+  and drops an unacked one 1 h later (the phone may have released and stopped syncing). "Now" commands (`lock locate
+  message ring wake ringStop listenStop reboot clearData pinSet pinReset pinResetCancel openPairing adbShell unlockEnd fixPerms`; list = `SHORT`, TTL `SHORT_TTL` = 10 min, reasons in the worker comment) expire on the worker after **10 min**; everything else (`setting devOn devOff bgLimit bgRestore rescan clearCache support ...`) lives 24 h (2026-11-15: friction that does not stop abuse), so a
+  `ring` queued overnight does not fire in the morning. The queue holds 20 entries: when full, a new repeatable command replaces its older queued copy (see Limits), else `429 queue full`.
+  `ONCE_WINDOW` (1 h): a command handed out and not acked within it is dropped (also any command that carried a secret).
   Secrets in a queued command (`pin`, `new`, `secret`, `token`): the first hand-out to the phone carries them, the copy that
   stays queued until the ack has none (a re-send after a lost reply fails `pin needed` on the phone: ask again).
   `answer`: the worker keeps `id` as command id only if it matches `^[\w.-]{1,64}$`, else it makes a UUID; the request id
@@ -638,7 +638,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   had one in the future ("Resume all" only PUTs rules), deletes every still-queued `lock` of that kid (other commands stay).
 - First bind cap (audit H4): a first sync that would create an id counts against the client network (`netKey`: IPv4 or
   IPv6 /64) in a `Gate` Durable Object, `BIND_PER_DAY` = 30 a day (env var overrides, tests use 60); beyond it
-  `429 {"error":"too many new pairings from this network, try tomorrow"}`. Already bound ids are never affected.
+  `429 {"error":"too many new pairings from this network, try tomorrow", "retryAt": <ms epoch, next UTC midnight>}`. Every daily-cap 429 (bind, `PAIR_PER_DAY`, `INVITE_PER_DAY`, watch 30/day) carries `retryAt`; the page appends "Try again at <time>" (`e.retryAt`). Already bound ids are never affected.
 - Rules `pinHash` on the worker (unsalted `sha256("kg:"+pin)`, handed to the phone once): dropped as soon as the phone's
   state shows `rules.pinSet: true` and `rules.rev` >= the stored one; the stored rules then carry `pinSet: true` only.
 - Sync state over 120 KB: `413 state too big`. The phone then sends a trimmed state (no `events`, `track`; apps reduced to
@@ -1330,7 +1330,7 @@ phone decides (`Store.tryPair`: code, `PairPin.decide`, PIN lockout, same errors
   -> `200 {exp}` (TTL 15 min, `PAIR_TTL`); `409 taken` = another phone holds that code (the phone makes a new one); the same phone repeating it renews. Cap `PAIR_PER_DAY` (100) per network (Gate `pip:`), 429 else.
 - Parent (page "Pair from anywhere", browser = the relay it was served from; app = default relay through its proxy, `Logic.isPairPath`):
   `POST /p/<code>/join {"th": sha256hex(ticket, 32 hex), "newPin": "4-8 digits", "pin": "", "name": "<= 20"}` -> `200 {ok}`; `403 wrong code` (unknown / expired / dead);
-  `409 busy`; `429 wait` after `PAIR_MISS_PER_DAY` (40) unknown codes from one network (Gate `pmiss:`, checked before the lookup so a right code is refused too). One code takes `PAIR_JOINS` (5) joins, then it is deleted.
+  `409 busy`; `429 {error: "too many wrong codes", wait: <ms>, retryAt}` after `PAIR_MISS_MAX` (20) unknown codes from one network inside a rolling `PAIR_MISS_WIN` (10 min) window (Gate `pmiss:` with `win`, checked before the lookup so a right code is refused too until the window ends; since 2026-11-15, was 40 a day). Math: P(hit any live code) ~ live codes x guesses / 10^6; <= ~30 guesses per 15 min code life per network. One code takes `PAIR_JOINS` (5) joins, then it is deleted.
   Then poll `GET /p/<code>/result` header `X-KG-Ticket: <ticket>`: `{waiting:true}` | `200 {id, token, url}` once (the entry becomes `taken`; later `404`) | `{error, wait?}` = the phone refused:
   400 `bad pin` / `pin required`, 403 `wrong pin` / `closed`, 429 `pin locked` / `wait`. After an error the code can be joined again.
   `id` = 16 hex, `token` = 48 hex (same as a relay link: the page builds a `via:"relay"` kid), `url` = the relay origin. `newPin` is required (the phone has no PIN yet; `pe.pin required`).
