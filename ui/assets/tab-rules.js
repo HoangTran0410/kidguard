@@ -219,10 +219,12 @@ function monWould() {   // monitor only: what strict mode would block right now 
 function rulesTab(b) {
   const r = edit, S = ruleSecs(r), segs = [["time", "timer", t("rules.segTime")], ["safe", "shield", t("rules.segSafe")]];
   b.innerHTML = `<div class="rtop"><span class="sp"></span><button type="button" class="pill" id="tplOpen" aria-haspopup="dialog">${ic("layers")} ${t("tpl.apply")}</button></div>
+    ${modeAlive(r.mode) ? `<div class="alert warn" id="modeBar" style="font-weight:400;margin-bottom:10px">${ic("timer")} <b>${esc(t("md.on", r.mode.name, modeEnd(r.mode.until)))}</b><p class="mute" style="margin:4px 0 8px">${t("md.back")}</p><button type="button" class="bad" id="modeEnd">${ic("x")} ${t("md.end")}</button></div>` : ""}
     <div class="card" id="monCard"><label class="row"><input type="checkbox" id="f-mon" ${r.monitor ? "checked" : ""}><span class="sp">${ic("eye")} <b>${t("mon.h")}</b></span></label>
     <p class="mute">${t("mon.p")}</p>${r.monitor ? `<p class="mute" id="monWould">${monWould()}</p>` : ""}</div>
     <div id="rsx">${segs.map(([id, i, n]) => `<div class="lhead"><h2>${ic(i)} ${n}</h2></div>${RSEG[id].map(k => S[k]).join("")}`).join("")}</div>`;
   $("#tplOpen").onclick = tplSheet;
+  if ($("#modeEnd")) $("#modeEnd").onclick = modeEndNow;
   $("#f-mon").onchange = e => { if (!edit) return; edit.monitor = e.target.checked; changed(); rulesTab(b); };
   rulesWire($("#rsx"), r);
 }
@@ -233,7 +235,8 @@ function tplSheet() {
     return { tcur, html: `<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("layers", t("tpl.h"))}    <p class="mute" style="margin:0 0 8px">${t("tpl.p")}</p>
     <div class="chips" role="group" aria-label="${esc(t("tpl.h"))}">${T.map((t, i) => `<button data-tpl="${i}" class="${i === tplSel ? "on" : ""}" aria-pressed="${i === tplSel}">${esc(t.name)}</button>`).join("")}</div>
     <div class="mute" style="margin-top:8px">${esc(tcur.name)}: ${tplSummary(tcur)}</div>
-    <div class="row" style="margin-top:10px"><button class="pri sp" id="tplGo">${ic("check")} ${t("tpl.applyTo", esc(cur.name))}</button>${multi ? `<button class="sp" id="tplMulti">${ic("clipboard-copy")} ${t("tpl.applyMany")}</button>` : ""}</div>
+    <div class="row" style="margin-top:10px"><button class="pri sp" id="tplGo">${ic("check")} ${t("tpl.applyTo", esc(cur.name))}</button><button class="sp" id="tplTemp">${ic("timer")} ${t("md.btn")}</button></div>
+    <div class="row" style="margin-top:8px">${multi ? `<button class="sp" id="tplMulti">${ic("clipboard-copy")} ${t("tpl.applyMany")}</button>` : ""}</div>
     <div class="row" style="margin-top:8px"><button class="sp" id="tplSave">${ic("save")} ${t("tpl.saveCur")}</button>${tplSel >= PRESET_D.length ? `<button class="bad" id="tplDel">${ic("trash-2")} ${t("tpl.del")}</button>` : ""}</div>
     ${nUser ? "" : `<p class="mute">${t("tpl.noOwn")}</p>`}</div>` }; };
   const wire = (pop, done) => {
@@ -241,6 +244,7 @@ function tplSheet() {
     pop.querySelector("#askNo").onclick = () => done(false);
     pop.querySelectorAll("[data-tpl]").forEach(x => x.onclick = () => { tplSel = +x.dataset.tpl; pop.innerHTML = body().html; wire(pop, done); const f = pop.querySelector(`[data-tpl="${tplSel}"]`); if (f) f.focus(); });
     pop.querySelector("#tplGo").onclick = () => tplApply(tcur);
+    pop.querySelector("#tplTemp").onclick = () => modeApply(tcur);
     if (pop.querySelector("#tplMulti")) pop.querySelector("#tplMulti").onclick = () => tplMulti(tcur);
     pop.querySelector("#tplSave").onclick = tplSave;
     if (pop.querySelector("#tplDel")) pop.querySelector("#tplDel").onclick = async () => {

@@ -277,9 +277,9 @@ object Tg {
         return ok }
     private fun ok(r: JSONObject?) = r?.optBoolean("ok") == true
     /** Rule edits from several workers / chats: read-modify-write one at a time. */
-    private fun editRules(g: Guard, s: Store, f: (Rules) -> Rules): Rules = synchronized(rulesLock) { f(s.rules).also { g.setRules(it) } }
+    private fun editRules(g: Guard, s: Store, f: (Rules) -> Rules): Rules = synchronized(rulesLock) { f(s.baseRules).also { g.setRules(it) } }
     /** Same, returning (before, after) for an undo. */
-    private fun editRules2(g: Guard, s: Store, f: (Rules) -> Rules): Pair<Rules, Rules> = synchronized(rulesLock) { val b = s.rules; val a = f(b); g.setRules(a); b to a }
+    private fun editRules2(g: Guard, s: Store, f: (Rules) -> Rules): Pair<Rules, Rules> = synchronized(rulesLock) { val b = s.baseRules; val a = f(b); g.setRules(a); b to a }
 
     private val strangerReplied = capped<Long>(500)   // chat -> last reply time: at most one reply per 5 s to an unlinked chat
     private fun strangerReply(s: Store, id: Long, text: String) {

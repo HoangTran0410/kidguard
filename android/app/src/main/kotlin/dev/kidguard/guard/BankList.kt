@@ -40,7 +40,7 @@ object BankList {
     }
 
     @Synchronized private fun apply(g: Guard, s: Store, l: BankListLogic.Parsed) {
-        val r = s.rules
+        val r = s.baseRules
         val (acc, accSeen) = BankListLogic.merge(r.accPause, s.bankSeen ?: BankListLogic.LEGACY, l.acc, l.drop)
         val (vpn, vpnSeen) = BankListLogic.merge(r.vpnPause, s.vpnSeen ?: emptySet(), l.vpn, l.drop)
         // debugging list (split from accessibility 2026-11-11): bundled + website `dev`, same add-once rule

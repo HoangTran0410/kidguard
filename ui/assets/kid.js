@@ -417,6 +417,8 @@ let reqMin = {}, reqNote = {};   // per request id: chosen minutes, typed note (
 const PRESET_D = [
   { id: "school", rules: { dailyMin: 90, dailyByDay: [], bedtime: { on: true, start: "21:00", end: "06:30" }, schedules: [{ n: "sch.class", on: true, days: [1, 2, 3, 4, 5], start: "07:00", end: "11:30" }] } },
   { id: "weekend", rules: { dailyMin: 180, dailyByDay: [], bedtime: { on: true, start: "22:00", end: "07:30" }, schedules: [] } },
+  { id: "sick", rules: { dailyMin: 240, dailyByDay: [], bedtime: { on: true, start: "20:30", end: "08:00" }, schedules: [] } },
+  { id: "trip", rules: { dailyMin: 0, dailyByDay: [], bedtime: { on: false, start: "22:00", end: "07:00" }, schedules: [] } },
   { id: "summer", rules: { dailyMin: 240, dailyByDay: [], bedtime: { on: true, start: "22:00", end: "07:00" }, schedules: [] } },
   { id: "exams", rules: { dailyMin: 90, dailyByDay: [], bedtime: { on: true, start: "21:00", end: "06:00" }, schedules: [{ n: "sch.study", on: true, days: [1, 2, 3, 4, 5, 6, 7], start: "18:00", end: "20:00" }] } },
 ];
@@ -468,6 +470,36 @@ async function tplApply(tp) {
   if (!(await ask(t("tpl.askOne", tp.name, cur.name), t("apply")))) return;
   Object.assign(edit, tplFields(tp.rules)); changed(); render();
 }
+// Timed mode (rules.mode, protocol "Timed mode"): the template is laid over the normal rules until a moment, the phone
+// reverts by itself. The page edits only the normal rules + this field; "End now" removes it.
+const MODE_MAX = 14 * 864e5;
+const modeAlive = m => !!(m && +m.until > Date.now());
+const modeEnd = ts => { const d = new Date(ts), n = new Date(); return d.toDateString() === n.toDateString() ? hhmm(ts) : d.toLocaleDateString(lang, { weekday: "short" }) + " " + hhmm(ts); };
+const modeLocal = ts => { const d = new Date(ts), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+function modeChoices() {   // [label, ts]: tonight 20:00 (if still ahead), tomorrow 20:00, Sunday 20:00
+  const at = days => { const d = new Date(); d.setDate(d.getDate() + days); d.setHours(20, 0, 0, 0); return d.getTime(); };
+  const hm = "20:00", out = [], now = Date.now() + 10 * 60000;
+  if (at(0) > now) out.push([t("md.tonight", hm), at(0)]);
+  out.push([t("md.tmr", hm), at(1)]);
+  const sun = at((7 - new Date().getDay()) % 7 || (at(0) > now ? 0 : 7));
+  if (!out.some(x => x[1] === sun)) out.push([t("md.sun", hm), sun]);
+  return out;
+}
+async function modeApply(tp) {
+  const ch = modeChoices(); let until = 0;
+  const okT = ts => ts > Date.now() + 60000 && ts <= Date.now() + MODE_MAX;
+  const extra = `<div class="chips" id="mdCh" role="group" aria-label="${esc(t("md.btn"))}" style="margin-bottom:8px">${ch.map(([n, ts]) => `<button type="button" data-mu="${ts}" aria-pressed="false">${esc(n)}</button>`).join("")}</div>
+    <label class="row stp" style="margin-bottom:8px"><span>${t("md.or")}</span><input id="mdAt" type="datetime-local" aria-label="${esc(t("md.or"))}"></label><div class="pks" id="mdSum" role="status" style="margin-bottom:10px"></div>`;
+  const sum = () => { const e = $("#mdSum"); if (e) e.innerHTML = until ? (okT(until) ? `<b>${esc(t("md.sum", modeEnd(until)))}</b>` : `<span class="err">${t("md.bad")}</span>`) : ""; };
+  const p = ask(t("md.h", tp.name) + "\n" + t("md.ask"), t("md.go"), false, "", extra, () => okT(until));
+  const pick = ts => { until = ts; const a = $("#mdAt"); if (a) a.value = ts ? modeLocal(ts) : ""; document.querySelectorAll("#mdCh [data-mu]").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.mu === ts))); sum(); };
+  document.querySelectorAll("#mdCh [data-mu]").forEach(b => b.onclick = () => pick(+b.dataset.mu));
+  if ($("#mdAt")) $("#mdAt").onchange = $("#mdAt").oninput = e => { until = e.target.value ? new Date(e.target.value).getTime() : 0; document.querySelectorAll("#mdCh [data-mu]").forEach(b => b.setAttribute("aria-pressed", "false")); sum(); };
+  if (!(await p)) return;
+  edit.mode = { name: String(tp.name).slice(0, 24), until, rules: tplFields(tp.rules) }; changed();
+  toast("ok|" + t("md.done", tp.name, modeEnd(until))); render();
+}
+function modeEndNow() { if (!edit) return; delete edit.mode; changed(); toast("ok|" + t("md.ended")); render(); }
 async function tplMulti(tp) {
   const list = reachKids(); toast("send|" + t("tpl.reading"));
   const k0 = cur, e0 = edit;

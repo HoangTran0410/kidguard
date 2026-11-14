@@ -698,7 +698,8 @@ object Policy {
     /** Release: lost mode must not outlive us (rules flag, runtime flags; the lock-screen text is cleared with the owner info; the ring was stopped). */
     private fun clearLost(s: Store) {
         s.lostApplied = false; s.lostRingStopped = false; s.lostRingAt = 0
-        if (s.rules.lostOn || s.rules.passUntil > 0) s.rules = s.rules.copy(lostOn = false, passUntil = 0)
+        val b = s.baseRules   // a timed mode must not outlive us either
+        if (b.lostOn || b.passUntil > 0 || b.mode != null) s.baseRules = b.copy(lostOn = false, passUntil = 0, mode = null)
     }
 
     /** Basic mode: stop blocking, drop the device admin (the app can be uninstalled again), forget the parents. "not owner" when there is no admin. */

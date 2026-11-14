@@ -115,6 +115,9 @@ function norm(e) {
   e.bedByDay = Array.isArray(e.bedByDay) && e.bedByDay.length === 7 ? e.bedByDay.map(x => String(x || "")) : []; e.oneMore = e.oneMore !== false;
   e.lostOn = !!e.lostOn; e.lostMsg = String(e.lostMsg || "").slice(0, 200); e.lostPhone = String(e.lostPhone || "").slice(0, 20); e.lostLock = e.lostLock !== false; e.lostRing = e.lostRing !== false;
   e.msgs = (Array.isArray(e.msgs) ? e.msgs : []).map(x => String(x || "").trim().slice(0, 120)).filter(Boolean).slice(0, 12);
+  // 0.9.22 timed mode {name, until (ms), rules}: kept as it is (full replace), dropped when malformed or over
+  const md = e.mode;
+  if (md && typeof md === "object" && +md.until > Date.now() && md.name) e.mode = { name: String(md.name).slice(0, 24), until: +md.until, rules: md.rules && typeof md.rules === "object" ? md.rules : {} }; else delete e.mode;
   e.blocked = e.blocked || []; e.allow = e.allow || []; e.appMin = e.appMin || {};
   e.chores = Array.isArray(e.chores) ? e.chores : []; e.zones = Array.isArray(e.zones) ? e.zones : [];
   e.groups = Array.isArray(e.groups) ? e.groups : []; e.unlockMin = [15, 30, 60, 120].includes(+e.unlockMin) ? +e.unlockMin : 30;

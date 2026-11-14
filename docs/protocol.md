@@ -57,8 +57,19 @@ shape, say so in your report instead of silently diverging.
                                    //      for 10 min (their background processes are killed then). Nothing for release to undo
                                    //      (release forgets the pause; the service is removed by release anyway).
   "pinHash": "…",                  // the page may send "pin": "1234" instead; phone/worker store only the hash
+  "mode": {"name": "Sick day", "until": 1790000000000, "rules": {"dailyMin": 240}}, // NEW (0.9.22) timed mode, optional, see below
 }
 ```
+
+**Timed mode (`mode`, 0.9.22).** The rules above are the NORMAL rules. While `now < mode.until` (epoch ms, one instant: no timezone on the
+phone side) the phone enforces the normal rules with every key of `mode.rules` laid over them (whole value replaces, e.g. `bedtime`
+as a whole object). When `until` passes the override is ignored at once (`Rules.effective`), works offline, and the next tick removes `mode`
+from the stored rules (rev bumped; the page then shows no `mode`). Allowed keys in `mode.rules` (others are dropped on parse, so the PIN,
+`rev`, lost mode, zones, DNS, launcher can never be overridden): `dailyMin dailyByDay appMin blocked allow bedtime bedByDay schedules
+groups blockNew noInstall monitor windDown oneMore`. `name` 1-24 chars and `until` > 0 are required, else the whole `mode` is dropped.
+`state.rules` and `GET /api/rules` carry the NORMAL rules + `mode` (never the laid-over copy), so a full-replace PUT from the page or a
+watch never bakes the override in; a PUT without `mode` ends it ("End now"). Release clears it. Page limit: `until` within 14 days.
+Telegram / BankList edits work on the normal rules too (`Store.baseRules`); `Store.rules` is the read-only enforced view.
 
 Block reasons in `decide()` (priority): `blocked` > `appLimit` > `groupHours` > `groupLimit` (v0.9.4) > `new` > `paused` > `schedule` > `bedtime` > `daily`.
 

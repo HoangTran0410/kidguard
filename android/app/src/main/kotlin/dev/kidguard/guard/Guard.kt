@@ -255,6 +255,8 @@ class Guard : Service() {
         if (screenOn) { screenWasOn = true; stillRuns = 0 }   // in the child's hand: normal location pace
         if (!force && !screenOn && now - lastFullTick < 60_000) return
         lastFullTick = now
+        // timed mode over: drop it from the stored rules (enforcement already ignored it from the second it ended)
+        store.baseRules.let { b -> if (b.mode != null && !b.mode.active(now)) setRules(b.copy(mode = null, rev = maxOf(b.rev + 1, now))) }
         val r = store.rules
         val (apps, prot) = Policy.cached(this)
         val use = runCatching { Usage.today(this, now) }.onFailure { optFail("usage", it) }.getOrNull() ?: Usage.Today(emptyMap(), null)
@@ -538,7 +540,7 @@ class Guard : Service() {
             .put("leftMs", dailyLeftMs(r, use.ms, today, apps.keys, prot))
             .put("apps", list)
             .put("wouldBlock", JSONObject().apply { would.forEach { (p, why) -> put(p, why) } })
-            .put("rules", r.toJson())
+            .put("rules", store.baseRules.toJson())   // the parent edits the base (+ its `mode`), never the laid-over copy
             .put("location", store.location ?: JSONObject.NULL)
             .put("lan", lanUrl() ?: JSONObject.NULL)
             .put("net", runCatching { DeviceInfo.netState(this) }.getOrDefault(JSONObject()))
@@ -684,16 +686,16 @@ class Guard : Service() {
         // read - compare - write as one step: LAN and relay saving at the same moment must not lose the PIN of one or
         // the rev check of the other (audit L5)
         val (old, r) = synchronized(rulesLock) {
-            val old = store.rules
+            val old = store.baseRules
             if (incoming.rev < old.rev) return
             // a rules PUT without pin / pinHash keeps the old PIN; a rules PUT (LAN or relay) may set the FIRST PIN but never
             // replace one: that takes pinSet with the old PIN, or pinReset's 24 h wait (CmdGate)
             val keep = incoming.pinHash.isBlank() || (old.pinHash.isNotBlank() && !pinChange)
             val r = if (keep) incoming.copy(pinHash = old.pinHash, pinSalt = old.pinSalt) else incoming
-            store.rules = r
+            store.baseRules = r
             old to r
         }
-        if (::work.isInitialized) work.post { runCatching { Policy.apply(this, r) } }
+        if (::work.isInitialized) work.post { runCatching { Policy.apply(this, store.rules) } }   // enforced = base + active mode
         if (r.noDebug && !old.noDebug) devOff()   // "no debugging" switched on: also turn Developer options off once
         if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r, store.tr), "rules")
         if (r.zones != old.zones) store.zoneBaseline = true
@@ -730,7 +732,7 @@ class Guard : Service() {
 
     /** Sets the parent PIN (pinSet / a due pinReset): the only ways to replace a PIN once one is set. */
     private fun putPin(hash: String, salt: String) {
-        val r = store.rules
+        val r = store.baseRules
         setRules(r.copy(pinHash = hash, pinSalt = salt, rev = maxOf(r.rev + 1, System.currentTimeMillis())), pinChange = true)
         store.clearPinReset()
     }
