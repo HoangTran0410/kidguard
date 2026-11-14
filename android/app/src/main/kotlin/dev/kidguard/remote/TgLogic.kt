@@ -349,7 +349,7 @@ object TgLogic {
     fun err(lang: String, why: String): String { val m = if (lang == "en") EN else VI; return m["e.$why"] ?: m["e." + why.substringBefore(" (")] ?: why }
 
     /** Typed commands that change something on the phone (the rest only read). Too old ones are not run ([tooOld]). */
-    private val READ_ONLY = setOf("start", "help", "menu", "lang", "status", "apps", "events", "files", "code", "requests", "quiet")
+    private val READ_ONLY = setOf("start", "help", "menu", "lang", "status", "apps", "events", "files", "code", "requests", "quiet", "digest")
     fun isAction(name: String) = name !in READ_ONLY
     const val MAX_AGE_MS = 10 * 60_000L          // urgent / destructive typed commands
     const val MAX_AGE_OTHER_MS = 60 * 60_000L    // every other typed action (owner 2026-11-15: friction without protection)

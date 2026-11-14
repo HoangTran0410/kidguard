@@ -241,11 +241,12 @@ async function pairRoute(req, env, url) {
   if (op === "join") {
     if (!/^\d{6}$/.test(key) || !hex(b.th, 64)) return json({ error: "bad json" }, 400);
     const max = +env.PAIR_MISS_MAX || PAIR_MISS_MAX, win = +env.PAIR_MISS_WIN_MS || PAIR_MISS_WIN;
-    const lock = await gate("pmiss", max, true, win);
+    // counted BEFORE the lookup (a peek-then-count let a parallel burst pass the cap); a right code costs one try too,
+    // and "busy" counts, so a live code can't be told apart for free
+    const lock = await gate("pmiss", max, false, win);
     if (lock) return json({ error: "too many wrong codes", wait: Math.max(1000, lock - Date.now()), retryAt: lock }, 429);   // wait = ms until the window ends
     const r = await fwd(key, "pjoin", { th: b.th, req: { pin: String(b.pin || "").replace(/\D/g, "").slice(0, 8), newPin: String(b.newPin || "").slice(0, 8), name: clean(b.name) } });
     if (r.status !== 404) return r;
-    await gate("pmiss", max, false, win);
     return json({ error: "wrong code" }, 403);
   }
   if (op === "result") {

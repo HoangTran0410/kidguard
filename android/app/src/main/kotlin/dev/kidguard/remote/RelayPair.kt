@@ -76,7 +76,8 @@ class RelayPair(private val g: Guard) {
         }
         val on = g.getSystemService(PowerManager::class.java)?.isInteractive == true
         val code = store.visiblePairCode()
-        if (!on || code == null) { offered = ""; return 15_000 }   // the screen shows no code: nothing to offer
+        if (pendTok.isNotEmpty() && offered.isNotEmpty()) return if (poll(url, offered, false)) 2_000 else 3_000   // answered: wait for `taken` even with the screen off
+        if (!on || code == null) return 15_000   // the screen shows no code: don't look now, but keep the offer (same secret) so the code stays ours
         if (code != offered || now - offeredAt > 10 * 60_000L) {
             if (secret.isEmpty() || code != offered) secret = Store.randomHex(16)
             val st = call(url, "POST", "/p/new", JSONObject().put("sh", Store.sha256(secret)).put("code", code), false).first
@@ -92,7 +93,7 @@ class RelayPair(private val g: Guard) {
         val (st, body) = call(url, "GET", "/p/$key", null, true)
         when (val p = RelayPairLogic.parsePoll(st, body)) {
             RelayPairLogic.Poll.Waiting -> return false
-            RelayPairLogic.Poll.Gone -> { if (invite) store.clearInvite() else offered = ""; return false }
+            RelayPairLogic.Poll.Gone -> { if (invite) store.clearInvite() else { offered = ""; pendTok = "" }; return false }
             RelayPairLogic.Poll.Taken -> {
                 val ok = pendTok.isNotEmpty() && store.commitRelayPair(pendTok, pendId, url)
                 pendTok = ""; offered = ""

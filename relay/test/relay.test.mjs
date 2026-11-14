@@ -501,10 +501,10 @@ ck("pair: invite phone told taken",(await (await poll(inv2,s2)).json()).taken===
 // expiry (6 s here)
 {const c3="730415",s3=hx(16);await PJ("new",{sh:sha(s3),code:c3});await new Promise(z=>setTimeout(z,6500));
 ck("pair: an expired code is gone for the phone and the parent",(await poll(c3,s3)).status==404&&(await join(c3)).status==403);}
-// wrong codes from one network stop at PAIR_MISS_PER_DAY (10 here); a right code is then refused too. keep LAST in this block
-{let blocked=0;for(let i=0;i<14&&!blocked;i++){const q=await join("1"+String(i).padStart(5,"0"));if(q.status==429)blocked=i+1;}
+// joins from one network stop at PAIR_MISS_MAX (30 here, every join counts, also the ones above); a right code is then refused too. keep LAST in this block
+{let blocked=0;for(let i=0;i<40&&!blocked;i++){const q=await join("1"+String(i).padStart(5,"0"));if(q.status==429)blocked=i+1;}
 const c4="640021";await PJ("new",{sh,code:c4});
-ck(`pair: wrong codes from one network are capped (blocked at ${blocked})`,blocked>0&&blocked<=11);
+ck(`pair: wrong codes from one network are capped (blocked at ${blocked})`,blocked>0&&blocked<=31);
 const lj=await (await join(c4)).json();
 ck("pair: past the cap even a live code can not be joined (429, wait + retryAt tell when)",lj.error=="too many wrong codes"&&lj.wait>0&&lj.wait<=600000&&lj.retryAt>Date.now());}
 }

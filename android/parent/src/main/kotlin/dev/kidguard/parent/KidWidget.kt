@@ -90,7 +90,7 @@ class KidWidget : AppWidgetProvider() {
                 if (day.isEmpty() || rules == null) return Act.Res.FAIL
                 val next = Logic.grantRules(rules, Act.nowWhy(body, via), day, System.currentTimeMillis(), min)
                 val p = Net.call("PUT", "$base/rules", h(token), next.toString().toByteArray(), 8_000)
-                if (p.status == null) continue
+                if (p.status == null) return Act.Res.FAIL   // sent, answer lost: it may be applied, so no second grant over the other route
                 return if (p.status == 200) Act.Res.OK else Act.Res.FAIL
             }
             return Act.Res.FAIL

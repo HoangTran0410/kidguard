@@ -261,7 +261,8 @@ function pinRefused(r) {
   return true;
 }
 // Commands the worker drops after 10 min when the phone is offline (relay/src/index.js SHORT): a "now" action must not run later by surprise
-const SHORT_CMDS = new Set(["fixPerms", "lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "devOn", "devOff", "setting", "reboot", "clearData", "clearCache", "rescan", "bgLimit", "bgRestore", "pinSet", "pinReset", "pinResetCancel", "adbShell", "support", "openPairing", "unlockEnd"]);
+// = relay `SHORT` (relay/src/index.js): dropped after 10 min if the phone never took them; everything else waits 24 h
+const SHORT_CMDS = new Set(["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms"]);
 async function cmd(c, okMsg, q) {
   const k = cur, a0 = q || (q === false ? null : askOf(c.type)) || (c.type === "message" ? [t("askMsg", c.text), t("send")] : null);
   // dangerous: name the kid in the text, so a dialog for A can never be mistaken for B
@@ -278,7 +279,7 @@ async function cmd(c, okMsg, q) {
   try {
     const r = await call(k, "/cmd", "POST", c);
     if (c.pin) { if (pinRefused(r)) return; if (!r || r.result !== "queued") pinMem = { token: k.token, pin: c.pin, at: Date.now() }; }   // queued: the phone has not checked the PIN yet
-    if (r && r.result && !["ok", "queued", "no such sos"].includes(r.result) && !(c.type === "tailscale" || c.type === "openPairing")) { toast("err|" + tc("cr." + c.type + ".", r.result, t("cmd.answer", r.result))); return; }
+    if (r && r.result && !["ok", "queued", "no such sos"].includes(r.result) && !(c.type === "tailscale" || c.type === "openPairing" || (c.type === "fixPerms" && (r.result === "working" || r.result === "none")))) { toast("err|" + tc("cr." + c.type + ".", r.result, t("cmd.answer", r.result))); return; }
     if (r && r.result === "queued") {   // relay: only stored, the phone runs it on its next poll
       const on = Date.now() - lastSeen() < (k.via === "lan" ? 30000 : 120000), gated = !!c.pin, short = SHORT_CMDS.has(c.type);
       toast(gated ? "send|" + t("cmd.queuedPin") : on ? "send|" + t("cmd.queued") : short ? "warn|" + t("cmd.queuedShort") : "warn|" + t("cmd.queuedOff"));

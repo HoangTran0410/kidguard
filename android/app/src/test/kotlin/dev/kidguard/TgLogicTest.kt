@@ -154,6 +154,7 @@ class TgLogicTest {
         assertEquals(Totp.code(Totp.decode(secret)!!, 2), next)
         assertNull(TgLogic.codeNow("", 59_000))
         assertFalse(TgLogic.isAction("code"))
+        assertFalse(TgLogic.isAction("digest"))   // a /digest typed before an offline hour is still answered
     }
 
     private fun req(id: String = "ab12", kind: String = "time", min: Int = 30) = JSONObject().put("id", id).put("at", now).put("kind", kind).put("min", min).put("pkg", "com.x").put("app", "Game")

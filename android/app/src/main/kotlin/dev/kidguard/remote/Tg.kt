@@ -698,8 +698,9 @@ object Tg {
             val inp = Digest.fromState(g.currentState(), kidName(g))
             for (id in due) {
                 val lang = s.tgChatLang(id)
-                val sent = runCatching { Digest.messages(inp, lang, now).map { ok(send(s, id, it, null, true)) }.all { it } }.getOrDefault(false)
-                if (sent) { s.tgSetChatDigest(id, day = today); digestBusy.remove(id) }
+                // done for today once the first (daily) message went out: a failed weekly part is not worth a resend of both
+                val sent = runCatching { Digest.messages(inp, lang, now).map { ok(send(s, id, it, null, true)) }.firstOrNull() == true }.getOrDefault(false)
+                if (sent) { s.tgSetChatDigest(id, day = today); digestBusy.remove(id) } else digestBusy[id] = System.currentTimeMillis() + 30 * 60_000L   // blocked bot / offline: a few tries per evening, not every 30 s
             }
         }
     }
