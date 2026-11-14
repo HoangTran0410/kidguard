@@ -52,6 +52,12 @@ object Logic {
     /** Pairing needs a not-yet-saved LAN target: only its hello probe and the pair call, nothing else. */
     fun allowedRequest(kidsJson: String, target: String, method: String, rest: String) =
         allowedTarget(kidsJson, target) || (target.startsWith("http://") && ((method == "GET" && rest == "/api/hello") || (method == "POST" && rest == "/api/pair")))
+            || (target == DEFAULT_RELAY && isPairPath(method, rest))
+
+    /** "Pair from anywhere" (before the kid is saved): only the default relay's `/p/...` calls (docs/protocol.md "Pair over relay"). */
+    const val DEFAULT_RELAY = "https://kidguard.99-hoangtran.workers.dev"
+    private val PAIR_PATH = Regex("^/p/(inv|\\d{6}/join|(\\d{6}|[0-9a-f]{16})/result)$")
+    fun isPairPath(method: String, rest: String): Boolean = PAIR_PATH.matches(rest.substringBefore("?")) && (method == "POST") == !rest.endsWith("/result")
 
     /** Body cap of the shared-files routes (LAN 200 MB + slack); every other route keeps 512 KB. */
     const val MAX_FILE_BODY = 210L * 1024 * 1024

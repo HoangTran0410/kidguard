@@ -222,6 +222,16 @@ class LogicTest {
         assertTrue(Logic.allowedRequest(kids, "http://10.0.0.9:8770", "GET", "/api/hello"))
         assertTrue(Logic.allowedRequest("[]", "http://10.0.0.9:8770", "POST", "/api/pair"))
         assertFalse(Logic.allowedRequest("[]", "http://10.0.0.9:8770", "POST", "/api/rules"))
+        // pair from anywhere: only the default relay's /p/ calls, nothing else
+        assertTrue(Logic.allowedRequest("[]", Logic.DEFAULT_RELAY, "POST", "/p/inv"))
+        assertTrue(Logic.allowedRequest("[]", Logic.DEFAULT_RELAY, "POST", "/p/123456/join"))
+        assertTrue(Logic.allowedRequest("[]", Logic.DEFAULT_RELAY, "GET", "/p/123456/result"))
+        assertTrue(Logic.allowedRequest("[]", Logic.DEFAULT_RELAY, "GET", "/p/0123456789abcdef/result"))
+        assertFalse(Logic.allowedRequest("[]", Logic.DEFAULT_RELAY, "GET", "/p/123456"))          // the phone's poll is not the parent's
+        assertFalse(Logic.allowedRequest("[]", Logic.DEFAULT_RELAY, "POST", "/p/123456/reply"))
+        assertFalse(Logic.allowedRequest("[]", Logic.DEFAULT_RELAY, "POST", "/p/123456/result"))
+        assertFalse(Logic.allowedRequest("[]", Logic.DEFAULT_RELAY, "GET", "/c/0123456789abcdef/state"))
+        assertFalse(Logic.allowedRequest("[]", "https://evil.example", "POST", "/p/inv"))
     }
 
     @Test fun lanKidRelayFallbackAllowed() {

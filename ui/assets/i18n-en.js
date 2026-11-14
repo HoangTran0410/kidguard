@@ -24,6 +24,7 @@ L.en = {
   "add.relayPh": "https://kidguard.your-name.workers.dev/#c=…&k=…", "add.relayLink": "Relay link", add: "Add", back: "Back",
   "add.badAddr": "Invalid address", "add.badLink": "The link should look like https://…/#c=…&k=…", connecting: "Connecting…",
   "add.fail": "Couldn't connect to {0}. Check the address; this phone must be on the same network/Tailscale as the kid's phone.", "add.failShort": "Couldn't connect",
+  "any.h": "Pair from anywhere", "any.p": "Not on the kid's Wi-Fi? Enter the code on the kid's screen. Keep the kid's screen on.", "any.busy": "Waiting for the phone", "any.timeout": "The phone did not answer. Wake its screen and try again.", "any.fail": "No connection to the relay. Try again.",
   "pair.h": "Pair with your kid's phone", "pair.code": "6-digit code", "pair.name": "Kid's name", "pair.pin": "Parent PIN", "pair.go": "Pair", "pair.busy": "Pairing…", "pair.opening": "Paired, opening…", "pe.timeout": "No answer from the kid's phone after 20 seconds. Check both are on the same Wi-Fi, then try again.",
   "pair.closedP": "Pairing isn't open on the kid's phone. On that phone: open KidGuard → <b>Pair another parent phone</b> (needs the parent PIN if one is set).",
   "pair.notSetup": "The kid's phone isn't set up yet: open KidGuard on it and follow the checklist on screen.",

@@ -31,6 +31,7 @@ L.vi = {
   "add.relayPh": "https://kidguard.ten-ban.workers.dev/#c=…&k=…", "add.relayLink": "Link relay", add: "Thêm", back: "Quay lại",
   "add.badAddr": "Địa chỉ không hợp lệ", "add.badLink": "Link không đúng dạng https://…/#c=…&k=…", connecting: "Đang kết nối…",
   "add.fail": "Không kết nối được tới {0}. Kiểm tra địa chỉ, và điện thoại này phải cùng mạng/Tailscale với máy con.", "add.failShort": "Không kết nối được",
+  "any.h": "Ghép từ xa", "any.p": "Không cùng Wi-Fi với con? Nhập mã trên màn hình của con. Giữ màn hình của con sáng.", "any.busy": "Đang chờ máy con", "any.timeout": "Máy con chưa trả lời. Bật sáng màn hình rồi thử lại.", "any.fail": "Không nối được relay. Thử lại.",
   "pair.h": "Ghép với máy của con", "pair.code": "Mã 6 số", "pair.name": "Tên con", "pair.pin": "PIN của bố mẹ", "pair.go": "Ghép", "pair.busy": "Đang ghép…", "pair.opening": "Đã ghép, đang mở…", "pe.timeout": "Máy con không trả lời sau 20 giây. Kiểm tra máy con và máy này cùng Wi-Fi rồi thử lại.",
   "pair.closedP": "Máy của con chưa mở ghép. Trên máy con: mở app KidGuard → <b>Ghép thêm máy của bố mẹ</b> (cần PIN của bố mẹ nếu đã đặt).",
   "pair.notSetup": "Máy con chưa cài xong: mở KidGuard trên máy con và làm theo danh sách trên màn hình.",

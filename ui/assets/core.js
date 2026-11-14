@@ -384,6 +384,53 @@ function appOpenKid() {
   if (!k && KGApp.takeSettings && KGApp.takeSettings() === "true") goAppSettings();
 }
 window.kgAppOpen = appOpenKid;
+// Pair from anywhere (docs/protocol.md "Pair over relay"): the code on the kid's screen also works through the relay, no shared Wi-Fi.
+// The page talks to the relay it was served from (a browser) or the default relay (the app, via its proxy). A phone with a parent never offers it.
+const anyBase = () => APP ? "/k/" + b64u(DEFAULT_RELAY) : location.origin;
+const anyOk = () => APP || (location.protocol === "https:" && isRelayOrigin && !!(window.crypto && crypto.subtle));
+const anyHex = n => [...crypto.getRandomValues(new Uint8Array(n))].map(b => b.toString(16).padStart(2, "0")).join("");
+const anySha = async x => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(x)))].map(b => b.toString(16).padStart(2, "0")).join("");
+const anyCard = () => `<div class="card"><h2>${ic("globe")} ${t("any.h")}</h2><p class="mute">${t("any.p")}</p>
+  <div class="pairf"><input id="ac" inputmode="numeric" maxlength="6" placeholder="123456" aria-label="${esc(t("pair.code"))}">
+  <input id="an" placeholder="${esc(t("pair.name"))}" value="${esc(t("kid"))}" aria-label="${esc(t("pair.name"))}"></div>
+  <p class="mute" style="margin:10px 0 6px">${ic("key-round")} <b>${t("pair.newPin")}</b><br>${t("pair.newPinP")}</p>
+  <div class="pairf"><input id="ap1" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin1"))}" aria-label="${esc(t("pair.pin1"))}">
+  <input id="ap2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin2"))}" aria-label="${esc(t("pair.pin2"))}">
+  <button class="pri" id="aGo">${ic("globe")} ${t("pair.go")}</button></div><p class="err" id="eA"></p></div>`;
+function anyWire() {
+  const go = $("#aGo"); if (!go) return;
+  const idle = go.innerHTML, say = m => { $("#eA").textContent = m; };
+  const busy = (on, label) => { go.disabled = on; go.setAttribute("aria-busy", on ? "true" : "false"); go.innerHTML = on ? `<i class="spin"></i> ${label}` : idle; document.querySelectorAll("#aGo, #ac, #an, #ap1, #ap2").forEach(i => i.disabled = on); };
+  const wait = ms => new Promise(z => setTimeout(z, ms));
+  go.onclick = async () => {
+    if (go.disabled) return;
+    say("");
+    const code = $("#ac").value.trim(), a = $("#ap1").value, name = $("#an").value.trim() || t("kid");
+    if (!/^\d{6}$/.test(code)) return say(t("pe.wrong code"));
+    if (!/^\d{4,8}$/.test(a)) return say(t("pe.bad pin"));
+    if (a !== $("#ap2").value) return say(t("pe.mismatch"));
+    const fail = j => say(hasT("pe." + (j && j.error)) ? t("pe." + j.error, Math.ceil(((j && j.wait) || 60000) / 60000)) : t("pe.fail"));
+    busy(true, t("any.busy"));
+    try {
+      const ticket = anyHex(16), b = anyBase();
+      let r = await fetch(b + "/p/" + code + "/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ th: await anySha(ticket), newPin: a, name }) });
+      if (!r.ok) return fail(await r.json().catch(() => ({})));
+      // the kid's phone answers within a few seconds while its screen is on; it keeps nothing until this page has the link
+      for (let end = Date.now() + 45000; Date.now() < end; await wait(1500)) {
+        r = await fetch(b + "/p/" + code + "/result", { headers: { "X-KG-Ticket": ticket } });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok && j.token) return anyDone(j, name);
+        if (!r.ok) return fail(j);
+      }
+      say(t("any.timeout"));
+    } catch { say(t("any.fail")); } finally { if ($("#aGo")) busy(false); }
+  };
+}
+// same result as a relay link (addRelayLink): a kid via the relay, opened at once
+function anyDone(j, name) {
+  const k = { id: j.id, token: j.token, name, via: "relay", target: j.url };
+  kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids); open(k);
+}
 function addScreen() {
   const keep = [($("#addr") || {}).value || "", ($("#rlink") || {}).value || ""]; reScreen = addScreen;
   $("#app").innerHTML = head(t("addKid")) + `
@@ -392,6 +439,7 @@ function addScreen() {
     <p class="mute">${t("add.lanP")}</p>
     <div class="pairf"><input id="addr" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="192.168.1.5" aria-label="${esc(t("add.addr"))}" value="${esc(keep[0])}"><button class="pri" id="lanGo">${ic("link")} ${t("add.connect")}</button></div><p class="err" id="e1"></p>
     ${APP ? "" : `<p class="mute">${ic("lightbulb")} ${t("add.sameOrigin")}</p>`}</div>
+  ${anyOk() ? anyCard() : ""}
   ${APP ? `<div class="card"><h2>${ic("globe")} ${t("add.relayH")}</h2>
     <p class="mute">${t("add.relayP")}</p>
     <div class="pairf"><input id="rlink" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${esc(t("add.relayPh"))}" aria-label="${esc(t("add.relayLink"))}" value="${esc(keep[1])}"><button class="pri" id="rGo">${ic("globe")} ${t("add")}</button></div><p class="err" id="e2"></p></div>` : ""}
@@ -402,6 +450,7 @@ function addScreen() {
     if (!/^[A-Za-z0-9.-]+(:\d{1,5})?$/.test(a)) return $("#e1").textContent = t("add.badAddr");
     lanHello("http://" + (a.includes(":") ? a : a + ":8770"));
   };
+  anyWire();
   if ($("#rGo")) $("#rGo").onclick = () => { if (!addRelayLink($("#rlink").value)) $("#e2").textContent = t("add.badLink"); };
   if ($("#scanGo")) $("#scanGo").onclick = () => { try { KGApp.scanQr(); } catch { toast("err|" + t("scan.none")); } };
   if ($("#scanImg")) $("#scanImg").onclick = () => { try { KGApp.scanImg(); } catch { toast("err|" + t("scan.none")); } };
@@ -522,7 +571,8 @@ function listScreen(list) {
     kidRow(k, i)).join("")
     : "")
     + (list.length > 1 ? `<button class="pri" id="ovGo">${ic("layout-grid")} ${t("ovN", list.length)}</button>` : "")
-    + startCard(!list.length);
+    + (anyOk() ? anyCard() : "") + startCard(!list.length);
+  anyWire();
   $("#app").querySelectorAll("[data-i]").forEach(b => b.onclick = () => open(list[+b.dataset.i]));
   kidBrief(list);
   if ($("#ovGo")) $("#ovGo").onclick = () => overview(list, () => listScreen(list));

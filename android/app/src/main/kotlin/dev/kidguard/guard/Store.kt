@@ -195,12 +195,15 @@ class Store private constructor(private val app: Context) {
      * (the child can see the code, never the PIN). Every 3rd wrong guess makes a new code and blocks for a while.
      * Returns the token, or null with [lastPairError] = closed | wait | pin locked | wrong pin | wrong code.
      */
-    fun tryPair(code: String, pin: String, newPin: String = ""): String? = synchronized(pinGate) { tryPairLocked(code, pin, newPin) }
-    @Synchronized private fun tryPairLocked(code: String, pin: String, newPin: String): String? {
+    fun tryPair(code: String, pin: String, newPin: String = "", viaInvite: Boolean = false): String? = synchronized(pinGate) { tryPairLocked(code, pin, newPin, viaInvite) }
+    @Synchronized private fun tryPairLocked(code: String, pin: String, newPin: String, viaInvite: Boolean): String? {
         val now = System.currentTimeMillis()
         if (p.getLong("pairBlock", 0) > now) { lastPairError = "wait"; return null }
-        val want = pairCode() ?: run { lastPairError = "closed"; return null }
-        if (code.trim() != want) { pairFail(now); lastPairError = "wrong code"; return null }
+        if (viaInvite && everPaired) { lastPairError = "closed"; return null }   // an invite only pairs a phone with no parent
+        if (!viaInvite) {   // a provisioning invite is the parent's own secret (QR): it replaces the code
+            val want = pairCode() ?: run { lastPairError = "closed"; return null }
+            if (code.trim() != want) { pairFail(now); lastPairError = "wrong code"; return null }
+        }
         // after the code: anyone could otherwise send wrong PINs and keep the PIN (and new pairings) locked
         var set = PendingPin("", "")
         when (val c = PairPin.decide(rules.pinHash.isNotBlank(), newPin)) {
@@ -216,6 +219,24 @@ class Store private constructor(private val app: Context) {
         pending.add(sha256(t), set, now)
         return t
     }
+    /**
+     * Pair over the relay ([RelayPair]): the parent's page took the link the phone offered, so now it counts: the token (via
+     * [commitPair]) and the relay link (default relay, this id + token) in one go. False = the pending token was unknown / expired.
+     */
+    @Synchronized fun commitRelayPair(t: String, id: String, url: String): Boolean {
+        if (!commitPair(t)) return false
+        p.edit().putString("relayUrl", url.trim().trimEnd('/')).putString("relayToken", t).putString("relayId", id).remove("inviteId").remove("inviteUntil").commit()
+        touchDevice(t, "relay")
+        return true
+    }
+    /** A provisioning invite (QR extras `kg_invite`) waiting to be claimed on the relay; null = none / expired / already paired. */
+    @Synchronized fun inviteId(): String? {
+        val id = p.getString("inviteId", null) ?: return null
+        if (everPaired || p.getLong("inviteUntil", 0) < System.currentTimeMillis()) { clearInvite(); return null }
+        return id
+    }
+    @Synchronized fun setInvite(id: String) { p.edit().putString("inviteId", id).putLong("inviteUntil", System.currentTimeMillis() + RelayPairLogic.INVITE_TTL_MS).commit() }
+    @Synchronized fun clearInvite() { p.edit().remove("inviteId").remove("inviteUntil").apply() }
     class PendingPin(val hash: String, val salt: String)
     private val pending = PendingPairs<PendingPin>()
 

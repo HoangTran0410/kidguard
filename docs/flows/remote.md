@@ -41,6 +41,14 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 - Gotchas: relay needs `https://` (`Relay.kt:44`, page check `tab-set.js:286`). The token is in the URL hash (never sent to the worker as a path but lives in browser history/localStorage). `unpair` of the device named `relay` clears relayId/token (`Store.kt:69-73`) so the phone stops syncing.
 - Wire: protocol "Relay (worker)..." under "Live screen and remote control" (limits) and "v0.2.1 changes" (sync omit-state). **The `/sync` body/reply itself has no section** (see section 12).
 
+#### 1c. Pair from anywhere (0.9.21: no shared Wi-Fi; `K/remote/RelayPair.kt`, `relay/src/index.js` `pairRoute` + `Watch.pair`)
+- Only a phone with no parent (`!everPaired`, not Home). `RelayPair` (thread in `Guard.start`) while the screen is on and `visiblePairCode()` shows the code: `POST /p/new {sh, code}` (the LAN code itself, so one code works both ways; 409 -> `newPairCode`), then polls `GET /p/<code>` every 2-3 s. Nudged by `MainActivity.refresh` when the code appears.
+- Parent: add-kid screen (app) / relay home (browser) card "Ghép từ xa" (`core.js anyCard/anyWire`): code + name + new PIN twice -> `POST /p/<code>/join` -> polls `/result` (<= 45 s) -> `{id, token, url}` -> kid `via:"relay"` (`anyDone`, like `addRelayLink`). Needs the kid screen on: timeout text says so.
+- Phone decision = `Store.tryPair` (same `PairPin.decide`, lockouts, errors as 1a), the token stays pending; on relay `taken` -> `Store.commitRelayPair` (token + `everPaired` + PIN + relay link in one commit), `g.kick()`. The relay then binds the token at the phone's first sync (2.1 1b).
+- Invite (QR): `ui/qr.html` "Ghép luôn với tôi" -> `POST /p/inv` -> id in `PROVISIONING_ADMIN_EXTRAS_BUNDLE {kg_invite}` -> `Admin.onProfileProvisioningComplete` -> `Store.setInvite` -> `RelayPair` claims, same decision, no code. The qr page polls `/result` and saves the kid.
+- Gotchas: needs the default relay (`Relay.DEFAULT_URL`; a self-hosted relay phone-side is not used for this first pairing); a phone with the screen off does not offer the code (invite works with screen off); code expires in 15 min on the relay, the phone renews every 10 min.
+- Wire: protocol "Pair over relay".
+
 ### 2.2 Open a kid + state refresh
 - `open(k)` `UI/kid.js:7` -> `refresh()` `kid.js:9` every few seconds (timer set in `open`; skipped when `document.hidden`).
 - LAN: `GET /api/state` -> `Api.kt:71`: `g.currentState()` (the guard loop's cached `lastState`, `Guard.kt:408`) + `devices` list with caller's `self` row.

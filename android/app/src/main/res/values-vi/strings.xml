@@ -394,8 +394,8 @@
     </plurals>
     <string name="st_sos">Đã gửi SOS, đang chờ bố mẹ xem</string>
     <string name="st_last_listen">Lần nghe gần nhất: %1$s (%2$s)</string>
-    <string name="main_hint_qr">Trên máy bố mẹ (cùng Wi-Fi): quét mã QR bằng camera, hoặc mở trình duyệt:\n%1$s\nrồi nhập mã ở trên.</string>
-    <string name="main_hint_nowifi">Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n(chưa có Wi-Fi)\nrồi nhập mã ở trên.</string>
+    <string name="main_hint_qr">Trên máy bố mẹ (cùng Wi-Fi): quét mã QR bằng camera, hoặc mở trình duyệt:\n%1$s\nrồi nhập mã ở trên.\nKhác Wi-Fi? Mở trang KidGuard, Thêm con > Ghép từ xa, rồi nhập mã.</string>
+    <string name="main_hint_nowifi">Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n(chưa có Wi-Fi)\nrồi nhập mã ở trên.\nKhác Wi-Fi? Mở trang KidGuard, Thêm con > Ghép từ xa, rồi nhập mã.</string>
     <string name="main_hint_hidden">Chưa ghép với máy bố mẹ. Bố mẹ giữ nút \"hiện mã ghép\" bên dưới 5 giây để ghép.</string>
     <string name="main_hint_managed">Bố mẹ quản lý tại:\n%1$s</string>
     <string name="main_no_wifi">(chưa có Wi-Fi)</string>

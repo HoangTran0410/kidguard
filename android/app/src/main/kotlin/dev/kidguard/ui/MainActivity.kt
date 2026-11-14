@@ -841,6 +841,7 @@ class MainActivity : Activity() {
             ?: getString(R.string.main_recover))
         if (c != null) {
             code.visibility = View.VISIBLE; codeLabel.visibility = View.VISIBLE; code.text = c
+            if (c != nudgedFor && !s.everPaired) { nudgedFor = c; Guard.running?.pairNudge() }   // offer this code on the relay now (pair from anywhere)
             val left = s.pairOpenUntil() - System.currentTimeMillis()
             codeLabel.text = if (left > 0) getString(R.string.main_code_left, if (left < 60_000) getString(R.string.main_code_under1) else getString(R.string.main_code_min, ((left + 59_999) / 60_000).toInt())) else getString(R.string.main_code_label)
             hint.gravity = Gravity.CENTER
@@ -866,6 +867,7 @@ class MainActivity : Activity() {
         ui.removeCallbacks(refreshLoop); ui.postDelayed(refreshLoop, 3000)   // one loop, however often refresh() is called
     }
     private val refreshLoop = Runnable { refresh() }
+    private var nudgedFor = ""
 
     /** The parent's ways in, each with its live state. Nothing set up at all -> the old "managed at <url>" line. */
     private fun remoteLines(s: Store, line: (Int, String, String) -> Unit) {
