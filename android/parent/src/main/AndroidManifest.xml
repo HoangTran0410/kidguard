@@ -21,6 +21,7 @@
         android:theme="@style/AppMain">
 
         <activity
+            android:label="@string/launcher_name"
             android:name=".MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|uiMode|locale|layoutDirection"

@@ -2,6 +2,8 @@
 <!-- Vietnamese. Same names as values/strings.xml (English, the default). Keep the format args (%1$s, %2$d) the same. -->
 <resources>
     <string name="app_name">KidGuard Phụ huynh</string>
+    <!-- name under the launcher icon (short: fits one line); app_name stays the full name in Settings -->
+    <string name="launcher_name">KG Bố mẹ</string>
     <string name="err_port">Không mở được cổng nội bộ</string>
     <string name="ch_requests">Xin thêm giờ và cảnh báo quan trọng</string>
     <string name="ch_info">Thông báo khác từ máy của con</string>

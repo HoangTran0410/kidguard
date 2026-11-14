@@ -7,6 +7,8 @@
 -->
 <resources>
     <string name="app_name">KidGuard Parent</string>
+    <!-- name under the launcher icon (short: fits one line); app_name stays the full name in Settings -->
+    <string name="launcher_name">KG Parent</string>
     <string name="err_port">Couldn\'t open the local port</string>
     <string name="ch_requests">Requests and important alerts</string>
     <string name="ch_info">Other alerts from your child\'s phone</string>

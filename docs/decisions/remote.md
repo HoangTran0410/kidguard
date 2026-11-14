@@ -64,3 +64,4 @@ Index and the rule for adding lines: `README.md`.
 - Self-update: `at` written before download (24 h wait after failure), only Exception caught, session leak, Policy.apply re-added DISALLOW_INSTALL during update, rejected tag redownloaded -> all fixed 7fc1506
 - Parent app WebView render process gone killed the app -> recreate activity (7fc1506)
 - Broken pipe on LAN server killed the whole app (Oppo dropbox) -> catch (5f03cbe, Http.kt:61)
+- (2026-11-15) Parent app name under the launcher icon = `launcher_name` "KG Bố mẹ" / "KG Parent" (owner: "KidGuard Phụ huynh" too long, ellipsized); `app_name` stays full in Settings and docs.
