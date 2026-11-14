@@ -57,6 +57,8 @@ const FILE_CHUNK = 1048576, FILE_MAX = 10 * 1048576, FILE_TTL = 3600e3, FILE_N =
 const limitFor = (action) => action === "frame" ? MAX_FRAME : action === "file" ? FILE_CHUNK : action === "watch" ? 512 : MAX_BODY;
 // Zepp watch connect (docs/protocol.md "Watch connect"): a code on the watch, typed into the parent page
 const WATCH_TTL = 10 * 60e3, WATCH_PER_DAY = 30;
+// Pair from anywhere (docs/protocol.md "Pair over relay"): a code the unpaired phone shows (/p/new) or an invite the parent made (/p/inv)
+const PAIR_TTL = 15 * 60e3, INVITE_TTL = 3 * 3600e3, PAIR_PER_DAY = 100, INVITE_PER_DAY = 30, PAIR_MISS_PER_DAY = 40, PAIR_JOINS = 5;
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
@@ -126,6 +128,7 @@ export default {
     const th = req.method === "POST" && env.TG_BOT ? url.pathname.match(/^\/tg\/([0-9a-f]{32})$/) : null;
     if (th) return tgHook(req, env, th[1]);
     if (url.pathname === "/w/new" || /^\/w\/\d{6}$/.test(url.pathname)) return watchRoute(req, env, url);
+    if (/^\/p\/(new|inv|\d{6}|[0-9a-f]{16})(\/(join|reply|result))?$/.test(url.pathname)) return pairRoute(req, env, url);
     const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile)$/);
     if (!m) return json({ error: "not found" }, 404);
     if (env.RL) {
@@ -186,9 +189,106 @@ async function watchRoute(req, env, url) {
   return json({ error: "try again" }, 503);
 }
 
+/** Pair a kid phone with no parent over the relay (docs/protocol.md "Pair over relay"). No auth (neither side has the other yet): limits + secrets.
+ *  Phone: POST /p/new {sh,code} (code = its LAN code), GET /p/<key> (X-KG-Secret) polls, POST /p/<key>/reply gives {id,token} or {error}.
+ *  Parent: POST /p/<code>/join {th,pin,newPin,name}, GET /p/<key>/result (X-KG-Ticket); or POST /p/inv {th,newPin,name} -> invite id for the QR. */
+async function pairRoute(req, env, url) {
+  if (env.RL && !(await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" })).success) return json({ error: "slow down" }, 429);
+  if (!env.WATCH) return json({ error: "not available" }, 501);
+  const [, key, op] = url.pathname.match(/^\/p\/([^/]+)(?:\/(\w+))?$/);
+  const POSTS = key === "new" || key === "inv" || op === "join" || op === "reply";
+  if (req.method !== (POSTS ? "POST" : "GET")) return json({ error: "method" }, 405);
+  if (+(req.headers.get("content-length") || 0) > 512) return json({ error: "too big" }, 413);
+  const net = netKey(req.headers.get("cf-connecting-ip")) || "?";
+  const gate = async (name, max, peek) => !env.GATE || (await env.GATE.get(env.GATE.idFromName(name + ":" + net)).fetch("https://gate/take?max=" + max + (peek ? "&peek=1" : ""))).status === 200;
+  const fwd = (k, o, body, query = "") => env.WATCH.get(env.WATCH.idFromName("p:" + k)).fetch("https://w/" + o + query, body ? { method: "POST", body: JSON.stringify(body) } : undefined);
+  let b = {};
+  if (POSTS) { try { b = await req.json(); } catch { return json({ error: "bad json" }, 400); } if (!b || typeof b !== "object") return json({ error: "bad json" }, 400); }
+  const hex = (v, n) => typeof v === "string" && new RegExp("^[0-9a-f]{" + n + "}$").test(v);
+  const clean = v => String(v || "").replace(/[\u0000-\u001f]/g, "").slice(0, 20);
+  if (key === "new") {
+    if (!hex(b.sh, 64) || !/^\d{6}$/.test(String(b.code || ""))) return json({ error: "bad json" }, 400);
+    if (!(await gate("pip", +env.PAIR_PER_DAY || PAIR_PER_DAY))) return json({ error: "too many codes from this network, try tomorrow" }, 429);
+    return fwd(b.code, "pnew", { sh: b.sh });
+  }
+  if (key === "inv") {
+    if (!hex(b.th, 64) || !/^\d{4,8}$/.test(String(b.newPin || ""))) return json({ error: "bad json" }, 400);
+    if (!(await gate("piv", +env.INVITE_PER_DAY || INVITE_PER_DAY))) return json({ error: "too many invites from this network, try tomorrow" }, 429);
+    const inv = [...crypto.getRandomValues(new Uint8Array(8))].map(x => x.toString(16).padStart(2, "0")).join("");
+    const r = await fwd(inv, "pinv", { th: b.th, req: { pin: "", newPin: String(b.newPin), name: clean(b.name) } });
+    return r.status === 200 ? json({ inv, exp: (await r.json()).exp }) : r;
+  }
+  if (op === "join") {
+    if (!/^\d{6}$/.test(key) || !hex(b.th, 64)) return json({ error: "bad json" }, 400);
+    const max = +env.PAIR_MISS_PER_DAY || PAIR_MISS_PER_DAY;
+    if (!(await gate("pmiss", max, true))) return json({ error: "wait" }, 429);   // too many wrong codes from this network today
+    const r = await fwd(key, "pjoin", { th: b.th, req: { pin: String(b.pin || "").replace(/\D/g, "").slice(0, 8), newPin: String(b.newPin || "").slice(0, 8), name: clean(b.name) } });
+    if (r.status !== 404) return r;
+    await gate("pmiss", max);
+    return json({ error: "wrong code" }, 403);
+  }
+  if (op === "result") {
+    const tk = req.headers.get("x-kg-ticket") || "";
+    if (!hex(tk, 32)) return json({ error: "forbidden" }, 403);
+    const r = await fwd(key, "presult", null, "?th=" + await sha256(tk));
+    if (r.status !== 200) return r;
+    const j = await r.json();
+    if (j.token) j.url = url.origin;   // the phone's relay is the one that answered
+    if (j.error) return json(j, j.error === "wait" || j.error === "pin locked" ? 429 : j.error === "bad pin" || j.error === "pin required" ? 400 : 403);
+    return json(j);
+  }
+  const sec = req.headers.get("x-kg-secret") || "";
+  if (!/^[0-9a-f]{32,128}$/.test(sec)) return json({ error: "forbidden" }, 403);
+  const sh = await sha256(sec);
+  if (op === "reply") {
+    if (!(b.error ? typeof b.error === "string" : hex(b.id, 16) && hex(b.token, 48))) return json({ error: "bad json" }, 400);
+    return fwd(key, "preply", b.error ? { error: b.error.slice(0, 40), wait: +b.wait || 0 } : { id: b.id, token: b.token }, "?sh=" + sh);
+  }
+  return fwd(key, "ppoll", null, "?sh=" + sh);
+}
+
 /** One code waiting for a parent page ("w:<code>"): {sh, exp, creds?}; deleted when taken, expired (lazy + alarm). */
 export class Watch {
-  constructor(ctx, env) { this.ctx = ctx; this.s = ctx.storage; this.ttl = +(env && env.WATCH_TTL_MS) > 0 ? +env.WATCH_TTL_MS : WATCH_TTL; }   // env.WATCH_TTL_MS: tests only
+  constructor(ctx, env) {
+    this.ctx = ctx; this.s = ctx.storage; const t = +(env && env.WATCH_TTL_MS) > 0 ? +env.WATCH_TTL_MS : 0;   // env.WATCH_TTL_MS: tests only
+    this.ttl = t || WATCH_TTL; this.pttl = t || PAIR_TTL; this.ittl = t || INVITE_TTL;
+  }
+  /** Pair entries (w.k = "code" | "inv"): {sh (phone's secret hash), th (parent's ticket hash), req {pin,newPin,name}, res {id,token}|{error,wait}, taken, joins, exp}. */
+  async pair(op, w, url, req) {
+    const sh = url.searchParams.get("sh"), th = url.searchParams.get("th");
+    const save = () => this.s.put("w", w);
+    if (op === "pjoin") {   // the parent types the phone's code (an invite has its request already)
+      if (w.k !== "code" || w.req || w.res || w.taken) return json({ error: "busy" }, 409);
+      if (++w.joins > PAIR_JOINS) { await this.wipe(); return json({ error: "no such code" }, 404); }   // like the LAN flow: a few tries, then the code is dead
+      const b = await req.json(); w.th = b.th; w.req = b.req; await save();
+      return json({ ok: true, exp: w.exp });
+    }
+    if (op === "ppoll") {   // the phone (an invite is claimed by the first phone that asks)
+      if (w.k === "inv" && !w.sh) { w.sh = sh; await save(); }
+      if (w.sh !== sh) return json({ error: "forbidden" }, 403);
+      if (w.taken) { await this.wipe(); return json({ taken: true }); }   // the parent has the link: the phone commits now
+      return json(w.req && !w.res ? { req: w.req, exp: w.exp } : { waiting: true, exp: w.exp });
+    }
+    if (op === "preply") {
+      if (w.sh !== sh) return json({ error: "forbidden" }, 403);
+      if (!w.req || w.res || w.taken) return json({ error: "no request" }, 409);
+      w.res = await req.json(); await save();
+      return json({ ok: true });
+    }
+    if (op === "presult") {
+      if (w.th !== th) return json({ error: "forbidden" }, 403);
+      if (w.taken) return json({ error: "no such code" }, 404);
+      if (!w.res) return json({ waiting: true, exp: w.exp });
+      if (w.res.error) {
+        const e = w.res; w.res = null;
+        if (w.k === "code") { w.req = null; await save(); } else await this.wipe();   // a code can be tried again; an invite is one shot
+        return json(e);
+      }
+      const c = w.res; w.res = null; w.taken = true; await save();   // one shot: the link leaves the relay with this reply; the phone sees `taken`
+      return json(c);
+    }
+    return json({ error: "not found" }, 404);
+  }   // env.WATCH_TTL_MS: tests only
   async fetch(req) {
     const url = new URL(req.url), op = url.pathname.slice(1), now = Date.now();
     let w = await this.s.get("w");
@@ -200,7 +300,19 @@ export class Watch {
       await this.s.put("w", { sh: String(b.sh), exp }); await this.s.setAlarm(exp + 1000);
       return json({ exp });
     }
+    if (op === "pnew" || op === "pinv") {   // pair from anywhere: the phone offers its code / the parent made an invite
+      let b = {}; try { b = await req.json(); } catch {}
+      const exp = now + (op === "pnew" ? this.pttl : this.ittl);
+      if (w && op === "pnew" && w.k === "code" && w.sh === String(b.sh) && !w.req && !w.res && !w.taken) {   // the same phone renews its code
+        w.exp = exp; await this.s.put("w", w); await this.s.setAlarm(exp + 1000); return json({ exp });
+      }
+      if (w) return json({ error: "taken" }, 409);
+      await this.s.put("w", op === "pnew" ? { k: "code", sh: String(b.sh), exp, joins: 0 } : { k: "inv", th: String(b.th), req: b.req, exp, joins: 0 });
+      await this.s.setAlarm(exp + 1000);
+      return json({ exp });
+    }
     if (!w) return json({ error: "no such code" }, 404);
+    if (w.k) return this.pair(op, w, url, req);
     if (op === "attach") {
       if (w.creds) return json({ error: "already used" }, 409);
       w.creds = await req.json(); await this.s.put("w", w);
@@ -243,6 +355,7 @@ export class Gate {
     const g = (await this.s.get("g")) || { day, n: 0 };
     if (g.day !== day) { g.day = day; g.n = 0; }
     if (g.n >= max) return new Response("full", { status: 429 });
+    if (new URL(req.url).searchParams.get("peek")) return new Response("ok");   // ask without counting
     g.n++; await this.s.put("g", g);
     await this.s.setAlarm(Date.now() + 2 * 86400e3);
     return new Response("ok");

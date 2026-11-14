@@ -23,7 +23,12 @@ class Admin : DeviceAdminReceiver() {
     /** After QR provisioning: start the guard and open the app so the "Bước còn lại" checklist shows. */
     override fun onProfileProvisioningComplete(context: Context, intent: Intent) {
         Store.of(context).released = false
+        // QR invite (ui/qr.html "pair with me"): the parent's invite id rides in the provisioning extras; RelayPair redeems it
+        @Suppress("DEPRECATION")
+        runCatching { intent.getParcelableExtra<android.os.PersistableBundle>(DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE) }.getOrNull()
+            ?.let { RelayPairLogic.invite(it.getString(RelayPairLogic.INVITE_KEY)) }?.let { Store.of(context).setInvite(it) }
         Guard.start(context)
+        Guard.running?.pairNudge()
         runCatching { context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
 }

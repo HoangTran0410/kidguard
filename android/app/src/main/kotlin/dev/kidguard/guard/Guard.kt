@@ -60,6 +60,9 @@ class Guard : Service() {
     private lateinit var work: Handler
     private var http: Http? = null
     private var relay: Relay? = null
+    private var relayPair: RelayPair? = null
+    /** The child screen is in front / an invite arrived: offer the pairing code on the relay now. */
+    fun pairNudge() { relayPair?.nudge() }
     /** Last good relay sync (0 = never / no relay): the child's status sheet shows whether the relay link is up. */
     val relayOkAt: Long get() = relay?.lastOk ?: 0L
     @Volatile private var lastState: JSONObject = JSONObject()
@@ -180,6 +183,7 @@ class Guard : Service() {
         wifiSync()
         http = Http(this, Api(this)).also { it.start(PORT) }
         relay = Relay(this).also { it.start() }
+        relayPair = RelayPair(this).also { it.start() }   // pair from anywhere: only while no parent exists
         Tg.start(this)   // Telegram bot on this phone (idle without a token)
         runCatching { LauncherSafe.restoreShade(this) }   // Acc has shadeBlocked before any home screen
         work.post(loopRun)
@@ -203,7 +207,7 @@ class Guard : Service() {
         runCatching { contentResolver.unregisterContentObserver(dnsObserver) }
         Listen.stopAll(); Proj.stop(this); Ring.stop(this)
         wifiLock(false); motionOff()
-        http?.stop(); relay?.stop(); Tg.stop()
+        http?.stop(); relay?.stop(); relayPair?.stop(); Tg.stop()
         work.looper.quitSafely()
         super.onDestroy()
     }

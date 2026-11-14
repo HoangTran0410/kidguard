@@ -88,7 +88,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Cài đặt máy (âm lượng, độ sáng, hẹn giờ tắt màn hình, Không làm phiền) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | Âm lượng luôn được; độ sáng/hẹn giờ cần quyền "sửa cài đặt hệ thống"; Không làm phiền cần quyền DND |
 | Tự cập nhật KidGuard | ✅ im lặng | ⚠️ | ⚠️ | ⚠️ | ✅ | CB: tải và kiểm tra sẵn, con phải bấm cài |
 | Đổi relay (`relay`) | ✅ | ✅ | ✅ | ✅ | ❌ | **Chỉ LAN**: đổi chính đường relay |
-| Ghép nối máy bố mẹ bằng mã | ✅ | ✅ | ✅ | ✅ | ❌ | Mã ghép nối chỉ qua LAN; Relay dùng token có sẵn |
+| Ghép nối máy bố mẹ bằng mã | ✅ | ✅ | ✅ | ✅ | ✅* | *Chỉ máy chưa có bố mẹ: "Ghép từ xa" (mã trên màn hình máy con, màn hình phải sáng) hoặc QR "Ghép luôn với tôi" (qr.html). Máy đã có bố mẹ: mã mở bằng `openPairing` qua LAN, Relay dùng token có sẵn |
 | Gỡ quản lý (`release`), huỷ ghép nối | ✅ | ✅ | ✅ | ✅ | ✅ | Lệnh phá huỷ: giao 1 lần |
 
 ### 3.4 Thông báo cho bố mẹ

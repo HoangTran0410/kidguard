@@ -20,6 +20,9 @@
   input, select { width:100%; font:inherit; padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--fg) }
   label.chk { font-weight:400; display:flex; gap:10px; align-items:center }
   label.chk input { width:auto }
+  [hidden] { display:none !important }
+  #invgo { margin-top:12px; padding:12px 18px; border:0; border-radius:10px; background:var(--pri); color:#fff; font:inherit; cursor:pointer }
+  #invgo:disabled { opacity:.5 }
   .msg { margin-top:10px; color:var(--mut); font-size:15px }
   .msg.bad { color:var(--bad) }
   #qrbox { text-align:center }
@@ -55,6 +58,18 @@
     <select id="sec"><option value="WPA">WPA / WPA2 / WPA3</option><option value="WEP">WEP</option><option value="NONE">Không mật khẩu</option></select>
     <label class="chk"><input id="keep" type="checkbox" checked disabled> Giữ nguyên ứng dụng hệ thống (bắt buộc, nếu không điện thoại mất gọi/tin nhắn/bàn phím)</label>
     <div class="msg">Mật khẩu Wi-Fi chỉ nằm trong mã QR trên màn hình này, trang không gửi đi đâu.</div>
+    <label class="chk" id="invrow" hidden><input id="inv" type="checkbox"> Ghép luôn với tôi, không cần cùng Wi-Fi</label>
+    <div id="invbox" hidden>
+      <div class="msg">Máy con tự ghép với trang này sau khi cài xong. Mã mời nằm trong mã QR, PIN không nằm trong mã QR.</div>
+      <label for="inm">Tên con</label>
+      <input id="inm" maxlength="20" autocomplete="off">
+      <label for="ip1">PIN của bố mẹ (4–8 số)</label>
+      <input id="ip1" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password">
+      <label for="ip2">Nhập lại PIN</label>
+      <input id="ip2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password">
+      <button type="button" id="invgo">Tạo mã mời</button>
+      <div id="invmsg" class="msg"></div>
+    </div>
   </section>
 
   <section class="card" id="qrbox">
@@ -80,7 +95,7 @@
 <script src="/ui/qrcode.js"></script>
 <script>
 // Language: Vietnamese is the source text, English comes from this table (same kg.lang key as the parent page; ?lang=en|vi switches).
-var KG_EN = {"QR cài KidGuard": "KidGuard install QR", "Cài KidGuard lên điện thoại mới / vừa khôi phục cài đặt gốc bằng cách quét mã QR. Không cần máy tính, không cần cáp.": "Install KidGuard on a new or just factory-reset phone by scanning a QR code. No computer, no cable.", "1. Tuỳ chọn": "1. Options", "Địa chỉ file kidguard.apk": "Address of the kidguard.apk file", "Tên Wi-Fi (không bắt buộc)": "Wi-Fi name (optional)", "để trống nếu tự chọn Wi-Fi trên điện thoại": "leave empty to pick the Wi-Fi on the phone", "Mật khẩu Wi-Fi": "Wi-Fi password", "Kiểu bảo mật Wi-Fi": "Wi-Fi security type", "Không mật khẩu": "No password", "Giữ nguyên ứng dụng hệ thống (bắt buộc, nếu không điện thoại mất gọi/tin nhắn/bàn phím)": "Keep the system apps (required, otherwise the phone loses calls, messages and keyboard)", "Mật khẩu Wi-Fi chỉ nằm trong mã QR trên màn hình này, trang không gửi đi đâu.": "The Wi-Fi password only lives in the QR code on this screen. The page sends it nowhere.", "2. Mã QR": "2. QR code", "3. Các bước": "3. Steps", "Khôi phục cài đặt gốc điện thoại của con (Cài đặt > Hệ thống > Đặt lại).": "Factory-reset your child's phone (Settings > System > Reset).", "Mất hết dữ liệu": "Everything on it is erased", ", và máy chưa được đăng nhập tài khoản nào.": ", and no account may be signed in on it.", "Máy khởi động lại vào màn hình": "The phone restarts into the", "\"Chào mừng\" / \"Welcome\"": "\"Welcome\" screen", ": chạm": ": tap", "6 lần": "6 times", "vào cùng một chỗ trên màn hình (ví dụ chữ \"Chào mừng\") cho tới khi hiện máy quét QR. Có thể phải tải thêm trình quét, cần Wi-Fi.": "on the same spot of the screen (for example the word \"Welcome\") until the QR scanner appears. It may need to download a scanner first, so Wi-Fi is needed.", "Nếu máy hỏi, kết nối Wi-Fi (bỏ qua nếu đã điền Wi-Fi ở trên).": "If asked, connect to Wi-Fi (skip it if you filled in the Wi-Fi above).", "Quét mã QR ở trên. Chờ máy tải và cài KidGuard (vài phút), làm theo các bước máy hiện ra.": "Scan the QR code above. Wait while the phone downloads and installs KidGuard (a few minutes), and follow the steps it shows.", "Mở": "Open", ", làm hết mục": ", and finish the", "\"Bước còn lại\"": "\"Remaining steps\"", "(bật quyền theo dõi sử dụng, bật Trợ năng, cài đặt pin).": "section (turn on usage access, turn on Accessibility, battery settings).", "Ghép máy của bố mẹ: làm theo hướng dẫn trên màn hình KidGuard (mã 6 số).": "Pair your own phone: follow the guide on the KidGuard screen (6-digit code).", "Máy Android 10 trở lên. Cần cài trên máy": "Android 10 or newer. It has to be installed on a", "mới hoặc vừa khôi phục": "new or just reset phone", ", không cài được lên máy đang dùng. Muốn cài bằng máy tính:": ", it can't be installed on a phone already in use. To install with a computer:", "trang cài bằng cáp USB": "use the USB cable install page", "Thiếu mã chữ ký (checksum). Hãy build lại bằng ./build.sh.": "The signature checksum is missing. Build again with ./build.sh.", "Địa chỉ file APK phải bắt đầu bằng https://": "The APK address must start with https://", "Sẵn sàng quét": "Ready to scan", "Không tạo được mã QR (chữ quá dài?). Rút ngắn địa chỉ APK hoặc mật khẩu Wi-Fi.": "Could not make the QR code (text too long?). Shorten the APK address or the Wi-Fi password."};
+var KG_EN = {"Ghép luôn với tôi, không cần cùng Wi-Fi": "Pair with me too, no shared Wi-Fi needed", "Máy con tự ghép với trang này sau khi cài xong. Mã mời nằm trong mã QR, PIN không nằm trong mã QR.": "The kid's phone pairs with this page by itself after setup. The invite is in the QR code, the PIN is not.", "Tên con": "Kid's name", "PIN của bố mẹ (4–8 số)": "Parent PIN (4–8 digits)", "Nhập lại PIN": "PIN again", "Tạo mã mời": "Create invite", "PIN phải là 4–8 số": "PIN must be 4–8 digits", "Hai PIN chưa giống nhau": "The two PINs differ", "Con": "Kid", "Hôm nay tạo quá nhiều mã mời từ mạng này, thử lại ngày mai": "Too many invites from this network today, try tomorrow", "Trang này không tạo được mã mời. Mở trang từ link relay của bạn": "This page cannot create an invite. Open it from your relay link", "Quét mã QR mới. Giữ trang này mở tới khi máy con cài xong": "Scan the new QR code. Keep this page open until the kid's phone is set up", "Đã ghép máy con.": "Kid's phone paired.", "Mở trang quản lý": "Open the parent page", "Mã mời hết hạn hoặc bị từ chối. Tạo lại": "Invite expired or refused. Create it again", "Không tạo được mã mời": "Could not create the invite", "QR cài KidGuard": "KidGuard install QR", "Cài KidGuard lên điện thoại mới / vừa khôi phục cài đặt gốc bằng cách quét mã QR. Không cần máy tính, không cần cáp.": "Install KidGuard on a new or just factory-reset phone by scanning a QR code. No computer, no cable.", "1. Tuỳ chọn": "1. Options", "Địa chỉ file kidguard.apk": "Address of the kidguard.apk file", "Tên Wi-Fi (không bắt buộc)": "Wi-Fi name (optional)", "để trống nếu tự chọn Wi-Fi trên điện thoại": "leave empty to pick the Wi-Fi on the phone", "Mật khẩu Wi-Fi": "Wi-Fi password", "Kiểu bảo mật Wi-Fi": "Wi-Fi security type", "Không mật khẩu": "No password", "Giữ nguyên ứng dụng hệ thống (bắt buộc, nếu không điện thoại mất gọi/tin nhắn/bàn phím)": "Keep the system apps (required, otherwise the phone loses calls, messages and keyboard)", "Mật khẩu Wi-Fi chỉ nằm trong mã QR trên màn hình này, trang không gửi đi đâu.": "The Wi-Fi password only lives in the QR code on this screen. The page sends it nowhere.", "2. Mã QR": "2. QR code", "3. Các bước": "3. Steps", "Khôi phục cài đặt gốc điện thoại của con (Cài đặt > Hệ thống > Đặt lại).": "Factory-reset your child's phone (Settings > System > Reset).", "Mất hết dữ liệu": "Everything on it is erased", ", và máy chưa được đăng nhập tài khoản nào.": ", and no account may be signed in on it.", "Máy khởi động lại vào màn hình": "The phone restarts into the", "\"Chào mừng\" / \"Welcome\"": "\"Welcome\" screen", ": chạm": ": tap", "6 lần": "6 times", "vào cùng một chỗ trên màn hình (ví dụ chữ \"Chào mừng\") cho tới khi hiện máy quét QR. Có thể phải tải thêm trình quét, cần Wi-Fi.": "on the same spot of the screen (for example the word \"Welcome\") until the QR scanner appears. It may need to download a scanner first, so Wi-Fi is needed.", "Nếu máy hỏi, kết nối Wi-Fi (bỏ qua nếu đã điền Wi-Fi ở trên).": "If asked, connect to Wi-Fi (skip it if you filled in the Wi-Fi above).", "Quét mã QR ở trên. Chờ máy tải và cài KidGuard (vài phút), làm theo các bước máy hiện ra.": "Scan the QR code above. Wait while the phone downloads and installs KidGuard (a few minutes), and follow the steps it shows.", "Mở": "Open", ", làm hết mục": ", and finish the", "\"Bước còn lại\"": "\"Remaining steps\"", "(bật quyền theo dõi sử dụng, bật Trợ năng, cài đặt pin).": "section (turn on usage access, turn on Accessibility, battery settings).", "Ghép máy của bố mẹ: làm theo hướng dẫn trên màn hình KidGuard (mã 6 số).": "Pair your own phone: follow the guide on the KidGuard screen (6-digit code).", "Máy Android 10 trở lên. Cần cài trên máy": "Android 10 or newer. It has to be installed on a", "mới hoặc vừa khôi phục": "new or just reset phone", ", không cài được lên máy đang dùng. Muốn cài bằng máy tính:": ", it can't be installed on a phone already in use. To install with a computer:", "trang cài bằng cáp USB": "use the USB cable install page", "Thiếu mã chữ ký (checksum). Hãy build lại bằng ./build.sh.": "The signature checksum is missing. Build again with ./build.sh.", "Địa chỉ file APK phải bắt đầu bằng https://": "The APK address must start with https://", "Sẵn sàng quét": "Ready to scan", "Không tạo được mã QR (chữ quá dài?). Rút ngắn địa chỉ APK hoặc mật khẩu Wi-Fi.": "Could not make the QR code (text too long?). Shorten the APK address or the Wi-Fi password."};
 var LANG = (function () {
   try {
     var q = /[?&]lang=(vi|en)/.exec(location.search);
@@ -123,6 +138,8 @@ function payload(o) {
     "android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED": true,
     "android.app.extra.PROVISIONING_SKIP_ENCRYPTION": true,
   };
+  // "pair with me": the invite id is all the phone gets (docs/protocol.md "Pair over relay"); the PIN stays on the relay
+  if (o.inv) p["android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE"] = { kg_invite: o.inv };
   if (o.ssid) {
     p["android.app.extra.PROVISIONING_WIFI_SSID"] = o.ssid;
     p["android.app.extra.PROVISIONING_WIFI_SECURITY_TYPE"] = o.sec;
@@ -156,7 +173,7 @@ function render() {
   const msg = $("qrmsg");
   if (!DEF.checksum) { msg.innerHTML = ICA + " " + T("Thiếu mã chữ ký (checksum). Hãy build lại bằng ./build.sh."); msg.className = "msg bad"; return; }
   if (!/^https:\/\/\S+$/.test(apkUrl)) { msg.innerHTML = ICA + " " + T("Địa chỉ file APK phải bắt đầu bằng https://"); msg.className = "msg bad"; return; }
-  const text = payload({ component: DEF.component, checksum: DEF.checksum, apkUrl, ssid: $("ssid").value, pw: $("pw").value, sec: $("sec").value });
+  const text = payload({ component: DEF.component, checksum: DEF.checksum, apkUrl, ssid: $("ssid").value, pw: $("pw").value, sec: $("sec").value, inv: INVITE });
   try {
     const m = matrix(text);
     draw($("qr"), m);
@@ -168,8 +185,46 @@ function render() {
   }
 }
 
+// Pair with me: this page (served by the relay: same origin) makes an invite, then waits for the phone to redeem it
+// and saves the kid in this browser like the parent page does (localStorage kg.kids).
+let INVITE = "";
+const hex = () => [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, "0")).join("");
+async function sha(x) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(x)))].map(b => b.toString(16).padStart(2, "0")).join(""); }
+async function invite() {
+  const msg = $("invmsg"), bad = (m) => { msg.innerHTML = ICA + " " + T(m); msg.className = "msg bad"; };
+  const a = $("ip1").value;
+  if (!/^\d{4,8}$/.test(a)) return bad("PIN phải là 4–8 số");
+  if (a !== $("ip2").value) return bad("Hai PIN chưa giống nhau");
+  const name = $("inm").value.trim() || T("Con"), ticket = hex();
+  $("invgo").disabled = true;
+  try {
+    const r = await fetch("/p/inv", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ th: await sha(ticket), newPin: a, name }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.inv) { $("invgo").disabled = false; return bad(r.status === 429 ? "Hôm nay tạo quá nhiều mã mời từ mạng này, thử lại ngày mai" : "Trang này không tạo được mã mời. Mở trang từ link relay của bạn"); }
+    INVITE = j.inv; render();
+    msg.innerHTML = ICK + " " + T("Quét mã QR mới. Giữ trang này mở tới khi máy con cài xong"); msg.className = "msg";
+    for (let end = j.exp; Date.now() < end; await new Promise(z => setTimeout(z, 3000))) {
+      const q = await fetch("/p/" + INVITE + "/result", { headers: { "X-KG-Ticket": ticket } }).catch(() => null);
+      if (!q) continue;
+      const k = await q.json().catch(() => ({}));
+      if (q.status === 404 || (q.ok && k.error)) break;
+      if (q.ok && k.token) {
+        try { const KEY = "kg.kids", L = JSON.parse(localStorage.getItem(KEY) || "[]").filter((x) => x.id !== k.id); L.push({ id: k.id, token: k.token, name, via: "relay" }); localStorage.setItem(KEY, JSON.stringify(L)); } catch (e) {}
+        msg.innerHTML = ICK + " " + T("Đã ghép máy con.") + ' <a href="/">' + T("Mở trang quản lý") + "</a>"; msg.className = "msg"; return;
+      }
+      if (!q.ok && q.status !== 429) break;
+    }
+    INVITE = ""; render(); $("invgo").disabled = false; bad("Mã mời hết hạn hoặc bị từ chối. Tạo lại");
+  } catch (e) { INVITE = ""; render(); $("invgo").disabled = false; bad("Không tạo được mã mời"); }
+}
+
 if (typeof document !== "undefined" && document.getElementById) {
   $("apk").value = DEF.apkUrl;
+  if (location.protocol === "https:" && window.crypto && crypto.subtle) {   // the relay's /p/ routes live on the page's own origin
+    $("invrow").hidden = false;
+    $("inv").addEventListener("change", () => { $("invbox").hidden = !$("inv").checked; if (!$("inv").checked) { INVITE = ""; render(); } });
+    $("invgo").addEventListener("click", invite);
+  }
   for (const id of ["apk", "ssid", "pw", "sec"]) $(id).addEventListener("input", render);
   render();
 }

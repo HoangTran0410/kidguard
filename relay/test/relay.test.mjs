@@ -432,6 +432,78 @@ ck("tile with the right k passes auth (bad coords -> 400)",(await fetch(`${B}/c/
 ck("tile k of another kid 401",(await fetch(`${B}/c/${id}/tile?z=16&x=1&y=1&k=${wj.tileKey}`)).status==401);
 ck("icon route does not accept the tile key",(await fetch(`${B}/c/${idw}/icon?p=a&k=${wj.tileKey}`)).status==401);}
 }
+// ---- pair over relay: /p/new, /p/<code>/join, GET /p/<key>, /reply, /result, /p/inv (docs/protocol.md "Pair over relay") ----
+{const {createHash,randomBytes}=await import("node:crypto");
+const hx=n=>randomBytes(n).toString("hex"),sha=x=>createHash("sha256").update(x).digest("hex");
+const PJ=(p,body,h={},m="POST")=>fetch(`${B}/p/${p}`,{method:m,headers:{"content-type":"application/json",...h},body:m=="GET"?undefined:JSON.stringify(body)});
+const sec=hx(16),sh=sha(sec),tk=hx(16),th=sha(tk),code="482913";
+const poll=(k,s=sec)=>PJ(k,null,s?{"x-kg-secret":s}:{},"GET");
+const result=(k,t=tk)=>PJ(k+"/result",null,t?{"x-kg-ticket":t}:{},"GET");
+const reply=(k,b,s=sec)=>PJ(k+"/reply",b,{"x-kg-secret":s});
+const join=(k,b={})=>PJ(k+"/join",{th,pin:"",newPin:"1234",name:"Bin",...b});
+const idp=hx(8),Tp=hx(24);
+r=await PJ("new",{sh,code});j=await r.json();
+ck("pair: /p/new takes the phone's code, exp = now + TTL",r.status==200&&j.exp-Date.now()>3500&&j.exp-Date.now()<=6000);
+ck("pair: /p/new bad sh 400",(await PJ("new",{sh:"abc",code})).status==400);
+ck("pair: /p/new bad code 400",(await PJ("new",{sh,code:"12ab"})).status==400);
+ck("pair: /p/new GET 405",(await PJ("new",null,{},"GET")).status==405);
+ck("pair: the same code from another phone 409",(await PJ("new",{sh:sha("x"),code})).status==409);
+ck("pair: the same phone renews its code 200",(await PJ("new",{sh,code})).status==200);
+r=await poll(code);j=await r.json();ck("pair: phone poll before a parent = waiting",r.status==200&&j.waiting===true&&!j.req);
+ck("pair: poll with a wrong secret 403",(await poll(code,hx(16))).status==403);
+ck("pair: poll without a secret 403",(await poll(code,"")).status==403);
+ck("pair: join a code nobody offered 403 wrong code",(await join("000001")).status==403);
+ck("pair: join with a bad ticket hash 400",(await join(code,{th:"zz"})).status==400);
+ck("pair: result with a wrong ticket 403 (nothing joined yet)",(await result(code,hx(16))).status==403);
+r=await join(code);ck("pair: join ok",r.status==200&&(await r.json()).ok===true);
+ck("pair: a second join while one is pending 409",(await join(code)).status==409);
+r=await poll(code);j=await r.json();ck("pair: phone gets the request (pin, newPin, name)",j.req&&j.req.newPin=="1234"&&j.req.name=="Bin"&&j.req.pin==="");
+ck("pair: another secret can not read the request",(await poll(code,hx(16))).status==403);
+ck("pair: result with a wrong ticket 403",(await result(code,hx(16))).status==403);
+r=await result(code);j=await r.json();ck("pair: result before the phone answers = waiting",r.status==200&&j.waiting===true);
+ck("pair: reply with a wrong secret 403",(await reply(code,{id:idp,token:Tp},hx(16))).status==403);
+ck("pair: reply with a bad token 400",(await reply(code,{id:idp,token:"nope"})).status==400);
+ck("pair: phone says wrong pin",(await reply(code,{error:"wrong pin"})).status==200);
+r=await result(code);j=await r.json();ck("pair: parent sees 403 wrong pin",r.status==403&&j.error=="wrong pin");
+r=await join(code,{pin:"1234",newPin:""});ck("pair: after an error the code can be tried again",r.status==200);
+ck("pair: pin locked answers 429 with wait",(await reply(code,{error:"pin locked",wait:60000})).status==200&&await(async()=>{const q=await result(code);const o=await q.json();return q.status==429&&o.wait==60000;})());
+await join(code);
+ck("pair: reply ok",(await reply(code,{id:idp,token:Tp})).status==200);
+ck("pair: a second reply 409",(await reply(code,{id:idp,token:Tp})).status==409);
+r=await result(code);j=await r.json();ck("pair: parent gets {id,token,url} once",r.status==200&&j.id==idp&&j.token==Tp&&j.url==B);
+ck("pair: the link is not given twice (404)",(await result(code)).status==404);
+r=await poll(code);j=await r.json();ck("pair: the phone is told `taken` (commit now)",j.taken===true&&!j.token);
+ck("pair: the entry is gone after that (404)",(await poll(code)).status==404);
+ck("pair: join after take 403",(await join(code)).status==403);
+// a code allows PAIR_JOINS (5) tries, then it is dead (like the LAN flow's wrong-guess block)
+{const c2="591002",s2=hx(16),h2=sha(s2);await PJ("new",{sh:h2,code:c2});let last=0;
+for(let i=0;i<5;i++){await join(c2);await reply(c2,{error:"wrong pin"},s2);await result(c2);}
+r=await join(c2);ck("pair: 6th join on one code is refused and the code is dead",r.status==403&&(await poll(c2,s2)).status==404);}
+// invite (QR provisioning): the parent makes it, the first phone that asks claims it
+ck("pair: /p/inv bad newPin 400",(await PJ("inv",{th,newPin:"12"})).status==400);
+ck("pair: /p/inv bad th 400",(await PJ("inv",{th:"1",newPin:"1234"})).status==400);
+r=await PJ("inv",{th,newPin:"4321",name:"Mia"});j=await r.json();const inv=j.inv;
+ck("pair: /p/inv gives a 16-hex id + exp",r.status==200&&/^[0-9a-f]{16}$/.test(inv)&&j.exp>Date.now());
+ck("pair: an invite can not be joined like a code",(await join(inv)).status==400);
+{const s2=hx(16),s3=hx(16);
+r=await poll(inv,s2);j=await r.json();ck("pair: first phone claims the invite and gets the request",r.status==200&&j.req.newPin=="4321"&&j.req.name=="Mia");
+ck("pair: a second phone can not take the invite 403",(await poll(inv,s3)).status==403);
+ck("pair: reply error ends an invite",(await reply(inv,{error:"bad pin"},s2)).status==200);
+r=await result(inv);ck("pair: invite error reaches the parent",r.status==400);
+ck("pair: invite is gone after its error",(await poll(inv,s2)).status==404);}
+{const inv2=(await (await PJ("inv",{th,newPin:"4321"})).json()).inv,s2=hx(16);await poll(inv2,s2);
+ck("pair: invite reply ok",(await reply(inv2,{id:idp,token:Tp},s2)).status==200);
+r=await result(inv2);j=await r.json();ck("pair: invite result carries the link",j.id==idp&&j.token==Tp&&j.url==B);
+ck("pair: invite phone told taken",(await (await poll(inv2,s2)).json()).taken===true);}
+// expiry (6 s here)
+{const c3="730415",s3=hx(16);await PJ("new",{sh:sha(s3),code:c3});await new Promise(z=>setTimeout(z,6500));
+ck("pair: an expired code is gone for the phone and the parent",(await poll(c3,s3)).status==404&&(await join(c3)).status==403);}
+// wrong codes from one network stop at PAIR_MISS_PER_DAY (10 here); a right code is then refused too. keep LAST in this block
+{let blocked=0;for(let i=0;i<14&&!blocked;i++){const q=await join("1"+String(i).padStart(5,"0"));if(q.status==429)blocked=i+1;}
+const c4="640021";await PJ("new",{sh,code:c4});
+ck(`pair: wrong codes from one network are capped (blocked at ${blocked})`,blocked>0&&blocked<=11);
+ck("pair: past the cap even a live code can not be joined (429)",(await join(c4)).status==429);}
+}
 // ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;
 for(let i=0;i<90&&!blocked;i++){const idn=rh(16),r=await fetch(`${B}/c/${idn}/sync`,{method:"POST",headers:{"x-kg-token":rh(48),"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});

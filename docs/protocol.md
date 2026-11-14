@@ -1299,7 +1299,27 @@ when pairing their own phone (`/api/pair`), so it follows the parent from previe
 - **PIN counters**: PIN / Authenticator code typed on the child phone (on-device admin) use their own counter + lockout; remote attempts keep `pinFails`/`pinLock`.
 - **Support message** (Device Owner): refreshed when `now` changes: "until HH:mm" for bedtime / schedule / pause, "ask" wording only when paired and askable; the parent's `blockNote` wins; lost mode swaps it.
 
-## Watch connect (after 0.9.18, Zepp watch app `watch/zepp/`)
+## Pair over relay (after 0.9.21: "Pair from anywhere" + QR invite)
+Pairs a kid phone with NO parent yet (never paired, not the Home flavor) without a shared Wi-Fi. Worker-only rendezvous in Durable Object `p:<key>`
+(class `Watch`, same binding; no migration). Neither side is authenticated yet, so: secrets (only their sha256 reaches the relay), short TTL, caps, and the
+phone decides (`Store.tryPair`: code, `PairPin.decide`, PIN lockout, same errors as `POST /api/pair`). Bodies <= 512 B; per-IP `RL` like `/c/*`.
+- Code flow. The phone shows its LAN code on the child screen (`visiblePairCode`) and offers it: `POST /p/new {"sh": sha256hex(phone secret, 32-128 hex), "code": "123456"}`
+  -> `200 {exp}` (TTL 15 min, `PAIR_TTL`); `409 taken` = another phone holds that code (the phone makes a new one); the same phone repeating it renews. Cap `PAIR_PER_DAY` (100) per network (Gate `pip:`), 429 else.
+- Parent (page "Pair from anywhere", browser = the relay it was served from; app = default relay through its proxy, `Logic.isPairPath`):
+  `POST /p/<code>/join {"th": sha256hex(ticket, 32 hex), "newPin": "4-8 digits", "pin": "", "name": "<= 20"}` -> `200 {ok}`; `403 wrong code` (unknown / expired / dead);
+  `409 busy`; `429 wait` after `PAIR_MISS_PER_DAY` (40) unknown codes from one network (Gate `pmiss:`, checked before the lookup so a right code is refused too). One code takes `PAIR_JOINS` (5) joins, then it is deleted.
+  Then poll `GET /p/<code>/result` header `X-KG-Ticket: <ticket>`: `{waiting:true}` | `200 {id, token, url}` once (the entry becomes `taken`; later `404`) | `{error, wait?}` = the phone refused:
+  400 `bad pin` / `pin required`, 403 `wrong pin` / `closed`, 429 `pin locked` / `wait`. After an error the code can be joined again.
+  `id` = 16 hex, `token` = 48 hex (same as a relay link: the page builds a `via:"relay"` kid), `url` = the relay origin. `newPin` is required (the phone has no PIN yet; `pe.pin required`).
+- Phone: `GET /p/<key>` header `X-KG-Secret` every 2-3 s while the screen is on and shows the code -> `{waiting}` | `{req:{pin,newPin,name}}` | `{taken:true}` (then the entry is gone) | 403 / 404 = gone.
+  It answers with `POST /p/<key>/reply {"id","token"}` (ok: token minted by `tryPair`, pending as in LAN pairing) or `{"error": "...", "wait": ms}`. On `taken` it commits (`Store.commitRelayPair`: token, `everPaired`, new PIN hash, `relayUrl`/`relayId`/`relayToken` = default relay): nothing is stored before the parent holds the link.
+- Invite flow (QR provisioning). `ui/qr.html` "Ghép luôn với tôi": `POST /p/inv {"th", "newPin", "name"}` -> `200 {inv: "<16 hex>", exp}` (TTL 3 h `INVITE_TTL`, cap `INVITE_PER_DAY` 30 per network, Gate `piv:`).
+  The QR payload then carries `android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE = {"kg_invite": "<inv>"}` (only the id; the PIN stays on the relay, deleted when used). After provisioning `Admin.onProfileProvisioningComplete`
+  reads the extra (`PersistableBundle`, `RelayPairLogic.invite`) into `Store.setInvite` (valid 3 h, only while nobody is paired); `RelayPair` claims it with `GET /p/<inv>` (first secret wins; a second phone gets 403),
+  runs `tryPair(viaInvite = true)` (no code, but the same PIN rules), replies, commits on `taken`. The qr page polls `GET /p/<inv>/result` with its ticket and saves the kid in `localStorage kg.kids`. An invite is one shot: any error deletes it.
+- Expiry: lazy + alarm like Watch. Rejected: sending the PIN hash (the phone salts it itself), a second token for the relay (the relay keeps one token per phone), pairing a phone that already has a parent (use `openPairing` over LAN or the relay link).
+
+, Zepp watch app `watch/zepp/`)
 Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone involvement; the phone needs no new version).
 - `POST /w/new` body `{"sh": "<sha256 hex of the watch's secret, 64 chars>"}` (no auth, body <= 512 B) -> `200 {"code": "123456", "exp": <ms>}`.
   Code = random 6 digits (collision retried), valid 10 min (`WATCH_TTL`), stored in Durable Object `w:<code>` as `{sh, exp}`; the secret itself never reaches the relay. Errors: 400 bad json / sh, 405 method, 413, 429 (`slow down` per-IP, or `too many codes from this network, try tomorrow`: 30 codes per network per day), 503 `try again`.
