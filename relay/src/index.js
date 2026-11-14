@@ -58,14 +58,25 @@ const limitFor = (action) => action === "frame" ? MAX_FRAME : action === "file" 
 // Zepp watch connect (docs/protocol.md "Watch connect"): a code on the watch, typed into the parent page
 const WATCH_TTL = 10 * 60e3, WATCH_PER_DAY = 30;
 // Pair from anywhere (docs/protocol.md "Pair over relay"): a code the unpaired phone shows (/p/new) or an invite the parent made (/p/inv)
-const PAIR_TTL = 15 * 60e3, INVITE_TTL = 3 * 3600e3, PAIR_PER_DAY = 100, INVITE_PER_DAY = 30, PAIR_MISS_PER_DAY = 40, PAIR_JOINS = 5;
+const PAIR_TTL = 15 * 60e3, INVITE_TTL = 3 * 3600e3, PAIR_PER_DAY = 100, INVITE_PER_DAY = 30, PAIR_JOINS = 5;
+// Wrong codes per client network: a fixed PAIR_MISS_WIN window (starts at the first miss; a burst at a window edge can double it once), not a per-day cap (one bad actor must not lock a whole network
+// out of pairing for a day). Math: a wrong guess does not name a code, so the risk is hitting ANY live 6-digit code:
+// P(hit) ~ live codes x guesses / 10^6. 20 misses / 10 min, a code living 15 min => <= ~30 guesses per code lifetime per network;
+// even 1000 live codes at once = ~3 % per network per code lifetime, and each hit still needs the kid phone's PIN / the PAIR_JOINS cap.
+const PAIR_MISS_MAX = 20, PAIR_MISS_WIN = 10 * 60e3;
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
 const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel", "tgSet", "tgOff", "pinSet", "pinReset", "pinResetCancel", "adbShell", "adbTcp", "support"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
-const ONCE_WINDOW = 10 * 60e3;
+const ONCE_WINDOW = 3600e3;   // 1 h (owner 2026-11-15: a phone that is off for 10 min must not lose a release / reboot)
 const GC_MS = 30 * 86400e3;   // a phone not seen for 30 days: everything of this id is deleted (dead pairings, junk binds); a phone that comes back re-binds on its next sync
-const SHORT = ["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "devOn", "devOff", "setting", "reboot", "clearData", "clearCache", "rescan", "bgLimit", "bgRestore", "pinSet", "pinReset", "pinResetCancel", "adbShell", "support", "openPairing", "unlockEnd", "fixPerms"];   // "now" commands: stale after SHORT_TTL (a reboot / clear asked while the phone was off must not fire the next day)
+// "now" commands, stale after SHORT_TTL (10 min). Only what would be harmful or confusing if it fired hours later:
+//  lock locate message ring wake ringStop listenStop = about the moment; reboot clearData = a destructive one asked while the phone was off
+//  must not fire next day; pinSet pinReset pinResetCancel = a PIN change or recovery nobody is waiting for any more; openPairing = a 10 min
+//  window for a parent standing next to the phone; adbShell = a shell command running a day later is surprising; unlockEnd = ends a
+//  temporary pause "now"; fixPerms = opens Settings screens on the kid's phone, confusing if the kid is using it hours later.
+// Everything else (setting devOn devOff bgLimit bgRestore rescan clearCache support ...) is harmless late: normal 24 h.
+const SHORT = ["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms"];
 let SHORT_TTL = 10 * 60e3;   // env.SHORT_TTL_MS overrides (tests only)
 // secrets a parent typed into a command (PIN, new PIN, Authenticator secret, bot token): handed out once, then not kept in the queue copy
 const SECRET_KEYS = ["pin", "new", "secret", "token"];
@@ -80,6 +91,8 @@ const EXPIRED_N = 10;
 const expiredOf = (list, dropped, now) => [...(list || []), ...dropped.map(c => ({ id: c.id, type: c.type, res: "expired", at: now }))].slice(-EXPIRED_N);
 const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "unlockEnd", "clearCache", "rescan", "bgLimit", "bgRestore", "fixPerms"];
 const APK_BASE = "https://github.com/HoangTran0410/kidguard/releases/latest/download/";   // test override: env.APK_BASE
+// idempotent commands a newer copy may replace when the queue is full: type -> target field that must match too (null = the type alone)
+const REPLACE = { lock: null, locate: null, ring: null, wake: null, ringStop: null, listenStop: null, devOn: null, devOff: null, setting: "key", clearCache: null, rescan: null, fixPerms: null, openPairing: null, unlockEnd: null, bankEnd: null, fileUp: "file" };
 const SETTING_KEYS = ["vol.ring", "vol.media", "vol.alarm", "bright", "autoBright", "timeoutMs", "dnd"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
 // 'self': the parent page's /ui/ files; 'unsafe-inline': install/qr inline scripts + a few inline handlers in the parent page; the installer imports ESM from jsDelivr and downloads the APK
@@ -179,7 +192,8 @@ async function watchRoute(req, env, url) {
   if (!b || !/^[0-9a-f]{64}$/.test(b.sh || "")) return json({ error: "bad json" }, 400);
   if (env.GATE) {   // codes per client network per day: a script must not create Durable Objects without limit
     const g = env.GATE.get(env.GATE.idFromName("wip:" + (netKey(req.headers.get("cf-connecting-ip")) || "?")));
-    if ((await g.fetch("https://gate/take?max=" + (+env.WATCH_PER_DAY || WATCH_PER_DAY))).status !== 200) return json({ error: "too many codes from this network, try tomorrow" }, 429);
+    const r = await g.fetch("https://gate/take?max=" + (+env.WATCH_PER_DAY || WATCH_PER_DAY));
+    if (r.status !== 200) return json({ error: "too many codes from this network, try tomorrow", retryAt: +(await r.text()) || Date.now() + 3600e3 }, 429);
   }
   for (let i = 0; i < 6; i++) {
     const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e6).padStart(6, "0");
@@ -200,7 +214,13 @@ async function pairRoute(req, env, url) {
   if (req.method !== (POSTS ? "POST" : "GET")) return json({ error: "method" }, 405);
   if (+(req.headers.get("content-length") || 0) > 512) return json({ error: "too big" }, 413);
   const net = netKey(req.headers.get("cf-connecting-ip")) || "?";
-  const gate = async (name, max, peek) => !env.GATE || (await env.GATE.get(env.GATE.idFromName(name + ":" + net)).fetch("https://gate/take?max=" + max + (peek ? "&peek=1" : ""))).status === 200;
+  // -> 0 = allowed, else the epoch ms when this network may try again (win = fixed window in ms, none = until the UTC day ends)
+  const gate = async (name, max, peek, win) => {
+    if (!env.GATE) return 0;
+    const r = await env.GATE.get(env.GATE.idFromName(name + ":" + net)).fetch("https://gate/take?max=" + max + (peek ? "&peek=1" : "") + (win ? "&win=" + win : ""));
+    return r.status === 200 ? 0 : +(await r.text()) || Date.now() + 3600e3;
+  };
+  const full = (what, at) => json({ error: `too many ${what} from this network, try tomorrow`, retryAt: at }, 429);
   const fwd = (k, o, body, query = "") => env.WATCH.get(env.WATCH.idFromName("p:" + k)).fetch("https://w/" + o + query, body ? { method: "POST", body: JSON.stringify(body) } : undefined);
   let b = {};
   if (POSTS) { try { b = await req.json(); } catch { return json({ error: "bad json" }, 400); } if (!b || typeof b !== "object") return json({ error: "bad json" }, 400); }
@@ -208,23 +228,24 @@ async function pairRoute(req, env, url) {
   const clean = v => String(v || "").replace(/[\u0000-\u001f]/g, "").slice(0, 20);
   if (key === "new") {
     if (!hex(b.sh, 64) || !/^\d{6}$/.test(String(b.code || ""))) return json({ error: "bad json" }, 400);
-    if (!(await gate("pip", +env.PAIR_PER_DAY || PAIR_PER_DAY))) return json({ error: "too many codes from this network, try tomorrow" }, 429);
+    const at = await gate("pip", +env.PAIR_PER_DAY || PAIR_PER_DAY); if (at) return full("codes", at);
     return fwd(b.code, "pnew", { sh: b.sh });
   }
   if (key === "inv") {
     if (!hex(b.th, 64) || !/^\d{4,8}$/.test(String(b.newPin || ""))) return json({ error: "bad json" }, 400);
-    if (!(await gate("piv", +env.INVITE_PER_DAY || INVITE_PER_DAY))) return json({ error: "too many invites from this network, try tomorrow" }, 429);
+    const at = await gate("piv", +env.INVITE_PER_DAY || INVITE_PER_DAY); if (at) return full("invites", at);
     const inv = [...crypto.getRandomValues(new Uint8Array(8))].map(x => x.toString(16).padStart(2, "0")).join("");
     const r = await fwd(inv, "pinv", { th: b.th, req: { pin: "", newPin: String(b.newPin), name: clean(b.name) } });
     return r.status === 200 ? json({ inv, exp: (await r.json()).exp }) : r;
   }
   if (op === "join") {
     if (!/^\d{6}$/.test(key) || !hex(b.th, 64)) return json({ error: "bad json" }, 400);
-    const max = +env.PAIR_MISS_PER_DAY || PAIR_MISS_PER_DAY;
-    if (!(await gate("pmiss", max, true))) return json({ error: "wait" }, 429);   // too many wrong codes from this network today
+    const max = +env.PAIR_MISS_MAX || PAIR_MISS_MAX, win = +env.PAIR_MISS_WIN_MS || PAIR_MISS_WIN;
+    const lock = await gate("pmiss", max, true, win);
+    if (lock) return json({ error: "too many wrong codes", wait: Math.max(1000, lock - Date.now()), retryAt: lock }, 429);   // wait = ms until the window ends
     const r = await fwd(key, "pjoin", { th: b.th, req: { pin: String(b.pin || "").replace(/\D/g, "").slice(0, 8), newPin: String(b.newPin || "").slice(0, 8), name: clean(b.name) } });
     if (r.status !== 404) return r;
-    await gate("pmiss", max);
+    await gate("pmiss", max, false, win);
     return json({ error: "wrong code" }, 403);
   }
   if (op === "result") {
@@ -347,17 +368,19 @@ async function sha256(s) {
   return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** One per client network ("ip:<netKey>"): counts first binds of new relay ids a day. /take?max=N -> 200 (counted) | 429. */
+/** One per client network ("ip:<netKey>"): counts first binds of new relay ids a day. /take?max=N[&win=ms][&peek=1] -> 200 (counted) | 429 (body = retryAt ms epoch).
+ *  No `win`: UTC-day counter (resets at the next UTC midnight). With `win`: fixed window that starts at the first count and resets win ms later. */
 export class Gate {
   constructor(ctx) { this.ctx = ctx; this.s = ctx.storage; }
   async fetch(req) {
-    const max = Math.max(1, +new URL(req.url).searchParams.get("max") || BIND_PER_DAY), day = Math.floor(Date.now() / 86400e3);
-    const g = (await this.s.get("g")) || { day, n: 0 };
-    if (g.day !== day) { g.day = day; g.n = 0; }
-    if (g.n >= max) return new Response("full", { status: 429 });
-    if (new URL(req.url).searchParams.get("peek")) return new Response("ok");   // ask without counting
+    const q = new URL(req.url).searchParams, now = Date.now(), win = +q.get("win") || 0;
+    const max = Math.max(1, +q.get("max") || BIND_PER_DAY), day = Math.floor(now / 86400e3);
+    const g = (await this.s.get("g")) || { day, n: 0, start: now };
+    if (win ? now - (g.start || 0) >= win : g.day !== day) { g.day = day; g.n = 0; g.start = now; }
+    if (g.n >= max) return new Response(String(win ? g.start + win : (day + 1) * 86400e3), { status: 429 });
+    if (q.get("peek")) return new Response("ok");   // ask without counting
     g.n++; await this.s.put("g", g);
-    await this.s.setAlarm(Date.now() + 2 * 86400e3);
+    await this.s.setAlarm(now + 2 * 86400e3);
     return new Response("ok");
   }
   async alarm() { await this.s.deleteAll(); }
@@ -429,7 +452,7 @@ export class Kid {
       if (this.env.GATE) {
         const g = this.env.GATE.get(this.env.GATE.idFromName("ip:" + (netKey(req.headers.get("cf-connecting-ip")) || "?")));
         const r = await g.fetch("https://gate/take?max=" + (+this.env.BIND_PER_DAY || BIND_PER_DAY));
-        if (r.status !== 200) return json({ error: "too many new pairings from this network, try tomorrow" }, 429);
+        if (r.status !== 200) return json({ error: "too many new pairings from this network, try tomorrow", retryAt: +(await r.text()) || Date.now() + 3600e3 }, 429);
       }
       await this.s.put({ tokenHash: h, born: Date.now() }); bound = h;
     }
@@ -667,7 +690,12 @@ export class Kid {
       // expired commands are only dropped on a phone sync: don't let them fill the queue
       const stored = (await this.s.get("cmds")) || [], cmds = stored.filter(c => live(c, now));
       if (cmds.length !== stored.length) await this.s.put("expired", expiredOf(await this.s.get("expired"), stored.filter(c => !live(c, now)), now));
-      // full queue: refuse instead of silently dropping the oldest (it may be a pending release)
+      // full queue: a new command first replaces a still-queued older one of the same kind (same type + same target field), never
+      // one already handed out and never a destructive (ONCE) one; only when still full: refuse (the oldest may be a pending release)
+      if (cmds.length >= MAX_CMDS && type in REPLACE && !ONCE.includes(type)) {
+        const f = REPLACE[type], i = cmds.findIndex(o => o.type === type && !o.sent && (!f || o[f] === body[f]));
+        if (i >= 0) cmds.splice(i, 1);
+      }
       if (cmds.length >= MAX_CMDS) return json({ error: "queue full" }, 429);
       const c = { ...body, type, id: typeof body.id === "string" && /^[\w.-]{1,64}$/.test(body.id) ? body.id : crypto.randomUUID(), at: now };
       delete c.sent;

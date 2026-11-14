@@ -65,3 +65,8 @@ Index and the rule for adding lines: `README.md`.
 - Parent app WebView render process gone killed the app -> recreate activity (7fc1506)
 - Broken pipe on LAN server killed the whole app (Oppo dropbox) -> catch (5f03cbe, Http.kt:61)
 - (2026-11-15) Parent app name under the launcher icon = `launcher_name` "KG Bố mẹ" / "KG Parent" (owner: "KidGuard Phụ huynh" too long, ellipsized); `app_name` stays full in Settings and docs.
+- (2026-11-15 owner: friction without protection) `SHORT` (10 min) kept only for time-critical / harmful-if-late commands; `setting devOn devOff bgLimit bgRestore rescan clearCache support` back to 24 h. Reasons in the worker comment above `SHORT`.
+- (2026-11-15 owner: friction without protection) `ONCE_WINDOW` 10 min -> 1 h: a phone that is briefly off must not lose a `release` / `reboot`.
+- (2026-11-15 owner: friction without protection) Pair-join misses: per-network 40/day -> 20 per rolling 10 min (`PAIR_MISS_MAX`/`PAIR_MISS_WIN`); one bad actor no longer locks a network out for a day. Guess risk ~ live codes x guesses / 10^6, plus 15 min code TTL and `PAIR_JOINS` 5.
+- (2026-11-15 owner: friction without protection) Full command queue (20): a new repeatable command replaces its older not-yet-handed-out copy (same type + `key` / `file`); ONCE commands never replaced; else still `429 queue full`.
+- (2026-11-15 owner: friction without protection) Daily gate caps keep their numbers, but the 429 carries `retryAt` and the page shows "Try again at <time>".

@@ -8,7 +8,7 @@ L.en = {
   "rs.blocked": "Blocked", "rs.appLimit": "App time up", "rs.groupHours": "Outside group hours", "rs.groupLimit": "Group time up", "rs.new": "Awaiting approval",
   "rs.paused": "Paused", "rs.schedule": "Schedule", "rs.bedtime": "Bedtime", "rs.daily": "Daily time up", "rs.locked": "Locked",
   off: "Off", on: "On", turnOn: "Turn on", turnOff: "Turn off", turnedOn: "Turned on", turnedOff: "Turned off",
-  "e.net": "No network, or the kid's phone can't be reached", "e.offline": "offline, no data yet", "e.queue full": "Command queue is full, try again later",
+  "e.net": "No network, or the kid's phone can't be reached", "e.offline": "offline, no data yet", "e.queue full": "Command queue is full, try again later", "e.retryAt": "Try again at {0}.", "e.too many new pairings from this network, try tomorrow": "Too many new pairings from this network today.", "e.too many invites from this network, try tomorrow": "Too many invites from this network today.", "pe.too many wrong codes": { one: "Too many wrong codes from this network, try again in {0} minute", other: "Too many wrong codes from this network, try again in {0} minutes" },
   "e.too big": "Data too large", "e.state too big": "Data too large", "e.bad host": "Invalid phone address", "e.not live": "Screen sharing isn't on",
   "e.slow down": "Too fast, try again in a few seconds", "e.bad token": "Pairing key is wrong or was revoked", "e.not paired": "This device was unpaired",
   "e.waiting for the phone": "Waiting for the kid's phone", "e.bad command": "Invalid command", "e.bad json": "Invalid data sent", "e.not found": "Not found",

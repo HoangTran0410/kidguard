@@ -225,8 +225,11 @@ ck("GET state shows rules via stripPin (pinSet or nothing)",JSON.parse(st).rules
 const big=await P4("cmd",{type:"message",text:"a".repeat(200000)});
 ck("200KB cmd refused 413 (was a known gap: accepted, then 500s once the queue value passed the storage limit)",big.status==413);
 ck("small cmd still accepted",(await (await P4("cmd",{type:"message",text:"hi"})).json()).result=="queued");
-{let st=0;for(let i=0;i<25&&st!=429;i++)st=(await P4("cmd",{type:"ring"})).status;
+{await P4("cmd",{type:"ring",id:"rr1"});let st=0;for(let i=0;i<25&&st!=429;i++)st=(await P4("cmd",{type:"message",text:"m"+i})).status;
 ck("full queue (20) refuses with 429 instead of dropping the oldest",st==429);
+ck("full queue: a ONCE command is never replaced (refused)",(await P4("cmd",{type:"reboot"})).status==429);
+ck("full queue: a repeatable command replaces its older copy",(await P4("cmd",{type:"ring",id:"rr2"})).status==200);
+const s4=await (await P4("sync",{})).json();ck("replaced: one ring left (rr2), still 20",s4.cmds.length==20&&s4.cmds.filter(c=>c.type=="ring").length==1&&s4.cmds.some(c=>c.id=="rr2")&&!s4.cmds.some(c=>c.id=="rr1"));
 const s3=await (await P4("sync",{})).json();
 ck("queued commands (incl. oldest) survive a full queue",s3.cmds.length==20&&s3.cmds.some(c=>c.type=="lock"||c.type=="message"));}
 ck("sync works after all that",(await P4("sync",{})).status==200);}
@@ -502,12 +505,15 @@ ck("pair: an expired code is gone for the phone and the parent",(await poll(c3,s
 {let blocked=0;for(let i=0;i<14&&!blocked;i++){const q=await join("1"+String(i).padStart(5,"0"));if(q.status==429)blocked=i+1;}
 const c4="640021";await PJ("new",{sh,code:c4});
 ck(`pair: wrong codes from one network are capped (blocked at ${blocked})`,blocked>0&&blocked<=11);
-ck("pair: past the cap even a live code can not be joined (429)",(await join(c4)).status==429);}
+const lj=await (await join(c4)).json();
+ck("pair: past the cap even a live code can not be joined (429, wait + retryAt tell when)",lj.error=="too many wrong codes"&&lj.wait>0&&lj.wait<=600000&&lj.retryAt>Date.now());}
 }
 // ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;
 for(let i=0;i<90&&!blocked;i++){const idn=rh(16),r=await fetch(`${B}/c/${idn}/sync`,{method:"POST",headers:{"x-kg-token":rh(48),"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});
 if(r.status==200)ok++;else if(r.status==429){const t=await r.text();if(/too many new pairings/.test(t))blocked=i+1;else await new Promise(z=>setTimeout(z,1500));}}
 ck(`H4: new binds from one network stop at the daily cap (ok ${ok}, blocked at ${blocked})`,blocked>0&&ok<=60);
+{const rr=await fetch(`${B}/c/${rh(16)}/sync`,{method:"POST",headers:{"x-kg-token":rh(48),"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});const jj=await rr.json().catch(()=>({}));
+ck("H4: the 429 says when it resets (retryAt, ms epoch)",rr.status==429&&jj.retryAt>Date.now()&&jj.retryAt<=Date.now()+86400e3+1000);}
 ck("H4: an already bound kid keeps syncing past the cap",(await fetch(`${B}/c/${id}/sync`,{method:"POST",headers:{"x-kg-token":T,"content-type":"application/json"},body:"{}"})).status==200);}
 console.log(pass,"pass",fail,"fail");process.exit(fail?1:0);
