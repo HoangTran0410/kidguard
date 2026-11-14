@@ -48,7 +48,7 @@ async function ovEach(fn, only) {   // run fn(kid, freshRules) for every kid (or
       const base = j.state !== undefined && j.rules && j.rules.rev > ((s.rules || {}).rev || 0) ? j.rules : s.rules;
       if (!base || typeof base !== "object" || !Object.keys(base).length) throw new Error(t("ov.noRules"));
       const r = norm(structuredClone(base));
-      return { name: d.k.name, ...(await fn(d.k, r)) }; }
+      return { name: d.k.name, ...(await fn(d.k, r, s)) }; }
     catch (e) { return { name: d.k.name, ok: false, msg: e.message }; }
   }));
 }
@@ -73,6 +73,49 @@ async function ovResumeAll() {
   const res = await ovEach(async (k, r) => { if (!(+r.pausedUntil > 0)) return { ok: true, skip: true }; r.pausedUntil = 0; await putRules(k, r); return { ok: true }; });
   ovBusy = false; ovRes = { kind: "resume", res }; if (ov) { ovDraw(); ovLoad(); }
 }
+// Family actions (all kids at once). Each runs per kid in parallel over that kid's own transport (call() = LAN / Tailscale / relay).
+// ovRun: confirm, run fn(kid, rules, state) per kid, keep the per-kid result lines in ovRes, then reload.
+async function ovRun(kind, askArgs, fn) {
+  if (ovBusy || !ov) return;
+  if (!(await ask(...askArgs))) return;
+  if (!ov) return;
+  ovBusy = true; ovRes = null; ovDraw();
+  const res = await ovEach(fn);
+  ovBusy = false; ovRes = { kind, res }; if (ov) { ovDraw(); ovLoad(); }
+}
+// a command per kid: relay answers "queued" (stored only, shown as "sent"), a phone error text = failed
+async function ovCmd(k, body) {
+  const c = await call(k, "/cmd", "POST", k.via === "lan" ? body : { ...body, id: newId("p") });
+  if (c && c.result === "queued") return { ok: true, queued: true };
+  if (c && c.result && c.result !== "ok") return { ok: false, msg: tc("cr." + body.type + ".", c.result, t("cmd.answer", c.result)) };
+  return { ok: true };
+}
+const ovN = () => ov.data.length;
+const ovLock = () => ovRun("lock", [t("ov.lockAsk", ovN()), t("askOk.lock")], k => ovCmd(k, { type: "lock" }));
+const ovRing = () => ovRun("ring", [t("ov.ringAsk", ovN()), t("askOk.ring")], k => ovCmd(k, { type: "ring" }));
+const ovMore = () => ovRun("more", [t("ov.moreAsk", ovN(), 15), t("ov.moreGo", 15)], async (k, r, s) => { grantApply(r, s, 15); await putRules(k, r); return { ok: true, queued: k.via !== "lan" }; });
+async function ovMsg() {
+  if (ovBusy || !ov) return;
+  let tx = "";
+  const collect = () => { tx = ($("#ovMsgIn") ? $("#ovMsgIn").value : "").trim().slice(0, 300); return !!tx; };
+  const p = ask(t("ov.msgAsk", ovN()), t("send"), false, "", `<input id="ovMsgIn" maxlength="300" autocomplete="off" placeholder="${esc(t("msgPh"))}" aria-label="${esc(t("msg.h"))}" style="width:100%;margin-bottom:12px">`, collect);
+  if ($("#ovMsgIn")) $("#ovMsgIn").focus();
+  if (!(await p) || !ov) return;
+  ovBusy = true; ovRes = null; ovDraw();
+  const res = await ovEach(k => ovCmd(k, { type: "message", text: tx }));
+  ovBusy = false; ovRes = { kind: "msg", res }; if (ov) { ovDraw(); ovLoad(); }
+}
+async function ovTpl() {
+  if (ovBusy || !ov) return;
+  const all = allTpl(); let tp = null;
+  const sel = `<select id="ovTplSel" aria-label="${esc(t("ov.tplPick"))}" style="width:100%;margin-bottom:12px">${all.map((x, i) => `<option value="${i}">${esc(x.name)}</option>`).join("")}</select>`;
+  const collect = () => { tp = all[+$("#ovTplSel").value] || null; return !!tp; };
+  if (!(await ask(t("ov.tplAsk", ovN()), t("apply"), false, "", sel, collect)) || !tp || !ov) return;
+  ovBusy = true; ovRes = null; ovDraw();
+  const f = tplFields(tp.rules);   // only the template's own fields; the rest of each kid's rules stays (the full object is PUT)
+  const res = await ovEach(async (k, r) => { Object.assign(r, structuredClone(f)); await putRules(k, r); return { ok: true, queued: k.via !== "lan" }; });
+  ovBusy = false; ovRes = { kind: "tpl", res, tpl: tp.name }; if (ov) { ovDraw(); ovLoad(); }
+}
 // A request answered from the family overview: read the kid's newest rules, give the time / app (same rule as the kid page: grantApply), put, then `answer`.
 async function ovAnswer(d, q, ok) {
   if (ovBusy) return; ovBusy = true; ovRes = null; ovDraw();
@@ -89,12 +132,18 @@ async function ovAnswer(d, q, ok) {
   ovBusy = false; ovRes = { kind: "answer", res }; if (ov) { ovDraw(); ovLoad(); }
 }
 function ovAllDraw() {
-  const any = ov.data.some(d => ovPausedLeft(d) > 0), el = $("#ovAll");
-  const bad = ovRes ? ovRes.res.filter(x => !x.ok) : [], q = ovRes ? ovRes.res.filter(x => x.ok && x.queued) : [];
-  el.innerHTML = `<div class="row" style="margin-bottom:8px"><button type="button" id="ovPause" class="sp bad" ${ovBusy ? "disabled" : ""}>${ic("pause")} ${ovBusy ? t("loading") : t("ov.pauseAll")}</button>${any ? `<button type="button" id="ovResume" class="sp" ${ovBusy ? "disabled" : ""}>${ic("play")} ${t("ov.resumeAll")}</button>` : ""}</div>
-    ${ovRes ? `<div class="alert ${bad.length ? "bad" : q.length ? "warn" : "ok"}">${ic(bad.length ? "triangle-alert" : "check")} <b>${ovRes.kind === "answer" ? t(bad.length ? "ov.ansFail" : "ov.ansOk") : t(ovRes.kind === "pause" ? "ov.pauseRes" : "ov.resumeRes", ovRes.res.length - bad.length, ovRes.res.length)}</b>
-      ${bad.map(x => `<div>${esc(x.name)}: ${esc(x.msg || "?")}</div>`).join("")}${q.length ? `<div class="mute">${t("ov.queued", esc(q.map(x => x.name).join(", ")))}</div>` : ""}</div>` : ""}`;
+  const any = ov.data.some(d => ovPausedLeft(d) > 0), el = $("#ovAll"), R = ovRes && ovRes.res;
+  const bad = R ? R.filter(x => !x.ok) : [], q = R ? R.filter(x => x.ok && x.queued) : [], dis = ovBusy ? "disabled" : "";
+  const b = (id, icn, txt, cls = "") => `<button type="button" id="${id}" class="${cls}" ${dis}>${ic(icn)} ${txt}</button>`;
+  // one line per kid: done (LAN: the phone did it) / sent (relay: stored, phone not confirmed) / failed + why
+  const line = x => `<div>${esc(x.name)}: ${!x.ok ? `<b>${t("ov.l.fail", esc(x.msg || "?"))}</b>` : x.queued ? t("ov.l.sent") : t("ov.l.done")}</div>`;
+  const head = !ovRes ? "" : ovRes.kind === "answer" ? t(bad.length ? "ov.ansFail" : "ov.ansOk")
+    : ovRes.kind === "pause" || ovRes.kind === "resume" ? t(ovRes.kind === "pause" ? "ov.pauseRes" : "ov.resumeRes", R.length - bad.length, R.length)
+    : t("ov.res", t("ov.k." + ovRes.kind) + (ovRes.tpl ? " · " + esc(ovRes.tpl) : ""), R.length - bad.length, R.length);
+  el.innerHTML = `<div class="grid" style="margin-bottom:8px">${b("ovLock", "lock", t("ov.lockAll"))}${b("ovPause", "pause", ovBusy ? t("loading") : t("ov.pauseAll"), "bad")}${any ? b("ovResume", "play", t("ov.resumeAll")) : ""}${b("ovMore", "plus", t("ov.moreAll", 15))}${b("ovRing", "bell", t("ov.ringAll"))}${b("ovMsg", "message-square", t("ov.msgAll"))}${b("ovTpl", "layout-grid", t("ov.tplAll"))}</div>
+    ${ovRes ? `<div class="alert ${bad.length ? "bad" : q.length ? "warn" : "ok"}" style="display:block">${ic(bad.length ? "triangle-alert" : "check")} <b>${head}</b>${R.map(line).join("")}${q.length ? `<div class="mute">${t("ov.queued", esc(q.map(x => x.name).join(", ")))}</div>` : ""}</div>` : ""}`;
   $("#ovPause").onclick = () => ovPauseAll(); if ($("#ovResume")) $("#ovResume").onclick = ovResumeAll;
+  $("#ovLock").onclick = ovLock; $("#ovMore").onclick = ovMore; $("#ovRing").onclick = ovRing; $("#ovMsg").onclick = ovMsg; $("#ovTpl").onclick = ovTpl;
 }
 function ovDraw() {
   const D = ov.data, col = i => KC[i % KC.length];

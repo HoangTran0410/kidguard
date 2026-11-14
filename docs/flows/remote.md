@@ -73,6 +73,8 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
   - `markCmd` strips `.` from ids; for `unpair`/`answer` the worker reuses the body's `id` (device/request id) as command id, so a re-sent `answer` for the same request id is deduped ("ok") even if the first failed.
   - LAN commands carry no id unless the page sets one (`setting` does, `tab-set.js:204`).
 
+- Family actions (`UI/overview.js` `ovRun`/`ovCmd`/`ovEach`, 0.9.21): from the Family overview (>=2 kids) one confirm, then per kid in parallel over its own transport: `lock`/`ring`/`message` = `POST /cmd` (relay: own id, answer "queued" shows "sent"); `+15 min` (`grantApply`), template (`tplFields`, only the template's fields) and pause/resume = fresh state read, change, PUT the WHOLE rules (`ovEach` passes rules + state). Result card lists one line per kid (done / sent / failed: why). No receipts (`rc`) are tracked there: only the opened kid's page does that.
+
 ### 2.5 Screen view / remote input
 - Tab open: `screenStart` `UI/tab-screen.js:~25-65`.
 - LAN: loop `GET /api/screen?max=720&q=50` (`Api.kt:97` -> `Acc.capture` `Acc.kt:315`) ~7 fps cap; JPEG + `X-KG-W/H`; errors 503 `{error: Acc.lastError}` (`acc off|screen off|busy|timeout|need consent|denied`); page backs off on `timeout` x3 (`tab-screen.js:41`).
