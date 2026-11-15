@@ -1518,10 +1518,15 @@ class HomeActivity : Activity() {
             return intArrayOf(x, y, w, h, Math.round(g))
         }
 
-        /** Other apps' widgets get half the widget gap on every side (see KgHostView.edge); 0 for everything else. */
+        /**
+         * Other apps' widgets get Android's default widget padding (8 dp, framework `default_app_widget_padding`) around the
+         * box: since Android 12 widgets inset themselves by that standard amount, so this puts their visible card on the
+         * icon edges like our own widgets (Google Photos at 552 px host: 27 px = 8 dp inset). Half the gap (34 px) left it
+         * 14 px bigger than ours. Not per app: one rule; older widgets get it back as padding (KgHostView.edge). 0 for the rest.
+         */
         private fun bleed(c: View, g: Int): Int {
             if (c !is KgHostView) return 0
-            val e = g / 2; c.edge = e; return e
+            val e = dp(8).coerceAtMost(g / 2); c.edge = e; return e
         }
 
         /**

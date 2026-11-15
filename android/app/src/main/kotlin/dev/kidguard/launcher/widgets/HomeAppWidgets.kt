@@ -41,9 +41,11 @@ internal class KgHostView(ctx: Context) : AppWidgetHostView(ctx) {
     // our intercept (seen on the POCO: a quick swipe starting on Chrome's search bar opened the widget menu on the next page).
     override fun dispatchTouchEvent(e: MotionEvent): Boolean {
         when (e.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { dx = e.x; dy = e.y; rx = e.rawX; ry = e.rawY; stolen = false; removeCallbacks(fire); postDelayed(fire, ViewConfiguration.getLongPressTimeout().toLong()) }
-            MotionEvent.ACTION_MOVE -> if (!stolen && (abs(e.x - dx) > slop || abs(e.y - dy) > slop)) removeCallbacks(fire)
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> removeCallbacks(fire)
+            // the same pressed look as our own widgets (sink to 96 %, spring back): RemoteViews children take the touch,
+            // so it is driven from here, where every event passes
+            MotionEvent.ACTION_DOWN -> { dx = e.x; dy = e.y; rx = e.rawX; ry = e.rawY; stolen = false; removeCallbacks(fire); postDelayed(fire, ViewConfiguration.getLongPressTimeout().toLong()); dev.kidguard.pressed(this, true) }
+            MotionEvent.ACTION_MOVE -> if (!stolen && (abs(e.x - dx) > slop || abs(e.y - dy) > slop)) { removeCallbacks(fire); dev.kidguard.pressed(this, false) }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { removeCallbacks(fire); dev.kidguard.pressed(this, false) }
         }
         return super.dispatchTouchEvent(e)
     }
