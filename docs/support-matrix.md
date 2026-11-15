@@ -58,6 +58,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Chức năng | DO | CB | +WSS | +adb | Relay | Ghi chú |
 |---|---|---|---|---|---|---|
 | DNS an toàn (Private DNS) | ✅ | ❌ | ✅ | ✅ | ✅ | +WSS: ghi `Settings.Global`, tự sửa lại nếu con đổi. Tắt DoH của Chrome/Edge chỉ DO |
+| Chặn cuộc gọi lạ / số ẩn + danh sách cuộc gọi | ✅ | ✅ | ✅ | ✅ | ✅ | Android 10+ (dưới: chỉ danh sách). Cần role CALL_SCREENING: tự cấp qua adb của máy (`cmd role add-role-holder`), không có adb thì bé chạm 1 lần. DO tự cấp quyền danh bạ + nhật ký cuộc gọi; basic cần adb. Không có bản Home |
 | Chặn VPN, chặn chế độ máy bay | ✅ | ❌ | ❌ | ❌ | ✅ | |
 | Chặn trang web, tắt ẩn danh (`webBlock`, `noIncognito`) | ✅ | ❌ | ❌ | ❌ | ✅ | Chỉ Chrome/Edge (cấu hình quản lý). Trình duyệt khác bỏ qua: trang liệt kê (`webOther`) và cho chặn app đó |
 | Con xin mở trang web (Chia sẻ → KidGuard, yêu cầu `web`) | ✅ | ✅ | ✅ | ✅ | ❌ | Gửi được ở mọi kiểu; đồng ý chỉ có tác dụng khi có luật trang web (DO) |

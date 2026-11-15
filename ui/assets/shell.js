@@ -163,6 +163,7 @@ const QS = [
   ["rules", "r-more", "safe", "construction", ["more.h", "sd.more", "more.loc", "more.air", "ni.h", "ni.ask", "ni.none"]],
   ["rules", "r-dns", "safe", "shield", ["dns.h", "sd.dns", "dns.novpn"]],
   ["rules", "r-web", "safe", "globe", ["web.h", "sd.web", "web.inc", "web.block"]],
+  ["rules", "r-calls", "safe", "phone", ["calls.h", "sd.calls", "calls.unknown", "calls.hidden", "calls.allowH"]],
   ["rules", "r-anti", "safe", "lock-keyhole", ["anti.h", "sd.anti", "anti.debug", "anti.shot"]],
   ["rules", "r-anti", "safe", "landmark", ["bank.h", "bank.colAcc"]],
   ["rules", "r-home", "safe", "house", ["hm.h", "sd.home", "hm.on", "hm.settings", "hm.shade", "hm.lock", "hm.notes"]],

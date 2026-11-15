@@ -557,6 +557,7 @@ class Guard : Service() {
             .put("log", store.logs())
             .put("history", store.history)
             .put("track", store.track(2))
+            .put("calls", Calls.recent(this)).put("callsCap", Calls.cap(this))
             .put("requests", store.requests())
             .put("digest", JSONObject().put("days", store.dgDays(now)).put("bedKept", bedKept(r, apps.keys, prot, now)))
             .put("lastAnswer", store.lastAnswer() ?: JSONObject.NULL)

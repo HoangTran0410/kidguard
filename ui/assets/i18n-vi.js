@@ -633,5 +633,11 @@ L.vi = {
   "rel.ask": "Gỡ quản lý: máy con hết mọi giới hạn, KidGuard không điều khiển được nữa.\nXoá luôn trên máy chủ trung gian: trạng thái, luật, nhật ký, vị trí, liên kết Telegram.\nBố mẹ khác nhận thông báo đã gỡ.",
   "kb.never": "Chưa có dữ liệu",
   "kb.noAnswer": "Chưa kết nối được",
+  "calls.h": "Cuộc gọi", "sd.calls": "Từ chối người lạ và số ẩn gọi đến (Android 10+)", "calls.off": "Cho mọi cuộc gọi", "calls.unknown": "Chặn người không có trong danh bạ", "calls.hidden": "Chỉ chặn số ẩn",
+  "calls.c.unknown": "người lạ", "calls.c.hidden": "số ẩn", "calls.allowH": "Luôn cho các số này gọi", "calls.add": "Thêm", "calls.del": "Xoá", "calls.max": "Tối đa 30 số.", "calls.bad": "Không phải số điện thoại (3 đến 15 chữ số)",
+  "calls.tip": "Cuộc gọi bị từ chối sẽ không đổ chuông trên máy và bố mẹ nhận báo. Số trong danh bạ vẫn gọi được. Số khẩn cấp (112, 113, 114, 115) không bao giờ bị chặn.",
+  "calls.noApi": "Máy cũ hơn Android 10: không lọc được cuộc gọi. Danh sách cuộc gọi bên dưới vẫn dùng được.", "calls.needRole": "Đang chờ: bé cần chạm dòng chặn cuộc gọi trong KidGuard một lần (hoặc bật Gỡ lỗi không dây để máy tự làm).",
+  "calls.noLog": "Chưa có danh sách: máy chưa cho KidGuard đọc nhật ký cuộc gọi.", "calls.recent": "Cuộc gọi gần đây (7 ngày)", "calls.none": "Không có cuộc gọi nào trong 7 ngày qua.", "calls.hiddenNo": "Số ẩn", "calls.t.blocked": "Đã chặn", "calls.t.missed": "Nhỡ", "calls.min": "phút",
+  "kw.calls.h": "điện thoại, cuộc gọi, gọi, spam, lừa đảo, người lạ, số lạ, số ẩn, chặn số, nhật ký cuộc gọi, danh bạ",
   "app.waitPhone": "Chờ máy con áp dụng"
 };

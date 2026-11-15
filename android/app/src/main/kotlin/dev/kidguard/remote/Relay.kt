@@ -323,7 +323,7 @@ object RelayTrim {
     /** A copy without the bulky lists; apps keep only what the page needs to list them. Flags `relayBig`. */
     fun trim(state: JSONObject): JSONObject {
         val o = JSONObject(state.toString())
-        for (k in arrayOf("events", "track")) o.remove(k)
+        for (k in arrayOf("events", "track", "calls")) o.remove(k)
         o.optJSONArray("apps")?.let { a ->
             val slim = JSONArray()
             for (i in 0 until a.length()) a.optJSONObject(i)?.let { x ->

@@ -200,6 +200,7 @@ data class Rules(
     val zones: List<Zone> = emptyList(),     // max 10
     val hidden: Set<String> = emptySet(),    // preinstalled apps the parent hid (owner only), max Debloat.MAX_HIDDEN
     val groups: List<AppGroup> = emptyList(), // max AppGroup.MAX
+    val calls: CallRule = CallRule(),        // incoming-call screening (Calls.kt): block off|unknown|hidden + allow list
     val unlockMin: Int = 30,                 // minutes an Authenticator code unlocks on the child phone: 15, 30, 60, 120
     val windGray: Boolean = false,           // v0.9.7 wind-down: grayscale from windMin before bedtime until it ends
     val windMin: Int = 30,                   // WindDown.STEPS
@@ -256,7 +257,7 @@ data class Rules(
         .put("chores", JSONArray().apply { chores.forEach { put(it.toJson()) } })
         .put("zones", JSONArray().apply { zones.forEach { put(it.toJson()) } })
         .put("hidden", JSONArray(hidden.sorted()))
-        .put("groups", JSONArray().apply { groups.forEach { put(it.toJson()) } }).put("unlockMin", unlockMin)
+        .put("groups", JSONArray().apply { groups.forEach { put(it.toJson()) } }).put("unlockMin", unlockMin).put("calls", calls.toJson())
         .put("windDown", JSONObject().put("gray", windGray).put("min", windMin).put("nudge", windNudge))
         .put("lockInfo", JSONObject().put("msg", lockMsg).put("contact", lockContact)).put("blockNote", blockNote)
         .put("launcher", launcher.toJson()).put("monitor", monitor).put("kidClean", kidClean)
@@ -372,6 +373,7 @@ data class Rules(
                 webAllow = WebLogic.list(o.optJSONArray("webAllow")).filter { it != WebLogic.ALL },
                 frpIds = Frp.ids(o.optJSONArray("frpIds")),
                 tsKeep = o.optBoolean("tsKeep", false),
+                calls = CallRule.fromJson(o.optJSONObject("calls")),
                 vpnPause = if (o.has("vpnPause")) o.optJSONArray("vpnPause").strings().take(100).toSet() else VpnPauseLogic.DEFAULT,
                 accPause = if (o.has("accPause")) o.optJSONArray("accPause").strings().take(100).toSet() else AccPauseLogic.DEFAULT,
                 devPause = if (o.has("devPause")) o.optJSONArray("devPause").strings().take(100).toSet() else DevPauseLogic.DEFAULT,

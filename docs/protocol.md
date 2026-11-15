@@ -37,6 +37,7 @@ shape, say so in your report instead of silently diverging.
                                    //      Private DNS opportunistic, Chrome/Edge DoH config cleared. Guard's 10 s tick re-applies safe DNS
                                    //      by itself at expiry (no rules change needed). The page's "Pause 30 min" sets now+30 min.
   "tsKeep": false,                 // NEW 0.9.12 (default false): Ts.keep brings a dropped Tailscale back (CONNECT_VPN broadcast, then open once on home); always on for a Tailscale KidGuard installed (tsWanted)
+  "calls": {"block": "off", "allow": []},   // NEW 2026-11-15 (default off): incoming-call screening, see "Calls" below. Not in the timed-mode override list
   "noVpn": false,                  // NEW (default false): DISALLOW_CONFIG_VPN (Device Owner); also kept while our Tailscale access needs it
   "noIncognito": false,            // 0.9.24 (default false, Device Owner): Chrome/Edge managed config IncognitoModeAvailability="1" (no incognito tabs)
   "webBlock": [],                  // 0.9.24 hosts (max 300, cleaned by WebLogic.host: no scheme/path/www., subdomains included). ["*"] = every
@@ -112,6 +113,8 @@ leftMs apps rules location lan relay log`), plus:
   "grayErr": "",  // NEW: last wind-down grayscale error ("" = fine, "no permission" | "write failed")
   "autoGrant": {"left": 0, "at": 0, "next": 0, "err": ""},  // NEW: permissions still missing at the last tick, last real attempt (ms), next allowed attempt (ms), err "" | "no adb"
   "bankList": {"at": 0, "err": ""},  // NEW: last successful fetch of the website bank-app list (ms, 0 = never), last fetch error ("" = fine)
+  "calls": [{"n": "+84912345678", "name": "Mẹ", "type": "in|out|missed|rejected|blocked", "t": 1793940898493, "dur": 62}],   // NEW 2026-11-15: last 30 calls of 7 days (CallLog), newest first, only with READ_CALL_LOG; dropped from a trimmed relay state
+  "callsCap": {"api": true, "screen": false, "log": false, "contacts": false},   // NEW: api = Android 10+, screen = CALL_SCREENING role held, log / contacts = runtime permissions
   "relayOk": 0,  // NEW: epoch ms of the last successful relay sync (0 = never)
   "digest": {"days": [{"day": "2026-11-14", "asked": 2, "answered": 1, "blocked": 3, "tamper": 0}],   // 2026-11-14 evening summary: today first, up to 7 days, counters kept 8 days by the phone
              "bedKept": true},     // last night's bedtime window: true = under 1 min of use, false = used, null = no bedtime / per-night times (bedByDay) / no usage access
@@ -715,7 +718,7 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
   "Bố mẹ đã đồng ý / chưa đồng ý" notification ("… Bố mẹ nhắn: <note>").
 - **Zones / events**: the phone checks each new location fix against `zones` (inside = distance <= r; leaving needs
   distance > r + 50 m so a fix at the edge doesn't flap); fixes with accuracy > 300 m are ignored and appends events. State NEW:
-  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing|checkin|launcher|adminOpen", "text": "Đã đến Nhà"}]`,
+  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing|checkin|launcher|adminOpen|call", "text": "Đã đến Nhà"}]`,
   newest last, at most 50, older than 7 days dropped. `text` is free text for people, in the child app's language
   (English or Vietnamese, from the phone / per-app language; the examples here are the Vietnamese ones). The same goes for
   log lines (`log[].m`; NEW `log[].k` = kind, the string id without `log_`: `pin_wrong`, `unlock`, `paired`, `tz`,
@@ -1362,3 +1365,14 @@ Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone 
 - `GET /c/<id>/tile?z=&x=&y=` (watch map, after 0.9.21): one OpenStreetMap tile (PNG) fetched by the worker and edge-cached 7 days. Auth like every parent route (`X-KG-Token`); `z` 13-18, `x`/`y` inside the zoom (else 400 `bad tile`); 502 `tile <status>` when OSM fails. Why: some networks block `tile.openstreetmap.org` (DNS -> 127.0.0.1) while the relay works; the watch side service falls back to OSM directly.
   Also accepted without `X-KG-Token` when `k=<tileKey>` is in the query (`tileKey = sha256hex("tile:" + token)`, given by `state?watch=1`): for watches whose image request cannot send headers (Garmin `makeImageRequest`). The key only fetches OSM tiles; wrong / other kid's key = 401.
 - `GET /c/<id>/state?watch=1` (after 0.9.21): the same auth and keys as `/state` but small (~2-6 KB, Garmin's reply limit): `state` = every scalar field of the phone state as is, plus `now`, `location`, `lost` objects, `requests` (last 3), `done` (last 10), `sos` (last 3), `events` (last 10, `{t,kind,text<=80}`), `apps` = 15 most used `{pkg,label<=24,ms}` (no icons), `currentLabel`; `rules` whole (watches edit them with the full-replace PUT); `seen`, `pending`, `queue` (last 10), `expired` (last 10), `tileKey`.
+
+## Calls (2026-11-15, `guard/Calls.kt`, `CallsLogic.kt`)
+- **Rule** `calls`: `{"block": "off" | "unknown" | "hidden", "allow": ["+84912345678", ...]}` (max 30, 3-15 digits each; full replace like every rule; not overridable by a timed mode).
+  `hidden` rejects only calls with a withheld number. `unknown` rejects withheld numbers AND numbers that are neither in the phone's contacts (PhoneLookup) nor in `allow`.
+  Numbers compare by digits only; Vietnam `+84` / `0084` / `84` + 9 digits = `0` + 9 digits. Emergency numbers (112 113 114 115 911 ..., `PhoneNumberUtils.isEmergencyNumber`) are never rejected.
+  Without READ_CONTACTS a shown number is let through (we cannot tell); withheld numbers are still rejected.
+- **Phone side**: `CallScreen` (`CallScreeningService`, kid flavor only) answers `disallow + reject + skipNotification` (the call stays in the call log as rejected). Android 10+ and the `android.app.role.CALL_SCREENING` role.
+  Role: `AutoGrant` runs `cmd role add-role-holder --user 0 android.app.role.CALL_SCREENING dev.kidguard` (+ `pm grant` READ_CONTACTS / READ_CALL_LOG) through our own adb when the rule is on; Device Owner also grants both permissions in `Policy.apply`.
+  Without own adb the child's status card shows a line; one tap opens `RoleManager.createRequestRoleIntent`. Below Android 10: `callsCap.api = false`, nothing is screened (the call list still works).
+- **Event** `call` (info level): "Đã chặn cuộc gọi: <number or số ẩn>", the same caller is not repeated within 10 min. It reaches the page, Telegram and the parent app like other events.
+- **Release**: `Calls.release` takes the role back with `cmd role remove-role-holder` when we added it (`Store.callsRole`); a role the child accepted stays until changed in Settings -> Default apps. Release also resets `rules.calls` to off (the service then never rejects) and, for Device Owner, takes READ_CONTACTS / READ_CALL_LOG back.

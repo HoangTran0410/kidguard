@@ -42,6 +42,7 @@ object AutoGrant {
             addAll(micGrant(ctx))
             if (Store.of(ctx).rules.pinShot && ctx.checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED)
                 add("pm grant $p android.permission.CAMERA")
+            addAll(Calls.shellNeeds(ctx))   // call screening: contacts + call log + the CALL_SCREENING role
             // self-update without the child (Update.installQuiet); the setup steps grant it too
             if (!ctx.packageManager.canRequestPackageInstalls()) add("appops set $p REQUEST_INSTALL_PACKAGES allow")
         }
@@ -75,6 +76,7 @@ object AutoGrant {
         Thread({
             try {
                 val out = SelfAdb.run(app, cmds.joinToString("; "))
+                if (cmds.any { it.contains("add-role-holder") } && Calls.roleHeld(app)) Store.of(app).callsRole = true
                 Log.i("KidGuard", "auto-grant ${cmds.size}: ${out?.take(200)}")
                 val rest = missing(app).size
                 left = rest

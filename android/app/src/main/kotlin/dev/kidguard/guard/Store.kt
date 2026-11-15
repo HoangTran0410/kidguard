@@ -515,6 +515,10 @@ class Store private constructor(private val app: Context) {
     @Synchronized fun markWarned(today: String, keys: Set<String>) { p.edit().putStringSet("warned", warned(today) + keys).apply() }
 
     // Remote access (Ts.kt). The auth key lives only here (private prefs); it is never sent back in state or log.
+    /** We added the CALL_SCREENING role through adb (Calls.release takes it back). */
+    @get:Synchronized @set:Synchronized var callsRole: Boolean
+        get() = p.getBoolean("callsRole", false)
+        set(v) { p.edit().putBoolean("callsRole", v).apply() }
     @get:Synchronized @set:Synchronized var tsWanted: Boolean
         get() = p.getBoolean("tsWanted", false)
         set(v) { p.edit().putBoolean("tsWanted", v).commit() }

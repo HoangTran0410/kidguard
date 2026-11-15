@@ -3,6 +3,7 @@
 Index and the rule for adding lines: `README.md`.
 
 ## Decided
+- 2026-11-15 Calls (`calls` rule): `CallScreeningService` + CALL_SCREENING role, not the telephony `endCall` hack (needs ANSWER_PHONE_CALLS + races the ring) and not TelecomManager default dialer (replaces the child's dialer). Role comes from our own adb (`cmd role add-role-holder`), else one child tap; unknown = not in contacts and not in `allow`, no READ_CONTACTS = shown numbers pass (fail open); emergency never blocked; not in timed-mode override; call log list kept out of trimmed relay state. Unverified on a real phone.
 - 2026-11-13 What a bank-app pause takes away is computed: `Features.PAUSES` (pause -> caps) + `Features.lost()` over `Features.TABLE`; the kid popup / notification never carry hand-written feature lists (FeaturesTest fails on a missing row / name).
 - Release (`release` cmd) must undo every restriction; a failed release re-applies policy + watchdog, keeps parent tokens and keeps enforcing (1747923, f032b5d). Release aborts with "failed: N app còn bị ẩn" if a Dọn máy-hidden app can't be un-hidden
 - Basic mode (no Device Owner) exists for phones that can't be DO without a PC (no QR setup, Android <11): accessibility bounces blocked apps HOME, bounces Settings/installer pages that would uninstall/deactivate/force-stop us; self-protection only after first pairing (43b298f, 831bf98)
