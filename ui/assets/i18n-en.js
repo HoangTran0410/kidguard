@@ -159,7 +159,7 @@ L.en = {
   "req.aria": "Request for more time", "req.asks": { one: "{0} asks for {1} more minute", other: "{0} asks for {1} more minutes" }, "req.chore": "Chore", "req.choreGone": "(chore deleted)", "req.note": "Kid wrote: “{0}”",
   "req.reply": "Message to your kid (optional)", "req.replyPh": "e.g. Well done! Remember to put the phone away at 9", minutes: "Minutes", "req.yes": "Allow {0} min", "req.no": "Decline",
   today: "Today", yesterday: "Yesterday", used: "used", "home.incl": "(includes {0} bonus min)", "home.noLim": "(no limit)", left: "{0} left",
-  "lg.all": "All", "lg.none": "Nothing on this day", "lg.more": "Show {0} more ({1} left)", "lg.prev": "Previous day", "lg.next": "Next day", "lg.days": "Pick a day",
+  "lg.all": "All", "lg.h": "Timeline", "lg.none": "Nothing on this day", "lg.more": "Show {0} more ({1} left)", "lg.prev": "Previous day", "lg.next": "Next day", "lg.days": "Pick a day",
   "lg.note": "Number per day = events + log. The phone keeps the last 90 days.",
   "lg.noteOld": "This (older) phone keeps only its last 50 lines; this page remembers what it has seen (up to 90 days, on this device only). Update KidGuard on the phone for the full history.",
   "lg.loading": "Fetching from the phone…", "lg.cut": "Too many lines on this day: showing the newest only.", "lg.err": "Couldn't get this day: {0}", "lg.retry": "Retry",

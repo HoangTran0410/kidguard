@@ -44,6 +44,7 @@ const SHOTS = [
   { name: "where", js: `goTab("where")`, ready: `document.querySelector("#map .layer")`, tiles: true, settle: 800 },
   { name: "screen", js: `goTab("screen")`, ready: `document.querySelector("#s-img") && document.querySelector("#s-img").complete && document.querySelector("#s-img").naturalWidth > 0`, settle: 800 },
   { name: "files", js: `goTab("files")`, ready: `document.querySelector("#fxOut .app, #fxOut .li, #fxOut > *")`, settle: 600 },
+  { name: "log", js: `goTab("log")`, ready: `document.querySelector(".lgr, #tab .empty")`, settle: 600 },
   { name: "settings-away", js: `goTab("set")`, ready: `document.querySelector("#awaySec")`, scrollTo: "#awaySec", settle: 600 },
 ];
 

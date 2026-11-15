@@ -291,7 +291,7 @@ function moreTab(b) {
 // paged rows. The phone keeps 90 days (docs/protocol.md "Log history"): the page asks it for the chosen day (LAN GET
 // /logday?day=, relay POST /logday + poll) and gets the per-day counts of the strip with it. A phone / worker without
 // that route (404) falls back to what the state carries (last 50 each) kept per kid in localStorage (90 days / 1500 each).
-const LG_PAGE = 50, LG_KEEP = 1500, LG_DAYS = 90;
+const LG_PAGE = 30, LG_KEEP = 1500, LG_DAYS = 90;
 const LG_CAT = { alert: ["pin_wrong", "usage_off", "totp_off", "release_fail", "released", "sos", "acc_settings", "proj_denied", "listen_err", "dns_fallback"],
   parent: ["cmd", "rules", "control", "view_start", "listen_start", "listen_done", "ring_stopped", "checkin", "admin_open", "dev_off", "dev_on", "cleared", "totp_on", "paired", "unlock"],
   apps: ["new_app", "suspended", "unsuspended", "recover_open", "recover_req", "acc_rebind", "acc_reenabled", "acc_paused", "acc_resumed"],
@@ -355,9 +355,12 @@ function logTab(b) {
   const m = oldPhone ? lgMerge() || { ev: st.events || [], lg: st.log || [] } : null;
   const evAll = m ? m.ev.filter(e => dkey(e.t) === lgDay) : c.d && c.d.ev || [], lgAll = m ? m.lg.filter(l => dkey(l.t) === lgDay) : c.d && c.d.lg || [];
   const evC = lgCount(evAll, e => e.kind || "other"), lgC = lgCount(lgAll, lgCat);
-  if (lgEv && !evC[lgEv]) lgEv = ""; if (lgLg && !lgC[lgLg]) lgLg = "";
-  const evRows = (lgEv ? evAll.filter(e => (e.kind || "other") === lgEv) : evAll).slice().reverse();
-  const lgRows = (lgLg ? lgAll.filter(l => lgCat(l) === lgLg) : lgAll).slice().reverse();
+  const C = {}; for (const k in evC) C["e:" + k] = evC[k]; for (const k in lgC) C["l:" + k] = lgC[k];
+  if (lgEv && !C[lgEv]) lgEv = "";
+  // one timeline, newest first: events (bold) and log lines, each with its clock time (filter "" | "e:<kind>" | "l:<cat>")
+  const rows = [...(!lgEv || lgEv.startsWith("e:") ? evAll.filter(e => !lgEv || "e:" + (e.kind || "other") === lgEv).map(e => ({ t: +e.t || 0, h: evRow(e) })) : []),
+    ...(!lgEv || lgEv.startsWith("l:") ? lgAll.filter(l => !lgEv || "l:" + lgCat(l) === lgEv).map(l => ({ t: +l.t || 0, h: logRow(l) })) : [])]
+    .sort((a, c) => c.t - a.t);
   let tot = lgx && lgx.k === cur && lgx.days;
   if (m) { tot = {}; for (const e of m.ev) { const k = dkey(e.t); tot[k] = (tot[k] || 0) + 1; } for (const l of m.lg) { const k = dkey(l.t); tot[k] = (tot[k] || 0) + 1; } }
   tot = tot || {};
@@ -365,7 +368,7 @@ function logTab(b) {
   if (days.indexOf(lgDay) < 0) days.push(lgDay);
   const first = dkey(Math.min(Date.now() - 90 * 864e5, ...Object.keys(tot).map(d => new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10), 12).getTime())));
   const chip = (attr, v, cur_, n, label) => `<button type="button" data-${attr}="${v}" class="${cur_ === v ? "on" : ""}" aria-pressed="${cur_ === v}">${label} <b>${n}</b></button>`;
-  const chips = (attr, C, sel, all, name, icon) => `<div class="chips scroll" role="group" aria-label="${esc(name)}">${chip(attr, "", sel, all, t("lg.all"))}${Object.keys(C).sort((a, c) => C[c] - C[a]).map(k => chip(attr, k, sel, C[k], `${icon ? ic(icon(k)) + " " : ""}${(attr === "fe" ? tc("lg.k.", k, k) : t("lg.c." + k))}`)).join("")}</div>`;
+  const chips = () => `<div class="chips scroll" role="group" aria-label="${esc(t("lg.h"))}">${chip("fe", "", lgEv, evAll.length + lgAll.length, t("lg.all"))}${Object.keys(C).sort((a, c) => a[0] === c[0] ? C[c] - C[a] : a < c ? -1 : 1).map(k => chip("fe", k, lgEv, C[k], k[0] === "e" ? `${ic(EV_IC[k.slice(2)] || "bell")} ${tc("lg.k.", k.slice(2), k.slice(2))}` : t("lg.c." + k.slice(2)))).join("")}</div>`;
   const more = (rows, n, id) => rows.length > n ? `<button type="button" class="sm" id="${id}" style="width:100%;margin-top:8px">${t("lg.more", Math.min(LG_PAGE, rows.length - n), rows.length - n)}</button>` : "";
   const wait = !m && !c.d, none = wait ? (c.err ? `<div class="empty"><span class="e">${ic("triangle-alert")}</span>${esc(t("lg.err", c.err))}<br><button type="button" class="sm" data-lgretry>${t("lg.retry")}</button></div>` : `<div class="empty"><span class="e">${ic("hourglass")}</span>${t("lg.loading")}</div>`) : `<div class="empty"><span class="e">${ic("inbox")}</span>${t("lg.none")}</div>`;
   b.innerHTML = `<div class="card"><h2>${ic("calendar")} ${esc(dayLabel(lgDay))}</h2>
@@ -374,10 +377,8 @@ function logTab(b) {
       <button type="button" class="sm" id="lgNext" aria-label="${esc(t("lg.next"))}" ${lgDay >= today ? "disabled" : ""}>${ic("chevron-right")}</button></div>
     <div class="chips scroll" style="margin-top:8px" role="group" aria-label="${esc(t("lg.days"))}">${days.map(d => `<button type="button" data-d="${d}" class="${d === lgDay ? "on" : ""}" aria-pressed="${d === lgDay}">${d === today ? t("today") : dm(d)} <b>${tot[d] || 0}</b></button>`).join("")}</div>
     <p class="mute" style="margin-top:8px">${t(oldPhone ? "lg.noteOld" : "lg.note")}</p>${c.d && c.d.cut ? `<p class="mute">${t("lg.cut")}</p>` : ""}</div>
-  <div class="card"><h2>${ic("bell")} ${t("events")}</h2>${evAll.length ? chips("fe", evC, lgEv, evAll.length, t("events"), k => EV_IC[k] || "bell") : ""}
-    <div style="margin-top:6px">${evRows.slice(0, lgNEv).map(evHtml).join("") || none}</div>${more(evRows, lgNEv, "lgMoreE")}</div>
-  <div class="card"><h2>${ic("notebook-pen")} ${t("log")}</h2>${lgAll.length ? chips("fl", lgC, lgLg, lgAll.length, t("log"), 0) : ""}
-    <div>${lgRows.slice(0, lgNLg).map(logRow).join("") || none}</div>${more(lgRows, lgNLg, "lgMoreL")}</div>`;
+  <div class="card"><h2>${ic("list")} ${t("lg.h")}</h2>${evAll.length + lgAll.length ? chips() : ""}
+    <div style="margin-top:6px">${rows.slice(0, lgNEv).map(r => r.h).join("") || none}</div>${more(rows, lgNEv, "lgMoreE")}</div>`;
   const go = d => { lgDay = d; lgEv = lgLg = ""; lgNEv = lgNLg = LG_PAGE; render(); };
   const shift = n => go(dkey(new Date(+lgDay.slice(0, 4), +lgDay.slice(5, 7) - 1, +lgDay.slice(8, 10) + n, 12).getTime()));
   b.querySelectorAll("[data-lgretry]").forEach(x => x.onclick = () => lgLoad(lgDay, true));
@@ -385,9 +386,7 @@ function logTab(b) {
   $("#lgPick").onchange = e => { const v = e.target.value; if (/^\d{4}-\d\d-\d\d$/.test(v)) go(v > today ? today : v); };
   b.querySelectorAll("[data-d]").forEach(x => x.onclick = () => go(x.dataset.d));
   b.querySelectorAll("[data-fe]").forEach(x => x.onclick = () => { lgEv = x.dataset.fe; lgNEv = LG_PAGE; render(); });
-  b.querySelectorAll("[data-fl]").forEach(x => x.onclick = () => { lgLg = x.dataset.fl; lgNLg = LG_PAGE; render(); });
   if ($("#lgMoreE")) $("#lgMoreE").onclick = () => { lgNEv += LG_PAGE; render(); };
-  if ($("#lgMoreL")) $("#lgMoreL").onclick = () => { lgNLg += LG_PAGE; render(); };
 }
 // "Gửi lỗi": a report to the developer (phone command `support`, Support.kt) and the thread of replies (`supportSay`)
 const SUP_KINDS = ["block", "time", "relay", "location", "launcher", "bank", "battery", "other"];
