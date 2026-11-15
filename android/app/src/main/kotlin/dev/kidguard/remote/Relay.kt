@@ -168,7 +168,7 @@ class Relay(private val g: Guard) {
             optJSONArray("apps")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { it.put("ms", it.optLong("ms") / 60_000) } }
         }.toString().hashCode()
         val full = hash != lastHash || now - lastFull >= 5 * 60_000L || (viaWs && forced)
-        val req = JSONObject().put("acks", acks)
+        val req = JSONObject().put("acks", acks).put("ai", store.aiHash)   // the worker knows the AI token by this hash (AiScope)
         if ("$base/$rid" != diffFor) { diffFor = "$base/$rid"; diff.reset(); canMerge = false }
         // a whole state until the worker can merge, and every 6 h anyway (a hash clash must not hide a change for long)
         val whole = !canMerge || big || now - lastWhole >= WHOLE_MS

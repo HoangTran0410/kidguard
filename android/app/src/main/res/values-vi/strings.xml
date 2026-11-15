@@ -105,6 +105,8 @@
     <string name="log_unlock">Mở khoá bằng mã của bố mẹ: %1$d phút</string>
     <string name="ev_unlock">Con đã mở khoá bằng mã của bố mẹ: %1$d phút</string>
     <string name="log_paired">Đã ghép một thiết bị của bố mẹ</string>
+    <string name="log_ai_on">Đã tạo mã cho trợ lý AI</string>
+    <string name="log_ai_off">Đã xoá mã của trợ lý AI</string>
 
     <!-- Guard -->
     <string name="ev_tz">Múi giờ máy bị đổi: %1$s</string>

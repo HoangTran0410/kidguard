@@ -62,7 +62,7 @@ async function refresh1() {
   // redraw the tab only when what it shows changed and nobody is using a control (icons would reload, a select would close)
   const sig = st ? JSON.stringify([tab, st.rules && st.rules.rev, st.apps.map(a => [a.suspended, a.blocked, Math.floor(a.ms / 60000), a.bg, a.bgMine]),
     st.location && st.location.t, (st.log || []).length, ((st.log || []).slice(-1)[0] || {}).t, (st.track || []).length, Math.floor(st.usedMs / 60000), lastErr, cachedAt, viewDay,
-    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, st.totpOn, st.unlockUntil, st.now && st.now.why, (st.requests || []).map(q => q.remindAt || 0).join(), rc.map(x => x.s).join(), (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(","), (st.preinstalled || []).map(x => (x.hidden ? 1 : 0) + (x.refused ? 2 : 0)).join(""), (st.devices || []).map(d => d.id + d.name).join(","), (st.rules && st.rules.hidden || []).join(","),
+    (st.requests || []).map(q => q.id), (st.history || []).length, st.limitMin, st.totpOn, st.ai, st.unlockUntil, st.now && st.now.why, (st.requests || []).map(q => q.remindAt || 0).join(), rc.map(x => x.s).join(), (st.apps || []).filter(a => a.new).length, (st.events || []).slice(-10).map(e => e.id).join(","), (st.preinstalled || []).map(x => (x.hidden ? 1 : 0) + (x.refused ? 2 : 0)).join(""), (st.devices || []).map(d => d.id + d.name).join(","), (st.rules && st.rules.hidden || []).join(","),
     st.sh && [st.sh.busy, st.sh.tcp, st.sh.tcpUp, (st.sh.log || []).map(e => e.at).join(",")], st.support && [st.support.busy, st.support.err, st.support.code, (st.support.msgs || []).length]]) : lastErr + (noState ? "|nostate" : "");
   // background-limit fields (bg / bgMine) change a few seconds after the command, on the phone's next tick: redraw the open "App chạy nền" sheet then
   const bgSig = st ? (st.apps || []).map(a => (a.bg === false ? 1 : 0) + (a.bgMine ? 2 : 0)).join("") : "";
@@ -239,7 +239,7 @@ const askOf = c => hasT("ask." + c) ? [t("ask." + c), t("askOk." + c), !!ASK_BAD
 // Commands the phone runs only with the parent PIN (or an Authenticator code) inside: guard/CmdGate.kt, protocol
 // "PIN-gated commands". Phones before 0.9.13 have no gate (no state.pinResetAt): nothing asked there.
 const GATED_OFF_FREE = c => c.type === "adbTcp" && !c.on;   // closing the adb port needs no PIN (phone: CmdGate.needs)
-const GATED = new Set(["release", "unpairAll", "unpair", "clearData", "reboot", "relay", "tailscaleOff", "openPairing", "totpSet", "tgSet", "tgCode", "tgOff", "pinSet", "pinResetCancel", "adbShell", "adbTcp"]);
+const GATED = new Set(["release", "unpairAll", "unpair", "clearData", "reboot", "relay", "tailscaleOff", "openPairing", "totpSet", "tgSet", "tgCode", "tgOff", "pinSet", "pinResetCancel", "adbShell", "adbTcp", "aiToken"]);
 const gateOn = () => !!(st && "pinResetAt" in st && ((edit && edit.pinSet) || st.totpOn));
 let pinMem = null;   // {token, pin, at}: the PIN typed for this kid in the last 5 min, sliding (a "Dọn máy" run sends clearData per app)
 const pinField = () => `<input id="askPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="${esc(t("pin.cmdPh"))}" aria-label="${esc(t("pin.cmdPh"))}" style="width:100%;margin-bottom:6px">
@@ -394,7 +394,7 @@ const totpHtml = s => `<div class="alert warn" style="margin-top:10px">${s.queue
 // ---- v0.6: events, chores, zones, templates ----
 const EV_IC = { call: "phone", zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand", launcher: "house", adminOpen: "key-round" };
 // phone log line kind (log[].k, protocol) -> icon + tone; lines from older phones have no k
-const LOG_IC = { pin_wrong: ["key-round", "bad"], unlock: ["lock-open"], paired: ["link"], tz: ["globe"], loc_fixed: ["map-pin"],
+const LOG_IC = { pin_wrong: ["key-round", "bad"], unlock: ["lock-open"], paired: ["link"], ai_on: ["bot"], ai_off: ["bot"], tz: ["globe"], loc_fixed: ["map-pin"],
   usage_off: ["triangle-alert", "bad"], new_app: ["package"], suspended: ["pause"], unsuspended: ["play"], recover_open: ["refresh-cw"],
   recover_req: ["refresh-cw"], zone: ["map-pin"], cmd: ["send"], cleared: ["eraser"], totp_off: ["shield", "bad"], totp_on: ["shield"],
   release_fail: ["octagon-x", "bad"], released: ["unlink", "bad"], sos: ["siren", "bad"], acc_settings: ["triangle-alert", "bad"],

@@ -321,6 +321,7 @@ function setTab(b) {
     : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p>${st.relayBig ? `<p class="mute">${ic("info")} ${t("relay.big")}</p>` : ""}${cur.via === "relay" && isRelayOrigin ? relayLinkHtml(goLink(location.origin, cur.id, cur.token, cur.name)) : ""}</div>`}
   ${tgHtml()}
   ${watchCard()}
+  ${aiCard()}
   <div class="dz" style="margin-top:22px">${sec("s-danger", "octagon-x", t("set.danger"), t("sd.danger"), null, `<h2>${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
     <h2 style="margin-top:18px">${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
     <button id="release" class="bad">${ic("octagon-x")} ${t("rel.btn")}</button>`)}</div>
@@ -435,6 +436,10 @@ function setTab(b) {
   if ($("#f-shTcp")) $("#f-shTcp").onchange = e => shTcp(e.target.checked);
   if ($("#shTcpNow")) $("#shTcpNow").onclick = shTcpNow;
   if ($("#relayRenewNow")) $("#relayRenewNow").onclick = () => relayRenew(cur, "", true);
+  if ($("#aiNew")) $("#aiNew").onclick = aiNew;
+  if ($("#aiRevoke")) $("#aiRevoke").onclick = aiRevoke;
+  if ($("#aiDone")) $("#aiDone").onclick = () => { aiShown = null; lastSig = ""; render(); };
+  if ($("#aiCopy")) $("#aiCopy").onclick = () => { navigator.clipboard?.writeText($("#aiCfg").textContent).then(() => toast("ok|" + t("copied")), () => toast("warn|" + t("copyFail"))); };
   if ($("#watchGo")) { $("#watchGo").onclick = watchGo; $("#f-wcode").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); watchGo(); } }; $("#f-wcode").oninput = e => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 6); }; }
   for (const x of document.querySelectorAll(".ftgo")) x.onclick = () => featGo(x.dataset.ft);
   if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, t("upd.sent"), [t("upd.ask"), t("upd.ok")]).then(() => setTimeout(refresh, 4000));
@@ -549,6 +554,33 @@ async function watchGo() {
   } catch (er) { toast("err|" + t("errX", er.message)); if (k === cur) f.focus(); }
   finally { if ($("#watchGo") === bt) { bt.disabled = false; bt.removeAttribute("aria-busy"); bt.innerHTML = h0; } }
 }
+
+// AI assistant (mcp/README.md): a second, limited token. The page makes it (24 random bytes = 48 hex, like a paired token) and
+// sends only its sha256 (`aiToken {op:"set", hash}`, PIN-gated); the phone and the relay enforce what it may do (AiScope).
+let aiShown = null;   // {k, token}: shown until "Done"; never stored
+const sha256hex = async s => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].map(x => x.toString(16).padStart(2, "0")).join("");
+function aiCfg(k, token) {
+  const env = k.via === "relay" ? { KG_RELAY: isRelayOrigin ? location.origin : "", KG_ID: k.id } : k.relay && k.relay.url ? { KG_RELAY: k.relay.url, KG_ID: k.relay.id } : { KG_URL: k.target || location.origin };
+  return JSON.stringify({ mcpServers: { kidguard: { command: "node", args: ["/path/to/kidguard/mcp/kidguard-mcp.mjs"], env: { ...env, KG_AI_TOKEN: token } } } }, null, 2);
+}
+function aiCard() {
+  const on = !!st.ai, show = aiShown && aiShown.k === cur ? aiShown : null;
+  if (!("ai" in st)) return sec("s-ai", "bot", t("ai.h"), t("sd.ai"), null, `<p class="mute">${ic("info")} ${t("ai.old")}</p>`, false);
+  return sec("s-ai", "bot", t("ai.h"), t("sd.ai"), on ? [t("on"), "ok"] : [t("off")], `
+    <p class="mute">${t("ai.p")}</p>
+    ${show ? `<div class="alert warn">${ic("triangle-alert")} ${t("ai.once")}</div><pre id="aiCfg" style="white-space:pre-wrap;overflow-wrap:anywhere;user-select:all">${esc(aiCfg(cur, show.token))}</pre>
+      <div class="row"><button id="aiCopy">${ic("clipboard-copy")} ${t("relay.copy")}</button><button id="aiDone" class="pri">${ic("check")} ${t("ai.done")}</button></div>`
+    : `<div class="row"><button id="aiNew" class="pri">${ic("bot")} ${on ? t("ai.renew") : t("ai.new")}</button>${on ? `<button id="aiRevoke" class="bad">${ic("trash-2")} ${t("ai.revoke")}</button>` : ""}</div>`}`, !!show);
+}
+async function aiNew() {
+  const k = cur;
+  if (!(window.crypto && crypto.subtle)) { toast("warn|" + t("ai.nocrypto")); return; }
+  const token = [...crypto.getRandomValues(new Uint8Array(24))].map(x => x.toString(16).padStart(2, "0")).join("");
+  const r = await cmd({ type: "aiToken", op: "set", hash: await sha256hex(token) }, t("ai.made"), false);
+  if (!r || (r.result && !["ok", "queued"].includes(r.result))) return;
+  if (k === cur) { aiShown = { k, token }; lastSig = ""; render(); }
+}
+async function aiRevoke() { await cmd({ type: "aiToken", op: "revoke" }, t("ai.gone"), [t("ai.askRevoke"), t("ai.revoke"), true]); }
 
 /** The /go link box (Cài đặt > relay): the link that always opens, whatever the phone's address. */
 function relayLinkHtml(link) {

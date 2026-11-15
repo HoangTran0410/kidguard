@@ -61,12 +61,14 @@ class Api(private val g: Guard) {
         }
         val token = listOf(r.header("x-kg-token"), r.query["k"]).firstOrNull { !it.isNullOrBlank() }
         val session = ParentSession.fromCookie(r.header("cookie"))   // on-device parent page (AdminActivity), never a paired token
-        if (!ParentSession.valid(session) && !store.tokenOk(token)) {
+        val ai = !ParentSession.valid(session) && !store.tokenOk(token) && store.aiOk(token)   // role "ai": AiScope
+        if (ai && !AiScope.routeAllowed(r.method, p)) return Res.json("""{"error":"ai token: not allowed"}""", 403)
+        if (!ai && !ParentSession.valid(session) && !store.tokenOk(token)) {
             if (!store.commitPair(token)) return Res.json("""{"error":"not paired"}""", 401)
             store.log(R.string.log_paired)
             g.kick()
         }
-        if (token != null && !ParentSession.valid(session)) store.touchDevice(token, r.header("x-kg-name"))
+        if (token != null && !ai && !ParentSession.valid(session)) store.touchDevice(token, r.header("x-kg-name"))
         return when {
             // devices: the cached list, with the caller's own row marked self (a paired token only; the on-device session has none)
             p == "/state" -> Res.json(g.currentState().let { st -> if (token == null || ParentSession.valid(session)) st else JSONObject(st.toString()).put("devices", store.devices(token)) }.toString())
@@ -86,7 +88,8 @@ class Api(private val g: Guard) {
             p.startsWith("/shot/") && r.method == "GET" -> Shot.file(g, p.removePrefix("/shot/"))   // wrong-PIN photo (Shot.kt)
                 ?.let { Res(200, "image/jpeg", it.readBytes(), mapOf("Cache-Control" to "private, max-age=86400")) } ?: Res.json("""{"error":"no such photo"}""", 404)
             p == "/rules" && r.method == "PUT" -> {
-                val body = JSONObject(r.text)
+                var body = JSONObject(r.text)
+                if (ai) body = AiScope.lockRules(body, store.baseRules.toJson())   // an AI never changes the PIN or a protection switch
                 var incoming = Rules.fromJson(body)
                 if (!body.has("pin") && !body.has("pinHash")) incoming = incoming.copy(pinHash = store.baseRules.pinHash, pinSalt = store.baseRules.pinSalt)   // both: a salted hash without its salt never matches
                 val rev = maxOf(store.baseRules.rev + 1, System.currentTimeMillis())
@@ -95,6 +98,7 @@ class Api(private val g: Guard) {
             }
             p == "/cmd" && r.method == "POST" -> {
                 val c = JSONObject(r.text)
+                if (ai && !AiScope.cmdAllowed(c.optString("type"))) return Res.json("""{"error":"ai token: not allowed"}""", 403)
                 if (c.optString("type") == "relay") {
                     val res = g.command(c)
                     // the relay link only after the command ran (a wrong / missing PIN must not hand it out)

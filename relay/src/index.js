@@ -89,10 +89,15 @@ const live = (c, now) => now - (c.at || 0) < (SHORT.includes(c.type) ? SHORT_TTL
 /** Receipts for commands dropped unrun (TTL / ONCE window): newest last, at most EXPIRED_N, shown to the parent as state `expired`. */
 const EXPIRED_N = 10;
 const expiredOf = (list, dropped, now) => [...(list || []), ...dropped.map(c => ({ id: c.id, type: c.type, res: "expired", at: now }))].slice(-EXPIRED_N);
-const CMDS = ["lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "unlockEnd", "clearCache", "rescan", "bgLimit", "bgRestore", "fixPerms"];
+const CMDS = ["aiToken", "lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "unlockEnd", "clearCache", "rescan", "bgLimit", "bgRestore", "fixPerms"];
 const APK_BASE = "https://github.com/HoangTran0410/kidguard/releases/latest/download/";   // test override: env.APK_BASE
 // idempotent commands a newer copy may replace when the queue is full: type -> target field that must match too (null = the type alone)
 const REPLACE = { lock: null, locate: null, ring: null, wake: null, ringStop: null, listenStop: null, devOn: null, devOff: null, setting: "key", clearCache: null, rescan: null, fixPerms: null, openPairing: null, unlockEnd: null, bankEnd: null, fileUp: "file" };
+// AI token (docs/protocol.md "AI token"): the phone sends sha256 of it in every sync (`ai`); a request with it gets role "ai".
+// Same lists as K/guard/AiScope.kt: commands it may queue, rule keys it can never change (the stored value stays).
+const AI_CMDS = ["lock", "locate", "message", "ring", "ringStop", "sosAck", "answer"];
+const AI_LOCKED = ["pin", "pinHash", "pinSalt", "pinAt", "pinSet", "noInstall", "noDebug", "pinShot", "lockLocation", "noAirplane", "frpIds", "safeDns", "safeDnsPauseUntil", "noVpn", "tsKeep", "vpnPause", "accPause", "devPause", "tcpPause", "autoUpdate", "showWatching", "unlockMin", "hidden", "approved", "mode"];
+const aiRoute = (action, m) => (action === "state" || action === "icon") ? m === "GET" : action === "rules" ? m === "PUT" : action === "cmd" && m === "POST";
 const SETTING_KEYS = ["vol.ring", "vol.media", "vol.alarm", "bright", "autoBright", "timeoutMs", "dnd"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
 // 'self': the parent page's /ui/ files; 'unsafe-inline': install/qr inline scripts + a few inline handlers in the parent page; the installer imports ESM from jsDelivr and downloads the APK
@@ -457,7 +462,13 @@ export class Kid {
       }
       await this.s.put({ tokenHash: h, born: Date.now() }); bound = h;
     }
-    if (h !== bound) return json({ error: "not paired" }, 401);
+    let role = "parent";
+    if (h !== bound) {
+      const ai = await this.s.get("aiHash");
+      if (!ai || h !== ai) return json({ error: "not paired" }, 401);
+      if (!aiRoute(action, req.method)) return json({ error: "ai token: not allowed" }, 403);
+      role = "ai";
+    }
     if (action === "forget" && req.method === "POST") {   // the phone is released: delete everything of this id (same token auth as sync)
       for (const w of this.phoneWs()) { try { w.close(1000, "forgotten"); } catch {} }
       await this.s.deleteAlarm().catch(() => {}); await this.s.deleteAll();
@@ -474,8 +485,9 @@ export class Kid {
       const r = await this.env.WATCH.get(this.env.WATCH.idFromName("w:" + b.code)).fetch("https://w/attach", { method: "POST", body: JSON.stringify({ url: url.origin, id, token, name }) });
       return json(r.status === 200 ? { ok: true } : { error: r.status === 409 ? "code already used" : "no such code" }, r.status === 200 ? 200 : r.status === 409 ? 409 : 404);
     }
+    if (role === "ai" && action === "tile") return json({ error: "ai token: not allowed" }, 403);
     if (action === "tile") return req.method === "GET" ? this.tile(req, url) : json({ error: "method" }, 405);
-    if (!this.ikSet) {
+    if (!this.ikSet && role === "parent") {
       this.ikSet = true;
       const [ik, tk] = await Promise.all([sha256("icon:" + token), sha256("tile:" + token)]);
       const [oi, ot] = await Promise.all([this.s.get("iconKey"), this.s.get("tileKey")]);
@@ -627,7 +639,7 @@ export class Kid {
     if (action === "state" && req.method === "GET") {
       const [state, rules, seen, cmds] = await Promise.all(["state", "rules", "seen", "cmds"].map(k => this.s.get(k)));
       const st = state ? { ...state, rules: stripPin(state.rules) } : null;
-      if (url.searchParams.get("watch") === "1") return json({ ...watchState(st, rules ? stripPin(rules) : null), seen: this.seenNow(seen), pending: (cmds || []).length,
+      if (role === "parent" && url.searchParams.get("watch") === "1") return json({ ...watchState(st, rules ? stripPin(rules) : null), seen: this.seenNow(seen), pending: (cmds || []).length,
         queue: (cmds || []).filter(c => live(c, Date.now())).slice(-10).map(c => ({ id: c.id, type: c.type, at: c.at })),
         expired: ((await this.s.get("expired")) || []).slice(-10), tileKey: await sha256("tile:" + token) });
       return json({ state: st, rules: rules ? stripPin(rules) : null, seen: this.seenNow(seen), pending: (cmds || []).length,
@@ -636,6 +648,10 @@ export class Kid {
     if (action === "rules" && req.method === "PUT") {
       const [state, old] = await Promise.all([this.s.get("state"), this.s.get("rules")]);
       const rev = Math.max(Date.now(), (old && old.rev || 0) + 1, (state && state.rules && state.rules.rev || 0) + 1);
+      if (role === "ai") {   // never the PIN or a protection switch: those keep the stored value (the newer of the queued rules and the phone's)
+        const cur = (old && state && state.rules ? ((old.rev || 0) >= (state.rules.rev || 0) ? old : state.rules) : old || (state && state.rules)) || {};
+        for (const k of AI_LOCKED) { delete body[k]; if (!/^pin/.test(k) && k in cur) body[k] = cur[k]; }
+      }
       // the sync reply carries rules + queued commands and the phone refuses replies over 256 KB: keep both small
       if (JSON.stringify(body).length > MAX_RULES) return json({ error: "too big" }, 413);
       const rules = { ...body, rev };
@@ -682,7 +698,12 @@ export class Kid {
     }
     if (action === "cmd" && req.method === "POST") {
       const type = String(body.type || "");
+      if (role === "ai" && !AI_CMDS.includes(type)) return json({ error: "ai token: not allowed" }, 403);
       if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
+      if (type === "aiToken") {   // the page makes the token; here only the shape, and a revoke takes effect at once (the phone follows)
+        if (body.op === "revoke") { await this.s.delete("aiHash"); this.aiSeen = undefined; }
+        else if (!(body.op === "set" && /^[0-9a-f]{64}$/.test(String(body.hash || "")))) return json({ error: "bad command" }, 400);
+      }
       if (type === "clearData" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
       // PIN-gated commands (protocol "PIN-gated commands"): the phone checks the PIN; here only the shape
       if (body.pin !== undefined && !/^\d{0,8}$/.test(String(body.pin))) return json({ error: "bad pin" }, 400);
@@ -770,6 +791,10 @@ export class Kid {
       if (old) state = mergeState(old, state); else { state = null; needWhole = true; }
     }
     if (state && new TextEncoder().encode(JSON.stringify(state)).length > 120e3) return { error: "state too big", status: 413 };   // DO storage value limit is 128 KiB
+    if (typeof body.ai === "string" && body.ai !== this.aiSeen && (body.ai === "" || /^[0-9a-f]{64}$/.test(body.ai))) {   // the phone's AI token hash ("" = none)
+      this.aiSeen = body.ai;
+      if (body.ai) await this.s.put("aiHash", body.ai); else await this.s.delete("aiHash");
+    }
     const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
     // awaits before the cmds read-modify-write: a parent POST /cmd landing in an await must not be overwritten by a stale list
     const netHash = nk && nk !== this.lastNet ? await sha256("net:" + nk) : null;

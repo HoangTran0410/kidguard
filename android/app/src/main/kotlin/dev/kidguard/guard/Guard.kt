@@ -546,7 +546,7 @@ class Guard : Service() {
             .put("lan", lanUrl() ?: JSONObject.NULL)
             .put("net", runCatching { DeviceInfo.netState(this) }.getOrDefault(JSONObject()))
             .put("tg", runCatching { Tg.state(store) }.getOrDefault(JSONObject()))
-            .put("relay", store.relayUrl).put("relayShared", store.relayShared)
+            .put("relay", store.relayUrl).put("relayShared", store.relayShared).put("ai", store.aiHash.isNotEmpty())
             .put("ts", Ts.stateJson(this, store))
             .put("grayErr", GrayFx.lastErr)
             .put("missing", JSONArray(FixPerms.missing(this).also { m -> fixMiss = m })).put("fixPerms", FixPerms.state(this, fixMiss))
@@ -777,6 +777,11 @@ class Guard : Service() {
         } ?: "failed: bad pin"
         "pinResetCancel" -> { if (store.pinResetAt > 0) { store.clearPinReset(); store.log(R.string.log_pin_reset_cancel) }; "ok" }
         "unpairAll" -> { store.clearTokens(); store.tgUnlinkAll(); Tg.wake(); "ok" }   // Telegram chats control the phone too
+        "aiToken" -> when (c.optString("op")) {   // the parent page makes the token, the phone keeps its sha256 (AiScope); PIN-gated
+            "set" -> if (store.setAiHash(c.optString("hash"))) { store.log(R.string.log_ai_on); relay?.kick(); "ok" } else "failed: bad hash"
+            "revoke" -> { store.setAiHash(""); store.log(R.string.log_ai_off); relay?.kick(); "ok" }
+            else -> "failed: bad op"
+        }
         "unpair" -> if (store.unpair(c.optString("id"))) { relay?.kick(); kick(); "ok" } else "no such device"
         "answer" -> {
             val req = store.removeRequest(c.optString("req").ifBlank { c.optString("id") })   // relay: "req" = the request id (the command id may be a UUID)
