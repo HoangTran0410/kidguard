@@ -146,7 +146,7 @@ function sec(id, icn, title, desc, chip, body) {
   if (g) body = g + `<div class="gated">${body}</div>`;
   return `<section class="card cl${g ? " gate" : ""}" data-sec="${id}"><h2><button type="button" class="clh" id="sh-${id}" aria-controls="sb-${id}">
     <svg class="si bk" aria-hidden="true"><use href="#i-chevron-left"/></svg><span class="cli">${ic(icn)}</span><span class="clt"><span class="clr"><b>${title}</b>${chipHtml(chip)}</span>${desc ? `<span>${desc}</span>` : ""}</span><svg class="si chev" aria-hidden="true"><use href="#i-chevron-right"/></svg></button></h2>
-    <div class="clb" id="sb-${id}" role="region" aria-labelledby="sh-${id}"><div><div>${body}</div></div></div></section>`;
+    <div class="clb" id="sb-${id}" role="region" aria-labelledby="sh-${id}"><div><div><div class="clbh" aria-hidden="true">${ic(icn)}<b>${title}</b></div>${body}</div></div></div></section>`;
 }
 const setChip = (root, id, c) => { const el = root.querySelector(`[data-sec="${id}"] [data-chip]`); if (el) el.outerHTML = chipHtml(c); };
 function secNav() {

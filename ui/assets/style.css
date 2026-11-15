@@ -164,7 +164,7 @@ select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none;border-radi
 .clh .clt>span:last-child:not(.clr){color:var(--sub);font-size:13px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;margin-top:1px}
 .clh .tag{margin:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .clh .chev{color:var(--sub);flex:none}.clh .bk{display:none;color:var(--text);flex:none}
-.clb{display:none;min-width:0}.clb>div>div{padding:12px 16px 18px}
+.clb{display:none;min-width:0}.clbh{display:none}.clb>div>div{padding:12px 16px 18px}
 /* list -> sub-screen (phone) / two panes (>= 960 px): see secNav() in tab-home.js */
 .sg-hide{display:none!important}
 .cl.sg-cur{overflow:visible}.cl.sg-cur .clb{display:block}
@@ -181,6 +181,7 @@ select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none;border-radi
   .sg-two .cl>h2{grid-column:1;margin-bottom:10px;min-width:0}
   .sg-two .clh{background:var(--card);border:1px solid var(--stroke);border-radius:20px;box-shadow:var(--shadow)}
   .sg-two .cl.sg-cur .clh{border-color:var(--accent)}
+  .sg-two .clbh{display:flex;align-items:center;gap:10px;font-size:18px;margin:2px 0 14px;color:var(--text)}.sg-two .clbh .si{color:var(--accent)}
   .sg-two .cl.sg-cur .clb{display:block;grid-column:2;grid-row:1 / -1;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;background:var(--card);border:1px solid var(--stroke);border-radius:20px;box-shadow:var(--shadow)}
 }
 /* "Thiết bị" key/value rows */
