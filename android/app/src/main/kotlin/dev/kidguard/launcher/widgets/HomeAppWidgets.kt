@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
+import android.os.Build
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -144,13 +145,19 @@ internal fun HomeActivity.awMinCells(info: AppWidgetProviderInfo): Pair<Int, Int
     return cellsFor(minW, cw, m?.cols ?: 4) to cellsFor(minH, ch, m?.rows ?: 5)
 }
 
-/** Default size when added: what minWidth / minHeight ask for. */
+/** Default size when added: the provider's target cells (Android 12+, what POCO / Pixel use), else what minWidth / minHeight ask for. */
 private fun HomeActivity.awDefaultCells(info: AppWidgetProviderInfo): Pair<Int, Int> {
-    val m = model; val (cw, ch) = awCell()
-    return cellsFor(info.minWidth, cw, m?.cols ?: 4) to cellsFor(info.minHeight, ch, m?.rows ?: 5)
+    val m = model; val (cw, ch) = awCell(); val cols = m?.cols ?: 4; val rows = m?.rows ?: 5
+    if (Build.VERSION.SDK_INT >= 31 && info.targetCellWidth > 0 && info.targetCellHeight > 0)
+        return info.targetCellWidth.coerceIn(1, cols) to info.targetCellHeight.coerceIn(1, rows)
+    return cellsFor(info.minWidth, cw, cols) to cellsFor(info.minHeight, ch, rows)
 }
 
-/** Sizes offered in the long-press menu: the provider's own, within its resize mode. */
+/**
+ * Sizes offered in the long-press menu: the usual launcher presets (2×2, 4×2, 4×4 ... like POCO / Pixel) that the provider
+ * accepts (resize mode, min resize, max resize), plus its default. Was: min / full width / default + 1 row, so a resizable
+ * square widget (Google Photos) got 1×2, 4×2, 1×3, 4×3 and never 2×2 (owner, Poco 2026-11-15).
+ */
 internal fun HomeActivity.awSizes(it: HItem): List<Pair<Int, Int>> {
     val info = runCatching { awMgr().getAppWidgetInfo(it.awid) }.getOrNull() ?: return emptyList()
     val cols = model?.cols ?: 4; val rows = model?.rows ?: 5
@@ -158,15 +165,21 @@ internal fun HomeActivity.awSizes(it: HItem): List<Pair<Int, Int>> {
     val base = awDefaultCells(info)
     val hz = info.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0
     val vt = info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0
+    val (cw, ch) = awCell()
+    // max resize (Android 12+, 0 = no limit): whole cells that still fit inside it
+    val maxW = if (Build.VERSION.SDK_INT >= 31 && info.maxResizeWidth > 0) (info.maxResizeWidth / cw.coerceAtLeast(1)).coerceIn(1, cols) else cols
+    val maxH = if (Build.VERSION.SDK_INT >= 31 && info.maxResizeHeight > 0) (info.maxResizeHeight / ch.coerceAtLeast(1)).coerceIn(1, rows) else rows
+    val ws = if (hz) mw.coerceAtMost(base.first)..maxOf(maxW, base.first) else base.first..base.first
+    val hs = if (vt) mh.coerceAtMost(base.second)..maxOf(maxH, base.second) else base.second..base.second
+    val presets = listOf(1 to 1, 2 to 1, 2 to 2, cols to 1, cols to 2, 2 to 3, cols to 3, cols to 4)
     val out = LinkedHashSet<Pair<Int, Int>>()
+    for (p in presets) if (p.first in ws && p.second in hs && p.first <= cols && p.second <= rows) out += p
     out += base
-    if (hz || vt) {
-        out += (if (hz) mw else base.first) to (if (vt) mh else base.second)
-        if (hz) out += cols to base.second
-        if (vt) out += base.first to minOf(rows, base.second + 1)
-        if (hz && vt) { out += cols to minOf(rows, base.second + 1); out += cols to maxOf(mh, rows / 2) }
+    if (out.size == 1) {   // a provider no preset fits (odd min sizes): its smallest and the widest it takes
+        if (ws.first <= cols && hs.first <= rows) out += ws.first to hs.first
+        out += minOf(ws.last, cols) to base.second
     }
-    return out.filter { (w, h) -> w in mw..cols && h in mh..rows }.take(5)
+    return out.sortedWith(compareBy({ it.first * it.second }, { it.first })).take(6)
 }
 
 /** The widget for [it]; a locked card when its app is hidden / blocked, a small one when the app is gone. */
