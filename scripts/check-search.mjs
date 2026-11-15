@@ -40,7 +40,17 @@ for (const [tab, id, , , keys] of QS) {
   if (!NAV.some(n => n[0] === tab)) errs.push(`QS entry "${id}": unknown tab "${tab}"`);
   for (const k of keys) for (const [l, set] of Object.entries(langs)) if (!set.has(k)) errs.push(`QS "${id}": key "${k}" missing in i18n-${l}.js`);
 }
+// phone-only settings (kid launcher Tuỳ chỉnh): every section(col, R.string.X) there needs a QS_PHONE row
+const QS_PHONE = literal("QS_PHONE");
+const custom = readFileSync(join(dir, "..", "..", "android", "app", "src", "main", "kotlin", "dev", "kidguard", "launcher", "custom", "CustomActivity.kt"), "utf8");
+const phoneSecs = new Set([...custom.matchAll(/\bsection\(col, R\.string\.(\w+)/g)].map(m => m[1]));
+const phoneRows = new Set(QS_PHONE.map(e => e[0]));
+for (const id of phoneSecs) if (!phoneRows.has(id)) errs.push(`Tuỳ chỉnh section R.string.${id} (CustomActivity.kt) is not in the feature search: add ["${id}", "<icon>", ["qp.<title key>", "qp.<words key>"]] to QS_PHONE in shell.js`);
+for (const [id, , keys] of QS_PHONE) {
+  if (!phoneSecs.has(id)) errs.push(`QS_PHONE row "${id}" points at no section(col, R.string.${id}) in CustomActivity.kt`);
+  for (const k of keys) for (const [l, set] of Object.entries(langs)) if (!set.has(k)) errs.push(`QS_PHONE "${id}": key "${k}" missing in i18n-${l}.js`);
+}
 for (const [id] of NAV) for (const [l, set] of Object.entries(langs)) if (!set.has("tab." + id)) errs.push(`tab "${id}": "tab.${id}" missing in i18n-${l}.js`);
 
 if (errs.length) { console.error("Feature search check FAILED:\n- " + errs.join("\n- ")); process.exit(1); }
-console.log(`Feature search check ok: ${secs.size} sections, ${QS.length} search entries, ${NAV.length} tabs`);
+console.log(`Feature search check ok: ${secs.size} sections, ${QS.length} search entries, ${NAV.length} tabs, ${phoneSecs.size} phone sections`);

@@ -38,6 +38,9 @@ const SHOTS = [
   { name: "kids", js: `overview(kids, () => {})`, ready: `document.querySelector("#ovKids .ovk, #ovKids .card, #ovKids > *") && !document.querySelector("#ovKids .spin")`, settle: 1200 },
   ...[1, 2, 3, 4].map(n => ({ name: "wiz" + n, js: `wizOpen(cur, ${n}, false)`, ready: `document.querySelector("#wizPop .wz")`, settle: 300 })),   // the guided setup, one shot per step
   { name: "today", js: `goTab("home")`, ready: `document.querySelector(".hero")` },
+  // feature search finds phone-only settings (the kid launcher's Customize) and says where they are
+  { name: "search-phone", js: `goTab("home"); qsOpen(); setTimeout(() => { const i = document.querySelector("#qsIn"); i.value = "poco"; i.oninput(); }, 100)`, ready: `document.querySelector("#qsList [data-qi]")`, settle: 300 },
+  { name: "search-phone-go", js: `goTab("home"); qsGo(qsFind("poco")[0])`, ready: `document.querySelector("[data-ok]")`, settle: 300 },
   { name: "apps", js: `appsSub = "list"; goTab("apps")`, ready: `document.querySelector(".app .ic")`, settle: 800 },
   { name: "space", js: `appsSub = "space"; goTab("apps")`, ready: `document.querySelector("#subp .card")`, settle: 600 },
   { name: "more", js: `goTab("home"); moreSheet()`, ready: `document.querySelector("#scrGo")`, settle: 400 },
