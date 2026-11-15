@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Feature search gate (owner 2026-11-11: "thêm chức năng mà thiếu keyword tìm feature, quên hoài").
-// Fails when a collapsible section on the parent page (`sec("id", ...)` in ui/assets) has no entry in the search
+// Fails when a section row on the parent page (`sec("id", ...)`, `secP`, `secMix`, `secL` in ui/assets) has no entry in the search
 // index `QS` (ui/assets/shell.js), when a QS entry points at a section that no longer exists, or when a QS / tab
 // text key is missing in either language. Run: node scripts/check-search.mjs (CI + scripts/build.sh).
 import { readFileSync, readdirSync } from "node:fs";
@@ -10,10 +10,12 @@ import { fileURLToPath } from "node:url";
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "ui", "assets");
 // Sections that are not features of their own (lists / repeats of another tab). Add here only with a reason.
 const NOT_FEATURES = {
-  "cl-sug": "app list inside Ứng dụng › Dọn máy (the tab itself is searchable)",
-  "cl-rest": "app list inside Ứng dụng › Dọn máy",
   "ov-rep": "overview copy of the Báo cáo tab",
 };
+
+// Parts of a merged row (secMix): they are not rows, so search must point at the row that holds them (id -> row id)
+const MERGED = { "r-daily": "r-day", "r-chore": "r-day", "r-bed": "r-night", "r-wind": "r-night", "r-dns": "r-net", "r-web": "r-net", "r-more": "r-block",
+  "r-anti": "r-block", "r-home": "r-kid", "r-kind": "r-kid", "s-pin": "s-sec", "r-totp": "s-sec", "s-ts": "s-remote", "s-relay": "s-remote", "s-dev": "s-adv", "s-sh": "s-adv" };
 
 const files = readdirSync(dir).filter(f => f.endsWith(".js"));
 const src = Object.fromEntries(files.map(f => [f, readFileSync(join(dir, f), "utf8")]));
@@ -29,12 +31,14 @@ const langs = { vi: keysOf("i18n-vi.js"), en: keysOf("i18n-en.js") };
 
 const errs = [];
 const secs = new Map();
-for (const [f, s] of Object.entries(src)) for (const m of s.matchAll(/\bsec\("([^"]+)"/g)) secs.set(m[1], f);
+for (const [f, s] of Object.entries(src)) for (const m of s.matchAll(/\bsec(?:P|Mix|L)?\("([^"]+)"/g)) secs.set(m[1], f);
 const indexed = new Set(QS.map(e => e[1]));
 
-for (const [id, f] of secs) if (!indexed.has(id) && !NOT_FEATURES[id])
+for (const [id, f] of secs) if (!indexed.has(id) && !NOT_FEATURES[id] && !MERGED[id])
   errs.push(`section "${id}" (${f}) is not in the feature search: add ["<tab>", "${id}", "<seg>", "<icon>", ["<title key>", "<desc key>", ...]] to QS in shell.js (or to NOT_FEATURES here with a reason)`);
+for (const r of new Set(Object.values(MERGED))) if (!secs.has(r)) errs.push(`merged row "${r}" has no secMix("${r}") any more`);
 for (const [tab, id, , , keys] of QS) {
+  if (MERGED[id]) errs.push(`QS entry "${id}" is a part of the merged row "${MERGED[id]}": point it there`);
   if (id && !id.startsWith("#") && !secs.has(id)) errs.push(`QS entry "${id}" points at no sec("${id}") any more`);
   if (id && id.startsWith("#") && !Object.values(src).some(s => s.includes(`id="${id.slice(1)}"`))) errs.push(`QS entry "${id}": no element with that id`);
   if (!NAV.some(n => n[0] === tab)) errs.push(`QS entry "${id}": unknown tab "${tab}"`);

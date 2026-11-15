@@ -1,21 +1,29 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 const sel = { on: false, set: new Set(), f: "all", limOpen: false, q: "", n: 40 };   // n: rows built so far (kept across a state redraw)   // q: the search text (kept across redraws: a filter chip, a state refresh)
-// "Ứng dụng" tab: segmented sub-tabs (app list / hide preinstalled / storage), last one remembered
-let appsSub = (() => { try { return localStorage.getItem("kg.appsSub") || "list"; } catch { return "list"; } })();
+// "Ứng dụng" tab (owner 2026-11-15: sub-tabs + sections + sub-screens were three levels): ONE level like the other tabs = the 8 most
+// used apps today + grouped rows -> sub-screens (a-apps: rule per app; a-clean: hide preinstalled; a-health; a-space: heaviest apps).
+// Heavy bodies are drawn only when their row is opened (secLazy in tab-home.js), so the tab itself stays small.
+const apBox = id => document.querySelector(`[data-sec="${id}"] .clbc`);
+const apOpen = id => { goTab("apps"); subOpen(id); };   // from other tabs
 function appsTab(b) {
-  const subs = [["list", "puzzle", t("as.list")], ["clean", "eye-off", t("as.clean")], ["space", "hard-drive", t("as.space")]];
-  if (!subs.some(x => x[0] === appsSub)) appsSub = "list";
-  const ref = cleanStat().ref;
-  b.innerHTML = `<div class="seg" role="tablist" aria-label="${esc(t("tab.apps"))}">${subs.map(([id, i, n]) => `<button type="button" role="tab" id="st-${id}" data-sub="${id}" aria-selected="${appsSub === id}" aria-controls="subp" tabindex="${appsSub === id ? 0 : -1}">${ic(i)}<span>${n}</span>${id === "clean" && ref ? `<span class="n" title="${esc(t("hd.refN", ref))}">${ref}</span>` : ""}</button>`).join("")}</div>
-    <div id="subp" role="tabpanel" aria-labelledby="st-${appsSub}"></div>`;
-  const tabs = [...b.querySelectorAll("[data-sub]")];
-  const pick = (id, f) => { appsSub = id; try { localStorage.setItem("kg.appsSub", id); } catch {} appsTab(b); if (f) { const x = b.querySelector(`[data-sub="${id}"]`); if (x) x.focus(); } };
-  tabs.forEach((x, i) => {
-    x.onclick = () => pick(x.dataset.sub);
-    x.onkeydown = e => { const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0; if (e.key === "Home" || e.key === "End") { e.preventDefault(); pick(tabs[e.key === "Home" ? 0 : tabs.length - 1].dataset.sub, true); } else if (d) { e.preventDefault(); pick(tabs[(i + d + tabs.length) % tabs.length].dataset.sub, true); } };
-  });
-  const p = $("#subp");
-  (appsSub === "clean" ? cleanTab : appsSub === "space" ? spaceTab : appsList)(p);
+  const A = (st.apps || []).filter(x => !x.protected), nNew = A.filter(x => x.new && !edit.approved.includes(x.pkg)).length;
+  const top = A.filter(x => x.ms >= 60000).sort((a, c) => c.ms - a.ms).slice(0, 8);
+  const S = cleanStat(), hid = (st.preinstalled || []).filter(x => x.hidden && !x.refused).length;
+  const h = st.health && Array.isArray(st.health.checks) ? st.health : null, sc = h ? Math.max(0, Math.min(100, +h.score || 0)) : 0;
+  const row = x => `<button type="button" class="li" data-apq="${esc(x.pkg)}">${icon(x)}<span class="x"><b>${esc(x.label)}</b></span><span class="v">${fmt(x.ms)}</span>${ic("chevron-right")}</button>`;
+  b.innerHTML = (top.length ? `<div class="sec">${t("ap.top")}</div><div class="list">${top.map(row).join("")}<button type="button" class="li" id="apAll"><span class="ib">${ic("puzzle")}</span><span class="x"><b>${t("ap.all", A.length)}</b></span>${ic("chevron-right")}</button></div>` : "")
+    + secGrp(t("ap.manage"), [secL("a-apps", "puzzle", t("as.list"), t("ap.appsD"), nNew ? [t("ap.nNew", nNew), "warn"] : [t("hd.nApps", A.length)])])
+    + secGrp(t("ap.care"), [
+      secL("a-clean", "eye-off", t("as.clean"), t("ap.cleanD"), st.preinstalled ? (S.ref ? [t("hd.refN", S.ref), "warn"] : [t("ap.nHid", hid)]) : null),
+      secL("a-health", "heart-pulse", t("hl.h"), t("hl.sub"), h ? [t("hl.chip", sc), sc >= 80 ? "ok" : sc >= 50 ? "warn" : "bad"] : null),
+      secL("a-space", "hard-drive", t("clean.heavy"), t("ap.spaceD"), null)]);
+  secLazy["a-apps"] = appsList;
+  secLazy["a-clean"] = box => { const g = gateOf("a-clean"); if (!g) return cleanTab(box); box.innerHTML = g + '<div class="gated"></div>'; cleanTab(box.lastChild); };
+  secLazy["a-health"] = box => { box.innerHTML = healthCard(); healthBind(box); };
+  secLazy["a-space"] = spaceTab;
+  const openApps = q => { sel.q = q; sel.f = "all"; sel.n = 40; subOpen("a-apps"); const bx = apBox("a-apps"); if (isWide() && bx && bx.firstChild) appsList(bx); };
+  b.querySelectorAll("[data-apq]").forEach(x => x.onclick = () => openApps(((st.apps || []).find(a => a.pkg === x.dataset.apq) || {}).label || ""));
+  if ($("#apAll")) $("#apAll").onclick = () => openApps("");
 }
 function appsList(b) {
   const mode = p => edit.blocked.includes(p) ? "block" : edit.allow.includes(p) ? "allow" : edit.appMin[p] ? "limit" : "normal";
@@ -24,7 +32,7 @@ function appsList(b) {
   const pass = x => { const m = mode(x.pkg); return sel.f === "all" || (sel.f === "new" && isNew(x)) || (sel.f === "blocked" && (m === "block" || x.suspended)) || (sel.f === "limited" && m === "limit"); };
   // "trinh duyet" finds "Trình duyệt"; the package name matches as typed
   const visible = () => { const raw = sel.q.trim().toLowerCase(), q = qsFold(raw); return st.apps.filter(x => !x.protected && pass(x) && (!raw || (q && qsFold(x.label).includes(q)) || x.pkg.toLowerCase().includes(raw))); };
-  b.innerHTML = `<div class="card"><div class="row"><h2 class="sp" style="margin:0">${ic("puzzle")} ${t("apps.h", st.apps.length)}</h2><button id="selTog" class="sm${sel.on ? " pri" : ""}">${sel.on ? ic("x") + " " + t("sel.exit") : ic("square-check") + " " + t("sel.on")}</button></div>
+  b.innerHTML = `<div><div class="row"><b class="sp">${t("apps.h", st.apps.length)}</b><button id="selTog" class="sm${sel.on ? " pri" : ""}">${sel.on ? ic("x") + " " + t("sel.exit") : ic("square-check") + " " + t("sel.on")}</button></div>
     <input id="f-q" type="search" value="${esc(sel.q)}" placeholder="${esc(t("apps.search"))}" aria-label="${esc(t("apps.search"))}" style="width:100%;margin:10px 0 6px">
     <div class="chips scroll" id="flt">${FILT.map(([v, n]) => `<button data-f="${v}" class="${sel.f === v ? "on" : ""}">${n}</button>`).join("")}</div>
     <div id="list"></div><p class="mute">${ic("lightbulb")} ${t("apps.tip")}</p></div>
@@ -120,6 +128,7 @@ function appsList(b) {
 // Per-app result comes from the phone's report: state.rules.hidden = what the phone has taken, preinstalled[].hidden = isApplicationHidden.
 // Wanted + taken + still not hidden = the phone refused (ColorOS refuses some of its own apps, e.g. the game center / store / themes).
 let hideDraft = null;
+const cleanAll = { sug: false, rest: false };   // "Xem tất cả" pressed / the rest opened (kept across redraws)
 let hideSentAt = null;   // {k, at}: when the hide list was last sent; a wait older than 10 min reads "not applied"
 const mbTxt = m => m >= 1024 ? (m / 1024).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " GB" : m + " MB";
 function cleanStat() {
@@ -152,16 +161,19 @@ function cleanTab(b) {
   const TAG = { ok: `<span class="tag ok">${ic("check")} ${t("hd.ok")}</span>`, ref: `<span class="tag bad">${ic("ban")} ${t("hd.refused")}</span>`,
     wait: `<span class="tag">${ic("hourglass")} ${t("hd.waiting")}</span>`, adb: `<span class="tag warn">${ic("lock")} ${t("hd.noAdb")}</span>`, show: `<span class="tag">${ic("hourglass")} ${t("hd.showing")}</span>` };
   const row = x => `<label class="app"><input type="checkbox" data-hd="${esc(x.pkg)}" ${draft().has(x.pkg) ? "checked" : ""}><div class="nm"><b>${esc(x.label)}</b><span class="mute">${esc(x.pkg)}${x.mb ? " · " + mbTxt(x.mb) : ""}${x.suggest ? `<span class="tag warn">${t("clean.sug")}</span>` : ""}${TAG[S.of(x)] || ""}</span></div></label>`;
+  // long lists: the first 8 rows + "Xem tất cả (N)"; the preinstalled rest is drawn only when its <details> opens
+  const lim = (rows, key) => (cleanAll[key] || rows.length <= 10) ? rows.join("") : rows.slice(0, 8).join("") + `<button type="button" class="sm" data-clall="${key}">${ic("chevron-down")} ${t("ap.all", rows.length)}</button>`;
   const pc = v => S.want ? (v / S.want * 100).toFixed(1) + "%" : "0";
   const nSug = pre.filter(x => x.suggest).length;
-  b.innerHTML = `<div class="card"><h2>${ic("sparkles")} ${t("clean.h")}</h2>${why}
+  b.innerHTML = `<div>${why}
     <p class="mute" style="margin:0">${t("clean.p", "<b>" + pre.filter(x => x.hidden && !x.refused).length + "</b>")}</p>
     ${S.want ? `<div class="prog" role="img" aria-label="${esc(t("hd.sum", S.ok, S.want))}"><i style="width:${pc(S.ok)}"></i><i class="b" style="width:${pc(S.ref)}"></i><i class="w" style="width:${pc(S.wait)}"></i></div>
       <div><b>${t("hd.sum", S.ok, S.want)}</b>${S.ref ? ` · <span class="err">${t("hd.refN", S.ref)}</span>` : ""}${S.wait ? ` · <span class="mute">${t("hd.waitN", S.wait)}</span>` : ""}</div>
       ${S.wait ? pendHtml("hdwait", hdWait, hdRetry) : ""}
       ${S.ref ? `<div class="alert warn" style="font-weight:400;font-size:13px">${ic("triangle-alert")} ${t("hd.refTip")}</div>` : ""}` : ""}</div>
-  ${sec("cl-sug", "sparkles", t("hd.sugH"), t("hd.sugD"), [t("hd.nApps", sug.length)], sug.map(row).join("") || `<p class="mute">${t("clean.noSug")}</p>`, true)}
-  ${rest.length ? sec("cl-rest", "layers", t("hd.restH"), t("hd.restD"), [t("hd.nApps", rest.length)], rest.map(row).join("")) : ""}
+  <h3 class="pth" style="margin-top:14px">${ic("sparkles")}<b>${t("hd.sugH")}</b><span class="tag">${t("hd.nApps", sug.length)}</span></h3><p class="mute" style="margin:0 0 4px">${t("hd.sugD")}</p>
+  ${sug.length ? lim(sug.map(row), "sug") : `<p class="mute">${t("clean.noSug")}</p>`}
+  ${rest.length ? `<details id="clRest" class="more"${cleanAll.rest ? " open" : ""}><summary><b>${t("hd.restH")}</b> <span class="tag">${t("hd.nApps", rest.length)}</span></summary><p class="mute">${t("hd.restD")}</p><div id="clRestBox">${cleanAll.rest ? rest.map(row).join("") : ""}</div></details>` : ""}
   <div class="hbar" id="hbar"></div>`;
   const bar = () => {
     const d = draft(), add = [...d].filter(p => !saved.has(p)).length, rem = [...saved].filter(p => !d.has(p)).length, dirty = !!hideDraft;
@@ -178,10 +190,12 @@ function cleanTab(b) {
     };
   };
   const setD = s => { hideDraft = sameSet(s, saved) ? null : s; };
-  b.querySelectorAll("[data-hd]").forEach(c => c.onchange = () => { const s = new Set(draft()); c.checked ? s.add(c.dataset.hd) : s.delete(c.dataset.hd); setD(s); bar(); });
+  b.onchange = e => { const c = e.target.closest && e.target.closest("[data-hd]"); if (!c) return; const s = new Set(draft()); c.checked ? s.add(c.dataset.hd) : s.delete(c.dataset.hd); setD(s); bar(); };   // one handler: rows drawn later work too
+  b.querySelectorAll("[data-clall]").forEach(x => x.onclick = () => { cleanAll[x.dataset.clall] = true; cleanTab(b); });
+  const det = b.querySelector("#clRest"); if (det) det.ontoggle = () => { cleanAll.rest = det.open; const bx = b.querySelector("#clRestBox"); if (det.open && bx && !bx.firstChild) bx.innerHTML = rest.map(row).join(""); };
   bar();
 }
-let spaceN = 15;   // heavy list rows shown: starts at 15, "Xem thêm" adds 20
+let spaceN = 8;   // heavy list rows shown: the top 8, "Xem tất cả (N)" shows the rest
 let cacheBusy = 0;      // clearCache sent at (ms): animated busy box until the answer, across redraws; the list is locked
 let healthBusy = "";   // fix-all / single fix running: the i18n key of the step now; the list is locked, one command at a time
 let scanBusy = 0;       // rescan sent at (ms): the "Quét lại" button spins, the list is locked
@@ -257,7 +271,7 @@ async function hlExec(steps) {
   setTimeout(() => refresh().then(hlDraw), 2500);
   return items.every(i => i.r === "ok" || i.r === "queued");
 }
-function spaceTabRedraw() { const p = $("#subp"); if (p && appsSub === "space") spaceTab(p); }
+function spaceTabRedraw() { const h = apBox("a-health"), p = apBox("a-space"); if (h && h.firstChild) { h.innerHTML = healthCard(); healthBind(h); } if (p && p.firstChild) spaceTab(p); }
 // "Xem & sửa": every proposed change with a switch, its effect and its undo; nothing runs before "Chạy"
 function hlReview() {
   const h = st && st.health; if (!h) return;
@@ -360,7 +374,7 @@ function spaceTab(b) {
   // clearCache: every app's cache at once (`pm trim-caches` via KidGuard's own adb, both modes); per app is not possible
   const cacheMb = (st.apps || []).reduce((n, x) => n + (+x.cache || 0), 0), cache = !!st.clearCache && cacheMb >= 50;
   const busy = !!(cacheBusy || scanBusy || healthBusy);
-  b.innerHTML = healthCard() + `<div class="card"><div style="display:flex;align-items:center;gap:8px"><h2 style="flex:1;margin:0">${ic("hard-drive")} ${t("clean.heavy")}</h2>
+  b.innerHTML = `<div><div style="display:flex;align-items:center;gap:8px"><span style="flex:1"></span>
     ${st.sizesAt !== undefined ? `<button type="button" id="spScan" class="sm"${busy ? " disabled" : ""}>${scanBusy ? '<i class="spin"></i>' : ic("refresh-cw")} ${t(scanBusy ? "clean.scanning" : "clean.scan")}</button>` : ""}</div>
     ${st.sizesAt ? `<p class="mute" style="margin:4px 0 10px;font-size:13px">${t("clean.measured", hhmm(st.sizesAt))}</p>` : `<div style="height:10px"></div>`}
     ${owner && !cc ? `<div class="alert warn" style="margin:0 0 8px;font-weight:400;font-size:13px">${ic("triangle-alert")} ${t("clean.oldOs", esc(st.android))}</div>` : ""}
@@ -368,11 +382,10 @@ function spaceTab(b) {
       : cache && !healthBusy ? `<button type="button" id="spCache"${scanBusy ? " disabled" : ""} class="sp" style="width:100%;display:flex;gap:12px;align-items:center;text-align:start;margin:0 0 6px">${ic("eraser")}<span><b>${t("clean.cacheBtn", mbTxt(cacheMb))}</b><br><span class="mute" style="font-size:13px;font-weight:400">${t("clean.cacheSub")}</span></span></button>` : ""}
     ${!cacheBusy && st.cacheCleared && Date.now() - st.cacheCleared.at < 6 * 3600000 ? `<p class="mute" style="margin:0 0 8px">${ic("circle-check")} ${t("clean.cacheDone", hhmm(st.cacheCleared.at), mbTxt(+st.cacheCleared.mb || 0))}</p>` : ""}
     <div${busy ? ' class="cbusy-lock" inert aria-disabled="true"' : ""}>${heavy.length ? heavy.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${mbTxt(x.mb)}${x.cache > 0 ? " · " + t("clean.cacheOf", mbTxt(x.cache)) : ""}</span></div>${cc && !x.protected && !x.noClear ? `<button type="button" data-clr="${esc(x.pkg)}" class="sm bad" aria-label="${esc(t("clean.clear") + " " + x.label)}">${ic("trash-2")} ${t("delete")}</button>` : ""}</div>`).join("")
-      + (all.length > heavy.length ? `<button type="button" id="spAll" class="sm" style="margin-top:8px">${ic("chevron-down")} ${t("clean.more", Math.min(20, all.length - heavy.length), all.length - heavy.length)}</button>` : "")
+      + (all.length > heavy.length ? `<button type="button" id="spAll" class="sm" style="margin-top:8px">${ic("chevron-down")} ${t("ap.all", all.length)}</button>` : "")
       : `<p class="mute">${t("clean.noSize")}</p>`}</div>
     <p class="mute">${ic("lightbulb")} ${cc ? t("clean.tipOwner") + " " : ""}${cc ? "" : t("clean.tipBasic") + " "}${t("clean.tipRam")}</p></div>`;
-  healthBind(b);
-  const more = b.querySelector("#spAll"); if (more) more.onclick = () => { spaceN += 20; spaceTab(b); };
+  const more = b.querySelector("#spAll"); if (more) more.onclick = () => { spaceN = 1e9; spaceTab(b); };
   const cb = b.querySelector("#spCache");
   const sc = b.querySelector("#spScan");
   if (sc) sc.onclick = async () => {
@@ -489,17 +502,18 @@ function devTab(b) {
     ${n.type === "wifi" && n.bars != null ? kv(t("dv.sig"), t("dv.sigN", n.bars, n.rssi)) : ""}`;
   const act = `${isBasic() ? needOwner(t("dv.reboot")) : `<div class="row">${dvBtn("dvBoot", "refresh-cw", t("dv.reboot"), "bad")}</div><p class="mute">${t("dv.rebootD")}</p>`}
     <p class="mute">${ic("lightbulb")} ${t("dv.noBoost")}</p>`;
-  b.innerHTML = head
-    + sec("d-sto", "hard-drive", t("dv.sto"), "", [t("dv.stoChip", byt(s.free)), stoTone === "b" ? "bad" : stoTone === "w" ? "warn" : "ok"], sto, true)
-    + sec("d-ram", "memory-stick", t("dv.ram"), "", [t("dv.ramChip", Math.round(rp)), rTone === "b" ? "bad" : rTone === "w" ? "warn" : "ok"], ram, false)
-    + sec("d-bat", "battery-full", t("dv.bat"), "", [t("dv.batChip", bt.pct) + (tc2 != null ? " · " + deg(tc2) : ""), badH || bTone === "b" ? "bad" : hot || bTone === "w" ? "warn" : "ok"], bat, false)
-    + sec("d-sys", "smartphone", t("dv.sys"), "", ["Android " + esc(d.android)], sys, false)
-    + sec("d-act", "zap", t("dv.act"), "", null, act, true);
+  b.innerHTML = head + secGrp("", [
+    sec("d-sto", "hard-drive", t("dv.sto"), "", [t("dv.stoChip", byt(s.free)), stoTone === "b" ? "bad" : stoTone === "w" ? "warn" : "ok"], sto),
+    sec("d-ram", "memory-stick", t("dv.ram"), "", [t("dv.ramChip", Math.round(rp)), rTone === "b" ? "bad" : rTone === "w" ? "warn" : "ok"], ram),
+    sec("d-bat", "battery-full", t("dv.bat"), "", [t("dv.batChip", bt.pct) + (tc2 != null ? " · " + deg(tc2) : ""), badH || bTone === "b" ? "bad" : hot || bTone === "w" ? "warn" : "ok"], bat),
+    sec("d-sys", "smartphone", t("dv.sys"), "", ["Android " + esc(d.android)], sys),
+    sec("d-act", "zap", t("dv.act"), "", null, act)
+  ]);
   wireDev(b, apps);
 }
 function wireDev(b, apps) {
   const x = $("#dvRef"); if (x) x.onclick = () => devLoad(true);
-  const c = $("#dvClean"); if (c) c.onclick = () => { tab = "apps"; appsSub = "clean"; try { localStorage.setItem("kg.appsSub", "clean"); } catch {} render(true); };
+  const c = $("#dvClean"); if (c) c.onclick = () => apOpen("a-clean");
   const r = $("#dvBoot"); if (r) r.onclick = async () => { const k0 = cur, ar = askOf("reboot"); if (!(await ask(k0.name + "\n" + ar[0], ...ar.slice(1))) || k0 !== cur) return; dvRun("dvBoot", () => cmd({ type: "reboot" }, t("reboot.done"), false).then(r => { if (r) rebootStart(); return r; })); };
   (apps || []).forEach((a, i) => { const e = $("#dvc" + i); if (e && !e.disabled) e.onclick = async () => {
     if (!(await ask(t("clean.askClear", a.label), t("delete"), true))) return;

@@ -14,15 +14,15 @@ const tsWhyHtml = ts => (ts && ts.why && hasT("ts.why." + ts.why) ? `<p class="m
 function tsCard(lan) {
   // basic mode: KidGuard can't install / sign in Tailscale (needs Device Owner), but a Tailscale set up by hand works and "keep on" (Ts.keep) too
   if (isBasic()) { const bi = (st && st.ts && st.ts.ip) || "";
-    return sec("s-ts", "route", t("ts.h"), t("sd.ts"), bi ? [t("ts.on"), "ok"] : edit && edit.tsKeep ? [t("ts.keepB"), "ok"] : [t("off")],
+    return secP("s-ts", "route", t("ts.h"), t("sd.ts"), bi ? [t("ts.on"), "ok"] : edit && edit.tsKeep ? [t("ts.keepB"), "ok"] : [t("off")],
       `${bi ? `<p>${ic("link")} <code>${esc("http://" + bi + ":8770")}</code></p>` : ""}${tsWhyHtml(st && st.ts)}<p class="mute">${ic("info")} ${t("ts.basicOwn")}</p><p class="mute">${t("ts.basic")}</p>${tsKeepRow()}`); }
   const ts = (st && st.ts) || { state: "off" };
   const label = tc("ts.", ts.state, ts.state);
   const cls = { on: "ok", error: "bad", installing: "warn" }[ts.state] || "";
   const url = ts.ip ? `http://${ts.ip}:8770` : "";
-  if (!lan && ts.state === "off") return sec("s-ts", "route", t("ts.h"), t("sd.ts"), edit && edit.tsKeep ? [t("ts.keepB"), "ok"] : [t("off")], `<p class="mute">${t("ts.homeOnly")}</p>${tsKeepRow()}`);   // relay page: enabling needs home, the keep switch doesn't
+  if (!lan && ts.state === "off") return secP("s-ts", "route", t("ts.h"), t("sd.ts"), edit && edit.tsKeep ? [t("ts.keepB"), "ok"] : [t("off")], `<p class="mute">${t("ts.homeOnly")}</p>${tsKeepRow()}`);   // relay page: enabling needs home, the keep switch doesn't
   const exp = ts.state === "on" && ts.noExpiry === false && !kidFlag(cur, "tsExp");   // false only from phones that report it
-  return sec("s-ts", "route", t("ts.h"), t("sd.ts"), [esc(label), cls], `
+  return secP("s-ts", "route", t("ts.h"), t("sd.ts"), [esc(label), cls], `
     <p class="mute">${t("ts.p")}</p>
     ${ts.host ? `<p>${t("ts.host", "<b>" + esc(ts.host) + "</b>")}</p>` : ""}
     ${ts.err ? `<div class="alert warn">${ic("triangle-alert")} ${esc(ts.err)}</div>` : ""}
@@ -62,7 +62,7 @@ function devCard() {
   else if (p && !p.fail && Date.now() - p.at > 180000) p.fail = t("dev.timeout");
   const bk = (st.devPaused || []).length ? `<div class="alert info">${ic("landmark")} ${t("dev.bankPaused", esc(st.devPaused.map(x => ((st.apps || []).find(a => a.pkg === x) || {}).label || x).join(", ")))}</div>` : "";
   const busy = p && !p.fail && on !== p.want, fail = p && p.fail ? `<div class="alert warn">${ic("triangle-alert")} ${t(p.want ? "dev.failOn" : "dev.fail", esc(p.fail))}</div>` : "";
-  return sec("s-dev", "code", t("dev.h"), t("sd.dev"), [on ? t("dev.on") : t("dev.off"), on ? "warn" : "ok"], on ? `<p class="mute">${t("dev.p")}${d.adb ? " " + t("dev.adb") : ""}</p>
+  return secP("s-dev", "code", t("dev.h"), t("sd.dev"), [on ? t("dev.on") : t("dev.off"), on ? "warn" : "ok"], on ? `<p class="mute">${t("dev.p")}${d.adb ? " " + t("dev.adb") : ""}</p>
     ${fail}
     ${d.canOff ? `<button id="devOff" ${busy ? "disabled" : ""}>${ic(busy ? "hourglass" : "x")} ${busy ? t("dev.pend") : t("dev.btn")}</button>` : `<p class="mute">${ic("circle-help")} ${t("dev.cant")}</p>`}` : `${bk || `<p class="mute">${ic("check")} ${t("dev.offP")}</p>`}${fail}
     ${d.canOn && !bk ? `<button id="devOn" ${busy ? "disabled" : ""}>${ic(busy ? "hourglass" : "code")} ${busy ? t("dev.pendOn") : t("dev.onBtn")}</button>` : ""}`, on || !!fail);
@@ -92,7 +92,7 @@ async function relayRenew(k, nm, direct) {
 function shCard() {
   const s = st.sh; if (!s) return "";
   const host = (() => { try { return new URL(st.lan).hostname; } catch { return ""; } })();
-  if (!s.can) return sec("s-sh", "terminal", t("sh.h"), t("sd.sh"), [t("sh.off"), ""], `<p class="mute">${ic("circle-help")} ${t("sh.cant")}</p>`, false);
+  if (!s.can) return secP("s-sh", "terminal", t("sh.h"), t("sd.sh"), [t("sh.off"), ""], `<p class="mute">${ic("circle-help")} ${t("sh.cant")}</p>`, false);
   const log = (s.log || []).slice().reverse().map(e => `<div class="card" style="margin:8px 0;padding:8px 10px">
     <div class="mute" style="font-size:12px">${esc(ago(e.at))} · ${e.ms || 0} ms</div>
     <div style="font-family:ui-monospace,Menlo,monospace;font-size:13px;word-break:break-all"><b>$ ${esc(e.cmd)}</b></div>
@@ -101,7 +101,7 @@ function shCard() {
   const wait = s.tcpWhy ? t("sh.tcpWhy." + s.tcpWhy) : t("sh.tcpWait");
   const tcp = s.tcp ? (s.tcpUp ? `<p>${ic("check")} ${t("sh.tcpUp")}<br><code>adb connect ${esc(host || "IP")}:${s.port || 5555}</code></p>`
     : `<p class="mute">${ic("hourglass")} ${wait}</p><button id="shTcpNow">${ic("refresh-cw")} ${t("sh.tcpNow")}</button>`) : "";
-  return sec("s-sh", "terminal", t("sh.h"), t("sd.sh"), [s.tcp ? t(s.tcpUp ? "sh.tcpOn" : "sh.tcpPend") : t("sh.on"), s.tcp ? "warn" : ""], `<p class="mute">${t("sh.p")}</p>
+  return secP("s-sh", "terminal", t("sh.h"), t("sd.sh"), [s.tcp ? t(s.tcpUp ? "sh.tcpOn" : "sh.tcpPend") : t("sh.on"), s.tcp ? "warn" : ""], `<p class="mute">${t("sh.p")}</p>
     <div class="row" style="gap:6px"><input id="f-sh" class="sp" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="2000" placeholder="pm list packages -3" aria-label="${esc(t("sh.h"))}" value="${esc(shText)}" style="font-family:ui-monospace,Menlo,monospace">
     <button id="shRun" ${s.busy ? "disabled" : ""}>${ic(s.busy ? "hourglass" : "play")} ${t(s.busy ? "sh.busy" : "sh.run")}</button></div>
     ${log}${log ? `<button id="shClear">${ic("eraser")} ${t("sh.clear")}</button>` : ""}
@@ -125,12 +125,11 @@ async function shTcp(on) {
 }
 // "Chức năng & quyền": every feature with ok / the permissions it still needs (state.features, phone >= 0.9.9).
 // A row opens where that feature is set up (owner 2026-11-11), through the feature search's qsGo: [tab, section, rules segment, apps sub-tab].
-const FEAT_GO = { launcher: ["rules", "r-home", "safe"], launcherLock: ["rules", "r-home", "safe"], debloat: ["apps", "", "", "clean"],
-  limits: ["rules", "r-daily", "time"], block: ["apps", "", "", "list"], usage: ["rep"], location: ["where"], screen: ["screen"],
-  remote: ["set", "s-relay"], noUninstall: ["rules", "r-anti", "safe"], dns: ["rules", "r-dns", "safe"], lockLocation: ["rules", "r-more", "safe"] };
+const FEAT_GO = { launcher: ["rules", "r-kid", "safe"], launcherLock: ["rules", "r-kid", "safe"], debloat: ["apps", "a-clean"],
+  limits: ["rules", "r-day", "time"], block: ["apps", "a-apps"], usage: ["rep"], location: ["where"], screen: ["screen"],
+  remote: ["set", "s-remote"], noUninstall: ["rules", "r-block", "safe"], dns: ["rules", "r-net", "safe"], lockLocation: ["rules", "r-block", "safe"] };
 function featGo(id) {
   const g = FEAT_GO[id]; if (!g || !navOk(g[0])) return;
-  if (g[3]) { appsSub = g[3]; try { localStorage.setItem("kg.appsSub", g[3]); } catch {} }
   qsGo({ tab: g[0], sec: g[1] || "", seg: g[2] || "" });
 }
 function featCard() {
@@ -144,7 +143,7 @@ function featCard() {
   const tamper = st.caps && st.caps.owner === false ? `<div class="alert warn">${ic("shield")} <span>${t("tm.d")}
     <details><summary>${t("tm.see")}</summary><ul>${["tm.l1", "tm.l2", "tm.l3"].map(k => `<li>${t(k)}</li>`).join("")}</ul>
     <p>${t("tm.do")}</p><p><b>${t("tm.before")}</b></p><ul>${["tm.b1", "tm.b2", "tm.b3"].map(k => `<li>${t(k)}</li>`).join("")}</ul></details></span></div>` : "";
-  return sec("s-feat", "list-checks", t("ft.h"), t("ft.d"), [`${n}/${F.length}`, n === F.length ? "ok" : "warn"], `${agL}${tamper}<div class="tblw"><table class="ft"><tbody>${rows}</tbody></table></div>
+  return secP("s-feat", "list-checks", t("ft.h"), t("ft.d"), [`${n}/${F.length}`, n === F.length ? "ok" : "warn"], `${agL}${tamper}<div class="tblw"><table class="ft"><tbody>${rows}</tbody></table></div>
     <p class="mute">${t("ft.p")}</p>`, n < F.length || !!agL);
 }
 function updCard() {
@@ -156,7 +155,7 @@ function updCard() {
     : u.status === "ready" ? t("upd.ready", v)
     : u.status === "failed" ? `${ic("triangle-alert")} ${t("errX", esc(u.err || t("upd.unknown")))}` : has ? t("upd.has", v) : t("upd.latest");
   const busy = u.status === "downloading" || u.status === "installing" || u.status === "checking";
-  return sec("s-upd", "refresh-cw", t("upd.h"), t("sd.upd"), has ? [t("upd.has", v), "warn"] : [esc(st.version || "?"), "ok"], `
+  return secP("s-upd", "refresh-cw", t("upd.h"), t("sd.upd"), has ? [t("upd.has", v), "warn"] : [esc(st.version || "?"), "ok"], `
     <p style="overflow-wrap:anywhere">${t("upd.kid", "<b>" + esc(st.version || "?") + "</b>")} · ${line}${u.checkedAt ? ` <span class="mute">· ${t("upd.checked", ago(u.checkedAt))}</span>` : ""}</p>
     <label class="row"><input type="checkbox" id="f-au" ${edit && edit.autoUpdate ? "checked" : ""}><span class="sp">${t("upd.auto")}</span></label>
     <div class="row" style="margin-top:8px"><button id="updNow" ${busy ? "disabled" : ""}>${ic("refresh-cw")} ${t("upd.now")}</button></div>`, has || busy || u.status === "failed");
@@ -295,22 +294,17 @@ async function forgetKid() {
 function setTab(b) {
   const lan = cur.via === "lan", S = ruleSecs(edit);
   if (Array.isArray(st.devices) && !st.devices.some(d => d.self) && !devIds.has(cur.token)) { const k = cur; devIdOf(k).then(id => { if (id && k === cur && tab === "set") { lastSig = ""; render(); } }); }
-  b.innerHTML = `<div class="g2"><div>
-  <div class="sec">${t("set.security")}</div>
-  ${sec("s-pin", "key-round", t("pin.h"), t("pin.p"), edit.pinSet ? [t("pin.isSet"), "ok"] : [t("pin.notSet"), "warn"], `
+  // 17 small sections -> 12 rows (owner 2026-11-15): related ones share one sub-screen (secMix)
+  const pinP = secP("s-pin", "key-round", t("pin.h"), t("pin.p"), edit.pinSet ? [t("pin.isSet"), "ok"] : [t("pin.notSet"), "warn"], `
     ${edit.pinSet ? "" : `<div class="alert warn">${ic("triangle-alert")} ${t("pin.none")}</div>`}
     <p class="mute">${edit.pinSet ? t("pin.change") : t("pin.set")}</p>
     <div class="row"><input class="sp" style="min-width:8em" id="f-pin" inputmode="numeric" type="password" placeholder="${esc(t("pin.ph"))}" aria-label="${esc(t("pin.new"))}" maxlength="8" autocomplete="new-password"><button id="savePin">${ic("key-round")} ${edit.pinSet ? t("pin.changeB") : t("pin.setB")}</button></div>
     ${edit.pinSet && "pinResetAt" in st ? (st.pinResetAt > 0
       ? `<div class="alert warn" style="margin-top:10px">${ic("triangle-alert")} ${esc(t("pin.rstPending", new Date(st.pinResetAt).toLocaleString()))} <button id="pinRstX" class="sp" style="margin-left:6px">${t("pin.rstCancel")}</button></div>`
-      : `<p style="margin:8px 0 0"><button id="pinRst" class="sp">${ic("key-round")} ${t("pin.forgot")}</button></p>`) : ""}`, !edit.pinSet || st.pinResetAt > 0)}
-  <div id="rsx">${S.totp}</div>
-  ${sec("s-paired", "smartphone", t("paired.h"), t("sd.paired"), Array.isArray(st.devices) ? [String(st.devices.length)] : null, `${Array.isArray(st.devices) ? devsHtml() : `<p class="mute">${t("dev.old")}</p>`}
-    <div class="row" style="margin-top:10px"><button id="openPair" class="sp">${ic("lock-open")} ${t("paired.add")}</button><button id="forget" class="sp">${ic("eraser")} ${APP ? t("forget.app") : t("forget.web")}</button></div><div id="pairOut" class="mute" style="margin-top:8px"></div>`, st.pairUntil > Date.now())}
-  <div class="sec" id="awaySec">${t("set.conn")}</div>
-  ${lan ? `<p class="mute" style="margin:0 4px 10px">${t("away.cmp")}</p>` : ""}
-  ${tsCard(lan)}
-  ${lan ? sec("s-relay", "globe", t("relay.h"), t("sd.relay"), st.relay ? [t("on"), "ok"] : [t("off")], `<p class="mute">${t("relay.p")}</p>
+      : `<p style="margin:8px 0 0"><button id="pinRst" class="sp">${ic("key-round")} ${t("pin.forgot")}</button></p>`) : ""}`, !edit.pinSet || st.pinResetAt > 0);
+  const pairedP = secP("s-paired", "smartphone", t("paired.h"), t("sd.paired"), Array.isArray(st.devices) ? [String(st.devices.length)] : null, `${Array.isArray(st.devices) ? devsHtml() : `<p class="mute">${t("dev.old")}</p>`}
+    <div class="row" style="margin-top:10px"><button id="openPair" class="sp">${ic("lock-open")} ${t("paired.add")}</button><button id="forget" class="sp">${ic("eraser")} ${APP ? t("forget.app") : t("forget.web")}</button></div><div id="pairOut" class="mute" style="margin-top:8px"></div>`, st.pairUntil > Date.now());
+  const relayP = lan ? secP("s-relay", "globe", t("relay.h"), t("sd.relay"), st.relay ? [t("on"), "ok"] : [t("off")], `<p class="mute">${t("relay.p")}</p>
     <input id="relay" placeholder="${esc(t("relay.ph"))}" aria-label="${esc(t("relay.addr"))}" value="${esc(st.relay || DEFAULT_RELAY)}" autocapitalize="off" autocorrect="off" spellcheck="false" style="width:100%">
     <div class="row" style="margin-top:8px"><button id="saveRelay" class="pri">${ic("globe")} ${st.relay ? t("save") : t("turnOn")}</button>${st.relay ? `<button id="offRelay">${t("relay.off")}</button>` : ""}</div>
     ${st.relayBig ? `<p class="mute">${ic("info")} ${t("relay.big")}</p>` : ""}
@@ -318,26 +312,22 @@ function setTab(b) {
     ${st.relay && st.relayOk !== undefined ? `<p class="mute">${pendHtml("relayok", relayOkHtml)}</p>` : ""}
     <p class="mute">${t("relay.self")}</p>
     <div id="relayOut">${cur.relay && st.relay ? relayLinkHtml(goLink(cur.relay.url, cur.relay.id, cur.relay.token, cur.name)) : ""}</div>`, !!st.relay)
-    : `<div class="card"><h2>${ic("globe")} ${t("conn.h")}</h2><p class="mute">${t("conn.p")}</p>${st.relayBig ? `<p class="mute">${ic("info")} ${t("relay.big")}</p>` : ""}${cur.via === "relay" && isRelayOrigin ? relayLinkHtml(goLink(location.origin, cur.id, cur.token, cur.name)) : ""}</div>`}
-  ${tgHtml()}
-  ${watchCard()}
-  ${aiCard()}
-  <div class="dz" style="margin-top:22px">${sec("s-danger", "octagon-x", t("set.danger"), t("sd.danger"), null, `<h2>${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
+    : { id: "s-conn", icn: "globe", title: t("conn.h"), chip: null, body: `<p class="mute">${t("conn.p")}</p>${st.relayBig ? `<p class="mute">${ic("info")} ${t("relay.big")}</p>` : ""}${cur.via === "relay" && isRelayOrigin ? relayLinkHtml(goLink(location.origin, cur.id, cur.token, cur.name)) : ""}` };
+  const dangerP = secP("s-danger", "octagon-x", t("set.danger"), t("sd.danger"), null, `<h2>${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
     <h2 style="margin-top:18px">${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
-    <button id="release" class="bad">${ic("octagon-x")} ${t("rel.btn")}</button>`)}</div>
-  </div><div>
-  <div class="sec">${t("set.general")}</div>
-  <div class="card"><h2>${ic("user")} ${t("set.name")}</h2><div class="row"><input id="f-name" class="sp" aria-label="${esc(t("set.name"))}" value="${esc(cur.name)}"><button id="saveName">${ic("save")} ${t("save")}</button></div></div>
-  ${APP ? `<div class="card"><h2>${ic("history")} ${t("keep.h")}</h2><select id="f-days" aria-label="${esc(t("keep.h"))}">${["0", "30", "90", "365"].map(v => `<option value="${v}" ${String(kgCall("getHistoryDays") || "0") === v ? "selected" : ""}>${+v ? t("days", +v) : t("noLimitC")}</option>`).join("")}</select>
-    <p class="mute">${t("keep.p")}</p></div>` : ""}
-  <div class="card"><h2>${ic("sparkles")} ${t("wz.redo")}</h2><p class="mute">${t("wz.redoP")}</p><button type="button" id="wizRedo">${ic("refresh-cw")} ${t("wz.redoGo")}</button></div>
-  ${featCard()}
-  ${updCard()}
-  ${sec("s-sys", "sliders-horizontal", t("sys.h"), t("sd.sys"), null, `<div id="sysCard"></div>`)}
-  ${devCard()}
-  ${shCard()}
-  ${APP ? "" : `<div class="card"><h2>${ic("smartphone")} ${t("a2hs.h")}</h2><p class="mute">${t("a2hs.p")}</p></div>`}
-  </div></div>`;
+    <button id="release" class="bad">${ic("octagon-x")} ${t("rel.btn")}</button>`);
+  const nameP = { id: "s-name", icn: "user", title: t("set.name"), chip: null, body: `<div class="row"><input id="f-name" class="sp" aria-label="${esc(t("set.name"))}" value="${esc(cur.name)}"><button id="saveName">${ic("save")} ${t("save")}</button></div>` };
+  const keepP = APP ? { id: "s-keep", icn: "history", title: t("keep.h"), chip: null, body: `<select id="f-days" aria-label="${esc(t("keep.h"))}">${["0", "30", "90", "365"].map(v => `<option value="${v}" ${String(kgCall("getHistoryDays") || "0") === v ? "selected" : ""}>${+v ? t("days", +v) : t("noLimitC")}</option>`).join("")}</select>
+    <p class="mute">${t("keep.p")}</p>` } : null;
+  const redoP = { id: "s-redo", icn: "sparkles", title: t("wz.redo"), chip: null, body: `<p class="mute">${t("wz.redoP")}</p><button type="button" id="wizRedo">${ic("refresh-cw")} ${t("wz.redoGo")}</button>` };
+  const a2P = APP ? null : { id: "s-a2", icn: "smartphone", title: t("a2hs.h"), chip: null, body: `<p class="mute">${t("a2hs.p")}</p>` };
+  const sysP = secP("s-sys", "sliders-horizontal", t("sys.h"), t("sd.sys"), null, `<div id="sysCard"></div>`);
+  b.innerHTML = `<div id="rsx">
+  ${secGrp(t("set.security"), [secMix("s-sec", "key-round", t("mx.sec"), t("mx.secD"), [pinP, S.totp], pinP.chip), pairedP])}
+  ${secGrp(t("set.conn"), [secMix("s-remote", "route", t("mx.remote"), t("mx.remoteD"), [tsCard(lan), relayP]), tgHtml(), watchCard(), aiCard()], "awaySec", lan ? `<p class="mute" style="margin:0 4px 10px">${t("away.cmp")}</p>` : "")}
+  ${secGrp(t("sec.kid"), [secMix("s-kid", "user", t("mx.kid"), t("mx.kidD"), [nameP, keepP, redoP, a2P], null), featCard(), updCard(), sysP, secMix("s-adv", "code", t("mx.adv"), t("mx.advD"), [devCard(), shCard()], null)])}
+  <div class="dz" style="margin-top:22px">${secGrp("", [dangerP])}</div>
+  </div>`;
   rulesWire($("#rsx"), edit);
   b.querySelectorAll("[data-unp]").forEach(x => x.onclick = async () => {
     const d = (st.devices || []).find(o => o.id === x.dataset.unp); if (!d) return;
@@ -510,7 +500,7 @@ function tgHtml() {
     <div class="chips tgtry">${TG_TRY.map(c => `<span class="chip">${esc(c)}</span>`).join("")}</div>
     <p style="margin-top:14px"><button id="tgOff" class="bad">${ic("octagon-x")} ${t("tg.off")}</button></p>`;
   }
-  return sec("s-tg", "send", t("tg.h"), t("tg.d"), g.on ? (g.err ? [t("tg.errTag"), "bad"] : [chats.length ? t("tg.nChats", chats.length) : t("tg.noChatTag"), chats.length ? "ok" : "warn"]) : [t("off")], body, false);
+  return secP("s-tg", "send", t("tg.h"), t("tg.d"), g.on ? (g.err ? [t("tg.errTag"), "bad"] : [chats.length ? t("tg.nChats", chats.length) : t("tg.noChatTag"), chats.length ? "ok" : "warn"]) : [t("off")], body, false);
 }
 function tgWire() {
   const again = () => setTimeout(refresh, 2500);
@@ -538,7 +528,7 @@ function tgWire() {
 // this kid's relay login (POST /c/<id>/watch, docs/protocol.md "Watch connect"). Needs the relay: a LAN-only kid has none.
 function watchCard() {
   const ok = cur.via === "relay" || !!(cur.relay && st.relay);
-  return sec("s-watch", "watch", t("watch.h"), t("sd.watch"), null, ok
+  return secP("s-watch", "watch", t("watch.h"), t("sd.watch"), null, ok
     ? `<p class="mute">${t("watch.p")}</p>
     <div class="row"><input class="sp" style="min-width:8em" id="f-wcode" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="${esc(t("watch.ph"))}" aria-label="${esc(t("watch.code"))}" autocomplete="off"><button id="watchGo" class="pri">${ic("watch")} ${t("watch.go")}</button></div>`
     : `<p class="mute">${ic("info")} ${t("watch.needRelay")}</p>`, false);
@@ -565,8 +555,8 @@ function aiCfg(k, token) {
 }
 function aiCard() {
   const on = !!st.ai, show = aiShown && aiShown.k === cur ? aiShown : null;
-  if (!("ai" in st)) return sec("s-ai", "bot", t("ai.h"), t("sd.ai"), null, `<p class="mute">${ic("info")} ${t("ai.old")}</p>`, false);
-  return sec("s-ai", "bot", t("ai.h"), t("sd.ai"), on ? [t("on"), "ok"] : [t("off")], `
+  if (!("ai" in st)) return secP("s-ai", "bot", t("ai.h"), t("sd.ai"), null, `<p class="mute">${ic("info")} ${t("ai.old")}</p>`, false);
+  return secP("s-ai", "bot", t("ai.h"), t("sd.ai"), on ? [t("on"), "ok"] : [t("off")], `
     <p class="mute">${t("ai.p")}</p>
     ${show ? `<div class="alert warn">${ic("triangle-alert")} ${t("ai.once")}</div><pre id="aiCfg" style="white-space:pre-wrap;overflow-wrap:anywhere;user-select:all">${esc(aiCfg(cur, show.token))}</pre>
       <div class="row"><button id="aiCopy">${ic("clipboard-copy")} ${t("relay.copy")}</button><button id="aiDone" class="pri">${ic("check")} ${t("ai.done")}</button></div>`

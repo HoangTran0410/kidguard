@@ -138,7 +138,7 @@ function render(tabClick) {
   if ($("#goLive")) $("#goLive").onclick = () => { tab = "home"; open(cur); dayOff(); };
   if ($("#back")) $("#back").onclick = () => { goList(); navDown(0); };
   localWire();
-  if ($("#goPin")) $("#goPin").onclick = () => { tab = "set"; render(true); const f = $("#f-pin"); if (f) { f.scrollIntoView({ block: "center" }); f.focus(); } };
+  if ($("#goPin")) $("#goPin").onclick = () => { goTab("set"); subOpen("s-sec"); const f = $("#f-pin"); if (f) { f.scrollIntoView({ block: "center" }); f.focus(); } };
   const body = $("#body");
   if (!st) { updateLive(); body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " " + t("cantConnect", esc(lastErr)) : noState ? ic("hourglass") + " " + t("noState") : ic("hourglass") + " " + t("loading")}${lastErr || noState ? `<p style="margin:10px 0 0"><button id="forgetGone" class="sp">${ic("eraser")} ${APP ? t("forget.app") : t("forget.web")}</button></p>` : ""}</div>`; if ($("#forgetGone")) $("#forgetGone").onclick = forgetKid; return; }
   if (!navOk(tab)) tab = "home";
@@ -158,25 +158,28 @@ function render(tabClick) {
 // accent-free (also used by the kid app's own admin page, which loads this page). Row: [tab, section id, rules
 // segment, icon, i18n keys (0 = title, 1 = description, 2+ = switches / words inside)]. New section = one row here.
 const QS = [
-  ["rules", "r-daily", "time", "timer", ["daily.h", "sd.daily"]], ["rules", "r-grp", "time", "layout-grid", ["grp.h", "sd.grp"]],
-  ["rules", "r-bed", "time", "moon", ["bed.h", "sd.bed"]], ["rules", "r-wind", "time", "moon", ["wd.h", "sd.wind", "wd.gray", "wd.nudge"]],
-  ["rules", "r-sch", "time", "book-open", ["sch.h", "sd.sch"]], ["rules", "r-chore", "time", "star", ["chore.h", "sd.chore"]],
-  ["rules", "r-more", "safe", "construction", ["more.h", "sd.more", "more.loc", "more.air", "ni.h", "ni.ask", "ni.none"]],
-  ["rules", "r-dns", "safe", "shield", ["dns.h", "sd.dns", "dns.novpn"]],
-  ["rules", "r-web", "safe", "globe", ["web.h", "sd.web", "web.inc", "web.block"]],
+  ["rules", "r-day", "time", "timer", ["daily.h", "sd.daily"]], ["rules", "r-grp", "time", "layout-grid", ["grp.h", "sd.grp"]],
+  ["rules", "r-night", "time", "moon", ["bed.h", "sd.bed"]], ["rules", "r-night", "time", "moon", ["wd.h", "sd.wind", "wd.gray", "wd.nudge"]],
+  ["rules", "r-sch", "time", "book-open", ["sch.h", "sd.sch"]], ["rules", "r-day", "time", "star", ["chore.h", "sd.chore"]],
+  ["rules", "r-block", "safe", "construction", ["more.h", "sd.more", "more.loc", "more.air", "ni.h", "ni.ask", "ni.none"]],
+  ["rules", "r-net", "safe", "shield", ["dns.h", "sd.dns", "dns.novpn"]],
+  ["rules", "r-net", "safe", "globe", ["web.h", "sd.web", "web.inc", "web.block"]],
   ["rules", "r-calls", "safe", "phone", ["calls.h", "sd.calls", "calls.unknown", "calls.hidden", "calls.allowH"]],
-  ["rules", "r-anti", "safe", "lock-keyhole", ["anti.h", "sd.anti", "anti.debug", "anti.shot"]],
-  ["rules", "r-anti", "safe", "landmark", ["bank.h", "bank.colAcc"]],
-  ["rules", "r-home", "safe", "house", ["hm.h", "sd.home", "hm.on", "hm.settings", "hm.shade", "hm.lock", "hm.notes"]],
-  ["rules", "r-kind", "safe", "notebook-pen", ["kn.h", "sd.kind"]], ["rules", "#monCard", "", "eye", ["mon.h", "mon.p"]],
+  ["rules", "r-block", "safe", "lock-keyhole", ["anti.h", "sd.anti", "anti.debug", "anti.shot"]],
+  ["rules", "r-block", "safe", "landmark", ["bank.h", "bank.colAcc"]],
+  ["rules", "r-kid", "safe", "house", ["hm.h", "sd.home", "hm.on", "hm.settings", "hm.shade", "hm.lock", "hm.notes"]],
+  ["rules", "r-kid", "safe", "notebook-pen", ["kn.h", "sd.kind"]], ["rules", "#monCard", "", "eye", ["mon.h", "mon.p"]],
   ["where", "r-lost", "", "siren", ["lost.h", "sd.lost", "lost.on", "lost.msg", "lost.phone"]], ["where", "r-zone", "", "map-pin", ["zone.h", "sd.zone"]], ["where", "r-trk", "", "route", ["trk.h", "sd.trk"]],
-  ["set", "s-pin", "", "key-round", ["pin.h", "pin.p"]], ["set", "r-totp", "", "key-round", ["totp.h", "sd.totp"]],
+  ["set", "s-sec", "", "key-round", ["pin.h", "pin.p"]], ["set", "s-sec", "", "key-round", ["totp.h", "sd.totp"]],
   ["set", "s-sys", "", "sliders-horizontal", ["sys.h", "sd.sys", "sys.ring", "sys.media", "sys.alarm", "sys.bright", "sys.timeout", "sys.dnd"]],
-  ["set", "s-dev", "", "code", ["dev.h", "sd.dev", "anti.debug"]], ["set", "s-sh", "", "terminal", ["sh.h", "sd.sh", "sh.tcp"]], ["set", "s-relay", "", "globe", ["relay.h", "sd.relay"]], ["set", "s-watch", "", "watch", ["watch.h", "sd.watch", "watch.go"]], ["set", "s-ai", "", "bot", ["ai.h", "sd.ai"]],
-  ["set", "s-ts", "", "route", ["ts.h", "sd.ts"]], ["set", "s-upd", "", "refresh-cw", ["upd.h", "sd.upd", "upd.auto"]],
+  ["set", "s-adv", "", "code", ["dev.h", "sd.dev", "anti.debug"]], ["set", "s-adv", "", "terminal", ["sh.h", "sd.sh", "sh.tcp"]],
+  ["set", "s-remote", "", "globe", ["relay.h", "sd.relay"]], ["set", "s-remote", "", "route", ["ts.h", "sd.ts"]],
+  ["set", "s-watch", "", "watch", ["watch.h", "sd.watch", "watch.go"]], ["set", "s-ai", "", "bot", ["ai.h", "sd.ai"]],
+  ["set", "s-upd", "", "refresh-cw", ["upd.h", "sd.upd", "upd.auto"]], ["set", "s-kid", "", "user", ["set.name", "keep.h", "wz.redo"]],
   ["set", "s-tg", "", "send", ["tg.h", "tg.d"]], ["set", "s-feat", "", "list-checks", ["ft.h", "ft.d"]],
   ["set", "s-paired", "", "smartphone", ["paired.h", "sd.paired"]], ["set", "s-danger", "", "octagon-x", ["set.danger", "sd.danger"]],
-  ["apps", "#healthCard", "", "heart-pulse", ["hl.h", "hl.sub", "hl.review", "hl.bg.h", "hl.kc"]],
+  ["apps", "a-apps", "", "puzzle", ["as.list", "ap.appsD", "apps.search"]], ["apps", "a-clean", "", "eye-off", ["as.clean", "ap.cleanD", "clean.h"]],
+  ["apps", "a-health", "", "heart-pulse", ["hl.h", "hl.sub", "hl.review", "hl.bg.h", "hl.kc"]], ["apps", "a-space", "", "hard-drive", ["clean.heavy", "ap.spaceD"]],
   ["dev", "d-act", "", "zap", ["dv.act"]], ["dev", "d-bat", "", "battery-full", ["dv.bat"]], ["dev", "d-ram", "", "memory-stick", ["dv.ram"]],
   ["dev", "d-sto", "", "hard-drive", ["dv.sto"]], ["dev", "d-sys", "", "smartphone", ["dv.sys"]],
 ];
@@ -207,7 +210,6 @@ function qsFind1(q, near) {
   return out;
 }
 function qsGo(e) {
-  if (e.sec === "#healthCard") { appsSub = "space"; try { localStorage.setItem("kg.appsSub", "space"); } catch {} }   // the health card lives in Ứng dụng › Sức khoẻ máy
   if (!(tab === e.tab && subId)) goTab(e.tab);   // a sub-screen of this very tab is open: subOpen below swaps it
   if (!e.sec) return;
   let n = 0;
