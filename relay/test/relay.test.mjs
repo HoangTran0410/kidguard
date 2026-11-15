@@ -508,6 +508,24 @@ ck(`pair: wrong codes from one network are capped (blocked at ${blocked})`,block
 const lj=await (await join(c4)).json();
 ck("pair: past the cap even a live code can not be joined (429, wait + retryAt tell when)",lj.error=="too many wrong codes"&&lj.wait>0&&lj.wait<=600000&&lj.retryAt>Date.now());}
 }
+// ---- AI token: role "ai" (the phone syncs sha256 of it; worker limits routes, commands, rule keys) ----
+{const AIT="ef".repeat(24),ah=(await import("node:crypto")).createHash("sha256").update(AIT).digest("hex");
+const A=(m,p,b)=>fetch(`${B}/c/${id}/${p}`,{method:m,headers:H(AIT),body:b===undefined?undefined:JSON.stringify(b)});
+ck("ai: unknown token 401 before the phone told the hash",(await A("GET","state")).status==401);
+await P("sync",JSON.stringify({ai:ah}));
+ck("ai: state readable",(await A("GET","state")).status==200);
+ck("ai: lock queued",(await (await A("POST","cmd",{type:"lock"})).json()).result=="queued");
+for(const t of ["release","reboot","adbShell","unpairAll","aiToken","pinSet","listen"]){const x=await A("POST","cmd",{type:t});ck("ai: cmd "+t+" 403",x.status==403&&(await x.json()).error=="ai token: not allowed");}
+for(const [m,p] of [["GET","frame?after=0"],["POST","live"],["POST","input"],["POST","sync"],["GET","file"],["POST","forget"],["POST","watch"],["GET","tile"],["GET","ws"]])ck("ai: "+m+" "+p+" 403",(await A(m,p,m=="GET"?undefined:{})).status==403);
+await fetch(`${B}/c/${id}/rules`,{method:"PUT",headers:H(),body:JSON.stringify({dailyMin:60,noInstall:true,pin:"1234"})});
+r=await A("PUT","rules",{dailyMin:30,noInstall:false,noVpn:true,pinHash:"0".repeat(64),pin:"9999"});j=await r.json();
+ck("ai: rules change goes through, locked keys keep the stored value, no PIN change",r.status==200&&j.dailyMin==30&&j.noInstall===true&&!("noVpn" in j)&&j.pinSet===true);
+const sj=await (await fetch(`${B}/c/${id}/state`,{headers:H()})).json();
+ck("ai: the stored PIN hash is the parent's",!!sj.rules&&sj.rules.pinSet===true);
+await P("cmd",JSON.stringify({type:"aiToken",op:"revoke",pin:"1234"}));
+ck("ai: revoke by the parent cuts it at once",(await A("GET","state")).status==401);
+ck("ai: set needs a 64-hex hash",(await P("cmd",JSON.stringify({type:"aiToken",op:"set",hash:"x"}))).status==400);
+await P("sync",JSON.stringify({ai:""}));}
 // ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;
 for(let i=0;i<90&&!blocked;i++){const idn=rh(16),r=await fetch(`${B}/c/${idn}/sync`,{method:"POST",headers:{"x-kg-token":rh(48),"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});

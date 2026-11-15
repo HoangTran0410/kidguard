@@ -626,6 +626,12 @@ L.vi = {
   "wz.s4": "Con sẽ thấy gì", "wz.s4p": "Đây là những gì thay đổi trên máy con.", "wz.i1": "Màn hình khoá ở app bị chặn, có nút xin thêm giờ gửi cho bạn.", "wz.i2": "Nút SOS. Con chạm một lần, bạn nhận cảnh báo.", "wz.i3": "Con xem được thời gian còn lại hôm nay.", "wz.s4h": "Đổi gì cũng được sau, ở tab Quy tắc.",
   "wz.lost": "Chưa lưu thiết lập: đã đổi sang con khác", "wz.redo": "Thiết lập lại từ đầu", "wz.redoP": "Đi lại từ mức, app, giờ ngủ.", "wz.redoGo": "Bắt đầu",
   "rel.ask": "Gỡ quản lý: máy con hết mọi giới hạn, KidGuard không điều khiển được nữa.\nXoá luôn trên máy chủ trung gian: trạng thái, luật, nhật ký, vị trí, liên kết Telegram.\nBố mẹ khác nhận thông báo đã gỡ.",
+  "ai.h": "Trợ lý AI", "sd.ai": "Cho AI xem tình hình và đổi giới hạn. Không thể gỡ hay xoá máy", "kw.ai.h": "ai, trợ lý, claude, chatgpt, mcp, mã, tự động",
+  "ai.p": "Tạo mã riêng cho AI. AI xem tình hình, đổi giới hạn, khoá, đổ chuông. Không đổi được PIN, các mục bảo vệ, không gỡ hay xoá máy.",
+  "ai.once": "Chép mã ngay. Mã chỉ hiện một lần.", "ai.new": "Tạo mã", "ai.renew": "Tạo mã mới", "ai.revoke": "Xoá mã", "ai.done": "Xong",
+  "ai.made": "Đã tạo mã", "ai.gone": "Đã xoá mã", "ai.askRevoke": "Xoá mã AI? Trợ lý đang dùng mã này sẽ ngừng chạy.",
+  "ai.old": "Cập nhật app trên máy con để dùng.", "ai.nocrypto": "Mở trang bằng https để tạo mã",
+  "cr.aiToken.failed: bad hash": "Mã không hợp lệ",
   "kb.never": "Chưa có dữ liệu",
   "kb.noAnswer": "Chưa kết nối được",
   "app.waitPhone": "Chờ máy con áp dụng"

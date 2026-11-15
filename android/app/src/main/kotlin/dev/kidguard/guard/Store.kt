@@ -61,7 +61,11 @@ class Store private constructor(private val app: Context) {
         p.edit().putStringSet("tokens", tokenHashes() + sha256(t)).apply()
         return t
     }
-    @Synchronized fun clearTokens() { pending.clear(); p.edit().remove("tokens").remove("relayToken").remove("relayId").remove("relayShared").remove("devs").apply() }
+    /** The AI token ([AiScope]): only its sha256, made by the parent page. "" = none. Dropped with every paired token. */
+    @get:Synchronized val aiHash: String get() = p.getString("aiHash", "")!!
+    @Synchronized fun aiOk(t: String?): Boolean = !t.isNullOrBlank() && aiHash.isNotEmpty() && sha256(t) == aiHash
+    @Synchronized fun setAiHash(h: String): Boolean { if (h.isNotEmpty() && !Regex("^[0-9a-f]{64}$").matches(h)) return false; p.edit().putString("aiHash", h).apply(); return true }
+    @Synchronized fun clearTokens() { pending.clear(); p.edit().remove("aiHash").remove("tokens").remove("relayToken").remove("relayId").remove("relayShared").remove("devs").apply() }
 
     /** Name / first seen / last seen of each paired token (keyed by its sha256), see [Paired]. */
     @Synchronized private fun devMeta(): Map<String, Paired.Dev> {

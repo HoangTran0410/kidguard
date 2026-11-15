@@ -111,6 +111,8 @@
     <string name="log_unlock">Unlocked with a parent code: %1$d min</string>
     <string name="ev_unlock">Unlocked with your code: %1$d min</string>
     <string name="log_paired">A parent device was paired</string>
+    <string name="log_ai_on">An AI assistant token was created</string>
+    <string name="log_ai_off">The AI assistant token was removed</string>
 
     <!-- Guard -->
     <string name="ev_tz">Phone time zone changed: %1$s</string>

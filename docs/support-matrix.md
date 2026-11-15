@@ -58,6 +58,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Chức năng | DO | CB | +WSS | +adb | Relay | Ghi chú |
 |---|---|---|---|---|---|---|
 | DNS an toàn (Private DNS) | ✅ | ❌ | ✅ | ✅ | ✅ | +WSS: ghi `Settings.Global`, tự sửa lại nếu con đổi. Tắt DoH của Chrome/Edge chỉ DO |
+| Trợ lý AI (mã riêng `aiToken`, MCP) | ✅ | ✅ | ❌ | ❌ | ✅ | Chỉ đọc, đổi giới hạn, khoá, đổ chuông, nhắn; không đổi PIN/bảo vệ, không gỡ. Phone + relay đều chặn. Mã tạo ở trang (cần PIN) |
 | Chặn VPN, chặn chế độ máy bay | ✅ | ❌ | ❌ | ❌ | ✅ | |
 | Khoá máy theo tài khoản Google sau khi khôi phục (`frpIds`) | ✅ (Android 11+) | ❌ | ❌ | ❌ | ✅ | Cần ID số của tài khoản Google (không phải email). Sai ID = máy có thể khoá vĩnh viễn sau khi reset. |
 | Vị trí, lịch sử, vùng an toàn | ✅ | ✅ | ✅ | ✅ | ✅ | Cần quyền vị trí (cả nền) |

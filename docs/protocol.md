@@ -200,7 +200,7 @@ v0.9.7:
   `out` ≤ 6000 chars for the newest two, 300 for older ones (state stays < ~14 KB for the relay); `err` = `adb` (no answer / timeout) or an `adbWhy` code (`sdk key wss blocked wifi`).
 
 ### PIN-gated commands (v0.9.13, `guard/CmdGate.kt`)
-`release unpairAll unpair clearData reboot relay tailscaleOff openPairing totpSet tgSet tgCode tgOff pinSet pinResetCancel adbShell adbTcp`
+`release unpairAll unpair clearData reboot relay tailscaleOff openPairing totpSet tgSet tgCode tgOff pinSet pinResetCancel adbShell adbTcp aiToken`
 (`adbTcp` only with `on:true`; `on:false` = closing the port needs no PIN, 2026-11-15) carry `pin`: the parent PIN or a current Authenticator code (its backup, also while the PIN is locked; an admin open by code raises a `tamper` event). The PHONE checks it (LAN and relay alike), sharing the lockout
 of the on-device admin (5 free tries, then 5, 10, 20, 30 min, then 30 min per try; PIN and Authenticator locks are separate; lockouts run on the monotonic clock, a reboot falls back to the wall clock capped at the original length).
 `relay {url}` with the URL the phone already has is not gated (the page re-reads the relay link with it); `renew:true` always is. No PIN and no
@@ -270,6 +270,19 @@ The first capture / first input of a session is logged in the phone log.
   (sessionStorage `kg.go.<id>`) = the LAN page did not load -> stays on the relay with a toast. Seen >= 3 min / never /
   401 / relay error -> an error screen (last seen, last LAN address, Tailscale ip, likely causes, Try again / See old
   data / Try home network / Try Tailscale). Otherwise the normal page over the relay.
+
+### AI token (2026-11-15, `guard/AiScope.kt`, worker `AI_CMDS` / `AI_LOCKED`)
+A second, limited credential for an AI assistant (`mcp/kidguard-mcp.mjs`, env `KG_AI_TOKEN`). The page makes it (24 random bytes = 48 hex,
+like a paired token) and sends only its sha256: command `aiToken {op:"set", hash:<64 hex>, pin}` or `{op:"revoke", pin}` (PIN-gated, so a leaked
+parent link cannot mint one; the token itself never reaches the phone or the relay). State `ai: bool` = one exists (absent = old phone).
+- Phone: stored hash `Store.aiHash`; `X-KG-Token` matching it = role `ai` (not in `state.devices`). Dropped by `unpairAll` / release.
+- Relay: every phone sync body carries `ai` (the hash, `""` = none); the worker keeps it (`aiHash`) and gives a request with that token role `ai`.
+  A parent `aiToken {op:"revoke"}` through the worker deletes the hash at once.
+- Role `ai` may: `GET state` (and `icon`; no `?watch=1`), `PUT rules`, `POST cmd` with `lock locate message ring ringStop sosAck answer`.
+  `PUT rules`: `pin pinHash pinSalt pinAt pinSet noInstall noDebug pinShot lockLocation noAirplane frpIds safeDns safeDnsPauseUntil noVpn tsKeep
+  vpnPause accPause devPause tcpPause autoUpdate showWatching unlockMin hidden approved mode` keep the stored value whatever is sent (a key the phone
+  has not stored is dropped). Anything else (other routes, other commands, `aiToken`, pairing, PIN, files, screen, listen) = `403 {"error":"ai token: not allowed"}`.
+  LAN: `Api.kt` checks the same lists; relay: the worker (the phone does not know who queued a command, so the worker is the gate there).
 
 ### Relay (worker), token header `X-KG-Token`, id = 16 hex
 - **WebSocket push channel** (load: an idle socket costs nothing; phone `remote/RelayWs.kt`, worker `Kid.webSocketMessage`):

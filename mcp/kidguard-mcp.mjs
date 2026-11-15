@@ -19,7 +19,7 @@ const SAFE_CMDS = {
 
 function cfg() {
   const e = process.env;
-  const token = e.KG_TOKEN || "";
+  const token = e.KG_AI_TOKEN || e.KG_TOKEN || "";   // the AI token (page: Settings > AI assistant) is the recommended one: the phone and relay limit it
   if (e.KG_RELAY && e.KG_ID) return { via: "relay", base: e.KG_RELAY.replace(/\/+$/, "") + "/c/" + encodeURIComponent(e.KG_ID), token };
   if (e.KG_URL) return { via: "lan", base: e.KG_URL.replace(/\/+$/, "") + "/api", token };
   throw new Error("not configured: set KG_RELAY + KG_ID + KG_TOKEN, or KG_URL + KG_TOKEN");
@@ -27,7 +27,7 @@ function cfg() {
 
 async function call(path, method = "GET", body) {
   const c = cfg();
-  if (!c.token) throw new Error("KG_TOKEN is not set");
+  if (!c.token) throw new Error("KG_AI_TOKEN is not set");
   const r = await fetch(c.base + path, {
     method,
     headers: { "X-KG-Token": c.token, "X-KG-Name": NAME, "Content-Type": "application/json" },

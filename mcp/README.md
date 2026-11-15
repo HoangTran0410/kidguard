@@ -40,6 +40,13 @@ browser storage after pairing (`kg.kids` in localStorage). A relay link token al
 
 ## Config
 
+**Use the AI token** (parent page: Settings > AI assistant > Create code; set it as `KG_AI_TOKEN`, no `KG_TOKEN`).
+The phone and the relay worker enforce its limits, not only this server: it reads state, changes rules (never the PIN or a
+protection switch), and may send only `lock locate message ring ringStop sosAck answer`. Everything else gets
+`403 ai token: not allowed`, so a stolen config cannot release, wipe, reboot or re-pair the phone. Remove the code on the page to cut it.
+`KG_TOKEN` (a paired parent token = full power) still works but is not recommended. Without a phone that knows the AI token
+(older app), the page says so.
+
 Claude Desktop (`claude_desktop_config.json`):
 
 ```json
