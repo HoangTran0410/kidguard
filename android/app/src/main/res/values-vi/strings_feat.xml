@@ -52,6 +52,7 @@
     <string name="st_rc_wifi">Wi-Fi: %1$s</string>
     <string name="st_rc_ts">Tailscale: %1$s</string>
     <string name="st_rc_ts_down">Tailscale: mất kết nối</string>
+    <string name="st_rc_ts_doze">Tailscale có thể rớt khi tắt màn hình. Sửa: Cài đặt → Ứng dụng → Tailscale → Pin → Không hạn chế</string>
     <string name="st_rc_relay">Relay (qua Internet): đã kết nối</string>
     <string name="st_rc_relay_wait">Relay (qua Internet): đang kết nối lại…</string>
     <plurals name="st_rc_tg">

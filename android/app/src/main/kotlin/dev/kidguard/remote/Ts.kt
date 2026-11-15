@@ -124,7 +124,17 @@ object Ts {
     @Volatile private var expTries = 0
 
     /** Never includes the auth key or token. noExpiry: the node key won't expire (else the page asks to turn it off by hand). */
-    fun stateJson(s: Store): JSONObject = JSONObject().put("state", state).put("ip", ip).put("host", s.tsHost).put("err", err).put("noExpiry", s.tsNoExpiry).put("why", if (s.vpnPaused.isNotEmpty()) "bank" else keepWhy)
+    fun stateJson(ctx: Context, s: Store): JSONObject = JSONObject().put("state", state).put("ip", ip).put("host", s.tsHost).put("err", err).put("noExpiry", s.tsNoExpiry).put("why", if (s.vpnPaused.isNotEmpty()) "bank" else keepWhy)
+        .put("doze", dozeHit(ctx))
+
+    /**
+     * Tailscale installed but under Android's battery optimisation: with the screen off for a while (Doze) its tunnel goes
+     * quiet and the parent loses the phone until it is unlocked (Poco 2026-11-15: adb over Tailscale dropped every time the
+     * screen went off although "keep Tailscale on" was set; the app itself was never killed). Fixed by AutoGrant when we
+     * have our own adb, else the page / child app tell the parent the setting to change.
+     */
+    fun dozeHit(ctx: Context): Boolean = installed(ctx) &&
+        runCatching { !ctx.getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(TsLogic.PKG) }.getOrDefault(false)
 
     fun installed(ctx: Context) = runCatching { ctx.packageManager.getPackageInfo(TsLogic.PKG, 0); true }.getOrDefault(false)
 

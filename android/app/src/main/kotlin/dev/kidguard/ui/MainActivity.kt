@@ -878,6 +878,7 @@ class MainActivity : Activity() {
         val ts = Ts.findIp()
         if (ts.isNotEmpty()) { n++; line(R.drawable.li_link, Ic.OK, getString(R.string.st_rc_ts, "http://$ts:${Guard.PORT}")) }
         else if (s.tsWanted || s.rules.tsKeep) { n++; line(R.drawable.li_link, Ic.WARN, getString(R.string.st_rc_ts_down)) }
+        if ((ts.isNotEmpty() || s.tsWanted || s.rules.tsKeep) && Ts.dozeHit(this)) line(R.drawable.li_moon, Ic.WARN, getString(R.string.st_rc_ts_doze))
         if (s.relayUrl.isNotBlank()) {
             n++
             val up = System.currentTimeMillis() - (Guard.running?.relayOkAt ?: 0L) < 180_000

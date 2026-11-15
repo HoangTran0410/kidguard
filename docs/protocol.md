@@ -101,7 +101,7 @@ leftMs apps rules location lan relay log`), plus:
           "ssid": "Home", "rssi": -60, "bars": 3, "ghz": 5.0, "mbps": 433,   // Wi-Fi; ssid only with location permission + location on
           "carrier": "Viettel",                                             // cell
           "hwMac": "aa:bb:…"},                                              // Device Owner only (factory MAC); rssi/bars/mbps left out of the relay WS change hash
-  "ts": {"state": "off|installing|on|error", "ip": "100.x.y.z", "host": "kid-an", "err": "", "noExpiry": false},  // v0.4: Tailscale (never the key); noExpiry v0.9.6: node key expiry turned off
+  "ts": {"state": "off|installing|on|error", "ip": "100.x.y.z", "host": "kid-an", "err": "", "noExpiry": false, "doze": false},  // v0.4: Tailscale (never the key); noExpiry v0.9.6: node key expiry turned off; doze v0.9.24: Tailscale installed but battery-optimised (drops in Doze; AutoGrant whitelists it when the phone has its own adb)
   "ts.why": "",  // NEW 2026-11-13: why Tailscale is not being revived now: "bank" (VPN pause) | "bg-start" (no right to open an app from the background) | "hidden" (app suspended) | "screen-off" | "not-home" (our launcher not in front) | "wait" (10-min gate between opens; command `tailscale` resets it) | "" (nothing / reviving)
   "grayErr": "",  // NEW: last wind-down grayscale error ("" = fine, "no permission" | "write failed")
   "autoGrant": {"left": 0, "at": 0, "next": 0, "err": ""},  // NEW: permissions still missing at the last tick, last real attempt (ms), next allowed attempt (ms), err "" | "no adb"

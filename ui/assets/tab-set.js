@@ -8,7 +8,9 @@ const tsKeepRow = () => edit ? `<label class="row" style="margin-top:8px"><input
 // last successful sync with the relay (state.relayOk, ms; 0 = none yet); > 10 min = the page can't reach the phone away from home
 const relayOkHtml = () => { const ok = st && +st.relayOk; if (!ok) return `<span class="err">${ic("triangle-alert")} ${t("relay.syncNone")}</span>`; return Date.now() - ok > 600000 ? `<span class="err">${ic("triangle-alert")} ${t("relay.syncOld", ago(ok))}</span>` : `${ic("check")} ${t("relay.sync", ago(ok))}`; };
 // why KidGuard has not brought Tailscale back yet (state.ts.why)
-const tsWhyHtml = ts => ts && ts.why && hasT("ts.why." + ts.why) ? `<p class="mute">${ic("hourglass")} ${t("ts.why." + ts.why)}</p>` : "";
+const tsWhyHtml = ts => (ts && ts.why && hasT("ts.why." + ts.why) ? `<p class="mute">${ic("hourglass")} ${t("ts.why." + ts.why)}</p>` : "") +
+  // ts.doze (v0.9.24): Tailscale under battery optimisation goes quiet with the screen off; the phone fixes it itself when it has adb
+  (ts && ts.doze ? `<div class="alert warn">${ic("moon")} ${t("ts.doze")}</div>` : "");
 function tsCard(lan) {
   // basic mode: KidGuard can't install / sign in Tailscale (needs Device Owner), but a Tailscale set up by hand works and "keep on" (Ts.keep) too
   if (isBasic()) { const bi = (st && st.ts && st.ts.ip) || "";

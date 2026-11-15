@@ -52,6 +52,7 @@
     <string name="st_rc_wifi">Wi-Fi: %1$s</string>
     <string name="st_rc_ts">Tailscale: %1$s</string>
     <string name="st_rc_ts_down">Tailscale: not connected</string>
+    <string name="st_rc_ts_doze">Tailscale may drop while the screen is off. Fix: Settings → Apps → Tailscale → Battery → Unrestricted</string>
     <string name="st_rc_relay">Relay (over the Internet): connected</string>
     <string name="st_rc_relay_wait">Relay (over the Internet): reconnecting…</string>
     <plurals name="st_rc_tg">
