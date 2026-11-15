@@ -147,6 +147,15 @@ class CustomActivity : Activity() {
         line(read); read.addView(switchRow(s(R.string.hm2_c_solid), st.solid) { v -> set { it.copy(solid = v) } })
         col.addView(read, lp(8))
 
+        // Xiaomi / Poco only (kid flavor): own swipe navigation, the 3-button bar comes back in bank apps (NavGest)
+        if (NavGest.supported()) {
+            section(col, R.string.hm_c_nav)
+            val nav = group()
+            nav.addView(switchRow(s(R.string.hm_c_nav_sw), NavGest.on(this)) { v -> if (!NavGest.set(this, v)) { Toasts.show(this, R.string.hm_c_nav_need, true); build() } })
+            line(nav); nav.addView(note(s(R.string.hm_c_nav_note), false))
+            col.addView(nav, lp(8))
+        }
+
         // first open: what fills the screen now, the sections below the fold right after the first frame (the whole form
         // was 86-139 ms before it on an Oppo A5s); a rebuild (a setting changed) builds it all at once, so nothing flashes
         val rest = {

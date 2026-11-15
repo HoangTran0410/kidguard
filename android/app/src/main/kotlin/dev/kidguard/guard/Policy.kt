@@ -617,7 +617,9 @@ object Policy {
      * Call it on the Guard thread with the loop stopped. Returns "ok", "not owner" or "failed" (still Device Owner).
      */
     fun release(ctx: Context, s: Store): String {
+        runCatching { NavGest.restore(ctx) }   // 3-button bar back first (a failed release hides it again from the tick)
         val res = releaseAll(ctx, s)
+        if (res == "ok") runCatching { NavGest.release(ctx) }
         // background limits (appops) that could not go back (no Wireless debugging): kept in Store.bgLimited, retried at the next start
         val bg = s.bgLimited.size
         if (bg > 0) s.log(ctx.resources.getQuantityString(R.plurals.release_bg_left, bg, bg))

@@ -696,7 +696,7 @@
     <string name="hm_b_location">Location is off</string>
     <string name="hm_b_acc">KidGuard accessibility is off</string>
     <string name="hm_xiaomi_nav_t">Navigation will use 3 buttons</string>
-    <string name="hm_xiaomi_nav_b">On Xiaomi, Redmi and POCO, a non-Xiaomi home screen switches gestures to 3 buttons. The system does this; no setting keeps gestures. Pick Xiaomi\'s home screen again to get gestures back.</string>
+    <string name="hm_xiaomi_nav_b">On Xiaomi, Redmi and POCO, a non-Xiaomi home screen switches gestures to 3 buttons. The system does this; no setting keeps gestures. Pick Xiaomi\'s home screen again to get gestures back, or turn on "Swipe instead of 3 buttons" in Customize.</string>
     <string name="hm_xiaomi_nav_ok">Continue</string>
     <string name="hm_b_home">Not set as home screen yet</string>
     <string name="hm_b_guard">KidGuard is restarting</string>

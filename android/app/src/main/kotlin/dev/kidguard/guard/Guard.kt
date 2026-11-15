@@ -269,6 +269,7 @@ class Guard : Service() {
         opt("vpnPause") { VpnPause.tick(this, use.current, now) }
         opt("devPause") { DevOpts.tick(this, use.current, now) }
         opt("acc") { if (!AccPause.active(this)) Acc.ensureEnabled(this) }
+        opt("navGest") { NavGest.tick(this, use.current) }   // watchdog: Acc gone / paused / bank in front -> 3-button bar back
         opt("dns") { Policy.syncDns(this, r); Policy.retryDns(this, r) }
         opt("ts") { Ts.poll(this, store); Ts.keep(this, store, use.current, now) }
         opt("overlay") { if (now - lastOverlayTry > 6 * 3_600_000L) { lastOverlayTry = now; AccPause.grantOverlay(this, r) } }
@@ -1115,6 +1116,7 @@ class Guard : Service() {
 
         fun start(ctx: Context) {
             if (Flavor.HOME) return   // KidGuard Home: no Guard service (removed from its manifest)
+            runCatching { NavGest.boot(ctx) }   // boot / process start: the bar is visible until Acc connects
             if (Store.of(ctx).released) { Policy.retryShellEnable(ctx); return }   // after "release" nothing may bring us back (but apps we disabled via the shell still get enabled)
             runCatching { ctx.startForegroundService(Intent(ctx, Guard::class.java)) }.onFailure { Log.e("KidGuard", "start", it) }
         }

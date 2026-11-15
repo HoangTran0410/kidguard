@@ -675,7 +675,7 @@
     <string name="hm_b_location">Vị trí đang tắt</string>
     <string name="hm_b_acc">Trợ năng của KidGuard đang tắt</string>
     <string name="hm_xiaomi_nav_t">Điều hướng sẽ thành 3 nút</string>
-    <string name="hm_xiaomi_nav_b">Trên Xiaomi, Redmi, POCO: màn hình chính không phải của Xiaomi sẽ đổi cử chỉ thành 3 nút. Đây là do hệ thống, không có cài đặt giữ cử chỉ. Chọn lại màn hình chính Xiaomi để có cử chỉ.</string>
+    <string name="hm_xiaomi_nav_b">Trên Xiaomi, Redmi, POCO: màn hình chính không phải của Xiaomi sẽ đổi cử chỉ thành 3 nút. Đây là do hệ thống, không có cài đặt giữ cử chỉ. Chọn lại màn hình chính Xiaomi để có cử chỉ, hoặc bật "Vuốt thay cho 3 nút" trong Tuỳ chỉnh.</string>
     <string name="hm_xiaomi_nav_ok">Tiếp tục</string>
     <string name="hm_b_home">Chưa đặt làm màn hình chính</string>
     <string name="hm_b_guard">KidGuard đang khởi động lại</string>

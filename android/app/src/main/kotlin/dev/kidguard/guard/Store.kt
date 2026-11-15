@@ -695,6 +695,13 @@ class Store private constructor(private val app: Context) {
     var adbTcpReset: Long
         get() = p.getLong("adbTcpReset", 0L)
         set(v) { p.edit().putLong("adbTcpReset", v).apply() }
+    /** Own gesture navigation (NavGest, Xiaomi / Poco): the switch in Tuỳ chỉnh, default off. [fsgPrev] = `force_fsg_nav_bar` before we set it (-1 = not ours). */
+    var navGest: Boolean
+        get() = p.getBoolean("navGest", false)
+        set(v) { p.edit().putBoolean("navGest", v).commit() }
+    var fsgPrev: Int
+        get() = p.getInt("fsgPrev", -1)
+        set(v) { p.edit().putInt("fsgPrev", v).commit() }
     var adbTcpPrev: Int
         get() = p.getInt("adbTcpPrev", -1)
         set(v) { p.edit().putInt("adbTcpPrev", v).commit() }

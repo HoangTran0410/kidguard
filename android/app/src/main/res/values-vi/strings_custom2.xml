@@ -25,4 +25,8 @@
     <string name="cp_hue">Sắc màu</string>
     <string name="cp_sat">Độ đậm</string>
     <string name="cp_val">Độ sáng</string>
+    <string name="hm_c_nav_sw">Vuốt thay cho 3 nút</string>
+    <string name="hm_c_nav">Điều hướng</string>
+    <string name="hm_c_nav_note">Xiaomi/Poco: vuốt thay cho 3 nút. Trong app ngân hàng, 3 nút tự quay lại.</string>
+    <string name="hm_c_nav_need">Cần cấp quyền qua adb trước</string>
 </resources>

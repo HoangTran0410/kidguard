@@ -77,6 +77,7 @@ object AccPause {
         if (BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) != null) return false
         val had = s.accPaused
         s.accPaused = had + pkg; s.accLeftAt = 0L
+        runCatching { NavGest.sync(ctx, pkg) }   // the 3-button bar comes back before the bank opens
         runCatching { VpnPause.pause(ctx, pkg) }   // on that list too: the tunnel goes in the same step
         if (had.isEmpty()) {
             runCatching { s.log(R.string.log_acc_paused, label(ctx, pkg)) }

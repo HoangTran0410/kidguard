@@ -42,6 +42,7 @@ class Acc : AccessibilityService() {
     override fun onServiceConnected() {
         running = this; lastError = ""
         runCatching { Guard.start(this); Watchdog.schedule(this) }
+        runCatching { NavGest.sync(this, null) }   // own gestures + hidden 3-button bar (Xiaomi, switch on): only from here on
         runCatching { registerReceiver(wakeUp, android.content.IntentFilter(android.content.Intent.ACTION_SCREEN_ON).apply { addAction(android.content.Intent.ACTION_USER_PRESENT) }) }
         // back on (after a bank pause, a restart): no window event comes for the app already in front, so check it now
         main.postDelayed({ runCatching { rootInActiveWindow?.packageName?.toString()?.let { if (it != packageName) basicGuard(it) } } }, 600)
@@ -246,7 +247,20 @@ class Acc : AccessibilityService() {
     private val trail = Runnable { pokeNow() }
     private fun pokeNow() { lastPoke = System.currentTimeMillis(); runCatching { Guard.poke(this) } }
 
-    override fun onInterrupt() {}
+    override fun onInterrupt() { runCatching { NavGest.restore(this) } }   // not sure we keep running: bar back, the Guard tick hides it again
+
+    private var strips: NavGest.Strips? = null
+    /** Own gesture strips on / off (NavGest.sync), any thread. */
+    fun navStrips(on: Boolean) {
+        main.post {
+            if (on) { if (strips == null) strips = NavGest.Strips(this); strips?.show() }
+            else { strips?.hide(); strips = null }
+        }
+    }
+    override fun onConfigurationChanged(c: android.content.res.Configuration) {
+        super.onConfigurationChanged(c)
+        if (strips?.shown == true) { strips?.hide(); strips?.show() }   // rotation: new screen size
+    }
 
     /** Find-my-phone ring: a volume key stops it (and is eaten). Every other key passes straight through. */
     override fun onKeyEvent(e: android.view.KeyEvent): Boolean {
@@ -256,7 +270,7 @@ class Acc : AccessibilityService() {
     }
     override fun onUnbind(intent: android.content.Intent?): Boolean { drop(); return super.onUnbind(intent) }
     override fun onDestroy() { drop(); super.onDestroy() }
-    private fun drop() { runCatching { unregisterReceiver(wakeUp) }; main.removeCallbacks(trail); main.removeCallbacks(scan1); main.removeCallbacks(scan2); main.removeCallbacks(scan3); if (running === this) running = null; lastError = "acc off"; hideNotice() }
+    private fun drop() { runCatching { strips?.hide(); strips = null }; runCatching { unregisterReceiver(wakeUp) }; main.removeCallbacks(trail); main.removeCallbacks(scan1); main.removeCallbacks(scan2); main.removeCallbacks(scan3); if (running === this) running = null; lastError = "acc off"; hideNotice(); runCatching { NavGest.restore(applicationContext) } }
 
     companion object {
         /** AOSP string names of the uninstall / stop / deactivate buttons (Settings, PackageInstaller, SettingsLib). */
@@ -385,6 +399,7 @@ class Acc : AccessibilityService() {
                 val cur = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: ""
                 Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, without(cur, me))
             }
+            NavGest.restore(ctx)
         }
 
         /** Pause between two relay frames: projection frames (API < 30) come at most once a second. */

@@ -25,4 +25,8 @@
     <string name="cp_hue">Hue</string>
     <string name="cp_sat">Saturation</string>
     <string name="cp_val">Brightness</string>
+    <string name="hm_c_nav">Navigation</string>
+    <string name="hm_c_nav_sw">Swipe instead of 3 buttons</string>
+    <string name="hm_c_nav_note">Xiaomi/Poco: swipe instead of the 3 buttons. The buttons come back in bank apps.</string>
+    <string name="hm_c_nav_need">Needs an adb grant first</string>
 </resources>
