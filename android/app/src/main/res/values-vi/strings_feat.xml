@@ -83,4 +83,7 @@
     <string name="tamper_go">Nâng lên Device Owner</string>
     <string name="tamper_title">Chống lách bằng Device Owner</string>
     <string name="tamper_body">Ở chế độ cơ bản, bé vẫn có thể:\n• Khởi động vào Safe Mode: mọi chặn tạm mất.\n• Tắt Trợ năng, hoặc máy tự tắt nó: app không còn bị chặn.\n• Khôi phục cài đặt gốc, đổi giờ máy.\n\nDevice Owner khoá các đường này bằng hệ thống. App bị khoá hẳn, không mở lên rồi mới bị đẩy ra.\n\nTrước khi nâng cấp:\n• Tài khoản của app (Zalo, Facebook, Telegram...) được giữ: KidGuard tắt tạm các app đó và máy khởi động lại một lần khi cài.\n• Tài khoản của máy (Google, Xiaomi, Samsung, Oppo...) phải gỡ trước trong Cài đặt → Tài khoản. Cài xong đăng nhập lại, dữ liệu trên mạng vẫn còn.\n• Cần Android 11 trở lên và Wi-Fi, hoặc một máy tính.</string>
+    <string name="ev_call_blocked">Đã chặn cuộc gọi: %1$s</string>
+    <string name="call_hidden">số ẩn</string>
+    <string name="st_calls_role">Chặn cuộc gọi đang bật. Chạm vào đây một lần và cho KidGuard lọc cuộc gọi.</string>
 </resources>

@@ -625,5 +625,11 @@ L.en = {
   "rel.ask": "Remove controls: the kid's phone loses every limit and KidGuard can't control it any more.\nAlso erased on the relay: state, rules, log, location, Telegram link.\nOther parents get a notice that it was removed.",
   "kb.never": "No data yet",
   "kb.noAnswer": "Can't connect",
+  "calls.h": "Calls", "sd.calls": "Reject unknown or hidden callers (Android 10+)", "calls.off": "Allow all calls", "calls.unknown": "Block callers not in the contacts", "calls.hidden": "Block hidden numbers only",
+  "calls.c.unknown": "unknown callers", "calls.c.hidden": "hidden numbers", "calls.allowH": "Always allow these numbers", "calls.add": "Add", "calls.del": "Remove", "calls.max": "30 numbers is the most.", "calls.bad": "Not a phone number (3 to 15 digits)",
+  "calls.tip": "Rejected calls never ring on the phone and you get an alert. The phone's contacts always ring. Emergency numbers (112, 113, 114, 115) are never blocked.",
+  "calls.noApi": "This phone is older than Android 10: calls can't be screened. The call list below still works.", "calls.needRole": "Waiting: the kid must tap the call-blocking line in KidGuard once (or turn on Wireless debugging so it does this itself).",
+  "calls.noLog": "No call list yet: the phone has not allowed KidGuard to read its call log.", "calls.recent": "Last calls (7 days)", "calls.none": "No calls in the last 7 days.", "calls.hiddenNo": "Hidden number", "calls.t.blocked": "Blocked", "calls.t.missed": "Missed", "calls.min": "min",
+  "kw.calls.h": "phone call, calls, spam, scam, stranger, unknown number, private number, hidden number, block caller, call log, contacts",
   "app.waitPhone": "Waiting for the phone"
 };

@@ -28,6 +28,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <!-- "listen around" (LAN / Tailscale): the child always gets a beep + notification, see Listen.kt -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- call screening + recent calls (Calls.kt); kid flavor only -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <!-- wrong-PIN photo (rule pinShot, Shot.kt): front camera, told on the PIN dialog -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
@@ -344,6 +347,16 @@
         <receiver
             android:name=".RingStopReceiver"
             android:exported="false" />
+
+        <!-- rule `calls`: reject unknown / hidden callers; needs the CALL_SCREENING role (Calls.kt) -->
+        <service
+            android:name=".CallScreen"
+            android:exported="true"
+            android:permission="android.permission.BIND_SCREENING_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
 
         <!-- notification dots on the kid launcher's icons: counts only (NotifDots) -->
         <service

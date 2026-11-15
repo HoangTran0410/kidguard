@@ -817,6 +817,10 @@ class MainActivity : Activity() {
         line(R.drawable.li_map_pin, if (locOn) Ic.OK else Ic.WARN, getString(if (locOn) R.string.st_loc_on else R.string.st_loc_off))
         val pending = s.requests().length()
         if (pending > 0) kidLine(R.drawable.li_message_circle, Ic.INFO, resources.getQuantityString(R.plurals.st_pending, pending, pending))
+        Calls.roleIntent(this)?.let { it2 ->   // call blocking is on but the role is not ours yet (no own adb): one tap
+            kidLine(R.drawable.li_phone, Ic.WARN, getString(R.string.st_calls_role))
+            kidNotes.getChildAt(kidNotes.childCount - 1).setOnClickListener { runCatching { startActivityForResult(it2, 71) } }
+        }
         if (Listen.active) kidLine(R.drawable.li_mic, Ic.WARN, getString(R.string.notif_listen_title))
         if (s.sos().length() > 0) kidLine(R.drawable.li_siren, Ic.WARN, getString(R.string.st_sos))
         comfortRefresh(s) { icon, tone, text -> kidLine(icon, tone, text) }

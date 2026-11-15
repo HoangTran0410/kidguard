@@ -25,6 +25,8 @@
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:node="remove" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove" />
     <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" tools:node="remove" />
     <!-- implied by an old library's targetSdk, never used -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
@@ -54,6 +56,7 @@
         <receiver android:name=".Boot" tools:node="remove" />
         <receiver android:name=".Watchdog" tools:node="remove" />
         <receiver android:name=".UpdateReceiver" tools:node="remove" />
+        <service android:name=".CallScreen" tools:node="remove" />
         <service android:name=".LockTile" tools:node="remove" />
         <service android:name=".TimeTile" tools:node="remove" />
         <service android:name=".ProjService" tools:node="remove" />

@@ -85,6 +85,7 @@ function ruleChips(r) {
     more: more ? (noEnf = basic || st.owner === false || (r.blockNew && !r.noInstall && !canFeat("block")) || (r.lockLocation && !canFeat("lockLocation")), on(more + "/3" + (noEnf ? " · " + t("chip.noEnf") : ""), noEnf)) : off,
     dns: r.safeDns && st.dnsError ? [t("chip.dnsErr"), "bad"] : r.safeDns && st.dnsPausedUntil > Date.now() ? [t("chip.pausedTo", hhmm(st.dnsPausedUntil)), "warn"] : r.safeDns || r.noVpn ? on(esc((dns ? dns[1] : r.safeDns) || t("dns.novpn.short")), r.safeDns && !r.noVpn ? basic && !canFeat("dns") : basic) : off,
     anti: r.noDebug ? (noEnf = basic || st.owner === false || !canFeat("noUninstall"), on(noEnf ? t("chip.noEnf") : undefined, noEnf)) : off,
+    calls: callsChip(r),
     wind: windChip(r),
     home: r.launcher.on ? on(t({ be: "hm.sBe", teen: "hm.sTeen", gon: "hm.sGon" }[r.launcher.style] || "hm.sAuto"), basic || !!(st.launcher && st.launcher.err)) : off,
     kind: (n => n.length ? [n.join(" · "), "ok"] : off)([(r.lockInfo.msg || r.lockInfo.contact) && t("chip.lock"), r.blockNote && t("chip.note")].filter(Boolean)),
@@ -93,6 +94,7 @@ function ruleChips(r) {
 // Rules: one list, two groups under a small heading (time / blocking & safety; sub-tabs hid half the features, owner 2026-11-13). Zones + location log live in the "Vị trí" tab, the Authenticator in
 // "Cài đặt"; the same section HTML (ruleSecs) and wiring (rulesWire) serve all three, wiring only what is on screen.
 const RSEG = { time: ["daily", "chore", "grp", "bed", "wind", "sch"], safe: ["more", "dns", "anti", "home", "kind"] };
+RSEG.safe.splice(RSEG.safe.indexOf("dns") + 1, 0, "calls");   // calls: Calls.kt
 // v0.9.9 kid launcher: the phone answers with state.launcher {on, home, err, style, locked, pages}
 function homeStatus(r) {
   const L = st.launcher;
@@ -205,6 +207,7 @@ function ruleSecs(r) {
     ${isBasic() && canFeat("dns") ? `<p class="mute">${ic("info")} ${t("dns.basicWss")}</p>` : ""}
     <div class="${isBasic() ? "gated" : ""}"><label class="row" style="margin-top:8px"><input type="checkbox" id="f-nv" ${r.noVpn ? "checked" : ""}><span class="sp">${ic("shield")} ${t("dns.novpn")}</span></label>
     <p class="mute">${ic("info")} ${t("dns.novpn.tip")}</p></div>${isBasic() ? needOwner(t("no.vpn")) : ""}`),
+    calls: sec("r-calls", "phone", t("calls.h"), t("sd.calls"), C.calls, callsBody(r)),
     anti: sec("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ps" ${r.pinShot !== false ? "checked" : ""}><span class="sp">${ic("camera")} ${t("anti.shot")}</span></label>
     <p class="mute">${ic("info")} ${t("anti.shotTip")}</p>
     <div class="${isBasic() ? "gated" : ""}" style="margin-top:8px"><label class="row"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label></div>
@@ -365,6 +368,7 @@ function rulesWire(b, r) {
   $("#f-lostR").onchange = e => { r.lostRing = e.target.checked; changed(); };
   $("#f-lostm").oninput = e => { r.lostMsg = e.target.value.slice(0, 200); changed(); };
   $("#f-lostp").oninput = e => { r.lostPhone = e.target.value.replace(/[^\d+\-() ]/g, "").slice(0, 20); changed(); };
+  callsWire(r, $);
   wireComfort(b, r);
   $("#f-hm").onchange = e => { r.launcher.on = e.target.checked; changed(); };
   $("#f-hms").onchange = e => { r.launcher.style = e.target.value; changed(); };
@@ -456,4 +460,45 @@ function moreOwnerNote(r) {
   if (!w.length) return "";
   let s = w.join(", "); try { s = new Intl.ListFormat(lang, { type: "conjunction" }).format(w); } catch {}
   return w.length === 1 ? needOwner(s) : `<p class="mute keep">${ic("lock")} ${t("needOwnerN", s)}</p>`;
+}
+
+// ---- calls (Calls.kt, docs/protocol.md "Calls"): rule calls {block, allow[]}, state calls[] + callsCap ----
+const CALL_IC = { in: "phone-incoming", out: "phone-outgoing", missed: "phone-missed", rejected: "ban", blocked: "ban" };
+function callsProblem(r) {   // why the rule does nothing yet: [key, tone] or null
+  const c = st && st.callsCap;
+  if (r.calls.block === "off" || !c) return null;
+  return c.api === false ? ["calls.noApi", "bad"] : !c.screen ? ["calls.needRole", "warn"] : null;
+}
+function callsChip(r) {
+  if (r.calls.block === "off") return [t("off")];
+  const p = callsProblem(r);
+  return [t("on") + " · " + t("calls.c." + r.calls.block), p ? p[1] : "ok"];
+}
+function callsBody(r) {
+  const c = r.calls, cap = (st && st.callsCap) || {}, list = Array.isArray(st && st.calls) ? st.calls : [], p = callsProblem(r);
+  const opt = (v, k) => `<option value="${v}" ${c.block === v ? "selected" : ""}>${t(k)}</option>`;
+  const row = x => { const bl = x.type === "rejected" || x.type === "blocked", num = x.n || t("calls.hiddenNo");
+    return `<div class="row" style="margin-top:6px;flex-wrap:nowrap"><span class="${bl ? "" : "mute"}">${ic(CALL_IC[x.type] || "phone")}</span><span class="sp" style="min-width:0;overflow-wrap:anywhere"><b>${esc(x.name || num)}</b>${x.name ? ` <span class="mute">${esc(x.n)}</span>` : ""}<br><span class="mute">${bl ? t("calls.t.blocked") + " · " : x.type === "missed" ? t("calls.t.missed") + " · " : ""}${esc(new Date(+x.t || 0).toLocaleString())}${+x.dur > 0 ? " · " + Math.ceil(+x.dur / 60) + " " + t("calls.min") : ""}</span></span></div>`; };
+  return `    <select id="f-cblk" aria-label="${esc(t("calls.h"))}">${opt("off", "calls.off")}${opt("unknown", "calls.unknown")}${opt("hidden", "calls.hidden")}</select>
+    <p class="mute">${ic("info")} ${t("calls.tip")}</p>
+    ${p ? `<p>${ic("triangle-alert")} ${t(p[0])}</p>` : ""}
+    <div id="f-callow" ${c.block === "unknown" ? "" : 'style="display:none"'}><b>${ic("check")} ${t("calls.allowH")}</b>
+    ${c.allow.map((n, i) => `<div class="row" style="margin-top:6px"><span class="sp">${esc(n)}</span><button type="button" data-cdel="${i}" aria-label="${esc(t("calls.del"))}">${ic("x")}</button></div>`).join("")}
+    ${c.allow.length < 30 ? `<div class="row" style="margin-top:8px"><input type="tel" id="f-cnum" inputmode="tel" autocomplete="off" placeholder="+84 912 345 678" style="flex:1;min-width:0" aria-label="${esc(t("calls.allowH"))}"><button type="button" id="f-cadd">${ic("plus")} ${t("calls.add")}</button></div>` : `<p class="mute">${t("calls.max")}</p>`}</div>
+    <div style="margin-top:12px"><b>${ic("phone")} ${t("calls.recent")}</b>
+    ${cap.log ? (list.length ? list.slice(0, 30).map(row).join("") : `<p class="mute">${t("calls.none")}</p>`) : `<p class="mute">${ic("info")} ${t("calls.noLog")}</p>`}</div>`;
+}
+function callsWire(r, $) {
+  $("#f-cblk").onchange = e => { r.calls.block = e.target.value; changed(); render(); };
+  const add = () => {
+    const el = $("#f-cnum"), raw = (el.value || "").trim(), d = raw.replace(/\D/g, "");
+    if (!raw) return;
+    if (d.length < 3 || d.length > 15) { toast("warn|" + t("calls.bad")); return; }
+    const key = n => { const x = n.replace(/\D/g, ""); return /^0084\d{11,12}$/.test(x) ? "0" + x.slice(4) : /^84\d{9,10}$/.test(x) ? "0" + x.slice(2) : x; };
+    const v = (raw[0] === "+" ? "+" : "") + d;
+    if (!r.calls.allow.some(n => key(n) === key(v)) && r.calls.allow.length < 30) { r.calls.allow.push(v); changed(); render(); }
+  };
+  $("#f-cadd").onclick = add;
+  $("#f-cnum").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); add(); } };
+  document.querySelectorAll("[data-cdel]").forEach(x => x.onclick = () => { r.calls.allow.splice(+x.dataset.cdel, 1); changed(); render(); });
 }

@@ -79,6 +79,7 @@ object Policy {
         if (Build.VERSION.SDK_INT >= 29) perms += Manifest.permission.ACCESS_BACKGROUND_LOCATION
         if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
         if (Build.VERSION.SDK_INT < 29) perms += Manifest.permission.WRITE_EXTERNAL_STORAGE   // parent's files -> Download/KidGuard (Files.kt); 29+ uses MediaStore
+        if (!Flavor.HOME) perms += listOf(Manifest.permission.READ_CONTACTS, Manifest.permission.READ_CALL_LOG)   // call list + screening (Calls.kt)
         perms += Manifest.permission.RECORD_AUDIO   // "listen around"; the child is always told when it is used (Listen.kt)
         if (r.pinShot) perms += Manifest.permission.CAMERA   // wrong-PIN photo only (Shot.kt), told on the PIN dialog
         for (p in perms) runCatching {
@@ -627,6 +628,7 @@ object Policy {
     }
 
     private fun releaseAll(ctx: Context, s: Store): String {
+        runCatching { Calls.release(ctx, s) }   // CALL_SCREENING role we added through adb goes back
         runCatching { Health.bgRestore(ctx, s) }.onFailure { Log.w(TAG, "bg restore", it) }   // background limits we set (appops) go back to allow, both modes
         runCatching { FocusStore.release(ctx) }   // study mode: session, DND we set, schedule
         if (!isOwner(ctx)) {
@@ -679,6 +681,10 @@ object Policy {
             d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED)
             d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT)
         }.onFailure { Log.w(TAG, "camera revoke", it) }
+        for (p in listOf(Manifest.permission.READ_CONTACTS, Manifest.permission.READ_CALL_LOG)) runCatching {   // granted by us (apply): taken back like the mic
+            d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED)
+            d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT)
+        }
         runCatching { Shot.clear(ctx) }; runCatching { Tg.clear(s, ctx) }
         s.released = true
         Watchdog.cancel(ctx)
@@ -701,7 +707,7 @@ object Policy {
     private fun clearLost(s: Store) {
         s.lostApplied = false; s.lostRingStopped = false; s.lostRingAt = 0
         val b = s.baseRules   // a timed mode must not outlive us either
-        if (b.lostOn || b.passUntil > 0 || b.mode != null) s.baseRules = b.copy(lostOn = false, passUntil = 0, mode = null)
+        if (b.lostOn || b.passUntil > 0 || b.mode != null || b.calls.block != "off") s.baseRules = b.copy(lostOn = false, passUntil = 0, mode = null, calls = CallRule())   // call screening must not outlive us either
     }
 
     /** Basic mode: stop blocking, drop the device admin (the app can be uninstalled again), forget the parents. "not owner" when there is no admin. */
