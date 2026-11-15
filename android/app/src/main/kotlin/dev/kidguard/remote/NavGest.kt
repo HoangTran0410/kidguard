@@ -192,28 +192,48 @@ object NavGest {
 
         override fun onDetachedFromWindow() { arrowOff(); super.onDetachedFromWindow() }
 
+        // Recents: a timer, not the next MOVE (a finger held still sends no events) and not the lift (lifting drifts a
+        // few px, which reset the old "still since" check: 2026-11-15 Poco "swipe up and hold does nothing")
+        private var hold = false
+        private var lastP = 0f
+        private val holdCheck = Runnable {
+            if (edge == NavGestLogic.Edge.BOTTOM && armed && !hold) {
+                hold = true; performHapticFeedback(HapticFeedbackConstants.LONG_PRESS); arrow?.set(lastP, true)
+            }
+        }
+
         override fun onTouchEvent(e: MotionEvent): Boolean {
             when (e.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { x0 = e.rawX; y0 = e.rawY; ax = x0; ay = y0; movedAt = e.eventTime; armed = false }
+                MotionEvent.ACTION_DOWN -> {
+                    x0 = e.rawX; y0 = e.rawY; ax = x0; ay = y0; movedAt = e.eventTime; armed = false; hold = false
+                    removeCallbacks(holdCheck)
+                }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = e.rawX - ax; val dy = e.rawY - ay
-                    if (dx * dx + dy * dy > still * still) { ax = e.rawX; ay = e.rawY; movedAt = e.eventTime }
                     val p = NavGestLogic.progress(edge, e.rawX - x0, e.rawY - y0, min)
-                    if (p > 0.15f) { arrowAt(e.rawX, e.rawY); arrow?.set(p, edge == NavGestLogic.Edge.BOTTOM && p >= 1f && e.eventTime - movedAt >= NavGestLogic.HOLD_MS) }
+                    lastP = p
+                    if (dx * dx + dy * dy > still * still) {
+                        ax = e.rawX; ay = e.rawY; movedAt = e.eventTime
+                        if (!hold) { removeCallbacks(holdCheck); postDelayed(holdCheck, NavGestLogic.HOLD_MS) }
+                    }
                     val now = p >= 1f
                     if (now && !armed) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     armed = now
+                    if (!armed) hold = false                       // pulled back: neither Home nor Recents
+                    if (p > 0.15f) { arrowAt(e.rawX, e.rawY); arrow?.set(p, hold) }
                 }
                 MotionEvent.ACTION_UP -> {
+                    removeCallbacks(holdCheck)
                     arrowOff()
-                    val act = NavGestLogic.classify(edge, e.rawX - x0, e.rawY - y0, e.eventTime - movedAt, min)
-                    if (act != NavGestLogic.Act.NONE) svc.performGlobalAction(when (act) {
+                    val act = NavGestLogic.classify(edge, e.rawX - x0, e.rawY - y0, if (hold) NavGestLogic.HOLD_MS else 0L, min)
+                    val ok = act != NavGestLogic.Act.NONE && svc.performGlobalAction(when (act) {
                         NavGestLogic.Act.BACK -> AccessibilityService.GLOBAL_ACTION_BACK
                         NavGestLogic.Act.HOME -> AccessibilityService.GLOBAL_ACTION_HOME
                         else -> AccessibilityService.GLOBAL_ACTION_RECENTS
                     })
+                    android.util.Log.i("kgNav", "$edge $act ok=$ok")
                 }
-                MotionEvent.ACTION_CANCEL -> arrowOff()
+                MotionEvent.ACTION_CANCEL -> { removeCallbacks(holdCheck); arrowOff() }
             }
             return true
         }
