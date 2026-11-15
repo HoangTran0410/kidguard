@@ -189,11 +189,13 @@ internal class WallDim(ctx: android.content.Context, private val wall: android.g
     private val dimColor = android.graphics.Color.argb(if (covers) 110 else 200, 0, 0, 0)
     private val r = android.graphics.Rect()
     init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
-    override fun hasOverlappingRendering() = false   // alpha per draw call, no offscreen buffer each frame
+    // The view's alpha (the zoom) is applied by the RenderNode to each draw call (no offscreen buffer). Never read
+    // `alpha` here: changing it does not redraw, so the first frame's alpha (~0) stayed baked in and the home vanished
+    // at the end instead of fading (owner, Poco, 11-15)
+    override fun hasOverlappingRendering() = false
     override fun onDraw(c: android.graphics.Canvas) {
-        val a = (alpha * 255).toInt()
-        wall?.takeIf { !it.isRecycled }?.let { r.set(0, 0, width, height); paint.alpha = a; c.drawBitmap(it, null, r, paint) }
-        c.drawColor(android.graphics.Color.argb((android.graphics.Color.alpha(dimColor) * alpha).toInt(), 0, 0, 0))
+        wall?.takeIf { !it.isRecycled }?.let { r.set(0, 0, width, height); c.drawBitmap(it, null, r, paint) }
+        c.drawColor(dimColor)
     }
 }
 
