@@ -64,8 +64,13 @@ object NavGest {
      *  off on the lock screen (its own unlock swipe; no navigation needed there). */
     private fun strips(ctx: Context, hide: Boolean, s: Store) {
         val locked = runCatching { (ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager).isKeyguardLocked }.getOrDefault(false)
-        Acc.running?.navStrips((hide && !locked) || s.fsgPrev >= 0)
+        Acc.running?.navStrips(((hide || test(ctx)) && !locked) || s.fsgPrev >= 0)
     }
+
+    /** adb-only test of the strips on any phone (never touches the bar): `settings put global kg_nav_test <epoch ms>`
+     *  shows them until that time. Only the shell (or a WRITE_SECURE_SETTINGS app) can set it. */
+    private fun test(ctx: Context): Boolean =
+        runCatching { Settings.Global.getLong(ctx.contentResolver, "kg_nav_test", 0L) > System.currentTimeMillis() }.getOrDefault(false)
 
     /** Set from Acc when a strip could not be attached; cleared on Acc connect. */
     @Volatile var stripsFailed = false
