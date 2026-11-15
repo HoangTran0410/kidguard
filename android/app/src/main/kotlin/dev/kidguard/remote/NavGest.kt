@@ -108,22 +108,21 @@ object NavGest {
     /** Three overlay windows. No per-frame allocation: fields are reused; touches only compare floats. */
     class Strips(private val svc: AccessibilityService) {
         private val wm = svc.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        private val views = arrayOfNulls<Strip>(3)
+        private val views = arrayOfNulls<Strip>(1)
         val shown get() = views[0] != null
 
-        /** All three or none (a half set would be re-added every tick). False = the overlay was refused. */
+        /** The bottom strip. False = the overlay was refused. */
         fun show(): Boolean {
             if (shown) return true
             val dm = DisplayMetrics()
             @Suppress("DEPRECATION") wm.defaultDisplay.getRealMetrics(dm)
             val d = dm.density
-            val w = (18 * d).toInt(); val h = (12 * d).toInt()   // bottom thin: it sits over the keyboard's lowest edge
-            val top = dm.heightPixels / 4
+            val h = (12 * d).toInt()   // thin: it sits over the keyboard's lowest edge
             // NOT LayoutParams(w, h, x, y, gravity): that 5-int constructor is (w, h, type, flags, format), so the gravity
             // was lost and every strip sat in the middle of the screen (Poco 2026-11-15: "swipes do nothing")
-            add(0, NavGestLogic.Edge.LEFT, w, dm.heightPixels - top - h, top, Gravity.TOP or Gravity.LEFT)
-            add(1, NavGestLogic.Edge.RIGHT, w, dm.heightPixels - top - h, top, Gravity.TOP or Gravity.RIGHT)
-            add(2, NavGestLogic.Edge.BOTTOM, dm.widthPixels, h, 0, Gravity.BOTTOM or Gravity.LEFT)
+            // bottom only: HyperOS's own edge Back keeps working with fsg=1 and another home (owner test 2026-11-15),
+            // only swipe-up Home / Recents die (they live in the system launcher)
+            add(0, NavGestLogic.Edge.BOTTOM, dm.widthPixels, h, 0, Gravity.BOTTOM or Gravity.LEFT)
             if (views.any { it == null }) { hide(); return false }
             return true
         }

@@ -108,6 +108,7 @@ Index and the rule for adding lines: `README.md`.
 - Defaults of 1.6x font and fixed heights in child UI: use min-height + wrapping (d1c75da)
 - Hiding the Poco-detected "gesture nav becomes 3 buttons" side effect: can't fix; the launcher warns before the user picks (HomeMenus.kt:139)
   - 2026-11-15 (Poco, HyperOS OS3.0, SDK 36): `settings put global force_fsg_nav_bar 1` (WRITE_SECURE_SETTINGS) hides the 3-button bar (navigation_mode 0 -> 2) but swipes do NOTHING with KidGuard as home: HyperOS gestures live in POCO Launcher's TouchInteractionService (ignored when it is not the default home) and SystemUI EdgeBackGestureHandler stays disabled. With the bar hidden, key events still work: HOME -> KidGuard home, APP_SWITCH -> POCO Launcher RecentsActivity (recents OK), BACK OK. So own gestures (accessibility edge strips -> performGlobalAction) + fsg=1 is viable; fsg must go back to 0 whenever our accessibility is off/paused (bank apps) or the phone is stuck with no navigation.
+  - 2026-11-15 owner test, correction: with fsg=1 and KidGuard as home, HyperOS's own edge Back WORKS (top and bottom half); only swipe-up Home and swipe-up-hold Recents do nothing. NavGest now draws only the bottom strip.
 
 ## Past bugs (cause -> fix -> avoid)
 - Duplicate Truecaller in dock (dialer that is also SMS app) -> de-dup (ce7a9de)

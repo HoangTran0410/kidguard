@@ -180,7 +180,7 @@ Trigger: menu "Tuỳ chỉnh". Same task, not in recents; reloads home on resume
    JPEG <=300 KB to filesDir/wall.jpg (tmp+rename) -> `style.wallKind="photo"`.
 5. Locked (`rules.launcher.lockCustom`): read-only with note; `guard()` toasts. Lock hint hidden in Home flavor.
 
-Xiaomi / Poco only: switch "Vuốt thay cho 3 nút" (`Store.navGest`, `NavGest`): hides the 3-button bar and Acc's overlay strips give Back / Home / Recents; bar returns whenever Acc is off / paused / a bank app is in front (details: docs/decisions/launcher.md 2026-11-15).
+Xiaomi / Poco only: switch "Vuốt thay cho 3 nút" (`Store.navGest`, `NavGest`): hides the 3-button bar and HyperOS keeps its edge Back; an Acc overlay strip at the bottom gives Home / Recents; bar returns whenever Acc is off / paused / a bank app is in front (details: docs/decisions/launcher.md 2026-11-15).
 
 ### 3.12 Parent `launcher.*` rules
 
