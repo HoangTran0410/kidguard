@@ -196,14 +196,6 @@ object NavGest {
         // few px, which reset the old "still since" check: 2026-11-15 Poco "swipe up and hold does nothing")
         private var hold = false
         private var lastP = 0f
-        // Circle to Search: finger held still on the bottom edge (POCO: long-press the handle)
-        private var moved = false
-        private var cts = false
-        private val ctsCheck = Runnable {
-            if (edge == NavGestLogic.Edge.BOTTOM && !moved && !armed) {
-                cts = true; performHapticFeedback(HapticFeedbackConstants.LONG_PRESS); circleToSearch(svc)
-            }
-        }
         private val holdCheck = Runnable {
             if (edge == NavGestLogic.Edge.BOTTOM && armed && !hold) {
                 hold = true; performHapticFeedback(HapticFeedbackConstants.LONG_PRESS); arrow?.set(lastP, true)
@@ -214,13 +206,10 @@ object NavGest {
             when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     x0 = e.rawX; y0 = e.rawY; ax = x0; ay = y0; movedAt = e.eventTime; armed = false; hold = false
-                    removeCallbacks(holdCheck); moved = false; cts = false
-                    removeCallbacks(ctsCheck); if (edge == NavGestLogic.Edge.BOTTOM) postDelayed(ctsCheck, CTS_MS)
+                    removeCallbacks(holdCheck)
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = e.rawX - ax; val dy = e.rawY - ay
-                    if (cts) return true
-                    if (!moved && (e.rawX - x0).let { it * it } + (e.rawY - y0).let { it * it } > still * still) { moved = true; removeCallbacks(ctsCheck) }
                     val p = NavGestLogic.progress(edge, e.rawX - x0, e.rawY - y0, min)
                     lastP = p
                     if (dx * dx + dy * dy > still * still) {
@@ -234,9 +223,8 @@ object NavGest {
                     if (p > 0.15f) { arrowAt(e.rawX, e.rawY); arrow?.set(p, hold) }
                 }
                 MotionEvent.ACTION_UP -> {
-                    removeCallbacks(holdCheck); removeCallbacks(ctsCheck)
+                    removeCallbacks(holdCheck)
                     arrowOff()
-                    if (cts) return true
                     val act = NavGestLogic.classify(edge, e.rawX - x0, e.rawY - y0, if (hold) NavGestLogic.HOLD_MS else 0L, min)
                     // HyperOS with another home: GLOBAL_ACTION_RECENTS only "blinks" home (the launcher loads its task list
                     // but can't show it); opening the launcher's RecentsActivity directly works (Poco 2026-11-15)
@@ -247,27 +235,13 @@ object NavGest {
                     }))
                     android.util.Log.i("kgNav", "$edge $act ok=$ok")
                 }
-                MotionEvent.ACTION_CANCEL -> { removeCallbacks(holdCheck); removeCallbacks(ctsCheck); arrowOff() }
+                MotionEvent.ACTION_CANCEL -> { removeCallbacks(holdCheck); arrowOff() }
             }
             return true
         }
     }
 
     private const val CTS_MS = 500L
-
-    /**
-     * Circle to Search, the real one: only the system (SystemUI / the system launcher) may start it (Android 15
-     * ContextualSearchManager is signature-only, Google's entry activity needs the system's token). A long press of the
-     * HOME key is what HyperOS maps to it (secure `long_press_home_key_no_ui=launch_google_search`), and `input` can send
-     * that key from a shell: KidGuard's own adb when it is already reachable. Never opens the adb window for it (that
-     * turns Developer options on, banking apps refuse). No shell: nothing happens (logged).
-     */
-    private fun circleToSearch(ctx: Context) = Thread {
-        val ok = runCatching {
-            dev.kidguard.SelfAdb.ready(ctx) && dev.kidguard.SelfAdb.run(ctx, "input keyevent --longpress KEYCODE_HOME") != null
-        }.getOrDefault(false)
-        android.util.Log.i("kgNav", "circle to search ok=$ok")
-    }.start()
 
     /** The system launcher's own Recents screen (MIUI / HyperOS / POCO launcher), false when there is none. */
     private fun miuiRecents(ctx: Context): Boolean {
