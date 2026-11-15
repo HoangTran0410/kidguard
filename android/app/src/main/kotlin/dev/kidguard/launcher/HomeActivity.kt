@@ -1500,7 +1500,7 @@ class HomeActivity : Activity() {
          */
         private fun box(cw: Int, ch: Int, lp: CellLP): IntArray {
             // icons: the gap across only; down, the label's own padding and the next icon's 4 dp top pad space the rows (iOS)
-            if (!lp.widget) return intArrayOf(0, 0, cw * lp.w - gap, ch * lp.h)
+            if (!lp.widget) return intArrayOf(0, 0, cw * lp.w - gap, ch * lp.h, 0)
             val icon = iconPx().coerceAtMost(minOf(cw, ch) - gap)
             val ix = ((cw - gap - icon) / 2).coerceAtLeast(0)
             val top = dp(5).coerceAtMost((ch - gap - icon).coerceAtLeast(0))        // appIcon: 4 dp box padding + 1 dp frame

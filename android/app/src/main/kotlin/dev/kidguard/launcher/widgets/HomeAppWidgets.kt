@@ -60,12 +60,27 @@ internal class KgHostView(ctx: Context) : AppWidgetHostView(ctx) {
 
     // AppWidgetHostView adds the system's default widget padding (~8 dp a side) in setAppWidget. The grid already insets
     // widgets to the icon edges (CellLayout.box), so that padding pushed other apps' widgets ~8 dp inside the icon columns.
-    override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) = super.setPadding(0, 0, 0, 0)
+    // Since Android 12 widgets pad themselves (Google Photos: 13 dp inside its own layout), so the host gives them the
+    // cells INCLUDING half the gap around ([edge], set by the grid) like Launcher3 / POCO; in our icon-edge box Photos
+    // 2x2 drew 400 px next to our own 484 px widgets (Poco 2026-11-15). Older widgets don't pad: [edge] here keeps them
+    // on the icon edges as before.
+    var edge = 0
+        set(v) { if (field != v) { field = v; setPadding(0, 0, 0, 0) } }
+    // a getter, not a lazy / field: setPadding can run from the super constructor and before setAppWidget (info unknown)
+    private val selfPads: Boolean get() {
+        val pkg = appWidgetInfo?.provider?.packageName ?: return false
+        return runCatching { context.packageManager.getApplicationInfo(pkg, 0).targetSdkVersion >= 31 }.getOrDefault(false)
+    }
+    override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
+        val e = if (selfPads) 0 else edge
+        super.setPadding(e, e, e, e)
+    }
 
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
         super.onSizeChanged(w, h, ow, oh)
         val d = resources.displayMetrics.density
-        if (w > 0 && h > 0) runCatching { updateAppWidgetSize(null, (w / d).toInt(), (h / d).toInt(), (w / d).toInt(), (h / d).toInt()) }
+        val iw = w - paddingLeft - paddingRight; val ih = h - paddingTop - paddingBottom
+        if (iw > 0 && ih > 0) runCatching { updateAppWidgetSize(null, (iw / d).toInt(), (ih / d).toInt(), (iw / d).toInt(), (ih / d).toInt()) }
     }
 }
 

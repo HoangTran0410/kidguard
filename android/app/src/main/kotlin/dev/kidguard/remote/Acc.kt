@@ -267,6 +267,7 @@ class Acc : AccessibilityService() {
         }
     }
     private fun navFail() {
+        android.util.Log.w("kgNav", "strips off")
         strips?.hide(); strips = null; NavGest.stripsFailed = true
         val app = applicationContext
         Thread({ runCatching { NavGest.restore(app) } }, "nav-restore").start()

@@ -117,7 +117,10 @@ object NavGest {
             val dm = DisplayMetrics()
             @Suppress("DEPRECATION") wm.defaultDisplay.getRealMetrics(dm)
             val d = dm.density
-            val w = (18 * d).toInt(); val h = (12 * d).toInt()   // bottom thin: it sits over the keyboard's lowest edge
+            // bottom 24 dp like HyperOS's own GestureStubHome (77-81 of 2712 px): at 12 dp a thumb's long press for Circle to
+            // Search landed above it, on the app (Poco 2026-11-15). Taps on any strip are passed through ([Strip.passTap]),
+            // so the keyboard's lowest row / an app's bottom bar still get them.
+            val w = (18 * d).toInt(); val h = (24 * d).toInt()
             val top = dm.heightPixels / 10                        // like HyperOS's own stubs (260 of 2712 px): not the status bar corner
             // NOT LayoutParams(w, h, x, y, gravity): that 5-int constructor is (w, h, type, flags, format), so the gravity
             // was lost and every strip sat in the middle of the screen (Poco 2026-11-15: "swipes do nothing")
@@ -136,13 +139,17 @@ object NavGest {
             lp.title = "kgNav$i"
             val dm = svc.resources.displayMetrics.density
             val v = Strip(svc, wm, edge, NavGestLogic.MIN_DP * dm, NavGestLogic.STILL_DP * dm)
-            v.wantW = w; v.wantH = h
+            v.wantW = w; v.wantH = h; v.lp = lp
             if (runCatching { wm.addView(v, lp) }.isSuccess) views[i] = v
         }
 
         /** Size check after layout: a strip bigger than asked would sit over the whole screen and eat every touch
          *  (2026-11-15: LayoutParams(w, h) is really (type, flags) -> MATCH_PARENT, the Poco was stuck). */
-        fun sane(): Boolean = views.all { v -> v != null && v.width in 1..maxOf(v.wantW, 1) + 2 && v.height in 1..maxOf(v.wantH, 1) + 2 }
+        // only TOO BIG is dangerous; 0 = not laid out yet (a rotation / config re-show just before the 400 ms check turned
+        // the strips off for good on the Poco, 2026-11-15)
+        fun sane(): Boolean = views.all { v -> v != null && v.width <= v.wantW + 2 && v.height <= v.wantH + 2 }.also {
+            if (!it) android.util.Log.w("kgNav", "strips not sane: " + views.joinToString { v -> "${v?.width}x${v?.height}/${v?.wantW}x${v?.wantH}" })
+        }
 
         fun hide() {
             for (i in views.indices) { views[i]?.let { v -> runCatching { wm.removeViewImmediate(v) } }; views[i] = null }
@@ -168,6 +175,32 @@ object NavGest {
     private class Strip(private val svc: AccessibilityService, private val wm: WindowManager, private val edge: NavGestLogic.Edge,
                         private val min: Float, private val still: Float) : View(svc) {
         var wantW = 0; var wantH = 0
+        var lp: WindowManager.LayoutParams? = null
+        private var downAt = 0L
+
+        /** A tap (no move, short) belongs to the app below: stop catching touches, replay it there, catch again. */
+        private fun passTap(x: Float, y: Float) {
+            val l = lp ?: return
+            l.flags = l.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            if (runCatching { wm.updateViewLayout(this, l) }.isFailure) return
+            removeCallbacks(catchAgain); postDelayed(catchAgain, 500)          // whatever the gesture callback does
+            postDelayed({
+                val path = android.graphics.Path().apply { moveTo(x, y) }
+                val g = android.accessibilityservice.GestureDescription.Builder()
+                    .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 40)).build()
+                val cb = object : AccessibilityService.GestureResultCallback() {
+                    override fun onCompleted(d: android.accessibilityservice.GestureDescription?) { removeCallbacks(catchAgain); post(catchAgain) }
+                    override fun onCancelled(d: android.accessibilityservice.GestureDescription?) { removeCallbacks(catchAgain); post(catchAgain) }
+                }
+                if (!svc.dispatchGesture(g, cb, null)) { removeCallbacks(catchAgain); catchAgain.run() }
+            }, 20)
+        }
+        private val catchAgain = Runnable {
+            val l = lp ?: return@Runnable
+            if (l.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE == 0) return@Runnable
+            l.flags = l.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+            if (isAttachedToWindow) runCatching { wm.updateViewLayout(this, l) }
+        }
         private var x0 = 0f; private var y0 = 0f
         private var ax = 0f; private var ay = 0f      // anchor for "still"
         private var movedAt = 0L
@@ -194,7 +227,7 @@ object NavGest {
 
         private fun arrowOff() { arrow?.let { a -> runCatching { wm.removeViewImmediate(a) } }; arrow = null; arrowLp = null }
 
-        override fun onDetachedFromWindow() { arrowOff(); super.onDetachedFromWindow() }
+        override fun onDetachedFromWindow() { arrowOff(); removeCallbacks(catchAgain); super.onDetachedFromWindow() }
 
         // Recents: a timer, not the next MOVE (a finger held still sends no events) and not the lift (lifting drifts a
         // few px, which reset the old "still since" check: 2026-11-15 Poco "swipe up and hold does nothing")
@@ -217,7 +250,7 @@ object NavGest {
         override fun onTouchEvent(e: MotionEvent): Boolean {
             when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    x0 = e.rawX; y0 = e.rawY; ax = x0; ay = y0; movedAt = e.eventTime; armed = false; hold = false
+                    x0 = e.rawX; y0 = e.rawY; ax = x0; ay = y0; movedAt = e.eventTime; downAt = e.eventTime; armed = false; hold = false
                     removeCallbacks(holdCheck); moved = false; cts = false
                     removeCallbacks(ctsCheck); if (edge == NavGestLogic.Edge.BOTTOM) postDelayed(ctsCheck, CTS_MS)
                 }
@@ -241,6 +274,7 @@ object NavGest {
                     removeCallbacks(holdCheck); removeCallbacks(ctsCheck)
                     arrowOff()
                     if (cts) return true
+                    if (!moved && e.eventTime - downAt < CTS_MS) { passTap(e.rawX, e.rawY); return true }
                     val act = NavGestLogic.classify(edge, e.rawX - x0, e.rawY - y0, if (hold) NavGestLogic.HOLD_MS else 0L, min)
                     // HyperOS with another home: GLOBAL_ACTION_RECENTS only "blinks" home (the launcher loads its task list
                     // but can't show it); opening the launcher's RecentsActivity directly works (Poco 2026-11-15)
