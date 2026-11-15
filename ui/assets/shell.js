@@ -177,16 +177,6 @@ const QS = [
   ["dev", "d-act", "", "zap", ["dv.act"]], ["dev", "d-bat", "", "battery-full", ["dv.bat"]], ["dev", "d-ram", "", "memory-stick", ["dv.ram"]],
   ["dev", "d-sto", "", "hard-drive", ["dv.sto"]], ["dev", "d-sys", "", "smartphone", ["dv.sys"]],
 ];
-// Settings that live only on the kid phone (launcher Tuỳ chỉnh): found here too, a tap says where to change them
-// (owner 2026-11-15). Row: [Android string name of the section in CustomActivity.kt, icon, [title key, words key]].
-// scripts/check-search.mjs fails when a CustomActivity section has no row here.
-const QS_PHONE = [
-  ["hm_c_home", "house", ["qp.home", "qp.home.k"]], ["hm2_c_read", "book-open", ["qp.read", "qp.read.k"]],
-  ["hm_c_nav", "smartphone", ["qp.nav", "qp.nav.k"]], ["hm_c_wall", "image", ["qp.wall", "qp.wall.k"]],
-  ["hm_c_accent", "image", ["qp.accent", "qp.accent.k"]], ["hm_c_theme", "sun-moon", ["qp.theme", "qp.theme.k"]],
-  ["hm_c_text", "book-open", ["qp.text", "qp.text.k"]], ["hm_lay_title", "layout-grid", ["qp.lay", "qp.lay.k"]],
-  ["gest_title", "hand", ["qp.gest", "qp.gest.k"]], ["bk_title", "save", ["qp.bk", "qp.bk.k"]],
-];
 const qsFold = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^\p{L}\p{N}\s]/gu, "");   // "Wi-Fi" = "wifi"
 const qsShort = s => s.split(/ \(|\. |: /)[0].slice(0, 80);   // a long switch label: its first clause
 const qsTxt = k => hasT(k) ? String(t(k)).replace(/<[^>]*>/g, "").replace(/\{\d\}/g, "") : "";
@@ -211,16 +201,9 @@ function qsFind1(q, near) {
     if (hit) out.push({ tab: tb, sec: sid, seg, icon: i, title: qsShort(hit), where: where + " › " + qsTxt(keys[0]) });
     else if (has(keys.map(qsTxt).join(" ") + " " + kw(keys[0]))) out.push({ tab: tb, sec: sid, seg, icon: i, title: qsTxt(keys[0]), where });
   }
-  for (const [, i, keys] of QS_PHONE) if (has(keys.map(qsTxt).join(" "))) out.push({ phone: qsTxt(keys[0]), icon: i, title: qsTxt(keys[0]), where: t("qp.where") });
   return out;
 }
 function qsGo(e) {
-  if (e.phone) {   // not on this page: say where it is on the kid phone
-    sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("smartphone", e.phone)}<p>${esc(t("qp.how", e.phone))}</p>
-      <div class="row" style="justify-content:flex-end"><button type="button" class="pri" data-ok>${esc(t("qp.ok"))}</button></div></div>`,
-      (pop, done) => { pop.querySelector("[data-ok]").onclick = () => done(true); });
-    return;
-  }
   if (e.sec === "#healthCard") { appsSub = "space"; try { localStorage.setItem("kg.appsSub", "space"); } catch {} }   // the health card lives in Ứng dụng › Sức khoẻ máy
   goTab(e.tab);
   if (!e.sec) return;
