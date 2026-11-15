@@ -133,22 +133,70 @@ function appRow(x) {
   return `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${fmt(x.ms)}${x.suspended || x.blocked ? `<span class="tag bad">${reason(x.blocked)}</span>` : ""}</span></div></div>`;
 }
 
-// Collapsible section: a heading button (aria-expanded) over a body that stays in the DOM (controls keep their wiring).
-// Open/closed per id is remembered in localStorage "kg.sec" ({id: 1|0}); def = open when never toggled.
-const secOpen = (() => { try { const o = JSON.parse(localStorage.getItem("kg.sec") || "{}"); return o && typeof o === "object" ? o : {}; } catch { return {}; } })();
-const isOpen = (id, def) => id in secOpen ? !!secOpen[id] : !!def;
+// Section = one row of a tab's list (icon, title, chip, one-line desc, chevron) + a body that STAYS in the DOM (controls keep
+// their wiring, setChip keeps working). Phone: the list shows rows only; a tap opens that section's body as a sub-screen
+// (top bar = back + title + chip; one history entry per open sub-screen, state {sub: id}). Wide (>= 960 px): two panes,
+// list on the left, the selected body on the right. secNav() applies this to the DOM after every render (idempotent).
+// Owner 2026-11-15: 17 collapsible cards per tab were tiring to open and close.
+let subId = null, selId = null, subY = 0, subTop = false;   // phone: open sub-screen; wide: selected row; list scroll to restore
+const wideMq = matchMedia("(min-width:960px)"), isWide = () => wideMq.matches;
 const chipHtml = c => c ? `<span class="tag ${c[1] || ""}" data-chip>${c[0]}</span>` : `<span data-chip></span>`;
-function sec(id, icn, title, desc, chip, body, def) {
-  const o = isOpen(id, def), g = FEAT_SEC[id] ? gateNote(FEAT_SEC[id]) : "";
+function sec(id, icn, title, desc, chip, body) {
+  const g = FEAT_SEC[id] ? gateNote(FEAT_SEC[id]) : "";
   if (g) body = g + `<div class="gated">${body}</div>`;
-  return `<section class="card cl${o ? " open" : ""}${g ? " gate" : ""}" data-sec="${id}"><h2><button type="button" class="clh" id="sh-${id}" aria-expanded="${o}" aria-controls="sb-${id}">
-    <span class="cli">${ic(icn)}</span><span class="clt"><span class="clr"><b>${title}</b>${chipHtml(chip)}</span>${desc ? `<span>${desc}</span>` : ""}</span><svg class="si chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></h2>
+  return `<section class="card cl${g ? " gate" : ""}" data-sec="${id}"><h2><button type="button" class="clh" id="sh-${id}" aria-controls="sb-${id}">
+    <svg class="si bk" aria-hidden="true"><use href="#i-chevron-left"/></svg><span class="cli">${ic(icn)}</span><span class="clt"><span class="clr"><b>${title}</b>${chipHtml(chip)}</span>${desc ? `<span>${desc}</span>` : ""}</span><svg class="si chev" aria-hidden="true"><use href="#i-chevron-right"/></svg></button></h2>
     <div class="clb" id="sb-${id}" role="region" aria-labelledby="sh-${id}"><div><div>${body}</div></div></div></section>`;
 }
 const setChip = (root, id, c) => { const el = root.querySelector(`[data-sec="${id}"] [data-chip]`); if (el) el.outerHTML = chipHtml(c); };
+function secNav() {
+  const body = document.getElementById("body"); if (!body) return;
+  document.querySelectorAll(".sg-hide,.sg-cur,.sg-flat,.sg-two").forEach(e => e.classList.remove("sg-hide", "sg-cur", "sg-flat", "sg-two"));
+  document.body.classList.remove("sg-sub");
+  const all = [...body.querySelectorAll("[data-sec]")].filter(s => !s.parentElement.closest("[data-sec]"));
+  if (!all.length) return;
+  all.forEach(s => s.querySelector(".clh").setAttribute("aria-current", "false"));
+  if (isWide()) {
+    const c = all.find(s => s.dataset.sec === selId) || all[0]; c.classList.add("sg-cur"); c.querySelector(".clh").setAttribute("aria-current", "true");
+    let lca = all[0].parentElement; while (lca !== body && !all.every(s => lca.contains(s))) lca = lca.parentElement;
+    lca.classList.add("sg-two");
+    for (const s of all) for (let p = s.parentElement; p !== lca; p = p.parentElement) p.classList.add("sg-flat");
+    return;
+  }
+  const c = subId && all.find(s => s.dataset.sec === subId); if (!c) return;
+  c.classList.add("sg-cur"); document.body.classList.add("sg-sub");
+  for (let p = c; p !== body; p = p.parentElement) for (const x of p.parentElement.children) if (x !== p && !x.matches(".hbar,.keep")) x.classList.add("sg-hide");
+}
+let secObs = null;
+function secWatch() {   // a tab redraws parts of itself after render(): re-apply whenever its DOM is rebuilt
+  if (secObs) secObs.disconnect();
+  const b = document.getElementById("body"); if (!b) return;
+  const go = () => { secObs.disconnect(); secNav(); secObs.observe(b, { childList: true, subtree: true }); };
+  secObs = new MutationObserver(go); secObs.observe(b, { childList: true, subtree: true });
+  secNav();
+}
+const noSub = s => { const o = { ...s }; delete o.sub; return o; };
+function subOpen(id) {
+  selId = id;
+  if (isWide()) return secNav();
+  try { const s = history.state || {}; if (subId) history.replaceState({ ...s, sub: id }, ""); else { subY = scrollY; history.pushState({ ...s, kg: navLvl() + 1, sub: id }, ""); } } catch {}
+  subId = id; secNav(); window.scrollTo(0, 0);
+}
+function subClose(top) {   // back: the popstate it causes closes the sub-screen
+  subTop = !!top;
+  try { if (history.state && history.state.sub) return history.back(); } catch {}
+  subId = null; secNav(); window.scrollTo(0, top ? 0 : subY);
+}
+// popstate: true when only the sub-screen level changed on this tab (the caller has nothing else to do)
+function subPop(s) {
+  const want = s.sub || null; if (want === subId) return false;
+  const top = subTop; subId = want; subTop = false;
+  if ((s.td ? s.tab : "home") !== tab) return false;
+  secNav(); window.scrollTo(0, want ? 0 : top ? 0 : subY); return true;
+}
+wideMq.addEventListener && wideMq.addEventListener("change", () => secNav());
 document.addEventListener("click", e => {
   const h = e.target.closest && e.target.closest(".clh"); if (!h) return;
-  const s = h.closest(".cl"), o = !s.classList.contains("open");
-  s.classList.toggle("open", o); h.setAttribute("aria-expanded", o);
-  secOpen[s.dataset.sec] = o ? 1 : 0; try { localStorage.setItem("kg.sec", JSON.stringify(secOpen)); } catch {}
+  const s = h.closest(".cl"); if (s.classList.contains("sg-cur") && !isWide()) return subClose();
+  subOpen(s.dataset.sec);
 });

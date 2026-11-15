@@ -152,9 +152,8 @@ button.sm{min-height:38px;padding:0 12px;font-size:14px;border-radius:12px;white
 body.sb #toast{bottom:150px}
 .row.tm{flex-wrap:wrap}.row.tm input[type=time]{width:7.2em;padding:8px 6px}
 select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none;border-radius:20px}
-/* collapsible section (sec()): header button + grid-rows animation; closed body is visibility:hidden (out of tab order) */
+/* section row (sec()): list row on phones -> sub-screen; two panes on wide screens (secNav() in tab-home.js) */
 .cl{padding:0;overflow:hidden;margin-bottom:10px}
-.cl.open{border-color:var(--stroke)}@supports (color:color-mix(in srgb,red,blue)){.cl.open{border-color:color-mix(in srgb,var(--accent) 35%,var(--stroke))}}
 .cl>h2{margin:0;font:inherit;color:inherit;display:block}
 .clh{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:none;border:0;border-radius:20px;padding:14px 16px;min-height:68px;justify-content:flex-start;font-weight:400}
 .clh:hover{background:var(--bg)}@supports (color:color-mix(in srgb,red,blue)){.clh:hover{background:color-mix(in srgb,var(--bg) 60%,transparent)}}.clh:active{filter:none}
@@ -164,18 +163,30 @@ select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none;border-radi
 .clh .clr{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}
 .clh .clt>span:last-child:not(.clr){color:var(--sub);font-size:13px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;margin-top:1px}
 .clh .tag{margin:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.clh .chev{color:var(--sub);transition:transform .18s ease;flex:none}
-.cl.open .clh .chev{transform:rotate(180deg)}
-.clb{display:grid;grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows .2s ease,visibility 0s linear .2s}
-.cl.open .clb{grid-template-rows:1fr;visibility:visible;transition:grid-template-rows .2s ease,visibility 0s;border-top:1px solid var(--stroke)}
-.clb{grid-template-columns:minmax(0,1fr)}.clb>div{min-height:0;min-width:0;overflow:hidden}
-.clb>div>div{padding:12px 16px 18px}
-.cl.open .clb>div{overflow:visible}
+.clh .chev{color:var(--sub);flex:none}.clh .bk{display:none;color:var(--text);flex:none}
+.clb{display:none;min-width:0}.clb>div>div{padding:12px 16px 18px}
+/* list -> sub-screen (phone) / two panes (>= 960 px): see secNav() in tab-home.js */
+.sg-hide{display:none!important}
+.cl.sg-cur{overflow:visible}.cl.sg-cur .clb{display:block}
+.sg-sub .qsbar{display:none}
+.sg-sub .cl.sg-cur>h2{position:sticky;top:0;z-index:12;background:var(--card);border-bottom:1px solid var(--stroke);border-radius:20px 20px 0 0}
+.sg-sub .cl.sg-cur .clh{border-radius:20px 20px 0 0;min-height:56px}
+.sg-sub .cl.sg-cur .chev,.sg-sub .cl.sg-cur .clt>span:last-child:not(.clr){display:none}
+.sg-sub .cl.sg-cur .bk{display:block}
+@media(min-width:960px){
+  .sg-two{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr);column-gap:20px;grid-template-rows:repeat(40,min-content) 1fr;align-items:start}
+  .sg-two>*{grid-column:1;min-width:0}
+  .sg-flat{display:contents!important}
+  .sg-two .cl{display:contents}
+  .sg-two .cl>h2{grid-column:1;margin-bottom:10px;min-width:0}
+  .sg-two .clh{background:var(--card);border:1px solid var(--stroke);border-radius:20px;box-shadow:var(--shadow)}
+  .sg-two .cl.sg-cur .clh{border-color:var(--accent)}
+  .sg-two .cl.sg-cur .clb{display:block;grid-column:2;grid-row:1 / -1;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;background:var(--card);border:1px solid var(--stroke);border-radius:20px;box-shadow:var(--shadow)}
+}
 /* "Thiết bị" key/value rows */
 .dvkv{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--stroke)}.dvkv>span{color:var(--sub)}.dvkv>b{font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere}
 .dz .cl{border-color:var(--stroke)}@supports (color:color-mix(in srgb,red,blue)){.dz .cl{border-color:color-mix(in srgb,var(--danger) 35%,var(--stroke))}}.dz .cli{color:var(--danger)!important;background:rgba(127,127,127,.14)}@supports (color:color-mix(in srgb,red,blue)){.dz .cli{background:color-mix(in srgb,var(--danger) 12%,transparent)!important}}
 .cl .cl{border-radius:14px;box-shadow:none}
-@media (prefers-reduced-motion:reduce){.clb,.cl.open .clb,.clh .chev{transition:none}.tile.on b::after{animation:none}}
 /* segmented control */
 .seg{display:flex;gap:2px;background:var(--track);border-radius:14px;padding:3px;margin:0 0 14px}
 .seg button{flex:1 1 0;min-width:0;background:none;border:0;border-radius:11px;padding:6px;min-height:40px;color:var(--sub);font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:normal;line-height:1.15;text-align:center;overflow-wrap:anywhere}.seg button>svg{flex:none}

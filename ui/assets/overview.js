@@ -21,7 +21,7 @@ function ovShell() {
     <div id="ovSos"></div><div id="ovAll"></div><div class="ovk" id="ovKids"></div>
     <div class="card" style="margin-top:12px"><h2>${ic("map-pin")} ${t("ov.where")}</h2><div id="ovMapBox"></div></div>
     <div class="card"><h2>${ic("chart-column")} ${t("ov.week")}</h2><div id="ovBars"></div></div>
-    ${sec("ov-rep", "history", t("ov.report"), "", "", `<div id="ovRep"></div>`, false)}</div></div></div>`;
+    <details class="card" id="ovRepD"><summary><b>${t("ov.report")}</b></summary><div id="ovRep"></div></details></div></div></div>`;
   wireSide(a);
   $("#ovBack").onclick = () => { gen++; clearInterval(timer); const b = ov.back; ov = null; b(); navDown(0); };
 }
@@ -343,9 +343,9 @@ function navTab(id, from) {
     const s = history.state || {}, d = s.td || 0;
     if (s.day) return;
     const want = id === "home" ? 0 : SUB_TABS.has(id) && from === "more" ? 2 : 1;
-    if (want === d) { if (d) history.replaceState({ ...s, tab: id }, ""); }
+    if (want === d) { if (d || s.sub) history.replaceState(d ? { ...noSub(s), tab: id } : noSub(s), ""); }   // an open sub-screen entry becomes the new tab's entry
     else if (want > d) for (let i = d + 1; i <= want; i++) history.pushState({ kg: navLvl() + 1, td: i, tab: i === want ? id : from }, "");
-    else { navSkip = id; history.go(want - d); }
+    else { navSkip = id; history.go(want - d - (s.sub ? 1 : 0)); }
   } catch {}
 }
 let navQuiet = false;   // a back the page already handled (leaving a past day for today): its popstate does nothing
@@ -355,7 +355,7 @@ function navDown(n) { try { const d = navLvl() - n; if (d > 0) history.go(-d); }
 function goList() {
   if (LOCAL && !ov) return;   // the on-device page is this one kid: there is no list behind it
   gen++; clearInterval(timer); if (askDone) askDone(false, true);
-  leaveSave();
+  subId = null; selId = null; leaveSave();
   if (ov) { const b = ov.back; ov = null; return b(); }
   if (!cur) return;
   screenStop(); earStop(); cur = null;
@@ -366,7 +366,8 @@ addEventListener("popstate", () => {
   const l = navLvl(), s = history.state || {};
   if (typeof appSetOn !== "undefined" && appSetOn && !s.appSet) { appSetOn = false; return appBoot(); }
   if (navQuiet) { navQuiet = false; return; }
-  if (navSkip) { if (s.td) try { history.replaceState({ ...s, tab: navSkip }, ""); } catch {} navSkip = null; return; }
+  if (navSkip) { if (s.td) try { history.replaceState({ ...noSub(s), tab: navSkip }, ""); } catch {} navSkip = null; return; }
+  if (cur && !ov && subPop(s)) return;
   if (cur && viewDay && !s.day) { tab = s.td ? s.tab : "home"; return open(cur); }
   const base = cur && !ov && $("#back") ? 1 : 0;   // the kid page's own level (no list behind it = 0)
   if (cur && !ov && (s.td || l === base)) { const nt = s.td ? s.tab : "home"; if (tab !== nt) { tab = nt; if (tab === "hist") histDays = null; render(true); } return; }

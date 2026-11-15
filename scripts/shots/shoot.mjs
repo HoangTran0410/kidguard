@@ -41,11 +41,11 @@ const SHOTS = [
   { name: "apps", js: `appsSub = "list"; goTab("apps")`, ready: `document.querySelector(".app .ic")`, settle: 800 },
   { name: "space", js: `appsSub = "space"; goTab("apps")`, ready: `document.querySelector("#subp .card")`, settle: 600 },
   { name: "more", js: `goTab("home"); moreSheet()`, ready: `document.querySelector("#scrGo")`, settle: 400 },
-  { name: "rules", poke: 1, js: `goTab("rules")`, ready: `document.querySelector("[data-sec]")`, open: ["r-bed", "r-sch"], shut: ["r-daily"], scrollTo: "[data-sec=r-daily]" },
+  { name: "rules", poke: 1, js: `goTab("rules")`, ready: `document.querySelector("[data-sec]")`, scrollTo: "[data-sec=r-daily]" },
   { name: "where", js: `goTab("where")`, ready: `document.querySelector("#map .layer")`, tiles: true, settle: 800 },
   { name: "screen", js: `goTab("screen")`, ready: `document.querySelector("#s-img") && document.querySelector("#s-img").complete && document.querySelector("#s-img").naturalWidth > 0`, settle: 800 },
   { name: "files", js: `goTab("files")`, ready: `document.querySelector("#fxOut .app, #fxOut .li, #fxOut > *")`, settle: 600 },
-  { name: "settings-away", js: `goTab("set")`, ready: `document.querySelector("#awaySec")`, open: ["s-tg"], shut: ["s-ts", "s-relay"], scrollTo: "#awaySec", settle: 600 },
+  { name: "settings-away", js: `goTab("set")`, ready: `document.querySelector("#awaySec")`, scrollTo: "#awaySec", settle: 600 },
 ];
 
 // Runs in the page. Reports (1) visible elements whose box ends past the screen edge and are not inside a sideways
@@ -63,7 +63,7 @@ const layoutAudit = String(() => {
     if (r.right > vw + 1 && !scroller(e)) { const k = "o" + name(e); if (!seen.has(k)) { seen.add(k); out.push("sticks out " + Math.round(r.right - vw) + "px: " + name(e)); } }
     // cut by the nearest ancestor that clips sideways (card corners, collapsible bodies): the bug a screen-edge check misses
     for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) {
-      const o = getComputedStyle(p).overflowX; if (o === "visible") continue;
+      const o = getComputedStyle(p).overflowX; if (o === "visible" || getComputedStyle(p).display === "contents") continue;
       if (o === "auto" || o === "scroll") break;
       const pr = p.getBoundingClientRect(), cut = Math.round(r.right - pr.right);
       if (cut > 1) { const k = "c" + name(e); if (!seen.has(k)) { seen.add(k); out.push("cut off " + cut + "px by " + name(p).split(' "')[0] + ": " + name(e)); } }
@@ -170,18 +170,27 @@ async function shootLang(lang) {
       await sleep(400);
       if (EXT && await until(c, `typeof kids !== "undefined" && kids.some(k => k.name === "Bin") && document.readyState === "complete" && typeof screenStop === "function"`, 15000)) await evalIn(c, `open(kids.find(k => k.name === "Bin")); 0`);   // app: the page starts on the kid list
       if (!(await until(c, `typeof st !== "undefined" && st && st.apps && document.querySelector(".hero")`, 20000))) errors.push(shot.name + ": page did not open the kid (" + await evalIn(c, `JSON.stringify({ u: location.href, kids: typeof kids !== "undefined" ? kids.map(k => k.name) : null, cur: typeof cur !== "undefined" && cur ? cur.name : null, err: typeof lastErr !== "undefined" ? lastErr : null })`) + ")");
-      const secs = Object.fromEntries([...(shot.open || []).map(i => [i, 1]), ...(shot.shut || []).map(i => [i, 0])]);
-      await evalIn(c, `Object.assign(secOpen, ${JSON.stringify(secs)}); ${shot.js}; 0`);
+      await evalIn(c, `${shot.js}; 0`);
       if (!(await until(c, shot.ready, 20000))) errors.push(shot.name + ": not ready (" + shot.ready.slice(0, 50) + ")");
       if (shot.tiles) { await sleep(500); await until(c, `[...document.querySelectorAll("#map img")].length > 0 && [...document.querySelectorAll("#map img")].every(i => i.complete && i.naturalWidth > 0)`, 20000) || errors.push(shot.name + ": map tiles not all loaded"); }
       await sleep(shot.settle || 400);
-      if (Object.keys(secs).length) await evalIn(c, `Object.entries(${JSON.stringify(secs)}).forEach(([id, on]) => { const s = document.querySelector('[data-sec="' + id + '"]'); if (s) { s.classList.toggle("open", !!on); const h = s.querySelector(".clh"); if (h) h.setAttribute("aria-expanded", String(!!on)); } }); 0`);
       if (AUDIT) {
-        await evalIn(c, `document.querySelectorAll("[data-sec]").forEach(s => { secOpen[s.dataset.sec] = 1; s.classList.add("open"); const h = s.querySelector(".clh"); if (h) h.setAttribute("aria-expanded", "true"); }); 0`);
-        await sleep(700);
+        // list -> sub-screen (phone) / two panes (wide): audit the list, then every section on its own (one PNG each)
+        await sleep(500);
         for (const f of await evalIn(c, `(${layoutAudit})()`)) errors.push(shot.name + ": " + f);
         for (const f of await evalIn(c, `(${uxLint})()`)) errors.push(shot.name + ": " + f);
-        if (shot.poke) { for (const f of await evalIn(c, `(${poke})()`)) errors.push(shot.name + ": " + f); await sleep(1500); for (const f of await evalIn(c, `(${putCheck})()`)) errors.push(shot.name + ": " + f); }
+        const ids = await evalIn(c, `[...document.querySelectorAll("[data-sec]")].filter(s => !s.parentElement.closest("[data-sec]")).map(s => s.dataset.sec)`);
+        const nested = await evalIn(c, `document.querySelectorAll("[data-sec] [data-sec]").length`);
+        if (nested) errors.push(shot.name + ": " + nested + " nested sec() (the list/sub-screen only handles top-level ones)");
+        for (const id of ids) {
+          await evalIn(c, `subOpen(${JSON.stringify(id)}); 0`); await sleep(350);
+          for (const f of await evalIn(c, `(${layoutAudit})()`)) errors.push(shot.name + " [" + id + "]: " + f);
+          for (const f of await evalIn(c, `(${uxLint})()`)) errors.push(shot.name + " [" + id + "]: " + f);
+          if (shot.poke) for (const f of await evalIn(c, `(${poke})()`)) errors.push(shot.name + " [" + id + "]: " + f);
+          if (!EXT) { const rr = await c.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: await evalIn(c, `({ x: 0, y: 0, width: innerWidth, height: Math.min(document.documentElement.scrollHeight, 6000), scale: 1 })`) }); fs.writeFileSync(path.join(outDir, shot.name + "-" + id + ".png"), Buffer.from(rr.data, "base64")); }
+        }
+        if (shot.poke) { await sleep(1500); for (const f of await evalIn(c, `(${putCheck})()`)) errors.push(shot.name + ": " + f); }
+        await evalIn(c, `if (typeof subId !== "undefined" && subId) subClose(true); 0`); await sleep(500);
       }
       for (const f of FAULTS) {
         await fetch(`http://127.0.0.1:${PORTS.bin}/__fault?m=${f}`);
@@ -211,7 +220,7 @@ async function shootLang(lang) {
       if (EXT && AUDIT) {
         const ids = await evalIn(c, `[...document.querySelectorAll("[data-sec]")].map(s => s.dataset.sec)`);
         for (const id of ids) {
-          await evalIn(c, `(() => { const s = document.querySelector('[data-sec="${id}"]'); window.scrollTo(0, s.getBoundingClientRect().top + scrollY - 120); })()`); await sleep(250);
+          await evalIn(c, `subOpen(${JSON.stringify(id)}); 0`); await sleep(300);
           const rr = await c.send("Page.captureScreenshot", { format: "png" });
           fs.writeFileSync(path.join(outDir, shot.name + "-" + id + ".png"), Buffer.from(rr.data, "base64"));
         }

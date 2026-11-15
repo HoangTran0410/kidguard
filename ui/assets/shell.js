@@ -151,6 +151,7 @@ function render(tabClick) {
   }
   updateLive();
   // a refresh keeps the page where it was; a tab switch lands on the top of the new tab
+  secWatch();
   window.scrollTo(0, tabClick ? 0 : pageY);
 }
 // Quick search ("Tìm chức năng"): every section of the page by its title, description and the switches inside,
@@ -200,20 +201,30 @@ function qsFind1(q, near) {
     if (!navOk(tb) || !qsTxt(keys[0])) continue;
     const where = t("tab." + tb) + (seg ? " › " + t(seg === "time" ? "rules.segTime" : "rules.segSafe") : "");
     const sw = keys.slice(2).map(qsTxt).filter(Boolean), hit = !has(qsTxt(keys[0])) && sw.find(s => w.length && has(s));
-    if (hit) out.push({ tab: tb, sec: sid, seg, icon: i, title: qsShort(hit), where: where + " › " + qsTxt(keys[0]) });
+    if (hit) out.push({ tab: tb, sec: sid, seg, icon: i, hit, title: qsShort(hit), where: where + " › " + qsTxt(keys[0]) });
     else if (has(keys.map(qsTxt).join(" ") + " " + kw(keys[0]))) out.push({ tab: tb, sec: sid, seg, icon: i, title: qsTxt(keys[0]), where });
   }
   return out;
 }
 function qsGo(e) {
   if (e.sec === "#healthCard") { appsSub = "space"; try { localStorage.setItem("kg.appsSub", "space"); } catch {} }   // the health card lives in Ứng dụng › Sức khoẻ máy
-  goTab(e.tab);
+  if (!(tab === e.tab && subId)) goTab(e.tab);   // a sub-screen of this very tab is open: subOpen below swaps it
   if (!e.sec) return;
   let n = 0;
   const find = () => {   // a tab may draw after its data arrives: retry for ~2 s
     const el = e.sec[0] === "#" ? $(e.sec) : document.querySelector(`[data-sec="${e.sec}"]`);
     if (!el) { if (++n < 20) setTimeout(find, 100); return; }
-    if (el.classList.contains("cl") && !el.classList.contains("open")) { const h = el.querySelector(".clh"); if (h) h.click(); }
+    if (el.classList.contains("cl")) {   // a section: open its sub-screen (phone) / select it (wide), flash the control the words came from, else the title bar
+      subOpen(e.sec);
+      const w = e.hit ? qsFold(e.hit) : "", bar = el.querySelector(".clh");
+      let tg = null;
+      if (w) for (const x of el.querySelectorAll(".clb label, .clb button, .clb b, .clb summary, .clb p, .clb span, .clb option")) { if (x.children.length > 3 || !qsFold(x.textContent).includes(w)) continue; if (!tg || tg.contains(x)) tg = x; }
+      if (tg && tg.tagName === "OPTION") tg = tg.closest("select") || tg;
+      const f = tg || bar;
+      f.classList.add("qsHit"); setTimeout(() => f.classList.remove("qsHit"), 1800);
+      setTimeout(() => { if (tg && el.isConnected) tg.scrollIntoView({ block: "center", behavior: "smooth" }); }, 60);
+      return;
+    }
     el.scrollIntoView({ block: "start", behavior: "smooth" });
     el.classList.add("qsHit"); setTimeout(() => el.classList.remove("qsHit"), 1800);
     // first visit of a tab: sections above still grow after the jump (data, icons, the keyboard closing), so the smooth
@@ -254,7 +265,9 @@ document.addEventListener("keydown", e => {   // "/" opens the quick search (not
   const a = document.activeElement; if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return;
   e.preventDefault(); qsOpen();
 });
-function goTab(id) { const from = tab; tab = id; if (tab === "hist") histDays = null; render(true); navTab(id, from); }
+function goTab(id) {
+  if (subId && (id === tab || (id === "more" && MORE_TABS.has(tab)))) return subClose(true);   // the current tab again: back to its list, scrolled to the top
+  const from = tab; tab = id; subId = null; if (tab === "hist") histDays = null; render(true); navTab(id, from); }
 
 // "Thêm" (phones): everything that is not in the bottom bar, grouped
 function moreTab(b) {
