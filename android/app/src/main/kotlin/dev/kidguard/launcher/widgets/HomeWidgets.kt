@@ -317,14 +317,46 @@ internal fun HomeActivity.timeWidget(r: Rules, dv: View0, block: String?, s: Sto
 
 internal fun HomeActivity.quickWidget(s: Store, w: Int): View {
     val circles = ArrayList<View>(4); val labels = ArrayList<TextView>(4)
+    val buttons = ArrayList<LinearLayout>(4); val glyphs = ArrayList<Int>(4); val fillsOf = ArrayList<Pair<Int, Int>>(4); val labCol = ArrayList<Int>(4)
     val circle = if (w >= 4 && preset.id == "be") 56 else 48
-    // a 1-row cell is shorter than circle + label: the circles shrink (down to 30 dp), the labels stay WType.CAPTION
+    // Two looks, picked from the cell height. Tall enough for a >= 40 dp circle + label: glyph circles with the label below.
+    // A 1-row cell (63 dp on the POCO) is not: the old layout wanted ~83 dp, so FitCell scaled the whole card to 79 %
+    // (24 dp circles, 14 dp glyphs, small labels: "icon and text too small", 2026-11-15). There each action becomes a
+    // full-height coloured tile (control-centre style) with a 24 dp glyph and the label at full WType.CAPTION size.
     val row = object : LinearLayout(this), FitsHeight {
+        var tiles: Boolean? = null
         override fun fitHeight(px: Int) {
             val lab = labels.firstOrNull() ?: return
             val fm = lab.paint.fontMetricsInt
-            val fixed = paddingTop + paddingBottom + dp(4 + 4 + 6) + (fm.descent - fm.ascent)
-            val sz = (px - fixed).coerceIn(dp(30), dp(circle))
+            val lh = fm.descent - fm.ascent
+            val sz = px - dp(10 + 10 + 4 + 4 + 6) - lh
+            val t = sz < dp(40)
+            if (t == tiles && !t) { resize(sz.coerceAtMost(dp(circle))); return }
+            if (t == tiles) return
+            tiles = t
+            if (t) {
+                setPadding(dp(6), dp(6), dp(6), dp(6))
+                for (i in buttons.indices) {
+                    val b = buttons[i]; val f = fillsOf[i]
+                    b.background = fill(f.first, 14f); b.gravity = Gravity.CENTER; b.setPadding(dp(2), 0, dp(2), 0)
+                    (b.layoutParams as LayoutParams).apply { height = -1; setMargins(dp(3), 0, dp(3), 0) }
+                    circles[i].apply { background = null; setPadding(0, 0, 0, 0); layoutParams.width = dp(24); layoutParams.height = dp(24)
+                        (this as ImageView).setImageDrawable(Ic.get(context, glyphs[i], f.second, dp(24))) }
+                    labels[i].apply { setTextColor(f.second); setPadding(0, dp(3), 0, 0) }
+                }
+            } else {
+                setPadding(dp(6), dp(10), dp(6), dp(10))
+                for (i in buttons.indices) {
+                    val b = buttons[i]; val f = fillsOf[i]
+                    b.background = null; b.gravity = Gravity.CENTER_HORIZONTAL; b.setPadding(dp(2), dp(4), dp(2), dp(4))
+                    (b.layoutParams as LayoutParams).apply { height = -2; setMargins(0, 0, 0, 0) }
+                    circles[i].apply { background = fill(f.first); (this as ImageView).setImageDrawable(Ic.get(context, glyphs[i], f.second, dp(22))) }
+                    labels[i].apply { setTextColor(labCol[i]); setPadding(0, dp(6), 0, 0) }
+                }
+                resize(sz.coerceAtMost(dp(circle)))
+            }
+        }
+        private fun resize(sz: Int) {
             for (c in circles) c.layoutParams.let { if (it.height != sz) { it.width = sz; it.height = sz; val p = (sz - dp(22)) / 2; c.setPadding(p, p, p, p) } }
         }
     }.apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; background = card(); setPadding(dp(6), dp(10), dp(6), dp(10)) }
@@ -343,6 +375,7 @@ internal fun HomeActivity.quickWidget(s: Store, w: Int): View {
     )
     for ((spec, run) in items) {
         val (icon, fills, lab) = spec
+        fillsOf += fills; labCol += lab.second; glyphs += icon
         val b = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(2), dp(4), dp(2), dp(4))
             addView(ImageView(context).apply {
@@ -360,6 +393,7 @@ internal fun HomeActivity.quickWidget(s: Store, w: Int): View {
                 else run()
             }
         }
+        buttons += b
         row.addView(b, LinearLayout.LayoutParams(0, -2, 1f))
     }
     return centred(row)
