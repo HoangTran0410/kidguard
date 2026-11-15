@@ -176,16 +176,17 @@ internal fun HomeActivity.folderIcon(f: HItem, vis: List<AppE>, show: Map<String
     val px = iconPx()
     val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP; setPadding(0, dp(4), 0, dp(2)) }
     val shp = model?.style?.shape ?: "soft"
-    val mini = (px * 0.36f).toInt()
+    // 3×3 like the open folder (POCO / iOS; 2×2 jumped to 3×3 when it opened): small icons, a wide margin to the plate edge
+    val mini = (px * 0.2f).toInt()
     val badge = model?.style?.badge ?: "num"
     val grid = object : View(this), DotHost {
         override val dotPkgs = vis.filter { show[it.pkg] != LauncherLogic.Show.PAUSED }.map { it.pkg }
-        val bmps = vis.take(4).map { IconCache.get(this@folderIcon, it.pkg, it.cls, mini, shp) to (show[it.pkg] == LauncherLogic.Show.PAUSED) }
+        val bmps = vis.take(9).map { IconCache.get(this@folderIcon, it.pkg, it.cls, mini, shp) to (show[it.pkg] == LauncherLogic.Show.PAUSED) }
         override fun onDraw(c: Canvas) {
-            val gap = (px - 2 * mini) / 3f
+            val gap = px * 0.06f; val edge = (px - 3 * mini - 2 * gap) / 2f
             for ((i, b) in bmps.withIndex()) {
                 val bm = b.first ?: continue
-                val x = gap + (i % 2) * (mini + gap); val y = gap + (i / 2) * (mini + gap)
+                val x = edge + (i % 3) * (mini + gap); val y = edge + (i / 3) * (mini + gap)
                 if (b.second) { val p = IconCache.greyPaint(); p.alpha = 115; c.drawBitmap(bm, x, y, p) } else c.drawBitmap(bm, x, y, null)
             }
             if (badge != "off") Dots.draw(c, px, Dots.count(dotPkgs), resources.displayMetrics.density, badge == "num")

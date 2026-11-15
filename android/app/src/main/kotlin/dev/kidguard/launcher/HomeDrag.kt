@@ -109,7 +109,7 @@ internal fun HomeActivity.homeDragChrome() {
     dockRoom = null
     // leaving a panel / the drawer / the picker: the home takes the drop
     when {
-        overlay != null -> { val o = overlay; overlay = null; o?.visibility = View.GONE; main.post { root.removeView(o) } }
+        overlay != null -> { val o = overlay; overlay = null; overlayExit = null; o?.visibility = View.GONE; main.post { root.removeView(o) }; homeBack() }
         drawer != null -> closeDrawer()
     }
     if (pager.page == 0) pager.snapTo(1)

@@ -109,7 +109,8 @@ Trigger: drop app on app (dwell 350 ms centre), edit-mode group, folder tap.
 1. `HomeLayout.dropOnto` / `group` create `HItem(kind=folder, apps)` (FOLDER_MAX 20; `folderKind`).
 2. `openFolder` (HomeMenus) needs `lastView`; zoom via `folderZoom`; `folderSheet` shows a `FolderGrid`; drag out via `folderDragBegin/Evt`.
 3. `renameFolder`, `autoName` (name from app categories), `addToFolderSheet`.
-4. Icon: `HomeIcons.folderIcon` (mini preview, dot sum via `DotHost`).
+4. Icon: `HomeIcons.folderIcon` (3×3 mini preview, max 9, dot sum via `DotHost`).
+5. Open over the home: the dim (`WallDim`) paints the wallpaper bitmap + a light dim and fades in, so the home disappears behind it; `content` goes INVISIBLE once open, `homeBack()` restores it (close, drag-out). No wallpaper bitmap / drawer behind: plain 200 dim (+ the home fades as a layer if it is the home).
 State: inside `home.json` item `apps`. Gotchas: `openFolder` returns silently if `lastView == null`.
 
 ### 3.7 Drawer search and A-Z rail

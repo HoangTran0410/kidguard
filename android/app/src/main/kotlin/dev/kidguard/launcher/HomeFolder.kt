@@ -182,6 +182,27 @@ private fun HomeActivity.folderLeave(f: FolderDrag) {
     homeDragChrome()
 }
 
+/** Behind an open folder: the wallpaper picture (when there is one) under a dim; its alpha follows the zoom. */
+internal class WallDim(ctx: android.content.Context, private val wall: android.graphics.Bitmap?) : View(ctx) {
+    val covers get() = wall != null && !wall.isRecycled
+    private val paint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+    private val dimColor = android.graphics.Color.argb(if (covers) 110 else 200, 0, 0, 0)
+    private val r = android.graphics.Rect()
+    init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
+    override fun hasOverlappingRendering() = false   // alpha per draw call, no offscreen buffer each frame
+    override fun onDraw(c: android.graphics.Canvas) {
+        val a = (alpha * 255).toInt()
+        wall?.takeIf { !it.isRecycled }?.let { r.set(0, 0, width, height); paint.alpha = a; c.drawBitmap(it, null, r, paint) }
+        c.drawColor(android.graphics.Color.argb((android.graphics.Color.alpha(dimColor) * alpha).toInt(), 0, 0, 0))
+    }
+}
+
+/** The home faded out behind an open folder comes back at once (an app dragged out of the folder lands on it). */
+internal fun HomeActivity.homeBack() {
+    content.visibility = View.VISIBLE; content.setLayerType(View.LAYER_TYPE_NONE, null)
+    if (drawerP < 0.01f) content.alpha = 1f
+}
+
 /**
  * iOS folder: the card grows out of the folder icon (that icon hides meanwhile) while the home blurs and dims; the
  * name fades in late. Closing runs it backwards into the icon. Without the icon (gone / detached): a plain zoom.
@@ -192,7 +213,7 @@ internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, co
     // ease-in-out with a soft landing: the card is seen leaving the icon (a sharp ease-out jumped past it in a frame)
     val ease = Motion.STD
     // Launcher3 / iOS morph: a picture of the folder icon rides on the card. Small, the card shows the icon itself
-    // (its 2×2 preview, its corners); grown, the real 3×3 apps. Without it the card's own apps, shrunk, landed in a
+    // (its 3×3 preview, its corners); grown, the real 3×3 apps. Without it the card's own apps, shrunk, landed in a
     // different layout from the icon's preview and the icons jumped in size the frame the card was swapped for it.
     // the tapped icon (src itself, or a tile inside it: an App Library group's "+N") is still sunk ([pressed]) and
     // springing back. Settle it at full size before the picture is taken: the picture kept it sunk, and when the close
@@ -210,6 +231,11 @@ internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, co
     val plate = card.background
     // the name under the icon on the home: fades out as the big one above the card fades in, and back
     val label = (src?.parent as? android.view.ViewGroup)?.let { p -> (0 until p.childCount).map { p.getChildAt(it) }.firstOrNull { it !== src } }
+    // POCO / iOS: the home behind fades right out, only the wallpaper and the folder stay (less to look at). Not from the
+    // App Library: the drawer already hides the home. One GPU layer while it fades, invisible (not drawn) while open
+    val home = this.content
+    val hideHome = drawerP < 0.01f
+    val fadeHome = hideHome && (dim as? WallDim)?.covers != true   // no wallpaper picture to cover it: fade the home itself
     var k0 = 1f; var x0 = 0f; var y0 = 0f
     fun toIcon(): Boolean {
         val s = src?.takeIf { it.isAttachedToWindow } ?: return false
@@ -231,19 +257,28 @@ internal fun HomeActivity.folderZoom(dim: View, card: android.view.ViewGroup, co
         dim.alpha = f
         title.alpha = ((f - 0.15f) / 0.7f).coerceIn(0f, 1f)
         label?.alpha = (1 - f / 0.6f).coerceIn(0f, 1f)
+        if (fadeHome) home.alpha = (1 - f / 0.7f).coerceIn(0f, 1f)
     }
     var run: android.animation.ValueAnimator? = null
     fun go(from: Float, to: Float, ms: Long, end: () -> Unit) {
         run?.cancel()
         // the apps fade as one GPU layer (alpha on a view group re-drew all its icons offscreen every frame: Oppo A5s jank)
         content.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        if (hideHome) home.visibility = View.VISIBLE
+        if (fadeHome) home.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         run = android.animation.ValueAnimator.ofFloat(from, to).apply {
             duration = ms; interpolator = ease
             addUpdateListener { at(it.animatedValue as Float) }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 var cancelled = false
                 override fun onAnimationCancel(a: android.animation.Animator) { cancelled = true }
-                override fun onAnimationEnd(a: android.animation.Animator) { if (!cancelled) { content.setLayerType(View.LAYER_TYPE_NONE, null); end() } }
+                override fun onAnimationEnd(a: android.animation.Animator) {
+                    if (cancelled) return
+                    content.setLayerType(View.LAYER_TYPE_NONE, null)
+                    if (fadeHome) home.setLayerType(View.LAYER_TYPE_NONE, null)
+                    if (hideHome && to >= 1f) home.visibility = View.INVISIBLE   // covered: not drawn while the folder is open
+                    end()
+                }
             })
             start()
         }

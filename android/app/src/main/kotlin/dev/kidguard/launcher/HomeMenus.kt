@@ -405,7 +405,10 @@ internal fun HomeActivity.folderSheet(name: String, tag: String?, rename: (() ->
     val scrim = FrameLayout(this).apply { isClickable = true; setOnClickListener { closeOverlay() }; this.tag = tag }
     // a dark layer that deepens with the zoom (no blur: an animated blur costs a GPU pass per frame, a plain alpha
     // costs nothing on any phone). Its own view, so fading it never fades the card flying back into the icon
-    val dim = View(this).apply { setBackgroundColor(Color.argb(200, 0, 0, 0)) }   // 150 let the home show through the folder name (11-09)
+    // POCO: over the home, the layer is the wallpaper itself + a light dim, so fading it in hides the home behind it
+    // (one bitmap draw per frame; fading the home's own views needed a layer of the whole home: 73 vs 34 ms p90 on the
+    // first open, Oppo A5s). Over the App Library (or no wallpaper bitmap): 200 dark (150 showed through, 11-09)
+    val dim = WallDim(this, if (drawerP < 0.01f) wall else null)
     scrim.addView(dim, FrameLayout.LayoutParams(-1, -1))
     // no clipping: the card flies from / back into the icon, often below the panel (it was cut off at its bottom)
     scrim.clipChildren = false
