@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NavGest Recents: the app on screen shrinks and fades out -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="260" android:interpolator="@android:interpolator/decelerate_cubic" android:zAdjustment="normal">
+    <alpha android:fromAlpha="1" android:toAlpha="0" />
+    <scale android:fromXScale="1" android:toXScale="0.86" android:fromYScale="1" android:toYScale="0.86"
+        android:pivotX="50%" android:pivotY="50%" />
+</set>
