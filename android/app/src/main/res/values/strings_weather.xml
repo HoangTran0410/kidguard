@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hm_w_weather">Weather</string>
+    <string name="hm_w_weather_d">Temperature, sky and today\'s high and low</string>
+    <string name="wx_clear">Clear</string>
+    <string name="wx_mainly_clear">Mostly clear</string>
+    <string name="wx_partly">Partly cloudy</string>
+    <string name="wx_cloudy">Cloudy</string>
+    <string name="wx_fog">Fog</string>
+    <string name="wx_drizzle">Drizzle</string>
+    <string name="wx_rain">Rain</string>
+    <string name="wx_heavy_rain">Heavy rain</string>
+    <string name="wx_showers">Showers</string>
+    <string name="wx_snow">Snow</string>
+    <string name="wx_storm">Thunderstorm</string>
+    <string name="wx_noloc">Needs location</string>
+    <string name="wx_tap_allow">Tap to allow it</string>
+    <string name="wx_noloc_home">Not available here</string>
+    <string name="wx_loading">Loading weather</string>
+    <string name="wx_loading_sub">Waiting for location or network</string>
+</resources>

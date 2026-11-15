@@ -301,6 +301,11 @@ class HomeActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) { super.onActivityResult(requestCode, resultCode, data); awResult(requestCode, resultCode, data) }
 
+    override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, res: IntArray) {
+        super.onRequestPermissionsResult(code, perms, res)
+        if (code == Weather.REQ) { Weather.refresh(this, force = true); render(true) }
+    }
+
     override fun onStop() {
         lifecycleStarted = false; awStop()
         super.onStop()
@@ -759,6 +764,7 @@ class HomeActivity : Activity() {
                         "timer" -> timerWidget(it.w, it.h)
                         "streak" -> streakWidget(m, r, s, it.w, it.h)
                         "media" -> mediaWidget(it.w, it.h)
+                        "weather" -> weatherWidget(it.w, it.h)
                         HomeLayout.APP -> appWidget(it, show)
                         else -> null
                     }?.also { v -> armWidget(v, it); (android.os.SystemClock.uptimeMillis() - w0).let { ms -> if (ms > 4) android.util.Log.i("KG.perf", "widget ${it.type} ${ms}ms") } } }

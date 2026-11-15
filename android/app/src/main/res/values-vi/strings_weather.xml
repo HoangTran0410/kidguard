@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hm_w_weather">Thời tiết</string>
+    <string name="hm_w_weather_d">Nhiệt độ, bầu trời, cao nhất và thấp nhất hôm nay</string>
+    <string name="wx_clear">Trời quang</string>
+    <string name="wx_mainly_clear">Ít mây</string>
+    <string name="wx_partly">Có mây</string>
+    <string name="wx_cloudy">Nhiều mây</string>
+    <string name="wx_fog">Có sương mù</string>
+    <string name="wx_drizzle">Mưa phùn</string>
+    <string name="wx_rain">Mưa</string>
+    <string name="wx_heavy_rain">Mưa to</string>
+    <string name="wx_showers">Mưa rào</string>
+    <string name="wx_snow">Có tuyết</string>
+    <string name="wx_storm">Có dông</string>
+    <string name="wx_noloc">Cần vị trí</string>
+    <string name="wx_tap_allow">Chạm để cho phép</string>
+    <string name="wx_noloc_home">Chưa dùng được ở đây</string>
+    <string name="wx_loading">Đang tải thời tiết</string>
+    <string name="wx_loading_sub">Chờ vị trí hoặc mạng</string>
+</resources>

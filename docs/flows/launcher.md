@@ -154,8 +154,9 @@ Home flavor: only now, sched, tomorrow, notes (HOME_CARDS).
 ### 3.9 Widgets
 
 Own: `Flavor.widget(type)` filters; types clock, analog, month, time, next, quick, todo, note, counts, usage, battery, lock, when,
-earn, msg, class, timer, streak (+ "app" for host widgets). Picker `openPicker`: one "KidGuard" card, 2-col tiles + size pills, drag via `Src.NewWidget`,
-lazy "other apps" section (`awPickerSection`). Home flavor allows clock, analog, month, battery, todo, note, class.
+earn, msg, class, timer, streak, media, weather (+ "app" for host widgets). Picker `openPicker`: one "KidGuard" card, 2-col tiles + size pills, drag via `Src.NewWidget`,
+lazy "other apps" section (`awPickerSection`). Home flavor allows clock, analog, month, battery, todo, note, class, timer, streak, media, weather.
+`weather` (2x1, 2x2; `HomeWeather.kt`, pure `WeatherLogic.kt`): renders from the prefs cache `kg_weather`, a background thread (last known location -> Open-Meteo -> Geocoder place) redraws it; refresh when > 30 min old on render / minute tick (only while the launcher is in front). No location permission = the card says so; a tap asks (kid flavor only, the Home manifest removes location). Tap = the phone's weather app (`openRelated`).
 Other apps': `HomeAppWidgets.kt`: `awAdd` allocates id (host id `AW_HOST_ID` 0x4b47) -> `bindAppWidgetIdIfAllowed`, else ACTION_APPWIDGET_BIND
 (REQ_BIND 4701) -> `awConfigure` (REQ_CONF 4702) -> `awPlace` (`HomeLayout.placeAppWidget`). `awSync` deletes ids that left the model.
 `appWidget()` shows a locked card if the host app is PAUSED/HIDE, a "gone" card if the provider vanished. Sizes from provider min/resize.
@@ -204,7 +205,7 @@ Crash fallback: uncaught handler counts while `HomeActivity.alive>0`; 2 in 5 min
 | `LauncherSafe.wanted` | rule/local opt-in | always true; `HomeEntry` re-enables + starts |
 | Header | call + SOS | none |
 | Banner | owner > usage > location > acc > guard | only "home" banner (`homeIsOurs`) |
-| Widgets | all | clock, analog, month, battery, todo, note, class, app |
+| Widgets | all | clock, analog, month, battery, todo, note, class, timer, streak, media, weather, app |
 | Today cards | all | now, sched, tomorrow, notes |
 | Fresh layout | preset by rule | 2-row clock only (`fresh(parent=false)`) |
 | Control center | shade rule | `shadeOff()` false (HomeControl.kt:350) |
