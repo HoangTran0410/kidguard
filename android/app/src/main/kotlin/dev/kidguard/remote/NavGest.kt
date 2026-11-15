@@ -241,7 +241,6 @@ object NavGest {
         }
     }
 
-    private const val CTS_MS = 500L
 
     /** The system launcher's own Recents screen (MIUI / HyperOS / POCO launcher), false when there is none. */
     private fun miuiRecents(ctx: Context): Boolean {
