@@ -108,21 +108,25 @@ object NavGest {
     /** Three overlay windows. No per-frame allocation: fields are reused; touches only compare floats. */
     class Strips(private val svc: AccessibilityService) {
         private val wm = svc.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        private val views = arrayOfNulls<Strip>(1)
+        private val views = arrayOfNulls<Strip>(3)
         val shown get() = views[0] != null
 
-        /** The bottom strip. False = the overlay was refused. */
+        /** All three or none (a half set would be re-added every tick). False = the overlay was refused. */
         fun show(): Boolean {
             if (shown) return true
             val dm = DisplayMetrics()
             @Suppress("DEPRECATION") wm.defaultDisplay.getRealMetrics(dm)
             val d = dm.density
-            val h = (12 * d).toInt()   // thin: it sits over the keyboard's lowest edge
+            val w = (18 * d).toInt(); val h = (12 * d).toInt()   // bottom thin: it sits over the keyboard's lowest edge
+            val top = dm.heightPixels / 10                        // like HyperOS's own stubs (260 of 2712 px): not the status bar corner
             // NOT LayoutParams(w, h, x, y, gravity): that 5-int constructor is (w, h, type, flags, format), so the gravity
             // was lost and every strip sat in the middle of the screen (Poco 2026-11-15: "swipes do nothing")
-            // bottom only: HyperOS's own edge Back keeps working with fsg=1 and another home (owner test 2026-11-15),
-            // only swipe-up Home / Recents die (they live in the system launcher)
-            add(0, NavGestLogic.Edge.BOTTOM, dm.widthPixels, h, 0, Gravity.BOTTOM or Gravity.LEFT)
+            // sides too: HyperOS's own edge Back (GestureStubLeft/Right, made by the system launcher) is NOT made while
+            // another app is home; it only seemed to work because stubs created while the home chooser was up (no
+            // default home) stayed until the home changed (Poco 2026-11-15, launcher restart did not bring them back)
+            add(0, NavGestLogic.Edge.LEFT, w, dm.heightPixels - top - h, top, Gravity.TOP or Gravity.LEFT)
+            add(1, NavGestLogic.Edge.RIGHT, w, dm.heightPixels - top - h, top, Gravity.TOP or Gravity.RIGHT)
+            add(2, NavGestLogic.Edge.BOTTOM, dm.widthPixels, h, 0, Gravity.BOTTOM or Gravity.LEFT)
             if (views.any { it == null }) { hide(); return false }
             return true
         }
@@ -196,6 +200,14 @@ object NavGest {
         // few px, which reset the old "still since" check: 2026-11-15 Poco "swipe up and hold does nothing")
         private var hold = false
         private var lastP = 0f
+        // Circle to Search: finger held still on the bottom edge (POCO: long-press the handle)
+        private var moved = false
+        private var cts = false
+        private val ctsCheck = Runnable {
+            if (edge == NavGestLogic.Edge.BOTTOM && !moved && !armed) {
+                cts = true; performHapticFeedback(HapticFeedbackConstants.LONG_PRESS); circleToSearch(svc)
+            }
+        }
         private val holdCheck = Runnable {
             if (edge == NavGestLogic.Edge.BOTTOM && armed && !hold) {
                 hold = true; performHapticFeedback(HapticFeedbackConstants.LONG_PRESS); arrow?.set(lastP, true)
@@ -206,10 +218,13 @@ object NavGest {
             when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     x0 = e.rawX; y0 = e.rawY; ax = x0; ay = y0; movedAt = e.eventTime; armed = false; hold = false
-                    removeCallbacks(holdCheck)
+                    removeCallbacks(holdCheck); moved = false; cts = false
+                    removeCallbacks(ctsCheck); if (edge == NavGestLogic.Edge.BOTTOM) postDelayed(ctsCheck, CTS_MS)
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = e.rawX - ax; val dy = e.rawY - ay
+                    if (cts) return true
+                    if (!moved && (e.rawX - x0).let { it * it } + (e.rawY - y0).let { it * it } > still * still) { moved = true; removeCallbacks(ctsCheck) }
                     val p = NavGestLogic.progress(edge, e.rawX - x0, e.rawY - y0, min)
                     lastP = p
                     if (dx * dx + dy * dy > still * still) {
@@ -223,8 +238,9 @@ object NavGest {
                     if (p > 0.15f) { arrowAt(e.rawX, e.rawY); arrow?.set(p, hold) }
                 }
                 MotionEvent.ACTION_UP -> {
-                    removeCallbacks(holdCheck)
+                    removeCallbacks(holdCheck); removeCallbacks(ctsCheck)
                     arrowOff()
+                    if (cts) return true
                     val act = NavGestLogic.classify(edge, e.rawX - x0, e.rawY - y0, if (hold) NavGestLogic.HOLD_MS else 0L, min)
                     // HyperOS with another home: GLOBAL_ACTION_RECENTS only "blinks" home (the launcher loads its task list
                     // but can't show it); opening the launcher's RecentsActivity directly works (Poco 2026-11-15)
@@ -235,12 +251,45 @@ object NavGest {
                     }))
                     android.util.Log.i("kgNav", "$edge $act ok=$ok")
                 }
-                MotionEvent.ACTION_CANCEL -> { removeCallbacks(holdCheck); arrowOff() }
+                MotionEvent.ACTION_CANCEL -> { removeCallbacks(holdCheck); removeCallbacks(ctsCheck); arrowOff() }
             }
             return true
         }
     }
 
+
+    private const val CTS_MS = 500L
+
+    /**
+     * Circle to Search: ask the voice-interaction service (the default assistant = the Google app) for a session the way
+     * the nav-handle long press does: IVoiceInteractionManagerService.showSessionFromSession (transaction 3) with
+     * `omni.entry_point` = 1. No permission needed (unlike `cmd voiceinteraction show` / ContextualSearchManager).
+     * Same call as github.com/chenxiaolong/CTSLauncher. The system launcher's own path refuses while another app is home
+     * (HyperOS CircleToSearchHelper `isThirdHome:true`, Poco 2026-11-15). Needs Google as the default assistant;
+     * otherwise nothing happens (logged).
+     */
+    private fun circleToSearch(ctx: Context) = Thread {
+        val ok = runCatching {
+            val b = Class.forName("android.os.ServiceManager").getDeclaredMethod("getService", String::class.java)
+                .invoke(null, "voiceinteraction") as android.os.IBinder
+            val args = android.os.Bundle().apply {
+                putLong("invocation_time_ms", android.os.SystemClock.elapsedRealtime()); putInt("omni.entry_point", 1)
+            }
+            val data = android.os.Parcel.obtain(); val reply = android.os.Parcel.obtain()
+            try {
+                data.writeInterfaceToken("com.android.internal.app.IVoiceInteractionManagerService")
+                data.writeStrongBinder(null)
+                data.writeInt(1); args.writeToParcel(data, 0)
+                data.writeInt(android.service.voice.VoiceInteractionSession.SHOW_WITH_ASSIST or
+                    android.service.voice.VoiceInteractionSession.SHOW_WITH_SCREENSHOT or
+                    android.service.voice.VoiceInteractionSession.SHOW_SOURCE_ASSIST_GESTURE)
+                if (Build.VERSION.SDK_INT >= 34) data.writeString(ctx.attributionTag)
+                b.transact(3, data, reply, 0)
+                reply.readException(); reply.readInt() != 0
+            } finally { reply.recycle(); data.recycle() }
+        }.onFailure { android.util.Log.w("kgNav", "circle to search", it) }.getOrDefault(false)
+        android.util.Log.i("kgNav", "circle to search ok=$ok")
+    }.start()
 
     /** The system launcher's own Recents screen (MIUI / HyperOS / POCO launcher), false when there is none. */
     private fun miuiRecents(ctx: Context): Boolean {
