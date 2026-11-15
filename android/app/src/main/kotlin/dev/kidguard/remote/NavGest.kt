@@ -226,17 +226,29 @@ object NavGest {
                     removeCallbacks(holdCheck)
                     arrowOff()
                     val act = NavGestLogic.classify(edge, e.rawX - x0, e.rawY - y0, if (hold) NavGestLogic.HOLD_MS else 0L, min)
-                    val ok = act != NavGestLogic.Act.NONE && svc.performGlobalAction(when (act) {
+                    // HyperOS with another home: GLOBAL_ACTION_RECENTS only "blinks" home (the launcher loads its task list
+                    // but can't show it); opening the launcher's RecentsActivity directly works (Poco 2026-11-15)
+                    val ok = act != NavGestLogic.Act.NONE && (act == NavGestLogic.Act.RECENTS && miuiRecents(svc) || svc.performGlobalAction(when (act) {
                         NavGestLogic.Act.BACK -> AccessibilityService.GLOBAL_ACTION_BACK
                         NavGestLogic.Act.HOME -> AccessibilityService.GLOBAL_ACTION_HOME
                         else -> AccessibilityService.GLOBAL_ACTION_RECENTS
-                    })
+                    }))
                     android.util.Log.i("kgNav", "$edge $act ok=$ok")
                 }
                 MotionEvent.ACTION_CANCEL -> { removeCallbacks(holdCheck); arrowOff() }
             }
             return true
         }
+    }
+
+    /** The system launcher's own Recents screen (MIUI / HyperOS / POCO launcher), false when there is none. */
+    private fun miuiRecents(ctx: Context): Boolean {
+        for (pkg in listOf("com.mi.android.globallauncher", "com.miui.home")) {
+            val i = android.content.Intent().setClassName(pkg, "com.miui.home.recents.RecentsActivity")
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (runCatching { ctx.startActivity(i) }.isSuccess) return true
+        }
+        return false
     }
 
     /** The bubble: a dark circle with an arrow (back: < or >, home: ^, recents after the hold: a square). No allocation per frame. */
