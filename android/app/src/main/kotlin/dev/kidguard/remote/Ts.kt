@@ -26,6 +26,25 @@ object TsLogic {
     const val PKG = "com.tailscale.ipn"
     const val BASE = "https://pkgs.tail" + "scale.com/stable/"
 
+    /** Down this long before the parent's log gets a `tsDown` event (a shorter gap, e.g. a network change, is silent). */
+    const val DOWN_EVENT_MS = 3 * 60_000L
+
+    /** Outage bookkeeping: [downAt] = 0 when up; [reported] = the `tsDown` event for this outage was written. */
+    data class Outage(val downAt: Long = 0L, val reported: Boolean = false)
+
+    /**
+     * One look at the tunnel: returns the new bookkeeping and what to write: 0 = nothing, 1 = `tsDown` (down >= 3 min, once per
+     * outage), 2 = `tsUp` (back after a reported outage; an outage that never got a `tsDown` stays silent, so flapping makes no noise).
+     */
+    fun outageStep(o: Outage, up: Boolean, now: Long): Pair<Outage, Int> {
+        if (up) return Outage() to (if (o.reported) 2 else 0)
+        val d = if (o.downAt == 0L) now else o.downAt
+        return if (!o.reported && now - d >= DOWN_EVENT_MS) Outage(d, true) to 1 else Outage(d, o.reported) to 0
+    }
+
+    /** Whole minutes of an outage, at least 1. */
+    fun outageMin(downAt: Long, now: Long): Int = maxOf(1L, (now - downAt + 30_000L) / 60_000L).toInt()
+
     /** Gap before the next automatic setup try after [fails] failed ones in a row: 5 min, 30 min, then 6 h (each try is a ~40 MB download). */
     fun retryMs(fails: Int): Long = when { fails <= 1 -> 5 * 60_000L; fails == 2 -> 30 * 60_000L; else -> 6 * 3_600_000L }
 
@@ -185,6 +204,7 @@ object Ts {
     @Volatile private var downAt = 0L
     @Volatile private var askAt = 0L
     @Volatile private var openAt = 0L
+    @Volatile private var outage = TsLogic.Outage()
     /** Why [keep] is not opening Tailscale right now: "" | bg-start | hidden | screen-off | not-home | wait (state `ts.why`). */
     @Volatile private var keepWhy = ""
 
@@ -199,11 +219,15 @@ object Ts {
      */
     fun keep(ctx: Context, s: Store, fg: String?, now: Long) {
         // off (the common case): nothing to keep alive, so no package / interface lookups every tick
-        if (Flavor.HOME || s.released || (!s.tsWanted && !s.rules.tsKeep)) { downAt = 0L; keepWhy = ""; return }
-        if (!installed(ctx)) { keepWhy = ""; return }
-        if (VpnPause.active(ctx)) { downAt = 0L; keepWhy = ""; return }   // turned off on purpose for a bank app (VpnPause)
+        if (Flavor.HOME || s.released || (!s.tsWanted && !s.rules.tsKeep)) { downAt = 0L; keepWhy = ""; outage = TsLogic.Outage(); return }
+        if (!installed(ctx)) { keepWhy = ""; outage = TsLogic.Outage(); return }
+        if (VpnPause.active(ctx)) { downAt = 0L; keepWhy = ""; outage = TsLogic.Outage(); return }   // turned off on purpose for a bank app (VpnPause)
         if (findIp().isNotEmpty()) {
             if (downAt != 0L && askAt >= downAt) s.log(R.string.ts_log_back)
+            if (!s.tsSeenUp) s.tsSeenUp = true
+            val was = outage
+            val (o, act) = TsLogic.outageStep(was, true, now); outage = o
+            if (act == 2) runCatching { s.event("tsUp", R.string.ev_ts_up, TsLogic.outageMin(was.downAt, now)) }
             downAt = 0L; keepWhy = ""
             return
         }
@@ -219,6 +243,18 @@ object Ts {
             !AccPause.canReopen(ctx) -> "bg-start"
             now - openAt < TsLogic.OPEN_EVERY_MS -> "wait"
             else -> ""
+        }
+        // the parent's log: only a phone where Tailscale was seen connected at least once; once per outage (>= 3 min), no push (Events.NO_PUSH)
+        if (s.tsSeenUp) {
+            val (o, act) = TsLogic.outageStep(outage, false, now); outage = o
+            if (act == 1) {
+                val why = when {
+                    dozeHit(ctx) -> ctx.getString(R.string.ev_ts_why_doze)
+                    keepWhy.isNotEmpty() -> ctx.getString(R.string.ev_ts_why_stuck, keepWhy)
+                    else -> ctx.getString(R.string.ev_ts_why_closed)
+                }
+                runCatching { s.event("tsDown", R.string.ev_ts_down, TsLogic.outageMin(o.downAt, now), why) }
+            }
         }
         when (TsLogic.reviveStep(now - downAt, now - askAt, now - openAt, onHome, canOpen)) {
             1 -> {

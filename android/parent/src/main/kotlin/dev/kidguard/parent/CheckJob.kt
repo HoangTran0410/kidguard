@@ -161,8 +161,8 @@ class CheckJob : JobService() {
                 val ea = st.optJSONArray("events")
                 val evs = (0 until (ea?.length() ?: 0)).mapNotNull { i ->
                     val x = ea!!.optJSONObject(i) ?: return@mapNotNull null
-                    val id = x.optString("id"); val text = x.optString("text")
-                    if (id.isEmpty() || text.isEmpty()) null else Logic.Ev(id, text.take(120), x.optLong("t"), x.optString("kind"), Act.locOf(JSONObject().put("location", x.optJSONObject("loc"))))
+                    val id = x.optString("id"); val text = x.optString("text")   // tsDown / tsUp: log only, no notification
+                    if (id.isEmpty() || text.isEmpty() || x.optString("kind") in setOf("tsDown", "tsUp")) null else Logic.Ev(id, text.take(120), x.optLong("t"), x.optString("kind"), Act.locOf(JSONObject().put("location", x.optJSONObject("loc"))))
                 }
                 val accOff = st.optString("mode") == "basic" && st.optJSONObject("basic")?.optBoolean("acc", true) == false
                 Logic.Seen(true, list, if (lan) st.optLong("t") else o.optLong("seen"), sos, evs, accOff, Act.locOf(st), appReqs, st.optJSONObject("now")?.optString("why") == "bedtime",

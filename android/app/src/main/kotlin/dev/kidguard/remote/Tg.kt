@@ -660,6 +660,7 @@ object Tg {
         for (i in 0 until reqs.length()) reqs.optJSONObject(i)?.let { val k = TgLogic.reqKey(it); if (k !in seen) fresh += k to it }
         for (i in 0 until evs.length()) evs.optJSONObject(i)?.let {
             val k = "e:" + it.optString("id")
+            if (k !in seen && it.optString("kind") in Events.NO_PUSH) { synchronized(seenLock) { s.tgSetSeen(TgLogic.remember(s.tgSeen(), listOf(k))) }; return@let }
             if (k !in seen && (markOnly || it.optString("kind") != "tamper" || it.has("shot") || now - it.optLong("t") > 10_000)) fresh += k to it
         }
         if (fresh.isEmpty()) return

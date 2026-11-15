@@ -392,7 +392,7 @@ const totpHtml = s => `<div class="alert warn" style="margin-top:10px">${s.queue
     <p class="mute">${t("totp.share")}</p>
     <button id="totpDone">${ic("check")} ${t("totp.done")}</button></div>`;
 // ---- v0.6: events, chores, zones, templates ----
-const EV_IC = { call: "phone", zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand", launcher: "house", adminOpen: "key-round" };
+const EV_IC = { call: "phone", zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand", launcher: "house", adminOpen: "key-round", tsDown: "wifi-off", tsUp: "wifi" };
 // phone log line kind (log[].k, protocol) -> icon + tone; lines from older phones have no k
 const LOG_IC = { pin_wrong: ["key-round", "bad"], unlock: ["lock-open"], paired: ["link"], ai_on: ["bot"], ai_off: ["bot"], tz: ["globe"], loc_fixed: ["map-pin"],
   usage_off: ["triangle-alert", "bad"], new_app: ["package"], suspended: ["pause"], unsuspended: ["play"], recover_open: ["refresh-cw"],

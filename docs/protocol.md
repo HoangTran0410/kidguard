@@ -733,7 +733,7 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
   "Bố mẹ đã đồng ý / chưa đồng ý" notification ("… Bố mẹ nhắn: <note>").
 - **Zones / events**: the phone checks each new location fix against `zones` (inside = distance <= r; leaving needs
   distance > r + 50 m so a fix at the edge doesn't flap); fixes with accuracy > 300 m are ignored and appends events. State NEW:
-  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing|checkin|launcher|adminOpen|call", "text": "Đã đến Nhà"}]`,
+  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing|checkin|launcher|adminOpen|call|tsDown|tsUp", "text": "Đã đến Nhà"}]`,
   newest last, at most 50, older than 7 days dropped. `text` is free text for people, in the child app's language
   (English or Vietnamese, from the phone / per-app language; the examples here are the Vietnamese ones). The same goes for
   log lines (`log[].m`; NEW `log[].k` = kind, the string id without `log_`: `pin_wrong`, `unlock`, `paired`, `tz`,
@@ -743,6 +743,9 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
   `checkin`, `rules`; absent on older lines, pages show a plain dot) and error strings (`dnsError`, `update.err`, `ts.err`). Code must switch on `kind`, never parse `text`. Kinds:
   - `zoneIn` / `zoneOut`: "Đã đến <zone>" / "Đã rời <zone>" (`zone` field = zone id). First fix after a rules change
     only records where the phone is (no event).
+  - `tsDown` / `tsUp`: "Tailscale mất kết nối <n> phút (<lý do>)" once per outage after >= 3 min down while Tailscale is expected on
+    (keep-alive or set up by us) and was seen connected at least once; "Tailscale đã có lại sau <n> phút" when it returns (only after a
+    `tsDown`). Log only: no Telegram / FCM / parent-app notification (`Events.NO_PUSH`, worker `pushNew`, `CheckJob`).
   - `battery`: "Pin còn <n>%" once when it drops to <= 15 % while not charging (re-armed after charging to >= 30 %).
   - `newApp`: "Đã cài <label>" when a new non-system app appears (also `apps[].new`).
   - `pairing` (v0.9.1): the child held "Mở ghép lại" on a paired phone with no PIN. Pairing opens 24 h later (state

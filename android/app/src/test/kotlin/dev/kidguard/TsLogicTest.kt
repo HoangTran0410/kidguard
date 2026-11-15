@@ -90,4 +90,25 @@ class TsLogicTest {
         assertEquals(1, TsLogic.reviveStep(2 * m, m, big, true, false))            // no background start right
         assertEquals(1, TsLogic.reviveStep(5 * m, m, 3 * m, true, true))           // opened 3 min ago: no second open
     }
+
+    @Test fun outageDebounce() {
+        val m = 60_000L
+        var o = TsLogic.Outage()
+        var r = TsLogic.outageStep(o, false, 0L); o = r.first; assertEquals(0, r.second)
+        r = TsLogic.outageStep(o, false, 2 * m); o = r.first; assertEquals(0, r.second)
+        r = TsLogic.outageStep(o, false, 3 * m); o = r.first; assertEquals(1, r.second)      // once, at 3 min
+        r = TsLogic.outageStep(o, false, 10 * m); o = r.first; assertEquals(0, r.second)     // no repeat
+        assertEquals(10, TsLogic.outageMin(o.downAt, 10 * m))
+        r = TsLogic.outageStep(o, true, 11 * m); assertEquals(2, r.second); assertEquals(TsLogic.Outage(), r.first)
+    }
+
+    @Test fun flappingStaysSilent() {
+        val m = 60_000L
+        var o = TsLogic.Outage()
+        o = TsLogic.outageStep(o, false, 0L).first
+        val r = TsLogic.outageStep(o, true, 2 * m)            // back before 3 min: no tsDown, no tsUp
+        assertEquals(0, r.second)
+        assertEquals(TsLogic.Outage(), r.first)
+        assertEquals(1, TsLogic.outageMin(0L, 10_000L))
+    }
 }

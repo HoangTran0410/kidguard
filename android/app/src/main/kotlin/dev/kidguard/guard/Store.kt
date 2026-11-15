@@ -526,6 +526,10 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var tsWanted: Boolean
         get() = p.getBoolean("tsWanted", false)
         set(v) { p.edit().putBoolean("tsWanted", v).commit() }
+    /** Tailscale was seen connected at least once on this phone: only then a drop goes to the events log (Ts.keep). */
+    @get:Synchronized @set:Synchronized var tsSeenUp: Boolean
+        get() = p.getBoolean("tsSeenUp", false)
+        set(v) { p.edit().putBoolean("tsSeenUp", v).apply() }
     @get:Synchronized @set:Synchronized var tsKey: String
         get() = p.getString("tsKey", "")!!
         set(v) { p.edit().putString("tsKey", v).commit() }

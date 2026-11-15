@@ -119,6 +119,11 @@
     <string name="log_tz">Time zone changed: %1$s</string>
     <string name="ev_clock_ahead">Phone clock set %3$s fast: shows %1$s, real time %2$s</string>
     <string name="ev_clock_behind">Phone clock set %3$s slow: shows %1$s, real time %2$s</string>
+    <string name="ev_ts_down">Tailscale down for %1$d min (%2$s)</string>
+    <string name="ev_ts_up">Tailscale back after %1$d min</string>
+    <string name="ev_ts_why_doze">phone asleep, Tailscale is under battery saving</string>
+    <string name="ev_ts_why_stuck">closed, could not reopen it: %1$s</string>
+    <string name="ev_ts_why_closed">closed, or no network</string>
     <string name="ev_dur_m">%1$d min</string>
     <string name="ev_dur_hm">%1$d h %2$d min</string>
     <string name="ev_dur_dh">%1$d days %2$d h</string>
