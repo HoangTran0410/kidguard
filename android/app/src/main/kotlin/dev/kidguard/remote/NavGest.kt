@@ -114,15 +114,18 @@ object NavGest {
             val d = dm.density
             val w = (18 * d).toInt(); val h = (12 * d).toInt()   // bottom thin: it sits over the keyboard's lowest edge
             val top = dm.heightPixels / 4
-            add(0, NavGestLogic.Edge.LEFT, WindowManager.LayoutParams(w, dm.heightPixels - top - h, 0, top, Gravity.TOP or Gravity.START))
-            add(1, NavGestLogic.Edge.RIGHT, WindowManager.LayoutParams(w, dm.heightPixels - top - h, 0, top, Gravity.TOP or Gravity.END))
-            add(2, NavGestLogic.Edge.BOTTOM, WindowManager.LayoutParams(dm.widthPixels, h, 0, 0, Gravity.BOTTOM or Gravity.START))
+            // NOT LayoutParams(w, h, x, y, gravity): that 5-int constructor is (w, h, type, flags, format), so the gravity
+            // was lost and every strip sat in the middle of the screen (Poco 2026-11-15: "swipes do nothing")
+            add(0, NavGestLogic.Edge.LEFT, w, dm.heightPixels - top - h, top, Gravity.TOP or Gravity.LEFT)
+            add(1, NavGestLogic.Edge.RIGHT, w, dm.heightPixels - top - h, top, Gravity.TOP or Gravity.RIGHT)
+            add(2, NavGestLogic.Edge.BOTTOM, dm.widthPixels, h, 0, Gravity.BOTTOM or Gravity.LEFT)
             if (views.any { it == null }) { hide(); return false }
             return true
         }
 
-        private fun add(i: Int, edge: NavGestLogic.Edge, base: WindowManager.LayoutParams) {
-            val lp = base
+        private fun add(i: Int, edge: NavGestLogic.Edge, w: Int, h: Int, y: Int, gravity: Int) {
+            val lp = WindowManager.LayoutParams(w, h)
+            lp.gravity = gravity; lp.x = 0; lp.y = y
             lp.type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
             lp.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
