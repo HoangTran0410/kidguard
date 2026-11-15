@@ -23,7 +23,7 @@ Index and the rule for adding lines: `README.md`.
 ### Poco / HyperOS 3 (SDK 36)
 - Third-party home's app-open zoom is only played if the home window has SHOW_WALLPAPER; else apps slide in from the side. Keep `windowShowWallpaper=true` in values AND values-night themes (night file overrode the first experiment). Check `dumpsys window windows` (11-09)
 - Another home turns gesture navigation into 3 buttons; nothing restores gestures (HomeMenus.kt:139)
-  - UPDATE 2026-11-15 (Poco, HyperOS OS3.0, SDK 36): `settings put global force_fsg_nav_bar 1` (needs WRITE_SECURE_SETTINGS / adb) brings gestures back with KidGuard as home: secure navigation_mode 0 -> 2, 3-button bar gone, survives a reinstall of KidGuard. Undo = 0. Reboot not tested yet.
+  - 2026-11-15 (Poco, HyperOS OS3.0, SDK 36): `settings put global force_fsg_nav_bar 1` (WRITE_SECURE_SETTINGS) hides the 3-button bar (navigation_mode 0 -> 2) but swipes do NOTHING with KidGuard as home: HyperOS gestures live in POCO Launcher's TouchInteractionService (ignored when it is not the default home) and SystemUI EdgeBackGestureHandler stays disabled. With the bar hidden, key events still work: HOME -> KidGuard home, APP_SWITCH -> POCO Launcher RecentsActivity (recents OK), BACK OK. So own gestures (accessibility edge strips -> performGlobalAction) + fsg=1 is viable; fsg must go back to 0 whenever our accessibility is off/paused (bank apps) or the phone is stuck with no navigation.
 - Back-gesture strip ~25 dp eats drag events at the edge
 - HyperOS control-center window ids (`miui.systemui.plugin`) unmeasured; Acc matching is "unverified"
 - Poco default HOME = dev.kidguard.home (flavor home)
