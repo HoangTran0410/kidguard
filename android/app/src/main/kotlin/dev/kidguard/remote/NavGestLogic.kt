@@ -8,7 +8,7 @@ package dev.kidguard
 object NavGestLogic {
     const val KEY = "force_fsg_nav_bar"
     /** A swipe must go at least this far (dp) to count. */
-    const val MIN_DP = 40f
+    const val MIN_DP = 48f
     /** Held this long (ms) without moving, after the swipe up: Recents instead of Home. */
     const val HOLD_MS = 350L
     /** Finger counts as "still" while it stays within this many dp of its last anchor. */
@@ -32,6 +32,12 @@ object NavGestLogic {
      * moved more than the still radius, [min] = threshold in px.
      * Sides: inward and mostly horizontal = BACK. Bottom: up and mostly vertical = HOME, or RECENTS after a hold.
      */
+    /** How far the finger went inward, as a share of [min] (0 = at the edge or outward, 1 = armed). Live feedback +
+     *  cancel: pulling back below 1 before lifting = nothing happens. */
+    fun progress(edge: Edge, dx: Float, dy: Float, min: Float): Float = when (edge) {
+        Edge.LEFT -> dx; Edge.RIGHT -> -dx; Edge.BOTTOM -> -dy
+    }.coerceAtLeast(0f) / min
+
     fun classify(edge: Edge, dx: Float, dy: Float, still: Long, min: Float): Act {
         val ax = Math.abs(dx); val ay = Math.abs(dy)
         return when (edge) {

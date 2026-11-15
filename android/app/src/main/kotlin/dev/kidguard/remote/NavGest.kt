@@ -124,48 +124,128 @@ object NavGest {
         }
 
         private fun add(i: Int, edge: NavGestLogic.Edge, w: Int, h: Int, y: Int, gravity: Int) {
-            val lp = WindowManager.LayoutParams(w, h)
-            lp.gravity = gravity; lp.x = 0; lp.y = y
-            lp.type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
-            lp.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-            lp.format = PixelFormat.TRANSLUCENT
-            if (Build.VERSION.SDK_INT >= 28) lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            val lp = params(w, h, y, gravity, touchable = true)
             lp.title = "kgNav$i"
-            val v = Strip(svc, edge, (NavGestLogic.MIN_DP * svc.resources.displayMetrics.density), (NavGestLogic.STILL_DP * svc.resources.displayMetrics.density))
+            val dm = svc.resources.displayMetrics.density
+            val v = Strip(svc, wm, edge, NavGestLogic.MIN_DP * dm, NavGestLogic.STILL_DP * dm)
+            v.wantW = w; v.wantH = h
             if (runCatching { wm.addView(v, lp) }.isSuccess) views[i] = v
         }
+
+        /** Size check after layout: a strip bigger than asked would sit over the whole screen and eat every touch
+         *  (2026-11-15: LayoutParams(w, h) is really (type, flags) -> MATCH_PARENT, the Poco was stuck). */
+        fun sane(): Boolean = views.all { v -> v != null && v.width in 1..maxOf(v.wantW, 1) + 2 && v.height in 1..maxOf(v.wantH, 1) + 2 }
 
         fun hide() {
             for (i in views.indices) { views[i]?.let { v -> runCatching { wm.removeViewImmediate(v) } }; views[i] = null }
         }
     }
 
-    private class Strip(private val svc: AccessibilityService, private val edge: NavGestLogic.Edge, private val min: Float, private val still: Float) : View(svc) {
+    /** Overlay params. Width / height set as fields: NEVER LayoutParams(w, h) = (type, flags), which leaves MATCH_PARENT. */
+    private fun params(w: Int, h: Int, y: Int, gravity: Int, touchable: Boolean) = WindowManager.LayoutParams().apply {
+        width = w; height = h; this.gravity = gravity; x = 0; this.y = y
+        type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+        flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            (if (touchable) 0 else WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+        format = PixelFormat.TRANSLUCENT
+        if (Build.VERSION.SDK_INT >= 28) layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+    }
+
+    /**
+     * One edge. While the finger is down, a small NOT_TOUCHABLE window ([Arrow]) shows a bubble that follows the
+     * finger and grows with [NavGestLogic.progress]; at 1 it is armed (haptic). Lift while armed = the action; pull back
+     * below the threshold first = nothing (like HyperOS's own back arrow).
+     */
+    private class Strip(private val svc: AccessibilityService, private val wm: WindowManager, private val edge: NavGestLogic.Edge,
+                        private val min: Float, private val still: Float) : View(svc) {
+        var wantW = 0; var wantH = 0
         private var x0 = 0f; private var y0 = 0f
         private var ax = 0f; private var ay = 0f      // anchor for "still"
         private var movedAt = 0L
+        private var armed = false
+        private var arrow: Arrow? = null
+        private var arrowLp: WindowManager.LayoutParams? = null
+        private val box = (96 * svc.resources.displayMetrics.density).toInt()
+
+        private fun arrowAt(rx: Float, ry: Float) {
+            val dm = svc.resources.displayMetrics
+            val lp = arrowLp ?: when (edge) {
+                NavGestLogic.Edge.LEFT -> params(box, box, 0, Gravity.TOP or Gravity.LEFT, false)
+                NavGestLogic.Edge.RIGHT -> params(box, box, 0, Gravity.TOP or Gravity.RIGHT, false)
+                NavGestLogic.Edge.BOTTOM -> params(box, box, 0, Gravity.BOTTOM or Gravity.LEFT, false)
+            }.also { it.title = "kgNavArrow" }
+            if (edge == NavGestLogic.Edge.BOTTOM) lp.x = (rx - box / 2).toInt().coerceIn(0, maxOf(0, dm.widthPixels - box))
+            else lp.y = (ry - box / 2).toInt().coerceAtLeast(0)
+            val a = arrow
+            if (a == null) {
+                val n = Arrow(svc, edge)
+                if (runCatching { wm.addView(n, lp) }.isSuccess) { arrow = n; arrowLp = lp }
+            } else runCatching { wm.updateViewLayout(a, lp) }
+        }
+
+        private fun arrowOff() { arrow?.let { a -> runCatching { wm.removeViewImmediate(a) } }; arrow = null; arrowLp = null }
+
+        override fun onDetachedFromWindow() { arrowOff(); super.onDetachedFromWindow() }
 
         override fun onTouchEvent(e: MotionEvent): Boolean {
             when (e.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { x0 = e.rawX; y0 = e.rawY; ax = x0; ay = y0; movedAt = e.eventTime }
+                MotionEvent.ACTION_DOWN -> { x0 = e.rawX; y0 = e.rawY; ax = x0; ay = y0; movedAt = e.eventTime; armed = false }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = e.rawX - ax; val dy = e.rawY - ay
                     if (dx * dx + dy * dy > still * still) { ax = e.rawX; ay = e.rawY; movedAt = e.eventTime }
+                    val p = NavGestLogic.progress(edge, e.rawX - x0, e.rawY - y0, min)
+                    if (p > 0.15f) { arrowAt(e.rawX, e.rawY); arrow?.set(p, edge == NavGestLogic.Edge.BOTTOM && p >= 1f && e.eventTime - movedAt >= NavGestLogic.HOLD_MS) }
+                    val now = p >= 1f
+                    if (now && !armed) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    armed = now
                 }
                 MotionEvent.ACTION_UP -> {
+                    arrowOff()
                     val act = NavGestLogic.classify(edge, e.rawX - x0, e.rawY - y0, e.eventTime - movedAt, min)
-                    if (act != NavGestLogic.Act.NONE) {
-                        performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                        svc.performGlobalAction(when (act) {
-                            NavGestLogic.Act.BACK -> AccessibilityService.GLOBAL_ACTION_BACK
-                            NavGestLogic.Act.HOME -> AccessibilityService.GLOBAL_ACTION_HOME
-                            else -> AccessibilityService.GLOBAL_ACTION_RECENTS
-                        })
-                    }
+                    if (act != NavGestLogic.Act.NONE) svc.performGlobalAction(when (act) {
+                        NavGestLogic.Act.BACK -> AccessibilityService.GLOBAL_ACTION_BACK
+                        NavGestLogic.Act.HOME -> AccessibilityService.GLOBAL_ACTION_HOME
+                        else -> AccessibilityService.GLOBAL_ACTION_RECENTS
+                    })
                 }
+                MotionEvent.ACTION_CANCEL -> arrowOff()
             }
             return true
+        }
+    }
+
+    /** The bubble: a dark circle with an arrow (back: < or >, home: ^, recents after the hold: a square). No allocation per frame. */
+    private class Arrow(ctx: Context, private val edge: NavGestLogic.Edge) : View(ctx) {
+        private val d = ctx.resources.displayMetrics.density
+        private val bg = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = 0xCC202124.toInt() }
+        private val fg = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.WHITE; style = android.graphics.Paint.Style.STROKE; strokeWidth = 3 * d
+            strokeCap = android.graphics.Paint.Cap.ROUND; strokeJoin = android.graphics.Paint.Join.ROUND
+        }
+        private var p = 0f; private var hold = false
+        fun set(progress: Float, recents: Boolean) { if (progress != p || recents != hold) { p = progress; hold = recents; invalidate() } }
+
+        override fun onDraw(c: android.graphics.Canvas) {
+            val k = p.coerceIn(0f, 1f)
+            val r = (10 + 14 * k) * d
+            val travel = (width / 2f - r) * k           // the bubble slides in from the edge as the finger goes
+            val cx: Float; val cy: Float
+            when (edge) {
+                NavGestLogic.Edge.LEFT -> { cx = r + travel; cy = height / 2f }
+                NavGestLogic.Edge.RIGHT -> { cx = width - r - travel; cy = height / 2f }
+                NavGestLogic.Edge.BOTTOM -> { cx = width / 2f; cy = height - r - travel }
+            }
+            bg.alpha = (120 + 135 * k).toInt()
+            c.drawCircle(cx, cy, r, bg)
+            fg.alpha = if (p >= 1f) 255 else 150
+            val a = 6 * d
+            when {
+                hold -> c.drawRect(cx - a, cy - a, cx + a, cy + a, fg)
+                edge == NavGestLogic.Edge.LEFT -> { c.drawLine(cx + a / 2, cy - a, cx - a / 2, cy, fg); c.drawLine(cx - a / 2, cy, cx + a / 2, cy + a, fg) }
+                edge == NavGestLogic.Edge.RIGHT -> { c.drawLine(cx - a / 2, cy - a, cx + a / 2, cy, fg); c.drawLine(cx + a / 2, cy, cx - a / 2, cy + a, fg) }
+                else -> { c.drawLine(cx - a, cy + a / 2, cx, cy - a / 2, fg); c.drawLine(cx, cy - a / 2, cx + a, cy + a / 2, fg) }
+            }
         }
     }
 }

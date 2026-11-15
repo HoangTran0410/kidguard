@@ -41,4 +41,13 @@ class NavGestLogicTest {
         assertEquals(Act.NONE, NavGestLogic.classify(Edge.BOTTOM, 0f, 200f, 0, min))   // downward
         assertEquals(Act.NONE, NavGestLogic.classify(Edge.BOTTOM, 400f, -120f, 0, min)) // sideways
     }
+
+    @Test fun progressArmsAtMinAndDropsWhenPulledBack() {
+        assertEquals(0f, NavGestLogic.progress(Edge.LEFT, -30f, 0f, 100f), 0.001f)      // outward
+        assertEquals(0.5f, NavGestLogic.progress(Edge.LEFT, 50f, 0f, 100f), 0.001f)
+        assertEquals(1.2f, NavGestLogic.progress(Edge.RIGHT, -120f, 0f, 100f), 0.001f)
+        assertEquals(1f, NavGestLogic.progress(Edge.BOTTOM, 0f, -100f, 100f), 0.001f)
+        // pulled back below the threshold before lifting: nothing happens
+        assertEquals(Act.NONE, NavGestLogic.classify(Edge.LEFT, 60f, 0f, 0, 100f))
+    }
 }

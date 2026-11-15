@@ -258,14 +258,18 @@ class Acc : AccessibilityService() {
     fun navStrips(on: Boolean) {
         main.post {
             if (on && running === this && !NavGest.stripsFailed) {
+                val fresh = strips?.shown != true
                 if (strips == null) strips = NavGest.Strips(this)
-                if (strips?.show() != true) {   // overlay refused: never leave the bar hidden without our gestures
-                    strips = null; NavGest.stripsFailed = true
-                    val app = applicationContext
-                    Thread({ runCatching { NavGest.restore(app) } }, "nav-restore").start()
-                }
+                if (strips?.show() != true) navFail()   // overlay refused: never leave the bar hidden without our gestures
+                // after layout: a strip bigger than asked would cover the screen and eat every touch (stuck phone) -> off
+                else if (fresh) main.postDelayed({ val st = strips; if (st != null && st.shown && !st.sane()) navFail() }, 400)
             } else if (!on || running !== this) { strips?.hide(); strips = null }
         }
+    }
+    private fun navFail() {
+        strips?.hide(); strips = null; NavGest.stripsFailed = true
+        val app = applicationContext
+        Thread({ runCatching { NavGest.restore(app) } }, "nav-restore").start()
     }
     override fun onConfigurationChanged(c: android.content.res.Configuration) {
         super.onConfigurationChanged(c)
