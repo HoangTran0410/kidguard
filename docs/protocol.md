@@ -38,6 +38,12 @@ shape, say so in your report instead of silently diverging.
                                    //      by itself at expiry (no rules change needed). The page's "Pause 30 min" sets now+30 min.
   "tsKeep": false,                 // NEW 0.9.12 (default false): Ts.keep brings a dropped Tailscale back (CONNECT_VPN broadcast, then open once on home); always on for a Tailscale KidGuard installed (tsWanted)
   "noVpn": false,                  // NEW (default false): DISALLOW_CONFIG_VPN (Device Owner); also kept while our Tailscale access needs it
+  "noIncognito": false,            // 0.9.24 (default false, Device Owner): Chrome/Edge managed config IncognitoModeAvailability="1" (no incognito tabs)
+  "webBlock": [],                  // 0.9.24 hosts (max 300, cleaned by WebLogic.host: no scheme/path/www., subdomains included). ["*"] = every
+                                   //      site except webAllow ("only allowed sites"). Chrome/Edge managed config URLBlocklist (String[]), Device Owner only.
+  "webAllow": [],                  // 0.9.24 hosts, Chrome/Edge URLAllowlist (sent only with a non-empty webBlock; the more specific entry wins).
+                                   //      All three are one bundle per browser with DnsOverHttpsMode (Policy.applyBrowsers); release clears it.
+                                   //      Timed modes may override them. Other browsers ignore them: state `webOther`.
   "frpIds": [],                    // NEW (default []): Google account IDs (digits, 10..30 chars, max 5) for factory reset protection
                                    //   (Device Owner, Android 11+: setFactoryResetProtectionPolicy); [] = policy cleared. Undone in release.
   "noInstall": false, "noDebug": false,
@@ -109,6 +115,7 @@ leftMs apps rules location lan relay log`), plus:
   "relayOk": 0,  // NEW: epoch ms of the last successful relay sync (0 = never)
   "digest": {"days": [{"day": "2026-11-14", "asked": 2, "answered": 1, "blocked": 3, "tamper": 0}],   // 2026-11-14 evening summary: today first, up to 7 days, counters kept 8 days by the phone
              "bedKept": true},     // last night's bedtime window: true = under 1 min of use, false = used, null = no bedtime / per-night times (bedByDay) / no usage access
+  "webOther": ["org.mozilla.firefox"],  // 0.9.24, only while noIncognito / webBlock is set: installed browsers that ignore the website rules (page offers to block them)
   "requests": [                    // NEW: the child asked for more time (button on the child's KidGuard screen)
     {"id": "a1b2c3", "t": 1793940898493, "min": 30, "note": "con làm bài tập"}
   ]
@@ -1313,7 +1320,7 @@ when pairing their own phone (`/api/pair`), so it follows the parent from previe
 - **Grant** (`Grant.apply`): `now.why` "" or "daily" raises today's `bonusMin`; anything else sets `passUntil = max(now, passUntil) + min`.
 - **State** `now: {why, until, name}` (why: lost > paused > schedule > bedtime > daily; "pass"/"code" while a pass / Authenticator unlock is in force; `until` ms, 0 = unknown);
   `done: [{id,type,res,at}]` last 10 command results (relay and LAN); `lastAnswer: {ok,min,kind,app,at}|null`; `lost: {on,applied,ringStopped}`; `oneMore` bool = the +1 minute can be taken now.
-- **Requests** (`requests[]`, at most one open): `{id, at, t(=at), remindAt, kind: "time"|"app", min, note, chore?, tpl?, pkg?, app?}`. A new ask while one is open = remind (same id, `remindAt` = now,
+- **Requests** (`requests[]`, at most one open): `{id, at, t(=at), remindAt, kind: "time"|"app"|"web", min, note, chore?, tpl?, pkg?, app?}`. Kind "web" (0.9.24): the child shared a link to KidGuard (`ShareWebActivity`, SEND text/plain); `app` = the host. Yes = the parent side adds the host to `webAllow` and drops it from `webBlock` (page `reqApprove`, parent app `Logic.approveWebRules`, Telegram `TgLogic.approveWeb`), then `answer {req, ok}`. A new ask while one is open = remind (same id, `remindAt` = now,
   rate-limited to 5 min, raises an `request` event whose dedup key is `r:<id>:<remindAt>`). Dropped on the first tick of a new local day. `answer {req, ok, min?, note?, always?}`: for kind "app" the parent side edits `approved`/`blocked`.
 - **Events**: `lost` (on/off), `sim` (state/operator/carrier changed; no ICCID: a swap inside the same carrier is not seen), `released` (before teardown, one relay sync + Telegram tick), `releaseFail`,
   `oneMore` (info), `tamper` (basic mode: uninstall/turn-off page, clock page, accessibility off, reboot; rate-limited 10 min per key, 60 min for accessibility off). `Events.important`: sos, tamper, lost, request.

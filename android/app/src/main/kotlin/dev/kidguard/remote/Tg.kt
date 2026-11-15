@@ -578,7 +578,8 @@ object Tg {
                 val cmd = JSONObject().put("type", "answer").put("req", id).put("ok", yes).apply { if (app && yes) put("always", true); if (!app && yes) put("min", min) }
                 if (g.command(cmd) != "ok") { copies["r:$id"] = java.util.concurrent.CopyOnWriteArrayList(list.filter { it.chat != chat || it.msg != msgId }); return done(TgLogic.s(lang, "reqGone")) }
                 val who = chatName(s, chat)
-                if (app) { o?.optString("pkg")?.takeIf { it.isNotBlank() }?.let { p -> editRules(g, s) { TgLogic.approve(it, p, yes, now) } } }
+                if (app && o?.optString("kind") == "web") { if (yes) o.optString("app").takeIf { it.isNotBlank() }?.let { h -> editRules(g, s) { TgLogic.approveWeb(it, h, now) } } }
+                else if (app) { o?.optString("pkg")?.takeIf { it.isNotBlank() }?.let { p -> editRules(g, s) { TgLogic.approve(it, p, yes, now) } } }
                 else if (yes) { val why = TgLogic.whyOf(g.currentState()); editRules(g, s) { TgLogic.give(it, why, min, now, Guard.day(now)).first } }
                 val appLabel = o?.let { it.optString("app").ifBlank { it.optString("pkg") } } ?: ""
                 resolve(s, list) { l -> TgLogic.answered(l, who, yes, if (app) "app" else "time", min, appLabel, now, ::hm) }

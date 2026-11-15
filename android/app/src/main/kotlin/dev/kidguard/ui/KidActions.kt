@@ -114,6 +114,15 @@ class KidActions(private val act: Activity, private val u: Ui, private val onCha
         }
     }
 
+    /** Ask to open a website (a link shared to KidGuard, ShareWebActivity): kind "web", the host in "app". */
+    fun askWeb(host: String) {
+        if (Store.of(act).openRequest() != null) { pendingCard(); return }
+        Modal(act, u).show(R.drawable.li_send, Modal.Tone.INFO, act.getString(R.string.req_web_q, host), act.getString(R.string.req_app_body),
+            ok = act.getString(R.string.send), cancel = act.getString(R.string.cancel)) {
+            reported(Store.of(act).addRequest("web", 0, "", null, host), R.string.req_app_sent); true
+        }
+    }
+
     /** "Xong" on a chore: a time request tagged with the chore id. */
     fun sendChore(ch: Chore) {
         val s = Store.of(act)

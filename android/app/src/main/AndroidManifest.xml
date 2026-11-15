@@ -201,6 +201,21 @@
             android:screenOrientation="portrait"
             android:theme="@style/AppMain" />
 
+        <!-- "Share" a link -> ask the parent to open that website (request kind "web", ShareWebActivity.kt) -->
+        <activity
+            android:name=".ShareWebActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="@string/share_web"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
         <!-- quick actions (Quick.kt): lock only / time left only; they open nothing but KidGuard. Disabled by release. -->
         <activity
             android:name=".LockActivity"

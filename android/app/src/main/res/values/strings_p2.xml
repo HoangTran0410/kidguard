@@ -47,4 +47,9 @@
     <string name="rel_title">KidGuard no longer manages this phone</string>
     <string name="rel_body">This phone has no limits now. Uninstall KidGuard like any app, or set it up again from the start.</string>
     <string name="bc_ask">Ask for more time</string>
+    <string name="req_web_q">Ask your parent to open %1$s?</string>
+    <string name="req_web_none">No link found. Share the page from the browser.</string>
+    <string name="req_web_unpaired">No parent is linked to this phone yet.</string>
+    <string name="answer_web_yes">Your parent said yes: you can open %1$s</string>
+    <string name="share_web">Ask to open</string>
 </resources>

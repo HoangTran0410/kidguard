@@ -47,4 +47,9 @@
     <string name="rel_title">KidGuard đã gỡ quyền quản lý</string>
     <string name="rel_body">Máy này không còn bị giới hạn. Gỡ KidGuard như app thường, hoặc cài lại từ đầu.</string>
     <string name="bc_ask">Xin thêm giờ</string>
+    <string name="req_web_q">Xin bố mẹ cho mở %1$s?</string>
+    <string name="req_web_none">Không thấy link. Hãy chia sẻ trang từ trình duyệt.</string>
+    <string name="req_web_unpaired">Máy này chưa kết nối với bố mẹ.</string>
+    <string name="answer_web_yes">Bố mẹ đồng ý: con mở được %1$s</string>
+    <string name="share_web">Xin mở trang</string>
 </resources>

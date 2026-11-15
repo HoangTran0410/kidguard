@@ -143,7 +143,7 @@ data class Mode(val name: String, val until: Long, val over: JSONObject) {
         const val NAME_MAX = 24
         /** What a mode may change. Everything else (PIN, lost mode, zones, launcher, DNS, ...) stays the base rules' business. */
         val OVER_KEYS = setOf("dailyMin", "dailyByDay", "appMin", "blocked", "allow", "bedtime", "bedByDay", "schedules", "groups",
-            "blockNew", "noInstall", "monitor", "windDown", "oneMore")
+            "blockNew", "noInstall", "monitor", "windDown", "oneMore", "noIncognito", "webBlock", "webAllow")
 
         fun fromJson(o: JSONObject?): Mode? {
             o ?: return null
@@ -184,6 +184,9 @@ data class Rules(
     val safeDns: String = "",                // Private DNS host, "" = off
     val safeDnsPauseUntil: Long = 0,         // epoch ms: while now < this the phone behaves as if safeDns were "" (0 = no pause)
     val noVpn: Boolean = false,
+    val noIncognito: Boolean = false,        // Chrome/Edge managed config: no incognito tabs (Device Owner)
+    val webBlock: List<String> = emptyList(),  // Chrome/Edge URLBlocklist hosts; "*" = every site except webAllow (WebLogic)
+    val webAllow: List<String> = emptyList(),
     val frpIds: List<String> = emptyList(),  // Google account IDs (digits) that can unlock the phone after a factory reset; empty = Google default (Device Owner, Android 11+)
     val tsKeep: Boolean = false,             // Ts.keep: bring a dropped Tailscale back (off: someone's own Tailscale is left alone)              // Device Owner: DISALLOW_CONFIG_VPN (no VPN apps / settings for the child)
     val vpnPause: Set<String> = VpnPauseLogic.DEFAULT,   // apps that refuse to run with a VPN up: Tailscale off while they are used (VpnPause)
@@ -248,7 +251,7 @@ data class Rules(
         .put("dailyByDay", JSONArray(dailyByDay))
         .put("schedules", JSONArray().apply { schedules.forEach { put(it.toJson()) } })
         .put("blockNew", blockNew).put("approved", JSONArray(approved.sorted()))
-        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("frpIds", JSONArray(frpIds)).put("safeDns", safeDns).put("safeDnsPauseUntil", safeDnsPauseUntil).put("noVpn", noVpn).put("tsKeep", tsKeep).put("trackMin", trackMin).put("vpnPause", JSONArray(vpnPause.sorted())).put("accPause", JSONArray(accPause.sorted())).put("devPause", JSONArray(devPause.sorted())).put("tcpPause", JSONArray(tcpPause.sorted()))
+        .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("frpIds", JSONArray(frpIds)).put("safeDns", safeDns).put("safeDnsPauseUntil", safeDnsPauseUntil).put("noVpn", noVpn).put("noIncognito", noIncognito).put("webBlock", JSONArray(webBlock)).put("webAllow", JSONArray(webAllow)).put("tsKeep", tsKeep).put("trackMin", trackMin).put("vpnPause", JSONArray(vpnPause.sorted())).put("accPause", JSONArray(accPause.sorted())).put("devPause", JSONArray(devPause.sorted())).put("tcpPause", JSONArray(tcpPause.sorted()))
         .put("showWatching", showWatching).put("autoUpdate", autoUpdate)
         .put("chores", JSONArray().apply { chores.forEach { put(it.toJson()) } })
         .put("zones", JSONArray().apply { zones.forEach { put(it.toJson()) } })
@@ -364,6 +367,9 @@ data class Rules(
                 showWatching = o.optBoolean("showWatching", true),
                 autoUpdate = o.optBoolean("autoUpdate", true),
                 noVpn = o.optBoolean("noVpn", false),
+                noIncognito = o.optBoolean("noIncognito", false),
+                webBlock = WebLogic.list(o.optJSONArray("webBlock")),
+                webAllow = WebLogic.list(o.optJSONArray("webAllow")).filter { it != WebLogic.ALL },
                 frpIds = Frp.ids(o.optJSONArray("frpIds")),
                 tsKeep = o.optBoolean("tsKeep", false),
                 vpnPause = if (o.has("vpnPause")) o.optJSONArray("vpnPause").strings().take(100).toSet() else VpnPauseLogic.DEFAULT,

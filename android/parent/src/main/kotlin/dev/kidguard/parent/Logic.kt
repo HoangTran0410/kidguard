@@ -288,6 +288,15 @@ object Logic {
     }
 
     /** Approving an app request: [pkg] joins `approved` and leaves `blocked` (full rules back, PIN fields dropped). */
+    /** A website request (kind "web", host): the host goes on webAllow and off webBlock (same as the page's reqApprove). */
+    fun approveWebRules(rules: JSONObject, host: String): JSONObject {
+        val o = JSONObject(rules.toString())
+        fun list(k: String) = o.optJSONArray(k)?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList()
+        o.put("webAllow", JSONArray((list("webAllow") + host).distinct()))
+        o.put("webBlock", JSONArray(list("webBlock").filter { it != host }))
+        o.remove("pinHash"); o.remove("pinSet"); o.remove("pin")
+        return o
+    }
     fun approveAppRules(rules: JSONObject, pkg: String): JSONObject {
         val o = JSONObject(rules.toString())
         fun list(k: String) = o.optJSONArray(k)?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList()

@@ -59,6 +59,8 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 |---|---|---|---|---|---|---|
 | DNS an toàn (Private DNS) | ✅ | ❌ | ✅ | ✅ | ✅ | +WSS: ghi `Settings.Global`, tự sửa lại nếu con đổi. Tắt DoH của Chrome/Edge chỉ DO |
 | Chặn VPN, chặn chế độ máy bay | ✅ | ❌ | ❌ | ❌ | ✅ | |
+| Chặn trang web, tắt ẩn danh (`webBlock`, `noIncognito`) | ✅ | ❌ | ❌ | ❌ | ✅ | Chỉ Chrome/Edge (cấu hình quản lý). Trình duyệt khác bỏ qua: trang liệt kê (`webOther`) và cho chặn app đó |
+| Con xin mở trang web (Chia sẻ → KidGuard, yêu cầu `web`) | ✅ | ✅ | ✅ | ✅ | ❌ | Gửi được ở mọi kiểu; đồng ý chỉ có tác dụng khi có luật trang web (DO) |
 | Khoá máy theo tài khoản Google sau khi khôi phục (`frpIds`) | ✅ (Android 11+) | ❌ | ❌ | ❌ | ✅ | Cần ID số của tài khoản Google (không phải email). Sai ID = máy có thể khoá vĩnh viễn sau khi reset. |
 | Vị trí, lịch sử, vùng an toàn | ✅ | ✅ | ✅ | ✅ | ✅ | Cần quyền vị trí (cả nền) |
 | Nhật ký (sự kiện + dòng nhật ký, 90 ngày, xem theo ngày) | ✅ | ✅ | ✅ | ✅ | ✅ | Máy con lưu SQLite 90 ngày; LAN `GET /api/logday`, Relay hỏi theo ngày (trễ ≤ ~1 phút). Máy/worker cũ: chỉ 50 dòng gần nhất |

@@ -109,7 +109,8 @@ object Listen {
     @Synchronized fun open(g: Guard): Session? {
         ActionLogic.conflict("listen", ringing = Ring.active, listening = active)?.let { lastError = it; return null }
         current?.close("")
-        if (g.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) { lastError = "no mic permission"; return null }
+        // basic mode: grant it now through our own adb instead of asking the child (AutoGrant also does it every 30 min)
+        if (g.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED && !AutoGrant.micNow(g)) { lastError = "no mic permission"; return null }
         // the child must be able to see the notice: refuse when notifications or this channel are off / silent
         if (!noticeVisible(g)) { lastError = "notice blocked"; return null }
         // Android 14: the mic may only be used from a foreground service that declares it

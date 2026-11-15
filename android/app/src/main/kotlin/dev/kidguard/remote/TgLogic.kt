@@ -204,7 +204,7 @@ object TgLogic {
         "lostAsk" to "📵 Bật chế độ thất lạc cho %1\$s?\nMáy khoá ngay và khoá lại mỗi lần mở, hiện lời nhắn + số gọi lại, đổ chuông, định vị mỗi 5 phút.%2\$s",
         "lostMsgLine" to "\nLời nhắn: “%1\$s”", "lostIs" to "📵 Chế độ thất lạc đang BẬT.",
         "lostOnDone" to "📵 Đã bật chế độ thất lạc.", "lostOffDone" to "Đã tắt chế độ thất lạc.", "lostNone" to "Chế độ thất lạc đang tắt.",
-        "aReqApp" to "🙋 %1\$s xin mở app %2\$s%3\$s", "aNewAppQ" to "Cho %1\$s dùng?",
+        "aReqApp" to "🙋 %1\$s xin mở app %2\$s%3\$s", "aReqWeb" to "🙋 %1\$s xin mở trang %2\$s%3\$s", "aNewAppQ" to "Cho %1\$s dùng?",
         "who.app" to "Bố mẹ (trang / app)",
         "ansYes" to "✅ %1\$s đã cho %2\$d phút lúc %3\$s", "ansNo" to "❎ %1\$s đã từ chối lúc %2\$s",
         "ansAppYes" to "✅ %1\$s đã cho dùng %2\$s lúc %3\$s", "ansAppNo" to "⛔ %1\$s đã chặn %2\$s lúc %3\$s",
@@ -329,7 +329,7 @@ object TgLogic {
         "lostAsk" to "📵 Turn on lost mode for %1\$s?\nThe phone locks now and on every unlock, shows a message + call-back number, rings, and locates every 5 min.%2\$s",
         "lostMsgLine" to "\nMessage: “%1\$s”", "lostIs" to "📵 Lost mode is ON.",
         "lostOnDone" to "📵 Lost mode is on.", "lostOffDone" to "Lost mode is off.", "lostNone" to "Lost mode is off.",
-        "aReqApp" to "🙋 %1\$s asks to open %2\$s%3\$s", "aNewAppQ" to "Allow %1\$s?",
+        "aReqApp" to "🙋 %1\$s asks to open %2\$s%3\$s", "aReqWeb" to "🙋 %1\$s asks to open the website %2\$s%3\$s", "aNewAppQ" to "Allow %1\$s?",
         "who.app" to "A parent (page / app)",
         "ansYes" to "✅ %1\$s gave %2\$d min at %3\$s", "ansNo" to "❎ %1\$s said no at %2\$s",
         "ansAppYes" to "✅ %1\$s allowed %2\$s at %3\$s", "ansAppNo" to "⛔ %1\$s blocked %2\$s at %3\$s",
@@ -487,12 +487,13 @@ object TgLogic {
     fun reqText(lang: String, name: String, o: JSONObject): String {
         val note = o.optString("note").takeIf { it.isNotBlank() }?.let { "\n“$it”" } ?: ""
         val min = o.optInt("min")
+        if (o.optString("kind") == "web") return s(lang, "aReqWeb", name, o.optString("app"), note)
         return if (o.optString("kind") == "app") s(lang, "aReqApp", name, o.optString("app").ifBlank { o.optString("pkg") }, note)
         else s(lang, "aReq", name, if (min > 0) s(lang, "min", min) else s(lang, "time"), note)
     }
     fun reqKb(lang: String, o: JSONObject): JSONObject {
         val id = reqId(o)
-        if (o.optString("kind") == "app") return keyboard(listOf(listOf(s(lang, "b.allow") to "ra:$id", s(lang, "b.deny") to "rb:$id")))
+        if (o.optString("kind") == "app" || o.optString("kind") == "web") return keyboard(listOf(listOf(s(lang, "b.allow") to "ra:$id", s(lang, "b.deny") to "rb:$id")))
         return keyboard(listOf(reqOpts(o.optInt("min")).map { s(lang, "yes", it) to "ry:$id:$it" } + (s(lang, "no") to "rn:$id")))
     }
     /** Alert key of a request: a remind (remindAt after at) is a new alert. */
@@ -514,6 +515,8 @@ object TgLogic {
     }
 
     /** App request / new app: approved = allowed (off the blocked list), otherwise blocked (off the approved list). */
+    /** Website request answered yes: the host goes on webAllow (beats a broader webBlock entry in Chrome) and off webBlock. */
+    fun approveWeb(r: Rules, host: String, now: Long) = bump(r, r.copy(webAllow = (r.webAllow + host).distinct().take(WebLogic.MAX), webBlock = r.webBlock - host), now)
     fun approve(r: Rules, pkg: String, ok: Boolean, now: Long) = bump(r, r.copy(
         approved = if (ok) r.approved + pkg else r.approved - pkg, blocked = if (ok) r.blocked - pkg else r.blocked + pkg), now)
     /** The package of an "installed X" event: the apps the state flags as new whose label is in the text (longest label wins). */

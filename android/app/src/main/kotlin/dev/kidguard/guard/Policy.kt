@@ -191,18 +191,37 @@ object Policy {
         } else restrict(d, a, UserManager.DISALLOW_CONFIG_LOCATION, false)
         if (Build.VERSION.SDK_INT >= 28) restrict(d, a, UserManager.DISALLOW_AIRPLANE_MODE, r.noAirplane)
         applyDns(ctx, d, a, r)
-        applyDoh(d, a, r.dnsHost().isNotEmpty())
+        applyBrowsers(d, a, r)
         appliedDns = r.dnsHost()
         applyVpnLock(ctx, d, a, r.noVpn)
     }
 
-    /** Chromium browsers that read the `DnsOverHttpsMode` managed policy on Android (Chrome; Edge 147+). Firefox/Brave/Opera: no managed DoH, see decisions. */
-    private val DOH_BROWSERS = listOf("com.android.chrome", "com.chrome.beta", "com.chrome.dev", "com.chrome.canary", "com.microsoft.emmx")
+    /** Chromium browsers that read managed config on Android (Chrome; Edge 147+). Firefox/Brave/Opera: none, see decisions (page offers to block them). */
+    val MANAGED_BROWSERS = listOf("com.android.chrome", "com.chrome.beta", "com.chrome.dev", "com.chrome.canary", "com.microsoft.emmx")
 
-    /** While safe DNS is on, browsers' own DoH would skip the filter: managed config DnsOverHttpsMode=off. Cleared (empty bundle) when it is off / on release. */
-    private fun applyDoh(d: DevicePolicyManager, a: ComponentName, on: Boolean) {
-        for (pkg in DOH_BROWSERS) runCatching { d.setApplicationRestrictions(a, pkg, Bundle().also { if (on) it.putString("DnsOverHttpsMode", "off") }) }
-            .onFailure { Log.w(TAG, "doh $pkg", it) }
+    /**
+     * One bundle per browser (setApplicationRestrictions REPLACES it): DnsOverHttpsMode=off while safe DNS is on (their own DoH
+     * would skip the filter), no incognito, URLBlocklist/URLAllowlist. Empty bundle when nothing is set / on release.
+     */
+    @Volatile private var browsersAt = 0L
+    @Volatile private var browsersCache: List<String> = emptyList()
+    /** Installed browsers (apps that open http links) that ignore managed config: website rules don't reach them. Cached 10 min. */
+    fun otherBrowsers(ctx: Context): List<String> {
+        val now = System.currentTimeMillis()
+        if (now - browsersAt < 600_000) return browsersCache
+        browsersCache = runCatching {
+            val i = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("http://example.com")).addCategory(android.content.Intent.CATEGORY_BROWSABLE)
+            ctx.packageManager.queryIntentActivities(i, android.content.pm.PackageManager.MATCH_ALL).map { it.activityInfo.packageName }
+                .filter { it != ctx.packageName && it !in MANAGED_BROWSERS }.distinct().sorted()
+        }.getOrDefault(emptyList())
+        browsersAt = now
+        return browsersCache
+    }
+
+    private fun applyBrowsers(d: DevicePolicyManager, a: ComponentName, r: Rules) {
+        val cfg = WebLogic.config(r.dnsHost().isNotEmpty(), r.noIncognito, r.webBlock, r.webAllow)
+        val b = Bundle().apply { cfg.forEach { (k, v) -> if (v is Array<*>) putStringArray(k, v.map { it.toString() }.toTypedArray()) else putString(k, v.toString()) } }
+        for (pkg in MANAGED_BROWSERS) runCatching { d.setApplicationRestrictions(a, pkg, b) }.onFailure { Log.w(TAG, "browser cfg $pkg", it) }
     }
 
     /**
@@ -225,7 +244,7 @@ object Policy {
         val want = r.dnsHost()
         if (appliedDns == null || appliedDns == want || !isOwner(ctx)) { if (appliedDns == null) appliedDns = want; return }
         val d = dpm(ctx); val a = admin(ctx)
-        applyDns(ctx, d, a, r); applyDoh(d, a, want.isNotEmpty()); appliedDns = want
+        applyDns(ctx, d, a, r); applyBrowsers(d, a, r); appliedDns = want
         runCatching { Store.of(ctx).log(if (want.isEmpty()) R.string.log_dns_paused else R.string.log_dns_resumed) }
     }
 

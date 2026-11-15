@@ -762,7 +762,7 @@ class Store private constructor(private val app: Context) {
      */
     @Synchronized fun addRequest(kind: String, min: Int, note: String, pkg: String? = null, app: String? = null, chore: String? = null, tpl: String? = null,
                                  now: Long = System.currentTimeMillis()): String {
-        val k = if (kind == "app") "app" else "time"
+        val k = if (kind == "app" || kind == "web") kind else "time"   // "web": [app] = the website host
         fun fill(o: JSONObject) {
             o.put("kind", k).put("min", min).put("note", note.trim().take(100))
             for ((key, v) in listOf("chore" to chore, "tpl" to tpl, "pkg" to pkg, "app" to app)) if (!v.isNullOrBlank()) o.put(key, v.take(80)) else o.remove(key)
@@ -779,7 +779,7 @@ class Store private constructor(private val app: Context) {
         fill(cur); cur.put("remindAt", now)
         p.edit().putString("reqs", JSONArray().put(cur).toString()).apply()
         // a plain event so Telegram / the parent app raise it again (the request id did not change); kind "request" is important
-        addEvent(Ev("request", if (k == "app") str(R.string.ev_req_remind_app, app?.takeIf { it.isNotBlank() } ?: pkg ?: "") else str(R.string.ev_req_remind, min)))
+        addEvent(Ev("request", if (k != "time") str(R.string.ev_req_remind_app, app?.takeIf { it.isNotBlank() } ?: pkg ?: "") else str(R.string.ev_req_remind, min)))
         return "remind"
     }
 

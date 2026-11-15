@@ -533,7 +533,7 @@ class Guard : Service() {
             .put("locationOn", locationOn())
             .put("dev", DevOpts.state(this))
             .put("limitMin", baseLimitMin(r, today).let { if (it > 0) it + if (r.bonusDay == today) r.bonusMin else 0 else 0 })
-            .put("owner", Policy.isOwner(this)).put("mode", Basic.mode(this)).put("caps", FeatureCaps.caps(this, fc)).put("features", FeatureCaps.features(fc)).put("usageAccess", Usage.granted(this)).put("usageOff", !Usage.granted(this)).put("dnsPausedUntil", r.safeDnsPauseUntil.takeIf { r.safeDns.isNotEmpty() && it > now } ?: 0).put("dnsError", Policy.dnsError).put("frp", Frp.state(android.os.Build.VERSION.SDK_INT, Policy.isOwner(this), r.frpIds.isNotEmpty(), r.frpIds.isNotEmpty() && Policy.frpActive(this), Policy.frpFailed))
+            .put("owner", Policy.isOwner(this)).put("mode", Basic.mode(this)).put("caps", FeatureCaps.caps(this, fc)).put("features", FeatureCaps.features(fc)).put("usageAccess", Usage.granted(this)).put("usageOff", !Usage.granted(this)).put("dnsPausedUntil", r.safeDnsPauseUntil.takeIf { r.safeDns.isNotEmpty() && it > now } ?: 0).put("dnsError", Policy.dnsError).also { o -> if (r.webBlock.isNotEmpty() || r.noIncognito) o.put("webOther", org.json.JSONArray(Policy.otherBrowsers(this))) }.put("frp", Frp.state(android.os.Build.VERSION.SDK_INT, Policy.isOwner(this), r.frpIds.isNotEmpty(), r.frpIds.isNotEmpty() && Policy.frpActive(this), Policy.frpFailed))
             .put("battery", bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1)
             .put("charging", bm?.isCharging == true).put("screenOn", pm?.isInteractive == true)
             .put("current", use.current?.let { apps[it] ?: it } ?: JSONObject.NULL)
@@ -781,10 +781,11 @@ class Guard : Service() {
             val req = store.removeRequest(c.optString("req").ifBlank { c.optString("id") })   // relay: "req" = the request id (the command id may be a UUID)
             if (req != null) {
                 val ok = c.optBoolean("ok"); val kind = req.optString("kind", "time"); val note = Notes.clean(c.optString("note"), 200)
-                if (kind == "app") {   // the parent side already edited the rules (approved / blocked); here the child hears of it
+                if (kind == "app" || kind == "web") {   // the parent side already edited the rules (approved / blocked, webAllow); here the child hears of it
                     val label = req.optString("app").ifBlank { req.optString("pkg") }
-                    store.setLastAnswer(ok, 0, "app", label)
-                    val base = if (!ok) getString(R.string.answer_no) else getString(if (c.optBoolean("always")) R.string.answer_app_always else R.string.answer_app_yes, label)
+                    store.setLastAnswer(ok, 0, kind, label)
+                    val base = if (!ok) getString(R.string.answer_no) else if (kind == "web") getString(R.string.answer_web_yes, label)
+                        else getString(if (c.optBoolean("always")) R.string.answer_app_always else R.string.answer_app_yes, label)
                     notifyChild(if (note.isEmpty()) base else getString(R.string.answer_note, base, note))
                 } else {
                     val min = c.optInt("min", req.optInt("min"))

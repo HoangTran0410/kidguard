@@ -150,7 +150,7 @@ class CheckJob : JobService() {
                 }
                 val appReqs = (0 until (rq?.length() ?: 0)).mapNotNull { i ->
                     val x = rq!!.optJSONObject(i) ?: return@mapNotNull null
-                    if (x.optString("kind") != "app" || x.optString("id").isEmpty()) null
+                    if (x.optString("kind") !in setOf("app", "web") || x.optString("id").isEmpty()) null   // "web": the host is in "app"
                     else x.optString("id") to x.optString("app").ifEmpty { x.optString("pkg") }.take(60)
                 }.toMap()
                 val sa = st.optJSONArray("sos")

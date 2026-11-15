@@ -162,6 +162,7 @@ const QS = [
   ["rules", "r-sch", "time", "book-open", ["sch.h", "sd.sch"]], ["rules", "r-chore", "time", "star", ["chore.h", "sd.chore"]],
   ["rules", "r-more", "safe", "construction", ["more.h", "sd.more", "more.loc", "more.air", "ni.h", "ni.ask", "ni.none"]],
   ["rules", "r-dns", "safe", "shield", ["dns.h", "sd.dns", "dns.novpn"]],
+  ["rules", "r-web", "safe", "globe", ["web.h", "sd.web", "web.inc", "web.block"]],
   ["rules", "r-anti", "safe", "lock-keyhole", ["anti.h", "sd.anti", "anti.debug", "anti.shot"]],
   ["rules", "r-anti", "safe", "landmark", ["bank.h", "bank.colAcc"]],
   ["rules", "r-home", "safe", "house", ["hm.h", "sd.home", "hm.on", "hm.settings", "hm.shade", "hm.lock", "hm.notes"]],
@@ -762,7 +763,7 @@ function modeBans() {
 function modeBans0() {   // basic mode / unfinished setup: [tone, icon, text] banners
   if (st.mode === "setup" && st.features) return [["info", "eye", t("mode.preview")]];
   if (st.owner || !st.mode && st.owner !== false) return [];
-  const m = st.basic || {}, miss = ["acc", "admin", "usage", "location", "notify", "battery"].filter(k => m[k] === false).map(k => t("perm." + k));
+  const m = st.basic || {}, miss = ["acc", "admin", "usage", "location", "notify", "battery"].filter(k => m[k] === false).map(k => t("perm." + k)).concat(st.listen && st.listen.mic === false ? [t("perm.mic")] : []);   // mic: "listen" after SOS, warn BEFORE it is needed
   if (st.mode !== "basic") return [["bad", "triangle-alert", t("mode.setup", esc(miss.join(", ") || t("mode.items")))]];
   return (m.acc === false ? [["bad", "siren", t("mode.accOff")]] : []).concat([["warn", "info", t("mode.basicS") + (miss.length ? " " + t("mode.miss", esc(miss.join(", "))) : ""), "basic", t("mode.basic")]]);
 }
@@ -842,11 +843,18 @@ const sheetHead = (icn, title) => `<div class="shh"><h2 id="askT">${ic(icn)} ${t
 // time request: compact card on home; note, canned replies and minute chips live in the "Trả lời…" sheet
 // N/2, N, 2N (5-minute steps, at least 5); the kid's own N is the middle one
 const reqChips = q => { const n = Math.max(5, +q.min || 15); return [...new Set([Math.max(5, Math.round(n / 2 / 5) * 5), n, Math.min(240, n * 2)])]; };
+// kind "app" (pkg) or "web" (host in q.app): yes = allow it, no minutes. reqApprove edits the rules object in place.
+const reqIsAsk = q => q.kind === "app" || q.kind === "web";
+const reqIcon = q => q.kind === "web" ? "globe" : q.kind === "app" ? "package" : "hand";
+function reqApprove(r, q) {
+  if (q.kind === "web") { r.webAllow = [...new Set([...(r.webAllow || []), q.app])]; r.webBlock = (r.webBlock || []).filter(v => v !== q.app); }
+  else { r.approved = [...new Set([...r.approved, q.pkg])]; r.blocked = r.blocked.filter(v => v !== q.pkg); }
+}
 const reqRemind = q => q.remindAt && q.at && q.remindAt - q.at > 30000 ? ` <span class="tag warn" style="margin:0">${ic("bell")} ${t("req.again", ago(q.remindAt))}</span>` : "";
 function reqCard(q, r) {
-  const app = q.kind === "app", ch = q.chore ? (r.chores || []).find(c => c.id === q.chore) : null, m = reqMin[q.id] || +q.min, id = esc(q.id), note = (reqNote[q.id] || "").trim();
+  const app = reqIsAsk(q), ch = q.chore ? (r.chores || []).find(c => c.id === q.chore) : null, m = reqMin[q.id] || +q.min, id = esc(q.id), note = (reqNote[q.id] || "").trim();
   const head = app ? t("req.appAsks", esc(cur.name), esc(q.app || q.pkg || "?")) : t("req.asks", esc(cur.name), +q.min);
-  return `<div class="card req" role="group" aria-label="${esc(t("req.aria"))}"><div class="row" style="flex-wrap:nowrap;align-items:flex-start"><span class="ib t-warn" style="color:var(--warn);background:rgba(217,119,6,.16)">${ic(app ? "package" : "hand")}</span>
+  return `<div class="card req" role="group" aria-label="${esc(t("req.aria"))}"><div class="row" style="flex-wrap:nowrap;align-items:flex-start"><span class="ib t-warn" style="color:var(--warn);background:rgba(217,119,6,.16)">${ic(reqIcon(q))}</span>
     <div class="sp" style="min-width:0"><b>${head}</b>${q.at || q.t ? ` <span class="mute">· ${ago(q.at || q.t)}</span>` : ""}${reqRemind(q)}
     ${q.chore ? `<div style="margin-top:4px"><span class="tag warn" style="margin:0">${ic("star")} ${t("req.chore")}</span> <span class="tag">${esc(ch ? ch.name : t("req.choreGone"))}</span></div>` : ""}
     ${q.note ? `<div class="mute" style="margin-top:4px">${t("req.note", esc(q.note))}</div>` : ""}
@@ -856,14 +864,14 @@ function reqCard(q, r) {
 }
 function replySheet(q, today) {
   const m = reqMin[q.id] || +q.min, id = esc(q.id);
-  return sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead(q.kind === "app" ? "package" : "hand", q.kind === "app" ? t("req.appAsks", esc(cur.name), esc(q.app || q.pkg || "?")) : t("req.asks", esc(cur.name), +q.min))}
+  return sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead(reqIcon(q), reqIsAsk(q) ? t("req.appAsks", esc(cur.name), esc(q.app || q.pkg || "?")) : t("req.asks", esc(cur.name), +q.min))}
     ${q.note ? `<p class="mute" style="margin-top:0">${t("req.note", esc(q.note))}</p>` : ""}
     <label class="mute" for="f-rn-${id}" style="display:block;margin-top:6px">${t("req.reply")}</label>
     <input id="f-rn-${id}" data-rn="${id}" maxlength="200" autocomplete="off" placeholder="${esc(t("req.replyPh"))}" style="width:100%;margin-top:6px" value="${esc(reqNote[q.id] || "")}">
     <div class="chips" style="margin-top:8px" role="group" aria-label="${esc(t("req.cannedAria"))}">${t("req.canned").map(c => `<button type="button" data-cr="${id}" data-v="${esc(c)}" class="${reqNote[q.id] === c ? "on" : ""}" aria-pressed="${reqNote[q.id] === c}">${esc(c)}</button>`).join("")}</div>
-    ${q.kind === "app" ? "" : `<div class="mute" style="margin-top:14px">${t("minutes")}</div>
+    ${reqIsAsk(q) ? "" : `<div class="mute" style="margin-top:14px">${t("minutes")}</div>
     <div class="chips" style="margin-top:6px" role="group" aria-label="${esc(t("minutes"))}">${reqChips(q).map(v => `<button type="button" data-rm="${id}" data-v="${v}" class="${v === m ? "on" : ""}" aria-pressed="${v === m}">${t("fmt.m", v)}</button>`).join("")}</div>`}
-    <div class="row" style="margin-top:16px"><button class="sp" data-no="${id}">${ic("circle-x")} ${t("req.no")}</button><button class="sp pri" data-yes="${id}" data-min="${m}">${ic("circle-check")} ${q.kind === "app" ? t("req.appYes") : t("req.yes", m)}</button></div></div>`,
+    <div class="row" style="margin-top:16px"><button class="sp" data-no="${id}">${ic("circle-x")} ${t("req.no")}</button><button class="sp pri" data-yes="${id}" data-min="${m}">${ic("circle-check")} ${reqIsAsk(q) ? t("req.appYes") : t("req.yes", m)}</button></div></div>`,
     pop => wireReq(pop, today, true));
 }
 function wireReq(b, today, inSheet) {
@@ -885,14 +893,14 @@ function wireReq(b, today, inSheet) {
   const doneReq = id => { delete reqMin[id]; delete reqNote[id]; };
   const after = () => { if (cur) render(); };
   b.querySelectorAll("[data-yes]").forEach(x => x.onclick = async () => {
-    const id = x.dataset.yes, note = noteOf(id), q = (st.requests || []).find(o => o.id === id) || {}, app = q.kind === "app";
+    const id = x.dataset.yes, note = noteOf(id), q = (st.requests || []).find(o => o.id === id) || {}, app = reqIsAsk(q);
     if (!(await ask((app ? t("req.askApp", q.app || q.pkg || "?") : t("req.askYes", +x.dataset.min)) + (note ? "\n" + t("req.askNote", note) : "")))) return;
-    const n = +x.dataset.min, k = cur, e = edit, prev = { bonus: e.bonus, passUntil: e.passUntil, approved: e.approved, blocked: e.blocked };
+    const n = +x.dataset.min, k = cur, e = edit, prev = { bonus: e.bonus, passUntil: e.passUntil, approved: e.approved, blocked: e.blocked, webAllow: e.webAllow, webBlock: e.webBlock };
     // idempotent per request: if the change was saved but `answer` failed, the next tap only re-sends the answer (never gives the time twice)
     let kind = "daily";
     if (!bonusGiven.has((k.target || "") + k.id + ":" + id)) {
       clearTimeout(saveT); saveT = null;
-      if (app) { e.approved = [...new Set([...e.approved, q.pkg])]; e.blocked = e.blocked.filter(v => v !== q.pkg); } else kind = grantApply(e, st, n);
+      if (app) reqApprove(e, q); else kind = grantApply(e, st, n);
       try { await putRules(k, e); } catch (er) { if (e === edit) Object.assign(e, prev); toast("err|" + t("req.bonusFail", er.message)); return; }   // card stays
       bonusGiven.add((k.target || "") + k.id + ":" + id);
     }

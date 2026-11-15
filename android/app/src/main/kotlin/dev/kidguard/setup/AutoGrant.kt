@@ -38,9 +38,29 @@ object AutoGrant {
                 if (Build.VERSION.SDK_INT >= 29) add("pm grant $p android.permission.ACCESS_BACKGROUND_LOCATION")
             }
             if (!Basic.notifyOk(ctx)) add("pm grant $p android.permission.POST_NOTIFICATIONS")
+            // "listen around" (SOS) must work at once: a child in trouble can't be asked to allow the mic (owner, 2026-11-15). Same list as Policy.apply.
+            addAll(micGrant(ctx))
+            if (Store.of(ctx).rules.pinShot && ctx.checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                add("pm grant $p android.permission.CAMERA")
             // self-update without the child (Update.installQuiet); the setup steps grant it too
             if (!ctx.packageManager.canRequestPackageInstalls()) add("appops set $p REQUEST_INSTALL_PACKAGES allow")
         }
+    }
+
+    /** Shell commands that give KidGuard the mic (runtime permission + HyperOS/MIUI-style app op), empty when it has it. */
+    fun micGrant(ctx: Context): List<String> {
+        if (ctx.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) return emptyList()
+        val p = ctx.packageName
+        return listOf("pm grant $p android.permission.RECORD_AUDIO", "appops set $p RECORD_AUDIO allow")
+    }
+
+    /** Right now, on this thread (Listen.open): grant the mic through our own adb. True = granted after. */
+    fun micNow(ctx: Context): Boolean {
+        val cmds = micGrant(ctx)
+        if (cmds.isEmpty()) return true
+        if (Flavor.HOME || !SelfAdb.hasKey(ctx) || !SelfAdb.canOpen(ctx) && !SelfAdb.ready(ctx)) return false
+        runCatching { SelfAdb.run(ctx.applicationContext, cmds.joinToString("; ")) }.onFailure { Log.w("KidGuard", "mic grant", it) }
+        return micGrant(ctx).isEmpty()
     }
 
     fun tick(ctx: Context, now: Long) {

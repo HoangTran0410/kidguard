@@ -84,6 +84,7 @@ function ruleChips(r) {
     trk: r.trackMin ? (st.locationOn === false ? [t("chip.locOff"), "warn"] : on(t("chip.every", fmt(r.trackMin * 60000)), !canFeat("location"))) : off,
     more: more ? (noEnf = basic || st.owner === false || (r.blockNew && !r.noInstall && !canFeat("block")) || (r.lockLocation && !canFeat("lockLocation")), on(more + "/3" + (noEnf ? " · " + t("chip.noEnf") : ""), noEnf)) : off,
     dns: r.safeDns && st.dnsError ? [t("chip.dnsErr"), "bad"] : r.safeDns && st.dnsPausedUntil > Date.now() ? [t("chip.pausedTo", hhmm(st.dnsPausedUntil)), "warn"] : r.safeDns || r.noVpn ? on(esc((dns ? dns[1] : r.safeDns) || t("dns.novpn.short")), r.safeDns && !r.noVpn ? basic && !canFeat("dns") : basic) : off,
+    web: r.noIncognito || (r.webBlock || []).length ? on((r.webBlock || []).includes("*") ? t("web.only") : (r.webBlock || []).length ? t("chip.nWeb", r.webBlock.length) : t("web.inc.short"), basic || webLeaks(r).length > 0) : off,
     anti: r.noDebug ? (noEnf = basic || st.owner === false || !canFeat("noUninstall"), on(noEnf ? t("chip.noEnf") : undefined, noEnf)) : off,
     wind: windChip(r),
     home: r.launcher.on ? on(t({ be: "hm.sBe", teen: "hm.sTeen", gon: "hm.sGon" }[r.launcher.style] || "hm.sAuto"), basic || !!(st.launcher && st.launcher.err)) : off,
@@ -92,7 +93,7 @@ function ruleChips(r) {
 }
 // Rules: one list, two groups under a small heading (time / blocking & safety; sub-tabs hid half the features, owner 2026-11-13). Zones + location log live in the "Vị trí" tab, the Authenticator in
 // "Cài đặt"; the same section HTML (ruleSecs) and wiring (rulesWire) serve all three, wiring only what is on screen.
-const RSEG = { time: ["daily", "chore", "grp", "bed", "wind", "sch"], safe: ["more", "dns", "anti", "home", "kind"] };
+const RSEG = { time: ["daily", "chore", "grp", "bed", "wind", "sch"], safe: ["more", "dns", "web", "anti", "home", "kind"] };
 // v0.9.9 kid launcher: the phone answers with state.launcher {on, home, err, style, locked, pages}
 function homeStatus(r) {
   const L = st.launcher;
@@ -205,12 +206,31 @@ function ruleSecs(r) {
     ${isBasic() && canFeat("dns") ? `<p class="mute">${ic("info")} ${t("dns.basicWss")}</p>` : ""}
     <div class="${isBasic() ? "gated" : ""}"><label class="row" style="margin-top:8px"><input type="checkbox" id="f-nv" ${r.noVpn ? "checked" : ""}><span class="sp">${ic("shield")} ${t("dns.novpn")}</span></label>
     <p class="mute">${ic("info")} ${t("dns.novpn.tip")}</p></div>${isBasic() ? needOwner(t("no.vpn")) : ""}`),
+    web: sec("r-web", "globe", t("web.h"), t("sd.web"), C.web, `    <div class="${isBasic() ? "gated" : ""}"><label class="row"><input type="checkbox" id="f-ni" ${r.noIncognito ? "checked" : ""}><span class="sp">${ic("eye-off")} ${t("web.inc")}</span></label>
+    <label for="f-wm" style="display:block;margin-top:12px">${t("web.mode")}</label>
+    <select id="f-wm" style="margin-top:6px"><option value="block" ${webOnly(r) ? "" : "selected"}>${t("web.m.block")}</option><option value="only" ${webOnly(r) ? "selected" : ""}>${t("web.m.only")}</option></select>
+    <div id="webB" style="${webOnly(r) ? "display:none" : ""}"><label for="f-wb" style="display:block;margin-top:12px">${ic("ban")} ${t("web.block")}</label>
+    <textarea id="f-wb" rows="4" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="tiktok.com&#10;roblox.com" style="width:100%;margin-top:6px">${esc((r.webBlock || []).filter(h => h !== "*").join("\n"))}</textarea></div>
+    <label for="f-wa" style="display:block;margin-top:12px">${ic("circle-check")} ${t("web.allow")}</label>
+    <textarea id="f-wa" rows="3" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="wikipedia.org" style="width:100%;margin-top:6px">${esc((r.webAllow || []).join("\n"))}</textarea>
+    <p class="mute">${ic("info")} ${t("web.tip")}</p>
+    <p class="mute">${ic("send")} ${t("web.ask")}</p>
+    <div id="webLeak">${webLeakHtml(r)}</div></div>${isBasic() ? needOwner(t("no.web")) : ""}`),
     anti: sec("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ps" ${r.pinShot !== false ? "checked" : ""}><span class="sp">${ic("camera")} ${t("anti.shot")}</span></label>
     <p class="mute">${ic("info")} ${t("anti.shotTip")}</p>
     <div class="${isBasic() ? "gated" : ""}" style="margin-top:8px"><label class="row"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label></div>
     ${isBasic() ? needOwner(t("no.anti")) + `<p class="mute">${ic("shield")} ${t("anti.basic")}</p>`
       : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}${bankBox(r)}`),
   };
+}
+// website rules (Chrome/Edge managed config): "only" = webBlock ["*"] + webAllow. Other browsers ignore them: offer to block those apps.
+const webOnly = r => (r.webBlock || []).includes("*");
+const webLeaks = r => (r.noIncognito || (r.webBlock || []).length) ? (st.webOther || []).filter(p => !r.blocked.includes(p)) : [];
+const webHosts = v => [...new Set(v.split(/[\s,]+/).map(x => x.trim().toLowerCase().replace(/^[a-z]+:\/\//, "").replace(/[\/?#:].*$/, "").replace(/^(\*\.|www\.)/, "")).filter(x => /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(x)))].slice(0, 300);
+function webLeakHtml(r) {
+  const l = webLeaks(r); if (!l.length) return "";
+  const names = l.map(p => ((st.apps || []).find(a => a.pkg === p) || {}).label || p);
+  return `<div class="alert warn" style="display:block">${ic("triangle-alert")} ${t("web.leak", esc(names.join(", ")))}<div style="margin-top:8px"><button id="webLeakB">${ic("ban")} ${t("web.leakB")}</button></div></div>`;
 }
 function monWould() {   // monitor only: what strict mode would block right now (state.wouldBlock: pkg -> reason)
   const w = st.wouldBlock || {}, names = Object.keys(w).map(p => ((st.apps || []).find(a => a.pkg === p) || {}).label || p);
@@ -350,6 +370,14 @@ function rulesWire(b, r) {
   dnsP();
   $("#f-frp").onchange = e => { const ids = [...new Set(e.target.value.split(/[^0-9]+/).filter(x => x.length >= 10 && x.length <= 30))].slice(0, 5); r.frpIds = ids; e.target.value = ids.join(" "); changed(); };
   $("#f-nv").onchange = e => { r.noVpn = e.target.checked; changed(); };
+  const wl = () => { const el = $("#webLeak"); if (el) el.innerHTML = webLeakHtml(r); const b = $("#webLeakB"); if (b) b.onclick = () => { r.blocked = [...new Set([...r.blocked, ...webLeaks(r)])]; changed(); wl(); }; };
+  if ($("#f-ni")) {
+    $("#f-ni").onchange = e => { r.noIncognito = e.target.checked; changed(); wl(); };
+    $("#f-wm").onchange = e => { const only = e.target.value === "only"; r.webBlock = only ? ["*"] : webHosts($("#f-wb").value); $("#webB").style.display = only ? "none" : ""; changed(); wl(); };
+    $("#f-wb").onchange = e => { const h = webHosts(e.target.value); r.webBlock = webOnly(r) ? ["*"] : h; e.target.value = h.join("\n"); changed(); wl(); };
+    $("#f-wa").onchange = e => { const h = webHosts(e.target.value); r.webAllow = h; e.target.value = h.join("\n"); changed(); };
+    wl();
+  }
   const bw = () => { $("#bedW").innerHTML = r.bedByDay.length ? "" : timeWarn(r.bedtime, r.bedtime.on); };
   $("#f-bed").onchange = e => { r.bedtime.on = e.target.checked; bw(); changed(); };
   $("#f-bs").onchange = e => { r.bedtime.start = e.target.value; bw(); changed(); };

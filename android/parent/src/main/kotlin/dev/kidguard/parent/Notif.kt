@@ -150,7 +150,8 @@ object Notif {
             val day = st?.optString("day").orEmpty()
             val rules = Act.pickRules(body, via)
             if (rules == null) return Act.Res.FAIL
-            val next = if (rq.optString("kind") == "app") Logic.approveAppRules(rules, rq.optString("pkg").takeIf { it.isNotEmpty() } ?: return Act.Res.FAIL)
+            val next = if (rq.optString("kind") == "web") Logic.approveWebRules(rules, rq.optString("app").takeIf { it.isNotEmpty() } ?: return Act.Res.FAIL)
+            else if (rq.optString("kind") == "app") Logic.approveAppRules(rules, rq.optString("pkg").takeIf { it.isNotEmpty() } ?: return Act.Res.FAIL)
             else { if (day.isEmpty()) return Act.Res.FAIL; Logic.grantRules(rules, Act.nowWhy(body, via), day, System.currentTimeMillis(), min) }
             val p = Net.call("PUT", "$base/rules", h, next.toString().toByteArray(), 15_000)
             if (p.status != 200) return Act.Res.FAIL

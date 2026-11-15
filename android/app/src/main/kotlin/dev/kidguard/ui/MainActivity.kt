@@ -727,8 +727,9 @@ class MainActivity : Activity() {
             intent.removeExtra(Quick.EXTRA_MORE)
             if (Store.of(this).everPaired) {
                 val ap = intent.getStringExtra(BlockCard.EXTRA_ASK_PKG); val al = intent.getStringExtra(BlockCard.EXTRA_ASK_LABEL)
-                intent.removeExtra(BlockCard.EXTRA_ASK_PKG); intent.removeExtra(BlockCard.EXTRA_ASK_LABEL)
-                ui.post { if (ap != null) acts.askApp(ap, al ?: ap) else askMore() }   // from the basic-mode block card
+                val aw = intent.getStringExtra(ShareWebActivity.EXTRA_ASK_WEB)
+                intent.removeExtra(BlockCard.EXTRA_ASK_PKG); intent.removeExtra(BlockCard.EXTRA_ASK_LABEL); intent.removeExtra(ShareWebActivity.EXTRA_ASK_WEB)
+                ui.post { if (aw != null) acts.askWeb(aw) else if (ap != null) acts.askApp(ap, al ?: ap) else askMore() }   // block card / shared link
             }
         }
     }
