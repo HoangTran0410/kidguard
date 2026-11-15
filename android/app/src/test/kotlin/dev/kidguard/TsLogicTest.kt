@@ -92,14 +92,14 @@ class TsLogicTest {
     }
 
     @Test fun outageDebounce() {
-        val m = 60_000L
+        val m = 60_000L; val t0 = 1_700_000_000_000L   // real clock: 0 is the "not down" sentinel
         var o = TsLogic.Outage()
-        var r = TsLogic.outageStep(o, false, 0L); o = r.first; assertEquals(0, r.second)
-        r = TsLogic.outageStep(o, false, 2 * m); o = r.first; assertEquals(0, r.second)
-        r = TsLogic.outageStep(o, false, 3 * m); o = r.first; assertEquals(1, r.second)      // once, at 3 min
-        r = TsLogic.outageStep(o, false, 10 * m); o = r.first; assertEquals(0, r.second)     // no repeat
-        assertEquals(10, TsLogic.outageMin(o.downAt, 10 * m))
-        r = TsLogic.outageStep(o, true, 11 * m); assertEquals(2, r.second); assertEquals(TsLogic.Outage(), r.first)
+        var r = TsLogic.outageStep(o, false, t0); o = r.first; assertEquals(0, r.second)
+        r = TsLogic.outageStep(o, false, t0 + 2 * m); o = r.first; assertEquals(0, r.second)
+        r = TsLogic.outageStep(o, false, t0 + 3 * m); o = r.first; assertEquals(1, r.second)      // once, at 3 min
+        r = TsLogic.outageStep(o, false, t0 + 10 * m); o = r.first; assertEquals(0, r.second)     // no repeat
+        assertEquals(10, TsLogic.outageMin(o.downAt, t0 + 10 * m))
+        r = TsLogic.outageStep(o, true, t0 + 11 * m); assertEquals(2, r.second); assertEquals(TsLogic.Outage(), r.first)
     }
 
     @Test fun flappingStaysSilent() {
