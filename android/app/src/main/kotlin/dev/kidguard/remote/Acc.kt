@@ -34,7 +34,10 @@ class Acc : AccessibilityService() {
 
     /** Screen on / unlock: bring Guard back if it was stopped while this service lives (Guard.start is a no-op after release). */
     private val wakeUp = object : android.content.BroadcastReceiver() {
-        override fun onReceive(c: android.content.Context, i: android.content.Intent) { if (Guard.running == null) Guard.start(c) }
+        override fun onReceive(c: android.content.Context, i: android.content.Intent) {
+            if (i.action != android.content.Intent.ACTION_SCREEN_OFF && Guard.running == null) Guard.start(c)
+            runCatching { NavGest.sync(c, null) }   // strips off on the lock screen, back after unlock
+        }
     }
 
     // The system rebinds an enabled accessibility service after its process was killed or crashed (not after a real
@@ -42,8 +45,9 @@ class Acc : AccessibilityService() {
     override fun onServiceConnected() {
         running = this; lastError = ""
         runCatching { Guard.start(this); Watchdog.schedule(this) }
+        NavGest.stripsFailed = false
         runCatching { NavGest.sync(this, null) }   // own gestures + hidden 3-button bar (Xiaomi, switch on): only from here on
-        runCatching { registerReceiver(wakeUp, android.content.IntentFilter(android.content.Intent.ACTION_SCREEN_ON).apply { addAction(android.content.Intent.ACTION_USER_PRESENT) }) }
+        runCatching { registerReceiver(wakeUp, android.content.IntentFilter(android.content.Intent.ACTION_SCREEN_ON).apply { addAction(android.content.Intent.ACTION_USER_PRESENT); addAction(android.content.Intent.ACTION_SCREEN_OFF) }) }
         // back on (after a bank pause, a restart): no window event comes for the app already in front, so check it now
         main.postDelayed({ runCatching { rootInActiveWindow?.packageName?.toString()?.let { if (it != packageName) basicGuard(it) } } }, 600)
     }
@@ -247,19 +251,25 @@ class Acc : AccessibilityService() {
     private val trail = Runnable { pokeNow() }
     private fun pokeNow() { lastPoke = System.currentTimeMillis(); runCatching { Guard.poke(this) } }
 
-    override fun onInterrupt() { runCatching { NavGest.restore(this) } }   // not sure we keep running: bar back, the Guard tick hides it again
+    override fun onInterrupt() {}   // only "stop speaking feedback": the service keeps running (drop() handles a real stop)
 
     private var strips: NavGest.Strips? = null
     /** Own gesture strips on / off (NavGest.sync), any thread. */
     fun navStrips(on: Boolean) {
         main.post {
-            if (on) { if (strips == null) strips = NavGest.Strips(this); strips?.show() }
-            else { strips?.hide(); strips = null }
+            if (on && running === this && !NavGest.stripsFailed) {
+                if (strips == null) strips = NavGest.Strips(this)
+                if (strips?.show() != true) {   // overlay refused: never leave the bar hidden without our gestures
+                    strips = null; NavGest.stripsFailed = true
+                    val app = applicationContext
+                    Thread({ runCatching { NavGest.restore(app) } }, "nav-restore").start()
+                }
+            } else if (!on || running !== this) { strips?.hide(); strips = null }
         }
     }
     override fun onConfigurationChanged(c: android.content.res.Configuration) {
         super.onConfigurationChanged(c)
-        if (strips?.shown == true) { strips?.hide(); strips?.show() }   // rotation: new screen size
+        if (strips?.shown == true) { strips?.hide(); if (strips?.show() != true) strips = null }   // rotation: new screen size
     }
 
     /** Find-my-phone ring: a volume key stops it (and is eaten). Every other key passes straight through. */

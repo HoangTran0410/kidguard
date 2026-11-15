@@ -49,18 +49,37 @@ object NavGest {
     @Synchronized fun sync(ctx: Context, current: String?) {
         val s = Store.of(ctx)
         val bank = current != null && current in s.rules.accPause
-        val hide = NavGestLogic.hide(s.navGest, permitted(ctx), Acc.running != null, s.accPaused.isNotEmpty(), bank, s.released)
+        // another home (POCO Launcher) gives its own gestures with fsg=1: ours would double them, so only while we are home;
+        // strips that failed to attach once (overlay refused) = never hide until Acc reconnects
+        val hide = !stripsFailed && ourHome(ctx) &&
+            NavGestLogic.hide(s.navGest, permitted(ctx), Acc.running != null, s.accPaused.isNotEmpty(), bank, s.released)
         if (hide) {
             if (s.fsgPrev < 0) s.fsgPrev = read(ctx)
             if (read(ctx) != 1) write(ctx, 1)
         } else restoreLocked(ctx, s)
-        Acc.running?.navStrips(hide)
+        strips(ctx, hide, s)
     }
+
+    /** Strips while hidden, and also while a restore is still pending (write failed: no bar yet, so keep our gestures);
+     *  off on the lock screen (its own unlock swipe; no navigation needed there). */
+    private fun strips(ctx: Context, hide: Boolean, s: Store) {
+        val locked = runCatching { (ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager).isKeyguardLocked }.getOrDefault(false)
+        Acc.running?.navStrips((hide && !locked) || s.fsgPrev >= 0)
+    }
+
+    /** Set from Acc when a strip could not be attached; cleared on Acc connect. */
+    @Volatile var stripsFailed = false
+
+    private fun ourHome(ctx: Context): Boolean = runCatching {
+        ctx.packageManager.resolveActivity(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME),
+            PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName.let { it == ctx.packageName || it == "dev.kidguard.home" }
+    }.getOrDefault(true)
 
     /** Release / Acc gone: bar back now, strips off, whatever the switch says (the next [sync] may hide it again). */
     @Synchronized fun restore(ctx: Context) {
-        restoreLocked(ctx, Store.of(ctx))
-        Acc.running?.navStrips(false)
+        val s = Store.of(ctx)
+        restoreLocked(ctx, s)
+        Acc.running?.navStrips(s.fsgPrev >= 0)   // write failed: no bar yet, keep our gestures
     }
 
     private fun restoreLocked(ctx: Context, s: Store) {
@@ -87,16 +106,19 @@ object NavGest {
         private val views = arrayOfNulls<Strip>(3)
         val shown get() = views[0] != null
 
-        fun show() {
-            if (shown) return
+        /** All three or none (a half set would be re-added every tick). False = the overlay was refused. */
+        fun show(): Boolean {
+            if (shown) return true
             val dm = DisplayMetrics()
             @Suppress("DEPRECATION") wm.defaultDisplay.getRealMetrics(dm)
             val d = dm.density
-            val w = (18 * d).toInt(); val h = (16 * d).toInt()
+            val w = (18 * d).toInt(); val h = (12 * d).toInt()   // bottom thin: it sits over the keyboard's lowest edge
             val top = dm.heightPixels / 4
             add(0, NavGestLogic.Edge.LEFT, WindowManager.LayoutParams(w, dm.heightPixels - top - h, 0, top, Gravity.TOP or Gravity.START))
             add(1, NavGestLogic.Edge.RIGHT, WindowManager.LayoutParams(w, dm.heightPixels - top - h, 0, top, Gravity.TOP or Gravity.END))
             add(2, NavGestLogic.Edge.BOTTOM, WindowManager.LayoutParams(dm.widthPixels, h, 0, 0, Gravity.BOTTOM or Gravity.START))
+            if (views.any { it == null }) { hide(); return false }
+            return true
         }
 
         private fun add(i: Int, edge: NavGestLogic.Edge, base: WindowManager.LayoutParams) {
