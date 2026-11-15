@@ -107,6 +107,7 @@ Index and the rule for adding lines: `README.md`.
 - Self-assigned system-overlay/true-control-center style approach for first control center phase: stay in-launcher (no SYSTEM_ALERT_WINDOW); Phase 2 overlay not built (11-08 feasibility)
 - Defaults of 1.6x font and fixed heights in child UI: use min-height + wrapping (d1c75da)
 - Hiding the Poco-detected "gesture nav becomes 3 buttons" side effect: can't fix; the launcher warns before the user picks (HomeMenus.kt:139)
+  - UPDATE 2026-11-15 (Poco, HyperOS OS3.0, SDK 36): `settings put global force_fsg_nav_bar 1` (needs WRITE_SECURE_SETTINGS / adb) brings gestures back with KidGuard as home: secure navigation_mode 0 -> 2, 3-button bar gone, survives a reinstall of KidGuard. Undo = 0. Reboot not tested yet.
 
 ## Past bugs (cause -> fix -> avoid)
 - Duplicate Truecaller in dock (dialer that is also SMS app) -> de-dup (ce7a9de)
