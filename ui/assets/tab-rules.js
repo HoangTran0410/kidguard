@@ -94,7 +94,15 @@ function ruleChips(r) {
 }
 // Rules: one list, two groups under a small heading (time / blocking & safety; sub-tabs hid half the features, owner 2026-11-13). Zones + location log live in the "Vị trí" tab, the Authenticator in
 // "Cài đặt"; the same section HTML (ruleSecs) and wiring (rulesWire) serve all three, wiring only what is on screen.
-const RSEG = { time: ["daily", "chore", "grp", "bed", "wind", "sch"], safe: ["more", "dns", "web", "calls", "anti", "home", "kind"] };
+// 17 small sections -> 8 rows (owner 2026-11-15 "too many top-level items"): related ones share one sub-screen (secMix), each part keeps its chip + gate
+const RSEG = { time: ["day", "grp", "sch", "night"], safe: ["net", "block", "calls", "kid"] };
+const ruleRows = S => ({
+  day: secMix("r-day", "timer", t("mx.day"), t("mx.dayD"), [S.daily, S.chore]), grp: S.grp, sch: S.sch,
+  night: secMix("r-night", "moon", t("bed.h"), t("mx.nightD"), [S.bed, S.wind]),
+  net: secMix("r-net", "shield", t("mx.net"), t("mx.netD"), [S.dns, S.web]),
+  block: secMix("r-block", "construction", t("mx.block"), t("mx.blockD"), [S.more, S.anti]), calls: S.calls,
+  kid: secMix("r-kid", "house", t("hm.h"), t("mx.homeD"), [S.home, S.kind]),
+});
 // v0.9.9 kid launcher: the phone answers with state.launcher {on, home, err, style, locked, pages}
 function homeStatus(r) {
   const L = st.launcher;
@@ -152,12 +160,12 @@ function bedBody(r) {
 function ruleSecs(r) {
   const C = ruleChips(r);
   return {
-    daily: sec("r-daily", "timer", t("daily.h"), t("sd.daily"), C.daily, `    <div class="row"><select id="f-dmode" aria-label="${esc(t("daily.h"))}"><option value="same" ${r.dailyByDay.length ? "" : "selected"}>${t("daily.same")}</option><option value="by" ${r.dailyByDay.length ? "selected" : ""}>${t("daily.by")}</option></select></div>
+    daily: secP("r-daily", "timer", t("daily.h"), t("sd.daily"), C.daily, `    <div class="row"><select id="f-dmode" aria-label="${esc(t("daily.h"))}"><option value="same" ${r.dailyByDay.length ? "" : "selected"}>${t("daily.same")}</option><option value="by" ${r.dailyByDay.length ? "selected" : ""}>${t("daily.by")}</option></select></div>
     ${r.dailyByDay.length ? `<div class="grid" style="margin-top:8px">${t("wdl").map((n, i) => `<label class="mute">${t("daily.dayLbl", n)}<input type="number" min="0" max="1440" step="15" inputmode="numeric" data-d="${i}" id="f-d${i}" value="${+r.dailyByDay[i] || 0}" style="width:100%"></label>`).join("")}</div>`
     : `<div class="row" style="margin-top:8px"><select id="f-daily" aria-label="${esc(t("daily.h"))}">${[0, 30, 60, 90, 120, 150, 180, 240, 300].map(n => `<option value="${n}" ${r.dailyMin === n ? "selected" : ""}>${n ? fmt(n * 60000) : t("noLimitC")}</option>`).join("")}
     ${[0, 30, 60, 90, 120, 150, 180, 240, 300].includes(r.dailyMin) ? "" : `<option selected value="${r.dailyMin}">${fmt(r.dailyMin * 60000)}</option>`}</select></div>`}
     <p class="mute">${ic("lightbulb")} ${t("daily.tip")}</p>`),
-    grp: sec("r-grp", "layout-grid", t("grp.h"), t("sd.grp"), C.grp, `    ${r.groups.map((g, i) => { const h = (g.hours || [])[0], have = new Set(g.pkgs || []), list = (st.apps || []).map(a => [a.pkg, a.label]).concat((g.pkgs || []).filter(p => !(st.apps || []).some(a => a.pkg === p)).map(p => [p, p]));
+    grp: secP("r-grp", "layout-grid", t("grp.h"), t("sd.grp"), C.grp, `    ${r.groups.map((g, i) => { const h = (g.hours || [])[0], have = new Set(g.pkgs || []), list = (st.apps || []).map(a => [a.pkg, a.label]).concat((g.pkgs || []).filter(p => !(st.apps || []).some(a => a.pkg === p)).map(p => [p, p]));
       return `<div class="sch" data-g="${i}"><div class="row"><input class="sp" id="f-gn${i}" maxlength="40" placeholder="${esc(t("grp.namePh"))}" aria-label="${esc(t("grp.name"))}" value="${esc(g.name)}"><button class="bad" data-gdel="${i}" aria-label="${esc(t("grp.del"))}">${ic("trash-2")}</button></div>
       <label class="row" style="margin-top:8px">${t("grp.max")} <input type="number" id="f-gm${i}" min="0" max="1440" step="15" inputmode="numeric" style="width:5.5em" value="${+g.min || 0}"> ${t("minPerDay")} <span class="mute">${t("zeroNoLim")}</span></label>
       <label class="row" style="margin-top:8px"><input type="checkbox" id="g-hon${i}" ${h ? "checked" : ""}><span class="sp">${ic("clock")} ${t("grp.hours")}</span></label>
@@ -168,46 +176,46 @@ function ruleSecs(r) {
       ${have.size ? "" : `<p class="mute">${ic("triangle-alert")} ${t("grp.empty")}</p>`}</div>`; }).join("") || `<p class="mute">${ic("inbox")} ${t("grp.none")}</p>`}
     <button id="addGroup" ${r.groups.length >= 10 ? "disabled" : ""}>${ic("plus")} ${t("grp.add")}</button>
     <p class="mute">${ic("lightbulb")} ${t("grp.tip")}</p>`),
-    totp: sec("r-totp", "key-round", t("totp.h"), t("sd.totp"), C.totp, `    ${st.totpOn === undefined ? `<p class="mute">${ic("triangle-alert")} ${t("totp.old")}</p>` : st.totpOn
+    totp: secP("r-totp", "key-round", t("totp.h"), t("sd.totp"), C.totp, `    ${st.totpOn === undefined ? `<p class="mute">${ic("triangle-alert")} ${t("totp.old")}</p>` : st.totpOn
       ? `<p>${ic("circle-check")} ${t("totp.onP")}${st.unlockUntil > Date.now() ? " " + t("totp.until", hhmm(st.unlockUntil)) : ""}</p>
         <div class="row"><button class="sp" id="totpNew">${ic("refresh-cw")} ${t("totp.new")}</button><button class="bad" id="totpOff">${ic("x")} ${t("turnOff")}</button></div>`
       : `<p class="mute">${t("totp.offP")}</p><button class="pri" id="totpNew">${ic("key-round")} ${t("totp.enable")}</button>`}
     <label class="row" style="margin-top:10px">${t("totp.each")} <select id="f-um">${[15, 30, 60, 120].map(n => `<option value="${n}" ${+r.unlockMin === n ? "selected" : ""}>${fmt(n * 60000)}</option>`).join("")}</select></label>
     <div id="totpOut">${totpShown && totpShown.k === cur ? totpHtml(totpShown) : ""}</div>
     <p class="mute">${ic("lightbulb")} ${t("totp.tip")}</p>`),
-    chore: sec("r-chore", "star", t("chore.h"), t("sd.chore"), C.chore, `    ${r.chores.map((c, i) => `<div class="app" data-c="${i}"><input class="sp" id="f-cn${i}" data-f="name" maxlength="40" placeholder="${esc(t("chore.namePh"))}" aria-label="${esc(t("chore.name"))}" value="${esc(c.name)}"><label class="row">+<input type="number" id="f-cm${i}" data-f="min" min="5" max="120" step="5" inputmode="numeric" aria-label="${esc(t("minutes"))}" style="width:5.5em" value="${+c.min || 20}"> ${t("minShort")}</label><button class="bad" data-cdel="${i}" aria-label="${esc(t("chore.del"))}">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("chore.none")}</p>`}
+    chore: secP("r-chore", "star", t("chore.h"), t("sd.chore"), C.chore, `    ${r.chores.map((c, i) => `<div class="app" data-c="${i}"><input class="sp" id="f-cn${i}" data-f="name" maxlength="40" placeholder="${esc(t("chore.namePh"))}" aria-label="${esc(t("chore.name"))}" value="${esc(c.name)}"><label class="row">+<input type="number" id="f-cm${i}" data-f="min" min="5" max="120" step="5" inputmode="numeric" aria-label="${esc(t("minutes"))}" style="width:5.5em" value="${+c.min || 20}"> ${t("minShort")}</label><button class="bad" data-cdel="${i}" aria-label="${esc(t("chore.del"))}">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("chore.none")}</p>`}
     <button id="addChore" ${r.chores.length >= 20 ? "disabled" : ""}>${ic("plus")} ${t("chore.add")}</button>
     <p class="mute">${ic("lightbulb")} ${t("chore.tip")}</p>`),
-    bed: sec("r-bed", "moon", t("bed.h"), t("sd.bed"), C.bed, bedBody(r)),
-    lost: sec("r-lost", "siren", t("lost.h"), t("sd.lost"), C.lost, lostBody(r)),
-    wind: sec("r-wind", "moon", t("wd.h"), t("sd.wind"), C.wind, windBody(r)),
-    kind: sec("r-kind", "notebook-pen", t("kn.h"), t("sd.kind"), C.kind, kindBody(r)),
-    home: sec("r-home", "house", t("hm.h"), t("sd.home"), C.home, homeBody(r)),
-    sch: sec("r-sch", "book-open", t("sch.h"), t("sd.sch"), C.sch, `    ${r.schedules.map((x, i) => `<div class="sch" data-s="${i}">
+    bed: secP("r-bed", "moon", t("bed.h"), t("sd.bed"), C.bed, bedBody(r)),
+    lost: secP("r-lost", "siren", t("lost.h"), t("sd.lost"), C.lost, lostBody(r)),
+    wind: secP("r-wind", "moon", t("wd.h"), t("sd.wind"), C.wind, windBody(r)),
+    kind: secP("r-kind", "notebook-pen", t("kn.h"), t("sd.kind"), C.kind, kindBody(r)),
+    home: secP("r-home", "house", t("hm.h"), t("sd.home"), C.home, homeBody(r)),
+    sch: secP("r-sch", "book-open", t("sch.h"), t("sd.sch"), C.sch, `    ${r.schedules.map((x, i) => `<div class="sch" data-s="${i}">
       <div class="row"><input id="f-sn${i}" class="sp" data-f="name" placeholder="${esc(t("sch.namePh"))}" aria-label="${esc(t("sch.name"))}" value="${esc(x.name)}"><label class="row"><input type="checkbox" data-f="on" ${x.on ? "checked" : ""}> ${t("on")}</label></div>
       <div class="chips" style="margin:8px 0">${t("wd").map((n, d) => `<button data-day="${d + 1}" class="${(x.days || []).includes(d + 1) ? "on" : ""}" aria-pressed="${(x.days || []).includes(d + 1)}">${n}</button>`).join("")}</div>
       <div class="row"><span class="row tm">${t("from")} <input type="time" id="f-ss${i}" data-f="start" aria-label="${esc(t("start"))}" value="${esc(x.start)}"> ${t("to")} <input type="time" id="f-se${i}" data-f="end" aria-label="${esc(t("end"))}" value="${esc(x.end)}"></span><span class="sp"></span><button class="bad" data-del="${i}">${ic("trash-2")} ${t("delete")}</button></div><div data-sw>${timeWarn(x, x.on, true)}</div></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("sch.none")}</p>`}
     <button id="addSch">${ic("plus")} ${t("sch.add")}</button>`),
-    zone: sec("r-zone", "map-pin", t("zone.h"), t("sd.zone"), C.zone, `    ${r.zones.map((z, i) => `<div class="sch zrow" data-z="${i}"><span class="ib">${ic("map-pin")}</span><span class="x"><b>${esc(z.name || t("zone.newName"))}</b><span class="mute">${t("zone.r")} ${+z.r || 150} m${zoneOk(z) ? "" : " · " + t("zone.badCoord")}</span></span><button data-zedit="${i}">${ic("map")} ${t("zone.editB")}</button><button class="bad" data-zdel="${i}" aria-label="${esc(t("delete"))}">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("zone.none")}</p>`}
+    zone: secP("r-zone", "map-pin", t("zone.h"), t("sd.zone"), C.zone, `    ${r.zones.map((z, i) => `<div class="sch zrow" data-z="${i}"><span class="ib">${ic("map-pin")}</span><span class="x"><b>${esc(z.name || t("zone.newName"))}</b><span class="mute">${t("zone.r")} ${+z.r || 150} m${zoneOk(z) ? "" : " · " + t("zone.badCoord")}</span></span><button data-zedit="${i}">${ic("map")} ${t("zone.editB")}</button><button class="bad" data-zdel="${i}" aria-label="${esc(t("delete"))}">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("zone.none")}</p>`}
     <button id="addZone" ${r.zones.length >= 10 ? "disabled" : ""}>${ic("plus")} ${t("zone.add")}</button>
     <p class="mute">${ic("lightbulb")} ${t("zone.tip")}</p>`),
-    trk: sec("r-trk", "route", t("trk.h"), t("sd.trk"), C.trk, `    <select id="f-tm" aria-label="${esc(t("trk.h"))}">${[0, 1, 5, 10, 15, 30, 60].map(v => `<option value="${v}" ${r.trackMin === v ? "selected" : ""}>${v ? fmt(v * 60000) : t("off")}</option>`).join("")}${[0, 1, 5, 10, 15, 30, 60].includes(r.trackMin) ? "" : `<option selected value="${r.trackMin}">${fmt(r.trackMin * 60000)}</option>`}</select>
+    trk: secP("r-trk", "route", t("trk.h"), t("sd.trk"), C.trk, `    <select id="f-tm" aria-label="${esc(t("trk.h"))}">${[0, 1, 5, 10, 15, 30, 60].map(v => `<option value="${v}" ${r.trackMin === v ? "selected" : ""}>${v ? fmt(v * 60000) : t("off")}</option>`).join("")}${[0, 1, 5, 10, 15, 30, 60].includes(r.trackMin) ? "" : `<option selected value="${r.trackMin}">${fmt(r.trackMin * 60000)}</option>`}</select>
     <p class="mute">${ic("map")} ${t("trk.tip")}</p>`),
-    more: sec("r-more", "construction", t("more.h"), t("sd.more"), C.more, `    ${gateNote("block")}<label for="f-bn" style="display:block">${ic("package")} ${t("ni.h")}</label><select id="f-bn" style="width:100%;margin:6px 0 0">${[["off", "ni.off", 0], ["ask", "ni.ask", !feat("block").ok], ["none", "ni.none", isBasic()]].map(([v, k, dis]) => `<option value="${v}" ${(r.noInstall ? "none" : r.blockNew ? "ask" : "off") === v ? "selected" : ""} ${dis && !(v === "none" ? r.noInstall : v === "ask" && r.blockNew && !r.noInstall) ? "disabled" : ""}>${t(k)}</option>`).join("")}</select>
+    more: secP("r-more", "construction", t("more.h"), t("sd.more"), C.more, `    ${gateNote("block")}<label for="f-bn" style="display:block">${ic("package")} ${t("ni.h")}</label><select id="f-bn" style="width:100%;margin:6px 0 0">${[["off", "ni.off", 0], ["ask", "ni.ask", !feat("block").ok], ["none", "ni.none", isBasic()]].map(([v, k, dis]) => `<option value="${v}" ${(r.noInstall ? "none" : r.blockNew ? "ask" : "off") === v ? "selected" : ""} ${dis && !(v === "none" ? r.noInstall : v === "ask" && r.blockNew && !r.noInstall) ? "disabled" : ""}>${t(k)}</option>`).join("")}</select>
     ${canFeat("lockLocation") ? "" : gateNote("lockLocation")}<div class="${canFeat("lockLocation") ? "" : "gated"}"><label class="row" style="margin-top:8px"><input type="checkbox" id="f-ll" ${r.lockLocation ? "checked" : ""}><span class="sp">${ic("map-pin")} ${t("more.loc")}</span></label></div>
     <div class="${isBasic() ? "gated" : ""}"><label class="row" style="margin-top:8px"><input type="checkbox" id="f-na" ${r.noAirplane ? "checked" : ""}><span class="sp">${ic("plane")} ${t("more.air")}</span></label></div>${moreOwnerNote(r)}
     <div class="${isBasic() ? "gated" : ""}" style="margin-top:12px"><label for="f-frp" style="display:block">${ic("shield")} ${t("frp.h")}</label>
     <input type="text" id="f-frp" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(t("frp.ph"))}" value="${esc((r.frpIds || []).join(" "))}" style="width:100%;margin-top:6px">
     <p class="mute" id="frpS">${frpStatus(r)}</p>
     <details><summary>${t("frp.how")}</summary><p class="mute">${t("frp.tip")}</p></details></div>${isBasic() ? needOwner(t("no.frp")) : ""}`),
-    dns: sec("r-dns", "shield", t("dns.h"), t("sd.dns"), C.dns, `    <select id="f-dns" aria-label="${esc(t("dns.h"))}">${DNS().map(([v, n, ss]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}${ss ? " · " + t("dns.ss") : ""}</option>`).join("")}<option value="__c" ${r.safeDns && !DNS().some(d => d[0] === r.safeDns) ? "selected" : ""}>${t("dns.custom")}</option></select>
+    dns: secP("r-dns", "shield", t("dns.h"), t("sd.dns"), C.dns, `    <select id="f-dns" aria-label="${esc(t("dns.h"))}">${DNS().map(([v, n, ss]) => `<option value="${v}" ${r.safeDns === v ? "selected" : ""}>${n}${ss ? " · " + t("dns.ss") : ""}</option>`).join("")}<option value="__c" ${r.safeDns && !DNS().some(d => d[0] === r.safeDns) ? "selected" : ""}>${t("dns.custom")}</option></select>
     <input type="text" id="f-dnsc" placeholder="dns.example.com" autocapitalize="off" autocorrect="off" spellcheck="false" value="${esc(DNS().some(d => d[0] === r.safeDns) ? "" : r.safeDns)}" style="margin-top:8px;${r.safeDns && !DNS().some(d => d[0] === r.safeDns) ? "" : "display:none"}" aria-label="${esc(t("dns.custom"))}">
     <div id="dnsP"></div>
     <p class="mute">${ic("eye-off")} ${t("dns.tip")}</p>
     ${isBasic() && canFeat("dns") ? `<p class="mute">${ic("info")} ${t("dns.basicWss")}</p>` : ""}
     <div class="${isBasic() ? "gated" : ""}"><label class="row" style="margin-top:8px"><input type="checkbox" id="f-nv" ${r.noVpn ? "checked" : ""}><span class="sp">${ic("shield")} ${t("dns.novpn")}</span></label>
     <p class="mute">${ic("info")} ${t("dns.novpn.tip")}</p></div>${isBasic() ? needOwner(t("no.vpn")) : ""}`),
-    web: sec("r-web", "globe", t("web.h"), t("sd.web"), C.web, `    <div class="${isBasic() ? "gated" : ""}"><label class="row"><input type="checkbox" id="f-ni" ${r.noIncognito ? "checked" : ""}><span class="sp">${ic("eye-off")} ${t("web.inc")}</span></label>
+    web: secP("r-web", "globe", t("web.h"), t("sd.web"), C.web, `    <div class="${isBasic() ? "gated" : ""}"><label class="row"><input type="checkbox" id="f-ni" ${r.noIncognito ? "checked" : ""}><span class="sp">${ic("eye-off")} ${t("web.inc")}</span></label>
     <label for="f-wm" style="display:block;margin-top:12px">${t("web.mode")}</label>
     <select id="f-wm" style="margin-top:6px"><option value="block" ${webOnly(r) ? "" : "selected"}>${t("web.m.block")}</option><option value="only" ${webOnly(r) ? "selected" : ""}>${t("web.m.only")}</option></select>
     <div id="webB" style="${webOnly(r) ? "display:none" : ""}"><label for="f-wb" style="display:block;margin-top:12px">${ic("ban")} ${t("web.block")}</label>
@@ -217,8 +225,8 @@ function ruleSecs(r) {
     <p class="mute">${ic("info")} ${t("web.tip")}</p>
     <p class="mute">${ic("send")} ${t("web.ask")}</p>
     <div id="webLeak">${webLeakHtml(r)}</div></div>${isBasic() ? needOwner(t("no.web")) : ""}`),
-    calls: sec("r-calls", "phone", t("calls.h"), t("sd.calls"), C.calls, callsBody(r)),
-    anti: sec("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ps" ${r.pinShot !== false ? "checked" : ""}><span class="sp">${ic("camera")} ${t("anti.shot")}</span></label>
+    calls: secP("r-calls", "phone", t("calls.h"), t("sd.calls"), C.calls, callsBody(r)),
+    anti: secP("r-anti", "lock-keyhole", t("anti.h"), t("sd.anti"), C.anti, `    <label class="row"><input type="checkbox" id="f-ps" ${r.pinShot !== false ? "checked" : ""}><span class="sp">${ic("camera")} ${t("anti.shot")}</span></label>
     <p class="mute">${ic("info")} ${t("anti.shotTip")}</p>
     <div class="${isBasic() ? "gated" : ""}" style="margin-top:8px"><label class="row"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label></div>
     ${isBasic() ? needOwner(t("no.anti")) + `<p class="mute">${ic("shield")} ${t("anti.basic")}</p>`
@@ -239,12 +247,12 @@ function monWould() {   // monitor only: what strict mode would block right now 
   return names.length ? t("mon.would", esc(names.slice(0, 8).join(", ")) + (names.length > 8 ? " …" : "")) : t("mon.none");
 }
 function rulesTab(b) {
-  const r = edit, S = ruleSecs(r), segs = [["time", "timer", t("rules.segTime")], ["safe", "shield", t("rules.segSafe")]];
+  const r = edit, S = ruleRows(ruleSecs(r)), segs = [["time", "timer", t("rules.segTime")], ["safe", "shield", t("rules.segSafe")]];
   b.innerHTML = `<div class="rtop"><span class="sp"></span><button type="button" class="pill" id="tplOpen" aria-haspopup="dialog">${ic("layers")} ${t("tpl.apply")}</button></div>
     ${modeAlive(r.mode) ? `<div class="alert warn" id="modeBar" style="font-weight:400;margin-bottom:10px">${ic("timer")} <b>${esc(t("md.on", r.mode.name, modeEnd(r.mode.until)))}</b><p class="mute" style="margin:4px 0 8px">${t("md.back")}</p><button type="button" class="bad" id="modeEnd">${ic("x")} ${t("md.end")}</button></div>` : ""}
     <div class="card" id="monCard"><label class="row"><input type="checkbox" id="f-mon" ${r.monitor ? "checked" : ""}><span class="sp">${ic("eye")} <b>${t("mon.h")}</b></span></label>
     <p class="mute">${t("mon.p")}</p>${r.monitor ? `<p class="mute" id="monWould">${monWould()}</p>` : ""}</div>
-    <div id="rsx">${segs.map(([id, i, n]) => `<div class="lhead"><h2>${ic(i)} ${n}</h2></div>${RSEG[id].map(k => S[k]).join("")}`).join("")}</div>`;
+    <div id="rsx">${segs.map(([id, i, n]) => secGrp(n, RSEG[id].map(k => S[k]))).join("")}</div>`;
   $("#tplOpen").onclick = tplSheet;
   if ($("#modeEnd")) $("#modeEnd").onclick = modeEndNow;
   $("#f-mon").onchange = e => { if (!edit) return; edit.monitor = e.target.checked; changed(); rulesTab(b); };

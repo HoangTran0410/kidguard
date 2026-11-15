@@ -67,10 +67,10 @@ function homeTab(b) {
     <button type="button" class="lfoot" data-go="log">${t("tab.log")} ${ic("chevron-right")}</button></div>
   </div></div>`;
   wireReq(b, today, false);
-  if ($("#awayGo")) $("#awayGo").onclick = () => { tab = "set"; render(true); const c = $("#awaySec"); if (c) c.scrollIntoView({ block: "start" }); };
+  if ($("#awayGo")) $("#awayGo").onclick = () => { goTab("set"); subOpen("s-remote"); };
   if ($("#awayNo")) $("#awayNo").onclick = () => { kidFlag(cur, "away", 1); render(); };
   b.querySelectorAll("[data-go]").forEach(x => x.onclick = () => goTab(x.dataset.go));
-  if ($("#blkGo")) $("#blkGo").onclick = () => { sel.f = "blocked"; appsSub = "list"; goTab("apps"); };
+  if ($("#blkGo")) $("#blkGo").onclick = () => { sel.f = "blocked"; sel.q = ""; apOpen("a-apps"); };
   if ($("#bonusGo")) $("#bonusGo").onclick = () => pickTime("bonus", bonusMin ? t("pk.bonusNow", bonusMin) : "",
     m => { const kind = grantApply(edit, st, m); changed(); toast("ok|" + grantToast(kind, edit, m)); render(); },
     bonusMin ? () => { edit.bonus = { day: today, min: 0 }; changed(); render(); } : null);
@@ -81,7 +81,7 @@ function homeTab(b) {
   };
   b.querySelectorAll("[data-naok]").forEach(x => x.onclick = () => { edit.approved.push(x.dataset.naok); changed(); toast("ok|" + t("permitted")); render(); });
   b.querySelectorAll("[data-nano]").forEach(x => x.onclick = () => { if (!edit.blocked.includes(x.dataset.nano)) edit.blocked.push(x.dataset.nano); changed(); toast("ok|" + t("na.blocked")); render(); });
-  if ($("#naMore")) $("#naMore").onclick = () => { sel.f = "new"; appsSub = "list"; goTab("apps"); };
+  if ($("#naMore")) $("#naMore").onclick = () => { sel.f = "new"; sel.q = ""; apOpen("a-apps"); };
   $("#pauseGo").onclick = () => pickTime("pause", pausedLeft > 0 ? t("pk.active", whenTxt(r.pausedUntil)) + " · " + t("pk.leftN", fmt(pausedLeft)) : "",
     until => { edit.pausedUntil = until; changed(); toast("ok|" + t("pk.sumPause", whenTxt(until))); render(); },
     pausedLeft > 0 ? () => { edit.pausedUntil = 0; changed(); toast("ok|" + t("pk.unpaused")); render(); } : null);
@@ -133,39 +133,69 @@ function appRow(x) {
   return `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${fmt(x.ms)}${x.suspended || x.blocked ? `<span class="tag bad">${reason(x.blocked)}</span>` : ""}</span></div></div>`;
 }
 
-// Section = one row of a tab's list (icon, title, chip, one-line desc, chevron) + a body that STAYS in the DOM (controls keep
-// their wiring, setChip keeps working). Phone: the list shows rows only; a tap opens that section's body as a sub-screen
-// (top bar = back + title + chip; one history entry per open sub-screen, state {sub: id}). Wide (>= 960 px): two panes,
-// list on the left, the selected body on the right. secNav() applies this to the DOM after every render (idempotent).
-// Owner 2026-11-15: 17 collapsible cards per tab were tiring to open and close.
+// Section = one row of a tab's list (icon tile, title, chip, one-line desc, chevron) + a body that STAYS in the DOM (controls keep
+// their wiring, setChip keeps working). Rows of one group sit in ONE container (`secGrp()`, same look as the "Thêm" list).
+// Phone: the list shows rows only; a tap opens that section's body as a sub-screen (top bar = back + title + chip; one history
+// entry per open sub-screen, state {sub: id}). Wide (>= 960 px): two panes, list on the left, the selected body on the right.
+// secNav() applies this to the DOM after every render (idempotent).
+// Owner 2026-11-15: 17 collapsible cards per tab were tiring to open and close; then "still a lot": grouped rows + merged small sections.
+// secP() = a section as data (so a merge can take it apart), toString() = the row; secMix() = ONE row whose sub-screen holds several of them
+// (each keeps its title + chip + gate); secLazy[id] = fn(box) fills a heavy body only when its row is opened (re-armed by every render).
 let subId = null, selId = null, subY = 0, subTop = false;   // phone: open sub-screen; wide: selected row; list scroll to restore
 const wideMq = matchMedia("(min-width:960px)"), isWide = () => wideMq.matches;
 const chipHtml = c => c ? `<span class="tag ${c[1] || ""}" data-chip>${c[0]}</span>` : `<span data-chip></span>`;
-function sec(id, icn, title, desc, chip, body) {
-  const g = FEAT_SEC[id] ? gateNote(FEAT_SEC[id]) : "";
-  if (g) body = g + `<div class="gated">${body}</div>`;
-  return `<section class="card cl${g ? " gate" : ""}" data-sec="${id}"><h2><button type="button" class="clh" id="sh-${id}" aria-controls="sb-${id}">
-    <svg class="si bk" aria-hidden="true"><use href="#i-chevron-left"/></svg><span class="cli">${ic(icn)}</span><span class="clt"><span class="clr"><b>${title}</b>${chipHtml(chip)}</span>${desc ? `<span>${desc}</span>` : ""}</span><svg class="si chev" aria-hidden="true"><use href="#i-chevron-right"/></svg></button></h2>
-    <div class="clb" id="sb-${id}" role="region" aria-labelledby="sh-${id}"><div><div><div class="clbh" aria-hidden="true">${ic(icn)}<b>${title}</b></div>${body}</div></div></div></section>`;
+const secLazy = {};
+const gateOf = id => FEAT_SEC[id] ? gateNote(FEAT_SEC[id]) : "";
+const gBody = (id, body) => { const g = gateOf(id); return g ? g + `<div class="gated">${body}</div>` : body; };
+function secRow(id, icn, title, desc, chip, inner, gate, lazy) {
+  return `<section class="cl${gate ? " gate" : ""}" data-sec="${id}"${lazy ? " data-lazy" : ""}><h2><button type="button" class="clh" id="sh-${id}" aria-controls="sb-${id}">
+    <svg class="si bk" aria-hidden="true"><use href="#i-chevron-left"/></svg><span class="cli">${ic(icn)}</span><span class="clt"><b>${title}</b>${desc ? `<span>${desc}</span>` : ""}</span>${chipHtml(chip)}<svg class="si chev" aria-hidden="true"><use href="#i-chevron-right"/></svg></button></h2>
+    <div class="clb" id="sb-${id}" role="region" aria-labelledby="sh-${id}"><div><div><div class="clbh" aria-hidden="true">${ic(icn)}<b>${title}</b></div><div class="clbc">${inner}</div></div></div></div></section>`;
 }
-const setChip = (root, id, c) => { const el = root.querySelector(`[data-sec="${id}"] [data-chip]`); if (el) el.outerHTML = chipHtml(c); };
+function secP(id, icn, title, desc, chip, body) {
+  return { id, icn, title, desc, chip, body, toString() { return secRow(id, icn, title, desc, chip, gBody(id, body), !!gateOf(id)); } };
+}
+const sec = (id, icn, title, desc, chip, body) => secRow(id, icn, title, desc, chip, gBody(id, body), !!gateOf(id));
+const secL = (id, icn, title, desc, chip) => secRow(id, icn, title, desc, chip, "", !!gateOf(id), true);   // empty row: secLazy[id] fills the body when opened
+const mixChip = tones => { const on = tones.filter(Boolean); return on.length ? [t("chip.nOn", on.length), on.includes("bad") ? "bad" : on.includes("warn") ? "warn" : "ok"] : [t("off")]; };
+function secMix(id, icn, title, desc, parts, chip) {   // chip: undefined = "N on" from the parts (live), null = none, [text, tone] = fixed
+  const ps = parts.filter(Boolean), fixed = chip !== undefined;
+  const h = secRow(id, icn, title, desc, fixed ? chip : mixChip(ps.map(p => p.chip && p.chip[1] || "")),
+    ps.map(p => `<div class="part" data-part="${p.id}"><h3 class="pth">${ic(p.icn)}<b>${p.title}</b>${chipHtml(p.chip)}</h3>${gBody(p.id, p.body)}</div>`).join(""), false);
+  return fixed ? h.replace(`data-sec="${id}"`, `data-sec="${id}" data-fixed`) : h;
+}
+// a group of rows in one container, with a heading above (like the "Thêm" screen); empty rows are dropped. id / note: for the heading
+const secGrp = (h, rows, id, note) => { const r = rows.filter(Boolean).join(""); return r ? `${h ? `<div class="sec"${id ? ` id="${id}"` : ""}>${h}</div>` : ""}${note || ""}<div class="list sgl">${r}</div>` : ""; };
+function setChip(root, id, c) {
+  const el = root.querySelector(`[data-sec="${id}"] [data-chip], [data-part="${id}"] [data-chip]`); if (!el) return;
+  el.outerHTML = chipHtml(c);
+  const part = root.querySelector(`[data-part="${id}"]`), row = part && part.closest("[data-sec]"), rc = row && !row.hasAttribute("data-fixed") && row.querySelector(".clh [data-chip]");
+  if (rc) rc.outerHTML = chipHtml(mixChip([...row.querySelectorAll("[data-part] [data-chip]")].map(x => ["ok", "warn", "bad"].find(k => x.classList.contains(k)) || "")));
+}
+function secFill(c) {
+  const f = secLazy[c.dataset.sec]; if (!f || !c.hasAttribute("data-lazy") || c.dataset.filled) return;
+  c.dataset.filled = "1"; f(c.querySelector(".clbc"));
+}
 function secNav() {
   const body = document.getElementById("body"); if (!body) return;
-  document.querySelectorAll(".sg-hide,.sg-cur,.sg-flat,.sg-two").forEach(e => e.classList.remove("sg-hide", "sg-cur", "sg-flat", "sg-two"));
+  document.querySelectorAll(".sg-hide,.sg-cur,.sg-flat,.sg-two,.sg-open,.gf,.gl").forEach(e => e.classList.remove("sg-hide", "sg-cur", "sg-flat", "sg-two", "sg-open", "gf", "gl"));
   document.body.classList.remove("sg-sub");
   const all = [...body.querySelectorAll("[data-sec]")].filter(s => !s.parentElement.closest("[data-sec]"));
   if (!all.length) return;
+  body.querySelectorAll(".sgl").forEach(g => { const k = [...g.children].filter(x => x.matches("[data-sec]")); if (k.length) { k[0].classList.add("gf"); k[k.length - 1].classList.add("gl"); } });
   all.forEach(s => s.querySelector(".clh").setAttribute("aria-current", "false"));
   if (isWide()) {
     const c = all.find(s => s.dataset.sec === selId) || all[0]; c.classList.add("sg-cur"); c.querySelector(".clh").setAttribute("aria-current", "true");
     let lca = all[0].parentElement; while (lca !== body && !all.every(s => lca.contains(s))) lca = lca.parentElement;
+    if (lca.classList.contains("sgl") && lca !== body) lca = lca.parentElement;   // one group only: the panes go around its container
     lca.classList.add("sg-two");
     for (const s of all) for (let p = s.parentElement; p !== lca; p = p.parentElement) p.classList.add("sg-flat");
-    return;
+    secFill(c); return;
   }
   const c = subId && all.find(s => s.dataset.sec === subId); if (!c) return;
   c.classList.add("sg-cur"); document.body.classList.add("sg-sub");
-  for (let p = c; p !== body; p = p.parentElement) for (const x of p.parentElement.children) if (x !== p && !x.matches(".hbar,.keep")) x.classList.add("sg-hide");
+  for (let p = c; p !== body; p = p.parentElement) { if (p !== c) p.classList.add("sg-open"); for (const x of p.parentElement.children) if (x !== p && !x.matches(".hbar,.keep")) x.classList.add("sg-hide"); }
+  secFill(c);
 }
 let secObs = null;
 function secWatch() {   // a tab redraws parts of itself after render(): re-apply whenever its DOM is rebuilt
