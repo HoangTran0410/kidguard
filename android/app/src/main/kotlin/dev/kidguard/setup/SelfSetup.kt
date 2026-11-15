@@ -347,6 +347,7 @@ object SelfSetup {
         runCatching { sh("appops set $PKG WRITE_SETTINGS allow") }; runCatching { sh("cmd notification allow_dnd $PKG") }
         runCatching { sh("cmd notification allow_listener $PKG/$PKG.NotifDots") }   // launcher notification dots
         runCatching { sh("appops set $PKG SYSTEM_ALERT_WINDOW allow") }   // bank app reopen (basic mode)
+        runCatching { sh("pm grant $PKG android.permission.RECORD_AUDIO"); sh("appops set $PKG RECORD_AUDIO allow") }   // "listen" after an SOS: never ask the child then
         runCatching { sh("appops set $PKG REQUEST_INSTALL_PACKAGES allow") }   // self-update without asking (basic mode)
     }
 

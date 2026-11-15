@@ -248,6 +248,9 @@ Write-Host "[4/8] Cấp quyền ghi cài đặt bảo mật"
 Chk pm grant $Pkg android.permission.WRITE_SECURE_SETTINGS
 # optional (remote phone settings): brightness / screen timeout and Do Not Disturb; old Android may not know them
 Adb shell appops set $Pkg WRITE_SETTINGS allow | Out-Null
+# "listen around" after an SOS must not ask the child for the mic
+Adb shell pm grant $Pkg android.permission.RECORD_AUDIO | Out-Null
+Adb shell appops set $Pkg RECORD_AUDIO allow | Out-Null
 Adb shell cmd notification allow_dnd $Pkg | Out-Null
 Adb shell cmd notification allow_listener "$Pkg/$Pkg.NotifDots" | Out-Null
 Adb shell appops set $Pkg SYSTEM_ALERT_WINDOW allow | Out-Null   # bank app reopen (basic mode)

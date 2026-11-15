@@ -238,6 +238,9 @@ chk pm grant $PKG android.permission.WRITE_SECURE_SETTINGS
 # optional (remote phone settings): brightness / screen timeout and Do Not Disturb; old Android may not know them
 adb shell appops set $PKG WRITE_SETTINGS allow >/dev/null 2>&1 || true
 adb shell cmd notification allow_dnd $PKG >/dev/null 2>&1 || true
+# "listen around" after an SOS must not ask the child for the mic
+adb shell pm grant $PKG android.permission.RECORD_AUDIO >/dev/null 2>&1 || true
+adb shell appops set $PKG RECORD_AUDIO allow >/dev/null 2>&1 || true
 adb shell cmd notification allow_listener $PKG/$PKG.NotifDots >/dev/null 2>&1 || true
 adb shell appops set $PKG SYSTEM_ALERT_WINDOW allow >/dev/null 2>&1 || true   # bank app reopen (basic mode)
 adb shell appops set $PKG REQUEST_INSTALL_PACKAGES allow >/dev/null 2>&1 || true   # self-update without asking (basic mode)

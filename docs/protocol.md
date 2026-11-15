@@ -445,6 +445,8 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
 4. `adb shell pm grant dev.kidguard android.permission.WRITE_SECURE_SETTINGS`
    then, optional (errors ignored, for remote phone settings): `appops set dev.kidguard WRITE_SETTINGS allow` and
    `cmd notification allow_dnd dev.kidguard` (Do Not Disturb access) and
+   `pm grant dev.kidguard android.permission.RECORD_AUDIO` + `appops set dev.kidguard RECORD_AUDIO allow` ("listen" after an SOS;
+   the app also grants both itself through its own adb, `AutoGrant`, every 30 min and when a listen starts) and
    `cmd notification allow_listener dev.kidguard/dev.kidguard.NotifDots` (launcher notification dots: counts per app
    only, never stored or sent; writing `enabled_notification_listeners` does not work since Android 8, measured on 8.1)
    and `appops set dev.kidguard SYSTEM_ALERT_WINDOW allow` (basic mode: lets the bank-app pause reopen the bank from the
