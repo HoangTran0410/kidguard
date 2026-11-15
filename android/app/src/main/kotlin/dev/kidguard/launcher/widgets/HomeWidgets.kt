@@ -335,20 +335,22 @@ internal fun HomeActivity.quickWidget(s: Store, w: Int): View {
             if (t == tiles) return
             tiles = t
             if (t) {
-                setPadding(dp(6), dp(6), dp(6), dp(6))
+                // no shared card behind the tiles (owner 2026-11-15: card padding around them looked cramped): the four
+                // tiles ARE the widget, edge to edge in its box, 8 dp apart
+                background = null; setPadding(0, 0, 0, 0)
                 for (i in buttons.indices) {
                     val b = buttons[i]; val f = fillsOf[i]
-                    b.background = fill(f.first, 14f); b.gravity = Gravity.CENTER; b.setPadding(dp(2), 0, dp(2), 0)
-                    (b.layoutParams as LayoutParams).apply { height = -1; setMargins(dp(3), 0, dp(3), 0) }
+                    b.background = fill(f.first, 20f); b.gravity = Gravity.CENTER; b.setPadding(dp(2), 0, dp(2), 0); kit.tap(b, 20f)
+                    (b.layoutParams as LayoutParams).apply { height = -1; setMargins(if (i == 0) 0 else dp(4), 0, if (i == buttons.size - 1) 0 else dp(4), 0) }
                     circles[i].apply { background = null; setPadding(0, 0, 0, 0); layoutParams.width = dp(24); layoutParams.height = dp(24)
                         (this as ImageView).setImageDrawable(Ic.get(context, glyphs[i], f.second, dp(24))) }
                     labels[i].apply { setTextColor(f.second); setPadding(0, dp(3), 0, 0) }
                 }
             } else {
-                setPadding(dp(6), dp(10), dp(6), dp(10))
+                background = card(); setPadding(dp(6), dp(10), dp(6), dp(10))
                 for (i in buttons.indices) {
                     val b = buttons[i]; val f = fillsOf[i]
-                    b.background = null; b.gravity = Gravity.CENTER_HORIZONTAL; b.setPadding(dp(2), dp(4), dp(2), dp(4))
+                    b.background = null; b.gravity = Gravity.CENTER_HORIZONTAL; b.setPadding(dp(2), dp(4), dp(2), dp(4)); kit.tap(b, 14f)
                     (b.layoutParams as LayoutParams).apply { height = -2; setMargins(0, 0, 0, 0) }
                     circles[i].apply { background = fill(f.first); (this as ImageView).setImageDrawable(Ic.get(context, glyphs[i], f.second, dp(22))) }
                     labels[i].apply { setTextColor(labCol[i]); setPadding(0, dp(6), 0, 0) }
