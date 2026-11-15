@@ -29,11 +29,4 @@
     <string name="hm_c_nav">Điều hướng</string>
     <string name="hm_c_nav_note">Xiaomi/Poco: vuốt thay cho 3 nút. Trong app ngân hàng, 3 nút tự quay lại.</string>
     <string name="hm_c_nav_need">Cần cấp quyền qua adb trước</string>
-    <string name="hm_c_find">Tìm cài đặt: hình nền, cỡ chữ, vuốt…</string>
-    <string name="hm_c_find_none">Không thấy. Thử từ ngắn hơn.</string>
-    <string name="hm_c_nav_kw">cử chỉ, thanh điều hướng, nút quay lại, nút home, app gần đây, 3 nút, gesture</string>
-    <string name="hm_c_wall_kw">ảnh nền, ảnh, làm mờ, làm tối, background</string>
-    <string name="hm_c_theme_kw">chế độ tối, ban đêm, dark mode</string>
-    <string name="hm_c_text_kw">phông chữ, font, chữ to, cỡ chữ</string>
-    <string name="hm_c_home_kw">lưới, cột, biểu tượng, icon, tên app, thanh dưới</string>
 </resources>

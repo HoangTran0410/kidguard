@@ -46,9 +46,6 @@ class CustomActivity : Activity() {
     private var undoAt = ""                                 // where its "Hoàn tác" shows: grid | wall | reset
     private var undoPhoto = false                           // the undo also brings the previous wall.jpg back (wall.jpg.prev)
     private var busy = false
-    // "Tìm cài đặt": section headers in page order (view, hidden keywords), rebuilt with the page; the query survives a rebuild
-    private val heads = ArrayList<Pair<View, String>>()
-    private var findQ = ""
     private val locked get() = Store.of(this).rules.launcher.lockCustom
     private fun dp(v: Int) = k.dp(v)
     private fun s(id: Int, vararg a: Any) = getString(id, *a)
@@ -103,9 +100,6 @@ class CustomActivity : Activity() {
         }, LinearLayout.LayoutParams(dp(44), dp(44)))
         head.addView(k.text(s(R.string.hm_customize), 24f, pal.text, true).apply { setPadding(dp(8), 0, 0, 0) })
         col.addView(head, LinearLayout.LayoutParams(-1, -2))
-        heads.clear()
-        col.isFocusableInTouchMode = true   // the page, not the search box, takes focus on open: no keyboard popping up
-        findBox(col)
         if (locked) col.addView(note(s(R.string.hm_c_locked), true), lp(10))
         // live preview
         val pv = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -118,7 +112,7 @@ class CustomActivity : Activity() {
         // no "Kiểu" (Bé / Teen / Gọn) cards: a tap to look re-gridded the whole home with the undo far below (owner);
         // every part of a preset has its own control here, and One UI / Pixel have no presets either. Saved layouts instead.
         savedSection(col, mm)
-        section(col, R.string.hm_c_home, R.string.hm_c_home_kw)
+        section(col, R.string.hm_c_home)
         val home = group()
         home.addView(stepper(s(R.string.hm_c_cols), mm.cols, 3, 5) { regrid(it, mm.rows) })
         // no rows stepper: rows always follow the screen (cells ~square, HomeLayout.fitRows); picking both made cells oblong
@@ -155,7 +149,7 @@ class CustomActivity : Activity() {
 
         // Xiaomi / Poco only (kid flavor): own swipe navigation, the 3-button bar comes back in bank apps (NavGest)
         if (NavGest.supported()) {
-            section(col, R.string.hm_c_nav, R.string.hm_c_nav_kw)
+            section(col, R.string.hm_c_nav)
             val nav = group()
             nav.addView(switchRow(s(R.string.hm_c_nav_sw), NavGest.on(this)) { v -> if (!NavGest.set(this, v)) { Toasts.show(this, R.string.hm_c_nav_need, true); build() } })
             line(nav); nav.addView(note(s(R.string.hm_c_nav_note), false))
@@ -165,7 +159,7 @@ class CustomActivity : Activity() {
         // first open: what fills the screen now, the sections below the fold right after the first frame (the whole form
         // was 86-139 ms before it on an Oppo A5s); a rebuild (a setting changed) builds it all at once, so nothing flashes
         val rest = {
-            section(col, R.string.hm_c_wall, R.string.hm_c_wall_kw)
+            section(col, R.string.hm_c_wall)
             val ws = object : HorizontalScrollView(this) {
                 private var placed = false
                 override fun onScrollChanged(l: Int, t: Int, ol: Int, ot: Int) { super.onScrollChanged(l, t, ol, ot); if (placed) wallX = l }
@@ -190,11 +184,11 @@ class CustomActivity : Activity() {
             for (a in HomeStyle.ACCENTS) ar.addView(swatch(a, a.id == curAccent, dark), LinearLayout.LayoutParams(0, dp(44), 1f))
             col.addView(ar, lp(8))
 
-            section(col, R.string.hm_c_theme, R.string.hm_c_theme_kw)
+            section(col, R.string.hm_c_theme)
             col.addView(seg(listOf(s(R.string.hm_c_light) to "light", s(R.string.hm_c_dark) to "dark", s(R.string.hm_c_auto) to "auto"), st.theme,
                 listOf(R.drawable.li_sun, R.drawable.li_moon, R.drawable.li_smartphone_auto)) { v -> set { it.copy(theme = v) } }, lp(8))
 
-            section(col, R.string.hm_c_text, R.string.hm_c_text_kw)
+            section(col, R.string.hm_c_text)
             val fonts = listOf(0.85, 1.0, 1.15, 1.3)
             val fi = fonts.indexOfFirst { kotlin.math.abs(it - st.font) < 0.01 }.let { if (it < 0) 1 else it }
             col.addView(group().apply { addView(slider(s(R.string.hm_c_font), fi, 3, "A", "A", bigEnd = true) { v -> set { it.copy(font = fonts[v]) } }) }, lp(8))
@@ -329,56 +323,8 @@ class CustomActivity : Activity() {
 
     private fun lp(top: Int) = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top) }
 
-    private fun section(col: LinearLayout, id: Int, kw: Int = 0) {
-        val h = k.text(s(id).uppercase(), 12f, pal.sub, true).apply { letterSpacing = 0.08f; setPadding(dp(4), 0, 0, 0); if (Build.VERSION.SDK_INT >= 28) isAccessibilityHeading = true }
-        col.addView(h, lp(22))
-        heads += h to (if (kw != 0) s(kw) else "")
-    }
-
-    /** Search box under the title: typing jumps to the first section (title, rows, keywords) that holds every word. */
-    private fun findBox(col: LinearLayout) {
-        val box = android.widget.EditText(this).apply {
-            setText(findQ); hint = s(R.string.hm_c_find); textSize = 16f; setTextColor(pal.text); setHintTextColor(pal.sub)
-            isSingleLine = true; imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_FILTER
-            background = k.sheetCard(20f); setPadding(dp(14), dp(12), dp(14), dp(12))
-            setCompoundDrawablesRelative(Ic.get(this@CustomActivity, R.drawable.li_search, pal.sub, dp(18)), null, null, null)
-            compoundDrawablePadding = dp(10)
-        }
-        val none = k.text(s(R.string.hm_c_find_none), 13f, pal.sub).apply { setPadding(dp(4), dp(6), 0, 0); visibility = View.GONE }
-        box.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(t: CharSequence?, a: Int, b: Int, c: Int) {}
-            override fun onTextChanged(t: CharSequence?, a: Int, b: Int, c: Int) {}
-            override fun afterTextChanged(e: android.text.Editable?) { findQ = e?.toString() ?: ""; none.visibility = if (find(col)) View.GONE else View.VISIBLE }
-        })
-        box.setOnEditorActionListener { v, _, _ -> (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(v.windowToken, 0); true }
-        col.addView(box, lp(10))
-        col.addView(none, LinearLayout.LayoutParams(-1, -2))
-    }
-
-    /** True = found (or empty query). Text per section = everything between its header and the next one. */
-    private fun find(col: LinearLayout): Boolean {
-        if (findQ.isBlank()) return true
-        val texts = ArrayList<String>(); val views = ArrayList<View>()
-        var sb: StringBuilder? = null
-        for (i in 0 until col.childCount) {
-            val c = col.getChildAt(i)
-            val hd = heads.firstOrNull { it.first === c }
-            if (hd != null) { sb?.let { texts += it.toString() }; sb = StringBuilder((hd.first as TextView).text).append(' ').append(hd.second); views += c }
-            else sb?.let { collect(c, it) }
-        }
-        sb?.let { texts += it.toString() }
-        val at = SettingsFind.first(findQ, texts)
-        if (at < 0) return false
-        scroll.smoothScrollTo(0, (views[at].top - dp(8)).coerceAtLeast(0))
-        return true
-    }
-
-    private fun collect(v: View, sb: StringBuilder) {
-        if (v is TextView) sb.append(' ').append(v.text)
-        v.contentDescription?.let { sb.append(' ').append(it) }
-        if (v is android.view.ViewGroup) for (i in 0 until v.childCount) collect(v.getChildAt(i), sb)
-    }
+    private fun section(col: LinearLayout, id: Int) =
+        col.addView(k.text(s(id).uppercase(), 12f, pal.sub, true).apply { letterSpacing = 0.08f; setPadding(dp(4), 0, 0, 0); if (Build.VERSION.SDK_INT >= 28) isAccessibilityHeading = true }, lp(22))
 
     private fun group() = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = k.sheetCard(20f); setPadding(dp(16), dp(2), dp(16), dp(2)) }
     private fun line(g: LinearLayout) = g.addView(View(this).apply { setBackgroundColor(pal.stroke) }, LinearLayout.LayoutParams(-1, dp(1)))

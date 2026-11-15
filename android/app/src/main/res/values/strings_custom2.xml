@@ -29,11 +29,4 @@
     <string name="hm_c_nav_sw">Swipe instead of 3 buttons</string>
     <string name="hm_c_nav_note">Xiaomi/Poco: swipe instead of the 3 buttons. The buttons come back in bank apps.</string>
     <string name="hm_c_nav_need">Needs an adb grant first</string>
-    <string name="hm_c_find">Find a setting: wallpaper, text size, swipe…</string>
-    <string name="hm_c_find_none">Nothing found. Try a shorter word.</string>
-    <string name="hm_c_nav_kw">gestures, navigation bar, back button, home button, recent apps, 3 buttons</string>
-    <string name="hm_c_wall_kw">background, photo, blur, dim</string>
-    <string name="hm_c_theme_kw">dark mode, night</string>
-    <string name="hm_c_text_kw">font, big text, text size</string>
-    <string name="hm_c_home_kw">grid, columns, icons, app names, dock</string>
 </resources>
