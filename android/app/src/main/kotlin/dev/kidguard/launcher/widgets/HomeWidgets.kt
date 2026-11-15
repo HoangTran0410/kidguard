@@ -340,11 +340,16 @@ internal fun HomeActivity.quickWidget(s: Store, w: Int): View {
                 background = null; setPadding(0, 0, 0, 0)
                 for (i in buttons.indices) {
                     val b = buttons[i]; val f = fillsOf[i]
-                    b.background = fill(f.first, 20f); b.gravity = Gravity.CENTER; b.setPadding(dp(2), 0, dp(2), 0); kit.tap(b, 20f)
+                    // glass like the folder plate (dark: white 22 %, light: pal.card, same GlassCard rim as cards); SOS stays
+                    // solid red so the emergency button reads at a glance
+                    val sos = f.first == pal.danger
+                    val fg = if (sos) f.second else pal.text
+                    b.background = if (sos) fill(f.first, 20f) else GlassCard(if (pal.dark) android.graphics.Color.argb(56, 255, 255, 255) else pal.card, dpf(20f), dpf(1f), pal.dark)
+                    b.gravity = Gravity.CENTER; b.setPadding(dp(2), 0, dp(2), 0); kit.tap(b, 20f)
                     (b.layoutParams as LayoutParams).apply { height = -1; setMargins(if (i == 0) 0 else dp(4), 0, if (i == buttons.size - 1) 0 else dp(4), 0) }
                     circles[i].apply { background = null; setPadding(0, 0, 0, 0); layoutParams.width = dp(24); layoutParams.height = dp(24)
-                        (this as ImageView).setImageDrawable(Ic.get(context, glyphs[i], f.second, dp(24))) }
-                    labels[i].apply { setTextColor(f.second); setPadding(0, dp(3), 0, 0) }
+                        (this as ImageView).setImageDrawable(Ic.get(context, glyphs[i], fg, dp(24))) }
+                    labels[i].apply { setTextColor(fg); setPadding(0, dp(3), 0, 0) }
                 }
             } else {
                 background = card(); setPadding(dp(6), dp(10), dp(6), dp(10))
