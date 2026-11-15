@@ -1485,8 +1485,9 @@ class HomeActivity : Activity() {
             shareLabels(cw)
             for (i in 0 until childCount) {
                 val c = getChildAt(i); val lp = c.layoutParams as CellLP
-                val (_, _, ww, wh) = box(cw, ch, lp)
-                c.measure(MeasureSpec.makeMeasureSpec(ww.coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(wh.coerceAtLeast(0), MeasureSpec.EXACTLY))
+                val (_, _, ww, wh, g) = box(cw, ch, lp)
+                val e = bleed(c, g)
+                c.measure(MeasureSpec.makeMeasureSpec((ww + 2 * e).coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec((wh + 2 * e).coerceAtLeast(0), MeasureSpec.EXACTLY))
             }
             setMeasuredDimension(W, H)
         }
@@ -1514,7 +1515,13 @@ class HomeActivity : Activity() {
             val h = Math.round(lp.h * minOf(ch.toFloat(), pw.toFloat()) - g).coerceAtMost(lp.h * ch - gap - top)
             // and placed on that pitch down too (as x across): gaps between widgets equal both ways (POCO: 69 across, was 85 down)
             val y = top + Math.round(lp.y * (minOf(ch.toFloat(), pw.toFloat()) - ch))
-            return intArrayOf(x, y, w, h)
+            return intArrayOf(x, y, w, h, Math.round(g))
+        }
+
+        /** Other apps' widgets get half the widget gap on every side (see KgHostView.edge); 0 for everything else. */
+        private fun bleed(c: View, g: Int): Int {
+            if (c !is KgHostView) return 0
+            val e = g / 2; c.edge = e; return e
         }
 
         /**
@@ -1567,8 +1574,9 @@ class HomeActivity : Activity() {
             val cw = (r - l - 2 * side) / cols; val ch = pitchH(r - l, b - t); val y0 = gridTop(b - t)
             for (i in 0 until childCount) {
                 val c = getChildAt(i); val lp = c.layoutParams as CellLP
-                val (ix, top) = box(cw, ch, lp)
-                val x = side + lp.x * cw + gap / 2 + ix; val y = y0 + lp.y * ch + gap / 2 + top
+                val (ix, top, _, _, g) = box(cw, ch, lp)
+                val e = bleed(c, g)
+                val x = side + lp.x * cw + gap / 2 + ix - e; val y = y0 + lp.y * ch + gap / 2 + top - e
                 c.layout(x, y, x + c.measuredWidth, y + c.measuredHeight)
             }
         }
