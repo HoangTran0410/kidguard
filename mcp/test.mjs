@@ -50,7 +50,7 @@ async function suite(mode) {
     c.note("notifications/initialized");
     assert.deepEqual((await c.rpc("ping")).result, {});
     const names = (await c.rpc("tools/list")).result.tools.map((t) => t.name).sort();
-    assert.deepEqual(names, ["answer_request", "get_rules", "grant_time", "kid_status", "send_command", "update_rules", "usage_today"]);
+    assert.deepEqual(names, ["answer_request", "get_rules", "grant_time", "guide", "kid_status", "recent_events", "send_command", "update_rules", "usage_today"]);
     assert.equal((await c.rpc("nope")).error.code, -32601);
 
     const st = (await c.tool("kid_status")).json;

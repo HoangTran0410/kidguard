@@ -77,6 +77,23 @@ async function putRules(rules) {
   return call("/rules", "PUT", rules);   // WHOLE object: rules are a full replace on the phone
 }
 
+// The user guide (website/guide.html): local copy next to the repo, else the public site. Plain text, split by heading.
+let guideCache = null;
+async function guideSections() {
+  if (guideCache) return guideCache;
+  let html = "";
+  try { html = (await import("node:fs")).readFileSync(new URL("../website/guide.html", import.meta.url), "utf8"); }
+  catch { const r = await fetch("https://kid-guard.pages.dev/guide.html"); html = await r.text(); }
+  html = html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, "");
+  const parts = html.split(/<h[23][^>]*>/i).slice(1);
+  guideCache = parts.map((p) => {
+    const txt = p.replace(/<br\s*\/?>|<\/(p|li|div|h[1-6])>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+    const nl = txt.indexOf("\n");
+    return { title: nl > 0 ? txt.slice(0, nl).trim() : txt, text: txt };
+  });
+  return guideCache;
+}
+
 const tools = {
   kid_status: {
     description: "Summary of the child's phone: online, battery %, time used/left today (minutes), current app, last location and zone, open requests.",
@@ -109,6 +126,25 @@ const tools = {
       const apps = (s.apps || []).filter((a) => a.label && a.ms > 0).sort((x, y) => y.ms - x.ms).slice(0, 15)
         .map((a) => ({ app: a.label, package: a.pkg, minutes: min(a.ms), blocked: a.blocked || null }));
       return { day: s.day, total_min: min(s.usedMs), apps };
+    },
+  },
+  recent_events: {
+    description: "What happened on the child's phone lately, newest first: blocked apps, limits reached, zone in/out, SOS, wrong PIN, requests, blocked calls, protection alerts...",
+    schema: { type: "object", properties: { limit: { type: "integer", minimum: 1, maximum: 100 } }, additionalProperties: false },
+    async run(a) {
+      const { state: s } = await load();
+      return (s.events || []).slice(-(a.limit || 30)).reverse().map((e) => ({ kind: e.kind, text: e.text || "", at: iso(e.t) }));
+    },
+  },
+  guide: {
+    description: "Search the KidGuard user guide (Vietnamese). Use it to explain a feature or how the parent does something you cannot do yourself (PIN, listen, screen, files, remove KidGuard, protection switches, setup). No query = list of section titles.",
+    schema: { type: "object", properties: { query: { type: "string", description: "Words to look for, e.g. 'nghe xung quanh', 'gỡ', 'Tailscale'" } }, additionalProperties: false },
+    async run(a) {
+      const secs = await guideSections();
+      if (!a.query) return secs.map((x) => x.title);
+      const words = a.query.toLowerCase().split(/\s+/).filter(Boolean);
+      const hit = secs.map((x) => ({ x, n: words.filter((w) => x.text.toLowerCase().includes(w)).length })).filter((h) => h.n).sort((p, q) => q.n - p.n).slice(0, 3);
+      return hit.length ? hit.map((h) => ({ title: h.x.title, text: h.x.text.slice(0, 4000) })) : "No match. Call guide with no query for the section list.";
     },
   },
   get_rules: {
@@ -199,7 +235,8 @@ async function handle(m) {
   const note = id === undefined || id === null;
   switch (method) {
     case "initialize":
-      return reply(id, { protocolVersion: PROTOCOL, capabilities: { tools: {} }, serverInfo: { name: "kidguard", version: "0.1.0" } });
+      return reply(id, { protocolVersion: PROTOCOL, capabilities: { tools: {} }, serverInfo: { name: "kidguard", version: "0.2.0" },
+        instructions: "KidGuard parental control for one child phone. You can read status, usage, events and rules, change everyday rules and send safe commands. With the AI token the phone refuses PIN, protection switches, listen, screen, files and removal: for those, call `guide` and tell the parent the steps in the parent page instead of saying it is impossible." });
     case "ping": return reply(id, {});
     case "tools/list":
       return reply(id, { tools: Object.entries(tools).map(([name, t]) => ({ name, description: t.description, inputSchema: t.schema })) });
