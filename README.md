@@ -247,6 +247,8 @@ scripts/build.sh                              # build/kidguard.apk + build/kidgu
 TRUSTSTORE=/path/trust.jks scripts/build.sh   # behind a TLS-intercepting proxy
 ```
 
+AI assistant access (Claude Desktop / Claude Code, read status, change rules, safe commands only): `mcp/` (see `mcp/README.md`).
+
 Layout: `android/` (Gradle: `app/` child, `parent/` parent app), `ui/` (pages shared by both apps and the Worker), `relay/`, `website/`, `docs/`, `scripts/`.
 
 JDK 17, Android SDK 35. Parent page: `ui/index.html` + `ui/assets/` (CSS and plain scripts, no build step). Installers: `ui/install.html`, `ui/qr.html` (the WebUSB ADB library is bundled, rebuild with `ui/vendor/build.sh`). Tests: `cd android && ./gradlew testKidDebugUnitTest :parent:testDebugUnitTest`, `cd relay && npm ci && npm test` (starts `wrangler dev` itself). CI runs both on every push (`.github/workflows/ci.yml`, no signing key there).
