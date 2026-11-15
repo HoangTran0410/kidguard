@@ -163,7 +163,7 @@ function ovDraw() {
       ${rq ? `<div class="alert warn" style="display:block">${ic(reqIcon(rq))} <b>${reqIsAsk(rq) ? t("req.appAsks", esc(d.k.name), esc(rq.app || rq.pkg || "?")) : t("req.asks", esc(d.k.name), +rq.min)}</b>${rq.note ? `<div class="mute">${t("req.note", esc(rq.note))}</div>` : ""}
         <div class="row" style="margin-top:8px"><button class="pri sp" data-ay="${i}" ${ovBusy ? "disabled" : ""}>${ic("circle-check")} ${reqIsAsk(rq) ? t("req.appYes") : t("req.yes", +rq.min)}</button><button class="sp" data-an="${i}" ${ovBusy ? "disabled" : ""}>${ic("circle-x")} ${t("req.no")}</button></div></div>` : ""}
       ${s.location ? `<div class="mute">${ic("map-pin")} ${t("ov.loc", ago(s.location.t))}</div>` : `<div class="mute">${ic("map-pin")} ${t("ov.noLoc")}</div>`}
-      ${(s.events || []).length ? (e => `<div class="mute">${ic(EV_IC[e.kind] || "bell")} ${esc(noEmoji(e.text))} · ${ago(e.t)}</div>`)(s.events[s.events.length - 1]) : ""}
+      ${(s.events || []).length ? (e => `<div class="mute">${ic(EV_IC[e.kind] || "bell")} ${esc(noEmoji(e.text))} · ${evAt(e.t)}</div>`)(s.events[s.events.length - 1]) : ""}
       <div class="row" style="margin-top:8px"><button data-o="${i}" class="sp">${ic("folder-open")} ${t("open")}</button>${ovPausedLeft(d) > 0 ? "" : `<button class="sp bad" data-ap="${i}" ${ovBusy ? "disabled" : ""}>${ic("pause")} ${t("pk.pauseBtn")}</button>`}${s.location ? `<a class="btn sp" href="https://www.google.com/maps?q=${+s.location.lat},${+s.location.lng}" target="_blank" rel="noopener">${ic("external-link")} Google Maps</a>` : ""}</div></div>`;
   }).join("");
   document.querySelectorAll("#app [data-ay]").forEach(b => b.onclick = () => { const d = D[+b.dataset.ay]; ovAnswer(d, d.st.requests[0], true); });

@@ -100,6 +100,8 @@ function ago(at) {
 // block reasons (decide() codes, docs/protocol.md)
 const reason = c => tc("rs.", c, t("rs.locked"));
 const hhmm = at => new Date(at).toLocaleTimeString(lang, { hour: "numeric", minute: "2-digit" });
+// event time: "16:19" today, "Hôm qua 16:19", "7 thg 11 16:19" (clock time everywhere, never "n giờ trước")
+const evAt = at => { const k = dkey(at); return (k === dkey(Date.now()) ? "" : (k === dkey(Date.now() - 864e5) ? t("yesterday") : dm(k)) + " ") + hhmm(at); };
 const dm = k => new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)).toLocaleDateString(lang, { day: "numeric", month: "short" });   // "YYYY-MM-DD" -> "7 thg 11" / "Nov 7"
 const DNS = () => [["", t("off")], ["family-filter-dns.cleanbrowsing.org", "CleanBrowsing Family", 1], ["family.adguard-dns.com", "AdGuard Family", 1], ["family.cloudflare-dns.com", "Cloudflare Family", 0]];
 // [host, name, forces SafeSearch + YouTube restricted via DNS]. Cloudflare Family only blocks adult/malware domains.
