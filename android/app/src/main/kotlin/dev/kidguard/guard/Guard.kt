@@ -183,6 +183,7 @@ class Guard : Service() {
         wifiSync()
         http = Http(this, Api(this)).also { it.start(PORT) }
         relay = Relay(this).also { it.start() }
+        KidPush.init(this)   // FCM token for the push wake (kid flavor; sent with the next relay sync)
         relayPair = RelayPair(this).also { it.start() }   // pair from anywhere: only while no parent exists
         Tg.start(this)   // Telegram bot on this phone (idle without a token)
         runCatching { LauncherSafe.restoreShade(this) }   // Acc has shadeBlocked before any home screen

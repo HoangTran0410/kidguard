@@ -36,6 +36,7 @@ class Relay(private val g: Guard) {
     private var wsFails = 0
     private var wsUpAt = 0L   // when the socket last connected: one that dies within 5 min counts as a failure (flapping network)
     private var forceSend = false
+    private var fcmSent = ""
     private var lastCoarse = 0
     private var lastSent = 0L
     private val diff = StateDiff()      // partial states once the worker says `merge` (bandwidth)
@@ -190,6 +191,9 @@ class Relay(private val g: Guard) {
         }.toString().hashCode()
         val full = hash != lastHash || now - lastFull >= 5 * 60_000L || (viaWs && forced)
         val req = JSONObject().put("acks", acks).put("ai", store.aiHash)   // the worker knows the AI token by this hash (AiScope)
+        // push wake (KidPush): the worker keeps this phone's FCM token and wakes it when it goes quiet. Sent until one sync took it.
+        val fcm = KidPush.token
+        if (fcm.isNotEmpty() && "$base/$rid $fcm" != fcmSent) req.put("fcm", fcm)
         if ("$base/$rid" != diffFor) { diffFor = "$base/$rid"; diff.reset(); canMerge = false }
         // a whole state until the worker can merge, and every 6 h anyway (a hash clash must not hide a change for long)
         val whole = !canMerge || big || now - lastWhole >= WHOLE_MS
@@ -200,6 +204,7 @@ class Relay(private val g: Guard) {
         }
         res.optString("error").takeIf { it.isNotEmpty() }?.let { throw RuntimeException("relay: $it") }   // socket reply = HTTP error body
         lastSent = now
+        if (req.has("fcm")) fcmSent = "$base/$rid $fcm"
         run {
             if (full) { lastHash = hash; lastFull = now }
             canMerge = res.optInt("merge") == 1

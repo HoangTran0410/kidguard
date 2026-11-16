@@ -81,6 +81,10 @@ const json = (o, status = 200) => new Response(JSON.stringify(o), {
 });
 const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel", "tgSet", "tgOff", "pinSet", "pinReset", "pinResetCancel", "adbShell", "adbTcp", "support", "selfOpen"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
 const ONCE_WINDOW = 3600e3;   // 1 h (owner 2026-11-15: a phone that is off for 10 min must not lose a release / reboot)
+// push wake (kid app's FCM token, sync body `fcm`): quiet this long => high-priority data push {kind:"wake"}. The phone's
+// watchdog syncs every ~10 min even asleep, so 20 min quiet = asleep beyond that, killed, or offline. Then every 20 min
+// (9 times), then hourly, for 2 days. A parent reading the state of a phone quiet > 3 min wakes it too (once per 3 min).
+const WAKE_QUIET = 20 * 60e3, WAKE_PARENT = 3 * 60e3, WAKE_DAYS = 2 * 86400e3;
 const GC_MS = 30 * 86400e3;   // a phone not seen for 30 days: everything of this id is deleted (dead pairings, junk binds); a phone that comes back re-binds on its next sync
 // "now" commands, stale after SHORT_TTL (10 min). Only what would be harmful or confusing if it fired hours later:
 //  lock locate message ring wake ringStop listenStop = about the moment; reboot clearData = a destructive one asked while the phone was off
@@ -452,6 +456,7 @@ export class Kid {
 
   async handle(req) {
     const url = new URL(req.url), action = url.pathname.split("/").pop(), id = url.pathname.split("/")[2];
+    this.kidId = id;
     if (action === "_tg" && req.method === "POST" && req.headers.get("x-kg-internal") === "1") return this.tgIn(await req.json().catch(() => ({})), id);   // from tgHook only: the public route regex never matches `_tg`
     const token = tokenOf(req, url);
     if (action === "icon" && req.method === "GET" && ICON_KEY.test(url.searchParams.get("k") || "")) {
@@ -492,7 +497,7 @@ export class Kid {
     if (action === "forget" && req.method === "POST") {   // the phone is released: delete everything of this id (same token auth as sync)
       for (const w of this.phoneWs()) { try { w.close(1000, "forgotten"); } catch {} }
       await this.s.deleteAlarm().catch(() => {}); await this.s.deleteAll();
-      this.seen = 0; this.stateAt = 0; this.ikSet = false;
+      this.seen = 0; this.stateAt = 0; this.ikSet = false; this.kfcm = undefined; this.wk = null;
       return json({ result: "forgotten" });
     }
     if (action === "watch") {   // a Zepp watch shows a 6-digit code; the parent page sends it here, authenticated like any parent call
@@ -658,6 +663,10 @@ export class Kid {
     }
     if (action === "state" && req.method === "GET") {
       const [state, rules, seen, cmds] = await Promise.all(["state", "rules", "seen", "cmds"].map(k => this.s.get(k)));
+      if (role === "parent") {   // a parent is looking at a quiet phone: wake it (rate-limited in wakeKid)
+        const heard = this.seenNow(seen), q = Date.now() - heard;
+        if (heard && q >= +(this.env.WAKE_PARENT_MS || WAKE_PARENT) && q < WAKE_DAYS) this.ctx.waitUntil(this.wakeKid(Date.now(), heard, "parent").catch(() => {}));
+      }
       const st = state ? { ...state, rules: stripPin(state.rules) } : null;
       if (role === "parent" && url.searchParams.get("watch") === "1") return json({ ...watchState(st, rules ? stripPin(rules) : null), seen: this.seenNow(seen), pending: (cmds || []).length,
         queue: (cmds || []).filter(c => live(c, Date.now())).slice(-10).map(c => ({ id: c.id, type: c.type, at: c.at })),
@@ -793,7 +802,23 @@ export class Kid {
       "content-type": "image/webp", "cache-control": "private, max-age=86400", "x-content-type-options": "nosniff" } });
   }
 
-  /** Storage GC: armed once per object wake by sync(); see GC_MS. */
+  /** Push wake to the kid phone (its own FCM token, `kfcm`), rate-limited by `wk` {at, n}. [why] "parent" | "alarm". */
+  async wakeKid(now, seen, why) {
+    if (this.kfcm === undefined) this.kfcm = (await this.s.get("kfcm")) || "";
+    if (!this.kfcm || !this.env.FCM_SA) return false;
+    const wk = this.wk || (this.wk = (await this.s.get("wk")) || { at: 0, n: 0 });
+    if (seen > wk.at) wk.n = 0;   // heard since the last push: a fresh quiet spell
+    const gap = why === "parent" ? +(this.env.WAKE_PARENT_MS || WAKE_PARENT) : wk.n < 9 ? WAKE_QUIET : 60 * 60e3;
+    if (now - wk.at < gap) return false;
+    wk.at = now; wk.n++; await this.s.put("wk", wk);
+    let st = 0;
+    try { st = await fcmSend(this.env, this.kfcm, { kind: "wake", kid: this.kidId || "" }, "600s"); } catch (e) { console.log("wake", String(e)); return false; }
+    if (st >= 300) console.log("wake fcm", st, why);
+    if (st === 404) { this.kfcm = ""; await this.s.delete("kfcm"); }   // app removed / reinstalled: the next sync brings the new token
+    return st < 300;
+  }
+
+  /** Storage GC: armed once per object wake by sync(); see GC_MS. Also the push wake of a quiet phone (wakeKid). */
   async alarm() {
     const now = Date.now(), seen = this.phoneWs().length ? now : Math.max((await this.s.get("seen")) || 0, this.seen || 0);
     if (now - seen > GC_MS) { await this.s.deleteAll(); return; }
@@ -801,7 +826,13 @@ export class Kid {
     // bound by a junk first sync and never heard again: no rules, no queue, no second sync within UNUSED_MS => gone
     const [born, rules, cmds, seenAt] = await Promise.all(["born", "rules", "cmds", "seen"].map(k => this.s.get(k)));
     if (born && !this.phoneWs().length && !rules && !(cmds && cmds.length) && (seenAt || 0) - born < 120e3 && now - born > UNUSED_MS) { await this.s.deleteAll(); return; }
-    const next = born && now - born < UNUSED_MS ? born + UNUSED_MS + 1000 : seen + GC_MS;
+    let next = born && now - born < UNUSED_MS ? born + UNUSED_MS + 1000 : seen + GC_MS;
+    if (this.kfcm === undefined) this.kfcm = (await this.s.get("kfcm")) || "";
+    if (this.kfcm && this.env.FCM_SA) {
+      const heard = this.seenNow(seenAt), quiet = now - heard;
+      if (quiet >= WAKE_QUIET && quiet < WAKE_DAYS) { await this.wakeKid(now, heard, "alarm"); next = Math.min(next, now + WAKE_QUIET); }
+      else if (quiet < WAKE_QUIET) next = Math.min(next, heard + WAKE_QUIET + 5000);
+    }
     await this.s.setAlarm(Math.max(now + 1000, files.length ? Math.min(next, Math.min(...files.map(f => f.at)) + FILE_TTL + 60e3) : next));
   }
 
@@ -817,6 +848,13 @@ export class Kid {
     }
     if (state && new TextEncoder().encode(JSON.stringify(state)).length > 120e3) return { error: "state too big", status: 413 };   // DO storage value limit is 128 KiB
     const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
+    if (typeof body.fcm === "string" && FCM_TOKEN.test(body.fcm)) {   // the kid app's own token: push wake (wakeKid / alarm)
+      if (this.kfcm === undefined) this.kfcm = (await this.s.get("kfcm")) || "";
+      if (body.fcm !== this.kfcm) {
+        this.kfcm = body.fcm; await this.s.put("kfcm", body.fcm);
+        const al = await this.s.getAlarm(); if (!al || al > now + WAKE_QUIET) await this.s.setAlarm(now + WAKE_QUIET + 5000);
+      }
+    }
     const aiCut = typeof body.ai === "string" && body.ai !== this.aiSeen ? await this.s.get("aiCut") : null;
     if (aiCut && (body.ai !== aiCut.h || acks.has(aiCut.id))) await this.s.delete("aiCut");   // the phone ran it (or has another hash)
     if (typeof body.ai === "string" && body.ai !== this.aiSeen && (body.ai === "" || /^[0-9a-f]{64}$/.test(body.ai))
@@ -1043,12 +1081,12 @@ async function fcmToken(sa) {
 }
 
 /** Returns the HTTP status of the send. Data-only + high priority: the parent app builds the notification itself. */
-async function fcmSend(env, token, data) {
+async function fcmSend(env, token, data, ttl = "21600s") {
   const sa = JSON.parse(env.FCM_SA);
   const at = await fcmToken(sa);
   const url = (env.FCM_URL || "https://fcm.googleapis.com") + `/v1/projects/${sa.project_id}/messages:send`;
   const r = await fetch(url, { method: "POST", headers: { authorization: "Bearer " + at, "content-type": "application/json" },
-    body: JSON.stringify({ message: { token, data, android: { priority: "HIGH", ttl: "21600s" } } }) });
+    body: JSON.stringify({ message: { token, data, android: { priority: "HIGH", ttl } } }) });
   if (r.status === 401) fcmAuth = null;
   return r.status;
 }

@@ -325,7 +325,7 @@ parent link cannot mint one; the token itself never reaches the phone or the rel
   Also extends `liveUntil`.
 - Parent `POST /c/<id>/input` body = input object -> `{"result":"queued"}` (queue max 50, delivered on the next frame reply).
 - Frames live only in Durable Object memory (never storage).
-- Phone `POST /c/<id>/sync` body `{state?, acks: [cmd ids]}` (`state` omitted when unchanged, see v0.2.1) -> reply
+- Phone `POST /c/<id>/sync` body `{state?, acks: [cmd ids], ai, fcm?}` (`fcm`: kid push wake, see FCM section) (`state` omitted when unchanged, see v0.2.1) -> reply
   `{cmds: [...], merge: 1, full?, rules?, live?, files?, device?}`: `rules` only when the worker's `rules.rev` is higher than the `state.rules.rev`
   it knows; the phone takes them only if `rules.rev` > its own (so a phone clock ahead of the worker's makes relay edits
   wait until the worker rev catches up; LAN saves stamp `rev = max(old+1, phone now)`); `files` = number of
@@ -577,6 +577,14 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   so the two never double-notify. Build: `android/parent/google-services.json` (git-ignored) present = FCM on; Gradle turns
   it into the `google_app_id` / `gcm_defaultSenderId` / `google_api_key` / `project_id` resources (no google-services
   plugin). Needs Google Play services on the parent's phone.
+- **Kid push wake (2026-11-17):** the kid app (kid flavor, `KidPush.kt`, `android/app/google-services.json` client
+  `dev.kidguard`, git-ignored; missing = off) sends its own FCM token in the sync body `fcm` (each process start / token
+  change, until one sync took it). The worker keeps it (`kfcm`, one per kid, 404 drops it) and sends the data-only
+  high-priority message `{"kind": "wake", "kid": "<id>"}` (ttl 600 s) when (a) the phone has not been heard for 20 min
+  (DO alarm; then every 20 min 9 times, then hourly, up to 2 days quiet; `wk {at, n}` rate limit, reset when heard), or
+  (b) a parent reads `GET state` while the phone is quiet >= 3 min (`WAKE_PARENT_MS`, tests 1500; once per 3 min).
+  Phone: `KidPushService` -> `Relay.wake` (wakelock, drop a quiet socket, sync now) or `Guard.start`. Does not reach a
+  force-stopped app or a phone that is off / offline.
 
 ## Telegram bot on the child phone (v0.9.x, Tg.kt)
 - The family makes its own bot at @BotFather; the token goes to the phone with command `tgSet {token, lang: "vi"|"en", name}`

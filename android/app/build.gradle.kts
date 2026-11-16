@@ -5,6 +5,23 @@ plugins {
 
 val keystore = file("signing.jks")   // git-ignored; scripts/build.sh creates one
 
+// Optional FCM wake (kid flavor): app/google-services.json from the Firebase console (client dev.kidguard), git-ignored.
+// Its values become the resources the Firebase SDK auto-initialises from, as in parent/. Missing = no push wake (relay polling only).
+val fcm: Map<String, String> = file("google-services.json").takeIf { it.exists() }?.let { f ->
+    @Suppress("UNCHECKED_CAST")
+    val j = groovy.json.JsonSlurper().parse(f) as Map<String, Any?>
+    val info = j["project_info"] as Map<String, Any?>
+    val client = (j["client"] as List<Map<String, Any?>>).firstOrNull {
+        ((it["client_info"] as Map<String, Any?>)["android_client_info"] as Map<String, Any?>)["package_name"] == "dev.kidguard"
+    } ?: return@let null
+    mapOf(
+        "google_app_id" to (client["client_info"] as Map<String, Any?>)["mobilesdk_app_id"] as String,
+        "google_api_key" to ((client["api_key"] as List<Map<String, Any?>>).first()["current_key"] as String),
+        "project_id" to info["project_id"] as String,
+        "gcm_defaultSenderId" to info["project_number"] as String,
+    )
+} ?: emptyMap()
+
 android {
     namespace = "dev.kidguard"
     compileSdk = 35
@@ -20,8 +37,12 @@ android {
     // code checks BuildConfig.HOME (Flavor.kt) to hide what needs a parent
     flavorDimensions += "app"
     productFlavors {
-        create("kid") { dimension = "app"; buildConfigField("boolean", "HOME", "false") }
-        create("home") { dimension = "app"; applicationIdSuffix = ".home"; buildConfigField("boolean", "HOME", "true") }
+        create("kid") {
+            dimension = "app"; buildConfigField("boolean", "HOME", "false")
+            fcm.forEach { (k, v) -> resValue("string", k, v) }
+            buildConfigField("String", "FCM_APP_ID", "\"" + (fcm["google_app_id"] ?: "") + "\"")
+        }
+        create("home") { dimension = "app"; applicationIdSuffix = ".home"; buildConfigField("boolean", "HOME", "true"); buildConfigField("String", "FCM_APP_ID", "\"\"") }
     }
     signingConfigs {
         create("release") {
@@ -56,7 +77,7 @@ android {
     }
     // BouncyCastle (via libadb) ships 1.2 MB of Picnic post-quantum tables; adb pairing never uses them
     packaging { resources { excludes += "org/bouncycastle/pqc/**" } }
-    buildFeatures { buildConfig = true }
+    buildFeatures { buildConfig = true; resValues = true }
     lint { checkReleaseBuilds = false }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_11; targetCompatibility = JavaVersion.VERSION_11 }
     kotlinOptions { jvmTarget = "11" }
@@ -74,6 +95,7 @@ dependencies {
     implementation("com.github.MuntashirAkon:libadb-android:3.1.1")
     implementation("com.github.MuntashirAkon:sun-security-android:1.1")   // X509 cert for the adb TLS key
     implementation("org.conscrypt:conscrypt-android:2.5.3")
+    "kidImplementation"("com.google.firebase:firebase-messaging:24.1.0")   // push wake (KidPush, kid flavor only)
     implementation("com.google.zxing:core:3.5.3")   // pairing QR on the child screen
     // writes src/main/baseline-prof.txt's AOT profile at first start: the launcher is compiled at once instead of
     // running interpreted / JIT for its first seconds (~70 ms frames on the first swipes after an install or a kill)

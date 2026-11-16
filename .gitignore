@@ -10,6 +10,7 @@ node_modules/
 .DS_Store
 .kotlin/
 android/parent/google-services.json
+android/app/google-services.json
 *firebase-adminsdk*.json
 
 # agent scratch (Claude Code)

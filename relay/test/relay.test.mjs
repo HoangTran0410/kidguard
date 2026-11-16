@@ -151,6 +151,15 @@ ck("event pushed as ev, kind only, no text",ms.length==6&&ms[5].data.kind=="ev"&
 await P3("sync",{state:{events:Array.from({length:9},(_,i)=>({id:"b"+i,t:now,kind:"battery"}))}});await sleep(800);
 ck("at most 5 events pushed per sync",(await sentList()).length==11);
 j=await (await P3("push",{fcm:"good_"+"a".repeat(40),off:true})).json();ck("push off removes",j.devices==0);
+// push wake: the kid app's own token comes with a sync; a parent reading a quiet phone's state wakes it, once per WAKE_PARENT_MS
+await P3("sync",{fcm:"kid_"+"c".repeat(40)});await sleep(1700);
+await fetch(`${B}/c/${id3}/state`,{headers:H()});await sleep(600);
+let wakes=(await sentList()).filter(m=>m.data.kind=="wake");
+ck("quiet phone + parent reads state -> wake push to the kid token",wakes.length==1&&wakes[0].token.startsWith("kid_")&&wakes[0].android.priority=="HIGH"&&wakes[0].android.ttl=="600s");
+await fetch(`${B}/c/${id3}/state`,{headers:H()});await sleep(500);
+ck("second read within the gap: no second wake",(await sentList()).filter(m=>m.data.kind=="wake").length==1);
+await P3("sync",{});await fetch(`${B}/c/${id3}/state`,{headers:H()});await sleep(500);
+ck("phone just synced: no wake",(await sentList()).filter(m=>m.data.kind=="wake").length==1);
 ck("push needs the kid token",(await fetch(`${B}/c/${id3}/push`,{method:"POST",headers:H(BAD),body:"{}"})).status==401);}
 {const id5=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),T5=Array.from({length:48},()=>"0123456789abcdef"[Math.random()*16|0]).join("");
 // the per-IP rate limit (150 / 10 s) can trip here on a fast runner (429), and wrangler dev can 503 while it starts a fresh Durable Object: retry both
