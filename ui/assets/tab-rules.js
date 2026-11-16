@@ -107,7 +107,7 @@ const ruleRows = S => ({
 function homeStatus(r) {
   const L = st.launcher;
   if (!r.launcher.on && !(L && L.on)) return "";
-  const [k, w] = !L ? ["hm.stOld", 1] : L.err === "not owner" ? ["hm.stNoOwner", 1] : L.err === "crash" ? ["hm.stCrash", 1] : L.err === "home" ? ["hm.stHome", 1]
+  const [k, w] = !L ? ["hm.stOld", 1] : L.err === "not owner" && !isBasic() ? ["hm.stNoOwner", 1] : L.err === "not owner" && L.home !== "dev.kidguard" ? ["hm.stHome", 1] : L.err === "crash" ? ["hm.stCrash", 1] : L.err === "home" ? ["hm.stHome", 1]
     : L.safeUntil > Date.now() ? ["hm.stSafe", 1] : L.on && r.launcher.on ? ["hm.stOn", 0] : ["hm.stWait", 0];
   const why = k === "hm.stSafe" ? t("hm.stSafeTo", hhmm(L.safeUntil)) : k === "hm.stWait" && Date.now() - lastSeen() > 120000 ? t("save.lastSeen", ago(lastSeen())) : "";
   return `<p class="${w ? "" : "mute"}" id="hmSt">${ic(w ? "triangle-alert" : k === "hm.stOn" ? "circle-check" : "loader")} ${t(k)}${why ? " · " + why : ""}</p>`;
@@ -119,14 +119,16 @@ function kidNotes() {
   return `<div style="margin-top:10px"><b>${ic("notebook-pen")} ${t("hm.kidNotes")}</b>${n.slice(0, 20).map(x =>
     `<p style="margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.text)}<br><span class="mute">${esc(dtFull(+x.t || 0))}</span></p>`).join("")}</div>`;
 }
+// one launcher switch: short title (bold) + 1-2 sentence hint under it (owner 2026-11-16: "title short, desc 2-3 sentences")
+const hmOpt = (id, on, icn, k) => `<label class="row" style="margin-top:12px;align-items:flex-start;flex-wrap:nowrap"><input type="checkbox" id="${id}" ${on ? "checked" : ""}><span class="sp"><b>${ic(icn)} ${t(k)}</b><br><span class="mute">${t(k + "Hint")}</span></span></label>`;
 function homeBody(r) {
   const L = r.launcher, opt = (v, k) => `<option value="${v}" ${L.style === v ? "selected" : ""}>${t(k)}</option>`;
   return `    <label class="row"><input type="checkbox" id="f-hm" ${L.on ? "checked" : ""}><span class="sp">${ic("house")} ${t("hm.on")}</span></label>
     <label class="row" style="margin-top:8px">${t("hm.style")} <select id="f-hms" aria-label="${esc(t("hm.style"))}">${opt("", "hm.sAuto")}${opt("be", "hm.sBe")}${opt("teen", "hm.sTeen")}${opt("gon", "hm.sGon")}</select></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmset" ${L.settings ? "checked" : ""}><span class="sp">${ic("settings")} ${t("hm.settings")}</span></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmn" ${L.notes ? "checked" : ""}><span class="sp">${ic("message-square")} ${t("hm.notes")}</span></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmlock" ${L.lockCustom ? "checked" : ""}><span class="sp">${ic("lock")} ${t("hm.lock")}</span></label>
-    <label class="row" style="margin-top:8px"><input type="checkbox" id="f-hmshade" ${L.shade ? "checked" : ""}><span class="sp">${ic("bell-off")} ${t("hm.shade")}<br><span class="mute">${t("hm.shadeHint")}</span></span></label>
+    ${hmOpt("f-hmset", L.settings, "settings", "hm.settings")}
+    ${hmOpt("f-hmn", L.notes, "message-square", "hm.notes")}
+    ${hmOpt("f-hmlock", L.lockCustom, "lock", "hm.lock")}
+    ${hmOpt("f-hmshade", L.shade, "bell-off", "hm.shade")}
     ${homeStatus(r)}${kidNotes()}
     <p class="mute">${ic("lightbulb")} ${t("hm.tip")}</p>${isBasic() ? `<p class="mute keep">${ic("info")} ${t("hm.basic")}</p>` : ""}`;
 }
