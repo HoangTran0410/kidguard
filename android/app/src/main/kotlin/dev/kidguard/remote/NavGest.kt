@@ -403,7 +403,9 @@ object NavGest {
                     arrowOff()
                     if (cts) return true
                     if (!moved && e.eventTime - downAt < CTS_MS) { passTap(e.rawX, e.rawY); return true }
-                    val act = NavGestLogic.classify(edge, e.rawX - x0, e.rawY - y0, if (hold) NavGestLogic.HOLD_MS else 0L, min)
+                    // full-screen bottom, second swipe: half the distance is enough (seconds swipes are quick flicks: Poco 2026-11-16, 2 of 3 too short)
+                    val second = calm && edge == NavGestLogic.Edge.BOTTOM && NavGestLogic.again(armedAt, e.eventTime)
+                    val act = NavGestLogic.classify(edge, e.rawX - x0, e.rawY - y0, if (hold) NavGestLogic.HOLD_MS else 0L, if (second) min / 2 else min)
                     if (calm && act == NavGestLogic.Act.BACK) { onMenu?.invoke(e.rawY.toInt()); return true }
                     if (calm && edge == NavGestLogic.Edge.BOTTOM && act != NavGestLogic.Act.NONE) {
                         if (!NavGestLogic.again(armedAt, e.eventTime)) {
