@@ -66,7 +66,23 @@ function lgUse(u) {
   const [y, m, d] = lgDay.split("-").map(Number), d0 = new Date(y, m - 1, d).getTime();
   return u.s.filter(r => Array.isArray(r) && u.p[r[0]]).map(r => ({ pkg: u.p[r[0]], a: d0 + r[1] * 1000, b: d0 + r[2] * 1000 }));
 }
-const useRow = u => `<div class="lgr">${icon({ pkg: u.pkg, label: lgLabel(u.pkg) })}<span class="sp" style="min-width:0;overflow-wrap:anywhere"><b>${esc(lgLabel(u.pkg))}</b> <span class="mute">· ${esc(useDur(u.b - u.a))}</span></span><span class="mute lgt">${hhmm(u.a)}–${hhmm(u.b)}</span></div>`;
+// day timeline of app use (owner 2026-11-16: "timeline, màu riêng mỗi app, bấm app thì highlight"): one bar per 6 hours that
+// has use, each session a coloured piece (top 8 apps by time get their own colour, the rest grey); a picked app keeps its
+// colour, the others fade. A piece is a button for that app too.
+const USE_COL = ["#3b82f6", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"], USE_OTHER = "#94a3b8";
+function useTl(U, col, pick) {
+  if (!U.length) return "";
+  const [y, m, d] = lgDay.split("-").map(Number), d0 = new Date(y, m - 1, d).getTime(), B = 6 * 3600e3, rows = [];
+  for (let i = 0; i < 4; i++) {
+    const a0 = d0 + i * B, a1 = a0 + B, seg = U.filter(u => u.b > a0 && u.a < a1);
+    if (!seg.length) continue;
+    const pc = x => ((x - a0) / B * 100).toFixed(2);
+    rows.push(`<div class="utr"><span class="utl">${hhmm(a0)}</span><div class="utb">${seg.map(u => { const s = Math.max(u.a, a0), e = Math.min(u.b, a1);
+      return `<i data-fe="u:${esc(u.pkg)}" role="button" aria-label="${esc(lgLabel(u.pkg) + " " + hhmm(u.a) + "–" + hhmm(u.b))}" class="${pick && pick !== u.pkg ? "dim" : ""}" style="left:${pc(s)}%;width:${(pc(e) - pc(s)).toFixed(2)}%;background:${col(u.pkg)}"></i>`; }).join("")}</div></div>`);
+  }
+  return `<div class="ut">${rows.join("")}</div>`;
+}
+const useRow = (u, c) => `<div class="lgr"><i class="ub" style="background:${c}"></i>${icon({ pkg: u.pkg, label: lgLabel(u.pkg) })}<span class="sp" style="min-width:0;overflow-wrap:anywhere"><b>${esc(lgLabel(u.pkg))}</b> <span class="mute">· ${esc(useDur(u.b - u.a))}</span></span><span class="mute lgt">${hhmm(u.a)}–${hhmm(u.b)}</span></div>`;
 const lgCount = (rows, f) => { const m = {}; for (const r of rows) { const k = f(r); m[k] = (m[k] || 0) + 1; } return m; };
 function logTab(b) {
   const today = dkey(Date.now());
@@ -79,10 +95,11 @@ function logTab(b) {
   const C = {}; for (const k in evC) C["e:" + k] = evC[k]; for (const k in lgC) C["l:" + k] = lgC[k];
   // app sessions ("Mở app", owner 2026-11-16): {p: [pkg], s: [[i, start s, end s] from the day's start]}; own chip, not in "Tất cả"
   const U = lgUse(c.d && c.d.use), uT = {}; for (const u of U) uT[u.pkg] = (uT[u.pkg] || 0) + u.b - u.a;
+  const uRank = Object.keys(uT).sort((a, c) => uT[c] - uT[a]), uCol = p => { const i = uRank.indexOf(p); return i >= 0 && i < USE_COL.length ? USE_COL[i] : USE_OTHER; };
   const uAll = lgEv === "u:", uPkg = lgEv.startsWith("u:") ? lgEv.slice(2) : null;
   if (lgEv && !C[lgEv] && !(uPkg !== null && (!c.d || (uAll ? U.length : uT[uPkg])))) lgEv = "";   // still loading: keep "Mở app"
   // one timeline, newest first: events (bold) and log lines, each with its clock time (filter "" | "e:<kind>" | "l:<cat>")
-  const rows = lgEv.startsWith("u:") ? U.filter(u => lgEv === "u:" || u.pkg === lgEv.slice(2)).map(u => ({ t: u.a, h: useRow(u) })).reverse() : [...(!lgEv || lgEv.startsWith("e:") ? evAll.filter(e => !lgEv || "e:" + (e.kind || "other") === lgEv).map(e => ({ t: +e.t || 0, h: evRow(e) })) : []),
+  const rows = lgEv.startsWith("u:") ? U.filter(u => lgEv === "u:" || u.pkg === lgEv.slice(2)).map(u => ({ t: u.a, h: useRow(u, uCol(u.pkg)) })).reverse() : [...(!lgEv || lgEv.startsWith("e:") ? evAll.filter(e => !lgEv || "e:" + (e.kind || "other") === lgEv).map(e => ({ t: +e.t || 0, h: evRow(e) })) : []),
     ...(!lgEv || lgEv.startsWith("l:") ? lgAll.filter(l => !lgEv || "l:" + lgCat(l) === lgEv).map(l => ({ t: +l.t || 0, h: logRow(l) })) : [])]
     .sort((a, c) => c.t - a.t);
   let tot = lgx && lgx.k === cur && lgx.days;
@@ -90,8 +107,8 @@ function logTab(b) {
   tot = tot || {};
   const first = dkey(Math.min(Date.now() - 90 * 864e5, ...Object.keys(tot).map(d => new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10), 12).getTime())));
   const chip = (attr, v, cur_, n, label) => chipBtn(`data-${attr}="${v}"`, `${label} <b>${n}</b>`, cur_ === v);
-  const appChips = () => !lgEv.startsWith("u:") ? "" : `<div style="margin-top:6px">${chipRow(Object.keys(uT).sort((a, c) => uT[c] - uT[a])
-    .map(p => chipBtn(`data-fe="u:${esc(p)}"`, `${esc(lgLabel(p))} <b>${esc(useDur(uT[p]))}</b>`, lgEv === "u:" + p)), { scroll: 1, aria: t("lg.useApps") })}</div>`;
+  const appChips = () => !lgEv.startsWith("u:") ? "" : useTl(U, uCol, uPkg) + `<div style="margin-top:6px">${chipRow(uRank
+    .map(p => chipBtn(`data-fe="u:${esc(p)}"`, `<i class="ud" style="background:${uCol(p)}"></i>${esc(lgLabel(p))} <b>${esc(useDur(uT[p]))}</b>`, lgEv === "u:" + p)), { scroll: 1, aria: t("lg.useApps") })}</div>`;
   const chips = () => chipRow([chip("fe", "", lgEv, evAll.length + lgAll.length, t("lg.all")), ...(U.length ? [chip("fe", "u:", lgEv.startsWith("u:") ? "u:" : lgEv, U.length, `${ic("layout-grid")} ${t("lg.use")}`)] : []), ...Object.keys(C).sort((a, c) => a[0] === c[0] ? C[c] - C[a] : a < c ? -1 : 1).map(k => chip("fe", k, lgEv, C[k], k[0] === "e" ? `${ic(EV_IC[k.slice(2)] || "bell")} ${tc("lg.k.", k.slice(2), k.slice(2))}` : t("lg.c." + k.slice(2))))], { scroll: 1, aria: t("lg.h") });
   const more = (rows, n, id) => rows.length > n ? `<button type="button" class="sm" id="${id}" style="width:100%;margin-top:8px">${t("lg.more", Math.min(LG_PAGE, rows.length - n), rows.length - n)}</button>` : "";
   const wait = !m && !c.d, none = wait ? (c.err ? emptyBox("triangle-alert", `${esc(t("lg.err", c.err))}<br><button type="button" class="sm" data-lgretry>${t("lg.retry")}</button>`) : emptyBox("hourglass", t("lg.loading"))) : emptyBox("inbox", t("lg.none"));
@@ -102,7 +119,8 @@ function logTab(b) {
   const go = d => { lgDay = d; lgEv = lgEv.startsWith("u:") ? "u:" : ""; lgLg = ""; lgNEv = lgNLg = LG_PAGE; render(); };
   dpBind(b);
   b.querySelectorAll("[data-lgretry]").forEach(x => x.onclick = () => lgLoad(lgDay, true));
-  b.querySelectorAll("[data-fe]").forEach(x => x.onclick = () => { lgEv = x.dataset.fe; lgNEv = LG_PAGE; render(); });
+  // an app chip / timeline piece again = all apps again
+  b.querySelectorAll("[data-fe]").forEach(x => x.onclick = () => { lgEv = x.dataset.fe.length > 2 && x.dataset.fe === lgEv && lgEv.startsWith("u:") ? "u:" : x.dataset.fe; lgNEv = LG_PAGE; render(); });
   if ($("#lgMoreE")) $("#lgMoreE").onclick = () => { lgNEv += LG_PAGE; render(); };
 }
 // "Gửi lỗi": a report to the developer (phone command `support`, Support.kt) and the thread of replies (`supportSay`)
