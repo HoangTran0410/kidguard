@@ -1138,6 +1138,7 @@
     <string name="nav_back">Back</string>
     <string name="nav_home">Home</string>
     <string name="nav_recents">Recent apps</string>
+    <string name="nav_again">Swipe up again</string>
     <string name="nav_stuck_t">No buttons, no gestures</string>
     <string name="nav_stuck_b">Tap to bring back the 3 buttons.</string>
     <string name="nav_stuck_btn">Show 3 buttons</string>

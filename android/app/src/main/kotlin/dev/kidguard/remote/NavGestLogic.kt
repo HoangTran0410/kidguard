@@ -64,6 +64,11 @@ object NavGestLogic {
      * hides the status bar, or is a game, only the right edge stays and a swipe there opens a 3-button menu
      * (Back / Home / Recents) instead of acting; a tap anywhere else (the game) closes it. Never on our own screens.
      */
+    /** Full-screen mode, bottom edge: the first swipe only arms it (like Android's own "swipe again" over a full-screen
+     *  app); a second one within [AGAIN_MS] acts. */
+    const val AGAIN_MS = 3000L
+    fun again(armedAt: Long, now: Long): Boolean = armedAt > 0L && now - armedAt in 0..AGAIN_MS
+
     fun calm(statusHidden: Boolean, game: Boolean, ourFront: Boolean): Boolean = !ourFront && (statusHidden || game)
 
     /** Top of the menu: centred on the finger, kept [margin] inside the screen. */

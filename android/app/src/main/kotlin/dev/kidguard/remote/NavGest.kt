@@ -185,13 +185,13 @@ object NavGest {
             NavGestLogic.frontGame(pm.getLaunchIntentForPackage(pkg) != null, pkg == svc.packageName || pkg == "dev.kidguard.home", g)
         }.getOrNull()
 
-        /** Left + bottom strips off and the right one opens the menu while calm; [force] = re-apply to fresh views. */
+        /** Left strip off, bottom needs two swipes (owner 2026-11-16: "vuốt lần 2 về home như máy") and the right one opens the menu while calm; [force] = re-apply to fresh views. */
         private fun apply(force: Boolean) {
             val c = NavGestLogic.calm(barHidden, game, false)
             if (c == calm && !force) return
             calm = c
             if (!force) android.util.Log.i("kgNav", "full-screen mode=$c")
-            views[0]?.setOff(c); views[2]?.setOff(c); views[1]?.calm = c
+            views[0]?.setOff(c); views[2]?.calm = c; views[1]?.calm = c
             if (!c) menu.close()
         }
 
@@ -287,8 +287,10 @@ object NavGest {
         var wantW = 0; var wantH = 0
         var lp: WindowManager.LayoutParams? = null
         private var downAt = 0L
-        /** Full-screen mode: an inward swipe opens the menu instead of Back (right strip only). */
+        /** Full-screen mode: right = an inward swipe opens the menu instead of Back; bottom = two swipes ([NavGestLogic.again]). */
         var calm = false
+            set(v) { field = v; armedAt = 0L }
+        private var armedAt = 0L
         var onMenu: ((Int) -> Unit)? = null
         private var off = false
 
@@ -378,7 +380,7 @@ object NavGest {
                 MotionEvent.ACTION_DOWN -> {
                     x0 = e.rawX; y0 = e.rawY; ax = x0; ay = y0; movedAt = e.eventTime; downAt = e.eventTime; armed = false; hold = false
                     removeCallbacks(holdCheck); moved = false; cts = false
-                    removeCallbacks(ctsCheck); if (edge == NavGestLogic.Edge.BOTTOM) postDelayed(ctsCheck, CTS_MS)
+                    removeCallbacks(ctsCheck); if (edge == NavGestLogic.Edge.BOTTOM && !calm) postDelayed(ctsCheck, CTS_MS)
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = e.rawX - ax; val dy = e.rawY - ay
@@ -403,6 +405,14 @@ object NavGest {
                     if (!moved && e.eventTime - downAt < CTS_MS) { passTap(e.rawX, e.rawY); return true }
                     val act = NavGestLogic.classify(edge, e.rawX - x0, e.rawY - y0, if (hold) NavGestLogic.HOLD_MS else 0L, min)
                     if (calm && act == NavGestLogic.Act.BACK) { onMenu?.invoke(e.rawY.toInt()); return true }
+                    if (calm && edge == NavGestLogic.Edge.BOTTOM && act != NavGestLogic.Act.NONE) {
+                        if (!NavGestLogic.again(armedAt, e.eventTime)) {
+                            armedAt = e.eventTime; performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                            runCatching { android.widget.Toast.makeText(svc, R.string.nav_again, android.widget.Toast.LENGTH_SHORT).show() }
+                            android.util.Log.i("kgNav", "$edge $act armed"); return true
+                        }
+                        armedAt = 0L
+                    }
                     val ok = go(svc, act)
                     android.util.Log.i("kgNav", "$edge $act ok=$ok")
                 }

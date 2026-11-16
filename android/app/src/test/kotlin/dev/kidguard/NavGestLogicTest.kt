@@ -75,6 +75,12 @@ class NavGestLogicTest {
         assertEquals(1760, NavGestLogic.menuTop(1990, 200, 2000, 40))
     }
 
+    @Test fun fullScreenBottomNeedsTwoSwipesClose() {
+        assertFalse(NavGestLogic.again(0L, 1_000L))                       // first swipe: only arms
+        assertTrue(NavGestLogic.again(10_000L, 12_000L))                  // second within 3 s: acts
+        assertFalse(NavGestLogic.again(10_000L, 13_001L))                 // too late: arms again
+    }
+
     @Test fun keyboardOrShadeKeepsTheLastAnswer() {
         assertEquals(null, NavGestLogic.frontGame(launchable = false, ours = false, game = false))
         assertEquals(true, NavGestLogic.frontGame(launchable = true, ours = false, game = true))

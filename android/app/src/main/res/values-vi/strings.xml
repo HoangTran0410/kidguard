@@ -1114,6 +1114,7 @@
     <string name="nav_back">Quay lại</string>
     <string name="nav_home">Màn hình chính</string>
     <string name="nav_recents">Ứng dụng gần đây</string>
+    <string name="nav_again">Vuốt lên lần nữa</string>
     <string name="nav_stuck_t">Không có phím, không vuốt được</string>
     <string name="nav_stuck_b">Chạm để hiện lại 3 phím.</string>
     <string name="nav_stuck_btn">Hiện 3 phím</string>
