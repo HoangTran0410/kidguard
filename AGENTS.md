@@ -29,7 +29,7 @@ When you settle something durable (a decision, a rejected approach, a platform q
 - New page section (`sec("id", ...)`) ⇒ an entry in the feature search `QS` (`ui/assets/shell.js`), keys in both i18n files;
   `node scripts/check-search.mjs` fails otherwise (CI + `build.sh`).
 - New `ui/assets` file ⇒ `<script defer>` tag in `ui/index.html` (order matters, shared globals: never redeclare a
-  top-level name) AND import + map entry in `relay/src/index.js`.
+  top-level name) AND import + map entry in `relay/src/index.js`. `node scripts/check-assets.mjs` checks both + i18n key parity (CI + `build.sh`).
 - HTML responses: `X-Frame-Options: DENY` + CSP; a new external origin goes into CSP on both phone (`Http.kt`) and worker (`relay/src/index.js` `CSP`).
 - `kg.code` (`android/gradle.properties`) goes up every release: the self-updater refuses an equal versionCode.
   Release asset names (`kidguard.apk`, `.sha256`, ...) are a contract with the updater, QR page and website.

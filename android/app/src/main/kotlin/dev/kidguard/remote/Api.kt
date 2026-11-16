@@ -30,7 +30,7 @@ class Api(private val g: Guard) {
             return Res(204, "text/plain; charset=utf-8", ByteArray(0), h)
         }
         val res = route(r)
-        val h = res.headers + ("Vary" to "Origin") + (if (origin == null) emptyMap() else
+        val h = res.headers + ("Vary" to "Origin, Accept-Encoding") + (if (origin == null) emptyMap() else
             mapOf("Access-Control-Allow-Origin" to origin, "Access-Control-Expose-Headers" to "X-KG-Seq, X-KG-Age, X-KG-Err, X-KG-W, X-KG-H"))
         return Res(res.code, res.type, res.body, h, res.stream)
     }
@@ -38,11 +38,11 @@ class Api(private val g: Guard) {
     private fun route(r: Req): Res {
         if (!Safety.hostOk(r.header("host"))) return Res.text("bad host", 403)   // DNS rebinding
         if (r.method == "GET" && (r.path == "/" || r.path == "/index.html")) {
-            return Res(200, "text/html; charset=utf-8", g.assets.open("index.html").use { it.readBytes() })
+            return UiServe.res(g, r, "index.html", "text/html; charset=utf-8")
         }
         // the page's scripts + style (ui/assets/), public like the page itself
         if (r.method == "GET") Safety.uiAsset(r.path)?.let { (file, type) ->
-            return try { Res(200, type, g.assets.open(file).use { it.readBytes() }) } catch (e: java.io.IOException) { Res.text("not found", 404) }
+            return try { UiServe.res(g, r, file, type) } catch (e: java.io.IOException) { Res.text("not found", 404) }
         }
         if (!r.path.startsWith("/api/")) return Res.text("not found", 404)
         val p = r.path.removePrefix("/api")

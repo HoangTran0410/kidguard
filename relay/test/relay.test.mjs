@@ -16,6 +16,7 @@ ck("ui/qrcode.js served as JS",l.status==200&&/javascript/.test(l.headers.get("c
 let okAll=srcs.length>10;for(const n of srcs){const x=await fetch(`${B}/ui/${n}`);await x.text();if(x.status!=200||x.headers.get("x-content-type-options")!="nosniff"||!(n.endsWith(".css")?/text\/css/:/javascript/).test(x.headers.get("content-type")))okAll=false;}
 ck("every /ui/ file the page names is served with its type ("+srcs.length+")",okAll);
 const c=await fetch(`${B}/ui/core.js`),ct=await c.text();ck("/ui/core.js 200 JS",c.status==200&&/javascript/.test(c.headers.get("content-type"))&&ct.includes("async function call("));
+{const tg=c.headers.get("etag"),c2=await fetch(`${B}/ui/core.js`,{headers:{"if-none-match":tg||"x"}});ck("/ui/core.js ETag -> 304",!!tg&&c2.status==304);const p1=await fetch(`${B}/`),p2=await fetch(`${B}/`,{headers:{"if-none-match":p1.headers.get("etag")||"x"}});await p1.text();ck("page ETag -> 304",p2.status==304);}
 for(const bad of ["/ui/x.js","/ui/..%2Findex.html","/ui/index.html","/ui/toString","/ui/"]){const x=await fetch(B+bad);await x.text();ck("unknown "+bad+" 404",x.status==404);}}
 ck("wrong token 401",(await P("sync","{}",BAD)).status==401);
 ck("wrong token frame GET 401",(await fetch(`${B}/c/${id}/frame?after=0`,{headers:H(BAD)})).status==401);

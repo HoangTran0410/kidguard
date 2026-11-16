@@ -115,6 +115,12 @@ const stripPin = (r) => {
   return o;
 };
 
+// ETag per bundled file (they only change with a deploy): a revisit gets an empty 304 instead of ~800 KB again.
+// Cloudflare compresses the 200s itself (gzip / brotli). FNV-1a is enough: it only has to change when the text does.
+const ETAGS = new Map();
+const etagOf = s => { let e = ETAGS.get(s); if (!e) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } e = `"${(h >>> 0).toString(36)}-${s.length.toString(36)}"`; ETAGS.set(s, e); } return e; };
+const notMod = (req, tag, headers) => req.headers.get("if-none-match") === tag ? new Response(null, { status: 304, headers }) : null;
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -125,16 +131,18 @@ export default {
     if (req.method === "GET" && url.pathname.startsWith("/ui/")) {
       const n = url.pathname.slice(4), body = Object.hasOwn(UI, n) ? UI[n] : null;
       if (body === null) return json({ error: "not found" }, 404);
-      return new Response(body, { headers: {   // no-cache: always the same version as the page that loads it
+      const headers = {   // no-cache + ETag: always the same version as the page that loads it, 304 when unchanged
         "content-type": (n.endsWith(".css") ? "text/css" : "text/javascript") + "; charset=utf-8", "cache-control": "no-cache",
-        "x-content-type-options": "nosniff" } });
+        "etag": etagOf(body), "x-content-type-options": "nosniff" };
+      return notMod(req, headers.etag, headers) || new Response(body, { headers });
     }
     if (page) {
-      return new Response(page, { headers: {
-        "content-type": "text/html; charset=utf-8", "cache-control": "no-cache",
+      const headers = {
+        "content-type": "text/html; charset=utf-8", "cache-control": "no-cache", "etag": etagOf(page),
         "referrer-policy": "no-referrer", "x-content-type-options": "nosniff",
         "x-frame-options": "DENY", "content-security-policy": CSP,
-      } });
+      };
+      return notMod(req, headers.etag, headers) || new Response(page, { headers });
     }
     // the installer page (served here) fetches the APK from its own origin: proxy the latest GitHub release (rate-limited like /c/*)
     if (req.method === "GET" && (url.pathname === "/kidguard.apk" || url.pathname === "/kidguard.apk.sha256")) {

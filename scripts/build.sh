@@ -19,6 +19,7 @@ if [ -n "${TRUSTSTORE:-}" ]; then
   OPTS=(-Dorg.gradle.jvmargs="-Xmx2g $T")
 fi
 node scripts/check-search.mjs   # every page section must be findable in the feature search
+node scripts/check-assets.mjs   # every ui/assets file wired in index.html + relay; i18n keys in both languages
 scripts/check-js.sh              # page-script runtime bugs node --check misses (const reassign, ...)
 (cd android && ./gradlew -q ${OPTS[@]+"${OPTS[@]}"} testKidDebugUnitTest assembleKidRelease assembleHomeRelease :parent:testDebugUnitTest :parent:assembleRelease)
 mkdir -p build

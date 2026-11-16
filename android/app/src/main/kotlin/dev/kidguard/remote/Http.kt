@@ -105,7 +105,7 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
         }
         val head = "HTTP/1.1 ${res.code} ${reason(res.code)}\r\nContent-Type: ${res.type}\r\n" +
             (if (res.stream == null) "Content-Length: ${res.body.size}\r\n" else "") +
-            "Cache-Control: ${if (res.type == "image/png") "private, max-age=86400" else "no-store"}\r\nConnection: close\r\nX-Content-Type-Options: nosniff\r\n" +
+            (if (res.headers.containsKey("Cache-Control")) "" else "Cache-Control: ${if (res.type == "image/png") "private, max-age=86400" else "no-store"}\r\n") + "Connection: close\r\nX-Content-Type-Options: nosniff\r\n" +
             (if (res.type.startsWith("text/html")) "X-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'; connect-src 'self' http://*:8770; img-src 'self' data: blob: https://tile.openstreetmap.de https://tile.openstreetmap.org http://*:8770\r\n" else "") +
             res.headers.entries.joinToString("") { (k, v) -> "$k: $v\r\n" } + "\r\n"
         val out = it.getOutputStream()
@@ -163,5 +163,5 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
         return Req(method, path, query, headers, body)
     }
 
-    private fun reason(c: Int) = when (c) { 200 -> "OK"; 204 -> "No Content"; 400 -> "Bad Request"; 401 -> "Unauthorized"; 403 -> "Forbidden"; 404 -> "Not Found"; 409 -> "Conflict"; 413 -> "Payload Too Large"; 507 -> "Insufficient Storage"; 503 -> "Service Unavailable"; else -> "Error" }
+    private fun reason(c: Int) = when (c) { 200 -> "OK"; 204 -> "No Content"; 304 -> "Not Modified"; 400 -> "Bad Request"; 401 -> "Unauthorized"; 403 -> "Forbidden"; 404 -> "Not Found"; 409 -> "Conflict"; 413 -> "Payload Too Large"; 507 -> "Insufficient Storage"; 503 -> "Service Unavailable"; else -> "Error" }
 }

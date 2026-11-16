@@ -28,6 +28,8 @@ jobs:
         run: scripts/check-js.sh
       - name: Feature search covers every section
         run: node scripts/check-search.mjs
+      - name: Page files wired + i18n parity
+        run: node scripts/check-assets.mjs
   relay:
     runs-on: ubuntu-latest
     timeout-minutes: 15
