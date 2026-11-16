@@ -295,6 +295,7 @@ class Acc : AccessibilityService() {
     override fun onConfigurationChanged(c: android.content.res.Configuration) {
         super.onConfigurationChanged(c)
         if (strips?.shown == true) { strips?.hide(); if (strips?.show() != true) strips = null }   // rotation: new screen size
+        strips?.rotated(c.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE)   // full-screen mode: landscape only
     }
 
     /** Find-my-phone ring: a volume key stops it (and is eaten). Every other key passes straight through. */

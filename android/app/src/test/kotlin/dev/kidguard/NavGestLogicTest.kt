@@ -67,6 +67,9 @@ class NavGestLogicTest {
         assertTrue(NavGestLogic.calm(statusHidden = false, game = true, ourFront = false))
         assertFalse(NavGestLogic.calm(statusHidden = false, game = false, ourFront = false))
         assertFalse(NavGestLogic.calm(statusHidden = true, game = true, ourFront = true))
+        // owner 2026-11-16: the camera in portrait hides the bar; full-screen mode is for sideways play only
+        assertFalse(NavGestLogic.calm(statusHidden = true, game = false, ourFront = false, landscape = false))
+        assertFalse(NavGestLogic.calm(statusHidden = false, game = true, ourFront = false, landscape = false))
     }
 
     @Test fun menuStaysOnScreen() {

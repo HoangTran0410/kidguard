@@ -157,6 +157,7 @@ object NavGest {
         private var barHidden = false
         private var game = false
         private var calm = false
+        private var landscape = svc.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
         private val games = HashMap<String, Boolean>()
 
         /** Status bar shown / hidden, as the right strip's window sees it (insets on 30+, system UI flags before). */
@@ -168,6 +169,12 @@ object NavGest {
         /** Android 11+: the status bar window is (not) in the accessibility window list (Acc.barCheck, absent twice in a
          *  row before it counts: a moment without it while apps switch). */
         fun barWindow(present: Boolean) { if (Build.VERSION.SDK_INT >= 30) statusHidden(!present, "windows") }
+
+        /** The screen turned (Acc.onConfigurationChanged): full-screen mode only while landscape. */
+        fun rotated(land: Boolean) {
+            if (land == landscape) return
+            landscape = land; android.util.Log.i("kgNav", "landscape=$land"); apply(false)
+        }
 
         /** The app in front changed (Acc window event). Keyboards / shade keep the last answer. */
         fun front(pkg: String) {
@@ -187,7 +194,7 @@ object NavGest {
 
         /** Left strip off, bottom needs two swipes (owner 2026-11-16: "vuốt lần 2 về home như máy") and the right one opens the menu while calm; [force] = re-apply to fresh views. */
         private fun apply(force: Boolean) {
-            val c = NavGestLogic.calm(barHidden, game, false)
+            val c = NavGestLogic.calm(barHidden, game, false, landscape)
             if (c == calm && !force) return
             calm = c
             if (!force) android.util.Log.i("kgNav", "full-screen mode=$c")

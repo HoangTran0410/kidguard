@@ -69,7 +69,10 @@ object NavGestLogic {
     const val AGAIN_MS = 3000L
     fun again(armedAt: Long, now: Long): Boolean = armedAt > 0L && now - armedAt in 0..AGAIN_MS
 
-    fun calm(statusHidden: Boolean, game: Boolean, ourFront: Boolean): Boolean = !ourFront && (statusHidden || game)
+    /** Only while the screen is landscape (owner 2026-11-16: the camera hides the status bar in portrait and asked for two
+     *  swipes; full-screen play is sideways). */
+    fun calm(statusHidden: Boolean, game: Boolean, ourFront: Boolean, landscape: Boolean = true): Boolean =
+        !ourFront && landscape && (statusHidden || game)
 
     /** Top of the menu: centred on the finger, kept [margin] inside the screen. */
     fun menuTop(fingerY: Int, menuH: Int, screenH: Int, margin: Int): Int =
