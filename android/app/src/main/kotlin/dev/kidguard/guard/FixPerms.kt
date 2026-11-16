@@ -57,7 +57,7 @@ object FixPerms {
         if (Flavor.HOME) return "none"
         if (busy) return "working"
         val before = missing(ctx)
-        if (before.isEmpty()) { AutoGrant.soon(); Guard.running?.kick(); return "none" }   // page "Try now": the adb re-grant runs on this tick
+        if (before.isEmpty()) { AutoGrant.soon(); Guard.running?.kick(); return if (AutoGrant.left > 0) "retry" else "none" }   // page "Try now": the adb re-grant runs on this tick
         at = System.currentTimeMillis(); fixed = emptyList(); tap = before
         busy = true
         val app = ctx.applicationContext

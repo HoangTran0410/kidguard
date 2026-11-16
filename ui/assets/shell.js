@@ -20,6 +20,7 @@ document.addEventListener("click", e => {
   const fx = e.target.closest("#fixPermsBtn, [data-fixperms]");
   if (fx && !fx.disabled) { fx.disabled = true; cmd({ type: "fixPerms" }, t("fp.sent"), false).then(r => {
     if (r && r.result === "none") toast(t("fp.none"));
+    else if (r && r.result === "retry") toast(t("fp.retry"));
     [2000, 6000, 15000].forEach(ms => setTimeout(refresh, ms));
   }).finally(() => { fx.disabled = false; }); }
   const b = e.target.closest && e.target.closest("[data-theme-btn]"); if (!b) return;

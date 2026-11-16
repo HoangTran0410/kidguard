@@ -40,6 +40,8 @@ object FeaturesSheet {
 
     /** Re-reads the caps into the open sheet (no-op when closed). */
     fun refresh() { if (cur?.showing == true) live?.invoke() }
+    /** Sheet gone: drop it (fill captures the Activity). */
+    fun closed() { live = null; cur = null }
 
     const val GUIDE = "https://kid-guard.pages.dev/guide#install"
 

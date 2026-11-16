@@ -361,7 +361,8 @@ class MainActivity : Activity() {
         super.onRequestPermissionsResult(code, perms, res)
         if (code == CAM_REQ_ADMIN) AdminActivity.start(this)   // asked right after a correct admin PIN
         // parent's Fix: Android shows no dialog once the child chose "don't ask again" (denied at once): fall back to App info
-        if (code == REQ_ASK_PERM && res.any { it != android.content.pm.PackageManager.PERMISSION_GRANTED })
+        // a plain Deny keeps rationale = true: leave it; only "don't ask again" (no dialog shown at all) needs Settings
+        if (code == REQ_ASK_PERM && perms.indices.any { res.getOrNull(it) != android.content.pm.PackageManager.PERMISSION_GRANTED && !shouldShowRequestPermissionRationale(perms[it]) })
             runCatching { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName"))) }
     }
 
@@ -613,7 +614,7 @@ class MainActivity : Activity() {
     private fun showStatus() {
         (statusBox.parent as? android.view.ViewGroup)?.removeView(statusBox)
         FeaturesSheet.show(this, ui2, { askPin() }, statusBox) { openBatterySettings() }
-            .onDismiss { (statusBox.parent as? android.view.ViewGroup)?.removeView(statusBox) }
+            .onDismiss { (statusBox.parent as? android.view.ViewGroup)?.removeView(statusBox); FeaturesSheet.closed() }
     }
 
     /** Kid Home's palette, as HomeActivity computes it (preset accent unless the kid picked one; light / dark like [Ui.isDark]). */
