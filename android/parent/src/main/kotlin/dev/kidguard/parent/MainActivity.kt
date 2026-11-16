@@ -32,8 +32,10 @@ class Bridge(private val a: MainActivity) {
         if (json.length > 100_000) return
         val old = Logic.parseKids(Store.kids(a))
         Store.setKids(a, org.json.JSONArray(json).toString())   // throws (ignored by WebView) on invalid JSON
-        val now = Logic.parseKids(Store.kids(a)).map { it.key }.toSet()
-        Push.sync(a.applicationContext, old.filter { it.key !in now })
+        val nowKids = Logic.parseKids(Store.kids(a)); val now = nowKids.map { it.key }.toSet()
+        val routes = nowKids.mapNotNull { Logic.pushRoute(it) }.toSet()
+        // removed kids AND kids whose relay route changed / went away (a LAN kid's relay creds): the old relay stops pushing
+        Push.sync(a.applicationContext, old.filter { it.key !in now || Logic.pushRoute(it).let { r -> r != null && r !in routes } })
         // the permission is asked when the first kid is added (not cold at launch: the parent sees why)
         if (old.isEmpty() && now.isNotEmpty() && Store.notify(a)) askNotif()
     }

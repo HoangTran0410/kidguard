@@ -565,13 +565,13 @@ async function watchGo() {
 let aiShown = null;   // {k, token}: shown until "Done"; never stored
 const sha256hex = async s => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].map(x => x.toString(16).padStart(2, "0")).join("");
 function aiCfg(k, token) {
-  const env = k.via === "relay" ? { KG_RELAY: isRelayOrigin ? location.origin : "", KG_ID: k.id } : k.relay && k.relay.url ? { KG_RELAY: k.relay.url, KG_ID: k.relay.id } : { KG_URL: k.target || location.origin };
+  const env = k.via === "relay" ? { KG_RELAY: isRelayOrigin ? location.origin : k.target, KG_ID: k.id } : k.relay && k.relay.url ? { KG_RELAY: k.relay.url, KG_ID: k.relay.id } : { KG_URL: k.target || location.origin };
   // a whole prompt, not bare JSON: pasted into an AI chat it must say what it is and how to install it (owner 2026-11-16:
   // the bare config with a /path/to placeholder left the AI asking "what do you want done with it?")
   env.KG_AI_TOKEN = token;
   const file = "~/kidguard-mcp.mjs", url = "https://raw.githubusercontent.com/HoangTran0410/kidguard/main/mcp/kidguard-mcp.mjs";
   const cli = "claude mcp add kidguard " + Object.entries(env).map(([n, v]) => `-e ${n}=${v}`).join(" ") + " -- node " + file;
-  const json = JSON.stringify({ mcpServers: { kidguard: { command: "node", args: [file.replace("~", "/Users/<you>")], env } } }, null, 2);
+  const json = JSON.stringify({ mcpServers: { kidguard: { command: "node", args: ["<ABSOLUTE PATH>/kidguard-mcp.mjs"], env } } }, null, 2);
   return t("ai.prompt", k.name, url, file, cli, json);
 }
 function aiCard() {

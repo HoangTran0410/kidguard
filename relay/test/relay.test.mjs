@@ -524,12 +524,16 @@ r=await A("PUT","rules",{dailyMin:30,noInstall:false,noVpn:true,pinHash:"0".repe
 ck("ai: rules change goes through, locked keys keep the stored value, no PIN change",r.status==200&&j.dailyMin==30&&j.noInstall===true&&!("noVpn" in j)&&j.pinSet===true);
 const sj=await (await fetch(`${B}/c/${id}/state`,{headers:H()})).json();
 ck("ai: the stored PIN hash is the parent's",!!sj.rules&&sj.rules.pinSet===true);
-await P("cmd",JSON.stringify({type:"aiToken",op:"revoke",pin:"1234"}));
+await P("cmd",JSON.stringify({type:"aiToken",op:"revoke",pin:"1234",id:"airev1"}));
 ck("ai: revoke by the parent cuts it at once",(await A("GET","state")).status==401);
 ck("ai: set needs a 64-hex hash",(await P("cmd",JSON.stringify({type:"aiToken",op:"set",hash:"x"}))).status==400);
-await P("sync",JSON.stringify({ai:ah}));ck("ai: back after the phone syncs it",(await A("GET","state")).status==200);
-await P("cmd",JSON.stringify({type:"aiToken",op:"set",hash:"ab".repeat(32),pin:"1234"}));
+await P("sync",JSON.stringify({ai:ah,acks:["airev1"]}));ck("ai: back after the phone acks the revoke with its hash (wrong PIN)",(await A("GET","state")).status==200);
+await P("cmd",JSON.stringify({type:"aiToken",op:"set",hash:"ab".repeat(32),pin:"1234",id:"aiset1"}));
 ck("ai: a new code cuts the old one at once",(await A("GET","state")).status==401);
+await P("sync",JSON.stringify({ai:ah}));
+ck("ai: a sync from before the phone ran it does not bring the old code back",(await A("GET","state")).status==401);
+await P("sync",JSON.stringify({ai:ah,acks:["aiset1"]}));
+ck("ai: wrong PIN on the phone (acked, old hash kept) = old code back",(await A("GET","state")).status==200);
 await P("sync",JSON.stringify({ai:""}));}
 // ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;

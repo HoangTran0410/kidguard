@@ -294,7 +294,7 @@ class Acc : AccessibilityService() {
     }
     override fun onConfigurationChanged(c: android.content.res.Configuration) {
         super.onConfigurationChanged(c)
-        if (strips?.shown == true) { strips?.hide(); if (strips?.show() != true) strips = null }   // rotation: new screen size
+        if (strips?.shown == true) { strips?.hide(); if (strips?.show() != true) strips = null else { main.removeCallbacks(barCheck); main.postDelayed(barCheck, 300) } }   // rotation: new screen size; hide() forgot the bar state
         strips?.rotated(c.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE)   // full-screen mode: landscape only
     }
 

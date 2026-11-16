@@ -7,7 +7,7 @@ let dpOpen = null, dpM = null;
 function dayLabel(k) { const td = dkey(Date.now()); return k === td ? t("today") : k === dkey(Date.now() - 864e5) ? t("yesterday") : k ? dm(k) : t("pickDay"); }
 // Shared day picker (the only one on the page: Lịch sử, Vị trí, Hôm nay chart, Nhật ký). cfg:
 //   sel "YYYY-MM-DD"; onPick(day); days: array of pickable days, OR min/max: every day in that range is pickable;
-//   counts {day: n}: a small number under each day; nav: true adds ‹ › buttons that step to the previous / next pickable day.
+//   counts {day: n}: a small number under each day; labels {day: "text"}: a small text under each day (km on Vị trí); nav: true adds ‹ › buttons that step to the previous / next pickable day.
 const dpOk = (c, k) => c.days.has(k) || !!(c.min && k >= c.min && k <= c.max);
 function dpStep(c, n) {
   if (c.min) { const d = c.sel || c.max, x = dkey(new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10) + n, 12).getTime()); return dpOk(c, x) ? x : null; }
@@ -32,8 +32,9 @@ function dpDraw() {
   const p2 = x => String(x).padStart(2, "0"), today = dkey(Date.now());
   const off = (new Date(dpM.y, dpM.m, 1).getDay() + 6) % 7, n = new Date(dpM.y, dpM.m + 1, 0).getDate(), cells = Array(off).fill("<span></span>");
   for (let d = 1; d <= n; d++) { const k = `${dpM.y}-${p2(dpM.m + 1)}-${p2(d)}`;
-    const n = c.counts ? +c.counts[k] || 0 : -1, cnt = n >= 0 ? `<small class="dpn${n ? "" : " mute"}">${n || "·"}</small>` : "";
-    cells.push(dpOk(c, k) ? `<button type="button" class="${n === 0 ? "" : "pri"}${k === c.sel ? " sel" : ""}" data-k="${k}" aria-label="${esc(new Date(dpM.y, dpM.m, d).toLocaleDateString(lang, { dateStyle: "long" }) + (n >= 0 ? " · " + n : ""))}">${d}${cnt}</button>` : `<span class="mute" aria-disabled="true">${d}</span>`); }
+    const lb = c.labels && c.labels[k] || "";
+    const n = c.counts ? +c.counts[k] || 0 : -1, cnt = n >= 0 ? `<small class="dpn${n ? "" : " mute"}">${n || "·"}</small>` : lb ? `<small class="dpn">${esc(lb)}</small>` : "";
+    cells.push(dpOk(c, k) ? `<button type="button" class="${n === 0 ? "" : "pri"}${k === c.sel ? " sel" : ""}" data-k="${k}" aria-label="${esc(new Date(dpM.y, dpM.m, d).toLocaleDateString(lang, { dateStyle: "long" }) + (n >= 0 ? " · " + n : lb ? " · " + lb : ""))}">${d}${cnt}</button>` : `<span class="mute" aria-disabled="true">${d}</span>`); }
   const mt = new Date(dpM.y, dpM.m, 1).toLocaleDateString(lang, { month: "long", year: "numeric" });
   pop.innerHTML = `<div class="dp"><div class="row"><button id="dpP" aria-label="${esc(t("dp.prev"))}">${ic("chevron-left")}</button><b class="sp" style="text-align:center">${esc(mt.charAt(0).toUpperCase() + mt.slice(1))}</b><button id="dpN" aria-label="${esc(t("dp.next"))}">${ic("chevron-right")}</button></div>
     <div class="dpg">${t("wd").map(x => `<span class="mute">${x}</span>`).join("")}${cells.join("")}</div>
@@ -267,6 +268,9 @@ function whereTab(b) {
   if (!trkDay || !keys.includes(trkDay)) trkDay = today;
   const pts = all.filter(p => dkey(p[0]) === trkDay);
   let dist = 0; for (let i = 1; i < pts.length; i++) dist += hav(pts[i - 1][1], pts[i - 1][2], pts[i][1], pts[i][2]);
+  // km per day under each date in the calendar (owner 2026-11-16), same sum as the day's own "x km"
+  const dayM = {}; for (let i = 1; i < all.length; i++) { const k = dkey(all[i][0]); if (k === dkey(all[i - 1][0])) dayM[k] = (dayM[k] || 0) + hav(all[i - 1][1], all[i - 1][2], all[i][1], all[i][2]); }
+  const kmL = {}; for (const k in dayM) if (dayM[k] >= 50) kmL[k] = (dayM[k] / 1000).toLocaleString(lang, { maximumFractionDigits: dayM[k] < 10e3 ? 1 : 0 }) + " km";
   const sp = stopsOf(pts), home = pts.length ? pts[0] : null;
   const S = viewDay ? null : ruleSecs(edit);
   // timeline range: today 00:00 -> now, a past day its first -> last point
@@ -276,7 +280,7 @@ function whereTab(b) {
   tl.t0 = isToday ? new Date(yy, mm - 1, dd).getTime() : pts.length ? pts[0][0] : 0;
   tl.t1 = isToday ? Math.max(Date.now(), pts.length ? pts[pts.length - 1][0] : 0) : pts.length ? pts[pts.length - 1][0] : 0;
   tl.t = tl.live || tl.play ? (tl.play ? tl.t : tl.t1) : Math.max(tl.t0, Math.min(tl.t1, tl.t));
-  b.innerHTML = `<div class="g2 w"><div><div class="card"><div class="row" style="margin-bottom:4px"><h2 class="sp" style="margin:0">${ic("map-pin")} ${t("where.h")}</h2><div id="days">${dayBtn("trk", { sel: trkDay, days: keys, onPick: k => { trkDay = k; mv = null; whereTab(b); } })}</div></div>
+  b.innerHTML = `<div class="g2 w"><div><div class="card"><div class="row" style="margin-bottom:4px"><h2 class="sp" style="margin:0">${ic("map-pin")} ${t("where.h")}</h2><div id="days">${dayBtn("trk", { sel: trkDay, days: keys, labels: kmL, onPick: k => { trkDay = k; mv = null; whereTab(b); } })}</div></div>
     ${pts.length ? `<div class="map" id="map"></div>${scrHtml(pts)}<div class="mute" id="mapInfo" style="margin:6px 0">${ic("pointer")} ${t("where.tap")} · ${dot("on")} ${t("where.start")} · ${dot("bad")} ${t("where.last")}</div>
       <div class="row"><b>${ic("route")} ${(dist / 1000).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km</b><span class="mute">· ${t("where.pts", pts.length)} · ${hhmm(pts[0][0])}–${hhmm(pts[pts.length - 1][0])}</span></div>`
     : emptyBox("map", t("where.noPts", ic("map-pin")))}

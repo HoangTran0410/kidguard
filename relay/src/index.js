@@ -717,13 +717,15 @@ export class Kid {
       return json({ enabled: true, linked: !!(tg && tg.chat), link: `https://t.me/${bot}?start=${code}` });
     }
     if (action === "cmd" && req.method === "POST") {
-      const type = String(body.type || "");
+      const type = String(body.type || ""); let cut = null;
       if (role === "ai" && !AI_CMDS.includes(type)) return json({ error: "ai token: not allowed" }, 403);
       if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
       if (type === "aiToken") {   // the page makes the token; here only the shape, and a revoke takes effect at once (the phone follows)
         if (!(body.op === "revoke" || (body.op === "set" && /^[0-9a-f]{64}$/.test(String(body.hash || ""))))) return json({ error: "bad command" }, 400);
         // revoke AND a new code: the old code dies here at once; the new one works after the phone took it (its next sync
         // brings the hash; a wrong PIN = the phone keeps the old one and its sync puts it back)
+        // the phone's syncs until it ran this command still carry the old hash: ignore that one until it acks (aiCut)
+        cut = (await this.s.get("aiHash")) || ((await this.s.get("aiCut")) || {}).h || "";   // a cut still waiting keeps its hash
         await this.s.delete("aiHash"); this.aiSeen = undefined;
       }
       if (type === "clearData" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
@@ -748,6 +750,7 @@ export class Kid {
       if (JSON.stringify(c).length > MAX_CMD) return json({ error: "too big" }, 413);
       cmds.push(c);
       await this.s.put("cmds", cmds);
+      if (cut !== null) await this.s.put("aiCut", { h: cut, id: c.id });
       return json({ result: "queued" });
     }
     return json({ error: "method not allowed" }, 405);
@@ -813,11 +816,14 @@ export class Kid {
       if (old) state = mergeState(old, state); else { state = null; needWhole = true; }
     }
     if (state && new TextEncoder().encode(JSON.stringify(state)).length > 120e3) return { error: "state too big", status: 413 };   // DO storage value limit is 128 KiB
-    if (typeof body.ai === "string" && body.ai !== this.aiSeen && (body.ai === "" || /^[0-9a-f]{64}$/.test(body.ai))) {   // the phone's AI token hash ("" = none)
+    const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
+    const aiCut = typeof body.ai === "string" && body.ai !== this.aiSeen ? await this.s.get("aiCut") : null;
+    if (aiCut && (body.ai !== aiCut.h || acks.has(aiCut.id))) await this.s.delete("aiCut");   // the phone ran it (or has another hash)
+    if (typeof body.ai === "string" && body.ai !== this.aiSeen && (body.ai === "" || /^[0-9a-f]{64}$/.test(body.ai))
+      && !(aiCut && aiCut.h && body.ai === aiCut.h && !acks.has(aiCut.id))) {   // the phone's AI token hash ("" = none)
       this.aiSeen = body.ai;
       if (body.ai) await this.s.put("aiHash", body.ai); else await this.s.delete("aiHash");
     }
-    const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
     // awaits before the cmds read-modify-write: a parent POST /cmd landing in an await must not be overwritten by a stale list
     const netHash = nk && nk !== this.lastNet ? await sha256("net:" + nk) : null;
     const stored = (await this.s.get("cmds")) || [];
