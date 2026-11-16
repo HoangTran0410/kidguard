@@ -527,6 +527,9 @@ ck("ai: the stored PIN hash is the parent's",!!sj.rules&&sj.rules.pinSet===true)
 await P("cmd",JSON.stringify({type:"aiToken",op:"revoke",pin:"1234"}));
 ck("ai: revoke by the parent cuts it at once",(await A("GET","state")).status==401);
 ck("ai: set needs a 64-hex hash",(await P("cmd",JSON.stringify({type:"aiToken",op:"set",hash:"x"}))).status==400);
+await P("sync",JSON.stringify({ai:ah}));ck("ai: back after the phone syncs it",(await A("GET","state")).status==200);
+await P("cmd",JSON.stringify({type:"aiToken",op:"set",hash:"ab".repeat(32),pin:"1234"}));
+ck("ai: a new code cuts the old one at once",(await A("GET","state")).status==401);
 await P("sync",JSON.stringify({ai:""}));}
 // ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;

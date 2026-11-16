@@ -721,8 +721,10 @@ export class Kid {
       if (role === "ai" && !AI_CMDS.includes(type)) return json({ error: "ai token: not allowed" }, 403);
       if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
       if (type === "aiToken") {   // the page makes the token; here only the shape, and a revoke takes effect at once (the phone follows)
-        if (body.op === "revoke") { await this.s.delete("aiHash"); this.aiSeen = undefined; }
-        else if (!(body.op === "set" && /^[0-9a-f]{64}$/.test(String(body.hash || "")))) return json({ error: "bad command" }, 400);
+        if (!(body.op === "revoke" || (body.op === "set" && /^[0-9a-f]{64}$/.test(String(body.hash || ""))))) return json({ error: "bad command" }, 400);
+        // revoke AND a new code: the old code dies here at once; the new one works after the phone took it (its next sync
+        // brings the hash; a wrong PIN = the phone keeps the old one and its sync puts it back)
+        await this.s.delete("aiHash"); this.aiSeen = undefined;
       }
       if (type === "clearData" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
       // PIN-gated commands (protocol "PIN-gated commands"): the phone checks the PIN; here only the shape

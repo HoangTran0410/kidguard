@@ -291,7 +291,7 @@ like a paired token) and sends only its sha256: command `aiToken {op:"set", hash
 parent link cannot mint one; the token itself never reaches the phone or the relay). State `ai: bool` = one exists (absent = old phone).
 - Phone: stored hash `Store.aiHash`; `X-KG-Token` matching it = role `ai` (not in `state.devices`). Dropped by `unpairAll` / release.
 - Relay: every phone sync body carries `ai` (the hash, `""` = none); the worker keeps it (`aiHash`) and gives a request with that token role `ai`.
-  A parent `aiToken {op:"revoke"}` through the worker deletes the hash at once.
+  A parent `aiToken` (revoke or set) through the worker deletes the old hash at once; a new hash works there after the phone syncs it. One code per phone: set replaces.
 - Role `ai` may: `GET state` (and `icon`; no `?watch=1`), `PUT rules`, `POST cmd` with `lock locate message ring ringStop sosAck answer`.
   `PUT rules`: `pin pinHash pinSalt pinAt pinSet noInstall noDebug pinShot lockLocation noAirplane frpIds safeDns safeDnsPauseUntil noVpn tsKeep
   vpnPause accPause devPause tcpPause autoUpdate showWatching unlockMin hidden approved mode` keep the stored value whatever is sent (a key the phone
