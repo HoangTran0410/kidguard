@@ -173,7 +173,7 @@ function ovDraw() {
   // one map, the latest fix of every kid
   const pins = D.map((d, i) => d.st && d.st.location ? { lat: d.st.location.lat, lng: d.st.location.lng, t: d.st.location.t, name: d.k.name, c: col(i) } : null).filter(Boolean);
   const mb = $("#ovMapBox");
-  if (!pins.length) mb.innerHTML = `<div class="empty"><span class="e">${ic("map-pin")}</span>${t("ov.noLocs")}</div>`;
+  if (!pins.length) mb.innerHTML = emptyBox("map-pin", t("ov.noLocs"));
   else {
     if (!$("#map")) mb.innerHTML = `<div class="map" id="map"></div><div class="mute" style="margin-top:4px">${pins.map(p => `<span style="color:${p.c}">●</span> ${esc(p.name)} ${ago(p.t)}`).join(" · ")}</div>`;
     else mb.lastElementChild.innerHTML = pins.map(p => `<span style="color:${p.c}">●</span> ${esc(p.name)} ${ago(p.t)}`).join(" · ");

@@ -103,6 +103,20 @@ const hhmm = at => new Date(at).toLocaleTimeString(lang, { hour: "numeric", minu
 // event time: "16:19" today, "Hôm qua 16:19", "7 thg 11 16:19" (clock time everywhere, never "n giờ trước")
 const evAt = at => { const k = dkey(at); return (k === dkey(Date.now()) ? "" : (k === dkey(Date.now() - 864e5) ? t("yesterday") : dm(k)) + " ") + hhmm(at); };
 const dm = k => new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)).toLocaleDateString(lang, { day: "numeric", month: "short" });   // "YYYY-MM-DD" -> "7 thg 11" / "Nov 7"
+// ---- UI kit: markup helpers shared by every tab. Never hand-write these shapes; list in docs/flows/parent-page.md "Components" ----
+const dtFull = at => new Date(at).toLocaleString();   // date + time in the page language
+// empty state: icon tile + text (html). The text may carry a button / <br>.
+const emptyBox = (icn, html) => `<div class="empty"><span class="e">${ic(icn)}</span>${html}</div>`;
+// banner: kind "warn" | "bad" | "ok" | "info" | "" ; icn (Lucide name or ""); html = message (already escaped); style = extra inline style
+const alertBox = (kind, icn, html, style) => `<div class="alert${kind ? " " + kind : ""}"${style ? ` style="${style}"` : ""}>${icn ? ic(icn) + " " : ""}${html}</div>`;
+// small status pill: kind "ok" | "warn" | "bad" | "t-info" | ""; icn optional; html already escaped
+const tagEl = (kind, icn, html, style) => `<span class="tag${kind ? " " + kind : ""}"${style ? ` style="${style}"` : ""}>${icn ? ic(icn) + " " : ""}${html}</span>`;
+// toggle chip: attrs = its data-* attributes (string), label html, on = pressed. Wrap several in chipRow().
+const chipBtn = (attrs, label, on) => `<button type="button" ${attrs} class="${on ? "on" : ""}" aria-pressed="${!!on}">${label}</button>`;
+// chip row: btns = array of chipBtn; o = { scroll: one line that scrolls sideways, id, style, aria: group label (plain text) }
+const chipRow = (btns, o = {}) => `<div class="chips${o.scroll ? " scroll" : ""}"${o.id ? ` id="${o.id}"` : ""}${o.style ? ` style="${o.style}"` : ""}${o.aria ? ` role="group" aria-label="${esc(o.aria)}"` : ""}>${btns.join("")}</div>`;
+// tappable list row (.li): leading icon tile, title (html), optional sub line (html), chevron. attrs = id / data-* of the button. Put rows inside <div class="list">.
+const navRow = (attrs, icn, title, sub) => `<button type="button" class="li" ${attrs}><span class="ib">${ic(icn)}</span><span class="x"><b>${title}</b>${sub ? `<span class="sub">${sub}</span>` : ""}</span>${ic("chevron-right")}</button>`;
 const DNS = () => [["", t("off")], ["family-filter-dns.cleanbrowsing.org", "CleanBrowsing Family", 1], ["family.adguard-dns.com", "AdGuard Family", 1], ["family.cloudflare-dns.com", "Cloudflare Family", 0]];
 // [host, name, forces SafeSearch + YouTube restricted via DNS]. Cloudflare Family only blocks adult/malware domains.
 const WD_STEPS = [0, 15, 30, 45, 60];

@@ -75,11 +75,11 @@ code{word-break:break-all;font-size:12px}
 .totpqr{display:flex;gap:14px;align-items:center;margin:10px 0;flex-wrap:wrap}.totpqr .qrw{width:180px;flex:none;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--stroke)}.totpqr .qrw svg{display:block;width:100%;height:auto}.totpqr p{flex:1;min-width:160px;margin:0}
 .alert.warn{--tn:var(--warn)}.alert.ok{--tn:var(--ok)}.alert.info{--tn:var(--accent)}
 .dpb{display:inline-flex;align-items:center;gap:6px;font-weight:600}
-/* modal layer: bottom sheet on phones, centred dialog on desktop */
-#dpPop,#askPop{position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--scrim);display:none;align-items:flex-end;justify-content:center}
-#dpPop .dp,#askPop .dp{background:var(--card);color:var(--text);border-radius:28px 28px 0 0;padding:10px 20px calc(20px + env(safe-area-inset-bottom));width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:none}
-#dpPop .dp::before,#askPop .dp::before{content:"";display:block;width:36px;height:4px;border-radius:2px;background:var(--stroke2);margin:0 auto 14px}
-@media(min-width:960px){#dpPop,#askPop{align-items:center}#dpPop .dp,#askPop .dp{width:440px;border-radius:24px;padding:24px;box-shadow:none}#dpPop .dp::before,#askPop .dp::before{display:none}}
+/* bottom sheet on phones, dialog on desktop: .sheet = the overlay (#dpPop, #askPop, #wizPop), .sheet .dp = the panel */
+.sheet{position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;background:var(--scrim);display:none;align-items:flex-end;justify-content:center}
+.sheet .dp{background:var(--card);color:var(--text);border-radius:28px 28px 0 0;padding:10px 20px calc(20px + env(safe-area-inset-bottom));width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:none}
+.sheet .dp::before{content:"";display:block;width:36px;height:4px;border-radius:2px;background:var(--stroke2);margin:0 auto 14px}
+@media(min-width:960px){.sheet{align-items:center}.sheet .dp{width:440px;border-radius:24px;padding:24px;box-shadow:none}.sheet .dp::before{display:none}}
 .dp h2{font-size:19px}
 .dp .row>button.sp{min-height:52px;font-size:16px}
 .shh{display:flex;align-items:center;gap:12px;margin-bottom:12px}.shh h2{flex:1;margin:0}
@@ -456,11 +456,7 @@ input[type=range]:disabled{opacity:.45;cursor:default}
 .cbusy-lock{opacity:.45;pointer-events:none;filter:grayscale(.4);transition:opacity .2s}
 @media (prefers-reduced-motion:reduce){.cbusy-ic,.cbusy-bar>i{animation-duration:3s}}
 
-/* guided setup (wizard.js): same sheet as #askPop, one layer lower so the PIN prompt opens above it */
-#wizPop{position:fixed;top:0;right:0;bottom:0;left:0;z-index:40;background:var(--scrim);display:none;align-items:flex-end;justify-content:center}
-#wizPop .dp{background:var(--card);color:var(--text);border-radius:28px 28px 0 0;padding:10px 20px calc(20px + env(safe-area-inset-bottom));width:100%;max-width:560px;max-height:92vh;overflow:auto}
-#wizPop .dp::before{content:"";display:block;width:36px;height:4px;border-radius:2px;background:var(--stroke2);margin:0 auto 14px}
-@media(min-width:960px){#wizPop{align-items:center}#wizPop .dp{width:440px;border-radius:24px;padding:24px}#wizPop .dp::before{display:none}}
+#wizPop{z-index:40}   /* guided setup (wizard.js): one layer lower than #askPop so the PIN prompt opens above it */
 #wizPop .row>button.sp{min-height:52px;font-size:16px}
 .wzd{display:flex;gap:6px;margin:8px 0 12px}.wzd span{flex:1;height:4px;border-radius:2px;background:var(--stroke2)}.wzd span.on,.wzd span.dn{background:var(--accent)}.wzd span.dn{opacity:.5}
 .wza{padding:6px 0 10px;border-bottom:1px solid var(--stroke2)}.wza .app{padding:4px 0}.wzs button{flex:1;min-width:0;padding:0 6px}

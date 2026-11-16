@@ -253,7 +253,7 @@ function qsOpen() {
     const inp = pop.querySelector("#qsIn"), L = pop.querySelector("#qsList");
     const draw = () => {
       const r = qsFind(inp.value);
-      L.innerHTML = r.length ? r.map((e, i) => `<button type="button" class="li" data-qi="${i}"><span class="ib">${ic(e.icon)}</span><span class="x"><b>${esc(e.title)}</b>${e.where ? `<span class="sub">${esc(e.where)}</span>` : ""}</span>${ic("chevron-right")}</button>`).join("")
+      L.innerHTML = r.length ? r.map((e, i) => navRow(`data-qi="${i}"`, e.icon, esc(e.title), e.where ? esc(e.where) : "")).join("")
         : `<p class="mute">${t("qs.none")}</p>`;
       L.querySelectorAll("[data-qi]").forEach(b => b.onclick = () => { done(true); qsGo(r[+b.dataset.qi]); });
     };
@@ -274,14 +274,14 @@ function goTab(id) {
 // "Thêm" (phones): everything that is not in the bottom bar, grouped
 function moreTab(b) {
   const L = kidList();
-  const li = (id, icn, sub) => navOk(id) ? `<button type="button" class="li" data-go="${id}"><span class="ib">${ic(icn)}</span><span class="x"><b>${t("tab." + id)}</b>${sub ? `<span class="sub">${sub}</span>` : ""}</span>${ic("chevron-right")}</button>` : "";
+  const li = (id, icn, sub) => navOk(id) ? navRow(`data-go="${id}"`, icn, t("tab." + id), sub) : "";
   const grp = (h, rows) => rows.join("") ? `<div class="sec">${h}</div><div class="list">${rows.join("")}</div>` : "";
   b.innerHTML = grp(t("sec.kid"), [li("screen", "smartphone", t("more.screenS")), li("dev", "cpu", t("more.devS")), li("files", "folder-open", t("more.filesS"))])
     + grp(t("sec.track"), [li("log", "notebook-pen", t("more.logS")), li("rep", "chart-column", t("more.repS")), li("hist", "history", t("hist.h"))])
     + grp(t("sec.manage"), [li("set", "settings", t("more.setS")), li("sup", "message-square", t("more.supS")),
-      L.length > 1 && !LOCAL ? `<button type="button" class="li" id="moreOv"><span class="ib">${ic("users")}</span><span class="x"><b>${t("nav.family")}</b><span class="sub">${t("ovN", L.length)}</span></span>${ic("chevron-right")}</button>` : "",
-      !LOCAL && (APP || kids.length > 1 || cur.via === "relay") ? `<button type="button" class="li" id="moreList"><span class="ib">${ic("list")}</span><span class="x"><b>${t("list")}</b></span>${ic("chevron-right")}</button>` : ""])
-    + `<div class="sec">${t("set.general")}</div>${APP ? `<div class="list"><button type="button" class="li" id="moreApp"><span class="ib">${ic("settings")}</span><span class="x"><b>${t("au.h")}</b></span>${ic("chevron-right")}</button></div>` : `<div class="card row">${langSel()}<span class="sp"></span>${themeBtn()}</div>`}`;
+      L.length > 1 && !LOCAL ? navRow('id="moreOv"', "users", t("nav.family"), t("ovN", L.length)) : "",
+      !LOCAL && (APP || kids.length > 1 || cur.via === "relay") ? navRow('id="moreList"', "list", t("list")) : ""])
+    + `<div class="sec">${t("set.general")}</div>${APP ? `<div class="list">${navRow('id="moreApp"', "settings", t("au.h"))}</div>` : `<div class="card row">${langSel()}<span class="sp"></span>${themeBtn()}</div>`}`;
   b.querySelectorAll("[data-go]").forEach(x => x.onclick = () => goTab(x.dataset.go));
   if ($("#moreOv")) $("#moreOv").onclick = () => { screenStop(); earStop(); overview(L, APP || onLan() ? appBoot : () => listScreen(L)); };
   if ($("#moreApp")) $("#moreApp").onclick = () => goAppSettings();
@@ -368,7 +368,7 @@ function logTab(b) {
   const chip = (attr, v, cur_, n, label) => `<button type="button" data-${attr}="${v}" class="${cur_ === v ? "on" : ""}" aria-pressed="${cur_ === v}">${label} <b>${n}</b></button>`;
   const chips = () => `<div class="chips scroll" role="group" aria-label="${esc(t("lg.h"))}">${chip("fe", "", lgEv, evAll.length + lgAll.length, t("lg.all"))}${Object.keys(C).sort((a, c) => a[0] === c[0] ? C[c] - C[a] : a < c ? -1 : 1).map(k => chip("fe", k, lgEv, C[k], k[0] === "e" ? `${ic(EV_IC[k.slice(2)] || "bell")} ${tc("lg.k.", k.slice(2), k.slice(2))}` : t("lg.c." + k.slice(2)))).join("")}</div>`;
   const more = (rows, n, id) => rows.length > n ? `<button type="button" class="sm" id="${id}" style="width:100%;margin-top:8px">${t("lg.more", Math.min(LG_PAGE, rows.length - n), rows.length - n)}</button>` : "";
-  const wait = !m && !c.d, none = wait ? (c.err ? `<div class="empty"><span class="e">${ic("triangle-alert")}</span>${esc(t("lg.err", c.err))}<br><button type="button" class="sm" data-lgretry>${t("lg.retry")}</button></div>` : `<div class="empty"><span class="e">${ic("hourglass")}</span>${t("lg.loading")}</div>`) : `<div class="empty"><span class="e">${ic("inbox")}</span>${t("lg.none")}</div>`;
+  const wait = !m && !c.d, none = wait ? (c.err ? emptyBox("triangle-alert", `${esc(t("lg.err", c.err))}<br><button type="button" class="sm" data-lgretry>${t("lg.retry")}</button>`) : emptyBox("hourglass", t("lg.loading"))) : emptyBox("inbox", t("lg.none"));
   b.innerHTML = `<div class="card">${dayBtn("log", { sel: lgDay, min: first, max: today, counts: tot, nav: true, onPick: k => go(k) })}
     <div style="margin-top:10px">${evAll.length + lgAll.length ? chips() : ""}</div>
     <div style="margin-top:6px">${rows.slice(0, lgNEv).map(r => r.h).join("") || none}</div>${more(rows, lgNEv, "lgMoreE")}
@@ -421,7 +421,7 @@ function supTab(b) {
 function repTab(b) {
   b.innerHTML = `<div class="g2"><div><div class="card"><h2>${ic("chart-column")} ${t("last7")}</h2><div id="histPick" style="margin-bottom:8px"></div><div class="hist" id="hist"></div><div id="histTop" class="mute"></div></div>
     <div class="card"><h2>${ic("history")} ${t("ov.report")}</h2>${ovReport([{ k: cur, st, err: "" }])}</div></div>
-    <div class="card"><h2>${ic("flame")} ${t("topApps")}</h2>${st.apps.filter(x => x.ms > 60000).slice(0, 12).map(appRow).join("") || `<div class="empty"><span class="e">${ic("sprout")}</span>${t("none")}</div>`}</div></div>`;
+    <div class="card"><h2>${ic("flame")} ${t("topApps")}</h2>${st.apps.filter(x => x.ms > 60000).slice(0, 12).map(appRow).join("") || emptyBox("sprout", t("none"))}</div></div>`;
   drawHist();
 }
 
