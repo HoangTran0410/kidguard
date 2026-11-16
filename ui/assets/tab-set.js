@@ -322,12 +322,16 @@ function setTab(b) {
   const redoP = { id: "s-redo", icn: "sparkles", title: t("wz.redo"), chip: null, body: `<p class="mute">${t("wz.redoP")}</p><button type="button" id="wizRedo">${ic("refresh-cw")} ${t("wz.redoGo")}</button>` };
   const a2P = APP ? null : { id: "s-a2", icn: "smartphone", title: t("a2hs.h"), chip: null, body: `<p class="mute">${t("a2hs.p")}</p>` };
   const sysP = secP("s-sys", "sliders-horizontal", t("sys.h"), t("sd.sys"), null, `<div id="sysCard"></div>`);
+  const phone = !isWide(), M = phone ? moreParts() : null;   // phones: the "Thêm" groups live here too (moreParts, shell.js)
   b.innerHTML = `<div id="rsx">
+  ${phone ? `<div class="sec">${t("sec.kid")}</div><div class="list sgl">${M.kid}${sysP}</div>${M.track}` : ""}
   ${secGrp(t("set.security"), [secMix("s-sec", "key-round", t("mx.sec"), t("mx.secD"), [pinP, S.totp], pinP.chip), pairedP])}
   ${secGrp(t("set.conn"), [secMix("s-remote", "route", t("mx.remote"), t("mx.remoteD"), [tsCard(lan), relayP]), tgHtml(), watchCard(), aiCard()], "awaySec", lan ? `<p class="mute" style="margin:0 4px 10px">${t("away.cmp")}</p>` : "")}
-  ${secGrp(t("sec.kid"), [secMix("s-kid", "user", t("mx.kid"), t("mx.kidD"), [nameP, keepP, redoP, a2P], null), featCard(), updCard(), sysP, secMix("s-adv", "code", t("mx.adv"), t("mx.advD"), [devCard(), shCard()], null)])}
+  ${secGrp(phone ? t("sec.setup") : t("sec.kid"), [secMix("s-kid", "user", t("mx.kid"), t("mx.kidD"), [nameP, keepP, redoP, a2P], null), featCard(), updCard(), phone ? null : sysP, secMix("s-adv", "code", t("mx.adv"), t("mx.advD"), [devCard(), shCard()], null)])}
+  ${phone ? M.general : ""}
   <div class="dz" style="margin-top:22px">${secGrp("", [dangerP])}</div>
   </div>`;
+  if (phone) moreWire(b);
   rulesWire($("#rsx"), edit);
   b.querySelectorAll("[data-unp]").forEach(x => x.onclick = async () => {
     const d = (st.devices || []).find(o => o.id === x.dataset.unp); if (!d) return;

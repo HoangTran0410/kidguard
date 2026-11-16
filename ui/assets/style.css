@@ -156,7 +156,7 @@ select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none;border-radi
    phones, two panes on wide screens (secNav() in tab-home.js) */
 .cl{padding:0;margin:0;position:relative}
 .cl>h2{margin:0;font:inherit;color:inherit;display:block}
-.cl+.cl>h2 .clh{border-top:1px solid var(--stroke)}
+.cl+.cl>h2 .clh,.li+.cl>h2 .clh{border-top:1px solid var(--stroke)}.cl+.li{border-top:1px solid var(--stroke)}
 .clh{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:none;border:0;border-radius:0;padding:8px 16px;min-height:56px;justify-content:flex-start;font-weight:400;font-size:15px}
 .clh:hover{background:var(--bg)}@supports (color:color-mix(in srgb,red,blue)){.clh:hover{background:color-mix(in srgb,var(--bg) 60%,transparent)}}.clh:active{filter:none}
 .clh .cli{width:36px;height:36px;border-radius:11px;background:var(--tint);color:var(--accent);display:grid;place-items:center;flex:none}

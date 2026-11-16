@@ -142,6 +142,7 @@ function render(tabClick) {
   const body = $("#body");
   if (!st) { updateLive(); body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " " + t("cantConnect", esc(lastErr)) : noState ? ic("hourglass") + " " + t("noState") : ic("hourglass") + " " + t("loading")}${lastErr || noState ? `<p style="margin:10px 0 0"><button id="forgetGone" class="sp">${ic("eraser")} ${APP ? t("forget.app") : t("forget.web")}</button></p>` : ""}</div>`; if ($("#forgetGone")) $("#forgetGone").onclick = forgetKid; return; }
   if (!navOk(tab)) tab = "home";
+  if (tab === "more" && !isWide()) tab = "set";
   ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, dev: devTab, set: setTab, hist: histTab, files: filesTab, more: moreTab, log: logTab, rep: repTab, sup: supTab })[tab](body);
   if (viewDay && tab !== "hist") body.querySelectorAll("input,select,textarea").forEach(x => { x.disabled = true; });   // a past day is read-only: any edit would fail "viewOnly" and raise the save-failed bar
   const gn = FEAT_TAB[tab] ? gateNote(FEAT_TAB[tab]) : "";
@@ -156,21 +157,33 @@ function render(tabClick) {
 }
 function goTab(id) {
   if (subId && (id === tab || (id === "more" && MORE_TABS.has(tab)))) return subClose(true);   // the current tab again: back to its list, scrolled to the top
+  if (id === "more" && !isWide()) id = "set";   // phones: "Thêm" IS the settings list (owner 2026-11-16: one level less)
   const from = tab; tab = id; subId = null; if (tab === "hist") histDays = null; render(true); navTab(id, from); }
 
-// "Thêm" (phones): everything that is not in the bottom bar, grouped
-function moreTab(b) {
+// "Thêm" (phones): everything that is not in the bottom bar, grouped. On phones the settings tab draws these groups around
+// its own (setTab, moreParts): one list, no "Cài đặt" hop. moreTab is only left for a wide screen landing on "more".
+function moreParts() {
   const L = kidList();
   const li = (id, icn, sub) => navOk(id) ? navRow(`data-go="${id}"`, icn, t("tab." + id), sub) : "";
   const grp = (h, rows) => rows.join("") ? `<div class="sec">${h}</div><div class="list">${rows.join("")}</div>` : "";
-  b.innerHTML = grp(t("sec.kid"), [li("screen", "smartphone", t("more.screenS")), li("dev", "cpu", t("more.devS")), li("files", "folder-open", t("more.filesS"))])
-    + grp(t("sec.track"), [li("log", "notebook-pen", t("more.logS")), li("rep", "chart-column", t("more.repS")), li("hist", "history", t("hist.h"))])
-    + grp(t("sec.manage"), [li("set", "settings", t("more.setS")), li("sup", "message-square", t("more.supS")),
+  return {
+    kid: [li("screen", "smartphone", t("more.screenS")), li("dev", "cpu", t("more.devS")), li("files", "folder-open", t("more.filesS"))].join(""),
+    track: grp(t("sec.track"), [li("log", "notebook-pen", t("more.logS")), li("rep", "chart-column", t("more.repS")), li("hist", "history", t("hist.h"))]),
+    general: `<div class="sec">${t("set.general")}</div><div class="list">${[li("sup", "message-square", t("more.supS")),
       L.length > 1 && !LOCAL ? navRow('id="moreOv"', "users", t("nav.family"), t("ovN", L.length)) : "",
-      !LOCAL && (APP || kids.length > 1 || cur.via === "relay") ? navRow('id="moreList"', "list", t("list")) : ""])
-    + `<div class="sec">${t("set.general")}</div>${APP ? `<div class="list">${navRow('id="moreApp"', "settings", t("au.h"))}</div>` : `<div class="card row">${langSel()}<span class="sp"></span>${themeBtn()}</div>`}`;
+      !LOCAL && (APP || kids.length > 1 || cur.via === "relay") ? navRow('id="moreList"', "list", t("list")) : "",
+      APP ? navRow('id="moreApp"', "settings", t("au.h")) : ""].join("")}</div>${APP ? "" : `<div class="card row">${langSel()}<span class="sp"></span>${themeBtn()}</div>`}`,
+  };
+}
+function moreWire(b) {
+  const L = kidList();
   b.querySelectorAll("[data-go]").forEach(x => x.onclick = () => goTab(x.dataset.go));
   if ($("#moreOv")) $("#moreOv").onclick = () => { screenStop(); earStop(); overview(L, APP || onLan() ? appBoot : () => listScreen(L)); };
   if ($("#moreApp")) $("#moreApp").onclick = () => goAppSettings();
   if ($("#moreList")) $("#moreList").onclick = () => { goList(); navDown(0); };
+}
+function moreTab(b) {
+  const M = moreParts();
+  b.innerHTML = `<div class="sec">${t("sec.kid")}</div><div class="list">${M.kid}${navOk("set") ? navRow('data-go="set"', "settings", t("tab.set"), t("more.setS")) : ""}</div>` + M.track + M.general;
+  moreWire(b);
 }

@@ -342,7 +342,7 @@ function navTab(id, from) {
   try {
     const s = history.state || {}, d = s.td || 0;
     if (s.day) return;
-    const want = id === "home" ? 0 : SUB_TABS.has(id) && from === "more" ? 2 : 1;
+    const want = id === "home" ? 0 : SUB_TABS.has(id) && (from === "more" || from === "set" && id !== "set" && !isWide()) ? 2 : 1;
     if (want === d) { if (d || s.sub) history.replaceState(d ? { ...noSub(s), tab: id } : noSub(s), ""); }   // an open sub-screen entry becomes the new tab's entry
     else if (want > d) for (let i = d + 1; i <= want; i++) history.pushState({ kg: navLvl() + 1, td: i, tab: i === want ? id : from }, "");
     else { navSkip = id; history.go(want - d - (s.sub ? 1 : 0)); }
