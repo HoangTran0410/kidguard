@@ -234,6 +234,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".AccResumeReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".NavFixReceiver"
             android:exported="false" />
 

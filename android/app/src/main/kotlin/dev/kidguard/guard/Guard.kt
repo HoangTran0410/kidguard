@@ -528,6 +528,7 @@ class Guard : Service() {
             .put("pairUntil", store.pairOpenUntil())
             .put("pinResetAt", store.pinResetAt)
             .put("totpOn", store.totpSecret.isNotBlank()).put("unlockUntil", store.unlockUntil.takeIf { it > now } ?: 0)
+            .put("selfOpenUntil", store.selfOpenUntil.takeIf { CmdGate.selfOpen(it, now) } ?: 0)
             .put("acc", Acc.isOn(this)).put("accPaused", JSONArray(store.accPaused.sorted())).put("vpnPaused", JSONArray(store.vpnPaused.sorted())).put("devPaused", JSONArray(store.devApps.sorted())).put("bankBackAt", bankBackAt()).put("vpnStuck", store.vpnStuck)
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
             .put("locationOn", locationOn())
@@ -820,6 +821,9 @@ class Guard : Service() {
         "update" -> if (Update.start(this, true)) "ok" else "busy"
         "devOff" -> devOff()
         "bankEnd" -> bankEnd()
+        "selfOpen" -> if (c.optBoolean("on")) {
+            store.selfOpenUntil = System.currentTimeMillis() + CmdGate.SELF_OPEN_MS; store.log(R.string.log_self_open); "ok"
+        } else { store.selfOpenUntil = 0L; "ok" }
         "adbShell" -> { SelfAdb.invalidate(); AutoGrant.soon(); Shell.run(this, c.optString("cmd")) }
         "shClear" -> Shell.clear()
         "adbTcp" -> { SelfAdb.invalidate(); AutoGrant.soon(); Shell.tcp(this, c.optBoolean("on")) }
@@ -1070,14 +1074,19 @@ class Guard : Service() {
     private fun fgNotification(): Notification {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val t = getString(R.string.notif_guard_title); val x = getString(R.string.notif_guard_text)
-        fgLabel = t + "\n" + x
-        return Notification.Builder(this, "guard").setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentTitle(t).setContentText(x).setOngoing(true).setContentIntent(open).build()
+        val nav = navFixShown()
+        fgLabel = t + "\n" + x + nav
+        val b = Notification.Builder(this, "guard").setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setContentTitle(t).setContentText(x).setOngoing(true).setContentIntent(open)
+        // own gestures on: a way back to the 3 buttons is ALWAYS one pull of the shade away, whatever the stuck check missed
+        if (nav) b.addAction(Notification.Action.Builder(null, getString(R.string.nav_stuck_btn), NavGest.fixIntent(this)).build())
+        return b.build()
     }
+    private fun navFixShown() = runCatching { NavGest.supported() && store.navGest }.getOrDefault(false)
 
     /** The in-app language changed (Lang): re-post the foreground notification in it. Same id = same foreground slot. */
     private fun relabel() {
-        if (fgLabel.isEmpty() || getString(R.string.notif_guard_title) + "\n" + getString(R.string.notif_guard_text) == fgLabel) return
+        if (fgLabel.isEmpty() || getString(R.string.notif_guard_title) + "\n" + getString(R.string.notif_guard_text) + navFixShown() == fgLabel) return
         getSystemService(NotificationManager::class.java).notify(1, fgNotification())
     }
 

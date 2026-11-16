@@ -1114,4 +1114,13 @@
     <string name="nav_stuck_t">Không có phím, không vuốt được</string>
     <string name="nav_stuck_b">Chạm để hiện lại 3 phím.</string>
     <string name="nav_stuck_btn">Hiện 3 phím</string>
+    <string name="ch_accstate">Tạm tắt trợ năng</string>
+    <string name="acc_state_t">Trợ năng tạm tắt cho %1$s</string>
+    <string name="acc_state_left">Tự bật lại khi hết đếm ngược.</string>
+    <string name="acc_state_now">Bật lại ngay</string>
+    <plurals name="acc_state_front">
+        <item quantity="one">Bật lại %d phút sau khi rời app.</item>
+        <item quantity="other">Bật lại %d phút sau khi rời app.</item>
+    </plurals>
+    <string name="log_self_open">Bố mẹ mở trang thông tin app KidGuard 5 phút</string>
 </resources>

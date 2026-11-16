@@ -238,8 +238,8 @@ document.addEventListener("click", confirmGate, true);
 const askOf = c => hasT("ask." + c) ? [t("ask." + c), t("askOk." + c), !!ASK_BAD[c]] : null;
 // Commands the phone runs only with the parent PIN (or an Authenticator code) inside: guard/CmdGate.kt, protocol
 // "PIN-gated commands". Phones before 0.9.13 have no gate (no state.pinResetAt): nothing asked there.
-const GATED_OFF_FREE = c => c.type === "adbTcp" && !c.on;   // closing the adb port needs no PIN (phone: CmdGate.needs)
-const GATED = new Set(["release", "unpairAll", "unpair", "clearData", "reboot", "relay", "tailscaleOff", "openPairing", "totpSet", "tgSet", "tgCode", "tgOff", "pinSet", "pinResetCancel", "adbShell", "adbTcp", "aiToken"]);
+const GATED_OFF_FREE = c => (c.type === "adbTcp" || c.type === "selfOpen") && !c.on;   // closing the adb port needs no PIN (phone: CmdGate.needs)
+const GATED = new Set(["release", "unpairAll", "unpair", "clearData", "reboot", "relay", "tailscaleOff", "openPairing", "totpSet", "tgSet", "tgCode", "tgOff", "pinSet", "pinResetCancel", "adbShell", "adbTcp", "aiToken", "selfOpen"]);
 const gateOn = () => !!(st && "pinResetAt" in st && ((edit && edit.pinSet) || st.totpOn));
 let pinMem = null;   // {token, pin, at}: the PIN typed for this kid in the last 5 min, sliding (a "Dọn máy" run sends clearData per app)
 const pinField = () => `<input id="askPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="${esc(t("pin.cmdPh"))}" aria-label="${esc(t("pin.cmdPh"))}" style="width:100%;margin-bottom:6px">
@@ -262,7 +262,7 @@ function pinRefused(r) {
 }
 // Commands the worker drops after 10 min when the phone is offline (relay/src/index.js SHORT): a "now" action must not run later by surprise
 // = relay `SHORT` (relay/src/index.js): dropped after 10 min if the phone never took them; everything else waits 24 h
-const SHORT_CMDS = new Set(["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms"]);
+const SHORT_CMDS = new Set(["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms", "selfOpen"]);
 async function cmd(c, okMsg, q) {
   const k = cur, a0 = q || (q === false ? null : askOf(c.type)) || (c.type === "message" ? [t("askMsg", c.text), t("send")] : null);
   // dangerous: name the kid in the text, so a dialog for A can never be mistaken for B
@@ -291,7 +291,7 @@ async function cmd(c, okMsg, q) {
 
 // ---- command receipts (0.9.16, contract C4): a queued relay command is remembered by id until the phone says it ran
 // (state.done) or the worker says it dropped it (expired). s: sent | ok | fail | expired.
-const RC_TYPES = new Set(["lock", "wake", "ring", "locate", "message", "reboot", "release", "unpairAll", "unpair", "clearData", "clearCache", "pinSet", "pinReset", "adbShell", "devOn", "devOff", "unlockEnd", "openPairing", "totpSet", "tgSet", "tgOff", "relay", "tailscaleOff", "answer"]);
+const RC_TYPES = new Set(["lock", "wake", "ring", "locate", "message", "reboot", "release", "unpairAll", "unpair", "clearData", "clearCache", "pinSet", "pinReset", "adbShell", "devOn", "devOff", "unlockEnd", "openPairing", "totpSet", "tgSet", "tgOff", "relay", "tailscaleOff", "answer", "selfOpen"]);
 let rc = [];   // [{k, id, type, c (the command without its PIN), pin (memory only, until a receipt), at, s, res, doneAt}]
 function rcAdd(k, c, plain) {
   if (!RC_TYPES.has(c.type) || !c.id) return;

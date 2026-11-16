@@ -1138,4 +1138,13 @@
     <string name="nav_stuck_t">No buttons, no gestures</string>
     <string name="nav_stuck_b">Tap to bring back the 3 buttons.</string>
     <string name="nav_stuck_btn">Show 3 buttons</string>
+    <string name="ch_accstate">Accessibility pause</string>
+    <string name="acc_state_t">Accessibility off for %1$s</string>
+    <string name="acc_state_left">Back on when the countdown ends.</string>
+    <string name="acc_state_now">Turn on now</string>
+    <plurals name="acc_state_front">
+        <item quantity="one">Back on %d minute after you leave it.</item>
+        <item quantity="other">Back on %d minutes after you leave it.</item>
+    </plurals>
+    <string name="log_self_open">Parent opened KidGuard\'s app info for 5 minutes</string>
 </resources>

@@ -196,6 +196,9 @@ v0.9.7:
   phone's own paired adbd (`SelfAdb`: Android 11+, WRITE_SECURE_SETTINGS, Wi-Fi; opens the debugging window itself).
   Answers at once `ok | busy | empty | no adb`; the output comes in state `sh.log` (LAN and relay alike). 25 s timeout.
   Not on Telegram. Worker: whitelist, ONCE, SHORT (a shell command 10 min late is dropped; ONCE window 1 h).
+- `selfOpen {on}` (2026-11-16, PIN-gated when `on:true`, ONCE, SHORT): basic mode stops closing KidGuard's own app-info
+  page (BasicLogic.selfProtect: Uninstall / Force stop) for 5 min (`CmdGate.SELF_OPEN_MS`), e.g. to turn a notification
+  channel back on; `on:false` ends it. State `selfOpenUntil` (epoch ms, 0 = closed). Device Owner never closes that page.
 - `bankEnd` (2026-11-13): end the bank-app pauses now (accessibility, VPN, debugging) instead of after the 10-minute wait; result `in use` while that app is in front. State `bankBackAt` = when they end by themselves (epoch ms, 0 = an app still in front / none). `ts.why` = "bank" while the VPN pause holds Tailscale.
 - `fixPerms` (2026-11-14, `guard/FixPerms.kt`, repeatable, SHORT, not PIN-gated: it only turns our own permissions back on): the page's "N things are off" Fix. The phone first grants what it can alone (Device Owner: location + notifications via `setPermissionGrantState`; our accessibility service via WRITE_SECURE_SETTINGS; the setup's grants over self-adb = `AutoGrant`), then for what is left opens the exact Settings screen on the kid phone (background start: Device Owner or overlay right) and posts a tap-to-open notification (id 8, channel `fix`, cleared when nothing is missing and on release). Answers `ok | working | none` (`working` = the grants run in the background; read state `fixPerms`; `none` = nothing was missing).
 - State `missing` (2026-11-14): ids still off, in order, of `admin acc` (basic mode only) `usage listener location notify battery` (`listener` = notification access, `battery` = battery optimisation). `[]` = all fine; an old phone has no field (page: nothing shown). State `fixPerms` `{busy, at, fixed: [ids], tap: [ids]}`: the last Fix (`fixed` = got back by the phone itself, `tap` = still need a tap on the phone; only ids still in `missing`). OEM auto-start pages are not detectable, so they are not listed.
@@ -210,8 +213,8 @@ v0.9.7:
   `out` ≤ 6000 chars for the newest two, 300 for older ones (state stays < ~14 KB for the relay); `err` = `adb` (no answer / timeout) or an `adbWhy` code (`sdk key wss blocked wifi`).
 
 ### PIN-gated commands (v0.9.13, `guard/CmdGate.kt`)
-`release unpairAll unpair clearData reboot relay tailscaleOff openPairing totpSet tgSet tgCode tgOff pinSet pinResetCancel adbShell adbTcp aiToken`
-(`adbTcp` only with `on:true`; `on:false` = closing the port needs no PIN, 2026-11-15) carry `pin`: the parent PIN or a current Authenticator code (its backup, also while the PIN is locked; an admin open by code raises a `tamper` event). The PHONE checks it (LAN and relay alike), sharing the lockout
+`release unpairAll unpair clearData reboot relay tailscaleOff openPairing totpSet tgSet tgCode tgOff pinSet pinResetCancel adbShell adbTcp aiToken selfOpen`
+(`adbTcp` / `selfOpen` only with `on:true`; `on:false` = closing needs no PIN, 2026-11-15 / 2026-11-16) carry `pin`: the parent PIN or a current Authenticator code (its backup, also while the PIN is locked; an admin open by code raises a `tamper` event). The PHONE checks it (LAN and relay alike), sharing the lockout
 of the on-device admin (5 free tries, then 5, 10, 20, 30 min, then 30 min per try; PIN and Authenticator locks are separate; lockouts run on the monotonic clock, a reboot falls back to the wall clock capped at the original length).
 `relay {url}` with the URL the phone already has is not gated (the page re-reads the relay link with it); `renew:true` always is. No PIN and no
 Authenticator set = nothing to check. Results: `failed: pin needed` (no `pin`, not counted), `failed: pin` (wrong, a
@@ -475,7 +478,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   clearData update totpSet fileDel`) are delivered **at-least-once**: the worker keeps them until the phone acks the id
   (so a lost reply does not drop a `release`) and the phone de-dups by id. The worker stamps `sent` at the first hand-out
   and drops an unacked one 1 h later (the phone may have released and stopped syncing). "Now" commands (`lock locate
-  message ring wake ringStop listenStop reboot clearData pinSet pinReset pinResetCancel openPairing adbShell unlockEnd fixPerms`; list = `SHORT`, TTL `SHORT_TTL` = 10 min, reasons in the worker comment) expire on the worker after **10 min**; everything else (`setting devOn devOff bgLimit bgRestore rescan clearCache support ...`) lives 24 h (2026-11-15: friction that does not stop abuse), so a
+  message ring wake ringStop listenStop reboot clearData pinSet pinReset pinResetCancel openPairing adbShell unlockEnd fixPerms selfOpen`; list = `SHORT`, TTL `SHORT_TTL` = 10 min, reasons in the worker comment) expire on the worker after **10 min**; everything else (`setting devOn devOff bgLimit bgRestore rescan clearCache support ...`) lives 24 h (2026-11-15: friction that does not stop abuse), so a
   `ring` queued overnight does not fire in the morning. The queue holds 20 entries: when full, a new repeatable command replaces its older queued copy (see Limits), else `429 queue full`.
   `ONCE_WINDOW` (1 h): a command handed out and not acked within it is dropped (also any command that carried a secret).
   Secrets in a queued command (`pin`, `new`, `secret`, `token`): the first hand-out to the phone carries them, the copy that

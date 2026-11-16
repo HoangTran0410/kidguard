@@ -25,6 +25,16 @@ class CmdGateTest {
         assertTrue(CmdGate.needs("relay", "", ""))                                // "off" when already off: still gated (no free probe)
     }
 
+    @Test fun selfOpenOnlyOpeningNeedsPinAndLasts5Min() {
+        assertTrue(CmdGate.needs("selfOpen", on = true))
+        assertFalse(CmdGate.needs("selfOpen", on = false))
+        val now = 1_000_000_000L
+        assertTrue(CmdGate.selfOpen(now + CmdGate.SELF_OPEN_MS, now))
+        assertFalse(CmdGate.selfOpen(now, now))                                   // ended
+        assertFalse(CmdGate.selfOpen(0L, now))                                    // never opened
+        assertFalse(CmdGate.selfOpen(now + CmdGate.SELF_OPEN_MS + 1, now))        // clock moved back: never longer than 5 min
+    }
+
     @Test fun adbTcpOnlyOpeningNeedsPin() {
         assertTrue(CmdGate.needs("adbTcp", on = true))
         assertFalse(CmdGate.needs("adbTcp", on = false))

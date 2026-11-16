@@ -79,7 +79,7 @@ const PAIR_MISS_MAX = 20, PAIR_MISS_WIN = 10 * 60e3;
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
-const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel", "tgSet", "tgOff", "pinSet", "pinReset", "pinResetCancel", "adbShell", "adbTcp", "support"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
+const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel", "tgSet", "tgOff", "pinSet", "pinReset", "pinResetCancel", "adbShell", "adbTcp", "support", "selfOpen"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
 const ONCE_WINDOW = 3600e3;   // 1 h (owner 2026-11-15: a phone that is off for 10 min must not lose a release / reboot)
 const GC_MS = 30 * 86400e3;   // a phone not seen for 30 days: everything of this id is deleted (dead pairings, junk binds); a phone that comes back re-binds on its next sync
 // "now" commands, stale after SHORT_TTL (10 min). Only what would be harmful or confusing if it fired hours later:
@@ -88,7 +88,7 @@ const GC_MS = 30 * 86400e3;   // a phone not seen for 30 days: everything of thi
 //  window for a parent standing next to the phone; adbShell = a shell command running a day later is surprising; unlockEnd = ends a
 //  temporary pause "now"; fixPerms = opens Settings screens on the kid's phone, confusing if the kid is using it hours later.
 // Everything else (setting devOn devOff bgLimit bgRestore rescan clearCache support ...) is harmless late: normal 24 h.
-const SHORT = ["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms"];
+const SHORT = ["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms", "selfOpen"];
 let SHORT_TTL = 10 * 60e3;   // env.SHORT_TTL_MS overrides (tests only)
 // secrets a parent typed into a command (PIN, new PIN, Authenticator secret, bot token): handed out once, then not kept in the queue copy
 const SECRET_KEYS = ["pin", "new", "secret", "token"];
@@ -101,7 +101,7 @@ const live = (c, now) => now - (c.at || 0) < (SHORT.includes(c.type) ? SHORT_TTL
 /** Receipts for commands dropped unrun (TTL / ONCE window): newest last, at most EXPIRED_N, shown to the parent as state `expired`. */
 const EXPIRED_N = 10;
 const expiredOf = (list, dropped, now) => [...(list || []), ...dropped.map(c => ({ id: c.id, type: c.type, res: "expired", at: now }))].slice(-EXPIRED_N);
-const CMDS = ["aiToken", "lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "unlockEnd", "clearCache", "rescan", "bgLimit", "bgRestore", "fixPerms"];
+const CMDS = ["aiToken", "lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "unlockEnd", "clearCache", "rescan", "bgLimit", "bgRestore", "fixPerms", "selfOpen"];
 const APK_BASE = "https://github.com/HoangTran0410/kidguard/releases/latest/download/";   // test override: env.APK_BASE
 // idempotent commands a newer copy may replace when the queue is full: type -> target field that must match too (null = the type alone)
 const REPLACE = { lock: null, locate: null, ring: null, wake: null, ringStop: null, listenStop: null, devOn: null, devOff: null, setting: "key", clearCache: null, rescan: null, fixPerms: null, openPairing: null, unlockEnd: null, bankEnd: null, fileUp: "file" };

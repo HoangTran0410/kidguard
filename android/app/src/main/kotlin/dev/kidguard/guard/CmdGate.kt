@@ -10,7 +10,7 @@ package dev.kidguard
 object CmdGate {
     val GATED = setOf(
         "release", "unpairAll", "unpair", "clearData", "reboot", "relay", "tailscaleOff", "openPairing",
-        "totpSet", "tgSet", "tgCode", "tgOff", "pinSet", "pinResetCancel", "adbShell", "adbTcp", "aiToken",
+        "totpSet", "tgSet", "tgCode", "tgOff", "pinSet", "pinResetCancel", "adbShell", "adbTcp", "aiToken", "selfOpen",
     )
 
     /** "Forgot the PIN": a new PIN set without the old one applies after this, with an alert to every parent at once. */
@@ -24,10 +24,16 @@ object CmdGate {
      * `adbTcp` needs it only with [on] = true (owner 2026-11-15: closing the port only reduces risk).
      */
     fun needs(type: String, url: String? = null, relayUrl: String = "", renew: Boolean = false, on: Boolean = true): Boolean =
-        type in GATED && !(type == "adbTcp" && !on) && (renew || !(type == "relay" && url != null && norm(url) == norm(relayUrl) && relayUrl.isNotBlank()))
+        type in GATED && !((type == "adbTcp" || type == "selfOpen") && !on) && (renew || !(type == "relay" && url != null && norm(url) == norm(relayUrl) && relayUrl.isNotBlank()))
 
     /** A valid new PIN (4–8 digits) or null. */
     fun newPin(s: String?): String? = s?.filter { it.isDigit() }?.takeIf { it.length in 4..8 && it.length == s.trim().length }
+
+    /** Command selfOpen: how long the KidGuard app-info page stays open (basic mode closes it otherwise). */
+    const val SELF_OPEN_MS = 5 * 60_000L
+
+    /** The parent's selfOpen window is running (a clock moved far ahead never makes it longer). */
+    fun selfOpen(until: Long, now: Long) = now < until && until - now <= SELF_OPEN_MS
 
     /** A pending "forgot PIN" reset is due. */
     fun resetDue(at: Long, now: Long) = at > 0 && now >= at

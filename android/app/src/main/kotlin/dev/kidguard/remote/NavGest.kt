@@ -114,14 +114,16 @@ object NavGest {
     private fun stuckNotice(ctx: Context, on: Boolean) = runCatching {
         val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
         if (!on) { nm.cancel(NOTIF); return@runCatching }
-        nm.createNotificationChannel(android.app.NotificationChannel(CH, ctx.getString(R.string.ch_nav), android.app.NotificationManager.IMPORTANCE_HIGH))
-        val pi = android.app.PendingIntent.getBroadcast(ctx, 0, android.content.Intent(ctx, NavFixReceiver::class.java),
-            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
-        nm.notify(NOTIF, android.app.Notification.Builder(ctx, CH).setSmallIcon(android.R.drawable.ic_dialog_alert)
+        val ch = Chan.open(nm, CH, ctx.getString(R.string.ch_nav), android.app.NotificationManager.IMPORTANCE_HIGH)
+        val pi = fixIntent(ctx)
+        nm.notify(NOTIF, android.app.Notification.Builder(ctx, ch).setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(ctx.getString(R.string.nav_stuck_t)).setContentText(ctx.getString(R.string.nav_stuck_b))
             .setContentIntent(pi).setOngoing(true)
             .addAction(android.app.Notification.Action.Builder(null, ctx.getString(R.string.nav_stuck_btn), pi).build()).build())
     }
+
+    fun fixIntent(ctx: Context): android.app.PendingIntent = android.app.PendingIntent.getBroadcast(ctx, 0,
+        android.content.Intent(ctx, NavFixReceiver::class.java), android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
 
     /** The notification's button: buttons back by our permission, else by our own adb, else open Settings; switch off. */
     fun fix(ctx: Context) {

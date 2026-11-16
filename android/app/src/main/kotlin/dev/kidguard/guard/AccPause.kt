@@ -96,6 +96,7 @@ object AccPause {
         // the setting change unbinds us a moment later; the service can also stop itself right away
         if (stopSelf) Acc.running?.let { svc -> runCatching { svc.disableSelf() } }
         watchStart(ctx)
+        notice(ctx)
         return had.isEmpty()
     }
 
@@ -201,7 +202,7 @@ object AccPause {
         watchStart(ctx)   // after a process restart while paused
         val wait = if (Policy.isOwner(ctx)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS
         val (leftAt, back) = AccPauseLogic.step(current, s.rules.accPause + paused, s.accLeftAt, now, wait)
-        if (back) resume(ctx, s, paused, kill = true) else if (leftAt != s.accLeftAt) s.accLeftAt = leftAt
+        if (back) resume(ctx, s, paused, kill = true) else { if (leftAt != s.accLeftAt) s.accLeftAt = leftAt; notice(ctx) }
     }
 
     private fun resume(ctx: Context, s: Store, paused: Set<String>, kill: Boolean) {
@@ -211,6 +212,7 @@ object AccPause {
         s.accPaused = emptySet(); s.accLeftAt = 0L
         watchStop()
         runCatching { s.log(R.string.log_acc_resumed) }
+        notice(ctx)
         Acc.ensureEnabled(ctx, quiet = true)
     }
 
@@ -220,7 +222,45 @@ object AccPause {
     /** Release: forget the pause (Acc's own release takes the service out anyway). */
     fun clear(ctx: Context) { val s = Store.of(ctx); s.accPaused = emptySet(); s.accLeftAt = 0L }
 
+    // ---- status notification while paused: says WHEN it comes back (a countdown once the app is left) and offers
+    // "turn on now" then. Not while the paused app is in front: turning back on closes it (lost transaction).
+    private const val CH_STATE = "accstate"
+    private const val NOTIF_STATE = 7350
+    private var shown = ""
+
+    @Synchronized fun notice(ctx: Context) = runCatching {
+        val s = Store.of(ctx)
+        val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
+        val paused = s.accPaused
+        val at = if (paused.isEmpty() || s.accLeftAt <= 0L) 0L
+            else s.accLeftAt + (if (Policy.isOwner(ctx)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS)
+        val key = if (paused.isEmpty()) "" else paused.sorted().joinToString() + "|" + at
+        if (key == shown) return@runCatching
+        shown = key
+        if (paused.isEmpty()) { nm.cancel(NOTIF_STATE); return@runCatching }
+        val ch = Chan.open(nm, CH_STATE, ctx.getString(R.string.ch_accstate), android.app.NotificationManager.IMPORTANCE_LOW)
+        val min = ((if (Policy.isOwner(ctx)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS) / 60_000L).toInt()
+        val b = android.app.Notification.Builder(ctx, ch).setSmallIcon(android.R.drawable.ic_lock_idle_lock)
+            .setContentTitle(ctx.getString(R.string.acc_state_t, paused.joinToString(", ") { label(ctx, it) }))
+            .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(at > 0L)
+        if (at > 0L) {
+            b.setContentText(ctx.getString(R.string.acc_state_left)).setWhen(at).setUsesChronometer(true).setChronometerCountDown(true)
+            val pi = android.app.PendingIntent.getBroadcast(ctx, 1, android.content.Intent(ctx, AccResumeReceiver::class.java),
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
+            b.addAction(android.app.Notification.Action.Builder(null, ctx.getString(R.string.acc_state_now), pi).build())
+        } else b.setContentText(ctx.resources.getQuantityString(R.plurals.acc_state_front, min, min))
+        nm.notify(NOTIF_STATE, b.build())
+    }
+
     private fun label(ctx: Context, pkg: String) = runCatching {
         val pm = ctx.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
     }.getOrDefault(pkg)
+}
+
+/** "Turn on now" on the pause status notification: same as the parent's end-now (closes the paused app). */
+class AccResumeReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(c: Context, i: android.content.Intent?) {
+        val r = goAsync()
+        Thread({ try { AccPause.endNow(c.applicationContext) } finally { r.finish() } }, "acc-resume").start()
+    }
 }

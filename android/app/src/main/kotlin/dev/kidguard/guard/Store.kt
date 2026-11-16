@@ -471,6 +471,11 @@ class Store private constructor(private val app: Context) {
         set(v) { p.edit().putString("totpSecret", v).putLong("totpLast", 0).apply() }
 
     /** Everything but "blocked" / "new" is lifted until this time (an Authenticator code was entered). */
+    /** Command selfOpen: until when basic mode leaves KidGuard's own app-info page open (see [CmdGate.selfOpen]). */
+    @get:Synchronized @set:Synchronized var selfOpenUntil: Long
+        get() = p.getLong("selfOpenUntil", 0)
+        set(v) { p.edit().putLong("selfOpenUntil", v).apply() }
+
     @get:Synchronized @set:Synchronized var unlockUntil: Long
         get() = p.getLong("unlockUntil", 0)
         set(v) { p.edit().putLong("unlockUntil", v).apply() }

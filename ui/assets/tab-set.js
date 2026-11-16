@@ -313,7 +313,7 @@ function setTab(b) {
     <p class="mute">${t("relay.self")}</p>
     <div id="relayOut">${cur.relay && st.relay ? relayLinkHtml(goLink(cur.relay.url, cur.relay.id, cur.relay.token, cur.name)) : ""}</div>`, !!st.relay)
     : { id: "s-conn", icn: "globe", title: t("conn.h"), chip: null, body: `<p class="mute">${t("conn.p")}</p>${st.relayBig ? `<p class="mute">${ic("info")} ${t("relay.big")}</p>` : ""}${cur.via === "relay" && isRelayOrigin ? relayLinkHtml(goLink(location.origin, cur.id, cur.token, cur.name)) : ""}` };
-  const dangerP = secP("s-danger", "octagon-x", t("set.danger"), t("sd.danger"), null, `<h2>${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
+  const dangerP = secP("s-danger", "octagon-x", t("set.danger"), t("sd.danger"), null, `${isBasic() ? selfOpenHtml() : ""}<h2 style="margin-top:${isBasic() ? 18 : 0}px">${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
     <h2 style="margin-top:18px">${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
     <button id="release" class="bad">${ic("octagon-x")} ${t("rel.btn")}</button>`);
   const nameP = { id: "s-name", icn: "user", title: t("set.name"), chip: null, body: `<div class="row"><input id="f-name" class="sp" aria-label="${esc(t("set.name"))}" value="${esc(cur.name)}"><button id="saveName">${ic("save")} ${t("save")}</button></div>` };
@@ -434,9 +434,20 @@ function setTab(b) {
   for (const x of document.querySelectorAll(".ftgo")) x.onclick = () => featGo(x.dataset.ft);
   if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, t("upd.sent"), [t("upd.ask"), t("upd.ok")]).then(() => setTimeout(refresh, 4000));
   tgWire();
+  if ($("#selfOpen")) $("#selfOpen").onclick = () => cmd({ type: "selfOpen", on: true }, t("sfo.sent"), [t("sfo.ask"), t("sfo.btn"), true]).then(() => [3000, 12000].forEach(ms => setTimeout(refresh, ms)));
+  if ($("#selfClose")) $("#selfClose").onclick = () => cmd({ type: "selfOpen", on: false }, t("sfo.closed"), false).then(() => setTimeout(refresh, 3000));
   $("#release").onclick = async () => {
     await cmd({ type: "release" }, t("rel.done"), [t("rel.ask"), t("rel.ok"), true, t("rel.word")]);
   };
+}
+
+// Basic mode closes KidGuard's own app-info page (it has Uninstall / Force stop); command selfOpen (PIN) leaves it open 5 min,
+// e.g. to turn a notification channel back on. Device Owner never closes that page (uninstall is blocked by policy).
+function selfOpenHtml() {
+  const until = st.selfOpenUntil || 0, on = until > Date.now();
+  return `<h2>${ic("lock-open")} ${t("sfo.h")}</h2><p class="mute">${t("sfo.p")}</p>${on
+    ? `<p>${t("sfo.until", hhmm(until))} <button id="selfClose" class="sp" style="margin-left:6px">${t("sfo.close")}</button></p>`
+    : `<button id="selfOpen" class="sp">${ic("lock-open")} ${t("sfo.btn")}</button>`}`;
 }
 
 // Telegram bot run by the child phone itself (Tg.kt): the family's own @BotFather token goes to the phone (cmd tgSet),

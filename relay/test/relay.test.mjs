@@ -368,6 +368,7 @@ const a2=await (await Q("sync",{})).json();ck("L17: resume (pausedUntil 0) drops
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),ide=rh(16),Te=rh(48);
 const Q=async(p,o,m="POST")=>{for(let i=0;;i++){const r=await fetch(`${B}/c/${ide}/${p}`,{method:m,headers:{"x-kg-token":Te,"content-type":"application/json"},body:JSON.stringify(o)});if((r.status!=429&&r.status!=503)||i>=20)return r;await new Promise(z=>setTimeout(z,1500));}};
 await Q("sync",{state:{rules:{rev:1}}});
+ck("selfOpen whitelisted",(await (await Q("cmd",{type:"selfOpen",on:true,pin:"1234",id:"so1"})).json()).result=="queued");
 ck("unlockEnd whitelisted",(await (await Q("cmd",{type:"unlockEnd",id:"ue1"})).json()).result=="queued");
 await Q("cmd",{type:"ring",id:"rg1"});
 let a=await (await Q("sync",{acks:["ue1"]})).json();   // ring handed out but not acked
