@@ -324,10 +324,15 @@ function learnAddrs(k, s) {
   const url = typeof s.relay === "string" && /^https:\/\//.test(s.relay) ? s.relay : "";
   if (!url && k.relay) { delete k.relay; dirty = true; }
   if (dirty) save(kids);
-  if (url && (!k.relay || k.relay.url !== new URL(url).origin) && !k.relayTry) {
+  // once per page load, also when the url is the same: the phone may have a new relay id (re-pointed / reset), and stale
+  // credentials sent push + the relay fallback to a dead id (owner 2026-11-16: alerts ~20 min late)
+  if (url && !k.relayTry) {
     k.relayTry = 1;   // the same url again: the phone keeps its relay id/token and just returns them (not logged)
     call1(k, "/cmd", "POST", { type: "relay", url }).then(r => {
-      if (r && /^[0-9a-f]+$/.test(r.id || "") && /^[0-9a-f]{48}$/.test(r.token || "")) { k.relay = { url: new URL(url).origin, id: r.id, token: r.token }; save(kids); }
+      if (r && /^[0-9a-f]+$/.test(r.id || "") && /^[0-9a-f]{48}$/.test(r.token || "")) {
+        const nr = { url: new URL(url).origin, id: r.id, token: r.token }, o = k.relay || {};
+        if (o.url !== nr.url || o.id !== nr.id || o.token !== nr.token) { k.relay = nr; save(kids); }
+      }
     }).catch(() => {});
   }
 }
