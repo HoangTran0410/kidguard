@@ -1,11 +1,9 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // ---- i18n ----------------------------------------------------------------
-// To add a language: add one object to L (same keys as en; a missing key falls back to en, then to the key itself)
-// and one [code, name] entry to LANGS. {0} {1} are arguments; {one, other} picks a plural form (Intl.PluralRules) by {0}.
+// L and LANGS are declared in lang.js (only the active language's file is loaded; to add a language see there).
+// {0} {1} are arguments; {one, other} picks a plural form (Intl.PluralRules) by {0}.
 // Keys "e.<code>", "rs.<code>", "se.<code>", "ear.<code>", "pe.<code>", "ts.<state>", "cl.<cmd>", "cr.<result>" translate
 // codes sent by the phone/relay; an unknown code is shown as is.
-const LANGS = [["vi", "Tiếng Việt"], ["en", "English"]];
-const L = {};
 L.vi = {
   lang: "Ngôn ngữ", saveFail: "Chưa lưu được thay đổi", retry: "Thử lại", pickDay: "Chọn ngày", kid: "Con",
   "no.this": "mục này", needOwner: "Cần Device Owner. Máy con đang ở chế độ cơ bản: {0} không có tác dụng.", needOwnerN: "Cần Device Owner. Máy con đang ở chế độ cơ bản: {0} không có tác dụng.",

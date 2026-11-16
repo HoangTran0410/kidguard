@@ -7,6 +7,8 @@ cd "$(dirname "$0")/.."
 files=$(grep -o 'src="/ui/[a-z0-9-]*\.js"' ui/index.html | sed 's|src="/ui/|ui/assets/|; s|"$||')
 esb=relay/node_modules/.bin/esbuild
 [ -x "$esb" ] || esb="npx --yes esbuild@0.25.4"
+# the i18n dictionaries are not <script> tags (lang.js loads them), but they are part of the page: check them too
+files="$files $(ls ui/assets/i18n-*.js)"
 out=$(cat $files | $esb --loader=js --log-level=warning --color=false 2>&1 >/dev/null || true)
 if [ -n "$out" ]; then
   echo "$out"

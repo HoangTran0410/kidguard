@@ -13,9 +13,9 @@
 <link rel="stylesheet" href="/ui/style.css">
 <!-- The page's code: ui/assets/*.js, classic scripts sharing globals, run in this order (defer). Served at /ui/<name> by
      the child phone (Api.kt), the parent app (Proxy.kt) and the relay (relay/src/index.js: add a new file there too). -->
+<!-- lang.js is not defer: it picks the language and writes the one i18n-<code>.js script (the other loads on a switch) -->
+<script src="/ui/lang.js"></script>
 <script defer src="/ui/qrcode.js"></script>
-<script defer src="/ui/i18n-vi.js"></script>
-<script defer src="/ui/i18n-en.js"></script>
 <script defer src="/ui/core.js"></script>
 <script defer src="/ui/overview.js"></script>
 <script defer src="/ui/kid.js"></script>

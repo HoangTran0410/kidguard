@@ -7,6 +7,7 @@ import install from "../../ui/install.html";
 import qr from "../../ui/qr.html";
 // the parent page's code (ui/assets/, text via the wrangler rule), served at /ui/<name>: a new file there goes here too
 import ui_style_css from "../../ui/assets/style.css";
+import ui_lang_js from "../../ui/assets/lang.js";
 import ui_qrcode_js from "../../ui/assets/qrcode.js";
 import ui_i18n_vi_js from "../../ui/assets/i18n-vi.js";
 import ui_i18n_en_js from "../../ui/assets/i18n-en.js";
@@ -25,6 +26,7 @@ import ui_tab_set_js from "../../ui/assets/tab-set.js";
 import ui_start_js from "../../ui/assets/start.js";
 const UI = {
   "style.css": ui_style_css,
+  "lang.js": ui_lang_js,
   "qrcode.js": ui_qrcode_js,
   "i18n-vi.js": ui_i18n_vi_js,
   "i18n-en.js": ui_i18n_en_js,

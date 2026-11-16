@@ -38,6 +38,8 @@ const SHOTS = [
   { name: "kids", js: `overview(kids, () => {})`, ready: `document.querySelector("#ovKids .ovk, #ovKids .card, #ovKids > *") && !document.querySelector("#ovKids .spin")`, settle: 1200 },
   ...[1, 2, 3, 4].map(n => ({ name: "wiz" + n, js: `wizOpen(cur, ${n}, false)`, ready: `document.querySelector("#wizPop .wz")`, settle: 300 })),   // the guided setup, one shot per step
   { name: "today", js: `goTab("home")`, ready: `document.querySelector(".hero")` },
+  // runtime language switch (the other dictionary loads on demand, then the page redraws): must look like the other language's "today"
+  { name: "langsw", js: `goTab("home"); window.__sw = lang === "vi" ? "en" : "vi"; setLang(window.__sw)`, ready: `window.__sw && lang === window.__sw && document.documentElement.lang === window.__sw && document.querySelector(".hero")`, settle: 600 },
   { name: "apps", js: `goTab("apps")`, ready: `document.querySelector("[data-sec] .clh")`, settle: 800 },
   { name: "more", js: `goTab("home"); moreSheet()`, ready: `document.querySelector("#scrGo")`, settle: 400 },
   { name: "rules", poke: 1, js: `goTab("rules")`, ready: `document.querySelector("[data-sec]")`, scrollTo: "[data-sec=r-day]" },

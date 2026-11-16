@@ -2,18 +2,11 @@
 // One page for both: served by the child phone on the LAN (/api/...) and by the relay worker (/c/<id>/...).
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-// pick: saved choice, else the first browser language we have (vi* -> vi), else en
-let lang = (() => {
-  // parent app: its own saved choice first (the WebView origin, and so localStorage, changes with the proxy port)
-  try { const s = window.KGApp && KGApp.getLang && String(KGApp.getLang() || ""); if (s && L[s]) return s; } catch {}
-  try { const s = localStorage.getItem("kg.lang"); if (s && L[s]) return s; } catch {}
-  for (const n of navigator.languages || [navigator.language || ""]) { const b = String(n).toLowerCase().split("-")[0]; if (L[b]) return b; }
-  return "en";
-})();
-const hasT = k => k in L[lang] || k in L.en;
-// t("key", a, b): chosen language -> en -> the key itself. {0} {1} = args; a {one, other} value picks a plural form by the first arg.
+// `lang`, `L`, `LANGS`, `loadLang` come from lang.js (loaded first: only the active language's dictionary is fetched)
+const hasT = k => k in L[lang];
+// t("key", a, b): chosen language -> the key itself (vi and en have the same keys: scripts/check-assets.mjs). {0} {1} = args; a {one, other} value picks a plural form by the first arg.
 function t(k, ...a) {
-  let v = L[lang][k] ?? L.en[k] ?? k;
+  let v = L[lang][k] ?? k;
   if (v && typeof v === "object" && !Array.isArray(v)) { let p = "other"; try { p = new Intl.PluralRules(lang).select(+a[0]); } catch {} v = v[p] ?? v.other; }
   return typeof v === "string" ? v.replace(/\{(\d)\}/g, (m, i) => a[i] ?? "") : v;
 }
@@ -27,8 +20,10 @@ function applyLang() {
 let reScreen = null;   // redraws the current non-kid screen after a language switch
 // tell the parent app, so its native notifications use the same language
 const appLang = () => { try { window.KGApp && KGApp.setLang && KGApp.setLang(lang); } catch {} };
-function setLang(l) {
-  if (!L[l] || l === lang) return;
+async function setLang(l) {
+  if (!LANGS.some(x => x[0] === l) || l === lang) return;
+  await loadLang(l);   // first switch fetches the other dictionary
+  if (!L[l]) { const s = $("select.lang"); if (s) s.value = lang; return; }   // did not load (offline): stay as is
   lang = l; try { localStorage.setItem("kg.lang", l); } catch {}
   appLang(); applyLang();
   if (cur) { lastSig = ""; render(); } else if (ov) { ovShell(); ovDraw(); } else if (reScreen) reScreen();

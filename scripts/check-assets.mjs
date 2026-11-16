@@ -14,7 +14,8 @@ const errs = [];
 const files = readdirSync(root + "ui/assets").filter(f => /^[a-z0-9-]+\.(js|css)$/.test(f));
 for (const f of files) {
   const v = "ui_" + f.replace(/[.-]/g, "_");
-  if (!html.includes(`/ui/${f}"`)) errs.push(`${f}: no <script>/<link> in ui/index.html`);
+  // i18n-<code>.js are not tags: lang.js document.write()s the active one and loads the other on a language switch
+  if (!/^i18n-/.test(f) && !html.includes(`/ui/${f}"`)) errs.push(`${f}: no <script>/<link> in ui/index.html`);
   if (!relay.includes(`from "../../ui/assets/${f}"`)) errs.push(`${f}: no import in relay/src/index.js`);
   if (!new RegExp(`"${f.replace(/\./g, "\\.")}":\\s*${v}\\b`).test(relay)) errs.push(`${f}: no "${f}": ${v} entry in the relay UI map`);
 }
@@ -22,7 +23,10 @@ for (const m of html.matchAll(/(?:src|href)="\/ui\/([^"]+)"/g)) if (!files.inclu
 
 // i18n parity: run both files in a sandbox, compare key sets (arrays such as wd count as one key)
 const ctx = vm.createContext({});
-vm.runInContext(read("ui/assets/i18n-vi.js") + "\n" + read("ui/assets/i18n-en.js") + "\nthis.__L = L;", ctx);
+vm.runInContext("const L = {};\n" + read("ui/assets/i18n-vi.js") + "\n" + read("ui/assets/i18n-en.js") + "\nthis.__L = L;", ctx);
+const listed = [...read("ui/assets/lang.js").matchAll(/const LANGS = (\[\[.*\]\]);/g)].flatMap(m => JSON.parse(m[1]).map(x => x[0]));
+for (const f of files) { const m = /^i18n-([a-z]+)\.js$/.exec(f); if (m && !listed.includes(m[1])) errs.push(`lang.js: LANGS does not list ${m[1]} (ui/assets/${f})`); }
+for (const c of listed) if (!files.includes(`i18n-${c}.js`)) errs.push(`lang.js: LANGS lists ${c}: no ui/assets/i18n-${c}.js`);
 const { vi, en } = ctx.__L;
 const miss = (a, b, name) => Object.keys(a).filter(k => !(k in b)).forEach(k => errs.push(`i18n: "${k}" missing in ${name}`));
 miss(en, vi, "i18n-vi.js"); miss(vi, en, "i18n-en.js");
