@@ -49,6 +49,8 @@ const SHOTS = [
   { name: "log", js: `goTab("log")`, ready: `document.querySelector(".lgr, #tab .empty")`, settle: 600 },
   { name: "log-use", js: `goTab("apps"); setTimeout(() => document.querySelector("#apUse").click(), 300)`, ready: `document.querySelector(".lgr .ic")`, settle: 600 },
   { name: "log-use-app", js: `goTab("apps"); setTimeout(() => document.querySelector("#apUse").click(), 300); setTimeout(() => document.querySelectorAll(".lgr.use")[2].click(), 1200)`, ready: `document.querySelector(".lgr.use.dim")`, settle: 400 },
+  // regression (owner 2026-11-16): a chip tap redraws the page and threw the chip row back to the start; "not ready" = broken again
+  { name: "log-chipx", js: `goTab("apps"); setTimeout(() => document.querySelector("#apUse").click(), 300); setTimeout(() => { const r = [...document.querySelectorAll(".chips.scroll")].find(r => r.querySelector("[data-fe='']")); r.scrollLeft = 120; [...r.children].find(x => x.offsetLeft - r.offsetLeft > 140 && x.offsetLeft - r.offsetLeft + x.offsetWidth < 400).click(); }, 1200); setTimeout(() => { document.title = "X" + [...document.querySelectorAll(".chips.scroll")].find(r => r.querySelector("[data-fe='']")).scrollLeft; }, 1600)`, ready: `+document.title.slice(1) > 0`, settle: 200 },
   { name: "where-cal", js: `goTab("where"); setTimeout(() => document.querySelector("[data-dp=trk]").click(), 600)`, ready: `document.querySelector("#dpPop .dpg button")`, settle: 400 },
   { name: "log-cal", js: `goTab("log"); setTimeout(() => document.querySelector("[data-dp=log]").click(), 400)`, ready: `document.querySelector("#dpPop .dpg button")`, settle: 400 },
   { name: "settings-away", js: `goTab("set")`, ready: `document.querySelector("#awaySec")`, scrollTo: "#awaySec", settle: 600 },

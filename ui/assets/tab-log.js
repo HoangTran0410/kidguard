@@ -10,7 +10,7 @@ const LG_CAT = { alert: ["pin_wrong", "usage_off", "totp_off", "release_fail", "
   apps: ["new_app", "suspended", "unsuspended", "recover_open", "recover_req", "acc_rebind", "acc_reenabled", "acc_paused", "acc_resumed"],
   loc: ["loc_fixed", "zone", "tz"] };
 const lgCat = l => { const k = l.k || ""; for (const c in LG_CAT) if (LG_CAT[c].indexOf(k) >= 0) return c; return /^setting_/.test(k) ? "parent" : "other"; };
-let lgDay = "", lgEv = "", lgLg = "", lgNEv = LG_PAGE, lgNLg = LG_PAGE, lgMem = null;
+let lgChipX = null, lgDay = "", lgEv = "", lgLg = "", lgNEv = LG_PAGE, lgNLg = LG_PAGE, lgMem = null;
 function lgMerge() {
   if (!cur || !st) return null;
   const key = "kg.lg." + cur.id;
@@ -121,9 +121,11 @@ function logTab(b) {
   dpBind(b);
   b.querySelectorAll("[data-lgretry]").forEach(x => x.onclick = () => lgLoad(lgDay, true));
   // an app chip / timeline piece again = all apps again
-  b.querySelectorAll("[data-fe]").forEach(x => x.onclick = () => { lgEv = x.dataset.fe.length > 2 && x.dataset.fe === lgEv && lgEv.startsWith("u:") ? "u:" : x.dataset.fe; lgNEv = LG_PAGE; render(); });
-  { const on = uPkg && b.querySelector(`button.on[data-fe="u:${CSS.escape(uPkg)}"]`), r = on && on.parentElement;   // picked app chip into view (row scrolls sideways)
-    if (r && r.scrollWidth > r.clientWidth) r.scrollLeft = on.offsetLeft - r.offsetLeft - 8; }
+  b.querySelectorAll("[data-fe]").forEach(x => x.onclick = () => { lgChipX = [...b.querySelectorAll(".chips.scroll")].map(r => r.scrollLeft); lgEv = x.dataset.fe.length > 2 && x.dataset.fe === lgEv && lgEv.startsWith("u:") ? "u:" : x.dataset.fe; lgNEv = LG_PAGE; render(); });
+  // render() rebuilds the whole page, so a chip tap saves each chip row's sideways scroll first (owner: rows jumped back to the start)
+  if (lgChipX) { b.querySelectorAll(".chips.scroll").forEach((r, i) => { if (lgChipX[i]) r.scrollLeft = lgChipX[i]; }); lgChipX = null; }
+  { const on = uPkg && b.querySelector(`button.on[data-fe="u:${CSS.escape(uPkg)}"]`), r = on && on.parentElement;   // picked app chip into view only if it is off-screen (picked from the list / timeline)
+    if (r && r.scrollWidth > r.clientWidth) { const x = on.offsetLeft - r.offsetLeft; if (x < r.scrollLeft || x + on.offsetWidth > r.scrollLeft + r.clientWidth) r.scrollLeft = x - 8; } }
   b.querySelectorAll(".lgr.use").forEach(x => x.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); x.click(); } });
   if ($("#lgMoreE")) $("#lgMoreE").onclick = () => { lgNEv += LG_PAGE; render(); };
 }
