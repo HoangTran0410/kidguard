@@ -80,6 +80,25 @@ object Usage {
         return UsageStatsLogic.opens(seq).filterKeys { it.isNotEmpty() }
     }
 
+    /** Each app session in [from, to] ([UsageStatsLogic.sessions]); the home screen left out. Android keeps these events ~a week. */
+    fun sessions(ctx: Context, from: Long, to: Long): List<UsageStatsLogic.Ses> {
+        val um = ctx.getSystemService(UsageStatsManager::class.java) ?: return emptyList()
+        val now = System.currentTimeMillis()
+        val ev = um.queryEvents(from - CARRY_MS, minOf(to, now)) ?: return emptyList()
+        val list = ArrayList<UsageStatsLogic.Ev>(); val e = UsageEvents.Event()
+        while (ev.hasNextEvent()) {
+            ev.getNextEvent(e)
+            @Suppress("DEPRECATION")
+            when (e.eventType) {
+                UsageEvents.Event.MOVE_TO_FOREGROUND -> list += UsageStatsLogic.Ev(e.timeStamp, e.packageName, true)
+                UsageEvents.Event.MOVE_TO_BACKGROUND -> list += UsageStatsLogic.Ev(e.timeStamp, e.packageName, false)
+                SCREEN_NON_INTERACTIVE, KEYGUARD_SHOWN, DEVICE_SHUTDOWN -> list += UsageStatsLogic.Ev(e.timeStamp, "", false)
+            }
+        }
+        val home = runCatching { ctx.packageManager.resolveActivity(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME), 0)?.activityInfo?.packageName }.getOrNull()
+        return UsageStatsLogic.sessions(list, from, minOf(to, now)) { it == home || it == "android" || it == "com.android.systemui" }
+    }
+
     private const val CARRY_MS = 6 * 3_600_000L
     private const val SCREEN_NON_INTERACTIVE = 16
     private const val KEYGUARD_SHOWN = 17

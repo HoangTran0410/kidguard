@@ -131,6 +131,11 @@ function serve(name) {
       if (a === "/rules" && req.method === "PUT") { try { const r = JSON.parse(text); delete r.pin; r.pinSet = true; r.rev = Date.now(); rulesOf[name] = r; return json(r); } catch { return json({ error: "bad json" }, 400); } }
       if (a === "/cmd") return json({ result: "ok" });
       if (a === "/live") return json({ result: "ok" });
+      if (a === "/logday") {   // one day of Nhật ký + app sessions (`use`): today 07:30 -> 16:20, the state's apps in turn
+        const s = st(), day = u.searchParams.get("day") || "", apps = (s.apps || []).filter(x => x.ms > 0).slice(0, 6).map(x => x.pkg);
+        const ses = []; for (let i = 0, t = 27000; t < 58800 && apps.length; i++) { const d = 60 + (i * 397) % 1500; ses.push([i % apps.length, t, t + d]); t += d + 120 + (i * 211) % 900; }
+        return json({ day, days: { [day]: (s.events || []).length + (s.log || []).length }, cut: false, ev: (s.events || []).slice().reverse(), lg: (s.log || []).slice().reverse(), use: { p: apps, s: ses } });
+      }
       if (a === "/track") return json({ track: name === "bin" ? trackOf() : [] });
       if (a === "/device") return json(resolve(readFix("device")));
       if (a === "/files") return json(resolve(readFix("files")));

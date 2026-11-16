@@ -6,6 +6,43 @@ package dev.kidguard
  */
 object UsageStatsLogic {
     const val DAYS = 7
+
+    /** One usage event for [sessions]: [fg] true = came to the front, false = left it; [pkg] "" = screen off / locked. */
+    class Ev(val t: Long, val pkg: String, val fg: Boolean)
+    class Ses(val pkg: String, val start: Long, val end: Long)
+    /** Gaps up to this between two pieces of one app join (switching screens inside an app = leave + come back). */
+    const val JOIN_MS = 10_000L
+    /** Shorter than this is a flicker, not a use. */
+    const val SES_MIN_MS = 3_000L
+    const val SES_MAX = 600
+
+    /**
+     * Each time an app was in front within [from, to] (owner 2026-11-16: "xem app nào mở lúc nào"), oldest first, clipped
+     * to the range; one app in front at a time (a new one ends the others), screen off ends all, still open = ends at [to].
+     * Pieces of one app [JOIN_MS] apart join; under [SES_MIN_MS] dropped; [skip] (the launcher) left out; the newest [SES_MAX] kept.
+     */
+    fun sessions(evs: List<Ev>, from: Long, to: Long, skip: (String) -> Boolean): List<Ses> {
+        val out = ArrayList<Ses>()
+        var pkg: String? = null; var at = 0L
+        fun close(t: Long) {
+            val p = pkg ?: return
+            pkg = null
+            val s = maxOf(at, from); val e = minOf(t, to)
+            if (e <= s || skip(p)) return
+            val l = out.lastOrNull()
+            if (l != null && l.pkg == p && s - l.end <= JOIN_MS) out[out.size - 1] = Ses(p, l.start, e) else out += Ses(p, s, e)
+        }
+        for (ev in evs) {
+            if (ev.t > to) break
+            when {
+                ev.pkg.isEmpty() -> close(ev.t)
+                ev.fg -> { if (pkg != ev.pkg) { close(ev.t); pkg = ev.pkg; at = ev.t } }
+                pkg == ev.pkg -> close(ev.t)
+            }
+        }
+        close(to)
+        return out.filter { it.end - it.start >= SES_MIN_MS }.takeLast(SES_MAX)
+    }
     /** Apps used less than this in the period are not worth a row (same floor as the home widget). */
     const val MIN_MS = 60_000L
 

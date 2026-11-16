@@ -59,6 +59,14 @@ async function lgLoad(day, force) {
   } catch (e) { if (old(e)) me.old = true; else c.err = e.message || String(e.raw || e); }
   c.busy = false; draw();
 }
+const lgLabel = p => ((st.apps || []).find(a => a.pkg === p) || {}).label || p;
+const useDur = ms => ms < 60000 ? "< " + t("fmt.m", 1) : fmt(ms);
+function lgUse(u) {
+  if (!u || !Array.isArray(u.p) || !Array.isArray(u.s)) return [];
+  const [y, m, d] = lgDay.split("-").map(Number), d0 = new Date(y, m - 1, d).getTime();
+  return u.s.filter(r => Array.isArray(r) && u.p[r[0]]).map(r => ({ pkg: u.p[r[0]], a: d0 + r[1] * 1000, b: d0 + r[2] * 1000 }));
+}
+const useRow = u => `<div class="lgr">${icon({ pkg: u.pkg, label: lgLabel(u.pkg) })}<span class="sp" style="min-width:0;overflow-wrap:anywhere"><b>${esc(lgLabel(u.pkg))}</b> <span class="mute">· ${esc(useDur(u.b - u.a))}</span></span><span class="mute lgt">${hhmm(u.a)}–${hhmm(u.b)}</span></div>`;
 const lgCount = (rows, f) => { const m = {}; for (const r of rows) { const k = f(r); m[k] = (m[k] || 0) + 1; } return m; };
 function logTab(b) {
   const today = dkey(Date.now());
@@ -69,9 +77,12 @@ function logTab(b) {
   const evAll = m ? m.ev.filter(e => dkey(e.t) === lgDay) : c.d && c.d.ev || [], lgAll = m ? m.lg.filter(l => dkey(l.t) === lgDay) : c.d && c.d.lg || [];
   const evC = lgCount(evAll, e => e.kind || "other"), lgC = lgCount(lgAll, lgCat);
   const C = {}; for (const k in evC) C["e:" + k] = evC[k]; for (const k in lgC) C["l:" + k] = lgC[k];
-  if (lgEv && !C[lgEv]) lgEv = "";
+  // app sessions ("Mở app", owner 2026-11-16): {p: [pkg], s: [[i, start s, end s] from the day's start]}; own chip, not in "Tất cả"
+  const U = lgUse(c.d && c.d.use), uT = {}; for (const u of U) uT[u.pkg] = (uT[u.pkg] || 0) + u.b - u.a;
+  const uAll = lgEv === "u:", uPkg = lgEv.startsWith("u:") ? lgEv.slice(2) : null;
+  if (lgEv && !C[lgEv] && !(uPkg !== null && (!c.d || (uAll ? U.length : uT[uPkg])))) lgEv = "";   // still loading: keep "Mở app"
   // one timeline, newest first: events (bold) and log lines, each with its clock time (filter "" | "e:<kind>" | "l:<cat>")
-  const rows = [...(!lgEv || lgEv.startsWith("e:") ? evAll.filter(e => !lgEv || "e:" + (e.kind || "other") === lgEv).map(e => ({ t: +e.t || 0, h: evRow(e) })) : []),
+  const rows = lgEv.startsWith("u:") ? U.filter(u => lgEv === "u:" || u.pkg === lgEv.slice(2)).map(u => ({ t: u.a, h: useRow(u) })).reverse() : [...(!lgEv || lgEv.startsWith("e:") ? evAll.filter(e => !lgEv || "e:" + (e.kind || "other") === lgEv).map(e => ({ t: +e.t || 0, h: evRow(e) })) : []),
     ...(!lgEv || lgEv.startsWith("l:") ? lgAll.filter(l => !lgEv || "l:" + lgCat(l) === lgEv).map(l => ({ t: +l.t || 0, h: logRow(l) })) : [])]
     .sort((a, c) => c.t - a.t);
   let tot = lgx && lgx.k === cur && lgx.days;
@@ -79,14 +90,16 @@ function logTab(b) {
   tot = tot || {};
   const first = dkey(Math.min(Date.now() - 90 * 864e5, ...Object.keys(tot).map(d => new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10), 12).getTime())));
   const chip = (attr, v, cur_, n, label) => chipBtn(`data-${attr}="${v}"`, `${label} <b>${n}</b>`, cur_ === v);
-  const chips = () => chipRow([chip("fe", "", lgEv, evAll.length + lgAll.length, t("lg.all")), ...Object.keys(C).sort((a, c) => a[0] === c[0] ? C[c] - C[a] : a < c ? -1 : 1).map(k => chip("fe", k, lgEv, C[k], k[0] === "e" ? `${ic(EV_IC[k.slice(2)] || "bell")} ${tc("lg.k.", k.slice(2), k.slice(2))}` : t("lg.c." + k.slice(2))))], { scroll: 1, aria: t("lg.h") });
+  const appChips = () => !lgEv.startsWith("u:") ? "" : `<div style="margin-top:6px">${chipRow(Object.keys(uT).sort((a, c) => uT[c] - uT[a])
+    .map(p => chipBtn(`data-fe="u:${esc(p)}"`, `${esc(lgLabel(p))} <b>${esc(useDur(uT[p]))}</b>`, lgEv === "u:" + p)), { scroll: 1, aria: t("lg.useApps") })}</div>`;
+  const chips = () => chipRow([chip("fe", "", lgEv, evAll.length + lgAll.length, t("lg.all")), ...(U.length ? [chip("fe", "u:", lgEv.startsWith("u:") ? "u:" : lgEv, U.length, `${ic("layout-grid")} ${t("lg.use")}`)] : []), ...Object.keys(C).sort((a, c) => a[0] === c[0] ? C[c] - C[a] : a < c ? -1 : 1).map(k => chip("fe", k, lgEv, C[k], k[0] === "e" ? `${ic(EV_IC[k.slice(2)] || "bell")} ${tc("lg.k.", k.slice(2), k.slice(2))}` : t("lg.c." + k.slice(2))))], { scroll: 1, aria: t("lg.h") });
   const more = (rows, n, id) => rows.length > n ? `<button type="button" class="sm" id="${id}" style="width:100%;margin-top:8px">${t("lg.more", Math.min(LG_PAGE, rows.length - n), rows.length - n)}</button>` : "";
   const wait = !m && !c.d, none = wait ? (c.err ? emptyBox("triangle-alert", `${esc(t("lg.err", c.err))}<br><button type="button" class="sm" data-lgretry>${t("lg.retry")}</button>`) : emptyBox("hourglass", t("lg.loading"))) : emptyBox("inbox", t("lg.none"));
   b.innerHTML = `<div class="card">${dayBtn("log", { sel: lgDay, min: first, max: today, counts: tot, nav: true, onPick: k => go(k) })}
-    <div style="margin-top:10px">${evAll.length + lgAll.length ? chips() : ""}</div>
+    <div style="margin-top:10px">${evAll.length + lgAll.length + U.length ? chips() + appChips() : ""}</div>
     <div style="margin-top:6px">${rows.slice(0, lgNEv).map(r => r.h).join("") || none}</div>${more(rows, lgNEv, "lgMoreE")}
-    <p class="mute" style="margin-top:10px">${t(oldPhone ? "lg.noteOld" : "lg.note")}</p>${c.d && c.d.cut ? `<p class="mute">${t("lg.cut")}</p>` : ""}</div>`;
-  const go = d => { lgDay = d; lgEv = lgLg = ""; lgNEv = lgNLg = LG_PAGE; render(); };
+    <p class="mute" style="margin-top:10px">${t(oldPhone ? "lg.noteOld" : lgEv.startsWith("u:") ? "lg.useNote" : "lg.note")}</p>${c.d && c.d.cut ? `<p class="mute">${t("lg.cut")}</p>` : ""}</div>`;
+  const go = d => { lgDay = d; lgEv = lgEv.startsWith("u:") ? "u:" : ""; lgLg = ""; lgNEv = lgNLg = LG_PAGE; render(); };
   dpBind(b);
   b.querySelectorAll("[data-lgretry]").forEach(x => x.onclick = () => lgLoad(lgDay, true));
   b.querySelectorAll("[data-fe]").forEach(x => x.onclick = () => { lgEv = x.dataset.fe; lgNEv = LG_PAGE; render(); });

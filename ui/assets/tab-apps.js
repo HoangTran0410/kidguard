@@ -11,7 +11,7 @@ function appsTab(b) {
   const S = cleanStat(), hid = (st.preinstalled || []).filter(x => x.hidden && !x.refused).length;
   const h = st.health && Array.isArray(st.health.checks) ? st.health : null, sc = h ? Math.max(0, Math.min(100, +h.score || 0)) : 0;
   const row = x => `<button type="button" class="li" data-apq="${esc(x.pkg)}">${icon(x)}<span class="x"><b>${esc(x.label)}</b></span><span class="v">${fmt(x.ms)}</span>${ic("chevron-right")}</button>`;
-  b.innerHTML = (top.length ? `<div class="sec">${t("ap.top")}</div><div class="list">${top.map(row).join("")}${navRow('id="apAll"', "puzzle", t("ap.all", A.length))}</div>` : "")
+  b.innerHTML = (top.length ? `<div class="sec">${t("ap.top")}</div><div class="list">${top.map(row).join("")}${navRow('id="apAll"', "puzzle", t("ap.all", A.length))}${navRow('id="apUse"', "history", t("ap.use"), t("ap.useD"))}</div>` : "")
     + secGrp(t("ap.manage"), [secL("a-apps", "puzzle", t("as.list"), t("ap.appsD"), nNew ? [t("ap.nNew", nNew), "warn"] : [t("hd.nApps", A.length)])])
     + secGrp(t("ap.care"), [
       secL("a-clean", "eye-off", t("as.clean"), t("ap.cleanD"), st.preinstalled ? (S.ref ? [t("hd.refN", S.ref), "warn"] : [t("ap.nHid", hid)]) : null),
@@ -24,6 +24,7 @@ function appsTab(b) {
   const openApps = q => { sel.q = q; sel.f = "all"; sel.n = 40; subOpen("a-apps"); const bx = apBox("a-apps"); if (isWide() && bx && bx.firstChild) appsList(bx); };
   b.querySelectorAll("[data-apq]").forEach(x => x.onclick = () => openApps(((st.apps || []).find(a => a.pkg === x.dataset.apq) || {}).label || ""));
   if ($("#apAll")) $("#apAll").onclick = () => openApps("");
+  if ($("#apUse")) $("#apUse").onclick = () => { lgDay = dkey(Date.now()); lgEv = "u:"; lgNEv = LG_PAGE; goTab("log"); };
 }
 function appsList(b) {
   const mode = p => edit.blocked.includes(p) ? "block" : edit.allow.includes(p) ? "allow" : edit.appMin[p] ? "limit" : "normal";

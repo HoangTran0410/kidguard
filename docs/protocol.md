@@ -1048,7 +1048,10 @@ Only volume, brightness, screen timeout and Do Not Disturb; anything else goes t
 - State is unchanged: `"log"` and `"events"` still carry only the latest 50 each (older pages keep working from them).
 - One day, in the phone's time zone: LAN `GET /api/logday?day=2026-11-10` -> `{"day", "days": {"yyyy-MM-dd": rows, ...last 90 days,
   only days with rows}, "ev": [event objects], "lg": [log objects], "cut": false}`; ev / lg are shaped like state `events` / `log`,
-  oldest first, at most 500 rows and 90 KB (the newest kept, `cut: true`). A bad day -> 400 `{"error":"bad day"}`.
+  oldest first, at most 500 rows and 80 KB (the newest kept, `cut: true`). A bad day -> 400 `{"error":"bad day"}`.
+  Plus (2026-11-16) `"use": {"p": [package], "s": [[index into p, start s, end s], ...]}`: each time an app was in front that
+  day, seconds from the day's local midnight, oldest first (pieces <= 10 s apart joined, < 3 s dropped, the home app left out,
+  newest 600 kept). From Android's usage events, which the phone keeps ~7-10 days: an older day has `s: []`. No usage access = no `use`.
 - Relay, same shape as "Device health": parent `POST /c/<id>/logday {"day"}` asks and gets `{"logday": <last stored copy of that day +
   "at"> | null, "asked": <worker ms>, "seen": ms}`; `GET /c/<id>/logday?day=` only reads. While asked (< 2 min, memory, up to 8 days)
   the sync reply has `"logday": "<day>"` (one day per sync); the phone then `PUT /c/<id>/logday` with the answer above (413 over

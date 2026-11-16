@@ -45,4 +45,14 @@ class UsageStatsLogicTest {
         assertEquals(100, UsageStatsLogic.pct(5, 5)); assertEquals(3, UsageStatsLogic.pct(1, 1000)); assertEquals(0, UsageStatsLogic.pct(0, 5))
         assertEquals(mapOf("a" to 2, "b" to 1), UsageStatsLogic.opens(listOf("a", "a", "b", "a")))
     }
+
+    @Test fun sessionsPerApp() {
+        fun fg(t: Long, p: String) = UsageStatsLogic.Ev(t * 1000, p, true)
+        fun bg(t: Long, p: String) = UsageStatsLogic.Ev(t * 1000, p, false)
+        val evs = listOf(fg(-50, "a"), fg(10, "b"), bg(20, "b"), fg(25, "b"),   // a open before the day; b leaves 5 s = joined
+            fg(100, "home"), fg(200, "c"), UsageStatsLogic.Ev(201_000, "", false),   // home skipped; c 1 s = dropped
+            fg(300, "a"), bg(400, "a"), fg(500, "d"))                              // d still open = ends at `to`
+        val s = UsageStatsLogic.sessions(evs, 0, 600_000) { it == "home" }
+        assertEquals(listOf("a 0 10", "b 10 100", "a 300 400", "d 500 600"), s.map { "${it.pkg} ${it.start / 1000} ${it.end / 1000}" })
+    }
 }

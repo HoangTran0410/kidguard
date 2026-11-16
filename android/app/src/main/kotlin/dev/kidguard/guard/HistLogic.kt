@@ -8,7 +8,7 @@ object HistLogic {
     const val KEEP_DAYS = 90
     const val MAX_ROWS = 30_000          // both kinds together; oldest go first
     const val DAY_ROWS = 500             // rows in one day answer (newest kept)
-    const val DAY_BYTES = 90_000         // the answer is also trimmed to this (relay stores <= 100 KB per day)
+    const val DAY_BYTES = 80_000         // ev + lg are trimmed to this; + app sessions (`use`, <= ~12 KB): relay stores <= 100 KB per day
     const val TRIM_EVERY_MS = 3_600_000L
     private val DAY = Regex("^\\d{4}-\\d\\d-\\d\\d$")
 

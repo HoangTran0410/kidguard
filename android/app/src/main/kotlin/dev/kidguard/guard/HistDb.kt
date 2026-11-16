@@ -92,8 +92,14 @@ object HistDb {
             }
         }
         val days = JSONObject(); HistLogic.counts(ts, tz, now).forEach { (k, v) -> days.put(k, v) }
+        // app sessions: {"p": [packages], "s": [[index, start s, end s] since the day's start]} (compact: <= 600 rows ~ 10 KB)
+        val use = runCatching {
+            val ss = Usage.sessions(ctx, from, to); val pk = ArrayList<String>(); val ix = HashMap<String, Int>()
+            JSONObject().put("s", JSONArray(ss.map { s -> JSONArray().put(ix.getOrPut(s.pkg) { pk += s.pkg; pk.size - 1 }).put((s.start - from) / 1000).put((s.end - from) / 1000) }))
+                .put("p", JSONArray(pk))
+        }.getOrNull()
         return JSONObject().put("day", day).put("days", days).put("cut", cut)
-            .put("ev", JSONArray(ev.reversed())).put("lg", JSONArray(lg.reversed()))
+            .put("ev", JSONArray(ev.reversed())).put("lg", JSONArray(lg.reversed())).apply { if (use != null) put("use", use) }
     }
 
     /** Relay: the parent asked for [day] (sync reply `"logday"`); PUT it. Throws on HTTP errors. */

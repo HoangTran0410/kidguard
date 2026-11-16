@@ -162,7 +162,7 @@ L.vi = {
   "mode.miss": "Còn thiếu: {0}.",
   "req.aria": "Yêu cầu thêm giờ", "req.asks": "{0} xin thêm {1} phút", "req.chore": "Việc nhà", "req.choreGone": "(việc đã xoá)", "req.note": "Con ghi: “{0}”",
   "req.reply": "Lời nhắn cho con (không bắt buộc)", "req.replyPh": "Ví dụ: Giỏi lắm! Nhớ tắt máy lúc 9h nhé", minutes: "Số phút", "req.yes": "Đồng ý {0} phút", "req.no": "Từ chối",
-  "lg.all": "Tất cả", "lg.h": "Dòng thời gian", "lg.none": "Không có sự kiện nào", "lg.more": "Xem thêm {0} (còn {1})", "lg.prev": "Ngày trước", "lg.next": "Ngày sau", "lg.days": "Chọn ngày",
+  "lg.all": "Tất cả", "lg.use": "Mở app", "lg.useApps": "Lọc theo app", "lg.useNote": "Mỗi dòng là một lần mở app: giờ mở, giờ thoát và thời gian dùng. Android chỉ giữ chi tiết này khoảng 7 ngày.", "ap.use": "Lịch sử mở app", "ap.useD": "App nào mở lúc mấy giờ, bao lâu", "lg.h": "Dòng thời gian", "lg.none": "Không có sự kiện nào", "lg.more": "Xem thêm {0} (còn {1})", "lg.prev": "Ngày trước", "lg.next": "Ngày sau", "lg.days": "Chọn ngày",
   "lg.note": "Số dưới mỗi ngày trong lịch = số dòng. Máy con lưu 90 ngày gần nhất.",
   "lg.noteOld": "Máy con (bản cũ) chỉ giữ 50 dòng gần nhất; trang này nhớ thêm những gì đã thấy (tối đa 90 ngày, chỉ trên thiết bị này). Cập nhật KidGuard trên máy con để xem đủ lịch sử.",
   "lg.loading": "Đang lấy từ máy con…", "lg.cut": "Ngày này quá nhiều dòng: chỉ hiện các dòng mới nhất.", "lg.err": "Không lấy được ngày này: {0}", "lg.retry": "Thử lại",
