@@ -7,7 +7,7 @@ set -e
 cd "$(dirname "$0")/.."
 PAGES="website/index.html website/en/index.html website/guide.html website/en/guide.html"
 H=$(shasum -a 256 website/css/site.css | cut -c1-10)
-perl -pi -e 's#(href="(?:\.\./)?css/site\.css)(?:\?v=[0-9a-f]+)?"#$1?v='"$H"'"#g' $PAGES
+perl -pi -e 's#(href="(?:\.\./)?css/site\.css)(?:\?v=[0-9a-z-]+)?"#$1?v='"$H"'"#g' $PAGES
 echo "site.css?v=$H"
 for f in website/img/*; do
   [ -f "$f" ] || continue
