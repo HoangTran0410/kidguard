@@ -56,6 +56,22 @@ class Relay(private val g: Guard) {
         wsRetryAt = 0L; wsFails = 0; if (inSync) kickAgain = true else schedule(0)
     } }
 
+    /** The CPU stays awake for one whole sync: with the screen off the phone sleeps between our Handler delays (uptime
+     *  stops), so a sync that began could stall mid-request and the next one never came (Nam silent 0:09-4:27+, 2026-11-17). */
+    private val cpu = runCatching { g.getSystemService(PowerManager::class.java).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "kidguard:relay").apply { setReferenceCounted(false) } }.getOrNull()
+
+    /** From the [Watchdog] alarm (fires in Doze too): sync now even while asleep or backing off, and drop a socket that
+     *  went quiet while the phone slept (NAT dropped it, the phone never noticed). The wakelock is taken here, on the
+     *  alarm's thread, before the post: the CPU may sleep again before the relay thread runs. */
+    fun wake() {
+        runCatching { cpu?.acquire(WAKE_MS) }
+        h.post {
+            ws.ping()   // closes a socket that heard nothing for READ_TIMEOUT_MS
+            wsRetryAt = 0L; wsFails = 0; forceSend = true
+            if (inSync) kickAgain = true else schedule(0)
+        }
+    }
+
     /** Release (C8): one last whole-state sync on the relay thread (the `released` event goes out), waits at most [timeoutMs]. */
     fun finalSync(timeoutMs: Long) {
         val l = java.util.concurrent.CountDownLatch(1)
@@ -74,6 +90,11 @@ class Relay(private val g: Guard) {
     private fun schedule(ms: Long) { h.removeCallbacks(loopRun); h.postDelayed(loopRun, ms) }
 
     private fun loop() {
+        runCatching { cpu?.acquire(WAKE_MS) }
+        try { loopAwake() } finally { runCatching { if (cpu?.isHeld == true) cpu.release() } }
+    }
+
+    private fun loopAwake() {
         inSync = true
         val url = store.relayUrl.trim().trimEnd('/'); val token = store.relayToken; val rid = store.relayId
         var busy = false
@@ -294,6 +315,8 @@ class Relay(private val g: Guard) {
     }
 
     companion object {
+        /** Wakelock cap for one sync (HTTP 10 s connect + 15 s read, socket connect): released as soon as the sync ends. */
+        private const val WAKE_MS = 60_000L
         /** Release (C8): asks the worker to delete everything it keeps for [rid] (`POST /c/<id>/forget`, kid token). Blocking, short timeouts; false = not done. */
         fun forget(base: String, rid: String, token: String): Boolean = runCatching {
             val b = base.trim().trimEnd('/')

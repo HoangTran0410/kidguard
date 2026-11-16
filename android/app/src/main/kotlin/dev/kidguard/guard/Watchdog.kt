@@ -8,12 +8,16 @@ import android.content.Intent
 import android.os.SystemClock
 import android.util.Log
 
-/** An alarm every ~15 min that starts Guard again if it was killed, and re-arms itself. */
+/** An alarm every ~10 min (allowed in Doze) that starts Guard again if it was killed, makes the relay sync even while
+ *  the phone sleeps ([Relay.wake]: before this the sync loop only ran while something else kept the CPU awake), and re-arms itself. */
 class Watchdog : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) { Guard.start(context); schedule(context) }
+    override fun onReceive(context: Context, intent: Intent) {
+        Guard.running?.relayWake() ?: Guard.start(context)
+        schedule(context)
+    }
 
     companion object {
-        private const val EVERY = 15 * 60_000L
+        private const val EVERY = 10 * 60_000L
 
         private fun pi(ctx: Context) = PendingIntent.getBroadcast(ctx, 7, Intent(ctx, Watchdog::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 

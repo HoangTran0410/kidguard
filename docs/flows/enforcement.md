@@ -126,7 +126,7 @@ Trigger: command `release` (relay: deliver-once; LAN: `POST /api/cmd`). `Guard.c
 
 - `Boot` receiver (Guard.kt:40) on BOOT_COMPLETED + MY_PACKAGE_REPLACED: `Guard.start` + `Watchdog.schedule`; update also `LauncherSafe.afterUpdate`. No LOCKED_BOOT, no directBootAware => nothing runs before first unlock (DPM suspends/restrictions persist meanwhile).
 - `Guard.start` (Guard.kt:691): no-op in HOME flavor and when `released`; `startForegroundService`, errors only logged.
-- `Watchdog` (Watchdog.kt): `setAndAllowWhileIdle` ELAPSED_REALTIME_WAKEUP every 15 min (inexact, Doze max ~1 per 9 min); `onReceive` = `Guard.start` + re-arm. Also armed in `Guard.onCreate` and `Acc.onServiceConnected` (Acc.kt:42).
+- `Watchdog` (Watchdog.kt): `setAndAllowWhileIdle` ELAPSED_REALTIME_WAKEUP every 10 min (inexact, Doze max ~1 per 9 min); `onReceive` = `Guard.running?.relayWake()` (Relay.wake: wakelock + drop a socket quiet > 2 min + sync now, ignores backoff) else `Guard.start`, + re-arm. Each relay sync holds a partial wakelock (≤ 60 s): Handler delays use uptime, which stops while the phone sleeps. Also armed in `Guard.onCreate` and `Acc.onServiceConnected` (Acc.kt:42).
 - Service restarts: `START_STICKY` (:114), `onTaskRemoved` -> `start` (:117), `Acc.onServiceConnected` after OS rebind, `Acc` SCREEN_ON/USER_PRESENT receiver, accessibility events -> `Guard.poke` -> `start` if not running (:698), Update/Admin callbacks.
 - `onCreate` (:90): foreground notif, `Policy.apply` + `Quick.setEnabled` on work thread, content observers, pkg/time receivers, wifi lock, `Http` :8770, `Relay`, post loop.
 - Time receiver: clock jump / timezone change => `tamper`-style `clock` event (:69-79, `Events.clockJumped`).

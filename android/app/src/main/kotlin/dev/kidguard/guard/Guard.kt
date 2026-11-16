@@ -219,6 +219,9 @@ class Guard : Service() {
     }
 
     /** Runs the rules again now (rules changed, a command came). */
+    /** Watchdog alarm: one relay sync now, even in Doze (null when no relay is set up: then nothing to do). */
+    fun relayWake(): Unit? = relay?.wake()
+
     fun kick() { if (::work.isInitialized) work.post { if (!stopped) runCatching { tick(true) }.onFailure { Log.e("KidGuard", "kick", it) } } }
 
     /** Many pokes in a burst (accessibility events) become one tick 300 ms after the last. */
