@@ -358,3 +358,48 @@ section[id]>h2::before{content:"";flex:none;width:44px;height:44px;border-radius
 .btn.gai:active{transform:translateY(0) scale(.98)}
 .btn.gai:focus-visible{outline:2px solid var(--link);outline-offset:3px}
 @media (prefers-reduced-motion:reduce){.btn.gai,.btn.gai svg,.toc a{transition:none}.btn.gai:hover{transform:none}.btn.gai:hover svg{transform:none}}
+
+/* guide pages (js/guide.js): one section per page, Previous / Next, search; phones: sticky bar + contents drawer */
+.gpaged .gmain>section[hidden],.gpaged .toc ol[hidden],.gres[hidden]{display:none!important}
+.gbar,.gtop,.gback,.gpager{display:none}
+.gpaged .gtop{display:block;margin-bottom:var(--s2)}
+.gtop-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s2)}
+.gtop-h b{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.gclose{display:none;background:none;border:0;color:var(--ink);font-size:20px;width:44px;height:44px;border-radius:10px;cursor:pointer}
+.gfind>svg{flex:none}
+.gfind{display:flex;align-items:center;gap:var(--s2);border:1px solid var(--line2);background:var(--card);border-radius:10px;padding:0 var(--s3);min-height:44px;color:var(--muted)}
+.gfind:focus-within{border-color:var(--link);box-shadow:0 0 0 3px var(--link-line)}
+.gfind input{flex:1;min-width:0;border:0;background:none;color:var(--ink);font:inherit;font-size:16px;outline:0;padding:var(--s2) 0}
+.gfind kbd{font:12px ui-monospace,Menlo,monospace;border:1px solid var(--line2);border-radius:5px;padding:0 6px;color:var(--muted)}
+.gres a{display:block;padding:var(--s2) 6px;border-top:1px solid var(--line);color:var(--ink);border-radius:8px}
+.gres a:hover,.gres a:focus{background:var(--link-line);outline:0}
+.gres small{display:block;color:var(--link);font-weight:700;font-size:13px}
+.gres span{display:block;font-size:14px;color:var(--muted);line-height:1.45}
+.gres mark{background:#fde68a;color:#111;border-radius:3px;padding:0 1px}
+.gres .gn{font-size:14px;color:var(--muted);padding:var(--s2) 0}
+.gpaged .toc .sub{display:none}
+.gpaged .toc .sub.here{display:block}
+.gpaged .toc .sub a{padding-left:var(--s4);color:var(--muted);font-size:14px}
+.gpaged .gpager{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3);margin-top:var(--s6);padding-top:var(--s4);border-top:1px solid var(--line)}
+.gpager a{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:var(--s3) var(--s4);color:var(--ink);min-height:64px;justify-content:center}
+.gpager a:hover{border-color:var(--link)}
+.gpager small{color:var(--muted);font-size:13px}
+.gpager b{font-size:15px;line-height:1.3}
+.gpager .nx{text-align:right;grid-column:2}
+@media(max-width:959px){
+  .gpaged .gbar{display:flex;gap:var(--s2);position:sticky;top:56px;z-index:8;background:var(--bg);padding:var(--s2) 0;margin-bottom:var(--s2)}
+  .gmenu,.gsb{display:flex;align-items:center;gap:var(--s2);min-height:44px;border:1px solid var(--line2);background:var(--card);color:var(--ink);border-radius:10px;font:inherit;font-weight:700;font-size:15px;cursor:pointer}
+  .gmenu{flex:1;min-width:0;padding:0 var(--s3)}
+  .gml{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gsb{width:44px;justify-content:center;font-size:20px;flex:none}
+  .gpaged .toc{position:fixed;top:0;bottom:0;left:0;z-index:30;width:min(86vw,340px);background:var(--bg);overflow-y:auto;padding:var(--s3) var(--s4) var(--s6);transform:translateX(-105%);transition:transform .2s;box-shadow:0 0 40px rgba(0,0,0,.25);visibility:hidden}
+  .gpaged .toc.open{transform:none;visibility:visible}
+  .gpaged .toc ol{grid-template-columns:minmax(0,1fr)}
+  .gpaged .gclose{display:block}
+  .gfind kbd{display:none}
+  .gpaged .gback.on{display:block;position:fixed;inset:0;z-index:29;background:rgba(0,0,0,.45)}
+  html.glock{overflow:hidden}
+  .gpager b{font-size:14px}
+  .gpaged .gmain [id]{scroll-margin-top:136px}
+}
+@media(prefers-reduced-motion:reduce){.gpaged .toc{transition:none}}
