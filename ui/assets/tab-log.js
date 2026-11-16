@@ -82,7 +82,8 @@ function useTl(U, col, pick) {
   }
   return `<div class="ut">${rows.join("")}</div>`;
 }
-const useRow = (u, c) => `<div class="lgr"><i class="ub" style="background:${c}"></i>${icon({ pkg: u.pkg, label: lgLabel(u.pkg) })}<span class="sp" style="min-width:0;overflow-wrap:anywhere"><b>${esc(lgLabel(u.pkg))}</b> <span class="mute">· ${esc(useDur(u.b - u.a))}</span></span><span class="mute lgt">${hhmm(u.a)}–${hhmm(u.b)}</span></div>`;
+// a picked app is highlighted, not filtered (owner 2026-11-16: tap a row = highlight every row of that app; the order of the day stays)
+const useRow = (u, c, pick) => `<div class="lgr use${pick && pick !== u.pkg ? " dim" : ""}" data-fe="u:${esc(u.pkg)}" role="button" tabindex="0"><i class="ub" style="background:${c}"></i>${icon({ pkg: u.pkg, label: lgLabel(u.pkg) })}<span class="sp" style="min-width:0;overflow-wrap:anywhere"><b>${esc(lgLabel(u.pkg))}</b> <span class="mute">· ${esc(useDur(u.b - u.a))}</span></span><span class="mute lgt">${hhmm(u.a)}–${hhmm(u.b)}</span></div>`;
 const lgCount = (rows, f) => { const m = {}; for (const r of rows) { const k = f(r); m[k] = (m[k] || 0) + 1; } return m; };
 function logTab(b) {
   const today = dkey(Date.now());
@@ -99,7 +100,7 @@ function logTab(b) {
   const uAll = lgEv === "u:", uPkg = lgEv.startsWith("u:") ? lgEv.slice(2) : null;
   if (lgEv && !C[lgEv] && !(uPkg !== null && (!c.d || (uAll ? U.length : uT[uPkg])))) lgEv = "";   // still loading: keep "Mở app"
   // one timeline, newest first: events (bold) and log lines, each with its clock time (filter "" | "e:<kind>" | "l:<cat>")
-  const rows = lgEv.startsWith("u:") ? U.filter(u => lgEv === "u:" || u.pkg === lgEv.slice(2)).map(u => ({ t: u.a, h: useRow(u, uCol(u.pkg)) })).reverse() : [...(!lgEv || lgEv.startsWith("e:") ? evAll.filter(e => !lgEv || "e:" + (e.kind || "other") === lgEv).map(e => ({ t: +e.t || 0, h: evRow(e) })) : []),
+  const rows = lgEv.startsWith("u:") ? U.map(u => ({ t: u.a, h: useRow(u, uCol(u.pkg), uPkg) })).reverse() : [...(!lgEv || lgEv.startsWith("e:") ? evAll.filter(e => !lgEv || "e:" + (e.kind || "other") === lgEv).map(e => ({ t: +e.t || 0, h: evRow(e) })) : []),
     ...(!lgEv || lgEv.startsWith("l:") ? lgAll.filter(l => !lgEv || "l:" + lgCat(l) === lgEv).map(l => ({ t: +l.t || 0, h: logRow(l) })) : [])]
     .sort((a, c) => c.t - a.t);
   let tot = lgx && lgx.k === cur && lgx.days;
@@ -121,6 +122,9 @@ function logTab(b) {
   b.querySelectorAll("[data-lgretry]").forEach(x => x.onclick = () => lgLoad(lgDay, true));
   // an app chip / timeline piece again = all apps again
   b.querySelectorAll("[data-fe]").forEach(x => x.onclick = () => { lgEv = x.dataset.fe.length > 2 && x.dataset.fe === lgEv && lgEv.startsWith("u:") ? "u:" : x.dataset.fe; lgNEv = LG_PAGE; render(); });
+  { const on = uPkg && b.querySelector(`button.on[data-fe="u:${CSS.escape(uPkg)}"]`), r = on && on.parentElement;   // picked app chip into view (row scrolls sideways)
+    if (r && r.scrollWidth > r.clientWidth) r.scrollLeft = on.offsetLeft - r.offsetLeft - 8; }
+  b.querySelectorAll(".lgr.use").forEach(x => x.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); x.click(); } });
   if ($("#lgMoreE")) $("#lgMoreE").onclick = () => { lgNEv += LG_PAGE; render(); };
 }
 // "Gửi lỗi": a report to the developer (phone command `support`, Support.kt) and the thread of replies (`supportSay`)

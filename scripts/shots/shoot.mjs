@@ -48,7 +48,7 @@ const SHOTS = [
   { name: "files", js: `goTab("files")`, ready: `document.querySelector("#fxOut .app, #fxOut .li, #fxOut > *")`, settle: 600 },
   { name: "log", js: `goTab("log")`, ready: `document.querySelector(".lgr, #tab .empty")`, settle: 600 },
   { name: "log-use", js: `goTab("apps"); setTimeout(() => document.querySelector("#apUse").click(), 300)`, ready: `document.querySelector(".lgr .ic")`, settle: 600 },
-  { name: "log-use-app", js: `goTab("apps"); setTimeout(() => document.querySelector("#apUse").click(), 300); setTimeout(() => document.querySelectorAll("[data-fe^='u:']")[1].click(), 1200)`, ready: `document.querySelector(".utb i.dim")`, settle: 400 },
+  { name: "log-use-app", js: `goTab("apps"); setTimeout(() => document.querySelector("#apUse").click(), 300); setTimeout(() => document.querySelectorAll(".lgr.use")[2].click(), 1200)`, ready: `document.querySelector(".lgr.use.dim")`, settle: 400 },
   { name: "where-cal", js: `goTab("where"); setTimeout(() => document.querySelector("[data-dp=trk]").click(), 600)`, ready: `document.querySelector("#dpPop .dpg button")`, settle: 400 },
   { name: "log-cal", js: `goTab("log"); setTimeout(() => document.querySelector("[data-dp=log]").click(), 400)`, ready: `document.querySelector("#dpPop .dpg button")`, settle: 400 },
   { name: "settings-away", js: `goTab("set")`, ready: `document.querySelector("#awaySec")`, scrollTo: "#awaySec", settle: 600 },
