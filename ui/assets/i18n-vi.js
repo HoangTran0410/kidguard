@@ -481,7 +481,7 @@ L.vi = {
   "au.perm": "Cho phép app này cài ứng dụng ở màn hình vừa mở, rồi quay lại bấm Cài", "au.inst": "Đã tải xong, làm theo màn hình cài đặt của Android", "au.dlfail": "Tải không được, thử lại",
   "au.nOn": "Thông báo đang bật", "au.nOff": "Thông báo đang tắt", "au.nOpen": "Mở cài đặt thông báo của Android", "au.guide": "Hướng dẫn",
   "nh.h": "Thông báo có tới không?", "nh.check": "Lần kiểm tra nền gần nhất: {0}", "nh.checkNever": "Chưa kiểm tra nền lần nào. Máy có thể đang tiết kiệm pin.",
-  "nh.pushOff": "Bản này không có thông báo đẩy.", "nh.pushNone": "Chưa có máy con nào qua relay.", "nh.pushWait": "Đang chờ thông báo đẩy.", "nh.pushOk": "Thông báo đẩy hoạt động, gần nhất {0}", "nh.pushFail": "Thông báo đẩy lỗi. Kiểm tra mạng rồi thử lại.",
+  "nh.pushOff": "Bản này không có thông báo đẩy.", "nh.pushNone": "Không có thông báo đẩy: máy con chưa nối relay, báo có thể trễ tới 30 phút.", "nh.pushWait": "Đang chờ thông báo đẩy.", "nh.pushOk": "Thông báo đẩy hoạt động, gần nhất {0}", "nh.pushFail": "Thông báo đẩy lỗi. Kiểm tra mạng rồi thử lại.",
   "nh.batOk": "Pin không hạn chế KidGuard.", "nh.batOn": "Tối ưu pin có thể làm trễ thông báo.", "nh.batBtn": "Tắt tối ưu pin",
   "nh.permOk": "Thông báo đã được phép.", "nh.permOff": "Thông báo đang bị chặn.", "nh.permBtn": "Cho phép", "nh.test": "Gửi thử", "nh.sent": "Đã gửi thông báo thử.",
   "theme.h": "Giao diện",

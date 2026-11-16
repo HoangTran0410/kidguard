@@ -977,6 +977,7 @@ export class Kid {
     const dead = new Set();
     for (const e of fresh) for (const t of tokens) {
       const st = await fcmSend(this.env, t, { kind: e.kind === "req" && e.app ? "ev" : e.kind, kid: id, eid: e.eid, t: String(e.t), ...(e.kind === "ev" ? { ek: e.ek || "req" } : e.kind === "req" && e.app ? { ek: "req" } : { min: String(e.min || "") }) });
+      if (st >= 300) console.log("fcm", st, e.kind);   // Google refused (wrong project, auth, ...): was silent (owner 2026-11-16)
       if (st === 404) dead.add(t);   // UNREGISTERED: the app was removed or re-installed (a 400 may be our own config: keep the token)
     }
     if (dead.size) await this.s.put("push", tokens.filter(t => !dead.has(t)));

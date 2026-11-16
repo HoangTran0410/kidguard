@@ -558,6 +558,8 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
 - Parent-app proxy: `GET /k/<t>/api/listen` is passed through as a stream (never cached).
 
 ## Instant push via FCM (v0.5, optional, relay kids only)
+- "Relay kid" = saved with `via: "relay"`, or a LAN / Tailscale kid saved with `relay {url, id, token}` (the parent app
+  registers with that relay and matches the push `kid` against its id; before 2026-11-16 such kids never got push).
 - Worker secret `FCM_SA` = the Firebase service-account JSON (`project_id`, `client_email`, `private_key`, `token_uri`).
   Not set = push off; everything else works. `FCM_URL` (var, tests only) overrides `https://fcm.googleapis.com`.
 - `POST /c/<id>/push` (kid token header) `{"fcm": "<FCM registration token>"}` registers, `{"fcm": "...", "off": true}`

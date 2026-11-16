@@ -281,7 +281,7 @@ object Logic {
      * background check would post (same key, so the same notification id), or null if unknown / already notified.
      */
     fun pushEvent(kids: List<KidCfg>, data: Map<String, String>, st: (KidCfg) -> NotifyState, now: Long = System.currentTimeMillis(), tr: Tr): Pair<KidCfg, Event>? {
-        val k = kids.firstOrNull { it.via == "relay" && it.id == data["kid"] } ?: return null
+        val k = pushKid(kids, data["kid"]) ?: return null
         val eid = data["eid"] ?: return null
         val seenId = seenIdOf(eid) ?: return null
         if (seenId in st(k).seenIds) return null
@@ -305,7 +305,20 @@ object Logic {
 
     /** FCM {kind: "ev", kid, ...} means "check this kid now" (the check itself notifies "<name>: <text>" once per event id). */
     fun pushCheckKid(kids: List<KidCfg>, data: Map<String, String>): KidCfg? =
-        if (data["kind"] == "ev") kids.firstOrNull { it.via == "relay" && it.id == data["kid"] } else null
+        if (data["kind"] == "ev") pushKid(kids, data["kid"]) else null
+
+    /**
+     * Where this phone registers for push (target, id, token): a relay kid itself, or the relay a LAN / Tailscale kid also
+     * syncs to (owner 2026-11-16: a LAN kid with a relay never registered, so its alerts waited for the 15-30 min check).
+     */
+    fun pushRoute(k: KidCfg): Triple<String, String, String>? = when {
+        k.via == "relay" -> Triple(k.target, k.id, k.token)
+        k.hasRelay -> Triple(k.relay!!, k.relayId, k.relayToken)
+        else -> null
+    }
+    /** The kid an FCM message is about: its `kid` is the relay id ([pushRoute]). */
+    fun pushKid(kids: List<KidCfg>, relayId: String?): KidCfg? =
+        if (relayId.isNullOrEmpty()) null else kids.firstOrNull { pushRoute(it)?.second == relayId }
 
     // ---- answering a request (0.9.16, contract C1 / C3) ----
 

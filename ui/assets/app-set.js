@@ -20,7 +20,7 @@ function notifHealthHtml() {
   const push = { off: t("nh.pushOff"), none: t("nh.pushNone"), wait: t("nh.pushWait"), ok: t("nh.pushOk", h.pushAt ? hhmm(h.pushAt) : ""), fail: t("nh.pushFail") }[h.push] || "";
   return `<div class="card" id="nhBox"><h2>${ic("bell")} ${t("nh.h")}</h2>
     ${line(!!h.lastCheck, h.lastCheck ? t("nh.check", hhmm(h.lastCheck)) : t("nh.checkNever"))}
-    ${push ? line(h.push !== "fail", push) : ""}
+    ${push ? line(h.push !== "fail" && h.push !== "none", push) : ""}
     ${line(!!h.battery, h.battery ? t("nh.batOk") : t("nh.batOn"))}
     ${line(h.enabled && h.perm, h.enabled && h.perm ? t("nh.permOk") : t("nh.permOff"))}
     <div class="row">${h.battery ? "" : `<button class="sp" id="nhBat">${ic("battery-full")} ${t("nh.batBtn")}</button>`}

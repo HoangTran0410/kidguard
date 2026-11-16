@@ -225,6 +225,18 @@ class LogicTest {
         assertTrue(after.events.isEmpty())
     }
 
+    // INCIDENT 2026-11-16: a LAN / Tailscale kid that also syncs to a relay never registered for push, alerts waited 15-30 min
+    @Test fun lanKidWithRelayGetsPush() {
+        val kids = Logic.parseKids("""[{"name":"An","target":"http://100.79.1.2:8770","via":"lan","id":"a","token":"t",
+            "relay":{"url":"https://w.example.dev","id":"1192bfcfe4062905","token":"rt"}},
+            {"name":"Bo","target":"http://192.168.1.5:8770","via":"lan","id":"b","token":"t"}]""")
+        assertEquals(Triple("https://w.example.dev", "1192bfcfe4062905", "rt"), Logic.pushRoute(kids[0]))
+        assertNull(Logic.pushRoute(kids[1]))
+        assertEquals("An", Logic.pushCheckKid(kids, mapOf("kind" to "ev", "kid" to "1192bfcfe4062905"))?.name)
+        assertEquals("An", Logic.pushEvent(kids, mapOf("kind" to "sos", "kid" to "1192bfcfe4062905", "eid" to "s:a1"), { Logic.NotifyState() }, tr = TestTr.VI)?.first?.name)
+        assertNull(Logic.pushKid(kids, ""))
+    }
+
     @Test fun allowedRequestOnlySavedTargetsOrPairing() {
         val kids = """[{"name":"An","target":"http://192.168.1.5:8770","via":"lan","id":"a","token":"t"},{"name":"Bo","target":"https://r.example.workers.dev","via":"relay","id":"0123456789abcdef","token":"t"}]"""
         assertTrue(Logic.allowedRequest(kids, "http://192.168.1.5:8770", "POST", "/api/rules"))

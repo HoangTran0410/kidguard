@@ -9,10 +9,11 @@ import com.google.firebase.messaging.RemoteMessage
 import org.json.JSONObject
 
 /**
- * Instant SOS / "more time" notifications through Firebase Cloud Messaging, for kids reached via the relay.
+ * Instant SOS / "more time" / event notifications through Firebase Cloud Messaging, for every kid that syncs to a relay
+ * ([Logic.pushRoute]: relay kids and LAN / Tailscale kids with relay credentials).
  * Optional: on only when parent/google-services.json existed at build time (its values become the resources the
  * Firebase SDK reads, no google-services plugin needed). Without it, or for
- * LAN-only kids, the ~15 min background check ([CheckJob]) is the only source. Both post the same notification id.
+ * LAN-only kids (no relay), the ~15 min background check ([CheckJob]) is the only source. Both post the same notification id.
  */
 object Push {
     val enabled get() = BuildConfig.FCM_APP_ID.isNotEmpty()
@@ -33,19 +34,19 @@ object Push {
 
     /** [force]: register again even when nothing changed (the worker forgets tokens after 30 quiet days; a failed run is retried). */
     private fun send(c: Context, token: String, removed: List<Logic.KidCfg>, force: Boolean) {
-        fun post(k: Logic.KidCfg, off: Boolean) = Net.call("POST", "${k.target}/c/${k.id}/push",
-            mapOf("X-KG-Token" to k.token, "Content-Type" to "application/json"),
+        fun post(r: Triple<String, String, String>, off: Boolean) = Net.call("POST", "${r.first}/c/${r.second}/push",
+            mapOf("X-KG-Token" to r.third, "Content-Type" to "application/json"),
             JSONObject().put("fcm", token).apply { if (off) put("off", true) }.toString().toByteArray(), 15_000).status
-        val relayKids = Logic.parseKids(Store.kids(c)).filter { it.via == "relay" }
+        val relayKids = Logic.parseKids(Store.kids(c)).mapNotNull { Logic.pushRoute(it) }
         // saves that touch nothing relevant (rules edits, tab state) must not re-POST to every relay kid
-        val sig = (listOf(token, Store.notify(c).toString()) + relayKids.map { "${it.id}|${it.target}|${it.token}" }.sorted()).joinToString("\n")
-        val rm = removed.filter { it.via == "relay" }
+        val sig = (listOf(token, Store.notify(c).toString()) + relayKids.map { "${it.second}|${it.first}|${it.third}" }.sorted()).joinToString("\n")
+        val rm = removed.mapNotNull { Logic.pushRoute(it) }
         if (!force && rm.isEmpty() && sig == Store.pushSig(c)) return
         for (k in rm) post(k, true)
         var ok = true
         for (k in relayKids) {
             val st = post(k, !Store.notify(c))
-            if (st != 200) { ok = false; Log.w("KGParent", "push register ${k.id}: $st") }
+            if (st != 200) { ok = false; Log.w("KGParent", "push register ${k.second}: $st") }
         }
         if (ok) Store.setPushSig(c, sig)
         Store.setPushRes(c, if (ok) "ok" else "fail", System.currentTimeMillis())
@@ -54,7 +55,7 @@ object Push {
     /** One word for the page's health card: "off" (no FCM in this build), "none" (no relay kid), "ok", "fail" / "wait" (never run). */
     fun status(c: Context): String = when {
         !enabled -> "off"
-        Logic.parseKids(Store.kids(c)).none { it.via == "relay" } -> "none"
+        Logic.parseKids(Store.kids(c)).none { Logic.pushRoute(it) != null } -> "none"
         Store.pushRes(c).isEmpty() -> "wait"
         else -> Store.pushRes(c)
     }

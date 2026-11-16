@@ -480,7 +480,7 @@ L.en = {
   "au.perm": "Allow this app to install apps on the screen that just opened, then come back and tap Install", "au.inst": "Downloaded: follow Android's install screen", "au.dlfail": "Download failed, try again",
   "au.nOn": "Notifications are on", "au.nOff": "Notifications are off", "au.nOpen": "Open Android notification settings", "au.guide": "Guide",
   "nh.h": "Do alerts arrive?", "nh.check": "Last background check: {0}", "nh.checkNever": "No background check yet. The phone may be saving battery.",
-  "nh.pushOff": "This build has no push alerts.", "nh.pushNone": "No child phone on the relay yet.", "nh.pushWait": "Waiting for push alerts.", "nh.pushOk": "Push alerts work, last at {0}", "nh.pushFail": "Push alerts failed. Check the network and try again.",
+  "nh.pushOff": "This build has no push alerts.", "nh.pushNone": "No instant alerts: no child phone uses the relay, alerts can be up to 30 min late.", "nh.pushWait": "Waiting for push alerts.", "nh.pushOk": "Push alerts work, last at {0}", "nh.pushFail": "Push alerts failed. Check the network and try again.",
   "nh.batOk": "Battery does not limit KidGuard.", "nh.batOn": "Battery optimisation can delay alerts.", "nh.batBtn": "Turn off battery optimisation",
   "nh.permOk": "Notifications are allowed.", "nh.permOff": "Notifications are blocked.", "nh.permBtn": "Allow", "nh.test": "Send a test", "nh.sent": "Test alert sent.",
   "theme.h": "Theme",
