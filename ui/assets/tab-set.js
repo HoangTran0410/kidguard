@@ -566,14 +566,20 @@ let aiShown = null;   // {k, token}: shown until "Done"; never stored
 const sha256hex = async s => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].map(x => x.toString(16).padStart(2, "0")).join("");
 function aiCfg(k, token) {
   const env = k.via === "relay" ? { KG_RELAY: isRelayOrigin ? location.origin : "", KG_ID: k.id } : k.relay && k.relay.url ? { KG_RELAY: k.relay.url, KG_ID: k.relay.id } : { KG_URL: k.target || location.origin };
-  return JSON.stringify({ mcpServers: { kidguard: { command: "node", args: ["/path/to/kidguard/mcp/kidguard-mcp.mjs"], env: { ...env, KG_AI_TOKEN: token } } } }, null, 2);
+  // a whole prompt, not bare JSON: pasted into an AI chat it must say what it is and how to install it (owner 2026-11-16:
+  // the bare config with a /path/to placeholder left the AI asking "what do you want done with it?")
+  env.KG_AI_TOKEN = token;
+  const file = "~/kidguard-mcp.mjs", url = "https://raw.githubusercontent.com/HoangTran0410/kidguard/main/mcp/kidguard-mcp.mjs";
+  const cli = "claude mcp add kidguard " + Object.entries(env).map(([n, v]) => `-e ${n}=${v}`).join(" ") + " -- node " + file;
+  const json = JSON.stringify({ mcpServers: { kidguard: { command: "node", args: [file.replace("~", "/Users/<you>")], env } } }, null, 2);
+  return t("ai.prompt", k.name, url, file, cli, json);
 }
 function aiCard() {
   const on = !!st.ai, show = aiShown && aiShown.k === cur ? aiShown : null;
   if (!("ai" in st)) return secP("s-ai", "bot", t("ai.h"), t("sd.ai"), null, `<p class="mute">${ic("info")} ${t("ai.old")}</p>`, false);
   return secP("s-ai", "bot", t("ai.h"), t("sd.ai"), on ? [t("on"), "ok"] : [t("off")], `
     <p class="mute">${t("ai.p")}</p>
-    ${show ? `${alertBox("warn", "triangle-alert", t("ai.once"))}<pre id="aiCfg" style="white-space:pre-wrap;overflow-wrap:anywhere;user-select:all">${esc(aiCfg(cur, show.token))}</pre>
+    ${show ? `${alertBox("warn", "triangle-alert", t("ai.once"))}<p class="mute">${ic("info")} ${t("ai.where")}</p><pre id="aiCfg" style="white-space:pre-wrap;overflow-wrap:anywhere;user-select:all">${esc(aiCfg(cur, show.token))}</pre>
       <div class="row"><button id="aiCopy">${ic("clipboard-copy")} ${t("relay.copy")}</button><button id="aiDone" class="pri">${ic("check")} ${t("ai.done")}</button></div>`
     : `<div class="row"><button id="aiNew" class="pri">${ic("bot")} ${on ? t("ai.renew") : t("ai.new")}</button>${on ? `<button id="aiRevoke" class="bad">${ic("trash-2")} ${t("ai.revoke")}</button>` : ""}</div>`}`, !!show);
 }
