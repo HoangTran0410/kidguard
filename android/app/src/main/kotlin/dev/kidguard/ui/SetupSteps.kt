@@ -23,7 +23,8 @@ import android.widget.TextView
  * Hidden once every step is done. Rebuilt only when a step changed (called every 3 s from MainActivity.refresh).
  */
 class SetupSteps(private val act: Activity, private val ui: Ui) {
-    private class Step(val title: String, val why: String?, val done: Boolean, val manual: Boolean = false, val pair: Boolean = false, val go: () -> Unit)
+    /** [confirm]: a step the phone can't read back; the "Đã bật" button calls it. */
+    private class Step(val title: String, val why: String?, val done: Boolean, val confirm: (() -> Unit)? = null, val pair: Boolean = false, val go: () -> Unit)
 
     val box: LinearLayout = ui.cardBox(16)
     private var lastKey = ""
@@ -33,15 +34,31 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         private val AUTOSTART = listOf(
             "com.miui.securitycenter" to "com.miui.permcenter.autostart.AutoStartManagementActivity",
             "com.coloros.safecenter" to "com.coloros.safecenter.startupapp.StartupAppListActivity",
+            "com.coloros.safecenter" to "com.coloros.safecenter.permission.startup.StartupAppListActivity",
+            "com.coloros.safecenter" to "com.coloros.safecenter.startupapp.view.StartupAppListActivity",
+            "com.oplus.safecenter" to "com.oplus.safecenter.startupapp.view.StartupAppListActivity",
+            "com.oppo.safe" to "com.oppo.safe.permission.startup.StartupAppListActivity",
+            "com.oneplus.security" to "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity",
+            "com.iqoo.secure" to "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity",
             "com.vivo.permissionmanager" to "com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
             "com.huawei.systemmanager" to "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity",
+            "com.huawei.systemmanager" to "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity",
+            "com.asus.mobilemanager" to "com.asus.mobilemanager.autostart.AutoStartActivity",
             "com.samsung.android.lool" to "com.samsung.android.sm.battery.ui.BatteryActivity",
         )
 
         /** The auto-start page this phone has, or null (stock Android: nothing to do). */
         fun autostartIntent(a: Activity): Intent? = AUTOSTART.asSequence()
             .map { (p, c) -> Intent().setComponent(ComponentName(p, c)) }
-            .firstOrNull { i -> runCatching { a.packageManager.resolveActivity(i, 0) != null }.getOrDefault(false) }
+            // ColorOS 11+ / realme UI keep some of these private (not exported or behind a signature permission): opening them
+            // threw, so the step did nothing, or never showed (Nam's realme, owner 2026-11-17)
+            .firstOrNull { i -> runCatching { a.packageManager.resolveActivity(i, 0)?.activityInfo?.let { it.exported && it.permission == null } == true }.getOrDefault(false) }
+
+        private val BRAND get() = (Build.MANUFACTURER + " " + Build.BRAND).lowercase()
+        /** OPPO / realme / OnePlus (ColorOS family): auto-start + "background activity" sit in the app's own page there. */
+        val colorOs get() = listOf("oppo", "realme", "oneplus").any { it in BRAND }
+        /** Phones whose own battery manager kills background apps even with Android's battery optimisation off. */
+        val oemKiller get() = colorOs || listOf("xiaomi", "redmi", "poco", "vivo", "iqoo", "huawei", "honor").any { it in BRAND }
 
         /** Opens the battery / auto-start settings (the old "Cài đặt pin / tự khởi động" row). */
         fun openBattery(a: Activity) {
@@ -52,6 +69,14 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         }
     }
 
+    private fun usable(i: Intent) = runCatching { act.packageManager.resolveActivity(i, 0)?.activityInfo?.exported == true }.getOrDefault(false)
+    /** KidGuard's own App info: basic mode's self-protection closes it (it has Force stop), so during first setup
+     *  (never paired = the parent holds the phone) it opens the same 5-minute window the parent's selfOpen command does. */
+    private fun openOwn(i: Intent) {
+        val s = Store.of(act)
+        if (!Policy.isOwner(act) && !s.everPaired) s.selfOpenUntil = System.currentTimeMillis() + CmdGate.SELF_OPEN_MS
+        open(i)
+    }
     private fun open(vararg i: Intent) { for (x in i) if (runCatching { act.startActivity(x.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return }
     /** Asks for [perms]; once Android stops showing its dialog (denied twice) the tap opens the app's settings page instead. */
     private fun request(code: Int, vararg perms: String) {
@@ -96,8 +121,22 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         if (!owner && Build.VERSION.SDK_INT >= 31) out += Step(s(R.string.basic_update), s(R.string.basic_update_d), c.packageManager.canRequestPackageInstalls()) {
             open(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, pkg), Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg))
         }
-        autostartIntent(c)?.let { i ->
-            out += Step(c.getString(R.string.step_autostart), c.getString(R.string.step_autostart_d), Store.of(c).autostartOk, manual = true) { open(i) }
+        // OEM battery managers kill KidGuard even with the steps above done (Nam's realme went silent for hours, owner
+        // 2026-11-17): auto-start, the OEM's own "background activity" switch and the Recents lock. None can be read back.
+        val st = Store.of(c)
+        val info = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)
+        val auto = autostartIntent(c)
+        if (auto != null) out += Step(c.getString(R.string.step_autostart), c.getString(R.string.step_autostart_d), st.autostartOk, { st.autostartOk = true }) { open(auto) }
+        else if (colorOs) out += Step(c.getString(R.string.step_autostart), c.getString(R.string.step_autostart_info_d), st.autostartOk, { st.autostartOk = true }) { openOwn(info) }
+        if (oemKiller) {
+            val miui = Intent().setComponent(ComponentName("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"))
+                .putExtra("package_name", c.packageName).putExtra("package_label", c.applicationInfo.loadLabel(c.packageManager).toString())
+            out += Step(c.getString(R.string.step_bg), c.getString(R.string.step_bg_d), st.oemBgOk, { st.oemBgOk = true }) {
+                if (!usable(miui) || !runCatching { act.startActivity(miui.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) openOwn(info)
+            }
+            out += Step(c.getString(R.string.step_recents), c.getString(R.string.step_recents_d), st.recentsOk, { st.recentsOk = true }) {
+                Acc.running?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)
+            }
         }
         // last row: pair the parent's phone (A4.1). Done once paired; the code + QR open by themselves when the rest is done.
         if (!Flavor.HOME) out += Step(c.getString(R.string.step_pair_parent), c.getString(R.string.step_pair_parent_d), Store.of(c).everPaired, pair = true) { revealPairing() }
@@ -179,14 +218,14 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         txt.addView(ui.label(st.title, 16f, ui.text, true))
         if (!st.done && st.why != null) txt.addView(ui.label(st.why, 13f).apply { setPadding(0, ui.dp(2), 0, 0); setLineSpacing(0f, 1.1f) })
         r.addView(txt, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(12); marginEnd = ui.dp(6) })
-        if (st.manual && !st.done) {
+        if (st.confirm != null && !st.done) {
             // can't be read back from the phone: the child says it's on (under the text, so it doesn't squeeze it)
             txt.addView(TextView(act).apply {
                 text = act.getString(R.string.step_done_btn); textSize = 14f; setTypeface(typeface, Typeface.BOLD); setTextColor(ui.onPrimary); gravity = Gravity.CENTER
                 setPadding(ui.dp(14), 0, ui.dp(14), 0); minHeight = ui.dp(40)
                 background = android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(android.graphics.Color.argb(60, 255, 255, 255)), ui.shape(ui.primary, 99), null)
                 isClickable = true; isFocusable = true
-                setOnClickListener { Store.of(act).autostartOk = true; update() }
+                setOnClickListener { st.confirm.invoke(); update() }
             }, LinearLayout.LayoutParams(-2, ui.dp(40)).apply { topMargin = ui.dp(8) })
         }
         if (!st.done) r.addView(ImageView(act).apply { setImageDrawable(Ic.get(act, R.drawable.li_chevron_right, ui.sub, ui.dp(18))) })

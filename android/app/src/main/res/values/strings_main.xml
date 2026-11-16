@@ -6,6 +6,11 @@
     <string name="step_autostart">Allow auto-start</string>
     <string name="step_autostart_d">Turn KidGuard on there, then tap Done. Otherwise the phone stops it in the background.</string>
     <string name="step_done_btn">Done</string>
+    <string name="step_autostart_info_d">On the KidGuard page, turn on Auto launch, then tap Done. Otherwise the phone stops KidGuard in the background.</string>
+    <string name="step_bg">Let KidGuard run in the background</string>
+    <string name="step_bg_d">Open Battery and choose No restrictions or Allow background activity. Then tap Done.</string>
+    <string name="step_recents">Lock KidGuard in Recents</string>
+    <string name="step_recents_d">Hold the KidGuard card and choose Lock. Swiping the card away stops KidGuard.</string>
     <string name="kh_title">Kid Home</string>
     <string name="kh_body">The kid home screen: only allowed apps, today\'s time left, SOS and a \"Today\" page.</string>
     <string name="prot_title">Protection and permissions</string>

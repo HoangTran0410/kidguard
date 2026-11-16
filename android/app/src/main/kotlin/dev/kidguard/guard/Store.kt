@@ -569,6 +569,13 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var autostartOk: Boolean
         get() = p.getBoolean("autostartOk", false)
         set(v) { p.edit().putBoolean("autostartOk", v).apply() }
+    /** Setup steps the child / parent confirm by hand (SetupSteps): OEM "background activity" + KidGuard locked in Recents. */
+    @get:Synchronized @set:Synchronized var oemBgOk: Boolean
+        get() = p.getBoolean("oemBgOk", false)
+        set(v) { p.edit().putBoolean("oemBgOk", v).apply() }
+    @get:Synchronized @set:Synchronized var recentsOk: Boolean
+        get() = p.getBoolean("recentsOk", false)
+        set(v) { p.edit().putBoolean("recentsOk", v).apply() }
     /** The on-device parent page offered the starting levels once (its WebView storage is wiped each session). */
     var lvOffered: Boolean
         get() = p.getBoolean("lvOffered", false)

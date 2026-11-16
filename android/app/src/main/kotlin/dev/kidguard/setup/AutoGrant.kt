@@ -36,6 +36,9 @@ object AutoGrant {
             if (!Usage.granted(ctx)) add("appops set $p GET_USAGE_STATS allow")
             if (!NotifDots.granted(ctx, fresh = true)) add("cmd notification allow_listener $p/$p.NotifDots")
             if (!Basic.batteryOk(ctx)) add("dumpsys deviceidle whitelist +$p")
+            // "Background restricted" (Settings > Battery > Restrict) stops jobs + alarms even when whitelisted
+            if (Build.VERSION.SDK_INT >= 28 && runCatching { ctx.getSystemService(android.app.ActivityManager::class.java).isBackgroundRestricted }.getOrDefault(false))
+                add("cmd appops set $p RUN_ANY_IN_BACKGROUND allow")
             // Tailscale too, once the parent uses it (else it goes quiet in Doze: Ts.dozeHit)
             if ((Store.of(ctx).tsWanted || Store.of(ctx).rules.tsKeep) && Ts.dozeHit(ctx)) add("dumpsys deviceidle whitelist +${TsLogic.PKG}")
             if (!Basic.locationOk(ctx)) {

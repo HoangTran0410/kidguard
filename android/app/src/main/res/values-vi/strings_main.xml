@@ -6,6 +6,11 @@
     <string name="step_autostart">Cho phép tự khởi động</string>
     <string name="step_autostart_d">Bật KidGuard ở đó rồi bấm Đã bật. Nếu không, máy sẽ tắt KidGuard khi chạy nền.</string>
     <string name="step_done_btn">Đã bật</string>
+    <string name="step_autostart_info_d">Ở trang KidGuard, bật Tự khởi động rồi bấm Đã bật. Nếu không, máy sẽ tắt KidGuard khi chạy nền.</string>
+    <string name="step_bg">Cho KidGuard chạy nền</string>
+    <string name="step_bg_d">Mở Pin, chọn Không hạn chế hoặc Cho phép hoạt động nền. Rồi bấm Đã bật.</string>
+    <string name="step_recents">Khoá KidGuard trong Đa nhiệm</string>
+    <string name="step_recents_d">Nhấn giữ thẻ KidGuard, chọn Khoá. Vuốt thẻ đi sẽ tắt KidGuard.</string>
     <string name="kh_title">Kid Home</string>
     <string name="kh_body">Màn hình chính cho con: chỉ hiện app được phép, thời gian còn lại hôm nay, nút SOS và trang \"Hôm nay\".</string>
     <string name="prot_title">Bảo vệ và quyền</string>
