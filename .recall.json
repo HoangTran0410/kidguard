@@ -1,0 +1,28 @@
+{
+ "sources": [
+  {
+   "source": "claude-memory",
+   "exclude": [
+    "2026-*"
+   ]
+  },
+  {
+   "glob": "docs/decisions/*.md",
+   "kind": "decision",
+   "split": "bullet",
+   "exclude": [
+    "**/README.md"
+   ]
+  },
+  {
+   "glob": "docs/flows/*.md",
+   "kind": "flow",
+   "split": "heading",
+   "level": 3,
+   "exclude": [
+    "**/README.md"
+   ]
+  }
+ ],
+ "synonyms": "docs/recall-synonyms.json"
+}

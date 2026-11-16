@@ -254,6 +254,7 @@ class Acc : AccessibilityService() {
     override fun onInterrupt() {}   // only "stop speaking feedback": the service keeps running (drop() handles a real stop)
 
     private var strips: NavGest.Strips? = null
+    val stripsShown: Boolean get() = strips?.shown == true
     /** Own gesture strips on / off (NavGest.sync), any thread. */
     fun navStrips(on: Boolean) {
         main.post {

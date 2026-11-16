@@ -50,4 +50,15 @@ class NavGestLogicTest {
         // pulled back below the threshold before lifting: nothing happens
         assertEquals(Act.NONE, NavGestLogic.classify(Edge.LEFT, 60f, 0f, 0, 100f))
     }
+
+    @Test fun restoreAlwaysShowsBarWithOurHome() {
+        // Poco 2026-11-16: a 1 recorded as "before" restored the hidden bar -> stuck in MoMo
+        assertEquals(0, NavGestLogic.restoreTo(prev = 1, ourHome = true, cur = 1))
+        assertEquals(0, NavGestLogic.restoreTo(prev = -1, ourHome = true, cur = 1))   // no marker, still hidden
+        assertEquals(null, NavGestLogic.restoreTo(prev = 0, ourHome = true, cur = 0))
+        // another home: give back its own value
+        assertEquals(1, NavGestLogic.restoreTo(prev = 1, ourHome = false, cur = 0))
+        assertEquals(0, NavGestLogic.restoreTo(prev = 0, ourHome = false, cur = 1))
+        assertEquals(null, NavGestLogic.restoreTo(prev = -1, ourHome = false, cur = 1))
+    }
 }

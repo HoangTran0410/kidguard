@@ -39,6 +39,13 @@ object NavGest {
         return true
     }
 
+    /** Our service really up: the object exists AND it is still listed as enabled (a bank-app pause or the user can
+     *  remove it from settings before onUnbind reaches us). */
+    private fun accUp(ctx: Context): Boolean = Acc.running != null && runCatching {
+        (Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: "")
+            .contains("${ctx.packageName}/${Acc::class.java.name}", true)
+    }.getOrDefault(false)
+
     private fun read(ctx: Context): Int = runCatching { Settings.Global.getInt(ctx.contentResolver, NavGestLogic.KEY, 0) }.getOrDefault(0)
     private fun write(ctx: Context, v: Int): Boolean = runCatching { Settings.Global.putInt(ctx.contentResolver, NavGestLogic.KEY, v) }.getOrDefault(false)
 
@@ -52,9 +59,10 @@ object NavGest {
         // another home (POCO Launcher) gives its own gestures with fsg=1: ours would double them, so only while we are home;
         // strips that failed to attach once (overlay refused) = never hide until Acc reconnects
         val hide = !stripsFailed && ourHome(ctx) &&
-            NavGestLogic.hide(s.navGest, permitted(ctx), Acc.running != null, s.accPaused.isNotEmpty(), bank, s.released)
+            NavGestLogic.hide(s.navGest, permitted(ctx), accUp(ctx), s.accPaused.isNotEmpty(), bank, s.released)
         if (hide) {
-            if (s.fsgPrev < 0) s.fsgPrev = read(ctx)
+            // never keep 1 as "before" (a leftover from an earlier stuck state would be restored as hidden again)
+            if (s.fsgPrev < 0) s.fsgPrev = read(ctx).let { if (it == 1) 0 else it }
             if (read(ctx) != 1) write(ctx, 1)
         } else restoreLocked(ctx, s)
         strips(ctx, hide, s)
@@ -88,10 +96,41 @@ object NavGest {
     }
 
     private fun restoreLocked(ctx: Context, s: Store) {
-        val prev = s.fsgPrev
-        if (prev < 0) return
+        if (!supported()) return
+        val home = ourHome(ctx)
+        val to = NavGestLogic.restoreTo(s.fsgPrev, home, read(ctx))
         // keep the marker when the write failed: the next call retries
-        if (write(ctx, prev)) s.fsgPrev = -1
+        val ok = to == null || write(ctx, to)
+        if (ok) s.fsgPrev = -1
+        // last resort: bar still hidden, our home, no strips -> a notification that brings the 3 buttons back
+        val stuck = home && read(ctx) == 1 && Acc.running?.stripsShown != true
+        stuckNotice(ctx, stuck)
+    }
+
+    // ---- "no buttons, no gestures" rescue (notification shade still opens from the top) ----
+    private const val CH = "nav"
+    private const val NOTIF = 7400
+
+    private fun stuckNotice(ctx: Context, on: Boolean) = runCatching {
+        val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
+        if (!on) { nm.cancel(NOTIF); return@runCatching }
+        nm.createNotificationChannel(android.app.NotificationChannel(CH, ctx.getString(R.string.ch_nav), android.app.NotificationManager.IMPORTANCE_HIGH))
+        val pi = android.app.PendingIntent.getBroadcast(ctx, 0, android.content.Intent(ctx, NavFixReceiver::class.java),
+            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
+        nm.notify(NOTIF, android.app.Notification.Builder(ctx, CH).setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle(ctx.getString(R.string.nav_stuck_t)).setContentText(ctx.getString(R.string.nav_stuck_b))
+            .setContentIntent(pi).setOngoing(true)
+            .addAction(android.app.Notification.Action.Builder(null, ctx.getString(R.string.nav_stuck_btn), pi).build()).build())
+    }
+
+    /** The notification's button: buttons back by our permission, else by our own adb, else open Settings; switch off. */
+    fun fix(ctx: Context) {
+        val s = Store.of(ctx)
+        s.navGest = false
+        var ok = write(ctx, 0)
+        if (!ok && !Flavor.HOME && SelfAdb.hasKey(ctx)) { runCatching { SelfAdb.run(ctx.applicationContext, "settings put global ${NavGestLogic.KEY} 0") }; ok = read(ctx) == 0 }
+        if (ok) { s.fsgPrev = -1; stuckNotice(ctx, false); Acc.running?.navStrips(false) }
+        else runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
 
     /** Guard tick (also the watchdog: Acc gone or paused -> restore). */
@@ -370,5 +409,13 @@ object NavGest {
                 else -> { c.drawLine(cx - a, cy + a / 2, cx, cy - a / 2, fg); c.drawLine(cx, cy - a / 2, cx + a, cy + a / 2, fg) }
             }
         }
+    }
+}
+
+/** Button of the "no navigation" notification ([NavGest.fix]). Explicit intent, not exported. */
+class NavFixReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(c: Context, i: android.content.Intent?) {
+        val r = goAsync()
+        Thread({ try { NavGest.fix(c.applicationContext) } finally { r.finish() } }, "nav-fix").start()
     }
 }

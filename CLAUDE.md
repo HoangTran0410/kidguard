@@ -7,4 +7,5 @@
 - Device testing: physical test phones belong to the owner; check the memory notes on which devices adb may touch
   before any `adb` command, and never release / unpair / clear data on an enrolled phone.
 - Sub-agents: give each one narrow area and a path:line report; tell them to skip `.claude/worktrees/`.
+- Recall hook = [recall-kit](https://github.com/HoangTran0410/recall-kit) (`uv tool install git+https://github.com/HoangTran0410/recall-kit`; no-op when not installed), config `.recall.json`, Vietnamese words in `docs/recall-synonyms.json`. Manual: `recall "question"`.
 - Learned something durable (decision, rejected approach, OEM quirk)? One line in `docs/decisions/<area>.md` (see its README), same commit.

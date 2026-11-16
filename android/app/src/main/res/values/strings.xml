@@ -1134,4 +1134,8 @@
     <string name="tiles_full">%d tiles at most. Remove one to add another.</string>
     <string name="tiles_remove_x">Remove %s</string>
     <string name="tiles_add_x">Add %s</string>
+    <string name="ch_nav">Navigation</string>
+    <string name="nav_stuck_t">No buttons, no gestures</string>
+    <string name="nav_stuck_b">Tap to bring back the 3 buttons.</string>
+    <string name="nav_stuck_btn">Show 3 buttons</string>
 </resources>

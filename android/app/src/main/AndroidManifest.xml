@@ -234,6 +234,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".NavFixReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".LockReceiver"
             android:exported="false" />
 

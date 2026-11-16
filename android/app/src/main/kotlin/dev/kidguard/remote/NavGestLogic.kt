@@ -24,6 +24,18 @@ object NavGestLogic {
     fun hide(on: Boolean, permission: Boolean, accUp: Boolean, accPaused: Boolean, bankFront: Boolean, released: Boolean): Boolean =
         on && permission && accUp && !accPaused && !bankFront && !released
 
+    /**
+     * What to write when the bar must be visible (null = leave it). With our app as home, 1 without our strips = no
+     * buttons and no gestures (Poco 2026-11-16: stuck in MoMo), so the answer is ALWAYS 0 there, whoever wrote the 1 and
+     * whatever [prev] says (a 1 recorded as "before" after an earlier incident restored the hidden bar every time).
+     * Another home: give back what was there before we touched it (its own gestures may need 1).
+     */
+    fun restoreTo(prev: Int, ourHome: Boolean, cur: Int): Int? = when {
+        ourHome -> if (cur != 0) 0 else null
+        prev >= 0 && cur != prev -> prev
+        else -> null
+    }
+
     /** Manufacturers whose home swap drops the gestures (same list as the launcher warning). */
     fun xiaomi(manufacturer: String): Boolean = manufacturer.lowercase() in setOf("xiaomi", "redmi", "poco")
 

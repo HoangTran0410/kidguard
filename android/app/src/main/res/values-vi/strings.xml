@@ -1110,4 +1110,8 @@
     <string name="tiles_full">Tối đa %d ô. Bỏ bớt một ô để thêm.</string>
     <string name="tiles_remove_x">Bỏ %s</string>
     <string name="tiles_add_x">Thêm %s</string>
+    <string name="ch_nav">Điều hướng</string>
+    <string name="nav_stuck_t">Không có phím, không vuốt được</string>
+    <string name="nav_stuck_b">Chạm để hiện lại 3 phím.</string>
+    <string name="nav_stuck_btn">Hiện 3 phím</string>
 </resources>
