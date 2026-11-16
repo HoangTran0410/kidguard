@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Feature search gate (owner 2026-11-11: "thêm chức năng mà thiếu keyword tìm feature, quên hoài").
 // Fails when a section row on the parent page (`sec("id", ...)`, `secP`, `secMix`, `secL` in ui/assets) has no entry in the search
-// index `QS` (ui/assets/shell.js), when a QS entry points at a section that no longer exists, or when a QS / tab
+// index `QS` (ui/assets/search.js), when a QS entry points at a section that no longer exists, or when a QS / tab
 // text key is missing in either language. Run: node scripts/check-search.mjs (CI + scripts/build.sh).
 import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -19,10 +19,10 @@ const MERGED = { "r-daily": "r-day", "r-chore": "r-day", "r-bed": "r-night", "r-
 
 const files = readdirSync(dir).filter(f => f.endsWith(".js"));
 const src = Object.fromEntries(files.map(f => [f, readFileSync(join(dir, f), "utf8")]));
-const shell = src["shell.js"];
+const shell = src["shell.js"] + "\n" + src["search.js"];   // NAV is in shell.js, QS in search.js
 const literal = name => {
   const m = shell.match(new RegExp(`^const ${name} = (\\[[\\s\\S]*?\\n?\\]);`, "m"));
-  if (!m) throw new Error(`${name} not found in shell.js`);
+  if (!m) throw new Error(`${name} not found in shell.js / search.js`);
   return Function(`"use strict"; return ${m[1]}`)();
 };
 const NAV = literal("NAV"), QS = literal("QS");
@@ -35,7 +35,7 @@ for (const [f, s] of Object.entries(src)) for (const m of s.matchAll(/\bsec(?:P|
 const indexed = new Set(QS.map(e => e[1]));
 
 for (const [id, f] of secs) if (!indexed.has(id) && !NOT_FEATURES[id] && !MERGED[id])
-  errs.push(`section "${id}" (${f}) is not in the feature search: add ["<tab>", "${id}", "<seg>", "<icon>", ["<title key>", "<desc key>", ...]] to QS in shell.js (or to NOT_FEATURES here with a reason)`);
+  errs.push(`section "${id}" (${f}) is not in the feature search: add ["<tab>", "${id}", "<seg>", "<icon>", ["<title key>", "<desc key>", ...]] to QS in search.js (or to NOT_FEATURES here with a reason)`);
 for (const r of new Set(Object.values(MERGED))) if (!secs.has(r)) errs.push(`merged row "${r}" has no secMix("${r}") any more`);
 for (const [tab, id, , , keys] of QS) {
   if (MERGED[id]) errs.push(`QS entry "${id}" is a part of the merged row "${MERGED[id]}": point it there`);

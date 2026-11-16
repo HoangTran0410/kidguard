@@ -16,6 +16,11 @@ import ui_overview_js from "../../ui/assets/overview.js";
 import ui_kid_js from "../../ui/assets/kid.js";
 import ui_tab_files_js from "../../ui/assets/tab-files.js";
 import ui_shell_js from "../../ui/assets/shell.js";
+import ui_search_js from "../../ui/assets/search.js";
+import ui_tab_log_js from "../../ui/assets/tab-log.js";
+import ui_live_js from "../../ui/assets/live.js";
+import ui_requests_js from "../../ui/assets/requests.js";
+import ui_app_set_js from "../../ui/assets/app-set.js";
 import ui_tab_home_js from "../../ui/assets/tab-home.js";
 import ui_tab_apps_js from "../../ui/assets/tab-apps.js";
 import ui_tab_rules_js from "../../ui/assets/tab-rules.js";
@@ -35,6 +40,11 @@ const UI = {
   "kid.js": ui_kid_js,
   "tab-files.js": ui_tab_files_js,
   "shell.js": ui_shell_js,
+  "search.js": ui_search_js,
+  "tab-log.js": ui_tab_log_js,
+  "live.js": ui_live_js,
+  "requests.js": ui_requests_js,
+  "app-set.js": ui_app_set_js,
   "tab-home.js": ui_tab_home_js,
   "tab-apps.js": ui_tab_apps_js,
   "tab-rules.js": ui_tab_rules_js,

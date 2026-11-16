@@ -285,7 +285,7 @@ async function sysSend(key, v) {
   sysDraw();
 }
 
-// Also on the "can't connect" card (shell.js): a phone that is gone for good has no Settings tab to forget it from
+// Also on the "can't connect" card (live.js): a phone that is gone for good has no Settings tab to forget it from
 async function forgetKid() {
   const fk = cur;   // typed word: forgetting a relay kid destroys the only token
   if (!fk || !(await ask(t(fk.via === "relay" ? "forget.askRelay" : APP ? "forget.askApp" : "forget.askWeb", fk.name), APP ? t("delete") : t("forget"), true, t("forget.word"))) || fk !== cur) return;

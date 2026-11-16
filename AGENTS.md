@@ -26,7 +26,7 @@ When you settle something durable (a decision, a rejected approach, a platform q
 - UI text: follow `docs/copy.md` (outcome first, one idea per sentence, short, glossary words). - UI text Vietnamese + English, always both (`res/values` + `res/values-vi`, `ui/assets/i18n-en.js` + `i18n-vi.js`); code and comments English.
 - Rules JSON is a full replace on the phone (`Rules.fromJson` is the allow-list): the page must always send the whole object.
 - New relay command ⇒ worker whitelist `CMDS` + protocol "Commands" + (destructive) `ONCE` list. Checklist: `docs/flows/checklists.md`.
-- New page section (`sec("id", ...)`) ⇒ an entry in the feature search `QS` (`ui/assets/shell.js`), keys in both i18n files;
+- New page section (`sec("id", ...)`) ⇒ an entry in the feature search `QS` (`ui/assets/search.js`), keys in both i18n files;
   `node scripts/check-search.mjs` fails otherwise (CI + `build.sh`).
 - New `ui/assets` file ⇒ `<script defer>` tag in `ui/index.html` (order matters, shared globals: never redeclare a
   top-level name) AND import + map entry in `relay/src/index.js`. `node scripts/check-assets.mjs` checks both + i18n key parity (CI + `build.sh`).
@@ -60,7 +60,7 @@ installers, also the APK assets dir and imported by the worker), `relay/` (Cloud
 | Kid launcher | `K/launcher/HomeActivity.kt` (state, render, pager, drawer) + extension files `HomeDrag/HomeMenus/HomeEdit/HomeIcons/HomeDock/HomeFolder/HomeLibrary`; pure model `HomeLayout.kt` (unit-tested); `LauncherSafe.kt`; `Flavor.kt`. Subfolders: `widgets/` (`HomeWidgets*`, `HomeAppWidgets`, `HomeMedia`, `*Logic`), `custom/` (`CustomActivity` = Tuỳ chỉnh, `AppLook*` = Sửa app, colour picker, backup, wallpaper, style), `control/` (control center), `focus/`, `today/` (`TodayPage`, `KidNotes`) |
 | Setup / provisioning | `K/setup/Provisioning.kt`, `SelfSetup*.kt` |
 | Child screens | `K/ui/MainActivity.kt`, `AdminActivity.kt`, `Modal`/`Sheet`/`Ui`, `Ic.kt` (Lucide icons `res/drawable/li_*.xml`) |
-| Parent page | `ui/index.html` + `ui/assets/`: `core.js` (`call()`, `base()`, boot, pairing), `kid.js` (refresh, `putRules`, `cmd`), `shell.js` (nav, render, actions), `tab-*.js`, `i18n-*.js` |
+| Parent page | `ui/index.html` + `ui/assets/`: `core.js` (`call()`, `base()`, boot, pairing), `kid.js` (refresh, `putRules`, `cmd`), `shell.js` (nav, render), `search.js` (`QS` quick search), `live.js` (banners, phone card, check-in, SOS, listen, action buttons), `requests.js` (pickers, sheets, requests, quick messages), `app-set.js` (parent-app settings, tipScan), `tab-log.js` (Log, Support, Report), `lang.js` (language pick, loads one `i18n-<code>.js`), `tab-*.js`, `i18n-*.js` |
 | Parent app | `android/parent/.../parent/` (`Proxy.kt` localhost proxy, `CheckJob.kt`, `Push.kt`) |
 
 Flavor `home` (`dev.kidguard.home`): launcher only, `src/home/AndroidManifest.xml` removes the parental parts; code checks `Flavor.HOME`.
