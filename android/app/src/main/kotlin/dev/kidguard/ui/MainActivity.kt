@@ -360,6 +360,9 @@ class MainActivity : Activity() {
     override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, res: IntArray) {
         super.onRequestPermissionsResult(code, perms, res)
         if (code == CAM_REQ_ADMIN) AdminActivity.start(this)   // asked right after a correct admin PIN
+        // parent's Fix: Android shows no dialog once the child chose "don't ask again" (denied at once): fall back to App info
+        if (code == REQ_ASK_PERM && res.any { it != android.content.pm.PackageManager.PERMISSION_GRANTED })
+            runCatching { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName"))) }
     }
 
     /** Hold-to-confirm state: the label each button shows when idle (refresh() may change it while a hold runs). */
@@ -720,9 +723,12 @@ class MainActivity : Activity() {
         if (::updRow.isInitialized && !updPolling) updRow.text = getString(R.string.main_check_update, BuildConfig.VERSION_NAME)
         val t0 = android.os.SystemClock.elapsedRealtime()
         refresh()
+        FeaturesSheet.refresh()   // "Bảo vệ và quyền" stays open while a fix screen is used: show the new state
         (android.os.SystemClock.elapsedRealtime() - t0).let { if (it > 16) android.util.Log.i("KG.perf", "main refresh ${it}ms") }
         // the time-left tile / widget: "ask for more time" (only once a parent is paired, like the button)
         if (intent?.getBooleanExtra(EXTRA_ADMIN, false) == true) { intent.removeExtra(EXTRA_ADMIN); ui.post { askAdmin() } }   // lost card: "Parent: turn off"
+        // FixPerms (parent's Fix): the system "Allow?" dialog = one tap, instead of App info -> Permissions -> Microphone -> Allow
+        intent?.getStringExtra(EXTRA_ASK_PERM)?.let { id -> intent.removeExtra(EXTRA_ASK_PERM); FixPerms.runtime(id)?.let { p -> ui.post { requestPermissions(p, REQ_ASK_PERM) } } }
         if (intent?.getBooleanExtra(Quick.EXTRA_MORE, false) == true) {
             intent.removeExtra(Quick.EXTRA_MORE)
             if (Store.of(this).everPaired) {
@@ -1169,4 +1175,6 @@ class MessageActivity : Activity() {
 }
 
 const val EXTRA_ADMIN = "kg.admin"
+const val EXTRA_ASK_PERM = "kg.askPerm"
+const val REQ_ASK_PERM = 46
 private const val CAM_REQ_ADMIN = 41   // camera ask after a right admin PIN (basic mode, wrong-PIN photo)

@@ -40,6 +40,7 @@ button.act.done{background:var(--card);color:var(--ok);border-color:var(--stroke
 button.act.err{background:var(--card);color:var(--danger);border-color:var(--stroke)}@supports (color:color-mix(in srgb,red,blue)){button.act.err{background:color-mix(in srgb,var(--danger) 10%,var(--card));border-color:color-mix(in srgb,var(--danger) 45%,transparent)}}
 button.act.dis{opacity:.45}
 button.act:not(.tile).pend::before{content:"";display:inline-block;width:1em;height:1em;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
+button.act:not(.tile).pend > .si:first-child{display:none}   /* the spinner takes the icon's place (owner 2026-11-16: icon + spinner side by side) */
 @keyframes spin{to{transform:rotate(360deg)}}
 input,select,textarea{max-width:100%;min-height:44px;background:var(--bg);border:1px solid var(--stroke);border-radius:12px;padding:8px 12px;min-width:0}
 input:focus,select:focus,textarea:focus{border-color:var(--accent)}
@@ -260,6 +261,8 @@ button.pausing .si{color:var(--warn)}
 .savechip{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;flex:none;color:var(--tn,var(--ok))}
 .savechip:empty{display:none}
 .head .savechip{margin-left:auto}
+/* phone width: the chip (waiting for the phone, + "last seen" + resend) takes its own line under the name, so the status line never wraps to 4 lines */
+@media (max-width:560px){.head{flex-wrap:wrap;row-gap:6px}.head .savechip{order:3;flex:1 0 100%;margin-left:0;white-space:normal;flex-wrap:wrap;font-size:12px;min-width:0}.head .savechip .tag{display:block;white-space:normal;max-width:100%;height:auto;line-height:1.5;padding:6px 10px;border-radius:10px}.head .savechip .tag svg{vertical-align:-2px;margin-right:4px}.head .savechip .tag .pill{margin-left:6px;padding:2px 10px;min-height:0;vertical-align:middle}}
 /* quick search ("Tìm chức năng"): a full-width search field look under the banners, the label says what it does */
 .qsbar{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;margin:0 0 14px;padding:8px 14px;background:var(--bg);border:1px solid var(--stroke);border-radius:12px;color:var(--sub);font-weight:500;text-align:left;justify-content:flex-start}
 .qsbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

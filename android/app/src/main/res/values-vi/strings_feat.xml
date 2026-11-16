@@ -86,4 +86,12 @@
     <string name="ev_call_blocked">Đã chặn cuộc gọi: %1$s</string>
     <string name="call_hidden">số ẩn</string>
     <string name="st_calls_role">Chặn cuộc gọi đang bật. Chạm vào đây một lần và cho KidGuard lọc cuộc gọi.</string>
+    <string name="feat_adbnet_ok">Đang mở cổng 5555. Cổng giữ mở.</string>
+    <string name="feat_adbnet_pair">Cần cài adb trên máy này trước, rồi thử lại.</string>
+    <string name="feat_adbnet_blocked">Cổng 5555 tạm dừng khi app ngân hàng đang mở.</string>
+    <string name="feat_adbnet_fail">Chưa mở được cổng 5555. Thử lại sau 1 phút.</string>
+    <string name="feat_vpn_open">Đang mở Tailscale. Đăng nhập và kết nối.</string>
+    <string name="feat_vpn_get">Cài Tailscale để dùng từ trang phụ huynh.</string>
+    <string name="feat_nofix">Mục này chưa có cách sửa nhanh. Xem hướng dẫn.</string>
+    <string name="ft_autoGrant_first">Nên bật mục này trước: sau đó máy tự bật phần lớn quyền khác, phần còn lại bố mẹ sửa được từ trang quản lý.</string>
 </resources>

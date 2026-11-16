@@ -8,6 +8,15 @@ import org.junit.Test
 class FeaturesTest {
     private fun f(c: Caps, id: String) = Features.status(c).first { it.id == id }
 
+    @Test fun priorityOrder() {
+        // basic phone with admin + accessibility but no pairing / adb: pairing first, adb second, working ones last
+        val o = Features.byPriority(Features.status(Caps(admin = true, acc = true))).map { it.id }
+        assertEquals(listOf("remote", "autoGrant"), o.take(2))
+        val firstOk = Features.byPriority(Features.status(Caps(admin = true, acc = true))).indexOfFirst { it.ok }
+        assertTrue(Features.byPriority(Features.status(Caps(admin = true, acc = true))).drop(firstOk).all { it.ok })
+        assertEquals(Features.TABLE.map { it.first }.toSet(), Features.PRIORITY.toSet())   // a new feature needs a place in PRIORITY
+    }
+
     @Test fun nothingGranted() {
         val s = Features.status(Caps())
         assertEquals(Features.TABLE.map { it.first }, s.map { it.id })

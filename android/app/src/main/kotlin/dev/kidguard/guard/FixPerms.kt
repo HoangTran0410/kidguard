@@ -29,7 +29,7 @@ object FixPerms {
     @Volatile private var tap: List<String> = emptyList()     // still needs a tap on the phone after the last Fix
     @Volatile private var noted = false
 
-    /** Ids in display order: admin acc (basic mode only) usage listener location notify battery. Empty = all fine. */
+    /** Ids in display order: admin acc (basic mode only) usage listener location notify battery mic. Empty = all fine. */
     fun missing(ctx: Context): List<String> {
         if (Flavor.HOME) return emptyList()
         val owner = Policy.isOwner(ctx)
@@ -41,6 +41,8 @@ object FixPerms {
             if (!Basic.locationOk(ctx)) add("location")
             if (!Basic.notifyOk(ctx)) add("notify")
             if (!Basic.batteryOk(ctx)) add("battery")
+            // "listen around" / Telegram recording: without it the parent had no way to get it back from the page (owner 2026-11-16)
+            if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) add("mic")
         }
     }
 
@@ -55,7 +57,7 @@ object FixPerms {
         if (Flavor.HOME) return "none"
         if (busy) return "working"
         val before = missing(ctx)
-        if (before.isEmpty()) return "none"
+        if (before.isEmpty()) { AutoGrant.soon(); Guard.running?.kick(); return "none" }   // page "Try now": the adb re-grant runs on this tick
         at = System.currentTimeMillis(); fixed = emptyList(); tap = before
         busy = true
         val app = ctx.applicationContext
@@ -85,6 +87,7 @@ object FixPerms {
             val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
             if (Build.VERSION.SDK_INT >= 29) perms += Manifest.permission.ACCESS_BACKGROUND_LOCATION
             if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
+            perms += Manifest.permission.RECORD_AUDIO
             for (p in perms) runCatching {
                 Policy.dpm(ctx).setPermissionGrantState(Policy.admin(ctx), ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
             }.onFailure { Log.w("KidGuard", "fixPerms grant $p", it) }
@@ -92,9 +95,18 @@ object FixPerms {
         if (!Acc.isOn(ctx)) runCatching { Acc.ensureEnabled(ctx) }
     }
 
-    /** The Settings page for [id]; the first one the phone can open. */
+    /** Runtime permissions the child can allow in one tap from the system dialog (MainActivity EXTRA_ASK_PERM); null = a Settings screen. */
+    fun runtime(id: String): Array<String>? = when (id) {
+        "mic" -> arrayOf(Manifest.permission.RECORD_AUDIO)
+        "notify" -> if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.POST_NOTIFICATIONS) else null
+        else -> null
+    }
+
+    /** The screen for [id]: the one-tap permission dialog when there is one, else the Settings page. */
     private fun intent(ctx: Context, id: String): Intent {
         val pkg = Uri.parse("package:${ctx.packageName}")
+        if (runtime(id) != null) return Intent(ctx, MainActivity::class.java).putExtra(EXTRA_ASK_PERM, id)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         return when (id) {
             "admin" -> Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, Policy.admin(ctx))
                 .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, ctx.getString(R.string.basic_admin_expl))
@@ -102,7 +114,7 @@ object FixPerms {
             "usage" -> Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, pkg)
             "listener" -> Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
             "battery" -> Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkg)
-            else -> Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)   // location, notify: Permissions
+            else -> Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)   // location, notify, mic: Permissions
         }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 

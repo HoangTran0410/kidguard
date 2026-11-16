@@ -322,13 +322,27 @@ class MainActivity : Activity() {
             orientation = android.widget.LinearLayout.VERTICAL; gravity = android.view.Gravity.CENTER
             setBackgroundColor(if (dark) 0xFF0F172A.toInt() else 0xFFF8FAFC.toInt()); isClickable = true; visibility = android.view.View.GONE
         }
-        box.addView(android.widget.ImageView(this).apply { setImageResource(R.drawable.ic_notif); setColorFilter(0xFF2563EB.toInt()) },
-            android.widget.LinearLayout.LayoutParams((56 * d).toInt(), (56 * d).toInt()))
+        // lock tile + title + hint + one pill button (was a stock grey Button + bare shield: owner "looks cheap", 2026-11-16)
+        val acc = 0xFF3B82F6.toInt(); val fg = if (dark) 0xFFF1F5F9.toInt() else 0xFF0F172A.toInt(); val mute = if (dark) 0xFF94A3B8.toInt() else 0xFF64748B.toInt()
+        box.setPadding((32 * d).toInt(), 0, (32 * d).toInt(), (48 * d).toInt())
+        box.addView(android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.ic_lock); setColorFilter(acc); val p = (22 * d).toInt(); setPadding(p, p, p, p)
+            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 28 * d; setColor(if (dark) 0xFF1E2B4A.toInt() else 0xFFDBEAFE.toInt()) }
+        }, android.widget.LinearLayout.LayoutParams((88 * d).toInt(), (88 * d).toInt()))
         box.addView(android.widget.TextView(this).apply {
-            text = getString(R.string.lock_title); textSize = 20f; setTypeface(typeface, android.graphics.Typeface.BOLD)
-            setTextColor(if (dark) 0xFFF1F5F9.toInt() else 0xFF0F172A.toInt()); gravity = android.view.Gravity.CENTER; setPadding(0, (16 * d).toInt(), 0, (24 * d).toInt())
+            text = getString(R.string.lock_title); textSize = 22f; setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setTextColor(fg); gravity = android.view.Gravity.CENTER; setPadding(0, (24 * d).toInt(), 0, (6 * d).toInt())
         })
-        box.addView(android.widget.Button(this).apply { text = getString(R.string.lock_btn); setOnClickListener { lockCheck() } })
+        box.addView(android.widget.TextView(this).apply {
+            text = getString(R.string.lock_sub); textSize = 15f; setTextColor(mute); gravity = android.view.Gravity.CENTER; setPadding(0, 0, 0, (32 * d).toInt())
+        })
+        box.addView(android.widget.TextView(this).apply {
+            text = getString(R.string.lock_btn); textSize = 16f; setTypeface(typeface, android.graphics.Typeface.BOLD); isAllCaps = false
+            setTextColor(0xFFFFFFFF.toInt()); gravity = android.view.Gravity.CENTER; isClickable = true; isFocusable = true
+            background = android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x33FFFFFF),
+                android.graphics.drawable.GradientDrawable().apply { cornerRadius = 26 * d; setColor(acc) }, null)
+            setOnClickListener { lockCheck() }
+        }, android.widget.LinearLayout.LayoutParams((240 * d).toInt(), (52 * d).toInt()))
         return box
     }
     override fun onDestroy() { web?.destroy(); web = null; super.onDestroy() }

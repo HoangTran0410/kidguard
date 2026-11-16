@@ -28,6 +28,11 @@ object AutoGrant {
     fun missing(ctx: Context): List<String> {
         val p = ctx.packageName
         return buildList {
+            // with the phone's own adb the checklist's admin + accessibility steps need no taps either (owner 2026-11-16 "giảm bước manual"):
+            // WSS lets Acc turn our accessibility service on by itself; basic mode's device admin is one dpm line
+            if (ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                add("pm grant $p android.permission.WRITE_SECURE_SETTINGS")
+            if (!Policy.isOwner(ctx) && !Basic.adminActive(ctx)) add("dpm set-active-admin --user current ${Policy.admin(ctx).flattenToShortString()}")
             if (!Usage.granted(ctx)) add("appops set $p GET_USAGE_STATS allow")
             if (!NotifDots.granted(ctx, fresh = true)) add("cmd notification allow_listener $p/$p.NotifDots")
             if (!Basic.batteryOk(ctx)) add("dumpsys deviceidle whitelist +$p")

@@ -1127,4 +1127,5 @@
         <item quantity="other">Bật lại %d phút sau khi rời app.</item>
     </plurals>
     <string name="log_self_open">Bố mẹ mở trang thông tin app KidGuard 5 phút</string>
+    <string name="feat_cap_mic">micro</string>
 </resources>

@@ -235,6 +235,12 @@ object Tg {
         // "message is not modified" (same text) is fine; anything else (too old...) -> a new message
         if (!r.optBoolean("ok") && !r.optString("description").contains("not modified")) send(s, chat, text, kb)
     }
+    /** Menu / sub-menu / result navigation: a NEW message; the old one only loses its buttons (never rewritten: chat history stays, a stale button cannot act). */
+    private fun nav(s: Store, chat: Long, msgId: Long, text: String, kb: JSONObject?) {
+        val tok = s.tgToken.ifBlank { return }
+        if (msgId > 0) runCatching { call(tok, "editMessageReplyMarkup", JSONObject().put("chat_id", chat).put("message_id", msgId).put("reply_markup", JSONObject().put("inline_keyboard", JSONArray()))) }
+        send(s, chat, text, kb)
+    }
     private fun track(key: String, chat: Long, r: JSONObject?, text: String) {
         val m = mid(r); if (m > 0) copies.getOrPut(key) { java.util.concurrent.CopyOnWriteArrayList() }.add(Copy(chat, m, text))
     }
@@ -341,7 +347,7 @@ object Tg {
         val lang = s.tgChatLang(chat); val now = System.currentTimeMillis()
         // "bot is typing / sending a photo / ..." in the chat header while it works
         chatAction(s, chat, when (c.name) { "locate" -> "find_location"; "screen" -> "upload_photo"; "rec" -> "record_voice"; "files" -> "upload_document"; else -> "typing" })
-        fun show(text: String, kb: JSONObject?) { if (panel > 0) edit(s, chat, panel, text, kb) else send(s, chat, text, kb) }
+        fun show(text: String, kb: JSONObject?) { if (panel > 0) nav(s, chat, panel, text, kb) else send(s, chat, text, kb) }
         fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
         fun res(r: String, okKey: String, vararg a: Any?) { if (r == "ok") say(okKey, *a) else say("fail", TgLogic.err(lang, r)) }
         when (c.name) {
@@ -351,7 +357,7 @@ object Tg {
                 val l = c.args.firstOrNull()?.lowercase()?.let { TgLogic.langOf(it, lang) } ?: TgLogic.other(lang)
                 s.tgSetChatLang(chat, l)
                 send(s, chat, TgLogic.s(l, "langDone"), TgLogic.replyKb(l))
-                if (panel > 0) edit(s, chat, panel, TgLogic.s(l, "menu", kidName(g)), TgLogic.menu(l)) else send(s, chat, TgLogic.s(l, "menu", kidName(g)), TgLogic.menu(l))
+                if (panel > 0) nav(s, chat, panel, TgLogic.s(l, "menu", kidName(g)), TgLogic.menu(l)) else send(s, chat, TgLogic.s(l, "menu", kidName(g)), TgLogic.menu(l))
             }
             "status" -> send(s, chat, TgLogic.status(g.currentState(), kidName(g), lang, now, ::hm), TgLogic.statusKb(lang))
             "apps" -> send(s, chat, TgLogic.apps(g.currentState(), lang))
@@ -436,7 +442,7 @@ object Tg {
     /** The rest of the commands (all take their argument, or need none). */
     private fun runArg(g: Guard, s: Store, chat: Long, c: TgLogic.Cmd, panel: Long = 0) {
         val lang = s.tgChatLang(chat); val now = System.currentTimeMillis()
-        fun show(text: String, kb: JSONObject?) { if (panel > 0) edit(s, chat, panel, text, kb) else send(s, chat, text, kb) }
+        fun show(text: String, kb: JSONObject?) { if (panel > 0) nav(s, chat, panel, text, kb) else send(s, chat, text, kb) }
         val back = listOf(TgLogic.s(lang, "b.back") to "n:main")
         fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
         fun res(r: String, okKey: String, vararg a: Any?) { if (r == "ok") say(okKey, *a) else say("fail", TgLogic.err(lang, r)) }
@@ -445,7 +451,7 @@ object Tg {
         fun saved(before: Rules, after: Rules, text: String) {
             if (panel <= 0) return say2(s, chat, text)
             val k = Store.randomHex(4); undos.entries.removeIf { now - it.value.at > 3600_000L }; undos[k] = Undo(before, after, now)
-            edit(s, chat, panel, text, TgLogic.undoKb(lang, k))
+            nav(s, chat, panel, text, TgLogic.undoKb(lang, k))
         }
         when (c.name) {
             "bonus" -> {
@@ -564,9 +570,9 @@ object Tg {
         val label = { p: String -> runCatching { g.currentState().optJSONArray("apps") }.getOrNull()?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.firstOrNull { it.optString("pkg") == p }?.optString("label") } ?: p }
         when {
             d.startsWith("c:") -> TgLogic.fromData(d)?.let { runCmd(g, s, chat, it, if (it.name in PANELS) msgId else 0) }
-            d == "n:main" -> edit(s, chat, msgId, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang))
-            d.startsWith("n:") -> { val n = d.removePrefix("n:"); TgLogic.sub(lang, n)?.let { edit(s, chat, msgId, subTitle(s, n, lang), it) } }
-            d == "r:status" -> edit(s, chat, msgId, TgLogic.status(g.currentState(), kidName(g), lang, now, ::hm), TgLogic.statusKb(lang))
+            d == "n:main" -> nav(s, chat, msgId, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang))
+            d.startsWith("n:") -> { val n = d.removePrefix("n:"); TgLogic.sub(lang, n)?.let { nav(s, chat, msgId, subTitle(s, n, lang), it) } }
+            d == "r:status" -> nav(s, chat, msgId, TgLogic.status(g.currentState(), kidName(g), lang, now, ::hm), TgLogic.statusKb(lang))
             d.startsWith("ry:") || d.startsWith("rn:") || d.startsWith("ra:") || d.startsWith("rb:") -> {
                 val kind = d.substring(0, 2); val parts = d.substring(3).split(':'); val id = parts[0]
                 val yes = kind == "ry" || kind == "ra"; val min = (parts.getOrNull(1)?.toIntOrNull() ?: 15).coerceIn(1, 600)
@@ -598,15 +604,15 @@ object Tg {
             }
             d.startsWith("z:") -> {   // undo of a panel change
                 val u = undos.remove(d.removePrefix("z:"))
-                if (u == null) edit(s, chat, msgId, TgLogic.s(lang, "undoGone"), TgLogic.keyboard(listOf(listOf(TgLogic.s(lang, "b.back") to "n:main"))))
+                if (u == null) nav(s, chat, msgId, TgLogic.s(lang, "undoGone"), TgLogic.keyboard(listOf(listOf(TgLogic.s(lang, "b.back") to "n:main"))))
                 else { editRules(g, s) { TgLogic.undo(it, u.before, u.after, now) }
-                    edit(s, chat, msgId, TgLogic.s(lang, "undone"), TgLogic.keyboard(listOf(listOf(TgLogic.s(lang, "b.back") to "n:main")))) }
+                    nav(s, chat, msgId, TgLogic.s(lang, "undone"), TgLogic.keyboard(listOf(listOf(TgLogic.s(lang, "b.back") to "n:main")))) }
             }
             d.startsWith("b:") || d.startsWith("u:") -> {   // the picker becomes the answer, with "another one" + back
                 val on = d[0] == 'b'; val p = d.substring(2)
                 chatAction(s, chat, "typing")
                 editRules(g, s) { TgLogic.block(it, p, on, now) }
-                edit(s, chat, msgId, TgLogic.s(lang, if (on) "blocked" else "unblockedOne", label(p)), TgLogic.keyboard(listOf(listOf(
+                nav(s, chat, msgId, TgLogic.s(lang, if (on) "blocked" else "unblockedOne", label(p)), TgLogic.keyboard(listOf(listOf(
                     TgLogic.s(lang, if (on) "b.blockMore" else "b.unblockMore") to (if (on) "c:block" else "c:unblock"), TgLogic.s(lang, "b.back") to "n:main"))))
             }
             d.startsWith("a:") -> {

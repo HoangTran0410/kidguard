@@ -1151,4 +1151,5 @@
         <item quantity="other">Back on %d minutes after you leave it.</item>
     </plurals>
     <string name="log_self_open">Parent opened KidGuard\'s app info for 5 minutes</string>
+    <string name="feat_cap_mic">microphone</string>
 </resources>

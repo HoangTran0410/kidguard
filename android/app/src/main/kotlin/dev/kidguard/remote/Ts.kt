@@ -143,8 +143,28 @@ object Ts {
     @Volatile private var expTries = 0
 
     /** Never includes the auth key or token. noExpiry: the node key won't expire (else the page asks to turn it off by hand). */
-    fun stateJson(ctx: Context, s: Store): JSONObject = JSONObject().put("state", state).put("ip", ip).put("host", s.tsHost).put("err", err).put("noExpiry", s.tsNoExpiry).put("why", if (s.vpnPaused.isNotEmpty()) "bank" else keepWhy)
+    fun stateJson(ctx: Context, s: Store): JSONObject {
+        val liveIp = ip.ifEmpty { findIp() }   // basic mode: a Tailscale set up by hand is never polled (tsWanted off), so look at the interface now
+        return JSONObject().put("state", state).put("ip", liveIp).put("installed", installed(ctx)).put("up", liveIp.isNotEmpty()).put("host", s.tsHost).put("err", err).put("noExpiry", s.tsNoExpiry).put("why", if (s.vpnPaused.isNotEmpty()) "bank" else keepWhy)
         .put("doze", dozeHit(ctx))
+    }
+
+    /**
+     * Command `tsInstall`: open Tailscale on the child's screen (installed: the app; else its Play Store page, https if there is no
+     * Store). Needs the background-start right ([AccPause.canReopen]); a person at the phone still taps Install and signs in.
+     */
+    fun openInstall(ctx: Context): String {
+        if (Flavor.HOME) return "unsupported"
+        if (!AccPause.canReopen(ctx)) return "no bg start"
+        fun go(i: Intent) = ctx.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        return runCatching {
+            val app = ctx.packageManager.getLaunchIntentForPackage(TsLogic.PKG)
+            if (app != null) go(app)
+            else try { go(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("market://details?id=" + TsLogic.PKG))) }
+            catch (e: android.content.ActivityNotFoundException) { go(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://play.google.com/store/apps/details?id=" + TsLogic.PKG))) }
+            "ok"
+        }.getOrElse { Log.w(TAG, "ts install open", it); "failed" }
+    }
 
     /**
      * Tailscale installed but under Android's battery optimisation: with the screen off for a while (Doze) its tunnel goes

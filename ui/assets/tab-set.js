@@ -4,7 +4,18 @@ const kidFlag = (k, n, v) => { const key = "kg." + n + "." + (k.id || k.target |
 // Remote access over Tailscale (state.ts). The auth key is only typed at home (LAN): it never goes through the relay.
 // rule tsKeep: the phone brings a dropped / cleaned-up Tailscale back (Ts.keep). Off by default: Tailscale may be for work.
 const tsKeepRow = () => edit ? `<label class="row" style="margin-top:8px"><input type="checkbox" id="f-tsk" ${edit.tsKeep ? "checked" : ""}><span class="sp">${ic("refresh-cw")} ${t("ts.keep")}</span></label>
-    <p class="mute">${t("ts.keepTip")}</p>` : "";
+    <p class="mute">${t("ts.keepTip")}</p>${st && st.ts && st.ts.installed === false ? `<p class="mute">${ic("triangle-alert")} ${t("ts.keepNone")}</p>` : ""}` : "";
+// What the child phone reports about Tailscale (state.ts.installed / up / ip; older phones send neither: nothing shown) + "Check" + "open on the child".
+// A basic-mode phone cannot install or sign in for the child: the button only opens the page / app, a person at the phone finishes it.
+let tsChk = null;   // {k, at}: the parent pressed "Check" (kid, time)
+function tsLinkHtml() {
+  const ts = st && st.ts; if (!ts || ts.installed === undefined) return "";
+  const up = !!ts.up, bad = ts.state === "error" && !up;
+  const line = !ts.installed ? [t("ts.notInst"), "warn", "triangle-alert"] : up ? [t("ts.link.up", esc(ts.ip || "")), "ok", "check"] : [t("ts.link.down"), "warn", "hourglass"];
+  const chk = tsChk && tsChk.k === cur && tsChk.at ? `<p class="mute">${t("ts.chkAt", hhmm(tsChk.at), st.t ? ago(st.t) : "?")}</p>` : "";
+  return `<div class="alert ${line[1]}">${ic(line[2])} <span>${line[0]}${bad && ts.err ? " " + esc(ts.err) : ""}</span></div>${up ? "" : `<p class="mute">${t("ts.needHand")}</p>`}
+    <div class="row" style="margin-top:8px">${up ? "" : `<button type="button" id="tsInst" class="pri">${ic("external-link")} ${t(ts.installed ? "ts.openApp" : "ts.openInst")}</button>`}<button type="button" id="tsChk">${ic("refresh-cw")} ${t("ts.check")}</button></div>${chk}`;
+}
 // last successful sync with the relay (state.relayOk, ms; 0 = none yet); > 10 min = the page can't reach the phone away from home
 const relayOkHtml = () => { const ok = st && +st.relayOk; if (!ok) return `<span class="err">${ic("triangle-alert")} ${t("relay.syncNone")}</span>`; return Date.now() - ok > 600000 ? `<span class="err">${ic("triangle-alert")} ${t("relay.syncOld", ago(ok))}</span>` : `${ic("check")} ${t("relay.sync", ago(ok))}`; };
 // why KidGuard has not brought Tailscale back yet (state.ts.why)
@@ -15,12 +26,12 @@ function tsCard(lan) {
   // basic mode: KidGuard can't install / sign in Tailscale (needs Device Owner), but a Tailscale set up by hand works and "keep on" (Ts.keep) too
   if (isBasic()) { const bi = (st && st.ts && st.ts.ip) || "";
     return secP("s-ts", "route", t("ts.h"), t("sd.ts"), bi ? [t("ts.on"), "ok"] : edit && edit.tsKeep ? [t("ts.keepB"), "ok"] : [t("off")],
-      `${bi ? `<p>${ic("link")} <code>${esc("http://" + bi + ":8770")}</code></p>` : ""}${tsWhyHtml(st && st.ts)}<p class="mute">${ic("info")} ${t("ts.basicOwn")}</p><p class="mute">${t("ts.basic")}</p>${tsKeepRow()}`); }
+      `${bi ? `<p>${ic("link")} <code>${esc("http://" + bi + ":8770")}</code></p>` : ""}${tsWhyHtml(st && st.ts)}${tsLinkHtml()}<p class="mute">${ic("info")} ${t("ts.basicOwn")}</p><p class="mute">${t("ts.basic")}</p>${tsKeepRow()}`); }
   const ts = (st && st.ts) || { state: "off" };
   const label = tc("ts.", ts.state, ts.state);
   const cls = { on: "ok", error: "bad", installing: "warn" }[ts.state] || "";
   const url = ts.ip ? `http://${ts.ip}:8770` : "";
-  if (!lan && ts.state === "off") return secP("s-ts", "route", t("ts.h"), t("sd.ts"), edit && edit.tsKeep ? [t("ts.keepB"), "ok"] : [t("off")], `<p class="mute">${t("ts.homeOnly")}</p>${tsKeepRow()}`);   // relay page: enabling needs home, the keep switch doesn't
+  if (!lan && ts.state === "off") return secP("s-ts", "route", t("ts.h"), t("sd.ts"), edit && edit.tsKeep ? [t("ts.keepB"), "ok"] : [t("off")], `${tsLinkHtml()}<p class="mute">${t("ts.homeOnly")}</p>${tsKeepRow()}`);   // relay page: enabling needs home, the keep switch doesn't
   const exp = ts.state === "on" && ts.noExpiry === false && !kidFlag(cur, "tsExp");   // false only from phones that report it
   return secP("s-ts", "route", t("ts.h"), t("sd.ts"), [esc(label), cls], `
     <p class="mute">${t("ts.p")}</p>
@@ -138,7 +149,7 @@ function featCard() {
   const name = f => esc(hasT("ft_" + f.id) ? t("ft_" + f.id) : f.id);
   const rows = F.map(f => `<tr class="${f.ok ? "" : "no"}"><th scope="row">${FEAT_GO[f.id] && navOk(FEAT_GO[f.id][0]) ? `<button type="button" class="ftgo" data-ft="${esc(f.id)}">${name(f)} ${ic("chevron-right")}</button>` : name(f)}</th>
     <td>${f.ok ? tagEl("ok", "check", t("ft.ok")) : tagEl("warn", "lock", t("cap_need", esc((f.missing || []).map(capName).join(", ") || "?")))}</td></tr>`).join("");
-  const ag = st.autoGrant, agL = ag && +ag.left > 0 ? alertBox("warn", "hourglass", `<span>${t("ag.left", +ag.left)}${ag.next > Date.now() ? ", " + t("ag.next", hhmm(ag.next)) : ""}${ag.err ? " · " + esc(tc("ag.err.", ag.err, ag.err)) : ""}${ag.at > 0 ? ` <span class="mute">· ${t("ag.at", ago(ag.at))}</span>` : ""}</span>`) : "";
+  const ag = st.autoGrant, agL = ag && +ag.left > 0 ? alertBox("warn", "hourglass", `<span>${t("ag.left", +ag.left)}${ag.next > Date.now() ? ", " + t("ag.next", hhmm(ag.next)) : ""}${ag.err ? " · " + esc(tc("ag.err.", ag.err, ag.err)) : ""}${ag.at > 0 ? ` <span class="mute">· ${t("ag.at", ago(ag.at))}</span>` : ""}</span> <button type="button" class="pill" data-fixperms>${ic("refresh-cw")} ${t("ag.now")}</button>`) : "";
   // basic mode: it can be bypassed; what Device Owner adds and what upgrading costs, before anyone starts it (owner 2026-11-13)
   const tamper = st.caps && st.caps.owner === false ? `<div class="alert warn">${ic("shield")} <span>${t("tm.d")}
     <details><summary>${t("tm.see")}</summary><ul>${["tm.l1", "tm.l2", "tm.l3"].map(k => `<li>${t(k)}</li>`).join("")}</ul>
@@ -411,6 +422,8 @@ function setTab(b) {
     if (r && r.result && r.result !== "ok") toast("err|" + t("cmd.answer", r.result));
     $("#f-ts-key").value = "";
   };
+  if ($("#tsInst")) $("#tsInst").onclick = () => cmd({ type: "tsInstall" }, t("ts.instSent"), false);
+  if ($("#tsChk")) $("#tsChk").onclick = async () => { const b = $("#tsChk"), k = cur; b.disabled = true; try { await refresh1(); } catch {} if (k !== cur) return; tsChk = { k, at: Date.now() }; render(); };
   if ($("#tsExpOk")) $("#tsExpOk").onclick = () => { kidFlag(cur, "tsExp", 1); render(); };
   if ($("#tsOff")) $("#tsOff").onclick = async () => { await cmd({ type: "tailscaleOff" }, t("turnedOff")); };
   $("#openPair").onclick = async () => {

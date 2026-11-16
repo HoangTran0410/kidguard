@@ -82,6 +82,17 @@ object Features {
         return TABLE.map { it.first }.filter { it in before && it !in after }
     }
 
+    /**
+     * "Bảo vệ và quyền" order (owner 2026-11-16: "quyền nào nên bật đầu tiên"): what is still missing first, by how much it
+     * unlocks: parent pairing (nothing remote works without it), then on-phone adb (AutoGrant then grants usage, notification
+     * access, battery, location, notifications, mic, installs by itself, so the parent can fix the rest from the page), then
+     * the taps adb can't do (admin, accessibility), then the rest. Working features after, same order.
+     */
+    val PRIORITY = listOf("remote", "autoGrant", "noUninstall", "block", "limits", "usage", "location", "screen", "launcherLock",
+        "launcher", "adbShell", "dns", "lockLocation", "debloat", "pcAdb", "tailscale")
+    fun byPriority(list: List<Feature>): List<Feature> =
+        list.sortedWith(compareBy<Feature> { it.ok }.thenBy { PRIORITY.indexOf(it.id).let { i -> if (i < 0) PRIORITY.size else i } })
+
     fun status(c: Caps): List<Feature> = TABLE.map { (id, alts) ->
         val miss = alts.map { alt -> alt.filter { !c.has(it) } }
         if (miss.any { it.isEmpty() }) Feature(id, true, emptyList())

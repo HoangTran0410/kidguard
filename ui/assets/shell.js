@@ -17,7 +17,7 @@ function applyTheme() { if (theme === "auto") document.documentElement.removeAtt
 applyTheme();
 const themeBtn = () => `<button type="button" class="rb" data-theme-btn aria-label="${esc(t("theme.h") + ": " + t("theme." + theme))}" title="${esc(t("theme.h") + ": " + t("theme." + theme))}">${ic(theme === "auto" ? "sun-moon" : theme === "dark" ? "moon" : "sun")}</button>`;
 document.addEventListener("click", e => {
-  const fx = e.target.closest("#fixPermsBtn");
+  const fx = e.target.closest("#fixPermsBtn, [data-fixperms]");
   if (fx && !fx.disabled) { fx.disabled = true; cmd({ type: "fixPerms" }, t("fp.sent"), false).then(r => {
     if (r && r.result === "none") toast(t("fp.none"));
     [2000, 6000, 15000].forEach(ms => setTimeout(refresh, ms));

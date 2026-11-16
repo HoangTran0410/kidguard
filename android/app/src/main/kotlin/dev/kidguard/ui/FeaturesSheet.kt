@@ -35,6 +35,12 @@ object FeatureCaps {
 
 /** Child-app screen "Tính năng và quyền": every feature, whether it works now, and a button per missing permission. */
 object FeaturesSheet {
+    private var live: (() -> Unit)? = null
+    private var cur: Sheet? = null
+
+    /** Re-reads the caps into the open sheet (no-op when closed). */
+    fun refresh() { if (cur?.showing == true) live?.invoke() }
+
     const val GUIDE = "https://kid-guard.pages.dev/guide#install"
 
     private val ICON = mapOf(
@@ -108,8 +114,37 @@ object FeaturesSheet {
             } else guide(act, u, R.string.feat_cap_adb, R.string.feat_adb_body)
             "wss" -> guide(act, u, R.string.feat_cap_wss, R.string.feat_wss_body)
             "paired" -> pair()
+            // the port opens through our own paired adb ([Shell.tcp] also sets the rule, so the Guard tick reopens it after a reboot)
+            "adbNet" -> {
+                val app = act.applicationContext
+                Thread({
+                    val r = runCatching { SelfAdb.invalidate(); Shell.tcp(app, true) }.getOrDefault("fail")
+                    act.runOnUiThread {
+                        when (r) {
+                            "ok" -> say(act, R.string.feat_adbnet_ok)
+                            "no adb" -> { say(act, R.string.feat_adbnet_pair); fix(act, u, "adb", pair) }
+                            "blocked" -> say(act, R.string.feat_adbnet_blocked)
+                            else -> say(act, R.string.feat_adbnet_fail)
+                        }
+                    }
+                }, "fix-adbnet").start()
+            }
+            // Tailscale is its own app: open it to sign in / connect, or get it from the store
+            "vpn" -> {
+                val launch = if (Ts.installed(act)) act.packageManager.getLaunchIntentForPackage(TsLogic.PKG) else null
+                if (launch != null) { say(act, R.string.feat_vpn_open); open(act, launch) }
+                else {
+                    say(act, R.string.feat_vpn_get)
+                    open(act, Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${TsLogic.PKG}")),
+                        Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=${TsLogic.PKG}")))
+                }
+            }
+            // never close the sheet silently: a cap added later without a fix says so
+            else -> say(act, R.string.feat_nofix)
         }
     }
+
+    private fun say(act: Activity, res: Int) { android.widget.Toast.makeText(act, res, android.widget.Toast.LENGTH_LONG).show() }
 
     /**
      * "Bảo vệ và quyền": [status] (MainActivity's live status rows, kept up to date by its refresh) on top, then every
@@ -120,6 +155,10 @@ object FeaturesSheet {
         val sheet = Sheet(act, u, act.getString(if (status != null) R.string.prot_title else R.string.feat_title))
         val body = sheet.body
         val pad = u.dp(12)
+        // rebuilt in place (the sheet never closes by itself: a tap opens a screen / dialog above it, and coming back
+        // re-reads the caps). [refresh] is called from MainActivity.onResume.
+        fun fill() {
+        body.removeAllViews()
         if (status != null) {
             body.addView(u.section(act.getString(R.string.prot_status)))
             body.addView(u.cardBox(14).apply { (layoutParams as LinearLayout.LayoutParams).topMargin = u.dp(4); addView(status) })
@@ -134,13 +173,17 @@ object FeaturesSheet {
             })
             addView(u.label(act.getString(desc), 14f).apply { setPadding(0, u.dp(6), 0, 0) })
             if (need != null) addView(u.label(act.getString(R.string.feat_need, need), 14f, u.tone(Ic.WARN), true).apply { setPadding(0, u.dp(8), 0, 0) })
-            addView(u.button(btn, null, false) { sheet.dismiss(); run() })
+            addView(u.button(btn, null, false) { run() })
         })
         val caps = FeatureCaps.of(act)
         val store = Store.of(act)
         // basic mode: say up front that it can be bypassed and what Device Owner adds (owner 2026-11-13)
-        if (!caps.owner) actionCard(R.drawable.li_shield, R.string.tamper_card, R.string.tamper_card_d, null, act.getString(R.string.tamper_see)) { tamper(act, u) }
-        for (f in Features.status(caps)) {
+        val feats = Features.byPriority(Features.status(caps))
+        // the "can be bypassed" card after what is still missing (that is what to do first), before the working ones
+        val tamperCard = { if (!caps.owner) actionCard(R.drawable.li_shield, R.string.tamper_card, R.string.tamper_card_d, null, act.getString(R.string.tamper_see)) { tamper(act, u) } }
+        if (feats.none { !it.ok }) tamperCard()
+        for ((i, f) in feats.withIndex()) {
+            if (i > 0 && f.ok && !feats[i - 1].ok) tamperCard()
             val card = u.cardBox(14)
             val name = u.label(str(act, "ft_", f.id), 17f, u.text, true).apply {
                 setCompoundDrawablesRelative(u.badge(ICON[f.id] ?: R.drawable.li_settings, u.accent, u.tint, 36, 20, 11), null, null, null)
@@ -148,6 +191,8 @@ object FeaturesSheet {
             }
             card.addView(name)
             card.addView(u.label(str(act, "ft_", f.id + "_d"), 14f).apply { setPadding(0, u.dp(6), 0, 0) })
+            // the one to do first in basic mode: it turns most of the other cards on by itself
+            if (f.id == "autoGrant" && !f.ok) card.addView(u.label(act.getString(R.string.ft_autoGrant_first), 14f, u.accent, true).apply { setPadding(0, u.dp(8), 0, 0) })
             val chipColor = u.tone(if (f.ok) Ic.OK else Ic.WARN)
             val chip = if (f.ok) act.getString(R.string.feat_ok)
                 else act.getString(R.string.feat_need, f.missing.joinToString(", ") { str(act, "feat_cap_", it) })
@@ -155,10 +200,11 @@ object FeaturesSheet {
             for (cap in f.missing) {
                 val label = if (cap == "home") act.getString(R.string.feat_launcher_use)
                     else act.getString(R.string.feat_fix, str(act, "feat_cap_", cap))
-                card.addView(u.button(label, null, false) { sheet.dismiss(); fix(act, u, cap, pair) })
+                card.addView(u.button(label, null, false) { fix(act, u, cap, pair) })
             }
             body.addView(card)
         }
+        if (feats.isNotEmpty() && feats.all { !it.ok }) tamperCard()
         // basic mode + bank apps: without "display over other apps" Android may block reopening the bank after the pause
         if (!Policy.isOwner(act) && store.rules.accPause.isNotEmpty() && !AccPause.canReopen(act)) {
             val cap = act.getString(R.string.feat_cap_overlay)
@@ -167,6 +213,9 @@ object FeaturesSheet {
             }
         }
         if (battery != null) actionCard(R.drawable.li_battery_charging, R.string.ft_battery, R.string.ft_battery_d, null, act.getString(R.string.ft_battery_open)) { battery() }
+        }
+        fill()
+        live = ::fill; cur = sheet
         sheet.show()
         return sheet
     }

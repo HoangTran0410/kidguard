@@ -821,6 +821,7 @@ class Guard : Service() {
         "clearCache" -> Policy.clearCaches(this).also { if (it == "ok") { forgetSizes(); store.log(R.string.log_cleared_cache); kick() } }
         "update" -> if (Update.start(this, true)) "ok" else "busy"
         "devOff" -> devOff()
+        "tsInstall" -> Ts.openInstall(this)
         "bankEnd" -> bankEnd()
         "selfOpen" -> if (c.optBoolean("on")) {
             store.selfOpenUntil = System.currentTimeMillis() + CmdGate.SELF_OPEN_MS; store.log(R.string.log_self_open); "ok"

@@ -97,7 +97,8 @@ function updateLive() {
   if ((st.usageAccess === false || st.usageOff) && !Array.isArray(st.missing)) B.push(["bad", "triangle-alert", t("live.usage")]);
   if (st.dnsError) B.push(["warn", "triangle-alert", t("live.dns", esc(st.dnsError))]);
   if (st.locationOn === false) B.push(["warn", "triangle-alert", t("live.locOff")]);
-  const B2 = B.filter(x => !(x[3] && banHid.has(x[3])));
+  // worst first (stable): only the first band shows folded, and an info band ("basic mode") used to hide the red "N things are off" + Fix (owner 2026-11-16)
+  const RANK = { bad: 0, warn: 1 }, B2 = B.filter(x => !(x[3] && banHid.has(x[3]))).map((x, i) => [x, i]).sort((a, c) => ((RANK[a[0][0]] ?? 2) - (RANK[c[0][0]] ?? 2)) || a[1] - c[1]).map(x => x[0]);
   const ban = x => `<div class="ban t-${x[0]}" role="status"><span class="bi">${ic(x[1])}</span><div class="x">${x[2]}</div>${x[5] || ""}${x[4] ? `<button type="button" class="pill" data-band="${x[3]}">${t("ban.why")}</button><button type="button" class="banx" data-banx="${x[3]}" aria-label="${esc(t("ban.hide"))}" title="${esc(t("ban.hide"))}">${ic("x")}</button>` : ""}</div>`;
   const strip = $("#strip") ? "" : stripHtml();   // home has its own spot under the round buttons
   el.innerHTML = sosHtml() + ciHtml() + strip + (banAll ? B2 : B2.slice(0, 1)).map(ban).join("")
@@ -190,7 +191,8 @@ function earBar() {
 async function earStart() {
   if (!cur || cur.via !== "lan") return toast("warn|" + t("ear.lanOnly"));
   if (ringOn()) return toast("warn|" + t("act.noEar"));
-  if (st && st.listen && st.listen.mic === false) return ask(t("ear.no mic permission"), "OK", false, "", "", null, t("ear.cant"));
+  // no mic: offer the same Fix as the "N things are off" banner (self-adb grant, else the phone opens the Permissions screen)
+  if (st && st.listen && st.listen.mic === false) { if (await ask(t("ear.no mic permission"), t("fp.btn"), false, "", "", null, t("ear.cant"))) cmd({ type: "fixPerms" }, t("fp.sent"), false); return; }
   if (!(await ask(t("ear.ask"), t("ear.on")))) return;
   earStart.k = cur;
   const e = earBar(), au = $("#earAudio");

@@ -87,4 +87,12 @@
     <string name="ev_call_blocked">Call blocked: %1$s</string>
     <string name="call_hidden">hidden number</string>
     <string name="st_calls_role">Call blocking is on. Tap here once and allow KidGuard to screen calls.</string>
+    <string name="feat_adbnet_ok">Port 5555 is opening. It stays open.</string>
+    <string name="feat_adbnet_pair">Set up adb on this phone first, then retry.</string>
+    <string name="feat_adbnet_blocked">Port 5555 is paused while a bank app is in front.</string>
+    <string name="feat_adbnet_fail">Could not open port 5555. Try again in a minute.</string>
+    <string name="feat_vpn_open">Opening Tailscale. Sign in and connect.</string>
+    <string name="feat_vpn_get">Install Tailscale to use it from the page.</string>
+    <string name="feat_nofix">No quick fix for this one. See the guide.</string>
+    <string name="ft_autoGrant_first">Do this first: then the phone turns most other permissions on by itself, and you can fix the rest from the parent page.</string>
 </resources>
