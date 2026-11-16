@@ -5,8 +5,23 @@ let trk = [], trkLoaded = 0, trkDay = "", mv = null;
 const dpCfg = {};   // id -> { sel: "YYYY-MM-DD", days: Set|array of selectable days, onPick(day) }
 let dpOpen = null, dpM = null;
 function dayLabel(k) { const td = dkey(Date.now()); return k === td ? t("today") : k === dkey(Date.now() - 864e5) ? t("yesterday") : k ? dm(k) : t("pickDay"); }
-function dayBtn(id, cfg) { dpCfg[id] = { ...cfg, days: new Set(cfg.days) }; return `<button class="dpb" data-dp="${id}" aria-haspopup="dialog">${ic("calendar")} ${esc(dayLabel(cfg.sel))}</button>`; }
+// Shared day picker (the only one on the page: Lịch sử, Vị trí, Hôm nay chart, Nhật ký). cfg:
+//   sel "YYYY-MM-DD"; onPick(day); days: array of pickable days, OR min/max: every day in that range is pickable;
+//   counts {day: n}: a small number under each day; nav: true adds ‹ › buttons that step to the previous / next pickable day.
+const dpOk = (c, k) => c.days.has(k) || !!(c.min && k >= c.min && k <= c.max);
+function dpStep(c, n) {
+  if (c.min) { const d = c.sel || c.max, x = dkey(new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10) + n, 12).getTime()); return dpOk(c, x) ? x : null; }
+  const a = [...c.days].sort(), i = a.indexOf(c.sel); return i < 0 ? null : a[i + n] || null;
+}
+function dayBtn(id, cfg) {
+  const c = dpCfg[id] = { ...cfg, days: new Set(cfg.days || []) };
+  const btn = `<button type="button" class="dpb${c.nav ? " sp" : ""}" data-dp="${id}" aria-haspopup="dialog">${ic("calendar")} ${esc(dayLabel(c.sel))}</button>`;
+  if (!c.nav) return btn;
+  const st = (n, icn, lbl) => `<button type="button" class="sm" data-dps="${id}|${n}" aria-label="${esc(t(lbl))}" ${dpStep(c, n) ? "" : "disabled"}>${ic(icn)}</button>`;
+  return `<div class="row nw dpnav">${st(-1, "chevron-left", "dp.prev")}${btn}${st(1, "chevron-right", "dp.next")}</div>`;
+}
 function dpBind(root) {
+  root.querySelectorAll("[data-dps]").forEach(b => b.onclick = () => { const [id, n] = b.dataset.dps.split("|"), c = dpCfg[id], k = c && dpStep(c, +n); if (k) c.onPick(k); });
   root.querySelectorAll("[data-dp]").forEach(b => b.onclick = () => { dpOpen = b.dataset.dp; const c = dpCfg[dpOpen], d = c.sel || dkey(Date.now()); dpM = { y: +d.slice(0, 4), m: +d.slice(5, 7) - 1 }; dpDraw(); });
   if (dpOpen) dpDraw();   // a re-render must not lose the open popover (data may have changed)
 }
@@ -17,7 +32,8 @@ function dpDraw() {
   const p2 = x => String(x).padStart(2, "0"), today = dkey(Date.now());
   const off = (new Date(dpM.y, dpM.m, 1).getDay() + 6) % 7, n = new Date(dpM.y, dpM.m + 1, 0).getDate(), cells = Array(off).fill("<span></span>");
   for (let d = 1; d <= n; d++) { const k = `${dpM.y}-${p2(dpM.m + 1)}-${p2(d)}`;
-    cells.push(c.days.has(k) ? `<button class="pri${k === c.sel ? " sel" : ""}" data-k="${k}" aria-label="${esc(new Date(dpM.y, dpM.m, d).toLocaleDateString(lang, { dateStyle: "long" }))}">${d}</button>` : `<span class="mute" aria-disabled="true">${d}</span>`); }
+    const n = c.counts ? +c.counts[k] || 0 : -1, cnt = n >= 0 ? `<small class="dpn${n ? "" : " mute"}">${n || "·"}</small>` : "";
+    cells.push(dpOk(c, k) ? `<button type="button" class="${n === 0 ? "" : "pri"}${k === c.sel ? " sel" : ""}" data-k="${k}" aria-label="${esc(new Date(dpM.y, dpM.m, d).toLocaleDateString(lang, { dateStyle: "long" }) + (n >= 0 ? " · " + n : ""))}">${d}${cnt}</button>` : `<span class="mute" aria-disabled="true">${d}</span>`); }
   const mt = new Date(dpM.y, dpM.m, 1).toLocaleDateString(lang, { month: "long", year: "numeric" });
   pop.innerHTML = `<div class="dp"><div class="row"><button id="dpP" aria-label="${esc(t("dp.prev"))}">${ic("chevron-left")}</button><b class="sp" style="text-align:center">${esc(mt.charAt(0).toUpperCase() + mt.slice(1))}</b><button id="dpN" aria-label="${esc(t("dp.next"))}">${ic("chevron-right")}</button></div>
     <div class="dpg">${t("wd").map(x => `<span class="mute">${x}</span>`).join("")}${cells.join("")}</div>
@@ -25,7 +41,7 @@ function dpDraw() {
   pop.style.display = "flex";
   $("#dpP").onclick = () => { dpM = dpM.m ? { y: dpM.y, m: dpM.m - 1 } : { y: dpM.y - 1, m: 11 }; dpDraw(); };
   $("#dpN").onclick = () => { dpM = dpM.m < 11 ? { y: dpM.y, m: dpM.m + 1 } : { y: dpM.y + 1, m: 0 }; dpDraw(); };
-  $("#dpT").onclick = () => { if (c.days.has(today)) { const f = c.onPick; dpClose(); f(today); } else { dpM = { y: +today.slice(0, 4), m: +today.slice(5, 7) - 1 }; dpDraw(); } };
+  $("#dpT").onclick = () => { if (dpOk(c, today)) { const f = c.onPick; dpClose(); f(today); } else { dpM = { y: +today.slice(0, 4), m: +today.slice(5, 7) - 1 }; dpDraw(); } };
   $("#dpX").onclick = dpClose;
   pop.querySelectorAll("[data-k]").forEach(b => b.onclick = () => { const f = c.onPick, k = b.dataset.k; dpClose(); f(k); });
 }

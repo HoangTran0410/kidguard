@@ -86,7 +86,7 @@ code{word-break:break-all;font-size:12px}
 .close{width:40px;height:40px;min-height:40px;border-radius:20px;background:var(--bg);border:0;padding:0;color:var(--sub);flex:none}
 .dpg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
 .dpg button{min-height:40px;padding:2px;min-width:0;border-radius:12px}.dpg span{text-align:center;padding:9px 0;font-size:14px}
-.dpg button.sel{outline:2px solid var(--ok);outline-offset:1px}
+.dpg button.sel{outline:2px solid var(--ok);outline-offset:1px}.dpg button{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}.dpn{font-size:10px;font-weight:700;opacity:.85}.dpnav{gap:8px}.dpnav .dpb{justify-content:center;min-height:40px}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chips button{min-height:40px;min-width:48px;padding:0 12px;border-radius:12px;font-size:14px}
 .chips.scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin:0 -2px;padding:2px}.chips.scroll::-webkit-scrollbar{display:none}.chips.scroll button{flex:none;min-height:38px;white-space:nowrap}

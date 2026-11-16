@@ -160,7 +160,7 @@ L.en = {
   "req.reply": "Message to your kid (optional)", "req.replyPh": "e.g. Well done! Remember to put the phone away at 9", minutes: "Minutes", "req.yes": "Allow {0} min", "req.no": "Decline",
   today: "Today", yesterday: "Yesterday", used: "used", "home.incl": "(includes {0} bonus min)", "home.noLim": "(no limit)", left: "{0} left",
   "lg.all": "All", "lg.h": "Timeline", "lg.none": "Nothing on this day", "lg.more": "Show {0} more ({1} left)", "lg.prev": "Previous day", "lg.next": "Next day", "lg.days": "Pick a day",
-  "lg.note": "Number per day = events + log. The phone keeps the last 90 days.",
+  "lg.note": "The number under each day in the calendar = lines that day. The phone keeps the last 90 days.",
   "lg.noteOld": "This (older) phone keeps only its last 50 lines; this page remembers what it has seen (up to 90 days, on this device only). Update KidGuard on the phone for the full history.",
   "lg.loading": "Fetching from the phone…", "lg.cut": "Too many lines on this day: showing the newest only.", "lg.err": "Couldn't get this day: {0}", "lg.retry": "Retry",
   "lg.c.alert": "Alerts", "lg.c.parent": "Parent / commands", "lg.c.apps": "Apps", "lg.c.loc": "Location", "lg.c.other": "Other",

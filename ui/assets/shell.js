@@ -364,27 +364,18 @@ function logTab(b) {
   let tot = lgx && lgx.k === cur && lgx.days;
   if (m) { tot = {}; for (const e of m.ev) { const k = dkey(e.t); tot[k] = (tot[k] || 0) + 1; } for (const l of m.lg) { const k = dkey(l.t); tot[k] = (tot[k] || 0) + 1; } }
   tot = tot || {};
-  const days = []; for (let i = 0; i < 14; i++) days.push(dkey(Date.now() - i * 864e5));
-  if (days.indexOf(lgDay) < 0) days.push(lgDay);
   const first = dkey(Math.min(Date.now() - 90 * 864e5, ...Object.keys(tot).map(d => new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10), 12).getTime())));
   const chip = (attr, v, cur_, n, label) => `<button type="button" data-${attr}="${v}" class="${cur_ === v ? "on" : ""}" aria-pressed="${cur_ === v}">${label} <b>${n}</b></button>`;
   const chips = () => `<div class="chips scroll" role="group" aria-label="${esc(t("lg.h"))}">${chip("fe", "", lgEv, evAll.length + lgAll.length, t("lg.all"))}${Object.keys(C).sort((a, c) => a[0] === c[0] ? C[c] - C[a] : a < c ? -1 : 1).map(k => chip("fe", k, lgEv, C[k], k[0] === "e" ? `${ic(EV_IC[k.slice(2)] || "bell")} ${tc("lg.k.", k.slice(2), k.slice(2))}` : t("lg.c." + k.slice(2)))).join("")}</div>`;
   const more = (rows, n, id) => rows.length > n ? `<button type="button" class="sm" id="${id}" style="width:100%;margin-top:8px">${t("lg.more", Math.min(LG_PAGE, rows.length - n), rows.length - n)}</button>` : "";
   const wait = !m && !c.d, none = wait ? (c.err ? `<div class="empty"><span class="e">${ic("triangle-alert")}</span>${esc(t("lg.err", c.err))}<br><button type="button" class="sm" data-lgretry>${t("lg.retry")}</button></div>` : `<div class="empty"><span class="e">${ic("hourglass")}</span>${t("lg.loading")}</div>`) : `<div class="empty"><span class="e">${ic("inbox")}</span>${t("lg.none")}</div>`;
-  b.innerHTML = `<div class="card"><h2>${ic("calendar")} ${esc(dayLabel(lgDay))}</h2>
-    <div class="row nw" style="gap:8px"><button type="button" class="sm" id="lgPrev" aria-label="${esc(t("lg.prev"))}" ${lgDay <= first ? "disabled" : ""}>${ic("chevron-left")}</button>
-      <input type="date" id="lgPick" class="sp" value="${lgDay}" min="${first}" max="${today}" aria-label="${esc(t("pickDay"))}" style="min-height:40px;min-width:0">
-      <button type="button" class="sm" id="lgNext" aria-label="${esc(t("lg.next"))}" ${lgDay >= today ? "disabled" : ""}>${ic("chevron-right")}</button></div>
-    <div class="chips scroll" style="margin-top:8px" role="group" aria-label="${esc(t("lg.days"))}">${days.map(d => `<button type="button" data-d="${d}" class="${d === lgDay ? "on" : ""}" aria-pressed="${d === lgDay}">${d === today ? t("today") : dm(d)} <b>${tot[d] || 0}</b></button>`).join("")}</div>
-    <p class="mute" style="margin-top:8px">${t(oldPhone ? "lg.noteOld" : "lg.note")}</p>${c.d && c.d.cut ? `<p class="mute">${t("lg.cut")}</p>` : ""}</div>
-  <div class="card"><h2>${ic("list")} ${t("lg.h")}</h2>${evAll.length + lgAll.length ? chips() : ""}
-    <div style="margin-top:6px">${rows.slice(0, lgNEv).map(r => r.h).join("") || none}</div>${more(rows, lgNEv, "lgMoreE")}</div>`;
+  b.innerHTML = `<div class="card">${dayBtn("log", { sel: lgDay, min: first, max: today, counts: tot, nav: true, onPick: k => go(k) })}
+    <div style="margin-top:10px">${evAll.length + lgAll.length ? chips() : ""}</div>
+    <div style="margin-top:6px">${rows.slice(0, lgNEv).map(r => r.h).join("") || none}</div>${more(rows, lgNEv, "lgMoreE")}
+    <p class="mute" style="margin-top:10px">${t(oldPhone ? "lg.noteOld" : "lg.note")}</p>${c.d && c.d.cut ? `<p class="mute">${t("lg.cut")}</p>` : ""}</div>`;
   const go = d => { lgDay = d; lgEv = lgLg = ""; lgNEv = lgNLg = LG_PAGE; render(); };
-  const shift = n => go(dkey(new Date(+lgDay.slice(0, 4), +lgDay.slice(5, 7) - 1, +lgDay.slice(8, 10) + n, 12).getTime()));
+  dpBind(b);
   b.querySelectorAll("[data-lgretry]").forEach(x => x.onclick = () => lgLoad(lgDay, true));
-  $("#lgPrev").onclick = () => shift(-1); $("#lgNext").onclick = () => shift(1);
-  $("#lgPick").onchange = e => { const v = e.target.value; if (/^\d{4}-\d\d-\d\d$/.test(v)) go(v > today ? today : v); };
-  b.querySelectorAll("[data-d]").forEach(x => x.onclick = () => go(x.dataset.d));
   b.querySelectorAll("[data-fe]").forEach(x => x.onclick = () => { lgEv = x.dataset.fe; lgNEv = LG_PAGE; render(); });
   if ($("#lgMoreE")) $("#lgMoreE").onclick = () => { lgNEv += LG_PAGE; render(); };
 }
