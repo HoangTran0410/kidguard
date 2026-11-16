@@ -70,7 +70,8 @@ const feat = id => { const f = st && Array.isArray(st.features) && st.features.f
 // usable on this phone? Phones with state.features say so (owner OR a capability alternative, e.g. WRITE_SECURE_SETTINGS); older ones: not in basic mode
 const canFeat = id => st && Array.isArray(st.features) ? feat(id).ok : !isBasic();
 const CAPS = ["owner", "admin", "acc", "usage", "location", "notify", "battery", "home", "adb", "paired", "wss"];
-const capName = c => hasT("cap_" + c) ? t("cap_" + c) : c;
+// KidGuard's own adb needs wireless debugging (Android 11+): on an older phone say that, not "turn on USB debugging"
+const capName = c => c === "adb" && st && +st.sdk > 0 && +st.sdk < 30 ? t("cap_adbOld") : hasT("cap_" + c) ? t("cap_" + c) : c;
 // section id -> feature id (sec() dims the body of a section whose feature is not ok), tab id -> feature id (render())
 const FEAT_SEC = { "r-daily": "limits", "r-grp": "limits", "r-bed": "limits", "r-wind": "limits", "r-sch": "limits", "r-dns": "dns", "r-anti": "noUninstall",
   "r-kind": "launcherLock", "r-zone": "location", "r-trk": "location", "a-clean": "debloat" };
