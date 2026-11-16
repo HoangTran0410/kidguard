@@ -92,14 +92,14 @@ function updateLive() {
     const m = st.missing, fp = st.fixPerms || {}, names = m.map(capName).join(", "), tap = (fp.tap || []).filter(x => m.includes(x));
     B.push(["bad", "triangle-alert", (m.length === 1 ? t("fp.live1", esc(names)) : t("fp.live", m.length, esc(names)))
       + (fp.busy ? ` <span class="mute">${t("fp.busy")}</span>` : tap.length && Date.now() - fp.at < 3600e3 ? ` <span class="mute">${t("fp.tap", esc(tap.map(capName).join(", ")))}</span>` : "")
-      + (fp.busy ? "" : ` <button type="button" class="pill" id="fixPermsBtn">${ic("wrench")} ${t("fp.btn")}</button>`)]);
+      , undefined, undefined, fp.busy ? "" : `<button type="button" class="pill" id="fixPermsBtn">${ic("wrench")} ${t("fp.btn")}</button>`]);   // [5] = right-side action: inside the text it wrapped to its own line
   }
   if ((st.usageAccess === false || st.usageOff) && !Array.isArray(st.missing)) B.push(["bad", "triangle-alert", t("live.usage")]);
   if (st.dnsError) B.push(["warn", "triangle-alert", t("live.dns", esc(st.dnsError))]);
   if (st.locationOn === false) B.push(["warn", "triangle-alert", t("live.locOff")]);
   // worst first (stable): only the first band shows folded, and an info band ("basic mode") used to hide the red "N things are off" + Fix (owner 2026-11-16)
   const RANK = { bad: 0, warn: 1 }, B2 = B.filter(x => !(x[3] && banHid.has(x[3]))).map((x, i) => [x, i]).sort((a, c) => ((RANK[a[0][0]] ?? 2) - (RANK[c[0][0]] ?? 2)) || a[1] - c[1]).map(x => x[0]);
-  const ban = x => `<div class="ban t-${x[0]}" role="status"><span class="bi">${ic(x[1])}</span><div class="x">${x[2]}</div>${x[5] || ""}${x[4] ? `<button type="button" class="pill" data-band="${x[3]}">${t("ban.why")}</button><button type="button" class="banx" data-banx="${x[3]}" aria-label="${esc(t("ban.hide"))}" title="${esc(t("ban.hide"))}">${ic("x")}</button>` : ""}</div>`;
+  const ban = x => `<div class="ban t-${x[0]}" role="status"><span class="bi">${ic(x[1])}</span><div class="x">${x[2]}${x[4] ? ` <button type="button" class="banlink" data-band="${x[3]}">${t("ban.why")}</button>` : ""}</div>${x[5] || ""}${x[4] ? `<button type="button" class="banx" data-banx="${x[3]}" aria-label="${esc(t("ban.hide"))}" title="${esc(t("ban.hide"))}">${ic("x")}</button>` : ""}</div>`;
   const strip = $("#strip") ? "" : stripHtml();   // home has its own spot under the round buttons
   el.innerHTML = sosHtml() + ciHtml() + strip + (banAll ? B2 : B2.slice(0, 1)).map(ban).join("")
     + (B2.length > 1 ? `<button type="button" class="more-ban" id="banMore" aria-expanded="${banAll}">${ic(banAll ? "chevron-down" : "chevron-right")} ${banAll ? t("ban.less") : t("ban.more", B2.length - 1)}</button>` : "");
