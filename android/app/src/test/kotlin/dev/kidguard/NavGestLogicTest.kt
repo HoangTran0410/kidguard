@@ -61,4 +61,23 @@ class NavGestLogicTest {
         assertEquals(0, NavGestLogic.restoreTo(prev = 0, ourHome = false, cur = 1))
         assertEquals(null, NavGestLogic.restoreTo(prev = -1, ourHome = false, cur = 1))
     }
+
+    @Test fun fullScreenModeOnlyForOtherAppsThatHideTheBarOrAreGames() {
+        assertTrue(NavGestLogic.calm(statusHidden = true, game = false, ourFront = false))
+        assertTrue(NavGestLogic.calm(statusHidden = false, game = true, ourFront = false))
+        assertFalse(NavGestLogic.calm(statusHidden = false, game = false, ourFront = false))
+        assertFalse(NavGestLogic.calm(statusHidden = true, game = true, ourFront = true))
+    }
+
+    @Test fun menuStaysOnScreen() {
+        assertEquals(400, NavGestLogic.menuTop(500, 200, 2000, 40))
+        assertEquals(40, NavGestLogic.menuTop(10, 200, 2000, 40))
+        assertEquals(1760, NavGestLogic.menuTop(1990, 200, 2000, 40))
+    }
+
+    @Test fun keyboardOrShadeKeepsTheLastAnswer() {
+        assertEquals(null, NavGestLogic.frontGame(launchable = false, ours = false, game = false))
+        assertEquals(true, NavGestLogic.frontGame(launchable = true, ours = false, game = true))
+        assertEquals(false, NavGestLogic.frontGame(launchable = true, ours = true, game = true))
+    }
 }

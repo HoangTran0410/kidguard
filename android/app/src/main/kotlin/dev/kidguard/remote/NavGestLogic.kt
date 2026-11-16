@@ -58,4 +58,23 @@ object NavGestLogic {
             Edge.BOTTOM -> if (-dy >= min && ax <= ay * 1.5f) (if (still >= HOLD_MS) Act.RECENTS else Act.HOME) else Act.NONE
         }
     }
+
+    /**
+     * Full-screen mode (owner 2026-11-16: games): a stray edge swipe must not leave the game. While the app in front
+     * hides the status bar, or is a game, only the right edge stays and a swipe there opens a 3-button menu
+     * (Back / Home / Recents) instead of acting; a tap anywhere else (the game) closes it. Never on our own screens.
+     */
+    fun calm(statusHidden: Boolean, game: Boolean, ourFront: Boolean): Boolean = !ourFront && (statusHidden || game)
+
+    /** Top of the menu: centred on the finger, kept [margin] inside the screen. */
+    fun menuTop(fingerY: Int, menuH: Int, screenH: Int, margin: Int): Int =
+        (fingerY - menuH / 2).coerceAtMost(screenH - menuH - margin).coerceAtLeast(margin)
+
+    /** Which app "is in front" for full-screen mode: keyboards, the shade and other windows without a launcher entry
+     *  keep the last answer (null), so typing in a game or pulling the shade does not flip the mode. */
+    fun frontGame(launchable: Boolean, ours: Boolean, game: Boolean): Boolean? = when {
+        ours -> false
+        !launchable -> null
+        else -> game
+    }
 }

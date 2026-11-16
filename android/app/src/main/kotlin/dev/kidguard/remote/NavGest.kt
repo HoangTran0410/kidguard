@@ -151,6 +151,49 @@ object NavGest {
         private val wm = svc.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         private val views = arrayOfNulls<Strip>(3)
         val shown get() = views[0] != null
+        private val menu = Menu(svc, wm)
+
+        // full-screen mode ([NavGestLogic.calm]): status bar hidden by the app in front, or a game in front
+        private var barHidden = false
+        private var game = false
+        private var calm = false
+        private val games = HashMap<String, Boolean>()
+
+        /** Status bar shown / hidden, as the right strip's window sees it (insets on 30+, system UI flags before). */
+        fun statusHidden(h: Boolean, src: String) {
+            if (h == barHidden) return
+            barHidden = h; android.util.Log.i("kgNav", "status bar hidden=$h ($src)"); apply(false)
+        }
+
+        /** Android 11+: the status bar window is (not) in the accessibility window list (Acc.barCheck, absent twice in a
+         *  row before it counts: a moment without it while apps switch). */
+        fun barWindow(present: Boolean) { if (Build.VERSION.SDK_INT >= 30) statusHidden(!present, "windows") }
+
+        /** The app in front changed (Acc window event). Keyboards / shade keep the last answer. */
+        fun front(pkg: String) {
+            val g = games[pkg] ?: gameOf(pkg)?.also { games[pkg] = it } ?: return
+            if (g == game) return
+            game = g; android.util.Log.i("kgNav", "game in front=$g ($pkg)"); apply(false)
+        }
+
+        private fun gameOf(pkg: String): Boolean? = runCatching {
+            val pm = svc.packageManager
+            val ai = pm.getApplicationInfo(pkg, 0)
+            @Suppress("DEPRECATION")
+            val g = (Build.VERSION.SDK_INT >= 26 && ai.category == android.content.pm.ApplicationInfo.CATEGORY_GAME) ||
+                ai.flags and android.content.pm.ApplicationInfo.FLAG_IS_GAME != 0
+            NavGestLogic.frontGame(pm.getLaunchIntentForPackage(pkg) != null, pkg == svc.packageName || pkg == "dev.kidguard.home", g)
+        }.getOrNull()
+
+        /** Left + bottom strips off and the right one opens the menu while calm; [force] = re-apply to fresh views. */
+        private fun apply(force: Boolean) {
+            val c = NavGestLogic.calm(barHidden, game, false)
+            if (c == calm && !force) return
+            calm = c
+            if (!force) android.util.Log.i("kgNav", "full-screen mode=$c")
+            views[0]?.setOff(c); views[2]?.setOff(c); views[1]?.calm = c
+            if (!c) menu.close()
+        }
 
         /** All three or none (a half set would be re-added every tick). False = the overlay was refused. */
         fun show(): Boolean {
@@ -172,6 +215,9 @@ object NavGest {
             add(1, NavGestLogic.Edge.RIGHT, w, dm.heightPixels - top - h, top, Gravity.TOP or Gravity.RIGHT)
             add(2, NavGestLogic.Edge.BOTTOM, dm.widthPixels, h, 0, Gravity.BOTTOM or Gravity.LEFT)
             if (views.any { it == null }) { hide(); return false }
+            views[1]?.onMenu = { y -> menu.show(y) }
+            if (Build.VERSION.SDK_INT < 30) probe()
+            apply(true)
             return true
         }
 
@@ -188,11 +234,25 @@ object NavGest {
          *  (2026-11-15: LayoutParams(w, h) is really (type, flags) -> MATCH_PARENT, the Poco was stuck). */
         // only TOO BIG is dangerous; 0 = not laid out yet (a rotation / config re-show just before the 400 ms check turned
         // the strips off for good on the Poco, 2026-11-15)
-        fun sane(): Boolean = views.all { v -> v != null && v.width <= v.wantW + 2 && v.height <= v.wantH + 2 }.also {
+        fun sane(): Boolean = (views.all { v -> v != null && v.width <= v.wantW + 2 && v.height <= v.wantH + 2 } &&
+            probe.let { it == null || it.width <= 3 && it.height <= 3 }).also {
             if (!it) android.util.Log.w("kgNav", "strips not sane: " + views.joinToString { v -> "${v?.width}x${v?.height}/${v?.wantW}x${v?.wantH}" })
         }
 
+        // before Android 11 only: 1x1 px, no touches; gets the global system UI flags. From 11 on, an accessibility overlay
+        // never sees the status bar in its insets (it sits above it: "hidden" with the bar shown, Poco 2026-11-16), so
+        // there the accessibility window list decides ([barWindow], Acc.barCheck)
+        private var probe: Probe? = null
+        private fun probe() {
+            if (probe != null) return
+            val lp = params(1, 1, 0, Gravity.TOP or Gravity.LEFT, touchable = false).also { it.title = "kgNavProbe" }
+            val v = Probe(svc) { h, src -> statusHidden(h, src) }
+            if (runCatching { wm.addView(v, lp) }.isSuccess) probe = v
+        }
+
         fun hide() {
+            menu.close()
+            probe?.let { runCatching { wm.removeViewImmediate(it) } }; probe = null; barHidden = false
             for (i in views.indices) { views[i]?.let { v -> runCatching { wm.removeViewImmediate(v) } }; views[i] = null }
         }
     }
@@ -208,6 +268,15 @@ object NavGest {
         if (Build.VERSION.SDK_INT >= 28) layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
     }
 
+    /** Is the app in front full screen? Before Android 11: the global system UI flags every window gets. */
+    private class Probe(ctx: Context, private val onBar: (Boolean, String) -> Unit) : View(ctx) {
+        @Suppress("DEPRECATION")
+        override fun onWindowSystemUiVisibilityChanged(v: Int) {
+            super.onWindowSystemUiVisibilityChanged(v)
+            if (Build.VERSION.SDK_INT < 30) onBar(v and View.SYSTEM_UI_FLAG_FULLSCREEN != 0, "sysui")
+        }
+    }
+
     /**
      * One edge. While the finger is down, a small NOT_TOUCHABLE window ([Arrow]) shows a bubble that follows the
      * finger and grows with [NavGestLogic.progress]; at 1 it is armed (haptic). Lift while armed = the action; pull back
@@ -218,6 +287,22 @@ object NavGest {
         var wantW = 0; var wantH = 0
         var lp: WindowManager.LayoutParams? = null
         private var downAt = 0L
+        /** Full-screen mode: an inward swipe opens the menu instead of Back (right strip only). */
+        var calm = false
+        var onMenu: ((Int) -> Unit)? = null
+        private var off = false
+
+        /** Full-screen mode: this strip takes no touches at all (left / bottom). */
+        fun setOff(o: Boolean) {
+            if (o == off) return
+            off = o
+            val l = lp ?: return
+            l.flags = if (o) l.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE else l.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+            visibility = if (o) GONE else VISIBLE
+            if (o) { removeCallbacks(catchAgain); arrowOff() }
+            if (isAttachedToWindow) runCatching { wm.updateViewLayout(this, l) }
+        }
+
 
         /** A tap (no move, short) belongs to the app below: stop catching touches, replay it there, catch again. */
         private fun passTap(x: Float, y: Float) {
@@ -238,7 +323,7 @@ object NavGest {
         }
         private val catchAgain = Runnable {
             val l = lp ?: return@Runnable
-            if (l.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE == 0) return@Runnable
+            if (off || l.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE == 0) return@Runnable
             l.flags = l.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
             if (isAttachedToWindow) runCatching { wm.updateViewLayout(this, l) }
         }
@@ -317,13 +402,8 @@ object NavGest {
                     if (cts) return true
                     if (!moved && e.eventTime - downAt < CTS_MS) { passTap(e.rawX, e.rawY); return true }
                     val act = NavGestLogic.classify(edge, e.rawX - x0, e.rawY - y0, if (hold) NavGestLogic.HOLD_MS else 0L, min)
-                    // HyperOS with another home: GLOBAL_ACTION_RECENTS only "blinks" home (the launcher loads its task list
-                    // but can't show it); opening the launcher's RecentsActivity directly works (Poco 2026-11-15)
-                    val ok = act != NavGestLogic.Act.NONE && (act == NavGestLogic.Act.RECENTS && miuiRecents(svc) || svc.performGlobalAction(when (act) {
-                        NavGestLogic.Act.BACK -> AccessibilityService.GLOBAL_ACTION_BACK
-                        NavGestLogic.Act.HOME -> AccessibilityService.GLOBAL_ACTION_HOME
-                        else -> AccessibilityService.GLOBAL_ACTION_RECENTS
-                    }))
+                    if (calm && act == NavGestLogic.Act.BACK) { onMenu?.invoke(e.rawY.toInt()); return true }
+                    val ok = go(svc, act)
                     android.util.Log.i("kgNav", "$edge $act ok=$ok")
                 }
                 MotionEvent.ACTION_CANCEL -> { removeCallbacks(holdCheck); removeCallbacks(ctsCheck); arrowOff() }
@@ -334,6 +414,76 @@ object NavGest {
 
 
     private const val CTS_MS = 500L
+
+    /** Run a navigation action. HyperOS with another home: GLOBAL_ACTION_RECENTS only "blinks" home (the launcher loads
+     *  its task list but can't show it); opening the launcher's RecentsActivity directly works (Poco 2026-11-15). */
+    private fun go(svc: AccessibilityService, act: NavGestLogic.Act): Boolean =
+        act != NavGestLogic.Act.NONE && (act == NavGestLogic.Act.RECENTS && miuiRecents(svc) || svc.performGlobalAction(when (act) {
+            NavGestLogic.Act.BACK -> AccessibilityService.GLOBAL_ACTION_BACK
+            NavGestLogic.Act.HOME -> AccessibilityService.GLOBAL_ACTION_HOME
+            else -> AccessibilityService.GLOBAL_ACTION_RECENTS
+        }))
+
+    /**
+     * Full-screen mode menu (owner 2026-11-16): a swipe from the right edge in a game shows Back / Home / Recents next
+     * to the finger instead of acting. A touch anywhere else goes to the game AND closes the menu (watch-outside);
+     * it also closes by itself after [MENU_MS]. Fixed size set as fields + size check after layout (2026-11-15 incident).
+     */
+    private class Menu(private val svc: AccessibilityService, private val wm: WindowManager) {
+        private var v: View? = null
+        private val main = android.os.Handler(android.os.Looper.getMainLooper())
+        private val auto = Runnable { close() }
+
+        fun show(y: Int) {
+            close()
+            val d = svc.resources.displayMetrics.density
+            val btn = (56 * d).toInt(); val pad = (6 * d).toInt()
+            val w = btn + 2 * pad; val h = 3 * btn + 2 * pad
+            val dm = DisplayMetrics()
+            @Suppress("DEPRECATION") wm.defaultDisplay.getRealMetrics(dm)
+            val lp = params(w, h, NavGestLogic.menuTop(y, h, dm.heightPixels, (24 * d).toInt()), Gravity.TOP or Gravity.RIGHT, true)
+            lp.x = (16 * d).toInt()
+            lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+            lp.title = "kgNavMenu"
+            val box = object : android.widget.LinearLayout(svc) {
+                // a touch outside (the game): close, and let the game have it (NOT_TOUCH_MODAL already passes it on).
+                // Never hit-test it: another app's outside touch comes as (0, 0)
+                override fun dispatchTouchEvent(e: MotionEvent): Boolean {
+                    if (e.actionMasked == MotionEvent.ACTION_OUTSIDE) { close(); return true }
+                    return super.dispatchTouchEvent(e)
+                }
+            }
+            box.orientation = android.widget.LinearLayout.VERTICAL
+            box.setPadding(pad, pad, pad, pad)
+            box.background = android.graphics.drawable.GradientDrawable().apply { setColor(0xE6202124.toInt()); cornerRadius = w / 2f }
+            for ((icon, label, act) in listOf(
+                Triple(R.drawable.li_arrow_left, R.string.nav_back, NavGestLogic.Act.BACK),
+                Triple(R.drawable.li_house, R.string.nav_home, NavGestLogic.Act.HOME),
+                Triple(R.drawable.li_square, R.string.nav_recents, NavGestLogic.Act.RECENTS))) {
+                val b = android.widget.ImageView(svc)
+                b.setImageResource(icon); b.setColorFilter(android.graphics.Color.WHITE)
+                b.scaleType = android.widget.ImageView.ScaleType.CENTER
+                b.contentDescription = svc.getString(label)
+                b.setOnTouchListener { iv, e -> iv.alpha = if (e.actionMasked == MotionEvent.ACTION_DOWN) 0.5f else 1f; false }
+                b.setOnClickListener { iv ->
+                    iv.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                    close()
+                    android.util.Log.i("kgNav", "menu $act ok=${go(svc, act)}")
+                }
+                box.addView(b, android.widget.LinearLayout.LayoutParams(btn, btn))
+            }
+            if (runCatching { wm.addView(box, lp) }.isFailure) return
+            v = box
+            main.postDelayed(auto, MENU_MS)
+            main.postDelayed({ if (v === box && (box.width > w + 2 || box.height > h + 2)) { android.util.Log.w("kgNav", "menu not sane"); close() } }, 400)
+        }
+
+        fun close() {
+            main.removeCallbacks(auto)
+            v?.let { runCatching { wm.removeViewImmediate(it) } }; v = null
+        }
+    }
+    private const val MENU_MS = 5000L
 
     /**
      * Circle to Search: ask the voice-interaction service (the default assistant = the Google app) for a session the way

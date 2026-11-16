@@ -58,8 +58,10 @@ class Acc : AccessibilityService() {
         if (LauncherSafe.shadeBlocked && (e.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED || e.packageName?.toString() in SHADE_PKGS)) {
             main.removeCallbacks(shadeCheck); main.post(shadeCheck)
         }
+        if (e.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED && strips?.shown == true) { main.removeCallbacks(barCheck); main.postDelayed(barCheck, 150) }
         if (e.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = e.packageName?.toString() ?: return
+        strips?.front(pkg)   // own gestures: full-screen mode for games
         // a bank app that refuses accessibility services came up without our launcher (Recents, a link): step aside now
         if (pkg in Store.of(this).rules.accPause && AccPause.pauseLate(this, pkg)) return
         // an app that refuses a VPN (accessibility may stay on): VPN off, and restart it once if it already saw the tunnel
@@ -254,6 +256,23 @@ class Acc : AccessibilityService() {
     override fun onInterrupt() {}   // only "stop speaking feedback": the service keeps running (drop() handles a real stop)
 
     private var strips: NavGest.Strips? = null
+    /** Own gestures, full-screen mode: is the status bar window still on screen? (second signal next to the strip's insets) */
+    private var barGone = false
+    private val barCheck: Runnable = Runnable {
+        val st = strips ?: return@Runnable
+        val w = resources.displayMetrics.widthPixels; val h = resources.displayMetrics.heightPixels
+        val b = Rect()
+        val bar = runCatching {
+            windows.any { win ->
+                win.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM && run { win.getBoundsInScreen(b); b.top <= 0 && b.height() in 1..h / 12 && b.width() >= w * 9 / 10 }
+            }
+        }.getOrNull() ?: return@Runnable
+        // gone = gone twice, 0.4 s apart (switching apps drops it for a moment); back = at once
+        if (!bar && !barGone) { barGone = true; main.removeCallbacks(barAgain); main.postDelayed(barAgain, 400); return@Runnable }
+        if (bar) barGone = false
+        st.barWindow(bar)
+    }
+    private val barAgain: Runnable = Runnable { main.removeCallbacks(barCheck); barCheck.run(); barGone = false }
     val stripsShown: Boolean get() = strips?.shown == true
     /** Own gesture strips on / off (NavGest.sync), any thread. */
     fun navStrips(on: Boolean) {
@@ -263,7 +282,7 @@ class Acc : AccessibilityService() {
                 if (strips == null) strips = NavGest.Strips(this)
                 if (strips?.show() != true) navFail()   // overlay refused: never leave the bar hidden without our gestures
                 // after layout: a strip bigger than asked would cover the screen and eat every touch (stuck phone) -> off
-                else if (fresh) main.postDelayed({ val st = strips; if (st != null && st.shown && !st.sane()) navFail() }, 400)
+                else { main.postDelayed(barCheck, 300); if (fresh)  main.postDelayed({ val st = strips; if (st != null && st.shown && !st.sane()) navFail() }, 400) }
             } else if (!on || running !== this) { strips?.hide(); strips = null }
         }
     }
@@ -286,7 +305,7 @@ class Acc : AccessibilityService() {
     }
     override fun onUnbind(intent: android.content.Intent?): Boolean { drop(); return super.onUnbind(intent) }
     override fun onDestroy() { drop(); super.onDestroy() }
-    private fun drop() { runCatching { strips?.hide(); strips = null }; runCatching { unregisterReceiver(wakeUp) }; main.removeCallbacks(trail); main.removeCallbacks(scan1); main.removeCallbacks(scan2); main.removeCallbacks(scan3); if (running === this) running = null; lastError = "acc off"; hideNotice(); runCatching { NavGest.restore(applicationContext) } }
+    private fun drop() { runCatching { strips?.hide(); strips = null }; runCatching { unregisterReceiver(wakeUp) }; main.removeCallbacks(trail); main.removeCallbacks(barCheck); main.removeCallbacks(barAgain); main.removeCallbacks(scan1); main.removeCallbacks(scan2); main.removeCallbacks(scan3); if (running === this) running = null; lastError = "acc off"; hideNotice(); runCatching { NavGest.restore(applicationContext) } }
 
     companion object {
         /** AOSP string names of the uninstall / stop / deactivate buttons (Settings, PackageInstaller, SettingsLib). */
