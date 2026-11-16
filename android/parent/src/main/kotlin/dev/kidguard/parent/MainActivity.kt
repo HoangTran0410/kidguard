@@ -322,8 +322,9 @@ class MainActivity : Activity() {
             orientation = android.widget.LinearLayout.VERTICAL; gravity = android.view.Gravity.CENTER
             setBackgroundColor(if (dark) 0xFF0F172A.toInt() else 0xFFF8FAFC.toInt()); isClickable = true; visibility = android.view.View.GONE
         }
+        // acc: white text 5.2:1 (AA)
         // lock tile + title + hint + one pill button (was a stock grey Button + bare shield: owner "looks cheap", 2026-11-16)
-        val acc = 0xFF2563EB.toInt()   // white text 5.2:1 (AA); val fg = if (dark) 0xFFF1F5F9.toInt() else 0xFF0F172A.toInt(); val mute = if (dark) 0xFF94A3B8.toInt() else 0xFF64748B.toInt()
+        val acc = 0xFF2563EB.toInt(); val fg = if (dark) 0xFFF1F5F9.toInt() else 0xFF0F172A.toInt(); val mute = if (dark) 0xFF94A3B8.toInt() else 0xFF64748B.toInt()
         box.setPadding((32 * d).toInt(), 0, (32 * d).toInt(), (48 * d).toInt())
         box.addView(android.widget.ImageView(this).apply {
             setImageResource(R.drawable.ic_lock); setColorFilter(acc); val p = (22 * d).toInt(); setPadding(p, p, p, p)
