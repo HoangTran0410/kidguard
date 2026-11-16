@@ -154,6 +154,7 @@ internal class CcToggle(val act: HomeActivity, val tile: Tile, private val icon:
     private val btn = ImageView(act)
     private val lock = ImageView(act)
     private val sz = size
+    private val text = act.kit.text(label, 12f, Color.WHITE)
     var mode = Mode.DIRECT
     var on: Boolean? = null
     init {
@@ -164,7 +165,7 @@ internal class CcToggle(val act: HomeActivity, val tile: Tile, private val icon:
         lock.background = act.kit.circle(0xCC0F172A.toInt()); lock.setPadding(act.dp(4), act.dp(4), act.dp(4), act.dp(4))
         box.addView(lock, FrameLayout.LayoutParams(act.dp(19), act.dp(19), Gravity.TOP or Gravity.END))
         addView(box, LayoutParams(act.dp(sz), act.dp(sz)))
-        addView(act.kit.text(label, 12f, Color.WHITE).apply {
+        addView(text.apply {
             maxLines = lines; ellipsize = TextUtils.TruncateAt.END; gravity = Gravity.CENTER
             setShadowLayer(act.dpf(3f), 0f, 0f, 0x66000000)
         }, LayoutParams(-1, -2).apply { topMargin = act.dp(5) })
@@ -176,6 +177,17 @@ internal class CcToggle(val act: HomeActivity, val tile: Tile, private val icon:
         btn.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         isFocusable = true
         draw()
+    }
+    // the cell is a quarter of the row wide: only the circle + its label (+8 dp) is the button, a tap beside them falls
+    // through to the scrim and closes the control center (owner: a tap in an empty part of the grid did nothing)
+    override fun dispatchTouchEvent(e: MotionEvent): Boolean {
+        if (e.actionMasked == MotionEvent.ACTION_DOWN) {
+            val l = text.layout
+            val tw = if (l == null) 0f else (0 until l.lineCount).maxOfOrNull { l.getLineWidth(it) } ?: 0f
+            val half = maxOf(act.dp(sz) / 2f, tw / 2f) + act.dp(8)
+            if (kotlin.math.abs(e.x - width / 2f) > half) return false
+        }
+        return super.dispatchTouchEvent(e)
     }
     fun onTap(f: () -> Unit) { btn.setOnClickListener { f() }; setOnClickListener { f() } }
     var onLong: (() -> Unit)? = null
@@ -332,7 +344,7 @@ private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): 
     val w = minOf(root.width - insL - insR - dp(40), dp(400))
     val gap = dp(14); val half = (w - gap) / 2
     // alpha straight on the children while it fades in: a hardware layer cost 9-12 ms of upload on each open (Oppo A5s)
-    val panel = object : LinearLayout(this) { override fun hasOverlappingRendering() = false }.apply { orientation = LinearLayout.VERTICAL; isClickable = true }
+    val panel = object : LinearLayout(this) { override fun hasOverlappingRendering() = false }.apply { orientation = LinearLayout.VERTICAL }   // not clickable: a tap between tiles / rows reaches the scrim = close
 
     fun toast(id: Int) = Toasts.show(this, id)
     // a locked / refused tile explains itself in a small dialog (who, what to do); tap-time only, nothing on the render path
@@ -371,6 +383,7 @@ private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): 
     val conn = android.widget.GridLayout(this).apply {
         columnCount = 2; background = GlassCard(0x33FFFFFF, dpf(30f), dpf(1f), true)
         setPadding(dp(6), dp(12), dp(6), dp(8)); minimumHeight = half
+        isClickable = true   // a card (like iOS modules): a near-miss inside it does not close the panel
     }
     val cell = (half - dp(12)) / 2
     val bsz = minOf(56, (cell / resources.displayMetrics.density).toInt() - 22).coerceAtLeast(40)
