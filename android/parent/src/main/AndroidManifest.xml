@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -52,6 +53,9 @@
 
         <!-- notification buttons (answer a time request); only our own explicit, immutable PendingIntents reach it -->
         <receiver android:name=".AnswerReceiver" android:exported="false" />
+        <!-- app lock step for notification buttons (AppLock.kt) -->
+        <activity android:name=".AuthActivity" android:exported="false" android:excludeFromRecents="true" android:noHistory="true"
+            android:taskAffinity="" android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- reboot / app update: schedule the background check again -->
         <receiver android:name=".BootReceiver" android:exported="false">

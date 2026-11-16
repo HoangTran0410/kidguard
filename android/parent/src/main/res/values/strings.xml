@@ -81,4 +81,7 @@
     </plurals>
     <string name="w_sent">Sent</string>
     <string name="w_failed">Not sent. Tap to open</string>
+    <string name="lock_title">Unlock KidGuard</string>
+    <string name="lock_sub">Your fingerprint, face or phone PIN</string>
+    <string name="lock_btn">Unlock</string>
 </resources>

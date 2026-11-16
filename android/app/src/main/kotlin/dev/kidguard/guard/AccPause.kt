@@ -19,6 +19,11 @@ object AccPauseLogic {
     const val RESUME_MS = 10 * 60_000L
     /** Basic mode blocks apps through the service itself: a paused service blocks nothing, so come back much sooner. */
     const val RESUME_BASIC_MS = 60_000L
+    /** After a pause ends the service binds a few seconds later: no "accessibility off" alarm meanwhile (owner 2026-11-16). */
+    const val SETTLE_MS = 30_000L
+    /** Raise the "child turned accessibility off" alarm now? Not during a bank pause, nor while it is coming back. */
+    fun accOffAlarm(enforcing: Boolean, everPaired: Boolean, accOn: Boolean, paused: Boolean, resumedAt: Long, now: Long): Boolean =
+        enforcing && everPaired && !accOn && !paused && !(resumedAt > 0L && now - resumedAt in 0 until SETTLE_MS)
 
     /** Vietnamese banks / wallets (package names from their Play Store pages; parents edit the list on the page). */
     val DEFAULT: Set<String> = setOf(
@@ -64,6 +69,8 @@ object AccPause {
         ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == PackageManager.PERMISSION_GRANTED
 
     fun active(ctx: Context): Boolean = Store.of(ctx).accPaused.isNotEmpty()
+    /** When the last pause ended (memory only): [AccPauseLogic.accOffAlarm] waits [AccPauseLogic.SETTLE_MS] for the bind. */
+    @Volatile var resumedAt = 0L
 
     /**
      * [pkg] is opening: turn our accessibility service off (before the launcher starts it, or on its first window).
@@ -209,7 +216,7 @@ object AccPause {
         if (kill) ctx.getSystemService(android.app.ActivityManager::class.java)?.let { am ->
             paused.forEach { p -> runCatching { am.killBackgroundProcesses(p) } }
         }
-        s.accPaused = emptySet(); s.accLeftAt = 0L
+        s.accPaused = emptySet(); s.accLeftAt = 0L; resumedAt = System.currentTimeMillis()
         watchStop()
         runCatching { s.log(R.string.log_acc_resumed) }
         notice(ctx)

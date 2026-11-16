@@ -153,19 +153,25 @@ object Logic {
     } catch (e: Exception) { emptyList() }
 
     /** Per kid, persisted between runs. */
-    class NotifyState(val seenIds: Set<String> = emptySet(), val lost: Boolean = false, val failSince: Long = 0L, val init: Boolean = false, val evInit: Boolean = false, val accOff: Boolean = false) {
-        fun toJson() = JSONObject().put("ids", JSONArray(seenIds.toList())).put("lost", lost).put("fail", failSince).put("init", init).put("ei", evInit).put("acc", accOff).toString()
+    /** [open]: notifications still shown that stop being true later: notification key -> condition ([condOf]), cleared by [evaluate]. */
+    class NotifyState(val seenIds: Set<String> = emptySet(), val lost: Boolean = false, val failSince: Long = 0L, val init: Boolean = false, val evInit: Boolean = false, val accOff: Boolean = false,
+                      val open: Map<String, String> = emptyMap()) {
+        fun toJson() = JSONObject().put("ids", JSONArray(seenIds.toList())).put("lost", lost).put("fail", failSince).put("init", init).put("ei", evInit).put("acc", accOff)
+            .put("open", JSONObject(open)).toString()
         companion object {
             fun fromJson(s: String?): NotifyState = try {
                 val o = JSONObject(s ?: "")
                 val a = o.optJSONArray("ids") ?: JSONArray()
-                NotifyState((0 until a.length()).map { a.getString(it) }.toSet(), o.optBoolean("lost"), o.optLong("fail"), o.optBoolean("init"), o.optBoolean("ei"), o.optBoolean("acc"))
+                val op = o.optJSONObject("open")
+                NotifyState((0 until a.length()).map { a.getString(it) }.toSet(), o.optBoolean("lost"), o.optLong("fail"), o.optBoolean("init"), o.optBoolean("ei"), o.optBoolean("acc"),
+                    op?.keys()?.asSequence()?.associateWith { op.optString(it) } ?: emptyMap())
             } catch (e: Exception) { NotifyState() }
         }
     }
 
     /** What one check saw for a kid. activityT = state.t (LAN) or relay `seen` (ms of the child's last sync), 0 = unknown. */
-    class Ev(val id: String, val text: String, val t: Long, val kind: String = "", val loc: Loc? = null)   // one state.events entry (v0.6); loc: v0.9.7 check-in
+    class Ev(val id: String, val text: String, val t: Long, val kind: String = "", val loc: Loc? = null,   // one state.events entry (v0.6); loc: v0.9.7 check-in
+             val key: String = "")   // 0.9.25: a tamper condition (accoff / usageoff / home), gone from Seen.tamperOn = notification hidden
     class Loc(val lat: Double, val lng: Double, val t: Long)   // state.location (last fix)
     class Seen(val fetchOk: Boolean, val requests: List<Pair<String, Int>>, val activityT: Long, val sos: List<Pair<String, Long>> = emptyList(), val events: List<Ev> = emptyList(),
                val accOff: Boolean = false,   // v0.7 basic mode: the child turned KidGuard's accessibility off (no blocking)
@@ -173,12 +179,14 @@ object Logic {
                val appReqs: Map<String, String> = emptyMap(),   // 0.9.16: request id -> app label of the open "may I open this app" requests (kind "app")
                val bedtime: Boolean = false,   // state.now.why == "bedtime": a phone that goes quiet now is just asleep
                val snap: WidgetLogic.Snap? = null,   // 0.9.22: what the home-screen widget shows ([KidWidget])
-               val digest: dev.kidguard.Digest.Input? = null)   // evening summary data, null when the state could not be read
+               val digest: dev.kidguard.Digest.Input? = null,   // evening summary data, null when the state could not be read
+               val tamperOn: Set<String>? = null)   // 0.9.25 state.tamperOn: tamper conditions still true; null = older phone (nothing cleared)
 
     /** key: unique per event, used as notification id. [min]: a request's minutes; [loc]: the kid's last fix (SOS "show location"). */
     class Event(val key: String, val text: String, val min: Int = 0, val loc: Loc? = null,
                 val app: Boolean = false,         // an "open this app" request: buttons Approve / Decline instead of minutes
-                val important: Boolean = false)   // tamper / lost / released: the "requests" channel instead of the quiet "info" one
+                val important: Boolean = false,   // tamper / lost / released: the "requests" channel instead of the quiet "info" one
+                val cond: String? = null)         // a tamper condition key (Ev.key): see [condOf]
     /** [clear]: notification keys to dismiss (the phone is back: "offline since" is no longer true). */
     class Outcome(val events: List<Event>, val state: NotifyState, val clear: List<String> = emptyList())
     /** Event kinds that matter as much as a request (C7). */
@@ -205,6 +213,28 @@ object Logic {
         }
     }
 
+    /** Tamper keys that are a lasting condition (the phone lists them in state.tamperOn while true); others (boot, clock) are one-off. */
+    val CONDS = setOf("accoff", "usageoff", "home")
+    /** What makes notification [e] stale later: "r:<id>" request answered, "s:<id>" SOS acknowledged, "acc" back on, "t:<key>" condition gone. */
+    fun condOf(e: Event): String? = when {
+        e.key.startsWith("req:") -> "r:" + e.key.substring(4)
+        e.key.startsWith("sos:") -> "s:" + e.key.substring(4)
+        e.key == "acc" -> "acc"
+        e.cond != null && e.cond in CONDS -> "t:" + e.cond
+        else -> null
+    }
+    /** Is condition [c] over, judging by a good fetch [seen]? Unknown (older phone) = not over. */
+    fun condOver(c: String, seen: Seen): Boolean = when {
+        c == "acc" -> !seen.accOff
+        c.startsWith("r:") -> seen.requests.none { it.first == c.substring(2) }
+        c.startsWith("s:") -> seen.sos.none { it.first == c.substring(2) }
+        c.startsWith("t:") -> seen.tamperOn != null && c.substring(2) !in seen.tamperOn
+        else -> false
+    }
+    /** [open] plus the new [events] that can go stale, minus [cleared]; capped. */
+    fun openAfter(open: Map<String, String>, events: List<Event>, cleared: Collection<String>): Map<String, String> =
+        (open - cleared.toSet() + events.mapNotNull { e -> condOf(e)?.let { e.key to it } }).entries.toList().takeLast(100).associate { it.key to it.value }
+
     /** Notify once per event: a new child request id, and the transition to "lost > 30 min". */
     fun evaluate(name: String, seen: Seen, st: NotifyState, now: Long, failCounts: Boolean = true, tr: Tr): Outcome {
         if (!seen.fetchOk && !failCounts) return Outcome(emptyList(), st)   // unreachable for a reason that says nothing about the kid
@@ -222,7 +252,7 @@ object Logic {
             for ((id, t) in seen.sos) if ("s:$id" !in ids && now - t < (if (st.init) SOS_MAX_MS else SOS_FRESH_MS)) events.add(Event("sos:$id", tr.s(T.ev_sos, name, hhmm(t)), loc = seen.loc))
             // events (zones, battery, new app, clock): same rule as requests, plus a one-time silent look per kid so an app
             // update does not replay the 50 events a phone already holds; stale ones are recorded but not shown
-            if (st.evInit) for (e in seen.events) if ("e:${e.id}" !in ids && now - e.t < EV_FRESH_MS) events.add(if (e.kind == "checkin") Event("ci:${e.id}", "$name: ${e.text}", loc = e.loc ?: seen.loc) else Event("ev:${e.id}", "$name: ${e.text}", important = importantKind(e.kind)))
+            if (st.evInit) for (e in seen.events) if ("e:${e.id}" !in ids && now - e.t < EV_FRESH_MS) events.add(if (e.kind == "checkin") Event("ci:${e.id}", "$name: ${e.text}", loc = e.loc ?: seen.loc) else Event("ev:${e.id}", "$name: ${e.text}", cond = e.key.ifEmpty { null }, important = importantKind(e.kind)))
             val current = seen.sos.map { "s:" + it.first } + seen.requests.map { it.first } + seen.events.map { "e:" + it.id }
             ids = (ids + current).let { all -> if (all.size > 300) current.toSet() else all }
             val isLost = seen.activityT > 0 && now - seen.activityT > LOST_MS
@@ -232,14 +262,18 @@ object Logic {
             if (isLost && !lost && !quiet) events.add(Event("lost", tr.s(T.ev_offline, name, hhmm(seen.activityT))))
             if (!isLost && lost) clear.add("lost")
             lost = isLost && (lost || !quiet)   // already notified stays notified (no second notice, the clear still runs)
-            if (seen.accOff && !st.accOff) events.add(Event("acc", tr.s(T.ev_acc_off, name), important = true))
+            // a 0.9.25 phone (tamperOn) sends its own "accessibility off" event: one notice, not two
+            if (seen.accOff && !st.accOff && seen.tamperOn == null) events.add(Event("acc", tr.s(T.ev_acc_off, name), important = true))
+            // stale notices go away (owner 2026-11-16: "đã bật lại trợ năng nhưng thông báo không tự ẩn"); a notice made in
+            // this very check is never cleared by it
+            for ((k, c) in st.open) if (condOver(c, seen) && events.none { it.key == k }) clear.add(k)
         } else {
             if (failSince == 0L) failSince = now
             val isLost = now - failSince > LOST_MS
             if (isLost && !lost) events.add(Event("lost", tr.s(T.ev_offline, name, hhmm(failSince))))
             if (isLost) lost = true
         }
-        return Outcome(events, NotifyState(ids, lost, failSince, true, st.evInit || seen.fetchOk, if (seen.fetchOk) seen.accOff else st.accOff), clear)
+        return Outcome(events, NotifyState(ids, lost, failSince, true, st.evInit || seen.fetchOk, if (seen.fetchOk) seen.accOff else st.accOff, openAfter(st.open, events, clear)), clear)
     }
 
     /**
@@ -266,7 +300,8 @@ object Logic {
         else -> null
     }
 
-    fun withSeen(st: NotifyState, id: String) = NotifyState(st.seenIds + id, st.lost, st.failSince, st.init, st.evInit, st.accOff)
+    fun withSeen(st: NotifyState, id: String, posted: Event? = null) =
+        NotifyState(st.seenIds + id, st.lost, st.failSince, st.init, st.evInit, st.accOff, openAfter(st.open, listOfNotNull(posted), emptyList()))
 
     /** FCM {kind: "ev", kid, ...} means "check this kid now" (the check itself notifies "<name>: <text>" once per event id). */
     fun pushCheckKid(kids: List<KidCfg>, data: Map<String, String>): KidCfg? =

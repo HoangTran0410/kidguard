@@ -69,4 +69,7 @@
     </plurals>
     <string name="w_sent">Đã gửi</string>
     <string name="w_failed">Chưa gửi. Chạm để mở</string>
+    <string name="lock_title">Mở khoá KidGuard</string>
+    <string name="lock_sub">Vân tay, khuôn mặt hoặc mã máy</string>
+    <string name="lock_btn">Mở khoá</string>
 </resources>

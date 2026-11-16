@@ -52,4 +52,22 @@ class AccPauseTest {
         assertFalse(AccPauseLogic.resumeFor(null, "com.android.settings", false))
         assertFalse(AccPauseLogic.resumeFor(null, "com.zing", true))
     }
+
+    // INCIDENT 2026-11-16 (Poco, basic): bank pause countdown ended, the service was re-enabled, yet the parent got
+    // "accessibility is off" and it stayed: the same Guard tick that resumed checked Acc.isOn before the service had bound.
+    @Test fun noAccOffAlarmWhileTheServiceComesBackAfterAPause() {
+        val t = 5_000_000L
+        // during the pause: never
+        assertFalse(AccPauseLogic.accOffAlarm(true, true, accOn = false, paused = true, resumedAt = 0L, now = t))
+        // the tick that resumes (pause gone, service not bound yet) and the seconds after: no alarm
+        assertFalse(AccPauseLogic.accOffAlarm(true, true, accOn = false, paused = false, resumedAt = t, now = t))
+        assertFalse(AccPauseLogic.accOffAlarm(true, true, accOn = false, paused = false, resumedAt = t, now = t + 20_000L))
+        // bound: nothing to say
+        assertFalse(AccPauseLogic.accOffAlarm(true, true, accOn = true, paused = false, resumedAt = t, now = t + 40_000L))
+        // still off well after the resume: the child really turned it off
+        assertTrue(AccPauseLogic.accOffAlarm(true, true, accOn = false, paused = false, resumedAt = t, now = t + AccPauseLogic.SETTLE_MS))
+        // no pause ever: off = alarm; not paired / not enforcing: none
+        assertTrue(AccPauseLogic.accOffAlarm(true, true, accOn = false, paused = false, resumedAt = 0L, now = t))
+        assertFalse(AccPauseLogic.accOffAlarm(true, false, accOn = false, paused = false, resumedAt = 0L, now = t))
+    }
 }

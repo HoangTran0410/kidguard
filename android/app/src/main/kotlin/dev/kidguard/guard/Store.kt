@@ -872,7 +872,7 @@ class Store private constructor(private val app: Context) {
         val k = "tamperAt_$key"
         if (now - p.getLong(k, 0) in 0 until gapMs) return false
         p.edit().putLong(k, now).apply()
-        event("tamper", id, *a)
+        eventKey("tamper", key, id, *a)
         return true
     }
 
@@ -903,6 +903,7 @@ class Store private constructor(private val app: Context) {
     /** Kind = the string's resource name without "log_" (log_pin_wrong -> "pin_wrong"), so the page can pick an icon. */
     fun log(id: Int, vararg a: Any) = log(app.getString(id, *a), runCatching { app.resources.getResourceEntryName(id).removePrefix("log_") }.getOrDefault(""))
     fun event(kind: String, id: Int, vararg a: Any) = addEvent(Ev(kind, app.getString(id, *a)))
+    fun eventKey(kind: String, key: String, id: Int, vararg a: Any) = addEvent(Ev(kind, app.getString(id, *a), key = key))
 
     /** Recent events for the parent: commands done, apps paused. Last 50 here (state); all of them 90 days in [HistDb]. */
     @Synchronized fun log(msg: String, kind: String = "") {
@@ -921,6 +922,7 @@ class Store private constructor(private val app: Context) {
         val now = System.currentTimeMillis()
         val o = JSONObject().put("id", randomHex(3)).put("t", now).put("kind", e.kind).put("text", e.text)
         if (e.zone != null) o.put("zone", e.zone)
+        if (e.key != null) o.put("key", e.key)
         if (e.kind == "tamper") dgBump("tamper", now)
         p.edit().putString("events", Events.prune(events().put(o), now).toString()).apply()
         HistDb.addEvent(app, now, o.optString("id"), e.kind, e.text, e.zone)

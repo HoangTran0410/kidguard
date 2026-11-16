@@ -26,6 +26,8 @@ object Store {
     fun setNotifAsked(c: Context) { p(c).edit().putBoolean("notifAsked", true).apply() }
     fun notify(c: Context): Boolean = p(c).getBoolean("notify", true)
     fun setNotify(c: Context, v: Boolean) { p(c).edit().putBoolean("notify", v).apply() }
+    fun appLock(c: Context): Boolean = p(c).getBoolean("appLock", true)   // AppLock: on by default
+    fun setAppLock(c: Context, v: Boolean) { p(c).edit().putBoolean("appLock", v).apply() }
     /** Evening summary notification (off by default): on, time "HH:mm", last day shown per kid. */
     fun digestOn(c: Context): Boolean = p(c).getBoolean("dgOn", false)
     fun digestAt(c: Context): String = p(c).getString("dgAt", "20:00") ?: "20:00"

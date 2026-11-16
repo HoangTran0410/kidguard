@@ -39,6 +39,15 @@ function digestCardHtml() {
     <label class="row"><span class="sp">${t("dg.at")}</span><input type="time" id="f-dgat" value="${esc(d.at || "20:00")}"></label>
     <p class="mute">${t("dg.n")}</p></div>`;
 }
+// app lock (AppLock.kt): the phone's own fingerprint / face / PIN when the app opens or comes back after 5 min
+function lockCardHtml() {
+  let L = null; try { L = JSON.parse(kgCall("getLock") || "null"); } catch {}
+  if (!L) return "";   // an older app without the lock
+  return `<div class="card"><h2>${ic("lock")} ${t("lk.h")}</h2>
+    <label class="row"><input type="checkbox" id="f-lock" ${L.on ? "checked" : ""}><span class="sp">${t("lk.p")}</span></label>
+    ${L.on && !L.secure ? `<p class="mute">${ic("triangle-alert")} ${t("lk.noSecure")}</p>` : ""}</div>`;
+}
+function kgLock() { if (appSetOn) appSettings(); }
 function appSettings() {
   reScreen = appSettings;
   if (!appSetOn) { appSetOn = true; try { history.pushState({ kg: navLvl() + 1, appSet: 1 }, ""); } catch {} }
@@ -50,6 +59,7 @@ function appSettings() {
     <label class="row"><input type="checkbox" id="f-notify" ${wantOn ? "checked" : ""}><span class="sp">${t("notif.p")}</span></label>
     <p class="mute">${notifOn ? t("au.nOn") : wantOn ? ic("triangle-alert") + " " + t("notif.blocked") : t("au.nOff")}</p>
     <button id="nSet">${ic("settings")} ${t("au.nOpen")}</button></div>
+  ${lockCardHtml()}
   ${digestCardHtml()}
   ${notifHealthHtml()}
   <div class="card"><h2>${ic("download")} ${t("au.upd")}</h2><div id="updBox">${updBoxHtml()}</div></div>
@@ -62,6 +72,7 @@ function appSettings() {
   });
   $("#f-notify").onchange = e => { kgCall("setNotify", e.target.checked ? "true" : "false"); if (e.target.checked) setTimeout(() => { if (kgCall("canNotify") === "false") toast("warn|" + t("notif.blockedShort")); appSettings(); }, 1500); else appSettings(); };
   $("#nSet").onclick = () => kgCall("openNotifSettings");
+  if ($("#f-lock")) $("#f-lock").onchange = e => kgCall("setLock", e.target.checked ? "true" : "false");   // off: the phone asks first, then kgLock()
   const dgSave = () => kgCall("setDigest", $("#f-dg").checked ? "true" : "false", $("#f-dgat").value || "20:00");
   if ($("#f-dg")) { $("#f-dg").onchange = dgSave; $("#f-dgat").onchange = dgSave; }
   // one delegated handler: updBox is redrawn by kgUpd

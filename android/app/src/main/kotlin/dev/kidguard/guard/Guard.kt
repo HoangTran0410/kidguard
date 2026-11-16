@@ -285,7 +285,7 @@ class Guard : Service() {
                 store.log(R.string.log_usage_off)
                 if (store.knownApps != null) {   // before the first app scan (fresh setup) nothing is raised yet; retried next tick
                     store.usageOffRaised = true
-                    runCatching { store.event("tamper", R.string.ev_usage_off); relay?.kick() }
+                    runCatching { store.eventKey("tamper", "usageoff", R.string.ev_usage_off); relay?.kick() }
                 }
             }
             notifyUsageOff(true)
@@ -294,7 +294,7 @@ class Guard : Service() {
         Policy.foreignHome.let { fh ->
             if (fh.isNotEmpty() && fh != store.foreignHomeSeen) {
                 store.foreignHomeSeen = fh
-                runCatching { store.event("tamper", R.string.ev_foreign_home, apps[fh] ?: fh); store.log(R.string.log_foreign_home, fh); relay?.kick() }
+                runCatching { store.eventKey("tamper", "home", R.string.ev_foreign_home, apps[fh] ?: fh); store.log(R.string.log_foreign_home, fh); relay?.kick() }
             } else if (fh.isEmpty() && store.foreignHomeSeen.isNotEmpty()) store.foreignHomeSeen = ""
         }
         // first tick (with a real app list): everything installed now is "old"; while blockNew is off keep refreshing it
@@ -328,7 +328,7 @@ class Guard : Service() {
         lastNow = nw
         opt("supportMsg") { Policy.noteNow(this, r, nw) }
         opt("lost") { lostTick(r, now) }
-        opt("accOff") { if (Basic.enforcing(this) && store.everPaired && !Acc.isOn(this) && !AccPause.active(this)) store.tamper("accoff", R.string.ev_tamper_acc_off, gapMs = 60 * 60_000L) }
+        opt("accOff") { if (AccPauseLogic.accOffAlarm(Basic.enforcing(this), store.everPaired, Acc.isOn(this), AccPause.active(this), AccPause.resumedAt, now)) store.tamper("accoff", R.string.ev_tamper_acc_off, gapMs = 60 * 60_000L) }
         logWould(if (r.monitor) would else emptyMap(), apps)
         // time-left tile / widget: pushed only when the text changes
         runCatching { Quick.publish(this, QuickLogic.timeLeftText(leftMs, QuickLogic.phoneBlock(want), store.tr)) }
@@ -529,7 +529,8 @@ class Guard : Service() {
             .put("pinResetAt", store.pinResetAt)
             .put("totpOn", store.totpSecret.isNotBlank()).put("unlockUntil", store.unlockUntil.takeIf { it > now } ?: 0)
             .put("selfOpenUntil", store.selfOpenUntil.takeIf { CmdGate.selfOpen(it, now) } ?: 0)
-            .put("acc", Acc.isOn(this)).put("accPaused", JSONArray(store.accPaused.sorted())).put("vpnPaused", JSONArray(store.vpnPaused.sorted())).put("devPaused", JSONArray(store.devApps.sorted())).put("bankBackAt", bankBackAt()).put("vpnStuck", store.vpnStuck)
+            .put("acc", Acc.isOn(this)).put("accPaused", JSONArray(store.accPaused.sorted()))
+            .put("tamperOn", JSONArray(tamperOn(now))).put("vpnPaused", JSONArray(store.vpnPaused.sorted())).put("devPaused", JSONArray(store.devApps.sorted())).put("bankBackAt", bankBackAt()).put("vpnStuck", store.vpnStuck)
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
             .put("locationOn", locationOn())
             .put("dev", DevOpts.state(this))
@@ -839,6 +840,13 @@ class Guard : Service() {
     }
 
     /** When the bank-app pauses end by themselves (epoch ms): 0 = an app is still in front / none paused. */
+    /** Tamper conditions still true now (state `tamperOn`): the parent app hides an event's notification once its key is gone. */
+    private fun tamperOn(now: Long): List<String> = buildList {
+        if (AccPauseLogic.accOffAlarm(Basic.enforcing(this@Guard), true, Acc.isOn(this@Guard), AccPause.active(this@Guard), AccPause.resumedAt, now)) add("accoff")
+        if (store.usageOffRaised) add("usageoff")
+        if (Policy.foreignHome.isNotEmpty()) add("home")
+    }
+
     private fun bankBackAt(): Long {
         val wait = if (Policy.isOwner(this)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS
         val left = listOfNotNull(store.accLeftAt.takeIf { store.accPaused.isNotEmpty() }, store.vpnLeftAt.takeIf { store.vpnPaused.isNotEmpty() },

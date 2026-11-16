@@ -73,6 +73,16 @@ class Bridge(private val a: MainActivity) {
             if (!ok) runCatching { a.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
         }
     }
+    /** App lock state for the settings page: {on, secure}. */
+    @JavascriptInterface fun getLock() = org.json.JSONObject().put("on", Store.appLock(a)).put("secure", AppLock.secure(a)).toString()
+    /** On: at once. Off: only after the phone's lock (else the kid just switches it off); the page redraws via kgLock(). */
+    @JavascriptInterface fun setLock(v: String) {
+        a.runOnUiThread {
+            if (v == "true") { Store.setAppLock(a, true); AppLock.ok(); a.lockChanged() }
+            else if (!AppLock.secure(a)) { Store.setAppLock(a, false); a.lockChanged() }
+            else AppLock.ask(a) { ok -> if (ok) Store.setAppLock(a, false); a.lockChanged() }
+        }
+    }
     @JavascriptInterface fun setNotify(v: String) {
         Store.setNotify(a, v == "true")
         Push.sync(a.applicationContext)   // notify off = unregister from the relay too
@@ -132,6 +142,7 @@ class MainActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(req: Int, res: Int, data: android.content.Intent?) {
+        if (req == AppLock.REQ) { AppLock.result(res == RESULT_OK); return }
         if (req == REQ_IMG) { val u = data?.data; if (res == RESULT_OK && u != null) readQr(u) else scanSend(org.json.JSONObject().put("st", "cancel")); return }
         if (req != REQ_PICK) return super.onActivityResult(req, res, data)
         val cb = chooser ?: return
@@ -206,7 +217,11 @@ class MainActivity : Activity() {
                 return true
             }
         }
-        setContentView(w)
+        // the lock screen sits on top of the page (AppLock); the page stays loaded underneath
+        val root = android.widget.FrameLayout(this)
+        root.addView(w)
+        cover = lockCover().also { root.addView(it) }
+        setContentView(root)
         // debug build only: lets scripts/shots/shoot.mjs --cdp drive the real Android WebView (layout bugs desktop Chrome misses)
         if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) WebView.setWebContentsDebuggingEnabled(true)
         // never restoreState: the cookie secret changes with the process, page state lives in JS/localStorage
@@ -273,7 +288,47 @@ class MainActivity : Activity() {
 
     // in the background the page is hidden: its poll timers skip their fetches (relay quota, battery); notifications come from CheckJob / FCM
     override fun onPause() { web?.onPause(); super.onPause() }
-    override fun onResume() { super.onResume(); web?.onResume() }
+    override fun onResume() { super.onResume(); web?.onResume(); lockCheck(auto = true) }
+    override fun onStop() {
+        super.onStop()
+        // left the app (not our own lock prompt): the 5-minute away clock starts; the page is covered for the next return
+        if (!AppLock.asking && !isChangingConfigurations) { AppLock.leftAt = System.currentTimeMillis(); autoAsk = true; if (AppLock.needed(this, AppLock.leftAt + AppLockLogic.AWAY_MS)) showCover(true) }
+    }
+
+    private var cover: android.view.View? = null
+    private fun showCover(on: Boolean) {
+        cover?.visibility = if (on) android.view.View.VISIBLE else android.view.View.GONE
+        web?.visibility = if (on) android.view.View.INVISIBLE else android.view.View.VISIBLE
+        // no page picture in Recents while locked (Android 13+); screenshots stay possible
+        if (Build.VERSION.SDK_INT >= 33) runCatching { setRecentsScreenshotEnabled(!AppLock.guardsActions(this)) }
+    }
+    // the prompt is asked by itself once per return; after a cancel only the "Unlock" button asks (a cancelled prompt
+    // resumes the activity, which would ask again forever)
+    private var autoAsk = true
+    private fun lockCheck(auto: Boolean = false) {
+        if (!AppLock.needed(this)) { if (!AppLock.asking) { if (AppLock.leftAt > 0L) AppLock.leftAt = 0L; showCover(false) }; return }
+        showCover(true)
+        if (auto && !autoAsk) return
+        autoAsk = false
+        AppLock.ask(this) { ok -> if (ok) { autoAsk = true; showCover(false) } }
+    }
+    fun lockChanged() { lockCheck(); web?.evaluateJavascript("window.kgLock && kgLock()", null) }
+    private fun lockCover(): android.view.View {
+        val d = resources.displayMetrics.density
+        val dark = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val box = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL; gravity = android.view.Gravity.CENTER
+            setBackgroundColor(if (dark) 0xFF0F172A.toInt() else 0xFFF8FAFC.toInt()); isClickable = true; visibility = android.view.View.GONE
+        }
+        box.addView(android.widget.ImageView(this).apply { setImageResource(R.drawable.ic_notif); setColorFilter(0xFF2563EB.toInt()) },
+            android.widget.LinearLayout.LayoutParams((56 * d).toInt(), (56 * d).toInt()))
+        box.addView(android.widget.TextView(this).apply {
+            text = getString(R.string.lock_title); textSize = 20f; setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setTextColor(if (dark) 0xFFF1F5F9.toInt() else 0xFF0F172A.toInt()); gravity = android.view.Gravity.CENTER; setPadding(0, (16 * d).toInt(), 0, (24 * d).toInt())
+        })
+        box.addView(android.widget.Button(this).apply { text = getString(R.string.lock_btn); setOnClickListener { lockCheck() } })
+        return box
+    }
     override fun onDestroy() { web?.destroy(); web = null; super.onDestroy() }
 
     companion object { const val REQ_PICK = 71; const val REQ_IMG = 72; @Volatile var proxy: Proxy? = null; @Volatile var openKid: String? = null; @Volatile var openSettings = false; const val EXTRA_SETTINGS = "kg.settings" }

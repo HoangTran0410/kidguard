@@ -68,7 +68,10 @@ object Notif {
                 val req = Act.reqId(e.key) ?: return null
                 val i = Intent(c, AnswerReceiver::class.java).setAction(ACT_ANSWER)
                     .putExtra(EXTRA_KID, kidHash(k)).putExtra("req", req).putExtra("ok", a.type != Act.DECLINE).putExtra("min", a.min).putExtra("app", a.type == Act.APPROVE)
-                val pi = PendingIntent.getBroadcast(c, rq, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+                // app lock on: "grant" / "approve" ask for the phone's lock first (AuthActivity); "decline" gives nothing away
+                val pi = if (a.type != Act.DECLINE && AppLock.guardsActions(c))
+                    PendingIntent.getActivity(c, rq, Intent(c, AuthActivity::class.java).putExtra(AuthActivity.FWD, i).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+                else PendingIntent.getBroadcast(c, rq, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
                 val label = when (a.type) { Act.GRANT -> c.getString(R.string.act_grant, a.min); Act.APPROVE -> c.getString(R.string.act_approve); else -> c.getString(R.string.act_decline) }
                 Notification.Action.Builder(icon, label, pi).build()
             }

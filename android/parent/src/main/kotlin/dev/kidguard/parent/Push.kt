@@ -68,7 +68,7 @@ object Push {
             val kids = Logic.parseKids(Store.kids(c))
             val ev = Logic.pushEvent(kids, data, { Logic.NotifyState.fromJson(Store.notifyState(c, it.key)) }, tr = ResTr(c)) ?: return
             val st = Logic.NotifyState.fromJson(Store.notifyState(c, ev.first.key))
-            Store.setNotifyState(c, ev.first.key, Logic.withSeen(st, Logic.seenIdOf(data["eid"]!!)!!).toJson())
+            Store.setNotifyState(c, ev.first.key, Logic.withSeen(st, Logic.seenIdOf(data["eid"]!!)!!, ev.second).toJson())
             ev
         }
         CheckJob.post(c, hit.first, hit.second)

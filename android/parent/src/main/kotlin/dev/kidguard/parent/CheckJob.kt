@@ -79,7 +79,7 @@ class CheckJob : JobService() {
                 if (!Store.unpairedSeen(c, k.key) && canNotify(c)) { Store.setUnpairedSeen(c, k.key, true); postUnpaired(c, k) }
                 return
             }
-            if (Store.unpairedSeen(c, k.key)) Store.setUnpairedSeen(c, k.key, false)
+            if (Store.unpairedSeen(c, k.key)) { Store.setUnpairedSeen(c, k.key, false); runCatching { c.getSystemService(NotificationManager::class.java).cancel(0x6b68 + (k.key.hashCode() and 0xfff)) } }   // paired again: the "unpaired" notice goes
             KidWidget.save(c, k, seen)
             val canPost = canNotify(c)
             val onWifi = onWifi(cm)
@@ -162,14 +162,18 @@ class CheckJob : JobService() {
                 val evs = (0 until (ea?.length() ?: 0)).mapNotNull { i ->
                     val x = ea!!.optJSONObject(i) ?: return@mapNotNull null
                     val id = x.optString("id"); val text = x.optString("text")   // tsDown / tsUp: log only, no notification
-                    if (id.isEmpty() || text.isEmpty() || x.optString("kind") in setOf("tsDown", "tsUp")) null else Logic.Ev(id, text.take(120), x.optLong("t"), x.optString("kind"), Act.locOf(JSONObject().put("location", x.optJSONObject("loc"))))
+                    if (id.isEmpty() || text.isEmpty() || x.optString("kind") in setOf("tsDown", "tsUp")) null else Logic.Ev(id, text.take(120), x.optLong("t"), x.optString("kind"), Act.locOf(JSONObject().put("location", x.optJSONObject("loc"))), x.optString("key"))
                 }
-                val accOff = st.optString("mode") == "basic" && st.optJSONObject("basic")?.optBoolean("acc", true) == false
+                // a bank-app pause turns the service off on purpose: not "the child turned it off"
+                // (0.9.25 phones say it in tamperOn, which also waits for the service to come back after the pause)
+                val tOn = st.optJSONArray("tamperOn")?.let { a -> (0 until a.length()).map { a.optString(it) }.toSet() }
+                val accOff = if (tOn != null) "accoff" in tOn
+                    else st.optString("mode") == "basic" && st.optJSONObject("basic")?.optBoolean("acc", true) == false && (st.optJSONArray("accPaused")?.length() ?: 0) == 0
                 Logic.Seen(true, list, if (lan) st.optLong("t") else o.optLong("seen"), sos, evs, accOff, Act.locOf(st), appReqs, st.optJSONObject("now")?.optString("why") == "bedtime",
                     if (st.length() == 0) null   // relay kid that never synced: nothing to show
                     else WidgetLogic.Snap(st.optJSONObject("now")?.optString("why").orEmpty(), st.optInt("limitMin"), if (st.has("leftMs")) st.optLong("leftMs") else -1,
                         if (lan) st.optLong("t") else o.optLong("seen"), System.currentTimeMillis()),
-                    runCatching { dev.kidguard.Digest.fromState(st, "") }.getOrNull())
+                    runCatching { dev.kidguard.Digest.fromState(st, "") }.getOrNull(), tOn)
             } catch (e: Exception) { Logic.Seen(false, emptyList(), 0) }
         }
 

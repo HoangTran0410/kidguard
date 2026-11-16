@@ -4,7 +4,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** One thing worth telling the parent (protocol v0.6 "events"). [zone] is set for zoneIn / zoneOut. */
-data class Ev(val kind: String, val text: String, val zone: String? = null)
+/** [key]: a condition the parent app clears its notification for once it is gone from state `tamperOn` (accoff, usageoff, home). */
+data class Ev(val kind: String, val text: String, val zone: String? = null, val key: String? = null)
 
 /** Pure event logic: zones, battery, clock, the rule-change summary, the answer text. Android-free, unit-tested. */
 object Events {

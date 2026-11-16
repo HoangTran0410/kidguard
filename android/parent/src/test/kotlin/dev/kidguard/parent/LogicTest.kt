@@ -327,4 +327,38 @@ class LogicTest {
         assertEquals("application/octet-stream", Logic.safeType(null))
         assertEquals("application/octet-stream", Logic.safeType(""))
     }
+
+    // INCIDENT 2026-11-16 (Poco): "accessibility off" stayed in the shade after the pause ended and the service was back.
+    // Sequence: event posted with key accoff -> next check the phone no longer lists accoff -> the notification is cleared.
+    @Test fun accOffNoticeClearedOnceThePhoneSaysItIsBack() {
+        val ev = Logic.Ev("e1", "Dịch vụ trợ năng đang tắt", now - 1000, "tamper", key = "accoff")
+        val off = Logic.Seen(true, emptyList(), now, emptyList(), listOf(ev), accOff = true, tamperOn = setOf("accoff"))
+        val o1 = Logic.evaluate("Con", off, Logic.NotifyState(init = true, evInit = true), now, tr = TestTr.VI)
+        assertEquals(listOf("ev:e1"), o1.events.map { it.key })   // one notice (no second parent-made "acc" one)
+        assertTrue(o1.clear.isEmpty())
+        val st1 = Logic.NotifyState.fromJson(o1.state.toJson())   // survives storage
+        assertEquals(mapOf("ev:e1" to "t:accoff"), st1.open)
+        // still off: stays
+        assertTrue(Logic.evaluate("Con", off, st1, now + 60_000, tr = TestTr.VI).clear.isEmpty())
+        // back on: cleared once, then forgotten
+        val on = Logic.Seen(true, emptyList(), now, emptyList(), listOf(ev), accOff = false, tamperOn = emptySet())
+        val o2 = Logic.evaluate("Con", on, st1, now + 120_000, tr = TestTr.VI)
+        assertEquals(listOf("ev:e1"), o2.clear)
+        assertTrue(o2.events.isEmpty())
+        assertTrue(Logic.evaluate("Con", on, o2.state, now + 180_000, tr = TestTr.VI).clear.isEmpty())
+    }
+
+    @Test fun answeredRequestAndAckedSosNoticesAreCleared() {
+        val s0 = Logic.Seen(true, listOf("r1" to 15), now, sos = listOf("x1" to now))
+        val o1 = Logic.evaluate("Con", s0, Logic.NotifyState(init = true), now, tr = TestTr.VI)
+        assertEquals(setOf("req:r1", "sos:x1"), o1.events.map { it.key }.toSet())
+        val o2 = Logic.evaluate("Con", Logic.Seen(true, emptyList(), now), o1.state, now + 60_000, tr = TestTr.VI)
+        assertEquals(setOf("req:r1", "sos:x1"), o2.clear.toSet())
+    }
+
+    @Test fun olderPhoneWithoutTamperOnKeepsItsNotices() {
+        val ev = Logic.Ev("e1", "x", now - 1000, "tamper", key = "accoff")
+        val o1 = Logic.evaluate("Con", Logic.Seen(true, emptyList(), now, emptyList(), listOf(ev)), Logic.NotifyState(init = true, evInit = true), now, tr = TestTr.VI)
+        assertTrue(Logic.evaluate("Con", Logic.Seen(true, emptyList(), now, emptyList(), listOf(ev)), o1.state, now + 60_000, tr = TestTr.VI).clear.isEmpty())
+    }
 }
