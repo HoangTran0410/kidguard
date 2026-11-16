@@ -113,8 +113,8 @@ const alertBox = (kind, icn, html, style) => `<div class="alert${kind ? " " + ki
 const tagEl = (kind, icn, html, style) => `<span class="tag${kind ? " " + kind : ""}"${style ? ` style="${style}"` : ""}>${icn ? ic(icn) + " " : ""}${html}</span>`;
 // toggle chip: attrs = its data-* attributes (string), label html, on = pressed. Wrap several in chipRow().
 const chipBtn = (attrs, label, on) => `<button type="button" ${attrs} class="${on ? "on" : ""}" aria-pressed="${!!on}">${label}</button>`;
-// chip row: btns = array of chipBtn; o = { scroll: one line that scrolls sideways, id, style, aria: group label (plain text) }
-const chipRow = (btns, o = {}) => `<div class="chips${o.scroll ? " scroll" : ""}"${o.id ? ` id="${o.id}"` : ""}${o.style ? ` style="${o.style}"` : ""}${o.aria ? ` role="group" aria-label="${esc(o.aria)}"` : ""}>${btns.join("")}</div>`;
+// chip row: btns = array of chipBtn; o = { scroll: one line that scrolls sideways, cls: extra class, id, style, aria: group label (plain text) }
+const chipRow = (btns, o = {}) => `<div class="chips${o.scroll ? " scroll" : ""}${o.cls ? " " + o.cls : ""}"${o.id ? ` id="${o.id}"` : ""}${o.style ? ` style="${o.style}"` : ""}${o.aria ? ` role="group" aria-label="${esc(o.aria)}"` : ""}>${btns.join("")}</div>`;
 // tappable list row (.li): leading icon tile, title (html), optional sub line (html), chevron. attrs = id / data-* of the button. Put rows inside <div class="list">.
 const navRow = (attrs, icn, title, sub) => `<button type="button" class="li" ${attrs}><span class="ib">${ic(icn)}</span><span class="x"><b>${title}</b>${sub ? `<span class="sub">${sub}</span>` : ""}</span>${ic("chevron-right")}</button>`;
 const DNS = () => [["", t("off")], ["family-filter-dns.cleanbrowsing.org", "CleanBrowsing Family", 1], ["family.adguard-dns.com", "AdGuard Family", 1], ["family.cloudflare-dns.com", "Cloudflare Family", 0]];
