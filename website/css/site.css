@@ -392,7 +392,7 @@ section[id]>h2::before{content:"";flex:none;width:44px;height:44px;border-radius
   .gmenu{flex:1;min-width:0;padding:0 var(--s3)}
   .gml{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .gsb{width:44px;justify-content:center;font-size:20px;flex:none}
-  .gpaged .toc{position:fixed;top:0;bottom:0;left:0;z-index:30;width:min(86vw,340px);background:var(--bg);overflow-y:auto;padding:var(--s3) var(--s4) var(--s6);transform:translateX(-105%);transition:transform .2s;box-shadow:0 0 40px rgba(0,0,0,.25);visibility:hidden}
+  .gpaged .toc{position:fixed;top:0;left:0;z-index:30;height:100vh;height:100dvh;width:min(86vw,340px);background:var(--bg);overflow-y:auto;overscroll-behavior:contain;padding:var(--s3) var(--s4) calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-105%);transition:transform .2s;box-shadow:0 0 40px rgba(0,0,0,.25);visibility:hidden}
   .gpaged .toc.open{transform:none;visibility:visible}
   .gpaged .toc ol{grid-template-columns:minmax(0,1fr)}
   .gpaged .gclose{display:block}
