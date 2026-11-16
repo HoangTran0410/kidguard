@@ -236,7 +236,7 @@ function goError(k, w, why) {
   $("#app").innerHTML = head("KidGuard") + `<div class="card">
     <h2>${ic("wifi-off")} ${esc(t("go.h", k.name))}</h2>
     <p><b>${esc(why)}</b></p>
-    ${w && w.seen ? `<p class="mute">${esc(t("go.seen", new Date(w.seen).toLocaleString()))}</p>` : ""}
+    ${w && w.seen ? `<p class="mute">${esc(t("go.seen", dtFull(w.seen)))}</p>` : ""}
     ${w && w.lan ? `<p class="mute">${esc(t("go.lastLan", host(w.lan)))}</p>` : ""}
     ${w && w.ts ? `<p class="mute">${esc(t("go.ts", w.ts))}</p>` : ""}
     <p class="mute">${t("go.why")}</p>

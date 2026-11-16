@@ -144,3 +144,18 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 - Token: the relay keeps ONE token per phone (sha256 bound by the phone's first sync; only the phone can mint paired-device tokens, over LAN), so the watch gets the same token as the `/go` link. No separate "Zepp watch" device in "paired devices": removing it = renew the relay link (`relayRenew`), which also logs out the other parents.
 - Gotchas: relay URL before any kid = `DEFAULT_RELAY` (or settingsStorage `relay`, settings page). The code is only a rendezvous: whoever has the kid token can attach it, whoever has the secret can fetch it. `/w/new` is capped per network (Gate `wip:`, 30/day). Expired codes: lazy check + alarm.
 - Wire: protocol "Watch connect".
+
+### 2.14 Parent page components (use these, never hand-write the markup)
+One helper per UI shape; ids, `data-*` attributes and class names stay the same (`shoot.mjs`, `check-search.mjs` and the click handlers rely on them).
+| Need | Helper | File |
+|---|---|---|
+| Day / date picker (calendar popover, counts, prev/next) | `dayBtn(id, {sel, onPick, days \| min+max, counts, nav})` + `dpBind(root)`; never `<input type=date>` | `UI/tab-where.js` |
+| Empty state (icon tile + text) | `emptyBox(icon, html)` | `UI/core.js` |
+| Banner `.alert` (warn / bad / ok / info) | `alertBox(kind, icon, html, style?)` | `UI/core.js` |
+| Status pill `.tag` | `tagEl(kind, icon, html, style?)` | `UI/core.js` |
+| Toggle chips (filters, weekdays, minutes, mode) | `chipRow([chipBtn('data-x="v"', label, on), ...], {scroll, id, style, aria})` | `UI/core.js` |
+| Tappable list row (icon tile, title, sub, chevron) | `navRow('id="x"' or 'data-go="x"', icon, title, sub?)` inside `<div class="list">` | `UI/core.js` |
+| Bottom sheet / dialog | markup `<div id=".." class="sheet">` + panel `.dp` (one CSS block in `style.css`); open through `ask()` / `dayBtn` | `UI/shell.js`, `UI/kid.js` |
+| Date + time text | `dtFull(ms)`, `hhmm(ms)`, `evAt(ms)` (clock time, "Hôm qua 16:19"), `ago(ms)`, `fmt(ms)` (minutes), `modeEnd(ts)`, `dm("YYYY-MM-DD")` | `UI/core.js`, `UI/kid.js` |
+| Settings section | `sec(id, icon, title, desc, chip, body)` (+ a `QS` entry, see `check-search.mjs`) | `UI/tab-home.js` |
+Not shared on purpose: `<input type=time>` (native clock is fine, 7 places), rich `.li` rows with a progress bar or inline buttons (tab-home Hôm nay lists).

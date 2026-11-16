@@ -53,7 +53,7 @@ function wizBody(z) {
     if (!list.length) return `<p class="mute">${t("wz.noApps")}</p>`;
     return `<p class="mute">${t("wz.s2p")}</p>${list.map(a => { const m = wizMode(w, a.pkg);
       return `<div class="wza" data-p="${esc(a.pkg)}"><div class="app">${icon(a)}<div class="nm"><b>${esc(a.label)}</b></div></div>
-        <div class="chips wzs" role="group" aria-label="${esc(a.label)}">${["allow", "normal", "block"].map(v => `<button type="button" data-m="${v}" class="${m === v ? "on" : ""}" aria-pressed="${m === v}">${t("wz.m." + v)}</button>`).join("")}</div></div>`; }).join("")}
+        ${chipRow(["allow", "normal", "block"].map(v => chipBtn(`data-m="${v}"`, t("wz.m." + v), m === v)), { cls: "wzs", aria: a.label })}</div>`; }).join("")}
       <p class="mute">${ic("info")} ${t("wz.s2h")}</p>`;
   }
   if (z.step === 3) {

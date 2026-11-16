@@ -490,7 +490,7 @@ function modeChoices() {   // [label, ts]: tonight 20:00 (if still ahead), tomor
 async function modeApply(tp) {
   const ch = modeChoices(); let until = 0;
   const okT = ts => ts > Date.now() + 60000 && ts <= Date.now() + MODE_MAX;
-  const extra = `<div class="chips" id="mdCh" role="group" aria-label="${esc(t("md.btn"))}" style="margin-bottom:8px">${ch.map(([n, ts]) => `<button type="button" data-mu="${ts}" aria-pressed="false">${esc(n)}</button>`).join("")}</div>
+  const extra = `${chipRow(ch.map(([n, ts]) => chipBtn(`data-mu="${ts}"`, esc(n), false)), { id: "mdCh", style: "margin-bottom:8px", aria: t("md.btn") })}
     <label class="row stp" style="margin-bottom:8px"><span>${t("md.or")}</span><input id="mdAt" type="datetime-local" aria-label="${esc(t("md.or"))}"></label><div class="pks" id="mdSum" role="status" style="margin-bottom:10px"></div>`;
   const sum = () => { const e = $("#mdSum"); if (e) e.innerHTML = until ? (okT(until) ? `<b>${esc(t("md.sum", modeEnd(until)))}</b>` : `<span class="err">${t("md.bad")}</span>`) : ""; };
   const p = ask(t("md.h", tp.name) + "\n" + t("md.ask"), t("md.go"), false, "", extra, () => okT(until));

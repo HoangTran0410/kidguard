@@ -6,7 +6,7 @@ function timeWarn(x, on, sch) {
   if (!x.start || !x.end) m.push(t("tw.missing"));
   else if (x.start === x.end) m.push(t("tw.same"));
   if (sch && !(x.days || []).length) m.push(t("tw.noDays"));
-  return m.map(w => `<div class="alert warn" style="margin-top:8px">${ic("triangle-alert")} ${w}</div>`).join("");
+  return m.map(w => alertBox("warn", "triangle-alert", w, "margin-top:8px")).join("");
 }
 // ---- v0.9.7 wind-down + messages on the kid's phone (rules tab) ----
 function windChip(r) {
@@ -24,7 +24,7 @@ function windStatus(r) {   // idle / active / failure / conflict, below the cont
   if (saved && (saved.gray !== w.gray || +saved.min !== +w.min || saved.nudge !== w.nudge)) out.push(`<p class="mute">${ic("hourglass")} ${t("wd.unsaved")}</p>`);
   else if (w.gray && r.bedtime.on && ws) {
     const s = String(r.bedtime.start || "21:30").split(":").map(Number), m = ((s[0] * 60 + s[1] - w.min) % 1440 + 1440) % 1440;
-    out.push(ws.gray ? `<p><span class="tag ok">${ic("moon")} ${t("wd.nowOn")}</span></p>` : `<p class="mute">${ic("clock")} ${t("wd.wait", String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"))}</p>`);
+    out.push(ws.gray ? `<p>${tagEl("ok", "moon", t("wd.nowOn"))}</p>` : `<p class="mute">${ic("clock")} ${t("wd.wait", String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"))}</p>`);
   }
   return out.join("");
 }
@@ -117,7 +117,7 @@ function kidNotes() {
   const n = Array.isArray(st.notes) ? st.notes.filter(x => x && typeof x.text === "string") : [];
   if (!n.length) return "";
   return `<div style="margin-top:10px"><b>${ic("notebook-pen")} ${t("hm.kidNotes")}</b>${n.slice(0, 20).map(x =>
-    `<p style="margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.text)}<br><span class="mute">${esc(new Date(+x.t || 0).toLocaleString())}</span></p>`).join("")}</div>`;
+    `<p style="margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.text)}<br><span class="mute">${esc(dtFull(+x.t || 0))}</span></p>`).join("")}</div>`;
 }
 function homeBody(r) {
   const L = r.launcher, opt = (v, k) => `<option value="${v}" ${L.style === v ? "selected" : ""}>${t(k)}</option>`;
@@ -169,7 +169,7 @@ function ruleSecs(r) {
       return `<div class="sch" data-g="${i}"><div class="row"><input class="sp" id="f-gn${i}" maxlength="40" placeholder="${esc(t("grp.namePh"))}" aria-label="${esc(t("grp.name"))}" value="${esc(g.name)}"><button class="bad" data-gdel="${i}" aria-label="${esc(t("grp.del"))}">${ic("trash-2")}</button></div>
       <label class="row" style="margin-top:8px">${t("grp.max")} <input type="number" id="f-gm${i}" min="0" max="1440" step="15" inputmode="numeric" style="width:5.5em" value="${+g.min || 0}"> ${t("minPerDay")} <span class="mute">${t("zeroNoLim")}</span></label>
       <label class="row" style="margin-top:8px"><input type="checkbox" id="g-hon${i}" ${h ? "checked" : ""}><span class="sp">${ic("clock")} ${t("grp.hours")}</span></label>
-      ${h ? `<div class="chips" style="margin:8px 0">${t("wd").map((n, d) => `<button data-gday="${d + 1}" class="${(h.days || []).includes(d + 1) ? "on" : ""}" aria-pressed="${(h.days || []).includes(d + 1)}">${n}</button>`).join("")}</div>
+      ${h ? `${chipRow(t("wd").map((n, d) => chipBtn(`data-gday="${d + 1}"`, n, (h.days || []).includes(d + 1))), { style: "margin:8px 0" })}
       <span class="row tm">${t("from")} <input type="time" id="f-gs${i}" aria-label="${esc(t("start"))}" value="${esc(h.start)}"> ${t("to")} <input type="time" id="f-ge${i}" aria-label="${esc(t("end"))}" value="${esc(h.end)}"></span>${g.hours.length > 1 ? `<p class="mute">${t("grp.moreHours", g.hours.length - 1)}</p>` : ""}` : ""}
       <details data-gopen="${esc(g.id)}" ${gOpen.has(g.id) || !have.size ? "open" : ""} style="margin-top:8px"><summary>${grpSum(have.size)}</summary>
       <div style="max-height:260px;overflow:auto;margin-top:6px">${list.map(([p, l]) => `<label class="row"><input type="checkbox" data-gp="${esc(p)}" ${have.has(p) ? "checked" : ""}><span class="sp">${esc(l)}</span></label>`).join("") || `<p class="mute">${t("grp.noList")}</p>`}</div></details>
@@ -193,7 +193,7 @@ function ruleSecs(r) {
     home: secP("r-home", "house", t("hm.h"), t("sd.home"), C.home, homeBody(r)),
     sch: secP("r-sch", "book-open", t("sch.h"), t("sd.sch"), C.sch, `    ${r.schedules.map((x, i) => `<div class="sch" data-s="${i}">
       <div class="row"><input id="f-sn${i}" class="sp" data-f="name" placeholder="${esc(t("sch.namePh"))}" aria-label="${esc(t("sch.name"))}" value="${esc(x.name)}"><label class="row"><input type="checkbox" data-f="on" ${x.on ? "checked" : ""}> ${t("on")}</label></div>
-      <div class="chips" style="margin:8px 0">${t("wd").map((n, d) => `<button data-day="${d + 1}" class="${(x.days || []).includes(d + 1) ? "on" : ""}" aria-pressed="${(x.days || []).includes(d + 1)}">${n}</button>`).join("")}</div>
+      ${chipRow(t("wd").map((n, d) => chipBtn(`data-day="${d + 1}"`, n, (x.days || []).includes(d + 1))), { style: "margin:8px 0" })}
       <div class="row"><span class="row tm">${t("from")} <input type="time" id="f-ss${i}" data-f="start" aria-label="${esc(t("start"))}" value="${esc(x.start)}"> ${t("to")} <input type="time" id="f-se${i}" data-f="end" aria-label="${esc(t("end"))}" value="${esc(x.end)}"></span><span class="sp"></span><button class="bad" data-del="${i}">${ic("trash-2")} ${t("delete")}</button></div><div data-sw>${timeWarn(x, x.on, true)}</div></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("sch.none")}</p>`}
     <button id="addSch">${ic("plus")} ${t("sch.add")}</button>`),
     zone: secP("r-zone", "map-pin", t("zone.h"), t("sd.zone"), C.zone, `    ${r.zones.map((z, i) => `<div class="sch zrow" data-z="${i}"><span class="ib">${ic("map-pin")}</span><span class="x"><b>${esc(z.name || t("zone.newName"))}</b><span class="mute">${t("zone.r")} ${+z.r || 150} m${zoneOk(z) ? "" : " · " + t("zone.badCoord")}</span></span><button data-zedit="${i}">${ic("map")} ${t("zone.editB")}</button><button class="bad" data-zdel="${i}" aria-label="${esc(t("delete"))}">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("zone.none")}</p>`}
@@ -263,7 +263,7 @@ function tplSheet() {
   const body = () => { const T = allTpl(); if (tplSel >= T.length) tplSel = 0;
     const tcur = T[tplSel], nUser = T.length - PRESET_D.length, multi = reachKids().length > 1;
     return { tcur, html: `<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("layers", t("tpl.h"))}    <p class="mute" style="margin:0 0 8px">${t("tpl.p")}</p>
-    <div class="chips" role="group" aria-label="${esc(t("tpl.h"))}">${T.map((t, i) => `<button data-tpl="${i}" class="${i === tplSel ? "on" : ""}" aria-pressed="${i === tplSel}">${esc(t.name)}</button>`).join("")}</div>
+    ${chipRow(T.map((x, i) => chipBtn(`data-tpl="${i}"`, esc(x.name), i === tplSel)), { aria: t("tpl.h") })}
     <div class="mute" style="margin-top:8px">${esc(tcur.name)}: ${tplSummary(tcur)}</div>
     <div class="row" style="margin-top:10px"><button class="pri sp" id="tplGo">${ic("check")} ${t("tpl.applyTo", esc(cur.name))}</button><button class="sp" id="tplTemp">${ic("timer")} ${t("md.btn")}</button></div>
     <div class="row" style="margin-top:8px">${multi ? `<button class="sp" id="tplMulti">${ic("clipboard-copy")} ${t("tpl.applyMany")}</button>` : ""}</div>
@@ -431,7 +431,7 @@ function bankCols(r) {
 const bankListHtml = () => { const b = st && st.bankList; if (!b) return ""; return b.err ? `<span class="err">${ic("triangle-alert")} ${t("bank.listErr", esc(b.err))}</span>${b.at > 0 ? " · " + t("bank.listAt", ago(b.at)) : ""}` : b.at > 0 ? `${ic("check")} ${t("bank.listAt", ago(b.at))}` : `${ic("hourglass")} ${t("bank.listNone")}`; };
 function bankBox(r) {
   if (!Array.isArray(r.accPause)) return "";
-  const stuck = st.vpnStuck ? `<div class="alert warn" style="margin-top:8px">${ic("triangle-alert")} ${t("bank.vpnStuck")}</div>` : "";
+  const stuck = st.vpnStuck ? alertBox("warn", "triangle-alert", t("bank.vpnStuck"), "margin-top:8px") : "";
   const cols = bankCols(r), gt = `grid-template-columns:minmax(var(--bkn),1fr) repeat(${cols.length},var(--bkw));min-width:calc(var(--bkn) + ${cols.length} * (var(--bkw) + 4px) + 16px)`;
   return `<h4 style="margin:14px 0 4px">${ic("landmark")} ${t("bank.h")}</h4><p class="mute">${t("bank.p")}</p>
     ${st.bankList ? `<p class="mute">${pendHtml("bklist", bankListHtml)}</p>` : ""}
@@ -513,7 +513,7 @@ function callsBody(r) {
   const c = r.calls, cap = (st && st.callsCap) || {}, list = Array.isArray(st && st.calls) ? st.calls : [], p = callsProblem(r);
   const opt = (v, k) => `<option value="${v}" ${c.block === v ? "selected" : ""}>${t(k)}</option>`;
   const row = x => { const bl = x.type === "rejected" || x.type === "blocked", num = x.n || t("calls.hiddenNo");
-    return `<div class="row" style="margin-top:6px;flex-wrap:nowrap"><span class="${bl ? "" : "mute"}">${ic(CALL_IC[x.type] || "phone")}</span><span class="sp" style="min-width:0;overflow-wrap:anywhere"><b>${esc(x.name || num)}</b>${x.name ? ` <span class="mute">${esc(x.n)}</span>` : ""}<br><span class="mute">${bl ? t("calls.t.blocked") + " · " : x.type === "missed" ? t("calls.t.missed") + " · " : ""}${esc(new Date(+x.t || 0).toLocaleString())}${+x.dur > 0 ? " · " + Math.ceil(+x.dur / 60) + " " + t("calls.min") : ""}</span></span></div>`; };
+    return `<div class="row" style="margin-top:6px;flex-wrap:nowrap"><span class="${bl ? "" : "mute"}">${ic(CALL_IC[x.type] || "phone")}</span><span class="sp" style="min-width:0;overflow-wrap:anywhere"><b>${esc(x.name || num)}</b>${x.name ? ` <span class="mute">${esc(x.n)}</span>` : ""}<br><span class="mute">${bl ? t("calls.t.blocked") + " · " : x.type === "missed" ? t("calls.t.missed") + " · " : ""}${esc(dtFull(+x.t || 0))}${+x.dur > 0 ? " · " + Math.ceil(+x.dur / 60) + " " + t("calls.min") : ""}</span></span></div>`; };
   return `    <select id="f-cblk" aria-label="${esc(t("calls.h"))}">${opt("off", "calls.off")}${opt("unknown", "calls.unknown")}${opt("hidden", "calls.hidden")}</select>
     <p class="mute">${ic("info")} ${t("calls.tip")}</p>
     ${p ? `<p>${ic("triangle-alert")} ${t(p[0])}</p>` : ""}

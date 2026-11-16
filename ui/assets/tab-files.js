@@ -188,7 +188,7 @@ function filesTab(b) {
   fx.sig = "";
   b.innerHTML = `<div class="card"><h2>${ic("upload")} ${t("fx.sendH")}</h2>
     <p class="mute">${t(relay ? "fx.sendPr" : "fx.sendP", fxSize(max))}</p>
-    ${FXNO ? `<div class="alert warn">${ic("triangle-alert")} ${t("fx.app")}</div>` : `<div id="fxDrop" class="fxdrop"><input type="file" id="fxPick" multiple hidden>
+    ${FXNO ? alertBox("warn", "triangle-alert", t("fx.app")) : `<div id="fxDrop" class="fxdrop"><input type="file" id="fxPick" multiple hidden>
       <button class="pri" id="fxBtn">${ic("upload")} ${t("fx.pick")}</button><span class="mute">${t("fx.drop")}</span></div>`}
     <div id="fxJobs"></div></div>
   <div class="card"><h2>${ic("inbox")} ${t("fx.fromKid")}</h2><div id="fxOut"></div></div>

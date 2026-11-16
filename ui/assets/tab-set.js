@@ -10,7 +10,7 @@ const relayOkHtml = () => { const ok = st && +st.relayOk; if (!ok) return `<span
 // why KidGuard has not brought Tailscale back yet (state.ts.why)
 const tsWhyHtml = ts => (ts && ts.why && hasT("ts.why." + ts.why) ? `<p class="mute">${ic("hourglass")} ${t("ts.why." + ts.why)}</p>` : "") +
   // ts.doze (v0.9.24): Tailscale under battery optimisation goes quiet with the screen off; the phone fixes it itself when it has adb
-  (ts && ts.doze ? `<div class="alert warn">${ic("moon")} ${t("ts.doze")}</div>` : "");
+  (ts && ts.doze ? alertBox("warn", "moon", t("ts.doze")) : "");
 function tsCard(lan) {
   // basic mode: KidGuard can't install / sign in Tailscale (needs Device Owner), but a Tailscale set up by hand works and "keep on" (Ts.keep) too
   if (isBasic()) { const bi = (st && st.ts && st.ts.ip) || "";
@@ -25,7 +25,7 @@ function tsCard(lan) {
   return secP("s-ts", "route", t("ts.h"), t("sd.ts"), [esc(label), cls], `
     <p class="mute">${t("ts.p")}</p>
     ${ts.host ? `<p>${t("ts.host", "<b>" + esc(ts.host) + "</b>")}</p>` : ""}
-    ${ts.err ? `<div class="alert warn">${ic("triangle-alert")} ${esc(ts.err)}</div>` : ""}
+    ${ts.err ? alertBox("warn", "triangle-alert", esc(ts.err)) : ""}
     ${tsWhyHtml(ts)}
     ${url ? `<p>${ic("link")} <code>${esc(url)}</code>${ts.noExpiry ? ` <span class="tag ok">${t("ts.noExp")}</span>` : ""}</p>` : ""}
     ${exp ? `<div class="alert warn">${ic("triangle-alert")} <span>${t("ts.expP", "<b>" + esc(ts.host || "kid") + "</b>")}
@@ -60,8 +60,8 @@ function devCard() {
   else if (p && !p.fail && p.ok && st.t > p.ok + 5000) p.fail = t("dev.reOn");
   else if (p && !p.fail && st.t > p.at + 90000) p.fail = t("dev.stillOn");
   else if (p && !p.fail && Date.now() - p.at > 180000) p.fail = t("dev.timeout");
-  const bk = (st.devPaused || []).length ? `<div class="alert info">${ic("landmark")} ${t("dev.bankPaused", esc(st.devPaused.map(x => ((st.apps || []).find(a => a.pkg === x) || {}).label || x).join(", ")))}</div>` : "";
-  const busy = p && !p.fail && on !== p.want, fail = p && p.fail ? `<div class="alert warn">${ic("triangle-alert")} ${t(p.want ? "dev.failOn" : "dev.fail", esc(p.fail))}</div>` : "";
+  const bk = (st.devPaused || []).length ? alertBox("info", "landmark", `${t("dev.bankPaused", esc(st.devPaused.map(x => ((st.apps || []).find(a => a.pkg === x) || {}).label || x).join(", ")))}`) : "";
+  const busy = p && !p.fail && on !== p.want, fail = p && p.fail ? alertBox("warn", "triangle-alert", t(p.want ? "dev.failOn" : "dev.fail", esc(p.fail))) : "";
   return secP("s-dev", "code", t("dev.h"), t("sd.dev"), [on ? t("dev.on") : t("dev.off"), on ? "warn" : "ok"], on ? `<p class="mute">${t("dev.p")}${d.adb ? " " + t("dev.adb") : ""}</p>
     ${fail}
     ${d.canOff ? `<button id="devOff" ${busy ? "disabled" : ""}>${ic(busy ? "hourglass" : "x")} ${busy ? t("dev.pend") : t("dev.btn")}</button>` : `<p class="mute">${ic("circle-help")} ${t("dev.cant")}</p>`}` : `${bk || `<p class="mute">${ic("check")} ${t("dev.offP")}</p>`}${fail}
@@ -137,8 +137,8 @@ function featCard() {
   const n = F.filter(f => f.ok).length;
   const name = f => esc(hasT("ft_" + f.id) ? t("ft_" + f.id) : f.id);
   const rows = F.map(f => `<tr class="${f.ok ? "" : "no"}"><th scope="row">${FEAT_GO[f.id] && navOk(FEAT_GO[f.id][0]) ? `<button type="button" class="ftgo" data-ft="${esc(f.id)}">${name(f)} ${ic("chevron-right")}</button>` : name(f)}</th>
-    <td>${f.ok ? `<span class="tag ok">${ic("check")} ${t("ft.ok")}</span>` : `<span class="tag warn">${ic("lock")} ${t("cap_need", esc((f.missing || []).map(capName).join(", ") || "?"))}</span>`}</td></tr>`).join("");
-  const ag = st.autoGrant, agL = ag && +ag.left > 0 ? `<div class="alert warn">${ic("hourglass")} <span>${t("ag.left", +ag.left)}${ag.next > Date.now() ? ", " + t("ag.next", hhmm(ag.next)) : ""}${ag.err ? " · " + esc(tc("ag.err.", ag.err, ag.err)) : ""}${ag.at > 0 ? ` <span class="mute">· ${t("ag.at", ago(ag.at))}</span>` : ""}</span></div>` : "";
+    <td>${f.ok ? tagEl("ok", "check", t("ft.ok")) : tagEl("warn", "lock", t("cap_need", esc((f.missing || []).map(capName).join(", ") || "?")))}</td></tr>`).join("");
+  const ag = st.autoGrant, agL = ag && +ag.left > 0 ? alertBox("warn", "hourglass", `<span>${t("ag.left", +ag.left)}${ag.next > Date.now() ? ", " + t("ag.next", hhmm(ag.next)) : ""}${ag.err ? " · " + esc(tc("ag.err.", ag.err, ag.err)) : ""}${ag.at > 0 ? ` <span class="mute">· ${t("ag.at", ago(ag.at))}</span>` : ""}</span>`) : "";
   // basic mode: it can be bypassed; what Device Owner adds and what upgrading costs, before anyone starts it (owner 2026-11-13)
   const tamper = st.caps && st.caps.owner === false ? `<div class="alert warn">${ic("shield")} <span>${t("tm.d")}
     <details><summary>${t("tm.see")}</summary><ul>${["tm.l1", "tm.l2", "tm.l3"].map(k => `<li>${t(k)}</li>`).join("")}</ul>
@@ -240,7 +240,7 @@ function sysHtml() {
       ${can.dnd ? "" : `<div class="mute">${t("sys.noDnd")}</div>`}`);
   }
   const off = cur.via !== "lan" && Date.now() - lastSeen() > 120000;
-  return `${off ? `<div class="alert warn">${ic("wifi-off")} ${t("sys.offline")}</div>` : ""}${rows.join("") || `<p class="mute">${t("sys.none")}</p>`}`;
+  return `${off ? alertBox("warn", "wifi-off", t("sys.offline")) : ""}${rows.join("") || `<p class="mute">${t("sys.none")}</p>`}`;
 }
 // the card redraws in place on every refresh (the tab is not redrawn while a control has focus), never while a slider is held
 function sysDraw() {
@@ -296,11 +296,11 @@ function setTab(b) {
   if (Array.isArray(st.devices) && !st.devices.some(d => d.self) && !devIds.has(cur.token)) { const k = cur; devIdOf(k).then(id => { if (id && k === cur && tab === "set") { lastSig = ""; render(); } }); }
   // 17 small sections -> 12 rows (owner 2026-11-15): related ones share one sub-screen (secMix)
   const pinP = secP("s-pin", "key-round", t("pin.h"), t("pin.p"), edit.pinSet ? [t("pin.isSet"), "ok"] : [t("pin.notSet"), "warn"], `
-    ${edit.pinSet ? "" : `<div class="alert warn">${ic("triangle-alert")} ${t("pin.none")}</div>`}
+    ${edit.pinSet ? "" : alertBox("warn", "triangle-alert", t("pin.none"))}
     <p class="mute">${edit.pinSet ? t("pin.change") : t("pin.set")}</p>
     <div class="row"><input class="sp" style="min-width:8em" id="f-pin" inputmode="numeric" type="password" placeholder="${esc(t("pin.ph"))}" aria-label="${esc(t("pin.new"))}" maxlength="8" autocomplete="new-password"><button id="savePin">${ic("key-round")} ${edit.pinSet ? t("pin.changeB") : t("pin.setB")}</button></div>
     ${edit.pinSet && "pinResetAt" in st ? (st.pinResetAt > 0
-      ? `<div class="alert warn" style="margin-top:10px">${ic("triangle-alert")} ${esc(t("pin.rstPending", new Date(st.pinResetAt).toLocaleString()))} <button id="pinRstX" class="sp" style="margin-left:6px">${t("pin.rstCancel")}</button></div>`
+      ? alertBox("warn", "triangle-alert", `${esc(t("pin.rstPending", dtFull(st.pinResetAt)))} <button id="pinRstX" class="sp" style="margin-left:6px">${t("pin.rstCancel")}</button>`, "margin-top:10px")
       : `<p style="margin:8px 0 0"><button id="pinRst" class="sp">${ic("key-round")} ${t("pin.forgot")}</button></p>`) : ""}`, !edit.pinSet || st.pinResetAt > 0);
   const pairedP = secP("s-paired", "smartphone", t("paired.h"), t("sd.paired"), Array.isArray(st.devices) ? [String(st.devices.length)] : null, `${Array.isArray(st.devices) ? devsHtml() : `<p class="mute">${t("dev.old")}</p>`}
     <div class="row" style="margin-top:10px"><button id="openPair" class="sp">${ic("lock-open")} ${t("paired.add")}</button><button id="forget" class="sp">${ic("eraser")} ${APP ? t("forget.app") : t("forget.web")}</button></div><div id="pairOut" class="mute" style="margin-top:8px"></div>`, st.pairUntil > Date.now());
@@ -487,7 +487,7 @@ function tgHtml() {
       : `<button id="tgCode" class="pri">${ic("plus")} ${t("tg.newCode")}</button>`;
     body = `
     <div class="row tgbot">${ic("send")}<span class="sp"><b>${g.bot ? `<a href="https://t.me/${esc(g.bot)}" target="_blank" rel="noopener">@${esc(g.bot)}</a>` : "—"}</b>
-      <span class="mute">${t("tg.runs")}</span></span>${g.err ? `<span class="tag bad">${ic("triangle-alert")} ${t("tg.errTag")}</span>` : `<span class="tag ok">${t("tg.live")}</span>`}</div>
+      <span class="mute">${t("tg.runs")}</span></span>${g.err ? tagEl("bad", "triangle-alert", t("tg.errTag")) : `<span class="tag ok">${t("tg.live")}</span>`}</div>
     ${g.err ? `<p class="t-bad">${esc(tc("tg.e.", g.err, g.err))}</p>` : ""}
     <h3>${t("tg.chats")}</h3>
     ${chats.length ? `<div class="list">${chats.map(c => `<div class="li"><span class="av">${esc((c.name || "?").trim().charAt(0).toUpperCase())}</span><span class="x"><b>${esc(c.name || c.id)}</b><span class="sub mute">${t("tg.since", new Date(c.at).toLocaleDateString(lang))}</span></span><button type="button" class="pill" data-tgun="${esc(c.id)}">${ic("unlink")} ${t("tg.unlink")}</button></div>`).join("")}</div>`
@@ -558,7 +558,7 @@ function aiCard() {
   if (!("ai" in st)) return secP("s-ai", "bot", t("ai.h"), t("sd.ai"), null, `<p class="mute">${ic("info")} ${t("ai.old")}</p>`, false);
   return secP("s-ai", "bot", t("ai.h"), t("sd.ai"), on ? [t("on"), "ok"] : [t("off")], `
     <p class="mute">${t("ai.p")}</p>
-    ${show ? `<div class="alert warn">${ic("triangle-alert")} ${t("ai.once")}</div><pre id="aiCfg" style="white-space:pre-wrap;overflow-wrap:anywhere;user-select:all">${esc(aiCfg(cur, show.token))}</pre>
+    ${show ? `${alertBox("warn", "triangle-alert", t("ai.once"))}<pre id="aiCfg" style="white-space:pre-wrap;overflow-wrap:anywhere;user-select:all">${esc(aiCfg(cur, show.token))}</pre>
       <div class="row"><button id="aiCopy">${ic("clipboard-copy")} ${t("relay.copy")}</button><button id="aiDone" class="pri">${ic("check")} ${t("ai.done")}</button></div>`
     : `<div class="row"><button id="aiNew" class="pri">${ic("bot")} ${on ? t("ai.renew") : t("ai.new")}</button>${on ? `<button id="aiRevoke" class="bad">${ic("trash-2")} ${t("ai.revoke")}</button>` : ""}</div>`}`, !!show);
 }

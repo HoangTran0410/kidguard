@@ -110,11 +110,11 @@ function paintSave() {
   const c = $("#saveChip"); if (!c) return;
   const wait = pendingRules && st && st.rules && pendingRules.rev > st.rules.rev;
   if (!wait) pendSince = 0;
-  const h = saveFailed ? `<span class="tag bad">${ic("triangle-alert")} ${t("save.failed")}</span>`
+  const h = saveFailed ? tagEl("bad", "triangle-alert", t("save.failed"))
     : saveT || saveBusy ? `<span class="tag t-info"><i class="spin" style="width:12px;height:12px"></i> ${t("save.saving")}</span>`
     : wait ? `<span class="tag warn">${ic("hourglass")} ${t("save.pending")}${(pendSince = pendSince || Date.now()) && Date.now() - pendSince > 90000
         ? " · " + t("save.lastSeen", lastSeen() ? ago(lastSeen()) : "?") + ` <button type="button" class="pill" id="saveResend">${t("save.resend")}</button>` : ""}</span>`
-    : Date.now() - savedAt < 3000 ? `<span class="tag ok">${ic("check")} ${t("save.saved")}</span>` : "";
+    : Date.now() - savedAt < 3000 ? tagEl("ok", "check", t("save.saved")) : "";
   if (c.innerHTML !== h) c.innerHTML = h;
 }
 function render(tabClick) {
@@ -365,8 +365,8 @@ function logTab(b) {
   if (m) { tot = {}; for (const e of m.ev) { const k = dkey(e.t); tot[k] = (tot[k] || 0) + 1; } for (const l of m.lg) { const k = dkey(l.t); tot[k] = (tot[k] || 0) + 1; } }
   tot = tot || {};
   const first = dkey(Math.min(Date.now() - 90 * 864e5, ...Object.keys(tot).map(d => new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10), 12).getTime())));
-  const chip = (attr, v, cur_, n, label) => `<button type="button" data-${attr}="${v}" class="${cur_ === v ? "on" : ""}" aria-pressed="${cur_ === v}">${label} <b>${n}</b></button>`;
-  const chips = () => `<div class="chips scroll" role="group" aria-label="${esc(t("lg.h"))}">${chip("fe", "", lgEv, evAll.length + lgAll.length, t("lg.all"))}${Object.keys(C).sort((a, c) => a[0] === c[0] ? C[c] - C[a] : a < c ? -1 : 1).map(k => chip("fe", k, lgEv, C[k], k[0] === "e" ? `${ic(EV_IC[k.slice(2)] || "bell")} ${tc("lg.k.", k.slice(2), k.slice(2))}` : t("lg.c." + k.slice(2)))).join("")}</div>`;
+  const chip = (attr, v, cur_, n, label) => chipBtn(`data-${attr}="${v}"`, `${label} <b>${n}</b>`, cur_ === v);
+  const chips = () => chipRow([chip("fe", "", lgEv, evAll.length + lgAll.length, t("lg.all")), ...Object.keys(C).sort((a, c) => a[0] === c[0] ? C[c] - C[a] : a < c ? -1 : 1).map(k => chip("fe", k, lgEv, C[k], k[0] === "e" ? `${ic(EV_IC[k.slice(2)] || "bell")} ${tc("lg.k.", k.slice(2), k.slice(2))}` : t("lg.c." + k.slice(2))))], { scroll: 1, aria: t("lg.h") });
   const more = (rows, n, id) => rows.length > n ? `<button type="button" class="sm" id="${id}" style="width:100%;margin-top:8px">${t("lg.more", Math.min(LG_PAGE, rows.length - n), rows.length - n)}</button>` : "";
   const wait = !m && !c.d, none = wait ? (c.err ? emptyBox("triangle-alert", `${esc(t("lg.err", c.err))}<br><button type="button" class="sm" data-lgretry>${t("lg.retry")}</button>`) : emptyBox("hourglass", t("lg.loading"))) : emptyBox("inbox", t("lg.none"));
   b.innerHTML = `<div class="card">${dayBtn("log", { sel: lgDay, min: first, max: today, counts: tot, nav: true, onPick: k => go(k) })}
@@ -390,7 +390,7 @@ function supTab(b) {
   b.innerHTML = `<div class="card"><h2>${ic("message-square")} ${t("sup.h")}</h2><p class="mute">${t("sup.intro")}</p>
     <details><summary>${t("sup.whatH")}</summary><p class="mute">${t("sup.what")}</p><p class="mute">${t("sup.never")}</p></details>
     <div class="sec">${t("sup.kind")}</div>
-    <div class="chips" role="group" aria-label="${esc(t("sup.kind"))}">${SUP_KINDS.map(k => `<button type="button" data-sk="${k}" class="${supKind === k ? "on" : ""}" aria-pressed="${supKind === k}">${t("sup.k." + k)}</button>`).join("")}</div>
+    ${chipRow(SUP_KINDS.map(k => chipBtn(`data-sk="${k}"`, t("sup.k." + k), supKind === k)), { aria: t("sup.kind") })}
     <label class="sec" for="f-supText">${t("sup.say")}</label>
     <textarea id="f-supText" rows="3" maxlength="1000" style="width:100%" placeholder="${esc(t("sup.sayPh"))}">${esc(supText)}</textarea>
     <label class="sec" for="f-supPkg">${t("sup.app")}</label>
@@ -400,7 +400,7 @@ function supTab(b) {
     ${status}
     ${s.code ? `<div class="ban t-ok" style="margin-top:10px"><span class="bi">${ic("hash")}</span><div class="x"><b>${t("sup.code", esc(s.code))}</b><br>${t("sup.codeNote")}${s.left >= 0 ? " " + t("sup.left", s.left) : ""}</div></div>` : ""}</div>
   ${s.code ? `<div class="card"><h2>${ic("message-square")} ${t("sup.thread")}</h2>
-    ${msgs.map(m => `<div class="li"><span class="x"><b>${t(m.who === "dev" ? "sup.dev" : "sup.you")}</b> <span class="mute">${esc(new Date(m.at).toLocaleString())}</span><span class="sub" style="white-space:pre-wrap">${esc(m.text)}</span></span></div>`).join("") || `<p class="mute">${t("sup.noReply")}</p>`}
+    ${msgs.map(m => `<div class="li"><span class="x"><b>${t(m.who === "dev" ? "sup.dev" : "sup.you")}</b> <span class="mute">${esc(dtFull(m.at))}</span><span class="sub" style="white-space:pre-wrap">${esc(m.text)}</span></span></div>`).join("") || `<p class="mute">${t("sup.noReply")}</p>`}
     <textarea id="f-supReply" rows="2" maxlength="1000" style="width:100%;margin-top:8px" placeholder="${esc(t("sup.replyPh"))}">${esc(supReply)}</textarea>
     <div class="row" style="margin-top:8px"><button type="button" id="supSay">${ic("send")} ${t("sup.reply")}</button></div></div>` : ""}`;
   b.querySelectorAll("[data-sk]").forEach(x => x.onclick = () => { supKind = x.dataset.sk; render(); });
@@ -803,8 +803,7 @@ function pickTime(kind, active, onOk, onClear) {
       ${s.mode === "dur" ? `<div class="row stp"><button type="button" id="pkMinus" aria-label="${esc(t("pk.less"))}">${ic("minus")}</button><input id="pkN" type="number" inputmode="decimal" min="1" max="${s.unit === "h" ? 24 : 1440}" step="${s.unit === "h" ? 0.5 : 5}" value="${s.n}" aria-label="${esc(t("pk.amount"))}"><button type="button" id="pkPlus" aria-label="${esc(t("pk.more"))}">${ic("plus")}</button>
         <select id="pkU" aria-label="${esc(t("pk.unit"))}"><option value="m" ${s.unit === "m" ? "selected" : ""}>${t("pk.mins")}</option><option value="h" ${s.unit === "h" ? "selected" : ""}>${t("pk.hours")}</option></select></div>`
       : `<label class="row stp"><span>${t("pk.untilL")}</span><input id="pkAt" type="time" value="${esc(s.at)}" aria-label="${esc(t("pk.at"))}"></label>`}
-      <div class="chips" style="margin:10px 0" role="group" aria-label="${esc(t("pk.quick"))}">${chips.map(([c]) => { const on = typeof c === "string" ? s.mode === "at" && s.at === c : s.mode === "dur" && ms() === c * 60000;
-        return `<button type="button" data-pc="${c}" class="${on ? "on" : ""}" aria-pressed="${on}">${typeof c === "string" ? t("pk.am6") : fmt(c * 60000)}</button>`; }).join("")}</div>
+      ${chipRow(chips.map(([c]) => chipBtn(`data-pc="${c}"`, typeof c === "string" ? t("pk.am6") : fmt(c * 60000), typeof c === "string" ? s.mode === "at" && s.at === c : s.mode === "dur" && ms() === c * 60000)), { style: "margin:10px 0", aria: t("pk.quick") })}
       <div class="pks" role="status">${ok() ? `<b>${pause ? t("pk.sumPause", whenTxt(end)) : t("pk.sumBonus", fmt(v))}</b> <span class="mute">· ${pause ? fmt(v) : passMode() ? t("pk.passTill", whenTxt(end)) : t("pk.today")}</span>` : `<span class="err">${t("pk.bad")}</span>`}</div>
       ${pause ? `<p class="mute" style="margin:6px 0 12px">${t("pause.askNote")}</p>` : `<p class="mute" style="margin:6px 0 12px">${t(passMode() ? "pk.passNote" : "pk.bonusNote")}</p>`}
       <div class="row"><button type="button" id="askNo" class="sp">${ic("x")} ${t("cancel")}</button><button type="button" id="askOk" class="sp pri" ${ok() ? "" : "disabled"}>${ic("check")} ${t(pause ? (active ? "pk.update" : "pause.ok") : "pk.give")}</button></div>
@@ -856,16 +855,16 @@ function reqApprove(r, q) {
   if (q.kind === "web") { r.webAllow = [...new Set([...(r.webAllow || []), q.app])]; r.webBlock = (r.webBlock || []).filter(v => v !== q.app); }
   else { r.approved = [...new Set([...r.approved, q.pkg])]; r.blocked = r.blocked.filter(v => v !== q.pkg); }
 }
-const reqRemind = q => q.remindAt && q.at && q.remindAt - q.at > 30000 ? ` <span class="tag warn" style="margin:0">${ic("bell")} ${t("req.again", ago(q.remindAt))}</span>` : "";
+const reqRemind = q => q.remindAt && q.at && q.remindAt - q.at > 30000 ? ` ${tagEl("warn", "bell", t("req.again", ago(q.remindAt)), "margin:0")}` : "";
 function reqCard(q, r) {
   const app = reqIsAsk(q), ch = q.chore ? (r.chores || []).find(c => c.id === q.chore) : null, m = reqMin[q.id] || +q.min, id = esc(q.id), note = (reqNote[q.id] || "").trim();
   const head = app ? t("req.appAsks", esc(cur.name), esc(q.app || q.pkg || "?")) : t("req.asks", esc(cur.name), +q.min);
   return `<div class="card req" role="group" aria-label="${esc(t("req.aria"))}"><div class="row" style="flex-wrap:nowrap;align-items:flex-start"><span class="ib t-warn" style="color:var(--warn);background:rgba(217,119,6,.16)">${ic(reqIcon(q))}</span>
     <div class="sp" style="min-width:0"><b>${head}</b>${q.at || q.t ? ` <span class="mute">· ${ago(q.at || q.t)}</span>` : ""}${reqRemind(q)}
-    ${q.chore ? `<div style="margin-top:4px"><span class="tag warn" style="margin:0">${ic("star")} ${t("req.chore")}</span> <span class="tag">${esc(ch ? ch.name : t("req.choreGone"))}</span></div>` : ""}
+    ${q.chore ? `<div style="margin-top:4px">${tagEl("warn", "star", t("req.chore"), "margin:0")} <span class="tag">${esc(ch ? ch.name : t("req.choreGone"))}</span></div>` : ""}
     ${q.note ? `<div class="mute" style="margin-top:4px">${t("req.note", esc(q.note))}</div>` : ""}
     ${note ? `<div class="mute" style="margin-top:4px">${ic("message-square")} ${esc(note)}</div>` : ""}</div></div>
-    ${app ? "" : `<div class="chips" style="margin-top:10px" role="group" aria-label="${esc(t("minutes"))}">${reqChips(q).map(v => `<button type="button" data-rm="${id}" data-v="${v}" class="${v === m ? "on" : ""}" aria-pressed="${v === m}">${t("fmt.m", v)}</button>`).join("")}</div>`}
+    ${app ? "" : `${chipRow(reqChips(q).map(v => chipBtn(`data-rm="${id}" data-v="${v}"`, t("fmt.m", v), v === m)), { style: "margin-top:10px", aria: t("minutes") })}`}
     <div class="row" style="margin-top:12px"><button class="pri" data-yes="${id}" data-min="${m}">${ic("circle-check")} ${app ? t("req.appYes") : t("req.yes", m)}</button><button data-no="${id}">${ic("circle-x")} ${t("req.no")}</button><button data-reply="${id}">${ic("message-square")} ${t("req.replyBtn")}</button></div></div>`;
 }
 function replySheet(q, today) {
@@ -874,9 +873,9 @@ function replySheet(q, today) {
     ${q.note ? `<p class="mute" style="margin-top:0">${t("req.note", esc(q.note))}</p>` : ""}
     <label class="mute" for="f-rn-${id}" style="display:block;margin-top:6px">${t("req.reply")}</label>
     <input id="f-rn-${id}" data-rn="${id}" maxlength="200" autocomplete="off" placeholder="${esc(t("req.replyPh"))}" style="width:100%;margin-top:6px" value="${esc(reqNote[q.id] || "")}">
-    <div class="chips" style="margin-top:8px" role="group" aria-label="${esc(t("req.cannedAria"))}">${t("req.canned").map(c => `<button type="button" data-cr="${id}" data-v="${esc(c)}" class="${reqNote[q.id] === c ? "on" : ""}" aria-pressed="${reqNote[q.id] === c}">${esc(c)}</button>`).join("")}</div>
+    ${chipRow(t("req.canned").map(c => chipBtn(`data-cr="${id}" data-v="${esc(c)}"`, esc(c), reqNote[q.id] === c)), { style: "margin-top:8px", aria: t("req.cannedAria") })}
     ${reqIsAsk(q) ? "" : `<div class="mute" style="margin-top:14px">${t("minutes")}</div>
-    <div class="chips" style="margin-top:6px" role="group" aria-label="${esc(t("minutes"))}">${reqChips(q).map(v => `<button type="button" data-rm="${id}" data-v="${v}" class="${v === m ? "on" : ""}" aria-pressed="${v === m}">${t("fmt.m", v)}</button>`).join("")}</div>`}
+    ${chipRow(reqChips(q).map(v => chipBtn(`data-rm="${id}" data-v="${v}"`, t("fmt.m", v), v === m)), { style: "margin-top:6px", aria: t("minutes") })}`}
     <div class="row" style="margin-top:16px"><button class="sp" data-no="${id}">${ic("circle-x")} ${t("req.no")}</button><button class="sp pri" data-yes="${id}" data-min="${m}">${ic("circle-check")} ${reqIsAsk(q) ? t("req.appYes") : t("req.yes", m)}</button></div></div>`,
     pop => wireReq(pop, today, true));
 }

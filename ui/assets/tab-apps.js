@@ -34,7 +34,7 @@ function appsList(b) {
   const visible = () => { const raw = sel.q.trim().toLowerCase(), q = qsFold(raw); return st.apps.filter(x => !x.protected && pass(x) && (!raw || (q && qsFold(x.label).includes(q)) || x.pkg.toLowerCase().includes(raw))); };
   b.innerHTML = `<div><div class="row"><b class="sp">${t("apps.h", st.apps.length)}</b><button id="selTog" class="sm${sel.on ? " pri" : ""}">${sel.on ? ic("x") + " " + t("sel.exit") : ic("square-check") + " " + t("sel.on")}</button></div>
     <input id="f-q" type="search" value="${esc(sel.q)}" placeholder="${esc(t("apps.search"))}" aria-label="${esc(t("apps.search"))}" style="width:100%;margin:10px 0 6px">
-    <div class="chips scroll" id="flt">${FILT.map(([v, n]) => `<button data-f="${v}" class="${sel.f === v ? "on" : ""}">${n}</button>`).join("")}</div>
+    ${chipRow(FILT.map(([v, n]) => chipBtn(`data-f="${v}"`, n, sel.f === v)), { scroll: 1, id: "flt" })}
     <div id="list"></div><p class="mute">${ic("lightbulb")} ${t("apps.tip")}</p></div>
     ${sel.on ? `<div class="bulk" id="bulk"></div>` : ""}`;
   const drawBar = () => {
@@ -73,9 +73,9 @@ function appsList(b) {
   const rowHtml = x => {
       const m = mode(x.pkg), nw = isNew(x);
       // ONE tag: the enforced state, only when the dropdown beside it does not already say it (A2.7)
-      const on = x.suspended || x.blocked, tag = nw ? `<span class="tag" style="background:#fef3c7;color:#92400e">${ic("sparkles")} ${t("newInst")}</span>`
+      const on = x.suspended || x.blocked, tag = nw ? tagEl("", "sparkles", t("newInst"), "background:#fef3c7;color:#92400e")
         : on ? (m === "block" && x.blocked === "blocked" ? "" : `<span class="tag bad">${reason(x.blocked)}</span>`)
-        : m === "block" ? `<span class="tag warn">${ic("hourglass")} ${t("app.waitPhone")}</span>` : "";
+        : m === "block" ? tagEl("warn", "hourglass", t("app.waitPhone")) : "";
       const info = `<div class="nm"><b>${esc(x.label)}</b><span class="mute">${t("todayV", fmt(x.ms))}${tag}</span></div>`;
       if (sel.on) return `<label class="app r"><input type="checkbox" data-c="${esc(x.pkg)}" ${sel.set.has(x.pkg) ? "checked" : ""}>${icon(x)}${info}</label>`;
       return `<div class="app${nw ? "" : " r"}">${icon(x)}${info}
@@ -158,8 +158,8 @@ function cleanTab(b) {
     return `<div class="alert ${late ? "warn" : "info"}" style="font-weight:400;font-size:13px">${ic(late ? "triangle-alert" : "hourglass")} <span>${t(late ? "pw.hdLate" : "pw.hdWait", n)}${why ? " · " + esc(why) : ""}</span> <button type="button" data-pact="hdwait">${ic("refresh-cw")} ${t("pw.retry")}</button></div>`; };
   const hdRetry = () => { const k = cur; if (!k || !edit || viewDay) return; putRules(k, edit).then(() => { hideSentAt = { k, at: Date.now() }; toast("send|" + t("pw.resent")); setTimeout(refresh, 1500); }).catch(e => toast("err|" + t("errX", e.message))); };
   const sug = pre.filter(x => x.suggest || saved.has(x.pkg) || x.hidden), rest = pre.filter(x => !sug.includes(x));
-  const TAG = { ok: `<span class="tag ok">${ic("check")} ${t("hd.ok")}</span>`, ref: `<span class="tag bad">${ic("ban")} ${t("hd.refused")}</span>`,
-    wait: `<span class="tag">${ic("hourglass")} ${t("hd.waiting")}</span>`, adb: `<span class="tag warn">${ic("lock")} ${t("hd.noAdb")}</span>`, show: `<span class="tag">${ic("hourglass")} ${t("hd.showing")}</span>` };
+  const TAG = { ok: tagEl("ok", "check", t("hd.ok")), ref: tagEl("bad", "ban", t("hd.refused")),
+    wait: tagEl("", "hourglass", t("hd.waiting")), adb: tagEl("warn", "lock", t("hd.noAdb")), show: tagEl("", "hourglass", t("hd.showing")) };
   const row = x => `<label class="app"><input type="checkbox" data-hd="${esc(x.pkg)}" ${draft().has(x.pkg) ? "checked" : ""}><div class="nm"><b>${esc(x.label)}</b><span class="mute">${esc(x.pkg)}${x.mb ? " · " + mbTxt(x.mb) : ""}${x.suggest ? `<span class="tag warn">${t("clean.sug")}</span>` : ""}${TAG[S.of(x)] || ""}</span></div></label>`;
   // long lists: the first 8 rows + "Xem tất cả (N)"; the preinstalled rest is drawn only when its <details> opens
   const lim = (rows, key) => (cleanAll[key] || rows.length <= 10) ? rows.join("") : rows.slice(0, 8).join("") + `<button type="button" class="sm" data-clall="${key}">${ic("chevron-down")} ${t("ap.all", rows.length)}</button>`;
@@ -170,7 +170,7 @@ function cleanTab(b) {
     ${S.want ? `<div class="prog" role="img" aria-label="${esc(t("hd.sum", S.ok, S.want))}"><i style="width:${pc(S.ok)}"></i><i class="b" style="width:${pc(S.ref)}"></i><i class="w" style="width:${pc(S.wait)}"></i></div>
       <div><b>${t("hd.sum", S.ok, S.want)}</b>${S.ref ? ` · <span class="err">${t("hd.refN", S.ref)}</span>` : ""}${S.wait ? ` · <span class="mute">${t("hd.waitN", S.wait)}</span>` : ""}</div>
       ${S.wait ? pendHtml("hdwait", hdWait, hdRetry) : ""}
-      ${S.ref ? `<div class="alert warn" style="font-weight:400;font-size:13px">${ic("triangle-alert")} ${t("hd.refTip")}</div>` : ""}` : ""}</div>
+      ${S.ref ? alertBox("warn", "triangle-alert", t("hd.refTip"), "font-weight:400;font-size:13px") : ""}` : ""}</div>
   <h3 class="pth" style="margin-top:14px">${ic("sparkles")}<b>${t("hd.sugH")}</b><span class="tag">${t("hd.nApps", sug.length)}</span></h3><p class="mute" style="margin:0 0 4px">${t("hd.sugD")}</p>
   ${sug.length ? lim(sug.map(row), "sug") : `<p class="mute">${t("clean.noSug")}</p>`}
   ${rest.length ? `<details id="clRest" class="more"${cleanAll.rest ? " open" : ""}><summary><b>${t("hd.restH")}</b> <span class="tag">${t("hd.nApps", rest.length)}</span></summary><p class="mute">${t("hd.restD")}</p><div id="clRestBox">${cleanAll.rest ? rest.map(row).join("") : ""}</div></details>` : ""}
@@ -325,7 +325,7 @@ function hlBgSheet() {
     p.innerHTML = `<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("zap", t("hl.bg.h"))}
       <p class="mute" style="margin:0 0 8px">${t("hl.bg.sub", run, mine.length)}</p>
       ${healthBusy ? hlBusyBox(healthBusy, "zap") : hlResBox(t0)}
-      ${adb ? "" : `<div class="alert warn" style="margin:0 0 8px;font-weight:400;font-size:14px">${ic("triangle-alert")} ${t("hl.bg.noAdb")}</div>`}
+      ${adb ? "" : alertBox("warn", "triangle-alert", t("hl.bg.noAdb"), "margin:0 0 8px;font-weight:400;font-size:14px")}
       <div${busy || !adb ? ' class="cbusy-lock" inert aria-disabled="true"' : ""}>
       <input id="bgQ" type="search" placeholder="${esc(t("hl.bg.search"))}" aria-label="${esc(t("hl.bg.search"))}" value="${esc(q)}" style="width:100%;margin-bottom:8px">
       <div class="chips" style="margin-bottom:8px"><button type="button" id="bgSug"${idle.length ? "" : " disabled"}>${ic("sparkles")} ${t("hl.bg.sug", idle.length)}</button><button type="button" id="bgClr"${n ? "" : " hidden"}>${ic("x")} ${t("hl.bg.clr")}</button></div>
@@ -377,7 +377,7 @@ function spaceTab(b) {
   b.innerHTML = `<div><div style="display:flex;align-items:center;gap:8px"><span style="flex:1"></span>
     ${st.sizesAt !== undefined ? `<button type="button" id="spScan" class="sm"${busy ? " disabled" : ""}>${scanBusy ? '<i class="spin"></i>' : ic("refresh-cw")} ${t(scanBusy ? "clean.scanning" : "clean.scan")}</button>` : ""}</div>
     ${st.sizesAt ? `<p class="mute" style="margin:4px 0 10px;font-size:13px">${t("clean.measured", hhmm(st.sizesAt))}</p>` : `<div style="height:10px"></div>`}
-    ${owner && !cc ? `<div class="alert warn" style="margin:0 0 8px;font-weight:400;font-size:13px">${ic("triangle-alert")} ${t("clean.oldOs", esc(st.android))}</div>` : ""}
+    ${owner && !cc ? alertBox("warn", "triangle-alert", t("clean.oldOs", esc(st.android)), "margin:0 0 8px;font-weight:400;font-size:13px") : ""}
     ${cacheBusy && !healthBusy ? `<div class="cbusy" role="status" aria-live="polite"><div class="cbusy-h"><span class="cbusy-ic">${ic("eraser")}</span><span><b>${t("clean.cacheBusyT")}</b><br><span class="mute">${t("clean.cacheBusy")}</span></span></div><div class="cbusy-bar"><i></i></div></div>`
       : cache && !healthBusy ? `<button type="button" id="spCache"${scanBusy ? " disabled" : ""} class="sp" style="width:100%;display:flex;gap:12px;align-items:center;text-align:start;margin:0 0 6px">${ic("eraser")}<span><b>${t("clean.cacheBtn", mbTxt(cacheMb))}</b><br><span class="mute" style="font-size:13px;font-weight:400">${t("clean.cacheSub")}</span></span></button>` : ""}
     ${!cacheBusy && st.cacheCleared && Date.now() - st.cacheCleared.at < 6 * 3600000 ? `<p class="mute" style="margin:0 0 8px">${ic("circle-check")} ${t("clean.cacheDone", hhmm(st.cacheCleared.at), mbTxt(+st.cacheCleared.mb || 0))}</p>` : ""}
@@ -482,7 +482,7 @@ function devTab(b) {
   const r = d.ram || {}, rp = r.total ? (r.total - r.avail) / r.total * 100 : 0, rTone = r.low ? "b" : rp > 85 ? "w" : "";
   const top = (st.apps || []).filter(x => x.ms >= 30000).sort((a, c) => c.ms - a.ms).slice(0, 5);
   const ram = `${bar(rp, rTone, t("dv.ram"))}<p style="margin:4px 0 8px">${t("dv.ramD", byt(r.avail), byt(r.total))}</p>
-    ${r.low ? `<div class="alert warn">${ic("triangle-alert")} ${t("dv.ramLow")}</div>` : ""}
+    ${r.low ? alertBox("warn", "triangle-alert", t("dv.ramLow")) : ""}
     ${r.perApp ? "" : `<p class="mute">${ic("circle-help")} ${t("dv.ramWhy")}</p>`}
     <h3 style="margin:12px 0 4px;font-size:14px">${t("dv.topUse")}</h3>
     ${top.map(x => `<div class="app">${icon(x)}<div class="nm"><b>${esc(x.label)}</b><span class="mute">${t("todayV", fmt(x.ms))}</span></div></div>`).join("") || `<p class="mute">${t("dv.noUse")}</p>`}`;
@@ -490,7 +490,7 @@ function devTab(b) {
   const deg = v => v.toLocaleString(lang, { maximumFractionDigits: 1 }) + "°C";
   const bTone = bt.pct >= 0 && bt.pct <= 15 && !bt.charging ? "b" : bt.pct <= 30 ? "w" : "";
   const bat = `${bt.pct >= 0 ? bar(bt.pct, bTone, t("dv.bat")) : ""}
-    ${hot ? `<div class="alert warn">${ic("flame")} ${t("dv.hot", deg(tc2))}</div>` : ""}
+    ${hot ? alertBox("warn", "flame", t("dv.hot", deg(tc2))) : ""}
     ${kv(t("dv.plug"), bt.charging ? t("dv.charging", tc("dv.plug.", bt.plug, bt.plug)) : t("dv.notCharging"))}
     ${tc2 != null ? kv(t("dv.temp"), deg(tc2)) : ""}
     ${kv(t("dv.health"), `<span class="tag ${badH ? "bad" : bt.health === "good" ? "ok" : ""}" style="margin:0">${tc("dv.h.", bt.health, bt.health || "?")}</span>`)}
