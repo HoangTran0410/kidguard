@@ -29,6 +29,15 @@ class RefuseLogicTest {
     @Test fun chatScreenIsNotARefusal() =   // INCIDENT 2026-11-17: talking about accessibility in the Claude app
         assertTrue(RefuseLogic.kinds("Ủa gì đây? Claude đâu cần tắt trợ năng?", typing = true).isEmpty())
 
+    @Test fun wordsFarApartAreNotARefusal() =   // INCIDENT 2026-11-17: a chat list, "KidGuard" in one title, "an toàn" in another
+        assertTrue(RefuseLogic.kinds("KidGuard review. " + "x".repeat(120) + " Cách giữ an toàn khi lướt web").isEmpty())
+
+    @Test fun kidguardNamedInADialogStillCounts() =
+        assertEquals(setOf("acc"), RefuseLogic.kinds("Phát hiện ứng dụng KidGuard có thể điều khiển thiết bị. Vui lòng gỡ để tiếp tục."))
+
+    @Test fun matchReturnsTheTextSeen() =
+        assertTrue(RefuseLogic.match("Vui lòng tắt trợ năng").second.contains("tro nang"))
+
     @Test fun longScreenIsNotADialog() =
         assertTrue(RefuseLogic.kinds("Hãy tắt VPN ".repeat(80)).isEmpty())
 

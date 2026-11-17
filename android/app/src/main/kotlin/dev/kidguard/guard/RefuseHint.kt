@@ -38,18 +38,33 @@ object RefuseLogic {
     fun norm(s: String): String = Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD)
         .replace(Regex("\\p{Mn}+"), "").replace('đ', 'd').replace(Regex("\\s+"), " ")
 
+    /** A complaint word and a reason word count only this close (chars, start to start): one sentence, not two
+     *  unrelated lines of the same screen (INCIDENT 2026-11-17: a chat list with "KidGuard ..." and "... an toàn ..."). */
+    const val NEAR = 80
+
     /** What the text says the app refuses: subset of acc / dev / vpn, empty = not a refusal.
      *  [typing]: the window has a text box = a chat / search / note screen whose words are the user's, not an error dialog
      *  (INCIDENT 2026-11-17: the owner chatted with the Claude app about accessibility -> "Claude won't open"). */
-    fun kinds(text: String, typing: Boolean = false): Set<String> {
-        if (typing || text.isBlank() || text.length > MAX_TEXT) return emptySet()
+    fun kinds(text: String, typing: Boolean = false): Set<String> = match(text, typing).first
+
+    /** [kinds] plus the matched part of the text (normalized, ~[NEAR]*2 chars) for the phone log: a false hit is traceable. */
+    fun match(text: String, typing: Boolean = false): Pair<Set<String>, String> {
+        val none = emptySet<String>() to ""
+        if (typing || text.isBlank() || text.length > MAX_TEXT) return none
         val t = " " + norm(text) + " "
-        if (BAD.none { t.contains(it) }) return emptySet()
-        return buildSet {
-            if (ACC.any { t.contains(it) }) add("acc")
-            if (DEV.any { w -> if (w == "adb") Regex("\\badb\\b").containsMatchIn(t) else t.contains(w) }) add("dev")
-            if (VPN.any { Regex("\\b$it\\b").containsMatchIn(t) }) add("vpn")
+        val bad = BAD.flatMap { w -> Regex(Regex.escape(w)).findAll(t).map { it.range.first }.toList() }
+        if (bad.isEmpty()) return none
+        val out = LinkedHashSet<String>(); var at = -1
+        fun hits(words: List<String>, kind: String, whole: (String) -> Boolean) {
+            for (w in words) for (m in Regex(if (whole(w)) "\\b" + Regex.escape(w) + "\\b" else Regex.escape(w)).findAll(t)) {
+                if (bad.any { kotlin.math.abs(it - m.range.first) <= NEAR }) { out += kind; if (at < 0) at = m.range.first; return }
+            }
         }
+        hits(ACC, "acc") { false }
+        hits(DEV, "dev") { it == "adb" }
+        hits(VPN, "vpn") { true }
+        if (out.isEmpty()) return none
+        return out to t.substring(maxOf(0, at - NEAR), minOf(t.length, at + NEAR)).trim()
     }
 
     /** The kinds of [hit] the rules do not cover yet (acc -> accPause, dev -> devPause or tcpPause, vpn -> vpnPause). */
@@ -124,7 +139,8 @@ object RefuseHint {
 
     private fun check(svc: AccessibilityService, pkg: String, text: String, now: Long, typing: Boolean = false) {
         if (pkg == svc.packageName || pkg in SYS || BasicLogic.isSettingsPkg(pkg)) return
-        var hit = RefuseLogic.kinds(text, typing)
+        val (found, seen) = RefuseLogic.match(text, typing)
+        var hit = found
         if (hit.isEmpty()) return
         val s = Store.of(svc)
         hit = RefuseLogic.missing(hit, pkg, s.rules)
@@ -137,7 +153,7 @@ object RefuseHint {
         val label = runCatching { pm.getApplicationInfo(pkg, 0).loadLabel(pm).toString() }.getOrDefault(pkg)
         s.addRefused(pkg, label, hit, now)
         val what = hit.joinToString(", ") { svc.getString(when (it) { "acc" -> R.string.rf_acc; "dev" -> R.string.rf_dev; else -> R.string.rf_vpn }) }
-        runCatching { s.log(R.string.log_refused, label, what) }
+        runCatching { s.log(R.string.log_refused, label, what, seen) }
         runCatching { s.event("refused", R.string.ev_refused, label, what) }   // pushed to the parent app (relay pushNew: every event)
         notify(svc, label, what)
         Guard.running?.kick()

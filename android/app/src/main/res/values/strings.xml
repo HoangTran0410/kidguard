@@ -332,7 +332,7 @@
     <string name="rf_title">%1$s won\'t open while %2$s is on</string>
     <string name="rf_body">No need to uninstall anything. Your parent was told. Fix: on the parent page, Rules → Apps that won\'t open, tick %1$s. Next time KidGuard turns %2$s off while it is open.</string>
     <string name="ev_refused">%1$s won\'t open while %2$s is on. Fix: Rules → Apps that won\'t open, tick %1$s</string>
-    <string name="log_refused">%1$s won\'t open while %2$s is on (fix: Rules → Apps that won\'t open, tick it)</string>
+    <string name="log_refused">%1$s won\'t open while %2$s is on (fix: Rules → Apps that won\'t open, tick it). Text seen: "%3$s"</string>
     <string name="notif_listen_title">Your parent is listening to the sound around the phone</string>
     <string name="notif_listen_text">The mic is on so your parent can listen. It turns off by itself within 10 minutes.</string>
 
