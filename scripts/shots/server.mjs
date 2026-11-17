@@ -14,6 +14,9 @@ const arg = (n, d) => { const i = process.argv.indexOf("--" + n); return i > 0 ?
 const LANG = arg("lang", "vi");
 // --patch file.json: fields merged over every /state (e.g. {"mode":"basic","owner":false} to see basic mode)
 const PATCH = arg("patch") ? JSON.parse(fs.readFileSync(arg("patch"), "utf8")) : {};
+// the fixtures' phone runs the current app (else NEED in kid.js marks every newer feature "update the kid's phone");
+// --patch '{"version":"0.9.28"}' shows that state
+const KG_VERSION = (fs.readFileSync(new URL("../../android/gradle.properties", import.meta.url), "utf8").match(/^kg\.version=(.+)$/m) || [])[1];
 const KIDS = arg("kids", "bin:8771").split(",").map(s => s.split(":")).map(([k, p]) => [k, +p]);
 
 // "now" of the story: today 16:20 local unless --now is given (the page clock is shifted to the same instant by shoot.mjs)
@@ -125,7 +128,7 @@ function serve(name) {
       if (FAULT === "e500" && p !== "/api/icon") return json({ error: "boom" }, 500);
       if (FAULT === "slow" && !req.__late) { req.__late = 1; return setTimeout(() => req.emit("end"), 15000); }
       const a = p.slice(4);
-      const st = () => { const s = stateOf(name), r = s.rules; Object.assign(s, PATCH); if (PATCH.rules && r) s.rules = Object.assign(r, PATCH.rules); return s; };   // "rules" merged one level deep
+      const st = () => { const s = stateOf(name), r = s.rules; if (KG_VERSION) s.version = KG_VERSION; Object.assign(s, PATCH); if (PATCH.rules && r) s.rules = Object.assign(r, PATCH.rules); return s; };   // "rules" merged one level deep
       if (a === "/hello") return json({ id: st().id, pairing: false, pin: true, pairPin: true, owner: true, mode: "owner" });
       if (a === "/state") return json(st());
       if (a === "/rules" && req.method === "PUT") { try { const r = JSON.parse(text); delete r.pin; r.pinSet = true; r.rev = Date.now(); rulesOf[name] = r; return json(r); } catch { return json({ error: "bad json" }, 400); } }

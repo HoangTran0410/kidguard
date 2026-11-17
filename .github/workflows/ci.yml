@@ -32,6 +32,8 @@ jobs:
         run: node scripts/check-search.mjs
       - name: Permission table
         run: node scripts/check-perms.mjs
+      - name: Features newer than the kid app have an update prompt (NEED)
+        run: node scripts/check-need.mjs
       - name: Page files wired + i18n parity
         run: node scripts/check-assets.mjs
       - name: Site guide for AI matches the guide pages

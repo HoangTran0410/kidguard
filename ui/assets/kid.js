@@ -167,6 +167,7 @@ function changed() {
   if (viewDay) return;   // history snapshot: read-only
   const k = cur, e = edit;
   if (!k || !e) return;
+  needRules(e);
   saveT = setTimeout(async () => {
     saveT = null;
     try { await putRules(k, e); toast(k.via === "lan" ? "ok|" + t("saved") : "send|" + t("sentRelay")); }
@@ -244,6 +245,65 @@ function confirmGate(e) {
   });
 }
 document.addEventListener("change", confirmGate, true);
+
+// ---- Features that need a newer app on the kid's phone (owner 2026-11-17: "phải báo cho bố mẹ là chức năng cần bản mới,
+// kèm nút để máy con update liền"). The page (relay / UI pack) is often newer than the kid's app: an old app drops rule
+// keys it does not know (Rules.fromJson allow-list) and ignores commands, so a switch "turns itself off" with no word.
+// One entry per release: v = the first kid app version that has it; cmd = command types, rule = top-level rule keys,
+// ui = element ids (a card id disables the whole card) shown disabled with the note + "Update the kid's phone".
+// New relay command or rule key ⇒ add it here: scripts/check-need.mjs fails otherwise (CI + build.sh).
+const NEED = [
+  { v: "0.9.29",
+    cmd: ["chatClear", "chatDel", "chatFileDel", "chatPull", "notifPull", "refusedDrop", "smsPull", "snap", "snapDel", "snapList", "snapUp", "uiUpdate"],
+    rule: ["watch"],
+    ui: ["seenNotif", "seenCam", "seenSms", "seenWordsCard", "attBtn", "micBtn"] },
+];
+const needSaid = new Set();   // "kidId|version" already asked
+const vNum = v => String(v || "").split(/[.-]/).slice(0, 3).map(x => parseInt(x, 10) || 0);
+const vLess = (a, b) => { const x = vNum(a), y = vNum(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i]; return false; };
+// the kid app is older than v (unknown version = not old: never block on a missing field)
+const kidOld = v => !!(st && st.version && /^\d/.test(st.version) && vLess(st.version, v));
+// first version the kid's phone lacks for this command / rule key / element id, or ""
+function needOf(kind, name) { for (const n of NEED) if ((n[kind] || []).includes(name) && kidOld(n.v)) return n.v; return ""; }
+function needBox(v) {
+  return `<div data-needbox>${alertBox("warn", "arrow-up", `<span>${esc(t("need.old", v, st.version))}</span> <button type="button" class="pill" data-needupd>${ic("download")} ${t("need.go")}</button>`, "margin:8px 0")}</div>`;
+}
+function needUpdate() { return cmd({ type: "update" }, t("upd.sent"), false).then(() => setTimeout(refresh, 4000)); }
+// "this needs a newer app": one dialog, the answer sends the update command
+function needAsk(v) {
+  const id = (cur && cur.id) + "|" + v;
+  // once per kid (background pulls must not pop it again); never over an open sheet (same #askPop layer: it would close it)
+  if (needSaid.has(id) || askDone) return Promise.resolve(false);
+  needSaid.add(id);
+  return ask((cur && cur.name ? cur.name + "\n" : "") + t("need.ask", v, st.version), t("need.go")).then(ok => { if (ok) needUpdate(); return false; });
+}
+// after a tab / sheet is drawn: disable what the phone can't do yet, one note per card / row
+function needMark(root) {
+  if (!root || !st) return;
+  for (const n of NEED) {
+    if (!kidOld(n.v)) continue;
+    for (const id of n.ui || []) {
+      const el = root.querySelector("#" + id); if (!el) continue;
+      const card = el.classList.contains("card");
+      (card ? el.querySelectorAll("input,select,textarea,button") : [el]).forEach(x => { if (!x.hasAttribute("data-needupd")) x.disabled = true; });
+      const at = card ? el.querySelector("h2") || el.firstElementChild : el.closest(".row,label") || el;
+      if (!at || (at.nextElementSibling && at.nextElementSibling.hasAttribute("data-needbox"))) continue;
+      at.insertAdjacentHTML("afterend", needBox(n.v));
+    }
+  }
+}
+// a rule key the phone does not know yet was changed: say so (needAsk: once per kid and version; the phone would drop it)
+function needRules(e) {
+  const r = st && st.rules; if (!r) return;
+  for (const n of NEED) {
+    if (!kidOld(n.v)) continue;
+    for (const key of n.rule || []) {
+      if (!(key in e) || JSON.stringify(e[key]) === JSON.stringify(r[key])) continue;
+      needAsk(n.v); return;
+    }
+  }
+}
+document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-needupd]"); if (b) { e.preventDefault(); needUpdate(); } });
 document.addEventListener("click", confirmGate, true);
 const askOf = c => hasT("ask." + c) ? [t("ask." + c), t("askOk." + c), !!ASK_BAD[c]] : null;
 // Commands the phone runs only with the parent PIN (or an Authenticator code) inside: guard/CmdGate.kt, protocol

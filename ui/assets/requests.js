@@ -78,6 +78,7 @@ function sheet(html, wire) {
     askDone = done;
     const x = pop.querySelector("#askNo"); if (x) x.onclick = () => done(false);
     if (wire) wire(pop, done);
+    needMark(pop);   // features the kid's app is too old for (NEED, kid.js)
     const f = pop.querySelector(".close") || pop.querySelector("button"); if (f) f.focus();
   });
 }

@@ -162,6 +162,7 @@ function render(tabClick) {
     const w = document.createElement("div"); w.className = "gated"; while (body.firstChild) w.appendChild(body.firstChild);
     body.insertAdjacentHTML("afterbegin", gn); body.appendChild(w);
   }
+  needMark(body);   // features the kid's app is too old for (NEED, kid.js)
   updateLive();
   // a refresh keeps the page where it was; a tab switch lands on the top of the new tab
   secWatch();

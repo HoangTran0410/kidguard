@@ -27,6 +27,7 @@ When you settle something durable (a decision, a rejected approach, a platform q
 - UI text: follow `docs/copy.md` (outcome first, one idea per sentence, short, glossary words). - UI text Vietnamese + English, always both (`res/values` + `res/values-vi`, `ui/assets/i18n-en.js` + `i18n-vi.js`); code and comments English.
 - Rules JSON is a full replace on the phone (`Rules.fromJson` is the allow-list): the page must always send the whole object.
 - New relay command ⇒ worker whitelist `CMDS` + protocol "Commands" + (destructive) `ONCE` list. Checklist: `docs/flows/checklists.md`.
+- New relay command or top-level rule key ⇒ entry in `NEED` (`ui/assets/kid.js`) with the first kid version that has it (+ its control / card ids): an older kid app shows "update the kid's phone" + button. `node scripts/check-need.mjs` fails otherwise (CI + `build.sh`).
 - New page section (`sec("id", ...)`) ⇒ an entry in the feature search `QS` (`ui/assets/search.js`), keys in both i18n files;
   `node scripts/check-search.mjs` fails otherwise (CI + `build.sh`).
 - UI change that needs a newer native side (new `KGApp` method, endpoint, CSP origin) ⇒ raise `minKid` / `minParent` in `scripts/ui-pack.json`

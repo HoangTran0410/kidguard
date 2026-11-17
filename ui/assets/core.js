@@ -371,6 +371,10 @@ function relocate(k) {
 }
 const REPLAY_OK = new Set(["lock", "locate", "wake", "ringStop", "listenStop", "sosAck", "setting", "devOn", "devOff", "openPairing"]);
 async function call(k, path, method = "GET", body) {
+  // a command the kid's app is too old for: never sent (it would be ignored), the parent is offered the update (NEED, kid.js)
+  if (path === "/cmd" && method === "POST" && body && k === cur && typeof needOf === "function") {
+    const v = needOf("cmd", body.type); if (v) { needAsk(v); throw new Error(t("need.short", v)); }
+  }
   try { return await call1(k, path, method, body); }
   catch (e) {
     if (!e.net || k.via !== "lan" || !canHeal(k) || viewDay) throw e;
