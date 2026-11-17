@@ -183,19 +183,45 @@ function moreSheet() {
 // Family chat (docs/flows/remote.md 2.15): the thread = st.chat (the phone keeps the last 100, state carries 30) + our own sends
 // the phone has not echoed yet (chatPend). The kid's unread count = kid messages newer than the last time this sheet was open.
 const chatPend = {};
+// Older messages (the phone keeps 100, state carries 30): pulled a page at a time (tab-seen.js pullPage: LAN GET /chat or relay chatPull),
+// kept per kid while the page is open. chatMore: undefined = not asked yet (a full state tail may hide older ones), false = nothing older.
+const chatOld = {}, chatMore = {};
+let chatBusy = false;
+function chatHasOlder() {
+  const k = cur && cur.id, a = (st && st.chat) || [];
+  return !chatBusy ? (chatMore[k] === undefined ? a.length >= 30 : !!chatMore[k]) : false;
+}
+async function chatOlder() {
+  const k = cur; if (!k || chatBusy) return;
+  const mine = [...(chatOld[k.id] || []), ...((st && st.chat) || [])], before = mine.length ? Math.min(...mine.map(m => m.t)) : 0;
+  chatBusy = true; chatDraw();
+  try {
+    const r = await pullPage(k, "/chat", "chatPull", before), box = $("#chatBox"), h0 = box ? box.scrollHeight : 0, t0 = box ? box.scrollTop : 0;
+    if (k !== cur) return;
+    const have = new Set(mine.map(m => m.id)), add = ((r && r.chat) || []).filter(m => !have.has(m.id));
+    chatOld[k.id] = [...(chatOld[k.id] || []), ...add].sort((a, b) => a.t - b.t);
+    chatMore[k.id] = !!(r && r.more) && add.length > 0;
+    chatBusy = false; chatDraw();
+    if (box) box.scrollTop = t0 + (box.scrollHeight - h0);   // stay where the reader was, the older ones grow above
+  } catch (e) { toast("err|" + t("chat.olderFail", errSentence(e))); }
+  finally { chatBusy = false; chatDraw(); }
+}
 const chatSeenKey = () => "kg.chat." + (cur && cur.id);
 function chatSeen() { try { return +localStorage.getItem(chatSeenKey()) || 0; } catch { return 0; } }
 function chatUnread() { const s = chatSeen(); return ((st && st.chat) || []).filter(m => m.from === "k" && m.t > s).length; }
 function chatList() {
-  const a = ((st && st.chat) || []).slice(), now = Date.now(), k = cur && cur.id;
+  const cs = ((st && st.chat) || []), now = Date.now(), k = cur && cur.id;
+  if (!cs.length) { chatOld[k] = []; chatMore[k] = undefined; }   // the thread was cleared (by a parent): nothing older either
+  const ids = new Set(cs.map(m => m.id)), a = (chatOld[k] || []).filter(m => !ids.has(m.id)).concat(cs);
   chatPend[k] = (chatPend[k] || []).filter(p => now - p.t < 600e3 && !a.some(m => m.from === "p" && m.text === p.text && m.t >= p.t - 120e3));
   return a.concat(chatPend[k]);
 }
 function chatDraw() {
   const box = $("#chatBox"); if (!box) return false;
   const l = chatList(), near = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
-  const html = l.length ? l.map(m => `<div class="cb ${m.from === "k" ? "k" : "p"}${m.local ? " pend" : ""}">${m.from === "k" ? `<b>${esc(cur.name)}</b>` : m.who ? `<b>${esc(m.who)}</b>` : ""}<span>${esc(m.text)}</span><i>${m.local ? t("chat.wait") : esc(evAt(m.t))}</i></div>`).join("")
-    : `<p class="mute" style="margin:auto;text-align:center">${t("chat.empty")}</p>`;
+  const html = (chatHasOlder() || chatBusy ? `<button type="button" id="chatOld" class="sp" style="align-self:center;margin:2px 0 6px"${chatBusy ? " disabled" : ""}>${ic("history")} ${t(chatBusy ? "chat.olderBusy" : "chat.older")}</button>` : "") + (l.length ? l.map(m => `<div class="cb ${m.from === "k" ? "k" : "p"}${m.local ? " pend" : ""}">${m.from === "k" ? `<b>${esc(cur.name)}</b>` : m.who ? `<b>${esc(m.who)}</b>` : ""}<span>${esc(m.text)}</span><i>${m.local ? t("chat.wait") : esc(evAt(m.t))}</i></div>`).join("")
+    : `<p class="mute" style="margin:auto;text-align:center">${t("chat.empty")}</p>`);
+  const clr = $("#chatClr"); if (clr) clr.hidden = !((st && st.chat) || []).length;
   if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; if (near || !box.dataset.s) box.scrollTop = box.scrollHeight; box.dataset.s = "1"; }
   const last = Math.max(0, ...((st && st.chat) || []).map(m => m.t));
   if (last > chatSeen()) { try { localStorage.setItem(chatSeenKey(), String(last)); } catch {} }
@@ -208,8 +234,12 @@ function msgSheet() {
   sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("message-square", t("chat.title", esc(cur.name)))}
     <div id="chatBox" class="chat" aria-live="polite"></div>
     <div class="row"><input id="msg" class="sp" placeholder="${esc(t("msgPh"))}" maxlength="300"><button type="button" id="send" class="pri">${ic("send")} ${t("send")}</button></div>
-    <div id="qmBox"></div></div>`,
+    <div id="qmBox"></div>
+    <button type="button" id="chatClr" class="sp bad" style="margin-top:12px" hidden>${ic("trash-2")} ${t("chat.clear")}</button></div>`,
     pop => {
+      pop.querySelector("#chatBox").onclick = e => { if (e.target.closest("#chatOld")) chatOlder(); };
+      // destructive: the generic confirm (kid.js askOf: ask.chatClear), then the thread is empty on the phone; the sheet closed for the confirm, so it opens again
+      pop.querySelector("#chatClr").onclick = () => cmd({ type: "chatClear" }, t("chat.cleared")).then(r => { if (r) { const k = cur.id; chatOld[k] = []; chatMore[k] = undefined; chatPend[k] = []; if (st && r.result !== "queued") st.chat = []; msgSheet(); refresh(); } });   // relay "queued": the phone has not cleared yet, the thread stays until its state says so });
       pop.querySelector("#send").onclick = () => { const tx = $("#msg").value.trim(); if (!tx) return $("#msg").focus();
         const sb = pop.querySelector("#send"); if (sb.disabled) return; sb.disabled = true;   // no double send while the dialog / request is in flight
         cmd({ type: "message", text: tx }, t("msg.done")).then(r => { if (r) { (chatPend[cur.id] = chatPend[cur.id] || []).push({ from: "p", who: "", text: tx, t: Date.now(), local: 1 }); chatDraw(); if ($("#msg") && $("#msg").value.trim() === tx) $("#msg").value = ""; } }).finally(() => { sb.disabled = false; }); };

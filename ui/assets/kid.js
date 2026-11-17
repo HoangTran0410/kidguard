@@ -202,7 +202,7 @@ function ask(text, ok = t("agree"), danger = false, typed = "", extra = "", coll
 $("#askPop").addEventListener("click", e => { if (e.target.id === "askPop" && askDone) askDone(false); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && askDone) askDone(false); });
 // confirm text "ask.<type>" + button "askOk.<type>" for commands that need no extra wording; these are the dangerous ones
-const ASK_BAD = { reboot: 1, unpairAll: 1, tailscaleOff: 1 };
+const ASK_BAD = { reboot: 1, unpairAll: 1, tailscaleOff: 1, chatClear: 1 };
 // One confirm gate for every control with a big effect on the kid's phone or one this page can't undo by itself.
 // id -> { on / off: text when a checkbox is turned on / off, click: text for a button; ok: button label key;
 // safe: not red }. A text is an i18n key or a function. New risky control = one line here, no handler change.
@@ -268,7 +268,7 @@ function pinRefused(r) {
 }
 // Commands the worker drops after 10 min when the phone is offline (relay/src/index.js SHORT): a "now" action must not run later by surprise
 // = relay `SHORT` (relay/src/index.js): dropped after 10 min if the phone never took them; everything else waits 24 h
-const SHORT_CMDS = new Set(["uiUpdate", "lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms", "selfOpen", "tsInstall"]);
+const SHORT_CMDS = new Set(["uiUpdate", "lock", "locate", "message", "chatClear", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms", "selfOpen", "tsInstall"]);
 async function cmd(c, okMsg, q) {
   const k = cur, a0 = q || (q === false ? null : askOf(c.type)) || (c.type === "message" ? [t("askMsg", c.text), t("send")] : null);
   // dangerous: name the kid in the text, so a dialog for A can never be mistaken for B

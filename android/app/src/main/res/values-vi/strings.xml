@@ -184,6 +184,7 @@
     <string name="log_setting_dnd_off">Bố mẹ tắt Không làm phiền</string>
     <string name="log_release_fail">Gỡ quản lý chưa xong: %1$s</string>
     <string name="log_released">Đã gỡ quyền quản lý</string>
+    <string name="log_chat_cleared">Bố mẹ đã xoá lịch sử chat</string>
     <string name="log_sos">Con bấm SOS</string>
     <string name="notif_guard_title">KidGuard đang bật</string>
     <string name="notif_guard_text">Bố mẹ quản lý giờ dùng máy. Muốn ẩn thông báo này: giữ → tắt. KidGuard vẫn chạy.</string>

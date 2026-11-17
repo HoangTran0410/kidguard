@@ -34,11 +34,14 @@ function seenFeed(k, s) {
   }
 }
 
-async function seenPull(k, before, sms) {
+const seenPull = (k, before, sms) => pullPage(k, sms ? "/sms" : "/notifs", sms ? "smsPull" : "notifPull", before);
+// One page on demand, 30 rows: LAN GET <lan>?n=&before=, relay command <type> {fid, before, n} + the answer on the file channel
+// (also the family chat's older messages: requests.js chatOlder)
+async function pullPage(k, lan, type, before) {
   const n = 30;
-  if (!fxRelay(k)) return call(k, (sms ? "/sms" : "/notifs") + "?n=" + n + (before ? "&before=" + before : ""));
+  if (!fxRelay(k)) return call(k, lan + "?n=" + n + (before ? "&before=" + before : ""));
   const fid = seenFid();
-  await call(k, "/cmd", "POST", { type: sms ? "smsPull" : "notifPull", fid, before: before || 0, n });
+  await call(k, "/cmd", "POST", { type, fid, before: before || 0, n });
   const end = Date.now() + 90e3;
   for (;;) {
     await new Promise(s => setTimeout(s, 2500));

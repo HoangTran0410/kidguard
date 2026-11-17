@@ -767,6 +767,9 @@ class Guard : Service() {
         "fileUp" -> Files.command(this, t, c)   // shared folder over the relay (Files.kt)
         "fileDel" -> Files.command(this, t, c)
         "notifPull" -> NotifSync.command(this, c)
+        "chatPull" -> ChatPull.command(this, c)   // family chat: a page of older messages over the relay file channel
+        // parent cleared the thread: gone on both sides, the child's log says so (the child cannot clear it)
+        "chatClear" -> { store.clearChat(); store.log(R.string.log_chat_cleared); runCatching { getSystemService(android.app.NotificationManager::class.java).cancel(3) }; "ok" }
         "snap" -> RemoteSnap.command(this, c)
         "smsPull" -> Sms.command(this, c)   // rule watch.notif: a page of recent notifications over the relay file channel
         "shotUp" -> Shot.command(this, c)       // wrong-PIN photo over the relay (Shot.kt)

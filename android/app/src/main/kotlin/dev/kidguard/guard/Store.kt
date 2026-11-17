@@ -946,7 +946,12 @@ class Store private constructor(private val app: Context) {
 
     // Family chat (ChatLogic): the last 100 messages of the thread parents <-> child, prefs "chat".
     /** release: the thread goes with the other history. */
-    @Synchronized fun clearChat() { p.edit().remove("chat").apply() }
+    @Synchronized fun clearChat() { p.edit().remove("chat").remove("chatLastP").remove("chatReadAt").apply() }
+    /** Unread dot of the kid launcher: time of the newest parent message vs the last time ChatActivity was open (two cached prefs, no thread parse). */
+    @get:Synchronized val chatUnread: Boolean get() = ChatLogic.unread(p.getLong("chatLastP", 0L), p.getLong("chatReadAt", 0L))
+    @Synchronized fun chatMarkRead() { if (chatUnread) p.edit().putLong("chatReadAt", System.currentTimeMillis()).apply() }
+    /** Cheap change key for the launcher's render key. */
+    @get:Synchronized val chatKey: String get() = "${p.getLong("chatLastP", 0L)}/${p.getLong("chatReadAt", 0L)}"
     @Synchronized fun chat(): JSONArray = runCatching { JSONArray(p.getString("chat", "[]")) }.getOrDefault(JSONArray())
     /** [from] "p" = a parent (by [who]), "k" = the child. A child message also becomes the event "chat" (parent app push). Returns false for empty text. */
     @Synchronized fun addChat(from: String, who: String, text: String, id: String = randomHex(4)): Boolean {
@@ -954,7 +959,9 @@ class Store private constructor(private val app: Context) {
         val old = chat()
         val a = ChatLogic.add(old, from, who, t, System.currentTimeMillis(), id)
         if (a === old) return false
-        p.edit().putString("chat", a.toString()).apply()
+        val ed = p.edit().putString("chat", a.toString())
+        if (from == "p") ed.putLong("chatLastP", System.currentTimeMillis())
+        ed.apply()
         if (from == "k") addEvent(Ev("chat", t.replace('\n', ' ').take(ChatLogic.EVENT_TEXT)))
         return true
     }

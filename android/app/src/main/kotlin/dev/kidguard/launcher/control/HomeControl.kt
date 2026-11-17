@@ -154,6 +154,9 @@ internal class CcToggle(val act: HomeActivity, val tile: Tile, private val icon:
     private val btn = ImageView(act)
     private val lock = ImageView(act)
     private val sz = size
+    /** Unread dot (the kid chat tile): a small red disc at the top-end corner. */
+    private val dotV = View(act).apply { background = act.kit.circle(0xFFEF4444.toInt()); visibility = GONE }
+    fun dot(on: Boolean) { dotV.visibility = if (on) VISIBLE else GONE }
     private val text = act.kit.text(label, 12f, Color.WHITE)
     var mode = Mode.DIRECT
     var on: Boolean? = null
@@ -164,6 +167,7 @@ internal class CcToggle(val act: HomeActivity, val tile: Tile, private val icon:
         lock.setImageDrawable(Ic.get(act, R.drawable.li_lock, Color.WHITE, act.dp(11)))
         lock.background = act.kit.circle(0xCC0F172A.toInt()); lock.setPadding(act.dp(4), act.dp(4), act.dp(4), act.dp(4))
         box.addView(lock, FrameLayout.LayoutParams(act.dp(19), act.dp(19), Gravity.TOP or Gravity.END))
+        box.addView(dotV, FrameLayout.LayoutParams(act.dp(14), act.dp(14), Gravity.TOP or Gravity.END))
         addView(box, LayoutParams(act.dp(sz), act.dp(sz)))
         addView(text.apply {
             maxLines = lines; ellipsize = TextUtils.TruncateAt.END; gravity = Gravity.CENTER
@@ -463,9 +467,15 @@ private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): 
     // notifications (the system shade; one more pull there = the phone's own quick settings, so no separate tile) and
     // seen notifications (inbox icon: a second bell read as the same button). Empty slots keep the columns aligned.
     val row3 = LinearLayout(this).apply { gravity = Gravity.TOP }
+    // family chat tile (kid flavor, paired): opens ChatActivity; the red dot = a parent message not opened yet (two cached prefs)
+    val chatTile = if (Flavor.HOME) null else Store.of(this).let { cs ->
+        CcToggle(this, Tile.VOLUME, R.drawable.li_mail, getString(R.string.chat_tile), tsz, 3).apply {
+            dot(cs.chatUnread); onTap { closeOverlay(); runCatching { startActivity(Intent(this@buildControl, ChatActivity::class.java)) } } }.takeIf { cs.everPaired }
+    }
     val tiles3 = listOfNotNull(
         notif,
         CcToggle(this, Tile.VOLUME, R.drawable.li_inbox, getString(R.string.cc_nlog), tsz, 3).apply { onTap { openNlog() } }.takeIf { NotifLog.enabled && !(shadeOff()) },
+        chatTile,
     )
     tiles3.forEach { row3.addView(it, LinearLayout.LayoutParams(0, -2, 1f)) }
     repeat(4 - tiles3.size) { row3.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f)) }

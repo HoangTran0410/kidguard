@@ -190,6 +190,7 @@
     <string name="log_setting_dnd_off">Parent turned Do Not Disturb off</string>
     <string name="log_release_fail">Release not finished: %1$s</string>
     <string name="log_released">Management removed</string>
+    <string name="log_chat_cleared">Your parents cleared the chat history</string>
     <string name="log_sos">SOS pressed</string>
     <string name="notif_guard_title">KidGuard is on</string>
     <string name="notif_guard_text">Your parent manages screen time. To hide this: long-press → turn off. KidGuard keeps running.</string>

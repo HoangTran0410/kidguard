@@ -40,4 +40,27 @@ class ChatLogicTest {
         assertEquals("", ChatLogic.clean(null))
         assertEquals("Ba", ChatLogic.who(" <B>a "))
     }
+
+    @Test fun pageWalksBackwardsInPages() {
+        var a = JSONArray()
+        for (i in 1..100) a = ChatLogic.add(a, "k", "", "m$i", i.toLong(), "id$i")
+        val p1 = ChatLogic.page(a, 0, 30)
+        assertEquals(30, p1.getJSONArray("chat").length())
+        assertEquals("m71", p1.getJSONArray("chat").getJSONObject(0).getString("text"))   // oldest first inside a page
+        assertEquals(true, p1.getBoolean("more"))
+        val p2 = ChatLogic.page(a, 71, 30)   // before = t of the oldest one already shown
+        assertEquals("m41", p2.getJSONArray("chat").getJSONObject(0).getString("text"))
+        assertEquals("m70", p2.getJSONArray("chat").getJSONObject(29).getString("text"))
+        val last = ChatLogic.page(a, 11, 30)
+        assertEquals(10, last.getJSONArray("chat").length())
+        assertEquals(false, last.getBoolean("more"))
+        assertEquals(0, ChatLogic.page(JSONArray(), 0, 30).getJSONArray("chat").length())
+    }
+
+    @Test fun countAndUnread() {
+        assertEquals(30, ChatLogic.count(0)); assertEquals(50, ChatLogic.count(999)); assertEquals(7, ChatLogic.count(7))
+        assertEquals(false, ChatLogic.unread(0, 0))      // no parent message ever
+        assertEquals(true, ChatLogic.unread(10, 5))
+        assertEquals(false, ChatLogic.unread(10, 10))    // read exactly then
+    }
 }

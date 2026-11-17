@@ -77,7 +77,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Chức năng | DO | CB | +WSS | +adb | Relay | Ghi chú |
 |---|---|---|---|---|---|---|
 | Khoá màn hình | ✅ | ✅ | ✅ | ✅ | ✅ | CB dùng force-lock của Quản trị thiết bị |
-| Trò chuyện bố mẹ ↔ con (sheet "Nhắn", con trả lời từ ô "Nhắn bố mẹ" hoặc nút "Trả lời") | ✅ | ✅ | ✅ | ✅ | ✅ | Văn bản, 100 tin gần nhất lưu trên máy, 30 tin trong state. Bố mẹ gửi = lệnh `message` (relay: hết hạn sau 10 phút); tin của con thành sự kiện `chat` → thông báo app bố mẹ. Telegram không chuyển tiếp. Bản Home không có |
+| Trò chuyện bố mẹ ↔ con (sheet "Nhắn", con trả lời từ ô "Nhắn bố mẹ" hoặc nút "Trả lời") | ✅ | ✅ | ✅ | ✅ | ✅ | Văn bản, 100 tin gần nhất lưu trên máy, 30 tin trong state; "Xem tin cũ hơn" kéo thêm (LAN `/chat`, relay `chatPull`), "Xoá lịch sử chat" (`chatClear`, con không xoá được); launcher của con (không phải Home): ô "Nhắn bố mẹ" trong trung tâm điều khiển + widget Lời nhắn bố mẹ, chấm đỏ khi có tin chưa đọc. Bố mẹ gửi = lệnh `message` (relay: hết hạn sau 10 phút); tin của con thành sự kiện `chat` → thông báo app bố mẹ. Telegram không chuyển tiếp. Bản Home không có |
 | Định vị ngay, nhắn tin, đổ chuông, đánh thức | ✅ | ✅ | ✅ | ✅ | ✅ | Relay: hết hạn sau 10 phút |
 | Xem màn hình + điều khiển | ✅ | ✅ | ✅ | ✅ | ✅ | Android 11+, cần Trợ năng. Relay ~3 khung/giây, LAN nhanh hơn |
 | **Nghe xung quanh** | ✅ | ✅ | ✅ | ✅ | ✅ | LAN / Tailscale: luồng HTTP. **Relay** (từ 0.9.28): WebRTC chỉ âm thanh (tín hiệu qua relay như Gọi video, âm đi thẳng hoặc qua TURN), Opus mono ~24 kbps, con không phải bấm gì, vẫn có tiếng bíp + thông báo. Tối đa 10 phút. Cần quyền micro; mất vài giây đến ~45 giây nếu máy con đang ngủ. Không có trong bản Home |

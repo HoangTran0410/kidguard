@@ -101,6 +101,7 @@ class Api(private val g: Guard) {
                     ?: RemoteSnap.error(g, fid)?.let { Res.json(JSONObject().put("error", it).toString(), 409) } ?: Res.json("""{"error":"pending"}""", 404)
             }
             p == "/sms" && r.method == "GET" -> Res.json(Sms.api(g, r.query).toString())   // rule watch.sms: a page of text messages
+            p == "/chat" && r.method == "GET" -> Res.json(ChatPull.api(g, r.query).toString())   // family chat: a page of older messages
             p == "/notifs" && r.method == "GET" -> Res.json(NotifSync.api(g, r.query).toString())   // rule watch.notif: pull a page of recent notifications
             p == "/rules" && r.method == "PUT" -> {
                 var body = JSONObject(r.text)

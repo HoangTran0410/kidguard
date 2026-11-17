@@ -96,7 +96,7 @@ const PAIR_MISS_MAX = 20, PAIR_MISS_WIN = 10 * 60e3;
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
-const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel", "tgSet", "tgOff", "pinSet", "pinReset", "pinResetCancel", "adbShell", "adbTcp", "support", "selfOpen"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
+const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel", "tgSet", "tgOff", "pinSet", "pinReset", "pinResetCancel", "adbShell", "adbTcp", "support", "selfOpen", "chatClear"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
 const ONCE_WINDOW = 3600e3;   // 1 h (owner 2026-11-15: a phone that is off for 10 min must not lose a release / reboot)
 // push wake (kid app's FCM token, sync body `fcm`): quiet this long => high-priority data push {kind:"wake"}. The phone's
 // watchdog syncs every ~10 min even asleep, so 20 min quiet = asleep beyond that, killed, or offline. Then every 20 min
@@ -109,7 +109,7 @@ const GC_MS = 30 * 86400e3;   // a phone not seen for 30 days: everything of thi
 //  window for a parent standing next to the phone; adbShell = a shell command running a day later is surprising; unlockEnd = ends a
 //  temporary pause "now"; fixPerms = opens Settings screens on the kid's phone, confusing if the kid is using it hours later.
 // Everything else (setting devOn devOff bgLimit bgRestore rescan clearCache support ...) is harmless late: normal 24 h.
-const SHORT = ["uiUpdate", "notifPull", "smsPull", "snap", "lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms", "selfOpen", "tsInstall"];
+const SHORT = ["uiUpdate", "notifPull", "smsPull", "chatPull", "chatClear", "snap", "lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms", "selfOpen", "tsInstall"];
 let SHORT_TTL = 10 * 60e3;   // env.SHORT_TTL_MS overrides (tests only)
 // secrets a parent typed into a command (PIN, new PIN, Authenticator secret, bot token): handed out once, then not kept in the queue copy
 const SECRET_KEYS = ["pin", "new", "secret", "token"];
@@ -122,10 +122,10 @@ const live = (c, now) => now - (c.at || 0) < (SHORT.includes(c.type) ? SHORT_TTL
 /** Receipts for commands dropped unrun (TTL / ONCE window): newest last, at most EXPIRED_N, shown to the parent as state `expired`. */
 const EXPIRED_N = 10;
 const expiredOf = (list, dropped, now) => [...(list || []), ...dropped.map(c => ({ id: c.id, type: c.type, res: "expired", at: now }))].slice(-EXPIRED_N);
-const CMDS = ["aiToken", "uiUpdate", "smsPull", "snap", "lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "notifPull", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "unlockEnd", "clearCache", "rescan", "bgLimit", "bgRestore", "fixPerms", "selfOpen", "tsInstall"];
+const CMDS = ["aiToken", "uiUpdate", "smsPull", "chatPull", "chatClear", "snap", "lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "notifPull", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "unlockEnd", "clearCache", "rescan", "bgLimit", "bgRestore", "fixPerms", "selfOpen", "tsInstall"];
 const APK_BASE = "https://github.com/HoangTran0410/kidguard/releases/latest/download/";   // test override: env.APK_BASE
 // idempotent commands a newer copy may replace when the queue is full: type -> target field that must match too (null = the type alone)
-const REPLACE = { lock: null, locate: null, ring: null, wake: null, ringStop: null, listenStop: null, devOn: null, devOff: null, setting: "key", clearCache: null, rescan: null, fixPerms: null, tsInstall: null, openPairing: null, unlockEnd: null, bankEnd: null, notifPull: null, smsPull: null, fileUp: "file" };
+const REPLACE = { lock: null, locate: null, ring: null, wake: null, ringStop: null, listenStop: null, devOn: null, devOff: null, setting: "key", clearCache: null, rescan: null, fixPerms: null, tsInstall: null, openPairing: null, unlockEnd: null, bankEnd: null, notifPull: null, smsPull: null, chatPull: null, chatClear: null, fileUp: "file" };
 // AI token (docs/protocol.md "AI token"): the phone sends sha256 of it in every sync (`ai`); a request with it gets role "ai".
 // Same lists as K/guard/AiScope.kt: commands it may queue, rule keys it can never change (the stored value stays).
 const AI_CMDS = ["lock", "locate", "message", "ring", "ringStop", "sosAck", "answer"];
@@ -816,6 +816,7 @@ export class Kid {
       if (type === "clearData" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
       if (type === "snap" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && ["front", "back"].includes(body.cam) && ["off", "on", "auto"].includes(body.flash) && ["small", "medium"].includes(body.size) && Number.isInteger(body.delay) && body.delay >= 0 && body.delay <= 5)) return json({ error: "bad snap" }, 400);
       if (type === "smsPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad smsPull" }, 400);
+      if (type === "chatPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad chatPull" }, 400);
       if (type === "notifPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad notifPull" }, 400);
       // PIN-gated commands (protocol "PIN-gated commands"): the phone checks the PIN; here only the shape
       if (body.pin !== undefined && !/^\d{0,8}$/.test(String(body.pin))) return json({ error: "bad pin" }, 400);

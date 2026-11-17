@@ -533,7 +533,7 @@ L.vi = {
   "pinFirst.need": "Chưa lưu: cần đặt mã PIN bố mẹ trước",
   "home.recent": "Gần đây",
   "req.replyBtn": "Trả lời…",
-  "chat.title": "Nhắn với {0}", "chat.empty": "Chưa có tin nhắn. Viết tin đầu tiên nhé.", "chat.wait": "đã gửi, chờ máy con", "msg.h": "Gửi lời nhắn lên màn hình máy con",
+  "chat.title": "Nhắn với {0}", "chat.empty": "Chưa có tin nhắn. Viết tin đầu tiên nhé.", "chat.wait": "đã gửi, chờ máy con", "chat.older": "Xem tin cũ hơn", "chat.olderBusy": "Đang tải…", "chat.olderFail": "Chưa tải được tin cũ: {0}", "chat.clear": "Xoá lịch sử chat", "chat.cleared": "Đã xoá lịch sử chat", "ask.chatClear": "Xoá toàn bộ lịch sử chat? Cả hai bên sẽ thấy chat trống. Không khôi phục được.", "askOk.chatClear": "Xoá lịch sử", "msg.h": "Gửi lời nhắn lên màn hình máy con",
   "qm.h": "Lời nhắn đã lưu (cũng hiện trên đồng hồ)",
   "qm.save": "Lưu làm mẫu",
   "qm.saved": "Đã lưu lời nhắn",

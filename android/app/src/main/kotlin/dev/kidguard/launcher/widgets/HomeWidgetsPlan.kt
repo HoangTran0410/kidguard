@@ -114,21 +114,26 @@ internal fun HomeActivity.whenWidget(r: Rules, dv: View0, block: String?, w: Int
 }
 
 internal fun HomeActivity.msgWidget(s: Store, w: Int, h: Int): View {
-    val note = Notes.clean(s.rules.blockNote, Notes.NOTE_MAX)
+    // family chat (kid flavor, paired): an unread parent message is shown first, a tap opens the chat; the dot = unread (cached prefs)
+    val chatOn = !Flavor.HOME && s.everPaired
+    val unread = chatOn && s.chatUnread
+    val chatLast = if (!chatOn) null else s.chat().let { a -> (a.length() - 1 downTo 0).firstNotNullOfOrNull { i -> a.optJSONObject(i)?.takeIf { it.optString("from") == "p" }?.optString("text") } }
+    val note = (if (unread) chatLast else null) ?: Notes.clean(s.rules.blockNote, Notes.NOTE_MAX).ifEmpty { chatLast.orEmpty() }
+    fun open(c: View) = if (chatOn) kit.tap(c, 22f) { if (debounce()) runCatching { startActivity(android.content.Intent(this, ChatActivity::class.java)) } } else wOpen(c)
     val req = s.requests().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.maxByOrNull { it.optLong("t") } }
     val title = getString(R.string.hm_w_msg)
     val card = wCard()
     val small = h < 2
-    if (!small) card.addView(wHead(R.drawable.li_message_circle, title))
+    if (!small) card.addView(wHead(R.drawable.li_message_circle, title, if (unread) "●" else null))
     var cd = title
     if (note.isEmpty() && req == null) {
         card.addView(wEmpty(getString(R.string.hm_wp_msg_none)))
         card.contentDescription = "$title. ${getString(R.string.hm_wp_msg_none)}"
-        return centred(card).also { wOpen(card) }
+        return centred(card).also { open(card) }
     }
     if (note.isNotEmpty()) {
         val from = getString(R.string.hm_wp_msg_from)
-        if (small) card.addView(text(from.uppercase(), WType.TITLE, pal.sub, true).apply { letterSpacing = 0.08f; maxLines = 1 })
+        if (small) card.addView(text((if (unread) "● " else "") + from.uppercase(), WType.TITLE, pal.sub, true).apply { letterSpacing = 0.08f; maxLines = 1 })
         card.addView(wMain(note, if (small) 2 else 4), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
         if (!small) card.addView(wSub(from), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
         cd += ". $from: $note"
@@ -141,7 +146,7 @@ internal fun HomeActivity.msgWidget(s: Store, w: Int, h: Int): View {
         cd += ". $t"
     }
     card.contentDescription = cd
-    return centred(card).also { wOpen(card) }
+    return centred(card).also { open(card) }
 }
 
 internal fun HomeActivity.whenPreview(c: LinearLayout) {
