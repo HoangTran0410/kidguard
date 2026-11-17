@@ -165,6 +165,7 @@ document.addEventListener("click", e => {
       await putRules(k, r);
       if (st && st.refused) st.refused = st.refused.filter(x => x.pkg !== f.pkg);
       toast("ok|" + t("rf.added", f.label || f.pkg)); lastSig = ""; render();
+      bankShow(f.pkg);   // show where the list lives, so the parent can switch it off later
     } catch (er) { rf.disabled = false; toast("err|" + t("errX", er.message)); }
   })();
   if (e.target.closest("#saveResend") && cur && edit) { pendSince = Date.now(); putRules(cur, edit).catch(er => { toast("err|" + t("errX", er.message)); saveFail(true); }); }
@@ -214,4 +215,17 @@ async function uiPackBoot() {
   // the phone checks for a newer pack when this page is opened (a few seconds): offer it, never reload by itself (an edit may be open)
   const w = async () => { const j = await uiPkInfo(); if (j && j.ver !== uiLoaded) uiNewBar(); };
   if (uiPk) { setTimeout(w, 8000); setTimeout(w, 40000); document.addEventListener("visibilitychange", () => { if (!document.hidden) setTimeout(w, 4000); }); }
+}
+
+// Jump to Rules > bank-app list and flash this app's row (after "allow this app" in the refused band)
+function bankShow(pkg) {
+  qsGo({ tab: "rules", sec: "r-bank" });
+  let n = 0;
+  const find = () => {
+    const c = [...document.querySelectorAll("#bk-list [data-bank]")].find(x => x.dataset.bank === pkg), row = c && c.closest(".bkr");
+    if (!row) { if (++n < 30) setTimeout(find, 100); return; }
+    row.scrollIntoView({ block: "center", behavior: "smooth" });
+    row.classList.add("qsHit"); setTimeout(() => row.classList.remove("qsHit"), 2400);
+  };
+  setTimeout(find, 300);
 }

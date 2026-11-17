@@ -429,7 +429,7 @@ L.vi = {
   "call.e.noperm": "Máy con chưa cho KidGuard dùng camera và micro", "call.e.nocam": "Máy con không mở được camera",
   "call.e.kidEnd": "Con đã kết thúc cuộc gọi", "call.e.lost": "Mất kết nối", "call.e.fail": "Không gọi được. Thử lại sau",
   "call.e.perm": "Hãy cho trang dùng camera và micro", "call.e.hidden": "Đã kết thúc vì trang bị ẩn quá 1 phút", "call.e.timeout": "Hết giờ gọi", "call.e.failed": "Không gọi được. Thử lại sau",
-  "nav.more": "Thêm", "msg.tile": "Nhắn", "more.scr": "Xem màn hình",
+  "nav.more": "Thêm", "msg.tile": "Nhắn", "more.scr": "Xem màn hình", "more.snap": "Chụp ảnh", "more.snapOff": "Chưa bật chụp ảnh theo yêu cầu. Bật ở đây.",
   "nav.family": "Cả nhà",
   "nav.kids": "Các con",
   "nav.pick": "Chọn con…",

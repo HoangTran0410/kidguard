@@ -428,7 +428,7 @@ L.en = {
   "call.e.noperm": "The kid's phone hasn't let KidGuard use the camera and mic", "call.e.nocam": "The kid's phone couldn't open its camera",
   "call.e.kidEnd": "Your kid ended the call", "call.e.lost": "Connection lost", "call.e.fail": "Couldn't call. Try again later",
   "call.e.perm": "Let this page use the camera and mic", "call.e.hidden": "Ended: the page was hidden for over 1 minute", "call.e.timeout": "Time's up", "call.e.failed": "Couldn't call. Try again later",
-  "nav.more": "More", "msg.tile": "Message", "more.scr": "View screen",
+  "nav.more": "More", "msg.tile": "Message", "more.scr": "View screen", "more.snap": "Take photo", "more.snapOff": "Photo on request is off. Turn it on here.",
   "nav.family": "Family",
   "nav.kids": "Kids",
   "nav.pick": "Pick a kid…",
