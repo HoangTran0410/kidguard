@@ -221,6 +221,7 @@ data class Rules(
     val lostRing: Boolean = true,            // 0.9.21 lost mode rings 5 min every 15 min (locating is always on)
     val msgs: List<String> = emptyList(),    // 0.9.21 the parent's own quick messages (page + watch), MSGS_MAX x MSG_MAX
     val mode: Mode? = null,                  // 0.9.22 timed mode: overrides for a while, then gone by itself (see Mode)
+    val watch: WatchRule = WatchRule(),      // 0.9.29 what the parent may read (Monitoring registry: the child is told of each)
 ) {
     /**
      * The rules the phone enforces at [nowMs]: the base rules with an active [mode] laid over them. Expired or no mode = the
@@ -263,7 +264,7 @@ data class Rules(
         .put("launcher", launcher.toJson()).put("monitor", monitor).put("kidClean", kidClean)
         .put("passUntil", passUntil).put("bedByDay", JSONArray(bedByDay)).put("oneMore", oneMore)
         .put("lostOn", lostOn).put("lostMsg", lostMsg).put("lostPhone", lostPhone).put("lostLock", lostLock).put("lostRing", lostRing)
-        .put("msgs", JSONArray(msgs))
+        .put("msgs", JSONArray(msgs)).put("watch", watch.toJson())
         .also { if (mode != null) it.put("mode", mode.toJson()) }
         .also { if (persist) it.put("pinHash", pinHash).put("pinSalt", pinSalt) }
 
@@ -358,6 +359,7 @@ data class Rules(
                 lostMsg = Notes.clean(o.optString("lostMsg", ""), LOST_MSG_MAX),
                 lostPhone = Notes.clean(o.optString("lostPhone", ""), LOST_PHONE_MAX),
                 mode = Mode.fromJson(o.optJSONObject("mode")),
+                watch = WatchRule.fromJson(o.optJSONObject("watch")),
                 msgs = o.optJSONArray("msgs").strings().map { Notes.clean(it, MSG_MAX) }.filter { it.isNotBlank() }.distinct().take(MSGS_MAX),
                 lostLock = o.optBoolean("lostLock", true),
                 lostRing = o.optBoolean("lostRing", true),

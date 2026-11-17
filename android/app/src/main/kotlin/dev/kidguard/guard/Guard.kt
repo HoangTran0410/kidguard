@@ -706,6 +706,7 @@ class Guard : Service() {
             old to r
         }
         if (::work.isInitialized) work.post { runCatching { Policy.apply(this, store.rules) } }   // enforced = base + active mode
+        if (r.watch != old.watch) { Monitoring.tellOn(this, Monitoring.turnedOn(old.watch, r.watch)); fgRefresh() }
         if (r.noDebug && !old.noDebug) devOff()   // "no debugging" switched on: also turn Developer options off once
         if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r, store.tr) + (if (by.isNotBlank()) " · " + by.take(24) else ""), "rules")
         if (r.zones != old.zones) store.zoneBaseline = true
@@ -883,7 +884,7 @@ class Guard : Service() {
         work.postAtFrontOfQueue {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
-            Listen.stopAll(); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff(); FixPerms.release(this)
+            Listen.stopAll(); Monitoring.release(this); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff(); FixPerms.release(this)
             // C8: the parents hear of it (event -> relay + Telegram) BEFORE the tokens go; the relay creds are kept for the forget call
             val creds = Triple(store.relayUrl, store.relayId, store.relayToken)
             runCatching {
@@ -1090,9 +1091,13 @@ class Guard : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val t = getString(R.string.notif_guard_title); val x = getString(R.string.notif_guard_text)
         val nav = navFixShown()
-        fgLabel = t + "\n" + x + nav
+        // what the parent may read (Monitoring registry): always listed here, tapping opens the "What your parent can see" screen
+        val seen = runCatching { Monitoring.line(this, store.baseRules.watch) }.getOrDefault("")
+        fgLabel = t + "\n" + x + nav + seen
         val b = Notification.Builder(this, "guard").setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentTitle(t).setContentText(x).setOngoing(true).setContentIntent(open)
+            .setContentTitle(t).setContentText(if (seen.isEmpty()) x else seen).setOngoing(true)
+            .setContentIntent(if (seen.isEmpty()) open else Monitoring.openIntent(this))
+        if (seen.isNotEmpty()) b.setStyle(Notification.BigTextStyle().bigText(seen + "\n" + x))
         // own gestures on: a way back to the 3 buttons is ALWAYS one pull of the shade away, whatever the stuck check missed
         if (nav) b.addAction(Notification.Action.Builder(null, getString(R.string.nav_stuck_btn), NavGest.fixIntent(this)).build())
         return b.build()
@@ -1101,9 +1106,13 @@ class Guard : Service() {
 
     /** The in-app language changed (Lang): re-post the foreground notification in it. Same id = same foreground slot. */
     private fun relabel() {
-        if (fgLabel.isEmpty() || getString(R.string.notif_guard_title) + "\n" + getString(R.string.notif_guard_text) + navFixShown() == fgLabel) return
+        val seen = runCatching { Monitoring.line(this, store.baseRules.watch) }.getOrDefault("")
+        if (fgLabel.isEmpty() || getString(R.string.notif_guard_title) + "\n" + getString(R.string.notif_guard_text) + navFixShown() + seen == fgLabel) return
         getSystemService(NotificationManager::class.java).notify(1, fgNotification())
     }
+
+    /** The parent changed what it may read: the lasting notification lists it at once. */
+    private fun fgRefresh() = runCatching { if (fgLabel.isNotEmpty()) getSystemService(NotificationManager::class.java).notify(1, fgNotification()) }
 
     private fun foreground(mic: Boolean = false) {
         val nm = getSystemService(NotificationManager::class.java)

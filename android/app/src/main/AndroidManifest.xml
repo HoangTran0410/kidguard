@@ -331,6 +331,12 @@
             android:noHistory="true"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|fontScale" />
 
+        <!-- the child's list of what the parent may read (Monitoring registry) -->
+        <activity
+            android:name=".WatchActivity"
+            android:exported="false"
+            android:excludeFromRecents="true" />
+
         <receiver
             android:name=".TimerReceiver"
             android:exported="false" />

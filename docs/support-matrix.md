@@ -117,6 +117,12 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Thiết lập 4 bước sau khi ghép (`wizard.js`; mở lại ở Cài đặt "Thiết lập lại từ đầu") | ✅ | ✅ | Trang bố mẹ, mọi trình duyệt / app. Lưu một lần ở "Xong" |
 | Quét QR thêm máy con, QR mời phụ huynh còn lại | ❌ | ✅ | Chỉ app bố mẹ (Android; quét bằng Google code scanner, thiếu Play services thì nhập tay). Trình duyệt không có nút quét |
 
+### 3.4b Theo dõi nội dung (luôn báo cho con, `guard/Monitoring.kt`)
+
+| Chức năng | DO | CB | +WSS | +adb | Relay | Ghi chú |
+|---|---|---|---|---|---|---|
+| Báo cho con biết bố mẹ xem được gì (dòng trong thông báo KidGuard, thông báo khi bật, màn "Bố mẹ xem được gì") | ✅ | ✅ | ✅ | ✅ | — | Không có cách tắt. Bản Home không có. Thông báo thường trực nằm ở kênh mức thấp: con tắt kênh trong Cài đặt thì mất dòng này, còn thông báo khi bật và màn hình thì không |
+
 ### 3.5 Launcher (màn hình chính của con)
 
 | Chức năng | DO | CB | Home | Ghi chú |

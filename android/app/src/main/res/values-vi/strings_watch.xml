@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Monitoring registry (guard/Monitoring.kt): one title / kid text / parent sees per category -->
+    <string name="ch_watch">Bố mẹ xem được gì</string>
+    <string name="watch_line">Bố mẹ xem được: %1$s</string>
+    <string name="watch_on_title">Bố mẹ vừa bật: %1$s</string>
+    <string name="watch_on_text">Chạm để xem bố mẹ thấy gì.</string>
+    <string name="main_watch">Bố mẹ xem được gì</string>
+    <string name="watch_screen_title">Bố mẹ xem được gì</string>
+    <string name="watch_intro">Bố mẹ cài KidGuard trên máy này. Danh sách này là mọi thứ bố mẹ đọc được. Mục nào đang bật luôn hiện ở đây.</string>
+    <string name="watch_none">Hiện chưa có gì. Bố mẹ chỉ quản lý giờ dùng máy, ứng dụng và vị trí.</string>
+    <string name="watch_on">Đang bật</string>
+    <string name="watch_never">Bố mẹ không thấy: mật khẩu, thứ bạn gõ, tiếng cuộc gọi, mọi thứ không có trong danh sách trên.</string>
+    <string name="watch_notif_title">thông báo</string>
+    <string name="watch_notif_kid">Bố mẹ đọc được thông báo máy nhận: ứng dụng nào, tiêu đề và nội dung.</string>
+    <string name="watch_notif_sees">Ứng dụng, tiêu đề, nội dung và giờ của thông báo gần đây, khi bố mẹ yêu cầu.</string>
+</resources>

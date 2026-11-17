@@ -76,6 +76,7 @@
     <string name="diff_other">other settings</string>
     <string name="diff_launcher">kid home screen on</string>
     <string name="diff_launcher_off">kid home screen off</string>
+    <string name="diff_seen">what your parent can see on this phone</string>
     <string name="diff_monitor">monitor-only mode on (nothing is blocked)</string>
     <string name="diff_monitor_off">monitor-only mode off (rules enforced)</string>
     <string name="warn_d1">1 minute left: save what you\'re doing</string>

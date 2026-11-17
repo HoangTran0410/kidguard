@@ -122,7 +122,7 @@ const REPLACE = { lock: null, locate: null, ring: null, wake: null, ringStop: nu
 // AI token (docs/protocol.md "AI token"): the phone sends sha256 of it in every sync (`ai`); a request with it gets role "ai".
 // Same lists as K/guard/AiScope.kt: commands it may queue, rule keys it can never change (the stored value stays).
 const AI_CMDS = ["lock", "locate", "message", "ring", "ringStop", "sosAck", "answer"];
-const AI_LOCKED = ["pin", "pinHash", "pinSalt", "pinAt", "pinSet", "noInstall", "noDebug", "pinShot", "lockLocation", "noAirplane", "frpIds", "safeDns", "safeDnsPauseUntil", "noVpn", "tsKeep", "vpnPause", "accPause", "devPause", "tcpPause", "autoUpdate", "showWatching", "unlockMin", "hidden", "approved", "mode"];
+const AI_LOCKED = ["pin", "pinHash", "pinSalt", "pinAt", "pinSet", "noInstall", "noDebug", "pinShot", "lockLocation", "noAirplane", "frpIds", "safeDns", "safeDnsPauseUntil", "noVpn", "tsKeep", "vpnPause", "accPause", "devPause", "tcpPause", "autoUpdate", "showWatching", "unlockMin", "hidden", "approved", "mode", "watch"];
 const aiRoute = (action, m) => (action === "state" || action === "icon") ? m === "GET" : action === "rules" ? m === "PUT" : action === "cmd" && m === "POST";
 const SETTING_KEYS = ["vol.ring", "vol.media", "vol.alarm", "bright", "autoBright", "timeoutMs", "dnd"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);

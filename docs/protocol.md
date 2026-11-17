@@ -26,6 +26,7 @@ shape, say so in your report instead of silently diverging.
   "noAirplane": true,              // NEW (default true): airplane mode disallowed
   "showWatching": true,            // v0.4 (default true): child sees the "watching / controlling" notification
   "kidClean": false,               // v0.9.18 (default false): the child gets a "Dọn dẹp" tile on the main screen = Policy.clearCaches only (once per 10 min, never bgLimit)
+  "watch": {"notif": false},       // 0.9.29 (default all off): what the parent may read. Every key is a `Monitoring` registry entry the child is told about (see "Monitoring"). A mode cannot change it
   "monitor": false,                // v0.9.11 (default false): "monitor only". Phone still measures + reports; decide() still runs but NOTHING is enforced (no suspend / bounce / grey launcher / heads-up warnings). Device-level restrictions (Policy.apply: noInstall, DNS, location lock, ...) stay as configured. Turning it on unsuspends our suspensions on the next tick
   "autoUpdate": true,              // v0.9 (default true): daily self-update from GitHub releases (see "Self-update")
   "safeDns": "",                   // NEW: "" = off, else a Private DNS host, e.g. "family.adguard-dns.com",
@@ -1468,3 +1469,11 @@ Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone 
   Without own adb the child's status card shows a line; one tap opens `RoleManager.createRequestRoleIntent`. Below Android 10: `callsCap.api = false`, nothing is screened (the call list still works).
 - **Event** `call` (info level): "Đã chặn cuộc gọi: <number or số ẩn>", the same caller is not repeated within 10 min. It reaches the page, Telegram and the parent app like other events.
 - **Release**: `Calls.release` takes the role back with `cmd role remove-role-holder` when we added it (`Store.callsRole`); a role the child accepted stays until changed in Settings -> Default apps. Release also resets `rules.calls` to off (the service then never rejects) and, for Device Owner, takes READ_CONTACTS / READ_CALL_LOG back.
+
+## Monitoring: what the parent may read (2026-11-17, `guard/Monitoring.kt`, `WatchRule`)
+Owner decision: reading the child's content is allowed ONLY with clear disclosure. One registry (`Monitoring.ALL`, one `Cat` per key of rule `watch`) is the source of what the child is told; nothing can switch the disclosure off.
+- **Rule** `watch: {notif, ...}`: every key default `false`; full replace like the rest of the rules (send the whole object). `watch.<id>` is the registry rule path. Not in a timed `mode`.
+- **Disclosure** (kid flavor only): (a) the lasting KidGuard notification gets the line "Bố mẹ xem được: <titles>" and opens the screen; (b) one heads-up notification (channel `kg_watch`, high) each time a category goes off -> on (`Guard.setRules`); (c) screen `WatchActivity` ("Bố mẹ xem được gì", from that notification, the heads-up and the main screen) lists every active category with what the parent gets, plus what is never seen.
+- **Test gate**: `MonitoringTest` fails when a key of `WatchRule.toJson()` has no registry entry or no `watch_<id>_title|kid|sees` string in `values` and `values-vi`. A new monitoring feature = a key + a `Cat` + its strings + a row in `docs/support-matrix.md`.
+- **Release** (`Guard.release`): `Monitoring.release` cancels the heads-up; each feature adds its own undo (rule off with the rest of the rules, stored data wiped, permissions the Device Owner granted taken back).
+- Event text of a changed `watch` in the rule-change log: "những gì bố mẹ xem được trên máy này" (no values, the page shows them).

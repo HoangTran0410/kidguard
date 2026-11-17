@@ -182,6 +182,12 @@ Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`,
 - Undo: `Policy.release` clears it.
 - Gotchas: the API takes the numeric id, not the email (no in-app way to read it); a wrong id can brick the phone after a reset; not testable without a reset.
 
+### 1.16 Monitoring disclosure (2026-11-17, `guard/Monitoring.kt`, `ui/WatchActivity.kt`)
+- Trigger: rule `watch.*` changes (page / parent app / relay `PUT rules` -> `Guard.setRules`).
+- Steps: `Monitoring.turnedOn(old, new)` -> one heads-up notification (`kg_watch`); `fgNotification` appends `Monitoring.line` (the lasting notification; tick `relabel` keeps it in the phone language) and opens `WatchActivity`; the main screen has a row "Bố mẹ xem được gì".
+- State: only the rule. Release: `Monitoring.release` + each feature's own undo.
+- Gotchas: the registry is the only list: add a `Cat` (and strings in both languages) before the feature, `MonitoringTest` enforces it. The lasting notification is on a low channel the child can turn off in Settings (Android lets any user hide a foreground notice); the heads-up and the screen cannot be hidden by us. Not in the Home flavor (no Guard, no parent).
+
 ### 1.15 Lost mode card escape (0.9.16, `Guard.lockForLost`, `MessageActivity`)
 - Trigger: rule `lostOn` (+ `lostMsg`, `lostPhone`) from page / parent app / Telegram `/lost`.
 - Steps: on `USER_PRESENT` (not SCREEN_ON) show the card (message, call-back number, "Parent: turn off"); Device Owner `lockNow` again after `LOST_CARD_MS` (20 s). A right PIN / Authenticator code on the card sets `lostGraceUntil` (10 min): no relock, so a parent holding an offline phone can end lost mode on the page. `lostTick` locates every 5 min and loops the ring; a SIM change raises an event.
