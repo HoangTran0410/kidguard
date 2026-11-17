@@ -850,8 +850,9 @@ class MainActivity : Activity() {
             val link = lan?.let { "$it/#pair=$c" }
             if (link != qrFor) { qrFor = link; link?.let { qr.setImageBitmap(qrBitmap(it, dp(208))) } }
             qr.visibility = if (link != null) View.VISIBLE else View.GONE
-            hint.text = if (link != null) getString(R.string.main_hint_qr, lan)
-                else getString(R.string.main_hint_nowifi)
+            // a paired phone does not offer its code on the relay (RelayPair: pairs only a phone with no parent): don't send the parent to "Pair from anywhere"
+            hint.text = if (link != null) getString(if (s.everPaired) R.string.main_hint_qr_paired else R.string.main_hint_qr, lan)
+                else getString(if (s.everPaired) R.string.main_hint_nowifi_paired else R.string.main_hint_nowifi)
             hint.setCompoundDrawablesRelative(null, null, null, null)
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             pairBtn.visibility = View.GONE

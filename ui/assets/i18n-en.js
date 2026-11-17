@@ -29,7 +29,7 @@ L.en = {
   "pair.closedP": "Pairing isn't open on the kid's phone. On that phone: open KidGuard → <b>Pair another parent phone</b> (needs the parent PIN if one is set).",
   "pair.notSetup": "The kid's phone isn't set up yet: open KidGuard on it and follow the checklist on screen.",
   "pe.wrong code": "Wrong code, try again", "pe.wrong pin": "Wrong PIN", "pe.pin locked": { one: "Too many wrong PINs, try again in {0} minute", other: "Too many wrong PINs, try again in {0} minutes" },
-  "pe.wait": "Too many tries: the kid's phone made a new code, wait a moment and enter the new one", "pe.closed": "Pairing was closed, reopen it on the kid's phone", "pe.fail": "Couldn't pair",
+  "pe.wait": "Too many tries: the kid's phone made a new code, wait a moment and enter the new one", "pe.closed": "Pairing was closed, reopen it on the kid's phone", "pe.busy": "This code already has a pairing waiting for the kid's phone. Wait a minute and try again.", "pe.fail": "Could not pair ({0}). A kid's phone that is already paired can't use \"Pair from anywhere\": ask a paired parent for an invite.",
   "pair.newPin": "Set the parent PIN (4–8 digits)", "pair.newPinP": "This phone has no PIN yet: set it now. You need it to pair another phone and to manage right on the kid's phone. Don't tell your kid.",
   "pair.pin1": "New PIN", "pair.pin2": "PIN again", "pe.pin required": "Set a PIN (4–8 digits) to pair", "pe.bad pin": "PIN must be 4–8 digits", "pe.mismatch": "The two PINs don't match",
   "pinGate.h": "Set the parent PIN", "pinGate.p": "This phone was paired earlier but has no PIN. Set one before going on: it is needed to pair another phone and to manage right on the kid's phone (instead of waiting 24 hours). Don't tell your kid.",

@@ -508,7 +508,7 @@ function anyWire() {
     if (!/^\d{6}$/.test(code)) return say(t("pe.wrong code"));
     if (!/^\d{4,8}$/.test(a)) return say(t("pe.bad pin"));
     if (a !== $("#ap2").value) return say(t("pe.mismatch"));
-    const fail = j => say(hasT("pe." + (j && j.error)) ? t("pe." + j.error, Math.ceil(((j && j.wait) || 60000) / 60000)) : t("pe.fail"));
+    const fail = j => say(hasT("pe." + (j && j.error)) ? t("pe." + j.error, Math.ceil(((j && j.wait) || 60000) / 60000)) : t("pe.fail", String((j && j.error) || "?").slice(0, 40)));
     busy(true, t("any.busy"));
     try {
       const ticket = anyHex(16), b = anyBase();
@@ -668,7 +668,7 @@ function pairScreen(hello, target, prefill = "") {
       busy(true, t("pair.busy"));
       const r = await fetch(pre + "/pair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: ac.signal });
       const j = await r.json();
-      if (!r.ok) throw new Error(hasT("pe." + j.error) ? t("pe." + j.error, Math.ceil((j.wait || 60000) / 60000)) : t("pe.fail"));
+      if (!r.ok) throw new Error(hasT("pe." + j.error) ? t("pe." + j.error, Math.ceil((j.wait || 60000) / 60000)) : t("pe.fail", String(j.error || r.status).slice(0, 40)));
       clearTimeout(to);
       const k = { id: j.id, token: j.token, name: $("#nm").value || t("kid"), via: "lan", ...(target ? { target } : {}) };
       kids = kids.filter(x => !(x.id === k.id && x.via === "lan")).concat(k); save(kids);
