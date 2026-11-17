@@ -147,6 +147,20 @@ async function fxDel(f) {
   } catch (e) { toast("err|" + fxErr(e)); }
   fxPaint();
 }
+// bulk delete (select.js): files of both lists, one fileDel {files:[ids]} per 200 (a plain command: LAN posts it to /cmd, relay queues it)
+const fxSel = selNew({
+  get: () => fxFiles().map(f => ({ id: f.id, t: f.at, size: f.size || 0 })),
+  paint: () => { fx.sig = ""; fxDraw(); },
+  del: async ids => {
+    const set = new Set(ids), sz = fxSel.get().reduce((n, i) => n + (set.has(i.id) ? i.size : 0), 0);
+    if (!(await ask(t("sel.filesAsk", ids.length, fxSize(sz)), t("sel.del"), true))) return false;
+    const k = cur;
+    try { await selChunks(ids, c => call(k, "/cmd", "POST", { type: "fileDel", files: c }).then(() => true)); }
+    catch (e) { toast("err|" + fxErr(e)); return false; }
+    ids.forEach(i => fx.hide.add(i)); toast("ok|" + t(fxRelay(k) ? "fx.delQueued" : "sel.done", ids.length)); if (!fxRelay(k)) fxLoad(k);
+    return true;
+  },
+});
 // relay uploads: done when the phone's state lists the id; stale after the relay TTL
 function fxSync() {
   const have = new Set(((st && st.files) || []).concat(fx.list || []).map(f => f.id));
@@ -165,14 +179,17 @@ function fxDraw() {
   const J = $("#fxJobs"), O = $("#fxOut"), I = $("#fxIn"); if (!J || !cur) return;
   const jobs = fx.jobs.filter(j => j.kid === cur), files = fxFiles(), dl = id => jobs.find(j => j.kind === "down" && j.fid === id);
   // full redraw only when the structure changed; a progress tick only moves bars / text (a click is never lost mid-press)
-  const sig = JSON.stringify([jobs.map(j => [j.id, j.state, j.err]), files.map(f => [f.id, f.st, f.name])]);
+  const sig = JSON.stringify([jobs.map(j => [j.id, j.state, j.err]), files.map(f => [f.id, f.st, f.name]), fxSel.on, [...fxSel.ids], fxSel.range, fxSel.from, fxSel.to]);
   if (sig === fx.sig && J.dataset.ok) {
     for (const j of jobs) { const p = $(`[data-fxp="${j.id}"]`), x = $(`[data-fxt="${j.id}"]`), b = $(`[data-fxb="${j.id}"]`);
       if (p) p.style.width = Math.floor(j.pct * 100) + "%"; if (b) b.setAttribute("aria-valuenow", Math.floor(j.pct * 100)); if (x) x.textContent = fxTxt(j); }
     return;
   }
   fx.sig = sig; J.dataset.ok = 1;
-  const row = (name, sub, status, bar, btns) => `<div class="fxrow"><div class="sp fxm"><b class="fxn">${esc(name)}</b> <span class="mute">${sub}</span>${status}${bar}</div><div class="fxb">${btns}</div></div>`;
+  const S = fxSel, days = new Map(selDays(S.get()).map(d => [d.key, d])), dh = (f, i, arr) => S.on && (!i || selDayKey(f.at) !== selDayKey(arr[i - 1].at)) && days.get(selDayKey(f.at)) ? selDayHead(S, days.get(selDayKey(f.at)), esc(selDayLabel(selDayKey(f.at)))) : "";
+  O.classList.toggle("selmode", S.on); I.classList.toggle("selmode", S.on);
+  const SB = $("#fxSelBar"); if (SB) SB.innerHTML = S.on ? selBar(S) : files.length ? selBtn(S) : "";
+  const row = (name, sub, status, bar, btns, id) => `<div class="fxrow${id ? selCls(S, id) : ""}"${id ? ` data-sid="${id}"` : ""}><div class="sp fxm"><b class="fxn">${esc(name)}</b> <span class="mute">${sub}</span>${status}${bar}</div><div class="fxb">${btns}</div></div>`;
   const xb = (act, id, icon, label, cls = "") => `<button data-fx="${act}" data-id="${id}" class="${cls}" aria-label="${esc(label)}" title="${esc(label)}">${ic(icon)}</button>`;
   J.innerHTML = jobs.filter(j => j.kind === "up").map(j => row(j.name, fxSize(j.size),
     `<div class="mute" role="status" data-fxt="${j.id}"${fxTone(j) ? ` style="color:var(--${fxTone(j)})"` : ""}>${esc(fxTxt(j))}</div>`, fxBar(j),
@@ -182,25 +199,25 @@ function fxDraw() {
     (/^(done|err|stop)$/.test(j.state) ? xb("dismiss", j.id, "x", t("fx.dismiss")) : ""))).join("");
   const out = files.filter(f => f.dir === "out"), inn = files.filter(f => f.dir === "in");
   const meta = f => fxSize(f.size) + " · " + esc(ago(f.at)) + ` <span class="tag ${/^(opened|fetched)$/.test(f.st) ? "ok" : f.st === "gone" ? "warn" : ""}">${esc(tc("fx.st.", f.st, f.st))}</span>`;
-  O.innerHTML = out.length ? out.map(f => { const j = dl(f.id);
+  O.innerHTML = out.length ? out.map((f, i) => { const j = dl(f.id);
     const st2 = j ? `<div class="mute" role="status" data-fxt="${j.id}"${fxTone(j) ? ` style="color:var(--${fxTone(j)})"` : ""}>${esc(fxTxt(j))}</div>` : "";
     const busy = j && /^(run|wait)$/.test(j.state);
-    return row(f.name, meta(f), st2, j ? fxBar(j) : "",
+    return dh(f, i, out) + row(f.name, meta(f), st2, j ? fxBar(j) : "",
       (FXNO ? "" : busy ? `<button data-fx="cancel" data-id="${j.id}">${ic("x")} ${t("fx.cancel")}</button>${j.state === "wait" ? `<button data-fx="resend" data-id="${j.id}">${ic("refresh-cw")} ${t("pw.resend")}</button>` : ""}`
         : `<button class="pri" data-fx="get" data-id="${f.id}">${ic(j && j.state === "done" ? "check" : j && j.state === "err" ? "refresh-cw" : "download")} ${t(j && j.state === "done" ? "fx.got" : j && j.state === "err" ? "fx.retry" : "fx.get")}</button>`) +
-      xb("del", f.id, "trash-2", t("fx.del"), "bad"));
+      xb("del", f.id, "trash-2", t("fx.del"), "bad"), f.id);
   }).join("") : `<p class="mute">${t("fx.none")} ${t("fx.fromKidP")}</p>`;
-  I.innerHTML = inn.length ? inn.map(f => row(f.name, meta(f), "", "", xb("del", f.id, "trash-2", t("fx.del"), "bad"))).join("") : `<p class="mute">${t("fx.none")}</p>`;
+  I.innerHTML = inn.length ? inn.map((f, i) => dh(f, i, inn) + row(f.name, meta(f), "", "", xb("del", f.id, "trash-2", t("fx.del"), "bad"), f.id)).join("") : `<p class="mute">${t("fx.none")}</p>`;
 }
 function filesTab(b) {
   const relay = fxRelay(), max = relay ? FX.relay : FX.lan;
-  fx.sig = "";
+  fx.sig = ""; fxSel.on = false; fxSel.ids.clear(); fxSel.range = "";
   b.innerHTML = `<div class="card"><h2>${ic("upload")} ${t("fx.sendH")}</h2>
     <p class="mute">${t(relay ? "fx.sendPr" : "fx.sendP", fxSize(max))}</p>
     ${FXNO ? alertBox("warn", "triangle-alert", t("fx.app")) : `<div id="fxDrop" class="fxdrop"><input type="file" id="fxPick" multiple hidden>
       <button class="pri" id="fxBtn">${ic("upload")} ${t("fx.pick")}</button><span class="mute">${t("fx.drop")}</span></div>`}
     <div id="fxJobs"></div></div>
-  <div class="card"><h2>${ic("inbox")} ${t("fx.fromKid")}</h2><div id="fxOut"></div></div>
+  <div class="card"><h2>${ic("inbox")} ${t("fx.fromKid")}</h2><div id="fxOut"></div></div><div class="selpg" id="fxSelBar"></div>
   <div class="card"><h2>${ic("folder-open")} ${t("fx.sent")}</h2><div id="fxIn"></div></div>
   <p class="mute">${ic("shield")} ${t("fx.scope")}</p>
   <p class="mute">${ic("message-square")} ${t("fx.chatNote")} <button type="button" class="sp" id="fxChat">${t("chat.gal")}</button></p>`;
@@ -212,7 +229,10 @@ function filesTab(b) {
     drop.ondragleave = () => drop.classList.remove("on");
     drop.ondrop = e => { e.preventDefault(); e.stopPropagation(); drop.classList.remove("on"); if (e.dataTransfer.files.length) fxSend(e.dataTransfer.files); };
   }
+  selPress(b, fxSel); b.onchange = e => { selChange(fxSel, e); };
   b.onclick = e => {
+    if (selClick(fxSel, e)) return;
+    if (fxSel.on && e.target.closest(".fxrow")) return;
     const el = e.target.closest("[data-fx]"); if (!el) return;
     const id = el.dataset.id, job = fx.jobs.find(j => j.id === id), f = fxFiles().find(x => x.id === id);
     ({ cancel: () => job && fxCancel(job), dismiss: () => { fx.jobs = fx.jobs.filter(j => j !== job); fxPaint(); },

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="log_snap_del">Bố mẹ đã xoá %1$d ảnh khỏi lịch sử chụp camera</string>
+    <string name="log_chat_del">Bố mẹ đã xoá %1$d tin nhắn trong chat</string>
+    <string name="gal_select">Chọn</string>
+    <string name="gal_sel_n">Đã chọn %1$d · %2$s</string>
+    <string name="gal_sel_none">Không có gì trong khoảng đó</string>
+    <string name="gal_del">Xoá</string>
+    <string name="gal_del_title">Xoá %1$d tệp?</string>
+    <string name="gal_del_msg">Giải phóng %1$s. Tệp bị xoá hẳn khỏi máy này.</string>
+    <string name="gal_deleted">Đã xoá %1$d tệp</string>
+    <string name="gal_r_title">Chọn theo ngày</string>
+    <string name="gal_r_all">Tất cả đang hiện</string>
+    <string name="gal_r_today">Hôm nay</string>
+    <string name="gal_r_7">7 ngày qua</string>
+    <string name="gal_r_30">30 ngày qua</string>
+    <string name="gal_r_old">Cũ hơn 30 ngày</string>
+</resources>

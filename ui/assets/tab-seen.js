@@ -132,6 +132,7 @@ function seenTab(b) {
     <div class="card" id="seenCam"><h2>${ic("camera")} ${t("seen.ch")}</h2>
       <label class="row"><input type="checkbox" id="f-wc" ${w.cam ? "checked" : ""}><span class="sp">${t("seen.con")}<br><span class="mute">${t("seen.ckid")}</span></span></label>
       ${w.cam ? seenCamForm() : ""}</div>
+    <div class="card" id="seenListenCard"><h2>${ic("ear")} ${t("lh.h")}</h2><p class="mute">${t("lh.p")}</p><div id="seenListen"></div></div>
     <div class="card" id="seenSms"><h2>${ic("message-square")} ${t("seen.sh")}</h2>
       <label class="row"><input type="checkbox" id="f-ws" ${w.sms ? "checked" : ""}><span class="sp">${t("seen.son")}<br><span class="mute">${t("seen.skid")}</span></span></label>
       ${w.sms ? `<div id="seenSmsBox"></div>` : ""}</div>
@@ -142,7 +143,8 @@ function seenTab(b) {
   smsDraw();
   $("#f-wc").onchange = e => { seenSet(x => { x.cam = e.target.checked; }); seenTab(b); };   // confirm: CONFIRM["f-wc"] (kid.js)
   if ($("#snapGo")) $("#snapGo").onclick = snapGo;
-  seenAppsDraw(); seenWordsDraw(); seenDraw();
+  if ($("#snapHistGo")) $("#snapHistGo").onclick = () => { if (!snapH.done || snapH.k !== cur) snapLoad(false); const h = $("#snapHist"); if (h) h.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  seenAppsDraw(); seenWordsDraw(); seenDraw(); histWire();
 }
 
 // ---- Photo on request (rule watch.cam, command snap): form remembered in this browser, one photo per tap ----
@@ -155,7 +157,7 @@ function snapSel(id, v, opts) { return `<label class="row"><span class="sp">${t(
 function seenCamForm() {
   const o = snapOpts();
   return `<div style="margin-top:10px">${snapSel("cam", o.cam, ["front", "back"])}${snapSel("flash", o.flash, ["off", "on", "auto"])}${snapSel("size", o.size, ["small", "medium"])}${snapSel("delay", o.delay, [0, 1, 2, 3, 5])}
-    <button class="btn" id="snapGo" style="margin-top:10px">${ic("camera")} ${t("seen.cgo")}</button><div id="snapBox" class="mute" role="status" style="margin-top:8px"></div></div>`;
+    <button class="btn" id="snapGo" style="margin-top:10px">${ic("camera")} ${t("seen.cgo")}</button> <button class="sp" id="snapHistGo" style="margin-top:10px">${ic("history")} ${t("snap.hist")}</button><div id="snapBox" class="mute" role="status" style="margin-top:8px"></div><div id="snapHist"></div></div>`;
 }
 function snapSave() {
   const v = id => $("#snap-" + id).value;
@@ -193,6 +195,7 @@ async function snapGo() {
     if (r && r.result && !["ok", "queued"].includes(r.result)) throw errOf("snap:" + r.result);
     const u = await snapFetch(k, fid, relay);
     box.innerHTML = `<img src="${u}" alt="${esc(t("seen.ch"))}" style="max-width:100%;max-height:60vh;border-radius:12px">`;
+    if (snapH.done && snapH.k === k) snapLoad(false);   // the history list gets the new photo
   } catch (e) { box.textContent = /^snap:/.test(e.raw || "") ? tc("seen.cerr.", e.raw.slice(5).replace(/ /g, "_"), "") || t("seen.cerr.failed") : e.message || t("fx.e.failed"); }
   btn.disabled = false;
 }

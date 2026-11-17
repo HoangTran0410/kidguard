@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="log_snap_del">Your parent deleted %1$d photos from the camera history</string>
+    <string name="log_chat_del">Your parents deleted %1$d chat messages</string>
+    <string name="gal_select">Select</string>
+    <string name="gal_sel_n">%1$d selected · %2$s</string>
+    <string name="gal_sel_none">Nothing in that period</string>
+    <string name="gal_del">Delete</string>
+    <string name="gal_del_title">Delete %1$d files?</string>
+    <string name="gal_del_msg">%1$s will be freed. They are removed from this phone for good.</string>
+    <string name="gal_deleted">Deleted %1$d files</string>
+    <string name="gal_r_title">Select by date</string>
+    <string name="gal_r_all">Everything shown</string>
+    <string name="gal_r_today">Today</string>
+    <string name="gal_r_7">Last 7 days</string>
+    <string name="gal_r_30">Last 30 days</string>
+    <string name="gal_r_old">Older than 30 days</string>
+</resources>

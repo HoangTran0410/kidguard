@@ -1,0 +1,27 @@
+// Select-by-date rules of ui/assets/select.js must match K/remote/SelLogic.kt (same cases as BulkLogicTest). Run: node scripts/check-select.mjs
+process.env.TZ = "UTC";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+import assert from "node:assert/strict";
+const src = readFileSync(new URL("../ui/assets/select.js", import.meta.url), "utf8");
+const ctx = vm.createContext({ Date, Set, Map, Promise, ic: () => "", t: k => k, esc: s => s, fxSize: n => String(n), dm: k => k });
+vm.runInContext(src + "\nthis.selRange = selRange; this.selDays = selDays; this.selDate = selDate; this.selDayKey = selDayKey;", ctx);
+const { selRange, selDays, selDate, selDayKey } = ctx;
+const day = 86400000, now = 100 * day + 15 * 3600000;
+const items = Object.entries({ today: now - 3600000, d3: now - 3 * day, d6: now - 6 * day, d7: now - 7 * day, d29: now - 29 * day, d30: now - 30 * day, d60: now - 60 * day }).map(([id, t]) => ({ id, t }));
+const pick = (r, from = 0, to = 0) => [...selRange(items, r, now, from, to)];
+assert.deepEqual(pick("today"), ["today"]);
+assert.deepEqual(pick("7"), ["today", "d3", "d6"]);
+assert.deepEqual(pick("30"), ["today", "d3", "d6", "d7", "d29"]);
+assert.deepEqual(pick("old"), ["d30", "d60"]);
+assert.deepEqual(pick("custom", now - 7 * day + 5 * 3600000, now - 6 * day - 7 * 3600000), ["d6", "d7"]);
+assert.deepEqual(pick("custom", 0, now - 29 * day), ["d29", "d30", "d60"]);
+assert.deepEqual(pick("custom", now - 3 * day, 0), ["today", "d3"]);
+assert.deepEqual(pick("nope"), []);
+assert.equal(selDayKey(now), "1970-04-11");
+assert.equal(selDayKey(100 * day), selDayKey(100 * day + 86399000));
+assert.notEqual(selDayKey(100 * day), selDayKey(101 * day));
+assert.equal(selDate("1970-04-11"), 100 * day); assert.equal(selDate(""), 0); assert.equal(selDate("x"), 0);
+const d = [...selDays(items)];
+assert.equal(d.length, 7); assert.deepEqual([...d[0].ids], ["today"]);
+console.log("Select check ok: ranges, days, date parsing match SelLogic.kt");

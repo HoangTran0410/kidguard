@@ -973,10 +973,26 @@ class Store private constructor(private val app: Context) {
         return true
     }
     /** The file of a chat attachment was deleted: its entry keeps the text, att.st = "gone". */
-    @Synchronized fun chatFileGone(fileId: String) {
-        val old = chat(); val a = ChatLogic.markGone(old, fileId)
+    @Synchronized fun chatFileGone(fileId: String) = chatFilesGone(setOf(fileId))
+
+    /** Bulk "delete messages" (`chatDel`): these entries go. Returns how many. */
+    @Synchronized fun chatRemove(ids: Set<String>): Int {
+        val old = chat(); val a = ChatLogic.remove(old, ids)
+        if (a !== old) p.edit().putString("chat", a.toString()).apply()
+        return old.length() - a.length()
+    }
+    /** The files of several chat attachments were deleted: one write for all. */
+    @Synchronized fun chatFilesGone(fileIds: Set<String>) {
+        val old = chat(); val a = ChatLogic.markGoneAll(old, fileIds)
         if (a !== old) p.edit().putString("chat", a.toString()).apply()
     }
+
+    // Listen history (the parent's "Lịch sử nghe"): one row per finished session {at, dur (s), via "lan" | "relay"}, last [LISTEN_HIST]; state carries the newest 20.
+    @Synchronized fun listenHist(): JSONArray = runCatching { JSONArray(p.getString("listenHist", "[]")) }.getOrDefault(JSONArray())
+    @Synchronized fun addListenHist(at: Long, ms: Long, via: String) {
+        p.edit().putString("listenHist", ListenLogic.addHist(listenHist(), at, ms, via).toString()).apply()
+    }
+    @Synchronized fun clearListenHist() { p.edit().remove("listenHist").remove("lastListen").apply() }
 
     /** Zones: the next location fix only records where the child is (set after the zone list changed). */
     @get:Synchronized @set:Synchronized var zoneBaseline: Boolean

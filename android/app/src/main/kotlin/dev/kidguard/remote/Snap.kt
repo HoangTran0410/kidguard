@@ -43,11 +43,34 @@ object SnapLogic {
     const val FLASH_WAIT_MS = 450L   // screen is white this long before the shutter (auto exposure settles)
     const val FLASH_HARD_MS = 2000L  // the white screen is removed after this at the latest, whatever happens
     const val TOTAL_MS = 25_000L     // whole job, delay included: then the Activity ends itself and the parent hears "timeout"
-    const val KEEP_MS = 30 * 60_000L // a photo waits this long for the parent, then it is deleted
-    const val MAX_KEEP = 10
+    const val PAGE = 30              // rows per "history" page (max [PAGE_MAX])
+    const val PAGE_MAX = 60
+    const val THUMB_PX = 320
+    const val FREE_LOW_MB = 1024     // the page warns under this (same as chat: state.freeMb)
 
     /** Flash is used: "on" always, "auto" only when the light sensor reads dark ([lux] < 0 = no reading: no flash). */
     fun flashWanted(mode: String, lux: Float) = mode == "on" || (mode == "auto" && lux in 0f..LOW_LUX)
+
+    /** One kept photo / failed try of the history (`filesDir/snaps/<id>.json`): no count or age cap, wiped on release / rule off. */
+    data class Meta(val id: String, val at: Long, val cam: String, val flash: String, val ok: Boolean, val err: String = "", val size: Long = 0) {
+        fun toJson(): JSONObject = JSONObject().put("id", id).put("at", at).put("cam", cam).put("flash", flash).put("ok", ok)
+            .also { if (!ok) it.put("err", err.ifEmpty { "failed" }) else it.put("size", size) }
+        companion object {
+            fun fromJson(o: JSONObject?): Meta? = o?.takeIf { FilesLogic.isId(it.optString("id")) }?.let {
+                Meta(it.optString("id"), it.optLong("at"), if (it.optString("cam") == "back") "back" else "front",
+                    it.optString("flash").let { f -> if (f == "on" || f == "auto") f else "off" }, it.optBoolean("ok"), it.optString("err"), it.optLong("size"))
+            }
+        }
+    }
+
+    fun count(n: Int) = if (n <= 0) PAGE else minOf(n, PAGE_MAX)
+
+    /** One history page, newest first: entries with `at < before` (0 = from the newest), at most [n], `more` = still older ones. */
+    fun page(all: List<Meta>, before: Long, n: Int): JSONObject {
+        val old = all.filter { before <= 0 || it.at < before }.sortedByDescending { it.at }
+        val take = old.take(count(n))
+        return JSONObject().put("snaps", org.json.JSONArray().also { a -> take.forEach { a.put(it.toJson()) } }).put("more", old.size > take.size)
+    }
 
     /** Front camera = a white screen at full brightness, back camera = the torch. */
     fun screenFlash(o: SnapOpts, wanted: Boolean) = wanted && !o.back
@@ -57,7 +80,8 @@ object SnapLogic {
  * Remote camera snapshot (rule `watch.cam`, command `snap`). The camera needs a visible window since Android 11, so the job runs in
  * [SnapActivity] (translucent, never takes touches, ends itself within [SnapLogic.TOTAL_MS]); when that cannot start, a photo is tried
  * straight from the service (no flash). The child gets a notification + a log line for EVERY attempt. The photo is saved as
- * `snaps/<fid>.jpg` (30 min), fetched by LAN `GET /api/snap/<fid>` or pushed to the relay file channel (`relay: true`).
+ * `snaps/<fid>.jpg` + `<fid>.json` (history, failed tries too, never pruned: docs/flows/enforcement.md 1.18), fetched by LAN
+ * `GET /api/snap/<fid>` or pushed to the relay file channel (`relay: true`); the parent's history = `snapList` / `GET /snaps`.
  */
 object RemoteSnap {
     private const val TAG = "KidGuard"
@@ -75,11 +99,55 @@ object RemoteSnap {
     fun error(c: Context, fid: String): String? = if (FilesLogic.isId(fid)) File(dir(c), "$fid.err").takeIf { it.isFile }?.readText() else null
 
     /** Release / rule off: no photo stays behind. */
-    fun clear(c: Context) { runCatching { dir(c).listFiles()?.forEach { it.delete() } }; runCatching { c.getSystemService(NotificationManager::class.java)?.cancel(NID) } }
+    fun clear(c: Context) { runCatching { File(c.filesDir, "snaps").deleteRecursively() }; runCatching { c.getSystemService(NotificationManager::class.java)?.cancel(NID) } }
 
-    private fun prune(c: Context, now: Long = System.currentTimeMillis()) {
-        val all = dir(c).listFiles()?.sortedByDescending { it.lastModified() } ?: return
-        all.forEachIndexed { i, f -> if (i >= SnapLogic.MAX_KEEP || now - f.lastModified() > SnapLogic.KEEP_MS) f.delete() }
+    // ---------------- history ----------------
+    private fun metaFile(c: Context, id: String) = File(dir(c), "$id.json")
+    private fun record(c: Context, fid: String, o: SnapOpts, ok: Boolean, err: String) {
+        if (!FilesLogic.isId(fid)) return
+        val size = if (ok) file(c, fid)?.length() ?: 0L else 0L
+        runCatching { metaFile(c, fid).writeText(SnapLogic.Meta(fid, System.currentTimeMillis(), o.cam, o.flash, ok, err, size).toJson().toString()) }
+    }
+    fun metas(c: Context): List<SnapLogic.Meta> =
+        dir(c).listFiles { f -> f.name.endsWith(".json") }?.mapNotNull { f -> runCatching { SnapLogic.Meta.fromJson(JSONObject(f.readText())) }.getOrNull() } ?: emptyList()
+    /** `GET /api/snaps?before=&n=` and relay `snapList`: one page of the history (newest first). */
+    fun api(c: Context, q: Map<String, String>): JSONObject = SnapLogic.page(metas(c), q["before"]?.toLongOrNull() ?: 0L, q["n"]?.toIntOrNull() ?: 0)
+    /** State: how many entries / MB the history holds (the page shows it and warns on low space with state.freeMb). */
+    fun stateJson(c: Context): JSONObject {
+        val m = metas(c)
+        return JSONObject().put("n", m.size).put("mb", m.sumOf { it.size } / 1048576)
+    }
+    /** Bulk delete (`snapDel {ids}`): the photos, their metas and thumbnails go. Returns how many entries were removed. */
+    fun delete(c: Context, ids: List<String>): Int = ids.count { id ->
+        val had = metaFile(c, id).isFile || File(dir(c), "$id.jpg").isFile
+        File(dir(c), "$id.jpg").delete(); metaFile(c, id).delete(); File(File(dir(c), "th"), "$id.jpg").delete(); File(dir(c), "$id.err").delete(); had
+    }
+    /** JPEG <= 320 px of a kept photo (cached in snaps/th), null = no such photo. */
+    fun thumb(c: Context, id: String): ByteArray? {
+        val f = file(c, id) ?: return null
+        val t = File(File(dir(c), "th").apply { mkdirs() }, "$id.jpg")
+        if (t.isFile && t.length() > 0) return runCatching { t.readBytes() }.getOrNull()
+        val o = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeFile(f.path, o)
+        if (o.outWidth <= 0) return null
+        var s = 1; while (maxOf(o.outWidth, o.outHeight) / (s * 2) >= SnapLogic.THUMB_PX) s *= 2
+        val bmp = android.graphics.BitmapFactory.decodeFile(f.path, android.graphics.BitmapFactory.Options().apply { inSampleSize = s }) ?: return null
+        val out = java.io.ByteArrayOutputStream()
+        bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 75, out)
+        return out.toByteArray().also { b -> runCatching { t.writeBytes(b) } }
+    }
+    /** Relay `snapUp {id, thumb?}`: put the photo (or its thumbnail under `FilesLogic.thumbFid(id)`) on the file channel. */
+    fun up(g: Context, c: JSONObject): String {
+        val id = c.optString("id"); if (!FilesLogic.isId(id)) return "bad id"
+        val f = file(g, id) ?: return "no such photo"
+        val th = c.optInt("thumb") == 1
+        Thread({
+            runCatching {
+                if (th) thumb(g, id)?.let { Files.pushBytes(g, FilesLogic.thumbFid(id), "$id.thumb.jpg", it, "&thumb=1") }
+                else Files.pushBytes(g, id, "kidguard-snap.jpg", f.readBytes())
+            }.onFailure { Log.w(TAG, "snap up", it) }
+        }, "snap-up").start()
+        return "ok"
     }
 
     /** CAMERA held: Device Owner grants it itself, basic mode through our own adb (AutoGrant), like the video call. */
@@ -94,6 +162,8 @@ object RemoteSnap {
     /** Answers: ok (started, the parent now polls) | off | bad fid | busy | screen off | no camera permission | no such camera | unsupported. */
     fun command(g: Context, c: JSONObject): String {
         val res = run(g, c)
+        // a refused try is part of the history too (the parent sees why nothing came); a malformed / unsupported / rule-off request is not
+        if (res != "ok" && res !in setOf("bad fid", "off", "unsupported")) record(g, c.optString("fid"), SnapOpts.fromJson(c), false, res)
         // relay: the parent waits on the file channel, so a refusal is pushed there too (LAN gets the answer directly)
         if (res != "ok" && c.optBoolean("relay", false) && FilesLogic.isId(c.optString("fid"))) Thread({
             runCatching { Files.pushBytes(g, c.optString("fid"), "kidguard-snap.json", JSONObject().put("error", res).toString().toByteArray()) }
@@ -113,7 +183,6 @@ object RemoteSnap {
         if (g.getSystemService(PowerManager::class.java)?.isInteractive != true) return "screen off"   // nobody looks at a dark phone; the parent can wake it first
         val j = Job(fid, o, c.optBoolean("relay", false))
         if (!job.compareAndSet(null, j)) return "busy"
-        prune(g)
         File(dir(g), "$fid.err").delete()
         tell(g, o)
         runCatching { Store.of(g).log(R.string.log_watch_snap) }
@@ -139,6 +208,7 @@ object RemoteSnap {
         try {
             if (ok) File(dir(g), "$photoId.jpg").renameTo(File(dir(g), "${job0.fid}.jpg"))
             else File(dir(g), "${job0.fid}.err").writeText(err.ifEmpty { "failed" })
+            record(g, job0.fid, job0.o, ok, err)
             if (job0.relay) Thread({
                 runCatching {
                     val f = file(g, job0.fid)

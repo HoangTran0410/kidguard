@@ -41,6 +41,23 @@ object ProjLogic {
 }
 
 object ListenLogic {
+    const val HIST_KEEP = 100   // sessions kept on the phone
+    const val HIST_STATE = 20   // sessions the state carries
+
+    /** [a] (newest last) + one finished session {at, dur s, via}; sessions under 1 s are not worth a row; only the last [HIST_KEEP] stay. */
+    fun addHist(a: org.json.JSONArray, at: Long, ms: Long, via: String): org.json.JSONArray {
+        val out = org.json.JSONArray()
+        if (ms < 1000) return a
+        val l = (0 until a.length()).mapNotNull { a.optJSONObject(it) } + org.json.JSONObject().put("at", at).put("dur", ms / 1000).put("via", if (via == "relay") "relay" else "lan")
+        l.takeLast(HIST_KEEP).forEach { out.put(it) }
+        return out
+    }
+
+    /** The newest [n] sessions, newest first (what state carries). */
+    fun histTail(a: org.json.JSONArray, n: Int = HIST_STATE): org.json.JSONArray {
+        val out = org.json.JSONArray(); for (i in a.length() - 1 downTo maxOf(0, a.length() - n)) out.put(a.get(i)); return out
+    }
+
     /** How long the mic may give nothing but silence (amplitude 0) before we call it blocked. */
     const val SILENT_MS = 2_500L
     /** No bytes from the encoder for this long = the mic is stuck: end the session. */

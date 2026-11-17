@@ -63,6 +63,8 @@ class ChatActivity : Activity() {
     // gallery
     private var gallery: LinearLayout? = null
     private var filter = "all"
+    private var selMode = false          // gallery select mode (bulk delete of the child's files; messages are never deleted from here)
+    private val sel = LinkedHashSet<String>()
 
     // playback of an audio bubble
     private var player: MediaPlayer? = null
@@ -440,15 +442,83 @@ class ChatActivity : Activity() {
     }
 
     // ---------------- gallery: everything kept (also the old shared-folder files) ----------------
+    /** Check circle in the corner of a tile / row in select mode; a selected one is dimmed a little. */
+    private fun tick(v: View, on: Boolean) {
+        v.alpha = if (on) 0.72f else 1f
+        val fl = v as? FrameLayout ?: return
+        fl.addView(ImageView(this).apply {
+            background = u.shape(if (on) u.primary else 0x66000000, 24); val p = u.dp(4); setPadding(p, p, p, p)
+            setImageDrawable(Ic.get(this@ChatActivity, if (on) R.drawable.li_check else R.drawable.li_circle, 0xFFFFFFFF.toInt(), u.dp(16)))
+        }, FrameLayout.LayoutParams(u.dp(26), u.dp(26), Gravity.TOP or Gravity.START).apply { setMargins(u.dp(6), u.dp(6), 0, 0) })
+    }
+    /** Day header with its own check ("select this day") shown in select mode. */
+    private fun dayHead(day: List<FilesLogic.Entry>): View {
+        val on = day.all { it.id in sel }
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(u.dp(2), u.dp(10), u.dp(2), u.dp(4))
+            addView(ImageView(this@ChatActivity).apply { setImageDrawable(Ic.get(this@ChatActivity, if (on) R.drawable.li_check else R.drawable.li_circle, if (on) u.primary else u.sub, u.dp(22))) }, LinearLayout.LayoutParams(u.dp(28), u.dp(28)))
+            addView(u.label(android.text.format.DateUtils.formatDateTime(this@ChatActivity, day.first().at, android.text.format.DateUtils.FORMAT_SHOW_DATE or android.text.format.DateUtils.FORMAT_SHOW_WEEKDAY), 14f, u.text, true).apply { setPadding(u.dp(8), 0, 0, 0) })
+            setOnClickListener { selDay(day) }
+        }
+    }
+
     private fun showGallery() { stopPlay(); gallery = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(u.bg); fitsSystemWindows = true }; buildGallery(); setContentView(gallery) }
-    private fun hideGallery() { gallery = null; setContentView(chatRoot); shown = ""; draw(true) }
+    private fun hideGallery() { gallery = null; selMode = false; sel.clear(); setContentView(chatRoot); shown = ""; draw(true) }
+
+    // ---- select mode (Google Photos style): long press = start, tap = toggle, "select by date" menu, per-day check, bar "N selected · X MB -> Delete" ----
+    private fun galShown(items: List<FilesLogic.Entry>): List<FilesLogic.Entry> =
+        items.filter { filter == "all" || ChatLogic.kind(it.mime, it.name).let { k -> if (filter == "media") k == "image" || k == "video" else k == filter } }
+    private fun toggle(id: String) { if (!sel.remove(id)) sel.add(id); if (sel.isEmpty()) selMode = false; buildGallery() }
+    private fun selDay(day: List<FilesLogic.Entry>) { val all = day.all { it.id in sel }; day.forEach { if (all) sel.remove(it.id) else sel.add(it.id) }; if (sel.isEmpty()) selMode = false; buildGallery() }
+    private fun selRange(items: List<FilesLogic.Entry>, r: SelLogic.Range) {
+        val now = System.currentTimeMillis()
+        sel.clear(); sel.addAll(SelLogic.pick(items.map { it.id to it.at }, r, now)); selMode = sel.isNotEmpty()
+        if (!selMode) Toasts.show(this, getString(R.string.gal_sel_none), false)
+        buildGallery()
+    }
+    private fun rangeMenu(anchor: View, items: List<FilesLogic.Entry>) {
+        PopupMenu(this, anchor).apply {
+            menu.add(0, 0, 0, getString(R.string.gal_r_all)); menu.add(0, 1, 1, getString(R.string.gal_r_today)); menu.add(0, 2, 2, getString(R.string.gal_r_7))
+            menu.add(0, 3, 3, getString(R.string.gal_r_30)); menu.add(0, 4, 4, getString(R.string.gal_r_old))
+            setOnMenuItemClickListener { m ->
+                when (m.itemId) {
+                    0 -> { sel.clear(); sel.addAll(items.map { it.id }); selMode = sel.isNotEmpty(); buildGallery() }
+                    1 -> selRange(items, SelLogic.Range.TODAY); 2 -> selRange(items, SelLogic.Range.DAYS7)
+                    3 -> selRange(items, SelLogic.Range.DAYS30); else -> selRange(items, SelLogic.Range.OLDER30)
+                }; true
+            }
+        }.show()
+    }
+    private fun delSelected(all: List<FilesLogic.Entry>) {
+        val ids = sel.toList(); val bytes = all.filter { it.id in sel }.sumOf { it.size }
+        if (ids.isEmpty()) return
+        Modal(this, u).show(R.drawable.li_trash_2, Modal.Tone.DANGER, getString(R.string.gal_del_title, ids.size), getString(R.string.gal_del_msg, Formatter.formatShortFileSize(this, bytes)),
+            ok = getString(R.string.gal_del), cancel = getString(R.string.cancel)) {
+            io.execute {
+                ids.chunked(FilesLogic.MAX_IDS).forEach { Files.command(this, "chatFileDel", JSONObject().put("ids", org.json.JSONArray(it))) }
+                runOnUiThread { sel.clear(); selMode = false; Toasts.show(this, getString(R.string.gal_deleted, ids.size), false); if (!isDestroyed) { shown = ""; buildGallery() } }
+            }
+            true
+        }
+    }
 
     private fun buildGallery() {
         val g = gallery ?: return
         g.removeAllViews()
         val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(u.dp(8), u.dp(12), u.dp(12), u.dp(4)) }
-        head.addView(iconBtn(R.drawable.li_arrow_left, getString(R.string.hm_c_back)) { hideGallery() }, LinearLayout.LayoutParams(u.dp(44), u.dp(44)))
-        head.addView(u.label(getString(R.string.chat_gallery), 20f, u.text, bold = true).apply { setPadding(u.dp(6), 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
+        val allItems = Files.all(this).filter { it.st != FilesLogic.GONE }.sortedByDescending { it.at }
+        sel.retainAll(allItems.map { it.id }.toSet()); if (sel.isEmpty()) selMode = false
+        if (selMode) {
+            val bytes = allItems.filter { it.id in sel }.sumOf { it.size }
+            head.addView(iconBtn(R.drawable.li_x, getString(R.string.cancel)) { sel.clear(); selMode = false; buildGallery() }, LinearLayout.LayoutParams(u.dp(44), u.dp(44)))
+            head.addView(u.label(getString(R.string.gal_sel_n, sel.size, Formatter.formatShortFileSize(this, bytes)), 17f, u.text, bold = true).apply { setPadding(u.dp(6), 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
+            head.addView(iconBtn(R.drawable.li_calendar, getString(R.string.gal_r_title)) { rangeMenu(it, galShown(allItems)) }, LinearLayout.LayoutParams(u.dp(44), u.dp(44)))
+            head.addView(iconBtn(R.drawable.li_trash_2, getString(R.string.gal_del)) { delSelected(allItems) }, LinearLayout.LayoutParams(u.dp(44), u.dp(44)))
+        } else {
+            head.addView(iconBtn(R.drawable.li_arrow_left, getString(R.string.hm_c_back)) { hideGallery() }, LinearLayout.LayoutParams(u.dp(44), u.dp(44)))
+            head.addView(u.label(getString(R.string.chat_gallery), 20f, u.text, bold = true).apply { setPadding(u.dp(6), 0, 0, 0) }, LinearLayout.LayoutParams(0, -2, 1f))
+            head.addView(iconBtn(R.drawable.li_check, getString(R.string.gal_select)) { if (galShown(allItems).isNotEmpty()) { selMode = true; buildGallery() } }, LinearLayout.LayoutParams(u.dp(44), u.dp(44)))
+        }
         g.addView(head)
         val chips = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(u.dp(14), u.dp(4), u.dp(14), u.dp(8)) }
         for ((k, r) in listOf("all" to R.string.chat_g_all, "media" to R.string.chat_g_media, "audio" to R.string.chat_g_audio, "file" to R.string.chat_g_files)) {
@@ -459,7 +529,7 @@ class ChatActivity : Activity() {
             }, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = u.dp(6) })
         }
         g.addView(android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(chips) })
-        val items = Files.all(this).filter { it.st != FilesLogic.GONE }.sortedByDescending { it.at }
+        val items = allItems
         val media = items.filter { ChatLogic.kind(it.mime, it.name).let { k -> k == "image" || k == "video" } }
         val other = items - media.toSet()
         val body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(u.dp(14), u.dp(4), u.dp(14), u.dp(24)) }
@@ -468,18 +538,24 @@ class ChatActivity : Activity() {
         if (!showMedia && list.isEmpty() || showMedia && media.isEmpty() && list.isEmpty()) body.addView(u.label(getString(R.string.chat_g_empty), 15f).apply { gravity = Gravity.CENTER; setPadding(0, u.dp(60), 0, 0) })
         if (showMedia && media.isNotEmpty()) {
             val cell = (resources.displayMetrics.widthPixels - u.dp(28) - u.dp(8)) / 3
-            media.chunked(3).forEach { rowItems ->
+            val groups = if (selMode) media.groupBy { SelLogic.dayKey(it.at) }.values.toList() else listOf(media)
+            groups.forEach { grp ->
+              if (selMode) body.addView(dayHead(grp))
+              grp.chunked(3).forEach { rowItems ->
                 val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
                 rowItems.forEach { e ->
                     val fl = FrameLayout(this)
                     val iv = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; setBackgroundColor(u.stroke); round(this, 8) }
                     fl.addView(iv, FrameLayout.LayoutParams(-1, -1))
                     if (ChatLogic.kind(e.mime, e.name) == "video") fl.addView(ImageView(this).apply { setImageDrawable(Ic.get(this@ChatActivity, R.drawable.li_play, 0xFFFFFFFF.toInt(), u.dp(22))); background = u.shape(0x99000000.toInt(), 24); val p = u.dp(9); setPadding(p, p, p, p) }, FrameLayout.LayoutParams(u.dp(40), u.dp(40), Gravity.CENTER))
-                    fl.setOnClickListener { openFile(e.id) }
+                    fl.setOnClickListener { if (selMode) toggle(e.id) else openFile(e.id) }
+                    fl.setOnLongClickListener { if (!selMode) { selMode = true; toggle(e.id) } ; true }
+                    if (selMode) tick(fl, e.id in sel)
                     loadThumb(e.id, iv)
                     row.addView(fl, LinearLayout.LayoutParams(cell, cell).apply { setMargins(u.dp(2), u.dp(2), u.dp(2), u.dp(2)) })
                 }
                 body.addView(row)
+              }
             }
         }
         list.forEach { e ->
@@ -490,7 +566,9 @@ class ChatActivity : Activity() {
             c.addView(u.label(e.name, 15f, u.text, true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.MIDDLE })
             c.addView(u.label(Formatter.formatShortFileSize(this, e.size) + " · " + android.text.format.DateUtils.getRelativeTimeSpanString(e.at, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS), 12f))
             r.addView(c, LinearLayout.LayoutParams(0, -2, 1f))
-            r.setOnClickListener { openFile(e.id) }
+            r.setOnClickListener { if (selMode) toggle(e.id) else openFile(e.id) }
+            r.setOnLongClickListener { if (!selMode) { selMode = true; toggle(e.id) }; true }
+            if (selMode) { tick(r, e.id in sel); if (e.id in sel) r.background = u.shape(u.card, 14, u.primary, 2) }
             body.addView(r, LinearLayout.LayoutParams(-1, -2).apply { topMargin = u.dp(6) })
         }
         g.addView(ScrollView(this).apply { addView(body) }, LinearLayout.LayoutParams(-1, 0, 1f))
