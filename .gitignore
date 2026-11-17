@@ -16,3 +16,4 @@ android/app/google-services.json
 # agent scratch (Claude Code)
 .claude/worktrees/
 .claude/goal.md
+*.kgkeys

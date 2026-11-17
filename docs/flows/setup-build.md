@@ -8,7 +8,7 @@ Path shorthands: `K/` = `android/app/src/main/kotlin/dev/kidguard/`, `L/` = `K/l
 - Version: `android/gradle.properties` `kg.version` + `kg.code` (one place, both apps; `app/build.gradle.kts:15-16`, `parent/build.gradle.kts:32-33`).
 - Package `dev.kidguard`; Device Owner admin `dev.kidguard/.Admin`; accessibility `dev.kidguard/dev.kidguard.Acc`; LAN port 8770.
 - Flavors (`app/build.gradle.kts:21-25`): `kid` (`dev.kidguard`, kidguard.apk), `home` (`dev.kidguard.home`, kidguard-home.apk, launcher only, no libadb native libs `:64-69`). Parent app = `:parent` (`dev.kidguard.parent`, kidguard-parent.apk).
-- One signing key `android/app/signing.jks` (git-ignored, pw hardcoded in both build.gradle files, `app/build.gradle.kts:26-33`, `parent/build.gradle.kts:38`). Same key = self-update works, QR checksum valid, HomeExport provider trusts Home.
+- One signing key `android/app/signing.jks` (git-ignored, pw hardcoded in both build.gradle files, `app/build.gradle.kts:26-33`, `parent/build.gradle.kts:38`). Same key = self-update works, QR checksum valid, HomeExport provider trusts Home. Back it up: `scripts/keys.sh backup` (password-locked file, keep it elsewhere), `restore` on a new computer.
 - Repo `HoangTran0410/kidguard` (origin). Site `kid-guard.pages.dev`. APK URLs always `releases/latest/download/<fixed name>`.
 
 ### 4.1 SETUP flows (all end in: KidGuard is Device Owner + 4 grants + accessibility on)
