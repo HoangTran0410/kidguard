@@ -26,7 +26,7 @@ shape, say so in your report instead of silently diverging.
   "noAirplane": true,              // NEW (default true): airplane mode disallowed
   "showWatching": true,            // v0.4 (default true): child sees the "watching / controlling" notification
   "kidClean": false,               // v0.9.18 (default false): the child gets a "Dọn dẹp" tile on the main screen = Policy.clearCaches only (once per 10 min, never bgLimit)
-  "watch": {"notif": {"on": false, "kw": false, "apps": "all", "list": []}, "words": []},   // 0.9.29 (default all off): what the parent may read. Each key is a `Monitoring` registry entry the child is told about (see "Monitoring"). `notif.kw` = only notifications with a word; `notif.apps` = "all"|"only"|"except" + package `list` (<= 200). `words` <= 30 x 40 chars. A mode cannot change it
+  "watch": {"notif": {"on": false, "kw": false, "apps": "all", "list": []}, "words": [], "cam": false},   // 0.9.29 (default all off): what the parent may read. Each key is a `Monitoring` registry entry the child is told about (see "Monitoring"). `notif.kw` = only notifications with a word; `notif.apps` = "all"|"only"|"except" + package `list` (<= 200). `words` <= 30 x 40 chars. A mode cannot change it
   "monitor": false,                // v0.9.11 (default false): "monitor only". Phone still measures + reports; decide() still runs but NOTHING is enforced (no suspend / bounce / grey launcher / heads-up warnings). Device-level restrictions (Policy.apply: noInstall, DNS, location lock, ...) stay as configured. Turning it on unsuspends our suspensions on the next tick
   "autoUpdate": true,              // v0.9 (default true): daily self-update from GitHub releases (see "Self-update")
   "safeDns": "",                   // NEW: "" = off, else a Private DNS host, e.g. "family.adguard-dns.com",
@@ -1493,4 +1493,9 @@ Owner decision: reading the child's content is allowed ONLY with clear disclosur
 - Every notification the phone records (see "Notifications to the parent"; later also an SMS) is matched against `watch.words` (ignores case and accents, substring; `KeywordLogic`). It works with `watch.notif` off, and with `watch.notif.kw` (keywords only) the same matches also fill the feed.
 - A hit = one event `{kind: "word", text: "<app>, từ khoá "<word>": <title>: <short piece around the word, <= 120 chars>"}` (`Store.event`), so it reaches the parent like any event: page list, Telegram, and the parent app by FCM (`ek: "word"`, no text to Google). "Important" kind. Never one push per notification: only hits, at most 1 per app+word per 5 min and 12 per hour (`WordThrottle`).
 - Registry entry `watch.words` (on = list not empty); the child is told like for every category.
+
+### Photo on request (rule `watch.cam`, command `snap`, 2026-11-17)
+- Command `{type:"snap", fid:<16 hex>, cam:"front"|"back", flash:"off"|"on"|"auto", size:"small"|"medium", delay:0..5, relay:bool}`. Answer: `ok` or one of `off`, `screen off`, `no camera permission`, `no such camera`, `busy`, `unsupported`, `bad fid`. Worker: in `CMDS` + `SHORT`, validated (`bad snap`); not deliver-once (a photo order may wait).
+- Result: size small = longest side 640 px, medium 1280 px, JPEG. LAN: `GET /snap/<fid>` = `image/jpeg`, 404 `{"error":"pending"}`, 409 `{"error":"<why>"}` (why: timeout, camera, left, closed, busy). Relay (`relay:true`): file channel, same `fid`, name `kidguard-snap.jpg`, or `kidguard-snap.json` `{"error"}`.
+- Registry entry `watch.cam` (told like every category; each photo also gives the child a notification and a log line `watch_snap`). The phone keeps the photo 30 min, deletes it on release.
 

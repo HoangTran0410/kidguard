@@ -6,8 +6,8 @@
 // Keywords (rule watch.words): the phone raises an alert for a hit (docs/protocol.md "Word alerts"); "only with my words" also narrows the feed.
 const seenX = { k: null, busy: false, err: "", done: false, access: true, on: true, more: false, next: 0, old: [] };
 const SEEN_KEEP = 100;
-const seenW = () => { const w = (edit && edit.watch) || {}; return { notif: w.notif || {}, words: w.words || [] }; };
-const seenSet = (fn) => { const w = seenW(); fn(w); edit.watch = { notif: Object.assign({ on: false, kw: false, apps: "all", list: [] }, w.notif), words: w.words }; changed(); };
+const seenW = () => { const w = (edit && edit.watch) || {}; return { notif: w.notif || {}, words: w.words || [], cam: !!w.cam }; };
+const seenSet = (fn) => { const w = seenW(); fn(w); edit.watch = { notif: Object.assign({ on: false, kw: false, apps: "all", list: [] }, w.notif), words: w.words, cam: w.cam }; changed(); };
 const seenFid = () => [...crypto.getRandomValues(new Uint8Array(8))].map(x => x.toString(16).padStart(2, "0")).join("");
 const seenKey = k => "kg.seen." + (k && (k.id || k.target) || "");
 let seenFeedL = { k: null, items: [] };   // live feed of the current kid, oldest first
@@ -126,8 +126,65 @@ function seenTab(b) {
       ${w.notif.on ? `<label class="row" style="margin-top:8px"><input type="checkbox" id="f-wk" ${w.notif.kw ? "checked" : ""}><span class="sp">${t("seen.kw")}<br><span class="mute">${t("seen.kwH")}</span></span></label>
       <h3 class="mute" style="margin:12px 0 4px">${t("seen.apps")}</h3><div id="seenApps"></div>` : ""}
       <div id="seenN"></div></div>
+    <div class="card" id="seenCam"><h2>${ic("camera")} ${t("seen.ch")}</h2>
+      <label class="row"><input type="checkbox" id="f-wc" ${w.cam ? "checked" : ""}><span class="sp">${t("seen.con")}<br><span class="mute">${t("seen.ckid")}</span></span></label>
+      ${w.cam ? seenCamForm() : ""}</div>
     <div class="card" id="seenWordsCard"><h2>${ic("siren")} ${t("seen.wh")}</h2><p class="mute">${t("seen.wp")}</p><div id="seenWords"></div></div>`;
   $("#f-wn").onchange = e => { seenSet(x => { x.notif.on = e.target.checked; }); seenX.done = false; seenX.old = []; seenTab(b); };   // confirm: CONFIRM["f-wn"] (kid.js)
   if ($("#f-wk")) $("#f-wk").onchange = e => { seenSet(x => { x.notif.kw = e.target.checked; }); seenDraw(); };   // widening: CONFIRM["f-wk"]
+  $("#f-wc").onchange = e => { seenSet(x => { x.cam = e.target.checked; }); seenTab(b); };   // confirm: CONFIRM["f-wc"] (kid.js)
+  if ($("#snapGo")) $("#snapGo").onclick = snapGo;
   seenAppsDraw(); seenWordsDraw(); seenDraw();
+}
+
+// ---- Photo on request (rule watch.cam, command snap): form remembered in this browser, one photo per tap ----
+const SNAP_KEY = "kg.snap";
+function snapOpts() {
+  let o = {}; try { o = JSON.parse(localStorage.getItem(SNAP_KEY) || "{}"); } catch (e) {}
+  return { cam: o.cam === "back" ? "back" : "front", flash: ["on", "auto"].includes(o.flash) ? o.flash : "off", size: o.size === "medium" ? "medium" : "small", delay: Math.max(0, Math.min(5, o.delay | 0)) };
+}
+function snapSel(id, v, opts) { return `<label class="row"><span class="sp">${t("seen.c." + id)}</span><select id="snap-${id}" onchange="snapSave()">${opts.map(o => `<option value="${o}" ${String(v) === String(o) ? "selected" : ""}>${t("seen.c." + id + "." + o)}</option>`).join("")}</select></label>`; }
+function seenCamForm() {
+  const o = snapOpts();
+  return `<div style="margin-top:10px">${snapSel("cam", o.cam, ["front", "back"])}${snapSel("flash", o.flash, ["off", "on", "auto"])}${snapSel("size", o.size, ["small", "medium"])}${snapSel("delay", o.delay, [0, 1, 2, 3, 5])}
+    <button class="btn" id="snapGo" style="margin-top:10px">${ic("camera")} ${t("seen.cgo")}</button><div id="snapBox" class="mute" role="status" style="margin-top:8px"></div></div>`;
+}
+function snapSave() {
+  const v = id => $("#snap-" + id).value;
+  try { localStorage.setItem(SNAP_KEY, JSON.stringify({ cam: v("cam"), flash: v("flash"), size: v("size"), delay: +v("delay") })); } catch (e) {}
+}
+async function snapFetch(k, fid, relay) {
+  const end = Date.now() + 60e3;
+  for (;;) {
+    await new Promise(s => setTimeout(s, relay ? 2500 : 1200));
+    if (Date.now() > end) throw errOf("timeout");
+    if (!relay) {
+      const r = await fetch(base(k) + "/snap/" + fid, { headers: fxHdr(k) }).catch(() => { throw errOf("net"); });
+      if (r.status === 404) continue;
+      if (r.status === 409) throw errOf("snap:" + ((await r.json().catch(() => ({}))).error || "failed"));
+      if (!r.ok) throw errOf("HTTP " + r.status);
+      return URL.createObjectURL(await r.blob());
+    }
+    const f = ((await call(k, "/file?to=parent").catch(() => ({}))).files || []).find(x => x.fid === fid && x.done);
+    if (!f) continue;
+    const r = await fetch(base(k) + `/file?fid=${fid}&i=0`, { headers: fxHdr(k) }).catch(() => { throw errOf("net"); });
+    if (!r.ok) throw errOf("HTTP " + r.status);
+    const buf = await r.arrayBuffer();
+    fetch(base(k) + "/file?fid=" + fid, { method: "DELETE", headers: fxHdr(k) }).catch(() => {});
+    if (new Uint8Array(buf)[0] !== 0xFF) { let m = "failed"; try { m = JSON.parse(new TextDecoder().decode(buf)).error || m; } catch (e) {} throw errOf("snap:" + m); }
+    return URL.createObjectURL(new Blob([buf], { type: "image/jpeg" }));
+  }
+}
+async function snapGo() {
+  const k = cur, box = $("#snapBox"), btn = $("#snapGo"); if (!k || !box || btn.disabled) return;
+  snapSave(); btn.disabled = true;
+  const o = snapOpts(), fid = seenFid(), relay = fxRelay(k);
+  box.textContent = t(relay ? "seen.cwaitR" : "seen.cwait");
+  try {
+    const r = await call(k, "/cmd", "POST", Object.assign({ type: "snap", fid, relay }, o));
+    if (r && r.result && !["ok", "queued"].includes(r.result)) throw errOf("snap:" + r.result);
+    const u = await snapFetch(k, fid, relay);
+    box.innerHTML = `<img src="${u}" alt="${esc(t("seen.ch"))}" style="max-width:100%;max-height:60vh;border-radius:12px">`;
+  } catch (e) { box.textContent = /^snap:/.test(e.raw || "") ? tc("seen.cerr.", e.raw.slice(5).replace(/ /g, "_"), "") || t("seen.cerr.failed") : e.message || t("fx.e.failed"); }
+  btn.disabled = false;
 }

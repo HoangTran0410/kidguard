@@ -33,10 +33,16 @@ object Shot {
     /** The camera can be used: permission held (Device Owner grants it; basic mode asks) and a front camera exists. */
     fun can(c: Context) = c.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED && front(c) != null
 
-    private fun front(c: Context): String? = runCatching {
+    private fun front(c: Context): String? = facing(c, CameraCharacteristics.LENS_FACING_FRONT)
+
+    private fun facing(c: Context, lens: Int): String? = runCatching {
         val m = c.getSystemService(CameraManager::class.java)
-        m.cameraIdList.firstOrNull { m.getCameraCharacteristics(it).get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT }
+        m.cameraIdList.firstOrNull { m.getCameraCharacteristics(it).get(CameraCharacteristics.LENS_FACING) == lens }
     }.getOrNull()
+
+    /** The camera [back] (else front) exists and the permission is held. */
+    fun canUse(c: Context, back: Boolean) = c.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED &&
+        facing(c, if (back) CameraCharacteristics.LENS_FACING_BACK else CameraCharacteristics.LENS_FACING_FRONT) != null
 
     fun file(c: Context, id: String): File? = if (FilesLogic.isId(id)) File(dir(c), "$id.jpg").takeIf { it.isFile } else null
 
@@ -46,7 +52,7 @@ object Shot {
     }
 
     /** Release: no photo stays behind. */
-    fun clear(c: Context) { dir(c).listFiles()?.forEach { it.delete() } }
+    fun clear(c: Context) { dir(c).listFiles()?.forEach { it.delete() }; RemoteSnap.clear(c) }
 
     /** Relay command shotUp {shot}: put that photo on the relay for the parent (one chunk, < 1 MiB). */
     fun command(c: Context, o: JSONObject): String {
@@ -61,9 +67,19 @@ object Shot {
      * with its id on the camera thread. Does nothing without permission / camera or while another shot runs.
      */
     @SuppressLint("MissingPermission")
-    fun take(c: Context, done: (String) -> Unit) {
+    fun take(c: Context, done: (String) -> Unit) = take(c, SnapOpts.PIN, null, { id, ok -> if (ok) done(id) })
+
+    /**
+     * Remote snapshot (Snap.kt): [o] = camera / size / flash. [torch] = switch the back camera's torch on for the frames.
+     * [saveTo] = directory to save in (default: the wrong-PIN folder). [done] gets (file id, ok); on any failure ok is false and the
+     * id is "". Always calls [done] exactly once when it started; returns false without calling it when it could not start.
+     */
+    @SuppressLint("MissingPermission")
+    fun take(c: Context, o: SnapOpts, saveTo: File?, done: (String, Boolean) -> Unit, torch: Boolean = false): Boolean {
         val ctx = c.applicationContext
-        if (!can(ctx) || !busy.compareAndSet(false, true)) return
+        if (!canUse(ctx, o.back) || !busy.compareAndSet(false, true)) return false
+        var reported = false
+        fun report(id: String, ok: Boolean) { if (reported) return; reported = true; runCatching { done(id, ok) }.onFailure { Log.w(TAG, "shot done", it) } }
         val th = HandlerThread("shot").apply { start() }
         val h = Handler(th.looper)
         var cam: CameraDevice? = null; var reader: ImageReader? = null; var frames = 0; var finished = false
@@ -71,14 +87,16 @@ object Shot {
             if (finished) return; finished = true
             runCatching { cam?.close() }; runCatching { reader?.close() }
             th.quitSafely(); busy.set(false)
+            report("", false)   // no-op when a photo was already reported
         }
         try {
             val m = ctx.getSystemService(CameraManager::class.java)
-            val id = front(ctx) ?: return end()
+            val id = facing(ctx, if (o.back) CameraCharacteristics.LENS_FACING_BACK else CameraCharacteristics.LENS_FACING_FRONT) ?: run { end(); return true }
             val ch = m.getCameraCharacteristics(id)
-            val sizes = ch.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)?.getOutputSizes(ImageFormat.JPEG) ?: return end()
-            val size = ShotLogic.pick(sizes.map { it.width to it.height }) ?: return end()
+            val sizes = ch.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)?.getOutputSizes(ImageFormat.JPEG) ?: run { end(); return true }
+            val size = ShotLogic.pick(sizes.map { it.width to it.height }, o.maxSide()) ?: run { end(); return true }
             val orient = ch.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 270
+            val hasFlash = ch.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
             val r = ImageReader.newInstance(size.first, size.second, ImageFormat.JPEG, 2).also { reader = it }
             h.postDelayed({ if (!finished) { Log.w(TAG, "shot: timeout"); end() } }, 10_000)
             r.setOnImageAvailableListener({ rd ->
@@ -88,10 +106,10 @@ object Shot {
                     val buf = img.planes[0].buffer
                     val bytes = ByteArray(buf.remaining()).also { buf.get(it) }
                     val sid = Store.randomHex(8)
-                    File(dir(ctx), "$sid.jpg").writeBytes(bytes)
-                    prune(ctx)
+                    File(saveTo ?: dir(ctx), "$sid.jpg").writeBytes(bytes)
+                    if (saveTo == null) prune(ctx)
+                    report(sid, true)
                     end()
-                    runCatching { done(sid) }.onFailure { Log.w(TAG, "shot done", it) }
                 } catch (e: Exception) { Log.w(TAG, "shot save", e); end() } finally { img.close() }
             }, h)
             m.openCamera(id, object : CameraDevice.StateCallback() {
@@ -110,7 +128,11 @@ object Shot {
                                     addTarget(r.surface)
                                     set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO)
                                     set(CaptureRequest.JPEG_ORIENTATION, orient)   // phone held upright while typing the PIN
-                                    set(CaptureRequest.JPEG_QUALITY, 75.toByte())
+                                    set(CaptureRequest.JPEG_QUALITY, o.quality().toByte())
+                                    if (torch && hasFlash) {
+                                        set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                                        set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
+                                    }
                                 }
                                 s.setRepeatingRequest(q.build(), null, h)
                             }.onFailure { Log.w(TAG, "shot request", it); end() }
@@ -123,6 +145,7 @@ object Shot {
                 override fun onError(d: CameraDevice, e: Int) { Log.w(TAG, "shot camera error $e"); cam = d; end() }
             }, h)
         } catch (e: Exception) { Log.w(TAG, "shot", e); end() }
+        return true
     }
 }
 
@@ -137,6 +160,6 @@ object ShotLogic {
     fun due(on: Boolean, run: Int, lastShot: Long, now: Long) = on && run >= 3 && run % 3 == 0 && now - lastShot >= GAP_MS
 
     /** Biggest JPEG size with the long side <= 960 px (a face, ~60-150 KB), else the smallest one. */
-    fun pick(sizes: List<Pair<Int, Int>>): Pair<Int, Int>? =
-        sizes.filter { maxOf(it.first, it.second) <= 960 }.maxByOrNull { it.first * it.second } ?: sizes.minByOrNull { it.first * it.second }
+    fun pick(sizes: List<Pair<Int, Int>>, maxSide: Int = 960): Pair<Int, Int>? =
+        sizes.filter { maxOf(it.first, it.second) <= maxSide }.maxByOrNull { it.first * it.second } ?: sizes.minByOrNull { it.first * it.second }
 }

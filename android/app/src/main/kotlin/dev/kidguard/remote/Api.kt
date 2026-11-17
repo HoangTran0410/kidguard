@@ -87,6 +87,11 @@ class Api(private val g: Guard) {
             p == "/files" || p.startsWith("/files/") -> Files.api(g, r, p.removePrefix("/files"))   // shared folder only, Files.kt
             p.startsWith("/shot/") && r.method == "GET" -> Shot.file(g, p.removePrefix("/shot/"))   // wrong-PIN photo (Shot.kt)
                 ?.let { Res(200, "image/jpeg", it.readBytes(), mapOf("Cache-Control" to "private, max-age=86400")) } ?: Res.json("""{"error":"no such photo"}""", 404)
+            p.startsWith("/snap/") && r.method == "GET" -> {   // remote photo (Snap.kt): the jpg, 409 + reason when it failed, 404 while pending
+                val fid = p.removePrefix("/snap/")
+                RemoteSnap.file(g, fid)?.let { Res(200, "image/jpeg", it.readBytes(), mapOf("Cache-Control" to "no-store")) }
+                    ?: RemoteSnap.error(g, fid)?.let { Res.json(JSONObject().put("error", it).toString(), 409) } ?: Res.json("""{"error":"pending"}""", 404)
+            }
             p == "/notifs" && r.method == "GET" -> Res.json(NotifSync.api(g, r.query).toString())   // rule watch.notif: pull a page of recent notifications
             p == "/rules" && r.method == "PUT" -> {
                 var body = JSONObject(r.text)

@@ -42,13 +42,15 @@ data class NotifWatch(
 data class WatchRule(
     val notif: NotifWatch = NotifWatch(),
     val words: List<String> = emptyList(),   // keywords: any notification / SMS with one is an alert to the parent (see KeywordLogic)
+    val cam: Boolean = false,                // the parent may take a photo on request (Snap.kt); the child is told each time
 ) {
-    fun toJson(): JSONObject = JSONObject().put("notif", notif.toJson()).put("words", JSONArray(words))
+    fun toJson(): JSONObject = JSONObject().put("notif", notif.toJson()).put("words", JSONArray(words)).put("cam", cam)
 
     /** Is the category [id] (a [Monitoring.Cat.id], same as the JSON key) switched on? */
     fun isOn(id: String): Boolean = when (id) {
         "notif" -> notif.on
         "words" -> words.isNotEmpty()
+        "cam" -> cam
         else -> false
     }
 
@@ -59,7 +61,7 @@ data class WatchRule(
         fun fromJson(o: JSONObject?): WatchRule {
             if (o == null) return WatchRule()
             val l = o.optJSONArray("words")
-            return WatchRule(NotifWatch.fromJson(o.optJSONObject("notif")), KeywordLogic.clean((0 until (l?.length() ?: 0)).map { l!!.optString(it) }))
+            return WatchRule(NotifWatch.fromJson(o.optJSONObject("notif")), KeywordLogic.clean((0 until (l?.length() ?: 0)).map { l!!.optString(it) }), o.optBoolean("cam", false))
         }
     }
 }
@@ -81,6 +83,7 @@ object Monitoring {
         Cat("notif", R.string.watch_notif_title, R.string.watch_notif_kid, R.string.watch_notif_sees,
             R.string.watch_notif_kw_title, R.string.watch_notif_kw_kid, R.string.watch_notif_kw_sees),
         Cat("words", R.string.watch_words_title, R.string.watch_words_kid, R.string.watch_words_sees),
+        Cat("cam", R.string.watch_cam_title, R.string.watch_cam_kid, R.string.watch_cam_sees),
     )
 
     fun byId(id: String): Cat? = ALL.firstOrNull { it.id == id }

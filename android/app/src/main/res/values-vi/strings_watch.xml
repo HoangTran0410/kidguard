@@ -22,4 +22,11 @@
     <string name="watch_words_kid">Bố mẹ nhận cảnh báo khi thông báo hoặc tin nhắn có từ khoá họ đã chọn.</string>
     <string name="watch_words_sees">Một cảnh báo có tên app và đoạn ngắn của tin nhắn quanh từ khoá.</string>
     <string name="ev_word">%1$s, từ khoá "%3$s": %2$s</string>
+    <string name="watch_cam_title">chụp ảnh theo yêu cầu</string>
+    <string name="watch_cam_kid">Bố mẹ có thể chụp ảnh bằng camera máy bạn, trước hoặc sau. Mỗi lần bạn đều nhận thông báo, và màn hình có thể sáng trắng.</string>
+    <string name="watch_cam_sees">Một ảnh nhỏ mỗi lần họ yêu cầu. Ảnh bị xoá khỏi máy này sau 30 phút.</string>
+    <string name="snap_notice_title">Bố mẹ đang chụp ảnh</string>
+    <string name="snap_notice_front">Bằng camera trước, ngay bây giờ.</string>
+    <string name="snap_notice_back">Bằng camera sau, ngay bây giờ.</string>
+    <string name="log_watch_snap">Bố mẹ vừa chụp ảnh bằng camera của bạn</string>
 </resources>

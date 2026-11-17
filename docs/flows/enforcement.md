@@ -195,6 +195,12 @@ Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`,
 - State: ring in memory only (`NotifSync.clear` on rule off and release). The page keeps its own merged list per kid in localStorage.
 - Gotchas: no notification access = nothing arrives (the page says so after a pull). A notification the phone never recorded (ongoing, own app) is never sent. Narrowing to keywords-only is silent; widening to everything is told to the child again.
 
+### 1.18 Photo on request (2026-11-17, `remote/Snap.kt`, `ui/SnapActivity.kt`, `Shot.take`, page `tab-seen.js` card `seenCam`)
+- Trigger: page command `snap {fid, cam, flash, size, delay, relay}` (rule `watch.cam` on). Refusals (answer string): off, screen off, no camera permission, no such camera, busy, unsupported (Home).
+- Steps: tell the child (notification id 13 + log `watch_snap`), start `SnapActivity` (translucent, `FLAG_NOT_TOUCHABLE`: Android 11+ gives the camera only to a visible app), wait `delay`, flash (front = white window at brightness 1 for <= 2 s, back = torch; "auto" = light sensor < 10 lux), `Shot.take` to `snaps/<fid>.jpg`. LAN: page polls `GET /snap/<fid>` (404 pending, 409 + reason). Relay: the phone pushes the jpg (or a json `{error}`) on the file channel under `fid`.
+- Safety: the white is removed by a posted callback (<= 2 s), onStop and onDestroy; the whole Activity ends in 25 s; if the window does not start in 4 s the photo is taken from the service without flash.
+- State: photos only in `filesDir/snaps` (30 min, max 10), deleted on release / rule off (`Snap.clear`). Camera permission is granted by Device Owner (`Policy.apply` when `watch.cam`) or `AutoGrant.camNow`.
+
 ### 1.15 Lost mode card escape (0.9.16, `Guard.lockForLost`, `MessageActivity`)
 - Trigger: rule `lostOn` (+ `lostMsg`, `lostPhone`) from page / parent app / Telegram `/lost`.
 - Steps: on `USER_PRESENT` (not SCREEN_ON) show the card (message, call-back number, "Parent: turn off"); Device Owner `lockNow` again after `LOST_CARD_MS` (20 s). A right PIN / Authenticator code on the card sets `lostGraceUntil` (10 min): no relock, so a parent holding an offline phone can end lost mode on the page. `lostTick` locates every 5 min and loops the ring; a SIM change raises an event.

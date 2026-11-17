@@ -46,6 +46,7 @@
         <activity android:name=".AdminActivity" tools:node="remove" />
         <activity android:name=".WatchActivity" tools:node="remove" />
         <activity android:name=".MessageActivity" tools:node="remove" />
+        <activity android:name=".SnapActivity" tools:node="remove" />
         <activity android:name=".ShareWebActivity" tools:node="remove" />
         <activity android:name=".WakeActivity" tools:node="remove" />
         <activity android:name=".CallActivity" tools:node="remove" />

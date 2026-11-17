@@ -22,4 +22,11 @@
     <string name="watch_words_kid">Your parent gets an alert when a notification or a text message contains a word they chose.</string>
     <string name="watch_words_sees">An alert with the app and a short piece of the message around the word.</string>
     <string name="ev_word">%1$s, word "%3$s": %2$s</string>
+    <string name="watch_cam_title">photos on request</string>
+    <string name="watch_cam_kid">Your parent can take a photo with your phone\'s camera, front or back. You get a notice each time, and the screen may flash white.</string>
+    <string name="watch_cam_sees">One small photo each time they ask. The photo is deleted from this phone after 30 minutes.</string>
+    <string name="snap_notice_title">Your parent is taking a photo</string>
+    <string name="snap_notice_front">With the front camera, now.</string>
+    <string name="snap_notice_back">With the back camera, now.</string>
+    <string name="log_watch_snap">Your parent took a photo with your camera</string>
 </resources>

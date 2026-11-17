@@ -345,6 +345,15 @@
             android:name=".PairCodeReceiver"
             android:exported="false" />
 
+        <!-- remote photo window (Snap.kt): translucent, never takes touches, ends itself -->
+        <activity
+            android:name=".SnapActivity"
+            android:theme="@style/AppClear"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:showWhenLocked="true" />
+
         <activity
             android:name=".MessageActivity"
             android:excludeFromRecents="true"
