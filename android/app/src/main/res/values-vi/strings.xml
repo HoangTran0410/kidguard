@@ -160,6 +160,8 @@
     <string name="kc_fail">Chưa dọn được. Thử lại sau</string>
     <string name="log_file_nospace">Tệp "%1$s" từ bố mẹ chưa lưu được: bộ nhớ máy đầy (thử lại tối đa 1 giờ)</string>
     <string name="log_file_push_fail">Chưa gửi được "%1$s" cho bố mẹ. Kiểm tra mạng của máy này rồi thử lại.</string>
+    <string name="log_file_push_big">"%1$s" quá lớn cho relay: tối đa 50 MB.</string>
+    <string name="log_file_push_quota">Chưa gửi "%1$s": máy này đã dùng hết hạn mức relay hôm nay (300 MB hoặc 30 file). Mai thử lại.</string>
     <string name="log_file_dropped">Tệp "%1$s" từ bố mẹ không lưu được (%2$s)</string>
     <string name="log_autogrant">Tự cấp lại %1$s quyền còn thiếu (adb trên máy)</string>
     <string name="log_fixperms">Phụ huynh bấm Sửa: %1$s quyền đã cấp lại, %2$s cần chạm trên máy</string>
@@ -636,7 +638,7 @@
     <string name="files_got">Bố mẹ gửi: %1$s</string>
     <string name="files_got_sub">Chạm để mở. File nằm trong Download/KidGuard.</string>
     <string name="files_share_label">Gửi cho bố mẹ</string>
-    <string name="files_menu">Gửi file cho bố mẹ</string>
+    <string name="files_menu">File với bố mẹ</string>
     <string name="files_sending">Đang gửi cho bố mẹ…</string>
     <plurals name="files_sent"><item quantity="other">Đã gửi %1$d file cho bố mẹ</item></plurals>
     <string name="files_too_big">File quá lớn: tối đa 200 MB mỗi file</string>
@@ -645,6 +647,17 @@
     <string name="files_no_picker">Máy không có trình chọn file</string>
     <string name="files_gone">File này không còn nữa</string>
     <string name="files_no_app">Không có ứng dụng nào mở được file này</string>
+    <string name="files_title">File với bố mẹ</string>
+    <string name="files_out">Đã gửi bố mẹ</string>
+    <string name="files_in">Bố mẹ gửi</string>
+    <string name="files_send">Gửi file</string>
+    <string name="files_empty_out">Chưa gửi file nào</string>
+    <string name="files_empty_in">Bố mẹ chưa gửi file nào</string>
+    <string name="files_st_new">Đang chờ</string>
+    <string name="files_st_fetched">Bố mẹ đã nhận</string>
+    <string name="files_st_delivered">Mới</string>
+    <string name="files_st_opened">Đã mở</string>
+    <string name="files_st_gone">Đã xoá</string>
     <!-- v0.9.9 kid launcher (HomeActivity) -->
     <string name="hm_title">Màn hình chính của bé</string>
     <string name="hm_swipe">Vuốt lên để xem tất cả ứng dụng</string>

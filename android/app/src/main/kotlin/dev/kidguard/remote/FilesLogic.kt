@@ -10,7 +10,7 @@ import org.json.JSONObject
 object FilesLogic {
     const val PULL_RETRY_MS = 10 * 60_000L   // a relay file that could not be saved is tried again this much later (it lives 1 h there)
     const val MAX_LAN = 200L * 1024 * 1024      // one LAN upload / one shared file
-    const val MAX_RELAY = 10L * 1024 * 1024     // through the worker (1 MiB chunks in the Durable Object)
+    const val MAX_RELAY = 50L * 1024 * 1024     // through the worker (1 MiB chunks in the Durable Object)
     const val CHUNK = 1024 * 1024
     const val MAX_NAME = 120                    // chars, extension kept
     const val MAX_ENTRIES = 100                 // index size; oldest dropped first

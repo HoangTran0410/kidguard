@@ -87,7 +87,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Bot Telegram (/status, /bonus, /lock, /block, /locate, /screen, /rec, file…) | ✅ | ✅ | ✅ | ✅ | ⚠️ | Cần internet trên máy con, không cần relay/LAN. /screen cần Trợ năng (Android 11+), /rec cần quyền micro, /lock cần Quản trị thiết bị |
 | Gửi lỗi cho nhà phát triển (Thêm › Gửi lỗi, cả trang quản lý trên máy) | ✅ | ✅ | ✅ | ✅ | ✅ | Máy con tự gửi tới worker `tvr-census` (cần internet). Không có trong bản KidGuard Home (không có Guard) |
 | Tự gửi crash cho nhà phát triển (lần mở app sau khi crash) | ✅ | ✅ | ✅ | ✅ | ✅ | Worker `tvr-census` `/v1/crash` (cần internet, chờ tới lần có mạng). Có cả bản KidGuard Home (`v` thêm `-home`) |
-| Gửi/nhận file | ✅ | ✅ | ✅ | ✅ | ⚠️ | LAN tới 200 MB/file; Relay tới 10 MB/file, 8 file / 32 MB, giữ 1 h |
+| Gửi/nhận file | ✅ | ✅ | ✅ | ✅ | ⚠️ | LAN tới 200 MB/file; Relay tới 50 MB/file, 8 file / 100 MB, giữ 1 h, hạn mức 300 MB + 30 file / 24 h mỗi con; màn "File với bố mẹ" trên máy con (bản kid) |
 | Khởi động lại máy | ✅ | ❌ | ❌ | ❌ | ✅ | |
 | Bật/tắt Tùy chọn nhà phát triển (`devOn`/`devOff`) | ✅ | ❌ | ✅ | ✅ | ✅ | Cần WSS. Không chạy khi bật luật "chặn gỡ lỗi" |
 | Lệnh adb từ xa (`adbShell`, Cài đặt › Lệnh adb) + mở cổng 5555 (`adbTcp`) | ✅* | ✅* | ✅* | ✅ | ✅ | *Cần adb trên máy đã ghép (Android 11+, WSS, Wi-Fi). Cần PIN mỗi lệnh. Không qua Telegram |
@@ -136,5 +136,5 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 3. **Đổi relay** (`relay`): token mới không đi qua chính relay cũ.
 4. **Ghép nối bằng mã** (`/api/pair`).
 
-Mọi thứ khác (luật, trạng thái, lệnh trong danh sách `CMDS` của worker, xem màn hình, file ≤ 10 MB) đi qua Relay được,
+Mọi thứ khác (luật, trạng thái, lệnh trong danh sách `CMDS` của worker, xem màn hình, file ≤ 50 MB) đi qua Relay được,
 chỉ chậm hơn (xem bảng 2).

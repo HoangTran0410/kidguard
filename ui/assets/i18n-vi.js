@@ -115,7 +115,7 @@ L.vi = {
   "fx.del": "Xoá", "fx.delInAsk": "Xoá \"{0}\" khỏi máy con?", "fx.delOutAsk": "Xoá \"{0}\" khỏi thư mục chung?", "fx.deleted": "Đã xoá", "fx.delQueued": "Đã gửi lệnh xoá",
   "fx.st.delivered": "Đã tới máy con", "fx.st.opened": "Con đã mở", "fx.st.gone": "Con đã xoá", "fx.st.new": "Mới", "fx.st.fetched": "Đã tải về",
   "fx.e.big": "File quá lớn: tối đa {0}", "fx.e.relayBig": "Qua relay chỉ gửi được tới {0}. File lớn hơn: chỉ gửi được khi cùng Wi-Fi.", "fx.e.bad name": "tên file không hợp lệ", "fx.e.too big": "file quá lớn",
-  "fx.e.length required": "thiếu độ dài file", "fx.e.incomplete": "bị ngắt giữa chừng", "fx.e.no space": "máy con hết chỗ trống", "fx.e.failed": "máy con không lưu được", "fx.e.relay full": "relay đang đầy, thử lại sau",
+  "fx.e.length required": "thiếu độ dài file", "fx.e.incomplete": "bị ngắt giữa chừng", "fx.e.no space": "máy con hết chỗ trống", "fx.e.failed": "máy con không lưu được", "fx.e.relay full": "relay đang đầy, thử lại sau", "fx.e.quota": "hết hạn mức gửi file qua relay hôm nay (300 MB hoặc 30 file), mai thử lại",
   "fx.e.gone": "file không còn trên máy con", "fx.e.no such file": "file không còn", "fx.e.timeout": "máy con không phản hồi (đang mất mạng?)", "fx.e.expired": "hết hạn trên relay (1 giờ)", "fx.e.net": "mất kết nối",
   cantConnect: "Không kết nối được: {0}", noState: "Máy con chưa kết nối relay lần nào", "hist.snap": "Ảnh chụp lúc {0}", "live.cached": "Mất kết nối · dữ liệu lúc {0}",
   "ov.phoneErr": "Máy con báo lỗi: {0}", "live.phoneErr": "Máy con có trả lời nhưng báo lỗi: {0}. Thử lại sau ít phút. Vẫn lỗi thì mở app KidGuard trên máy con.", "live.on": "Đang kết nối", "live.off": "Mất kết nối", "live.upd": "cập nhật {0}", scrOnApp: "màn hình bật · {0}", scrOn: "màn hình bật",

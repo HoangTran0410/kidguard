@@ -50,6 +50,7 @@
         <activity android:name=".CallActivity" tools:node="remove" />
         <activity android:name=".ProjActivity" tools:node="remove" />
         <activity android:name=".ShareInActivity" tools:node="remove" />
+        <activity android:name=".FilesActivity" tools:node="remove" />
         <receiver android:name=".LockReceiver" tools:node="remove" />
         <receiver android:name=".LockWidget" tools:node="remove" />
         <receiver android:name=".TimeWidget" tools:node="remove" />

@@ -1188,7 +1188,7 @@ Code: `Files.kt` (Android), `FilesLogic.kt` (pure: names, caps, listing JSON; `F
 - LAN `PUT /api/files/<name>?id=<fid>`: optional `id` (16 hex) lets the caller choose the entry id; ignored if malformed or already taken.
 - Names: rejected (400 `bad name`) with any `/` `\`, control char, `.` / `..` or blank; else `<>:"|?*` -> `_`, leading
   dots dropped, spaces collapsed, cut to 120 chars keeping the extension; a clash becomes `a (1).pdf`.
-- Caps: LAN 200 MB a file (413 `too big`, checked from Content-Length before reading), relay 10 MB; 507 `no space`
+- Caps: LAN 200 MB a file (413 `too big`, checked from Content-Length before reading), relay 50 MB; 507 `no space`
   when the phone would keep < 50 MB free; index 100 entries, outbox 50 files (oldest dropped).
 - parent -> kid lands in the public `Download/KidGuard/` (MediaStore.Downloads on API 29+; on 26-28 the file API
   with `WRITE_EXTERNAL_STORAGE`, `maxSdkVersion` 28, granted by the Device Owner in `Policy.apply`; basic mode without
@@ -1208,15 +1208,19 @@ Code: `Files.kt` (Android), `FilesLogic.kt` (pure: names, caps, listing JSON; `F
   removed from Download too). Both 404 for an unknown id; ids are 16 hex, names are never used to address a file.
 
 ### Relay (worker `/c/<id>/file`, Durable Object storage, free plan OK)
-- Chunks of 1 MiB (`FILE_CHUNK`), at most 10 MB a file, 8 files / 32 MB per kid, 1 h TTL (dropped on any file call or
+- Chunks of 1 MiB (`FILE_CHUNK`), at most 50 MB a file, 8 files / 100 MB stored per kid, 1 h TTL (dropped on any file call or
   sync), deleted by the receiver right after it has the file. Parent and phone share the token.
 - `POST ?fid=<16 hex>&i=<chunk>&n=<chunks>&to=kid|parent&size=<bytes>&name=<enc>` body = chunk -> `{ok, done}`
-  (400 wrong chunk length / bad file, 413 > 10 MB, 507 `relay full`). `GET ?to=kid|parent` ->
+  (400 wrong chunk length / bad file, 413 > 50 MB, 507 `relay full`, 429 `{error:"quota", retryAt}` = this kid's 24 h quota is used up). `GET ?to=kid|parent` ->
   `{"files": [{fid, name, size, n, at, done}], "max", "chunk"}`. `GET ?fid&i` -> chunk bytes. `DELETE ?fid`.
+- Quota (anti-spam, the default relay is one free account for everybody): per kid, counted when a file starts (first chunk), both
+  directions together: 300 MB and 30 files in a window of 24 h from the first counted file (`FILE_DAY_BYTES`, `FILE_DAY_N`; one DO
+  record `fq {start, bytes, n}`). Over it: `429 {error:"quota", retryAt: <ms epoch>}`. The per-IP limiter on `/c/*` (150 / 10 s) applies to
+  chunks too. The phone logs a refused push (413 / 429) in its log (the parent reads it); the page shows the quota text.
 - parent -> kid: the page uploads with a fresh `fid`; the sync reply then has `"files": N` (complete files for the kid);
   the phone fetches them (`Files.pull`, own thread), saves each like a LAN upload with id = `fid`, deletes it from the
   relay. The page shows "delivered" once state `files` has that id.
-- kid -> parent: command `fileUp {file: <id>}` (outbox files <= 10 MB, else `too big`) makes the phone upload it with
+- kid -> parent: command `fileUp {file: <id>}` (outbox files <= 50 MB, else `too big`) makes the phone upload it with
   `fid = id, to = parent`; the page polls `GET ?to=parent` until `done`, downloads the chunks, then `DELETE`s it.
   `fileDel {file: <id>}` = the LAN `DELETE` (deliver-once). Both are in the worker whitelist.
   `fileUp` / `shotUp` "ok" = the upload started (a second one for the same file while it runs is ignored); a failed
