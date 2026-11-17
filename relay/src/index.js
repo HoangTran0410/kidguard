@@ -1162,8 +1162,8 @@ export class Kid {
           method: "POST", headers: { authorization: "Bearer " + this.env.TURN_KEY_TOKEN, "content-type": "application/json" }, body: JSON.stringify({ ttl: 4 * 3600 }) });
         if (r.ok) {
           // port 53 TURN urls time out in browsers (Cloudflare's own advice: drop them)
-          const got = ((await r.json()).iceServers || []).map(x => ({ ...x, urls: [].concat(x.urls || []).filter(u => !/:53(\?|$)/.test(u)) })).filter(x => x.urls.length);
-          if (got.length) list = got;
+          const got = [].concat((await r.json()).iceServers || []).map(x => ({ ...x, urls: [].concat(x.urls || []).filter(u => !/:53(\?|$)/.test(u)) })).filter(x => x.urls.length);
+          if (got.length) list = got; else console.log("turn empty");
         } else console.log("turn", r.status);
       } catch (e) { console.log("turn", String(e)); }
     }
