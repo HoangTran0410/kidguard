@@ -59,10 +59,12 @@ Index and the rule for adding lines: `README.md`.
 - (2026-11-14) Factory reset protection (A6.8, rule `frpIds`, Device Owner + Android 11+): the API takes the numeric Google account ID, not the email. No in-app way to read it (Play Services keeps it private), so the parent pastes it (OAuth Playground + People API `people/me`, how-to under the field). Wrong ID can brick the phone after a reset: the text says so. Cleared in `Policy.release`. Not tested on a real reset.
 - 2026-11-14 Lost mode parts are optional (owner): rules `lostLock` / `lostRing` (default true); locating every 5 min is always on. Turning ring off mid-alarm stops it on the next tick.
 
+- 2026-11-17 Owner: monitoring like AirDroid Parental Control is allowed (SMS/calls, notification sync, social/YouTube/Facebook content, keyword alerts, image detection, remote camera), on condition of clear disclosure like AirDroid: kid sees what is monitored (persistent notification + list in the kid app), nothing hidden. Replaces the old "the child always knows = don't monitor content" rule. Reference repo studied: github.com/modernn/OpenWarden.
+
 ## Rejected / don't retry
 - `DevicePolicyManager.setStatusBarDisabled` for shade blocking: also sets mDisableNotificationEffects, silencing ALL notification sound/vibration/heads-up (measured API 34). Also don't use lock-task status bar flags. Use Acc quick-settings closing (11-09)
 - Generic "uiautomator dump" on the dev phone while testing accessibility: it suppresses other a11y services (Acc looks off). Use screencap (v0.7.0 notes)
-- Keystroke / keyword monitoring (FamShield does it on Windows): rejected, conflicts with "the child always knows"; see docs/research-famshield.md
+- Keystroke / keyword monitoring (FamShield does it on Windows): rejected, conflicts with "the child always knows"; see docs/research-famshield.md -> REVERSED 2026-11-17, see below
 - (2026-11-10) Rejected: hiding the foreground notification from code. A channel created at IMPORTANCE_NONE (new id, old one deleted) is raised by the system to LOW (2) as soon as the FGS posts (mUserLockedFields=0), measured on API 34 emulator + Poco API 36; WRITE_SECURE_SETTINGS / Device Owner have no per-channel block. Only the user turning the channel off hides it, and that holds across a real process kill (emulator, kill -9, service back in foreground, notification still hidden).
 
 ## Past bugs (cause -> fix -> avoid)
