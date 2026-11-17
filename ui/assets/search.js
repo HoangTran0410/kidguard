@@ -26,6 +26,9 @@ const QS = [
   ["set", "s-paired", "", "smartphone", ["paired.h", "sd.paired"]], ["set", "s-danger", "", "octagon-x", ["set.danger", "sd.danger"]],
   ["apps", "a-apps", "", "puzzle", ["as.list", "ap.appsD", "apps.search"]], ["apps", "a-clean", "", "eye-off", ["as.clean", "ap.cleanD", "clean.h"]],
   ["apps", "a-health", "", "heart-pulse", ["hl.h", "hl.sub", "hl.review", "hl.bg.h", "hl.kc"]], ["apps", "a-space", "", "hard-drive", ["clean.heavy", "ap.spaceD"]],
+  ["seen", "#seenNotif", "", "bell", ["seen.nh", "seen.p", "seen.non"]],
+  ["seen", "#seenCam", "", "camera", ["seen.ch", "seen.con"]],
+  ["seen", "#seenSms", "", "message-square", ["seen.sh", "seen.son"]],
   ["dev", "d-act", "", "zap", ["dv.act"]], ["dev", "d-bat", "", "battery-full", ["dv.bat"]], ["dev", "d-ram", "", "memory-stick", ["dv.ram"]],
   ["dev", "d-sto", "", "hard-drive", ["dv.sto"]], ["dev", "d-sys", "", "smartphone", ["dv.sys"]],
 ];

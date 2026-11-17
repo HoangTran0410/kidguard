@@ -15,7 +15,7 @@ object AiScope {
     val LOCKED = setOf(
         "pin", "pinHash", "pinSalt", "pinAt", "pinSet", "noInstall", "noDebug", "pinShot", "lockLocation", "noAirplane",
         "frpIds", "safeDns", "safeDnsPauseUntil", "noVpn", "tsKeep", "vpnPause", "accPause", "devPause", "tcpPause",
-        "autoUpdate", "showWatching", "unlockMin", "hidden", "approved", "mode",
+        "autoUpdate", "showWatching", "unlockMin", "hidden", "approved", "mode", "watch",
     )
     private val PIN_KEYS = setOf("pin", "pinHash", "pinSalt", "pinAt", "pinSet")
 

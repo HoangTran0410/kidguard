@@ -17,7 +17,7 @@ object Events {
     const val CLOCK_JUMP_MS = 2 * 60_000L
 
     /** Alert level (C7): these kinds are "important" (Telegram /quiet, parent app channels); every other kind is info. */
-    val IMPORTANT = setOf("sos", "tamper", "lost", "request")
+    val IMPORTANT = setOf("sos", "tamper", "lost", "request", "word")
     /** Events that only go to the log, never to Telegram / FCM / the parent app's notifications (noise): Tailscale drop and return. */
     val NO_PUSH = setOf("tsDown", "tsUp")
     fun important(kind: String): Boolean = kind in IMPORTANT
@@ -109,6 +109,7 @@ object Events {
         if (o.autoUpdate != n.autoUpdate) p += tr.s(if (n.autoUpdate) T.diff_autoupd else T.diff_autoupd_off)
         if (o.showWatching != n.showWatching) p += tr.s(if (n.showWatching) T.diff_watch else T.diff_watch_off)
         if (o.launcher.on != n.launcher.on) p += tr.s(if (n.launcher.on) T.diff_launcher else T.diff_launcher_off)
+        if (o.watch != n.watch) p += tr.s(T.diff_seen)
         if (o.monitor != n.monitor) p += tr.s(if (n.monitor) T.diff_monitor else T.diff_monitor_off)
         if (o.pinHash != n.pinHash) p += tr.s(T.diff_pin)
         if (p.isEmpty()) p += tr.s(T.diff_other)

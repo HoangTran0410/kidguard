@@ -71,6 +71,7 @@
     <string name="diff_other">cài đặt khác</string>
     <string name="diff_launcher">bật màn hình chính cho bé</string>
     <string name="diff_launcher_off">tắt màn hình chính cho bé</string>
+    <string name="diff_seen">những gì bố mẹ xem được trên máy này</string>
     <string name="diff_monitor">bật chế độ chỉ theo dõi (không chặn gì)</string>
     <string name="diff_monitor_off">tắt chế độ chỉ theo dõi (áp dụng luật)</string>
     <string name="warn_d1">Còn 1 phút: lưu lại việc đang làm nhé</string>

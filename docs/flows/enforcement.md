@@ -182,7 +182,32 @@ Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`,
 - Undo: `Policy.release` clears it.
 - Gotchas: the API takes the numeric id, not the email (no in-app way to read it); a wrong id can brick the phone after a reset; not testable without a reset.
 
+### 1.16 Monitoring disclosure (2026-11-17, `guard/Monitoring.kt`, `ui/WatchActivity.kt`)
+- Trigger: rule `watch.*` changes (page / parent app / relay `PUT rules` -> `Guard.setRules`).
+- Steps: `Monitoring.turnedOn(old, new)` -> one heads-up notification (`kg_watch`); `fgNotification` appends `Monitoring.line` (the lasting notification; tick `relabel` keeps it in the phone language) and opens `WatchActivity`; the main screen has a row "Bố mẹ xem được gì".
+- State: only the rule. Release: `Monitoring.release` + each feature's own undo.
+- Gotchas: the registry is the only list: add a `Cat` (and strings in both languages) before the feature, `MonitoringTest` enforces it. The lasting notification is on a low channel the child can turn off in Settings (Android lets any user hide a foreground notice); the heads-up and the screen cannot be hidden by us. Not in the Home flavor (no Guard, no parent).
+
+### 1.17 Notifications and word alerts to the parent (2026-11-17, `remote/NotifSync.kt`, `guard/KeywordLogic.kt`, page `tab-seen.js`)
+- Trigger: a notification is posted (`NotifDots` -> `NotifLog.record` -> `NotifSync.offer`), rule `watch.notif` / `watch.words`.
+- Steps: `offer` dedupes (same key + text = not new), matches `KeywordLogic.hit` (accent/case-insensitive, any text of the notification), `NotifFeedLogic.send` applies on / keywords-only / app filter, then adds to a ring (50). State builder adds `notifs` (newest 20). Older rows: `GET /api/notifs` or relay `notifPull` -> file channel. First page logs "parent looked".
+- Keyword hit: `NotifSync.alert` -> `Store.event("word", ...)` (throttled) -> FCM like any event.
+- State: ring in memory only (`NotifSync.clear` on rule off and release). The page keeps its own merged list per kid in localStorage.
+- Gotchas: no notification access = nothing arrives (the page says so after a pull). A notification the phone never recorded (ongoing, own app) is never sent. Narrowing to keywords-only is silent; widening to everything is told to the child again.
+
+### 1.18 Photo on request (2026-11-17, `remote/Snap.kt`, `ui/SnapActivity.kt`, `Shot.take`, page `tab-seen.js` card `seenCam`)
+- Trigger: page command `snap {fid, cam, flash, size, delay, relay}` (rule `watch.cam` on). Refusals (answer string): off, screen off, no camera permission, no such camera, busy, unsupported (Home).
+- Steps: tell the child (notification id 13 + log `watch_snap`), start `SnapActivity` (translucent, `FLAG_NOT_TOUCHABLE`: Android 11+ gives the camera only to a visible app), wait `delay`, flash (front = white window at brightness 1 for <= 2 s, back = torch; "auto" = light sensor < 10 lux), `Shot.take` to `snaps/<fid>.jpg`. LAN: page polls `GET /snap/<fid>` (404 pending, 409 + reason). Relay: the phone pushes the jpg (or a json `{error}`) on the file channel under `fid`.
+- Safety: the white is removed by a posted callback (<= 2 s), onStop and onDestroy; the whole Activity ends in 25 s; if the window does not start in 4 s the photo is taken from the service without flash.
+- State: photos only in `filesDir/snaps` (30 min, max 10), deleted on release / rule off (`Snap.clear`). Camera permission is granted by Device Owner (`Policy.apply` when `watch.cam`) or `AutoGrant.camNow`.
+
 ### 1.15 Lost mode card escape (0.9.16, `Guard.lockForLost`, `MessageActivity`)
 - Trigger: rule `lostOn` (+ `lostMsg`, `lostPhone`) from page / parent app / Telegram `/lost`.
 - Steps: on `USER_PRESENT` (not SCREEN_ON) show the card (message, call-back number, "Parent: turn off"); Device Owner `lockNow` again after `LOST_CARD_MS` (20 s). A right PIN / Authenticator code on the card sets `lostGraceUntil` (10 min): no relock, so a parent holding an offline phone can end lost mode on the page. `lostTick` locates every 5 min and loops the ring; a SIM change raises an event.
 - Gotchas: Basic mode shows the card only (no `lockNow`); `lostOn` wins over `monitor` in `nowWhy`.
+
+### 1.19 Text messages for the parent (2026-11-17, `remote/Sms.kt`, page `tab-seen.js` card `seenSms`)
+- Trigger: rule `watch.sms` on (page switch, confirmed: the child is told). Policy grants READ_SMS (Device Owner) / our adb (basic, every 10 min at most); release takes it back.
+- Steps: the page loads a page on demand (LAN `/sms`, relay `smsPull` + file channel); `Sms.tick` on each Guard tick turns a new incoming SMS with a `watch.words` word into the `word` event (`NotifSync.alert`).
+- Gotchas: no permission = the page says so; the Notifications card still shows SMS notification text. Chat apps are not SMS. Call audio is not recorded (out of scope).
+

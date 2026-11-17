@@ -6,7 +6,7 @@
 // that route (404) falls back to what the state carries (last 50 each) kept per kid in localStorage (90 days / 1500 each).
 const LG_PAGE = 30, LG_KEEP = 1500, LG_DAYS = 90;
 const LG_CAT = { alert: ["pin_wrong", "usage_off", "totp_off", "release_fail", "released", "sos", "acc_settings", "proj_denied", "listen_err", "dns_fallback"],
-  parent: ["cmd", "rules", "control", "view_start", "listen_start", "listen_done", "ring_stopped", "checkin", "admin_open", "dev_off", "dev_on", "cleared", "totp_on", "paired", "unlock"],
+  parent: ["cmd", "rules", "control", "view_start", "listen_start", "listen_done", "ring_stopped", "checkin", "watch_read", "admin_open", "dev_off", "dev_on", "cleared", "totp_on", "paired", "unlock"],
   apps: ["new_app", "suspended", "unsuspended", "recover_open", "recover_req", "acc_rebind", "acc_reenabled", "acc_paused", "acc_resumed"],
   loc: ["loc_fixed", "zone", "tz"] };
 const lgCat = l => { const k = l.k || ""; for (const c in LG_CAT) if (LG_CAT[c].indexOf(k) >= 0) return c; return /^setting_/.test(k) ? "parent" : "other"; };

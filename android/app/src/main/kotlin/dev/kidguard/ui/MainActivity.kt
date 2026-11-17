@@ -169,7 +169,10 @@ class MainActivity : Activity() {
         // no PIN on purpose (owner 2026-11-11: a parent who forgot the PIN must still reach the developer); replies stay on the parent page
         supportBtn = u.listRow(getString(R.string.main_support), R.drawable.li_message_circle) { sheet.dismiss(); askSupport() }
         parentG.addView(supportBtn)
-        col.addView(u.cardBox(4).apply { addView(u.listRow(getString(R.string.main_my_rules), R.drawable.li_shield) { showMyRules() }) },
+        col.addView(u.cardBox(4).apply {
+            addView(u.listRow(getString(R.string.main_my_rules), R.drawable.li_shield) { showMyRules() })
+            addView(u.listRow(getString(R.string.main_watch), R.drawable.li_eye) { startActivity(Intent(this@MainActivity, WatchActivity::class.java)) })
+        },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         kidG.addView(u.listRow(getString(R.string.main_log), R.drawable.li_scroll_text) { sheet.dismiss(); showLog() })
         // shared folder (Files.kt): system picker -> outbox, the parent page lists it under "File con gửi"

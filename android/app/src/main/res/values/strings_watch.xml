@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Monitoring registry (guard/Monitoring.kt): one title / kid text / parent sees per category -->
+    <string name="ch_watch">What your parent can see</string>
+    <string name="watch_line">Your parent can see: %1$s</string>
+    <string name="watch_on_title">Your parent turned on: %1$s</string>
+    <string name="watch_on_text">Tap to see what they can see.</string>
+    <string name="main_watch">What your parent can see</string>
+    <string name="watch_screen_title">What your parent can see</string>
+    <string name="watch_intro">Your parent set KidGuard up on this phone. This list is everything they can read. It always shows what is on.</string>
+    <string name="watch_none">Nothing right now. Your parent can only manage screen time, apps and location.</string>
+    <string name="log_watch_notif">Your parent looked at your notifications</string>
+    <string name="watch_on">On</string>
+    <string name="watch_never">Never seen: your passwords, what you type, call audio, anything not listed above.</string>
+    <string name="watch_notif_title">notifications</string>
+    <string name="watch_notif_kid">Your parent sees every notification you get (the app, the title and the text), as it arrives.</string>
+    <string name="watch_notif_sees">App, title, text and time of every notification (not ongoing ones such as music), as it arrives, and older ones when they ask.</string>
+    <string name="watch_notif_kw_title">notifications with your parent\'s words</string>
+    <string name="watch_notif_kw_kid">Your parent gets the notifications that contain words they chose (the app, the title and the text).</string>
+    <string name="watch_notif_kw_sees">Only notifications with one of their words: app, title, text and time. Sent when they arrive.</string>
+    <string name="watch_words_title">word alerts</string>
+    <string name="watch_words_kid">Your parent gets an alert when a notification or a text message contains a word they chose.</string>
+    <string name="watch_words_sees">An alert with the app and a short piece of the message around the word.</string>
+    <string name="ev_word">%1$s, word "%3$s": %2$s</string>
+    <string name="watch_cam_title">photos on request</string>
+    <string name="watch_cam_kid">Your parent can take a photo with your phone\'s camera, front or back. You get a notice each time, and the screen may flash white.</string>
+    <string name="watch_cam_sees">One small photo each time they ask. The photo is deleted from this phone after 30 minutes.</string>
+    <string name="snap_notice_title">Your parent is taking a photo</string>
+    <string name="snap_notice_front">With the front camera, now.</string>
+    <string name="snap_notice_back">With the back camera, now.</string>
+    <string name="log_watch_snap">Your parent took a photo with your camera</string>
+    <string name="watch_sms_title">text messages</string>
+    <string name="watch_sms_kid">Your parent can read your text messages (SMS), and gets an alert when one has a word they chose.</string>
+    <string name="watch_sms_sees">Your SMS: who, when and the text, received and sent. Not messages from chat apps.</string>
+    <string name="log_watch_sms">Your parent looked at your text messages</string>
+    <string name="sms_app">SMS</string>
+</resources>

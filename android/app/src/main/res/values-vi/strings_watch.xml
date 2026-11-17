@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Monitoring registry (guard/Monitoring.kt): one title / kid text / parent sees per category -->
+    <string name="ch_watch">Bố mẹ xem được gì</string>
+    <string name="watch_line">Bố mẹ xem được: %1$s</string>
+    <string name="watch_on_title">Bố mẹ vừa bật: %1$s</string>
+    <string name="watch_on_text">Chạm để xem bố mẹ thấy gì.</string>
+    <string name="main_watch">Bố mẹ xem được gì</string>
+    <string name="watch_screen_title">Bố mẹ xem được gì</string>
+    <string name="watch_intro">Bố mẹ cài KidGuard trên máy này. Danh sách này là mọi thứ bố mẹ đọc được. Mục nào đang bật luôn hiện ở đây.</string>
+    <string name="watch_none">Hiện chưa có gì. Bố mẹ chỉ quản lý giờ dùng máy, ứng dụng và vị trí.</string>
+    <string name="log_watch_notif">Bố mẹ vừa xem thông báo của bạn</string>
+    <string name="watch_on">Đang bật</string>
+    <string name="watch_never">Bố mẹ không thấy: mật khẩu, thứ bạn gõ, tiếng cuộc gọi, mọi thứ không có trong danh sách trên.</string>
+    <string name="watch_notif_title">thông báo</string>
+    <string name="watch_notif_kid">Bố mẹ thấy mọi thông báo máy nhận (app nào, tiêu đề và nội dung), ngay khi nó đến.</string>
+    <string name="watch_notif_sees">App, tiêu đề, nội dung và giờ của mọi thông báo (trừ loại đang chạy như nhạc), ngay khi đến, và cũ hơn khi họ yêu cầu.</string>
+    <string name="watch_notif_kw_title">thông báo có từ khoá của bố mẹ</string>
+    <string name="watch_notif_kw_kid">Bố mẹ nhận được những thông báo có từ khoá họ đã chọn (tên app, tiêu đề và nội dung).</string>
+    <string name="watch_notif_kw_sees">Chỉ thông báo có một từ khoá của họ: app, tiêu đề, nội dung và giờ. Gửi ngay khi thông báo đến.</string>
+    <string name="watch_words_title">cảnh báo từ khoá</string>
+    <string name="watch_words_kid">Bố mẹ nhận cảnh báo khi thông báo hoặc tin nhắn có từ khoá họ đã chọn.</string>
+    <string name="watch_words_sees">Một cảnh báo có tên app và đoạn ngắn của tin nhắn quanh từ khoá.</string>
+    <string name="ev_word">%1$s, từ khoá "%3$s": %2$s</string>
+    <string name="watch_cam_title">chụp ảnh theo yêu cầu</string>
+    <string name="watch_cam_kid">Bố mẹ có thể chụp ảnh bằng camera máy bạn, trước hoặc sau. Mỗi lần bạn đều nhận thông báo, và màn hình có thể sáng trắng.</string>
+    <string name="watch_cam_sees">Một ảnh nhỏ mỗi lần họ yêu cầu. Ảnh bị xoá khỏi máy này sau 30 phút.</string>
+    <string name="snap_notice_title">Bố mẹ đang chụp ảnh</string>
+    <string name="snap_notice_front">Bằng camera trước, ngay bây giờ.</string>
+    <string name="snap_notice_back">Bằng camera sau, ngay bây giờ.</string>
+    <string name="log_watch_snap">Bố mẹ vừa chụp ảnh bằng camera của bạn</string>
+    <string name="watch_sms_title">tin nhắn SMS</string>
+    <string name="watch_sms_kid">Bố mẹ có thể đọc tin nhắn SMS của bạn, và nhận cảnh báo khi tin có từ họ chọn.</string>
+    <string name="watch_sms_sees">SMS của bạn: ai, lúc nào và nội dung, cả tin nhận và tin gửi. Không gồm tin của app chat.</string>
+    <string name="log_watch_sms">Bố mẹ vừa xem tin nhắn SMS của bạn</string>
+    <string name="sms_app">SMS</string>
+</resources>

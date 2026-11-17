@@ -1,9 +1,9 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // ---- shell: one NAV list feeds the desktop sidebar and the phone bottom bar ("Thêm" holds the rest) ----
-const NAV = [["home", "house"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["screen", "smartphone"], ["dev", "cpu"], ["files", "folder-open"], ["log", "notebook-pen"], ["rep", "chart-column"], ["hist", "history"], ["set", "settings"], ["sup", "message-square"]];
+const NAV = [["home", "house"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["screen", "smartphone"], ["dev", "cpu"], ["files", "folder-open"], ["seen", "eye"], ["log", "notebook-pen"], ["rep", "chart-column"], ["hist", "history"], ["set", "settings"], ["sup", "message-square"]];
 const BNAV = [["home", "house"], ["apps", "puzzle"], ["rules", "ruler"], ["where", "map-pin"], ["more", "ellipsis"]];
-const MORE_TABS = new Set(["more", "screen", "dev", "files", "log", "rep", "hist", "set", "sup"]);
-const navOk = id => !(viewDay && (id === "screen" || id === "dev" || id === "files")) && (id !== "hist" || APP);
+const MORE_TABS = new Set(["more", "screen", "dev", "files", "seen", "log", "rep", "hist", "set", "sup"]);
+const navOk = id => !(viewDay && (id === "screen" || id === "dev" || id === "files" || id === "seen")) && (id !== "hist" || APP);
 // the kids this page can switch between (same list the old "Danh sách" screen showed)
 const kidList = () => APP ? kids.filter(k => k.target) : kids.filter(k => k.via === (onLan() ? "lan" : "relay"));
 function kidAv(k) {
@@ -155,7 +155,7 @@ function render(tabClick) {
   if (!st) { updateLive(); body.innerHTML = `<div class="card mute">${lastErr ? dot("bad") + " " + t("cantConnect", esc(lastErr)) : noState ? ic("hourglass") + " " + t("noState") : ic("hourglass") + " " + t("loading")}${lastErr || noState ? `<p style="margin:10px 0 0"><button id="forgetGone" class="sp">${ic("eraser")} ${APP ? t("forget.app") : t("forget.web")}</button></p>` : ""}</div>`; if ($("#forgetGone")) $("#forgetGone").onclick = forgetKid; return; }
   if (!navOk(tab)) tab = "home";
   if (tab === "more" && !isWide()) tab = "set";
-  ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, dev: devTab, set: setTab, hist: histTab, files: filesTab, more: moreTab, log: logTab, rep: repTab, sup: supTab })[tab](body);
+  ({ home: homeTab, screen: screenTab, apps: appsTab, rules: rulesTab, where: whereTab, dev: devTab, set: setTab, hist: histTab, files: filesTab, seen: seenTab, more: moreTab, log: logTab, rep: repTab, sup: supTab })[tab](body);
   if (viewDay && tab !== "hist") body.querySelectorAll("input,select,textarea").forEach(x => { x.disabled = true; });   // a past day is read-only: any edit would fail "viewOnly" and raise the save-failed bar
   const gn = FEAT_TAB[tab] ? gateNote(FEAT_TAB[tab]) : "";
   if (gn) {   // move the nodes (not innerHTML) so the handlers the tab just wired survive
@@ -179,7 +179,7 @@ function moreParts() {
   const li = (id, icn, sub) => navOk(id) ? navRow(`data-go="${id}"`, icn, t("tab." + id), sub) : "";
   const grp = (h, rows) => rows.join("") ? `<div class="sec">${h}</div><div class="list">${rows.join("")}</div>` : "";
   return {
-    kid: [li("screen", "smartphone", t("more.screenS")), li("dev", "cpu", t("more.devS")), li("files", "folder-open", t("more.filesS"))].join(""),
+    kid: [li("screen", "smartphone", t("more.screenS")), li("dev", "cpu", t("more.devS")), li("files", "folder-open", t("more.filesS")), li("seen", "eye", t("more.seenS"))].join(""),
     track: grp(t("sec.track"), [li("log", "notebook-pen", t("more.logS")), li("rep", "chart-column", t("more.repS")), li("hist", "history", t("hist.h"))]),
     general: `<div class="sec">${t("set.general")}</div><div class="list">${[li("sup", "message-square", t("more.supS")),
       L.length > 1 && !LOCAL ? navRow('id="moreOv"', "users", t("nav.family"), t("ovN", L.length)) : "",
