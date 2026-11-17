@@ -85,7 +85,7 @@ function updateLive() {
   if (Array.isArray(st.refused)) st.refused.slice(0, 3).forEach(f => {
     const what = (f.kinds || []).map(k => k === "acc" ? t("bk.acc") : k === "dev" ? t("bk.dev") : "VPN").join(", ");
     B.push(["warn", "landmark", t("rf.live", esc(f.label || f.pkg), what, hhmm(f.at))
-      + ` <button type="button" class="pill" data-rf="${esc(f.pkg)}">${ic("plus")} ${t("rf.add")}</button>`]);
+      + ` <button type="button" class="pill" data-rf="${esc(f.pkg)}">${ic("plus")} ${t("rf.add")}</button> <button type="button" class="pill" data-rfx="${esc(f.pkg)}">${ic("x")} ${t("rf.skip")}</button>`]);
   });
   // bank-app pauses (audit 2026-11-13): what is off, for which app, when it comes back, and "turn back on now"
   const bkApps = [...new Set([...(st.accPaused || []), ...(st.vpnPaused || []), ...(st.devPaused || [])])];

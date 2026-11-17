@@ -143,6 +143,7 @@ object RefuseHint {
         var hit = found
         if (hit.isEmpty()) return
         val s = Store.of(svc)
+        if (pkg in s.refusedIgnore) return   // the parent said "ignore" for this app
         hit = RefuseLogic.missing(hit, pkg, s.rules)
         if ("vpn" in hit && isVpnApp(svc, pkg)) hit = hit - "vpn"   // a VPN app talking about VPNs
         if (hit.isEmpty()) return

@@ -132,6 +132,7 @@ leftMs apps rules location lan relay log`), plus:
 ## Commands (`POST /api/cmd` on LAN, queued via `POST /c/<id>/cmd` on the relay)
 
 v0.1: `lock locate message{text} ring relay{url} openPairing unpairAll release`. NEW:
+- `refusedDrop {pkg}` (2026-11-17): the parent says a `state.refused` entry is a false alarm ("Bỏ qua, báo nhầm"). Phone drops it and never warns for that package again (prefs `refusedIgnore`). Result `ok` | `bad pkg`. Not destructive, not ONCE.
 - `unpair {id}`: revoke ONE paired parent device (`id` from `state.devices[].id`). Result `ok` or `no such device`.
   Destructive: the worker whitelists it and keeps it until acked (see v0.2.1 "Commands are idempotent"; in the `ONCE` list like `unpairAll`).
   The worker keeps `id` as the command id (it is 8 hex chars, so it passes the id check); do not send other ids. Revoking

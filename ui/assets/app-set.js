@@ -148,6 +148,11 @@ document.addEventListener("click", e => {
     if (r && r.result === "in use") toast(t("bk.inUse"));
     [2000, 8000].forEach(ms => setTimeout(refresh, ms));
   });
+  const rfx = e.target.closest("[data-rfx]");   // a false hit: the phone drops it and never warns for this app again
+  if (rfx && cur && st && Array.isArray(st.refused)) {
+    const pkg = rfx.dataset.rfx; rfx.disabled = true;
+    cmd({ type: "refusedDrop", pkg }).then(r => { if (r) { st.refused = st.refused.filter(x => x.pkg !== pkg); lastSig = ""; render(); } else rfx.disabled = false; });
+  }
   const rf = e.target.closest("[data-rf]");
   if (rf && cur && st && Array.isArray(st.refused)) (async () => {
     const f = st.refused.find(x => x.pkg === rf.dataset.rf), k = cur; if (!f) return;

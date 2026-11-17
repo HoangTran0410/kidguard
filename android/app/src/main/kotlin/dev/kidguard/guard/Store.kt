@@ -785,6 +785,13 @@ class Store private constructor(private val app: Context) {
     @Synchronized fun addRefused(pkg: String, label: String, kinds: Set<String>, now: Long) {
         p.edit().putString("refused", RefuseLogic.add(refusedRaw(), pkg, label, kinds, now).toString()).apply()
     }
+    /** Parent tapped "Bỏ qua" (a false hit, INCIDENT 2026-11-17 Claude): drop it and never warn for this app again. */
+    @Synchronized fun dropRefused(pkg: String) {
+        val l = refusedRaw(); val out = JSONArray()
+        for (i in 0 until l.length()) l.optJSONObject(i)?.takeIf { it.optString("pkg") != pkg }?.let { out.put(it) }
+        p.edit().putString("refused", out.toString()).putStringSet("refusedIgnore", refusedIgnore + pkg).apply()
+    }
+    @get:Synchronized val refusedIgnore: Set<String> get() = p.getStringSet("refusedIgnore", emptySet())!!.toSet()
     @Synchronized fun requests(): JSONArray = runCatching { JSONArray(p.getString("reqs", "[]")) }.getOrDefault(JSONArray())
     /** The one open request, or null. */
     @Synchronized fun openRequest(): JSONObject? = requests().optJSONObject(0)

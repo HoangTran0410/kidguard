@@ -769,6 +769,7 @@ class Guard : Service() {
         "notifPull" -> NotifSync.command(this, c)
         "chatPull" -> ChatPull.command(this, c)   // family chat: a page of older messages over the relay file channel
         // parent cleared the thread: gone on both sides, the child's log says so (the child cannot clear it)
+        "refusedDrop" -> { val pkg = c.optString("pkg"); if (pkg.isBlank()) "bad pkg" else { store.dropRefused(pkg); kick(); "ok" } }
         "chatClear" -> { store.clearChat(); store.log(R.string.log_chat_cleared); runCatching { getSystemService(android.app.NotificationManager::class.java).cancel(3) }; "ok" }
         "snap" -> RemoteSnap.command(this, c)
         "smsPull" -> Sms.command(this, c)   // rule watch.notif: a page of recent notifications over the relay file channel
