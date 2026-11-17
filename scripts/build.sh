@@ -20,6 +20,7 @@ if [ -n "${TRUSTSTORE:-}" ]; then
 fi
 # UI pack signing keys (never committed): make them once, before the build bakes their public halves into the apps
 [ -n "${CI:-}" ] || node scripts/ui-pack.mjs --init
+node scripts/check-select.mjs   # select-by-date rules of the page = SelLogic.kt
 node scripts/check-search.mjs   # every page section must be findable in the feature search
 node scripts/check-perms.mjs    # every declared permission: how Device Owner / basic+adb / basic get it (docs/permissions.md)
 node scripts/check-assets.mjs   # every ui/assets file wired in index.html + relay; i18n keys in both languages

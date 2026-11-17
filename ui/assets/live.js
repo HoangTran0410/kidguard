@@ -182,11 +182,13 @@ function earBar() {
   let e = $("#ear");
   if (!e) {
     e = document.createElement("div"); e.id = "ear"; e.setAttribute("role", "status");
-    e.innerHTML = `<span style="color:var(--warn)">${ic("ear")}</span><span id="earTxt" class="sp">${t("connecting")}</span><button id="earStop" class="bad">${ic("square")} ${t("stop")}</button><audio id="earAudio" preload="none"></audio>`;
+    e.innerHTML = `<span style="color:var(--warn)">${ic("ear")}</span><span id="earTxt" class="sp">${t("connecting")}</span><button id="earRec" type="button" class="rec2" hidden></button><button id="earStop" class="bad">${ic("square")} ${t("stop")}</button><audio id="earAudio" preload="none"></audio>`;
     document.body.appendChild(e);
     $("#earStop").onclick = () => earStop();
+    $("#earRec").onclick = () => lhToggle();
+    lhBtn();
     const au = $("#earAudio");
-    au.onplaying = () => { earT = earT || Date.now(); const w = want.listen; if (w && w.on) { delete want.listen; liveOn.listen = true; actSt[w.id] = { s: "done", t: Date.now() }; actPaint(); } };
+    au.onplaying = () => { earT = earT || Date.now(); lhPlaying(au); const w = want.listen; if (w && w.on) { delete want.listen; liveOn.listen = true; actSt[w.id] = { s: "done", t: Date.now() }; actPaint(); } };
     // the phone ends the stream itself on 10 min, a blocked mic ("mic silenced") or a stuck one: say which
     const ended = async (fail) => { if (!au.getAttribute("src")) return; earStop(); await refresh().catch(() => {}); const e0 = st && st.listen && st.listen.err, er = e0 && (e0 !== earErr0 || e0 === "no mic permission") ? e0 : "";   // a missing permission is never "old news"
       if (er || fail) toast("err|" + t("ear.fail", er ? tc("ear.", er, er) : t("e.lost"))); else toast("ok|" + t("ear.ended")); };
@@ -251,6 +253,7 @@ function earPlay(url, au) {
   }, { once: true });
 }
 function earStop(msg) {
+  lhEnd();   // hist.js: close the session row (+ the recording made in this page)
   clearInterval(earStart.i); earT = 0;
   const me = earRtc; earRtc = null;   // relay session: close WebRTC, tell the relay (the phone then stops its mic and clears the notice)
   if (me) {

@@ -339,6 +339,19 @@ ck("thumb over 200 KB refused 413",(await fetch(`${B}/c/${k}/file?fid=${f16(4000
 const cm=(o)=>fetch(`${B}/c/${k}/cmd`,{method:"POST",headers:H(),body:JSON.stringify(o)}).then(r=>r.json());
 ck("cmd chatFileDel queued",(await cm({type:"chatFileDel",id:f16(5)})).result=="queued");
 ck("cmd chatFileDel bad id 400",(await cm({type:"chatFileDel",id:"x"})).error=="bad chatFileDel");
+ck("cmd chatFileDel ids queued",(await cm({type:"chatFileDel",ids:[f16(7),f16(8)]})).result=="queued");
+ck("cmd chatFileDel ids bad 400",(await cm({type:"chatFileDel",ids:[f16(7),"x"]})).error=="bad chatFileDel");
+ck("cmd chatFileDel 201 ids 400",(await cm({type:"chatFileDel",ids:Array.from({length:201},(_,i)=>f16(100+i))})).error=="bad chatFileDel");
+ck("cmd chatDel ids queued",(await cm({type:"chatDel",ids:[f16(9)],files:true})).result=="queued");
+ck("cmd chatDel no ids 400",(await cm({type:"chatDel"})).error=="bad chatDel");
+ck("cmd snapDel ids queued",(await cm({type:"snapDel",ids:[f16(10)]})).result=="queued");
+ck("cmd snapDel empty 400",(await cm({type:"snapDel",ids:[]})).error=="bad snapDel");
+ck("cmd fileDel files queued",(await cm({type:"fileDel",files:[f16(11),f16(12)]})).result=="queued");
+ck("cmd fileDel files bad 400",(await cm({type:"fileDel",files:["zz"]})).error=="bad fileDel");
+ck("cmd snapUp thumb queued",(await cm({type:"snapUp",id:f16(13),thumb:1})).result=="queued");
+ck("cmd snapUp bad id 400",(await cm({type:"snapUp",id:"x"})).error=="bad snapUp");
+ck("cmd snapList queued",(await cm({type:"snapList",fid:f16(14),before:0,n:30})).result=="queued");
+ck("cmd snapList bad fid 400",(await cm({type:"snapList",fid:"x"})).error=="bad snapList");
 ck("cmd fileUp thumb queued",(await cm({type:"fileUp",file:f16(6),thumb:1})).result=="queued");}
 // icons: a full list (400) drops the icons of apps that are no longer in the phone's state
 const ic=Buffer.from("RIFF0000WEBPVP8 ").toString("base64"),IP=o=>fetch(`${B}/c/${id5}/icons`,{method:"POST",headers:H(),body:JSON.stringify(o)}).then(r=>r.json());

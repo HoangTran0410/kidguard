@@ -519,3 +519,20 @@ input[type=range]:disabled{opacity:.45;cursor:default}
 .gt{width:auto;height:auto;aspect-ratio:1}.gt i{position:absolute;left:4px;bottom:4px;font-style:normal;font-size:11px;padding:1px 6px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff}
 .glist{display:flex;flex-direction:column;gap:4px;margin:8px 0}.glist .cfile{border-bottom:1px solid var(--line);padding:6px 0}
 .avbox{text-align:center;margin:0 0 12px;min-height:60px;display:grid;place-items:center}.avbox img,.avbox video{max-width:100%;max-height:55vh;border-radius:12px}.avbox audio{width:100%}
+/* select mode (select.js): check on the element, day rows with a check, bar pinned to the bottom of the sheet / page */
+.selmode [data-sid]{position:relative;cursor:pointer}
+.selmode [data-sid]::after{content:"";position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;border:2px solid #fff;background:rgba(0,0,0,.4);box-sizing:border-box;pointer-events:none}
+.selmode [data-sid].selon{outline:3px solid var(--accent);outline-offset:-3px}
+.selmode [data-sid].selon::after{content:"\2713";background:var(--accent);color:#fff;font-size:14px;line-height:18px;text-align:center;font-weight:700}
+.selmode .cb[data-sid]{padding-left:34px}.selmode .fxrow[data-sid]{padding-left:34px}.selmode .fxrow[data-sid]::after{top:50%;margin-top:-11px;left:4px}
+.seldy{display:flex;gap:8px;align-items:center;margin:14px 0 4px;min-height:32px;grid-column:1/-1}.seldy input{width:20px;height:20px;flex:none}
+.selbar{position:sticky;bottom:0;z-index:2;margin:12px -20px -20px;padding:10px 20px calc(10px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.selrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.selrow .sp{flex:1 1 auto;min-width:0}.selrow select,.selrow input{min-height:44px}.selrow label{display:flex;gap:6px;align-items:center;flex:1}
+.selrow .bad:disabled{opacity:.4}.selgo{min-height:40px;padding:0 12px}
+@media(min-width:960px){.selbar{margin:12px -24px -24px;padding:10px 24px}}
+.selpg{position:sticky;bottom:8px;z-index:2}.selpg .selbar{position:static;margin:8px 0 0;border:1px solid var(--line);border-radius:14px;padding:10px}
+.snapbad{display:grid;place-items:center;color:var(--sub)}.snapw{display:flex;flex-direction:column;gap:4px;align-items:center;font-size:11px;padding:4px;text-align:center}.snapw .si{width:24px;height:24px}
+#ear .rec2{display:inline-flex;gap:5px;align-items:center;min-height:36px;padding:0 10px;border-radius:18px}#ear .rec2.on{color:var(--danger);border-color:var(--danger)}
+.selmode .cfile[data-sid]{padding-left:34px}.selmode .cfile[data-sid]::after{top:50%;margin-top:-11px;left:4px}
+.selpg{bottom:calc(88px + env(safe-area-inset-bottom))}@media(min-width:960px){.selpg{bottom:12px}}
+.selrow select{flex:1 1 140px}

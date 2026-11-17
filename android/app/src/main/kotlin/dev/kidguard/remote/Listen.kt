@@ -35,6 +35,7 @@ object Listen {
 
     /** [mic]: KidGuard holds RECORD_AUDIO (Device Owner grants it; basic mode needs the user to allow it in Settings). */
     fun state(ctx: android.content.Context): org.json.JSONObject = org.json.JSONObject().put("on", active).put("since", since).put("err", lastError)
+        .put("hist", ListenLogic.histTail(Store.of(ctx).listenHist()))   // finished sessions, newest first: the page's "Lịch sử nghe" (the recording itself lives on the parent device only)
         .put("mic", ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
 
     class Session(private val g: Guard, private val rec: MediaRecorder, private val read: ParcelFileDescriptor, private val write: ParcelFileDescriptor) {
@@ -89,7 +90,7 @@ object Listen {
             val min = (ms + 30_000) / 60_000
             val took = if (min < 1) g.getString(R.string.under_1_min) else g.resources.getQuantityString(R.plurals.listen_about, min.toInt(), min.toInt())
             val mine = synchronized(Listen) { (current === this).also { if (it) { since = 0L; current = null; if (why.isNotEmpty()) lastError = why } } }
-            runCatching { Store.of(g).lastListen = longArrayOf(started, ms) }
+            runCatching { Store.of(g).lastListen = longArrayOf(started, ms); Store.of(g).addListenHist(started, ms, "lan") }
             if (mine) {
                 g.micForeground(false)
                 g.getSystemService(NotificationManager::class.java)?.cancel(NID)
@@ -174,7 +175,7 @@ object Listen {
         val took = if (min < 1) ctx.getString(R.string.under_1_min) else ctx.resources.getQuantityString(R.plurals.listen_about, min.toInt(), min.toInt())
         g?.micForeground(false)
         ctx.getSystemService(NotificationManager::class.java)?.cancel(NID)
-        runCatching { Store.of(ctx).lastListen = longArrayOf(started, ms) }
+        runCatching { Store.of(ctx).lastListen = longArrayOf(started, ms); Store.of(ctx).addListenHist(started, ms, "relay") }
         if (why.isNotEmpty()) runCatching { Store.of(ctx).log(R.string.log_listen_err, why) }
         runCatching { Store.of(ctx).log(R.string.log_listen_done, java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(started)), took) }
         g?.kick()

@@ -23,6 +23,20 @@ object FilesLogic {
 
     fun isId(s: String?) = s != null && ID.matches(s)
 
+    /** Most ids one bulk command (chatFileDel / fileDel / snapDel / chatDel) may carry; the page sends bigger selections in several commands. */
+    const val MAX_IDS = 200
+
+    /**
+     * Ids of a delete command: the `ids` array (bulk) or else the single `one` field (old form), duplicates dropped, order kept.
+     * null = malformed (an id with the wrong shape, none at all, more than [MAX_IDS]).
+     */
+    fun ids(o: JSONObject, one: String = "id"): List<String>? {
+        val a = o.optJSONArray("ids")
+        val l = if (a != null) (0 until a.length()).map { a.optString(it) } else listOf(o.optString(one))
+        if (l.isEmpty() || l.size > MAX_IDS || !l.all { isId(it) }) return null
+        return l.distinct()
+    }
+
     /**
      * A file name from the parent or another app -> a safe single name, or null (rejected).
      * Rejected: any path separator, control chars, "." / "..", blank. Cleaned: reserved chars -> "_", leading dots

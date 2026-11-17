@@ -337,9 +337,13 @@ object Files {
 
     /** Relay commands: fileUp {file} = put that outbox file on the relay for the parent; fileDel {file}. */
     fun command(c: Context, t: String, o: JSONObject): String {
-        if (t == "chatFileDel") {   // one chat attachment: file + index entry go, the chat entry keeps its text with att.st = "gone"
-            val cid = o.optString("id"); if (!FilesLogic.isId(cid)) return "bad id"
-            delete(c, cid); Store.of(c).chatFileGone(cid); kick(); return "ok"
+        if (t == "chatFileDel") {   // chat attachment(s) {id} | {ids:[...]}: file + index entry go, the chat entry keeps its text with att.st = "gone"
+            val ids = FilesLogic.ids(o) ?: return "bad id"
+            ids.forEach { delete(c, it) }; Store.of(c).chatFilesGone(ids.toSet()); kick(); return "ok"
+        }
+        if (t == "fileDel" && o.has("files")) {   // bulk: {files:[ids]} (the single {file} form below stays)
+            val ids = FilesLogic.ids(JSONObject().put("ids", o.optJSONArray("files") ?: org.json.JSONArray())) ?: return "bad id"
+            ids.forEach { delete(c, it) }; return "ok"
         }
         val id = o.optString("file")
         val e = get(c, id) ?: return "no such file"

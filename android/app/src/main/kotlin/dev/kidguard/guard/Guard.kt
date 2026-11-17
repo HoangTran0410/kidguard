@@ -579,6 +579,7 @@ class Guard : Service() {
             .put("sos", store.sos())
             .put("listen", Listen.state(this))
             .put("files", Files.state(this))
+            .also { j -> if (store.baseRules.watch.cam) j.put("snaps", RemoteSnap.stateJson(this)) }   // history size: the page's "Ảnh đã chụp" header
             .put("freeMb", runCatching { android.os.StatFs(android.os.Environment.getDataDirectory().path).availableBytes / 1048576 }.getOrDefault(-1L))   // chat attachments have no cap: the page warns under ~1024
             .also { j -> NotifSync.stateJson(this)?.let { j.put("notifs", it) } }
             .put("ring", Ring.state())
@@ -767,13 +768,17 @@ class Guard : Service() {
         "listenStop" -> { Listen.stopAll(); "ok" }
         "fileUp" -> Files.command(this, t, c)   // shared folder over the relay (Files.kt)
         "fileDel" -> Files.command(this, t, c)
-        "chatFileDel" -> Files.command(this, t, c)   // one chat attachment: file deleted, the entry keeps its text (att.st "gone")
+        "chatFileDel" -> Files.command(this, t, c)   // {id} or {ids:[...]}   // one chat attachment: file deleted, the entry keeps its text (att.st "gone")
         "notifPull" -> NotifSync.command(this, c)
         "chatPull" -> ChatPull.command(this, c)   // family chat: a page of older messages over the relay file channel
         // parent cleared the thread: gone on both sides, the child's log says so (the child cannot clear it)
         "refusedDrop" -> { val pkg = c.optString("pkg"); if (pkg.isBlank()) "bad pkg" else { store.dropRefused(pkg); kick(); "ok" } }
         "chatClear" -> { if (c.optBoolean("files")) Files.deleteChatFiles(this); store.clearChat(); store.log(R.string.log_chat_cleared); runCatching { getSystemService(android.app.NotificationManager::class.java).cancel(3) }; "ok" }
         "snap" -> RemoteSnap.command(this, c)
+        "snapList" -> SnapPull.command(this, c)   // photo history page over the relay file channel (LAN: GET /snaps)
+        "snapUp" -> RemoteSnap.up(this, c)        // one kept photo or its thumbnail over the relay file channel
+        "snapDel" -> { val ids = FilesLogic.ids(c); if (ids == null) "bad id" else { RemoteSnap.delete(this, ids); store.log(R.string.log_snap_del, ids.size); "ok" } }
+        "chatDel" -> ChatDel.command(this, c)     // {ids:[message ids], files?: true}: bulk delete chat messages
         "smsPull" -> Sms.command(this, c)   // rule watch.notif: a page of recent notifications over the relay file channel
         "shotUp" -> Shot.command(this, c)       // wrong-PIN photo over the relay (Shot.kt)
         "tgSet" -> Tg.command(this, t, c)   // Telegram bot on this phone (Tg.kt)
@@ -901,7 +906,7 @@ class Guard : Service() {
         work.postAtFrontOfQueue {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
-            Listen.stopAll(); Monitoring.release(this); NotifSync.clear(); RemoteSnap.clear(this); Sms.clear(this); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff(); FixPerms.release(this)
+            Listen.stopAll(); Monitoring.release(this); NotifSync.clear(); RemoteSnap.clear(this); runCatching { store.clearListenHist() }; Sms.clear(this); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff(); FixPerms.release(this)
             // C8: the parents hear of it (event -> relay + Telegram) BEFORE the tokens go; the relay creds are kept for the forget call
             val creds = Triple(store.relayUrl, store.relayId, store.relayToken)
             runCatching {

@@ -97,9 +97,11 @@ class Api(private val g: Guard) {
                 ?.let { Res(200, "image/jpeg", it.readBytes(), mapOf("Cache-Control" to "private, max-age=86400")) } ?: Res.json("""{"error":"no such photo"}""", 404)
             p.startsWith("/snap/") && r.method == "GET" -> {   // remote photo (Snap.kt): the jpg, 409 + reason when it failed, 404 while pending
                 val fid = p.removePrefix("/snap/")
+                if (r.query["thumb"] == "1") return RemoteSnap.thumb(g, fid)?.let { Res(200, "image/jpeg", it, mapOf("Cache-Control" to "private, max-age=3600")) } ?: Res.json("""{"error":"no such photo"}""", 404)
                 RemoteSnap.file(g, fid)?.let { Res(200, "image/jpeg", it.readBytes(), mapOf("Cache-Control" to "no-store")) }
                     ?: RemoteSnap.error(g, fid)?.let { Res.json(JSONObject().put("error", it).toString(), 409) } ?: Res.json("""{"error":"pending"}""", 404)
             }
+            p == "/snaps" && r.method == "GET" -> Res.json(RemoteSnap.api(g, r.query).toString())   // rule watch.cam: a page of the photo history
             p == "/sms" && r.method == "GET" -> Res.json(Sms.api(g, r.query).toString())   // rule watch.sms: a page of text messages
             p == "/chat" && r.method == "GET" -> Res.json(ChatPull.api(g, r.query).toString())   // family chat: a page of older messages
             p == "/notifs" && r.method == "GET" -> Res.json(NotifSync.api(g, r.query).toString())   // rule watch.notif: pull a page of recent notifications

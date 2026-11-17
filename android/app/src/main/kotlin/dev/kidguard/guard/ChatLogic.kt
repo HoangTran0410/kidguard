@@ -89,6 +89,31 @@ object ChatLogic {
         return if (hit) out else a
     }
 
+    /** [markGone] for several files at once (bulk delete). Same instance when nothing matches. */
+    fun markGoneAll(a: JSONArray, fileIds: Set<String>): JSONArray {
+        var hit = false
+        val out = JSONArray()
+        for (i in 0 until a.length()) {
+            val e = a.optJSONObject(i)
+            if (e?.optJSONObject("att")?.let { it.optString("id") in fileIds && it.optString("st") != "gone" } == true) {
+                hit = true; out.put(JSONObject(e.toString()).also { it.getJSONObject("att").put("st", "gone") })
+            } else out.put(a.get(i))
+        }
+        return if (hit) out else a
+    }
+
+    /** [a] without the messages [ids] (bulk "delete messages"). Same instance when nothing matches. */
+    fun remove(a: JSONArray, ids: Set<String>): JSONArray {
+        val out = JSONArray(); var hit = false
+        for (i in 0 until a.length()) { val e = a.optJSONObject(i); if (e != null && e.optString("id") in ids) hit = true else out.put(a.get(i)) }
+        return if (hit) out else a
+    }
+
+    /** File ids of the attachments of messages [ids] (what "also delete the files" removes). */
+    fun attIdsOf(a: JSONArray, ids: Set<String>): List<String> =
+        (0 until a.length()).mapNotNull { a.optJSONObject(it) }.filter { it.optString("id") in ids }
+            .mapNotNull { it.optJSONObject("att")?.optString("id")?.takeIf { x -> FilesLogic.isId(x) } }
+
     /** Short text for the event / notice of an attachment-only entry: its file name. */
     fun preview(text: String, att: JSONObject?): String = text.ifEmpty { att?.optString("name") ?: "" }
 
