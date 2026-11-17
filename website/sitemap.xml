@@ -24,4 +24,10 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/guide"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/guide"/>
   </url>
+  <url>
+    <loc>https://kid-guard.pages.dev/ai/vi/</loc>
+  </url>
+  <url>
+    <loc>https://kid-guard.pages.dev/ai/en/</loc>
+  </url>
 </urlset>

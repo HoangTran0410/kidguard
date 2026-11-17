@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Tailscale</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># Tailscale
+
+The child's phone installs Tailscale itself and joins your private network. No Cloudflare needed. Needs Device Owner (not in basic mode).
+
+1. On your phone: install the **Tailscale** app and sign in with Google / Apple / Microsoft. This also makes your free Tailscale account.
+2. Open the [Keys page](<a href="https://login.tailscale.com/admin/settings/keys">https://login.tailscale.com/admin/settings/keys</a>) → **Generate access token** → **Generate** → copy it.
+3. At home (same Wi-Fi as the child's phone), open the parent page: search `tailscale` .
+4. Paste the key into the `tskey-api-… / tskey-auth-…` box, optionally name the phone (e.g. `kid-an` ), press **Turn on** .
+5. The child's phone downloads the official Tailscale app (SHA-256 checked), installs it silently, joins your network and hides the app. About a minute.
+6. The card shows **Connected** , an address like `http://100.x.y.z:8770` and **never expires** .
+7. On your phone (with Tailscale on), open that address. Several kids: add each address with **Add kid's phone** .
+
+## Access token or auth key?
+
+- **API access token** ( `tskey-api-…` ), recommended: the child's phone makes its own one-off key and turns off Tailscale's 180-day key expiry for itself. The token is only used during setup, then dropped, never stored.
+- **Auth key** ( `tskey-auth-…` ): also works, but you turn off the expiry by hand once. Open the [Machines page](<a href="https://login.tailscale.com/admin/machines">https://login.tailscale.com/admin/machines</a>) → the child's phone row → **⋯ → Disable key expiry** . Otherwise Tailscale signs the phone out after 180 days. The parent page reminds you.
+
+## Good to know
+
+- Turning it on or changing the key only works at home. The key stays on the child's phone and never goes through the Worker.
+- The child can't turn the VPN off, change VPN settings or uninstall Tailscale. The safe-DNS filter keeps working.
+- To stop: press **Turn off and remove Tailscale** (or Remove controls). Then delete the phone on the Machines page, since an uninstalled app can't log itself out.
+</pre></html>

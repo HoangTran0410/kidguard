@@ -1,0 +1,38 @@
+<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Khi có lỗi</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># Khi có lỗi
+
+Bị Play Protect chặn (“Ứng dụng bị chặn để bảo vệ thiết bị”)?
+
+Play Protect chặn app cài từ trình duyệt hay trình quản lý file khi app dùng Trợ năng. Trên máy con: **Play Store** → ảnh đại diện → **Play Protect** → ⚙ → tắt **Quét ứng dụng bằng Play Protect**. Cài và thiết lập KidGuard, rồi bật lại. Cài bằng mã QR thì không bị chặn (máy tự tải app).
+
+Màn hình chào mừng không có chỗ chạm 6 lần?
+
+Một số giao diện hãng bỏ màn này (ví dụ Oppo / Realme ColorOS trên Android 8–9). Dùng [máy tính và cáp USB](<a href="https://kid-guard.pages.dev/guide#install-usb">https://kid-guard.pages.dev/guide#install-usb</a>).
+
+Máy dưới Android 11 không tự cài được?
+
+Cách A cần Android 11+. Dùng máy tính ([cách C](<a href="https://kid-guard.pages.dev/guide#install-usb">https://kid-guard.pages.dev/guide#install-usb</a>) hoặc [D](<a href="https://kid-guard.pages.dev/guide#install-cli">https://kid-guard.pages.dev/guide#install-cli</a>)), khôi phục gốc rồi [quét QR](<a href="https://kid-guard.pages.dev/guide#install-qr">https://kid-guard.pages.dev/guide#install-qr</a>), hoặc dùng [chế độ cơ bản](<a href="https://kid-guard.pages.dev/guide#install-basic">https://kid-guard.pages.dev/guide#install-basic</a>).
+
+Không mở được trang phụ huynh?
+
+Kiểm tra địa chỉ trên màn hình KidGuard của con (cổng mặc định 8770). Điện thoại của bạn phải cùng Wi-Fi, hoặc cùng mạng Tailscale, với máy con.
+
+Bộ lọc DNS có làm con mất Internet không?
+
+Không. Nếu máy chủ lọc bị từ chối, hoặc mạng có Internet nhưng DNS-over-TLS bị chặn 90 giây, KidGuard quay về DNS thường trong 30 phút và trang phụ huynh báo lý do.
+
+Vì sao có app hiện màn hình đen khi xem từ xa?
+
+App đánh dấu màn hình là bảo mật (ngân hàng…) luôn hiện đen.
+
+Con có tự gỡ được không?
+
+Không gỡ được từ Cài đặt. Khôi phục gốc bằng phím cứng (recovery) thì vẫn được: KidGuard mất, trang phụ huynh báo mất kết nối.
+
+Android 8–10 có hạn chế gì?
+
+Xem màn hình và điều khiển từ xa cần Android 11+. Trên Android 8–10 con có thể buộc dừng KidGuard (khởi động lại máy là chạy lại).
+
+Gặp lỗi khác hoặc có ý tưởng?
+
+Gửi tại [GitHub Issues](<a href="https://github.com/HoangTran0410/kidguard/issues">https://github.com/HoangTran0410/kidguard/issues</a>). Chi tiết kỹ thuật: [docs/protocol.md](<a href="https://github.com/HoangTran0410/kidguard/blob/main/docs/protocol.md">https://github.com/HoangTran0410/kidguard/blob/main/docs/protocol.md</a>).
+</pre></html>

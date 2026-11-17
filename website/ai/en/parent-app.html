@@ -1,0 +1,20 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Parent app (Android)</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># Parent app (Android)
+
+The browser is enough to manage everything. The parent app adds **notifications** (SOS, more-time requests, accessibility turned off, lost connection) and shows the last data when the child's phone is offline.
+
+1. [Download the parent app](<a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk">https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk</a>) and install it on your phone.
+2. Open it and tap **Add kid's phone** .
+3. At home: type the address shown on the child's KidGuard screen, then the 6-digit pairing code (hold **Bố mẹ: hiện mã ghép** for 5 s if you see none).
+4. Away from home: tap **Scan QR** and scan the code on the child phone. Only KidGuard links are accepted.
+5. The other parent: on your page search `relay` and tap **Invite another parent** . They scan the QR (or open the link) and type a name. The invite works once and ends after 10 minutes.
+6. Each parent has their own access: that section lists who has it, with rename and remove. Commands and rules show the sender's name in the child's log. A browser asks the family PIN again every 12 hours.
+7. Two kids or more: **Overview** shows every kid on one page.
+
+**Easier:** the [<a href="telegram">Telegram bot</a>] delivers SOS and more-time requests at once, no app or build needed.
+
+A time request notification has **+15 / +30 min** and **Decline** buttons right on it. The app checks about every 15 minutes. For SOS in seconds (through the Worker and Firebase) you build the app yourself: see the [README](<a href="https://github.com/HoangTran0410/kidguard#instant-sos-notifications-optional">https://github.com/HoangTran0410/kidguard#instant-sos-notifications-optional</a>).
+
+**Notifications check:** the app has a health card (**Settings**) that says if alerts can reach you (permission, channels, battery saver, last check) and fixes each in one tap. Offline phones show &amp;ldquo;offline since HH:mm&amp;rdquo;.
+
+Parent on an iPhone: there is no app, the browser (Safari) is enough.
+</pre></html>

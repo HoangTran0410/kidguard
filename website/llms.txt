@@ -2,6 +2,8 @@
 
 > Free, open-source parental control for Android. The child's phone runs the KidGuard app as Device Owner (the Android role companies use for work phones); parents manage it from any browser (home Wi-Fi, or away from home through Tailscale or a Cloudflare Worker relay) or from an optional parent app. No account, no server you must run, rules run on the child's phone even offline, every change undoable. Site: https://kid-guard.pages.dev · Source: https://github.com/HoangTran0410/kidguard
 
+Step-by-step user guide, one small page per topic (Vietnamese / English): https://kid-guard.pages.dev/ai/vi/ · https://kid-guard.pages.dev/ai/en/
+
 Android 8+ on the child's phone. Parent: any browser (iPhone included) or the Android parent app. iOS child phones are not supported (Apple does not allow it; use Screen Time + Family Sharing and Find My). The site is in Vietnamese and English.
 
 ## Two apps and a web page

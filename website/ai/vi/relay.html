@@ -1,0 +1,28 @@
+<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Relay (Cloudflare Worker)</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># Relay (Cloudflare Worker)
+
+**Đã bật sẵn:** ghép xong là trang dùng relay chung của KidGuard, mở được từ bất cứ đâu (link: tìm `relay` trên trang). Trạng thái, vị trí và luật của con đi qua tài khoản Cloudflare của tác giả, hạn mức miễn phí dùng chung với mọi người. Không muốn vậy: tự tạo relay riêng như dưới, hoặc tắt relay trong Cài đặt.
+
+## Tự tạo relay riêng
+
+Một Cloudflare Worker nhỏ trong tài khoản Cloudflare miễn phí của bạn, chuyển lệnh, trạng thái và màn hình trực tiếp. Hình màn hình chỉ nằm trong bộ nhớ của Worker, không lưu lại. Máy bố mẹ chỉ cần trình duyệt.
+
+Cần: máy tính có [Node.js](<a href="https://nodejs.org">https://nodejs.org</a>) 18+. Tài khoản Cloudflare tạo miễn phí lúc đăng nhập.
+
+1. Trên máy tính, chạy: ``` git clone https://github.com/HoangTran0410/kidguard &amp;&amp; cd kidguard scripts/relay.sh # Windows powershell -ExecutionPolicy Bypass -File scripts\relay.ps1 ```
+2. Script làm 3 bước: cài công cụ (lần đầu khoảng 1 phút), mở trang đăng nhập Cloudflare trên trình duyệt (nếu chưa đăng nhập), rồi deploy.
+3. Tài khoản mới có thể được hỏi chọn tên miền con `workers.dev` : trả lời, tên này nằm trong địa chỉ relay.
+4. Script in ra địa chỉ: `Relay ready: https://kidguard.&lt;tên-bạn&gt;.workers.dev` .
+5. Ở nhà, mở trang phụ huynh: tìm `relay` , mục relay riêng (Cloudflare Worker). Dán địa chỉ, bấm **Bật** .
+6. Trang hiện link điều khiển từ xa. Mở link đó trên điện thoại của bạn (lưu lại, đừng gửi cho ai), hoặc dán vào app bố mẹ.
+
+- Cập nhật: chạy lại script. Gỡ khỏi tài khoản: `scripts/relay.sh --delete` (Windows: `-Delete` ).
+- Gói miễn phí: 100.000 request mỗi ngày, mỗi máy con dùng khoảng 4.300. Lệnh thường tới trong vài giây. Không nghe xung quanh được qua relay.
+
+## Relay chung
+
+Địa chỉ `https://kidguard.99-hoangtran.workers.dev`, bật sẵn. Hạn mức miễn phí mỗi ngày dùng chung với mọi người nên hiếm khi có thể hết trong ngày: khi đó dùng bot Telegram, Tailscale hoặc relay riêng.
+
+## Đồng hồ Amazfit (Zepp OS)
+
+Bản app đồng hồ (thư mục `watch/`) cho bố mẹ xem giờ còn lại, duyệt xin thêm giờ, khóa, đổ chuông và xem vị trí ngay trên cổ tay. Kết nối kiểu ghép TV: trên đồng hồ mở KidGuard, bấm **Kết nối** để lấy mã 6 số, rồi trên trang phụ huynh tìm `đồng hồ`, nhập mã và bấm **Kết nối**. Cần bật relay cho bé đó. Mã hết hạn sau 10 phút, đồng hồ tự lấy mã mới. Không có mã thì vẫn dán được link relay ở trang cài đặt của app Zepp.
+</pre></html>

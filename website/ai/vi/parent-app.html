@@ -1,0 +1,20 @@
+<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>App bố mẹ (Android)</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># App bố mẹ (Android)
+
+Trình duyệt là đủ để quản lý. App bố mẹ thêm **thông báo** (SOS, xin thêm giờ, Trợ năng bị tắt, mất kết nối) và hiện dữ liệu gần nhất khi máy con mất mạng.
+
+1. [Tải app bố mẹ](<a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk">https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk</a>) và cài lên điện thoại của bạn.
+2. Mở app, bấm **Thêm máy của con** .
+3. Ở nhà: gõ địa chỉ hiện trên màn hình KidGuard của con, rồi mã ghép 6 số (giữ nút **Bố mẹ: hiện mã ghép** 5 giây nếu chưa thấy).
+4. Ngoài nhà: bấm **Quét QR** và quét mã trên máy con. Chỉ nhận link của KidGuard.
+5. Phụ huynh còn lại: trên trang của bạn tìm `relay` , bấm **Mời phụ huynh khác** . Người đó quét mã QR (hoặc mở link) và nhập tên. Lời mời dùng một lần, hết hạn sau 10 phút.
+6. Mỗi người có quyền riêng: mục đó liệt kê ai đang có quyền, đổi tên hoặc xoá từng người. Lệnh và luật ghi tên người gửi trong nhật ký máy con. Trình duyệt hỏi lại PIN gia đình mỗi 12 giờ.
+7. Có từ 2 con: mục **Tổng quan** hiện tất cả các con trên một trang.
+
+**Dễ hơn:** [<a href="telegram">bot Telegram</a>] gửi SOS và xin thêm giờ tới ngay, không cần app hay build.
+
+Thông báo xin thêm giờ có nút **+15 / +30 phút** và **Từ chối** ngay trên thông báo. App kiểm tra khoảng 15 phút một lần. Muốn SOS tới trong vài giây (qua Worker và Firebase), cần tự build app: xem [README](<a href="https://github.com/HoangTran0410/kidguard#instant-sos-notifications-optional">https://github.com/HoangTran0410/kidguard#instant-sos-notifications-optional</a>).
+
+**Kiểm tra thông báo:** app có thẻ sức khỏe (**Cài đặt**) cho biết thông báo có tới được bạn không (quyền, kênh, tiết kiệm pin, lần kiểm tra cuối) và sửa từng lỗi bằng một chạm. Máy con mất mạng hiện &amp;ldquo;mất mạng từ HH:mm&amp;rdquo;.
+
+Bố mẹ dùng iPhone: không có app, dùng trình duyệt (Safari) là đủ.
+</pre></html>

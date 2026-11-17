@@ -1,0 +1,23 @@
+<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Tailscale</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># Tailscale
+
+Máy con tự cài Tailscale và vào mạng riêng của bạn. Không cần Cloudflare. Cần Device Owner (không có ở chế độ cơ bản).
+
+1. Trên điện thoại của bạn: cài app **Tailscale** , đăng nhập bằng tài khoản Google / Apple / Microsoft. Việc này cũng tạo tài khoản Tailscale miễn phí.
+2. Mở [trang Keys](<a href="https://login.tailscale.com/admin/settings/keys">https://login.tailscale.com/admin/settings/keys</a>) → **Generate access token** → **Generate** → chép khóa.
+3. Ở nhà (cùng Wi-Fi với máy con), mở trang phụ huynh: tìm `tailscale` .
+4. Dán khóa vào ô `tskey-api-… / tskey-auth-…` , đặt tên máy nếu muốn (ví dụ `kid-an` ), bấm **Bật** .
+5. Máy con tự tải app Tailscale chính hãng (kiểm tra SHA-256), cài im lặng, vào mạng của bạn rồi ẩn app. Mất khoảng 1 phút.
+6. Thẻ hiện **Đã kết nối** , địa chỉ dạng `http://100.x.y.z:8770` và nhãn **không hết hạn** .
+7. Trên điện thoại của bạn (bật Tailscale), mở địa chỉ đó. Nhiều con: thêm từng địa chỉ bằng **Thêm máy của con** .
+
+## Access token hay auth key?
+
+- **API access token** ( `tskey-api-…` ), khuyên dùng: máy con tự tạo khóa riêng dùng một lần và tự tắt hạn 180 ngày của Tailscale. Token chỉ dùng lúc cài rồi bị xóa, không lưu.
+- **Auth key** ( `tskey-auth-…` ): cũng được, nhưng bạn phải tự tắt hạn một lần. Vào [trang Machines](<a href="https://login.tailscale.com/admin/machines">https://login.tailscale.com/admin/machines</a>) → dòng máy con → **⋯ → Disable key expiry** . Không làm thì sau 180 ngày Tailscale đăng xuất máy con. Trang phụ huynh sẽ nhắc.
+
+## Nên biết
+
+- Bật hoặc đổi khóa chỉ làm được khi ở nhà. Khóa nằm trên máy con, không bao giờ đi qua Worker.
+- Con không tắt được VPN, không đổi được cài đặt VPN, không gỡ được Tailscale. Bộ lọc DNS an toàn vẫn chạy.
+- Tắt: bấm **Tắt và gỡ Tailscale** (hoặc Gỡ quyền quản lý). Sau đó vào trang Machines xóa máy con, vì app đã gỡ không tự đăng xuất được.
+</pre></html>

@@ -3,6 +3,7 @@
 Index and the rule for adding lines: `README.md`.
 
 ## Decided
+- (2026-11-17) "Ask an AI" sends the AI to `/ai/<lang>/` (index, one line per guide section) + `/ai/<lang>/<section>` pages, written by `scripts/gen-ai-guide.mjs` from guide.html / en/guide.html (build.sh runs it, CI `--check`). Gemini answered "can't access" for llms.txt (served 200 to every Google UA we tried) but reads the same kind of page on tvremote.pages.dev: chat readers want HTML (Markdown kept as text in <pre>). Rejected: pasting the whole doc into the prompt (too long).
 - 2026-11-13 UI text follows `docs/copy.md` (outcome first, one idea per sentence, short, glossary); owner: "must read every word" = rewrite.
 - Design briefs must name 3-4 reference products (Pixel, Nova, iOS, Niagara) and give a "references -> what we took" table; each action has exactly one entry point; no status chip unless something is wrong; no stray section titles on canvas screens — owner rejected launcher mock v2 (11-07)
 - UI/UX reviews must walk every action through idle/pending/active/stop/fail/screen-off/double-press/conflict on a running phone, not static screenshots; phone-reported state is source of truth (11-07, ux-review-must-walk-states)

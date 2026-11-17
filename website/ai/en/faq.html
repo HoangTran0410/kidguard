@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Troubleshooting</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># Troubleshooting
+
+“App blocked to protect your device” (Play Protect)?
+
+Play Protect blocks apps installed from a browser or file manager when they use accessibility. On the child's phone: **Play Store** → your avatar → **Play Protect** → ⚙ → turn off **Scan apps with Play Protect**. Install and set up KidGuard, then turn it back on. QR setup is not affected (the phone downloads the app itself).
+
+No 6-tap spot on the welcome screen?
+
+Some skins drop that screen (e.g. Oppo / Realme ColorOS on Android 8–9). Use the [computer and USB cable](<a href="https://kid-guard.pages.dev/en/guide#install-usb">https://kid-guard.pages.dev/en/guide#install-usb</a>).
+
+Phone older than Android 11 can't set itself up?
+
+Way A needs Android 11+. Use a computer ([way C](<a href="https://kid-guard.pages.dev/en/guide#install-usb">https://kid-guard.pages.dev/en/guide#install-usb</a>) or [D](<a href="https://kid-guard.pages.dev/en/guide#install-cli">https://kid-guard.pages.dev/en/guide#install-cli</a>)), factory reset and [scan the QR](<a href="https://kid-guard.pages.dev/en/guide#install-qr">https://kid-guard.pages.dev/en/guide#install-qr</a>), or use [basic mode](<a href="https://kid-guard.pages.dev/en/guide#install-basic">https://kid-guard.pages.dev/en/guide#install-basic</a>).
+
+The parent page won't open?
+
+Check the address on the child's KidGuard screen (default port 8770). Your phone must be on the same Wi-Fi, or the same Tailscale network, as the child's phone.
+
+Can the DNS filter cut the Internet?
+
+No. If the filter's host is refused, or the network has Internet but DNS-over-TLS is blocked for 90 seconds, KidGuard falls back to normal DNS for 30 minutes and the parent page says why.
+
+Why do some apps show black when viewed remotely?
+
+Apps that mark their screen secure (banking…) always show black.
+
+Can the child remove it?
+
+Not from Settings. A factory reset from the hardware keys (recovery) still works: KidGuard is gone and the parent page shows “disconnected”.
+
+Limits on Android 8–10?
+
+Live screen and remote control need Android 11+. On Android 8–10 the child can force stop KidGuard (it starts again on reboot).
+
+Another bug or an idea?
+
+Post it on [GitHub Issues](<a href="https://github.com/HoangTran0410/kidguard/issues">https://github.com/HoangTran0410/kidguard/issues</a>). Technical details: [docs/protocol.md](<a href="https://github.com/HoangTran0410/kidguard/blob/main/docs/protocol.md">https://github.com/HoangTran0410/kidguard/blob/main/docs/protocol.md</a>).
+</pre></html>

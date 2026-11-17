@@ -35,6 +35,7 @@ cp build/kidguard.apk "build/kidguard-$V.apk"; cp build/kidguard-parent.apk "bui
 perl -pi -e 's#<span class="ver">v[0-9.]*</span>#<span class="ver">v'"$V"'</span>#g' \
   website/index.html website/en/index.html website/guide.html website/en/guide.html
 scripts/stamp-site.sh
+node scripts/gen-ai-guide.mjs   # website/ai/<lang>/: the guide as small pages for chat AIs (the "Ask an AI" button)
 
 # QR provisioning: SHA-256 of the signing certificate, URL-safe base64 without padding -> ui/provision.json + ui/qr.html defaults
 APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)

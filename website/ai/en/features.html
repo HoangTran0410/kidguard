@@ -1,0 +1,210 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Features</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># Features
+
+All in the current release, no paid tier.
+
+## Time
+
+Daily limit
+
+One number, or one per weekday. When time is up every app (except “Always allowed”) locks until midnight. +15 / +30 / +60 min for today.
+
+Bedtime, schedules
+
+Bedtime every day, plus windows on chosen days (school hours Mon–Fri); can cross midnight.
+
+Heads-up before locking
+
+The child gets a notification 5 min and 1 min before the limit, bedtime or a schedule locks the phone.
+
+More time always works
+
+Approve a request during bedtime or school hours: the phone opens for N minutes, then locks again. Tap **End** to lock early.
+
+Bedtime per night, +1 min
+
+A separate bedtime for each night (school nights differ from weekends). When it locks, the child can take **+1 minute** once per lock to save their work. Can be turned off.
+
+Pause now
+
+30 min, 1 h, or until 6 am.
+
+Ask for more time
+
+15 / 30 / 60 min plus a reason; the parent approves or declines.
+
+Chores
+
+The parent lists chores (“Wash the dishes +20 min”); the child picks one when asking. Approve with a note if you like.
+
+Unlock code
+
+6 digits from Google Authenticator, no network on either phone. The child gets 15–120 min free of limits; each code works once.
+
+Rule templates
+
+School day, Weekend, Summer holiday, Exams, or save your own. Apply to one kid or several.
+
+## Apps
+
+Per app
+
+Normal, N minutes a day, Block, or Always allowed. Select many to change them at once.
+
+App groups
+
+One shared daily limit for a group (“Games”, “Social”) and/or hours when it may be used.
+
+New apps
+
+Optionally locked until a parent approves them.
+
+Lighter phone
+
+Hide the maker's preinstalled apps the child doesn't use, see the heaviest apps, clear an app's data. Needs Device Owner.
+
+Updates itself
+
+Once a day the child's phone checks GitHub releases, downloads the new APK and checks its SHA-256. Off or update now in Settings.
+
+## Location and safety
+
+Location
+
+Locate now, location forced on (the child can't turn it off), 7-day history on an OpenStreetMap map.
+
+Zones
+
+Home, School… with a radius: you're told when the child arrives or leaves.
+
+SOS
+
+A red button on the child's phone: the parent page shows the time and a fresh location; the parent app notifies.
+
+See the screen
+
+The child's screen live (Android 11+, ~3 fps). The child is told the parent is viewing.
+
+Remote control
+
+Tap, swipe, long press, Back / Home / Recents, type text.
+
+Listen around
+
+At most 10 min at a time, home Wi-Fi or Tailscale only. The child always knows: a beep, a notification, Android's mic dot.
+
+Lost mode
+
+**Where** tab: turning it on locks the phone at once and again on every unlock, shows your message + number on the lock screen, locates every 5 min and rings 5 min in every 15. Turn it off and everything goes back. Also alerts on a SIM change.
+
+Alert levels
+
+Only SOS, lost, tamper and requests make noise; the rest arrive quietly. Telegram: `/quiet` picks all / important / SOS only per person. The parent app says “offline since HH:mm” and skips the child's bedtime.
+
+Alerts
+
+Arrived / left a zone, battery at 15 %, a new app installed, the clock changed.
+
+## Looking back
+
+History
+
+Screen time for 7 days, top apps per day, a weekly report per kid.
+
+All kids
+
+**Overview**: a card per kid, every kid's location on one map, 7 days side by side.
+
+Child's rules
+
+The child sees their own rules and a log of what the parents changed.
+
+Languages
+
+English and Vietnamese in the parent page and both apps.
+
+## Kid home screen
+
+Gestures
+
+Hold an icon: a menu over a dimmed screen, with **Edit Home Screen**. Drag an app onto another to make a folder. In edit mode, the minus badge removes (it asks first); pick several to group or remove at once.
+
+Folders, library
+
+Folders open from their icon; hold to re-arrange. **App Library** on the last page: suggestions, recently added, categories, search.
+
+Widgets
+
+Clock, month, time left, timetable (morning/afternoon, bell times, whole week), chores, notes, battery, weather, lock screen; other apps' widgets too.
+
+&amp;ldquo;Today&amp;rdquo; page
+
+Swipe right from page 1. SOS and Call always sit on top. Cards: **Right now** (class now, time until bedtime), **Screen time** (ask for more), **Tomorrow** (from 5 pm), chores, notes, **Files with parents** (the kid can send a file from here). **Choose cards** at the end; turn the whole page off in Customize.
+
+This week
+
+&amp;ldquo;Your week&amp;rdquo; card on Today: days within the daily limit, the current run, finished lists. It hides when there is nothing to celebrate.
+
+Requests
+
+One open request per kid: the child sees **waiting** and can **Remind**, then the last answer. The child can also ask to open a blocked or new app. You answer with **N/2**, **N** or **2N** minutes, on the page, in the parent app or in Telegram (`/requests`); once answered it updates everywhere. Unanswered requests expire at midnight.
+
+Customize
+
+Hold an empty spot on the home screen: **Widgets**, **Edit Home Screen**, **Customize**. In Customize: wallpaper (blur, dim), columns, icon size (rows stay the same), icon shape (circle, square, squircle), label size, font, light/dark, accent colour, notification dots, effects Full / Light / Auto. **Undo** appears right under what you changed.
+
+Saved layouts
+
+**Save current layout** (up to 5, named): pages, dock, look and photo wallpaper. Tap one to switch the whole home, with undo. Stored on the phone only.
+
+Control center
+
+Swipe down on the right half of the home screen: Wi-Fi, Bluetooth, airplane, data, torch, rotation, Do Not Disturb, brightness, volume, now playing, **Study**. The left half opens notifications.
+
+Study mode
+
+The kid starts it: only study apps stay on the home screen, Do Not Disturb on if allowed. Apps the parent blocked stay blocked.
+
+Hidden apps
+
+In the App Library, ⋮ next to search: every hidden app with the reason (blocked, waiting for OK, study time...). A page KidGuard closes always says why in a short message.
+
+No parental control?
+
+This launcher has its own app: [KidGuard Home](<a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-home.apk">https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-home.apk</a>) (under 1 MB). Fits any phone, needs no parent and no special permissions; SOS, time requests, chores and files are left out. Open it and tap **Fix** on the banner to make it the home screen.
+
+Already have KidGuard?
+
+No need for KidGuard Home: the launcher is built in. Install KidGuard later and the layout, notes, timetable and wallpaper move over by themselves (KidGuard Home 0.9.10 or newer); other apps' widgets must be added again.
+
+Xiaomi, Redmi, POCO
+
+With a home screen that is not Xiaomi's, navigation turns into 3 buttons: the system does this and no setting keeps gestures. Pick Xiaomi's home screen again to get gestures back.
+
+## Hard to break
+
+Tamper-proof
+
+Blocks uninstall, force stop, factory reset from Settings, Safe Mode, new users, changing the clock, airplane mode. A watchdog restarts it.
+
+Factory reset protection
+
+Device Owner, Android 11+. After a reset from recovery the phone asks for the parent's Google account. Needs that account's **numeric ID** (not the email); the page shows how to get it. **A wrong ID can lock the phone for good after a reset.** Turned off when you remove controls.
+
+PIN tries left
+
+A wrong PIN on the child's phone says how many tries are left. **Forgot PIN?** shows how to reset (24 h wait, with an alert).
+
+Command receipts
+
+Every command shows **sent**, then **ran HH:mm**, **refused** or **expired** (with **Resend**). A wrong PIN over the relay is not remembered.
+
+Optional
+
+Family DNS filter (AdGuard / Cloudflare / CleanBrowsing), block installs, block USB debugging.
+
+Commands
+
+Lock the screen, ring, full-screen message, restart the phone.
+
+Locked apps use Android's own mechanism: the icon turns grey and opening it says the parent paused it.
+</pre></html>

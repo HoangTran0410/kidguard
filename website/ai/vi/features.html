@@ -1,0 +1,210 @@
+<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Tính năng</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># Tính năng
+
+Tất cả có trong bản hiện tại, không gói trả phí.
+
+## Thời gian
+
+Giới hạn mỗi ngày
+
+Một con số, hoặc theo từng thứ. Hết giờ, mọi app (trừ “Luôn cho phép”) khóa đến nửa đêm. Thêm +15 / +30 / +60 phút cho hôm nay.
+
+Giờ ngủ, lịch
+
+Giờ ngủ mỗi ngày, cộng khung giờ theo thứ (giờ học thứ 2–6), qua được nửa đêm.
+
+Báo trước khi khóa
+
+Con nhận thông báo 5 phút và 1 phút trước khi hết giờ, đến giờ ngủ hay lịch khóa.
+
+Thêm giờ luôn có tác dụng
+
+Duyệt xin thêm giờ lúc giờ ngủ hay giờ học: máy con mở trong N phút, rồi khóa lại. Bấm **Kết thúc** để khóa sớm.
+
+Giờ ngủ từng đêm, +1 phút
+
+Giờ ngủ riêng cho mỗi đêm (đêm đi học khác cuối tuần). Khi khóa, con tự xin được **+1 phút** để lưu bài, một lần mỗi lần khóa. Tắt được.
+
+Tạm dừng ngay
+
+30 phút, 1 giờ, hoặc đến 6 giờ sáng.
+
+Xin thêm giờ
+
+Con chọn 15 / 30 / 60 phút kèm lý do, bố mẹ duyệt hoặc từ chối.
+
+Việc nhà
+
+Bố mẹ liệt kê việc (“Rửa bát +20 phút”), con chọn khi xin giờ. Duyệt kèm lời nhắn nếu muốn.
+
+Mã mở khóa
+
+6 số từ Google Authenticator, không cần mạng ở cả hai máy. Con được 15–120 phút không giới hạn, mỗi mã dùng một lần.
+
+Mẫu luật
+
+Ngày đi học, Cuối tuần, Nghỉ hè, Thi cử, hoặc tự lưu. Áp cho một hay nhiều con.
+
+## Ứng dụng
+
+Từng ứng dụng
+
+Bình thường, N phút mỗi ngày, Chặn, hoặc Luôn cho phép. Chọn nhiều app để đổi một lần.
+
+Nhóm ứng dụng
+
+Số phút chung cho cả nhóm (“Game”, “Mạng xã hội”) và/hoặc giờ được dùng.
+
+Ứng dụng mới
+
+Có thể khóa đến khi bố mẹ duyệt.
+
+Dọn máy
+
+Ẩn app hãng cài sẵn con không dùng, xem app nặng nhất, xóa dữ liệu app. Cần Device Owner.
+
+Tự cập nhật
+
+Mỗi ngày máy con kiểm tra bản mới trên GitHub, tải về và kiểm SHA-256. Tắt hoặc cập nhật ngay trong Cài đặt.
+
+## Vị trí và an toàn
+
+Vị trí
+
+Định vị ngay, vị trí luôn bật (con không tắt được), lịch sử 7 ngày trên bản đồ OpenStreetMap.
+
+Vùng
+
+Nhà, Trường… có bán kính: báo khi con đến hoặc rời đi.
+
+SOS
+
+Nút đỏ trên máy con: trang phụ huynh hiện thời gian và vị trí mới nhất, app bố mẹ báo.
+
+Xem màn hình
+
+Màn hình con trực tiếp (Android 11+, ~3 khung hình/giây). Con luôn được báo là bố mẹ đang xem.
+
+Điều khiển từ xa
+
+Chạm, vuốt, nhấn giữ, Quay lại / Màn hình chính / Đa nhiệm, gõ chữ.
+
+Nghe xung quanh
+
+Tối đa 10 phút mỗi lần, chỉ qua Wi-Fi nhà hoặc Tailscale. Con luôn biết: tiếng bíp, thông báo, chấm micro của Android.
+
+Chế độ thất lạc
+
+Tab **Vị trí**: bật là máy khóa ngay và khóa lại mỗi lần mở, màn hình khóa hiện lời nhắn + số của bạn, định vị 5 phút một lần, đổ chuông 5 phút mỗi 15 phút. Tắt thì mọi thứ về như cũ. Báo cả khi đổi SIM.
+
+Mức báo
+
+Chỉ SOS, mất máy, mở khóa bằng mã và xin giờ báo to; còn lại báo êm. Telegram: `/quiet` chọn tất cả / quan trọng / chỉ SOS cho từng người. App bố mẹ báo “offline từ HH:mm” và bỏ qua giờ ngủ của con.
+
+Cảnh báo
+
+Đến / rời vùng, pin còn 15 %, cài app mới, đổi giờ máy.
+
+## Nhìn lại
+
+Lịch sử
+
+Thời gian dùng 7 ngày, top app mỗi ngày, báo cáo tuần cho từng con.
+
+Nhiều con
+
+**Tổng quan**: mỗi con một thẻ, vị trí mọi con trên một bản đồ, 7 ngày đặt cạnh nhau.
+
+Luật của con
+
+Con xem được luật của mình và nhật ký bố mẹ đã đổi gì.
+
+Ngôn ngữ
+
+Tiếng Việt và English ở trang phụ huynh và cả hai app.
+
+## Màn hình chính cho con
+
+Thao tác
+
+Giữ một biểu tượng: menu hiện trên nền tối, có **Sửa màn hình chính**. Kéo một app đè lên app khác để gom thư mục. Ở chế độ sửa, nút trừ để bỏ (có hỏi lại), chọn nhiều để gom hoặc bỏ cùng lúc.
+
+Thư mục, thư viện
+
+Thư mục mở từ chính biểu tượng, giữ để xếp lại. **Thư viện ứng dụng** ở trang cuối: gợi ý, mới cài, theo nhóm, tìm kiếm.
+
+Widget
+
+Đồng hồ, lịch tháng, giờ còn lại, thời khóa biểu (sáng/chiều, giờ chuông, cả tuần), việc nhà, ghi chú, pin, thời tiết, khóa màn hình; thêm cả widget của app khác.
+
+Trang &amp;ldquo;Hôm nay&amp;rdquo;
+
+Vuốt phải từ trang 1. Nút SOS và Gọi luôn ở trên. Thẻ **Bây giờ** (tiết đang học, còn bao lâu tới giờ ngủ), **Thời gian dùng máy** (xin thêm giờ), **Ngày mai** (từ 17h), việc nhà, ghi chú, **File với bố mẹ** (con gửi file cho bố mẹ ngay tại đây). **Tuỳ chỉnh thẻ** ở cuối trang; tắt cả trang trong Tuỳ chỉnh.
+
+Tuần này
+
+Thẻ &amp;ldquo;Tuần này của bạn&amp;rdquo; trên trang Hôm nay: số ngày trong giới hạn, chuỗi hiện tại, danh sách đã xong. Chưa có gì để khen thì thẻ ẩn.
+
+Yêu cầu
+
+Mỗi con chỉ một yêu cầu đang mở: con thấy **đang chờ** và bấm **Nhắc lại**, rồi thấy câu trả lời. Con cũng xin mở được app đang bị chặn hoặc app mới. Bạn trả lời bằng **N/2**, **N** hoặc **2N** phút, trên trang, trong app bố mẹ hoặc Telegram (`/requests`); trả lời xong mọi nơi cùng cập nhật. Yêu cầu chưa trả lời hết hạn lúc nửa đêm.
+
+Tuỳ chỉnh
+
+Giữ chỗ trống trên màn hình chính: **Tiện ích**, **Sửa màn hình chính**, **Tuỳ chỉnh**. Trong Tuỳ chỉnh: hình nền (làm mờ, làm tối), số cột, cỡ biểu tượng (số hàng không đổi), hình biểu tượng (tròn, vuông, squircle), cỡ chữ, phông, sáng/tối, màu nhấn, chấm thông báo, hiệu ứng Đầy đủ / Nhẹ / Tự động. Có **Hoàn tác** ngay dưới mục vừa đổi.
+
+Bố cục đã lưu
+
+**Lưu bố cục hiện tại** (tối đa 5, đặt tên): cả trang, dock, giao diện và ảnh nền. Chạm một bố cục để đổi cả màn hình chính, có hoàn tác. Chỉ lưu trên máy.
+
+Trung tâm điều khiển
+
+Vuốt xuống ở nửa phải màn hình chính: Wi-Fi, Bluetooth, máy bay, dữ liệu, đèn pin, tự xoay, Không làm phiền, độ sáng, âm lượng, đang phát, **Học bài**. Nửa trái là thông báo.
+
+Học bài
+
+Con tự bật: chỉ còn app học trên màn hình, bật Không làm phiền nếu được cho phép. App bố mẹ chặn vẫn bị chặn.
+
+App đang ẩn
+
+Trong thư viện ứng dụng, nút ⋮ cạnh ô tìm kiếm: danh sách app đang ẩn kèm lý do (bố mẹ chặn, chờ duyệt, giờ học...). Bị đóng trang nào thì có thông báo ngắn nói vì sao.
+
+Không cần quản lý?
+
+Launcher này có app riêng: [KidGuard Home](<a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-home.apk">https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-home.apk</a>) (dưới 1 MB). Cài cho máy nào cũng được, không cần bố mẹ, không xin quyền đặc biệt; bỏ SOS, xin giờ, việc nhà, file. Mở app, bấm **Sửa** trên dải báo để đặt làm màn hình chính.
+
+Đã có KidGuard?
+
+Không cần KidGuard Home: launcher có sẵn. Cài KidGuard sau thì bố cục, ghi chú, thời khoá biểu và hình nền tự chuyển sang (KidGuard Home 0.9.10 trở lên); widget của app khác phải thêm lại.
+
+Xiaomi, Redmi, POCO
+
+Màn hình chính không phải của Xiaomi thì điều hướng chuyển thành 3 nút: hệ thống làm vậy, không có cài đặt giữ cử chỉ. Chọn lại màn hình chính Xiaomi là có cử chỉ lại.
+
+## Giữ chắc
+
+Khó phá
+
+Chặn gỡ app, buộc dừng, khôi phục gốc từ Cài đặt, Safe Mode, người dùng mới, đổi giờ, chế độ máy bay. Có watchdog tự bật lại.
+
+Chống khôi phục gốc
+
+Device Owner, Android 11+. Sau khi khôi phục từ recovery, máy đòi tài khoản Google của bố mẹ. Cần **ID số** của tài khoản (không phải email); trang chỉ cách lấy. **ID sai có thể khóa máy vĩnh viễn sau khi khôi phục.** Tự tắt khi gỡ quyền quản lý.
+
+Còn mấy lần nhập PIN
+
+Nhập sai PIN trên máy con thì máy báo còn mấy lần. **Quên PIN?** chỉ cách đặt lại (chờ 24 giờ, có cảnh báo).
+
+Biên nhận lệnh
+
+Mỗi lệnh hiện **đã gửi**, rồi **đã chạy HH:mm**, **bị từ chối** hoặc **hết hạn** (có nút **Gửi lại**). PIN sai qua relay không bị nhớ.
+
+Tùy chọn
+
+Lọc DNS gia đình (AdGuard / Cloudflare / CleanBrowsing), chặn cài app, chặn Gỡ lỗi USB.
+
+Lệnh nhanh
+
+Khóa màn hình, đổ chuông, tin nhắn toàn màn hình, khởi động lại máy.
+
+App bị khóa dùng cơ chế có sẵn của Android: biểu tượng xám đi, mở ra thấy báo bố mẹ đã tạm dừng.
+</pre></html>

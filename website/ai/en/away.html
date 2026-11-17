@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Away from home</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># Away from home
+
+At home the page talks to the child's phone over Wi-Fi, nothing to set up. When the child is at school or out there are 3 free ways; use one or several. **The shared relay is already on** from pairing, so the page opens from anywhere even if you do nothing.
+
+- **Just alerts and quick taps** (extra time, lock, location): the [<a href="telegram">Telegram bot</a>] .
+- **Everything like at home** (live screen, listen around): [<a href="tailscale">Tailscale</a>] .
+- **Only a browser** : the [<a href="relay">relay</a>] (already on; make your own if you don't want data going through the author's server).
+
+|  | Telegram bot | Tailscale | Relay |
+| --- | --- | --- | --- |
+| Setup | ~2 min: make a bot, paste its token | ~5 min, once: Tailscale app on the parent's phone, paste one key | None (shared relay is on). Your own: ~3 min on a computer |
+| Used with | The Telegram app, buttons | The parent page (Tailscale app on) | The parent page, any browser |
+| Speed | ~1 second | Instant | Usually a few seconds (if the live link drops: ~20 s, screen off ~60 s) |
+| Screen / listen | Screenshot, 10–60 s recording | Live screen, live listen | Live screen, no listen |
+| SOS, more-time requests | Arrive at once in Telegram | In the page / parent app | In the page / parent app |
+| Data goes through | Telegram's servers | Nobody (end-to-end encrypted) | Shared: the author's Cloudflare. Your own: only your account |
+| Needs | Internet on the child's phone. One bot per child | Device Owner (not in basic mode) | Nothing |
+| Child sees | Nothing (a notice while recording) | A key icon in the status bar (VPN) | Nothing |
+
+The Telegram bot, Tailscale and your own relay are all **turned on while at home**, in the parent page: search `telegram`, search `tailscale` or search `relay`.
+</pre></html>

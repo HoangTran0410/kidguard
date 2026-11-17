@@ -1,0 +1,18 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>KidGuard user guide (for AI assistants)</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># KidGuard user guide (for AI assistants)
+
+KidGuard: free, open-source parental control for Android. The child's phone runs the KidGuard app (strongest as Device Owner, or basic mode); parents manage it from any browser (home Wi-Fi, or away through Tailscale / a Cloudflare relay) or the Android parent app. No account, rules run on the child's phone even offline, everything can be undone. iPhone child phones are not supported.
+
+Find the section below, then open only its page. More technical detail: https://kid-guard.pages.dev/llms.txt
+
+- [<a href="install">Install on the child's phone</a>]: There are five ways to install; pick one.
+- [<a href="pair">Open the parent page</a>]: The last setup screen on the child's phone shows a 6-digit pairing code and a QR code for 10 minutes.
+- [<a href="parent-app">Parent app (Android)</a>]: The browser is enough to manage everything.
+- [<a href="away">Away from home</a>]: At home the page talks to the child's phone over Wi-Fi, nothing to set up. When the child is at school or out there are 3 free ways; use one or several.
+- [<a href="telegram">Telegram bot</a>]: Control and get alerts right in Telegram: status, extra time, lock, location, screenshot, block apps with buttons.
+- [<a href="tailscale">Tailscale</a>]: The child's phone installs Tailscale itself and joins your private network. No Cloudflare needed. Needs Device Owner (not in basic mode). (Access token or auth key?; Good to know)
+- [<a href="relay">Relay (Cloudflare Worker)</a>]: Already on: after pairing the page uses KidGuard's shared relay and opens from anywhere (link: search relay on the page). (Make your own relay; Shared relay; Amazfit watch (Zepp OS))
+- [<a href="features">Features</a>]: All in the current release, no paid tier. (Time; Apps; Location and safety; Looking back; Kid home screen; Hard to break)
+- [<a href="iphone">Child on an iPhone / iPad</a>]: There is no KidGuard for iOS: Apple doesn't let third-party apps see the screen, control the phone or lock other apps.
+- [<a href="remove">Remove KidGuard</a>]: Parent page: search danger → Remove controls…
+- [<a href="faq">Troubleshooting</a>]: “App blocked to protect your device” (Play Protect)?
+</pre></html>

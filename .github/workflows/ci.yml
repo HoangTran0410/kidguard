@@ -30,6 +30,8 @@ jobs:
         run: node scripts/check-search.mjs
       - name: Page files wired + i18n parity
         run: node scripts/check-assets.mjs
+      - name: Site guide for AI matches the guide pages
+        run: node scripts/gen-ai-guide.mjs --check
   relay:
     runs-on: ubuntu-latest
     timeout-minutes: 15
