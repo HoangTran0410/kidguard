@@ -37,7 +37,7 @@ class FilesLogicTest {
         assertEquals("too big", FilesLogic.sizeError(FilesLogic.MAX_RELAY + 1, FilesLogic.MAX_RELAY))
         assertEquals("length required", FilesLogic.sizeError(-1, FilesLogic.MAX_LAN))
         assertEquals(1, FilesLogic.chunks(0)); assertEquals(1, FilesLogic.chunks(FilesLogic.CHUNK.toLong()))
-        assertEquals(10, FilesLogic.chunks(FilesLogic.MAX_RELAY)); assertEquals(11, FilesLogic.chunks(FilesLogic.MAX_RELAY + 1))
+        assertEquals(50, FilesLogic.chunks(FilesLogic.MAX_RELAY)); assertEquals(51, FilesLogic.chunks(FilesLogic.MAX_RELAY + 1))
     }
 
     private fun e(id: Int, dir: String, at: Long) = Entry("%016x".format(id), dir, "f$id", 10, at, FilesLogic.OCTET, FilesLogic.NEW, "/secret/path/$id")

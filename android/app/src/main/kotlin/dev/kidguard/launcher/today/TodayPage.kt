@@ -503,7 +503,7 @@ class TodayPage(
         // the system file picker, then the same outbox as the share sheet's "Gửi cho bố mẹ" (ShareInActivity)
         if (paired) c.addView(k.text(s(R.string.files_menu), 14f, pal.accentText, true).apply {
             setPadding(dp(4), dp(12), dp(4), dp(4)); Ic.lead(this, R.drawable.li_send, pal.accentText); compoundDrawablePadding = dp(8); gravity = Gravity.CENTER_VERTICAL
-            k.tap(this, 10f) { ShareInActivity.pick(act) }
+            k.tap(this, 10f) { runCatching { act.startActivity(Intent(act, FilesActivity::class.java)) } }
         }, LinearLayout.LayoutParams(-2, -2))
         col.addView(c, lp())
     }

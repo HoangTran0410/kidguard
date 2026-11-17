@@ -1,7 +1,7 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // --- Files tab: the shared folder (docs/protocol.md "Shared files"). Only what was sent, never a browser of the phone. ---
 // Jobs live outside render(): a tab switch or a state refresh keeps transfers running; progress bars update in place.
-const FX = { lan: 200 * 1048576, relay: 10 * 1048576, chunk: 1048576 };
+const FX = { lan: 200 * 1048576, relay: 50 * 1048576, chunk: 1048576 };
 // parent app >= the file bridge: KGApp.files() === "true" (picker + downloads work in its WebView); older app: no files
 const FXNO = APP && !(() => { try { return !!(window.KGApp && KGApp.files && KGApp.files() === "true"); } catch { return false; } })();
 const fx = { jobs: [], list: null, kid: null, sig: "", raf: 0, hide: new Set() };

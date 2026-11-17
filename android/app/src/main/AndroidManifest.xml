@@ -478,6 +478,13 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility" />
         </service>
+        <activity
+            android:name=".FilesActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="dev.kidguard.home"
+            android:screenOrientation="portrait"
+            android:theme="@style/AppMain" />
         <!-- shared folder (Files.kt): share target "Gửi cho bố mẹ", the sheet's file picker, opening a file the parent sent -->
         <activity
             android:name=".ShareInActivity"

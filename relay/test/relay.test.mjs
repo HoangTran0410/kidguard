@@ -303,13 +303,29 @@ let l=await (await U("?to=kid")).json();ck("file list to kid",l.files.length==1&
 ck("file list to parent empty",(await (await U("?to=parent")).json()).files.length==0);
 const c0=Buffer.from(await (await U(`?fid=${fid}&i=0`)).arrayBuffer()),c1=Buffer.from(await (await U(`?fid=${fid}&i=1`)).arrayBuffer());
 ck("file chunks round-trip",Buffer.concat([c0,c1]).equals(big));
-ck("file >10MB 413",(await U(`?fid=0011223344556677&i=0&n=11&to=kid&size=${10*1048576+1}&name=x`,"POST",Buffer.alloc(10))).status==413);
+ck("file >50MB 413",(await U(`?fid=0011223344556677&i=0&n=51&to=kid&size=${50*1048576+1}&name=x`,"POST",Buffer.alloc(10))).status==413);
 ck("file bad id 400",(await U(`?fid=../x&i=0`)).status==400);
 ck("file bad to 400",(await U(`?fid=0011223344556678&i=0&n=1&to=evil&size=1&name=x`,"POST",Buffer.alloc(1))).status==400);
 ck("file wrong token 401",(await fetch(`${B}/c/${id5}/file?to=kid`,{headers:H(BAD)})).status==401);
 ck("file delete ok",(await (await U(`?fid=${fid}`,"DELETE")).json()).ok===true);
 ck("file gone after delete",(await U(`?fid=${fid}&i=0`)).status==404&&(await (await U("?to=kid")).json()).files.length==0);
 ck("cmd fileUp whitelisted",(await (await fetch(`${B}/c/${id5}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"fileUp",file:fid})})).json()).result=="queued");
+// 50 MB accepted, total cap 100 MB per kid, daily quota (300 MB / 30 files) answers 429 {error:"quota", retryAt}
+{const nid=()=>Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),MB=1048576;
+const mk=async()=>{const k=nid();await fetch(`${B}/c/${k}/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{}})});return k;};
+const st=(k,fid,size,m="POST")=>fetch(`${B}/c/${k}/file?fid=${fid}&i=0&n=${Math.max(1,Math.ceil(size/MB))}&to=kid&size=${size}&name=x`,{method:m,headers:H(),body:m=="POST"?Buffer.alloc(Math.min(size,MB)):undefined});
+const f16=n=>n.toString(16).padStart(16,"0");
+let k=await mk();
+ck("file 50 MB accepted",(await st(k,f16(1),50*MB)).status==200);
+ck("file 51 MB refused 413",(await st(k,f16(2),51*MB)).status==413);
+ck("file second 50 MB fits the 100 MB total",(await st(k,f16(3),50*MB)).status==200);
+ck("file over the 100 MB total 507",(await st(k,f16(4),MB)).status==507);
+k=await mk();let c=0,last;
+for(let n=0;n<7;n++){last=await st(k,f16(10+n),50*MB);if(last.status==200)c++;await st(k,f16(10+n),50*MB,"DELETE");}
+const qb=await last.json();ck("daily quota: 6 x 50 MB ok, 7th 429 quota + retryAt",c==6&&last.status==429&&qb.error=="quota"&&qb.retryAt>Date.now());
+k=await mk();c=0;
+for(let n=0;n<31;n++){last=await st(k,f16(100+n),1);if(last.status==200)c++;await st(k,f16(100+n),1,"DELETE");}
+ck("daily quota: 30 files ok, 31st 429",c==30&&last.status==429);}
 // icons: a full list (400) drops the icons of apps that are no longer in the phone's state
 const ic=Buffer.from("RIFF0000WEBPVP8 ").toString("base64"),IP=o=>fetch(`${B}/c/${id5}/icons`,{method:"POST",headers:H(),body:JSON.stringify(o)}).then(r=>r.json());
 await fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{apps:[{pkg:"keep.me",ms:1}]}})});

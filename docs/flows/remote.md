@@ -110,14 +110,14 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 - Gotchas: relay `ring`/`locate` have no immediate result; relay `listen` is a WebRTC session (above), not a command.
 
 ### 2.7 Shared files (both ways)
-- Phone side: `remote/Files.kt` (+`FilesLogic.kt`, `ShareInActivity.kt`); index in prefs `kgfiles`; state `files` (newest 30).
+- Phone side: `remote/Files.kt` (+`FilesLogic.kt`, `ShareInActivity.kt` = picker / share target, `ui/FilesActivity.kt` = kid screen "File với bố mẹ" (kid flavor): sent + received lists newest first, tap opens via `FilesProvider`, "Gửi file" = the picker; opened from the main-screen tile / menu row); index in prefs `kgfiles`; state `files` (newest 30).
 - Parent -> kid LAN: `PUT /api/files/<name>` streamed (`Http.kt:123-127` skips the 512 KB cap, `Req.input`), `Files.api` (`Files.kt:78`) -> `receive` (`:128`) -> Download/KidGuard + notification.
-- Parent -> kid relay: page chunks (1 MiB) `POST /c/<id>/file?fid&i&n&to=kid&size&name` (`index.js:322 file`; 8 files/32 MB, TTL 1 h); sync reply `files:N` (`index.js:254-255`) -> `Relay.kt:118` -> `Files.pull` (`Files.kt:279`) fetches, `receive` with id=fid, then `DELETE`.
+- Parent -> kid relay: page chunks (1 MiB) `POST /c/<id>/file?fid&i&n&to=kid&size&name` (`index.js` `file()`; <= 50 MB a file, 8 files / 100 MB stored, TTL 1 h, 24 h quota 300 MB / 30 files per kid -> 429 `quota`); sync reply `files:N` (`index.js:254-255`) -> `Relay.kt:118` -> `Files.pull` (`Files.kt:279`) fetches, `receive` with id=fid, then `DELETE`.
 - Kid -> parent LAN: `GET /api/files/<id>` (always octet-stream attachment, `Files.kt:98`); marks `fetched` on a full download.
 - Kid -> parent relay: page `cmd fileUp {file:id}` (`tab-files.js:98`) -> `Files.command` (`Files.kt:239`) spawns `push` (chunks `to=parent`); page polls `GET /file?to=parent` every 3 s (<=5 min), downloads chunks, `DELETE`s (`tab-files.js:104-120`). Delete: LAN `DELETE /api/files/<id>`, relay `cmd fileDel` (ONCE).
 - Parent app: `Proxy.filesForward` (`Proxy.kt:121`) streams bodies (<=210 MB) only for `/api/files…` and `/c/<id>/file` (`Logic.isFilesPath`, `Proxy.kt:288`).
 - Wire: protocol "Shared files (v0.9.8)". `release` wipes outbox + index (`Guard.kt:~512`).
-- Gotchas: relay upload of a >10 MB file is blocked in the page (`FX.relay`). A LAN download/upload occupies one of the 4 HTTP pool threads.
+- Gotchas: relay upload of a >50 MB file is blocked in the page (`FX.relay`); a quota 429 shows "fx.e.quota" on the page and a log line on the phone (`Files.pushFailed`). A LAN download/upload occupies one of the 4 HTTP pool threads.
 
 ### 2.8 Self-update
 - Trigger: rule `autoUpdate` (daily, `Update.maybe` `remote/Update.kt:78` from `Guard.kt:213`) or `cmd update` (ONCE) from `tab-set.js:317` -> `Guard.run "update"` -> `Update.start(force=true)` (`Update.kt:86`).

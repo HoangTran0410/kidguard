@@ -130,7 +130,7 @@ class MainActivity : Activity() {
             "usage" to u.tile(getString(R.string.ust_title), R.drawable.li_chart_column, u.accent) { runCatching { startActivity(Intent(this, UsageStatsActivity::class.java)) } },
             "nlog" to u.tile(getString(R.string.nlog_title), R.drawable.li_bell, u.accent) { runCatching { startActivity(Intent(this, NotifLogActivity::class.java)) } },
             "chat" to u.tile(getString(R.string.chat_tile), R.drawable.li_mail, u.accent) { runCatching { startActivity(Intent(this, ChatActivity::class.java)) } },
-            "files" to u.tile(getString(R.string.files_menu), R.drawable.li_send, u.accent) { if (paired(R.string.files_menu)) ShareInActivity.pick(this) },
+            "files" to u.tile(getString(R.string.files_menu), R.drawable.li_send, u.accent) { if (paired(R.string.files_menu)) startActivity(Intent(this, FilesActivity::class.java)) },
             "log" to u.tile(getString(R.string.main_log), R.drawable.li_scroll_text, u.accent) { showLog() },
             "clean" to u.tile(getString(R.string.kc_tile), R.drawable.li_eraser, u.accent) { runClean() },
             "edit" to u.tile(getString(R.string.tiles_edit), R.drawable.li_pencil, u.accent) { editTiles() },
@@ -175,8 +175,8 @@ class MainActivity : Activity() {
         },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         kidG.addView(u.listRow(getString(R.string.main_log), R.drawable.li_scroll_text) { sheet.dismiss(); showLog() })
-        // shared folder (Files.kt): system picker -> outbox, the parent page lists it under "File con gửi"
-        kidG.addView(u.listRow(getString(R.string.files_menu), R.drawable.li_send) { sheet.dismiss(); ShareInActivity.pick(this@MainActivity) })
+        // shared folder (Files.kt): FilesActivity = what was sent / received + the picker button
+        kidG.addView(u.listRow(getString(R.string.files_menu), R.drawable.li_send) { sheet.dismiss(); startActivity(Intent(this@MainActivity, FilesActivity::class.java)) })
         revealBtn = u.button(getString(R.string.main_reveal), R.drawable.li_link, true) {}
         holdToRun(revealBtn, 5_000) { Store.of(this).codeRevealUntil = System.currentTimeMillis() + 10 * 60_000; refresh() }
         pairCard.addView(revealBtn, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) })

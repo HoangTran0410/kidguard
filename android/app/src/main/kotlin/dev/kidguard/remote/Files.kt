@@ -202,8 +202,8 @@ object Files {
 
     /** The kid tapped the file (notification): mark it opened and hand it to a viewer through our provider. */
     fun viewIntent(c: Context, id: String): Intent? {
-        val e = get(c, id)?.takeIf { it.dir == FilesLogic.IN } ?: return null
-        if (e.st != FilesLogic.OPENED) { setSt(c, id, FilesLogic.OPENED); kick() }
+        val e = get(c, id) ?: return null
+        if (e.dir == FilesLogic.IN && e.st != FilesLogic.OPENED) { setSt(c, id, FilesLogic.OPENED); kick() }
         return Intent(Intent.ACTION_VIEW).setDataAndType(FilesProvider.uri(c, id), e.mime)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
     }
@@ -238,7 +238,7 @@ object Files {
         synchronized(lock) { save(c, emptyList()) }
     }
 
-    // ---------------- relay (worker /c/<id>/file, 1 MiB chunks, <= 10 MB, 1 h TTL) ----------------
+    // ---------------- relay (worker /c/<id>/file, 1 MiB chunks, <= 50 MB, 1 h TTL, 24 h quota 300 MB / 30 files) ----------------
     private val pulling = AtomicBoolean(false)
 
     /** Relay commands: fileUp {file} = put that outbox file on the relay for the parent; fileDel {file}. */
@@ -249,7 +249,7 @@ object Files {
             "fileDel" -> if (delete(c, id)) "ok" else "no such file"
             "fileUp" -> if (e.size > FilesLogic.MAX_RELAY) "too big" else {
                 // "ok" = started; a failed upload is said in the log the parent reads (it used to be silent: the page waited for nothing)
-                if (!pushing.add(e.id)) "ok" else { Thread({ try { runCatching { push(c, e) }.onFailure { Log.w(TAG, "file push", it); pushFailed(c, e.name) } } finally { pushing.remove(e.id) } }, "file-push").start(); "ok" }
+                if (!pushing.add(e.id)) "ok" else { Thread({ try { runCatching { push(c, e) }.onFailure { Log.w(TAG, "file push", it); pushFailed(c, e.name, (it as? PushRefused)?.code ?: 0) } } finally { pushing.remove(e.id) } }, "file-push").start(); "ok" }
             }
             else -> "unknown"
         }
@@ -269,7 +269,12 @@ object Files {
 
     private val pushing = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()   // uploads in flight: a double tap is one upload
     private val pullRetryAt = java.util.concurrent.ConcurrentHashMap<String, Long>()    // relay file that failed here -> not before
-    fun pushFailed(c: Context, name: String) { runCatching { Store.of(c).log(R.string.log_file_push_fail, name) }; Guard.running?.kick() }
+    /** The relay said no to a chunk: 413 = file too big, 429 = the 24 h quota of this phone is used up (docs/protocol.md "Shared files"). */
+    class PushRefused(val code: Int) : IOException("relay HTTP $code")
+    fun pushFailed(c: Context, name: String, http: Int = 0) {
+        val res = when (http) { 413 -> R.string.log_file_push_big; 429 -> R.string.log_file_push_quota; else -> R.string.log_file_push_fail }
+        runCatching { Store.of(c).log(res, name) }; Guard.running?.kick()
+    }
 
     private fun push(c: Context, e: Entry) {
         val (base, token) = relay(c) ?: return
@@ -281,7 +286,7 @@ object Files {
                 while (got < want) { val r = ins.read(buf, got, want - got); if (r < 0) throw IOException("short"); got += r }
                 val q = "?fid=${e.id}&i=$i&n=$n&to=parent&size=${e.size}&name=${URLEncoder.encode(e.name, "UTF-8")}"
                 val h = conn(base + q, "POST", token).apply { doOutput = true; setRequestProperty("Content-Type", FilesLogic.OCTET); setFixedLengthStreamingMode(want) }
-                try { h.outputStream.use { it.write(buf) }; if (h.responseCode != 200) throw IOException("relay HTTP ${h.responseCode}") } finally { h.disconnect() }
+                try { h.outputStream.use { it.write(buf) }; val rc = h.responseCode; if (rc != 200) throw PushRefused(rc) } finally { h.disconnect() }
             }
         }
     }

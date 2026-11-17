@@ -79,8 +79,10 @@ const CALL_WHY = ["hangup", "decline", "busy", "timeout", "failed", "noperm", "n
 const LISTEN_MAX = 10 * 60e3 + 15e3;
 // <img> can't send headers: only the icon GET may carry the token in ?k=
 const tokenOf = (req, url) => req.headers.get("x-kg-token") || (req.method === "GET" && url.pathname.endsWith("/icon") ? url.searchParams.get("k") || "" : "");
-// shared files (docs/protocol.md "Shared files"): <= 10 MB a file in 1 MiB chunks, kept 1 h, deleted once fetched
-const FILE_CHUNK = 1048576, FILE_MAX = 10 * 1048576, FILE_TTL = 3600e3, FILE_N = 8, FILE_TOTAL = 32 * 1048576, FID = /^[0-9a-f]{16}$/;
+// shared files (docs/protocol.md "Shared files"): <= 50 MB a file in 1 MiB chunks (a chunk is the only thing the DO holds: 128 MB memory),
+// <= 100 MB stored per kid, kept 1 h, deleted once fetched. Anti-spam: the default relay is one free account for everybody, so each kid also has a
+// 24 h quota (bytes + files, both directions, counted when a file starts; one small record "fq" {start, bytes, n}) -> 429 {error:"quota", retryAt}
+const FILE_CHUNK = 1048576, FILE_MAX = 50 * 1048576, FILE_TTL = 3600e3, FILE_N = 8, FILE_TOTAL = 100 * 1048576, FILE_DAY_BYTES = 300 * 1048576, FILE_DAY_N = 30, FID = /^[0-9a-f]{16}$/;
 const limitFor = (action) => action === "frame" ? MAX_FRAME : action === "file" ? FILE_CHUNK : action === "watch" ? 512 : MAX_BODY;
 // Zepp watch connect (docs/protocol.md "Watch connect"): a code on the watch, typed into the parent page
 const WATCH_TTL = 10 * 60e3, WATCH_PER_DAY = 30;
@@ -1217,6 +1219,10 @@ export class Kid {
         if (size > FILE_MAX) return json({ error: "too big" }, 413);
         if (n !== Math.max(1, Math.ceil(size / FILE_CHUNK))) return json({ error: "bad file" }, 400);
         if (list.length >= FILE_N || list.reduce((s, x) => s + x.size, 0) + size > FILE_TOTAL) return json({ error: "relay full" }, 507);
+        let fq = (await this.s.get("fq")) || { start: now, bytes: 0, n: 0 };
+        if (now - fq.start >= 86400e3) fq = { start: now, bytes: 0, n: 0 };
+        if (fq.n + 1 > FILE_DAY_N || fq.bytes + size > FILE_DAY_BYTES) return json({ error: "quota", retryAt: fq.start + 86400e3 }, 429);
+        fq.n++; fq.bytes += size; await this.s.put("fq", fq);
         f = { fid, to, name, size, n, at: now, got: [] }; list.push(f); fresh = true;
       }
       const i = Number(q.get("i"));
