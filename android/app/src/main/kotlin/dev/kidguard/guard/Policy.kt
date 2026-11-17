@@ -81,6 +81,7 @@ object Policy {
         if (Build.VERSION.SDK_INT < 29) perms += Manifest.permission.WRITE_EXTERNAL_STORAGE   // parent's files -> Download/KidGuard (Files.kt); 29+ uses MediaStore
         if (!Flavor.HOME) perms += listOf(Manifest.permission.READ_CONTACTS, Manifest.permission.READ_CALL_LOG)   // call list + screening (Calls.kt)
         perms += Manifest.permission.RECORD_AUDIO   // "listen around"; the child is always told when it is used (Listen.kt)
+        if (r.watch.sms) perms += Manifest.permission.READ_SMS   // texts for the parent (Sms.kt), told every time it is on
         if (r.pinShot || r.watch.cam) perms += Manifest.permission.CAMERA   // wrong-PIN photo (Shot.kt, told on the PIN dialog) and the parent's remote photo (Snap.kt, told every time)
         for (p in perms) runCatching {
             d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
@@ -696,6 +697,10 @@ object Policy {
             d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED)
             d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT)
         }.onFailure { Log.w(TAG, "mic revoke", it) }
+        runCatching {   // READ_SMS was granted by us too (watch.sms): take it back
+            d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.READ_SMS, DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED)
+            d.setPermissionGrantState(a, ctx.packageName, Manifest.permission.READ_SMS, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT)
+        }
         for (p in listOf(Manifest.permission.CAMERA)) runCatching {
             d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DENIED)
             d.setPermissionGrantState(a, ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT)

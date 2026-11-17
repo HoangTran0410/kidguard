@@ -38,6 +38,7 @@ class MonitoringTest {
         assertTrue(Monitoring.turnedOn(all, kw).isEmpty())
         assertEquals(listOf("words"), Monitoring.turnedOn(off, WatchRule(words = listOf("x"))).map { it.id })
         assertEquals(listOf("cam"), Monitoring.turnedOn(off, WatchRule(cam = true)).map { it.id })
+        assertEquals(listOf("sms"), Monitoring.turnedOn(off, WatchRule(sms = true)).map { it.id })
         assertEquals(listOf("notif"), Monitoring.active(all).map { it.id })
     }
 

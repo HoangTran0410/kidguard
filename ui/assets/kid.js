@@ -218,6 +218,7 @@ const CONFIRM = {
   "f-wk": { off: "seen.askAll", safe: 1 },
   "f-ww": { click: "seen.askWords", safe: 1 },
   "f-wc": { on: "seen.askCam", safe: 1 },
+  "f-ws": { on: "seen.askSms", safe: 1 },
 };
 let confirmPass = null;
 function confirmGate(e) {

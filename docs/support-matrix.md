@@ -125,6 +125,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Thông báo của con gửi cho bố mẹ (tự gửi cùng đồng bộ, lọc theo app / từ khoá; cũ hơn thì kéo theo yêu cầu) | ✅ | ✅ | ✅ | ✅ | ✅ | Cần quyền truy cập thông báo (con bật tay, hoặc adb/AutoGrant). Chỉ phần hiện trong thông báo, không có nội dung ẩn. Hàng đợi 50 trong RAM, mất khi máy khởi động lại. Không có trong bản Home |
 | Cảnh báo từ khoá (thông báo và SMS có từ khoá) | ✅ | ✅ | ✅ | ✅ | ✅ | Cùng nguồn thông báo; chỉ gửi tin có từ khoá |
 | Chụp ảnh theo yêu cầu (camera trước/sau, flash, cỡ, chờ 0-5 giây; con được báo mỗi lần) | ✅ | ✅ (tự cấp quyền camera qua adb của app) | ✅ | ✅ | ✅ | Màn hình phải đang sáng; flash trước = màn hình trắng ≤ 2 giây (cửa sổ của KidGuard, không cần quyền vẽ đè); không có ở bản Home |
+| Đọc tin nhắn SMS (kéo theo yêu cầu, mới nhất trước) và cảnh báo từ khoá từ SMS | ✅ | ⚠️ (xin quyền qua adb của app, nếu không được thì chỉ có nội dung thông báo SMS) | ⚠️ | ✅ | ✅ | Cần quyền READ_SMS; không có ở bản Home; không gồm app chat (đã có ở thông báo); ghi âm cuộc gọi không làm |
 
 ### 3.5 Launcher (màn hình chính của con)
 

@@ -29,4 +29,9 @@
     <string name="snap_notice_front">With the front camera, now.</string>
     <string name="snap_notice_back">With the back camera, now.</string>
     <string name="log_watch_snap">Your parent took a photo with your camera</string>
+    <string name="watch_sms_title">text messages</string>
+    <string name="watch_sms_kid">Your parent can read your text messages (SMS), and gets an alert when one has a word they chose.</string>
+    <string name="watch_sms_sees">Your SMS: who, when and the text, received and sent. Not messages from chat apps.</string>
+    <string name="log_watch_sms">Your parent looked at your text messages</string>
+    <string name="sms_app">SMS</string>
 </resources>

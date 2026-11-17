@@ -6,8 +6,8 @@
 // Keywords (rule watch.words): the phone raises an alert for a hit (docs/protocol.md "Word alerts"); "only with my words" also narrows the feed.
 const seenX = { k: null, busy: false, err: "", done: false, access: true, on: true, more: false, next: 0, old: [] };
 const SEEN_KEEP = 100;
-const seenW = () => { const w = (edit && edit.watch) || {}; return { notif: w.notif || {}, words: w.words || [], cam: !!w.cam }; };
-const seenSet = (fn) => { const w = seenW(); fn(w); edit.watch = { notif: Object.assign({ on: false, kw: false, apps: "all", list: [] }, w.notif), words: w.words, cam: w.cam }; changed(); };
+const seenW = () => { const w = (edit && edit.watch) || {}; return { notif: w.notif || {}, words: w.words || [], cam: !!w.cam, sms: !!w.sms }; };
+const seenSet = (fn) => { const w = seenW(); fn(w); edit.watch = { notif: Object.assign({ on: false, kw: false, apps: "all", list: [] }, w.notif), words: w.words, cam: w.cam, sms: w.sms }; changed(); };
 const seenFid = () => [...crypto.getRandomValues(new Uint8Array(8))].map(x => x.toString(16).padStart(2, "0")).join("");
 const seenKey = k => "kg.seen." + (k && (k.id || k.target) || "");
 let seenFeedL = { k: null, items: [] };   // live feed of the current kid, oldest first
@@ -34,11 +34,11 @@ function seenFeed(k, s) {
   }
 }
 
-async function seenPull(k, before) {
+async function seenPull(k, before, sms) {
   const n = 30;
-  if (!fxRelay(k)) return call(k, "/notifs?n=" + n + (before ? "&before=" + before : ""));
+  if (!fxRelay(k)) return call(k, (sms ? "/sms" : "/notifs") + "?n=" + n + (before ? "&before=" + before : ""));
   const fid = seenFid();
-  await call(k, "/cmd", "POST", { type: "notifPull", fid, before: before || 0, n });
+  await call(k, "/cmd", "POST", { type: sms ? "smsPull" : "notifPull", fid, before: before || 0, n });
   const end = Date.now() + 90e3;
   for (;;) {
     await new Promise(s => setTimeout(s, 2500));
@@ -129,9 +129,14 @@ function seenTab(b) {
     <div class="card" id="seenCam"><h2>${ic("camera")} ${t("seen.ch")}</h2>
       <label class="row"><input type="checkbox" id="f-wc" ${w.cam ? "checked" : ""}><span class="sp">${t("seen.con")}<br><span class="mute">${t("seen.ckid")}</span></span></label>
       ${w.cam ? seenCamForm() : ""}</div>
+    <div class="card" id="seenSms"><h2>${ic("message-square")} ${t("seen.sh")}</h2>
+      <label class="row"><input type="checkbox" id="f-ws" ${w.sms ? "checked" : ""}><span class="sp">${t("seen.son")}<br><span class="mute">${t("seen.skid")}</span></span></label>
+      ${w.sms ? `<div id="seenSmsBox"></div>` : ""}</div>
     <div class="card" id="seenWordsCard"><h2>${ic("siren")} ${t("seen.wh")}</h2><p class="mute">${t("seen.wp")}</p><div id="seenWords"></div></div>`;
   $("#f-wn").onchange = e => { seenSet(x => { x.notif.on = e.target.checked; }); seenX.done = false; seenX.old = []; seenTab(b); };   // confirm: CONFIRM["f-wn"] (kid.js)
   if ($("#f-wk")) $("#f-wk").onchange = e => { seenSet(x => { x.notif.kw = e.target.checked; }); seenDraw(); };   // widening: CONFIRM["f-wk"]
+  $("#f-ws").onchange = e => { seenSet(x => { x.sms = e.target.checked; }); smsX.done = false; smsX.rows = []; seenTab(b); };   // confirm: CONFIRM["f-ws"] (kid.js)
+  smsDraw();
   $("#f-wc").onchange = e => { seenSet(x => { x.cam = e.target.checked; }); seenTab(b); };   // confirm: CONFIRM["f-wc"] (kid.js)
   if ($("#snapGo")) $("#snapGo").onclick = snapGo;
   seenAppsDraw(); seenWordsDraw(); seenDraw();
@@ -187,4 +192,31 @@ async function snapGo() {
     box.innerHTML = `<img src="${u}" alt="${esc(t("seen.ch"))}" style="max-width:100%;max-height:60vh;border-radius:12px">`;
   } catch (e) { box.textContent = /^snap:/.test(e.raw || "") ? tc("seen.cerr.", e.raw.slice(5).replace(/ /g, "_"), "") || t("seen.cerr.failed") : e.message || t("fx.e.failed"); }
   btn.disabled = false;
+}
+
+// ---- Text messages (rule watch.sms): on demand, newest first, 30 a page (LAN GET /sms or relay smsPull + file channel) ----
+const smsX = { k: null, busy: false, err: "", done: false, access: true, more: false, rows: [] };
+async function smsLoad(more) {
+  const k = cur; if (!k || smsX.busy) return;
+  if (smsX.k !== k) Object.assign(smsX, { k, err: "", done: false, access: true, more: false, rows: [] });
+  smsX.busy = true; smsX.err = ""; smsDraw();
+  try {
+    const before = more && smsX.rows.length ? smsX.rows[smsX.rows.length - 1].t : 0;
+    const j = await seenPull(k, before, true);
+    if (smsX.k !== k) return;
+    smsX.access = j.access !== false; smsX.rows = more ? smsX.rows.concat(j.sms || []) : (j.sms || []); smsX.more = !!j.more; smsX.done = true;
+  } catch (e) { smsX.err = e.message || String(e.raw || e); }
+  smsX.busy = false; smsDraw();
+}
+function smsDraw() {
+  const box = $("#seenSmsBox"); if (!box) return;
+  const s = smsX;
+  box.innerHTML = `<p class="mute" style="margin:8px 0">${t("seen.sfall")}</p>
+    <div class="row"><button id="smsGo"${s.busy ? " disabled" : ""}>${ic("refresh-cw")} ${t(s.busy ? "seen.wait" : "seen.sload")}</button></div>
+    ${s.err ? alertBox("bad", "triangle-alert", esc(s.err)) : ""}${s.done && !s.access ? alertBox("warn", "info", t("seen.sNoAccess")) : ""}
+    ${s.done && s.access && !s.rows.length && !s.err ? `<p class="mute">${t("seen.sempty")}</p>` : ""}
+    <div class="list">${s.rows.map(x => `<div class="li"><div class="sp"><b>${esc(x.from || "?")}</b> <span class="mute">· ${esc(evAt(x.t))}${x.out ? " · " + t("seen.sout") : ""}</span><div>${esc(x.text)}</div></div></div>`).join("")}</div>
+    ${s.more ? `<div class="row" style="margin-top:8px"><button id="smsMore"${s.busy ? " disabled" : ""}>${t("seen.more")}</button></div>` : ""}`;
+  $("#smsGo").onclick = () => smsLoad(false);
+  if ($("#smsMore")) $("#smsMore").onclick = () => smsLoad(true);
 }

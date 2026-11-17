@@ -205,3 +205,9 @@ Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`,
 - Trigger: rule `lostOn` (+ `lostMsg`, `lostPhone`) from page / parent app / Telegram `/lost`.
 - Steps: on `USER_PRESENT` (not SCREEN_ON) show the card (message, call-back number, "Parent: turn off"); Device Owner `lockNow` again after `LOST_CARD_MS` (20 s). A right PIN / Authenticator code on the card sets `lostGraceUntil` (10 min): no relock, so a parent holding an offline phone can end lost mode on the page. `lostTick` locates every 5 min and loops the ring; a SIM change raises an event.
 - Gotchas: Basic mode shows the card only (no `lockNow`); `lostOn` wins over `monitor` in `nowWhy`.
+
+### 1.19 Text messages for the parent (2026-11-17, `remote/Sms.kt`, page `tab-seen.js` card `seenSms`)
+- Trigger: rule `watch.sms` on (page switch, confirmed: the child is told). Policy grants READ_SMS (Device Owner) / our adb (basic, every 10 min at most); release takes it back.
+- Steps: the page loads a page on demand (LAN `/sms`, relay `smsPull` + file channel); `Sms.tick` on each Guard tick turns a new incoming SMS with a `watch.words` word into the `word` event (`NotifSync.alert`).
+- Gotchas: no permission = the page says so; the Notifications card still shows SMS notification text. Chat apps are not SMS. Call audio is not recorded (out of scope).
+

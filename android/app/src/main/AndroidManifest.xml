@@ -31,6 +31,7 @@
     <!-- call screening + recent calls (Calls.kt); kid flavor only -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.READ_SMS" />   <!-- rule watch.sms: only when the parent turns it on, told to the child -->
     <!-- wrong-PIN photo (rule pinShot, Shot.kt): front camera, told on the PIN dialog -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />   <!-- video call: WebRTC sound in the WebView (Call.kt) -->
