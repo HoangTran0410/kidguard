@@ -163,7 +163,13 @@ function wireReq(b, today, inSheet) {
 // "Thêm" round button: wake, listen, message, restart
 function moreSheet() {
   sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("zap", t("now"))}
-    <div class="grid"><button type="button" id="scrGo"${navOk("screen") ? "" : " disabled"}>${ic("smartphone")} ${t("more.scr")}</button><button type="button" id="wake" class="act"></button>${viewDay ? "" : `<button type="button" id="vcGo">${ic("video")} ${t("call.go")}</button>`}${cur.via === "lan" && !viewDay ? `<button type="button" id="ear1" class="act"></button>` : ""}${isBasic() ? "" : `<button type="button" id="reboot" class="bad">${ic("refresh-cw")} ${t("reboot")}</button>`}</div>
+    <div class="grid mo2">${(() => {
+      // video call first (the main thing here); with an odd count the first button takes the whole row, restart always its own row (no half-row labels on two lines)
+      const b = [viewDay ? "" : `<button type="button" id="vcGo">${ic("video")} ${t("call.go")}</button>`, cur.via === "lan" && !viewDay ? `<button type="button" id="ear1" class="act"></button>` : "",
+        `<button type="button" id="scrGo"${navOk("screen") ? "" : " disabled"}>${ic("smartphone")} ${t("more.scr")}</button>`, `<button type="button" id="wake" class="act"></button>`].filter(Boolean);
+      if (b.length % 2) b[0] = b[0].replace("<button ", '<button style="grid-column:1/-1" ');
+      return b.join("") + (isBasic() ? "" : `<button type="button" id="reboot" class="bad" style="grid-column:1/-1">${ic("refresh-cw")} ${t("reboot")}</button>`);
+    })()}</div>
     ${cur.via === "lan" ? "" : `<p class="mute">${ic("ear")} ${t("ear.lanOnly")}</p>`}</div>`,
     (pop, done) => {
       pop.querySelector("#scrGo").onclick = () => { done(false); goTab("screen"); };
