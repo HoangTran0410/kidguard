@@ -158,3 +158,45 @@ internal fun HomeActivity.msgPreview(c: LinearLayout) {
     c.addView(text(getString(R.string.hm_wp_msg_from), 10f, pal.sub).apply { Ic.lead(this, R.drawable.li_message_circle, pal.accentText); compoundDrawablePadding = dp(4); maxLines = 1 })
     for (wd in listOf(56, 40)) c.addView(View(this).apply { background = fill(pal.stroke, 2f) }, LinearLayout.LayoutParams(dp(wd), dp(4)).apply { topMargin = dp(4) })
 }
+
+/** "Dọn dẹp" (kid flavor, rule kidClean): tap = [KidClean.run]; busy / result / cooldown shown in place. Render reads only the rule + the cooldown stamp. */
+internal fun HomeActivity.cleanWidget(s: Store, w: Int, h: Int): View {
+    val title = getString(R.string.kc_tile)
+    val card = wCard()
+    if (h >= 2) card.addView(wHead(R.drawable.li_eraser, title))
+    val main = wMain("", 2)
+    val sub = wSub("", 2)
+    card.addView(main)
+    card.addView(sub, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
+    fun show(m: String, d: String) {
+        main.text = m; sub.text = d; sub.visibility = if (d.isEmpty()) View.GONE else View.VISIBLE
+        card.contentDescription = if (d.isEmpty()) "$title. $m" else "$title. $m. $d"
+    }
+    fun idle() {
+        val st = CleanWidgetLogic.state(s.rules.kidClean, KidClean.running, KidClean.waitMin(this))
+        when (st.kind) {
+            CleanWidgetLogic.OFF -> show(getString(R.string.hm_wp_clean_off), "")
+            CleanWidgetLogic.BUSY -> show(getString(R.string.kc_busy), "")
+            CleanWidgetLogic.WAIT -> show(title, getString(R.string.kc_wait, st.waitMin))
+            else -> show(title, getString(R.string.hm_wp_clean_tap))
+        }
+    }
+    idle()
+    kit.tap(card, 22f) {
+        if (!s.rules.kidClean || !debounce()) return@tap
+        show(getString(R.string.kc_busy), "")
+        KidClean.run(this) { r ->
+            when (r.status) {
+                "ok" -> show(title, KidClean.text(this, r))
+                "fail" -> show(title, getString(R.string.kc_fail))
+                else -> idle()
+            }
+        }
+    }
+    return centred(card)
+}
+
+internal fun HomeActivity.cleanPreview(c: LinearLayout) {
+    c.addView(text(getString(R.string.kc_tile), 10f, pal.text, true).apply { Ic.lead(this, R.drawable.li_eraser, pal.accentText); compoundDrawablePadding = dp(4); maxLines = 1 })
+    c.addView(text(getString(R.string.hm_wp_clean_tap), 10f, pal.sub).apply { maxLines = 1 })
+}

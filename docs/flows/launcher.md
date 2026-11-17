@@ -155,7 +155,7 @@ Home flavor: only now, sched, tomorrow, notes (HOME_CARDS).
 ### 3.9 Widgets
 
 Own: `Flavor.widget(type)` filters; types clock, analog, month, time, next, quick, todo, note, counts, usage, battery, lock, when,
-earn, msg, class, timer, streak, media, weather (+ "app" for host widgets). Picker `openPicker`: one "KidGuard" card, 2-col tiles + size pills, drag via `Src.NewWidget`,
+earn, msg, class, timer, streak, media, weather, clean (+ "app" for host widgets). `clean` (2x1, 2x2, kid flavor only; `cleanWidget` in HomeWidgetsPlan.kt): offered in the picker only while rule kidClean is on; tap = `KidClean.run` (same as the KidGuard-screen tile, one shared 10-min cooldown in prefs `quick`/`cleanAt`); rule turned off later = the placed widget says "Bố mẹ chưa cho dọn". Render reads only the rule + the stamp. Picker `openPicker`: one "KidGuard" card, 2-col tiles + size pills, drag via `Src.NewWidget`,
 lazy "other apps" section (`awPickerSection`). Home flavor allows clock, analog, month, battery, todo, note, class, timer, streak, media, weather.
 `weather` (2x1, 2x2; `HomeWeather.kt`, pure `WeatherLogic.kt`): renders from the prefs cache `kg_weather`, a background thread (last known location -> Open-Meteo -> Geocoder place) redraws it; refresh when > 30 min old on render / minute tick (only while the launcher is in front). No location permission = the card says so; a tap asks (kid flavor only, the Home manifest removes location). Tap = the phone's weather app (`openRelated`).
 Other apps': `HomeAppWidgets.kt`: `awAdd` allocates id (host id `AW_HOST_ID` 0x4b47) -> `bindAppWidgetIdIfAllowed`, else ACTION_APPWIDGET_BIND

@@ -11,4 +11,7 @@
     <string name="hm_wp_msg_wait">Đang chờ bố mẹ · %1$s</string>
     <string name="hm_wp_msg_ask">Xin %1$d phút</string>
     <string name="hm_wp_msg_ask0">Xin thêm giờ</string>
+    <string name="hm_w_clean_d">Dọn file tạm của máy</string>
+    <string name="hm_wp_clean_off">Bố mẹ chưa cho dọn</string>
+    <string name="hm_wp_clean_tap">Chạm để dọn cho máy nhẹ</string>
 </resources>

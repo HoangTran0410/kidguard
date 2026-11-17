@@ -11,4 +11,7 @@
     <string name="hm_wp_msg_wait">Waiting for mum and dad · %1$s</string>
     <string name="hm_wp_msg_ask">%1$d more minutes</string>
     <string name="hm_wp_msg_ask0">More time</string>
+    <string name="hm_w_clean_d">Clear temporary files to free space</string>
+    <string name="hm_wp_clean_off">Parents have not allowed clean up</string>
+    <string name="hm_wp_clean_tap">Tap to free space</string>
 </resources>

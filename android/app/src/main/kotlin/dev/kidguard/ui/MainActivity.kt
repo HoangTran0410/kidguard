@@ -475,29 +475,15 @@ class MainActivity : Activity() {
     private fun picked() = KidTilesLogic.parse(tilePrefs().getString("tiles", null), cleanOk())
     private var cleaning = false
 
-    /**
-     * "Dọn dẹp" tile (rule kidClean): ONLY Policy.clearCaches, on its own thread, once per 10 min. Caches only: no app data, accounts or permissions.
-     * Never bgLimit: that stays a parent command.
-     */
+    /** "Dọn dẹp" tile (rule kidClean): the run itself is [KidClean] (shared with the launcher widget). */
     private fun runClean() {
-        val s = Store.of(this)
-        if (!s.rules.kidClean || cleaning) return
-        val wait = KidTilesLogic.cleanWaitMin(tilePrefs().getLong("cleanAt", 0L), System.currentTimeMillis())
-        if (wait > 0) { Toasts.show(this, getString(R.string.kc_wait, wait), true); return }
         val b = tiles["clean"] ?: return
+        if (!cleanOk() || cleaning) return
         cleaning = true; b.isEnabled = false; b.text = getString(R.string.kc_busy)
-        Thread {
-            val res = runCatching { Policy.clearCaches(applicationContext) }.getOrDefault("failed")
-            val mb = Policy.lastCacheClear?.second ?: 0
-            if (res == "ok") {
-                tilePrefs().edit().putLong("cleanAt", System.currentTimeMillis()).apply()
-                s.log(R.string.log_kid_clean, mb)
-            }
-            ui.post {
-                cleaning = false; b.isEnabled = true; b.text = getString(R.string.kc_tile)
-                if (!isFinishing) Toasts.show(this, if (res != "ok") getString(R.string.kc_fail) else if (mb > 0) getString(R.string.kc_done, KidTilesLogic.mbText(mb)) else getString(R.string.kc_done0), true)
-            }
-        }.apply { isDaemon = true }.start()
+        KidClean.run(this) { r ->
+            cleaning = false; b.isEnabled = true; b.text = getString(R.string.kc_tile)
+            if (!isFinishing && r.status != "busy" && r.status != "off") Toasts.show(this, KidClean.text(this, r), true)
+        }
     }
 
     /** Rows of 4: SOS, the picked tiles, Edit (KidTilesLogic.rows). */

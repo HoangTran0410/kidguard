@@ -32,3 +32,12 @@ class KidTilesLogicTest {
     }
     @Test fun roundTrip() = assertEquals(listOf("usage", "lock"), KidTilesLogic.parse(KidTilesLogic.join(listOf("usage", "lock"))))
 }
+
+class CleanWidgetLogicTest {
+    @org.junit.Test fun states() {
+        org.junit.Assert.assertEquals(CleanWidgetLogic.OFF, CleanWidgetLogic.state(false, true, 5).kind)
+        org.junit.Assert.assertEquals(CleanWidgetLogic.BUSY, CleanWidgetLogic.state(true, true, 5).kind)
+        org.junit.Assert.assertEquals(3, CleanWidgetLogic.state(true, false, 3).waitMin)
+        org.junit.Assert.assertEquals(CleanWidgetLogic.READY, CleanWidgetLogic.state(true, false, 0).kind)
+    }
+}

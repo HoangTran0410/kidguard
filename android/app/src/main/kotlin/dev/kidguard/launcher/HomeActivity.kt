@@ -759,6 +759,7 @@ class HomeActivity : Activity() {
                         "usage" -> usageWidget(dv, all, it.w, it.h)
                         "when" -> whenWidget(r, dv, block, it.w, it.h)
                         "msg" -> msgWidget(s, it.w, it.h)
+                        "clean" -> if (Flavor.HOME) null else cleanWidget(s, it.w, it.h)
                         "earn" -> earnWidget(r, s, it.w, it.h)
                         "class" -> classWidget(m, dv, it.w, it.h)
                         "timer" -> timerWidget(it.w, it.h)
