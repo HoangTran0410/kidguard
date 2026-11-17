@@ -481,6 +481,7 @@ const STEPS = [
     await sh("cmd notification allow_listener " + PKG + "/" + PKG + ".NotifDots").catch(() => {});
     await sh("appops set " + PKG + " SYSTEM_ALERT_WINDOW allow").catch(() => {});   // bank app reopen (basic mode)
     await sh("pm grant " + PKG + " android.permission.RECORD_AUDIO; appops set " + PKG + " RECORD_AUDIO allow").catch(() => {});   // "listen" after an SOS: never ask the child then
+    await sh("pm grant " + PKG + " android.permission.READ_CALL_LOG; pm grant " + PKG + " android.permission.READ_CONTACTS").catch(() => {});   // Calls card: recent calls + unknown caller
     await sh("appops set " + PKG + " REQUEST_INSTALL_PACKAGES allow").catch(() => {});   // self-update without asking (basic mode)
   }],
   ["Bật dịch vụ Trợ năng", async () => {

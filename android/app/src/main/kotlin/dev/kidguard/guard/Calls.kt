@@ -74,12 +74,12 @@ object Calls {
 
     /** Own-adb commands for what is missing (AutoGrant.missing): the two runtime permissions and the role. */
     fun shellNeeds(ctx: Context): List<String> {
-        if (!wanted(ctx)) return emptyList()
+        if (Flavor.HOME) return emptyList()
         val p = ctx.packageName
-        return buildList {
+        return buildList {   // the two permissions always (the page's recent-calls list), the role only while blocking is on
             if (!canReadContacts(ctx)) add("pm grant $p ${Manifest.permission.READ_CONTACTS}")
             if (!canReadLog(ctx)) add("pm grant $p ${Manifest.permission.READ_CALL_LOG}")
-            if (!roleHeld(ctx)) add("cmd role add-role-holder --user 0 $ROLE $p")
+            if (wanted(ctx) && !roleHeld(ctx)) add("cmd role add-role-holder --user 0 $ROLE $p")
         }
     }
 

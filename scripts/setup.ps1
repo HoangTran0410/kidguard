@@ -251,6 +251,9 @@ Adb shell appops set $Pkg WRITE_SETTINGS allow | Out-Null
 # "listen around" after an SOS must not ask the child for the mic
 Adb shell pm grant $Pkg android.permission.RECORD_AUDIO | Out-Null
 Adb shell appops set $Pkg RECORD_AUDIO allow | Out-Null
+# Calls card: recent calls + "unknown caller" need the call log and contacts (the Home flavor lacks them: ignored)
+Adb shell pm grant $Pkg android.permission.READ_CALL_LOG | Out-Null
+Adb shell pm grant $Pkg android.permission.READ_CONTACTS | Out-Null
 Adb shell cmd notification allow_dnd $Pkg | Out-Null
 Adb shell cmd notification allow_listener "$Pkg/$Pkg.NotifDots" | Out-Null
 Adb shell appops set $Pkg SYSTEM_ALERT_WINDOW allow | Out-Null   # bank app reopen (basic mode)

@@ -1181,4 +1181,5 @@
     </plurals>
     <string name="log_self_open">Bố mẹ mở trang thông tin app KidGuard 5 phút</string>
     <string name="feat_cap_mic">micro</string>
+    <string name="feat_cap_calls">danh bạ và nhật ký cuộc gọi</string>
 </resources>

@@ -348,6 +348,7 @@ object SelfSetup {
         runCatching { sh("cmd notification allow_listener $PKG/$PKG.NotifDots") }   // launcher notification dots
         runCatching { sh("appops set $PKG SYSTEM_ALERT_WINDOW allow") }   // bank app reopen (basic mode)
         runCatching { sh("pm grant $PKG android.permission.RECORD_AUDIO"); sh("appops set $PKG RECORD_AUDIO allow") }   // "listen" after an SOS: never ask the child then
+        if (!Flavor.HOME) runCatching { sh("pm grant $PKG android.permission.READ_CALL_LOG"); sh("pm grant $PKG android.permission.READ_CONTACTS") }   // Calls card: recent calls + unknown caller
         runCatching { sh("appops set $PKG REQUEST_INSTALL_PACKAGES allow") }   // self-update without asking (basic mode)
     }
 

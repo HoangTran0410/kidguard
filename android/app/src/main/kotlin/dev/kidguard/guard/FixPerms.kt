@@ -29,7 +29,7 @@ object FixPerms {
     @Volatile private var tap: List<String> = emptyList()     // still needs a tap on the phone after the last Fix
     @Volatile private var noted = false
 
-    /** Ids in display order: admin acc (basic mode only) usage listener location notify battery mic. Empty = all fine. */
+    /** Ids in display order: admin acc (basic mode only) usage listener location notify battery mic calls. Empty = all fine. */
     fun missing(ctx: Context): List<String> {
         if (Flavor.HOME) return emptyList()
         val owner = Policy.isOwner(ctx)
@@ -43,6 +43,8 @@ object FixPerms {
             if (!Basic.batteryOk(ctx)) add("battery")
             // "listen around" / Telegram recording: without it the parent had no way to get it back from the page (owner 2026-11-16)
             if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) add("mic")
+            // Calls card (recent calls, "unknown caller"): basic mode had no way to ask for these (owner 2026-11-17)
+            if (!Calls.canReadLog(ctx) || !Calls.canReadContacts(ctx)) add("calls")
         }
     }
 
@@ -88,6 +90,7 @@ object FixPerms {
             if (Build.VERSION.SDK_INT >= 29) perms += Manifest.permission.ACCESS_BACKGROUND_LOCATION
             if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
             perms += Manifest.permission.RECORD_AUDIO
+            perms += listOf(Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS)
             for (p in perms) runCatching {
                 Policy.dpm(ctx).setPermissionGrantState(Policy.admin(ctx), ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
             }.onFailure { Log.w("KidGuard", "fixPerms grant $p", it) }
@@ -98,6 +101,7 @@ object FixPerms {
     /** Runtime permissions the child can allow in one tap from the system dialog (MainActivity EXTRA_ASK_PERM); null = a Settings screen. */
     fun runtime(id: String): Array<String>? = when (id) {
         "mic" -> arrayOf(Manifest.permission.RECORD_AUDIO)
+        "calls" -> arrayOf(Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS)
         "notify" -> if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.POST_NOTIFICATIONS) else null
         else -> null
     }

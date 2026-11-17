@@ -59,7 +59,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Chức năng | DO | CB | +WSS | +adb | Relay | Ghi chú |
 |---|---|---|---|---|---|---|
 | DNS an toàn (Private DNS) | ✅ | ❌ | ✅ | ✅ | ✅ | +WSS: ghi `Settings.Global`, tự sửa lại nếu con đổi. Tắt DoH của Chrome/Edge chỉ DO |
-| Chặn cuộc gọi lạ / số ẩn + danh sách cuộc gọi | ✅ | ✅ | ✅ | ✅ | ✅ | Android 10+ (dưới: chỉ danh sách). Cần role CALL_SCREENING: tự cấp qua adb của máy (`cmd role add-role-holder`), không có adb thì bé chạm 1 lần. DO tự cấp quyền danh bạ + nhật ký cuộc gọi; basic cần adb. Không có bản Home |
+| Chặn cuộc gọi lạ / số ẩn + danh sách cuộc gọi | ✅ | ✅ | ✅ | ✅ | ✅ | Android 10+ (dưới: chỉ danh sách). Cần role CALL_SCREENING: tự cấp qua adb của máy (`cmd role add-role-holder`), không có adb thì bé chạm 1 lần. DO tự cấp quyền danh bạ + nhật ký cuộc gọi; basic: 4 cách cài cấp qua adb, không có adb thì bố mẹ bấm Sửa, con chạm Cho phép 1 lần. Không có bản Home |
 | Trợ lý AI (mã riêng `aiToken`, MCP) | ✅ | ✅ | ❌ | ❌ | ✅ | Chỉ đọc, đổi giới hạn, khoá, đổ chuông, nhắn; không đổi PIN/bảo vệ, không gỡ. Phone + relay đều chặn. Mã tạo ở trang (cần PIN) |
 | Chặn VPN, chặn chế độ máy bay | ✅ | ❌ | ❌ | ❌ | ✅ | |
 | Chặn trang web, tắt ẩn danh (`webBlock`, `noIncognito`) | ✅ | ❌ | ❌ | ❌ | ✅ | Chỉ Chrome/Edge (cấu hình quản lý). Trình duyệt khác bỏ qua: trang liệt kê (`webOther`) và cho chặn app đó |
