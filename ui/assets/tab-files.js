@@ -93,8 +93,9 @@ async function fxFetch(k, f, job, thumb) {
   if (!thumb && f.size > FX.relay) throw errOf("relayBig", t("fx.e.relayBig", fxSize(FX.relay)));
   job.state = "wait"; job.at = Date.now(); fxPaint();
   await call(k, "/cmd", "POST", thumb ? { type: "fileUp", file: f.id, thumb: 1 } : { type: "fileUp", file: f.id });   // the phone puts it on the relay (next sync)
-  // a thumb travels under its own fid (assumed f.id + "t" / "-t" / ".t", or the same fid flagged thumb): see docs/protocol.md "Shared files" (chat)
-  const want = x => x.done && (thumb ? (x.fid === f.id + "t" || x.fid === f.id + "-t" || x.fid === f.id + ".t" || (x.fid === f.id && x.thumb)) : x.fid === f.id);
+  // a thumb travels under its own fid: every hex digit of the id complemented (0<->f, 1<->e ...), protocol "Family chat" -> "Attachments"
+  const tf = String(f.id).replace(/[0-9a-f]/g, d => (15 - parseInt(d, 16)).toString(16));
+  const want = x => x.done && x.fid === (thumb ? tf : f.id);
   let meta = null; const end = Date.now() + (thumb ? 90e3 : 5 * 60e3);
   while (!meta) {
     await new Promise(s => setTimeout(s, thumb ? 2500 : 3000));
