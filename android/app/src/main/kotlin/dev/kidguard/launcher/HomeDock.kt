@@ -247,6 +247,18 @@ internal fun HomeActivity.drawerDone(open: Boolean) {
     }
 }
 
+/**
+ * The home is hidden (INVISIBLE) only while the drawer covers it. A close that never finished (animation cut, view
+ * rebuilt) must not leave the kid a wallpaper-only screen (INCIDENT 2026-11-17, Nam): no drawer = home shown.
+ */
+internal fun HomeActivity.homeVisibleIfNoDrawer() {
+    if (drawer != null || drawerAnim != null) return
+    if (content.visibility != View.VISIBLE || content.alpha < 1f) {
+        content.visibility = View.VISIBLE; content.alpha = 1f; content.scaleX = 1f; content.scaleY = 1f
+        content.setLayerType(View.LAYER_TYPE_NONE, null)
+    }
+}
+
 internal fun HomeActivity.openDrawer() {
     if (drawer == null) { if (!drawerBegin()) return; drawerAt(0f); kbOnOpen = Gest.drawerKb(this) } else drawerBegin()
     drawerSettle(true)

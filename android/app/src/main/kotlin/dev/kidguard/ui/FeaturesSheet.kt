@@ -73,11 +73,13 @@ object FeaturesSheet {
      * "Chống lách": what a child can still do against basic mode, what Device Owner closes, and what upgrading costs
      * (accounts) BEFORE the parent starts it. Upgrade = the on-phone setup (Android 11+), else the guide.
      */
+    private val GATED = setOf("admin", "acc", "usage", "location", "battery", "home", "adb")
+
     fun tamper(act: Activity, u: Ui) {
         val onPhone = Build.VERSION.SDK_INT >= 30
         Modal(act, u).show(R.drawable.li_shield, Modal.Tone.WARN, act.getString(R.string.tamper_title), act.getString(R.string.tamper_body),
             ok = act.getString(if (onPhone) R.string.tamper_go else R.string.feat_guide), cancel = act.getString(R.string.feat_close)) {
-            if (onPhone) runCatching { act.startActivity(Intent(act, SelfSetupActivity::class.java)) }
+            if (onPhone) SelfGate.run(act, u) { runCatching { act.startActivity(Intent(act, SelfSetupActivity::class.java)) } }
             else open(act, Intent(Intent.ACTION_VIEW, Uri.parse(GUIDE)))
             true
         }
@@ -85,6 +87,8 @@ object FeaturesSheet {
 
     /** The system screen that grants [cap]. [pair] starts the child app's pairing flow. */
     fun fix(act: Activity, u: Ui, cap: String, pair: () -> Unit) {
+        // pages the anti-tamper closes on a paired basic phone: parent PIN first (SelfGate), then the page
+        if (cap in GATED && !SelfGate.free(act)) { SelfGate.run(act, u) { fix(act, u, cap, pair) }; return }
         val pkg = Uri.parse("package:${act.packageName}")
         fun granted(p: String) = act.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
         when (cap) {

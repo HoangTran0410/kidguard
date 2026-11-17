@@ -282,6 +282,7 @@ class HomeActivity : Activity() {
         // apps stay: pkgRx lives from the first resume to onDestroy, so installs / updates while an app is in front reach
         // it (re-querying every launcher activity on each return home cost an Oppo A5s 6-7 ms)
         dialerAt = 0L; bannerSet = false
+        homeVisibleIfNoDrawer()
         render(false)         // rebuilds only when the key changed: coming back from an app is free
         drawerPrep()
     }
@@ -293,6 +294,7 @@ class HomeActivity : Activity() {
         popup?.dismiss()
         main.removeCallbacks(renderRetry)   // an open folder keeps busy() true: no rebuild loop behind another app
         pager.dragging = false   // a gesture cut by an app switch must not keep busy() true (the home would never rebuild)
+        drawerAnim?.end()        // jump a moving drawer to where it was going (drawerDone runs): never left half-way behind an app
         super.onPause()
     }
 
@@ -471,6 +473,7 @@ class HomeActivity : Activity() {
     internal fun shadow(d: Float) = if (liteFx) 0f else dpf(d)
 
     private val renderRetry = Runnable { render(false) }
+    private var renderFails = 0
     private val pkgLater = Runnable { apps = null; dialerAt = 0L; render(false) }   // a suspend / install burst: one rebuild
     internal fun busy() = drag != null || overlay != null || popup?.isShowing == true || pager.dragging
 
@@ -478,7 +481,18 @@ class HomeActivity : Activity() {
         val t0 = android.os.SystemClock.elapsedRealtime()
         liteFx = fxNow(model?.style)
         ReadAids.applyMotion(this, model?.style)
-        try { render0(force) } finally {
+        try { render0(force); renderFails = 0 }
+        catch (e: Exception) {
+            // INCIDENT 2026-11-17 (Nam): home = wallpaper only, no apps / drawer / Today. render0 sets `key` before it builds
+            // the pages, so a throw half-way (swallowed by the Guard listener's runCatching) left a half-built home that
+            // never rebuilt. Now: forget the key (next render rebuilds), count it as a launcher crash (2nd = layout reset,
+            // 3rd = the phone's own launcher takes HOME: never stuck), retry soon.
+            key = ""; renderFails++
+            android.util.Log.e("KidGuard", "home render failed ($renderFails)", e)
+            runCatching { LauncherSafe.crashed(this, e) }
+            if (renderFails == 1) runCatching { Store.of(this).log(R.string.log_home_render_fail, e.javaClass.simpleName + ": " + (e.message ?: "").take(80)) }
+            main.removeCallbacks(renderRetry); if (renderFails <= 5 && !isFinishing) main.postDelayed(renderRetry, 2000L * renderFails)
+        } finally {
             val ms = android.os.SystemClock.elapsedRealtime() - t0
             if (ms > 16) android.util.Log.i("KG.perf", "home render ${ms}ms force=$force")
         }

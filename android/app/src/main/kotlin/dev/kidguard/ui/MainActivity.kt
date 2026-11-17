@@ -906,10 +906,8 @@ class MainActivity : Activity() {
      * as the page's "Open KidGuard settings" (selfOpen), then the setup starts. No PIN set / not paired: straight in.
      */
     private fun openSelfSetup() {
-        val s = Store.of(this)
         val go = { startActivity(Intent(this, SelfSetupActivity::class.java)) }
-        if (Policy.isOwner(this) || !s.everPaired || s.rules.pinHash.isBlank()) { go(); return }
-        askPin { s.selfOpenUntil = System.currentTimeMillis() + CmdGate.SELF_OPEN_MS; runCatching { s.log(R.string.log_self_open) }; go() }
+        SelfGate.run(this, ui2, go)
     }
 
     /** [then] null = open pairing (the original use). */
@@ -922,16 +920,16 @@ class MainActivity : Activity() {
             s.openPairing(); refresh(); return
         }
         fun lockText(left: Long) = ((left + 59_999) / 60_000).toInt().let { resources.getQuantityString(R.plurals.pin_locked, it, it) }
-        s.pinLockLeft().takeIf { it > 0 }?.let { left ->
+        s.localPinLockLeft().takeIf { it > 0 }?.let { left ->
             Modal(this, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, getString(R.string.locked_title), lockText(left)); return
         }
         val m = Modal(this, ui2)
         val input = m.field(getString(R.string.pin_field), 12, pin = true)
         m.show(R.drawable.li_shield, Modal.Tone.INFO, getString(R.string.pin_title), getString(R.string.pin_body), KidNow.withForgot(this, ui2, input), ok = getString(R.string.pin_ok), cancel = getString(R.string.cancel)) {
-            if (s.checkParentPin(input.text.toString().filter { it.isDigit() })) { if (then != null) then() else { s.openPairing(); refresh() }; true }
+            if (s.checkPinOnPhone(input.text.toString().filter { it.isDigit() })) { if (then != null) then() else { s.openPairing(); refresh() }; true }
             else {
                 input.setText("")
-                m.setError(s.pinLockLeft().takeIf { it > 0 }?.let { lockText(it) } ?: s.pinTriesLeft().takeIf { it in 1..4 }?.let { resources.getQuantityString(R.plurals.pin_wrong_left, it, it) } ?: getString(R.string.pin_wrong))
+                m.setError(s.localPinLockLeft().takeIf { it > 0 }?.let { lockText(it) } ?: s.localPinTriesLeft().takeIf { it in 1..4 }?.let { resources.getQuantityString(R.plurals.pin_wrong_left, it, it) } ?: getString(R.string.pin_wrong))
                 false
             }
         }

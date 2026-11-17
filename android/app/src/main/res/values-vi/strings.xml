@@ -1204,6 +1204,10 @@
         <item quantity="other">Bật lại %d phút sau khi rời app.</item>
     </plurals>
     <string name="log_self_open">Bố mẹ mở trang thông tin app KidGuard 5 phút</string>
+    <string name="self_gate_t">PIN bố mẹ</string>
+    <string name="self_gate_b">Trang cài đặt này tắt được KidGuard nên cần PIN bố mẹ. Đúng PIN thì mở được cài đặt KidGuard trong 5 phút.</string>
+    <string name="self_gate_nopin">Trang cài đặt này tắt được KidGuard. Bố mẹ mở từ trang của mình: Vùng nguy hiểm, rồi Mở thông tin app KidGuard (5 phút).</string>
+    <string name="log_home_render_fail">Màn hình chính của con bị lỗi khi vẽ (%1$s): đang thử lại; lỗi 3 lần thì dùng launcher của máy</string>
     <string name="feat_cap_mic">micro</string>
     <string name="feat_cap_calls">danh bạ và nhật ký cuộc gọi</string>
     <string name="feat_cap_cam">camera</string>

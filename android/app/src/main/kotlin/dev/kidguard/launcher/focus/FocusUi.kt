@@ -92,12 +92,12 @@ private fun HomeActivity.gate(why: Int, title: Int = R.string.focus_end_t, butto
     val s = Store.of(this)
     if (!FocusLogic.needsPin(Flavor.HOME, s.rules.pinHash.isNotBlank())) { then(); return }
     fun lockText(left: Long) = ((left + 59_999) / 60_000).toInt().let { resources.getQuantityString(R.plurals.pin_locked, it, it) }
-    s.pinLockLeft().takeIf { it > 0 }?.let { Modal(this, u).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, getString(R.string.locked_title), lockText(it)); return }
+    s.localPinLockLeft().takeIf { it > 0 }?.let { Modal(this, u).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, getString(R.string.locked_title), lockText(it)); return }
     val m = Modal(this, u)
     val input = m.field(getString(R.string.pin_field), 12, pin = true)
     m.show(R.drawable.li_shield, Modal.Tone.INFO, getString(title), getString(why), KidNow.withForgot(this, u, input), ok = getString(button), cancel = getString(R.string.cancel)) {
-        if (s.checkParentPin(input.text.toString().filter { it.isDigit() })) { then(); true }
-        else { input.setText(""); m.setError(s.pinLockLeft().takeIf { it > 0 }?.let { lockText(it) } ?: s.pinTriesLeft().takeIf { it in 1..4 }?.let { resources.getQuantityString(R.plurals.pin_wrong_left, it, it) } ?: getString(R.string.pin_wrong)); false }
+        if (s.checkPinOnPhone(input.text.toString().filter { it.isDigit() })) { then(); true }
+        else { input.setText(""); m.setError(s.localPinLockLeft().takeIf { it > 0 }?.let { lockText(it) } ?: s.localPinTriesLeft().takeIf { it in 1..4 }?.let { resources.getQuantityString(R.plurals.pin_wrong_left, it, it) } ?: getString(R.string.pin_wrong)); false }
     }
 }
 

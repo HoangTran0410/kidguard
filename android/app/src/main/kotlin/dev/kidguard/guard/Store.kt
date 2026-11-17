@@ -188,6 +188,13 @@ class Store private constructor(private val app: Context) {
     /** Checks the parent PIN with the lockout: true = right; false = wrong or locked (see [pinLockLeft]). Remote use (page, relay, pairing). */
     fun checkParentPin(pin: String): Boolean = checkPinCounter(pin, "pinFails", "pinLock", true)
 
+    /**
+     * The parent PIN typed in a dialog ON this phone (pairing, full setup, focus): the phone's own counter, so a child
+     * guessing on the phone never locks the parents' remote access (stuck audit 2026-11-17: these dialogs used the remote
+     * counter, 5 wrong tries locked the page out 5-30 min). Check [localPinLockLeft] / [localPinTriesLeft].
+     */
+    fun checkPinOnPhone(pin: String): Boolean = checkLocalPin(pin)
+
     /** The PIN typed on the child phone ([checkAdmin]): own counter and lockout. */
     private fun checkLocalPin(pin: String): Boolean = checkPinCounter(pin, "aPinFails", "aPinLock", false)
 

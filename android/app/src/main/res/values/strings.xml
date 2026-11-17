@@ -1228,6 +1228,10 @@
         <item quantity="other">Back on %d minutes after you leave it.</item>
     </plurals>
     <string name="log_self_open">Parent opened KidGuard\'s app info for 5 minutes</string>
+    <string name="self_gate_t">Parent PIN</string>
+    <string name="self_gate_b">This settings page can turn KidGuard off, so it needs the parent PIN. Right PIN: KidGuard\'s settings stay open for 5 minutes.</string>
+    <string name="self_gate_nopin">This settings page can turn KidGuard off. The parent opens it from their page: Danger zone, then Open KidGuard app info (5 minutes).</string>
+    <string name="log_home_render_fail">The kid home failed to draw (%1$s): it retries; after 3 failures the phone\'s own launcher takes over</string>
     <string name="feat_cap_mic">microphone</string>
     <string name="feat_cap_calls">contacts and call log</string>
     <string name="feat_cap_cam">camera</string>

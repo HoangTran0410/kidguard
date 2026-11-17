@@ -77,7 +77,8 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         if (!Policy.isOwner(act) && !s.everPaired) s.selfOpenUntil = System.currentTimeMillis() + CmdGate.SELF_OPEN_MS
         open(i)
     }
-    private fun open(vararg i: Intent) { for (x in i) if (runCatching { act.startActivity(x.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return }
+    private fun open(vararg i: Intent) = SelfGate.run(act, ui) { openNow(*i) }
+    private fun openNow(vararg i: Intent) { for (x in i) if (runCatching { act.startActivity(x.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return }
     /** Asks for [perms]; once Android stops showing its dialog (denied twice) the tap opens the app's settings page instead. */
     private fun request(code: Int, vararg perms: String) {
         val p = act.getSharedPreferences("setup_ask", android.content.Context.MODE_PRIVATE)
@@ -98,7 +99,7 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
                 .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, Policy.admin(c))
                 .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, c.getString(R.string.basic_admin_expl)))
         }
-        if (Build.VERSION.SDK_INT >= 33) out += Step(s(R.string.acc_restricted), s(R.string.acc_restricted_d), !Acc.restricted(c)) { c.startActivity(Acc.appInfo(c)) }
+        if (Build.VERSION.SDK_INT >= 33) out += Step(s(R.string.acc_restricted), s(R.string.acc_restricted_d), !Acc.restricted(c)) { SelfGate.run(act, ui) { runCatching { c.startActivity(Acc.appInfo(c)) } } }
         out += Step(s(R.string.basic_acc), s(R.string.basic_acc_d), Acc.isOn(c) || AccPause.active(c)) { open(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
         out += Step(s(R.string.basic_usage), s(R.string.basic_usage_d), Usage.granted(c)) { open(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, pkg), Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
         if (!owner) {
@@ -159,7 +160,7 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
             box.addView(ui.label(act.getString(desc), 13f).apply { setPadding(0, ui.dp(14), 0, ui.dp(6)); setLineSpacing(0f, 1.1f) })
             box.addView(ui.button(act.getString(title), if (primary) R.drawable.li_shield else R.drawable.li_list_checks, primary) { run() }, LinearLayout.LayoutParams(-1, -2))
         }
-        option(R.string.fr_full, R.string.fr_full_d, true) { act.startActivity(Intent(act, SelfSetupActivity::class.java)) }
+        option(R.string.fr_full, R.string.fr_full_d, true) { SelfGate.run(act, ui) { act.startActivity(Intent(act, SelfSetupActivity::class.java)) } }
         option(R.string.fr_basic, R.string.fr_basic_d, false) { prefs().edit().putBoolean("firstChoice", true).apply(); lastKey = ""; update() }
     }
 
