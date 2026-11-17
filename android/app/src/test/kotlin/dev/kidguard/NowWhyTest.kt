@@ -125,6 +125,14 @@ class NowWhyTest {
         assertEquals("ready:45204:1" to false, SimLogic.step("ready:45204:1", ""))   // unknown (booting): keep
         assertEquals("absent" to true, SimLogic.step("ready:45204:1", "absent"))
         assertEquals("ready:45201:2" to true, SimLogic.step("absent", "ready:45201:2"))
+    }
+
+    @Test fun simRebootIsNotASimChange() {   // INCIDENT 2026-11-17: reboot -> two "SIM changed" events, same SIM
+        val sim = "ready:45201:1234"
+        assertEquals("", SimLogic.sig(5, "", -1, true))                                  // ready, no operator yet = unknown
+        assertEquals(sim to false, SimLogic.step(sim, "absent", 30_000))                  // first minutes after boot: ignored
+        assertEquals(sim to false, SimLogic.step(sim, "ready:45201:-1"))                  // carrier id not known yet
+        assertEquals("ready:45204:7" to true, SimLogic.step(sim, "ready:45204:7", 600_000))   // a real swap still counts
         assertEquals("", SimLogic.sig(5, "45204", 1, false))
         assertEquals("ready:45204:1", SimLogic.sig(5, "452-04", 1, true))
         assertEquals("", SimLogic.sig(2, "", 0, true))   // PIN required

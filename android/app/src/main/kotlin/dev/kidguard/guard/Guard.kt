@@ -385,7 +385,7 @@ class Guard : Service() {
 
     /** SIM state / operator changed since the last tick (no dangerous permission needed, see [SimLogic]). */
     private fun simCheck() {
-        val (sig, changed) = SimLogic.step(store.simSig, Sim.sig(this))
+        val (sig, changed) = SimLogic.step(store.simSig, Sim.sig(this), android.os.SystemClock.elapsedRealtime())
         if (sig != store.simSig) store.simSig = sig
         if (changed) { store.event("sim", R.string.ev_sim, getString(if (sig == "absent") R.string.ev_sim_absent else R.string.ev_sim_other)); store.log(R.string.ev_sim, sig); relay?.kick() }
     }
