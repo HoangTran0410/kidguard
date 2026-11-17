@@ -70,5 +70,6 @@
         <service android:name=".Guard" tools:node="remove" />
         <service android:name=".Acc" tools:node="remove" />
         <provider android:name=".FilesProvider" tools:node="remove" />
+        <provider android:name=".CaptureProvider" tools:node="remove" />
     </application>
 </manifest>

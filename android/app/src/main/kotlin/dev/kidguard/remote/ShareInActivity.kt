@@ -77,13 +77,13 @@ class ShareInActivity : Activity() {
                 val (e, code) = runCatching {
                     val name = nameOf(u) ?: u.lastPathSegment?.substringAfterLast('/') ?: "file"
                     val ins = contentResolver.openInputStream(u) ?: return@runCatching null to "failed"
-                    Files.addOut(this, name, contentResolver.getType(u) ?: type, ins)
+                    Files.addOutChat(this, name, contentResolver.getType(u) ?: type, ins)
                 }.getOrElse { Log.w("KidGuard", "share in", it); null to "failed" }
                 if (e != null) ok++ else err = code
             }
             if (text != null) {
                 val name = "note-" + java.text.SimpleDateFormat("yyyyMMdd-HHmm", java.util.Locale.ROOT).format(java.util.Date()) + ".txt"
-                if (Files.addOut(this, name, "text/plain", text.toByteArray().inputStream()).first != null) ok++
+                if (Files.addOutChat(this, name, "text/plain", text.toByteArray().inputStream()).first != null) ok++
             }
             runOnUiThread {
                 toast(if (ok > 0) resources.getQuantityString(R.plurals.files_sent, ok, ok)

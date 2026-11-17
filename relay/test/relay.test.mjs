@@ -310,7 +310,7 @@ ck("file wrong token 401",(await fetch(`${B}/c/${id5}/file?to=kid`,{headers:H(BA
 ck("file delete ok",(await (await U(`?fid=${fid}`,"DELETE")).json()).ok===true);
 ck("file gone after delete",(await U(`?fid=${fid}&i=0`)).status==404&&(await (await U("?to=kid")).json()).files.length==0);
 ck("cmd fileUp whitelisted",(await (await fetch(`${B}/c/${id5}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"fileUp",file:fid})})).json()).result=="queued");
-// 50 MB accepted, total cap 100 MB per kid, daily quota (300 MB / 30 files) answers 429 {error:"quota", retryAt}
+// 50 MB accepted, total cap 100 MB per kid, daily quota (300 MB / 100 files) answers 429 {error:"quota", retryAt}
 {const nid=()=>Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),MB=1048576;
 const mk=async()=>{const k=nid();await fetch(`${B}/c/${k}/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{}})});return k;};
 const st=(k,fid,size,m="POST")=>fetch(`${B}/c/${k}/file?fid=${fid}&i=0&n=${Math.max(1,Math.ceil(size/MB))}&to=kid&size=${size}&name=x`,{method:m,headers:H(),body:m=="POST"?Buffer.alloc(Math.min(size,MB)):undefined});
@@ -324,8 +324,22 @@ k=await mk();let c=0,last;
 for(let n=0;n<7;n++){last=await st(k,f16(10+n),50*MB);if(last.status==200)c++;await st(k,f16(10+n),50*MB,"DELETE");}
 const qb=await last.json();ck("daily quota: 6 x 50 MB ok, 7th 429 quota + retryAt",c==6&&last.status==429&&qb.error=="quota"&&qb.retryAt>Date.now());
 k=await mk();c=0;
-for(let n=0;n<31;n++){last=await st(k,f16(100+n),1);if(last.status==200)c++;await st(k,f16(100+n),1,"DELETE");}
-ck("daily quota: 30 files ok, 31st 429",c==30&&last.status==429);}
+const slp=ms=>new Promise(r=>setTimeout(r,ms));
+for(let n=0;n<101;n++){if(n==35||n==70)await slp(11000);last=await st(k,f16(1000+n),1);if(last.status==200)c++;await st(k,f16(1000+n),1,"DELETE");}
+ck("daily quota: 100 files ok, 101st 429",c==100&&last.status==429);
+// chat attachment: meta kept in the listing; thumbnail (thumb=1) not counted in the quota and capped at 200 KB; command shapes
+await slp(11000);k=await mk();
+const mq=(fid,x)=>fetch(`${B}/c/${k}/file?fid=${fid}&i=0&n=1&to=kid&size=1&name=a.jpg${x}`,{method:"POST",headers:H(),body:Buffer.alloc(1)});
+ck("chat file: chat=1 accepted",(await mq(f16(2000),"&chat=1")).status==200);
+ck("chat file: listing carries chat:1",(await (await fetch(`${B}/c/${k}/file?to=kid`,{headers:H()})).json()).files.some(f=>f.fid==f16(2000)&&f.chat===1));
+await fetch(`${B}/c/${k}/file?fid=${f16(2000)}`,{method:"DELETE",headers:H()});
+c=0;for(let n=0;n<40;n++){const r=await mq(f16(3000+n),"&thumb=1");if(r.status==200)c++;await fetch(`${B}/c/${k}/file?fid=${f16(3000+n)}`,{method:"DELETE",headers:H()});}
+ck("thumb files do not use the daily quota (40 ok, a normal file still ok)",c==40&&(await mq(f16(3999),"")).status==200);
+ck("thumb over 200 KB refused 413",(await fetch(`${B}/c/${k}/file?fid=${f16(4000)}&i=0&n=1&to=kid&size=300000&name=a.jpg&thumb=1`,{method:"POST",headers:H(),body:Buffer.alloc(300000)})).status==413);
+const cm=(o)=>fetch(`${B}/c/${k}/cmd`,{method:"POST",headers:H(),body:JSON.stringify(o)}).then(r=>r.json());
+ck("cmd chatFileDel queued",(await cm({type:"chatFileDel",id:f16(5)})).result=="queued");
+ck("cmd chatFileDel bad id 400",(await cm({type:"chatFileDel",id:"x"})).error=="bad chatFileDel");
+ck("cmd fileUp thumb queued",(await cm({type:"fileUp",file:f16(6),thumb:1})).result=="queued");}
 // icons: a full list (400) drops the icons of apps that are no longer in the phone's state
 const ic=Buffer.from("RIFF0000WEBPVP8 ").toString("base64"),IP=o=>fetch(`${B}/c/${id5}/icons`,{method:"POST",headers:H(),body:JSON.stringify(o)}).then(r=>r.json());
 await fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{apps:[{pkg:"keep.me",ms:1}]}})});

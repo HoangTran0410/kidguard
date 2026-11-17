@@ -1,6 +1,7 @@
 package dev.kidguard
 
 import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -62,5 +63,45 @@ class ChatLogicTest {
         assertEquals(false, ChatLogic.unread(0, 0))      // no parent message ever
         assertEquals(true, ChatLogic.unread(10, 5))
         assertEquals(false, ChatLogic.unread(10, 10))    // read exactly then
+    }
+
+    private val fid = "0123456789abcdef"
+
+    @Test fun kindFromMimeThenExtension() {
+        assertEquals("image", ChatLogic.kind("image/jpeg", "x"))
+        assertEquals("video", ChatLogic.kind("video/mp4; codecs=x", "x"))
+        assertEquals("audio", ChatLogic.kind("audio/mp4", "x"))
+        assertEquals("file", ChatLogic.kind("application/pdf", "a.pdf"))
+        assertEquals("image", ChatLogic.kind("application/octet-stream", "A.HEIC"))
+        assertEquals("audio", ChatLogic.kind(null, "voice.m4a"))
+        assertEquals("file", ChatLogic.kind("", ""))
+    }
+
+    @Test fun entryJsonWithAttachment() {
+        val at = ChatLogic.att(fid, "a.jpg", "image/jpeg", 12, 0, "wait")
+        var a = ChatLogic.add(JSONArray(), "k", "", "", 1, fid, at)   // empty text is fine with an attachment
+        assertEquals(1, a.length())
+        val got = a.getJSONObject(0).getJSONObject("att")
+        assertEquals("image", got.getString("kind")); assertEquals("wait", got.getString("st")); assertEquals(false, got.has("dur"))
+        assertEquals("", a.getJSONObject(0).getString("text"))
+        assertEquals(30, ChatLogic.att(fid, "v.m4a", "audio/mp4", 1, 30).getInt("dur"))
+        assertSame(a, ChatLogic.add(a, "k", "", "", 2, "zz", null))   // nothing at all = ignored
+        assertSame(a, ChatLogic.add(a, "k", "", "", 2, "zz", JSONObject().put("id", "bad")))   // bad attachment id = ignored
+    }
+
+    @Test fun attachmentStTransitions() {
+        assertEquals("ok", ChatLogic.attSt("ok", true, false))
+        assertEquals("wait", ChatLogic.attSt("ok", true, true))
+        assertEquals("gone", ChatLogic.attSt("ok", false, false))   // no longer in the index
+        assertEquals("gone", ChatLogic.attSt("gone", true, true))
+        val a = ChatLogic.add(JSONArray(), "k", "", "hello", 1, fid, ChatLogic.att(fid, "a.pdf", "application/pdf", 5))
+        val dec = ChatLogic.decorate(a) { true }   // a kid file nobody fetched
+        assertEquals("wait", dec.getJSONObject(0).getJSONObject("att").getString("st"))
+        assertEquals("ok", a.getJSONObject(0).getJSONObject("att").getString("st"))   // the stored entry is untouched
+        val gone = ChatLogic.markGone(a, fid)
+        assertEquals("gone", gone.getJSONObject(0).getJSONObject("att").getString("st"))
+        assertEquals("hello", gone.getJSONObject(0).getString("text"))   // text stays
+        assertSame(a, ChatLogic.markGone(a, "ffffffffffffffff"))
+        assertSame(gone, ChatLogic.markGone(gone, fid))
     }
 }

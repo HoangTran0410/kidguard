@@ -961,16 +961,21 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized val chatKey: String get() = "${p.getLong("chatLastP", 0L)}/${p.getLong("chatReadAt", 0L)}"
     @Synchronized fun chat(): JSONArray = runCatching { JSONArray(p.getString("chat", "[]")) }.getOrDefault(JSONArray())
     /** [from] "p" = a parent (by [who]), "k" = the child. A child message also becomes the event "chat" (parent app push). Returns false for empty text. */
-    @Synchronized fun addChat(from: String, who: String, text: String, id: String = randomHex(4)): Boolean {
-        val t = ChatLogic.clean(text); if (t.isEmpty()) return false
+    @Synchronized fun addChat(from: String, who: String, text: String, id: String = randomHex(4), att: JSONObject? = null): Boolean {
+        val t = ChatLogic.clean(text); if (t.isEmpty() && ChatLogic.cleanAtt(att) == null) return false
         val old = chat()
-        val a = ChatLogic.add(old, from, who, t, System.currentTimeMillis(), id)
+        val a = ChatLogic.add(old, from, who, t, System.currentTimeMillis(), id, att)
         if (a === old) return false
         val ed = p.edit().putString("chat", a.toString())
         if (from == "p") ed.putLong("chatLastP", System.currentTimeMillis())
         ed.apply()
-        if (from == "k") addEvent(Ev("chat", t.replace('\n', ' ').take(ChatLogic.EVENT_TEXT)))
+        if (from == "k") addEvent(Ev("chat", ChatLogic.preview(t, att).replace('\n', ' ').take(ChatLogic.EVENT_TEXT)))
         return true
+    }
+    /** The file of a chat attachment was deleted: its entry keeps the text, att.st = "gone". */
+    @Synchronized fun chatFileGone(fileId: String) {
+        val old = chat(); val a = ChatLogic.markGone(old, fileId)
+        if (a !== old) p.edit().putString("chat", a.toString()).apply()
     }
 
     /** Zones: the next location fix only records where the child is (set after the zone list changed). */

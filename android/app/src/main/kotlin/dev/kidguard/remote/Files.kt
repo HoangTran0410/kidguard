@@ -83,11 +83,12 @@ object Files {
             r.method == "PUT" -> {
                 val raw = runCatching { URLDecoder.decode(seg.replace("+", "%2B"), "UTF-8") }.getOrNull() ?: return err("bad name", 400)
                 val ins = r.input ?: return err("no body", 400)
-                val (e, code) = receive(c, raw, r.length, r.header("content-type"), ins, r.query["id"])
+                val (e, code) = receive(c, raw, r.length, r.header("content-type"), ins, r.query["id"], r.query["chat"] == "1", r.query["dur"]?.toIntOrNull() ?: 0)
                 if (e == null) err(code, when (code) { "too big" -> 413; "no space", "quota" -> 507; "failed" -> 500; else -> 400 })
                 else Res.json(JSONObject().put("file", e.toJson()).toString())
             }
             !FilesLogic.isId(seg) -> err("not found", 404)
+            r.method == "GET" && r.query["thumb"] == "1" -> thumbRes(c, seg)
             r.method == "GET" -> download(c, seg)
             r.method == "DELETE" -> if (delete(c, seg)) Res.json("""{"result":"ok"}""") else err("no such file", 404)
             else -> err("not found", 404)
@@ -127,19 +128,23 @@ object Files {
 
     // ---------------- parent -> kid ----------------
     /** Saves [len] bytes of [ins] as [raw] in Download/KidGuard. (entry, "") or (null, error code). [wantId]: the relay's id. */
-    fun receive(c: Context, raw: String, len: Long, typeHint: String?, ins: InputStream, wantId: String? = null): Pair<Entry?, String> {
+    fun receive(c: Context, raw: String, len: Long, typeHint: String?, ins: InputStream, wantId: String? = null, chat: Boolean = false, dur: Int = 0): Pair<Entry?, String> {
         val name0 = FilesLogic.cleanName(raw) ?: return null to "bad name"
         FilesLogic.sizeError(len, FilesLogic.MAX_LAN)?.let { return null to it }
         val inbox = all(c).filter { it.dir == FilesLogic.IN }
-        FilesLogic.intakeError(len, inbox.sumOf { it.size })?.let { return null to it }
+        FilesLogic.intakeError(len, inbox.filter { !it.chat }.sumOf { it.size }, chat)?.let { return null to it }
         val id = wantId?.takeIf { FilesLogic.isId(it) && get(c, it) == null } ?: newId()
         val mime = mimeOf(name0, typeHint)
         val takenIdx = inbox.map { it.name.lowercase() }.toSet()
         return try {
-            val (loc, name) = if (Build.VERSION.SDK_INT >= 29) writeMediaStore(c, FilesLogic.unique(name0) { it.lowercase() in takenIdx }, mime, len, ins)
-                else writeLegacy(c, name0, takenIdx, len, ins)
-            val e = Entry(id, FilesLogic.IN, name, len, System.currentTimeMillis(), mime, FilesLogic.DELIVERED, loc)
-            put(c, e); notifyKid(c, e); kick()
+            val pics = FilesLogic.pictures(chat, mime)
+            val (loc, name) = if (Build.VERSION.SDK_INT >= 29) writeMediaStore(c, FilesLogic.unique(name0) { it.lowercase() in takenIdx }, mime, len, ins, pics)
+                else writeLegacy(c, name0, takenIdx, len, ins, pics)
+            val e = Entry(id, FilesLogic.IN, name, len, System.currentTimeMillis(), mime, FilesLogic.DELIVERED, loc, chat, dur.coerceIn(0, 86_400))
+            put(c, e)
+            // a chat attachment from a parent = one chat entry (text and file are separate entries); the file notice below is the child's notification
+            if (chat) Store.of(c).addChat("p", "", "", id, ChatLogic.att(id, name, mime, len, e.dur))
+            notifyKid(c, e); kick()
             e to ""
         } catch (x: NoSpace) { null to "no space" } catch (x: Cut) { null to "incomplete" } catch (x: Exception) {
             Log.w(TAG, "file receive", x); null to "failed"
@@ -154,14 +159,25 @@ object Files {
         if (len + 50L * 1024 * 1024 > free) throw NoSpace()
     }
 
-    private fun writeMediaStore(c: Context, name: String, mime: String, len: Long, ins: InputStream): Pair<String, String> {
+    private fun writeMediaStore(c: Context, name: String, mime: String, len: Long, ins: InputStream, pictures: Boolean = false): Pair<String, String> {
         @Suppress("DEPRECATION") checkSpace(Environment.getExternalStorageDirectory(), len)
         val cr = c.contentResolver
-        val cv = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, name); put(MediaStore.MediaColumns.MIME_TYPE, mime)
-            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/" + SUB); put(MediaStore.MediaColumns.IS_PENDING, 1)
+        // chat photos / videos: Pictures/KidGuard (a video falls back to Movies/KidGuard where the Video table refuses Pictures); the rest: Download/KidGuard
+        val places: List<Pair<Uri, String>> = when {
+            !pictures -> listOf(MediaStore.Downloads.EXTERNAL_CONTENT_URI to Environment.DIRECTORY_DOWNLOADS)
+            ChatLogic.kind(mime) == "image" -> listOf(MediaStore.Images.Media.EXTERNAL_CONTENT_URI to Environment.DIRECTORY_PICTURES)
+            else -> listOf(MediaStore.Video.Media.EXTERNAL_CONTENT_URI to Environment.DIRECTORY_PICTURES, MediaStore.Video.Media.EXTERNAL_CONTENT_URI to Environment.DIRECTORY_MOVIES)
         }
-        val uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv) ?: throw IOException("insert failed")
+        var made: Uri? = null
+        for ((table, dir) in places) {
+            val cv = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, name); put(MediaStore.MediaColumns.MIME_TYPE, mime)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, dir + "/" + SUB); put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+            made = runCatching { cr.insert(table, cv) }.getOrNull()
+            if (made != null) break
+        }
+        val uri = made ?: throw IOException("insert failed")
         try {
             val n = (cr.openOutputStream(uri) ?: throw IOException("no stream")).use { copy(ins, it, len, UP_MS) }
             if (n != len) throw Cut()
@@ -172,12 +188,13 @@ object Files {
         return uri.toString() to (real ?: name)
     }
 
-    private fun writeLegacy(c: Context, name0: String, takenIdx: Set<String>, len: Long, ins: InputStream): Pair<String, String> {
+    private fun writeLegacy(c: Context, name0: String, takenIdx: Set<String>, len: Long, ins: InputStream, pictures: Boolean = false): Pair<String, String> {
+        val top = if (pictures) Environment.DIRECTORY_PICTURES else Environment.DIRECTORY_DOWNLOADS
         // basic mode has no Device Owner to grant the permission: fall back to our own (still user-visible) app folder
         val granted = c.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
         @Suppress("DEPRECATION")
-        val dir = (if (granted) File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), SUB)
-            else File(c.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), SUB)).apply { mkdirs() }
+        val dir = (if (granted) File(Environment.getExternalStoragePublicDirectory(top), SUB)
+            else File(c.getExternalFilesDir(top), SUB)).apply { mkdirs() }
         checkSpace(dir, len)
         val name = FilesLogic.unique(name0) { it.lowercase() in takenIdx || File(dir, it).exists() }
         val f = File(dir, name)
@@ -214,6 +231,8 @@ object Files {
             if (e.loc.startsWith("content://")) c.contentResolver.delete(Uri.parse(e.loc), null, null) else File(e.loc).delete()
         }.onFailure { Log.w(TAG, "file delete", it) }
         synchronized(lock) { save(c, all(c).filter { it.id != id }) }
+        runCatching { File(File(c.cacheDir, "thumbs"), "$id.jpg").delete() }
+        if (e.chat) Store.of(c).chatFileGone(id)
         runCatching { c.getSystemService(NotificationManager::class.java).cancel(NOTE_BASE + (id.hashCode() and 0xfff)) }
         kick(); return true
     }
@@ -232,8 +251,83 @@ object Files {
         } catch (x: NoSpace) { f.delete(); null to "no space" } catch (x: Exception) { f.delete(); Log.w(TAG, "outbox", x); null to "failed" }
     }
 
+    /**
+     * Chat attachment kid -> parent (family chat): the stream is stored in the public archive (images / videos Pictures/KidGuard, the rest
+     * Download/KidGuard; no total cap, never auto-deleted), listed as an `out` entry (so LAN GET /api/files/<id> and relay `fileUp` work)
+     * and added to the thread as one entry from the kid. [text] is an optional caption (its own text in the same entry). Blocking: call off the UI thread.
+     */
+    fun addOutChat(c: Context, raw: String, typeHint: String?, ins: InputStream, dur: Int = 0, text: String = ""): Pair<Entry?, String> {
+        val name0 = FilesLogic.cleanName(raw) ?: FilesLogic.cleanName("file-" + System.currentTimeMillis())!!
+        val tmp = File(File(c.cacheDir, "capture").apply { mkdirs() }, "in-" + newId())
+        return try {
+            val n = tmp.outputStream().use { o -> ins.use { copy(it, o, FilesLogic.MAX_LAN + 1) } }
+            if (n > FilesLogic.MAX_LAN) return null to "too big"
+            if (n <= 0) return null to "empty"
+            val mime = mimeOf(name0, typeHint)
+            val id = newId()
+            val (loc, name) = tmp.inputStream().use { i ->
+                if (Build.VERSION.SDK_INT >= 29) writeMediaStore(c, name0, mime, n, i, FilesLogic.pictures(true, mime))
+                else writeLegacy(c, name0, emptySet(), n, i, FilesLogic.pictures(true, mime))
+            }
+            val e = Entry(id, FilesLogic.OUT, name, n, System.currentTimeMillis(), mime, FilesLogic.NEW, loc, true, dur.coerceIn(0, 86_400))
+            put(c, e)
+            Store.of(c).addChat("k", "", text, id, ChatLogic.att(id, name, mime, n, e.dur, "wait"))
+            kick(); e to ""
+        } catch (x: NoSpace) { null to "no space" } catch (x: Exception) { Log.w(TAG, "chat attach", x); null to "failed" }
+        finally { tmp.delete() }
+    }
+
+    /** `chatClear {files:true}`: every chat attachment is deleted from storage and the index (the thread is cleared by the caller). */
+    fun deleteChatFiles(c: Context) { all(c).filter { it.chat }.forEach { delete(c, it.id) } }
+
+    /** [a] (chat entries) with each attachment's st derived from the index: deleted -> gone, a kid file no parent fetched yet -> wait. */
+    fun chatView(c: Context, a: org.json.JSONArray): org.json.JSONArray = ChatLogic.decorate(a) { id -> get(c, id)?.let { it.dir == FilesLogic.OUT && it.st == FilesLogic.NEW } }
+
+    // ---------------- thumbnails (LAN GET /api/files/<id>?thumb=1, relay fileUp {thumb:1}) ----------------
+    private const val THUMB_PX = 320
+    /** JPEG <= 320 px long side of an image / the first frame of a video, cached in cacheDir/thumbs; null = no thumbnail (audio, documents, unreadable). */
+    fun thumb(c: Context, e: Entry): ByteArray? {
+        val kind = ChatLogic.kind(e.mime, e.name)
+        if (kind != "image" && kind != "video") return null
+        val f = File(File(c.cacheDir, "thumbs").apply { mkdirs() }, e.id + ".jpg")
+        if (f.isFile && f.length() > 0) return runCatching { f.readBytes() }.getOrNull()
+        val bmp: android.graphics.Bitmap = runCatching { if (kind == "image") decodeImage(c, e) else decodeVideo(c, e) }.getOrNull() ?: return null
+        val k = THUMB_PX.toFloat() / maxOf(bmp.width, bmp.height)
+        val sm = if (k < 1f) android.graphics.Bitmap.createScaledBitmap(bmp, maxOf(1, (bmp.width * k).toInt()), maxOf(1, (bmp.height * k).toInt()), true) else bmp
+        val out = java.io.ByteArrayOutputStream()
+        sm.compress(android.graphics.Bitmap.CompressFormat.JPEG, 78, out)
+        val b = out.toByteArray()
+        runCatching { f.writeBytes(b) }
+        return b
+    }
+    private fun decodeImage(c: Context, e: Entry): android.graphics.Bitmap? {
+        val o = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        openIn(c, e)?.use { android.graphics.BitmapFactory.decodeStream(it, null, o) }
+        if (o.outWidth <= 0) return null
+        var s = 1; while (maxOf(o.outWidth, o.outHeight) / (s * 2) >= THUMB_PX) s *= 2
+        val bmp = openIn(c, e)?.use { android.graphics.BitmapFactory.decodeStream(it, null, android.graphics.BitmapFactory.Options().apply { inSampleSize = s }) } ?: return null
+        val rot = runCatching { openIn(c, e)?.use { android.media.ExifInterface(it).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, 1) } }.getOrNull() ?: 1
+        val deg = when (rot) { 6 -> 90f; 3 -> 180f; 8 -> 270f; else -> 0f }
+        if (deg == 0f) return bmp
+        return android.graphics.Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, android.graphics.Matrix().apply { postRotate(deg) }, true)
+    }
+    private fun decodeVideo(c: Context, e: Entry): android.graphics.Bitmap? {
+        val m = android.media.MediaMetadataRetriever()
+        return try {
+            if (e.loc.startsWith("content://")) m.setDataSource(c, Uri.parse(e.loc)) else m.setDataSource(e.loc)
+            m.getFrameAtTime(0, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+        } finally { runCatching { m.release() } }
+    }
+    private fun thumbRes(c: Context, id: String): Res {
+        val e = get(c, id) ?: return err("no such file", 404)
+        val b = thumb(c, e) ?: return err("no thumb", 404)
+        return Res(200, "image/jpeg", b, mapOf("Cache-Control" to "private, max-age=3600", "X-Content-Type-Options" to "nosniff"))
+    }
+
     /** "release": the outbox goes, the files the kid received stay in Download (they are the kid's now). */
     fun wipeOutbox(c: Context) {
+        // chat attachments in Pictures / Download are the family's files: KEPT on release, only the index (and our caches) go
+        runCatching { File(c.cacheDir, "thumbs").deleteRecursively() }; runCatching { File(c.cacheDir, "capture").deleteRecursively() }
         runCatching { File(c.filesDir, "outbox").deleteRecursively() }
         synchronized(lock) { save(c, emptyList()) }
     }
@@ -243,11 +337,21 @@ object Files {
 
     /** Relay commands: fileUp {file} = put that outbox file on the relay for the parent; fileDel {file}. */
     fun command(c: Context, t: String, o: JSONObject): String {
+        if (t == "chatFileDel") {   // one chat attachment: file + index entry go, the chat entry keeps its text with att.st = "gone"
+            val cid = o.optString("id"); if (!FilesLogic.isId(cid)) return "bad id"
+            delete(c, cid); Store.of(c).chatFileGone(cid); kick(); return "ok"
+        }
         val id = o.optString("file")
         val e = get(c, id) ?: return "no such file"
         return when (t) {
             "fileDel" -> if (delete(c, id)) "ok" else "no such file"
-            "fileUp" -> if (e.size > FilesLogic.MAX_RELAY) "too big" else {
+            "fileUp" -> if (o.optInt("thumb") == 1) {
+                // a small preview instead of the file: fid = the id with every hex digit complemented (FilesLogic.thumbFid), name "<name>.thumb.jpg"; not counted in the relay's daily quota
+                val k = ChatLogic.kind(e.mime, e.name); val fid = FilesLogic.thumbFid(e.id)
+                if (k != "image" && k != "video") "no thumb" else if (!pushing.add("t$fid")) "ok" else {
+                    Thread({ try { runCatching { thumb(c, e)?.let { pushBytes(c, fid, e.name.take(100) + ".thumb.jpg", it, "&thumb=1") } }.onFailure { Log.w(TAG, "thumb push", it) } } finally { pushing.remove("t$fid") } }, "thumb-push").start(); "ok"
+                }
+            } else if (e.size > FilesLogic.MAX_RELAY) "too big" else {
                 // "ok" = started; a failed upload is said in the log the parent reads (it used to be silent: the page waited for nothing)
                 if (!pushing.add(e.id)) "ok" else { Thread({ try { runCatching { push(c, e) }.onFailure { Log.w(TAG, "file push", it); pushFailed(c, e.name, (it as? PushRefused)?.code ?: 0) } } finally { pushing.remove(e.id) } }, "file-push").start(); "ok" }
             }
@@ -289,13 +393,14 @@ object Files {
                 try { h.outputStream.use { it.write(buf) }; val rc = h.responseCode; if (rc != 200) throw PushRefused(rc) } finally { h.disconnect() }
             }
         }
+        if (e.dir == FilesLogic.OUT && e.st == FilesLogic.NEW) { setSt(c, e.id, FilesLogic.FETCHED); kick() }   // on the relay for the parent: a chat bubble stops saying "waiting"
     }
 
     /** One small blob (< 1 chunk, e.g. a wrong-PIN photo, Shot.kt) to the relay for the parent, same file channel. */
-    fun pushBytes(c: Context, fid: String, name: String, b: ByteArray) {
+    fun pushBytes(c: Context, fid: String, name: String, b: ByteArray, extra: String = "") {
         require(b.size <= FilesLogic.CHUNK && FilesLogic.isId(fid))
         val (base, token) = relay(c) ?: return
-        val q = "?fid=$fid&i=0&n=1&to=parent&size=${b.size}&name=${URLEncoder.encode(name, "UTF-8")}"
+        val q = "?fid=$fid&i=0&n=1&to=parent&size=${b.size}&name=${URLEncoder.encode(name, "UTF-8")}$extra"
         val h = conn(base + q, "POST", token).apply { doOutput = true; setRequestProperty("Content-Type", FilesLogic.OCTET); setFixedLengthStreamingMode(b.size) }
         try { h.outputStream.use { it.write(b) }; if (h.responseCode != 200) throw IOException("relay HTTP ${h.responseCode}") } finally { h.disconnect() }
     }
@@ -327,7 +432,7 @@ object Files {
                             }
                         }
                     }
-                    val (e, code) = if (get(c, fid) != null) null to "dup" else receive(c, f.optString("name"), if (size <= FilesLogic.MAX_RELAY) size else -1, null, ins, fid)
+                    val (e, code) = if (get(c, fid) != null) null to "dup" else receive(c, f.optString("name"), if (size <= FilesLogic.MAX_RELAY) size else -1, null, ins, fid, f.optInt("chat") == 1)
                     // network trouble or a full phone: keep it on the relay (1 h TTL) for the next sync; anything else will not get better
                     val retry = e == null && (code == "failed" || code == "no space")
                     if (retry) { if (pullRetryAt.size > 100) pullRetryAt.clear(); pullRetryAt[fid] = System.currentTimeMillis() + FilesLogic.PULL_RETRY_MS } else pullRetryAt.remove(fid)
