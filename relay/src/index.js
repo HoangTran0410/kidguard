@@ -71,7 +71,10 @@ const ICON_KEY = /^[0-9a-f]{64}$/;
 // video call (docs/protocol.md "Call"): the relay passes the two SDPs; sound and picture go phone <-> parent directly
 // (TURN only when the networks need it). Ring 45 s, a call ends by itself after 1 h, an ended one is kept 60 s.
 const CALL_RING = 45e3, CALL_MAX = 60 * 60e3, CALL_KEEP = 60e3, CALL_SDP = 16000, CALL_ID = /^[0-9a-f]{16}$/;
-const CALL_WHY = ["hangup", "decline", "busy", "timeout", "failed", "noperm", "nocam", "missed"];
+const CALL_WHY = ["hangup", "decline", "busy", "timeout", "failed", "noperm", "nocam", "missed", "no mic permission", "notice blocked", "mic blocked", "mic failed", "ringing"];
+// "listen around" over the relay = the same call slot with kind "listen": the phone sends its mic only, nobody taps Answer,
+// the child gets the beep + notification (Listen.kt). Capped at 10 min like the LAN stream.
+const LISTEN_MAX = 10 * 60e3 + 15e3;
 // <img> can't send headers: only the icon GET may carry the token in ?k=
 const tokenOf = (req, url) => req.headers.get("x-kg-token") || (req.method === "GET" && url.pathname.endsWith("/icon") ? url.searchParams.get("k") || "" : "");
 // shared files (docs/protocol.md "Shared files"): <= 10 MB a file in 1 MiB chunks, kept 1 h, deleted once fetched
@@ -1086,7 +1089,7 @@ export class Kid {
     if (files) out.files = files;   // the phone then fetches them from /file
     if (this.deviceWant && now - this.deviceWant < 120e3) out.device = true;
     const call = await this.callNow(now);
-    if (call) out.call = { id: call.id, st: call.st, by: call.by, ...(call.st === "ring" ? { sdp: call.offer, ice: await this.iceServers(now) } : {}) };
+    if (call) out.call = { id: call.id, st: call.st, by: call.by, ...(call.kind ? { kind: call.kind } : {}), ...(call.st === "ring" ? { sdp: call.offer, ice: await this.iceServers(now) } : {}) };
     for (const [d, at] of this.lgdWant) { if (now - at < 120e3) { out.logday = d; break; } this.lgdWant.delete(d); }   // one day per sync
     const known = state || (await this.s.get("state"));   // the phone omits state when unchanged
     const have = known && known.rules ? +known.rules.rev || 0 : 0;
@@ -1098,7 +1101,7 @@ export class Kid {
   async callNow(now) {
     if (this.call === undefined) this.call = (await this.s.get("call")) || null;
     const c = this.call;
-    if (c && ((c.st === "ring" && now - c.at > CALL_RING) || (c.st === "on" && now - c.on > CALL_MAX) || (c.st === "end" && now - c.endAt > CALL_KEEP))) {
+    if (c && ((c.st === "ring" && now - c.at > CALL_RING) || (c.st === "on" && now - c.on > (c.kind === "listen" ? LISTEN_MAX : CALL_MAX)) || (c.st === "end" && now - c.endAt > CALL_KEEP))) {
       if (c.st === "end") { this.call = null; await this.s.delete("call"); return null; }
       return this.callSet({ ...c, st: "end", why: c.st === "ring" ? "missed" : "timeout", endAt: now });
     }
@@ -1114,7 +1117,7 @@ export class Kid {
   async callRoute(req, url, phone, who, now) {
     let c = await this.callNow(now);
     // ring: the parent's offer (the phone takes it); on: the phone's answer (the parent takes it). An old shared token is both sides.
-    const view = (c) => c && { id: c.id, st: c.st, by: c.by, at: c.at, ...(c.st === "ring" ? { sdp: c.offer } : c.st === "on" ? { sdp: c.answer } : {}), ...(c.why ? { why: c.why } : {}) };
+    const view = (c) => c && { id: c.id, st: c.st, by: c.by, at: c.at, ...(c.kind ? { kind: c.kind } : {}), ...(c.st === "ring" ? { sdp: c.offer } : c.st === "on" ? { sdp: c.answer } : {}), ...(c.why ? { why: c.why } : {}) };
     if (req.method === "GET") {
       const q = url.searchParams, id = q.get("id");
       if (id && c && c.id === id && c.st === (q.get("st") || "")) {
@@ -1133,7 +1136,7 @@ export class Kid {
       // the phone's own token (an old shared link) starts nothing once parents have tokens or the PIN is known
       if (phone && (Object.keys(await this.parents()).length || ((await this.s.get("pv")) || {}).h)) return json({ error: "join" }, 403);
       if (c && c.st !== "end" && c.id !== id) return json({ error: "busy", by: c.by }, 409);
-      c = await this.callSet({ id, st: "ring", by: who || "", at: now, offer: sdp });
+      c = await this.callSet({ id, st: "ring", by: who || "", at: now, offer: sdp, ...(b.kind === "listen" ? { kind: "listen" } : {}) });
       this.kickPhone(now);
       if (!this.phoneWs().length) this.ctx.waitUntil(this.wakeKid(now, this.seenNow(await this.s.get("seen")), "parent").catch(() => {}));
       return json({ call: view(c) });

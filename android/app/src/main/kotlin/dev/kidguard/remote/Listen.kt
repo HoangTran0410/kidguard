@@ -108,14 +108,8 @@ object Listen {
      */
     @Synchronized fun open(g: Guard): Session? {
         ActionLogic.conflict("listen", ringing = Ring.active, listening = active)?.let { lastError = it; return null }
-        current?.close("")
-        // basic mode: grant it now through our own adb instead of asking the child (AutoGrant also does it every 30 min)
-        if (g.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED && !AutoGrant.micNow(g)) { lastError = "no mic permission"; return null }
-        // the child must be able to see the notice: refuse when notifications or this channel are off / silent
-        if (!noticeVisible(g)) { lastError = "notice blocked"; return null }
-        // Android 14: the mic may only be used from a foreground service that declares it
-        if (!g.micForeground(true)) { lastError = "mic blocked"; return null }
-        tell(g)
+        current?.close(""); ListenCall.stop("")
+        if (!prepare(g)) return null
         val pipe = ParcelFileDescriptor.createPipe()
         @Suppress("DEPRECATION")
         val rec = if (Build.VERSION.SDK_INT >= 31) MediaRecorder(g) else MediaRecorder()
@@ -139,6 +133,53 @@ object Listen {
         }
     }
 
+    /** The checks every way of listening shares, then the child is told. False = [lastError] says why. */
+    private fun prepare(g: Guard): Boolean {
+        // basic mode: grant it now through our own adb instead of asking the child (AutoGrant also does it every 30 min)
+        if (g.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED && !AutoGrant.micNow(g)) { lastError = "no mic permission"; return false }
+        // the child must be able to see the notice: refuse when notifications or this channel are off / silent
+        if (!noticeVisible(g)) { lastError = "notice blocked"; return false }
+        // Android 14: the mic may only be used from a foreground service that declares it
+        if (!g.micForeground(true)) { lastError = "mic blocked"; return false }
+        tell(g)
+        return true
+    }
+
+    // ---- over the relay (ListenCall.kt): the mic runs in a WebView, this object keeps the state, the notice and the log ----
+    @Volatile private var rtc = false
+    private var rtcWl: PowerManager.WakeLock? = null
+
+    /** Same checks and the same notice as [open]; true = the caller may start the WebRTC session. */
+    @Synchronized fun openRtc(g: Guard): Boolean {
+        ActionLogic.conflict("listen", ringing = Ring.active, listening = active)?.let { lastError = it; return false }
+        current?.close(""); if (rtc) closeRtc(g, "")
+        if (!prepare(g)) return false
+        rtcWl = runCatching {
+            g.getSystemService(PowerManager::class.java).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "kidguard:listen").apply { setReferenceCounted(false); acquire(MAX_MS + 30_000) }
+        }.getOrNull()
+        rtc = true; since = System.currentTimeMillis(); lastError = ""
+        Store.of(g).log(R.string.log_listen_start)
+        g.kick()
+        return true
+    }
+
+    /** The relay session ended (any side). [why] non-empty = an error the page shows (`listen.err`). */
+    fun closeRtc(ctx: android.content.Context, why: String) {
+        val started: Long
+        synchronized(this) { if (!rtc) return; rtc = false; started = since; since = 0L; if (why.isNotEmpty()) lastError = why }
+        runCatching { rtcWl?.release() }; rtcWl = null
+        val g = Guard.running
+        val ms = System.currentTimeMillis() - started
+        val min = (ms + 30_000) / 60_000
+        val took = if (min < 1) ctx.getString(R.string.under_1_min) else ctx.resources.getQuantityString(R.plurals.listen_about, min.toInt(), min.toInt())
+        g?.micForeground(false)
+        ctx.getSystemService(NotificationManager::class.java)?.cancel(NID)
+        runCatching { Store.of(ctx).lastListen = longArrayOf(started, ms) }
+        if (why.isNotEmpty()) runCatching { Store.of(ctx).log(R.string.log_listen_err, why) }
+        runCatching { Store.of(ctx).log(R.string.log_listen_done, java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(started)), took) }
+        g?.kick()
+    }
+
     /** True when the "listening" notice can show: notifications on and the channel at least DEFAULT importance. */
     private fun noticeVisible(g: Guard): Boolean {
         val nm = g.getSystemService(NotificationManager::class.java) ?: return false
@@ -152,7 +193,10 @@ object Listen {
     fun clearRinging() { if (lastError == "ringing") lastError = "" }
 
     /** Release / service stop / command `listenStop`. True when a session was running. */
-    fun stopAll(): Boolean { val c = current ?: return false; c.close(""); return true }
+    fun stopAll(): Boolean {
+        if (rtc) { ListenCall.stop("hangup"); return true }   // over the relay: the relay learns it ended
+        val c = current ?: return false; c.close(""); return true
+    }
 
     /** Beep + ongoing notification. Always, whatever the rules say. */
     private fun tell(g: Guard) {

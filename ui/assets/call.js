@@ -106,3 +106,55 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) { const me = vc; me.hid = setTimeout(() => { if (vc === me) vcEnd("hidden", true); }, VC_HIDDEN); }
 });
 window.addEventListener("pagehide", () => { if (vc) vcEnd("hangup", true); });
+
+// ---- Listen around over the relay (docs/flows/remote.md 2.6): the same /call slot with kind "listen" ----
+// The phone sends its microphone only (no ring, no tap; the child is told by the beep + notification), we only receive.
+// The bar / strip / Stop button are the ones of the LAN stream (live.js earBar / earStop); this file only does the signaling.
+const EAR_MAX = 10 * 60e3;
+let earRtc = null;   // { k, id, c (RTC call), st: prep | ring | on, tell?, why? }
+async function earStartRtc() {
+  const k = cur;
+  if (earRtc || vc || !k) return;
+  const e = earBar(), au = $("#earAudio"), me = earRtc = { k, id: vcId(), c: null, st: "prep", t0: 0 };
+  earT = 0; e.style.display = "flex"; $("#earTxt").textContent = t("connecting");
+  clearInterval(earStart.i);
+  earStart.i = setInterval(() => {
+    if (earRtc !== me) return;
+    if (earT) $("#earTxt").textContent = t("ear.live", fmtClock(Date.now() - earT));
+    if (me.t0 && Date.now() - me.t0 > EAR_MAX) earRtcEnd(me, "timeout", true);
+  }, 1000);
+  actPaint();
+  try {
+    const j = await vcApi(k, "/call?ice=1");
+    if (earRtc !== me) return;
+    me.c = await RTC.open({ listen: true, ice: j.ice || [], remote: au,
+      onState: s => { if (earRtc !== me) return; if (s === "connected") { me.t0 = me.t0 || Date.now(); earT = earT || Date.now(); actSt.ear1 = { s: "done", t: Date.now() }; actPaint(); } else if (s === "failed") earRtcEnd(me, "failed", true); },
+      onMsg: m => { if (m && m.t === "bye") earRtcEnd(me, "kidEnd", false); } });
+    if (earRtc !== me) return me.c.close();
+    const r = await vcApi(k, "/call", "POST", { op: "offer", id: me.id, kind: "listen", sdp: me.c.sdp });
+    me.st = "ring";
+    earRtcWait(me, r.call);
+  } catch (err) { earRtcEnd(me, /busy/.test(String(err && (err.message || err))) ? "busy" : "failed", false); }
+}
+// long-poll the relay: the phone's answer (SDP) comes back as st "on"; an "end" carries why (refused mic, notice off, cap ...)
+async function earRtcWait(me, c) {
+  let fails = 0;
+  while (earRtc === me) {
+    if (!c || c.id !== me.id) return earRtcEnd(me, "hangup", false);   // gone (ended long ago)
+    if (c.st === "end") return earRtcEnd(me, c.why || "hangup", false);
+    if (c.st === "on" && c.sdp && me.st === "ring") { me.st = "on"; try { await me.c.accept(c.sdp); } catch { return earRtcEnd(me, "failed", true); } }
+    try { c = (await vcApi(me.k, `/call?id=${me.id}&st=${me.st}`)).call; fails = 0; }
+    catch { if (++fails > 3) return earRtcEnd(me, "failed", true); await new Promise(s => setTimeout(s, 2000)); }
+  }
+}
+// why: hangup | timeout | kidEnd (normal) | missed | busy | failed | lost | a phone refusal ("no mic permission", "mic blocked", ...)
+function earRtcEnd(me, why, tell) {
+  if (earRtc !== me) return;
+  me.tell = tell; me.why = why === "timeout" ? "timeout" : ["failed", "lost"].includes(why) ? "failed" : "hangup";
+  const ok = ["hangup", "timeout", "kidEnd"].includes(why);
+  earStop();
+  if (ok) return toast("ok|" + t("ear.ended"));
+  const text = why === "missed" ? t("ear.missed") : why === "failed" || why === "lost" ? t("ear.failed") : tc("ear.", why, t("ear.failed"));
+  toast("err|" + t("ear.fail", text));
+}
+window.addEventListener("pagehide", () => { if (earRtc) earStop(); });
