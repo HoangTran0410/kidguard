@@ -87,6 +87,7 @@ class Api(private val g: Guard) {
             p == "/files" || p.startsWith("/files/") -> Files.api(g, r, p.removePrefix("/files"))   // shared folder only, Files.kt
             p.startsWith("/shot/") && r.method == "GET" -> Shot.file(g, p.removePrefix("/shot/"))   // wrong-PIN photo (Shot.kt)
                 ?.let { Res(200, "image/jpeg", it.readBytes(), mapOf("Cache-Control" to "private, max-age=86400")) } ?: Res.json("""{"error":"no such photo"}""", 404)
+            p == "/notifs" && r.method == "GET" -> Res.json(NotifSync.api(g, r.query).toString())   // rule watch.notif: pull a page of recent notifications
             p == "/rules" && r.method == "PUT" -> {
                 var body = JSONObject(r.text)
                 if (ai) body = AiScope.lockRules(body, store.baseRules.toJson())   // an AI never changes the PIN or a protection switch

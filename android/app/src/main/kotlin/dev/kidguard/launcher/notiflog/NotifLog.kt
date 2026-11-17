@@ -195,6 +195,7 @@ object NotifLog {
             progress = prog, group = n.group.orEmpty().take(80), priority = n.priority, importance = importance,
             channelName = channelName.take(80),
         )
+        runCatching { NotifSync.offer(app, e) }
         n.contentIntent?.let { pi -> synchronized(held) { held.remove(s.key); held[s.key] = Held(ClickRec(s.key, s.packageName, 0, ""), pi) } }
         // images: grab the references here, decode / scale / encode on io
         val largeIcon = runCatching { n.getLargeIcon() }.getOrNull()
@@ -294,6 +295,16 @@ object NotifLog {
             out
         }
     }, done)
+
+    /** For the parent's pull (NotifSync): up to [n] rows older than [before] ms, newest first, no system rows. Blocks: call off the main thread. */
+    fun before(ctx: Context, before: Long, n: Int): List<Pair<Long, NotifEntry>> = runCatching {
+        db(ctx.applicationContext).rawQuery("SELECT id, j FROM n WHERE t < ? AND kd <> ? ORDER BY t DESC, id DESC LIMIT ?",
+            arrayOf(before.toString(), NotifQ.K_SYS, n.toString())).use { c ->
+            val out = ArrayList<Pair<Long, NotifEntry>>(c.count)
+            while (c.moveToNext()) entry(c.getString(1))?.let { out += c.getLong(0) to it }
+            out
+        }
+    }.getOrElse { android.util.Log.w("KidGuard", "notif pull", it); emptyList() }
 
     /** Everything the screen needs besides the rows: per-day counts of [month0]..[month1] (other filters applied),
      *  apps and kinds with counts (other filters applied), and the total. */

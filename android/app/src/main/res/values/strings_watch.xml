@@ -9,9 +9,16 @@
     <string name="watch_screen_title">What your parent can see</string>
     <string name="watch_intro">Your parent set KidGuard up on this phone. This list is everything they can read. It always shows what is on.</string>
     <string name="watch_none">Nothing right now. Your parent can only manage screen time, apps and location.</string>
+    <string name="log_watch_notif">Your parent looked at your notifications</string>
     <string name="watch_on">On</string>
     <string name="watch_never">Never seen: your passwords, what you type, call audio, anything not listed above.</string>
     <string name="watch_notif_title">notifications</string>
-    <string name="watch_notif_kid">Your parent can read the notifications you get: which app, the title and the text.</string>
-    <string name="watch_notif_sees">App, title, text and time of recent notifications, when they ask for them.</string>
+    <string name="watch_notif_kid">Your parent sees every notification you get (the app, the title and the text), as it arrives.</string>
+    <string name="watch_notif_sees">App, title, text and time of every notification (not ongoing ones such as music), as it arrives, and older ones when they ask.</string>
+    <string name="watch_notif_kw_title">notifications with your parent\'s words</string>
+    <string name="watch_notif_kw_kid">Your parent gets the notifications that contain words they chose (the app, the title and the text).</string>
+    <string name="watch_notif_kw_sees">Only notifications with one of their words: app, title, text and time. Sent when they arrive.</string>
+    <string name="watch_words_title">word alerts</string>
+    <string name="watch_words_kid">Your parent gets an alert when a notification or a text message contains a word they chose.</string>
+    <string name="watch_words_sees">An alert with the app and a short piece of the message around the word.</string>
 </resources>

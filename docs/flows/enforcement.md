@@ -188,6 +188,12 @@ Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`,
 - State: only the rule. Release: `Monitoring.release` + each feature's own undo.
 - Gotchas: the registry is the only list: add a `Cat` (and strings in both languages) before the feature, `MonitoringTest` enforces it. The lasting notification is on a low channel the child can turn off in Settings (Android lets any user hide a foreground notice); the heads-up and the screen cannot be hidden by us. Not in the Home flavor (no Guard, no parent).
 
+### 1.17 Notifications and word alerts to the parent (2026-11-17, `remote/NotifSync.kt`, `guard/KeywordLogic.kt`, page `tab-seen.js`)
+- Trigger: a notification is posted (`NotifDots` -> `NotifLog.record` -> `NotifSync.offer`), rule `watch.notif` / `watch.words`.
+- Steps: `offer` dedupes (same key + text = not new), matches `KeywordLogic.hit` (accent/case-insensitive, any text of the notification), `NotifFeedLogic.send` applies on / keywords-only / app filter, then adds to a ring (50). State builder adds `notifs` (newest 20). Older rows: `GET /api/notifs` or relay `notifPull` -> file channel. First page logs "parent looked".
+- State: ring in memory only (`NotifSync.clear` on rule off and release). The page keeps its own merged list per kid in localStorage.
+- Gotchas: no notification access = nothing arrives (the page says so after a pull). A notification the phone never recorded (ongoing, own app) is never sent. Narrowing to keywords-only is silent; widening to everything is told to the child again.
+
 ### 1.15 Lost mode card escape (0.9.16, `Guard.lockForLost`, `MessageActivity`)
 - Trigger: rule `lostOn` (+ `lostMsg`, `lostPhone`) from page / parent app / Telegram `/lost`.
 - Steps: on `USER_PRESENT` (not SCREEN_ON) show the card (message, call-back number, "Parent: turn off"); Device Owner `lockNow` again after `LOST_CARD_MS` (20 s). A right PIN / Authenticator code on the card sets `lostGraceUntil` (10 min): no relock, so a parent holding an offline phone can end lost mode on the page. `lostTick` locates every 5 min and loops the ring; a SIM change raises an event.

@@ -9,9 +9,16 @@
     <string name="watch_screen_title">Bố mẹ xem được gì</string>
     <string name="watch_intro">Bố mẹ cài KidGuard trên máy này. Danh sách này là mọi thứ bố mẹ đọc được. Mục nào đang bật luôn hiện ở đây.</string>
     <string name="watch_none">Hiện chưa có gì. Bố mẹ chỉ quản lý giờ dùng máy, ứng dụng và vị trí.</string>
+    <string name="log_watch_notif">Bố mẹ vừa xem thông báo của bạn</string>
     <string name="watch_on">Đang bật</string>
     <string name="watch_never">Bố mẹ không thấy: mật khẩu, thứ bạn gõ, tiếng cuộc gọi, mọi thứ không có trong danh sách trên.</string>
     <string name="watch_notif_title">thông báo</string>
-    <string name="watch_notif_kid">Bố mẹ đọc được thông báo máy nhận: ứng dụng nào, tiêu đề và nội dung.</string>
-    <string name="watch_notif_sees">Ứng dụng, tiêu đề, nội dung và giờ của thông báo gần đây, khi bố mẹ yêu cầu.</string>
+    <string name="watch_notif_kid">Bố mẹ thấy mọi thông báo máy nhận (app nào, tiêu đề và nội dung), ngay khi nó đến.</string>
+    <string name="watch_notif_sees">App, tiêu đề, nội dung và giờ của mọi thông báo (trừ loại đang chạy như nhạc), ngay khi đến, và cũ hơn khi họ yêu cầu.</string>
+    <string name="watch_notif_kw_title">thông báo có từ khoá của bố mẹ</string>
+    <string name="watch_notif_kw_kid">Bố mẹ nhận được những thông báo có từ khoá họ đã chọn (tên app, tiêu đề và nội dung).</string>
+    <string name="watch_notif_kw_sees">Chỉ thông báo có một từ khoá của họ: app, tiêu đề, nội dung và giờ. Gửi ngay khi thông báo đến.</string>
+    <string name="watch_words_title">cảnh báo từ khoá</string>
+    <string name="watch_words_kid">Bố mẹ nhận cảnh báo khi thông báo hoặc tin nhắn có từ khoá họ đã chọn.</string>
+    <string name="watch_words_sees">Một cảnh báo có tên app và đoạn ngắn của tin nhắn quanh từ khoá.</string>
 </resources>

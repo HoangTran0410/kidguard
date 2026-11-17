@@ -575,6 +575,7 @@ class Guard : Service() {
             .put("sos", store.sos())
             .put("listen", Listen.state(this))
             .put("files", Files.state(this))
+            .also { j -> NotifSync.stateJson(this)?.let { j.put("notifs", it) } }
             .put("ring", Ring.state())
             .put("events", store.events())
             .put("windDown", GrayFx.state(this, r, windActive))
@@ -706,7 +707,7 @@ class Guard : Service() {
             old to r
         }
         if (::work.isInitialized) work.post { runCatching { Policy.apply(this, store.rules) } }   // enforced = base + active mode
-        if (r.watch != old.watch) { Monitoring.tellOn(this, Monitoring.turnedOn(old.watch, r.watch)); fgRefresh() }
+        if (r.watch != old.watch) { if (!r.watch.notif.on) NotifSync.clear(); Monitoring.tellOn(this, Monitoring.turnedOn(old.watch, r.watch), r.watch); fgRefresh() }
         if (r.noDebug && !old.noDebug) devOff()   // "no debugging" switched on: also turn Developer options off once
         if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r, store.tr) + (if (by.isNotBlank()) " · " + by.take(24) else ""), "rules")
         if (r.zones != old.zones) store.zoneBaseline = true
@@ -759,6 +760,7 @@ class Guard : Service() {
         "listenStop" -> { Listen.stopAll(); "ok" }
         "fileUp" -> Files.command(this, t, c)   // shared folder over the relay (Files.kt)
         "fileDel" -> Files.command(this, t, c)
+        "notifPull" -> NotifSync.command(this, c)   // rule watch.notif: a page of recent notifications over the relay file channel
         "shotUp" -> Shot.command(this, c)       // wrong-PIN photo over the relay (Shot.kt)
         "tgSet" -> Tg.command(this, t, c)   // Telegram bot on this phone (Tg.kt)
         "tgCode" -> Tg.command(this, t, c)
@@ -884,7 +886,7 @@ class Guard : Service() {
         work.postAtFrontOfQueue {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
-            Listen.stopAll(); Monitoring.release(this); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff(); FixPerms.release(this)
+            Listen.stopAll(); Monitoring.release(this); NotifSync.clear(); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff(); FixPerms.release(this)
             // C8: the parents hear of it (event -> relay + Telegram) BEFORE the tokens go; the relay creds are kept for the forget call
             val creds = Triple(store.relayUrl, store.relayId, store.relayToken)
             runCatching {

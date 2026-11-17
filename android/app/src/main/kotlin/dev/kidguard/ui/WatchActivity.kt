@@ -29,11 +29,11 @@ class WatchActivity : Activity() {
         if (on.isEmpty()) col.addView(ui.cardBox(16).apply { addView(ui.label(getString(R.string.watch_none), 16f, ui.text)) })
         for (c in on) col.addView(ui.cardBox(16).apply {
             addView(TextView(context).apply {
-                text = getString(c.title).replaceFirstChar { it.uppercase() } + "  ·  " + getString(R.string.watch_on)
+                text = getString(c.title(w)).replaceFirstChar { it.uppercase() } + "  ·  " + getString(R.string.watch_on)
                 textSize = 16f; setTextColor(ui.accent); setTypeface(typeface, android.graphics.Typeface.BOLD)
             })
-            addView(ui.label(getString(c.kid), 15f, ui.text).apply { setPadding(0, ui.dp(8), 0, 0); setLineSpacing(0f, 1.15f) })
-            addView(ui.label(getString(c.sees), 13f).apply { setPadding(0, ui.dp(6), 0, 0) })
+            addView(ui.label(getString(c.kid(w)), 15f, ui.text).apply { setPadding(0, ui.dp(8), 0, 0); setLineSpacing(0f, 1.15f) })
+            addView(ui.label(getString(c.sees(w)), 13f).apply { setPadding(0, ui.dp(6), 0, 0) })
         })
         col.addView(ui.label(getString(R.string.watch_never), 14f).apply { setPadding(0, ui.dp(18), 0, 0); setLineSpacing(0f, 1.15f) })
         col.addView(ui.button(getString(R.string.msg_read), R.drawable.li_thumbs_up, true) { finish() }.apply { (layoutParams as LinearLayout.LayoutParams).topMargin = ui.dp(20) })

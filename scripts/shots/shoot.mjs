@@ -46,6 +46,7 @@ const SHOTS = [
   { name: "where", js: `goTab("where")`, ready: `document.querySelector("#map .layer")`, tiles: true, settle: 800 },
   { name: "screen", js: `goTab("screen")`, ready: `document.querySelector("#s-img") && document.querySelector("#s-img").complete && document.querySelector("#s-img").naturalWidth > 0`, settle: 800 },
   { name: "files", js: `goTab("files")`, ready: `document.querySelector("#fxOut .app, #fxOut .li, #fxOut > *")`, settle: 600 },
+  { name: "seen", js: `edit.watch = { notif: { on: true, kw: false, apps: "except", list: [] }, words: ["chết", "ma tuý"] }; seenFeedL = { k: cur, items: [{ id: 1, t: Date.now() - 600000, pkg: "com.zing.zalo", app: "Zalo", title: "Bin", text: "tối nay đi đâu không", hit: "" }, { id: 2, t: Date.now() - 60000, pkg: "com.facebook.orca", app: "Messenger", title: "Nam", text: "mình chán quá muốn chết", hit: "chết" }] }; goTab("seen")`, ready: `document.querySelector("#seenWords")`, settle: 600 },
   { name: "log", js: `goTab("log")`, ready: `document.querySelector(".lgr, #tab .empty")`, settle: 600 },
   { name: "log-use", js: `goTab("apps"); setTimeout(() => document.querySelector("#apUse").click(), 300)`, ready: `document.querySelector(".lgr .ic")`, settle: 600 },
   { name: "log-use-app", js: `goTab("apps"); setTimeout(() => document.querySelector("#apUse").click(), 300); setTimeout(() => document.querySelectorAll(".lgr.use")[2].click(), 1200)`, ready: `document.querySelector(".lgr.use.dim")`, settle: 400 },

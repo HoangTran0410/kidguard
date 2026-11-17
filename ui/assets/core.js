@@ -123,6 +123,9 @@ function norm(e) {
   e.schedules = e.schedules || []; e.approved = e.approved || []; e.safeDns = e.safeDns || ""; e.safeDnsPauseUntil = +e.safeDnsPauseUntil || 0; e.noVpn = !!e.noVpn; e.noIncognito = !!e.noIncognito; e.webBlock = Array.isArray(e.webBlock) ? e.webBlock : []; e.webAllow = Array.isArray(e.webAllow) ? e.webAllow : []; e.frpIds = Array.isArray(e.frpIds) ? e.frpIds.map(String) : [];
   e.trackMin = e.trackMin === undefined ? 5 : +e.trackMin; e.lockLocation = e.lockLocation !== false; e.noAirplane = e.noAirplane !== false; e.showWatching = e.showWatching !== false; e.autoUpdate = e.autoUpdate !== false; e.tsKeep = !!e.tsKeep; e.blockNew = !!e.blockNew; e.monitor = !!e.monitor;
   e.kidClean = !!e.kidClean;
+  { const w = e.watch || {}, n = w.notif || {};   // 0.9.29 what the parent may read (docs/protocol.md "Monitoring")
+    e.watch = { notif: { on: !!n.on, kw: !!n.kw, apps: ["only", "except"].includes(n.apps) ? n.apps : "all", list: Array.isArray(n.list) ? n.list.map(String).slice(0, 200) : [] },
+      words: (Array.isArray(w.words) ? w.words : []).map(x => String(x).trim().slice(0, 40)).filter(Boolean).slice(0, 30) }; }
   e.calls = { block: ["unknown", "hidden"].includes(e.calls && e.calls.block) ? e.calls.block : "off", allow: Array.isArray(e.calls && e.calls.allow) ? e.calls.allow.map(String) : [] };   // call screening (Calls.kt)
   e.passUntil = +e.passUntil || 0;   // 0.9.16 timed pass (docs/protocol.md "More time")
   e.bedByDay = Array.isArray(e.bedByDay) && e.bedByDay.length === 7 ? e.bedByDay.map(x => String(x || "")) : []; e.oneMore = e.oneMore !== false;

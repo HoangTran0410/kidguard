@@ -122,6 +122,8 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Chức năng | DO | CB | +WSS | +adb | Relay | Ghi chú |
 |---|---|---|---|---|---|---|
 | Báo cho con biết bố mẹ xem được gì (dòng trong thông báo KidGuard, thông báo khi bật, màn "Bố mẹ xem được gì") | ✅ | ✅ | ✅ | ✅ | — | Không có cách tắt. Bản Home không có. Thông báo thường trực nằm ở kênh mức thấp: con tắt kênh trong Cài đặt thì mất dòng này, còn thông báo khi bật và màn hình thì không |
+| Thông báo của con gửi cho bố mẹ (tự gửi cùng đồng bộ, lọc theo app / từ khoá; cũ hơn thì kéo theo yêu cầu) | ✅ | ✅ | ✅ | ✅ | ✅ | Cần quyền truy cập thông báo (con bật tay, hoặc adb/AutoGrant). Chỉ phần hiện trong thông báo, không có nội dung ẩn. Hàng đợi 50 trong RAM, mất khi máy khởi động lại. Không có trong bản Home |
+| Cảnh báo từ khoá (thông báo và SMS có từ khoá) | ✅ | ✅ | ✅ | ✅ | ✅ | Cùng nguồn thông báo; chỉ gửi tin có từ khoá |
 
 ### 3.5 Launcher (màn hình chính của con)
 

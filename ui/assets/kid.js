@@ -59,6 +59,7 @@ async function refresh1() {
     // another parent (or the child) changed the rules: reload unless we are mid-edit or saving, else a stale page would overwrite them
     else if ((nw.rev || 0) > (edit.rev || 0) && !saveT && !saveBusy && !busy && !saveFailed) { edit = norm(structuredClone(nw)); editBase = structuredClone(edit); lastSig = ""; }
   }
+  if (st && typeof seenFeed === "function") seenFeed(k, st);   // new notifications from the sync body (tab-seen.js)
   // redraw the tab only when what it shows changed and nobody is using a control (icons would reload, a select would close)
   const sig = st ? JSON.stringify([tab, st.rules && st.rules.rev, st.apps.map(a => [a.suspended, a.blocked, Math.floor(a.ms / 60000), a.bg, a.bgMine]),
     st.location && st.location.t, (st.log || []).length, ((st.log || []).slice(-1)[0] || {}).t, (st.track || []).length, Math.floor(st.usedMs / 60000), lastErr, cachedAt, viewDay,
@@ -213,6 +214,9 @@ const CONFIRM = {
   "f-na": { on: "more.airAsk" },
   "f-hm": { on: "hm.askOn", safe: 1 },
   "f-lost": { on: "lost.askOn", safe: 1 },
+  "f-wn": { on: "seen.askOn", safe: 1 },
+  "f-wk": { off: "seen.askAll", safe: 1 },
+  "f-ww": { click: "seen.askWords", safe: 1 },
 };
 let confirmPass = null;
 function confirmGate(e) {
@@ -430,7 +434,7 @@ const totpHtml = s => `<div class="alert warn" style="margin-top:10px">${s.phase
 // ---- v0.6: events, chores, zones, templates ----
 const EV_IC = { call: "phone", zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand", launcher: "house", adminOpen: "key-round", tsDown: "wifi-off", tsUp: "wifi" };
 // phone log line kind (log[].k, protocol) -> icon + tone; lines from older phones have no k
-const LOG_IC = { pin_wrong: ["key-round", "bad"], unlock: ["lock-open"], paired: ["link"], ai_on: ["bot"], ai_off: ["bot"], tz: ["globe"], loc_fixed: ["map-pin"],
+const LOG_IC = { watch_read: ["eye"], pin_wrong: ["key-round", "bad"], unlock: ["lock-open"], paired: ["link"], ai_on: ["bot"], ai_off: ["bot"], tz: ["globe"], loc_fixed: ["map-pin"],
   usage_off: ["triangle-alert", "bad"], new_app: ["package"], suspended: ["pause"], unsuspended: ["play"], recover_open: ["refresh-cw"],
   recover_req: ["refresh-cw"], zone: ["map-pin"], cmd: ["send"], cleared: ["eraser"], totp_off: ["shield", "bad"], totp_on: ["shield"],
   release_fail: ["octagon-x", "bad"], released: ["unlink", "bad"], sos: ["siren", "bad"], acc_settings: ["triangle-alert", "bad"],
