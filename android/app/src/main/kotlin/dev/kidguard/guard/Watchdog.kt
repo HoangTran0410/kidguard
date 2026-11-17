@@ -12,7 +12,11 @@ import android.util.Log
  *  the phone sleeps ([Relay.wake]: before this the sync loop only ran while something else kept the CPU awake), and re-arms itself. */
 class Watchdog : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        Guard.running?.relayWake() ?: Guard.start(context)
+        Guard.running?.relayWake() ?: run {
+            // process gone well after boot = something killed it: the "run in background" / Recents lock steps show from now on
+            if (android.os.SystemClock.elapsedRealtime() > 10 * 60_000L) Store.of(context).killSeen = System.currentTimeMillis()
+            Guard.start(context)
+        }
         schedule(context)
     }
 

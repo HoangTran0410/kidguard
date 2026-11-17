@@ -45,14 +45,16 @@ function phoneCard(online) {
 function netSheet() {
   const n = st && st.net; if (!n) return;
   const kv = (k, v) => v === undefined || v === null || v === "" ? "" : `<div class="dvkv"><span>${k}</span><b>${v}</b></div>`;
-  const ts = st.ts && st.ts.state === "on" && st.ts.ip;
+  // Tailscale: its address whenever the phone has one (basic mode: set up by hand, state stays "off" but ip is found);
+  // else say why in words (was the bare JS value "false", owner 2026-11-17)
+  const T = st.ts || {}, ts = T.ip ? esc(T.ip) : `<span class="mute" style="font-weight:400">${t(T.installed ? "net.tsOff" : "net.tsNone")}</span>`;
   sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead(n.type === "cell" ? "signal" : "wifi", t("net.h"))}
     ${kv(t("dv.net"), esc(tc("dv.n.", n.type, n.type)) + (n.metered && n.type !== "none" ? ` <span class="mute" style="font-weight:400">· ${t("dv.metered")}</span>` : ""))}
     ${n.type === "wifi" ? kv(t("net.ssid"), n.ssid ? esc(n.ssid) : `<span class="mute" style="font-weight:400">${t("net.noSsid")}</span>`) : ""}
     ${kv(t("net.carrier"), n.carrier && esc(n.carrier))}
     ${n.rssi != null ? kv(t("net.signal"), (n.bars != null ? n.bars + "/4 · " : "") + n.rssi + " dBm") : ""}
     ${kv(t("net.band"), n.ghz && n.ghz + " GHz")}${kv(t("net.speed"), n.mbps && n.mbps + " Mbps")}
-    ${kv(t("net.ip"), n.ip && esc(n.ip))}${kv(t("net.ts"), ts && esc(ts))}
+    ${kv(t("net.ip"), n.ip && esc(n.ip))}${st.ts ? kv(t("net.ts"), ts) : ""}
     ${kv(t("net.mac"), n.hwMac && esc(n.hwMac))}${n.hwMac && n.type === "wifi" ? `<p class="mute">${t("net.macNote")}</p>` : ""}
     ${kv(t("net.seen"), ago(lastSeen()))}</div>`);
 }

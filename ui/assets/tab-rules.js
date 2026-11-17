@@ -323,6 +323,8 @@ function rulesWire(b, r) {
   $("#f-um").onchange = e => { r.unlockMin = +e.target.value; changed(); };
   if ($("#totpNew")) $("#totpNew").onclick = totpSetup;
   if ($("#totpDone")) $("#totpDone").onclick = () => { totpShown = null; render(); };
+  if ($("#totpCode")) { const i = $("#totpCode"); i.oninput = () => { totpShown.code = i.value; };
+    i.onkeydown = e => { if (e.key === "Enter") totpCheck(); }; $("#totpCheck").onclick = totpCheck; $("#totpCancel").onclick = () => { totpShown = null; render(); }; }
   if ($("#totpOff")) $("#totpOff").onclick = async () => { if (await cmd({ type: "totpSet", secret: "" }, t("totp.offDone"), [t("totp.askOff"), t("turnOff"), true])) { totpShown = null; render(); } };
   b.querySelectorAll("[data-c]").forEach(box => {
     const c = r.chores[+box.dataset.c], i = +box.dataset.c;

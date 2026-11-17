@@ -80,6 +80,13 @@ const layoutAudit = String(() => {
       break;
     }
   }
+  // a button label on two lines (owner 2026-11-17: "button bị rớt hàng"; a big Android font size = a narrower --width)
+  for (const b of document.querySelectorAll("button, .seg label, a.btn")) {
+    const r = b.getBoundingClientRect(); if (!r.width || getComputedStyle(b).visibility === "hidden" || b.closest("[hidden]")) continue;
+    const rg = document.createRange(), tops = new Set();
+    for (const n of b.childNodes) if (n.nodeType === 3 && n.textContent.trim()) { rg.selectNodeContents(n); for (const q of rg.getClientRects()) if (q.width > 2) tops.add(Math.round(q.top)); }
+    if (tops.size > 1) { const k = "w" + name(b); if (!seen.has(k)) { seen.add(k); out.push("label wraps (" + Math.round(r.width) + "px): " + name(b)); } }
+  }
   // only the outermost offender of each chain is useful
   return out.filter((x, i) => !out.slice(0, i).some(y => y.startsWith("sticks out") && x.startsWith("sticks out") && x.includes(y.split(": ").slice(1).join(": ").slice(0, 12)))).slice(0, 40);
 });

@@ -27,7 +27,7 @@
 <link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/guide">
 <link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/guide">
 <link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/guide">
-<link rel="stylesheet" href="css/site.css?v=1f170ad2f1">
+<link rel="stylesheet" href="css/site.css?v=6fce7848c0">
 <link rel="alternate" type="text/plain" title="llms.txt" href="llms.txt">
 </head>
 <body>
@@ -196,7 +196,8 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li>Muốn quản lý cả khi con ra ngoài: xem <a href="#away">Khi con ra khỏi nhà</a>.</li>
   </ol>
   <p class="tip"><b>Oppo / Realme / OnePlus (ColorOS):</b> mở Đa nhiệm, kéo thẻ KidGuard xuống để khóa (biểu tượng ổ khóa). Trong Quản lý điện thoại, cho KidGuard “Tự khởi chạy” và chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app.</p>
-  <p><b>Lần đầu: 4 bước nhanh.</b> Ghép xong, trang dẫn bạn qua <b>mức bắt đầu</b> (Nhẹ nhàng, Cân bằng hay Nghiêm), <b>app hay dùng</b> (cho phép, bình thường hoặc chặn), <b>giờ ngủ và giới hạn mỗi ngày</b>, và <b>con thấy gì</b>. Bấm <b>Xong</b> mới lưu. Làm lại bất cứ lúc nào: <b>Cài đặt → Thiết lập lại từ đầu</b>.</p>
+  <p class="tip"><b>Tìm chức năng:</b> trên trang phụ huynh, bấm ô <b>Tìm chức năng</b> ở trên cùng (hoặc phím <kbd>/</kbd>) rồi gõ vài chữ, ví dụ <kbd>relay</kbd>, <kbd>giờ ngủ</kbd>, <kbd>wifi</kbd>. Hướng dẫn này ghi “tìm <kbd>…</kbd>” thay cho đường đi trong menu, vì menu có thể đổi chỗ.</p>
+  <p><b>Lần đầu: 4 bước nhanh.</b> Ghép xong, trang dẫn bạn qua <b>mức bắt đầu</b> (Nhẹ nhàng, Cân bằng hay Nghiêm), <b>app hay dùng</b> (cho phép, bình thường hoặc chặn), <b>giờ ngủ và giới hạn mỗi ngày</b>, và <b>con thấy gì</b>. Bấm <b>Xong</b> mới lưu. Làm lại bất cứ lúc nào: tìm <kbd>thiết lập lại</kbd>.</p>
   <p>Ở Wi-Fi nhà trang chạy HTTP thường: chỉ dùng ở mạng bạn tin tưởng. Mỗi trình duyệt ghép một lần bằng mã ghép 6 số, ghép thêm cần PIN phụ huynh.</p>
 </section>
 
@@ -207,9 +208,9 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li><a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk">Tải app bố mẹ</a> và cài lên điện thoại của bạn.</li>
     <li>Mở app, bấm <b>Thêm máy của con</b>.</li>
     <li>Ở nhà: gõ địa chỉ hiện trên màn hình KidGuard của con, rồi mã ghép 6 số (giữ nút <b>Bố mẹ: hiện mã ghép</b> 5 giây nếu chưa thấy).</li>
-    <li>Ngoài nhà: dán link relay (dạng <code>https://…/#c=…&amp;k=…</code>) lấy trong <b>Cài đặt → Kết nối</b> (relay đã bật sẵn), xem <a href="#relay">relay</a>.</li>
-    <li>Nhanh hơn: bấm <b>Quét QR</b> và quét mã trên máy con (hoặc mã QR link trong <b>Cài đặt → Kết nối</b>). Chỉ nhận link của KidGuard.</li>
-    <li>Phụ huynh còn lại: <b>Cài đặt → Mở từ xa (relay)</b> hiện mã QR; người đó quét bằng app bố mẹ của họ.</li>
+    <li>Ngoài nhà: dán link relay (dạng <code>https://…/#c=…&amp;k=…</code>) lấy trên trang phụ huynh: tìm <kbd>relay</kbd> (relay đã bật sẵn), xem <a href="#relay">relay</a>.</li>
+    <li>Nhanh hơn: bấm <b>Quét QR</b> và quét mã trên máy con (hoặc mã QR link: tìm <kbd>relay</kbd> trên trang). Chỉ nhận link của KidGuard.</li>
+    <li>Phụ huynh còn lại: tìm <kbd>relay</kbd> trên trang, mục đó hiện mã QR; người đó quét bằng app bố mẹ của họ.</li>
     <li>Có từ 2 con: mục <b>Tổng quan</b> hiện tất cả các con trên một trang.</li>
   </ol>
   <p><b>Dễ hơn:</b> <a href="#telegram">bot Telegram</a> gửi SOS và xin thêm giờ tới ngay, không cần app hay build.</p>
@@ -241,7 +242,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
       </tbody>
     </table>
   </div>
-  <p>Bot Telegram, Tailscale và relay riêng đều <b>bật khi đang ở nhà</b>, trong trang phụ huynh: <b>Cài đặt → Kết nối</b> và <b>Cài đặt → Telegram</b>.</p>
+  <p>Bot Telegram, Tailscale và relay riêng đều <b>bật khi đang ở nhà</b>, trong trang phụ huynh: tìm <kbd>telegram</kbd>, tìm <kbd>tailscale</kbd> hoặc tìm <kbd>relay</kbd>.</p>
 </section>
 
 <section id="telegram">
@@ -250,7 +251,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
   <ol class="steps">
     <li><b>Tạo bot (1 phút).</b> Trên điện thoại bố mẹ, mở <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> trong Telegram, bấm <b>Bắt đầu</b>, gửi <code>/newbot</code>. Gửi tên bot (vd: <code>Nhà Bin</code>), rồi tên đăng nhập kết thúc bằng <code>bot</code> (vd: <code>nhabin_kidguard_bot</code>; bị trùng thì thêm số).</li>
     <li><b>Copy token.</b> BotFather trả về 1 dòng dạng <code>123456789:AAH…</code>: chạm vào là copy. Nhấn giữ cả tin → Sao chép cũng được. Giữ kín token.</li>
-    <li><b>Dán vào trang phụ huynh.</b> <b>Cài đặt → Telegram</b>, dán vào ô token (dán cả tin cũng được, trang tự lấy token), bấm <b>Kết nối</b>.</li>
+    <li><b>Dán vào trang phụ huynh.</b> tìm <kbd>telegram</kbd>, dán vào ô token (dán cả tin cũng được, trang tự lấy token), bấm <b>Kết nối</b>.</li>
     <li><b>Liên kết.</b> Trang hiện nút <b>Mở Telegram và liên kết</b> và mã QR. Bấm nút (hoặc quét QR bằng camera điện thoại), Telegram mở bot, bấm <b>Bắt đầu</b>. Bot chào và hiện Menu.</li>
     <li><b>Thêm người nhận</b> (bố, mẹ, ông bà, tối đa 5): bấm <b>Mã khác</b> và gửi link cho người đó.</li>
   </ol>
@@ -259,7 +260,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <details><summary>Có 2 bé thì sao?</summary><p>Tạo 2 bot (vd: Nhà Bin, Nhà Na), mỗi bot dán vào trang của bé đó. 1 bot chỉ chạy được trên 1 máy con.</p></details>
     <details><summary>Báo “Token sai” hoặc “đang được nơi khác dùng”?</summary><p>Copy lại cả tin của BotFather và dán. “Nơi khác dùng” nghĩa là bot đã gắn cho máy khác: tạo bot mới cho bé này. Lỡ lộ token: gửi <code>/revoke</code> cho BotFather lấy token mới, dán lại.</p></details>
     <details><summary>Bấm Bắt đầu mà bot im?</summary><p>Mã liên kết dùng được 15 phút: bấm <b>Mã khác</b>. Máy con phải có mạng (bot chạy trên máy con).</p></details>
-    <details><summary>Tin nhắn đi qua đâu?</summary><p>Qua máy chủ Telegram (không mã hoá đầu cuối). Token chỉ lưu trên máy con. Tắt bot: <b>Cài đặt → Telegram → Tắt bot</b>, máy con quên token.</p></details>
+    <details><summary>Tin nhắn đi qua đâu?</summary><p>Qua máy chủ Telegram (không mã hoá đầu cuối). Token chỉ lưu trên máy con. Tắt bot: tìm <kbd>telegram</kbd> → <b>Tắt bot</b>, máy con quên token.</p></details>
   </div>
 </section>
 
@@ -269,7 +270,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
   <ol class="steps">
     <li>Trên điện thoại của bạn: cài app <b>Tailscale</b>, đăng nhập bằng tài khoản Google / Apple / Microsoft. Việc này cũng tạo tài khoản Tailscale miễn phí.</li>
     <li>Mở <a href="https://login.tailscale.com/admin/settings/keys" target="_blank" rel="noopener">trang Keys</a> → <b>Generate access token</b> → <b>Generate</b> → chép khóa.</li>
-    <li>Ở nhà (cùng Wi-Fi với máy con), mở trang phụ huynh: <b>Cài đặt → Kết nối → Điều khiển từ xa qua Tailscale</b>.</li>
+    <li>Ở nhà (cùng Wi-Fi với máy con), mở trang phụ huynh: tìm <kbd>tailscale</kbd>.</li>
     <li>Dán khóa vào ô <code>tskey-api-… / tskey-auth-…</code>, đặt tên máy nếu muốn (ví dụ <code>kid-an</code>), bấm <b>Bật</b>.</li>
     <li>Máy con tự tải app Tailscale chính hãng (kiểm tra SHA-256), cài im lặng, vào mạng của bạn rồi ẩn app. Mất khoảng 1 phút.</li>
     <li>Thẻ hiện <b>Đã kết nối</b>, địa chỉ dạng <code>http://100.x.y.z:8770</code> và nhãn <b>không hết hạn</b>.</li>
@@ -292,7 +293,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
 
 <section id="relay">
   <h2>Relay (Cloudflare Worker)</h2>
-  <p><b>Đã bật sẵn:</b> ghép xong là trang dùng relay chung của KidGuard, mở được từ bất cứ đâu (link trong <b>Cài đặt → Kết nối</b>). Trạng thái, vị trí và luật của con đi qua tài khoản Cloudflare của tác giả, hạn mức miễn phí dùng chung với mọi người. Không muốn vậy: tự tạo relay riêng như dưới, hoặc tắt relay trong Cài đặt.</p>
+  <p><b>Đã bật sẵn:</b> ghép xong là trang dùng relay chung của KidGuard, mở được từ bất cứ đâu (link: tìm <kbd>relay</kbd> trên trang). Trạng thái, vị trí và luật của con đi qua tài khoản Cloudflare của tác giả, hạn mức miễn phí dùng chung với mọi người. Không muốn vậy: tự tạo relay riêng như dưới, hoặc tắt relay trong Cài đặt.</p>
   <h3>Tự tạo relay riêng</h3>
   <p>Một Cloudflare Worker nhỏ trong tài khoản Cloudflare miễn phí của bạn, chuyển lệnh, trạng thái và màn hình trực tiếp. Hình màn hình chỉ nằm trong bộ nhớ của Worker, không lưu lại. Máy bố mẹ chỉ cần trình duyệt.</p>
   <p class="need">Cần: máy tính có <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> 18+. Tài khoản Cloudflare tạo miễn phí lúc đăng nhập.</p>
@@ -306,7 +307,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
     <li>Script làm 3 bước: cài công cụ (lần đầu khoảng 1 phút), mở trang đăng nhập Cloudflare trên trình duyệt (nếu chưa đăng nhập), rồi deploy.</li>
     <li>Tài khoản mới có thể được hỏi chọn tên miền con <code>workers.dev</code>: trả lời, tên này nằm trong địa chỉ relay.</li>
     <li>Script in ra địa chỉ: <code>Relay ready: https://kidguard.&lt;tên-bạn&gt;.workers.dev</code>.</li>
-    <li>Ở nhà, mở trang phụ huynh: <b>Cài đặt → Kết nối → Nâng cao: relay riêng (Cloudflare Worker)</b>. Dán địa chỉ, bấm <b>Bật</b>.</li>
+    <li>Ở nhà, mở trang phụ huynh: tìm <kbd>relay</kbd>, mục relay riêng (Cloudflare Worker). Dán địa chỉ, bấm <b>Bật</b>.</li>
     <li>Trang hiện link điều khiển từ xa. Mở link đó trên điện thoại của bạn (lưu lại, đừng gửi cho ai), hoặc dán vào app bố mẹ.</li>
   </ol>
   <ul>
@@ -318,7 +319,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
   <p>Địa chỉ <code>https://kidguard.99-hoangtran.workers.dev</code>, bật sẵn. Hạn mức miễn phí mỗi ngày dùng chung với mọi người nên hiếm khi có thể hết trong ngày: khi đó dùng bot Telegram, Tailscale hoặc relay riêng.</p>
 
   <h3 id="watch">Đồng hồ Amazfit (Zepp OS)</h3>
-  <p>Bản app đồng hồ (thư mục <code>watch/</code>) cho bố mẹ xem giờ còn lại, duyệt xin thêm giờ, khóa, đổ chuông và xem vị trí ngay trên cổ tay. Kết nối kiểu ghép TV: trên đồng hồ mở KidGuard, bấm <b>Kết nối</b> để lấy mã 6 số, rồi trên trang phụ huynh vào <b>Cài đặt → Đồng hồ</b>, nhập mã và bấm <b>Kết nối</b>. Cần bật relay cho bé đó. Mã hết hạn sau 10 phút, đồng hồ tự lấy mã mới. Không có mã thì vẫn dán được link relay ở trang cài đặt của app Zepp.</p>
+  <p>Bản app đồng hồ (thư mục <code>watch/</code>) cho bố mẹ xem giờ còn lại, duyệt xin thêm giờ, khóa, đổ chuông và xem vị trí ngay trên cổ tay. Kết nối kiểu ghép TV: trên đồng hồ mở KidGuard, bấm <b>Kết nối</b> để lấy mã 6 số, rồi trên trang phụ huynh tìm <kbd>đồng hồ</kbd>, nhập mã và bấm <b>Kết nối</b>. Cần bật relay cho bé đó. Mã hết hạn sau 10 phút, đồng hồ tự lấy mã mới. Không có mã thì vẫn dán được link relay ở trang cài đặt của app Zepp.</p>
 </section>
 
 <section id="features">
@@ -420,7 +421,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
 <section id="remove">
   <h2>Gỡ KidGuard</h2>
   <ol class="steps">
-    <li>Trang phụ huynh → <b>Cài đặt → Vùng nguy hiểm → Gỡ quyền quản lý…</b></li>
+    <li>Trang phụ huynh: tìm <kbd>nguy hiểm</kbd> → <b>Gỡ quyền quản lý…</b></li>
     <li>Mọi app được mở khóa, mọi hạn chế được gỡ. Đã bật Tailscale thì Tailscale cũng được gỡ.</li>
     <li>Gỡ app KidGuard như app thường.</li>
   </ol>

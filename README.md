@@ -131,7 +131,7 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Battery / autostart sett
 | 👨‍👩‍👧 **All kids at once** | With 2+ kids, **Overview**: a card per kid (online, battery, phone, app in use, time used / limit, requests, SOS), every kid's latest location on one map, 7 days of screen time side by side. Parent app, or the Worker page with several relay kids |
 | 🛡️ **Tamper-proof** | Blocks uninstall, force stop, factory reset from Settings, Safe Mode, new users, changing the clock, airplane mode. A watchdog restarts it; accessibility turns itself back on. Optional: family DNS filter (AdGuard / Cloudflare / CleanBrowsing), block installs, block USB debugging |
 | 🔒 **Commands** | Lock the screen, ring, full-screen message, restart the phone |
-| ↩️ **Undo everything** | Parent page → Settings → **Remove controls**: every app unlocked, every restriction lifted, then uninstall like any app |
+| ↩️ **Undo everything** | Parent page: search `danger` → **Remove controls**: every app unlocked, every restriction lifted, then uninstall like any app |
 
 Locked apps use Android's own `setPackagesSuspended`: the icon turns grey and opening it says the parent paused it.
 
@@ -165,7 +165,7 @@ At home the parent page talks to the kid's phone over Wi-Fi. When the kid is at 
 
 1. On the parent's phone install **Tailscale** and sign in (Google / Apple / Microsoft account: this also makes your free Tailscale account).
 2. Open [login.tailscale.com/admin/settings/keys](https://login.tailscale.com/admin/settings/keys) → **Generate access token** → **Generate** → copy it. (An auth key also works, but then you must do step 4 by hand.)
-3. In the parent page (on home Wi-Fi): **Settings → Remote control via Tailscale**, paste the key, press **Turn on**. The kid's phone downloads the official Tailscale app (SHA-256 checked), installs it silently, joins your network and hides the app (about a minute); the card then shows **Connected** and an address like `http://100.x.y.z:8770`.
+3. In the parent page (on home Wi-Fi): search `tailscale` (the search box at the top, or press `/`), paste the key, press **Turn on**. The kid's phone downloads the official Tailscale app (SHA-256 checked), installs it silently, joins your network and hides the app (about a minute); the card then shows **Connected** and an address like `http://100.x.y.z:8770`.
 4. With the access token the kid's phone makes its own one-off key and turns off Tailscale's 180-day key expiry for itself, then forgets the token (never stored); the card shows **never expires**. With an auth key instead: in [login.tailscale.com/admin/machines](https://login.tailscale.com/admin/machines), on the kid's phone row → **⋯ → Disable key expiry** (the page reminds you), or Tailscale signs the phone out after 180 days.
 5. On the parent's phone open that address (with Tailscale on). Several kids: add each one's address from the same page (**Add kid's phone**).
 
@@ -182,7 +182,7 @@ scripts/relay.sh          # Windows: powershell -ExecutionPolicy Bypass -File sc
 
 It installs the tools, opens the Cloudflare login in your browser (make a free account there if needed), deploys, and prints your relay address (`https://kidguard.<you>.workers.dev`). Run it again to update; `--delete` (`-Delete`) removes it.
 
-Then in the parent page (on home Wi-Fi): **Settings → Open from anywhere (relay)** → *Use your own Cloudflare Worker instead of the shared relay*, paste the address, press **Turn on**, open the link it shows on the parent's phone (or add it in the parent app).
+Then in the parent page (on home Wi-Fi): search `relay` → *Use your own Cloudflare Worker instead of the shared relay*, paste the address, press **Turn on**, open the link it shows on the parent's phone (or add it in the parent app).
 
 ### Shared relay
 
@@ -204,7 +204,7 @@ The child's phone runs your family's own Telegram bot: status, extra time, pause
 
 1. On the parent's phone open [@BotFather](https://t.me/BotFather) in Telegram, tap **Start**, send `/newbot`, then a name (`Bin's home`) and a username ending in `bot` (`binshome_kidguard_bot`).
 2. Copy the token BotFather sends (`123456789:AAH…`; tap it, or copy the whole message).
-3. Parent page → **Settings → Telegram** → paste → **Connect**.
+3. Parent page: search `telegram` → paste → **Connect**.
 4. Tap **Open Telegram and link** (or scan the QR) → **Start** in the bot. Add up to 5 people with **Other code**.
 
 In the bot: **📋 Menu** for buttons, `/help` for commands, `/lang` for English / Vietnamese. Release, unpair and clear data are not possible over Telegram. Messages go through Telegram's servers; the token stays on the child's phone. Details: [docs/protocol.md](docs/protocol.md) "Telegram bot on the child phone".

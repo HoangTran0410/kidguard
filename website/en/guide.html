@@ -27,7 +27,7 @@
 <link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/guide">
 <link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/guide">
 <link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/guide">
-<link rel="stylesheet" href="../css/site.css?v=1f170ad2f1">
+<link rel="stylesheet" href="../css/site.css?v=6fce7848c0">
 <link rel="alternate" type="text/plain" title="llms.txt" href="../llms.txt">
 </head>
 <body>
@@ -196,7 +196,8 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li>To manage when your child is out too: see <a href="#away">Away from home</a>.</li>
   </ol>
   <p class="tip"><b>Oppo / Realme / OnePlus (ColorOS):</b> open Recents and pull the KidGuard card down to lock it (padlock icon). In Phone Manager allow KidGuard to autostart and run in the background. Swiping KidGuard away in Recents on ColorOS stops the app completely.</p>
-  <p><b>First time: 4 quick steps.</b> Right after pairing the page walks you through <b>starting level</b> (Light, Balanced or Strict), your <b>top apps</b> (allow, normal or block), <b>bedtime and daily limit</b>, and <b>what the kid sees</b>. Nothing is saved until <b>Done</b>. Redo it any time: <b>Settings → Set up again</b>.</p>
+  <p class="tip"><b>Finding a setting:</b> on the parent page, tap <b>Find a setting</b> at the top (or press <kbd>/</kbd>) and type a few letters, like <kbd>relay</kbd>, <kbd>bedtime</kbd>, <kbd>wifi</kbd>. This guide says “search <kbd>…</kbd>” instead of a menu path, since menus can move.</p>
+  <p><b>First time: 4 quick steps.</b> Right after pairing the page walks you through <b>starting level</b> (Light, Balanced or Strict), your <b>top apps</b> (allow, normal or block), <b>bedtime and daily limit</b>, and <b>what the kid sees</b>. Nothing is saved until <b>Done</b>. Redo it any time: search <kbd>set up again</kbd>.</p>
   <p>On home Wi-Fi the page is plain HTTP: use it only on networks you trust. Each browser pairs once with the 6-digit code; pairing more needs the parent PIN.</p>
 </section>
 
@@ -207,9 +208,9 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li><a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk">Download the parent app</a> and install it on your phone.</li>
     <li>Open it and tap <b>Add kid's phone</b>.</li>
     <li>At home: type the address shown on the child's KidGuard screen, then the 6-digit pairing code (hold <b>Bố mẹ: hiện mã ghép</b> for 5 s if you see none).</li>
-    <li>Away from home: paste the relay link (like <code>https://…/#c=…&amp;k=…</code>) from <b>Settings → Connection</b> (the relay is already on), see <a href="#relay">relay</a>.</li>
-    <li>Easier: tap <b>Scan QR</b> and scan the code on the child's phone (or the link QR from <b>Settings → Connection</b>). Only KidGuard links are accepted.</li>
-    <li>The other parent: <b>Settings → Open from anywhere (relay)</b> shows a QR; they scan it in their parent app.</li>
+    <li>Away from home: paste the relay link (like <code>https://…/#c=…&amp;k=…</code>) from the parent page: search <kbd>relay</kbd> (the relay is already on), see <a href="#relay">relay</a>.</li>
+    <li>Easier: tap <b>Scan QR</b> and scan the code on the child's phone (or the link QR: search <kbd>relay</kbd> on the page). Only KidGuard links are accepted.</li>
+    <li>The other parent: search <kbd>relay</kbd> on the page; that section shows a QR; they scan it in their parent app.</li>
     <li>Two kids or more: <b>Overview</b> shows every kid on one page.</li>
   </ol>
   <p><b>Easier:</b> the <a href="#telegram">Telegram bot</a> delivers SOS and more-time requests at once, no app or build needed.</p>
@@ -241,7 +242,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
       </tbody>
     </table>
   </div>
-  <p>The Telegram bot, Tailscale and your own relay are all <b>turned on while at home</b>, in the parent page: <b>Settings → Connection</b> and <b>Settings → Telegram</b>.</p>
+  <p>The Telegram bot, Tailscale and your own relay are all <b>turned on while at home</b>, in the parent page: search <kbd>telegram</kbd>, search <kbd>tailscale</kbd> or search <kbd>relay</kbd>.</p>
 </section>
 
 <section id="telegram">
@@ -250,7 +251,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
   <ol class="steps">
     <li><b>Create a bot (1 minute).</b> On the parent's phone open <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> in Telegram, tap <b>Start</b>, send <code>/newbot</code>. Send a name (e.g. <code>Bin's home</code>), then a username ending in <code>bot</code> (e.g. <code>binshome_kidguard_bot</code>; taken? add digits).</li>
     <li><b>Copy the token.</b> BotFather answers with a line like <code>123456789:AAH…</code>: tap it to copy. Long-press the whole message → Copy works too. Keep the token secret.</li>
-    <li><b>Paste it in the parent page.</b> <b>Settings → Telegram</b>, paste into the token box (the whole message is fine, the page picks the token out), tap <b>Connect</b>.</li>
+    <li><b>Paste it in the parent page.</b> search <kbd>telegram</kbd>, paste into the token box (the whole message is fine, the page picks the token out), tap <b>Connect</b>.</li>
     <li><b>Link.</b> The page shows <b>Open Telegram and link</b> and a QR code. Tap it (or scan the QR with your phone's camera), Telegram opens the bot, tap <b>Start</b>. The bot says hello and shows the Menu.</li>
     <li><b>Add people</b> (mum, dad, grandparents, up to 5): tap <b>Other code</b> and send them the link.</li>
   </ol>
@@ -259,7 +260,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <details><summary>Two children?</summary><p>Make two bots (e.g. Bin's home, Na's home), each pasted on that child's page. One bot runs on one child's phone only.</p></details>
     <details><summary>“Wrong token” or “used somewhere else”?</summary><p>Copy BotFather's whole message again and paste it. “Used somewhere else” means the bot belongs to another phone: make a new bot for this child. Token leaked? Send <code>/revoke</code> to BotFather for a new one and paste it again.</p></details>
     <details><summary>Tapped Start, the bot says nothing?</summary><p>A link code works for 15 minutes: tap <b>Other code</b>. The child's phone must be online (the bot runs on it).</p></details>
-    <details><summary>Where do messages go?</summary><p>Through Telegram's servers (not end-to-end encrypted). The token stays on the child's phone. Turn it off: <b>Settings → Telegram → Turn off</b>, the phone forgets the token.</p></details>
+    <details><summary>Where do messages go?</summary><p>Through Telegram's servers (not end-to-end encrypted). The token stays on the child's phone. Turn it off: search <kbd>telegram</kbd> → <b>Turn off</b>, the phone forgets the token.</p></details>
   </div>
 </section>
 
@@ -269,7 +270,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
   <ol class="steps">
     <li>On your phone: install the <b>Tailscale</b> app and sign in with Google / Apple / Microsoft. This also makes your free Tailscale account.</li>
     <li>Open the <a href="https://login.tailscale.com/admin/settings/keys" target="_blank" rel="noopener">Keys page</a> → <b>Generate access token</b> → <b>Generate</b> → copy it.</li>
-    <li>At home (same Wi-Fi as the child's phone), open the parent page: <b>Settings → Connection → Remote control via Tailscale</b>.</li>
+    <li>At home (same Wi-Fi as the child's phone), open the parent page: search <kbd>tailscale</kbd>.</li>
     <li>Paste the key into the <code>tskey-api-… / tskey-auth-…</code> box, optionally name the phone (e.g. <code>kid-an</code>), press <b>Turn on</b>.</li>
     <li>The child's phone downloads the official Tailscale app (SHA-256 checked), installs it silently, joins your network and hides the app. About a minute.</li>
     <li>The card shows <b>Connected</b>, an address like <code>http://100.x.y.z:8770</code> and <b>never expires</b>.</li>
@@ -292,7 +293,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
 
 <section id="relay">
   <h2>Relay (Cloudflare Worker)</h2>
-  <p><b>Already on:</b> after pairing the page uses KidGuard's shared relay and opens from anywhere (link in <b>Settings → Connection</b>). Your child's state, location and rules pass through the author's Cloudflare account, and the free quota is shared by everyone. Don't want that: make your own relay as below, or turn the relay off in Settings.</p>
+  <p><b>Already on:</b> after pairing the page uses KidGuard's shared relay and opens from anywhere (link: search <kbd>relay</kbd> on the page). Your child's state, location and rules pass through the author's Cloudflare account, and the free quota is shared by everyone. Don't want that: make your own relay as below, or turn the relay off in Settings.</p>
   <h3>Make your own relay</h3>
   <p>A small Cloudflare Worker in your own free Cloudflare account relays commands, state and the live screen. Screen frames stay in the Worker's memory only, never stored. The parent's phone only needs a browser.</p>
   <p class="need">Needs: a computer with <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> 18+. The Cloudflare account can be made for free at login.</p>
@@ -306,7 +307,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
     <li>The script does 3 steps: installs its tools (about a minute the first time), opens the Cloudflare login in your browser (if you're not logged in), then deploys.</li>
     <li>A new account may be asked to pick a <code>workers.dev</code> subdomain: answer it, it becomes part of the relay address.</li>
     <li>It prints the address: <code>Relay ready: https://kidguard.&lt;you&gt;.workers.dev</code>.</li>
-    <li>At home, open the parent page: <b>Settings → Connection → Advanced: your own relay (Cloudflare Worker)</b>. Paste the address, press <b>Turn on</b>.</li>
+    <li>At home, open the parent page: search <kbd>relay</kbd>, the own relay (Cloudflare Worker) part. Paste the address, press <b>Turn on</b>.</li>
     <li>The page shows a remote-control link. Open it on your phone (keep it safe, don't share it), or paste it into the parent app.</li>
   </ol>
   <ul>
@@ -318,7 +319,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
   <p>Address <code>https://kidguard.99-hoangtran.workers.dev</code>, on by default. The free daily quota is shared by everyone, so on a rare day it can run out: then use the Telegram bot, Tailscale or your own relay.</p>
 
   <h3 id="watch">Amazfit watch (Zepp OS)</h3>
-  <p>The watch app (the <code>watch/</code> folder) lets a parent see time left, answer requests, lock, ring and see the location from the wrist. Connect it like pairing a TV: open KidGuard on the watch and tap <b>Connect</b> to get a 6-digit code, then on the parent page go to <b>Settings → Watch</b>, enter the code and tap <b>Connect</b>. The relay must be on for that kid. The code expires after 10 minutes and the watch shows a new one. Without a code you can still paste the relay link in the Zepp app's settings page.</p>
+  <p>The watch app (the <code>watch/</code> folder) lets a parent see time left, answer requests, lock, ring and see the location from the wrist. Connect it like pairing a TV: open KidGuard on the watch and tap <b>Connect</b> to get a 6-digit code, then on the parent page search <kbd>watch</kbd>, enter the code and tap <b>Connect</b>. The relay must be on for that kid. The code expires after 10 minutes and the watch shows a new one. Without a code you can still paste the relay link in the Zepp app's settings page.</p>
 </section>
 
 <section id="features">
@@ -420,7 +421,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
 <section id="remove">
   <h2>Remove KidGuard</h2>
   <ol class="steps">
-    <li>Parent page → <b>Settings → Danger zone → Remove controls…</b></li>
+    <li>Parent page: search <kbd>danger</kbd> → <b>Remove controls…</b></li>
     <li>Every app is unlocked and every restriction lifted. If Tailscale was on, it is removed too.</li>
     <li>Uninstall KidGuard like any app.</li>
   </ol>

@@ -376,6 +376,7 @@ section[id]>h2::before{content:"";flex:none;width:44px;height:44px;border-radius
 .gfind{display:flex;align-items:center;gap:var(--s2);border:1px solid var(--line2);background:var(--card);border-radius:10px;padding:0 var(--s3);min-height:44px;color:var(--muted)}
 .gfind:focus-within{border-color:var(--link);box-shadow:0 0 0 3px var(--link-line)}
 .gfind input{flex:1;min-width:0;border:0;background:none;color:var(--ink);font:inherit;font-size:16px;outline:0;padding:var(--s2) 0}
+kbd{font:.88em ui-monospace,Menlo,monospace;border:1px solid var(--line2);border-radius:5px;padding:0 5px;white-space:nowrap}
 .gfind kbd{font:12px ui-monospace,Menlo,monospace;border:1px solid var(--line2);border-radius:5px;padding:0 6px;color:var(--muted)}
 .gres a{display:block;padding:var(--s2) 6px;border-top:1px solid var(--line);color:var(--ink);border-radius:8px}
 .gres a:hover,.gres a:focus{background:var(--link-line);outline:0}

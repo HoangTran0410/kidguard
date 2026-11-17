@@ -365,15 +365,49 @@ function b32(bytes) {
   for (const x of bytes) { v = (v << 8) | x; bits += 8; while (bits >= 5) { out += A[(v >>> (bits - 5)) & 31]; bits -= 5; } }
   return bits ? out + A[(v << (5 - bits)) & 31] : out;
 }
-async function totpSetup() {
-  const again = st && st.totpOn, kq = cur;
+// RFC 6238 check in the page (SHA-1 by hand: crypto.subtle needs https, the LAN page is http). The key goes to the phone
+// only after the parent typed a code that matches, so a mis-scanned key never locks anyone out (owner 2026-11-17).
+function sha1(b) {
+  const l = b.length, n = ((l + 8 >> 6) + 1) * 16, w = new Array(n).fill(0);
+  for (let i = 0; i < l; i++) w[i >> 2] |= b[i] << (24 - (i & 3) * 8);
+  w[l >> 2] |= 0x80 << (24 - (l & 3) * 8); w[n - 1] = l * 8;
+  let h0 = 0x67452301, h1 = 0xefcdab89, h2 = 0x98badcfe, h3 = 0x10325476, h4 = 0xc3d2e1f0; const x = new Array(80);
+  const rl = (v, c) => (v << c) | (v >>> (32 - c));
+  for (let j = 0; j < n; j += 16) {
+    let a = h0, bb = h1, c = h2, d = h3, e = h4;
+    for (let i = 0; i < 80; i++) {
+      x[i] = i < 16 ? w[j + i] | 0 : rl(x[i - 3] ^ x[i - 8] ^ x[i - 14] ^ x[i - 16], 1);
+      const f = i < 20 ? (bb & c) | (~bb & d) : i < 40 ? bb ^ c ^ d : i < 60 ? (bb & c) | (bb & d) | (c & d) : bb ^ c ^ d;
+      const k = i < 20 ? 0x5a827999 : i < 40 ? 0x6ed9eba1 : i < 60 ? 0x8f1bbcdc : 0xca62c1d6;
+      const tmp = (rl(a, 5) + f + e + k + x[i]) | 0; e = d; d = c; c = rl(bb, 30); bb = a; a = tmp;
+    }
+    h0 = (h0 + a) | 0; h1 = (h1 + bb) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0; h4 = (h4 + e) | 0;
+  }
+  const out = []; for (const v of [h0, h1, h2, h3, h4]) out.push(v >>> 24 & 255, v >>> 16 & 255, v >>> 8 & 255, v & 255);
+  return out;
+}
+const b32dec = s => { const A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567", o = []; let v = 0, bits = 0;
+  for (const ch of s) { v = (v << 5) | A.indexOf(ch); bits += 5; if (bits >= 8) { o.push((v >>> (bits - 8)) & 255); bits -= 8; } } return o; };
+function totpCode(secret, counter) {
+  let k = b32dec(secret); if (k.length > 64) k = sha1(k);
+  const key = k.concat(new Array(64 - k.length).fill(0)), msg = [];
+  for (let i = 7; i >= 0; i--) msg.push(i >= 4 ? 0 : (counter >>> (i * 8)) & 255);
+  const h = sha1(key.map(x => x ^ 0x5c).concat(sha1(key.map(x => x ^ 0x36).concat(msg)))), o = h[19] & 15;
+  return String((((h[o] & 127) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3]) % 1e6).padStart(6, "0");
+}
+const totpOk = (secret, code) => { const c = Math.floor(Date.now() / 30000); return [c - 1, c, c + 1].some(n => totpCode(secret, n) === code); };
+function totpSetup() {
   const secret = b32(crypto.getRandomValues(new Uint8Array(20)));
-  const r = await cmd({ type: "totpSet", secret }, again ? t("totp.newDone") : t("totp.onDone"),
-    [again ? t("totp.askNew") : t("totp.askOn"), again ? t("totp.new") : t("turnOn")]);
-  if (!r) return;
   const label = "KidGuard: " + ((cur && cur.name) || t("kid")), uri = `otpauth://totp/${encodeURIComponent(label)}?secret=${secret}&issuer=KidGuard`;
-  totpShown = { k: kq, secret, label, uri, queued: r.result === "queued" };
+  totpShown = { k: cur, secret, label, uri, again: !!(st && st.totpOn), phase: "verify", code: "", err: "" };
   document.activeElement && document.activeElement.blur(); render();
+}
+async function totpCheck() {
+  const s = totpShown, code = (s.code || "").replace(/\D/g, "");
+  if (!totpOk(s.secret, code)) { s.err = t("totp.bad"); render(); return; }
+  const r = await cmd({ type: "totpSet", secret: s.secret }, s.again ? t("totp.newDone") : t("totp.onDone"), s.again ? [t("totp.askNew"), t("totp.new")] : false);
+  if (!r || totpShown !== s) return;
+  s.phase = "sent"; s.err = ""; s.queued = r.result === "queued"; render();
 }
 // drawn on each render, so a language switch also redraws it
 const qrSvg = text => {   // dark modules on a white quiet zone: scanners need dark-on-light even in dark theme
@@ -385,12 +419,14 @@ const qrSvg = text => {   // dark modules on a white quiet zone: scanners need d
     return `<svg viewBox="0 0 ${n + 8} ${n + 8}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
   } catch { return ""; }
 };
-const totpHtml = s => `<div class="alert warn" style="margin-top:10px">${s.queued && !(st && st.totpOn && Date.now() - lastSeen() < 120000) ? `<p><b>${ic("clock")} ${t("totp.queued")}</b></p>` : ""}<b>${ic("key-round")} ${t("totp.addNow")}</b> ${t("totp.once")}
+const totpHtml = s => `<div class="alert warn" style="margin-top:10px">${s.phase === "sent" && s.queued && !(st && st.totpOn && Date.now() - lastSeen() < 120000) ? `<p><b>${ic("clock")} ${t("totp.queued")}</b></p>` : ""}<b>${ic("key-round")} ${t("totp.addNow")}</b> ${t("totp.once")}
     <div class="totpqr"><div class="qrw" role="img" aria-label="${esc(t("totp.qrAlt"))}">${qrSvg(s.uri)}</div><p>${ic("smartphone")} ${t("totp.scan")}</p></div>
     <p><a class="btn pri" href="${esc(s.uri)}">${ic("smartphone")} ${t("totp.openGA")}</a> ${t("totp.onPhone")}</p>
     <p>${t("totp.manual", esc(s.label), `<code style="user-select:all;word-break:break-all">${s.secret.replace(/(.{4})/g, "$1 ").trim()}</code>`)}</p>
     <p class="mute">${t("totp.share")}</p>
-    <button id="totpDone">${ic("check")} ${t("totp.done")}</button></div>`;
+    ${s.phase === "sent" ? `<p><b>${ic("circle-check")} ${t("totp.ok")}</b></p><button id="totpDone">${ic("check")} ${t("totp.done")}</button>`
+    : `<p><b>${t("totp.verifyH")}</b></p><div class="row"><input id="totpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456" aria-label="${esc(t("totp.verifyH"))}" value="${esc(s.code || "")}" style="width:8em;letter-spacing:.15em;font-variant-numeric:tabular-nums"><button class="pri sp" id="totpCheck">${ic("check")} ${t("totp.check")}</button><button id="totpCancel">${t("totp.cancel")}</button></div>
+    ${s.err ? `<p class="bad" role="alert">${ic("triangle-alert")} ${esc(s.err)}</p>` : ""}`}</div>`;
 // ---- v0.6: events, chores, zones, templates ----
 const EV_IC = { call: "phone", zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand", launcher: "house", adminOpen: "key-round", tsDown: "wifi-off", tsUp: "wifi" };
 // phone log line kind (log[].k, protocol) -> icon + tone; lines from older phones have no k

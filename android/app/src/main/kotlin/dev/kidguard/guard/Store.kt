@@ -573,6 +573,10 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var oemBgOk: Boolean
         get() = p.getBoolean("oemBgOk", false)
         set(v) { p.edit().putBoolean("oemBgOk", v).apply() }
+    /** When the watchdog last found KidGuard's process gone (killed by the phone maker's battery manager or Recents). */
+    @get:Synchronized @set:Synchronized var killSeen: Long
+        get() = p.getLong("killSeen", 0L)
+        set(v) { p.edit().putLong("killSeen", v).apply() }
     @get:Synchronized @set:Synchronized var recentsOk: Boolean
         get() = p.getBoolean("recentsOk", false)
         set(v) { p.edit().putBoolean("recentsOk", v).apply() }

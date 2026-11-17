@@ -128,7 +128,9 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         val auto = autostartIntent(c)
         if (auto != null) out += Step(c.getString(R.string.step_autostart), c.getString(R.string.step_autostart_d), st.autostartOk, { st.autostartOk = true }) { open(auto) }
         else if (colorOs) out += Step(c.getString(R.string.step_autostart), c.getString(R.string.step_autostart_info_d), st.autostartOk, { st.autostartOk = true }) { openOwn(info) }
-        if (oemKiller) {
+        // Neither can be read back, so a phone already set up only gets them once it was really killed (owner 2026-11-17:
+        // the Poco, never killed, showed both as to-dos)
+        if (oemKiller && (!st.everPaired || st.killSeen > 0)) {
             val miui = Intent().setComponent(ComponentName("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"))
                 .putExtra("package_name", c.packageName).putExtra("package_label", c.applicationInfo.loadLabel(c.packageManager).toString())
             out += Step(c.getString(R.string.step_bg), c.getString(R.string.step_bg_d), st.oemBgOk, { st.oemBgOk = true }) {
