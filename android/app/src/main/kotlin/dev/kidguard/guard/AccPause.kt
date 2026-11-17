@@ -69,8 +69,9 @@ object AccPause {
         ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == PackageManager.PERMISSION_GRANTED
 
     fun active(ctx: Context): Boolean = Store.of(ctx).accPaused.isNotEmpty()
-    /** When the last pause ended (memory only): [AccPauseLogic.accOffAlarm] waits [AccPauseLogic.SETTLE_MS] for the bind. */
-    @Volatile var resumedAt = 0L
+    /** When the last pause ended (memory only): [AccPauseLogic.accOffAlarm] waits [AccPauseLogic.SETTLE_MS] for the bind.
+     *  Starts at process start: after an app update / crash the service also binds seconds later (INCIDENT 2026-11-17). */
+    @Volatile var resumedAt = System.currentTimeMillis()
 
     /**
      * [pkg] is opening: turn our accessibility service off (before the launcher starts it, or on its first window).

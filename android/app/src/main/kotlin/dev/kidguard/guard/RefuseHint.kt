@@ -38,9 +38,11 @@ object RefuseLogic {
     fun norm(s: String): String = Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD)
         .replace(Regex("\\p{Mn}+"), "").replace('đ', 'd').replace(Regex("\\s+"), " ")
 
-    /** What the text says the app refuses: subset of acc / dev / vpn, empty = not a refusal. */
-    fun kinds(text: String): Set<String> {
-        if (text.isBlank() || text.length > MAX_TEXT) return emptySet()
+    /** What the text says the app refuses: subset of acc / dev / vpn, empty = not a refusal.
+     *  [typing]: the window has a text box = a chat / search / note screen whose words are the user's, not an error dialog
+     *  (INCIDENT 2026-11-17: the owner chatted with the Claude app about accessibility -> "Claude won't open"). */
+    fun kinds(text: String, typing: Boolean = false): Set<String> {
+        if (typing || text.isBlank() || text.length > MAX_TEXT) return emptySet()
         val t = " " + norm(text) + " "
         if (BAD.none { t.contains(it) }) return emptySet()
         return buildSet {
@@ -105,23 +107,24 @@ object RefuseHint {
                 if (pkg != front) { front = pkg; frontAt = now; walks = 0 }
                 if (now - frontAt > RefuseLogic.WINDOW_MS || walks >= 4) return
                 walks++
-                val texts = ArrayList<String>(); var n = 0
+                val texts = ArrayList<String>(); var n = 0; var typing = false
                 fun walk(x: AccessibilityNodeInfo?, d: Int) {
                     if (x == null || d > 12 || n > 150) return
                     n++
+                    if (x.isEditable) typing = true
                     x.text?.let { texts += it.toString() }; x.contentDescription?.let { if (x.text == null) texts += it.toString() }
                     for (i in 0 until x.childCount) walk(x.getChild(i), d + 1)
                 }
                 runCatching { walk(svc.rootInActiveWindow?.takeIf { it.packageName?.toString() == pkg }, 0) }
                 if (texts.isEmpty()) texts += e.text.map { it.toString() }
-                check(svc, pkg, texts.joinToString(" "), now)
+                check(svc, pkg, texts.joinToString(" "), now, typing)
             }
         }
     }
 
-    private fun check(svc: AccessibilityService, pkg: String, text: String, now: Long) {
+    private fun check(svc: AccessibilityService, pkg: String, text: String, now: Long, typing: Boolean = false) {
         if (pkg == svc.packageName || pkg in SYS || BasicLogic.isSettingsPkg(pkg)) return
-        var hit = RefuseLogic.kinds(text)
+        var hit = RefuseLogic.kinds(text, typing)
         if (hit.isEmpty()) return
         val s = Store.of(svc)
         hit = RefuseLogic.missing(hit, pkg, s.rules)

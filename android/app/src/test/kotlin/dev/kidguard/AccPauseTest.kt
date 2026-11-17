@@ -10,6 +10,11 @@ class AccPauseTest {
     private val list = setOf("com.VCB", "com.mbmobile")
     private val min = 60_000L
 
+    @Test fun noAccOffAlarmRightAfterTheAppRestarts() {   // INCIDENT 2026-11-17: app update -> service binds seconds later
+        val start = 1_000_000L
+        assertFalse(AccPauseLogic.accOffAlarm(true, true, false, false, start, start + 5_000))
+        assertTrue(AccPauseLogic.accOffAlarm(true, true, false, false, start, start + AccPauseLogic.SETTLE_MS))
+    }
     @Test fun bankInFrontKeepsPaused() {
         assertEquals(0L to false, AccPauseLogic.step("com.VCB", list, 0L, 1_000_000L))
         // came back before 10 min: the count restarts

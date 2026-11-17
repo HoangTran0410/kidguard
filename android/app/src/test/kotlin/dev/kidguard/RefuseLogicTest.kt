@@ -26,6 +26,9 @@ class RefuseLogicTest {
         assertTrue(RefuseLogic.kinds("Cài đặt trợ năng").isEmpty())
     }
 
+    @Test fun chatScreenIsNotARefusal() =   // INCIDENT 2026-11-17: talking about accessibility in the Claude app
+        assertTrue(RefuseLogic.kinds("Ủa gì đây? Claude đâu cần tắt trợ năng?", typing = true).isEmpty())
+
     @Test fun longScreenIsNotADialog() =
         assertTrue(RefuseLogic.kinds("Hãy tắt VPN ".repeat(80)).isEmpty())
 
