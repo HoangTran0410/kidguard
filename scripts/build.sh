@@ -18,6 +18,8 @@ if [ -n "${TRUSTSTORE:-}" ]; then
   export JAVA_OPTS="$T"
   OPTS=(-Dorg.gradle.jvmargs="-Xmx2g $T")
 fi
+# UI pack signing keys (never committed): make them once, before the build bakes their public halves into the apps
+[ -n "${CI:-}" ] || node scripts/ui-pack.mjs --init
 node scripts/check-search.mjs   # every page section must be findable in the feature search
 node scripts/check-assets.mjs   # every ui/assets file wired in index.html + relay; i18n keys in both languages
 scripts/check-js.sh              # page-script runtime bugs node --check misses (const reassign, ...)
@@ -36,6 +38,7 @@ perl -pi -e 's#<span class="ver">v[0-9.]*</span>#<span class="ver">v'"$V"'</span
   website/index.html website/en/index.html website/guide.html website/en/guide.html
 scripts/stamp-site.sh
 node scripts/gen-ai-guide.mjs   # website/ai/<lang>/: the guide as small pages for chat AIs (the "Ask an AI" button)
+[ -n "${CI:-}" ] || node scripts/ui-pack.mjs   # website/ui/: the signed UI pack (git-ignored; scripts/deploy.sh publishes it)
 
 # QR provisioning: SHA-256 of the signing certificate, URL-safe base64 without padding -> ui/provision.json + ui/qr.html defaults
 APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)

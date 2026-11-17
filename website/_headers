@@ -5,6 +5,10 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Content-Security-Policy: default-src 'none'; img-src 'self' data:; style-src 'self'; font-src 'self'; script-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
 
+/ui/*
+  Cache-Control: no-cache
+  Access-Control-Allow-Origin: *
+
 /img/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 

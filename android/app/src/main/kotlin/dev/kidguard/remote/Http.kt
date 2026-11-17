@@ -156,7 +156,7 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
             return Req(method, path, query, headers, ByteArray(0), i, n)
         }
         val len = headers["content-length"]?.toIntOrNull() ?: 0
-        if (len > 512 * 1024) throw TooBig()
+        if (len > 512 * 1024 && !(method == "POST" && path == "/ui/push" && len <= UiPack.MAX_ZIP)) throw TooBig()   // a UI pack is ~300 KB
         val body = ByteArray(len)
         var got = 0
         while (got < len) { val r = i.read(body, got, len - got); if (r < 0) break; got += r }

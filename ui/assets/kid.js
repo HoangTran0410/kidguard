@@ -268,7 +268,7 @@ function pinRefused(r) {
 }
 // Commands the worker drops after 10 min when the phone is offline (relay/src/index.js SHORT): a "now" action must not run later by surprise
 // = relay `SHORT` (relay/src/index.js): dropped after 10 min if the phone never took them; everything else waits 24 h
-const SHORT_CMDS = new Set(["lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms", "selfOpen", "tsInstall"]);
+const SHORT_CMDS = new Set(["uiUpdate", "lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms", "selfOpen", "tsInstall"]);
 async function cmd(c, okMsg, q) {
   const k = cur, a0 = q || (q === false ? null : askOf(c.type)) || (c.type === "message" ? [t("askMsg", c.text), t("send")] : null);
   // dangerous: name the kid in the text, so a dialog for A can never be mistaken for B

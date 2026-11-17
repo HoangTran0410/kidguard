@@ -40,6 +40,14 @@ class Api(private val g: Guard) {
         if (r.method == "GET" && (r.path == "/" || r.path == "/index.html")) {
             return UiServe.res(g, r, "index.html", "text/html; charset=utf-8")
         }
+        // UI pack (android/shared/UiPack.kt): what page is served, "it booted" ping, dev push of a signed pack (scripts/ui-push.sh).
+        // All public like the page: a pack is trusted by its signature, never by who sends it; an older / unsigned / tampered one is refused.
+        if (r.method == "GET" && r.path == "/ui/pack.json") return Res.json(UiServe.hub(g).info(BuildConfig.VERSION_NAME + " " + BuildConfig.VERSION_CODE).toString())
+        if (r.method == "GET" && r.path == "/ui/ok") { r.query["v"]?.let { UiServe.hub(g).store.confirm(it) }; return Res(204, "text/plain", ByteArray(0)) }
+        if (r.method == "POST" && r.path == "/ui/push") {
+            val why = synchronized(UiServe) { UiServe.hub(g).push(r.body) }
+            return if (why == null) Res.json("""{"ok":true}""") else Res.json(JSONObject().put("error", why).toString(), 400)
+        }
         // the page's scripts + style (ui/assets/), public like the page itself
         if (r.method == "GET") Safety.uiAsset(r.path)?.let { (file, type) ->
             return try { UiServe.res(g, r, file, type) } catch (e: java.io.IOException) { Res.text("not found", 404) }

@@ -39,6 +39,19 @@ class Res(val code: Int, val type: String, val body: ByteArray, val headers: Map
  * (LAN `http://ip:8770` or relay `https://host`), caching state snapshots (see docs/protocol.md "Parent app").
  */
 class Proxy(private val ctx: Context, val port: Int) {
+    companion object {
+        @Volatile private var hubV: dev.kidguard.UiPackHub? = null
+        /** The page served by this app: newest verified UI pack, else the bundled one (android/shared/UiPack.kt). One per process. */
+        fun hub(ctx: Context): dev.kidguard.UiPackHub = hubV ?: synchronized(this) {
+            hubV ?: run {
+                val app = ctx.applicationContext
+                val tag = runCatching { "\"kg-${app.packageManager.getPackageInfo(app.packageName, 0).lastUpdateTime.toString(36)}\"" }.getOrDefault("\"kg-0\"")
+                dev.kidguard.UiPackHub(dev.kidguard.UiPackStore(Store.dir(app, "uipack"), dev.kidguard.UiRole.PARENT, BuildConfig.VERSION_CODE),
+                    { n -> app.assets.open(n).use { it.readBytes() } }, tag)
+            }.also { hubV = it }
+        }
+    }
+    private val hub get() = hub(ctx)
     val secret: String = ByteArray(16).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
     private var server: ServerSocket? = null
     @Volatile private var stopped = false
@@ -76,6 +89,8 @@ class Proxy(private val ctx: Context, val port: Int) {
         if (!cookie.any { it == "kgs=$secret" }) return Res.text("forbidden", 403)
         return when {
             r.method == "GET" && (r.path == "/" || r.path == "/index.html") -> index()
+            r.method == "GET" && r.path == "/ui/pack.json" -> Res.json(hub.info(BuildConfig.VERSION_NAME + " " + BuildConfig.VERSION_CODE).toString())
+            r.method == "GET" && r.path == "/ui/ok" -> { r.query["v"]?.let { hub.store.confirm(it) }; Res(204, "text/plain", ByteArray(0)) }
             r.method == "GET" && Logic.uiAsset(r.path) != null -> ui(Logic.uiAsset(r.path)!!)
             r.method == "GET" && r.path == "/app/history/days" -> history(r, false)
             r.method == "GET" && r.path == "/app/history/day" -> history(r, true)
@@ -85,12 +100,14 @@ class Proxy(private val ctx: Context, val port: Int) {
     }
 
     private fun index(): Res = try {
-        Res(200, "text/html; charset=utf-8", ctx.assets.open("index.html").use { it.readBytes() }, html = true)
+        hub.store.indexServed()   // a pack whose page never booted 3 times in a row is dropped (UiPackStore)
+        hub.checkAsync(60_000)    // a newer pack is fetched in the background; the page offers "reload" when it lands
+        Res(200, "text/html; charset=utf-8", hub.file("index.html"), html = true)
     } catch (e: Exception) { Res.text("no page", 500) }
 
     // the page's scripts + style (ui/assets/)
     private fun ui(a: Pair<String, String>): Res = try {
-        Res(200, a.second, ctx.assets.open(a.first).use { it.readBytes() })
+        Res(200, a.second, hub.file(a.first))
     } catch (e: java.io.IOException) { Res.text("not found", 404) }
 
     private fun forward(r: Req): Res {

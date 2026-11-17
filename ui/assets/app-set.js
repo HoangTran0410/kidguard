@@ -62,7 +62,7 @@ function appSettings() {
   ${lockCardHtml()}
   ${digestCardHtml()}
   ${notifHealthHtml()}
-  <div class="card"><h2>${ic("download")} ${t("au.upd")}</h2><div id="updBox">${updBoxHtml()}</div></div>
+  <div class="card"><h2>${ic("download")} ${t("au.upd")}</h2><div id="updBox">${updBoxHtml()}</div>${uiPackHtml()}</div>
   <div class="card row"><b class="sp">${ic("book-open")} ${t("au.guide")}</b><a class="btn" href="https://kid-guard.pages.dev/${lang === "en" ? "en/" : ""}guide.html" target="_blank" rel="noopener">${ic("external-link")} ${t("open")}</a></div>
   <button id="abk">${ic("list")} ${t("back")}</button>`;
   $("#abk").onclick = $("#appSetBack").onclick = appSetClose;
@@ -164,3 +164,49 @@ document.addEventListener("click", e => {
   })();
   if (e.target.closest("#saveResend") && cur && edit) { pendSince = Date.now(); putRules(cur, edit).catch(er => { toast("err|" + t("errX", er.message)); saveFail(true); }); }
 });
+
+// ---- UI pack: the page itself updates without an app update (android/shared/UiPack.kt, docs/flows/remote.md 2.9b) ----
+// The phone / parent app that serves this page keeps a signed copy of ui/ and answers /ui/pack.json (which page it serves, since when).
+// On the relay (always current) there is no such file: uiPk stays null, and the row only offers "update the phone's page".
+let uiPk = null, uiLoaded = "";
+async function uiPkInfo() {
+  try { const r = await fetch("/ui/pack.json", { cache: "no-store" }); if (!r.ok) return null; const j = await r.json(); return j && j.src ? j : null; } catch { return null; }
+}
+function uiPackHtml() {
+  const j = uiPk;
+  const v = !j ? t("ui.relay") : j.src === "pack" ? t("ui.pack", esc(j.ver), esc(String(j.seq))) : t("ui.bundled", esc(j.app || ""));
+  return `<div class="row" id="uiPk" style="margin-top:8px"><span class="sp mute" style="overflow-wrap:anywhere">${ic("layout-grid")} ${v}</span>${j || window.KGApp || cur ? `<button type="button" id="uiNow">${ic("refresh-cw")} ${t("ui.now")}</button>` : ""}</div>`;
+}
+function uiNewBar() {
+  if ($("#uiNew")) return;
+  const d = document.createElement("div"); d.id = "uiNew"; d.setAttribute("role", "status");
+  d.className = "card row"; d.style.cssText = "position:fixed;left:12px;right:12px;top:8px;z-index:70;margin:0";
+  d.innerHTML = `<b class="sp">${ic("sparkles")} ${t("ui.new")}</b><button type="button" class="pri" id="uiReload">${t("ui.reload")}</button>`;
+  document.body.appendChild(d);
+  $("#uiReload").onclick = () => location.reload();
+}
+async function uiNow() {
+  const b = $("#uiNow"); if (b) b.disabled = true;
+  toast(t("ui.checking"));
+  if (window.KGApp && KGApp.uiUpdate) kgCall("uiUpdate");   // parent app: its own copy
+  else if (cur) { try { await cmd({ type: "uiUpdate" }, "", false); } catch {} }   // page opened from the phone (LAN): the phone's copy
+  let j = null;
+  for (let i = 0; i < 14; i++) {
+    await new Promise(r => setTimeout(r, 1500));
+    j = await uiPkInfo();
+    if (j && j.ver !== uiLoaded) { toast("ok|" + t("ui.reloading")); setTimeout(() => location.reload(), 700); return; }
+    if ((j && !j.checking && i > 0) || (!j && i > 2)) break;
+  }
+  if (b) b.disabled = false;
+  const r = j && j.result;
+  toast(r === "net" ? "warn|" + t("ui.net") : r === "sig" || r === "hash" || r === "zip" || r === "files" || r === "name" || r === "manifest" ? "err|" + t("ui.badpack") : r === "min" ? "warn|" + t("ui.min") : "ok|" + t("ui.same"));
+}
+async function uiPackBoot() {
+  uiPk = await uiPkInfo(); uiLoaded = uiPk ? uiPk.ver : "";
+  if (uiPk && uiPk.ver) fetch("/ui/ok?v=" + encodeURIComponent(uiPk.ver)).catch(() => {});   // "this page booted": a pack that never gets here is rolled back by the phone
+  const row = $("#uiPk"); if (row) row.outerHTML = uiPackHtml();
+  document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("#uiNow"); if (b && !b.disabled) uiNow(); });
+  // the phone checks for a newer pack when this page is opened (a few seconds): offer it, never reload by itself (an edit may be open)
+  const w = async () => { const j = await uiPkInfo(); if (j && j.ver !== uiLoaded) uiNewBar(); };
+  if (uiPk) { setTimeout(w, 8000); setTimeout(w, 40000); document.addEventListener("visibilitychange", () => { if (!document.hidden) setTimeout(w, 4000); }); }
+}

@@ -17,3 +17,7 @@ android/app/google-services.json
 .claude/worktrees/
 .claude/goal.md
 *.kgkeys
+
+# UI pack signing keys (scripts/ui-pack.mjs --init)
+*.pem
+website/ui/

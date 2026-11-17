@@ -28,6 +28,8 @@ When you settle something durable (a decision, a rejected approach, a platform q
 - New relay command ⇒ worker whitelist `CMDS` + protocol "Commands" + (destructive) `ONCE` list. Checklist: `docs/flows/checklists.md`.
 - New page section (`sec("id", ...)`) ⇒ an entry in the feature search `QS` (`ui/assets/search.js`), keys in both i18n files;
   `node scripts/check-search.mjs` fails otherwise (CI + `build.sh`).
+- UI change that needs a newer native side (new `KGApp` method, endpoint, CSP origin) ⇒ raise `minKid` / `minParent` in `scripts/ui-pack.json`
+  (the page is served as a signed UI pack, protocol "UI pack"); dev test on a phone: `scripts/ui-push.sh` (`docs/flows/setup-build.md` 4.4). Never commit `*.pem`.
 - New `ui/assets` file ⇒ `<script defer>` tag in `ui/index.html` (order matters, shared globals: never redeclare a
   top-level name) AND import + map entry in `relay/src/index.js`. `node scripts/check-assets.mjs` checks both + i18n key parity (CI + `build.sh`).
 - HTML responses: `X-Frame-Options: DENY` + CSP; a new external origin goes into CSP on both phone (`Http.kt`) and worker (`relay/src/index.js` `CSP`).

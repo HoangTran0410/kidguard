@@ -47,6 +47,9 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- result of the self-update install session (Updater.kt SelfInstall): opens the system prompt when it is needed -->
+        <receiver android:name=".InstallResult" android:exported="false" />
+
         <service
             android:name=".CheckJob"
             android:exported="false"

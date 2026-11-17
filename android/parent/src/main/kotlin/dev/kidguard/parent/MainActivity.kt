@@ -124,6 +124,8 @@ class Bridge(private val a: MainActivity) {
     @JavascriptInterface fun appVersion(): String = BuildConfig.VERSION_NAME
     /** Checks GitHub now; progress and result arrive as `kgUpd({st: checking|ok|new|fail, tag})` on the page. */
     @JavascriptInterface fun checkUpdate() = Updater.check(a)
+    /** "Update the page" button: fetch a newer UI pack now (android/shared/UiPack.kt); the page polls `/ui/pack.json` for the result. "ok" | "busy". */
+    @JavascriptInterface fun uiUpdate(): String = if (Proxy.hub(a).checkAsync(0)) "ok" else "busy"
     /** Downloads release [tag] and opens the system installer: `kgUpd({st: perm|dl(pct)|inst|dlfail, tag})`. */
     @JavascriptInterface fun installUpdate(tag: String) = Updater.install(a, tag)
     /** "true" once after the update notification was tapped: the page opens "App settings". */
@@ -309,7 +311,7 @@ class MainActivity : Activity() {
 
     // in the background the page is hidden: its poll timers skip their fetches (relay quota, battery); notifications come from CheckJob / FCM
     override fun onPause() { web?.onPause(); super.onPause() }
-    override fun onResume() { super.onResume(); web?.onResume(); lockCheck(auto = true) }
+    override fun onResume() { super.onResume(); web?.onResume(); lockCheck(auto = true); runCatching { Proxy.hub(this).checkAsync(60_000) } }
     override fun onStop() {
         super.onStop()
         // left the app (not our own lock prompt): the 5-minute away clock starts; the page is covered for the next return
