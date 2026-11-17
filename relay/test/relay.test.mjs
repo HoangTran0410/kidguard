@@ -577,7 +577,7 @@ await P("sync",JSON.stringify({ai:ah}));
 ck("ai: state readable",(await A("GET","state")).status==200);
 ck("ai: lock queued",(await (await A("POST","cmd",{type:"lock"})).json()).result=="queued");
 for(const t of ["release","reboot","adbShell","unpairAll","aiToken","pinSet","listen"]){const x=await A("POST","cmd",{type:t});ck("ai: cmd "+t+" 403",x.status==403&&(await x.json()).error=="ai token: not allowed");}
-for(const [m,p] of [["GET","frame?after=0"],["POST","live"],["POST","input"],["POST","sync"],["GET","file"],["POST","forget"],["POST","watch"],["GET","tile"],["GET","ws"]])ck("ai: "+m+" "+p+" 403",(await A(m,p,m=="GET"?undefined:{})).status==403);
+for(const [m,p] of [["GET","frame?after=0"],["POST","live"],["POST","input"],["POST","sync"],["GET","file"],["POST","forget"],["POST","watch"],["GET","tile"],["GET","ws"]]){const x=await A(m,p,m=="GET"?undefined:{});ck("ai: "+m+" "+p+" 403"+(x.status==403?"":" (got "+x.status+" "+(await x.text()).slice(0,80)+")"),x.status==403);}
 await fetch(`${B}/c/${id}/rules`,{method:"PUT",headers:H(),body:JSON.stringify({dailyMin:60,noInstall:true,pin:"1234"})});
 r=await A("PUT","rules",{dailyMin:30,noInstall:false,noVpn:true,pinHash:"0".repeat(64),pin:"9999"});j=await r.json();
 ck("ai: rules change goes through, locked keys keep the stored value, no PIN change",r.status==200&&j.dailyMin==30&&j.noInstall===true&&!("noVpn" in j)&&j.pinSet===true);
