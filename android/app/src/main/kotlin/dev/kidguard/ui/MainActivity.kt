@@ -212,7 +212,7 @@ class MainActivity : Activity() {
         // check GitHub now: no PIN, it only installs the official newer release (owner: silent; basic: system prompt)
         updRow = u.listRow(getString(R.string.main_check_update, BuildConfig.VERSION_NAME), R.drawable.li_refresh_cw, chevron = false) { checkUpdate() }
         devG.addView(updRow)
-        selfBtn = u.listRow(getString(R.string.main_self), R.drawable.li_wifi) { sheet.dismiss(); startActivity(Intent(this@MainActivity, SelfSetupActivity::class.java)) }
+        selfBtn = u.listRow(getString(R.string.main_self), R.drawable.li_wifi) { sheet.dismiss(); openSelfSetup() }
         devG.addView(selfBtn)
         setContentView(ScrollView(this).apply { setBackgroundColor(u.bg); isFillViewport = true; addView(col) })
         window.statusBarColor = u.bg; window.navigationBarColor = u.bg
@@ -895,7 +895,22 @@ class MainActivity : Activity() {
     }
 
     /** Opening pairing on the child needs the parent's PIN, once one is set; else a child could pair their own browser. */
-    private fun askPin() {
+    private fun askPin() = askPin(null)
+
+    /**
+     * Full setup on a paired basic phone: its Wireless debugging / app pages mention KidGuard next to "forget" / "remove",
+     * so the anti-tamper scan closed them mid-setup (owner 2026-11-17, Nam). The parent PIN opens the same 5-min window
+     * as the page's "Open KidGuard settings" (selfOpen), then the setup starts. No PIN set / not paired: straight in.
+     */
+    private fun openSelfSetup() {
+        val s = Store.of(this)
+        val go = { startActivity(Intent(this, SelfSetupActivity::class.java)) }
+        if (Policy.isOwner(this) || !s.everPaired || s.rules.pinHash.isBlank()) { go(); return }
+        askPin { s.selfOpenUntil = System.currentTimeMillis() + CmdGate.SELF_OPEN_MS; runCatching { s.log(R.string.log_self_open) }; go() }
+    }
+
+    /** [then] null = open pairing (the original use). */
+    private fun askPin(then: (() -> Unit)?) {
         val s = Store.of(this)
         val rules = s.rules
         if (rules.pinHash.isBlank()) {
@@ -910,7 +925,7 @@ class MainActivity : Activity() {
         val m = Modal(this, ui2)
         val input = m.field(getString(R.string.pin_field), 12, pin = true)
         m.show(R.drawable.li_shield, Modal.Tone.INFO, getString(R.string.pin_title), getString(R.string.pin_body), KidNow.withForgot(this, ui2, input), ok = getString(R.string.pin_ok), cancel = getString(R.string.cancel)) {
-            if (s.checkParentPin(input.text.toString().filter { it.isDigit() })) { s.openPairing(); refresh(); true }
+            if (s.checkParentPin(input.text.toString().filter { it.isDigit() })) { if (then != null) then() else { s.openPairing(); refresh() }; true }
             else {
                 input.setText("")
                 m.setError(s.pinLockLeft().takeIf { it > 0 }?.let { lockText(it) } ?: s.pinTriesLeft().takeIf { it in 1..4 }?.let { resources.getQuantityString(R.plurals.pin_wrong_left, it, it) } ?: getString(R.string.pin_wrong))
