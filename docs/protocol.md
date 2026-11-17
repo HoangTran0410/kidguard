@@ -116,7 +116,8 @@ leftMs apps rules location lan relay log`), plus:
   "bankList": {"at": 0, "err": ""},  // NEW: last successful fetch of the website bank-app list (ms, 0 = never), last fetch error ("" = fine)
   "calls": [{"n": "+84912345678", "name": "Mẹ", "type": "in|out|missed|rejected|blocked", "t": 1793940898493, "dur": 62}],   // NEW 2026-11-15: last 30 calls of 7 days (CallLog), newest first, only with READ_CALL_LOG; dropped from a trimmed relay state
   "callsCap": {"api": true, "screen": false, "log": false, "contacts": false},   // NEW: api = Android 10+, screen = CALL_SCREENING role held, log / contacts = runtime permissions
-  "relayOk": 0,  // NEW: epoch ms of the last successful relay sync (0 = never)
+  "relayOk": 0,  // NEW: epoch ms of the last successful relay sync (0 = never). Over the relay the worker raises it to when it
+                 //   last heard the phone (sync or socket ping): the phone leaves it out of its "changed?" checks (2026-11-17)
   "digest": {"days": [{"day": "2026-11-14", "asked": 2, "answered": 1, "blocked": 3, "tamper": 0}],   // 2026-11-14 evening summary: today first, up to 7 days, counters kept 8 days by the phone
              "bedKept": true},     // last night's bedtime window: true = under 1 min of use, false = used, null = no bedtime / per-night times (bedByDay) / no usage access
   "webOther": ["org.mozilla.firefox"],  // 0.9.24, only while noIncognito / webBlock is set: installed browsers that ignore the website rules (page offers to block them)
@@ -692,6 +693,9 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   Sent pkgs are remembered per relay url+id (prefs `relayIcons`), so each icon goes up once; a removed app is forgotten.
   A full list drops the icons of pkgs that are not in the stored `state.apps` (0.9.18).
 - `GET /c/<id>/icon?pkg=<pkg>&k=<token>` -> `image/webp`, `cache-control: private, max-age=86400`; 404 if unknown.
+- `GET /c/<id>/icons?k=<iconKey>&v=<state.iconV>` -> JSON `{pkg: base64 webp}`, every icon in one reply,
+  `cache-control: private, max-age=31536000, immutable`. `state.iconV` (relay GET state only) = time of the last icon
+  upload, so a new upload changes the URL. The page uses it for relay kids (one request, not one per app).
   The `?k=` token is accepted only on this GET (an `<img>` can't send headers); every other route needs the header.
   Relay (2026-11-10): the page sends `?k=<sha256("icon:" + token) hex>` instead (request URLs are logged); the worker stores
   that key at the first authenticated request after each wake. The raw token in `?k=` still works for older pages.
@@ -710,7 +714,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
 - Sync state over 120 KB: `413 state too big`. The phone then sends a trimmed state (no `events`, `track`; apps reduced to
   `pkg label ms blocked suspended protected new`) with **`relayBig: true`** for 30 min, then tries the whole one again.
   A kick after a failed sync no longer skips the retry backoff.
-- The page uses `${base}/icon?pkg=..&k=..` in all modes (LAN, relay, parent-app proxy `/k/<target>/...`).
+- The page uses `${base}/icon?pkg=..&k=..` on LAN; relay kids (also through the parent-app proxy) use `/icons?v=` above.
 
 ## Parent app (v0.5, module `:parent`, `dev.kidguard.parent`)
 Shows the same `ui/index.html` in a WebView (`scripts/build.sh` -> `build/kidguard-parent.apk`). The page only uses same-origin

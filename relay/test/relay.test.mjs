@@ -127,7 +127,11 @@ ck("icon GET unknown pkg -> 404",(await fetch(`${B}/c/${id2}/icon?pkg=a.b&k=${T}
 {const IK=(await import("node:crypto")).createHash("sha256").update("icon:"+T).digest("hex");
 r=await fetch(`${B}/c/${id2}/icon?pkg=com.example.game&k=${IK}`);ck("icon GET with the icon-only key -> webp",r.status==200);
 ck("icon key wrong -> 401",(await fetch(`${B}/c/${id2}/icon?pkg=com.example.game&k=${"0".repeat(64)}`)).status==401);
-ck("icon key can't read state",(await fetch(`${B}/c/${id2}/state?k=${IK}`)).status==401);}
+ck("icon key can't read state",(await fetch(`${B}/c/${id2}/state?k=${IK}`)).status==401);
+r=await fetch(`${B}/c/${id2}/icons?k=${IK}&v=1`);j=await r.json().catch(()=>null);
+ck("icons GET: every icon in one reply, cached for good",r.status==200&&j&&j["com.example.game"]==b64&&/immutable/.test(r.headers.get("cache-control")||""));
+ck("icons GET wrong key -> 401",(await fetch(`${B}/c/${id2}/icons?k=${"0".repeat(64)}`)).status==401);
+j=await (await P2("state",null,T,{},"GET")).json();ck("state carries iconV (the /icons?v= key)",!j.state||+j.state.iconV>1);}
 ck("?k= only works for icon",(await fetch(`${B}/c/${id2}/state?k=${T}`)).status==401);}
 // v0.5: FCM push (fake Google from run.mjs on $MOCK)
 if(process.env.MOCK){const id3=[...crypto.getRandomValues(new Uint8Array(8))].map(b=>b.toString(16).padStart(2,"0")).join(""),P3=(p,o)=>fetch(`${B}/c/${id3}/${p}`,{method:"POST",headers:H(),body:JSON.stringify(o)});

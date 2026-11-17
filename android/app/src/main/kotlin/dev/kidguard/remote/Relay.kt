@@ -173,7 +173,8 @@ class Relay(private val g: Guard) {
             // socket up: no message unless something the parent sees changed (time / battery / foreground app ignored),
             // the relay kicked, a command needs its ack, or the idle interval is over
             val coarse = JSONObject(stateText).apply {
-                for (k in arrayOf("t", "usedMs", "leftMs", "current", "battery", "charging", "screenOn")) remove(k)
+                // relayOk = this phone's last good sync: it changes on every sync, so keeping it made each tick a sync (2026-11-17: 1 msg / 20 s)
+                for (k in arrayOf("t", "usedMs", "leftMs", "current", "battery", "charging", "screenOn", "relayOk")) remove(k)
                 optJSONObject("net")?.let { for (k in arrayOf("rssi", "bars", "mbps")) it.remove(k) }   // signal wobbles: not a reason to sync
                 optJSONArray("apps")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { it.remove("ms"); it.remove("mb") } }
             }.toString().hashCode()
@@ -186,7 +187,7 @@ class Relay(private val g: Guard) {
         // unchanged except time counters => omit the state; a full one at least every 5 min.
         // Per-app ms and usedMs/leftMs tick every sync while an app is open: hash them per minute (one state a minute, not 3).
         val hash = JSONObject(stateText).apply {
-            remove("t")
+            remove("t"); remove("relayOk")   // the worker fills relayOk from when it last heard the phone
             for (k in arrayOf("usedMs", "leftMs")) if (has(k)) put(k, optLong(k) / 60_000)
             optJSONArray("apps")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { it.put("ms", it.optLong("ms") / 60_000) } }
         }.toString().hashCode()

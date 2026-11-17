@@ -180,7 +180,7 @@ export default {
       if (!success) return json({ error: "slow down" }, 429);
     }
     // reject junk before waking a Durable Object (an icon GET may carry the icon-only key instead of the token)
-    if (!/^[0-9a-f]{48}$/.test(tokenOf(req, url)) && !(m[2] === "join" && !req.headers.get("x-kg-token")) && !((m[2] === "icon" || m[2] === "tile") && ICON_KEY.test(url.searchParams.get("k") || ""))) return json({ error: "not paired" }, 401);
+    if (!/^[0-9a-f]{48}$/.test(tokenOf(req, url)) && !(m[2] === "join" && !req.headers.get("x-kg-token")) && !((m[2] === "icon" || m[2] === "tile" || (m[2] === "icons" && req.method === "GET")) && ICON_KEY.test(url.searchParams.get("k") || ""))) return json({ error: "not paired" }, 401);
     const len = +(req.headers.get("content-length") || 0);
     if (len > limitFor(m[2])) return json({ error: "too big" }, 413);
     const stub = env.KIDS.get(env.KIDS.idFromName(m[1]));
@@ -493,6 +493,10 @@ export class Kid {
       if (!(await this.viewKeys("iconKey")).includes(url.searchParams.get("k"))) return json({ error: "not paired" }, 401);
       return this.icon(url);
     }
+    if (action === "icons" && req.method === "GET" && ICON_KEY.test(url.searchParams.get("k") || "")) {
+      if (!(await this.viewKeys("iconKey")).includes(url.searchParams.get("k"))) return json({ error: "not paired" }, 401);
+      return this.iconsAll();
+    }
     // map tile by a tile-only key (sha256("tile:" + token), from state?watch=1): Garmin's image request cannot send headers.
     // The key fetches OSM tiles and nothing else, so a leaked URL reveals no kid data.
     if (action === "tile" && req.method === "GET" && !req.headers.get("x-kg-token") && ICON_KEY.test(url.searchParams.get("k") || "")) {
@@ -595,7 +599,7 @@ export class Kid {
         if (!list.has(pkg) && list.size >= MAX_ICONS) continue;
         list.add(pkg); puts["icon:" + pkg] = b64;
       }
-      puts.iconList = [...list];
+      puts.iconList = [...list]; puts.iconV = Date.now();   // the page's /icons?v= URL changes, so its year-long cache stays right
       await this.s.put(puts);
       return json({ have: list.size });
     }
@@ -712,12 +716,15 @@ export class Kid {
       return json({ seen: this.seenNow(seen), lan, ts, same, mode: state && state.mode || "" });
     }
     if (action === "state" && req.method === "GET") {
-      const [state, rules, seen, cmds] = await Promise.all(["state", "rules", "seen", "cmds"].map(k => this.s.get(k)));
+      const [state, rules, seen, cmds, iconV] = await Promise.all(["state", "rules", "seen", "cmds", "iconV"].map(k => this.s.get(k)));
       if (role === "parent") {   // a parent is looking at a quiet phone: wake it (rate-limited in wakeKid)
         const heard = this.seenNow(seen), q = Date.now() - heard;
         if (heard && q >= +(this.env.WAKE_PARENT_MS || WAKE_PARENT) && q < WAKE_DAYS) this.ctx.waitUntil(this.wakeKid(Date.now(), heard, "parent").catch(() => {}));
       }
       const st = state ? { ...state, rules: stripPin(state.rules) } : null;
+      // relayOk = last time the relay heard the phone (the phone no longer re-sends it each sync: that alone made every tick a sync)
+      if (st && st.relayOk !== undefined) st.relayOk = Math.max(+st.relayOk || 0, this.seenNow(seen));
+      if (st) st.iconV = iconV || 1;   // GET /icons?v= (one request for every icon)
       if (role === "parent" && url.searchParams.get("watch") === "1") return json({ ...watchState(st, rules ? stripPin(rules) : null), seen: this.seenNow(seen), pending: (cmds || []).length,
         queue: (cmds || []).filter(c => live(c, Date.now())).slice(-10).map(c => ({ id: c.id, type: c.type, at: c.at, ...(c.by ? { by: c.by } : {}) })),
         expired: ((await this.s.get("expired")) || []).slice(-10), tileKey: await sha256("tile:" + token) });
@@ -951,6 +958,16 @@ export class Kid {
     return new Response(r.body, { headers: { "content-type": "image/png", "cache-control": "private, max-age=604800", "x-content-type-options": "nosniff" } });
   }
 
+  /** Every icon in one reply (the page asked one URL per app: ~100 requests per Apps view, 2026-11-17). The page puts
+   *  ?v=<state.iconV> in the URL, so the reply is cached for good and a new upload changes the URL. */
+  async iconsAll() {
+    const list = (await this.s.get("iconList")) || [], out = {};
+    for (let i = 0; i < list.length; i += 128) {
+      const got = await this.s.get(list.slice(i, i + 128).map(p => "icon:" + p));
+      for (const [k, v] of got) out[k.slice(5)] = v;
+    }
+    return new Response(JSON.stringify(out), { headers: { "content-type": "application/json", "cache-control": "private, max-age=31536000, immutable", "x-content-type-options": "nosniff" } });
+  }
   async icon(url) {
     const pkg = url.searchParams.get("pkg") || "";
     const b64 = PKG.test(pkg) ? await this.s.get("icon:" + pkg) : null;

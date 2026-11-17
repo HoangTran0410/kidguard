@@ -56,7 +56,7 @@ const load = () => {
 };
 const save = k => {
   // healAt / fb / relayTry: per page load only (core.js relocate / learnAddrs)
-  try { localStorage.setItem(KEY, JSON.stringify(k, (key, v) => key === "healAt" || key === "fb" || key === "relayTry" || key === "gateOff" || key === "migTry" ? undefined : v)); } catch {}
+  try { localStorage.setItem(KEY, JSON.stringify(k, (key, v) => key === "healAt" || key === "fb" || key === "relayTry" || key === "gateOff" || key === "migTry" || key === "icm" || key === "ikP" ? undefined : v)); } catch {}
   if (APP) kgCall("setKids", JSON.stringify(k.filter(x => x.target).map(x => ({ name: x.name, target: x.target, via: x.via, id: x.id, token: x.token, lv: x.lv, relay: x.relay }))));
 };
 let kids = load(), cur = null, st = null, pendingRules = null, timer = null, edit = null, tab = "home", lastErr = "", viewDay = null, histDays = null, cachedAt = 0, seenAt = 0, answered = new Set(), histSel = -1, lastNet = false;

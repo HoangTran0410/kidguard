@@ -120,6 +120,18 @@ function iconKey(k) {
     .then(b => { k.ik = [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); if (cur === k) render(); }).catch(() => {});
   return k.ikP ? "" : k.token;   // no WebCrypto (plain-http page): the old way
 }
+// relay icon map per kid {v, m, p}: null while loading (letters show), redraws once it lands
+function relayIcons(k, key, v) {
+  const c = k.icm;
+  if (c && c.v === v) return c.m;
+  if (c && (c.v === v + ":busy" || c.v === v + ":fail")) return c.old || null;
+  const old = c && c.m;
+  k.icm = { v: v + ":busy", old };
+  fetch(`${base(k)}/icons?k=${encodeURIComponent(key)}&v=${encodeURIComponent(v)}`).then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(m => { k.icm = { v, m }; if (cur === k) { lastSig = ""; render(); } })
+    .catch(() => { k.icm = { v: v + ":fail", m: old }; });   // stays on letters / the old map; next new v tries again
+  return old || null;
+}
 function icon(x) {
   const l = ((x.label || "?").trim()[0] || "?").toUpperCase(), letter = esc(l), hue = (l.charCodeAt(0) * 47) % 360;
   const st0 = `background:hsl(${hue} 55% 45%);color:#fff`;
@@ -127,6 +139,11 @@ function icon(x) {
   // lazy: a 200-app list fetches only the ~10 on screen first (LAN = one phone-side draw per icon); cached 24 h after
   const kq = iconKey(cur);
   if (!kq) return `<span class="ic" style="${st0}">${letter}</span>`;   // icon key still being computed: letter for one frame
+  // relay: every icon in ONE request (GET /icons?v=, cached for good; a new upload changes v), not one per app
+  if (cur.via === "relay" && st && st.iconV && cur.ik) {
+    const m = relayIcons(cur, kq, st.iconV), b = m && m[x.pkg];
+    return b ? `<span class="ic"><img alt="" decoding="async" src="data:image/webp;base64,${b}"></span>` : `<span class="ic" style="${st0}">${letter}</span>`;
+  }
   return `<span class="ic" style="${st0}"><img alt="" loading="lazy" decoding="async" data-l="${letter}" src="${base(cur)}/icon?pkg=${encodeURIComponent(x.pkg)}&k=${encodeURIComponent(kq)}" onload="this.parentNode.style.background='none'" onerror="this.parentNode.textContent=this.dataset.l"></span>`;
 }
 function appRow(x) {
