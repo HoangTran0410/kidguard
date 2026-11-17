@@ -95,13 +95,15 @@ function goAppSettings() { if (cur || ov) goList(); appSettings(); }
 // TIP_MIN chars shows only its first sentence + an ⓘ button; a tap opens the whole text in a sheet (bottom sheet on
 // phones, dialog on desktop) titled after the nearest heading / checkbox. One place for every tab: a MutationObserver
 // on #app. Left alone: lines with an id (code updates them), controls or links inside, and text inside sheets.
-const TIP_MIN = 120, tipFull = new WeakMap();
+const TIP_MIN = 90, tipFull = new WeakMap();
 function tipShort(s) {
   const m = s.match(/^(.{20,110}?[.!?])(\s|$)/);
   if (m && m[1].length < s.length - 10) return m[1];
   const c = s.slice(0, 90); return c.slice(0, Math.max(c.lastIndexOf(" "), 60)) + "…";
 }
 function tipTitle(p) {
+  const lb = p.tagName === "SPAN" && p.parentElement && p.parentElement.querySelector("b");
+  if (lb && lb.textContent.trim()) return lb.textContent.trim().slice(0, 90);
   const prev = p.previousElementSibling;   // the line right under a checkbox / sub-heading explains that one
   if (prev && /^(H3|H4|LABEL)$/.test(prev.tagName) && prev.textContent.trim()) return prev.textContent.trim().slice(0, 90);
   for (let e = p; e && e.id !== "app"; e = e.parentElement) {
@@ -111,14 +113,18 @@ function tipTitle(p) {
   return t("tip.h");
 }
 function tipScan(root) {
-  root.querySelectorAll("p.mute:not([data-tip]):not([id]):not(.keep)").forEach(p => {
+  // also the grey line under a toggle (label > span > br + span.mute, owner 2026-11-17: "desc dày đặc"): first sentence + ⓘ
+  root.querySelectorAll("p.mute:not([data-tip]):not([id]):not(.keep), label br + span.mute:not([data-tip]):not([id])").forEach(p => {
     p.dataset.tip = "";
     if (p.closest("#askPop, .dp") || p.querySelector("button, input, select, textarea, a, details")) return;
     const txt = p.textContent.replace(/\s+/g, " ").trim();
     if (txt.length <= TIP_MIN) return;
     tipFull.set(p, p.innerHTML);
-    const f = p.firstElementChild, lead = f && f.tagName.toLowerCase() === "svg" && p.firstChild === f ? f.outerHTML + " " : "";   // keep the line's own icon
-    p.innerHTML = `${lead}${esc(tipShort(txt))} <button type="button" class="tipb" aria-label="${esc(t("tip.more"))}">${ic("info")}</button>`;
+    // keep the line's own icon, unless it is a plain "info" / "tip" one: the ⓘ at the end already says that (owner 2026-11-17: two ⓘ looked bad)
+    const f = p.firstElementChild, own = f && f.tagName.toLowerCase() === "svg" && p.firstChild === f ? f : null;
+    const lead = own && !/#i-(info|lightbulb)"/.test(own.outerHTML) ? own.outerHTML + " " : "";
+    const short = tipShort(txt), cut = short.lastIndexOf(" ");   // the last word rides with the button: it never sits alone on a line
+    p.innerHTML = `${lead}${esc(short.slice(0, cut + 1))}<span class="tipe">${esc(short.slice(cut + 1))} <button type="button" class="tipb" aria-label="${esc(t("tip.more"))}">${ic("info")}</button></span>`;
     p.classList.add("tipc");
   });
 }
@@ -130,7 +136,8 @@ const tipObs = new MutationObserver(() => { if (tipQ) return; tipQ = true; reque
 tipObs.observe(document.body, { childList: true, subtree: true });   // body: sheets (#askPop) have sliders too
 if ($("#app")) tipScan($("#app"));
 document.addEventListener("click", e => {
-  const p = e.target.closest && e.target.closest("p.tipc"); if (!p || !tipFull.has(p)) return;
+  const p = e.target.closest && e.target.closest(".tipc"); if (!p || !tipFull.has(p)) return;
+  if (p.tagName !== "P" && !e.target.closest(".tipb")) return;   // in a toggle's label: the text still flips the switch, only ⓘ opens the sheet
   e.preventDefault();
   sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("info", esc(tipTitle(p)))}<div class="tipx">${tipFull.get(p)}</div></div>`);
 });

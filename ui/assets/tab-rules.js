@@ -95,12 +95,12 @@ function ruleChips(r) {
 // Rules: one list, two groups under a small heading (time / blocking & safety; sub-tabs hid half the features, owner 2026-11-13). Zones + location log live in the "Vị trí" tab, the Authenticator in
 // "Cài đặt"; the same section HTML (ruleSecs) and wiring (rulesWire) serve all three, wiring only what is on screen.
 // 17 small sections -> 8 rows (owner 2026-11-15 "too many top-level items"): related ones share one sub-screen (secMix), each part keeps its chip + gate
-const RSEG = { time: ["day", "grp", "sch", "night"], safe: ["net", "block", "calls", "kid"] };
+const RSEG = { time: ["day", "grp", "sch", "night"], safe: ["net", "block", "bank", "calls", "kid"] };
 const ruleRows = S => ({
   day: secMix("r-day", "timer", t("mx.day"), t("mx.dayD"), [S.daily, S.chore]), grp: S.grp, sch: S.sch,
   night: secMix("r-night", "moon", t("bed.h"), t("mx.nightD"), [S.bed, S.wind]),
   net: secMix("r-net", "shield", t("mx.net"), t("mx.netD"), [S.dns, S.web]),
-  block: secMix("r-block", "construction", t("mx.block"), t("mx.blockD"), [S.more, S.anti]), calls: S.calls,
+  block: secMix("r-block", "construction", t("mx.block"), t("mx.blockD"), [S.more, S.anti]), bank: S.bank, calls: S.calls,
   kid: secMix("r-kid", "house", t("hm.h"), t("mx.homeD"), [S.home, S.kind]),
 });
 // v0.9.9 kid launcher: the phone answers with state.launcher {on, home, err, style, locked, pages}
@@ -232,7 +232,9 @@ function ruleSecs(r) {
     <p class="mute">${ic("info")} ${t("anti.shotTip")}</p>
     <div class="${isBasic() ? "gated" : ""}" style="margin-top:8px"><label class="row"><input type="checkbox" id="f-nd" ${r.noDebug ? "checked" : ""}><span class="sp">${ic("code")} ${t("anti.debug")}</span></label></div>
     ${isBasic() ? needOwner(t("no.anti")) + `<p class="mute">${ic("shield")} ${t("anti.basic")}</p>`
-      : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}${bankBox(r)}`),
+      : `<p class="mute">${ic("lock")} ${t("anti.owner")}</p>`}`),
+    // own row (owner 2026-11-17: it sat at the bottom of "Chống lách", easy to miss when a bank app refuses)
+    bank: Array.isArray(r.accPause) ? secP("r-bank", "landmark", t("bank.t"), t("sd.bank"), bankChip(r), bankBox(r)) : "",
   };
 }
 // website rules (Chrome/Edge managed config): "only" = webBlock ["*"] + webAllow. Other browsers ignore them: offer to block those apps.
@@ -433,20 +435,25 @@ function bankCols(r) {
 }
 // "list updated <ago>" / why the daily fetch of the bank-app list failed (state.bankList {at, err}, newer phones)
 const bankListHtml = () => { const b = st && st.bankList; if (!b) return ""; return b.err ? `<span class="err">${ic("triangle-alert")} ${t("bank.listErr", esc(b.err))}</span>${b.at > 0 ? " · " + t("bank.listAt", ago(b.at)) : ""}` : b.at > 0 ? `${ic("check")} ${t("bank.listAt", ago(b.at))}` : `${ic("hourglass")} ${t("bank.listNone")}`; };
+// "N apps" / "N reporting an error" (state.refused: an app said it won't run, not on the list yet)
+function bankChip(r) {
+  const rf = (Array.isArray(st.refused) ? st.refused : []).length, n = new Set(bankCols(r).flatMap(c => r[c.k])).size;
+  return rf ? [t("bank.chipRf", rf), "warn"] : n ? [t("bank.chip", n), "ok"] : [t("off")];
+}
 function bankBox(r) {
-  if (!Array.isArray(r.accPause)) return "";
   const stuck = st.vpnStuck ? alertBox("warn", "triangle-alert", t("bank.vpnStuck"), "margin-top:8px") : "";
   const cols = bankCols(r), gt = `grid-template-columns:minmax(var(--bkn),1fr) repeat(${cols.length},var(--bkw));min-width:calc(var(--bkn) + ${cols.length} * (var(--bkw) + 4px) + 16px)`;
-  return `<h4 style="margin:14px 0 4px">${ic("landmark")} ${t("bank.h")}</h4><p class="mute">${t("bank.p")}</p>
-    ${st.bankList ? `<p class="mute">${pendHtml("bklist", bankListHtml)}</p>` : ""}
-    ${Array.isArray(r.tcpPause) ? `<p class="mute">${t("bank.tcpP")}</p>` : ""}    ${Array.isArray(r.vpnPause) ? `<p class="mute">${t("bank.vpnP")}</p>` : ""}${stuck}
-    <details id="bk" style="margin-top:6px"><summary id="bk-n"></summary>
-    <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" aria-label="${esc(t("bank.find"))}" style="margin-top:8px">
-    <div class="bkt" role="table" aria-label="${esc(t("bank.h"))}" style="margin-top:6px"><div class="bkh" role="row" style="${gt}"><span role="columnheader">${t("bank.colApp")}</span>${cols.map(c => `<span role="columnheader">${esc(c.h)}</span>`).join("")}</div>
+  const how = [t("bank.hAcc"), Array.isArray(r.devPause) ? t("bank.hDev") : "", Array.isArray(r.tcpPause) ? t("bank.tcpP") : "", Array.isArray(r.vpnPause) ? t("bank.vpnP") : "", t("bank.hBack")].filter(Boolean);
+  // the table is the section (no inner fold: folded, it was one line), the column notes go under "What each column does"
+  return `<p class="mute" style="margin:0 0 8px">${t("bank.p")}</p>${stuck}
+    <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" aria-label="${esc(t("bank.find"))}">
+    <div class="bkt" role="table" aria-label="${esc(t("bank.t"))}" style="margin-top:6px"><div class="bkh" role="row" style="${gt}"><span role="columnheader" id="bk-n"></span>${cols.map(c => `<span role="columnheader">${esc(c.h)}</span>`).join("")}</div>
     <div id="bk-list" role="rowgroup"></div></div>
     <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="bk-pkg" class="sp" placeholder="${esc(t("bank.pkg"))}" aria-label="${esc(t("bank.pkg"))}" autocapitalize="off" spellcheck="false" style="min-width:0">
     <button class="btn" id="bk-add" type="button">${t("bank.add")}</button></div><p class="mute" id="bk-err" hidden>${t("bank.bad")}</p>
-    <div class="row" style="margin-top:8px"><button class="sp" id="bk-exp" type="button">${ic("clipboard-copy")} ${t("bank.exp")}</button><button class="sp" id="bk-imp" type="button">${ic("clipboard-paste")} ${t("bank.imp")}</button></div></details>`;
+    <div class="row" style="margin-top:8px"><button class="sp" id="bk-exp" type="button">${ic("clipboard-copy")} ${t("bank.exp")}</button><button class="sp" id="bk-imp" type="button">${ic("clipboard-paste")} ${t("bank.imp")}</button></div>
+    <details style="margin-top:10px"><summary>${t("bank.how")}</summary><ul class="bkhow">${how.map(x => `<li>${x}</li>`).join("")}</ul></details>
+    ${st.bankList ? `<p class="mute keep">${pendHtml("bklist", bankListHtml)}</p>` : ""}`;
 }
 function bankBind(r) {
   const list = $("#bk-list"); if (!list) return;
@@ -454,16 +461,17 @@ function bankBind(r) {
   const fill = () => {
     const sets = cols.map(c => new Set(r[c.k])), apps = st.apps || [], inst = new Set(apps.map(a => a.pkg));
     const any = p => sets.some(x => x.has(p));
+    const rf = new Set((Array.isArray(st.refused) ? st.refused : []).map(f => f.pkg));   // just said "won't open": on top, tagged
     const listed = [...new Set(cols.flatMap(c => r[c.k]))];
     const rows = apps.map(a => ({ pkg: a.pkg, label: a.label }))
       .concat(listed.filter(p => !inst.has(p)).map(p => ({ pkg: p, label: p, gone: true })))
-      .sort((a, b) => (!!a.gone - !!b.gone) || (any(b.pkg) - any(a.pkg)) || a.label.localeCompare(b.label));   // not installed: last, under their own heading (owner 2026-11-13: the inline tag was easy to miss)
+      .sort((a, b) => (!!a.gone - !!b.gone) || (rf.has(b.pkg) - rf.has(a.pkg)) || (any(b.pkg) - any(a.pkg)) || a.label.localeCompare(b.label));   // not installed: last, under their own heading (owner 2026-11-13: the inline tag was easy to miss)
     const gone = rows.filter(a => a.gone).length;
     const count = () => { $("#bk-n").textContent = t("bank.n", new Set(cols.flatMap(c => r[c.k])).size); };
     count();
     // a table: the column names once in the sticky header, a bare checkbox per cell (owner 2026-11-11)
     list.innerHTML = rows.map((a, i) => `${a.gone && (i === 0 || !rows[i - 1].gone) ? `<div class="bksub" role="row"><span role="cell">${t("bank.goneH", gone)}</span></div>` : ""}<div class="bkr${a.gone ? " gone" : ""}" role="row" style="${gt}" data-q="${esc((a.label + " " + a.pkg).toLowerCase())}">
-      <span class="bka" role="cell" title="${esc(a.pkg + (a.gone ? " · " + t("bank.notInst") : ""))}">${icon(a)}<span class="bkn">${esc(a.label)}</span></span>
+      <span class="bka" role="cell" title="${esc(a.pkg + (a.gone ? " · " + t("bank.notInst") : ""))}">${icon(a)}<span class="bkn">${esc(a.label)}${rf.has(a.pkg) ? `<small class="bkrf">${t("bank.rfTag")}</small>` : ""}</span></span>
       ${cols.map((c, i) => `<span role="cell"><input type="checkbox" data-bank="${esc(a.pkg)}" data-k="${c.k}" ${sets[i].has(a.pkg) ? "checked" : ""} aria-label="${esc(c.h + ": " + a.label)}"></span>`).join("")}</div>`).join("");
     list.querySelectorAll("[data-bank]").forEach(c => c.onchange = () => {
       const key = c.dataset.k;

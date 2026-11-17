@@ -12,7 +12,7 @@ const QS = [
   ["rules", "r-net", "safe", "globe", ["web.h", "sd.web", "web.inc", "web.block"]],
   ["rules", "r-calls", "safe", "phone", ["calls.h", "sd.calls", "calls.unknown", "calls.hidden", "calls.allowH"]],
   ["rules", "r-block", "safe", "lock-keyhole", ["anti.h", "sd.anti", "anti.debug", "anti.shot"]],
-  ["rules", "r-block", "safe", "landmark", ["bank.h", "bank.colAcc"]],
+  ["rules", "r-bank", "safe", "landmark", ["bank.t", "sd.bank", "bank.h", "bank.colAcc", "bank.exp", "bank.imp"]],
   ["rules", "r-kid", "safe", "house", ["hm.h", "sd.home", "hm.on", "hm.settings", "hm.shade", "hm.lock", "hm.notes"]],
   ["rules", "r-kid", "safe", "notebook-pen", ["kn.h", "sd.kind"]], ["rules", "#monCard", "", "eye", ["mon.h", "mon.p"]],
   ["where", "r-lost", "", "siren", ["lost.h", "sd.lost", "lost.on", "lost.msg", "lost.phone"]], ["where", "r-zone", "", "map-pin", ["zone.h", "sd.zone"]], ["where", "r-trk", "", "route", ["trk.h", "sd.trk"]],

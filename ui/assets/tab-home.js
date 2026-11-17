@@ -178,7 +178,9 @@ const mixChip = tones => { const on = tones.filter(Boolean); return on.length ? 
 function secMix(id, icn, title, desc, parts, chip) {   // chip: undefined = "N on" from the parts (live), null = none, [text, tone] = fixed
   const ps = parts.filter(Boolean), fixed = chip !== undefined;
   const h = secRow(id, icn, title, desc, fixed ? chip : mixChip(ps.map(p => p.chip && p.chip[1] || "")),
-    ps.map(p => `<div class="part" data-part="${p.id}"><h3 class="pth">${ic(p.icn)}<b>${p.title}</b>${chipHtml(p.chip)}</h3>${gBody(p.id, p.body)}</div>`).join(""), false);
+    // a part named like the row (e.g. "Màn hình chính của bé" inside "Màn hình chính của bé"): no second title, only its chip (owner 2026-11-17)
+    ps.map(p => `<div class="part" data-part="${p.id}">${p.title === title ? (p.chip ? `<div class="pth">${chipHtml(p.chip)}</div>` : "")
+      : `<h3 class="pth">${ic(p.icn)}<b>${p.title}</b>${chipHtml(p.chip)}</h3>`}${gBody(p.id, p.body)}</div>`).join(""), false);
   return fixed ? h.replace(`data-sec="${id}"`, `data-sec="${id}" data-fixed`) : h;
 }
 // a group of rows in one container, with a heading above (like the "Thêm" screen); empty rows are dropped. id / note: for the heading
