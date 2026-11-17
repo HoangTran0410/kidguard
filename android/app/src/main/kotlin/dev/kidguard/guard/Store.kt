@@ -711,6 +711,10 @@ class Store private constructor(private val app: Context) {
         get() = p.getLong("accLeftAt", 0L)
         set(v) { p.edit().putLong("accLeftAt", v).apply() }
     /** Debugging switched off for a bank app ([DevOpts.bankPause], DevLogic.mask), 0 = nothing to put back. */
+    /** USB debugging was on when the parent switched rule noDebug on: switching it off turns it back on (emulator 2026-11-17). */
+    var noDebugHad: Boolean
+        get() = p.getBoolean("noDebugHad", false)
+        set(v) { p.edit().putBoolean("noDebugHad", v).apply() }
     @get:Synchronized @set:Synchronized var devPaused: Int
         get() = p.getInt("devPaused", 0)
         set(v) { p.edit().putInt("devPaused", v).commit() }

@@ -209,6 +209,6 @@ object SelfAdb {
         SelfSetup.pairOnly = true
         SelfSetup.startDiscovery(app)
         SelfSetup.askCodeNotification(app)
-        runCatching { app.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        runCatching { app.startActivity(DevOpts.pageIntent(app).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
 }

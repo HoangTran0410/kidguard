@@ -78,7 +78,7 @@ class SelfSetupActivity : Activity() {
             addView(button)
         }
         col.addView(step(1, R.string.ssa_s1, R.string.ssa_s1_d, R.string.ssa_s1_btn, R.drawable.li_smartphone) { open(Settings.ACTION_DEVICE_INFO_SETTINGS) })
-        col.addView(step(2, R.string.ssa_s2, R.string.ssa_s2_d, R.string.ssa_s2_btn, R.drawable.li_wifi) { open(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS) })
+        col.addView(step(2, R.string.ssa_s2, R.string.ssa_s2_d, R.string.ssa_s2_btn, R.drawable.li_wifi) { openDev() })
         val s3 = step(3, R.string.ssa_s3, R.string.ssa_s3_d, R.string.ssa_s3_btn, R.drawable.li_bell) { askNotification() }
         portInfo = body("").apply { textSize = 13f }
         s3.addView(portInfo)
@@ -137,8 +137,9 @@ class SelfSetupActivity : Activity() {
         SelfSetup.pairOnly = pairMode   // pair mode (Dọn máy without Device Owner): pair + connect only
         SelfSetup.startDiscovery(this)
         SelfSetup.askCodeNotification(this)
-        open(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+        openDev()
     }
+    private fun openDev() { runCatching { startActivity(DevOpts.pageIntent(this)) }.onFailure { open(Settings.ACTION_SETTINGS) } }
 
     private fun go() {
         val c = code.text.toString().filter { it.isDigit() }

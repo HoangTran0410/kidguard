@@ -66,6 +66,8 @@ class AccPauseTest {
         assertFalse(AccPauseLogic.accOffAlarm(true, true, accOn = false, paused = true, resumedAt = 0L, now = t))
         // the tick that resumes (pause gone, service not bound yet) and the seconds after: no alarm
         assertFalse(AccPauseLogic.accOffAlarm(true, true, accOn = false, paused = false, resumedAt = t, now = t))
+        // emulator 2026-11-17: the tick's `now` is taken BEFORE the resume in that tick sets resumedAt
+        assertFalse(AccPauseLogic.accOffAlarm(true, true, accOn = false, paused = false, resumedAt = t + 40L, now = t))
         assertFalse(AccPauseLogic.accOffAlarm(true, true, accOn = false, paused = false, resumedAt = t, now = t + 20_000L))
         // bound: nothing to say
         assertFalse(AccPauseLogic.accOffAlarm(true, true, accOn = true, paused = false, resumedAt = t, now = t + 40_000L))

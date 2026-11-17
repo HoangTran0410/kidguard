@@ -23,7 +23,9 @@ object AccPauseLogic {
     const val SETTLE_MS = 30_000L
     /** Raise the "child turned accessibility off" alarm now? Not during a bank pause, nor while it is coming back. */
     fun accOffAlarm(enforcing: Boolean, everPaired: Boolean, accOn: Boolean, paused: Boolean, resumedAt: Long, now: Long): Boolean =
-        enforcing && everPaired && !accOn && !paused && !(resumedAt > 0L && now - resumedAt in 0 until SETTLE_MS)
+        // -SETTLE_MS: the Guard tick takes `now` at its start and the resume inside that same tick sets resumedAt a few ms
+        // later (emulator 2026-11-17: false "accoff" the second the pause ended); a clock jump still can't hide it for long
+        enforcing && everPaired && !accOn && !paused && !(resumedAt > 0L && now - resumedAt in -SETTLE_MS until SETTLE_MS)
 
     /** Vietnamese banks / wallets (package names from their Play Store pages; parents edit the list on the page). */
     val DEFAULT: Set<String> = setOf(

@@ -294,6 +294,7 @@ class HomeActivity : Activity() {
         popup?.dismiss()
         main.removeCallbacks(renderRetry)   // an open folder keeps busy() true: no rebuild loop behind another app
         pager.dragging = false   // a gesture cut by an app switch must not keep busy() true (the home would never rebuild)
+        if (drag != null) runCatching { endDrag() }   // same for an icon drag (its DragEvent end may never come)
         drawerAnim?.end()        // jump a moving drawer to where it was going (drawerDone runs): never left half-way behind an app
         super.onPause()
     }
@@ -474,6 +475,7 @@ class HomeActivity : Activity() {
 
     private val renderRetry = Runnable { render(false) }
     private var renderFails = 0
+    private var busyWaits = 0   // renders put off by busy() in a row (1.5 s each)
     private val pkgLater = Runnable { apps = null; dialerAt = 0L; render(false) }   // a suspend / install burst: one rebuild
     internal fun busy() = drag != null || overlay != null || popup?.isShowing == true || pager.dragging
 
@@ -551,7 +553,14 @@ class HomeActivity : Activity() {
             r.chores, r.schedules, r.groups.map { it.hours }, r.bedtimeOn, r.bedStart, r.bedEnd, r.lockContact, focusKey(this)).joinToString("|")
         lap("key")
         if (!force && k == key) { if (wallRev != Wallpaper.rev && !busy()) { wallRev = Wallpaper.rev; ensureWall() }; tickClocks(dv); focusTick(); lap.done("same"); return }
-        if (busy()) { main.removeCallbacks(renderRetry); main.postDelayed(renderRetry, 1500); return }   // never rebuild under a finger / an open panel
+        if (busy()) {   // never rebuild under a finger / an open panel
+            // stuck audit 2026-11-17: a drag or pager swipe whose end event never came kept busy() true forever and the home
+            // never rebuilt (empty after a cold start). 30 s of waiting = stale: drop the gesture state (an open folder stays).
+            if (++busyWaits >= 20) { busyWaits = 0; pager.dragging = false; if (drag != null) runCatching { endDrag() }; popup?.dismiss()
+                android.util.Log.w("KidGuard", "home: busy for 30 s, gesture state cleared") }
+            if (busy()) { main.removeCallbacks(renderRetry); main.postDelayed(renderRetry, 1500); return }
+        }
+        busyWaits = 0
         key = k
         // everything the page views depend on except the grid pages themselves (and dock / seen, which no page shows)
         pageGlobal = k.replaceFirst(mj, m.copy(pages = emptyList(), dock = emptyList(), seen = emptySet()).toJson().toString()) + "|" + liteFx + "|" + kit.font

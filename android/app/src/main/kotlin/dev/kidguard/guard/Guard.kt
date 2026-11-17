@@ -717,7 +717,13 @@ class Guard : Service() {
         }
         if (::work.isInitialized) work.post { runCatching { Policy.apply(this, store.rules) } }   // enforced = base + active mode
         if (r.watch != old.watch) { if (!r.watch.notif.on) NotifSync.clear(); if (!r.watch.cam) RemoteSnap.clear(this); if (!r.watch.sms) Sms.clear(this); Monitoring.tellOn(this, Monitoring.turnedOn(old.watch, r.watch), r.watch); fgRefresh() }
-        if (r.noDebug && !old.noDebug) devOff()   // "no debugging" switched on: also turn Developer options off once
+        if (r.noDebug && !old.noDebug) { store.noDebugHad = DevOpts.debugNow(this); devOff() }   // "no debugging" switched on: also turn Developer options off once
+        // switched off again: debugging comes back as it was (it stayed off, the parent had to know about "devOn"); after
+        // Policy.apply above (same work queue) has lifted DISALLOW_DEBUGGING_FEATURES, else DevOpts.on says "blocked"
+        if (!r.noDebug && old.noDebug && store.noDebugHad && ::work.isInitialized) work.post {
+            store.noDebugHad = false
+            runCatching { DevOpts.on(this).also { if (it == "ok") { store.log(R.string.log_dev_on); SelfAdb.invalidate() } } }
+        }
         if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r, store.tr) + (if (by.isNotBlank()) " · " + by.take(24) else ""), "rules")
         if (r.zones != old.zones) store.zoneBaseline = true
         kick()

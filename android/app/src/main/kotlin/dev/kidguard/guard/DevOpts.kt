@@ -22,6 +22,22 @@ object DevPauseLogic {
 }
 
 object DevOpts {
+    /**
+     * Intent for the Developer options page. AOSP Settings (seen on the API 34 emulator 2026-11-17) routes the action to
+     * DevelopmentSettingsDisabledActivity ("not available" toast, closes at once) unless Developer options were switched on
+     * through its own UI: switched on by a setting write (devOn, bank pause resume, our setup) the page never opened.
+     * Then the page's own activity, which reads the setting itself. Other ROMs: the plain action.
+     */
+    fun pageIntent(ctx: Context): android.content.Intent {
+        val i = android.content.Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+        val cls = runCatching { ctx.packageManager.resolveActivity(i, 0)?.activityInfo?.name }.getOrNull().orEmpty()
+        if (cls.endsWith("DevelopmentSettingsDisabledActivity") && global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED)) {
+            val dash = android.content.Intent().setClassName("com.android.settings", "com.android.settings.Settings\$DevelopmentSettingsDashboardActivity")
+            if (runCatching { ctx.packageManager.resolveActivity(dash, 0) != null }.getOrDefault(false)) return dash
+        }
+        return i
+    }
+
     private const val ADB_WIFI = "adb_wifi_enabled"   // Settings.Global.ADB_WIFI_ENABLED is @hide (API 30+)
 
     /** When [pause] last turned debugging off (elapsedRealtime), 0 = not in this process. */

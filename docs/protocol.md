@@ -191,7 +191,7 @@ v0.9.6:
   Not a new restriction (nothing for `release` to undo); the child can turn them on again unless `noDebug` is set.
   In the worker whitelist (repeatable, not deliver-once). Over LAN through an adb-forwarded port the reply can be lost
   (adb goes down with it); normal Wi-Fi LAN and the relay are fine.
-- Saving rules that switch `noDebug` from false to true also runs `devOff` once.
+- Saving rules that switch `noDebug` from false to true also runs `devOff` once. Switching it back to false runs `devOn` once when debugging was on before (the phone remembers).
 v0.9.7:
 - `devOn`: the way back after `devOff`: turns Developer options and USB debugging (`ADB_ENABLED`) on with
   `Settings.Global.putInt` (needs WRITE_SECURE_SETTINGS; the Device Owner fallback can't write these). Result
