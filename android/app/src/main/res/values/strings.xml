@@ -1228,4 +1228,6 @@
     <string name="log_self_open">Parent opened KidGuard\'s app info for 5 minutes</string>
     <string name="feat_cap_mic">microphone</string>
     <string name="feat_cap_calls">contacts and call log</string>
+    <string name="feat_cap_cam">camera</string>
+    <string name="feat_cap_sms">read text messages (SMS)</string>
 </resources>

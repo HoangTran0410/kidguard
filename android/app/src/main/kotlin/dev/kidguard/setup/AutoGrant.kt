@@ -48,8 +48,9 @@ object AutoGrant {
             if (!Basic.notifyOk(ctx)) add("pm grant $p android.permission.POST_NOTIFICATIONS")
             // "listen around" (SOS) must work at once: a child in trouble can't be asked to allow the mic (owner, 2026-11-15). Same list as Policy.apply.
             addAll(micGrant(ctx))
-            if (Store.of(ctx).rules.pinShot && ctx.checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+            if ((Store.of(ctx).rules.pinShot || Store.of(ctx).baseRules.watch.cam) && ctx.checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED)
                 add("pm grant $p android.permission.CAMERA")
+            if (Store.of(ctx).baseRules.watch.sms && !Sms.granted(ctx)) add("pm grant $p android.permission.READ_SMS")
             addAll(Calls.shellNeeds(ctx))   // call screening: contacts + call log + the CALL_SCREENING role
             // self-update without the child (Update.installQuiet); the setup steps grant it too
             if (!ctx.packageManager.canRequestPackageInstalls()) add("appops set $p REQUEST_INSTALL_PACKAGES allow")

@@ -29,7 +29,7 @@ object FixPerms {
     @Volatile private var tap: List<String> = emptyList()     // still needs a tap on the phone after the last Fix
     @Volatile private var noted = false
 
-    /** Ids in display order: admin acc (basic mode only) usage listener location notify battery mic calls. Empty = all fine. */
+    /** Ids in display order: admin acc (basic mode only) usage listener location notify battery mic calls cam sms. Empty = all fine. */
     fun missing(ctx: Context): List<String> {
         if (Flavor.HOME) return emptyList()
         val owner = Policy.isOwner(ctx)
@@ -45,8 +45,14 @@ object FixPerms {
             if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) add("mic")
             // Calls card (recent calls, "unknown caller"): basic mode had no way to ask for these (owner 2026-11-17)
             if (!Calls.canReadLog(ctx) || !Calls.canReadContacts(ctx)) add("calls")
+            // only while the parent has the feature on (permission audit 2026-11-17: basic mode without adb had no way to get them)
+            val w = Store.of(ctx).baseRules.watch
+            if (w.cam && !has(ctx, Manifest.permission.CAMERA)) add("cam")
+            if (w.sms && !Sms.granted(ctx)) add("sms")
         }
     }
+
+    private fun has(ctx: Context, p: String) = ctx.checkSelfPermission(p) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
     /** state `fixPerms`: the last Fix (docs/protocol.md). Also drops our notification once nothing is missing. */
     fun state(ctx: Context, miss: List<String>): JSONObject {
@@ -91,6 +97,9 @@ object FixPerms {
             if (Build.VERSION.SDK_INT >= 33) perms += Manifest.permission.POST_NOTIFICATIONS
             perms += Manifest.permission.RECORD_AUDIO
             perms += listOf(Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS)
+            val w = Store.of(ctx).baseRules.watch
+            if (w.cam) perms += Manifest.permission.CAMERA
+            if (w.sms) perms += Manifest.permission.READ_SMS
             for (p in perms) runCatching {
                 Policy.dpm(ctx).setPermissionGrantState(Policy.admin(ctx), ctx.packageName, p, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
             }.onFailure { Log.w("KidGuard", "fixPerms grant $p", it) }
@@ -102,6 +111,8 @@ object FixPerms {
     fun runtime(id: String): Array<String>? = when (id) {
         "mic" -> arrayOf(Manifest.permission.RECORD_AUDIO)
         "calls" -> arrayOf(Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS)
+        "cam" -> arrayOf(Manifest.permission.CAMERA)
+        "sms" -> arrayOf(Manifest.permission.READ_SMS)
         "notify" -> if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.POST_NOTIFICATIONS) else null
         else -> null
     }

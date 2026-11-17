@@ -21,6 +21,7 @@ fi
 # UI pack signing keys (never committed): make them once, before the build bakes their public halves into the apps
 [ -n "${CI:-}" ] || node scripts/ui-pack.mjs --init
 node scripts/check-search.mjs   # every page section must be findable in the feature search
+node scripts/check-perms.mjs    # every declared permission: how Device Owner / basic+adb / basic get it (docs/permissions.md)
 node scripts/check-assets.mjs   # every ui/assets file wired in index.html + relay; i18n keys in both languages
 scripts/check-js.sh              # page-script runtime bugs node --check misses (const reassign, ...)
 (cd android && ./gradlew -q ${OPTS[@]+"${OPTS[@]}"} testKidDebugUnitTest assembleKidRelease assembleHomeRelease :parent:testDebugUnitTest :parent:assembleRelease)
