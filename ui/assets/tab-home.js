@@ -52,7 +52,7 @@ function homeTab(b) {
   </section>
   <div class="quick" role="group" aria-label="${esc(t("now"))}">
     <button type="button" id="lock" class="tile act"></button><button type="button" id="ring" class="tile act"></button><button type="button" id="loc" class="tile act"></button>
-    <button type="button" id="msgGo" class="tile" aria-haspopup="dialog"><b>${ic("message-square")}</b><span>${t("msg.tile")}</span></button>
+    <button type="button" id="msgGo" class="tile" aria-haspopup="dialog"><b>${ic("message-square")}</b><span>${t("msg.tile")}${chatUnread() ? ` <em class="cn">${chatUnread()}</em>` : ""}</span></button>
     <button type="button" id="moreAct" class="tile" aria-haspopup="dialog"><b>${ic("ellipsis")}</b><span>${t("nav.more")}</span></button>
   </div>
   <div id="strip"></div>

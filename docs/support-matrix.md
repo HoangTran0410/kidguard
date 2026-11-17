@@ -77,6 +77,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Chức năng | DO | CB | +WSS | +adb | Relay | Ghi chú |
 |---|---|---|---|---|---|---|
 | Khoá màn hình | ✅ | ✅ | ✅ | ✅ | ✅ | CB dùng force-lock của Quản trị thiết bị |
+| Trò chuyện bố mẹ ↔ con (sheet "Nhắn", con trả lời từ ô "Nhắn bố mẹ" hoặc nút "Trả lời") | ✅ | ✅ | ✅ | ✅ | ✅ | Văn bản, 100 tin gần nhất lưu trên máy, 30 tin trong state. Bố mẹ gửi = lệnh `message` (relay: hết hạn sau 10 phút); tin của con thành sự kiện `chat` → thông báo app bố mẹ. Telegram không chuyển tiếp. Bản Home không có |
 | Định vị ngay, nhắn tin, đổ chuông, đánh thức | ✅ | ✅ | ✅ | ✅ | ✅ | Relay: hết hạn sau 10 phút |
 | Xem màn hình + điều khiển | ✅ | ✅ | ✅ | ✅ | ✅ | Android 11+, cần Trợ năng. Relay ~3 khung/giây, LAN nhanh hơn |
 | **Nghe xung quanh** | ✅ | ✅ | ✅ | ✅ | ❌ | **Chỉ LAN / Tailscale** (Relay không có đường âm thanh). Cần quyền micro |

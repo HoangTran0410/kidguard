@@ -129,6 +129,7 @@ class MainActivity : Activity() {
             "more" to u.tile(getString(R.string.main_more), R.drawable.li_timer, u.accent) { if (paired(R.string.main_more)) askMore() },
             "usage" to u.tile(getString(R.string.ust_title), R.drawable.li_chart_column, u.accent) { runCatching { startActivity(Intent(this, UsageStatsActivity::class.java)) } },
             "nlog" to u.tile(getString(R.string.nlog_title), R.drawable.li_bell, u.accent) { runCatching { startActivity(Intent(this, NotifLogActivity::class.java)) } },
+            "chat" to u.tile(getString(R.string.chat_tile), R.drawable.li_mail, u.accent) { runCatching { startActivity(Intent(this, ChatActivity::class.java)) } },
             "files" to u.tile(getString(R.string.files_menu), R.drawable.li_send, u.accent) { if (paired(R.string.files_menu)) ShareInActivity.pick(this) },
             "log" to u.tile(getString(R.string.main_log), R.drawable.li_scroll_text, u.accent) { showLog() },
             "clean" to u.tile(getString(R.string.kc_tile), R.drawable.li_eraser, u.accent) { runClean() },
@@ -465,7 +466,7 @@ class MainActivity : Activity() {
     private lateinit var tiles: Map<String, Button>
     private val TILE_ICONS = mapOf("arrived" to R.drawable.li_map_pin, "pickup" to R.drawable.li_car, "lock" to R.drawable.li_lock,
         "more" to R.drawable.li_timer, "usage" to R.drawable.li_chart_column, "nlog" to R.drawable.li_bell,
-        "files" to R.drawable.li_send, "log" to R.drawable.li_scroll_text, "clean" to R.drawable.li_eraser)
+        "files" to R.drawable.li_send, "chat" to R.drawable.li_mail, "log" to R.drawable.li_scroll_text, "clean" to R.drawable.li_eraser)
     private fun tilePrefs() = applicationContext.getSharedPreferences("quick", MODE_PRIVATE)
     private fun cleanOk() = Store.of(this).rules.kidClean
     private fun picked() = KidTilesLogic.parse(tilePrefs().getString("tiles", null), cleanOk())
@@ -1104,6 +1105,9 @@ class MessageActivity : Activity() {
         card.addView(ui.button(getString(R.string.msg_read), R.drawable.li_thumbs_up, true) {
             runCatching { getSystemService(NotificationManager::class.java).cancel(NID) }; finish() }.apply {
             background = android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(Color.argb(60, 255, 255, 255)), ui.shape(ui.primary, 27), null) })
+        if (!intent.getBooleanExtra("lost", false)) card.addView(ui.button(getString(R.string.chat_reply), R.drawable.li_mail, false) {
+            runCatching { getSystemService(NotificationManager::class.java).cancel(NID) }
+            runCatching { startActivity(Intent(this, ChatActivity::class.java)) }; finish() }.apply { (layoutParams as? LinearLayout.LayoutParams ?: LinearLayout.LayoutParams(-1, -2)).let { it.topMargin = ui.dp(10); layoutParams = it } })
         if (intent.getBooleanExtra("lost", false)) card.addView(ui.button(getString(R.string.lost_parent_off), R.drawable.li_users, false) {
             runCatching { startActivity(Intent(this, MainActivity::class.java).putExtra(EXTRA_ADMIN, true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)) }; finish() })
         root.addView(card)

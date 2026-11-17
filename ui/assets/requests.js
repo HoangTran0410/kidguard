@@ -180,19 +180,42 @@ function moreSheet() {
       actPaint();
     });
 }
-// "Nhắn" tile: a message on the kid's screen; saved messages one tap away (same list as the watch)
+// Family chat (docs/flows/remote.md 2.15): the thread = st.chat (the phone keeps the last 100, state carries 30) + our own sends
+// the phone has not echoed yet (chatPend). The kid's unread count = kid messages newer than the last time this sheet was open.
+const chatPend = {};
+const chatSeenKey = () => "kg.chat." + (cur && cur.id);
+function chatSeen() { try { return +localStorage.getItem(chatSeenKey()) || 0; } catch { return 0; } }
+function chatUnread() { const s = chatSeen(); return ((st && st.chat) || []).filter(m => m.from === "k" && m.t > s).length; }
+function chatList() {
+  const a = ((st && st.chat) || []).slice(), now = Date.now(), k = cur && cur.id;
+  chatPend[k] = (chatPend[k] || []).filter(p => now - p.t < 600e3 && !a.some(m => m.from === "p" && m.text === p.text && m.t >= p.t - 120e3));
+  return a.concat(chatPend[k]);
+}
+function chatDraw() {
+  const box = $("#chatBox"); if (!box) return false;
+  const l = chatList(), near = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+  const html = l.length ? l.map(m => `<div class="cb ${m.from === "k" ? "k" : "p"}${m.local ? " pend" : ""}">${m.from === "k" ? `<b>${esc(cur.name)}</b>` : m.who ? `<b>${esc(m.who)}</b>` : ""}<span>${esc(m.text)}</span><i>${m.local ? t("chat.wait") : esc(evAt(m.t))}</i></div>`).join("")
+    : `<p class="mute" style="margin:auto;text-align:center">${t("chat.empty")}</p>`;
+  if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; if (near || !box.dataset.s) box.scrollTop = box.scrollHeight; box.dataset.s = "1"; }
+  const last = Math.max(0, ...((st && st.chat) || []).map(m => m.t));
+  if (last > chatSeen()) { try { localStorage.setItem(chatSeenKey(), String(last)); } catch {} }
+  return true;
+}
+// "Nhắn" tile: the family chat with the kid (a send is the `message` command: it pops up on the kid's screen and joins the thread);
+// saved messages one tap away (same list as the watch)
 function msgSheet() {
-  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("message-square", t("msg.tile"))}
-    <label class="mute" for="msg" style="display:block;margin:0 0 6px">${t("msg.h")}</label>
+  const sid = setInterval(() => { if (!chatDraw()) clearInterval(sid); else refresh(); }, 4000);
+  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("message-square", t("chat.title", esc(cur.name)))}
+    <div id="chatBox" class="chat" aria-live="polite"></div>
     <div class="row"><input id="msg" class="sp" placeholder="${esc(t("msgPh"))}" maxlength="300"><button type="button" id="send" class="pri">${ic("send")} ${t("send")}</button></div>
     <div id="qmBox"></div></div>`,
     pop => {
       pop.querySelector("#send").onclick = () => { const tx = $("#msg").value.trim(); if (!tx) return $("#msg").focus();
         const sb = pop.querySelector("#send"); if (sb.disabled) return; sb.disabled = true;   // no double send while the dialog / request is in flight
-        cmd({ type: "message", text: tx }, t("msg.done")).then(r => { if (r && $("#msg") && $("#msg").value.trim() === tx) $("#msg").value = ""; }).finally(() => { sb.disabled = false; }); };
+        cmd({ type: "message", text: tx }, t("msg.done")).then(r => { if (r) { (chatPend[cur.id] = chatPend[cur.id] || []).push({ from: "p", who: "", text: tx, t: Date.now(), local: 1 }); chatDraw(); if ($("#msg") && $("#msg").value.trim() === tx) $("#msg").value = ""; } }).finally(() => { sb.disabled = false; }); };
       pop.querySelector("#msg").onkeydown = e => { if (e.key === "Enter") pop.querySelector("#send").click(); };
       pop.querySelector("#msg").oninput = qmDraw;
-      qmDraw();
+      chatDraw(); qmDraw();
     });
 }
 // Saved quick messages (rules.msgs, also listed on the watch): a tap fills the box (Send stays the one way to send),

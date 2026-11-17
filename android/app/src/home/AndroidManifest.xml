@@ -45,6 +45,7 @@
         <activity android:name=".SelfSetupActivity" tools:node="remove" />
         <activity android:name=".AdminActivity" tools:node="remove" />
         <activity android:name=".MessageActivity" tools:node="remove" />
+        <activity android:name=".ChatActivity" tools:node="remove" />
         <activity android:name=".ShareWebActivity" tools:node="remove" />
         <activity android:name=".WakeActivity" tools:node="remove" />
         <activity android:name=".CallActivity" tools:node="remove" />

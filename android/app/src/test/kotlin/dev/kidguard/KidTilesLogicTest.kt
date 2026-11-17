@@ -14,7 +14,7 @@ class KidTilesLogicTest {
         assertEquals(listOf("lock"), KidTilesLogic.add(listOf("lock"), "sos"))
     }
     @Test fun rowsKeepSosFirstAndEditLast() {
-        assertEquals(listOf(listOf("sos", "arrived", "pickup", "lock"), listOf("edit")), KidTilesLogic.rows(KidTilesLogic.DEFAULT))
+        assertEquals(listOf(listOf("sos", "arrived", "pickup", "lock"), listOf("chat", "edit")), KidTilesLogic.rows(KidTilesLogic.DEFAULT))
         assertEquals(listOf(listOf("sos", "edit")), KidTilesLogic.rows(emptyList()))
         assertEquals(2, KidTilesLogic.rows(KidTilesLogic.ALL.take(KidTilesLogic.MAX)).size)
     }

@@ -523,6 +523,14 @@
     <string name="more_fail_body">Too many requests are still waiting for an answer.</string>
     <string name="msg_title">Message from your parent</string>
     <string name="msg_read">Got it</string>
+    <string name="chat_title">Chat with your parents</string>
+    <string name="chat_hint">Write a message</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_empty">No messages yet. Say hi to your parents.</string>
+    <string name="chat_parent">Parent</string>
+    <string name="chat_reply">Reply</string>
+    <string name="chat_tile">Chat</string>
+    <string name="chat_unpaired">Connect to your parents first.</string>
     <string name="ch_msg">Messages from your parent</string>
     <!-- quick actions: lock button (shortcut, widget, tile), time-left tile / widget, screen-off gestures (Quick.kt) -->
     <string name="tl_min">%1$d min left</string>

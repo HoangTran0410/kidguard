@@ -465,6 +465,12 @@ input[type=range]:disabled{opacity:.45;cursor:default}
 .wzi{display:flex;gap:12px;align-items:center;padding:10px 0}.wzi .cli{flex:none}
 
 /* saved quick messages in the message sheet */
+.chat{display:flex;flex-direction:column;gap:6px;max-height:42vh;min-height:90px;overflow-y:auto;margin:0 0 10px;padding:2px}
+.cb{max-width:82%;padding:7px 12px;border-radius:16px;display:flex;flex-direction:column;gap:1px;overflow-wrap:anywhere;white-space:pre-wrap}
+.cb b{font-size:12px;color:var(--accent)}.cb i{font-style:normal;font-size:11px;color:var(--sub)}
+.cb.k{align-self:flex-start;background:var(--card);border:1px solid var(--line)}
+.cb.p{align-self:flex-end;background:var(--tint)}.cb.pend{opacity:.7}
+.cn{font-style:normal;font-size:11px;font-weight:700;background:var(--danger);color:#fff;border-radius:999px;padding:0 6px;margin-left:2px}
 .qms{display:flex;flex-wrap:wrap;gap:6px}
 .qm{display:inline-flex;align-items:stretch;max-width:100%;border:1px solid var(--line);border-radius:999px;overflow:hidden}
 .qm button{background:none;border:0;min-height:36px;color:inherit;font:inherit}
