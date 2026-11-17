@@ -225,7 +225,12 @@ function secWatch() {   // a tab redraws parts of itself after render(): re-appl
 const noSub = s => { const o = { ...s }; delete o.sub; return o; };
 function subOpen(id) {
   selId = id;
-  if (isWide()) return secNav();
+  if (isWide()) {   // one page scrollbar (no inner one): bring the detail pane into view when it starts above the screen
+    secNav();
+    const p = document.querySelector(".sg-two .sg-cur .clb");
+    if (p && p.getBoundingClientRect().top < 0) p.scrollIntoView({ block: "start", behavior: "smooth" });
+    return;
+  }
   try { const s = history.state || {}; if (subId) history.replaceState({ ...s, sub: id }, ""); else { subY = scrollY; history.pushState({ ...s, kg: navLvl() + 1, sub: id }, ""); } } catch {}
   subId = id; secNav(); window.scrollTo(0, 0);
 }

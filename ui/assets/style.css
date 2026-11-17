@@ -192,7 +192,7 @@ select.lang{min-height:40px;padding:4px 8px;font-size:14px;flex:none;border-radi
   .sg-two .cl.gf.gl>h2{border-radius:20px}
   .sg-two .cl.sg-cur .clh{background:var(--tint)}
   .sg-two .clbh{display:flex;align-items:center;gap:10px;font-size:18px;margin:2px 0 14px;color:var(--text)}.sg-two .clbh .si{color:var(--accent)}
-  .sg-two .cl.sg-cur .clb{display:block;grid-column:2;grid-row:1 / -1;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;background:var(--card);border:1px solid var(--stroke);border-radius:20px;box-shadow:var(--shadow)}
+  .sg-two .cl.sg-cur .clb{display:block;grid-column:2;grid-row:1 / -1;align-self:start;background:var(--card);border:1px solid var(--stroke);border-radius:20px;box-shadow:var(--shadow)}
 }
 /* "Thiết bị" key/value rows */
 .dvkv{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--stroke)}.dvkv>span{color:var(--sub)}.dvkv>b{font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere}

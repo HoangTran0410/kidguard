@@ -3,6 +3,7 @@
 Index and the rule for adding lines: `README.md`.
 
 ## Decided
+- (2026-11-17, owner) Wide two-pane settings (`.sg-two`): the detail pane is not sticky and has no max-height: one page scrollbar, never a second inner one. Picking an item whose pane top is above the screen scrolls the pane into view (`subOpen`).
 - After merging ui/index.html or ui/assets/*.js: run `node --check` ("keep both" conflict resolution re-added stale markup -> JS syntax error) (11-07)
 - Index.html was split into ui/ + ui/assets/ (17 files, classic defer scripts, no build step) because a 6.4k-line file caused merge conflicts between parallel agents (0fed7a0). Repo folders renamed web->ui, worker->relay, site->website (c792aac)
 - Every action that changes the child's phone asks via one custom `ask()` modal (Esc/backdrop = cancel, typed word for release), never native confirm. The confirm is asked BEFORE the 20 s answer timer starts (time on the confirm was counted as "phone did not answer") (0900627, 4ca10dd)

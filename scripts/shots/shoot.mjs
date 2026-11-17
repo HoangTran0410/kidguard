@@ -257,6 +257,8 @@ const prof = fs.mkdtempSync(path.join(os.tmpdir(), "kgshots-"));
 const chrome = EXT ? { kill() {} } : spawn(CHROME, ["--headless=new", `--remote-debugging-port=${CDP}`, `--user-data-dir=${prof}`, "--hide-scrollbars", "--force-color-profile=srgb", "--no-first-run", "--disable-gpu", "--window-size=400,860", "about:blank"], { stdio: "ignore" });
 for (let i = 0; i < 40; i++) { try { await fetch(`http://127.0.0.1:${CDP}/json/version`); break; } catch { await sleep(300); } }
 try { for (const l of LANGS) await shootLang(l); }
-finally { chrome.kill(); await sleep(500); fs.rmSync(prof, { recursive: true, force: true }); }
+finally {   // SIGTERM alone sometimes leaves headless Chrome holding the CDP port (the next run then hangs)
+  if (!EXT) { const gone = new Promise(r => chrome.once("exit", r)); chrome.kill(); if (await Promise.race([gone.then(() => 1), sleep(3000)]) !== 1) chrome.kill("SIGKILL"); }
+  await sleep(300); fs.rmSync(prof, { recursive: true, force: true }); }
 console.log("done ->", OUT);
 process.exit(0);
