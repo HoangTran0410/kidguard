@@ -7,7 +7,7 @@
 # Not in it: the relay's FCM_SA secret (Cloudflare can't give it back; a new Firebase service-account key replaces it).
 set -e
 cd "$(dirname "$0")/.."
-places="signing.jks=android/app/signing.jks kid-google-services.json=android/app/google-services.json parent-google-services.json=android/parent/google-services.json"
+places="signing.jks=android/app/signing.jks kid-google-services.json=android/app/google-services.json parent-google-services.json=android/parent/google-services.json ui-pack-key.pem=android/app/ui-pack-key.pem ui-pack-backup-key.pem=android/app/ui-pack-backup-key.pem"
 cmd=${1:-}; [ $# -gt 0 ] && shift
 case "$cmd" in
   backup)  exec java scripts/Keys.java pack "${1:-kidguard-keys-$(date +%Y-%m-%d).kgkeys}" $places ;;
