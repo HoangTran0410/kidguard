@@ -319,7 +319,7 @@ class MainActivity : Activity() {
             AdminActivity.start(this); return
         }
         // a PIN lock says "PIN", a lock of the Authenticator code (no PIN set) says "code"
-        fun lockText(left: Long) = ((left + 59_999) / 60_000).toInt().let { if (pinSet) resources.getQuantityString(R.plurals.pin_locked, it, it) else getString(R.string.code_locked, it) }
+        fun lockText(left: Long) = if (pinSet) PinAsk.lockText(this, left) else getString(R.string.code_locked, ((left + 59_999) / 60_000).toInt())
         s.adminLockLeft().takeIf { it > 0 }?.let { Modal(this, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, getString(R.string.locked_title), lockText(it)); return }
         val m = Modal(this, ui2)
         val input = m.field(getString(when { pinSet && totpOn -> R.string.admin_field_both; pinSet -> R.string.admin_field; else -> R.string.unl_hint }), 8, pin = true)
@@ -367,7 +367,7 @@ class MainActivity : Activity() {
         // parent's Fix: Android shows no dialog once the child chose "don't ask again" (denied at once): fall back to App info
         // a plain Deny keeps rationale = true: leave it; only "don't ask again" (no dialog shown at all) needs Settings
         if (code == REQ_ASK_PERM && perms.indices.any { res.getOrNull(it) != android.content.pm.PackageManager.PERMISSION_GRANTED && !shouldShowRequestPermissionRationale(perms[it]) })
-            runCatching { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName"))) }
+            runCatching { startActivity(Intents.appDetails(this)) }
     }
 
     /** Hold-to-confirm state: the label each button shows when idle (refresh() may change it while a hold runs). */
@@ -890,8 +890,8 @@ class MainActivity : Activity() {
             if (!up && err.startsWith("HTTP 5")) line(R.drawable.li_cloud, Ic.WARN, getString(R.string.st_rc_relay_down, err))
             else line(R.drawable.li_cloud, if (up) Ic.OK else Ic.WARN, getString(if (up) R.string.st_rc_relay else R.string.st_rc_relay_wait))
         }
-        if (s.tgToken.isNotBlank()) {
-            n++; val k = s.tgChats().length()
+        if (s.tg.token.isNotBlank()) {
+            n++; val k = s.tg.chats().length()
             line(R.drawable.li_send, if (k > 0) Ic.OK else Ic.INFO, if (k > 0) resources.getQuantityString(R.plurals.st_rc_tg, k, k) else getString(R.string.st_rc_tg_none))
         }
         if (n == 0) line(R.drawable.li_users, Ic.INFO, getString(R.string.main_hint_managed, Guard.lanUrl() ?: getString(R.string.main_no_wifi)))
@@ -919,21 +919,7 @@ class MainActivity : Activity() {
             if (s.everPaired) { Modal(this, ui2).show(R.drawable.li_shield, Modal.Tone.WARN, getString(R.string.pin_need_title), getString(R.string.pin_need_body)); return }
             s.openPairing(); refresh(); return
         }
-        fun lockText(left: Long) = ((left + 59_999) / 60_000).toInt().let { resources.getQuantityString(R.plurals.pin_locked, it, it) }
-        s.localPinLockLeft().takeIf { it > 0 }?.let { left ->
-            Modal(this, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, getString(R.string.locked_title), lockText(left)); return
-        }
-        val m = Modal(this, ui2)
-        val input = m.field(getString(R.string.pin_field), 12, pin = true)
-        m.show(R.drawable.li_shield, Modal.Tone.INFO, getString(R.string.pin_title), getString(R.string.pin_body), KidNow.withForgot(this, ui2, input), ok = getString(R.string.pin_ok), cancel = getString(R.string.cancel)) {
-            if (s.checkPinOnPhone(input.text.toString().filter { it.isDigit() })) { if (then != null) then() else { s.openPairing(); refresh() }; true }
-            else {
-                input.setText("")
-                m.setError(s.localPinLockLeft().takeIf { it > 0 }?.let { lockText(it) } ?: s.localPinTriesLeft().takeIf { it in 1..4 }?.let { resources.getQuantityString(R.plurals.pin_wrong_left, it, it) } ?: getString(R.string.pin_wrong))
-                false
-            }
-        }
-        input.requestFocus()
+        PinAsk.local(this, ui2, R.string.pin_title, R.string.pin_body) { if (then != null) then() else { s.openPairing(); refresh() } }
     }
 
     /** Read-only view of what the parent set, so the child knows the rules (and what is watched). */
@@ -1064,7 +1050,7 @@ class MainActivity : Activity() {
     /** A parent reads 6 digits from Google Authenticator (works with no network on either phone). */
     private fun askUnlock() {
         val s = Store.of(this)
-        fun lockText(left: Long) = ((left + 59_999) / 60_000).toInt().let { resources.getQuantityString(R.plurals.unl_locked, it, it) }
+        fun lockText(left: Long) = PinAsk.lockText(this, left, R.plurals.unl_locked)
         s.unlockLockLeft().takeIf { it > 0 }?.let { Modal(this, ui2).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, getString(R.string.locked_title), lockText(it)); return }
         val m = Modal(this, ui2)
         val input = m.field(getString(R.string.unl_hint), 6, pin = true).apply { inputType = android.text.InputType.TYPE_CLASS_NUMBER; hint = getString(R.string.unl_hint) }

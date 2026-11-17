@@ -202,10 +202,10 @@ internal fun HomeActivity.clearHover() { clearCell(); magnet(Float.NaN, Float.Na
 /** Resets the cell-level hover: folder target, the re-arrange preview, the tip, the cell highlight, dock slots. */
 internal fun HomeActivity.clearCell(keepGap: Boolean = false, keepDock: Int = -1) {
     if (!keepGap) gapAt(-1)
-    folderArm?.let { main.removeCallbacks(it) }; folderArm = null; folderReady = false
-    swapArm?.let { main.removeCallbacks(it) }; swapArm = null; swapWant = null
+    hov.folderArm?.let { main.removeCallbacks(it) }; hov.folderArm = null; hov.folderReady = false
+    hov.swapArm?.let { main.removeCallbacks(it) }; hov.swapArm = null; hov.swapWant = null
     pageView()?.plateOff()
-    hoverId = null
+    hov.hoverId = null
     unswap()
     tip.visibility = View.GONE
     pageView()?.let { if (it.hl != null) { it.hl = null; it.invalidate() } }
@@ -213,8 +213,8 @@ internal fun HomeActivity.clearCell(keepGap: Boolean = false, keepDock: Int = -1
 }
 
 internal fun HomeActivity.unswap() {
-    swapId?.let { itemViews[it]?.animate()?.translationX(0f)?.translationY(0f)?.setDuration(Motion.MED)?.setInterpolator(Motion.STD)?.start() }
-    swapId = null
+    hov.swapId?.let { itemViews[it]?.animate()?.translationX(0f)?.translationY(0f)?.setDuration(Motion.MED)?.setInterpolator(Motion.STD)?.start() }
+    hov.swapId = null
 }
 
 /**
@@ -229,13 +229,13 @@ internal fun HomeActivity.magnet(x: Float, y: Float): Boolean {
     val dist = if (x.isNaN()) Float.MAX_VALUE else kotlin.math.hypot(x - cx, y - cy)
     val k = (1f - dist / dpf(170f)).coerceIn(0f, 1f)
     val hot = dist < dpf(64f)
-    removeNear = k > 0.35f
+    hov.removeNear = k > 0.35f
     b.translationX = if (k > 0f) (x - cx) * 0.3f * k else 0f
     b.translationY = if (k > 0f) (y - cy) * 0.3f * k else 0f
     val sc = if (hot) 1.3f else 1f + 0.2f * k
     b.scaleX = sc; b.scaleY = sc; b.alpha = if (hot) 1f else 0.5f + 0.4f * k
-    if (hot != removeHot) {
-        removeHot = hot
+    if (hot != hov.removeHot) {
+        hov.removeHot = hot
         b.background = fill(if (hot) pal.danger else pal.sheet)
         (b as ImageView).setImageDrawable(Ic.get(this, R.drawable.li_x, if (hot) pal.onDanger else pal.text, dp(24)))
         if (hot) b.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
@@ -255,7 +255,7 @@ internal fun HomeActivity.nearCentre(it: HItem, x: Float, y: Float): Boolean {
 internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
     val m = model ?: return
     // the remove target
-    if (magnet(x, y) || removeNear) { clearCell(); cancelFlip(); return }
+    if (magnet(x, y) || hov.removeNear) { clearCell(); cancelFlip(); return }
     val dt = dockTarget(x, y, d)
     if (dt != null) {
         val (slot, k) = dt
@@ -269,7 +269,7 @@ internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
     // drag events in its back-gesture strip (~25 dp on a Poco), so the old 22 dp zone was nearly all dead: pushing to the edge
     // never flipped. Resting there keeps flipping (no events come while the finger is still, so it re-checks itself).
     val edge = dp(48)
-    hoverX = x; hoverY = y
+    hov.hoverX = x; hov.hoverY = y
     if (x < edge || x > root.width - edge) {
         clearCell()
         if (flip == null) {
@@ -288,7 +288,7 @@ internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
                     styleCells(); padPages(); buildDots()
                 }
                 pager.snapTo(target)
-                main.postDelayed({ if (drag === d && flip == null) hover(hoverX, hoverY, d) }, 300)
+                main.postDelayed({ if (drag === d && flip == null) hover(hov.hoverX, hov.hoverY, d) }, 300)
             }.also { main.postDelayed(it, 400) }
         }
         return
@@ -300,38 +300,38 @@ internal fun HomeActivity.hover(x: Float, y: Float, d: DragSt) {
     val cl = pageView() ?: return
     // folder: only after the finger rests on the middle of an app / folder icon for HomeActivity.FOLDER_MS; passing over = move
     if (under != null && (d.kind == "app" || d.kind == HomeLayout.SHORTCUT) && (under.kind == "app" || under.kind == "folder" || under.kind == HomeLayout.SHORTCUT) && nearCentre(under, x, y)) {
-        if (hoverId == under.id) return
+        if (hov.hoverId == under.id) return
         clearCell()
-        hoverId = under.id
+        hov.hoverId = under.id
         val u = under
-        folderArm = Runnable {
-            folderArm = null
-            if (hoverId != u.id) return@Runnable
-            folderReady = true
+        hov.folderArm = Runnable {
+            hov.folderArm = null
+            if (hov.hoverId != u.id) return@Runnable
+            hov.folderReady = true
             itemViews[u.id]?.let { v -> folderPlate(v); v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY) }
             val name = if (u.kind == "folder") folderName(u) else if (u.kind == HomeLayout.SHORTCUT) u.name.ifBlank { launcherApps()[u.pkg]?.label ?: "" } else launcherApps()[u.pkg]?.label ?: ""
             showTip(getString(if (u.kind == "folder") R.string.hm_f_drop_into else R.string.hm_f_drop_make, name))
         }.also { main.postDelayed(it, HomeActivity.FOLDER_MS) }
         return
     }
-    if (hoverId != null) clearCell()
+    if (hov.hoverId != null) clearCell()
     val t = taken(m, d) ?: return
     val w = minOf(d.w, m.cols); val h = minOf(d.h, m.rows)
     val free = HomeLayout.free(t.m.pages.getOrNull(pi) ?: emptyList(), m.cols, m.rows, a.first, a.second, w, h)
     val sw = if (free) null else HomeLayout.swapSpot(t, pi, a.first, a.second)
     // re-arrange preview: the item in the way slides to where it will go
-    if (sw?.first?.id != swapId) {
-        if (sw == null) { unswap(); swapArm?.let { main.removeCallbacks(it) }; swapArm = null; swapWant = null }
-        else if (swapWant != sw.first.id) {
+    if (sw?.first?.id != hov.swapId) {
+        if (sw == null) { unswap(); hov.swapArm?.let { main.removeCallbacks(it) }; hov.swapArm = null; hov.swapWant = null }
+        else if (hov.swapWant != sw.first.id) {
             // waits a moment: heading for an icon's middle (folder) passes its edge first, and must not shove it away
-            swapArm?.let { main.removeCallbacks(it) }
-            swapWant = sw.first.id
-            swapArm = Runnable {
-                swapArm = null
-                if (drag !== d || swapWant != sw.first.id) return@Runnable
+            hov.swapArm?.let { main.removeCallbacks(it) }
+            hov.swapWant = sw.first.id
+            hov.swapArm = Runnable {
+                hov.swapArm = null
+                if (drag !== d || hov.swapWant != sw.first.id) return@Runnable
                 unswap()
                 itemViews[sw.first.id]?.let { v ->
-                    swapId = sw.first.id
+                    hov.swapId = sw.first.id
                     v.animate().translationX(((sw.second - sw.first.x) * cl.cellW()).toFloat()).translationY(((sw.third - sw.first.y) * cl.cellH()).toFloat())
                         .setDuration(Motion.SLOW).setInterpolator(Motion.STD).start()
                 }
@@ -359,7 +359,7 @@ internal fun HomeActivity.drop(x: Float, y: Float, d: DragSt): Boolean {
     // another app's widget from the picker: remember the cell, bind it (system prompt the first time), then place it there
     if (d.src is Src.NewAppWidget) {
         val info = awDrag; awDrag = null
-        land = null
+        hov.land = null
         val at = if (magnet(x, y) || dockSlot(x, y) >= 0) null else cellAt(x, y, d)?.takeIf { (pi, a, _) -> HomeLayout.dropMove(t, pi, a.first, a.second) != null }
         if (info != null && at != null) { aw.dropAt = Triple(at.first, at.second.first, at.second.second); main.post { awAdd(info) } }
         return true
@@ -373,7 +373,7 @@ internal fun HomeActivity.drop(x: Float, y: Float, d: DragSt): Boolean {
         dockTarget(x, y, d) != null -> dockTarget(x, y, d)!!.let { (slot, k) -> if (slot >= 0) HomeLayout.dropDock(t, slot) else HomeLayout.insertDock(t, k) }
         dockSlot(x, y) >= 0 -> null
         else -> cellAt(x, y, d)?.let { (pi, a, under) ->
-            if (folderReady && under != null && under.id == hoverId && (d.kind == "app" || d.kind == HomeLayout.SHORTCUT))
+            if (hov.folderReady && under != null && under.id == hov.hoverId && (d.kind == "app" || d.kind == HomeLayout.SHORTCUT))
                 HomeLayout.dropOnto(t, under.id, if (under.kind == "app" && t.item.kind == "app") autoName(under.pkg, t.item.pkg) else "")
                     // a full folder refuses the icon: say why instead of a silent spring back
                     ?: null.also { if (under.kind == "folder" && under.apps.size >= HomeLayout.FOLDER_MAX) toast(getString(R.string.hm_f_full)) }
@@ -381,7 +381,7 @@ internal fun HomeActivity.drop(x: Float, y: Float, d: DragSt): Boolean {
         }
     }
     // the dragged item lands from where the finger let go: on its new cell, or back home (no room / same place)
-    land = if (removeHot) null else Triple(d, x, y)
+    hov.land = if (hov.removeHot) null else Triple(d, x, y)
     if (out == null) return true   // no room there: it just springs home (the red cell already said so); true = our animation, not the system's
     if (out !== m) { HomeFile.save(this, out); model = out; dropped = true }
     return true
@@ -405,8 +405,8 @@ internal fun HomeActivity.askDropRemove(before: HomeModel, after: HomeModel, ite
  * folder pops instead.
  */
 internal fun HomeActivity.landNow() {
-    val (d, x, y) = land ?: return
-    land = null
+    val (d, x, y) = hov.land ?: return
+    hov.land = null
     val m = model ?: return
     val pkg = d.pkg ?: d.src.let { (it as? Src.InFolder)?.pkg }
     val all = m.pages.flatten()
@@ -448,11 +448,11 @@ internal fun HomeActivity.noRoom(v: View?) {
 internal fun HomeActivity.endDrag() {
     main.post { libraryBack() }
     if (drag == null) return
-    if (!dropped && land == null) drag?.view?.visibility = View.VISIBLE   // landing: the new render's view flies in
+    if (!dropped && hov.land == null) drag?.view?.visibility = View.VISIBLE   // landing: the new render's view flies in
     drag = null
     cancelFlip()
     dock.layoutTransition = null; gapAt(-1); dockRoom = null
-    if (dropped) swapId = null
+    if (dropped) hov.swapId = null
     dropped = false
     clearHover()
     bannerBox.visibility = View.VISIBLE
@@ -469,4 +469,18 @@ internal fun HomeActivity.folderPlate(v: View) {
     val icon = (v as? android.view.ViewGroup)?.getChildAt(0) ?: v
     val a = IntArray(2); icon.getLocationInWindow(a); val b = IntArray(2); cl.getLocationInWindow(b)
     cl.plate(a[0] - b[0] - v.translationX + icon.width / 2f, a[1] - b[1] - v.translationY + icon.height / 2f, icon.width * 1.3f)
+}
+
+/** Where the dragged item hovers now: folder target, re-arrange preview, remove circle, landing. Was 11 loose vars on HomeActivity. */
+internal class DragHover {
+    var hoverX = 0f; var hoverY = 0f   // last drag hover point (edge flip repeats while the finger rests)
+    var hoverId: String? = null        // folder target: the finger rested on its icon (see FOLDER_MS)
+    var folderArm: Runnable? = null
+    var folderReady = false
+    var swapArm: Runnable? = null      // re-arrange preview waits SWAP_MS: passing over an icon toward its middle (folder) never shoves it
+    var swapWant: String? = null
+    var swapId: String? = null         // item sliding out of the way (preview of the re-arrange)
+    var removeHot = false
+    var removeNear = false             // heading for the remove circle: no cell highlight under it
+    var land: Triple<DragSt, Float, Float>? = null
 }

@@ -450,7 +450,7 @@ private fun HomeActivity.buildControl(key: List<Any?>, ph: ControlLogic.Phone): 
     fun openNlog() { closeOverlay(); runCatching { startActivity(Intent(this, NotifLogActivity::class.java)) } }
     // shade blocked (rule launcher.shade): the bell opens the seen-notifications list instead of a shade that closes at once
     val notif = CcToggle(this, Tile.VOLUME, R.drawable.li_bell, getString(R.string.cc_notifs), tsz, 3).apply {
-        onTap { if (shadeOff() && NotifLog.enabled) openNlog() else { closeOverlay(); main.postDelayed({ expandShade(false) }, 120) } } }
+        onTap { if (shadeOff() && NotifLog.enabled) openNlog() else { closeOverlay(); main.postDelayed({ Shade.expand(this@buildControl) }, 120) } } }
     // study mode: a tile like iOS's Focus (was only in the long-press menu); lit while on, its label = the time left
     val fs = focusSession()
     val focus = CcToggle(this, Tile.VOLUME, R.drawable.li_timer, if (fs != null) getString(R.string.cc_focus_left, fs) else getString(R.string.cc_focus), tsz, 3).apply {

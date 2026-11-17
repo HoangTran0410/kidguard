@@ -119,18 +119,10 @@ object FixPerms {
 
     /** The screen for [id]: the one-tap permission dialog when there is one, else the Settings page. */
     private fun intent(ctx: Context, id: String): Intent {
-        val pkg = Uri.parse("package:${ctx.packageName}")
         if (runtime(id) != null) return Intent(ctx, MainActivity::class.java).putExtra(EXTRA_ASK_PERM, id)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        return when (id) {
-            "admin" -> Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, Policy.admin(ctx))
-                .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, ctx.getString(R.string.basic_admin_expl))
-            "acc" -> Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            "usage" -> Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, pkg)
-            "listener" -> Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-            "battery" -> Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkg)
-            else -> Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)   // location, notify, mic: Permissions
-        }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // a PendingIntent can't fall back: the first screen this phone has (usage: the plain list when no per-app page)
+        return (Intents.firstUsable(ctx, Intents.forCap(ctx, id)) ?: Intents.appDetails(ctx)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
     private fun name(ctx: Context, id: String): String {

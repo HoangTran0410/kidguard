@@ -1,5 +1,6 @@
 package dev.kidguard.parent
 
+import dev.kidguard.Langs
 import android.app.Application
 import android.app.LocaleManager
 import android.content.Context

@@ -130,7 +130,7 @@ class SelfSetupActivity : Activity() {
     }
 
     private fun open(action: String) {
-        runCatching { startActivity(Intent(action)) }.onFailure { runCatching { startActivity(Intent(Settings.ACTION_SETTINGS)) } }
+        Intents.startFirst(this, Intent(action), Intent(Settings.ACTION_SETTINGS))
     }
 
     private fun askNotification() {
@@ -139,7 +139,7 @@ class SelfSetupActivity : Activity() {
         SelfSetup.askCodeNotification(this)
         openDev()
     }
-    private fun openDev() { runCatching { startActivity(DevOpts.pageIntent(this)) }.onFailure { open(Settings.ACTION_SETTINGS) } }
+    private fun openDev() { Intents.startFirst(this, DevOpts.pageIntent(this), Intent(Settings.ACTION_SETTINGS)) }
 
     private fun go() {
         val c = code.text.toString().filter { it.isDigit() }

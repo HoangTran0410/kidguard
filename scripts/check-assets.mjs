@@ -21,6 +21,8 @@ for (const f of files) {
 }
 for (const m of html.matchAll(/(?:src|href)="\/ui\/([^"]+)"/g)) if (!files.includes(m[1])) errs.push(`ui/index.html loads /ui/${m[1]}: no such file`);
 
+const MAX_GLOBALS = 860, MAX_LETS = 70;
+let lets = 0, globals = 0;
 // one top-level name per page: the scripts share globals, and a 2nd `function x` silently replaces the 1st
 // (INCIDENT 2026-11-17: chat's pendHtml(job) replaced shell.js's pendHtml(id, html): "NaN MB" under the bank list)
 {
@@ -30,8 +32,14 @@ for (const m of html.matchAll(/(?:src|href)="\/ui\/([^"]+)"/g)) if (!files.inclu
     for (const d of read("ui/assets/" + m[1]).matchAll(/^(?:async\s+)?(?:function\*?\s+([A-Za-z_$][\w$]*)|(?:const|let|var|class)\s+([A-Za-z_$][\w$]*))/gm)) {
       const n = d[1] || d[2];
       if (seen.has(n) && seen.get(n) !== m[1]) errs.push(`top-level name "${n}" in both ${seen.get(n)} and ${m[1]}`); else seen.set(n, m[1]);
+      if (/^(?:let|var)\s/.test(d[0])) lets++;
     }
   }
+  // ceiling on shared globals (maintainability review 2026-11-17: 621 -> 841 in a day). Raising it is a decision:
+  // prefer a local inside the function, or one object per file, over a new top-level name.
+  if (seen.size > MAX_GLOBALS) errs.push(`${seen.size} top-level names (ceiling ${MAX_GLOBALS}): keep new helpers local, or raise MAX_GLOBALS on purpose`);
+  if (lets > MAX_LETS) errs.push(`${lets} top-level let/var (ceiling ${MAX_LETS}): mutable page state belongs in an existing state object`);
+  globals = seen.size;
 }
 
 // i18n parity: run both files in a sandbox, compare key sets (arrays such as wd count as one key)
@@ -45,4 +53,4 @@ const miss = (a, b, name) => Object.keys(a).filter(k => !(k in b)).forEach(k => 
 miss(en, vi, "i18n-vi.js"); miss(vi, en, "i18n-en.js");
 
 if (errs.length) { console.error("check-assets:\n  " + errs.join("\n  ")); process.exit(1); }
-console.log(`Asset check ok: ${files.length} files wired, ${Object.keys(en).length} i18n keys in both languages`);
+console.log(`Asset check ok: ${files.length} files wired, ${Object.keys(en).length} i18n keys in both languages, ${globals}/${MAX_GLOBALS} globals, ${lets}/${MAX_LETS} let/var`);

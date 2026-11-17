@@ -1,5 +1,6 @@
 package dev.kidguard.parent
 
+import dev.kidguard.Langs
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity

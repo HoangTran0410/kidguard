@@ -214,17 +214,11 @@
     <string name="basic_battery_d">Otherwise the phone may stop KidGuard to save battery.</string>
     <string name="basic_update">Let KidGuard update itself</string>
     <string name="basic_update_d">Turn on "Allow from this source". New versions then install by themselves, with nothing for the child to tap.</string>
-    <string name="basic_autostart">Allow autostart (Oppo, Xiaomi, Vivo…)</string>
     <string name="basic_play_protect">Blocked by Google Play Protect? Open Play Store → profile picture → Play Protect → ⚙ → turn off \"Scan apps with Play Protect\". Turn it back on after setup.</string>
 
     <!-- Device Owner checklist -->
-    <string name="prov_usage">Turn on usage access</string>
     <string name="acc_restricted">Allow restricted settings (Android 13+)</string>
     <string name="acc_restricted_d">Accessibility says \"Restricted setting\"? Tap OK, open this, tap ⋮ (top right) → \"Allow restricted settings\". Then turn Accessibility on again.</string>
-    <string name="prov_acc">Turn on KidGuard Accessibility</string>
-    <string name="prov_title">Steps left</string>
-    <string name="prov_intro">Turn on these 2 permissions so KidGuard works fully</string>
-    <string name="prov_done">Done: %1$s</string>
     <string name="prov_secure_yes">Turns Accessibility back on by itself: yes</string>
     <string name="prov_secure_no">Optional: for Accessibility to come back by itself, use a computer or Wireless debugging</string>
 
@@ -401,7 +395,6 @@
     <string name="ssa_wd_off">Wireless debugging is not on yet.</string>
 
     <!-- Child main screen -->
-    <string name="main_tagline">Helping kids use their phone safely</string>
     <string name="main_code_stop">Turn off code now</string>
     <string name="main_code_label">PAIRING CODE</string>
     <string name="main_code_left">PAIRING CODE · %1$s LEFT</string>
@@ -424,15 +417,10 @@
     <string name="ev_recover_req">The child\'s phone asked to reopen pairing: it opens in 24 hours. Set a PIN to cancel.</string>
     <string name="main_recover_title">Pairing opens in 24 hours</string>
     <string name="main_recover_body">The pairing code shows after 24 hours, and your parent is told right away. A parent who can still manage the phone sets a PIN to cancel.</string>
-    <string name="main_battery">Battery / autostart settings</string>
     <!-- language row: both languages in the label so whoever reads either one finds it; names come from Langs.ALL -->
     <string name="lang_title">Language / Ngôn ngữ</string>
     <string name="lang_system">Phone setting</string>
     <string name="main_self">Full setup without a computer (Android 11+)</string>
-    <plurals name="main_hold">
-        <item quantity="one">Hold the button for %1$d second</item>
-        <item quantity="other">Hold the button for %1$d seconds</item>
-    </plurals>
     <string name="st_owner">Managed by your parent</string>
     <string name="st_basic">Basic mode: KidGuard is protecting this phone</string>
     <string name="st_unfinished">Setup not finished: do the steps in \"To do\" below</string>
@@ -525,8 +513,6 @@
     <string name="log_more">Asked for more time</string>
     <string name="more_sent">Sent to your parent</string>
     <string name="more_sent_body">You\'ll get a notification when your parent answers.</string>
-    <string name="more_fail">Couldn\'t send</string>
-    <string name="more_fail_body">Too many requests are still waiting for an answer.</string>
     <string name="msg_title">Message from your parent</string>
     <string name="msg_read">Got it</string>
     <string name="chat_title">Chat with your parents</string>
@@ -624,8 +610,6 @@
         <item quantity="one">%1$d thing to check</item>
         <item quantity="other">%1$d things to check</item>
     </plurals>
-    <string name="home_status">Protection status</string>
-    <string name="home_status_sub">What KidGuard needs to work well on this phone.</string>
     <string name="home_status_desc">%1$s. Tap for details</string>
     <string name="home_version">KidGuard %1$s</string>
     <string name="home_sos">SOS</string>
@@ -714,8 +698,6 @@
     <string name="files_st_opened">Opened</string>
     <string name="files_st_gone">Deleted</string>
     <!-- v0.9.9 kid launcher (HomeActivity) -->
-    <string name="hm_title">Kid home screen</string>
-    <string name="hm_swipe">Swipe up for all apps</string>
     <string name="hm_all_apps">All apps</string>
     <string name="hm_search">Search apps</string>
     <string name="hm_no_result">No app matches “%1$s”</string>
@@ -753,10 +735,7 @@
     <string name="hm_edit_home">Edit Home Screen</string>
     <string name="hm_open_kg">Open KidGuard</string>
     <string name="hm_customize">Customize</string>
-    <string name="hm_soon_title">Coming soon</string>
-    <string name="hm_soon_body">Styles, wallpapers, widgets and folders come in the next version.</string>
     <string name="hm_phone">Phone</string>
-    <string name="hm_calls">Emergency calls</string>
     <string name="hm_112">112 · Search and rescue</string>
     <string name="hm_113">113 · Police</string>
     <string name="hm_114">114 · Fire</string>
@@ -812,8 +791,6 @@
     <string name="hm_f_social">Social</string>
     <string name="hm_f_study">Study</string>
     <string name="hm_w_search">Search widgets</string>
-    <string name="hm_w_add">Add</string>
-    <string name="hm_w_in_use">In use</string>
     <string name="hm_w_title">Widgets</string>
     <string name="hm_w_time">Time left</string>
     <string name="hm_w_time_d">Screen time left today</string>
@@ -950,7 +927,6 @@
     <string name="hm_c_soft_opt">Soft</string>
     <string name="hm_c_with_labels">with names</string>
     <string name="hm_c_no_labels">no names</string>
-    <string name="hm_c_style">Style</string>
     <string name="hm_c_home">Home screen</string>
     <string name="hm_c_cols">Columns</string>
     <string name="hm_c_icon">Icon size</string>
@@ -1000,10 +976,6 @@
     <string name="hm_c_less">Fewer: %1$s</string>
     <string name="hm_c_more">More: %1$s</string>
     <string name="hm_c_selected">selected</string>
-    <string name="hm_c_be">Little kid</string>
-    <string name="hm_c_teen">Teen</string>
-    <string name="hm_c_gon">Clean</string>
-    <string name="hm_c_grid">%1$d×%2$d grid</string>
     <string name="hm_c_wall_n">Wallpaper %1$d</string>
     <string name="hm_c_pick">Pick photo</string>
     <string name="hm_c_picking">Opening…</string>
@@ -1031,7 +1003,6 @@
     <string name="cc_notifs">Notifications</string>
     <string name="cc_bright">Brightness</string>
     <string name="cc_volume">Volume</string>
-    <string name="cc_more">Phone\'s quick settings</string>
     <string name="cc_locked">A parent manages this</string>
     <string name="cc_no_off">A parent keeps this on</string>
     <string name="cc_failed">This phone does not allow changing it here</string>
@@ -1040,11 +1011,9 @@
     <string name="hm_sc_added">Added "%1$s" to the home screen</string>
     <string name="hm_sc_fail">This shortcut can\'t open now</string>
     <string name="hm_sc_app">Shortcut broken, opened the app instead</string>
-    <string name="hm_sc_rm">The shortcut leaves the home screen. The app stays.</string>
     <string name="main_need_pair_title">%1$s: pair with a parent first</string>
     <string name="main_need_pair_body">This phone isn\'t paired with a parent\'s phone, so it can\'t send the message.\n\nTo pair: a parent holds \"Parents: show the pairing code\" at the top of this screen for 5 seconds, then scans the code.</string>
     <string name="nlog_title">Notification history</string>
-    <string name="nlog_menu">Notification history</string>
     <string name="nlog_clear">Clear all</string>
     <string name="nlog_clear_body">Deletes the list on this phone. It can\'t be undone.</string>
     <string name="nlog_clear_ok">Clear</string>

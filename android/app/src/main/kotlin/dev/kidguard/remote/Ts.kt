@@ -54,8 +54,7 @@ object TsLogic {
     }.getOrNull()?.takeIf { Regex("[A-Za-z0-9._-]{4,100}\\.apk").matches(it) }
 
     /** First token of a `.sha256` file, lower case, or null if it isn't 64 hex digits. */
-    fun sha256Of(text: String): String? =
-        text.trim().split(Regex("\\s+")).firstOrNull()?.lowercase()?.takeIf { Regex("[0-9a-f]{64}").matches(it) }
+    fun sha256Of(text: String): String? = Release.sha256Of(text)
 
     // Keep-alive ([Ts.keep]): Tailscale killed (HyperOS "clean all", Recents swipe, battery saver) leaves no tunnel.
     const val RECEIVER = "com.tailscale.ipn.IPNReceiver"

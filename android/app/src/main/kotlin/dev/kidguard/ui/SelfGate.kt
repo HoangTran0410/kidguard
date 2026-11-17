@@ -23,24 +23,10 @@ object SelfGate {
             Modal(act, u).show(R.drawable.li_shield, Modal.Tone.WARN, act.getString(R.string.self_gate_t), act.getString(R.string.self_gate_nopin))
             return
         }
-        fun lockText(left: Long) = ((left + 59_999) / 60_000).toInt().let { act.resources.getQuantityString(R.plurals.pin_locked, it, it) }
-        s.localPinLockLeft().takeIf { it > 0 }?.let { Modal(act, u).show(R.drawable.li_triangle_alert, Modal.Tone.WARN, act.getString(R.string.locked_title), lockText(it)); return }
-        val m = Modal(act, u)
-        val input = m.field(act.getString(R.string.pin_field), 12, pin = true)
-        m.show(R.drawable.li_shield, Modal.Tone.INFO, act.getString(R.string.self_gate_t), act.getString(R.string.self_gate_b), KidNow.withForgot(act, u, input),
-            ok = act.getString(R.string.pin_ok), cancel = act.getString(R.string.cancel)) {
-            if (s.checkPinOnPhone(input.text.toString().filter { it.isDigit() })) {
-                s.selfOpenUntil = System.currentTimeMillis() + CmdGate.SELF_OPEN_MS
-                runCatching { s.log(R.string.log_self_open) }
-                then(); true
-            } else {
-                input.setText("")
-                m.setError(s.localPinLockLeft().takeIf { it > 0 }?.let { lockText(it) }
-                    ?: s.localPinTriesLeft().takeIf { it in 1..4 }?.let { act.resources.getQuantityString(R.plurals.pin_wrong_left, it, it) }
-                    ?: act.getString(R.string.pin_wrong))
-                false
-            }
+        PinAsk.local(act, u, R.string.self_gate_t, R.string.self_gate_b) {
+            s.selfOpenUntil = System.currentTimeMillis() + CmdGate.SELF_OPEN_MS
+            runCatching { s.log(R.string.log_self_open) }
+            then()
         }
-        input.requestFocus()
     }
 }

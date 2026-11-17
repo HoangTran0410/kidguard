@@ -392,7 +392,7 @@ class Acc : AccessibilityService() {
         }
 
         /** App info page, where the ⋮ menu has "Allow restricted settings". */
-        fun appInfo(ctx: Context) = android.content.Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${ctx.packageName}")).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        fun appInfo(ctx: Context) = Intents.appDetails(ctx)
 
         /**
          * Turns our service back on if the child turned it off (needs WRITE_SECURE_SETTINGS from setup).

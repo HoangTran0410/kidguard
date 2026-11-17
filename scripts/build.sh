@@ -24,6 +24,7 @@ node scripts/check-select.mjs   # select-by-date rules of the page = SelLogic.kt
 node scripts/check-search.mjs   # every page section must be findable in the feature search
 node scripts/check-perms.mjs    # every declared permission: how Device Owner / basic+adb / basic get it (docs/permissions.md)
 node scripts/check-need.mjs     # every command / rule key newer than the baseline is in NEED (kid.js): old kid apps get "update"
+node scripts/check-setup.mjs     # the 4 setup paths grant the same things
 node scripts/check-assets.mjs   # every ui/assets file wired in index.html + relay; i18n keys in both languages
 scripts/check-js.sh              # page-script runtime bugs node --check misses (const reassign, ...)
 (cd android && ./gradlew -q ${OPTS[@]+"${OPTS[@]}"} testKidDebugUnitTest assembleKidRelease assembleHomeRelease :parent:testDebugUnitTest :parent:assembleRelease)

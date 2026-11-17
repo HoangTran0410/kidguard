@@ -58,9 +58,7 @@ object FeaturesSheet {
         return if (r != 0) act.getString(r) else id
     }
 
-    private fun open(act: Activity, vararg i: Intent) {
-        for (x in i) if (runCatching { act.startActivity(x.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return
-    }
+    private fun open(act: Activity, vararg i: Intent) { Intents.startFirst(act, *i) }
 
     private fun guide(act: Activity, u: Ui, title: Int, body: Int) {
         Modal(act, u).show(R.drawable.li_shield, Modal.Tone.INFO, act.getString(title), act.getString(body),
@@ -89,28 +87,22 @@ object FeaturesSheet {
     fun fix(act: Activity, u: Ui, cap: String, pair: () -> Unit) {
         // pages the anti-tamper closes on a paired basic phone: parent PIN first (SelfGate), then the page
         if (cap in GATED && !SelfGate.free(act)) { SelfGate.run(act, u) { fix(act, u, cap, pair) }; return }
-        val pkg = Uri.parse("package:${act.packageName}")
         fun granted(p: String) = act.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
         when (cap) {
-            "admin" -> open(act, Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
-                .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, Policy.admin(act))
-                .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, act.getString(R.string.basic_admin_expl)))
-            "acc" -> open(act, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            "usage" -> open(act, Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, pkg), Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+            "admin", "acc", "usage", "battery" -> open(act, *Intents.forCap(act, cap).toTypedArray())
             "location" -> {
                 if (!granted(Manifest.permission.ACCESS_FINE_LOCATION))
                     act.requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 41)
                 else {
-                    if (Build.VERSION.SDK_INT >= 30) open(act, Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg))
+                    if (Build.VERSION.SDK_INT >= 30) open(act, Intents.appDetails(act))
                     act.requestPermissions(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), 42)
                 }
             }
             "notify" -> act.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 43)
-            "battery" -> open(act, Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkg), Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
             "home" -> {
                 // no Device Owner: make sure the HOME component is enabled right now, so KidGuard is in the list that opens
                 if (!Policy.isOwner(act)) LauncherSafe.setLocal(act, true)
-                open(act, Intent(Settings.ACTION_HOME_SETTINGS), Intent(Settings.ACTION_SETTINGS))
+                open(act, *Intents.forCap(act, "home").toTypedArray())
             }
             "owner" -> tamper(act, u)
             // the guided 3-step screen (live status per step), pairing only: the bare Developer options page + a code

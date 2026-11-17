@@ -16,7 +16,6 @@
     <string name="ev_tamper_acc_off">Dịch vụ trợ năng đang tắt: app chưa bị chặn cho tới khi bật lại</string>
     <string name="ev_tamper_boot">Máy vừa khởi động lại</string>
     <string name="lost_default_msg">Máy này bị thất lạc. Xin gọi cho chủ máy.</string>
-    <string name="lost_info">%1$s · %2$s</string>
     <string name="notif_sos_seen">Bố mẹ đã thấy tin SOS của con</string>
     <string name="support_bed">Giờ ngủ. Mở lại lúc %1$s.</string>
     <string name="support_bed_ask">Giờ ngủ. Mở lại lúc %1$s. Con có thể xin thêm giờ trong KidGuard.</string>

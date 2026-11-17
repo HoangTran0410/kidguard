@@ -16,7 +16,6 @@
     <string name="ev_tamper_acc_off">The accessibility service is off: apps are not blocked until it is back on</string>
     <string name="ev_tamper_boot">The phone was restarted</string>
     <string name="lost_default_msg">This phone is lost. Please call the owner.</string>
-    <string name="lost_info">%1$s · %2$s</string>
     <string name="notif_sos_seen">Your parent has seen your SOS</string>
     <string name="support_bed">Bedtime. Opens again at %1$s.</string>
     <string name="support_bed_ask">Bedtime. Opens again at %1$s. You can ask for more time in KidGuard.</string>

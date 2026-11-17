@@ -65,7 +65,7 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
             autostartIntent(a)?.let { if (runCatching { a.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return }
             // App info has "Force stop": basic mode bounces it (self-protection), so it opens the battery list there
             if (!Policy.isOwner(a) && runCatching { a.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return
-            runCatching { a.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            runCatching { a.startActivity(Intents.appDetails(a)) }
         }
     }
 
@@ -78,12 +78,13 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         open(i)
     }
     private fun open(vararg i: Intent) = SelfGate.run(act, ui) { openNow(*i) }
-    private fun openNow(vararg i: Intent) { for (x in i) if (runCatching { act.startActivity(x.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return }
+    private fun openNow(vararg i: Intent) { Intents.startFirst(act, *i) }
+    private fun cap(id: String) = open(*Intents.forCap(act, id).toTypedArray())
     /** Asks for [perms]; once Android stops showing its dialog (denied twice) the tap opens the app's settings page instead. */
     private fun request(code: Int, vararg perms: String) {
         val p = act.getSharedPreferences("setup_ask", android.content.Context.MODE_PRIVATE)
         val silent = p.getBoolean(perms[0], false) && perms.none { act.shouldShowRequestPermissionRationale(it) }
-        if (silent) return open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${act.packageName}")))
+        if (silent) return open(Intents.appDetails(act))
         p.edit().putBoolean(perms[0], true).apply()
         act.requestPermissions(perms, code)
     }
@@ -92,23 +93,20 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
     private fun steps(): List<Step> {
         val c = act
         val owner = Policy.isOwner(c)
-        val pkg = Uri.parse("package:${c.packageName}")
         val out = ArrayList<Step>()
         if (!owner) out += Step(s(R.string.basic_admin), s(R.string.basic_admin_d), Basic.adminActive(c)) {
-            c.startActivity(Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
-                .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, Policy.admin(c))
-                .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, c.getString(R.string.basic_admin_expl)))
+            Intents.startFirst(c, *Intents.forCap(c, "admin").toTypedArray())
         }
         if (Build.VERSION.SDK_INT >= 33) out += Step(s(R.string.acc_restricted), s(R.string.acc_restricted_d), !Acc.restricted(c)) { SelfGate.run(act, ui) { runCatching { c.startActivity(Acc.appInfo(c)) } } }
-        out += Step(s(R.string.basic_acc), s(R.string.basic_acc_d), Acc.isOn(c) || AccPause.active(c)) { open(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-        out += Step(s(R.string.basic_usage), s(R.string.basic_usage_d), Usage.granted(c)) { open(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, pkg), Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
+        out += Step(s(R.string.basic_acc), s(R.string.basic_acc_d), Acc.isOn(c) || AccPause.active(c)) { cap("acc") }
+        out += Step(s(R.string.basic_usage), s(R.string.basic_usage_d), Usage.granted(c)) { cap("usage") }
         if (!owner) {
             val fine = c.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
             val locOk = Basic.locationOk(c)
             if (!fine || locOk) out += Step(s(R.string.basic_loc), s(R.string.basic_loc_d), locOk) {
                 request(41, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
             } else out += Step(s(R.string.basic_loc_bg), s(R.string.basic_loc_bg_d), false) {
-                if (Build.VERSION.SDK_INT >= 30) open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg))
+                if (Build.VERSION.SDK_INT >= 30) open(Intents.appDetails(c))
                 c.requestPermissions(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), 42)
             }
             if (Build.VERSION.SDK_INT >= 33) out += Step(s(R.string.basic_notif), s(R.string.basic_notif_d), Basic.notifyOk(c)) {
@@ -116,16 +114,16 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
             }
         }
         out += Step(s(R.string.basic_battery), s(R.string.basic_battery_d), Basic.batteryOk(c)) {
-            open(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkg), Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            cap("battery")
         }
         // basic mode, Android 12+: updates install by themselves (Update.installQuiet) instead of asking the child later
         if (!owner && Build.VERSION.SDK_INT >= 31) out += Step(s(R.string.basic_update), s(R.string.basic_update_d), c.packageManager.canRequestPackageInstalls()) {
-            open(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, pkg), Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg))
+            cap("install")
         }
         // OEM battery managers kill KidGuard even with the steps above done (Nam's realme went silent for hours, owner
         // 2026-11-17): auto-start, the OEM's own "background activity" switch and the Recents lock. None can be read back.
         val st = Store.of(c)
-        val info = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)
+        val info = Intents.appDetails(c)
         val auto = autostartIntent(c)
         if (auto != null) out += Step(c.getString(R.string.step_autostart), c.getString(R.string.step_autostart_d), st.autostartOk, { st.autostartOk = true }) { open(auto) }
         else if (colorOs) out += Step(c.getString(R.string.step_autostart), c.getString(R.string.step_autostart_info_d), st.autostartOk, { st.autostartOk = true }) { openOwn(info) }

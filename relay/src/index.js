@@ -463,6 +463,21 @@ export class Gate {
   async alarm() { await this.s.deleteAll(); }
 }
 
+/** Kid DO routes after auth + JSON body: "action METHOD" (or "action" = any method; the method checks itself) -> Kid method. */
+const ROUTES = {
+  "device": "rDevice",
+  "logday": "rLogday",
+  "live": "rLive",
+  "input": "rInput",
+  "sync POST": "rSync",
+  "where GET": "rWhere",
+  "state GET": "rState",
+  "rules PUT": "rRules",
+  "push POST": "rPush",
+  "tg": "rTg",
+  "cmd POST": "rCmd",
+};
+
 export class Kid {
   constructor(ctx, env) {
     this.ctx = ctx; this.s = ctx.storage; this.env = env || {};
@@ -624,40 +639,7 @@ export class Kid {
     }
     if (action === "icon" && req.method === "GET") return this.icon(url);   // older pages: the token in ?k=
     if (action === "call") return this.callRoute(req, url, h === bound, who, now);
-    if (action === "frame") {
-      if (req.method === "POST") {
-        const buf = await req.arrayBuffer();
-        if (buf.byteLength > MAX_FRAME) return json({ error: "too big" }, 413);
-        const err = (req.headers.get("x-kg-err") || "").slice(0, 60);
-        const jpeg = buf.byteLength ? buf : null;
-        this.frame = { seq: ++this.seq, jpeg, w: +req.headers.get("x-kg-w") || 0, h: +req.headers.get("x-kg-h") || 0, at: now, err: jpeg ? "" : err || "no frame" };
-        for (const w of this.waiters) w();
-        const inputs = this.inputs.filter(i => now - i.at <= 5000).map(({ at, ...i }) => i); this.inputs = [];
-        return json({ inputs, live: this.liveUntil > now });
-      }
-      if (req.method === "GET") {
-        const after = +new URL(req.url).searchParams.get("after") || 0;
-        this.liveUntil = Math.max(this.liveUntil, now + 20e3);
-        if (!(this.frame && this.frame.jpeg && this.frame.seq > after)) {
-          await new Promise(res => {
-            const done = () => { clearTimeout(t); this.waiters.delete(done); res(); };
-            const t = setTimeout(done, 5000);
-            this.waiters.add(done);
-          });
-        }
-        const f = this.frame;
-        if (f && f.jpeg && f.seq > after) {
-          return new Response(f.jpeg, { headers: {
-            "content-type": "image/jpeg", "cache-control": "no-store", "x-content-type-options": "nosniff",
-            "x-kg-seq": String(f.seq), "x-kg-w": String(f.w), "x-kg-h": String(f.h), "x-kg-age": String(Date.now() - f.at),
-          } });
-        }
-        const hd = { "cache-control": "no-store" };
-        if (f && f.err) hd["x-kg-err"] = f.err;
-        return new Response(null, { status: 204, headers: hd });
-      }
-      return json({ error: "method not allowed" }, 405);
-    }
+    if (action === "frame") return this.rFrame({ req, now });
     if (action === "file") return this.file(req, url, now);
     let body = null;
     if (req.method !== "GET") {
@@ -666,195 +648,247 @@ export class Kid {
       body = (() => { try { return JSON.parse(new TextDecoder().decode(buf)); } catch { return null; } })();
     }
     if (req.method !== "GET" && !isObj(body)) return json({ error: "bad json" }, 400);
+    const c = { req, url, body, now, role, who, token, id };
 
-    // device health ("Máy" view): parent POST {} asks (the next sync reply says "device": true) and gets the last one
-    // stored; the phone PUTs the snapshot. GET only reads. Stored (<= 32 KB) so the page shows the last one at once.
-    if (action === "device") {
-      if (req.method === "PUT") {
-        if (!isObj(body) || JSON.stringify(body).length > MAX_DEVICE) return json({ error: "too big" }, 413);
-        await this.s.put("device", { ...body, at: now });
-        this.deviceWant = 0;
-        return json({ ok: true });
-      }
-      if (req.method === "POST") this.deviceWant = now;
-      else if (req.method !== "GET") return json({ error: "method not allowed" }, 405);
-      const d = (await this.s.get("device")) || null;
-      return json({ device: d, asked: this.deviceWant, seen: this.seenNow() });
-    }
-    // "Nhật ký" history, one day: parent POST {day} asks (the next sync reply says "logday": day) and gets the last stored
-    // copy of that day; the phone PUTs {day, days, ev, lg, cut} (<= 100 KB). The last KEEP_LOGDAYS days stay stored.
-    if (action === "logday") {
-      const dayOk = d => typeof d === "string" && /^\d{4}-\d\d-\d\d$/.test(d);
-      if (req.method === "PUT") {
-        if (!isObj(body) || !dayOk(body.day)) return json({ error: "bad day" }, 400);
-        if (JSON.stringify(body).length > MAX_LOGDAY) return json({ error: "too big" }, 413);
-        const idx = ((await this.s.get("lgdIdx")) || []).filter(d => d !== body.day); idx.push(body.day);
-        const drop = idx.splice(0, Math.max(0, idx.length - KEEP_LOGDAYS));
-        await this.s.put({ ["lgd:" + body.day]: { ...body, at: now }, lgdIdx: idx });
-        if (drop.length) await this.s.delete(drop.map(d => "lgd:" + d));
-        this.lgdWant.delete(body.day);
-        return json({ ok: true });
-      }
-      const day = req.method === "POST" ? body.day : url.searchParams.get("day");
-      if (!dayOk(day)) return json({ error: "bad day" }, 400);
-      if (req.method === "POST") { this.lgdWant.set(day, now); if (this.lgdWant.size > 8) this.lgdWant.delete(this.lgdWant.keys().next().value); }
-      else if (req.method !== "GET") return json({ error: "method not allowed" }, 405);
-      return json({ logday: (await this.s.get("lgd:" + day)) || null, asked: this.lgdWant.get(day) || 0, seen: this.seenNow() });
-    }
-    if (action === "live") {
-      if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
-      this.liveUntil = now + 20e3;
-      return json({ ok: true, phone: this.frame ? now - this.frame.at : -1 });
-    }
-    if (action === "input") {
-      if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
-      const t = body.type, f01 = (v) => typeof v === "number" && v >= 0 && v <= 1;
-      const ok = (t === "tap" || t === "long") ? f01(body.x) && f01(body.y)
-        : t === "swipe" ? f01(body.x1) && f01(body.y1) && f01(body.x2) && f01(body.y2)
-        : t === "key" ? KEYS.includes(body.key)
-        : t === "text" ? typeof body.text === "string" && body.text.length <= 500 : false;
-      if (!ok) return json({ error: "bad input" }, 400);
-      if (this.liveUntil < now) return json({ error: "not live" }, 409);
-      if (this.inputs.length >= 50) return json({ error: "queue full" }, 429);
-      const o = { type: t, at: now };
-      for (const k of ["x", "y", "x1", "y1", "x2", "y2", "key", "text"]) if (k in body) o[k] = body[k];
-      if (t === "swipe") o.ms = Math.min(Math.max(+body.ms || 300, 50), 3000);   // same clamp as Acc.kt
-      this.inputs.push(o);
-      return json({ result: "queued" });
-    }
+    const r = ROUTES[action + " " + req.method] || ROUTES[action];   // routes after the JSON body (Kid.rX methods below)
+    if (r) return this[r](c);
 
-    if (action === "sync" && req.method === "POST") {
-      const out = await this.sync(body, id, netKey(req.headers.get("cf-connecting-ip")), now);
-      return out.error ? json({ error: out.error }, out.status) : json(out);
+    return json({ error: "method not allowed" }, 405);
+  }
+
+  async rFrame({ req, url, body, now, role, who, token, id }) {
+    if (req.method === "POST") {
+      const buf = await req.arrayBuffer();
+      if (buf.byteLength > MAX_FRAME) return json({ error: "too big" }, 413);
+      const err = (req.headers.get("x-kg-err") || "").slice(0, 60);
+      const jpeg = buf.byteLength ? buf : null;
+      this.frame = { seq: ++this.seq, jpeg, w: +req.headers.get("x-kg-w") || 0, h: +req.headers.get("x-kg-h") || 0, at: now, err: jpeg ? "" : err || "no frame" };
+      for (const w of this.waiters) w();
+      const inputs = this.inputs.filter(i => now - i.at <= 5000).map(({ at, ...i }) => i); this.inputs = [];
+      return json({ inputs, live: this.liveUntil > now });
     }
-    if (action === "where" && req.method === "GET") {   // /go: where the phone is reachable now
-      const [state, seen, ipk] = await Promise.all(["state", "seen", "ipk"].map(k => this.s.get(k)));
-      const nk = netKey(req.headers.get("cf-connecting-ip"));
-      const same = !!nk && (ipk || []).includes(await sha256("net:" + nk));
-      const ts = state && state.ts && typeof state.ts.ip === "string" && /^100\.[\d.]+$/.test(state.ts.ip) ? state.ts.ip : "";
-      const lan = state && typeof state.lan === "string" && /^http:\/\/[\d.]+:\d+$/.test(state.lan) ? state.lan : "";
-      return json({ seen: this.seenNow(seen), lan, ts, same, mode: state && state.mode || "" });
-    }
-    if (action === "state" && req.method === "GET") {
-      const [state, rules, seen, cmds, iconV] = await Promise.all(["state", "rules", "seen", "cmds", "iconV"].map(k => this.s.get(k)));
-      if (role === "parent") {   // a parent is looking at a quiet phone: wake it (rate-limited in wakeKid)
-        const heard = this.seenNow(seen), q = Date.now() - heard;
-        if (heard && q >= +(this.env.WAKE_PARENT_MS || WAKE_PARENT) && q < WAKE_DAYS) this.ctx.waitUntil(this.wakeKid(Date.now(), heard, "parent").catch(() => {}));
+    if (req.method === "GET") {
+      const after = +new URL(req.url).searchParams.get("after") || 0;
+      this.liveUntil = Math.max(this.liveUntil, now + 20e3);
+      if (!(this.frame && this.frame.jpeg && this.frame.seq > after)) {
+        await new Promise(res => {
+          const done = () => { clearTimeout(t); this.waiters.delete(done); res(); };
+          const t = setTimeout(done, 5000);
+          this.waiters.add(done);
+        });
       }
-      const st = state ? { ...state, rules: stripPin(state.rules) } : null;
-      // relayOk = last time the relay heard the phone (the phone no longer re-sends it each sync: that alone made every tick a sync)
-      if (st && st.relayOk !== undefined) st.relayOk = Math.max(+st.relayOk || 0, this.seenNow(seen));
-      if (st) st.iconV = iconV || 1;   // GET /icons?v= (one request for every icon)
-      if (role === "parent" && url.searchParams.get("watch") === "1") return json({ ...watchState(st, rules ? stripPin(rules) : null), seen: this.seenNow(seen), pending: (cmds || []).length,
-        queue: (cmds || []).filter(c => live(c, Date.now())).slice(-10).map(c => ({ id: c.id, type: c.type, at: c.at, ...(c.by ? { by: c.by } : {}) })),
-        expired: ((await this.s.get("expired")) || []).slice(-10), tileKey: await sha256("tile:" + token) });
-      return json({ state: st, rules: rules ? stripPin(rules) : null, seen: this.seenNow(seen), pending: (cmds || []).length,
-        queue: (cmds || []).filter(c => live(c, Date.now())).slice(-20).map(c => ({ id: c.id, type: c.type, at: c.at, ...(c.by ? { by: c.by } : {}) })), expired: (await this.s.get("expired")) || [] });
-    }
-    if (action === "rules" && req.method === "PUT") {
-      const [state, old] = await Promise.all([this.s.get("state"), this.s.get("rules")]);
-      const rev = Math.max(Date.now(), (old && old.rev || 0) + 1, (state && state.rules && state.rules.rev || 0) + 1);
-      if (role === "ai") {   // never the PIN or a protection switch: those keep the stored value (the newer of the queued rules and the phone's)
-        const cur = (old && state && state.rules ? ((old.rev || 0) >= (state.rules.rev || 0) ? old : state.rules) : old || (state && state.rules)) || {};
-        for (const k of AI_LOCKED) { delete body[k]; if (!/^pin/.test(k) && k in cur) body[k] = cur[k]; }
+      const f = this.frame;
+      if (f && f.jpeg && f.seq > after) {
+        return new Response(f.jpeg, { headers: {
+          "content-type": "image/jpeg", "cache-control": "no-store", "x-content-type-options": "nosniff",
+          "x-kg-seq": String(f.seq), "x-kg-w": String(f.w), "x-kg-h": String(f.h), "x-kg-age": String(Date.now() - f.at),
+        } });
       }
-      // the sync reply carries rules + queued commands and the phone refuses replies over 256 KB: keep both small
-      if (JSON.stringify(body).length > MAX_RULES) return json({ error: "too big" }, 413);
-      const rules = { ...body, rev };
-      if (who) rules.by = who; else delete rules.by;   // who changed them (the phone logs it)
-      // a new PIN arrives in plain: keep only the hash the phone uses (sha256 of "kg:" + PIN). No PIN given: keep the old hash.
-      const pin = String(rules.pin || "").replace(/\D/g, "");
-      // pinAt: when the hash last changed, so the phone takes it once and a newer PIN set on LAN is not reverted
-      if (pin.length >= 4) { rules.pinHash = await sha256("kg:" + pin); rules.pinAt = rev;
-        // checks joins at once; "pvWeb" when the phone never sent pv (old phone), so a PIN set from the shared link does not lock that link
-        await this.s.put((await this.s.get("pv")) ? "pv" : "pvWeb", { h: rules.pinHash, s: "" }); }
-      else if (typeof rules.pinHash === "string" && /^[0-9a-f]{64}$/.test(rules.pinHash)) rules.pinAt = rev;
-      else if (old && old.pinHash) { rules.pinHash = old.pinHash; rules.pinAt = old.pinAt || 1; }
-      else if (old && old.pinSet) { rules.pinAt = old.pinAt || 1; }   // hash already taken by the phone and dropped here
-      else { delete rules.pinHash; delete rules.pinAt; }
-      const keepSet = !rules.pinHash && !!(old && old.pinSet);
-      delete rules.pin; delete rules.pinSet;
-      if (keepSet) rules.pinSet = true;
-      await this.s.put("rules", rules);
-      // "Resume all" only PUTs rules (pausedUntil 0): a `lock` still queued for an offline phone must not fire after it
-      const nowMs = Date.now();
-      if (!(+rules.pausedUntil > nowMs) && ((old && +old.pausedUntil > nowMs) || (state && state.rules && +state.rules.pausedUntil > nowMs))) {
-        const q = (await this.s.get("cmds")) || [], keep = q.filter(c => c.type !== "lock");
-        if (keep.length !== q.length) await this.s.put("cmds", keep);
-      }
-      return json(stripPin(rules));
-    }
-    if (action === "push" && req.method === "POST") {   // parent app: {fcm: token} registers, {fcm, off: true} removes
-      const t = typeof body.fcm === "string" ? body.fcm : "";
-      if (!FCM_TOKEN.test(t)) return json({ error: "bad token" }, 400);
-      const list = ((await this.s.get("push")) || []).filter(x => x !== t);
-      if (!body.off) { list.push(t); while (list.length > MAX_PUSH) list.shift(); }
-      await this.s.put("push", list);
-      return json({ ok: true, enabled: !!this.env.FCM_SA, devices: list.length });
-    }
-    if (action === "tg") {   // Telegram alerts: GET status; POST {name, lang} -> one-time link; POST {off: true} unlinks
-      if (!this.env.TG_BOT) return json({ enabled: false });
-      const tg = (await this.s.get("tg")) || null;
-      if (req.method === "GET") return json({ enabled: true, linked: !!(tg && tg.chat) });
-      if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
-      if (body.off) { await this.s.delete(["tg", "tgCode"]); return json({ enabled: true, linked: false }); }
-      const bot = await tgBotName(this.env);
-      if (!bot) return json({ error: "telegram unreachable" }, 502);
-      const code = id + [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, "0")).join("");
-      const name = String(body.name || "").replace(/[\u0000-\u001f<>]/g, "").slice(0, 30), lang = body.lang === "en" ? "en" : "vi";
-      await this.s.put("tgCode", { code, exp: now + 15 * 60e3, name, lang });
-      return json({ enabled: true, linked: !!(tg && tg.chat), link: `https://t.me/${bot}?start=${code}` });
-    }
-    if (action === "cmd" && req.method === "POST") {
-      const type = String(body.type || ""); let cut = null;
-      if (role === "ai" && !AI_CMDS.includes(type)) return json({ error: "ai token: not allowed" }, 403);
-      if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
-      if (type === "aiToken") {   // the page makes the token; here only the shape, and a revoke takes effect at once (the phone follows)
-        if (!(body.op === "revoke" || (body.op === "set" && /^[0-9a-f]{64}$/.test(String(body.hash || ""))))) return json({ error: "bad command" }, 400);
-        // revoke AND a new code: the old code dies here at once; the new one works after the phone took it (its next sync
-        // brings the hash; a wrong PIN = the phone keeps the old one and its sync puts it back)
-        // the phone's syncs until it ran this command still carry the old hash: ignore that one until it acks (aiCut)
-        cut = (await this.s.get("aiHash")) || ((await this.s.get("aiCut")) || {}).h || "";   // a cut still waiting keeps its hash
-        await this.s.delete("aiHash"); this.aiSeen = undefined;
-      }
-      if (type === "clearData" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
-      if (type === "snap" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && ["front", "back"].includes(body.cam) && ["off", "on", "auto"].includes(body.flash) && ["small", "medium"].includes(body.size) && Number.isInteger(body.delay) && body.delay >= 0 && body.delay <= 5)) return json({ error: "bad snap" }, 400);
-      if (type === "smsPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad smsPull" }, 400);
-      // bulk deletes: {ids:[<=200 x 16 hex]} (chatFileDel / chatDel / snapDel; chatFileDel also the old single {id}); fileDel {files:[...]} or the old {file}
-      const idsOk = (a) => Array.isArray(a) && a.length >= 1 && a.length <= 200 && a.every(x => /^[0-9a-f]{16}$/.test(String(x)));
-      if (type === "chatFileDel" && !(body.ids !== undefined ? idsOk(body.ids) : /^[0-9a-f]{16}$/.test(String(body.id || "")))) return json({ error: "bad chatFileDel" }, 400);
-      if ((type === "chatDel" || type === "snapDel") && !idsOk(body.ids)) return json({ error: "bad " + type }, 400);
-      if (type === "fileDel" && body.files !== undefined && !idsOk(body.files)) return json({ error: "bad fileDel" }, 400);
-      if (type === "snapUp" && !(/^[0-9a-f]{16}$/.test(String(body.id || "")) && (body.thumb === undefined || body.thumb === 1))) return json({ error: "bad snapUp" }, 400);
-      if (type === "snapList" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad snapList" }, 400);
-      if (type === "chatPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad chatPull" }, 400);
-      if (type === "notifPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad notifPull" }, 400);
-      // PIN-gated commands (protocol "PIN-gated commands"): the phone checks the PIN; here only the shape
-      if (body.pin !== undefined && !/^\d{0,8}$/.test(String(body.pin))) return json({ error: "bad pin" }, 400);
-      if ((type === "pinSet" || type === "pinReset") && !/^\d{4,8}$/.test(String(body.new || ""))) return json({ error: "bad pin" }, 400);
-      if (type === "setting" && !(SETTING_KEYS.includes(body.key) && (typeof body.value === "boolean" || Number.isFinite(body.value)))) return json({ error: "bad setting" }, 400);
-      // expired commands are only dropped on a phone sync: don't let them fill the queue
-      const stored = (await this.s.get("cmds")) || [], cmds = stored.filter(c => live(c, now));
-      if (cmds.length !== stored.length) await this.s.put("expired", expiredOf(await this.s.get("expired"), stored.filter(c => !live(c, now)), now));
-      // full queue: a new command first replaces a still-queued older one of the same kind (same type + same target field), never
-      // one already handed out and never a destructive (ONCE) one; only when still full: refuse (the oldest may be a pending release)
-      if (cmds.length >= MAX_CMDS && type in REPLACE && !ONCE.includes(type)) {
-        const f = REPLACE[type], i = cmds.findIndex(o => o.type === type && !o.sent && (!f || o[f] === body[f]));
-        if (i >= 0) cmds.splice(i, 1);
-      }
-      if (cmds.length >= MAX_CMDS) return json({ error: "queue full" }, 429);
-      const c = { ...body, type, id: typeof body.id === "string" && /^[\w.-]{1,64}$/.test(body.id) ? body.id : crypto.randomUUID(), at: now };
-      delete c.sent;
-      // `answer`: the request id may not be a legal command id; keep it apart so the phone never answers the wrong request
-      if (type === "answer") c.req = String(body.req || body.id || "").slice(0, 200);
-      if (who) c.by = who; else delete c.by;   // the phone logs who sent it (docs/protocol.md "Parents")
-      if (JSON.stringify(c).length > MAX_CMD) return json({ error: "too big" }, 413);
-      cmds.push(c);
-      await this.s.put("cmds", cmds);
-      if (cut !== null) await this.s.put("aiCut", { h: cut, id: c.id });
-      return json({ result: "queued" });
+      const hd = { "cache-control": "no-store" };
+      if (f && f.err) hd["x-kg-err"] = f.err;
+      return new Response(null, { status: 204, headers: hd });
     }
     return json({ error: "method not allowed" }, 405);
+  }
+
+  // device health ("Máy" view): parent POST {} asks (the next sync reply says "device": true) and gets the last one
+  // stored; the phone PUTs the snapshot. GET only reads. Stored (<= 32 KB) so the page shows the last one at once.
+  async rDevice({ req, url, body, now, role, who, token, id }) {
+    if (req.method === "PUT") {
+      if (!isObj(body) || JSON.stringify(body).length > MAX_DEVICE) return json({ error: "too big" }, 413);
+      await this.s.put("device", { ...body, at: now });
+      this.deviceWant = 0;
+      return json({ ok: true });
+    }
+    if (req.method === "POST") this.deviceWant = now;
+    else if (req.method !== "GET") return json({ error: "method not allowed" }, 405);
+    const d = (await this.s.get("device")) || null;
+    return json({ device: d, asked: this.deviceWant, seen: this.seenNow() });
+  }
+
+  // "Nhật ký" history, one day: parent POST {day} asks (the next sync reply says "logday": day) and gets the last stored
+  // copy of that day; the phone PUTs {day, days, ev, lg, cut} (<= 100 KB). The last KEEP_LOGDAYS days stay stored.
+  async rLogday({ req, url, body, now, role, who, token, id }) {
+    const dayOk = d => typeof d === "string" && /^\d{4}-\d\d-\d\d$/.test(d);
+    if (req.method === "PUT") {
+      if (!isObj(body) || !dayOk(body.day)) return json({ error: "bad day" }, 400);
+      if (JSON.stringify(body).length > MAX_LOGDAY) return json({ error: "too big" }, 413);
+      const idx = ((await this.s.get("lgdIdx")) || []).filter(d => d !== body.day); idx.push(body.day);
+      const drop = idx.splice(0, Math.max(0, idx.length - KEEP_LOGDAYS));
+      await this.s.put({ ["lgd:" + body.day]: { ...body, at: now }, lgdIdx: idx });
+      if (drop.length) await this.s.delete(drop.map(d => "lgd:" + d));
+      this.lgdWant.delete(body.day);
+      return json({ ok: true });
+    }
+    const day = req.method === "POST" ? body.day : url.searchParams.get("day");
+    if (!dayOk(day)) return json({ error: "bad day" }, 400);
+    if (req.method === "POST") { this.lgdWant.set(day, now); if (this.lgdWant.size > 8) this.lgdWant.delete(this.lgdWant.keys().next().value); }
+    else if (req.method !== "GET") return json({ error: "method not allowed" }, 405);
+    return json({ logday: (await this.s.get("lgd:" + day)) || null, asked: this.lgdWant.get(day) || 0, seen: this.seenNow() });
+  }
+
+  async rLive({ req, url, body, now, role, who, token, id }) {
+    if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+    this.liveUntil = now + 20e3;
+    return json({ ok: true, phone: this.frame ? now - this.frame.at : -1 });
+  }
+
+  async rInput({ req, url, body, now, role, who, token, id }) {
+    if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+    const t = body.type, f01 = (v) => typeof v === "number" && v >= 0 && v <= 1;
+    const ok = (t === "tap" || t === "long") ? f01(body.x) && f01(body.y)
+      : t === "swipe" ? f01(body.x1) && f01(body.y1) && f01(body.x2) && f01(body.y2)
+      : t === "key" ? KEYS.includes(body.key)
+      : t === "text" ? typeof body.text === "string" && body.text.length <= 500 : false;
+    if (!ok) return json({ error: "bad input" }, 400);
+    if (this.liveUntil < now) return json({ error: "not live" }, 409);
+    if (this.inputs.length >= 50) return json({ error: "queue full" }, 429);
+    const o = { type: t, at: now };
+    for (const k of ["x", "y", "x1", "y1", "x2", "y2", "key", "text"]) if (k in body) o[k] = body[k];
+    if (t === "swipe") o.ms = Math.min(Math.max(+body.ms || 300, 50), 3000);   // same clamp as Acc.kt
+    this.inputs.push(o);
+    return json({ result: "queued" });
+  }
+
+  async rSync({ req, url, body, now, role, who, token, id }) {
+    const out = await this.sync(body, id, netKey(req.headers.get("cf-connecting-ip")), now);
+    return out.error ? json({ error: out.error }, out.status) : json(out);
+  }
+
+  // /go: where the phone is reachable now
+  async rWhere({ req, url, body, now, role, who, token, id }) {
+    const [state, seen, ipk] = await Promise.all(["state", "seen", "ipk"].map(k => this.s.get(k)));
+    const nk = netKey(req.headers.get("cf-connecting-ip"));
+    const same = !!nk && (ipk || []).includes(await sha256("net:" + nk));
+    const ts = state && state.ts && typeof state.ts.ip === "string" && /^100\.[\d.]+$/.test(state.ts.ip) ? state.ts.ip : "";
+    const lan = state && typeof state.lan === "string" && /^http:\/\/[\d.]+:\d+$/.test(state.lan) ? state.lan : "";
+    return json({ seen: this.seenNow(seen), lan, ts, same, mode: state && state.mode || "" });
+  }
+
+  async rState({ req, url, body, now, role, who, token, id }) {
+    const [state, rules, seen, cmds, iconV] = await Promise.all(["state", "rules", "seen", "cmds", "iconV"].map(k => this.s.get(k)));
+    if (role === "parent") {   // a parent is looking at a quiet phone: wake it (rate-limited in wakeKid)
+      const heard = this.seenNow(seen), q = Date.now() - heard;
+      if (heard && q >= +(this.env.WAKE_PARENT_MS || WAKE_PARENT) && q < WAKE_DAYS) this.ctx.waitUntil(this.wakeKid(Date.now(), heard, "parent").catch(() => {}));
+    }
+    const st = state ? { ...state, rules: stripPin(state.rules) } : null;
+    // relayOk = last time the relay heard the phone (the phone no longer re-sends it each sync: that alone made every tick a sync)
+    if (st && st.relayOk !== undefined) st.relayOk = Math.max(+st.relayOk || 0, this.seenNow(seen));
+    if (st) st.iconV = iconV || 1;   // GET /icons?v= (one request for every icon)
+    if (role === "parent" && url.searchParams.get("watch") === "1") return json({ ...watchState(st, rules ? stripPin(rules) : null), seen: this.seenNow(seen), pending: (cmds || []).length,
+      queue: (cmds || []).filter(c => live(c, Date.now())).slice(-10).map(c => ({ id: c.id, type: c.type, at: c.at, ...(c.by ? { by: c.by } : {}) })),
+      expired: ((await this.s.get("expired")) || []).slice(-10), tileKey: await sha256("tile:" + token) });
+    return json({ state: st, rules: rules ? stripPin(rules) : null, seen: this.seenNow(seen), pending: (cmds || []).length,
+      queue: (cmds || []).filter(c => live(c, Date.now())).slice(-20).map(c => ({ id: c.id, type: c.type, at: c.at, ...(c.by ? { by: c.by } : {}) })), expired: (await this.s.get("expired")) || [] });
+  }
+
+  async rRules({ req, url, body, now, role, who, token, id }) {
+    const [state, old] = await Promise.all([this.s.get("state"), this.s.get("rules")]);
+    const rev = Math.max(Date.now(), (old && old.rev || 0) + 1, (state && state.rules && state.rules.rev || 0) + 1);
+    if (role === "ai") {   // never the PIN or a protection switch: those keep the stored value (the newer of the queued rules and the phone's)
+      const cur = (old && state && state.rules ? ((old.rev || 0) >= (state.rules.rev || 0) ? old : state.rules) : old || (state && state.rules)) || {};
+      for (const k of AI_LOCKED) { delete body[k]; if (!/^pin/.test(k) && k in cur) body[k] = cur[k]; }
+    }
+    // the sync reply carries rules + queued commands and the phone refuses replies over 256 KB: keep both small
+    if (JSON.stringify(body).length > MAX_RULES) return json({ error: "too big" }, 413);
+    const rules = { ...body, rev };
+    if (who) rules.by = who; else delete rules.by;   // who changed them (the phone logs it)
+    // a new PIN arrives in plain: keep only the hash the phone uses (sha256 of "kg:" + PIN). No PIN given: keep the old hash.
+    const pin = String(rules.pin || "").replace(/\D/g, "");
+    // pinAt: when the hash last changed, so the phone takes it once and a newer PIN set on LAN is not reverted
+    if (pin.length >= 4) { rules.pinHash = await sha256("kg:" + pin); rules.pinAt = rev;
+      // checks joins at once; "pvWeb" when the phone never sent pv (old phone), so a PIN set from the shared link does not lock that link
+      await this.s.put((await this.s.get("pv")) ? "pv" : "pvWeb", { h: rules.pinHash, s: "" }); }
+    else if (typeof rules.pinHash === "string" && /^[0-9a-f]{64}$/.test(rules.pinHash)) rules.pinAt = rev;
+    else if (old && old.pinHash) { rules.pinHash = old.pinHash; rules.pinAt = old.pinAt || 1; }
+    else if (old && old.pinSet) { rules.pinAt = old.pinAt || 1; }   // hash already taken by the phone and dropped here
+    else { delete rules.pinHash; delete rules.pinAt; }
+    const keepSet = !rules.pinHash && !!(old && old.pinSet);
+    delete rules.pin; delete rules.pinSet;
+    if (keepSet) rules.pinSet = true;
+    await this.s.put("rules", rules);
+    // "Resume all" only PUTs rules (pausedUntil 0): a `lock` still queued for an offline phone must not fire after it
+    const nowMs = Date.now();
+    if (!(+rules.pausedUntil > nowMs) && ((old && +old.pausedUntil > nowMs) || (state && state.rules && +state.rules.pausedUntil > nowMs))) {
+      const q = (await this.s.get("cmds")) || [], keep = q.filter(c => c.type !== "lock");
+      if (keep.length !== q.length) await this.s.put("cmds", keep);
+    }
+    return json(stripPin(rules));
+  }
+
+  // parent app: {fcm: token} registers, {fcm, off: true} removes
+  async rPush({ req, url, body, now, role, who, token, id }) {
+    const t = typeof body.fcm === "string" ? body.fcm : "";
+    if (!FCM_TOKEN.test(t)) return json({ error: "bad token" }, 400);
+    const list = ((await this.s.get("push")) || []).filter(x => x !== t);
+    if (!body.off) { list.push(t); while (list.length > MAX_PUSH) list.shift(); }
+    await this.s.put("push", list);
+    return json({ ok: true, enabled: !!this.env.FCM_SA, devices: list.length });
+  }
+
+  // Telegram alerts: GET status; POST {name, lang} -> one-time link; POST {off: true} unlinks
+  async rTg({ req, url, body, now, role, who, token, id }) {
+    if (!this.env.TG_BOT) return json({ enabled: false });
+    const tg = (await this.s.get("tg")) || null;
+    if (req.method === "GET") return json({ enabled: true, linked: !!(tg && tg.chat) });
+    if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+    if (body.off) { await this.s.delete(["tg", "tgCode"]); return json({ enabled: true, linked: false }); }
+    const bot = await tgBotName(this.env);
+    if (!bot) return json({ error: "telegram unreachable" }, 502);
+    const code = id + [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, "0")).join("");
+    const name = String(body.name || "").replace(/[\u0000-\u001f<>]/g, "").slice(0, 30), lang = body.lang === "en" ? "en" : "vi";
+    await this.s.put("tgCode", { code, exp: now + 15 * 60e3, name, lang });
+    return json({ enabled: true, linked: !!(tg && tg.chat), link: `https://t.me/${bot}?start=${code}` });
+  }
+
+  async rCmd({ req, url, body, now, role, who, token, id }) {
+    const type = String(body.type || ""); let cut = null;
+    if (role === "ai" && !AI_CMDS.includes(type)) return json({ error: "ai token: not allowed" }, 403);
+    if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
+    if (type === "aiToken") {   // the page makes the token; here only the shape, and a revoke takes effect at once (the phone follows)
+      if (!(body.op === "revoke" || (body.op === "set" && /^[0-9a-f]{64}$/.test(String(body.hash || ""))))) return json({ error: "bad command" }, 400);
+      // revoke AND a new code: the old code dies here at once; the new one works after the phone took it (its next sync
+      // brings the hash; a wrong PIN = the phone keeps the old one and its sync puts it back)
+      // the phone's syncs until it ran this command still carry the old hash: ignore that one until it acks (aiCut)
+      cut = (await this.s.get("aiHash")) || ((await this.s.get("aiCut")) || {}).h || "";   // a cut still waiting keeps its hash
+      await this.s.delete("aiHash"); this.aiSeen = undefined;
+    }
+    if (type === "clearData" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
+    if (type === "snap" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && ["front", "back"].includes(body.cam) && ["off", "on", "auto"].includes(body.flash) && ["small", "medium"].includes(body.size) && Number.isInteger(body.delay) && body.delay >= 0 && body.delay <= 5)) return json({ error: "bad snap" }, 400);
+    if (type === "smsPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad smsPull" }, 400);
+    // bulk deletes: {ids:[<=200 x 16 hex]} (chatFileDel / chatDel / snapDel; chatFileDel also the old single {id}); fileDel {files:[...]} or the old {file}
+    const idsOk = (a) => Array.isArray(a) && a.length >= 1 && a.length <= 200 && a.every(x => /^[0-9a-f]{16}$/.test(String(x)));
+    if (type === "chatFileDel" && !(body.ids !== undefined ? idsOk(body.ids) : /^[0-9a-f]{16}$/.test(String(body.id || "")))) return json({ error: "bad chatFileDel" }, 400);
+    if ((type === "chatDel" || type === "snapDel") && !idsOk(body.ids)) return json({ error: "bad " + type }, 400);
+    if (type === "fileDel" && body.files !== undefined && !idsOk(body.files)) return json({ error: "bad fileDel" }, 400);
+    if (type === "snapUp" && !(/^[0-9a-f]{16}$/.test(String(body.id || "")) && (body.thumb === undefined || body.thumb === 1))) return json({ error: "bad snapUp" }, 400);
+    if (type === "snapList" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad snapList" }, 400);
+    if (type === "chatPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad chatPull" }, 400);
+    if (type === "notifPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad notifPull" }, 400);
+    // PIN-gated commands (protocol "PIN-gated commands"): the phone checks the PIN; here only the shape
+    if (body.pin !== undefined && !/^\d{0,8}$/.test(String(body.pin))) return json({ error: "bad pin" }, 400);
+    if ((type === "pinSet" || type === "pinReset") && !/^\d{4,8}$/.test(String(body.new || ""))) return json({ error: "bad pin" }, 400);
+    if (type === "setting" && !(SETTING_KEYS.includes(body.key) && (typeof body.value === "boolean" || Number.isFinite(body.value)))) return json({ error: "bad setting" }, 400);
+    // expired commands are only dropped on a phone sync: don't let them fill the queue
+    const stored = (await this.s.get("cmds")) || [], cmds = stored.filter(c => live(c, now));
+    if (cmds.length !== stored.length) await this.s.put("expired", expiredOf(await this.s.get("expired"), stored.filter(c => !live(c, now)), now));
+    // full queue: a new command first replaces a still-queued older one of the same kind (same type + same target field), never
+    // one already handed out and never a destructive (ONCE) one; only when still full: refuse (the oldest may be a pending release)
+    if (cmds.length >= MAX_CMDS && type in REPLACE && !ONCE.includes(type)) {
+      const f = REPLACE[type], i = cmds.findIndex(o => o.type === type && !o.sent && (!f || o[f] === body[f]));
+      if (i >= 0) cmds.splice(i, 1);
+    }
+    if (cmds.length >= MAX_CMDS) return json({ error: "queue full" }, 429);
+    const c = { ...body, type, id: typeof body.id === "string" && /^[\w.-]{1,64}$/.test(body.id) ? body.id : crypto.randomUUID(), at: now };
+    delete c.sent;
+    // `answer`: the request id may not be a legal command id; keep it apart so the phone never answers the wrong request
+    if (type === "answer") c.req = String(body.req || body.id || "").slice(0, 200);
+    if (who) c.by = who; else delete c.by;   // the phone logs who sent it (docs/protocol.md "Parents")
+    if (JSON.stringify(c).length > MAX_CMD) return json({ error: "too big" }, 413);
+    cmds.push(c);
+    await this.s.put("cmds", cmds);
+    if (cut !== null) await this.s.put("aiCut", { h: cut, id: c.id });
+    return json({ result: "queued" });
   }
 
   /** Parent tokens: {sha256(token): {n name, k app|web|watch, at, seen, ul (web: unlocked until)}} (docs/protocol.md "Parents"). */

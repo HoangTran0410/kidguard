@@ -1,6 +1,5 @@
 package dev.kidguard
 
-import java.text.Normalizer
 import java.util.Calendar
 
 /**
@@ -42,8 +41,7 @@ object NotifQ {
     }
 
     /** Lower case, no Vietnamese accents (đ -> d): "Tin nhắn" is found by "tin nhan". */
-    fun fold(s: String): String = Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD)
-        .replace(Regex("\\p{Mn}+"), "").replace('đ', 'd')
+    fun fold(s: String): String = Text.fold(s)
 
     /** Search text kept per row. */
     fun searchText(e: NotifEntry): String = fold(listOf(e.app, e.title, e.text, e.bigText, e.subText, e.lines.joinToString(" "),

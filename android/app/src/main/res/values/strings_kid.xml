@@ -11,14 +11,8 @@
     <string name="hm_wk_class_empty">Tap to enter your timetable</string>
     <string name="hm_wk_edit_title">Timetable</string>
     <string name="hm_wk_edit_hint">Tap a period to type its subject, hold to clear it</string>
-    <string name="hm_wk_add">Add subject</string>
     <string name="hm_wk_subject_hint">Subject (e.g. Math)</string>
-    <string name="hm_wk_edit_subject">Edit subject</string>
-    <string name="hm_wk_remove">Remove</string>
-    <string name="hm_wk_remove_desc">Remove %1$s</string>
     <string name="hm_wk_copy">Copy from previous day</string>
-    <string name="hm_wk_full">At most %1$d subjects a day</string>
-    <string name="hm_wk_day_empty">No subjects on this day</string>
     <string name="hm_wk_done">Done</string>
     <string name="hm_wk_d1">Mon</string>
     <string name="hm_wk_d2">Tue</string>

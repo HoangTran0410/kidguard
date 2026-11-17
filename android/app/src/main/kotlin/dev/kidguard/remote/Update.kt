@@ -28,8 +28,7 @@ object UpdateLogic {
     const val DAY_MS = 24 * 3_600_000L
 
     /** "0.9.0" from a `Location: …/releases/tag/v0.9.0` redirect, or null. */
-    fun tagFromLocation(loc: String?): String? =
-        loc?.substringAfterLast("/tag/", "")?.takeIf { Regex("v?\\d{1,4}(\\.\\d{1,4}){1,3}").matches(it) }?.removePrefix("v")
+    fun tagFromLocation(loc: String?): String? = Release.tagFromLocation(loc)
 
     /** True when [a] is a higher dotted version than [b] ("0.10.0" > "0.9.3"); junk compares as 0. */
     fun newer(a: String, b: String): Boolean {

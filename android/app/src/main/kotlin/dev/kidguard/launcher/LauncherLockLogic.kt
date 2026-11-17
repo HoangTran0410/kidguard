@@ -1,7 +1,5 @@
 package dev.kidguard
 
-import java.text.Normalizer
-import java.util.Locale
 
 /**
  * Pure decisions for the home lock without Device Owner (LauncherLock + Acc). Android-free, so it is unit-tested.
@@ -32,5 +30,5 @@ object LauncherLockLogic {
     fun adbDue(lockOn: Boolean, homeIsOurs: Boolean, adbReady: Boolean, last: Long, now: Long): Boolean =
         lockOn && !homeIsOurs && adbReady && now - last >= 20_000
 
-    private fun norm(s: String) = Normalizer.normalize(s.trim(), Normalizer.Form.NFC).lowercase(Locale.ROOT)
+    private fun norm(s: String) = Text.norm(s)
 }

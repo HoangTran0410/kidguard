@@ -1,7 +1,5 @@
 package dev.kidguard
 
-import java.text.Normalizer
-import java.util.Locale
 
 /**
  * Basic mode (no Device Owner), pure part: no Android classes, unit-tested in BasicLogicTest.
@@ -64,7 +62,7 @@ object BasicLogic {
     /** Our accessibility service description (res acc_desc, each language), shown on its detail page where the child can switch it off. */
     private val ACC_DESC = listOf("cho bố mẹ xem màn hình", "lets parents see the screen")
 
-    private fun norm(s: String) = Normalizer.normalize(s.trim(), Normalizer.Form.NFC).lowercase(Locale.ROOT)
+    private fun norm(s: String) = Text.norm(s)
 
     // PlaybackState.STATE_PLAYING / STATE_BUFFERING (plain ints: this file stays Android-free)
     private const val ST_PLAYING = 3

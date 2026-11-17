@@ -641,7 +641,7 @@ class HomeActivity : Activity() {
         topBar.removeAllViews()
         val dragging = drag != null
         topBar.visibility = if (dragging) View.VISIBLE else View.GONE
-        removeBtn = null; removeHot = false
+        removeBtn = null; hov.removeHot = false
         if (!dragging) return
         // a small faded circle; it leans toward the item as it comes near and turns red only inside the drop zone
         val b = ImageView(this).apply {
@@ -896,19 +896,10 @@ class HomeActivity : Activity() {
     internal var armed: View? = null
     internal var downX = 0f; internal var downY = 0f
     internal var flip: Runnable? = null
-    internal var hoverX = 0f; internal var hoverY = 0f   // last drag hover point (edge flip repeats while the finger rests)
-    internal var hoverId: String? = null          // folder target: the finger rested on its icon (see FOLDER_MS)
-    internal var folderArm: Runnable? = null
-    internal var folderReady = false
+    internal val hov = DragHover()   // where the dragged item hovers now (HomeDrag.kt)
     internal var focusView: MenuFocus? = null     // the dark layer + lifted icon behind a long-press menu
-    internal var swapArm: Runnable? = null        // re-arrange preview waits SWAP_MS: passing over an icon toward its middle (folder) never shoves it
-    internal var swapWant: String? = null
-    internal var swapId: String? = null           // item sliding out of the way (preview of the re-arrange)
     internal var removeBtn: View? = null
-    internal var removeHot = false
-    internal var removeNear = false               // heading for the remove circle: no cell highlight under it
     internal var dropped = false                  // the drop changed the layout: endDrag leaves the views for the new render
-    internal var land: Triple<DragSt, Float, Float>? = null
     internal var barsCache: Pair<String, Pair<Boolean, Boolean>>? = null
     internal var drawerCache: Drawer? = null
     internal var drawerWarming = false
@@ -1230,7 +1221,7 @@ class HomeActivity : Activity() {
                     else if (free && !upDrawer && downOk && drawer == null && GestLogic.swipe(dx, dy, slop.toFloat()) == GestLogic.Dir.UP) { downOk = false; took = true; gestRun(GestLogic.UP) }
                     else if (free && downOk && drawer == null && dy > slop * 2 && dy > abs(dx) * 1.5f) {
                         downOk = false; took = true
-                        if (dnA != GestLogic.DEFAULT) gestRun(GestLogic.DOWN) else if (x0 > width / 2f) openControl() else expandShade(false)
+                        if (dnA != GestLogic.DEFAULT) gestRun(GestLogic.DOWN) else if (x0 > width / 2f) openControl() else Shade.expand(this@HomeActivity)
                     }
                 }
             }
@@ -1281,21 +1272,6 @@ class HomeActivity : Activity() {
             if (c is ViewGroup && scrollsAt(c, cx, cy)) return true
         }
         return false
-    }
-
-    /** Pull the notification shade down (hidden StatusBarManager API, what Nova uses; EXPAND_STATUS_BAR is a normal permission). */
-    @SuppressLint("WrongConstant")
-    /**
-     * Swipe down on the home: the left half opens the notifications, the right half the quick settings (HyperOS / One UI 7
-     * split shade). Phones with one shade (Pixel, older ROMs) open it fully expanded on the right: still the toggles.
-     */
-    internal fun expandShade(settings: Boolean = false) {
-        runCatching {
-            val sb = getSystemService("statusbar") ?: return
-            val c = Class.forName("android.app.StatusBarManager")
-            if (settings) runCatching { c.getMethod("expandSettingsPanel").invoke(sb) }.getOrElse { c.getMethod("expandNotificationsPanel").invoke(sb) }
-            else c.getMethod("expandNotificationsPanel").invoke(sb)
-        }.onFailure { Log.w("KidGuard", "expand shade: $it") }
     }
 
     /** Horizontal pages (0 = "Hôm nay"); long-press on empty space of a home page opens Tiện ích / Tuỳ chỉnh / Sắp xếp / KidGuard. */

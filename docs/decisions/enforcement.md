@@ -60,12 +60,14 @@ Index and the rule for adding lines: `README.md`.
 - 2026-11-14 Lost mode parts are optional (owner): rules `lostLock` / `lostRing` (default true); locating every 5 min is always on. Turning ring off mid-alarm stops it on the next tick.
 
 - 2026-11-17 (owner) Content monitoring (notifications, keywords, remote photo, SMS) is allowed WITH clear disclosure to the child, AirDroid-style: one registry `Monitoring.ALL` drives the lasting notification line, a heads-up when a parent turns a category on and the screen "Bố mẹ xem được gì"; `MonitoringTest` fails when a `watch` key has no entry. No hide setting, none in a timed mode, none in Home. Call audio stays out (Android 10+ blocks it). Plan: memory `2026-11-17-airdroid-monitoring-plan`.
+- (2026-11-18, maintainability R1/R10/R12) Store stays one prefs file `kg` in device-protected (DE) storage, readable before the first unlock (Guard starts on LOCKED_BOOT_COMPLETED); nothing KidGuard keeps is in CE storage. Areas split off it keep the same file and keys: `TgStore` (`store.tg`, keys `tg*`). The 4 PIN-fail counters share `Store.bumpFail`. Guard commands for access (PIN, pairing, relay link, AI token, Authenticator, selfOpen) live in `GuardAccess.run`; `Guard.run` routes unknown names there.
 
 ## Rejected / don't retry
 - `DevicePolicyManager.setStatusBarDisabled` for shade blocking: also sets mDisableNotificationEffects, silencing ALL notification sound/vibration/heads-up (measured API 34). Also don't use lock-task status bar flags. Use Acc quick-settings closing (11-09)
 - Generic "uiautomator dump" on the dev phone while testing accessibility: it suppresses other a11y services (Acc looks off). Use screencap (v0.7.0 notes)
 - Keystroke / keyword monitoring (FamShield does it on Windows): rejected, conflicts with "the child always knows"; see docs/research-famshield.md -> REVERSED 2026-11-17, see below
 - (2026-11-10) Rejected: hiding the foreground notification from code. A channel created at IMPORTANCE_NONE (new id, old one deleted) is raised by the system to LOW (2) as soon as the FGS posts (mUserLockedFields=0), measured on API 34 emulator + Poco API 36; WRITE_SECURE_SETTINGS / Device Owner have no per-channel block. Only the user turning the channel off hides it, and that holds across a real process kill (emulator, kill -9, service back in foreground, notification still hidden).
+- (2026-11-18) Not split off Store: chat (`addChat` writes an event under the Store lock: a ChatStore lock would nest two locks = deadlock risk) and the PIN/unlock counters (they share `putLock`/boot count with admin + Authenticator and are the security core). Split again only with one shared lock object.
 
 ## Past bugs (cause -> fix -> avoid)
 - Failed `release` left phone owner but unenforced (loop stopped on anything but "failed"). Fix: any non-ok result resumes enforcing (f032b5d)

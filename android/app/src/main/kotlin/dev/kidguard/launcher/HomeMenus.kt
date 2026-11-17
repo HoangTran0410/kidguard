@@ -223,7 +223,7 @@ internal fun HomeActivity.appMenu(a: AppE, v: View, mode: Mode, item: HItem?) {
     )
     // the system's app details only when the parent lets the kid open Settings: otherwise this would be a way into it
     val info = Row(R.drawable.li_info, getString(R.string.hm_app_info), true) {
-        runCatching { startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${a.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        runCatching { startActivity(Intents.appDetails(this, a.pkg)) }
     }.takeIf { settingsOk(rules) }
     // rare ones, built only when "More…" is tapped
     val more = Row(R.drawable.li_ellipsis, getString(R.string.menu_more), true) {

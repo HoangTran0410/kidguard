@@ -208,17 +208,11 @@
     <string name="basic_battery_d">Nếu không, máy có thể tắt KidGuard để tiết kiệm pin.</string>
     <string name="basic_update">Cho KidGuard tự cập nhật</string>
     <string name="basic_update_d">Bật "Cho phép từ nguồn này". Bản mới sẽ tự cài, bé không phải bấm gì.</string>
-    <string name="basic_autostart">Cho phép tự khởi động (Oppo, Xiaomi, Vivo…)</string>
     <string name="basic_play_protect">Bị Google Play Protect chặn? Mở CH Play → ảnh đại diện → Play Protect → ⚙ → tắt \"Quét ứng dụng bằng Play Protect\". Cài xong thì bật lại.</string>
 
     <!-- Device Owner checklist -->
-    <string name="prov_usage">Bật quyền theo dõi sử dụng</string>
     <string name="acc_restricted">Cho phép cài đặt bị hạn chế (Android 13+)</string>
     <string name="acc_restricted_d">Trợ năng báo \"Cài đặt bị hạn chế\"? Bấm OK, mở mục này, bấm ⋮ (góc trên phải) → \"Cho phép cài đặt bị hạn chế\". Rồi bật lại Trợ năng.</string>
-    <string name="prov_acc">Bật Trợ năng KidGuard</string>
-    <string name="prov_title">Bước còn lại</string>
-    <string name="prov_intro">Bật 2 quyền này để KidGuard chạy đầy đủ</string>
-    <string name="prov_done">Đã xong: %1$s</string>
     <string name="prov_secure_yes">Tự bật lại Trợ năng: có</string>
     <string name="prov_secure_no">Tuỳ chọn: muốn Trợ năng tự bật lại, cần máy tính hoặc Gỡ lỗi không dây</string>
 
@@ -391,7 +385,6 @@
     <string name="ssa_wd_off">Gỡ lỗi không dây chưa bật.</string>
 
     <!-- Child main screen -->
-    <string name="main_tagline">Dùng điện thoại an toàn</string>
     <string name="main_code_stop">Tắt mã ngay</string>
     <string name="main_code_label">MÃ GHÉP ĐÔI</string>
     <string name="main_code_left">MÃ GHÉP ĐÔI · CÒN %1$s</string>
@@ -414,13 +407,9 @@
     <string name="ev_recover_req">Máy con xin mở ghép lại: mở sau 24 giờ. Đặt PIN để huỷ.</string>
     <string name="main_recover_title">Sẽ mở ghép sau 24 giờ</string>
     <string name="main_recover_body">Mã ghép sẽ hiện sau 24 giờ, bố mẹ được báo ngay. Bố mẹ còn quản lý được máy thì đặt PIN để huỷ.</string>
-    <string name="main_battery">Cài đặt pin / tự khởi động</string>
     <string name="lang_title">Ngôn ngữ / Language</string>
     <string name="lang_system">Theo điện thoại</string>
     <string name="main_self">Cài đầy đủ không cần máy tính (Android 11+)</string>
-    <plurals name="main_hold">
-        <item quantity="other">Giữ nút %1$d giây</item>
-    </plurals>
     <string name="st_owner">Đang được bố mẹ quản lý</string>
     <string name="st_basic">Chế độ cơ bản: KidGuard đang bảo vệ</string>
     <string name="st_unfinished">Chưa cài xong: làm các bước trong khung \"Việc cần làm\" bên dưới</string>
@@ -508,8 +497,6 @@
     <string name="log_more">Con xin thêm giờ</string>
     <string name="more_sent">Đã gửi cho bố mẹ</string>
     <string name="more_sent_body">Bạn sẽ nhận thông báo khi bố mẹ trả lời.</string>
-    <string name="more_fail">Chưa gửi được</string>
-    <string name="more_fail_body">Đang có quá nhiều yêu cầu chờ bố mẹ trả lời.</string>
     <string name="msg_title">Bố mẹ nhắn</string>
     <string name="msg_read">Con đã đọc</string>
     <string name="chat_title">Nhắn với bố mẹ</string>
@@ -606,8 +593,6 @@
     <plurals name="home_warn">
         <item quantity="other">Cần kiểm tra %1$d mục</item>
     </plurals>
-    <string name="home_status">Trạng thái bảo vệ</string>
-    <string name="home_status_sub">Những gì KidGuard cần để chạy tốt trên máy này.</string>
     <string name="home_status_desc">%1$s. Chạm để xem chi tiết</string>
     <string name="home_version">KidGuard %1$s</string>
     <string name="home_sos">SOS</string>
@@ -693,8 +678,6 @@
     <string name="files_st_opened">Đã mở</string>
     <string name="files_st_gone">Đã xoá</string>
     <!-- v0.9.9 kid launcher (HomeActivity) -->
-    <string name="hm_title">Màn hình chính của bé</string>
-    <string name="hm_swipe">Vuốt lên để xem tất cả ứng dụng</string>
     <string name="hm_all_apps">Tất cả ứng dụng</string>
     <string name="hm_search">Tìm ứng dụng</string>
     <string name="hm_no_result">Không có ứng dụng nào khớp “%1$s”</string>
@@ -732,10 +715,7 @@
     <string name="hm_edit_home">Sửa màn hình chính</string>
     <string name="hm_open_kg">Mở KidGuard</string>
     <string name="hm_customize">Tuỳ chỉnh</string>
-    <string name="hm_soon_title">Sắp có</string>
-    <string name="hm_soon_body">Đổi kiểu, hình nền, widget và thư mục sẽ có ở bản sau.</string>
     <string name="hm_phone">Gọi điện</string>
-    <string name="hm_calls">Gọi khẩn cấp</string>
     <string name="hm_112">112 · Tìm kiếm cứu nạn</string>
     <string name="hm_113">113 · Công an</string>
     <string name="hm_114">114 · Cứu hoả</string>
@@ -791,8 +771,6 @@
     <string name="hm_f_social">Mạng xã hội</string>
     <string name="hm_f_study">Học tập</string>
     <string name="hm_w_search">Tìm tiện ích</string>
-    <string name="hm_w_add">Thêm</string>
-    <string name="hm_w_in_use">Đang dùng</string>
     <string name="hm_w_title">Tiện ích</string>
     <string name="hm_w_time">Thời gian còn lại</string>
     <string name="hm_w_time_d">Giờ dùng máy còn lại hôm nay</string>
@@ -929,7 +907,6 @@
     <string name="hm_c_soft_opt">Mềm</string>
     <string name="hm_c_with_labels">có tên</string>
     <string name="hm_c_no_labels">không tên</string>
-    <string name="hm_c_style">Kiểu</string>
     <string name="hm_c_home">Màn chính</string>
     <string name="hm_c_cols">Số cột</string>
     <string name="hm_c_icon">Cỡ biểu tượng</string>
@@ -979,10 +956,6 @@
     <string name="hm_c_less">Giảm %1$s</string>
     <string name="hm_c_more">Tăng %1$s</string>
     <string name="hm_c_selected">đang chọn</string>
-    <string name="hm_c_be">Bé</string>
-    <string name="hm_c_teen">Teen</string>
-    <string name="hm_c_gon">Gọn</string>
-    <string name="hm_c_grid">Lưới %1$d×%2$d</string>
     <string name="hm_c_wall_n">Hình nền %1$d</string>
     <string name="hm_c_pick">Chọn ảnh</string>
     <string name="hm_c_picking">Đang mở…</string>
@@ -1010,7 +983,6 @@
     <string name="cc_notifs">Thông báo</string>
     <string name="cc_bright">Độ sáng</string>
     <string name="cc_volume">Âm lượng</string>
-    <string name="cc_more">Cài đặt nhanh của máy</string>
     <string name="cc_locked">Bố mẹ quản lý mục này</string>
     <string name="cc_no_off">Bố mẹ không cho tắt mục này</string>
     <string name="cc_failed">Máy không cho đổi mục này ở đây</string>
@@ -1019,11 +991,9 @@
     <string name="hm_sc_added">Đã thêm \"%1$s\" ra màn hình chính</string>
     <string name="hm_sc_fail">Lối tắt này không mở được lúc này</string>
     <string name="hm_sc_app">Lối tắt hỏng nên mở app thay</string>
-    <string name="hm_sc_rm">Lối tắt rời màn hình chính. App vẫn còn.</string>
     <string name="main_need_pair_title">%1$s: cần ghép với bố mẹ trước</string>
     <string name="main_need_pair_body">Máy này chưa ghép với máy bố mẹ nên chưa gửi được tin.\n\nCách ghép: bố mẹ giữ nút \"Bố mẹ: hiện mã ghép\" ở đầu màn hình này 5 giây, rồi quét mã bằng máy bố mẹ.</string>
     <string name="nlog_title">Thông báo đã xem</string>
-    <string name="nlog_menu">Thông báo đã xem</string>
     <string name="nlog_clear">Xoá hết</string>
     <string name="nlog_clear_body">Xoá danh sách trên điện thoại này. Không khôi phục được.</string>
     <string name="nlog_clear_ok">Xoá</string>

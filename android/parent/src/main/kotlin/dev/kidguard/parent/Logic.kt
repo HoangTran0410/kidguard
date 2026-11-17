@@ -374,12 +374,10 @@ object Logic {
     /** The release checksum asset (build.sh writes `shasum -a 256` output next to the fixed-name APK). */
     fun parentSha(tag: String) = "https://github.com/HoangTran0410/kidguard/releases/download/v$tag/kidguard-parent.apk.sha256"
     /** First token of a `shasum` line, lower-case hex, or null. */
-    fun sha256Of(text: String): String? =
-        text.trim().split(Regex("\\s+")).firstOrNull()?.lowercase()?.takeIf { Regex("[0-9a-f]{64}").matches(it) }
+    fun sha256Of(text: String): String? = dev.kidguard.Release.sha256Of(text)
 
     /** "0.9.0" from a `Location: …/releases/tag/v0.9.0` redirect, or null. */
-    fun tagFromLocation(loc: String?): String? =
-        loc?.substringAfterLast("/tag/", "")?.takeIf { Regex("v?\\d{1,4}(\\.\\d{1,4}){1,3}").matches(it) }?.removePrefix("v")
+    fun tagFromLocation(loc: String?): String? = dev.kidguard.Release.tagFromLocation(loc)
 
     /** True when [a] is a higher dotted version than [b]. */
     fun newer(a: String, b: String): Boolean {

@@ -6,7 +6,6 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import org.json.JSONArray
 import org.json.JSONObject
-import java.text.Normalizer
 
 /**
  * An app refuses to run and says why (owner 2026-11-17: "user thấy app bank báo lỗi, không biết KidGuard có chỗ cấu hình
@@ -35,8 +34,7 @@ object RefuseLogic {
     const val KEEP = 6
     const val KEEP_MS = 7 * 86_400_000L
 
-    fun norm(s: String): String = Normalizer.normalize(s.lowercase(), Normalizer.Form.NFD)
-        .replace(Regex("\\p{Mn}+"), "").replace('đ', 'd').replace(Regex("\\s+"), " ")
+    fun norm(s: String): String = Text.foldSpaces(s)
 
     /** A complaint word and a reason word count only this close (chars, start to start): one sentence, not two
      *  unrelated lines of the same screen (INCIDENT 2026-11-17: a chat list with "KidGuard ..." and "... an toàn ..."). */

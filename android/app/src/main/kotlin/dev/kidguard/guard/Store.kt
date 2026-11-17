@@ -198,6 +198,14 @@ class Store private constructor(private val app: Context) {
     /** The PIN typed on the child phone ([checkAdmin]): own counter and lockout. */
     private fun checkLocalPin(pin: String): Boolean = checkPinCounter(pin, "aPinFails", "aPinLock", false)
 
+    /** One more wrong code on counter [failsKey]: the count and the backoff lock ([Safety.pinLockMs]) written in one commit. */
+    private fun bumpFail(failsKey: String, lockKey: String, now: Long = System.currentTimeMillis()): Pair<Int, Long> {
+        val f = p.getInt(failsKey, 0) + 1
+        val lock = Safety.pinLockMs(f)
+        p.edit().putInt(failsKey, f).putLock(lockKey, lock, now).commit()
+        return f to lock
+    }
+
     private fun checkPinCounter(pin: String, failsKey: String, lockKey: String, remote: Boolean): Boolean = synchronized(pinGate) {
         if (lockLeft(lockKey) > 0) return false
         val ok = rules.checkPin(pin)   // the slow hash, outside the Store monitor
@@ -207,9 +215,7 @@ class Store private constructor(private val app: Context) {
                 if (pinResetAt > 0) { clearPinReset(); log(R.string.log_pin_reset_cancel) }   // whoever knows the PIN is still here: no reset
                 return true
             }
-            val f = p.getInt(failsKey, 0) + 1
-            val lock = Safety.pinLockMs(f)
-            p.edit().putInt(failsKey, f).putLock(lockKey, lock, System.currentTimeMillis()).commit()
+            val (f, lock) = bumpFail(failsKey, lockKey)
             if (lock > 0) log(if (remote) R.string.log_pin_wrong else R.string.log_pin_wrong_local, f, (lock / 60_000).toInt())
         }
         false
@@ -306,9 +312,7 @@ class Store private constructor(private val app: Context) {
             if (checkLocalPin(c)) { p.edit().putInt("adminRun", 0).apply(); log(R.string.log_admin_open); event("adminOpen", R.string.ev_admin_open_pin); return 1 }
         } else {
             // no PIN (or it is locked): the wrong code counts against the Authenticator's own limit
-            val f = p.getInt("aUnlockFails", 0) + 1
-            val lock = Safety.pinLockMs(f)
-            p.edit().putInt("aUnlockFails", f).putLock("aUnlockLock", lock, now).commit()
+            bumpFail("aUnlockFails", "aUnlockLock", now)
         }
         event("tamper", R.string.ev_admin_wrong)
         val run = p.getInt("adminRun", 0) + 1
@@ -332,91 +336,11 @@ class Store private constructor(private val app: Context) {
     /** ms until the on-device admin can be tried again (the PIN lockout when a PIN is set, else the Authenticator's). */
     @Synchronized fun adminLockLeft(): Long =
         AdminAuth.lockLeft(rules.pinHash.isNotBlank(), localPinLockLeft(), totpSecret.isNotBlank(), localUnlockLockLeft())
-    // ---- Telegram bot on this phone (Tg.kt). The token never leaves the phone (not in state, not in rules). ----
-    var tgToken: String
-        get() = p.getString("tgToken", "") ?: ""
-        set(v) { p.edit().putString("tgToken", v).commit() }
-    var tgBot: String
-        get() = p.getString("tgBot", "") ?: ""
-        set(v) { p.edit().putString("tgBot", v).apply() }
-    var tgName: String   // the child's name as the parent page calls it (texts only)
-        get() = p.getString("tgName", "") ?: ""
-        set(v) { p.edit().putString("tgName", v).apply() }
-    var tgLang: String
-        get() = p.getString("tgLang", "vi") ?: "vi"
-        set(v) { p.edit().putString("tgLang", v).apply() }
-    var tgErr: String
-        get() = p.getString("tgErr", "") ?: ""
-        set(v) { p.edit().putString("tgErr", v).apply() }
-    var tgOffset: Long
-        get() = p.getLong("tgOffset", 0)
-        set(v) { p.edit().putLong("tgOffset", v).apply() }
-    /** Linked chats [{id, name, at}], max TgLogic.MAX_CHATS: only these get alerts and may send commands. */
-    @Synchronized fun tgChats(): JSONArray = runCatching { JSONArray(p.getString("tgChats", "[]")) }.getOrDefault(JSONArray())
-    @Synchronized fun tgChatOk(id: Long): Boolean = tgChats().let { a -> (0 until a.length()).any { a.optJSONObject(it)?.optLong("id") == id } }
-    @Synchronized fun tgAddChat(id: Long, name: String, lang: String = tgLang): Boolean {
-        val a = tgChats(); if (tgChatOk(id)) return true
-        if (a.length() >= TgLogic.MAX_CHATS) return false
-        a.put(JSONObject().put("id", id).put("name", name.take(40)).put("at", System.currentTimeMillis()).put("lang", lang))
-        p.edit().putString("tgChats", a.toString()).commit(); return true
-    }
-    /** The chat's own language ("vi" / "en"); the bot default (page language at tgSet) for an unknown chat. */
-    @Synchronized fun tgChatLang(id: Long): String = tgChats().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }
-        .firstOrNull { it.optLong("id") == id }?.optString("lang")?.takeIf { it == "vi" || it == "en" } } ?: tgLang
-    @Synchronized fun tgSetChatLang(id: Long, lang: String) {
-        val a = tgChats(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optLong("id") == id }?.put("lang", lang)
-        p.edit().putString("tgChats", a.toString()).commit()
-    }
-    /** Alert level of a chat: "all" (default) / "important" / "sos" (TgLogic.quietOk). */
-    @Synchronized fun tgChatQuiet(id: Long): String = tgChats().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }
-        .firstOrNull { it.optLong("id") == id }?.optString("quiet")?.takeIf { it == "important" || it == "sos" } } ?: "all"
-    /** Evening summary of a chat (/digest): on, time "HH:mm", last day sent. Off by default. */
-    @Synchronized fun tgChatDigest(id: Long): Triple<Boolean, String, String> = tgChats().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }
-        .firstOrNull { it.optLong("id") == id } }?.let { Triple(it.optBoolean("digest"), it.optString("digestAt").ifBlank { Digest.DEFAULT_AT }, it.optString("digestDay")) } ?: Triple(false, Digest.DEFAULT_AT, "")
-    @Synchronized fun tgSetChatDigest(id: Long, on: Boolean? = null, at: String? = null, day: String? = null) {
-        val a = tgChats(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optLong("id") == id }?.let { o ->
-            if (on != null) o.put("digest", on); if (at != null) o.put("digestAt", at); if (day != null) o.put("digestDay", day) }
-        p.edit().putString("tgChats", a.toString()).commit()
-    }
+    /** Telegram bot on this phone ([TgStore]). */
+    val tg: TgStore by lazy { TgStore(p) }
     /** Evening summary counters per day (asked / answered / blocked / tamper, 8 days): [Digest.bump] / [Digest.days]. Wiped with the prefs on release. */
     @Synchronized fun dgBump(key: String, now: Long = System.currentTimeMillis()) { p.edit().putString("dg", Digest.bump(p.getString("dg", "{}"), Guard.day(now), key)).apply() }
     @Synchronized fun dgDays(now: Long = System.currentTimeMillis()): JSONArray = Digest.days(p.getString("dg", "{}"), Guard.day(now))
-    @Synchronized fun tgSetChatQuiet(id: Long, level: String) {
-        val a = tgChats(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optLong("id") == id }?.put("quiet", level)
-        p.edit().putString("tgChats", a.toString()).commit()
-    }
-    /** When the last getUpdates succeeded: a long gap = the phone was offline (old button taps are not run). */
-    var tgLastOk: Long
-        get() = p.getLong("tgLastOk", 0)
-        set(v) { p.edit().putLong("tgLastOk", v).apply() }
-    @Synchronized fun tgUnlinkAll() { p.edit().remove("tgChats").commit() }
-    @Synchronized fun tgRemoveChat(id: Long): Boolean {
-        val a = tgChats(); val keep = JSONArray(); var hit = false
-        for (i in 0 until a.length()) { val o = a.optJSONObject(i) ?: continue; if (o.optLong("id") == id) hit = true else keep.put(o) }
-        p.edit().putString("tgChats", keep.toString()).commit(); return hit
-    }
-    /** A fresh 6-digit link code, valid TgLogic.CODE_MS, TgLogic.CODE_TRIES wrong tries. */
-    @Synchronized fun tgNewCode(now: Long = System.currentTimeMillis()): String {
-        val c = (SecureRandom().nextInt(900_000) + 100_000).toString()
-        p.edit().putString("tgCode", c).putLong("tgCodeUntil", now + TgLogic.CODE_MS).putInt("tgCodeTries", 0).commit(); return c
-    }
-    @Synchronized fun tgCode(now: Long = System.currentTimeMillis()): String? =
-        p.getString("tgCode", null)?.takeIf { now < p.getLong("tgCodeUntil", 0) && p.getInt("tgCodeTries", 0) < TgLogic.CODE_TRIES }
-    @Synchronized fun tgCodeUntil(): Long = p.getLong("tgCodeUntil", 0)
-    /** True = right code (then used up); a wrong one counts a try. */
-    @Synchronized fun tgTryCode(given: String, now: Long = System.currentTimeMillis()): Boolean {
-        val c = tgCode(now) ?: return false
-        if (TgLogic.codeOk(given, c, p.getLong("tgCodeUntil", 0), now)) { p.edit().remove("tgCode").commit(); return true }
-        p.edit().putInt("tgCodeTries", p.getInt("tgCodeTries", 0) + 1).commit(); return false
-    }
-    @Synchronized fun tgSeen(): List<String> = (p.getString("tgSeen", "") ?: "").split(',').filter { it.isNotEmpty() }
-    @Synchronized fun tgSetSeen(l: List<String>) { p.edit().putString("tgSeen", l.joinToString(",")).apply() }
-    /** Bot off: token, chats, code, offset, seen all gone. */
-    @Synchronized fun tgClear() {
-        p.edit().remove("tgToken").remove("tgBot").remove("tgChats").remove("tgCode").remove("tgCodeUntil").remove("tgCodeTries")
-            .remove("tgOffset").remove("tgSeen").remove("tgErr").remove("tgName").commit()
-    }
-
     /** Basic mode asked the parent once for the camera (wrong-PIN photo); a "deny" is not asked again. */
     var camAsked: Boolean
         get() = p.getBoolean("camAsked", false)
@@ -457,11 +381,7 @@ class Store private constructor(private val app: Context) {
             if (step >= 0) { p.edit().putLong("totpLast", step).putInt("unlockFails", 0).clearLock("unlockLock").commit(); return 1 }
         }
         if (w.pin) { if (checkParentPin(c)) return 1 }
-        else {
-            val f = p.getInt("unlockFails", 0) + 1
-            val lock = Safety.pinLockMs(f)
-            p.edit().putInt("unlockFails", f).putLock("unlockLock", lock, now).commit()
-        }
+        else bumpFail("unlockFails", "unlockLock", now)
         event("tamper", R.string.ev_cmd_pin, what)
         return if (adminLockLeft() > 0) -1 else 0
     }
@@ -495,9 +415,7 @@ class Store private constructor(private val app: Context) {
         if (secret.isBlank() || unlockLockLeft() > 0) return 0
         val step = Totp.check(secret, code.filter { it.isDigit() }, now, p.getLong("totpLast", 0))
         if (step < 0) {
-            val f = p.getInt("unlockFails", 0) + 1
-            val lock = Safety.pinLockMs(f)
-            p.edit().putInt("unlockFails", f).putLock("unlockLock", lock, now).commit()
+            val (f, _) = bumpFail("unlockFails", "unlockLock", now)
             if (f == 5) event("tamper", R.string.ev_unlock_wrong)
             return 0
         }
