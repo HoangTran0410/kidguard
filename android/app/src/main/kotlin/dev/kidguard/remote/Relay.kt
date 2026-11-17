@@ -131,7 +131,12 @@ class Relay(private val g: Guard) {
         }
 
     private fun readCapped(c: HttpURLConnection): String {
-        if (c.responseCode != 200) throw RuntimeException("HTTP ${c.responseCode}")
+        if (c.responseCode != 200) {
+            // Cloudflare's own error page ("error code: 1101") = the relay worker itself is down (INCIDENT 2026-11-17)
+            val head = runCatching { c.errorStream?.use { val b = ByteArray(200); val n = it.read(b); if (n > 0) String(b, 0, n, Charsets.UTF_8) else "" } }.getOrNull().orEmpty()
+            val cf = Regex("error code: (\\d{3,4})", RegexOption.IGNORE_CASE).find(head)?.groupValues?.get(1)
+            throw RuntimeException("HTTP ${c.responseCode}" + (cf?.let { " · Cloudflare $it" } ?: ""))
+        }
         c.inputStream.use { ins ->
             val out = java.io.ByteArrayOutputStream(); val buf = ByteArray(8192)
             while (true) {

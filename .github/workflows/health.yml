@@ -1,0 +1,14 @@
+# Relay uptime: every 30 min. A failed scheduled run emails the repo owner (GitHub default for scheduled workflows).
+# INCIDENT 2026-11-17: the worker was killed by Cloudflare for hours and nobody knew. scripts/relay-health.sh says why.
+name: relay-health
+on:
+  schedule: [{ cron: "*/30 * * * *" }]
+  workflow_dispatch: {}
+permissions: { contents: read }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/relay-health.sh

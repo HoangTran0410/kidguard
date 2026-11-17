@@ -22,6 +22,8 @@ if [ "$DRY" = 1 ]; then
 fi
 if [ "$ONLY_PAGES" = 0 ]; then
   (cd relay && npm ci --silent --no-audit --no-fund && npx wrangler deploy)
+  # a deploy can "succeed" and the worker die 1 s later (INCIDENT 2026-11-17: abuse-report kill): check it really answers
+  sleep 15; scripts/relay-health.sh || { echo "Relay deployed but NOT answering: Pages not deployed. See above." >&2; exit 1; }
 fi
 npx --yes wrangler pages deploy website --project-name "$PAGES_PROJECT"
 echo "Pages deployed. Phones pick the new page up when it is opened (or: Settings > Update the page)."

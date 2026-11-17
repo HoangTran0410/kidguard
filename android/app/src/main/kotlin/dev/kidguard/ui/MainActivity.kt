@@ -885,7 +885,10 @@ class MainActivity : Activity() {
         if (s.relayUrl.isNotBlank()) {
             n++
             val up = System.currentTimeMillis() - (Guard.running?.relayOkAt ?: 0L) < 180_000
-            line(R.drawable.li_cloud, if (up) Ic.OK else Ic.WARN, getString(if (up) R.string.st_rc_relay else R.string.st_rc_relay_wait))
+            // the server itself failed (5xx / Cloudflare error page): say so, not "waiting" (INCIDENT 2026-11-17)
+            val err = Guard.running?.relayErr.orEmpty()
+            if (!up && err.startsWith("HTTP 5")) line(R.drawable.li_cloud, Ic.WARN, getString(R.string.st_rc_relay_down, err))
+            else line(R.drawable.li_cloud, if (up) Ic.OK else Ic.WARN, getString(if (up) R.string.st_rc_relay else R.string.st_rc_relay_wait))
         }
         if (s.tgToken.isNotBlank()) {
             n++; val k = s.tgChats().length()

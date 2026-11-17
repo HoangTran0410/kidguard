@@ -47,6 +47,14 @@ class LogicTest {
         assertEquals("/api/state", Logic.normRest("/api/state"))
     }
 
+    // INCIDENT 2026-11-17: relay killed by Cloudflare (every answer "error code: 1101"), the page said "lost connection"
+    @Test fun whyNamesTheFailingSide() {
+        assertEquals("net", Logic.why(null, null))
+        assertEquals("cf:1101", Logic.why(500, "error code: 1101".toByteArray()))
+        assertEquals("cf:1042", Logic.why(503, "<html>Error code: 1042</html>".toByteArray()))
+        assertEquals("http:502", Logic.why(502, "{\"error\":\"x\"}".toByteArray()))
+    }
+
     @Test fun cacheFallback() {
         assertTrue(Logic.useCache(null, true))
         assertTrue(Logic.useCache(502, false))

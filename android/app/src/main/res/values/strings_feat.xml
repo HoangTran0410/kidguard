@@ -55,6 +55,7 @@
     <string name="st_rc_ts_doze">Tailscale may drop while the screen is off. Fix: Settings → Apps → Tailscale → Battery → Unrestricted</string>
     <string name="st_rc_relay">Relay (over the Internet): connected</string>
     <string name="st_rc_relay_wait">Relay (over the Internet): reconnecting…</string>
+    <string name="st_rc_relay_down">The relay server is down (%1$s). Not this phone\'s fault: the parent can still connect on the same Wi-Fi.</string>
     <plurals name="st_rc_tg">
         <item quantity="one">Telegram: %d parent linked</item>
         <item quantity="other">Telegram: %d parents linked</item>

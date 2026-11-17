@@ -59,7 +59,7 @@ const save = k => {
   try { localStorage.setItem(KEY, JSON.stringify(k, (key, v) => key === "healAt" || key === "fb" || key === "relayTry" || key === "gateOff" || key === "migTry" || key === "icm" || key === "ikP" ? undefined : v)); } catch {}
   if (APP) kgCall("setKids", JSON.stringify(k.filter(x => x.target).map(x => ({ name: x.name, target: x.target, via: x.via, id: x.id, token: x.token, lv: x.lv, relay: x.relay }))));
 };
-let kids = load(), cur = null, st = null, pendingRules = null, timer = null, edit = null, tab = "home", lastErr = "", viewDay = null, histDays = null, cachedAt = 0, seenAt = 0, answered = new Set(), histSel = -1, lastNet = false;
+let kids = load(), cur = null, st = null, pendingRules = null, timer = null, edit = null, tab = "home", lastErr = "", viewDay = null, histDays = null, cachedAt = 0, srvWhy = "", seenAt = 0, answered = new Set(), histSel = -1, lastNet = false;
 const onLan = () => !location.pathname.startsWith("/c/") && !isRelayOrigin;
 let isRelayOrigin = false;
 // v0.7 basic mode: no Device Owner (old phones without mode = owner as before)
@@ -184,8 +184,12 @@ async function call1(k, path, method, body, again) {
   const cached = APP && method === "GET" && path === "/state" ? +r.headers.get("X-KG-Cached") || 0 : 0;
   // app: a cached snapshot = the phone did not answer; a LAN kid that can heal treats it as a network failure
   if (cached && k.via === "lan" && canHeal(k) && !body) { const e = errOf("net", t("e.lost")); e.cached = r; throw e; }
-  if (APP && method === "GET" && path === "/state" && k === cur) cachedAt = cached;
-  const j = await r.json().catch(() => ({}));
+  if (APP && method === "GET" && path === "/state" && k === cur) { cachedAt = cached; srvWhy = cached ? r.headers.get("X-KG-Why") || "" : ""; }
+  const raw = await r.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch {}
+  // Cloudflare's own error page ("error code: 1101"): the relay worker itself is down, not the phone (INCIDENT 2026-11-17)
+  const cf = !r.ok && /error code: (\d{3,4})/i.exec(raw.slice(0, 200));
+  if (path === "/state" && k === cur && !cached) srvWhy = cf ? "cf:" + cf[1] : j.why || (r.status >= 500 && k.via !== "lan" ? "http:" + r.status : "");
+  if (cf) throw errOf(t("e.relayDown", "Cloudflare " + cf[1]));
   if (!r.ok) throw errOf(APP && j.error === "offline" ? "offline" : j.error || ("HTTP " + r.status), null, j.retryAt);
   return j;
 }

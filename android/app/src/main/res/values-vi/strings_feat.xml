@@ -55,6 +55,7 @@
     <string name="st_rc_ts_doze">Tailscale có thể rớt khi tắt màn hình. Sửa: Cài đặt → Ứng dụng → Tailscale → Pin → Không hạn chế</string>
     <string name="st_rc_relay">Relay (qua Internet): đã kết nối</string>
     <string name="st_rc_relay_wait">Relay (qua Internet): đang kết nối lại…</string>
+    <string name="st_rc_relay_down">Máy chủ relay đang lỗi (%1$s). Không phải do máy này: bố mẹ vẫn kết nối được khi chung Wi-Fi.</string>
     <plurals name="st_rc_tg">
         <item quantity="other">Telegram: %d phụ huynh đã liên kết</item>
     </plurals>

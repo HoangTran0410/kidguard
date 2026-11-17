@@ -67,6 +67,8 @@ class Guard : Service() {
     fun pairNudge() { relayPair?.nudge() }
     /** Last good relay sync (0 = never / no relay): the child's status sheet shows whether the relay link is up. */
     val relayOkAt: Long get() = relay?.lastOk ?: 0L
+    /** The relay's last failure ("HTTP 500 · Cloudflare 1101"), "" while it works. */
+    val relayErr: String get() = relay?.lastError.orEmpty()
     @Volatile private var lastState: JSONObject = JSONObject()
     /** The newest tick's state, not built yet: most ticks have no reader (the relay reads every 20 s, LAN only with a page open). */
     private val stateTodo = java.util.concurrent.atomic.AtomicReference<(() -> JSONObject)?>(null)

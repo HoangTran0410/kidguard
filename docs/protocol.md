@@ -785,7 +785,8 @@ the child over plain http; the WebView itself may only reach `127.0.0.1:<port>` 
   Timeouts: connect 6 s, read 40 s. Network error with no snapshot -> `502 {"error":"offline"}`.
 - **Snapshot cache**: a 200 JSON `GET /api/state` (LAN) or `GET /c/<id>/state` (relay) is stored per target+path. If the
   same request later fails (network error / timeout / 5xx) the stored body is returned with status 200 and
-  `X-KG-Cached: <epoch ms stored>`.
+  `X-KG-Cached: <epoch ms stored>` and `X-KG-Why: net | cf:<Cloudflare error code> | http:<status>` (why the live request
+  failed; no snapshot -> 502 `{"error":"offline","why":...}`). The page shows "relay server down" for `cf:` / `http:`.
 - **History**: one file per kid per day (`files/history/<sha256(target+path)>/<yyyy-mm-dd>.json`, last snapshot of the
   day). Retention is a setting (default unlimited; 30 / 90 / 365). Storage guard: before writing, if free space < 200 MB
   the oldest days (all kids) are deleted until >= 200 MB or only 7 days remain.

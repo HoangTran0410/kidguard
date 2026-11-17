@@ -72,7 +72,10 @@ function updateLive() {
   if (hs) { const h = `${dot(online ? "on" : "bad")}<span>${online ? t("live.on") : t("live.off")} · ${ago(lastSeen())}</span>`; if (hs.dataset.h !== h) { hs.dataset.h = h; hs.innerHTML = h; } }
   const pc = $("#phoneCard"); if (pc) { const h = phoneCard(online); if (pc.dataset.h !== h) { pc.dataset.h = h; pc.innerHTML = h; } }
   const B = [];   // [tone, icon, text]
-  if (APP && cachedAt) B.push(["warn", "wifi-off", t("live.cached", hhmm(cachedAt))]);
+  // the relay worker / server itself failed (Cloudflare error page, 5xx): say so, the phone is not to blame
+  const down = /^(cf|http):/.test(srvWhy) && !lan ? srvWhy.replace(/^cf:/, "Cloudflare ").replace(/^http:/, "HTTP ") : "";
+  if (down) B.push(["bad", "triangle-alert", t("live.relayDown", down)]);
+  else if (APP && cachedAt) B.push(["warn", "wifi-off", t("live.cached", hhmm(cachedAt))]);
   if (!lan && lastNet) B.push(["warn", "wifi-off", t("live.selfOff")]);
   // LAN, the phone answered with an error: it is on and reachable, so not "off / no network"
   if (lan && lastErr && !lastNet && retryShow) B.push(["info", "loader", t("live.retrying")]);   // a retry is in flight: not the old error

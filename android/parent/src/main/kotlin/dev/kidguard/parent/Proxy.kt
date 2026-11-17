@@ -131,8 +131,9 @@ class Proxy(private val ctx: Context, val port: Int) {
         if (cacheable && res.status == 200 && isJson(res.body)) store(key, target, rest, res.body)
         if (cacheable && Logic.useCache(res.status, res.status == null)) {
             val snap = load(key)
-            if (snap != null) return Res(200, "application/json; charset=utf-8", snap.second, mapOf("X-KG-Cached" to snap.first.toString()))
-            return Res.json("{\"error\":\"offline\"}", 502)
+            val why = Logic.why(res.status, res.body)
+            if (snap != null) return Res(200, "application/json; charset=utf-8", snap.second, mapOf("X-KG-Cached" to snap.first.toString(), "X-KG-Why" to why))
+            return Res.json("{\"error\":\"offline\",\"why\":\"$why\"}", 502)
         }
         if (res.status == null) return Res.json("{\"error\":\"offline\"}", 502)
         val h = HashMap(res.headers)

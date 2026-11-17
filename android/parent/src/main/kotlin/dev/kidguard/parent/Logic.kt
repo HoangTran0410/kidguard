@@ -99,6 +99,19 @@ object Logic {
         return if (base in SAFE_TYPES) t!!.trim() else "application/octet-stream"
     }
 
+    /**
+     * Why the live request failed, for the page (header X-KG-Why): "net" = no answer (phone / network / relay unreachable),
+     * "cf:1101" = Cloudflare's own error page (the relay worker itself is down: threw, killed, over limits),
+     * "http:500" = the relay or phone answered with a server error. INCIDENT 2026-11-17: the relay was killed by
+     * Cloudflare for 3 h and the page only said "lost connection", so the phone was blamed.
+     */
+    fun why(status: Int?, body: ByteArray?): String {
+        if (status == null) return "net"
+        val head = body?.let { String(it, 0, minOf(it.size, 200), Charsets.UTF_8) }.orEmpty()
+        Regex("error code: (\\d{3,4})", RegexOption.IGNORE_CASE).find(head)?.let { return "cf:" + it.groupValues[1] }
+        return "http:$status"
+    }
+
     /** Serve the stored snapshot when the live request failed: network error / timeout / 5xx. */
     fun useCache(status: Int?, networkError: Boolean) = networkError || status == null || status >= 500
 
