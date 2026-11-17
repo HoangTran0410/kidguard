@@ -1488,3 +1488,9 @@ Owner decision: reading the child's content is allowed ONLY with clear disclosur
 - The first page (`before` 0 / missing) writes a log line on the phone ("Bố mẹ vừa xem thông báo của bạn", kind `watch_read`) so the child's own log shows every look.
 - Disclosure text follows the mode: `notif.kw` true = "thông báo có từ khoá của bố mẹ" (`watch_notif_kw_*`), else "mọi thông báo"; going from keywords-only to everything is told again (heads-up). `watch.words` non-empty is its own entry ("cảnh báo từ khoá").
 - Release: the ring is emptied (`NotifSync.clear`); the rule goes with the rest of the rules.
+
+### Word alerts (rule `watch.words`, 2026-11-17)
+- Every notification the phone records (see "Notifications to the parent"; later also an SMS) is matched against `watch.words` (ignores case and accents, substring; `KeywordLogic`). It works with `watch.notif` off, and with `watch.notif.kw` (keywords only) the same matches also fill the feed.
+- A hit = one event `{kind: "word", text: "<app>, từ khoá "<word>": <title>: <short piece around the word, <= 120 chars>"}` (`Store.event`), so it reaches the parent like any event: page list, Telegram, and the parent app by FCM (`ek: "word"`, no text to Google). "Important" kind. Never one push per notification: only hits, at most 1 per app+word per 5 min and 12 per hour (`WordThrottle`).
+- Registry entry `watch.words` (on = list not empty); the child is told like for every category.
+

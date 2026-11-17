@@ -9,6 +9,7 @@ object KeywordLogic {
     const val MAX_LEN = 40
 
     private fun n(s: String) = RefuseLogic.norm(s).trim()
+    fun key(word: String) = n(word)
 
     /** What is kept of an edited list: trimmed, no empties, no duplicates (accent/case-insensitive), cut to the limits. */
     fun clean(raw: List<String>): List<String> {
@@ -37,5 +38,21 @@ object KeywordLogic {
         val i = if (nf.length == flat.length) nf.indexOf(n(word)).coerceAtLeast(0) else 0
         val from = (i - max / 3).coerceAtLeast(0)
         return (if (from > 0) "…" else "") + flat.substring(from, (from + max).coerceAtMost(flat.length))
+    }
+}
+
+/** Alert rate limit (pure, unit-tested): a chat that keeps saying the word must not push the parent every second. */
+class WordThrottle(private val perKeyMs: Long = 5 * 60_000L, private val perHour: Int = 12) {
+    private val last = HashMap<String, Long>()
+    private val hour = ArrayDeque<Long>()
+
+    @Synchronized fun allow(key: String, now: Long): Boolean {
+        while (hour.isNotEmpty() && now - hour.first() > 3_600_000L) hour.removeFirst()
+        if (hour.size >= perHour) return false
+        val l = last[key]
+        if (l != null && now - l < perKeyMs) return false
+        if (last.size > 200) last.clear()
+        last[key] = now; hour.addLast(now)
+        return true
     }
 }

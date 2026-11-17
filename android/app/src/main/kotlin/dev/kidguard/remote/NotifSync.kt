@@ -67,7 +67,16 @@ object NotifSync {
             ring.addLast(Item(lastId, e, hit))
             while (ring.size > NotifFeedLogic.KEEP) ring.removeFirst()
         }
+        if (hit != null) alert(g, e.app.ifEmpty { e.pkg }, e.pkg, hit, listOf(e.title, NotifFeedLogic.text(e)).filter { it.isNotEmpty() }.joinToString(": "))
         return hit
+    }
+
+    private val throttle = WordThrottle()
+
+    /** A keyword hit = an event with the app and a short piece of the text (every event is pushed to the parent app; never the whole message). */
+    fun alert(g: Context, app: String, pkg: String, word: String, text: String) {
+        if (!throttle.allow(pkg + "|" + KeywordLogic.key(word), System.currentTimeMillis())) return
+        runCatching { Store.of(g).event("word", R.string.ev_word, app, KeywordLogic.snippet(text, word, 120), word) }
     }
 
     /** Rule turned off or released: nothing waits for the parent any more. */

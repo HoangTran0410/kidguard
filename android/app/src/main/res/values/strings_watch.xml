@@ -21,4 +21,5 @@
     <string name="watch_words_title">word alerts</string>
     <string name="watch_words_kid">Your parent gets an alert when a notification or a text message contains a word they chose.</string>
     <string name="watch_words_sees">An alert with the app and a short piece of the message around the word.</string>
+    <string name="ev_word">%1$s, word "%3$s": %2$s</string>
 </resources>

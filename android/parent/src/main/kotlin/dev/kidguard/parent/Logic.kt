@@ -190,7 +190,7 @@ object Logic {
     /** [clear]: notification keys to dismiss (the phone is back: "offline since" is no longer true). */
     class Outcome(val events: List<Event>, val state: NotifyState, val clear: List<String> = emptyList())
     /** Event kinds that matter as much as a request (C7). */
-    fun importantKind(kind: String) = kind == "tamper" || kind == "lost" || kind == "released"
+    fun importantKind(kind: String) = kind == "tamper" || kind == "lost" || kind == "released" || kind == "word"
 
     /** A failed fetch of a LAN kid says nothing while this phone is off Wi-Fi (mobile data cannot reach 192.168.x.x). */
     fun failCounts(via: String, onWifi: Boolean, hasRelay: Boolean = false, sameNet: Boolean = true) = via != "lan" || hasRelay || (onWifi && sameNet)

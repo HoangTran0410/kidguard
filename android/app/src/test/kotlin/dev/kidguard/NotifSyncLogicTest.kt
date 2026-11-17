@@ -50,4 +50,11 @@ class NotifSyncLogicTest {
         assertTrue(s.length <= 81 && "chet" in s)
         assertEquals("hi", KeywordLogic.snippet("hi", "x"))
     }
+
+    @Test fun throttleLimitsPerKeyAndPerHour() {
+        val t = WordThrottle(perKeyMs = 1000, perHour = 3)
+        assertTrue(t.allow("a", 0)); assertFalse(t.allow("a", 500)); assertTrue(t.allow("a", 1500))
+        assertTrue(t.allow("b", 1600)); assertFalse(t.allow("c", 1700))      // 3 in the hour
+        assertTrue(t.allow("c", 3_700_000))
+    }
 }
