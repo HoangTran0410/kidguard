@@ -442,10 +442,12 @@ function bankChip(r) {
 }
 function bankBox(r) {
   const stuck = st.vpnStuck ? alertBox("warn", "triangle-alert", t("bank.vpnStuck"), "margin-top:8px") : "";
+  // basic mode without WRITE_SECURE_SETTINGS: AccPause.able() is false, so the list silently does nothing (owner 2026-11-17, Nam: VNeID still asked)
+  const noWss = st.caps && st.caps.owner === false && st.caps.wss === false ? alertBox("bad", "triangle-alert", t("bank.noWss"), "margin:0 0 8px") : "";
   const cols = bankCols(r), gt = `grid-template-columns:minmax(var(--bkn),1fr) repeat(${cols.length},var(--bkw));min-width:calc(var(--bkn) + ${cols.length} * (var(--bkw) + 4px) + 16px)`;
   const how = [t("bank.hAcc"), Array.isArray(r.devPause) ? t("bank.hDev") : "", Array.isArray(r.tcpPause) ? t("bank.tcpP") : "", Array.isArray(r.vpnPause) ? t("bank.vpnP") : "", t("bank.hBack")].filter(Boolean);
   // the table is the section (no inner fold: folded, it was one line), the column notes go under "What each column does"
-  return `<p class="mute" style="margin:0 0 8px">${t("bank.p")}</p>${stuck}
+  return `${noWss}<p class="mute" style="margin:0 0 8px">${t("bank.p")}</p>${stuck}
     <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" aria-label="${esc(t("bank.find"))}">
     <div class="bkt" role="table" aria-label="${esc(t("bank.t"))}" style="margin-top:6px"><div class="bkh" role="row" style="${gt}"><span role="columnheader" id="bk-n"></span>${cols.map(c => `<span role="columnheader">${esc(c.h)}</span>`).join("")}</div>
     <div id="bk-list" role="rowgroup"></div></div>
