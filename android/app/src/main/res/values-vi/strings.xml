@@ -1147,7 +1147,6 @@
     <string name="tiles_on">Đang hiện</string>
     <string name="tiles_add">Thêm ra màn chính</string>
     <string name="tiles_none">Chỉ còn ô SOS. Chọn thêm ở dưới.</string>
-    <string name="tiles_full">Tối đa %d ô. Bỏ bớt một ô để thêm.</string>
     <string name="tiles_remove_x">Bỏ %s</string>
     <string name="tiles_add_x">Thêm %s</string>
     <string name="ch_nav">Điều hướng</string>

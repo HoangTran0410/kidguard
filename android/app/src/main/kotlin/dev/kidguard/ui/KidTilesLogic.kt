@@ -12,8 +12,7 @@ object KidTilesLogic {
     const val CLEAN = "clean"
     fun all(clean: Boolean): List<String> = if (clean) ALL + CLEAN else ALL
     val DEFAULT = listOf("arrived", "pickup", "lock", "chat")
-    /** SOS + 6 + Edit = two full rows of 4. */
-    const val MAX = 6
+    /** No cap (owner 2026-11-17: "con muốn ghim bao nhiêu cũng được"): rows of [PER_ROW] grow as needed. */
     const val PER_ROW = 4
 
     /** The child may clean at most once per this long. */
@@ -23,9 +22,9 @@ object KidTilesLogic {
     /** "1,2 GB" / "340 MB" for the result line. */
     fun mbText(mb: Int): String = if (mb >= 1024) String.format(java.util.Locale.US, "%.1f GB", mb / 1024.0) else "$mb MB"
 
-    fun parse(s: String?, clean: Boolean = false): List<String> = if (s == null) DEFAULT else s.split(',').filter { it in all(clean) }.distinct().take(MAX)
+    fun parse(s: String?, clean: Boolean = false): List<String> = if (s == null) DEFAULT else s.split(',').filter { it in all(clean) }.distinct()
     fun join(l: List<String>): String = l.joinToString(",")
-    fun add(l: List<String>, id: String, clean: Boolean = false): List<String> = if (id in l || id !in all(clean) || l.size >= MAX) l else l + id
+    fun add(l: List<String>, id: String, clean: Boolean = false): List<String> = if (id in l || id !in all(clean)) l else l + id
     fun remove(l: List<String>, id: String): List<String> = l - id
     /** Tiles not shown yet, in [ALL] order. */
     fun addable(l: List<String>, clean: Boolean = false): List<String> = all(clean).filter { it !in l }

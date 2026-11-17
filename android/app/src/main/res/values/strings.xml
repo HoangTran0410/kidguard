@@ -1171,7 +1171,6 @@
     <string name="tiles_on">Shown</string>
     <string name="tiles_add">Add to the main screen</string>
     <string name="tiles_none">Only SOS is left. Pick more below.</string>
-    <string name="tiles_full">%d tiles at most. Remove one to add another.</string>
     <string name="tiles_remove_x">Remove %s</string>
     <string name="tiles_add_x">Add %s</string>
     <string name="ch_nav">Navigation</string>

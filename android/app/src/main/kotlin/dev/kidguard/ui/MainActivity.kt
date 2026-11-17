@@ -511,7 +511,7 @@ class MainActivity : Activity() {
         }
     }
 
-    /** "Ô trên màn chính": shown tiles (tap = remove), then the rest (tap = add), max KidTilesLogic.MAX. */
+    /** "Ô trên màn chính": shown tiles (tap = remove), then the rest (tap = add), no cap. */
     private fun editTiles() {
         val sh = Sheet(this, ui2, getString(R.string.tiles_title))
         fun fill() {
@@ -521,7 +521,7 @@ class MainActivity : Activity() {
                 val b = tiles[id] ?: return View(this)
                 return ui2.listRow(b.text, TILE_ICONS[id] ?: R.drawable.li_settings, chevron = false) {
                     val next = if (on) KidTilesLogic.remove(cur, id) else KidTilesLogic.add(cur, id, cleanOk())
-                    if (next == cur) { Toasts.show(this, getString(R.string.tiles_full, KidTilesLogic.MAX), true); return@listRow }
+                    if (next == cur) return@listRow
                     tilePrefs().edit().putString("tiles", KidTilesLogic.join(next)).apply()
                     layoutTiles(); fill()
                 }.apply {

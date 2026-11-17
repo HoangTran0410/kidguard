@@ -7,16 +7,16 @@ class KidTilesLogicTest {
     @Test fun defaultWhenNeverSaved() = assertEquals(KidTilesLogic.DEFAULT, KidTilesLogic.parse(null))
     @Test fun emptySavedMeansNoTiles() = assertEquals(emptyList<String>(), KidTilesLogic.parse(""))
     @Test fun parseDropsUnknownAndDuplicates() = assertEquals(listOf("lock", "usage"), KidTilesLogic.parse("lock,bogus,usage,lock"))
-    @Test fun addCapsAtMax() {
-        val full = KidTilesLogic.ALL.take(KidTilesLogic.MAX)
-        assertEquals(full, KidTilesLogic.add(full, KidTilesLogic.ALL.last()))
+    @Test fun addHasNoCap() {
+        val all = KidTilesLogic.ALL.dropLast(1)
+        assertEquals(KidTilesLogic.ALL, KidTilesLogic.add(all, KidTilesLogic.ALL.last()))
         assertEquals(listOf("lock", "usage"), KidTilesLogic.add(listOf("lock"), "usage"))
         assertEquals(listOf("lock"), KidTilesLogic.add(listOf("lock"), "sos"))
     }
     @Test fun rowsKeepSosFirstAndEditLast() {
         assertEquals(listOf(listOf("sos", "arrived", "pickup", "lock"), listOf("chat", "edit")), KidTilesLogic.rows(KidTilesLogic.DEFAULT))
         assertEquals(listOf(listOf("sos", "edit")), KidTilesLogic.rows(emptyList()))
-        assertEquals(2, KidTilesLogic.rows(KidTilesLogic.ALL.take(KidTilesLogic.MAX)).size)
+        assertEquals(3, KidTilesLogic.rows(KidTilesLogic.ALL).size)   // SOS + 9 + Edit = 11 -> rows of 4
     }
     @Test fun cleanTileOnlyWhenAllowed() {
         assertEquals(listOf("lock"), KidTilesLogic.parse("clean,lock"))
