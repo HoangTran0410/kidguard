@@ -34,10 +34,10 @@ function fxXhr(job, method, url, body, onUp) {
     x.send(body);
   });
 }
-function fxSend(list) {
+function fxSend(list, o) {
   const k = cur, max = fxRelay(k) ? FX.relay : FX.lan;
   for (const f of [...list]) {
-    const job = { id: fxHex(), kid: k, kind: "up", name: f.name, size: f.size, pct: 0, state: "queue", err: "", file: f };
+    const job = { id: fxHex(), kid: k, kind: "up", name: f.name, size: f.size, pct: 0, state: "queue", err: "", file: f, chat: !!(o && o.chat), at0: Date.now() };
     if (f.size > max) { job.state = "err"; job.big = true; job.err = t(fxRelay(k) ? "fx.e.relayBig" : "fx.e.big", fxSize(max)); }
     fx.jobs.unshift(job);
   }
@@ -53,13 +53,13 @@ async function fxUp(job) {
   const k = job.kid, f = job.file; job.state = "run"; job.pct = 0; job.err = ""; fxPaint();
   try {
     if (!fxRelay(k)) {
-      const j = await fxXhr(job, "PUT", base(k) + "/files/" + encodeURIComponent(f.name), f, n => { job.pct = n / Math.max(1, f.size); fxPaint(); });
-      job.fid = j.file && j.file.id; job.state = "done"; job.pct = 1; fxLoad(k);
+      const j = await fxXhr(job, "PUT", base(k) + "/files/" + encodeURIComponent(f.name) + (job.chat ? "?chat=1" : ""), f, n => { job.pct = n / Math.max(1, f.size); fxPaint(); });
+      job.fid = j.file && j.file.id; job.state = "done"; job.pct = 1; fxLoad(k); if (job.chat) refresh();
     } else {
       const fid = job.fid = fxHex(), n = Math.max(1, Math.ceil(f.size / FX.chunk));
       for (let i = 0; i < n; i++) {
         if (job.state === "stop") throw fxStop();
-        const q = `?fid=${fid}&i=${i}&n=${n}&to=kid&size=${f.size}&name=${encodeURIComponent(f.name)}`;
+        const q = `?fid=${fid}&i=${i}&n=${n}&to=kid&size=${f.size}&name=${encodeURIComponent(f.name)}${job.chat ? "&chat=1" : ""}`;
         await fxXhr(job, "POST", base(k) + "/file" + q, f.slice(i * FX.chunk, (i + 1) * FX.chunk), b => { job.pct = (i * FX.chunk + b) / Math.max(1, f.size); fxPaint(); });
       }
       job.pct = 1; job.state = "wait"; job.at = Date.now();   // "done" once the phone lists it (state files, next sync)
@@ -74,6 +74,45 @@ function fxSave(blob, name) {
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
 }
+// One file (or its thumbnail) from the phone as chunks: LAN GET /files/<id>[?thumb=1], or relay fileUp {file, thumb?} + poll the parent channel.
+// job = the progress object (any {state, pct}); returns { parts, drop } (drop = delete the relay copy once the caller has used it).
+async function fxFetch(k, f, job, thumb) {
+  const parts = [];
+  if (!fxRelay(k)) {
+    const ctl = new AbortController(); job.abort = () => ctl.abort();
+    const r = await fetch(base(k) + "/files/" + f.id + (thumb ? "?thumb=1" : ""), { headers: fxHdr(k), signal: ctl.signal }).catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("net"); });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw errOf(j.error || "HTTP " + r.status); }
+    const total = +r.headers.get("content-length") || f.size || 1, rd = r.body.getReader(); let got = 0;
+    for (;;) {
+      const { done, value } = await rd.read().catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("incomplete"); });
+      if (done) break; parts.push(value); got += value.length; job.pct = got / total; fxPaint();
+    }
+    if (!thumb && got < f.size) throw errOf("incomplete");
+    return { parts, drop: null };
+  }
+  if (!thumb && f.size > FX.relay) throw errOf("relayBig", t("fx.e.relayBig", fxSize(FX.relay)));
+  job.state = "wait"; job.at = Date.now(); fxPaint();
+  await call(k, "/cmd", "POST", thumb ? { type: "fileUp", file: f.id, thumb: 1 } : { type: "fileUp", file: f.id });   // the phone puts it on the relay (next sync)
+  // a thumb travels under its own fid (assumed f.id + "t" / "-t" / ".t", or the same fid flagged thumb): see docs/protocol.md "Shared files" (chat)
+  const want = x => x.done && (thumb ? (x.fid === f.id + "t" || x.fid === f.id + "-t" || x.fid === f.id + ".t" || (x.fid === f.id && x.thumb)) : x.fid === f.id);
+  let meta = null; const end = Date.now() + (thumb ? 90e3 : 5 * 60e3);
+  while (!meta) {
+    await new Promise(s => setTimeout(s, thumb ? 2500 : 3000));
+    if (job.state === "stop") throw fxStop();
+    if (Date.now() > end) throw errOf("timeout");
+    const l = await call(k, "/file?to=parent").catch(() => ({}));
+    meta = (l.files || []).find(want) || null;
+  }
+  job.state = "run"; fxPaint();
+  for (let i = 0; i < meta.n; i++) {
+    if (job.state === "stop") throw fxStop();
+    const ctl = new AbortController(); job.abort = () => ctl.abort();
+    const r = await fetch(base(k) + `/file?fid=${meta.fid}&i=${i}`, { headers: fxHdr(k), signal: ctl.signal }).catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("net"); });
+    if (!r.ok) throw errOf("HTTP " + r.status);
+    parts.push(await r.arrayBuffer()); job.pct = (i + 1) / meta.n; fxPaint();
+  }
+  return { parts, drop: () => fetch(base(k) + "/file?fid=" + meta.fid, { method: "DELETE", headers: fxHdr(k) }).catch(() => {}) };
+}
 async function fxGet(f) {
   const k = cur;
   if (fx.jobs.some(j => j.kid === k && j.kind === "down" && j.fid === f.id && /^(run|wait)$/.test(j.state))) return;
@@ -81,42 +120,11 @@ async function fxGet(f) {
   const job = { id: fxHex(), kid: k, kind: "down", name: f.name, size: f.size, fid: f.id, pct: 0, state: "run", err: "" };
   fx.jobs.unshift(job); fxPaint();
   try {
-    let parts = []; let relayDel = false;
-    if (!fxRelay(k)) {
-      const ctl = new AbortController(); job.abort = () => ctl.abort();
-      const r = await fetch(base(k) + "/files/" + f.id, { headers: fxHdr(k), signal: ctl.signal }).catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("net"); });
-      if (!r.ok) { const j = await r.json().catch(() => ({})); throw errOf(j.error || "HTTP " + r.status); }
-      const total = +r.headers.get("content-length") || f.size || 1, rd = r.body.getReader(); let got = 0;
-      for (;;) {
-        const { done, value } = await rd.read().catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("incomplete"); });
-        if (done) break; parts.push(value); got += value.length; job.pct = got / total; fxPaint();
-      }
-      if (got < f.size) throw errOf("incomplete");
-    } else {
-      if (f.size > FX.relay) throw errOf("relayBig", t("fx.e.relayBig", fxSize(FX.relay)));
-      job.state = "wait"; job.at = Date.now(); fxPaint();
-      await call(k, "/cmd", "POST", { type: "fileUp", file: f.id });   // the phone puts it on the relay (next sync)
-      let meta = null; const end = Date.now() + 5 * 60e3;
-      while (!meta) {
-        await new Promise(s => setTimeout(s, 3000));
-        if (job.state === "stop") throw fxStop();
-        if (Date.now() > end) throw errOf("timeout");
-        const l = await call(k, "/file?to=parent").catch(() => ({}));
-        meta = (l.files || []).find(x => x.fid === f.id && x.done) || null;
-      }
-      job.state = "run"; fxPaint();
-      for (let i = 0; i < meta.n; i++) {
-        if (job.state === "stop") throw fxStop();
-        const ctl = new AbortController(); job.abort = () => ctl.abort();
-        const r = await fetch(base(k) + `/file?fid=${f.id}&i=${i}`, { headers: fxHdr(k), signal: ctl.signal }).catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("net"); });
-        if (!r.ok) throw errOf("HTTP " + r.status);
-        parts.push(await r.arrayBuffer()); job.pct = (i + 1) / meta.n; fxPaint();
-      }
-      relayDel = true;
-    }
+    let parts = [], relayDel = null;
+    const got = await fxFetch(k, f, job); parts = got.parts; relayDel = got.drop;
     fxSave(new Blob(parts), f.name); parts = null; job.state = "done"; job.pct = 1;
     // relay: drop the relay copy only after the browser took the file (a failed save keeps it for a retry)
-    if (relayDel) fetch(base(k) + "/file?fid=" + f.id, { method: "DELETE", headers: fxHdr(k) }).catch(() => {});
+    if (relayDel) relayDel();
   } catch (e) { job.state = e.raw === "abort" ? "stop" : "err"; job.err = fxErr(e); }
   job.abort = null; fxPaint(); fxLoad(k);
 }
@@ -151,7 +159,7 @@ const fxTxt = j => j.state === "queue" ? t("fx.q") : j.state === "run" ? t(j.kin
   : j.state === "stop" ? t("fx.stopped") : t("fx.err", j.err);
 const fxBar = j => /^(run|wait|queue)$/.test(j.state) ? `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.floor(j.pct * 100)}" data-fxb="${j.id}"><i data-fxp="${j.id}" style="width:${Math.floor(j.pct * 100)}%"></i></div>` : "";
 const fxTone = j => j.state === "done" ? "ok" : j.state === "err" ? "bad" : "";
-function fxPaint() { if (!fx.raf) fx.raf = requestAnimationFrame(() => { fx.raf = 0; fxDraw(); }); }
+function fxPaint() { if (!fx.raf) fx.raf = requestAnimationFrame(() => { fx.raf = 0; fxDraw(); if (typeof chatDraw === "function") chatDraw(); }); }
 function fxDraw() {
   const J = $("#fxJobs"), O = $("#fxOut"), I = $("#fxIn"); if (!J || !cur) return;
   const jobs = fx.jobs.filter(j => j.kid === cur), files = fxFiles(), dl = id => jobs.find(j => j.kind === "down" && j.fid === id);
@@ -193,7 +201,9 @@ function filesTab(b) {
     <div id="fxJobs"></div></div>
   <div class="card"><h2>${ic("inbox")} ${t("fx.fromKid")}</h2><div id="fxOut"></div></div>
   <div class="card"><h2>${ic("folder-open")} ${t("fx.sent")}</h2><div id="fxIn"></div></div>
-  <p class="mute">${ic("shield")} ${t("fx.scope")}</p>`;
+  <p class="mute">${ic("shield")} ${t("fx.scope")}</p>
+  <p class="mute">${ic("message-square")} ${t("fx.chatNote")} <button type="button" class="sp" id="fxChat">${t("chat.gal")}</button></p>`;
+  $("#fxChat").onclick = () => galOpen();
   const pick = $("#fxPick"), drop = $("#fxDrop");
   if (pick) { $("#fxBtn").onclick = () => pick.click(); pick.onchange = () => { if (pick.files.length) fxSend(pick.files); pick.value = ""; }; }
   if (drop) {

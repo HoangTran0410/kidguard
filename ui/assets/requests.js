@@ -215,44 +215,249 @@ async function chatOlder() {
 const chatSeenKey = () => "kg.chat." + (cur && cur.id);
 function chatSeen() { try { return +localStorage.getItem(chatSeenKey()) || 0; } catch { return 0; } }
 function chatUnread() { const s = chatSeen(); return ((st && st.chat) || []).filter(m => m.from === "k" && m.t > s).length; }
+const chatGone = new Set();   // attachments deleted from this page (the phone's state says "gone" a sync later)
 function chatList() {
   const cs = ((st && st.chat) || []), now = Date.now(), k = cur && cur.id;
   if (!cs.length) { chatOld[k] = []; chatMore[k] = undefined; }   // the thread was cleared (by a parent): nothing older either
   const ids = new Set(cs.map(m => m.id)), a = (chatOld[k] || []).filter(m => !ids.has(m.id)).concat(cs);
   chatPend[k] = (chatPend[k] || []).filter(p => now - p.t < 600e3 && !a.some(m => m.from === "p" && m.text === p.text && m.t >= p.t - 120e3));
-  return a.concat(chatPend[k]);
+  // our own attachments still on their way (or not echoed by the phone's state yet): local bubbles with progress
+  const jobs = fx.jobs.filter(j => j.kid === cur && j.kind === "up" && j.chat && !j.gone && now - j.at0 < 600e3
+    && !a.some(m => m.att && (m.att.id === j.fid || (m.att.name === j.name && m.att.size === j.size && m.t >= j.at0 - 120e3)))).map(j => ({ from: "p", who: "", text: "", t: j.at0, local: 1, job: j }));
+  return a.concat(chatPend[k], jobs).sort((x, y) => x.t - y.t);
+}
+const durTxt = s => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+const attKey = a => cur.id + "/" + a.id;
+const attIc = a => a.kind === "video" ? "video" : a.kind === "image" ? "image" : a.kind === "audio" ? "music" : "inbox";
+const attOk = a => a && a.st !== "gone" && !chatGone.has(a.id);
+// ---- thumbnails: memory + IndexedDB per kid+id, fetched only when the tile is visible (IntersectionObserver), 2 (relay) / 4 (LAN) at a time
+const chatTh = {}, chatThQ = [];   // key -> blob url ("" loading, 0 failed)
+let chatThRun = 0;
+const thDb = () => thDb.p || (thDb.p = new Promise(res => { try { const q = indexedDB.open("kgchat", 1); q.onupgradeneeded = () => q.result.createObjectStore("th"); q.onsuccess = () => res(q.result); q.onerror = () => res(null); } catch { res(null); } }));
+const thGet = async key => { const d = await thDb(); return d ? new Promise(r => { try { const q = d.transaction("th").objectStore("th").get(key); q.onsuccess = () => r(q.result || null); q.onerror = () => r(null); } catch { r(null); } }) : null; };
+const thPut = async (key, b) => { try { const d = await thDb(); if (d) d.transaction("th", "readwrite").objectStore("th").put(b, key); } catch {} };
+function chatThPump() {
+  while (chatThQ.length && chatThRun < (fxRelay() ? 2 : 4)) { chatThRun++; chatThQ.shift()().finally(() => { chatThRun--; chatThPump(); }); }
+}
+function chatThumb(k, a) {
+  const key = k.id + "/" + a.id; if (key in chatTh) return; chatTh[key] = "";
+  chatThQ.push(async () => {
+    try {
+      let b = await thGet(key);
+      if (!b) { const g = await fxFetch(k, a, { state: "run", pct: 0 }, true); b = new Blob(g.parts, { type: "image/jpeg" }); if (g.drop) g.drop(); thPut(key, b); }
+      chatTh[key] = URL.createObjectURL(b);
+    } catch { chatTh[key] = 0; setTimeout(() => { if (chatTh[key] === 0) delete chatTh[key]; }, 60000); }
+    document.querySelectorAll("[data-th]").forEach(el => { if (el.dataset.th === key && chatTh[key]) el.querySelector(".cthi").innerHTML = `<img src="${chatTh[key]}" alt="" decoding="async">`; });
+  });
+  chatThPump();
+}
+let chatIO = null;
+function chatObs() {
+  const els = [...document.querySelectorAll("[data-th]")].filter(el => !chatTh[el.dataset.th] && chatTh[el.dataset.th] !== 0); if (!els.length || !cur) return;
+  const go = el => { const k = cur; if (k) chatThumb(k, { id: el.dataset.aid }); };
+  if (!window.IntersectionObserver) return els.forEach(go);
+  if (!chatIO) chatIO = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { chatIO.unobserve(e.target); go(e.target); } }), { rootMargin: "80px" });
+  els.forEach(el => chatIO.observe(el));
+}
+// ---- opening: the whole file as a Blob (LAN GET, or relay fileUp + poll), cached in memory when small
+const chatFull = {};
+async function chatBlob(k, a, job) {
+  const key = k.id + "/" + a.id; if (chatFull[key]) return chatFull[key];
+  const g = await fxFetch(k, a, job), b = new Blob(g.parts, { type: a.mime || "application/octet-stream" }); if (g.drop) g.drop();
+  if ((a.size || 0) < 25e6) chatFull[key] = b;
+  return b;
+}
+function attHtml(m) {
+  const a = m.att; if (!a) return "";
+  if (!attOk(a)) return `<em class="cgone">${ic("trash-2")} ${t("chat.gone")}</em>`;
+  const key = attKey(a), id = esc(a.id), nm = esc(a.name || ""), meta = fxSize(a.size || 0) + (a.dur ? " · " + durTxt(a.dur) : "") + (a.st === "wait" ? " · " + t("chat.attWait") : "");
+  if (a.kind === "image" || a.kind === "video") return `<button type="button" class="cth" data-open="${id}" data-th="${esc(key)}" data-aid="${id}" aria-label="${nm}"><span class="cthi">${chatTh[key] ? `<img src="${chatTh[key]}" alt="" decoding="async">` : ic(attIc(a))}</span>${a.kind === "video" ? `<span class="cpl">${ic("play")}</span>` : ""}</button><i>${esc(meta)}</i>`;
+  if (a.kind === "audio") return `<button type="button" class="cfile" data-open="${id}">${ic("play")}<span><b>${t("chat.voice")}</b><i>${esc(meta)}</i></span></button>`;
+  return `<button type="button" class="cfile" data-open="${id}">${ic("inbox")}<span><b>${nm}</b><i>${esc(meta)}</i></span></button>`;
+}
+function pendHtml(j) {
+  const bad = /^(err|stop)$/.test(j.state);
+  return `<span class="cjn">${ic(/^voice/.test(j.name) ? "music" : "upload")} <b>${esc(j.name)}</b> <span class="mute">${fxSize(j.size)}</span></span>
+    <i data-cjt="${j.id}">${esc(fxTxt({ ...j, pct: 0 }))}</i>${fxBar({ ...j, id: "c" + j.id })}
+    <span class="cjb">${/^(queue|run|wait)$/.test(j.state) ? `<button type="button" data-jc="${j.id}">${ic("x")} ${t("fx.cancel")}</button>` : ""}${bad && !j.big ? `<button type="button" data-jr="${j.id}">${ic("refresh-cw")} ${t("fx.retry")}</button>` : ""}${/^(err|stop|done)$/.test(j.state) ? `<button type="button" data-jd="${j.id}" aria-label="${esc(t("fx.dismiss"))}">${ic("x")}</button>` : ""}</span>`;
+}
+function chatLow() {
+  const f = st && st.freeMb;
+  return typeof f === "number" && f >= 0 && f < 1024 ? alertBox("warn", "hard-drive", `${esc(t("chat.low", Math.round(f)))} <br><button type="button" class="sp" id="lowGo" style="margin-top:6px">${t("chat.lowGo")}</button>`, "margin:0 0 8px") : "";
 }
 function chatDraw() {
   const box = $("#chatBox"); if (!box) return false;
+  const low = $("#chatLow"); if (low) { const h = chatLow(); if (low.dataset.h !== h) { low.dataset.h = h; low.innerHTML = h; } }
+  // a player is running: leave the DOM alone (a redraw would cut the sound), only the progress below is refreshed
+  const playing = [...box.querySelectorAll("audio")].some(a => !a.paused && !a.ended);
   const l = chatList(), near = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
-  const html = (chatHasOlder() || chatBusy ? `<button type="button" id="chatOld" class="sp" style="align-self:center;margin:2px 0 6px"${chatBusy ? " disabled" : ""}>${ic("history")} ${t(chatBusy ? "chat.olderBusy" : "chat.older")}</button>` : "") + (l.length ? l.map(m => `<div class="cb ${m.from === "k" ? "k" : "p"}${m.local ? " pend" : ""}">${m.from === "k" ? `<b>${esc(cur.name)}</b>` : m.who ? `<b>${esc(m.who)}</b>` : ""}<span>${esc(m.text)}</span><i>${m.local ? t("chat.wait") : esc(evAt(m.t))}</i></div>`).join("")
+  const html = (chatHasOlder() || chatBusy ? `<button type="button" id="chatOld" class="sp" style="align-self:center;margin:2px 0 6px"${chatBusy ? " disabled" : ""}>${ic("history")} ${t(chatBusy ? "chat.olderBusy" : "chat.older")}</button>` : "") + (l.length ? l.map(m => `<div class="cb ${m.from === "k" ? "k" : "p"}${m.local ? " pend" : ""}"${m.att && attOk(m.att) ? ` data-m="${esc(m.att.id)}"` : ""}>${m.from === "k" ? `<b>${esc(cur.name)}</b>` : m.who ? `<b>${esc(m.who)}</b>` : ""}${m.job ? pendHtml(m.job) : `${m.text ? `<span>${esc(m.text)}</span>` : ""}${attHtml(m)}${m.att && attOk(m.att) ? `<button type="button" class="cmo" data-menu="${esc(m.att.id)}" aria-label="${esc(t("chat.more"))}">${ic("ellipsis")}</button>` : ""}<i>${m.local ? t("chat.wait") : esc(evAt(m.t))}</i>`}</div>`).join("")
     : `<p class="mute" style="margin:auto;text-align:center">${t("chat.empty")}</p>`);
   const clr = $("#chatClr"); if (clr) clr.hidden = !((st && st.chat) || []).length;
-  if (box.dataset.h !== html) { box.dataset.h = html; box.innerHTML = html; if (near || !box.dataset.s) box.scrollTop = box.scrollHeight; box.dataset.s = "1"; }
+  if (box.dataset.h !== html && !playing) { box.dataset.h = html; box.innerHTML = html; if (near || !box.dataset.s) box.scrollTop = box.scrollHeight; box.dataset.s = "1"; chatObs(); }
+  for (const m of l) if (m.job) { const x = box.querySelector(`[data-cjt="${m.job.id}"]`), p = box.querySelector(`[data-fxp="c${m.job.id}"]`); if (x) x.textContent = fxTxt(m.job); if (p) p.style.width = Math.floor(m.job.pct * 100) + "%"; }
   const last = Math.max(0, ...((st && st.chat) || []).map(m => m.t));
   if (last > chatSeen()) { try { localStorage.setItem(chatSeenKey(), String(last)); } catch {} }
   return true;
 }
+const chatAtt = id => { for (const m of chatList()) if (m.att && m.att.id === id) return m.att; return null; };
+// ---- one attachment: viewer sheet (image / video / audio inline, file = download), menu, delete
+function attMenu(a, back) {
+  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead(attIc(a), esc(a.name || t("chat.voice")))}
+    <div class="grid mo2"><button type="button" id="amO">${ic("play")} ${t("chat.open")}</button><button type="button" id="amG">${ic("download")} ${t("chat.get")}</button>
+    <button type="button" id="amD" class="bad" style="grid-column:1/-1">${ic("trash-2")} ${t("chat.delFile")}</button></div></div>`, (pop, done) => {
+    pop.querySelector("#amO").onclick = () => attOpen(a, back);
+    pop.querySelector("#amG").onclick = () => { done(false); attGet(a); };
+    pop.querySelector("#amD").onclick = () => attDel(a, back);
+  });
+}
+function attGet(a) { const b = chatFull[attKey(a)]; if (b) fxSave(b, a.name || "file"); else fxGet(a); }
+async function attDel(a, back) {
+  if (!(await ask(t("chat.delAsk", a.name || ""), t("fx.del"), true))) return back && back();
+  const r = await cmd({ type: "chatFileDel", id: a.id }, t("chat.delDone"), false);
+  if (r) { chatGone.add(a.id); delete chatFull[attKey(a)]; delete chatTh[attKey(a)]; }
+  if (back) back();
+}
+function attOpen(a, back) {
+  const k = cur; let alive = true;
+  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead(attIc(a), esc(a.name || t("chat.voice")))}
+    <div id="avBox" class="avbox mute" role="status">${t("chat.loading", 0)}</div>
+    <div class="row"><button type="button" id="avBack" class="sp">${ic("chevron-left")} ${t("chat.back")}</button><button type="button" id="avGet" class="sp">${ic("download")} ${t("chat.get")}</button><button type="button" id="avDel" class="sp bad">${ic("trash-2")} ${t("chat.delFile")}</button></div></div>`, pop => {
+    pop.querySelector("#avBack").onclick = () => { alive = false; back && back(); };
+    pop.querySelector("#avGet").onclick = () => attGet(a);
+    pop.querySelector("#avDel").onclick = () => { alive = false; attDel(a, back); };
+    const job = { state: "run", pct: 0 }, iv = setInterval(() => { const b = $("#avBox"); if (!b || !alive) return clearInterval(iv); if (!b.classList.contains("mute")) return; b.textContent = job.state === "wait" ? t("fx.getWait") : t("chat.loading", Math.floor(job.pct * 100)); }, 400);
+    (async () => {
+      try {
+        const b = await chatBlob(k, a, job), box = $("#avBox"); if (!box || !alive || k !== cur) return;
+        const u = URL.createObjectURL(b); box.classList.remove("mute");
+        box.innerHTML = a.kind === "image" ? `<img src="${u}" alt="${esc(a.name || "")}">` : a.kind === "video" ? `<video controls playsinline autoplay src="${u}"></video>` : a.kind === "audio" ? `<audio controls autoplay src="${u}"></audio>` : `${ic("check")} ${esc(a.name || "")} (${fxSize(a.size || 0)})`;
+        if (a.kind === "file") attGet(a);
+      } catch (e) { const box = $("#avBox"); if (box && alive) box.textContent = t("chat.loadFail", fxErr(e)); }
+      finally { clearInterval(iv); }
+    })();
+  });
+}
+// ---- gallery: every attachment of the loaded thread (state 30 + pulled pages), filter chips, thumbs grid + list
+const gal = { f: "", size: false };
+function galOpen(o) {
+  if (!cur) return; gal.size = !!(o && o.size);
+  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("image", t("chat.gal"))}
+    <div class="chips" id="galF" role="group"></div><div id="galB"></div></div>`, pop => {
+    pop.querySelector("#galF").onclick = e => { const b = e.target.closest("[data-f]"); if (!b) return; if (b.dataset.f === "size") gal.size = !gal.size; else gal.f = gal.f === b.dataset.f ? "" : b.dataset.f; galDraw(); };
+    pop.querySelector("#galB").onclick = async e => {
+      if (e.target.closest("#galOld")) { await chatOlder(); return galDraw(); }
+      const b = e.target.closest("[data-open]"); if (b) { const a = chatAtt(b.dataset.open); if (a) attOpen(a, () => galOpen({ size: gal.size })); }
+    };
+    galDraw();
+  });
+}
+function galDraw() {
+  const F = $("#galF"), B = $("#galB"); if (!F || !B || !cur) return;
+  const seen = new Set(), all = chatList().filter(m => m.att && attOk(m.att) && !seen.has(m.att.id) && seen.add(m.att.id)).map(m => ({ ...m.att, t: m.t, from: m.from }));
+  const l = all.filter(a => !gal.f || a.kind === gal.f).sort((x, y) => gal.size ? (y.size || 0) - (x.size || 0) : y.t - x.t);
+  F.innerHTML = [["image", "chat.fImg"], ["video", "chat.fVid"], ["audio", "chat.fAud"], ["file", "chat.fFile"]].map(([v, k]) => `<button type="button" class="${gal.f === v ? "on" : ""}" data-f="${v}" aria-pressed="${gal.f === v}">${t(k)}</button>`).join("")
+    + `<button type="button" class="${gal.size ? "on" : ""}" data-f="size" aria-pressed="${gal.size}">${ic("hard-drive")} ${t("chat.sortSize")}</button>`;
+  const tile = a => `<button type="button" class="gt" data-open="${esc(a.id)}" data-th="${esc(attKey(a))}" data-aid="${esc(a.id)}" aria-label="${esc(a.name || "")}"><span class="cthi">${chatTh[attKey(a)] ? `<img src="${chatTh[attKey(a)]}" alt="" decoding="async">` : ic(attIc(a))}</span>${a.kind === "video" ? `<span class="cpl">${ic("play")}</span>` : ""}<i>${fxSize(a.size || 0)}</i></button>`;
+  const row = a => `<button type="button" class="cfile" data-open="${esc(a.id)}">${ic(attIc(a))}<span><b>${esc(a.kind === "audio" ? t("chat.voice") : a.name || "")}</b><i>${fxSize(a.size || 0)}${a.dur ? " · " + durTxt(a.dur) : ""} · ${esc(evAt(a.t))}</i></span></button>`;
+  const media = l.filter(a => a.kind === "image" || a.kind === "video"), rest = l.filter(a => !(a.kind === "image" || a.kind === "video"));
+  B.innerHTML = (l.length ? (media.length ? `<div class="ggrid">${media.map(tile).join("")}</div>` : "") + (rest.length ? `<div class="glist">${rest.map(row).join("")}</div>` : "") : `<p class="mute">${t("chat.galEmpty")}</p>`)
+    + (chatHasOlder() || chatBusy ? `<button type="button" id="galOld" class="sp" style="margin-top:10px"${chatBusy ? " disabled" : ""}>${ic("history")} ${t(chatBusy ? "chat.olderBusy" : "chat.older")}</button>` : "");
+  chatObs();
+}
+// ---- composer: attach menu + voice note (MediaRecorder; getUserMedia needs a secure context, like the video call: rtc.js can())
+const chatSecure = () => !!(window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+const rec = { mr: null, chunks: [], t0: 0, iv: 0, held: false, cancel: false, starting: false, x0: 0, down: 0 };
+function recUi(on) {
+  const b = $("#recBar"), c = $("#cmpRow"); if (!b || !c) return;
+  b.hidden = !on; c.hidden = on;
+  if (on) recTick();
+}
+function recTick() { const s = (Date.now() - rec.t0) / 1000, el = $("#recT"); if (el) el.textContent = durTxt(s); if (s >= 120) recStop(false); }
+async function recStart() {
+  if (rec.mr || rec.starting) return; rec.starting = true; rec.held = true; rec.cancel = false;
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { rec.starting = false; rec.held = false; return toast("err|" + t("chat.micDenied")); }
+  const mt = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find(m => MediaRecorder.isTypeSupported(m));
+  if (!mt) { stream.getTracks().forEach(x => x.stop()); rec.starting = false; rec.held = false; return toast("err|" + t("chat.micFail")); }
+  const mr = new MediaRecorder(stream, { mimeType: mt }), kid = cur; rec.chunks = [];
+  mr.ondataavailable = e => { if (e.data && e.data.size) rec.chunks.push(e.data); };
+  mr.onstop = () => {
+    stream.getTracks().forEach(x => x.stop()); clearInterval(rec.iv); rec.mr = null; recUi(false);
+    const s = (Date.now() - rec.t0) / 1000;
+    if (rec.cancel || !rec.chunks.length) return;
+    if (s < 0.8) return toast("warn|" + t("chat.recShort"));
+    const type = mt.split(";")[0], f = new File(rec.chunks, "voice-" + new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "") + "." + (type === "audio/mp4" ? "m4a" : "webm"), { type });
+    if (kid === cur) { fxSend([f], { chat: true }); chatDraw(); }
+  };
+  rec.mr = mr; rec.starting = false; rec.t0 = Date.now(); mr.start(1000);
+  rec.iv = setInterval(recTick, 250); recUi(true);   // a quick tap (< 0.4 s) keeps recording: the strip has Send / Cancel
+}
+function recStop(cancel) { if (!rec.mr) return; rec.cancel = !!cancel; try { rec.mr.stop(); } catch {} }
+function chatAttach(files) { if (files && files.length) { fxSend(files, { chat: true }); chatDraw(); } }
 // "Nhắn" tile: the family chat with the kid (a send is the `message` command: it pops up on the kid's screen and joins the thread);
-// saved messages one tap away (same list as the watch)
+// attachments = the Files upload paths with chat=1 (the phone adds the chat entry); saved messages one tap away (same list as the watch)
 function msgSheet() {
   const sid = setInterval(() => { if (!chatDraw()) clearInterval(sid); else refresh(); }, 4000);
-  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("message-square", t("chat.title", esc(cur.name)))}
-    <div id="chatBox" class="chat" aria-live="polite"></div>
-    <div class="row"><input id="msg" class="sp" placeholder="${esc(t("msgPh"))}" maxlength="300"><button type="button" id="send" class="pri">${ic("send")} ${t("send")}</button></div>
+  const sec = chatSecure(), noF = FXNO;
+  const head = sheetHead("message-square", t("chat.title", esc(cur.name))).replace('<button type="button" class="close"', `<button type="button" class="gal" id="galGo">${ic("image")} ${t("chat.gal")}</button><button type="button" class="close"`);
+  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${head}
+    <div id="chatLow"></div><div id="chatBox" class="chat" aria-live="polite"></div>
+    <div class="row cmp" id="cmpRow"><input id="msg" class="sp" placeholder="${esc(t("msgPh"))}" maxlength="300">${noF ? "" : `<button type="button" id="attBtn" class="ib2" aria-label="${esc(t("chat.att"))}" aria-expanded="false">${ic("plus")}</button>`}${noF || !sec ? "" : `<button type="button" id="micBtn" class="ib2" aria-label="${esc(t("chat.mic"))}" title="${esc(t("chat.mic"))}">${ic("mic")}</button>`}<button type="button" id="send" class="pri">${ic("send")} <span class="sn">${t("send")}</span></button></div>
+    <div class="row" id="recBar" hidden><span class="rdot"></span><b id="recT">0:00</b><span class="mute sp" style="flex:1">${t("chat.recHint")}</span><button type="button" id="recNo" class="ib2" aria-label="${esc(t("cancel"))}">${ic("x")}</button><button type="button" id="recOk" class="pri ib2" aria-label="${esc(t("send"))}">${ic("send")}</button></div>
+    ${noF ? "" : `<div id="attMenu" class="grid mo2" hidden><button type="button" data-p="media">${ic("image")} ${t("chat.pickMedia")}</button><button type="button" data-p="file">${ic("inbox")} ${t("chat.pickFile")}</button>${sec ? `<button type="button" data-p="cam">${ic("camera")} ${t("chat.pickCam")}</button><button type="button" data-p="vid">${ic("video")} ${t("chat.pickVid")}</button>` : ""}</div>
+    ${sec ? "" : `<p class="mute" id="attWhy" hidden>${ic("info")} ${t("chat.secure")}</p>`}
+    <input type="file" id="fMedia" accept="image/*,video/*" multiple hidden><input type="file" id="fFile" multiple hidden><input type="file" id="fCam" accept="image/*" capture="environment" hidden><input type="file" id="fVid" accept="video/*" capture="environment" hidden>`}
     <div id="qmBox"></div>
     <button type="button" id="chatClr" class="sp bad" style="margin-top:12px" hidden>${ic("trash-2")} ${t("chat.clear")}</button></div>`,
     pop => {
-      pop.querySelector("#chatBox").onclick = e => { if (e.target.closest("#chatOld")) chatOlder(); };
-      // destructive: the generic confirm (kid.js askOf: ask.chatClear), then the thread is empty on the phone; the sheet closed for the confirm, so it opens again
-      pop.querySelector("#chatClr").onclick = () => cmd({ type: "chatClear" }, t("chat.cleared")).then(r => { if (r) { const k = cur.id; chatOld[k] = []; chatMore[k] = undefined; chatPend[k] = []; if (st && r.result !== "queued") st.chat = []; msgSheet(); refresh(); } });   // relay "queued": the phone has not cleared yet, the thread stays until its state says so });
+      const box = pop.querySelector("#chatBox");
+      box.onclick = e => {
+        if (e.target.closest("#chatOld")) return chatOlder();
+        const jb = e.target.closest("[data-jc],[data-jr],[data-jd]");
+        if (jb) { const id = jb.dataset.jc || jb.dataset.jr || jb.dataset.jd, job = fx.jobs.find(q => q.id === id); if (!job) return;
+          if (jb.dataset.jc) fxCancel(job); else if (jb.dataset.jr) { job.state = "queue"; job.pct = 0; job.fid = null; fxPaint(); fxPump(); } else job.gone = true;
+          return chatDraw(); }
+        const mo = e.target.closest("[data-menu]"); if (mo) { const a = chatAtt(mo.dataset.menu); if (a) attMenu(a, msgSheet); return; }
+        const op = e.target.closest("[data-open]"); if (op) { const a = chatAtt(op.dataset.open); if (a) attOpen(a, msgSheet); }
+      };
+      box.oncontextmenu = e => { const m = e.target.closest("[data-m]"); if (!m) return; e.preventDefault(); const a = chatAtt(m.dataset.m); if (a) attMenu(a, msgSheet); };   // long press on Android
+      pop.querySelector("#galGo").onclick = () => galOpen();
+      pop.querySelector("#chatLow").onclick = e => { if (e.target.closest("#lowGo")) galOpen({ size: true }); };
+      // destructive: our own confirm (with "also delete photos and files"), then the thread is empty on the phone; the sheet closed for the confirm, so it opens again
+      pop.querySelector("#chatClr").onclick = async () => {
+        let wf = false;
+        const ok = await ask(cur.name + "\n" + t("ask.chatClear"), t("askOk.chatClear"), true, "", `<label class="chk" style="display:flex;gap:8px;align-items:center;margin:0 0 12px"><input type="checkbox" id="clrFiles"> ${t("chat.clrFiles")}</label>`, () => { wf = !!($("#clrFiles") || {}).checked; return true; });
+        if (!ok) return msgSheet();
+        const r = await cmd({ type: "chatClear", ...(wf ? { files: true } : {}) }, t("chat.cleared"), false);
+        if (r) { const k = cur.id; chatOld[k] = []; chatMore[k] = undefined; chatPend[k] = []; if (st && r.result !== "queued") st.chat = []; refresh(); }   // relay "queued": the phone has not cleared yet, the thread stays until its state says so
+        msgSheet();
+      };
       pop.querySelector("#send").onclick = () => { const tx = $("#msg").value.trim(); if (!tx) return $("#msg").focus();
         const sb = pop.querySelector("#send"); if (sb.disabled) return; sb.disabled = true;   // no double send while the dialog / request is in flight
         cmd({ type: "message", text: tx }, t("msg.done")).then(r => { if (r) { (chatPend[cur.id] = chatPend[cur.id] || []).push({ from: "p", who: "", text: tx, t: Date.now(), local: 1 }); chatDraw(); if ($("#msg") && $("#msg").value.trim() === tx) $("#msg").value = ""; } }).finally(() => { sb.disabled = false; }); };
       pop.querySelector("#msg").onkeydown = e => { if (e.key === "Enter") pop.querySelector("#send").click(); };
       pop.querySelector("#msg").oninput = qmDraw;
+      const ab = pop.querySelector("#attBtn");
+      if (ab) {
+        const menu = pop.querySelector("#attMenu"), why = pop.querySelector("#attWhy");
+        ab.onclick = () => { menu.hidden = !menu.hidden; if (why) why.hidden = menu.hidden; ab.setAttribute("aria-expanded", String(!menu.hidden)); };
+        const ids = { media: "#fMedia", file: "#fFile", cam: "#fCam", vid: "#fVid" };
+        menu.onclick = e => { const b = e.target.closest("[data-p]"); if (b) pop.querySelector(ids[b.dataset.p]).click(); };
+        for (const i of Object.values(ids)) pop.querySelector(i).onchange = e => { menu.hidden = true; if (why) why.hidden = true; chatAttach(e.target.files); e.target.value = ""; };
+      }
+      const mic = pop.querySelector("#micBtn");
+      if (mic) {
+        mic.oncontextmenu = e => e.preventDefault();
+        mic.onpointerdown = e => { rec.x0 = e.clientX; rec.down = Date.now(); try { mic.setPointerCapture(e.pointerId); } catch {} recStart(); };
+        mic.onpointermove = e => { if (rec.mr && rec.held && e.clientX - rec.x0 < -70) { rec.held = false; recStop(true); } };
+        mic.onpointerup = mic.onpointercancel = () => { if (!rec.held) return; rec.held = false; if (Date.now() - rec.down >= 400) recStop(false); };
+        pop.querySelector("#recNo").onclick = () => recStop(true);
+        pop.querySelector("#recOk").onclick = () => recStop(false);
+      }
       chatDraw(); qmDraw();
-    });
+    }).then(() => { recStop(true); clearInterval(sid); });
 }
 // Saved quick messages (rules.msgs, also listed on the watch): a tap fills the box (Send stays the one way to send),
 // x removes, "Lưu làm mẫu" keeps what is typed. Saved through the normal rules save (changed()).
