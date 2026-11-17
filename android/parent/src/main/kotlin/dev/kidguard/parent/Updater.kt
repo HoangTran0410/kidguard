@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import androidx.core.content.FileProvider
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
@@ -54,11 +53,9 @@ object Updater {
                 val f = File(dir, "kidguard-parent-$tag.apk")
                 val want = fetchSha(Logic.parentSha(tag))   // like the child updater: no checksum, no install
                 download(Logic.parentApk(tag), f, want) { a.push(JSONObject().put("st", "dl").put("tag", tag).put("pct", it)) }
-                val uri = FileProvider.getUriForFile(a, a.packageName + ".files", f)
-                a.runOnUiThread {
-                    a.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
-                }
+                // PackageInstaller session: on Android 12+ with us as the installer of record the update goes in without a tap
+                // (USER_ACTION_NOT_REQUIRED); otherwise the system asks (InstallResult opens its prompt). The bridge keeps the old "inst" state.
+                SelfInstall.start(a, f)
                 o.put("st", "inst")
             } catch (e: Exception) { android.util.Log.w("KGParent", "update download", e); o.put("st", "dlfail") }
             busy = false
@@ -109,5 +106,35 @@ object Updater {
             } finally { c.disconnect() }
         }
         throw java.io.IOException("too many redirects")
+    }
+}
+
+/** Install the downloaded APK through a PackageInstaller session instead of ACTION_VIEW. */
+object SelfInstall {
+    const val ACTION = "dev.kidguard.parent.INSTALL_RESULT"
+
+    fun start(ctx: android.content.Context, apk: File) {
+        val pi = ctx.packageManager.packageInstaller
+        val p = android.content.pm.PackageInstaller.SessionParams(android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+        p.setAppPackageName(ctx.packageName)
+        if (android.os.Build.VERSION.SDK_INT >= 31) p.setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+        val id = pi.createSession(p)
+        pi.openSession(id).use { s ->
+            apk.inputStream().use { i -> s.openWrite("kidguard-parent.apk", 0, apk.length()).use { o -> i.copyTo(o); s.fsync(o) } }
+            val intent = Intent(ctx, InstallResult::class.java).setAction(ACTION).setPackage(ctx.packageName)
+            val flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or (if (android.os.Build.VERSION.SDK_INT >= 31) android.app.PendingIntent.FLAG_MUTABLE else 0)
+            s.commit(android.app.PendingIntent.getBroadcast(ctx, id, intent, flags).intentSender)
+        }
+    }
+}
+
+/** Result of [SelfInstall]: a needed confirmation is opened (the old behaviour); a failure is logged (the page keeps its "inst" line, the parent can retry). */
+class InstallResult : android.content.BroadcastReceiver() {
+    override fun onReceive(c: android.content.Context, i: Intent) {
+        val st = i.getIntExtra(android.content.pm.PackageInstaller.EXTRA_STATUS, -1)
+        if (st == android.content.pm.PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            @Suppress("DEPRECATION") val ask = i.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
+            if (ask != null) runCatching { c.startActivity(ask.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        } else if (st != android.content.pm.PackageInstaller.STATUS_SUCCESS) android.util.Log.w("KGParent", "self-update install status $st: ${i.getStringExtra(android.content.pm.PackageInstaller.EXTRA_STATUS_MESSAGE)}")
     }
 }

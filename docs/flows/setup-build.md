@@ -76,6 +76,13 @@ Extra only in SelfSetup: optional Wi-Fi-debugging off; its step 1b runs across a
 - Relay deploy (users' own account): `scripts/relay.sh` / `relay.ps1` -> `cd relay; npm ci; wrangler whoami/login; wrangler deploy` (`relay.sh:11-25`), prints `https://kidguard.<you>.workers.dev`; `--delete` / `-Delete` removes. Dev maintainer deploy = same script or `npx wrangler deploy`; `wrangler.toml` name `kidguard`, DO class `Kid` migration v1, ratelimit RL. FCM secret: `npx wrangler secret put FCM_SA` (README:166). Worker bundles `ui/*.html` + `ui/assets/*` at deploy, so relay MUST be redeployed after any ui/ change for "away" parents.
 - Website deploy: Cloudflare Pages `kid-guard.pages.dev`, dir `website/` (`_headers` present). No deploy script/config/workflow in repo (`scripts/site.sh` was added in 7acef5e then reverted in 9d75f23). Presumably `wrangler pages deploy website` or git-connected; unverified.
 
+### 4.4 UI pack (the page without an app update)
+- Keys: `node scripts/ui-pack.mjs --init` (build.sh runs it when keys are missing) writes `android/app/ui-pack-key.pem` + `ui-pack-backup-key.pem` (both git-ignored, in the MAIN checkout also when run from a worktree) and puts the public halves into `android/shared/UiPack.kt` (commit that). Back up both files; keep the backup one offline. Lose both = phones keep the bundled page until an app release carries new keys.
+- Build: `node scripts/ui-pack.mjs` -> `website/ui/{manifest.json,manifest.sig,pack-<ver>.zip}` (git-ignored; `build.sh` does it; same content = same seq). `scripts/ui-pack.json` `minKid`/`minParent` = lowest app versionCode that can run this page: raise them with any change that needs a new bridge method / endpoint / CSP origin.
+- Publish: `scripts/deploy.sh` (relay first, then `wrangler pages deploy website`; `--pages` = UI only, `--dry` = build + verify only). Needs the owner's OK like any deploy; not run by build.sh or CI. Phones fetch it when the page is opened (or Settings > "Update the page").
+- Dev fast path (< 10 s, no deploy, no APK): `scripts/ui-push.sh --host <phone IP>` (LAN) or `scripts/ui-push.sh --adb <SERIAL>` (adb forward; serial required when several devices are attached) builds + signs from the working tree and POSTs it to that one phone's `/ui/push`, then prints `/ui/pack.json`. Reload the page on the phone. Kid phone only; a later deployed pack (higher seq) replaces it; to drop it: install any newer pack or clear the app's data.
+- Rollback of a bad published page: fix, `scripts/deploy.sh --pages` (higher seq wins). A page that never boots is reverted on the phone by itself (3 loads, `/ui/ok`).
+
 #### Release checklist (derived)
 1. Land feature commits; run `cd android && ./gradlew testKidDebugUnitTest :parent:testDebugUnitTest` and `cd relay && npm ci && npm test`; update `docs/protocol.md` for any wire/setup change.
 2. Bump `kg.version` and `kg.code` (+1, must grow) in `android/gradle.properties`.
@@ -84,7 +91,7 @@ Extra only in SelfSetup: optional Wi-Fi-debugging off; its step 1b runs across a
 5. Update website/guide/README text for new features (done in release commits), keep `llms.txt`/sitemap if relevant.
 6. Commit `vX.Y.Z: <summary>` (with Co-Authored-By), tag `vX.Y.Z`, push main + tag.
 7. Create GitHub Release `vX.Y.Z` (manual/gh) and upload from `build/`: `kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk`, their `.sha256` files, and `kidguard-<v>.apk`, `kidguard-home-<v>.apk`, `kidguard-parent-<v>.apk`. Mark as latest (updater + QR + site use `/latest/`).
-8. Deploy relay (`scripts/relay.sh`) so /install, /qr, parent page match; deploy website to Pages (owner's OK first).
+8. Deploy relay + site + UI pack with `scripts/deploy.sh` (section 4.4); or relay (`scripts/relay.sh`) so /install, /qr, parent page match; deploy website to Pages (owner's OK first).
    Website: static dir `website/` -> Cloudflare Pages project `kid-guard` (`kid-guard.pages.dev`): `npx wrangler pages deploy website --project-name kid-guard` (the exact command is the maintainer's choice; nothing in the repo runs it). Run `scripts/stamp-site.sh` first if css/img changed (build.sh already does).
 9. Verify the release: `scripts/release-check.sh [vX.Y.Z]` (read-only HEAD requests) checks the 9 contract asset names (`kidguard{,-parent,-home}.apk` + `.sha256`, three `-<v>.apk` copies) exist and the tag is `latest`. Asset names come from `Update.kt` (`kidguard.apk`, `.sha256`), README/website links and `build.sh`.
 10. Real-phone checks are the user's (nothing tests ui/*.html or on-device).

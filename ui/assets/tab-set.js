@@ -169,7 +169,7 @@ function updCard() {
   return secP("s-upd", "refresh-cw", t("upd.h"), t("sd.upd"), has ? [t("upd.has", v), "warn"] : [esc(st.version || "?"), "ok"], `
     <p style="overflow-wrap:anywhere">${t("upd.kid", "<b>" + esc(st.version || "?") + "</b>")} · ${line}${u.checkedAt ? ` <span class="mute">· ${t("upd.checked", ago(u.checkedAt))}</span>` : ""}</p>
     <label class="row"><input type="checkbox" id="f-au" ${edit && edit.autoUpdate ? "checked" : ""}><span class="sp">${t("upd.auto")}</span></label>
-    <div class="row" style="margin-top:8px"><button id="updNow" ${busy ? "disabled" : ""}>${ic("refresh-cw")} ${t("upd.now")}</button></div>`, has || busy || u.status === "failed");
+    <div class="row" style="margin-top:8px"><button id="updNow" ${busy ? "disabled" : ""}>${ic("refresh-cw")} ${t("upd.now")}</button></div>${uiPackHtml()}`, has || busy || u.status === "failed");
 }
 // paired parent devices (state.devices, phone >= 0.9.8). Our own row: "self" on LAN; on the relay page, sha256(token)[:8].
 const devIds = new Map();

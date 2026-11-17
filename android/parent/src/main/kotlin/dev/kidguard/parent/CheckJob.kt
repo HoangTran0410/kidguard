@@ -58,6 +58,7 @@ class CheckJob : JobService() {
 
         fun run(c: Context) {
             runCatching { checkUpdate(c) }.onFailure { android.util.Log.w("KGParent", "update check", it) }
+            runCatching { Proxy.hub(c).let { h -> if (System.currentTimeMillis() - h.lastCheck > 6 * 3_600_000L) h.checkAsync(0) } }   // the page (UI pack)
             Store.setCheckAt(c, System.currentTimeMillis())
             // the worker drops push tokens after 30 quiet days and a failed registration was never retried: once a day, again
             if (Store.notify(c) && (System.currentTimeMillis() - Store.pushAt(c) >= if (Store.pushRes(c) == "fail") 3_600_000L else 24 * 3_600_000L)) Push.sync(c, force = true)   // a failed registration: hourly (no Play services = stays "fail"), else daily

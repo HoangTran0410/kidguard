@@ -2,3 +2,4 @@
 appLang();
 applyLang();
 boot();
+uiPackBoot();   // after boot(): if boot() throws (a broken page) this never runs and the phone rolls the pack back
