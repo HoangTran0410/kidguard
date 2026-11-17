@@ -24,7 +24,7 @@ jobs:
           files=$(grep -o 'src="/ui/[a-z0-9-]*\.js"' ui/index.html | sed 's|src="/ui/|ui/assets/|; s|"$||')
           for f in $files; do node --check "$f"; done
           cat $files > /tmp/page.js && node --check /tmp/page.js
-      - name: Page script lint (esbuild: assign-to-constant, duplicate keys, ...)
+      - name: "Page script lint (esbuild: assign-to-constant, duplicate keys, ...)"
         run: scripts/check-js.sh
       - name: Select-by-date rules match the phone
         run: node scripts/check-select.mjs
