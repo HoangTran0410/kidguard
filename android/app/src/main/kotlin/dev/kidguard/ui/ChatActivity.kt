@@ -72,7 +72,9 @@ class ChatActivity : Activity() {
     }
 
     private fun draw(toEnd: Boolean) {
-        val a = Store.of(this).chat()
+        val st = Store.of(this)
+        st.chatMarkRead()   // the launcher's unread dot (control tile / "From mum and dad" widget) goes off while the thread is on screen
+        val a = st.chat()
         val sig = a.toString()
         if (sig == shown) return
         shown = sig

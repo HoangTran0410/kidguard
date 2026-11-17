@@ -30,6 +30,23 @@ object ChatLogic {
         return JSONArray().also { j -> out.takeLast(KEEP).forEach { j.put(it) } }
     }
 
+    /** Rows per "older messages" page (default 30, max 50). */
+    fun count(n: Int): Int = if (n <= 0) STATE else minOf(n, 50)
+
+    /**
+     * One page for the parent's "older messages": entries with `t < before` (0 = from the newest), the newest [n] of them,
+     * oldest first, plus `more` = there are still older ones. Pure: the phone passes its whole kept thread.
+     */
+    fun page(a: JSONArray, before: Long, n: Int): JSONObject {
+        val old = ArrayList<JSONObject>()
+        for (i in 0 until a.length()) a.optJSONObject(i)?.let { if (before <= 0 || it.optLong("t") < before) old += it }
+        val take = old.takeLast(n)
+        return JSONObject().put("chat", JSONArray().also { j -> take.forEach { j.put(it) } }).put("more", old.size > take.size)
+    }
+
+    /** A parent message the child has not opened yet: the newest parent message is newer than the last time the chat was read. */
+    fun unread(lastParent: Long, readAt: Long) = lastParent > 0 && lastParent > readAt
+
     /** The last [n] entries (what state carries). */
     fun tail(a: JSONArray, n: Int = STATE): JSONArray = JSONArray().also { j -> for (i in maxOf(0, a.length() - n) until a.length()) j.put(a.get(i)) }
 }

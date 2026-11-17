@@ -533,7 +533,7 @@ class HomeActivity : Activity() {
         lap("time")
         val mj = if (m === jsonOf) jsonStr else m.toJson().toString().also { jsonOf = m; jsonStr = it }; lap("json")
         val k = listOf(mj, all.values.joinToString(",") { it.label }, show.toString(), dv.want.toString(), block, banner, timeKey, dv.leftMs / 60_000, s.everPaired,
-            s.raw("sos"), checkinKey(s), s.raw("reqs"), r.blockNote, r.launcher, dark, files,
+            s.raw("sos"), checkinKey(s), s.raw("reqs"), s.chatKey, r.blockNote, r.launcher, dark, files,
             r.chores, r.schedules, r.groups.map { it.hours }, r.bedtimeOn, r.bedStart, r.bedEnd, r.lockContact, focusKey(this)).joinToString("|")
         lap("key")
         if (!force && k == key) { if (wallRev != Wallpaper.rev && !busy()) { wallRev = Wallpaper.rev; ensureWall() }; tickClocks(dv); focusTick(); lap.done("same"); return }

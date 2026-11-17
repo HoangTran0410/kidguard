@@ -532,7 +532,7 @@ L.en = {
   "pinFirst.need": "Not saved: set a parent PIN first",
   "home.recent": "Recent",
   "req.replyBtn": "Reply…",
-  "chat.title": "Chat with {0}", "chat.empty": "No messages yet. Write the first one.", "chat.wait": "sent, waiting for the phone", "msg.h": "Show a message on the kid's screen",
+  "chat.title": "Chat with {0}", "chat.empty": "No messages yet. Write the first one.", "chat.wait": "sent, waiting for the phone", "chat.older": "Older messages", "chat.olderBusy": "Loading…", "chat.olderFail": "Couldn't load older messages: {0}", "chat.clear": "Clear chat history", "chat.cleared": "Chat history cleared", "ask.chatClear": "Clear the whole chat history? Both of you will see an empty chat. This can't be undone.", "askOk.chatClear": "Clear history", "msg.h": "Show a message on the kid's screen",
   "qm.h": "Saved messages (also on the watch)",
   "qm.save": "Save as quick message",
   "qm.saved": "Message saved",
