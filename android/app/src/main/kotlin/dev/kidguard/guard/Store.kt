@@ -945,6 +945,8 @@ class Store private constructor(private val app: Context) {
     }
 
     // Family chat (ChatLogic): the last 100 messages of the thread parents <-> child, prefs "chat".
+    /** release: the thread goes with the other history. */
+    @Synchronized fun clearChat() { p.edit().remove("chat").apply() }
     @Synchronized fun chat(): JSONArray = runCatching { JSONArray(p.getString("chat", "[]")) }.getOrDefault(JSONArray())
     /** [from] "p" = a parent (by [who]), "k" = the child. A child message also becomes the event "chat" (parent app push). Returns false for empty text. */
     @Synchronized fun addChat(from: String, who: String, text: String, id: String = randomHex(4)): Boolean {
