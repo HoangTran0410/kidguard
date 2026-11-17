@@ -82,8 +82,17 @@ object SelfAdb {
 
     fun canOpen(ctx: Context): Boolean = android.os.Build.VERSION.SDK_INT >= 30 && hasKey(ctx) && Sys.wss(ctx) && runCatching {
         !(ctx.getSystemService(Context.USER_SERVICE) as android.os.UserManager).hasUserRestriction(android.os.UserManager.DISALLOW_DEBUGGING_FEATURES) &&
-            ctx.getSystemService(android.net.ConnectivityManager::class.java).let { cm ->
-                cm.getNetworkCapabilities(cm.activeNetwork)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true }
+            onWifi(ctx)
+    }.getOrDefault(false)
+
+    /** Any connected Wi-Fi network, not only the default one: with a VPN on (Tailscale) or "mobile data always on" the
+     *  default network may not say Wi-Fi while the phone is on Wi-Fi (owner 2026-11-17: Nam on Wi-Fi, "chưa có kết nối adb"). */
+    @Suppress("DEPRECATION")
+    fun onWifi(ctx: Context): Boolean = runCatching {
+        val cm = ctx.getSystemService(android.net.ConnectivityManager::class.java)
+        (listOfNotNull(cm.activeNetwork) + cm.allNetworks).any { n ->
+            cm.getNetworkCapabilities(n)?.let { it.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) } == true
+        }
     }.getOrDefault(false)
 
     /** Ready now, or after opening the window (waits up to ~10 s for adbd). Off the main thread. */
