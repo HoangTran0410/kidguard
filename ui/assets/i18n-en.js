@@ -764,8 +764,6 @@ L.en = {
   "rp.renDone": "Name saved",
   "rp.none": "The list needs a newer relay.",
   "sel.start": "Select",
-  "sel.all": "Select all",
-  "sel.none": "Clear",
   "sel.range": "Select by date",
   "sel.r.today": "Today",
   "sel.r.7": "Last 7 days",

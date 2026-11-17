@@ -233,9 +233,13 @@ function confirmGate(e) {
   if (box) el.checked = !want;   // stays as it was until the parent agrees
   const k = cur, txt = typeof key === "function" ? key() : t(key);
   ask((k && k.name ? k.name + "\n" : "") + txt, t(c.ok || (box ? (want ? "turnOn" : "turnOff") : "agree")), !c.safe).then(ok => {
-    if (!ok || k !== cur || !el.isConnected) return;
-    confirmPass = el;   // the real handler runs now, synchronously, without asking again
-    try { if (box) { el.checked = want; el.dispatchEvent(new Event("change", { bubbles: true })); } else el.click(); }
+    if (!ok || k !== cur) return;
+    // a state poll may have re-rendered the tab while the dialog was open (relay: every 8 s): act on the control that
+    // is on screen now, same id (INCIDENT 2026-11-17: Seen toggles on Nam did nothing after "Turn on")
+    const now = el.isConnected ? el : document.getElementById(el.id);
+    if (!now || now.disabled) return;
+    confirmPass = now;   // the real handler runs now, synchronously, without asking again
+    try { if (box) { now.checked = want; now.dispatchEvent(new Event("change", { bubbles: true })); } else now.click(); }
     finally { confirmPass = null; }
   });
 }

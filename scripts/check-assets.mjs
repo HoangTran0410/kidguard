@@ -21,6 +21,19 @@ for (const f of files) {
 }
 for (const m of html.matchAll(/(?:src|href)="\/ui\/([^"]+)"/g)) if (!files.includes(m[1])) errs.push(`ui/index.html loads /ui/${m[1]}: no such file`);
 
+// one top-level name per page: the scripts share globals, and a 2nd `function x` silently replaces the 1st
+// (INCIDENT 2026-11-17: chat's pendHtml(job) replaced shell.js's pendHtml(id, html): "NaN MB" under the bank list)
+{
+  const seen = new Map();
+  for (const m of html.matchAll(/<script[^>]*src="\/ui\/([^"]+)"/g)) {
+    if (/^i18n-/.test(m[1]) || !files.includes(m[1])) continue;
+    for (const d of read("ui/assets/" + m[1]).matchAll(/^(?:async\s+)?(?:function\*?\s+([A-Za-z_$][\w$]*)|(?:const|let|var|class)\s+([A-Za-z_$][\w$]*))/gm)) {
+      const n = d[1] || d[2];
+      if (seen.has(n) && seen.get(n) !== m[1]) errs.push(`top-level name "${n}" in both ${seen.get(n)} and ${m[1]}`); else seen.set(n, m[1]);
+    }
+  }
+}
+
 // i18n parity: run both files in a sandbox, compare key sets (arrays such as wd count as one key)
 const ctx = vm.createContext({});
 vm.runInContext("const L = {};\n" + read("ui/assets/i18n-vi.js") + "\n" + read("ui/assets/i18n-en.js") + "\nthis.__L = L;", ctx);

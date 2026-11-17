@@ -765,8 +765,6 @@ L.vi = {
   "rp.renDone": "Đã lưu tên",
   "rp.none": "Danh sách cần relay mới hơn.",
   "sel.start": "Chọn",
-  "sel.all": "Chọn tất cả",
-  "sel.none": "Bỏ chọn",
   "sel.range": "Chọn theo ngày",
   "sel.r.today": "Hôm nay",
   "sel.r.7": "7 ngày qua",
