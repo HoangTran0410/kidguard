@@ -64,11 +64,17 @@ object FilesLogic {
     /** All files a parent may leave in the phone's Download/KidGuard through the app (sum of the index): one full disk is no use to anyone. */
     const val MAX_IN_TOTAL = 1024L * 1024 * 1024
     /** "empty" for a zero-byte file, "quota" when [used] + [len] goes past [MAX_IN_TOTAL]; null = ok. */
-    fun intakeError(len: Long, used: Long): String? = when {
+    fun intakeError(len: Long, used: Long, chat: Boolean = false): String? = when {
         len <= 0 -> "empty"
-        used + len > MAX_IN_TOTAL -> "quota"
+        !chat && used + len > MAX_IN_TOTAL -> "quota"   // chat attachments: no total (the family's archive)
         else -> null
     }
+
+    /** Images / videos of a chat go to Pictures/KidGuard, everything else to Download/KidGuard. */
+    fun pictures(chat: Boolean, mime: String): Boolean = chat && ChatLogic.kind(mime).let { it == "image" || it == "video" }
+
+    /** Relay fid of a file's thumbnail: each hex digit d of the id -> 15-d ("0" <-> "f"), still 16 hex, never equal to the id. */
+    fun thumbFid(id: String): String = id.map { Integer.toHexString(15 - Character.digit(it, 16))[0] }.joinToString("")
 
     fun chunks(size: Long) = maxOf(1L, (size + CHUNK - 1) / CHUNK).toInt()
 
@@ -87,16 +93,20 @@ object FilesLogic {
 
     /** One shared file. dir "in" = parent -> kid (in Download/KidGuard), "out" = kid -> parent (app outbox). [loc] stays on the phone. */
     data class Entry(val id: String, val dir: String, val name: String, val size: Long, val at: Long, val mime: String,
-                     val st: String, val loc: String = "") {
+                     val st: String, val loc: String = "", val chat: Boolean = false, val dur: Int = 0) {
+        /** [chat] = a chat attachment (family chat): the family's archive, exempt from every cap and never dropped; [dur] seconds of audio / video, 0 = unknown. */
         fun toJson(full: Boolean = false): JSONObject = JSONObject().put("id", id).put("dir", dir).put("name", name)
-            .put("size", size).put("at", at).put("st", st).also { if (full) it.put("mime", mime).put("loc", loc) }
+            .put("size", size).put("at", at).put("st", st).also {
+                if (chat) it.put("chat", true)
+                if (full) { it.put("mime", mime).put("loc", loc); if (dur > 0) it.put("dur", dur) }
+            }
 
         companion object {
             fun fromJson(o: JSONObject): Entry? {
                 val id = o.optString("id"); val dir = o.optString("dir")
                 if (!isId(id) || (dir != IN && dir != OUT)) return null
                 return Entry(id, dir, o.optString("name"), o.optLong("size"), o.optLong("at"), o.optString("mime", OCTET),
-                    o.optString("st"), o.optString("loc"))
+                    o.optString("st"), o.optString("loc"), o.optBoolean("chat"), o.optInt("dur"))
             }
         }
     }
@@ -120,9 +130,9 @@ object FilesLogic {
     fun add(list: List<Entry>, e: Entry): Pair<List<Entry>, List<Entry>> {
         val all = (list.filter { it.id != e.id } + e).sortedBy { it.at }
         val drop = mutableListOf<Entry>()
-        val outs = all.filter { it.dir == OUT }
+        val outs = all.filter { it.dir == OUT && !it.chat }   // chat attachments are never dropped and not counted
         if (outs.size > MAX_OUT) drop += outs.take(outs.size - MAX_OUT)
-        val rest = all - drop.toSet()
+        val rest = (all - drop.toSet()).filter { !it.chat }
         if (rest.size > MAX_ENTRIES) drop += rest.take(rest.size - MAX_ENTRIES)
         return (all - drop.toSet()) to drop
     }

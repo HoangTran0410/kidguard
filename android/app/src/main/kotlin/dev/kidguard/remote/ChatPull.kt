@@ -13,7 +13,7 @@ object ChatPull {
     private const val TAG = "KidGuard"
 
     fun api(g: Context, query: Map<String, String>): JSONObject =
-        ChatLogic.page(Store.of(g).chat(), query["before"]?.toLongOrNull() ?: 0L, ChatLogic.count(query["n"]?.toIntOrNull() ?: 0))
+        ChatLogic.page(Files.chatView(g, Store.of(g).chat()), query["before"]?.toLongOrNull() ?: 0L, ChatLogic.count(query["n"]?.toIntOrNull() ?: 0))
 
     /** Relay command: "ok" = started (the page finds the file `fid`), "bad fid". */
     fun command(g: Context, c: JSONObject): String {

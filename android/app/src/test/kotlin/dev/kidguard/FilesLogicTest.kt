@@ -72,4 +72,26 @@ class FilesLogicTest {
         org.junit.Assert.assertNull(FilesLogic.intakeError(10, 0))
         org.junit.Assert.assertEquals("quota", FilesLogic.intakeError(10, FilesLogic.MAX_IN_TOTAL))
     }
+
+    @Test fun chatAttachmentsAreExemptFromCaps() {
+        org.junit.Assert.assertNull(FilesLogic.intakeError(10, FilesLogic.MAX_IN_TOTAL, true))
+        org.junit.Assert.assertEquals("empty", FilesLogic.intakeError(0, 0, true))
+        var l = emptyList<FilesLogic.Entry>()
+        val keep = FilesLogic.Entry("00000000000000aa", FilesLogic.OUT, "a", 1, 1, "image/jpeg", FilesLogic.NEW, "", true, 0)
+        l = FilesLogic.add(l, keep).first
+        for (i in 1..FilesLogic.MAX_ENTRIES + 20) {
+            val r = FilesLogic.add(l, FilesLogic.Entry("%016x".format(i + 1000), FilesLogic.OUT, "f$i", 1, 10L + i, "x/y", FilesLogic.NEW))
+            l = r.first
+            org.junit.Assert.assertTrue(r.second.none { it.chat })
+        }
+        org.junit.Assert.assertTrue(l.any { it.id == keep.id })   // the oldest entry is still there
+        val back = FilesLogic.parseIndex(FilesLogic.indexJson(l)).first { it.id == keep.id }
+        org.junit.Assert.assertTrue(back.chat)
+    }
+
+    @Test fun thumbFidComplementsEveryDigit() {
+        org.junit.Assert.assertEquals("fedcba9876543210", FilesLogic.thumbFid("0123456789abcdef"))
+        org.junit.Assert.assertTrue(FilesLogic.isId(FilesLogic.thumbFid("a1b2c3d4e5f60718")))
+        org.junit.Assert.assertEquals("a1b2c3d4e5f60718", FilesLogic.thumbFid(FilesLogic.thumbFid("a1b2c3d4e5f60718")))
+    }
 }

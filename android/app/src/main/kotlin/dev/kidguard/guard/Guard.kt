@@ -579,10 +579,11 @@ class Guard : Service() {
             .put("sos", store.sos())
             .put("listen", Listen.state(this))
             .put("files", Files.state(this))
+            .put("freeMb", runCatching { android.os.StatFs(android.os.Environment.getDataDirectory().path).availableBytes / 1048576 }.getOrDefault(-1L))   // chat attachments have no cap: the page warns under ~1024
             .also { j -> NotifSync.stateJson(this)?.let { j.put("notifs", it) } }
             .put("ring", Ring.state())
             .put("events", store.events())
-            .put("chat", ChatLogic.tail(store.chat()))   // family chat: the last 30 (docs/flows/remote.md §2.15)
+            .put("chat", Files.chatView(this, ChatLogic.tail(store.chat())))   // family chat: the last 30 (docs/flows/remote.md §2.15)
             .put("windDown", GrayFx.state(this, r, windActive))
             .put("update", Update.stateJson(this))
             .put("launcher", runCatching { LauncherSafe.state(this, r, HomeFile.styleId(this), HomeFile.pages(this)) }.getOrDefault(JSONObject()))
@@ -766,11 +767,12 @@ class Guard : Service() {
         "listenStop" -> { Listen.stopAll(); "ok" }
         "fileUp" -> Files.command(this, t, c)   // shared folder over the relay (Files.kt)
         "fileDel" -> Files.command(this, t, c)
+        "chatFileDel" -> Files.command(this, t, c)   // one chat attachment: file deleted, the entry keeps its text (att.st "gone")
         "notifPull" -> NotifSync.command(this, c)
         "chatPull" -> ChatPull.command(this, c)   // family chat: a page of older messages over the relay file channel
         // parent cleared the thread: gone on both sides, the child's log says so (the child cannot clear it)
         "refusedDrop" -> { val pkg = c.optString("pkg"); if (pkg.isBlank()) "bad pkg" else { store.dropRefused(pkg); kick(); "ok" } }
-        "chatClear" -> { store.clearChat(); store.log(R.string.log_chat_cleared); runCatching { getSystemService(android.app.NotificationManager::class.java).cancel(3) }; "ok" }
+        "chatClear" -> { if (c.optBoolean("files")) Files.deleteChatFiles(this); store.clearChat(); store.log(R.string.log_chat_cleared); runCatching { getSystemService(android.app.NotificationManager::class.java).cancel(3) }; "ok" }
         "snap" -> RemoteSnap.command(this, c)
         "smsPull" -> Sms.command(this, c)   // rule watch.notif: a page of recent notifications over the relay file channel
         "shotUp" -> Shot.command(this, c)       // wrong-PIN photo over the relay (Shot.kt)

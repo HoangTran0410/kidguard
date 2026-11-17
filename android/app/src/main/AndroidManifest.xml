@@ -506,5 +506,11 @@
             android:authorities="${applicationId}.files"
             android:exported="false"
             android:grantUriPermissions="true" />
+        <!-- scratch files of the chat camera / voice recorder (CaptureProvider.kt), cacheDir/capture only -->
+        <provider
+            android:name=".CaptureProvider"
+            android:authorities="${applicationId}.capture"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 </manifest>

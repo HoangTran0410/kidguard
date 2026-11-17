@@ -82,7 +82,7 @@ const tokenOf = (req, url) => req.headers.get("x-kg-token") || (req.method === "
 // shared files (docs/protocol.md "Shared files"): <= 50 MB a file in 1 MiB chunks (a chunk is the only thing the DO holds: 128 MB memory),
 // <= 100 MB stored per kid, kept 1 h, deleted once fetched. Anti-spam: the default relay is one free account for everybody, so each kid also has a
 // 24 h quota (bytes + files, both directions, counted when a file starts; one small record "fq" {start, bytes, n}) -> 429 {error:"quota", retryAt}
-const FILE_CHUNK = 1048576, FILE_MAX = 50 * 1048576, FILE_TTL = 3600e3, FILE_N = 8, FILE_TOTAL = 100 * 1048576, FILE_DAY_BYTES = 300 * 1048576, FILE_DAY_N = 30, FID = /^[0-9a-f]{16}$/;
+const FILE_CHUNK = 1048576, FILE_MAX = 50 * 1048576, FILE_TTL = 3600e3, FILE_N = 8, FILE_TOTAL = 100 * 1048576, FILE_DAY_BYTES = 300 * 1048576, FILE_DAY_N = 100, FILE_THUMB = 204800, FID = /^[0-9a-f]{16}$/;
 const limitFor = (action) => action === "frame" ? MAX_FRAME : action === "file" ? FILE_CHUNK : action === "watch" ? 512 : MAX_BODY;
 // Zepp watch connect (docs/protocol.md "Watch connect"): a code on the watch, typed into the parent page
 const WATCH_TTL = 10 * 60e3, WATCH_PER_DAY = 30;
@@ -96,7 +96,7 @@ const PAIR_MISS_MAX = 20, PAIR_MISS_WIN = 10 * 60e3;
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
-const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel", "tgSet", "tgOff", "pinSet", "pinReset", "pinResetCancel", "adbShell", "adbTcp", "support", "selfOpen", "chatClear"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
+const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel", "tgSet", "tgOff", "pinSet", "pinReset", "pinResetCancel", "adbShell", "adbTcp", "support", "selfOpen", "chatClear", "chatFileDel"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
 const ONCE_WINDOW = 3600e3;   // 1 h (owner 2026-11-15: a phone that is off for 10 min must not lose a release / reboot)
 // push wake (kid app's FCM token, sync body `fcm`): quiet this long => high-priority data push {kind:"wake"}. The phone's
 // watchdog syncs every ~10 min even asleep, so 20 min quiet = asleep beyond that, killed, or offline. Then every 20 min
@@ -109,7 +109,7 @@ const GC_MS = 30 * 86400e3;   // a phone not seen for 30 days: everything of thi
 //  window for a parent standing next to the phone; adbShell = a shell command running a day later is surprising; unlockEnd = ends a
 //  temporary pause "now"; fixPerms = opens Settings screens on the kid's phone, confusing if the kid is using it hours later.
 // Everything else (setting devOn devOff bgLimit bgRestore rescan clearCache support ...) is harmless late: normal 24 h.
-const SHORT = ["uiUpdate", "notifPull", "smsPull", "chatPull", "chatClear", "snap", "lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms", "selfOpen", "tsInstall"];
+const SHORT = ["uiUpdate", "notifPull", "smsPull", "chatPull", "chatClear", "chatFileDel", "snap", "lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms", "selfOpen", "tsInstall"];
 let SHORT_TTL = 10 * 60e3;   // env.SHORT_TTL_MS overrides (tests only)
 // secrets a parent typed into a command (PIN, new PIN, Authenticator secret, bot token): handed out once, then not kept in the queue copy
 const SECRET_KEYS = ["pin", "new", "secret", "token"];
@@ -122,7 +122,7 @@ const live = (c, now) => now - (c.at || 0) < (SHORT.includes(c.type) ? SHORT_TTL
 /** Receipts for commands dropped unrun (TTL / ONCE window): newest last, at most EXPIRED_N, shown to the parent as state `expired`. */
 const EXPIRED_N = 10;
 const expiredOf = (list, dropped, now) => [...(list || []), ...dropped.map(c => ({ id: c.id, type: c.type, res: "expired", at: now }))].slice(-EXPIRED_N);
-const CMDS = ["aiToken", "refusedDrop", "uiUpdate", "smsPull", "chatPull", "chatClear", "snap", "lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "notifPull", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "unlockEnd", "clearCache", "rescan", "bgLimit", "bgRestore", "fixPerms", "selfOpen", "tsInstall"];
+const CMDS = ["aiToken", "refusedDrop", "uiUpdate", "smsPull", "chatPull", "chatClear", "chatFileDel", "snap", "lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "notifPull", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "unlockEnd", "clearCache", "rescan", "bgLimit", "bgRestore", "fixPerms", "selfOpen", "tsInstall"];
 const APK_BASE = "https://github.com/HoangTran0410/kidguard/releases/latest/download/";   // test override: env.APK_BASE
 // idempotent commands a newer copy may replace when the queue is full: type -> target field that must match too (null = the type alone)
 const REPLACE = { lock: null, locate: null, ring: null, wake: null, ringStop: null, listenStop: null, devOn: null, devOff: null, setting: "key", clearCache: null, rescan: null, fixPerms: null, tsInstall: null, openPairing: null, unlockEnd: null, bankEnd: null, notifPull: null, smsPull: null, chatPull: null, chatClear: null, fileUp: "file" };
@@ -816,6 +816,7 @@ export class Kid {
       if (type === "clearData" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
       if (type === "snap" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && ["front", "back"].includes(body.cam) && ["off", "on", "auto"].includes(body.flash) && ["small", "medium"].includes(body.size) && Number.isInteger(body.delay) && body.delay >= 0 && body.delay <= 5)) return json({ error: "bad snap" }, 400);
       if (type === "smsPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad smsPull" }, 400);
+      if (type === "chatFileDel" && !/^[0-9a-f]{16}$/.test(String(body.id || ""))) return json({ error: "bad chatFileDel" }, 400);
       if (type === "chatPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad chatPull" }, 400);
       if (type === "notifPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad notifPull" }, 400);
       // PIN-gated commands (protocol "PIN-gated commands"): the phone checks the PIN; here only the shape
@@ -1208,7 +1209,7 @@ export class Kid {
     const list = await this.fileGc(now);
     if (req.method === "GET" && !fid) {
       const to = q.get("to");
-      return json({ files: list.filter(f => f.to === to).map(f => ({ fid: f.fid, name: f.name, size: f.size, n: f.n, at: f.at, done: f.got.length === f.n })), max: FILE_MAX, chunk: FILE_CHUNK });
+      return json({ files: list.filter(f => f.to === to).map(f => ({ fid: f.fid, name: f.name, size: f.size, n: f.n, at: f.at, done: f.got.length === f.n, ...(f.chat ? { chat: 1 } : {}) })), max: FILE_MAX, chunk: FILE_CHUNK });
     }
     if (!FID.test(fid)) return json({ error: "bad id" }, 400);
     let f = list.find(x => x.fid === fid), fresh = false;
@@ -1218,13 +1219,17 @@ export class Kid {
         const to = q.get("to"), size = Number(q.get("size")), n = Number(q.get("n")), name = String(q.get("name") || "").slice(0, 200);
         if (!["kid", "parent"].includes(to) || !name || !Number.isInteger(size) || size < 0) return json({ error: "bad file" }, 400);
         if (size > FILE_MAX) return json({ error: "too big" }, 413);
+        const thumb = q.get("thumb") === "1", chat = q.get("chat") === "1";   // thumb: a small preview, not counted in the daily quota; chat: the file is a chat attachment (the phone adds the chat entry)
+        if (thumb && size > FILE_THUMB) return json({ error: "too big" }, 413);
         if (n !== Math.max(1, Math.ceil(size / FILE_CHUNK))) return json({ error: "bad file" }, 400);
         if (list.length >= FILE_N || list.reduce((s, x) => s + x.size, 0) + size > FILE_TOTAL) return json({ error: "relay full" }, 507);
-        let fq = (await this.s.get("fq")) || { start: now, bytes: 0, n: 0 };
-        if (now - fq.start >= 86400e3) fq = { start: now, bytes: 0, n: 0 };
-        if (fq.n + 1 > FILE_DAY_N || fq.bytes + size > FILE_DAY_BYTES) return json({ error: "quota", retryAt: fq.start + 86400e3 }, 429);
-        fq.n++; fq.bytes += size; await this.s.put("fq", fq);
-        f = { fid, to, name, size, n, at: now, got: [] }; list.push(f); fresh = true;
+        if (!thumb) {
+          let fq = (await this.s.get("fq")) || { start: now, bytes: 0, n: 0 };
+          if (now - fq.start >= 86400e3) fq = { start: now, bytes: 0, n: 0 };
+          if (fq.n + 1 > FILE_DAY_N || fq.bytes + size > FILE_DAY_BYTES) return json({ error: "quota", retryAt: fq.start + 86400e3 }, 429);
+          fq.n++; fq.bytes += size; await this.s.put("fq", fq);
+        }
+        f = { fid, to, name, size, n, at: now, got: [], ...(chat ? { chat: 1 } : {}) }; list.push(f); fresh = true;
       }
       const i = Number(q.get("i"));
       if (!Number.isInteger(i) || i < 0 || i >= f.n) return json({ error: "bad chunk" }, 400);
