@@ -122,7 +122,7 @@ function updateLive() {
 // ring / listen "active strip": what is on right now on the kid's phone + one Stop button
 function stripHtml() {
   if (!st || viewDay) return "";
-  const local = $("#earAudio") && $("#earAudio").getAttribute("src");   // our own player has its own bar (#ear)
+  const local = earRtc || ($("#earAudio") && $("#earAudio").getAttribute("src"));   // our own player has its own bar (#ear)
   return (earOn() && !local ? `<div class="actbar" role="status">${ic("ear")}<span class="x">${t("live.mic", hhmm(st.listen && st.listen.since || Date.now()))}</span><button type="button" id="micStop" class="stopb" ${actSt.ear1 && actSt.ear1.s === "pend" ? 'disabled aria-busy="true"' : ""}>${actSt.ear1 && actSt.ear1.s === "pend" ? '<i class="spin" style="width:14px;height:14px"></i> ' + t("act.sending") : ic("square") + " " + t("act.off")}</button></div>` : "")
     + (ringOn() ? `<div class="actbar" role="status">${ic("bell")}<span class="x">${t("act.ringOn")}</span><button type="button" id="ringStop2" class="stopb" ${actSt.ring && actSt.ring.s === "pend" ? 'disabled aria-busy="true"' : ""}>${actSt.ring && actSt.ring.s === "pend" ? '<i class="spin" style="width:14px;height:14px"></i> ' + t("act.sending") : ic("square") + " " + t("act.off")}</button></div>` : "");
 }
@@ -163,7 +163,7 @@ function sosHtml() {
   const last = list[list.length - 1];
   return `<div class="alert sos">${ic("siren")} ${t("sos.at", hhmm(last.t))}${list.length > 1 ? " " + t("sos.n", list.length) : ""}
     <div class="row" style="margin-top:8px;font-weight:400"><button data-sos="where">${ic("map-pin")} ${t("sos.where")}</button>
-    ${cur.via === "lan" ? `<button data-sos="ear">${ic("ear")} ${t("listen")}</button>` : ""}
+    <button data-sos="ear">${ic("ear")} ${t("listen")}</button>
     <button data-sos="ack" class="pri">${ic("check")} ${t("sos.ack")}</button></div></div>`;
 }
 function wireSos(el) {
@@ -175,7 +175,7 @@ function wireSos(el) {
   });
 }
 
-// ---- Listen around (LAN / Tailscale only; the child always hears a beep and sees a notification) ----
+// ---- Listen around (LAN / Tailscale: an HTTP stream below; relay: WebRTC audio, earStartRtc in call.js; the child always hears a beep and sees a notification) ----
 // listen errors from the phone: keys "ear.<code>"
 let earT = 0, earErr0 = "";
 function earBar() {
@@ -197,11 +197,13 @@ function earBar() {
   return e;
 }
 async function earStart() {
-  if (!cur || cur.via !== "lan") return toast("warn|" + t("ear.lanOnly"));
+  if (!cur || earRtc) return;
+  if (cur.via !== "lan" && !(vcOk(cur) && RTC.canListen())) return toast("warn|" + t("ear.lanOnly"));
   if (ringOn()) return toast("warn|" + t("act.noEar"));
   // no mic: offer the same Fix as the "N things are off" banner (self-adb grant, else the phone opens the Permissions screen)
   if (st && st.listen && st.listen.mic === false) { if (await ask(t("ear.no mic permission"), t("fp.btn"), false, "", "", null, t("ear.cant"))) cmd({ type: "fixPerms" }, t("fp.sent"), false); return; }
   if (!(await ask(t("ear.ask"), t("ear.on")))) return;
+  if (cur.via !== "lan") return earStartRtc();   // reached through the relay: no HTTP stream, a WebRTC session instead
   earStart.k = cur;
   const e = earBar(), au = $("#earAudio");
   earT = 0; e.style.display = "flex"; $("#earTxt").textContent = t("connecting");
@@ -250,6 +252,12 @@ function earPlay(url, au) {
 }
 function earStop(msg) {
   clearInterval(earStart.i); earT = 0;
+  const me = earRtc; earRtc = null;   // relay session: close WebRTC, tell the relay (the phone then stops its mic and clears the notice)
+  if (me) {
+    if (me.c) me.c.close();
+    if (me.tell !== false && me.st !== "prep") vcApi(me.k, "/call", "POST", { op: "end", id: me.id, why: me.why || "hangup" }).catch(() => {});
+    const a = $("#earAudio"); if (a) { a.pause(); a.srcObject = null; }
+  }
   if (earPlay.ctl) { earPlay.ctl.abort(); earPlay.ctl = null; }
   const au = $("#earAudio"), had = au && au.getAttribute("src"); if (au) { au.pause(); au.removeAttribute("src"); au.load(); }
   if (earPlay.url) { URL.revokeObjectURL(earPlay.url); earPlay.url = ""; }
@@ -292,7 +300,7 @@ function expect(key, on, id) {
 }
 function wantReset() { for (const k of Object.keys(want)) delete want[k]; liveOn.ring = liveOn.listen = null; flips.ring = flips.listen = 0; }
 const ringOn = () => !!liveOn.ring;
-const earOn = () => !!liveOn.listen || !!($("#earAudio") && $("#earAudio").getAttribute("src"));
+const earOn = () => !!liveOn.listen || !!earRtc || !!($("#earAudio") && $("#earAudio").getAttribute("src"));
 const ACT = { lock: ["lock", "lockScr"], wake: ["lightbulb", "wake"], ring: ["bell", "ring"], loc: ["map-pin", "locate"], loc2: ["map-pin", "where.locNew"], ear1: ["ear", "listen"] };
 const ACT_TO = {};   // 20 s without an answer = error ("the phone did not answer")
 // q: the confirm question ([text, ok, danger]); asked first, so the 20 s answer timer starts only once the parent agreed
@@ -339,7 +347,7 @@ async function ringStop() {
 }
 async function micStop() {
   if (!cur || !(await ask(t("ear.askStop"), t("micStop")))) return;
-  const had = $("#earAudio") && $("#earAudio").getAttribute("src"); earStop();
+  const had = earRtc || ($("#earAudio") && $("#earAudio").getAttribute("src")); earStop();
   if (had) return expect("listen", false, "ear1");   // earStop already sent listenStop
   actSt.ear1 = { s: "pend", t: Date.now() }; actPaint();
   const r = await cmd({ type: "listenStop" }, t("turnedOff"), false);

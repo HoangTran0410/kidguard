@@ -1,0 +1,34 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<!-- "Listen around" over the relay, child phone side: a headless WebView (ListenCall.kt, no activity, nothing on screen) loads
+     https://appassets.androidplatform.net/listen.html. It answers the parent's offer with the microphone only and sends nothing
+     else. The child is told by Listen.kt (beep + ongoing notification). Not served by the LAN server or the relay.
+     WebRTC in assets/rtc.js (shared with the call). Bridge: window.KG (ListenCall.kt). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'">
+<title>KidGuard</title></head><body>
+<script src="/assets/rtc.js"></script>
+<script>
+"use strict";
+const O = JSON.parse(KG.offer() || "null");
+let c = null, over = false;
+// why "" = nothing to tell the relay (it ended it, or the parent said bye)
+function end(why, tell) {
+  if (over) return; over = true;
+  if (c) c.close();
+  if (tell) try { KG.signal("end", "", why); } catch (e) {}
+  setTimeout(() => KG.close(why), 300);   // let the DataChannel "bye" leave first
+}
+window.kgEnd = (why) => end(why || "hangup", false);   // the relay / the phone's own watchdog / the 10-minute cap
+(async () => {
+  if (!O) return end("", false);
+  try {
+    c = await RTC.open({ ice: O.ice, offer: O.sdp, listen: true,
+      onState: (s) => { if (s === "failed") end("failed", true); },
+      onMsg: (m) => { if (m.t === "bye") end("hangup", false); } });
+    if (over) return c.close();
+    const r = JSON.parse(KG.signal("answer", c.sdp, "") || "{}");
+    if (r.error) end("failed", false);
+  } catch (e) { end(/NotAllowed|Permission/i.test(String(e && e.name)) ? "no mic permission" : "mic failed", true); }
+})();
+</script>
+</body></html>

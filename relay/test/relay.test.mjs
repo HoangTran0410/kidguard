@@ -613,5 +613,13 @@ ck("end of another call 404",(await C("POST",{op:"end",id:"cc".repeat(8)})).stat
 x=await (await C("POST",{op:"end",id:"aa".repeat(8),why:"decline"})).json();ck("end keeps why",x.call&&x.call.st==="end"&&x.call.why==="decline");
 sy=await S3();ck("sync tells the phone it ended (no SDP)",sy.call&&sy.call.st==="end"&&!sy.call.sdp);
 x=await (await C("POST",{op:"offer",id:"dd".repeat(8),sdp:"v=0"})).json();ck("new call after an end",x.call&&x.call.st==="ring");
-await C("POST",{op:"end",id:"dd".repeat(8)});}
+await C("POST",{op:"end",id:"dd".repeat(8)});
+// listen around over the relay: same slot, kind "listen" (the phone must not ring, only listen)
+x=await (await C("POST",{op:"offer",id:"ee".repeat(8),sdp:"v=0 listen",kind:"listen"})).json();ck("listen offer -> ring with kind",x.call&&x.call.st==="ring"&&x.call.kind==="listen");
+sy=await S3();ck("sync carries kind listen + SDP + ICE",sy.call&&sy.call.kind==="listen"&&sy.call.sdp==="v=0 listen"&&Array.isArray(sy.call.ice));
+ck("a call while listening 409 busy",(await C("POST",{op:"offer",id:"ff".repeat(8),sdp:"v=0"})).status==409);
+x=await (await C("POST",{op:"answer",id:"ee".repeat(8),sdp:"v=0 a"})).json();ck("listen answer -> on, kind kept",x.call&&x.call.st==="on"&&x.call.kind==="listen");
+x=await (await C("POST",{op:"end",id:"ee".repeat(8),why:"mic blocked"})).json();ck("listen end keeps the listen why",x.call&&x.call.st==="end"&&x.call.why==="mic blocked");
+x=await (await C("POST",{op:"offer",id:"a1".repeat(8),sdp:"v=0"})).json();ck("plain call has no kind",x.call&&x.call.st==="ring"&&!("kind" in x.call));
+await C("POST",{op:"end",id:"a1".repeat(8)});}
 console.log(pass,"pass",fail,"fail");process.exit(fail?1:0);

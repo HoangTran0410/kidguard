@@ -80,7 +80,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Trò chuyện bố mẹ ↔ con (sheet "Nhắn", con trả lời từ ô "Nhắn bố mẹ" hoặc nút "Trả lời") | ✅ | ✅ | ✅ | ✅ | ✅ | Văn bản, 100 tin gần nhất lưu trên máy, 30 tin trong state. Bố mẹ gửi = lệnh `message` (relay: hết hạn sau 10 phút); tin của con thành sự kiện `chat` → thông báo app bố mẹ. Telegram không chuyển tiếp. Bản Home không có |
 | Định vị ngay, nhắn tin, đổ chuông, đánh thức | ✅ | ✅ | ✅ | ✅ | ✅ | Relay: hết hạn sau 10 phút |
 | Xem màn hình + điều khiển | ✅ | ✅ | ✅ | ✅ | ✅ | Android 11+, cần Trợ năng. Relay ~3 khung/giây, LAN nhanh hơn |
-| **Nghe xung quanh** | ✅ | ✅ | ✅ | ✅ | ❌ | **Chỉ LAN / Tailscale** (Relay không có đường âm thanh). Cần quyền micro |
+| **Nghe xung quanh** | ✅ | ✅ | ✅ | ✅ | ✅ | LAN / Tailscale: luồng HTTP. **Relay** (từ 0.9.28): WebRTC chỉ âm thanh (tín hiệu qua relay như Gọi video, âm đi thẳng hoặc qua TURN), Opus mono ~24 kbps, con không phải bấm gì, vẫn có tiếng bíp + thông báo. Tối đa 10 phút. Cần quyền micro; mất vài giây đến ~45 giây nếu máy con đang ngủ. Không có trong bản Home |
 | **Gọi video** (bố mẹ gọi con) | ✅ | ✅ (cần +adb để tự cấp camera, không thì bật quyền camera/micro tay 1 lần) | ✅ | ✅ | ✅ | **Cần Relay** (tín hiệu qua relay, hình/tiếng đi thẳng giữa 2 máy). Trang LAN http không mở được camera: dùng relay https hoặc app bố mẹ. Con luôn tự bấm Nghe. Không có trong bản Home. 320x240, ~150 kbps |
 | Chụp ảnh người nhập sai PIN (trang quản lý trên máy) | ✅ | ✅ | ✅ | ✅ | ✅ | DO tự cấp quyền camera; CB: bố mẹ cho phép 1 lần sau khi mở đúng PIN. Không có trong bản Home. Relay: tải qua kênh file |
 | Chế độ thất lạc (`lostOn`) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | DO: `lockNow` mỗi lần mở máy, lời nhắn + số trên màn hình khóa. CB: thẻ phủ toàn màn hình (Safe Mode vẫn lách). Cả hai: định vị 5 phút/lần, đổ chuông 5 phút mỗi 15 phút. Telegram `/lost` |
@@ -132,10 +132,9 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 
 ## 4. Tóm tắt "chỉ LAN" (gồm cả Tailscale và Trên máy con)
 
-1. **Nghe xung quanh**: Relay không chuyển âm thanh.
-2. **Cài Tailscale** (`tailscale`): khoá đăng nhập không được nằm trên server.
-3. **Đổi relay** (`relay`): token mới không đi qua chính relay cũ.
-4. **Ghép nối bằng mã** (`/api/pair`).
+1. **Cài Tailscale** (`tailscale`): khoá đăng nhập không được nằm trên server.
+2. **Đổi relay** (`relay`): token mới không đi qua chính relay cũ.
+3. **Ghép nối bằng mã** (`/api/pair`).
 
 Mọi thứ khác (luật, trạng thái, lệnh trong danh sách `CMDS` của worker, xem màn hình, file ≤ 10 MB) đi qua Relay được,
 chỉ chậm hơn (xem bảng 2).

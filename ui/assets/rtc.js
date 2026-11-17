@@ -45,27 +45,43 @@ const RTC = (() => {
     const t = setTimeout(res, ms);
     pc.addEventListener("icegatheringstatechange", () => { if (pc.iceGatheringState === "complete") { clearTimeout(t); res(); } });
   });
+  // "listen around": the surroundings are the point, so no echo cancel / noise suppression (they eat quiet far sounds); gain stays
+  const wantEar = () => ({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true, channelCount: 1 }, video: false });
   async function media(video) {
     try { return await navigator.mediaDevices.getUserMedia(want(video)); }
     catch (e) { if (!video) throw e; return navigator.mediaDevices.getUserMedia(want(false)); }   // no camera / camera refused: sound only
   }
 
   /**
-   * o: { ice, offer?: the caller's SDP (we answer), video: bool, local: <video>, remote: <video>, onState(s), onMsg(m), onNet(n) }
+   * o.listen = "listen around": the caller (parent) only receives, the answering phone (offer given) sends its mic only; no camera,
+   * no mic prompt on the parent. Parent: remote = an <audio>.
+   * o: { ice, offer?: the caller's SDP (we answer), video: bool, listen?: bool, local: <video>, remote: <video>, onState(s), onMsg(m), onNet(n) }
    * -> call { sdp (send it), accept(answerSdp), send(msg), mute(on), camera(on), stats(), close() }.
    * onState: "connecting" | "connected" | "disconnected" | "failed" | "closed". onNet: { low, relay, kbps, mb }.
    */
   async function open(o) {
-    const stream = await media(o.video !== false);
+    const L = !!o.listen;
+    const stream = L ? (o.offer ? await navigator.mediaDevices.getUserMedia(wantEar()) : null) : await media(o.video !== false);
     const pc = new RTCPeerConnection({ iceServers: o.ice || [], bundlePolicy: "max-bundle", rtcpMuxPolicy: "require" });
-    for (const t of stream.getTracks()) pc.addTrack(t, stream);
-    if (o.local) { o.local.muted = true; o.local.srcObject = stream; }
-    pc.ontrack = (e) => { if (o.remote && e.streams[0] && o.remote.srcObject !== e.streams[0]) o.remote.srcObject = e.streams[0]; };
-    let dc = null, closed = false, lowN = 0, autoOff = false, camOn = stream.getVideoTracks().length > 0, net = { low: false, relay: false, kbps: 0, mb: 0 };
+    if (L) { if (!o.offer) pc.addTransceiver("audio", { direction: "recvonly" }); }   // the phone adds its mic after it has our offer
+    else for (const t of stream.getTracks()) pc.addTrack(t, stream);
+    if (o.local && stream) { o.local.muted = true; o.local.srcObject = stream; }
+    pc.ontrack = (e) => {
+      const ms = e.streams[0] || (L ? new MediaStream([e.track]) : null);   // a replaceTrack sender may send no msid
+      if (o.remote && ms && o.remote.srcObject !== ms) { o.remote.srcObject = ms; if (L) { try { o.remote.play().catch(() => {}); } catch {} } }
+    };
+    let dc = null, closed = false, lowN = 0, autoOff = false, camOn = !!stream && stream.getVideoTracks().length > 0, net = { low: false, relay: false, kbps: 0, mb: 0 };
     const wire = (ch) => { dc = ch; ch.onmessage = (e) => { try { o.onMsg && o.onMsg(JSON.parse(e.data)); } catch {} }; };
     if (o.offer) pc.ondatachannel = (e) => wire(e.channel); else wire(pc.createDataChannel("kg"));
     pc.onconnectionstatechange = () => o.onState && o.onState(pc.connectionState);
     if (o.offer) await pc.setRemoteDescription({ type: "offer", sdp: o.offer });
+    if (L && o.offer) {
+      const tr = pc.getTransceivers().find(x => x.receiver && x.receiver.track && x.receiver.track.kind === "audio");
+      if (!tr) throw new Error("no audio");
+      await tr.sender.replaceTrack(stream.getAudioTracks()[0]);
+      try { tr.sender.setStreams(stream); } catch {}
+      tr.direction = "sendonly";   // we hear nothing from the parent
+    }
     const d = o.offer ? await pc.createAnswer() : await pc.createOffer();
     await pc.setLocalDescription({ type: d.type, sdp: tune(d.sdp) });
     await cap(pc);
@@ -104,17 +120,18 @@ const RTC = (() => {
       hasVideo: camOn,
       accept: (sdp) => pc.setRemoteDescription({ type: "answer", sdp }),
       send,
-      mute: (on) => { for (const t of stream.getAudioTracks()) t.enabled = !on; send({ t: "mic", on: !on }); },
+      mute: (on) => { if (!stream) return; for (const t of stream.getAudioTracks()) t.enabled = !on; send({ t: "mic", on: !on }); },
       camera: (on) => { camOn = on; if (!autoOff) setCam(on); },
       net: () => ({ ...net }),
       close: () => {
         if (closed) return; closed = true; clearInterval(timer);
         try { send({ t: "bye" }); } catch {}
-        for (const t of stream.getTracks()) t.stop();
+        if (stream) for (const t of stream.getTracks()) t.stop();
         setTimeout(() => { try { pc.close(); } catch {} }, 200);   // let "bye" leave first
       },
     };
   }
   const can = () => !!(window.isSecureContext && window.RTCPeerConnection && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-  return { open, can, tune };
+  const canListen = () => !!window.RTCPeerConnection;   // the parent only receives: no camera / mic needed
+  return { open, can, canListen, tune };
 })();

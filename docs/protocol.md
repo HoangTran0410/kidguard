@@ -567,7 +567,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
 - Page: red banner on every tab while `sos` is not empty: time, "Xem vị trí", "Nghe xung quanh" (LAN only), "Đã xử lý" (= `sosAck` without `id`).
 - Parent app: an SOS id not seen before and younger than 6 h is notified on channel `kg_sos` (high importance),
   also on the first look at a kid. The background check runs ~every 15 min; relay kids also get FCM (below, seconds).
-- **Listen around** (one way, LAN / Tailscale only, the relay has no audio route):
+- **Listen around** (one way; LAN / Tailscale = the HTTP stream below, relay = WebRTC audio, see "Listen around over the relay" under "Video call"):
   `GET /api/listen?k=<token>` -> `200 audio/aac` (ADTS, AAC-LC 16 kHz mono 32 kbit/s, ~14 MB/h), no Content-Length,
   streamed until the client closes or 10 min pass (the page can start again). v0.9.6: a new request **replaces** a running
   session (a parent whose Wi-Fi dropped can start again at once; `busy` is no longer answered). Errors: `503 {"error": "no mic permission" | "mic blocked" | "mic failed" | "notice blocked"}` (v0.6: refused when
@@ -585,6 +585,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
 - The phone gets RECORD_AUDIO through `setPermissionGrantState` (with the location ones) and adds the `microphone` type to
   its foreground service only while listening. `release` revokes RECORD_AUDIO (DENIED, then DEFAULT) and stops a session.
 - Parent-app proxy: `GET /k/<t>/api/listen` is passed through as a stream (never cached).
+- Over the relay (after 0.9.27) the same state / notice / log / `listenStop` apply; the audio is not this stream, see "Video call".
 
 ## Video call (after 0.9.27, relay only, parent -> kid)
 Signaling goes through the relay; picture and sound go straight between the two devices (WebRTC P2P; a TURN server only
@@ -594,15 +595,17 @@ when no direct path works). Flow: `docs/flows/remote.md` §2.15.
   the answer while `on`; `why` (end only) one of `hangup decline busy timeout failed noperm nocam missed`.
   `ice` = `[{urls, username?, credential?}]`: Cloudflare + Google STUN, plus short-lived Cloudflare TURN credentials
   (4 h, minted with worker secrets `TURN_KEY_ID` / `TURN_KEY_TOKEN`, cached 1 h; without the secrets STUN only).
-  `?id=<id>&st=<st>` long-polls up to 12 s while the call is still `id` in state `st`.
+  `?id=<id>&st=<st>` long-polls up to 12 s while the call is still `id` in state `st`. `call.kind` = `"listen"` for
+  "listen around" (absent = a video call).
 - `POST /c/<id>/call` `{op, id, sdp?, why?}`:
-  `offer` (parent; `sdp` starts with `v=0`, max 16 000 chars, non-trickle: all candidates inside) -> 409 `busy` when
+  `offer` (parent; optional `kind: "listen"`; `sdp` starts with `v=0`, max 16 000 chars, non-trickle: all candidates inside) -> 409 `busy` when
   another call is not ended; the phone is kicked (socket, else FCM wake). A shared phone token may not offer once the
   family has parents or a PIN (403 `join`).
   `answer` (phone, only while `ring`, else 409) -> `on`. `end` (`why`) -> `end`; the phone is kicked when a parent ended it.
   Wrong `id` -> 404 `no call`; bad id / sdp / op -> 400.
-- Timeouts in the worker: `ring` > 45 s -> `end` `missed`; `on` > 1 h -> `end` `timeout`; an `end` is dropped after 60 s.
-- Phone `POST /sync` reply adds `call: {id, st, by, sdp?, ice?}` while a call exists (`sdp` + `ice` only while `ring`).
+- Timeouts in the worker: `ring` > 45 s -> `end` `missed`; `on` > 1 h (`kind: "listen"`: 10 min + 15 s) -> `end` `timeout`; an `end` is dropped after 60 s.
+  `why` also takes the listen refusals `no mic permission`, `notice blocked`, `mic blocked`, `mic failed`, `ringing` (same words as `listen.err`).
+- Phone `POST /sync` reply adds `call: {id, st, by, kind?, sdp?, ice?}` while a call exists (`sdp` + `ice` only while `ring`).
 - Kid screen: `CallActivity` (WebView, `ui/call.html` + `ui/assets/rtc.js` served from the APK at
   `https://appassets.androidplatform.net`, CSP `connect-src` none: all network goes through the `KG` bridge). The child
   always answers by hand (no auto-answer). Logs `log_call_in`, `log_call_done`, `log_call_missed`.
@@ -610,6 +613,17 @@ when no direct path works). Flow: `docs/flows/remote.md` §2.15.
   24 kbps, DTX, FEC, `maxplaybackrate=16000`. DataChannel `kg`: `{t:"bye"}`, `{t:"cam", on}`, `{t:"mic", on}`,
   `{t:"more"}` (parent gave 15 more minutes). Calls stop at 15 min unless extended; the parent page ends a call that is
   hidden for 60 s; the kid ends it when the call screen leaves the front.
+
+### Listen around over the relay (after 0.9.27)
+Same `/call` slot and routes with `kind: "listen"` (so a video call and a listen exclude each other: 409 `busy`). The parent's
+offer has one `recvonly` audio m-line + the `kg` DataChannel (no camera, no mic prompt on the parent; a plain http page can do it).
+The phone does NOT ring and nobody taps Answer: `K/remote/ListenCall.kt` runs `Listen.openRtc` first (RECORD_AUDIO grant paths
+as the LAN stream, notice-visible check, microphone foreground service, **beep + ongoing notification + log line**, state
+`listen.on/since`), then a headless WebView (`ui/listen.html` + `assets/rtc.js` from the APK, no activity, nothing on screen)
+answers with the microphone only (`sendonly`; echo cancel / noise suppression off, gain on). Opus mono 24 kbps DTX/FEC like the
+call; ~11 MB per 10 minutes at the cap, far less in silence (DTX). A refusal ends the call at once with the listen `why`
+(`ear.<why>` in the page). Ends: parent Stop (`end` + `bye`), `cmd listenStop` (-> `ListenCall.stop`), 10 min cap on the page,
+phone (`ListenCall.cap`) and relay, `release`. LAN / Tailscale kids keep `GET /api/listen`; the page picks by how the kid is reached.
 
 ## Instant push via FCM (v0.5, optional, relay kids only)
 - "Relay kid" = saved with `via: "relay"`, or a LAN / Tailscale kid saved with `relay {url, id, token}` (the parent app

@@ -234,7 +234,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
         <tr><th scope="row">Cài đặt</th><td>~2 phút: tạo bot, dán token</td><td>~5 phút, một lần: app Tailscale trên máy bố mẹ, dán 1 khóa</td><td>Không cần (relay chung bật sẵn). Relay riêng: ~3 phút trên máy tính</td></tr>
         <tr><th scope="row">Dùng bằng</th><td>App Telegram, nút bấm</td><td>Trang phụ huynh (app Tailscale bật)</td><td>Trang phụ huynh, trình duyệt bất kỳ</td></tr>
         <tr><th scope="row">Tốc độ</th><td><span class="yes">~1 giây</span></td><td><span class="yes">Tức thì</span></td><td>Thường vài giây (khi mất kết nối nhanh: ~20 giây, tắt màn hình ~60 giây)</td></tr>
-        <tr><th scope="row">Màn hình / nghe</th><td>Chụp màn hình, ghi âm 10–60 giây</td><td><span class="yes">Xem trực tiếp, nghe trực tiếp</span></td><td>Xem trực tiếp, không nghe</td></tr>
+        <tr><th scope="row">Màn hình / nghe</th><td>Chụp màn hình, ghi âm 10–60 giây</td><td><span class="yes">Xem trực tiếp, nghe trực tiếp</span></td><td>Xem trực tiếp, nghe trực tiếp</td></tr>
         <tr><th scope="row">Báo SOS, xin giờ</th><td><span class="yes">Tới ngay trong Telegram</span></td><td>Trong trang / app bố mẹ</td><td>Trong trang / app bố mẹ</td></tr>
         <tr><th scope="row">Dữ liệu đi qua</th><td>Máy chủ Telegram</td><td>Không ai (mã hóa đầu cuối)</td><td>Relay chung: Cloudflare của tác giả. Relay riêng: chỉ tài khoản của bạn</td></tr>
         <tr><th scope="row">Cần</th><td>Máy con có internet. Mỗi bé 1 bot</td><td>Device Owner (không có ở chế độ cơ bản)</td><td>Không</td></tr>
@@ -312,7 +312,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
   </ol>
   <ul>
     <li>Cập nhật: chạy lại script. Gỡ khỏi tài khoản: <code>scripts/relay.sh --delete</code> (Windows: <code>-Delete</code>).</li>
-    <li>Gói miễn phí: 100.000 request mỗi ngày, mỗi máy con dùng khoảng 4.300. Lệnh thường tới trong vài giây. Không nghe xung quanh được qua relay.</li>
+    <li>Gói miễn phí: 100.000 request mỗi ngày, mỗi máy con dùng khoảng 4.300. Lệnh thường tới trong vài giây.</li>
   </ul>
 
   <h3 id="shared-relay">Relay chung</h3>
@@ -359,7 +359,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
         <div><dt>SOS</dt><dd>Nút đỏ trên máy con: trang phụ huynh hiện thời gian và vị trí mới nhất, app bố mẹ báo.</dd></div>
         <div><dt>Xem màn hình</dt><dd>Màn hình con trực tiếp (Android 11+, ~3 khung hình/giây). Con luôn được báo là bố mẹ đang xem.</dd></div>
         <div><dt>Điều khiển từ xa</dt><dd>Chạm, vuốt, nhấn giữ, Quay lại / Màn hình chính / Đa nhiệm, gõ chữ.</dd></div>
-        <div><dt>Nghe xung quanh</dt><dd>Tối đa 10 phút mỗi lần, chỉ qua Wi-Fi nhà hoặc Tailscale. Con luôn biết: tiếng bíp, thông báo, chấm micro của Android.</dd></div>
+        <div><dt>Nghe xung quanh</dt><dd>Tối đa 10 phút mỗi lần, qua Wi-Fi nhà, Tailscale hoặc relay. Con luôn biết: tiếng bíp, thông báo, chấm micro của Android.</dd></div>
         <div><dt>Chế độ thất lạc</dt><dd>Tab <b>Vị trí</b>: bật là máy khóa ngay và khóa lại mỗi lần mở, màn hình khóa hiện lời nhắn + số của bạn, định vị 5 phút một lần, đổ chuông 5 phút mỗi 15 phút. Tắt thì mọi thứ về như cũ. Báo cả khi đổi SIM.</dd></div>
         <div><dt>Mức báo</dt><dd>Chỉ SOS, mất máy, mở khóa bằng mã và xin giờ báo to; còn lại báo êm. Telegram: <code>/quiet</code> chọn tất cả / quan trọng / chỉ SOS cho từng người. App bố mẹ báo “offline từ HH:mm” và bỏ qua giờ ngủ của con.</dd></div>
         <div><dt>Cảnh báo</dt><dd>Đến / rời vùng, pin còn 15 %, cài app mới, đổi giờ máy.</dd></div>
