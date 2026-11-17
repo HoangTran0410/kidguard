@@ -144,6 +144,10 @@ details.warnote p{margin:var(--s2) 0 0;padding:0;color:var(--muted);font-size:14
 .tbl td{width:34%;color:var(--muted)}
 .tbl td:nth-child(2){color:var(--ink)}
 .tbl tbody tr:last-child>*{padding-bottom:var(--s4)}
+/* 4 columns (guide #away): even data columns, a narrow row-label column; fixed layout so one long cell can not squeeze the others */
+.tbl4{table-layout:fixed}
+.tbl4 tbody th{width:auto}.tbl4 thead th:first-child{width:17%}
+.tbl4 td{width:auto}
 .yes::before{content:"✓";color:var(--yes);font-weight:800;margin-right:var(--s1)}
 
 /* install ways + remote: rows inside one card */
@@ -246,6 +250,8 @@ footer a:hover{color:var(--ink)}
   .tbl tbody th{grid-column:1/-1;width:auto}
   .tbl tbody tr:last-child>*{padding-bottom:0}
   .tbl tbody tr:last-child{padding-bottom:var(--s4)}
+  .tbl4 tr{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tbl4{font-size:14px}
 }
 /* guide page (guide.html): page title, topic list (sticky sidebar on wide screens), anchored sections. No JS. */
 main>section.ghero{border-top:0;padding:var(--s6) 0 var(--s5)}
