@@ -565,6 +565,7 @@ class Guard : Service() {
             .put("track", store.track(2))
             .put("calls", Calls.recent(this)).put("callsCap", Calls.cap(this))
             .put("requests", store.requests())
+            .put("refused", RefuseLogic.live(store.refusedRaw(), r, now))
             .put("digest", JSONObject().put("days", store.dgDays(now)).put("bedKept", bedKept(r, apps.keys, prot, now)))
             .put("lastAnswer", store.lastAnswer() ?: JSONObject.NULL)
             .put("now", lastNow.toJson())

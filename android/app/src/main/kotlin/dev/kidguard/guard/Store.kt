@@ -780,6 +780,11 @@ class Store private constructor(private val app: Context) {
     // ---- Requests (0.9.16, C3): at most ONE open request; asking again = "remind" (same id, `at` kept, `remindAt` = now,
     // the parent alert is raised again, at most once per 5 min). Dropped at the first tick of a new local day. ----
     /** The open request(s) for the state: a list of 0 or 1. Each {id, at, t (= at, older readers), remindAt, kind: "time"|"app", min, note, chore?, tpl?, pkg?, app?}. */
+    // ---- Apps seen refusing to run (RefuseHint): [{pkg, label, kinds: ["acc"|"dev"|"vpn"], at}], newest first ----
+    @Synchronized fun refusedRaw(): JSONArray = runCatching { JSONArray(p.getString("refused", "[]")) }.getOrDefault(JSONArray())
+    @Synchronized fun addRefused(pkg: String, label: String, kinds: Set<String>, now: Long) {
+        p.edit().putString("refused", RefuseLogic.add(refusedRaw(), pkg, label, kinds, now).toString()).apply()
+    }
     @Synchronized fun requests(): JSONArray = runCatching { JSONArray(p.getString("reqs", "[]")) }.getOrDefault(JSONArray())
     /** The one open request, or null. */
     @Synchronized fun openRequest(): JSONObject? = requests().optJSONObject(0)

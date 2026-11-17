@@ -43,6 +43,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Chặn app | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | Như trên. DO chặn cả app mới trước lần mở đầu; CB chặn khi mở |
 | Tạm dừng nhạc/video của app bị đẩy ra | — | ✅ | ✅ | ✅ | — | Cần quyền đọc thông báo |
 | App ngân hàng (tạm tắt Trợ năng, `accPause`) | ✅ | ❌ | ✅ | ✅ | ✅ | Cần WSS để bật lại. CB: lúc tạm tắt, KidGuard xem app đang mở 2 s/lần, mở app bị chặn thì bật lại ngay. Mở lại app ngân hàng từ nền: DO tự được, CB cần quyền "hiển thị trên ứng dụng khác". Mở từ thông báo thì giữ deep link |
+| App báo lỗi vì trợ năng / gỡ lỗi / VPN: máy con hiện cách sửa, trang có nút "Thêm vào danh sách" (`refused`) | ✅ | ❌ | ✅ | ✅ | ✅ | Đọc chữ trong hộp thoại / toast bằng trợ năng: trợ năng phải đang chạy. App ẩn chữ khỏi trợ năng (`accessibilityDataSensitive`) thì không thấy. Danh sách xuất / nhập được trên trang (Luật → App không mở được). |
 | App ngân hàng: tạm tắt VPN (`vpnPause`) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | Chỉ tắt được Tailscale. DO: gỡ tạm cả "VPN luôn bật" rồi đặt lại. CB: "VPN luôn bật" đặt trong Cài đặt thì không gỡ được (trang báo `vpnStuck`). Trong lúc tắt không vào qua Tailscale; relay vẫn chạy. |
 | Dọn máy (ẩn app cài sẵn) | ✅ | ❌ | ❌ | ✅ | ✅ | +adb: `pm disable-user`, chỉ trên Wi-Fi |
 | Xoá dữ liệu app (`clearData`) | ✅ (API 28+) | ❌ | ❌ | ✅ | ✅ | |

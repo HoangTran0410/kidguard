@@ -81,6 +81,12 @@ function updateLive() {
   B.unshift(...rcBans());   // command receipts: what the parent just sent comes first
   B.push(...modeBans());
   { const rb = rebootLine(), lc = locLine(); if (rb) B.push(rb); if (lc) B.push(lc); }
+  // an app said it won't run while accessibility / debugging / VPN is on (phone RefuseHint, state.refused): add it in one tap
+  if (Array.isArray(st.refused)) st.refused.slice(0, 3).forEach(f => {
+    const what = (f.kinds || []).map(k => k === "acc" ? t("bk.acc") : k === "dev" ? t("bk.dev") : "VPN").join(", ");
+    B.push(["warn", "landmark", t("rf.live", esc(f.label || f.pkg), what, hhmm(f.at))
+      + ` <button type="button" class="pill" data-rf="${esc(f.pkg)}">${ic("plus")} ${t("rf.add")}</button>`]);
+  });
   // bank-app pauses (audit 2026-11-13): what is off, for which app, when it comes back, and "turn back on now"
   const bkApps = [...new Set([...(st.accPaused || []), ...(st.vpnPaused || []), ...(st.devPaused || [])])];
   if (bkApps.length) {

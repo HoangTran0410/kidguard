@@ -92,6 +92,7 @@ leftMs apps rules location lan relay log`), plus:
   "accPaused": [],                 // NEW: packages it is turned off for right now (rules.accPause); non-empty = acc false on purpose
   "tamperOn": ["accoff"],          // 0.9.25: tamper conditions still true (accoff | usageoff | home); an event with that "key" stops being news once its key is gone here (the parent app hides its notification). accoff waits 30 s after a bank pause ends
   "vpnPaused": [],                 // NEW: packages the VPN is off for right now (rules.vpnPause)
+  "refused": [{"pkg": "vn.com.lpbank", "label": "LPBank", "kinds": ["acc", "vpn"], "at": 1763364000000}],   // 0.9.28: apps seen saying they won't run while accessibility (acc) / debugging (dev) / VPN (vpn) is on, kinds the rules don't cover yet; newest first, <= 6, 7 days (RefuseHint). Page: band + "Add to the list" (acc -> accPause, dev -> devPause, vpn -> vpnPause; a full rules PUT). Missing = older phone. Each hit is also an event `refused` (parent app push via FCM like any event; not sent on Telegram)
   "devPaused": [],                 // NEW: packages debugging is off for right now (rules.devPause)
   "vpnStuck": false,               // NEW: a VPN stayed up after the pause (another VPN app, or always-on set in Settings in basic mode)
   "accReEnable": true,             // NEW: the app holds WRITE_SECURE_SETTINGS (can re-enable acc itself)
@@ -803,7 +804,7 @@ Rules, NEW optional fields (phone ignores bad entries; limits enforced on the ph
   "Bố mẹ đã đồng ý / chưa đồng ý" notification ("… Bố mẹ nhắn: <note>").
 - **Zones / events**: the phone checks each new location fix against `zones` (inside = distance <= r; leaving needs
   distance > r + 50 m so a fix at the edge doesn't flap); fixes with accuracy > 300 m are ignored and appends events. State NEW:
-  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing|checkin|launcher|adminOpen|call|tsDown|tsUp", "text": "Đã đến Nhà"}]`; a tamper event of a lasting condition also has `"key": "accoff|usageoff|home"` (see state `tamperOn`),
+  `"events": [{"id": "e1a2b3", "t": <ms>, "kind": "zoneIn|zoneOut|battery|newApp|clock|pairing|checkin|launcher|adminOpen|call|tsDown|tsUp|refused", "text": "Đã đến Nhà"}]`; a tamper event of a lasting condition also has `"key": "accoff|usageoff|home"` (see state `tamperOn`),
   newest last, at most 50, older than 7 days dropped. `text` is free text for people, in the child app's language
   (English or Vietnamese, from the phone / per-app language; the examples here are the Vietnamese ones). The same goes for
   log lines (`log[].m`; NEW `log[].k` = kind, the string id without `log_`: `pin_wrong`, `unlock`, `paired`, `tz`,

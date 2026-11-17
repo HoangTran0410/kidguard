@@ -3,6 +3,7 @@
 Index and the rule for adding lines: `README.md`.
 
 ## Decided
+- (2026-11-17, owner) Refusal hint, not auto-pause: an app saying "turn off accessibility / debugging / VPN" only raises a toast + page band (`RefuseHint`, state `refused`); adding it to a pause list stays the parent's tap, since any app (a kid's own) could show those words and switch our protection off. Per-family lists move by Export / Import (website list shape); user-sent requests to grow the global `bank-apps.json` were dropped (review cost).
 - 2026-11-15 Calls (`calls` rule): `CallScreeningService` + CALL_SCREENING role, not the telephony `endCall` hack (needs ANSWER_PHONE_CALLS + races the ring) and not TelecomManager default dialer (replaces the child's dialer). Role comes from our own adb (`cmd role add-role-holder`), else one child tap; unknown = not in contacts and not in `allow`, no READ_CONTACTS = shown numbers pass (fail open); emergency never blocked; not in timed-mode override; call log list kept out of trimmed relay state. Unverified on a real phone.
 - 2026-11-13 What a bank-app pause takes away is computed: `Features.PAUSES` (pause -> caps) + `Features.lost()` over `Features.TABLE`; the kid popup / notification never carry hand-written feature lists (FeaturesTest fails on a missing row / name).
 - Release (`release` cmd) must undo every restriction; a failed release re-applies policy + watchdog, keeps parent tokens and keeps enforcing (1747923, f032b5d). Release aborts with "failed: N app còn bị ẩn" if a Dọn máy-hidden app can't be un-hidden

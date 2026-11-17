@@ -55,6 +55,7 @@ class Acc : AccessibilityService() {
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {
         if (e == null) return
         SuspendHint.onEvent(this, e)
+        RefuseHint.onEvent(this, e)
         if (LauncherSafe.shadeBlocked && (e.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED || e.packageName?.toString() in SHADE_PKGS)) {
             main.removeCallbacks(shadeCheck); main.post(shadeCheck)
         }

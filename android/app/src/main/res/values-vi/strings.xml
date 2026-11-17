@@ -312,6 +312,14 @@
     <string name="log_call_in">Cuộc gọi video từ %1$s</string>
     <string name="log_call_done">Cuộc gọi video kết thúc (%1$s phút)</string>
     <string name="log_call_missed">Cuộc gọi video nhỡ</string>
+    <string name="rf_acc">trợ năng</string>
+    <string name="rf_dev">gỡ lỗi USB</string>
+    <string name="rf_vpn">VPN</string>
+    <string name="ch_refuse">App không mở được</string>
+    <string name="rf_title">%1$s không mở được vì đang bật %2$s</string>
+    <string name="rf_body">Không cần gỡ gì cả. Đã báo bố mẹ. Cách sửa: trên trang quản lý, vào Luật → App không mở được, tick %1$s. Lần sau KidGuard tự tắt %2$s khi mở app này.</string>
+    <string name="ev_refused">%1$s không mở được vì đang bật %2$s. Cách sửa: Luật → App không mở được, tick %1$s</string>
+    <string name="log_refused">%1$s không mở được vì đang bật %2$s (sửa: Luật → App không mở được, tick app này)</string>
     <string name="notif_listen_title">Bố mẹ đang nghe âm thanh xung quanh máy</string>
     <string name="notif_listen_text">Micro đang bật để bố mẹ nghe. Tự tắt sau tối đa 10 phút.</string>
 

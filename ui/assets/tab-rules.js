@@ -445,7 +445,8 @@ function bankBox(r) {
     <div class="bkt" role="table" aria-label="${esc(t("bank.h"))}" style="margin-top:6px"><div class="bkh" role="row" style="${gt}"><span role="columnheader">${t("bank.colApp")}</span>${cols.map(c => `<span role="columnheader">${esc(c.h)}</span>`).join("")}</div>
     <div id="bk-list" role="rowgroup"></div></div>
     <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="bk-pkg" class="sp" placeholder="${esc(t("bank.pkg"))}" aria-label="${esc(t("bank.pkg"))}" autocapitalize="off" spellcheck="false" style="min-width:0">
-    <button class="btn" id="bk-add" type="button">${t("bank.add")}</button></div><p class="mute" id="bk-err" hidden>${t("bank.bad")}</p></details>`;
+    <button class="btn" id="bk-add" type="button">${t("bank.add")}</button></div><p class="mute" id="bk-err" hidden>${t("bank.bad")}</p>
+    <div class="row" style="margin-top:8px"><button class="sp" id="bk-exp" type="button">${ic("clipboard-copy")} ${t("bank.exp")}</button><button class="sp" id="bk-imp" type="button">${ic("clipboard-paste")} ${t("bank.imp")}</button></div></details>`;
 }
 function bankBind(r) {
   const list = $("#bk-list"); if (!list) return;
@@ -481,7 +482,48 @@ function bankBind(r) {
     if (!r.accPause.includes(v)) { if (r.accPause.length >= 100) return; r.accPause = r.accPause.concat(v); changed(); }
     $("#bk-pkg").value = ""; fill();
   };
+  // export / import (owner 2026-11-17: a family keeps its own list, moves it to another phone, shares it): the same shape as
+  // the website list (website/data/bank-apps.json), so an exported list can also go there as is
+  $("#bk-exp").onclick = () => {
+    const txt = bankExport(r, cols), n = JSON.parse(txt).apps.length;
+    const hand = () => { ask(t("bank.expHand"), t("close"), false, "", `<textarea id="bkTxt" rows="8" readonly style="width:100%;margin-bottom:12px;font:12px monospace">${esc(txt)}</textarea>`, null, t("bank.exp")); const a = $("#bkTxt"); if (a) a.select(); };
+    if (!navigator.clipboard) return hand();
+    navigator.clipboard.writeText(txt).then(() => toast("ok|" + t("bank.expDone", n)), hand);
+  };
+  $("#bk-imp").onclick = async () => {
+    let txt = "";
+    const p = ask(t("bank.impAsk"), t("bank.imp"), false, "", `<textarea id="bkTxt" rows="8" style="width:100%;margin-bottom:12px;font:12px monospace" placeholder='{"apps":[{"pkg":"com.VCB","acc":true}]}' aria-label="${esc(t("bank.imp"))}"></textarea>`);
+    const a = $("#bkTxt"); if (a) { a.oninput = () => { txt = a.value; }; a.focus(); }
+    if (!await p) return;
+    const n = bankImport(r, cols, txt);
+    if (n < 0) return toast("warn|" + t("bank.impBad"));
+    if (n) changed();
+    toast("ok|" + t("bank.impDone", n)); fill();
+  };
   fill();
+}
+// {v, apps:[{pkg, name, acc, dev, tcp, vpn}]}: one row per app on any list
+function bankExport(r, cols) {
+  const names = new Map((st && st.apps || []).map(a => [a.pkg, a.label]));
+  const pk = [...new Set(cols.flatMap(c => r[c.k] || []))].sort();
+  const has = (k, p) => Array.isArray(r[k]) && r[k].includes(p);
+  return JSON.stringify({ v: 1, apps: pk.map(p => ({ pkg: p, name: names.get(p) || p, acc: has("accPause", p), dev: has("devPause", p), tcp: has("tcpPause", p), vpn: has("vpnPause", p) })) }, null, 1);
+}
+// Adds what [txt] lists (export / website shape, {accPause:[..],..} rules shape, or bare package names = accessibility);
+// returns how many boxes it ticked, -1 when nothing could be read. A column this phone lacks falls back (dev/tcp -> acc), VPN is skipped.
+function bankImport(r, cols, txt) {
+  const PKG = /^[A-Za-z][\w]*(\.[A-Za-z_][\w]*)+$/, want = [];
+  let j = null; try { j = JSON.parse(txt); } catch {}
+  const pkgOf = v => String(v || "").trim().split(/\s+/)[0];
+  if (j && Array.isArray(j.apps)) j.apps.forEach(a => ["acc", "dev", "tcp", "vpn"].forEach(k => { if (a && a[k]) want.push([k, pkgOf(a.pkg)]); }));
+  else if (j && typeof j === "object") [["accPause", "acc"], ["devPause", "dev"], ["tcpPause", "tcp"], ["vpnPause", "vpn"]].forEach(([f, k]) => (Array.isArray(j[f]) ? j[f] : []).forEach(p => want.push([k, pkgOf(p)])));
+  else String(txt || "").split(/[\s,;]+/).forEach(p => want.push(["acc", p.trim()]));
+  const ok = want.filter(([, p]) => PKG.test(p) && p.length <= 200);
+  if (!ok.length) return -1;
+  const have = new Set(cols.map(c => c.k)), col = { acc: "accPause", dev: have.has("devPause") ? "devPause" : "accPause", tcp: have.has("tcpPause") ? "tcpPause" : have.has("devPause") ? "devPause" : "accPause", vpn: have.has("vpnPause") ? "vpnPause" : "" };
+  let n = 0;
+  for (const [k, p] of ok) { const f = col[k]; if (!f || r[f].includes(p) || r[f].length >= 100) continue; r[f] = r[f].concat(p); n++; }
+  return n;
 }
 
 

@@ -141,5 +141,19 @@ document.addEventListener("click", e => {
     if (r && r.result === "in use") toast(t("bk.inUse"));
     [2000, 8000].forEach(ms => setTimeout(refresh, ms));
   });
+  const rf = e.target.closest("[data-rf]");
+  if (rf && cur && st && Array.isArray(st.refused)) (async () => {
+    const f = st.refused.find(x => x.pkg === rf.dataset.rf), k = cur; if (!f) return;
+    rf.disabled = true;
+    try {
+      const r = edit || await kidRules(k);
+      if (!Array.isArray(r.accPause)) throw new Error(t("noData"));
+      const has = x => Array.isArray(r[x]), col = { acc: "accPause", dev: has("devPause") ? "devPause" : "accPause", vpn: has("vpnPause") ? "vpnPause" : "" };
+      for (const x of f.kinds || []) { const c = col[x]; if (c && !r[c].includes(f.pkg) && r[c].length < 100) r[c] = r[c].concat(f.pkg); }
+      await putRules(k, r);
+      if (st && st.refused) st.refused = st.refused.filter(x => x.pkg !== f.pkg);
+      toast("ok|" + t("rf.added", f.label || f.pkg)); lastSig = ""; render();
+    } catch (er) { rf.disabled = false; toast("err|" + t("errX", er.message)); }
+  })();
   if (e.target.closest("#saveResend") && cur && edit) { pendSince = Date.now(); putRules(cur, edit).catch(er => { toast("err|" + t("errX", er.message)); saveFail(true); }); }
 });
