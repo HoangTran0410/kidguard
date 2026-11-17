@@ -63,6 +63,17 @@ object AutoGrant {
         return listOf("pm grant $p android.permission.RECORD_AUDIO", "appops set $p RECORD_AUDIO allow")
     }
 
+    /** Right now, on this thread (video call ringing, Call.grant): camera + mic through our own adb. True = both granted after. */
+    fun camNow(ctx: Context): Boolean {
+        val p = ctx.packageName
+        val cmds = micGrant(ctx) + (if (ctx.checkSelfPermission(android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) emptyList()
+            else listOf("pm grant $p android.permission.CAMERA", "appops set $p CAMERA allow"))
+        if (cmds.isEmpty()) return true
+        if (Flavor.HOME || !SelfAdb.hasKey(ctx) || !SelfAdb.canOpen(ctx) && !SelfAdb.ready(ctx)) return false
+        runCatching { SelfAdb.run(ctx.applicationContext, cmds.joinToString("; ")) }.onFailure { Log.w("KidGuard", "cam grant", it) }
+        return Call.hasPerms(ctx)
+    }
+
     /** Right now, on this thread (Listen.open): grant the mic through our own adb. True = granted after. */
     fun micNow(ctx: Context): Boolean {
         val cmds = micGrant(ctx)

@@ -141,6 +141,14 @@ class MainActivity : Activity() {
     override fun attachBaseContext(base: android.content.Context) = super.attachBaseContext(Lang.wrap(base))   // in-app language (Android 8-12)
     private var web: WebView? = null
     private var chooser: android.webkit.ValueCallback<Array<android.net.Uri>>? = null
+    private var mediaAsk: android.webkit.PermissionRequest? = null   // video call (ui/assets/call.js): waits for the Android camera + mic answer
+
+    override fun onRequestPermissionsResult(req: Int, perms: Array<out String>, res: IntArray) {
+        super.onRequestPermissionsResult(req, perms, res)
+        if (req != REQ_MEDIA) return
+        val r = mediaAsk ?: return; mediaAsk = null
+        if (res.isNotEmpty() && res.all { it == PackageManager.PERMISSION_GRANTED }) r.grant(r.resources) else r.deny()
+    }
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(req: Int, res: Int, data: android.content.Intent?) {
@@ -180,6 +188,7 @@ class MainActivity : Activity() {
             allowFileAccess = false
             allowContentAccess = false
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            mediaPlaybackRequiresUserGesture = false   // the kid's picture + sound start when the call connects
         }
         w.addJavascriptInterface(Bridge(this), "KGApp")
         w.setDownloadListener { url, _, cd, mime, _ ->
@@ -187,6 +196,16 @@ class MainActivity : Activity() {
                 w.evaluateJavascript(Downloads.script(url, cd, mime), null)
         }
         w.webChromeClient = object : android.webkit.WebChromeClient() {
+            // video call: camera + mic for our own page only (the 127.0.0.1 proxy origin), asked from Android the first time
+            override fun onPermissionRequest(r: android.webkit.PermissionRequest) {
+                val ok = r.origin.toString().trimEnd('/') == origin.trimEnd('/') && r.resources.all {
+                    it == android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE || it == android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE }
+                if (!ok) { r.deny(); return }
+                val need = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO).filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+                if (need.isEmpty()) { r.grant(r.resources); return }
+                mediaAsk?.deny(); mediaAsk = r
+                requestPermissions(need.toTypedArray(), REQ_MEDIA)
+            }
             override fun onShowFileChooser(v: WebView, cb: android.webkit.ValueCallback<Array<android.net.Uri>>, p: FileChooserParams): Boolean {
                 chooser?.onReceiveValue(null)
                 chooser = cb
@@ -348,5 +367,5 @@ class MainActivity : Activity() {
     }
     override fun onDestroy() { web?.destroy(); web = null; super.onDestroy() }
 
-    companion object { const val REQ_PICK = 71; const val REQ_IMG = 72; @Volatile var proxy: Proxy? = null; @Volatile var openKid: String? = null; @Volatile var openSettings = false; const val EXTRA_SETTINGS = "kg.settings" }
+    companion object { const val REQ_PICK = 71; const val REQ_IMG = 72; const val REQ_MEDIA = 73; @Volatile var proxy: Proxy? = null; @Volatile var openKid: String? = null; @Volatile var openSettings = false; const val EXTRA_SETTINGS = "kg.settings" }
 }

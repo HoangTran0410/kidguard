@@ -33,6 +33,7 @@
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <!-- wrong-PIN photo (rule pinShot, Shot.kt): front camera, told on the PIN dialog -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />   <!-- video call: WebRTC sound in the WebView (Call.kt) -->
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -344,6 +345,18 @@
             android:exported="false"
             android:launchMode="singleTop"
             android:showWhenLocked="true" />
+
+        <!-- video call from a parent (Call.kt): over the lock screen, its own task so Home ends it -->
+        <activity
+            android:name=".CallActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="dev.kidguard.call"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
 
         <!-- command "wake": turns the screen on over the lock screen (Wake.kt) -->
         <activity

@@ -153,6 +153,22 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 - Gotchas: relay URL before any kid = `DEFAULT_RELAY` (or settingsStorage `relay`, settings page). The code is only a rendezvous: whoever has the kid token can attach it, whoever has the secret can fetch it. `/w/new` is capped per network (Gate `wip:`, 30/day). Expired codes: lazy check + alarm.
 - Wire: protocol "Watch connect".
 
+### 2.15 Video call (after 0.9.27, relay)
+Page `UI/call.js` `vcStart` (More sheet -> "Video call"; needs a relay link and a secure page) -> `GET /call?ice=1` ->
+`RTC.open` (`UI/rtc.js`: camera+mic, offer with the low-bandwidth profile, waits for ICE gathering up to 5 s) -> `POST /call
+{op:offer}` -> long-poll `GET /call?id&st=ring` (`vcWait`). Worker `Kid.callRoute` stores `this.call`, kicks the phone
+(socket / FCM). Phone `Relay.sync` reply `call` -> `K/remote/Call.kt` `Call.fromRelay`: grant camera+mic (DO
+`setPermissionGrantState`, basic `AutoGrant.camNow` via self adb), `Wake.now`, start `CallActivity` + full-screen
+notification `kg_call`, ringtone + vibration, 45 s missed timer. `CallActivity` = WebView of `ui/call.html` served from
+the APK under `https://appassets.androidplatform.net` (`shouldInterceptRequest`, only `call.html` + `assets/rtc.js`);
+`onPermissionRequest` grants camera/mic only for that origin and only after Answer. Answer -> bridge `KG.answerTap`
+(ringing off) -> `RTC.open({offer})` -> `KG.signal("answer", sdp)` (blocking POST with the phone token) -> the page's long
+poll returns `on` -> `accept`. Ends: either side's button (DataChannel `bye` + `POST end`), the parent's `end` reaching the
+phone through sync (`Call.remoteEnd` -> `kgEnd(why)`), `CallActivity.onStop` (kid left the screen), page hidden 60 s,
+15-min cap. Parent app: `P/MainActivity` `onPermissionRequest` asks Android for CAMERA/RECORD_AUDIO for the 127.0.0.1 page.
+Gotchas: a LAN http page can't open the camera (`RTC.can()` false -> "use the relay link / parent app"); non-trickle ICE
+means one round trip but up to 5 s of gathering; release already revokes CAMERA/RECORD_AUDIO.
+
 ### 2.14 Parent page components (use these, never hand-write the markup)
 One helper per UI shape; ids, `data-*` attributes and class names stay the same (`shoot.mjs`, `check-search.mjs` and the click handlers rely on them).
 | Need | Helper | File |

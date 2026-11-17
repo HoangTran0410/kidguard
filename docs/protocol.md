@@ -585,6 +585,31 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   its foreground service only while listening. `release` revokes RECORD_AUDIO (DENIED, then DEFAULT) and stops a session.
 - Parent-app proxy: `GET /k/<t>/api/listen` is passed through as a stream (never cached).
 
+## Video call (after 0.9.27, relay only, parent -> kid)
+Signaling goes through the relay; picture and sound go straight between the two devices (WebRTC P2P; a TURN server only
+when no direct path works). Flow: `docs/flows/remote.md` §2.15.
+- `GET /c/<id>/call[?ice=1]` (parent or phone token) -> `{call, ice?}`; `call` = `null` or `{id, st, by, at, sdp?, why?}`:
+  `id` 16 hex (made by the page), `st` `ring | on | end`, `by` the calling parent's name, `sdp` = the offer while `ring`,
+  the answer while `on`; `why` (end only) one of `hangup decline busy timeout failed noperm nocam missed`.
+  `ice` = `[{urls, username?, credential?}]`: Cloudflare + Google STUN, plus short-lived Cloudflare TURN credentials
+  (4 h, minted with worker secrets `TURN_KEY_ID` / `TURN_KEY_TOKEN`, cached 1 h; without the secrets STUN only).
+  `?id=<id>&st=<st>` long-polls up to 12 s while the call is still `id` in state `st`.
+- `POST /c/<id>/call` `{op, id, sdp?, why?}`:
+  `offer` (parent; `sdp` starts with `v=0`, max 16 000 chars, non-trickle: all candidates inside) -> 409 `busy` when
+  another call is not ended; the phone is kicked (socket, else FCM wake). A shared phone token may not offer once the
+  family has parents or a PIN (403 `join`).
+  `answer` (phone, only while `ring`, else 409) -> `on`. `end` (`why`) -> `end`; the phone is kicked when a parent ended it.
+  Wrong `id` -> 404 `no call`; bad id / sdp / op -> 400.
+- Timeouts in the worker: `ring` > 45 s -> `end` `missed`; `on` > 1 h -> `end` `timeout`; an `end` is dropped after 60 s.
+- Phone `POST /sync` reply adds `call: {id, st, by, sdp?, ice?}` while a call exists (`sdp` + `ice` only while `ring`).
+- Kid screen: `CallActivity` (WebView, `ui/call.html` + `ui/assets/rtc.js` served from the APK at
+  `https://appassets.androidplatform.net`, CSP `connect-src` none: all network goes through the `KG` bridge). The child
+  always answers by hand (no auto-answer). Logs `log_call_in`, `log_call_done`, `log_call_missed`.
+- Media profile (both sides, `rtc.js`): video 320x240, 15 fps, max 150 kbps (`b=AS:150` + `maxBitrate`); Opus mono
+  24 kbps, DTX, FEC, `maxplaybackrate=16000`. DataChannel `kg`: `{t:"bye"}`, `{t:"cam", on}`, `{t:"mic", on}`,
+  `{t:"more"}` (parent gave 15 more minutes). Calls stop at 15 min unless extended; the parent page ends a call that is
+  hidden for 60 s; the kid ends it when the call screen leaves the front.
+
 ## Instant push via FCM (v0.5, optional, relay kids only)
 - "Relay kid" = saved with `via: "relay"`, or a LAN / Tailscale kid saved with `relay {url, id, token}` (the parent app
   registers with that relay and matches the push `kid` against its id; before 2026-11-16 such kids never got push).

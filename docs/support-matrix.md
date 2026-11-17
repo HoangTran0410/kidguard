@@ -79,6 +79,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Định vị ngay, nhắn tin, đổ chuông, đánh thức | ✅ | ✅ | ✅ | ✅ | ✅ | Relay: hết hạn sau 10 phút |
 | Xem màn hình + điều khiển | ✅ | ✅ | ✅ | ✅ | ✅ | Android 11+, cần Trợ năng. Relay ~3 khung/giây, LAN nhanh hơn |
 | **Nghe xung quanh** | ✅ | ✅ | ✅ | ✅ | ❌ | **Chỉ LAN / Tailscale** (Relay không có đường âm thanh). Cần quyền micro |
+| **Gọi video** (bố mẹ gọi con) | ✅ | ✅ (cần +adb để tự cấp camera, không thì bật quyền camera/micro tay 1 lần) | ✅ | ✅ | ✅ | **Cần Relay** (tín hiệu qua relay, hình/tiếng đi thẳng giữa 2 máy). Trang LAN http không mở được camera: dùng relay https hoặc app bố mẹ. Con luôn tự bấm Nghe. Không có trong bản Home. 320x240, ~150 kbps |
 | Chụp ảnh người nhập sai PIN (trang quản lý trên máy) | ✅ | ✅ | ✅ | ✅ | ✅ | DO tự cấp quyền camera; CB: bố mẹ cho phép 1 lần sau khi mở đúng PIN. Không có trong bản Home. Relay: tải qua kênh file |
 | Chế độ thất lạc (`lostOn`) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | DO: `lockNow` mỗi lần mở máy, lời nhắn + số trên màn hình khóa. CB: thẻ phủ toàn màn hình (Safe Mode vẫn lách). Cả hai: định vị 5 phút/lần, đổ chuông 5 phút mỗi 15 phút. Telegram `/lost` |
 | Tóm tắt buổi tối (`/digest` Telegram, thông báo app phụ huynh) | ✅ | ✅ | ✅ | ✅ | ❌ | Mặc định tắt. Giờ ngủ "giữ đúng" cần quyền xem mức dùng. Qua LAN/Tailscale/relay đều được (app phụ huynh cần lấy được trạng thái buổi tối) |

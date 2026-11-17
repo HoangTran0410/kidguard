@@ -163,10 +163,11 @@ function wireReq(b, today, inSheet) {
 // "Thêm" round button: wake, listen, message, restart
 function moreSheet() {
   sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("zap", t("now"))}
-    <div class="grid"><button type="button" id="scrGo"${navOk("screen") ? "" : " disabled"}>${ic("smartphone")} ${t("more.scr")}</button><button type="button" id="wake" class="act"></button>${cur.via === "lan" && !viewDay ? `<button type="button" id="ear1" class="act"></button>` : ""}${isBasic() ? "" : `<button type="button" id="reboot" class="bad">${ic("refresh-cw")} ${t("reboot")}</button>`}</div>
+    <div class="grid"><button type="button" id="scrGo"${navOk("screen") ? "" : " disabled"}>${ic("smartphone")} ${t("more.scr")}</button><button type="button" id="wake" class="act"></button>${viewDay ? "" : `<button type="button" id="vcGo">${ic("video")} ${t("call.go")}</button>`}${cur.via === "lan" && !viewDay ? `<button type="button" id="ear1" class="act"></button>` : ""}${isBasic() ? "" : `<button type="button" id="reboot" class="bad">${ic("refresh-cw")} ${t("reboot")}</button>`}</div>
     ${cur.via === "lan" ? "" : `<p class="mute">${ic("ear")} ${t("ear.lanOnly")}</p>`}</div>`,
     (pop, done) => {
       pop.querySelector("#scrGo").onclick = () => { done(false); goTab("screen"); };
+      const vg = pop.querySelector("#vcGo"); if (vg) vg.onclick = () => { done(false); vcStart(); };
       pop.querySelector("#wake").onclick = () => act("wake", () => cmd({ type: "wake" }, t("wake.done"), false));
       const e1 = pop.querySelector("#ear1"); if (e1) e1.onclick = () => earOn() ? micStop() : ringOn() ? toast("warn|" + t("act.noEar")) : earStart();
       const rb = pop.querySelector("#reboot"); if (rb) rb.onclick = () => cmd({ type: "reboot" }, t("reboot.done")).then(r => { if (r) rebootStart(); });

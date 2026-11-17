@@ -552,6 +552,7 @@ await P("sync",JSON.stringify({ai:ah,acks:["aiset1"]}));
 ck("ai: wrong PIN on the phone (acked, old hash kept) = old code back",(await A("GET","state")).status==200);
 await P("sync",JSON.stringify({ai:""}));}
 // ---- parents: own tokens, family PIN, invites, `by` (docs/protocol.md "Parents") ----
+await sleep(10500);   // a fresh per-IP rate-limit window (150 / 10 s): this block is a burst and flaked with 429s
 {const {createHash,randomBytes}=await import("node:crypto");
 const hx=n=>randomBytes(n).toString("hex"),idq=hx(8),Tq=hx(24),salt="0011223344556677";
 const hp=(pin,s)=>{if(!s)return createHash("sha256").update("kg:"+pin).digest("hex");const sb=Buffer.from(s),buf=Buffer.alloc(64+sb.length);sb.copy(buf,64);let h=createHash("sha256").update(s+":"+pin).digest();
@@ -595,4 +596,22 @@ ck(`H4: new binds from one network stop at the daily cap (ok ${ok}, blocked at $
 {const rr=await fetch(`${B}/c/${rh(16)}/sync`,{method:"POST",headers:{"x-kg-token":rh(48),"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});const jj=await rr.json().catch(()=>({}));
 ck("H4: the 429 says when it resets (retryAt, ms epoch)",rr.status==429&&jj.retryAt>Date.now()&&jj.retryAt<=Date.now()+86400e3+1000);}
 ck("H4: an already bound kid keeps syncing past the cap",(await fetch(`${B}/c/${id}/sync`,{method:"POST",headers:{"x-kg-token":T,"content-type":"application/json"},body:"{}"})).status==200);}
+await sleep(10500);   // a fresh per-IP rate-limit window (150 / 10 s) for the call checks
+// video call signaling (docs/protocol.md "Call"): offer -> phone sees it in sync -> answer wakes the parent's long poll -> end
+{const k3=id,C=(m,body)=>fetch(`${B}/c/${k3}/call${m==="GET"&&typeof body==="string"?body:""}`,{method:m,headers:H(),body:m==="POST"?JSON.stringify(body):undefined}),S3=async()=>await (await fetch(`${B}/c/${k3}/sync`,{method:"POST",headers:H(),body:"{}"})).json();
+let x=await (await C("GET","?ice=1")).json();ck("call GET: none yet + STUN servers",x.call===null&&Array.isArray(x.ice)&&JSON.stringify(x.ice).includes("stun:"));
+ck("call offer bad id 400",(await C("POST",{op:"offer",id:"zz",sdp:"v=0"})).status==400);
+ck("call offer bad sdp 400",(await C("POST",{op:"offer",id:"aa".repeat(8),sdp:"hello"})).status==400);
+x=await (await C("POST",{op:"offer",id:"aa".repeat(8),sdp:"v=0 offer"})).json();ck("call offer -> ring",x.call&&x.call.st==="ring");
+let sy=await S3();ck("sync carries the ringing call + ICE",sy.call&&sy.call.id==="aa".repeat(8)&&sy.call.sdp==="v=0 offer"&&Array.isArray(sy.call.ice));
+ck("second call while ringing 409 busy",(await C("POST",{op:"offer",id:"bb".repeat(8),sdp:"v=0"})).status==409);
+const t9=Date.now(),lp=C("GET",`?id=${"aa".repeat(8)}&st=ring`);await sleep(400);
+x=await (await C("POST",{op:"answer",id:"aa".repeat(8),sdp:"v=0 answer"})).json();ck("answer -> on",x.call&&x.call.st==="on");
+x=await (await lp).json();ck("parent long poll woken by the answer",x.call&&x.call.st==="on"&&x.call.sdp==="v=0 answer"&&Date.now()-t9<5000);
+ck("answer twice 409",(await C("POST",{op:"answer",id:"aa".repeat(8),sdp:"v=0"})).status==409);
+ck("end of another call 404",(await C("POST",{op:"end",id:"cc".repeat(8)})).status==404);
+x=await (await C("POST",{op:"end",id:"aa".repeat(8),why:"decline"})).json();ck("end keeps why",x.call&&x.call.st==="end"&&x.call.why==="decline");
+sy=await S3();ck("sync tells the phone it ended (no SDP)",sy.call&&sy.call.st==="end"&&!sy.call.sdp);
+x=await (await C("POST",{op:"offer",id:"dd".repeat(8),sdp:"v=0"})).json();ck("new call after an end",x.call&&x.call.st==="ring");
+await C("POST",{op:"end",id:"dd".repeat(8)});}
 console.log(pass,"pass",fail,"fail");process.exit(fail?1:0);

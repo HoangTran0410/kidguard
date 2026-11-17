@@ -21,6 +21,8 @@ import ui_shell_js from "../../ui/assets/shell.js";
 import ui_search_js from "../../ui/assets/search.js";
 import ui_tab_log_js from "../../ui/assets/tab-log.js";
 import ui_live_js from "../../ui/assets/live.js";
+import ui_rtc_js from "../../ui/assets/rtc.js";
+import ui_call_js from "../../ui/assets/call.js";
 import ui_requests_js from "../../ui/assets/requests.js";
 import ui_app_set_js from "../../ui/assets/app-set.js";
 import ui_tab_home_js from "../../ui/assets/tab-home.js";
@@ -45,6 +47,8 @@ const UI = {
   "search.js": ui_search_js,
   "tab-log.js": ui_tab_log_js,
   "live.js": ui_live_js,
+  "rtc.js": ui_rtc_js,
+  "call.js": ui_call_js,
   "requests.js": ui_requests_js,
   "app-set.js": ui_app_set_js,
   "tab-home.js": ui_tab_home_js,
@@ -64,6 +68,10 @@ const KEYS = ["back", "home", "recents", "notifications", "quick", "lock", "powe
 const PKG = /^[A-Za-z0-9._]{1,200}$/, MAX_ICONS = 400;
 // icon URLs end up in request logs: the page sends ?k=sha256("icon:" + token) (only opens icons), stored at the first authenticated request
 const ICON_KEY = /^[0-9a-f]{64}$/;
+// video call (docs/protocol.md "Call"): the relay passes the two SDPs; sound and picture go phone <-> parent directly
+// (TURN only when the networks need it). Ring 45 s, a call ends by itself after 1 h, an ended one is kept 60 s.
+const CALL_RING = 45e3, CALL_MAX = 60 * 60e3, CALL_KEEP = 60e3, CALL_SDP = 16000, CALL_ID = /^[0-9a-f]{16}$/;
+const CALL_WHY = ["hangup", "decline", "busy", "timeout", "failed", "noperm", "nocam", "missed"];
 // <img> can't send headers: only the icon GET may carry the token in ?k=
 const tokenOf = (req, url) => req.headers.get("x-kg-token") || (req.method === "GET" && url.pathname.endsWith("/icon") ? url.searchParams.get("k") || "" : "");
 // shared files (docs/protocol.md "Shared files"): <= 10 MB a file in 1 MiB chunks, kept 1 h, deleted once fetched
@@ -173,7 +181,7 @@ export default {
     if (th) return tgHook(req, env, th[1]);
     if (url.pathname === "/w/new" || /^\/w\/\d{6}$/.test(url.pathname)) return watchRoute(req, env, url);
     if (/^\/p\/(new|inv|\d{6}|[0-9a-f]{16})(\/(join|reply|result))?$/.test(url.pathname)) return pairRoute(req, env, url);
-    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile|join|unlock|invite|parents)$/);
+    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile|join|unlock|invite|parents|call)$/);
     if (!m) return json({ error: "not found" }, 404);
     if (env.RL) {
       const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
@@ -404,7 +412,7 @@ export function netKey(ip) {
 // Parents (docs/protocol.md "Parents"): one token each, named; the family PIN (checked here against the phone's hash) or a one-use invite gets one
 const MAX_PARENTS = 12, INV_TTL = 10 * 60e3, MAX_INVS = 5, UNLOCK_MS = 12 * 3600e3, PIN_TRIES = 5, PIN_LOCK = 15 * 60e3, PAR_KINDS = ["app", "web", "watch"];
 // the shared (phone) token once a parent has a token of its own: the phone's routes only
-const phoneRoute = (action, m) => action === "sync" || action === "ws" || action === "file" || action === "forget" || action === "join"
+const phoneRoute = (action, m) => action === "sync" || action === "ws" || action === "file" || action === "forget" || action === "join" || action === "call"
   || (action === "icons" && m === "POST") || (action === "frame" && m === "POST") || ((action === "device" || action === "logday") && m === "PUT");
 const cleanName = v => String(v || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 24);
 const hexRand = n => [...crypto.getRandomValues(new Uint8Array(n))].map(x => x.toString(16).padStart(2, "0")).join("");
@@ -544,7 +552,7 @@ export class Kid {
       if (h !== bound) return json({ error: "phone only" }, 403);
       for (const w of this.phoneWs()) { try { w.close(1000, "forgotten"); } catch {} }
       await this.s.deleteAlarm().catch(() => {}); await this.s.deleteAll();
-      this.seen = 0; this.stateAt = 0; this.ikSeen = null; this.kfcm = undefined; this.wk = null; this.par = null; this.vk = null;
+      this.seen = 0; this.stateAt = 0; this.ikSeen = null; this.kfcm = undefined; this.call = undefined; this.wk = null; this.par = null; this.vk = null;
       return json({ result: "forgotten" });
     }
     if (action === "watch") {   // a Zepp watch shows a 6-digit code; the parent page sends it here, authenticated like any parent call
@@ -604,6 +612,7 @@ export class Kid {
       return json({ have: list.size });
     }
     if (action === "icon" && req.method === "GET") return this.icon(url);   // older pages: the token in ?k=
+    if (action === "call") return this.callRoute(req, url, h === bound, who, now);
     if (action === "frame") {
       if (req.method === "POST") {
         const buf = await req.arrayBuffer();
@@ -1076,11 +1085,90 @@ export class Kid {
     const files = (await this.fileGc(now)).filter(f => f.to === "kid" && f.got.length === f.n).length;
     if (files) out.files = files;   // the phone then fetches them from /file
     if (this.deviceWant && now - this.deviceWant < 120e3) out.device = true;
+    const call = await this.callNow(now);
+    if (call) out.call = { id: call.id, st: call.st, by: call.by, ...(call.st === "ring" ? { sdp: call.offer, ice: await this.iceServers(now) } : {}) };
     for (const [d, at] of this.lgdWant) { if (now - at < 120e3) { out.logday = d; break; } this.lgdWant.delete(d); }   // one day per sync
     const known = state || (await this.s.get("state"));   // the phone omits state when unchanged
     const have = known && known.rules ? +known.rules.rev || 0 : 0;
     if (rules && rules.rev > have) out.rules = rules;
     return out;
+  }
+
+  /** The call in progress (memory, else storage), or null once it is over: a ring nobody took, a call past CALL_MAX, an end kept CALL_KEEP. */
+  async callNow(now) {
+    if (this.call === undefined) this.call = (await this.s.get("call")) || null;
+    const c = this.call;
+    if (c && ((c.st === "ring" && now - c.at > CALL_RING) || (c.st === "on" && now - c.on > CALL_MAX) || (c.st === "end" && now - c.endAt > CALL_KEEP))) {
+      if (c.st === "end") { this.call = null; await this.s.delete("call"); return null; }
+      return this.callSet({ ...c, st: "end", why: c.st === "ring" ? "missed" : "timeout", endAt: now });
+    }
+    return c;
+  }
+  async callSet(c) {
+    this.call = c; await this.s.put("call", c);
+    for (const w of this.callWaiters || []) w();
+    return c;
+  }
+  /** GET: the call as this side sees it (?ice=1 adds STUN/TURN servers; ?id=&st= waits up to 12 s for a change: under the page's 15 s fetch limit).
+   * POST {op: offer|answer|end, id, sdp?, why?}: the parent offers; the phone answers; either side ends. */
+  async callRoute(req, url, phone, who, now) {
+    let c = await this.callNow(now);
+    // ring: the parent's offer (the phone takes it); on: the phone's answer (the parent takes it). An old shared token is both sides.
+    const view = (c) => c && { id: c.id, st: c.st, by: c.by, at: c.at, ...(c.st === "ring" ? { sdp: c.offer } : c.st === "on" ? { sdp: c.answer } : {}), ...(c.why ? { why: c.why } : {}) };
+    if (req.method === "GET") {
+      const q = url.searchParams, id = q.get("id");
+      if (id && c && c.id === id && c.st === (q.get("st") || "")) {
+        this.callWaiters = this.callWaiters || new Set();
+        await new Promise(res => { const done = () => { clearTimeout(t); this.callWaiters.delete(done); res(); }; const t = setTimeout(done, 12e3); this.callWaiters.add(done); });
+        c = await this.callNow(Date.now());
+      }
+      return json({ call: view(c), ...(q.get("ice") === "1" ? { ice: await this.iceServers(now) } : {}) });
+    }
+    if (req.method !== "POST") return json({ error: "method" }, 405);
+    let b; try { b = await req.json(); } catch { return json({ error: "bad json" }, 400); }
+    const op = b && b.op, id = String(b && b.id || ""), sdp = b && b.sdp;
+    if (!CALL_ID.test(id)) return json({ error: "bad id" }, 400);
+    if ((op === "offer" || op === "answer") && (typeof sdp !== "string" || !sdp.startsWith("v=0") || sdp.length > CALL_SDP)) return json({ error: "bad sdp" }, 400);
+    if (op === "offer") {
+      // the phone's own token (an old shared link) starts nothing once parents have tokens or the PIN is known
+      if (phone && (Object.keys(await this.parents()).length || ((await this.s.get("pv")) || {}).h)) return json({ error: "join" }, 403);
+      if (c && c.st !== "end" && c.id !== id) return json({ error: "busy", by: c.by }, 409);
+      c = await this.callSet({ id, st: "ring", by: who || "", at: now, offer: sdp });
+      this.kickPhone(now);
+      if (!this.phoneWs().length) this.ctx.waitUntil(this.wakeKid(now, this.seenNow(await this.s.get("seen")), "parent").catch(() => {}));
+      return json({ call: view(c) });
+    }
+    if (!c || c.id !== id) return json({ error: "no call" }, 404);
+    if (op === "answer") {
+      if (c.st !== "ring") return json({ error: "not ringing", call: view(c) }, 409);
+      return json({ call: view(await this.callSet({ ...c, st: "on", on: now, answer: sdp })) });
+    }
+    if (op === "end") {
+      if (c.st === "end") return json({ call: view(c) });
+      const why = CALL_WHY.includes(b.why) ? b.why : "hangup";
+      c = await this.callSet({ ...c, st: "end", why, endAt: now, endBy: phone ? "kid" : "parent" });
+      if (!phone) this.kickPhone(now);
+      return json({ call: view(c) });
+    }
+    return json({ error: "bad op" }, 400);
+  }
+  /** STUN always; Cloudflare TURN (free 1 TB/month) when the worker has TURN_KEY_ID + TURN_KEY_TOKEN. Minted creds are kept 1 h (they live 4 h). */
+  async iceServers(now) {
+    if (this.ice && now < this.ice.until) return this.ice.list;
+    let list = [{ urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] }];
+    if (this.env.TURN_KEY_ID && this.env.TURN_KEY_TOKEN) {
+      try {
+        const r = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${this.env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
+          method: "POST", headers: { authorization: "Bearer " + this.env.TURN_KEY_TOKEN, "content-type": "application/json" }, body: JSON.stringify({ ttl: 4 * 3600 }) });
+        if (r.ok) {
+          // port 53 TURN urls time out in browsers (Cloudflare's own advice: drop them)
+          const got = ((await r.json()).iceServers || []).map(x => ({ ...x, urls: [].concat(x.urls || []).filter(u => !/:53(\?|$)/.test(u)) })).filter(x => x.urls.length);
+          if (got.length) list = got;
+        } else console.log("turn", r.status);
+      } catch (e) { console.log("turn", String(e)); }
+    }
+    this.ice = { list, until: now + 3600e3 };
+    return list;
   }
 
   async webSocketMessage(ws, msg) {
