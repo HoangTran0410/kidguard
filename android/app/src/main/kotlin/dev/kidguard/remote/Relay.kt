@@ -37,6 +37,7 @@ class Relay(private val g: Guard) {
     private var wsUpAt = 0L   // when the socket last connected: one that dies within 5 min counts as a failure (flapping network)
     private var forceSend = false
     private var fcmSent = ""
+    @Volatile private var pvSent = ""   // "<relay> <pinHash> <pinSalt>" the worker has (sync `pv`)
     private var lastCoarse = 0
     private var lastSent = 0L
     private val diff = StateDiff()      // partial states once the worker says `merge` (bandwidth)
@@ -194,6 +195,9 @@ class Relay(private val g: Guard) {
         // push wake (KidPush): the worker keeps this phone's FCM token and wakes it when it goes quiet. Sent until one sync took it.
         val fcm = KidPush.token
         if (fcm.isNotEmpty() && "$base/$rid $fcm" != fcmSent) req.put("fcm", fcm)
+        // the family PIN hash (docs/protocol.md "Parents"): the worker checks a new parent's PIN / a browser unlock with it. Sent when it changes
+        val pr = store.rules; val pvKey = "$base/$rid ${pr.pinHash} ${pr.pinSalt}"
+        if (pvKey != pvSent) req.put("pv", if (pr.pinHash.isBlank()) "" else JSONObject().put("h", pr.pinHash).put("s", pr.pinSalt))
         if ("$base/$rid" != diffFor) { diffFor = "$base/$rid"; diff.reset(); canMerge = false }
         // a whole state until the worker can merge, and every 6 h anyway (a hash clash must not hide a change for long)
         val whole = !canMerge || big || now - lastWhole >= WHOLE_MS
@@ -205,10 +209,11 @@ class Relay(private val g: Guard) {
         res.optString("error").takeIf { it.isNotEmpty() }?.let { throw RuntimeException("relay: $it") }   // socket reply = HTTP error body
         lastSent = now
         if (req.has("fcm")) fcmSent = "$base/$rid $fcm"
+        if (req.has("pv")) pvSent = pvKey
         run {
             if (full) { lastHash = hash; lastFull = now }
             canMerge = res.optInt("merge") == 1
-            if (res.optBoolean("full") || !canMerge) { diff.reset(); if (res.optBoolean("full")) lastHash = 0 }   // nothing to merge on / can't merge
+            if (res.optBoolean("full") || !canMerge) { diff.reset(); if (res.optBoolean("full")) { lastHash = 0; pvSent = "" } }   // full = the worker lost its copy (pv too)   // nothing to merge on / can't merge
             else if (sent != null) { diff.commit(sent.second); if (sent.first === state) lastWhole = now }
             acks = JSONArray()
             // rules first, but a bad rules reply must never stop the commands below (a release/reboot would be lost)
@@ -219,7 +224,7 @@ class Relay(private val g: Guard) {
                 val rules = Rules.fromJson(r).let { x ->
                     if (x.pinHash.isNotBlank() && pinAt > store.relayPinAt) x else x.copy(pinHash = "", pinSalt = "")
                 }
-                if (rules.rev > store.rules.rev) { g.setRules(rules); if (rules.pinHash.isNotBlank()) store.relayPinAt = pinAt }
+                if (rules.rev > store.rules.rev) { g.setRules(rules, by = r.optString("by")); if (rules.pinHash.isNotBlank()) store.relayPinAt = pinAt }
             } }.onFailure { Log.w("KidGuard", "relay rules", it) }
             val cmds = res.optJSONArray("cmds") ?: JSONArray()
             for (i in 0 until cmds.length()) {

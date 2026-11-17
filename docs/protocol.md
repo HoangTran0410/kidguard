@@ -341,6 +341,32 @@ parent link cannot mint one; the token itself never reaches the phone or the rel
 - `GET /c/<id>/state` already returns `seen` (ms of the phone's last sync): the page warns when `now - seen > 5 min`.
 - The worker also serves `GET /install` -> `ui/install.html`.
 
+### Parents (2026-11-17): own relay token per parent, family PIN, invites
+- Each parent (page, parent app, watch) holds its OWN relay token (48 hex) with a name; the worker keeps
+  `par = {sha256(token): {n name, k "app"|"web"|"watch", at, seen, ul}}` (<= 12). The phone's token (the one in the old
+  `/go` link / QR) opens the parent routes only while `par` is empty AND the phone has not sent `pv` (phones before 0.9.27; a PIN set by the page alone does not lock it, or an old page would lock itself out); else it is phone-only
+  (`sync ws file forget join`, `POST icons|frame`, `PUT device|logday`), anything else `403 {"error":"join"}`.
+- `POST /c/<id>/join {name, kind:"app"|"web", pin}` with the phone's token -> `{token, name, kind, pin:"ok"|"none"}`.
+  The PIN is the family PIN, checked by the worker against `pv` (below) or a PIN the page set in a rules PUT.
+  `403 {"error":"bad pin","left":n}`; 5 wrong (join + unlock together, per kid) = `429 {"error":"pin locked","retryAt"}` for 15 min.
+  No PIN known: only the FIRST parent may join (`pin:"none"`), later ones `403 {"error":"invite needed"}`.
+- `POST /c/<id>/invite {}` (a parent token) -> `{inv: 32 hex, exp}`: one use, 10 min, <= 5 open. `POST /c/<id>/join
+  {name, kind, inv}` with NO `X-KG-Token` -> same reply with `pin:"inv"`; used / expired / unknown `403`. Two parents
+  scanning one invite: the Durable Object runs one request at a time, the first one wins.
+- `GET /c/<id>/parents` -> `{parents:[{id (12 hex), name, kind, at, seen, me}], pinKnown}`; `POST parents {revoke:id}`
+  (any parent, the token stops at once) | `{name}` (rename self).
+- Browser tokens (`kind:"web"`) open for 12 h after a join / `POST /c/<id>/unlock {pin}` -> `{until}`; else every route
+  but `unlock` / `parents` answers `423 {"error":"locked","name"}`. App tokens (the parent app has its own biometric lock)
+  and watch tokens never lock. `kind` is the page's own claim: the PIN or an invite was needed to get any token.
+- Remote pairing (`/p/<key>/result`, "Pair over relay") and watch connect (`POST /c/<id>/watch`) hand out a NEW parent
+  token (named as typed, `?kind=app` on the result from the parent app), never the phone's token.
+- Phone sync `pv`: `{h: pinHash, s: pinSalt}` (Rules.hashPin: "" salt = sha256("kg:"+pin), else 10 000 rounds; the worker
+  checks with node:crypto, ~9 ms) sent when it changes, `""` = no PIN. Old phones send none: a PIN the page set via a
+  rules PUT counts (`pv` = its legacy hash); else `pinKnown:false` and joins work by the link alone until a parent exists.
+- `by`: a command or rules PUT from a parent token carries `by: <name>` (AI token: "AI"); the phone logs it
+  (`log_cmd_by`, rules diff line ` · <name>`); state `queue` items carry `by`. `POST forget` is the phone's token only.
+- Icon / tile keys: one per parent token (`iconKeys` / `tileKeys`, plus the older single `iconKey` / `tileKey`).
+
 ### Parent page files (served next to the page by the phone, the parent app and the worker)
 - `GET /` (or `/index.html`) -> `ui/index.html`; it loads `GET /ui/<name>.css|js` (files of `ui/assets/`, name `[a-z0-9-]+`).
   No token (public like the page). `text/css` / `text/javascript; charset=utf-8`, `nosniff`; phone + parent app `no-store`,
@@ -1379,14 +1405,14 @@ phone decides (`Store.tryPair`: code, `PairPin.decide`, PIN lockout, same errors
   `409 busy`; `429 {error: "too many wrong codes", wait: <ms>, retryAt}` after `PAIR_MISS_MAX` (20) join tries from one network inside a fixed `PAIR_MISS_WIN` (10 min) window that starts at the first try (Gate `pmiss:` with `win`; every join counts, right, wrong or busy, taken BEFORE the lookup so a parallel burst can't pass the cap; since 2026-11-15, was 40 wrong codes a day). Math: P(hit any live code) ~ live codes x guesses / 10^6; <= ~30 guesses per 15 min code life per network. One code takes `PAIR_JOINS` (5) joins, then it is deleted.
   Then poll `GET /p/<code>/result` header `X-KG-Ticket: <ticket>`: `{waiting:true}` | `200 {id, token, url}` once (the entry becomes `taken`; later `404`) | `{error, wait?}` = the phone refused:
   400 `bad pin` / `pin required`, 403 `wrong pin` / `closed`, 429 `pin locked` / `wait`. After an error the code can be joined again.
-  `id` = 16 hex, `token` = 48 hex (same as a relay link: the page builds a `via:"relay"` kid), `url` = the relay origin. `newPin` is required (the phone has no PIN yet; `pe.pin required`).
+  `id` = 16 hex, `token` = 48 hex (a parent token of its own, see "Parents"; the page builds a `via:"relay"` kid), `url` = the relay origin. `newPin` is required (the phone has no PIN yet; `pe.pin required`).
 - Phone: `GET /p/<key>` header `X-KG-Secret` every 2-3 s while the screen is on and shows the code -> `{waiting}` | `{req:{pin,newPin,name}}` | `{taken:true}` (then the entry is gone) | 403 / 404 = gone.
   It answers with `POST /p/<key>/reply {"id","token"}` (ok: token minted by `tryPair`, pending as in LAN pairing) or `{"error": "...", "wait": ms}`. On `taken` it commits (`Store.commitRelayPair`: token, `everPaired`, new PIN hash, `relayUrl`/`relayId`/`relayToken` = default relay): nothing is stored before the parent holds the link.
 - Invite flow (QR provisioning). `ui/qr.html` "Ghép luôn với tôi": `POST /p/inv {"th", "newPin", "name"}` -> `200 {inv: "<16 hex>", exp}` (TTL 3 h `INVITE_TTL`, cap `INVITE_PER_DAY` 30 per network, Gate `piv:`).
   The QR payload then carries `android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE = {"kg_invite": "<inv>"}` (only the id; the PIN stays on the relay, deleted when used). After provisioning `Admin.onProfileProvisioningComplete`
   reads the extra (`PersistableBundle`, `RelayPairLogic.invite`) into `Store.setInvite` (valid 3 h, only while nobody is paired); `RelayPair` claims it with `GET /p/<inv>` (first secret wins; a second phone gets 403),
   runs `tryPair(viaInvite = true)` (no code, but the same PIN rules), replies, commits on `taken`. The qr page polls `GET /p/<inv>/result` with its ticket and saves the kid in `localStorage kg.kids`. An invite is one shot: any error deletes it.
-- Expiry: lazy + alarm like Watch. Rejected: sending the PIN hash (the phone salts it itself), a second token for the relay (the relay keeps one token per phone), pairing a phone that already has a parent (use `openPairing` over LAN or the relay link).
+- Expiry: lazy + alarm like Watch. Rejected: sending the PIN hash (the phone salts it itself), a second token for the relay (superseded 2026-11-17: the result now carries a parent token of its own, see "Parents"), pairing a phone that already has a parent (use `openPairing` over LAN or the relay link).
 
 , Zepp watch app `watch/zepp/`)
 Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone involvement; the phone needs no new version).
@@ -1395,7 +1421,7 @@ Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone 
 - `POST /c/<id>/watch` body `{"code": "123456", "name": "<kid name, <= 20>"}` (body <= 512 B). Auth exactly like every parent route of that kid (`X-KG-Token`; missing / wrong = 401 `not paired`, unbound id = 409 `waiting for the phone`). Attaches `{url: <the origin the call came in on>, id, token: <the caller's token>, name}` to the waiting code -> `200 {"ok": true}`. Errors: 400 `bad code`, 404 `no such code` (never asked for, expired, already fetched), 409 `code already used`, 405 method.
 - `GET /w/<code>` header `X-KG-Secret: <secret hex, 32-128 chars>`: `403 forbidden` (missing / wrong secret; never reveals whether the code exists with another secret), `404` (unknown / expired / already fetched), `200 {"waiting": true, "exp": ms}` until attached, then `200 {"url","id","token","name"}` ONCE: the entry is deleted with that reply.
 - Expiry: lazy on every access plus a Durable Object alarm at exp + 1 s (`deleteAll`). No listing route. Credentials of an expired, never-fetched code are deleted, not handed out.
-- Token choice: the relay stores one `sha256(token)` per kid (bound by the phone's first sync), so the watch receives the same token as the `/go` link; per-device tokens exist only on the phone (`Store.addToken`, LAN pairing). A watch therefore does not appear as its own row in "paired devices" (its requests say `X-KG-Name: Zepp watch`, but the relay does not record names); "renew relay link" cuts it off.
+- Token choice (2026-11-17): the watch gets a parent token of its own (kind "watch", named as typed; see "Parents"), listed and revocable in the page's parents list; "renew relay link" (a new relay id) cuts it off.
 - Watch side service: default relay `https://kidguard.99-hoangtran.workers.dev` (= `DEFAULT_RELAY`), overridable in the Zepp settings page; polls ~3 s while the connect screen is open; appends `{url,id,token,name}` to settingsStorage `kids` (the shape the Zepp settings page stores).
 - Parent page: Settings > "Đồng hồ" / "Watch" (`s-watch`): 6-digit input + Connect; shown only when the kid has a relay (relay kid, or LAN kid with `relay` on).
 - `GET /c/<id>/tile?z=&x=&y=` (watch map, after 0.9.21): one OpenStreetMap tile (PNG) fetched by the worker and edge-cached 7 days. Auth like every parent route (`X-KG-Token`); `z` 13-18, `x`/`y` inside the zoom (else 400 `bad tile`); 502 `tile <status>` when OSM fails. Why: some networks block `tile.openstreetmap.org` (DNS -> 127.0.0.1) while the relay works; the watch side service falls back to OSM directly.

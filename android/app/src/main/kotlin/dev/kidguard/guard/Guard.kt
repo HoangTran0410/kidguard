@@ -690,7 +690,8 @@ class Guard : Service() {
     }
 
     private val rulesLock = Any()
-    fun setRules(incoming: Rules, pinChange: Boolean = false) {
+    /** [by] = the parent who changed them (relay `rules.by`), shown in the log line. */
+    fun setRules(incoming: Rules, pinChange: Boolean = false, by: String = "") {
         // read - compare - write as one step: LAN and relay saving at the same moment must not lose the PIN of one or
         // the rev check of the other (audit L5)
         val (old, r) = synchronized(rulesLock) {
@@ -705,7 +706,7 @@ class Guard : Service() {
         }
         if (::work.isInitialized) work.post { runCatching { Policy.apply(this, store.rules) } }   // enforced = base + active mode
         if (r.noDebug && !old.noDebug) devOff()   // "no debugging" switched on: also turn Developer options off once
-        if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r, store.tr), "rules")
+        if (r.copy(rev = 0).toJson(true).toString() != old.copy(rev = 0).toJson(true).toString()) store.log(Events.ruleDiff(old, r, store.tr) + (if (by.isNotBlank()) " · " + by.take(24) else ""), "rules")
         if (r.zones != old.zones) store.zoneBaseline = true
         kick()
     }
@@ -722,7 +723,7 @@ class Guard : Service() {
         // C4: the last 10 results, so the page can say "ran at HH:mm" / why it was refused instead of "sent"
         if (id.isNotBlank()) runCatching { store.recordDone(id, t, res) }
         // a done `setting` writes its own log line (log_setting_*)
-        if (t != "relay" && t != "release" && !(t == "setting" && res == "ok")) runCatching { store.log(R.string.log_cmd, t, res) }
+        if (t != "relay" && t != "release" && !(t == "setting" && res == "ok")) runCatching { c.optString("by").take(24).let { by -> if (by.isBlank()) store.log(R.string.log_cmd, t, res) else store.log(R.string.log_cmd_by, t, res, by) } }
         kick()
         return res
     }

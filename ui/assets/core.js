@@ -56,7 +56,7 @@ const load = () => {
 };
 const save = k => {
   // healAt / fb / relayTry: per page load only (core.js relocate / learnAddrs)
-  try { localStorage.setItem(KEY, JSON.stringify(k, (key, v) => key === "healAt" || key === "fb" || key === "relayTry" ? undefined : v)); } catch {}
+  try { localStorage.setItem(KEY, JSON.stringify(k, (key, v) => key === "healAt" || key === "fb" || key === "relayTry" || key === "gateOff" || key === "migTry" ? undefined : v)); } catch {}
   if (APP) kgCall("setKids", JSON.stringify(k.filter(x => x.target).map(x => ({ name: x.name, target: x.target, via: x.via, id: x.id, token: x.token, lv: x.lv, relay: x.relay }))));
 };
 let kids = load(), cur = null, st = null, pendingRules = null, timer = null, edit = null, tab = "home", lastErr = "", viewDay = null, histDays = null, cachedAt = 0, seenAt = 0, answered = new Set(), histSel = -1, lastNet = false;
@@ -169,7 +169,7 @@ const KG_NAME = (() => { const u = navigator.userAgent || "";
   const br = APP ? "KidGuard app" : /Edg\//.test(u) ? "Edge" : /OPR\/|Opera/.test(u) ? "Opera" : /SamsungBrowser/.test(u) ? "Samsung Internet" : /Firefox\//.test(u) ? "Firefox" : /Chrome\//.test(u) ? "Chrome" : /Safari\//.test(u) ? "Safari" : "Browser";
   const os = /Android/.test(u) ? "Android" : /iPhone|iPad|iPod/.test(u) ? "iOS" : /Mac OS X|Macintosh/.test(u) ? "Mac" : /Windows/.test(u) ? "Windows" : /CrOS/.test(u) ? "ChromeOS" : /Linux/.test(u) ? "Linux" : "";
   return (br + (os ? " / " + os : "")).replace(/[^\x20-\x7e]/g, "").slice(0, 40); })();
-async function call1(k, path, method, body) {
+async function call1(k, path, method, body, again) {
   // app mode: a cached snapshot means the phone/relay is unreachable, so commands cannot be delivered
   if (APP && method !== "GET" && viewDay && k === cur) throw new Error(t("e.viewOnly"));
   if (APP && method !== "GET" && cachedAt && k === cur) throw new Error(t("e.cachedOff"));
@@ -177,6 +177,7 @@ async function call1(k, path, method, body) {
   let r; const t0 = Date.now();
   try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined, signal: direct(k) ? quick(15000) : undefined }); }
   catch (e) { const x = errOf("net", APP ? t("e.lost") : null); x.late = Date.now() - t0 > 3000; throw x; }   // late = it may have arrived
+  if (!again && k.via !== "lan" && (r.status === 403 || r.status === 423) && await relayFix(r, await r.clone().json().catch(() => ({})), k, base(k))) return call1(k, path, method, body, 1);
   const cached = APP && method === "GET" && path === "/state" ? +r.headers.get("X-KG-Cached") || 0 : 0;
   // app: a cached snapshot = the phone did not answer; a LAN kid that can heal treats it as a network failure
   if (cached && k.via === "lan" && canHeal(k) && !body) { const e = errOf("net", t("e.lost")); e.cached = r; throw e; }
@@ -207,8 +208,10 @@ async function goBoot(h) {
   kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids);
   let w = null, err = "";
   try {
-    const r = await fetch(`/c/${encodeURIComponent(k.id)}/where`, { headers: { "X-KG-Token": k.token }, signal: quick(10000) });
+    const where = () => fetch(`/c/${encodeURIComponent(k.id)}/where`, { headers: { "X-KG-Token": k.token }, signal: quick(10000) });
+    let r = await where();
     w = await r.json().catch(() => null);
+    if (!r.ok && w && await relayFix(r, w, k, "/c/" + encodeURIComponent(k.id))) { r = await where(); w = await r.json().catch(() => null); }
     if (!r.ok) { err = (w && w.error) || "HTTP " + r.status; w = null; }
   } catch { err = "net"; }
   const key = "kg.go." + k.id, now = Date.now();
@@ -265,14 +268,79 @@ const addrsOf = s => { if (!s) return [];
   const out = []; if (typeof s.lan === "string" && /^http:\/\/[\d.]+:\d+$/.test(s.lan)) out.push(s.lan);
   const ip = s.ts && s.ts.ip; if (typeof ip === "string" && /^100\.[\d.]+$/.test(ip)) out.push(`http://${ip}:${LAN_PORT}`);
   return out; };
-async function viaRelay(k, path, method, body) {
+async function viaRelay(k, path, method, body, again) {
   const rl = k.relay, b = (APP ? "/k/" + b64u(rl.url) : rl.url) + "/c/" + encodeURIComponent(rl.id);
   let r;
   try { r = await fetch(b + path, { method, headers: { "X-KG-Token": rl.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined, signal: quick(15000) }); }
   catch (e) { throw errOf("net", APP ? t("e.lost") : null); }
   const j = await r.json().catch(() => ({}));
+  if (!again && (r.status === 403 || r.status === 423) && await relayFix(r, j, rl, b)) return viaRelay(k, path, method, body, 1);
   if (!r.ok) throw errOf(j.error || ("HTTP " + r.status), null, j.retryAt);
   return j;
+}
+// --- per-parent relay tokens (docs/protocol.md "Parents"): 403 join = the saved token is the shared link one; 423 locked = a browser token
+// needs the family PIN (12 h). One shared prompt per credential, so many failing calls never stack screens.
+const gates = new Map();
+function relayFix(r, j, cred, b) {   // -> Promise<boolean>: fixed, the caller retries once
+  const w = r.status === 403 && j.error === "join" ? "join" : r.status === 423 && j.error === "locked" ? "unlock" : "";
+  if (!w || LOCAL) return Promise.resolve(false);
+  return relayGate(cred, b, w, {});
+}
+function gateErr(j) {
+  const e = (j && j.error) || "";
+  return e === "bad pin" ? t("gt.bad", j.left) : e === "pin locked" ? t("gt.locked", j.retryAt ? hhmm(j.retryAt) : "?") : e === "invite needed" ? t("gt.inv") : e === "too many parents" ? t("gt.many") : tc("e.", e, t("e.net"));
+}
+function relayGate(cred, b, what, o) {
+  if (gates.has(cred)) return gates.get(cred);
+  if (Date.now() - (cred.gateOff || 0) < 60000) return Promise.resolve(false);
+  const join = what === "join", optPin = join && o.pinOptional;
+  const p = new Promise(done => {
+    const old = $("#kgGate"); if (old) old.remove();
+    let nm = ""; try { nm = localStorage.getItem("kg.pname") || ""; } catch {}
+    const el = document.createElement("div"); el.id = "kgGate"; el.className = "sheet"; el.style.display = "flex"; el.style.zIndex = 70; el.style.background = "var(--bg)";   // nothing of the kid shows behind it
+    el.innerHTML = `<div class="dp" role="dialog" aria-modal="true"><h2>${ic("key-round")} ${t(join ? "jn.h" : "ul.h")}</h2><p class="mute">${t(join ? "jn.p" : "ul.p")}</p>
+      ${join ? `<input id="gN" autocomplete="off" maxlength="30" placeholder="${esc(t("jn.name"))}" aria-label="${esc(t("jn.name"))}" value="${esc(nm || KG_NAME)}" style="width:100%;margin-bottom:10px">` : ""}
+      ${optPin ? "" : `<input id="gP" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="${esc(t("jn.pin"))}" aria-label="${esc(t("jn.pin"))}" style="width:100%;margin-bottom:6px">`}
+      <p class="err" id="gE" role="alert"></p>
+      <div class="row"><button class="pri sp" id="gGo">${ic("check")} ${t(join ? "jn.go" : "ul.go")}</button><button id="gNo">${t("cancel")}</button></div></div>`;
+    document.body.appendChild(el);
+    const end = v => { el.remove(); gates.delete(cred); done(v); }, say = m => { $("#gE").textContent = m; };
+    $("#gNo").onclick = () => { cred.gateOff = Date.now(); end(false); };
+    const go = async () => {
+      const btn = $("#gGo"), pin = $("#gP") ? $("#gP").value : "", name = join ? $("#gN").value.trim() : "";
+      if (btn.disabled) return;
+      if (join && !name) return say(t("jn.needName"));
+      if (!optPin && !/^\d{4,8}$/.test(pin)) return say(t("pe.bad pin"));
+      say(""); btn.disabled = true;
+      try {
+        const r = await fetch(b + (join ? "/join" : "/unlock"), { method: "POST", headers: { "Content-Type": "application/json", "X-KG-Token": cred.token, "X-KG-Name": KG_NAME }, body: JSON.stringify(join ? { name, kind: APP ? "app" : "web", pin } : { pin }) });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok) { if (join && j.token) { cred.token = j.token; cred.own = 1; try { localStorage.setItem("kg.pname", name); } catch {} save(kids); } return end(true); }
+        say(gateErr(j));
+      } catch { say(t("e.net")); }
+      btn.disabled = false;
+    };
+    $("#gGo").onclick = go;
+    el.onkeydown = e => { if (e.key === "Enter") go(); };
+    const f = $("#gN") || $("#gP"); if (f) f.focus();
+  });
+  gates.set(cred, p);
+  return p;
+}
+// Once per page load per relay credential: while no parent has an own token the shared one still works and never answers 403 join,
+// so ask the relay who we are; no row with me:true = we hold the shared token -> offer the join screen (dismissed: asked again next load).
+async function relayMigrate(k) {
+  const cred = k.via === "relay" ? k : k.relay;
+  if (!cred || cred.migTry || LOCAL || cred.own) return;
+  cred.migTry = 1;
+  const b = k.via === "relay" ? base(k) : (APP ? "/k/" + b64u(cred.url) : cred.url) + "/c/" + encodeURIComponent(cred.id);
+  try {
+    const r = await fetch(b + "/parents", { headers: { "X-KG-Token": cred.token, "X-KG-Name": KG_NAME }, signal: quick(10000) });
+    if (!r.ok) return;   // 401 / 404 / older relay: nothing to do (403 join and 423 are handled by the normal calls)
+    const j = await r.json().catch(() => null);
+    if (!j || !Array.isArray(j.parents) || j.parents.some(p => p.me)) return;
+    if (await relayGate(cred, b, "join", { pinOptional: j.pinKnown === false })) { lastSig = ""; if (k === cur) refresh(); }
+  } catch {}
 }
 const healing = new Map();
 function relocate(k) {
@@ -331,7 +399,7 @@ function learnAddrs(k, s) {
     call1(k, "/cmd", "POST", { type: "relay", url }).then(r => {
       if (r && /^[0-9a-f]+$/.test(r.id || "") && /^[0-9a-f]{48}$/.test(r.token || "")) {
         const nr = { url: new URL(url).origin, id: r.id, token: r.token }, o = k.relay || {};
-        if (o.url !== nr.url || o.id !== nr.id || o.token !== nr.token) { k.relay = nr; save(kids); }
+        if (o.url !== nr.url || o.id !== nr.id || (o.token !== nr.token && !o.own)) { k.relay = nr; save(kids); }   // an own parent token is kept: the phone only knows the shared one
       }
     }).catch(() => {});
   }
@@ -348,6 +416,7 @@ async function boot() {
   const pc = /^\d{6}$/.test(h.get("pair") || "") ? h.get("pair") : "";
   if (h.has("pair")) history.replaceState(null, "", location.pathname + location.search);
   // from a relay /go link: this phone's own page with the relay token (also a LAN token on the phone)
+  if (h.get("inv") && h.get("rc")) { const o = inviteOf(h); if (o) { history.replaceState(null, "", location.pathname + location.search); isRelayOrigin = true; return inviteScreen(o); } }
   if (/^[0-9a-f]{48}$/.test(h.get("lk") || "")) return lanFromGo(h);
   if (location.pathname === "/go" && h.get("c") && h.get("k")) return goBoot(h);
   if (h.get("c") && h.get("k")) {
@@ -440,7 +509,7 @@ function anyWire() {
       if (!r.ok) return fail(await r.json().catch(() => ({})));
       // the kid's phone answers within a few seconds while its screen is on; it keeps nothing until this page has the link
       for (let end = Date.now() + 45000; Date.now() < end; await wait(1500)) {
-        r = await fetch(b + "/p/" + code + "/result", { headers: { "X-KG-Ticket": ticket } });
+        r = await fetch(b + "/p/" + code + "/result" + (APP ? "?kind=app" : ""), { headers: { "X-KG-Ticket": ticket } });
         const j = await r.json().catch(() => ({}));
         if (r.ok && j.token) return anyDone(j, name);
         if (!r.ok) return fail(j);
@@ -451,7 +520,7 @@ function anyWire() {
 }
 // same result as a relay link (addRelayLink): a kid via the relay, opened at once
 function anyDone(j, name) {
-  const k = { id: j.id, token: j.token, name, via: "relay", target: j.url };
+  const k = { id: j.id, token: j.token, name, via: "relay", target: j.url, own: 1 };
   kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids); open(k);
 }
 function addScreen() {
@@ -478,10 +547,37 @@ function addScreen() {
   if ($("#scanGo")) $("#scanGo").onclick = () => { try { KGApp.scanQr(); } catch { toast("err|" + t("scan.none")); } };
   if ($("#scanImg")) $("#scanImg").onclick = () => { try { KGApp.scanImg(); } catch { toast("err|" + t("scan.none")); } };
 }
+// invite link (tab-set.js "Invite another parent"): #ri=<relay origin>&rc=<id>&inv=<code>&n=<kid name>; asks only a name, no PIN
+function inviteOf(h) {
+  let ri = ""; try { const u = new URL(h.get("ri") || location.origin); ri = u.protocol === "https:" || u.origin === location.origin ? u.origin : ""; } catch {}
+  const rc = h.get("rc") || "", inv = h.get("inv") || "";
+  return ri && /^[0-9a-f]{16}$/.test(rc) && /^[0-9a-f]{32}$/.test(inv) ? { ri, rc, inv, n: (h.get("n") || "").slice(0, 40) } : null;
+}
+function inviteScreen(o) {
+  reScreen = () => inviteScreen(o);
+  let nm = ""; try { nm = localStorage.getItem("kg.pname") || ""; } catch {}
+  $("#app").innerHTML = head(t("iv.h")) + `<div class="card"><h2>${ic("users")} ${esc(t("iv.h2", o.n || t("kid")))}</h2><p class="mute">${t("iv.p")}</p>
+    <div class="pairf"><input id="ivN" maxlength="30" autocomplete="off" placeholder="${esc(t("jn.name"))}" aria-label="${esc(t("jn.name"))}" value="${esc(nm || KG_NAME)}"><button class="pri" id="ivGo">${ic("check")} ${t("jn.go")}</button></div><p class="err" id="ivE" role="alert"></p></div>`;
+  const go = $("#ivGo"), say = m => { $("#ivE").textContent = m; };
+  $("#ivN").onkeydown = e => { if (e.key === "Enter") go.click(); };
+  go.onclick = async () => {
+    const name = $("#ivN").value.trim(); if (!name) return say(t("jn.needName"));
+    say(""); go.disabled = true;
+    try {
+      const r = await fetch((APP ? "/k/" + b64u(o.ri) : o.ri) + "/c/" + o.rc + "/join", { method: "POST", headers: { "Content-Type": "application/json", "X-KG-Name": KG_NAME }, body: JSON.stringify({ name, kind: APP ? "app" : "web", inv: o.inv }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.token) { say(j.error === "invite used or expired" ? t("iv.dead") : gateErr(j)); go.disabled = false; return; }
+      try { localStorage.setItem("kg.pname", name); } catch {}
+      const k = { id: o.rc, token: j.token, name: o.n || t("kid"), via: "relay", target: o.ri, own: 1 };
+      kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids); reScreen = null; open(k);
+    } catch { say(t("e.net")); go.disabled = false; }
+  };
+}
 // the one parser for a relay link (typed, pasted or scanned): https + #c=<id>&k=<token>[&n=<name>]; anything else is refused
 function addRelayLink(text) {
   try {
     const u = new URL(String(text).trim()), h = new URLSearchParams(u.hash.slice(1));
+    if (u.protocol === "https:" && h.get("inv")) { const o = inviteOf(h); if (!o) return false; inviteScreen(o); return true; }
     if (u.protocol !== "https:" || !h.get("c") || !h.get("k")) return false;
     const k = { id: h.get("c"), token: h.get("k"), name: h.get("n") || t("kid"), via: "relay", target: u.origin };
     kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids); open(k);
@@ -502,7 +598,7 @@ window.kgScan = o => {
 };
 // plain screens (list / add / pair): one centred column (#app.solo); render() and the overview clear it
 // back: a sub-screen (app settings) shows a back arrow instead of the logo, and no settings gear
-const head = (title, back) => { $("#app").className = "solo"; return `<div class="row" style="margin-bottom:14px">${back ? `<button type="button" class="rb" id="appSetBack" aria-label="${esc(t("back"))}" title="${esc(t("back"))}">${ic("arrow-left")}</button>` : `<span class="badge">${ic("shield")}</span>`}<h1 class="sp" style="margin:0">${title}</h1>${back ? "" : APP ? `<button type="button" class="rb" id="appSetBtn" aria-label="${esc(t("au.h"))}" title="${esc(t("au.h"))}">${ic("settings")}</button>` : `${langSel()}${themeBtn()}`}</div>`; };
+const head = (title, back) => { $("#app").className = "solo"; return `<div class="row" style="margin-bottom:14px">${back ? `<button type="button" class="rb" id="appSetBack" aria-label="${esc(t("back"))}" title="${esc(t("back"))}">${ic("arrow-left")}</button>` : `<span class="badge">${ic("shield")}</span>`}<h1 class="sp" style="margin:0">${title}</h1>${back ? "" : APP ? `<button type="button" class="rb" id="appSetBtn" aria-label="${esc(t("au.h"))}" title="${esc(t("au.h"))}">${ic("settings")}</button>` : `<button type="button" class="rb" data-view-set aria-label="${esc(t("vs.h"))}" title="${esc(t("vs.h"))}">${ic("settings")}</button>`}</div>`; };
 document.addEventListener("click", e => { if (APP && e.target.closest && e.target.closest("#appSetBtn")) appSettings(); });
 async function lanHello(target, code = "") {
   const e = $("#e1"); if (e) e.textContent = t("connecting");

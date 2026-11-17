@@ -146,6 +146,7 @@
     <string name="ch_answer">Bố mẹ trả lời</string>
     <string name="ch_warn">Báo trước khi hết giờ</string>
     <string name="log_cmd">Lệnh: %1$s → %2$s</string>
+    <string name="log_cmd_by">Lệnh của %3$s: %1$s → %2$s</string>
     <string name="log_cleared">Bố mẹ xoá dữ liệu: %1$s</string>
     <string name="log_cleared_cache">Bố mẹ xoá cache mọi app</string>
     <string name="log_kid_clean">Con dọn cache app, trống thêm %d MB</string>

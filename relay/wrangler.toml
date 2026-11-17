@@ -1,6 +1,7 @@
 name = "kidguard"
 main = "src/index.js"
 compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]   # node:crypto createHash for the PIN check (hashPin)
 workers_dev = true
 
 # ui/*.html (one page for the APK and the relay) and its ui/assets/*.js|css (incl. the QR library, shared with qr.html) are bundled as text

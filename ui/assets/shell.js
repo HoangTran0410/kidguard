@@ -28,6 +28,17 @@ document.addEventListener("click", e => {
   applyTheme(); document.querySelectorAll("[data-theme-btn]").forEach(x => { x.outerHTML = themeBtn(); });
   toast("ok|" + t("theme.h") + ": " + t("theme." + theme));
 });
+// browser screens without a kid open (head()): one gear for language + theme, so the title keeps its line
+function viewSet() {
+  const body = () => `<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("settings", t("vs.h"))}<p class="mute" style="margin:0 0 6px">${t("lang")}</p>${langSel("langVs")}
+    <p class="mute" style="margin:14px 0 6px">${t("theme.h")}</p><div class="seg" role="tablist">${THEMES.map(x => `<button type="button" role="tab" data-th="${x}" aria-selected="${x === theme}">${t("theme." + x)}</button>`).join("")}</div></div>`;
+  const wire = pop => pop.querySelectorAll("[data-th]").forEach(b => b.onclick = () => {
+    theme = b.dataset.th; try { localStorage.setItem("kg.theme", theme); } catch {}
+    applyTheme(); pop.querySelectorAll("[data-th]").forEach(x => x.setAttribute("aria-selected", x.dataset.th === theme));
+  });
+  sheet(body(), wire);
+}
+document.addEventListener("click", e => { if (e.target.closest && e.target.closest("[data-view-set]")) viewSet(); });
 const bonusGiven = new Set();   // "kid:requestId" whose extra-time bonus is already saved
 const reqN = () => st && !viewDay ? (st.requests || []).filter(q => !answered.has(q.id)).length : 0;
 // LAN: the last poll failing counts at once (else the header stays green under a red "lost" banner)

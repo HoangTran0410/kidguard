@@ -49,6 +49,14 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 - Gotchas: needs the default relay (`Relay.DEFAULT_URL`; a self-hosted relay phone-side is not used for this first pairing); a phone with the screen off does not offer the code (invite works with screen off); code expires in 15 min on the relay, the phone renews every 10 min.
 - Wire: protocol "Pair over relay".
 
+#### 1d. Parents on the relay (2026-11-17: own token per parent; `relay/src/index.js` `Kid.join/mint/pinCheck/parentOp`)
+- Worker `handle`: token hash in `par` = a parent (name -> `who`, browser lock 423 after 12 h); = the phone's hash and `par` non-empty -> phone routes only (`phoneRoute`), else 403 `join`.
+- Page on 403 `join` (old saved kid / the phone's link): name + family PIN -> `POST join` with the phone's token -> replaces the kid's token. 423 `locked` -> PIN -> `POST unlock`. Invite: Connection card -> `POST invite` -> QR/link `#ri&rc&inv` -> new page asks the name -> `POST join {inv}` with no token.
+- PIN check needs the phone's hash: `Relay.kt` sends sync `pv` when `pinHash/pinSalt` change; worker `hashPin` (node:crypto, `nodejs_compat`).
+- `by`: worker stamps commands / rules from a parent token; phone `Guard.command` logs `log_cmd_by`, `setRules(by=)` adds ` · <name>` to the rules diff line.
+- Gotchas: remote pairing and watch connect mint a parent token too, so the FIRST of them turns the phone's link phone-only; the parent app's native jobs (CheckJob, widget, push) use the token the page hands them via `setKids`, so they follow the page's migration.
+- Wire: protocol "Parents".
+
 ### 2.2 Open a kid + state refresh
 - `open(k)` `UI/kid.js:7` -> `refresh()` `kid.js:9` every few seconds (timer set in `open`; skipped when `document.hidden`).
 - LAN: `GET /api/state` -> `Api.kt:71`: `g.currentState()` (the guard loop's cached `lastState`, `Guard.kt:408`) + `devices` list with caller's `self` row.

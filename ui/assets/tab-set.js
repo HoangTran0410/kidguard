@@ -322,8 +322,8 @@ function setTab(b) {
     ${st.relayShared ? `<p class="mute">${ic("triangle-alert")} ${t("relay.shared")}</p><button id="relayRenewNow">${ic("refresh-cw")} ${t("relay.renewGo")}</button>` : ""}
     ${st.relay && st.relayOk !== undefined ? `<p class="mute">${pendHtml("relayok", relayOkHtml)}</p>` : ""}
     <p class="mute">${t("relay.self")}</p>
-    <div id="relayOut">${cur.relay && st.relay ? relayLinkHtml(goLink(cur.relay.url, cur.relay.id, cur.relay.token, cur.name)) : ""}</div>`, !!st.relay)
-    : { id: "s-conn", icn: "globe", title: t("conn.h"), chip: null, body: `<p class="mute">${t("conn.p")}</p>${st.relayBig ? `<p class="mute">${ic("info")} ${t("relay.big")}</p>` : ""}${cur.via === "relay" && isRelayOrigin ? relayLinkHtml(goLink(location.origin, cur.id, cur.token, cur.name)) : ""}` };
+    <div id="relayOut">${cur.relay && st.relay ? relayParentsHtml() : ""}</div>`, !!st.relay)
+    : { id: "s-conn", icn: "globe", title: t("conn.h"), chip: null, body: `<p class="mute">${t("conn.p")}</p>${st.relayBig ? `<p class="mute">${ic("info")} ${t("relay.big")}</p>` : ""}${cur.via === "relay" ? relayParentsHtml() : ""}` };
   const dangerP = secP("s-danger", "octagon-x", t("set.danger"), t("sd.danger"), null, `${isBasic() ? selfOpenHtml() : ""}<h2 style="margin-top:${isBasic() ? 18 : 0}px">${ic("unlink")} ${t("paired.unpair")}</h2><p class="mute">${t("ask.unpairAll")}</p><button id="unpair" class="bad">${ic("unlink")} ${t("paired.unpair")}</button>
     <h2 style="margin-top:18px">${ic("octagon-x")} ${t("rel.h")}</h2><p class="mute">${t("rel.p")}</p>
     <button id="release" class="bad">${ic("octagon-x")} ${t("rel.btn")}</button>`);
@@ -398,7 +398,7 @@ function setTab(b) {
       bt.innerHTML = h0; bt.disabled = f.disabled = false; f.focus();   // the PIN stays typed: press again to retry
     } finally { bt.removeAttribute("aria-busy"); }
   };
-  bindCopy();
+  bindCopy(); rpWire();
   if ($("#offRelay")) $("#offRelay").onclick = async () => {
     if (!(await ask(t("relay.offAsk"), t("relay.off")))) return;
     const r = await cmd({ type: "relay", url: "" }, t("turnedOff"), false);
@@ -410,8 +410,7 @@ function setTab(b) {
     const r = await cmd({ type: "relay", url }, t("turnedOn"));
     if (r && r.token) {
       cur.relay = { url: new URL(url).origin, id: r.id, token: r.token }; save(kids);
-      $("#relayOut").innerHTML = relayLinkHtml(goLink(cur.relay.url, r.id, r.token, cur.name));
-      bindCopy();
+      $("#relayOut").innerHTML = relayParentsHtml(); rpWire();
       refresh();   // st.relay + cur.relay now set: the Watch section (and others that need the relay) redraw with their inputs
     }
   };
@@ -518,7 +517,7 @@ function tgHtml() {
       <span class="mute">${t("tg.runs")}</span></span>${g.err ? tagEl("bad", "triangle-alert", t("tg.errTag")) : `<span class="tag ok">${t("tg.live")}</span>`}</div>
     ${g.err ? `<p class="t-bad">${esc(tc("tg.e.", g.err, g.err))}</p>` : ""}
     <h3>${t("tg.chats")}</h3>
-    ${chats.length ? `<div class="list">${chats.map(c => `<div class="li"><span class="av">${esc((c.name || "?").trim().charAt(0).toUpperCase())}</span><span class="x"><b>${esc(c.name || c.id)}</b><span class="sub mute">${t("tg.since", new Date(c.at).toLocaleDateString(lang))}</span></span><button type="button" class="pill" data-tgun="${esc(c.id)}">${ic("unlink")} ${t("tg.unlink")}</button></div>`).join("")}</div>`
+    ${chats.length ? `<div class="list">${chats.map(c => `<div class="li"><span class="av">${esc(String(c.name || "?").trim().charAt(0).toUpperCase())}</span><span class="x"><b>${esc(c.name || c.id)}</b><span class="sub mute">${t("tg.since", new Date(c.at).toLocaleDateString(lang))}</span></span><button type="button" class="pill" data-tgun="${esc(c.id)}">${ic("unlink")} ${t("tg.unlink")}</button></div>`).join("")}</div>`
       : `<p class="mute">${t("tg.noChats")}</p>`}
     <h3>${t(chats.length ? "tg.addMore" : "tg.addFirst")}</h3>
     ${code && chats.length < 5 ? `<p class="mute">${t("tg.linkHow")}</p>` : ""}
@@ -606,11 +605,57 @@ async function aiNew() {
 }
 async function aiRevoke() { await cmd({ type: "aiToken", op: "revoke" }, t("ai.gone"), [t("ai.askRevoke"), t("ai.revoke"), true]); }
 
-/** The /go link box (Cài đặt > relay): the link that always opens, whatever the phone's address. */
-function relayLinkHtml(link) {
-  return `<p>${ic("smartphone")} ${t("relay.link")}</p><code id="goLink">${esc(link)}</code>
-    <div class="totpqr"><div class="qrw" role="img" aria-label="${esc(t("scan.qrAlt"))}">${qrSvg(link)}</div><p>${ic("scan-line")} ${t("scan.invite")}</p></div>
-    <div class="row" style="margin-top:8px"><button id="copy">${ic("clipboard-copy")} ${t("relay.copy")}</button><a class="lnkbtn" href="${esc(link)}" target="_blank" rel="noopener">${ic("link")} ${t("open")}</a></div>`;
+// ---- Parents on the relay (docs/protocol.md "Parents"): each parent has an own token; the shared link is phone-only.
+// Adding a parent = a one-use 10-minute invite (QR + link); the list shows who has access and can remove one.
+let invS = null, rpS = null;   // invS {k, link, exp}; rpS {k, at, list, pinKnown}
+const rcall = (k, path, method, body) => k.via === "relay" ? call(k, path, method, body) : viaRelay(k, path, method, body);
+const rpOrigin = k => k.via === "relay" ? (isRelayOrigin ? location.origin : k.target) : k.relay.url;
+const rpCred = k => k.via === "relay" ? k : k.relay;
+function relayParentsHtml() { return `<div id="rpBox">${rpInner()}</div>`; }
+function rpInner() {
+  const iv = invS && invS.k === cur && invS.exp > Date.now() ? invS : null, L = rpS && rpS.k === cur ? rpS : null;
+  const kindIc = { app: "smartphone", web: "globe", watch: "watch" };
+  const rows = L ? L.list.map(p => `<div class="app"><span class="ib">${ic(kindIc[p.kind] || "globe")}</span><div class="nm"><b>${esc(p.name)}</b>
+      <span class="mute">${p.me ? `<span class="tag t-info" style="margin:0 4px 0 0">${t("dev.self")}</span>` : ""}${t("rp.k." + p.kind)} · ${t("dev.last", p.seen ? ago(p.seen) : "—")}</span></div>
+      ${p.me ? "" : `<button type="button" class="bad" data-rpx="${esc(p.id)}" data-rpn="${esc(p.name)}">${ic("trash-2")} ${t("rp.rm")}</button>`}</div>`).join("") : `<p class="mute"><i class="spin"></i></p>`;
+  const me = L && L.list.find(p => p.me);
+  return `<h3 style="margin:14px 0 6px">${ic("users")} ${t("rp.h")}</h3>${rows}
+    ${L && L.pinKnown === false ? `<p class="mute">${ic("info")} ${t("rp.noPin")}</p>` : ""}
+    ${me ? `<div class="row" style="margin-top:8px"><input id="rpName" maxlength="30" value="${esc(me.name)}" aria-label="${esc(t("jn.name"))}" style="flex:1;min-width:0"><button id="rpRen">${t("rp.ren")}</button></div>` : ""}
+    <p class="mute" style="margin:12px 0 6px">${t("rp.invP")}</p>
+    ${iv ? `<code id="goLink">${esc(iv.link)}</code><div class="totpqr"><div class="qrw" role="img" aria-label="${esc(t("scan.qrAlt"))}">${qrSvg(iv.link)}</div><p>${ic("scan-line")} ${t("rp.scan")} <b id="rpLeft"></b></p></div>
+      <div class="row" style="margin-top:8px"><button id="copy">${ic("clipboard-copy")} ${t("relay.copy")}</button></div>` : ""}
+    <button id="rpInv" class="pri">${ic("user-plus")} ${t("rp.inv")}</button>`;
+}
+function rpPaint() { const b = $("#rpBox"); if (!b) return; b.innerHTML = rpInner(); rpBind(); }
+async function rpLoad() {
+  const k = cur;
+  try { const j = await rcall(k, "/parents", "GET"); if (j && Array.isArray(j.parents)) { rpS = { k, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; if (k === cur) rpPaint(); } }
+  catch { if (k === cur && $("#rpBox") && !(rpS && rpS.k === k)) $("#rpBox").innerHTML = `<p class="mute">${t("rp.none")}</p>`; }   // older relay: no list
+}
+function rpWire() { if (!$("#rpBox")) return; rpBind(); if (!(rpS && rpS.k === cur && Date.now() - rpS.at < 30000)) rpLoad(); }
+function rpBind() {
+  bindCopy();
+  const lf = $("#rpLeft");
+  if (lf) { const tick = () => { const e = $("#rpLeft"); if (!e || !invS) return; const s = Math.max(0, Math.round((invS.exp - Date.now()) / 1000)); if (!s) return rpPaint(); e.textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); setTimeout(tick, 1000); }; tick(); }
+  if ($("#rpInv")) $("#rpInv").onclick = async () => {
+    const k = cur, b = $("#rpInv"); b.disabled = true;
+    try {
+      const j = await rcall(k, "/invite", "POST", {});
+      if (!j || !/^[0-9a-f]{32}$/.test(j.inv || "")) throw new Error("x");
+      const o = rpOrigin(k), id = rpCred(k).id;
+      invS = { k, exp: +j.exp || Date.now() + 600000, link: `${o}/#ri=${encodeURIComponent(o)}&rc=${encodeURIComponent(id)}&inv=${j.inv}&n=${encodeURIComponent(k.name || "")}` };
+      if (k === cur) rpPaint();
+    } catch (e) { toast("err|" + (e && e.message && e.message !== "x" ? e.message : t("rp.invFail"))); b.disabled = false; }
+  };
+  if ($("#rpRen")) $("#rpRen").onclick = async () => {
+    const name = $("#rpName").value.trim(); if (!name) return;
+    try { const j = await rcall(cur, "/parents", "POST", { name }); try { localStorage.setItem("kg.pname", name); } catch {} if (j && j.parents) rpS = { k: cur, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; rpPaint(); toast("ok|" + t("rp.renDone")); } catch (e) { toast("err|" + e.message); }
+  };
+  document.querySelectorAll("[data-rpx]").forEach(x => x.onclick = async () => {
+    if (!(await ask(t("rp.rmAsk", x.dataset.rpn), t("rp.rm"), true))) return;
+    try { const j = await rcall(cur, "/parents", "POST", { revoke: x.dataset.rpx }); if (j && j.parents) rpS = { k: cur, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; rpPaint(); toast("ok|" + t("rp.rmDone")); } catch (e) { toast("err|" + e.message); }
+  });
 }
 function bindCopy() {
   const c = $("#copy"), l = $("#goLink"); if (!c || !l) return;

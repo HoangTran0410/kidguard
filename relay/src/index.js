@@ -1,7 +1,9 @@
 // KidGuard relay: lets the parent's page reach the child phone when they are not on the same Wi-Fi.
 // One Durable Object per child (by relay id). It stores the last state the child posted, the newest rules the
 // parent set, and a short queue of commands. The child polls POST /c/<id>/sync every 20-60 s.
-// Auth: the token in the parent's link; the first child sync binds its sha256 to the id.
+// Auth: the first child sync binds sha256 of the phone's token to the id. Parents get their own token (docs/protocol.md
+// "Parents"); the phone's token opens the parent routes only while no parent has one (old links / old pages).
+import { createHash } from "node:crypto";
 import html from "../../ui/index.html";
 import install from "../../ui/install.html";
 import qr from "../../ui/qr.html";
@@ -171,14 +173,14 @@ export default {
     if (th) return tgHook(req, env, th[1]);
     if (url.pathname === "/w/new" || /^\/w\/\d{6}$/.test(url.pathname)) return watchRoute(req, env, url);
     if (/^\/p\/(new|inv|\d{6}|[0-9a-f]{16})(\/(join|reply|result))?$/.test(url.pathname)) return pairRoute(req, env, url);
-    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile)$/);
+    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile|join|unlock|invite|parents)$/);
     if (!m) return json({ error: "not found" }, 404);
     if (env.RL) {
       const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
       if (!success) return json({ error: "slow down" }, 429);
     }
     // reject junk before waking a Durable Object (an icon GET may carry the icon-only key instead of the token)
-    if (!/^[0-9a-f]{48}$/.test(tokenOf(req, url)) && !((m[2] === "icon" || m[2] === "tile") && ICON_KEY.test(url.searchParams.get("k") || ""))) return json({ error: "not paired" }, 401);
+    if (!/^[0-9a-f]{48}$/.test(tokenOf(req, url)) && !(m[2] === "join" && !req.headers.get("x-kg-token")) && !((m[2] === "icon" || m[2] === "tile") && ICON_KEY.test(url.searchParams.get("k") || ""))) return json({ error: "not paired" }, 401);
     const len = +(req.headers.get("content-length") || 0);
     if (len > limitFor(m[2])) return json({ error: "too big" }, 413);
     const stub = env.KIDS.get(env.KIDS.idFromName(m[1]));
@@ -285,6 +287,12 @@ async function pairRoute(req, env, url) {
     if (r.status !== 200) return r;
     const j = await r.json();
     if (j.token) j.url = url.origin;   // the phone's relay is the one that answered
+    if (j.token && /^[0-9a-f]{16}$/.test(j.id || "")) {   // the page gets a parent token of its own, not the phone's
+      const mr = await env.KIDS.get(env.KIDS.idFromName(j.id)).fetch(`https://do/c/${j.id}/_mint`, { method: "POST", headers: { "x-kg-internal": "1" },
+        body: JSON.stringify({ token: j.token, name: j.name, kind: url.searchParams.get("kind") === "app" ? "app" : "web" }) });
+      if (mr.status !== 200) return json(await mr.json().catch(() => ({ error: "relay" })), mr.status);
+      j.token = (await mr.json()).token;
+    }
     if (j.error) return json(j, j.error === "wait" || j.error === "pin locked" ? 429 : j.error === "bad pin" || j.error === "pin required" ? 400 : 403);
     return json(j);
   }
@@ -336,7 +344,7 @@ export class Watch {
         return json(e);
       }
       const c = w.res; w.res = null; w.taken = true; await save();   // one shot: the link leaves the relay with this reply; the phone sees `taken`
-      return json(c);
+      return json({ ...c, name: (w.req && w.req.name) || "" });
     }
     return json({ error: "not found" }, 404);
   }   // env.WATCH_TTL_MS: tests only
@@ -391,6 +399,26 @@ export function netKey(ip) {
   const head = a ? a.split(":") : [], tail = b ? b.split(":") : [];
   const full = ip.includes("::") ? [...head, ...Array(8 - head.length - tail.length).fill("0"), ...tail] : head;
   return full.length === 8 ? full.slice(0, 4).map(x => x.replace(/^0+(?=.)/, "")).join(":") + "::/64" : "";
+}
+
+// Parents (docs/protocol.md "Parents"): one token each, named; the family PIN (checked here against the phone's hash) or a one-use invite gets one
+const MAX_PARENTS = 12, INV_TTL = 10 * 60e3, MAX_INVS = 5, UNLOCK_MS = 12 * 3600e3, PIN_TRIES = 5, PIN_LOCK = 15 * 60e3, PAR_KINDS = ["app", "web", "watch"];
+// the shared (phone) token once a parent has a token of its own: the phone's routes only
+const phoneRoute = (action, m) => action === "sync" || action === "ws" || action === "file" || action === "forget" || action === "join"
+  || (action === "icons" && m === "POST") || (action === "frame" && m === "POST") || ((action === "device" || action === "logday") && m === "PUT");
+const cleanName = v => String(v || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 24);
+const hexRand = n => [...crypto.getRandomValues(new Uint8Array(n))].map(x => x.toString(16).padStart(2, "0")).join("");
+const HEXC = new TextEncoder().encode("0123456789abcdef");
+/** Same as Rules.hashPin (K/guard/Rules.kt): "" salt = sha256("kg:" + pin), else 10 000 rounds. node:crypto (sync, ~9 ms): WebCrypto awaits took ~120 ms. */
+function hashPin(pin, salt) {
+  if (!salt) return createHash("sha256").update("kg:" + pin).digest("hex");
+  const sb = new TextEncoder().encode(salt), buf = new Uint8Array(64 + sb.length); buf.set(sb, 64);
+  let h = createHash("sha256").update(salt + ":" + pin).digest();
+  for (let r = 0; r < 9999; r++) {
+    for (let i = 0; i < 32; i++) { buf[2 * i] = HEXC[h[i] >> 4]; buf[2 * i + 1] = HEXC[h[i] & 15]; }
+    h = createHash("sha256").update(buf).digest();
+  }
+  return h.toString("hex");
 }
 
 async function sha256(s) {
@@ -458,17 +486,17 @@ export class Kid {
     const url = new URL(req.url), action = url.pathname.split("/").pop(), id = url.pathname.split("/")[2];
     this.kidId = id;
     if (action === "_tg" && req.method === "POST" && req.headers.get("x-kg-internal") === "1") return this.tgIn(await req.json().catch(() => ({})), id);   // from tgHook only: the public route regex never matches `_tg`
+    if (action === "_mint" && req.method === "POST" && req.headers.get("x-kg-internal") === "1") return this.pairMint(await req.json().catch(() => ({})));   // from pairRoute only
     const token = tokenOf(req, url);
+    if (action === "join" && req.method === "POST" && !req.headers.get("x-kg-token")) return this.join(await req.json().catch(() => null), null, Date.now());   // with an invite
     if (action === "icon" && req.method === "GET" && ICON_KEY.test(url.searchParams.get("k") || "")) {
-      const ik = await this.s.get("iconKey");
-      if (!ik || ik !== url.searchParams.get("k")) return json({ error: "not paired" }, 401);
+      if (!(await this.viewKeys("iconKey")).includes(url.searchParams.get("k"))) return json({ error: "not paired" }, 401);
       return this.icon(url);
     }
     // map tile by a tile-only key (sha256("tile:" + token), from state?watch=1): Garmin's image request cannot send headers.
     // The key fetches OSM tiles and nothing else, so a leaked URL reveals no kid data.
     if (action === "tile" && req.method === "GET" && !req.headers.get("x-kg-token") && ICON_KEY.test(url.searchParams.get("k") || "")) {
-      const tk = await this.s.get("tileKey");
-      if (!tk || tk !== url.searchParams.get("k")) return json({ error: "not paired" }, 401);
+      if (!(await this.viewKeys("tileKey")).includes(url.searchParams.get("k"))) return json({ error: "not paired" }, 401);
       return this.tile(req, url);
     }
     if (!/^[0-9a-f]{48}$/.test(token)) return json({ error: "not paired" }, 401);
@@ -487,17 +515,32 @@ export class Kid {
       }
       await this.s.put({ tokenHash: h, born: Date.now() }); bound = h;
     }
-    let role = "parent";
+    let role = "parent", who = "", me = null;
+    const par = await this.parents(), now0 = Date.now();
     if (h !== bound) {
-      const ai = await this.s.get("aiHash");
-      if (!ai || h !== ai) return json({ error: "not paired" }, 401);
-      if (!aiRoute(action, req.method)) return json({ error: "ai token: not allowed" }, 403);
-      role = "ai";
+      if (par[h]) {   // a parent's own token
+        me = par[h]; who = me.n;
+        if (now0 - (me.seen || 0) > 600e3) { me.seen = now0; await this.s.put("par", par); }
+        if (me.k === "web" && !(me.ul > now0) && action !== "unlock" && action !== "parents")
+          return json({ error: "locked", name: me.n }, 423);   // a browser opens with the family PIN (12 h)
+      } else {
+        const ai = await this.s.get("aiHash");
+        if (!ai || h !== ai) return json({ error: "not paired" }, 401);
+        if (!aiRoute(action, req.method)) return json({ error: "ai token: not allowed" }, 403);
+        role = "ai"; who = "AI";
+      }
+    } else if (!phoneRoute(action, req.method) && (Object.keys(par).length || ((await this.s.get("pv")) || {}).h))
+      return json({ error: "join" }, 403);   // the link alone opens nothing once a parent has a token or the phone sent its PIN (pv, 0.9.27+): join = name + PIN
+    if (action === "join") return req.method === "POST" ? this.join(await req.json().catch(() => null), h === bound ? h : null, now0) : json({ error: "method" }, 405);
+    if (action === "unlock" || action === "invite" || action === "parents") {
+      if (!me && !(h === bound && action !== "unlock")) return json({ error: "not for this token" }, 403);
+      return this.parentOp(action, req, h, me, now0);
     }
-    if (action === "forget" && req.method === "POST") {   // the phone is released: delete everything of this id (same token auth as sync)
+    if (action === "forget" && req.method === "POST") {   // the phone is released: delete everything of this id (the phone's token only)
+      if (h !== bound) return json({ error: "phone only" }, 403);
       for (const w of this.phoneWs()) { try { w.close(1000, "forgotten"); } catch {} }
       await this.s.deleteAlarm().catch(() => {}); await this.s.deleteAll();
-      this.seen = 0; this.stateAt = 0; this.ikSet = false; this.kfcm = undefined; this.wk = null;
+      this.seen = 0; this.stateAt = 0; this.ikSeen = null; this.kfcm = undefined; this.wk = null; this.par = null; this.vk = null;
       return json({ result: "forgotten" });
     }
     if (action === "watch") {   // a Zepp watch shows a 6-digit code; the parent page sends it here, authenticated like any parent call
@@ -506,17 +549,24 @@ export class Kid {
       let b; try { b = await req.json(); } catch { return json({ error: "bad json" }, 400); }
       if (!b || !/^\d{6}$/.test(String(b.code || ""))) return json({ error: "bad code" }, 400);
       const name = String(b.name || "").replace(/[\u0000-\u001f]/g, "").slice(0, 20);
-      // the relay has ONE token per phone (the phone binds sha256 of it): the watch gets the same link data the parent page shows, not a device of its own
-      const r = await this.env.WATCH.get(this.env.WATCH.idFromName("w:" + b.code)).fetch("https://w/attach", { method: "POST", body: JSON.stringify({ url: url.origin, id, token, name }) });
+      // the watch gets a parent token of its own (kind "watch": no browser PIN), named like the page names it
+      const wt = await this.mint(name || "Watch", "watch", Date.now());
+      if (!wt) return json({ error: "too many parents" }, 409);
+      const r = await this.env.WATCH.get(this.env.WATCH.idFromName("w:" + b.code)).fetch("https://w/attach", { method: "POST", body: JSON.stringify({ url: url.origin, id, token: wt, name }) });
+      if (r.status !== 200) { delete (await this.parents())[await sha256(wt)]; await this.s.put("par", this.par); }
       return json(r.status === 200 ? { ok: true } : { error: r.status === 409 ? "code already used" : "no such code" }, r.status === 200 ? 200 : r.status === 409 ? 409 : 404);
     }
     if (role === "ai" && action === "tile") return json({ error: "ai token: not allowed" }, 403);
     if (action === "tile") return req.method === "GET" ? this.tile(req, url) : json({ error: "method" }, 405);
-    if (!this.ikSet && role === "parent") {
-      this.ikSet = true;
+    // icon / tile keys: one per parent token (each page derives its own from its token)
+    if (role === "parent" && !(this.ikSeen || (this.ikSeen = new Set())).has(h)) {
+      this.ikSeen.add(h);
       const [ik, tk] = await Promise.all([sha256("icon:" + token), sha256("tile:" + token)]);
-      const [oi, ot] = await Promise.all([this.s.get("iconKey"), this.s.get("tileKey")]);
-      if (oi !== ik || ot !== tk) await this.s.put({ iconKey: ik, tileKey: tk });
+      const [oi, ot] = await Promise.all([this.viewKeys("iconKey"), this.viewKeys("tileKey")]);
+      if (!oi.includes(ik) || !ot.includes(tk)) {
+        this.vk.iconKey = [...oi.filter(k => k !== ik), ik].slice(-MAX_PARENTS - 2); this.vk.tileKey = [...ot.filter(k => k !== tk), tk].slice(-MAX_PARENTS - 2);
+        await this.s.put({ iconKeys: this.vk.iconKey, tileKeys: this.vk.tileKey });
+      }
     }
     const now = Date.now();
     if (action === "ws") {   // the phone's push channel (Relay.kt RelayWs): {"t":"sync",...} = POST sync, server sends {"t":"kick"}
@@ -669,10 +719,10 @@ export class Kid {
       }
       const st = state ? { ...state, rules: stripPin(state.rules) } : null;
       if (role === "parent" && url.searchParams.get("watch") === "1") return json({ ...watchState(st, rules ? stripPin(rules) : null), seen: this.seenNow(seen), pending: (cmds || []).length,
-        queue: (cmds || []).filter(c => live(c, Date.now())).slice(-10).map(c => ({ id: c.id, type: c.type, at: c.at })),
+        queue: (cmds || []).filter(c => live(c, Date.now())).slice(-10).map(c => ({ id: c.id, type: c.type, at: c.at, ...(c.by ? { by: c.by } : {}) })),
         expired: ((await this.s.get("expired")) || []).slice(-10), tileKey: await sha256("tile:" + token) });
       return json({ state: st, rules: rules ? stripPin(rules) : null, seen: this.seenNow(seen), pending: (cmds || []).length,
-        queue: (cmds || []).filter(c => live(c, Date.now())).slice(-20).map(c => ({ id: c.id, type: c.type, at: c.at })), expired: (await this.s.get("expired")) || [] });
+        queue: (cmds || []).filter(c => live(c, Date.now())).slice(-20).map(c => ({ id: c.id, type: c.type, at: c.at, ...(c.by ? { by: c.by } : {}) })), expired: (await this.s.get("expired")) || [] });
     }
     if (action === "rules" && req.method === "PUT") {
       const [state, old] = await Promise.all([this.s.get("state"), this.s.get("rules")]);
@@ -684,10 +734,13 @@ export class Kid {
       // the sync reply carries rules + queued commands and the phone refuses replies over 256 KB: keep both small
       if (JSON.stringify(body).length > MAX_RULES) return json({ error: "too big" }, 413);
       const rules = { ...body, rev };
+      if (who) rules.by = who; else delete rules.by;   // who changed them (the phone logs it)
       // a new PIN arrives in plain: keep only the hash the phone uses (sha256 of "kg:" + PIN). No PIN given: keep the old hash.
       const pin = String(rules.pin || "").replace(/\D/g, "");
       // pinAt: when the hash last changed, so the phone takes it once and a newer PIN set on LAN is not reverted
-      if (pin.length >= 4) { rules.pinHash = await sha256("kg:" + pin); rules.pinAt = rev; }
+      if (pin.length >= 4) { rules.pinHash = await sha256("kg:" + pin); rules.pinAt = rev;
+        // checks joins at once; "pvWeb" when the phone never sent pv (old phone), so a PIN set from the shared link does not lock that link
+        await this.s.put((await this.s.get("pv")) ? "pv" : "pvWeb", { h: rules.pinHash, s: "" }); }
       else if (typeof rules.pinHash === "string" && /^[0-9a-f]{64}$/.test(rules.pinHash)) rules.pinAt = rev;
       else if (old && old.pinHash) { rules.pinHash = old.pinHash; rules.pinAt = old.pinAt || 1; }
       else if (old && old.pinSet) { rules.pinAt = old.pinAt || 1; }   // hash already taken by the phone and dropped here
@@ -756,6 +809,7 @@ export class Kid {
       delete c.sent;
       // `answer`: the request id may not be a legal command id; keep it apart so the phone never answers the wrong request
       if (type === "answer") c.req = String(body.req || body.id || "").slice(0, 200);
+      if (who) c.by = who; else delete c.by;   // the phone logs who sent it (docs/protocol.md "Parents")
       if (JSON.stringify(c).length > MAX_CMD) return json({ error: "too big" }, 413);
       cmds.push(c);
       await this.s.put("cmds", cmds);
@@ -763,6 +817,109 @@ export class Kid {
       return json({ result: "queued" });
     }
     return json({ error: "method not allowed" }, 405);
+  }
+
+  /** Parent tokens: {sha256(token): {n name, k app|web|watch, at, seen, ul (web: unlocked until)}} (docs/protocol.md "Parents"). */
+  async parents() { if (!this.par) this.par = (await this.s.get("par")) || {}; return this.par; }
+  /** Icon / tile keys of every parent token ("iconKey" | "tileKey"; the single key of older versions still counts). */
+  async viewKeys(k) {
+    if (!this.vk) {
+      const [ik, tk, iks, tks] = await Promise.all(["iconKey", "tileKey", "iconKeys", "tileKeys"].map(x => this.s.get(x)));
+      this.vk = { iconKey: [...(ik ? [ik] : []), ...(iks || [])], tileKey: [...(tk ? [tk] : []), ...(tks || [])] };
+    }
+    return this.vk[k];
+  }
+  /** A new parent token, or null when MAX_PARENTS have one. */
+  async mint(name, kind, now) {
+    const par = await this.parents();
+    if (Object.keys(par).length >= MAX_PARENTS) return null;
+    const token = hexRand(24);
+    par[await sha256(token)] = { n: cleanName(name) || "?", k: kind, at: now, seen: now, ...(kind === "web" ? { ul: now + UNLOCK_MS } : {}) };
+    await this.s.put("par", par);
+    return token;
+  }
+  /** The family PIN against the phone's hash (sync `pv`) or one the page set here: {r: ok|bad|locked|none, left?, retryAt?}. */
+  /** {h, s} to check the family PIN with: the phone's (sync `pv`) or one the page set in a rules PUT; null = none known. */
+  async pinVerifier() {
+    const [pv, pw, rules] = await Promise.all(["pv", "pvWeb", "rules"].map(k => this.s.get(k)));
+    return pv && pv.h ? pv : pw && pw.h ? pw : rules && /^[0-9a-f]{64}$/.test(String(rules.pinHash || "")) ? { h: rules.pinHash, s: "" } : null;
+  }
+  async pinCheck(pin, now) {
+    const [v, tr] = await Promise.all([this.pinVerifier(), this.s.get("pinTry")]);
+    if (!v) return { r: "none" };
+    if (tr && tr.until > now) return { r: "locked", retryAt: tr.until };
+    const p = String(pin || "").replace(/\D/g, "").slice(0, 12);
+    if (p.length >= 4 && hashPin(p, v.s) === v.h) { if (tr) await this.s.delete("pinTry"); return { r: "ok" }; }
+    const n = (tr && !tr.until ? tr.n : 0) + 1;   // tries since the last lock / success
+    await this.s.put("pinTry", n >= PIN_TRIES ? { n: 0, until: now + PIN_LOCK } : { n, until: 0 });
+    return n >= PIN_TRIES ? { r: "locked", retryAt: now + PIN_LOCK } : { r: "bad", left: PIN_TRIES - n };
+  }
+  /** POST join {name, kind, pin} with the phone's token (the link) or {name, kind, inv} with no token -> {token, name, kind, pin: ok|none|inv}. */
+  async join(b, shared, now) {
+    if (!isObj(b)) return json({ error: "bad json" }, 400);
+    const name = cleanName(b.name), kind = PAR_KINDS.includes(b.kind) && b.kind !== "watch" ? b.kind : "web";
+    if (!name) return json({ error: "name needed" }, 400);
+    const par = await this.parents();
+    let how;
+    if (!shared) {
+      if (!(await this.s.get("tokenHash"))) return json({ error: "not paired" }, 401);
+      const invs = ((await this.s.get("invs")) || []).filter(x => x.exp > now), ih = await sha256("inv:" + String(b.inv || ""));
+      const i = invs.findIndex(x => x.h === ih);
+      if (i < 0) return json({ error: "invite used or expired" }, 403);
+      invs.splice(i, 1); await this.s.put("invs", invs);   // one use: the first one to come wins (the object runs one request at a time)
+      how = "inv";
+    } else {
+      const c = await this.pinCheck(b.pin, now);
+      if (c.r === "locked") return json({ error: "pin locked", retryAt: c.retryAt }, 429);
+      if (c.r === "bad") return json({ error: "bad pin", left: c.left }, 403);
+      // no PIN known here (an old phone that does not send its hash, no PIN yet): only the first parent, by the link alone
+      if (c.r === "none" && Object.keys(par).length) return json({ error: "invite needed" }, 403);
+      how = c.r;
+    }
+    const token = await this.mint(name, kind, now);
+    if (!token) return json({ error: "too many parents" }, 409);
+    return json({ token, name, kind, pin: how });
+  }
+  /** unlock {pin} (a browser token) | invite (-> {inv, exp}) | GET parents | POST parents {revoke: id} | {name}. */
+  async parentOp(action, req, h, me, now) {
+    const b = req.method === "POST" ? await req.json().catch(() => null) : null;
+    if (req.method === "POST" && !isObj(b)) return json({ error: "bad json" }, 400);
+    if (action === "unlock") {
+      if (req.method !== "POST") return json({ error: "method" }, 405);
+      const c = await this.pinCheck(b.pin, now);
+      if (c.r === "locked") return json({ error: "pin locked", retryAt: c.retryAt }, 429);
+      if (c.r === "bad") return json({ error: "bad pin", left: c.left }, 403);
+      me.ul = now + UNLOCK_MS; me.seen = now; await this.s.put("par", this.par);
+      return json({ until: me.ul, pin: c.r });
+    }
+    if (action === "invite") {
+      if (req.method !== "POST") return json({ error: "method" }, 405);
+      const inv = hexRand(16), invs = ((await this.s.get("invs")) || []).filter(x => x.exp > now).slice(-(MAX_INVS - 1));
+      invs.push({ h: await sha256("inv:" + inv), exp: now + INV_TTL, by: me ? me.n : "" });
+      await this.s.put("invs", invs);
+      return json({ inv, exp: now + INV_TTL });
+    }
+    const par = await this.parents();
+    if (req.method === "POST") {
+      if (typeof b.revoke === "string") {
+        const k = Object.keys(par).find(x => x.slice(0, 12) === b.revoke);
+        if (!k) return json({ error: "no such parent" }, 404);
+        delete par[k];
+      } else if (me && cleanName(b.name)) me.n = cleanName(b.name);
+      else return json({ error: "bad json" }, 400);
+      await this.s.put("par", par);
+    } else if (req.method !== "GET") return json({ error: "method" }, 405);
+    return json({ parents: Object.entries(par).map(([k, p]) => ({ id: k.slice(0, 12), name: p.n, kind: p.k, at: p.at, seen: p.seen, me: k === h })),
+      pinKnown: !!(await this.pinVerifier()) });
+  }
+  /** Remote pairing done (pairRoute /result): the phone's token proves it; the page gets a parent token named as typed. */
+  async pairMint(b) {
+    if (!isObj(b) || !/^[0-9a-f]{48}$/.test(String(b.token || ""))) return json({ error: "bad json" }, 400);
+    const h = await sha256(b.token), bound = await this.s.get("tokenHash");
+    if (bound && bound !== h) return json({ error: "not paired" }, 401);
+    if (!bound) await this.s.put({ tokenHash: h, born: Date.now() });   // the phone's first sync may come after the parent's result
+    const token = await this.mint(b.name || "?", b.kind === "app" ? "app" : "web", Date.now());
+    return token ? json({ token }) : json({ error: "too many parents" }, 409);
   }
 
   /** Shared files list ("files": [{fid, to, name, size, n, at, got: [chunk #]}]); expired ones (1 h) dropped with their chunks. */
@@ -848,6 +1005,9 @@ export class Kid {
     }
     if (state && new TextEncoder().encode(JSON.stringify(state)).length > 120e3) return { error: "state too big", status: 413 };   // DO storage value limit is 128 KiB
     const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
+    // the family PIN hash (Rules.pinHash/pinSalt), sent when it changes: joins and browser unlocks are checked here. "" = no PIN
+    if (body.pv === "") await this.s.delete(["pv", "pvWeb"]);
+    else if (isObj(body.pv) && /^[0-9a-f]{64}$/.test(String(body.pv.h)) && /^[0-9a-f]{0,32}$/.test(String(body.pv.s || ""))) await this.s.put("pv", { h: body.pv.h, s: String(body.pv.s || "") });
     if (typeof body.fcm === "string" && FCM_TOKEN.test(body.fcm)) {   // the kid app's own token: push wake (wakeKid / alarm)
       if (this.kfcm === undefined) this.kfcm = (await this.s.get("kfcm")) || "";
       if (body.fcm !== this.kfcm) {
