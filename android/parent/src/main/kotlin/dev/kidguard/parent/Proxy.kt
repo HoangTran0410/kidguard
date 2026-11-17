@@ -85,6 +85,11 @@ class Proxy(private val ctx: Context, val port: Int) {
         if (r.method == "GET" && r.path == "/s/$secret") {
             return Res(302, "text/plain", ByteArray(0), mapOf("Location" to "/", "Set-Cookie" to "kgs=$secret; Path=/; HttpOnly; SameSite=Strict"))
         }
+        // dev push (scripts/ui-push.sh --parent, over adb forward): trusted by the pack's signature like on the kid phone, not by the cookie
+        if (r.method == "POST" && r.path == "/ui/push") {
+            val why = synchronized(Proxy::class.java) { hub.push(r.body) }
+            return if (why == null) Res.json("""{"ok":true}""") else Res.json(JSONObject().put("error", why).toString(), 400)
+        }
         val cookie = (r.header("cookie") ?: "").split(";").map { it.trim() }
         if (!cookie.any { it == "kgs=$secret" }) return Res.text("forbidden", 403)
         return when {
