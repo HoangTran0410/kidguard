@@ -736,7 +736,7 @@ L.vi = {
   "gt.inv": "Nhờ phụ huynh đã có quyền tạo lời mời (Cài đặt > Kết nối > Mời phụ huynh khác).",
   "gt.many": "Máy này đã đủ phụ huynh. Xoá bớt một người trước.",
   "jn.h": "Vào với tư cách phụ huynh",
-  "jn.p": "Nhập tên của bạn và mã PIN gia đình để mở máy con này.",
+  "jn.p": "Bản mới: mỗi phụ huynh có chìa riêng. Nhập tên của bạn và PIN gia đình một lần, lần sau không hỏi lại. Máy con không cần đang online.", "jn.ok": "Đã vào với tên {0}. Đổi tên ở Cài đặt › Phụ huynh có quyền.",
   "jn.name": "Tên của bạn",
   "jn.pin": "PIN gia đình",
   "jn.go": "Vào",

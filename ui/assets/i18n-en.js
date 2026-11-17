@@ -735,7 +735,7 @@ L.en = {
   "gt.inv": "Ask a parent who already has access to make an invite (Settings > Connection > Invite another parent).",
   "gt.many": "Too many parents on this phone. Remove one first.",
   "jn.h": "Join as a parent",
-  "jn.p": "Enter your name and the family PIN to open this kid.",
+  "jn.p": "New: each parent has their own key. Enter your name and the family PIN once; you won't be asked again. The kid's phone doesn't need to be online.", "jn.ok": "You're in as {0}. Rename in Settings › Parents with access.",
   "jn.name": "Your name",
   "jn.pin": "Family PIN",
   "jn.go": "Join",

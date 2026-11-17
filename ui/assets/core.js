@@ -318,7 +318,7 @@ function relayGate(cred, b, what, o) {
       try {
         const r = await fetch(b + (join ? "/join" : "/unlock"), { method: "POST", headers: { "Content-Type": "application/json", "X-KG-Token": cred.token, "X-KG-Name": KG_NAME }, body: JSON.stringify(join ? { name, kind: APP ? "app" : "web", pin } : { pin }) });
         const j = await r.json().catch(() => ({}));
-        if (r.ok) { if (join && j.token) { cred.token = j.token; cred.own = 1; try { localStorage.setItem("kg.pname", name); } catch {} save(kids); } return end(true); }
+        if (r.ok) { if (join && j.token) { cred.token = j.token; cred.own = 1; try { localStorage.setItem("kg.pname", name); } catch {} save(kids); toast("ok|" + t("jn.ok", name)); } return end(true); }
         say(gateErr(j));
       } catch { say(t("e.net")); }
       btn.disabled = false;

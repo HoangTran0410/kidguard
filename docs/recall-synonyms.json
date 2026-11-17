@@ -29,5 +29,10 @@
  "tin nhắn": "message",
  "lỗi": "bug incident",
  "pin": "battery",
- "đồng hồ": "watch clock"
+ "đồng hồ": "watch clock",
+ "tên và pin": "join parents relay token",
+ "nhập tên": "join parents relay token",
+ "phụ huynh": "parents join token",
+ "đổi tên": "rename parents rpRen",
+ "mất kết nối": "offline lost e.lost"
 }
