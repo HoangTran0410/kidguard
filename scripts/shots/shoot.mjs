@@ -41,6 +41,8 @@ const SHOTS = [
   // runtime language switch (the other dictionary loads on demand, then the page redraws): must look like the other language's "today"
   { name: "langsw", js: `goTab("home"); window.__sw = lang === "vi" ? "en" : "vi"; setLang(window.__sw)`, ready: `window.__sw && lang === window.__sw && document.documentElement.lang === window.__sw && document.querySelector(".hero")`, settle: 600 },
   { name: "apps", js: `goTab("apps")`, ready: `document.querySelector("[data-sec] .clh")`, settle: 800 },
+  // family chat sheet: sample thread (kid, parent, own pending send), the sheet draws st.chat
+  { name: "chat", js: `goTab("home"); const n = Date.now(); st.chat = [{ id: "a", t: n - 3600e3, from: "p", who: "Mẹ", text: "Con về nhà chưa? Ăn cơm nhé." }, { id: "b", t: n - 3500e3, from: "k", who: "", text: "Dạ con sắp về, con đang ở nhà bạn." }, { id: "c", t: n - 600e3, from: "p", who: "Bố", text: "Nhớ mang áo mưa, chiều nay có mưa lớn lắm đó con." }]; msgSheet(); (chatPend[cur.id] = []).push({ from: "p", who: "", text: "OK", t: n, local: 1 }); chatDraw()`, ready: `document.querySelector("#chatBox .cb")`, settle: 400 },
   { name: "more", js: `goTab("home"); moreSheet()`, ready: `document.querySelector("#scrGo")`, settle: 400 },
   { name: "rules", poke: 1, js: `goTab("rules")`, ready: `document.querySelector("[data-sec]")`, scrollTo: "[data-sec=r-day]" },
   { name: "where", js: `goTab("where")`, ready: `document.querySelector("#map .layer")`, tiles: true, settle: 800 },

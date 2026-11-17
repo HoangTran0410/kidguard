@@ -576,6 +576,7 @@ class Guard : Service() {
             .put("files", Files.state(this))
             .put("ring", Ring.state())
             .put("events", store.events())
+            .put("chat", ChatLogic.tail(store.chat()))   // family chat: the last 30 (docs/flows/remote.md §2.15)
             .put("windDown", GrayFx.state(this, r, windActive))
             .put("update", Update.stateJson(this))
             .put("launcher", runCatching { LauncherSafe.state(this, r, HomeFile.styleId(this), HomeFile.pages(this)) }.getOrDefault(JSONObject()))
@@ -749,7 +750,8 @@ class Guard : Service() {
     private fun run(t: String, c: JSONObject): String = when (t) {
         "lock" -> if (Policy.lockNow(this)) "ok" else "not owner"
         "locate" -> { locate(); "ok" }
-        "message" -> { MessageActivity.show(this, c.optString("text").take(500)); "ok" }
+        // the text also goes into the family chat thread (ChatLogic) under the parent's name (`by`, stamped by the relay)
+        "message" -> { val tx = ChatLogic.clean(c.optString("text")); if (tx.isEmpty()) "failed: empty" else { store.addChat("p", c.optString("by"), tx); MessageActivity.show(this, tx); "ok" } }
         "ring" -> Ring.start(this)
         "ringStop" -> { if (store.rules.lostOn) store.lostRingStopped = true; Ring.stop(this) }   // lost mode: this also ends the 15-minute alarm loop
         "unlockEnd" -> { store.unlockUntil = 0; store.clearLastAnswer(); "ok" }   // end an Authenticator unlock / "+1 minute" now (not PIN-gated)

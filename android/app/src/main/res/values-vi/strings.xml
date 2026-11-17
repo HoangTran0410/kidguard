@@ -476,6 +476,14 @@
     <string name="more_fail_body">Đang có quá nhiều yêu cầu chờ bố mẹ trả lời.</string>
     <string name="msg_title">Bố mẹ nhắn</string>
     <string name="msg_read">Con đã đọc</string>
+    <string name="chat_title">Nhắn với bố mẹ</string>
+    <string name="chat_hint">Viết tin nhắn</string>
+    <string name="chat_send">Gửi</string>
+    <string name="chat_empty">Chưa có tin nhắn. Nhắn cho bố mẹ nhé.</string>
+    <string name="chat_parent">Bố mẹ</string>
+    <string name="chat_reply">Trả lời</string>
+    <string name="chat_tile">Nhắn bố mẹ</string>
+    <string name="chat_unpaired">Con cần kết nối với bố mẹ trước.</string>
     <string name="ch_msg">Tin nhắn từ bố mẹ</string>
     <!-- quick actions: lock button (shortcut, widget, tile), time-left tile / widget, screen-off gestures (Quick.kt) -->
     <string name="tl_min">Còn %1$d phút</string>

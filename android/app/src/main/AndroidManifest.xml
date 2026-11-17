@@ -338,6 +338,13 @@
             android:name=".PairCodeReceiver"
             android:exported="false" />
 
+        <!-- family chat, child side (ChatActivity.kt); not in the Home flavor -->
+        <activity
+            android:name=".ChatActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <activity
             android:name=".MessageActivity"
             android:excludeFromRecents="true"

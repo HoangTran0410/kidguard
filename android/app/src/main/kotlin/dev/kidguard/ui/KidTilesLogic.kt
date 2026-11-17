@@ -7,11 +7,11 @@ package dev.kidguard
  */
 object KidTilesLogic {
     /** Every tile the child may add, display order of the "Add" list. */
-    val ALL = listOf("arrived", "pickup", "lock", "more", "usage", "nlog", "files", "log")
+    val ALL = listOf("arrived", "pickup", "lock", "more", "usage", "nlog", "chat", "files", "log")
     /** Only offered while the parents allow it (rule kidClean). */
     const val CLEAN = "clean"
     fun all(clean: Boolean): List<String> = if (clean) ALL + CLEAN else ALL
-    val DEFAULT = listOf("arrived", "pickup", "lock")
+    val DEFAULT = listOf("arrived", "pickup", "lock", "chat")
     /** SOS + 6 + Edit = two full rows of 4. */
     const val MAX = 6
     const val PER_ROW = 4

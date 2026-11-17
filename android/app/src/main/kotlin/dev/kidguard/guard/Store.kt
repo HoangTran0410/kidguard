@@ -939,6 +939,19 @@ class Store private constructor(private val app: Context) {
         HistDb.addEvent(app, now, o.optString("id"), e.kind, e.text, e.zone)
     }
 
+    // Family chat (ChatLogic): the last 100 messages of the thread parents <-> child, prefs "chat".
+    @Synchronized fun chat(): JSONArray = runCatching { JSONArray(p.getString("chat", "[]")) }.getOrDefault(JSONArray())
+    /** [from] "p" = a parent (by [who]), "k" = the child. A child message also becomes the event "chat" (parent app push). Returns false for empty text. */
+    @Synchronized fun addChat(from: String, who: String, text: String, id: String = randomHex(4)): Boolean {
+        val t = ChatLogic.clean(text); if (t.isEmpty()) return false
+        val old = chat()
+        val a = ChatLogic.add(old, from, who, t, System.currentTimeMillis(), id)
+        if (a === old) return false
+        p.edit().putString("chat", a.toString()).apply()
+        if (from == "k") addEvent(Ev("chat", t.replace('\n', ' ').take(ChatLogic.EVENT_TEXT)))
+        return true
+    }
+
     /** Zones: the next location fix only records where the child is (set after the zone list changed). */
     @get:Synchronized @set:Synchronized var zoneBaseline: Boolean
         get() = p.getBoolean("zoneBase", false)

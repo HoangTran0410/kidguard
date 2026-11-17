@@ -428,7 +428,7 @@ const totpHtml = s => `<div class="alert warn" style="margin-top:10px">${s.phase
     : `<p><b>${t("totp.verifyH")}</b></p><div class="row"><input id="totpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456" aria-label="${esc(t("totp.verifyH"))}" value="${esc(s.code || "")}" style="width:8em;letter-spacing:.15em;font-variant-numeric:tabular-nums"><button class="pri sp" id="totpCheck">${ic("check")} ${t("totp.check")}</button><button id="totpCancel">${t("totp.cancel")}</button></div>
     ${s.err ? `<p class="bad" role="alert">${ic("triangle-alert")} ${esc(s.err)}</p>` : ""}`}</div>`;
 // ---- v0.6: events, chores, zones, templates ----
-const EV_IC = { call: "phone", zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand", launcher: "house", adminOpen: "key-round", tsDown: "wifi-off", tsUp: "wifi" };
+const EV_IC = { call: "phone", zoneIn: "map-pin", zoneOut: "route", battery: "battery-full", newApp: "package", clock: "clock", pairing: "link", tamper: "triangle-alert", unlock: "lock-open", checkin: "hand", launcher: "house", adminOpen: "key-round", tsDown: "wifi-off", tsUp: "wifi", chat: "message-square" };
 // phone log line kind (log[].k, protocol) -> icon + tone; lines from older phones have no k
 const LOG_IC = { pin_wrong: ["key-round", "bad"], unlock: ["lock-open"], paired: ["link"], ai_on: ["bot"], ai_off: ["bot"], tz: ["globe"], loc_fixed: ["map-pin"],
   usage_off: ["triangle-alert", "bad"], new_app: ["package"], suspended: ["pause"], unsuspended: ["play"], recover_open: ["refresh-cw"],

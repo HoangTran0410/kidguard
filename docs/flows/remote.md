@@ -167,3 +167,10 @@ One helper per UI shape; ids, `data-*` attributes and class names stay the same 
 | Date + time text | `dtFull(ms)`, `hhmm(ms)`, `evAt(ms)` (clock time, "Hôm qua 16:19"), `ago(ms)`, `fmt(ms)` (minutes), `modeEnd(ts)`, `dm("YYYY-MM-DD")` | `UI/core.js`, `UI/kid.js` |
 | Settings section | `sec(id, icon, title, desc, chip, body)` (+ a `QS` entry, see `check-search.mjs`) | `UI/tab-home.js` |
 Not shared on purpose: `<input type=time>` (native clock is fine, 7 places), rich `.li` rows with a progress bar or inline buttons (tab-home Hôm nay lists).
+
+### 2.15 Family chat (2026-11-17; `guard/ChatLogic.kt`, `Store.chat/addChat`, `ui/ChatActivity.kt`, page `UI/requests.js` `msgSheet`)
+- Parent sends from the "Nhắn" tile (sheet = thread + input + saved quick messages): `cmd({type:"message"})` (2.4). Phone `Guard.run "message"`: `ChatLogic.clean`, `store.addChat("p", by, text)`, then the full-screen `MessageActivity` as before (now with a "Trả lời" button -> `ChatActivity`).
+- Child writes in `ChatActivity` (tile "Nhắn bố mẹ", in the default tiles; needs `everPaired`): `store.addChat("k", ...)` also adds the event `chat` (so the relay `pushNew` FCM and the parent app notification work unchanged) and `Guard.running.kick()` syncs state.
+- Parent reads `state.chat` (last 30; the phone keeps 100) over LAN and relay alike; the sheet polls `refresh()` every 4 s while open. Own sends show at once with "sent, waiting for the phone" until the thread echoes them (10 min cap).
+- Gotchas: relay delivery of the parent's message is the 10-min `SHORT` queue, so a phone that is off for longer loses it; the page shows "sent" not "delivered"; Telegram `/say` joins the thread with no name; `release` does not clear the thread; Home flavor has no chat.
+- Wire: protocol "Family chat".
