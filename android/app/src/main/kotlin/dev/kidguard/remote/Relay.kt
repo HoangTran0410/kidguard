@@ -36,6 +36,7 @@ class Relay(private val g: Guard) {
     private var wsFails = 0
     private var wsUpAt = 0L   // when the socket last connected: one that dies within 5 min counts as a failure (flapping network)
     private var forceSend = false
+    private var apps: JSONArray? = null
     private var fcmSent = ""
     @Volatile private var pvSent = ""   // "<relay> <pinHash> <pinSalt>" the worker has (sync `pv`)
     private var lastCoarse = 0
@@ -117,7 +118,9 @@ class Relay(private val g: Guard) {
         if (delay == 0L) {
             val on = g.getSystemService(PowerManager::class.java)?.isInteractive == true
             // right after a command: report back soon, so the parent sees the result
-            delay = if (busy) 3_000 else if (on) 20_000 else 60_000
+            // screen off + socket up: the relay kicks us through the socket and events kick() us, so this tick only looks for
+            // a changed state: every 3 min, not every minute (Oppo 2026-11-18: 16 relay wakelocks in 16 min screen-off)
+            delay = if (busy) 3_000 else if (on) 20_000 else if (ws.open) 180_000 else 60_000
         }
         if (kickAgain) { kickAgain = false; delay = 0 }
         schedule(delay)
@@ -172,6 +175,7 @@ class Relay(private val g: Guard) {
         val big = now < bigUntil
         // state `relayBig: true` = this one was trimmed to fit the relay's 120 KB cap (the page may say so)
         val state = g.currentState().let { if (big) RelayTrim.trim(it) else it }
+        apps = state.optJSONArray("apps")
         val stateText by lazy(LazyThreadSafetyMode.NONE) { state.toString() }   // one serialisation for the coarse and the minute-hash copies
         val viaWs = ws.open
         if (viaWs) {
@@ -253,7 +257,7 @@ class Relay(private val g: Guard) {
 
     // ---- app icons: the relay keeps a 48 px WebP per app so the parent page can show them; each app sent once ----
     private fun uploadIcons(base: String, rid: String, token: String) {
-        val apps = g.currentState().optJSONArray("apps") ?: return
+        val apps = this.apps ?: return   // the list sync() just built: a second state build every tick cost CPU (review 2026-11-18)
         val p = g.getSharedPreferences("relayIcons", 0)
         val key = "$base|$rid"; val sent = p.getStringSet(key, emptySet())!!.toMutableSet()
         val here = (0 until apps.length()).mapNotNull { apps.optJSONObject(it)?.optString("pkg")?.takeIf { s -> s.isNotEmpty() } }
@@ -365,7 +369,9 @@ object RelayTrim {
     /** A copy without the bulky lists; apps keep only what the page needs to list them. Flags `relayBig`. */
     fun trim(state: JSONObject): JSONObject {
         val o = JSONObject(state.toString())
-        for (k in arrayOf("events", "track", "calls")) o.remove(k)
+        for (k in arrayOf("track", "calls")) o.remove(k)
+        // the newest 10 events stay: they are what pushes "check-in" / chat / tamper alerts to the parent (review 2026-11-18)
+        o.optJSONArray("events")?.let { e -> if (e.length() > 10) o.put("events", JSONArray().apply { for (i in e.length() - 10 until e.length()) put(e.get(i)) }) }
         o.optJSONArray("apps")?.let { a ->
             val slim = JSONArray()
             for (i in 0 until a.length()) a.optJSONObject(i)?.let { x ->

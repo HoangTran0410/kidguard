@@ -18,7 +18,8 @@ async function refresh() {
   if (!cur || viewDay || document.hidden) return;
   const now = Date.now();
   if (pollBusy && now - pollBusy < 30000) return;
-  if (now - actAt > IDLE_MS && now - pollAt < IDLE_POLL) return;
+  // 10 min untouched: every 5 min (each poll of an older state makes the relay wake the phone: battery)
+  if (now - actAt > IDLE_MS && now - pollAt < (now - actAt > 600000 ? 300000 : IDLE_POLL)) return;
   pollAt = now; pollBusy = now;
   try { await refresh1(); } finally { pollBusy = 0; }
 }

@@ -174,7 +174,8 @@ function wireSos(el) {
     const w = b.dataset.sos;
     if (w === "where") { tab = "where"; render(); }
     else if (w === "ear") earStart();
-    else if (await cmd({ type: "sosAck" }, t("sos.cleared"), [t("sos.askAck"), t("sos.ack")])) { st.sos = []; updateLive(); }
+    // only the SOS shown here: one pressed after the last refresh stays until the parent sees it
+    else if (await cmd({ type: "sosAck", ...((st.sos || []).length ? { sos: st.sos.map(s => s.id).join(",") } : {}) }, t("sos.cleared"), [t("sos.askAck"), t("sos.ack")])) { st.sos = []; updateLive(); }
   });
 }
 

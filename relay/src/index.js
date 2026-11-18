@@ -53,7 +53,7 @@ const GC_MS = 30 * 86400e3;   // a phone not seen for 30 days: everything of thi
 //  window for a parent standing next to the phone; adbShell = a shell command running a day later is surprising; unlockEnd = ends a
 //  temporary pause "now"; fixPerms = opens Settings screens on the kid's phone, confusing if the kid is using it hours later.
 // Everything else (setting devOn devOff bgLimit bgRestore rescan clearCache support ...) is harmless late: normal 24 h.
-const SHORT = ["uu", "np", "sp", "cp", "cc", "cf", "cd", "sl", "su", "sd", "sn", "lk", "lc", "ms", "rg", "wk", "rs", "ls", "rb", "cl", "ps", "pr", "pc", "op", "ab", "ue", "fp", "so", "ti"];
+const SHORT = ["fu", "sh", "uu", "np", "sp", "cp", "cc", "cf", "cd", "sl", "su", "sd", "sn", "lk", "lc", "ms", "rg", "wk", "rs", "ls", "rb", "cl", "ps", "pr", "pc", "op", "ab", "ue", "fp", "so", "ti"];
 let SHORT_TTL = 10 * 60e3;   // env.SHORT_TTL_MS overrides (tests only)
 // secrets a parent typed into a command (PIN, new PIN, Authenticator secret, bot token): handed out once, then not kept in the queue copy
 const SECRET_KEYS = ["pin", "new", "secret", "token"];
@@ -793,6 +793,9 @@ export class Kid {
     if (cmds.length !== stored.length) await this.s.put("expired", expiredOf(await this.s.get("expired"), stored.filter(c => !live(c, now)), now));
     // full queue: a new command first replaces a still-queued older one of the same kind (same type + same target field), never
     // one already handed out and never a destructive (ONCE) one; only when still full: refuse (the oldest may be a pending release)
+    // fileUp: an older still-queued copy for the same file is dropped at once: a phone that was asleep would otherwise
+    // upload the same file once per copy (up to 50 MB of mobile data each, review 2026-11-18)
+    if (type === "fu") { const i = cmds.findIndex(o => o.type === "fu" && !o.sent && o.file === body.file && !!o.thumb === !!body.thumb); if (i >= 0) cmds.splice(i, 1); }
     if (cmds.length >= MAX_CMDS && type in REPLACE && !ONCE.includes(type)) {
       const f = REPLACE[type], i = cmds.findIndex(o => o.type === type && !o.sent && (!f || o[f] === body[f]));
       if (i >= 0) cmds.splice(i, 1);
@@ -973,7 +976,7 @@ export class Kid {
     try { st = await fcmSend(this.env, this.kfcm, { kind: "wake", kid: this.kidId || "" }, "600s"); } catch (e) { console.log("wake", String(e)); return false; }
     if (st >= 300) console.log("wake fcm", st, why);
     if (st === 404) { this.kfcm = ""; await this.s.delete("kfcm"); }   // app removed / reinstalled: the next sync brings the new token
-    return st < 300;
+    return st > 0 && st < 300;   // 0 = fcmSend threw
   }
 
   /** Storage GC: armed once per object wake by sync(); see GC_MS. Also the push wake of a quiet phone (wakeKid). */
@@ -1192,7 +1195,7 @@ export class Kid {
           if (fq.n + 1 > FILE_DAY_N || fq.bytes + size > FILE_DAY_BYTES) return json({ error: "quota", retryAt: fq.start + 86400e3 }, 429);
           fq.n++; fq.bytes += size; await this.s.put("fq", fq);
         }
-        f = { fid, to, name, size, n, at: now, got: [], ...(chat ? { chat: 1 } : {}) }; list.push(f); fresh = true;
+        f = { fid, to, name, size, n, at: now, got: [], ...(chat ? { chat: 1 } : {}), ...(thumb ? { thumb: 1 } : {}) }; list.push(f); fresh = true;
       }
       const i = Number(q.get("i"));
       if (!Number.isInteger(i) || i < 0 || i >= f.n) return json({ error: "bad chunk" }, 400);
@@ -1212,6 +1215,12 @@ export class Kid {
       return new Response(b, { headers: { "content-type": "application/octet-stream", "cache-control": "no-store", "x-content-type-options": "nosniff" } });
     }
     if (req.method === "DELETE") {
+      // a file dropped before it was whole (upload failed / cancelled) gives back the bytes it never received: a retry must
+      // not cost the whole size twice; what did arrive (and the file count) stays counted, so start+drop is no way around it
+      if (!f.thumb && f.got.length < f.n) {
+        const fq = await this.s.get("fq"), unsent = f.size - f.got.reduce((s, i) => s + (i < f.n - 1 ? FILE_CHUNK : f.size - FILE_CHUNK * (f.n - 1)), 0);
+        if (fq && f.at >= fq.start && unsent > 0) await this.s.put("fq", { ...fq, bytes: Math.max(0, fq.bytes - unsent) });
+      }
       await this.s.delete([...Array(f.n).keys()].map(key));
       await this.s.put("files", list.filter(x => x !== f));
       return json({ ok: true });
@@ -1260,7 +1269,13 @@ export class Kid {
     for (const e of Array.isArray(state.events) ? state.events : []) if (e && now - +e.t < 3600e3 && /^[\w-]{1,24}$/.test(String(e.id)) && e.kind !== "tsDown" && e.kind !== "tsUp")   // Tailscale drop / return: log only, no push
       ev.push({ kind: "ev", eid: "e:" + e.id, t: +e.t, ek: String(e.kind || "").slice(0, 12) });   // no text / zone name to Google
     if (!ev.length) return;
-    await this.tgNew(ev).catch(e => console.log("tg", String(e)));
+    // Telegram beside FCM, not before it: a slow Telegram API must not hold the SOS push (review 2026-11-18)
+    const tg = this.tgNew(ev).catch(e => console.log("tg", String(e)));
+    await this.fcmNew(ev, id).catch(e => console.log("fcm", String(e)));
+    await tg;
+  }
+
+  async fcmNew(ev, id) {
     if (!this.env.FCM_SA) return;
     // at most 5 events a sync (x 5 devices = 25 FCM calls, under the 50 subrequests a request may make)
     const sent = (await this.s.get("pushed")) || [], fresh = ev.filter(e => !sent.includes(e.eid)).slice(0, 5);
@@ -1268,13 +1283,15 @@ export class Kid {
     const tokens = (await this.s.get("push")) || [];
     await this.s.put("pushed", [...sent, ...fresh.map(e => e.eid)].slice(-50));   // before sending: a retry must not double-notify
     if (!tokens.length) return;
-    const dead = new Set();
+    const dead = new Set(), retry = new Set();
     for (const e of fresh) for (const t of tokens) {
       const st = await fcmSend(this.env, t, { kind: e.kind === "req" && e.app ? "ev" : e.kind, kid: id, eid: e.eid, t: String(e.t), ...(e.kind === "ev" ? { ek: e.ek || "req" } : e.kind === "req" && e.app ? { ek: "req" } : { min: String(e.min || "") }) });
       if (st >= 300) console.log("fcm", st, e.kind);   // Google refused (wrong project, auth, ...): was silent (owner 2026-11-16)
       if (st === 404) dead.add(t);   // UNREGISTERED: the app was removed or re-installed (a 400 may be our own config: keep the token)
+      if (st === 0 || st === 429 || st >= 500) retry.add(e.eid);   // Google down / network: not pushed, the next sync tries again
     }
     if (dead.size) await this.s.put("push", tokens.filter(t => !dead.has(t)));
+    if (retry.size) await this.s.put("pushed", ((await this.s.get("pushed")) || []).filter(x => !retry.has(x)));
   }
 }
 
@@ -1330,6 +1347,9 @@ async function fcmToken(sa) {
 
 /** Returns the HTTP status of the send. Data-only + high priority: the parent app builds the notification itself. */
 async function fcmSend(env, token, data, ttl = "21600s") {
+  try { return await fcmSend1(env, token, data, ttl); } catch (e) { console.log("fcm send", String(e)); return 0; }   // 0 = retry later
+}
+async function fcmSend1(env, token, data, ttl) {
   const sa = JSON.parse(env.FCM_SA);
   const at = await fcmToken(sa);
   const url = (env.FCM_URL || "https://fcm.googleapis.com") + `/v1/projects/${sa.project_id}/messages:send`;

@@ -60,7 +60,15 @@ async function fxUp(job) {
       for (let i = 0; i < n; i++) {
         if (job.state === "stop") throw fxStop();
         const q = `?fid=${fid}&i=${i}&n=${n}&to=kid&size=${f.size}&name=${encodeURIComponent(f.name)}${job.chat ? "&chat=1" : ""}`;
-        await fxXhr(job, "POST", base(k) + "/file" + q, f.slice(i * FX.chunk, (i + 1) * FX.chunk), b => { job.pct = (i * FX.chunk + b) / Math.max(1, f.size); fxPaint(); });
+        // a dropped chunk is sent again (same fid: the relay takes a repeat chunk as is) instead of dropping the whole file:
+        // each new start costs the relay's daily quota (review 2026-11-18)
+        for (let a = 0; ; a++) {
+          try { await fxXhr(job, "POST", base(k) + "/file" + q, f.slice(i * FX.chunk, (i + 1) * FX.chunk), b => { job.pct = (i * FX.chunk + b) / Math.max(1, f.size); fxPaint(); }); break; }
+          catch (e) {
+            if (a >= 2 || job.state === "stop" || !(e.raw === "net" || /^HTTP 5/.test(e.raw || ""))) throw e;
+            await new Promise(s => setTimeout(s, 3000 * (a + 1)));
+          }
+        }
       }
       job.pct = 1; job.state = "wait"; job.at = Date.now();   // "done" once the phone lists it (state files, next sync)
     }
@@ -76,19 +84,42 @@ function fxSave(blob, name) {
 }
 // One file (or its thumbnail) from the phone as chunks: LAN GET /files/<id>[?thumb=1], or relay fileUp {file, thumb?} + poll the parent channel.
 // job = the progress object (any {state, pct}); returns { parts, drop } (drop = delete the relay copy once the caller has used it).
-async function fxFetch(k, f, job, thumb) {
+// The parent app's download bridge (KGApp.dlBegin/dlChunk/dlEnd, Downloads.kt): ~768 KiB base64 pieces; null = none.
+function fxSink(name) {
+  if (!APP || !(window.KGApp && KGApp.dlBegin)) return null;
+  const id = KGApp.dlBegin(name, "application/octet-stream"); if (!id) return null;
+  let buf = [], n = 0;
+  const flush = async () => {
+    if (!n) return;
+    const d = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => no(r.error); r.readAsDataURL(new Blob(buf)); });
+    buf = []; n = 0;
+    if (!KGApp.dlChunk(id, d.slice(d.indexOf(",") + 1))) throw errOf("failed");
+  };
+  return {
+    put: async u => { buf.push(u); n += u.length; if (n >= 786432) await flush(); },
+    end: async ok => { if (ok) await flush(); KGApp.dlEnd(id, ok ? "true" : "false"); },
+  };
+}
+async function fxFetch(k, f, job, thumb, toDisk) {
   const parts = [];
   if (!fxRelay(k)) {
     const ctl = new AbortController(); job.abort = () => ctl.abort();
     const r = await fetch(base(k) + "/files/" + f.id + (thumb ? "?thumb=1" : ""), { headers: fxHdr(k), signal: ctl.signal }).catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("net"); });
     if (!r.ok) { const j = await r.json().catch(() => ({})); throw errOf(j.error || "HTTP " + r.status); }
     const total = +r.headers.get("content-length") || f.size || 1, rd = r.body.getReader(); let got = 0;
-    for (;;) {
-      const { done, value } = await rd.read().catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("incomplete"); });
-      if (done) break; parts.push(value); got += value.length; job.pct = got / total; fxPaint();
-    }
-    if (!thumb && got < f.size) throw errOf("incomplete");
-    return { parts, drop: null };
+    // parent app: written straight to Downloads as it comes (a 200 MB file held twice in the WebView, ~400 MB, could
+    // crash it on a small phone; review 2026-11-18), the browser keeps the whole file for its own save
+    const sink = toDisk && !thumb && fxSink(f.name);
+    try {
+      for (;;) {
+        const { done, value } = await rd.read().catch(e => { throw e.name === "AbortError" ? fxStop() : errOf("incomplete"); });
+        if (done) break; got += value.length; job.pct = got / total; fxPaint();
+        if (sink) await sink.put(value); else parts.push(value);
+      }
+      if (!thumb && got < f.size) throw errOf("incomplete");
+      if (sink) await sink.end(true);
+    } catch (e) { if (sink) sink.end(false); throw e; }
+    return { parts, drop: null, saved: !!sink };
   }
   if (!thumb && f.size > FX.relay) throw errOf("relayBig", t("fx.e.relayBig", fxSize(FX.relay)));
   job.state = "wait"; job.at = Date.now(); fxPaint();
@@ -122,8 +153,8 @@ async function fxGet(f) {
   fx.jobs.unshift(job); fxPaint();
   try {
     let parts = [], relayDel = null;
-    const got = await fxFetch(k, f, job); parts = got.parts; relayDel = got.drop;
-    fxSave(new Blob(parts), f.name); parts = null; job.state = "done"; job.pct = 1;
+    const got = await fxFetch(k, f, job, false, true); parts = got.parts; relayDel = got.drop;
+    if (!got.saved) fxSave(new Blob(parts), f.name); parts = null; job.state = "done"; job.pct = 1;
     // relay: drop the relay copy only after the browser took the file (a failed save keeps it for a retry)
     if (relayDel) relayDel();
   } catch (e) { job.state = e.raw === "abort" ? "stop" : "err"; job.err = fxErr(e); }

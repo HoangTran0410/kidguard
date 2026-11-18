@@ -166,7 +166,7 @@ class ChatActivity : Activity() {
         val t = ChatLogic.clean(input.text.toString())
         if (t.isEmpty() || !s.addChat("k", "", t)) return
         input.setText("")
-        Guard.running?.kick()
+        Guard.running?.kick(); Guard.running?.relayNow()
         draw(true)
     }
 

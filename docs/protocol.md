@@ -667,7 +667,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
 - **SOS**: the child's KidGuard screen has a red "SOS" button (one confirm). The phone stores `{id, t}` (max 10;
   a second press within 30 s is ignored), logs "Con bấm SOS", takes a location fix (`locate`) and syncs the relay at
   once (and again 15 s later, for the fix). State adds `"sos": [{"id": "a1b2c3", "t": 1793940898493}]`.
-- Command `sosAck {sos?}` (no `sos` = all; `sos` = one SOS id): removes it. v0.9.3: the SOS id moved from `id` to `sos`,
+- Command `sosAck {sos?}` (no `sos` = all; `sos` = one SOS id, or 0.9.41 several ids joined by `,`, the page sends the ones it showed): removes them. v0.9.3: the SOS id moved from `id` to `sos`,
   because `id` is the command's dedupe key and the relay fills in a random one (so a relay ack never matched anything).
   Result `ok | no such sos`. In the worker whitelist.
 - Page: red banner on every tab while `sos` is not empty: time, "Xem vị trí", "Nghe xung quanh" (LAN only), "Đã xử lý" (= `sosAck` without `id`).
@@ -1347,6 +1347,10 @@ Code: `Files.kt` (Android), `FilesLogic.kt` (pure: names, caps, listing JSON; `F
   `fileDel {file: <id>}` = the LAN `DELETE` (deliver-once). Both are in the worker whitelist.
   `fileUp` / `shotUp` "ok" = the upload started (a second one for the same file while it runs is ignored); a failed
   upload adds a log line (`state.log`). Files nobody fetched are removed by the DO alarm at the 1 h TTL (0.9.18).
+  0.9.41: `fileUp` / `shotUp` are SHORT (dropped 10 min after queued: the page stops waiting after 5 min) and a new
+  `fileUp` replaces a still-queued one for the same `file` (+ `thumb`), so a phone that slept uploads it once.
+  The page re-sends a failed chunk (3 tries, same `fid`); `DELETE` of a file not yet whole gives its daily quota back.
+  Parent app over LAN: the download is written to Downloads as it arrives (`KGApp.dlBegin/dlChunk/dlEnd`), not held in memory.
 - Wrong-PIN photo: command `shotUp {shot: <id>}` (not deliver-once; `no such photo` if gone) posts that photo with `fid = id`;
   the page reads it like a `fileUp` download (one chunk), then `DELETE`s it. LAN: `GET /api/shot/<id>`.
 - Parent app: the proxy streams bodies (up to 210 MB request, LAN `GET /api/files/<id>` response streamed with Content-Length) for `/api/files…` and relay `/c/<id>/file` only; other routes keep the 512 KB cap. The WebView offers a file chooser and saves downloads (bridge `KGApp.files()`).

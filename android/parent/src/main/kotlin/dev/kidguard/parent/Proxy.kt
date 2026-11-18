@@ -202,7 +202,7 @@ class Proxy(private val ctx: Context, val port: Int) {
 
     private fun store(key: String, target: String, rest: String, body: ByteArray) {
         val now = System.currentTimeMillis()
-        if (now - (lastWrite[key] ?: 0L) < 10_000) return   // the page polls every few seconds: write at most every 10 s
+        if (now - (lastWrite[key] ?: 0L) < 60_000) return   // the page polls every few seconds: write at most every minute (2 files, ~100 KB each)
         lastWrite[key] = now
         try {
             val o = JSONObject().put("t", now).put("body", JSONObject(String(body, Charsets.UTF_8)))

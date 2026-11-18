@@ -230,6 +230,12 @@ class Guard : Service() {
     /** Watchdog alarm: one relay sync now, even in Doze (null when no relay is set up: then nothing to do). */
     fun relayWake(): Unit? = relay?.wake()
 
+    /**
+     * SOS / check-in / the child's chat: sync the relay now even while it backs off after failures ([Relay.kick] waits
+     * then: up to 5 min, review 2026-11-18 "SOS stuck after the network came back").
+     */
+    fun relayNow() { relay?.wake() }
+
     fun kick() { if (::work.isInitialized) work.post { if (!stopped) runCatching { tick(true) }.onFailure { Log.e("KidGuard", "kick", it) } } }
 
     /** Many pokes in a burst (accessibility events) become one tick 300 ms after the last. */
@@ -1042,8 +1048,8 @@ class Guard : Service() {
     fun checkin(ck: String): Boolean {
         if (!checkinNow(this, store, ck)) return false
         runCatching { locate() }
-        kick(); relay?.kick()
-        if (::work.isInitialized) work.postDelayed({ relay?.kick() }, 15_000)
+        kick(); relayNow()
+        if (::work.isInitialized) work.postDelayed({ relayNow() }, 15_000)
         return true
     }
 
@@ -1052,9 +1058,9 @@ class Guard : Service() {
         store.addSos() ?: return false
         store.log(R.string.log_sos)
         runCatching { locate() }
-        kick(); relay?.kick()
+        kick(); relayNow()
         // once more when the location fix has had time to come in
-        if (::work.isInitialized) work.postDelayed({ relay?.kick() }, 15_000)
+        if (::work.isInitialized) work.postDelayed({ relayNow() }, 15_000)
         return true
     }
 

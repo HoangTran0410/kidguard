@@ -845,8 +845,8 @@ class Store private constructor(private val app: Context) {
     }
     /** Clears SOS [id], or all of them for "all". Returns how many were removed. */
     @Synchronized fun ackSos(id: String): Int {
-        val a = sos(); val keep = JSONArray()
-        for (i in 0 until a.length()) { val o = a.getJSONObject(i); if (id != "all" && o.optString("id") != id) keep.put(o) }
+        val a = sos(); val keep = JSONArray(); val ids = id.split(",").map { it.trim() }.toSet()   // "id1,id2": the ones the parent saw
+        for (i in 0 until a.length()) { val o = a.getJSONObject(i); if (id != "all" && o.optString("id") !in ids) keep.put(o) }
         p.edit().putString("sos", keep.toString()).apply()
         return a.length() - keep.length()
     }

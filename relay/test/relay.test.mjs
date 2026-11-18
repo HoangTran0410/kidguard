@@ -300,6 +300,8 @@ ck("file wrong token 401",(await fetch(`${B}/c/${id5}/file?to=kid`,{headers:H(BA
 ck("file delete ok",(await (await U(`?fid=${fid}`,"DELETE")).json()).ok===true);
 ck("file gone after delete",(await U(`?fid=${fid}&i=0`)).status==404&&(await (await U("?to=kid")).json()).files.length==0);
 ck("cmd fileUp whitelisted",(await (await fetch(`${B}/c/${id5}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"fu",file:fid})})).json()).result=="queued");
+await fetch(`${B}/c/${id5}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"fu",file:fid})});
+ck("fileUp again for the same file replaces the queued one",(((await (await fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:H(),body:"{}"})).json()).cmds)||[]).filter(c=>c.type=="fileUp"||c.type=="fu").length==1);
 // 50 MB accepted, total cap 100 MB per kid, daily quota (300 MB / 100 files) answers 429 {error:"quota", retryAt}
 {const nid=()=>Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),MB=1048576;
 const mk=async()=>{const k=nid();await fetch(`${B}/c/${k}/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{}})});return k;};
@@ -312,11 +314,12 @@ ck("file second 50 MB fits the 100 MB total",(await st(k,f16(3),50*MB)).status==
 ck("file over the 100 MB total 507",(await st(k,f16(4),MB)).status==507);
 k=await mk();let c=0,last;
 for(let n=0;n<7;n++){last=await st(k,f16(10+n),50*MB);if(last.status==200)c++;await st(k,f16(10+n),50*MB,"DELETE");}
-const qb=await last.json();ck("daily quota: 6 x 50 MB ok, 7th 429 quota + retryAt",c==6&&last.status==429&&qb.error=="quota"&&qb.retryAt>Date.now());
+ck("daily quota: an unfinished file dropped gives back its unsent bytes (7 x 50 MB starts of 1 MB ok)",c==7&&last.status==200);
+// (the 300 MB byte cap now needs whole uploads, too many requests here; the 100-file cap below still answers 429)
 k=await mk();c=0;
 const slp=ms=>new Promise(r=>setTimeout(r,ms));
 for(let n=0;n<101;n++){if(n==35||n==70)await slp(11000);last=await st(k,f16(1000+n),1);if(last.status==200)c++;await st(k,f16(1000+n),1,"DELETE");}
-ck("daily quota: 100 files ok, 101st 429",c==100&&last.status==429);
+{const qb=await last.json();ck("daily quota: 100 files ok, 101st 429 quota + retryAt",c==100&&last.status==429&&qb.error=="quota"&&qb.retryAt>Date.now());}
 // chat attachment: meta kept in the listing; thumbnail (thumb=1) not counted in the quota and capped at 200 KB; command shapes
 await slp(11000);k=await mk();
 const mq=(fid,x)=>fetch(`${B}/c/${k}/file?fid=${fid}&i=0&n=1&to=kid&size=1&name=a.jpg${x}`,{method:"POST",headers:H(),body:Buffer.alloc(1)});
