@@ -236,7 +236,10 @@ class MainActivity : Activity() {
         if (c != null) {
             Update.confirm = null
             if (System.currentTimeMillis() - Update.confirmAt < 10 * 60_000L) { launched = true; runCatching { startActivity(c) } }
-        } else if (Update.wanted && !updPolling && Update.stateJson(this).optString("status") == "ready") Update.installInteractive(this)
+        } else if (Update.wanted && !updPolling) ui.postDelayed({
+            // after a Back on the confirm screen the ABORTED broadcast (clears [Update.wanted]) may come after this onResume
+            if (Update.wanted && !updPolling && Update.stateJson(this).optString("status") == "ready") Update.installInteractive(this)
+        }, 1500)
     }
 
     /** "Kiểm tra cập nhật": forced [Update.start] on its own thread; the row's text shows progress, polled from [Update.stateJson]. */

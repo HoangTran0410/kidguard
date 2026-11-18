@@ -61,7 +61,7 @@ object CrashGuard {
                 val now = System.currentTimeMillis()
                 val launcher = HomeActivity.alive > 0 && runCatching { LauncherLogic.isLauncherCrash(frames(e)) }.getOrDefault(true)
                 val loopNow = synchronized(recent) { recent.removeAll { now - it !in 0 until CrashGuardLogic.WINDOW_MS }; recent.add(now); recent.size }
-                if (!CrashGuardLogic.survive(e is OutOfMemoryError, loopNow)) throw e   // default handler: LauncherSafe + Support, process dies
+                if (!CrashGuardLogic.survive(e is OutOfMemoryError, loopNow) || CrashGuardLogic.componentCrash(methods(e))) throw e   // default handler: LauncherSafe + Support, process dies
                 Log.e(TAG, "main-thread crash (launcher=$launcher), screens closed, process kept", e)
                 runCatching { Support.recordCrash(app, Thread.currentThread(), e) }
                 // a launcher crash still counts (2nd = layout reset, 3rd = SafeHome): the fresh HomeActivity below reads it
@@ -86,6 +86,8 @@ object CrashGuard {
         else if (closed > 0) runCatching { Toast.makeText(app, R.string.crash_closed, Toast.LENGTH_LONG).show() }
     }
 
+    private fun methods(e: Throwable): List<String> = runCatching { e.stackTrace.map { it.className + "." + it.methodName } }.getOrDefault(emptyList())
+
     private fun frames(e: Throwable): List<String> {
         val out = ArrayList<String>(); var c: Throwable? = e; var n = 0
         while (c != null && n++ < 6) { c.stackTrace.mapTo(out) { it.className }; c = c.cause }
@@ -101,4 +103,11 @@ object CrashGuardLogic {
     const val MAX_IN_WINDOW = 5
 
     fun survive(outOfMemory: Boolean, crashesInWindow: Int): Boolean = !outOfMemory && crashesInWindow <= MAX_IN_WINDOW
+
+    /**
+     * A crash while Android creates / starts a service or runs a receiver ("Class.method" frames): the process must die
+     * so START_STICKY brings a whole Guard back; kept alive it would be half built (http / relay never started). Review 2026-11-18.
+     */
+    private val COMPONENT = listOf("handleCreateService", "handleServiceArgs", "handleBindService", "handleReceiver")
+    fun componentCrash(methods: List<String>): Boolean = methods.any { m -> m.startsWith("android.app.ActivityThread.") && COMPONENT.any { m.endsWith(".$it") } }
 }

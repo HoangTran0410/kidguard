@@ -20,4 +20,10 @@ class CrashGuardTest {
         assertEquals(3, n)
         assertTrue(CrashGuardLogic.survive(false, n))
     }
+
+    @Test fun serviceAndReceiverCrashesKillTheProcess() {
+        org.junit.Assert.assertTrue(CrashGuardLogic.componentCrash(listOf("dev.kidguard.Guard.onCreate", "android.app.ActivityThread.handleCreateService")))
+        org.junit.Assert.assertTrue(CrashGuardLogic.componentCrash(listOf("android.app.ActivityThread.handleReceiver")))
+        org.junit.Assert.assertFalse(CrashGuardLogic.componentCrash(listOf("dev.kidguard.HomeActivity.onResume", "android.app.ActivityThread.handleResumeActivity")))
+    }
 }

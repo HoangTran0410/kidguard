@@ -246,7 +246,7 @@ object SelfSetup {
     /** Starts the job on a background thread: pair with [code], connect, run every step. Port 0 = use the discovered one. */
     fun start(ctx: Context, code: String, pairPort: Int = 0, connPort: Int = 0, pairOnly: Boolean = false) {
         val app = ctx.applicationContext
-        synchronized(this) { if (running) return; running = true; done = false; message = ""; wifiOff = null; basic = false; state.fill(STEP_TODO) }
+        synchronized(this) { if (running || resuming) return; running = true; done = false; message = ""; wifiOff = null; basic = false; state.fill(STEP_TODO) }
         startDiscovery(app)
         Thread({ runCatching { job(app, code.trim(), pairPort, connPort, pairOnly) }.onFailure { Log.w(AdbPortFinder.TAG, "job", it); fail(app, it.message ?: it.toString()) }; this.pairOnly = false; running = false }, "selfsetup").start()
     }
@@ -264,6 +264,7 @@ object SelfSetup {
 
     private fun job(app: Context, code: String, pairPort: Int, connPort: Int, onlyPair: Boolean) {
         val m = SelfAdb.manager(app)
+        runCatching { m.setTimeout(10, java.util.concurrent.TimeUnit.SECONDS) }   // a hung connect must not keep [running] (and SelfAdb) blocked
         // 1) pair, then connect
         mark(app, 0, STEP_RUN)
         // the shared manager may still hold an old link (5555, an old Wireless debugging port): libadb's connect() then

@@ -378,6 +378,15 @@ async function relayMigrate(k) {
   } catch {}
 }
 const healing = new Map();
+// /api/hello?n= proof (LanName.proof): HMAC-SHA256(key = sha256-hex(token), "kg-lan:" + n). Only where crypto.subtle
+// exists (the parent app's localhost page); a plain-http browser page already sends its token in the clear.
+const hexOf = b => Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, "0")).join("");
+async function lanProof(token, n) {
+  const enc = new TextEncoder();
+  const h = hexOf(await crypto.subtle.digest("SHA-256", enc.encode(token)));
+  const key = await crypto.subtle.importKey("raw", enc.encode(h), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return hexOf(await crypto.subtle.sign("HMAC", key, enc.encode("kg-lan:" + n)));
+}
 function relocate(k) {
   if (healing.has(k)) return healing.get(k);
   if (Date.now() - (k.healAt || 0) < 20000) return Promise.resolve(false);
@@ -387,9 +396,13 @@ function relocate(k) {
     if (!u || tried.has(u)) return false;
     tried.add(u);
     try {
-      const r = await fetch(lanApi(u) + "/hello", { signal: quick(4000) });
+      const sub = window.crypto && crypto.subtle && k.token;
+      const n = sub ? hexOf(crypto.getRandomValues(new Uint8Array(16))) : "";
+      const r = await fetch(lanApi(u) + "/hello" + (n ? "?n=" + n : ""), { signal: quick(4000) });
       const h = r.ok ? await r.json() : null;
-      if (h && h.id === k.id) { try { window.KGApp && KGApp.lanMoved && KGApp.lanMoved(k.id, u); } catch {} const from = k.target; k.target = u; k.alt = [from, ...(k.alt || [])].filter(x => x !== u).slice(0, 4); k.fb = 0; save(kids); toast("ok|" + t("lan.moved", u.replace(/^http:\/\//, ""))); return true; }
+      // the old IP may now be someone else's device answering with the (public) id: it must prove it holds our token
+      const proven = !n || (Array.isArray(h && h.proof) && h.proof.includes(await lanProof(k.token, n)));
+      if (h && h.id === k.id && proven) { try { window.KGApp && KGApp.lanMoved && KGApp.lanMoved(k.id, u); } catch {} const from = k.target; k.target = u; k.alt = [from, ...(k.alt || [])].filter(x => x !== u).slice(0, 4); k.fb = 0; save(kids); toast("ok|" + t("lan.moved", u.replace(/^http:\/\//, ""))); return true; }
     } catch {}
     return false;
   };

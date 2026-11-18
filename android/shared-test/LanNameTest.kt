@@ -27,5 +27,7 @@ class LanNameTest {
         assertEquals(LanName.proof(h, "nonce-1234567890"), LanName.proof(LanName.tokenHash("tok"), "nonce-1234567890"))
         assertFalse(LanName.proof(h, "nonce-1234567890") == LanName.proof(LanName.tokenHash("tok2"), "nonce-1234567890"))
         assertFalse(LanName.proof(h, "nonce-1234567890") == LanName.proof(h, "nonce-0987654321"))
+        // the same vector as core.js lanProof (WebCrypto) and Python hmac: the page and both apps agree byte for byte
+        assertEquals("e596ba42e034e7b3d8cd523c8d2dfbe74ce9816634a5ea2db0006857657944d0", LanName.proof(LanName.tokenHash("tok"), "abc"))
     }
 }

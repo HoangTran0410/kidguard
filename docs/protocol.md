@@ -285,8 +285,10 @@ The first capture / first input of a session is logged in the phone log.
   starts; asked every 1.5 s, up to 8×) or `"none"` (nothing / no Wi-Fi: no wait), and `KGApp.lanMoved(id, url)` after the
   switch; the background check, notification and widget actions try the found address (pref hint per kid id) before
   the relay. An NSD-found address gets the token only after `GET /api/hello?n=<nonce>` returns the same `id` AND a
-  `proof` made from that token (0.9.39: the name and id are public, a look-alike must not get the token). Browser pages
-  have no NSD (alt + relay only).
+  `proof` made from that token (0.9.39: the name and id are public, a look-alike must not get the token). 0.9.40: the
+  page's own probes (`alt`, relay-state addresses) send `?n=` too and require the proof where `crypto.subtle` exists
+  (parent app, localhost); a plain-http browser page keeps the id check. A failed search is remembered 60 s (page) /
+  2 min (background) per kid. Browser pages have no NSD (alt + relay only).
 - **Relay on by default** (`Store.defaultRelay`, each guard tick): once a parent has paired, a phone that never had a
   relay setting (pref `relayUrl` absent) gets `Relay.DEFAULT_URL` (the author's shared worker, same constant as
   `DEFAULT_RELAY` in `core.js`) with a new relay id/token (device row "relay"). `relay{url:""}` = relay off: the url is

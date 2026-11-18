@@ -56,11 +56,14 @@ object Lan {
      */
     fun find(c: Context, id: String, token: String, skip: String, ms: Long = 6_000): String? {
         if (id.isEmpty() || token.isEmpty() || !onWifi(c)) return null
+        if (System.currentTimeMillis() - (missed[id] ?: 0L) < 120_000) return null   // just looked, nothing: don't delay every check
         hint(c, id)?.takeIf { it != skip && same(it, id, token) }?.let { return it }
         scan(c, ms, id)
-        for ((name, url) in seen) if (LanName.matches(name, id) && url != skip && same(url, id, token)) { setHint(c, id, url); return url }
+        for ((name, url) in seen) if (LanName.matches(name, id) && url != skip && same(url, id, token)) { setHint(c, id, url); missed.remove(id); return url }
+        missed[id] = System.currentTimeMillis()
         return null
     }
+    private val missed = ConcurrentHashMap<String, Long>()
 
     /**
      * For the page (never blocks the JS thread): a proven address, "" = still looking (ask again), "none" = looked, nothing
@@ -71,7 +74,7 @@ object Lan {
         verified.remove(id)?.let { return it }
         val st = looking[id]
         if (st == 0L) return ""
-        if (st != null && System.currentTimeMillis() - st < 15_000) return "none"
+        if (st != null && System.currentTimeMillis() - st < 60_000) return "none"   // > the page's 20 s heal throttle: an offline kid costs one scan a minute
         val k = Logic.parseKids(Store.kids(c)).firstOrNull { it.id == id && it.via == "lan" } ?: return "none"
         looking[id] = 0L
         Thread({

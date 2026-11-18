@@ -76,6 +76,8 @@ object Update {
     /** The child-confirmed install session in flight (-1 none): a new one abandons it, so covered screens leave no staged APKs. */
     @Volatile var uiSession = -1; private set
     private val uiStarting = java.util.concurrent.atomic.AtomicBoolean(false)
+    /** Sessions we abandoned for a newer one: their ABORTED is not the child's answer. */
+    val abandoned: MutableSet<Int> = java.util.Collections.synchronizedSet(HashSet())
     /**
      * The system "Update this app?" screen from [UpdateReceiver]. Android 14+ may refuse to start it from that
      * broadcast (background activity start), so MainActivity starts it itself: at once when it is showing
@@ -252,6 +254,8 @@ object Update {
             // success replaces this process before we get here; "needs the child" comes back as err_user_action
             // someone is waiting on screen: an install that asks comes back at once; silence is not worth 90 s of "installing…"
             val res = pi.openSession(id).use { s -> Ts.commitAndWait(ctx, s, "dev.kidguard.SELF_UPDATE", if (wanted) 20 else 90) }
+            // no answer in time: the install may still be running (big APK, slow dexopt): don't cancel it, it replaces us
+            if (res == ctx.getString(R.string.err_timeout)) { Log.i(TAG, "quiet update still running after the wait"); return@runCatching true }
             if (res != null) { Log.i(TAG, "quiet update refused: $res"); runCatching { pi.abandonSession(id) } }
             res == null
         }.getOrElse { Log.w(TAG, "quiet update", it); if (open >= 0) runCatching { pi.abandonSession(open) }; false }
@@ -272,7 +276,8 @@ object Update {
             runCatching {
                 val (pi, id) = session(app, f)
                 val old = uiSession; uiSession = id
-                if (old >= 0) runCatching { pi.abandonSession(old) }
+                // only a session still open is ours to abandon (and its ABORTED to ignore); one the child closed already says ABORTED itself
+                if (old >= 0 && pi.getSessionInfo(old) != null) { abandoned.add(old); runCatching { pi.abandonSession(old) } }
                 pi.openSession(id).use { s ->
                     val pend = PendingIntent.getBroadcast(app, 7, Intent(ACTION).setClass(app, UpdateReceiver::class.java),
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
@@ -330,7 +335,7 @@ class UpdateReceiver : BroadcastReceiver() {
         val st = i.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)
         // an older session we abandoned for a new one says ABORTED: not the child's answer
         val sid = i.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
-        if (st != PackageInstaller.STATUS_SUCCESS && sid >= 0 && Update.uiSession >= 0 && sid != Update.uiSession) return
+        if (st != PackageInstaller.STATUS_SUCCESS && sid >= 0 && Update.abandoned.remove(sid)) return
         when (st) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 @Suppress("DEPRECATION") val confirm = i.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
