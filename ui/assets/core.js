@@ -297,7 +297,7 @@ async function lanFromGo(h) {
   kids = kids.concat(k); save(kids);
   open(k);
 }
-const canHeal = k => !LOCAL && !!((k.alt && k.alt.length) || k.relay);
+const canHeal = k => !LOCAL && !!((k.alt && k.alt.length) || k.relay || (APP && window.KGApp.lanFind));
 const relayable = (path, method) => (path === "/state" && method === "GET") || (path === "/cmd" && method === "POST") || (path === "/rules" && method === "PUT");
 const addrsOf = s => { if (!s) return [];
   const out = []; if (typeof s.lan === "string" && /^http:\/\/[\d.]+:\d+$/.test(s.lan)) out.push(s.lan);
@@ -389,12 +389,18 @@ function relocate(k) {
     try {
       const r = await fetch(lanApi(u) + "/hello", { signal: quick(4000) });
       const h = r.ok ? await r.json() : null;
-      if (h && h.id === k.id) { const from = k.target; k.target = u; k.alt = [from, ...(k.alt || [])].filter(x => x !== u).slice(0, 4); k.fb = 0; save(kids); toast("ok|" + t("lan.moved", u.replace(/^http:\/\//, ""))); return true; }
+      if (h && h.id === k.id) { try { window.KGApp && KGApp.lanMoved && KGApp.lanMoved(k.id, u); } catch {} const from = k.target; k.target = u; k.alt = [from, ...(k.alt || [])].filter(x => x !== u).slice(0, 4); k.fb = 0; save(kids); toast("ok|" + t("lan.moved", u.replace(/^http:\/\//, ""))); return true; }
     } catch {}
     return false;
   };
   const p = (async () => {
     for (const u of k.alt || []) if (await probe(u)) return true;
+    // parent app: the kid advertises itself on the Wi-Fi (NSD, LanName.kt); the app scans in the background, ask ~4.5 s
+    if (APP && window.KGApp.lanFind) for (let i = 0; i < 3; i++) {
+      let u = ""; try { u = String(KGApp.lanFind(k.id) || ""); } catch {}
+      if (u && /^http:\/\/[0-9.]+:\d+$/.test(u) && await probe(u)) return true;
+      await new Promise(r => setTimeout(r, 1500));
+    }
     if (k.relay) { try { const j = await viaRelay(k, "/state", "GET"); for (const u of addrsOf(j && j.state)) if (await probe(u)) return true; } catch {} }
     return false;
   })().finally(() => healing.delete(k));

@@ -75,7 +75,7 @@ class CheckJob : JobService() {
             val cm = c.getSystemService(ConnectivityManager::class.java)
             if (cm.activeNetwork == null) return   // our own phone is offline: nothing to conclude about the kid
             val now = System.currentTimeMillis()
-            val seen = fetch(k)
+            val seen = fetch(k, c)
             if (seen == null) {   // 401/403: unpaired (not just offline): tell the parent once instead of going silent
                 if (!Store.unpairedSeen(c, k.key) && canNotify(c)) { Store.setUnpairedSeen(c, k.key, true); postUnpaired(c, k) }
                 return
@@ -122,10 +122,12 @@ class CheckJob : JobService() {
          * null = really unpaired. A LAN 401/403 counts only when /api/hello (no token) still names this kid: the saved IP may now
          * belong to another KidGuard phone, which rejects our token. A LAN kid that is unreachable falls back to its relay.
          */
-        fun fetch(k: Logic.KidCfg): Logic.Seen? {
+        fun fetch(k: Logic.KidCfg, c: Context? = null): Logic.Seen? {
             val r = fetchOne(k.target, k.via == "lan", k.id, k.token)
             if (k.via != "lan" || (r != null && r.fetchOk)) return r
             if (r == null && sameKid(k)) return null
+            // the router gave the kid a new IP: the address it advertises on this Wi-Fi (Lan, NSD), checked by /api/hello
+            if (c != null) Lan.find(c, k.id, k.target)?.let { u -> fetchOne(u, true, k.id, k.token)?.let { if (it.fetchOk) return it } }
             if (k.hasRelay) fetchOne(k.relay!!, false, k.relayId, k.relayToken)?.let { if (it.fetchOk) return it }
             return Logic.Seen(false, emptyList(), 0)
         }

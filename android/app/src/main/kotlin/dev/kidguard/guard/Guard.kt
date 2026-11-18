@@ -188,6 +188,7 @@ class Guard : Service() {
         runCatching { registerReceiver(timeReceiver, IntentFilter(Intent.ACTION_TIME_CHANGED).apply { addAction(Intent.ACTION_TIMEZONE_CHANGED) }) }
         wifiSync()
         http = Http(this, Api(this)).also { it.start(PORT) }
+        LanAd.start(this, store.id, PORT)   // the parent app finds this phone again after an IP change (LanName)
         relay = Relay(this).also { it.start() }
         KidPush.init(this)   // FCM token for the push wake (kid flavor; sent with the next relay sync)
         relayPair = RelayPair(this).also { it.start() }   // pair from anywhere: only while no parent exists
@@ -205,7 +206,7 @@ class Guard : Service() {
     override fun onTaskRemoved(rootIntent: Intent?) { start(this); super.onTaskRemoved(rootIntent) }
 
     override fun onDestroy() {
-        if (released) { super.onDestroy(); return }
+        if (released) { LanAd.stop(); super.onDestroy(); return }
         running = null
         runCatching { unregisterReceiver(pkgReceiver) }
         runCatching { unregisterReceiver(timeReceiver) }
@@ -214,7 +215,7 @@ class Guard : Service() {
         runCatching { contentResolver.unregisterContentObserver(dnsObserver) }
         Listen.stopAll(); Proj.stop(this); Ring.stop(this)
         wifiLock(false); motionOff()
-        http?.stop(); relay?.stop(); relayPair?.stop(); Tg.stop()
+        http?.stop(); LanAd.stop(); relay?.stop(); relayPair?.stop(); Tg.stop()
         work.looper.quitSafely()
         super.onDestroy()
     }

@@ -67,5 +67,6 @@ object Lang {
 
 /** Application: applicationContext (CheckJob, Push, ResTr) answers in the chosen language. */
 class App : Application() {
+    override fun onCreate() { super.onCreate(); Notif.appCtx = this }
     override fun getResources(): Resources = Lang.res(baseContext) ?: super.getResources()
 }

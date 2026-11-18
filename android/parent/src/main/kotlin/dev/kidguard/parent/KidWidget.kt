@@ -65,6 +65,8 @@ class KidWidget : AppWidgetProvider() {
         private fun routes(k: Logic.KidCfg): List<Triple<String, String, String>> {   // base, token, via
             val lan = k.via == "lan"
             return listOf(Triple(k.target + (if (lan) "/api" else "/c/${k.id}"), k.token, k.via)) +
+                // a LAN kid on a new IP found earlier by [Lan] (checked: still this kid)
+                (if (lan) Notif.appCtx?.let { c -> Lan.hint(c, k.id)?.takeIf { it != k.target && Lan.same(it, k.id) } }?.let { listOf(Triple("$it/api", k.token, "lan")) } ?: emptyList() else emptyList()) +
                 (if (lan && k.hasRelay) listOf(Triple(k.relay + "/c/${k.relayId}", k.relayToken, "relay")) else emptyList())
         }
         private fun h(token: String) = mapOf("X-KG-Token" to token, "Content-Type" to "application/json")
@@ -124,7 +126,7 @@ class KidWidget : AppWidgetProvider() {
             update(c)
         }
 
-        private fun refreshKid(c: Context, k: Logic.KidCfg) { CheckJob.fetch(k)?.let { save(c, k, it) } }
+        private fun refreshKid(c: Context, k: Logic.KidCfg) { CheckJob.fetch(k, c)?.let { save(c, k, it) } }
         /** Fetches the (max 3) shown kids; for the check when notifications are off and for a new widget. */
         fun refreshAll(c: Context) { for (k in Logic.parseKids(Store.kids(c)).take(WidgetLogic.MAX_KIDS)) refreshKid(c, k) }
 

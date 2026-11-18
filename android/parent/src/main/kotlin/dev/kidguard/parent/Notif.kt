@@ -24,6 +24,8 @@ import org.json.JSONObject
  * - one notification id per event key (same as before), grouped per kid with a quiet summary.
  */
 object Notif {
+    /** Set by [App]: the request / widget actions look up [Lan.hint] without a Context parameter. */
+    @Volatile var appCtx: android.content.Context? = null
     const val EXTRA_KID = "kg.kid"
     private const val ACT_ANSWER = "dev.kidguard.parent.ANSWER"
 
@@ -135,6 +137,8 @@ object Notif {
         val lan = k.via == "lan"
         val routes = ArrayList<Triple<String, String, String>>()   // base, token, via
         routes.add(Triple(k.target + (if (lan) "/api" else "/c/${k.id}"), k.token, k.via))
+        // a LAN kid on a new IP (found earlier by [Lan], still naming this kid): before the relay
+        if (lan) appCtx?.let { c -> Lan.hint(c, k.id)?.takeIf { it != k.target && Lan.same(it, k.id) }?.let { routes.add(Triple("$it/api", k.token, "lan")) } }
         if (lan && k.hasRelay) routes.add(Triple(k.relay + "/c/${k.relayId}", k.relayToken, "relay"))
         var body: JSONObject? = null
         var route = routes[0]

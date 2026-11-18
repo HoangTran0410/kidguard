@@ -277,6 +277,13 @@ The first capture / first input of a session is logged in the phone log.
   (screen, files, listen) fail as before. One heal attempt per kid per 20 s. Browser: probing works (CORS on `/api`),
   the relay fallback only in the parent app (the worker sends no CORS). A page served from the phone's old address
   dies with it (reload from the new one).
+- **LAN name** (0.9.38, `android/shared/LanName.kt`): while the guard runs, the kid phone advertises NSD (mDNS / DNS-SD)
+  service type `_kidguard._tcp`, name `kg-` + first 12 hex of SHA-256(kid id) (Android may append ` (2)`), port 8770
+  (`LanAd.kt`; kid flavor, no permission). The parent app (`Lan.kt`) scans for it when the saved LAN address fails:
+  page `relocate` step 2 (after `alt`, before the relay) via `KGApp.lanFind(id)` → `"http://ip:port"` or `""` (a scan
+  starts; asked 3× over ~4.5 s) and `KGApp.lanMoved(id, url)` after the switch; the background check, notification
+  and widget actions try the found address (pref hint per kid id) before the relay. Every address is used only after
+  `GET /api/hello` returns the same `id`. Browser pages have no NSD (alt + relay only).
 - **Relay on by default** (`Store.defaultRelay`, each guard tick): once a parent has paired, a phone that never had a
   relay setting (pref `relayUrl` absent) gets `Relay.DEFAULT_URL` (the author's shared worker, same constant as
   `DEFAULT_RELAY` in `core.js`) with a new relay id/token (device row "relay"). `relay{url:""}` = relay off: the url is
