@@ -1207,7 +1207,8 @@ Only volume, brightness, screen timeout and Do Not Disturb; anything else goes t
   for the session; the new process re-applies the policy on start). Basic mode can't: the child gets a notification and
   a **Cập nhật KidGuard** button that asks for "install unknown apps" once, then shows the system confirm screen.
 - **State** `update: {"latest": "0.9.1"|"" , "status": ""|"checking"|"downloading"|"installing"|"ready"|"failed",
-  "err": string, "checkedAt": epoch ms|0}`. `ready` = basic mode, downloaded and verified, waiting for the child's tap.
+  "err": string, "checkedAt": epoch ms|0, "pct": 0..100|-1}`. `ready` = basic mode, downloaded and verified, waiting for the child's tap.
+  `pct` (v0.9.36) = download progress while `downloading`, -1 otherwise or when the size is unknown.
   Absent on children older than 0.9 (the page hides its card).
 - **Parent app**: once a day the same `HEAD` from `CheckJob`; a newer tag than its own version gives one notification
   per version, the tap opens `releases/download/v<tag>/kidguard-parent-<tag>.apk` in the browser (no install permission).

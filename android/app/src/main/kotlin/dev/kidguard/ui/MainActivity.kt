@@ -222,17 +222,35 @@ class MainActivity : Activity() {
     private lateinit var updRow: Button
     private var updPolling = false
 
+    /**
+     * Update hand-off on every resume (owner 2026-11-18: downloaded, then nothing until he left, came back and tapped
+     * again): say "updated to vX" once after an install; while on screen, the confirm screen from [UpdateReceiver] is
+     * started from here (a background start can be blocked); one that came while away is started now; a download the
+     * child asked for that became "ready" while away goes on to the confirm screen.
+     */
+    private fun resumeUpdate() {
+        Update.justUpdated(this)?.let { Toasts.show(this, getString(R.string.upd_done, it), true) }
+        Update.showConfirm = { i -> ui.post { launched = true; runCatching { startActivity(i) } } }
+        val c = Update.confirm
+        if (c != null) {
+            Update.confirm = null
+            if (System.currentTimeMillis() - Update.confirmAt < 10 * 60_000L) { launched = true; runCatching { startActivity(c) } }
+        } else if (Update.wanted && !updPolling && Update.stateJson(this).optString("status") == "ready") Update.installInteractive(this)
+    }
+
     /** "Kiểm tra cập nhật": forced [Update.start] on its own thread; the row's text shows progress, polled from [Update.stateJson]. */
     private fun checkUpdate() {
         if (updPolling) return
         updPolling = true
         val runs0 = Update.runs
+        Update.wanted = true   // short quiet-install wait; "ready" opens the confirm screen, also after leaving and coming back
         val started = Update.start(this, true)   // false = a run is already going: just follow it
         val t0 = System.currentTimeMillis()
         val idle = getString(R.string.main_check_update, BuildConfig.VERSION_NAME)
         // the "…" sheet closes on tap, so every phase is also said in a toast (the row text alone was never seen)
         var said = ""
-        fun say(msg: String, long: Boolean = false) { updRow.text = msg; if (msg != said) { said = msg; Toasts.show(this, msg, long) } }
+        // one toast per phase ([key]); the row text follows the download percent
+        fun say(msg: String, long: Boolean = false, key: String = msg) { updRow.text = msg; if (key != said) { said = key; Toasts.show(this, msg, long) } }
         fun end(msg: String?) { updPolling = false; if (msg != null) say(msg, true) else updRow.text = idle; if (msg != null) ui.postDelayed({ if (!updPolling) updRow.text = idle }, 6_000) }
         say(getString(R.string.upd_checking))
         val tick = object : Runnable {
@@ -244,8 +262,13 @@ class MainActivity : Activity() {
                     System.currentTimeMillis() - t0 > 300_000 -> end(getString(R.string.upd_failed, getString(R.string.err_generic)))
                     !fresh -> ui.postDelayed(this, 400)
                     status == "checking" -> { say(getString(R.string.upd_checking)); ui.postDelayed(this, 400) }
-                    status == "downloading" -> { say(getString(R.string.upd_downloading, st.optString("latest"))); ui.postDelayed(this, 400) }
-                    status == "installing" -> { say(getString(R.string.upd_installing, st.optString("latest"))); ui.postDelayed(this, 600) }
+                    status == "downloading" -> {
+                        val pct = st.optInt("pct", -1)
+                        say(if (pct >= 0) getString(R.string.upd_downloading_pct, st.optString("latest"), pct) else getString(R.string.upd_downloading, st.optString("latest")), key = "downloading")
+                        ui.postDelayed(this, 400)
+                    }
+                    // the install replaces this app: it closes, and the new version says "updated" when it opens
+                    status == "installing" -> { say(getString(R.string.upd_installing_note, st.optString("latest")), true, key = "installing"); ui.postDelayed(this, 600) }
                     status == "failed" -> end(getString(R.string.upd_failed, st.optString("err").ifBlank { getString(R.string.err_generic) }))
                     status == "ready" -> {
                         if (Update.installInteractive(this@MainActivity)) end(getString(R.string.upd_installing, st.optString("latest")))
@@ -711,6 +734,7 @@ class MainActivity : Activity() {
         if (BuildConfig.DEBUG && intent?.getBooleanExtra("crashTest", false) == true) { intent.removeExtra("crashTest"); throw IllegalStateException("crashTest") }
         if (launcherPal().toString() != palKey) { recreate(); return }   // light / dark or accent changed in the launcher's Tuỳ chỉnh
         launched = false   // back from a screen we opened (see onStop)
+        resumeUpdate()
         if (::quickBox.isInitialized) layoutTiles()   // the parents may have switched "Dọn dẹp" on / off
         holding = null; holdBase.forEach { (b, t) -> b.text = t }   // a hint left over from before the pause
         if (::updRow.isInitialized && !updPolling) updRow.text = getString(R.string.main_check_update, BuildConfig.VERSION_NAME)
@@ -754,7 +778,7 @@ class MainActivity : Activity() {
             if (runCatching { startActivity(i); true }.getOrDefault(false)) return
         }
     }
-    override fun onPause() { super.onPause(); ui.removeCallbacksAndMessages(null); updPolling = false }   // the poll callback is gone: let the row be tapped again
+    override fun onPause() { super.onPause(); ui.removeCallbacksAndMessages(null); updPolling = false; Update.showConfirm = null }   // the poll callback is gone: let the row be tapped again
     override fun onDestroy() { sheet.dismiss(); FeaturesSheet.close(); super.onDestroy() }
 
     /**

@@ -265,6 +265,9 @@ object SelfSetup {
         val m = SelfAdb.manager(app)
         // 1) pair, then connect
         mark(app, 0, STEP_RUN)
+        // the shared manager may still hold an old link (5555, an old Wireless debugging port): libadb's connect() then
+        // returns false with no reason ("Không kết nối được tới chính máy này:" with nothing after it, owner 2026-11-18)
+        if (runCatching { m.isConnected }.getOrDefault(false)) { Log.i(AdbPortFinder.TAG, "dropping the old adb link"); runCatching { m.disconnect() }; SelfAdb.invalidate() }
         val pp = if (pairPort > 0) pairPort else waitFor(8000) { pairingPort }
         if (pp == 0) return fail(app, app.getString(R.string.ss_no_pair_port))
         val paired = runCatching { m.pair("127.0.0.1", pp, code) }
@@ -274,7 +277,7 @@ object SelfSetup {
         Log.i(AdbPortFinder.TAG, "paired, connecting to $cp")
         val c = runCatching { m.connect("127.0.0.1", cp) }
         Log.i(AdbPortFinder.TAG, "connect -> $c")
-        if (c.isFailure || c.getOrNull() != true) return fail(app, app.getString(R.string.ss_conn_fail, c.exceptionOrNull()?.message ?: ""))
+        if (c.isFailure || c.getOrNull() != true) return fail(app, app.getString(R.string.ss_conn_fail, c.exceptionOrNull()?.message?.takeIf { it.isNotBlank() } ?: app.getString(R.string.ss_conn_refused)))
         state[0] = STEP_OK
         if (onlyPair) {   // SelfAdb.pair: the key is paired, the shell works while Wireless debugging stays on
             runCatching { m.disconnect() }

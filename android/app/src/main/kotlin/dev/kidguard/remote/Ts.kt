@@ -428,7 +428,7 @@ object Ts {
     }
 
     /** Commits and waits for the status broadcast. Null = success, else a short reason. */
-    internal fun commitAndWait(ctx: Context, ses: PackageInstaller.Session, action: String): String? {
+    internal fun commitAndWait(ctx: Context, ses: PackageInstaller.Session, action: String, waitSec: Long = 90): String? {
         val done = CountDownLatch(1)
         var out: String? = ctx.getString(R.string.err_timeout)
         val r = object : BroadcastReceiver() {
@@ -447,7 +447,7 @@ object Ts {
             val pending = PendingIntent.getBroadcast(ctx, 0, Intent(action).setPackage(ctx.packageName),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
             ses.commit(pending.intentSender)
-            done.await(90, TimeUnit.SECONDS)
+            done.await(waitSec, TimeUnit.SECONDS)
         } finally { runCatching { ctx.unregisterReceiver(r) } }
         return out
     }

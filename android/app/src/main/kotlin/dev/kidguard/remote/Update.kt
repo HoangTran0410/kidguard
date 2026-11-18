@@ -61,6 +61,23 @@ object Update {
     @Volatile var latest = ""; private set
     @Volatile var status = ""; private set      // "", "checking", "downloading", "installing", "ready" (basic: waits for the child), "failed"
     @Volatile var err = ""; private set
+    /** Download progress 0..100 while "downloading", -1 = size unknown (state `update.pct`). */
+    @Volatile var pct = -1; private set
+    /**
+     * Someone is looking at KidGuard and asked for the update (MainActivity "Kiểm tra cập nhật"): the quiet install gets
+     * a short wait, and the child-confirmed install starts from the screen as soon as the download is "ready"
+     * (MainActivity.onResume too: the poll dies when the screen is left). Owner 2026-11-18: downloaded, then nothing
+     * until he went home, came back and tapped "Cập nhật" again.
+     */
+    @Volatile var wanted = false
+    /**
+     * The system "Update this app?" screen from [UpdateReceiver]. Android 14+ may refuse to start it from that
+     * broadcast (background activity start), so MainActivity starts it itself: at once when it is showing
+     * ([showConfirm] set), else on its next onResume. [confirmAt] = when it came (a stale one is dropped after 10 min).
+     */
+    @Volatile var confirm: Intent? = null
+    @Volatile var confirmAt = 0L
+    @Volatile var showConfirm: ((Intent) -> Unit)? = null
     /** Counts [start] runs, so a UI that polls [status] can tell a fresh result from a stale one. */
     @Volatile var runs = 0; private set
     /** True while the owner install session runs: [Policy.apply] then leaves the install restrictions lifted. */
@@ -80,7 +97,7 @@ object Update {
         if (!busy.get() && apk(ctx).exists() && !UpdateLogic.newer(p.getString("apkTag", "") ?: "", current())) apk(ctx).delete()
         // "ready" = basic mode waiting for the child's tap; an owner phone installs on its own
         if (status.isEmpty() && apk(ctx).exists() && UpdateLogic.newer(latest, current()) && !Policy.isOwner(ctx)) status = "ready"
-        return JSONObject().put("latest", latest).put("status", status).put("err", err).put("checkedAt", p.getLong("at", 0))
+        return JSONObject().put("latest", latest).put("status", status).put("err", err).put("checkedAt", p.getLong("at", 0)).put("pct", if (status == "downloading") pct else -1)
     }
 
     /** From the guard tick: at most once a day, on its own thread. */
@@ -117,7 +134,7 @@ object Update {
         if (prefs(ctx).getString("badTag", "") == tag) { status = "failed"; err = ctx.getString(R.string.upd_err_bad_tag, tag); done(); return }
         val f = apk(ctx)
         if (!f.exists() || prefs(ctx).getString("apkTag", "") != tag) {
-            status = "downloading"
+            status = "downloading"; pct = -1
             download(ctx, tag, f); prefs(ctx).edit().putString("apkTag", tag).apply()
         }
         try { verifyPackage(ctx, f) } catch (e: IllegalStateException) { prefs(ctx).edit().putString("badTag", tag).apply(); done(); throw e }
@@ -129,6 +146,7 @@ object Update {
             status = ""; return   // no done(): [maybe] comes back
         }
         waitingSince = 0
+        prefs(ctx).edit().putString("from", current()).apply()   // the new version's first screen says "updated to"
         if (Policy.isOwner(ctx)) { status = "installing"; installSilently(ctx, f) }
         else if (installQuiet(ctx, f)) status = ""
         else { status = "ready"; if (force || prefs(ctx).getString("notified", "") != tag) { notifyChild(ctx, tag); prefs(ctx).edit().putString("notified", tag).apply() } }
@@ -158,9 +176,14 @@ object Update {
             ?: throw IllegalStateException(ctx.getString(R.string.err_sha_read))
         val tmp = File(f.parentFile, "update.part"); val md = MessageDigest.getInstance("SHA-256")
         try {
-            get(ctx, UpdateLogic.apkUrl(tag, "kidguard.apk")).inputStream.use { i -> tmp.outputStream().use { o ->
+            val c = get(ctx, UpdateLogic.apkUrl(tag, "kidguard.apk"))
+            val total = c.contentLengthLong; var got = 0L
+            c.inputStream.use { i -> tmp.outputStream().use { o ->
                 val buf = ByteArray(64 * 1024)
-                while (true) { val n = i.read(buf); if (n < 0) break; md.update(buf, 0, n); o.write(buf, 0, n) }
+                while (true) {
+                    val n = i.read(buf); if (n < 0) break; md.update(buf, 0, n); o.write(buf, 0, n)
+                    got += n; if (total > 0) pct = (got * 100 / total).toInt().coerceIn(0, 100)
+                }
             } }
         } catch (e: Throwable) { tmp.delete(); throw e }
         if (md.digest().joinToString("") { "%02x".format(it) } != want) { tmp.delete(); throw IllegalStateException(ctx.getString(R.string.upd_err_sha)) }
@@ -221,7 +244,8 @@ object Update {
             catch (e: Throwable) { runCatching { pi.abandonSession(id) }; throw e }
             status = "installing"
             // success replaces this process before we get here; "needs the child" comes back as err_user_action
-            val res = pi.openSession(id).use { s -> Ts.commitAndWait(ctx, s, "dev.kidguard.SELF_UPDATE") }
+            // someone is waiting on screen: an install that asks comes back at once; silence is not worth 90 s of "installing…"
+            val res = pi.openSession(id).use { s -> Ts.commitAndWait(ctx, s, "dev.kidguard.SELF_UPDATE", if (wanted) 20 else 90) }
             if (res != null) { Log.i(TAG, "quiet update refused: $res"); runCatching { pi.abandonSession(id) } }
             res == null
         }.getOrElse { Log.w(TAG, "quiet update", it); if (open >= 0) runCatching { pi.abandonSession(open) }; false }
@@ -235,6 +259,7 @@ object Update {
             return false
         }
         val app = ctx.applicationContext   // the thread must not hold the Activity
+        wanted = false; prefs(app).edit().putString("from", current()).apply()
         Thread({
             runCatching {
                 val (pi, id) = session(app, f)
@@ -254,6 +279,14 @@ object Update {
         val open = PendingIntent.getActivity(ctx, 3, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         nm.notify(8, Notification.Builder(ctx, "update").setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setContentTitle(ctx.getString(R.string.notif_update_title, tag)).setContentText(ctx.getString(R.string.notif_update_text)).setAutoCancel(true).setContentIntent(open).build())
+    }
+
+    /** Once, on the first screen of the new version: "Updated to vX" (null = nothing to say). */
+    fun justUpdated(ctx: Context): String? {
+        val p = prefs(ctx); val from = p.getString("from", "") ?: ""
+        if (from.isEmpty() || from == current()) return null
+        p.edit().remove("from").apply()
+        return current()
     }
 
     fun failed(msg: String) { status = "failed"; err = msg.take(120) }
@@ -285,11 +318,16 @@ class UpdateReceiver : BroadcastReceiver() {
         when (i.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 @Suppress("DEPRECATION") val confirm = i.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
-                runCatching { ctx.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // KidGuard on screen: it starts the confirm screen itself (always allowed). Else try from here and keep it
+                // for the next MainActivity.onResume, in case Android blocked this background start.
+                val show = Update.showConfirm
+                if (show != null) show(confirm)
+                else { Update.confirm = confirm; Update.confirmAt = System.currentTimeMillis(); runCatching { ctx.startActivity(confirm) } }
             }
-            PackageInstaller.STATUS_SUCCESS -> {}
-            PackageInstaller.STATUS_FAILURE_ABORTED -> {}   // the child closed the confirm screen: still "ready", not an error
-            else -> Update.failed(i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ctx.applicationContext.getString(R.string.upd_cancelled))
+            PackageInstaller.STATUS_SUCCESS -> Update.confirm = null
+            PackageInstaller.STATUS_FAILURE_ABORTED -> Update.confirm = null   // the child closed the confirm screen: still "ready", not an error
+            else -> { Update.confirm = null; Update.failed(i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ctx.applicationContext.getString(R.string.upd_cancelled)) }
         }
     }
 }

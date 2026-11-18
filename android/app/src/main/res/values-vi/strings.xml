@@ -335,6 +335,7 @@
     <string name="ss_pair_fail">Ghép nối không thành công (sai mã hoặc mã đã hết hạn). Mở lại \"Ghép thiết bị bằng mã\" để lấy mã mới, rồi nhập ngay trong thông báo.</string>
     <string name="ss_no_conn_port">Ghép nối xong nhưng không thấy cổng kết nối. Hãy tắt rồi bật lại \"Gỡ lỗi không dây\".</string>
     <string name="ss_conn_fail">Không kết nối được tới chính máy này: %1$s</string>
+    <string name="ss_conn_refused">Gỡ lỗi không dây không nhận kết nối. Tắt rồi bật lại Gỡ lỗi không dây, rồi bấm Bắt đầu lại.</string>
     <string name="ss_cmd_fail">lệnh không thành công</string>
     <string name="ss_coloros">Oppo/Realme/OnePlus (ColorOS): mở Đa nhiệm, kéo thẻ KidGuard xuống để khoá (ổ khoá). Trong Quản lý điện thoại, bật \"Tự khởi chạy\" và chạy nền cho KidGuard. Vuốt KidGuard khỏi Đa nhiệm sẽ tắt hẳn app và Trợ năng.</string>
     <string name="ss_accounts">Cần xoá các tài khoản của điện thoại trước: %1$s. Vào Cài đặt &gt; Mật khẩu và tài khoản, xoá rồi thử lại. Tài khoản app (Zalo, Facebook...) cứ để nguyên. Cài xong đăng nhập lại, dữ liệu vẫn còn.</string>
@@ -364,15 +365,12 @@
     <string name="ssa_s3_ok">Đã ghép xong: KidGuard tự dùng được adb (ẩn app, dọn máy). Ghép lại chỉ khi có lỗi.</string>
     <string name="ssa_pair_title">Cho KidGuard tự dùng adb</string>
     <string name="ssa_pair_intro">KidGuard ghép 1 lần với Gỡ lỗi không dây của máy này để ẩn app cài sẵn và dọn máy, không cần reset. Cần Wi-Fi. Làm 3 bước, xong có dấu ✓:</string>
-    <string name="ssa_intro">Máy tự nối với chính nó qua Gỡ lỗi không dây (cần Wi-Fi). Muốn thành Device Owner, phải xoá tài khoản của máy (Google, Samsung, Xiaomi...) trước; tài khoản app (Zalo, Facebook...) giữ nguyên, máy khởi động lại một lần. Máy đã có tài khoản vẫn ghép được: KidGuard ẩn app, dọn máy. Làm 3 bước:</string>
+    <string name="ssa_intro">Máy tự nối với chính nó qua Gỡ lỗi không dây (cần Wi-Fi). Máy không có tài khoản điện thoại (Google, Samsung, Xiaomi...) thì thành Device Owner: chế độ đầy đủ, tài khoản app (Zalo, Facebook...) giữ nguyên, máy khởi động lại một lần. Máy còn tài khoản điện thoại thì cài chế độ cơ bản, không cần xoá. Làm 2 bước:</string>
     <string name="ssa_s1">Bước 1. Bật Tuỳ chọn nhà phát triển</string>
     <string name="ssa_s1_d">Vào Giới thiệu về điện thoại, bấm 7 lần vào \"Số hiệu bản tạo\" (Build number).</string>
     <string name="ssa_s1_btn">Mở Giới thiệu về điện thoại</string>
-    <string name="ssa_s2">Bước 2. Bật Gỡ lỗi không dây</string>
-    <string name="ssa_s2_d">Trong Tuỳ chọn nhà phát triển, bật \"Gỡ lỗi không dây\" (Wireless debugging) và cho phép Wi-Fi này.</string>
-    <string name="ssa_s2_btn">Mở Tuỳ chọn nhà phát triển</string>
-    <string name="ssa_s3">Bước 3. Nhập mã ghép nối</string>
-    <string name="ssa_s3_d">Bấm nút dưới. Rồi trong Gỡ lỗi không dây, bấm \"Ghép thiết bị bằng mã ghép nối\". Nhập mã ở thông báo: kéo thanh thông báo xuống, bấm \"Nhập mã ghép\", gõ 6 số. (Rời Cài đặt là hộp thoại tắt.)</string>
+    <string name="ssa_s3">Bước 2. Bật Gỡ lỗi không dây và nhập mã ghép</string>
+    <string name="ssa_s3_d">Bấm nút dưới: Tuỳ chọn nhà phát triển mở ra, ô nhập mã hiện ở thông báo. Bật \"Gỡ lỗi không dây\" (cho phép Wi-Fi này), bấm vào nó, rồi bấm \"Ghép thiết bị bằng mã ghép nối\". Kéo thanh thông báo xuống, bấm \"Nhập mã ghép\", gõ 6 số. (Rời Cài đặt là hộp thoại tắt.)</string>
     <string name="ssa_s3_btn">Hiện ô nhập mã ở thông báo</string>
     <string name="ssa_or_here">Hoặc nhập ngay tại đây (nếu thông báo không hiện):</string>
     <string name="ssa_code_hint">Mã ghép nối 6 số</string>
@@ -970,6 +968,9 @@
     <string name="upd_checking">Đang kiểm tra…</string>
     <string name="upd_downloading">Đang tải v%1$s…</string>
     <string name="upd_installing">Đang cài v%1$s…</string>
+    <string name="upd_downloading_pct">Đang tải v%1$s… %2$d%%</string>
+    <string name="upd_installing_note">Đang cài v%1$s… KidGuard sẽ tự đóng</string>
+    <string name="upd_done">Đã cập nhật lên v%1$s</string>
     <string name="upd_current">Đã là bản mới nhất (v%1$s)</string>
     <string name="upd_failed">Cập nhật lỗi: %1$s</string>
     <string name="cc_title">Bảng điều khiển</string>

@@ -78,8 +78,8 @@ class SelfSetupActivity : Activity() {
             addView(button)
         }
         col.addView(step(1, R.string.ssa_s1, R.string.ssa_s1_d, R.string.ssa_s1_btn, R.drawable.li_smartphone) { open(Settings.ACTION_DEVICE_INFO_SETTINGS) })
-        col.addView(step(2, R.string.ssa_s2, R.string.ssa_s2_d, R.string.ssa_s2_btn, R.drawable.li_wifi) { openDev() })
-        val s3 = step(3, R.string.ssa_s3, R.string.ssa_s3_d, R.string.ssa_s3_btn, R.drawable.li_bell) { askNotification() }
+        // owner 2026-11-18: a separate "turn on Wireless debugging" step was redundant, step 2's button opens the same page
+        val s3 = step(2, R.string.ssa_s3, R.string.ssa_s3_d, R.string.ssa_s3_btn, R.drawable.li_bell) { askNotification() }
         portInfo = body("").apply { textSize = 13f }
         s3.addView(portInfo)
         s3.addView(u.label(getString(R.string.ssa_or_here), 14f, u.text, true).apply { setPadding(0, dp(16), 0, 0) })
@@ -89,7 +89,13 @@ class SelfSetupActivity : Activity() {
             setPadding(dp(14), dp(12), dp(14), dp(12))
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) }
         }
-        code = field(R.string.ssa_code_hint, 6).apply { textSize = 18f }
+        code = field(R.string.ssa_code_hint, 6).apply { textSize = 18f
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun afterTextChanged(e: android.text.Editable?) { startLook() }
+                override fun beforeTextChanged(c: CharSequence?, a: Int, b: Int, d: Int) {}
+                override fun onTextChanged(c: CharSequence?, a: Int, b: Int, d: Int) {}
+            })
+        }
         // the port hints are long ("... leave empty ..."): smaller text so they fit one line on a 360 dp screen
         pairPort = field(R.string.ssa_pair_port_hint, 5).apply { textSize = 13f }
         connPort = field(R.string.ssa_conn_port_hint, 5).apply { textSize = 13f }
@@ -143,7 +149,8 @@ class SelfSetupActivity : Activity() {
 
     private fun go() {
         val c = code.text.toString().filter { it.isDigit() }
-        if (c.length != 6) { result.text = getString(R.string.ssa_code_6); return }
+        // the result line is at the bottom, off screen: say it where the finger is, and put the cursor in the box
+        if (c.length != 6) { result.text = getString(R.string.ssa_code_6); Toasts.show(this, getString(R.string.ssa_code_6)); code.requestFocus(); return }
         SelfSetup.turnOffWifi = !pairMode && wifiOff.isChecked
         SelfSetup.start(this, c, pairPort.text.toString().toIntOrNull() ?: 0, connPort.text.toString().toIntOrNull() ?: 0, pairOnly = pairMode)
         tick()
@@ -161,7 +168,7 @@ class SelfSetupActivity : Activity() {
 
     /**
      * Live status per step (owner 2026-11-11: "bật dev mode rồi sao nó vẫn hiện nút"): a done step gets a green tick,
-     * a note and no button; step 2 warns when the phone is not on Wi-Fi (Wireless debugging needs it).
+     * a note and no button; step 2 (pairing) warns when the phone is not on Wi-Fi (Wireless debugging needs it).
      */
     private fun stepMarks() {
         val g = { k: String -> runCatching { Settings.Global.getInt(contentResolver, k, 0) == 1 }.getOrDefault(false) }
@@ -170,15 +177,16 @@ class SelfSetupActivity : Activity() {
         for (m in marks) {
             val (done, note) = when (m.n) {
                 1 -> g(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED).let { it to if (it) getString(R.string.ssa_s1_ok) else null }
-                2 -> g("adb_wifi_enabled").let { on -> (on && wifi) to when { on && wifi -> getString(R.string.ssa_s2_ok); !wifi -> getString(R.string.ssa_need_wifi); else -> null } }
-                else -> SelfAdb.hasKey(this).let { it to if (it) getString(R.string.ssa_s3_ok) else null }
+                // not paired yet: say what blocks it (no Wi-Fi), or that Wireless debugging is on already
+                else -> SelfAdb.hasKey(this).let { k -> k to when { k -> getString(R.string.ssa_s3_ok); !wifi -> getString(R.string.ssa_need_wifi)
+                    g("adb_wifi_enabled") -> getString(R.string.ssa_s2_ok); else -> null } }
             }
             m.badge.text = if (done) "✓" else "${m.n}"
             m.badge.setTextColor(if (done) u.bg else u.accent)
             m.badge.background = u.shape(if (done) u.tone(Ic.OK) else u.tint, 999)
             m.note.visibility = if (note != null) View.VISIBLE else View.GONE
-            m.note.text = note ?: ""; m.note.setTextColor(if (done) u.tone(Ic.OK) else u.danger)
-            if (m.n != 3) m.button.visibility = if (done) View.GONE else View.VISIBLE   // step 3's button re-pairs: keep it
+            m.note.text = note ?: ""; m.note.setTextColor(if (done) u.tone(Ic.OK) else if (note == getString(R.string.ssa_s2_ok)) u.sub else u.danger)
+            if (m.n != 2) m.button.visibility = if (done) View.GONE else View.VISIBLE   // step 2 (pairing) button re-pairs: keep it
         }
     }
 
@@ -199,7 +207,7 @@ class SelfSetupActivity : Activity() {
             rows[i].compoundDrawableTintList = ColorStateList.valueOf(tint)
             rows[i].setTextColor(if (SelfSetup.state[i] == SelfSetup.STEP_ERR) u.danger else u.text)
         }
-        start.isEnabled = !SelfSetup.running; start.alpha = if (SelfSetup.running) 0.5f else 1f
+        startLook()
         result.text = SelfSetup.message
         result.setTextColor(if (SelfSetup.done) u.tone(Ic.OK) else u.danger)
         if (SelfSetup.done) {
@@ -210,6 +218,16 @@ class SelfSetupActivity : Activity() {
             finish(); return
         }
         ui.postDelayed(::tick, 1000)
+    }
+
+    /**
+     * Owner 2026-11-18: the button looked ready with no code typed and did nothing. Dimmed until the code has 6 digits;
+     * still tappable then (toast + cursor in the box), off only while a run is going.
+     */
+    private fun startLook() {
+        if (!::start.isInitialized) return
+        start.isEnabled = !SelfSetup.running
+        start.alpha = if (SelfSetup.running || code.text.count { it.isDigit() } != 6) 0.45f else 1f
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()

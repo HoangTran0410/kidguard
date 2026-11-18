@@ -345,6 +345,7 @@
     <string name="ss_pair_fail">Pairing failed (wrong code, or the code expired). Open \"Pair device with pairing code\" again to get a new code, then type it in the notification right away.</string>
     <string name="ss_no_conn_port">Paired, but the connection port wasn\'t found. Turn \"Wireless debugging\" off and on again.</string>
     <string name="ss_conn_fail">Couldn\'t connect to this phone: %1$s</string>
+    <string name="ss_conn_refused">Wireless debugging did not accept the link. Turn Wireless debugging off and on, then tap Start again.</string>
     <string name="ss_cmd_fail">command failed</string>
     <string name="ss_coloros">Oppo/Realme/OnePlus (ColorOS): open Recents, pull the KidGuard card down to lock it (padlock). In Phone Manager, allow KidGuard \"Auto-launch\" and background running. Swiping KidGuard out of Recents stops the app and Accessibility for good.</string>
     <string name="ss_accounts">Remove these phone accounts first: %1$s. Go to Settings &gt; Passwords &amp; accounts, remove them, then retry. App accounts (Zalo, Facebook...) can stay. Sign back in after setup; your data stays.</string>
@@ -374,15 +375,12 @@
     <string name="ssa_s3_ok">Paired: KidGuard can use adb by itself (hide apps, clean-up). Pair again only if something fails.</string>
     <string name="ssa_pair_title">Let KidGuard use adb</string>
     <string name="ssa_pair_intro">KidGuard pairs once with this phone\'s Wireless debugging to hide preinstalled apps and clean up, no reset. Needs Wi-Fi. Do 3 steps; each gets a ✓ when done:</string>
-    <string name="ssa_intro">The phone connects to itself over Wireless debugging (needs Wi-Fi). Device Owner needs the phone accounts (Google, Samsung, Xiaomi...) removed first; app accounts (Zalo, Facebook...) stay, and the phone restarts once. With accounts it still pairs: KidGuard hides apps and cleans up. Do 3 steps:</string>
+    <string name="ssa_intro">The phone connects to itself over Wireless debugging (needs Wi-Fi). With no phone accounts (Google, Samsung, Xiaomi...) it becomes Device Owner: full mode, app accounts (Zalo, Facebook...) stay, the phone restarts once. With phone accounts it sets up basic mode, no need to remove them. Do 2 steps:</string>
     <string name="ssa_s1">Step 1. Turn on Developer options</string>
     <string name="ssa_s1_d">Open About phone and tap \"Build number\" 7 times.</string>
     <string name="ssa_s1_btn">Open About phone</string>
-    <string name="ssa_s2">Step 2. Turn on Wireless debugging</string>
-    <string name="ssa_s2_d">In Developer options, turn on \"Wireless debugging\" and allow this Wi-Fi.</string>
-    <string name="ssa_s2_btn">Open Developer options</string>
-    <string name="ssa_s3">Step 3. Enter the pairing code</string>
-    <string name="ssa_s3_d">Tap the button below. Then in Wireless debugging, tap \"Pair device with pairing code\". Enter the code in the notification: pull the shade down, tap \"Enter pairing code\", type the 6 digits. (Leaving Settings closes the dialog.)</string>
+    <string name="ssa_s3">Step 2. Turn on Wireless debugging and enter the pairing code</string>
+    <string name="ssa_s3_d">Tap the button below: Developer options opens and a box for the code appears in the notifications. Turn on \"Wireless debugging\" (allow this Wi-Fi), tap it, then \"Pair device with pairing code\". Pull the shade down, tap \"Enter pairing code\", type the 6 digits. (Leaving Settings closes the dialog.)</string>
     <string name="ssa_s3_btn">Show the code box in a notification</string>
     <string name="ssa_or_here">Or type it here (if the notification doesn\'t show):</string>
     <string name="ssa_code_hint">6-digit pairing code</string>
@@ -990,6 +988,9 @@
     <string name="upd_checking">Checking…</string>
     <string name="upd_downloading">Downloading v%1$s…</string>
     <string name="upd_installing">Installing v%1$s…</string>
+    <string name="upd_downloading_pct">Downloading v%1$s… %2$d%%</string>
+    <string name="upd_installing_note">Installing v%1$s… KidGuard will close</string>
+    <string name="upd_done">Updated to v%1$s</string>
     <string name="upd_current">Up to date (v%1$s)</string>
     <string name="upd_failed">Update failed: %1$s</string>
     <string name="cc_title">Control center</string>
