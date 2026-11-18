@@ -190,7 +190,9 @@ async function call1(k, path, method, body, again) {
   // Cloudflare's own error page ("error code: 1101"): the relay worker itself is down, not the phone (INCIDENT 2026-11-17)
   const cf = !r.ok && /error code: (\d{3,4})/i.exec(raw.slice(0, 200));
   if (path === "/state" && k === cur && !cached) srvWhy = j.error === "released" ? "gone:" + (+j.at || 0) : cf ? "cf:" + cf[1] : j.why || (r.status >= 500 && k.via !== "lan" ? "http:" + r.status : "");
+  if (cf && k.via === "relay" && k.target === OLD_RELAY) throw errOf("oldRelay");   // dead for good, not "down for now"
   if (cf) throw errOf(t("e.relayDown", "Cloudflare " + cf[1]));
+  if (j.error === "released" && j.at) throw errOf("released", t("e.releasedAt", dtFull(+j.at)));
   if (!r.ok) throw errOf(APP && j.error === "offline" ? "offline" : j.error || ("HTTP " + r.status), null, j.retryAt);
   return rel ? wireIn(j) : j;
 }

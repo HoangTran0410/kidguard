@@ -77,7 +77,7 @@ Flavor `home` (`dev.kidguard.home`): launcher only, `src/home/AndroidManifest.xm
   Debug install: `:app:installKidDebug` / `:app:installHomeDebug`.
 - Worker: `cd relay && npm ci && npm test` (starts `wrangler dev` on :8793; one run at a time).
 - After editing `ui/assets/*.js`: `node --check` each file AND `scripts/check-js.sh` (esbuild: catches a reassigned `const` that blanks a whole tab; CI + build.sh run both).
-- Parent-page UI change ⇒ `node scripts/shots/shoot.mjs --audit --width 360 --out <tmp>` (and again with
+- Parent-page UI change ⇒ `node scripts/shots/shoot.mjs --audit --width 360 --out <tmp>` (parent-app-only screens: add `--app`; and again with
   `--patch basic.json` = `{"mode":"basic","owner":false}`): every section open, full-page PNGs, prints what sticks out of
   the screen / is cut by a card. LOOK at the PNGs of the tab you changed before handing it to the owner.
 - Nothing tests `ui/*.html` or on-device behaviour: say so in reports; real-phone checks are the user's.

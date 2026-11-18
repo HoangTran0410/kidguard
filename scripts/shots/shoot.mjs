@@ -28,6 +28,10 @@ const PORTS = { bin: 8771, mia: 8772, tom: 8773 };
 // --cdp <port>: attach to a browser that is already running (Android WebView via adb forward, see README) instead of
 // starting desktop Chrome; the page keeps the device's own size
 const EXT = +arg("cdp", 0);
+// --app: the parent Android app's page on desktop Chrome: a fake KGApp bridge + its /k/<target>/ proxy (forwarded to the
+// fake kids), two dead kids (Nam on the killed relay = Cloudflare 1101, Lan released = 410), and the app-only screens
+// (kid list, app settings, a released kid's page). Use with --only applist,appset,gone (or alone: all shots in app mode).
+const FAKE_APP = process.argv.includes("--app");
 const CDP = EXT || 9333;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const NOW = (() => { const d = new Date(); d.setHours(16, 20, 0, 0); return d.getTime(); })();
@@ -35,6 +39,12 @@ const NOW = (() => { const d = new Date(); d.setHours(16, 20, 0, 0); return d.ge
 // What to shoot. js runs after the page shows the kid (st loaded); ready = expression that must become truthy; scroll = px.
 // A trailing wait is added for map tiles. Names are the output file names.
 const SHOTS = [
+  ...(FAKE_APP ? [
+    { name: "applist", bare: 1, js: `appBoot()`, ready: `document.querySelectorAll("[data-kb]").length && [...document.querySelectorAll("[data-kb]")].every(e => !/^(relay|LAN)/i.test(e.textContent.trim()))`, settle: 1500 },
+    { name: "appset", bare: 1, js: `goAppSettings()`, ready: `document.querySelector("#nhBox") && document.querySelector("#uiPk")`, settle: 800 },
+    { name: "gone", bare: 1, js: `open(kids.find(k => k.name === "Lan"))`, ready: `document.querySelector("#forgetGone")`, settle: 800 },
+    { name: "oldrelay", bare: 1, js: `open(kids.find(k => k.name === "Nam"))`, ready: `document.querySelector("#goneDel")`, settle: 800 },
+  ] : []),
   { name: "kids", js: `overview(kids, () => {})`, ready: `document.querySelector("#ovKids .ovk, #ovKids .card, #ovKids > *") && !document.querySelector("#ovKids .spin")`, settle: 1200 },
   ...[1, 2, 3, 4].map(n => ({ name: "wiz" + n, js: `wizOpen(cur, ${n}, false)`, ready: `document.querySelector("#wizPop .wz")`, settle: 300 })),   // the guided setup, one shot per step
   { name: "today", js: `goTab("home")`, ready: `document.querySelector(".hero")` },
@@ -162,7 +172,9 @@ async function connect(url) {
 const evalIn = async (c, expr) => { const r = await c.send("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text); return r.result.value; };
 async function until(c, expr, ms = 15000) { const t0 = Date.now(); while (Date.now() - t0 < ms) { try { if (await evalIn(c, `!!(${expr})`)) return true; } catch {} await sleep(150); } return false; }
 
-const kidsSeed = () => JSON.stringify(Object.entries(PORTS).map(([n, p], i) => ({ id: ["5b1e0c9a7d3f4e21", "9c4d2e7b1a6f3058", "2f8a6b1c9e4d7035"][i], token: String(i + 1).repeat(48).slice(0, 48).replace(/\d/g, c => "abcdef"[+c]), name: { bin: "Bin", mia: "Mia", tom: "Tom" }[n], via: "lan", target: `http://127.0.0.1:${p}`, lv: 1 })));
+const kidsSeed = () => JSON.stringify(Object.entries(PORTS).map(([n, p], i) => ({ id: ["5b1e0c9a7d3f4e21", "9c4d2e7b1a6f3058", "2f8a6b1c9e4d7035"][i], token: String(i + 1).repeat(48).slice(0, 48).replace(/\d/g, c => "abcdef"[+c]), name: { bin: "Bin", mia: "Mia", tom: "Tom" }[n], via: "lan", target: `http://127.0.0.1:${p}`, lv: 1 })).concat(FAKE_APP ? [
+  { id: "0a1b2c3d4e5f6071", token: "c".repeat(48), name: "Nam", via: "relay", target: "https://kidguard.99-hoangtran.workers.dev" },
+  { id: "1a2b3c4d5e6f7081", token: "d".repeat(48), name: "Lan", via: "relay", target: "https://kg-relay.99-hoangtran.workers.dev" }] : []));
 
 async function shootLang(lang) {
   const outDir = path.join(OUT, lang); fs.mkdirSync(outDir, { recursive: true });
@@ -184,7 +196,27 @@ async function shootLang(lang) {
       try { const o = ${NOW} - Date.now(), D = Date; globalThis.Date = class extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + o); } static now() { return D.now() + o; } }; } catch {}
       if (${AUDIT}) { window.confirm = () => false; window.alert = () => {}; window.prompt = () => null;
         window.__puts = []; const F = window.fetch; window.fetch = (u, o) => { try { if (o && o.method === "PUT" && String(u).includes("/rules")) window.__puts.push(o.body); } catch {} return F(u, o); }; }
-      try { localStorage.setItem("kg.kids", ${JSON.stringify(kidsSeed())}); localStorage.setItem("kg.lang", "${lang}"); localStorage.setItem("kg.theme", "${THEME}"); } catch {}
+      if (${FAKE_APP}) {
+        // the app's bridge (MainActivity JS interface): settings stubs + the kid list in localStorage
+        const P = { notifOn: "true", getNotify: "true", appVersion: "0.9.44", takeOpen: "null", takeSettings: "false", getLock: "", getDigest: "", getHistoryDays: "30", canNotify: "true",
+          getKids: () => localStorage.getItem("kg.kids"), setKids: s => localStorage.setItem("kg.kids", s), getLang: () => localStorage.getItem("kg.lang") || "",
+          notifHealth: () => JSON.stringify({ lastCheck: Date.now() - 240e3, push: "part", pushBad: "Nam", pushAt: Date.now() - 600e3, battery: true, enabled: true, perm: true }) };
+        window.KGApp = new Proxy({}, { get: (o, m) => typeof P[m] === "function" ? P[m] : () => m in P ? P[m] : "" });
+        // its proxy: /k/<b64url target>/rest -> target + rest; the killed relay answers Cloudflare's 1101 page, the released kid 410
+        const F0 = window.fetch;
+        window.fetch = (u, o) => { const m = /^[/]k[/]([A-Za-z0-9_-]+)([/].*)$/.exec(String(u));
+          if (String(u) === "/ui/pack.json") return Promise.resolve(new Response(JSON.stringify(window.__uiPack), { headers: { "Content-Type": "application/json" } }));
+          if (!m) return F0(u, o);
+          const tg = atob(m[1].replace(/-/g, "+").replace(/_/g, "/"));
+          // the app's proxy keeps the last state: Nam (killed relay) comes back as a 25 h old snapshot, like the owner's phone
+          if (tg.includes("kidguard.99-")) return m[2].endsWith("/state") ? F0(localStorage.getItem("kg.binT") + "/api/state", { headers: { "X-KG-Token": "a".repeat(48) } }).then(r => r.json())
+            .then(s => new Response(JSON.stringify({ state: Object.assign(s, { t: Date.now() - 25 * 3600e3 }), seen: Date.now() - 25 * 3600e3 }), { headers: { "Content-Type": "application/json", "X-KG-Cached": String(Date.now() - 25 * 3600e3), "X-KG-Why": "cf:1101" } }))
+            : Promise.resolve(new Response("error code: 1101", { status: 500 }));
+          if (tg.includes("kg-relay.99-")) return Promise.resolve(new Response(JSON.stringify({ error: "released", at: Date.now() - 26 * 3600e3 }), { status: 410, headers: { "Content-Type": "application/json" } }));
+          return F0(tg + m[2], o); };
+        window.__uiPack = { src: "pack", ver: "fca291b6f0a0", seq: 1795007023 };
+      }
+      try { localStorage.setItem("kg.binT", "http://127.0.0.1:${PORTS.bin}"); localStorage.setItem("kg.kids", ${JSON.stringify(kidsSeed())}); localStorage.setItem("kg.lang", "${lang}"); localStorage.setItem("kg.theme", "${THEME}"); } catch {}
     })()` });
     const errors = [], faultLog = [];
     // parent app: the bridge exists only once the page runs, and its proxy forwards only to kids in its own list
@@ -194,8 +226,10 @@ async function shootLang(lang) {
       // fresh page per shot: no state leaks between them
       await c.send("Page.navigate", { url: PAGE });
       await sleep(400);
-      if (EXT && await until(c, `typeof kids !== "undefined" && kids.some(k => k.name === "Bin") && document.readyState === "complete" && typeof screenStop === "function"`, 15000)) await evalIn(c, `open(kids.find(k => k.name === "Bin")); 0`);   // app: the page starts on the kid list
-      if (!(await until(c, `typeof st !== "undefined" && st && st.apps && document.querySelector(".hero")`, 20000))) errors.push(shot.name + ": page did not open the kid (" + await evalIn(c, `JSON.stringify({ u: location.href, kids: typeof kids !== "undefined" ? kids.map(k => k.name) : null, cur: typeof cur !== "undefined" && cur ? cur.name : null, err: typeof lastErr !== "undefined" ? lastErr : null })`) + ")");
+      if (shot.bare) await until(c, `typeof appBoot === "function" && document.readyState === "complete" && typeof kids !== "undefined"`, 15000);
+      else if (FAKE_APP && await until(c, `typeof kids !== "undefined" && kids.some(k => k.name === "Bin") && document.readyState === "complete" && typeof screenStop === "function"`, 15000)) await evalIn(c, `open(kids.find(k => k.name === "Bin")); 0`);
+      else if (EXT && await until(c, `typeof kids !== "undefined" && kids.some(k => k.name === "Bin") && document.readyState === "complete" && typeof screenStop === "function"`, 15000)) await evalIn(c, `open(kids.find(k => k.name === "Bin")); 0`);   // app: the page starts on the kid list
+      if (!shot.bare && !(await until(c, `typeof st !== "undefined" && st && st.apps && document.querySelector(".hero")`, 20000))) errors.push(shot.name + ": page did not open the kid (" + await evalIn(c, `JSON.stringify({ u: location.href, kids: typeof kids !== "undefined" ? kids.map(k => k.name) : null, cur: typeof cur !== "undefined" && cur ? cur.name : null, err: typeof lastErr !== "undefined" ? lastErr : null })`) + ")");
       await evalIn(c, `${shot.js}; 0`);
       if (!(await until(c, shot.ready, 20000))) errors.push(shot.name + ": not ready (" + shot.ready.slice(0, 50) + ")");
       if (shot.tiles) { await sleep(500); await until(c, `[...document.querySelectorAll("#map img")].length > 0 && [...document.querySelectorAll("#map img")].every(i => i.complete && i.naturalWidth > 0)`, 20000) || errors.push(shot.name + ": map tiles not all loaded"); }
