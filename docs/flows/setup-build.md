@@ -14,7 +14,7 @@ Path shorthands: `K/` = `android/app/src/main/kotlin/dev/kidguard/`, `L/` = `K/l
 ### 4.1 SETUP flows (all end in: KidGuard is Device Owner + 4 grants + accessibility on)
 Contract: `docs/protocol.md:248-265` "Setup steps" (9 items). AGENTS.md says setup.sh, setup.ps1, install.html, SelfSetup.kt must stay in sync.
 
-First run on the child app (`SetupSteps.chooser`): "Đầy đủ (khuyên dùng)" -> SelfSetupActivity, "Cơ bản" -> the checklist (flag `setup_ask/firstChoice`). Setup end (SelfSetup done, or the checklist complete = last row "Ghép máy bố mẹ") opens the pairing code + QR for 10 min (`Store.codeRevealUntil`). After release (`Store.released`) MainActivity shows one card (`rel_title`).
+First run on the child app (`SetupSteps.chooser`): two cards with pros/cons: "Cơ bản: giữ tài khoản" (first; "Tự cài qua Wi-Fi" -> SelfSetupActivity `EXTRA_BASIC` = `SelfSetup.wantBasic`: no account check, no `set-device-owner`, `set-active-admin` + the same grants + `AutoGrant.missing` (location incl. background, notifications); "Bật tay từng bước" -> the checklist, flag `setup_ask/firstChoice`) and "Device Owner: mạnh nhất" -> SelfSetupActivity as before. Setup end (SelfSetup done, or the checklist complete = last row "Ghép máy bố mẹ") opens the pairing code + QR for 10 min (`Store.codeRevealUntil`). After release (`Store.released`) MainActivity shows one card (`rel_title`).
 
 #### 1a. QR provisioning (factory-reset phone, setup wizard)
 - Trigger: parent opens `/qr` (worker `relay/src/index.js:81` serves `ui/qr.html`; also static in repo `ui/qr.html`), fills Wi-Fi + APK URL, child taps 6x on the welcome screen and scans.

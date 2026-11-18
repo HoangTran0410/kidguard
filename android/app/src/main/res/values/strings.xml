@@ -376,6 +376,9 @@
     <string name="ssa_pair_title">Let KidGuard use adb</string>
     <string name="ssa_pair_intro">KidGuard pairs once with this phone\'s Wireless debugging to hide preinstalled apps and clean up, no reset. Needs Wi-Fi. Do 3 steps; each gets a ✓ when done:</string>
     <string name="ssa_intro">The phone connects to itself over Wireless debugging (needs Wi-Fi). With no phone accounts (Google, Samsung, Xiaomi...) it becomes Device Owner: full mode, app accounts (Zalo, Facebook...) stay, the phone restarts once. With phone accounts it sets up basic mode, no need to remove them. Do 2 steps:</string>
+    <string name="ssa_basic_title">Set up basic mode</string>
+    <string name="ssa_basic_intro">The phone connects to itself over Wireless debugging (needs Wi-Fi), then turns on every permission: Accessibility, usage access, battery, location, notifications. Every account stays, no restart. 2 steps:</string>
+    <string name="ss_basic_chosen">remove the Google, Samsung or Xiaomi accounts, then run setup again and pick Device Owner.</string>
     <string name="ssa_s1">Step 1. Turn on Developer options</string>
     <string name="ssa_s1_d">Open About phone and tap \"Build number\" 7 times.</string>
     <string name="ssa_s1_btn">Open About phone</string>

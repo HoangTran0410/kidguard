@@ -366,6 +366,9 @@
     <string name="ssa_pair_title">Cho KidGuard tự dùng adb</string>
     <string name="ssa_pair_intro">KidGuard ghép 1 lần với Gỡ lỗi không dây của máy này để ẩn app cài sẵn và dọn máy, không cần reset. Cần Wi-Fi. Làm 3 bước, xong có dấu ✓:</string>
     <string name="ssa_intro">Máy tự nối với chính nó qua Gỡ lỗi không dây (cần Wi-Fi). Máy không có tài khoản điện thoại (Google, Samsung, Xiaomi...) thì thành Device Owner: chế độ đầy đủ, tài khoản app (Zalo, Facebook...) giữ nguyên, máy khởi động lại một lần. Máy còn tài khoản điện thoại thì cài chế độ cơ bản, không cần xoá. Làm 2 bước:</string>
+    <string name="ssa_basic_title">Tự cài chế độ cơ bản</string>
+    <string name="ssa_basic_intro">Máy tự nối với chính nó qua Gỡ lỗi không dây (cần Wi-Fi), rồi tự bật mọi quyền: Trợ năng, thời gian dùng app, pin, vị trí, thông báo. Mọi tài khoản giữ nguyên, không khởi động lại. Làm 2 bước:</string>
+    <string name="ss_basic_chosen">xoá tài khoản Google, Samsung, Xiaomi rồi chạy lại Tự cài, chọn Device Owner.</string>
     <string name="ssa_s1">Bước 1. Bật Tuỳ chọn nhà phát triển</string>
     <string name="ssa_s1_d">Vào Giới thiệu về điện thoại, bấm 7 lần vào \"Số hiệu bản tạo\" (Build number).</string>
     <string name="ssa_s1_btn">Mở Giới thiệu về điện thoại</string>

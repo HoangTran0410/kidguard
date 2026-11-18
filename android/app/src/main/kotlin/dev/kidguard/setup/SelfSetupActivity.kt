@@ -47,7 +47,8 @@ class SelfSetupActivity : Activity() {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(28), dp(18), dp(28)) }
         fun body(t: String, color: Int = u.sub) = u.label(t, 15f, color).apply { setLineSpacing(0f, 1.2f); setPadding(0, dp(6), 0, 0) }
         pairMode = intent.getBooleanExtra(EXTRA_PAIR, false)
-        col.addView(u.label(getString(if (pairMode) R.string.ssa_pair_title else R.string.ssa_title), 26f, u.text, true))
+        basicMode = !pairMode && intent.getBooleanExtra(EXTRA_BASIC, false)
+        col.addView(u.label(getString(if (pairMode) R.string.ssa_pair_title else if (basicMode) R.string.ssa_basic_title else R.string.ssa_title), 26f, u.text, true))
         setContentView(ScrollView(this).apply { setBackgroundColor(u.bg); isFillViewport = true; addView(col) })
         window.statusBarColor = u.bg; window.navigationBarColor = u.bg
         if (!u.dark) window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or (if (Build.VERSION.SDK_INT >= 27) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
@@ -56,7 +57,7 @@ class SelfSetupActivity : Activity() {
             col.addView(u.cardBox().apply { addView(body(getString(R.string.ssa_old, Build.VERSION.RELEASE), u.text)) })
             return
         }
-        col.addView(body(getString(if (pairMode) R.string.ssa_pair_intro else R.string.ssa_intro)))
+        col.addView(body(getString(if (pairMode) R.string.ssa_pair_intro else if (basicMode) R.string.ssa_basic_intro else R.string.ssa_intro)))
 
         /** One numbered step card: badge + title, explanation, its button. */
         fun step(n: Int, title: Int, desc: Int, btn: Int, icon: Int, f: () -> Unit) = u.cardBox().apply {
@@ -141,6 +142,7 @@ class SelfSetupActivity : Activity() {
 
     private fun askNotification() {
         SelfSetup.pairOnly = pairMode   // pair mode (Dọn máy without Device Owner): pair + connect only
+        SelfSetup.wantBasic = basicMode   // read by start(), also when the code comes through the notification
         SelfSetup.startDiscovery(this)
         SelfSetup.askCodeNotification(this)
         openDev()
@@ -152,15 +154,19 @@ class SelfSetupActivity : Activity() {
         // the result line is at the bottom, off screen: say it where the finger is, and put the cursor in the box
         if (c.length != 6) { result.text = getString(R.string.ssa_code_6); Toasts.show(this, getString(R.string.ssa_code_6)); code.requestFocus(); return }
         SelfSetup.turnOffWifi = !pairMode && wifiOff.isChecked
+        SelfSetup.wantBasic = basicMode
         SelfSetup.start(this, c, pairPort.text.toString().toIntOrNull() ?: 0, connPort.text.toString().toIntOrNull() ?: 0, pairOnly = pairMode)
         tick()
     }
 
     private var pairMode = false
+    private var basicMode = false
 
     companion object {
         /** true: only pair KidGuard's own adb (FeaturesSheet "adb trên máy"), none of the Device Owner steps. */
         const val EXTRA_PAIR = "pair"
+        /** Basic mode chosen on the first-run screen: keep every account, skip Device Owner. */
+        const val EXTRA_BASIC = "basic"
     }
 
     private class StepMark(val n: Int, val badge: TextView, val note: TextView, val button: View)

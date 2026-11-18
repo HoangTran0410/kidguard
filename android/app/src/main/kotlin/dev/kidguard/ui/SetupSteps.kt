@@ -151,15 +151,27 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
     private fun chooserPending(): Boolean = !Flavor.HOME && Build.VERSION.SDK_INT >= 30 && !Policy.isOwner(act) &&
         !Store.of(act).everPaired && !prefs().getBoolean("firstChoice", false) && !Basic.adminActive(act)
 
+    /**
+     * First run (Android 11+): basic (keeps every account) or Device Owner, each with what it can and can't do (owner
+     * 2026-11-18: "đa số sẽ chọn cơ bản để ko mất account"). Both run on the phone's own Wireless debugging, the fastest
+     * path; basic can also be done by hand (no Wi-Fi) with the checklist.
+     */
     private fun chooser() {
         box.removeAllViews(); box.visibility = View.VISIBLE
         box.addView(ui.label(act.getString(R.string.fr_title), 18f, ui.text, true))
-        fun option(title: Int, desc: Int, primary: Boolean, run: () -> Unit) {
-            box.addView(ui.label(act.getString(desc), 13f).apply { setPadding(0, ui.dp(14), 0, ui.dp(6)); setLineSpacing(0f, 1.1f) })
-            box.addView(ui.button(act.getString(title), if (primary) R.drawable.li_shield else R.drawable.li_list_checks, primary) { run() }, LinearLayout.LayoutParams(-1, -2))
+        fun option(title: Int, pros: Int, cons: Int) {
+            box.addView(ui.label(act.getString(title), 16f, ui.text, true).apply { setPadding(0, ui.dp(18), 0, ui.dp(2)) })
+            box.addView(ui.label(act.getString(pros), 13f).apply { setPadding(0, ui.dp(4), 0, 0); setLineSpacing(0f, 1.1f) })
+            box.addView(ui.label(act.getString(cons), 13f).apply { setPadding(0, ui.dp(4), 0, ui.dp(8)); setLineSpacing(0f, 1.1f) })
         }
-        option(R.string.fr_full, R.string.fr_full_d, true) { SelfGate.run(act, ui) { act.startActivity(Intent(act, SelfSetupActivity::class.java)) } }
-        option(R.string.fr_basic, R.string.fr_basic_d, false) { prefs().edit().putBoolean("firstChoice", true).apply(); lastKey = ""; update() }
+        fun btn(t: Int, icon: Int, primary: Boolean, run: () -> Unit) =
+            box.addView(ui.button(act.getString(t), icon, primary) { run() }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
+        fun self(basic: Boolean) = SelfGate.run(act, ui) { act.startActivity(Intent(act, SelfSetupActivity::class.java).putExtra(SelfSetupActivity.EXTRA_BASIC, basic)) }
+        option(R.string.fr_basic, R.string.fr_basic_pro, R.string.fr_basic_con)
+        btn(R.string.fr_basic_wifi, R.drawable.li_wifi, true) { self(true) }
+        btn(R.string.fr_basic_hand, R.drawable.li_list_checks, false) { prefs().edit().putBoolean("firstChoice", true).apply(); lastKey = ""; update() }
+        option(R.string.fr_full, R.string.fr_full_pro, R.string.fr_full_con)
+        btn(R.string.fr_full_go, R.drawable.li_shield, false) { self(false) }
     }
 
     /** True while a step is left (the card shows). */

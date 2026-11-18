@@ -226,6 +226,8 @@ object SelfSetup {
     @Volatile var turnOffWifi = true
     @Volatile var wifiOff: Boolean? = null  // result of the optional last step
     @Volatile var pairOnly = false      // set by SelfAdb.pair: pair + connect, none of the Device Owner steps
+    /** The parent chose basic mode (keeps every account, owner 2026-11-18): no account check, no Device Owner, same grants. */
+    @Volatile var wantBasic = false
     /** Device Owner was refused (phone accounts, other users, another owner): this run set up basic mode instead. */
     @Volatile var basic = false
     private var basicWhy = ""
@@ -246,9 +248,10 @@ object SelfSetup {
     /** Starts the job on a background thread: pair with [code], connect, run every step. Port 0 = use the discovered one. */
     fun start(ctx: Context, code: String, pairPort: Int = 0, connPort: Int = 0, pairOnly: Boolean = false) {
         val app = ctx.applicationContext
-        synchronized(this) { if (running || resuming) return; running = true; done = false; message = ""; wifiOff = null; basic = false; state.fill(STEP_TODO) }
+        synchronized(this) { if (running || resuming) return; running = true; done = false; message = ""; wifiOff = null; basic = wantBasic; state.fill(STEP_TODO) }
+        if (wantBasic) basicWhy = app.getString(R.string.ss_basic_chosen)
         startDiscovery(app)
-        Thread({ runCatching { job(app, code.trim(), pairPort, connPort, pairOnly) }.onFailure { Log.w(AdbPortFinder.TAG, "job", it); fail(app, it.message ?: it.toString()) }; this.pairOnly = false; running = false }, "selfsetup").start()
+        Thread({ runCatching { job(app, code.trim(), pairPort, connPort, pairOnly) }.onFailure { Log.w(AdbPortFinder.TAG, "job", it); fail(app, it.message ?: it.toString()) }; this.pairOnly = false; wantBasic = false; running = false }, "selfsetup").start()
     }
 
     private fun mark(app: Context, i: Int, s: Int) { state[i] = s; notifyProgress(app, if (s == STEP_RUN) app.getString(STEPS[i]) + "..." else null) }
@@ -316,7 +319,7 @@ object SelfSetup {
         // caches the account check until boot), the steps go on in [resume] and the apps are turned back on. Phone accounts must go.
         mark(app, 1, STEP_RUN)
         val dump = sh("dumpsys account")
-        if (SelfSetupLogic.accounts(dump).isNotEmpty() && !Policy.isOwner(app)) {
+        if (!wantBasic && SelfSetupLogic.accounts(dump).isNotEmpty() && !Policy.isOwner(app)) {
             val plan = SelfSetupLogic.planAccounts(dump, SelfSetupLogic.packages(sh("pm list packages -3")))
             // phone accounts (Google, Xiaomi...) block Device Owner: set up basic mode now instead of stopping (owner
             // 2026-11-18 "cài nhanh mà vẫn dùng được chế độ cơ bản"); removing them and running again upgrades to Device Owner
@@ -365,6 +368,9 @@ object SelfSetup {
         }
         state[5] = STEP_OK
         if (!step(6, "dumpsys deviceidle whitelist +$PKG") { !it.contains("Unknown", true) && !it.contains("Exception", true) }) return
+        // basic mode: what Device Owner would grant itself (location incl. background, notifications...) is granted here,
+        // the same list AutoGrant runs later; errors ignored (the checklist still shows what is left)
+        if (basic) for (c in runCatching { AutoGrant.missing(app) }.getOrDefault(emptyList())) runCatching { Log.i(AdbPortFinder.TAG, "autogrant: $c -> " + sh(c)) }
         // ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off): lock-card hint (read while the link is up)
         val colorOs = runCatching { sh("getprop ro.build.version.opporom; getprop ro.build.version.oplusrom") }.getOrDefault("").isNotBlank()
         // optional: Wireless debugging off. The link drops with it, so no reading afterwards.
