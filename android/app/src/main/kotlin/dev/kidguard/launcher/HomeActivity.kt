@@ -169,10 +169,15 @@ class HomeActivity : Activity() {
 
     override fun getResources(): android.content.res.Resources = Lang.res(baseContext) ?: super.getResources()
 
+    /** SafeHome shown: none of the full home was built, every lifecycle call below returns early. */
+    private var safe = false
+
     override fun onCreate(b: Bundle?) {
 
         super.onCreate(b)
         LauncherSafe.watch(this)
+        // 3 crashes in 5 min: a plain app list instead of the full home, never "no home" (SafeHome, 2026-11-18)
+        if (LauncherSafe.inSafeMode(this)) { safe = true; setContentView(SafeHome.view(this) { LauncherSafe.retry(this); recreate() }); return }
         LauncherSafe.restoreShade(this)
         alive++
         if (LauncherSafe.takeReset(this)) { HomeFile.reset(this); IconCache.clear() }
@@ -241,7 +246,7 @@ class HomeActivity : Activity() {
         pager.post { pager.jump(1) }
     }
 
-    override fun onDestroy() { alive--; main.removeCallbacks(renderRetry); main.removeCallbacks(pkgLater)
+    override fun onDestroy() { if (safe) { super.onDestroy(); return }; alive--; main.removeCallbacks(renderRetry); main.removeCallbacks(pkgLater)
         pkgRx?.let { runCatching { unregisterReceiver(it) } }; pkgRx = null
         if (NotifDots.onChange === dotRx) NotifDots.onChange = null; super.onDestroy() }
     private val dotRx: (Set<String>) -> Unit = { changed -> Dots.refresh(window.decorView, changed) }
@@ -257,6 +262,7 @@ class HomeActivity : Activity() {
     private var recentGen = 0
 
     override fun onResume() {
+        if (safe) { super.onResume(); if (!LauncherSafe.inSafeMode(this)) recreate(); return }
         super.onResume()
         main.removeCallbacks(ccPre); main.postDelayed(ccPre, 2000)
         val gen = ++recentGen   // a slower older load must not overwrite a newer result
@@ -288,6 +294,7 @@ class HomeActivity : Activity() {
     }
 
     override fun onPause() {
+        if (safe) { super.onPause(); return }
         exitEdit()
         Guard.listeners.remove(listener)
         timeRx?.let { runCatching { unregisterReceiver(it) } }; timeRx = null
@@ -299,7 +306,7 @@ class HomeActivity : Activity() {
         super.onPause()
     }
 
-    override fun onStart() { super.onStart(); lifecycleStarted = true; awStart() }
+    override fun onStart() { super.onStart(); if (safe) return; lifecycleStarted = true; awStart() }
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) { super.onActivityResult(requestCode, resultCode, data); awResult(requestCode, resultCode, data) }
@@ -310,12 +317,16 @@ class HomeActivity : Activity() {
     }
 
     override fun onStop() {
+        if (safe) { super.onStop(); return }
         lifecycleStarted = false; awStop()
         super.onStop()
     }
 
     /** HOME pressed while we are in front: close what is open (one thing at a time), else back to page 1. */
     override fun onNewIntent(intent: Intent?) {
+        if (safe) { super.onNewIntent(intent); return }
+        // debug builds: `am start -a android.intent.action.MAIN -c android.intent.category.HOME --ez crashTest true` (CrashGuard test)
+        if (BuildConfig.DEBUG && intent?.getBooleanExtra("crashTest", false) == true) throw IllegalStateException("home crashTest")
         super.onNewIntent(intent)
         popup?.dismiss()
         when {
@@ -328,6 +339,7 @@ class HomeActivity : Activity() {
 
     @Deprecated("still the way back works on API 26-32")
     override fun onBackPressed() {
+        if (safe) { return }
         when {
             overlay != null -> closeOverlay()
             editing -> exitEdit()   // multi-select: Back leaves it (as Home does), picks dropped
@@ -1644,6 +1656,7 @@ class HomeActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(e: KeyEvent): Boolean {
+        if (safe) return super.dispatchKeyEvent(e)
         // typing on a hardware keyboard on the home screen opens search
         if (drawer == null && overlay == null && !editing && drag == null && pager.page > 0 && e.action == KeyEvent.ACTION_DOWN && e.isPrintingKey) { openDrawer(); drawer?.search?.let { it.requestFocus(); it.append(e.unicodeChar.toChar().toString()) }; return true }
         return super.dispatchKeyEvent(e)

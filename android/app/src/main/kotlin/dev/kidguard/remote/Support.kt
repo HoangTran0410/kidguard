@@ -197,12 +197,17 @@ object Support {
         val app = ctx.applicationContext
         val old = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { t, e ->
-            runCatching { File(app.filesDir, CRASH_FILE).writeText("thread ${t.name}, v${BuildConfig.VERSION_NAME}\n" + Log.getStackTraceString(e).take(16_000)) }
-            // sent by the next start (sendCrash): a dying process has no time for the network
-            runCatching { File(app.filesDir, PENDING).writeText(JSONObject().put("kind", e.javaClass.name).put("msg", e.message ?: "")
-                .put("stack", e.stackTraceToString().take(16_000)).toString()) }
+            recordCrash(app, t, e)
             old?.uncaughtException(t, e)
         }
+    }
+
+    /** Writes the last crash (support report + census, sent by [sendCrash] on the next start). Also [CrashGuard] for a crash it survives. */
+    fun recordCrash(app: Context, t: Thread, e: Throwable) {
+        runCatching { File(app.filesDir, CRASH_FILE).writeText("thread ${t.name}, v${BuildConfig.VERSION_NAME}\n" + Log.getStackTraceString(e).take(16_000)) }
+        // sent by the next start (sendCrash): a dying process has no time for the network
+        runCatching { File(app.filesDir, PENDING).writeText(JSONObject().put("kind", e.javaClass.name).put("msg", e.message ?: "")
+            .put("stack", e.stackTraceToString().take(16_000)).toString()) }
     }
 
     /**

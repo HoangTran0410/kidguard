@@ -707,6 +707,8 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // debug builds: `am start -n dev.kidguard/.MainActivity --ez crashTest true` replays a screen crash (CrashGuard test)
+        if (BuildConfig.DEBUG && intent?.getBooleanExtra("crashTest", false) == true) { intent.removeExtra("crashTest"); throw IllegalStateException("crashTest") }
         if (launcherPal().toString() != palKey) { recreate(); return }   // light / dark or accent changed in the launcher's Tuỳ chỉnh
         launched = false   // back from a screen we opened (see onStop)
         if (::quickBox.isInitialized) layoutTiles()   // the parents may have switched "Dọn dẹp" on / off

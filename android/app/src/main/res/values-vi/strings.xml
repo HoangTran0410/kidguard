@@ -749,7 +749,7 @@
     <string name="hm_no_dialer">Máy không có ứng dụng gọi điện</string>
     <string name="hm_paused_desc">%1$s, đang tạm nghỉ: %2$s</string>
     <string name="hm_page">Trang %1$d / %2$d</string>
-    <string name="ev_launcher_crash">Màn hình chính của con lỗi 3 lần trong 5 phút. Đã tắt 24 giờ (%1$s)</string>
+    <string name="ev_launcher_crash">Màn hình chính của con lỗi 3 lần trong 5 phút. Đang hiện danh sách app đơn giản tối đa 24 giờ (%1$s)</string>
     <!-- kid launcher part 2 -->
     <string name="hm_d_rail">Bảng chữ cái: kéo để nhảy tới</string>
     <string name="hm_e_no_room">Không đủ chỗ</string>
@@ -1186,4 +1186,8 @@
     <string name="feat_cap_calls">danh bạ và nhật ký cuộc gọi</string>
     <string name="feat_cap_cam">camera</string>
     <string name="feat_cap_sms">đọc tin nhắn SMS</string>
+    <string name="crash_closed">Đã đóng màn này vì có lỗi. Đã gửi báo lỗi.</string>
+    <string name="safe_home_title">Màn hình chính đơn giản</string>
+    <string name="safe_home_body">Màn hình chính bị lỗi nhiều lần, nên tạm hiện danh sách đơn giản này. Màn hình chính thường tự trở lại trong vòng 24 giờ.</string>
+    <string name="safe_home_retry">Thử lại màn hình chính</string>
 </resources>

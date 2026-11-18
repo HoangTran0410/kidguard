@@ -29,7 +29,7 @@ object LauncherSafe {
     /** The launcher should be the home screen now. */
     fun wanted(ctx: Context, r: Rules): Boolean {
         val s = Store.of(ctx)
-        if (inSafeMode(ctx) || s.released) return false
+        if (s.released) return false   // safe mode keeps the component: HomeActivity shows SafeHome instead (see [crashed])
         if (Flavor.HOME) return true
         if (Policy.isOwner(ctx)) return r.launcher.on
         // no Device Owner: nothing can be forced (the user picks HOME in Settings), so KidGuard is ALWAYS in the HOME list;
@@ -173,7 +173,8 @@ object LauncherSafe {
     private class Handler(val app: Context, val next: Thread.UncaughtExceptionHandler?) : Thread.UncaughtExceptionHandler {
         override fun uncaughtException(t: Thread, e: Throwable) {
             // only a crash with launcher frames counts: Guard / relay code on the main thread is not a launcher crash
-            if (HomeActivity.alive > 0 && runCatching { LauncherLogic.isLauncherCrash(frames(e)) }.getOrDefault(true)) runCatching { crashed(app, e) }
+            // main thread only: CrashGuard lets a worker thread end without killing the process, so it is not a launcher crash
+            if (t === android.os.Looper.getMainLooper().thread && HomeActivity.alive > 0 && runCatching { LauncherLogic.isLauncherCrash(frames(e)) }.getOrDefault(true)) runCatching { crashed(app, e) }
             next?.uncaughtException(t, e)
         }
     }
@@ -198,9 +199,13 @@ object LauncherSafe {
             else -> {}
         }
         ed.commit()
-        // 3rd crash: off now (the stock launcher takes HOME); the Guard re-checks it every minute too
-        if (act == LauncherLogic.CrashAct.DISABLE) runCatching { off(ctx, goHome = false) }
+        // 3rd crash: HomeActivity shows SafeHome (plain app list) for 24 h. It used to turn the launcher off so the stock
+        // one took HOME, but without Device Owner that clears the default HOME: HyperOS then showed its chooser behind
+        // Recents and the phone was stuck (owner 2026-11-18). Our component stays HOME, so there is always a way out.
     }
+
+    /** SafeHome's "Try again": the full home now (the next crash counts from zero). */
+    fun retry(ctx: Context) { prefs(ctx).edit().remove("safeUntil").remove("times").commit() }
 
     /** HomeActivity asks on start: reset the layout once after a 2nd crash. */
     fun takeReset(ctx: Context): Boolean {

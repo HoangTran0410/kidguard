@@ -1361,7 +1361,7 @@ Optional home screen on the kid's phone (`HomeActivity`, category HOME). Device 
   `quick_qs_panel`, measured AOSP 14 + ColorOS 8.1) or a window of `miui.systemui.plugin` (HyperOS control center,
   unverified) is up, sends `GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE` (API 31+, else Back), re-checked 4 × 0.3 s. The
   one-row quick tiles on top of the shade stay tappable. Needs the accessibility service on; without it nothing is
-  blocked. Only while the launcher is wanted (`on` + Device Owner, or the unmanaged opt-in); `on:false`, safe mode,
+  blocked. Only while the launcher is wanted (`on` + Device Owner, or the unmanaged opt-in); `on:false`,
   `release`, `releaseBasic` drop it with the launcher (no system flag is set, nothing else to undo). Not
   `setStatusBarDisabled`: that also mutes every notification's sound, vibration and heads-up (measured, API 34). The
   kid panel hides "Cài đặt nhanh của máy" while it is on.
@@ -1386,9 +1386,14 @@ này"). Airplane with `noAirplane` on a Device Owner phone is always locked. Not
   but Home opens something else (re-applied every minute). Absent = older app.
 
 ### Crash fallback
-Uncaught exceptions while `HomeActivity` is alive are counted (device-protected prefs). 2nd crash within 5 min: the layout is
-reset to the preset. 3rd within 5 min: the launcher is turned off for 24 h (`safeUntil`), the stock launcher returns and an
-event `{"kind": "launcher", "text": "…đã tắt 24 giờ (HH:mm)"}` is sent. After 24 h the rule applies again. An app update clears the
+Error boundary (v0.9.34, `CrashGuard`): a main-thread crash no longer kills the process. A crash in any other screen closes
+the screens and the home shows; a launcher crash (launcher frames while `HomeActivity` is alive) is counted (device-protected
+prefs) and the home restarts. More than 5 caught crashes in 10 s, or OutOfMemoryError, still kill the process. Worker
+threads without a Looper just end; the Guard / relay Looper threads still kill it (the restart brings them back).
+2nd launcher crash within 5 min: the layout is reset to the preset. 3rd within 5 min: safe mode for 24 h (`safeUntil`): the
+component stays HOME and shows a plain app list (`SafeHome`, "Try the usual home" ends it) and an event
+`{"kind": "launcher", "text": "…danh sách app đơn giản tối đa 24 giờ (HH:mm)"}` is sent. Before v0.9.34 safe mode turned the
+launcher off, which without Device Owner cleared the default HOME (HyperOS: chooser stuck behind Recents). After 24 h the full home returns. An app update clears the
 crash count and the safe mode, and a layout reset by a crash in the last 24 h comes back (`home.json.bad`, if it parses).
 
 ### `home.json` (phone only, app files dir)

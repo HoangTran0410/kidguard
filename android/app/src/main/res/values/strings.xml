@@ -769,7 +769,7 @@
     <string name="hm_no_dialer">This phone has no phone app</string>
     <string name="hm_paused_desc">%1$s, paused: %2$s</string>
     <string name="hm_page">Page %1$d of %2$d</string>
-    <string name="ev_launcher_crash">Kid home screen crashed 3 times in 5 minutes. Switched off for 24 h (%1$s)</string>
+    <string name="ev_launcher_crash">The kid\'s home screen crashed 3 times in 5 minutes. A simple app list shows for up to 24 hours (%1$s)</string>
     <!-- kid launcher part 2 -->
     <string name="hm_d_rail">Alphabet: drag to jump</string>
     <string name="hm_e_no_room">Not enough room there</string>
@@ -1209,4 +1209,8 @@
     <string name="feat_cap_calls">contacts and call log</string>
     <string name="feat_cap_cam">camera</string>
     <string name="feat_cap_sms">read text messages (SMS)</string>
+    <string name="crash_closed">Closed this screen after an error. The error report was sent.</string>
+    <string name="safe_home_title">Simple home screen</string>
+    <string name="safe_home_body">The home screen hit errors several times, so this simple list shows for now. The usual home comes back by itself within 24 hours.</string>
+    <string name="safe_home_retry">Try the usual home</string>
 </resources>

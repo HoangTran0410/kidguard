@@ -67,5 +67,5 @@ object Lang {
 /** Application: applicationContext (Store, Update, Ts, SelfSetup, ResTr...) answers in the chosen language. */
 class App : Application() {
     override fun getResources(): Resources = Lang.res(baseContext) ?: super.getResources()
-    override fun onCreate() { super.onCreate(); Support.watchCrashes(this); Support.sendCrash(this); runCatching { NavGest.boot(this) } }   // process (re)start after a kill: 3-button bar back until Acc connects   // last crash of any thread: a support report + census
+    override fun onCreate() { super.onCreate(); Support.watchCrashes(this); CrashGuard.install(this); Support.sendCrash(this); runCatching { NavGest.boot(this) } }   // process (re)start after a kill: 3-button bar back until Acc connects   // last crash of any thread: a support report + census
 }

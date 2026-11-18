@@ -195,7 +195,7 @@ Xiaomi / Poco only: switch "Vuốt thay cho 3 nút" (`Store.navGest`, `NavGest`)
 | `style` | preset only for first `home.json` | HA `firstModel` 397-405 |
 | `shade` | `LauncherSafe.shadeBlocked`; Acc closes quick settings | Acc.kt:50,76; HomeControl.kt:300,350 |
 State to parent: `LauncherSafe.state()` (`on`, `home`, `err`, `style`, `locked`, `pages`, `safeUntil`) LauncherSafe.kt:208-211.
-Crash fallback: uncaught handler counts while `HomeActivity.alive>0`; 2 in 5 min = layout reset (`HomeFile.reset`, `.bad` kept); 3 = safe mode 24 h + off.
+Crash fallback: `CrashGuard` (guard/CrashGuard.kt) keeps the process on main-thread crashes (other screens closed; launcher crash = counted + home restarted); 2 launcher crashes in 5 min = layout reset (`HomeFile.reset`, `.bad` kept); 3 = safe mode 24 h = `SafeHome` plain app list, component stays HOME.
 `afterUpdate`/`freshStart` clear counters and restore `.bad`.
 
 ### 3.13 Kid vs Home flavor
