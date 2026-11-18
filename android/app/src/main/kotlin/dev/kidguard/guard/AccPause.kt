@@ -17,6 +17,11 @@ import android.provider.Settings
  */
 object AccPauseLogic {
     const val RESUME_MS = 10 * 60_000L
+    /**
+     * When the status notification's countdown ends, over every pause running (accessibility, debugging + port 5555):
+     * each `leftAt` (0 = its app is still in front, nothing counts yet). 0 = some app is in front: no countdown.
+     */
+    fun noticeAt(leftAts: List<Long>, wait: Long): Long = if (leftAts.isEmpty() || leftAts.any { it <= 0L }) 0L else leftAts.max() + wait
     /** Basic mode blocks apps through the service itself: a paused service blocks nothing, so come back much sooner. */
     const val RESUME_BASIC_MS = 60_000L
     /** After a pause ends the service binds a few seconds later: no "accessibility off" alarm meanwhile (owner 2026-11-16). */
@@ -238,27 +243,36 @@ object AccPause {
     private const val NOTIF_STATE = 7350
     private var shown = ""
 
+    // Covers the debugging pause too (DevOpts.pause: USB debugging + adb port 5555): owner 2026-11-18, VNeID turned 3 things
+    // off and the notification named only accessibility; "turn on now" brings all of them back (same as the parent's bankEnd).
     @Synchronized fun notice(ctx: Context) = runCatching {
         val s = Store.of(ctx)
         val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
-        val paused = s.accPaused
-        val at = if (paused.isEmpty() || s.accLeftAt <= 0L) 0L
-            else s.accLeftAt + (if (Policy.isOwner(ctx)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS)
-        val key = if (paused.isEmpty()) "" else paused.sorted().joinToString() + "|" + at
+        val acc = s.accPaused; val dev = s.devApps
+        val what = buildList {
+            if (acc.isNotEmpty()) add(ctx.getString(R.string.pause_what_acc))
+            if (dev.isNotEmpty() && s.devPaused != 0) add(ctx.getString(R.string.pause_what_dev))
+            if (dev.any { it in s.rules.tcpPause } && s.adbTcp) add(ctx.getString(R.string.pause_what_tcp))
+        }
+        val apps = (acc + dev).sorted()
+        val wait = if (Policy.isOwner(ctx)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS
+        val at = AccPauseLogic.noticeAt(buildList { if (acc.isNotEmpty()) add(s.accLeftAt); if (dev.isNotEmpty()) add(s.devLeftAt) }, wait)
+        val key = if (what.isEmpty()) "" else apps.joinToString() + "|" + what.joinToString() + "|" + at
         if (key == shown) return@runCatching
         shown = key
-        if (paused.isEmpty()) { nm.cancel(NOTIF_STATE); return@runCatching }
+        if (what.isEmpty()) { nm.cancel(NOTIF_STATE); return@runCatching }
         val ch = Chan.open(nm, CH_STATE, ctx.getString(R.string.ch_accstate), android.app.NotificationManager.IMPORTANCE_LOW)
-        val min = ((if (Policy.isOwner(ctx)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS) / 60_000L).toInt()
+        val min = (wait / 60_000L).toInt()
         val b = android.app.Notification.Builder(ctx, ch).setSmallIcon(android.R.drawable.ic_lock_idle_lock)
-            .setContentTitle(ctx.getString(R.string.acc_state_t, paused.joinToString(", ") { label(ctx, it) }))
+            .setContentTitle(ctx.getString(R.string.acc_state_t, apps.joinToString(", ") { label(ctx, it) }))
+            .setStyle(android.app.Notification.BigTextStyle())
             .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(at > 0L)
         if (at > 0L) {
-            b.setContentText(ctx.getString(R.string.acc_state_left)).setWhen(at).setUsesChronometer(true).setChronometerCountDown(true)
+            b.setContentText(ctx.getString(R.string.pause_off, what.joinToString(", ")) + " " + ctx.getString(R.string.acc_state_left)).setWhen(at).setUsesChronometer(true).setChronometerCountDown(true)
             val pi = android.app.PendingIntent.getBroadcast(ctx, 1, android.content.Intent(ctx, AccResumeReceiver::class.java),
                 android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
             b.addAction(android.app.Notification.Action.Builder(null, ctx.getString(R.string.acc_state_now), pi).build())
-        } else b.setContentText(ctx.resources.getQuantityString(R.plurals.acc_state_front, min, min))
+        } else b.setContentText(ctx.getString(R.string.pause_off, what.joinToString(", ")) + " " + ctx.resources.getQuantityString(R.plurals.acc_state_front, min, min))
         nm.notify(NOTIF_STATE, b.build())
     }
 
@@ -267,10 +281,16 @@ object AccPause {
     }.getOrDefault(pkg)
 }
 
-/** "Turn on now" on the pause status notification: same as the parent's end-now (closes the paused app). */
+/** "Turn on now" on the pause status notification: same as the parent's end-now (closes the paused app), all pauses. */
 class AccResumeReceiver : android.content.BroadcastReceiver() {
     override fun onReceive(c: Context, i: android.content.Intent?) {
         val r = goAsync()
-        Thread({ try { AccPause.endNow(c.applicationContext) } finally { r.finish() } }, "acc-resume").start()
+        Thread({ try {
+            val app = c.applicationContext
+            runCatching { AccPause.endNow(app) }
+            runCatching { DevOpts.clearPause(app) }   // debugging back now; Shell.tick reopens port 5555 once devApps is empty
+            runCatching { SelfAdb.invalidate(); AutoGrant.soon() }
+            AccPause.notice(app)
+        } finally { r.finish() } }, "acc-resume").start()
     }
 }

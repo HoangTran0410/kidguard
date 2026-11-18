@@ -77,4 +77,11 @@ class AccPauseTest {
         assertTrue(AccPauseLogic.accOffAlarm(true, true, accOn = false, paused = false, resumedAt = 0L, now = t))
         assertFalse(AccPauseLogic.accOffAlarm(true, false, accOn = false, paused = false, resumedAt = 0L, now = t))
     }
+
+    @org.junit.Test fun noticeCountsToTheLaterPause() {
+        val w = AccPauseLogic.RESUME_MS
+        assertEquals(0L, AccPauseLogic.noticeAt(emptyList(), w))
+        assertEquals(0L, AccPauseLogic.noticeAt(listOf(1000L, 0L), w))           // debugging app still in front: no countdown
+        assertEquals(5000L + w, AccPauseLogic.noticeAt(listOf(1000L, 5000L), w))  // accessibility + debugging: the later one
+    }
 }

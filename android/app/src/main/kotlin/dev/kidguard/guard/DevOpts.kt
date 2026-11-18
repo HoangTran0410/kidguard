@@ -158,6 +158,7 @@ object DevOpts {
         val label = runCatching { val pm = ctx.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
         runCatching { s.log(if (port) R.string.log_tcp_closed else R.string.log_dev_paused, label) }
         runCatching { Toasts.show(ctx.applicationContext, ctx.getString(R.string.dev_paused_toast, label), true) }
+        AccPause.notice(ctx)
         return true
     }
 
@@ -177,10 +178,11 @@ object DevOpts {
         val wait = if (Policy.isOwner(ctx)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS
         val (leftAt, back) = AccPauseLogic.step(current, s.rules.devPause + s.rules.tcpPause + apps, s.devLeftAt, now, wait)
         if (back) { s.devApps = emptySet(); s.devLeftAt = 0L; bankResume(ctx) } else if (leftAt != s.devLeftAt) s.devLeftAt = leftAt
+        AccPause.notice(ctx)   // the pause notification names debugging / port 5555 too and counts down to the later one
     }
 
     /** Release: put debugging back as it was and forget the pause. */
-    fun clearPause(ctx: Context) { val s = Store.of(ctx); s.devApps = emptySet(); s.devLeftAt = 0L; runCatching { bankResume(ctx) } }
+    fun clearPause(ctx: Context) { val s = Store.of(ctx); s.devApps = emptySet(); s.devLeftAt = 0L; runCatching { bankResume(ctx) }; AccPause.notice(ctx) }
 
     /** The pause ended (or release): put back what [pause] turned off, unless debugging got forbidden meanwhile. */
     fun bankResume(ctx: Context) {
