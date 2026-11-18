@@ -123,8 +123,8 @@ class Bridge(private val a: MainActivity) {
     /** Picks a photo (system picker, no storage permission) and reads a QR code in it; answers like [scanQr]. */
     @JavascriptInterface fun scanImg() { a.runOnUiThread { a.scanImg() } }
     @JavascriptInterface fun appVersion(): String = BuildConfig.VERSION_NAME
-    /** The page's LAN heal (core.js relocate): the kid's address seen on this Wi-Fi (NSD) or found earlier, "" = not yet
-     *  (a scan starts; the page asks again). The page still checks /api/hello before using it. */
+    /** The page's LAN heal (core.js relocate): the kid's address found on this Wi-Fi (NSD) and proven with its token,
+     *  "" = still looking (ask again), "none" = nothing / no Wi-Fi. The page still checks /api/hello before switching. */
     @JavascriptInterface fun lanFind(id: String): String = Lan.peek(a.applicationContext, id)
     /** The page moved a kid to [url] after /api/hello matched: the background check and notification actions use it too. */
     @JavascriptInterface fun lanMoved(id: String, url: String) = Lan.learned(a.applicationContext, id, url)

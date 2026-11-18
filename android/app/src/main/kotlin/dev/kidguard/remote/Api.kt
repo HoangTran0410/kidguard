@@ -57,7 +57,8 @@ class Api(private val g: Guard) {
         when {
             // pairPin: this phone takes `newPin` at pairing (pairing without a PIN is refused while none is set)
             p == "/hello" -> return Res.json(JSONObject().put("id", store.id).put("pairing", store.pairCode() != null)
-                .put("pin", store.rules.pinHash.isNotBlank()).put("pairPin", true).put("owner", Policy.isOwner(g)).put("mode", Basic.mode(g)).toString())
+                .put("pin", store.rules.pinHash.isNotBlank()).put("pairPin", true).put("owner", Policy.isOwner(g)).put("mode", Basic.mode(g))
+                .apply { r.query["n"]?.takeIf { it.length in 16..64 }?.let { n -> put("proof", org.json.JSONArray(store.tokenHashes().map { LanName.proof(it, n) })) } }.toString())
             p == "/pair" && r.method == "POST" -> {
                 val o = runCatching { JSONObject(r.text) }.getOrDefault(JSONObject())
                 val t = store.tryPair(o.optString("code"), o.optString("pin").filter { it.isDigit() }, o.optString("newPin").trim())

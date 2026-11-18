@@ -172,8 +172,7 @@ class SelfSetupActivity : Activity() {
      */
     private fun stepMarks() {
         val g = { k: String -> runCatching { Settings.Global.getInt(contentResolver, k, 0) == 1 }.getOrDefault(false) }
-        val wifi = runCatching { getSystemService(android.net.ConnectivityManager::class.java).let { cm ->
-            cm.getNetworkCapabilities(cm.activeNetwork)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true } }.getOrDefault(false)
+        val wifi = SelfAdb.onWifi(this)   // all networks: with a VPN (Tailscale) the active one is not Wi-Fi
         for (m in marks) {
             val (done, note) = when (m.n) {
                 1 -> g(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED).let { it to if (it) getString(R.string.ssa_s1_ok) else null }

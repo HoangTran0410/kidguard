@@ -20,4 +20,12 @@ class LanNameTest {
         assertFalse(LanName.matches(n, "abd"))
         assertFalse(LanName.matches(n, ""))
     }
+
+    @Test fun proofNeedsTheToken() {
+        val h = LanName.tokenHash("tok")
+        assertEquals(64, h.length)
+        assertEquals(LanName.proof(h, "nonce-1234567890"), LanName.proof(LanName.tokenHash("tok"), "nonce-1234567890"))
+        assertFalse(LanName.proof(h, "nonce-1234567890") == LanName.proof(LanName.tokenHash("tok2"), "nonce-1234567890"))
+        assertFalse(LanName.proof(h, "nonce-1234567890") == LanName.proof(h, "nonce-0987654321"))
+    }
 }

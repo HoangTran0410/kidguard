@@ -230,7 +230,7 @@ class MainActivity : Activity() {
      */
     private fun resumeUpdate() {
         // after the opening animation: a toast shown during it was dropped by SystemUI (emulator 14: "window already added")
-        Update.justUpdated(this)?.let { v -> window.decorView.postDelayed({ Toasts.show(this, getString(R.string.upd_done, v), true) }, 800) }
+        window.decorView.postDelayed({ Update.justUpdated(this)?.let { v -> Toasts.show(this, getString(R.string.upd_done, v), true) } }, 800)   // pref removed only when shown
         Update.showConfirm = { i -> ui.post { launched = true; runCatching { startActivity(i) } } }
         val c = Update.confirm
         if (c != null) {

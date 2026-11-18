@@ -97,6 +97,7 @@ object SelfAdb {
 
     /** Ready now, or after opening the window (waits up to ~10 s for adbd). Off the main thread. */
     fun ensure(ctx: Context): Boolean {
+        if (SelfSetup.running) return false   // the setup job owns the link (pairing / connect): no second user (review 2026-11-18)
         if (ready(ctx)) { touch(ctx); return true }
         if (!canOpen(ctx)) return false
         synchronized(lock) {
@@ -133,6 +134,8 @@ object SelfAdb {
 
     /** Forget the cached answer (after a failed command or when the user paired again). */
     fun invalidate() { readyAt = 0L; whyCache = null }
+    /** Drops the shared link after any command in flight (under [lock]); the setup job before pairing and on failure. */
+    fun drop() = synchronized(lock) { runCatching { mgr?.takeIf { it.isConnected }?.disconnect() }; readyVal = false; invalidate() }
 
     /** Under [lock]. */
     private fun connect(ctx: Context): Boolean {

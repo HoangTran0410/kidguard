@@ -266,7 +266,8 @@ The first capture / first input of a session is logged in the phone log.
 - Capacity: 16 worker threads + 32 queued connections; long-running routes (`/api/listen`, `/api/screen`, file bodies) share
   6 slots, so `/api/state` always finds a thread. Over the limit: `503` (`{"error":"busy"}` for a long route, empty body +
   `Retry-After: 2` when the whole pool is full) instead of a silently closed socket.
-- `/api/hello` answers on any method (no token; the pairing probe).
+- `/api/hello` answers on any method (no token; the pairing probe). `?n=<16-64 chars>` (0.9.39) adds
+  `proof: [hex]` = HMAC-SHA256(key = sha256-hex(token), "kg-lan:" + n), one per paired token (`LanName.proof`).
 - **LAN address heal** (page, `core.js` `relocate` / `learnAddrs`, no phone change): after each LAN `state` the page keeps
   the phone's other addresses on the saved kid (`alt`, up to 4: `state.lan`, `http://<state.ts.ip>:8770`) and, when
   `state.relay` is set, sends the `relay` command once per page load with that same url: the phone keeps its relay id/token
@@ -281,9 +282,11 @@ The first capture / first input of a session is logged in the phone log.
   service type `_kidguard._tcp`, name `kg-` + first 12 hex of SHA-256(kid id) (Android may append ` (2)`), port 8770
   (`LanAd.kt`; kid flavor, no permission). The parent app (`Lan.kt`) scans for it when the saved LAN address fails:
   page `relocate` step 2 (after `alt`, before the relay) via `KGApp.lanFind(id)` → `"http://ip:port"` or `""` (a scan
-  starts; asked 3× over ~4.5 s) and `KGApp.lanMoved(id, url)` after the switch; the background check, notification
-  and widget actions try the found address (pref hint per kid id) before the relay. Every address is used only after
-  `GET /api/hello` returns the same `id`. Browser pages have no NSD (alt + relay only).
+  starts; asked every 1.5 s, up to 8×) or `"none"` (nothing / no Wi-Fi: no wait), and `KGApp.lanMoved(id, url)` after the
+  switch; the background check, notification and widget actions try the found address (pref hint per kid id) before
+  the relay. An NSD-found address gets the token only after `GET /api/hello?n=<nonce>` returns the same `id` AND a
+  `proof` made from that token (0.9.39: the name and id are public, a look-alike must not get the token). Browser pages
+  have no NSD (alt + relay only).
 - **Relay on by default** (`Store.defaultRelay`, each guard tick): once a parent has paired, a phone that never had a
   relay setting (pref `relayUrl` absent) gets `Relay.DEFAULT_URL` (the author's shared worker, same constant as
   `DEFAULT_RELAY` in `core.js`) with a new relay id/token (device row "relay"). `relay{url:""}` = relay off: the url is

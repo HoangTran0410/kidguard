@@ -127,7 +127,7 @@ class CheckJob : JobService() {
             if (k.via != "lan" || (r != null && r.fetchOk)) return r
             if (r == null && sameKid(k)) return null
             // the router gave the kid a new IP: the address it advertises on this Wi-Fi (Lan, NSD), checked by /api/hello
-            if (c != null) Lan.find(c, k.id, k.target)?.let { u -> fetchOne(u, true, k.id, k.token)?.let { if (it.fetchOk) return it } }
+            if (c != null) Lan.find(c, k.id, k.token, k.target)?.let { u -> fetchOne(u, true, k.id, k.token)?.let { if (it.fetchOk) return it } }
             if (k.hasRelay) fetchOne(k.relay!!, false, k.relayId, k.relayToken)?.let { if (it.fetchOk) return it }
             return Logic.Seen(false, emptyList(), 0)
         }

@@ -69,7 +69,13 @@ object Update {
      * (MainActivity.onResume too: the poll dies when the screen is left). Owner 2026-11-18: downloaded, then nothing
      * until he went home, came back and tapped "Cập nhật" again.
      */
-    @Volatile var wanted = false
+    var wanted: Boolean   // 10 min: a check that ended "up to date" must not open a confirm screen days later (review 2026-11-18)
+        get() = System.currentTimeMillis() - wantedAt < 10 * 60_000L
+        set(v) { wantedAt = if (v) System.currentTimeMillis() else 0L }
+    @Volatile private var wantedAt = 0L
+    /** The child-confirmed install session in flight (-1 none): a new one abandons it, so covered screens leave no staged APKs. */
+    @Volatile var uiSession = -1; private set
+    private val uiStarting = java.util.concurrent.atomic.AtomicBoolean(false)
     /**
      * The system "Update this app?" screen from [UpdateReceiver]. Android 14+ may refuse to start it from that
      * broadcast (background activity start), so MainActivity starts it itself: at once when it is showing
@@ -96,7 +102,7 @@ object Update {
         // left over from an install that replaced this process (or an older download): not needed any more
         if (!busy.get() && apk(ctx).exists() && !UpdateLogic.newer(p.getString("apkTag", "") ?: "", current())) apk(ctx).delete()
         // "ready" = basic mode waiting for the child's tap; an owner phone installs on its own
-        if (status.isEmpty() && apk(ctx).exists() && UpdateLogic.newer(latest, current()) && !Policy.isOwner(ctx)) status = "ready"
+        if (status.isEmpty() && waitingSince == 0L && apk(ctx).exists() && UpdateLogic.newer(latest, current()) && !Policy.isOwner(ctx)) status = "ready"   // waiting = the quiet install waits for screen off
         return JSONObject().put("latest", latest).put("status", status).put("err", err).put("checkedAt", p.getLong("at", 0)).put("pct", if (status == "downloading") pct else -1)
     }
 
@@ -116,7 +122,7 @@ object Update {
         runs++
         val app = ctx.applicationContext
         Thread({
-            try { run(app, force) } catch (e: Throwable) { Log.e(TAG, "update", e); status = "failed"; err = errText(app, e) }
+            try { run(app, force) } catch (e: Throwable) { Log.e(TAG, "update", e); status = "failed"; err = errText(app, e); waitingSince = 0 }   // back to the hourly throttle
             finally { busy.set(false) }
         }, "update").start()
         return true
@@ -129,7 +135,7 @@ object Update {
         latest = tag
         // "at" (the once-a-day mark) only after a full success: a failed download/install retries in an hour (triedAt)
         val done = { prefs(ctx).edit().putLong("at", System.currentTimeMillis()).apply() }
-        if (!UpdateLogic.newer(tag, current())) { status = ""; apk(ctx).delete(); done(); return }
+        if (!UpdateLogic.newer(tag, current())) { status = ""; waitingSince = 0; apk(ctx).delete(); done(); return }
         // a release whose APK we already rejected (wrong package / versionCode): don't download it again every day
         if (prefs(ctx).getString("badTag", "") == tag) { status = "failed"; err = ctx.getString(R.string.upd_err_bad_tag, tag); done(); return }
         val f = apk(ctx)
@@ -260,16 +266,20 @@ object Update {
         }
         val app = ctx.applicationContext   // the thread must not hold the Activity
         // [wanted] stays: a confirm screen that got covered (Home, another app) opens again on the next MainActivity.onResume
+        if (!uiStarting.compareAndSet(false, true)) return true   // a double onResume: one session
         prefs(app).edit().putString("from", current()).commit()
         Thread({
             runCatching {
                 val (pi, id) = session(app, f)
+                val old = uiSession; uiSession = id
+                if (old >= 0) runCatching { pi.abandonSession(old) }
                 pi.openSession(id).use { s ->
                     val pend = PendingIntent.getBroadcast(app, 7, Intent(ACTION).setClass(app, UpdateReceiver::class.java),
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
                     s.commit(pend.intentSender)
                 }
             }.onFailure { Log.e(TAG, "update install", it); status = "failed"; err = errText(app, it) }
+            uiStarting.set(false)
         }, "update-ui").start()
         return true
     }
@@ -317,7 +327,11 @@ object Update {
 /** Status of the child-confirmed install: opens the system "Update this app?" screen. */
 class UpdateReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, i: Intent) {
-        when (i.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)) {
+        val st = i.getIntExtra(PackageInstaller.EXTRA_STATUS, -1)
+        // an older session we abandoned for a new one says ABORTED: not the child's answer
+        val sid = i.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
+        if (st != PackageInstaller.STATUS_SUCCESS && sid >= 0 && Update.uiSession >= 0 && sid != Update.uiSession) return
+        when (st) {
             PackageInstaller.STATUS_PENDING_USER_ACTION -> {
                 @Suppress("DEPRECATION") val confirm = i.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
                 confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

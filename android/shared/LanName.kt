@@ -17,6 +17,19 @@ object LanName {
     /** Android renames on a clash ("kg-abc (2)"): compare the prefix. */
     fun matches(serviceName: String, id: String): Boolean = id.isNotEmpty() && serviceName.startsWith(of(id))
 
+    /**
+     * Proof that an address is the paired kid, not a look-alike on the Wi-Fi (the name and `/api/hello` id are public):
+     * the parent sends a random nonce (`/api/hello?n=`), the kid answers `proof` = this for each paired token it keeps
+     * (it stores only sha256(token), [tokenHash]); the parent sends its token only to a host whose list holds its own.
+     */
+    fun proof(tokenHash: String, nonce: String): String {
+        val m = javax.crypto.Mac.getInstance("HmacSHA256")
+        m.init(javax.crypto.spec.SecretKeySpec(tokenHash.toByteArray(), "HmacSHA256"))
+        return m.doFinal(("kg-lan:" + nonce).toByteArray()).joinToString("") { "%02x".format(it) }
+    }
+    fun tokenHash(token: String): String =
+        MessageDigest.getInstance("SHA-256").digest(token.toByteArray()).joinToString("") { "%02x".format(it) }
+
     private fun hash(id: String): String =
         MessageDigest.getInstance("SHA-256").digest(id.toByteArray()).take(6).joinToString("") { "%02x".format(it) }
 }

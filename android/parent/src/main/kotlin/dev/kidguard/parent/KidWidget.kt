@@ -66,7 +66,7 @@ class KidWidget : AppWidgetProvider() {
             val lan = k.via == "lan"
             return listOf(Triple(k.target + (if (lan) "/api" else "/c/${k.id}"), k.token, k.via)) +
                 // a LAN kid on a new IP found earlier by [Lan] (checked: still this kid)
-                (if (lan) Notif.appCtx?.let { c -> Lan.hint(c, k.id)?.takeIf { it != k.target && Lan.same(it, k.id) } }?.let { listOf(Triple("$it/api", k.token, "lan")) } ?: emptyList() else emptyList()) +
+                (if (lan) Notif.appCtx?.let { c -> Lan.hint(c, k.id)?.takeIf { it != k.target && Lan.same(it, k.id, k.token) } }?.let { listOf(Triple("$it/api", k.token, "lan")) } ?: emptyList() else emptyList()) +
                 (if (lan && k.hasRelay) listOf(Triple(k.relay + "/c/${k.relayId}", k.relayToken, "relay")) else emptyList())
         }
         private fun h(token: String) = mapOf("X-KG-Token" to token, "Content-Type" to "application/json")

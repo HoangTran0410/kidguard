@@ -257,6 +257,7 @@ object SelfSetup {
         Log.w(AdbPortFinder.TAG, "failed: $msg")
         val i = state.indexOf(STEP_RUN); if (i >= 0) state[i] = STEP_ERR
         message = msg; notifyFinal(app, app.getString(R.string.ss_failed, msg))
+        SelfAdb.drop()   // a half-open link would make the next run's connect() fail with no reason
     }
 
     private fun waitFor(ms: Long, get: () -> Int): Int { val end = System.currentTimeMillis() + ms; while (System.currentTimeMillis() < end) { val v = get(); if (v > 0) return v; Thread.sleep(200) }; return 0 }
@@ -267,7 +268,7 @@ object SelfSetup {
         mark(app, 0, STEP_RUN)
         // the shared manager may still hold an old link (5555, an old Wireless debugging port): libadb's connect() then
         // returns false with no reason ("Không kết nối được tới chính máy này:" with nothing after it, owner 2026-11-18)
-        if (runCatching { m.isConnected }.getOrDefault(false)) { Log.i(AdbPortFinder.TAG, "dropping the old adb link"); runCatching { m.disconnect() }; SelfAdb.invalidate() }
+        if (runCatching { m.isConnected }.getOrDefault(false)) { Log.i(AdbPortFinder.TAG, "dropping the old adb link"); SelfAdb.drop() }
         val pp = if (pairPort > 0) pairPort else waitFor(8000) { pairingPort }
         if (pp == 0) return fail(app, app.getString(R.string.ss_no_pair_port))
         val paired = runCatching { m.pair("127.0.0.1", pp, code) }
@@ -367,7 +368,7 @@ object SelfSetup {
         val colorOs = runCatching { sh("getprop ro.build.version.opporom; getprop ro.build.version.oplusrom") }.getOrDefault("").isNotBlank()
         // optional: Wireless debugging off. The link drops with it, so no reading afterwards.
         if (turnOffWifi) { runCatching { sh("settings put global adb_wifi_enabled 0") }; wifiOff = true }
-        runCatching { m.disconnect() }
+        runCatching { m.disconnect() }; SelfAdb.invalidate()
         done = true; message = if (basic) app.getString(R.string.ss_done_basic, basicWhy) else app.getString(R.string.ss_done)
         if (colorOs) message += "\n" + app.getString(R.string.ss_coloros)
         stopDiscovery()
@@ -458,6 +459,7 @@ object SelfSetup {
         var lost = false
         fun sh(cmd: String): String = SelfAdb.run(app, cmd) ?: run { lost = true; "" }
         var err: String? = null
+        var basicWhyR: String? = null   // Device Owner refused after the restart for a known reason: basic mode, like the first run (review 2026-11-18)
         if (!Policy.isOwner(app)) {
             val start = System.currentTimeMillis()
             if (SelfSetupLogic.pendingStale(pend, start)) err = app.getString(R.string.ss_resume_late)
@@ -477,6 +479,13 @@ object SelfSetup {
                     // the same sentence as the first run for a known refusal (several users, already provisioned...), not the raw dpm text
                     else -> SelfSetupLogic.ownerFail(out)?.let { app.getString(it) } ?: out.ifBlank { app.getString(R.string.ss_cmd_fail) }
                 }
+                val why = if (err != null && out != null) SelfSetupLogic.ownerFail(out) else null
+                if (why != null && SelfSetupLogic.basicFallback(why)) {
+                    var a = ""
+                    for (t in 0 until 10) { a = sh("dpm set-active-admin --user current $PKG/.Admin"); if ("being removed" !in a) break; Thread.sleep(1000) }
+                    Log.i(AdbPortFinder.TAG, "resume set-active-admin -> $a")
+                    if (a.contains("Success") || Basic.adminActive(app)) { err = null; basicWhyR = app.getString(why) }
+                }
             }
         }
         if (err == null) {
@@ -489,16 +498,16 @@ object SelfSetup {
                 if (lost) err = app.getString(R.string.ss_conn_lost)
             }
         }
-        finishApps(app, store, pend, err)
+        finishApps(app, store, pend, err, basicWhyR)
     }
 
     /** Always: apps back on. Then tell the parent how it went. [err] = why the steps did not finish, or null. */
-    private fun finishApps(app: Context, store: Store, pend: SelfSetupLogic.Pending, err: String?) {
+    private fun finishApps(app: Context, store: Store, pend: SelfSetupLogic.Pending, err: String?, basicWhy: String? = null) {
         val left = enableApps(app, pend.pkgs)
         if (left.isEmpty()) store.ownerPending = ""   // else it stays: the next boot / app start tries again
         if (err == null && pend.wifiOff) runCatching { android.provider.Settings.Global.putInt(app.contentResolver, "adb_wifi_enabled", 0) }
         val text = buildString {
-            if (err == null) append(app.getString(R.string.ss_done)) else append(app.getString(R.string.ss_failed, err))
+            if (err == null) append(if (basicWhy != null) app.getString(R.string.ss_done_basic, basicWhy) else app.getString(R.string.ss_done)) else append(app.getString(R.string.ss_failed, err))
             if (left.isEmpty()) append("\n").append(app.getString(R.string.ss_apps_back, pend.pkgs.joinToString(", ")))
             else append("\n").append(app.getString(R.string.ss_apps_off, left.joinToString(", ")))
         }

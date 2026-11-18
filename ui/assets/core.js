@@ -395,10 +395,12 @@ function relocate(k) {
   };
   const p = (async () => {
     for (const u of k.alt || []) if (await probe(u)) return true;
-    // parent app: the kid advertises itself on the Wi-Fi (NSD, LanName.kt); the app scans in the background, ask ~4.5 s
-    if (APP && window.KGApp.lanFind) for (let i = 0; i < 3; i++) {
-      let u = ""; try { u = String(KGApp.lanFind(k.id) || ""); } catch {}
-      if (u && /^http:\/\/[0-9.]+:\d+$/.test(u) && await probe(u)) return true;
+    // parent app: the kid advertises itself on the Wi-Fi (NSD, LanName.kt); the app looks in the background and proves
+    // the address with the token; "" = still looking, "none" = nothing / no Wi-Fi (no wait then)
+    if (APP && window.KGApp.lanFind) for (let i = 0; i < 8; i++) {
+      let u = "none"; try { u = String(KGApp.lanFind(k.id) || ""); } catch {}
+      if (u === "none") break;
+      if (u && /^http:\/\/[0-9.]+:\d+$/.test(u)) { if (await probe(u)) return true; break; }
       await new Promise(r => setTimeout(r, 1500));
     }
     if (k.relay) { try { const j = await viaRelay(k, "/state", "GET"); for (const u of addrsOf(j && j.state)) if (await probe(u)) return true; } catch {} }
