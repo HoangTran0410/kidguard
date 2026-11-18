@@ -69,12 +69,13 @@ function vcShow() {
   $("#vcUi") && $("#vcUi").remove();
   const el = document.createElement("div");
   el.id = "vcUi"; el.className = "vc"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", t("call.h"));
-  el.innerHTML = `<video id="vcRemote" autoplay playsinline></video><div class="vcoff" id="vcOff">${ic("video-off")}<span>${esc(t("call.kidCamOff"))}</span></div>
+  el.innerHTML = `<div class="vcwait" id="vcWait" aria-hidden="true">${esc([...String(vc.k.name || "?").trim()][0] || "?").toUpperCase()}</div><video id="vcRemote" autoplay playsinline></video><div class="vcoff" id="vcOff">${ic("video-off")}<span>${esc(t("call.kidCamOff"))}</span></div>
     <video id="vcLocal" autoplay playsinline muted></video>
     <div class="vctop"><b>${esc(vc.k.name || "")}</b><span id="vcSt" role="status"></span></div>
     <div class="vcbar"><button type="button" id="vcMic" class="vcb" aria-pressed="false"></button><button type="button" id="vcEnd" class="vcb end" aria-label="${esc(t("call.end"))}">${ic("phone-off")}</button><button type="button" id="vcCam" class="vcb" aria-pressed="false"></button></div>
     <button type="button" id="vcMore" class="vcmore" hidden>${ic("plus")} ${esc(t("call.more"))}</button>`;
   document.body.appendChild(el);
+  el.querySelectorAll("video").forEach(v => v.addEventListener("playing", () => v.classList.add("live")));
   el.querySelector("#vcEnd").onclick = () => vcEnd("hangup", true);
   el.querySelector("#vcMic").onclick = () => { if (!vc || !vc.c) return; vc.mic = !vc.mic; vc.c.mute(!vc.mic); vcPaint(); };
   el.querySelector("#vcCam").onclick = () => { if (!vc || !vc.c) return; vc.cam = !vc.cam; vc.c.camera(vc.cam); vcPaint(); };
@@ -97,6 +98,7 @@ function vcPaint() {
   mic.setAttribute("aria-pressed", String(!vc.mic)); mic.setAttribute("aria-label", t(vc.mic ? "call.mute" : "call.unmute"));
   cam.setAttribute("aria-pressed", String(!vc.cam)); cam.setAttribute("aria-label", t(vc.cam ? "call.camOff" : "call.camOn"));
   el.querySelector("#vcOff").style.display = vc.st === "on" && !vc.kidCam ? "flex" : "none";
+  el.querySelector("#vcWait").style.display = vc.st === "on" ? "none" : "flex";
   el.querySelector("#vcMore").hidden = !(vc.t0 && left < 60e3);
 }
 // the page went to the background (another app, locked phone): a call nobody watches ends after VC_HIDDEN
