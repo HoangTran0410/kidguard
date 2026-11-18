@@ -356,6 +356,9 @@
     <string name="ss_apps_back">Your apps are back on: %1$s.</string>
     <string name="ss_apps_off">Turn these apps back on in Settings &gt; Apps: %1$s.</string>
     <string name="ss_done">Done. KidGuard is now the device manager.</string>
+    <string name="step_admin">Grant device admin (basic mode)</string>
+    <string name="ss_done_basic">Done in basic mode: KidGuard blocks apps through Accessibility, a tech-savvy child can get around it. For full mode (device manager): %1$s</string>
+    <string name="ss_basic_accounts">remove these phone accounts in Settings &gt; Passwords &amp; accounts: %1$s, then run setup again. App accounts (Zalo, Facebook...) can stay.</string>
     <string name="ch_selfsetup">KidGuard self-setup</string>
     <string name="ss_code_label">6-digit code</string>
     <string name="ss_code_action">Enter pairing code</string>

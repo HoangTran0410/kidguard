@@ -11,7 +11,7 @@ Cập nhật: 2026-11-10 (sau 4540ee3 / 82d66e2).
 | Mã | Tên | Cách có | Ghi chú |
 |---|---|---|---|
 | **DO** | Device Owner | QR lúc máy mới / `setup.sh` / `setup.ps1` / trang cài web / tự cài trên máy (Android 11+). Cần gỡ tài khoản của máy (Google, Samsung, Xiaomi…); tài khoản app được giữ (tắt tạm app, khởi động lại máy một lần) | Mạnh nhất. Chặn bằng hệ thống (suspend app, user restriction) |
-| **CB** | Cơ bản | Cài APK, bật Quản trị thiết bị + Trợ năng + Dữ liệu sử dụng (+ vị trí, thông báo, pin). Không cần máy tính | Chặn bằng Trợ năng (đẩy về Home). Con rành máy vẫn lách được (Safe Mode, tắt Trợ năng) |
+| **CB** | Cơ bản | Cài APK, bật Quản trị thiết bị + Trợ năng + Dữ liệu sử dụng (+ vị trí, thông báo, pin). Không cần máy tính. Hoặc 4 cách cài bằng adb khi Device Owner bị từ chối (còn tài khoản điện thoại, người dùng thứ hai, app quản lý khác): tự cài cơ bản + WSS trong cùng lượt (v0.9.35) | Chặn bằng Trợ năng (đẩy về Home). Con rành máy vẫn lách được (Safe Mode, tắt Trợ năng) |
 | **+WSS** | Cơ bản + quyền ghi cài đặt hệ thống | Cấp 1 lần qua adb: `pm grant dev.kidguard android.permission.WRITE_SECURE_SETTINGS` (setup scripts làm sẵn) | Còn nguyên sau khi tắt Tùy chọn nhà phát triển. `caps.wss` |
 | **+adb** | Cơ bản + adb nội bộ | Ghép nối Gỡ lỗi không dây với chính máy 1 lần (Android 11+, Wi-Fi). Có +WSS thì KidGuard tự bật/tắt dev mode quanh mỗi lệnh (`SelfAdb.ensure`) | `caps.adb`. Chạy `pm` như adb shell |
 | **Home** | Bản KidGuard Home (`dev.kidguard.home`) | Cài APK riêng | Chỉ launcher, không có phần quản lý |

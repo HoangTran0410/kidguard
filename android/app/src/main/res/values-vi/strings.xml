@@ -346,6 +346,9 @@
     <string name="ss_apps_back">Các app đã bật lại: %1$s.</string>
     <string name="ss_apps_off">Bật lại các app này trong Cài đặt &gt; Ứng dụng: %1$s.</string>
     <string name="ss_done">Xong. KidGuard đã được cài quyền quản lý.</string>
+    <string name="step_admin">Cấp quyền quản trị thiết bị (chế độ cơ bản)</string>
+    <string name="ss_done_basic">Xong ở chế độ cơ bản: KidGuard chặn app bằng Trợ năng, con rành máy có thể lách. Muốn chế độ đầy đủ (quản lý thiết bị): %1$s</string>
+    <string name="ss_basic_accounts">xoá các tài khoản của điện thoại trong Cài đặt &gt; Mật khẩu và tài khoản: %1$s, rồi chạy lại. Tài khoản app (Zalo, Facebook...) cứ để nguyên.</string>
     <string name="ch_selfsetup">Tự cài KidGuard</string>
     <string name="ss_code_label">Mã 6 số</string>
     <string name="ss_code_action">Nhập mã ghép</string>

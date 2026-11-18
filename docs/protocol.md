@@ -548,8 +548,10 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
    accounts = `Account {name=N, type=T}`; authenticator of T = the package in
    `AuthenticatorDescription {type=T}, ComponentInfo{PKG/CLASS}` (RegisteredServicesCache section; no entry = the account is
    hidden already, ignore it). PKG listed by `pm list packages -3` (non-system) = keepable, otherwise (system app: Google,
-   Xiaomi, Samsung, Oppo/HeyTap, or a preinstalled app) the account must be removed by the parent: stop with a message
-   naming `name (type)` and "remove phone accounts in Settings > Accounts, app accounts can stay". Keepable packages:
+   Xiaomi, Samsung, Oppo/HeyTap, or a preinstalled app) blocks Device Owner: since v0.9.35 all four paths then set up
+   **basic mode** in the same run (no app disabling, no reboot; step 2 becomes `dpm set-active-admin --user current
+   dev.kidguard/.Admin`, steps 3-6 unchanged) and the final message names `name (type)` with "remove these phone accounts
+   and run again for full mode" (a rerun without them upgrades to Device Owner; an active admin does not block it). Keepable packages:
    `pm disable-user --user 0 PKG` (output contains `disabled`) each, wait **>= 14 s** (Android writes the app state ~10 s
    later; a reboot sooner loses it), `sync`, reboot (every Android version), wait for `sys.boot_completed`=1, go on with
    step 2. Right after the boot Android still answers "already some accounts" for up to ~30 s (DPMS re-checks in the
@@ -563,7 +565,9 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
    key persists), steps 2-6 over self-adb, enable the apps, notification with the result. A pending record older than 10 min
    skips the Device Owner steps and only enables the apps (the apps stay listed, and are retried at every boot / app start,
    while no shell is available). The resume waits for the first unlock after boot (BOOT_COMPLETED is not direct-boot aware).
-2. `adb shell dpm set-device-owner dev.kidguard/.Admin` (verify with `dumpsys device_policy`; retry after 1b, see there)
+2. `adb shell dpm set-device-owner dev.kidguard/.Admin` (verify with `dumpsys device_policy`; retry after 1b, see there).
+   A known refusal (output mentions accounts / users / already / provisioned: second user, another Device Owner, set up
+   already) falls back to basic mode as in 1b; any other failure stops with the Device Owner help as before.
 3. `adb shell appops set dev.kidguard GET_USAGE_STATS allow`
 4. `adb shell pm grant dev.kidguard android.permission.WRITE_SECURE_SETTINGS`
    then, optional (errors ignored, for remote phone settings): `appops set dev.kidguard WRITE_SETTINGS allow` and

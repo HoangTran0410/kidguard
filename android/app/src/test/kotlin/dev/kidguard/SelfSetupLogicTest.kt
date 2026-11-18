@@ -86,6 +86,15 @@ User UserInfo{0:Owner:4c13}:
         assertNull(SelfSetupLogic.withAccessibility("a/b:$e", e))
     }
 
+    // owner 2026-11-18: a phone that refuses Device Owner (accounts, second user, another owner) is set up in basic mode
+    @Test fun knownOwnerRefusalsFallBackToBasic() {
+        for (out in listOf("java.lang.IllegalStateException: Not allowed to set the device owner because there are already some accounts on the device",
+                "Not allowed to set the device owner because there are already several users on the device",
+                "Trying to set the device owner, but device owner is already set."))
+            assertTrue(out, SelfSetupLogic.ownerFail(out)?.let { SelfSetupLogic.basicFallback(it) } == true)
+        assertEquals(null, SelfSetupLogic.ownerFail("java.lang.SecurityException: Neither user 2000 nor current process has android.permission.MANAGE_DEVICE_ADMINS."))
+    }
+
     @Test fun okDetection() {
         assertTrue(SelfSetupLogic.ok(""))
         assertFalse(SelfSetupLogic.ok("java.lang.SecurityException: denied"))

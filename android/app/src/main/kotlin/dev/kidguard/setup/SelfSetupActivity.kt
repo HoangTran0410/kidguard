@@ -187,6 +187,7 @@ class SelfSetupActivity : Activity() {
         val pp = SelfSetup.pairingPort; val cp = SelfSetup.connectPort
         portInfo.text = (if (pp > 0) getString(R.string.ssa_pair_seen, pp) else getString(R.string.ssa_pair_none)) + " " +
             (if (cp > 0) getString(R.string.ssa_wd_on, cp) else getString(R.string.ssa_wd_off))
+        if (!pairMode && rows.size > 2) rows[2].text = getString(if (SelfSetup.basic) R.string.step_admin else R.string.step_owner)
         for (i in rows.indices) {
             val (icon, tint) = when (SelfSetup.state[i]) {
                 SelfSetup.STEP_OK -> R.drawable.ic_ok to u.tone(Ic.OK)

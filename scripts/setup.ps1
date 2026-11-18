@@ -130,7 +130,7 @@ function Chk {
 
 # --- app accounts are kept: their apps are turned off during the Device Owner step, then always turned back on ---
 $OffFile = Join-Path $env:LOCALAPPDATA "kidguard\apps-off.txt"   # survives a crash / Ctrl-C: the next run turns them on first
-$script:Off = @(); $script:ReenableFailed = $false
+$script:Off = @(); $script:ReenableFailed = $false; $script:Basic = ""   # Basic: why Device Owner was refused (set = basic mode)
 function Reenable {
     if ($script:Off.Count -eq 0) { return }
     $list = @($script:Off); $script:Off = @()
@@ -192,12 +192,11 @@ if ((Adb shell dumpsys device_policy) -notmatch [regex]::Escape("admin=Component
             else { $remove += "  - $($a.Name) ($($a.Type))" }
         }
         if ($remove.Count -gt 0) {
-            Write-Host "LỖI: Cần xoá các tài khoản của máy trước:"
-            $remove | ForEach-Object { Write-Host $_ }
-            Write-Host "→ Cài đặt > Mật khẩu và tài khoản, xoá chúng rồi chạy lại. Tài khoản của app (Zalo, Facebook…) cứ để nguyên. Cài xong đăng nhập lại, dữ liệu vẫn còn."
-            Fail
+            # phone accounts block Device Owner only: set up basic mode now (removing them + running again = Device Owner)
+            $script:Basic = "Xoá các tài khoản của điện thoại (Cài đặt > Mật khẩu và tài khoản):`n" + ($remove -join "`n") + "`n  rồi chạy lại. Tài khoản app (Zalo, Facebook…) cứ để nguyên."
+            Write-Host "[*] Máy còn tài khoản của điện thoại: cài chế độ cơ bản (không cần xoá tài khoản)."
         }
-        if ($disable.Count -gt 0) {
+        elseif ($disable.Count -gt 0) {
             Write-Host "[*] Giữ đăng nhập các app: $($disable -join ' ')"
             Write-Host "    Tắt tạm các app này, khởi động lại máy một lần (khoảng 1 phút), rồi cài tiếp. Sẽ tự bật lại các app."
             New-Item -ItemType Directory -Force -Path (Split-Path $OffFile) | Out-Null
@@ -219,6 +218,8 @@ if ((Adb shell dumpsys device_policy) -notmatch [regex]::Escape("admin=Component
     }
 }
 
+$isDo = { (Adb shell dumpsys device_policy) -match [regex]::Escape("admin=ComponentInfo{$Pkg/$Pkg.Admin}") }
+if (-not $script:Basic) {
 Write-Host "[2/8] Đặt KidGuard làm Device Owner"
 $out = Adb shell dpm set-device-owner "$Pkg/.Admin"
 # after our restart Android still says "accounts" for up to ~30 s (it re-checks them in the background): try again
@@ -228,7 +229,23 @@ for ($i = 0; $i -lt 24; $i++) {
     Start-Sleep -Seconds 5
     $out = Adb shell dpm set-device-owner "$Pkg/.Admin"
 }
-if ((Adb shell dumpsys device_policy) -notmatch [regex]::Escape("admin=ComponentInfo{$Pkg/$Pkg.Admin}")) {
+# a known refusal (accounts / users / another owner / set up already): basic mode needs none of that
+if (-not (& $isDo) -and ("$out" -match "accounts|users|already|provisioned")) {
+    # the reason is the exception's one-line message, not the stack trace
+    $m = [regex]::Match("$out", '[A-Za-z.]*Exception: ([^\r\n]*)'); $script:Basic = if ($m.Success) { $m.Groups[1].Value } else { "$out" }
+}
+}
+if ($script:Basic -and -not (& $isDo)) {
+    Write-Host "[2/8] Cấp quyền quản trị thiết bị (chế độ cơ bản)"
+    # a refused set-device-owner leaves our admin "being removed" for a moment (measured, Android 13): retry
+    for ($i = 0; $i -lt 10; $i++) {
+        $o = Adb shell dpm set-active-admin --user current "$Pkg/.Admin"
+        if ("$o" -notmatch "being removed") { break }
+        Start-Sleep -Seconds 1
+    }
+    if ("$o" -notmatch "Success") { Write-Host "LỖI: $o"; Fail }
+}
+elseif (-not (& $isDo)) {
     Write-Host $out
     Write-Host @"
 
@@ -286,6 +303,11 @@ Reenable
 Write-Host ""
 Write-Host (T "OK Xong. Trên điện thoại bố mẹ (cùng Wi-Fi), mở: http://${ip}:8770" "OK Done. On the parent's phone (same Wi-Fi), open: http://${ip}:8770")
 Write-Host (T '-> rồi nhập mã ghép 6 số: màn hình cuối trên máy con hiện mã trong 10 phút (sau đó: giữ nút "Bố mẹ: hiện mã ghép" 5 giây), và đặt PIN trong form ghép.' '-> then type the 6-digit pairing code: the last screen on the child''s phone shows it for 10 minutes (later: hold "Bố mẹ: hiện mã ghép" for 5 seconds), and set a PIN in the pairing form.')
+if ($script:Basic -and -not (& $isDo)) {
+    Write-Host (T "-> Đã cài CHẾ ĐỘ CƠ BẢN: chặn app bằng Trợ năng, con rành máy có thể lách. Muốn chế độ đầy đủ (Device Owner):" "-> Set up in BASIC MODE: apps are blocked through Accessibility, a tech-savvy child can get around it. For full mode (Device Owner):")
+    Write-Host "   $($script:Basic)"
+    if (-not $script:Basic.StartsWith("Xoá")) { Write-Host (T "   (máy còn tài khoản / người dùng thứ hai / app quản lý khác: xử lý xong chạy lại)" "   (accounts / a second user / another device manager: fix it, then run again)") }
+}
 Write-Host (T "-> Giờ có thể đăng nhập lại tài khoản trên máy con." "-> You can now sign in to the phone accounts on the child's phone again.")
 # ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off)
 if ("$(Adb shell 'getprop ro.build.version.opporom; getprop ro.build.version.oplusrom')".Trim()) {

@@ -142,6 +142,9 @@ object SelfSetupLogic {
         }
     }
 
+    /** Refusals that basic mode does not mind (it needs no Device Owner): set up basic mode instead of stopping. */
+    fun basicFallback(why: Int): Boolean = why == R.string.ss_do_users || why == R.string.ss_do_accounts || why == R.string.ss_do_owner || why == R.string.ss_do_provisioned
+
     private val ACCOUNT = Regex("""Account \{name=([^,}]*), type=([^}]*)\}""")
 
     /** Accounts listed by `dumpsys account` as "name (type)". */
@@ -223,6 +226,9 @@ object SelfSetup {
     @Volatile var turnOffWifi = true
     @Volatile var wifiOff: Boolean? = null  // result of the optional last step
     @Volatile var pairOnly = false      // set by SelfAdb.pair: pair + connect, none of the Device Owner steps
+    /** Device Owner was refused (phone accounts, other users, another owner): this run set up basic mode instead. */
+    @Volatile var basic = false
+    private var basicWhy = ""
     private var pairing: AdbPortFinder? = null
     private var connecting: AdbPortFinder? = null
 
@@ -240,7 +246,7 @@ object SelfSetup {
     /** Starts the job on a background thread: pair with [code], connect, run every step. Port 0 = use the discovered one. */
     fun start(ctx: Context, code: String, pairPort: Int = 0, connPort: Int = 0, pairOnly: Boolean = false) {
         val app = ctx.applicationContext
-        synchronized(this) { if (running) return; running = true; done = false; message = ""; wifiOff = null; state.fill(STEP_TODO) }
+        synchronized(this) { if (running) return; running = true; done = false; message = ""; wifiOff = null; basic = false; state.fill(STEP_TODO) }
         startDiscovery(app)
         Thread({ runCatching { job(app, code.trim(), pairPort, connPort, pairOnly) }.onFailure { Log.w(AdbPortFinder.TAG, "job", it); fail(app, it.message ?: it.toString()) }; this.pairOnly = false; running = false }, "selfsetup").start()
     }
@@ -307,18 +313,42 @@ object SelfSetup {
         val dump = sh("dumpsys account")
         if (SelfSetupLogic.accounts(dump).isNotEmpty() && !Policy.isOwner(app)) {
             val plan = SelfSetupLogic.planAccounts(dump, SelfSetupLogic.packages(sh("pm list packages -3")))
-            if (plan.remove.isNotEmpty()) {
-                state[1] = STEP_ERR
-                message = app.getString(R.string.ss_accounts, plan.remove.joinToString(", "))
-                notifyFinal(app, message); runCatching { m.disconnect() }; return
-            }
-            if (plan.disable.isNotEmpty()) { restartForAccounts(app, plan.disable, ::sh); return }
+            // phone accounts (Google, Xiaomi...) block Device Owner: set up basic mode now instead of stopping (owner
+            // 2026-11-18 "cài nhanh mà vẫn dùng được chế độ cơ bản"); removing them and running again upgrades to Device Owner
+            if (plan.remove.isNotEmpty()) { basic = true; basicWhy = app.getString(R.string.ss_basic_accounts, plan.remove.joinToString(", ")) }
+            else if (plan.disable.isNotEmpty()) { restartForAccounts(app, plan.disable, ::sh); return }
         }
         state[1] = STEP_OK
         // 3..7 (same as setup.sh, minus install)
         // a rerun after a partly failed setup: we already are Device Owner ("already set" would stop it here), so go on
         if (Policy.isOwner(app)) { Log.i(AdbPortFinder.TAG, "already Device Owner: skip set-device-owner"); state[2] = STEP_OK }
-        else if (!step(2, "dpm set-device-owner $PKG/.Admin") { it.contains("Success") }) { runCatching { m.disconnect() }; return }
+        else if (!basic) {
+            mark(app, 2, STEP_RUN)
+            val out = sh("dpm set-device-owner $PKG/.Admin"); Log.i(AdbPortFinder.TAG, "set-device-owner -> $out")
+            if (!out.contains("Success")) {
+                // a known refusal (users / accounts / another owner / set up already): basic mode; anything else stops as before
+                val why = SelfSetupLogic.ownerFail(out)
+                if (why == null || !SelfSetupLogic.basicFallback(why)) {
+                    state[2] = STEP_ERR; message = why?.let { app.getString(it) } ?: out.ifBlank { app.getString(R.string.ss_cmd_fail) }
+                    if (SelfSetupLogic.permMonitoring(out)) message += "\n" + app.getString(R.string.ss_perm_mon)
+                    notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return
+                }
+                basic = true; basicWhy = app.getString(why)
+            } else state[2] = STEP_OK
+        }
+        // basic mode: device admin instead of Device Owner (the rest of the steps are the same)
+        // a refused set-device-owner leaves our admin "being removed" for a moment (measured, Android 13): wait it out
+        if (basic) {
+            mark(app, 2, STEP_RUN)
+            var out = ""
+            for (t in 0 until 10) { out = sh("dpm set-active-admin --user current $PKG/.Admin"); if ("being removed" !in out) break; Thread.sleep(1000) }
+            Log.i(AdbPortFinder.TAG, "set-active-admin -> $out")
+            if (!out.contains("Success") && !Basic.adminActive(app)) {
+                state[2] = STEP_ERR; message = out.ifBlank { app.getString(R.string.ss_cmd_fail) }
+                notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return
+            }
+            state[2] = STEP_OK
+        }
         if (!step(3, "appops set $PKG GET_USAGE_STATS allow")) return
         if (!step(4, "pm grant $PKG android.permission.WRITE_SECURE_SETTINGS")) return
         optionalGrants(::sh)
@@ -335,7 +365,7 @@ object SelfSetup {
         // optional: Wireless debugging off. The link drops with it, so no reading afterwards.
         if (turnOffWifi) { runCatching { sh("settings put global adb_wifi_enabled 0") }; wifiOff = true }
         runCatching { m.disconnect() }
-        done = true; message = app.getString(R.string.ss_done)
+        done = true; message = if (basic) app.getString(R.string.ss_done_basic, basicWhy) else app.getString(R.string.ss_done)
         if (colorOs) message += "\n" + app.getString(R.string.ss_coloros)
         stopDiscovery()
         notifyFinal(app, message)
