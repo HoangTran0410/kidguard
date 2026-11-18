@@ -128,6 +128,8 @@ class Store private constructor(private val app: Context) {
      * True = just turned on.
      */
     @Synchronized fun defaultRelay(): Boolean {
+        // the old shared worker was killed: move to the new one (same id + token; the new worker binds them on the first sync)
+        if (p.getString("relayUrl", "") == Relay.OLD_URL) { p.edit().putString("relayUrl", Relay.DEFAULT_URL).apply(); return true }
         if (Flavor.HOME || !p.getBoolean("everPaired", false) || p.contains("relayUrl") || relayToken.isNotBlank()) return false
         val t = addToken()
         p.edit().putString("relayUrl", Relay.DEFAULT_URL).putString("relayToken", t).putString("relayId", randomHex(8)).apply()

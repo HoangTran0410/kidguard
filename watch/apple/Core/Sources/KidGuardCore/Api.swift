@@ -1,6 +1,6 @@
 import Foundation
 
-public let defaultRelay = "https://kidguard.99-hoangtran.workers.dev"
+public let defaultRelay = "https://kg-relay.99-hoangtran.workers.dev"
 public let clientName = "Apple Watch"
 /// Relay command codes of the commands a watch sends (docs/protocol.md "Command codes"): the relay never sees the names.
 public let wireCode: [String: String] = ["lock": "lk", "locate": "lc", "message": "ms", "ring": "rg", "ringStop": "rs", "sosAck": "sa", "answer": "an"]

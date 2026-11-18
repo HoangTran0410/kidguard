@@ -16,7 +16,7 @@ for a in "$@"; do case "$a" in --dry) DRY=1;; --pages) ONLY_PAGES=1;; *) echo "u
 node scripts/check-search.mjs && node scripts/check-assets.mjs && scripts/check-js.sh
 node scripts/ui-pack.mjs                                  # website/ui/ (same content = same seq, nothing to redo)
 node scripts/ui-pack.mjs --check
-node scripts/site-app.mjs                                 # website/app, website/ui/*.js|css, install.html, qr.html (PAGES_APK=1: + the release APK)
+node scripts/site-app.mjs                                 # website/app, website/ui/*.js|css, install.html, qr.html
 
 if [ "$DRY" = 1 ]; then
   [ "$ONLY_PAGES" = 1 ] || echo "would run: (cd relay && npm ci && npx wrangler deploy)"

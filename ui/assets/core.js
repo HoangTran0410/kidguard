@@ -215,16 +215,17 @@ const WIRE_NAME = Object.fromEntries(Object.entries(WIRE).map(([n, c]) => [c, n]
 const wireOut = (path, body) => path === "/cmd" && body && Object.hasOwn(WIRE, body.type) ? { ...body, type: WIRE[body.type] } : body;
 const wireIn = j => { for (const f of ["expired", "queue"]) if (j && Array.isArray(j[f])) j[f] = j[f].map(x => x && Object.hasOwn(WIRE_NAME, x.type) ? { ...x, type: WIRE_NAME[x.type] } : x); return j; };
 /** The author's shared relay, on by default on paired phones (Relay.DEFAULT_URL in the app). */
-const DEFAULT_RELAY = "https://kidguard.99-hoangtran.workers.dev";
+const DEFAULT_RELAY = "https://kg-relay.99-hoangtran.workers.dev";
 // Plan B (docs/decisions/remote.md 2026-11-18): the relay is JSON only; a browser gets this page from the website (SITE /app/, /go)
 // and calls the relay cross-origin. RELAY = the relay of the link that opened it (#r=<https origin>), else the last one, else the author's.
 const SITE = "https://kid-guard.pages.dev";
 const httpsOrigin = v => { try { const u = new URL(v); return u.protocol === "https:" ? u.origin : ""; } catch { return ""; } };
 let RELAY = DEFAULT_RELAY;
-try { RELAY = httpsOrigin(localStorage.getItem("kg.relay") || "") || RELAY; } catch {}
+const OLD_RELAY = "https://kidguard.99-hoangtran.workers.dev";   // killed 2026-11-17 (docs/decisions/remote.md): read as DEFAULT_RELAY
+try { RELAY = httpsOrigin(localStorage.getItem("kg.relay") || "") || RELAY; if (RELAY === OLD_RELAY) RELAY = DEFAULT_RELAY; } catch {}
 const setRelay = r => { r = httpsOrigin(r || ""); if (!r) return; RELAY = r; try { localStorage.setItem("kg.relay", r); } catch {} };
 /** A browser relay kid's relay: its own (target), else this page's. */
-const relayOf = k => (k && k.target) || RELAY;
+const relayOf = k => { const t = k && k.target; return t === OLD_RELAY ? DEFAULT_RELAY : t || RELAY; };
 /** The relay a pasted / scanned link names: #r=, else (a link to the website) the page's relay, else the link's own origin (an old relay link). */
 const relayOfLink = (u, h) => httpsOrigin(h.get("r") || "") || (u.origin === SITE || u.origin === location.origin ? RELAY : u.origin);
 /** The link that always opens: the website's /go page (core.js goBoot); r= only for a relay other than the author's. */

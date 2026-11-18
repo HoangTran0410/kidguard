@@ -188,7 +188,7 @@ function render() {
 // Pair with me: this page (on the website; the relay is JSON only, plan B) makes an invite on the author's relay (the one a
 // new phone uses: Relay.DEFAULT_URL), then waits for the phone to redeem it and saves the kid in this browser like the parent
 // page does (localStorage kg.kids, same origin as /app/).
-const RELAY = "https://kidguard.99-hoangtran.workers.dev";
+const RELAY = "https://kg-relay.99-hoangtran.workers.dev";
 let INVITE = "";
 const hex = () => [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, "0")).join("");
 async function sha(x) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(x)))].map(b => b.toString(16).padStart(2, "0")).join(""); }

@@ -4,7 +4,7 @@
 # INCIDENT 2026-11-17: Cloudflare killed the worker (automated "network abuse" report 1 s after a deploy); every request
 # got "error code: 1101" for 3 h while we guessed at phone bugs. Usage: scripts/relay-health.sh [relay-url]
 set -uo pipefail
-URL="${1:-https://kidguard.99-hoangtran.workers.dev}"
+URL="${1:-https://kg-relay.99-hoangtran.workers.dev}"
 bad=0
 check() {   # path, expected status
   local out code body

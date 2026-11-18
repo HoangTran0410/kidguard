@@ -15,7 +15,7 @@ const newId = () => "w" + Date.now().toString(36) + Math.random().toString(36).s
 
 const store = () => settings.settingsStorage;
 // the author's shared relay (same as DEFAULT_RELAY in ui/assets/core.js); settingsStorage "relay" overrides (settings page)
-const DEFAULT_RELAY = "https://kidguard.99-hoangtran.workers.dev";
+const DEFAULT_RELAY = "https://kg-relay.99-hoangtran.workers.dev";
 // relay command codes of the commands a watch sends (docs/protocol.md "Command codes"): the relay never sees the names
 const CODE = { lock: "lk", locate: "lc", message: "ms", ring: "rg", ringStop: "rs", sosAck: "sa", answer: "an" };
 const relay = () => {

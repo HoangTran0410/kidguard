@@ -19,7 +19,7 @@ Paths below: `S/` = `watch/garmin/source/`. Line numbers as of this commit, grep
   (change `-d` for the other devices; add `-r` for release).
 - Simulator: `connectiq` then `monkeydo bin/kidguard.prg fenix7`.
 - Store build: `monkeyc -e -r ... -o kidguard.iq` (needs the store account: out of scope).
-- Setting (Garmin Connect app, optional): "Relay URL", empty = `https://kidguard.99-hoangtran.workers.dev` (`S/Store.mc:31`).
+- Setting (Garmin Connect app, optional): "Relay URL", empty = `https://kg-relay.99-hoangtran.workers.dev` (`S/Store.mc:31`).
 - Devices in `manifest.xml`: fenix7, venu3, fr265, vivoactive5 (min API 4.2.0, permission `Communications`).
   Languages: `eng` (`resources/strings`) + `vie` (`resources-vie/strings`): every string exists in both.
 

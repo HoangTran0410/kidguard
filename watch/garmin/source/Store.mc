@@ -6,7 +6,7 @@ import Toybox.Lang;
 //   wsecret / wcode / wexp   the pending connect attempt (secret stays on the watch; the relay only sees its sha256)
 //   zoom   map zoom 13..18
 module Store {
-    const DEFAULT_RELAY = "https://kidguard.99-hoangtran.workers.dev";
+    const DEFAULT_RELAY = "https://kg-relay.99-hoangtran.workers.dev";
 
     function get(key) {
         try {

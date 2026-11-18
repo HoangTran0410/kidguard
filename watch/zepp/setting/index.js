@@ -14,7 +14,7 @@ function parse(link) {
     });
     if (!/^[0-9a-f]{16}$/.test(h.c || "") || !h.k) return null;
     // plan B: the link opens the website (no page on the relay); its relay = r=, else the author's relay
-    const url = /^https:\/\/[^/#?]+$/.test(h.r || "") ? h.r : m[1] === "https://kid-guard.pages.dev" ? "https://kidguard.99-hoangtran.workers.dev" : m[1];
+    const url = /^https:\/\/[^/#?]+$/.test(h.r || "") ? h.r : m[1] === "https://kid-guard.pages.dev" ? "https://kg-relay.99-hoangtran.workers.dev" : m[1];
     return { url, id: h.c, token: h.k, name: (h.n || "").slice(0, 20) || "Con" };
   } catch (e) {
     return null;
@@ -66,7 +66,7 @@ AppSettingsPage({
       }),
       TextInput({
         label: "Relay (tuỳ chọn / optional)",
-        placeholder: "https://kidguard.99-hoangtran.workers.dev",
+        placeholder: "https://kg-relay.99-hoangtran.workers.dev",
         defaultValue: st.getItem("relay") || "",
         onChange: (v) => {
           const r = String(v || "").trim().replace(/\/+$/, "");

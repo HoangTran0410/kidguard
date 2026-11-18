@@ -832,8 +832,8 @@ phone (`ListenCall.cap`) and relay, `release`. LAN / Tailscale kids keep `GET /a
 - Relay storage GC: a phone not seen for 30 days -> the Durable Object deletes everything (DO alarm armed by sync); the
   phone re-binds on its next sync. An id bound but never heard again (no second sync, no rules, no queue) within 7 days is
   deleted too (`UNUSED_MS`, `born`).
-- No APK on the relay (plan B). `ui/install.html` fetches `kidguard.apk(.sha256)` relative: on the website only when deployed with
-  `PAGES_APK=1` (`scripts/site-app.mjs`), else it falls back to "download from GitHub, then pick the file" (GitHub assets have no CORS).
+- No APK on the relay (plan B). `ui/install.html` fetches `kidguard.apk(.sha256)` relative: : the website has none, so it shows "download
+  the latest from GitHub (`releases/latest/download/kidguard.apk`), then pick the file" (GitHub assets have no CORS).
 - Resume drops a queued `lock` (`lk`): a rules PUT with `pausedUntil` not in the future, while the stored rules or the phone's state
   had one in the future ("Resume all" only PUTs rules), deletes every still-queued `lock` of that kid (other commands stay).
 - First bind cap (audit H4): a first sync that would create an id counts against the client network (`netKey`: IPv4 or
@@ -1561,7 +1561,7 @@ Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone 
 - `GET /w/<code>` header `X-KG-Secret: <secret hex, 32-128 chars>`: `403 forbidden` (missing / wrong secret; never reveals whether the code exists with another secret), `404` (unknown / expired / already fetched), `200 {"waiting": true, "exp": ms}` until attached, then `200 {"url","id","token","name"}` ONCE: the entry is deleted with that reply.
 - Expiry: lazy on every access plus a Durable Object alarm at exp + 1 s (`deleteAll`). No listing route. Credentials of an expired, never-fetched code are deleted, not handed out.
 - Token choice (2026-11-17): the watch gets a parent token of its own (kind "watch", named as typed; see "Parents"), listed and revocable in the page's parents list; "renew relay link" (a new relay id) cuts it off.
-- Watch side service: default relay `https://kidguard.99-hoangtran.workers.dev` (= `DEFAULT_RELAY`), overridable in the Zepp settings page; polls ~3 s while the connect screen is open; appends `{url,id,token,name}` to settingsStorage `kids` (the shape the Zepp settings page stores).
+- Watch side service: default relay `https://kg-relay.99-hoangtran.workers.dev` (= `DEFAULT_RELAY`), overridable in the Zepp settings page; polls ~3 s while the connect screen is open; appends `{url,id,token,name}` to settingsStorage `kids` (the shape the Zepp settings page stores).
 - Parent page: Settings > "Đồng hồ" / "Watch" (`s-watch`): 6-digit input + Connect; shown only when the kid has a relay (relay kid, or LAN kid with `relay` on).
 - `GET /c/<id>/tile?z=&x=&y=` (watch map, after 0.9.21): one OpenStreetMap tile (PNG) fetched by the worker and edge-cached 7 days. Auth like every parent route (`X-KG-Token`); `z` 13-18, `x`/`y` inside the zoom (else 400 `bad tile`); 502 `tile <status>` when OSM fails. Why: some networks block `tile.openstreetmap.org` (DNS -> 127.0.0.1) while the relay works; the watch side service falls back to OSM directly.
   Also accepted without `X-KG-Token` when `k=<tileKey>` is in the query (`tileKey = sha256hex("tile:" + token)`, given by `state?watch=1`): for watches whose image request cannot send headers (Garmin `makeImageRequest`). The key only fetches OSM tiles; wrong / other kid's key = 401.

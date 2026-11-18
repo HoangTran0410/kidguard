@@ -57,7 +57,7 @@ object Logic {
             || (target == DEFAULT_RELAY && isPairPath(method, rest))
 
     /** "Pair from anywhere" (before the kid is saved): only the default relay's `/p/...` calls (docs/protocol.md "Pair over relay"). */
-    const val DEFAULT_RELAY = "https://kidguard.99-hoangtran.workers.dev"
+    const val DEFAULT_RELAY = "https://kg-relay.99-hoangtran.workers.dev"
     private val PAIR_PATH = Regex("^/p/(inv|\\d{6}/join|(\\d{6}|[0-9a-f]{16})/result)$")
     fun isPairPath(method: String, rest: String): Boolean = PAIR_PATH.matches(rest.substringBefore("?")) && (method == "POST") == !rest.endsWith("/result")
 

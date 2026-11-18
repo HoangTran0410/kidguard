@@ -1,4 +1,4 @@
-name = "kidguard"
+name = "kg-relay"   # 2026-11-18: "kidguard" was killed by Cloudflare (docs/decisions/remote.md); new name = new Durable Objects, phones re-bind on sync
 main = "src/index.js"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]   # node:crypto createHash for the PIN check (hashPin)

@@ -18,7 +18,7 @@ Wire formats live in `docs/protocol.md` (the contract); this is the short list a
 1. **Connect** (`docs/protocol.md` "Watch connect"): make a random secret (32 bytes hex), `POST <relay>/w/new {"sh": sha256hex(secret)}`
    -> `{code, exp}`; show the 6 digits big; poll `GET <relay>/w/<code>` with header `X-KG-Secret: <secret>` every ~3 s
    until it returns `{url, id, token, name}` (once). Store that as one kid. Parent types the code in the page:
-   Settings > Watch. Code lasts 10 min: ask a new one when it expires. Default relay: `https://kidguard.99-hoangtran.workers.dev`.
+   Settings > Watch. Code lasts 10 min: ask a new one when it expires. Default relay: `https://kg-relay.99-hoangtran.workers.dev`.
 2. **Read**: `GET <url>/c/<id>/state?watch=1` (small, ~2-6 KB; drop `?watch=1` only if you need the full state) header `X-KG-Token: <token>` (+ `X-KG-Name: <Platform> watch`) ->
    `{state, rules, seen, pending, queue, done, expired}`. What the watch shows comes from `state` (time left, `now.why`,
    `loc {lat,lng,acc,t}`, `zone`, `requests[]`, battery) and `seen` (last contact). Reference summary: `zepp/app-side/index.js` `summary()`.

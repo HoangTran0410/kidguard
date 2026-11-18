@@ -33,7 +33,7 @@ data class Summary(
 
 /** Everything that talks to the relay. Blocking: call inside Dispatchers.IO. Never logs the token. */
 object Net {
-    const val DEFAULT_RELAY = "https://kidguard.99-hoangtran.workers.dev"
+    const val DEFAULT_RELAY = "https://kg-relay.99-hoangtran.workers.dev"
     const val OSM_UA = "KidGuardWear/0.1 (Wear OS parent app; https://kid-guard.pages.dev)"
     private const val NAME = "Wear OS watch"
     private val rnd = SecureRandom()

@@ -352,7 +352,9 @@ class Relay(private val g: Guard) {
         private const val WS_IDLE_ON = 5 * 60_000L
         private const val WS_IDLE_OFF = 15 * 60_000L
         /** The author's shared relay, on by default once a parent has paired (Store.defaultRelay). Also in ui/assets/core.js DEFAULT_RELAY. */
-        const val DEFAULT_URL = "https://kidguard.99-hoangtran.workers.dev"
+        const val DEFAULT_URL = "https://kg-relay.99-hoangtran.workers.dev"
+        /** the killed worker (docs/decisions/remote.md 2026-11-17): Store.defaultRelay moves a phone off it, same id/token */
+        const val OLD_URL = "https://kidguard.99-hoangtran.workers.dev"
     }
 }
 

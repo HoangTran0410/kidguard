@@ -154,7 +154,7 @@ object Support {
         st.optJSONObject("tg")?.let { t -> o.put("tg", pick(t, "on", "err").put("chats", t.optJSONArray("chats")?.length() ?: 0)) }
         st.optJSONObject("net")?.let { o.put("net", pick(it, "type", "metered", "bars", "ghz")) }
         val relay = st.optString("relay")
-        o.put("relay", when { relay.isBlank() -> "off"; relay.contains("kidguard.99-hoangtran.workers.dev") -> "default"; else -> "own" })
+        o.put("relay", when { relay.isBlank() -> "off"; relay == Relay.DEFAULT_URL || relay == Relay.OLD_URL -> "default"; else -> "own" })
         Guard.running?.let { g -> o.put("relayOkAgoS", if (g.relayOkAt > 0) (System.currentTimeMillis() - g.relayOkAt) / 1000 else -1) }
         o.put("lan", st.opt("lan") != null && st.opt("lan") != JSONObject.NULL)
         o.put("apps", st.optJSONArray("apps")?.length() ?: 0)
