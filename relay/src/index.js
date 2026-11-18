@@ -117,7 +117,13 @@ async function route(req, env) {
   const len = +(req.headers.get("content-length") || 0);
   if (len > limitFor(m[2])) return json({ error: "too big" }, 413);
   const stub = env.KIDS.get(env.KIDS.idFromName(m[1]));
-  return stub.fetch(req);
+  if (req.method === "GET" || req.method === "HEAD") return stub.fetch(req);
+  // buffer the body (<= 1 MB, limitFor) before handing it on: a streamed body that the Durable Object answers early
+  // without reading (401, 400, ...) throws "Can't read from request stream after response has been sent" here, which
+  // restarts the isolate = 503 "worker restarted mid-request" for the next requests (the CI relay flake, 2026-11-18)
+  const body = await req.arrayBuffer();
+  if (body.byteLength > limitFor(m[2])) return json({ error: "too big" }, 413);
+  return stub.fetch(new Request(req, { body }));
 }
 
 /** GET state?watch=1 (docs/protocol.md "Watch connect"): what a watch shows, small enough for Garmin (~8-16 KB).
