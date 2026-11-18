@@ -42,6 +42,9 @@ object FeaturesSheet {
     fun refresh() { if (cur?.showing == true) live?.invoke() }
     /** Sheet gone: drop it (fill captures the Activity). */
     fun closed() { live = null; cur = null }
+    /** MainActivity.onDestroy (it finishes itself in onStop): a sheet left in [cur] would be refreshed by the NEXT
+     *  MainActivity and re-add the dead one's views (crash 2026-11-18, launcher.md INCIDENT). */
+    fun close() { runCatching { cur?.dismiss() }; closed() }
 
     const val GUIDE = "https://kid-guard.pages.dev/guide#install"
 
@@ -158,6 +161,10 @@ object FeaturesSheet {
         fun fill() {
         body.removeAllViews()
         if (status != null) {
+            // removeAllViews drops the old card from body, not status from the old card: a 2nd fill() (refresh from
+            // MainActivity.onResume) threw "child already has a parent" and killed the process = the kid home too
+            // (owner 2026-11-18, Poco: 2 home crashes -> Android cleared the default HOME, chooser + 3-button bar)
+            (status.parent as? android.view.ViewGroup)?.removeView(status)
             body.addView(u.section(act.getString(R.string.prot_status)))
             body.addView(u.cardBox(14).apply { (layoutParams as LinearLayout.LayoutParams).topMargin = u.dp(4); addView(status) })
             body.addView(u.section(act.getString(R.string.prot_features)))

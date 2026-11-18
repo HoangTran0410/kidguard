@@ -753,7 +753,7 @@ class MainActivity : Activity() {
         }
     }
     override fun onPause() { super.onPause(); ui.removeCallbacksAndMessages(null); updPolling = false }   // the poll callback is gone: let the row be tapped again
-    override fun onDestroy() { sheet.dismiss(); super.onDestroy() }
+    override fun onDestroy() { sheet.dismiss(); FeaturesSheet.close(); super.onDestroy() }
 
     /**
      * ColorOS force-stops an app whose Recents card is swiped away, so leave no card: on leaving (home, Recents, screen
