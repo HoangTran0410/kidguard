@@ -37,8 +37,12 @@ object Act {
         else -> emptyList()
     }
 
-    /** The command the page sends for a request answer: `answer {id, ok, min?, note?}` (note <= 200 chars). */
-    fun answerCmd(id: String, ok: Boolean, min: Int = 0, note: String? = null): JSONObject = JSONObject().put("type", "answer").put("id", id).put("req", id).put("ok", ok).apply {
+    /** Relay command codes (docs/protocol.md "Command codes", same as the page's WIRE): the relay never sees the names. */
+    const val RELAY_ANSWER = "an"
+    const val RELAY_LOCK = "lk"
+
+    /** The command the page sends for a request answer: `answer {id, ok, min?, note?}` (note <= 200 chars); relay = its code. */
+    fun answerCmd(id: String, ok: Boolean, min: Int = 0, note: String? = null, relay: Boolean = false): JSONObject = JSONObject().put("type", if (relay) RELAY_ANSWER else "answer").put("id", id).put("req", id).put("ok", ok).apply {
         if (ok) put("min", min)
         note?.trim()?.take(200)?.takeIf { it.isNotEmpty() }?.let { put("note", it) }
     }

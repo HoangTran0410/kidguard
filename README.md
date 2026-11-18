@@ -53,8 +53,8 @@ KidGuard becomes the phone's **Device Owner**, the same Android role a company u
 | You need | Where |
 |---|---|
 | The app for the child's phone | [kidguard.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk) |
-| QR code for a new or factory-reset phone | [kidguard.99-hoangtran.workers.dev/qr](https://kidguard.99-hoangtran.workers.dev/qr) |
-| Install from a computer's browser (USB, no adb) | [kidguard.99-hoangtran.workers.dev/install](https://kidguard.99-hoangtran.workers.dev/install) |
+| QR code for a new or factory-reset phone | [kid-guard.pages.dev/qr](https://kid-guard.pages.dev/qr) |
+| Install from a computer's browser (USB, no adb) | [kid-guard.pages.dev/install](https://kid-guard.pages.dev/install) |
 | The parent page | the phone shows its address after setup: `http://<phone IP>:8770` |
 | The parent app (Android, optional) | [kidguard-parent.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk) |
 | Just the kid launcher, no parental control (any phone, < 1 MB) | [kidguard-home.apk](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-home.apk) |
@@ -66,8 +66,8 @@ Android only lets an app become Device Owner while the phone has **no accounts**
 | Way | Needs | Steps |
 |---|---|---|
 | 📱 **On the phone itself** | Android 11+, Wi-Fi | Install the APK, open KidGuard, tap **Full setup without a computer (Android 11+)**. Turn on Developer options → **Wireless debugging** → *Pair with code*, type the 6 digits into KidGuard's notification. It does the rest and turns wireless debugging off again. |
-| 🔳 **Scan a QR** | a new or factory-reset phone, stock-like Android (Pixel, Samsung, Nokia…). Some skins drop the 6-tap screen (e.g. Oppo / Realme ColorOS on Android 8–9): use the USB way | On the welcome screen tap 6 times on an empty spot, scan the [QR](https://kidguard.99-hoangtran.workers.dev/qr). The phone downloads KidGuard over Wi-Fi and sets it up; open it and finish the short checklist. |
-| 🌐 **Browser + USB cable** | Chrome or Edge on a computer | Turn on **USB debugging**, plug in, open [/install](https://kidguard.99-hoangtran.workers.dev/install), press Connect. No adb needed. |
+| 🔳 **Scan a QR** | a new or factory-reset phone, stock-like Android (Pixel, Samsung, Nokia…). Some skins drop the 6-tap screen (e.g. Oppo / Realme ColorOS on Android 8–9): use the USB way | On the welcome screen tap 6 times on an empty spot, scan the [QR](https://kid-guard.pages.dev/qr). The phone downloads KidGuard over Wi-Fi and sets it up; open it and finish the short checklist. |
+| 🌐 **Browser + USB cable** | Chrome or Edge on a computer | Turn on **USB debugging**, plug in, open [/install](https://kid-guard.pages.dev/install), press Connect. No adb needed. |
 | ⌨️ **Command line** | macOS, Linux or Windows | `scripts/setup.sh` (downloads adb if missing, `-y` skips questions) or `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1` |
 | 🟡 **Basic mode** (no Device Owner) | any Android 8+, nothing else. For old phones with no QR screen and no computer / cable | Install the APK, open KidGuard, follow the **To do** list and turn on each item (device admin, accessibility, usage access, location, battery). Accounts can stay. |
 

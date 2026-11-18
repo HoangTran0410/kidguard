@@ -234,7 +234,7 @@ class Relay(private val g: Guard) {
             } }.onFailure { Log.w("KidGuard", "relay rules", it) }
             val cmds = res.optJSONArray("cmds") ?: JSONArray()
             for (i in 0 until cmds.length()) {
-                val cmd = cmds.optJSONObject(i) ?: continue
+                val cmd = Wire.decode(cmds.optJSONObject(i) ?: continue)   // short relay code -> command name
                 // Guard de-dups by cmd "id"; we ack every command, even one that failed or throws
                 // tgSet makes ~6 Telegram calls (Tg.command): off the sync thread, or every other command and the next sync wait for them
                 if (cmd.optString("type") == "tgSet") slow.execute { runCatching { g.command(cmd) }.onFailure { Log.w("KidGuard", "cmd", it) } }

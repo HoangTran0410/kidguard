@@ -155,7 +155,7 @@ const direct = k => !APP && k.via === "lan" && k.target && k.target !== location
 const lanApi = target => (APP ? "/k/" + b64u(target) : target === location.origin ? "" : target) + "/api";
 // an unreachable phone on the LAN would hang a fetch for the whole TCP timeout
 const quick = ms => { if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms); if (typeof AbortController !== "function") return undefined; const c = new AbortController(); setTimeout(() => c.abort(), ms); return c.signal; };   // Chrome < 103: no AbortSignal.timeout
-function base(k) { return (APP ? "/k/" + b64u(k.target) : direct(k)) + (k.via === "lan" ? "/api" : "/c/" + encodeURIComponent(k.id)); }
+function base(k) { return (APP ? "/k/" + b64u(k.target) : k.via === "lan" ? direct(k) : relayOf(k)) + (k.via === "lan" ? "/api" : "/c/" + encodeURIComponent(k.id)); }
 // the kids the home list shows: app = every kid with an address; LAN browser = every LAN kid saved on this origin
 const homeKids = () => APP ? kids.filter(k => k.target) : kids.filter(k => k.via === "lan");
 // Error with a readable message (keys "e.<code>"); .raw keeps the original code for logic ("not live", "not paired"), .net = our own network failed
@@ -178,7 +178,8 @@ async function call1(k, path, method, body, again) {
   if (APP && method !== "GET" && cachedAt && k === cur) throw new Error(t("e.cachedOff"));
   if (k.fb && k.via === "lan" && Date.now() - k.fb < 60000 && relayable(path, method)) { const j = await viaRelay(k, path, method, body); if (path === "/state" && k === cur) cachedAt = 0; return j; }
   let r; const t0 = Date.now();
-  try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined, signal: direct(k) ? quick(15000) : undefined }); }
+  const rel = k.via !== "lan", out = rel ? wireOut(path, body) : body;
+  try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: out ? JSON.stringify(out) : undefined, signal: direct(k) ? quick(15000) : undefined }); }
   catch (e) { const x = errOf("net", APP ? t("e.lost") : null); x.late = Date.now() - t0 > 3000; throw x; }   // late = it may have arrived
   if (!again && k.via !== "lan" && (r.status === 403 || r.status === 423) && await relayFix(r, await r.clone().json().catch(() => ({})), k, base(k))) return call1(k, path, method, body, 1);
   const cached = APP && method === "GET" && path === "/state" ? +r.headers.get("X-KG-Cached") || 0 : 0;
@@ -191,18 +192,44 @@ async function call1(k, path, method, body, again) {
   if (path === "/state" && k === cur && !cached) srvWhy = cf ? "cf:" + cf[1] : j.why || (r.status >= 500 && k.via !== "lan" ? "http:" + r.status : "");
   if (cf) throw errOf(t("e.relayDown", "Cloudflare " + cf[1]));
   if (!r.ok) throw errOf(APP && j.error === "offline" ? "offline" : j.error || ("HTTP " + r.status), null, j.retryAt);
-  return j;
+  return rel ? wireIn(j) : j;
 }
 
 // LAN kid whose address changed (DHCP, other Wi-Fi): try the addresses it reported before (state.lan, Tailscale ip),
 // then the ones in its relay state; still nothing -> state / commands / rules over its relay for a minute at a time.
 // Each step is automatic (docs/protocol.md "LAN address heal").
 const LAN_PORT = 8770;
+// Relay command codes (docs/protocol.md "Command codes"): the relay only sees these, never the names. Same table as K/remote/Wire.kt
+// (relay/test/contract.test.mjs checks both + the worker CMDS). Encoded on the way to a relay, decoded in its replies; LAN keeps the names.
+const WIRE = {
+  aiToken: "ai", refusedDrop: "rd", uiUpdate: "uu", smsPull: "sp", chatPull: "cp", chatClear: "cc", chatFileDel: "cf", chatDel: "cd",
+  snapList: "sl", snapUp: "su", snapDel: "sd", snap: "sn", lock: "lk", locate: "lc", message: "ms", ring: "rg",
+  openPairing: "op", unpairAll: "ua", unpair: "up", release: "rl", answer: "an", reboot: "rb", tailscaleOff: "to", sosAck: "sa",
+  clearData: "cl", update: "ud", totpSet: "ts", wake: "wk", ringStop: "rs", listenStop: "ls", devOff: "d0", devOn: "d1",
+  setting: "st", fileUp: "fu", fileDel: "fd", shotUp: "sh", notifPull: "np", tgSet: "gs", tgCode: "gc", tgUnlink: "gu",
+  tgOff: "go", pinSet: "ps", pinReset: "pr", pinResetCancel: "pc", support: "sx", supportSay: "sy", adbShell: "ab", shClear: "hc",
+  adbTcp: "ap", bankEnd: "be", unlockEnd: "ue", clearCache: "ca", rescan: "re", bgLimit: "bl", bgRestore: "br", fixPerms: "fp",
+  selfOpen: "so", tsInstall: "ti",
+};
+const WIRE_NAME = Object.fromEntries(Object.entries(WIRE).map(([n, c]) => [c, n]));
+const wireOut = (path, body) => path === "/cmd" && body && Object.hasOwn(WIRE, body.type) ? { ...body, type: WIRE[body.type] } : body;
+const wireIn = j => { for (const f of ["expired", "queue"]) if (j && Array.isArray(j[f])) j[f] = j[f].map(x => x && Object.hasOwn(WIRE_NAME, x.type) ? { ...x, type: WIRE_NAME[x.type] } : x); return j; };
 /** The author's shared relay, on by default on paired phones (Relay.DEFAULT_URL in the app). */
 const DEFAULT_RELAY = "https://kidguard.99-hoangtran.workers.dev";
-/** The link that always opens: the relay's /go page (core.js goBoot). */
-const goLink = (url, id, token, name) => `${url}/go#c=${encodeURIComponent(id)}&k=${encodeURIComponent(token)}&n=${encodeURIComponent(name || "")}`;
-const lanLink = (base, id, token, name) => `${base}/#lk=${token}&rc=${encodeURIComponent(id)}&ru=${encodeURIComponent(location.origin)}&n=${encodeURIComponent(name || "")}`;
+// Plan B (docs/decisions/remote.md 2026-11-18): the relay is JSON only; a browser gets this page from the website (SITE /app/, /go)
+// and calls the relay cross-origin. RELAY = the relay of the link that opened it (#r=<https origin>), else the last one, else the author's.
+const SITE = "https://kid-guard.pages.dev";
+const httpsOrigin = v => { try { const u = new URL(v); return u.protocol === "https:" ? u.origin : ""; } catch { return ""; } };
+let RELAY = DEFAULT_RELAY;
+try { RELAY = httpsOrigin(localStorage.getItem("kg.relay") || "") || RELAY; } catch {}
+const setRelay = r => { r = httpsOrigin(r || ""); if (!r) return; RELAY = r; try { localStorage.setItem("kg.relay", r); } catch {} };
+/** A browser relay kid's relay: its own (target), else this page's. */
+const relayOf = k => (k && k.target) || RELAY;
+/** The relay a pasted / scanned link names: #r=, else (a link to the website) the page's relay, else the link's own origin (an old relay link). */
+const relayOfLink = (u, h) => httpsOrigin(h.get("r") || "") || (u.origin === SITE || u.origin === location.origin ? RELAY : u.origin);
+/** The link that always opens: the website's /go page (core.js goBoot); r= only for a relay other than the author's. */
+const goLink = (url, id, token, name, relay) => `${url}/go#c=${encodeURIComponent(id)}&k=${encodeURIComponent(token)}&n=${encodeURIComponent(name || "")}${relay && relay !== DEFAULT_RELAY ? "&r=" + encodeURIComponent(relay) : ""}`;
+const lanLink = (base, id, token, name) => `${base}/#lk=${token}&rc=${encodeURIComponent(id)}&ru=${encodeURIComponent(RELAY)}&n=${encodeURIComponent(name || "")}`;
 const GO_FRESH = 180000;   // the phone syncs at least every 60 s (screen off); 3 min without = offline
 /**
  * Relay /go#c&k&n: ask the relay where the phone is. Same public network + seen lately -> open its LAN page (faster,
@@ -211,14 +238,14 @@ const GO_FRESH = 180000;   // the phone syncs at least every 60 s (screen off); 
  */
 async function goBoot(h) {
   isRelayOrigin = true;
-  const k = { id: h.get("c"), token: h.get("k"), name: h.get("n") || t("kid"), via: "relay" };
+  const k = { id: h.get("c"), token: h.get("k"), name: h.get("n") || t("kid"), via: "relay", target: RELAY };
   kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids);
   let w = null, err = "";
   try {
-    const where = () => fetch(`/c/${encodeURIComponent(k.id)}/where`, { headers: { "X-KG-Token": k.token }, signal: quick(10000) });
+    const where = () => fetch(`${relayOf(k)}/c/${encodeURIComponent(k.id)}/where`, { headers: { "X-KG-Token": k.token }, signal: quick(10000) });
     let r = await where();
     w = await r.json().catch(() => null);
-    if (!r.ok && w && await relayFix(r, w, k, "/c/" + encodeURIComponent(k.id))) { r = await where(); w = await r.json().catch(() => null); }
+    if (!r.ok && w && await relayFix(r, w, k, relayOf(k) + "/c/" + encodeURIComponent(k.id))) { r = await where(); w = await r.json().catch(() => null); }
     if (!r.ok) { err = (w && w.error) || "HTTP " + r.status; w = null; }
   } catch { err = "net"; }
   const key = "kg.go." + k.id, now = Date.now();
@@ -252,7 +279,7 @@ function goError(k, w, why) {
       ${w && w.lan ? `<a class="lnkbtn" href="${esc(lanLink(w.lan, k.id, k.token, k.name))}">${ic("wifi")} ${t("go.tryLan")}</a>` : ""}
       ${ts ? `<a class="lnkbtn" href="${esc(lanLink(ts, k.id, k.token, k.name))}">${ic("globe")} ${t("go.tryTs")}</a>` : ""}
     </div></div>`;
-  $("#goRetry").onclick = () => { try { sessionStorage.removeItem("kg.go." + k.id); } catch {} location.replace(goLink(location.origin, k.id, k.token, k.name)); };
+  $("#goRetry").onclick = () => { try { sessionStorage.removeItem("kg.go." + k.id); } catch {} location.replace(goLink(location.origin, k.id, k.token, k.name, relayOf(k))); };
   if ($("#goOpen")) $("#goOpen").onclick = () => open(k);
 }
 /** This phone's page opened from /go: save it as a LAN kid with the relay token and its relay creds, then open it. */
@@ -278,12 +305,12 @@ const addrsOf = s => { if (!s) return [];
 async function viaRelay(k, path, method, body, again) {
   const rl = k.relay, b = (APP ? "/k/" + b64u(rl.url) : rl.url) + "/c/" + encodeURIComponent(rl.id);
   let r;
-  try { r = await fetch(b + path, { method, headers: { "X-KG-Token": rl.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined, signal: quick(15000) }); }
+  try { r = await fetch(b + path, { method, headers: { "X-KG-Token": rl.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(wireOut(path, body)) : undefined, signal: quick(15000) }); }
   catch (e) { throw errOf("net", APP ? t("e.lost") : null); }
   const j = await r.json().catch(() => ({}));
   if (!again && (r.status === 403 || r.status === 423) && await relayFix(r, j, rl, b)) return viaRelay(k, path, method, body, 1);
   if (!r.ok) throw errOf(j.error || ("HTTP " + r.status), null, j.retryAt);
-  return j;
+  return wireIn(j);
 }
 // --- per-parent relay tokens (docs/protocol.md "Parents"): 403 join = the saved token is the shared link one; 423 locked = a browser token
 // needs the family PIN (12 h). One shared prompt per credential, so many failing calls never stack screens.
@@ -421,8 +448,9 @@ async function boot() {
   if (navLvl()) try { history.replaceState(null, ""); } catch {}   // a reload keeps the old entry state
   if (APP) return appBoot();
   if (LOCAL) return localBoot();
-  // a link from the child: #c=<id>&k=<token>&n=<name>
+  // a link from the child: #c=<id>&k=<token>&n=<name>[&r=<relay>]
   const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get("r")) setRelay(h.get("r"));
   // QR from the child's screen: #pair=<6 digits> prefills the code; drop the hash so a reload does not reuse it
   const pc = /^\d{6}$/.test(h.get("pair") || "") ? h.get("pair") : "";
   if (h.has("pair")) history.replaceState(null, "", location.pathname + location.search);
@@ -432,7 +460,7 @@ async function boot() {
   if (location.pathname === "/go" && h.get("c") && h.get("k")) return goBoot(h);
   if (h.get("c") && h.get("k")) {
     isRelayOrigin = true;
-    const k = { id: h.get("c"), token: h.get("k"), name: h.get("n") || t("kid"), via: "relay" };
+    const k = { id: h.get("c"), token: h.get("k"), name: h.get("n") || t("kid"), via: "relay", target: RELAY };
     kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids);
     history.replaceState(null, "", location.pathname);
     return open(k);
@@ -489,7 +517,7 @@ function appOpenKid() {
 window.kgAppOpen = appOpenKid;
 // Pair from anywhere (docs/protocol.md "Pair over relay"): the code on the kid's screen also works through the relay, no shared Wi-Fi.
 // The page talks to the relay it was served from (a browser) or the default relay (the app, via its proxy). A phone with a parent never offers it.
-const anyBase = () => APP ? "/k/" + b64u(DEFAULT_RELAY) : location.origin;
+const anyBase = () => APP ? "/k/" + b64u(DEFAULT_RELAY) : RELAY;
 const anyOk = () => APP || (location.protocol === "https:" && isRelayOrigin && !!(window.crypto && crypto.subtle));
 const anyHex = n => [...crypto.getRandomValues(new Uint8Array(n))].map(b => b.toString(16).padStart(2, "0")).join("");
 const anySha = async x => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(x)))].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -560,7 +588,7 @@ function addScreen() {
 }
 // invite link (tab-set.js "Invite another parent"): #ri=<relay origin>&rc=<id>&inv=<code>&n=<kid name>; asks only a name, no PIN
 function inviteOf(h) {
-  let ri = ""; try { const u = new URL(h.get("ri") || location.origin); ri = u.protocol === "https:" || u.origin === location.origin ? u.origin : ""; } catch {}
+  const ri = httpsOrigin(h.get("ri") || (APP ? DEFAULT_RELAY : RELAY));
   const rc = h.get("rc") || "", inv = h.get("inv") || "";
   return ri && /^[0-9a-f]{16}$/.test(rc) && /^[0-9a-f]{32}$/.test(inv) ? { ri, rc, inv, n: (h.get("n") || "").slice(0, 40) } : null;
 }
@@ -590,7 +618,7 @@ function addRelayLink(text) {
     const u = new URL(String(text).trim()), h = new URLSearchParams(u.hash.slice(1));
     if (u.protocol === "https:" && h.get("inv")) { const o = inviteOf(h); if (!o) return false; inviteScreen(o); return true; }
     if (u.protocol !== "https:" || !h.get("c") || !h.get("k")) return false;
-    const k = { id: h.get("c"), token: h.get("k"), name: h.get("n") || t("kid"), via: "relay", target: u.origin };
+    const k = { id: h.get("c"), token: h.get("k"), name: h.get("n") || t("kid"), via: "relay", target: relayOfLink(u, h) };
     kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids); open(k);
     return true;
   } catch { return false; }

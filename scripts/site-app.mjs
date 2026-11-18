@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+// Plan B (docs/decisions/remote.md 2026-11-18): the relay worker is JSON only, so the website (Pages) serves the parent
+// page and the two setup pages. Copies (all gitignored, rebuilt by deploy.sh before every Pages deploy):
+//   ui/index.html   -> website/app/index.html   (/app/, and /go via website/_redirects)
+//   ui/assets/*     -> website/ui/*             (the page loads /ui/<file>; next to the UI pack files there)
+//   ui/install.html -> website/install.html     (/install)
+//   ui/qr.html      -> website/qr.html          (/qr)
+//   PAGES_APK=1: the latest GitHub release kidguard.apk + .sha256 -> website/ (the installer's one-click APK; GitHub
+//   downloads have no CORS). Off by default: an APK on Pages may draw the same upload scan that killed the worker.
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+
+const root = path.join(path.dirname(new URL(import.meta.url).pathname), "..");
+const ui = path.join(root, "ui"), site = path.join(root, "website");
+const cp = (from, to) => { fs.mkdirSync(path.dirname(to), { recursive: true }); fs.copyFileSync(from, to); };
+
+cp(path.join(ui, "index.html"), path.join(site, "app", "index.html"));
+let n = 0;
+for (const f of fs.readdirSync(path.join(ui, "assets"))) if (/^[a-z0-9][a-z0-9-]{0,40}\.(js|css)$/.test(f)) { cp(path.join(ui, "assets", f), path.join(site, "ui", f)); n++; }
+cp(path.join(ui, "install.html"), path.join(site, "install.html"));
+cp(path.join(ui, "qr.html"), path.join(site, "qr.html"));
+for (const f of ["kidguard.apk", "kidguard.apk.sha256"]) fs.rmSync(path.join(site, f), { force: true });
+if (process.env.PAGES_APK === "1") {
+  const base = "https://github.com/HoangTran0410/kidguard/releases/latest/download/";
+  for (const f of ["kidguard.apk", "kidguard.apk.sha256"]) execFileSync("curl", ["-fsSL", "-o", path.join(site, f), base + f], { stdio: "inherit" });
+}
+console.log(`website: app/index.html, ui/ (${n} files), install.html, qr.html${process.env.PAGES_APK === "1" ? ", kidguard.apk(+sha256)" : ""}`);

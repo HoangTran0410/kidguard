@@ -1,7 +1,7 @@
-// Gate for the parent page's files (CI + build.sh). A new ui/assets file must be wired in 2 places or it 404s somewhere:
-//   1. ui/index.html: <script defer src="/ui/x.js"> (or the stylesheet <link>)
-//   2. relay/src/index.js: `import ui_x_js from "../../ui/assets/x.js"` AND `"x.js": ui_x_js` in the UI map
-// (the phone and the parent app serve any ui/assets/<name>.(js|css) by pattern: Safety.uiAsset, nothing to list there).
+// Gate for the parent page's files (CI + build.sh). A new ui/assets file must be wired in ui/index.html:
+//   <script defer src="/ui/x.js"> (or the stylesheet <link>), or it 404s.
+// (the phone and the parent app serve any ui/assets/<name>.(js|css) by pattern: Safety.uiAsset; the website copies the
+// folder: scripts/site-app.mjs. The relay serves no page since plan B 2026-11-18: it must import nothing from ui/.)
 // Also: every i18n key exists in both languages (a missing vi key shows English to a Vietnamese parent).
 import { readFileSync, readdirSync } from "node:fs";
 import vm from "node:vm";
@@ -9,15 +9,13 @@ import vm from "node:vm";
 const root = new URL("..", import.meta.url).pathname;
 const read = p => readFileSync(root + p, "utf8");
 const html = read("ui/index.html"), relay = read("relay/src/index.js");
+if (/from "\.\.\/\.\.\/ui\//.test(relay)) errs.push("relay/src/index.js imports from ui/: the relay is JSON only (plan B), the website serves the page");
 const errs = [];
 
 const files = readdirSync(root + "ui/assets").filter(f => /^[a-z0-9-]+\.(js|css)$/.test(f));
 for (const f of files) {
-  const v = "ui_" + f.replace(/[.-]/g, "_");
   // i18n-<code>.js are not tags: lang.js document.write()s the active one and loads the other on a language switch
   if (!/^i18n-/.test(f) && !html.includes(`/ui/${f}"`)) errs.push(`${f}: no <script>/<link> in ui/index.html`);
-  if (!relay.includes(`from "../../ui/assets/${f}"`)) errs.push(`${f}: no import in relay/src/index.js`);
-  if (!new RegExp(`"${f.replace(/\./g, "\\.")}":\\s*${v}\\b`).test(relay)) errs.push(`${f}: no "${f}": ${v} entry in the relay UI map`);
 }
 for (const m of html.matchAll(/(?:src|href)="\/ui\/([^"]+)"/g)) if (!files.includes(m[1])) errs.push(`ui/index.html loads /ui/${m[1]}: no such file`);
 

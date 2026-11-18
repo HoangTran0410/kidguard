@@ -185,8 +185,10 @@ function render() {
   }
 }
 
-// Pair with me: this page (served by the relay: same origin) makes an invite, then waits for the phone to redeem it
-// and saves the kid in this browser like the parent page does (localStorage kg.kids).
+// Pair with me: this page (on the website; the relay is JSON only, plan B) makes an invite on the author's relay (the one a
+// new phone uses: Relay.DEFAULT_URL), then waits for the phone to redeem it and saves the kid in this browser like the parent
+// page does (localStorage kg.kids, same origin as /app/).
+const RELAY = "https://kidguard.99-hoangtran.workers.dev";
 let INVITE = "";
 const hex = () => [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, "0")).join("");
 async function sha(x) { return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(x)))].map(b => b.toString(16).padStart(2, "0")).join(""); }
@@ -198,19 +200,19 @@ async function invite() {
   const name = $("inm").value.trim() || T("Con"), ticket = hex();
   $("invgo").disabled = true;
   try {
-    const r = await fetch("/p/inv", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ th: await sha(ticket), newPin: a, name }) });
+    const r = await fetch(RELAY + "/p/inv", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ th: await sha(ticket), newPin: a, name }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.inv) { $("invgo").disabled = false; return bad(r.status === 429 ? "Hôm nay tạo quá nhiều mã mời từ mạng này, thử lại ngày mai" : "Trang này không tạo được mã mời. Mở trang từ link relay của bạn"); }
     INVITE = j.inv; render();
     msg.innerHTML = ICK + " " + T("Quét mã QR mới. Giữ trang này mở tới khi máy con cài xong"); msg.className = "msg";
     for (let end = j.exp; Date.now() < end; await new Promise(z => setTimeout(z, 3000))) {
-      const q = await fetch("/p/" + INVITE + "/result", { headers: { "X-KG-Ticket": ticket } }).catch(() => null);
+      const q = await fetch(RELAY + "/p/" + INVITE + "/result", { headers: { "X-KG-Ticket": ticket } }).catch(() => null);
       if (!q) continue;
       const k = await q.json().catch(() => ({}));
       if (q.status === 404 || (q.ok && k.error)) break;
       if (q.ok && k.token) {
-        try { const KEY = "kg.kids", L = JSON.parse(localStorage.getItem(KEY) || "[]").filter((x) => x.id !== k.id); L.push({ id: k.id, token: k.token, name, via: "relay" }); localStorage.setItem(KEY, JSON.stringify(L)); } catch (e) {}
-        msg.innerHTML = ICK + " " + T("Đã ghép máy con.") + ' <a href="/">' + T("Mở trang quản lý") + "</a>"; msg.className = "msg"; return;
+        try { const KEY = "kg.kids", L = JSON.parse(localStorage.getItem(KEY) || "[]").filter((x) => x.id !== k.id); L.push({ id: k.id, token: k.token, name, via: "relay", target: RELAY }); localStorage.setItem(KEY, JSON.stringify(L)); } catch (e) {}
+        msg.innerHTML = ICK + " " + T("Đã ghép máy con.") + ' <a href="/app/">' + T("Mở trang quản lý") + "</a>"; msg.className = "msg"; return;
       }
       if (!q.ok && q.status !== 429) break;
     }
@@ -220,7 +222,7 @@ async function invite() {
 
 if (typeof document !== "undefined" && document.getElementById) {
   $("apk").value = DEF.apkUrl;
-  if (location.protocol === "https:" && window.crypto && crypto.subtle) {   // the relay's /p/ routes live on the page's own origin
+  if (location.protocol === "https:" && window.crypto && crypto.subtle) {   // the relay answers cross-origin (CORS)
     $("invrow").hidden = false;
     $("inv").addEventListener("change", () => { $("invbox").hidden = !$("inv").checked; if (!$("inv").checked) { INVITE = ""; render(); } });
     $("invgo").addEventListener("click", invite);

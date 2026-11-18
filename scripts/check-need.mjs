@@ -29,7 +29,10 @@ for (const n of NEED) {
 }
 
 const cmds = (/^const CMDS = \[([^\]]*)\]/m.exec(rd("relay/src/index.js")) || [])[1] || "";
-for (const c of [...cmds.matchAll(/"([A-Za-z]+)"/g)].map(x => x[1]))
+// the worker lists codes (docs/protocol.md "Command codes"): back to names with the page's WIRE table
+const wire = (/^const WIRE = \{([^}]*)\}/m.exec(rd("ui/assets/core.js")) || [])[1] || "";
+const NAME = Object.fromEntries([...wire.matchAll(/(\w+): "(\w+)"/g)].map(x => [x[2], x[1]]));
+for (const c of [...cmds.matchAll(/"([A-Za-z0-9]+)"/g)].map(x => NAME[x[1]] || x[1]))
   if (!base.cmd.includes(c) && !has.cmd.has(c)) bad.push(`command "${c}" is newer than ${base.v}: add it to NEED (ui/assets/kid.js) with the kid version that has it`);
 const rules = rd("android/app/src/main/kotlin/dev/kidguard/guard/Rules.kt");
 for (const k of new Set([...rules.matchAll(/put\("([A-Za-z]+)"/g)].map(x => x[1])))

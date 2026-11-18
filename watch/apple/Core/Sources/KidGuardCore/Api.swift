@@ -2,6 +2,8 @@ import Foundation
 
 public let defaultRelay = "https://kidguard.99-hoangtran.workers.dev"
 public let clientName = "Apple Watch"
+/// Relay command codes of the commands a watch sends (docs/protocol.md "Command codes"): the relay never sees the names.
+public let wireCode: [String: String] = ["lock": "lk", "locate": "lc", "message": "ms", "ring": "rg", "ringStop": "rs", "sosAck": "sa", "answer": "an"]
 
 public enum KGError: Error, LocalizedError, Equatable {
     case http(Int, String)     // status, relay / phone error text
@@ -79,7 +81,7 @@ public struct KidClient {
     public func command(_ type: String, _ extra: [String: JSON] = [:]) async throws -> String {
         let id = Wire.newId()
         var c = extra
-        c["type"] = .str(type); c["id"] = .str(id)
+        c["type"] = .str(wireCode[type] ?? type); c["id"] = .str(id)   // the relay takes codes only
         let j = try await call("/cmd", "POST", body: .obj(c))
         let res = j["result"].string ?? "queued"
         if res != "queued" && res != "ok" && res != "no such sos" { throw KGError.http(200, res) }

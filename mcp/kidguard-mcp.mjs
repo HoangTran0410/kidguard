@@ -25,9 +25,13 @@ function cfg() {
   throw new Error("not configured: set KG_RELAY + KG_ID + KG_TOKEN, or KG_URL + KG_TOKEN");
 }
 
+// relay command codes (docs/protocol.md "Command codes"): the relay takes these, never the names; LAN keeps the names
+const CODE = { lock: "lk", locate: "lc", message: "ms", ring: "rg", ringStop: "rs", sosAck: "sa", answer: "an" };
+
 async function call(path, method = "GET", body) {
   const c = cfg();
   if (!c.token) throw new Error("KG_AI_TOKEN is not set");
+  if (c.via === "relay" && path === "/cmd" && body && CODE[body.type]) body = { ...body, type: CODE[body.type] };
   const r = await fetch(c.base + path, {
     method,
     headers: { "X-KG-Token": c.token, "X-KG-Name": NAME, "Content-Type": "application/json" },

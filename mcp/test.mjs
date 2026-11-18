@@ -44,6 +44,7 @@ async function suite(mode) {
   const { srv, seen, port } = await fake(mode);
   const env = mode === "relay" ? { KG_RELAY: `http://127.0.0.1:${port}/`, KG_ID: ID, KG_TOKEN: TOKEN } : { KG_URL: `http://127.0.0.1:${port}`, KG_TOKEN: TOKEN };
   const c = client(env);
+  const W = n => mode === "relay" ? { answer: "an", message: "ms", lock: "lk" }[n] : n;   // relay = command codes
   try {
     const init = await c.rpc("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "0" } });
     assert.equal(init.result.protocolVersion, "2025-06-18");
@@ -79,14 +80,14 @@ async function suite(mode) {
 
     const n0 = seen.puts.length;
     await c.tool("answer_request", { req: "r1", ok: true, min: 20 });
-    assert.deepEqual(seen.cmds.at(-1), { type: "answer", req: "r1", ok: true, min: 20 });
+    assert.deepEqual(seen.cmds.at(-1), { type: W("answer"), req: "r1", ok: true, min: 20 });
     assert.equal(seen.puts.length, n0 + 1); assert.deepEqual(seen.puts.at(-1).bonus, { day: "2026-11-15", min: 30 });
     assert.equal((await c.tool("answer_request", { req: "nope", ok: true })).err, true);
 
     await c.tool("send_command", { type: "message", text: "dinner" });
-    assert.deepEqual(seen.cmds.at(-1), { type: "message", text: "dinner" });
+    assert.deepEqual(seen.cmds.at(-1), { type: W("message"), text: "dinner" });
     await c.tool("send_command", { type: "lock" });
-    assert.deepEqual(seen.cmds.at(-1), { type: "lock" });
+    assert.deepEqual(seen.cmds.at(-1), { type: W("lock") });
     const nc = seen.cmds.length;
     for (const bad of ["release", "adbShell", "reboot", "clearData", "unpair", "unpairAll", "pinSet", "relay", "openPairing", "wake", "listen", "toString"]) {
       const r = await c.tool("send_command", { type: bad, cmd: "id", pin: "1234" });

@@ -17,6 +17,7 @@ class ActTest {
         assertEquals("ok", Act.answerCmd("r1", true, 15, "  ok  ").getString("note"))
         assertFalse(Act.answerCmd("r1", true, 15, "   ").has("note"))
         assertEquals(200, Act.answerCmd("r1", true, 15, "x".repeat(300)).getString("note").length)
+        assertEquals("an", Act.answerCmd("r1", true, 15, relay = true).getString("type"))   // relay = command code
     }
 
     @Test fun grantChoices() {

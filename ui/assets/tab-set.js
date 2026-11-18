@@ -577,7 +577,7 @@ async function watchGo() {
 let aiShown = null;   // {k, token}: shown until "Done"; never stored
 const sha256hex = async s => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)))].map(x => x.toString(16).padStart(2, "0")).join("");
 function aiCfg(k, token) {
-  const env = k.via === "relay" ? { KG_RELAY: isRelayOrigin ? location.origin : k.target, KG_ID: k.id } : k.relay && k.relay.url ? { KG_RELAY: k.relay.url, KG_ID: k.relay.id } : { KG_URL: k.target || location.origin };
+  const env = k.via === "relay" ? { KG_RELAY: APP ? k.target : relayOf(k), KG_ID: k.id } : k.relay && k.relay.url ? { KG_RELAY: k.relay.url, KG_ID: k.relay.id } : { KG_URL: k.target || location.origin };
   // a whole prompt, not bare JSON: pasted into an AI chat it must say what it is and how to install it (owner 2026-11-16:
   // the bare config with a /path/to placeholder left the AI asking "what do you want done with it?")
   env.KG_AI_TOKEN = token;
@@ -609,7 +609,7 @@ async function aiRevoke() { await cmd({ type: "aiToken", op: "revoke" }, t("ai.g
 // Adding a parent = a one-use 10-minute invite (QR + link); the list shows who has access and can remove one.
 let invS = null, rpS = null;   // invS {k, link, exp}; rpS {k, at, list, pinKnown}
 const rcall = (k, path, method, body) => k.via === "relay" ? call(k, path, method, body) : viaRelay(k, path, method, body);
-const rpOrigin = k => k.via === "relay" ? (isRelayOrigin ? location.origin : k.target) : k.relay.url;
+const rpOrigin = k => k.via === "relay" ? (APP ? k.target : relayOf(k)) : k.relay.url;
 const rpCred = k => k.via === "relay" ? k : k.relay;
 function relayParentsHtml() { return `<div id="rpBox">${rpInner()}</div>`; }
 function rpInner() {
@@ -644,7 +644,7 @@ function rpBind() {
       const j = await rcall(k, "/invite", "POST", {});
       if (!j || !/^[0-9a-f]{32}$/.test(j.inv || "")) throw new Error("x");
       const o = rpOrigin(k), id = rpCred(k).id;
-      invS = { k, exp: +j.exp || Date.now() + 600000, link: `${o}/#ri=${encodeURIComponent(o)}&rc=${encodeURIComponent(id)}&inv=${j.inv}&n=${encodeURIComponent(k.name || "")}` };
+      invS = { k, exp: +j.exp || Date.now() + 600000, link: `${SITE}/app/#ri=${encodeURIComponent(o)}&rc=${encodeURIComponent(id)}&inv=${j.inv}&n=${encodeURIComponent(k.name || "")}` };
       if (k === cur) rpPaint();
     } catch (e) { toast("err|" + (e && e.message && e.message !== "x" ? e.message : t("rp.invFail"))); b.disabled = false; }
   };

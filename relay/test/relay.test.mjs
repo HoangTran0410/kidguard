@@ -9,15 +9,10 @@ const P=(p,body,t=T,x={})=>fetch(`${B}/c/${id}/${p}`,{method:"POST",headers:H(t,
 const jpg=Buffer.from("ffd8ffe000104a46494600010100000100010000ffd9","hex");
 let r=await P("sync",JSON.stringify({state:{}}));let j=await r.json();
 ck("sync binds, no live",r.status==200&&!j.live);
-{const q=await fetch(`${B}/qr`),qt=await q.text(),l=await fetch(`${B}/ui/qrcode.js`),lt=await l.text();
-ck("qr page loads the shared QR lib from ui/",q.status==200&&qt.includes('src="/ui/qrcode.js"')&&!qt.includes("qrcode-generator 1.4.4"));
-ck("ui/qrcode.js served as JS",l.status==200&&/javascript/.test(l.headers.get("content-type"))&&lt.includes("qrcode-generator 1.4.4"));}
-{const pg=await (await fetch(`${B}/`)).text(),srcs=[...pg.matchAll(/(?:src|href)="\/ui\/([a-z0-9-]+\.(?:js|css))"/g)].map(m=>m[1]);
-let okAll=srcs.length>10;for(const n of srcs){const x=await fetch(`${B}/ui/${n}`);await x.text();if(x.status!=200||x.headers.get("x-content-type-options")!="nosniff"||!(n.endsWith(".css")?/text\/css/:/javascript/).test(x.headers.get("content-type")))okAll=false;}
-ck("every /ui/ file the page names is served with its type ("+srcs.length+")",okAll);
-const c=await fetch(`${B}/ui/core.js`),ct=await c.text();ck("/ui/core.js 200 JS",c.status==200&&/javascript/.test(c.headers.get("content-type"))&&ct.includes("async function call("));
-{const tg=c.headers.get("etag"),c2=await fetch(`${B}/ui/core.js`,{headers:{"if-none-match":tg||"x"}});ck("/ui/core.js ETag -> 304",!!tg&&c2.status==304);const p1=await fetch(`${B}/`),p2=await fetch(`${B}/`,{headers:{"if-none-match":p1.headers.get("etag")||"x"}});await p1.text();ck("page ETag -> 304",p2.status==304);}
-for(const bad of ["/ui/x.js","/ui/..%2Findex.html","/ui/index.html","/ui/toString","/ui/"]){const x=await fetch(B+bad);await x.text();ck("unknown "+bad+" 404",x.status==404);}}
+{for(const pth of ["/","/go","/install","/qr","/ui/core.js","/ui/style.css","/kidguard.apk","/kidguard.apk.sha256"]){const x=await fetch(B+pth),t=await x.text();ck("plan B: "+pth+" 404 json (no page on the relay)",x.status==404&&/json/.test(x.headers.get("content-type")||"")&&!t.includes("<"));}
+const o=await fetch(`${B}/c/${id}/state`,{method:"OPTIONS",headers:{origin:"https://kid-guard.pages.dev","access-control-request-method":"GET","access-control-request-headers":"x-kg-token"}});ck("CORS preflight 204 *",o.status==204&&o.headers.get("access-control-allow-origin")=="*"&&/x-kg|\*/.test(o.headers.get("access-control-allow-headers")||""));
+const cs=await P("sync",JSON.stringify({state:{}}));await cs.text();ck("CORS on JSON replies",cs.headers.get("access-control-allow-origin")=="*");
+ck("long command names are refused (codes only)",(await P("cmd",JSON.stringify({type:"lock"}))).status==400);}
 ck("wrong token 401",(await P("sync","{}",BAD)).status==401);
 ck("wrong token frame GET 401",(await fetch(`${B}/c/${id}/frame?after=0`,{headers:H(BAD)})).status==401);
 r=await P("live","{}");j=await r.json();ck("live ok phone -1",j.ok&&j.phone==-1);
@@ -42,15 +37,13 @@ r=await fetch(`${B}/c/${id}/frame?after=9999999999999999`,{headers:H()});ck("204
 r=await P("live","{}");j=await r.json();ck("live phone>=0",j.phone>=0);
 ck("frame >1MB 413",(await P("frame",Buffer.alloc(1100000))).status==413);
 ck("frame 1MB-ish ok",(await P("frame",Buffer.alloc(900000))).status==200);
-ck("cmd >256KB 413",(await P("cmd",JSON.stringify({type:"message",text:"a".repeat(300000)}))).status==413);
-ck("cmd answer ok",(await (await P("cmd",JSON.stringify({type:"answer",id:"x",ok:true}))).json()).result=="queued");
-ck("cmd reboot ok",(await (await P("cmd",JSON.stringify({type:"reboot"}))).json()).result=="queued");
-ck("cmd wake ok",(await (await P("cmd",JSON.stringify({type:"wake"}))).json()).result=="queued");
-ck("cmd devOff ok",(await (await P("cmd",JSON.stringify({type:"devOff"}))).json()).result=="queued");
+ck("cmd >256KB 413",(await P("cmd",JSON.stringify({type:"ms",text:"a".repeat(300000)}))).status==413);
+ck("cmd answer ok",(await (await P("cmd",JSON.stringify({type:"an",id:"x",ok:true}))).json()).result=="queued");
+ck("cmd reboot ok",(await (await P("cmd",JSON.stringify({type:"rb"}))).json()).result=="queued");
+ck("cmd wake ok",(await (await P("cmd",JSON.stringify({type:"wk"}))).json()).result=="queued");
+ck("cmd devOff ok",(await (await P("cmd",JSON.stringify({type:"d0"}))).json()).result=="queued");
 ck("PUT frame 405",(await fetch(`${B}/c/${id}/frame`,{method:"PUT",headers:H(),body:"x"})).status==405);
 ck("GET live 405",(await fetch(`${B}/c/${id}/live`,{headers:H()})).status==405);
-r=await fetch(`${B}/install`);ck("/install 200 html",r.status==200&&r.headers.get("content-type").includes("html"));
-r=await fetch(`${B}/`);ck("/ 200",r.status==200);
 
 
 // ---- v0.2.1 ----
@@ -62,30 +55,28 @@ ck("no token 401",(await fetch(`${B}/c/${id}/state`)).status==401);
 ck("short token 401",(await fetch(`${B}/c/${id}/state`,{headers:H("abc")})).status==401);
 ck("bad id 404",(await fetch(`${B}/c/xyz/state`,{headers:H()})).status==404);
 // 2: headers
-r=await fetch(`${B}/`);ck("/ X-Frame-Options DENY + CSP frame-ancestors",r.headers.get("x-frame-options")=="DENY"&&/frame-ancestors 'none'/.test(r.headers.get("content-security-policy")));
-r=await fetch(`${B}/install`);const csp=r.headers.get("content-security-policy");ck("/install DENY + CSP jsdelivr+github",r.headers.get("x-frame-options")=="DENY"&&csp.includes("cdn.jsdelivr.net")&&csp.includes("objects.githubusercontent.com")&&csp.includes("'unsafe-inline'"));
 r=await P("live","{}");ck("json nosniff",r.headers.get("x-content-type-options")=="nosniff");
 r=await fetch(`${B}/c/zz/state`);ck("404 json nosniff",r.headers.get("x-content-type-options")=="nosniff");
 // 4: input 409 when not live (fresh kid, bound by sync)
 await S({state:{}});
 r=await P2("input",JSON.stringify({type:"tap",x:.1,y:.1}));j=await r.json();ck("input 409 not live",r.status==409&&j.error=="not live");
 // 1: command ids, deliver-once, ack-drop
-r=await P2("cmd",JSON.stringify({type:"reboot"}));await P2("cmd",JSON.stringify({type:"release"}));await P2("cmd",JSON.stringify({type:"unpairAll"}));
-await P2("cmd",JSON.stringify({type:"lock"}));await P2("cmd",JSON.stringify({type:"answer",id:"req1",ok:true}));
+r=await P2("cmd",JSON.stringify({type:"rb"}));await P2("cmd",JSON.stringify({type:"rl"}));await P2("cmd",JSON.stringify({type:"ua"}));
+await P2("cmd",JSON.stringify({type:"lk"}));await P2("cmd",JSON.stringify({type:"an",id:"req1",ok:true}));
 j=await S();ck("all 5 cmds delivered with ids",j.cmds.length==5&&j.cmds.every(c=>typeof c.id=="string"&&c.id.length>=3));
-ck("answer keeps given id",j.cmds.some(c=>c.type=="answer"&&c.id=="req1"));
+ck("answer keeps given id",j.cmds.some(c=>c.type=="an"&&c.id=="req1"));
 const ids=new Set(j.cmds.map(c=>c.id));ck("ids unique",ids.size==5);
 j=await S();ck("destructive cmds stay until acked (at-least-once): all 5 re-delivered",j.cmds.length==5);
-{const ids2=j.cmds.filter(c=>["reboot","release","unpairAll"].includes(c.type)).map(c=>c.id);j=await S({acks:ids2});ck("acked destructive cmds gone, lock+answer stay",j.cmds.map(c=>c.type).sort().join()=="answer,lock");}
-j=await S({acks:["req1",j.cmds.find(c=>c.type=="lock").id]});ck("acks drop the rest",j.cmds.length==0);
-r=await P2("cmd",JSON.stringify({type:"answer",id:"bad id!",ok:true}));j=await S();const an=j.cmds.find(c=>c.type=="answer");
+{const ids2=j.cmds.filter(c=>["rb","rl","ua"].includes(c.type)).map(c=>c.id);j=await S({acks:ids2});ck("acked destructive cmds gone, lock+answer stay",j.cmds.map(c=>c.type).sort().join()=="an,lk");}
+j=await S({acks:["req1",j.cmds.find(c=>c.type=="lk").id]});ck("acks drop the rest",j.cmds.length==0);
+r=await P2("cmd",JSON.stringify({type:"an",id:"bad id!",ok:true}));j=await S();const an=j.cmds.find(c=>c.type=="an");
 ck("answer with illegal id: cmd id replaced, request id kept in req",an&&an.id!="bad id!"&&an.req=="bad id!");await S({acks:[an.id]});
 ck("bad cmd 400",(await P2("cmd",JSON.stringify({type:"rm"}))).status==400);
 // unpair {id}: whitelisted, keeps the device id as the command id, deliver-once (destructive)
-r=await P2("cmd",JSON.stringify({type:"unpair",id:"a1b2c3d4"}));ck("unpair accepted",r.status==200);
-await P2("cmd",JSON.stringify({type:"lock"}));
-j=await S();const up=j.cmds.find(c=>c.type=="unpair");ck("unpair delivered with its device id",!!up&&up.id=="a1b2c3d4");
-j=await S({acks:["a1b2c3d4"]});ck("unpair gone once acked (lock stays)",j.cmds.map(c=>c.type).join()=="lock");
+r=await P2("cmd",JSON.stringify({type:"up",id:"a1b2c3d4"}));ck("unpair accepted",r.status==200);
+await P2("cmd",JSON.stringify({type:"lk"}));
+j=await S();const up=j.cmds.find(c=>c.type=="up");ck("unpair delivered with its device id",!!up&&up.id=="a1b2c3d4");
+j=await S({acks:["a1b2c3d4"]});ck("unpair gone once acked (lock stays)",j.cmds.map(c=>c.type).join()=="lk");
 j=await S({acks:[j.cmds[0].id]});ck("unpair test queue clean",j.cmds.length==0);
 // 6: rules
 ck("rules array 400",(await P2("rules","[1]",T,{},"PUT")).status==400);
@@ -106,7 +97,6 @@ ck("frame seq starts at Date.now()", (await (async()=>{await P2("live","{}");con
 // 4b: old inputs dropped
 await P2("live","{}");await P2("input",JSON.stringify({type:"tap",x:.2,y:.2}));await sleep(5300);await P2("input",JSON.stringify({type:"key",key:"home"}));
 j=await (await P2("frame",jpg)).json();ck("inputs older than 5s dropped, fresh kept (no 'at' leak)",j.inputs.length==1&&j.inputs[0].type=="key"&&!("at" in j.inputs[0]));
-ck("CSP allows OSM tiles",(await fetch(`${B}/`)).headers.get("content-security-policy").includes("img-src 'self' data: blob: https://tile.openstreetmap.de https://tile.openstreetmap.org"));
 const track=Array.from({length:700},(_,i)=>[1.7e12+i,10.123456,106.123456,12.5]);
 r=await P2("sync",JSON.stringify({state:{track}}));ck("sync with ~700-point track (<120KB) ok",r.status==200);
 r=await P2("sync",JSON.stringify({state:{big:"a".repeat(125000)}}));ck("state >120KB -> 413",r.status==413);
@@ -173,10 +163,10 @@ ck("first sync with state binds",(await S5(JSON.stringify({state:{t:1}}))).statu
 // ---- v0.8 clearData: validated, deliver-once ----
 {const idc=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),PC=(p,o)=>fetch(`${B}/c/${idc}/${p}`,{method:"POST",headers:H(),body:JSON.stringify(o)});
 await PC("sync",{state:{t:1}});
-ck("clearData bad pkg 400",(await PC("cmd",{type:"clearData",pkg:"a b;rm"})).status==400&&(await PC("cmd",{type:"clearData"})).status==400&&(await PC("cmd",{type:"clearData",pkg:"a".repeat(201)})).status==400);
-ck("clearData queued",(await (await PC("cmd",{type:"clearData",pkg:"com.heytap.market",id:"cd1"})).json()).result=="queued");
-const c1=await (await PC("sync",{})).json();ck("clearData delivered with pkg",c1.cmds.some(c=>c.type=="clearData"&&c.pkg=="com.heytap.market"));
-const c2=await (await PC("sync",{acks:["cd1"]})).json();ck("clearData NOT delivered after ack",!c2.cmds.some(c=>c.type=="clearData"));}
+ck("clearData bad pkg 400",(await PC("cmd",{type:"cl",pkg:"a b;rm"})).status==400&&(await PC("cmd",{type:"cl"})).status==400&&(await PC("cmd",{type:"cl",pkg:"a".repeat(201)})).status==400);
+ck("clearData queued",(await (await PC("cmd",{type:"cl",pkg:"com.heytap.market",id:"cd1"})).json()).result=="queued");
+const c1=await (await PC("sync",{})).json();ck("clearData delivered with pkg",c1.cmds.some(c=>c.type=="cl"&&c.pkg=="com.heytap.market"));
+const c2=await (await PC("sync",{acks:["cd1"]})).json();ck("clearData NOT delivered after ack",!c2.cmds.some(c=>c.type=="cl"));}
 // ---- device health ("Máy"): parent POST asks, sync says device:true, phone PUTs, parent reads it ----
 {const idd=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),PD=(p,o,m="POST")=>fetch(`${B}/c/${idd}/${p}`,{method:m,headers:H(),body:o===undefined?undefined:JSON.stringify(o)});
 await PD("sync",{state:{t:1}});
@@ -210,23 +200,23 @@ ck("logday wrong token 401",(await fetch(`${B}/c/${idl}/logday?day=2026-11-05`,{
 // ---- remote phone settings: key whitelist + number/boolean value ----
 {const ids=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),PS=(p,o)=>fetch(`${B}/c/${ids}/${p}`,{method:"POST",headers:H(),body:JSON.stringify(o)});
 await PS("sync",{state:{t:1}});
-const bad=await Promise.all([{key:"wifi",value:1},{key:"vol.media"},{key:"vol.media",value:"7"},{key:"dnd",value:null}].map(async o=>(await PS("cmd",{type:"setting",...o})).status));
+const bad=await Promise.all([{key:"wifi",value:1},{key:"vol.media"},{key:"vol.media",value:"7"},{key:"dnd",value:null}].map(async o=>(await PS("cmd",{type:"st",...o})).status));
 ck(`setting bad key/value 400 [got ${bad}]`,bad.every(s=>s==400));
-ck("setting queued",(await (await PS("cmd",{type:"setting",key:"vol.media",value:7,id:"s1"})).json()).result=="queued"&&(await (await PS("cmd",{type:"setting",key:"dnd",value:true})).json()).result=="queued");
-const s1=await (await PS("sync",{})).json();ck("setting delivered with key/value",s1.cmds.some(c=>c.type=="setting"&&c.key=="vol.media"&&c.value===7&&c.id=="s1")&&s1.cmds.some(c=>c.key=="dnd"&&c.value===true));}
+ck("setting queued",(await (await PS("cmd",{type:"st",key:"vol.media",value:7,id:"s1"})).json()).result=="queued"&&(await (await PS("cmd",{type:"st",key:"dnd",value:true})).json()).result=="queued");
+const s1=await (await PS("sync",{})).json();ck("setting delivered with key/value",s1.cmds.some(c=>c.type=="st"&&c.key=="vol.media"&&c.value===7&&c.id=="s1")&&s1.cmds.some(c=>c.key=="dnd"&&c.value===true));}
 // ---- tester additions: deliver-once, pinHash never leaves, oversized cmd ----
 {const id4=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),P4=(p,o,m="POST")=>fetch(`${B}/c/${id4}/${p}`,{method:m,headers:H(),body:o===undefined?undefined:JSON.stringify(o)});
 const G4=async p=>await (await fetch(`${B}/c/${id4}/${p}`,{headers:H()})).text();
 await P4("sync",{state:{rules:{rev:1,pinHash:"f".repeat(64),pinSalt:"abc"}}});
-await P4("cmd",{type:"reboot",id:"rb1"});await P4("cmd",{type:"lock",id:"lk1"});
+await P4("cmd",{type:"rb",id:"rb1"});await P4("cmd",{type:"lk",id:"lk1"});
 let a=await (await P4("sync",{})).json();
-ck("reboot delivered",a.cmds.some(c=>c.type=="reboot"));
+ck("reboot delivered",a.cmds.some(c=>c.type=="rb"));
 let b2=await (await P4("sync",{})).json();
-ck("reboot re-delivered until acked",b2.cmds.some(c=>c.type=="reboot"));
+ck("reboot re-delivered until acked",b2.cmds.some(c=>c.type=="rb"));
 b2=await (await P4("sync",{acks:["rb1"]})).json();
-ck("reboot gone once acked",!b2.cmds.some(c=>c.type=="reboot"));
-ck("non-once cmd (lock) re-delivered until acked",b2.cmds.some(c=>c.type=="lock"));
-b2=await (await P4("sync",{acks:["lk1"]})).json();ck("acked lock dropped",!b2.cmds.some(c=>c.type=="lock"));
+ck("reboot gone once acked",!b2.cmds.some(c=>c.type=="rb"));
+ck("non-once cmd (lock) re-delivered until acked",b2.cmds.some(c=>c.type=="lk"));
+b2=await (await P4("sync",{acks:["lk1"]})).json();ck("acked lock dropped",!b2.cmds.some(c=>c.type=="lk"));
 await P4("rules",{dailyMin:60,pin:"1234"},"PUT");
 const st=await G4("state"),ru=await G4("rules");
 ck("GET state has no pinHash",!st.includes("pinHash")&&!st.includes("f".repeat(64)));
@@ -236,16 +226,16 @@ ck("PUT rules reply has no pinHash",!putR.includes("pinHash"));
 ck("GET rules never returns pinHash",!ru.includes("pinHash"));
 ck("GET state shows rules via stripPin (pinSet or nothing)",JSON.parse(st).rules!==undefined);
 // oversized command: 256KB body limit gives 413 (tested above); since the MAX_CMD fix a 4KB+ command is refused too
-const big=await P4("cmd",{type:"message",text:"a".repeat(200000)});
+const big=await P4("cmd",{type:"ms",text:"a".repeat(200000)});
 ck("200KB cmd refused 413 (was a known gap: accepted, then 500s once the queue value passed the storage limit)",big.status==413);
-ck("small cmd still accepted",(await (await P4("cmd",{type:"message",text:"hi"})).json()).result=="queued");
-{await P4("cmd",{type:"ring",id:"rr1"});let st=0;for(let i=0;i<25&&st!=429;i++)st=(await P4("cmd",{type:"message",text:"m"+i})).status;
+ck("small cmd still accepted",(await (await P4("cmd",{type:"ms",text:"hi"})).json()).result=="queued");
+{await P4("cmd",{type:"rg",id:"rr1"});let st=0;for(let i=0;i<25&&st!=429;i++)st=(await P4("cmd",{type:"ms",text:"m"+i})).status;
 ck("full queue (20) refuses with 429 instead of dropping the oldest",st==429);
-ck("full queue: a ONCE command is never replaced (refused)",(await P4("cmd",{type:"reboot"})).status==429);
-ck("full queue: a repeatable command replaces its older copy",(await P4("cmd",{type:"ring",id:"rr2"})).status==200);
-const s4=await (await P4("sync",{})).json();ck("replaced: one ring left (rr2), still 20",s4.cmds.length==20&&s4.cmds.filter(c=>c.type=="ring").length==1&&s4.cmds.some(c=>c.id=="rr2")&&!s4.cmds.some(c=>c.id=="rr1"));
+ck("full queue: a ONCE command is never replaced (refused)",(await P4("cmd",{type:"rb"})).status==429);
+ck("full queue: a repeatable command replaces its older copy",(await P4("cmd",{type:"rg",id:"rr2"})).status==200);
+const s4=await (await P4("sync",{})).json();ck("replaced: one ring left (rr2), still 20",s4.cmds.length==20&&s4.cmds.filter(c=>c.type=="rg").length==1&&s4.cmds.some(c=>c.id=="rr2")&&!s4.cmds.some(c=>c.id=="rr1"));
 const s3=await (await P4("sync",{})).json();
-ck("queued commands (incl. oldest) survive a full queue",s3.cmds.length==20&&s3.cmds.some(c=>c.type=="lock"||c.type=="message"));}
+ck("queued commands (incl. oldest) survive a full queue",s3.cmds.length==20&&s3.cmds.some(c=>c.type=="lk"||c.type=="ms"));}
 ck("sync works after all that",(await P4("sync",{})).status==200);}
 // ---- Telegram alerts (fake Telegram from run.mjs on $MOCK; webhook path = sha256("tg:" + token)[:32]) ----
 if(process.env.MOCK){const {createHash}=await import("node:crypto"),M=`http://127.0.0.1:${process.env.MOCK}`;
@@ -287,7 +277,7 @@ await PB("sync",{state:{sos:[{id:"b1",t:now}]}});await new Promise(s=>setTimeout
 ck("tg: Telegram 403 (bot blocked) unlinks",(await (await PB("tg",null,"GET")).json()).linked===false);}
 // last: per-IP rate limit (150 / 10 s) on /c/*; the page itself is not limited
 {const rs=[];for(let i=0;i<11&&!rs.includes(429);i++)rs.push(...await Promise.all(Array.from({length:20},()=>fetch(`${B}/c/${id}/state`,{headers:H(BAD)}).then(r=>r.status,()=>0))));
-ck("rate limit: burst of 220 gets some 429",rs.includes(429));ck("rate limit: page / still 200",(await fetch(`${B}/`)).status==200);}
+ck("rate limit: burst of 220 gets some 429",rs.includes(429));ck("rate limit: unmetered / still answers (404)",(await fetch(`${B}/`)).status==404);}
 // ---- shared files: chunked through the DO, <= 10 MB, deleted on DELETE ----
 await new Promise(s=>setTimeout(s,10500));   // the per-IP rate limit (150 / 10 s) is used up by the tests above
 {const id5=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),U=(q,m="GET",body)=>fetch(`${B}/c/${id5}/file${q}`,{method:m,headers:H(),body});
@@ -309,7 +299,7 @@ ck("file bad to 400",(await U(`?fid=0011223344556678&i=0&n=1&to=evil&size=1&name
 ck("file wrong token 401",(await fetch(`${B}/c/${id5}/file?to=kid`,{headers:H(BAD)})).status==401);
 ck("file delete ok",(await (await U(`?fid=${fid}`,"DELETE")).json()).ok===true);
 ck("file gone after delete",(await U(`?fid=${fid}&i=0`)).status==404&&(await (await U("?to=kid")).json()).files.length==0);
-ck("cmd fileUp whitelisted",(await (await fetch(`${B}/c/${id5}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"fileUp",file:fid})})).json()).result=="queued");
+ck("cmd fileUp whitelisted",(await (await fetch(`${B}/c/${id5}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"fu",file:fid})})).json()).result=="queued");
 // 50 MB accepted, total cap 100 MB per kid, daily quota (300 MB / 100 files) answers 429 {error:"quota", retryAt}
 {const nid=()=>Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),MB=1048576;
 const mk=async()=>{const k=nid();await fetch(`${B}/c/${k}/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{}})});return k;};
@@ -337,22 +327,22 @@ c=0;for(let n=0;n<40;n++){const r=await mq(f16(3000+n),"&thumb=1");if(r.status==
 ck("thumb files do not use the daily quota (40 ok, a normal file still ok)",c==40&&(await mq(f16(3999),"")).status==200);
 ck("thumb over 200 KB refused 413",(await fetch(`${B}/c/${k}/file?fid=${f16(4000)}&i=0&n=1&to=kid&size=300000&name=a.jpg&thumb=1`,{method:"POST",headers:H(),body:Buffer.alloc(300000)})).status==413);
 const cm=(o)=>fetch(`${B}/c/${k}/cmd`,{method:"POST",headers:H(),body:JSON.stringify(o)}).then(r=>r.json());
-ck("cmd chatFileDel queued",(await cm({type:"chatFileDel",id:f16(5)})).result=="queued");
-ck("cmd chatFileDel bad id 400",(await cm({type:"chatFileDel",id:"x"})).error=="bad chatFileDel");
-ck("cmd chatFileDel ids queued",(await cm({type:"chatFileDel",ids:[f16(7),f16(8)]})).result=="queued");
-ck("cmd chatFileDel ids bad 400",(await cm({type:"chatFileDel",ids:[f16(7),"x"]})).error=="bad chatFileDel");
-ck("cmd chatFileDel 201 ids 400",(await cm({type:"chatFileDel",ids:Array.from({length:201},(_,i)=>f16(100+i))})).error=="bad chatFileDel");
-ck("cmd chatDel ids queued",(await cm({type:"chatDel",ids:[f16(9)],files:true})).result=="queued");
-ck("cmd chatDel no ids 400",(await cm({type:"chatDel"})).error=="bad chatDel");
-ck("cmd snapDel ids queued",(await cm({type:"snapDel",ids:[f16(10)]})).result=="queued");
-ck("cmd snapDel empty 400",(await cm({type:"snapDel",ids:[]})).error=="bad snapDel");
-ck("cmd fileDel files queued",(await cm({type:"fileDel",files:[f16(11),f16(12)]})).result=="queued");
-ck("cmd fileDel files bad 400",(await cm({type:"fileDel",files:["zz"]})).error=="bad fileDel");
-ck("cmd snapUp thumb queued",(await cm({type:"snapUp",id:f16(13),thumb:1})).result=="queued");
-ck("cmd snapUp bad id 400",(await cm({type:"snapUp",id:"x"})).error=="bad snapUp");
-ck("cmd snapList queued",(await cm({type:"snapList",fid:f16(14),before:0,n:30})).result=="queued");
-ck("cmd snapList bad fid 400",(await cm({type:"snapList",fid:"x"})).error=="bad snapList");
-ck("cmd fileUp thumb queued",(await cm({type:"fileUp",file:f16(6),thumb:1})).result=="queued");}
+ck("cmd chatFileDel queued",(await cm({type:"cf",id:f16(5)})).result=="queued");
+ck("cmd chatFileDel bad id 400",(await cm({type:"cf",id:"x"})).error=="bad command");
+ck("cmd chatFileDel ids queued",(await cm({type:"cf",ids:[f16(7),f16(8)]})).result=="queued");
+ck("cmd chatFileDel ids bad 400",(await cm({type:"cf",ids:[f16(7),"x"]})).error=="bad command");
+ck("cmd chatFileDel 201 ids 400",(await cm({type:"cf",ids:Array.from({length:201},(_,i)=>f16(100+i))})).error=="bad command");
+ck("cmd chatDel ids queued",(await cm({type:"cd",ids:[f16(9)],files:true})).result=="queued");
+ck("cmd chatDel no ids 400",(await cm({type:"cd"})).error=="bad command");
+ck("cmd snapDel ids queued",(await cm({type:"sd",ids:[f16(10)]})).result=="queued");
+ck("cmd snapDel empty 400",(await cm({type:"sd",ids:[]})).error=="bad command");
+ck("cmd fileDel files queued",(await cm({type:"fd",files:[f16(11),f16(12)]})).result=="queued");
+ck("cmd fileDel files bad 400",(await cm({type:"fd",files:["zz"]})).error=="bad command");
+ck("cmd snapUp thumb queued",(await cm({type:"su",id:f16(13),thumb:1})).result=="queued");
+ck("cmd snapUp bad id 400",(await cm({type:"su",id:"x"})).error=="bad command");
+ck("cmd snapList queued",(await cm({type:"sl",fid:f16(14),before:0,n:30})).result=="queued");
+ck("cmd snapList bad fid 400",(await cm({type:"sl",fid:"x"})).error=="bad command");
+ck("cmd fileUp thumb queued",(await cm({type:"fu",file:f16(6),thumb:1})).result=="queued");}
 // icons: a full list (400) drops the icons of apps that are no longer in the phone's state
 const ic=Buffer.from("RIFF0000WEBPVP8 ").toString("base64"),IP=o=>fetch(`${B}/c/${id5}/icons`,{method:"POST",headers:H(),body:JSON.stringify(o)}).then(r=>r.json());
 await fetch(`${B}/c/${id5}/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{apps:[{pkg:"keep.me",ms:1}]}})});
@@ -361,7 +351,6 @@ ij=await IP({"new.one":ic});ck("icons full: removed apps' icons make room",ij.ha
 ck("icons full: kept app still there, old one gone",(await fetch(`${B}/c/${id5}/icon?pkg=keep.me&k=${T}`)).status==200&&(await fetch(`${B}/c/${id5}/icon?pkg=old.a7&k=${T}`)).status==404&&(await fetch(`${B}/c/${id5}/icon?pkg=new.one&k=${T}`)).status==200);}
 // /go + /where: same public network (cf-connecting-ip: wrangler dev may set its own; both sides then match)
 {const id6="a1b2c3d4e5f6071c",W=(x={})=>fetch(`${B}/c/${id6}/where`,{headers:H(T,x)});
-const g=await fetch(`${B}/go`);ck("/go serves the page",g.status==200&&(await g.text()).includes("/ui/core.js"));
 ck("where before phone 409",(await W()).status==409);
 await fetch(`${B}/c/${id6}/sync`,{method:"POST",headers:H(T,{"cf-connecting-ip":"203.0.113.7"}),body:JSON.stringify({state:{lan:"http://192.168.1.9:8770",ts:{ip:"100.79.11.22"},mode:"basic"}})});
 let w=await (await W({"cf-connecting-ip":"203.0.113.7"})).json();
@@ -387,9 +376,9 @@ w.send("ping");ck("ws auto-response pong",(await w.next())=="pong");
 w.send(JSON.stringify({t:"sync",n:7,acks:[],state:{mode:"owner",lan:"http://10.0.0.2:8770"}}));let m=JSON.parse(await w.next());
 ck("ws sync reply = sync shape",m.t=="sync"&&m.n==7&&Array.isArray(m.cmds));
 const st=await (await fetch(`${B}/c/${id7}/state`,{headers:H()})).json();ck("ws sync stored state, seen fresh",st.state.lan=="http://10.0.0.2:8770"&&Date.now()-st.seen<10000);
-await fetch(`${B}/c/${id7}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"ring"})});
+await fetch(`${B}/c/${id7}/cmd`,{method:"POST",headers:H(),body:JSON.stringify({type:"rg"})});
 m=await w.next();ck("parent cmd -> kick pushed",m=='{"t":"kick"}');
-w.send(JSON.stringify({t:"sync",n:8,acks:[]}));m=JSON.parse(await w.next());ck("ws sync hands the cmd",m.n==8&&m.cmds.length==1&&m.cmds[0].type=="ring");
+w.send(JSON.stringify({t:"sync",n:8,acks:[]}));m=JSON.parse(await w.next());ck("ws sync hands the cmd",m.n==8&&m.cmds.length==1&&m.cmds[0].type=="rg");
 w.send(JSON.stringify({t:"sync",n:9,acks:[m.cmds[0].id]}));m=JSON.parse(await w.next());ck("ws ack clears",m.cmds.length==0);
 const w2=await wsOpen();ck("second ws replaces the first",w2.status==101&&(await w.next(3000))===null);
 w2.send("ping");ck("new ws alive",(await w2.next())=="pong");
@@ -399,43 +388,41 @@ const s2=await (await fetch(`${B}/c/${id7}/state`,{headers:H()})).json();ck("clo
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),idm=rh(16),Tm=rh(48),sleep2=ms=>new Promise(r=>setTimeout(r,ms));
 const Q=async(p,o,m="POST")=>{for(let i=0;;i++){const r=await fetch(`${B}/c/${idm}/${p}`,{method:m,headers:{"x-kg-token":Tm,"content-type":"application/json"},body:m=="GET"?undefined:JSON.stringify(o)});if((r.status!=429&&r.status!=503)||i>=20)return r;await sleep2(1500);}};
 await Q("sync",{state:{rules:{rev:1}}});
-await Q("cmd",{type:"tgSet",token:"123456:secret-bot-token",pin:"1234"});
-let a=await (await Q("sync",{})).json(),c0=a.cmds.find(c=>c.type=="tgSet");
+await Q("cmd",{type:"gs",token:"123456:secret-bot-token",pin:"1234"});
+let a=await (await Q("sync",{})).json(),c0=a.cmds.find(c=>c.type=="gs");
 ck("M3: first hand-out carries token + pin",!!c0&&c0.token=="123456:secret-bot-token"&&c0.pin=="1234");
-a=await (await Q("sync",{})).json();const c1=a.cmds.find(c=>c.type=="tgSet");
+a=await (await Q("sync",{})).json();const c1=a.cmds.find(c=>c.type=="gs");
 ck("M3: queued copy after hand-out has no token / pin",!!c1&&!("token" in c1)&&!("pin" in c1)&&c1.id==c0.id);
-await Q("sync",{acks:[c0.id]});a=await (await Q("sync",{})).json();ck("M3: acked command gone",!a.cmds.some(c=>c.type=="tgSet"));
+await Q("sync",{acks:[c0.id]});a=await (await Q("sync",{})).json();ck("M3: acked command gone",!a.cmds.some(c=>c.type=="gs"));
 await Q("rules",{dailyMin:60,pin:"4321"},"PUT");
 a=await (await Q("sync",{state:{rules:{rev:1}}})).json();ck("M3: phone still gets pinHash until it has the rules",!!(a.rules&&a.rules.pinHash));
 await Q("sync",{state:{rules:{rev:Date.now()+1e6,pinSet:true}}});
 a=await (await Q("sync",{state:{rules:{rev:1,pinSet:true}}})).json();
 ck("M3: worker dropped its pinHash once the phone reported the rules + pinSet",!!a.rules&&!("pinHash" in a.rules)&&a.rules.pinSet===true);
 a=await (await Q("rules",{dailyMin:70},"PUT")).json();ck("M3: later PUT without pin keeps pinSet",a.pinSet===true&&a.dailyMin==70);}
-// ---- M13 apk proxy, L17 resume drops a queued lock ----
-{const a=await fetch(`${B}/kidguard.apk`);ck("M13: /kidguard.apk proxied, octet-stream, no-cache",a.status==200&&(await a.text())=="APKBYTES"&&a.headers.get("content-type")=="application/octet-stream"&&a.headers.get("cache-control")=="no-cache"&&a.headers.get("x-content-type-options")=="nosniff");
-ck("M13: sha256 proxied",(await (await fetch(`${B}/kidguard.apk.sha256`)).text()).startsWith("abc"));
-const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),idl=rh(16),Tl=rh(48);
+// ---- L17 resume drops a queued lock ----
+{const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),idl=rh(16),Tl=rh(48);
 const Q=async(p,o,m="POST")=>{for(let i=0;;i++){const r=await fetch(`${B}/c/${idl}/${p}`,{method:m,headers:{"x-kg-token":Tl,"content-type":"application/json"},body:JSON.stringify(o)});if((r.status!=429&&r.status!=503)||i>=20)return r;await new Promise(z=>setTimeout(z,1500));}};
 await Q("sync",{state:{rules:{rev:1}}});
-await Q("rules",{dailyMin:60,pausedUntil:Date.now()+36e5},"PUT");await Q("cmd",{type:"lock"});await Q("cmd",{type:"ring"});
+await Q("rules",{dailyMin:60,pausedUntil:Date.now()+36e5},"PUT");await Q("cmd",{type:"lk"});await Q("cmd",{type:"rg"});
 await Q("rules",{dailyMin:60,pausedUntil:0},"PUT");
-const a2=await (await Q("sync",{})).json();ck("L17: resume (pausedUntil 0) drops the queued lock, keeps other commands",!a2.cmds.some(c=>c.type=="lock")&&a2.cmds.some(c=>c.type=="ring"));}
+const a2=await (await Q("sync",{})).json();ck("L17: resume (pausedUntil 0) drops the queued lock, keeps other commands",!a2.cmds.some(c=>c.type=="lk")&&a2.cmds.some(c=>c.type=="rg"));}
 // ---- C4 expired receipts + C8 forget (SHORT_TTL_MS=5000 in run.mjs) ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),ide=rh(16),Te=rh(48);
 const Q=async(p,o,m="POST")=>{for(let i=0;;i++){const r=await fetch(`${B}/c/${ide}/${p}`,{method:m,headers:{"x-kg-token":Te,"content-type":"application/json"},body:JSON.stringify(o)});if((r.status!=429&&r.status!=503)||i>=20)return r;await new Promise(z=>setTimeout(z,1500));}};
 await Q("sync",{state:{rules:{rev:1}}});
-ck("selfOpen whitelisted",(await (await Q("cmd",{type:"selfOpen",on:true,pin:"1234",id:"so1"})).json()).result=="queued");
-ck("unlockEnd whitelisted",(await (await Q("cmd",{type:"unlockEnd",id:"ue1"})).json()).result=="queued");
-await Q("cmd",{type:"ring",id:"rg1"});
+ck("selfOpen whitelisted",(await (await Q("cmd",{type:"so",on:true,pin:"1234",id:"so1"})).json()).result=="queued");
+ck("unlockEnd whitelisted",(await (await Q("cmd",{type:"ue",id:"ue1"})).json()).result=="queued");
+await Q("cmd",{type:"rg",id:"rg1"});
 let a=await (await Q("sync",{acks:["ue1"]})).json();   // ring handed out but not acked
 ck("fresh state has no expired",Array.isArray((await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json()).expired)&&!(await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json()).expired.length);
 await new Promise(z=>setTimeout(z,5600));
-await Q("cmd",{type:"message",text:"x",id:"m1"});   // a parent POST drops the stale ring too
+await Q("cmd",{type:"ms",text:"x",id:"m1"});   // a parent POST drops the stale ring too
 const st=await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json();
-ck("C4: stale SHORT command is reported expired",st.expired.some(e=>e.id=="rg1"&&e.type=="ring"&&e.res=="expired"&&e.at>0)&&!st.expired.some(e=>e.id=="ue1"));
-await Q("cmd",{type:"ring",id:"rg2"});await new Promise(z=>setTimeout(z,5600));await Q("sync",{});
+ck("C4: stale SHORT command is reported expired",st.expired.some(e=>e.id=="rg1"&&e.type=="rg"&&e.res=="expired"&&e.at>0)&&!st.expired.some(e=>e.id=="ue1"));
+await Q("cmd",{type:"rg",id:"rg2"});await new Promise(z=>setTimeout(z,5600));await Q("sync",{});
 ck("C4: expiry found on a phone sync too",(await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json()).expired.some(e=>e.id=="rg2"));
-for(let i=0;i<12;i++){await Q("cmd",{type:"ring",id:"x"+i});await new Promise(z=>setTimeout(z,300));}
+for(let i=0;i<12;i++){await Q("cmd",{type:"rg",id:"x"+i});await new Promise(z=>setTimeout(z,300));}
 await new Promise(z=>setTimeout(z,5600));await Q("sync",{});
 const ex=(await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json()).expired;
 ck("C4: expired keeps the last 10",ex.length==10&&ex[9].id=="x11");
@@ -575,19 +562,19 @@ const A=(m,p,b)=>fetch(`${B}/c/${id}/${p}`,{method:m,headers:H(AIT),body:b===und
 ck("ai: unknown token 401 before the phone told the hash",(await A("GET","state")).status==401);
 await P("sync",JSON.stringify({ai:ah}));
 ck("ai: state readable",(await A("GET","state")).status==200);
-ck("ai: lock queued",(await (await A("POST","cmd",{type:"lock"})).json()).result=="queued");
-for(const t of ["release","reboot","adbShell","unpairAll","aiToken","pinSet","listen"]){const x=await A("POST","cmd",{type:t});ck("ai: cmd "+t+" 403",x.status==403&&(await x.json()).error=="ai token: not allowed");}
+ck("ai: lock queued",(await (await A("POST","cmd",{type:"lk"})).json()).result=="queued");
+for(const t of ["rl","rb","ab","ua","ai","ps","listen"]){const x=await A("POST","cmd",{type:t});ck("ai: cmd "+t+" 403",x.status==403&&(await x.json()).error=="ai token: not allowed");}
 for(const [m,p] of [["GET","frame?after=0"],["POST","live"],["POST","input"],["POST","sync"],["GET","file"],["POST","forget"],["POST","watch"],["GET","tile"],["GET","ws"]]){const x=await A(m,p,m=="GET"?undefined:{});ck("ai: "+m+" "+p+" 403"+(x.status==403?"":" (got "+x.status+" "+(await x.text()).slice(0,80)+")"),x.status==403);}
 await fetch(`${B}/c/${id}/rules`,{method:"PUT",headers:H(),body:JSON.stringify({dailyMin:60,noInstall:true,pin:"1234"})});
 r=await A("PUT","rules",{dailyMin:30,noInstall:false,noVpn:true,pinHash:"0".repeat(64),pin:"9999"});j=await r.json();
 ck("ai: rules change goes through, locked keys keep the stored value, no PIN change",r.status==200&&j.dailyMin==30&&j.noInstall===true&&!("noVpn" in j)&&j.pinSet===true);
 const sj=await (await fetch(`${B}/c/${id}/state`,{headers:H()})).json();
 ck("ai: the stored PIN hash is the parent's",!!sj.rules&&sj.rules.pinSet===true);
-await P("cmd",JSON.stringify({type:"aiToken",op:"revoke",pin:"1234",id:"airev1"}));
+await P("cmd",JSON.stringify({type:"ai",op:"revoke",pin:"1234",id:"airev1"}));
 ck("ai: revoke by the parent cuts it at once",(await A("GET","state")).status==401);
-ck("ai: set needs a 64-hex hash",(await P("cmd",JSON.stringify({type:"aiToken",op:"set",hash:"x"}))).status==400);
+ck("ai: set needs a 64-hex hash",(await P("cmd",JSON.stringify({type:"ai",op:"set",hash:"x"}))).status==400);
 await P("sync",JSON.stringify({ai:ah,acks:["airev1"]}));ck("ai: back after the phone acks the revoke with its hash (wrong PIN)",(await A("GET","state")).status==200);
-await P("cmd",JSON.stringify({type:"aiToken",op:"set",hash:"ab".repeat(32),pin:"1234",id:"aiset1"}));
+await P("cmd",JSON.stringify({type:"ai",op:"set",hash:"ab".repeat(32),pin:"1234",id:"aiset1"}));
 ck("ai: a new code cuts the old one at once",(await A("GET","state")).status==401);
 await P("sync",JSON.stringify({ai:ah}));
 ck("ai: a sync from before the phone ran it does not bring the old code back",(await A("GET","state")).status==401);
@@ -611,7 +598,7 @@ ck("parents: join with the family PIN (salted hash from the phone) gives an own 
 r=await Q("state",Tq);ck("parents: then the link alone opens nothing (403 join)",r.status==403&&(await r.json()).error=="join");
 ck("parents: the phone keeps syncing with it",(await Q("sync",Tq,{state:{t:2}})).status==200);
 ck("parents: own token reads state",(await Q("state",A)).status==200);
-await Q("cmd",A,{type:"lock"});r=await Q("sync",Tq,{});j=await r.json();ck("parents: a command carries who sent it",j.cmds.some(c=>c.type=="lock"&&c.by=="Bố"));
+await Q("cmd",A,{type:"lk"});r=await Q("sync",Tq,{});j=await r.json();ck("parents: a command carries who sent it",j.cmds.some(c=>c.type=="lk"&&c.by=="Bố"));
 r=await Q("rules",A,{dailyMin:60},"PUT");j=await r.json();r=await Q("sync",Tq,{});const sj=await r.json();ck("parents: rules carry who changed them",sj.rules&&sj.rules.by=="Bố");
 r=await Q("invite",A,{});j=await r.json();const inv=j.inv;ck("parents: invite = 32 hex, 10 min",r.status==200&&/^[0-9a-f]{32}$/.test(inv)&&j.exp-Date.now()>590e3);
 r=await Q("join",null,{inv,name:"Mẹ",kind:"web"});j=await r.json();const M=j.token;ck("parents: an invite joins without the PIN",r.status==200&&/^[0-9a-f]{48}$/.test(M)&&j.pin=="inv");

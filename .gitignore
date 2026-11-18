@@ -21,3 +21,8 @@ android/app/google-services.json
 # UI pack signing keys (scripts/ui-pack.mjs --init)
 *.pem
 website/ui/
+# plan B: page + setup pages copied to the website by scripts/site-app.mjs (deploy.sh)
+website/app/
+website/install.html
+website/qr.html
+website/kidguard.apk*

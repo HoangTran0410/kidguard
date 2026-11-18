@@ -50,6 +50,9 @@ module Api {
 
     // queued only ("sent"): the phone runs it when it next syncs
     function cmd(k, c, cb) {
+        // the relay takes command codes only (docs/protocol.md "Command codes")
+        var code = { "lock" => "lk", "locate" => "lc", "message" => "ms", "ring" => "rg", "ringStop" => "rs", "sosAck" => "sa", "answer" => "an" };
+        if (code.hasKey(c["type"])) { c["type"] = code[c["type"]]; }
         call(Communications.HTTP_REQUEST_METHOD_POST, kidUrl(k, "/cmd"), kidHeaders(k, true), c, cb);
     }
 

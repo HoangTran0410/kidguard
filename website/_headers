@@ -30,3 +30,31 @@
 
 /sitemap.xml
   Cache-Control: public, max-age=3600
+
+# Plan B: the parent page (/app/, /go) and the setup pages (/install, /qr) live here; the relay is JSON only and answers
+# any origin (CORS). Same policy the worker used to send, connect-src opened to any https relay (self-hosted ones too).
+/app/*
+  ! Content-Security-Policy
+  ! Permissions-Policy
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; frame-src https://www.openstreetmap.org; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  Referrer-Policy: no-referrer
+  Cache-Control: no-cache
+
+/go
+  ! Content-Security-Policy
+  ! Permissions-Policy
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; frame-src https://www.openstreetmap.org; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  Referrer-Policy: no-referrer
+  Cache-Control: no-cache
+
+/install
+  ! Content-Security-Policy
+  ! Permissions-Policy
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; frame-src https://www.openstreetmap.org; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  Cache-Control: no-cache
+
+/qr
+  ! Content-Security-Policy
+  ! Permissions-Policy
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; frame-src https://www.openstreetmap.org; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  Cache-Control: no-cache

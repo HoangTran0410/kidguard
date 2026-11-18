@@ -134,7 +134,7 @@ let sampleState = """
         let put = try JSON.parse(t.calls[2].httpBody!)
         #expect((put["bonus"]["min"].int) == (25)); #expect((put["pinHash"].string) == nil)
         let cmd = try JSON.parse(t.calls[3].httpBody!)
-        #expect((cmd["type"].string) == ("answer")); #expect((cmd["min"].int) == (15)); #expect((cmd["id"].string) == (id))
+        #expect((cmd["type"].string) == ("an")); #expect((cmd["min"].int) == (15)); #expect((cmd["id"].string) == (id))
         #expect((cmd["req"].string) == ("r1"))
     }
 

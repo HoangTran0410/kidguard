@@ -16,6 +16,8 @@ const newId = () => "w" + Date.now().toString(36) + Math.random().toString(36).s
 const store = () => settings.settingsStorage;
 // the author's shared relay (same as DEFAULT_RELAY in ui/assets/core.js); settingsStorage "relay" overrides (settings page)
 const DEFAULT_RELAY = "https://kidguard.99-hoangtran.workers.dev";
+// relay command codes of the commands a watch sends (docs/protocol.md "Command codes"): the relay never sees the names
+const CODE = { lock: "lk", locate: "lc", message: "ms", ring: "rg", ringStop: "rs", sosAck: "sa", answer: "an" };
 const relay = () => {
   const r = String(store().getItem("relay") || "").trim().replace(/\/+$/, "");
   return /^https:\/\/[^/#?\s]+$/.test(r) ? r : DEFAULT_RELAY;
@@ -404,8 +406,9 @@ async function handle(req) {
     case "STATE":
       return { state: summary(k, await http(k, "/state")) };
     case "CMD": {
-      // our own command id: the phone's receipt (state.done) or the worker's (expired) is matched on it
+      // our own command id: the phone's receipt (state.done) or the worker's (expired) is matched on it; the relay takes codes only
       const c = { ...(p.c || {}), id: newId() };
+      if (CODE[c.type]) c.type = CODE[c.type];
       const j = await http(k, "/cmd", "POST", c);
       const res = j.result || "queued";
       if (res !== "queued" && res !== "ok" && res !== "no such sos") throw new Error(res);
@@ -426,7 +429,7 @@ async function handle(req) {
       if (p.ok) await changeRules(k, app ? { k: "appOk", p: p.pkg } : { k: "grant", n: p.min });
       const id = newId();
       const j = await http(k, "/cmd", "POST", {
-        type: "answer", req: p.req, id, ok: !!p.ok,
+        type: CODE.answer, req: p.req, id, ok: !!p.ok,
         ...(p.ok && app ? { always: true } : {}), ...(p.ok && !app ? { min: p.min } : {}),
       });
       return { result: j.result || "ok", id };

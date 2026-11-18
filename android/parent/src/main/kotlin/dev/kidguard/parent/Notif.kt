@@ -160,7 +160,7 @@ object Notif {
             if (p.status != 200) return Act.Res.FAIL
             onBonus()
         }
-        val r = Net.call("POST", "$base/cmd", h, Act.answerCmd(req, ok, min).toString().toByteArray(), 15_000)
+        val r = Net.call("POST", "$base/cmd", h, Act.answerCmd(req, ok, min, relay = via != "lan").toString().toByteArray(), 15_000)
         val res = Act.cmdResult(r.status, String(r.body, Charsets.UTF_8))
         return if (ok && res == Act.Res.FAIL) Act.Res.HALF else res
     }

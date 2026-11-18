@@ -70,8 +70,8 @@ class KidWidget : AppWidgetProvider() {
         private fun h(token: String) = mapOf("X-KG-Token" to token, "Content-Type" to "application/json")
 
         fun lock(k: Logic.KidCfg): Act.Res {
-            val body = JSONObject().put("type", "lock").toString().toByteArray()
-            for ((base, token, _) in routes(k)) {
+            for ((base, token, via) in routes(k)) {
+                val body = JSONObject().put("type", if (via == "lan") "lock" else Act.RELAY_LOCK).toString().toByteArray()
                 val r = Net.call("POST", "$base/cmd", h(token), body, 8_000)
                 if (r.status != null) return Act.cmdResult(r.status, String(r.body, Charsets.UTF_8))
             }

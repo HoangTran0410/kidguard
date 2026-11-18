@@ -282,7 +282,9 @@ The first capture / first input of a session is logged in the phone log.
   `DEFAULT_RELAY` in `core.js`) with a new relay id/token (device row "relay"). `relay{url:""}` = relay off: the url is
   stored empty, the token kept, no default again. Home flavor: never. The page's relay section prefills the default url,
   shows the `/go` link and a "Tắt relay" button; self-hosting (`scripts/relay.sh|ps1`) is the advanced line.
-- **`/go` link** = `https://<relay>/go#c=<relay id>&k=<relay token>&n=<name>` (the same page as `/`). `core.js goBoot`
+- **`/go` link** = `https://kid-guard.pages.dev/go#c=<relay id>&k=<relay token>&n=<name>[&r=<relay origin>]` (the parent
+  page on the website, plan B: the relay serves no page; `r` only when not `DEFAULT_RELAY`, the page keeps it in localStorage
+  `kg.relay` and stores `target` = relay origin on the kid; `/go` = `/app/` via `website/_redirects`). `core.js goBoot`
   asks `GET /c/<id>/where` -> `{seen, lan, ts, same, mode}` (`same` = the parent's public address equals one of the
   phone's last 2 sync addresses: IPv4, or IPv6 /64; stored as sha256 hashes `ipk`). Seen < 3 min + same + lan ->
   `location.assign(<lan>/#lk=<token>&rc=<relay id>&ru=<relay origin>&n=<name>)`; the phone's page (`lanFromGo`) saves a
@@ -298,13 +300,87 @@ parent link cannot mint one; the token itself never reaches the phone or the rel
 - Phone: stored hash `Store.aiHash`; `X-KG-Token` matching it = role `ai` (not in `state.devices`). Dropped by `unpairAll` / release.
 - Relay: every phone sync body carries `ai` (the hash, `""` = none); the worker keeps it (`aiHash`) and gives a request with that token role `ai`.
   A parent `aiToken` (revoke or set) through the worker deletes the old hash at once; a new hash works there after the phone syncs it. One code per phone: set replaces.
-- Role `ai` may: `GET state` (and `icon`; no `?watch=1`), `PUT rules`, `POST cmd` with `lock locate message ring ringStop sosAck answer`.
+- Role `ai` may: `GET state` (and `icon`; no `?watch=1`), `PUT rules`, `POST cmd` with `lock locate message ring ringStop sosAck answer` (relay: their codes, "Command codes").
   `PUT rules`: `pin pinHash pinSalt pinAt pinSet noInstall noDebug pinShot lockLocation noAirplane frpIds safeDns safeDnsPauseUntil noVpn tsKeep
   vpnPause accPause devPause tcpPause autoUpdate showWatching unlockMin hidden approved mode` keep the stored value whatever is sent (a key the phone
   has not stored is dropped). Anything else (other routes, other commands, `aiToken`, pairing, PIN, files, screen, listen) = `403 {"error":"ai token: not allowed"}`.
   LAN: `Api.kt` checks the same lists; relay: the worker (the phone does not know who queued a command, so the worker is the gate there).
 
+### Command codes (relay wire, plan B 2026-11-18)
+On the relay a command's `type` is a short code, never the name: `POST /c/<id>/cmd {"type":"lk"}`, and the phone's sync reply,
+`queue` and `expired` carry the codes too. The worker knows codes only (its bundle holds no feature names: an upload-time scan
+killed the old worker, docs/decisions/remote.md 2026-11-17/18); a name there = `400 {"error":"bad command"}`. LAN (`/api/cmd`) keeps
+the names. Encoded / decoded at the edges: page `ui/assets/core.js` `WIRE` (`call1`, `viaRelay`), phone `K/remote/Wire.kt`
+(`Relay.kt` sync), parent app `Act.RELAY_*`, watches and `mcp/` send the codes of their few commands. All other fields stay as named.
+`relay/test/contract.test.mjs` checks this table == `WIRE` == `Wire.kt` and the worker lists. Commands that never go through the
+relay (`relay`, `tailscale`) have no code. A new relay command = a new row here, in `WIRE` and in `Wire.kt`.
+
+
+| name | code |
+|---|---|
+| `aiToken` | `ai` |
+| `refusedDrop` | `rd` |
+| `uiUpdate` | `uu` |
+| `smsPull` | `sp` |
+| `chatPull` | `cp` |
+| `chatClear` | `cc` |
+| `chatFileDel` | `cf` |
+| `chatDel` | `cd` |
+| `snapList` | `sl` |
+| `snapUp` | `su` |
+| `snapDel` | `sd` |
+| `snap` | `sn` |
+| `lock` | `lk` |
+| `locate` | `lc` |
+| `message` | `ms` |
+| `ring` | `rg` |
+| `openPairing` | `op` |
+| `unpairAll` | `ua` |
+| `unpair` | `up` |
+| `release` | `rl` |
+| `answer` | `an` |
+| `reboot` | `rb` |
+| `tailscaleOff` | `to` |
+| `sosAck` | `sa` |
+| `clearData` | `cl` |
+| `update` | `ud` |
+| `totpSet` | `ts` |
+| `wake` | `wk` |
+| `ringStop` | `rs` |
+| `listenStop` | `ls` |
+| `devOff` | `d0` |
+| `devOn` | `d1` |
+| `setting` | `st` |
+| `fileUp` | `fu` |
+| `fileDel` | `fd` |
+| `shotUp` | `sh` |
+| `notifPull` | `np` |
+| `tgSet` | `gs` |
+| `tgCode` | `gc` |
+| `tgUnlink` | `gu` |
+| `tgOff` | `go` |
+| `pinSet` | `ps` |
+| `pinReset` | `pr` |
+| `pinResetCancel` | `pc` |
+| `support` | `sx` |
+| `supportSay` | `sy` |
+| `adbShell` | `ab` |
+| `shClear` | `hc` |
+| `adbTcp` | `ap` |
+| `bankEnd` | `be` |
+| `unlockEnd` | `ue` |
+| `clearCache` | `ca` |
+| `rescan` | `re` |
+| `bgLimit` | `bl` |
+| `bgRestore` | `br` |
+| `fixPerms` | `fp` |
+| `selfOpen` | `so` |
+| `tsInstall` | `ti` |
+
 ### Relay (worker), token header `X-KG-Token`, id = 16 hex
+JSON only since plan B (2026-11-18): no page, `/ui`, `/install`, `/qr` or APK (all `404 {"error":"not found"}`; the website
+serves them: `scripts/site-app.mjs`). Every reply carries CORS `*` (the page runs on another origin; tokens are headers, never
+cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 - **WebSocket push channel** (load: an idle socket costs nothing; phone `remote/RelayWs.kt`, worker `Kid.webSocketMessage`):
   phone `GET /c/<id>/ws` (Upgrade, `X-KG-Token`; only after the first HTTP sync bound the token, else 409) -> 101,
   hibernatable (`acceptWebSocket`, tag `phone`, a new socket closes the old one). Text `"ping"` -> `"pong"` by the runtime
@@ -344,7 +420,8 @@ parent link cannot mint one; the token itself never reaches the phone or the rel
   tokens, Telegram link) and closes the sockets; sent by the phone when it is released. A later sync of the same id binds anew.
 - Input `ms` (swipe duration) is clamped to **50..3000** by both the worker and `Acc.kt`.
 - `GET /c/<id>/state` already returns `seen` (ms of the phone's last sync): the page warns when `now - seen > 5 min`.
-- The worker also serves `GET /install` -> `ui/install.html`.
+- `/install` and `/qr` are website pages (`kid-guard.pages.dev`, copies of `ui/install.html` / `ui/qr.html`); `qr.html` makes its
+  invite on `DEFAULT_RELAY` (cross-origin).
 
 ### Parents (2026-11-17): own relay token per parent, family PIN, invites
 - Each parent (page, parent app, watch) holds its OWN relay token (48 hex) with a name; the worker keeps
@@ -551,7 +628,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   behaviour (auto time on, opportunistic).
 - **Release** also: removes our accessibility entry, clears paired tokens, unsuspends every launchable app, cancels the
   watchdog, stops Guard; returns `"failed"` if still Device Owner afterwards.
-- **HTML pages** (worker `/`, `/install`, phone LAN `/`) send `X-Frame-Options: DENY` and a CSP with `frame-ancestors 'none'`.
+- **HTML pages** (website `/app/`, `/go`, `/install`, `/qr`: `website/_headers`; phone LAN `/`) send `X-Frame-Options: DENY` and a CSP with `frame-ancestors 'none'`.
 
 ## Location history (v0.2.1)
 - Rules: `"trackMin": 5` (0 = no history points, allowed 0/1/5/10/15/30/60; default 5 since 0.9.14, was 10; a phone before 0.9.14 turns 1 into its default). Independently the Guard refreshes `state.location` (last fix, zone in/out events) every 15 min, also with `trackMin=0`. Since 0.9.18 a good history fix (accuracy <= 100 m) is also written to `state.location`, and the separate 15-min fix is skipped while those keep it fresh. A phone lying still (2 same-spot fixes with the screen off, significant-motion sensor armed) drops to one history fix per 15 min and one refresh per hour until the sensor fires or the screen turns on (`LocPace`); no sensor = no slow pace.
@@ -755,9 +832,9 @@ phone (`ListenCall.cap`) and relay, `release`. LAN / Tailscale kids keep `GET /a
 - Relay storage GC: a phone not seen for 30 days -> the Durable Object deletes everything (DO alarm armed by sync); the
   phone re-binds on its next sync. An id bound but never heard again (no second sync, no rules, no queue) within 7 days is
   deleted too (`UNUSED_MS`, `born`).
-- `GET /kidguard.apk` and `/kidguard.apk.sha256` (worker only, same per-IP rate limit): proxy of the latest GitHub release asset
-  (`content-type: application/octet-stream`, `no-cache`, `nosniff`; 502 `release not reachable`); `ui/install.html` fetches them relative.
-- Resume drops a queued `lock`: a rules PUT with `pausedUntil` not in the future, while the stored rules or the phone's state
+- No APK on the relay (plan B). `ui/install.html` fetches `kidguard.apk(.sha256)` relative: on the website only when deployed with
+  `PAGES_APK=1` (`scripts/site-app.mjs`), else it falls back to "download from GitHub, then pick the file" (GitHub assets have no CORS).
+- Resume drops a queued `lock` (`lk`): a rules PUT with `pausedUntil` not in the future, while the stored rules or the phone's state
   had one in the future ("Resume all" only PUTs rules), deletes every still-queued `lock` of that kid (other commands stay).
 - First bind cap (audit H4): a first sync that would create an id counts against the client network (`netKey`: IPv4 or
   IPv6 /64) in a `Gate` Durable Object, `BIND_PER_DAY` = 30 a day (env var overrides, tests use 60); beyond it

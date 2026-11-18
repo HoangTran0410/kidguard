@@ -3,69 +3,9 @@
 // parent set, and a short queue of commands. The child polls POST /c/<id>/sync every 20-60 s.
 // Auth: the first child sync binds sha256 of the phone's token to the id. Parents get their own token (docs/protocol.md
 // "Parents"); the phone's token opens the parent routes only while no parent has one (old links / old pages).
+// JSON only (plan B, docs/decisions/remote.md 2026-11-18): no page or files; the page lives on the website and calls in with
+// CORS. Command types are short codes (docs/protocol.md "Command codes"): no feature names in this bundle.
 import { createHash } from "node:crypto";
-import html from "../../ui/index.html";
-import install from "../../ui/install.html";
-import qr from "../../ui/qr.html";
-// the parent page's code (ui/assets/, text via the wrangler rule), served at /ui/<name>: a new file there goes here too
-import ui_style_css from "../../ui/assets/style.css";
-import ui_lang_js from "../../ui/assets/lang.js";
-import ui_qrcode_js from "../../ui/assets/qrcode.js";
-import ui_i18n_vi_js from "../../ui/assets/i18n-vi.js";
-import ui_i18n_en_js from "../../ui/assets/i18n-en.js";
-import ui_core_js from "../../ui/assets/core.js";
-import ui_overview_js from "../../ui/assets/overview.js";
-import ui_kid_js from "../../ui/assets/kid.js";
-import ui_hist_js from "../../ui/assets/hist.js";
-import ui_select_js from "../../ui/assets/select.js";
-import ui_tab_files_js from "../../ui/assets/tab-files.js";
-import ui_tab_seen_js from "../../ui/assets/tab-seen.js";
-import ui_shell_js from "../../ui/assets/shell.js";
-import ui_search_js from "../../ui/assets/search.js";
-import ui_tab_log_js from "../../ui/assets/tab-log.js";
-import ui_live_js from "../../ui/assets/live.js";
-import ui_rtc_js from "../../ui/assets/rtc.js";
-import ui_call_js from "../../ui/assets/call.js";
-import ui_requests_js from "../../ui/assets/requests.js";
-import ui_app_set_js from "../../ui/assets/app-set.js";
-import ui_tab_home_js from "../../ui/assets/tab-home.js";
-import ui_tab_apps_js from "../../ui/assets/tab-apps.js";
-import ui_tab_rules_js from "../../ui/assets/tab-rules.js";
-import ui_wizard_js from "../../ui/assets/wizard.js";
-import ui_tab_screen_js from "../../ui/assets/tab-screen.js";
-import ui_tab_where_js from "../../ui/assets/tab-where.js";
-import ui_tab_set_js from "../../ui/assets/tab-set.js";
-import ui_start_js from "../../ui/assets/start.js";
-const UI = {
-  "style.css": ui_style_css,
-  "lang.js": ui_lang_js,
-  "qrcode.js": ui_qrcode_js,
-  "i18n-vi.js": ui_i18n_vi_js,
-  "i18n-en.js": ui_i18n_en_js,
-  "core.js": ui_core_js,
-  "overview.js": ui_overview_js,
-  "kid.js": ui_kid_js,
-  "hist.js": ui_hist_js,
-  "select.js": ui_select_js,
-  "tab-files.js": ui_tab_files_js,
-  "tab-seen.js": ui_tab_seen_js,
-  "shell.js": ui_shell_js,
-  "search.js": ui_search_js,
-  "tab-log.js": ui_tab_log_js,
-  "live.js": ui_live_js,
-  "rtc.js": ui_rtc_js,
-  "call.js": ui_call_js,
-  "requests.js": ui_requests_js,
-  "app-set.js": ui_app_set_js,
-  "tab-home.js": ui_tab_home_js,
-  "tab-apps.js": ui_tab_apps_js,
-  "tab-rules.js": ui_tab_rules_js,
-  "wizard.js": ui_wizard_js,
-  "tab-screen.js": ui_tab_screen_js,
-  "tab-where.js": ui_tab_where_js,
-  "tab-set.js": ui_tab_set_js,
-  "start.js": ui_start_js,
-};
 
 const MAX_BODY = 256 * 1024, MAX_DEVICE = 32 * 1024, MAX_LOGDAY = 100 * 1024, KEEP_LOGDAYS = 4;
 const MAX_FRAME = 1024 * 1024;
@@ -100,7 +40,7 @@ const PAIR_MISS_MAX = 20, PAIR_MISS_WIN = 10 * 60e3;
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
-const ONCE = ["reboot", "release", "unpairAll", "unpair", "clearData", "update", "totpSet", "fileDel", "tgSet", "tgOff", "pinSet", "pinReset", "pinResetCancel", "adbShell", "adbTcp", "support", "selfOpen", "chatClear", "chatFileDel", "chatDel", "snapDel"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
+const ONCE = ["rb", "rl", "ua", "up", "cl", "ud", "ts", "fd", "gs", "go", "ps", "pr", "pc", "ab", "ap", "sx", "so", "cc", "cf", "cd", "sd"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
 const ONCE_WINDOW = 3600e3;   // 1 h (owner 2026-11-15: a phone that is off for 10 min must not lose a release / reboot)
 // push wake (kid app's FCM token, sync body `fcm`): quiet this long => high-priority data push {kind:"wake"}. The phone's
 // watchdog syncs every ~10 min even asleep, so 20 min quiet = asleep beyond that, killed, or offline. Then every 20 min
@@ -113,7 +53,7 @@ const GC_MS = 30 * 86400e3;   // a phone not seen for 30 days: everything of thi
 //  window for a parent standing next to the phone; adbShell = a shell command running a day later is surprising; unlockEnd = ends a
 //  temporary pause "now"; fixPerms = opens Settings screens on the kid's phone, confusing if the kid is using it hours later.
 // Everything else (setting devOn devOff bgLimit bgRestore rescan clearCache support ...) is harmless late: normal 24 h.
-const SHORT = ["uiUpdate", "notifPull", "smsPull", "chatPull", "chatClear", "chatFileDel", "chatDel", "snapList", "snapUp", "snapDel", "snap", "lock", "locate", "message", "ring", "wake", "ringStop", "listenStop", "reboot", "clearData", "pinSet", "pinReset", "pinResetCancel", "openPairing", "adbShell", "unlockEnd", "fixPerms", "selfOpen", "tsInstall"];
+const SHORT = ["uu", "np", "sp", "cp", "cc", "cf", "cd", "sl", "su", "sd", "sn", "lk", "lc", "ms", "rg", "wk", "rs", "ls", "rb", "cl", "ps", "pr", "pc", "op", "ab", "ue", "fp", "so", "ti"];
 let SHORT_TTL = 10 * 60e3;   // env.SHORT_TTL_MS overrides (tests only)
 // secrets a parent typed into a command (PIN, new PIN, Authenticator secret, bot token): handed out once, then not kept in the queue copy
 const SECRET_KEYS = ["pin", "new", "secret", "token"];
@@ -126,25 +66,16 @@ const live = (c, now) => now - (c.at || 0) < (SHORT.includes(c.type) ? SHORT_TTL
 /** Receipts for commands dropped unrun (TTL / ONCE window): newest last, at most EXPIRED_N, shown to the parent as state `expired`. */
 const EXPIRED_N = 10;
 const expiredOf = (list, dropped, now) => [...(list || []), ...dropped.map(c => ({ id: c.id, type: c.type, res: "expired", at: now }))].slice(-EXPIRED_N);
-const CMDS = ["aiToken", "refusedDrop", "uiUpdate", "smsPull", "chatPull", "chatClear", "chatFileDel", "chatDel", "snapList", "snapUp", "snapDel", "snap", "lock", "locate", "message", "ring", "openPairing", "unpairAll", "unpair", "release", "answer", "reboot", "tailscaleOff", "sosAck", "clearData", "update", "totpSet", "wake", "ringStop", "listenStop", "devOff", "devOn", "setting", "fileUp", "fileDel", "shotUp", "notifPull", "tgSet", "tgCode", "tgUnlink", "tgOff", "pinSet", "pinReset", "pinResetCancel", "support", "supportSay", "adbShell", "shClear", "adbTcp", "bankEnd", "unlockEnd", "clearCache", "rescan", "bgLimit", "bgRestore", "fixPerms", "selfOpen", "tsInstall"];
-const APK_BASE = "https://github.com/HoangTran0410/kidguard/releases/latest/download/";   // test override: env.APK_BASE
+const CMDS = ["ai", "rd", "uu", "sp", "cp", "cc", "cf", "cd", "sl", "su", "sd", "sn", "lk", "lc", "ms", "rg", "op", "ua", "up", "rl", "an", "rb", "to", "sa", "cl", "ud", "ts", "wk", "rs", "ls", "d0", "d1", "st", "fu", "fd", "sh", "np", "gs", "gc", "gu", "go", "ps", "pr", "pc", "sx", "sy", "ab", "hc", "ap", "be", "ue", "ca", "re", "bl", "br", "fp", "so", "ti"];
 // idempotent commands a newer copy may replace when the queue is full: type -> target field that must match too (null = the type alone)
-const REPLACE = { lock: null, locate: null, ring: null, wake: null, ringStop: null, listenStop: null, devOn: null, devOff: null, setting: "key", clearCache: null, rescan: null, fixPerms: null, tsInstall: null, openPairing: null, unlockEnd: null, bankEnd: null, notifPull: null, smsPull: null, chatPull: null, snapList: null, chatClear: null, fileUp: "file" };
+const REPLACE = { lk: null, lc: null, rg: null, wk: null, rs: null, ls: null, d1: null, d0: null, st: "key", ca: null, re: null, fp: null, ti: null, op: null, ue: null, be: null, np: null, sp: null, cp: null, sl: null, cc: null, fu: "file" };
 // AI token (docs/protocol.md "AI token"): the phone sends sha256 of it in every sync (`ai`); a request with it gets role "ai".
 // Same lists as K/guard/AiScope.kt: commands it may queue, rule keys it can never change (the stored value stays).
-const AI_CMDS = ["lock", "locate", "message", "ring", "ringStop", "sosAck", "answer"];
+const AI_CMDS = ["lk", "lc", "ms", "rg", "rs", "sa", "an"];
 const AI_LOCKED = ["pin", "pinHash", "pinSalt", "pinAt", "pinSet", "noInstall", "noDebug", "pinShot", "lockLocation", "noAirplane", "frpIds", "safeDns", "safeDnsPauseUntil", "noVpn", "tsKeep", "vpnPause", "accPause", "devPause", "tcpPause", "autoUpdate", "showWatching", "unlockMin", "hidden", "approved", "mode", "watch"];
 const aiRoute = (action, m) => (action === "state" || action === "icon") ? m === "GET" : action === "rules" ? m === "PUT" : action === "cmd" && m === "POST";
 const SETTING_KEYS = ["vol.ring", "vol.media", "vol.alarm", "bright", "autoBright", "timeoutMs", "dnd"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
-// 'self': the parent page's /ui/ files; 'unsafe-inline': install/qr inline scripts + a few inline handlers in the parent page; the installer imports ESM from jsDelivr and downloads the APK
-const CSP = [
-  "default-src 'none'", "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net", "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://tile.openstreetmap.de https://tile.openstreetmap.org", "font-src 'self' data:",
-  "connect-src 'self' https://cdn.jsdelivr.net https://github.com https://objects.githubusercontent.com",
-  "frame-src https://www.openstreetmap.org", "worker-src 'self' blob:", "object-src 'none'", "base-uri 'none'",
-  "form-action 'self'", "frame-ancestors 'none'",
-].join("; ");
 const stripPin = (r) => {
   if (!isObj(r)) return r;
   const { pinHash, pin, ...o } = r;
@@ -152,60 +83,42 @@ const stripPin = (r) => {
   return o;
 };
 
-// ETag per bundled file (they only change with a deploy): a revisit gets an empty 304 instead of ~800 KB again.
-// Cloudflare compresses the 200s itself (gzip / brotli). FNV-1a is enough: it only has to change when the text does.
-const ETAGS = new Map();
-const etagOf = s => { let e = ETAGS.get(s); if (!e) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } e = `"${(h >>> 0).toString(36)}-${s.length.toString(36)}"`; ETAGS.set(s, e); } return e; };
-const notMod = (req, tag, headers) => req.headers.get("if-none-match") === tag ? new Response(null, { status: 304, headers }) : null;
+
+// The relay is JSON only (plan B, docs/decisions/remote.md 2026-11-18): the parent page, /install and /qr live on the
+// website (Pages) and call here cross-origin. Tokens ride in X-KG-* headers, never cookies, so any origin may call.
+const CORS = { "access-control-allow-origin": "*", "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "access-control-allow-headers": "*", "access-control-expose-headers": "*", "access-control-max-age": "86400" };
 
 export default {
   async fetch(req, env) {
-    const url = new URL(req.url);
-    // /go#c=<id>&k=<token>: the same page; core.js sends the parent to the phone's LAN address when both are on one network
-    const page = req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/go") ? html
-      : req.method === "GET" && url.pathname === "/install" ? install
-      : req.method === "GET" && url.pathname === "/qr" ? qr : null;
-    if (req.method === "GET" && url.pathname.startsWith("/ui/")) {
-      const n = url.pathname.slice(4), body = Object.hasOwn(UI, n) ? UI[n] : null;
-      if (body === null) return json({ error: "not found" }, 404);
-      const headers = {   // no-cache + ETag: always the same version as the page that loads it, 304 when unchanged
-        "content-type": (n.endsWith(".css") ? "text/css" : "text/javascript") + "; charset=utf-8", "cache-control": "no-cache",
-        "etag": etagOf(body), "x-content-type-options": "nosniff" };
-      return notMod(req, headers.etag, headers) || new Response(body, { headers });
-    }
-    if (page) {
-      const headers = {
-        "content-type": "text/html; charset=utf-8", "cache-control": "no-cache", "etag": etagOf(page),
-        "referrer-policy": "no-referrer", "x-content-type-options": "nosniff",
-        "x-frame-options": "DENY", "content-security-policy": CSP,
-      };
-      return notMod(req, headers.etag, headers) || new Response(page, { headers });
-    }
-    // the installer page (served here) fetches the APK from its own origin: proxy the latest GitHub release (rate-limited like /c/*)
-    if (req.method === "GET" && (url.pathname === "/kidguard.apk" || url.pathname === "/kidguard.apk.sha256")) {
-      if (env.RL && !(await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" })).success) return json({ error: "slow down" }, 429);
-      const up = await fetch((env.APK_BASE || APK_BASE) + url.pathname.slice(1), { redirect: "follow" }).catch(() => null);
-      if (!up || !up.ok) return json({ error: "release not reachable" }, 502);
-      return new Response(up.body, { headers: { "content-type": "application/octet-stream", "cache-control": "no-cache", "x-content-type-options": "nosniff" } });
-    }
-    const th = req.method === "POST" && env.TG_BOT ? url.pathname.match(/^\/tg\/([0-9a-f]{32})$/) : null;
-    if (th) return tgHook(req, env, th[1]);
-    if (url.pathname === "/w/new" || /^\/w\/\d{6}$/.test(url.pathname)) return watchRoute(req, env, url);
-    if (/^\/p\/(new|inv|\d{6}|[0-9a-f]{16})(\/(join|reply|result))?$/.test(url.pathname)) return pairRoute(req, env, url);
-    const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile|join|unlock|invite|parents|call)$/);
-    if (!m) return json({ error: "not found" }, 404);
-    if (env.RL) {
-      const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
-      if (!success) return json({ error: "slow down" }, 429);
-    }
-    // reject junk before waking a Durable Object (an icon GET may carry the icon-only key instead of the token)
-    if (!/^[0-9a-f]{48}$/.test(tokenOf(req, url)) && !(m[2] === "join" && !req.headers.get("x-kg-token")) && !((m[2] === "icon" || m[2] === "tile" || (m[2] === "icons" && req.method === "GET")) && ICON_KEY.test(url.searchParams.get("k") || ""))) return json({ error: "not paired" }, 401);
-    const len = +(req.headers.get("content-length") || 0);
-    if (len > limitFor(m[2])) return json({ error: "too big" }, 413);
-    const stub = env.KIDS.get(env.KIDS.idFromName(m[1]));
-    return stub.fetch(req);
+    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+    const res = await route(req, env);
+    if (res.status === 101 || res.webSocket) return res;
+    const h = new Headers(res.headers);
+    for (const [k, v] of Object.entries(CORS)) h.set(k, v);
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
   },
 };
+
+async function route(req, env) {
+  const url = new URL(req.url);
+  const th = req.method === "POST" && env.TG_BOT ? url.pathname.match(/^\/tg\/([0-9a-f]{32})$/) : null;
+  if (th) return tgHook(req, env, th[1]);
+  if (url.pathname === "/w/new" || /^\/w\/\d{6}$/.test(url.pathname)) return watchRoute(req, env, url);
+  if (/^\/p\/(new|inv|\d{6}|[0-9a-f]{16})(\/(join|reply|result))?$/.test(url.pathname)) return pairRoute(req, env, url);
+  const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile|join|unlock|invite|parents|call)$/);
+  if (!m) return json({ error: "not found" }, 404);
+  if (env.RL) {
+    const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
+    if (!success) return json({ error: "slow down" }, 429);
+  }
+  // reject junk before waking a Durable Object (an icon GET may carry the icon-only key instead of the token)
+  if (!/^[0-9a-f]{48}$/.test(tokenOf(req, url)) && !(m[2] === "join" && !req.headers.get("x-kg-token")) && !((m[2] === "icon" || m[2] === "tile" || (m[2] === "icons" && req.method === "GET")) && ICON_KEY.test(url.searchParams.get("k") || ""))) return json({ error: "not paired" }, 401);
+  const len = +(req.headers.get("content-length") || 0);
+  if (len > limitFor(m[2])) return json({ error: "too big" }, 413);
+  const stub = env.KIDS.get(env.KIDS.idFromName(m[1]));
+  return stub.fetch(req);
+}
 
 /** GET state?watch=1 (docs/protocol.md "Watch connect"): what a watch shows, small enough for Garmin (~8-16 KB).
  * Scalars of the state as they are, the few lists a watch reads cut short, `apps` = the 15 most used; rules whole
@@ -810,7 +723,7 @@ export class Kid {
     // "Resume all" only PUTs rules (pausedUntil 0): a `lock` still queued for an offline phone must not fire after it
     const nowMs = Date.now();
     if (!(+rules.pausedUntil > nowMs) && ((old && +old.pausedUntil > nowMs) || (state && state.rules && +state.rules.pausedUntil > nowMs))) {
-      const q = (await this.s.get("cmds")) || [], keep = q.filter(c => c.type !== "lock");
+      const q = (await this.s.get("cmds")) || [], keep = q.filter(c => c.type !== "lk");
       if (keep.length !== q.length) await this.s.put("cmds", keep);
     }
     return json(stripPin(rules));
@@ -845,7 +758,7 @@ export class Kid {
     const type = String(body.type || ""); let cut = null;
     if (role === "ai" && !AI_CMDS.includes(type)) return json({ error: "ai token: not allowed" }, 403);
     if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
-    if (type === "aiToken") {   // the page makes the token; here only the shape, and a revoke takes effect at once (the phone follows)
+    if (type === "ai") {   // the page makes the token; here only the shape, and a revoke takes effect at once (the phone follows)
       if (!(body.op === "revoke" || (body.op === "set" && /^[0-9a-f]{64}$/.test(String(body.hash || ""))))) return json({ error: "bad command" }, 400);
       // revoke AND a new code: the old code dies here at once; the new one works after the phone took it (its next sync
       // brings the hash; a wrong PIN = the phone keeps the old one and its sync puts it back)
@@ -853,22 +766,22 @@ export class Kid {
       cut = (await this.s.get("aiHash")) || ((await this.s.get("aiCut")) || {}).h || "";   // a cut still waiting keeps its hash
       await this.s.delete("aiHash"); this.aiSeen = undefined;
     }
-    if (type === "clearData" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
-    if (type === "snap" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && ["front", "back"].includes(body.cam) && ["off", "on", "auto"].includes(body.flash) && ["small", "medium"].includes(body.size) && Number.isInteger(body.delay) && body.delay >= 0 && body.delay <= 5)) return json({ error: "bad snap" }, 400);
-    if (type === "smsPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad smsPull" }, 400);
+    if (type === "cl" && !/^[A-Za-z0-9._]{1,200}$/.test(String(body.pkg || ""))) return json({ error: "bad pkg" }, 400);
+    if (type === "sn" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && ["front", "back"].includes(body.cam) && ["off", "on", "auto"].includes(body.flash) && ["small", "medium"].includes(body.size) && Number.isInteger(body.delay) && body.delay >= 0 && body.delay <= 5)) return json({ error: "bad command" }, 400);
+    if (type === "sp" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad command" }, 400);
     // bulk deletes: {ids:[<=200 x 16 hex]} (chatFileDel / chatDel / snapDel; chatFileDel also the old single {id}); fileDel {files:[...]} or the old {file}
     const idsOk = (a) => Array.isArray(a) && a.length >= 1 && a.length <= 200 && a.every(x => /^[0-9a-f]{16}$/.test(String(x)));
-    if (type === "chatFileDel" && !(body.ids !== undefined ? idsOk(body.ids) : /^[0-9a-f]{16}$/.test(String(body.id || "")))) return json({ error: "bad chatFileDel" }, 400);
-    if ((type === "chatDel" || type === "snapDel") && !idsOk(body.ids)) return json({ error: "bad " + type }, 400);
-    if (type === "fileDel" && body.files !== undefined && !idsOk(body.files)) return json({ error: "bad fileDel" }, 400);
-    if (type === "snapUp" && !(/^[0-9a-f]{16}$/.test(String(body.id || "")) && (body.thumb === undefined || body.thumb === 1))) return json({ error: "bad snapUp" }, 400);
-    if (type === "snapList" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad snapList" }, 400);
-    if (type === "chatPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad chatPull" }, 400);
-    if (type === "notifPull" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad notifPull" }, 400);
+    if (type === "cf" && !(body.ids !== undefined ? idsOk(body.ids) : /^[0-9a-f]{16}$/.test(String(body.id || "")))) return json({ error: "bad command" }, 400);
+    if ((type === "cd" || type === "sd") && !idsOk(body.ids)) return json({ error: "bad command" }, 400);
+    if (type === "fd" && body.files !== undefined && !idsOk(body.files)) return json({ error: "bad command" }, 400);
+    if (type === "su" && !(/^[0-9a-f]{16}$/.test(String(body.id || "")) && (body.thumb === undefined || body.thumb === 1))) return json({ error: "bad command" }, 400);
+    if (type === "sl" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad command" }, 400);
+    if (type === "cp" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad command" }, 400);
+    if (type === "np" && !(/^[0-9a-f]{16}$/.test(String(body.fid || "")) && Number.isFinite(body.before || 0) && Number.isFinite(body.n || 0))) return json({ error: "bad command" }, 400);
     // PIN-gated commands (protocol "PIN-gated commands"): the phone checks the PIN; here only the shape
     if (body.pin !== undefined && !/^\d{0,8}$/.test(String(body.pin))) return json({ error: "bad pin" }, 400);
-    if ((type === "pinSet" || type === "pinReset") && !/^\d{4,8}$/.test(String(body.new || ""))) return json({ error: "bad pin" }, 400);
-    if (type === "setting" && !(SETTING_KEYS.includes(body.key) && (typeof body.value === "boolean" || Number.isFinite(body.value)))) return json({ error: "bad setting" }, 400);
+    if ((type === "ps" || type === "pr") && !/^\d{4,8}$/.test(String(body.new || ""))) return json({ error: "bad pin" }, 400);
+    if (type === "st" && !(SETTING_KEYS.includes(body.key) && (typeof body.value === "boolean" || Number.isFinite(body.value)))) return json({ error: "bad setting" }, 400);
     // expired commands are only dropped on a phone sync: don't let them fill the queue
     const stored = (await this.s.get("cmds")) || [], cmds = stored.filter(c => live(c, now));
     if (cmds.length !== stored.length) await this.s.put("expired", expiredOf(await this.s.get("expired"), stored.filter(c => !live(c, now)), now));
@@ -882,7 +795,7 @@ export class Kid {
     const c = { ...body, type, id: typeof body.id === "string" && /^[\w.-]{1,64}$/.test(body.id) ? body.id : crypto.randomUUID(), at: now };
     delete c.sent;
     // `answer`: the request id may not be a legal command id; keep it apart so the phone never answers the wrong request
-    if (type === "answer") c.req = String(body.req || body.id || "").slice(0, 200);
+    if (type === "an") c.req = String(body.req || body.id || "").slice(0, 200);
     if (who) c.by = who; else delete c.by;   // the phone logs who sent it (docs/protocol.md "Parents")
     if (JSON.stringify(c).length > MAX_CMD) return json({ error: "too big" }, 413);
     cmds.push(c);

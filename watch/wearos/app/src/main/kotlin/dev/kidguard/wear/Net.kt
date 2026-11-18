@@ -143,11 +143,14 @@ object Net {
     // ---------- commands ----------
     private fun newId() = "w" + System.currentTimeMillis().toString(36) + (rnd.nextInt(1 shl 30)).toString(36)
 
+    /** Relay command codes of the commands a watch sends (docs/protocol.md "Command codes"). */
+    val CODE = mapOf("lock" to "lk", "locate" to "lc", "message" to "ms", "ring" to "rg", "ringStop" to "rs", "sosAck" to "sa", "answer" to "an")
+
     /** Queues a command; returns our command id (matched later in state.done / expired). */
     fun cmd(k: Kid, type: String, extra: JSONObject.() -> Unit = {}): String {
         if (k.demo) return "demo"
         val id = newId()
-        val body = JSONObject().put("type", type).put("id", id).apply(extra)
+        val body = JSONObject().put("type", CODE[type] ?: type).put("id", id).apply(extra)   // the relay takes codes only
         val j = kid(k, "/cmd", "POST", body)
         val res = j.optString("result", "queued")
         if (res != "queued" && res != "ok") throw ApiError(res)
