@@ -1170,7 +1170,7 @@
     <string name="pause_off">Đã tắt: %1$s.</string>
     <string name="pause_what_acc">trợ năng</string>
     <string name="pause_what_dev">gỡ lỗi USB</string>
-    <string name="pause_what_tcp">cổng adb 5555</string>
+    <string name="pause_what_tcp">cổng adb 5555 (mở lại khi có Wi-Fi hoặc cáp USB)</string>
     <string name="acc_state_left">Tự bật lại khi hết đếm ngược.</string>
     <string name="acc_state_now">Bật lại ngay</string>
     <plurals name="acc_state_front">

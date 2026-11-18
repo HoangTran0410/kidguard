@@ -1193,7 +1193,7 @@
     <string name="pause_off">Off: %1$s.</string>
     <string name="pause_what_acc">accessibility</string>
     <string name="pause_what_dev">USB debugging</string>
-    <string name="pause_what_tcp">adb port 5555</string>
+    <string name="pause_what_tcp">adb port 5555 (back with Wi-Fi or a USB cable)</string>
     <string name="acc_state_left">Back on when the countdown ends.</string>
     <string name="acc_state_now">Turn on now</string>
     <plurals name="acc_state_front">
