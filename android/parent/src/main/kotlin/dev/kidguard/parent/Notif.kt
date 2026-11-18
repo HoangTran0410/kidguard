@@ -50,8 +50,9 @@ object Notif {
         val sos = Act.isSos(e.key)
         val open = openKid(c, k)
         val ch = when { sos -> CheckJob.SOS_CHANNEL; e.key == "lost" -> CheckJob.OFFLINE_CHANNEL; Act.reqId(e.key) != null || e.important || e.key == "acc" -> CheckJob.REQ_CHANNEL; else -> CheckJob.INFO_CHANNEL }
+        val text = e.text + (e.loc?.let { Logic.locNote(it, e.at, ResTr(c)) }?.takeIf { it.isNotEmpty() }?.let { "\n$it" } ?: "")
         val b = Notification.Builder(c, ch).setSmallIcon(R.drawable.ic_notif).setContentTitle("KidGuard")
-            .setContentText(e.text).setStyle(Notification.BigTextStyle().bigText(e.text)).setContentIntent(open).setAutoCancel(true)
+            .setContentText(text).setStyle(Notification.BigTextStyle().bigText(text)).setContentIntent(open).setAutoCancel(true)
             .setGroup(group(k)).setOnlyAlertOnce(quiet)
         if (sos) {
             b.setCategory(Notification.CATEGORY_ALARM)

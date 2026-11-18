@@ -381,4 +381,13 @@ class LogicTest {
         val o1 = Logic.evaluate("Con", Logic.Seen(true, emptyList(), now, emptyList(), listOf(ev)), Logic.NotifyState(init = true, evInit = true), now, tr = TestTr.VI)
         assertTrue(Logic.evaluate("Con", Logic.Seen(true, emptyList(), now, emptyList(), listOf(ev)), o1.state, now + 60_000, tr = TestTr.VI).clear.isEmpty())
     }
+
+    @Test fun locNoteSaysWhenAndIfBeforeTheSos() {
+        val z = java.time.ZoneId.of("Asia/Ho_Chi_Minh")
+        val at = java.time.ZonedDateTime.of(2026, 11, 18, 14, 40, 0, 0, z).toInstant().toEpochMilli()
+        assertEquals("Vị trí lúc 14:40", Logic.locNote(Logic.Loc(1.0, 2.0, at + 20_000), at, TestTr.VI, at + 60_000, z))
+        assertEquals("Vị trí lúc 14:32 (trước lúc bấm SOS)", Logic.locNote(Logic.Loc(1.0, 2.0, at - 8 * 60_000), at, TestTr.VI, at + 60_000, z))
+        assertEquals("Location at 17/11 09:05", Logic.locNote(Logic.Loc(1.0, 2.0, java.time.ZonedDateTime.of(2026, 11, 17, 9, 5, 0, 0, z).toInstant().toEpochMilli()), 0, TestTr.EN, at, z))
+        assertEquals("", Logic.locNote(Logic.Loc(1.0, 2.0, 0), at, TestTr.VI, at, z))
+    }
 }

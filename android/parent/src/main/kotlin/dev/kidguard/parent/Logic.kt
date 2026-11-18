@@ -17,6 +17,17 @@ object Logic {
 
     fun hhmm(ms: Long, zone: ZoneId = ZoneId.systemDefault()): String =
         Instant.ofEpochMilli(ms).atZone(zone).toLocalTime().let { "%02d:%02d".format(it.hour, it.minute) }
+    /**
+     * The line under an alert with a location: "Vị trí lúc 14:32" (+ day when not today), + "(trước lúc bấm SOS)" when
+     * the fix is more than a minute older than the SOS [at] (owner 2026-11-18: the map could show where the child was
+     * before, with nothing saying so). "" without a fix time.
+     */
+    fun locNote(l: Loc, at: Long, tr: Tr, now: Long = System.currentTimeMillis(), zone: ZoneId = ZoneId.systemDefault()): String {
+        if (l.t <= 0) return ""
+        val d = Instant.ofEpochMilli(l.t).atZone(zone)
+        val w = if (d.toLocalDate() == Instant.ofEpochMilli(now).atZone(zone).toLocalDate()) hhmm(l.t, zone) else "${d.dayOfMonth}/${d.monthValue} ${hhmm(l.t, zone)}"
+        return tr.s(T.loc_at, w) + if (at > 0 && l.t < at - 60_000) " " + tr.s(T.loc_before) else ""
+    }
     const val MIN_FREE = 200L * 1024 * 1024
     const val MIN_KEEP_DAYS = 7
 
@@ -199,7 +210,8 @@ object Logic {
     class Event(val key: String, val text: String, val min: Int = 0, val loc: Loc? = null,
                 val app: Boolean = false,         // an "open this app" request: buttons Approve / Decline instead of minutes
                 val important: Boolean = false,   // tamper / lost / released: the "requests" channel instead of the quiet "info" one
-                val cond: String? = null)         // a tamper condition key (Ev.key): see [condOf]
+                val cond: String? = null,         // a tamper condition key (Ev.key): see [condOf]
+                val at: Long = 0)                 // SOS: when it was pressed (the location note says if the fix is older)
     /** [clear]: notification keys to dismiss (the phone is back: "offline since" is no longer true). */
     class Outcome(val events: List<Event>, val state: NotifyState, val clear: List<String> = emptyList())
     /** Event kinds that matter as much as a request (C7). */
@@ -262,7 +274,7 @@ object Logic {
             if (st.init) for ((id, min) in seen.requests) if (id !in ids)
                 events.add(seen.appReqs[id]?.let { Event("req:$id", tr.s(T.ev_request_app, name, it), app = true) } ?: Event("req:$id", tr.q(T.ev_request, min, name, min), min))
             // SOS: also on the first look, unless it is old (the child may have pressed it before the app was set up)
-            for ((id, t) in seen.sos) if ("s:$id" !in ids && now - t < (if (st.init) SOS_MAX_MS else SOS_FRESH_MS)) events.add(Event("sos:$id", tr.s(T.ev_sos, name, hhmm(t)), loc = seen.loc))
+            for ((id, t) in seen.sos) if ("s:$id" !in ids && now - t < (if (st.init) SOS_MAX_MS else SOS_FRESH_MS)) events.add(Event("sos:$id", tr.s(T.ev_sos, name, hhmm(t)), loc = seen.loc, at = t))
             // events (zones, battery, new app, clock): same rule as requests, plus a one-time silent look per kid so an app
             // update does not replay the 50 events a phone already holds; stale ones are recorded but not shown
             if (st.evInit) for (e in seen.events) if ("e:${e.id}" !in ids && now - e.t < EV_FRESH_MS) events.add(if (e.kind == "checkin") Event("ci:${e.id}", "$name: ${e.text}", loc = e.loc ?: seen.loc) else Event("ev:${e.id}", "$name: ${e.text}", cond = e.key.ifEmpty { null }, important = importantKind(e.kind)))
@@ -300,7 +312,7 @@ object Logic {
         if (seenId in st(k).seenIds) return null
         val t = data["t"]?.toLongOrNull()?.takeIf { it > 0 } ?: now
         return when (data["kind"]) {
-            "sos" -> k to Event("sos:" + eid.removePrefix("s:"), tr.s(T.ev_sos, k.name, hhmm(t)))
+            "sos" -> k to Event("sos:" + eid.removePrefix("s:"), tr.s(T.ev_sos, k.name, hhmm(t)), at = t)
             "req" -> k to (data["min"]?.toIntOrNull() ?: 0).let { m -> Event("req:" + eid.removePrefix("r:"), tr.q(T.ev_request, m, k.name, m), m) }
             else -> null
         }

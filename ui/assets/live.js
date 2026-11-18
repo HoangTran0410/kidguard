@@ -163,8 +163,10 @@ function wireCi(el) {
 function sosHtml() {
   const list = (st && st.sos) || [];
   if (!list.length || viewDay) return "";
-  const last = list[list.length - 1];
-  return `<div class="alert sos">${ic("siren")} ${t("sos.at", hhmm(last.t))}${list.length > 1 ? " " + t("sos.n", list.length) : ""}
+  const last = list[list.length - 1], l = st.location;
+  // when the fix behind "See location" was taken; older than the SOS = where the child was before (owner 2026-11-18)
+  const lt = l && +l.t ? `<div style="font-weight:400;margin-top:4px">${t("sos.locAt", (new Date(+l.t).toDateString() === new Date().toDateString() ? "" : new Date(+l.t).toLocaleDateString(lang, { day: "numeric", month: "numeric" }) + " ") + hhmm(+l.t))}${+l.t < last.t - 60000 ? " " + t("sos.locOld") : ""}</div>` : "";
+  return `<div class="alert sos">${ic("siren")} ${t("sos.at", hhmm(last.t))}${list.length > 1 ? " " + t("sos.n", list.length) : ""}${lt}
     <div class="row" style="margin-top:8px;font-weight:400"><button data-sos="where">${ic("map-pin")} ${t("sos.where")}</button>
     <button data-sos="ear">${ic("ear")} ${t("listen")}</button>
     <button data-sos="ack" class="pri">${ic("check")} ${t("sos.ack")}</button></div></div>`;

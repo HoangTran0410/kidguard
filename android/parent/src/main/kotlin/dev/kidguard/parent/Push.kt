@@ -73,10 +73,18 @@ object Push {
             ev
         }
         CheckJob.post(c, hit.first, hit.second)
-        // the push carries no location (privacy): fetch the state once so "Xem vị trí" opens the map at the last fix
+        // the push carries no location (privacy): fetch the state so "Xem vị trí" opens the map at the last fix, and once
+        // more 25 s later when that fix is from before the SOS (the phone takes a fresh one and syncs it within ~15 s)
         if (Act.isSos(hit.second.key)) Thread({
-            val loc = runCatching { CheckJob.fetch(hit.first)?.loc }.getOrNull() ?: return@Thread
-            if (Notif.showing(c, hit.first, hit.second.key)) CheckJob.post(c, hit.first, Logic.Event(hit.second.key, hit.second.text, loc = loc), quiet = true)
+            val e = hit.second
+            var loc: Logic.Loc? = null
+            for (wait in longArrayOf(0, 25_000)) {
+                if (wait > 0) { if (loc != null && loc.t >= e.at - 60_000) break; Thread.sleep(wait) }
+                val l = runCatching { CheckJob.fetch(hit.first)?.loc }.getOrNull() ?: continue
+                if (loc != null && l.t <= loc.t) continue
+                loc = l
+                if (Notif.showing(c, hit.first, e.key)) CheckJob.post(c, hit.first, Logic.Event(e.key, e.text, loc = l, at = e.at), quiet = true) else break
+            }
         }, "kg-sos-loc").start()
     }
 }

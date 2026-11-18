@@ -123,7 +123,7 @@ L.vi = {
   "live.lost": "Mất liên lạc với máy con từ {0}. Có thể máy tắt, mất mạng, hoặc KidGuard bị tắt (vd. vuốt khỏi đa nhiệm). Muốn bật lại: mở app KidGuard trên máy con", "live.mic": "Micro máy con đang bật (bố mẹ đang nghe) từ {0}",
   "live.usage": "Con đã tắt quyền theo dõi sử dụng — giới hạn giờ không hoạt động (máy đang nhắc con bật lại)", "live.dns": "DNS an toàn bị từ chối: {0}",
   "live.acc": "Trợ năng của KidGuard đã bị tắt trên máy con → vào Cài đặt > Trợ năng bật lại (đến lúc đó không xem/điều khiển màn hình được)", "live.locOff": "Định vị đang tắt",
-  "sos.at": "SOS: con bấm nút khẩn cấp lúc {0}", "sos.n": "({0} lần)", "sos.where": "Xem vị trí", listen: "Nghe xung quanh", "sos.ack": "Đã xử lý",
+  "sos.at": "SOS: con bấm nút khẩn cấp lúc {0}", "sos.n": "({0} lần)", "sos.where": "Xem vị trí", "sos.locAt": "Vị trí lúc {0}", "sos.locOld": "(trước lúc bấm SOS, đang chờ vị trí mới)", listen: "Nghe xung quanh", "sos.ack": "Đã xử lý",
   "sos.cleared": "Đã xoá báo SOS", "sos.askAck": "Đánh dấu SOS đã xử lý? Báo trên máy con sẽ tắt.", stop: "Dừng",
   "ear.ended": "Đã dừng (tối đa 10 phút mỗi lần)", "ear.fail": "Không nghe được: {0}", "ear.cant": "Chưa nghe được", "ear.busy": "Một máy bố mẹ khác đang nghe",
   "ear.no mic permission": "Máy con chưa cho KidGuard dùng micro.\n\nBấm Sửa: máy con tự cấp nếu có adb trên máy, nếu không sẽ mở màn hình Quyền trên máy con. Khi đó cần chạm Micrô → Cho phép trên máy con.", "perm.mic": "Micro (nghe xung quanh khi SOS)", "ear.mic blocked": "Android trên máy con chặn micro khi chạy nền",

@@ -13,5 +13,7 @@ class ResTr(private val ctx: Context) : Tr {
         T.ev_offline -> R.string.ev_offline
         T.ev_request_app -> R.string.ev_request_app
         T.ev_acc_off -> R.string.ev_acc_off
+        T.loc_at -> R.string.loc_at
+        T.loc_before -> R.string.loc_before
     }
 }

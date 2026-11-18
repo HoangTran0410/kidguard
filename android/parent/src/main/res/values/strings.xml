@@ -28,6 +28,8 @@
     <string name="ev_acc_off">%1$s turned off KidGuard\'s Accessibility: apps are no longer blocked</string>
     <string name="act_grant">+%1$d min</string>
     <string name="act_decline">Decline</string>
+    <string name="loc_at">Location at %1$s</string>
+    <string name="loc_before">(before the SOS)</string>
     <string name="act_map">Show location</string>
     <string name="ans_sending">Sending…</string>
     <plurals name="ans_granted">
