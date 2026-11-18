@@ -298,9 +298,9 @@ async function sysSend(key, v) {
 
 // Also on the "can't connect" card (live.js): a phone that is gone for good has no Settings tab to forget it from
 async function forgetKid() {
-  const fk = cur;   // typed word: forgetting a relay kid destroys the only token
-  if (!fk || !(await ask(t(fk.via === "relay" ? "forget.askRelay" : APP ? "forget.askApp" : "forget.askWeb", fk.name), APP ? t("delete") : t("forget"), true, t("forget.word"))) || fk !== cur) return;
-  screenStop(); kids = kids.filter(x => x !== cur); save(kids); cur = null; clearInterval(timer); boot(); navDown(0);
+  const fk = cur;   // typed word: forgetting a live relay kid destroys the only token (dropKid in core.js)
+  if (!fk || !(await dropKid(fk, deadKid(fk) || /^gone:/.test(srvWhy)))) return;
+  boot(); navDown(0);
 }
 function setTab(b) {
   const lan = cur.via === "lan", S = ruleSecs(edit);

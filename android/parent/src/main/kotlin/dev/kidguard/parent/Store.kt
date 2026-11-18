@@ -20,7 +20,9 @@ object Store {
     /** Last push registration run: [pushAt] ms and its result "ok" | "fail" ("" = never). Retried daily by [CheckJob]. */
     fun pushRes(c: Context): String = p(c).getString("pushRes", "") ?: ""
     fun pushAt(c: Context): Long = p(c).getLong("pushAt", 0)
-    fun setPushRes(c: Context, res: String, t: Long) { p(c).edit().putString("pushRes", res).putLong("pushAt", t).apply() }
+    fun setPushRes(c: Context, res: String, t: Long, bad: String = "") { p(c).edit().putString("pushRes", res).putLong("pushAt", t).putString("pushBad", bad).apply() }
+    /** Names of the kids whose relay refused the last push registration ("" = none). */
+    fun pushBad(c: Context): String = p(c).getString("pushBad", "") ?: ""
     /** The notification permission was asked once (a second denial needs the system settings page). */
     fun notifAsked(c: Context): Boolean = p(c).getBoolean("notifAsked", false)
     fun setNotifAsked(c: Context) { p(c).edit().putBoolean("notifAsked", true).apply() }

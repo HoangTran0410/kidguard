@@ -69,6 +69,8 @@ object Logic {
 
     /** "Pair from anywhere" (before the kid is saved): only the default relay's `/p/...` calls (docs/protocol.md "Pair over relay"). */
     const val DEFAULT_RELAY = "https://kg-relay.99-hoangtran.workers.dev"
+    /** The relay killed 2026-11-17 (docs/decisions/remote.md): a kid saved with it can't be reached (its parent tokens died with it). */
+    const val OLD_RELAY = "https://kidguard.99-hoangtran.workers.dev"
     private val PAIR_PATH = Regex("^/p/(inv|\\d{6}/join|(\\d{6}|[0-9a-f]{16})/result)$")
     fun isPairPath(method: String, rest: String): Boolean = PAIR_PATH.matches(rest.substringBefore("?")) && (method == "POST") == !rest.endsWith("/result")
 
@@ -337,8 +339,8 @@ object Logic {
      * syncs to (owner 2026-11-16: a LAN kid with a relay never registered, so its alerts waited for the 15-30 min check).
      */
     fun pushRoute(k: KidCfg): Triple<String, String, String>? = when {
-        k.via == "relay" -> Triple(k.target, k.id, k.token)
-        k.hasRelay -> Triple(k.relay!!, k.relayId, k.relayToken)
+        k.via == "relay" -> if (k.target == OLD_RELAY) null else Triple(k.target, k.id, k.token)
+        k.hasRelay -> if (k.relay == OLD_RELAY) null else Triple(k.relay!!, k.relayId, k.relayToken)
         else -> null
     }
     /** The kid an FCM message is about: its `kid` is the relay id ([pushRoute]). */

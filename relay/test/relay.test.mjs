@@ -431,8 +431,10 @@ const ex=(await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}}))
 ck("C4: expired keeps the last 10",ex.length==10&&ex[9].id=="x11");
 ck("C8: forget with a wrong token 401",(await fetch(`${B}/c/${ide}/forget`,{method:"POST",headers:{"x-kg-token":BAD}})).status==401);
 r=await Q("forget",{});ck("C8: forget ok",(await r.json()).result=="forgotten");
-r=await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}});ck("C8: after forget the id is unbound (409 waiting for the phone)",r.status==409);
-r=await Q("sync",{state:{rules:{rev:1}}});ck("C8: the same id can bind again after forget",r.status==200);}
+r=await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}});ck("C8: after forget a known token hears 410 released + when",r.status==410&&(await r.json()).at>0);
+r=await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":rh(48)}});ck("C8: after forget an unknown token still 409",r.status==409);
+r=await Q("sync",{state:{rules:{rev:1}}});ck("C8: the same id can bind again after forget",r.status==200);
+r=await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}});ck("C8: a new bind clears the released mark",r.status==200);}
 // ---- watch connect: /w/new, POST /c/<id>/watch, GET /w/<code> (docs/protocol.md "Watch connect") ----
 {const {createHash,randomBytes}=await import("node:crypto");
 const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),idw=rh(16),Tw=rh(48);

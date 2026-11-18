@@ -57,14 +57,14 @@ class Bridge(private val a: MainActivity) {
     }
     /**
      * "Do alerts arrive?" card. JSON: {enabled (app switch), perm (OS allows notifications), lastCheck (ms of the last background
-     * check, 0 = never), push ("off" no FCM in this build | "none" no relay kid | "wait" | "ok" | "fail"), pushAt (ms), battery
+     * check, 0 = never), push ("off" no FCM in this build | "none" no relay kid | "wait" | "ok" | "part" | "fail"), pushAt (ms), pushBad (kid names), battery
      * (true = this app is exempt from battery optimisation), sdk}.
      */
     @JavascriptInterface fun notifHealth(): String {
         val c = a.applicationContext
         val pm = c.getSystemService(android.os.PowerManager::class.java)
         return org.json.JSONObject().put("enabled", Store.notify(a)).put("perm", CheckJob.canNotify(c)).put("lastCheck", Store.checkAt(a))
-            .put("push", Push.status(c)).put("pushAt", Store.pushAt(a)).put("battery", pm?.isIgnoringBatteryOptimizations(c.packageName) == true)
+            .put("push", Push.status(c)).put("pushAt", Store.pushAt(a)).put("pushBad", Store.pushBad(a)).put("battery", pm?.isIgnoringBatteryOptimizations(c.packageName) == true)
             .put("sdk", Build.VERSION.SDK_INT).toString()
     }
     /** Posts a test notification: "ok" | "blocked" (permission or the app's notifications are off). */

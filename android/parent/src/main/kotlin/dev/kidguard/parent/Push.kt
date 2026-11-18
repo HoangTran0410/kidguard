@@ -37,22 +37,23 @@ object Push {
         fun post(r: Triple<String, String, String>, off: Boolean) = Net.call("POST", "${r.first}/c/${r.second}/push",
             mapOf("X-KG-Token" to r.third, "Content-Type" to "application/json"),
             JSONObject().put("fcm", token).apply { if (off) put("off", true) }.toString().toByteArray(), 15_000).status
-        val relayKids = Logic.parseKids(Store.kids(c)).mapNotNull { Logic.pushRoute(it) }
+        val all = Logic.parseKids(Store.kids(c))
+        val relayKids = all.mapNotNull { Logic.pushRoute(it) }
         // saves that touch nothing relevant (rules edits, tab state) must not re-POST to every relay kid
         val sig = (listOf(token, Store.notify(c).toString()) + relayKids.map { "${it.second}|${it.first}|${it.third}" }.sorted()).joinToString("\n")
         val rm = removed.mapNotNull { Logic.pushRoute(it) }
         if (!force && rm.isEmpty() && sig == Store.pushSig(c)) return
         for (k in rm) post(k, true)
-        var ok = true
+        val bad = ArrayList<String>()   // names: one dead kid (removed phone) must not read as "push broken" for all (owner 2026-11-18)
         for (k in relayKids) {
             val st = post(k, !Store.notify(c))
-            if (st != 200) { ok = false; Log.w("KGParent", "push register ${k.second}: $st") }
+            if (st != 200) { bad += all.firstOrNull { Logic.pushRoute(it) == k }?.name ?: k.second; Log.w("KGParent", "push register ${k.second}: $st") }
         }
-        if (ok) Store.setPushSig(c, sig)
-        Store.setPushRes(c, if (ok) "ok" else "fail", System.currentTimeMillis())
+        if (bad.isEmpty()) Store.setPushSig(c, sig)
+        Store.setPushRes(c, if (bad.isEmpty()) "ok" else if (bad.size < relayKids.size) "part" else "fail", System.currentTimeMillis(), bad.joinToString(", "))
     }
 
-    /** One word for the page's health card: "off" (no FCM in this build), "none" (no relay kid), "ok", "fail" / "wait" (never run). */
+    /** One word for the page's health card: "off" (no FCM in this build), "none" (no relay kid), "ok", "part" (some kids failed, [Store.pushBad]), "fail" / "wait" (never run). */
     fun status(c: Context): String = when {
         !enabled -> "off"
         Logic.parseKids(Store.kids(c)).none { Logic.pushRoute(it) != null } -> "none"

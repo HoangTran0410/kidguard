@@ -17,10 +17,10 @@ function notifHealthHtml() {
   try { if (APP && window.KGApp && typeof KGApp.notifHealth === "function") h = JSON.parse(kgCall("notifHealth") || "null"); } catch {}
   if (!h) return "";
   const line = (ok, txt) => `<p class="${ok ? "mute" : "err"}">${ic(ok ? "check" : "triangle-alert")} ${txt}</p>`;
-  const push = { off: t("nh.pushOff"), none: t("nh.pushNone"), wait: t("nh.pushWait"), ok: t("nh.pushOk", h.pushAt ? hhmm(h.pushAt) : ""), fail: t("nh.pushFail") }[h.push] || "";
+  const push = { off: t("nh.pushOff"), none: t("nh.pushNone"), wait: t("nh.pushWait"), ok: t("nh.pushOk", h.pushAt ? hhmm(h.pushAt) : ""), part: t("nh.pushPart", esc(h.pushBad || "?")), fail: h.pushBad ? t("nh.pushFailN", esc(h.pushBad)) : t("nh.pushFail") }[h.push] || "";
   return `<div class="card" id="nhBox"><h2>${ic("bell")} ${t("nh.h")}</h2>
     ${line(!!h.lastCheck, h.lastCheck ? t("nh.check", hhmm(h.lastCheck)) : t("nh.checkNever"))}
-    ${push ? line(h.push !== "fail" && h.push !== "none", push) : ""}
+    ${push ? line(h.push !== "fail" && h.push !== "none" && h.push !== "part", push) : ""}
     ${line(!!h.battery, h.battery ? t("nh.batOk") : t("nh.batOn"))}
     ${line(h.enabled && h.perm, h.enabled && h.perm ? t("nh.permOk") : t("nh.permOff"))}
     <div class="row">${h.battery ? "" : `<button class="sp" id="nhBat">${ic("battery-full")} ${t("nh.batBtn")}</button>`}
@@ -181,7 +181,7 @@ async function uiPkInfo() {
 function uiPackHtml() {
   const j = uiPk;
   const v = !j ? t("ui.relay") : j.src === "pack" ? t("ui.pack", esc(j.ver), esc(String(j.seq))) : t("ui.bundled", esc(j.app || ""));
-  return `<div class="row" id="uiPk" style="margin-top:8px"><span class="sp mute" style="overflow-wrap:anywhere">${ic("layout-grid")} ${v}</span>${j || window.KGApp || cur ? `<button type="button" id="uiNow">${ic("refresh-cw")} ${t("ui.now")}</button>` : ""}</div>`;
+  return `<div class="row" id="uiPk" style="margin-top:8px"><span class="sp mute" style="overflow-wrap:anywhere">${ic("layout-grid")} ${v}</span>${j || window.KGApp || cur ? `<button type="button" class="sm" id="uiNow" aria-label="${esc(t("ui.now"))}">${ic("refresh-cw")} ${t("ui.nowS")}</button>` : ""}</div>`;
 }
 function uiNewBar() {
   if ($("#uiNew")) return;

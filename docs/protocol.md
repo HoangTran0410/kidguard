@@ -430,6 +430,9 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 - Command `unlockEnd` (0.9.16): ends an Authenticator unlock now (`unlockUntil = 0`); not PIN-gated, not ONCE, SHORT.
 - `POST /c/<id>/forget` (token header, same auth as sync): deletes everything stored for this id (state, rules, queue, push
   tokens, Telegram link) and closes the sockets; sent by the phone when it is released. A later sync of the same id binds anew.
+  It keeps a tombstone (`gone {at, p: token hashes of the phone + its parents}`): those tokens then get
+  `410 {"error":"released","at":<ms>}` (anyone else still `409 waiting for the phone`); the next bind clears it. The page
+  shows "the kid's phone removed management at …" with a Remove button.
 - Input `ms` (swipe duration) is clamped to **50..3000** by both the worker and `Acc.kt`.
 - `GET /c/<id>/state` already returns `seen` (ms of the phone's last sync): the page warns when `now - seen > 5 min`.
 - `/install` and `/qr` are website pages (`kid-guard.pages.dev`, copies of `ui/install.html` / `ui/qr.html`); `qr.html` makes its

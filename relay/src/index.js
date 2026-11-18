@@ -460,7 +460,11 @@ export class Kid {
     const h = await sha256(token);
     let bound = await this.s.get("tokenHash");
     if (!bound) {
-      if (action !== "sync") return json({ error: "waiting for the phone" }, 409);   // only the phone may bind
+      if (action !== "sync") {
+        const g = await this.s.get("gone");
+        if (g && g.p.includes(h)) return json({ error: "released", at: g.at }, 410);
+        return json({ error: "waiting for the phone" }, 409);   // only the phone may bind
+      }
       // ...and only with a real first sync (it always carries a state): a random POST must not claim / create storage
       let first = null; try { first = await req.clone().json(); } catch {}
       if (!first || typeof first.state !== "object" || !first.state) return json({ error: "bad first sync" }, 400);
@@ -470,7 +474,7 @@ export class Kid {
         const r = await g.fetch("https://gate/take?max=" + (+this.env.BIND_PER_DAY || BIND_PER_DAY));
         if (r.status !== 200) return json({ error: "too many new pairings from this network, try tomorrow", retryAt: +(await r.text()) || Date.now() + 3600e3 }, 429);
       }
-      await this.s.put({ tokenHash: h, born: Date.now() }); bound = h;
+      await this.s.put({ tokenHash: h, born: Date.now() }); await this.s.delete("gone"); bound = h;
     }
     let role = "parent", who = "", me = null;
     const par = await this.parents(), now0 = Date.now();
@@ -496,7 +500,10 @@ export class Kid {
     if (action === "forget" && req.method === "POST") {   // the phone is released: delete everything of this id (the phone's token only)
       if (h !== bound) return json({ error: "phone only" }, 403);
       for (const w of this.phoneWs()) { try { w.close(1000, "forgotten"); } catch {} }
+      const gp = [bound, ...Object.keys(par)];
       await this.s.deleteAlarm().catch(() => {}); await this.s.deleteAll();
+      // tombstone: the parents' next call says "released" (410) instead of "waiting for the phone"; a new bind clears it
+      await this.s.put("gone", { at: Date.now(), p: gp });
       this.seen = 0; this.stateAt = 0; this.ikSeen = null; this.kfcm = undefined; this.call = undefined; this.wk = null; this.par = null; this.vk = null;
       return json({ result: "forgotten" });
     }

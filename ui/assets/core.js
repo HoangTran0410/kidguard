@@ -189,7 +189,7 @@ async function call1(k, path, method, body, again) {
   const raw = await r.text().catch(() => ""); let j = {}; try { j = JSON.parse(raw); } catch {}
   // Cloudflare's own error page ("error code: 1101"): the relay worker itself is down, not the phone (INCIDENT 2026-11-17)
   const cf = !r.ok && /error code: (\d{3,4})/i.exec(raw.slice(0, 200));
-  if (path === "/state" && k === cur && !cached) srvWhy = cf ? "cf:" + cf[1] : j.why || (r.status >= 500 && k.via !== "lan" ? "http:" + r.status : "");
+  if (path === "/state" && k === cur && !cached) srvWhy = j.error === "released" ? "gone:" + (+j.at || 0) : cf ? "cf:" + cf[1] : j.why || (r.status >= 500 && k.via !== "lan" ? "http:" + r.status : "");
   if (cf) throw errOf(t("e.relayDown", "Cloudflare " + cf[1]));
   if (!r.ok) throw errOf(APP && j.error === "offline" ? "offline" : j.error || ("HTTP " + r.status), null, j.retryAt);
   return rel ? wireIn(j) : j;
@@ -501,17 +501,33 @@ async function boot() {
 }
 
 // kid list row: name, then (once the state arrives) online dot + last seen + battery (A5.10)
-const kidRow = (k, i) => `<div class="card row"><span class="sp" style="min-width:0"><b>${ic("user")} ${esc(k.name)}</b><span class="mute kb" data-kb="${i}" style="display:block">${APP ? (k.via === "lan" ? t("via.lan") : "relay") : "&nbsp;"}</span></span><button class="pri" data-i="${i}">${ic("folder-open")} ${t("open")}</button></div>`;
+const kidRow = (k, i) => `<div class="card row"><span class="sp" style="min-width:0"><b>${ic("user")} ${esc(k.name)}</b><span class="mute kb" data-kb="${i}" style="display:block">${APP ? (k.via === "lan" ? t("via.lan") : "relay") : "&nbsp;"}</span></span><button class="ghost kx" data-x="${i}" hidden aria-label="${esc(t("forget.rowAria", k.name))}">${ic("trash-2")}</button><button class="pri" data-i="${i}">${ic("folder-open")} ${t("open")}</button></div>`;
+// a saved kid that can't come back by itself: paired with the killed relay, released (relay says "released"), or the relay no longer knows us
+const deadKid = (k, raw) => (k.via === "relay" && k.target === OLD_RELAY) || raw === "released" || raw === "not paired";
+// remove a kid from this device (settings "Xoá máy này khỏi app" and the list's bin button for a dead / 1-day-offline kid)
+async function dropKid(k, dead) {
+  if (!(await ask(t(k.via === "relay" && !dead ? "forget.askRelay" : APP ? "forget.askApp" : "forget.askWeb", k.name), APP ? t("delete") : t("forget"), true, k.via === "relay" && !dead ? t("forget.word") : ""))) return false;
+  if (k === cur) { screenStop(); cur = null; clearInterval(timer); }
+  kids = kids.filter(x => x !== k); save(kids); return true;
+}
 async function kidBrief(list) {
   const root = $("#app");
   await Promise.all(list.map(async (k, i) => {
     const el = () => { const e = root.querySelector(`[data-kb="${i}"]`); return e && e.isConnected ? e : null; };
+    // bin button (owner 2026-11-18): only for a kid that is gone or silent for a day; the settings path stays for the rest
+    const bin = dead => { const b = root.querySelector(`[data-x="${i}"]`); if (!b || !b.isConnected) return; b.hidden = false; b.onclick = async () => { if (await dropKid(k, dead)) reScreen ? reScreen() : boot(); }; };
+    if (deadKid(k)) bin(true);
     try {
       const j = await call(k, "/state"), s = j.state !== undefined ? j.state : j;
-      if (!s) return el() && (el().innerHTML = `${dot("")} ${t("kb.never")}`);
+      if (!s) { if (deadKid(k)) return el() && (el().innerHTML = `${dot("bad")} ${t("kb.oldRelay")}`); return el() && (el().innerHTML = `${dot("")} ${t("kb.never")}`); }
       const seen = j.state !== undefined ? +j.seen || 0 : s.t, on = k.via === "lan" ? Date.now() - s.t < 30000 : seen && Date.now() - seen < 120000;
-      if (el()) el().innerHTML = `${dot(on ? "on" : "bad")} ${on ? t("ov.online") : t("ov.offline", ago(seen || s.t))} · ${ic("battery-full")} ${+s.battery}%${s.charging ? ic("zap") : ""}`;
-    } catch { if (el()) el().innerHTML = `${dot("bad")} ${t("kb.noAnswer")}`; }
+      if (el()) el().innerHTML = deadKid(k) ? `${dot("bad")} ${t("kb.oldRelay")}` : `${dot(on ? "on" : "bad")} ${on ? t("ov.online") : t("ov.offline", ago(seen || s.t))} · ${ic("battery-full")} ${+s.battery}%${s.charging ? ic("zap") : ""}`;
+      if (!on && Date.now() - (seen || s.t || 0) > 864e5) bin(deadKid(k));
+    } catch (e) {
+      const gone = deadKid(k, e && e.raw);
+      if (el()) el().innerHTML = `${dot("bad")} ${gone ? t(k.target === OLD_RELAY ? "kb.oldRelay" : e.raw === "released" ? "kb.released" : "kb.notPaired") : t("kb.noAnswer")}`;
+      if (gone) bin(true);
+    }
   }));
 }
 // --- app mode: kid list, add-kid ---------------------------------------------

@@ -74,13 +74,17 @@ function updateLive() {
   const B = [];   // [tone, icon, text]
   // the relay worker / server itself failed (Cloudflare error page, 5xx): say so, the phone is not to blame
   const down = /^(cf|http):/.test(srvWhy) && !lan ? srvWhy.replace(/^cf:/, "Cloudflare ").replace(/^http:/, "HTTP ") : "";
-  if (down) B.push(["bad", "triangle-alert", t("live.relayDown", down)]);
+  // the kid can't come back by itself (owner 2026-11-18): released on the phone, or paired with the relay killed 2026-11-17
+  const gone = lan ? "" : deadKid(cur) ? "old:" : /^gone:/.test(srvWhy) ? srvWhy : "";
+  if (gone) B.push(["bad", "unlink", gone.startsWith("old:") ? t("live.oldRelay") : +gone.slice(5) ? t("live.released", dtFull(+gone.slice(5))) : t("live.releasedN"), undefined, undefined,
+    `<button type="button" class="pill" id="goneDel">${ic("trash-2")} ${t(APP ? "delete" : "forget")}</button>`]);
+  else if (down) B.push(["bad", "triangle-alert", t("live.relayDown", down)]);
   else if (APP && cachedAt) B.push(["warn", "wifi-off", t("live.cached", hhmm(cachedAt))]);
   if (!lan && lastNet) B.push(["warn", "wifi-off", t("live.selfOff")]);
   // LAN, the phone answered with an error: it is on and reachable, so not "off / no network"
   if (lan && lastErr && !lastNet && retryShow) B.push(["info", "loader", t("live.retrying")]);   // a retry is in flight: not the old error
   else if (lan && lastErr && !lastNet) B.push(["bad", "siren", t("live.phoneErr", esc(lastErr))]);
-  else if (lost && !(!lan && lastNet)) B.push(["bad", "siren", t("live.lost", hhmm(lostFrom)) + (lastErr && lan ? " (" + esc(lastErr) + ")" : "")]);
+  else if (lost && !gone && !(!lan && lastNet)) B.push(["bad", "siren", t("live.lost", hhmm(lostFrom)) + (lastErr && lan ? " (" + esc(lastErr) + ")" : "")]);
   B.unshift(...rcBans());   // command receipts: what the parent just sent comes first
   B.push(...modeBans());
   { const rb = rebootLine(), lc = locLine(); if (rb) B.push(rb); if (lc) B.push(lc); }
@@ -116,6 +120,7 @@ function updateLive() {
     + (B2.length > 1 ? `<button type="button" class="more-ban" id="banMore" aria-expanded="${banAll}">${ic(banAll ? "chevron-down" : "chevron-right")} ${banAll ? t("ban.less") : t("ban.more", B2.length - 1)}</button>` : "");
   el.querySelectorAll("[data-band]").forEach(x => x.onclick = () => { const d = B.find(y => y[3] === x.dataset.band); if (d) ask(d[4], "OK", false, "", "", null, d[2]); });
   el.querySelectorAll("[data-banx]").forEach(x => x.onclick = () => { banHid.add(x.dataset.banx); updateLive(); });
+  if ($("#goneDel")) $("#goneDel").onclick = forgetKid;
   if ($("#banMore")) $("#banMore").onclick = () => { banAll = !banAll; updateLive(); };
   wireSos(el);
   wireCi(el);
