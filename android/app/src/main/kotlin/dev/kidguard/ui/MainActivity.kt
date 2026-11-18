@@ -229,7 +229,8 @@ class MainActivity : Activity() {
      * child asked for that became "ready" while away goes on to the confirm screen.
      */
     private fun resumeUpdate() {
-        Update.justUpdated(this)?.let { Toasts.show(this, getString(R.string.upd_done, it), true) }
+        // after the opening animation: a toast shown during it was dropped by SystemUI (emulator 14: "window already added")
+        Update.justUpdated(this)?.let { v -> window.decorView.postDelayed({ Toasts.show(this, getString(R.string.upd_done, v), true) }, 800) }
         Update.showConfirm = { i -> ui.post { launched = true; runCatching { startActivity(i) } } }
         val c = Update.confirm
         if (c != null) {

@@ -146,7 +146,7 @@ object Update {
             status = ""; return   // no done(): [maybe] comes back
         }
         waitingSince = 0
-        prefs(ctx).edit().putString("from", current()).apply()   // the new version's first screen says "updated to"
+        prefs(ctx).edit().putString("from", current()).commit()   // the new version's first screen says "updated to"
         if (Policy.isOwner(ctx)) { status = "installing"; installSilently(ctx, f) }
         else if (installQuiet(ctx, f)) status = ""
         else { status = "ready"; if (force || prefs(ctx).getString("notified", "") != tag) { notifyChild(ctx, tag); prefs(ctx).edit().putString("notified", tag).apply() } }
@@ -259,7 +259,8 @@ object Update {
             return false
         }
         val app = ctx.applicationContext   // the thread must not hold the Activity
-        wanted = false; prefs(app).edit().putString("from", current()).apply()
+        // [wanted] stays: a confirm screen that got covered (Home, another app) opens again on the next MainActivity.onResume
+        prefs(app).edit().putString("from", current()).commit()
         Thread({
             runCatching {
                 val (pi, id) = session(app, f)
@@ -286,6 +287,7 @@ object Update {
         val p = prefs(ctx); val from = p.getString("from", "") ?: ""
         if (from.isEmpty() || from == current()) return null
         p.edit().remove("from").apply()
+        Log.i(TAG, "updated from $from to ${current()}")
         return current()
     }
 
@@ -326,8 +328,8 @@ class UpdateReceiver : BroadcastReceiver() {
                 else { Update.confirm = confirm; Update.confirmAt = System.currentTimeMillis(); runCatching { ctx.startActivity(confirm) } }
             }
             PackageInstaller.STATUS_SUCCESS -> Update.confirm = null
-            PackageInstaller.STATUS_FAILURE_ABORTED -> Update.confirm = null   // the child closed the confirm screen: still "ready", not an error
-            else -> { Update.confirm = null; Update.failed(i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ctx.applicationContext.getString(R.string.upd_cancelled)) }
+            PackageInstaller.STATUS_FAILURE_ABORTED -> { Update.confirm = null; Update.wanted = false }   // the child closed the confirm screen: still "ready", not an error
+            else -> { Update.confirm = null; Update.wanted = false; Update.failed(i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ctx.applicationContext.getString(R.string.upd_cancelled)) }
         }
     }
 }
