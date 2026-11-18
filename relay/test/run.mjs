@@ -56,4 +56,6 @@ for (let i = 0; i < 120 && !up; i++) {
 if (!up) { console.error("wrangler dev did not start:\n" + log.slice(-2000)); process.exit(1); }
 
 const t = spawn(process.execPath, ["test/relay.test.mjs"], { stdio: "inherit", env: { ...process.env, PORT, MOCK: String(MOCK) } });
-t.on("exit", code => { if (code) console.error("--- wrangler dev log (last 3000 chars) ---\n" + log.slice(-3000)); process.exit(code ?? 1); });
+// on a failure: every log line that is not a plain 2xx/4xx request line (errors, restarts, reloads) + the tail
+const odd = () => log.split("\n").filter(l => l.trim() && !/^\[wrangler:info\] (GET|POST|PUT|DELETE|OPTIONS) \S+ [1-4]\d\d /.test(l)).slice(-200).join("\n");
+t.on("exit", code => { if (code) console.error("--- wrangler dev log: unusual lines ---\n" + odd() + "\n--- last 3000 chars ---\n" + log.slice(-3000)); process.exit(code ?? 1); });
