@@ -236,6 +236,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".LocNagReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".AccResumeReceiver"
             android:exported="false" />
 

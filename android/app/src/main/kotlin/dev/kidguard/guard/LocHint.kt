@@ -50,28 +50,62 @@ object LocNag {
         val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
         when (act) {
             LocNagLogic.Act.START -> {
+                prefs.edit().putBoolean("told", false).apply()
                 runCatching { store.eventKey("tamper", "locoff", R.string.ev_loc_off); store.log(R.string.log_loc_off) }
-                show(ctx, nm)
+                show(ctx, nm, silent = false)
             }
-            LocNagLogic.Act.KEEP -> if (nm.activeNotifications.none { it.id == NOTIF }) show(ctx, nm)   // swiped away: back
+            LocNagLogic.Act.KEEP -> if (nm.activeNotifications.none { it.id == NOTIF }) show(ctx, nm, silent = true)   // swiped away: back
             LocNagLogic.Act.END -> { nm.cancel(NOTIF); runCatching { store.log(R.string.log_loc_back) } }
             else -> {}
         }
+        // the kid blocked our notifications (app or channel): nothing reaches them, so the parent hears it once per switch-off
+        if (act != LocNagLogic.Act.END && !shown(nm) && !prefs.getBoolean("told", false)) {
+            prefs.edit().putBoolean("told", true).apply()
+            runCatching { store.eventKey("tamper", "locnotif", R.string.ev_loc_notif_off) }
+        }
     }
 
-    private fun show(ctx: Context, nm: NotificationManager) = runCatching {
-        nm.createNotificationChannel(NotificationChannel("loc", ctx.getString(R.string.ch_loc), NotificationManager.IMPORTANCE_HIGH))
+    private fun shown(nm: NotificationManager) =
+        nm.areNotificationsEnabled() && (nm.getNotificationChannel("loc")?.importance ?: 1) != NotificationManager.IMPORTANCE_NONE &&
+            (nm.getNotificationChannel("loc_q")?.importance ?: 1) != NotificationManager.IMPORTANCE_NONE
+
+    /**
+     * Not dismissable on purpose, yet it blocks nothing: it is only a notification (calls, Settings, quick settings, SOS all
+     * work). Android 14+ lets the user swipe away even an ongoing notification, so [deleteIntent] puts it straight back,
+     * silently (no second heads-up / sound); older Android cannot swipe it at all.
+     */
+    fun show(ctx: Context, nm: NotificationManager, silent: Boolean) = runCatching {
+        nm.createNotificationChannel(NotificationChannel("loc", ctx.getString(R.string.ch_loc), NotificationManager.IMPORTANCE_HIGH)
+            .apply { lockscreenVisibility = Notification.VISIBILITY_PUBLIC })
+        // put back after a swipe: same text, no heads-up / sound / vibration (a channel of its own: no setSilent before API 31 here)
+        nm.createNotificationChannel(NotificationChannel("loc_q", ctx.getString(R.string.ch_loc), NotificationManager.IMPORTANCE_DEFAULT)
+            .apply { lockscreenVisibility = Notification.VISIBILITY_PUBLIC; setSound(null, null); enableVibration(false) })
         val open = PendingIntent.getActivity(ctx, NOTIF, Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val back = PendingIntent.getBroadcast(ctx, NOTIF, Intent(ctx, LocNagReceiver::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val text = ctx.getString(R.string.loc_nag)
-        nm.notify(NOTIF, Notification.Builder(ctx, "loc").setSmallIcon(android.R.drawable.ic_dialog_map).setContentTitle("KidGuard")
+        val b = Notification.Builder(ctx, if (silent) "loc_q" else "loc").setSmallIcon(android.R.drawable.ic_dialog_map).setContentTitle("KidGuard")
             .setContentText(text).setStyle(Notification.BigTextStyle().bigText(text)).setOngoing(true).setOnlyAlertOnce(true)
-            .setContentIntent(open).build())
+            .setVisibility(Notification.VISIBILITY_PUBLIC).setCategory(Notification.CATEGORY_REMINDER)
+            .setContentIntent(open).setDeleteIntent(back)
+        nm.notify(NOTIF, b.build())
     }
+
+    /** True while the nag is on (location off and nothing can switch it back). */
+    fun active(ctx: Context) = ctx.createDeviceProtectedStorageContext().getSharedPreferences("locnag", Context.MODE_PRIVATE).getLong("offAt", 0L) != 0L
 
     /** Release hook: our notification goes, nothing durable is set. */
     fun clear(ctx: Context) {
         runCatching { ctx.getSystemService(NotificationManager::class.java)?.cancel(NOTIF) }
         runCatching { ctx.createDeviceProtectedStorageContext().getSharedPreferences("locnag", Context.MODE_PRIVATE).edit().clear().apply() }
+    }
+}
+
+/** Swiped away (Android 14+): back at once while location is still off; the next tick ends it when location is on. */
+class LocNagReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(ctx: Context, i: Intent) {
+        if (!LocNag.active(ctx) || Store.of(ctx).released) return
+        ctx.getSystemService(NotificationManager::class.java)?.let { LocNag.show(ctx, it, silent = true) }
     }
 }

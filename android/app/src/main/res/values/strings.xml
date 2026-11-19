@@ -1232,4 +1232,5 @@
     <string name="basic_mic_d">So a parent can listen around the phone after an SOS. Tap Allow.</string>
     <string name="basic_calls">Allow calls and contacts</string>
     <string name="basic_calls_d">So parents see recent calls and unknown callers. Tap Allow twice.</string>
+    <string name="ev_loc_notif_off">Location is off and KidGuard notifications are blocked on the kid\'s phone, so the kid gets no reminder.</string>
 </resources>

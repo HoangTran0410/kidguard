@@ -1209,4 +1209,5 @@
     <string name="basic_mic_d">Để bố mẹ nghe xung quanh khi con bấm SOS. Bấm Cho phép.</string>
     <string name="basic_calls">Cho phép cuộc gọi và danh bạ</string>
     <string name="basic_calls_d">Để bố mẹ xem cuộc gọi gần đây và số lạ gọi tới. Bấm Cho phép 2 lần.</string>
+    <string name="ev_loc_notif_off">Máy con đang tắt định vị và đã chặn thông báo của KidGuard, nên con không thấy lời nhắc.</string>
 </resources>
