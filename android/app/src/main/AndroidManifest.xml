@@ -235,6 +235,13 @@
             android:name=".FocusEndReceiver"
             android:exported="false" />
 
+        <activity
+            android:name=".LocNagActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:taskAffinity="dev.kidguard.locnag" />
+
         <receiver
             android:name=".LocNagReceiver"
             android:exported="false" />

@@ -1233,4 +1233,10 @@
     <string name="basic_calls">Allow calls and contacts</string>
     <string name="basic_calls_d">So parents see recent calls and unknown callers. Tap Allow twice.</string>
     <string name="ev_loc_notif_off">Location is off and KidGuard notifications are blocked on the kid\'s phone, so the kid gets no reminder.</string>
+    <string name="locnag_t">Turn location back on</string>
+    <string name="locnag_b">Your parent needs to know where you are. Tap the button, then turn on Use location.</string>
+    <string name="locnag_on">Turn on location</string>
+    <string name="locnag_later">Later, 10 minutes (%1$d left today)</string>
+    <string name="locnag_none">No more \"later\" today. You can still call and use SOS.</string>
+    <string name="log_loc_snooze">Kid put off turning location on for 10 minutes (%1$d of %2$d today)</string>
 </resources>

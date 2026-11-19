@@ -225,7 +225,7 @@ class Acc : AccessibilityService() {
             performGlobalAction(GLOBAL_ACTION_HOME); whyClosed(R.string.acc_closed_clock, R.string.bn_clock_t, R.string.bn_clock_b)
             val now = System.currentTimeMillis()
             if (now - lastProtectLog > 30_000) { lastProtectLog = now; runCatching { Store.of(this).log(R.string.log_acc_clock); Store.of(this).tamper("clock", R.string.ev_tamper_clock); Guard.running?.kick() } }
-        } else if (!CmdGate.selfOpen(Store.of(this).selfOpenUntil, System.currentTimeMillis()) && BasicLogic.selfProtect(pkg, nodes, labels, controlsOf(pkg))) {
+        } else if (!CmdGate.selfOpen(Store.of(this).selfOpenUntil, System.currentTimeMillis()) && BasicLogic.selfProtect(pkg, nodes, labels, controlsOf(pkg), weak = !LocNag.active(this))) {
             performGlobalAction(GLOBAL_ACTION_HOME); whyClosed(R.string.acc_closed_protect, R.string.bn_protect_t, R.string.bn_protect_b)
             val now = System.currentTimeMillis()
             if (now - lastProtectLog > 30_000) {

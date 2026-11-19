@@ -36,6 +36,18 @@ object LocNagLogic {
         offAt != 0L -> 0L to Act.END
         else -> 0L to Act.NONE
     }
+
+    const val POP_EVERY = 2 * 60_000L     // full-screen card again after Home / Back
+    const val SNOOZE = 10 * 60_000L       // "later": 10 minutes of normal use
+    const val SNOOZES = 3                 // per day; then only "turn on" (Home still leaves the card)
+    const val GRACE = 60_000L             // after "turn on": time to find the switch before the card comes back
+
+    /** Show the full-screen card now? [busy] = in a call, screen off / locked, an SOS waiting. Pure (tested). */
+    fun pop(now: Long, lastPop: Long, snoozeUntil: Long, graceUntil: Long, busy: Boolean): Boolean =
+        !busy && now >= snoozeUntil && now >= graceUntil && now - lastPop >= POP_EVERY
+
+    /** Snoozes left today ([day] = yyyy-MM-dd now, [snzDay] / [used] = stored). */
+    fun snoozesLeft(day: String, snzDay: String, used: Int): Int = if (day != snzDay) SNOOZES else (SNOOZES - used).coerceAtLeast(0)
 }
 
 object LocNag {
@@ -55,14 +67,55 @@ object LocNag {
                 show(ctx, nm, silent = false)
             }
             LocNagLogic.Act.KEEP -> if (nm.activeNotifications.none { it.id == NOTIF }) show(ctx, nm, silent = true)   // swiped away: back
-            LocNagLogic.Act.END -> { nm.cancel(NOTIF); runCatching { store.log(R.string.log_loc_back) } }
+            LocNagLogic.Act.END -> {
+                nm.cancel(NOTIF); runCatching { store.log(R.string.log_loc_back) }
+                prefs.edit().putLong("lastPop", 0L).putLong("snoozeUntil", 0L).putLong("graceUntil", 0L).apply()
+                LocNagActivity.close()
+            }
             else -> {}
+        }
+        if (act != LocNagLogic.Act.END && LocNagLogic.pop(now, prefs.getLong("lastPop", 0L), prefs.getLong("snoozeUntil", 0L),
+                prefs.getLong("graceUntil", 0L), busy(ctx, store))) {
+            prefs.edit().putLong("lastPop", now).apply()
+            runCatching { ctx.startActivity(Intent(ctx, LocNagActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)) }
         }
         // the kid blocked our notifications (app or channel): nothing reaches them, so the parent hears it once per switch-off
         if (act != LocNagLogic.Act.END && !shown(nm) && !prefs.getBoolean("told", false)) {
             prefs.edit().putBoolean("told", true).apply()
             runCatching { store.eventKey("tamper", "locnotif", R.string.ev_loc_notif_off) }
         }
+    }
+
+    /** Never cover a call, a locked / dark screen or an SOS the parent has not seen yet. */
+    private fun busy(ctx: Context, store: Store): Boolean {
+        val am = ctx.getSystemService(android.media.AudioManager::class.java)
+        val call = am != null && am.mode in setOf(android.media.AudioManager.MODE_IN_CALL, android.media.AudioManager.MODE_IN_COMMUNICATION,
+            android.media.AudioManager.MODE_RINGTONE)
+        val on = ctx.getSystemService(android.os.PowerManager::class.java)?.isInteractive != false
+        val locked = ctx.getSystemService(android.app.KeyguardManager::class.java)?.isKeyguardLocked == true
+        val sos = runCatching { store.sos().length() > 0 }.getOrDefault(false)
+        return call || !on || locked || sos
+    }
+
+    fun prefs(ctx: Context) = ctx.createDeviceProtectedStorageContext().getSharedPreferences("locnag", Context.MODE_PRIVATE)
+
+    fun today() = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+
+    fun snoozesLeft(ctx: Context): Int { val p = prefs(ctx); return LocNagLogic.snoozesLeft(today(), p.getString("snzDay", "") ?: "", p.getInt("snzN", 0)) }
+
+    /** "Later" on the card: 10 minutes, [LocNagLogic.SNOOZES] a day; the parent's log says so. */
+    fun snooze(ctx: Context) {
+        if (snoozesLeft(ctx) <= 0) return
+        val p = prefs(ctx); val d = today(); val n = if (p.getString("snzDay", "") == d) p.getInt("snzN", 0) + 1 else 1
+        p.edit().putString("snzDay", d).putInt("snzN", n).putLong("snoozeUntil", System.currentTimeMillis() + LocNagLogic.SNOOZE).apply()
+        runCatching { Store.of(ctx).log(R.string.log_loc_snooze, n, LocNagLogic.SNOOZES) }
+    }
+
+    /** "Turn on" on the card: Location settings, and a minute before the card may come back. */
+    fun openSettings(ctx: Context) {
+        prefs(ctx).edit().putLong("graceUntil", System.currentTimeMillis() + LocNagLogic.GRACE).apply()
+        runCatching { ctx.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     }
 
     private fun shown(nm: NotificationManager) =
@@ -93,10 +146,11 @@ object LocNag {
     }
 
     /** True while the nag is on (location off and nothing can switch it back). */
-    fun active(ctx: Context) = ctx.createDeviceProtectedStorageContext().getSharedPreferences("locnag", Context.MODE_PRIVATE).getLong("offAt", 0L) != 0L
+    fun active(ctx: Context) = prefs(ctx).getLong("offAt", 0L) != 0L
 
     /** Release hook: our notification goes, nothing durable is set. */
     fun clear(ctx: Context) {
+        LocNagActivity.close()
         runCatching { ctx.getSystemService(NotificationManager::class.java)?.cancel(NOTIF) }
         runCatching { ctx.createDeviceProtectedStorageContext().getSharedPreferences("locnag", Context.MODE_PRIVATE).edit().clear().apply() }
     }

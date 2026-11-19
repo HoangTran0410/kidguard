@@ -98,7 +98,7 @@ object BasicLogic {
      * Home flavor's app info, so the owner could not uninstall it). [controls]: the Settings app's own button texts in the
      * phone's language (Acc reads uninstall_text, force_stop... from its resources), on top of the vi/en lists.
      */
-    fun selfProtect(pkg: String, nodes: List<Node>, labels: Collection<String> = listOf("KidGuard"), controls: Collection<String> = emptyList()): Boolean {
+    fun selfProtect(pkg: String, nodes: List<Node>, labels: Collection<String> = listOf("KidGuard"), controls: Collection<String> = emptyList(), weak: Boolean = true): Boolean {
         if (!isSettingsPkg(pkg)) return false
         val ls = labels.map { norm(it) }.filter { it.isNotEmpty() }
         val cs = controls.map { norm(it) }.filter { it.length >= 3 }
@@ -107,7 +107,7 @@ object BasicLogic {
             val t = norm(n.text)
             if (t.isEmpty()) continue
             if (ls.any { names(t, it) }) mentions = true
-            if (STRONG_PREFIX.any { t.startsWith(it) } || ACC_DESC.any { t.contains(it) } || (n.clickable && !n.checkable && (t in WEAK_CLICK || cs.any { c -> t == c || t.startsWith(c) }))) control = true
+            if (STRONG_PREFIX.any { t.startsWith(it) } || ACC_DESC.any { t.contains(it) } || (weak && n.clickable && !n.checkable && (t in WEAK_CLICK || cs.any { c -> t == c || t.startsWith(c) }))) control = true
             if (mentions && control) return true
         }
         return false
