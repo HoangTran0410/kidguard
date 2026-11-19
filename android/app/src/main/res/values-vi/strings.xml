@@ -377,6 +377,7 @@
     <string name="ssa_s3">Bước 2. Bật Gỡ lỗi không dây và nhập mã ghép</string>
     <string name="ssa_s3_d">Bấm nút dưới: Tuỳ chọn nhà phát triển mở ra, ô nhập mã hiện ở thông báo. Bật \"Gỡ lỗi không dây\" (cho phép Wi-Fi này), bấm vào nó, rồi bấm \"Ghép thiết bị bằng mã ghép nối\". Kéo thanh thông báo xuống, bấm \"Nhập mã ghép\", gõ 6 số. (Rời Cài đặt là hộp thoại tắt.)</string>
     <string name="ssa_s3_btn">Hiện ô nhập mã ở thông báo</string>
+    <string name="ssa_xiaomi">Xiaomi, Redmi, POCO: cùng trang đó bật thêm \"Gỡ lỗi USB (Cài đặt bảo mật)\" (ngay dưới Gỡ lỗi USB; cần SIM và đăng nhập tài khoản Mi). Không bật thì cài sẽ dừng. Không đăng nhập Mi được: dùng chế độ cơ bản bấm tay, hoặc cài lại máy rồi quét mã QR.</string>
     <string name="ssa_or_here">Hoặc nhập ngay tại đây (nếu thông báo không hiện):</string>
     <string name="ssa_code_hint">Mã ghép nối 6 số</string>
     <string name="ssa_pair_port_hint">Cổng ghép nối (để trống nếu máy tự tìm thấy)</string>

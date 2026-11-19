@@ -749,7 +749,7 @@ class MainActivity : Activity() {
         // the time-left tile / widget: "ask for more time" (only once a parent is paired, like the button)
         if (intent?.getBooleanExtra(EXTRA_ADMIN, false) == true) { intent.removeExtra(EXTRA_ADMIN); ui.post { askAdmin() } }   // lost card: "Parent: turn off"
         // FixPerms (parent's Fix): the system "Allow?" dialog = one tap, instead of App info -> Permissions -> Microphone -> Allow
-        intent?.getStringExtra(EXTRA_ASK_PERM)?.let { id -> intent.removeExtra(EXTRA_ASK_PERM); FixPerms.runtime(id)?.let { p -> ui.post { requestPermissions(p, REQ_ASK_PERM) } } }
+        intent?.getStringExtra(EXTRA_ASK_PERM)?.let { id -> intent.removeExtra(EXTRA_ASK_PERM); if (id == "admin") ui.post { Intents.startFirst(this, *Intents.forCap(this, id).toTypedArray()) }; FixPerms.runtime(id)?.let { p -> ui.post { requestPermissions(p, REQ_ASK_PERM) } } }
         if (intent?.getBooleanExtra(Quick.EXTRA_MORE, false) == true) {
             intent.removeExtra(Quick.EXTRA_MORE)
             if (Store.of(this).everPaired) {

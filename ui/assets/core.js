@@ -708,7 +708,7 @@ function pairScreen(hello, target, prefill = "") {
     <input id="np2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin2"))}" aria-label="${esc(t("pair.pin2"))}">` : ""}
     <button class="pri" id="go">${ic("link")} ${t("pair.go")}</button></div><p class="err" id="e"></p>`
     : `<p>${ic("hourglass")} ${t("pair.closedP")}</p><button id="retry" onclick="location.reload()">${ic("refresh-cw")} ${t("retry")}</button>`}
-    ${hello.owner || hello.mode === "basic" ? "" : `<p class="err">${ic("triangle-alert")} ${t("pair.notSetup")}</p>`}
+    ${hello.owner || hello.mode === "basic" ? "" : `<p class="err">${ic("triangle-alert")} ${t("pair.notSetup", esc((hello.miss || []).map(k => t("perm." + k)).join(", ") || t("mode.items")))}</p>`}
   </div>`;
   // app, or a LAN browser adding another phone: back to the add screen; this phone's own pairing: back to the list if it has kids
   if (APP || target || homeKids().length) {

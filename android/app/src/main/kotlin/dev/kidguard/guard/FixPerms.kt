@@ -119,7 +119,8 @@ object FixPerms {
 
     /** The screen for [id]: the one-tap permission dialog when there is one, else the Settings page. */
     private fun intent(ctx: Context, id: String): Intent {
-        if (runtime(id) != null) return Intent(ctx, MainActivity::class.java).putExtra(EXTRA_ASK_PERM, id)
+        // admin: its screen refuses a new task (a PendingIntent always is one), so MainActivity opens it from its own task
+        if (runtime(id) != null || id == "admin") return Intent(ctx, MainActivity::class.java).putExtra(EXTRA_ASK_PERM, id)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         // a PendingIntent can't fall back: the first screen this phone has (usage: the plain list when no per-app page)
         return (Intents.firstUsable(ctx, Intents.forCap(ctx, id)) ?: Intents.appDetails(ctx)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

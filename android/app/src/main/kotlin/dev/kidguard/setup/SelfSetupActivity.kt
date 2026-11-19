@@ -81,6 +81,9 @@ class SelfSetupActivity : Activity() {
         col.addView(step(1, R.string.ssa_s1, R.string.ssa_s1_d, R.string.ssa_s1_btn, R.drawable.li_smartphone) { open(Settings.ACTION_DEVICE_INFO_SETTINGS) })
         // owner 2026-11-18: a separate "turn on Wireless debugging" step was redundant, step 2's button opens the same page
         val s3 = step(2, R.string.ssa_s3, R.string.ssa_s3_d, R.string.ssa_s3_btn, R.drawable.li_bell) { askNotification() }
+        // Xiaomi / Redmi / POCO: adb may not grant anything until "USB debugging (Security settings)" is on (2026-11-19 owner:
+        // dpm set-active-admin -> "Calling identity is not authorized"); say it before the run, not after it fails
+        if (NavGestLogic.xiaomi(android.os.Build.MANUFACTURER)) s3.addView(body(getString(R.string.ssa_xiaomi), u.text))
         portInfo = body("").apply { textSize = 13f }
         s3.addView(portInfo)
         s3.addView(u.label(getString(R.string.ssa_or_here), 14f, u.text, true).apply { setPadding(0, dp(16), 0, 0) })

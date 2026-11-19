@@ -268,6 +268,7 @@ The first capture / first input of a session is logged in the phone log.
   `Retry-After: 2` when the whole pool is full) instead of a silently closed socket.
 - `/api/hello` answers on any method (no token; the pairing probe). `?n=<16-64 chars>` (0.9.39) adds
   `proof: [hex]` = HMAC-SHA256(key = sha256-hex(token), "kg-lan:" + n), one per paired token (`LanName.proof`).
+  `miss: ["admin"|"acc"]` (0.9.53): what basic mode still lacks (not owner); the pair page names it (older phones: none, generic text).
 - **LAN address heal** (page, `core.js` `relocate` / `learnAddrs`, no phone change): after each LAN `state` the page keeps
   the phone's other addresses on the saved kid (`alt`, up to 4: `state.lan`, `http://<state.ts.ip>:8770`) and, when
   `state.relay` is set, sends the `relay` command once per page load with that same url: the phone keeps its relay id/token

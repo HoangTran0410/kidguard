@@ -19,9 +19,17 @@ object Intents {
 
     /** Starts the first of [i] that the phone opens. False when none did. */
     fun startFirst(ctx: Context, vararg i: Intent): Boolean {
-        for (x in i) if (runCatching { ctx.startActivity(x.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return true
+        // ADD_DEVICE_ADMIN finishes at once when started as a new task ("Cannot start ADD_DEVICE_ADMIN as a new task":
+        // 2026-11-19 owner, Xiaomi: step 1 slid in and straight back): from an Activity it goes into our own task
+        for (x in i) {
+            val nt = newTask(ctx is android.app.Activity, x.action)
+            if (runCatching { ctx.startActivity(if (nt) x.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) else x); true }.getOrDefault(false)) return true
+        }
         return false
     }
+
+    /** Whether to add NEW_TASK: always, except ADD_DEVICE_ADMIN from an Activity (it refuses a new task). Pure (tested). */
+    fun newTask(fromActivity: Boolean, action: String?) = !(fromActivity && action == DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
 
     /** The first of [i] that resolves (for a PendingIntent, which can't try the next one), else the last. */
     fun firstUsable(ctx: Context, i: List<Intent>): Intent? =

@@ -387,6 +387,7 @@
     <string name="ssa_s3">Step 2. Turn on Wireless debugging and enter the pairing code</string>
     <string name="ssa_s3_d">Tap the button below: Developer options opens and a box for the code appears in the notifications. Turn on \"Wireless debugging\" (allow this Wi-Fi), tap it, then \"Pair device with pairing code\". Pull the shade down, tap \"Enter pairing code\", type the 6 digits. (Leaving Settings closes the dialog.)</string>
     <string name="ssa_s3_btn">Show the code box in a notification</string>
+    <string name="ssa_xiaomi">Xiaomi, Redmi, POCO: on the same page also turn on \"USB debugging (Security settings)\" (right under USB debugging; needs a SIM and a signed-in Mi account). Without it setup stops. Can\'t sign in to Mi: use basic mode by hand, or reset and scan the QR code.</string>
     <string name="ssa_or_here">Or type it here (if the notification doesn\'t show):</string>
     <string name="ssa_code_hint">6-digit pairing code</string>
     <string name="ssa_pair_port_hint">Pairing port (leave empty to find it automatically)</string>

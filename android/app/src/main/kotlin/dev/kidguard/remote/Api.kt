@@ -58,6 +58,8 @@ class Api(private val g: Guard) {
             // pairPin: this phone takes `newPin` at pairing (pairing without a PIN is refused while none is set)
             p == "/hello" -> return Res.json(JSONObject().put("id", store.id).put("pairing", store.pairCode() != null)
                 .put("pin", store.rules.pinHash.isNotBlank()).put("pairPin", true).put("owner", Policy.isOwner(g)).put("mode", Basic.mode(g))
+                // what basic mode still lacks, so the pair page names it (2026-11-19 owner: "not set up" said nothing)
+                .put("miss", org.json.JSONArray(listOfNotNull("admin".takeIf { !Basic.adminActive(g) }, "acc".takeIf { !Acc.isOn(g) })))
                 .apply { r.query["n"]?.takeIf { it.length in 16..64 }?.let { n -> put("proof", org.json.JSONArray(store.tokenHashes().map { LanName.proof(it, n) })) } }.toString())
             p == "/pair" && r.method == "POST" -> {
                 val o = runCatching { JSONObject(r.text) }.getOrDefault(JSONObject())

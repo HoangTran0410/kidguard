@@ -32,7 +32,7 @@ L.vi = {
   "any.h": "Ghép từ xa", "any.p": "Không cùng Wi-Fi với con? Nhập mã trên màn hình của con. Giữ màn hình của con sáng.", "any.busy": "Đang chờ máy con", "any.timeout": "Máy con chưa trả lời. Bật sáng màn hình rồi thử lại.", "any.fail": "Không nối được relay. Thử lại.",
   "pair.h": "Ghép với máy của con", "pair.code": "Mã 6 số", "pair.name": "Tên con", "pair.pin": "PIN của bố mẹ", "pair.go": "Ghép", "pair.busy": "Đang ghép…", "pair.opening": "Đã ghép, đang mở…", "pe.timeout": "Máy con không trả lời sau 20 giây. Kiểm tra máy con và máy này cùng Wi-Fi rồi thử lại.",
   "pair.closedP": "Máy của con chưa mở ghép. Trên máy con: mở app KidGuard → <b>Ghép thêm máy của bố mẹ</b> (cần PIN của bố mẹ nếu đã đặt).",
-  "pair.notSetup": "Máy con chưa cài xong: mở KidGuard trên máy con và làm theo danh sách trên màn hình.",
+  "pair.notSetup": "Máy con còn thiếu: {0}. Vẫn ghép được, nhưng luật chưa có tác dụng tới khi bật xong (mở KidGuard trên máy con, làm theo danh sách).",
   "pe.wrong code": "Sai mã, thử lại", "pe.wrong pin": "Sai PIN", "pe.pin locked": "Sai PIN nhiều lần, thử lại sau {0} phút",
   "pe.wait": "Sai nhiều lần: máy con đã đổi mã mới, đợi một lát rồi nhập mã mới", "pe.closed": "Máy con đã đóng ghép, mở lại trên máy con", "pe.busy": "Mã này đang có một lần ghép khác chờ máy con trả lời. Đợi 1 phút rồi thử lại.", "pe.fail": "Không ghép được ({0}). Máy con đã ghép rồi thì \"Ghép từ xa\" không dùng được: nhờ phụ huynh đã ghép gửi lời mời.",
   "pair.newPin": "Đặt PIN của bố mẹ (4–8 số)", "pair.newPinP": "Máy con chưa có PIN: đặt luôn bây giờ. Cần PIN này để ghép thêm máy và để quản lý ngay trên máy con. Con không được biết PIN.",
