@@ -94,10 +94,12 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         val c = act
         val owner = Policy.isOwner(c)
         val out = ArrayList<Step>()
+        // restricted settings FIRST: an APK installed from a file gets neither device admin nor accessibility until it is
+        // allowed (2026-11-19, Xiaomi: the admin step was refused, "App was denied access", and this step came after it)
+        if (Build.VERSION.SDK_INT >= 33) out += Step(s(R.string.acc_restricted), s(R.string.acc_restricted_d), !Acc.restricted(c)) { SelfGate.run(act, ui) { runCatching { c.startActivity(Acc.appInfo(c)) } } }
         if (!owner) out += Step(s(R.string.basic_admin), s(R.string.basic_admin_d), Basic.adminActive(c)) {
             Intents.startFirst(c, *Intents.forCap(c, "admin").toTypedArray())
         }
-        if (Build.VERSION.SDK_INT >= 33) out += Step(s(R.string.acc_restricted), s(R.string.acc_restricted_d), !Acc.restricted(c)) { SelfGate.run(act, ui) { runCatching { c.startActivity(Acc.appInfo(c)) } } }
         out += Step(s(R.string.basic_acc), s(R.string.basic_acc_d), Acc.isOn(c) || AccPause.active(c)) { cap("acc") }
         out += Step(s(R.string.basic_usage), s(R.string.basic_usage_d), Usage.granted(c)) { cap("usage") }
         if (!owner) {

@@ -35,7 +35,7 @@
 <span id="menu" class="menu-t" aria-hidden="true"></span>
 <header>
   <div class="wrap">
-    <a class="brand" href="./"><img src="../img/icon.svg?v=53fa2372eb" width="26" height="26" alt="">KidGuard <small><span class="ver">v0.9.51</span></small></a>
+    <a class="brand" href="./"><img src="../img/icon.svg?v=53fa2372eb" width="26" height="26" alt="">KidGuard <small><span class="ver">v0.9.52</span></small></a>
     <a class="burger open" href="#menu" aria-label="Open menu"><i></i></a>
     <a class="burger shut" href="#_" aria-label="Close menu"><i></i></a>
     <nav aria-label="Menu">
@@ -170,6 +170,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <p class="need">Needs: any Android 8+. No computer, accounts can stay. For old phones with no QR screen and no computer or cable.</p>
     <ol class="steps">
       <li>Install the APK, open KidGuard, follow the <b>To do</b> list on the screen.</li>
+      <li>Android 13+ and installed from an APK file: do <b>Allow restricted settings</b> first (KidGuard's App info → ⋮ → Allow restricted settings). Otherwise the phone says "App was denied access" when you turn on device admin or accessibility.</li>
       <li>Turn on each item in order: device admin, accessibility, usage access, location (choose <b>Allow all the time</b>), notifications, battery.</li>
       <li>Each button opens the right system screen: turn the setting on, then press Back.</li>
     </ol>

@@ -219,7 +219,7 @@
 
     <!-- Device Owner checklist -->
     <string name="acc_restricted">Allow restricted settings (Android 13+)</string>
-    <string name="acc_restricted_d">Accessibility says \"Restricted setting\"? Tap OK, open this, tap ⋮ (top right) → \"Allow restricted settings\". Then turn Accessibility on again.</string>
+    <string name="acc_restricted_d">Installed KidGuard from a file? Android blocks device admin and accessibility until you allow it. Tap here, then ⋮ (top right) → \"Allow restricted settings\". No such item? Try device admin once (the phone says it is blocked), then come back.</string>
     <string name="prov_secure_yes">Turns Accessibility back on by itself: yes</string>
     <string name="prov_secure_no">Optional: for Accessibility to come back by itself, use a computer or Wireless debugging</string>
 
