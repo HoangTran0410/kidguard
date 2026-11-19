@@ -474,7 +474,11 @@ r=await fetch(`${B}/c/${idw}/watch`,{method:"POST",headers:{"x-kg-token":Tpw,"co
 const t4=(await (await GET(c4)).json()).token;
 const pl=(await (await fetch(`${B}/c/${idw}/parents`,{headers:{"x-kg-token":Tpw}})).json()).parents||[],w4=pl.find(p=>p.kind=="watch"&&p.name=="Đồng hồ của bố");
 ck("watch: wname is the watch's name in the parents list",r.status==200&&!!w4);
-ck("watch: its token works",(await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":t4}})).status==200);
+ck("watch: its token works",(await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":t4,"x-kg-name":"Zepp - Bip Max"}})).status==200);
+ck("watch: the list shows its X-KG-Name as dev",((await (await fetch(`${B}/c/${idw}/parents`,{headers:{"x-kg-token":Tpw}})).json()).parents||[]).some(p=>p.kind=="watch"&&p.dev=="Zepp - Bip Max"));
+{const P=(o)=>fetch(`${B}/c/${idw}/parents`,{method:"POST",headers:{"x-kg-token":Tpw,"content-type":"application/json"},body:JSON.stringify(o)});
+const rr=await P({rename:w4&&w4.id,name:"Bip của mẹ"});ck("watch: a parent renames the watch",rr.status==200&&(await rr.json()).parents.some(p=>p.kind=="watch"&&p.name=="Bip của mẹ"));
+const me4=pl.find(p=>p.me);ck("watch: rename of a non-watch parent 403",(await P({rename:me4&&me4.id,name:"x"})).status==403);}
 await fetch(`${B}/c/${idw}/parents`,{method:"POST",headers:{"x-kg-token":Tpw,"content-type":"application/json"},body:JSON.stringify({revoke:w4&&w4.id})});
 ck("watch: disconnected (revoked) watch gets 401",(await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":t4}})).status==401);}
 // expiry: unattached code, then an attached-but-never-fetched one: both gone after the TTL

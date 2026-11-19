@@ -35,7 +35,8 @@ data class Summary(
 object Net {
     const val DEFAULT_RELAY = "https://kg-relay.99-hoangtran.workers.dev"
     const val OSM_UA = "KidGuardWear/0.1 (Wear OS parent app; https://kid-guard.pages.dev)"
-    private const val NAME = "Wear OS watch"
+    // shown in the parent page's watch list (relay keeps the last X-KG-Name of a watch token); ASCII: it is a header
+    private val NAME = "Wear OS - " + android.os.Build.MODEL.filter { it in ' '..'~' }.take(30)
     private val rnd = SecureRandom()
 
     fun validBase(s: String) = Regex("^https://[^/#?\\s]+$").matches(s)

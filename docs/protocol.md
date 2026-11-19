@@ -450,8 +450,8 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 - `POST /c/<id>/invite {}` (a parent token) -> `{inv: 32 hex, exp}`: one use, 10 min, <= 5 open. `POST /c/<id>/join
   {name, kind, inv}` with NO `X-KG-Token` -> same reply with `pin:"inv"`; used / expired / unknown `403`. Two parents
   scanning one invite: the Durable Object runs one request at a time, the first one wins.
-- `GET /c/<id>/parents` -> `{parents:[{id (12 hex), name, kind, at, seen, me}], pinKnown}`; `POST parents {revoke:id}`
-  (any parent, the token stops at once) | `{name}` (rename self).
+- `GET /c/<id>/parents` -> `{parents:[{id (12 hex), name, kind, at, seen, me, dev?}], pinKnown}` (`dev` = a watch's last `X-KG-Name`, e.g. "Zepp - Amazfit Bip Max", "Wear OS - Pixel Watch 2"; 2026-11-19); `POST parents {revoke:id}`
+  (any parent, the token stops at once) | `{name}` (rename self) | `{rename:id, name}` (2026-11-19: rename a watch, kind "watch" only, else 403).
 - Browser tokens (`kind:"web"`) open for 12 h after a join / `POST /c/<id>/unlock {pin}` -> `{until}`; else every route
   but `unlock` / `parents` answers `423 {"error":"locked","name"}`. App tokens (the parent app has its own biometric lock)
   and watch tokens never lock. `kind` is the page's own claim: the PIN or an invite was needed to get any token.

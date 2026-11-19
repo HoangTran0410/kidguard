@@ -1,3 +1,4 @@
+import { DEVICE_NAME } from "./config/device";
 import * as hmUI from "@zos/ui";
 import { getText } from "@zos/i18n";
 import { LocalStorage } from "@zos/storage";
@@ -140,6 +141,8 @@ export function done(res, okText) {
 
 // page.request() never settles when the phone (Zepp app side service) is gone: give up after `ms`.
 export function ask(page, req, ms = 12000) {
+  // the side service remembers the watch model and sends it as X-KG-Name (page's watch list)
+  if (DEVICE_NAME && req && req.params && typeof req.params === "object") req.params.dev = DEVICE_NAME;
   return Promise.race([
     page.request(req),
     new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms)),

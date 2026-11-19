@@ -73,6 +73,12 @@ function kids() {
   }
 }
 
+// X-KG-Name: "Zepp - <model>" once a watch page told us the model, shown in the page's watch list
+function devName() {
+  const d = store().getItem("dev") || "";
+  return d ? "Zepp - " + d : "Zepp watch";
+}
+
 function ownMsgs() {
   try {
     const q = JSON.parse(store().getItem("qmsgs") || "[]");
@@ -132,7 +138,7 @@ async function http(k, path, method = "GET", body) {
   const r = await fetch({
     url: `${k.url}/c/${k.id}${path}`,
     method,
-    headers: { "X-KG-Token": k.token, "X-KG-Name": "Zepp watch", "Content-Type": "application/json" },
+    headers: { "X-KG-Token": k.token, "X-KG-Name": devName(), "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
   let j = {};
@@ -365,7 +371,7 @@ function send(path, name) {
 async function getTile(k, z, x, y, png) {
   if (k && !k.demo && k.url && k.id && k.token) {
     try {
-      return await dlTile(`${k.url}/c/${k.id}/tile?z=${z}&x=${x}&y=${y}`, png, { "X-KG-Token": k.token, "X-KG-Name": "Zepp watch" });
+      return await dlTile(`${k.url}/c/${k.id}/tile?z=${z}&x=${x}&y=${y}`, png, { "X-KG-Token": k.token, "X-KG-Name": devName() });
     } catch (e) {
       const why = (e && e.message) || String(e);
       console.log("KG relay tile fail " + why);
@@ -470,6 +476,8 @@ AppSideService(
   BaseSideService({
     onInit() {},
     onRequest(req, res) {
+      const dv = req && req.params && typeof req.params.dev === "string" ? req.params.dev.replace(/[^\x20-\x7e]/g, "").slice(0, 30) : "";
+      if (dv && store().getItem("dev") !== dv) store().setItem("dev", dv);
       handle(req)
         .then((out) => res(null, out))
         .catch((e) => res(null, { error: String((e && e.message) || e) }));

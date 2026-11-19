@@ -481,7 +481,10 @@ export class Kid {
     if (h !== bound) {
       if (par[h]) {   // a parent's own token
         me = par[h]; who = me.n;
-        if (now0 - (me.seen || 0) > 600e3) { me.seen = now0; await this.s.put("par", par); }
+        // a watch says what it is in X-KG-Name ("Zepp - Amazfit Bip Max", "Wear OS - Pixel Watch 2"; ASCII, it is a header): shown in the page's
+        // watch list so two watches of one parent can be told apart
+        const dv = me.k === "watch" ? (req.headers.get("x-kg-name") || "").replace(/[\u0000-\u001f]/g, "").slice(0, 40) : "";
+        if (now0 - (me.seen || 0) > 600e3 || (dv && me.d !== dv)) { me.seen = now0; if (dv) me.d = dv; await this.s.put("par", par); }
         if (me.k === "web" && !(me.ul > now0) && action !== "unlock" && action !== "parents")
           return json({ error: "locked", name: me.n }, 423);   // a browser opens with the family PIN (12 h)
       } else {
@@ -908,11 +911,17 @@ export class Kid {
         const k = Object.keys(par).find(x => x.slice(0, 12) === b.revoke);
         if (!k) return json({ error: "no such parent" }, 404);
         delete par[k];
+      } else if (typeof b.rename === "string") {   // a watch can't name itself: any parent renames it (people rename themselves)
+        const k = Object.keys(par).find(x => x.slice(0, 12) === b.rename);
+        if (!k) return json({ error: "no such parent" }, 404);
+        if (par[k].k !== "watch") return json({ error: "only a watch" }, 403);
+        if (!cleanName(b.name)) return json({ error: "bad json" }, 400);
+        par[k].n = cleanName(b.name);
       } else if (me && cleanName(b.name)) me.n = cleanName(b.name);
       else return json({ error: "bad json" }, 400);
       await this.s.put("par", par);
     } else if (req.method !== "GET") return json({ error: "method" }, 405);
-    return json({ parents: Object.entries(par).map(([k, p]) => ({ id: k.slice(0, 12), name: p.n, kind: p.k, at: p.at, seen: p.seen, me: k === h })),
+    return json({ parents: Object.entries(par).map(([k, p]) => ({ id: k.slice(0, 12), name: p.n, kind: p.k, at: p.at, seen: p.seen, me: k === h, ...(p.d ? { dev: p.d } : {}) })),
       pinKnown: !!(await this.pinVerifier()) });
   }
   /** Remote pairing done (pairRoute /result): the phone's token proves it; the page gets a parent token named as typed. */

@@ -558,6 +558,13 @@ function watchCard() {
   const ok = cur.via === "relay" || !!(cur.relay && st.relay);
   return secP("s-watch", "watch", t("watch.h"), t("sd.watch"), null, ok
     ? `<p class="mute">${t("watch.p")}</p>
+    <details style="margin:4px 0 8px"><summary>${ic("book-open")} ${t("wg.h")}</summary>
+      <p style="margin:8px 0 4px"><b>${t("wg.which")}</b></p>
+      <ul style="margin:0;padding-left:18px">${["wg.zepp", "wg.wear", "wg.other"].map(k => `<li style="margin:4px 0">${t(k)}</li>`).join("")}</ul>
+      <p style="margin:10px 0 4px"><b>${t("wg.how")}</b></p>
+      <ol style="margin:0;padding-left:18px">${["wg.s1", "wg.s2", "wg.s3"].map(k => `<li style="margin:4px 0">${t(k)}</li>`).join("")}</ol>
+      <p class="mute" style="margin:8px 0 0">${t("wg.net")} <a href="${SITE}${t("wg.url")}" target="_blank" rel="noopener">${t("wg.more")}</a></p>
+    </details>
     <div id="wList"><p class="mute"><i class="spin"></i></p></div>
     <p class="mute" style="margin:12px 0 6px">${t("watch.add")}</p>
     <div class="row"><input id="f-wname" maxlength="30" placeholder="${esc(t("watch.nameP"))}" aria-label="${esc(t("watch.name"))}" autocomplete="off" style="flex:1;min-width:0"></div>
@@ -586,8 +593,18 @@ function wPaint() {
   if (!L) return;
   const ws = L.list.filter(p => p.kind === "watch");
   b.innerHTML = !ws.length ? `<p class="mute">${t("watch.none")}</p>` : `<h3 style="margin:10px 0 6px">${ic("watch")} ${t("watch.list", ws.length)}</h3>` + ws.map(p => `<div class="app"><span class="ib">${ic("watch")}</span><div class="nm"><b>${esc(p.name)}</b>
-      <span class="mute">${t("watch.since", p.at ? ago(p.at) : "—")} · ${t("dev.last", p.seen ? ago(p.seen) : "—")}</span></div>
+      <span class="mute">${p.dev ? esc(p.dev) + " · " : ""}${t("watch.since", p.at ? ago(p.at) : "—")} · ${t("dev.last", p.seen ? ago(p.seen) : "—")}</span></div>
+</div>
+      <div class="row" style="margin:0 0 10px"><button type="button" data-wr="${esc(p.id)}" data-wn="${esc(p.name)}">${ic("notebook-pen")} ${t("rp.ren")}</button>
       <button type="button" class="bad" data-wx="${esc(p.id)}" data-wn="${esc(p.name)}">${ic("unlink")} ${t("watch.off")}</button></div>`).join("");
+  b.querySelectorAll("[data-wr]").forEach(x => x.onclick = async () => {
+    let n = "";
+    const inp = `<input id="askWn" maxlength="30" value="${esc(x.dataset.wn)}" aria-label="${esc(t("watch.name"))}" style="width:100%;margin-bottom:12px">`;
+    if (!(await ask(t("watch.renP"), t("rp.ren"), false, "", inp, () => !!(n = ($("#askWn") || {}).value?.trim() || "")))) return;
+    if (!n || n === x.dataset.wn) return;
+    try { const j = await rcall(cur, "/parents", "POST", { rename: x.dataset.wr, name: n }); if (j && j.parents) rpS = { k: cur, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; rpPaint(); toast("ok|" + t("watch.renDone")); }
+    catch (e) { toast("err|" + t("errX", e.message)); }
+  });
   b.querySelectorAll("[data-wx]").forEach(x => x.onclick = async () => {
     if (!(await ask(t("watch.offAsk", x.dataset.wn), t("watch.off"), true))) return;
     try { const j = await rcall(cur, "/parents", "POST", { revoke: x.dataset.wx }); if (j && j.parents) rpS = { k: cur, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; rpPaint(); wPaint(); toast("ok|" + t("watch.offDone")); }
