@@ -53,5 +53,18 @@ for (const c of ["reboot", "release", "unpairAll"]) ck(`destructive '${c}' is de
   const names = new Set([...js.matchAll(/\bic\("([a-z0-9-]+)"/g), ...js.matchAll(/\bsec\("[^"]+",\s*"([a-z0-9-]+)"/g), ...js.matchAll(/\["[a-z]+", "[^"]*", "[^"]*", "([a-z0-9-]+)", \[/g)].map(m => m[1]));
   for (const n of names) ck(`icon '${n}' is in ui/index.html`, html.includes(`id="i-${n}"`));
 }
+// quiet-phone alert (relay/src/quiet.js): once per quiet spell, later at bedtime, never for a week-old phone
+{
+  const { quietStep, QUIET_ALERT, QUIET_BED } = await import("../src/quiet.js");
+  const h = 1_000_000_000_000, m = 60e3;
+  ck("quiet: 10 min = wait", !quietStep(h + 10 * m, h, 0, false).alert && quietStep(h + 10 * m, h, 0, false).next === h + QUIET_ALERT + 5000);
+  ck("quiet: 31 min = alert", quietStep(h + 31 * m, h, 0, false).alert);
+  ck("quiet: already alerted for this spell", !quietStep(h + 90 * m, h, h, false).alert);
+  ck("quiet: new spell after it was heard", quietStep(h + 200 * m, h + 100 * m, h, false).alert);
+  ck("quiet: bedtime waits 12 h", !quietStep(h + 31 * m, h, 0, true).alert && quietStep(h + QUIET_BED, h, 0, true).alert);
+  ck("quiet: a week gone = no alert", !quietStep(h + 8 * 86400e3, h, 0, false).alert);
+  ck("quiet: never heard = nothing", !quietStep(h, 0, 0, false).alert);
+}
+
 console.log(pass, "pass", fail, "fail");
 process.exit(fail ? 1 : 0);

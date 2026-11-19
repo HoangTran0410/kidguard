@@ -6,6 +6,7 @@
 // JSON only (plan B, docs/decisions/remote.md 2026-11-18): no page or files; the page lives on the website and calls in with
 // CORS. Command types are short codes (docs/protocol.md "Command codes"): no feature names in this bundle.
 import { createHash } from "node:crypto";
+import { quietStep } from "./quiet.js";
 
 const MAX_BODY = 256 * 1024, MAX_DEVICE = 32 * 1024, MAX_LOGDAY = 100 * 1024, KEEP_LOGDAYS = 4;
 const MAX_FRAME = 1024 * 1024;
@@ -997,6 +998,36 @@ export class Kid {
     return st > 0 && st < 300;   // 0 = fcmSend threw
   }
 
+  /**
+   * The phone went quiet ([quietStep]): one Telegram line + a push that makes the parent app check now (it then shows its
+   * own "offline since" notice). Once per quiet spell; [quietBack] says when it is heard again. Returns the next look (ms).
+   */
+  async quietCheck(now, heard) {
+    const [qa, state, tg, tokens, kid] = await Promise.all(["qa", "state", "tg", "push", "kid"].map(k => this.s.get(k)));
+    if (!state || !((tg && tg.chat) || (tokens && tokens.length))) return 0;   // nobody to tell
+    const bed = !!(state.now && state.now.why === "bedtime");
+    const { alert, next } = quietStep(now, heard, qa || 0, bed);
+    if (!alert) return next;
+    this.qa = heard; await this.s.put("qa", heard);   // before sending: a retry must not double-notify
+    if (tg && tg.chat && this.env.TG_BOT) {
+      const m = TGM[tg.lang] || TGM.vi;
+      const st = await tgSend(this.env, tg.chat, m.quiet(tg.name, Math.round((now - heard) / 60e3))).catch(() => 0);
+      if (st === 403) await this.s.delete(["tg", "tgCode"]);
+    }
+    if (kid && this.env.FCM_SA) for (const t of tokens || [])
+      await fcmSend(this.env, t, { kind: "ev", kid, eid: "q:" + heard, t: String(heard), ek: "quiet" }).catch(() => 0);
+    return 0;
+  }
+
+  /** Heard again after a quiet alert: Telegram says so (the parent app clears its own notice on its next check). */
+  async quietBack() {
+    if (this.qa === undefined) this.qa = (await this.s.get("qa")) || 0;
+    if (!this.qa) return;
+    this.qa = 0; await this.s.delete("qa");
+    const tg = await this.s.get("tg");
+    if (tg && tg.chat && this.env.TG_BOT) await tgSend(this.env, tg.chat, (TGM[tg.lang] || TGM.vi).back(tg.name)).catch(() => 0);
+  }
+
   /** Storage GC: armed once per object wake by sync(); see GC_MS. Also the push wake of a quiet phone (wakeKid). */
   async alarm() {
     const now = Date.now(), seen = this.phoneWs().length ? now : Math.max((await this.s.get("seen")) || 0, this.seen || 0);
@@ -1012,11 +1043,15 @@ export class Kid {
       if (quiet >= WAKE_QUIET && quiet < WAKE_DAYS) { await this.wakeKid(now, heard, "alarm"); next = Math.min(next, now + WAKE_QUIET); }
       else if (quiet < WAKE_QUIET) next = Math.min(next, heard + WAKE_QUIET + 5000);
     }
+    const q = await this.quietCheck(now, this.seenNow(seenAt)).catch(e => { console.log("quiet", String(e)); return 0; });
+    if (q) next = Math.min(next, q);
     await this.s.setAlarm(Math.max(now + 1000, files.length ? Math.min(next, Math.min(...files.map(f => f.at)) + FILE_TTL + 60e3) : next));
   }
 
   async sync(body, id, nk, now, ws = null) {
     if (!this.gcArmed) { this.gcArmed = true; if (!(await this.s.getAlarm())) await this.s.setAlarm(now + UNUSED_MS + 1000); }
+    if (this.kidSaved !== id) { this.kidSaved = id; if ((await this.s.get("kid")) !== id) await this.s.put("kid", id); }   // the alarm has no request: quiet push needs the id
+    this.ctx.waitUntil(this.quietBack().catch(() => {}));
     let state = body.state && typeof body.state === "object" ? body.state : null;
     // a partial state (only what changed since the last sync, see mergeState) is applied on the stored one;
     // nothing stored (first sync after a GC, a wiped object) => ask the phone for a whole one
@@ -1385,6 +1420,8 @@ const TGM = {
     req: (n, min) => `${n} xin thêm ${min ? min + " phút" : "thời gian"}. Mở KidGuard để duyệt.`,
     newApp: n => `${n}: có app mới được cài trên máy.`,
     tamper: n => `${n}: có người thử can thiệp vào cài đặt máy.`,
+    quiet: (n, min) => `${n}: máy con im lặng ${min} phút. Có thể hết pin, tắt máy, mất mạng, hoặc KidGuard bị buộc dừng (mở lại KidGuard trên máy con).`,
+    back: n => `${n}: máy con đã kết nối lại.`,
     on: (n, id) => `Đã bật báo qua Telegram cho ${n}. Để huỷ: gửi /stop_${id} hoặc bấm "Huỷ liên kết" trên trang KidGuard.`,
     off: n => `Đã huỷ báo qua Telegram cho ${n}.`,
     help: "Mở trang KidGuard (Cài đặt > Báo qua Telegram) rồi bấm nút liên kết.",
@@ -1394,6 +1431,8 @@ const TGM = {
     req: (n, min) => `${n} asks for ${min ? min + " more minutes" : "more time"}. Open KidGuard to answer.`,
     newApp: n => `${n}: a new app was installed on the phone.`,
     tamper: n => `${n}: someone tried to tamper with the phone's settings.`,
+    quiet: (n, min) => `${n}: the kid's phone has been quiet for ${min} minutes. Flat battery, switched off, no internet, or KidGuard was force-stopped (open KidGuard on the kid's phone).`,
+    back: n => `${n}: the kid's phone is back online.`,
     on: (n, id) => `Telegram alerts are on for ${n}. To stop: send /stop_${id} or press "Unlink" on the KidGuard page.`,
     off: n => `Telegram alerts for ${n} are off.`,
     help: "Open the KidGuard page (Settings > Telegram alerts) and press the link button.",

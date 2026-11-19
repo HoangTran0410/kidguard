@@ -763,6 +763,11 @@ phone (`ListenCall.cap`) and relay, `release`. LAN / Tailscale kids keep `GET /a
   (b) a parent reads `GET state` while the phone is quiet >= 3 min (`WAKE_PARENT_MS`, tests 1500; once per 3 min).
   Phone: `KidPushService` -> `Relay.wake` (wakelock, drop a quiet socket, sync now) or `Guard.start`. Does not reach a
   force-stopped app or a phone that is off / offline.
+- **Quiet phone alert (2026-11-19, `relay/src/quiet.js`):** the DO alarm also looks at the quiet spell. Quiet >= 30 min
+  (12 h while the last state said `now.why: "bedtime"`; nothing after 7 days) and a parent to tell (Telegram link or push
+  tokens): one Telegram line (`TGM.quiet`) + to each parent token `{"kind": "ev", "kid", "eid": "q:<heard ms>", "t", "ek": "quiet"}`
+  (the parent app runs its check now and shows its own "offline since" notice). Once per spell (`qa` = the `heard` alerted).
+  The next sync after it: Telegram `TGM.back`, `qa` deleted. Stored `kid` = the relay id (the alarm has no request).
 
 ## Telegram bot on the child phone (v0.9.x, Tg.kt)
 - The family makes its own bot at @BotFather; the token goes to the phone with command `tgSet {token, lang: "vi"|"en", name}`
