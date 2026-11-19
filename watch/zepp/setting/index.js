@@ -2,7 +2,7 @@
 // (settingsStorage "qmsgs": shown first under "Câu có sẵn", before the family's saved messages = rules.msgs from the
 // page), advanced (paste the relay link the page shows under Settings > connection:
 // https://<relay>/go#c=<id>&k=<token>&n=<name>; relay address override). Text is vi + en (the settings page has no
-// locale API we rely on), Vietnamese first.
+// locale API we rely on): a Tiếng Việt / English switch at the top, kept in settingsStorage "lang" (default vi).
 
 const C = { bg: "#f2f3f7", card: "#fff", text: "#1c1c1e", mute: "#8a8a8e", line: "#ececf0", blue: "#2f6bff", red: "#e5484d", soft: "#eef3ff" };
 const MAX_Q = 12;
@@ -38,6 +38,29 @@ const json = (st, key) => {
 // Text renders inline in the Zepp app settings page: title + sub run together on one line. One View per line.
 const line = (style, text, bold) => View({ style: { display: "block", width: "100%" } }, [Text(bold ? { bold: true, style } : { style }, text)]);
 
+const TX = {
+  vi: {
+    sub: "Điện thoại của con trên cổ tay", conn: "Kết nối đồng hồ",
+    s1: "Mở KidGuard trên đồng hồ, bấm \"Kết nối\": đồng hồ hiện mã 6 số.",
+    s2: "Trên trang KidGuard (máy bố mẹ): chọn bé → Cài đặt → Đồng hồ, nhập mã.",
+    s3: "Xong. Muốn gỡ: bấm \"Ngắt kết nối\" ở đó, hoặc Xoá bên dưới.",
+    kids: "Các con", noKid: "Chưa có bé nào.", kid: "Con", rm: "Xoá",
+    q: "Câu nhắn sẵn", qSub: "Hiện đầu tiên ở \"Câu có sẵn\" trên đồng hồ, trước các câu mẫu của gia đình (lưu ở trang KidGuard).",
+    qAdd: "+ Thêm câu", qPh: "Về nhà ăn cơm nhé",
+    adv: "Nâng cao", link: "Dán link relay (thay cho mã 6 số)", relay: "Địa chỉ relay", bad: "Link không đúng",
+  },
+  en: {
+    sub: "Your child's phone on your wrist", conn: "Connect the watch",
+    s1: "Open KidGuard on the watch and tap \"Connect\": the watch shows a 6-digit code.",
+    s2: "On the KidGuard page (parent phone): pick the kid → Settings → Watch, type the code.",
+    s3: "Done. To remove: tap \"Disconnect\" there, or Remove below.",
+    kids: "Kids", noKid: "No kid yet.", kid: "Kid", rm: "Remove",
+    q: "Quick messages", qSub: "Shown first under \"Quick messages\" on the watch, before the family's saved messages (kept on the KidGuard page).",
+    qAdd: "+ Add a message", qPh: "Come home for dinner",
+    adv: "Advanced", link: "Paste a relay link (instead of the 6-digit code)", relay: "Relay address", bad: "Bad link",
+  },
+};
+
 const card = (title, sub, kids) =>
   View({ style: { background: C.card, borderRadius: "14px", padding: "14px 16px", marginBottom: "14px" } }, [
     line({ fontSize: "17px", color: C.text }, title, true),
@@ -54,8 +77,8 @@ const row = (main, sub, btn) =>
     btn,
   ]);
 
-const rmBtn = (onClick) =>
-  Button({ label: "Xoá", onClick, style: { fontSize: "13px", padding: "4px 14px", borderRadius: "14px", background: "#fdecec", color: C.red, border: "none" } });
+const rmBtn = (label, onClick) =>
+  Button({ label, onClick, style: { fontSize: "13px", padding: "4px 14px", borderRadius: "14px", background: "#fdecec", color: C.red, border: "none" } });
 
 const step = (n, text) =>
   View({ style: { display: "flex", alignItems: "flex-start", marginTop: "8px" } }, [
@@ -70,30 +93,35 @@ AppSettingsPage({
     const qm = json(st, "qmsgs").map((m) => String(m)).filter(Boolean);
     const saveKids = (k) => st.setItem("kids", JSON.stringify(k));
     const saveQ = (q) => st.setItem("qmsgs", JSON.stringify(q));
+    const lang = st.getItem("lang") === "en" ? "en" : "vi";
+    const T = TX[lang];
+    const pill = (code, label) =>
+      Button({
+        label, onClick: () => st.setItem("lang", code),
+        style: { fontSize: "13px", padding: "4px 12px", marginLeft: "6px", borderRadius: "14px", border: "none",
+          background: lang === code ? C.blue : C.card, color: lang === code ? "#fff" : C.text },
+      });
     const host = (u) => String(u || "").replace(/^https:\/\//, "");
 
     return View({ style: { background: C.bg, minHeight: "100vh", padding: "16px 14px 28px" } }, [
       View({ style: { padding: "4px 4px 14px" } }, [
         line({ fontSize: "24px", color: C.text }, "KidGuard", true),
-        line({ fontSize: "13px", color: C.mute, marginTop: "2px" }, "Điện thoại của con trên cổ tay · Your child's phone on your wrist"),
+        line({ fontSize: "13px", color: C.mute, marginTop: "2px" }, T.sub),
+        View({ style: { display: "flex", justifyContent: "flex-end", marginTop: "10px" } }, [pill("vi", "Tiếng Việt"), pill("en", "English")]),
       ]),
 
-      card("Kết nối đồng hồ", "Connect the watch", [
-        step(1, "Mở KidGuard trên đồng hồ, bấm \"Kết nối\": đồng hồ hiện mã 6 số."),
-        step(2, "Trên trang KidGuard (máy bố mẹ): chọn bé → Cài đặt → Đồng hồ, nhập mã."),
-        step(3, "Xong. Muốn gỡ: bấm \"Ngắt kết nối\" ở đó, hoặc Xoá bên dưới."),
+      card(T.conn, "", [step(1, T.s1), step(2, T.s2), step(3, T.s3),
       ]),
 
-      card(`Các con (${kids.length})`, kids.length ? "Kids on this watch" : "Chưa có bé nào. No kid yet.",
-        kids.map((k, i) => row(k.name || "Con", host(k.url), rmBtn(() => saveKids(kids.filter((_, j) => j !== i)))))),
+      card(`${T.kids} (${kids.length})`, kids.length ? "" : T.noKid,
+        kids.map((k, i) => row(k.name || T.kid, host(k.url), rmBtn(T.rm, () => saveKids(kids.filter((_, j) => j !== i)))))),
 
-      card(`Câu nhắn sẵn (${qm.length}/${MAX_Q})`,
-        "Hiện đầu tiên ở \"Câu có sẵn\" trên đồng hồ, trước các câu mẫu của gia đình (lưu ở trang KidGuard). Quick messages of this watch.",
-        qm.map((m, i) => row(m, "", rmBtn(() => saveQ(qm.filter((_, j) => j !== i))))).concat(
+      card(`${T.q} (${qm.length}/${MAX_Q})`, T.qSub,
+        qm.map((m, i) => row(m, "", rmBtn(T.rm, () => saveQ(qm.filter((_, j) => j !== i))))).concat(
           qm.length < MAX_Q
             ? [TextInput({
-                label: "+ Thêm câu / Add a message",
-                placeholder: "Về nhà ăn cơm nhé",
+                label: T.qAdd,
+                placeholder: T.qPh,
                 subStyle: { color: C.mute, fontSize: "12px" },
                 labelStyle: { color: C.blue, fontSize: "15px", padding: "10px 0", borderTop: qm.length ? `1px solid ${C.line}` : "none" },
                 onChange: (v) => {
@@ -103,21 +131,21 @@ AppSettingsPage({
               })]
             : [])),
 
-      card("Nâng cao", "Advanced", [
+      card(T.adv, "", [
         TextInput({
-          label: "Dán link relay (thay cho mã 6 số)",
+          label: T.link,
           placeholder: "https://…/go#c=…&k=…&n=…",
           subStyle: { color: C.mute, fontSize: "12px" },
           labelStyle: { fontSize: "15px", color: C.text, padding: "10px 0" },
           onChange: (v) => {
             const k = parse(v);
-            if (!k) return st.setItem("err", "Link không đúng / Bad link");
+            if (!k) return st.setItem("err", "bad");
             st.setItem("err", "");
             saveKids(kids.filter((x) => x.id !== k.id).concat(k));
           },
         }),
         TextInput({
-          label: "Địa chỉ relay",
+          label: T.relay,
           placeholder: "https://kg-relay.99-hoangtran.workers.dev",
           value: st.getItem("relay") || "",
           subStyle: { color: C.mute, fontSize: "12px" },
@@ -127,7 +155,7 @@ AppSettingsPage({
             if (!r || /^https:\/\/[^/#?\s]+$/.test(r)) st.setItem("relay", r);
           },
         }),
-        st.getItem("err") ? line({ color: C.red, fontSize: "13px", marginTop: "6px" }, st.getItem("err")) : null,
+        st.getItem("err") ? line({ color: C.red, fontSize: "13px", marginTop: "6px" }, T.bad) : null,
       ]),
     ]);
   },
