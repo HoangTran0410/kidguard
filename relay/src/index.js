@@ -944,7 +944,7 @@ export class Kid {
     const src = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`, key = new Request(src);
     let r = await caches.default.match(key).catch(() => null);
     if (!r) {
-      const up = await fetch(src, { headers: { "User-Agent": "KidGuardRelay/1 (map for the KidGuard watch app; +https://kid-guard.pages.dev)" } }).catch(() => null);
+      const up = await fetch(src, { headers: { "User-Agent": "KidGuardRelay/1 (map for the KidGuard watch app; +https://kidguard.asia)" } }).catch(() => null);
       if (!up || !up.ok) return json({ error: "tile " + (up ? up.status : "unreachable") }, 502);
       r = new Response(await up.arrayBuffer(), { headers: { "content-type": "image/png", "cache-control": "public, max-age=604800" } });
       await caches.default.put(key, r.clone()).catch(() => {});

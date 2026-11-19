@@ -55,7 +55,7 @@ shape, say so in your report instead of silently diverging.
                                    //      LAN `GET /api/shot/<id>` -> image/jpeg (404 gone); relay: command `shotUp {shot: <id>}` ->
                                    //      the phone posts it on the file channel (fid = id, to = parent, n = 1). Device Owner grants
                                    //      CAMERA; basic mode asks once after a right admin PIN. Not in the Home flavor.
-  "accPause": ["com.VCB", "…"],    // NEW: apps that refuse to run while any accessibility service is on (banks by default; parents add any package). The phone also adds new entries from kid-guard.pages.dev/data/bank-apps.json once a day (never re-adds one the parent removed); that file is `{"v":1,"apps":[{"pkg","name","acc":true,"vpn":false}],"drop":[]}`. Absent = the phone's
+  "accPause": ["com.VCB", "…"],    // NEW: apps that refuse to run while any accessibility service is on (banks by default; parents add any package). The phone also adds new entries from kidguard.asia/data/bank-apps.json once a day (never re-adds one the parent removed); that file is `{"v":1,"apps":[{"pkg","name","acc":true,"vpn":false}],"drop":[]}`. Absent = the phone's
   "vpnPause": ["xyz.be.cake"],    // NEW (v0.9.13): apps that refuse to run with a VPN up: Tailscale DISCONNECT_VPN while used (owner mode also lifts always-on VPN, put back after); independent of accPause. Absent = ["xyz.be.cake"]. Also fed by the website list (apps[].vpn).
   "devPause": ["vms.com.vn.mymobifone"], // NEW (0.9.14): apps that refuse USB / wireless debugging: Developer options + adb off while used, exactly what was on comes back after (DevOpts.pause); the launcher holds the start until adbd is down. Absent = old phone: accPause also pauses debugging
   "tcpPause": ["vms.com.vn.mymobifone"], // NEW (2026-11-13): apps that also refuse adb over the network: `adb usb` while used (service.adb.tcp.port -> 0). The port is NOT restored on mobile data; Shell reopens 5555 (rule-less adbTcp) once on Wi-Fi. Kid home asks first (what goes off, how it comes back). Absent = old phone: devPause also closed the port
@@ -294,7 +294,7 @@ The first capture / first input of a session is logged in the phone log.
   `DEFAULT_RELAY` in `core.js`) with a new relay id/token (device row "relay"). `relay{url:""}` = relay off: the url is
   stored empty, the token kept, no default again. Home flavor: never. The page's relay section prefills the default url,
   shows the `/go` link and a "Tắt relay" button; self-hosting (`scripts/relay.sh|ps1`) is the advanced line.
-- **`/go` link** = `https://kid-guard.pages.dev/go#c=<relay id>&k=<relay token>&n=<name>[&r=<relay origin>]` (the parent
+- **`/go` link** = `https://kidguard.asia/go#c=<relay id>&k=<relay token>&n=<name>[&r=<relay origin>]` (the parent
   page on the website, plan B: the relay serves no page; `r` only when not `DEFAULT_RELAY`, the page keeps it in localStorage
   `kg.relay` and stores `target` = relay origin on the kid; `/go` = `/app/` via `website/_redirects`). `core.js goBoot`
   asks `GET /c/<id>/where` -> `{seen, lan, ts, same, mode}` (`same` = the parent's public address equals one of the
@@ -435,7 +435,7 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
   shows "the kid's phone removed management at …" with a Remove button.
 - Input `ms` (swipe duration) is clamped to **50..3000** by both the worker and `Acc.kt`.
 - `GET /c/<id>/state` already returns `seen` (ms of the phone's last sync): the page warns when `now - seen > 5 min`.
-- `/install` and `/qr` are website pages (`kid-guard.pages.dev`, copies of `ui/install.html` / `ui/qr.html`); `qr.html` makes its
+- `/install` and `/qr` are website pages (`kidguard.asia`, copies of `ui/install.html` / `ui/qr.html`); `qr.html` makes its
   invite on `DEFAULT_RELAY` (cross-origin).
 
 ### Parents (2026-11-17): own relay token per parent, family PIN, invites
@@ -466,7 +466,7 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 
 ### UI pack (2026-11-17: the page updates without an app update; `android/shared/UiPack.kt`, `scripts/ui-pack.mjs`)
 - Why: the page lives in 3 copies (APK of the phone, APK of the parent app, worker). The worker is redeployed at once; the apps used to show the page of their own build. Now the phone and the parent app serve the newest **verified** pack, else their bundled page.
-- Files on Pages (`https://kid-guard.pages.dev/ui/`, built by `scripts/ui-pack.mjs`, deployed by `scripts/deploy.sh`): `manifest.json`, `manifest.sig`, `pack-<ver>.zip`. `manifest.json` = `{"v":1,"ver":<12 hex>,"seq":<unix s, rises>,"minKid":<n>,"minParent":<n>,"files":{"index.html":<sha256>,"assets/<name>.js|css":<sha256>}}`; `ver` = first 12 hex of sha256 over the sorted `name:sha\n` lines (content hash). `manifest.sig` = base64 DER ECDSA P-256 / SHA-256 over the exact manifest bytes. The zip holds `manifest.json`, `manifest.sig` and exactly the files named in the manifest (names `index.html` or `assets/[a-z0-9-]+.(js|css)` only).
+- Files on Pages (`https://kidguard.asia/ui/`, built by `scripts/ui-pack.mjs`, deployed by `scripts/deploy.sh`): `manifest.json`, `manifest.sig`, `pack-<ver>.zip`. `manifest.json` = `{"v":1,"ver":<12 hex>,"seq":<unix s, rises>,"minKid":<n>,"minParent":<n>,"files":{"index.html":<sha256>,"assets/<name>.js|css":<sha256>}}`; `ver` = first 12 hex of sha256 over the sorted `name:sha\n` lines (content hash). `manifest.sig` = base64 DER ECDSA P-256 / SHA-256 over the exact manifest bytes. The zip holds `manifest.json`, `manifest.sig` and exactly the files named in the manifest (names `index.html` or `assets/[a-z0-9-]+.(js|css)` only).
 - Accept rules (phone and parent app, `UiPackStore`): signature by one of the baked public keys (`UiPackCfg.KEYS`: the signing key + an offline backup); every file's sha256; `seq` > the current pack's and >= the highest seq ever installed (`floor`: no replay of an older pack, even after the cache was dropped); `ver` not on the bad list; `minKid` <= the phone's versionCode (parent app: `minParent` <= its versionCode). `minKid` / `minParent` are set by hand in `scripts/ui-pack.json`: raise when the page starts to need a native bridge method, endpoint or CSP origin an older app lacks.
 - Storage: `cur/` + `prev/` + `meta.json` in the app's files dir (phone: device-protected). Written to a temp dir, renamed. Re-verified when loaded after a restart; a bad cache is dropped (previous pack, else bundled). An app update drops the cache (the new APK's bundled page is at least as new).
 - Rollback: a new pack is *pending* until the page it served reports `GET /ui/ok?v=<ver>` (sent by `uiPackBoot()` after `boot()` ran); the 3rd index load without that report blacklists the pack and the previous one comes back. A bad published pack is also replaced by publishing a newer one (a rollback = a new pack with the old content and a higher seq).

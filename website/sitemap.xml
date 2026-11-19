@@ -1,33 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://kid-guard.pages.dev/</loc>
-    <xhtml:link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/"/>
+    <loc>https://kidguard.asia/</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://kidguard.asia/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://kidguard.asia/en/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://kidguard.asia/en/"/>
   </url>
   <url>
-    <loc>https://kid-guard.pages.dev/en/</loc>
-    <xhtml:link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/"/>
+    <loc>https://kidguard.asia/en/</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://kidguard.asia/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://kidguard.asia/en/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://kidguard.asia/en/"/>
   </url>
   <url>
-    <loc>https://kid-guard.pages.dev/guide</loc>
-    <xhtml:link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/guide"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/guide"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/guide"/>
+    <loc>https://kidguard.asia/guide</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://kidguard.asia/guide"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://kidguard.asia/en/guide"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://kidguard.asia/en/guide"/>
   </url>
   <url>
-    <loc>https://kid-guard.pages.dev/en/guide</loc>
-    <xhtml:link rel="alternate" hreflang="vi" href="https://kid-guard.pages.dev/guide"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://kid-guard.pages.dev/en/guide"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://kid-guard.pages.dev/en/guide"/>
+    <loc>https://kidguard.asia/en/guide</loc>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://kidguard.asia/guide"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://kidguard.asia/en/guide"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://kidguard.asia/en/guide"/>
   </url>
   <url>
-    <loc>https://kid-guard.pages.dev/ai/vi/</loc>
+    <loc>https://kidguard.asia/ai/vi/</loc>
   </url>
   <url>
-    <loc>https://kid-guard.pages.dev/ai/en/</loc>
+    <loc>https://kidguard.asia/ai/en/</loc>
   </url>
 </urlset>

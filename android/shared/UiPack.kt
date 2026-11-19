@@ -20,7 +20,9 @@ import java.util.zip.ZipInputStream
  */
 object UiPackCfg {
     /** Where the signed manifest + pack live (website/ui/, built by scripts/ui-pack.mjs, deployed by scripts/deploy.sh). */
-    const val BASE = "https://kid-guard.pages.dev/ui/"
+    const val BASE = "https://kidguard.asia/ui/"
+    /** Mirrors tried in order when [BASE] can't be reached (the pack is signed: any host is safe). 2026-11-19 own domain, Pages kept. */
+    val BASES = listOf(BASE, "https://kid-guard.pages.dev/ui/")
     /** ECDSA P-256 public keys (X.509 DER, base64). [0] = the one scripts/ui-pack.mjs signs with, [1] = an offline backup (key rotation without an APK update is NOT possible: add keys with a release). Rewritten by `node scripts/ui-pack.mjs --init`. */
     val KEYS: List<String> = listOf(/*KEYS*/"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKtbl/OeNbQ+B8Cx3IkSWtyGebZ32BRqNX4bLxAbfyVQmvCZ3sRdtvPoaX8x98sjTrxDoTFzOBBVt3/0qszARlQ==", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETXhNbMTjy8pEV0qrBMQPe0AjaOm+usW4n7IKXbRcDiaS+O/whtDxrgI0lIC/WQrELDptzq9juZLhMRPON9q+/Q=="/*KEYS*/)
 }
@@ -292,7 +294,7 @@ class UiPackHub(val store: UiPackStore, private val bundled: (String) -> ByteArr
             checking = true; started = now
         }
         Thread({
-            val r = try { store.check(base) } catch (e: Throwable) { "net" }
+            val r = (if (base == UiPackCfg.BASE) UiPackCfg.BASES else listOf(base)).fold("net") { r, b -> if (r != "net") r else try { store.check(b) } catch (e: Throwable) { "net" } }
             lastResult = r; lastCheck = System.currentTimeMillis(); checking = false
             try { done(r) } catch (_: Throwable) {}
         }, "ui-pack").apply { isDaemon = true }.start()

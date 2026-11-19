@@ -261,7 +261,7 @@ object SupportScrub {
     private val DOTTED = Regex("\\b[a-zA-Z][a-zA-Z0-9_]*(?:\\.[a-zA-Z0-9_]+)+\\b")
     private val OWN = listOf("dev.kidguard", "android", "androidx", "java", "javax", "kotlin", "kotlinx", "com.android", "com.google.android",
         "org.json", "dalvik", "libcore", "sun", "org.chromium", "com.google.android.gms", "okhttp3", "okio", "io.github", "workers.dev",
-        "com.tailscale", "api.telegram.org", "pages.dev")
+        "com.tailscale", "api.telegram.org", "pages.dev", "kidguard.asia")
 
     fun text(s: String, keep: String?): String = s
         .let { SECRET.replace(it) { m -> m.groupValues[1] + "…" + m.groupValues[2] } }

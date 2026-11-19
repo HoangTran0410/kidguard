@@ -63,7 +63,7 @@ function appSettings() {
   ${digestCardHtml()}
   ${notifHealthHtml()}
   <div class="card"><h2>${ic("download")} ${t("au.upd")}</h2><div id="updBox">${updBoxHtml()}</div>${uiPackHtml()}</div>
-  <div class="card row"><b class="sp">${ic("book-open")} ${t("au.guide")}</b><a class="btn" href="https://kid-guard.pages.dev/${lang === "en" ? "en/" : ""}guide.html" target="_blank" rel="noopener">${ic("external-link")} ${t("open")}</a></div>
+  <div class="card row"><b class="sp">${ic("book-open")} ${t("au.guide")}</b><a class="btn" href="${SITE}/${lang === "en" ? "en/" : ""}guide.html" target="_blank" rel="noopener">${ic("external-link")} ${t("open")}</a></div>
   <button id="abk">${ic("list")} ${t("back")}</button>`;
   $("#abk").onclick = $("#appSetBack").onclick = appSetClose;
   $("#app").querySelectorAll("[data-th]").forEach(b => b.onclick = () => {

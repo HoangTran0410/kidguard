@@ -14,7 +14,8 @@ import java.net.URL
  * Offline / site down: the bundled list still counts. A listed app that is blocked never pauses (AccPause.pause).
  */
 object BankList {
-    const val URL = "https://kid-guard.pages.dev/data/bank-apps.json"
+    const val URL = "https://kidguard.asia/data/bank-apps.json"
+    private val URLS = listOf(URL, "https://kid-guard.pages.dev/data/bank-apps.json")   // own domain, Pages as mirror
     private const val RETRY_MS = 3_600_000L
     @Volatile private var triedAt = 0L
     @Volatile private var bundledDone = false
@@ -29,8 +30,9 @@ object BankList {
         triedAt = now; lastErr = ""
         Thread({
             runCatching {
-                val c = URL(URL).openConnection() as HttpURLConnection
+                var c = URL(URLS[0]).openConnection() as HttpURLConnection
                 c.connectTimeout = 15_000; c.readTimeout = 15_000
+                if (runCatching { c.responseCode }.isFailure) { c.disconnect(); c = URL(URLS[1]).openConnection() as HttpURLConnection; c.connectTimeout = 15_000; c.readTimeout = 15_000 }
                 val body = try { if (c.responseCode == 200) c.inputStream.use { it.readBytes().take(64_000).toByteArray().toString(Charsets.UTF_8) } else { lastErr = "http ${c.responseCode}"; null } } finally { c.disconnect() }
                 val l = body?.let { BankListLogic.parse(it) } ?: run { if (lastErr.isEmpty()) lastErr = "bad list"; return@runCatching }
                 apply(g, s, BankListLogic.Parsed(AccPauseLogic.DEFAULT + l.acc, VpnPauseLogic.DEFAULT + l.vpn, l.drop, DevPauseLogic.DEFAULT + l.dev))

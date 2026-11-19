@@ -46,7 +46,7 @@ object FeaturesSheet {
      *  MainActivity and re-add the dead one's views (crash 2026-11-18, launcher.md INCIDENT). */
     fun close() { runCatching { cur?.dismiss() }; closed() }
 
-    const val GUIDE = "https://kid-guard.pages.dev/guide#install"
+    const val GUIDE = "https://kidguard.asia/guide#install"
 
     private val ICON = mapOf(
         "launcher" to R.drawable.li_house, "launcherLock" to R.drawable.li_lock, "debloat" to R.drawable.li_eraser,

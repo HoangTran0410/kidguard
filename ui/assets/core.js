@@ -220,7 +220,8 @@ const wireIn = j => { for (const f of ["expired", "queue"]) if (j && Array.isArr
 const DEFAULT_RELAY = "https://kg-relay.99-hoangtran.workers.dev";
 // Plan B (docs/decisions/remote.md 2026-11-18): the relay is JSON only; a browser gets this page from the website (SITE /app/, /go)
 // and calls the relay cross-origin. RELAY = the relay of the link that opened it (#r=<https origin>), else the last one, else the author's.
-const SITE = "https://kid-guard.pages.dev";
+const SITE = "https://kidguard.asia";
+const OLD_SITE = "https://kid-guard.pages.dev";   // links shared before 2026-11-19 (same site)
 const httpsOrigin = v => { try { const u = new URL(v); return u.protocol === "https:" ? u.origin : ""; } catch { return ""; } };
 let RELAY = DEFAULT_RELAY;
 const OLD_RELAY = "https://kidguard.99-hoangtran.workers.dev";   // killed 2026-11-17 (docs/decisions/remote.md): read as DEFAULT_RELAY
@@ -229,7 +230,7 @@ const setRelay = r => { r = httpsOrigin(r || ""); if (!r) return; RELAY = r; try
 /** A browser relay kid's relay: its own (target), else this page's. */
 const relayOf = k => { const t = k && k.target; return t === OLD_RELAY ? DEFAULT_RELAY : t || RELAY; };
 /** The relay a pasted / scanned link names: #r=, else (a link to the website) the page's relay, else the link's own origin (an old relay link). */
-const relayOfLink = (u, h) => httpsOrigin(h.get("r") || "") || (u.origin === SITE || u.origin === location.origin ? RELAY : u.origin);
+const relayOfLink = (u, h) => httpsOrigin(h.get("r") || "") || (u.origin === SITE || u.origin === OLD_SITE || u.origin === location.origin ? RELAY : u.origin);
 /** The link that always opens: the website's /go page (core.js goBoot); r= only for a relay other than the author's. */
 const goLink = (url, id, token, name, relay) => `${url}/go#c=${encodeURIComponent(id)}&k=${encodeURIComponent(token)}&n=${encodeURIComponent(name || "")}${relay && relay !== DEFAULT_RELAY ? "&r=" + encodeURIComponent(relay) : ""}`;
 const lanLink = (base, id, token, name) => `${base}/#lk=${token}&rc=${encodeURIComponent(id)}&ru=${encodeURIComponent(RELAY)}&n=${encodeURIComponent(name || "")}`;
@@ -760,7 +761,7 @@ function startCard(full) {
   return `<div class="card start"><h2>${ic("sparkles")} ${t(full ? "st.title" : "st.more")}</h2>${full ? `<p class="sub">${t("st.none")}</p>` : ""}`
     + row("/install", "download", "install") + row("/qr", "shield", "qr")
     + (full ? `<div class="go nolink"><span class="gi">${ic("link")}</span><span class="gt"><b>${t("st.pair")}</b><small>${t("st.pairD")}</small></span></div>` : "")
-    + row("https://kid-guard.pages.dev/guide", "book-open", "guide", true) + `</div>`;
+    + row(SITE + "/guide", "book-open", "guide", true) + `</div>`;
 }
 
 function listScreen(list) {

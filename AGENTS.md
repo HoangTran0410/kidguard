@@ -48,7 +48,7 @@ When you settle something durable (a decision, a rejected approach, a platform q
 ## Layout (where is X)
 Root: `android/` (Gradle: `app/` child app with flavors `kid` + `home`, `parent/` parent app), `ui/` (parent page +
 installers, also the APK assets dir and imported by the worker), `relay/` (Cloudflare Worker + Durable Object), `website/`
-(static site kid-guard.pages.dev), `watch/` (parent watch apps, one folder per platform, shared contract in `watch/README.md`: `zepp/` Zepp OS for the owner's Amazfit Bip Max (`app-side/` runs in the Zepp phone app and talks to the relay like the page, `page/` = watch screens; build `cd watch/zepp && npm ci && npx zeus build`, install `tools/install.exp` = the owner's watch, ask first), `wearos/`, `garmin/`, `apple/`; each has a README in the docs/flows/ style), `docs/`, `scripts/` (build, setup, relay deploy). Build outputs: `build/`.
+(static site kidguard.asia), `watch/` (parent watch apps, one folder per platform, shared contract in `watch/README.md`: `zepp/` Zepp OS for the owner's Amazfit Bip Max (`app-side/` runs in the Zepp phone app and talks to the relay like the page, `page/` = watch screens; build `cd watch/zepp && npm ci && npx zeus build`, install `tools/install.exp` = the owner's watch, ask first), `wearos/`, `garmin/`, `apple/`; each has a README in the docs/flows/ style), `docs/`, `scripts/` (build, setup, relay deploy). Build outputs: `build/`.
 
 `K/` = `android/app/src/main/kotlin/dev/kidguard/`:
 | Area | Files |

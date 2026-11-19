@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SITE = "https://kid-guard.pages.dev";
+const SITE = "https://kidguard.asia";
 const OUT = path.join(ROOT, "website/ai");
 const SRC = { vi: "website/guide.html", en: "website/en/guide.html" };
 const HEAD = {

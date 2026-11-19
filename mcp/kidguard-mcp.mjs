@@ -87,7 +87,7 @@ async function guideSections() {
   if (guideCache) return guideCache;
   let html = "";
   try { html = (await import("node:fs")).readFileSync(new URL("../website/guide.html", import.meta.url), "utf8"); }
-  catch { const r = await fetch("https://kid-guard.pages.dev/guide.html"); html = await r.text(); }
+  catch { const r = await fetch("https://kidguard.asia/guide.html").catch(() => fetch("https://kid-guard.pages.dev/guide.html")); html = await r.text(); }
   html = html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, "");
   const parts = html.split(/<h[23][^>]*>/i).slice(1);
   guideCache = parts.map((p) => {

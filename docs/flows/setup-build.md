@@ -9,7 +9,7 @@ Path shorthands: `K/` = `android/app/src/main/kotlin/dev/kidguard/`, `L/` = `K/l
 - Package `dev.kidguard`; Device Owner admin `dev.kidguard/.Admin`; accessibility `dev.kidguard/dev.kidguard.Acc`; LAN port 8770.
 - Flavors (`app/build.gradle.kts:21-25`): `kid` (`dev.kidguard`, kidguard.apk), `home` (`dev.kidguard.home`, kidguard-home.apk, launcher only, no libadb native libs `:64-69`). Parent app = `:parent` (`dev.kidguard.parent`, kidguard-parent.apk).
 - One signing key `android/app/signing.jks` (git-ignored, pw hardcoded in both build.gradle files, `app/build.gradle.kts:26-33`, `parent/build.gradle.kts:38`). Same key = self-update works, QR checksum valid, HomeExport provider trusts Home. Back it up: `scripts/keys.sh backup` (password-locked file, keep it elsewhere), `restore` on a new computer.
-- Repo `HoangTran0410/kidguard` (origin). Site `kid-guard.pages.dev`. APK URLs always `releases/latest/download/<fixed name>`.
+- Repo `HoangTran0410/kidguard` (origin). Site `kidguard.asia`. APK URLs always `releases/latest/download/<fixed name>`.
 
 ### 4.1 SETUP flows (all end in: KidGuard is Device Owner + 4 grants + accessibility on)
 Contract: `docs/protocol.md:248-265` "Setup steps" (9 items). AGENTS.md says setup.sh, setup.ps1, install.html, SelfSetup.kt must stay in sync.
@@ -75,7 +75,7 @@ Extra only in SelfSetup: optional Wi-Fi-debugging off; its step 1b runs across a
 - The GitHub release creation itself (gh release create / manual upload) is not scripted or documented anywhere in repo: inferred.
 - Self-update: kid app checks daily (rule `autoUpdate`) or parent `update` command; Device Owner installs silently; refuses equal/lower versionCode (AGENTS.md).
 - Relay deploy (users' own account): `scripts/relay.sh` / `relay.ps1` -> `cd relay; npm ci; wrangler whoami/login; wrangler deploy` (`relay.sh:11-25`), prints `https://kidguard.<you>.workers.dev`; `--delete` / `-Delete` removes. Dev maintainer deploy = same script or `npx wrangler deploy`; `wrangler.toml` name `kidguard`, DO class `Kid` migration v1, ratelimit RL. FCM secret: `npx wrangler secret put FCM_SA` (README:166). Worker bundles `ui/*.html` + `ui/assets/*` at deploy, so relay MUST be redeployed after any ui/ change for "away" parents.
-- Website deploy: Cloudflare Pages `kid-guard.pages.dev`, dir `website/` (`_headers` present). No deploy script/config/workflow in repo (`scripts/site.sh` was added in 7acef5e then reverted in 9d75f23). Presumably `wrangler pages deploy website` or git-connected; unverified.
+- Website deploy: Cloudflare Pages `kidguard.asia`, dir `website/` (`_headers` present). No deploy script/config/workflow in repo (`scripts/site.sh` was added in 7acef5e then reverted in 9d75f23). Presumably `wrangler pages deploy website` or git-connected; unverified.
 
 ### 4.4 UI pack (the page without an app update)
 - Keys: `node scripts/ui-pack.mjs --init` (build.sh runs it when keys are missing) writes `android/app/ui-pack-key.pem` + `ui-pack-backup-key.pem` (both git-ignored, in the MAIN checkout also when run from a worktree) and puts the public halves into `android/shared/UiPack.kt` (commit that). Back up both files; keep the backup one offline. Lose both = phones keep the bundled page until an app release carries new keys.
@@ -94,7 +94,7 @@ Extra only in SelfSetup: optional Wi-Fi-debugging off; its step 1b runs across a
 6. Commit `vX.Y.Z: <summary>` (with Co-Authored-By), tag `vX.Y.Z`, push main + tag.
 7. Create GitHub Release `vX.Y.Z` (manual/gh) and upload from `build/`: `kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk`, their `.sha256` files, and `kidguard-<v>.apk`, `kidguard-home-<v>.apk`, `kidguard-parent-<v>.apk`. Mark as latest (updater + QR + site use `/latest/`).
 8. Deploy relay + site + UI pack with `scripts/deploy.sh` (section 4.4); or relay (`scripts/relay.sh`) so /install, /qr, parent page match; deploy website to Pages (owner's OK first).
-   Website: static dir `website/` -> Cloudflare Pages project `kid-guard` (`kid-guard.pages.dev`): `npx wrangler pages deploy website --project-name kid-guard` (the exact command is the maintainer's choice; nothing in the repo runs it). Run `scripts/stamp-site.sh` first if css/img changed (build.sh already does).
+   Website: static dir `website/` -> Cloudflare Pages project `kid-guard` (`kidguard.asia`): `npx wrangler pages deploy website --project-name kid-guard` (the exact command is the maintainer's choice; nothing in the repo runs it). Run `scripts/stamp-site.sh` first if css/img changed (build.sh already does).
 9. Verify the release: `scripts/release-check.sh [vX.Y.Z]` (read-only HEAD requests) checks the 9 contract asset names (`kidguard{,-parent,-home}.apk` + `.sha256`, three `-<v>.apk` copies) exist and the tag is `latest`. Asset names come from `Update.kt` (`kidguard.apk`, `.sha256`), README/website links and `build.sh`.
 10. Real-phone checks are the user's (nothing tests ui/*.html or on-device).
 - Signing key backup: `android/app/signing.jks` (gitignored, store/key/alias password `kidguard`, alias `kidguard`) is the only copy; lose it and every enrolled phone needs uninstall + redo setup (self-update and QR checksum both pin it). Keep an offline copy (password manager / encrypted drive) and the SHA-256 printed by build.sh ("QR checksum") with it.

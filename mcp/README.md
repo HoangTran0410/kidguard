@@ -11,7 +11,7 @@ does (same endpoints, `X-KG-Token`), and sends `X-KG-Name: AI assistant (MCP)`, 
 | `kid_status` | online / last seen, battery %, locked now, minutes used / left today, current app, location + last zone event, open requests |
 | `usage_today` | minutes per app today (top 15) |
 | `recent_events {limit?}` | newest events first: blocked apps, limits, zones, SOS, wrong PIN, requests, blocked calls |
-| `guide {query?}` | searches the user guide (`website/guide.html`, else kid-guard.pages.dev) so the AI can explain what it cannot do itself |
+| `guide {query?}` | searches the user guide (`website/guide.html`, else kidguard.asia) so the AI can explain what it cannot do itself |
 | `get_rules` | current rules JSON (PIN hash hidden) |
 | `update_rules {patch}` | JSON merge-patch (RFC 7396). Reads the current rules, applies the patch, PUTs the WHOLE object (rules are a full replace) |
 | `grant_time {minutes}` | adds to today's bonus (1..240) |
