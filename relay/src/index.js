@@ -6,7 +6,7 @@
 // JSON only (plan B, docs/decisions/remote.md 2026-11-18): no page or files; the page lives on the website and calls in with
 // CORS. Command types are short codes (docs/protocol.md "Command codes"): no feature names in this bundle.
 import { createHash } from "node:crypto";
-import { quietStep } from "./quiet.js";
+import { quietStep, QUIET_ALERT } from "./quiet.js";
 
 const MAX_BODY = 256 * 1024, MAX_DEVICE = 32 * 1024, MAX_LOGDAY = 100 * 1024, KEEP_LOGDAYS = 4;
 const MAX_FRAME = 1024 * 1024;
@@ -1024,6 +1024,8 @@ export class Kid {
     if (this.qa === undefined) this.qa = (await this.s.get("qa")) || 0;
     if (!this.qa) return;
     this.qa = 0; await this.s.delete("qa");
+    const a = await this.s.getAlarm(), t = Date.now() + QUIET_ALERT + 5000;   // the alert left the alarm far out: watch the next spell
+    if (!a || a > t) await this.s.setAlarm(t);
     const tg = await this.s.get("tg");
     if (tg && tg.chat && this.env.TG_BOT) await tgSend(this.env, tg.chat, (TGM[tg.lang] || TGM.vi).back(tg.name)).catch(() => 0);
   }
@@ -1049,7 +1051,9 @@ export class Kid {
   }
 
   async sync(body, id, nk, now, ws = null) {
-    if (!this.gcArmed) { this.gcArmed = true; if (!(await this.s.getAlarm())) await this.s.setAlarm(now + UNUSED_MS + 1000); }
+    // armed once per object wake. Pulled in to the quiet-alert horizon: an alarm set 30 days out (no kid push token) would
+    // otherwise never look at a quiet spell (alarm() recomputes the real next time, junk-bind GC included)
+    if (!this.gcArmed) { this.gcArmed = true; const a = await this.s.getAlarm(), t = now + QUIET_ALERT + 5000; if (!a || a > t) await this.s.setAlarm(t); }
     if (this.kidSaved !== id) { this.kidSaved = id; if ((await this.s.get("kid")) !== id) await this.s.put("kid", id); }   // the alarm has no request: quiet push needs the id
     this.ctx.waitUntil(this.quietBack().catch(() => {}));
     let state = body.state && typeof body.state === "object" ? body.state : null;
