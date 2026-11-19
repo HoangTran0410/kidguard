@@ -213,7 +213,7 @@
 
     <!-- Device Owner checklist -->
     <string name="acc_restricted">Cho phép cài đặt bị hạn chế (Android 13+)</string>
-    <string name="acc_restricted_d">Cài KidGuard từ file? Android chặn quyền quản trị và Trợ năng tới khi bạn cho phép. Bấm vào đây, rồi ⋮ (góc trên phải) → \"Cho phép cài đặt bị hạn chế\". Không thấy mục đó? Bật thử quản trị thiết bị một lần (máy báo bị chặn), rồi quay lại.</string>
+    <string name="acc_restricted_d">Cài KidGuard từ file? Android chặn quyền quản trị và Trợ năng tới khi bạn cho phép. Bấm vào đây, rồi \"Cho phép cài đặt bị hạn chế\" (trong ⋮ góc trên phải; Xiaomi: ngay trên trang). Không thấy? Là đã cho phép rồi, hoặc bật thử quản trị thiết bị một lần (máy báo bị chặn), rồi quay lại.</string>
     <string name="prov_secure_yes">Tự bật lại Trợ năng: có</string>
     <string name="prov_secure_no">Tuỳ chọn: muốn Trợ năng tự bật lại, cần máy tính hoặc Gỡ lỗi không dây</string>
 
@@ -331,7 +331,7 @@
     <string name="step_acc">Bật trợ năng</string>
     <string name="step_battery">Cho phép chạy nền (không giới hạn pin)</string>
     <string name="ss_failed">Chưa cài được: %1$s</string>
-    <string name="ss_sec_debug">Máy chặn lệnh cài đặt. Thường do \"Cài đặt bị hạn chế\" của Android với app cài từ file: Cài đặt > Ứng dụng > KidGuard > ⋮ > \"Cho phép cài đặt bị hạn chế\", rồi chạy lại Tự cài. Xiaomi, Redmi, POCO: bật thêm \"Gỡ lỗi USB (Cài đặt bảo mật)\" trong Tuỳ chọn nhà phát triển.</string>
+    <string name="ss_sec_debug">Máy chặn lệnh cài đặt. Xiaomi, Redmi, POCO: trong Tuỳ chọn nhà phát triển bật \"Gỡ lỗi USB (Cài đặt bảo mật)\" (công tắc riêng, dưới Gỡ lỗi USB, cần SIM và tài khoản Mi), rồi chạy lại Tự cài. Máy công ty có quản lý (MDM) có thể chặn hẳn.</string>
     <string name="ss_perm_mon">Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật \"Tắt giám sát quyền\" (Disable permission monitoring), rồi làm lại.</string>
     <string name="ss_no_pair_port">Không thấy cổng ghép nối. Hãy mở lại hộp thoại \"Ghép thiết bị bằng mã ghép nối\" rồi thử lại.</string>
     <string name="ss_pair_fail">Ghép nối không thành công (sai mã hoặc mã đã hết hạn). Mở lại \"Ghép thiết bị bằng mã\" để lấy mã mới, rồi nhập ngay trong thông báo.</string>
