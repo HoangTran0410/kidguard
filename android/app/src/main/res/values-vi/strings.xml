@@ -1200,4 +1200,13 @@
     <string name="safe_home_title">Màn hình chính đơn giản</string>
     <string name="safe_home_body">Màn hình chính bị lỗi nhiều lần, nên tạm hiện danh sách đơn giản này. Màn hình chính thường tự trở lại trong vòng 24 giờ.</string>
     <string name="safe_home_retry">Thử lại màn hình chính</string>
+    <string name="loc_nag">Bố mẹ cần định vị luôn bật. Bấm để bật lại.</string>
+    <string name="ch_loc">Định vị</string>
+    <string name="ev_loc_off">Máy con đã tắt định vị. Máy đang nhắc con bật lại.</string>
+    <string name="log_loc_off">Định vị bị tắt: đã nhắc con bật lại</string>
+    <string name="log_loc_back">Định vị đã bật lại</string>
+    <string name="basic_mic">Cho phép micro</string>
+    <string name="basic_mic_d">Để bố mẹ nghe xung quanh khi con bấm SOS. Bấm Cho phép.</string>
+    <string name="basic_calls">Cho phép cuộc gọi và danh bạ</string>
+    <string name="basic_calls_d">Để bố mẹ xem cuộc gọi gần đây và số lạ gọi tới. Bấm Cho phép 2 lần.</string>
 </resources>

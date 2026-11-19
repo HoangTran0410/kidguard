@@ -265,7 +265,7 @@ L.en = {
   "tpl.h": "Rule templates", "tpl.p": "Pick a template to quickly apply it to one or more kids.", "tpl.applyTo": "Apply to {0}", "tpl.applyMany": "Apply to several kids…",
   "tpl.saveCur": "Save current rules as a template", "tpl.del": "Delete this template", "tpl.noOwn": "No templates of your own yet. Adjust your kid's rules, then tap \"Save current rules as a template\".",
   "tpl.askDel": "Delete the “{0}” template?",
-  "daily.h": "Daily limit", "daily.same": "Same every day", "daily.by": "Different per day", "daily.dayLbl": "{0} (minutes, 0 = no limit)",
+  "daily.paused": "Paused", "daily.pausedP": "Paused, no time limit. Switch it on to use the old limit again ({0}).", "daily.h": "Daily limit", "daily.same": "Same every day", "daily.by": "Different per day", "daily.dayLbl": "{0} (minutes, 0 = no limit)",
   "daily.tip": "When time's up, every app (except \"Always allow\") is locked until midnight.",
   "grp.h": "App groups (shared limit, allowed hours)", "grp.namePh": "Group name (e.g. Games)", "grp.name": "Group name", "grp.del": "Delete group", "grp.max": "Whole group, at most",
   zeroNoLim: "(0 = no limit)", "grp.hours": "Only allow during set hours", from: "from", to: "to", start: "Start", end: "End",

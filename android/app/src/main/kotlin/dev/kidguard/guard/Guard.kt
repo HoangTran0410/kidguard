@@ -626,8 +626,11 @@ class Guard : Service() {
      */
     private fun keepLocation(r: Rules) {
         val owner = Policy.isOwner(this); val wss = Sys.wss(this)
+        val on = locationOn()
+        // nothing can switch it back (basic, no adb): nag the child + tell the parent instead (LocNag)
+        runCatching { LocNag.update(this, r.lockLocation && !store.released && !owner && !wss && !on, store) }
         if (!r.lockLocation || (!owner && !wss) || store.released) return
-        if (locationOn()) { locFixLogged = false; return }
+        if (on) { locFixLogged = false; return }
         if (!owner) {   // basic mode: no DPM, so only the raw write (WRITE_SECURE_SETTINGS from setup)
             @Suppress("DEPRECATION") runCatching { Settings.Secure.putInt(contentResolver, Settings.Secure.LOCATION_MODE, Settings.Secure.LOCATION_MODE_HIGH_ACCURACY) }
                 .onFailure { Log.w("KidGuard", "location mode (wss)", it) }
@@ -890,7 +893,7 @@ class Guard : Service() {
         work.postAtFrontOfQueue {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
-            Listen.stopAll(); Monitoring.release(this); NotifSync.clear(); RemoteSnap.clear(this); runCatching { store.clearListenHist() }; Sms.clear(this); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff(); FixPerms.release(this)
+            Listen.stopAll(); Monitoring.release(this); NotifSync.clear(); LocNag.clear(this); RemoteSnap.clear(this); runCatching { store.clearListenHist() }; Sms.clear(this); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff(); FixPerms.release(this)
             // C8: the parents hear of it (event -> relay + Telegram) BEFORE the tokens go; the relay creds are kept for the forget call
             val creds = Triple(store.relayUrl, store.relayId, store.relayToken)
             runCatching {

@@ -73,7 +73,7 @@ function ruleChips(r) {
   const schOn = r.schedules.filter(x => x.on), more = [r.blockNew || r.noInstall, r.lockLocation, r.noAirplane].filter(Boolean).length;
   return {
     tpl: [t("chip.nTpl", allTpl().length)],
-    daily: r.dailyByDay.length ? on(t("daily.by")) : r.dailyMin ? on(t("chip.perDay", fmt(r.dailyMin * 60000))) : off,
+    daily: r.dailySaved ? [t("daily.paused"), "warn"] : r.dailyByDay.length ? on(t("daily.by")) : r.dailyMin ? on(t("chip.perDay", fmt(r.dailyMin * 60000))) : off,
     grp: r.groups.length ? [t("chip.nGrp", r.groups.length), r.groups.some(g => !(g.pkgs || []).length) ? "warn" : "ok"] : none,
     totp: st.totpOn === undefined ? null : st.totpOn ? on() : off,
     chore: r.chores.length ? [t("chip.nChore", r.chores.length), "ok"] : none,
@@ -162,11 +162,13 @@ function bedBody(r) {
 function ruleSecs(r) {
   const C = ruleChips(r);
   return {
-    daily: secP("r-daily", "timer", t("daily.h"), t("sd.daily"), C.daily, `    <div class="row"><select id="f-dmode" aria-label="${esc(t("daily.h"))}"><option value="same" ${r.dailyByDay.length ? "" : "selected"}>${t("daily.same")}</option><option value="by" ${r.dailyByDay.length ? "selected" : ""}>${t("daily.by")}</option></select></div>
+    daily: secP("r-daily", "timer", t("daily.h"), t("sd.daily"), C.daily, (r.dailySaved || r.dailyMin || r.dailyByDay.length
+      ? `    <label class="row"><input type="checkbox" id="f-don" ${r.dailySaved ? "" : "checked"}> ${ic("timer")} ${t("on")}</label>` : "")
+      + (r.dailySaved ? `    <p class="mute">${ic("pause")} ${t("daily.pausedP", esc(r.dailySaved.byDay.length === 7 ? t("daily.by") : fmt(r.dailySaved.min * 60000)))}</p>` : `    <div class="row"><select id="f-dmode" aria-label="${esc(t("daily.h"))}"><option value="same" ${r.dailyByDay.length ? "" : "selected"}>${t("daily.same")}</option><option value="by" ${r.dailyByDay.length ? "selected" : ""}>${t("daily.by")}</option></select></div>
     ${r.dailyByDay.length ? `<div class="grid" style="margin-top:8px">${t("wdl").map((n, i) => `<label class="mute">${t("daily.dayLbl", n)}<input type="number" min="0" max="1440" step="15" inputmode="numeric" data-d="${i}" id="f-d${i}" value="${+r.dailyByDay[i] || 0}" style="width:100%"></label>`).join("")}</div>`
     : `<div class="row" style="margin-top:8px"><select id="f-daily" aria-label="${esc(t("daily.h"))}">${[0, 30, 60, 90, 120, 150, 180, 240, 300].map(n => `<option value="${n}" ${r.dailyMin === n ? "selected" : ""}>${n ? fmt(n * 60000) : t("noLimitC")}</option>`).join("")}
     ${[0, 30, 60, 90, 120, 150, 180, 240, 300].includes(r.dailyMin) ? "" : `<option selected value="${r.dailyMin}">${fmt(r.dailyMin * 60000)}</option>`}</select></div>`}
-    <p class="mute">${ic("lightbulb")} ${t("daily.tip")}</p>`),
+    <p class="mute">${ic("lightbulb")} ${t("daily.tip")}</p>`)),
     grp: secP("r-grp", "layout-grid", t("grp.h"), t("sd.grp"), C.grp, `    ${r.groups.map((g, i) => { const h = (g.hours || [])[0], have = new Set(g.pkgs || []), list = (st.apps || []).map(a => [a.pkg, a.label]).concat((g.pkgs || []).filter(p => !(st.apps || []).some(a => a.pkg === p)).map(p => [p, p]));
       return `<div class="sch" data-g="${i}"><div class="row"><input class="sp" id="f-gn${i}" maxlength="40" placeholder="${esc(t("grp.namePh"))}" aria-label="${esc(t("grp.name"))}" value="${esc(g.name)}"><button class="bad" data-gdel="${i}" aria-label="${esc(t("grp.del"))}">${ic("trash-2")}</button></div>
       <label class="row" style="margin-top:8px">${t("grp.max")} <input type="number" id="f-gm${i}" min="0" max="1440" step="15" inputmode="numeric" style="width:5.5em" value="${+g.min || 0}"> ${t("minPerDay")} <span class="mute">${t("zeroNoLim")}</span></label>
@@ -349,7 +351,13 @@ function rulesWire(b, r) {
     const v = await pickPlace({ name: "", r: 150 }); if (!v) return;
     r.zones.push({ id: newId("z"), ...v }); changed(); render();
   };
-  $("#f-dmode").onchange = e => { r.dailyByDay = e.target.value === "by" ? Array(7).fill(r.dailyMin || 0) : []; changed(); document.activeElement.blur(); render(); };
+  // switch: off keeps the limit in dailySaved (min = 0, byDay = [] meanwhile), on puts it back (owner 2026-11-19)
+  if ($("#f-don")) $("#f-don").onchange = e => {
+    if (e.target.checked && r.dailySaved) { r.dailyMin = r.dailySaved.min; r.dailyByDay = r.dailySaved.byDay.slice(); r.dailySaved = null; }
+    else if (!e.target.checked && !r.dailySaved) { r.dailySaved = { min: r.dailyMin || 0, byDay: r.dailyByDay.slice() }; r.dailyMin = 0; r.dailyByDay = []; }
+    changed(); render();
+  };
+  if ($("#f-dmode")) $("#f-dmode").onchange = e => { r.dailyByDay = e.target.value === "by" ? Array(7).fill(r.dailyMin || 0) : []; changed(); document.activeElement.blur(); render(); };
   if ($("#f-daily")) $("#f-daily").onchange = e => { r.dailyMin = +e.target.value; changed(); };
   b.querySelectorAll("[data-d]").forEach(x => x.oninput = () => { const v = Math.min(1440, Math.max(0, Math.round(+x.value || 0))); r.dailyByDay[+x.dataset.d] = v; if (x.value !== "" && +x.value !== v) x.value = v; changed(); });
   b.querySelectorAll("[data-s]").forEach(box => {

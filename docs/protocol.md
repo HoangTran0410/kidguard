@@ -10,6 +10,7 @@ shape, say so in your report instead of silently diverging.
   "rev": 1793940898493,            // set by the phone / worker, newest wins. A rules push (LAN PUT or relay) applies only if its rev >= the stored one; LAN saves stamp rev = max(old+1, phone clock), so a phone clock ahead of the worker's makes later relay edits lose until the worker's rev catches up
   "dailyMin": 120,                 // 0 = no daily limit
   "dailyByDay": [120,120,120,120,120,240,240], // NEW optional: Monday..Sunday; when length 7 it replaces dailyMin for that day; 0 = no limit that day
+  "dailySaved": {"min": 120, "byDay": []},     // 0.9.54 optional: daily limit switched off for now. The page moves dailyMin/dailyByDay here and sends 0 / []; switching on moves them back. The phone only keeps it (absent = not paused)
   "appMin": {"com.android.chrome": 15},
   "blocked": ["com.google.android.youtube"],
   "allow": ["com.duolingo"],       // never blocked by daily / bedtime / schedules / pause / new

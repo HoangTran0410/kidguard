@@ -21,9 +21,9 @@ Install-time (no grant needed): ACCESS_NETWORK_STATE, ACCESS_WIFI_STATE, BLUETOO
 | ACCESS_COARSE_LOCATION | ACCESS_COARSE_LOCATION | same | `Policy.kt` | `AutoGrant.kt` | `SetupSteps.kt`, `FeaturesSheet.kt` |
 | ACCESS_BACKGROUND_LOCATION | ACCESS_BACKGROUND_LOCATION | location while the screen is off | `Policy.kt` | `AutoGrant.kt` | `SetupSteps.kt`, `FixPerms.kt` |
 | POST_NOTIFICATIONS | POST_NOTIFICATIONS | every notice to the child (13+) | `Policy.kt` | `AutoGrant.kt` | `FixPerms.kt` |
-| RECORD_AUDIO | RECORD_AUDIO | listen around, Telegram voice, video call, chat voice | `Policy.kt` | `AutoGrant.kt`, `setup.sh`, `setup.ps1`, `install.html`, `SelfSetup.kt` | `FixPerms.kt#"mic"` |
-| READ_CALL_LOG | READ_CALL_LOG | Calls card: recent calls | `Policy.kt` | `Calls.kt`, `setup.sh`, `setup.ps1`, `install.html`, `SelfSetup.kt` | `FixPerms.kt#"calls"` |
-| READ_CONTACTS | READ_CONTACTS | Calls card: "unknown caller" | `Policy.kt` | `Calls.kt`, `setup.sh`, `setup.ps1`, `install.html`, `SelfSetup.kt` | `FixPerms.kt#"calls"` |
+| RECORD_AUDIO | RECORD_AUDIO | listen around, Telegram voice, video call, chat voice | `Policy.kt` | `AutoGrant.kt`, `setup.sh`, `setup.ps1`, `install.html`, `SelfSetup.kt` | `FixPerms.kt#"mic"`, checklist `SetupSteps.kt` |
+| READ_CALL_LOG | READ_CALL_LOG | Calls card: recent calls | `Policy.kt` | `Calls.kt`, `setup.sh`, `setup.ps1`, `install.html`, `SelfSetup.kt` | `FixPerms.kt#"calls"`, checklist `SetupSteps.kt` |
+| READ_CONTACTS | READ_CONTACTS | Calls card: "unknown caller" | `Policy.kt` | `Calls.kt`, `setup.sh`, `setup.ps1`, `install.html`, `SelfSetup.kt` | `FixPerms.kt#"calls"`, checklist `SetupSteps.kt` |
 | CAMERA | CAMERA | photo on request (`watch.cam`), wrong-PIN photo, video call, chat camera | `Policy.kt`, `Snap.kt` | `AutoGrant.kt` (`pinShot` / `watch.cam` on; the call grants at ring time) | `FixPerms.kt#"cam"` (while `watch.cam` is on); wrong-PIN photo: `MainActivity.kt`; call + chat: asked when used |
 | READ_SMS | READ_SMS | reading SMS (`watch.sms`) | `Policy.kt` | `AutoGrant.kt`, `Sms.kt` | `FixPerms.kt#"sms"` (while `watch.sms` is on). Unverified: Android 10+ may refuse the dialog for a sideloaded app (restricted permission) |
 | BLUETOOTH_CONNECT | BLUETOOTH_CONNECT | control-center Bluetooth toggle (12+) | `HomeControl.kt` | — not granted: the tile opens Bluetooth settings | — same (`HomeControl.kt#ACTION_BLUETOOTH_SETTINGS`) |

@@ -1223,4 +1223,13 @@
     <string name="safe_home_title">Simple home screen</string>
     <string name="safe_home_body">The home screen hit errors several times, so this simple list shows for now. The usual home comes back by itself within 24 hours.</string>
     <string name="safe_home_retry">Try the usual home</string>
+    <string name="loc_nag">Your parent needs location on. Tap to turn it back on.</string>
+    <string name="ch_loc">Location</string>
+    <string name="ev_loc_off">Location was turned off on the kid\'s phone. The phone asks the kid to turn it back on.</string>
+    <string name="log_loc_off">Location turned off: asked the kid to turn it back on</string>
+    <string name="log_loc_back">Location back on</string>
+    <string name="basic_mic">Allow the microphone</string>
+    <string name="basic_mic_d">So a parent can listen around the phone after an SOS. Tap Allow.</string>
+    <string name="basic_calls">Allow calls and contacts</string>
+    <string name="basic_calls_d">So parents see recent calls and unknown callers. Tap Allow twice.</string>
 </resources>

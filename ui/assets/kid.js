@@ -254,6 +254,7 @@ document.addEventListener("change", confirmGate, true);
 // ui = element ids (a card id disables the whole card) shown disabled with the note + "Update the kid's phone".
 // New relay command or rule key ⇒ add it here: scripts/check-need.mjs fails otherwise (CI + build.sh).
 const NEED = [
+  { v: "0.9.54", rule: ["dailySaved", "byDay"] },
   { v: "0.9.29",
     cmd: ["chatClear", "chatDel", "chatFileDel", "chatPull", "notifPull", "refusedDrop", "smsPull", "snap", "snapDel", "snapList", "snapUp", "uiUpdate"],
     rule: ["watch"],

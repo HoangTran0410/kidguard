@@ -176,6 +176,10 @@ data class Rules(
     val pinHash: String = "",                // hash of the parent PIN, guards "pair another device" on the child (never sent to the parent)
     val pinSalt: String = "",                // "" = legacy sha256("kg:"+pin); else iterated sha256 with this salt
     val dailyByDay: List<Int> = emptyList(), // Monday..Sunday minutes, or empty; replaces dailyMin when present
+    // daily limit switched off for now (page switch, 0.9.54): the limit that was on, kept so one switch brings it back.
+    // While set, dailyMin = 0 and dailyByDay = [] (so every reader just sees "no limit"); the phone only keeps it.
+    val dailySavedMin: Int = -1,             // -1 = not paused
+    val dailySavedBy: List<Int> = emptyList(),
     val schedules: List<Schedule> = emptyList(),
     val blockNew: Boolean = false,           // apps installed after setup stay blocked until approved
     val approved: Set<String> = emptySet(),
@@ -251,6 +255,7 @@ data class Rules(
         .put("noInstall", noInstall).put("noDebug", noDebug).put("pinShot", pinShot)
         .put("pinSet", pinHash.isNotBlank())
         .put("dailyByDay", JSONArray(dailyByDay))
+        .apply { if (dailySavedMin >= 0) put("dailySaved", JSONObject().put("min", dailySavedMin).put("byDay", JSONArray(dailySavedBy))) }
         .put("schedules", JSONArray().apply { schedules.forEach { put(it.toJson()) } })
         .put("blockNew", blockNew).put("approved", JSONArray(approved.sorted()))
         .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("frpIds", JSONArray(frpIds)).put("safeDns", safeDns).put("safeDnsPauseUntil", safeDnsPauseUntil).put("noVpn", noVpn).put("noIncognito", noIncognito).put("webBlock", JSONArray(webBlock)).put("webAllow", JSONArray(webAllow)).put("tsKeep", tsKeep).put("trackMin", trackMin).put("vpnPause", JSONArray(vpnPause.sorted())).put("accPause", JSONArray(accPause.sorted())).put("devPause", JSONArray(devPause.sorted())).put("tcpPause", JSONArray(tcpPause.sorted()))
@@ -324,6 +329,10 @@ data class Rules(
                 pinShot = o.optBoolean("pinShot", true),
                 pinHash = if (newPin != null) hashPin(newPin, salt) else o.optString("pinHash", ""),
                 pinSalt = if (newPin != null || o.optString("pinHash", "").isNotEmpty()) salt else "",
+                dailySavedMin = o.optJSONObject("dailySaved")?.optInt("min", 0)?.coerceIn(0, 24 * 60) ?: -1,
+                dailySavedBy = o.optJSONObject("dailySaved")?.optJSONArray("byDay")?.let { a ->
+                    (0 until a.length()).map { a.optInt(it, 0).coerceIn(0, 24 * 60) }.takeIf { l -> l.size == 7 }
+                } ?: emptyList(),
                 dailyByDay = o.optJSONArray("dailyByDay")?.let { a ->
                     (0 until a.length()).map { a.optInt(it, 0).coerceIn(0, 24 * 60) }.takeIf { l -> l.size == 7 }
                 } ?: emptyList(),

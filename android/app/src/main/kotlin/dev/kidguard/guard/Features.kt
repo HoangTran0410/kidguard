@@ -55,7 +55,7 @@ object Features {
         "noUninstall" to listOf(listOf("owner"), listOf("admin")),
         // owner: DPM; basic: raw Settings writes, which only need WRITE_SECURE_SETTINGS (no live adb, works with Developer options off)
         "dns" to listOf(listOf("owner"), listOf("wss")),
-        "lockLocation" to listOf(listOf("owner"), listOf("wss")),
+        "lockLocation" to listOf(listOf("wss"), listOf("owner")),   // wss first: Device Owner needs a reset phone (2026-11-19)
         // 2026-11-13: what the bank-app pauses take away also lives here, so their popup lists it ([lost])
         "adbShell" to listOf(listOf("adb")),        // parent page adb terminal
         "autoGrant" to listOf(listOf("adb")),       // missing permissions granted again by our own adb (AutoGrant)

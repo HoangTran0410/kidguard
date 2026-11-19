@@ -266,7 +266,7 @@ L.vi = {
   "tpl.h": "Mẫu luật", "tpl.p": "Chọn một mẫu để áp dụng nhanh cho một hoặc nhiều con.", "tpl.applyTo": "Áp dụng cho {0}", "tpl.applyMany": "Áp dụng cho nhiều con…",
   "tpl.saveCur": "Lưu luật hiện tại thành mẫu", "tpl.del": "Xoá mẫu này", "tpl.noOwn": "Chưa có mẫu riêng. Chỉnh luật cho con rồi bấm \"Lưu luật hiện tại thành mẫu\".",
   "tpl.askDel": "Xoá mẫu “{0}”?",
-  "daily.h": "Giới hạn mỗi ngày", "daily.same": "Giống nhau mỗi ngày", "daily.by": "Khác nhau theo ngày", "daily.dayLbl": "{0} (phút, 0 = không giới hạn)",
+  "daily.paused": "Tạm tắt", "daily.pausedP": "Đang tạm tắt, không giới hạn giờ. Bật lại là dùng lại giới hạn cũ ({0}).", "daily.h": "Giới hạn mỗi ngày", "daily.same": "Giống nhau mỗi ngày", "daily.by": "Khác nhau theo ngày", "daily.dayLbl": "{0} (phút, 0 = không giới hạn)",
   "daily.tip": "Hết giờ thì mọi app (trừ \"Luôn cho phép\") bị tạm khoá tới 0h.",
   "grp.h": "Nhóm app (giới hạn chung, khung giờ)", "grp.namePh": "Tên nhóm (vd: Game)", "grp.name": "Tên nhóm", "grp.del": "Xoá nhóm", "grp.max": "Cả nhóm tối đa",
   zeroNoLim: "(0 = không giới hạn)", "grp.hours": "Chỉ cho dùng trong khung giờ", from: "từ", to: "tới", start: "Bắt đầu", end: "Kết thúc",

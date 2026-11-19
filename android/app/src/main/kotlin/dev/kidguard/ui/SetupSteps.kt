@@ -114,6 +114,14 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
             if (Build.VERSION.SDK_INT >= 33) out += Step(s(R.string.basic_notif), s(R.string.basic_notif_d), Basic.notifyOk(c)) {
                 request(43, Manifest.permission.POST_NOTIFICATIONS)
             }
+            // mic ("listen around" after an SOS) + calls card: adb setups grant them, a manual / failed setup never asked
+            // (owner 2026-11-19, Xiaomi: the page then said "missing: Micro, Calls" with no step on the phone)
+            if (!Flavor.HOME) out += Step(s(R.string.basic_mic), s(R.string.basic_mic_d), c.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                request(44, Manifest.permission.RECORD_AUDIO)
+            }
+            if (!Flavor.HOME) out += Step(s(R.string.basic_calls), s(R.string.basic_calls_d), Calls.canReadLog(c) && Calls.canReadContacts(c)) {
+                request(45, Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_CONTACTS)
+            }
         }
         out += Step(s(R.string.basic_battery), s(R.string.basic_battery_d), Basic.batteryOk(c)) {
             cap("battery")
