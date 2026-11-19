@@ -1217,4 +1217,7 @@
     <string name="locnag_none">Hôm nay hết lượt để sau. Con vẫn gọi điện và bấm SOS được.</string>
     <string name="log_loc_snooze">Con hoãn bật định vị 10 phút (lần %1$d/%2$d hôm nay)</string>
     <string name="admin_off_warn">Bố mẹ sẽ nhận được cảnh báo. KidGuard sẽ thôi bảo vệ máy này.</string>
+    <string name="main_hint_qr_far">Trên máy bố mẹ (cùng Wi-Fi): quét mã QR bằng camera, hoặc mở trình duyệt:\n%1$s\nrồi nhập mã ở trên.\nKhác Wi-Fi? Mở trang KidGuard, Thêm con > Ghép từ xa, nhập mã và PIN của bố mẹ.</string>
+    <string name="main_hint_nowifi_far">Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n(chưa có Wi-Fi)\nrồi nhập mã ở trên.\nKhác Wi-Fi? Mở trang KidGuard, Thêm con > Ghép từ xa, nhập mã và PIN của bố mẹ.</string>
+    <string name="ev_pair_remote">Một máy bố mẹ mới vừa ghép từ xa: %1$s (mã + PIN).</string>
 </resources>

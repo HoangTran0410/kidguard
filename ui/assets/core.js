@@ -559,7 +559,7 @@ function appOpenKid() {
 }
 window.kgAppOpen = appOpenKid;
 // Pair from anywhere (docs/protocol.md "Pair over relay"): the code on the kid's screen also works through the relay, no shared Wi-Fi.
-// The page talks to the relay it was served from (a browser) or the default relay (the app, via its proxy). A phone with a parent never offers it.
+// The page talks to the relay it was served from (a browser) or the default relay (the app, via its proxy). A paired phone offers it too (0.9.58) while it is on the default relay: then the PIN fields carry its PIN.
 const anyBase = () => APP ? "/k/" + b64u(DEFAULT_RELAY) : RELAY;
 const anyOk = () => APP || (location.protocol === "https:" && isRelayOrigin && !!(window.crypto && crypto.subtle));
 const anyHex = n => [...crypto.getRandomValues(new Uint8Array(n))].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -567,8 +567,8 @@ const anySha = async x => [...new Uint8Array(await crypto.subtle.digest("SHA-256
 const anyCard = () => `<div class="card"><h2>${ic("globe")} ${t("any.h")}</h2><p class="mute">${t("any.p")}</p>
   <div class="pairf"><input id="ac" inputmode="numeric" maxlength="6" placeholder="123456" aria-label="${esc(t("pair.code"))}">
   <input id="an" placeholder="${esc(t("pair.name"))}" value="${esc(t("kid"))}" aria-label="${esc(t("pair.name"))}"></div>
-  <p class="mute" style="margin:10px 0 6px">${ic("key-round")} <b>${t("pair.newPin")}</b><br>${t("pair.newPinP")}</p>
-  <div class="pairf"><input id="ap1" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin1"))}" aria-label="${esc(t("pair.pin1"))}">
+  <p class="mute" style="margin:10px 0 6px">${ic("key-round")} <b>${t("any.pin")}</b><br>${t("any.pinP")}</p>
+  <div class="pairf"><input id="ap1" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("any.pin1"))}" aria-label="${esc(t("any.pin1"))}">
   <input id="ap2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin2"))}" aria-label="${esc(t("pair.pin2"))}">
   <button class="pri" id="aGo">${ic("globe")} ${t("pair.go")}</button></div><p class="err" id="eA"></p></div>`;
 function anyWire() {
@@ -587,7 +587,7 @@ function anyWire() {
     busy(true, t("any.busy"));
     try {
       const ticket = anyHex(16), b = anyBase();
-      let r = await fetch(b + "/p/" + code + "/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ th: await anySha(ticket), newPin: a, name }) });
+      let r = await fetch(b + "/p/" + code + "/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ th: await anySha(ticket), newPin: a, pin: a, name }) });   // new phone: sets it; paired phone: checks it
       if (!r.ok) return fail(await r.json().catch(() => ({})));
       // the kid's phone answers within a few seconds while its screen is on; it keeps nothing until this page has the link
       for (let end = Date.now() + 45000; Date.now() < end; await wait(1500)) {

@@ -273,6 +273,8 @@ class Store private constructor(private val app: Context) {
     @Synchronized fun clearInvite() { p.edit().remove("inviteId").remove("inviteUntil").apply() }
     class PendingPin(val hash: String, val salt: String)
     private val pending = PendingPairs<PendingPin>()
+    /** A pairing token [tryPair] made that will not be used (a paired phone joined over the relay link instead). */
+    @Synchronized fun dropPending() = pending.clear()
 
     /**
      * The first authenticated request with a pending pairing token: store the token, the new PIN (if this pairing set

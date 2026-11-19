@@ -20,12 +20,22 @@ object RelayPairLogic {
     /** The relay URL to pair over: https only. */
     fun usable(url: String) = url.startsWith("https://", ignoreCase = true)
 
+    private val ID = Regex("^[0-9a-f]{16}$")
+    private val TOKEN = Regex("^[0-9a-f]{48}$")
+    /**
+     * Whether a phone may offer its shown code on the relay (owner 2026-11-20: same Wi-Fi only was too tight). A phone
+     * with no parent: always. A paired one: only while its own relay link is the default relay, so the new parent joins that
+     * link (the worker mints them a parent token on it) and every parent / watch already on it keeps working.
+     */
+    fun offers(everPaired: Boolean, home: Boolean, relayUrl: String, relayId: String, relayToken: String, defaultUrl: String) =
+        !home && (!everPaired || (relayUrl.trimEnd('/') == defaultUrl && ID.matches(relayId) && TOKEN.matches(relayToken)))
+
     /** How the phone answers the relay's reply to `GET /p/<key>`. */
     sealed class Poll {
         object Waiting : Poll()
         object Taken : Poll()
         object Gone : Poll()
-        data class Req(val pin: String, val newPin: String) : Poll()
+        data class Req(val pin: String, val newPin: String, val name: String = "") : Poll()
     }
     fun parsePoll(status: Int, body: String): Poll {
         if (status == 404 || status == 403) return Poll.Gone
@@ -33,12 +43,14 @@ object RelayPairLogic {
         val o = runCatching { JSONObject(body) }.getOrNull() ?: return Poll.Waiting
         if (o.optBoolean("taken")) return Poll.Taken
         val r = o.optJSONObject("req") ?: return Poll.Waiting
-        return Poll.Req(r.optString("pin"), r.optString("newPin"))
+        return Poll.Req(r.optString("pin"), r.optString("newPin"), r.optString("name").take(20))
     }
 }
 
 /**
- * Pair from anywhere, phone side (docs/flows/remote.md 2.1 "1c"). Only a phone with no parent yet (never paired, not the Home flavor):
+ * Pair from anywhere, phone side (docs/flows/remote.md 2.1 "1c"). A phone with no parent yet (never paired, not the Home flavor),
+ * or (2026-11-20) a paired phone on the default relay while a parent opened its code ([RelayPairLogic.offers]; the PIN is required,
+ * the reply is the phone's existing relay link, nothing is stored but "pairing closed" + an event for the other parents):
  * - the pairing code the child screen shows is also offered to the default relay (`POST /p/new`), so a parent anywhere can type it;
  * - a provisioning invite (QR extras, [Store.inviteId]) is claimed on the relay by itself.
  * The relay only carries the parent's request (PIN / new PIN) here: the decision is [Store.tryPair] (same PIN rules and lockouts as the LAN flow).
@@ -53,6 +65,8 @@ class RelayPair(private val g: Guard) {
     private var offeredAt = 0L
     private var pendTok = ""      // the token handed to the relay, committed on `taken`
     private var pendId = ""
+    private var pendName = ""
+    private companion object { const val JOINED = "joined" }
 
     fun start() { h.postDelayed(run, 3_000) }
     fun stop() { h.removeCallbacks(run); h.looper.quitSafely() }
@@ -67,7 +81,10 @@ class RelayPair(private val g: Guard) {
     /** @return ms until the next look. */
     private fun tick(): Long {
         val url = Relay.DEFAULT_URL
-        if (Flavor.HOME || store.everPaired || !RelayPairLogic.usable(url)) { offered = ""; pendTok = ""; return 60_000 }
+        val paired = store.everPaired
+        if (!RelayPairLogic.usable(url) || !RelayPairLogic.offers(paired, Flavor.HOME, store.relayUrl, store.relayId, store.relayToken, url)) {
+            offered = ""; pendTok = ""; return 60_000
+        }
         val now = System.currentTimeMillis()
         val inv = store.inviteId()
         if (inv != null) {
@@ -99,6 +116,12 @@ class RelayPair(private val g: Guard) {
             RelayPairLogic.Poll.Waiting -> return false
             RelayPairLogic.Poll.Gone -> { if (invite) store.clearInvite() else offered = ""; pendTok = ""; return false }
             RelayPairLogic.Poll.Taken -> {
+                if (pendTok == JOINED) {   // a paired phone: the new parent took the existing link; only close the code
+                    pendTok = ""; offered = ""
+                    store.closePairing(); store.log(R.string.log_paired)
+                    store.event("pairing", R.string.ev_pair_remote, pendName.ifBlank { "?" })
+                    g.kick(); return true
+                }
                 val ok = pendTok.isNotEmpty() && store.commitRelayPair(pendTok, pendId, url)
                 pendTok = ""; offered = ""
                 if (invite) store.clearInvite()
@@ -106,10 +129,16 @@ class RelayPair(private val g: Guard) {
                 return true
             }
             is RelayPairLogic.Poll.Req -> {
-                val t = store.tryPair(offered.takeIf { !invite } ?: "", p.pin.filter { it.isDigit() }, p.newPin.trim(), viaInvite = invite)
+                val paired = store.everPaired && !invite
+                // a paired phone has a PIN (or, from before PINs, none: then this join sets nothing, the pin must still be given)
+                val t = store.tryPair(offered.takeIf { !invite } ?: "", p.pin.filter { it.isDigit() }, if (paired) "" else p.newPin.trim(), viaInvite = invite)
                 if (t == null) {
                     call(url, "POST", "/p/$key/reply", JSONObject().put("error", store.lastPairError).put("wait", store.pinLockLeft()), true)
                     if (invite) store.clearInvite()
+                } else if (paired) {
+                    store.dropPending()   // the LAN token tryPair made is not used: the parent joins the relay link
+                    pendTok = JOINED; pendName = p.name
+                    call(url, "POST", "/p/$key/reply", JSONObject().put("id", store.relayId).put("token", store.relayToken), true)
                 } else {
                     pendTok = t; pendId = Store.randomHex(8)
                     call(url, "POST", "/p/$key/reply", JSONObject().put("id", pendId).put("token", t), true)

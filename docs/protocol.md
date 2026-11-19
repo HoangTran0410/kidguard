@@ -1570,7 +1570,7 @@ when pairing their own phone (`/api/pair`), so it follows the parent from previe
 - **Support message** (Device Owner): refreshed when `now` changes: "until HH:mm" for bedtime / schedule / pause, "ask" wording only when paired and askable; the parent's `blockNote` wins; lost mode swaps it.
 
 ## Pair over relay (after 0.9.21: "Pair from anywhere" + QR invite)
-Pairs a kid phone with NO parent yet (never paired, not the Home flavor) without a shared Wi-Fi. Worker-only rendezvous in Durable Object `p:<key>`
+Pairs a kid phone with NO parent yet (never paired, not the Home flavor) without a shared Wi-Fi; since 0.9.58 also a paired phone whose relay link is the default relay, while a parent opened its code (`RelayPairLogic.offers`). Worker-only rendezvous in Durable Object `p:<key>`
 (class `Watch`, same binding; no migration). Neither side is authenticated yet, so: secrets (only their sha256 reaches the relay), short TTL, caps, and the
 phone decides (`Store.tryPair`: code, `PairPin.decide`, PIN lockout, same errors as `POST /api/pair`). Bodies <= 512 B; per-IP `RL` like `/c/*`.
 - Code flow. The phone shows its LAN code on the child screen (`visiblePairCode`) and offers it: `POST /p/new {"sh": sha256hex(phone secret, 32-128 hex), "code": "123456"}`
@@ -1583,11 +1583,12 @@ phone decides (`Store.tryPair`: code, `PairPin.decide`, PIN lockout, same errors
   `id` = 16 hex, `token` = 48 hex (a parent token of its own, see "Parents"; the page builds a `via:"relay"` kid), `url` = the relay origin. `newPin` is required (the phone has no PIN yet; `pe.pin required`).
 - Phone: `GET /p/<key>` header `X-KG-Secret` every 2-3 s while the screen is on and shows the code -> `{waiting}` | `{req:{pin,newPin,name}}` | `{taken:true}` (then the entry is gone) | 403 / 404 = gone.
   It answers with `POST /p/<key>/reply {"id","token"}` (ok: token minted by `tryPair`, pending as in LAN pairing) or `{"error": "...", "wait": ms}`. On `taken` it commits (`Store.commitRelayPair`: token, `everPaired`, new PIN hash, `relayUrl`/`relayId`/`relayToken` = default relay): nothing is stored before the parent holds the link.
+- Paired phone (0.9.58): the page sends `pin` = `newPin` = the typed PIN; the phone ignores `newPin` and needs its PIN (`tryPair`, same lockout; a paired phone with no PIN is refused `pin required`). It replies with its EXISTING relay link `{id: relayId, token: relayToken}`, so `/result` mints the new parent a token on the kid's own Durable Object (`_mint` checks the bound token): parents and watches already on that link keep working. On `taken` the phone only closes the code and adds event `pairing` ("a new parent paired from anywhere: <name>"). A phone on its own relay, or with the relay off, does not offer (LAN or an invite then).
 - Invite flow (QR provisioning). `ui/qr.html` "Ghép luôn với tôi": `POST /p/inv {"th", "newPin", "name"}` -> `200 {inv: "<16 hex>", exp}` (TTL 3 h `INVITE_TTL`, cap `INVITE_PER_DAY` 30 per network, Gate `piv:`).
   The QR payload then carries `android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE = {"kg_invite": "<inv>"}` (only the id; the PIN stays on the relay, deleted when used). After provisioning `Admin.onProfileProvisioningComplete`
   reads the extra (`PersistableBundle`, `RelayPairLogic.invite`) into `Store.setInvite` (valid 3 h, only while nobody is paired); `RelayPair` claims it with `GET /p/<inv>` (first secret wins; a second phone gets 403),
   runs `tryPair(viaInvite = true)` (no code, but the same PIN rules), replies, commits on `taken`. The qr page polls `GET /p/<inv>/result` with its ticket and saves the kid in `localStorage kg.kids`. An invite is one shot: any error deletes it.
-- Expiry: lazy + alarm like Watch. Rejected: sending the PIN hash (the phone salts it itself), a second token for the relay (superseded 2026-11-17: the result now carries a parent token of its own, see "Parents"), pairing a phone that already has a parent (use `openPairing` over LAN or the relay link).
+- Expiry: lazy + alarm like Watch. Rejected: sending the PIN hash (the phone salts it itself), a second token for the relay (superseded 2026-11-17: the result now carries a parent token of its own, see "Parents"), pairing a phone that already has a parent over a NEW relay link (it joins its existing one, see above).
 
 , Zepp watch app `watch/zepp/`)
 Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone involvement; the phone needs no new version).

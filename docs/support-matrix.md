@@ -98,7 +98,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Tự cập nhật KidGuard | ✅ im lặng | ⚠️ | ⚠️ | ⚠️ | ✅ | CB: tải và kiểm tra sẵn, con phải bấm cài |
 | Đổi relay (`relay`) | ✅ | ✅ | ✅ | ✅ | ❌ | **Chỉ LAN**: đổi chính đường relay |
 | Mỗi bố mẹ một token relay riêng có tên, mời bằng mã 1 lần, trình duyệt nhập PIN mỗi 12 giờ (protocol "Parents") | ✅ | ✅ | ✅ | ✅ | ❌ | Chỉ relay. Kiểm tra PIN trên relay cần máy con bản mới (gửi `pv`); máy cũ: người đầu tiên vào bằng link, người sau phải được mời |
-| Ghép nối máy bố mẹ bằng mã | ✅ | ✅ | ✅ | ✅ | ✅* | *Chỉ máy chưa có bố mẹ: "Ghép từ xa" (mã trên màn hình máy con, màn hình phải sáng) hoặc QR "Ghép luôn với tôi" (qr.html). Máy đã có bố mẹ: mã mở bằng `openPairing` qua LAN, Relay dùng token có sẵn |
+| Ghép nối máy bố mẹ bằng mã | ✅ | ✅ | ✅ | ✅ | ✅* | *"Ghép từ xa" (mã trên màn hình máy con, màn hình phải sáng): máy chưa có bố mẹ, hoặc (0.9.58) máy đã ghép đang dùng relay mặc định (mã mở bằng "Ghép thêm máy bố mẹ" + PIN). QR "Ghép luôn với tôi" (qr.html): máy chưa có bố mẹ. Máy dùng relay riêng / tắt relay: LAN hoặc lời mời |
 | Gỡ quản lý (`release`), huỷ ghép nối | ✅ | ✅ | ✅ | ✅ | ✅ | Lệnh phá huỷ: giao 1 lần |
 
 ### 3.4 Thông báo cho bố mẹ
