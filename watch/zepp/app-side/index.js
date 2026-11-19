@@ -300,7 +300,7 @@ async function changeRules(k, op) {
 // Tile policy (operations.osmfoundation.org/policies/tiles): few requests, cache, identify the app. We fetch only the
 // 4 tiles the watch lacks (it asks), never bulk, and remember what we already converted for a week.
 // Chain: network.downloader.downloadFile (PNG) -> image.convert (PNG -> format the watch shows) -> transferFile outbox.
-const TILE_UA = { "User-Agent": "KidGuardWatch/0.5 (Zepp OS parent app; https://kid-guard.pages.dev)", Referer: "https://kid-guard.pages.dev/" };
+const TILE_UA = { "User-Agent": "KidGuardWatch/0.5 (Zepp OS parent app; https://kidguard.asia)", Referer: "https://kidguard.asia/" };
 const TILE_TTL = 7 * 24 * 3600000;
 
 function dlTile(url, path, headers) {
