@@ -213,6 +213,8 @@ fi
 
 if [ -z "$BASIC" ]; then
 echo "[2/8] Đặt KidGuard làm Device Owner"
+# Android 13+ "restricted settings": an APK installed from a browser / file manager may not get device admin or accessibility, even over adb (2026-11-19, set-active-admin -> "Calling identity is not authorized"). adb can lift it; harmless elsewhere.
+adb shell appops set $PKG ACCESS_RESTRICTED_SETTINGS allow >/dev/null 2>&1 || true
 out=$(adb shell dpm set-device-owner $PKG/.Admin 2>&1 || true)
 # after our restart Android still says "accounts" for up to ~30 s (it re-checks them in the background): try again
 for i in $(seq 1 24); do

@@ -331,6 +331,7 @@
     <string name="step_acc">Bật trợ năng</string>
     <string name="step_battery">Cho phép chạy nền (không giới hạn pin)</string>
     <string name="ss_failed">Chưa cài được: %1$s</string>
+    <string name="ss_sec_debug">Máy chặn lệnh cài đặt. Thường do \"Cài đặt bị hạn chế\" của Android với app cài từ file: Cài đặt > Ứng dụng > KidGuard > ⋮ > \"Cho phép cài đặt bị hạn chế\", rồi chạy lại Tự cài. Xiaomi, Redmi, POCO: bật thêm \"Gỡ lỗi USB (Cài đặt bảo mật)\" trong Tuỳ chọn nhà phát triển.</string>
     <string name="ss_perm_mon">Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật \"Tắt giám sát quyền\" (Disable permission monitoring), rồi làm lại.</string>
     <string name="ss_no_pair_port">Không thấy cổng ghép nối. Hãy mở lại hộp thoại \"Ghép thiết bị bằng mã ghép nối\" rồi thử lại.</string>
     <string name="ss_pair_fail">Ghép nối không thành công (sai mã hoặc mã đã hết hạn). Mở lại \"Ghép thiết bị bằng mã\" để lấy mã mới, rồi nhập ngay trong thông báo.</string>

@@ -224,6 +224,8 @@ if (-not $script:Basic -and (Adb shell dumpsys device_policy) -notmatch [regex]:
 $isDo = { (Adb shell dumpsys device_policy) -match [regex]::Escape("admin=ComponentInfo{$Pkg/$Pkg.Admin}") }
 if (-not $script:Basic) {
 Write-Host "[2/8] Đặt KidGuard làm Device Owner"
+# Android 13+ "restricted settings": an APK installed from a browser / file manager may not get device admin or accessibility, even over adb (2026-11-19, set-active-admin -> "Calling identity is not authorized"). adb can lift it; harmless elsewhere.
+try { Adb shell appops set $Pkg ACCESS_RESTRICTED_SETTINGS allow | Out-Null } catch {}
 $out = Adb shell dpm set-device-owner "$Pkg/.Admin"
 # after our restart Android still says "accounts" for up to ~30 s (it re-checks them in the background): try again
 for ($i = 0; $i -lt 24; $i++) {

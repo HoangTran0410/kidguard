@@ -130,6 +130,19 @@ object SelfSetupLogic {
     /** ColorOS (Oppo/Realme/OnePlus) refuses adb permission grants until "Disable permission monitoring" is on. */
     fun permMonitoring(out: String) = Regex("UPDATE_APP_OPS_STATS|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS").containsMatchIn(out)
 
+    /** The phone refuses shell commands it normally allows: "Calling identity is not authorized" (seen on `dpm
+     *  set-active-admin`, 2026-11-19 owner report). Xiaomi / Redmi / POCO do this until "USB debugging (Security settings)" is on. */
+    fun secBlocked(out: String) = "not authorized" in out.lowercase()
+
+    /** A failed command's output for the screen / notification: first line only (no Java stack trace), at most 200 chars. */
+    fun firstLine(out: String): String {
+        val lines = out.trim().lineSequence().map { it.trim() }.filter { it.isNotBlank() && !it.startsWith("at ") }.toList()
+        val head = lines.firstOrNull().orEmpty()
+        // "Exception occurred while executing 'x':" says nothing alone: add the exception's own message
+        val why = lines.drop(1).firstNotNullOfOrNull { Regex("""Exception: (.+)""").find(it)?.groupValues?.get(1) }
+        return (if (why != null) "$head $why" else head).take(200)
+    }
+
     /** String resource for a `dpm set-device-owner` refusal (second user / another owner / accounts / already set up), else null. */
     fun ownerFail(out: String): Int? {
         val o = out.lowercase()
@@ -221,6 +234,11 @@ object SelfSetup {
 
     val state = IntArray(STEPS.size)
     @Volatile var message = ""          // last error / final line
+    /** What to show for a failed command: a known block in words (Xiaomi security debugging), else its first line. */
+    private fun failText(app: android.content.Context, out: String): String = when {
+        SelfSetupLogic.secBlocked(out) -> app.getString(R.string.ss_sec_debug)
+        else -> SelfSetupLogic.firstLine(out).ifBlank { app.getString(R.string.ss_cmd_fail) }
+    }
     @Volatile var running = false
     @Volatile var done = false
     @Volatile var turnOffWifi = true
@@ -307,7 +325,7 @@ object SelfSetup {
             mark(app, i, STEP_RUN)
             val out = sh(cmd); Log.i(AdbPortFinder.TAG, "$cmd -> $out")
             val good = if (need != null) need(out) else SelfSetupLogic.ok(out)
-            if (!good) { state[i] = STEP_ERR; message = out.ifBlank { app.getString(R.string.ss_cmd_fail) }
+            if (!good) { state[i] = STEP_ERR; message = failText(app, out)
                 // `dpm set-device-owner` refusals come with a raw Java exception: say what to do instead (the raw text stays in logcat)
                 if (i == 2) SelfSetupLogic.ownerFail(out)?.let { message = app.getString(it) }
                 if (SelfSetupLogic.permMonitoring(out)) message += "\n" + app.getString(R.string.ss_perm_mon)
@@ -327,6 +345,8 @@ object SelfSetup {
             else if (plan.disable.isNotEmpty()) { restartForAccounts(app, plan.disable, ::sh); return }
         }
         state[1] = STEP_OK
+        // Android 13+ "restricted settings": an APK installed from a browser / file manager may not get device admin or accessibility, even over adb (2026-11-19, set-active-admin -> "Calling identity is not authorized"). adb can lift it; harmless elsewhere.
+        runCatching { Log.i(AdbPortFinder.TAG, "restricted settings -> " + sh("appops set $PKG ACCESS_RESTRICTED_SETTINGS allow")) }
         // 3..7 (same as setup.sh, minus install)
         // a rerun after a partly failed setup: we already are Device Owner ("already set" would stop it here), so go on
         if (Policy.isOwner(app)) { Log.i(AdbPortFinder.TAG, "already Device Owner: skip set-device-owner"); state[2] = STEP_OK }
@@ -337,7 +357,7 @@ object SelfSetup {
                 // a known refusal (users / accounts / another owner / set up already): basic mode; anything else stops as before
                 val why = SelfSetupLogic.ownerFail(out)
                 if (why == null || !SelfSetupLogic.basicFallback(why)) {
-                    state[2] = STEP_ERR; message = why?.let { app.getString(it) } ?: out.ifBlank { app.getString(R.string.ss_cmd_fail) }
+                    state[2] = STEP_ERR; message = why?.let { app.getString(it) } ?: failText(app, out)
                     if (SelfSetupLogic.permMonitoring(out)) message += "\n" + app.getString(R.string.ss_perm_mon)
                     notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return
                 }
@@ -352,7 +372,8 @@ object SelfSetup {
             for (t in 0 until 10) { out = sh("dpm set-active-admin --user current $PKG/.Admin"); if ("being removed" !in out) break; Thread.sleep(1000) }
             Log.i(AdbPortFinder.TAG, "set-active-admin -> $out")
             if (!out.contains("Success") && !Basic.adminActive(app)) {
-                state[2] = STEP_ERR; message = out.ifBlank { app.getString(R.string.ss_cmd_fail) }
+                // why basic mode was tried (another Device Owner, accounts...) + why it failed: both lines, not just the last
+                state[2] = STEP_ERR; message = listOfNotNull(basicWhy.takeIf { it.isNotBlank() && !wantBasic }, failText(app, out)).joinToString("\n")
                 notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return
             }
             state[2] = STEP_OK
@@ -416,7 +437,7 @@ object SelfSetup {
         val grant = sh("pm grant $PKG android.permission.WRITE_SECURE_SETTINGS")
         if (!SelfSetupLogic.ok(grant)) {
             // ColorOS without "Disable permission monitoring" fails here first on a phone with app accounts: same hint as step 4
-            state[1] = STEP_ERR; message = grant.ifBlank { app.getString(R.string.ss_cmd_fail) }
+            state[1] = STEP_ERR; message = failText(app, grant)
             if (SelfSetupLogic.permMonitoring(grant)) message += "\n" + app.getString(R.string.ss_perm_mon)
             notifyFinal(app, app.getString(R.string.ss_failed, message)); return
         }
@@ -429,7 +450,7 @@ object SelfSetup {
                 throw e
             }
             if (!out.contains("disabled")) {
-                undo(); state[1] = STEP_ERR; message = out.ifBlank { app.getString(R.string.ss_cmd_fail) }
+                undo(); state[1] = STEP_ERR; message = failText(app, out)
                 notifyFinal(app, app.getString(R.string.ss_failed, message)); return
             }
         }
@@ -484,11 +505,12 @@ object SelfSetup {
                     Policy.isOwner(app) -> null
                     out == null -> app.getString(R.string.ss_resume_noadb)
                     // the same sentence as the first run for a known refusal (several users, already provisioned...), not the raw dpm text
-                    else -> SelfSetupLogic.ownerFail(out)?.let { app.getString(it) } ?: out.ifBlank { app.getString(R.string.ss_cmd_fail) }
+                    else -> SelfSetupLogic.ownerFail(out)?.let { app.getString(it) } ?: failText(app, out)
                 }
                 val why = if (err != null && out != null) SelfSetupLogic.ownerFail(out) else null
                 if (why != null && SelfSetupLogic.basicFallback(why)) {
                     var a = ""
+                    runCatching { sh("appops set $PKG ACCESS_RESTRICTED_SETTINGS allow") }
                     for (t in 0 until 10) { a = sh("dpm set-active-admin --user current $PKG/.Admin"); if ("being removed" !in a) break; Thread.sleep(1000) }
                     Log.i(AdbPortFinder.TAG, "resume set-active-admin -> $a")
                     if (a.contains("Success") || Basic.adminActive(app)) { err = null; basicWhyR = app.getString(why) }

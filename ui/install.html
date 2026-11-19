@@ -490,6 +490,8 @@ const STEPS = [
       for (let i = 0; i < 10; i++) { o = await sh("dpm set-active-admin --user current " + PKG + "/.Admin"); if (!/being removed/.test(o)) break; await sleep(1000); }
       if (!/Success/.test(o)) throw new Error(o.trim());
     };
+    // Android 13+ "restricted settings": an APK installed from a browser / file manager may not get device admin or accessibility, even over adb (2026-11-19, set-active-admin -> "Calling identity is not authorized"). adb can lift it; harmless elsewhere.
+    await sh("appops set " + PKG + " ACCESS_RESTRICTED_SETTINGS allow").catch(() => {});
     if (window.__basic && !(await isDo())) return basic();
     let out = await sh("dpm set-device-owner " + PKG + "/.Admin");
     // after our restart Android still says "accounts" for up to ~30 s (it re-checks them in the background): try again

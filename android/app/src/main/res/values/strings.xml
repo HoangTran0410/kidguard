@@ -341,6 +341,7 @@
     <string name="step_acc">Turn on Accessibility</string>
     <string name="step_battery">Allow running in the background (no battery limits)</string>
     <string name="ss_failed">Setup failed: %1$s</string>
+    <string name="ss_sec_debug">The phone blocked the setup command. Usually Android\'s \"restricted settings\" for an app installed from a file: Settings > Apps > KidGuard > ⋮ > \"Allow restricted settings\", then run Self setup again. Xiaomi, Redmi, POCO: also turn on \"USB debugging (Security settings)\" in Developer options.</string>
     <string name="ss_perm_mon">Oppo/Realme/OnePlus (ColorOS): in Developer options turn on \"Disable permission monitoring\", then try again.</string>
     <string name="ss_no_pair_port">Pairing port not found. Open the \"Pair device with pairing code\" dialog again and retry.</string>
     <string name="ss_pair_fail">Pairing failed (wrong code, or the code expired). Open \"Pair device with pairing code\" again to get a new code, then type it in the notification right away.</string>

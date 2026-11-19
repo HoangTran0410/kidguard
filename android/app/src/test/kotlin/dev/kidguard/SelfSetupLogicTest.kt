@@ -4,6 +4,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SelfSetupLogicTest {
+    @Test fun xiaomiShellBlockIsNamedAndTraceCut() {   // 2026-11-19 owner: a Xiaomi phone, Self setup showed the whole stack trace
+        val out = "Exception occurred while executing 'set-active-admin':\njava.lang.SecurityException: Calling identity is not authorized\n\tat com.android.internal.util.Preconditions.checkCallAuthorization(Preconditions.java:254)"
+        assertTrue(SelfSetupLogic.secBlocked(out))
+        assertTrue(!SelfSetupLogic.secBlocked("Success: Active admin set to component"))
+        org.junit.Assert.assertEquals("Exception occurred while executing 'set-active-admin': Calling identity is not authorized", SelfSetupLogic.firstLine(out))
+    }
+
     @Test fun noAccounts() = assertTrue(SelfSetupLogic.accounts("Accounts: 0\n  User UserInfo{0:Owner:13}:\n  Accounts: 0\n").isEmpty())
 
     @Test fun listsAccounts() {

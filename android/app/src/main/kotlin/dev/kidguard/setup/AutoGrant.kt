@@ -32,6 +32,7 @@ object AutoGrant {
             // WSS lets Acc turn our accessibility service on by itself; basic mode's device admin is one dpm line
             if (ctx.checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") != android.content.pm.PackageManager.PERMISSION_GRANTED)
                 add("pm grant $p android.permission.WRITE_SECURE_SETTINGS")
+            if (!Policy.isOwner(ctx) && !Basic.adminActive(ctx)) add("appops set $p ACCESS_RESTRICTED_SETTINGS allow")   // restricted settings, see SelfSetup
             if (!Policy.isOwner(ctx) && !Basic.adminActive(ctx)) add("dpm set-active-admin --user current ${Policy.admin(ctx).flattenToShortString()}")
             if (!Usage.granted(ctx)) add("appops set $p GET_USAGE_STATS allow")
             if (!NotifDots.granted(ctx, fresh = true)) add("cmd notification allow_listener $p/$p.NotifDots")
