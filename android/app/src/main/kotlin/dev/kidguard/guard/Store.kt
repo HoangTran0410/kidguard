@@ -244,6 +244,7 @@ class Store private constructor(private val app: Context) {
             is PairPin.Check.SetPin -> { val salt = Rules.salt8(); set = PendingPin(Rules.hashPin(c.pin, salt), salt) }
             PairPin.Check.UsePin -> {
                 if (pinLockLeft() > 0) { lastPairError = "pin locked"; return null }
+                if (pin.isBlank()) { lastPairError = "no pin"; return null }   // forgot the field: not a guess, no lockout count
                 if (!checkParentPin(pin)) { pairFail(now); lastPairError = if (pinLockLeft() > 0) "pin locked" else "wrong pin"; return null }
             }
         }

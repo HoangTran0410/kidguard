@@ -708,7 +708,7 @@ function pairScreen(hello, target, prefill = "") {
     <input id="np2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin2"))}" aria-label="${esc(t("pair.pin2"))}">` : ""}
     <button class="pri" id="go">${ic("link")} ${t("pair.go")}</button></div><p class="err" id="e"></p>`
     : `<p>${ic("hourglass")} ${t("pair.closedP")}</p><button id="retry" onclick="location.reload()">${ic("refresh-cw")} ${t("retry")}</button>`}
-    ${hello.owner || hello.mode === "basic" ? "" : `<p class="err">${ic("triangle-alert")} ${t("pair.notSetup", esc((hello.miss || []).map(k => t("perm." + k)).join(", ") || t("mode.items")))}</p>`}
+    ${hello.owner || hello.mode === "basic" ? "" : `<p class="mute">${ic("info")} ${t("pair.notSetup", esc((hello.miss || []).map(k => t("perm." + k)).join(", ") || t("mode.items")))}</p>`}
   </div>`;
   // app, or a LAN browser adding another phone: back to the add screen; this phone's own pairing: back to the list if it has kids
   if (APP || target || homeKids().length) {
@@ -731,6 +731,8 @@ function pairScreen(hello, target, prefill = "") {
     const ac = new AbortController(), to = setTimeout(() => ac.abort(), 20000);
     try {
       const body = { code: $("#code").value, pin: $("#pin") ? $("#pin").value : "" };
+      // 2026-11-19 owner: left the PIN empty, saw only "not set up yet" and thought pairing was broken
+      if ($("#pin") && !body.pin.trim()) { $("#pin").focus(); throw new Error(t("pe.no pin")); }
       if (newPin) {
         const a = $("#np1").value, b = $("#np2").value;
         if (!/^\d{4,8}$/.test(a)) throw new Error(t("pe.bad pin"));

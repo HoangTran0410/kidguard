@@ -167,7 +167,7 @@ v0.4:
 - `openPairing` returns `set PIN first` (and does nothing) when a parent was already paired and no PIN is set.
 - v0.9.6: `/api/pair` also takes `newPin` and refuses to pair without a PIN when none is set; see "v0.9.6" below.
 - LAN `GET /api/hello` adds `pin: bool`. `POST /api/pair {code, pin?}`: `pin` is required once a PIN is set (the child
-  can see the code, never the PIN). Errors `{error, wait}`: 403 `wrong code | wrong pin`, 429 `wait | pin locked`,
+  can see the code, never the PIN). Errors `{error, wait}`: 403 `wrong code | wrong pin | no pin` (0.9.54: empty PIN, not counted), 429 `wait | pin locked`,
   403 `closed`. Every 3rd wrong guess makes a new code and blocks pairing for 30 s, doubling (cap 5 min).
   The PIN (child screen and /pair share one counter): 5 free tries, then locked 5 min, doubling (cap 30 min).
 - The LAN server answers 403 `bad host` unless `Host` is an IP literal, `localhost`, a single-label name or `*.ts.net`
@@ -1573,7 +1573,7 @@ phone decides (`Store.tryPair`: code, `PairPin.decide`, PIN lockout, same errors
   `POST /p/<code>/join {"th": sha256hex(ticket, 32 hex), "newPin": "4-8 digits", "pin": "", "name": "<= 20"}` -> `200 {ok}`; `403 wrong code` (unknown / expired / dead);
   `409 busy`; `429 {error: "too many wrong codes", wait: <ms>, retryAt}` after `PAIR_MISS_MAX` (20) join tries from one network inside a fixed `PAIR_MISS_WIN` (10 min) window that starts at the first try (Gate `pmiss:` with `win`; every join counts, right, wrong or busy, taken BEFORE the lookup so a parallel burst can't pass the cap; since 2026-11-15, was 40 wrong codes a day). Math: P(hit any live code) ~ live codes x guesses / 10^6; <= ~30 guesses per 15 min code life per network. One code takes `PAIR_JOINS` (5) joins, then it is deleted.
   Then poll `GET /p/<code>/result` header `X-KG-Ticket: <ticket>`: `{waiting:true}` | `200 {id, token, url}` once (the entry becomes `taken`; later `404`) | `{error, wait?}` = the phone refused:
-  400 `bad pin` / `pin required`, 403 `wrong pin` / `closed`, 429 `pin locked` / `wait`. After an error the code can be joined again.
+  400 `bad pin` / `pin required`, 403 `wrong pin` / `no pin` / `closed`, 429 `pin locked` / `wait`. After an error the code can be joined again.
   `id` = 16 hex, `token` = 48 hex (a parent token of its own, see "Parents"; the page builds a `via:"relay"` kid), `url` = the relay origin. `newPin` is required (the phone has no PIN yet; `pe.pin required`).
 - Phone: `GET /p/<key>` header `X-KG-Secret` every 2-3 s while the screen is on and shows the code -> `{waiting}` | `{req:{pin,newPin,name}}` | `{taken:true}` (then the entry is gone) | 403 / 404 = gone.
   It answers with `POST /p/<key>/reply {"id","token"}` (ok: token minted by `tryPair`, pending as in LAN pairing) or `{"error": "...", "wait": ms}`. On `taken` it commits (`Store.commitRelayPair`: token, `everPaired`, new PIN hash, `relayUrl`/`relayId`/`relayToken` = default relay): nothing is stored before the parent holds the link.
