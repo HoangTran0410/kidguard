@@ -5,7 +5,7 @@ import { LocalStorage } from "@zos/storage";
 import { Vibrator } from "@zos/sensor";
 import { BasePage } from "@zeppos/zml/base-page";
 import { DEVICE_WIDTH as W } from "../utils/config/device";
-import { Col, C, t, fmtMin, ago, hhmm, twoTap, done, toast, PAD, ask, rcSave, rcLoad, rcClear, rcPoll } from "../utils/ui";
+import { Col, C, t, fmtMin, ago, hhmm, twoTap, done, toast, PAD, ask, rcSave, rcLoad, rcClear, rcPoll, chatUnread } from "../utils/ui";
 
 // Parent home: one kid at a time (tap the name to switch). Data comes from the side service
 // on the parent's phone, which reads the KidGuard relay.
@@ -13,7 +13,7 @@ import { Col, C, t, fmtMin, ago, hhmm, twoTap, done, toast, PAD, ask, rcSave, rc
 const ls = new LocalStorage();
 // app version from app.json ("0.7.1"), shown at the bottom of the home page
 // getPackageInfo() gave nothing on the Bip Max (owner: no version shown), so the build constant is the fallback
-const APP_VER = "0.7.12"; // keep = app.json version.name
+const APP_VER = "0.8.0"; // keep = app.json version.name
 let VER = APP_VER;
 try {
   const pi = getPackageInfo() || {};
@@ -234,7 +234,8 @@ Page(
       }
 
       // vibrate once per new SOS / request while the app is open
-      const sig = s.sos.map((x) => x.id).concat(s.req.map((x) => x.id)).join(",");
+      const unread = chatUnread(this.state.kid, s);
+      const sig = s.sos.map((x) => x.id).concat(s.req.map((x) => x.id), unread.map((c) => "c" + c.t)).join(",");
       if (sig && sig !== seenAlerts) buzz();
       seenAlerts = sig;
 
@@ -261,6 +262,15 @@ Page(
         col.text(head + again + (x.note ? `\n“${x.note}”` : ""), { size: 24, color: 0xffcc80 });
         col.btn(t("answer"), () => go("page/pick", { kid: this.state.kid, title: head, items: this.answerItems(x) }), { color: C.amber, press: C.amberP, h: 60 });
       });
+
+      // the child's newest unread chat message: read it here, answer in the chat page
+      if (unread.length) {
+        const c = unread[unread.length - 1];
+        const att = c.a ? t("att_" + (["audio", "image", "video"].includes(c.a) ? c.a : "file"), c.d || "") : "";
+        col.gap(6);
+        col.text(t("chatNew", unread.length) + "\n“" + [c.x, att].filter(Boolean).join(" ").slice(0, 120) + "”", { size: 24, color: 0xffcc80 });
+        col.btn(t("reply"), () => go("page/chat", kidOpt), { color: C.amber, press: C.amberP, h: 60 });
+      }
 
       // right now: why the phone is locked / on a pass, and until when
       const nowLine = this.nowLine(s);
@@ -322,12 +332,7 @@ Page(
       }), { x: PAD + half + 12, w: half, size: 26 });
       col.row(
         { label: t("where"), fn: () => go("page/info", { kind: "loc", kid: this.state.kid }) },
-        { label: t("msg"), fn: () => go("page/pick", {
-          ...kidOpt, title: t("msg"),
-          // the parent's own saved messages (page: Thêm > lời nhắn > Lưu làm mẫu), else the built-in ones
-          items: (s.msgs && s.msgs.length ? s.msgs : ["m1", "m2", "m3", "m4", "m5"].map((k) => t(k)))
-            .map((m) => ({ label: m.length > 40 ? m.slice(0, 38) + "…" : m, m: "CMD", p: { c: { type: "message", text: m } }, rl: t("msg") })),
-        }) }
+        { label: unread.length ? t("msgN", unread.length) : t("msg"), fn: () => go("page/chat", kidOpt) }
       );
       col.row(
         { label: t("apps"), fn: () => go("page/apps", { kid: this.state.kid }) },

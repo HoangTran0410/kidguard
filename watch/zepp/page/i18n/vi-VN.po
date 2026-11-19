@@ -378,3 +378,51 @@ msgstr "Tây"
 
 msgid "d8_7"
 msgstr "Tây Bắc"
+
+msgid "chatH"
+msgstr "Nhắn · %1"
+
+msgid "speak"
+msgstr "Nói"
+
+msgid "type"
+msgstr "Gõ chữ"
+
+msgid "quick"
+msgstr "Câu có sẵn"
+
+msgid "chatEmpty"
+msgstr "Chưa có tin nhắn"
+
+msgid "kid"
+msgstr "Con"
+
+msgid "parent"
+msgstr "Bố mẹ"
+
+msgid "chatWait"
+msgstr "đang gửi"
+
+msgid "att_audio"
+msgstr "[Ghi âm %1 giây, nghe trên điện thoại]"
+
+msgid "att_image"
+msgstr "[Ảnh, xem trên điện thoại]"
+
+msgid "att_video"
+msgstr "[Video, xem trên điện thoại]"
+
+msgid "att_file"
+msgstr "[File, mở trên điện thoại]"
+
+msgid "noKb"
+msgstr "Đồng hồ này không có bàn phím"
+
+msgid "chatNew"
+msgstr "Tin nhắn mới (%1)"
+
+msgid "reply"
+msgstr "Trả lời"
+
+msgid "msgN"
+msgstr "Nhắn (%1)"

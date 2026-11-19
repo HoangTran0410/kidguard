@@ -192,6 +192,11 @@ function summary(k, j) {
       id: x.id, t: x.at || x.t || 0, again: x.remindAt || 0, kind: x.kind === "app" ? "app" : "time", min: x.min || 0,
       pkg: x.pkg || "", app: String(x.app || x.pkg || "").slice(0, 24), note: (x.note || "").slice(0, 60),
     })),
+    // family chat (protocol "Family chat"): last 12, newest last; f k = the child, p = a parent (w = which one)
+    chat: (Array.isArray(s.chat) ? s.chat : []).slice(-12).map((c) => ({
+      t: c.t || 0, f: c.from === "k" ? "k" : "p", w: String(c.who || "").slice(0, 14), x: String(c.text || "").slice(0, 160),
+      a: c.att ? String(c.att.kind || "file") : "", d: (c.att && +c.att.dur) || 0,
+    })),
     events: (s.events || []).slice(-10).reverse().map((e) => ({ t: e.t, text: (e.text || e.kind || "").slice(0, 60) })),
     apps,
   };
@@ -210,6 +215,11 @@ function demoState() {
     now: { why: "", until: 0, name: "" }, pass: 0, lost: false, lostMsg: "", lostPhone: "",
     sos: [],
     req: [{ id: "demo1", t: now - 2 * MIN, again: 0, kind: "time", min: 30, pkg: "", app: "", note: "con làm xong bài tập rồi" }],
+    chat: [
+      { t: now - 70 * MIN, f: "p", w: "Mẹ", x: "Về nhà nhớ ăn cơm nhé", a: "", d: 0 },
+      { t: now - 9 * MIN, f: "k", w: "", x: "Con đến lớp học thêm rồi", a: "", d: 0 },
+      { t: now - 8 * MIN, f: "k", w: "", x: "", a: "audio", d: 6 },
+    ],
     events: [
       { t: now - 50 * MIN, text: "Đã đến Nhà" },
       { t: now - 3 * 60 * MIN, text: "Đã rời Trường" },

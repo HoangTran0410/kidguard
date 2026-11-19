@@ -178,3 +178,10 @@ export function rcPoll(page, o) {
     .then((r) => (r && r.r ? { s: r.r, res: r.res } : { s: "wait" }))
     .catch(() => ({ s: "wait" }));
 }
+
+// family chat: newest child message time the parent has seen on this watch, per kid (page/chat sets it)
+export const chatSeenKey = (kid) => "chatSeen:" + kid;
+export function chatUnread(kid, s) {
+  const seen = +rcls.getItem(chatSeenKey(kid), "0") || 0;
+  return ((s && s.chat) || []).filter((c) => c.f === "k" && (c.t || 0) > seen);
+}

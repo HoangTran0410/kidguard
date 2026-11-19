@@ -378,3 +378,51 @@ msgstr "west"
 
 msgid "d8_7"
 msgstr "north-west"
+
+msgid "chatH"
+msgstr "Chat · %1"
+
+msgid "speak"
+msgstr "Speak"
+
+msgid "type"
+msgstr "Type"
+
+msgid "quick"
+msgstr "Quick messages"
+
+msgid "chatEmpty"
+msgstr "No messages yet"
+
+msgid "kid"
+msgstr "Child"
+
+msgid "parent"
+msgstr "Parent"
+
+msgid "chatWait"
+msgstr "sending"
+
+msgid "att_audio"
+msgstr "[Voice %1 s, play it on the phone]"
+
+msgid "att_image"
+msgstr "[Photo, open it on the phone]"
+
+msgid "att_video"
+msgstr "[Video, open it on the phone]"
+
+msgid "att_file"
+msgstr "[File, open it on the phone]"
+
+msgid "noKb"
+msgstr "This watch has no keyboard"
+
+msgid "chatNew"
+msgstr "New message (%1)"
+
+msgid "reply"
+msgstr "Reply"
+
+msgid "msgN"
+msgstr "Chat (%1)"
