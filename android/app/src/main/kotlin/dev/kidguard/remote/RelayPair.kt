@@ -20,6 +20,19 @@ object RelayPairLogic {
     /** The relay URL to pair over: https only. */
     fun usable(url: String) = url.startsWith("https://", ignoreCase = true)
 
+    const val PAGE = "https://kidguard.asia/app/"   // the parent page on the website (also what /go serves)
+
+    /**
+     * The child screen's pairing QR (owner 2026-11-20: one QR for every way). When the code is offered on the relay: the
+     * website page with the code (+ the LAN address while on Wi-Fi), so a phone camera opens a page that pairs from anywhere,
+     * and the parent app tries the LAN first, then the relay. Else the old LAN-only link; null = nothing to show.
+     */
+    fun qrLink(code: String, lan: String?, offered: Boolean): String? = when {
+        offered -> PAGE + "#pair=" + code + (lan?.removePrefix("http://")?.let { "&lan=$it" } ?: "")
+        lan != null -> "$lan/#pair=$code"
+        else -> null
+    }
+
     private val ID = Regex("^[0-9a-f]{16}$")
     private val TOKEN = Regex("^[0-9a-f]{48}$")
     /**

@@ -500,6 +500,7 @@ async function boot() {
     return pairScreen(hello, undefined, pc);
   }
   isRelayOrigin = true;
+  if (pc && anyOk()) return addScreen.far(pc);   // the kid's QR opened by a camera: an https page can't reach the LAN, so the relay
   const relayKids = kids.filter(k => k.via === "relay");
   if (relayKids.length === 1) return open(relayKids[0]);
   listScreen(relayKids);
@@ -609,19 +610,23 @@ function anyDone(j, name) {
 // (popstate in overview.js) instead of closing the parent app (owner 2026-11-20: the only back button sat at the bottom)
 function addScreen() {   // addScreen.on = it is showing (no new top-level names: check-assets ceiling)
   const keep = [($("#addr") || {}).value || "", ($("#rlink") || {}).value || ""]; reScreen = addScreen;
-  if (!addScreen.on) { addScreen.on = true; try { if (!navLvl()) history.pushState({ kg: 1, add: 1 }, ""); } catch {} }
+  addScreen.enter();
+  // one QR does every way (owner 2026-11-20): scan + the code first; typing an address / pasting a link folded under "Other ways"
+  const fold = anyOk() && !keep[0] && !keep[1];
   $("#app").innerHTML = head(t("addKid"), true) + `
   ${APP ? `<div class="card"><h2>${ic("scan-line")} ${t("scan.h")}</h2><p class="mute">${t("scan.p")}</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="pri" id="scanGo">${ic("scan-line")} ${t("scan.go")}</button><button id="scanImg">${ic("image")} ${t("scan.img")}</button></div></div>` : ""}
+  ${anyOk() ? anyCard() : ""}
+  ${fold ? `<details class="more"><summary><b>${t("add.other")}</b></summary>` : ""}
   <div class="card"><h2>${ic("wifi")} ${t("add.lanH")}</h2>
     <p class="mute">${t("add.lanP")}</p>
     <div class="pairf"><input id="addr" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="192.168.1.5" aria-label="${esc(t("add.addr"))}" value="${esc(keep[0])}"><button class="pri" id="lanGo">${ic("link")} ${t("add.connect")}</button></div><p class="err" id="e1"></p>
     ${APP ? "" : `<p class="mute">${ic("lightbulb")} ${t("add.sameOrigin")}</p>`}</div>
-  ${anyOk() ? anyCard() : ""}
   ${APP ? `<div class="card"><h2>${ic("globe")} ${t("add.relayH")}</h2>
     <p class="mute">${t("add.relayP")}</p>
     <div class="pairf"><input id="rlink" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${esc(t("add.relayPh"))}" aria-label="${esc(t("add.relayLink"))}" value="${esc(keep[1])}"><button class="pri" id="rGo">${ic("globe")} ${t("add")}</button></div><p class="err" id="e2"></p></div>` : ""}
+  ${fold ? "</details>" : ""}
 `;
-  $("#appSetBack").onclick = () => { if (history.state && history.state.add) history.back(); else { addScreen.on = false; appBoot(); } };
+  addScreen.bk();
   $("#lanGo").onclick = () => {
     let a = $("#addr").value.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
     if (!/^[A-Za-z0-9.-]+(:\d{1,5})?$/.test(a)) return $("#e1").textContent = t("add.badAddr");
@@ -632,6 +637,39 @@ function addScreen() {   // addScreen.on = it is showing (no new top-level names
   if ($("#scanGo")) $("#scanGo").onclick = () => { try { KGApp.scanQr(); } catch { toast("err|" + t("scan.none")); } };
   if ($("#scanImg")) $("#scanImg").onclick = () => { try { KGApp.scanImg(); } catch { toast("err|" + t("scan.none")); } };
 }
+addScreen.enter = () => { if (!addScreen.on) { addScreen.on = true; try { if (!navLvl()) history.pushState({ kg: 1, add: 1 }, ""); } catch {} } };
+addScreen.bk = () => { $("#appSetBack").onclick = () => { if (history.state && history.state.add) history.back(); else { addScreen.on = false; appBoot(); } }; };
+// "Pair from anywhere" alone, the code filled in: only the PIN is left (miss = the kid's phone was not found on this Wi-Fi)
+addScreen.far = (code, miss) => {
+  addScreen.enter(); reScreen = () => addScreen.far(code, miss);
+  $("#app").innerHTML = head(t("addKid"), true) + (miss ? `<p class="mute">${ic("wifi-off")} ${t("pk.miss")}</p>` : "") + anyCard();
+  addScreen.bk(); anyWire();
+  $("#ac").value = code; $("#ap1").focus();
+};
+// the kid's QR (RelayPair.qrLink): <page>#pair=<code>[&lan=<host:port>]. On the same Wi-Fi the parent picks home Wi-Fi or the
+// Internet (pros and cons on each); not found within 5 s / no Wi-Fi on the kid -> straight to the Internet way.
+addScreen.pick = async (code, lan) => {
+  addScreen.enter();
+  if (!lan) return addScreen.far(code);
+  reScreen = null;
+  $("#app").innerHTML = head(t("addKid"), true) + `<div class="card"><p><i class="spin"></i> ${t("pk.look")}</p></div>`;
+  addScreen.bk();
+  let hello = null;
+  try { const r = await fetch(lanApi(lan) + "/hello", { signal: quick(5000) }); if (r.ok) hello = await r.json(); } catch {}
+  if (!addScreen.on || !$("#appSetBack")) return;   // left meanwhile
+  if (!hello || !hello.id) return addScreen.far(code, true);
+  const k = kids.find(x => x.via === "lan" && x.id === hello.id);
+  if (k) { k.target = lan; save(kids); return open(k); }
+  const way = (id, icon, h, pro, con, pri) => `<div class="card"><h2>${ic(icon)} ${t(h)}</h2>
+    <p>${ic("circle-check")} ${t(pro)}</p><p class="mute">${ic("minus")} ${t(con)}</p><button class="${pri ? "pri " : ""}sp" id="${id}">${t("pk.go")}</button></div>`;
+  (reScreen = () => {
+    $("#app").innerHTML = head(t("addKid"), true) + `<p class="mute">${ic("wifi")} ${t("pk.p")}</p>`
+      + way("pkLan", "wifi", "pk.lanH", "pk.lanPro", "pk.lanCon", 1) + way("pkFar", "globe", "pk.farH", "pk.farPro", "pk.farCon");
+    addScreen.bk();
+    $("#pkLan").onclick = () => pairScreen(hello, lan, code);
+    $("#pkFar").onclick = () => addScreen.far(code);
+  })();
+};
 // invite link (tab-set.js "Invite another parent"): #ri=<relay origin>&rc=<id>&inv=<code>&n=<kid name>; asks only a name, no PIN
 function inviteOf(h) {
   const ri = httpsOrigin(h.get("ri") || (APP ? DEFAULT_RELAY : RELAY));
@@ -676,7 +714,8 @@ window.kgScan = o => {
   if (!o || !o.text) return;
   if (addRelayLink(o.text)) return;
   try {
-    const u = new URL(o.text.trim()), c = new URLSearchParams(u.hash.slice(1)).get("pair") || "";
+    const u = new URL(o.text.trim()), h = new URLSearchParams(u.hash.slice(1)), c = h.get("pair") || "", l = h.get("lan") || "";
+    if (u.protocol === "https:" && /^\d{6}$/.test(c)) return addScreen.pick(c, /^[A-Za-z0-9.-]+:\d{1,5}$/.test(l) ? "http://" + l : "");
     if (u.protocol === "http:" && /^[A-Za-z0-9.-]+$/.test(u.hostname) && /^\d{6}$/.test(c)) return lanHello("http://" + u.hostname + ":" + (u.port || 8770), c);
   } catch {}
   toast("err|" + t("scan.bad"));
@@ -702,7 +741,8 @@ function pairScreen(hello, target, prefill = "") {
   reScreen = () => pairScreen(hello, target, ($("#code") || {}).value || prefill);
   // no PIN yet (phone >= 0.9.6 says pairPin): this pairing sets it, atomically on the phone; older phones get the PIN gate after
   const newPin = hello.pairPin && !hello.pin;
-  $("#app").innerHTML = head("KidGuard") + `<div class="card">
+  const back = APP || target || homeKids().length;   // app, or a LAN browser adding another phone, or this phone's own pairing with kids
+  $("#app").innerHTML = head(back ? t("addKid") : "KidGuard", back) + `<div class="card">
     <h2>${ic("link")} ${t("pair.h")}</h2>
     ${hello.pairing ? `<p>${ic("hash")} ${t("pair.enter")}</p>
     <div class="pairf"><input id="code" inputmode="numeric" maxlength="6" placeholder="123456" value="${esc(prefill)}" aria-label="${esc(t("pair.code"))}">
@@ -716,9 +756,8 @@ function pairScreen(hello, target, prefill = "") {
     ${hello.owner || hello.mode === "basic" ? "" : `<p class="mute">${ic("info")} ${t("pair.notSetup", esc((hello.miss || []).map(k => t("perm." + k)).join(", ") || t("mode.items")))}</p>`}
   </div>`;
   // app, or a LAN browser adding another phone: back to the add screen; this phone's own pairing: back to the list if it has kids
-  if (APP || target || homeKids().length) {
-    $("#app").insertAdjacentHTML("beforeend", `<button id="abk">${ic("list")} ${t("back")}</button>`);
-    $("#abk").onclick = () => APP || target ? addScreen() : appBoot();
+  if (back) {
+    $("#appSetBack").onclick = () => APP || target ? addScreen() : appBoot();
     if ($("#retry") && target) $("#retry").onclick = () => lanHello(target);
   }
   const go = $("#go"); if (!go) return;

@@ -151,7 +151,7 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 
 ### 2.12 Scan QR to add a kid / invite a parent (0.9.17, parent app only)
 - Trigger: "Scan QR" on add-kid (`core.js` `#scanGo`) -> bridge `KGApp.scanQr()` -> `P/MainActivity.scanQr` (Google code scanner, no CAMERA permission) -> `window.kgScan({text} | {st})`.
-- Steps: text goes through `addRelayLink` (relay link) or the kid QR `http://host[:port]/#pair=<6 digits>`; anything else is ignored, never opened as a URL. Settings shows an invite QR (relay link) for the other parent.
+- Steps: text goes through `addRelayLink` (relay link), the one-for-all kid QR `https://…/#pair=<6 digits>[&lan=host:port]` (`addScreen.pick`: LAN probe 5 s -> pick Wi-Fi / Internet with pros+cons, else `addScreen.far` = relay pair prefilled) or the old kid QR `http://host[:port]/#pair=<6 digits>`; anything else is ignored, never opened as a URL. Settings shows an invite QR (relay link) for the other parent.
 - Gotchas: plain browsers have no scan button; no Play services = toast + manual entry.
 
 ### 2.13 Connect a Zepp watch (after 0.9.18, `watch/zepp/`, `relay/src/index.js` `watchRoute` + `Watch`)

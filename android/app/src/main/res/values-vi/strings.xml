@@ -432,8 +432,6 @@
     </plurals>
     <string name="st_sos">Đã gửi SOS, đang chờ bố mẹ xem</string>
     <string name="st_last_listen">Lần nghe gần nhất: %1$s (%2$s)</string>
-    <string name="main_hint_qr">Trên máy bố mẹ (cùng Wi-Fi): quét mã QR bằng camera, hoặc mở trình duyệt:\n%1$s\nrồi nhập mã ở trên.\nKhác Wi-Fi? Mở trang KidGuard, Thêm con > Ghép từ xa, rồi nhập mã.</string>
-    <string name="main_hint_nowifi">Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n(chưa có Wi-Fi)\nrồi nhập mã ở trên.\nKhác Wi-Fi? Mở trang KidGuard, Thêm con > Ghép từ xa, rồi nhập mã.</string>
     <string name="main_hint_qr_paired">Trên máy bố mẹ (cùng Wi-Fi): quét mã QR bằng camera, hoặc mở trình duyệt:\n%1$s\nrồi nhập mã ở trên.\nMáy này đã ghép rồi nên \"Ghép từ xa\" không dùng được. Khác Wi-Fi? Nhờ phụ huynh đã ghép gửi lời mời (Cài đặt › Kết nối › Mời phụ huynh khác).</string>
     <string name="main_hint_nowifi_paired">Mã này chỉ dùng được khi máy bố mẹ cùng Wi-Fi với máy con (chưa có Wi-Fi).\nMáy này đã ghép rồi nên \"Ghép từ xa\" không dùng được. Khác Wi-Fi? Nhờ phụ huynh đã ghép gửi lời mời (Cài đặt › Kết nối › Mời phụ huynh khác).</string>
     <string name="main_hint_hidden">Chưa ghép với máy bố mẹ. Bố mẹ giữ nút \"hiện mã ghép\" bên dưới 5 giây để ghép.</string>
@@ -1217,7 +1215,6 @@
     <string name="locnag_none">Hôm nay hết lượt để sau. Con vẫn gọi điện và bấm SOS được.</string>
     <string name="log_loc_snooze">Con hoãn bật định vị 10 phút (lần %1$d/%2$d hôm nay)</string>
     <string name="admin_off_warn">Bố mẹ sẽ nhận được cảnh báo. KidGuard sẽ thôi bảo vệ máy này.</string>
-    <string name="main_hint_qr_far">Trên máy bố mẹ (cùng Wi-Fi): quét mã QR bằng camera, hoặc mở trình duyệt:\n%1$s\nrồi nhập mã ở trên.\nKhác Wi-Fi? Mở trang KidGuard, Thêm con > Ghép từ xa, nhập mã và PIN của bố mẹ.</string>
-    <string name="main_hint_nowifi_far">Trên máy bố mẹ (cùng Wi-Fi), mở trình duyệt:\n(chưa có Wi-Fi)\nrồi nhập mã ở trên.\nKhác Wi-Fi? Mở trang KidGuard, Thêm con > Ghép từ xa, nhập mã và PIN của bố mẹ.</string>
     <string name="ev_pair_remote">Một máy bố mẹ mới vừa ghép từ xa: %1$s (mã + PIN).</string>
+    <string name="main_hint_any">Trên máy bố mẹ: quét mã QR này (bằng app KidGuard hoặc camera), rồi nhập PIN của bố mẹ. Cùng Wi-Fi hay khác mạng đều được.\nKhông quét được? Mở trang KidGuard, Thêm máy của con, nhập mã 6 số ở trên.</string>
 </resources>

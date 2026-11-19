@@ -45,4 +45,11 @@ class RelayPairLogicTest {
         val p = RelayPairLogic.parsePoll(200, """{"req":{"pin":"1234","newPin":"","name":"Mẹ"}}""")
         assertEquals(RelayPairLogic.Poll.Req("1234", "", "Mẹ"), p)
     }
+
+    @Test fun qrLinkOneForEveryWay() {
+        assertEquals("https://kidguard.asia/app/#pair=123456&lan=192.168.1.5:8770", RelayPairLogic.qrLink("123456", "http://192.168.1.5:8770", true))
+        assertEquals("https://kidguard.asia/app/#pair=123456", RelayPairLogic.qrLink("123456", null, true))   // no Wi-Fi: still a QR
+        assertEquals("http://192.168.1.5:8770/#pair=123456", RelayPairLogic.qrLink("123456", "http://192.168.1.5:8770", false))
+        assertNull(RelayPairLogic.qrLink("123456", null, false))
+    }
 }

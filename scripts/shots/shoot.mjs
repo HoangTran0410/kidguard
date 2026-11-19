@@ -43,6 +43,9 @@ const SHOTS = [
     { name: "applist", bare: 1, js: `appBoot()`, ready: `document.querySelectorAll("[data-kb]").length && [...document.querySelectorAll("[data-kb]")].every(e => !/^(relay|LAN)/i.test(e.textContent.trim()))`, settle: 1500 },
     { name: "addkid", bare: 1, js: `addScreen()`, ready: `document.querySelector("#ac") && document.querySelector("#appSetBack")`, settle: 500 },
     // Android Back on "Add a kid" = the list again (2026-11-20: it closed the app)
+    { name: "addkid-pick", bare: 1, js: `kids = kids.filter(k => k.via !== "lan"); addScreen.pick("123456", localStorage.getItem("kg.binT"))`, ready: `document.querySelector("#pkLan")`, settle: 500 },
+    { name: "addkid-lan", bare: 1, js: `kids = kids.filter(k => k.via !== "lan"); addScreen.pick("123456", localStorage.getItem("kg.binT")).then(() => $("#pkLan").click())`, ready: `document.querySelector("#appSetBack") && document.querySelector("#app .card h2")`, settle: 500 },
+    { name: "addkid-miss", bare: 1, js: `addScreen.pick("123456", "http://127.0.0.1:9")`, ready: `document.querySelector("#ap1") && document.querySelector("#ac").value === "123456"`, settle: 500 },
     { name: "addkid-back", bare: 1, js: `appBoot(); addScreen(); setTimeout(() => history.back(), 300)`, ready: `!document.querySelector("#ac") && document.querySelector("#addKid")`, settle: 800 },
     { name: "appset", bare: 1, js: `goAppSettings()`, ready: `document.querySelector("#nhBox") && document.querySelector("#uiPk")`, settle: 800 },
     { name: "gone", bare: 1, js: `open(kids.find(k => k.name === "Lan"))`, ready: `document.querySelector("#forgetGone")`, settle: 800 },

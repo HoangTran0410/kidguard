@@ -444,8 +444,6 @@
     </plurals>
     <string name="st_sos">SOS sent, waiting for your parent to see it</string>
     <string name="st_last_listen">Last listened: %1$s (%2$s)</string>
-    <string name="main_hint_qr">On the parent\'s phone (same Wi-Fi): scan the QR code with the camera, or open a browser at:\n%1$s\nthen enter the code above.\nNot on the same Wi-Fi? Open the KidGuard page, Add a kid > Pair from anywhere, and enter the code.</string>
-    <string name="main_hint_nowifi">On the parent\'s phone (same Wi-Fi), open a browser at:\n(no Wi-Fi yet)\nthen enter the code above.\nNot on the same Wi-Fi? Open the KidGuard page, Add a kid > Pair from anywhere, and enter the code.</string>
     <string name="main_hint_qr_paired">On the parent\'s phone (same Wi-Fi): scan the QR code with the camera, or open a browser at:\n%1$s\nthen enter the code above.\nThis phone is already paired, so \"Pair from anywhere\" doesn\'t work. Not on the same Wi-Fi? Ask a paired parent for an invite (Settings › Connection › Invite another parent).</string>
     <string name="main_hint_nowifi_paired">This code only works when the parent\'s phone is on the same Wi-Fi as the kid\'s (no Wi-Fi yet).\nThis phone is already paired, so \"Pair from anywhere\" doesn\'t work. Not on the same Wi-Fi? Ask a paired parent for an invite (Settings › Connection › Invite another parent).</string>
     <string name="main_hint_hidden">Not paired yet. A parent holds the \"show the pairing code\" button below for 5 seconds.</string>
@@ -1240,7 +1238,6 @@
     <string name="locnag_none">No more \"later\" today. You can still call and use SOS.</string>
     <string name="log_loc_snooze">Kid put off turning location on for 10 minutes (%1$d of %2$d today)</string>
     <string name="admin_off_warn">Your parent gets an alert. KidGuard stops protecting this phone.</string>
-    <string name="main_hint_qr_far">On the parent\'s phone (same Wi-Fi): scan the QR code with the camera, or open a browser at:\n%1$s\nthen enter the code above.\nNot on the same Wi-Fi? Open the KidGuard page, Add a kid > Pair from anywhere, enter the code and the parent PIN.</string>
-    <string name="main_hint_nowifi_far">On the parent\'s phone (same Wi-Fi), open a browser at:\n(no Wi-Fi yet)\nthen enter the code above.\nNot on the same Wi-Fi? Open the KidGuard page, Add a kid > Pair from anywhere, enter the code and the parent PIN.</string>
     <string name="ev_pair_remote">A new parent device paired from anywhere: %1$s (code + PIN).</string>
+    <string name="main_hint_any">On the parent\'s phone: scan this QR code (KidGuard app or camera), then enter the parent PIN. Same Wi-Fi or not, both work.\nNo camera? Open the KidGuard page, Add a kid, and enter the 6-digit code above.</string>
 </resources>

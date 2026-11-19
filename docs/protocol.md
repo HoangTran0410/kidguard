@@ -165,6 +165,11 @@ The worker's command whitelist must include `answer` and `reboot`.
 v0.4:
 - While pairing is open the child screen also shows a QR of `http://<ip>:8770/#pair=<code>`; the page prefills the code
   from `#pair=` (6 digits) and drops the hash.
+- 0.9.59: when the code is also offered on the relay ("Pair over relay"), the QR is one link for every way:
+  `https://kidguard.asia/app/#pair=<code>[&lan=<ip>:<port>]` (`RelayPairLogic.qrLink`; `lan` only while on Wi-Fi, a QR
+  shows even without Wi-Fi). Parent app scan: `GET <lan>/api/hello` within 5 s -> the parent picks home Wi-Fi (LAN pair)
+  or the Internet (relay pair, code filled in); not found -> relay pair. A browser (camera) opens the website page, which
+  can't reach http LAN from https: relay pair with the code filled in. Else (self-hosted relay) the old LAN QR.
 - `openPairing` returns `set PIN first` (and does nothing) when a parent was already paired and no PIN is set.
 - v0.9.6: `/api/pair` also takes `newPin` and refuses to pair without a PIN when none is set; see "v0.9.6" below.
 - LAN `GET /api/hello` adds `pin: bool`. `POST /api/pair {code, pin?}`: `pin` is required once a PIN is set (the child
