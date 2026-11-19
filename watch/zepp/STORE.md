@@ -2,6 +2,7 @@
 
 Package: `npx zeus build` -> `dist/1137121-KidGuard-<ver>-<stamp>.zab` (appId 1137121 = the store app created in the owner's Zepp Console 2026-11-19; 22062 was a dev-only id, an installed dev build is a separate app).
 Bump `app.json` version code + name AND `APP_VER` in `page/index.js` before every upload: the store refuses an equal code.
+Each uploaded build is also a GitHub prerelease `watch-zepp-<ver>` (`--prerelease --latest=false`: the phone self-updater reads the latest release, it must stay vX.Y.Z). dist/ stays gitignored.
 
 ## What to upload (console.zepp.com -> the KidGuard project -> new version)
 1. The `.zab` above.
