@@ -17,6 +17,7 @@ node scripts/check-search.mjs && node scripts/check-assets.mjs && scripts/check-
 node scripts/ui-pack.mjs                                  # website/ui/ (same content = same seq, nothing to redo)
 node scripts/ui-pack.mjs --check
 node scripts/site-app.mjs                                 # website/app, website/ui/*.js|css, install.html, qr.html
+node scripts/gen-ai-guide.mjs >/dev/null                 # website/ai/ from guide.html (CI checks it: stale = red build, 2026-11-19)
 
 if [ "$DRY" = 1 ]; then
   [ "$ONLY_PAGES" = 1 ] || echo "would run: (cd relay && npm ci && npx wrangler deploy)"
