@@ -92,7 +92,7 @@ Extra only in SelfSetup: optional Wi-Fi-debugging off; its step 1b runs across a
 4. Review diff: 4 site pages version chip, css/img `?v=`, `ui/provision.json`, `ui/qr.html` (should be unchanged if key same).
 5. Update website/guide/README text for new features (done in release commits), keep `llms.txt`/sitemap if relevant.
 6. Commit `vX.Y.Z: <summary>` (with Co-Authored-By), tag `vX.Y.Z`, push main + tag.
-7. Create GitHub Release `vX.Y.Z` (manual/gh) and upload from `build/`: `kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk`, and `version.json` (nothing else). Mark as latest (updater + QR + site use `/latest/`).
+7. Create GitHub Release `vX.Y.Z` (manual/gh) and upload from `build/`: `kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk`, `kidguard-wear.apk`, and `version.json` (nothing else). Mark as latest (updater + QR + site use `/latest/`).
 8. Deploy relay + site + UI pack with `scripts/deploy.sh` (section 4.4); or relay (`scripts/relay.sh`) so /install, /qr, parent page match; deploy website to Pages (owner's OK first).
    Website: static dir `website/` -> Cloudflare Pages project `kid-guard` (`kidguard.asia`): `npx wrangler pages deploy website --project-name kid-guard` (the exact command is the maintainer's choice; nothing in the repo runs it). Run `scripts/stamp-site.sh` first if css/img changed (build.sh already does).
 9. Verify the release: `scripts/release-check.sh [vX.Y.Z]` (read-only HEAD requests) checks the 4 contract asset names (`kidguard{,-parent,-home}.apk` + `version.json`) exist and the tag is `latest`. Asset names come from `Update.kt` (`kidguard.apk`, `version.json`), README/website links and `build.sh`.

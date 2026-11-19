@@ -11,7 +11,7 @@ TAG=${1:-v$V}; N=${TAG#v}
 REPO=$(git remote get-url origin 2>/dev/null | sed -E 's#^git@github.com:#https://github.com/#; s#\.git$##')
 case "$REPO" in https://github.com/*) ;; *) REPO=https://github.com/HoangTran0410/kidguard ;; esac
 miss=0
-for f in kidguard.apk kidguard-parent.apk kidguard-home.apk version.json; do
+for f in kidguard.apk kidguard-parent.apk kidguard-home.apk kidguard-wear.apk version.json; do
   code=$(curl -s -o /dev/null -L -I -w '%{http_code}' "$REPO/releases/download/$TAG/$f" || echo 000)
   if [ "$code" = 200 ]; then echo "ok       $f"; else echo "MISSING  $f ($code)"; miss=1; fi
 done

@@ -2,7 +2,7 @@
 
 Kotlin + Compose for Wear OS (minSdk 30, Wear OS 3+). Standalone: the watch uses its own Wi-Fi / LTE, no phone companion.
 It talks to the relay only, like the page and the Zepp app (shared contract: `../README.md`, wire formats: `docs/protocol.md`
-"Watch connect"). v0.1.0, debug signing only (never touches `android/app/signing.jks`).
+"Watch connect"). v0.1.0. Release key `app/wear-signing.jks` (2026-11-19, git-ignored, in `scripts/keys.sh backup`, NEVER regenerate: updates need the same key); `scripts/build.sh` builds it into every release as `kidguard-wear.apk`. Never touches `android/app/signing.jks`.
 
 Path shorthand: `W/` = `app/src/main/kotlin/dev/kidguard/wear/`. **Line numbers drift**: grep the function name.
 Behaviour reference: `watch/zepp/app-side/index.js` (`summary()`, `editRules()`, `pairNew/pairPoll`, `http()`), `watch/zepp/page/*.js`.

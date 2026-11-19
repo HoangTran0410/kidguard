@@ -319,10 +319,11 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
   <p>Address <code>https://kg-relay.99-hoangtran.workers.dev</code>, on by default. The free daily quota is shared by everyone, so on a rare day it can run out: then use the Telegram bot, Tailscale or your own relay.</p>
 
   <h3 id="watch">Parent watch (preview)</h3>
-  <p>The watch app lets a parent see time left, answer requests, lock, ring and see the location from the wrist. <b>There is no ready-to-install version yet.</b></p>
+  <p>The watch app lets a parent see time left, answer requests, lock, ring and see the location from the wrist.</p>
   <ul>
     <li><b>Amazfit (Zepp OS)</b>: runs on a real watch. Being prepared for the Zepp App Store. Once it is there: open the Zepp app on your phone, go to the app store, search <b>KidGuard</b>.</li>
-    <li><b>Wear OS, Garmin, Apple Watch</b>: source code only, not tried on a real watch yet.</li>
+    <li><b>Wear OS</b> (Galaxy Watch 4 or newer, Pixel Watch): online by itself over Wi-Fi or SIM. <a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-wear.apk">Download kidguard-wear.apk</a>. Install from an Android phone: on the watch tap <b>Build number</b> 7 times, turn on <b>ADB debugging</b> + <b>Debug over Wi-Fi</b>; on the phone install <b>Wear Installer 2</b>, type the watch IP, pick the file. Runs on the emulator, not tried on a real watch yet.</li>
+    <li><b>Garmin, Apple Watch</b>: later.</li>
   </ul>
   <p>Connect it like pairing a TV: open KidGuard on the watch and tap <b>Connect</b> to get a 6-digit code. On the parent page search <kbd>watch</kbd>, enter the code and tap <b>Connect</b>. The relay must be on for that kid. The code expires after 10 minutes and the watch shows a new one. To look around before connecting, tap <b>Try demo</b> on the watch.</p>
 </section>

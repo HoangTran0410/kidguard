@@ -14,7 +14,21 @@ android {
         versionCode = (project.property("wear.code") as String).toInt()
         versionName = project.property("wear.version") as String
     }
-    buildTypes { release { isMinifyEnabled = false } }   // debug signing only in v1
+    // own release key (created 2026-11-19): app/wear-signing.jks, git-ignored, in scripts/keys.sh backup. NEVER regenerate it:
+    // a watch with the app can only update to an APK signed by the same key. Password like the phone apps' key.
+    val wearKey = file("wear-signing.jks")
+    signingConfigs {
+        create("release") {
+            storeFile = wearKey; storePassword = "kidguard"; keyAlias = "kidguard-wear"; keyPassword = "kidguard"
+        }
+    }
+    buildTypes {
+        release {
+            isMinifyEnabled = true; isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            if (wearKey.exists()) signingConfig = signingConfigs.getByName("release")
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

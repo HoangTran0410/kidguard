@@ -1227,7 +1227,7 @@ Only volume, brightness, screen timeout and Do Not Disturb; anything else goes t
   Absent on children older than 0.9 (the page hides its card).
 - **Parent app**: once a day the same `HEAD` from `CheckJob`; a newer tag than its own version gives one notification
   per version; the app downloads `releases/download/v<tag>/kidguard-parent.apk`, checked against `version.json` (0.9.49+).
-- **Release assets** (2026-11-19, one file per app): `kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk` + `version.json`
+- **Release assets** (2026-11-19, one file per app): `kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk`, `kidguard-wear.apk` (Wear OS parent watch app, own key `watch/wearos/app/wear-signing.jks`, own version `wear.*`) + `version.json`
   (SHA-256 of each). Fixed names: QR provisioning, setup scripts, install.html and both updaters use them; never rename them.
   No `.sha256` files and no versioned copies since 0.9.49 (apps <= 0.9.48 read `.sha256`: update those by hand).
 

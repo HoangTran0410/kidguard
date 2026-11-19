@@ -560,7 +560,10 @@ function watchCard() {
     ? `<p class="mute">${t("watch.p")}</p>
     <details style="margin:4px 0 8px"><summary>${ic("book-open")} ${t("wg.h")}</summary>
       <p style="margin:8px 0 4px"><b>${t("wg.which")}</b></p>
-      <ul style="margin:0;padding-left:18px">${["wg.zepp", "wg.wear", "wg.other"].map(k => `<li style="margin:4px 0">${t(k)}</li>`).join("")}</ul>
+      <p style="margin:6px 0 4px">${t("wg.wear")}</p>
+      <a class="btn pri" href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-wear.apk" target="_blank" rel="noopener" style="margin:4px 0 6px">${ic("download")} ${t("wg.dl")}</a>
+      <ol style="margin:4px 0 0;padding-left:18px">${["wg.w1", "wg.w2", "wg.w3"].map(k => `<li style="margin:4px 0">${t(k)}</li>`).join("")}</ol>
+      <p style="margin:10px 0 4px">${t("wg.zepp")}</p>
       <p style="margin:10px 0 4px"><b>${t("wg.how")}</b></p>
       <ol style="margin:0;padding-left:18px">${["wg.s1", "wg.s2", "wg.s3"].map(k => `<li style="margin:4px 0">${t(k)}</li>`).join("")}</ol>
       <p class="mute" style="margin:8px 0 0">${t("wg.net")} <a href="${SITE}${t("wg.url")}" target="_blank" rel="noopener">${t("wg.more")}</a></p>

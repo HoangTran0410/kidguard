@@ -32,6 +32,12 @@ mkdir -p build
 cp android/app/build/outputs/apk/kid/release/app-kid-release.apk build/kidguard.apk
 cp android/app/build/outputs/apk/home/release/app-home-release.apk build/kidguard-home.apk
 cp android/parent/build/outputs/apk/release/parent-release.apk build/kidguard-parent.apk
+# parent watch app for Wear OS (watch/wearos, own Gradle project + own key app/wear-signing.jks, own version wear.*);
+# shipped in every release so the guide links releases/latest/download/kidguard-wear.apk. No key on this machine
+# (CI, a fresh clone): skipped, the release then lacks it (release-check says so).
+if [ -f watch/wearos/app/wear-signing.jks ]; then
+  (cd watch/wearos && ./gradlew -q assembleRelease) && cp watch/wearos/app/build/outputs/apk/release/app-release.apk build/kidguard-wear.apk
+else rm -f build/kidguard-wear.apk; echo "no watch/wearos/app/wear-signing.jks: kidguard-wear.apk not built (scripts/keys.sh restore)"; fi
 # release assets (owner 2026-11-19, like tv-remote): one APK per app with a fixed name + version.json = the SHA-256 of
 # each (read by Update.kt, the parent Updater, setup.sh/.ps1, install.html). Site + README link
 # releases/latest/download/<fixed name>, so a release needs no link edits. Only the version chip (<span class="ver">) is stamped.
@@ -39,8 +45,9 @@ V=$(sed -n 's/^kg.version=//p' android/gradle.properties)
 C=$(sed -n 's/^kg.code=//p' android/gradle.properties)
 rm -f build/*.sha256 build/kidguard-[0-9]*.apk build/kidguard-home-[0-9]*.apk build/kidguard-parent-[0-9]*.apk
 sha() { shasum -a 256 "build/$1" | awk '{print $1}'; }
-printf '{"version": "%s", "code": %s, "files": {"kidguard.apk": "%s", "kidguard-home.apk": "%s", "kidguard-parent.apk": "%s"}}\n' \
-  "$V" "$C" "$(sha kidguard.apk)" "$(sha kidguard-home.apk)" "$(sha kidguard-parent.apk)" > build/version.json
+WEAR=""; [ -f build/kidguard-wear.apk ] && WEAR=$(printf ', "kidguard-wear.apk": "%s"' "$(sha kidguard-wear.apk)")
+printf '{"version": "%s", "code": %s, "files": {"kidguard.apk": "%s", "kidguard-home.apk": "%s", "kidguard-parent.apk": "%s"%s}}\n' \
+  "$V" "$C" "$(sha kidguard.apk)" "$(sha kidguard-home.apk)" "$(sha kidguard-parent.apk)" "$WEAR" > build/version.json
 perl -pi -e 's#<span class="ver">v[0-9.]*</span>#<span class="ver">v'"$V"'</span>#g' \
   website/index.html website/en/index.html website/guide.html website/en/guide.html
 scripts/stamp-site.sh

@@ -41,7 +41,7 @@ When you settle something durable (a decision, a rejected approach, a platform q
 - Launcher changes: build and install BOTH flavors (`kid` and `home`); the phone's default HOME may be either.
 - Launcher UI changes are measured on a real phone (release build, `docs/launcher-perf.md`): before/after numbers in the
   commit, within the budgets there or a written reason.
-- Never regenerate/delete `android/app/signing.jks` (QR checksum + self-update + Home layout import depend on it).
+- Never regenerate/delete `android/app/signing.jks` (QR checksum + self-update + Home layout import depend on it) or `watch/wearos/app/wear-signing.jks` (Wear OS app updates). Both are git-ignored and in `scripts/keys.sh backup`.
 - Don't read `ui/install.html` / `ui/qr.html` whole (inline bundles, lines of 13-25k chars): grep them.
 - Don't search inside `.claude/worktrees/` (stale copies of the tree from old agent runs).
 
