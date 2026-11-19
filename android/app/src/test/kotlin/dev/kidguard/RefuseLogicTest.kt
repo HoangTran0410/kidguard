@@ -35,6 +35,14 @@ class RefuseLogicTest {
     @Test fun kidguardNamedInADialogStillCounts() =
         assertEquals(setOf("acc"), RefuseLogic.kinds("Phát hiện ứng dụng KidGuard có thể điều khiển thiết bị. Vui lòng gỡ để tiếp tục."))
 
+    @Test fun ourNameOnAnAppManagerPageIsNotARefusal() {   // INCIDENT 2026-11-19: the Zepp app's page of the KidGuard watch app
+        assertEquals(emptySet<String>(), RefuseLogic.kinds("KidGuard 0.8.1 Cài đặt ứng dụng Gỡ cài đặt"))
+        assertEquals(emptySet<String>(), RefuseLogic.kinds("KidGuard Settings Uninstall Remove from watch"))
+        assertEquals(emptySet<String>(), RefuseLogic.kinds("KidGuard Bảo mật Quyền riêng tư Tắt thông báo"))
+        // still a refusal when another reason word is there
+        assertEquals(setOf("acc"), RefuseLogic.kinds("Vui lòng gỡ cài đặt KidGuard và tắt trợ năng để tiếp tục."))
+    }
+
     @Test fun matchReturnsTheTextSeen() =
         assertTrue(RefuseLogic.match("Vui lòng tắt trợ năng").second.contains("tro nang"))
 

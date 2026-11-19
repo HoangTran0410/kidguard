@@ -25,6 +25,11 @@ object RefuseLogic {
     private val BAD = listOf("tat ", "hay tat", "vui long tat", "go bo", "go cai dat", "vo hieu", "phat hien", "khong the", "khong duoc", "khong cho phep",
         "khong an toan", "rui ro", "nguy hiem", "bao mat", "an toan", "turn off", "disable", "uninstall", "remove", "detected", "unable", "cannot",
         "can't", "not allowed", "not supported", "unsafe", "risk", "security", "secure", "dangerous", "harmful")
+    /** Words that only say "you can remove / manage this" (an app store or app manager page, a watch app's details
+     *  page in the Zepp app): they do not count next to our own name "kidguard" (INCIDENT 2026-11-19: "Zepp won't open
+     *  while accessibility is on" from the Zepp page of the KidGuard watch app, "KidGuard" next to "Gỡ cài đặt"). A real
+     *  refusal naming us also says it found / distrusts it ("phát hiện", "detected", "không an toàn", ...). */
+    private val MANAGE = setOf("go bo", "go cai dat", "uninstall", "remove", "bao mat", "an toan", "security", "secure", "tat ", "disable", "vo hieu")
     /** Longer than this = a normal screen (an article, a chat), not an error dialog / toast. */
     const val MAX_TEXT = 600
     /** Only in the first seconds after the app came up: refusals come at start. */
@@ -50,12 +55,12 @@ object RefuseLogic {
         val none = emptySet<String>() to ""
         if (typing || text.isBlank() || text.length > MAX_TEXT) return none
         val t = " " + norm(text) + " "
-        val bad = BAD.flatMap { w -> Regex(Regex.escape(w)).findAll(t).map { it.range.first }.toList() }
-        if (bad.isEmpty()) return none
+        val badAt = BAD.flatMap { w -> Regex(Regex.escape(w)).findAll(t).map { w to it.range.first }.toList() }
+        if (badAt.isEmpty()) return none
         val out = LinkedHashSet<String>(); var at = -1
         fun hits(words: List<String>, kind: String, whole: (String) -> Boolean) {
             for (w in words) for (m in Regex(if (whole(w)) "\\b" + Regex.escape(w) + "\\b" else Regex.escape(w)).findAll(t)) {
-                if (bad.any { kotlin.math.abs(it - m.range.first) <= NEAR }) { out += kind; if (at < 0) at = m.range.first; return }
+                if (badAt.any { (bw, at) -> kotlin.math.abs(at - m.range.first) <= NEAR && !(w == "kidguard" && bw in MANAGE) }) { out += kind; if (at < 0) at = m.range.first; return }
             }
         }
         hits(ACC, "acc") { false }
