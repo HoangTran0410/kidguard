@@ -35,7 +35,7 @@ L.vi = {
   "pair.notSetup": "Máy con còn thiếu: {0}. Vẫn ghép được, nhưng luật chưa có tác dụng tới khi bật xong (mở KidGuard trên máy con, làm theo danh sách).",
   "pe.wrong code": "Sai mã, thử lại", "pe.wrong pin": "Sai PIN", "pe.no pin": "Nhập PIN của bố mẹ: máy con này đã có PIN (đặt lúc ghép lần đầu).", "pe.pin locked": "Sai PIN nhiều lần, thử lại sau {0} phút",
   "pe.wait": "Sai nhiều lần: máy con đã đổi mã mới, đợi một lát rồi nhập mã mới", "pe.closed": "Máy con đã đóng ghép, mở lại trên máy con", "pe.busy": "Mã này đang có một lần ghép khác chờ máy con trả lời. Đợi 1 phút rồi thử lại.", "pe.fail": "Không ghép được ({0}). Kiểm tra mã trên màn hình của con rồi thử lại.",
-  "any.pin": "PIN của bố mẹ (4–8 số)", "any.pinP": "Máy con mới: đặt PIN ngay bây giờ. Máy con đã ghép: nhập PIN đang dùng. Con không được biết PIN.", "any.pin1": "PIN",
+  "any.pin": "PIN của bố mẹ (4–8 số)", "any.pinP": "Máy con mới thì đặt PIN mới, máy đã ghép thì nhập PIN đang dùng. Con không được biết PIN.", "any.pin1": "PIN",
   "pair.newPin": "Đặt PIN của bố mẹ (4–8 số)", "pair.newPinP": "Máy con chưa có PIN: đặt luôn bây giờ. Cần PIN này để ghép thêm máy và để quản lý ngay trên máy con. Con không được biết PIN.",
   "pair.pin1": "PIN mới", "pair.pin2": "Nhập lại PIN", "pe.pin required": "Hãy đặt PIN (4–8 số) để ghép", "pe.bad pin": "PIN 4–8 số", "pe.mismatch": "Hai PIN không giống nhau",
   "pinGate.h": "Đặt PIN của bố mẹ", "pinGate.p": "Máy này đã ghép từ trước nhưng chưa có PIN. Bố mẹ cần đặt PIN trước khi dùng tiếp: PIN để ghép thêm máy và để quản lý ngay trên máy con (thay cho việc chờ 24 giờ). Con không được biết PIN.",

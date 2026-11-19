@@ -365,6 +365,7 @@ function goList() {
 addEventListener("popstate", () => {
   const l = navLvl(), s = history.state || {};
   if (typeof appSetOn !== "undefined" && appSetOn && !s.appSet) { appSetOn = false; return appBoot(); }
+  if (addScreen.on && !s.add) { addScreen.on = false; if (!cur) return appBoot(); }   // left "Add a kid" (a kid opened from it keeps its entry)
   if (navQuiet) { navQuiet = false; return; }
   if (navSkip) { if (s.td) try { history.replaceState({ ...noSub(s), tab: navSkip }, ""); } catch {} navSkip = null; return; }
   if (cur && !ov && subPop(s)) return;

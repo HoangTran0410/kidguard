@@ -41,6 +41,9 @@ const NOW = (() => { const d = new Date(); d.setHours(16, 20, 0, 0); return d.ge
 const SHOTS = [
   ...(FAKE_APP ? [
     { name: "applist", bare: 1, js: `appBoot()`, ready: `document.querySelectorAll("[data-kb]").length && [...document.querySelectorAll("[data-kb]")].every(e => !/^(relay|LAN)/i.test(e.textContent.trim()))`, settle: 1500 },
+    { name: "addkid", bare: 1, js: `addScreen()`, ready: `document.querySelector("#ac") && document.querySelector("#appSetBack")`, settle: 500 },
+    // Android Back on "Add a kid" = the list again (2026-11-20: it closed the app)
+    { name: "addkid-back", bare: 1, js: `appBoot(); addScreen(); setTimeout(() => history.back(), 300)`, ready: `!document.querySelector("#ac") && document.querySelector("#addKid")`, settle: 800 },
     { name: "appset", bare: 1, js: `goAppSettings()`, ready: `document.querySelector("#nhBox") && document.querySelector("#uiPk")`, settle: 800 },
     { name: "gone", bare: 1, js: `open(kids.find(k => k.name === "Lan"))`, ready: `document.querySelector("#forgetGone")`, settle: 800 },
     { name: "oldrelay", bare: 1, js: `open(kids.find(k => k.name === "Nam"))`, ready: `document.querySelector("#goneDel")`, settle: 800 },

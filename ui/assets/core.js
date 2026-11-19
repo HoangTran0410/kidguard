@@ -567,7 +567,7 @@ const anySha = async x => [...new Uint8Array(await crypto.subtle.digest("SHA-256
 const anyCard = () => `<div class="card"><h2>${ic("globe")} ${t("any.h")}</h2><p class="mute">${t("any.p")}</p>
   <div class="pairf"><input id="ac" inputmode="numeric" maxlength="6" placeholder="123456" aria-label="${esc(t("pair.code"))}">
   <input id="an" placeholder="${esc(t("pair.name"))}" value="${esc(t("kid"))}" aria-label="${esc(t("pair.name"))}"></div>
-  <p class="mute" style="margin:10px 0 6px">${ic("key-round")} <b>${t("any.pin")}</b><br>${t("any.pinP")}</p>
+  <p style="margin:12px 0 2px">${ic("key-round")} <b>${t("any.pin")}</b></p><p class="mute" style="margin:0 0 6px">${t("any.pinP")}</p>
   <div class="pairf"><input id="ap1" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("any.pin1"))}" aria-label="${esc(t("any.pin1"))}">
   <input id="ap2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin2"))}" aria-label="${esc(t("pair.pin2"))}">
   <button class="pri" id="aGo">${ic("globe")} ${t("pair.go")}</button></div><p class="err" id="eA"></p></div>`;
@@ -605,9 +605,12 @@ function anyDone(j, name) {
   const k = { id: j.id, token: j.token, name, via: "relay", target: j.url, own: 1 };
   kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids); open(k);
 }
-function addScreen() {
+// "Add a kid" has a list behind it: a back arrow at the top + one history entry, so Android Back returns to the list
+// (popstate in overview.js) instead of closing the parent app (owner 2026-11-20: the only back button sat at the bottom)
+function addScreen() {   // addScreen.on = it is showing (no new top-level names: check-assets ceiling)
   const keep = [($("#addr") || {}).value || "", ($("#rlink") || {}).value || ""]; reScreen = addScreen;
-  $("#app").innerHTML = head(t("addKid")) + `
+  if (!addScreen.on) { addScreen.on = true; try { if (!navLvl()) history.pushState({ kg: 1, add: 1 }, ""); } catch {} }
+  $("#app").innerHTML = head(t("addKid"), true) + `
   ${APP ? `<div class="card"><h2>${ic("scan-line")} ${t("scan.h")}</h2><p class="mute">${t("scan.p")}</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="pri" id="scanGo">${ic("scan-line")} ${t("scan.go")}</button><button id="scanImg">${ic("image")} ${t("scan.img")}</button></div></div>` : ""}
   <div class="card"><h2>${ic("wifi")} ${t("add.lanH")}</h2>
     <p class="mute">${t("add.lanP")}</p>
@@ -617,8 +620,8 @@ function addScreen() {
   ${APP ? `<div class="card"><h2>${ic("globe")} ${t("add.relayH")}</h2>
     <p class="mute">${t("add.relayP")}</p>
     <div class="pairf"><input id="rlink" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="${esc(t("add.relayPh"))}" aria-label="${esc(t("add.relayLink"))}" value="${esc(keep[1])}"><button class="pri" id="rGo">${ic("globe")} ${t("add")}</button></div><p class="err" id="e2"></p></div>` : ""}
-  <button id="abk">${ic("list")} ${t("back")}</button>`;
-  $("#abk").onclick = appBoot;
+`;
+  $("#appSetBack").onclick = () => { if (history.state && history.state.add) history.back(); else { addScreen.on = false; appBoot(); } };
   $("#lanGo").onclick = () => {
     let a = $("#addr").value.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "");
     if (!/^[A-Za-z0-9.-]+(:\d{1,5})?$/.test(a)) return $("#e1").textContent = t("add.badAddr");
