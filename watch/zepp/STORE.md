@@ -1,6 +1,6 @@
 # Zepp App Store listing (owner submits; 2026-11-19)
 
-Package: `npx zeus build` -> `dist/22062-KidGuard-<ver>-<stamp>.zab` (appId 22062 = the owner's Zepp developer project).
+Package: `npx zeus build` -> `dist/1137121-KidGuard-<ver>-<stamp>.zab` (appId 1137121 = the store app created in the owner's Zepp Console 2026-11-19; 22062 was a dev-only id, an installed dev build is a separate app).
 Bump `app.json` version code + name AND `APP_VER` in `page/index.js` before every upload: the store refuses an equal code.
 
 ## What to upload (console.zepp.com -> the KidGuard project -> new version)
