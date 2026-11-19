@@ -513,8 +513,10 @@ export class Kid {
       let b; try { b = await req.json(); } catch { return json({ error: "bad json" }, 400); }
       if (!b || !/^\d{6}$/.test(String(b.code || ""))) return json({ error: "bad code" }, 400);
       const name = String(b.name || "").replace(/[\u0000-\u001f]/g, "").slice(0, 20);
-      // the watch gets a parent token of its own (kind "watch": no browser PIN), named like the page names it
-      const wt = await this.mint(name || "Watch", "watch", Date.now());
+      // the watch gets a parent token of its own (kind "watch": no browser PIN), named `wname` (the page's name for the watch,
+      // shown in the parents / watch list); `name` is the kid name the watch shows. Pages before 2026-11-19 send only `name`.
+      const wname = String(b.wname || "").replace(/[\u0000-\u001f]/g, "").slice(0, 30);
+      const wt = await this.mint(wname || name || "Watch", "watch", Date.now());
       if (!wt) return json({ error: "too many parents" }, 409);
       const r = await this.env.WATCH.get(this.env.WATCH.idFromName("w:" + b.code)).fetch("https://w/attach", { method: "POST", body: JSON.stringify({ url: url.origin, id, token: wt, name }) });
       if (r.status !== 200) { delete (await this.parents())[await sha256(wt)]; await this.s.put("par", this.par); }

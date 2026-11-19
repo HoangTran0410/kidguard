@@ -426,3 +426,6 @@ msgstr "Trả lời"
 
 msgid "msgN"
 msgstr "Nhắn (%1)"
+
+msgid "unpaired"
+msgstr "Bố mẹ đã ngắt kết nối đồng hồ này"

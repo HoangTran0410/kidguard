@@ -426,3 +426,6 @@ msgstr "Reply"
 
 msgid "msgN"
 msgstr "Chat (%1)"
+
+msgid "unpaired"
+msgstr "A parent disconnected this watch"

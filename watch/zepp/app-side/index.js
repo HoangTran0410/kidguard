@@ -126,7 +126,14 @@ async function http(k, path, method = "GET", body) {
     headers: { "X-KG-Token": k.token, "X-KG-Name": "Zepp watch", "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
-  const j = typeof r.body === "string" ? (r.body ? JSON.parse(r.body) : {}) : r.body || {};
+  let j = {};
+  try { j = typeof r.body === "string" ? (r.body ? JSON.parse(r.body) : {}) : r.body || {}; } catch (e) {}
+  // 401 = a parent removed this watch on the page (its own token was revoked), 410 = the kid's phone was released:
+  // forget that kid here, the watch then shows "disconnected" and the connect screen when no kid is left
+  if (r.status === 401 || r.status === 410) {
+    store().setItem("kids", JSON.stringify(kids().filter((x) => x.token !== k.token)));
+    throw new Error("unpaired");
+  }
   if (r.status >= 400) throw new Error(j.error || "HTTP " + r.status);
   return j;
 }

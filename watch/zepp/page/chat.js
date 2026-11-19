@@ -39,7 +39,7 @@ Page(
       ask(this, { method: "STATE", params: { kid: this.o.kid } })
         .then((r) => {
           if (this.dead) return;
-          if (r.error) return this.err(r.error);
+          if (r.error) return this.err(r.error === "unpaired" ? t("unpaired") : r.error);
           this.s = r.state;
           this.render();
         })

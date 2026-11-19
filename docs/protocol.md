@@ -851,7 +851,7 @@ phone (`ListenCall.cap`) and relay, `release`. LAN / Tailscale kids keep `GET /a
 - Relay storage GC: a phone not seen for 30 days -> the Durable Object deletes everything (DO alarm armed by sync); the
   phone re-binds on its next sync. An id bound but never heard again (no second sync, no rules, no queue) within 7 days is
   deleted too (`UNUSED_MS`, `born`).
-- No APK on the relay (plan B). `ui/install.html` fetches `kidguard.apk(.sha256)` relative: : the website has none, so it shows "download
+- No APK on the relay (plan B). `ui/install.html` fetches `kidguard.apk` + `version.json` relative: : the website has none, so it shows "download
   the latest from GitHub (`releases/latest/download/kidguard.apk`), then pick the file" (GitHub assets have no CORS).
 - Resume drops a queued `lock` (`lk`): a rules PUT with `pausedUntil` not in the future, while the stored rules or the phone's state
   had one in the future ("Resume all" only PUTs rules), deletes every still-queued `lock` of that kid (other commands stay).
@@ -1210,8 +1210,8 @@ Only volume, brightness, screen timeout and Do Not Disturb; anything else goes t
 
 ## Self-update (v0.9)
 - **Source**: `HEAD https://github.com/HoangTran0410/kidguard/releases/latest` (no redirects followed): the `Location`
-  header ends in `/tag/v<x.y.z>`. Then `releases/download/v<x.y.z>/kidguard.apk` and `kidguard.apk.sha256` (first
-  token = hex SHA-256). The APK must hash to it, have package `dev.kidguard` and a higher versionCode; Android itself
+  header ends in `/tag/v<x.y.z>`. Then `releases/download/v<x.y.z>/version.json` (`{"version", "code", "files":
+  {"kidguard.apk": "<hex SHA-256>", "kidguard-home.apk": …, "kidguard-parent.apk": …}}`, 0.9.49+) and `kidguard.apk`. The APK must hash to it, have package `dev.kidguard` and a higher versionCode; Android itself
   refuses an update signed with another key, so a fork's or a tampered release can't replace the app.
   A tag whose APK fails that check is remembered and skipped until a newer tag. `release` aborts (`"failed: N app còn
   bị ẩn"`, still Device Owner) if an app hidden by "Dọn máy" can't be un-hidden, and drops a waiting download.
@@ -1226,10 +1226,10 @@ Only volume, brightness, screen timeout and Do Not Disturb; anything else goes t
   `pct` (v0.9.36) = download progress while `downloading`, -1 otherwise or when the size is unknown.
   Absent on children older than 0.9 (the page hides its card).
 - **Parent app**: once a day the same `HEAD` from `CheckJob`; a newer tag than its own version gives one notification
-  per version; the app downloads `releases/download/v<tag>/kidguard-parent.apk` (0.9.49+; <= 0.9.48 fetch `kidguard-parent-<tag>.apk`).
-- **Release assets**: `kidguard.apk`, `kidguard-parent.apk` + their `.sha256` (fixed names: QR provisioning, setup
-  scripts and the child updater use `kidguard.apk`/`kidguard.apk.sha256`; never rename them), `kidguard-home.apk`, no versioned
-  copies (2026-11-19) except `kidguard-parent-<v>.apk` until 2026-12-31 (what parent apps <= 0.9.48 update from).
+  per version; the app downloads `releases/download/v<tag>/kidguard-parent.apk`, checked against `version.json` (0.9.49+).
+- **Release assets** (2026-11-19, one file per app): `kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk` + `version.json`
+  (SHA-256 of each). Fixed names: QR provisioning, setup scripts, install.html and both updaters use them; never rename them.
+  No `.sha256` files and no versioned copies since 0.9.49 (apps <= 0.9.48 read `.sha256`: update those by hand).
 
 ## Log history, the "Nhật ký" tab (after 0.9.14)
 - The phone keeps every log line and event 90 days / 30,000 rows (`HistDb.kt`, SQLite `kghist.db`, table `h`, index on `t`;
@@ -1586,10 +1586,10 @@ phone decides (`Store.tryPair`: code, `PairPin.decide`, PIN lockout, same errors
 Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone involvement; the phone needs no new version).
 - `POST /w/new` body `{"sh": "<sha256 hex of the watch's secret, 64 chars>"}` (no auth, body <= 512 B) -> `200 {"code": "123456", "exp": <ms>}`.
   Code = random 6 digits (collision retried), valid 10 min (`WATCH_TTL`), stored in Durable Object `w:<code>` as `{sh, exp}`; the secret itself never reaches the relay. Errors: 400 bad json / sh, 405 method, 413, 429 (`slow down` per-IP, or `too many codes from this network, try tomorrow`: 30 codes per network per day), 503 `try again`.
-- `POST /c/<id>/watch` body `{"code": "123456", "name": "<kid name, <= 20>"}` (body <= 512 B). Auth exactly like every parent route of that kid (`X-KG-Token`; missing / wrong = 401 `not paired`, unbound id = 409 `waiting for the phone`). Attaches `{url: <the origin the call came in on>, id, token: <the caller's token>, name}` to the waiting code -> `200 {"ok": true}`. Errors: 400 `bad code`, 404 `no such code` (never asked for, expired, already fetched), 409 `code already used`, 405 method.
+- `POST /c/<id>/watch` body `{"code": "123456", "name": "<kid name, <= 20>", "wname": "<the watch's name in the parents list, <= 30, optional (2026-11-19)>"}` (body <= 512 B). Auth exactly like every parent route of that kid (`X-KG-Token`; missing / wrong = 401 `not paired`, unbound id = 409 `waiting for the phone`). Attaches `{url: <the origin the call came in on>, id, token: <the caller's token>, name}` to the waiting code -> `200 {"ok": true}`. Errors: 400 `bad code`, 404 `no such code` (never asked for, expired, already fetched), 409 `code already used`, 405 method.
 - `GET /w/<code>` header `X-KG-Secret: <secret hex, 32-128 chars>`: `403 forbidden` (missing / wrong secret; never reveals whether the code exists with another secret), `404` (unknown / expired / already fetched), `200 {"waiting": true, "exp": ms}` until attached, then `200 {"url","id","token","name"}` ONCE: the entry is deleted with that reply.
 - Expiry: lazy on every access plus a Durable Object alarm at exp + 1 s (`deleteAll`). No listing route. Credentials of an expired, never-fetched code are deleted, not handed out.
-- Token choice (2026-11-17): the watch gets a parent token of its own (kind "watch", named as typed; see "Parents"), listed and revocable in the page's parents list; "renew relay link" (a new relay id) cuts it off.
+- Token choice (2026-11-17): the watch gets a parent token of its own (kind "watch", named as typed; see "Parents"), listed and revocable in the page's parents list and (2026-11-19) in the watch card itself (`GET /parents`, kind "watch"; "Ngắt kết nối" = `POST parents {revoke}`); "renew relay link" (a new relay id) cuts it off. A revoked watch gets `401 not paired`: its side service drops that kid and the watch shows "disconnected by the parent".
 - Watch side service: default relay `https://kg-relay.99-hoangtran.workers.dev` (= `DEFAULT_RELAY`), overridable in the Zepp settings page; polls ~3 s while the connect screen is open; appends `{url,id,token,name}` to settingsStorage `kids` (the shape the Zepp settings page stores).
 - Parent page: Settings > "Đồng hồ" / "Watch" (`s-watch`): 6-digit input + Connect; shown only when the kid has a relay (relay kid, or LAN kid with `relay` on).
 - `GET /c/<id>/tile?z=&x=&y=` (watch map, after 0.9.21): one OpenStreetMap tile (PNG) fetched by the worker and edge-cached 7 days. Auth like every parent route (`X-KG-Token`); `z` 13-18, `x`/`y` inside the zoom (else 400 `bad tile`); 502 `tile <status>` when OSM fails. Why: some networks block `tile.openstreetmap.org` (DNS -> 127.0.0.1) while the relay works; the watch side service falls back to OSM directly.

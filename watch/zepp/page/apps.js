@@ -19,7 +19,7 @@ Page(
     },
     load() {
       ask(this, { method: "STATE", params: { kid: this.kid } })
-        .then((r) => (r.error ? this.err(r.error) : this.render(r.state)))
+        .then((r) => (r.error ? this.err(r.error === "unpaired" ? t("unpaired") : r.error) : this.render(r.state)))
         .catch(() => this.err(t("noPhone")));
     },
     err(e) {

@@ -446,6 +446,7 @@ function setTab(b) {
   if ($("#aiRevoke")) $("#aiRevoke").onclick = aiRevoke;
   if ($("#aiDone")) $("#aiDone").onclick = () => { aiShown = null; lastSig = ""; render(); };
   if ($("#aiCopy")) $("#aiCopy").onclick = () => { navigator.clipboard?.writeText($("#aiCfg").textContent).then(() => toast("ok|" + t("copied")), () => toast("warn|" + t("copyFail"))); };
+  if ($("#wList")) { if (rpS && rpS.k === cur && Date.now() - rpS.at < 30000) wPaint(); else rpLoad(); }
   if ($("#watchGo")) { $("#watchGo").onclick = watchGo; $("#f-wcode").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); watchGo(); } }; $("#f-wcode").oninput = e => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 6); }; }
   for (const x of document.querySelectorAll(".ftgo")) x.onclick = () => featGo(x.dataset.ft);
   if ($("#updNow")) $("#updNow").onclick = () => cmd({ type: "update" }, t("upd.sent"), [t("upd.ask"), t("upd.ok")]).then(() => setTimeout(refresh, 4000));
@@ -557,19 +558,41 @@ function watchCard() {
   const ok = cur.via === "relay" || !!(cur.relay && st.relay);
   return secP("s-watch", "watch", t("watch.h"), t("sd.watch"), null, ok
     ? `<p class="mute">${t("watch.p")}</p>
+    <div id="wList"><p class="mute"><i class="spin"></i></p></div>
+    <p class="mute" style="margin:12px 0 6px">${t("watch.add")}</p>
+    <div class="row"><input id="f-wname" maxlength="30" placeholder="${esc(t("watch.nameP"))}" aria-label="${esc(t("watch.name"))}" autocomplete="off" style="flex:1;min-width:0"></div>
     <div class="row"><input class="sp" style="min-width:8em" id="f-wcode" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="${esc(t("watch.ph"))}" aria-label="${esc(t("watch.code"))}" autocomplete="off"><button id="watchGo" class="pri">${ic("watch")} ${t("watch.go")}</button></div>`
     : `<p class="mute">${ic("info")} ${t("watch.needRelay")}</p>`, false);
 }
 async function watchGo() {
   const f = $("#f-wcode"), bt = $("#watchGo"), code = f.value.trim(), k = cur;
   if (!/^\d{6}$/.test(code)) { toast("warn|" + t("watch.bad")); f.focus(); return; }
-  const body = { code, name: k.name }, h0 = bt.innerHTML;
+  const wn = ($("#f-wname") && $("#f-wname").value.trim()) || t("watch.dflt"), body = { code, name: k.name, wname: wn.slice(0, 30) }, h0 = bt.innerHTML;
   bt.disabled = true; bt.setAttribute("aria-busy", "true");
   try {
     await (k.via === "relay" ? call(k, "/watch", "POST", body) : viaRelay(k, "/watch", "POST", body));
-    toast("ok|" + t("watch.done", k.name)); if (k === cur && $("#f-wcode")) f.value = "";
+    toast("ok|" + t("watch.done", k.name)); if (k === cur && $("#f-wcode")) { f.value = ""; if ($("#f-wname")) $("#f-wname").value = ""; }
+    if (rpS && rpS.k === k) rpS.at = 0;
+    setTimeout(() => { if (k === cur) rpLoad(); }, 5000);   // the watch fetches its token within ~3 s: then it is in the list
   } catch (er) { toast("err|" + t("errX", er.message)); if (k === cur) f.focus(); }
   finally { if ($("#watchGo") === bt) { bt.disabled = false; bt.removeAttribute("aria-busy"); bt.innerHTML = h0; } }
+}
+
+// Connected watches = the parents of kind "watch" on the relay (own token each, docs/protocol.md "Watch connect"):
+// listed here with "disconnect" (= revoke that token; the watch then forgets this kid). Shares rpS with the parents list.
+function wPaint() {
+  const b = $("#wList"); if (!b) return;
+  const L = rpS && rpS.k === cur ? rpS : null;
+  if (!L) return;
+  const ws = L.list.filter(p => p.kind === "watch");
+  b.innerHTML = !ws.length ? `<p class="mute">${t("watch.none")}</p>` : `<h3 style="margin:10px 0 6px">${ic("watch")} ${t("watch.list", ws.length)}</h3>` + ws.map(p => `<div class="app"><span class="ib">${ic("watch")}</span><div class="nm"><b>${esc(p.name)}</b>
+      <span class="mute">${t("watch.since", p.at ? ago(p.at) : "—")} · ${t("dev.last", p.seen ? ago(p.seen) : "—")}</span></div>
+      <button type="button" class="bad" data-wx="${esc(p.id)}" data-wn="${esc(p.name)}">${ic("unlink")} ${t("watch.off")}</button></div>`).join("");
+  b.querySelectorAll("[data-wx]").forEach(x => x.onclick = async () => {
+    if (!(await ask(t("watch.offAsk", x.dataset.wn), t("watch.off"), true))) return;
+    try { const j = await rcall(cur, "/parents", "POST", { revoke: x.dataset.wx }); if (j && j.parents) rpS = { k: cur, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; rpPaint(); wPaint(); toast("ok|" + t("watch.offDone")); }
+    catch (e) { toast("err|" + t("errX", e.message)); }
+  });
 }
 
 // AI assistant (mcp/README.md): a second, limited token. The page makes it (24 random bytes = 48 hex, like a paired token) and
@@ -627,11 +650,11 @@ function rpInner() {
       <div class="row" style="margin-top:8px"><button id="copy">${ic("clipboard-copy")} ${t("relay.copy")}</button></div>` : ""}
     <button id="rpInv" class="pri">${ic("user-plus")} ${t("rp.inv")}</button>`;
 }
-function rpPaint() { const b = $("#rpBox"); if (!b) return; b.innerHTML = rpInner(); rpBind(); }
+function rpPaint() { wPaint(); const b = $("#rpBox"); if (!b) return; b.innerHTML = rpInner(); rpBind(); }
 async function rpLoad() {
   const k = cur;
   try { const j = await rcall(k, "/parents", "GET"); if (j && Array.isArray(j.parents)) { rpS = { k, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; if (k === cur) rpPaint(); } }
-  catch { if (k === cur && $("#rpBox") && !(rpS && rpS.k === k)) $("#rpBox").innerHTML = `<p class="mute">${t("rp.none")}</p>`; }   // older relay: no list
+  catch { if (k === cur && !(rpS && rpS.k === k)) { if ($("#rpBox")) $("#rpBox").innerHTML = `<p class="mute">${t("rp.none")}</p>`; if ($("#wList")) $("#wList").innerHTML = `<p class="mute">${t("rp.none")}</p>`; } }   // older relay: no list
 }
 function rpWire() { if (!$("#rpBox")) return; rpBind(); if (!(rpS && rpS.k === cur && Date.now() - rpS.at < 30000)) rpLoad(); }
 function rpBind() {

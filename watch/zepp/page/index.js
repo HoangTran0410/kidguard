@@ -129,6 +129,13 @@ Page(
     load() {
       ask(this, { method: "STATE", params: { kid: this.state.kid } })
         .then((r) => {
+          if (r.error === "unpaired") {
+            // a parent removed this watch on the page: the side service forgot that kid; show it once, then the kid list again
+            toast(t("unpaired"));
+            this.state.s = null;
+            try { ls.setItem("kid", "0"); ls.removeItem("stC"); } catch (e) {}
+            return this.loadKids();
+          }
           if (r.error) return this.showErr(r.error);
           this.state.s = r.state;
           this.state.err = "";

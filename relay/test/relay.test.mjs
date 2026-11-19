@@ -468,6 +468,15 @@ ck("watch: one fetch returns {url,id,token,name}; the token is the watch's own",
 const Tww=j.token;ck("watch: the phone's token is phone-only once a watch has its own (join 403)",(await (await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":Tw}})).json()).error=="join");
 ck("watch: the entry is gone after the fetch (404)",(await GET(code)).status==404);
 ck("watch: attach after take 404",(await ATT(code)).status==404);
+{// wname names the watch in the parents list; revoking it there cuts the watch off (401)
+const c4=(await (await NEW()).json()).code;
+r=await fetch(`${B}/c/${idw}/watch`,{method:"POST",headers:{"x-kg-token":Tpw,"content-type":"application/json"},body:JSON.stringify({code:c4,name:"Bin",wname:"Đồng hồ của bố"})});
+const t4=(await (await GET(c4)).json()).token;
+const pl=(await (await fetch(`${B}/c/${idw}/parents`,{headers:{"x-kg-token":Tpw}})).json()).parents||[],w4=pl.find(p=>p.kind=="watch"&&p.name=="Đồng hồ của bố");
+ck("watch: wname is the watch's name in the parents list",r.status==200&&!!w4);
+ck("watch: its token works",(await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":t4}})).status==200);
+await fetch(`${B}/c/${idw}/parents`,{method:"POST",headers:{"x-kg-token":Tpw,"content-type":"application/json"},body:JSON.stringify({revoke:w4&&w4.id})});
+ck("watch: disconnected (revoked) watch gets 401",(await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":t4}})).status==401);}
 // expiry: unattached code, then an attached-but-never-fetched one: both gone after the TTL
 const c2=(await (await NEW()).json()).code,c3=(await (await NEW()).json()).code;await ATT(c3);
 await new Promise(z=>setTimeout(z,6600));
