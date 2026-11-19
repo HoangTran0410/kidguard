@@ -13,7 +13,7 @@ import { Col, C, t, fmtMin, ago, hhmm, twoTap, done, toast, PAD, ask, rcSave, rc
 const ls = new LocalStorage();
 // app version from app.json ("0.7.1"), shown at the bottom of the home page
 // getPackageInfo() gave nothing on the Bip Max (owner: no version shown), so the build constant is the fallback
-const APP_VER = "0.8.0"; // keep = app.json version.name
+const APP_VER = "0.8.1"; // keep = app.json version.name
 let VER = APP_VER;
 try {
   const pi = getPackageInfo() || {};

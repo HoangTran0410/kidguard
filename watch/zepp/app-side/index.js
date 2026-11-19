@@ -73,6 +73,15 @@ function kids() {
   }
 }
 
+function ownMsgs() {
+  try {
+    const q = JSON.parse(store().getItem("qmsgs") || "[]");
+    return Array.isArray(q) ? q : [];
+  } catch (e) {
+    return [];
+  }
+}
+
 function demoKid() {
   return { name: "Demo", demo: true };
 }
@@ -171,7 +180,8 @@ function summary(k, j) {
     name: k.name || "",
     seen: j.seen || 0,
     pending: j.pending || 0,
-    msgs: (Array.isArray(r.msgs) ? r.msgs : []).slice(0, 12).map((m) => String(m).slice(0, 120)),
+    // this watch's own quick messages (Zepp settings page, "qmsgs") first, then the family's (rules.msgs, page)
+    msgs: [...new Set(ownMsgs().concat(Array.isArray(r.msgs) ? r.msgs : []).map((m) => String(m).trim().slice(0, 120)).filter(Boolean))].slice(0, 20),
     queue: (Array.isArray(j.queue) ? j.queue : []).slice(-10).map((c) => ({ t: String(c.type || "").slice(0, 20), at: c.at || 0 })),
     day,
     leftMs: s.leftMs == null ? -1 : s.leftMs,
