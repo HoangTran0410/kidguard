@@ -20,6 +20,22 @@ import org.json.JSONObject
 class Admin : DeviceAdminReceiver() {
     override fun onEnabled(context: Context, intent: Intent) { Store.of(context).released = false; Guard.start(context) }
 
+    /**
+     * The system's own signal that someone pressed "Deactivate" on our device admin page: no text matching, so any
+     * language / OEM (owner 2026-11-19: "bắt chữ hơi hên xui"). Deactivating is the gate to uninstalling in basic mode.
+     * After pairing (and outside the kid's own fix buttons) accessibility leaves the page at once; the returned text is
+     * the warning in the confirm dialog if it still shows (accessibility off). A release by the parent never comes here
+     * (removeActiveAdmin does not ask).
+     */
+    override fun onDisableRequested(context: Context, intent: Intent): CharSequence {
+        val st = Store.of(context); val now = System.currentTimeMillis()
+        if (st.everPaired && !st.released && !CmdGate.selfOpen(st.selfOpenUntil, now)) {
+            runCatching { Acc.running?.leaveProtectedPage() }
+            runCatching { if (st.tamper("admin", R.string.ev_tamper_page)) Guard.running?.kick() }
+        }
+        return context.getString(R.string.admin_off_warn)
+    }
+
     /** After QR provisioning: start the guard and open the app so the "Bước còn lại" checklist shows. */
     override fun onProfileProvisioningComplete(context: Context, intent: Intent) {
         Store.of(context).released = false

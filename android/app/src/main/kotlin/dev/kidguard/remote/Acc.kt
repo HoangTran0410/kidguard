@@ -184,6 +184,13 @@ class Acc : AccessibilityService() {
         return listOfNotNull("KidGuard", own, getString(R.string.home_app).takeIf { home == "dev.kidguard.home" }).distinct()
     }
 
+    /** Called by [Admin.onDisableRequested]: Home now and again shortly (the confirm dialog comes up after the reply). */
+    fun leaveProtectedPage() {
+        val h = android.os.Handler(android.os.Looper.getMainLooper())
+        h.post { performGlobalAction(GLOBAL_ACTION_HOME); whyClosed(R.string.acc_closed_protect, R.string.bn_protect_t, R.string.bn_protect_b) }
+        h.postDelayed({ performGlobalAction(GLOBAL_ACTION_HOME) }, 600)
+    }
+
     private var lastWhy = 0L
     /** Says why the page just closed (owner: a page that vanishes with no word looks like a crash). First time: a card
      *  ([BlockNotice]: what, why, who can change it, OK). A repeat inside its quiet window (the page re-opened in a loop):

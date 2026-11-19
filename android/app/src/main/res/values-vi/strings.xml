@@ -1216,4 +1216,5 @@
     <string name="locnag_later">Để sau 10 phút (còn %1$d lần hôm nay)</string>
     <string name="locnag_none">Hôm nay hết lượt để sau. Con vẫn gọi điện và bấm SOS được.</string>
     <string name="log_loc_snooze">Con hoãn bật định vị 10 phút (lần %1$d/%2$d hôm nay)</string>
+    <string name="admin_off_warn">Bố mẹ sẽ nhận được cảnh báo. KidGuard sẽ thôi bảo vệ máy này.</string>
 </resources>

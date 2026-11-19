@@ -1239,4 +1239,5 @@
     <string name="locnag_later">Later, 10 minutes (%1$d left today)</string>
     <string name="locnag_none">No more \"later\" today. You can still call and use SOS.</string>
     <string name="log_loc_snooze">Kid put off turning location on for 10 minutes (%1$d of %2$d today)</string>
+    <string name="admin_off_warn">Your parent gets an alert. KidGuard stops protecting this phone.</string>
 </resources>
