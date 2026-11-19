@@ -35,18 +35,21 @@ const json = (st, key) => {
   }
 };
 
+// Text renders inline in the Zepp app settings page: title + sub run together on one line. One View per line.
+const line = (style, text, bold) => View({ style: { display: "block", width: "100%" } }, [Text(bold ? { bold: true, style } : { style }, text)]);
+
 const card = (title, sub, kids) =>
   View({ style: { background: C.card, borderRadius: "14px", padding: "14px 16px", marginBottom: "14px" } }, [
-    Text({ bold: true, style: { fontSize: "17px", color: C.text } }, title),
-    sub ? Text({ style: { fontSize: "13px", color: C.mute, marginTop: "4px", lineHeight: "18px" } }, sub) : null,
+    line({ fontSize: "17px", color: C.text }, title, true),
+    sub ? line({ fontSize: "13px", color: C.mute, marginTop: "4px", lineHeight: "18px" }, sub) : null,
     View({ style: { marginTop: "8px" } }, kids),
   ]);
 
 const row = (main, sub, btn) =>
   View({ style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderTop: `1px solid ${C.line}` } }, [
     View({ style: { flex: 1, minWidth: 0, paddingRight: "10px" } }, [
-      Text({ style: { fontSize: "15px", color: C.text, wordBreak: "break-word" } }, main),
-      sub ? Text({ style: { fontSize: "12px", color: C.mute, marginTop: "2px" } }, sub) : null,
+      line({ fontSize: "15px", color: C.text, wordBreak: "break-word" }, main),
+      sub ? line({ fontSize: "12px", color: C.mute, marginTop: "2px", wordBreak: "break-all" }, sub) : null,
     ]),
     btn,
   ]);
@@ -71,8 +74,8 @@ AppSettingsPage({
 
     return View({ style: { background: C.bg, minHeight: "100vh", padding: "16px 14px 28px" } }, [
       View({ style: { padding: "4px 4px 14px" } }, [
-        Text({ bold: true, style: { fontSize: "24px", color: C.text } }, "KidGuard"),
-        Text({ style: { fontSize: "13px", color: C.mute, marginTop: "2px" } }, "Điện thoại của con trên cổ tay · Your child's phone on your wrist"),
+        line({ fontSize: "24px", color: C.text }, "KidGuard", true),
+        line({ fontSize: "13px", color: C.mute, marginTop: "2px" }, "Điện thoại của con trên cổ tay · Your child's phone on your wrist"),
       ]),
 
       card("Kết nối đồng hồ", "Connect the watch", [
@@ -124,7 +127,7 @@ AppSettingsPage({
             if (!r || /^https:\/\/[^/#?\s]+$/.test(r)) st.setItem("relay", r);
           },
         }),
-        st.getItem("err") ? Text({ style: { color: C.red, fontSize: "13px", marginTop: "6px" } }, st.getItem("err")) : null,
+        st.getItem("err") ? line({ color: C.red, fontSize: "13px", marginTop: "6px" }, st.getItem("err")) : null,
       ]),
     ]);
   },
