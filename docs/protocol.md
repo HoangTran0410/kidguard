@@ -559,7 +559,7 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 ## Setup steps (scripts/setup.sh, scripts/setup.ps1, the web installer and the in-app self-setup `SelfSetup.kt` do the same, in this order)
 Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am start`, LAN URL: it already runs inside the app) and Wi-Fi-off is only in it; step 1b (app accounts) is on all four.
 1. `adb install -r -g kidguard.apk` (SelfSetup: the app is installed already)
-1b. **Keep app accounts** (skipped when already Device Owner or when `dumpsys account` lists no account). Parse `dumpsys account`:
+1b. **Keep app accounts** (skipped when already Device Owner, when `dumpsys account` lists no account, or when the parent chose **basic** up front: setup.sh `--basic`, setup.ps1 `-Basic`, web installer radio "Cơ bản", SelfSetup `wantBasic`; then step 2 is `set-active-admin` straight away, no account check, no reboot). Parse `dumpsys account`:
    accounts = `Account {name=N, type=T}`; authenticator of T = the package in
    `AuthenticatorDescription {type=T}, ComponentInfo{PKG/CLASS}` (RegisteredServicesCache section; no entry = the account is
    hidden already, ignore it). PKG listed by `pm list packages -3` (non-system) = keepable, otherwise (system app: Google,

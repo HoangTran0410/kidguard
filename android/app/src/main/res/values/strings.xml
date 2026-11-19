@@ -214,6 +214,7 @@
     <string name="basic_battery_d">Otherwise the phone may stop KidGuard to save battery.</string>
     <string name="basic_update">Let KidGuard update itself</string>
     <string name="basic_update_d">Turn on "Allow from this source". New versions then install by themselves, with nothing for the child to tap.</string>
+    <string name="steps_pc">Have a computer? Plug in a USB cable and open kid-guard.pages.dev/install.html in Chrome (pick Basic to keep accounts): it does every step below.</string>
     <string name="basic_play_protect">Blocked by Google Play Protect? Open Play Store → profile picture → Play Protect → ⚙ → turn off \"Scan apps with Play Protect\". Turn it back on after setup.</string>
 
     <!-- Device Owner checklist -->

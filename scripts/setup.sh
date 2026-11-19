@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Installs KidGuard on the child's phone over ADB and makes it the Device Owner (macOS / Linux).
-#   ./setup.sh [-y|--yes] [path/to/kidguard.apk]   (default: kidguard.apk next to this script or ../build/kidguard.apk, else the latest release)
+#   ./setup.sh [-y|--yes] [--basic] [path/to/kidguard.apk]
+# --basic: basic mode, keeps every account (no account check, no Device Owner, no restart); without it: Device Owner.   (default: kidguard.apk next to this script or ../build/kidguard.apk, else the latest release)
 # Before: on the phone, remove the phone accounts (Settings > Accounts: Google, Samsung, Xiaomi, Oppo...), turn on
 # USB debugging, plug it in. Accounts of ordinary apps (Zalo, Facebook, Telegram...) stay: this script turns those apps
 # off for a moment, restarts the phone once, makes KidGuard Device Owner, and turns the apps back on (always, also on error).
@@ -16,7 +17,8 @@ T() { if [ "$KG_LANG" = vi ]; then printf '%s' "$1"; else printf '%s' "$2"; fi; 
 L() { T "$1" "$2"; echo; }
 # An APK path given on the command line is resolved against where you ran the script, before we cd next to it.
 ARG_APK=""
-for a in "$@"; do case "$a" in -y|--yes) ;; *) ARG_APK="$a" ;; esac; done
+WANT_BASIC=0
+for a in "$@"; do case "$a" in -y|--yes) ;; --basic) WANT_BASIC=1 ;; *) ARG_APK="$a" ;; esac; done
 if [ -n "$ARG_APK" ]; then
   [ -f "$ARG_APK" ] || { L "LỖI: Không thấy file APK: $ARG_APK" "ERROR: APK file not found: $ARG_APK"; exit 1; }
   ARG_APK="$(cd "$(dirname "$ARG_APK")" && pwd)/$(basename "$ARG_APK")"
@@ -125,6 +127,7 @@ chk() {
 # --- app accounts are kept: their apps are turned off during the Device Owner step, then always turned back on ---
 OFFFILE="$HOME/.kidguard/apps-off.txt"   # survives a crash / Ctrl-C: the next run turns them on first
 OFF=""; REENABLE_FAILED=0; BASIC=""   # BASIC: why Device Owner was refused (set = basic mode)
+[ "$WANT_BASIC" = 1 ] && BASIC=$(T "Xoá tài khoản Google, Samsung, Xiaomi trên máy con, rồi chạy lại không có --basic." "Remove the Google, Samsung or Xiaomi accounts on the child's phone, then run again without --basic.")
 reenable() {
   local list="$OFF" p i out left=""
   [ -n "$list" ] || return 0
@@ -164,7 +167,7 @@ fi
 # Accounts block Device Owner. App accounts (authenticator = ordinary app) are kept: turn that app off (its accounts
 # stop counting), restart once (Android caches the check until boot), then set Device Owner and turn the apps back on.
 # Accounts of system apps (Google, Xiaomi, Samsung, Oppo...) must be removed by hand.
-if ! is_do; then
+if ! is_do && [ -z "$BASIC" ]; then
   dump=$(adb shell dumpsys account | tr -d '\r')
   accts=$(printf '%s\n' "$dump" | sed -n 's/.*Account {name=\([^,}]*\), type=\([^}]*\)}.*/\2|\1/p' | sort -u)
   if [ -n "$accts" ]; then
@@ -291,7 +294,7 @@ L "-> rồi nhập mã ghép 6 số: màn hình cuối trên máy con hiện mã
 if [ -n "$BASIC" ] && ! is_do; then
   L "-> Đã cài CHẾ ĐỘ CƠ BẢN: chặn app bằng Trợ năng, con rành máy có thể lách. Muốn chế độ đầy đủ (Device Owner):" "-> Set up in BASIC MODE: apps are blocked through Accessibility, a tech-savvy child can get around it. For full mode (Device Owner):"
   echo "   $BASIC"
-  case "$BASIC" in Xoá*) ;; *) L "   (máy còn tài khoản / người dùng thứ hai / app quản lý khác: xử lý xong chạy lại)" "   (accounts / a second user / another device manager: fix it, then run again)" ;; esac
+  case "$BASIC" in Xoá*|Remove*) ;; *) L "   (máy còn tài khoản / người dùng thứ hai / app quản lý khác: xử lý xong chạy lại)" "   (accounts / a second user / another device manager: fix it, then run again)" ;; esac
 fi
 L "-> Giờ có thể đăng nhập lại tài khoản của máy (Google, Samsung…) trên máy con." "-> You can now sign in to the phone accounts (Google, Samsung...) on the child's phone again."
 # ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off)

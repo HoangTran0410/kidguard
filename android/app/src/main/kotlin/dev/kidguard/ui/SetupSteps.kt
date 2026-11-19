@@ -195,6 +195,9 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         head.addView(ui.label(act.getString(R.string.steps_count, l.size - left, l.size), 14f, ui.accent, true))
         box.addView(head)
         box.addView(ui.label(act.getString(R.string.steps_intro), 14f).apply { setPadding(0, ui.dp(4), 0, 0) })
+        // Android 10 and older: no Wireless debugging pairing, so no self-setup; a computer does every step at once (owner 2026-11-19)
+        if (!Flavor.HOME && Build.VERSION.SDK_INT < 30 && !Policy.isOwner(act) && !Basic.adminActive(act))
+            box.addView(ui.label(act.getString(R.string.steps_pc), 13f, ui.text).apply { setPadding(0, ui.dp(8), 0, 0) })
         val bar = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; weightSum = l.size.toFloat(); background = ui.shape(ui.stroke, 99) }
         bar.addView(View(act).apply { background = ui.shape(ui.primary, 99) }, LinearLayout.LayoutParams(0, -1, (l.size - left).toFloat()))
         box.addView(bar, LinearLayout.LayoutParams(-1, ui.dp(6)).apply { topMargin = ui.dp(12); bottomMargin = ui.dp(6) })

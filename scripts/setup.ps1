@@ -2,7 +2,8 @@
 Installs KidGuard on the child's phone over ADB and makes it the Device Owner (Windows PowerShell 5+).
 
 How to run (right-click setup.ps1 is NOT enough; open PowerShell in this folder and run):
-    powershell -ExecutionPolicy Bypass -File setup.ps1 [-Yes] [path\to\kidguard.apk]
+    powershell -ExecutionPolicy Bypass -File setup.ps1 [-Yes] [-Basic] [path\to\kidguard.apk]
+    -Basic: basic mode, keeps every account (no account check, no Device Owner, no restart); without it: Device Owner.
 
 Before: on the phone, remove the phone accounts (Settings > Accounts: Google, Samsung, Xiaomi, Oppo...), turn on
 USB debugging, plug it in. Accounts of ordinary apps (Zalo, Facebook, Telegram...) stay: this script turns those apps
@@ -13,7 +14,7 @@ Downloaded APK is checked against kidguard.apk.sha256 and refused if that cannot
 Undo: from the parent's page, Settings > "Gỡ quyền quản lý", then uninstall the app.
 Steps are the same as docs/protocol.md "Setup steps" (setup.sh and ui/install.html do the same).
 #>
-param([string]$Apk = "", [Alias("y")][switch]$Yes)
+param([string]$Apk = "", [Alias("y")][switch]$Yes, [switch]$Basic)
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ProgressPreference = "SilentlyContinue"
@@ -131,6 +132,7 @@ function Chk {
 # --- app accounts are kept: their apps are turned off during the Device Owner step, then always turned back on ---
 $OffFile = Join-Path $env:LOCALAPPDATA "kidguard\apps-off.txt"   # survives a crash / Ctrl-C: the next run turns them on first
 $script:Off = @(); $script:ReenableFailed = $false; $script:Basic = ""   # Basic: why Device Owner was refused (set = basic mode)
+if ($Basic) { $script:Basic = T "Xoá tài khoản Google, Samsung, Xiaomi trên máy con, rồi chạy lại không có -Basic." "Remove the Google, Samsung or Xiaomi accounts on the child's phone, then run again without -Basic." }
 function Reenable {
     if ($script:Off.Count -eq 0) { return }
     $list = @($script:Off); $script:Off = @()
@@ -177,7 +179,7 @@ if ($r -notmatch "Success") {
 # Accounts block Device Owner. App accounts (authenticator = ordinary app) are kept: turn that app off (its accounts
 # stop counting), restart once (Android caches the check until boot), then set Device Owner and turn the apps back on.
 # Accounts of system apps (Google, Xiaomi, Samsung, Oppo...) must be removed by hand.
-if ((Adb shell dumpsys device_policy) -notmatch [regex]::Escape("admin=ComponentInfo{$Pkg/$Pkg.Admin}")) {
+if (-not $script:Basic -and (Adb shell dumpsys device_policy) -notmatch [regex]::Escape("admin=ComponentInfo{$Pkg/$Pkg.Admin}")) {
     $dump = Adb shell dumpsys account
     $accts = @([regex]::Matches($dump, 'Account \{name=([^,}]*), type=([^}]*)\}') | ForEach-Object { [pscustomobject]@{ Name = $_.Groups[1].Value; Type = $_.Groups[2].Value } } | Sort-Object Type, Name -Unique)
     if ($accts.Count -gt 0) {
@@ -306,7 +308,7 @@ Write-Host (T '-> rồi nhập mã ghép 6 số: màn hình cuối trên máy co
 if ($script:Basic -and -not (& $isDo)) {
     Write-Host (T "-> Đã cài CHẾ ĐỘ CƠ BẢN: chặn app bằng Trợ năng, con rành máy có thể lách. Muốn chế độ đầy đủ (Device Owner):" "-> Set up in BASIC MODE: apps are blocked through Accessibility, a tech-savvy child can get around it. For full mode (Device Owner):")
     Write-Host "   $($script:Basic)"
-    if (-not $script:Basic.StartsWith("Xoá")) { Write-Host (T "   (máy còn tài khoản / người dùng thứ hai / app quản lý khác: xử lý xong chạy lại)" "   (accounts / a second user / another device manager: fix it, then run again)") }
+    if (-not ($script:Basic.StartsWith("Xoá") -or $script:Basic.StartsWith("Remove"))) { Write-Host (T "   (máy còn tài khoản / người dùng thứ hai / app quản lý khác: xử lý xong chạy lại)" "   (accounts / a second user / another device manager: fix it, then run again)") }
 }
 Write-Host (T "-> Giờ có thể đăng nhập lại tài khoản trên máy con." "-> You can now sign in to the phone accounts on the child's phone again.")
 # ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off)
