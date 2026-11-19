@@ -70,8 +70,7 @@ installers, also the APK assets dir and imported by the worker), `relay/` (Cloud
 Flavor `home` (`dev.kidguard.home`): launcher only, `src/home/AndroidManifest.xml` removes the parental parts; code checks `Flavor.HOME`.
 
 ## Build / test
-- Everything: `scripts/build.sh` → `build/kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk` (+ `.sha256`, versioned
-  copies). Runs unit tests + release builds. Side effects: stamps version into site pages and the QR checksum into
+- Everything: `scripts/build.sh` → `build/kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk` (+ `.sha256`). Runs unit tests + release builds. Side effects: stamps version into site pages and the QR checksum into
   `ui/qr.html` / `ui/provision.json` (review the diff). JDK 17, SDK 35. Behind a TLS proxy: `TRUSTSTORE=/path.jks scripts/build.sh`.
 - Quick: `cd android && ./gradlew assembleKidRelease assembleHomeRelease testKidDebugUnitTest :parent:testDebugUnitTest`.
   Debug install: `:app:installKidDebug` / `:app:installHomeDebug`.

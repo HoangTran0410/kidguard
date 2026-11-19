@@ -1226,10 +1226,10 @@ Only volume, brightness, screen timeout and Do Not Disturb; anything else goes t
   `pct` (v0.9.36) = download progress while `downloading`, -1 otherwise or when the size is unknown.
   Absent on children older than 0.9 (the page hides its card).
 - **Parent app**: once a day the same `HEAD` from `CheckJob`; a newer tag than its own version gives one notification
-  per version, the tap opens `releases/download/v<tag>/kidguard-parent-<tag>.apk` in the browser (no install permission).
+  per version; the app downloads `releases/download/v<tag>/kidguard-parent.apk` (0.9.49+; <= 0.9.48 fetch `kidguard-parent-<tag>.apk`).
 - **Release assets**: `kidguard.apk`, `kidguard-parent.apk` + their `.sha256` (fixed names: QR provisioning, setup
-  scripts and the child updater use `kidguard.apk`/`kidguard.apk.sha256`; never rename them) and versioned copies
-  `kidguard-<v>.apk`, `kidguard-parent-<v>.apk` for people downloading by hand (website/README link these).
+  scripts and the child updater use `kidguard.apk`/`kidguard.apk.sha256`; never rename them), `kidguard-home.apk`, no versioned
+  copies (2026-11-19) except `kidguard-parent-<v>.apk` until 2026-12-31 (what parent apps <= 0.9.48 update from).
 
 ## Log history, the "Nhật ký" tab (after 0.9.14)
 - The phone keeps every log line and event 90 days / 30,000 rows (`HistDb.kt`, SQLite `kghist.db`, table `h`, index on `t`;
