@@ -26,8 +26,8 @@ class UpdateLogicTest {
     }
 
     @Test fun apkUrlUsesTag() {
-        assertEquals("https://github.com/HoangTran0410/kidguard/releases/download/v0.9.0/kidguard.apk.sha256",
-            UpdateLogic.apkUrl("0.9.0", "kidguard.apk.sha256"))
+        assertEquals("https://github.com/HoangTran0410/kidguard/releases/download/v0.9.0/version.json",
+            UpdateLogic.apkUrl("0.9.0", dev.kidguard.Release.MANIFEST))
     }
 
     @Test fun autoUpdateRuleDefaultsOnAndRoundTrips() {

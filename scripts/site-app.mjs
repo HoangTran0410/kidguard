@@ -19,5 +19,5 @@ let n = 0;
 for (const f of fs.readdirSync(path.join(ui, "assets"))) if (/^[a-z0-9][a-z0-9-]{0,40}\.(js|css)$/.test(f)) { cp(path.join(ui, "assets", f), path.join(site, "ui", f)); n++; }
 cp(path.join(ui, "install.html"), path.join(site, "install.html"));
 cp(path.join(ui, "qr.html"), path.join(site, "qr.html"));
-for (const f of ["kidguard.apk", "kidguard.apk.sha256"]) fs.rmSync(path.join(site, f), { force: true });
+for (const f of ["kidguard.apk", "kidguard.apk.sha256", "version.json"]) fs.rmSync(path.join(site, f), { force: true });
 console.log(`website: app/index.html, ui/ (${n} files), install.html, qr.html`);

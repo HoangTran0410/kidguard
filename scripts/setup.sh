@@ -7,7 +7,7 @@
 # off for a moment, restarts the phone once, makes KidGuard Device Owner, and turns the apps back on (always, also on error).
 # After setup you can sign in to the phone accounts again.
 # Several devices attached: export ANDROID_SERIAL=<serial> first.
-# Downloaded APK is checked against kidguard.apk.sha256 and refused if that cannot be fetched (KG_ALLOW_UNVERIFIED=1 skips the check).
+# Downloaded APK is checked against version.json and refused if that cannot be fetched (KG_ALLOW_UNVERIFIED=1 skips the check).
 # Undo: from the parent's page, Settings > "Gỡ quyền quản lý", then uninstall the app.
 # Steps are the same as docs/protocol.md "Setup steps" (setup.ps1 and ui/install.html do the same).
 set -euo pipefail
@@ -42,15 +42,15 @@ if [ -z "$APK" ]; then
   APK="$(mktemp -d)/kidguard.apk"
   curl -fL -o "$APK" "$REL/kidguard.apk"
   # fail closed: no checksum = stop, unless KG_ALLOW_UNVERIFIED=1 (you accept installing an unverified APK)
-  if SUM=$(curl -fsL "$REL/kidguard.apk.sha256" 2>/dev/null) && [ -n "$SUM" ]; then
-    want=$(printf '%s' "$SUM" | awk '{print tolower($1)}')
+  if SUM=$(curl -fsL "$REL/version.json" 2>/dev/null | sed -n 's/.*"kidguard\.apk": *"\([0-9a-fA-F]\{64\}\)".*/\1/p') && [ -n "$SUM" ]; then
+    want=$(printf '%s' "$SUM" | tr 'A-F' 'a-f')
     if command -v sha256sum >/dev/null 2>&1; then got=$(sha256sum "$APK" | awk '{print $1}'); else got=$(shasum -a 256 "$APK" | awk '{print $1}'); fi
     if [ "$want" != "$got" ]; then echo "LỖI: Sai mã kiểm tra SHA-256 của kidguard.apk (muốn $want, được $got). Dừng."; exit 1; fi
     echo "OK Đã kiểm tra SHA-256 của kidguard.apk"
   elif [ "${KG_ALLOW_UNVERIFIED:-}" = "1" ]; then
-    echo "[!] Không tải được kidguard.apk.sha256, bỏ qua kiểm tra vì KG_ALLOW_UNVERIFIED=1."
+    echo "[!] Không tải được version.json, bỏ qua kiểm tra vì KG_ALLOW_UNVERIFIED=1."
   else
-    echo "LỖI: Không tải được kidguard.apk.sha256 nên không kiểm tra được tính toàn vẹn. Dừng."
+    echo "LỖI: Không tải được version.json nên không kiểm tra được tính toàn vẹn. Dừng."
     echo "→ Thử lại khi có mạng, hoặc truyền file APK đã tải: ./setup.sh kidguard.apk. Chấp nhận rủi ro: KG_ALLOW_UNVERIFIED=1 ./setup.sh"
     exit 1
   fi

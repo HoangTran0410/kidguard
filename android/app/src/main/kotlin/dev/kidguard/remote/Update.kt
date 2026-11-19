@@ -49,7 +49,7 @@ object UpdateLogic {
 
 /**
  * Self-update from GitHub releases. Once a day (rule `autoUpdate`) or on the parent's `update` command: read the latest
- * tag, download `kidguard.apk` + verify its `.sha256`, then install. Device Owner installs silently (the process is
+ * tag, download `kidguard.apk` + verify it against `version.json`, then install. Device Owner installs silently (the process is
  * replaced, [Boot] restarts the guard and it re-applies the policy); basic mode can't, so the child gets a notification
  * and a button in [MainActivity] that opens the system installer. Android itself refuses an APK signed with another key.
  */
@@ -180,7 +180,7 @@ object Update {
     }
 
     private fun download(ctx: Context, tag: String, f: File) {
-        val want = TsLogic.sha256Of(get(ctx, UpdateLogic.apkUrl(tag, "kidguard.apk.sha256")).inputStream.use { String(it.readBytes()) })
+        val want = dev.kidguard.Release.shaIn(get(ctx, UpdateLogic.apkUrl(tag, dev.kidguard.Release.MANIFEST)).inputStream.use { String(it.readBytes()) }, "kidguard.apk")
             ?: throw IllegalStateException(ctx.getString(R.string.err_sha_read))
         val tmp = File(f.parentFile, "update.part"); val md = MessageDigest.getInstance("SHA-256")
         try {

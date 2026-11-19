@@ -36,7 +36,7 @@ When you settle something durable (a decision, a rejected approach, a platform q
   top-level name) AND import + map entry in `relay/src/index.js`. `node scripts/check-assets.mjs` checks both + i18n key parity (CI + `build.sh`).
 - HTML responses: `X-Frame-Options: DENY` + CSP; a new external origin goes into CSP on both phone (`Http.kt`) and worker (`relay/src/index.js` `CSP`).
 - `kg.code` (`android/gradle.properties`) goes up every release: the self-updater refuses an equal versionCode.
-  Release asset names (`kidguard.apk`, `.sha256`, ...) are a contract with the updater, QR page and website.
+  Release asset names (`kidguard.apk`, `version.json`, ...) are a contract with the updater, QR page and website.
 - Setup steps are done 4 ways and must stay in sync: `scripts/setup.sh`, `scripts/setup.ps1`, `ui/install.html`, `K/setup/SelfSetup.kt`.
 - Launcher changes: build and install BOTH flavors (`kid` and `home`); the phone's default HOME may be either.
 - Launcher UI changes are measured on a real phone (release build, `docs/launcher-perf.md`): before/after numbers in the
@@ -70,7 +70,7 @@ installers, also the APK assets dir and imported by the worker), `relay/` (Cloud
 Flavor `home` (`dev.kidguard.home`): launcher only, `src/home/AndroidManifest.xml` removes the parental parts; code checks `Flavor.HOME`.
 
 ## Build / test
-- Everything: `scripts/build.sh` → `build/kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk` (+ `.sha256`). Runs unit tests + release builds. Side effects: stamps version into site pages and the QR checksum into
+- Everything: `scripts/build.sh` → `build/kidguard.apk`, `kidguard-home.apk`, `kidguard-parent.apk`, `version.json`. Runs unit tests + release builds. Side effects: stamps version into site pages and the QR checksum into
   `ui/qr.html` / `ui/provision.json` (review the diff). JDK 17, SDK 35. Behind a TLS proxy: `TRUSTSTORE=/path.jks scripts/build.sh`.
 - Quick: `cd android && ./gradlew assembleKidRelease assembleHomeRelease testKidDebugUnitTest :parent:testDebugUnitTest`.
   Debug install: `:app:installKidDebug` / `:app:installHomeDebug`.

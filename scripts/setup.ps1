@@ -10,7 +10,7 @@ USB debugging, plug it in. Accounts of ordinary apps (Zalo, Facebook, Telegram..
 off for a moment, restarts the phone once, makes KidGuard Device Owner, and turns the apps back on (always, also on error).
 After setup you can sign in to the phone accounts again.
 Several devices attached: set $env:ANDROID_SERIAL = "<serial>" first.
-Downloaded APK is checked against kidguard.apk.sha256 and refused if that cannot be fetched ($env:KG_ALLOW_UNVERIFIED = "1" skips the check).
+Downloaded APK is checked against version.json and refused if that cannot be fetched ($env:KG_ALLOW_UNVERIFIED = "1" skips the check).
 Undo: from the parent's page, Settings > "Gỡ quyền quản lý", then uninstall the app.
 Steps are the same as docs/protocol.md "Setup steps" (setup.sh and ui/install.html do the same).
 #>
@@ -42,10 +42,11 @@ if (-not $Apk) {
     Invoke-WebRequest -UseBasicParsing -Uri "$rel/kidguard.apk" -OutFile $Apk
     # Windows PowerShell 5.1 returns .Content as byte[] for this response: save to a file and read it as text
     $want = $null
-    $shaFile = Join-Path $env:TEMP "kidguard.apk.sha256"
+    $shaFile = Join-Path $env:TEMP "kidguard-version.json"
     try {
-        Invoke-WebRequest -UseBasicParsing -Uri "$rel/kidguard.apk.sha256" -OutFile $shaFile
-        $want = ((Get-Content -Path $shaFile -Raw) -split "\s+" | Where-Object { $_ })[0].Trim().ToLower()
+        Invoke-WebRequest -UseBasicParsing -Uri "$rel/version.json" -OutFile $shaFile
+        $m = [regex]::Match((Get-Content -Path $shaFile -Raw), '"kidguard\.apk"\s*:\s*"([0-9a-fA-F]{64})"')
+        $want = if ($m.Success) { $m.Groups[1].Value.ToLower() } else { $null }
     } catch { $want = $null }
     if ($want -and $want -notmatch '^[0-9a-f]{64}$') { $want = $null }
     if ($want) {
@@ -53,10 +54,10 @@ if (-not $Apk) {
         if ($got -ne $want) { Write-Host "LỖI: Sai mã kiểm tra SHA-256 của kidguard.apk (muốn $want, được $got). Dừng."; exit 1 }
         Write-Host "OK Đã kiểm tra SHA-256 của kidguard.apk"
     } elseif ($env:KG_ALLOW_UNVERIFIED -eq "1") {
-        Write-Host "[!] Không tải được kidguard.apk.sha256, bỏ qua kiểm tra vì KG_ALLOW_UNVERIFIED=1."
+        Write-Host "[!] Không tải được version.json, bỏ qua kiểm tra vì KG_ALLOW_UNVERIFIED=1."
     } else {
         # fail closed: no checksum = stop, unless KG_ALLOW_UNVERIFIED=1 (you accept installing an unverified APK)
-        Write-Host "LỖI: Không tải được kidguard.apk.sha256 nên không kiểm tra được tính toàn vẹn. Dừng."
+        Write-Host "LỖI: Không tải được version.json nên không kiểm tra được tính toàn vẹn. Dừng."
         Write-Host '→ Thử lại khi có mạng, hoặc truyền file APK đã tải: setup.ps1 kidguard.apk. Chấp nhận rủi ro: $env:KG_ALLOW_UNVERIFIED = "1"'
         exit 1
     }

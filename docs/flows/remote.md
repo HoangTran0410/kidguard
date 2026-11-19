@@ -121,9 +121,9 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 
 ### 2.8 Self-update
 - Trigger: rule `autoUpdate` (daily, `Update.maybe` `remote/Update.kt:78` from `Guard.kt:213`) or `cmd update` (ONCE) from `tab-set.js:317` -> `Guard.run "update"` -> `Update.start(force=true)` (`Update.kt:86`).
-- Steps (`Update.kt:97 run`): `HEAD github.com/HoangTran0410/kidguard/releases/latest` (no redirect) -> tag; `newer()`; download `kidguard.apk` + `.sha256`, hash check; `verifyPackage` (same package, higher versionCode; bad tag remembered); Device Owner = silent PackageInstaller session, else notify child ("ready").
+- Steps (`Update.kt:97 run`): `HEAD github.com/HoangTran0410/kidguard/releases/latest` (no redirect) -> tag; `newer()`; download `version.json` + `kidguard.apk`, hash check; `verifyPackage` (same package, higher versionCode; bad tag remembered); Device Owner = silent PackageInstaller session, else notify child ("ready").
 - The automatic (daily) silent install waits for the screen to be off (`UpdateLogic.installNow`, re-checked every Guard minute pass, 24 h cap): it replaces the process, i.e. the kid's launcher. `cmd update` never waits.
-- State `update {latest,status,err,checkedAt}` -> page card. Release assets must keep fixed names (`kidguard.apk`, `kidguard-parent.apk` + `.sha256`).
+- State `update {latest,status,err,checkedAt}` -> page card. Release assets must keep fixed names (`kidguard.apk`, `kidguard-parent.apk`, `version.json`).
 - Wire: protocol "Self-update (v0.9)". Parent app has its own: `P/CheckJob.kt` daily HEAD + `P/Updater.kt` (download + system installer), bridge `KGApp.checkUpdate/installUpdate`.
 - Gotchas: `kg.code` in `android/gradle.properties` must rise every release. Home flavor has no INTERNET/Guard so it never self-updates (manifest `home/AndroidManifest.xml`); not covered by this path.
 

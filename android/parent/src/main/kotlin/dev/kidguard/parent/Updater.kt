@@ -51,7 +51,7 @@ object Updater {
             try {
                 val dir = File(a.cacheDir, "upd").apply { mkdirs(); listFiles()?.forEach { it.delete() } }
                 val f = File(dir, "kidguard-parent-$tag.apk")
-                val want = fetchSha(Logic.parentSha(tag))   // like the child updater: no checksum, no install
+                val want = fetchSha(Logic.manifest(tag))   // like the child updater: no checksum, no install
                 download(Logic.parentApk(tag), f, want) { a.push(JSONObject().put("st", "dl").put("tag", tag).put("pct", it)) }
                 // PackageInstaller session: on Android 12+ with us as the installer of record the update goes in without a tap
                 // (USER_ACTION_NOT_REQUIRED); otherwise the system asks (InstallResult opens its prompt). The bridge keeps the old "inst" state.
@@ -64,13 +64,13 @@ object Updater {
     }
 
     /** GET following up to 6 https redirects by hand; progress in percent (0..100) when the size is known. */
-    /** The release `.sha256` asset (GitHub redirects to its CDN). */
+    /** Our APK's SHA-256 from the release's version.json (GitHub redirects to its CDN). */
     private fun fetchSha(url: String): String {
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 15_000; c.readTimeout = 15_000; c.instanceFollowRedirects = true
         try {
             if (c.responseCode != 200) throw java.io.IOException("sha HTTP ${c.responseCode}")
-            return Logic.sha256Of(String(c.inputStream.use { it.readBytes() }.take(4096).toByteArray())) ?: throw java.io.IOException("sha unreadable")
+            return dev.kidguard.Release.shaIn(String(c.inputStream.use { it.readBytes() }.take(16384).toByteArray()), "kidguard-parent.apk") ?: throw java.io.IOException("sha unreadable")
         } finally { c.disconnect() }
     }
 

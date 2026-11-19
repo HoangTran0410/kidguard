@@ -383,11 +383,10 @@ object Logic {
 
     // --- app update (same rules as the child's UpdateLogic) ---
     const val RELEASES = "https://github.com/HoangTran0410/kidguard/releases/latest"
-    /** The fixed-name asset of that tag (the app saves it as kidguard-parent-<tag>.apk itself). Before 0.9.49 this was the
-     *  versioned copy, so releases keep `kidguard-parent-<v>.apk` for a while for parent apps <= 0.9.48. */
+    /** The fixed-name asset of that tag (the app saves it as kidguard-parent-<tag>.apk itself). */
     fun parentApk(tag: String) = "https://github.com/HoangTran0410/kidguard/releases/download/v$tag/kidguard-parent.apk"
-    /** The release checksum asset (build.sh writes `shasum -a 256` output next to the fixed-name APK). */
-    fun parentSha(tag: String) = "https://github.com/HoangTran0410/kidguard/releases/download/v$tag/kidguard-parent.apk.sha256"
+    /** The release's checksum list (build.sh writes it: SHA-256 of every APK). */
+    fun manifest(tag: String) = "https://github.com/HoangTran0410/kidguard/releases/download/v$tag/${dev.kidguard.Release.MANIFEST}"
     /** First token of a `shasum` line, lower-case hex, or null. */
     fun sha256Of(text: String): String? = dev.kidguard.Release.sha256Of(text)
 

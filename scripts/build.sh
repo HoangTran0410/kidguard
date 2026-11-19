@@ -32,14 +32,15 @@ mkdir -p build
 cp android/app/build/outputs/apk/kid/release/app-kid-release.apk build/kidguard.apk
 cp android/app/build/outputs/apk/home/release/app-home-release.apk build/kidguard-home.apk
 cp android/parent/build/outputs/apk/release/parent-release.apk build/kidguard-parent.apk
-# release assets: the child self-update (Update.kt) needs kidguard.apk.sha256 next to the APK
-(cd build && for f in kidguard.apk kidguard-parent.apk kidguard-home.apk; do shasum -a 256 "$f" > "$f.sha256"; done)
-# fixed names only (owner 2026-11-19: no versioned copies); site + README link releases/latest/download/<fixed name>, so a
-# release needs no link edits. Only the version chip (<span class="ver">) is stamped.
-# Transition: parent apps <= 0.9.48 update from kidguard-parent-<v>.apk; keep that one copy until 2026-12-31.
+# release assets (owner 2026-11-19, like tv-remote): one APK per app with a fixed name + version.json = the SHA-256 of
+# each (read by Update.kt, the parent Updater, setup.sh/.ps1, install.html). Site + README link
+# releases/latest/download/<fixed name>, so a release needs no link edits. Only the version chip (<span class="ver">) is stamped.
 V=$(sed -n 's/^kg.version=//p' android/gradle.properties)
-rm -f build/kidguard-[0-9]*.apk build/kidguard-home-[0-9]*.apk build/kidguard-parent-[0-9]*.apk
-cp build/kidguard-parent.apk "build/kidguard-parent-$V.apk"
+C=$(sed -n 's/^kg.code=//p' android/gradle.properties)
+rm -f build/*.sha256 build/kidguard-[0-9]*.apk build/kidguard-home-[0-9]*.apk build/kidguard-parent-[0-9]*.apk
+sha() { shasum -a 256 "build/$1" | awk '{print $1}'; }
+printf '{"version": "%s", "code": %s, "files": {"kidguard.apk": "%s", "kidguard-home.apk": "%s", "kidguard-parent.apk": "%s"}}\n' \
+  "$V" "$C" "$(sha kidguard.apk)" "$(sha kidguard-home.apk)" "$(sha kidguard-parent.apk)" > build/version.json
 perl -pi -e 's#<span class="ver">v[0-9.]*</span>#<span class="ver">v'"$V"'</span>#g' \
   website/index.html website/en/index.html website/guide.html website/en/guide.html
 scripts/stamp-site.sh
