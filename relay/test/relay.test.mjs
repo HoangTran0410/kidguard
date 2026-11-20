@@ -459,7 +459,9 @@ ck("selfOpen whitelisted",(await (await Q("cmd",{type:"so",on:true,pin:"1234",id
 ck("unlockEnd whitelisted",(await (await Q("cmd",{type:"ue",id:"ue1"})).json()).result=="queued");
 await Q("cmd",{type:"rg",id:"rg1"});
 let a=await (await Q("sync",{acks:["ue1"]})).json();   // ring handed out but not acked
-ck("fresh state has no expired",Array.isArray((await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json()).expired)&&!(await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json()).expired.length);
+{let sr;for(let i=0;;i++){sr=await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}});if((sr.status!=429&&sr.status!=503)||i>=20)break;await new Promise(z=>setTimeout(z,600));}   // rate limit / DO start: retry like Q
+const ex=(await sr.json()).expired;
+ck("fresh state has no expired"+(Array.isArray(ex)&&!ex.length?"":" got "+JSON.stringify(ex)+" sync "+JSON.stringify(a).slice(0,300)),Array.isArray(ex)&&!ex.length);}
 await new Promise(z=>setTimeout(z,5600));
 await Q("cmd",{type:"ms",text:"x",id:"m1"});   // a parent POST drops the stale ring too
 const st=await (await fetch(`${B}/c/${ide}/state`,{headers:{"x-kg-token":Te}})).json();
