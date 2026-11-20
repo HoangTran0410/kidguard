@@ -41,7 +41,9 @@ writeFileSync(envFile, `FCM_SA='${JSON.stringify(sa)}'\nFCM_URL=http://127.0.0.1
 
 // fresh local Durable Object storage every run: tests with fixed kid ids must not see the last run's queue / rules
 rmSync(".wrangler/state", { recursive: true, force: true });
-const dev = spawn("npx", ["wrangler", "dev", "--port", PORT, "--ip", "127.0.0.1", "--env-file", envFile], { stdio: ["ignore", "pipe", "pipe"], detached: true });
+const dev = spawn("npx", ["wrangler", "dev", "--port", PORT, "--ip", "127.0.0.1", "--env-file", envFile,
+  // wrangler.toml has a custom-domain route: without this, request.url says relay.kidguard.asia and links point there
+  "--local-upstream", "localhost:" + PORT], { stdio: ["ignore", "pipe", "pipe"], detached: true });
 let log = "";
 dev.stdout.on("data", d => (log += d));
 dev.stderr.on("data", d => (log += d));
