@@ -124,11 +124,13 @@ class CheckJob : JobService() {
          */
         fun fetch(k: Logic.KidCfg, c: Context? = null): Logic.Seen? {
             val r = fetchOne(k.target, k.via == "lan", k.id, k.token)
+            if (r === GONE) return null   // relay kid released
             if (k.via != "lan" || (r != null && r.fetchOk)) return r
             if (r == null && sameKid(k)) return null
             // the router gave the kid a new IP: the address it advertises on this Wi-Fi (Lan, NSD), checked by /api/hello
             if (c != null) Lan.find(c, k.id, k.token, k.target)?.let { u -> fetchOne(u, true, k.id, k.token)?.let { if (it.fetchOk) return it } }
-            if (k.hasRelay) fetchOne(k.relay!!, false, k.relayId, k.relayToken)?.let { if (it.fetchOk) return it }
+            // the kid is gone from the Wi-Fi: its relay says whether it was released (410) or just away
+            if (k.hasRelay) { val rr = fetchOne(k.relay!!, false, k.relayId, k.relayToken); if (rr === GONE) return null; if (rr != null && rr.fetchOk) return rr }
             return Logic.Seen(false, emptyList(), 0)
         }
 
@@ -138,10 +140,15 @@ class CheckJob : JobService() {
             return try { JSONObject(String(h.body, Charsets.UTF_8)).optString("id") == k.id } catch (e: Exception) { false }
         }
 
+        /** The relay said "released" (410). Only this counts as unpaired when it is the LAN kid's fallback (a 401 there may be a stale relay link). */
+        private val GONE = Logic.Seen(false, emptyList(), 0)
+
         private fun fetchOne(target: String, lan: Boolean, id: String, token: String): Logic.Seen? {
             val url = target + (if (lan) "/api/state" else "/c/$id/state")
             val r = Net.call("GET", url, mapOf("X-KG-Token" to token), null, 15_000)
+            // 410 = released (the phone told the relay to forget it, INCIDENT 2026-11-20: was read as "offline", no notice)
             if (r.status == 401 || r.status == 403) return null
+            if (!lan && r.status == 410) return GONE
             if (r.status != 200) return Logic.Seen(false, emptyList(), 0)
             return try {
                 val o = JSONObject(String(r.body, Charsets.UTF_8))
