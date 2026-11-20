@@ -14,7 +14,8 @@ class Watchdog : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Guard.running?.relayWake() ?: run {
             // process gone well after boot = something killed it: the "run in background" / Recents lock steps show from now on
-            if (android.os.SystemClock.elapsedRealtime() > 10 * 60_000L) Store.of(context).killSeen = System.currentTimeMillis()
+            // a step ticked "Đã bật" by hand evidently isn't: shown again (owner 2026-11-20)
+            if (android.os.SystemClock.elapsedRealtime() > 10 * 60_000L) Store.of(context).run { bgRecheck(); killSeen = System.currentTimeMillis() }
             Guard.start(context)
         }
         schedule(context)

@@ -60,6 +60,25 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         /** Phones whose own battery manager kills background apps even with Android's battery optimisation off. */
         val oemKiller get() = colorOs || listOf("xiaomi", "redmi", "poco", "vivo", "iqoo", "huawei", "honor").any { it in BRAND }
 
+        /** MIUI / HyperOS "Battery saver" page of this app (No restrictions), or null where it isn't there. */
+        fun miuiBg(a: Activity): Intent? = Intent().setComponent(ComponentName("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"))
+            .putExtra("package_name", a.packageName).putExtra("package_label", a.applicationInfo.loadLabel(a.packageManager).toString())
+            .takeIf { i -> runCatching { a.packageManager.resolveActivity(i, 0)?.activityInfo?.exported == true }.getOrDefault(false) }
+
+        /**
+         * Buttons of the "Pin và tự khởi động" card (Bảo vệ và quyền): always there, so a step ticked "Đã bật" by mistake
+         * can still be checked (owner 2026-11-20). Auto-start page, then the battery page (MIUI's own one when present).
+         */
+        fun bgActions(a: Activity): List<Pair<Int, () -> Unit>> {
+            fun go(i: Intent) = runCatching { a.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)
+            val out = mutableListOf<Pair<Int, () -> Unit>>()
+            autostartIntent(a)?.let { i -> out += R.string.ft_bg_auto to { if (!go(i)) runCatching { a.startActivity(Intents.appDetails(a)) } } }
+            val bat = miuiBg(a) ?: if (!Policy.isOwner(a)) Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS) else null
+            if (bat != null) out += R.string.ft_bg_battery to { if (!go(bat)) runCatching { a.startActivity(Intents.appDetails(a)) } }
+            if (out.isEmpty()) out += R.string.ft_battery_open to { openBattery(a) }
+            return out
+        }
+
         /** Opens the battery / auto-start settings (the old "Cài đặt pin / tự khởi động" row). */
         fun openBattery(a: Activity) {
             autostartIntent(a)?.let { if (runCatching { a.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) return }
@@ -140,10 +159,9 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         // Neither can be read back, so a phone already set up only gets them once it was really killed (owner 2026-11-17:
         // the Poco, never killed, showed both as to-dos)
         if (oemKiller && (!st.everPaired || st.killSeen > 0)) {
-            val miui = Intent().setComponent(ComponentName("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"))
-                .putExtra("package_name", c.packageName).putExtra("package_label", c.applicationInfo.loadLabel(c.packageManager).toString())
+            val miui = miuiBg(act)
             out += Step(c.getString(R.string.step_bg), c.getString(R.string.step_bg_d), st.oemBgOk, { st.oemBgOk = true }) {
-                if (!usable(miui) || !runCatching { act.startActivity(miui.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) openOwn(info)
+                if (miui == null || !runCatching { act.startActivity(miui.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true }.getOrDefault(false)) openOwn(info)
             }
             out += Step(c.getString(R.string.step_recents), c.getString(R.string.step_recents_d), st.recentsOk, { st.recentsOk = true }) {
                 Acc.running?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)

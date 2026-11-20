@@ -507,6 +507,14 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var killSeen: Long
         get() = p.getLong("killSeen", 0L)
         set(v) { p.edit().putLong("killSeen", v).apply() }
+    /**
+     * The steps nobody can read back (auto-start, OEM background, Recents lock) show again: from the "…" menu, and after
+     * the system killed us (Watchdog). killSeen > 0 is what shows the last two on a paired phone (1 = asked by hand).
+     */
+    @Synchronized fun bgRecheck() {
+        p.edit().putBoolean("autostartOk", false).putBoolean("oemBgOk", false).putBoolean("recentsOk", false)
+            .putLong("killSeen", maxOf(p.getLong("killSeen", 0L), 1L)).apply()
+    }
     @get:Synchronized @set:Synchronized var recentsOk: Boolean
         get() = p.getBoolean("recentsOk", false)
         set(v) { p.edit().putBoolean("recentsOk", v).apply() }

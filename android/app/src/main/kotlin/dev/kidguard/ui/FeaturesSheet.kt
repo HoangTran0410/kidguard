@@ -217,7 +217,14 @@ object FeaturesSheet {
                 open(act, Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + act.packageName)), Intent(Settings.ACTION_SETTINGS))
             }
         }
-        if (battery != null) actionCard(R.drawable.li_battery_charging, R.string.ft_battery, R.string.ft_battery_d, null, act.getString(R.string.ft_battery_open)) { battery() }
+        if (battery != null) body.addView(u.cardBox(14).apply {
+            addView(u.label(act.getString(R.string.ft_battery), 17f, u.text, true).apply {
+                setCompoundDrawablesRelative(u.badge(R.drawable.li_battery_charging, u.accent, u.tint, 36, 20, 11), null, null, null)
+                compoundDrawablePadding = u.dp(12); gravity = android.view.Gravity.CENTER_VERTICAL
+            })
+            addView(u.label(act.getString(R.string.ft_battery_d), 14f).apply { setPadding(0, u.dp(6), 0, 0) })
+            for ((label, run) in SetupSteps.bgActions(act)) addView(u.button(act.getString(label), null, false) { run() })
+        })
         }
         fill()
         live = ::fill; cur = sheet

@@ -65,6 +65,8 @@
     <string name="feat_cap_overlay">hiển thị trên ứng dụng khác</string>
     <string name="ft_battery">Pin và tự khởi động</string>
     <string name="ft_battery_d">Để máy không tự tắt KidGuard khi chạy ngầm.</string>
+    <string name="ft_bg_auto">Mở Tự khởi động</string>
+    <string name="ft_bg_battery">Mở Pin (Không hạn chế)</string>
     <string name="ft_battery_open">Mở cài đặt pin</string>
     <string name="pa_lost">Không dùng được: %1$s.</string>
     <string name="pa_lost_none">Không tính năng KidGuard nào bị ảnh hưởng trên máy này.</string>
