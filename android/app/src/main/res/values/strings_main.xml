@@ -23,6 +23,10 @@
     <string name="bank_cant_open">Open developer options</string>
     <string name="log_bank_cant">%1$s opened but KidGuard could not turn off accessibility / debugging (%2$s)</string>
     <string name="dev_paused_toast">Turning off USB debugging to open %1$s…</string>
+    <string name="log_acc_self_off">Accessibility turned itself off for %1$s (no permission to turn it back on): waiting for the kid to turn it on</string>
+    <string name="self_on_t">Turn protection back on</string>
+    <string name="self_on_d">Tap the button, then turn on KidGuard in Accessibility.</string>
+    <string name="self_on_btn">Open Accessibility</string>
     <string name="log_acc_paused">Accessibility paused: %1$s needs it off</string>
     <string name="log_acc_resumed">Accessibility back on (app closed)</string>
     <string name="log_acc_resumed_blocked">Accessibility back on early: the child opened %1$s (blocked) while it was paused</string>

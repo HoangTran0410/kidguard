@@ -84,4 +84,16 @@ class AccPauseTest {
         assertEquals(0L, AccPauseLogic.noticeAt(listOf(1000L, 0L), w))           // debugging app still in front: no countdown
         assertEquals(5000L + w, AccPauseLogic.noticeAt(listOf(1000L, 5000L), w))  // accessibility + debugging: the later one
     }
+
+    @Test fun selfOffCountsFromLeavingThenAsksThenExpires() {
+        val t0 = 1_000_000L
+        assertEquals(AccPauseLogic.SelfStep(0L, false, false), AccPauseLogic.selfStep("com.VCB", list, 0L, t0))
+        assertEquals(AccPauseLogic.SelfStep(t0, false, false), AccPauseLogic.selfStep("com.zing", list, 0L, t0))
+        val ask = AccPauseLogic.SELF_ASK_MS; val dl = AccPauseLogic.SELF_DEADLINE_MS
+        assertEquals(AccPauseLogic.SelfStep(t0, false, false), AccPauseLogic.selfStep("com.zing", list, t0, t0 + ask - 1))
+        assertEquals(AccPauseLogic.SelfStep(t0, true, false), AccPauseLogic.selfStep("com.zing", list, t0, t0 + ask))
+        assertEquals(AccPauseLogic.SelfStep(t0, true, true), AccPauseLogic.selfStep("com.zing", list, t0, t0 + dl))
+        // back in the bank: the count restarts, nothing asked
+        assertEquals(AccPauseLogic.SelfStep(0L, false, false), AccPauseLogic.selfStep("com.mbmobile", list, t0, t0 + dl))
+    }
 }

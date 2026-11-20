@@ -23,6 +23,10 @@
     <string name="bank_cant_open">Mở tuỳ chọn nhà phát triển</string>
     <string name="log_bank_cant">%1$s đã mở nhưng KidGuard không tắt được trợ năng / gỡ lỗi (%2$s)</string>
     <string name="dev_paused_toast">Đang tắt gỡ lỗi USB để mở %1$s…</string>
+    <string name="log_acc_self_off">Trợ năng tự tắt cho %1$s (không có quyền tự bật lại): chờ con bật lại</string>
+    <string name="self_on_t">Bật lại bảo vệ</string>
+    <string name="self_on_d">Bấm nút dưới đây, rồi bật KidGuard trong Trợ năng.</string>
+    <string name="self_on_btn">Mở Trợ năng</string>
     <string name="log_acc_paused">Trợ năng tạm tắt: %1$s cần tắt Trợ năng</string>
     <string name="log_acc_resumed">Đã bật lại Trợ năng (đã rời app)</string>
     <string name="log_acc_resumed_blocked">Trợ năng bật lại sớm: con mở %1$s (đang bị chặn) lúc Trợ năng tạm tắt</string>

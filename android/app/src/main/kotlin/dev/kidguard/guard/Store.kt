@@ -641,6 +641,10 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var accPaused: Set<String>
         get() = p.getStringSet("accPaused", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("accPaused", v).commit() }
+    /** [accPaused] was set by the service turning itself off (no WRITE_SECURE_SETTINGS): only the kid can turn it back on. */
+    @get:Synchronized @set:Synchronized var accSelf: Boolean
+        get() = p.getBoolean("accSelf", false)
+        set(v) { p.edit().putBoolean("accSelf", v).commit() }
     /** When the last paused app left the front (0 = one is in front). */
     @get:Synchronized @set:Synchronized var accLeftAt: Long
         get() = p.getLong("accLeftAt", 0L)
