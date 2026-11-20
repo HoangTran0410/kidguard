@@ -559,4 +559,4 @@ input[type=range]:disabled{opacity:.45;cursor:default}
 .selpg{bottom:calc(88px + env(safe-area-inset-bottom))}@media(min-width:960px){.selpg{bottom:12px}}
 .selrow select{flex:1 1 140px}
 
-.ownr{margin-top:10px}.ownr summary{cursor:pointer;color:var(--sub);font-size:14px;display:flex;align-items:center;gap:6px}.ownr input{width:100%;margin-top:6px}
+.ownr{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:0 12px}.ownr summary{cursor:pointer;color:var(--pri);font-weight:600;min-height:44px;display:flex;align-items:center;gap:8px;list-style:none}.ownr summary::-webkit-details-marker{display:none}.ownr[open] summary .si:last-child{transform:rotate(180deg)}.ownr p{margin:0 0 6px}.ownr input{width:100%;margin:0 0 12px}

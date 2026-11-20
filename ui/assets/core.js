@@ -586,9 +586,10 @@ const anyCard = () => `<div class="card"><h2>${ic("globe")} ${t("any.h")}</h2><p
   <p style="margin:12px 0 2px">${ic("key-round")} <b>${t("any.pin")}</b></p><p class="mute" style="margin:0 0 6px">${t("any.pinP")}</p>
   <div class="pairf"><input id="ap1" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("any.pin1"))}" aria-label="${esc(t("any.pin1"))}">
   <input id="ap2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin2"))}" aria-label="${esc(t("pair.pin2"))}">
-  <button class="pri" id="aGo">${ic("globe")} ${t("pair.go")}</button></div><p class="err" id="eA"></p>
-  <details class="ownr"${!APP && RELAY !== DEFAULT_RELAY ? " open" : ""}><summary>${ic("link")} ${t("any.own")}</summary><p class="mute">${t("any.ownP")}</p>
-  <input id="aR" type="url" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://kidguard.….workers.dev" aria-label="${esc(t("any.own"))}" value="${!APP && RELAY !== DEFAULT_RELAY ? esc(RELAY) : ""}"></details></div>`;
+</div>
+  <details class="ownr"${!APP && RELAY !== DEFAULT_RELAY ? " open" : ""}><summary>${ic("link")} <span class="sp">${t("any.own")}</span>${ic("chevron-down")}</summary><p class="mute">${t("any.ownP")}</p>
+  <input id="aR" type="url" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://kidguard.….workers.dev" aria-label="${esc(t("any.own"))}" value="${!APP && RELAY !== DEFAULT_RELAY ? esc(RELAY) : ""}"></details>
+  <button class="pri" id="aGo" style="width:100%;margin-top:12px">${ic("globe")} ${t("pair.go")}</button><p class="err" id="eA"></p></div>`;
 function anyWire() {
   const go = $("#aGo"); if (!go) return;
   const idle = go.innerHTML, say = m => { $("#eA").textContent = m; };
