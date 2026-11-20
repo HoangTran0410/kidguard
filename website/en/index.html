@@ -162,7 +162,7 @@
           <div><dt>Tamper-proof</dt><dd>Blocks uninstall, Safe Mode; safe DNS.</dd></div>
           <div><dt>Factory reset protection</dt><dd>Needs your Google account after a reset (Android 11+).</dd></div>
           <div><dt>Commands</dt><dd>Lock the screen, ring, message, restart.</dd></div>
-          <div id="undo"><dt>Undo everything</dt><dd>Tap <b>Gỡ quyền quản lý</b> (remove management).</dd></div>
+          <div id="undo"><dt>Undo everything</dt><dd>Tap <b>Remove management</b>.</dd></div>
         </dl>
       </div>
     </div>
@@ -245,16 +245,16 @@
   <div class="wrap">
     <div class="sh">
       <h2>Five ways to install</h2>
-      <p>Install the APK and open it: the launcher, Dọn máy, the on-device parent page and the preview already work. Only Device Owner (A-D, strongest, optional) needs the phone accounts (Google, Samsung…) removed first, sign back in after; app accounts (Zalo, Facebook…) are kept. <a class="go" href="guide.html#install">Step-by-step guide</a></p>
+      <p>Install the APK and open it: the launcher, Clean up apps, the on-device parent page and the preview already work. Only Device Owner (A-D, strongest, optional) needs the phone accounts (Google, Samsung…) removed first, sign back in after; app accounts (Zalo, Facebook…) are kept. <a class="go" href="guide.html#install">Step-by-step guide</a></p>
     </div>
     <ol class="card rows">
-      <li><span class="id" aria-hidden="true">A</span><div><h3>On the phone itself <span class="tag ok">Recommended</span></h3><p>Android 11+, Wi-Fi. Tap <b>Cài đầy đủ không cần máy tính (Android 11+)</b>; it sets itself up over Wireless debugging.</p></div></li>
+      <li><span class="id" aria-hidden="true">A</span><div><h3>On the phone itself <span class="tag ok">Recommended</span></h3><p>Android 11+, Wi-Fi. Tap <b>Full setup without a computer (Android 11+)</b>; it sets itself up over Wireless debugging.</p></div></li>
       <li><span class="id" aria-hidden="true">B</span><div><h3>Scan a QR code</h3><p>New or factory-reset phone: tap the welcome screen 6 times, scan <a href="https://kidguard.asia/qr" target="_blank" rel="noopener">the QR</a>.</p></div></li>
       <li><span class="id" aria-hidden="true">C</span><div><h3>Computer and USB cable</h3><p>Open the <a href="https://kidguard.asia/install" target="_blank" rel="noopener">installer page</a> in Chrome or Edge, no adb needed.</p></div></li>
       <li><span class="id" aria-hidden="true">D</span><div><h3>Command line</h3><p><code>scripts/setup.sh</code> or <code>setup.ps1</code> on macOS, Linux, Windows.</p></div></li>
       <li><span class="id" aria-hidden="true">E</span><div><h3>Basic mode <span class="tag weak">Weaker</span></h3><p>Any Android 8+, accounts stay: follow the <b>To do</b> list. Safe Mode stops the blocking.</p></div></li>
     </ol>
-    <p class="after">Then scan the QR on the child's phone to open the parent page, and set a PIN. Xiaomi, Oppo, Vivo, Samsung: also tap <b>Cài đặt pin / tự khởi động</b> (battery / autostart).</p>
+    <p class="after">Then scan the QR on the child's phone to open the parent page, and set a PIN. Xiaomi, Oppo, Vivo, Samsung: also tap <b>Battery and autostart</b>.</p>
     <details class="warnote"><summary><b>Blocked by Play Protect?</b> Pause Play Protect while installing.</summary><ol><li>On the child's phone open <b>Play Store</b> → tap your avatar → <b>Play Protect</b>.</li><li>Tap ⚙ → turn off <b>Scan apps with Play Protect</b>.</li><li>Install and set up KidGuard.</li><li>Turn Play Protect back on.</li></ol><p>QR setup is not affected (the phone downloads the app itself).</p></details>
   </div>
 </section>
@@ -270,7 +270,7 @@
       <div class="card"><h3>Tailscale</h3><p>Paste one key: a private network, instant.</p><p class="more"><a class="go" href="guide.html#tailscale">How to turn it on</a></p></div>
       <div class="card"><h3>Relay (Cloudflare)</h3><p>On by default, opens in any browser. Make your own if you like.</p><p class="more"><a class="go" href="guide.html#relay">How to turn it on</a></p></div>
     </div>
-    <p class="after" id="parent-app"><b>Parent app (Android):</b> tap <b>Thêm máy của con</b> (add the child's phone) and get SOS, more-time requests and alerts wherever you are. <a class="go" href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk">Get the parent app</a></p>
+    <p class="after" id="parent-app"><b>Parent app (Android):</b> tap <b>Add the child's phone</b> and get SOS, more-time requests and alerts wherever you are. <a class="go" href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-parent.apk">Get the parent app</a></p>
     <p class="after" id="iphone"><b>Child on an iPhone?</b> There is no KidGuard for iOS, <a href="guide.html#iphone">use Screen Time and Find My</a>.</p>
   </div>
 </section>
@@ -298,7 +298,7 @@
   <div class="wrap">
     <div class="sh">
       <h2>Try it on your child's phone tonight</h2>
-      <p>Not for you? <b>Gỡ quyền quản lý</b> (remove management) puts the phone back.</p>
+      <p>Not for you? <b>Remove management</b> puts the phone back.</p>
     </div>
     <div class="dl">
       <div class="card"><h3>Child's phone</h3><p>Runs the rules, locks apps, sends the location. Install this first.</p><a class="btn primary" href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk"><span>Download KidGuard</span></a></div>
