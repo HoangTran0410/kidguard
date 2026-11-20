@@ -618,7 +618,7 @@ function anyWire() {
         if (!r.ok) return fail(j);
       }
       say(t("any.timeout"));
-    } catch { say(t("any.fail")); } finally { if ($("#aGo")) busy(false); }
+    } catch { const o = httpsOrigin(ownR.trim()); say(o ? t("any.ownNet", o.replace(/^https:\/\//, "")) : t("any.fail")); } finally { if ($("#aGo")) busy(false); }
   };
 }
 // same result as a relay link (addRelayLink): a kid via the relay, opened at once
