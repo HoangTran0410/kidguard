@@ -103,6 +103,12 @@ function updateLive() {
       + (st.bankBackAt !== undefined ? ` <button type="button" class="pill" id="bankEndBtn">${ic("refresh-cw")} ${t("bk.endNow")}</button>` : "")]);
   }
   else if (st.acc === false && !Array.isArray(st.missing)) B.push(["warn", "triangle-alert", t("live.acc")]);
+  // protections skipped for lack of a privilege (Degraded.kt, phones >= 0.9.68): the kid got a notice too
+  if (Array.isArray(st.degraded) && st.degraded.length) {
+    const dg = st.degraded.map(k => { const i = k.indexOf("."), a = i < 0 ? k : k.slice(0, i), p = i < 0 ? "" : k.slice(i + 1), l = ((st.apps || []).find(x => x.pkg === p) || {}).label || p;
+      return esc(t("dg." + a) + (p ? " (" + l + ")" : "")); });
+    B.push(["warn", "triangle-alert", t("dg.live", [...new Set(dg)].join("; "))]);
+  }
   if (Array.isArray(st.missing) && st.missing.length) {   // phones >= 0.9.22: one band, one Fix (docs/protocol.md "missing")
     const m = st.missing, fp = st.fixPerms || {}, names = m.map(capName).join(", "), tap = (fp.tap || []).filter(x => m.includes(x));
     B.push(["bad", "triangle-alert", (m.length === 1 ? t("fp.live1", esc(names)) : t("fp.live", m.length, esc(names)))

@@ -477,10 +477,12 @@ class Guard : Service() {
         if (!owner && Debloat.diff(r.hidden - store.refusedHide, had, never).let { it.hide.isEmpty() && it.show.isEmpty() }) return
         if (!owner && !SelfAdb.ensure(this)) {   // no shell (or no window to open): changes wait (disabled apps stay disabled)
             hideKey = ""
-            if (!shellOffLogged && Debloat.diff(r.hidden, had, Policy.neverHide(this, prot)).let { it.hide.isNotEmpty() || it.show.isNotEmpty() }) { shellOffLogged = true; store.log(R.string.app_shell_off) }
+            if (!shellOffLogged && Debloat.diff(r.hidden, had, Policy.neverHide(this, prot)).let { it.hide.isNotEmpty() || it.show.isNotEmpty() }) { shellOffLogged = true
+                Degraded.report(this, "debloat", getString(R.string.dg_hide_t), getString(R.string.app_shell_off),
+                    Intent(android.provider.Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS), getString(R.string.app_shell_off)) }
             return
         }
-        shellOffLogged = false
+        shellOffLogged = false; Degraded.clear(this, "debloat")
         val failed = HashSet<String>()
         val nowHid = Policy.hideExactly(this, r.hidden, had, never, failed)
         val refused = Debloat.refusedAfter(store.refusedHide, failed, nowHid - had, had - nowHid, r.hidden)
@@ -551,7 +553,7 @@ class Guard : Service() {
             .put("totpOn", store.totpSecret.isNotBlank()).put("unlockUntil", store.unlockUntil.takeIf { it > now } ?: 0)
             .put("selfOpenUntil", store.selfOpenUntil.takeIf { CmdGate.selfOpen(it, now) } ?: 0)
             .put("acc", Acc.isOn(this)).put("accPaused", JSONArray(store.accPaused.sorted()))
-            .put("tamperOn", JSONArray(tamperOn(now))).put("vpnPaused", JSONArray(store.vpnPaused.sorted())).put("devPaused", JSONArray(store.devApps.sorted())).put("bankBackAt", bankBackAt()).put("vpnStuck", store.vpnStuck)
+            .put("tamperOn", JSONArray(tamperOn(now))).put("vpnPaused", JSONArray(store.vpnPaused.sorted())).put("devPaused", JSONArray(store.devApps.sorted())).put("degraded", JSONArray(store.degraded.sorted())).put("bankBackAt", bankBackAt()).put("vpnStuck", store.vpnStuck)
             .put("accReEnable", checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
             .put("locationOn", locationOn())
             .put("dev", DevOpts.state(this))
@@ -959,7 +961,18 @@ class Guard : Service() {
     }
 
     @SuppressLint("MissingPermission")
+    /** Location permission present? Missing = tell the kid + parent once in a while (it used to just save nothing). */
+    private fun locPermOk(): Boolean {
+        val ok = checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (ok) Degraded.clear(this, "loc")
+        else Degraded.report(this, "loc", getString(R.string.dg_loc_t), getString(R.string.dg_loc_d),
+            Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:$packageName")), getString(R.string.log_dg_loc))
+        return ok
+    }
+
     private fun locate() {
+        if (!locPermOk()) return
         val lm = getSystemService(LocationManager::class.java) ?: return
         for (p in listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER))
             runCatching { if (lm.isProviderEnabled(p)) saveLoc(lm.getLastKnownLocation(p)) }
@@ -1017,7 +1030,7 @@ class Guard : Service() {
     /** One location fix for the history: 30 s timeout, then the last known one if it is younger than 2 x [everyMin]. */
     @SuppressLint("MissingPermission")
     private fun trackFix(everyMin: Int) {
-        if (trackBusy) return
+        if (trackBusy || !locPermOk()) return
         val lm = getSystemService(LocationManager::class.java) ?: return
         trackBusy = true
         fun fallback(): Location? = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER)

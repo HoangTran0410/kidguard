@@ -59,6 +59,7 @@ object VpnPause {
         val had = s.vpnPaused
         s.vpnPaused = had + pkg; s.vpnLeftAt = 0L
         if (had.isNotEmpty() || !vpnUp(ctx)) return false
+        var off = false   // something was really turned off (always-on lifted or Tailscale told to disconnect)
         if (Policy.isOwner(ctx)) runCatching {
             val d = Policy.dpm(ctx); val a = Policy.admin(ctx)
             val cur = d.getAlwaysOnVpnPackage(a)
@@ -66,12 +67,20 @@ object VpnPause {
                 val lock = android.os.Build.VERSION.SDK_INT >= 29 && d.isAlwaysOnVpnLockdownEnabled(a)
                 s.vpnSnap = VpnPauseLogic.snap(cur, lock)
                 d.setAlwaysOnVpnPackage(a, null, false)
+                off = true
             }
         }.onFailure { Log.w("KidGuard", "vpn pause always-on", it) }
         if (Ts.findIp().isNotEmpty()) {
             s.vpnTs = true
             runCatching { ctx.sendBroadcast(Intent(DISCONNECT).setClassName(TsLogic.PKG, TsLogic.RECEIVER)) }
+            off = true
         }
+        if (!off) {   // basic mode, some other VPN: nothing was turned off, so do not say it was
+            Degraded.report(ctx, "vpn", ctx.getString(R.string.dg_vpn_t), ctx.getString(R.string.dg_vpn_d, label(ctx, pkg)),
+                Intent(android.provider.Settings.ACTION_VPN_SETTINGS), ctx.getString(R.string.log_dg_vpn, label(ctx, pkg)))
+            return false
+        }
+        Degraded.clear(ctx, "vpn")
         runCatching { s.log(R.string.log_vpn_paused, label(ctx, pkg)) }
         runCatching { Toasts.show(ctx.applicationContext, ctx.getString(R.string.vpn_paused_toast), true) }
         val app = ctx.applicationContext

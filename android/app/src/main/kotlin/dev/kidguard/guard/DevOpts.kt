@@ -136,6 +136,7 @@ object DevOpts {
         if (BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) != null) return false   // never for a blocked app
         s.devApps = s.devApps + pkg; s.devLeftAt = 0L
         if (!canOff(ctx)) { if (dev && debugNow(ctx)) cantPause(ctx, pkg); return false }
+        Degraded.clear(ctx, "bank.$pkg")
         val port = tcp && tcpNow(ctx)
         // what is on NOW (not "nothing paused yet": a pause whose turn-off failed kept devPaused set and every later open
         // skipped debugging, INCIDENT 2026-11-20 Xiaomi + MoMo); merged with what an earlier pause already owes back
@@ -166,9 +167,6 @@ object DevOpts {
         return true
     }
 
-    @Volatile private var cantAt = 0L; @Volatile private var cantPkg = ""
-    private const val NOTIF_CANT = 4417
-
     /**
      * A listed bank app opened but KidGuard may not switch accessibility / debugging off (no WRITE_SECURE_SETTINGS, basic
      * mode): say so on the phone (it used to do nothing: the bank app said "unsafe device", owner 2026-11-20 Xiaomi + MoMo)
@@ -176,22 +174,9 @@ object DevOpts {
      */
     fun cantPause(ctx: Context, pkg: String, why: String = "no permission") {
         if (Flavor.HOME || BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) != null) return
-        val now = System.currentTimeMillis()
-        if (pkg == cantPkg && now - cantAt < 30 * 60_000L) return
-        cantPkg = pkg; cantAt = now
         val label = runCatching { val pm = ctx.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
-        // a notification, not a toast (too long for one): what to do + one button to Developer options
-        runCatching {
-            val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
-            val ch = Chan.open(nm, "bankwarn", ctx.getString(R.string.ch_bankwarn), android.app.NotificationManager.IMPORTANCE_HIGH)
-            val pi = android.app.PendingIntent.getActivity(ctx, 7, Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
-            nm.notify(NOTIF_CANT, android.app.Notification.Builder(ctx, ch).setSmallIcon(android.R.drawable.stat_sys_warning)
-                .setContentTitle(ctx.getString(R.string.bank_cant_t, label)).setContentText(ctx.getString(R.string.bank_cant_d))
-                .setStyle(android.app.Notification.BigTextStyle().bigText(ctx.getString(R.string.bank_cant_d))).setAutoCancel(true)
-                .addAction(android.app.Notification.Action.Builder(null, ctx.getString(R.string.bank_cant_open), pi).build()).build())
-        }
-        runCatching { Store.of(ctx).log(R.string.log_bank_cant, label, why) }
+        Degraded.report(ctx, "bank.$pkg", ctx.getString(R.string.bank_cant_t, label), ctx.getString(R.string.bank_cant_d),
+            Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS), ctx.getString(R.string.log_bank_cant, label, why))
     }
 
     /** adb listens on a TCP port right now (adbd up, port property set): what `tcpPause` closes. */

@@ -79,7 +79,12 @@ object Policy {
             if (r.noDebug) d.addUserRestriction(a, UserManager.DISALLOW_DEBUGGING_FEATURES)
             else d.clearUserRestriction(a, UserManager.DISALLOW_DEBUGGING_FEATURES)
         }.onFailure { Log.w(TAG, "restrictions", it) }
-        runCatching { d.setUninstallBlocked(a, ctx.packageName, true) }.onFailure { Log.w(TAG, "uninstall block", it) }
+        runCatching { d.setUninstallBlocked(a, ctx.packageName, true) }
+            .onSuccess { Degraded.clear(ctx, "uninstall") }
+            .onFailure {
+                Log.w(TAG, "uninstall block", it)
+                Degraded.report(ctx, "uninstall", ctx.getString(R.string.dg_uninst_t), ctx.getString(R.string.dg_uninst_d), null, ctx.getString(R.string.log_dg_uninst))
+            }
         if (Build.VERSION.SDK_INT >= 30) {
             runCatching { d.setUserControlDisabledPackages(a, listOf(ctx.packageName)) }   // no Force stop / Clear data
             runCatching { d.setAutoTimeEnabled(a, true) }
@@ -181,6 +186,7 @@ object Policy {
             "off" -> runCatching {   // DPM cannot set "off"; WRITE_SECURE_SETTINGS (granted to us as owner) can. Else it stays opportunistic.
                 if (ctx.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
                     Settings.Global.putString(ctx.contentResolver, "private_dns_mode", "off")
+                else runCatching { s.log(R.string.log_dg_dns) }
             }.onFailure { Log.w(TAG, "restore dns off", it) }
         }
     }

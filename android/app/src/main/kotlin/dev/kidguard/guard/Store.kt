@@ -714,6 +714,10 @@ class Store private constructor(private val app: Context) {
         get() = p.getBoolean("vpnTs", false)
         set(v) { p.edit().putBoolean("vpnTs", v).commit() }
     /** A VPN stayed up after the pause (another VPN app, or always-on set in Settings on a basic-mode phone). */
+    /** Protections skipped for lack of a privilege right now (Degraded.kt); in the state JSON as "degraded". */
+    @get:Synchronized @set:Synchronized var degraded: Set<String>
+        get() = p.getStringSet("degraded", emptySet())!!.toSet()
+        set(v) { p.edit().putStringSet("degraded", v).apply() }
     @get:Synchronized @set:Synchronized var vpnStuck: Boolean
         get() = p.getBoolean("vpnStuck", false)
         set(v) { p.edit().putBoolean("vpnStuck", v).apply() }
