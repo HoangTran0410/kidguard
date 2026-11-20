@@ -329,7 +329,7 @@ class Relay(private val g: Guard) {
                 if (++errors >= 3) return
                 gap = 1_000
             }
-            if (!live) return
+            if (!live) { Acc.stopViewing(g); return }   // parent pressed Stop / stopped asking: notice + projection off now
             val wait = maxOf(gap, if (gap == 150L) 0 else Acc.frameGapMs() - (System.currentTimeMillis() - t0))
             if (wait > 0) Thread.sleep(wait)
         }

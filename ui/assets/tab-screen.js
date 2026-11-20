@@ -1,7 +1,9 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // --- live screen + remote control -------------------------------------------
 // Runs independently of the 4 s state poll (refresh() never redraws the screen tab).
-const scr = { gen: 0, url: null, seq: 0, frames: [], lat: 0, liveT: null, view: false, err: "", msg: "", off: false, blob: null, idle: false };   // off: the last frame answer was "screen off"
+// on: the kid the parent pressed "Start viewing" for (owner 2026-11-20: opening the tab must not start it; leaving the tab ends it)
+// k: the kid frames are being asked from now (screenStop tells that phone to stop at once)
+const scr = { gen: 0, url: null, seq: 0, frames: [], lat: 0, liveT: null, view: false, err: "", msg: "", off: false, blob: null, idle: false, on: null, k: null };   // off: the last frame answer was "screen off"
 // Nobody touched the page for 5 min: stop asking for frames (the kid's phone keeps capturing and uploading as long as we ask,
 // and its "a parent is watching" notice stays up). One button brings the picture back.
 const SCR_IDLE = 300000;
@@ -26,11 +28,14 @@ function showFrame(blob, lat) {
 }
 function screenStop() {
   scr.gen++; clearInterval(scr.liveT); scr.liveT = null;
+  // the phone stops capturing and drops its "parent is watching" notice now (0.9.60), not 20-45 s later
+  const k = scr.k; scr.k = null;
+  if (k && !(k === cur && kidOld("0.9.60"))) (k.via === "lan" ? fetch(base(k) + "/screen?stop=1", { headers: { "X-KG-Token": k.token }, cache: "no-store" }) : call(k, "/live", "POST", { stop: true })).catch(() => {});
   if (scr.url) { URL.revokeObjectURL(scr.url); scr.url = null; }
   scr.frames = []; scr.seq = 0; scr.msg = ""; scr.blob = null; scr.idle = false;
 }
 function screenStart() {
-  if (!cur || document.hidden) return;
+  if (!cur || document.hidden || scr.on !== cur) return screenCtl();
   const gen = ++scr.gen, k = cur; clearInterval(scr.liveT);
   // a redraw of the tab (state changed) is not somebody watching: stay paused until a tap / key (they move actAt)
   if (scr.idle && Date.now() - actAt >= SCR_IDLE) { screenCtl(); return; }
@@ -39,6 +44,7 @@ function screenStart() {
   const img = $("#s-img"); if (img && scr.url) img.src = scr.url;
   screenMsg(scr.msg || t("connecting"));
   const alive = () => scr.gen === gen && tab === "screen";
+  scr.k = k;
   let fails = 0;   // "timeout" answers in a row (the phone's capture is still waking up)
   if (k.via === "lan") (async () => {
     while (alive() && !idle()) {
@@ -95,18 +101,31 @@ const screenOff = () => !viewDay && ((st && st.screenOn === false) || scr.off);
 function screenOffErr(e) { if (e === "screen off" && !scr.off) { scr.off = true; screenCtl(); } }
 function screenCtl() {
   const so = $("#s-off"); if (!so) return;
-  const off = screenOff(), lock = off || scr.view;
+  const on = scr.on === cur;
+  $("#s-start").hidden = on; $("#s-live").hidden = !on;
+  const off = screenOff(), lock = off || scr.view || !on;
   so.hidden = !off; $("#s-box").classList.toggle("off", off);
   const si = $("#s-idle"); if (si) si.hidden = !scr.idle || off;
   const sv = $("#s-save"); if (sv) sv.disabled = !scr.blob;
   document.querySelectorAll("#s-btns button, #s-nav button").forEach(x => x.disabled = lock);
   $("#f-stxt").disabled = lock; $("#s-send").disabled = lock || !$("#f-stxt").value;
-  if (off) actPaint();
+  if (off && on) actPaint();
 }
+// Start: a confirm that says the kid sees a notice (Android 8-10 always: the system requires it); Stop: back to the Start card
+scr.go = async () => {
+  if (!cur) return;
+  const r = (edit || (st && st.rules) || {}), quiet = r.showWatching === false;
+  if (!(await ask(t(quiet ? "scr.askQ" : "scr.ask"), t("scr.start")))) return;
+  scr.on = cur; scr.idle = false; actAt = Date.now(); screenCtl(); screenStart();
+};
+scr.end = () => { scr.on = null; screenStop(); const img = $("#s-img"); if (img) img.removeAttribute("src"); screenMsg(""); screenStat(); screenCtl(); };
 
 function screenTab(b) {
   b.innerHTML = `<div class="card"><div class="row"><h2 class="sp" style="margin:0">${ic("smartphone")} ${t("scr.h")}</h2>
-    <label class="row"><input type="checkbox" id="s-view" ${scr.view ? "checked" : ""}> ${ic("eye")} ${t("scr.view")}</label></div>
+</div>
+    <div id="s-start" style="margin-top:10px"><p>${ic("eye")} ${t("scr.startP")}</p><p class="mute">${ic("bell")} ${t("scr.startN")}</p><button type="button" class="pri" id="s-go">${ic("play")} ${t("scr.start")}</button></div>
+    <div id="s-live" hidden>
+    <div class="row" style="margin-top:10px;gap:8px"><label class="row sp"><input type="checkbox" id="s-view" ${scr.view ? "checked" : ""}> ${ic("eye")} ${t("scr.view")}</label><button type="button" id="s-stop" class="sm">${ic("square")} ${t("scr.stop")}</button></div>
     <div class="alert warn" id="s-off" hidden style="margin-top:10px">${ic("moon")}<span class="sp"><b>${t("so.h")}</b><br><span class="mute">${t("so.p")}</span></span><button type="button" id="wake" class="act pri"></button></div>
     <div class="alert info" id="s-idle" hidden style="margin-top:10px">${ic("pause")}<span class="sp">${t("scr.idle")}</span><button type="button" id="s-resume" class="pri">${ic("play")} ${t("scr.resume")}</button></div>
     <div class="scr ${scr.view ? "view" : ""}" id="s-box" style="margin-top:10px"><img id="s-img" alt="${esc(t("scr.h"))}" draggable="false"><div class="scr-msg" id="s-msg"></div><svg class="gst" id="s-gst" aria-hidden="true"></svg></div>
@@ -121,8 +140,8 @@ function screenTab(b) {
       <div class="keys"><button data-key="notifications">${ic("bell")} ${t("key.notif")}</button><button data-key="quick">${ic("sliders")} ${t("key.quick")}</button><button data-key="lock">${ic("lock")} ${t("lockScr")}</button></div></div>
     <div class="row" style="margin-top:10px"><input id="f-stxt" class="sp" placeholder="${esc(t("scr.typePh"))}" aria-label="${esc(t("scr.typePh"))}"><button id="s-send" class="pri">${ic("send")} ${t("scr.sendTxt")}</button></div>
     <div class="mute" id="s-terr" role="status" style="margin-top:4px"></div>
-    <label class="row" style="margin-top:10px"><input type="checkbox" id="f-sw" ${edit && edit.showWatching ? "checked" : ""}><span>${ic("bell")} ${t("scr.notify")}</span></label>
-    <p class="mute">${ic("pointer")} ${t("scr.tip")}</p></div>`;
+    <p class="mute">${ic("pointer")} ${t("scr.tip")}</p></div>
+    <label class="row" style="margin-top:10px"><input type="checkbox" id="f-sw" ${edit && edit.showWatching ? "checked" : ""}><span>${ic("bell")} ${t("scr.notify")}</span></label></div>`;
   $("#f-sw").onchange = e => { if (!edit) return; edit.showWatching = e.target.checked; changed(); };
   const box = $("#s-box"), img = $("#s-img");
   $("#s-view").onchange = e => { scr.view = e.target.checked; box.classList.toggle("view", scr.view); screenCtl(); };
@@ -168,6 +187,7 @@ function screenTab(b) {
   tx.onkeydown = e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); send(); } };
   $("#s-send").onclick = send;
   $("#s-resume").onclick = () => screenStart();
+  $("#s-go").onclick = scr.go; $("#s-stop").onclick = scr.end;
   // keeps the frame on screen now (a later frame replaces scr.blob, not this copy)
   $("#s-save").onclick = () => { const b = scr.blob; if (!b) return; const d = new Date(), p = n => String(n).padStart(2, "0");
     fxSave(b, `kidguard-${(cur && cur.name || "kid").replace(/[^\p{L}\p{N}_-]+/gu, "_").slice(0, 30)}-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.jpg`); toast("ok|" + t("scr.saved")); };

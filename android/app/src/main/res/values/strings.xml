@@ -233,7 +233,6 @@
     <string name="log_view_start">Parent started viewing the screen</string>
     <string name="notice_viewing">Your parent is viewing the screen</string>
     <string name="ch_proj">Screen sharing (Android 8-10)</string>
-    <string name="notice_proj">Sharing the screen with your parent</string>
     <string name="log_proj_denied">Screen sharing request was declined on this phone</string>
     <string name="log_listen_err">Listening stopped: %1$s</string>
     <string name="ch_ring">Find my phone</string>

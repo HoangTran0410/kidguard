@@ -661,7 +661,7 @@ export class Kid {
 
   async rLive({ req, url, body, now, role, who, token, id }) {
     if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
-    this.liveUntil = now + 20e3;
+    this.liveUntil = body && body.stop === true ? 0 : now + 20e3;   // stop: the phone's next frame upload gets live:false and it ends at once
     return json({ ok: true, phone: this.frame ? now - this.frame.at : -1 });
   }
 

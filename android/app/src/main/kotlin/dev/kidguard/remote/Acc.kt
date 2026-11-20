@@ -517,7 +517,8 @@ class Acc : AccessibilityService() {
                 if (!viewing) {
                     viewing = true
                     Store.of(svc).log(R.string.log_view_start)
-                    notice(svc, svc.getString(R.string.notice_viewing))
+                    // Android 8-10: ProjService already shows "parent is watching" (required for a projection): don't add a 2nd one
+                    if (!ProjLogic.useProjection(Build.VERSION.SDK_INT)) notice(svc, svc.getString(R.string.notice_viewing))
                 }
                 main.removeCallbacks(hide)
                 main.postDelayed(hide, 5000)
@@ -531,6 +532,12 @@ class Acc : AccessibilityService() {
             nm.createNotificationChannel(NotificationChannel(CH, svc.getString(R.string.ch_viewing), NotificationManager.IMPORTANCE_DEFAULT))
             nm.notify(NID, Notification.Builder(svc, CH).setSmallIcon(android.R.drawable.ic_menu_view)
                 .setContentTitle(title).setOngoing(true).setOnlyAlertOnce(true).build())
+        }
+
+        /** The parent pressed Stop / left the screen view: drop the notice and the projection now, not after the idle timeouts. Any thread. */
+        fun stopViewing(ctx: Context) {
+            main.post { main.removeCallbacks(hide); if (viewing) hide.run() }
+            if (ProjLogic.useProjection(Build.VERSION.SDK_INT)) Proj.stop(ctx)
         }
 
         private fun hideNotice() {

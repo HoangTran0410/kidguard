@@ -131,6 +131,7 @@ class Api(private val g: Guard) {
                     Res.json(JSONObject().put("result", res).toString())
                 }
             }
+            p == "/screen" && r.query["stop"] == "1" -> { Acc.stopViewing(g); Res.json("""{"ok":true}""") }   // 0.9.60: parent pressed Stop
             p == "/screen" -> {
                 val f = Acc.capture((r.query["max"]?.toIntOrNull() ?: 720).coerceIn(320, 1600), (r.query["q"]?.toIntOrNull() ?: 50).coerceIn(20, 90))
                 if (f == null) Res.json(JSONObject().put("error", Acc.lastError).toString(), 503)

@@ -268,6 +268,7 @@ The first capture / first input of a session is logged in the phone log.
 
 ### LAN (phone HTTP server, token header `X-KG-Token`)
 - `GET /api/screen?max=720&q=50` -> `200 image/jpeg` with headers `X-KG-W`, `X-KG-H`; or `503 {"error": "<lastError>"}`.
+- `GET /api/screen?stop=1` (0.9.60) -> `{"ok":true}`: the parent stopped viewing; notice + projection off now.
 - `POST /api/input` body = input object -> `{"result": "ok"}` or `{"result": "<error>"}`.
 - Capacity: 16 worker threads + 32 queued connections; long-running routes (`/api/listen`, `/api/screen`, file bodies) share
   6 slots, so `/api/state` always finds a thread. Over the limit: `503` (`{"error":"busy"}` for a long route, empty body +
@@ -415,7 +416,9 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 - Limits: `POST /c/<id>/cmd` -> 429 `queue full` with 20 commands waiting that a new one cannot replace (a full queue first drops a still-queued, not yet handed out older copy of the same repeatable type, same `key` for `setting` / same `file` for `fileUp`; never a destructive ONCE one), 413 `too big` over 4 KB of JSON; `PUT /c/<id>/rules`
   -> 413 over 64 KB (the sync reply carries both, and the phone refuses replies over 256 KB).
 - Parent `POST /c/<id>/live` `{}` -> `{"ok":true, "phone": <ms since the phone's last frame or -1>}`; sets
-  `liveUntil = now + 20 s`. The page calls it every 10 s while the viewer is open.
+  `liveUntil = now + 20 s`. The page calls it every 10 s while the viewer is open. `{"stop": true}` (0.9.60, Stop
+  viewing / leaving the tab) sets `liveUntil = 0`: the phone's next frame upload gets `live: false`, it ends the loop and
+  drops its notice + projection at once (`Acc.stopViewing`).
 - `POST /c/<id>/sync` reply gets `"live": true` while `liveUntil > now`.
 - Phone, while live: loop { capture; `POST /c/<id>/frame` (body = JPEG, `Content-Type: image/jpeg`, headers
   `X-KG-W`, `X-KG-H`; when capture failed: empty body + header `X-KG-Err: <lastError>`) -> `{"inputs":[…], "live": bool}`;

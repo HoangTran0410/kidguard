@@ -227,7 +227,6 @@
     <string name="log_view_start">Bố mẹ bắt đầu xem màn hình</string>
     <string name="notice_viewing">Bố mẹ đang xem màn hình</string>
     <string name="ch_proj">Chia sẻ màn hình (Android 8-10)</string>
-    <string name="notice_proj">Đang chia sẻ màn hình cho bố mẹ</string>
     <string name="log_proj_denied">Yêu cầu chia sẻ màn hình bị từ chối trên máy</string>
     <string name="log_listen_err">Dừng nghe: %1$s</string>
     <string name="ch_ring">Tìm điện thoại</string>

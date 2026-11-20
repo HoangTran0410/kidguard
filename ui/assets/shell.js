@@ -135,7 +135,7 @@ function render(tabClick) {
   const a = $("#app");
   const focus = document.activeElement && document.activeElement.id;   // keep the field being typed in
   if (focus && /^(f-|msg|relay)/.test(focus)) { updateLive(); return; }
-  if (tab !== "screen") screenStop();
+  if (tab !== "screen") { scr.on = null; screenStop(); }   // leaving the tab ends viewing; coming back shows Start again
   if (st && edit && !viewDay && !edit.pinSet && !(st.caps && st.caps.paired === false)) return pinGate(a);   // preview: the PIN is asked on the first save (putRules)   // paired before PINs were required: nothing else until one is set
   a.className = ""; a.innerHTML = `<div class="shell">${sideHtml()}<div class="mainc"><div class="wrap">${localBar()}
   ${headHtml()}

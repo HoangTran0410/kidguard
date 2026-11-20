@@ -60,6 +60,9 @@ r=await fetch(`${B}/c/zz/state`);ck("404 json nosniff",r.headers.get("x-content-
 // 4: input 409 when not live (fresh kid, bound by sync)
 await S({state:{}});
 r=await P2("input",JSON.stringify({type:"tap",x:.1,y:.1}));j=await r.json();ck("input 409 not live",r.status==409&&j.error=="not live");
+// live stop (0.9.60): the parent's Stop ends live at once
+await P2("live","{}");j=await S();ck("live after /live",j.live===true);
+await P2("live",JSON.stringify({stop:true}));j=await S();ck("live stop ends it",!j.live);
 // 1: command ids, deliver-once, ack-drop
 r=await P2("cmd",JSON.stringify({type:"rb"}));await P2("cmd",JSON.stringify({type:"rl"}));await P2("cmd",JSON.stringify({type:"ua"}));
 await P2("cmd",JSON.stringify({type:"lk"}));await P2("cmd",JSON.stringify({type:"an",id:"req1",ok:true}));
