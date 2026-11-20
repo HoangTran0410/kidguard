@@ -759,6 +759,11 @@ ck("locked: invite 423",(await Q("invite",K1,{})).status==423);}
 r=await Q("rules",A,{dailyMin:60,pin:"4321"},"PUT");ck("page PIN: PUT ok, no hash or salt back",r.status==200&&!/pinHash|pinSalt/.test(await r.text()));
 j=await (await Q("sync",Tq,{})).json();ck("page PIN: the phone gets hashPin(pin, 16-hex salt)",j.rules&&/^[0-9a-f]{16}$/.test(j.rules.pinSalt)&&j.rules.pinHash===hp("4321",j.rules.pinSalt));
 ck("page PIN: browser unlock checks the salted one",(await Q("unlock",M,{pin:"4321"})).status==200&&!JSON.stringify(await (await Q("state",A)).json()).includes("pinSalt"));}
+// audit 2026-11-20: junk paths count against the per-IP limit too (150 / 10 s)
+await sleep(10500);{let st=0,n=0;for(;n<200&&st!=429;n++)st=(await fetch(`${B}/c/junk/path${n}`)).status;
+ck(`RL: junk paths hit the limit too (429 after ${n})`,st==429&&n>100);
+ck("RL: the relay root still answers",(await fetch(`${B}/`)).status==200);}
+await sleep(10500);
 // ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;
 for(let i=0;i<90&&!blocked;i++){const idn=rh(16),r=await fetch(`${B}/c/${idn}/sync`,{method:"POST",headers:{"x-kg-token":rh(48),"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});

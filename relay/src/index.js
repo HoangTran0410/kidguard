@@ -131,12 +131,15 @@ async function route(req, env) {
   if (th) return tgHook(req, env, th[1]);
   if (url.pathname === "/w/new" || /^\/w\/\d{6}$/.test(url.pathname)) return watchRoute(req, env, url);
   if (/^\/p\/(new|inv|\d{6}|[0-9a-f]{16})(\/(join|reply|result))?$/.test(url.pathname)) return pairRoute(req, env, url);
-  const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile|join|unlock|invite|parents|call|scr|mint|rekey)$/);
-  if (!m) return json({ error: "not found" }, 404);
+  // per-IP limit before the path check too (audit 2026-11-20): a scanner looping junk paths gets 429 like one looping ids.
+  // It can't make those requests free (every call is a Worker invocation; only a WAF rule could), but none of them reaches
+  // a Durable Object or storage. Kept at 150 / 10 s: wrangler.toml has the measured family traffic.
   if (env.RL) {
     const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
     if (!success) return json({ error: "slow down" }, 429);
   }
+  const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile|join|unlock|invite|parents|call|scr|mint|rekey)$/);
+  if (!m) return json({ error: "not found" }, 404);
   // reject junk before waking a Durable Object (an icon GET may carry the icon-only key instead of the token)
   if (!/^[0-9a-f]{48}$/.test(tokenOf(req, url)) && !(m[2] === "join" && !req.headers.get("x-kg-token")) && !((m[2] === "icon" || m[2] === "tile" || (m[2] === "icons" && req.method === "GET")) && ICON_KEY.test(url.searchParams.get("k") || ""))) return json({ error: "not paired" }, 401);
   const len = +(req.headers.get("content-length") || 0);

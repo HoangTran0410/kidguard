@@ -36,8 +36,11 @@ new_sqlite_classes = ["Gate"]
 tag = "v3"
 new_sqlite_classes = ["Watch"]
 
-# Per-IP rate limit on /c/* (free plan). Stops a single client looping random ids to burn the daily quota;
-# one family (phone sync every 20 s + a parent watching the live screen) stays far below it.
+# Per-IP rate limit on every path but "/" and /tg (free plan). Stops a single client looping random ids or junk paths;
+# /w and /p check it too. Measured per IP and 10 s (2026-11-20, audit asked for ~30): page refresh 8 s (relay) + overview
+# 15 s per kid = 2-4; live screen over HTTP when the socket is blocked = one frame poll every 150-333 ms = 30-66;
+# a file transfer = 1 MB chunks, up to ~100 on a fast link; several kids / a parent app + a page behind one NAT add up.
+# 30 would cut the screen fallback and file transfers, so it stays 150 (a looping script still gets 15 req/s at most).
 [[ratelimits]]
 name = "RL"
 namespace_id = "1001"
