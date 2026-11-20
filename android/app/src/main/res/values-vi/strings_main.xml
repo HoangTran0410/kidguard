@@ -17,6 +17,11 @@
     <string name="prot_status">Hiện tại</string>
     <string name="prot_features">Tính năng</string>
     <string name="acc_paused_toast">Trợ năng tạm tắt cho app này, sẽ tự bật lại</string>
+    <string name="ch_bankwarn">Cảnh báo app ngân hàng</string>
+    <string name="bank_cant_t">%1$s có thể báo máy không an toàn</string>
+    <string name="bank_cant_d">KidGuard chưa tự tắt được gỡ lỗi USB và trợ năng (thiếu quyền cài đặt bảo mật). Tắt tay trong Cài đặt, hoặc nhờ bố mẹ cấp quyền: Bảo vệ và quyền.</string>
+    <string name="bank_cant_open">Mở tuỳ chọn nhà phát triển</string>
+    <string name="log_bank_cant">%1$s đã mở nhưng KidGuard không tắt được trợ năng / gỡ lỗi: máy con thiếu quyền cài đặt bảo mật</string>
     <string name="dev_paused_toast">Đang tắt gỡ lỗi USB để mở %1$s…</string>
     <string name="log_acc_paused">Trợ năng tạm tắt: %1$s cần tắt Trợ năng</string>
     <string name="log_acc_resumed">Đã bật lại Trợ năng (đã rời app)</string>

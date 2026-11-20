@@ -87,7 +87,8 @@ object AccPause {
      */
     @Synchronized fun pause(ctx: Context, pkg: String, stopSelf: Boolean = true): Boolean {
         val s = Store.of(ctx)
-        if (pkg !in s.rules.accPause || !able(ctx)) return false
+        if (pkg !in s.rules.accPause) return false
+        if (!able(ctx)) { DevOpts.cantPause(ctx, pkg); return false }
         // a blocked app never pauses the blocker, whatever list it is on (the list also comes from the website: BankList)
         if (BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) != null) return false
         val had = s.accPaused

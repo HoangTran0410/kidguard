@@ -1,6 +1,7 @@
 package dev.kidguard
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.UserManager
@@ -134,7 +135,7 @@ object DevOpts {
         if (!dev && !tcp) return false
         if (BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) != null) return false   // never for a blocked app
         s.devApps = s.devApps + pkg; s.devLeftAt = 0L
-        if (!canOff(ctx)) return false
+        if (!canOff(ctx)) { if (dev && debugNow(ctx)) cantPause(ctx, pkg); return false }
         val port = tcp && tcpNow(ctx)
         val mask = if (dev && s.devPaused == 0) DevLogic.mask(global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED), global(ctx, Settings.Global.ADB_ENABLED),
             Build.VERSION.SDK_INT >= 30 && global(ctx, ADB_WIFI)) else 0
@@ -161,6 +162,34 @@ object DevOpts {
         runCatching { Toasts.show(ctx.applicationContext, ctx.getString(R.string.dev_paused_toast, label), true) }
         AccPause.notice(ctx)
         return true
+    }
+
+    @Volatile private var cantAt = 0L; @Volatile private var cantPkg = ""
+    private const val NOTIF_CANT = 4417
+
+    /**
+     * A listed bank app opened but KidGuard may not switch accessibility / debugging off (no WRITE_SECURE_SETTINGS, basic
+     * mode): say so on the phone (it used to do nothing: the bank app said "unsafe device", owner 2026-11-20 Xiaomi + MoMo)
+     * and in the parent's log. Once per app per 30 min.
+     */
+    fun cantPause(ctx: Context, pkg: String) {
+        if (Flavor.HOME || BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) != null) return
+        val now = System.currentTimeMillis()
+        if (pkg == cantPkg && now - cantAt < 30 * 60_000L) return
+        cantPkg = pkg; cantAt = now
+        val label = runCatching { val pm = ctx.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
+        // a notification, not a toast (too long for one): what to do + one button to Developer options
+        runCatching {
+            val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
+            val ch = Chan.open(nm, "bankwarn", ctx.getString(R.string.ch_bankwarn), android.app.NotificationManager.IMPORTANCE_HIGH)
+            val pi = android.app.PendingIntent.getActivity(ctx, 7, Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
+            nm.notify(NOTIF_CANT, android.app.Notification.Builder(ctx, ch).setSmallIcon(android.R.drawable.stat_sys_warning)
+                .setContentTitle(ctx.getString(R.string.bank_cant_t, label)).setContentText(ctx.getString(R.string.bank_cant_d))
+                .setStyle(android.app.Notification.BigTextStyle().bigText(ctx.getString(R.string.bank_cant_d))).setAutoCancel(true)
+                .addAction(android.app.Notification.Action.Builder(null, ctx.getString(R.string.bank_cant_open), pi).build()).build())
+        }
+        runCatching { Store.of(ctx).log(R.string.log_bank_cant, label) }
     }
 
     /** adb listens on a TCP port right now (adbd up, port property set): what `tcpPause` closes. */
