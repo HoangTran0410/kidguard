@@ -17,7 +17,7 @@ object Events {
     const val CLOCK_JUMP_MS = 2 * 60_000L
 
     /** Alert level (C7): these kinds are "important" (Telegram /quiet, parent app channels); every other kind is info. */
-    val IMPORTANT = setOf("sos", "tamper", "lost", "request", "word")
+    val IMPORTANT = setOf("sos", "tamper", "lost", "request", "word", "watchTg")
     /** Events that only go to the log, never to Telegram / FCM / the parent app's notifications (noise): Tailscale drop and return. */
     val NO_PUSH = setOf("tsDown", "tsUp")
     fun important(kind: String): Boolean = kind in IMPORTANT

@@ -626,6 +626,8 @@
     <string name="admin_ok">Open</string>
     <string name="admin_loading">Opening the parent page…</string>
     <string name="admin_wrong">Wrong code, try again</string>
+    <string name="ev_watch_tg_cam">Camera on request turned on from Telegram by %1$s</string>
+    <string name="ev_watch_tg_notif">Notification forwarding turned on from Telegram by %1$s</string>
     <string name="ev_tg_bad">Telegram bot token no longer works: make a new one with @BotFather and paste it in KidGuard</string>
     <string name="log_tg_linked">Telegram linked: %1$s</string>
     <string name="admin_shot_note">After 3 wrong tries, the phone takes one front-camera photo for the parents.</string>

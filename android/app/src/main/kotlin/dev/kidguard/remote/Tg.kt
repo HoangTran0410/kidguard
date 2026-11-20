@@ -626,6 +626,8 @@ object Tg {
                 val sent = q.optJSONObject("message")?.optLong("date") ?: 0L
                 if (TgLogic.tooOld(sent, now, "snap")) return done(TgLogic.s(lang, "tooOld", (now - sent * 1000) / 60_000))
                 editRules(g, s) { TgLogic.watchOn(it, TgLogic.watchOf(c.name), now) }
+                // every parent hears about it (FCM / page log / other Telegram chats): any linked chat can turn this on (security review 2026-11-20)
+                runCatching { s.event("watchTg", if (c.name == "notif") R.string.ev_watch_tg_notif else R.string.ev_watch_tg_cam, chatName(s, chat)) }
                 runCatching { call(tok, "editMessageReplyMarkup", JSONObject().put("chat_id", chat).put("message_id", msgId).put("reply_markup", JSONObject().put("inline_keyboard", JSONArray()))) }
                 if (c.name == "notif") send(s, chat, TgLogic.s(lang, "notifOn")) else { send(s, chat, TgLogic.s(lang, "camNow")); runCmd(g, s, chat, c) }
             }
