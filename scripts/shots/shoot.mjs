@@ -55,6 +55,7 @@ const SHOTS = [
     { name: "oldrelay", bare: 1, js: `open(kids.find(k => k.name === "Nam"))`, ready: `document.querySelector("#goneDel")`, settle: 800 },
   ] : []),
   { name: "kids", js: `overview(kids, () => {})`, ready: `document.querySelector("#ovKids .ovk, #ovKids .card, #ovKids > *") && !document.querySelector("#ovKids .spin")`, settle: 1200 },
+  { name: "kids-sel", js: `overview(kids, () => {}); setTimeout(() => { const c = document.querySelector("#ovKids [data-sel]"); if (c) { c.click(); } }, 600)`, ready: `document.querySelector("#ovKids [data-sel]") && !document.querySelector("#ovKids .spin") && document.querySelector("#ovSelN")`, settle: 1800 },
   ...[1, 2, 3, 4].map(n => ({ name: "wiz" + n, js: `wizOpen(cur, ${n}, false)`, ready: `document.querySelector("#wizPop .wz")`, settle: 300 })),   // the guided setup, one shot per step
   { name: "today", js: `goTab("home")`, ready: `document.querySelector(".hero")` },
   // runtime language switch (the other dictionary loads on demand, then the page redraws): must look like the other language's "today"
