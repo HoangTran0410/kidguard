@@ -158,6 +158,9 @@ class MainActivity : Activity() {
         if (res.isNotEmpty() && res.all { it == PackageManager.PERMISSION_GRANTED }) r.grant(r.resources) else r.deny()
     }
 
+    /** Where the camera app writes a chat photo / video (FileProvider "cam"), null = the picker is open. */
+    private var camOut: android.net.Uri? = null
+
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(req: Int, res: Int, data: android.content.Intent?) {
         if (req == AppLock.REQ) { AppLock.result(res == RESULT_OK); return }
@@ -165,6 +168,8 @@ class MainActivity : Activity() {
         if (req != REQ_PICK) return super.onActivityResult(req, res, data)
         val cb = chooser ?: return
         chooser = null
+        val cam = camOut; camOut = null
+        if (cam != null) { cb.onReceiveValue(if (res == RESULT_OK) arrayOf(cam) else null); return }
         val uris: Array<android.net.Uri>? = if (res != RESULT_OK || data == null) null else {
             val c = data.clipData
             if (c != null) Array(c.itemCount) { c.getItemAt(it).uri } else data.data?.let { arrayOf(it) }
@@ -217,6 +222,29 @@ class MainActivity : Activity() {
             override fun onShowFileChooser(v: WebView, cb: android.webkit.ValueCallback<Array<android.net.Uri>>, p: FileChooserParams): Boolean {
                 chooser?.onReceiveValue(null)
                 chooser = cb
+                // <input capture> (chat "Chụp ảnh" / "Quay video"): the camera app, not the file picker (owner 2026-11-20)
+                // the app declares CAMERA, so the capture intent needs it granted (else SecurityException): ask, the parent taps again
+                if (p.isCaptureEnabled && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                    chooser = null; cb.onReceiveValue(null)
+                    requestPermissions(arrayOf(Manifest.permission.CAMERA), REQ_CAM)
+                    Toast.makeText(this@MainActivity, R.string.cam_again, Toast.LENGTH_LONG).show()
+                    return true
+                }
+                if (p.isCaptureEnabled) {
+                    val video = p.acceptTypes.any { it.startsWith("video") }
+                    val ok = runCatching {
+                        val dir = java.io.File(cacheDir, "cam").apply { mkdirs(); listFiles()?.forEach { it.delete() } }
+                        val f = java.io.File(dir, "kg_" + System.currentTimeMillis() + if (video) ".mp4" else ".jpg")
+                        val u = androidx.core.content.FileProvider.getUriForFile(this@MainActivity, "$packageName.files", f)
+                        camOut = u
+                        val ci = android.content.Intent(if (video) android.provider.MediaStore.ACTION_VIDEO_CAPTURE else android.provider.MediaStore.ACTION_IMAGE_CAPTURE)
+                            .putExtra(android.provider.MediaStore.EXTRA_OUTPUT, u)
+                            .addFlags(android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION or android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        startActivityForResult(ci, REQ_PICK); true
+                    }.getOrDefault(false)
+                    if (ok) return true
+                    camOut = null   // no camera app: fall back to the picker
+                }
                 val i = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).addCategory(android.content.Intent.CATEGORY_OPENABLE).setType("*/*")
                     .putExtra(android.content.Intent.EXTRA_ALLOW_MULTIPLE, p.mode == FileChooserParams.MODE_OPEN_MULTIPLE)
                 try { startActivityForResult(i, REQ_PICK) } catch (e: Exception) { chooser = null; cb.onReceiveValue(null); Toast.makeText(this@MainActivity, R.string.files_nopicker, Toast.LENGTH_LONG).show() }
@@ -375,5 +403,5 @@ class MainActivity : Activity() {
     }
     override fun onDestroy() { web?.destroy(); web = null; super.onDestroy() }
 
-    companion object { const val REQ_PICK = 71; const val REQ_IMG = 72; const val REQ_MEDIA = 73; @Volatile var proxy: Proxy? = null; @Volatile var openKid: String? = null; @Volatile var openSettings = false; const val EXTRA_SETTINGS = "kg.settings" }
+    companion object { const val REQ_PICK = 71; const val REQ_IMG = 72; const val REQ_MEDIA = 73; const val REQ_CAM = 74; @Volatile var proxy: Proxy? = null; @Volatile var openKid: String? = null; @Volatile var openSettings = false; const val EXTRA_SETTINGS = "kg.settings" }
 }

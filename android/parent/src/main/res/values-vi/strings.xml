@@ -74,4 +74,5 @@
     <string name="lock_title">Mở khoá KidGuard</string>
     <string name="lock_sub">Vân tay, khuôn mặt hoặc mã máy</string>
     <string name="lock_btn">Mở khoá</string>
+    <string name="cam_again">Cho phép camera xong, bấm lại để chụp hoặc quay.</string>
 </resources>

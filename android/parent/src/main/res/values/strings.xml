@@ -86,4 +86,5 @@
     <string name="lock_title">Unlock KidGuard</string>
     <string name="lock_sub">Your fingerprint, face or phone PIN</string>
     <string name="lock_btn">Unlock</string>
+    <string name="cam_again">Camera allowed? Tap again to take the photo or video.</string>
 </resources>
