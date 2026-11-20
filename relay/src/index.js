@@ -106,6 +106,10 @@ export default {
 
 async function route(req, env) {
   const url = new URL(req.url);
+  // someone opens the relay address in a browser (2026-11-20: a user read {"error":"not found"} as "broken"): say it works + what next
+  if (req.method === "GET" && url.pathname === "/") return new Response(
+    `KidGuard relay: OK.\nThis address is not a page. Paste it into the parent page: search "relay", Own relay, Turn on:\n  ${url.origin}\nGuide: https://kidguard.asia/en/guide#relay\n\nRelay KidGuard: chạy tốt.\nĐây không phải trang web. Dán địa chỉ này vào trang bố mẹ: tìm "relay", Relay riêng, Bật:\n  ${url.origin}\nHướng dẫn: https://kidguard.asia/guide#relay\n`,
+    { headers: { "content-type": "text/plain; charset=utf-8", "x-content-type-options": "nosniff", "cache-control": "no-store" } });
   const th = req.method === "POST" && env.TG_BOT ? url.pathname.match(/^\/tg\/([0-9a-f]{32})$/) : null;
   if (th) return tgHook(req, env, th[1]);
   if (url.pathname === "/w/new" || /^\/w\/\d{6}$/.test(url.pathname)) return watchRoute(req, env, url);

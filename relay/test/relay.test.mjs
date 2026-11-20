@@ -9,7 +9,7 @@ const P=(p,body,t=T,x={})=>fetch(`${B}/c/${id}/${p}`,{method:"POST",headers:H(t,
 const jpg=Buffer.from("ffd8ffe000104a46494600010100000100010000ffd9","hex");
 let r=await P("sync",JSON.stringify({state:{}}));let j=await r.json();
 ck("sync binds, no live",r.status==200&&!j.live);
-{for(const pth of ["/","/go","/install","/qr","/ui/core.js","/ui/style.css","/kidguard.apk","/kidguard.apk.sha256"]){const x=await fetch(B+pth),t=await x.text();ck("plan B: "+pth+" 404 json (no page on the relay)",x.status==404&&/json/.test(x.headers.get("content-type")||"")&&!t.includes("<"));}
+{for(const pth of ["/go","/install","/qr","/ui/core.js","/ui/style.css","/kidguard.apk","/kidguard.apk.sha256"]){const x=await fetch(B+pth),t=await x.text();ck("plan B: "+pth+" 404 json (no page on the relay)",x.status==404&&/json/.test(x.headers.get("content-type")||"")&&!t.includes("<"));}
 const o=await fetch(`${B}/c/${id}/state`,{method:"OPTIONS",headers:{origin:"https://kid-guard.pages.dev","access-control-request-method":"GET","access-control-request-headers":"x-kg-token"}});ck("CORS preflight 204 *",o.status==204&&o.headers.get("access-control-allow-origin")=="*"&&/x-kg|\*/.test(o.headers.get("access-control-allow-headers")||""));
 const cs=await P("sync",JSON.stringify({state:{}}));await cs.text();ck("CORS on JSON replies",cs.headers.get("access-control-allow-origin")=="*");
 ck("long command names are refused (codes only)",(await P("cmd",JSON.stringify({type:"lock"}))).status==400);}
@@ -280,7 +280,7 @@ await PB("sync",{state:{sos:[{id:"b1",t:now}]}});await new Promise(s=>setTimeout
 ck("tg: Telegram 403 (bot blocked) unlinks",(await (await PB("tg",null,"GET")).json()).linked===false);}
 // last: per-IP rate limit (150 / 10 s) on /c/*; the page itself is not limited
 {const rs=[];for(let i=0;i<11&&!rs.includes(429);i++)rs.push(...await Promise.all(Array.from({length:20},()=>fetch(`${B}/c/${id}/state`,{headers:H(BAD)}).then(r=>r.status,()=>0))));
-ck("rate limit: burst of 220 gets some 429",rs.includes(429));ck("rate limit: unmetered / still answers (404)",(await fetch(`${B}/`)).status==404);}
+ck("rate limit: burst of 220 gets some 429",rs.includes(429));ck("rate limit: unmetered / still answers (200)",(await fetch(`${B}/`)).status==200);}
 // ---- shared files: chunked through the DO, <= 10 MB, deleted on DELETE ----
 await new Promise(s=>setTimeout(s,10500));   // the per-IP rate limit (150 / 10 s) is used up by the tests above
 {const id5=Array.from({length:16},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),U=(q,m="GET",body)=>fetch(`${B}/c/${id5}/file${q}`,{method:m,headers:H(),body});

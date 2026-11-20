@@ -52,10 +52,12 @@ process.on("exit", stop);
 
 let up = false;
 for (let i = 0; i < 120 && !up; i++) {
-  try { up = (await fetch(`http://127.0.0.1:${PORT}/`)).status === 404; } catch {}   // JSON relay: / is a 404 once it runs
+  try { up = (await fetch(`http://127.0.0.1:${PORT}/`)).status === 200; } catch {}   // / = the "relay OK" text once it runs
   if (!up) await new Promise(r => setTimeout(r, 500));
 }
 if (!up) { console.error("wrangler dev did not start:\n" + log.slice(-2000)); process.exit(1); }
+{ const r = await fetch(`http://127.0.0.1:${PORT}/`), t = await r.text();
+  if (!/KidGuard relay: OK/.test(t) || !t.includes(`:${PORT}\n`)) { console.error("FAIL / says the relay works + its address"); process.exit(1); } }
 
 const t = spawn(process.execPath, ["test/relay.test.mjs"], { stdio: "inherit", env: { ...process.env, PORT, MOCK: String(MOCK) } });
 // on a failure: every log line that is not a plain 2xx/4xx request line (errors, restarts, reloads) + the tail
