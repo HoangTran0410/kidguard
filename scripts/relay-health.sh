@@ -18,7 +18,7 @@ check() {   # path, expected status
     echo "FAIL $1: HTTP $code (expected $2): $(printf '%s' "$body" | head -c 120)"
   fi
 }
-check / 404                               # JSON relay (plan B): no page, a plain 404 = the script runs; no Durable Object involved
+check / 200                               # the "KidGuard relay: OK" text = the script runs; no Durable Object involved
 check /c/0000000000000000/state 401       # Durable Object path, unknown phone
 if [ "$bad" = 1 ]; then
   cat <<'EOF'
