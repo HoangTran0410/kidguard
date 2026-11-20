@@ -27,6 +27,9 @@ for f in "kidguard-parent-$N.apk" kidguard-parent.apk.sha256 kidguard.apk.sha256
   code=$(curl -s -o /dev/null -L -I -w '%{http_code}' "$REPO/releases/download/$TAG/$f" || echo 000)
   if [ "$code" = 200 ]; then echo "ok       $f (legacy)"; else echo "MISSING  $f (legacy, run: scripts/release-check.sh --legacy)"; miss=1; fi
 done
+# version.json on the release must be this tag's (a failed build once left the previous one there: 0.9.66)
+GOT=$(curl -s -L "$REPO/releases/download/$TAG/version.json" | sed -nE 's/.*"version": *"([^"]+)".*/\1/p')
+if [ "$GOT" = "$N" ]; then echo "ok       version.json = $N"; else echo "WRONG    version.json says ${GOT:-?}, tag is $N (rebuild + gh release upload --clobber)"; miss=1; fi
 # the tag must also be the "latest" release (updater, QR and site use /releases/latest/download/)
 LATEST=$(curl -s -o /dev/null -L -w '%{url_effective}' "$REPO/releases/latest" || true)
 case "$LATEST" in */tag/"$TAG") echo "ok       latest = $TAG" ;; *) echo "WARN     latest is ${LATEST##*/}, not $TAG"; miss=1 ;; esac
