@@ -476,7 +476,9 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
   (`sync ws file forget join`, `POST icons|frame|mint|rekey`, `PUT device|logday`), anything else `403 {"error":"join"}`.
 - `POST /c/<id>/join {name, kind:"app"|"web", pin}` with the phone's token -> `{token, name, kind, pin:"ok"|"none"}`.
   The PIN is the family PIN, checked by the worker against `pv` (below) or a PIN the page set in a rules PUT.
-  `403 {"error":"bad pin","left":n}`; 5 wrong (join + unlock together, per kid) = `429 {"error":"pin locked","retryAt"}` for 15 min.
+  `403 {"error":"bad pin","left":n}`; 5 wrong = `429 {"error":"pin locked","retryAt"}` for 15 min, then 30, 60, ... (24 h max;
+  a right PIN resets it). Counted per who tries (2026-11-20): `join` by the link = one counter, each browser token its own,
+  all phone-minted (`km`) tokens one shared counter; so guessing with the link never locks a parent's browser out.
   No PIN known: only the FIRST parent may join (`pin:"none"`), later ones `403 {"error":"invite needed"}`.
 - `POST /c/<id>/invite {}` (a parent token) -> `{inv: 32 hex, exp}`: one use, 10 min, <= 5 open. `POST /c/<id>/join
   {name, kind, inv}` with NO `X-KG-Token` -> same reply with `pin:"inv"`; used / expired / unknown `403`. Two parents
@@ -484,7 +486,7 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 - `GET /c/<id>/parents` -> `{parents:[{id (12 hex), name, kind, at, seen, me, dev?}], pinKnown}` (`dev` = a watch's last `X-KG-Name`, e.g. "Zepp - Amazfit Bip Max", "Wear OS - Pixel Watch 2"; 2026-11-19); `POST parents {revoke:id}`
   (any parent, the token stops at once) | `{name}` (rename self) | `{rename:id, name}` (2026-11-19: rename a watch, kind "watch" only, else 403).
 - Browser tokens (`kind:"web"`) open for 12 h after a join / `POST /c/<id>/unlock {pin}` -> `{until}`; else every route
-  but `unlock` / `parents` answers `423 {"error":"locked","name"}`. App tokens (the parent app has its own biometric lock)
+  but `unlock` / `GET parents` answers `423 {"error":"locked","name"}` (2026-11-20: no `POST parents` / `invite` while locked). App tokens (the parent app has its own biometric lock)
   and watch tokens never lock. `kind` is the page's own claim: the PIN or an invite was needed to get any token.
 - Remote pairing (`/p/<key>/result`, "Pair over relay") and watch connect (`POST /c/<id>/watch`) hand out a NEW parent
   token (named as typed, `?kind=app` on the result from the parent app), never the phone's token.
@@ -513,6 +515,8 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 - Queued commands with a secret (`pin`, `new`, `secret`, `token`) reach the phone token in clear once, on the first
   hand-out (the phone checks the PIN itself); what stays queued has them stripped. After `mint` the phone token is the
   phone's only (pages no longer get it), so this is the phone reading its own commands.
+- A PIN set by a rules PUT (`pin`) is stored salted like the phone's (2026-11-20): `pinHash = hashPin(pin, pinSalt)`,
+  `pinSalt` = 16 random hex; the phone takes both from the sync reply (`Rules.fromJson`). Parents never see either.
 - `by`: a command or rules PUT from a parent token carries `by: <name>` (AI token: "AI"); the phone logs it
   (`log_cmd_by`, rules diff line ` · <name>`); state `queue` items carry `by`. `POST forget` is the phone's token only.
 - Icon / tile keys: one per parent token (`iconKeys` / `tileKeys`, plus the older single `iconKey` / `tileKey`).
@@ -981,7 +985,7 @@ secure page (the parent app's `127.0.0.1`, or the relay's https page). Listen on
 - First bind cap (audit H4): a first sync that would create an id counts against the client network (`netKey`: IPv4 or
   IPv6 /64) in a `Gate` Durable Object, `BIND_PER_DAY` = 30 a day (env var overrides, tests use 60); beyond it
   `429 {"error":"too many new pairings from this network, try tomorrow", "retryAt": <ms epoch, next UTC midnight>}`. Every daily-cap 429 (bind, `PAIR_PER_DAY`, `INVITE_PER_DAY`, watch 30/day) carries `retryAt`; the page appends "Try again at <time>" (`e.retryAt`). Already bound ids are never affected.
-- Rules `pinHash` on the worker (unsalted `sha256("kg:"+pin)`, handed to the phone once): dropped as soon as the phone's
+- Rules `pinHash` on the worker + `pinSalt` (salted `hashPin`, since 2026-11-20; handed to the phone once): dropped as soon as the phone's
   state shows `rules.pinSet: true` and `rules.rev` >= the stored one; the stored rules then carry `pinSet: true` only.
 - Sync state over 120 KB: `413 state too big`. The phone then sends a trimmed state (no `events`, `track`; apps reduced to
   `pkg label ms blocked suspended protected new`) with **`relayBig: true`** for 30 min, then tries the whole one again.

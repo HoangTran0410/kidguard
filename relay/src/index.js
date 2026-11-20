@@ -86,7 +86,7 @@ const SETTING_KEYS = ["vol.ring", "vol.media", "vol.alarm", "bright", "autoBrigh
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
 const stripPin = (r) => {
   if (!isObj(r)) return r;
-  const { pinHash, pin, ...o } = r;
+  const { pinHash, pinSalt, pin, ...o } = r;
   o.pinSet = !!pinHash || r.pinSet === true;
   return o;
 };
@@ -359,7 +359,7 @@ export function netKey(ip) {
 }
 
 // Parents (docs/protocol.md "Parents"): one token each, named; the family PIN (checked here against the phone's hash) or a one-use invite gets one
-const MAX_PARENTS = 12, INV_TTL = 10 * 60e3, MAX_INVS = 5, UNLOCK_MS = 12 * 3600e3, PIN_TRIES = 5, PIN_LOCK = 15 * 60e3, PAR_KINDS = ["app", "web", "watch"];
+const MAX_PARENTS = 12, INV_TTL = 10 * 60e3, MAX_INVS = 5, UNLOCK_MS = 12 * 3600e3, PIN_TRIES = 5, PIN_LOCK = 15 * 60e3, PIN_LOCK_MAX = 24 * 3600e3, PIN_KEYS = 16, PAR_KINDS = ["app", "web", "watch"];
 // the shared (phone) token once a parent has a token of its own: the phone's routes only
 const phoneRoute = (action, m) => action === "sync" || action === "ws" || action === "file" || action === "forget" || action === "join" || action === "call"
   || ((action === "mint" || action === "rekey") && m === "POST")
@@ -524,7 +524,8 @@ export class Kid {
         const dv = me.k === "watch" ? (req.headers.get("x-kg-name") || "").replace(/[\u0000-\u001f]/g, "").slice(0, 40) : "";
         if (now0 - (me.seen || 0) > PAR_SEEN_EVERY || (dv && me.d !== dv)) { me.seen = now0; if (dv) me.d = dv; await this.s.put("par", par); }
         // a browser opens with the family PIN (12 h); a token the phone minted for a LAN page (`lk`) opens once with it
-        if (parLocked(me, now0) && action !== "unlock" && action !== "parents")
+        // locked = unlock + GET parents (the page shows who it is) only: no invite, rename or revoke (audit 2026-11-20)
+        if (parLocked(me, now0) && action !== "unlock" && !(action === "parents" && req.method === "GET"))
           return json({ error: "locked", name: me.n }, 423);
       } else {
         const ai = await this.s.get("aiHash");
@@ -797,15 +798,17 @@ export class Kid {
     // a new PIN arrives in plain: keep only the hash the phone uses (sha256 of "kg:" + PIN). No PIN given: keep the old hash.
     const pin = String(rules.pin || "").replace(/\D/g, "");
     // pinAt: when the hash last changed, so the phone takes it once and a newer PIN set on LAN is not reverted
-    if (pin.length >= 4) { rules.pinHash = await sha256("kg:" + pin); rules.pinAt = rev;
+    // salted like the phone (Rules.hashPin, 10 000 rounds): an unsalted sha256 of a 4-6 digit PIN is read back in a blink
+    if (pin.length >= 4) { const ps = hexRand(8); rules.pinHash = hashPin(pin, ps); rules.pinSalt = ps; rules.pinAt = rev;
       // checks joins at once; "pvWeb" when the phone never sent pv (old phone), so a PIN set from the shared link does not lock that link
       const pv0 = await this.s.get("pv");
-      if (pv0 && pv0.h) await this.s.put({ pv: { h: rules.pinHash, s: "" }, pvPrev: pv0.h });   // the phone proves its next pv with the old one
-      else await this.s.put("pvWeb", { h: rules.pinHash, s: "" }); }
-    else if (typeof rules.pinHash === "string" && /^[0-9a-f]{64}$/.test(rules.pinHash)) rules.pinAt = rev;
-    else if (old && old.pinHash) { rules.pinHash = old.pinHash; rules.pinAt = old.pinAt || 1; }
+      if (pv0 && pv0.h) await this.s.put({ pv: { h: rules.pinHash, s: ps }, pvPrev: pv0.h });   // the phone proves its next pv with the old one
+      else await this.s.put("pvWeb", { h: rules.pinHash, s: ps }); }
+    else if (typeof rules.pinHash === "string" && /^[0-9a-f]{64}$/.test(rules.pinHash)) { rules.pinAt = rev; if (!/^[0-9a-f]{16}$/.test(String(rules.pinSalt || ""))) delete rules.pinSalt; }
+    else if (old && old.pinHash) { rules.pinHash = old.pinHash; rules.pinAt = old.pinAt || 1; if (old.pinSalt) rules.pinSalt = old.pinSalt; else delete rules.pinSalt; }
     else if (old && old.pinSet) { rules.pinAt = old.pinAt || 1; }   // hash already taken by the phone and dropped here
     else { delete rules.pinHash; delete rules.pinAt; }
+    if (!rules.pinHash) delete rules.pinSalt;
     const keepSet = !rules.pinHash && !!(old && old.pinSet);
     delete rules.pin; delete rules.pinSet;
     if (keepSet) rules.pinSet = true;
@@ -926,17 +929,25 @@ export class Kid {
   /** {h, s} to check the family PIN with: the phone's (sync `pv`) or one the page set in a rules PUT; null = none known. */
   async pinVerifier() {
     const [pv, pw, rules] = await Promise.all(["pv", "pvWeb", "rules"].map(k => this.s.get(k)));
-    return pv && pv.h ? pv : pw && pw.h ? pw : rules && /^[0-9a-f]{64}$/.test(String(rules.pinHash || "")) ? { h: rules.pinHash, s: "" } : null;
+    return pv && pv.h ? pv : pw && pw.h ? pw : rules && /^[0-9a-f]{64}$/.test(String(rules.pinHash || "")) ? { h: rules.pinHash, s: String(rules.pinSalt || "") } : null;
   }
-  async pinCheck(pin, now) {
-    const [v, tr] = await Promise.all([this.pinVerifier(), this.s.get("pinTry")]);
+  /** [key] = who is trying (audit 2026-11-20): a browser token's own hash, "km" for every phone-minted one, "join" for the
+   *  phone's link; so a child guessing with the link can't lock a parent's browser out. 5 misses = 15 min, doubling, 24 h max. */
+  async pinCheck(pin, now, key) {
+    const [v, tr0] = await Promise.all([this.pinVerifier(), this.s.get("pinTry")]);
     if (!v) return { r: "none" };
-    if (tr && tr.until > now) return { r: "locked", retryAt: tr.until };
+    const tr = isObj(tr0) && typeof tr0.n !== "number" ? tr0 : {};   // older shape {n, until} (one per kid) is dropped
+    const e = tr[key] || { n: 0, lv: 0, until: 0 };
+    if (e.until > now) return { r: "locked", retryAt: e.until };
     const p = String(pin || "").replace(/\D/g, "").slice(0, 12);
-    if (p.length >= 4 && hashPin(p, v.s) === v.h) { if (tr) await this.s.delete("pinTry"); return { r: "ok" }; }
-    const n = (tr && !tr.until ? tr.n : 0) + 1;   // tries since the last lock / success
-    await this.s.put("pinTry", n >= PIN_TRIES ? { n: 0, until: now + PIN_LOCK } : { n, until: 0 });
-    return n >= PIN_TRIES ? { r: "locked", retryAt: now + PIN_LOCK } : { r: "bad", left: PIN_TRIES - n };
+    if (p.length >= 4 && hashPin(p, v.s) === v.h) { if (tr[key] || (tr0 && tr0 !== tr)) { delete tr[key]; await this.s.put("pinTry", tr); } return { r: "ok" }; }
+    e.n++; e.at = now;
+    if (e.n >= PIN_TRIES) { e.until = now + Math.min(PIN_LOCK * 2 ** e.lv, PIN_LOCK_MAX); e.lv++; e.n = 0; }
+    tr[key] = e;
+    const ks = Object.keys(tr);
+    if (ks.length > PIN_KEYS) ks.sort((a, b) => (tr[a].at || 0) - (tr[b].at || 0)).slice(0, ks.length - PIN_KEYS).forEach(k => { if (k !== key) delete tr[k]; });
+    await this.s.put("pinTry", tr);
+    return e.until > now ? { r: "locked", retryAt: e.until } : { r: "bad", left: PIN_TRIES - e.n };
   }
   /** POST join {name, kind, pin} with the phone's token (the link) or {name, kind, inv} with no token -> {token, name, kind, pin: ok|none|inv}. */
   async join(b, shared, now) {
@@ -953,7 +964,7 @@ export class Kid {
       invs.splice(i, 1); await this.s.put("invs", invs);   // one use: the first one to come wins (the object runs one request at a time)
       how = "inv";
     } else {
-      const c = await this.pinCheck(b.pin, now);
+      const c = await this.pinCheck(b.pin, now, "join");
       if (c.r === "locked") return json({ error: "pin locked", retryAt: c.retryAt }, 429);
       if (c.r === "bad") return json({ error: "bad pin", left: c.left }, 403);
       // no PIN known here (an old phone that does not send its hash, no PIN yet): only the first parent, by the link alone
@@ -970,7 +981,7 @@ export class Kid {
     if (req.method === "POST" && !isObj(b)) return json({ error: "bad json" }, 400);
     if (action === "unlock") {
       if (req.method !== "POST") return json({ error: "method" }, 405);
-      const c = await this.pinCheck(b.pin, now);
+      const c = await this.pinCheck(b.pin, now, me.km ? "km" : h.slice(0, 12));
       if (c.r === "locked") return json({ error: "pin locked", retryAt: c.retryAt }, 429);
       if (c.r === "bad") return json({ error: "bad pin", left: c.left }, 403);
       me.ul = now + UNLOCK_MS; me.seen = now; delete me.lk; await this.s.put("par", this.par);
@@ -1228,7 +1239,7 @@ export class Kid {
     }
     // the phone has the rules (its state carries their rev) and keeps its own salted PIN hash: the worker's unsalted copy is not needed any more
     if (rules && rules.pinHash && state && state.rules && state.rules.pinSet === true && (+state.rules.rev || 0) >= (+rules.rev || 0)) {
-      const { pinHash, ...rest } = rules; puts.rules = { ...rest, pinSet: true };
+      const { pinHash, pinSalt, ...rest } = rules; puts.rules = { ...rest, pinSet: true };
     }
     if (Object.keys(puts).length) await this.s.put(puts);
     if (state) this.ctx.waitUntil(this.pushNew(state, id).catch(e => console.log("push", String(e))));

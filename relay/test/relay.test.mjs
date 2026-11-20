@@ -89,7 +89,7 @@ const pinAt0=j.rev;
 ck("PUT rules: pinSet, no pinHash/pin",j.pinSet===true&&!("pinHash" in j)&&!("pin" in j)&&j.dailyMin==60);
 r=await P2("rules",JSON.stringify({dailyMin:90}),T,{},"PUT");j=await r.json();ck("PUT without pin keeps pinSet",j.pinSet===true&&j.dailyMin==90);
 j=await (await P2("state",null,T,{},"GET")).json();ck("GET state: no pinHash",j.rules.pinSet===true&&!JSON.stringify(j).includes("pinHash"));
-j=await S({state:{rules:{rev:1}}});ck("phone gets pinHash (sha256 kg:1234)",j.rules&&j.rules.pinHash==="d371349c9ee42104a430ccbe28c7b26b6eea4541d3f42cb314fe208a325e3afd");
+j=await S({state:{rules:{rev:1}}});ck("phone gets a SALTED pinHash + pinSalt (audit 2026-11-20: never plain sha256 kg:1234)",j.rules&&/^[0-9a-f]{64}$/.test(j.rules.pinHash)&&j.rules.pinHash!=="d371349c9ee42104a430ccbe28c7b26b6eea4541d3f42cb314fe208a325e3afd"&&/^[0-9a-f]{16}$/.test(j.rules.pinSalt));
 ck("pinAt = rev of the PUT that set the PIN, kept by later PUTs",j.rules.pinAt===pinAt0&&j.rules.rev>pinAt0);
 j=await S({state:{rules:{rev:1,pinHash:"x".repeat(64)}}});ck("state with phone's rules never leaks pinHash to parent",!JSON.stringify(await (await P2("state",null,T,{},"GET")).json()).includes("xxxx"));
 j=await S();ck("state omitted: rules not resent when phone up to date",true);
@@ -724,7 +724,20 @@ await Q("sync",Tq,{pv:{h:hp("2468",""),s:""}});
 for(let i=0;i<4;i++)await Q("join",Tq,{name:"X",pin:"9999"});
 r=await Q("join",Tq,{name:"X",pin:"9999"});ck("parents: 5th wrong PIN locks 15 min (429)",r.status==429&&(await r.json()).retryAt>Date.now()+14*60e3);
 ck("parents: locked even with the right PIN",(await Q("join",Tq,{name:"X",pin:"2468"})).status==429);
-ck("parents: a parent token is not locked out",(await Q("state",A)).status==200);}
+ck("parents: a parent token is not locked out",(await Q("state",A)).status==200);
+// audit 2026-11-20 MED: misses count per browser token (the link's join lock does not lock a parent's browser)
+r=await Q("unlock",M,{pin:"0000"});j=await r.json();ck("lockout: a browser has its own tries while join is locked",r.status==403&&j.left==4);
+ck("lockout: ...and unlocks with the PIN",(await Q("unlock",M,{pin:"2468"})).status==200);
+{const K1=(await (await Q("mint",Tq,{name:"K1"})).json()).token,K2=(await (await Q("mint",Tq,{name:"K2"})).json()).token;
+for(let i=0;i<3;i++)await Q("unlock",K1,{pin:"0000"});
+await Q("unlock",K2,{pin:"0000"});r=await Q("unlock",K2,{pin:"0000"});ck("lockout: phone-minted tokens share one counter (5 misses over two = locked)",r.status==429);
+ck("locked: GET parents ok",(await Q("parents",K1)).status==200);
+ck("locked: POST parents (rename / revoke) 423",(await Q("parents",K1,{name:"Me"})).status==423&&(await Q("parents",K1,{revoke:"000000000000"})).status==423);
+ck("locked: invite 423",(await Q("invite",K1,{})).status==423);}
+// a PIN set from the page is salted (Rules.hashPin) and checked as such
+r=await Q("rules",A,{dailyMin:60,pin:"4321"},"PUT");ck("page PIN: PUT ok, no hash or salt back",r.status==200&&!/pinHash|pinSalt/.test(await r.text()));
+j=await (await Q("sync",Tq,{})).json();ck("page PIN: the phone gets hashPin(pin, 16-hex salt)",j.rules&&/^[0-9a-f]{16}$/.test(j.rules.pinSalt)&&j.rules.pinHash===hp("4321",j.rules.pinSalt));
+ck("page PIN: browser unlock checks the salted one",(await Q("unlock",M,{pin:"4321"})).status==200&&!JSON.stringify(await (await Q("state",A)).json()).includes("pinSalt"));}
 // ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;
 for(let i=0;i<90&&!blocked;i++){const idn=rh(16),r=await fetch(`${B}/c/${idn}/sync`,{method:"POST",headers:{"x-kg-token":rh(48),"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});
