@@ -712,5 +712,15 @@ ck("a call while listening 409 busy",(await C("POST",{op:"offer",id:"ff".repeat(
 x=await (await C("POST",{op:"answer",id:"ee".repeat(8),sdp:"v=0 a"})).json();ck("listen answer -> on, kind kept",x.call&&x.call.st==="on"&&x.call.kind==="listen");
 x=await (await C("POST",{op:"end",id:"ee".repeat(8),why:"mic blocked"})).json();ck("listen end keeps the listen why",x.call&&x.call.st==="end"&&x.call.why==="mic blocked");
 x=await (await C("POST",{op:"offer",id:"a1".repeat(8),sdp:"v=0"})).json();ck("plain call has no kind",x.call&&x.call.st==="ring"&&!("kind" in x.call));
-await C("POST",{op:"end",id:"a1".repeat(8)});}
+await C("POST",{op:"end",id:"a1".repeat(8)});
+// live camera: same slot, kind "cam" + face/snd; an older kid app (would ring it as a video call) is refused with 409 old
+await fetch(`${B}/c/${k3}/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{version:"0.9.70"}})});
+x=await C("POST",{op:"offer",id:"a2".repeat(8),sdp:"v=0 cam",kind:"cam",face:"back",snd:true});ck("cam offer to an old kid app 409 old",x.status==409&&(await x.json()).error==="old");
+await fetch(`${B}/c/${k3}/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{version:"0.9.71"}})});
+x=await (await C("POST",{op:"offer",id:"a2".repeat(8),sdp:"v=0 cam",kind:"cam",face:"back",snd:true})).json();ck("cam offer -> ring with kind, face, snd",x.call&&x.call.st==="ring"&&x.call.kind==="cam"&&x.call.face==="back"&&x.call.snd===true);
+sy=await S3();ck("sync carries kind cam + face + snd + SDP",sy.call&&sy.call.kind==="cam"&&sy.call.face==="back"&&sy.call.snd===true&&sy.call.sdp==="v=0 cam");
+ck("a listen while the camera is on 409 busy",(await C("POST",{op:"offer",id:"a3".repeat(8),sdp:"v=0",kind:"listen"})).status==409);
+x=await (await C("POST",{op:"end",id:"a2".repeat(8),why:"screen off"})).json();ck("cam end keeps the camera why",x.call&&x.call.st==="end"&&x.call.why==="screen off");
+x=await (await C("POST",{op:"offer",id:"a4".repeat(8),sdp:"v=0",kind:"cam",face:"sideways"})).json();ck("cam face clamped to front, snd false",x.call&&x.call.face==="front"&&x.call.snd===false);
+await C("POST",{op:"end",id:"a4".repeat(8)});}
 console.log(pass,"pass",fail,"fail");process.exit(fail?1:0);

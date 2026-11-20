@@ -179,6 +179,22 @@ phone through sync (`Call.remoteEnd` -> `kgEnd(why)`), `CallActivity.onStop` (ki
 Gotchas: a LAN http page can't open the camera (`RTC.can()` false -> "use the relay link / parent app"); non-trickle ICE
 means one round trip but up to 5 s of gathering; release already revokes CAMERA/RECORD_AUDIO.
 
+### 2.16 Live camera (kid 0.9.71+, relay; protocol "Live camera over the relay")
+Page: Seen > Camera on request "Watch live" (+ "With sound", camera = the photo's choice, `kg.snap`) or More > "Live camera"
+(`snapOpen(true)`) -> `CAM.start` (`UI/call.js`, end): gates busy here / no relay (`cam.noRelay`) / no WebRTC / NEED / offline /
+confirm -> overlay `#camUi` -> `GET /call?ice=1` -> `RTC.open({cam:{back,snd}})` (recvonly) -> `POST /call {op:offer, kind:"cam",
+face, snd}` -> long-poll; states prep / ring / conn / on (mm:ss + time left) / weak / end with `cam.e.<why>`. Flip button sends
+`{t:"flip"}`; mute is local. Phone: `Call.fromRelay` -> `CamCall.fromRelay` (Home flavor: nothing; busy if a call / listen / LAN
+listen) -> `check` (rule, grant CAMERA (+RECORD_AUDIO) like the call, camera exists, `kg_watch` visible, basic + screen off =
+refuse) -> `begin`: Device Owner starts `CamService` at once (exempt from the while-in-use rule); basic mode opens the
+invisible `CamActivity` (translucent, not touchable, finishes itself) and starts the service from its `onResume`, with a 4 s
+fallback start. `CamService.onStartCommand` -> `startForeground(TYPE_CAMERA[|MICROPHONE])`; refused -> `specialUse` start (no
+crash) then `stop("cam blocked")`. Then the headless WebView `ui/cam.html` (`onPermissionRequest` only for that origin, only
+while the session runs) answers via the `KG` bridge. Stop: `CamCall.stop(why)` = WebView `kgEnd`, `POST end`, service +
+notification gone, log. Callers: sync `end`, cap timer, rule off (`Guard.setRules`), `release`, Guard `onDestroy`.
+Photo on request is refused (`busy`) while it runs. Gotchas: Android 11+ blocks the camera for a service started from the
+background (hence the visible moment); OEM battery savers may still kill it; unverified on a real phone.
+
 ### 2.14 Parent page components (use these, never hand-write the markup)
 One helper per UI shape; ids, `data-*` attributes and class names stay the same (`shoot.mjs`, `check-search.mjs` and the click handlers rely on them).
 | Need | Helper | File |

@@ -27,7 +27,7 @@ const QS = [
   ["apps", "a-apps", "", "puzzle", ["as.list", "ap.appsD", "apps.search"]], ["apps", "a-clean", "", "eye-off", ["as.clean", "ap.cleanD", "clean.h"]],
   ["apps", "a-health", "", "heart-pulse", ["hl.h", "hl.sub", "hl.review", "hl.bg.h", "hl.kc"]], ["apps", "a-space", "", "hard-drive", ["clean.heavy", "ap.spaceD"]],
   ["seen", "#seenNotif", "", "bell", ["seen.nh", "seen.p", "seen.non"]],
-  ["seen", "#seenCam", "", "camera", ["seen.ch", "seen.con", "snap.h", "snap.hist"]],
+  ["seen", "#seenCam", "", "camera", ["seen.ch", "seen.con", "snap.h", "snap.hist", "cam.h", "cam.go"]],
   ["seen", "#seenListenCard", "", "ear", ["lh.h", "lh.p", "lh.always"]],
   ["seen", "#seenSms", "", "message-square", ["seen.sh", "seen.son"]],
   ["dev", "d-act", "", "zap", ["dv.act"]], ["dev", "d-bat", "", "battery-full", ["dv.bat"]], ["dev", "d-ram", "", "memory-stick", ["dv.ram"]],

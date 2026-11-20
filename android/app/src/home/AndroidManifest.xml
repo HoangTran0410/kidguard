@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" tools:node="remove" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" tools:node="remove" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" tools:node="remove" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
     <uses-permission android:name="android.permission.CAMERA" tools:node="remove" />
@@ -50,6 +51,7 @@
         <receiver android:name=".LocNagReceiver" tools:node="remove" />
         <activity android:name=".ChatActivity" tools:node="remove" />
         <activity android:name=".SnapActivity" tools:node="remove" />
+        <activity android:name=".CamActivity" tools:node="remove" />
         <activity android:name=".ShareWebActivity" tools:node="remove" />
         <activity android:name=".WakeActivity" tools:node="remove" />
         <activity android:name=".CallActivity" tools:node="remove" />
@@ -69,6 +71,7 @@
         <service android:name=".LockTile" tools:node="remove" />
         <service android:name=".TimeTile" tools:node="remove" />
         <service android:name=".ProjService" tools:node="remove" />
+        <service android:name=".CamService" tools:node="remove" />
         <service android:name=".Guard" tools:node="remove" />
         <service android:name=".Acc" tools:node="remove" />
         <provider android:name=".FilesProvider" tools:node="remove" />

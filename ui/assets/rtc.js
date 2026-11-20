@@ -4,12 +4,14 @@
 // one SDP each way through the relay, nothing else. Media goes straight between the two devices (TURN only when needed).
 const RTC = (() => {
   const VIDEO_BPS = 150e3, AUDIO_BPS = 24e3, LOW_BPS = 90e3;
+  // live camera (one way, kid -> parent, kind "cam"): a bit sharper than the call's picture, fewer frames; still a phone link
+  const CAM_BPS = 200e3, CAM_FPS = 12;
   const want = (video) => ({
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
     video: video ? { facingMode: "user", width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 15, max: 15 } } : false,
   });
   // our SDP asks the other side's encoder for: Opus mono, 24 kbps, DTX, FEC, 16 kHz; video at most VIDEO_BPS (b=AS, kbps)
-  function tune(sdp) {
+  function tune(sdp, vbps = VIDEO_BPS) {
     const pt = (sdp.match(/a=rtpmap:(\d+) opus\/48000/i) || [])[1];
     if (pt) sdp = sdp.replace(new RegExp(`a=fmtp:${pt} ([^\\r\\n]*)`), (m, p) => {
       const o = {};
@@ -23,19 +25,19 @@ const RTC = (() => {
       if (l.startsWith("m=")) { vid = l.startsWith("m=video"); capped = false; }
       if (vid && l.startsWith("b=")) continue;   // ours replaces any
       out.push(l);
-      if (vid && !capped && l.startsWith("c=")) { out.push("b=AS:" + VIDEO_BPS / 1000); capped = true; }
+      if (vid && !capped && l.startsWith("c=")) { out.push("b=AS:" + vbps / 1000); capped = true; }
     }
     return out.join("\r\n");
   }
   // the senders' own caps (Chrome honours these even when the other side ignores b=AS)
-  async function cap(pc) {
+  async function cap(pc, vbps = VIDEO_BPS, fps = 15) {
     for (const s of pc.getSenders()) {
       if (!s.track) continue;
       try {
         const p = s.getParameters();
         if (!p.encodings || !p.encodings.length) p.encodings = [{}];
-        p.encodings[0].maxBitrate = s.track.kind === "video" ? VIDEO_BPS : AUDIO_BPS;
-        if (s.track.kind === "video") { p.encodings[0].maxFramerate = 15; p.degradationPreference = "balanced"; }
+        p.encodings[0].maxBitrate = s.track.kind === "video" ? vbps : AUDIO_BPS;
+        if (s.track.kind === "video") { p.encodings[0].maxFramerate = fps; p.degradationPreference = "balanced"; }
         await s.setParameters(p);
       } catch {}
     }
@@ -47,6 +49,11 @@ const RTC = (() => {
   });
   // "listen around": the surroundings are the point, so no echo cancel / noise suppression (they eat quiet far sounds); gain stays
   const wantEar = () => ({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true, channelCount: 1 }, video: false });
+  // live camera, phone side: one camera (front / back), the surroundings' sound only when the parent asked for it
+  const wantCam = (c) => ({
+    video: { facingMode: c.back ? "environment" : "user", width: { ideal: 480 }, height: { ideal: 360 }, frameRate: { ideal: CAM_FPS, max: 15 } },
+    audio: c.snd ? wantEar().audio : false,
+  });
   async function media(video) {
     try { return await navigator.mediaDevices.getUserMedia(want(video)); }
     catch (e) { if (!video) throw e; return navigator.mediaDevices.getUserMedia(want(false)); }   // no camera / camera refused: sound only
@@ -55,36 +62,45 @@ const RTC = (() => {
   /**
    * o.listen = "listen around": the caller (parent) only receives, the answering phone (offer given) sends its mic only; no camera,
    * no mic prompt on the parent. Parent: remote = an <audio>.
+   * o.cam = {back, snd} "live camera": the same one-way shape with the phone's camera (+ its mic when snd); parent remote = a <video>.
    * o: { ice, offer?: the caller's SDP (we answer), video: bool, listen?: bool, local: <video>, remote: <video>, onState(s), onMsg(m), onNet(n) }
    * -> call { sdp (send it), accept(answerSdp), send(msg), mute(on), camera(on), stats(), close() }.
    * onState: "connecting" | "connected" | "disconnected" | "failed" | "closed". onNet: { low, relay, kbps, mb }.
    */
   async function open(o) {
-    const L = !!o.listen;
-    const stream = L ? (o.offer ? await navigator.mediaDevices.getUserMedia(wantEar()) : null) : await media(o.video !== false);
+    const L = !!o.listen, C = o.cam || null, ONE = L || !!C, vbps = C ? CAM_BPS : VIDEO_BPS;
+    const stream = ONE ? (o.offer ? await navigator.mediaDevices.getUserMedia(C ? wantCam(C) : wantEar()) : null) : await media(o.video !== false);
     const pc = new RTCPeerConnection({ iceServers: o.ice || [], bundlePolicy: "max-bundle", rtcpMuxPolicy: "require" });
-    if (L) { if (!o.offer) pc.addTransceiver("audio", { direction: "recvonly" }); }   // the phone adds its mic after it has our offer
-    else for (const t of stream.getTracks()) pc.addTrack(t, stream);
+    if (ONE) {   // the phone adds its tracks after it has our offer
+      if (!o.offer) { if (C) pc.addTransceiver("video", { direction: "recvonly" }); if (!C || C.snd) pc.addTransceiver("audio", { direction: "recvonly" }); }
+    } else for (const t of stream.getTracks()) pc.addTrack(t, stream);
     if (o.local && stream) { o.local.muted = true; o.local.srcObject = stream; }
+    let rs = null;   // one way: picture + sound in one stream (a replaceTrack sender may send no msid)
     pc.ontrack = (e) => {
-      const ms = e.streams[0] || (L ? new MediaStream([e.track]) : null);   // a replaceTrack sender may send no msid
-      if (o.remote && ms && o.remote.srcObject !== ms) { o.remote.srcObject = ms; if (L) { try { o.remote.play().catch(() => {}); } catch {} } }
+      let ms = e.streams[0] || null;
+      if (ONE) { rs = rs || new MediaStream(); if (!rs.getTracks().includes(e.track)) rs.addTrack(e.track); ms = rs; }
+      if (o.remote && ms && o.remote.srcObject !== ms) { o.remote.srcObject = ms; if (ONE) { try { o.remote.play().catch(() => {}); } catch {} } }
     };
     let dc = null, closed = false, lowN = 0, autoOff = false, camOn = !!stream && stream.getVideoTracks().length > 0, net = { low: false, relay: false, kbps: 0, mb: 0 };
     const wire = (ch) => { dc = ch; ch.onmessage = (e) => { try { o.onMsg && o.onMsg(JSON.parse(e.data)); } catch {} }; };
     if (o.offer) pc.ondatachannel = (e) => wire(e.channel); else wire(pc.createDataChannel("kg"));
     pc.onconnectionstatechange = () => o.onState && o.onState(pc.connectionState);
     if (o.offer) await pc.setRemoteDescription({ type: "offer", sdp: o.offer });
-    if (L && o.offer) {
-      const tr = pc.getTransceivers().find(x => x.receiver && x.receiver.track && x.receiver.track.kind === "audio");
-      if (!tr) throw new Error("no audio");
-      await tr.sender.replaceTrack(stream.getAudioTracks()[0]);
-      try { tr.sender.setStreams(stream); } catch {}
-      tr.direction = "sendonly";   // we hear nothing from the parent
+    if (ONE && o.offer) {
+      // each m-line the parent offered gets our track of that kind; we receive nothing from the parent
+      let sent = 0;
+      for (const tr of pc.getTransceivers()) {
+        const k = tr.receiver && tr.receiver.track && tr.receiver.track.kind, tk = k && stream.getTracks().find(x => x.kind === k);
+        if (!tk) { tr.direction = "inactive"; continue; }
+        await tr.sender.replaceTrack(tk);
+        try { tr.sender.setStreams(stream); } catch {}
+        tr.direction = "sendonly"; sent++;
+      }
+      if (!sent) throw new Error(C ? "no video" : "no audio");
     }
     const d = o.offer ? await pc.createAnswer() : await pc.createOffer();
-    await pc.setLocalDescription({ type: d.type, sdp: tune(d.sdp) });
-    await cap(pc);
+    await pc.setLocalDescription({ type: d.type, sdp: tune(d.sdp, vbps) });
+    await cap(pc, vbps, C ? CAM_FPS : 15);
     await gathered(pc, 5000);   // TURN can be slow to answer; send what we have by then
 
     const vSender = () => pc.getSenders().find(s => s.track && s.track.kind === "video");
@@ -108,7 +124,8 @@ const RTC = (() => {
       } catch { return; }
       if (pair && pair.availableOutgoingBitrate) {
         lowN = pair.availableOutgoingBitrate < LOW_BPS ? lowN + 1 : 0;
-        if (lowN >= 3 && camOn && !autoOff) { autoOff = true; setCam(false); }
+        // live camera (C): the picture is the point, the encoder lowers its size instead of turning it off
+        if (lowN >= 3 && camOn && !autoOff && !C) { autoOff = true; setCam(false); }
         else if (autoOff && pair.availableOutgoingBitrate > LOW_BPS * 2) { autoOff = false; if (camOn) setCam(true); }
       }
       net.low = autoOff;
@@ -122,6 +139,20 @@ const RTC = (() => {
       send,
       mute: (on) => { if (!stream) return; for (const t of stream.getAudioTracks()) t.enabled = !on; send({ t: "mic", on: !on }); },
       camera: (on) => { camOn = on; if (!autoOff) setCam(on); },
+      // live camera, phone side: the other camera on the same sender (no new offer). The old one is closed first (many phones
+      // can't open two at once); when the other one fails the old one is opened again. -> true when the switch worked.
+      flip: async (back) => {
+        const s = pc.getSenders().find(x => x.track && x.track.kind === "video"); if (!s || !C || !stream) return false;
+        const old = stream.getVideoTracks()[0];
+        if (old) { old.stop(); stream.removeTrack(old); }
+        const open1 = async (b) => (await navigator.mediaDevices.getUserMedia({ video: wantCam({ back: b }).video })).getVideoTracks()[0];
+        let tr = null, ok = true;
+        try { tr = await open1(back); } catch { ok = false; try { tr = await open1(C.back); } catch {} }
+        if (!tr) return false;
+        stream.addTrack(tr); await s.replaceTrack(tr); await cap(pc, vbps, CAM_FPS);
+        if (ok) C.back = back;
+        return ok;
+      },
       net: () => ({ ...net }),
       close: () => {
         if (closed) return; closed = true; clearInterval(timer);

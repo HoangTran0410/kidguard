@@ -182,7 +182,7 @@ object RemoteSnap {
         if (!Shot.canUse(g, o.back)) return "no such camera"
         if (g.getSystemService(PowerManager::class.java)?.isInteractive != true) return "screen off"   // nobody looks at a dark phone; the parent can wake it first
         val j = Job(fid, o, c.optBoolean("relay", false))
-        if (!job.compareAndSet(null, j)) return "busy"
+        if (CamCall.active || !job.compareAndSet(null, j)) return "busy"   // the live camera holds the camera
         File(dir(g), "$fid.err").delete()
         tell(g, o)
         runCatching { Store.of(g).log(R.string.log_watch_snap) }

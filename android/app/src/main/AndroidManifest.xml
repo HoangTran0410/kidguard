@@ -24,6 +24,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- live camera over the relay (CamCall.kt, rule watch.cam): the child gets an ongoing notice for the whole session -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <!-- live screen on Android 8-10 (no accessibility screenshot): MediaProjection, the child confirms the system dialog -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <!-- "listen around" (LAN / Tailscale): the child always gets a beep + notification, see Listen.kt -->
@@ -407,6 +409,25 @@
             android:exported="false"
             android:taskAffinity=""
             android:theme="@style/AppClear" />
+
+        <!-- live camera (CamCall.kt): CamActivity = the visible moment Android 11+ needs before the camera service starts (basic mode);
+             translucent, never takes touches, ends itself at once. specialUse = only the fallback when Android refuses the camera type -->
+        <activity
+            android:name=".CamActivity"
+            android:theme="@style/AppClear"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:showWhenLocked="true" />
+        <service
+            android:name=".CamService"
+            android:exported="false"
+            android:foregroundServiceType="camera|microphone|specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="parental_controls" />
+        </service>
 
         <service
             android:name=".ProjService"

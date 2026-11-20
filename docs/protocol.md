@@ -761,6 +761,21 @@ call; ~11 MB per 10 minutes at the cap, far less in silence (DTX). A refusal end
 (`ear.<why>` in the page). Ends: parent Stop (`end` + `bye`), `cmd listenStop` (-> `ListenCall.stop`), 10 min cap on the page,
 phone (`ListenCall.cap`) and relay, `release`. LAN / Tailscale kids keep `GET /api/listen`; the page picks by how the kid is reached.
 
+### Live camera over the relay (kid 0.9.71+)
+Same `/call` slot with `kind: "cam"` (excludes a call / listen: 409 `busy`). Offer body adds `face: "front"|"back"` (anything
+else -> `front`) and `snd: true|false` (the phone's mic too); the sync `call` and the page's long-poll view carry both.
+The parent's offer: one `recvonly` video m-line (+ `recvonly` audio when `snd`) + the `kg` DataChannel. A kid whose last state
+`version` is older than `0.9.71` gets 409 `{error:"old", need:"0.9.71"}` (an old app would ring it as a video call).
+Gated by rule `watch.cam` (same switch as photo on request). No ring, no tap: `K/remote/CamCall.kt` checks, then starts
+`CamService` (foreground service type `camera` (+`microphone`)); headless WebView `ui/cam.html` answers `sendonly`
+(480x360 ideal, 12 fps, video cap 200 kbps; Opus like listen when `snd`). Child is told: ongoing notification `kg_watch`
+("Your parent is watching your camera", front/back, + mic) for the whole session + log lines at start and end.
+DataChannel `kg`: page -> phone `{t:"flip"}`; phone -> page `{t:"face", back, ok}` (`ok:false` = the other camera did not
+open, the old one stays), `{t:"bye"}`. End `why` (phone, besides the call list): `off` (rule off / turned off during),
+`no camera permission`, `no mic permission`, `no such camera`, `notice blocked`, `screen off` (basic mode, screen dark),
+`cam blocked` (Android refused the camera foreground service), `cam failed` (WebView could not open it). Ends: parent Stop,
+10 min cap (page, phone, relay), page hidden 60 s, rule `watch.cam` off, `release`, the service killed. Relay only.
+
 ## Instant push via FCM (v0.5, optional, relay kids only)
 - "Relay kid" = saved with `via: "relay"`, or a LAN / Tailscale kid saved with `relay {url, id, token}` (the parent app
   registers with that relay and matches the push `kid` against its id; before 2026-11-16 such kids never got push).

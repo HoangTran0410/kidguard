@@ -60,13 +60,14 @@ object Call {
     /** From Relay.sync: the relay's view of the call. */
     fun fromRelay(g: Guard, c: JSONObject, base: String, rid: String, token: String) {
         if (c.optString("kind") == "listen") { ListenCall.fromRelay(g, c, base, rid, token); return }   // listen around: no ring, no screen
+        if (c.optString("kind") == "cam") { CamCall.fromRelay(g, c, base, rid, token); return }   // live camera: no ring, no screen
         val id = c.optString("id"); if (id.isEmpty()) return
         when (c.optString("st")) {
             "ring" -> {
                 if (id == cur?.optString("id") || done.split(' ').contains(id)) return
                 relay = Triple(base, rid, token)
                 // another call is on (a second parent): busy, never two screens
-                if (cur != null || ListenCall.active) { post(g, "end", id, "", "busy"); return }
+                if (cur != null || ListenCall.active || CamCall.active) { post(g, "end", id, "", "busy"); return }
                 if (Flavor.HOME) return
                 cur = c
                 Store.of(g).log(R.string.log_call_in, c.optString("by").ifBlank { g.getString(R.string.call_parent) })

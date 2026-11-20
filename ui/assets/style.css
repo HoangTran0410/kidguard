@@ -486,6 +486,9 @@ input[type=range]:disabled{opacity:.45;cursor:default}
 /* video call (call.js): full screen, the kid big, me small in a corner, round buttons at the bottom */
 .vc{position:fixed;top:0;right:0;bottom:0;left:0;z-index:90;background:#0b1220 radial-gradient(circle at 50% 40%,#1e3a8a 0,#0b1220 65%);color:#fff;overflow:hidden}
 #vcRemote{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
+/* live camera (call.js camShow): the whole picture, never cropped (the parent looks for what is in it) */
+#camVideo{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;background:#000}
+#camUi .vcwait .si{width:52px;height:52px}
 /* a video shows only once it has a picture: before that Android WebView paints its grey "play" poster (owner 2026-11-18) */
 .vc video:not(.live){opacity:0}
 .vcwait{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);width:120px;height:120px;border-radius:50%;background:#2563eb;display:flex;align-items:center;justify-content:center;font-size:52px;font-weight:600;box-shadow:0 0 0 12px rgba(37,99,235,.18),0 0 0 26px rgba(37,99,235,.08)}

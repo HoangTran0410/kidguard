@@ -215,7 +215,7 @@ class Guard : Service() {
         runCatching { unregisterReceiver(userPresent) }
         runCatching { contentResolver.unregisterContentObserver(locObserver) }
         runCatching { contentResolver.unregisterContentObserver(dnsObserver) }
-        Listen.stopAll(); Proj.stop(this); Ring.stop(this)
+        Listen.stopAll(); CamCall.stop("hangup"); Proj.stop(this); Ring.stop(this)
         wifiLock(false); motionOff()
         http?.stop(); LanAd.stop(); relay?.stop(); relayPair?.stop(); Tg.stop()
         work.looper.quitSafely()
@@ -732,7 +732,7 @@ class Guard : Service() {
             old to r
         }
         if (::work.isInitialized) work.post { runCatching { Policy.apply(this, store.rules) } }   // enforced = base + active mode
-        if (r.watch != old.watch) { if (!r.watch.notif.on) NotifSync.clear(); if (!r.watch.cam) RemoteSnap.clear(this); if (!r.watch.sms) Sms.clear(this); Monitoring.tellOn(this, Monitoring.turnedOn(old.watch, r.watch), r.watch); fgRefresh() }
+        if (r.watch != old.watch) { if (!r.watch.notif.on) NotifSync.clear(); if (!r.watch.cam) { RemoteSnap.clear(this); CamCall.stop("off") }; if (!r.watch.sms) Sms.clear(this); Monitoring.tellOn(this, Monitoring.turnedOn(old.watch, r.watch), r.watch); fgRefresh() }
         if (r.noDebug && !old.noDebug) { store.noDebugHad = DevOpts.debugNow(this); devOff() }   // "no debugging" switched on: also turn Developer options off once
         // switched off again: debugging comes back as it was (it stayed off, the parent had to know about "devOn"); after
         // Policy.apply above (same work queue) has lifted DISALLOW_DEBUGGING_FEATURES, else DevOpts.on says "blocked"
@@ -897,7 +897,7 @@ class Guard : Service() {
         work.postAtFrontOfQueue {
             stopped = true
             work.removeCallbacks(loopRun); work.removeCallbacks(pokeRun)
-            Listen.stopAll(); Monitoring.release(this); NotifSync.clear(); LocNag.clear(this); RemoteSnap.clear(this); runCatching { store.clearListenHist() }; Sms.clear(this); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff(); FixPerms.release(this)
+            Listen.stopAll(); CamCall.stop("hangup"); Monitoring.release(this); NotifSync.clear(); LocNag.clear(this); RemoteSnap.clear(this); runCatching { store.clearListenHist() }; Sms.clear(this); Proj.stop(this); Ring.stop(this); wifiLock(false); motionOff(); FixPerms.release(this)
             // C8: the parents hear of it (event -> relay + Telegram) BEFORE the tokens go; the relay creds are kept for the forget call
             val creds = Triple(store.relayUrl, store.relayId, store.relayToken)
             runCatching {
