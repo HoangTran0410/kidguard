@@ -191,7 +191,7 @@ Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`,
 
 ### 1.17 Notifications and word alerts to the parent (2026-11-17, `remote/NotifSync.kt`, `guard/KeywordLogic.kt`, page `tab-seen.js`)
 - Trigger: a notification is posted (`NotifDots` -> `NotifLog.record` -> `NotifSync.offer`), rule `watch.notif` / `watch.words`.
-- Steps: `offer` dedupes (same key + text = not new), matches `KeywordLogic.hit` (accent/case-insensitive, any text of the notification), `NotifFeedLogic.send` applies on / keywords-only / app filter, then adds to a ring (50). State builder adds `notifs` (newest 20). Older rows: `GET /api/notifs` or relay `notifPull` -> file channel. First page logs "parent looked".
+- Steps: `offer` dedupes (same key + text = not new) and matches `KeywordLogic.hit` (accent/case-insensitive, any text of the notification) for the word alert. State builder adds `notifs`: `NotifSync.stateJson` reads the newest 100 rows of the notification log (sqlite), `NotifFeedLogic.send` applies on / keywords-only / app filter, newest 20; cached on `NotifLog.version` (main thread: cached copy only). Telegram `/notif` reads the same log with a (time, row id) cursor. Older rows: `GET /api/notifs` or relay `notifPull` -> file channel. First page logs "parent looked".
 - Keyword hit: `NotifSync.alert` -> `Store.event("word", ...)` (throttled) -> FCM like any event.
 - State: ring in memory only (`NotifSync.clear` on rule off and release). The page keeps its own merged list per kid in localStorage.
 - Gotchas: no notification access = nothing arrives (the page says so after a pull). A notification the phone never recorded (ongoing, own app) is never sent. Narrowing to keywords-only is silent; widening to everything is told to the child again.

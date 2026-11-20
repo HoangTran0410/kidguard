@@ -659,8 +659,8 @@ object Tg {
 
     // ---------------- alerts ----------------
     /**
-     * Every Guard tick: new SOS / requests / events -> every linked chat. [markOnly] = just remember them (a chat was
-     * just linked, or none is). A wrong-PIN event waits up to 10 s for its photo.
+     * Every Guard tick: new SOS / requests -> every linked chat (ids remembered in `tgSeen`), then events ([evTick], a
+     * cursor over the HistDb rows). [markOnly] = just remember them (a chat was just linked, or none is).
      */
     fun tick(g: Guard, markOnly: Boolean = false) {
         val s = Store.of(g)
@@ -670,18 +670,15 @@ object Tg {
         if (!markOnly) digestTick(g, s, now)
         if (!markOnly) runCatching { notifTick(g, s) }
         if (copies.isNotEmpty()) alerts.execute { runCatching { resolveGone(s, now) } }
+        val quiet = markOnly || s.tg.chats().length() == 0
+        if (evBusy.compareAndSet(false, true)) alerts.execute { try { runCatching { evTick(g, s, quiet) }.onFailure { Log.w("KidGuard", "tg events", it) } } finally { evBusy.set(false) } }
         val seen = s.tg.seen().toHashSet()
-        val sos = s.sos(); val reqs = s.requests(); val evs = s.events()
+        val sos = s.sos(); val reqs = s.requests()
         val fresh = ArrayList<Pair<String, JSONObject>>()
         for (i in 0 until sos.length()) sos.optJSONObject(i)?.let { if ("s:" + it.optString("id") !in seen) fresh += "s:" + it.optString("id") to it }
         for (i in 0 until reqs.length()) reqs.optJSONObject(i)?.let { val k = TgLogic.reqKey(it); if (k !in seen) fresh += k to it }
-        for (i in 0 until evs.length()) evs.optJSONObject(i)?.let {
-            val k = "e:" + it.optString("id")
-            if (k !in seen && it.optString("kind") in Events.NO_PUSH) { synchronized(seenLock) { s.tg.setSeen(TgLogic.remember(s.tg.seen(), listOf(k))) }; return@let }
-            if (k !in seen && (markOnly || it.optString("kind") != "tamper" || it.has("shot") || now - it.optLong("t") > 10_000)) fresh += k to it
-        }
         if (fresh.isEmpty()) return
-        if (markOnly || s.tg.chats().length() == 0) { synchronized(seenLock) { s.tg.setSeen(TgLogic.remember(s.tg.seen(), fresh.map { it.first })) }; return }
+        if (quiet) { synchronized(seenLock) { s.tg.setSeen(TgLogic.remember(s.tg.seen(), fresh.map { it.first })) }; return }
         // seen only once at least one chat got it; a failed one is retried on a later tick (30 s apart), never lost.
         // Items older than a day are dropped instead (a phone offline for days does not flood the chat).
         val todo = fresh.filter { (k, o) ->
@@ -691,19 +688,46 @@ object Tg {
         if (todo.isEmpty()) return
         val name = kidName(g)
         alerts.execute {
-            // several plain events at once (the phone was offline): one message per chat instead of a ping each
-            val plain = todo.filter { (k, o) -> TgLogic.digestable(k, o.optString("kind"), o.optString("shot").isNotBlank()) }.takeIf { it.size >= TgLogic.DIGEST_MIN } ?: emptyList()
-            if (plain.isNotEmpty()) {
-                val n = runCatching { digest(s, name, plain) }.getOrDefault(0)
-                for ((k, _) in plain) if (n > 0) { synchronized(seenLock) { s.tg.setSeen(TgLogic.remember(s.tg.seen(), listOf(k))) }; sending.remove(k) } else sending[k] = System.currentTimeMillis() + 30_000L
-            }
             for ((k, o) in todo) {
-                if (plain.any { it.first == k }) continue
                 val n = runCatching { alert(g, s, name, k, o) }.getOrDefault(0)
                 if (n > 0) { synchronized(seenLock) { s.tg.setSeen(TgLogic.remember(s.tg.seen(), listOf(k))) }; sending.remove(k) }
                 else sending[k] = System.currentTimeMillis() + 30_000L
             }
         }
+    }
+
+    private val evBusy = java.util.concurrent.atomic.AtomicBoolean(false)
+    @Volatile private var evRetry = 0L
+
+    /**
+     * Events, in order, from the HistDb rows after cursor `evAt` (the same rows as the parent's Nhật ký, 90 days), so a
+     * phone that could not reach Telegram for a while sends every one of them (still dropped after 24 h, as before).
+     * Extras only the prefs copy has (the wrong-PIN `shot`) come from [Store.events] by event id. A wrong-PIN event
+     * younger than 10 s without its photo holds the cursor (it and what follows wait one more tick). The cursor moves
+     * past each row only once at least one chat got it; a failure stops there and retries in 30 s. [quiet] = no chat:
+     * move the cursor to the newest row. Runs on the alerts thread (disk read).
+     */
+    private fun evTick(g: Guard, s: Store, quiet: Boolean) {
+        val now = System.currentTimeMillis()
+        val cur = s.tg.evAt; val last = HistDb.lastEventId(g)
+        if (quiet || cur < 0) { if (cur != last) s.tg.evAt = last; return }   // first run after an update starts at the newest
+        if (last < cur) { s.tg.evAt = 0; return }   // history file was wiped (release): ids start again
+        if (last == cur || now < evRetry) return
+        val rows = HistDb.eventsAfter(g, cur, TgLogic.EV_PAGE)
+        val pref = s.events().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.associateBy { it.optString("id") } }
+        val (todo, upTo) = TgLogic.evPlan(rows.map { (rid, o) -> rid to (pref[o.optString("id")] ?: o) }, now)
+        val name = kidName(g)
+        // several plain events at once (the phone was offline): one message per chat instead of a ping each
+        val plain = todo.filter { (_, o) -> TgLogic.digestable("e:", o.optString("kind"), o.optString("shot").isNotBlank()) }.takeIf { it.size >= TgLogic.DIGEST_MIN } ?: emptyList()
+        if (plain.isNotEmpty() && runCatching { digest(s, name, plain.map { "e:" + it.second.optString("id") to it.second }) }.getOrDefault(0) == 0) { evRetry = now + 30_000L; return }
+        val plainIds = plain.map { it.first }.toHashSet()
+        for ((rid, o) in todo) {
+            if (rid in plainIds) continue
+            if (runCatching { alert(g, s, name, "e:" + o.optString("id"), o) }.getOrDefault(0) == 0) {
+                s.tg.evAt = rid - 1; evRetry = System.currentTimeMillis() + 30_000L; return   // this one again (rows are dense enough: id - 1 is before it)
+            }
+        }
+        if (upTo > cur) s.tg.evAt = upTo
     }
 
     private val notifBusy = java.util.concurrent.atomic.AtomicBoolean(false)

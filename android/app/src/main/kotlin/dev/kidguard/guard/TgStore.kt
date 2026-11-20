@@ -63,6 +63,10 @@ class TgStore internal constructor(private val p: SharedPreferences) {
         val a = chats(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optLong("id") == id }?.put("notif", on)
         p.edit().putString("chats", a.toString()).commit()
     }
+    /** Event cursor: the last HistDb event row sent (or skipped). -1 = not started (first tick starts at the newest). */
+    var evAt: Long
+        get() = p.getLong("evAt", -1)
+        set(v) { p.edit().putLong("evAt", v).apply() }
     /** `/notif` cursor in the notification log: the last row forwarded or skipped (time ms, row id). 0 = never started. */
     var notifAt: Pair<Long, Long>
         get() = p.getLong("notifT", 0) to p.getLong("notifId", 0)
@@ -100,6 +104,6 @@ class TgStore internal constructor(private val p: SharedPreferences) {
     /** Bot off: token, chats, code, offset, seen all gone. */
     @Synchronized fun clear() {
         p.edit().remove("token").remove("bot").remove("chats").remove("code").remove("codeUntil").remove("tgCodeTries")
-            .remove("offset").remove("seen").remove("err").remove("name").remove("notifT").remove("notifId").commit()
+            .remove("offset").remove("seen").remove("err").remove("name").remove("evAt").remove("notifT").remove("notifId").commit()
     }
 }

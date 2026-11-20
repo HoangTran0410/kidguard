@@ -851,9 +851,12 @@ phone (`ListenCall.cap`) and relay, `release`. LAN / Tailscale kids keep `GET /a
 - Language per chat (`chats[].lang`): set at link from the Telegram user's `language_code` (vi* -> vi, else en; none -> the bot
   language from tgSet), changed with /lang [vi|en] or the 🌐 menu button; alerts and answers use it. setMyCommands /
   setMyDescription / setMyShortDescription are set for language_code vi, en and the default, at tgSet and once per app start.
-- Alerts, every Guard tick, each id once (`tgSeen`, last 80; linking a chat marks the past as seen): every SOS (+ location),
+- Alerts, every Guard tick, each id once (`tgSeen`, last 80, SOS and requests only; linking a chat marks the past as seen): every SOS (+ location),
   every request with buttons `ry:<id>:<min>` (bonus + `answer ok`) / `rn:<id>` (`answer` no), every event; a `tamper` event waits up
   to 10 s for its wrong-PIN photo and is sent as a photo.
+  Events (2026-11-20) come from the history sqlite (HistDb, the Nhật ký rows) with a row-id cursor `evAt` instead of `tgSeen`: sent in order, so a
+  backlog of more than 50 (the prefs copy) is not lost; extras (`shot`) are read from the prefs copy by event id; a failure stops at that row (retry 30 s);
+  the first tick after an update starts at the newest row. Check-ins are now written to HistDb too (they were prefs only).
 
 ## Telegram alerts via the relay worker (older, unused by the page since the phone bot)
 - Worker secret `TG_BOT` = bot token from @BotFather. Not set = feature off (`GET /c/<id>/tg` -> `{"enabled": false}`, the page hides
@@ -1675,7 +1678,7 @@ Owner decision: reading the child's content is allowed ONLY with clear disclosur
 
 ### Notifications to the parent (rule `watch.notif`, `remote/NotifSync.kt`, `guard/KeywordLogic.kt`)
 - Source: the kid's own notification history (`NotifLog`, filled by the notification listener `NotifDots`). Own app, ongoing / progress / foreground-service, group summaries and media are never recorded. Needs notification access (the pull reply's `access`).
-- **Automatic feed** (`watch.notif.on`): every new notification that passes the rule (`kw` = has a word of `watch.words`; `apps`/`list` = app filter) goes into a ring of the last 50 in memory (a repeated post with the same title/text is not new; lost on a phone restart, then the pull covers it). The sync body carries the newest 20 as state `notifs: {"n": [{"id","t","pkg","app"<=40,"title"<=80,"text"<=110,"hit"?}] oldest first, "more": true when older ones were left out}` (no extra relay request per notification; `id` increases, starts from the clock so it survives a restart). Absent when off or empty. The page merges by `id`, keeps 100 per kid in its own browser and shows them live. `hit` = the keyword that matched.
+- **Automatic feed** (`watch.notif.on`): every new notification that passes the rule (`kw` = has a word of `watch.words`; `apps`/`list` = app filter) is read from the notification log itself (sqlite, 2026-11-20: no in-memory copy any more; the newest 100 rows are filtered by the rule, cached until the log or the rule changes). The sync body carries the newest 20 as state `notifs: {"n": [{"id","t","pkg","app"<=40,"title"<=80,"text"<=110,"hit"?}] oldest first, "more": true when older ones were left out}` (no extra relay request per notification; `id` = row time ms x 1000 + row id mod 1000: sorts by time, a chat thread updated in place is a new item). Absent when off or empty. The page merges by `id`, keeps 100 per kid in its own browser and shows them live. `hit` = the keyword that matched.
 - **Older ones on demand**, never in state, newest first, `n` <= 50 (default 30) per page. Reply JSON (both paths):
   `{"on": bool, "access": bool, "items": [{"id","t","pkg","app","title"<=200,"text"<=300,"msgs":[{"s","t"<=160}] (last 5 of a chat)}], "more": bool, "next": <ms>}`; `next` = the `before` of the following page; `on:false` = the rule is off (empty items).
 - LAN: `GET /api/notifs?before=<ms>&n=<1..50>` (token like every route; not allowed for the AI token).

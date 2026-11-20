@@ -618,6 +618,25 @@ object TgLogic {
     fun digest(lang: String, name: String, items: List<Pair<Long, String>>, hm: (Long) -> String): String =
         s(lang, "aDigest", items.size, name) + "\n" + items.sortedBy { it.first }.joinToString("\n") { (t, x) -> "• " + hm(t) + " " + x }
 
+    const val EV_PAGE = 60          // HistDb event rows read per tick (a backlog drains in order)
+    const val EV_MAX_AGE_MS = 24 * 3600_000L
+    const val SHOT_WAIT_MS = 10_000L
+    /**
+     * Which event rows (row id, event JSON; oldest first) to send now, and the row id the cursor may move to once they
+     * are sent (0 = none handled). Log-only kinds and rows older than a day are skipped (cursor passes them); a wrong-PIN
+     * event without its photo younger than [SHOT_WAIT_MS] stops the walk there (it and the rest wait a tick).
+     */
+    fun evPlan(rows: List<Pair<Long, JSONObject>>, now: Long): Pair<List<Pair<Long, JSONObject>>, Long> {
+        val out = ArrayList<Pair<Long, JSONObject>>(); var upTo = 0L
+        for ((rid, o) in rows) {
+            val kind = o.optString("kind")
+            if (kind == "tamper" && !o.has("shot") && now - o.optLong("t") <= SHOT_WAIT_MS) break
+            if (kind !in Events.NO_PUSH && now - o.optLong("t", now) <= EV_MAX_AGE_MS) out += rid to o
+            upTo = rid
+        }
+        return out to upTo
+    }
+
     const val NOTIF_PAGE = 60       // log rows read per tick for /notif (a long text is split into several messages by send())
     /** Forwarded notifications (`/notif`), oldest first: "• HH:mm App · Title: text" (🔑 = a watched word hit). */
     fun notifBatch(lang: String, name: String, rows: List<NotifFeedRow>, hm: (Long) -> String): String {

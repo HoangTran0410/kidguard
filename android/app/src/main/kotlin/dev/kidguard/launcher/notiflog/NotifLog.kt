@@ -122,6 +122,8 @@ object NotifLog {
 
     /** Nothing to buffer any more (each change is one row); kept for the listener's onDestroy. */
     fun flush(ctx: Context) {}
+    /** Bumped after every new or updated row (not dismissals): readers cache on it (NotifSync state feed). */
+    @Volatile var version = 0L; private set
 
     // ---- PendingIntents (memory only: lost with the process, that is the point of "recent") ----
 
@@ -219,6 +221,7 @@ object NotifLog {
                     d.update("n", values(ne), "id = ?", arrayOf(old!!.first.toString()))
                     for (f in NotifLogic.refs(old.second) - NotifLogic.refs(ne).toSet()) runCatching { File(dir(app), f).delete() }
                 } else d.insert("n", null, values(ne))
+                version++
                 trim(app, now)
             }
         }

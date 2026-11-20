@@ -987,6 +987,7 @@ class Store private constructor(private val app: Context) {
         if (Checkin.tooSoon(a, ck, now)) return null
         val o = Checkin.event(randomHex(3), now, ck, text, Checkin.fresh(loc, now))
         p.edit().putString("events", Events.prune(a.put(o), now).toString()).commit()
+        HistDb.addEvent(app, now, o.optString("id"), o.optString("kind"), o.optString("text"), null)   // history + Telegram cursor (was prefs only)
         return o
     }
     /** A new location fix: attached to check-ins of the last 2 minutes. */

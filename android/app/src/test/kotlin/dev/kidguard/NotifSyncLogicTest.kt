@@ -24,9 +24,10 @@ class NotifSyncLogicTest {
         assertTrue(NotifFeedLogic.send(all.copy(apps = "only", list = listOf("a")), null, "a"))
     }
 
-    @Test fun idsIncreaseEvenInOneMillisecond() {
-        val a = NotifFeedLogic.nextId(0, 1000); val b = NotifFeedLogic.nextId(a, 1000); val c = NotifFeedLogic.nextId(b, 5)
-        assertTrue(a < b && b < c)
+    @Test fun feedIdsSortByTimeAndDifferPerRow() {
+        val a = NotifFeedLogic.feedId(1000, 7); val b = NotifFeedLogic.feedId(1000, 8); val c = NotifFeedLogic.feedId(1001, 2)
+        assertTrue(a < b && b < c)   // one ms: row order; later time: after, whatever the row id
+        assertTrue(NotifFeedLogic.feedId(1000, 7) != NotifFeedLogic.feedId(1500, 7))   // a thread updated in place = a new item
     }
 
     @Test fun keywordsIgnoreCaseAndAccents() {

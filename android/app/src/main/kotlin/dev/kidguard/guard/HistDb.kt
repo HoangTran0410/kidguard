@@ -62,6 +62,21 @@ object HistDb {
         d.execSQL("DELETE FROM h WHERE id <= (SELECT id FROM h ORDER BY id DESC LIMIT 1 OFFSET ${HistLogic.MAX_ROWS})")
     }
 
+    /** The newest event row id (0 = none): Telegram's event cursor starts there. Disk read: not on the main thread. */
+    fun lastEventId(ctx: Context): Long = runCatching {
+        db(ctx).rawQuery("SELECT MAX(id) FROM h WHERE s = 1", null).use { c -> if (c.moveToFirst()) c.getLong(0) else 0L }
+    }.getOrElse { Log.w("KidGuard", "hist last", it); 0L }
+
+    /** Event rows after row [after], oldest first, shaped like the state's `events` (`{id, t, kind, text, zone?}`), with their row id. */
+    fun eventsAfter(ctx: Context, after: Long, n: Int): List<Pair<Long, JSONObject>> = runCatching {
+        db(ctx).rawQuery("SELECT id, t, k, x, z, e FROM h WHERE s = 1 AND id > ? ORDER BY id LIMIT ?", arrayOf(after.toString(), n.toString())).use { c ->
+            val out = ArrayList<Pair<Long, JSONObject>>(c.count)
+            while (c.moveToNext()) out += c.getLong(0) to JSONObject().put("id", c.getString(5)).put("t", c.getLong(1)).put("kind", c.getString(2))
+                .put("text", c.getString(3)).apply { if (c.getString(4).isNotEmpty()) put("zone", c.getString(4)) }
+            out
+        }
+    }.getOrElse { Log.w("KidGuard", "hist after", it); emptyList() }
+
     /** Everything gone (release): the file, not just the rows. Queued behind pending writes. */
     fun wipe(ctx: Context) {
         val app = ctx.applicationContext

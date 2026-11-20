@@ -42,34 +42,29 @@ object NotifSync {
 
     fun on(g: Context) = Store.of(g).baseRules.watch.notif.on
 
-    // ---- automatic feed: new notifications that pass the rule wait here; the sync body (state "notifs") carries the newest ----
-    private class Item(val id: Long, val e: NotifEntry, val hit: String?)
-    private val ring = ArrayDeque<Item>()
-    private val lastText = HashMap<String, String>()   // key -> title|text last offered (progress ticks and re-posts are not new)
-    private var lastId = 0L
+    // ---- automatic feed: the sync body (state "notifs") carries the newest rows of the notification log that pass the rule ----
+    private val lastText = HashMap<String, String>()   // key -> title|text last offered (progress ticks and re-posts do not alert twice)
 
     /**
      * Called by [NotifLog.record] (listener thread, must be quick) for every notification worth logging (own app, ongoing,
-     * progress, group summaries and media are already left out there). Returns the keyword that hit, or null.
+     * progress, group summaries and media are already left out there): the keyword alert. Returns the keyword that hit, or null.
+     * The feed itself is read from the log (sqlite) when the state is built: no copy here.
      */
     fun offer(g: Context, e: NotifEntry): String? {
         val w = runCatching { Store.of(g).baseRules.watch }.getOrNull() ?: return null
-        if (!w.notif.on && w.words.isEmpty()) return null
+        if (w.words.isEmpty()) return null
         val sig = e.title + "|" + NotifFeedLogic.text(e)
-        synchronized(ring) {
+        synchronized(lastText) {
             if (lastText[e.key] == sig) return null
             if (lastText.size > 300) lastText.clear()
             lastText[e.key] = sig
         }
-        val hit = KeywordLogic.hit(w.words, listOf(e.title, e.text, e.subText, e.bigText) + e.msgs.map { it.text } + e.lines)
-        if (NotifFeedLogic.send(w.notif, hit, e.pkg)) synchronized(ring) {
-            lastId = NotifFeedLogic.nextId(lastId, e.time)
-            ring.addLast(Item(lastId, e, hit))
-            while (ring.size > NotifFeedLogic.KEEP) ring.removeFirst()
-        }
+        val hit = hitOf(w, e)
         if (hit != null) alert(g, e.app.ifEmpty { e.pkg }, e.pkg, hit, listOf(e.title, NotifFeedLogic.text(e)).filter { it.isNotEmpty() }.joinToString(": "))
         return hit
     }
+
+    private fun hitOf(w: WatchRule, e: NotifEntry) = KeywordLogic.hit(w.words, listOf(e.title, e.text, e.subText, e.bigText) + e.msgs.map { it.text } + e.lines)
 
     private val throttle = WordThrottle()
 
@@ -88,29 +83,42 @@ object NotifSync {
         val w = Store.of(g).baseRules.watch
         val rows = NotifLog.after(g, t, id, n)
         val out = rows.mapNotNull { (rid, e) ->
-            val hit = KeywordLogic.hit(w.words, listOf(e.title, e.text, e.subText, e.bigText) + e.msgs.map { it.text } + e.lines)
+            val hit = hitOf(w, e)
             if (!NotifFeedLogic.send(w.notif, hit, e.pkg)) null
             else NotifFeedRow(rid, e.time, e.app.ifEmpty { e.pkg }, e.title, NotifFeedLogic.text(e), hit)
         }
         return out to rows.lastOrNull()?.let { it.second.time to it.first }
     }
 
-    /** Rule turned off or released: nothing waits for the parent any more. */
-    fun clear() = synchronized(ring) { ring.clear(); lastText.clear() }
+    /** Rule turned off or released: forget the cached feed and the alert memory. */
+    fun clear() { synchronized(lastText) { lastText.clear() }; cache = null }
 
-    /** State `notifs`: `{"n": [{id,t,pkg,app,title,text,hit?}] oldest first (<= 20), "more": true when older ones were left out}`; null = nothing to say. */
+    private class Cached(val ver: Long, val w: WatchRule, val json: JSONObject?)
+    @Volatile private var cache: Cached? = null
+
+    /**
+     * State `notifs`: `{"n": [{id,t,pkg,app,title,text,hit?}] oldest first (<= 20), "more": true when older ones were left out}`;
+     * null = nothing to say. The newest [NotifFeedLogic.SCAN] rows of the notification log, filtered by the rule; cached until the
+     * log or the rule changes ([NotifLog.version]). On the main thread only the cached copy is used (no disk read there).
+     */
     fun stateJson(g: Context): JSONObject? {
-        if (!on(g)) return null
-        val all = synchronized(ring) { ring.toList() }
-        if (all.isEmpty()) return null
-        val cut = all.takeLast(NotifFeedLogic.IN_STATE)
-        return JSONObject().put("more", all.size > cut.size).put("n", JSONArray().also { a ->
-            cut.forEach { i ->
-                a.put(JSONObject().put("id", i.id).put("t", i.e.time).put("pkg", i.e.pkg).put("app", i.e.app.take(40))
-                    .put("title", i.e.title.take(NotifFeedLogic.STATE_TITLE)).put("text", NotifFeedLogic.text(i.e).take(NotifFeedLogic.STATE_TEXT))
-                    .also { if (i.hit != null) it.put("hit", i.hit) })
+        val w = Store.of(g).baseRules.watch
+        if (!w.notif.on) return null
+        val ver = NotifLog.version
+        cache?.let { if (it.ver == ver && it.w == w) return it.json }
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) return cache?.json
+        val rows = NotifLog.before(g, Long.MAX_VALUE, NotifFeedLogic.SCAN)
+            .mapNotNull { (rid, e) -> val hit = hitOf(w, e); if (NotifFeedLogic.send(w.notif, hit, e.pkg)) Triple(rid, e, hit) else null }
+        val cut = rows.take(NotifFeedLogic.IN_STATE).reversed()
+        val json = if (cut.isEmpty()) null else JSONObject().put("more", rows.size > cut.size).put("n", JSONArray().also { a ->
+            cut.forEach { (rid, e, hit) ->
+                a.put(JSONObject().put("id", NotifFeedLogic.feedId(e.time, rid)).put("t", e.time).put("pkg", e.pkg).put("app", e.app.take(40))
+                    .put("title", e.title.take(NotifFeedLogic.STATE_TITLE)).put("text", NotifFeedLogic.text(e).take(NotifFeedLogic.STATE_TEXT))
+                    .also { if (hit != null) it.put("hit", hit) })
             }
         })
+        cache = Cached(ver, w, json)
+        return json
     }
 
     /** One page, newest first, older than [before] ms (0 = from now). Blocks the calling thread (not the main one). */
@@ -152,7 +160,7 @@ object NotifSync {
 data class NotifFeedRow(val id: Long, val t: Long, val app: String, val title: String, val text: String, val hit: String?)
 
 object NotifFeedLogic {
-    const val KEEP = 50         // in memory
+    const val SCAN = 100        // newest log rows looked at for the state feed (the rule may leave many out)
     const val IN_STATE = 20     // newest of those in the sync body (state stays small: relay limits)
     const val STATE_TITLE = 80
     const val STATE_TEXT = 110
@@ -160,8 +168,11 @@ object NotifFeedLogic {
     /** The sync decision: [hit] = keyword found in this notification (or null). */
     fun send(w: NotifWatch, hit: String?, pkg: String) = w.on && w.appOk(pkg) && (!w.kwOnly || hit != null)
 
-    /** A strictly increasing id that also sorts by time (survives a restart: it starts from the clock). */
-    fun nextId(last: Long, now: Long): Long = maxOf(last + 1, now * 1000)
+    /**
+     * The page's feed id (it merges by id, sorted by id): row time ms x 1000 + row id mod 1000. Sorts by time; a chat thread
+     * updated in place (new time) is a new item, like a new post. Same magnitude as the old in-memory ids (clock x 1000).
+     */
+    fun feedId(t: Long, rowId: Long): Long = t * 1000 + Math.floorMod(rowId, 1000L)
 
     fun text(e: NotifEntry): String =
         e.msgs.lastOrNull()?.let { (if (it.sender.isNotEmpty()) it.sender + ": " else "") + it.text } ?: e.text

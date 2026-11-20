@@ -305,4 +305,18 @@ class TgLogicTest {
         assertTrue(TgLogic.s("vi", "help", "Bin").contains("/notif"))
         assertFalse(TgLogic.isAction("notif"))
     }
+
+    @Test fun evPlan() {
+        val now = 100_000_000L
+        fun ev(kind: String, t: Long, shot: Boolean = false) = JSONObject().put("id", kind).put("t", t).put("kind", kind).apply { if (shot) put("shot", "x") }
+        // log-only and day-old rows are passed over, a fresh wrong-PIN event without its photo holds the rest
+        val (todo, upTo) = TgLogic.evPlan(listOf(3L to ev("tsDown", now), 5L to ev("old", now - 25 * 3600_000L), 6L to ev("zoneIn", now),
+            9L to ev("tamper", now - 2_000), 12L to ev("battery", now)), now)
+        assertEquals(listOf(6L), todo.map { it.first })
+        assertEquals(6L, upTo)
+        // with its photo, or after 10 s, it goes
+        assertEquals(listOf(9L, 12L), TgLogic.evPlan(listOf(9L to ev("tamper", now - 2_000, shot = true), 12L to ev("battery", now)), now).first.map { it.first })
+        assertEquals(12L, TgLogic.evPlan(listOf(9L to ev("tamper", now - 11_000), 12L to ev("battery", now)), now).second)
+        assertEquals(emptyList<Long>() to 0L, TgLogic.evPlan(emptyList(), now).let { it.first.map { p -> p.first } to it.second })
+    }
 }
