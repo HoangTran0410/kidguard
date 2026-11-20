@@ -26,3 +26,4 @@ website/app/
 website/install.html
 website/qr.html
 website/kidguard.apk*
+relay/wrangler.self.toml

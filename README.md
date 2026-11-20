@@ -186,7 +186,7 @@ Then in the parent page (on home Wi-Fi): search `relay` → *Use your own Cloudf
 
 ### Shared relay
 
-Same as above with the author's relay: paste `https://kg-relay.99-hoangtran.workers.dev` instead. Nothing to install, but your kid's state passes through someone else's Cloudflare account and the free daily quota is shared by everyone using it. Fine to try; switch to Tailscale or your own relay for daily use.
+Same as above with the author's relay: paste `https://relay.kidguard.asia` instead. Nothing to install, but your kid's state passes through someone else's Cloudflare account and the free daily quota is shared by everyone using it. Fine to try; switch to Tailscale or your own relay for daily use.
 
 ### Instant SOS notifications (optional)
 

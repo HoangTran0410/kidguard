@@ -15,17 +15,21 @@ npm ci --silent --no-audit --no-fund
 echo "2/3 Cloudflare login (a browser window opens if you are not logged in yet)…"
 npx wrangler whoami 2>/dev/null | grep -q "associated with the email" || npx wrangler login
 
-if [ "${1:-}" = "--delete" ]; then npx wrangler delete --name kidguard; exit; fi
+# your copy of wrangler.toml: our worker name and our custom domain (relay.kidguard.asia) out, else the deploy fails
+# on your account (2026-11-20, a user's deploy broke). KG_RELAY_NAME picks another worker name.
+name="${KG_RELAY_NAME:-kidguard}"
+grep -v '^routes *=' wrangler.toml | awk -v n="$name" '!d && /^name = /{print "name = \"" n "\""; d=1; next} 1' > wrangler.self.toml   # first name = the worker (later ones = bindings)
+if [ "${1:-}" = "--delete" ]; then npx wrangler delete -c wrangler.self.toml --name "$name"; exit; fi
 
 echo "3/3 Deploying…"
 # first deploy on a new account may ask you to pick a workers.dev subdomain: answer it, it is shown in the address
-out=$(npx wrangler deploy 2>&1 | tee /dev/stderr)
+out=$(npx wrangler deploy -c wrangler.self.toml 2>&1 | tee /dev/stderr)
 url=$(printf '%s\n' "$out" | grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' | head -1)
 [ -n "$url" ] || { echo "Deployed, but no address found in the output above. Look for https://kidguard.<you>.workers.dev"; exit 1; }
 
 # Optional Telegram alerts: TG_BOT_TOKEN=<token from @BotFather> scripts/relay.sh (sets the secret, then registers the webhook)
 if [ -n "${TG_BOT_TOKEN:-}" ]; then
-  printf '%s' "$TG_BOT_TOKEN" | npx wrangler secret put TG_BOT >/dev/null
+  printf '%s' "$TG_BOT_TOKEN" | npx wrangler secret put TG_BOT -c wrangler.self.toml >/dev/null
   hk=$(printf 'tg:%s' "$TG_BOT_TOKEN" | node -e 'process.stdout.write(require("crypto").createHash("sha256").update(require("fs").readFileSync(0)).digest("hex").slice(0,32))')
   curl -fsS "https://api.telegram.org/bot${TG_BOT_TOKEN}/setWebhook" -d "url=$url/tg/$hk" >/dev/null && echo "Telegram alerts on (webhook registered)." || echo "Telegram: setWebhook failed, check the token."
 fi

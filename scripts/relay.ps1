@@ -17,11 +17,15 @@ Write-Host "2/3 Cloudflare login (a browser window opens if you are not logged i
 $who = (npx wrangler whoami 2>&1) -join "`n"
 if ($who -notmatch "associated with the email") { npx wrangler login; if ($LASTEXITCODE) { exit 1 } }
 
-if ($Delete) { npx wrangler delete --name kidguard; exit $LASTEXITCODE }
+# your copy of wrangler.toml: our worker name and our custom domain out (else the deploy fails on your account)
+$name = if ($env:KG_RELAY_NAME) { $env:KG_RELAY_NAME } else { "kidguard" }
+$done = $false   # only the first name = (the worker); later ones are bindings
+(Get-Content wrangler.toml) | Where-Object { $_ -notmatch '^routes *=' } | ForEach-Object { if (-not $done -and $_ -match '^name = ') { $done = $true; "name = `"$name`"" } else { $_ } } | Out-String | ForEach-Object { [IO.File]::WriteAllText("$PWD\wrangler.self.toml", $_) }   # no BOM (PS 5 adds one)
+if ($Delete) { npx wrangler delete -c wrangler.self.toml --name $name; exit $LASTEXITCODE }
 
 Write-Host "3/3 Deploying..."
 # first deploy on a new account may ask you to pick a workers.dev subdomain: answer it
-npx wrangler deploy 2>&1 | Tee-Object -Variable out | Out-Host
+npx wrangler deploy -c wrangler.self.toml 2>&1 | Tee-Object -Variable out | Out-Host
 if ($LASTEXITCODE) { exit 1 }
 $m = [regex]::Match(($out -join "`n"), 'https://[A-Za-z0-9.-]+\.workers\.dev')
 if (-not $m.Success) { Write-Host "Deployed, but no address found above. Look for https://kidguard.<you>.workers.dev"; exit 1 }
