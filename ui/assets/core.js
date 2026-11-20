@@ -515,7 +515,30 @@ async function boot() {
 }
 
 // kid list row: name, then (once the state arrives) online dot + last seen + battery (A5.10)
-const kidRow = (k, i) => `<div class="card row"><span class="sp" style="min-width:0"><b>${ic("user")} ${esc(k.name)}</b><span class="mute kb" data-kb="${i}" style="display:block">${APP ? (k.via === "lan" ? t("via.lan") : "relay") : "&nbsp;"}</span></span><button class="ghost kx" data-x="${i}" hidden aria-label="${esc(t("forget.rowAria", k.name))}">${ic("trash-2")}</button><button class="pri" data-i="${i}">${ic("folder-open")} ${t("open")}</button></div>`;
+const kidRow = (k, i) => `<div class="card row kr" role="button" tabindex="0" data-i="${i}"><span class="sp" style="min-width:0"><b>${ic("user")} ${esc(k.name)}</b><span class="mute kb" data-kb="${i}" style="display:block">${APP ? (k.via === "lan" ? t("via.lan") : "relay") : "&nbsp;"}</span></span><button type="button" class="ghost kx" data-x="${i}" aria-label="${esc(t("kid.more", k.name))}">${ic("ellipsis")}</button>${ic("chevron-right")}</div>`;
+// kids found gone by kidBrief: removing them needs no typed word
+kidRow.gone = new WeakSet();
+// owner 2026-11-20: tap the row = open; the ... menu holds what can be done from the list (rename here, remove)
+kidRow.wire = list => {
+  $("#app").querySelectorAll(".kr[data-i]").forEach(r => {
+    const k = list[+r.dataset.i];
+    r.onclick = () => open(k);
+    r.onkeydown = e => { if (e.target === r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); open(k); } };
+    const x = r.querySelector(".kx"); if (x) x.onclick = e => { e.stopPropagation(); kidRow.menu(k); };
+  });
+};
+kidRow.menu = async k => {
+  const m = await sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("user", esc(k.name))}<div class="list">${navRow('data-km="ren"', "notebook-pen", t("rp.ren"), t("kid.renSub"))}${navRow('data-km="del"', "trash-2", t("kid.del"))}</div></div>`,
+    (pop, done) => pop.querySelectorAll("[data-km]").forEach(b => b.onclick = () => done(b.dataset.km)));
+  if (m === "ren") {
+    let n = "";
+    const inp = `<input id="askKn" maxlength="30" value="${esc(k.name)}" aria-label="${esc(t("kid.renSub"))}" style="width:100%;margin-bottom:12px">`;
+    if (!(await ask(t("kid.renP"), t("rp.ren"), false, "", inp, () => !!(n = ($("#askKn") || {}).value?.trim() || ""))) || !n || n === k.name) return;
+    k.name = n; save(kids); toast("ok|" + t("watch.renDone"));
+  } else if (m === "del") { if (!(await dropKid(k, kidRow.gone.has(k)))) return; }
+  else return;
+  reScreen ? reScreen() : boot();
+};
 // a saved kid that can't come back by itself: paired with the killed relay, released (relay says "released"), or the relay no longer knows us
 const deadKid = (k, raw) => (k.via === "relay" && k.target === OLD_RELAY) || raw === "released" || raw === "not paired";
 // INCIDENT 2026-11-20: the released phone could not tell the relay to forget it. Its last state has a "released" event and it went quiet
@@ -525,7 +548,7 @@ deadKid.rel = (s, seen) => {
   if (!rel || ev.some(e => e.kind === "releaseFail" && +e.t >= rel)) return 0;
   return (+seen || 0) <= rel + 12e4 && now - rel > 18e4 && now - (+seen || 0) > 18e4 ? rel : 0;
 };
-// remove a kid from this device (settings "Xoá máy này khỏi app" and the list's bin button for a dead / 1-day-offline kid)
+// remove a kid from this device (settings "Xoá máy này khỏi app" and the list's ... menu)
 async function dropKid(k, dead) {
   if (!(await ask(t(k.via === "relay" && !dead ? "forget.askRelay" : APP ? "forget.askApp" : "forget.askWeb", k.name), APP ? t("delete") : t("forget"), true, k.via === "relay" && !dead ? t("forget.word") : ""))) return false;
   if (k === cur) { screenStop(); cur = null; clearInterval(timer); }
@@ -535,9 +558,8 @@ async function kidBrief(list) {
   const root = $("#app");
   await Promise.all(list.map(async (k, i) => {
     const el = () => { const e = root.querySelector(`[data-kb="${i}"]`); return e && e.isConnected ? e : null; };
-    // bin button on every row (owner 2026-11-20: "sao ko cho luôn hiện nút"; was only for gone / silent > 1 day). A live relay kid
-    // still asks for the typed word (dropKid); a kid found gone below re-binds it as dead (no word).
-    const bin = dead => { const b = root.querySelector(`[data-x="${i}"]`); if (!b || !b.isConnected) return; b.hidden = false; b.onclick = async () => { if (await dropKid(k, dead)) reScreen ? reScreen() : boot(); }; };
+    // remove sits in every row's ... menu (kidRow.menu); a live relay kid asks for the typed word, a kid found gone here does not
+    const bin = dead => { if (dead) kidRow.gone.add(k); };
     bin(deadKid(k));
     try {
       const j = await call(k, "/state"), s = j.state !== undefined ? j.state : j;
@@ -561,7 +583,7 @@ function appBoot() {
     kidRow(k, i)).join("")
     : `<div class="card empty"><span class="e">${ic("inbox")}</span><p>${t("app.none")}</p></div>`) +
     `<div class="row">${list.length > 1 ? `<button class="pri sp" id="ovGo">${ic("layout-grid")} ${t("ovN", list.length)}</button>` : ""}<button class="${list.length > 1 ? "" : "pri "}sp" id="addKid">${ic("plus")} ${t("addKid")}</button></div>`;
-  $("#app").querySelectorAll("[data-i]").forEach(b => b.onclick = () => open(list[+b.dataset.i]));
+  kidRow.wire(list);
   kidBrief(list);
   $("#addKid").onclick = addScreen;
   if ($("#ovGo")) $("#ovGo").onclick = () => overview(list, appBoot);
@@ -844,7 +866,7 @@ function listScreen(list) {
     + (list.length > 1 ? `<button class="pri" id="ovGo">${ic("layout-grid")} ${t("ovN", list.length)}</button>` : "")
     + (anyOk() ? anyCard() : "") + startCard(!list.length);
   anyWire();
-  $("#app").querySelectorAll("[data-i]").forEach(b => b.onclick = () => open(list[+b.dataset.i]));
+  kidRow.wire(list);
   kidBrief(list);
   if ($("#ovGo")) $("#ovGo").onclick = () => overview(list, () => listScreen(list));
 }

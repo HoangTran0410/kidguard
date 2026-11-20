@@ -41,6 +41,9 @@ const NOW = (() => { const d = new Date(); d.setHours(16, 20, 0, 0); return d.ge
 const SHOTS = [
   ...(FAKE_APP ? [
     { name: "applist", bare: 1, js: `appBoot()`, ready: `document.querySelectorAll("[data-kb]").length && [...document.querySelectorAll("[data-kb]")].every(e => !/^(relay|LAN)/i.test(e.textContent.trim()))`, settle: 1500 },
+    // ... menu on a row (2026-11-20): rename + remove; the rename prompt after it
+    { name: "applist-menu", bare: 1, js: `appBoot(); document.querySelector(".kx").click()`, ready: `document.querySelector("#askPop [data-km=del]")`, settle: 500 },
+    { name: "applist-ren", bare: 1, js: `appBoot(); document.querySelector(".kx").click(); setTimeout(() => document.querySelector("#askPop [data-km=ren]").click(), 200)`, ready: `document.querySelector("#askKn")`, settle: 500 },
     { name: "addkid", bare: 1, js: `addScreen()`, ready: `document.querySelector("#ac") && document.querySelector("#appSetBack")`, settle: 500 },
     // Android Back on "Add a kid" = the list again (2026-11-20: it closed the app)
     { name: "addkid-pick", bare: 1, js: `kids = kids.filter(k => k.via !== "lan"); addScreen.pick("123456", localStorage.getItem("kg.binT"))`, ready: `document.querySelector("#pkLan")`, settle: 500 },
