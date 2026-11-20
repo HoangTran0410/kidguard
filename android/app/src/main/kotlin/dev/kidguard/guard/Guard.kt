@@ -310,15 +310,15 @@ class Guard : Service() {
         opt("location") { keepLocation(r) }
         // usage access: reported once per revoke (persisted, so a process restart while revoked does not repeat it), the child is asked to turn it back on
         if (!Usage.granted(this)) {
-            if (!store.usageOffRaised) {
-                store.log(R.string.log_usage_off)
-                if (store.knownApps != null) {   // before the first app scan (fresh setup) nothing is raised yet; retried next tick
-                    store.usageOffRaised = true
-                    runCatching { store.eventKey("tamper", "usageoff", R.string.ev_usage_off); relay?.kick() }
-                }
+            if (!store.usageOffRaised && store.knownApps != null) {   // before the first app scan (fresh setup) nothing is raised yet; retried next tick
+                store.log(R.string.log_usage_off)   // inside the gate: it was logged every tick during a fresh setup
+                store.usageOffRaised = true
+                runCatching { store.eventKey("tamper", "usageoff", R.string.ev_usage_off); relay?.kick() }
             }
-            notifyUsageOff(true)
-        } else { if (store.usageOffRaised) store.log(R.string.log_usage_on); store.usageOffRaised = false; notifyUsageOff(false) }
+            // posted once, not every tick: re-posting made ColorOS sound + pop it every few seconds and a swipe came back at once
+            // (owner 2026-11-20, new Oppo mid-setup); not during a fresh setup (usageOffRaised waits for the first app scan)
+            if (store.usageOffRaised && !usageNoteUp) { usageNoteUp = true; notifyUsageOff(true) }
+        } else { if (store.usageOffRaised) store.log(R.string.log_usage_on); store.usageOffRaised = false; usageNoteUp = false; notifyUsageOff(false) }   // cancel is silent: fine every tick
         // a non-system app became the default HOME: it is exempt from all limits (no dead end), so tell the parent
         Policy.foreignHome.let { fh ->
             if (fh.isNotEmpty() && fh != store.foreignHomeSeen) {
@@ -695,6 +695,7 @@ class Guard : Service() {
             .setContentTitle("KidGuard").setContentText(text).setAutoCancel(true).setContentIntent(open).build())
     }
 
+    @Volatile private var usageNoteUp = false
     /** Persistent notification (id 7) while usage access is off: tapping opens the system screen to turn it back on. */
     private fun notifyUsageOff(on: Boolean) = runCatching {
         val nm = getSystemService(NotificationManager::class.java)
@@ -702,7 +703,7 @@ class Guard : Service() {
         nm.createNotificationChannel(NotificationChannel("usage", getString(R.string.ch_usage), NotificationManager.IMPORTANCE_DEFAULT))
         val open = PendingIntent.getActivity(this, 7, Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE)
         nm.notify(7, Notification.Builder(this, "usage").setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("KidGuard").setContentText(getString(R.string.usage_off_note)).setOngoing(true).setContentIntent(open).build())
+            .setContentTitle("KidGuard").setContentText(getString(R.string.usage_off_note)).setOngoing(true).setOnlyAlertOnce(true).setContentIntent(open).build())
     }
 
     /** Heads-up before a lock (daily limit, bedtime, schedule): the child gets time to save what they are doing. */

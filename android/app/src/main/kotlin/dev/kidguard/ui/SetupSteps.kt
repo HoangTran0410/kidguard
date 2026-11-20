@@ -226,6 +226,12 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         // Android 10 and older: no Wireless debugging pairing, so no self-setup; a computer does every step at once (owner 2026-11-19)
         if (!Flavor.HOME && Build.VERSION.SDK_INT < 30 && !Policy.isOwner(act) && !Basic.adminActive(act))
             box.addView(ui.label(act.getString(R.string.steps_pc), 13f, ui.text).apply { setPadding(0, ui.dp(8), 0, 0) })
+        // Android 11+, basic: a step left that self setup does (all but pairing) -> the Wi-Fi run is one tap here too, not only in
+        // the ⋯ menu (owner 2026-11-20: after a half-done Wi-Fi run the card showed only the manual steps)
+        if (!Flavor.HOME && Build.VERSION.SDK_INT >= 30 && !Policy.isOwner(act) && l.any { !it.done && !it.pair })
+            box.addView(ui.button(act.getString(R.string.fr_basic_wifi), R.drawable.li_wifi, true) {
+                SelfGate.run(act, ui) { act.startActivity(Intent(act, SelfSetupActivity::class.java).putExtra(SelfSetupActivity.EXTRA_BASIC, true)) }
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(10) })
         val bar = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; weightSum = l.size.toFloat(); background = ui.shape(ui.stroke, 99) }
         bar.addView(View(act).apply { background = ui.shape(ui.primary, 99) }, LinearLayout.LayoutParams(0, -1, (l.size - left).toFloat()))
         box.addView(bar, LinearLayout.LayoutParams(-1, ui.dp(6)).apply { topMargin = ui.dp(12); bottomMargin = ui.dp(6) })
