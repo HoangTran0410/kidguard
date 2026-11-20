@@ -247,7 +247,7 @@ class Relay(private val g: Guard) {
             }
             if (res.optInt("files") > 0) Files.pull(g)   // parent -> kid files waiting on the relay (own thread)
             lastOk = System.currentTimeMillis(); lastError = ""
-            if (res.optBoolean("live")) startLive(base, rid, token)
+            if (res.optBoolean("live")) { liveWs = res.optInt("lws") == 1; startLive(base, rid, token) }
             if (res.optBoolean("device")) runCatching { DeviceInfo.upload(g, base, rid, token) }.onFailure { Log.w("KidGuard", "device", it) }
             res.optJSONObject("call")?.let { c -> runCatching { Call.fromRelay(g, c, base, rid, token) }.onFailure { Log.w("KidGuard", "call", it) } }
             res.optString("logday").takeIf { HistLogic.validDay(it) }?.let { d -> runCatching { HistDb.upload(g, base, rid, token, d) }.onFailure { Log.w("KidGuard", "logday", it) } }
@@ -296,7 +296,13 @@ class Relay(private val g: Guard) {
         }, "relay-live").start()
     }
 
+    @Volatile private var liveWs = false        // the worker takes frames on the socket (sync reply `lws`)
+    @Volatile private var liveOk = 0L           // last {"t":"live","live":true} on the socket (the page says it every 15 s)
+    @Volatile private var liveStop = false
+    private val inputRun = java.util.concurrent.Executors.newSingleThreadExecutor()
+
     private fun liveLoop(base: String, rid: String, token: String) {
+        if (liveWs && ws.open && wsLiveLoop()) return
         val end = System.currentTimeMillis() + 10 * 60_000L
         var errors = 0
         while (System.currentTimeMillis() < end) {
@@ -333,6 +339,44 @@ class Relay(private val g: Guard) {
             val wait = maxOf(gap, if (gap == 150L) 0 else Acc.frameGapMs() - (System.currentTimeMillis() - t0))
             if (wait > 0) Thread.sleep(wait)
         }
+    }
+
+    /**
+     * Frames over the socket (0.9.61): one binary message each, sent only when the picture changed (or every
+     * [LiveLogic.RESEND_MS] so a new viewer gets one); taps come back on the socket at once. Ends when the worker says
+     * live:false (the page left / Stop) or no live:true came for [LiveLogic.LIVE_OK_MS]. False = the socket dropped: HTTP loop.
+     */
+    private fun wsLiveLoop(): Boolean {
+        liveOk = System.currentTimeMillis(); liveStop = false
+        ws.onLive = { on -> if (on) liveOk = System.currentTimeMillis() else liveStop = true }
+        ws.onInputs = { a -> inputRun.execute { for (i in 0 until minOf(a.length(), 50)) runCatching { Acc.input(a.getJSONObject(i)) } } }
+        val crc = java.util.zip.CRC32()
+        var lastSig = -1L; var lastAt = 0L; var lastErr = ""
+        try {
+            while (true) {
+                val t0 = System.currentTimeMillis()
+                if (liveStop || t0 - liveOk > LiveLogic.LIVE_OK_MS) { Acc.stopViewing(g); return true }
+                if (!ws.open) return false
+                val f = Acc.capture(720, 50)
+                var gap = 0L
+                if (f != null) {
+                    crc.reset(); crc.update(f.jpeg); val sig = crc.value
+                    if (LiveLogic.send(sig != lastSig, t0 - lastAt)) {
+                        if (!ws.sendBinary(LiveLogic.wsFrame(f.w, f.h, "", f.jpeg))) return false
+                        lastSig = sig; lastAt = t0; lastErr = ""
+                    }
+                } else {
+                    val err = Acc.lastError
+                    gap = if (err == "busy") 150 else 1_000
+                    if (err != "busy" && LiveLogic.send(err != lastErr, t0 - lastAt)) {
+                        if (!ws.sendBinary(LiveLogic.wsFrame(0, 0, err.take(60), null))) return false
+                        lastErr = err; lastAt = t0; lastSig = -1
+                    }
+                }
+                val wait = maxOf(gap, if (gap == 150L) 0 else Acc.frameGapMs() - (System.currentTimeMillis() - t0))
+                if (wait > 0) Thread.sleep(wait)
+            }
+        } finally { ws.onLive = null; ws.onInputs = null }
     }
 
     companion object {

@@ -73,4 +73,19 @@ class LiveLogicTest {
         assertEquals(null, ActionLogic.conflict("listen", ringing = false, listening = true))  // replaces the old session
         assertEquals(null, ActionLogic.conflict("wake", ringing = true, listening = true))
     }
+
+    @Test fun wsFrameLayout() {
+        val b = LiveLogic.wsFrame(720, 1600, "", byteArrayOf(1, 2, 3))
+        val n = ((b[0].toInt() and 0xff) shl 8) or (b[1].toInt() and 0xff)
+        assertEquals("""{"w":720,"h":1600}""", String(b, 2, n))
+        assertEquals(listOf<Byte>(1, 2, 3), b.drop(2 + n))
+        val e = LiveLogic.wsFrame(0, 0, "screen off", null)
+        assertEquals(e.size, 2 + (((e[0].toInt() and 0xff) shl 8) or (e[1].toInt() and 0xff)))
+    }
+
+    @Test fun wsFrameOnlyWhenChanged() {
+        assertTrue(LiveLogic.send(true, 0))
+        assertFalse(LiveLogic.send(false, 1_000))
+        assertTrue(LiveLogic.send(false, LiveLogic.RESEND_MS))
+    }
 }

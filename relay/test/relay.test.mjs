@@ -390,6 +390,44 @@ const w2=await wsOpen();ck("second ws replaces the first",w2.status==101&&(await
 w2.send("ping");ck("new ws alive",(await w2.next())=="pong");
 w2.close();await new Promise(r=>setTimeout(r,500));
 const s2=await (await fetch(`${B}/c/${id7}/state`,{headers:H()})).json();ck("closed ws: seen kept (last sign of life)",Date.now()-s2.seen<15000);}
+// screen socket (0.9.61): the page holds /scr (token in the subprotocol), frames pushed binary, taps up the socket, close = stop
+{const http=await import("node:http"),crypto=await import("node:crypto");const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),id8=rh(16),T8=rh(48);
+const H8={"x-kg-token":T8,"content-type":"application/json"};
+const scrOpen=(tok=T8,path="scr",hx={"Sec-WebSocket-Protocol":"kg, kg."+tok})=>new Promise((ok,no)=>{const q=http.request(`${B}/c/${id8}/${path}`,{headers:{Connection:"Upgrade",Upgrade:"websocket","Sec-WebSocket-Version":"13",...hx,"Sec-WebSocket-Key":crypto.randomBytes(16).toString("base64")}});
+  q.on("upgrade",(r,sock)=>{const msgs=[];let buf=Buffer.alloc(0),wait=null;
+    sock.on("data",d=>{buf=Buffer.concat([buf,d]);while(buf.length>=2){let n=buf[1]&127,o=2;if(n==126){if(buf.length<4)break;n=buf.readUInt16BE(2);o=4}else if(n==127){if(buf.length<10)break;n=Number(buf.readBigUInt64BE(2));o=10}
+      if(buf.length<o+n)break;const op=buf[0]&15,p=Buffer.from(buf.subarray(o,o+n));buf=buf.subarray(o+n);if(op==1||op==2){msgs.push({op,p});if(wait){const w=wait;wait=null;w()}}}});
+    const send=(t,op=1)=>{const p=Buffer.from(t),m=crypto.randomBytes(4),h=p.length<126?Buffer.from([0x80|op,0x80|p.length]):Buffer.from([0x80|op,0x80|126,p.length>>8,p.length&255]);sock.write(Buffer.concat([h,m,Buffer.from(p.map((b,i)=>b^m[i&3]))]))};
+    const next=(ms=8000)=>new Promise(r=>{if(msgs.length)return r(msgs.shift());const tm=setTimeout(()=>{wait=null;r(null)},ms);wait=()=>{clearTimeout(tm);r(msgs.shift())}});
+    ok({status:101,proto:r.headers["sec-websocket-protocol"],send,next,close:()=>sock.destroy()})});
+  q.on("response",r=>{r.resume();ok({status:r.statusCode})});q.on("error",no);q.end();});
+const sync8=async b=>(await fetch(`${B}/c/${id8}/sync`,{method:"POST",headers:H8,body:JSON.stringify(b||{})})).json();
+await sync8({state:{mode:"owner"}});
+ck("scr wrong token 401",(await scrOpen(rh(48))).status==401);
+const sw=await scrOpen();ck("scr upgrade 101 + subprotocol kg",sw.status==101&&sw.proto=="kg");
+let j8=await sync8();ck("scr open -> sync says live + lws",j8.live===true&&j8.lws===1);
+const fr=await fetch(`${B}/c/${id8}/frame`,{method:"POST",headers:{"x-kg-token":T8,"content-type":"image/jpeg","x-kg-w":"720","x-kg-h":"1600"},body:new Uint8Array([255,216,1,2,3])});
+ck("http frame reply live (socket viewer)",(await fr.json()).live===true);
+let mm=await sw.next();const n8=mm&&mm.op==2?mm.p.readUInt16BE(0):-1,hd8=n8>0?JSON.parse(mm.p.subarray(2,2+n8).toString()):{};
+ck("frame pushed binary [len][{w,h}][jpeg]",hd8.w==720&&hd8.h==1600&&mm.p.length==2+n8+5&&mm.p[2+n8]==255);
+sw.send(JSON.stringify({t:"in",i:{type:"tap",x:.5,y:.25}}));await new Promise(r=>setTimeout(r,300));
+const fr2=await (await fetch(`${B}/c/${id8}/frame`,{method:"POST",headers:{"x-kg-token":T8,"content-type":"image/jpeg"},body:new Uint8Array([255,216,9])})).json();
+ck("socket tap reaches the phone's frame reply",fr2.inputs.length==1&&fr2.inputs[0].type=="tap"&&fr2.inputs[0].y==.25);
+sw.send(JSON.stringify({t:"in",i:{type:"tap",x:5,y:.25}}));await new Promise(r=>setTimeout(r,300));
+ck("bad socket input dropped",(await (await fetch(`${B}/c/${id8}/frame`,{method:"POST",headers:{"x-kg-token":T8,"content-type":"image/jpeg"},body:new Uint8Array([255,216,9])})).json()).inputs.length==0);
+sw.send('{"t":"stop"}');await new Promise(r=>setTimeout(r,500));
+ck("socket stop -> not live",!(await sync8()).live);
+// the phone on its own socket: binary frames out, taps + live:false pushed in
+const ph=await scrOpen(T8,"ws",{"x-kg-token":T8});ck("phone ws 101",ph.status==101);
+const sv=await scrOpen();ck("viewer 2 101",sv.status==101);
+const until=async(w,f)=>{for(let i=0;i<6;i++){const x=await w.next(3000);if(!x)return null;if(f(x))return x;}return null;};
+ck("viewer open -> phone told live",!!(await until(ph,x=>x.op==1&&x.p.toString().includes('"live":true'))));
+const hb=Buffer.from(JSON.stringify({w:360,h:800})),pf=Buffer.concat([Buffer.from([0,hb.length]),hb,Buffer.from([255,216,7])]);
+ph.send(pf,2);ck("phone binary frame -> viewer",!!(await until(sv,x=>x.op==2&&x.p.equals(pf))));   // (the last HTTP frame comes first on open)
+sv.send(JSON.stringify({t:"in",i:{type:"key",key:"back"}}));
+ck("viewer tap pushed to the phone socket",!!(await until(ph,x=>x.op==1&&x.p.toString().includes('"t":"in"')&&x.p.toString().includes("back"))));
+sv.close();ck("last viewer gone -> phone told live:false",!!(await until(ph,x=>x.op==1&&x.p.toString().includes('"live":false'))));
+ph.close();}
 // ---- audit M3: secrets leave the queue after the first hand-out; the worker drops its unsalted PIN hash once the phone has it ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),idm=rh(16),Tm=rh(48),sleep2=ms=>new Promise(r=>setTimeout(r,ms));
 const Q=async(p,o,m="POST")=>{for(let i=0;;i++){const r=await fetch(`${B}/c/${idm}/${p}`,{method:m,headers:{"x-kg-token":Tm,"content-type":"application/json"},body:m=="GET"?undefined:JSON.stringify(o)});if((r.status!=429&&r.status!=503)||i>=20)return r;await sleep2(1500);}};

@@ -25,6 +25,9 @@ import javax.net.ssl.SSLSocketFactory
  * Any failure closes the socket; Relay.kt then falls back to HTTP polling and reconnects later.
  */
 class RelayWs(private val onKick: () -> Unit) {
+    /** Screen view over the socket (0.9.61): {"t":"live","live":bool} from the worker / {"t":"in","inputs":[...]} (parent taps). */
+    @Volatile var onLive: ((Boolean) -> Unit)? = null
+    @Volatile var onInputs: ((org.json.JSONArray) -> Unit)? = null
     @Volatile private var sock: Socket? = null
     @Volatile private var out: OutputStream? = null
     @Volatile var open = false; private set
@@ -81,6 +84,12 @@ class RelayWs(private val onKick: () -> Unit) {
         return send("ping")
     }
 
+    /** One binary message (a screen frame, LiveLogic.wsFrame). False = the socket is gone. */
+    @Synchronized fun sendBinary(payload: ByteArray): Boolean = runCatching {
+        val o = out ?: return false
+        o.write(Ws.frame(Ws.BINARY, payload)); o.flush(); true
+    }.getOrElse { close(); false }
+
     @Synchronized private fun send(text: String): Boolean = runCatching {
         val o = out ?: return false
         o.write(Ws.frame(Ws.TEXT, text.toByteArray())); o.flush(); true
@@ -109,6 +118,8 @@ class RelayWs(private val onKick: () -> Unit) {
                         when (j.optString("t")) {
                             "kick" -> onKick()
                             "sync" -> if (j.optInt("n") == waiting) replies.offer(j)
+                            "live" -> onLive?.invoke(j.optBoolean("live"))
+                            "in" -> j.optJSONArray("inputs")?.let { a -> onInputs?.invoke(a) }
                         }
                     }
                 }
@@ -139,7 +150,7 @@ class RelayWs(private val onKick: () -> Unit) {
 
 /** RFC 6455 framing, pure (unit-tested in WsTest). Client frames are always masked. */
 object Ws {
-    const val TEXT = 1; const val CLOSE = 8; const val PING = 9; const val PONG = 10
+    const val TEXT = 1; const val BINARY = 2; const val CLOSE = 8; const val PING = 9; const val PONG = 10
     private const val GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
     fun accept(key: String): String = java.util.Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-1").digest((key + GUID).toByteArray()))

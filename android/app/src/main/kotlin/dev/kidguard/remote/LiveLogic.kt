@@ -95,3 +95,23 @@ object ActionLogic {
         else -> null
     }
 }
+
+/** Screen frames over the relay socket (Relay.wsLiveLoop, worker Kid.phoneFrame). Pure, unit-tested. */
+object LiveLogic {
+    /** Unchanged picture: sent again after this long anyway (a viewer who just came gets one, the age stays fresh). */
+    const val RESEND_MS = 5_000L
+    /** No live:true from the worker for this long = nobody is watching (the page says it every 15 s). */
+    const val LIVE_OK_MS = 45_000L
+
+    fun send(changed: Boolean, sinceLast: Long): Boolean = changed || sinceLast >= RESEND_MS
+
+    /** [2 bytes header length][header JSON {w,h[,err]}][JPEG or nothing]. */
+    fun wsFrame(w: Int, h: Int, err: String, jpeg: ByteArray?): ByteArray {
+        val hd = org.json.JSONObject().put("w", w).put("h", h).apply { if (err.isNotEmpty()) put("err", err) }.toString().toByteArray()
+        val out = ByteArray(2 + hd.size + (jpeg?.size ?: 0))
+        out[0] = (hd.size ushr 8).toByte(); out[1] = hd.size.toByte()
+        System.arraycopy(hd, 0, out, 2, hd.size)
+        jpeg?.let { System.arraycopy(it, 0, out, 2 + hd.size, it.size) }
+        return out
+    }
+}

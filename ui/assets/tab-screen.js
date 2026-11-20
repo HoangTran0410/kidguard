@@ -17,7 +17,7 @@ function screenStat() {
   const el = $("#s-stat"); if (!el) return;
   const now = performance.now(); scr.frames = scr.frames.filter(t => now - t < 5000);
   const fps = scr.frames.length > 1 ? (scr.frames.length - 1) / ((scr.frames[scr.frames.length - 1] - scr.frames[0]) / 1000) : 0;
-  el.textContent = scr.frames.length ? t("scr.watching") + " · " + t("scr.stat", fps.toLocaleString(lang, { maximumFractionDigits: 1, minimumFractionDigits: 1 }), Math.round(scr.lat)) : "";
+  el.textContent = scr.frames.length ? t("scr.watching") + " · " + (st => scr.lat < 0 ? st.split(" · ")[0] : st)(t("scr.stat", fps.toLocaleString(lang, { maximumFractionDigits: 1, minimumFractionDigits: 1 }), Math.round(scr.lat))) : "";
 }
 function showFrame(blob, lat) {
   const old = scr.url; scr.url = URL.createObjectURL(blob);
@@ -29,11 +29,40 @@ function showFrame(blob, lat) {
 function screenStop() {
   scr.gen++; clearInterval(scr.liveT); scr.liveT = null;
   // the phone stops capturing and drops its "parent is watching" notice now (0.9.60), not 20-45 s later
-  const k = scr.k; scr.k = null;
-  if (k && !(k === cur && kidOld("0.9.60"))) (k.via === "lan" ? fetch(base(k) + "/screen?stop=1", { headers: { "X-KG-Token": k.token }, cache: "no-store" }) : call(k, "/live", "POST", { stop: true })).catch(() => {});
+  const k = scr.k, ws = scr.ws; scr.k = null; scr.ws = null;
+  if (ws) { try { ws.send('{"t":"stop"}'); } catch {} try { ws.close(1000); } catch {} }   // the worker tells the phone to stop
+  else if (k && !(k === cur && kidOld("0.9.60"))) (k.via === "lan" ? fetch(base(k) + "/screen?stop=1", { headers: { "X-KG-Token": k.token }, cache: "no-store" }) : call(k, "/live", "POST", { stop: true })).catch(() => {});
   if (scr.url) { URL.revokeObjectURL(scr.url); scr.url = null; }
   scr.frames = []; scr.seq = 0; scr.msg = ""; scr.blob = null; scr.idle = false;
 }
+// Over the relay: one socket (0.9.61, docs/protocol.md "Screen socket"): frames are pushed as the phone sends them (only
+// when the picture changed), taps go up the same socket. ~25x fewer billed requests than the /frame poll, and faster.
+// Never opened / dropped before a frame (old self-hosted relay, the parent app's CSP before 0.9.61) -> the /frame poll.
+scr.sock = (k, gen, alive, idle) => {
+  if (scr.noWs || typeof WebSocket !== "function") return false;
+  let ws, got = false;
+  try { ws = new WebSocket(relayOf(k).replace(/^http/, "ws") + "/c/" + encodeURIComponent(k.id) + "/scr", ["kg", "kg." + k.token]); }
+  catch { scr.noWs = true; return false; }
+  ws.binaryType = "arraybuffer"; scr.ws = ws;
+  screenMsg(t("scr.wait"));
+  const say = () => { try { ws.send('{"t":"live"}'); } catch {} };
+  ws.onopen = () => { say(); scr.liveT = setInterval(() => { if (!alive() || idle()) return; say(); }, 15000); };
+  ws.onmessage = e => {
+    if (!alive() || !(e.data instanceof ArrayBuffer) || e.data.byteLength < 2) return;
+    const d = new Uint8Array(e.data), n = (d[0] << 8) | d[1];
+    let hd = {}; try { hd = JSON.parse(new TextDecoder().decode(d.subarray(2, 2 + n))); } catch {}
+    if (d.length > 2 + n) { got = true; showFrame(new Blob([d.subarray(2 + n)], { type: "image/jpeg" }), -1); }   // lag unknown here: the stat shows fps only
+    else if (hd.err) { screenMsg(errText(hd.err)); screenOffErr(hd.err); }
+  };
+  ws.onclose = () => {
+    if (scr.ws === ws) scr.ws = null;
+    if (scr.gen !== gen || !alive()) return;
+    if (!got) scr.noWs = true;   // this relay / page can't: poll from now on
+    clearInterval(scr.liveT); scr.liveT = null;
+    setTimeout(() => { if (scr.gen === gen && alive()) screenStart(); }, got ? 1000 : 0);
+  };
+  return true;
+};
 function screenStart() {
   if (!cur || document.hidden || scr.on !== cur) return screenCtl();
   const gen = ++scr.gen, k = cur; clearInterval(scr.liveT);
@@ -61,6 +90,7 @@ function screenStart() {
       await sleep(Math.max(0, 140 - (performance.now() - t0)));   // up to ~7 fps on the LAN; a slow phone just answers slower
     }
   })();
+  else if (scr.sock(k, gen, alive, idle)) {}
   else {
     const ping = () => call(k, "/live", "POST", {}).catch(e => { if (alive()) screenMsg(t("errX", e.message)); });
     ping(); scr.liveT = setInterval(ping, 10000);
@@ -87,6 +117,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) scree
 
 async function sendInput(o, show = m => toast("warn|" + m)) {
   if (scr.view || !cur || screenOff()) return false;
+  if (scr.ws && scr.ws.readyState === 1) { try { scr.ws.send(JSON.stringify({ t: "in", i: o })); return true; } catch {} }
   try {
     let r;
     try { r = await call(cur, "/input", "POST", o); }

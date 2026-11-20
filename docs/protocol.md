@@ -412,7 +412,7 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
   current battery charging screenOn apps[].ms/mb`), or every 5 min (screen on) / 15 min (off). `seen` = last HTTP
   sync / socket message / auto-response ping (`getWebSocketAutoResponseTimestamp`); written to storage on close only.
   Socket down or a reply timeout (15 s): the same sync over HTTP, the old 20 s / 60 s polling, reconnect backoff
-  1 min .. 30 min. Live screen frames and files stay on HTTP.
+  1 min .. 30 min. Files stay on HTTP; screen frames go on the socket from 0.9.61 (below, "Screen socket").
 - Limits: `POST /c/<id>/cmd` -> 429 `queue full` with 20 commands waiting that a new one cannot replace (a full queue first drops a still-queued, not yet handed out older copy of the same repeatable type, same `key` for `setting` / same `file` for `fileUp`; never a destructive ONCE one), 413 `too big` over 4 KB of JSON; `PUT /c/<id>/rules`
   -> 413 over 64 KB (the sync reply carries both, and the phone refuses replies over 256 KB).
 - Parent `POST /c/<id>/live` `{}` -> `{"ok":true, "phone": <ms since the phone's last frame or -1>}`; sets
@@ -428,6 +428,18 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
   Also extends `liveUntil`.
 - Parent `POST /c/<id>/input` body = input object -> `{"result":"queued"}` (queue max 50, delivered on the next frame reply).
 - Frames live only in Durable Object memory (never storage).
+- **Screen socket (0.9.61)**, ~25x fewer billed requests than the poll above (incoming socket messages bill 1/20, outgoing
+  free). Parent `GET wss://<relay>/c/<id>/scr` with subprotocols `["kg", "kg.<token>"]` (a browser socket can't send
+  `X-KG-Token`; the reply picks `kg`). Parents only (any parent token or the shared link token), else 401/403.
+  - Frame message (binary, both ways the same): `[2 bytes big-endian header length][header JSON {"w","h"[,"err"]}][JPEG or nothing]`.
+  - Page -> worker (text): `{"t":"live"}` on open and every 15 s; `{"t":"in","i":<input object as /input>}`; `{"t":"stop"}`.
+    A socket counts as a viewer while it said something within 30 s; the sync reply then has `live: true, lws: 1`.
+  - Worker -> page: every frame as it comes (from the phone's socket or its HTTP `POST /frame`), and the last one (< 5 s) on open.
+  - Phone (kid >= 0.9.61, sync reply `lws: 1`, its socket up): frames as binary messages on its own `/ws` socket, only when
+    the JPEG changed (CRC32) or every 5 s; the worker pushes `{"t":"live","live":bool}` (on a viewer's open / `live`,
+    `/live`, the last viewer gone) and `{"t":"in","inputs":[…]}` (taps at once). The phone ends at `live:false` or 45 s
+    without `live:true` (`Acc.stopViewing`). Socket down: the HTTP loop above.
+  - No socket / it closed before a frame (old self-hosted relay, parent app < 0.9.61: CSP `connect-src` lacked `wss:`): the page polls `/frame`.
 - Phone `POST /c/<id>/sync` body `{state?, acks: [cmd ids], ai, fcm?}` (`fcm`: kid push wake, see FCM section) (`state` omitted when unchanged, see v0.2.1) -> reply
   `{cmds: [...], merge: 1, full?, rules?, live?, files?, device?}`: `rules` only when the worker's `rules.rev` is higher than the `state.rules.rev`
   it knows; the phone takes them only if `rules.rev` > its own (so a phone clock ahead of the worker's makes relay edits

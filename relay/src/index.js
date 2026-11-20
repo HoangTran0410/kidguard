@@ -23,7 +23,9 @@ const CALL_WHY = ["hangup", "decline", "busy", "timeout", "failed", "noperm", "n
 // the child gets the beep + notification (Listen.kt). Capped at 10 min like the LAN stream.
 const LISTEN_MAX = 10 * 60e3 + 15e3;
 // <img> can't send headers: only the icon GET may carry the token in ?k=
-const tokenOf = (req, url) => req.headers.get("x-kg-token") || (req.method === "GET" && url.pathname.endsWith("/icon") ? url.searchParams.get("k") || "" : "");
+const wsToken = req => { const m = /(?:^|,)\s*kg\.([0-9a-f]{48})\s*(?:,|$)/.exec(req.headers.get("sec-websocket-protocol") || ""); return m ? m[1] : ""; };
+const tokenOf = (req, url) => req.headers.get("x-kg-token") || (req.method === "GET" && url.pathname.endsWith("/icon") ? url.searchParams.get("k") || "" : "")
+  || (req.method === "GET" && url.pathname.endsWith("/scr") ? wsToken(req) : "");
 // shared files (docs/protocol.md "Shared files"): <= 50 MB a file in 1 MiB chunks (a chunk is the only thing the DO holds: 128 MB memory),
 // <= 100 MB stored per kid, kept 1 h, deleted once fetched. Anti-spam: the default relay is one free account for everybody, so each kid also has a
 // 24 h quota (bytes + files, both directions, counted when a file starts; one small record "fq" {start, bytes, n}) -> 429 {error:"quota", retryAt}
@@ -42,6 +44,7 @@ const json = (o, status = 200) => new Response(JSON.stringify(o), {
   status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
 });
 const ONCE = ["rb", "rl", "ua", "up", "cl", "ud", "ts", "fd", "gs", "go", "ps", "pr", "pc", "ab", "ap", "sx", "so", "cc", "cf", "cd", "sd"];   // destructive: handed out until acked, but only within ONCE_WINDOW of the first hand-out
+const STATE_FLUSH = 10 * 60e3, SEEN_EVERY = 10 * 60e3, PAR_SEEN_EVERY = 3600e3;   // storage rows: see stateCore / sync
 const ONCE_WINDOW = 3600e3;   // 1 h (owner 2026-11-15: a phone that is off for 10 min must not lose a release / reboot)
 // push wake (kid app's FCM token, sync body `fcm`): quiet this long => high-priority data push {kind:"wake"}. The phone's
 // watchdog syncs every ~10 min even asleep, so 20 min quiet = asleep beyond that, killed, or offline. Then every 20 min
@@ -107,7 +110,7 @@ async function route(req, env) {
   if (th) return tgHook(req, env, th[1]);
   if (url.pathname === "/w/new" || /^\/w\/\d{6}$/.test(url.pathname)) return watchRoute(req, env, url);
   if (/^\/p\/(new|inv|\d{6}|[0-9a-f]{16})(\/(join|reply|result))?$/.test(url.pathname)) return pairRoute(req, env, url);
-  const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile|join|unlock|invite|parents|call)$/);
+  const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile|join|unlock|invite|parents|call|scr)$/);
   if (!m) return json({ error: "not found" }, 404);
   if (env.RL) {
     const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
@@ -403,12 +406,25 @@ export class Kid {
     this.ctx = ctx; this.s = ctx.storage; this.env = env || {};
     if (+this.env.SHORT_TTL_MS > 0) SHORT_TTL = +this.env.SHORT_TTL_MS;
     this.liveUntil = 0; this.frame = null; this.seq = Date.now(); this.seen = 0; this.seenWritten = 0; this.inputs = []; this.waiters = new Set();
+    // rows written (owner 2026-11-20: ~4k/day of the 100k free): the state kept here, stored only when more than the time
+    // counters changed or every STATE_FLUSH (memory only: an evicted object loses at most that much of usedMs / app ms)
+    this.stateMem = null; this.stateCore = null; this.stateWritten = 0; this.stateDirty = false;
     this.lgdWant = new Map();   // day -> ms the parent asked for that log day (memory only)
     this.deviceWant = 0;   // parent asked for a device-health snapshot at this ms (memory only, like liveUntil)
   }
 
   /** Phone connected over the WebSocket (hibernation keeps it across evictions). */
   phoneWs() { return this.ctx.getWebSockets("phone"); }
+  parWs(not) {
+    const now = Date.now();
+    return this.ctx.getWebSockets("parent").filter(w => {
+      if (w === not || w.readyState > 1) return false;
+      let p = 0; try { p = +(this.ctx.getWebSocketAutoResponseTimestamp(w) || 0); } catch {}
+      return now - Math.max(p, (w.deserializeAttachment() || {}).at || 0) < 30e3;
+    });
+  }
+  isLive(now = Date.now()) { return this.liveUntil > now || this.parWs().length > 0; }
+  phoneSay(o) { const s = JSON.stringify(o); for (const w of this.phoneWs()) try { w.send(s); } catch {} }
   /** Last time the phone was heard: HTTP sync, or its socket's last message / keep-alive "ping" (a half-dead socket
    * stops pinging, so an open socket alone never means online). */
   seenNow(stored) {
@@ -485,7 +501,7 @@ export class Kid {
         // a watch says what it is in X-KG-Name ("Zepp - Amazfit Bip Max", "Wear OS - Pixel Watch 2"; ASCII, it is a header): shown in the page's
         // watch list so two watches of one parent can be told apart
         const dv = me.k === "watch" ? (req.headers.get("x-kg-name") || "").replace(/[\u0000-\u001f]/g, "").slice(0, 40) : "";
-        if (now0 - (me.seen || 0) > 600e3 || (dv && me.d !== dv)) { me.seen = now0; if (dv) me.d = dv; await this.s.put("par", par); }
+        if (now0 - (me.seen || 0) > PAR_SEEN_EVERY || (dv && me.d !== dv)) { me.seen = now0; if (dv) me.d = dv; await this.s.put("par", par); }
         if (me.k === "web" && !(me.ul > now0) && action !== "unlock" && action !== "parents")
           return json({ error: "locked", name: me.n }, 423);   // a browser opens with the family PIN (12 h)
       } else {
@@ -508,7 +524,7 @@ export class Kid {
       await this.s.deleteAlarm().catch(() => {}); await this.s.deleteAll();
       // tombstone: the parents' next call says "released" (410) instead of "waiting for the phone"; a new bind clears it
       await this.s.put("gone", { at: Date.now(), p: gp });
-      this.seen = 0; this.stateAt = 0; this.ikSeen = null; this.kfcm = undefined; this.call = undefined; this.wk = null; this.par = null; this.vk = null;
+      this.seen = 0; this.stateAt = 0; this.stateMem = null; this.stateCore = null; this.stateDirty = false; this.ikSeen = null; this.kfcm = undefined; this.call = undefined; this.wk = null; this.par = null; this.vk = null;
       return json({ result: "forgotten" });
     }
     if (action === "watch") {   // a Zepp watch shows a 6-digit code; the parent page sends it here, authenticated like any parent call
@@ -555,7 +571,7 @@ export class Kid {
       const list = new Set((await this.s.get("iconList")) || []), puts = {};
       // full (years of installs and removals): icons of apps no longer on the phone make room, else a new app never gets one
       if (list.size + Object.keys(o).length > MAX_ICONS) {
-        const st = await this.s.get("state"), here = new Set((st && Array.isArray(st.apps) ? st.apps : []).map(a => a && a.pkg));
+        const st = await this.getK("state"), here = new Set((st && Array.isArray(st.apps) ? st.apps : []).map(a => a && a.pkg));
         const gone = here.size ? [...list].filter(k => !here.has(k)) : [];
         for (let i = 0; i < gone.length; i += 128) await this.s.delete(gone.slice(i, i + 128).map(k => "icon:" + k));
         gone.forEach(k => list.delete(k));
@@ -572,6 +588,19 @@ export class Kid {
     if (action === "icon" && req.method === "GET") return this.icon(url);   // older pages: the token in ?k=
     if (action === "call") return this.callRoute(req, url, h === bound, who, now);
     if (action === "frame") return this.rFrame({ req, now });
+    if (action === "scr") {   // the parent's screen-view socket (0.9.61): frames pushed as they come (outgoing = free), inputs in
+      if (role !== "parent") return json({ error: "parents only" }, 403);   // h === bound: the shared link token (no parent joined yet)
+      if ((req.headers.get("upgrade") || "").toLowerCase() !== "websocket") return json({ error: "websocket only" }, 426);
+      const [client, server] = Object.values(new WebSocketPair());
+      this.ctx.acceptWebSocket(server, ["parent"]);
+      server.serializeAttachment({ par: 1, at: now });
+      this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
+      this.phoneSay({ t: "live", live: true });   // a phone already streaming keeps going (isLive counts this socket)
+      this.kickPhone(now);                        // else its sync reply says live -> it starts
+      const f = this.frame;
+      if (f && f.raw && now - f.at < 5000) try { server.send(f.raw); } catch {}
+      return new Response(null, { status: 101, webSocket: client, headers: { "sec-websocket-protocol": "kg" } });
+    }
     if (action === "file") return this.file(req, url, now);
     let body = null;
     if (req.method !== "GET") {
@@ -596,8 +625,14 @@ export class Kid {
       const jpeg = buf.byteLength ? buf : null;
       this.frame = { seq: ++this.seq, jpeg, w: +req.headers.get("x-kg-w") || 0, h: +req.headers.get("x-kg-h") || 0, at: now, err: jpeg ? "" : err || "no frame" };
       for (const w of this.waiters) w();
+      const pars = this.parWs();   // a page on the screen socket and a phone on HTTP (older app / no socket): same message as phoneFrame
+      if (pars.length) {
+        const f = this.frame, raw = wsFrame(f.w, f.h, f.err, jpeg);
+        if (jpeg) f.raw = raw;
+        for (const w of pars) try { w.send(raw); } catch {}
+      }
       const inputs = this.inputs.filter(i => now - i.at <= 5000).map(({ at, ...i }) => i); this.inputs = [];
-      return json({ inputs, live: this.liveUntil > now });
+      return json({ inputs, live: this.isLive(now) });
     }
     if (req.method === "GET") {
       const after = +new URL(req.url).searchParams.get("after") || 0;
@@ -662,24 +697,23 @@ export class Kid {
   async rLive({ req, url, body, now, role, who, token, id }) {
     if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
     this.liveUntil = body && body.stop === true ? 0 : now + 20e3;   // stop: the phone's next frame upload gets live:false and it ends at once
+    this.phoneSay({ t: "live", live: this.isLive(now) });   // a phone sending frames on its socket keeps going / stops now
     return json({ ok: true, phone: this.frame ? now - this.frame.at : -1 });
   }
 
   async rInput({ req, url, body, now, role, who, token, id }) {
     if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
-    const t = body.type, f01 = (v) => typeof v === "number" && v >= 0 && v <= 1;
-    const ok = (t === "tap" || t === "long") ? f01(body.x) && f01(body.y)
-      : t === "swipe" ? f01(body.x1) && f01(body.y1) && f01(body.x2) && f01(body.y2)
-      : t === "key" ? KEYS.includes(body.key)
-      : t === "text" ? typeof body.text === "string" && body.text.length <= 500 : false;
-    if (!ok) return json({ error: "bad input" }, 400);
-    if (this.liveUntil < now) return json({ error: "not live" }, 409);
+    const o = inputOf(body, now);
+    if (!o) return json({ error: "bad input" }, 400);
+    if (!this.isLive(now)) return json({ error: "not live" }, 409);
     if (this.inputs.length >= 50) return json({ error: "queue full" }, 429);
-    const o = { type: t, at: now };
-    for (const k of ["x", "y", "x1", "y1", "x2", "y2", "key", "text"]) if (k in body) o[k] = body[k];
-    if (t === "swipe") o.ms = Math.min(Math.max(+body.ms || 300, 50), 3000);   // same clamp as Acc.kt
-    this.inputs.push(o);
+    this.queueInput(o);
     return json({ result: "queued" });
+  }
+  // a phone on its socket gets the input at once; else with its next frame upload's reply
+  queueInput(o) {
+    if (this.phoneWs().length && this.wsFrames) { const { at, ...i } = o; this.phoneSay({ t: "in", inputs: [i] }); }
+    else this.inputs.push(o);
   }
 
   async rSync({ req, url, body, now, role, who, token, id }) {
@@ -689,7 +723,7 @@ export class Kid {
 
   // /go: where the phone is reachable now
   async rWhere({ req, url, body, now, role, who, token, id }) {
-    const [state, seen, ipk] = await Promise.all(["state", "seen", "ipk"].map(k => this.s.get(k)));
+    const [state, seen, ipk] = await Promise.all(["state", "seen", "ipk"].map(k => this.getK(k)));
     const nk = netKey(req.headers.get("cf-connecting-ip"));
     const same = !!nk && (ipk || []).includes(await sha256("net:" + nk));
     const ts = state && state.ts && typeof state.ts.ip === "string" && /^100\.[\d.]+$/.test(state.ts.ip) ? state.ts.ip : "";
@@ -698,7 +732,7 @@ export class Kid {
   }
 
   async rState({ req, url, body, now, role, who, token, id }) {
-    const [state, rules, seen, cmds, iconV] = await Promise.all(["state", "rules", "seen", "cmds", "iconV"].map(k => this.s.get(k)));
+    const [state, rules, seen, cmds, iconV] = await Promise.all(["state", "rules", "seen", "cmds", "iconV"].map(k => this.getK(k)));
     if (role === "parent") {   // a parent is looking at a quiet phone: wake it (rate-limited in wakeKid)
       const heard = this.seenNow(seen), q = Date.now() - heard;
       if (heard && q >= +(this.env.WAKE_PARENT_MS || WAKE_PARENT) && q < WAKE_DAYS) this.ctx.waitUntil(this.wakeKid(Date.now(), heard, "parent").catch(() => {}));
@@ -715,7 +749,7 @@ export class Kid {
   }
 
   async rRules({ req, url, body, now, role, who, token, id }) {
-    const [state, old] = await Promise.all([this.s.get("state"), this.s.get("rules")]);
+    const [state, old] = await Promise.all([this.getK("state"), this.s.get("rules")]);
     const rev = Math.max(Date.now(), (old && old.rev || 0) + 1, (state && state.rules && state.rules.rev || 0) + 1);
     if (role === "ai") {   // never the PIN or a protection switch: those keep the stored value (the newer of the queued rules and the phone's)
       const cur = (old && state && state.rules ? ((old.rev || 0) >= (state.rules.rev || 0) ? old : state.rules) : old || (state && state.rules)) || {};
@@ -1033,11 +1067,12 @@ export class Kid {
   /** Storage GC: armed once per object wake by sync(); see GC_MS. Also the push wake of a quiet phone (wakeKid). */
   async alarm() {
     const now = Date.now(), seen = this.phoneWs().length ? now : Math.max((await this.s.get("seen")) || 0, this.seen || 0);
-    if (now - seen > GC_MS) { await this.s.deleteAll(); return; }
+    if (now - seen > GC_MS) { this.stateMem = null; await this.s.deleteAll(); return; }
+    const sf = this.flushState({}); if (Object.keys(sf).length) await this.s.put(sf);
     const files = await this.fileGc(now);   // expired shared files go now; the ones left bring the next alarm forward
     // bound by a junk first sync and never heard again: no rules, no queue, no second sync within UNUSED_MS => gone
     const [born, rules, cmds, seenAt] = await Promise.all(["born", "rules", "cmds", "seen"].map(k => this.s.get(k)));
-    if (born && !this.phoneWs().length && !rules && !(cmds && cmds.length) && (seenAt || 0) - born < 120e3 && now - born > UNUSED_MS) { await this.s.deleteAll(); return; }
+    if (born && !this.phoneWs().length && !rules && !(cmds && cmds.length) && (seenAt || 0) - born < 120e3 && now - born > UNUSED_MS) { this.stateMem = null; await this.s.deleteAll(); return; }
     let next = born && now - born < UNUSED_MS ? born + UNUSED_MS + 1000 : seen + GC_MS;
     if (this.kfcm === undefined) this.kfcm = (await this.s.get("kfcm")) || "";
     if (this.kfcm && this.env.FCM_SA) {
@@ -1061,7 +1096,7 @@ export class Kid {
     // nothing stored (first sync after a GC, a wiped object) => ask the phone for a whole one
     let needWhole = false;
     if (state && state._part) {
-      const old = await this.s.get("state");
+      const old = await this.getK("state");
       if (old) state = mergeState(old, state); else { state = null; needWhole = true; }
     }
     if (state && new TextEncoder().encode(JSON.stringify(state)).length > 120e3) return { error: "state too big", status: 413 };   // DO storage value limit is 128 KiB
@@ -1100,14 +1135,19 @@ export class Kid {
     if (dropped.length) puts.expired = expiredOf(await this.s.get("expired"), dropped, now);
     this.seen = now;
     // over the WebSocket "seen" = connected (seenNow); written once on close instead of every minute
-    if (!ws && now - this.seenWritten >= 60e3) { puts.seen = now; this.seenWritten = now; }
+    if (!ws && now - this.seenWritten >= SEEN_EVERY) { puts.seen = now; this.seenWritten = now; }
     // the phone's public network (hashed, last 2: Wi-Fi v4 + v6), for /where "same network"
     if (netHash) {
       this.lastNet = nk;
       const h = netHash, ipk = (await this.s.get("ipk")) || [];
       if (ipk[0] !== h) puts.ipk = [h, ...ipk.filter(x => x !== h)].slice(0, 2);
     }
-    if (state && Object.keys(state).length) { puts.state = state; this.stateAt = now; }
+    if (state && Object.keys(state).length) {
+      this.stateAt = now; this.stateMem = state;
+      const core = stateCore(state);
+      if (core !== this.stateCore || now - this.stateWritten >= STATE_FLUSH) { puts.state = state; this.stateCore = core; this.stateWritten = now; this.stateDirty = false; }
+      else this.stateDirty = true;
+    }
     // the phone has the rules (its state carries their rev) and keeps its own salted PIN hash: the worker's unsalted copy is not needed any more
     if (rules && rules.pinHash && state && state.rules && state.rules.pinSet === true && (+state.rules.rev || 0) >= (+rules.rev || 0)) {
       const { pinHash, ...rest } = rules; puts.rules = { ...rest, pinSet: true };
@@ -1116,14 +1156,14 @@ export class Kid {
     if (state) this.ctx.waitUntil(this.pushNew(state, id).catch(e => console.log("push", String(e))));
     const out = { cmds, merge: 1 };   // merge: this worker takes partial states (the phone sends whole ones until it sees it)
     if (needWhole) out.full = true;
-    if (this.liveUntil > now) out.live = true;
+    if (this.isLive(now)) { out.live = true; out.lws = 1; }   // lws: frames may come as binary socket messages (0.9.61)
     const files = (await this.fileGc(now)).filter(f => f.to === "kid" && f.got.length === f.n).length;
     if (files) out.files = files;   // the phone then fetches them from /file
     if (this.deviceWant && now - this.deviceWant < 120e3) out.device = true;
     const call = await this.callNow(now);
     if (call) out.call = { id: call.id, st: call.st, by: call.by, ...(call.kind ? { kind: call.kind } : {}), ...(call.st === "ring" ? { sdp: call.offer, ice: await this.iceServers(now) } : {}) };
     for (const [d, at] of this.lgdWant) { if (now - at < 120e3) { out.logday = d; break; } this.lgdWant.delete(d); }   // one day per sync
-    const known = state || (await this.s.get("state"));   // the phone omits state when unchanged
+    const known = state || (await this.getK("state"));   // the phone omits state when unchanged
     const have = known && known.rules ? +known.rules.rev || 0 : 0;
     if (rules && rules.rev > have) out.rules = rules;
     return out;
@@ -1207,7 +1247,10 @@ export class Kid {
   }
 
   async webSocketMessage(ws, msg) {
-    if (typeof msg !== "string" || msg.length > MAX_BODY) return;
+    const tags = this.ctx.getTags(ws);
+    if (tags.includes("parent")) return this.parMsg(ws, msg);
+    if (typeof msg !== "string") return this.phoneFrame(msg);
+    if (msg.length > MAX_BODY) return;
     let b; try { b = JSON.parse(msg); } catch { return; }
     if (!isObj(b) || b.t !== "sync") return;
     const a = ws.deserializeAttachment() || {}, now = Date.now();
@@ -1215,14 +1258,49 @@ export class Kid {
     const out = await this.sync(b, a.id, a.nk, now, ws);
     try { ws.send(JSON.stringify({ t: "sync", n: b.n, ...out })); } catch {}
   }
+  // the phone's frame over its socket: [2 bytes header length][header JSON {w,h,err}][JPEG]. Sent to every parent socket
+  // as is (outgoing messages are free); the phone only sends when the picture changed (LiveLogic).
+  phoneFrame(buf) {
+    if (!(buf instanceof ArrayBuffer) || buf.byteLength < 2 || buf.byteLength > MAX_FRAME) return;
+    const now = Date.now(), dv = new DataView(buf), n = dv.getUint16(0);
+    if (2 + n > buf.byteLength) return;
+    let hd = {}; try { hd = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 2, n))); } catch {}
+    const jpeg = buf.byteLength > 2 + n ? buf.slice(2 + n) : null;
+    this.wsFrames = true;
+    this.frame = { seq: ++this.seq, jpeg, raw: jpeg ? buf : null, w: +hd.w || 0, h: +hd.h || 0, at: now, err: jpeg ? "" : String(hd.err || "no frame").slice(0, 60) };
+    for (const w of this.waiters) w();   // HTTP viewers (older pages)
+    const pars = this.parWs();
+    for (const w of pars) try { w.send(buf); } catch {}
+    const inputs = this.inputs.filter(i => now - i.at <= 5000).map(({ at, ...i }) => i); this.inputs = [];
+    if (inputs.length) this.phoneSay({ t: "in", inputs });
+    if (!this.isLive(now)) this.phoneSay({ t: "live", live: false });
+  }
+  parMsg(ws, msg) {
+    if (typeof msg !== "string" || msg.length > 2048) return;
+    let b; try { b = JSON.parse(msg); } catch { return; }
+    const now = Date.now();
+    ws.serializeAttachment({ par: 1, at: now });
+    if (b.t === "stop") { try { ws.close(1000, "stop"); } catch {} return this.parGone(ws); }
+    if (b.t === "in") { const o = inputOf(b.i, now); if (o && this.inputs.length < 50) this.queueInput(o); return; }
+    if (b.t === "live") this.phoneSay({ t: "live", live: true });   // every 15 s: the phone stops on its own after 45 s without one
+  }
+  parGone(ws) {
+    if (this.parWs(ws).length || this.liveUntil > Date.now()) return;
+    // the last viewer left: the phone stops capturing and drops its notice now
+    this.phoneSay({ t: "live", live: false });
+  }
+  getK(k) { return k === "state" && this.stateMem ? this.stateMem : this.s.get(k); }
+  flushState(puts) { if (this.stateDirty && this.stateMem) { puts.state = this.stateMem; this.stateDirty = false; this.stateWritten = Date.now(); } return puts; }
   async webSocketClose(ws) { await this.closed(ws); }
   async webSocketError(ws) { await this.closed(ws); }
   async closed(ws) {
     const a = ws.deserializeAttachment() || {};
+    if (a.par) { try { ws.close(1000, "bye"); } catch {} return this.parGone(ws); }
     let p = 0; try { p = +(this.ctx.getWebSocketAutoResponseTimestamp(ws) || 0); } catch {}
     try { ws.close(1011, "closed"); } catch {}
+    this.wsFrames = false;
     const last = Math.max(a.at || 0, p, this.seen);   // the phone's last sign of life, not the moment we noticed
-    if (last) { this.seen = last; this.seenWritten = Date.now(); await this.s.put("seen", last); }
+    if (last) { this.seen = last; this.seenWritten = Date.now(); await this.s.put(this.flushState({ seen: last })); }
   }
 
   async file(req, url, now) {
@@ -1358,6 +1436,32 @@ export class Kid {
  * use like the phone does), `_trk` = {from, add}: points appended (only newer than the last stored one: a resend after a
  * lost reply must not double them), then points older than `from` (the phone's 2-day window) dropped.
  */
+// what must be stored at once: the state without its time counters (t, usedMs/leftMs, per-app ms, battery %)
+export function stateCore(s) {
+  const { t, relayOk, usedMs, leftMs, battery, apps, ...rest } = s || {};
+  return JSON.stringify([rest, Array.isArray(apps) ? apps.map(a => a && typeof a === "object" ? { ...a, ms: 0 } : a) : apps]);
+}
+// [2 bytes header length][header JSON {w,h[,err]}][JPEG]: the screen socket's frame (same as LiveLogic.wsFrame on the phone)
+export function wsFrame(w, h, err, jpeg) {
+  const hd = new TextEncoder().encode(JSON.stringify(err ? { w, h, err } : { w, h })), n = jpeg ? jpeg.byteLength : 0;
+  const out = new Uint8Array(2 + hd.length + n);
+  out[0] = hd.length >> 8; out[1] = hd.length & 255; out.set(hd, 2);
+  if (jpeg) out.set(new Uint8Array(jpeg), 2 + hd.length);
+  return out.buffer;
+}
+export function inputOf(b, now) {
+  if (!b || typeof b !== "object") return null;
+  const t = b.type, f01 = (v) => typeof v === "number" && v >= 0 && v <= 1;
+  const ok = (t === "tap" || t === "long") ? f01(b.x) && f01(b.y)
+    : t === "swipe" ? f01(b.x1) && f01(b.y1) && f01(b.x2) && f01(b.y2)
+    : t === "key" ? KEYS.includes(b.key)
+    : t === "text" ? typeof b.text === "string" && b.text.length <= 500 : false;
+  if (!ok) return null;
+  const o = { type: t, at: now };
+  for (const k of ["x", "y", "x1", "y1", "x2", "y2", "key", "text"]) if (k in b) o[k] = b[k];
+  if (t === "swipe") o.ms = Math.min(Math.max(+b.ms || 300, 50), 3000);   // same clamp as Acc.kt
+  return o;
+}
 export function mergeState(old, part) {
   const s = { ...old };
   for (const [k, v] of Object.entries(part)) if (k[0] !== "_") s[k] = v;
