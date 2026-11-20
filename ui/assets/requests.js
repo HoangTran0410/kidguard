@@ -313,10 +313,11 @@ function chatDraw() {
   const l = chatList(), near = box.scrollHeight - box.scrollTop - box.clientHeight < 60, days = new Map(selDays(chatSel.get()).map(d => [d.key, d]));
   box.classList.toggle("selmode", chatSel.on);
   const cmp = $("#cmpRow"), sb = $("#chatSelBar"); if (cmp && !rec.mr) cmp.hidden = chatSel.on;
-  if (sb) { const h = selBar(chatSel) || (l.some(m => m.id && !m.local) ? `<button type="button" class="sp selgo" data-sel="start">${ic("check")} ${t("sel.start")}</button>` : ""); if (sb.dataset.h !== h) { sb.dataset.h = h; sb.innerHTML = h; } }
+  if (sb) { const h = selBar(chatSel); const sg = $("#chatSelB"); if (sg) sg.hidden = chatSel.on || !l.some(m => m.id && !m.local); if (sb.dataset.h !== h) { sb.dataset.h = h; sb.innerHTML = h; } }
   const html = (chatHasOlder() || chatBusy ? `<button type="button" id="chatOld" class="sp" style="align-self:center;margin:2px 0 6px"${chatBusy ? " disabled" : ""}>${ic("history")} ${t(chatBusy ? "chat.olderBusy" : "chat.older")}</button>` : "") + (l.length ? l.map((m, i) => (chatSel.on && m.id && !m.local && !m.job && (!i || selDayKey(m.t) !== selDayKey(l[i - 1].t)) ? selDayHead(chatSel, days.get(selDayKey(m.t)) || { key: selDayKey(m.t), ids: [] }, esc(selDayLabel(selDayKey(m.t)))) : "") + `<div class="cb ${m.from === "k" ? "k" : "p"}${m.local ? " pend" : ""}${selCls(chatSel, m.id)}"${m.id && !m.local && !m.job ? ` data-sid="${esc(m.id)}"` : ""}${m.att && attOk(m.att) ? ` data-m="${esc(m.att.id)}"` : ""}>${m.from === "k" ? `<b>${esc(cur.name)}</b>` : m.who ? `<b>${esc(m.who)}</b>` : ""}${m.job ? chatJobHtml(m.job) : `${m.text ? `<span>${esc(m.text)}</span>` : ""}${attHtml(m)}${m.att && attOk(m.att) ? `<button type="button" class="cmo" data-menu="${esc(m.att.id)}" aria-label="${esc(t("chat.more"))}">${ic("ellipsis")}</button>` : ""}<i>${m.local ? t("chat.wait") : esc(evAt(m.t))}</i>`}</div>`).join("")
     : `<p class="mute" style="margin:auto;text-align:center">${t("chat.empty")}</p>`);
   const clr = $("#chatClr"); if (clr) clr.hidden = !((st && st.chat) || []).length;
+  if (chatSel.on) { const mm = $("#chatMenu"); if (mm) mm.hidden = true; }
   if (box.dataset.h !== html && !playing) { box.dataset.h = html; box.innerHTML = html; if (near || !box.dataset.s) box.scrollTop = box.scrollHeight; box.dataset.s = "1"; chatObs(); }
   for (const m of l) if (m.job) { const x = box.querySelector(`[data-cjt="${m.job.id}"]`), p = box.querySelector(`[data-fxp="c${m.job.id}"]`); if (x) x.textContent = fxTxt(m.job); if (p) p.style.width = Math.floor(m.job.pct * 100) + "%"; }
   const last = Math.max(0, ...((st && st.chat) || []).map(m => m.t));
@@ -451,16 +452,19 @@ function msgSheet(keep) {
   if (!keep) { chatSel.on = false; chatSel.ids.clear(); chatSel.range = ""; }
   const sid = setInterval(() => { if (!chatDraw()) clearInterval(sid); else refresh(); }, 4000);
   const sec = chatSecure(), noF = FXNO;
-  const head = sheetHead("message-square", t("chat.title", esc(cur.name))).replace('<button type="button" class="close"', `<button type="button" class="gal" id="galGo">${ic("image")} ${t("chat.gal")}</button><button type="button" class="close"`);
-  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${head}
+  const head = `<div class="shh"><h2 id="askT">${ic("message-square")} ${t("chat.title", esc(cur.name))}</h2><button type="button" class="close" id="chatMore" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(t("chat.more"))}">${ic("ellipsis")}</button><button type="button" class="close" id="askNo" aria-label="${esc(t("close"))}">${ic("x")}</button></div>
+    <div id="chatMenu" class="pmenu phd" role="menu" hidden><button type="button" role="menuitem" id="chatGalB">${ic("image")} ${t("chat.gal")}</button><button type="button" role="menuitem" id="chatSelB" data-sel="start" hidden>${ic("check")} ${t("sel.start")}</button><button type="button" role="menuitem" id="chatClr" class="bad" hidden>${ic("trash-2")} ${t("chat.clear")}</button></div>`;
+  sheet(`<div class="dp cdp" role="dialog" aria-modal="true" aria-labelledby="askT">${head}
     <div id="chatLow"></div><div id="chatBox" class="chat" aria-live="polite"></div><div id="chatSelBar"></div>
-    <div class="row cmp" id="cmpRow"><input id="msg" class="sp" placeholder="${esc(t("msgPh"))}" maxlength="300">${noF ? "" : `<button type="button" id="attBtn" class="ib2" aria-label="${esc(t("chat.att"))}" aria-expanded="false">${ic("plus")}</button>`}${noF || !sec ? "" : `<button type="button" id="micBtn" class="ib2" aria-label="${esc(t("chat.mic"))}" title="${esc(t("chat.mic"))}">${ic("mic")}</button>`}<button type="button" id="send" class="pri">${ic("send")} <span class="sn">${t("send")}</span></button></div>
+    <div id="qmBox"></div>
+    <div class="cmpw">
+    <div class="row cmp" id="cmpRow">${noF ? "" : `<button type="button" id="attBtn" class="ib2" aria-label="${esc(t("chat.att"))}" aria-expanded="false">${ic("plus")}</button>`}<input id="msg" class="sp" placeholder="${esc(t("msgPh"))}" maxlength="300">${noF || !sec ? "" : `<button type="button" id="micBtn" class="ib2" aria-label="${esc(t("chat.mic"))}" title="${esc(t("chat.mic"))}">${ic("mic")}</button>`}<button type="button" id="send" class="pri">${ic("send")} <span class="sn">${t("send")}</span></button></div>
     <div class="row" id="recBar" hidden><span class="rdot"></span><b id="recT">0:00</b><span class="mute sp" style="flex:1">${t("chat.recHint")}</span><button type="button" id="recNo" class="ib2" aria-label="${esc(t("cancel"))}">${ic("x")}</button><button type="button" id="recOk" class="pri ib2" aria-label="${esc(t("send"))}">${ic("send")}</button></div>
-    ${noF ? "" : `<div id="attMenu" class="grid mo2" hidden><button type="button" data-p="media">${ic("image")} ${t("chat.pickMedia")}</button><button type="button" data-p="file">${ic("inbox")} ${t("chat.pickFile")}</button>${sec ? `<button type="button" data-p="cam">${ic("camera")} ${t("chat.pickCam")}</button><button type="button" data-p="vid">${ic("video")} ${t("chat.pickVid")}</button>` : ""}</div>
+    ${noF ? "" : `<div id="attMenu" role="menu" class="pmenu pat" hidden><button type="button" data-p="media">${ic("image")} ${t("chat.pickMedia")}</button><button type="button" data-p="file">${ic("inbox")} ${t("chat.pickFile")}</button>${sec ? `<button type="button" data-p="cam">${ic("camera")} ${t("chat.pickCam")}</button><button type="button" data-p="vid">${ic("video")} ${t("chat.pickVid")}</button>` : ""}</div>
+    </div>
     ${sec ? "" : `<p class="mute" id="attWhy" hidden>${ic("info")} ${t("chat.secure")}</p>`}
     <input type="file" id="fMedia" accept="image/*,video/*" multiple hidden><input type="file" id="fFile" multiple hidden><input type="file" id="fCam" accept="image/*" capture="environment" hidden><input type="file" id="fVid" accept="video/*" capture="environment" hidden>`}
-    <div id="qmBox"></div>
-    <button type="button" id="chatClr" class="sp bad" style="margin-top:12px" hidden>${ic("trash-2")} ${t("chat.clear")}</button></div>`,
+    </div>`,
     pop => {
       const box = pop.querySelector("#chatBox");
       const sbar = pop.querySelector("#chatSelBar");
@@ -478,7 +482,11 @@ function msgSheet(keep) {
         const op = e.target.closest("[data-open]"); if (op) { const a = chatAtt(op.dataset.open); if (a) attOpen(a, msgSheet); }
       };
       // long press on a bubble = select mode (select.js); the file menu stays on the bubble's "..." button
-      pop.querySelector("#galGo").onclick = () => galOpen();
+      const mm = pop.querySelector("#chatMenu"), mb = pop.querySelector("#chatMore"), dp = pop.querySelector(".dp");
+      const mShut = () => { mm.hidden = true; mb.setAttribute("aria-expanded", "false"); const am = pop.querySelector("#attMenu"); if (am) { am.hidden = true; const ab2 = pop.querySelector("#attBtn"); if (ab2) ab2.setAttribute("aria-expanded", "false"); const w = pop.querySelector("#attWhy"); if (w) w.hidden = true; } };
+      mb.onclick = () => { const o = mm.hidden; mShut(); mm.hidden = !o; mb.setAttribute("aria-expanded", String(o)); };
+      dp.addEventListener("click", e => { if (!e.target.closest("#chatMenu,#chatMore,#attMenu,#attBtn")) mShut(); });
+      mm.onclick = e => { const b = e.target.closest("button"); if (!b) return; if (b.id !== "chatClr") mShut(); if (b.id === "chatGalB") galOpen(); else if (b.id === "chatSelB") { selClick(chatSel, e); chatDraw(); } };
       pop.querySelector("#chatLow").onclick = e => { if (e.target.closest("#lowGo")) galOpen({ size: true }); };
       // destructive: our own confirm (with "also delete photos and files"), then the thread is empty on the phone; the sheet closed for the confirm, so it opens again
       pop.querySelector("#chatClr").onclick = async () => {
@@ -497,7 +505,7 @@ function msgSheet(keep) {
       const ab = pop.querySelector("#attBtn");
       if (ab) {
         const menu = pop.querySelector("#attMenu"), why = pop.querySelector("#attWhy");
-        ab.onclick = () => { menu.hidden = !menu.hidden; if (why) why.hidden = menu.hidden; ab.setAttribute("aria-expanded", String(!menu.hidden)); };
+        ab.onclick = () => { const o = menu.hidden; mShut(); menu.hidden = !o; if (why) why.hidden = menu.hidden; ab.setAttribute("aria-expanded", String(!menu.hidden)); };
         const ids = { media: "#fMedia", file: "#fFile", cam: "#fCam", vid: "#fVid" };
         menu.onclick = e => { const b = e.target.closest("[data-p]"); if (b) pop.querySelector(ids[b.dataset.p]).click(); };
         for (const i of Object.values(ids)) pop.querySelector(i).onchange = e => { menu.hidden = true; if (why) why.hidden = true; chatAttach(e.target.files); e.target.value = ""; };
@@ -520,9 +528,8 @@ function qmDraw() {
   const box = $("#qmBox"), inp = $("#msg"); if (!box || !inp) return;
   const list = (edit && edit.msgs) || [], tx = inp.value.trim().slice(0, 120);
   const canSave = edit && !viewDay && tx && !list.includes(tx) && list.length < 12;
-  box.innerHTML = `${list.length || canSave ? `<p class="mute" style="margin:12px 0 6px">${t("qm.h")}</p>` : ""}<div class="qms">${list.map((m, i) =>
-    `<span class="qm"><button type="button" class="qmu" data-q="${i}">${esc(m)}</button><button type="button" class="qmx" data-x="${i}" aria-label="${esc(t("qm.del", m))}">${ic("x")}</button></span>`).join("")}</div>
-    ${canSave ? `<button type="button" id="qmSave" class="sp" style="margin-top:8px">${ic("plus")} ${t("qm.save")}</button>` : list.length >= 12 && tx && !list.includes(tx) ? `<p class="mute">${t("qm.full")}</p>` : ""}`;
+  box.innerHTML = list.length || canSave ? `<div class="qms">${list.map((m, i) =>
+    `<span class="qm"><button type="button" class="qmu" data-q="${i}">${esc(m)}</button><button type="button" class="qmx" data-x="${i}" aria-label="${esc(t("qm.del", m))}">${ic("x")}</button></span>`).join("")}${canSave ? `<button type="button" id="qmSave" class="qmadd">${ic("plus")} ${t("qm.save")}</button>` : ""}</div>` : list.length >= 12 && tx && !list.includes(tx) ? `<p class="mute">${t("qm.full")}</p>` : "";
   box.querySelectorAll("[data-q]").forEach(b => b.onclick = () => { inp.value = list[+b.dataset.q]; inp.focus(); qmDraw(); });
   box.querySelectorAll("[data-x]").forEach(b => b.onclick = () => { edit.msgs = list.filter((_, i) => i !== +b.dataset.x); changed(); qmDraw(); });
   const sv = $("#qmSave"); if (sv) sv.onclick = () => { edit.msgs = list.concat(tx); changed(); toast("ok|" + t("qm.saved")); qmDraw(); };

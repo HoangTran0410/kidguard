@@ -506,6 +506,24 @@ input[type=range]:disabled{opacity:.45;cursor:default}
 .cmp{flex-wrap:nowrap}.cmp input{min-width:0;flex:1}.cmp #send{flex:none}
 .ib2{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;flex:none;display:inline-grid;place-items:center;border-radius:22px}
 @media (max-width:420px){.cmp #send .sn{display:none}.cmp #send{width:44px;min-width:44px;padding:0;display:inline-grid;place-items:center;border-radius:22px}}
+/* chat sheet: messages fill it, one composer bar at the bottom, header "..." menu and "+" menu as small popovers */
+.sheet .dp.cdp{display:flex;flex-direction:column;position:relative;overflow:visible;height:min(92vh,760px);padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+.cdp .shh{flex:none;margin-bottom:8px}
+.cdp .chat{flex:1 1 auto;max-height:none;min-height:0;margin:0 0 8px;padding:4px 2px}
+.cdp #chatLow,.cdp #chatSelBar{flex:none}
+.cdp #chatSelBar .selbar{margin:0 -20px -14px}
+.cdp #qmBox{flex:none}.cdp #qmBox:not(:empty){margin:0 0 8px}
+.cdp .qms{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}.cdp .qms::-webkit-scrollbar{display:none}
+.cdp .qm{flex:none}
+.qmadd{flex:none;display:inline-flex;gap:4px;align-items:center;min-height:36px;padding:0 12px;border-radius:999px;border:1px dashed var(--stroke2);background:none;color:var(--accent);font:inherit;font-size:14px}
+.cmpw{position:relative;flex:none;border-top:1px solid var(--line);padding-top:10px}
+.cdp .cmp{gap:8px}
+.cdp .cmp input{height:44px;border-radius:22px;padding:0 16px;background:var(--bg)}
+.cdp #attBtn,.cdp #micBtn{border:0;background:var(--bg);color:var(--sub)}
+.pmenu{position:absolute;z-index:6;min-width:230px;padding:6px;border-radius:16px;background:var(--card);border:1px solid var(--stroke);box-shadow:0 8px 28px rgba(2,6,23,.35);display:flex;flex-direction:column;gap:2px}
+.pmenu button{display:flex;align-items:center;gap:12px;justify-content:flex-start;width:100%;min-height:46px;padding:0 14px;border:0;border-radius:12px;background:none;color:var(--text);font:inherit;text-align:left}
+.pmenu button:active{background:var(--bg)}.pmenu button.bad{color:var(--danger)}
+.pmenu.phd{top:58px;right:16px}.pmenu.pat{left:0;bottom:calc(100% + 6px)}
 .gal{display:inline-flex;gap:5px;align-items:center;min-height:40px;padding:0 12px;border-radius:20px;background:var(--bg);border:0;color:var(--accent);font-weight:650;font-size:14px;flex:none}
 #recBar{flex-wrap:nowrap;min-height:44px}#recBar b{font-variant-numeric:tabular-nums}
 .rdot{width:10px;height:10px;border-radius:50%;background:var(--danger);flex:none;animation:rdp 1s ease-in-out infinite}
