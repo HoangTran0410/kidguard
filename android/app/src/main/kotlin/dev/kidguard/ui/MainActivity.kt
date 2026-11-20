@@ -232,6 +232,7 @@ class MainActivity : Activity() {
         // after the opening animation: a toast shown during it was dropped by SystemUI (emulator 14: "window already added")
         window.decorView.postDelayed({ Update.justUpdated(this)?.let { v -> Toasts.show(this, getString(R.string.upd_done, v), true) } }, 800)   // pref removed only when shown
         Update.showConfirm = { i -> ui.post { launched = true; runCatching { startActivity(i) } } }
+        if (intent?.action == Update.ACTION_INSTALL) { intent.action = null; Update.wanted = true }   // the update notification's tap
         val c = Update.confirm
         if (c != null) {
             Update.confirm = null

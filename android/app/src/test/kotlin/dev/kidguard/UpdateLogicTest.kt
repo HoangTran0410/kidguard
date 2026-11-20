@@ -47,4 +47,11 @@ class UpdateLogicTest {
     @Test fun tsRetryGrows() {
         assertEquals(listOf(5L, 5L, 30L, 360L, 360L), (0..4).map { TsLogic.retryMs(it) / 60_000L })
     }
+
+    @Test fun quietDeniedOnlyForTheOsRefusal() {
+        // HyperOS (Poco 2026-11-20): "INSTALL_FAILED_ABORTED: Permission denied" after Play Protect allowed it
+        assertTrue(UpdateLogic.quietDenied("INSTALL_FAILED_ABORTED: Permission denied"))
+        assertFalse(UpdateLogic.quietDenied("Hết thời gian chờ"))
+        assertFalse(UpdateLogic.quietDenied("INSTALL_FAILED_VERIFICATION_FAILURE"))
+    }
 }

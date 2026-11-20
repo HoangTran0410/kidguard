@@ -39,6 +39,9 @@ object UpdateLogic {
 
     fun apkUrl(tag: String, name: String) = "$GH/$REPO/releases/download/v$tag/$name"
 
+    /** The OS refuses quiet self-updates for good (HyperOS PKMSImpl.assertCallerAndPackage), not a one-off failure. */
+    fun quietDenied(msg: String) = msg.contains("Permission denied", ignoreCase = true)
+
     /**
      * Install the downloaded update now? The install replaces the process (the kid launcher restarts, a listen / screen
      * session ends), so the daily automatic one waits for the screen to be off; the parent's own "update" ([force]) and
@@ -56,6 +59,7 @@ object UpdateLogic {
 object Update {
     private const val TAG = "KidGuard"
     private const val ACTION = "dev.kidguard.UPDATE_STATUS"
+    const val ACTION_INSTALL = "dev.kidguard.UPDATE_INSTALL"
     private val busy = AtomicBoolean(false)
     @Volatile private var triedAt = 0L
     @Volatile var latest = ""; private set
@@ -147,7 +151,10 @@ object Update {
         }
         try { verifyPackage(ctx, f) } catch (e: IllegalStateException) { prefs(ctx).edit().putString("badTag", tag).apply(); done(); throw e }
         // an install that needs nobody (owner, or basic mode's quiet self-update) restarts the app: not in the middle of the child's use
-        val silent = Policy.isOwner(ctx) || (Build.VERSION.SDK_INT >= 31 && ctx.packageManager.canRequestPackageInstalls())
+        // HyperOS refused a quiet self-update once ("MIUILOG- assertCallerAndPackage ... Permission denied", Poco 2026-11-20):
+        // don't try again on this OS build (each try costs a Play Protect scan + a dead session); the child taps instead
+        val quietOk = prefs(ctx).getString("quietNo", "") != Build.FINGERPRINT
+        val silent = Policy.isOwner(ctx) || (quietOk && Build.VERSION.SDK_INT >= 31 && ctx.packageManager.canRequestPackageInstalls())
         val now = System.currentTimeMillis()
         if (silent && !UpdateLogic.installNow(force, screenOn(ctx), if (waitingSince > 0) now - waitingSince else 0)) {
             if (waitingSince == 0L) { waitingSince = now; Log.i(TAG, "update $tag ready, installs when the screen is off") }
@@ -156,8 +163,13 @@ object Update {
         waitingSince = 0
         prefs(ctx).edit().putString("from", current()).commit()   // the new version's first screen says "updated to"
         if (Policy.isOwner(ctx)) { status = "installing"; installSilently(ctx, f) }
-        else if (installQuiet(ctx, f)) status = ""
-        else { status = "ready"; if (force || prefs(ctx).getString("notified", "") != tag) { notifyChild(ctx, tag); prefs(ctx).edit().putString("notified", tag).apply() } }
+        else if (silent && installQuiet(ctx, f)) status = ""
+        else {
+            status = "ready"; if (force || prefs(ctx).getString("notified", "") != tag) { notifyChild(ctx, tag); prefs(ctx).edit().putString("notified", tag).apply() }
+            // the parent asked: open the system "Update?" screen now, not only a notification (owner 2026-11-20: quiet install
+            // refused, nothing happened until he opened KidGuard and tapped Update). A blocked background start opens on next MainActivity
+            if (force) { wanted = true; installInteractive(ctx) }
+        }
         done()
         if (force) Log.i(TAG, "update to $tag requested by parent")
     }
@@ -256,7 +268,10 @@ object Update {
             val res = pi.openSession(id).use { s -> Ts.commitAndWait(ctx, s, "dev.kidguard.SELF_UPDATE", if (wanted) 20 else 90) }
             // no answer in time: the install may still be running (big APK, slow dexopt): don't cancel it, it replaces us
             if (res == ctx.getString(R.string.err_timeout)) { Log.i(TAG, "quiet update still running after the wait"); return@runCatching true }
-            if (res != null) { Log.i(TAG, "quiet update refused: $res"); runCatching { pi.abandonSession(id) } }
+            if (res != null) {
+                Log.i(TAG, "quiet update refused: $res"); runCatching { pi.abandonSession(id) }
+                if (UpdateLogic.quietDenied(res)) prefs(ctx).edit().putString("quietNo", Build.FINGERPRINT).apply()
+            }
             res == null
         }.getOrElse { Log.w(TAG, "quiet update", it); if (open >= 0) runCatching { pi.abandonSession(open) }; false }
     }
@@ -292,7 +307,8 @@ object Update {
     private fun notifyChild(ctx: Context, tag: String) = runCatching {
         val nm = ctx.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel("update", ctx.getString(R.string.ch_update), NotificationManager.IMPORTANCE_DEFAULT))
-        val open = PendingIntent.getActivity(ctx, 3, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        // tap = install (MainActivity sees the action, sets [wanted], resumeUpdate opens the confirm screen): one tap, not two
+        val open = PendingIntent.getActivity(ctx, 3, Intent(ctx, MainActivity::class.java).setAction(ACTION_INSTALL), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         nm.notify(8, Notification.Builder(ctx, "update").setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setContentTitle(ctx.getString(R.string.notif_update_title, tag)).setContentText(ctx.getString(R.string.notif_update_text)).setAutoCancel(true).setContentIntent(open).build())
     }
