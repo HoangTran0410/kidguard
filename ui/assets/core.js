@@ -535,9 +535,10 @@ async function kidBrief(list) {
   const root = $("#app");
   await Promise.all(list.map(async (k, i) => {
     const el = () => { const e = root.querySelector(`[data-kb="${i}"]`); return e && e.isConnected ? e : null; };
-    // bin button (owner 2026-11-18): only for a kid that is gone or silent for a day; the settings path stays for the rest
+    // bin button on every row (owner 2026-11-20: "sao ko cho luôn hiện nút"; was only for gone / silent > 1 day). A live relay kid
+    // still asks for the typed word (dropKid); a kid found gone below re-binds it as dead (no word).
     const bin = dead => { const b = root.querySelector(`[data-x="${i}"]`); if (!b || !b.isConnected) return; b.hidden = false; b.onclick = async () => { if (await dropKid(k, dead)) reScreen ? reScreen() : boot(); }; };
-    if (deadKid(k)) bin(true);
+    bin(deadKid(k));
     try {
       const j = await call(k, "/state"), s = j.state !== undefined ? j.state : j;
       if (!s) { if (deadKid(k)) return el() && (el().innerHTML = `${dot("bad")} ${t("kb.oldRelay")}`); return el() && (el().innerHTML = `${dot("")} ${t("kb.never")}`); }
