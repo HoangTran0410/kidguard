@@ -79,4 +79,12 @@ class RefuseLogicTest {
         assertEquals(1, out.length())
         assertEquals("[\"vpn\"]", out.getJSONObject(0).getJSONArray("kinds").toString())
     }
+
+    /** The throttle survives a process restart: the stored list says when each kind was last shown. */
+    @Test fun lastAtFromStoredList() {
+        val l = RefuseLogic.add(JSONArray(), "a.b", "AB", setOf("acc"), 1000)
+        assertEquals(1000L, RefuseLogic.lastAt(l, "a.b", "acc"))
+        assertEquals(0L, RefuseLogic.lastAt(l, "a.b", "vpn"))
+        assertEquals(0L, RefuseLogic.lastAt(l, "x.y", "acc"))
+    }
 }

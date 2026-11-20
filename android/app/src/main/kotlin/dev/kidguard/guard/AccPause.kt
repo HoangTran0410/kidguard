@@ -173,7 +173,7 @@ object AccPause {
             val pi = android.app.PendingIntent.getActivity(ctx, 8, i, android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
             nm.notify(NOTIF_SELF, android.app.Notification.Builder(ctx, ch).setSmallIcon(android.R.drawable.ic_lock_idle_lock)
                 .setContentTitle(ctx.getString(R.string.self_on_t)).setContentText(ctx.getString(R.string.self_on_d))
-                .setStyle(android.app.Notification.BigTextStyle().bigText(ctx.getString(R.string.self_on_d))).setAutoCancel(true)
+                .setStyle(android.app.Notification.BigTextStyle().bigText(ctx.getString(R.string.self_on_d))).setAutoCancel(true).setOnlyAlertOnce(true)   // re-ask every 2 min: sounds only if it was swiped
                 .addAction(android.app.Notification.Action.Builder(null, ctx.getString(R.string.self_on_btn), pi).build()).build())
         }
     }

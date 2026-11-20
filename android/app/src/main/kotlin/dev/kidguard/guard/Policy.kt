@@ -336,6 +336,7 @@ object Policy {
     }
 
     private var unvalidatedSince = 0L
+    private var fallbackLogAt = 0L   // a network that never validates (captive portal) falls back every ~32 min: log once in 6 h
     private var retryAfter = 60_000L
 
     /**
@@ -363,7 +364,7 @@ object Policy {
         setOpportunistic(ctx)
         dnsError = ctx.getString(R.string.dns_fallback)
         dnsTriedAt = now; retryAfter = 30 * 60_000L; unvalidatedSince = 0
-        runCatching { Store.of(ctx).log(R.string.log_dns_fallback) }
+        if (now - fallbackLogAt > 6 * 3_600_000L) { fallbackLogAt = now; runCatching { Store.of(ctx).log(R.string.log_dns_fallback) } }
     }
 
     private var cacheAt = 0L

@@ -10,6 +10,12 @@ import android.content.Intent
 object DegradedLogic {
     const val GAP_MS = 30 * 60_000L
     fun due(last: Long?, now: Long, gap: Long = GAP_MS): Boolean = last == null || now - last >= gap || now < last
+    /**
+     * Notify + log now? Only when the key is NEW in `Store.degraded` (persisted: a process restart or a condition that
+     * stays true for days, e.g. location permission denied, says nothing more) and not within [GAP_MS] of the last time
+     * (a key that flaps clear / report). It used to re-alert every 30 min while stuck (heads-up + sound, and a log line).
+     */
+    fun tell(known: Boolean, last: Long?, now: Long): Boolean = !known && due(last, now)
     /** Stable notification id per key (own range, away from the fixed ids). */
     fun notifId(key: String): Int = 6000 + Math.floorMod(key.hashCode(), 900)
 }
@@ -17,7 +23,7 @@ object DegradedLogic {
 /**
  * "Never silent": a protection was skipped because KidGuard lacks a privilege (WRITE_SECURE_SETTINGS, Device Owner,
  * overlay, location, shell). The kid gets one notification (button to the right Settings page), the parent gets a log
- * line, and the key stays in `Store.degraded` (state JSON `degraded`) until [clear] says it works again.
+ * line, both once per state change ([DegradedLogic.tell]), and the key stays in `Store.degraded` (state JSON `degraded`) until [clear] says it works again.
  * Key = "<area>" or "<area>.<detail>" (the page maps the area to a label).
  */
 object Degraded {
@@ -28,16 +34,17 @@ object Degraded {
         if (Flavor.HOME) return
         val app = ctx.applicationContext
         val s = Store.of(app)
-        if (key !in s.degraded) s.degraded = s.degraded + key
+        val known = key in s.degraded
+        if (!known) s.degraded = s.degraded + key
         val now = System.currentTimeMillis()
-        if (!DegradedLogic.due(last[key], now)) return
+        if (!DegradedLogic.tell(known, last[key], now)) return
         last[key] = now
         runCatching {
             val nm = app.getSystemService(NotificationManager::class.java)
             val id = DegradedLogic.notifId(key)
             val ch = Chan.open(nm, CH, app.getString(R.string.ch_degraded), NotificationManager.IMPORTANCE_HIGH)
             val b = Notification.Builder(app, ch).setSmallIcon(android.R.drawable.stat_sys_warning)
-                .setContentTitle(title).setContentText(body).setStyle(Notification.BigTextStyle().bigText(body)).setAutoCancel(true)
+                .setContentTitle(title).setContentText(body).setStyle(Notification.BigTextStyle().bigText(body)).setAutoCancel(true).setOnlyAlertOnce(true)
             if (settingsIntent != null) {
                 val pi = PendingIntent.getActivity(app, id, Intent(settingsIntent).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
                 b.addAction(Notification.Action.Builder(null, app.getString(R.string.degraded_open), pi).build())
@@ -51,7 +58,7 @@ object Degraded {
     @Synchronized fun clear(ctx: Context, key: String) {
         val app = ctx.applicationContext
         val s = Store.of(app)
-        last.remove(key)
+        // `last` is kept: a key that flaps (works, fails again) stays quiet for GAP_MS
         if (key !in s.degraded) return
         s.degraded = s.degraded - key
         runCatching { app.getSystemService(NotificationManager::class.java).cancel(DegradedLogic.notifId(key)) }

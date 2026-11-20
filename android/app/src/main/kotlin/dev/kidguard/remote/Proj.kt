@@ -198,7 +198,7 @@ class ProjService : Service() {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CH, getString(R.string.ch_proj), NotificationManager.IMPORTANCE_LOW))
         val n = Notification.Builder(this, CH).setSmallIcon(android.R.drawable.ic_menu_view)
-            .setContentTitle(getString(R.string.notice_viewing)).setOngoing(true).build()
+            .setContentTitle(getString(R.string.notice_viewing)).setOngoing(true).setOnlyAlertOnce(true).build()
         runCatching {
             if (Build.VERSION.SDK_INT >= 29) startForeground(NID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION) else startForeground(NID, n)
         }.onFailure { Log.w("KidGuard", "proj fg", it); stopSelf(); return START_NOT_STICKY }

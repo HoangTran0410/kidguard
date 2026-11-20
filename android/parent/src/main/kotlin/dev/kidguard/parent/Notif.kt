@@ -100,7 +100,7 @@ object Notif {
     private fun summary(c: Context, k: Logic.KidCfg) {
         val n = Notification.Builder(c, CheckJob.INFO_CHANNEL).setSmallIcon(R.drawable.ic_notif).setContentTitle(k.name).setSubText(k.name)
             .setGroup(group(k)).setGroupSummary(true).setGroupAlertBehavior(Notification.GROUP_ALERT_CHILDREN)
-            .setContentIntent(openKid(c, k)).setAutoCancel(true).build()
+            .setContentIntent(openKid(c, k)).setAutoCancel(true).setOnlyAlertOnce(true).build()   // re-posted with every alert
         nm(c).notify(nid(k, "summary"), n)
     }
 
