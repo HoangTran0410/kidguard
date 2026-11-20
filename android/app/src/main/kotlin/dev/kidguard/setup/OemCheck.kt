@@ -48,6 +48,7 @@ object OemCheck {
 
     /** Opens the first page of [s] this phone has; App info as the last resort. */
     fun open(a: Activity, s: OemSteps.Step): Boolean {
+        if (s.id == "op_perm") { PermMon.open(a); return true }   // Developer options, scrolled to the row and outlined
         val list = mutableListOf<Intent>()
         if (s.dynamic) {
             if (s.id == "autostart") SetupSteps.autostartIntent(a)?.let { list += it }

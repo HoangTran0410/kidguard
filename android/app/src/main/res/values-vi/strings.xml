@@ -374,6 +374,13 @@
     <string name="ssa_s1">Bước 1. Bật Tuỳ chọn nhà phát triển</string>
     <string name="ssa_s1_d">Vào Giới thiệu về điện thoại, bấm 7 lần vào \"Số hiệu bản tạo\" (Build number).</string>
     <string name="ssa_s1_btn">Mở Giới thiệu về điện thoại</string>
+    <string name="ssa_pm">Bước 2. Bật \"Tắt giám sát quyền\"</string>
+    <string name="ssa_pm_d">Oppo, Realme, OnePlus cần bật, không thì cài dừng ở quyền dữ liệu sử dụng. Đây là mục cuối trong Tuỳ chọn nhà phát triển.</string>
+    <string name="ssa_pm_btn">Mở Tuỳ chọn nhà phát triển</string>
+    <string name="ssa_pm_ok">Đã bật</string>
+    <string name="ssa_pm_wait">Đang chờ: bật \"Tắt giám sát quyền\" rồi quay lại. Cài sẽ tự chạy tiếp.</string>
+    <string name="ssa_pm_maybe">Có vẻ đã bật. Lúc cài sẽ kiểm tra.</string>
+    <string name="pm_toast">Mục cuối: bật Tắt giám sát quyền</string>
     <string name="ssa_s3">Bước 2. Bật Gỡ lỗi không dây và nhập mã ghép</string>
     <string name="ssa_s3_d">Bấm nút dưới: Tuỳ chọn nhà phát triển mở ra, ô nhập mã hiện ở thông báo. Bật \"Gỡ lỗi không dây\" (cho phép Wi-Fi này), bấm vào nó, rồi bấm \"Ghép thiết bị bằng mã ghép nối\". Kéo thanh thông báo xuống, bấm \"Nhập mã ghép\", gõ 6 số. (Rời Cài đặt là hộp thoại tắt.)</string>
     <string name="ssa_s3_btn">Hiện ô nhập mã ở thông báo</string>

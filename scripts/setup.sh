@@ -117,7 +117,7 @@ chk() {
   if printf '%s' "$out" | grep -Eqi 'Error|Exception|denied|Failure'; then
     echo "LỖI: $out"
     # ColorOS blocks adb from granting permissions until "Disable permission monitoring" is on
-    if printf '%s' "$out" | grep -Eq 'UPDATE_APP_OPS_STATS|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS'; then
+    if printf '%s' "$out" | grep -Eq 'UPDATE_APP_OPS_STATS|MANAGE_APP_OPS_MODES|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS'; then
       echo '→ Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật "Tắt giám sát quyền" (Disable permission monitoring), rồi chạy lại.'
     fi
     exit 1
