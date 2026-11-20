@@ -1,17 +1,16 @@
 <!-- part of docs/flows/ (index: README.md) -->
-Path shorthands: `K/` = `android/app/src/main/kotlin/dev/kidguard/`, `L/` = `K/launcher/`, `UI/` = `ui/assets/`,
-`P/` = `android/parent/src/main/kotlin/dev/kidguard/parent/`. **Line numbers drift**: grep the function name.
+Path shorthands (`K/`, `L/`, `UI/`, `P/`): see `README.md`. No line numbers: grep the function name.
 
 ## 1. Enforcement (child app, `K/guard/`)
 
-Paths relative to `android/app/src/main/kotlin/dev/kidguard/`. Line numbers as of main @ 0c95d99.
-Prefs: one SharedPreferences file `kg` in device-protected storage (`guard/Store.kt:14`). Every key below is in it.
+Paths relative to `android/app/src/main/kotlin/dev/kidguard/`.
+Prefs: one SharedPreferences file `kg` in device-protected storage (`guard/Store.kt`). Every key below is in it.
 
 ### 1.0 Map
 
-- `guard/Guard.kt` foreground Service `Guard`: 10 s loop `tick()` (TICK_MS, :672), `kick()` = tick now (:138), `pokeSoft()` = debounced 300 ms kick (:141).
-- `guard/Rules.kt` pure: `Rules` data + JSON, `decide()` (:331), `dailyLeftMs()` (:367), `Schedule`/`AppGroup`/`Totp`/`Track`/`Safety`.
-- `guard/Policy.kt` Device Owner (DPM) calls: `apply` (:45), `suspendExactly` (:232), `hideExactly` (:256), `release` (:410), `releaseBasic` (:469).
+- `guard/Guard.kt` foreground Service `Guard`: 10 s loop `tick()` (TICK_MS), `kick()` = tick now, `pokeSoft()` = debounced 300 ms kick.
+- `guard/Rules.kt` pure: `Rules` data + JSON, `decide()`, `dailyLeftMs()`, `Schedule`/`AppGroup`/`Totp`/`Track`/`Safety`.
+- `guard/Policy.kt` Device Owner (DPM) calls: `apply`, `suspendExactly`, `hideExactly`, `release`, `releaseBasic`.
 - `guard/Usage.kt` UsageEvents -> ms per package today. `guard/Watchdog.kt` 15 min alarm. `guard/Store.kt` all persistence + PIN/TOTP/pairing.
 - `guard/Basic.kt`, `BasicLogic.kt` basic mode (no Device Owner). `Comfort.kt` (WindDown/Gray/Notes/Checkin/ReqTpl, pure), `GrayFx.kt` its Android side, `Warn.kt` heads-ups, `Sys.kt`/`SysLogic.kt` remote phone settings, `DevOpts.kt` dev options.
 - Callers outside guard/: `remote/Api.kt` (LAN), `remote/Relay.kt` (relay), `remote/Acc.kt` (accessibility), `ui/MainActivity.kt` (child screen), `launcher/HomeActivity.kt` (reads `Guard.snap`).
@@ -21,10 +20,10 @@ Monitor only (`rules.monitor`): Guard.tick computes `would = decide(...)` then `
 ### 1.1 Rules update applied
 
 Trigger: parent saves rules (LAN `PUT /api/rules`) or relay sync returns newer rules.
-- LAN: `remote/Api.kt:77` parse `Rules.fromJson` (Rules.kt:228); if body has neither `pin` nor `pinHash` copy old pinHash+salt (:80); `rev = max(old.rev+1, now)` (:81) -> `Guard.setRules` (Guard.kt:410). Reply = rules minus pinHash.
-- Relay: `remote/Relay.kt:102-109` parse `res.rules`; keep relay's pinHash only if `pinAt > store.relayPinAt` else blank it (:107); apply only if `rules.rev > store.rules.rev` (strict, :109).
-- `Guard.setRules` (Guard.kt:410-421): drop if `incoming.rev < old.rev` (:412) -> blank pinHash => keep old PIN (:414) -> `store.rules = r` (Store.kt:32, `toJson(persist=true)`, async `apply()`) -> `work.post { Policy.apply }` (:416) -> if `noDebug` newly on: `devOff()` (:417) -> log a diff line via `Events.ruleDiff` (:418) -> zones changed => `zoneBaseline` (:419) -> `kick()` (:420).
-- `Store.rules` getter caches parsed Rules per raw string (Store.kt:24-31). Any reader (Guard, launcher, UI) sees new rules immediately.
+- LAN: `remote/Api.kt` parse `Rules.fromJson` (Rules.kt); if body has neither `pin` nor `pinHash` copy old pinHash+salt; `rev = max(old.rev+1, now)` -> `Guard.setRules` (Guard.kt). Reply = rules minus pinHash.
+- Relay: `remote/Relay.kt` parse `res.rules`; keep relay's pinHash only if `pinAt > store.relayPinAt` else blank it; apply only if `rules.rev > store.rules.rev` (strict).
+- `Guard.setRules` (Guard.kt): drop if `incoming.rev < old.rev` -> blank pinHash => keep old PIN -> `store.rules = r` (Store.kt, `toJson(persist=true)`, async `apply()`) -> `work.post { Policy.apply }` -> if `noDebug` newly on: `devOff()` -> log a diff line via `Events.ruleDiff` -> zones changed => `zoneBaseline` -> `kick()`.
+- `Store.rules` getter caches parsed Rules per raw string (Store.kt). Any reader (Guard, launcher, UI) sees new rules immediately.
 - State: pref `rules` (JSON incl. pinHash/pinSalt). `rev` = ms of last edit.
 - Gotchas:
   - `fromJson` is total replace: any field missing from the PUT resets to default (e.g. missing `hidden` => everything un-hidden next tick; missing `launcher`/`lockInfo` => cleared). Parent page must always send the full object.
@@ -33,127 +32,127 @@ Trigger: parent saves rules (LAN `PUT /api/rules`) or relay sync returns newer r
 
 ### 1.2 Tick (the loop) - order of work
 
-`Guard.tick(force)` Guard.kt:143-218. Screen off and not forced => full pass at most once/min (:149).
+`Guard.tick(force)` Guard.kt. Screen off and not forced => full pass at most once/min.
 1. `Acc.ensureEnabled` (re-adds accessibility entry w/ WRITE_SECURE_SETTINGS), `Policy.retryDns`, `Ts.poll`.
-2. Track fix every `trackMin` (:160) -> `trackFix` (:574); `keepLocation` (:161).
-3. Usage access check (:162): if revoked => log once + `tamper` event only.
-4. App list `Policy.cached` (60 s cache, :152; `invalidate()` on pkg add/remove via `pkgReceiver` :80).
-5. New-app bookkeeping `knownApps/loggedNew` (:169-178).
-6. `dailyLeftMs` -> `Warn.due` heads-up (:181-184) -> wind-down gray (:186-187).
-7. `decide()` (:188) -> `Quick.publish` -> `Policy.suspendExactly` (:192) -> `applyHidden` (:198).
-8. Basic/owner bounce (:200-204), `goHome` if front app just got suspended (:206).
-9. `locate()` every 15 min (:207), `recoverAt` pairing reopen (:208), hourly 7-day history (:212), `Update.maybe`, `launcherTick`, `Guard.snap` for the launcher (:215), build `lastState` (:217).
+2. Track fix every `trackMin` -> `trackFix`; `keepLocation`.
+3. Usage access check: if revoked => log once + `tamper` event only.
+4. App list `Policy.cached` (60 s cache; `invalidate()` on pkg add/remove via `pkgReceiver`).
+5. New-app bookkeeping `knownApps/loggedNew`.
+6. `dailyLeftMs` -> `Warn.due` heads-up -> wind-down gray.
+7. `decide()` -> `Quick.publish` -> `Policy.suspendExactly` -> `applyHidden`.
+8. Basic/owner bounce, `goHome` if front app just got suspended.
+9. `locate()` every 15 min, `recoverAt` pairing reopen, hourly 7-day history, `Update.maybe`, `launcherTick`, `Guard.snap` for the launcher, build `lastState`.
 
 ### 1.3 Foreground-app decision / block-reason priority
 
-`decide(r, usageMs, minuteOfDay, nowMs, today, launchable, protected, newApps, unlockUntil)` Rules.kt:331 -> map pkg -> reason. Pure, unit-tested (DecideTest).
+`decide(r, usageMs, minuteOfDay, nowMs, today, launchable, protected, newApps, unlockUntil)` Rules.kt -> map pkg -> reason. Pure, unit-tested (DecideTest).
 Order of writes (first writer wins, `p !in out`):
-1. `blocked` (:337) - not for `protected`; ignores `allow`.
-2. `appLimit` (:338) - `usageMs[p] >= appMin*60s`; ignores `allow`.
-3. `groupHours` / `groupLimit` (:340-347) - per group: not in window => hours; else shared `min` sum => limit. Ignores `allow`.
-4. `new` (:348) - only when `blockNew`, pkg in `newApps`, not allowed/approved.
-5. Phone-wide reason for every launchable not `free` (`protected + allow`) and not already in out (:350-361): `paused` > `schedule` > `bedtime` > `daily`.
-6. `unlockUntil > now` (:362): remove everything except `blocked` and `new`.
-- Matches protocol.md:35 priority line.
-- `protected` = Policy.protectedApps (Policy.kt:198): self, systemui, settings, phone/dialer/contacts, alarm clocks, gms/gsf, enabled keyboards, system HOME handlers + the user-chosen default HOME / dialer / SMS app.
-- Consumers of the same function: Guard.tick (:188), `ui/MainActivity.kt:465`, `launcher/HomeActivity.kt:345` (fallback when no snap), `Quick` tile text.
+1. `blocked` - not for `protected`; ignores `allow`.
+2. `appLimit` - `usageMs[p] >= appMin*60s`; ignores `allow`.
+3. `groupHours` / `groupLimit` - per group: not in window => hours; else shared `min` sum => limit. Ignores `allow`.
+4. `new` - only when `blockNew`, pkg in `newApps`, not allowed/approved.
+5. Phone-wide reason for every launchable not `free` (`protected + allow`) and not already in out: `paused` > `schedule` > `bedtime` > `daily`.
+6. `unlockUntil > now`: remove everything except `blocked` and `new`.
+- Matches the priority line at the top of protocol.md.
+- `protected` = Policy.protectedApps (Policy.kt): self, systemui, settings, phone/dialer/contacts, alarm clocks, gms/gsf, enabled keyboards, system HOME handlers + the user-chosen default HOME / dialer / SMS app.
+- Consumers of the same function: Guard.tick, `ui/MainActivity.kt`, `launcher/HomeActivity.kt` (fallback when no snap), `Quick` tile text.
 - Enforcement of the result:
-  - Owner: `Policy.suspendExactly` (Policy.kt:232) -> `setPackagesSuspended`; only `store.suspendedByUs` (pref `susp`, commit()) is ever un-suspended by the loop. System shows its own "paused by admin" dialog (text = `blockNote`, Policy.kt:78-85).
-  - Owner but OS refused suspend (OEM apps): `Acc.bounceApp` HOME + notification (Guard.kt:204).
-  - Basic: no suspend. `Acc.blocked = want` (:201); `Acc.basicGuard` bounces on every window change (Acc.kt:119-123, 1 s throttle `lastPoke`), tick bounces the current app (:202). `bounceApp` once per 10 s per pkg for the notification (Acc.kt:207).
+  - Owner: `Policy.suspendExactly` (Policy.kt) -> `setPackagesSuspended`; only `store.suspendedByUs` (pref `susp`, commit()) is ever un-suspended by the loop. System shows its own "paused by admin" dialog (text = `blockNote`, Policy.kt).
+  - Owner but OS refused suspend (OEM apps): `Acc.bounceApp` HOME + notification (Guard.kt).
+  - Basic: no suspend. `Acc.blocked = want`; `Acc.basicGuard` bounces on every window change (Acc.kt, 1 s throttle `lastPoke`), tick bounces the current app. `bounceApp` once per 10 s per pkg for the notification (Acc.kt).
   - `BasicLogic.NEVER` + `prot` are never bounced.
 
 ### 1.4 Daily limit / bonus / schedules / bedtime / pause
 
-- Used time: `Usage.today` (Usage.kt:27) = sum over foreground intervals since local midnight. MOVE_TO_FOREGROUND opens, MOVE_TO_BACKGROUND/screen off/keyguard/shutdown closes (:46-55); a new foreground app closes all others (:49); still-open apps closed at `now` (:57); `current` = last open app.
-- `daily`: `base = baseLimitMin` (Rules.kt:323: `dailyByDay[isoDow-1]` when size 7, else `dailyMin`); `limit = base + bonusMin` only if `bonusDay == today` (:357); `used` = sum of launchable, non-`free` apps (:358); over when `base > 0 && used >= limit` (:359). `dailyLeftMs` (:367) mirrors it (-1 = none).
-- Bonus: parent page writes `bonus {day,min}` into rules (answer cmd only removes the request: Guard.kt:455-459). `today` = device local date `Guard.day()` (Guard.kt:700).
-- `schedule`: `Schedule.active(minute, dow)` (Rules.kt:12): crossing-midnight window belongs to start day; second half checks previous ISO day. `AppGroup.hours` reuse it.
-- `bedtime`: `Rules.inWindow` (:314), same every day (no day set).
+- Used time: `Usage.today` (Usage.kt) = sum over foreground intervals since local midnight. MOVE_TO_FOREGROUND opens, MOVE_TO_BACKGROUND/screen off/keyguard/shutdown closes; a new foreground app closes all others; still-open apps closed at `now`; `current` = last open app.
+- `daily`: `base = baseLimitMin` (Rules.kt: `dailyByDay[isoDow-1]` when size 7, else `dailyMin`); `limit = base + bonusMin` only if `bonusDay == today`; `used` = sum of launchable, non-`free` apps; over when `base > 0 && used >= limit`. `dailyLeftMs` mirrors it (-1 = none).
+- Bonus: parent page writes `bonus {day,min}` into rules (answer cmd only removes the request: Guard.kt). `today` = device local date `Guard.day()` (Guard.kt).
+- `schedule`: `Schedule.active(minute, dow)` (Rules.kt): crossing-midnight window belongs to start day; second half checks previous ISO day. `AppGroup.hours` reuse it.
+- `bedtime`: `Rules.inWindow`, same every day (no day set).
 - `paused`: `pausedUntil > now`.
 - Timed mode (0.9.22, `rules.mode`): page "Apply until…" (templates sheet, `kid.js modeApply`) sets `{name, until, rules: template fields}` on the normal rules. `Store.rules` (what Guard, launcher, `decide()` read) = `Rules.effective(now)`: normal rules + `mode.rules` while `now < until`, else the normal rules; cached per stored string until `until`. `Store.baseRules` is the stored/edited copy (state, `GET/PUT /api/rules`, setRules, Telegram, BankList, release use it). Tick start (`Guard.tick`): expired `mode` -> `setRules(base without mode, rev+1)`. "End now" = PUT without `mode`. Release clears it (`Policy.clearLost`). Gotcha: expiry is exact for enforcement but the stored field and `Policy.apply` follow at the next tick (10 s, 60 s screen off).
 - Exempt from the four phone-wide reasons: `protected + allow`.
-- Heads-ups: `Warn.due` (Warn.kt:16) 5 min / 1 min before daily limit, 5 min before bed/schedule start, optional 10 min wind-down nudge; dedup keys `"<day>:<name>"` in pref `warned` (Store.kt:265); shown by `notifyWarn` (Guard.kt:400).
-- Wind-down gray: `WindDown.active` (Comfort.kt:16) window `[bedStart-windMin, bedEnd)`; `GrayFx.tick` (GrayFx.kt:17) writes `accessibility_display_daltonizer*` (needs WRITE_SECURE_SETTINGS); old values saved in prefs `grayOwned/grayOn/grayMode` first (Store.kt:454-461) and restored when off/release.
-- Request time: child `Store.addRequest` (max 5, Store.kt:370) -> parent answers -> rules `bonus` raised -> next tick.
-- Gotchas: bonus ignored when `base == 0`; day boundary depends on child clock/timezone (owner pins auto-time, Policy.kt:56-63; basic mode does not).
+- Heads-ups: `Warn.due` (Warn.kt) 5 min / 1 min before daily limit, 5 min before bed/schedule start, optional 10 min wind-down nudge; dedup keys `"<day>:<name>"` in pref `warned` (Store.kt); shown by `notifyWarn` (Guard.kt).
+- Wind-down gray: `WindDown.active` (Comfort.kt) window `[bedStart-windMin, bedEnd)`; `GrayFx.tick` (GrayFx.kt) writes `accessibility_display_daltonizer*` (needs WRITE_SECURE_SETTINGS); old values saved in prefs `grayOwned/grayOn/grayMode` first (Store.kt) and restored when off/release.
+- Request time: child `Store.addRequest` (max 5, Store.kt) -> parent answers -> rules `bonus` raised -> next tick.
+- Gotchas: bonus ignored when `base == 0`; day boundary depends on child clock/timezone (owner pins auto-time, Policy.kt; basic mode does not).
 
 ### 1.5 App suspend / hide
 
-- Suspend: loop only (Guard.kt:191-197). `want.keys` vs `store.suspendedByUs`; failures from DPM (returned array) are not recorded as suspended (Policy.kt:239-245). Logs `log_suspended/unsuspended`. `nowSusp` is persisted only when changed.
-- `goHome()` (:592) when the front app was just suspended (accessibility HOME first, else startActivity).
-- Hide ("Dọn máy"): `applyHidden` (Guard.kt:238) when `rules.hidden`/`hiddenByUs`/never-set changed or every 10 min. Owner => `setApplicationHidden`; non-owner => self-adb (falls back to `pm uninstall -k --user 0` when disable is refused, e.g. HyperOS) `pm disable-user` (`hideViaShell` Policy.kt:271, needs Wireless debugging). Refusals tracked in `refusedHide` (Debloat.refusedAfter). State prefs: `hid` (owner), `shellOff` (shell), `hideRefused`.
-- Never-hide set = protected + self + Tailscale pkg (Policy.kt:250).
+- Suspend: loop only (Guard.kt). `want.keys` vs `store.suspendedByUs`; failures from DPM (returned array) are not recorded as suspended (Policy.kt). Logs `log_suspended/unsuspended`. `nowSusp` is persisted only when changed.
+- `goHome()` when the front app was just suspended (accessibility HOME first, else startActivity).
+- Hide ("Dọn máy"): `applyHidden` (Guard.kt) when `rules.hidden`/`hiddenByUs`/never-set changed or every 10 min. Owner => `setApplicationHidden`; non-owner => self-adb (falls back to `pm uninstall -k --user 0` when disable is refused, e.g. HyperOS) `pm disable-user` (`hideViaShell` Policy.kt, needs Wireless debugging). Refusals tracked in `refusedHide` (Debloat.refusedAfter). State prefs: `hid` (owner), `shellOff` (shell), `hideRefused`.
+- Never-hide set = protected + self + Tailscale pkg (Policy.kt).
 
 ### 1.6 Location
 
-- `keepLocation(r)` (Guard.kt:353): owner + `lockLocation` + location off => API30+ `setLocationEnabled(true)`; API<30 `setSecureSetting(LOCATION_MODE)` then WSS fallback. Runs every tick and instantly from `locObserver` (:367, ContentObserver on LOCATION_MODE/PROVIDERS_ALLOWED).
-- Policy side: `applyNet` (Policy.kt:92) `lockLocation` => `setLocationEnabled(true)` + `DISALLOW_CONFIG_LOCATION`, else clear.
+- `keepLocation(r)` (Guard.kt): owner + `lockLocation` + location off => API30+ `setLocationEnabled(true)`; API<30 `setSecureSetting(LOCATION_MODE)` then WSS fallback. Runs every tick and instantly from `locObserver` (ContentObserver on LOCATION_MODE/PROVIDERS_ALLOWED).
+- Policy side: `applyNet` (Policy.kt) `lockLocation` => `setLocationEnabled(true)` + `DISALLOW_CONFIG_LOCATION`, else clear.
 - Two independent location timers:
   - Pace (`guard/PowerLogic.kt` `LocPace`, 0.9.18): a good `trackFix` (acc <= 100 m) also becomes pref `loc`, and the 15-min `locate()` is skipped while those are fresh (`locateDue`). 2 same-spot fixes with the screen off + `TYPE_SIGNIFICANT_MOTION` armed (`Guard.pace`) = slow pace (history >= 15 min, locate hourly); the sensor firing or screen on = normal pace and a fix at once. No sensor = never slow.
-  - `locate()` (Guard.kt:508) every 15 min and on `locate`/SOS/check-in commands -> pref `loc` (last fix) + zone events (only if fix < 10 min old, acc <= 300 m, :517, :293).
-  - `trackFix(trackMin)` (:574) every `trackMin` (0 = off): one fix (30 s), fallback last-known < 2x interval -> `Store.addTrack` (Store.kt:310; keep 7 d, <= 2000 pts, stores if moved >= 30 m or gap elapsed, `Track.gapFor`). Pref `track`.
-- `fixProviders` (:529): fused (API 31+) else network+gps together; listeners always removed (no leaked GPS).
-- Zones: `Store.zoneFix` (Store.kt:440) in/out sets in pref `zin`; baseline after zone list change.
+  - `locate()` (Guard.kt) every 15 min and on `locate`/SOS/check-in commands -> pref `loc` (last fix) + zone events (only if fix < 10 min old, acc <= 300 m).
+  - `trackFix(trackMin)` every `trackMin` (0 = off): one fix (30 s), fallback last-known < 2x interval -> `Store.addTrack` (Store.kt; keep 7 d, <= 2000 pts, stores if moved >= 30 m or gap elapsed, `Track.gapFor`). Pref `track`.
+- `fixProviders`: fused (API 31+) else network+gps together; listeners always removed (no leaked GPS).
+- Zones: `Store.zoneFix` (Store.kt) in/out sets in pref `zin`; baseline after zone list change.
 
 ### 1.7 Device restrictions (Policy.apply) + release undo
 
-`Policy.apply(ctx, r)` Policy.kt:45. Called: `Guard.onCreate` (:97), every `setRules` (:416), after self-update (Update.kt:182), release failure paths. NOT every tick (restrictions are persistent in DPM).
-Non-owner: only `LauncherSafe.apply` (:46).
+`Policy.apply(ctx, r)` Policy.kt. Called: `Guard.onCreate`, every `setRules`, after self-update (Update.kt), release failure paths. NOT every tick (restrictions are persistent in DPM).
+Non-owner: only `LauncherSafe.apply`.
 Owner adds:
-- BASE: factory reset, safe boot, add user, config date/time (:38). INSTALL pair if `noInstall && !Update.installing` else cleared (:51). `DISALLOW_DEBUGGING_FEATURES` iff `noDebug` (:52).
-- `setUninstallBlocked(self)`; API30+ `setUserControlDisabledPackages([self])` + `setAutoTimeEnabled(true)`; API<30 `DISALLOW_APPS_CONTROL` + `setAutoTimeRequired(true)` (:55-63).
-- `applyNotes`: short/long support message + lock-screen owner info (:78).
-- `applyNet`: location (see 6), `DISALLOW_AIRPLANE_MODE` (API 28+) iff `noAirplane`, Private DNS (`applyBrowsers` Chrome/Edge one managed-config bundle: `DnsOverHttpsMode=off` while safeDns + `noIncognito` + `webBlock`/`webAllow`, `applyVpnLock` = only owner of `DISALLOW_CONFIG_VPN` for `noVpn` + Tailscale; `applyDns` :105: `safeDns` host -> restriction `DISALLOW_CONFIG_PRIVATE_DNS`; rejected => opportunistic + restriction cleared + `dnsError`). `retryDns` (:134) every tick: retry after rejection; 90 s non-validated network => opportunistic fallback for 30 min (restriction kept).
-- Grants (:66-73): fine/coarse/background location, POST_NOTIFICATIONS, WRITE_EXTERNAL (<29), RECORD_AUDIO -> GRANTED.
+- BASE: factory reset, safe boot, add user, config date/time. INSTALL pair if `noInstall && !Update.installing` else cleared. `DISALLOW_DEBUGGING_FEATURES` iff `noDebug`.
+- `setUninstallBlocked(self)`; API30+ `setUserControlDisabledPackages([self])` + `setAutoTimeEnabled(true)`; API<30 `DISALLOW_APPS_CONTROL` + `setAutoTimeRequired(true)`.
+- `applyNotes`: short/long support message + lock-screen owner info.
+- `applyNet`: location (see 6), `DISALLOW_AIRPLANE_MODE` (API 28+) iff `noAirplane`, Private DNS (`applyBrowsers` Chrome/Edge one managed-config bundle: `DnsOverHttpsMode=off` while safeDns + `noIncognito` + `webBlock`/`webAllow`, `applyVpnLock` = only owner of `DISALLOW_CONFIG_VPN` for `noVpn` + Tailscale; `applyDns` :105: `safeDns` host -> restriction `DISALLOW_CONFIG_PRIVATE_DNS`; rejected => opportunistic + restriction cleared + `dnsError`). `retryDns` every tick: retry after rejection; 90 s non-validated network => opportunistic fallback for 30 min (restriction kept).
+- Grants: fine/coarse/background location, POST_NOTIFICATIONS, WRITE_EXTERNAL (<29), RECORD_AUDIO -> GRANTED.
 - `LauncherSafe.apply` (HOME persistent preferred activity).
-Also by others: Tailscale `DISALLOW_CONFIG_VPN` + uninstall block + suspend of TS pkg (remote/Ts.kt:306-308, undone Ts.kt:345-347).
+Also by others: Tailscale `DISALLOW_CONFIG_VPN` + uninstall block + suspend of TS pkg (remote/Ts.kt, undone Ts.kt).
 
 #### release
-Trigger: command `release` (relay: deliver-once; LAN: `POST /api/cmd`). `Guard.command` (Guard.kt:424) marks cmd id with `commit()` first (:428) -> `run` -> `release()` (:486).
-- `Guard.release` (:486-505): on the work thread at front of queue: `stopped=true`, remove loop callbacks, stop Listen/Proj/Ring/wifi lock, `GrayFx.restore`, `Policy.release`. Result != "ok" => `stopped=false`, loop restarts, log `release_fail`. "ok" => log, `Files.wipeOutbox`, `stopSelf` after 2 s. Caller waits max 20 s (:501).
-- `Policy.release` owner path (Policy.kt:417-465), in order:
+Trigger: command `release` (relay: deliver-once; LAN: `POST /api/cmd`). `Guard.command` (Guard.kt) marks cmd id with `commit()` first -> `run` -> `release()`.
+- `Guard.release`: on the work thread at front of queue: `stopped=true`, remove loop callbacks, stop Listen/Proj/Ring/wifi lock, `GrayFx.restore`, `Policy.release`. Result != "ok" => `stopped=false`, loop restarts, log `release_fail`. "ok" => log, `Files.wipeOutbox`, `stopSelf` after 2 s. Caller waits max 20 s.
+- `Policy.release` owner path (Policy.kt), in order:
   1. `Ts.undo`; unsuspend all launchable + `suspendedByUs`; `unhideAll`; `stuck` = still hidden => re-`apply`, re-arm watchdog, return `"failed: N apps still hidden"` (res string `release_stuck`).
   2. `enableShellDisabled`; `Update.forget`.
-  3. Clear restrictions: BASE + INSTALL + DEBUGGING + APPS_CONTROL (:433); `setUninstallBlocked(false)`; `applyNet(Rules(lockLocation=false,noAirplane=false,safeDns=""))` (location, airplane, private DNS back); `setUserControlDisabledPackages([])` / `setAutoTimeRequired(false)`; support messages + lock info null.
+  3. Clear restrictions: BASE + INSTALL + DEBUGGING + APPS_CONTROL; `setUninstallBlocked(false)`; `applyNet(Rules(lockLocation=false,noAirplane=false,safeDns=""))` (location, airplane, private DNS back); `setUserControlDisabledPackages([])` / `setAutoTimeRequired(false)`; support messages + lock info null.
   4. `removeAccEntry`; `NotifDots.setOn(false)`; `LauncherSafe.off(goHome)`; reset location/notif/storage grants to DEFAULT, RECORD_AUDIO DENIED then DEFAULT.
   5. `store.released = true` (commit), `Watchdog.cancel`, `clearDeviceOwnerApp`; zero `susp/hid/hideRefused`. If still owner => `released=false`, re-`apply`, re-schedule watchdog, return `"failed"`. Else `clearTokens`, `Quick.setEnabled(false)`, `"ok"`.
-- Basic path `releaseBasic` (:469): `released=true`, clear `Acc.blocked`, cancel watchdog, `removeActiveAdmin` + wait <= 3 s, then clear acc entry, dots, launcher off, `Acc.disableSelf`, tokens, Quick off. "not owner" if no admin active.
-- After release nothing restarts: `Guard.start` (:693), `Watchdog.schedule` (Watchdog.kt:25), `Quick` (:44), `LauncherSafe.wanted` (:32) check `Store.released`. `Admin.onEnabled` / `onProfileProvisioningComplete` reset it (Policy.kt:20,24).
+- Basic path `releaseBasic`: `released=true`, clear `Acc.blocked`, cancel watchdog, `removeActiveAdmin` + wait <= 3 s, then clear acc entry, dots, launcher off, `Acc.disableSelf`, tokens, Quick off. "not owner" if no admin active.
+- After release nothing restarts: `Guard.start`, `Watchdog.schedule` (Watchdog.kt), `Quick`, `LauncherSafe.wanted` check `Store.released`. `Admin.onEnabled` / `onProfileProvisioningComplete` reset it (Policy.kt).
 - Not undone (by design?): `setAutoTimeEnabled(true)` (API30+), Sys settings the parent changed (volume/brightness/DND), Private DNS ends as opportunistic (not the user's earlier value), `rules` pref kept (re-provisioning reapplies old rules + PIN).
 
 ### 1.8 Watchdog / boot / restart
 
-- `Boot` receiver (Guard.kt:40) on BOOT_COMPLETED + MY_PACKAGE_REPLACED: `Guard.start` + `Watchdog.schedule`; update also `LauncherSafe.afterUpdate`. No LOCKED_BOOT, no directBootAware => nothing runs before first unlock (DPM suspends/restrictions persist meanwhile).
-- `Guard.start` (Guard.kt:691): no-op in HOME flavor and when `released`; `startForegroundService`, errors only logged.
-- `Watchdog` (Watchdog.kt): `setAndAllowWhileIdle` ELAPSED_REALTIME_WAKEUP every 10 min (inexact, Doze max ~1 per 9 min); `onReceive` = `Guard.running?.relayWake()` (Relay.wake: wakelock + drop a socket quiet > 2 min + sync now, ignores backoff) else `Guard.start`, + re-arm. Each relay sync holds a partial wakelock (≤ 60 s): Handler delays use uptime, which stops while the phone sleeps. Also armed in `Guard.onCreate` and `Acc.onServiceConnected` (Acc.kt:42).
-- Service restarts: `START_STICKY` (:114), `onTaskRemoved` -> `start` (:117), `Acc.onServiceConnected` after OS rebind, `Acc` SCREEN_ON/USER_PRESENT receiver, accessibility events -> `Guard.poke` -> `start` if not running (:698), Update/Admin callbacks.
-- `onCreate` (:90): foreground notif, `Policy.apply` + `Quick.setEnabled` on work thread, content observers, pkg/time receivers, wifi lock, `Http` :8770, `Relay`, post loop.
-- Time receiver: clock jump / timezone change => `tamper`-style `clock` event (:69-79, `Events.clockJumped`).
-- Known kill mode: ColorOS Recents swipe = real force-stop (protocol.md:207-213): nothing of ours runs until the app is opened.
+- `Boot` receiver (Guard.kt) on BOOT_COMPLETED + MY_PACKAGE_REPLACED: `Guard.start` + `Watchdog.schedule`; update also `LauncherSafe.afterUpdate`. No LOCKED_BOOT, no directBootAware => nothing runs before first unlock (DPM suspends/restrictions persist meanwhile).
+- `Guard.start` (Guard.kt): no-op in HOME flavor and when `released`; `startForegroundService`, errors only logged.
+- `Watchdog` (Watchdog.kt): `setAndAllowWhileIdle` ELAPSED_REALTIME_WAKEUP every 10 min (inexact, Doze max ~1 per 9 min); `onReceive` = `Guard.running?.relayWake()` (Relay.wake: wakelock + drop a socket quiet > 2 min + sync now, ignores backoff) else `Guard.start`, + re-arm. Each relay sync holds a partial wakelock (≤ 60 s): Handler delays use uptime, which stops while the phone sleeps. Also armed in `Guard.onCreate` and `Acc.onServiceConnected` (Acc.kt).
+- Service restarts: `START_STICKY`, `onTaskRemoved` -> `start`, `Acc.onServiceConnected` after OS rebind, `Acc` SCREEN_ON/USER_PRESENT receiver, accessibility events -> `Guard.poke` -> `start` if not running, Update/Admin callbacks.
+- `onCreate`: foreground notif, `Policy.apply` + `Quick.setEnabled` on work thread, content observers, pkg/time receivers, wifi lock, `Http` :8770, `Relay`, post loop.
+- Time receiver: clock jump / timezone change => `tamper`-style `clock` event (`Events.clockJumped`).
+- Known kill mode: ColorOS Recents swipe = real force-stop (protocol.md "ColorOS"): nothing of ours runs until the app is opened.
 
 ### 1.9 PIN / admin unlock / Authenticator code (Store.kt)
 
-- PIN: hash in rules (`pinHash`,`pinSalt`); `Rules.hashPin` (Rules.kt:213) salted = 10 000 x sha256; legacy `sha256("kg:"+pin)`. Compare constant-time (:199).
-- Lockout: `Store.checkParentPin` (:111) pref `pinFails/pinLock`; `Safety.pinLockMs` 5 free, then 5 min doubling (cap 64x).
-- Pairing: `tryPair` (Store.kt:126): code (6 digits, open 10 min or while never paired) -> PIN check/set (`PairPin.decide`) -> token pending 10 min (`PendingPairs`) -> `commitPair` (:153) on first authenticated request: store token hash, `everPaired`, new PIN into rules, one `commit()`. 3rd wrong guess => new code + 30 s doubling block (`Safety.pairBlockMs`).
-- Child "Bố mẹ quản lý trên máy này": `ui/MainActivity.kt:254` -> `Store.checkAdmin` (:171): TOTP first (6 digits), else PIN; wrong => `tamper` event (:189); returns 1/0/-1; then `ui/AdminActivity` session.
-- Child unlock code (Authenticator): `tryUnlock` (:229) `Totp.check` (+-1 step, step > `totpLast`); ok => `unlockUntil = max(now, old) + unlockMin` (stacks), `unlock` event; 5 free tries then 5 min doubling (`unlockFails/unlockLock`), 5th wrong => `tamper`. Effect = decide() step 6.
-- `totpSet` command (Guard.kt:474) stores secret in pref `totpSecret`, resets `unlockUntil`; secret never sent to parent.
-- "Lost the link": child screen sets `recoverAt`; tick opens pairing after 24 h unless a PIN exists (Guard.kt:208-211).
+- PIN: hash in rules (`pinHash`,`pinSalt`); `Rules.hashPin` (Rules.kt) salted = 10 000 x sha256; legacy `sha256("kg:"+pin)`. Compare constant-time.
+- Lockout: `Store.checkParentPin` pref `pinFails/pinLock`; `Safety.pinLockMs` 5 free, then 5 min doubling (cap 64x).
+- Pairing: `tryPair` (Store.kt): code (6 digits, open 10 min or while never paired) -> PIN check/set (`PairPin.decide`) -> token pending 10 min (`PendingPairs`) -> `commitPair` on first authenticated request: store token hash, `everPaired`, new PIN into rules, one `commit()`. 3rd wrong guess => new code + 30 s doubling block (`Safety.pairBlockMs`).
+- Child "Bố mẹ quản lý trên máy này": `ui/MainActivity.kt` -> `Store.checkAdmin`: TOTP first (6 digits), else PIN; wrong => `tamper` event; returns 1/0/-1; then `ui/AdminActivity` session.
+- Child unlock code (Authenticator): `tryUnlock` `Totp.check` (+-1 step, step > `totpLast`); ok => `unlockUntil = max(now, old) + unlockMin` (stacks), `unlock` event; 5 free tries then 5 min doubling (`unlockFails/unlockLock`), 5th wrong => `tamper`. Effect = decide() step 6.
+- `totpSet` command (Guard.kt) stores secret in pref `totpSecret`, resets `unlockUntil`; secret never sent to parent.
+- "Lost the link": child screen sets `recoverAt`; tick opens pairing after 24 h unless a PIN exists (Guard.kt).
 - Recovery when the PIN is forgotten (verified in code): (a) a still-paired browser/app: "Quên PIN?" = `pinReset`, applies after 24 h with an alert to every parent, the old PIN cancels it (since 0.9.13 a rules PUT no longer replaces a set PIN; `CmdGate`, protocol "PIN-gated commands"); (b) Authenticator set: `checkAdmin` accepts its TOTP -> on-device admin page -> Settings -> new PIN (`MainActivity.askAdmin`); (c) no PIN ever set: "lost the link" (24 h, above). No PIN + no paired device + no Authenticator = no in-app recovery (only factory reset / adb); deliberately no new mechanism, it would also be a way in for the child.
-- `openPairing` command refuses with "set PIN first" if ever paired and no PIN (Guard.kt:452).
+- `openPairing` command refuses with "set PIN first" if ever paired and no PIN (Guard.kt).
 
-### 1.10 Other commands in `Guard.run` (Guard.kt:436)
+### 1.10 Other commands in `Guard.run` (Guard.kt)
 
 `fixPerms` (2026-11-14, `guard/FixPerms.kt`): `missing(ctx)` = state `missing` (admin/acc basic only, usage, listener, location, notify, battery). `fix`: thread -> DO `setPermissionGrantState` (location, notifications) + `Acc.ensureEnabled` (WSS) -> `AutoGrant.missing` cmds over `SelfAdb.run` if the link is up -> what is left: `ask` starts the first Settings screen (only if `AccPause.canReopen`) + notification id 8 (channel `fix`). Result `ok|working|none`, details in state `fixPerms`. Page: live band `#fixPermsBtn` in `live.js`. Not covered: OEM auto-start (undetectable).
 
-Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`, `clearData`, `setting` -> `Sys.set`, `devOff/devOn` -> DevOpts, `relay` (relay URL/token), `unpair/unpairAll`, `answer`, `sosAck`, `update`, tailscale*, file*. `Sys`: volume via AudioManager; brightness/timeout via DPM.setSystemSetting (owner) else Settings.System; DND via NotificationManager (needs policy access); state cached 60 s (Sys.kt:36) and must read back or "not applied".
+Dedup by id (`markCmd`, last 100, Store.kt). `lock` (DPM lockNow), `reboot`, `clearData`, `setting` -> `Sys.set`, `devOff/devOn` -> DevOpts, `relay` (relay URL/token), `unpair/unpairAll`, `answer`, `sosAck`, `update`, tailscale*, file*. `Sys`: volume via AudioManager; brightness/timeout via DPM.setSystemSetting (owner) else Settings.System; DND via NotificationManager (needs policy access); state cached 60 s (Sys.kt) and must read back or "not applied".
 
 ### 1.11 Basic mode (no Device Owner)
 
-- `Basic.mode` (Basic.kt:25): owner | basic (admin active + accessibility on) | setup. `enforcing` = !owner && admin && !released.
-- Blocking only by bounce (see 3). Self-protect: `BasicLogic.selfProtect` (BasicLogic.kt:72) on Settings-like packages scanned at 0.2/0.8/1.8 s (Acc.kt:128-135); needs both a "KidGuard" mention and a destructive control.
+- `Basic.mode` (Basic.kt): owner | basic (admin active + accessibility on) | setup. `enforcing` = !owner && admin && !released.
+- Blocking only by bounce (see 3). Self-protect: `BasicLogic.selfProtect` (BasicLogic.kt) on Settings-like packages scanned at 0.2/0.8/1.8 s (Acc.kt); needs both a "KidGuard" mention and a destructive control.
 - Hide/clear only through self-adb shell; location lock, restrictions, suspend: not available. Checklist UI: the "Việc cần làm" card `SetupSteps` (`ui/SetupSteps.kt`, both modes).
 
 ### 1.12 Bank apps vs accessibility (`guard/AccPause.kt`)
@@ -201,7 +200,7 @@ Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`,
 - Trigger: page command `snap {fid, cam, flash, size, delay, relay}` (rule `watch.cam` on). Refusals (answer string): off, screen off, no camera permission, no such camera, busy, unsupported (Home).
 - Steps: tell the child (notification id 13 + log `watch_snap`), start `SnapActivity` (translucent, `FLAG_NOT_TOUCHABLE`: Android 11+ gives the camera only to a visible app), wait `delay`, flash (front = white window at brightness 1 for <= 2 s, back = torch; "auto" = light sensor < 10 lux), `Shot.take` to `snaps/<fid>.jpg`. LAN: page polls `GET /snap/<fid>` (404 pending, 409 + reason). Relay: the phone pushes the jpg (or a json `{error}`) on the file channel under `fid`.
 - Safety: the white is removed by a posted callback (<= 2 s), onStop and onDestroy; the whole Activity ends in 25 s; if the window does not start in 4 s the photo is taken from the service without flash.
-- State: every photo stays in `filesDir/snaps` (`<fid>.jpg` + `<fid>.json` meta, failed tries too, NO cap, 2026-11-17 history), deleted on release / rule off (`RemoteSnap.clear`). Page: Seen tab "Ảnh đã chụp" (`hist.js`) pages them with `GET /snaps` / relay `snapList`, thumbs `?thumb=1` / `snapUp {thumb}`, delete = `snapDel {ids}` (select mode, `select.js`). Camera permission is granted by Device Owner (`Policy.apply` when `watch.cam`) or `AutoGrant.camNow`.
+- State: every photo stays in `filesDir/snaps` (`<fid>.jpg` + `<fid>.json` meta, failed tries too, NO cap, 2026-11-17 history), deleted on release / rule off (`RemoteSnap.clear`). Page: Seen tab "Ảnh đã chụp" (`hist.js`) pages them with `GET /snaps` / relay `snapList`, thumbs `?thumb=1` / `snapUp {thumb}`, delete = `snapDel {ids}` (select mode, `select.js`). Camera permission is granted by Device Owner (`Policy.apply` when `watch.cam`) or `AutoGrant.camNow`. Also reachable from Telegram `/snap` (1.20); live camera = flows 2.16.
 
 ### 1.15 Lost mode card escape (0.9.16, `Guard.lockForLost`, `MessageActivity`)
 - Trigger: rule `lostOn` (+ `lostMsg`, `lostPhone`) from page / parent app / Telegram `/lost`.
@@ -213,3 +212,15 @@ Dedup by id (`markCmd`, last 100, Store.kt:298). `lock` (DPM lockNow), `reboot`,
 - Steps: the page loads a page on demand (LAN `/sms`, relay `smsPull` + file channel); `Sms.tick` on each Guard tick turns a new incoming SMS with a `watch.words` word into the `word` event (`NotifSync.alert`).
 - Gotchas: no permission = the page says so; the Notifications card still shows SMS notification text. Chat apps are not SMS. Call audio is not recorded (out of scope).
 
+
+### 1.20 Telegram bot on the phone (`remote/Tg.kt`, pure `TgLogic.kt`, `CamClip.kt`; protocol "Telegram bot on the child phone")
+- Trigger: the family's own bot token (`tgSet`), `Tg` long-polls `getUpdates`; a chat is let in with the page's 6-digit code (max 5). Alerts are scanned from the store (and `HistDb` with a row cursor) on every Guard tick (`Tg.tick`); evening summary `digestTick` (2.10). Destructive commands are not offered. Slow commands (rec, locate, screen) run on a bounded 4-thread pool.
+- `/snap [front|back]`: `Tg.snap` -> the same `RemoteSnap.command` as 1.18 (rule `watch.cam`, child notice, log, photo history), sent with `sendPhoto`; refused while a live camera runs. `/clip [secs] [front|back]` (5-30 s): `Tg.clip` -> `CamClip` (Camera2 + MediaRecorder H.264/AAC ~480p) reuses `CamService`/`CamActivity` (extra `clip`) for the while-in-use camera rule, ongoing notice + log, `sendVideo`, temp file in `cacheDir/tgclip` deleted after sending / on release / rule off; no mic permission = video without sound (caption says so). Commands older than 10 min are dropped (`TgLogic.tooOld`).
+- One-tap turn-on: `/snap` `/clip` with `watch.cam` off, or `/notif` with `watch.notif` off, send an inline button (`askWatch`, data `w:<command line>`, `TgLogic.watchData/fromWatchData`, only `WATCH_CMDS`). The tap runs `TgLogic.watchOn` through `editRules` -> `Guard.setRules` (so child notice + log + page state follow like any rule change), removes the button, runs the command, and raises event `watchTg` (in `Events.IMPORTANT`) so every parent hears who turned it on. Page twin: Take photo / Watch live with `watch.cam` off = one confirm (`snapGo.ensure` in `tab-seen.js`: child is told, rules saved, then the action goes on).
+- `/notif on|off`: forwards the notification feed (rule `watch.notif`) to that chat, silent, batched per tick, from the notification-log sqlite with a (time, row id) cursor (nothing lost while offline; see 1.17).
+- Gotchas: texts vi + en in `TgLogic`; a new command needs the menu list (`setMyCommands`, refreshed once per process via `cmdsSet`), help text and `TgLogicTest`.
+
+### 1.21 No re-alerting notifications (gate `NotifGateTest`, app + parent)
+- Rule (INCIDENT 2026-11-20: the usage-access notice was re-posted with sound every tick, ColorOS popped it every few seconds): anything posted from a tick / receiver / retry loop posts once per state change (remember what was posted: `Store.degraded`, `Store.refused`, ...) AND sets `setOnlyAlertOnce`.
+- Gate: `android/app/src/test/.../NotifGateTest.kt` (and the parent twin) scans every `Notification.Builder(` chain: `.setOngoing(true)` always needs `setOnlyAlertOnce(...)` (not `false`); any other must set it too or be listed in `ONE_SHOT` ("File.function" + why it cannot repeat). New notification = fix the code first, an `ONE_SHOT` row only for a one-event notice.
+- Related: `Degraded.report` once per new key, NavGest rescue notice on change, `applyHidden` does not re-open Developer options / Wireless debugging every tick (10 min), `log_acc_rebind` hourly, `log_dns_fallback` every 6 h.

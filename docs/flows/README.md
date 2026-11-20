@@ -1,7 +1,7 @@
 # KidGuard flows (how things actually work)
 
-Traced from the code on 2026-11-09 (main @ 0c95d99). For each flow: trigger -> steps -> where state lives -> gotchas.
-**Line numbers drift**: treat `file:123` as a hint and grep the function name. Wire formats are in `docs/protocol.md`
+Traced from the code, re-checked 2026-11-21 (v0.9.76). For each flow: trigger -> steps -> where state lives -> gotchas.
+No line numbers (they drift): every pointer is a file + function name, grep it. Wire formats are in `docs/protocol.md`
 (the contract); decisions, rejected approaches and known open issues are in `docs/decisions/` (one file per area, index in `README.md`).
 
 One file per area; section numbers (§1.6, §4.3, ...) are kept across files. Read only the file you need.
@@ -9,11 +9,11 @@ One file per area; section numbers (§1.6, §4.3, ...) are kept across files. Re
 | § | File | What |
 |---|---|---|
 | 0 | this file (below) | Privileges -> the flows that use them: check before saying "can't" |
-| 1 | `enforcement.md` | Rules, tick, block decision, limits, suspend, location, Policy + release, watchdog, PIN, basic mode, FRP, lost mode |
-| 2 | `remote.md` | Pairing, state refresh, save rules, commands, screen/listen/ring, files, self-update, page serving, parent app, wizard, QR, watch connect |
+| 1 | `enforcement.md` | Rules, tick, block decision, limits, suspend, location, Policy + release, watchdog, PIN, basic mode, FRP, lost mode, notifications / word alerts, photo on request, SMS, Telegram bot (1.20), no-re-alert gate (1.21) |
+| 2 | `remote.md` | Pairing, relay parents + security (1d), state refresh, save rules, commands, screen/listen/ring, files, self-update (incl. HyperOS quiet refusal), page serving, UI pack, parent app (+ notif mirror), wizard, QR, watch connect, video call / live camera / LAN call (2.15-2.17), chat (2.18) |
 | 3 | `launcher.md` | Kid launcher: where is X, render, app list, drag, edit, folders, drawer, Today, widgets, dots, customization, `launcher.*` rules, flavors |
-| 4 | `setup-build.md` | Setup flows (4 ways), build, release steps (§4.3) |
-| 5 | `checklists.md` | Add a command / rule field / state field / worker route |
+| 4 | `setup-build.md` | Setup flows (4 ways, incl. the ColorOS permission-monitoring step), build, release steps (§4.3), UI pack |
+| 5 | `checklists.md` | Add a command / rule field / state field / worker route / notification / Telegram command |
 | - | `device-test.md` | Checklist to run on every new phone / brand (3 install modes, preflight, block, limits, bank pause, reboot, update, 24 h, release, uninstall) |
 | - | `../../mcp/README.md` | MCP server for AI assistants: tools, safety allow-list, config |
 
@@ -37,6 +37,6 @@ flow holds. Add a row when a flow starts using a privilege.
 | Usage access | foreground app + time per app | `Usage.today` (`use.current` in the tick, also = our launcher when home is in front) |
 | Notification listener | notification history + stats, dots, re-send a notification's tap intent, hold an app's notifications (snoozeNotification until 8/12/18 h or a mute end) | `NotifLog`, `NotifStats`, `NotifHold`, `NotifDots`, `AccPause` deep link |
 | DND policy access | Do Not Disturb on/off | study mode (`FocusStore`), `Sys` |
-| Mic / camera / media projection / location (runtime) | listen, Telegram /rec, wrong-PIN photo, screen view, locate / track | `Listen`, `Tg`, `Shot`, `Proj`, `Guard.trackFix` |
+| Mic / camera / media projection / location (runtime) | listen, Telegram /rec /snap /clip, photo + live camera on request, wrong-PIN photo, screen view, locate / track | `Listen`, `Tg`, `CamClip`, `CamService`, `Snap`, `Shot`, `Proj`, `Guard.trackFix` |
 | Self adb (Wireless debugging against itself) | shell grants, hide / clear in basic mode | `SelfSetup*` |
 | Foreground service + 15 min `Watchdog` alarm + boot receiver | stay alive, restart after kill / reboot | `Guard`, `Watchdog` |
