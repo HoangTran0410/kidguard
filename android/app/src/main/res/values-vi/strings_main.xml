@@ -17,7 +17,6 @@
     <string name="prot_status">Hiện tại</string>
     <string name="prot_features">Tính năng</string>
     <string name="acc_paused_toast">Trợ năng tạm tắt cho app này, sẽ tự bật lại</string>
-    <string name="ch_bankwarn">Cảnh báo app ngân hàng</string>
     <string name="bank_cant_t">%1$s có thể báo máy không an toàn</string>
     <string name="bank_cant_d">KidGuard chưa tự tắt được gỡ lỗi USB / tuỳ chọn nhà phát triển. Bấm nút dưới đây và tắt tay "Gỡ lỗi USB", rồi mở lại app.</string>
     <string name="bank_cant_open">Mở tuỳ chọn nhà phát triển</string>

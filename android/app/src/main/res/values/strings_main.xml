@@ -17,7 +17,6 @@
     <string name="prot_status">Now</string>
     <string name="prot_features">Features</string>
     <string name="acc_paused_toast">Accessibility off for this app, back later</string>
-    <string name="ch_bankwarn">Bank app warnings</string>
     <string name="bank_cant_t">%1$s may say the phone is unsafe</string>
     <string name="bank_cant_d">KidGuard couldn\'t turn off USB debugging / developer options by itself. Tap the button below, turn off "USB debugging", then open the app again.</string>
     <string name="bank_cant_open">Open developer options</string>
