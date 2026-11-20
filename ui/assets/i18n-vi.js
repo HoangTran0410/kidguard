@@ -851,6 +851,7 @@ L.vi = {
   "snap.reload": "Tải lại",
   "snap.more": "Ảnh cũ hơn",
   "snap.empty": "Chưa chụp ảnh nào.",
+  "snap.old": "Máy con cần cập nhật KidGuard để mở ảnh lớn. Cập nhật rồi thử lại.",
   "snap.gone": "Ảnh này không còn trên máy bé.",
   "lh.h": "Lịch sử nghe",
   "lh.p": "Mỗi lần nghe có một dòng ở đây. Bản ghi chỉ làm và giữ trong trình duyệt này. Máy bé không lưu gì.",

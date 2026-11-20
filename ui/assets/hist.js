@@ -22,12 +22,16 @@ async function snapBlob(k, id, thumb) {
     if (!r.ok) throw errOf("HTTP " + r.status);
     return r.blob();
   }
-  await call(k, "/cmd", "POST", thumb ? { type: "snapUp", id, thumb: 1 } : { type: "snapUp", id });
+  // the photo id goes in "snap": "id" is the command id, and the phone skips a repeated one (thumb then full = same id, owner 2026-11-20)
+  const old = k === cur && kidOld("0.9.71"), c = old ? { type: "snapUp", id } : { type: "snapUp", snap: id };
+  // an old phone already took this id for the thumbnail: the full photo would never come, say so now instead of after 3 min
+  if (old && !thumb && (snapTh[snapKey(k, id)] || await thGet(snapKey(k, id)))) throw errOf("snap:old");
+  await call(k, "/cmd", "POST", thumb ? { ...c, thumb: 1 } : c);
   const fid = thumb ? snapTf(id) : id, end = Date.now() + (thumb ? 90e3 : 3 * 60e3);
   let meta = null;
   while (!meta) {
     await new Promise(s => setTimeout(s, thumb ? 2500 : 3000));
-    if (Date.now() > end) throw errOf("timeout");
+    if (Date.now() > end) throw errOf(old && !thumb ? "snap:old" : "timeout");
     meta = (((await call(k, "/file?to=parent").catch(() => ({}))).files) || []).find(x => x.fid === fid && x.done) || null;
   }
   const parts = [];
@@ -128,7 +132,7 @@ async function snapView(r) {
         const box = $("#svBox"); if (!box || k !== cur) return;
         box.classList.remove("mute"); box.innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="${esc(evAt(r.at))}">`;
         const g = $("#svGet"); if (g) g.disabled = false;
-      } catch (e) { const box = $("#svBox"); if (box) box.textContent = e.raw === "snap:gone" ? t("snap.gone") : e.message || t("fx.e.failed"); }
+      } catch (e) { const box = $("#svBox"); if (box) box.textContent = e.raw === "snap:gone" ? t("snap.gone") : e.raw === "snap:old" ? t("snap.old") : e.message || t("fx.e.failed"); }
     })();
   });
 }

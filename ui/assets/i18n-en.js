@@ -850,6 +850,7 @@ L.en = {
   "snap.reload": "Refresh",
   "snap.more": "Older photos",
   "snap.empty": "No photos yet.",
+  "snap.old": "The kid's phone needs the KidGuard update to open the full photo. Update it, then try again.",
   "snap.gone": "This photo is no longer on the phone.",
   "lh.h": "Listening history",
   "lh.p": "Every listen is listed here. Recordings are made and kept in this browser only. The phone stores nothing.",

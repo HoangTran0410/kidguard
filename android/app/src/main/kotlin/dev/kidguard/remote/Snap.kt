@@ -138,7 +138,8 @@ object RemoteSnap {
     }
     /** Relay `snapUp {id, thumb?}`: put the photo (or its thumbnail under `FilesLogic.thumbFid(id)`) on the file channel. */
     fun up(g: Context, c: JSONObject): String {
-        val id = c.optString("id"); if (!FilesLogic.isId(id)) return "bad id"
+        // photo id in "snap" (0.9.71+); "id" is the relay command id, which the dedupe keeps: a 2nd snapUp of the same photo (thumb, then full) was skipped
+        val id = c.optString("snap").ifEmpty { c.optString("id") }; if (!FilesLogic.isId(id)) return "bad id"
         val f = file(g, id) ?: return "no such photo"
         val th = c.optInt("thumb") == 1
         Thread({
