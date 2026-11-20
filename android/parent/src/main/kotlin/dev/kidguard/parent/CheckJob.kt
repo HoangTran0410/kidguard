@@ -169,6 +169,8 @@ class CheckJob : JobService() {
                     x.optString("id").takeIf { it.isNotEmpty() }?.let { it to x.optLong("t") }
                 }
                 val ea = st.optJSONArray("events")
+                // the phone's last sync carried a "released" event and it went quiet right after: released, though the relay never got /forget
+                if (!lan && Logic.releasedQuietly(ea?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.map { it.optString("kind") to it.optLong("t") } }.orEmpty(), o.optLong("seen"), System.currentTimeMillis())) return GONE
                 val evs = (0 until (ea?.length() ?: 0)).mapNotNull { i ->
                     val x = ea!!.optJSONObject(i) ?: return@mapNotNull null
                     val id = x.optString("id"); val text = x.optString("text")   // tsDown / tsUp: log only, no notification

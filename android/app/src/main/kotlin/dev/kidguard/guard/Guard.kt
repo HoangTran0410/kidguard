@@ -912,7 +912,11 @@ class Guard : Service() {
             res.set(r)
             // anything but "ok" (e.g. "failed: N app còn bị ẩn") means we are still in charge: keep enforcing
             if (r != "ok") { stopped = false; wifiSync(); work.post(loopRun); store.log(R.string.log_release_fail, r); runCatching { store.addEvent(Ev("releaseFail", getString(R.string.ev_release_failed))) } }
-            else { store.log(R.string.log_released); runCatching { Files.wipeOutbox(this) }; HistDb.wipe(this); runCatching { store.clearChat() }; runCatching { Relay.forget(creds.first, creds.second, creds.third) } }   // the worker deletes this kid's data   // received files stay in Download
+            else {
+                // forget FIRST (INCIDENT 2026-11-20: a throwing wipe before it left the relay thinking the phone was just offline)
+                runCatching { Relay.forgetRetry(creds.first, creds.second, creds.third) }.onFailure { Log.w("KidGuard", "relay forget", it) }
+                store.log(R.string.log_released); runCatching { Files.wipeOutbox(this) }; runCatching { HistDb.wipe(this) }; runCatching { store.clearChat() }
+            }   // the worker deletes this kid's data   // received files stay in Download
             // finished after the caller gave up ("failed" was answered): still go away, we are released
             if (!state.compareAndSet(0, 1) && r == "ok") Handler(mainLooper).postDelayed({ stopSelf() }, 2_000)
             done.countDown()

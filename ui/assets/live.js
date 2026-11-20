@@ -75,7 +75,8 @@ function updateLive() {
   // the relay worker / server itself failed (Cloudflare error page, 5xx): say so, the phone is not to blame
   const down = /^(cf|http):/.test(srvWhy) && !lan ? srvWhy.replace(/^cf:/, "Cloudflare ").replace(/^http:/, "HTTP ") : "";
   // the kid can't come back by itself (owner 2026-11-18): released on the phone, or paired with the relay killed 2026-11-17
-  const gone = lan ? "" : deadKid(cur) ? "old:" : /^gone:/.test(srvWhy) ? srvWhy : "";
+  const relT = lan || cur.via !== "relay" ? 0 : deadKid.rel(st, lastSeen());
+  const gone = lan ? "" : deadKid(cur) ? "old:" : /^gone:/.test(srvWhy) ? srvWhy : relT ? "gone:" + relT : "";
   if (gone) B.push(["bad", "unlink", gone.startsWith("old:") ? t("live.oldRelay") : +gone.slice(5) ? t("live.released", dtFull(+gone.slice(5))) : t("live.releasedN"), undefined, undefined,
     `<button type="button" class="pill" id="goneDel">${ic("trash-2")} ${t(APP ? "delete" : "forget")}</button>`]);
   else if (down) B.push(["bad", "triangle-alert", t("live.relayDown", down)]);
@@ -219,6 +220,7 @@ async function earStart() {
   if (!cur || earRtc) return;
   if (cur.via !== "lan" && !(vcOk(cur) && RTC.canListen())) return toast("warn|" + t("ear.lanOnly"));
   if (ringOn()) return toast("warn|" + t("act.noEar"));
+  if (!(await onlineNow.gate("ear"))) return;
   // no mic: offer the same Fix as the "N things are off" banner (self-adb grant, else the phone opens the Permissions screen)
   if (st && st.listen && st.listen.mic === false) { if (await ask(t("ear.no mic permission"), t("fp.btn"), false, "", "", null, t("ear.cant"))) cmd({ type: "fixPerms" }, t("fp.sent"), false); return; }
   if (!(await ask(t("ear.ask"), t("ear.on")))) return;

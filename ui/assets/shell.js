@@ -43,6 +43,8 @@ const bonusGiven = new Set();   // "kid:requestId" whose extra-time bonus is alr
 const reqN = () => st && !viewDay ? (st.requests || []).filter(q => !answered.has(q.id)).length : 0;
 // LAN: the last poll failing counts at once (else the header stays green under a red "lost" banner)
 const onlineNow = () => st && !(cur && cur.via === "lan" && lastErr) && Date.now() - lastSeen() < (cur && cur.via === "lan" ? 30000 : 120000);
+// live-only actions (call, listen, screen, ring) on a phone that is offline: say so before, then cancel or still try (owner 2026-11-20)
+onlineNow.gate = async kind => cur && !onlineNow() ? ask(t("off.live." + kind, lastSeen() ? hhmm(lastSeen()) : "?"), t("off.try"), false, "", "", null, t("off.h")) : true;
 // --- "waiting for the phone" helpers (audit 2026-11-13): a wait always says WHY (offline since / adb link) and offers a retry.
 // pendHtml(id, html(), act?): a span the 5 s ticker refreshes by itself (the text depends on time, a state poll may not redraw it);
 // a button with data-pact="<id>" runs act().

@@ -404,6 +404,15 @@ class Relay(private val g: Guard) {
             try { c.outputStream.use { it.write("{}".toByteArray()) }; c.responseCode in 200..299 } finally { c.disconnect() }
         }.getOrDefault(false)
 
+        /** [forget] with a second chance: the other name of the shared relay (some networks filter *.workers.dev), then the first again after 2 s. */
+        fun forgetRetry(base: String, rid: String, token: String): Boolean {
+            if (forget(base, rid, token)) return true
+            val b = base.trim().trimEnd('/')
+            if (b.equals(DEFAULT_URL, true) && forget(ALT_URL, rid, token)) return true
+            runCatching { Thread.sleep(2_000) }
+            return forget(base, rid, token)
+        }
+
         private const val MAX_REPLY = 256 * 1024
         /** Socket up and nothing changed: a state anyway this often (usage minutes, battery). */
         private const val WHOLE_MS = 6 * 3600_000L
