@@ -1,6 +1,6 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Telegram bot</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># Telegram bot
 
-Control and get alerts right in Telegram: status, extra time, lock, location, screenshot, block apps with buttons. SOS, "more time" requests (with Allow / No buttons) and wrong PINs (with a photo) arrive by themselves. No Tailscale or relay needed: the child's phone runs the bot. One bot per child.
+Control and get alerts right in Telegram: status, extra time, lock, location, screenshot, camera photo and video, block apps with buttons. SOS, "more time" requests (with Allow / No buttons) and wrong PINs (with a photo) arrive by themselves. No Tailscale or relay needed: the child's phone runs the bot. One bot per child.
 
 1. **Create a bot (1 minute).** On the parent's phone open [@BotFather](<a href="https://t.me/BotFather">https://t.me/BotFather</a>) in Telegram, tap **Start** , send `/newbot` . Send a name (e.g. `Bin's home` ), then a username ending in `bot` (e.g. `binshome_kidguard_bot` ; taken? add digits).
 2. **Copy the token.** BotFather answers with a line like `123456789:AAH…` : tap it to copy. Long-press the whole message → Copy works too. Keep the token secret.
@@ -8,7 +8,7 @@ Control and get alerts right in Telegram: status, extra time, lock, location, sc
 4. **Link.** The page shows **Open Telegram and link** and a QR code. Tap it (or scan the QR with your phone's camera), Telegram opens the bot, tap **Start** . The bot says hello and shows the Menu.
 5. **Add people** (mum, dad, grandparents, up to 5): tap **Other code** and send them the link.
 
-Use it: tap **📋 Menu** for buttons, or type commands (`/status`, `/bonus 30`, `/lock`, `/locate`…); `/requests` lists open requests, `/lost` turns lost mode on / off, `/quiet` sets the alert level; `/code` sends the 6-digit unlock code to read out to your kid (no Authenticator app needed); `/help` lists them all, `/lang` switches English / Tiếng Việt. Release, unpair and clear data are not possible over Telegram.
+Use it: tap **📋 Menu** for buttons, or type commands (`/status`, `/bonus 30`, `/lock`, `/locate`…); `/requests` lists open requests, `/lost` turns lost mode on / off, `/quiet` sets the alert level; `/snap` takes a camera photo (`/snap back` = back camera); `/clip` records a 5–30 s video with sound (`/clip 30 back`); `/notif on` sends your kid's notifications to this chat (`/notif off` to stop); `/code` sends the 6-digit unlock code to read out to your kid (no Authenticator app needed); `/help` lists them all, `/lang` switches English / Tiếng Việt. Release, unpair and clear data are not possible over Telegram.
 
 Two children?
 
@@ -17,6 +17,10 @@ Make two bots (e.g. Bin's home, Na's home), each pasted on that child's page. On
 “Wrong token” or “used somewhere else”?
 
 Copy BotFather's whole message again and paste it. “Used somewhere else” means the bot belongs to another phone: make a new bot for this child. Token leaked? Send `/revoke` to BotFather for a new one and paste it again.
+
+The bot asks to turn on the camera or notifications?
+
+That item is off. Tap **Turn on and take photo**, **Turn on and record** or **Turn on notifications**: only that item is turned on. The child's phone is told, and so is everyone in the bot.
 
 Tapped Start, the bot says nothing?
 

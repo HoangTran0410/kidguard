@@ -114,8 +114,9 @@
       <li><a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk">Tải file APK</a> trên máy con, cài và mở KidGuard.</li>
       <li>Bấm <b>Cài đầy đủ không cần máy tính (Android 11+)</b>.</li>
       <li>Bật Tùy chọn nhà phát triển: vào <b>Giới thiệu về điện thoại</b>, bấm 7 lần vào <b>Số hiệu bản tạo</b> (Build number).</li>
+      <li>Oppo / Realme / OnePlus (ColorOS): KidGuard hiện bước <b>Bật “Tắt giám sát quyền”</b>. Bấm <b>Mở Tuỳ chọn nhà phát triển</b>, kéo xuống mục cuối và bật nó. Quay lại KidGuard: cài tự chạy tiếp, không cần ghép lại. Không bật thì cài dừng ở quyền dữ liệu sử dụng.</li>
       <li>Trong Tùy chọn nhà phát triển, bật <b>Gỡ lỗi không dây</b> và cho phép Wi-Fi này.</li>
-      <li>Xiaomi / Redmi / POCO: bật thêm <b>Gỡ lỗi USB (Cài đặt bảo mật)</b>, ngay dưới Gỡ lỗi USB. Cần SIM và đăng nhập tài khoản Mi (Cài đặt → Tài khoản Mi). Không bật thì cài dừng ở bước quản trị với lỗi "Calling identity is not authorized". Không có SIM: gắn tạm SIM bất kỳ, bật xong rút ra vẫn giữ. Không đăng nhập Mi được: dùng cách B (QR) hoặc E (cơ bản).</li>
+      <li>Xiaomi / Redmi / POCO: bật thêm <b>Gỡ lỗi USB (Cài đặt bảo mật)</b>, ngay dưới Gỡ lỗi USB. Cần SIM và tài khoản Mi (Cài đặt → Tài khoản Mi). Không có SIM: gắn tạm SIM bất kỳ, bật xong rút ra vẫn giữ. Không đăng nhập Mi được: dùng cách B (QR) hoặc E (cơ bản). Lỗi "Calling identity is not authorized" nghĩa là chưa bật mục này.</li>
       <li>Quay lại KidGuard, bấm <b>Hiện ô nhập mã ở thông báo</b>. Rồi trong Gỡ lỗi không dây, bấm <b>Ghép thiết bị bằng mã ghép nối</b>.</li>
       <li>Kéo thanh thông báo xuống, bấm <b>Nhập mã ghép</b> và gõ mã 6 số đang hiện.</li>
       <li>KidGuard tự làm phần còn lại, rồi tắt Gỡ lỗi không dây.</li>
@@ -194,7 +195,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li>Hoặc mở trình duyệt, vào <code>http://&lt;IP máy con&gt;:8770</code> và gõ mã 6 số.</li>
     <li>Đặt <b>PIN phụ huynh</b> ngay trong form ghép. Chưa có PIN thì máy con không cho ghép thêm trình duyệt khác.</li>
     <li>Đăng nhập lại tài khoản trên máy con (nếu đã xóa) và rút cáp.</li>
-    <li>Xiaomi, Oppo, Vivo, Samsung: trên máy con bấm <b>Cài đặt pin / tự khởi động</b>, cho KidGuard chạy nền.</li>
+    <li>Xiaomi, Oppo, Vivo, Samsung: trên máy con mở <b>Pin và tự khởi động</b>, cho KidGuard chạy nền.</li>
     <li>Muốn quản lý cả khi con ra ngoài: xem <a href="#away">Khi con ra khỏi nhà</a>.</li>
   </ol>
   <p class="tip"><b>Oppo / Realme / OnePlus (ColorOS):</b> mở Đa nhiệm, kéo thẻ KidGuard xuống để khóa (biểu tượng ổ khóa). Trong Quản lý điện thoại, cho KidGuard “Tự khởi chạy” và chạy nền. Vuốt KidGuard khỏi Đa nhiệm trên ColorOS sẽ tắt hẳn app.</p>
@@ -217,6 +218,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
   </ol>
   <p><b>Dễ hơn:</b> <a href="#telegram">bot Telegram</a> gửi SOS và xin thêm giờ tới ngay, không cần app hay build.</p>
   <p>Thông báo xin thêm giờ có nút <b>+15 / +30 phút</b> và <b>Từ chối</b> ngay trên thông báo. App kiểm tra khoảng 15 phút một lần. Muốn SOS tới trong vài giây (qua Worker và Firebase), cần tự build app: xem <a href="https://github.com/HoangTran0410/kidguard#instant-sos-notifications-optional" target="_blank" rel="noopener">README</a>.</p>
+  <p><b>Thông báo của con:</b> bật ở <b>Xem được gì</b> → <b>Gửi thông báo của con cho tôi</b>. App hiện chúng sau vài giây, không kêu. Con thấy “Bố mẹ thấy mọi thông báo”.</p>
   <p><b>Kiểm tra thông báo:</b> app có thẻ sức khỏe (<b>Cài đặt</b>) cho biết thông báo có tới được bạn không (quyền, kênh, tiết kiệm pin, lần kiểm tra cuối) và sửa từng lỗi bằng một chạm. Máy con mất mạng hiện &ldquo;mất mạng từ HH:mm&rdquo;.</p>
   <p>Bố mẹ dùng iPhone: không có app, dùng trình duyệt (Safari) là đủ.</p>
 </section>
@@ -236,11 +238,11 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
         <tr><th scope="row">Cài đặt</th><td>~2 phút: tạo bot, dán token</td><td>~5 phút, một lần: app Tailscale trên máy bố mẹ, dán 1 khóa</td><td>Không cần (relay chung bật sẵn). Relay riêng: ~3 phút trên máy tính</td></tr>
         <tr><th scope="row">Dùng bằng</th><td>App Telegram, nút bấm</td><td>Trang phụ huynh (app Tailscale bật)</td><td>Trang phụ huynh, trình duyệt bất kỳ</td></tr>
         <tr><th scope="row">Tốc độ</th><td><span class="yes">~1 giây</span></td><td><span class="yes">Tức thì</span></td><td>Thường vài giây (khi mất kết nối nhanh: ~20 giây, tắt màn hình ~60 giây)</td></tr>
-        <tr><th scope="row">Màn hình / nghe</th><td>Chụp màn hình, ghi âm 10–60 giây</td><td><span class="yes">Xem trực tiếp, nghe trực tiếp</span></td><td>Xem trực tiếp, nghe trực tiếp</td></tr>
+        <tr><th scope="row">Màn hình / nghe</th><td>Chụp màn hình, ảnh camera, video 5–30 giây, ghi âm 10–60 giây</td><td><span class="yes">Xem trực tiếp màn hình và camera, nghe trực tiếp</span></td><td>Xem trực tiếp màn hình và camera, nghe trực tiếp</td></tr>
         <tr><th scope="row">Báo SOS, xin giờ</th><td><span class="yes">Tới ngay trong Telegram</span></td><td>Trong trang / app bố mẹ</td><td>Trong trang / app bố mẹ</td></tr>
         <tr><th scope="row">Dữ liệu đi qua</th><td>Máy chủ Telegram</td><td>Không ai (mã hóa đầu cuối)</td><td>Relay chung: Cloudflare của tác giả. Relay riêng: chỉ tài khoản của bạn</td></tr>
         <tr><th scope="row">Cần</th><td>Máy con có internet. Mỗi bé 1 bot</td><td>Device Owner (không có ở chế độ cơ bản)</td><td>Không</td></tr>
-        <tr><th scope="row">Con thấy</th><td>Không có gì (thông báo khi đang ghi âm)</td><td>Biểu tượng chìa khóa trên thanh trạng thái (VPN)</td><td>Không có gì</td></tr>
+        <tr><th scope="row">Con thấy</th><td>Không có gì (thông báo khi ghi âm hoặc chụp)</td><td>Biểu tượng chìa khóa trên thanh trạng thái (VPN)</td><td>Không có gì</td></tr>
       </tbody>
     </table>
   </div>
@@ -249,7 +251,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
 
 <section id="telegram">
   <h2>Bot Telegram <span class="tag ok">Dễ nhất</span></h2>
-  <p>Điều khiển và nhận báo ngay trong Telegram: xem tình hình, cho thêm giờ, khóa máy, tìm vị trí, chụp màn hình, chặn app bằng nút bấm. SOS, xin thêm giờ (có nút Cho / Từ chối), nhập sai PIN (kèm ảnh) tự gửi tới. Không cần Tailscale hay relay: máy con tự chạy bot. Mỗi bé 1 bot riêng.</p>
+  <p>Điều khiển và nhận báo ngay trong Telegram: xem tình hình, cho thêm giờ, khóa máy, tìm vị trí, chụp màn hình, chụp ảnh và quay video bằng camera, chặn app bằng nút bấm. SOS, xin thêm giờ (có nút Cho / Từ chối), nhập sai PIN (kèm ảnh) tự gửi tới. Không cần Tailscale hay relay: máy con tự chạy bot. Mỗi bé 1 bot riêng.</p>
   <ol class="steps">
     <li><b>Tạo bot (1 phút).</b> Trên điện thoại bố mẹ, mở <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> trong Telegram, bấm <b>Bắt đầu</b>, gửi <code>/newbot</code>. Gửi tên bot (vd: <code>Nhà Bin</code>), rồi tên đăng nhập kết thúc bằng <code>bot</code> (vd: <code>nhabin_kidguard_bot</code>; bị trùng thì thêm số).</li>
     <li><b>Copy token.</b> BotFather trả về 1 dòng dạng <code>123456789:AAH…</code>: chạm vào là copy. Nhấn giữ cả tin → Sao chép cũng được. Giữ kín token.</li>
@@ -257,10 +259,11 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li><b>Liên kết.</b> Trang hiện nút <b>Mở Telegram và liên kết</b> và mã QR. Bấm nút (hoặc quét QR bằng camera điện thoại), Telegram mở bot, bấm <b>Bắt đầu</b>. Bot chào và hiện Menu.</li>
     <li><b>Thêm người nhận</b> (bố, mẹ, ông bà, tối đa 5): bấm <b>Mã khác</b> và gửi link cho người đó.</li>
   </ol>
-  <p>Dùng: bấm <b>📋 Menu</b> để bấm nút, hoặc gõ lệnh (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/requests</code> xem yêu cầu đang chờ, <code>/lost</code> bật / tắt chế độ thất lạc, <code>/quiet</code> chọn mức báo; <code>/code</code> gửi mã mở khoá 6 số để đọc cho con (không cần mở app Authenticator); <code>/help</code> xem hết lệnh, <code>/lang</code> đổi Tiếng Việt / English. Gỡ quản lý, huỷ ghép, xoá dữ liệu không làm được qua Telegram.</p>
+  <p>Dùng: bấm <b>📋 Menu</b> để bấm nút, hoặc gõ lệnh (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/requests</code> xem yêu cầu đang chờ, <code>/lost</code> bật / tắt chế độ thất lạc, <code>/quiet</code> chọn mức báo; <code>/snap</code> chụp ảnh bằng camera (<code>/snap back</code> = camera sau); <code>/clip</code> quay video có tiếng 5–30 giây (<code>/clip 30 back</code>); <code>/notif on</code> nhận thông báo của con ở chat này (<code>/notif off</code> để tắt); <code>/code</code> gửi mã mở khoá 6 số để đọc cho con (không cần mở app Authenticator); <code>/help</code> xem hết lệnh, <code>/lang</code> đổi Tiếng Việt / English. Gỡ quản lý, huỷ ghép, xoá dữ liệu không làm được qua Telegram.</p>
   <div class="card faq">
     <details><summary>Có 2 bé thì sao?</summary><p>Tạo 2 bot (vd: Nhà Bin, Nhà Na), mỗi bot dán vào trang của bé đó. 1 bot chỉ chạy được trên 1 máy con.</p></details>
     <details><summary>Báo “Token sai” hoặc “đang được nơi khác dùng”?</summary><p>Copy lại cả tin của BotFather và dán. “Nơi khác dùng” nghĩa là bot đã gắn cho máy khác: tạo bot mới cho bé này. Lỡ lộ token: gửi <code>/revoke</code> cho BotFather lấy token mới, dán lại.</p></details>
+    <details><summary>Bot hỏi bật camera hay thông báo?</summary><p>Mục đó đang tắt. Bấm <b>Bật và chụp ảnh</b>, <b>Bật và quay video</b> hoặc <b>Bật thông báo</b>: chỉ mục đó được bật. Máy con được báo, mọi người nhận trong bot cũng được báo.</p></details>
     <details><summary>Bấm Bắt đầu mà bot im?</summary><p>Mã liên kết dùng được 15 phút: bấm <b>Mã khác</b>. Máy con phải có mạng (bot chạy trên máy con).</p></details>
     <details><summary>Tin nhắn đi qua đâu?</summary><p>Qua máy chủ Telegram (không mã hoá đầu cuối). Token chỉ lưu trên máy con. Tắt bot: tìm <kbd>telegram</kbd> → <b>Tắt bot</b>, máy con quên token.</p></details>
   </div>
@@ -356,7 +359,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
         <div><dt>Nhóm ứng dụng</dt><dd>Số phút chung cho cả nhóm (“Game”, “Mạng xã hội”) và/hoặc giờ được dùng.</dd></div>
         <div><dt>Ứng dụng mới</dt><dd>Có thể khóa đến khi bố mẹ duyệt.</dd></div>
         <div><dt>Dọn máy</dt><dd>Ẩn app hãng cài sẵn con không dùng, xem app nặng nhất, xóa dữ liệu app. Cần Device Owner.</dd></div>
-        <div><dt>Tự cập nhật</dt><dd>Mỗi ngày máy con kiểm tra bản mới trên GitHub, tải về và kiểm SHA-256. Tắt hoặc cập nhật ngay trong Cài đặt.</dd></div>
+        <div><dt>Tự cập nhật</dt><dd>Mỗi ngày máy con kiểm tra bản mới trên GitHub, tải về và kiểm SHA-256. Tắt hoặc cập nhật ngay trong Cài đặt. Xiaomi / Redmi / POCO (HyperOS): mỗi lần máy hỏi xác nhận, xem <a href="#faq">Khi có lỗi</a>.</dd></div>
       </dl>
     </div>
     <div class="card">
@@ -376,6 +379,8 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
     <div class="card">
       <h3>Nhìn lại</h3>
       <dl>
+        <div><dt>Thông báo, SMS, từ khoá</dt><dd>Bật từng mục ở <b>Xem được gì</b>: đọc thông báo của con, tin nhắn SMS, và nhận cảnh báo khi có từ khoá của bạn. Mục nào cũng tắt cho đến khi bạn bật. Con luôn được báo.</dd></div>
+        <div><dt>Camera theo yêu cầu</dt><dd>Bật ở <b>Xem được gì</b>. Bấm <b>Chụp</b> để chụp ảnh, hoặc <b>Xem trực tiếp</b> để xem camera tối đa 10 phút (một chiều, có thể kèm tiếng). Chưa bật mà bấm: trang hỏi, bấm <b>Bật camera</b>. Con thấy thông báo suốt lúc xem. Ảnh đã mở xem lại được cả khi máy con mất mạng.</dd></div>
         <div><dt>Lịch sử</dt><dd>Thời gian dùng 7 ngày, top app mỗi ngày, báo cáo tuần cho từng con.</dd></div>
         <div><dt>Nhiều con</dt><dd><b>Tổng quan</b>: mỗi con một thẻ, vị trí mọi con trên một bản đồ, 7 ngày đặt cạnh nhau.</dd></div>
         <div><dt>Luật của con</dt><dd>Con xem được luật của mình và nhật ký bố mẹ đã đổi gì.</dd></div>
@@ -406,7 +411,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
       <dl>
         <div><dt>Khó phá</dt><dd>Chặn gỡ app, buộc dừng, khôi phục gốc từ Cài đặt, Safe Mode, người dùng mới, đổi giờ, chế độ máy bay. Có watchdog tự bật lại.</dd></div>
         <div><dt>Chống khôi phục gốc</dt><dd>Device Owner, Android 11+. Sau khi khôi phục từ recovery, máy đòi tài khoản Google của bố mẹ. Cần <b>ID số</b> của tài khoản (không phải email); trang chỉ cách lấy. <b>ID sai có thể khóa máy vĩnh viễn sau khi khôi phục.</b> Tự tắt khi gỡ quyền quản lý.</dd></div>
-        <div><dt>Còn mấy lần nhập PIN</dt><dd>Nhập sai PIN trên máy con thì máy báo còn mấy lần. <b>Quên PIN?</b> chỉ cách đặt lại (chờ 24 giờ, có cảnh báo).</dd></div>
+        <div><dt>Còn mấy lần nhập PIN</dt><dd>Nhập sai PIN trên máy con: máy báo còn mấy lần (5 lần đầu). Sai tiếp thì khoá 5 phút, rồi lâu hơn, tối đa 30 phút. <b>Quên PIN?</b> chỉ cách đặt lại (chờ 24 giờ, có cảnh báo).</dd></div>
         <div><dt>Biên nhận lệnh</dt><dd>Mỗi lệnh hiện <b>đã gửi</b>, rồi <b>đã chạy HH:mm</b>, <b>bị từ chối</b> hoặc <b>hết hạn</b> (có nút <b>Gửi lại</b>). PIN sai qua relay không bị nhớ.</dd></div>
         <div><dt>Tùy chọn</dt><dd>Lọc DNS gia đình (AdGuard / Cloudflare / CleanBrowsing), chặn cài app, chặn Gỡ lỗi USB.</dd></div>
         <div><dt>Lệnh nhanh</dt><dd>Khóa màn hình, đổ chuông, tin nhắn toàn màn hình, khởi động lại máy.</dd></div>
@@ -446,6 +451,10 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
     <details><summary>Vì sao có app hiện màn hình đen khi xem từ xa?</summary><p>App đánh dấu màn hình là bảo mật (ngân hàng…) luôn hiện đen.</p></details>
     <details><summary>Con có tự gỡ được không?</summary><p>Không gỡ được từ Cài đặt. Khôi phục gốc bằng phím cứng (recovery) thì vẫn được: KidGuard mất, trang phụ huynh báo mất kết nối.</p></details>
     <details><summary>Android 8–10 có hạn chế gì?</summary><p>Xem màn hình và điều khiển từ xa cần Android 11+. Trên Android 8–10 con có thể buộc dừng KidGuard (khởi động lại máy là chạy lại).</p></details>
+    <details><summary>Cài dừng ở quyền dữ liệu sử dụng (Oppo / Realme / OnePlus)?</summary><p>Bật <b>Tắt giám sát quyền</b> (Disable permission monitoring), mục cuối trong Tùy chọn nhà phát triển. Quay lại KidGuard, cài tự chạy tiếp.</p></details>
+    <details><summary>Không ghép được Gỡ lỗi không dây?</summary><p>Máy con phải có Wi-Fi. Chưa có Tùy chọn nhà phát triển: nút trong KidGuard mở <b>Giới thiệu về điện thoại</b>, bấm 7 lần vào Số hiệu bản tạo. Hộp ghép mã tắt khi rời Cài đặt: gõ 6 số ở thông báo <b>Nhập mã ghép</b>. Mỗi lần ghép có mã mới.</p></details>
+    <details><summary>Xiaomi / POCO: cập nhật không tự cài?</summary><p>HyperOS luôn hỏi xác nhận. Bố mẹ bấm cập nhật thì màn xác nhận mở ngay trên máy con: bấm <b>Cài đặt</b>. Hoặc chạm thông báo KidGuard. Play Protect hiện hộp thoại là bình thường: cho phép.</p></details>
+    <details><summary>Báo “Sai PIN nhiều lần, thử lại sau N phút”?</summary><p>Máy con khoá nhập PIN tối đa 30 phút. Chờ hết số phút, hoặc dùng mã Authenticator.</p></details>
     <details><summary>Gặp lỗi khác hoặc có ý tưởng?</summary><p>Gửi tại <a href="https://github.com/HoangTran0410/kidguard/issues" target="_blank" rel="noopener">GitHub Issues</a>. Chi tiết kỹ thuật: <a href="https://github.com/HoangTran0410/kidguard/blob/main/docs/protocol.md" target="_blank" rel="noopener">docs/protocol.md</a>.</p></details>
   </div>
 </section>

@@ -114,8 +114,9 @@
       <li><a href="https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard.apk">Download the APK</a> on the child's phone, install it and open KidGuard.</li>
       <li>Tap <b>Full setup without a computer (Android 11+)</b>.</li>
       <li>Turn on Developer options: open <b>About phone</b> and tap <b>Build number</b> 7 times.</li>
+      <li>Oppo / Realme / OnePlus (ColorOS): KidGuard shows the step <b>Turn on “Disable permission monitoring”</b>. Tap <b>Open Developer options</b>, scroll to the last item and turn it on. Go back to KidGuard: setup carries on by itself, no new pairing. Without it setup stops at usage access.</li>
       <li>In Developer options, turn on <b>Wireless debugging</b> and allow this Wi-Fi.</li>
-      <li>Xiaomi / Redmi / POCO: also turn on <b>USB debugging (Security settings)</b>, right under USB debugging. It needs a SIM and a signed-in Mi account (Settings → Mi Account). Without it setup stops at the admin step with "Calling identity is not authorized". No SIM: put any SIM in for a moment, the switch stays on after you take it out. Can't sign in to Mi: use B (QR) or E (basic).</li>
+      <li>Xiaomi / Redmi / POCO: also turn on <b>USB debugging (Security settings)</b>, right under USB debugging. It needs a SIM and a Mi account (Settings → Mi Account). No SIM: put any SIM in for a moment, the switch stays on after you take it out. Can't sign in to Mi: use B (QR) or E (basic). The error "Calling identity is not authorized" means this switch is off.</li>
       <li>Back in KidGuard, tap <b>Show the code box in a notification</b>. Then in Wireless debugging tap <b>Pair device with pairing code</b>.</li>
       <li>Pull down the notification shade, tap <b>Enter pairing code</b> and type the 6 digits shown.</li>
       <li>KidGuard does the rest, then turns Wireless debugging off again.</li>
@@ -194,7 +195,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li>Or open a browser at <code>http://&lt;child phone IP&gt;:8770</code> and type the 6-digit pairing code.</li>
     <li>Set a <b>parent PIN</b> in the pairing form. Without it the child's phone refuses to pair another browser.</li>
     <li>Sign back in to the accounts on the child's phone (if you removed them) and unplug the cable.</li>
-    <li>Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap <b>Battery / autostart settings</b> and let KidGuard run in the background.</li>
+    <li>Xiaomi, Oppo, Vivo, Samsung: on the child's phone open <b>Battery and autostart</b> and let KidGuard run in the background.</li>
     <li>To manage when your child is out too: see <a href="#away">Away from home</a>.</li>
   </ol>
   <p class="tip"><b>Oppo / Realme / OnePlus (ColorOS):</b> open Recents and pull the KidGuard card down to lock it (padlock icon). In Phone Manager allow KidGuard to autostart and run in the background. Swiping KidGuard away in Recents on ColorOS stops the app completely.</p>
@@ -217,6 +218,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
   </ol>
   <p><b>Easier:</b> the <a href="#telegram">Telegram bot</a> delivers SOS and more-time requests at once, no app or build needed.</p>
   <p>A time request notification has <b>+15 / +30 min</b> and <b>Decline</b> buttons right on it. The app checks about every 15 minutes. For SOS in seconds (through the Worker and Firebase) you build the app yourself: see the <a href="https://github.com/HoangTran0410/kidguard#instant-sos-notifications-optional" target="_blank" rel="noopener">README</a>.</p>
+  <p><b>Your kid's notifications:</b> turn on <b>What you can see</b> → <b>Send me my kid's notifications</b>. The app shows them within seconds, quietly. Your kid sees “Your parent sees every notification”.</p>
   <p><b>Notifications check:</b> the app has a health card (<b>Settings</b>) that says if alerts can reach you (permission, channels, battery saver, last check) and fixes each in one tap. Offline phones show &ldquo;offline since HH:mm&rdquo;.</p>
   <p>Parent on an iPhone: there is no app, the browser (Safari) is enough.</p>
 </section>
@@ -236,11 +238,11 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
         <tr><th scope="row">Setup</th><td>~2 min: make a bot, paste its token</td><td>~5 min, once: Tailscale app on the parent's phone, paste one key</td><td>None (shared relay is on). Your own: ~3 min on a computer</td></tr>
         <tr><th scope="row">Used with</th><td>The Telegram app, buttons</td><td>The parent page (Tailscale app on)</td><td>The parent page, any browser</td></tr>
         <tr><th scope="row">Speed</th><td><span class="yes">~1 second</span></td><td><span class="yes">Instant</span></td><td>Usually a few seconds (if the live link drops: ~20 s, screen off ~60 s)</td></tr>
-        <tr><th scope="row">Screen / listen</th><td>Screenshot, 10–60 s recording</td><td><span class="yes">Live screen, live listen</span></td><td>Live screen, no listen</td></tr>
+        <tr><th scope="row">Screen / listen</th><td>Screenshot, camera photo, 5–30 s video, 10–60 s recording</td><td><span class="yes">Live screen and camera, live listen</span></td><td>Live screen and camera, live listen</td></tr>
         <tr><th scope="row">SOS, more-time requests</th><td><span class="yes">Arrive at once in Telegram</span></td><td>In the page / parent app</td><td>In the page / parent app</td></tr>
         <tr><th scope="row">Data goes through</th><td>Telegram's servers</td><td>Nobody (end-to-end encrypted)</td><td>Shared: the author's Cloudflare. Your own: only your account</td></tr>
         <tr><th scope="row">Needs</th><td>Internet on the child's phone. One bot per child</td><td>Device Owner (not in basic mode)</td><td>Nothing</td></tr>
-        <tr><th scope="row">Child sees</th><td>Nothing (a notice while recording)</td><td>A key icon in the status bar (VPN)</td><td>Nothing</td></tr>
+        <tr><th scope="row">Child sees</th><td>Nothing (a notice while recording or taking photos)</td><td>A key icon in the status bar (VPN)</td><td>Nothing</td></tr>
       </tbody>
     </table>
   </div>
@@ -249,7 +251,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
 
 <section id="telegram">
   <h2>Telegram bot <span class="tag ok">Easiest</span></h2>
-  <p>Control and get alerts right in Telegram: status, extra time, lock, location, screenshot, block apps with buttons. SOS, "more time" requests (with Allow / No buttons) and wrong PINs (with a photo) arrive by themselves. No Tailscale or relay needed: the child's phone runs the bot. One bot per child.</p>
+  <p>Control and get alerts right in Telegram: status, extra time, lock, location, screenshot, camera photo and video, block apps with buttons. SOS, "more time" requests (with Allow / No buttons) and wrong PINs (with a photo) arrive by themselves. No Tailscale or relay needed: the child's phone runs the bot. One bot per child.</p>
   <ol class="steps">
     <li><b>Create a bot (1 minute).</b> On the parent's phone open <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> in Telegram, tap <b>Start</b>, send <code>/newbot</code>. Send a name (e.g. <code>Bin's home</code>), then a username ending in <code>bot</code> (e.g. <code>binshome_kidguard_bot</code>; taken? add digits).</li>
     <li><b>Copy the token.</b> BotFather answers with a line like <code>123456789:AAH…</code>: tap it to copy. Long-press the whole message → Copy works too. Keep the token secret.</li>
@@ -257,10 +259,11 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
     <li><b>Link.</b> The page shows <b>Open Telegram and link</b> and a QR code. Tap it (or scan the QR with your phone's camera), Telegram opens the bot, tap <b>Start</b>. The bot says hello and shows the Menu.</li>
     <li><b>Add people</b> (mum, dad, grandparents, up to 5): tap <b>Other code</b> and send them the link.</li>
   </ol>
-  <p>Use it: tap <b>📋 Menu</b> for buttons, or type commands (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/requests</code> lists open requests, <code>/lost</code> turns lost mode on / off, <code>/quiet</code> sets the alert level; <code>/code</code> sends the 6-digit unlock code to read out to your kid (no Authenticator app needed); <code>/help</code> lists them all, <code>/lang</code> switches English / Tiếng Việt. Release, unpair and clear data are not possible over Telegram.</p>
+  <p>Use it: tap <b>📋 Menu</b> for buttons, or type commands (<code>/status</code>, <code>/bonus 30</code>, <code>/lock</code>, <code>/locate</code>…); <code>/requests</code> lists open requests, <code>/lost</code> turns lost mode on / off, <code>/quiet</code> sets the alert level; <code>/snap</code> takes a camera photo (<code>/snap back</code> = back camera); <code>/clip</code> records a 5–30 s video with sound (<code>/clip 30 back</code>); <code>/notif on</code> sends your kid's notifications to this chat (<code>/notif off</code> to stop); <code>/code</code> sends the 6-digit unlock code to read out to your kid (no Authenticator app needed); <code>/help</code> lists them all, <code>/lang</code> switches English / Tiếng Việt. Release, unpair and clear data are not possible over Telegram.</p>
   <div class="card faq">
     <details><summary>Two children?</summary><p>Make two bots (e.g. Bin's home, Na's home), each pasted on that child's page. One bot runs on one child's phone only.</p></details>
     <details><summary>“Wrong token” or “used somewhere else”?</summary><p>Copy BotFather's whole message again and paste it. “Used somewhere else” means the bot belongs to another phone: make a new bot for this child. Token leaked? Send <code>/revoke</code> to BotFather for a new one and paste it again.</p></details>
+    <details><summary>The bot asks to turn on the camera or notifications?</summary><p>That item is off. Tap <b>Turn on and take photo</b>, <b>Turn on and record</b> or <b>Turn on notifications</b>: only that item is turned on. The child's phone is told, and so is everyone in the bot.</p></details>
     <details><summary>Tapped Start, the bot says nothing?</summary><p>A link code works for 15 minutes: tap <b>Other code</b>. The child's phone must be online (the bot runs on it).</p></details>
     <details><summary>Where do messages go?</summary><p>Through Telegram's servers (not end-to-end encrypted). The token stays on the child's phone. Turn it off: search <kbd>telegram</kbd> → <b>Turn off</b>, the phone forgets the token.</p></details>
   </div>
@@ -356,7 +359,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
         <div><dt>App groups</dt><dd>One shared daily limit for a group (“Games”, “Social”) and/or hours when it may be used.</dd></div>
         <div><dt>New apps</dt><dd>Optionally locked until a parent approves them.</dd></div>
         <div><dt>Lighter phone</dt><dd>Hide the maker's preinstalled apps the child doesn't use, see the heaviest apps, clear an app's data. Needs Device Owner.</dd></div>
-        <div><dt>Updates itself</dt><dd>Once a day the child's phone checks GitHub releases, downloads the new APK and checks its SHA-256. Off or update now in Settings.</dd></div>
+        <div><dt>Updates itself</dt><dd>Once a day the child's phone checks GitHub releases, downloads the new APK and checks its SHA-256. Off or update now in Settings. Xiaomi / Redmi / POCO (HyperOS): the phone asks you to confirm each time, see <a href="#faq">Troubleshooting</a>.</dd></div>
       </dl>
     </div>
     <div class="card">
@@ -376,6 +379,8 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
     <div class="card">
       <h3>Looking back</h3>
       <dl>
+        <div><dt>Notifications, SMS, word alerts</dt><dd>Turn each one on in <b>What you can see</b>: read your kid's notifications and text messages, and get an alert when a word of yours shows up. Each is off until you turn it on. Your kid is always told.</dd></div>
+        <div><dt>Camera on request</dt><dd>Turn it on in <b>What you can see</b>. Tap <b>Take photo</b>, or <b>Watch live</b> to see the camera for up to 10 minutes (one way, sound optional). Not on yet? The page asks: tap <b>Turn on camera</b>. Your kid sees a notice the whole time. Photos you opened stay viewable when the phone is offline.</dd></div>
         <div><dt>History</dt><dd>Screen time for 7 days, top apps per day, a weekly report per kid.</dd></div>
         <div><dt>All kids</dt><dd><b>Overview</b>: a card per kid, every kid's location on one map, 7 days side by side.</dd></div>
         <div><dt>Child's rules</dt><dd>The child sees their own rules and a log of what the parents changed.</dd></div>
@@ -406,7 +411,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
       <dl>
         <div><dt>Tamper-proof</dt><dd>Blocks uninstall, force stop, factory reset from Settings, Safe Mode, new users, changing the clock, airplane mode. A watchdog restarts it.</dd></div>
         <div><dt>Factory reset protection</dt><dd>Device Owner, Android 11+. After a reset from recovery the phone asks for the parent's Google account. Needs that account's <b>numeric ID</b> (not the email); the page shows how to get it. <b>A wrong ID can lock the phone for good after a reset.</b> Turned off when you remove controls.</dd></div>
-        <div><dt>PIN tries left</dt><dd>A wrong PIN on the child's phone says how many tries are left. <b>Forgot PIN?</b> shows how to reset (24 h wait, with an alert).</dd></div>
+        <div><dt>PIN tries left</dt><dd>A wrong PIN on the child's phone says how many tries are left (5 at first). After that it locks for 5 minutes, then longer, up to 30. <b>Forgot PIN?</b> shows how to reset (24 h wait, with an alert).</dd></div>
         <div><dt>Command receipts</dt><dd>Every command shows <b>sent</b>, then <b>ran HH:mm</b>, <b>refused</b> or <b>expired</b> (with <b>Resend</b>). A wrong PIN over the relay is not remembered.</dd></div>
         <div><dt>Optional</dt><dd>Family DNS filter (AdGuard / Cloudflare / CleanBrowsing), block installs, block USB debugging.</dd></div>
         <div><dt>Commands</dt><dd>Lock the screen, ring, full-screen message, restart the phone.</dd></div>
@@ -446,6 +451,10 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
     <details><summary>Why do some apps show black when viewed remotely?</summary><p>Apps that mark their screen secure (banking…) always show black.</p></details>
     <details><summary>Can the child remove it?</summary><p>Not from Settings. A factory reset from the hardware keys (recovery) still works: KidGuard is gone and the parent page shows “disconnected”.</p></details>
     <details><summary>Limits on Android 8–10?</summary><p>Live screen and remote control need Android 11+. On Android 8–10 the child can force stop KidGuard (it starts again on reboot).</p></details>
+    <details><summary>Setup stops at usage access (Oppo / Realme / OnePlus)?</summary><p>Turn on <b>Disable permission monitoring</b>, the last item in Developer options. Go back to KidGuard and setup carries on.</p></details>
+    <details><summary>Wireless debugging won't pair?</summary><p>The child's phone needs Wi-Fi. No Developer options yet: the button in KidGuard opens <b>About phone</b>, tap Build number 7 times. The pairing box closes when you leave Settings: type the 6 digits in the <b>Enter pairing code</b> notification. Each pairing has a new code.</p></details>
+    <details><summary>Xiaomi / POCO: the update does not install by itself?</summary><p>HyperOS always asks to confirm. When a parent taps update, the confirm screen opens on the child's phone at once: tap <b>Install</b>. Or tap the KidGuard notification. A Play Protect popup is normal: allow it.</p></details>
+    <details><summary>“Too many wrong PINs, try again in N minutes”?</summary><p>The child's phone locks PIN entry for up to 30 minutes. Wait it out, or use an Authenticator code.</p></details>
     <details><summary>Another bug or an idea?</summary><p>Post it on <a href="https://github.com/HoangTran0410/kidguard/issues" target="_blank" rel="noopener">GitHub Issues</a>. Technical details: <a href="https://github.com/HoangTran0410/kidguard/blob/main/docs/protocol.md" target="_blank" rel="noopener">docs/protocol.md</a>.</p></details>
   </div>
 </section>

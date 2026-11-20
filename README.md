@@ -65,7 +65,7 @@ Android only lets an app become Device Owner while the phone has **no accounts**
 
 | Way | Needs | Steps |
 |---|---|---|
-| 📱 **On the phone itself** | Android 11+, Wi-Fi | Install the APK, open KidGuard, tap **Full setup without a computer (Android 11+)**. Turn on Developer options → **Wireless debugging** → *Pair with code*, type the 6 digits into KidGuard's notification. It does the rest and turns wireless debugging off again. |
+| 📱 **On the phone itself** | Android 11+, Wi-Fi | Install the APK, open KidGuard, tap **Full setup without a computer (Android 11+)**. Turn on Developer options → **Wireless debugging** → *Pair with code*, type the 6 digits into KidGuard's notification. It does the rest and turns wireless debugging off again. Oppo / Realme / OnePlus (ColorOS): also turn on **Disable permission monitoring** (last item in Developer options) when KidGuard asks; setup then carries on by itself. |
 | 🔳 **Scan a QR** | a new or factory-reset phone, stock-like Android (Pixel, Samsung, Nokia…). Some skins drop the 6-tap screen (e.g. Oppo / Realme ColorOS on Android 8–9): use the USB way | On the welcome screen tap 6 times on an empty spot, scan the [QR](https://kidguard.asia/qr). The phone downloads KidGuard over Wi-Fi and sets it up; open it and finish the short checklist. |
 | 🌐 **Browser + USB cable** | Chrome or Edge on a computer | Turn on **USB debugging**, plug in, open [/install](https://kidguard.asia/install), press Connect. No adb needed. |
 | ⌨️ **Command line** | macOS, Linux or Windows | `scripts/setup.sh` (downloads adb if missing, `-y` skips questions) or `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1` |
@@ -93,12 +93,14 @@ Xiaomi, Oppo, Vivo, Samsung: on the child's phone tap **Battery / autostart sett
 | ⏱️ **Daily limit** | One number, or one per weekday. When time is up every app (except "Always allowed") locks until midnight. +15 / +30 / +60 min for today |
 | 🏠 **Kid launcher** | KidGuard is also the child's home screen: pages with widgets (clock, timer, streak, now playing, timetable, notes), a **Today** page (time left, schedule, chores, notes, files with parents, SOS / call), an App Library, its own **control center** (Wi-Fi, Bluetooth, torch, sound, study mode), **Customize** (wallpapers, icon size and shape, label size, fonts, light/dark) with **saved layouts** to switch the whole home in one tap. Blocked apps grey out; **Hidden apps** tells the child why each one is gone. Also shipped alone as [KidGuard Home](https://github.com/HoangTran0410/kidguard/releases/latest/download/kidguard-home.apk) |
 | 📚 **Study mode** | The child starts a study session: only study apps stay on the home screen and Do Not Disturb turns on (if allowed); it ends when the child stops it |
-| 🤖 **Telegram bot** | Your own bot runs on the child's phone: alerts, answer time requests, block apps, screenshot, files both ways, from Telegram anywhere. [Setup](#telegram-bot-optional-easiest) |
+| 🤖 **Telegram bot** | Your own bot runs on the child's phone: alerts, answer time requests, block apps, screenshot, camera photo (`/snap`), short video (`/clip`), your kid's notifications (`/notif`), files both ways, from Telegram anywhere. [Setup](#telegram-bot-optional-easiest) |
+| 📸 **Camera on request** | Parent page, **What you can see**: take a photo or watch the camera live (up to 10 min, one way, sound optional); Telegram `/snap` and `/clip`. The kid gets a notice every time. If the item is still off, the page or bot asks once (**Turn on camera** / **Turn on and take photo**) and tells the kid |
+| 🔔 **Kid's notifications** | **What you can see** → *Send me my kid's notifications*: they show in the parent app within seconds, quietly, or in Telegram with `/notif on`. The kid sees "Your parent sees every notification" |
 | 📷 **Wrong-PIN photo** | From the 3rd wrong PIN the front camera takes a photo for the parent alert (the PIN screen says so; kept 7 days; can be turned off) |
 | 🏦 **Banking apps** | Apps that refuse to open while accessibility, USB debugging or a VPN is on (most Vietnamese banks, Cake, My MobiFone) still work: per app, KidGuard pauses accessibility + debugging and/or Tailscale while one is open, then puts back exactly what was on. The list updates itself from the website |
-| 🔐 **PIN for dangerous commands** | Release, unpair, reboot, clear data, relay / Telegram / PIN changes need the parent PIN or an Authenticator code, so a leaked parent link is not enough; "forgot PIN" resets after 24 h with an alert |
+| 🔐 **PIN for dangerous commands** | Release, unpair, reboot, clear data, relay / Telegram / PIN changes need the parent PIN or an Authenticator code, so a leaked parent link is not enough; 5 wrong tries lock PIN entry for 5 min, then longer, up to 30 min; "forgot PIN" resets after 24 h with an alert |
 | 🪶 **Lighter phone** ("Lighten the phone") | Hide the maker's preinstalled apps the child doesn't use (they stop running and updating; untick to bring back), see the heaviest apps, clear an app's data. Hiding and clearing need Device Owner. No fake "RAM cleaner" |
-| 🔄 **Updates itself** | Once a day the child's phone checks GitHub releases, downloads the new APK and checks its SHA-256. Device Owner installs it silently; basic mode shows the child an **Update KidGuard (new version)** button. Off / "update now": parent page, **Settings**. The parent app notifies when its own update is out |
+| 🔄 **Updates itself** | Once a day the child's phone checks GitHub releases, downloads the new APK and checks its SHA-256. Device Owner installs it silently; basic mode shows the child an **Update KidGuard (new version)** button. On Xiaomi / Redmi / POCO (HyperOS) the system always asks to confirm: tap **Install** on the screen that opens (a Play Protect popup is normal), or tap the KidGuard notification. Off / "update now": parent page, **Settings**. The parent app notifies when its own update is out |
 | 🙋 **Ask for more time** | A button on the child's phone (15 / 30 / 60 min + a reason, or ask to open a blocked / new app). One open request per kid: the child sees "waiting" and can remind; the parent answers N/2, N or 2N on the page, parent app or Telegram (`/requests`), and every copy updates. Approving opens the phone for that time even during bedtime or school hours (a timed pass); **End** locks early |
 | 📥 **Right now** | One line on the Today page, kid overview and Telegram `/status`: why the phone is open or locked now and until when |
 | 🧾 **Command receipts** | Every command shows sent, then ran / refused / expired (with **Resend**); over the relay too |
@@ -200,7 +202,7 @@ Without this the parent app checks every ~15 minutes. With it, SOS and "more tim
 
 ### Telegram bot (optional, easiest)
 
-The child's phone runs your family's own Telegram bot: status, extra time, pause, lock, location, screenshot, block apps, files, all with buttons; SOS, "more time" requests (Allow / No buttons) and wrong-PIN photos arrive by themselves. No Tailscale or relay needed. **One bot per child.**
+The child's phone runs your family's own Telegram bot: status, extra time, pause, lock, location, screenshot, block apps, files, all with buttons; SOS, "more time" requests (Allow / No buttons) and wrong-PIN photos arrive by themselves. `/snap`, `/clip` and `/notif on` need that item turned on: the bot offers a button for it and tells the kid. No Tailscale or relay needed. **One bot per child.**
 
 1. On the parent's phone open [@BotFather](https://t.me/BotFather) in Telegram, tap **Start**, send `/newbot`, then a name (`Bin's home`) and a username ending in `bot` (`binshome_kidguard_bot`).
 2. Copy the token BotFather sends (`123456789:AAH…`; tap it, or copy the whole message).
@@ -227,6 +229,9 @@ An app like this cannot exist on iOS: Apple does not let third-party apps see th
 or file manager when they use accessibility (basic mode needs it). On the child's phone: Play Store → your avatar →
 **Play Protect** → ⚙ → turn off *Scan apps with Play Protect*, install and set up KidGuard, then turn it back on. QR
 setup is not affected (the phone downloads the app itself).
+
+**Setup stops at usage access on Oppo / Realme / OnePlus?** Turn on **Disable permission monitoring** in Developer options.
+**Wireless debugging won't pair?** Same Wi-Fi, and type the 6 digits in the notification (the pairing box closes when you leave Settings).
 
 **Known limits**
 

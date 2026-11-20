@@ -1,6 +1,6 @@
 <!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Bot Telegram</title><pre style="white-space:pre-wrap;font:15px/1.5 sans-serif;max-width:760px;margin:24px auto;padding:0 16px"># Bot Telegram
 
-Điều khiển và nhận báo ngay trong Telegram: xem tình hình, cho thêm giờ, khóa máy, tìm vị trí, chụp màn hình, chặn app bằng nút bấm. SOS, xin thêm giờ (có nút Cho / Từ chối), nhập sai PIN (kèm ảnh) tự gửi tới. Không cần Tailscale hay relay: máy con tự chạy bot. Mỗi bé 1 bot riêng.
+Điều khiển và nhận báo ngay trong Telegram: xem tình hình, cho thêm giờ, khóa máy, tìm vị trí, chụp màn hình, chụp ảnh và quay video bằng camera, chặn app bằng nút bấm. SOS, xin thêm giờ (có nút Cho / Từ chối), nhập sai PIN (kèm ảnh) tự gửi tới. Không cần Tailscale hay relay: máy con tự chạy bot. Mỗi bé 1 bot riêng.
 
 1. **Tạo bot (1 phút).** Trên điện thoại bố mẹ, mở [@BotFather](<a href="https://t.me/BotFather">https://t.me/BotFather</a>) trong Telegram, bấm **Bắt đầu** , gửi `/newbot` . Gửi tên bot (vd: `Nhà Bin` ), rồi tên đăng nhập kết thúc bằng `bot` (vd: `nhabin_kidguard_bot` ; bị trùng thì thêm số).
 2. **Copy token.** BotFather trả về 1 dòng dạng `123456789:AAH…` : chạm vào là copy. Nhấn giữ cả tin → Sao chép cũng được. Giữ kín token.
@@ -8,7 +8,7 @@
 4. **Liên kết.** Trang hiện nút **Mở Telegram và liên kết** và mã QR. Bấm nút (hoặc quét QR bằng camera điện thoại), Telegram mở bot, bấm **Bắt đầu** . Bot chào và hiện Menu.
 5. **Thêm người nhận** (bố, mẹ, ông bà, tối đa 5): bấm **Mã khác** và gửi link cho người đó.
 
-Dùng: bấm **📋 Menu** để bấm nút, hoặc gõ lệnh (`/status`, `/bonus 30`, `/lock`, `/locate`…); `/requests` xem yêu cầu đang chờ, `/lost` bật / tắt chế độ thất lạc, `/quiet` chọn mức báo; `/code` gửi mã mở khoá 6 số để đọc cho con (không cần mở app Authenticator); `/help` xem hết lệnh, `/lang` đổi Tiếng Việt / English. Gỡ quản lý, huỷ ghép, xoá dữ liệu không làm được qua Telegram.
+Dùng: bấm **📋 Menu** để bấm nút, hoặc gõ lệnh (`/status`, `/bonus 30`, `/lock`, `/locate`…); `/requests` xem yêu cầu đang chờ, `/lost` bật / tắt chế độ thất lạc, `/quiet` chọn mức báo; `/snap` chụp ảnh bằng camera (`/snap back` = camera sau); `/clip` quay video có tiếng 5–30 giây (`/clip 30 back`); `/notif on` nhận thông báo của con ở chat này (`/notif off` để tắt); `/code` gửi mã mở khoá 6 số để đọc cho con (không cần mở app Authenticator); `/help` xem hết lệnh, `/lang` đổi Tiếng Việt / English. Gỡ quản lý, huỷ ghép, xoá dữ liệu không làm được qua Telegram.
 
 Có 2 bé thì sao?
 
@@ -17,6 +17,10 @@ Tạo 2 bot (vd: Nhà Bin, Nhà Na), mỗi bot dán vào trang của bé đó. 1
 Báo “Token sai” hoặc “đang được nơi khác dùng”?
 
 Copy lại cả tin của BotFather và dán. “Nơi khác dùng” nghĩa là bot đã gắn cho máy khác: tạo bot mới cho bé này. Lỡ lộ token: gửi `/revoke` cho BotFather lấy token mới, dán lại.
+
+Bot hỏi bật camera hay thông báo?
+
+Mục đó đang tắt. Bấm **Bật và chụp ảnh**, **Bật và quay video** hoặc **Bật thông báo**: chỉ mục đó được bật. Máy con được báo, mọi người nhận trong bot cũng được báo.
 
 Bấm Bắt đầu mà bot im?
 
