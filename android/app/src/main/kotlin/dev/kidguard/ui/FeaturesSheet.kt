@@ -221,7 +221,23 @@ object FeaturesSheet {
                 open(act, Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + act.packageName)), Intent(Settings.ACTION_SETTINGS))
             }
         }
-        if (battery != null) body.addView(u.cardBox(14).apply {
+        // per-brand checklist; it owns the auto-start / battery buttons where it has those steps (no second card)
+        val oem = OemSteps.forEnv(OemCheck.env(act))
+        if (oem.isNotEmpty()) body.addView(u.cardBox(14).apply {
+            addView(u.label(act.getString(R.string.oem_title), 17f, u.text, true).apply {
+                setCompoundDrawablesRelative(u.badge(R.drawable.li_settings, u.accent, u.tint, 36, 20, 11), null, null, null)
+                compoundDrawablePadding = u.dp(12); gravity = android.view.Gravity.CENTER_VERTICAL
+            })
+            for (st in oem) {
+                val ok = OemCheck.done(act, st)
+                val mark = when (ok) { true -> act.getString(R.string.oem_done); false -> act.getString(R.string.oem_todo); null -> "" }
+                addView(u.label(str(act, "oem_", st.id) + if (mark.isEmpty()) "" else " · $mark", 15f, if (ok == true) u.tone(Ic.OK) else u.text, true).apply { setPadding(0, u.dp(12), 0, 0) })
+                addView(u.label(str(act, "oem_", st.id + "_d"), 14f).apply { setPadding(0, u.dp(4), 0, 0) })
+                if (st.go.isNotEmpty() || st.dynamic) addView(u.button(act.getString(R.string.oem_open), null, false) { OemCheck.open(act, st) })
+            }
+        })
+        val oemOwnsBattery = oem.any { it.id == "autostart" || it.id == "battery" }
+        if (battery != null && !oemOwnsBattery) body.addView(u.cardBox(14).apply {
             addView(u.label(act.getString(R.string.ft_battery), 17f, u.text, true).apply {
                 setCompoundDrawablesRelative(u.badge(R.drawable.li_battery_charging, u.accent, u.tint, 36, 20, 11), null, null, null)
                 compoundDrawablePadding = u.dp(12); gravity = android.view.Gravity.CENTER_VERTICAL
