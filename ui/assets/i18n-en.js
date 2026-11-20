@@ -590,6 +590,8 @@ L.en = {
   "theme.light": "Light",
   "theme.dark": "Dark",
   "dev.noName": "Unnamed device",
+  "dev.relay": "Internet link (relay)",
+  "dev.relayD": "Not another device: the kid's phone makes it when paired. Parent phones use it when not on the kid's Wi-Fi. Unpair it and the Internet link stops.",
   "dev.self": "This device",
   "dev.at": "Paired: {0}",
   "dev.last": "Used: {0}",

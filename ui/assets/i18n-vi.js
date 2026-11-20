@@ -591,6 +591,8 @@ L.vi = {
   "theme.light": "Sáng",
   "theme.dark": "Tối",
   "dev.noName": "Máy chưa rõ tên",
+  "dev.relay": "Link qua Internet (relay)",
+  "dev.relayD": "Không phải máy khác: máy con tự tạo khi được ghép. Máy bố mẹ dùng nó khi không chung Wi-Fi với con. Huỷ thì mất kết nối qua Internet.",
   "dev.self": "Máy này",
   "dev.at": "Ghép: {0}",
   "dev.last": "Dùng: {0}",

@@ -183,8 +183,8 @@ function devsHtml() {
   const D = st.devices; if (!Array.isArray(D)) return "";
   const me = devIds.get(cur.token);
   return D.map(d => { const self = d.self || (!!me && d.id === me);
-    return `<div class="app"><span class="ib">${ic(d.name === "relay" ? "globe" : "smartphone")}</span><div class="nm"><b>${d.name ? esc(d.name) : t("dev.noName")}</b>
-      <span class="mute">${self ? `<span class="tag t-info" style="margin:0 4px 0 0">${t("dev.self")}</span>` : ""}${t("dev.at", d.at ? new Date(d.at).toLocaleDateString(lang) : "—")} · ${t("dev.last", d.last ? ago(d.last) : "—")}</span></div>
+    return `<div class="app"><span class="ib">${ic(d.name === "relay" ? "globe" : "smartphone")}</span><div class="nm"><b>${d.name === "relay" ? t("dev.relay") : d.name ? esc(d.name) : t("dev.noName")}</b>
+      ${d.name === "relay" ? `<span class="mute" style="display:block">${t("dev.relayD")}</span>` : ""}<span class="mute">${self ? `<span class="tag t-info" style="margin:0 4px 0 0">${t("dev.self")}</span>` : ""}${t("dev.at", d.at ? new Date(d.at).toLocaleDateString(lang) : "—")} · ${t("dev.last", d.last ? ago(d.last) : "—")}</span></div>
       <button type="button" class="bad" data-unp="${esc(d.id)}">${ic("unlink")} ${t("dev.unpair")}</button></div>`; }).join("") || `<p class="mute">${t("none")}</p>`;
 }
 // ---- "Cài đặt máy": volume, brightness, screen timeout, DND (command `setting`, state `sys`) ----
