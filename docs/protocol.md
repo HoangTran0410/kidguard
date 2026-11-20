@@ -837,9 +837,11 @@ phone (`ListenCall.cap`) and relay, `release`. LAN / Tailscale kids keep `GET /a
   rules `lostOn` (+ `lostMsg`), `/lost off`. `/status` shows `now` (why + until). A command in a group chat gets one reply per 10 min
   ("open a private chat"). 401/404 raises event kind `tg` once. setMyCommands has requests, quiet, lost.
 - `/notif on|off` (2026-11-20, per chat `chats[].notif`, default off, read-only command): the child's new notifications that pass rule
-  `watch.notif` (same feed as state `notifs`, `NotifSync.feedAfter`) go to that chat as one silent message per 10 s tick
-  ("🔔 <kid>: N notifications" + "• HH:mm App · title: text", newest 15, 🔑 = word hit). Cursor `notifAfter` (feed id) is shared;
-  turning it on starts after the newest row; nothing is forwarded while the rule is off or no chat has it on. Failed send = retry in 60 s.
+  `watch.notif` (app filter, words-only) go to that chat as silent messages once per 10 s tick ("🔔 <kid>: N notifications" +
+  "• HH:mm App · title: text", 🔑 = word hit; long text split at 4000 chars). Read from the notification-log sqlite (`NotifLog.after`),
+  cursor `notifT`/`notifId` (row time + id; an in-place update of a chat thread gets a new time, so it is sent again; a dismissal is not),
+  up to 60 rows a tick, so a phone back online sends everything since the last one (within the log's keep days). Cursor shared by
+  the chats; cleared while the rule is off or no chat has it on (a new start begins then). Failed send = retry in 60 s.
 - /rec answers as a voice message (sendVoice, M4A remuxed from the ADTS stream by `Adts.kt`, plays inline); fallback: the raw .aac as a document.
   The voice carries a "Download" button (callback `a:<16 hex>`): the same M4A as a document, kept 7 days in files/tgrec (max 100 MB, pruned early under 500 MB free; deleted on release).
 - Reliability: an alert counts as seen only once at least one chat got it (else retried every 30 s, dropped after 24 h);

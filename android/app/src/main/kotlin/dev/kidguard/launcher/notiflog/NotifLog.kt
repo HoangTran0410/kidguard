@@ -306,6 +306,19 @@ object NotifLog {
         }
     }.getOrElse { android.util.Log.w("KidGuard", "notif pull", it); emptyList() }
 
+    /**
+     * Rows changed after the cursor ([t] ms, [id]), oldest first, system rows left out: Telegram `/notif` (Tg.notifTick).
+     * An update in place (a chat thread growing) gets a new `t`, so it comes again; a dismissal keeps `t`, so it does not.
+     */
+    fun after(ctx: Context, t: Long, id: Long, n: Int): List<Pair<Long, NotifEntry>> = runCatching {
+        db(ctx.applicationContext).rawQuery("SELECT id, j FROM n WHERE (t > ? OR (t = ? AND id > ?)) AND kd <> ? ORDER BY t, id LIMIT ?",
+            arrayOf(t.toString(), t.toString(), id.toString(), NotifQ.K_SYS, n.toString())).use { c ->
+            val out = ArrayList<Pair<Long, NotifEntry>>(c.count)
+            while (c.moveToNext()) entry(c.getString(1))?.let { out += c.getLong(0) to it }
+            out
+        }
+    }.getOrElse { android.util.Log.w("KidGuard", "notif after", it); emptyList() }
+
     /** Everything the screen needs besides the rows: per-day counts of [month0]..[month1] (other filters applied),
      *  apps and kinds with counts (other filters applied), and the total. */
     class Overview(val days: Map<Int, Int>, val apps: List<Triple<String, String, Int>>, val kinds: Map<String, Int>, val total: Int, val oldest: Long)

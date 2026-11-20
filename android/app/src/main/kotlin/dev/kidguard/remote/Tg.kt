@@ -399,7 +399,7 @@ object Tg {
             "notif" -> {   // the child's new notifications (rule watch.notif) forwarded to this chat: /notif on|off
                 when (c.args.firstOrNull()?.lowercase()) {
                     "on" -> {
-                        if (!s.tg.chatNotif(chat)) { s.tg.setChatNotif(chat, true); if (s.tg.notifAfter < NotifSync.lastFeedId()) s.tg.notifAfter = NotifSync.lastFeedId() }   // only what comes after
+                        s.tg.setChatNotif(chat, true)   // from now on (the first tick starts the cursor at now)
                         say(if (NotifSync.on(g)) "notifOn" else "notifOnRuleOff")
                     }
                     "off" -> { s.tg.setChatNotif(chat, false); say("notifOff") }
@@ -708,24 +708,28 @@ object Tg {
 
     private val notifBusy = java.util.concurrent.atomic.AtomicBoolean(false)
     private var notifRetry = 0L
+    private fun notifChats(s: Store) = s.tg.chats().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.optLong("id") } }.filter { s.tg.chatNotif(it) }
 
     /**
-     * `/notif`: new rows of the notification feed (NotifSync, already filtered by rule `watch.notif`) -> one silent message per
-     * chat that turned it on, at most once a tick (10 s). Forwarded only once at least one chat got it (else retried in 60 s);
-     * the feed keeps the newest 50 in memory, so a long offline spell loses the older ones (the page still has them).
+     * `/notif`: every notification-log row since the last one sent (cursor `notifAt` = time + row id, NotifLog.after) that
+     * passes rule `watch.notif` -> silent messages to each chat that turned it on, once a tick (10 s), up to
+     * [TgLogic.NOTIF_PAGE] rows a tick (a long offline spell drains in order). The cursor moves only once at least one chat
+     * got them (else retried in 60 s). While the rule is off or nobody listens the cursor is cleared, so a later start begins then (no flood of the past).
      */
     private fun notifTick(g: Guard, s: Store) {
-        val after = s.tg.notifAfter
-        val chats = s.tg.chats().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.optLong("id") } }.filter { s.tg.chatNotif(it) }
-        if (chats.isEmpty() || !NotifSync.on(g)) { NotifSync.lastFeedId().let { if (it > after) s.tg.notifAfter = it }; return }   // nobody listens: skip the past
-        val rows = NotifSync.feedAfter(after)
-        if (rows.isEmpty() || System.currentTimeMillis() < notifRetry || !notifBusy.compareAndSet(false, true)) return
+        val chats = notifChats(s)
+        if (chats.isEmpty() || !NotifSync.on(g)) { if (s.tg.notifAt.first != 0L) s.tg.notifAt = 0L to 0L; return }   // stopped: the next start begins at that moment
+        if (System.currentTimeMillis() < notifRetry || !notifBusy.compareAndSet(false, true)) return
         val name = kidName(g)
         alerts.execute {
             try {
+                val (t0, id0) = s.tg.notifAt
+                if (t0 == 0L) { s.tg.notifAt = System.currentTimeMillis() to Long.MAX_VALUE; return@execute }   // just started: nothing from before
+                val (rows, next) = NotifSync.tgAfter(g, t0, id0, TgLogic.NOTIF_PAGE)
+                if (next == null) return@execute
                 var n = 0
-                for (chat in chats) if (runCatching { ok(send(s, chat, TgLogic.notifBatch(s.tg.chatLang(chat), name, rows, ::hm), null, true)) }.getOrDefault(false)) n++
-                if (n > 0) { s.tg.notifAfter = rows.last().id; notifRetry = 0L } else notifRetry = System.currentTimeMillis() + 60_000L
+                if (rows.isNotEmpty()) for (chat in chats) if (runCatching { ok(send(s, chat, TgLogic.notifBatch(s.tg.chatLang(chat), name, rows, ::hm), null, true)) }.getOrDefault(false)) n++
+                if (rows.isEmpty() || n > 0) { s.tg.notifAt = next; notifRetry = 0L } else notifRetry = System.currentTimeMillis() + 60_000L
             } finally { notifBusy.set(false) }
         }
     }

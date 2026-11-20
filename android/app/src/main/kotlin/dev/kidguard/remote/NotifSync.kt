@@ -79,11 +79,21 @@ object NotifSync {
         runCatching { Store.of(g).event("word", R.string.ev_word, app, KeywordLogic.snippet(text, word, 120), word) }
     }
 
-    /** Feed rows newer than [after] (an id), oldest first: what Telegram `/notif` forwards (Tg.notifTick). */
-    fun feedAfter(after: Long): List<NotifFeedRow> = synchronized(ring) { ring.filter { it.id > after }
-        .map { NotifFeedRow(it.id, it.e.time, it.e.app.ifEmpty { it.e.pkg }, it.e.title, NotifFeedLogic.text(it.e), it.hit) } }
-    /** The newest feed id (0 = none yet): a chat that turns `/notif` on starts after it. */
-    fun lastFeedId(): Long = synchronized(ring) { ring.lastOrNull()?.id ?: 0L }
+    /**
+     * Telegram `/notif`: the notification log's rows after the cursor ([t], [id]) that pass rule `watch.notif` (app filter,
+     * words-only), read from the same sqlite as the kid's history (no copy). Returns the rows to send and the new cursor
+     * (past the rows the rule left out too). Disk read: not on the main thread.
+     */
+    fun tgAfter(g: Context, t: Long, id: Long, n: Int): Pair<List<NotifFeedRow>, Pair<Long, Long>?> {
+        val w = Store.of(g).baseRules.watch
+        val rows = NotifLog.after(g, t, id, n)
+        val out = rows.mapNotNull { (rid, e) ->
+            val hit = KeywordLogic.hit(w.words, listOf(e.title, e.text, e.subText, e.bigText) + e.msgs.map { it.text } + e.lines)
+            if (!NotifFeedLogic.send(w.notif, hit, e.pkg)) null
+            else NotifFeedRow(rid, e.time, e.app.ifEmpty { e.pkg }, e.title, NotifFeedLogic.text(e), hit)
+        }
+        return out to rows.lastOrNull()?.let { it.second.time to it.first }
+    }
 
     /** Rule turned off or released: nothing waits for the parent any more. */
     fun clear() = synchronized(ring) { ring.clear(); lastText.clear() }
@@ -138,7 +148,7 @@ object NotifSync {
 }
 
 /** Pure part of the automatic feed (unit-tested): which notification goes to the parent, the ring of new ones. */
-/** One forwarded notification (Telegram `/notif`): app label, title, the text the feed shows, the keyword that hit. */
+/** One forwarded notification (Telegram `/notif`): log row id, time, app label, title, the text the feed shows, the keyword that hit. */
 data class NotifFeedRow(val id: Long, val t: Long, val app: String, val title: String, val text: String, val hit: String?)
 
 object NotifFeedLogic {

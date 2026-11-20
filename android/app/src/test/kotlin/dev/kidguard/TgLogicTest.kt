@@ -297,8 +297,7 @@ class TgLogicTest {
         val m = TgLogic.notifBatch("vi", "Bin", rows, hm)
         val lines = m.lines()
         assertEquals("🔔 Bin: 20 thông báo", lines[0])
-        assertEquals("… và 5 thông báo nữa", lines[1])
-        assertEquals(2 + TgLogic.NOTIF_MAX, lines.size)   // newest 15, newlines in a text flattened
+        assertEquals(21, lines.size)   // every row (send() splits a long text), newlines in a text flattened
         assertEquals("• 10:20 🔑 Zalo · Mẹ: con ăn cơm chưa 20", lines.last())
         // title equal to the text is not repeated; empty body = app only
         val one = TgLogic.notifBatch("en", "Bin", listOf(NotifFeedRow(1, 0, "Gmail", "Hi", "Hi", null), NotifFeedRow(2, 0, "Clock", "", "", null)), hm)
