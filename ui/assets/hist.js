@@ -41,14 +41,17 @@ async function snapBlob(k, id, thumb) {
 }
 async function snapLoad(more) {
   const k = cur; if (!k || snapH.busy) return;
-  if (snapH.k !== k) Object.assign(snapH, { k, rows: [], more: false, err: "", done: false });
+  if (snapH.k !== k) Object.assign(snapH, { k, rows: [], more: false, err: "", done: false, cached: 0 });
   snapH.busy = true; snapH.err = ""; snapDraw();
+  // owner 2026-11-20: the list (and photos opened before) stay viewable offline: list cached per kid in IndexedDB "kgchat"
+  if (!snapH.rows.length) { const c = await thGet("snapl/" + k.id + "/"); if (c && snapH.k === k && !snapH.rows.length) { snapH.rows = c.rows || []; snapH.cached = c.at || 0; snapDraw(); } }
   try {
     const before = more && snapH.rows.length ? snapH.rows[snapH.rows.length - 1].at : 0;
     const j = await pullPage(k, "/snaps", "snapList", before);
     if (snapH.k !== k) return;
     const have = new Set(snapH.rows.map(r => r.id)), add = (j.snaps || []).filter(r => !have.has(r.id));
-    snapH.rows = more ? snapH.rows.concat(add) : add; snapH.more = !!j.more; snapH.done = true;
+    snapH.rows = more ? snapH.rows.concat(add) : add; snapH.more = !!j.more; snapH.done = true; snapH.cached = 0;
+    thPut("snapl/" + k.id + "/", { rows: snapH.rows, at: Date.now() });
   } catch (e) { snapH.err = e.message || String(e.raw || e); }
   snapH.busy = false; snapDraw();
 }
@@ -86,6 +89,7 @@ function snapDraw() {
     ${typeof f === "number" && f >= 0 && f < 1024 ? alertBox("warn", "hard-drive", esc(t("chat.low", Math.round(f))), "margin:0 0 8px") : ""}
     <div class="row">${mine && s.done && rows.length && !S.on ? selBtn(S) : ""}<button type="button" id="snapLoad" class="sp"${s.busy ? " disabled" : ""}>${ic("refresh-cw")} ${t(s.busy ? "seen.wait" : s.done ? "snap.reload" : "snap.load")}</button></div>
     ${s.busy && fxRelay() ? `<p class="mute">${t("seen.waitRelay")}</p>` : ""}${s.err ? alertBox("bad", "triangle-alert", esc(s.err)) : ""}
+    ${mine && s.cached && rows.length ? `<p class="mute">${ic("history")} ${esc(t("snap.cached", evAt(s.cached)))}</p>` : ""}
     ${mine && s.done && !rows.length ? `<p class="mute">${t("snap.empty")}</p>` : ""}
     ${days.map(d => selDayHead(S, d, esc(selDayLabel(d.key))) + `<div class="ggrid">${rows.filter(r => selDayKey(r.at) === d.key).map(tile).join("")}</div>`).join("")}
     ${mine && s.more ? `<div class="row"><button type="button" id="snapMore" class="sp"${s.busy ? " disabled" : ""}>${ic("history")} ${t("snap.more")}</button></div>` : ""}
@@ -117,7 +121,9 @@ async function snapView(r) {
     pop.querySelector("#svDel").onclick = () => { done(false); snapDelAsk([r.id]); };
     (async () => {
       try {
-        blob = await snapBlob(k, r.id, false);
+        const fk = "snapf/" + k.id + "/" + r.id;   // full photo cached once opened (offline viewing)
+        blob = await thGet(fk);
+        if (!blob) { blob = await snapBlob(k, r.id, false); thPut(fk, blob); }
         const box = $("#svBox"); if (!box || k !== cur) return;
         box.classList.remove("mute"); box.innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="${esc(evAt(r.at))}">`;
         const g = $("#svGet"); if (g) g.disabled = false;
@@ -129,7 +135,11 @@ async function snapDelAsk(ids) {
   const k = cur, set = new Set(ids), sz = snapH.rows.reduce((n, r) => n + (set.has(r.id) ? r.size || 0 : 0), 0);
   if (!(await ask(t("sel.snapAsk", ids.length, fxSize(sz)), t("sel.del"), true))) { snapDraw(); return false; }
   const done = await selChunks(ids, c => cmd({ type: "snapDel", ids: c }, t("sel.done", ids.length), false));
-  if (done && snapH.k === k) { snapH.rows = snapH.rows.filter(r => !set.has(r.id)); ids.forEach(i => { delete snapTh[snapKey(k, i)]; }); }
+  if (done && snapH.k === k) {
+    snapH.rows = snapH.rows.filter(r => !set.has(r.id));
+    ids.forEach(i => { delete snapTh[snapKey(k, i)]; thPut(snapKey(k, i), null); thPut("snapf/" + k.id + "/" + i, null); });
+    thPut("snapl/" + k.id + "/", { rows: snapH.rows, at: Date.now() });
+  }
   snapDraw();
   return !!done;
 }

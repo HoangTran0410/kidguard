@@ -202,6 +202,7 @@ async function snapGo() {
     const r = await call(k, "/cmd", "POST", Object.assign({ type: "snap", fid, relay }, o));
     if (r && r.result && !["ok", "queued"].includes(r.result)) throw errOf("snap:" + r.result);
     const u = n.url = await snapFetch(k, fid, relay);
+    fetch(u).then(r => r.blob()).then(b => thPut("snapf/" + k.id + "/" + fid, b)).catch(() => {});   // offline viewing later (hist.js)
     show(`<img src="${u}" alt="${esc(t("seen.ch"))}" style="max-width:100%;max-height:60vh;border-radius:12px">`, false);
     if (snapH.k === k) snapLoad(false);   // the history list gets the new photo
   } catch (e) { show(esc(/^snap:/.test(e.raw || "") ? tc("seen.cerr.", e.raw.slice(5).replace(/ /g, "_"), "") || t("seen.cerr.failed") : e.message || t("fx.e.failed")), false); }

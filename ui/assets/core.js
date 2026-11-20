@@ -552,7 +552,10 @@ deadKid.rel = (s, seen) => {
 async function dropKid(k, dead) {
   if (!(await ask(t(k.via === "relay" && !dead ? "forget.askRelay" : APP ? "forget.askApp" : "forget.askWeb", k.name), APP ? t("delete") : t("forget"), true, k.via === "relay" && !dead ? t("forget.word") : ""))) return false;
   if (k === cur) { screenStop(); cur = null; clearInterval(timer); }
-  kids = kids.filter(x => x !== k); save(kids); return true;
+  kids = kids.filter(x => x !== k); save(kids);
+  // its cached photos / chat thumbs on this device go too (IndexedDB "kgchat": "<kid>/..", "snap/<kid>/..", "snapf/..", "snapl/..")
+  thDb().then(d => { if (d) try { const o = d.transaction("th", "readwrite").objectStore("th"); ["", "snap/", "snapf/", "snapl/"].forEach(p => o.delete(IDBKeyRange.bound(p + k.id + "/", p + k.id + "/\uffff"))); } catch {} });
+  return true;
 }
 async function kidBrief(list) {
   const root = $("#app");
