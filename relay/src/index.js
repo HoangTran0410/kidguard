@@ -81,6 +81,19 @@ const REPLACE = { lk: null, lc: null, rg: null, wk: null, rs: null, ls: null, d1
 // Same lists as K/guard/AiScope.kt: commands it may queue, rule keys it can never change (the stored value stays).
 const AI_CMDS = ["lk", "lc", "ms", "rg", "rs", "sa", "an"];
 const AI_LOCKED = ["pin", "pinHash", "pinSalt", "pinAt", "pinSet", "noInstall", "noDebug", "pinShot", "lockLocation", "noAirplane", "frpIds", "safeDns", "safeDnsPauseUntil", "noVpn", "tsKeep", "vpnPause", "accPause", "devPause", "tcpPause", "autoUpdate", "showWatching", "unlockMin", "hidden", "approved", "mode", "watch"];
+// what an AI token never reads (audit 2026-11-20): the child's messages, calls, notifications, route, files, photos, addresses;
+// events of these kinds keep their kind + time, not their text
+const AI_HIDE = ["notifs", "chat", "calls", "sms", "track", "log", "files", "listen", "snaps", "notes", "tg", "lan", "ts", "relay", "devices", "webOther"];
+const EV_PRIVATE = ["word", "chat", "sms", "call", "nf"];
+const aiState = (st) => {
+  if (!st) return st;
+  const s = { ...st };
+  for (const k of AI_HIDE) delete s[k];
+  if (Array.isArray(s.events)) s.events = s.events.map(e => e && EV_PRIVATE.includes(e.kind) ? { ...e, text: "" } : e);
+  return s;
+};
+// a watch token (kind "watch"): what the watch apps call (watch/*/ Api), nothing else (audit 2026-11-20)
+const watchOk = (action, m) => (action === "state" || action === "tile" || action === "icon" || action === "icons") ? m === "GET" : action === "rules" ? m === "PUT" : action === "cmd" && m === "POST";
 const aiRoute = (action, m) => (action === "state" || action === "icon") ? m === "GET" : action === "rules" ? m === "PUT" : action === "cmd" && m === "POST";
 const SETTING_KEYS = ["vol.ring", "vol.media", "vol.alarm", "bright", "autoBright", "timeoutMs", "dnd"];
 const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
@@ -154,11 +167,14 @@ function watchState(st, rules) {
   for (const [k, v] of Object.entries(st)) if (v === null || typeof v !== "object") s[k] = v;
   for (const k of ["now", "location", "lost"]) if (st[k] && typeof st[k] === "object") s[k] = st[k];
   const last = (k, n) => Array.isArray(st[k]) ? st[k].slice(-n) : [];
-  s.requests = last("requests", 3); s.done = last("done", 10); s.sos = last("sos", 3);
-  s.events = last("events", 10).map(e => ({ t: e.t, kind: e.kind, text: String(e.text || "").slice(0, 80) }));
-  s.apps = (Array.isArray(st.apps) ? st.apps : []).filter(a => a && a.label).sort((a, b) => (b.ms || 0) - (a.ms || 0)).slice(0, 15)
-    .map(a => ({ pkg: a.pkg, label: String(a.label).slice(0, 24), ms: a.ms || 0 }));
-  const cur = (Array.isArray(st.apps) ? st.apps : []).find(a => a && a.pkg === st.current);
+  s.requests = last("requests", 5); s.done = last("done", 20); s.sos = last("sos", 3);
+  s.events = last("events", 10).map(e => ({ t: e.t, kind: e.kind, text: EV_PRIVATE.includes(e.kind) ? "" : String(e.text || "").slice(0, 80) }));
+  // family chat on the watch (Zepp shows the last 12)
+  s.chat = last("chat", 12).map(c => c && typeof c === "object" ? { ...c, text: String(c.text || "").slice(0, 160) } : c);
+  const all = (Array.isArray(st.apps) ? st.apps : []).filter(a => a && a.label), cur = all.find(a => a.pkg === st.current);
+  s.apps = all.sort((a, b) => (b.ms || 0) - (a.ms || 0)).slice(0, 15);
+  if (cur && !s.apps.includes(cur)) s.apps.push(cur);   // the watch names the app in use from this list
+  s.apps = s.apps.map(a => ({ pkg: a.pkg, label: String(a.label).slice(0, 24), ms: a.ms || 0 }));
   if (cur) s.currentLabel = String(cur.label || "").slice(0, 24);
   return { state: s, rules: rules || (st.rules || null) };
 }
@@ -527,6 +543,7 @@ export class Kid {
         // locked = unlock + GET parents (the page shows who it is) only: no invite, rename or revoke (audit 2026-11-20)
         if (parLocked(me, now0) && action !== "unlock" && !(action === "parents" && req.method === "GET"))
           return json({ error: "locked", name: me.n }, 423);
+        if (me.k === "watch" && !watchOk(action, req.method)) return json({ error: "watch token: not allowed" }, 403);
       } else {
         const ai = await this.s.get("aiHash");
         if (!ai || h !== ai) return json({ error: "not paired" }, 401);
@@ -641,7 +658,7 @@ export class Kid {
       body = (() => { try { return JSON.parse(new TextDecoder().decode(buf)); } catch { return null; } })();
     }
     if (req.method !== "GET" && !isObj(body)) return json({ error: "bad json" }, 400);
-    const c = { req, url, body, now, role, who, token, id };
+    const c = { req, url, body, now, role, who, token, id, watch: !!me && me.k === "watch" };
 
     const r = ROUTES[action + " " + req.method] || ROUTES[action];   // routes after the JSON body (Kid.rX methods below)
     if (r) return this[r](c);
@@ -763,7 +780,7 @@ export class Kid {
     return json({ seen: this.seenNow(seen), lan, ts, same, mode: state && state.mode || "" });
   }
 
-  async rState({ req, url, body, now, role, who, token, id }) {
+  async rState({ req, url, body, now, role, who, token, id, watch }) {
     const [state, rules, seen, cmds, iconV] = await Promise.all(["state", "rules", "seen", "cmds", "iconV"].map(k => this.getK(k)));
     if (role === "parent") {   // a parent is looking at a quiet phone: wake it (rate-limited in wakeKid)
       const heard = this.seenNow(seen), q = Date.now() - heard;
@@ -776,11 +793,12 @@ export class Kid {
     const rev = await this.s.get("secEv");   // the worker's own security notices (secAlert), shown with the phone's events
     if (st && rev && rev.length) st.events = [...(Array.isArray(st.events) ? st.events : []), ...rev].sort((a, b) => (+a.t || 0) - (+b.t || 0));
     // GET state?nf=<cursor> (parent app, after an FCM "nf"): only the kid-notification rows newer than its cursor (2-5 KB, not the whole state)
-    if (role === "parent" && url.searchParams.has("nf")) return json(nfRead(st, +url.searchParams.get("nf") || 0));
-    if (role === "parent" && url.searchParams.get("watch") === "1") return json({ ...watchState(st, rules ? stripPin(rules) : null), seen: this.seenNow(seen), pending: (cmds || []).length,
+    if (role === "parent" && !watch && url.searchParams.has("nf")) return json(nfRead(st, +url.searchParams.get("nf") || 0));
+    // a watch token always gets the watch view (2026-11-20): no notifications, call log, route, files...
+    if (role === "parent" && (watch || url.searchParams.get("watch") === "1")) return json({ ...watchState(st, rules ? stripPin(rules) : null), seen: this.seenNow(seen), pending: (cmds || []).length,
       queue: (cmds || []).filter(c => live(c, Date.now())).slice(-10).map(c => ({ id: c.id, type: c.type, at: c.at, ...(c.by ? { by: c.by } : {}) })),
       expired: ((await this.s.get("expired")) || []).slice(-10), tileKey: await sha256("tile:" + token) });
-    return json({ state: st, rules: rules ? stripPin(rules) : null, seen: this.seenNow(seen), pending: (cmds || []).length,
+    return json({ state: role === "ai" ? aiState(st) : st, rules: rules ? stripPin(rules) : null, seen: this.seenNow(seen), pending: (cmds || []).length,
       queue: (cmds || []).filter(c => live(c, Date.now())).slice(-20).map(c => ({ id: c.id, type: c.type, at: c.at, ...(c.by ? { by: c.by } : {}) })), expired: (await this.s.get("expired")) || [] });
   }
 

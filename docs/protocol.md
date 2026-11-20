@@ -325,6 +325,8 @@ parent link cannot mint one; the token itself never reaches the phone or the rel
 - Phone: stored hash `Store.aiHash`; `X-KG-Token` matching it = role `ai` (not in `state.devices`). Dropped by `unpairAll` / release.
 - Relay: every phone sync body carries `ai` (the hash, `""` = none); the worker keeps it (`aiHash`) and gives a request with that token role `ai`.
   A parent `aiToken` (revoke or set) through the worker deletes the old hash at once; a new hash works there after the phone syncs it. One code per phone: set replaces.
+- Role `ai` reads a trimmed state (2026-11-20, phone `AiScope.state`, worker `aiState`): no `notifs chat calls sms track log files
+  listen snaps notes tg lan ts relay devices webOther`; events of kind `word chat sms call nf` keep kind + time, `text: ""`. No `?nf=` rows.
 - Role `ai` may: `GET state` (and `icon`; no `?watch=1`), `PUT rules`, `POST cmd` with `lock locate message ring ringStop sosAck answer` (relay: their codes, "Command codes").
   `PUT rules`: `pin pinHash pinSalt pinAt pinSet noInstall noDebug pinShot lockLocation noAirplane frpIds safeDns safeDnsPauseUntil noVpn tsKeep
   vpnPause accPause devPause tcpPause autoUpdate showWatching unlockMin hidden approved mode` keep the stored value whatever is sent (a key the phone
@@ -1722,7 +1724,10 @@ Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone 
 - Parent page: Settings > "Đồng hồ" / "Watch" (`s-watch`): 6-digit input + Connect; shown only when the kid has a relay (relay kid, or LAN kid with `relay` on).
 - `GET /c/<id>/tile?z=&x=&y=` (watch map, after 0.9.21): one OpenStreetMap tile (PNG) fetched by the worker and edge-cached 7 days. Auth like every parent route (`X-KG-Token`); `z` 13-18, `x`/`y` inside the zoom (else 400 `bad tile`); 502 `tile <status>` when OSM fails. Why: some networks block `tile.openstreetmap.org` (DNS -> 127.0.0.1) while the relay works; the watch side service falls back to OSM directly.
   Also accepted without `X-KG-Token` when `k=<tileKey>` is in the query (`tileKey = sha256hex("tile:" + token)`, given by `state?watch=1`): for watches whose image request cannot send headers (Garmin `makeImageRequest`). The key only fetches OSM tiles; wrong / other kid's key = 401.
-- `GET /c/<id>/state?watch=1` (after 0.9.21): the same auth and keys as `/state` but small (~2-6 KB, Garmin's reply limit): `state` = every scalar field of the phone state as is, plus `now`, `location`, `lost` objects, `requests` (last 3), `done` (last 10), `sos` (last 3), `events` (last 10, `{t,kind,text<=80}`), `apps` = 15 most used `{pkg,label<=24,ms}` (no icons), `currentLabel`; `rules` whole (watches edit them with the full-replace PUT); `seen`, `pending`, `queue` (last 10), `expired` (last 10), `tileKey`.
+- `GET /c/<id>/state?watch=1` (after 0.9.21): the same auth and keys as `/state` but small (~2-6 KB, Garmin's reply limit): `state` = every scalar field of the phone state as is, plus `now`, `location`, `lost` objects, `requests` (last 5), `done` (last 20), `sos` (last 3), `events` (last 10, `{t,kind,text<=80}`, private kinds as for AI: text ""), `chat` (last 12, text <= 160), `apps` = 15 most used `{pkg,label<=24,ms}` + the app in use (no icons), `currentLabel`; `rules` whole (watches edit them with the full-replace PUT); `seen`, `pending`, `queue` (last 10), `expired` (last 10), `tileKey`.
+
+- A watch token (kind `"watch"`, 2026-11-20) gets this view for a plain `GET state` too (Zepp, Wear OS, Apple ask `/state`), no `?nf=` rows,
+  and may call only `GET state|tile|icon|icons`, `PUT rules`, `POST cmd`; anything else `403 {"error":"watch token: not allowed"}`.
 
 ## Calls (2026-11-15, `guard/Calls.kt`, `CallsLogic.kt`)
 - **Rule** `calls`: `{"block": "off" | "unknown" | "hidden", "allow": ["+84912345678", ...]}` (max 30, 3-15 digits each; full replace like every rule; not overridable by a timed mode).

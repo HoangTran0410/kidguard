@@ -540,6 +540,17 @@ const pl=(await (await fetch(`${B}/c/${idw}/parents`,{headers:{"x-kg-token":Tpw}
 ck("watch: wname is the watch's name in the parents list",r.status==200&&!!w4);
 ck("watch: its token works",(await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":t4,"x-kg-name":"Zepp - Bip Max"}})).status==200);
 ck("watch: the list shows its X-KG-Name as dev",((await (await fetch(`${B}/c/${idw}/parents`,{headers:{"x-kg-token":Tpw}})).json()).parents||[]).some(p=>p.kind=="watch"&&p.dev=="Zepp - Bip Max"));
+// audit 2026-11-20 MED: a watch token reads the watch view only and calls only what watches call
+{const WS=(p,o={})=>fetch(`${B}/c/${idw}/${p}`,{...o,headers:{"x-kg-token":t4,"content-type":"application/json"}});
+const apps=Array.from({length:18},(_,i)=>({pkg:"p"+i,label:"App "+i,ms:1000+i}));apps.push({pkg:"z.app",label:"Zed",ms:1});
+await fetch(`${B}/c/${idw}/sync`,{method:"POST",headers:{"x-kg-token":Tw,"content-type":"application/json"},body:JSON.stringify({state:{t:5,battery:41,current:"z.app",apps,notifs:{n:[{id:1,text:"nfSECRET"}]},calls:[{n:"callSECRET"}],track:[[1,2,3,4]],files:[{n:"fileSECRET"}],chat:[{f:"k",text:"hi bố"}],events:[{t:1,kind:"word",text:"wordSECRET"},{t:2,kind:"battery",text:"low"}]}})});
+const wt=await (await WS("state")).text(),wj=JSON.parse(wt);
+ck("watch token: plain GET state = the watch view (no notifs, calls, route, files; keyword text gone)",wj.state&&wj.state.battery==41&&!/SECRET/.test(wt)&&!("track" in wj.state)&&wj.state.events.some(e=>e.kind=="word"&&e.text===""));
+ck("watch token: chat kept, the app in use listed even when not top 15",wj.state.chat.some(c=>c.text=="hi bố")&&wj.state.apps.some(a=>a.pkg=="z.app")&&wj.state.currentLabel=="Zed");
+ck("watch token: ?nf= gives no notification rows",!/SECRET/.test(await (await WS("state?nf=0")).text()));
+for(const [m,p] of [["GET","parents"],["POST","invite"],["POST","push"],["GET","file"],["GET","frame?after=0"],["POST","live"],["GET","where"]])ck(`watch token: ${m} ${p} 403`,(await WS(p,{method:m,body:m=="GET"?undefined:"{}"})).status==403);
+ck("watch token: cmd still works",(await WS("cmd",{method:"POST",body:JSON.stringify({type:"lk"})})).status==200);
+ck("watch token: a parent's plain GET state still has everything",/nfSECRET/.test(await (await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":Tpw}})).text()));}
 {const P=(o)=>fetch(`${B}/c/${idw}/parents`,{method:"POST",headers:{"x-kg-token":Tpw,"content-type":"application/json"},body:JSON.stringify(o)});
 const rr=await P({rename:w4&&w4.id,name:"Bip của mẹ"});ck("watch: a parent renames the watch",rr.status==200&&(await rr.json()).parents.some(p=>p.kind=="watch"&&p.name=="Bip của mẹ"));
 const me4=pl.find(p=>p.me);ck("watch: rename of a non-watch parent 403",(await P({rename:me4&&me4.id,name:"x"})).status==403);}
@@ -554,7 +565,7 @@ ck("watch: credentials of an expired code are not handed out",(await GET(c3)).st
 // state?watch=1: small view for watches + tile-only key (Garmin image requests carry no headers)
 {const apps=Array.from({length:150},(_,i)=>({pkg:"p"+i,label:"App "+i+" "+"x".repeat(40),ms:i*1000,icon:"y".repeat(200)}));
 await fetch(`${B}/c/${idw}/sync`,{method:"POST",headers:{"x-kg-token":Tw,"content-type":"application/json"},body:JSON.stringify({state:{t:2,leftMs:60000,battery:50,current:"p149",now:{why:"daily",until:0},location:{lat:10.7,lng:106.7,acc:12,t:1},apps,events:Array.from({length:40},(_,i)=>({t:i,kind:"k",text:"e"+i})),requests:[{id:"r1",at:1,kind:"time",min:15}],done:[]}})});
-const full=await (await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":Tww}})).text();
+const full=await (await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":Tpw}})).text();
 const wr=await fetch(`${B}/c/${idw}/state?watch=1`,{headers:{"x-kg-token":Tww}}),wt=await wr.text(),wj=JSON.parse(wt);
 ck(`watch=1: much smaller than the full state (${wt.length} vs ${full.length} B)`,wr.status==200&&wt.length<full.length/4&&wt.length<16000);
 ck("watch=1: keeps scalars, now, location, requests; top 15 apps without icons; current label",wj.state.leftMs===60000&&wj.state.battery===50&&wj.state.now.why=="daily"&&wj.state.location.lat==10.7&&wj.state.requests.length==1&&wj.state.apps.length==15&&wj.state.apps[0].pkg=="p149"&&!wj.state.apps[0].icon&&wj.state.currentLabel.startsWith("App 149")&&wj.state.events.length==10);
@@ -644,6 +655,10 @@ const A=(m,p,b)=>fetch(`${B}/c/${id}/${p}`,{method:m,headers:H(AIT),body:b===und
 ck("ai: unknown token 401 before the phone told the hash",(await A("GET","state")).status==401);
 await P("sync",JSON.stringify({ai:ah}));
 ck("ai: state readable",(await A("GET","state")).status==200);
+// audit 2026-11-20 MED: no messages, calls, notifications, route for the AI token
+await P("sync",JSON.stringify({state:{t:9,battery:52,notifs:{n:[{id:1,text:"nfSECRET"}]},chat:[{text:"chatSECRET"}],calls:[{n:"callSECRET"}],track:[[1,2,3,4]],events:[{t:1,kind:"word",text:"wordSECRET"},{t:2,kind:"battery",text:"low"}]}}));
+{const at=await (await A("GET","state")).text(),aj=JSON.parse(at);ck("ai: state without notifs/chat/calls/track, keyword text gone, rest kept",aj.state.battery==52&&!/SECRET/.test(at)&&aj.state.events.some(e=>e.kind=="battery"&&e.text=="low"));
+ck("ai: ?nf= gives no rows",!/SECRET/.test(await (await A("GET","state?nf=0")).text()));}
 ck("ai: lock queued",(await (await A("POST","cmd",{type:"lk"})).json()).result=="queued");
 for(const t of ["rl","rb","ab","ua","ai","ps","listen"]){const x=await A("POST","cmd",{type:t});ck("ai: cmd "+t+" 403",x.status==403&&(await x.json()).error=="ai token: not allowed");}
 for(const [m,p] of [["GET","frame?after=0"],["POST","live"],["POST","input"],["POST","sync"],["GET","file"],["POST","forget"],["POST","watch"],["GET","tile"],["GET","ws"]]){const x=await A(m,p,m=="GET"?undefined:{});ck("ai: "+m+" "+p+" 403"+(x.status==403?"":" (got "+x.status+" "+(await x.text()).slice(0,80)+")"),x.status==403);}

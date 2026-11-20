@@ -82,7 +82,7 @@ class Api(private val g: Guard) {
         if (token != null && !ai && !ParentSession.valid(session)) store.touchDevice(token, r.header("x-kg-name"))
         return when {
             // devices: the cached list, with the caller's own row marked self (a paired token only; the on-device session has none)
-            p == "/state" -> Res.json(g.currentState().let { st -> if (token == null || ParentSession.valid(session)) st else JSONObject(st.toString()).put("devices", store.devices(token)) }.toString())
+            p == "/state" -> Res.json(g.currentState().let { st -> if (ai) AiScope.state(st) else if (token == null || ParentSession.valid(session)) st else JSONObject(st.toString()).put("devices", store.devices(token)) }.toString())
             p == "/unpair" && r.method == "POST" -> {
                 val o = runCatching { JSONObject(r.text) }.getOrDefault(JSONObject())
                 val id = o.optString("id")

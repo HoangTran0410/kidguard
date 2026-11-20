@@ -34,4 +34,15 @@ class AiScopeTest {
         assertFalse(o.has("noVpn")); assertFalse(o.has("pinHash")); assertFalse(o.has("pin")); assertFalse(o.has("mode"))
         assertEquals(10, o.getInt("dailyMin")); assertTrue(o.has("blocked"))
     }
+
+    @Test fun stateHidesPrivateParts() {
+        val st = JSONObject().put("battery", 50).put("chat", JSONArray().put("hi")).put("notifs", JSONObject()).put("calls", JSONArray()).put("track", JSONArray())
+            .put("events", JSONArray().put(JSONObject().put("kind", "word").put("text", "secret")).put(JSONObject().put("kind", "battery").put("text", "low")))
+        val o = AiScope.state(st)
+        assertEquals(50, o.getInt("battery"))
+        for (k in listOf("chat", "notifs", "calls", "track")) assertFalse(k, o.has(k))
+        assertEquals("", o.getJSONArray("events").getJSONObject(0).getString("text"))
+        assertEquals("low", o.getJSONArray("events").getJSONObject(1).getString("text"))
+        assertTrue(st.has("chat"))   // the phone's own state is untouched
+    }
 }

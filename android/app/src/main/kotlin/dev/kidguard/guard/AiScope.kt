@@ -21,6 +21,19 @@ object AiScope {
 
     fun cmdAllowed(type: String?): Boolean = type in CMDS
 
+    /** State keys an AI never reads (audit 2026-11-20; same list as the worker's `AI_HIDE`): messages, calls, notifications, route, files, photos, addresses. */
+    val HIDE = setOf("notifs", "chat", "calls", "sms", "track", "log", "files", "listen", "snaps", "notes", "tg", "lan", "ts", "relay", "devices", "webOther")
+    /** Event kinds whose text stays private (the kind + time still show). Worker: `EV_PRIVATE`. */
+    val EV_PRIVATE = setOf("word", "chat", "sms", "call", "nf")
+
+    /** The phone state as an AI gets it: a copy without [HIDE] keys, private event texts blanked. */
+    fun state(st: JSONObject): JSONObject {
+        val o = JSONObject(st.toString())
+        for (k in HIDE) o.remove(k)
+        o.optJSONArray("events")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { e -> if (e.optString("kind") in EV_PRIVATE) e.put("text", "") } }
+        return o
+    }
+
     /** [path] without the "/api" prefix. Reads: state, usage tracks, icons. Writes: rules, allowed commands. */
     fun routeAllowed(method: String, path: String): Boolean = when (path) {
         "/state", "/track", "/icon" -> method == "GET"
