@@ -14,6 +14,16 @@
     <string name="ch_info">Other alerts from your child\'s phone</string>
     <string name="ch_offline">Child\'s phone offline</string>
     <string name="ch_sos">SOS from your child</string>
+    <string name="ch_kidnotif">Your child\'s phone notifications</string>
+    <plurals name="nf_title">
+        <item quantity="one">%1$s: %2$d new notification</item>
+        <item quantity="other">%1$s: %2$d new notifications</item>
+    </plurals>
+    <plurals name="nf_more">
+        <item quantity="one">+%1$d more. Open the app to see it.</item>
+        <item quantity="other">+%1$d more. Open the app to see them.</item>
+    </plurals>
+    <string name="nf_more_some">More in the app.</string>
     <string name="upd_title">New KidGuard Parent version (%1$s)</string>
     <string name="upd_text">Tap to open the app and install it</string>
     <plurals name="ev_request">

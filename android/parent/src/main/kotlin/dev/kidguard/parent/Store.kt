@@ -28,6 +28,15 @@ object Store {
     fun setNotifAsked(c: Context) { p(c).edit().putBoolean("notifAsked", true).apply() }
     fun notify(c: Context): Boolean = p(c).getBoolean("notify", true)
     fun setNotify(c: Context, v: Boolean) { p(c).edit().putBoolean("notify", v).apply() }
+    /** "Show my kid's notifications" (rule watch.notif mirrored here): on by default, the parent already chose to read them. */
+    fun kidNotif(c: Context): Boolean = p(c).getBoolean("kidNotif", true)
+    fun setKidNotif(c: Context, v: Boolean) { p(c).edit().putBoolean("kidNotif", v).apply() }
+    /** Per kid: the feed id of the newest kid notification already looked at (null = never: the first look only records it). */
+    fun nfCursor(c: Context, key: String): Long? = p(c).getLong("nfc:" + sha(key), -1).takeIf { it >= 0 }
+    fun setNfCursor(c: Context, key: String, v: Long) { p(c).edit().putLong("nfc:" + sha(key), v).apply() }
+    /** Per kid: the lines its mirrored-notifications notification shows now ([Logic.NfShown] JSON). */
+    fun nfShown(c: Context, key: String): String? = p(c).getString("nfs:" + sha(key), null)
+    fun setNfShown(c: Context, key: String, json: String) { p(c).edit().putString("nfs:" + sha(key), json).apply() }
     fun appLock(c: Context): Boolean = p(c).getBoolean("appLock", true)   // AppLock: on by default
     fun setAppLock(c: Context, v: Boolean) { p(c).edit().putBoolean("appLock", v).apply() }
     /** Evening summary notification (off by default): on, time "HH:mm", last day shown per kid. */

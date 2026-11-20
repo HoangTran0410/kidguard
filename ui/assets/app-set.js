@@ -52,12 +52,14 @@ function appSettings() {
   reScreen = appSettings;
   if (!appSetOn) { appSetOn = true; try { history.pushState({ kg: navLvl() + 1, appSet: 1 }, ""); } catch {} }
   const notifOn = kgCall("notifOn") === "true", wantOn = kgCall("getNotify") !== "false";
+  const kidNf = kgCall("getKidNotif");   // null = an older app without the mirror of the kid's notifications
   $("#app").innerHTML = head(t("au.h"), true) + `
   <div class="card"><h2>${ic("globe")} ${t("lang")}</h2>${langSel()}</div>
   <div class="card"><h2>${ic("sun-moon")} ${t("theme.h")}</h2><div class="seg" role="tablist">${THEMES.map(x => `<button type="button" role="tab" data-th="${x}" aria-selected="${x === theme}">${t("theme." + x)}</button>`).join("")}</div></div>
   <div class="card"><h2>${ic("bell")} ${t("notif.h")}</h2>
     <label class="row"><input type="checkbox" id="f-notify" ${wantOn ? "checked" : ""}><span class="sp">${t("notif.p")}</span></label>
     <p class="mute">${notifOn ? t("au.nOn") : wantOn ? ic("triangle-alert") + " " + t("notif.blocked") : t("au.nOff")}</p>
+    ${kidNf !== null && wantOn ? `<label class="row"><input type="checkbox" id="f-kidnf" ${kidNf === "true" ? "checked" : ""}><span class="sp">${t("notif.kid")}<br><span class="mute">${t("notif.kidN")}</span></span></label>` : ""}
     <button id="nSet">${ic("settings")} ${t("au.nOpen")}</button></div>
   ${lockCardHtml()}
   ${digestCardHtml()}
@@ -72,6 +74,7 @@ function appSettings() {
   });
   $("#f-notify").onchange = e => { kgCall("setNotify", e.target.checked ? "true" : "false"); if (e.target.checked) setTimeout(() => { if (kgCall("canNotify") === "false") toast("warn|" + t("notif.blockedShort")); appSettings(); }, 1500); else appSettings(); };
   $("#nSet").onclick = () => kgCall("openNotifSettings");
+  if ($("#f-kidnf")) $("#f-kidnf").onchange = e => kgCall("setKidNotif", e.target.checked ? "true" : "false");
   if ($("#f-lock")) $("#f-lock").onchange = e => kgCall("setLock", e.target.checked ? "true" : "false");   // off: the phone asks first, then kgLock()
   const dgSave = () => kgCall("setDigest", $("#f-dg").checked ? "true" : "false", $("#f-dgat").value || "20:00");
   if ($("#f-dg")) { $("#f-dg").onchange = dgSave; $("#f-dgat").onchange = dgSave; }

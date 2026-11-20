@@ -101,6 +101,12 @@ class Bridge(private val a: MainActivity) {
     @JavascriptInterface fun getDigest(): String = org.json.JSONObject().put("on", Store.digestOn(a)).put("at", Store.digestAt(a)).toString()
     @JavascriptInterface fun setDigest(on: String, at: String) { Store.setDigest(a, on == "true", at) }
     @JavascriptInterface fun getNotify() = Store.notify(a).toString()
+    /** "Show my kid's notifications" ([KidNotif]); off also unregisters the relay nudge (Push sends nf: false). */
+    @JavascriptInterface fun getKidNotif() = Store.kidNotif(a).toString()
+    @JavascriptInterface fun setKidNotif(v: String) {
+        Store.setKidNotif(a, v == "true")
+        Push.sync(a.applicationContext)
+    }
     /** "true" when the OS lets us show notifications (permission + not disabled in settings). */
     @JavascriptInterface fun canNotify() = CheckJob.canNotify(a.applicationContext).toString()
     /** App language for native text (notifications): "" = phone setting, else a [Langs.ALL] code. The page translates itself. */

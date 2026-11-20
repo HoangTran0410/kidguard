@@ -2,6 +2,7 @@ package dev.kidguard.parent
 
 import org.junit.Assert.*
 import org.junit.Test
+import org.json.JSONArray
 
 class LogicTest {
     private fun t(s: String) = Logic.encodeTarget(s)
@@ -401,5 +402,49 @@ class LogicTest {
         assertFalse("too soon", Logic.releasedQuietly(ev, 1_000_000L, 1_000_000L + 60_000))
         assertFalse("release failed", Logic.releasedQuietly(ev + ("releaseFail" to 1_001_000L), 1_000_000L, 1_000_000L + 600_000))
         assertFalse("no event", Logic.releasedQuietly(emptyList(), 0, 1_000_000L))
+    }
+
+    // ---- kid notifications mirror ----
+    private fun nr(id: Long, hit: Boolean = false) = Logic.NfRow(id, id / 1000, "Zalo", "Mẹ", "con về chưa", hit)
+
+    @Test fun nfFirstLookOnlyRecords() {
+        val p = Logic.nfPlan(listOf(nr(5_000_000), nr(6_000_000)), 0, 7_000, firstLook = true, more = true)
+        assertTrue(p.show.isEmpty()); assertFalse(p.more); assertEquals(7_000_000L, p.cursor)
+        assertEquals("no rows yet: the kid clock", 9_000_000L, Logic.nfPlan(emptyList(), 0, 9_000, firstLook = true).cursor)
+    }
+
+    @Test fun nfNewRowsOldestFirstWithoutKeywordRows() {
+        val p = Logic.nfPlan(listOf(nr(7_000_000), nr(5_000_000), nr(6_000_000, hit = true), nr(4_000_000)), 4_000_000, 8_000, false)
+        assertEquals(listOf(5_000_000L, 7_000_000L), p.show.map { it.id })
+        assertEquals("past the keyword row too", 7_000_000L, p.cursor)
+        assertEquals("nothing new: cursor stays", 7_000_000L, Logic.nfPlan(listOf(nr(6_000_000)), 7_000_000, 8_000, false).cursor)
+    }
+
+    @Test fun nfMoreOnlyWhenEveryRowIsNew() {
+        assertTrue(Logic.nfPlan(listOf(nr(5_000_000), nr(6_000_000)), 4_000_000, 8_000, false, more = true).more)
+        assertFalse("an old row is in the list: nothing was cut", Logic.nfPlan(listOf(nr(3_000_000), nr(6_000_000)), 4_000_000, 8_000, false, more = true).more)
+    }
+
+    @Test fun nfKidClockBackResets() {
+        // cursor at kid time 100 000 s, the kid now says 50 000 s: start again, show nothing
+        val p = Logic.nfPlan(listOf(nr(49_000_000_000)), 100_000_000_000, 50_000_000, false)
+        assertTrue(p.show.isEmpty()); assertEquals(50_000_000_000L, p.cursor)
+        assertEquals("within 60 s: normal", 1, Logic.nfPlan(listOf(nr(50_010_000_000)), 50_005_000_000, 49_990_000, false).show.size)
+    }
+
+    @Test fun nfMergeKeepsNewestLines() {
+        val a = Logic.nfMerge(null, (1..4).map { "l$it" }, false)
+        val b = Logic.nfMerge(a, (5..8).map { "l$it" }, true)
+        assertEquals((3..8).map { "l$it" }, b.lines); assertEquals(2, b.extra); assertTrue(b.more)
+        assertEquals(b, Logic.NfShown.fromJson(b.toJson()))
+        assertNull(Logic.NfShown.fromJson(null))
+        assertEquals("Zalo · Mẹ: con về chưa", Logic.nfLine(nr(1)))
+        assertEquals("Zalo · hi", Logic.nfLine(Logic.NfRow(1, 0, "Zalo", "", "hi", false)))
+    }
+
+    @Test fun nfRowsFromJson() {
+        val a = JSONArray("""[{"id":5000001,"t":5000,"pkg":"com.x","title":"A","text":"B","hit":"bad"},{"t":1},"x"]""")
+        val r = Logic.nfRows(a)
+        assertEquals(1, r.size); assertEquals("com.x", r[0].app); assertTrue(r[0].hit)
     }
 }

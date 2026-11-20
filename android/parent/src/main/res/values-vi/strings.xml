@@ -9,6 +9,14 @@
     <string name="ch_info">Thông báo khác từ máy của con</string>
     <string name="ch_offline">Máy con mất kết nối</string>
     <string name="ch_sos">SOS từ con</string>
+    <string name="ch_kidnotif">Thông báo trên máy của con</string>
+    <plurals name="nf_title">
+        <item quantity="other">%1$s: %2$d thông báo mới</item>
+    </plurals>
+    <plurals name="nf_more">
+        <item quantity="other">Còn %1$d thông báo nữa. Mở app để xem.</item>
+    </plurals>
+    <string name="nf_more_some">Còn nữa trong app.</string>
     <string name="upd_title">Có bản KidGuard Phụ huynh mới (%1$s)</string>
     <string name="upd_text">Bấm để mở app và cài bản mới</string>
     <plurals name="ev_request">

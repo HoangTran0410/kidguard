@@ -36,11 +36,11 @@ object Push {
     private fun send(c: Context, token: String, removed: List<Logic.KidCfg>, force: Boolean) {
         fun post(r: Triple<String, String, String>, off: Boolean) = Net.call("POST", "${r.first}/c/${r.second}/push",
             mapOf("X-KG-Token" to r.third, "Content-Type" to "application/json"),
-            JSONObject().put("fcm", token).apply { if (off) put("off", true) }.toString().toByteArray(), 15_000).status
+            JSONObject().put("fcm", token).apply { if (off) put("off", true) else put("nf", Store.kidNotif(c)) }.toString().toByteArray(), 15_000).status
         val all = Logic.parseKids(Store.kids(c))
         val relayKids = all.mapNotNull { Logic.pushRoute(it) }
         // saves that touch nothing relevant (rules edits, tab state) must not re-POST to every relay kid
-        val sig = (listOf(token, Store.notify(c).toString()) + relayKids.map { "${it.second}|${it.first}|${it.third}" }.sorted()).joinToString("\n")
+        val sig = (listOf(token, Store.notify(c).toString(), "nf=" + Store.kidNotif(c)) + relayKids.map { "${it.second}|${it.first}|${it.third}" }.sorted()).joinToString("\n")
         val rm = removed.mapNotNull { Logic.pushRoute(it) }
         if (!force && rm.isEmpty() && sig == Store.pushSig(c)) return
         for (k in rm) post(k, true)
@@ -64,6 +64,8 @@ object Push {
     /** Called for every incoming data message. Marks the event seen so the background check does not repeat it. */
     fun handle(c: Context, data: Map<String, String>) {
         if (!Store.notify(c) || !CheckJob.canNotify(c)) return   // not shown = not marked seen: the background check retries
+        // "nf": the kid got new notifications (rule watch.notif); no text in the push: read them from its relay
+        if (data["kind"] == "nf") { Logic.pushKid(Logic.parseKids(Store.kids(c)), data["kid"])?.let { k -> runCatching { KidNotif.fromRelay(c, k) }.onFailure { Log.w("KGParent", "nf", it) } }; return }
         // "ev" carries no text (privacy): run the check for that kid now, it notifies each new event once
         Logic.pushCheckKid(Logic.parseKids(Store.kids(c)), data)?.let { k -> runCatching { CheckJob.runKid(c, k) }.onFailure { Log.w("KGParent", "ev check", it) }; return }
         val hit = synchronized(Store) {
@@ -93,4 +95,6 @@ object Push {
 class PushService : FirebaseMessagingService() {
     override fun onMessageReceived(m: RemoteMessage) = Push.handle(applicationContext, m.data)
     override fun onNewToken(token: String) = Push.sync(applicationContext)
+    // FCM dropped messages it held for us (offline too long / too many): run the background check now instead of waiting 15 min
+    override fun onDeletedMessages() { runCatching { CheckJob.schedule(applicationContext) } }
 }

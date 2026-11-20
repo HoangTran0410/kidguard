@@ -93,6 +93,8 @@ class CheckJob : JobService() {
             }
             if (canPost) for (e in out.events) post(c, k, e)
             for (key in out.clear) Notif.cancel(c, k, key)
+            // the kid's notifications (rule watch.notif): catch-up for missed pushes and the only source for LAN-only kids
+            seen.nf?.let { n -> runCatching { KidNotif.show(c, k, n.rows, n.t, n.more) }.onFailure { android.util.Log.w("KGParent", "nf", it) } }
             runCatching { digest(c, k, seen, now) }.onFailure { android.util.Log.w("KGParent", "digest", it) }
         }
 
@@ -185,7 +187,8 @@ class CheckJob : JobService() {
                     if (st.length() == 0) null   // relay kid that never synced: nothing to show
                     else WidgetLogic.Snap(st.optJSONObject("now")?.optString("why").orEmpty(), st.optInt("limitMin"), if (st.has("leftMs")) st.optLong("leftMs") else -1,
                         if (lan) st.optLong("t") else o.optLong("seen"), System.currentTimeMillis()),
-                    runCatching { dev.kidguard.Digest.fromState(st, "") }.getOrNull(), tOn)
+                    runCatching { dev.kidguard.Digest.fromState(st, "") }.getOrNull(), tOn,
+                    st.optJSONObject("notifs")?.let { Logic.NfIn(Logic.nfRows(it.optJSONArray("n")), st.optLong("t"), it.optBoolean("more")) })
             } catch (e: Exception) { Logic.Seen(false, emptyList(), 0) }
         }
 

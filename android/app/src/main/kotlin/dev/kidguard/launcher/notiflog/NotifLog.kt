@@ -222,6 +222,7 @@ object NotifLog {
                     for (f in NotifLogic.refs(old.second) - NotifLogic.refs(ne).toSet()) runCatching { File(dir(app), f).delete() }
                 } else d.insert("n", null, values(ne))
                 version++
+                runCatching { NotifSync.nudge(app, ne) }   // parent-app mirror: a relay sync soon (coalesced)
                 trim(app, now)
             }
         }

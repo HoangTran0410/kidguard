@@ -148,6 +148,27 @@ ck("event pushed as ev, kind only, no text",ms.length==6&&ms[5].data.kind=="ev"&
 await P3("sync",{state:{events:Array.from({length:9},(_,i)=>({id:"b"+i,t:now,kind:"battery"}))}});await sleep(800);
 ck("at most 5 events pushed per sync",(await sentList()).length==11);
 j=await (await P3("push",{fcm:"good_"+"a".repeat(40),off:true})).json();ck("push off removes",j.devices==0);
+// kid notifications (rule watch.notif): FCM {kind:"nf"} only to tokens registered with nf:true, no text, collapsed; GET state?nf=
+{const NF="nf_"+"d".repeat(40),PL="pl_"+"e".repeat(40),b=now*1000,row=(id,o={})=>({id,t:Math.floor(id/1000),pkg:"com.zalo",app:"Zalo",title:"Mẹ",text:"bí mật nf",...o});
+const nfs=async()=>(await sentList()).filter(m=>m.data.kind=="nf"),S=(rows,more)=>P3("sync",{state:{t:now,notifs:{n:rows,more:!!more}}});
+await P3("push",{fcm:NF,nf:true});await P3("push",{fcm:PL});
+await S([row(b+1)]);await sleep(500);
+ck("nf: first sight only records",(await nfs()).length==0);
+await S([row(b+1),row(b+2000)]);await sleep(500);let nm=await nfs();
+ck("nf: new row -> one nudge, nf token only, no text, collapsed, 10 min",nm.length==1&&nm[0].token==NF&&nm[0].data.kid==id3&&nm[0].android.collapse_key=="nf-"+id3&&nm[0].android.ttl=="600s"&&!JSON.stringify(nm[0]).includes("bí mật"));
+await sleep(1100);await S([row(b+1),row(b+2000),row(b+3000,{hit:"x"})]);await sleep(500);
+ck("nf: a keyword row (hit) is not nudged (its word event is)",(await nfs()).length==1);
+await S([row(b+1),row(b+2000),row(b+3000,{hit:"x"}),row(b+4000)],true);await sleep(500);
+ck("nf: next new row nudges again",(await nfs()).length==2);
+await S([row(b+2000),row(b+3000,{hit:"x"}),row(b+4000),row(b+5000)],true);await sleep(500);
+ck("nf: within the gap: no second nudge",(await nfs()).length==2);
+j=await (await fetch(`${B}/c/${id3}/state?nf=${b+2000}`,{headers:H()})).json();
+ck("state?nf= rows after the cursor, oldest first, kid clock",!j.state&&j.n.length==3&&j.n[0].id==b+3000&&j.n[2].id==b+5000&&j.t==now&&j.more===false);
+j=await (await fetch(`${B}/c/${id3}/state?nf=0`,{headers:H()})).json();
+ck("state?nf=0: all rows, more = older ones left out",j.n.length==4&&j.more===true);
+await P3("push",{fcm:NF,nf:false});await sleep(1100);await S([row(b+5000),row(b+6000)]);await sleep(500);
+ck("nf:false unregisters the nudge only",(await nfs()).length==2&&(await (await P3("push",{fcm:PL})).json()).devices==2);
+await P3("push",{fcm:NF,off:true});await P3("push",{fcm:PL,off:true});}
 // push wake: the kid app's own token comes with a sync; a parent reading a quiet phone's state wakes it, once per WAKE_PARENT_MS
 await P3("sync",{fcm:"kid_"+"c".repeat(40)});await sleep(1700);
 await fetch(`${B}/c/${id3}/state`,{headers:H()});await sleep(600);

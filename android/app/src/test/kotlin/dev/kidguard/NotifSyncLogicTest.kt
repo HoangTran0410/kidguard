@@ -58,4 +58,16 @@ class NotifSyncLogicTest {
         assertTrue(t.allow("b", 1600)); assertFalse(t.allow("c", 1700))      // 3 in the hour
         assertTrue(t.allow("c", 3_700_000))
     }
+
+    @Test fun nudgeGateLeadingAndTrailing() {
+        val g = NudgeGate(30_000)
+        assertEquals("first fires at once", 0L, g.ask(1_000_000))
+        assertEquals("burst: one trailing fire at the gap", 25_000L, g.ask(1_005_000))
+        assertEquals("already scheduled", -1L, g.ask(1_010_000))
+        g.fired(1_030_000)
+        assertEquals("right after the trailing fire: waits again", 30_000L, g.ask(1_030_000))
+        g.fired(1_060_000)
+        assertEquals("quiet for a gap: fires at once", 0L, g.ask(1_100_000))
+        assertEquals("clock went back: fires", 0L, g.ask(500_000))
+    }
 }

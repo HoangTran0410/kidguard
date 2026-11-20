@@ -219,7 +219,10 @@ object Logic {
                val bedtime: Boolean = false,   // state.now.why == "bedtime": a phone that goes quiet now is just asleep
                val snap: WidgetLogic.Snap? = null,   // 0.9.22: what the home-screen widget shows ([KidWidget])
                val digest: dev.kidguard.Digest.Input? = null,   // evening summary data, null when the state could not be read
-               val tamperOn: Set<String>? = null)   // 0.9.25 state.tamperOn: tamper conditions still true; null = older phone (nothing cleared)
+               val tamperOn: Set<String>? = null,   // 0.9.25 state.tamperOn: tamper conditions still true; null = older phone (nothing cleared)
+               val nf: NfIn? = null)   // state.notifs (rule watch.notif): the kid's notifications mirrored here ([KidNotif])
+    /** state.notifs read by the background check: rows, the kid's clock in that state, its `more` flag. */
+    class NfIn(val rows: List<NfRow>, val t: Long, val more: Boolean)
 
     /** key: unique per event, used as notification id. [min]: a request's minutes; [loc]: the kid's last fix (SOS "show location"). */
     class Event(val key: String, val text: String, val min: Int = 0, val loc: Loc? = null,
@@ -356,6 +359,54 @@ object Logic {
         k.hasRelay -> if (k.relay == OLD_RELAY) null else Triple(k.relay!!, k.relayId, k.relayToken)
         else -> null
     }
+    // ---- kid notifications mirrored to this phone (rule watch.notif; FCM "nf" + state?nf=, and the 15-min check) ----
+
+    /** One row of the kid's state.notifs: feed id (kid time ms x 1000 + n), kid time, app label, title, text, keyword hit. */
+    data class NfRow(val id: Long, val t: Long, val app: String, val title: String, val text: String, val hit: Boolean)
+    /** [show] oldest first; [more] = new rows older than these were left out (the state keeps 20); [cursor] = save this. */
+    data class NfPlan(val show: List<NfRow>, val more: Boolean, val cursor: Long)
+    /** What the kid's notification on this phone shows now: [lines] newest last, [extra] = lines pushed out, [more] = see [NfPlan.more]. */
+    data class NfShown(val lines: List<String>, val extra: Int, val more: Boolean) {
+        fun toJson(): String = JSONObject().put("l", JSONArray(lines)).put("x", extra).put("m", more).toString()
+        companion object {
+            fun fromJson(s: String?): NfShown? = runCatching { JSONObject(s!!) }.getOrNull()?.let { o ->
+                val a = o.optJSONArray("l") ?: JSONArray()
+                NfShown((0 until a.length()).map { a.optString(it) }, o.optInt("x"), o.optBoolean("m"))
+            }
+        }
+    }
+    const val NF_LINES = 6
+
+    fun nfRows(a: JSONArray?): List<NfRow> = (0 until (a?.length() ?: 0)).mapNotNull { i ->
+        val o = a!!.optJSONObject(i) ?: return@mapNotNull null
+        val id = o.optLong("id").takeIf { it > 0 } ?: return@mapNotNull null
+        NfRow(id, o.optLong("t"), o.optString("app").ifEmpty { o.optString("pkg") }.take(40), o.optString("title").take(80),
+            o.optString("text").take(140), o.optString("hit").isNotEmpty())
+    }
+
+    /**
+     * Which kid notifications to show. [cursor] = the feed id seen last; [firstLook] = none saved yet for this kid; [stateT] = the
+     * kid's clock when it built the state (0 = unknown); [more] = the reply's / state's flag. First look, and a kid clock that
+     * moved back (cursor > stateT + 60 s), only record where we are (no flood of old ones). Keyword rows (hit) are left out:
+     * their `word` event notifies already. [more] counts only when every row is new (older new ones may be cut).
+     */
+    fun nfPlan(rows: List<NfRow>, cursor: Long, stateT: Long, firstLook: Boolean, more: Boolean = false): NfPlan {
+        val top = rows.maxOfOrNull { it.id } ?: 0L
+        if (firstLook || (stateT > 0 && cursor / 1000 > stateT + 60_000)) return NfPlan(emptyList(), false, maxOf(top, stateT * 1000))
+        val fresh = rows.filter { it.id > cursor && !it.hit }.sortedBy { it.id }
+        return NfPlan(fresh, more && fresh.isNotEmpty() && rows.all { it.id > cursor }, maxOf(cursor, top))
+    }
+
+    /** "Zalo · Mẹ: con về chưa" (title or text may be empty). */
+    fun nfLine(r: NfRow): String = r.app + " · " + listOf(r.title, r.text).filter { it.isNotBlank() }.joinToString(": ")
+
+    /** Adds [add] to what is still showing ([prev] null = dismissed / never shown): the newest [max] lines stay, the rest are counted. */
+    fun nfMerge(prev: NfShown?, add: List<String>, more: Boolean, max: Int = NF_LINES): NfShown {
+        val all = (prev?.lines ?: emptyList()) + add
+        val drop = maxOf(0, all.size - max)
+        return NfShown(all.drop(drop), (prev?.extra ?: 0) + drop, (prev?.more ?: false) || more)
+    }
+
     /** The kid an FCM message is about: its `kid` is the relay id ([pushRoute]). */
     fun pushKid(kids: List<KidCfg>, relayId: String?): KidCfg? =
         if (relayId.isNullOrEmpty()) null else kids.firstOrNull { pushRoute(it)?.second == relayId }
