@@ -96,7 +96,7 @@ object TgLogic {
             "📱 APP\n/block – chọn app để chặn\n/unblock – bỏ chặn app\n\n" +
             "🎛 ĐIỀU KHIỂN\n/lock – khoá màn hình\n/ring – đổ chuông (tìm máy)\n/msg – hiện lời nhắn trên máy con\n/lost – chế độ thất lạc (bật cần xác nhận; /lost off để tắt)\n\n" +
             "📸 TỪ XA\n/screen – chụp màn hình\n/rec – ghi âm xung quanh (máy con có thông báo)\n/files – file của con · gửi file vào đây = chuyển sang máy con\n\n" +
-            "⚙️ /menu – bảng nút bấm\n/quiet – mức báo của chat này: mọi cảnh báo · quan trọng · chỉ SOS\n/digest – tóm tắt mỗi tối (bật · tắt · giờ)\n/lang – đổi ngôn ngữ (English)\n/unlink – ngừng nhận ở chat này\n\n" +
+            "⚙️ /menu – bảng nút bấm\n/quiet – mức báo của chat này: mọi cảnh báo · quan trọng · chỉ SOS\n/digest – tóm tắt mỗi tối (bật · tắt · giờ)\n/notif – nhận thông báo của con ở chat này (bật · tắt)\n/lang – đổi ngôn ngữ (English)\n/unlink – ngừng nhận ở chat này\n\n" +
             "Số phút viết kiểu 30, 90, 2h, 1h30.",
         "linkAsk" to "👋 Đây là bot KidGuard riêng của nhà bạn. Gửi mã 6 số đang hiện trong KidGuard (Cài đặt > Telegram) để liên kết chat này.",
         "linked" to "✅ Đã liên kết với máy của %1\$s. Từ giờ chat này nhận báo SOS, xin thêm giờ, cảnh báo. Bấm nút bên dưới hoặc /help.",
@@ -193,6 +193,12 @@ object TgLogic {
         "q.all" to "Mọi cảnh báo", "q.important" to "Quan trọng", "q.sos" to "Chỉ SOS",
         "digestOn" to "Đã bật tóm tắt mỗi tối lúc %1\$s (Chủ nhật thêm tóm tắt tuần). Đổi giờ: /digest 21:00. Tắt: /digest off.",
         "digestOff" to "Đã tắt tóm tắt mỗi tối.",
+        "notifOn" to "Đã bật: thông báo mới của con tới chat này (không kêu chuông, gom mỗi 10 giây). Tắt: /notif off.",
+        "notifOnRuleOff" to "Đã bật ở chat này, nhưng \"Gửi thông báo của con cho tôi\" đang tắt. Bật nó trong trang KidGuard (Xem được gì > Thông báo) thì mới có tin.",
+        "notifOff" to "Đã tắt thông báo của con ở chat này.",
+        "notifIs" to "Thông báo của con ở chat này: %1\$s. Bật: /notif on. Tắt: /notif off.",
+        "aNotif" to "🔔 %2\$s: %1\$d thông báo",
+        "notifMore" to "… và %1\$d thông báo nữa",
         "digestIs" to "Tóm tắt mỗi tối: bật lúc %1\$s. Đổi giờ: /digest 21:00. Tắt: /digest off. Hôm nay đến giờ này:",
         "digestIsOff" to "Tóm tắt mỗi tối: tắt. Bật: /digest on (lúc %1\$s) hoặc /digest 21:00. Hôm nay đến giờ này:",
         "quietDone" to "Mức báo của chat này: %1\$s. (Cảnh báo thường luôn tới không kêu chuông.)",
@@ -223,7 +229,7 @@ object TgLogic {
             "📱 APPS\n/block – pick an app to block\n/unblock – unblock an app\n\n" +
             "🎛 CONTROL\n/lock – lock the screen\n/ring – ring (find the phone)\n/msg – show a message on the phone\n/lost – lost mode (needs a confirm; /lost off to end)\n\n" +
             "📸 REMOTE\n/screen – screenshot\n/rec – record the sound around (the phone shows a notice)\n/files – the child's files · send a file here = to the phone\n\n" +
-            "⚙️ /menu – the button panel\n/quiet – this chat's alert level: all · important · SOS only\n/digest – evening summary (on · off · time)\n/lang – language (Tiếng Việt)\n/unlink – stop this chat\n\n" +
+            "⚙️ /menu – the button panel\n/quiet – this chat's alert level: all · important · SOS only\n/digest – evening summary (on · off · time)\n/notif – get the child's notifications in this chat (on · off)\n/lang – language (Tiếng Việt)\n/unlink – stop this chat\n\n" +
             "Minutes: 30, 90, 2h, 1h30.",
         "linkAsk" to "👋 This is your family's own KidGuard bot. Send the 6-digit code shown in KidGuard (Settings > Telegram) to link this chat.",
         "linked" to "✅ Linked to %1\$s's phone. This chat now gets SOS, more-time requests and alerts. Use the buttons below or /help.",
@@ -318,6 +324,12 @@ object TgLogic {
         "q.all" to "All alerts", "q.important" to "Important", "q.sos" to "SOS only",
         "digestOn" to "Evening summary on at %1\$s (plus a weekly one on Sunday). Change the time: /digest 21:00. Stop: /digest off.",
         "digestOff" to "Evening summary off.",
+        "notifOn" to "On: the child's new notifications come to this chat (no ring, grouped every 10 seconds). Stop: /notif off.",
+        "notifOnRuleOff" to "On for this chat, but \"Send me my kid's notifications\" is off. Turn it on in the KidGuard page (What you can see > Notifications) to get any.",
+        "notifOff" to "The child's notifications are off in this chat.",
+        "notifIs" to "The child's notifications in this chat: %1\$s. Start: /notif on. Stop: /notif off.",
+        "aNotif" to "🔔 %2\$s: %1\$d notifications",
+        "notifMore" to "… and %1\$d more",
         "digestIs" to "Evening summary: on at %1\$s. Change the time: /digest 21:00. Stop: /digest off. Today so far:",
         "digestIsOff" to "Evening summary: off. Start: /digest on (at %1\$s) or /digest 21:00. Today so far:",
         "quietDone" to "This chat's alert level: %1\$s. (Normal alerts always arrive without a ring.)",
@@ -349,7 +361,7 @@ object TgLogic {
     fun err(lang: String, why: String): String { val m = if (lang == "en") EN else VI; return m["e.$why"] ?: m["e." + why.substringBefore(" (")] ?: why }
 
     /** Typed commands that change something on the phone (the rest only read). Too old ones are not run ([tooOld]). */
-    private val READ_ONLY = setOf("start", "help", "menu", "lang", "status", "apps", "events", "files", "code", "requests", "quiet", "digest")
+    private val READ_ONLY = setOf("start", "help", "menu", "lang", "status", "apps", "events", "files", "code", "requests", "quiet", "digest", "notif")
     fun isAction(name: String) = name !in READ_ONLY
     const val MAX_AGE_MS = 10 * 60_000L          // urgent / destructive typed commands
     const val MAX_AGE_OTHER_MS = 60 * 60_000L    // every other typed action (owner 2026-11-15: friction without protection)
@@ -607,6 +619,18 @@ object TgLogic {
     /** One message for several events, oldest first: a header with the count, then "• HH:mm text" lines. */
     fun digest(lang: String, name: String, items: List<Pair<Long, String>>, hm: (Long) -> String): String =
         s(lang, "aDigest", items.size, name) + "\n" + items.sortedBy { it.first }.joinToString("\n") { (t, x) -> "• " + hm(t) + " " + x }
+
+    const val NOTIF_MAX = 15        // lines in one forwarded-notifications message; the rest is a count
+    /** Forwarded notifications (`/notif`), oldest first: "• HH:mm App · Title: text" (🔑 = a watched word hit). */
+    fun notifBatch(lang: String, name: String, rows: List<NotifFeedRow>, hm: (Long) -> String): String {
+        val show = rows.takeLast(NOTIF_MAX)
+        val lines = show.map { r ->
+            val body = listOf(r.title, r.text).filter { it.isNotBlank() }.distinct().joinToString(": ").replace('\n', ' ').take(200)
+            "• " + hm(r.t) + " " + (if (r.hit != null) "🔑 " else "") + r.app.take(30) + (if (body.isNotEmpty()) " · $body" else "")
+        }
+        val more = rows.size - show.size
+        return s(lang, "aNotif", rows.size, name) + "\n" + (if (more > 0) s(lang, "notifMore", more) + "\n" else "") + lines.joinToString("\n")
+    }
 
     /**
      * How long to wait after getUpdates answered "not ok" (not 401 / 404 / 409, those have their own handling):

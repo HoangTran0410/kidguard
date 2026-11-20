@@ -265,7 +265,7 @@ object Tg {
     private fun setCommands(tok: String, lang: String) { for (l in listOf<String?>(null, "vi", "en")) setCommandsFor(tok, l ?: lang, l) }
     private fun setCommandsFor(tok: String, lang: String, code: String?) {
         fun body() = JSONObject().apply { if (code != null) put("language_code", code) }
-        val names = listOf("menu", "status", "apps", "locate", "events", "bonus", "pause", "resume", "lock", "ring", "msg", "block", "unblock", "limit", "bed", "screen", "rec", "files", "code", "requests", "quiet", "digest", "lost", "help", "lang", "unlink")
+        val names = listOf("menu", "status", "apps", "locate", "events", "bonus", "pause", "resume", "lock", "ring", "msg", "block", "unblock", "limit", "bed", "screen", "rec", "files", "code", "requests", "quiet", "digest", "notif", "lost", "help", "lang", "unlink")
         val help = TgLogic.s(lang, "help", "").lines().drop(1)
         val desc = names.associateWith { n -> help.firstOrNull { Regex("(^|\\s)/$n(\\s|$)").containsMatchIn(it) && it.contains(" – ") }?.substringAfter("– ")?.substringBefore(" · ")?.take(60) ?: n }
         call(tok, "setMyCommands", body().put("commands", JSONArray().apply { names.forEach { put(JSONObject().put("command", it).put("description", desc[it])) } }))
@@ -394,6 +394,16 @@ object Tg {
                         say(if (on0) "digestIs" else "digestIsOff", at0)
                         send(s, chat, Digest.daily(Digest.fromState(g.currentState(), kidName(g)), lang))
                     }
+                }
+            }
+            "notif" -> {   // the child's new notifications (rule watch.notif) forwarded to this chat: /notif on|off
+                when (c.args.firstOrNull()?.lowercase()) {
+                    "on" -> {
+                        if (!s.tg.chatNotif(chat)) { s.tg.setChatNotif(chat, true); if (s.tg.notifAfter < NotifSync.lastFeedId()) s.tg.notifAfter = NotifSync.lastFeedId() }   // only what comes after
+                        say(if (NotifSync.on(g)) "notifOn" else "notifOnRuleOff")
+                    }
+                    "off" -> { s.tg.setChatNotif(chat, false); say("notifOff") }
+                    else -> say("notifIs", TgLogic.s(lang, if (s.tg.chatNotif(chat)) "on" else "off"))
                 }
             }
             "lost" -> {
@@ -658,6 +668,7 @@ object Tg {
         start(g)   // no-op while the poll thread lives; brings a dead one back
         val now = System.currentTimeMillis()
         if (!markOnly) digestTick(g, s, now)
+        if (!markOnly) runCatching { notifTick(g, s) }
         if (copies.isNotEmpty()) alerts.execute { runCatching { resolveGone(s, now) } }
         val seen = s.tg.seen().toHashSet()
         val sos = s.sos(); val reqs = s.requests(); val evs = s.events()
@@ -692,6 +703,30 @@ object Tg {
                 if (n > 0) { synchronized(seenLock) { s.tg.setSeen(TgLogic.remember(s.tg.seen(), listOf(k))) }; sending.remove(k) }
                 else sending[k] = System.currentTimeMillis() + 30_000L
             }
+        }
+    }
+
+    private val notifBusy = java.util.concurrent.atomic.AtomicBoolean(false)
+    private var notifRetry = 0L
+
+    /**
+     * `/notif`: new rows of the notification feed (NotifSync, already filtered by rule `watch.notif`) -> one silent message per
+     * chat that turned it on, at most once a tick (10 s). Forwarded only once at least one chat got it (else retried in 60 s);
+     * the feed keeps the newest 50 in memory, so a long offline spell loses the older ones (the page still has them).
+     */
+    private fun notifTick(g: Guard, s: Store) {
+        val after = s.tg.notifAfter
+        val chats = s.tg.chats().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.optLong("id") } }.filter { s.tg.chatNotif(it) }
+        if (chats.isEmpty() || !NotifSync.on(g)) { NotifSync.lastFeedId().let { if (it > after) s.tg.notifAfter = it }; return }   // nobody listens: skip the past
+        val rows = NotifSync.feedAfter(after)
+        if (rows.isEmpty() || System.currentTimeMillis() < notifRetry || !notifBusy.compareAndSet(false, true)) return
+        val name = kidName(g)
+        alerts.execute {
+            try {
+                var n = 0
+                for (chat in chats) if (runCatching { ok(send(s, chat, TgLogic.notifBatch(s.tg.chatLang(chat), name, rows, ::hm), null, true)) }.getOrDefault(false)) n++
+                if (n > 0) { s.tg.notifAfter = rows.last().id; notifRetry = 0L } else notifRetry = System.currentTimeMillis() + 60_000L
+            } finally { notifBusy.set(false) }
         }
     }
 

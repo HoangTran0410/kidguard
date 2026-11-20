@@ -290,4 +290,20 @@ class TgLogicTest {
         assertFalse(TgLogic.tooOld(now / 1000 - 5 * 60, now, "lock"))
         assertFalse(TgLogic.tooOld(0, now, "lock"))
     }
+
+    @Test fun notifBatch() {
+        val hm = { t: Long -> "%02d:%02d".format(t / 60, t % 60) }
+        val rows = (1..20).map { NotifFeedRow(it.toLong(), 600L + it, "Zalo", "Mẹ", "con ăn cơm\nchưa $it", if (it == 20) "cơm" else null) }
+        val m = TgLogic.notifBatch("vi", "Bin", rows, hm)
+        val lines = m.lines()
+        assertEquals("🔔 Bin: 20 thông báo", lines[0])
+        assertEquals("… và 5 thông báo nữa", lines[1])
+        assertEquals(2 + TgLogic.NOTIF_MAX, lines.size)   // newest 15, newlines in a text flattened
+        assertEquals("• 10:20 🔑 Zalo · Mẹ: con ăn cơm chưa 20", lines.last())
+        // title equal to the text is not repeated; empty body = app only
+        val one = TgLogic.notifBatch("en", "Bin", listOf(NotifFeedRow(1, 0, "Gmail", "Hi", "Hi", null), NotifFeedRow(2, 0, "Clock", "", "", null)), hm)
+        assertEquals(listOf("🔔 Bin: 2 notifications", "• 00:00 Gmail · Hi", "• 00:00 Clock"), one.lines())
+        assertTrue(TgLogic.s("vi", "help", "Bin").contains("/notif"))
+        assertFalse(TgLogic.isAction("notif"))
+    }
 }

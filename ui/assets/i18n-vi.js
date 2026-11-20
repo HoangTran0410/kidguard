@@ -473,7 +473,7 @@ L.vi = {
   "seen.p": "Những thứ bạn đọc được từ máy con. Mỗi mục tắt cho đến khi bạn bật. Con luôn được báo về mục đang bật và thấy nó trong KidGuard.",
   "seen.nh": "Thông báo",
   "seen.non": "Gửi thông báo của con cho tôi",
-  "seen.nkid": "Thông báo mới đến cùng lần đồng bộ thường, không tốn thêm dữ liệu. Con thấy: \"Bố mẹ thấy mọi thông báo\". Cần quyền truy cập thông báo trên máy.",
+  "seen.nkid": "Thông báo mới đến cùng lần đồng bộ thường, không tốn thêm dữ liệu. Con thấy: \"Bố mẹ thấy mọi thông báo\". Cần quyền truy cập thông báo trên máy. Muốn nhận ở Telegram: gõ /notif on trong chat với bot.",
   "seen.askOn": "Con sẽ được báo là bạn đọc được thông báo, và mỗi lần xem đều ghi vào nhật ký của con. Bật?",
   "seen.load": "Tải thông báo cũ hơn",
   "seen.wait": "Đang tải...",

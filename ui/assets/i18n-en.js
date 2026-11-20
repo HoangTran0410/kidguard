@@ -472,7 +472,7 @@ L.en = {
   "seen.p": "Things you read from your kid's phone. Each one is off until you turn it on. Your kid is told about every one that is on, and sees it listed in KidGuard.",
   "seen.nh": "Notifications",
   "seen.non": "Send me my kid's notifications",
-  "seen.nkid": "New notifications reach you with the normal sync, no extra data. Your kid sees: \"Your parent sees every notification\". Needs notification access on the phone.",
+  "seen.nkid": "New notifications reach you with the normal sync, no extra data. Your kid sees: \"Your parent sees every notification\". Needs notification access on the phone. To get them in Telegram: send /notif on to the bot.",
   "seen.askOn": "Your kid will be told that you can read their notifications, and every look is written in their log. Turn it on?",
   "seen.load": "Load older notifications",
   "seen.wait": "Loading...",

@@ -56,6 +56,17 @@ class TgStore internal constructor(private val p: SharedPreferences) {
             if (on != null) o.put("digest", on); if (at != null) o.put("digestAt", at); if (day != null) o.put("digestDay", day) }
         p.edit().putString("chats", a.toString()).commit()
     }
+    /** `/notif` of a chat: the child's new notifications (rule `watch.notif`) forwarded here. Off by default. */
+    @Synchronized fun chatNotif(id: Long): Boolean = chats().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }
+        .firstOrNull { it.optLong("id") == id }?.optBoolean("notif") } ?: false
+    @Synchronized fun setChatNotif(id: Long, on: Boolean) {
+        val a = chats(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optLong("id") == id }?.put("notif", on)
+        p.edit().putString("chats", a.toString()).commit()
+    }
+    /** The last notification feed id forwarded (NotifSync ids grow with the clock, so it survives a restart). */
+    var notifAfter: Long
+        get() = p.getLong("notifAfter", 0)
+        set(v) { p.edit().putLong("notifAfter", v).apply() }
     @Synchronized fun setChatQuiet(id: Long, level: String) {
         val a = chats(); for (i in 0 until a.length()) a.optJSONObject(i)?.takeIf { it.optLong("id") == id }?.put("quiet", level)
         p.edit().putString("chats", a.toString()).commit()
@@ -89,6 +100,6 @@ class TgStore internal constructor(private val p: SharedPreferences) {
     /** Bot off: token, chats, code, offset, seen all gone. */
     @Synchronized fun clear() {
         p.edit().remove("token").remove("bot").remove("chats").remove("code").remove("codeUntil").remove("tgCodeTries")
-            .remove("offset").remove("seen").remove("err").remove("name").commit()
+            .remove("offset").remove("seen").remove("err").remove("name").remove("notifAfter").commit()
     }
 }
