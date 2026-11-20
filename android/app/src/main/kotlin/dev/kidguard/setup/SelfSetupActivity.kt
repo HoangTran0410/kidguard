@@ -84,6 +84,8 @@ class SelfSetupActivity : Activity() {
         // Xiaomi / Redmi / POCO: adb may not grant anything until "USB debugging (Security settings)" is on (2026-11-19 owner:
         // dpm set-active-admin -> "Calling identity is not authorized"); say it before the run, not after it fails
         if (NavGestLogic.xiaomi(android.os.Build.MANUFACTURER)) s3.addView(body(getString(R.string.ssa_xiaomi), u.text))
+        // ColorOS (Oppo / Realme / OnePlus): appops / pm grant fail until "Disable permission monitoring" is on (2026-11-20 owner, new Oppo): say it before the run
+        if (android.os.Build.MANUFACTURER.lowercase().let { it == "oppo" || it == "realme" || it == "oneplus" }) s3.addView(body(getString(R.string.ss_perm_mon), u.text))
         portInfo = body("").apply { textSize = 13f }
         s3.addView(portInfo)
         s3.addView(u.label(getString(R.string.ssa_or_here), 14f, u.text, true).apply { setPadding(0, dp(16), 0, 0) })
@@ -150,7 +152,13 @@ class SelfSetupActivity : Activity() {
         SelfSetup.askCodeNotification(this)
         openDev()
     }
-    private fun openDev() { Intents.startFirst(this, DevOpts.pageIntent(this), Intent(Settings.ACTION_SETTINGS)) }
+    private fun openDev() {
+        // step 1 skipped: without Developer options the action lands on the Settings home (owner 2026-11-20, new phone); send them to step 1's page
+        if (runCatching { Settings.Global.getInt(contentResolver, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) != 1 }.getOrDefault(false)) {
+            Toasts.show(this, getString(R.string.ssa_dev_first)); open(Settings.ACTION_DEVICE_INFO_SETTINGS); return
+        }
+        Intents.startFirst(this, DevOpts.pageIntent(this), Intent(Settings.ACTION_SETTINGS))
+    }
 
     private fun go() {
         val c = code.text.toString().filter { it.isDigit() }

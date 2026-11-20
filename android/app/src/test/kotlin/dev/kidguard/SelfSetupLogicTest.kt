@@ -111,6 +111,7 @@ User UserInfo{0:Owner:4c13}:
         // real output from an Oppo CPH1912 (ColorOS 5, Android 8.1) with permission monitoring on
         assertTrue(SelfSetupLogic.permMonitoring("Security exception: uid 2000 does not have android.permission.UPDATE_APP_OPS_STATS."))
         assertTrue(SelfSetupLogic.permMonitoring("Operation not allowed: java.lang.SecurityException: grantRuntimePermission: Neither user 2000 nor current process has android.permission.GRANT_RUNTIME_PERMISSIONS."))
+        assertTrue(SelfSetupLogic.permMonitoring("Exception occurred while executing 'set': java.lang.SecurityException: uid 2000 does not have android.permission.MANAGE_APP_OPS_MODES."))
         assertTrue(!SelfSetupLogic.permMonitoring("Error: Unknown package: dev.kidguard"))
     }
 }

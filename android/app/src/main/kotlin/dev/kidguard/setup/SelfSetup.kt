@@ -128,7 +128,7 @@ class AdbPortFinder(ctx: Context, private val type: String) {
 /** Pure helpers (unit tested). */
 object SelfSetupLogic {
     /** ColorOS (Oppo/Realme/OnePlus) refuses adb permission grants until "Disable permission monitoring" is on. */
-    fun permMonitoring(out: String) = Regex("UPDATE_APP_OPS_STATS|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS").containsMatchIn(out)
+    fun permMonitoring(out: String) = Regex("UPDATE_APP_OPS_STATS|MANAGE_APP_OPS_MODES|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS").containsMatchIn(out)
 
     /** The phone refuses shell commands it normally allows: "Calling identity is not authorized" (seen on `dpm
      *  set-active-admin`, 2026-11-19 owner report). Xiaomi / Redmi / POCO do this until "USB debugging (Security settings)" is on. */
@@ -321,14 +321,18 @@ object SelfSetup {
             finished.set(true); runCatching { s.close() }
             return bo.toString("UTF-8").trim()
         }
-        fun step(i: Int, cmd: String, need: ((String) -> Boolean)? = null): Boolean {
+        // steps 3-6 (usage, secure settings, accessibility, battery) do not depend on each other: a failure is kept and the
+        // rest still run (owner 2026-11-20: ColorOS stopped at usage access and left battery undone); one failure notice at the end
+        val soft = mutableListOf<String>()
+        fun step(i: Int, cmd: String, need: ((String) -> Boolean)? = null, keepGoing: Boolean = false): Boolean {
             mark(app, i, STEP_RUN)
             val out = sh(cmd); Log.i(AdbPortFinder.TAG, "$cmd -> $out")
             val good = if (need != null) need(out) else SelfSetupLogic.ok(out)
             if (!good) { state[i] = STEP_ERR; message = failText(app, out)
                 // `dpm set-device-owner` refusals come with a raw Java exception: say what to do instead (the raw text stays in logcat)
                 if (i == 2) SelfSetupLogic.ownerFail(out)?.let { message = app.getString(it) }
-                if (SelfSetupLogic.permMonitoring(out)) message += "\n" + app.getString(R.string.ss_perm_mon)
+                if (SelfSetupLogic.permMonitoring(out)) message = app.getString(R.string.ss_perm_mon)
+                if (keepGoing) { if (message !in soft) soft += message; return false }
                 notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return false }   // every failed step lets the adb link go
             state[i] = STEP_OK; return true
         }
@@ -358,7 +362,7 @@ object SelfSetup {
                 val why = SelfSetupLogic.ownerFail(out)
                 if (why == null || !SelfSetupLogic.basicFallback(why)) {
                     state[2] = STEP_ERR; message = why?.let { app.getString(it) } ?: failText(app, out)
-                    if (SelfSetupLogic.permMonitoring(out)) message += "\n" + app.getString(R.string.ss_perm_mon)
+                    if (SelfSetupLogic.permMonitoring(out)) message = app.getString(R.string.ss_perm_mon)
                     notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return
                 }
                 basic = true; basicWhy = app.getString(why)
@@ -378,20 +382,23 @@ object SelfSetup {
             }
             state[2] = STEP_OK
         }
-        if (!step(3, "appops set $PKG GET_USAGE_STATS allow")) return
-        if (!step(4, "pm grant $PKG android.permission.WRITE_SECURE_SETTINGS")) return
+        step(3, "appops set $PKG GET_USAGE_STATS allow", keepGoing = true)
+        step(4, "pm grant $PKG android.permission.WRITE_SECURE_SETTINGS", keepGoing = true)
         optionalGrants(::sh)
         mark(app, 5, STEP_RUN)
         val accErr = enableAccessibility(::sh)
         if (accErr != null) {
-            state[5] = STEP_ERR; message = accErr.ifBlank { app.getString(R.string.ss_cmd_fail) }
-            notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return
-        }
-        state[5] = STEP_OK
-        if (!step(6, "dumpsys deviceidle whitelist +$PKG") { !it.contains("Unknown", true) && !it.contains("Exception", true) }) return
+            state[5] = STEP_ERR; val why = if (SelfSetupLogic.permMonitoring(accErr)) app.getString(R.string.ss_perm_mon) else accErr.ifBlank { app.getString(R.string.ss_cmd_fail) }
+            if (why !in soft) soft += why
+        } else state[5] = STEP_OK
+        step(6, "dumpsys deviceidle whitelist +$PKG", { !it.contains("Unknown", true) && !it.contains("Exception", true) }, keepGoing = true)
         // basic mode: what Device Owner would grant itself (location incl. background, notifications...) is granted here,
         // the same list AutoGrant runs later; errors ignored (the checklist still shows what is left)
         if (basic) for (c in runCatching { AutoGrant.missing(app) }.getOrDefault(emptyList())) runCatching { Log.i(AdbPortFinder.TAG, "autogrant: $c -> " + sh(c)) }
+        if (soft.isNotEmpty()) {
+            message = soft.joinToString("\n"); stopDiscovery()
+            notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; Guard.start(app); return
+        }
         // ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off): lock-card hint (read while the link is up)
         val colorOs = runCatching { sh("getprop ro.build.version.opporom; getprop ro.build.version.oplusrom") }.getOrDefault("").isNotBlank()
         // optional: Wireless debugging off. The link drops with it, so no reading afterwards.
@@ -438,7 +445,7 @@ object SelfSetup {
         if (!SelfSetupLogic.ok(grant)) {
             // ColorOS without "Disable permission monitoring" fails here first on a phone with app accounts: same hint as step 4
             state[1] = STEP_ERR; message = failText(app, grant)
-            if (SelfSetupLogic.permMonitoring(grant)) message += "\n" + app.getString(R.string.ss_perm_mon)
+            if (SelfSetupLogic.permMonitoring(grant)) message = app.getString(R.string.ss_perm_mon)
             notifyFinal(app, app.getString(R.string.ss_failed, message)); return
         }
         store.ownerPending = SelfSetupLogic.encodePending(SelfSetupLogic.Pending(System.currentTimeMillis(), turnOffWifi, pkgs))   // before the first disable: a crash in between still turns them on

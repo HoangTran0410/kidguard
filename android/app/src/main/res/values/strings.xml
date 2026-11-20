@@ -370,6 +370,7 @@
     <string name="ss_code_6">The code must be 6 digits</string>
     <string name="ssa_title">Set up KidGuard without a computer</string>
     <string name="ssa_old">Android %1$s (older than 11) can\'t set itself up. Connect a computer and run setup.sh (see the README), or reset the phone and scan the QR code.</string>
+    <string name="ssa_dev_first">Do step 1 first: tap Build number 7 times</string>
     <string name="ssa_s1_ok">Developer options are on</string>
     <string name="ssa_s2_ok">Wireless debugging is on</string>
     <string name="ssa_need_wifi">The phone isn\'t on Wi-Fi. Join Wi-Fi, then turn on Wireless debugging (mobile data won\'t work).</string>

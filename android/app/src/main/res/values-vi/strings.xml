@@ -360,6 +360,7 @@
     <string name="ss_code_6">Mã phải đủ 6 số</string>
     <string name="ssa_title">Tự cài KidGuard, không cần máy tính</string>
     <string name="ssa_old">Máy dùng Android %1$s (dưới 11), không tự cài được. Cắm máy tính chạy setup.sh (xem README), hoặc cài lại máy rồi quét mã QR.</string>
+    <string name="ssa_dev_first">Làm bước 1 trước: bấm 7 lần Số hiệu bản tạo</string>
     <string name="ssa_s1_ok">Đã bật Tuỳ chọn nhà phát triển</string>
     <string name="ssa_s2_ok">Gỡ lỗi không dây đang bật</string>
     <string name="ssa_need_wifi">Máy chưa dùng Wi-Fi. Vào Wi-Fi, rồi bật Gỡ lỗi không dây (4G không được).</string>
