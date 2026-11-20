@@ -183,9 +183,8 @@ function moreSheet() {
       actPaint();
     });
 }
-// "Take photo" from the Now sheet: the same form + flow as Seen > Photo on request (tab-seen.js). Rule watch.cam off: jump to its switch there.
+// "Take photo" from the Now sheet: the same form + flow as Seen > Photo on request (tab-seen.js). Rule watch.cam off: the buttons ask once and turn it on (snapGo.ensure).
 function snapOpen(live) {
-  if (!(edit && edit.watch && edit.watch.cam)) { toast("warn|" + t("more.snapOff")); qsGo({ tab: "seen", sec: "#seenCam" }); return; }
   sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead(live ? "video" : "camera", t(live ? "cam.h" : "seen.ch"))}${seenCamForm()}</div>`, pop => seenCamWire(pop));
 }
 // Family chat (docs/flows/remote.md 2.15): the thread = st.chat (the phone keeps the last 100, state carries 30) + our own sends

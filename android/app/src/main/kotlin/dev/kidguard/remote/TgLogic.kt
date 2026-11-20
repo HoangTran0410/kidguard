@@ -96,6 +96,17 @@ object TgLogic {
     fun limit(r: Rules, min: Int, now: Long) =
         bump(r, r.copy(dailyMin = min, dailyByDay = if (r.dailyByDay.size == 7) List(7) { min } else r.dailyByDay), now)
     fun bed(r: Rules, on: Boolean, now: Long) = bump(r, r.copy(bedtimeOn = on), now)
+    /** One-tap "turn on" for a watch category a command needs: "cam" (/snap, /clip) or "notif" (/notif). Nothing else is touched. */
+    fun watchOn(r: Rules, what: String, now: Long): Rules = bump(r, when (what) {
+        "cam" -> r.copy(watch = r.watch.copy(cam = true))
+        "notif" -> r.copy(watch = r.watch.copy(notif = r.watch.notif.copy(on = true)))
+        else -> r
+    }, now)
+    /** Button data "w:<command line>" for the confirm that turns the rule on and then runs the command; [fromWatchData] reads it back. */
+    fun watchData(c: Cmd): String = ("w:" + c.name + (if (c.args.isEmpty()) "" else " " + c.args.joinToString(" "))).take(64)
+    fun fromWatchData(d: String): Cmd? = if (d.startsWith("w:")) parse("/" + d.removePrefix("w:"))?.takeIf { it.name in WATCH_CMDS } else null
+    val WATCH_CMDS = setOf("snap", "clip", "notif")
+    fun watchOf(name: String) = if (name == "notif") "notif" else "cam"
 
     // ---------------- texts ----------------
     fun fmt(ms: Long, lang: String): String {
@@ -222,6 +233,10 @@ object TgLogic {
         "digestOff" to "Đã tắt tóm tắt mỗi tối.",
         "notifOn" to "Đã bật: thông báo mới của con tới chat này (không kêu chuông, gom mỗi 10 giây, gửi đủ cả lúc máy con mất mạng). Tắt: /notif off.",
         "notifOnRuleOff" to "Đã bật ở chat này, nhưng \"Gửi thông báo của con cho tôi\" đang tắt. Bật nó trong trang KidGuard (Xem được gì > Thông báo) thì mới có tin.",
+        "camAsk" to "Camera theo yêu cầu đang tắt. Bật thì máy con được báo ngay và mỗi lần chụp/quay.",
+        "camNow" to "Đã bật camera theo yêu cầu (máy con đã được báo).",
+        "notifAsk" to "Bật: thông báo của con sẽ gửi cho bạn. Máy con được báo ngay.",
+        "b.camSnap" to "Bật và chụp ảnh", "b.camClip" to "Bật và quay video", "b.notifOn" to "Bật thông báo",
         "notifOff" to "Đã tắt thông báo của con ở chat này.",
         "notifIs" to "Thông báo của con ở chat này: %1\$s. Bật: /notif on. Tắt: /notif off.",
         "aNotif" to "🔔 %2\$s: %1\$d thông báo",
@@ -362,6 +377,10 @@ object TgLogic {
         "digestOff" to "Evening summary off.",
         "notifOn" to "On: the child's new notifications come to this chat (no ring, grouped every 10 seconds, all of them even after the phone was offline). Stop: /notif off.",
         "notifOnRuleOff" to "On for this chat, but \"Send me my kid's notifications\" is off. Turn it on in the KidGuard page (What you can see > Notifications) to get any.",
+        "camAsk" to "Camera on request is off. Turning it on tells your kid now and on each photo or clip.",
+        "camNow" to "Camera on request is on (your kid's phone was told).",
+        "notifAsk" to "Turning it on sends you your kid's notifications. Your kid's phone is told now.",
+        "b.camSnap" to "Turn on and take photo", "b.camClip" to "Turn on and record", "b.notifOn" to "Turn on notifications",
         "notifOff" to "The child's notifications are off in this chat.",
         "notifIs" to "The child's notifications in this chat: %1\$s. Start: /notif on. Stop: /notif off.",
         "aNotif" to "🔔 %2\$s: %1\$d notifications",

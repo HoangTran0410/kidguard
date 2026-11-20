@@ -132,7 +132,7 @@ function seenTab(b) {
       <div id="seenN"></div></div>
     <div class="card" id="seenCam"><h2>${ic("camera")} ${t("seen.ch")}</h2>
       <label class="row"><input type="checkbox" id="f-wc" ${w.cam ? "checked" : ""}><span class="sp">${t("seen.con")}<br><span class="mute">${t("seen.ckid")}</span></span></label>
-      ${w.cam ? seenCamForm() : ""}</div>
+      ${seenCamForm()}</div>
     <div class="card" id="seenListenCard"><h2>${ic("ear")} ${t("lh.h")}</h2><p class="mute">${t("lh.p")}</p><div id="seenListen"></div></div>
     <div class="card" id="seenSms"><h2>${ic("message-square")} ${t("seen.sh")}</h2>
       <label class="row"><input type="checkbox" id="f-ws" ${w.sms ? "checked" : ""}><span class="sp">${t("seen.son")}<br><span class="mute">${t("seen.skid")}</span></span></label>
@@ -157,7 +157,7 @@ function snapOpts() {
 // Seen tab + Now sheet: Take photo, and Watch live (call.js CAM) with the same camera choice ("with sound" remembered with it)
 function seenCamWire(root) {
   const g = root.querySelector("#snapGo"); if (g) g.onclick = snapGo;
-  const c = root.querySelector("#camGo"); if (c) c.onclick = () => { snapSave(); const o = snapOpts(); CAM.start({ cam: o.cam, snd: o.snd }); };
+  const c = root.querySelector("#camGo"); if (c) c.onclick = async () => { if (!(await snapGo.ensure())) return; snapSave(); const o = snapOpts(); CAM.start({ cam: o.cam, snd: o.snd }); };
 }
 function snapSel(id, v, opts) { return `<label class="row"><span class="sp">${t("seen.c." + id)}</span><select id="snap-${id}" onchange="snapSave()">${opts.map(o => `<option value="${o}" ${String(v) === String(o) ? "selected" : ""}>${t("seen.c." + id + "." + o)}</option>`).join("")}</select></label>`; }
 function seenCamForm() {
@@ -199,6 +199,7 @@ async function snapFetch(k, fid, relay) {
 // replaced #snapBox and the photo landed in a detached node (owner 2026-11-20: "phải bấm Tải lại mới thấy")
 async function snapGo() {
   const k = cur; if (!k) return; const n = snapGo.of(k); if (n.busy) return;
+  if (!(await snapGo.ensure())) return;
   const show = (html, busy) => {
     Object.assign(n, { html, busy });
     document.querySelectorAll("#snapBox").forEach(b => { b.innerHTML = cur === k ? html : ""; });
@@ -217,6 +218,18 @@ async function snapGo() {
     if (snapH.k === k) snapLoad(false);   // the history list gets the new photo
   } catch (e) { show(esc(/^snap:/.test(e.raw || "") ? tc("seen.cerr.", e.raw.slice(5).replace(/ /g, "_"), "") || t("seen.cerr.failed") : e.message || t("fx.e.failed")), false); }
 }
+// Camera on request is off and the parent taps Take photo / Watch live: one confirm (the child is told), then the normal rules save, then the action goes on.
+snapGo.ensure = async () => {
+  const k = cur; if (!k || !edit) return false;
+  if (seenW().cam) return true;
+  if (!(await ask(t("seen.askCamGo"), t("seen.askCamGoOk")))) return false;
+  if (k !== cur || !edit) return false;
+  seenSet(x => { x.cam = true; }); clearTimeout(saveT); saveT = null;
+  try { await putRules(k, edit); toast(k.via === "lan" ? "ok|" + t("saved") : "send|" + t("sentRelay")); }
+  catch (er) { seenSet(x => { x.cam = false; }); toast("err|" + errSentence(er)); return false; }
+  const c = $("#f-wc"); if (c) c.checked = true;
+  return true;
+};
 // per kid: a photo pending on one kid must not replace another kid's box or its photo url
 snapGo.m = new WeakMap();
 snapGo.of = k => { let n = k && snapGo.m.get(k); if (!n) { n = { html: "", busy: false, url: "" }; if (k) snapGo.m.set(k, n); } return n; };

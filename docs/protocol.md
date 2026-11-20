@@ -841,7 +841,7 @@ secure page (the parent app's `127.0.0.1`, or the relay's https page). Listen on
   /code (current Authenticator code + seconds left + next code, read-only; "off" text when no secret) /bonus N (bonus today += N, 1-600) /pause N (pausedUntil = now+N min) /resume /lock /ring /msg <text>
   /block, /unblock (app buttons `b:<pkg>` / `u:<pkg>`) /limit N (dailyMin, or 7 x N when dailyByDay is set; 0 = none) /bed on|off
   /screen (Acc.capture 1280 px -> sendPhoto) /rec N (5-60 s mic, same notice as "listen", AAC document)
-  /snap [front|back] (0.9.73: the page's photo on request = `RemoteSnap.command` with `cam`, flash off, size medium: rule `watch.cam`,
+  /snap [front|back] (0.9.73: the page's photo on request = `RemoteSnap.command` with `cam`, flash off, size medium: rule `watch.cam`,  [rule off (2026-11-20): `/snap` `/clip` `/notif on` answer with one inline button, callback `w:<cmd args>`, that turns the rule on via setRules then runs the command; tap older than 10 min = "too old"]
   same notice + log + kept in the photo history ("Ảnh đã chụp"); the page's camera choice lives in the browser, so default front -> sendPhoto)
   /clip [5-30] [front|back] (0.9.73, CamClip.kt: video with sound, default 15 s, H.264 ~480p 400 kbps + AAC 48 kbps MP4 in cacheDir/tgclip,
   sendVideo then deleted; rule `watch.cam`; CamService started like the live camera (Device Owner direct, else CamActivity; basic mode

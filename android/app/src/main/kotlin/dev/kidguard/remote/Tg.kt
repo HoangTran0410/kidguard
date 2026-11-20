@@ -284,6 +284,9 @@ object Tg {
     private fun ok(r: JSONObject?) = r?.optBoolean("ok") == true
     /** Rule edits from several workers / chats: read-modify-write one at a time. */
     private fun editRules(g: Guard, s: Store, f: (Rules) -> Rules): Rules = synchronized(rulesLock) { f(s.baseRules).also { g.setRules(it) } }
+    /** Ask once before a command that needs a watch rule that is off: the tap turns it on (Guard.setRules = child notice + log + page state) and runs the command. */
+    private fun askWatch(s: Store, chat: Long, lang: String, c: TgLogic.Cmd, key: String, btn: String) =
+        send(s, chat, TgLogic.s(lang, key), TgLogic.keyboard(listOf(listOf(TgLogic.s(lang, btn) to TgLogic.watchData(c)))))
     /** Same, returning (before, after) for an undo. */
     private fun editRules2(g: Guard, s: Store, f: (Rules) -> Rules): Pair<Rules, Rules> = synchronized(rulesLock) { val b = s.baseRules; val a = f(b); g.setRules(a); b to a }
 
@@ -400,7 +403,7 @@ object Tg {
                 when (c.args.firstOrNull()?.lowercase()) {
                     "on" -> {
                         s.tg.setChatNotif(chat, true)   // from now on (the first tick starts the cursor at now)
-                        say(if (NotifSync.on(g)) "notifOn" else "notifOnRuleOff")
+                        if (NotifSync.on(g)) say("notifOn") else askWatch(s, chat, lang, c, "notifAsk", "b.notifOn")
                     }
                     "off" -> { s.tg.setChatNotif(chat, false); say("notifOff") }
                     else -> say("notifIs", TgLogic.s(lang, if (s.tg.chatNotif(chat)) "on" else "off"))
@@ -506,8 +509,8 @@ object Tg {
                 if (!recBusy.compareAndSet(false, true)) return say("busyOne")
                 try { rec(g, s, chat, c, lang, now) } finally { recBusy.set(false) }
             }
-            "snap" -> snap(g, s, chat, c, lang, now)
-            "clip" -> clip(g, s, chat, c, lang, now)
+            "snap", "clip" -> if (!s.baseRules.watch.cam) askWatch(s, chat, lang, c, "camAsk", if (c.name == "snap") "b.camSnap" else "b.camClip")
+                else if (c.name == "snap") snap(g, s, chat, c, lang, now) else clip(g, s, chat, c, lang, now)
             "files" -> {
                 val l = Files.all(g).filter { it.size <= TgLogic.TG_SEND_MAX }.sortedByDescending { it.at }.take(20)
                 if (l.isEmpty()) return show(TgLogic.s(lang, "noFiles"), TgLogic.keyboard(listOf(back)))
@@ -619,6 +622,13 @@ object Tg {
         }
         val label = { p: String -> runCatching { g.currentState().optJSONArray("apps") }.getOrNull()?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.firstOrNull { it.optString("pkg") == p }?.optString("label") } ?: p }
         when {
+            d.startsWith("w:") -> TgLogic.fromWatchData(d)?.let { c ->
+                val sent = q.optJSONObject("message")?.optLong("date") ?: 0L
+                if (TgLogic.tooOld(sent, now, "snap")) return done(TgLogic.s(lang, "tooOld", (now - sent * 1000) / 60_000))
+                editRules(g, s) { TgLogic.watchOn(it, TgLogic.watchOf(c.name), now) }
+                runCatching { call(tok, "editMessageReplyMarkup", JSONObject().put("chat_id", chat).put("message_id", msgId).put("reply_markup", JSONObject().put("inline_keyboard", JSONArray()))) }
+                if (c.name == "notif") send(s, chat, TgLogic.s(lang, "notifOn")) else { send(s, chat, TgLogic.s(lang, "camNow")); runCmd(g, s, chat, c) }
+            }
             d.startsWith("c:") -> TgLogic.fromData(d)?.let { runCmd(g, s, chat, it, if (it.name in PANELS) msgId else 0) }
             d == "n:main" -> nav(s, chat, msgId, TgLogic.s(lang, "menu", kidName(g)), TgLogic.menu(lang))
             d.startsWith("n:") -> { val n = d.removePrefix("n:"); TgLogic.sub(lang, n)?.let { nav(s, chat, msgId, subTitle(s, n, lang), it) } }

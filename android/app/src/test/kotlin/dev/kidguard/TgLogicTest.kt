@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -337,5 +338,26 @@ class TgLogicTest {
         assertNull(TgLogic.clipSize(emptyList()))
         assertTrue(TgLogic.isUrgent("snap") && TgLogic.isUrgent("clip") && TgLogic.isAction("clip"))
         assertTrue(TgLogic.s("vi", "help", "X").contains("/clip") && TgLogic.s("en", "help", "X").contains("/snap"))
+    }
+
+    @Test fun watchOnTapTurnsOnlyThatRuleOn() {
+        val r = Rules()
+        val c = TgLogic.watchOn(r, "cam", now)
+        assertTrue(c.watch.cam); assertFalse(c.watch.notif.on); assertTrue(c.rev > r.rev)
+        val n = TgLogic.watchOn(r, "notif", now)
+        assertTrue(n.watch.notif.on); assertFalse(n.watch.cam)
+        assertEquals(r.copy(rev = 0), TgLogic.watchOn(r, "x", now).copy(rev = 0))
+        assertEquals("cam", TgLogic.watchOf("snap")); assertEquals("cam", TgLogic.watchOf("clip")); assertEquals("notif", TgLogic.watchOf("notif"))
+    }
+
+    @Test fun watchDataKeepsOriginalArgs() {
+        val c = TgLogic.parse("/clip 30 back")!!
+        val d = TgLogic.watchData(c)
+        assertEquals("w:clip 30 back", d); assertTrue(d.length <= 64)
+        assertEquals(c.args, TgLogic.fromWatchData(d)!!.args)
+        assertEquals("snap", TgLogic.fromWatchData("w:snap")!!.name)
+        assertNull(TgLogic.fromWatchData("w:rec")); assertNull(TgLogic.fromWatchData("c:snap"))
+        assertTrue(TgLogic.isActionData(d))
+        for (k in listOf("camAsk", "camNow", "notifAsk", "b.camSnap", "b.camClip", "b.notifOn")) assertNotEquals(TgLogic.s("vi", k), TgLogic.s("en", k))
     }
 }
