@@ -19,9 +19,9 @@
     <string name="acc_paused_toast">Trợ năng tạm tắt cho app này, sẽ tự bật lại</string>
     <string name="ch_bankwarn">Cảnh báo app ngân hàng</string>
     <string name="bank_cant_t">%1$s có thể báo máy không an toàn</string>
-    <string name="bank_cant_d">KidGuard chưa tự tắt được gỡ lỗi USB và trợ năng (thiếu quyền cài đặt bảo mật). Tắt tay trong Cài đặt, hoặc nhờ bố mẹ cấp quyền: Bảo vệ và quyền.</string>
+    <string name="bank_cant_d">KidGuard chưa tự tắt được gỡ lỗi USB / tuỳ chọn nhà phát triển. Bấm nút dưới đây và tắt tay "Gỡ lỗi USB", rồi mở lại app.</string>
     <string name="bank_cant_open">Mở tuỳ chọn nhà phát triển</string>
-    <string name="log_bank_cant">%1$s đã mở nhưng KidGuard không tắt được trợ năng / gỡ lỗi: máy con thiếu quyền cài đặt bảo mật</string>
+    <string name="log_bank_cant">%1$s đã mở nhưng KidGuard không tắt được trợ năng / gỡ lỗi (%2$s)</string>
     <string name="dev_paused_toast">Đang tắt gỡ lỗi USB để mở %1$s…</string>
     <string name="log_acc_paused">Trợ năng tạm tắt: %1$s cần tắt Trợ năng</string>
     <string name="log_acc_resumed">Đã bật lại Trợ năng (đã rời app)</string>
@@ -38,6 +38,9 @@
     <string name="pa_tcp_b">KHÔNG tự mở lại khi dùng 4G. Có Wi-Fi thì mở lại trong ~10 phút, hoặc bố mẹ bấm Mở ngay. Hoặc cắm máy tính và chạy: adb tcpip 5555</string>
     <string name="pa_vpn_t">VPN (Tailscale)</string>
     <string name="pa_vpn_b">Tự bật lại khi rời app. Relay vẫn chạy.</string>
+    <string name="pa_man_t">%1$s sẽ báo máy không an toàn</string>
+    <string name="pa_man_b">Gỡ lỗi USB đang bật và KidGuard không tự tắt được trên máy này. Tắt "Gỡ lỗi USB" trước, rồi mở lại %1$s.</string>
+    <string name="pa_man_anyway">Vẫn mở</string>
     <string name="pa_noask">Không hỏi lại cho app này</string>
     <string name="pa_open">Mở</string>
 </resources>

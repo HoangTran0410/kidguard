@@ -137,10 +137,12 @@ object DevOpts {
         s.devApps = s.devApps + pkg; s.devLeftAt = 0L
         if (!canOff(ctx)) { if (dev && debugNow(ctx)) cantPause(ctx, pkg); return false }
         val port = tcp && tcpNow(ctx)
-        val mask = if (dev && s.devPaused == 0) DevLogic.mask(global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED), global(ctx, Settings.Global.ADB_ENABLED),
+        // what is on NOW (not "nothing paused yet": a pause whose turn-off failed kept devPaused set and every later open
+        // skipped debugging, INCIDENT 2026-11-20 Xiaomi + MoMo); merged with what an earlier pause already owes back
+        val mask = if (dev) DevLogic.mask(global(ctx, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED), global(ctx, Settings.Global.ADB_ENABLED),
             Build.VERSION.SDK_INT >= 30 && global(ctx, ADB_WIFI)) else 0
         if (mask == 0 && !port) return false
-        if (mask != 0) s.devPaused = mask
+        if (mask != 0) s.devPaused = s.devPaused or mask
         if (port) {
             // off the main thread (our adb is a socket); [afterOff] holds the start until it is done
             closing = true; offAt = android.os.SystemClock.elapsedRealtime()
@@ -148,13 +150,13 @@ object DevOpts {
             Thread({
                 try {
                     Log.i("KidGuard", "bank: adb usb: " + runCatching { if (SelfAdb.ready(app)) SelfAdb.service(app, "usb:") else "no adb" }.getOrNull())
-                    if (mask != 0) off(app).let { if (it != "ok") Log.w("KidGuard", "bank devOff: $it") }
+                    if (mask != 0) off(app).let { if (it != "ok") { Log.w("KidGuard", "bank devOff: $it"); cantPause(app, pkg, it) } }
                     offAt = android.os.SystemClock.elapsedRealtime()
                 } finally { closing = false }
             }, "bank-adb-usb").start()
         } else {
             val r = off(ctx)
-            if (r != "ok") { Log.w("KidGuard", "bank devOff: $r"); return false }
+            if (r != "ok") { Log.w("KidGuard", "bank devOff: $r"); cantPause(ctx, pkg, r); return false }
             offAt = android.os.SystemClock.elapsedRealtime()
         }
         val label = runCatching { val pm = ctx.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
@@ -172,7 +174,7 @@ object DevOpts {
      * mode): say so on the phone (it used to do nothing: the bank app said "unsafe device", owner 2026-11-20 Xiaomi + MoMo)
      * and in the parent's log. Once per app per 30 min.
      */
-    fun cantPause(ctx: Context, pkg: String) {
+    fun cantPause(ctx: Context, pkg: String, why: String = "no permission") {
         if (Flavor.HOME || BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) != null) return
         val now = System.currentTimeMillis()
         if (pkg == cantPkg && now - cantAt < 30 * 60_000L) return
@@ -189,7 +191,7 @@ object DevOpts {
                 .setStyle(android.app.Notification.BigTextStyle().bigText(ctx.getString(R.string.bank_cant_d))).setAutoCancel(true)
                 .addAction(android.app.Notification.Action.Builder(null, ctx.getString(R.string.bank_cant_open), pi).build()).build())
         }
-        runCatching { Store.of(ctx).log(R.string.log_bank_cant, label) }
+        runCatching { Store.of(ctx).log(R.string.log_bank_cant, label, why) }
     }
 
     /** adb listens on a TCP port right now (adbd up, port property set): what `tcpPause` closes. */

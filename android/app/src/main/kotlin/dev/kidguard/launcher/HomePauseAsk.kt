@@ -30,6 +30,13 @@ internal object PauseAsk {
         }
     }
 
+    /** [pkg] is on the debugging list, debugging is on, and KidGuard may not turn it off (no secure settings permission):
+     *  the kid has to, before the app opens (INCIDENT 2026-11-20 Xiaomi + MoMo: it opened, said "unsafe device", nothing else). */
+    fun manualDev(ctx: android.content.Context, pkg: String): Boolean = runCatching {
+        !Flavor.HOME && pkg in Store.of(ctx).rules.devPause && !DevOpts.canOff(ctx) && DevOpts.debugNow(ctx) &&
+            BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) == null
+    }.getOrDefault(false)
+
     /** What opening [pkg] would turn off now, in the order shown. */
     fun kinds(ctx: android.content.Context, pkg: String): List<Kind> {
         if (Flavor.HOME) return emptyList()
@@ -39,7 +46,7 @@ internal object PauseAsk {
         val out = ArrayList<Kind>()
         runCatching { if (pkg in r.accPause && AccPause.able(ctx) && s.accPaused.isEmpty() && Acc.isOn(ctx)) out += Kind.ACC }
         val canDev = runCatching { DevOpts.canOff(ctx) }.getOrDefault(false)
-        runCatching { if (canDev && pkg in r.devPause && s.devPaused == 0 && DevOpts.debugNow(ctx)) out += Kind.DEV }
+        runCatching { if (canDev && pkg in r.devPause && DevOpts.debugNow(ctx)) out += Kind.DEV }
         runCatching { if (canDev && pkg in r.tcpPause && DevOpts.tcpNow(ctx)) out += Kind.TCP }
         runCatching { if (pkg in r.vpnPause && s.vpnPaused.isEmpty() && VpnPause.vpnUp(ctx)) out += Kind.VPN }
         return out
@@ -48,6 +55,13 @@ internal object PauseAsk {
 
 /** Runs [go] now, or after the parent-of-the-phone said OK to what is about to go off. */
 internal fun HomeActivity.pauseAsk(pkg: String, label: String, go: () -> Unit) {
+    if (PauseAsk.manualDev(this, pkg)) {
+        Modal(this, u).show(R.drawable.li_info, Modal.Tone.WARN, getString(R.string.pa_man_t, label), getString(R.string.pa_man_b, label),
+            ok = getString(R.string.bank_cant_open), cancel = getString(R.string.pa_man_anyway), onCancel = go) {
+            runCatching { startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)) }; true
+        }
+        return
+    }
     val ks = runCatching { PauseAsk.kinds(this, pkg) }.getOrDefault(emptyList())
     val st = Store.of(this)
     if (ks.isEmpty() || pkg in st.pauseNoAsk) { go(); return }

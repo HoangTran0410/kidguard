@@ -19,9 +19,9 @@
     <string name="acc_paused_toast">Accessibility off for this app, back later</string>
     <string name="ch_bankwarn">Bank app warnings</string>
     <string name="bank_cant_t">%1$s may say the phone is unsafe</string>
-    <string name="bank_cant_d">KidGuard can\'t turn off USB debugging and accessibility by itself yet (no secure settings permission). Turn them off in Settings now, or ask a parent to grant it: Protection and permissions.</string>
+    <string name="bank_cant_d">KidGuard couldn\'t turn off USB debugging / developer options by itself. Tap the button below, turn off "USB debugging", then open the app again.</string>
     <string name="bank_cant_open">Open developer options</string>
-    <string name="log_bank_cant">%1$s opened but KidGuard could not turn off accessibility / debugging: the phone lacks the secure settings permission</string>
+    <string name="log_bank_cant">%1$s opened but KidGuard could not turn off accessibility / debugging (%2$s)</string>
     <string name="dev_paused_toast">Turning off USB debugging to open %1$s…</string>
     <string name="log_acc_paused">Accessibility paused: %1$s needs it off</string>
     <string name="log_acc_resumed">Accessibility back on (app closed)</string>
@@ -38,6 +38,9 @@
     <string name="pa_tcp_b">Does NOT come back on mobile data. On Wi-Fi it reopens within ~10 min, or when a parent taps Open now. Or plug into a computer and run: adb tcpip 5555</string>
     <string name="pa_vpn_t">VPN (Tailscale)</string>
     <string name="pa_vpn_b">Comes back by itself when you leave the app. The relay keeps working.</string>
+    <string name="pa_man_t">%1$s will say the phone is unsafe</string>
+    <string name="pa_man_b">USB debugging is on and KidGuard can\'t turn it off on this phone. Turn off "USB debugging" first, then open %1$s again.</string>
+    <string name="pa_man_anyway">Open anyway</string>
     <string name="pa_noask">Don\'t ask again for this app</string>
     <string name="pa_open">Open</string>
 </resources>
