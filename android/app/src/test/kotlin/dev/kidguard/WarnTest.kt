@@ -21,6 +21,15 @@ class WarnTest {
         assertNull(Warn.due(r, -1, 600, day, emptySet(), TestTr.VI))     // no limit
     }
 
+    @Test fun bedtimeStartJustAfterMidnightPerDay() {
+        // Fri 2026-11-06 (ISO 5): Fri has no night, Sat (tomorrow) starts 00:05
+        val r = Rules(bedtimeOn = true, bedByDay = listOf("", "", "", "", "", "00:03-06:30", ""))
+        assertEquals("5 phút nữa đến giờ ngủ", Warn.due(r, -1, 23 * 60 + 58, day, emptySet(), TestTr.VI)?.text)
+        // Fri's own 00:10 start already passed at 23:55: no heads-up for it
+        val r2 = Rules(bedtimeOn = true, bedByDay = listOf("", "", "", "", "00:10-06:00", "", ""))
+        assertNull(Warn.due(r2, -1, 23 * 60 + 55, day, emptySet(), TestTr.VI))
+    }
+
     @Test fun bedtime() {
         val r = Rules(bedtimeOn = true, bedStart = "21:30", bedEnd = "06:30")
         assertNull(Warn.due(r, -1, 21 * 60 + 20, day, emptySet(), TestTr.VI))

@@ -122,6 +122,15 @@ class ComfortTest {
         assertEquals(setOf("2026-11-07:bed"), Warn.due(r, -1, hm("21:26"), "2026-11-07", setOf("2026-11-07:bed10"), TestTr.VI)!!.keys)
     }
 
+    @Test fun windDownPerDayStartAfterMidnight() {
+        val fri = "2026-11-06"
+        val r = Rules(bedtimeOn = true, windGray = true, windMin = 30, bedByDay = listOf("", "", "", "", "00:10-06:00", "", ""))
+        assertEquals(false, WindDown.active(r, 23 * 60 + 40, fri))   // Fri's own 00:10 night is past, Sat is free
+        assertEquals(true, WindDown.active(r, 5, fri))
+        val r2 = Rules(bedtimeOn = true, windGray = true, windMin = 30, bedByDay = listOf("", "", "", "", "", "00:10-06:00", ""))
+        assertEquals(true, WindDown.active(r2, 23 * 60 + 40, fri))   // Sat starts 00:10: the lead is gray
+    }
+
     @Test fun templateNote() {
         assertEquals("+15 phút làm bài", ReqTpl.note("+15 phút làm bài", " "))
         assertEquals("Cần app học: Duolingo", ReqTpl.note("Cần app học", "Duolingo"))

@@ -698,6 +698,7 @@ object Tg {
 
     private val evBusy = java.util.concurrent.atomic.AtomicBoolean(false)
     @Volatile private var evRetry = 0L
+    private val evSent = HashSet<Long>()   // plain rows a digest delivered while a later single alert failed (cursor stays before them)
 
     /**
      * Events, in order, from the HistDb rows after cursor `evAt` (the same rows as the parent's Nhật ký, 90 days), so a
@@ -710,10 +711,11 @@ object Tg {
     private fun evTick(g: Guard, s: Store, quiet: Boolean) {
         val now = System.currentTimeMillis()
         val cur = s.tg.evAt; val last = HistDb.lastEventId(g)
+        if (last < 0) return   // sqlite read failed: not a wipe, try next tick
         if (quiet || cur < 0) { if (cur != last) s.tg.evAt = last; return }   // first run after an update starts at the newest
-        if (last < cur) { s.tg.evAt = 0; return }   // history file was wiped (release): ids start again
+        if (last < cur) { s.tg.evAt = 0; evSent.clear(); return }   // history file was wiped (release): ids start again
         if (last == cur || now < evRetry) return
-        val rows = HistDb.eventsAfter(g, cur, TgLogic.EV_PAGE)
+        val rows = HistDb.eventsAfter(g, cur, TgLogic.EV_PAGE).filter { it.first !in evSent }   // rows a digest already delivered
         val pref = s.events().let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) }.associateBy { it.optString("id") } }
         val (todo, upTo) = TgLogic.evPlan(rows.map { (rid, o) -> rid to (pref[o.optString("id")] ?: o) }, now)
         val name = kidName(g)
@@ -721,6 +723,7 @@ object Tg {
         val plain = todo.filter { (_, o) -> TgLogic.digestable("e:", o.optString("kind"), o.optString("shot").isNotBlank()) }.takeIf { it.size >= TgLogic.DIGEST_MIN } ?: emptyList()
         if (plain.isNotEmpty() && runCatching { digest(s, name, plain.map { "e:" + it.second.optString("id") to it.second }) }.getOrDefault(0) == 0) { evRetry = now + 30_000L; return }
         val plainIds = plain.map { it.first }.toHashSet()
+        evSent.addAll(plainIds)
         for ((rid, o) in todo) {
             if (rid in plainIds) continue
             if (runCatching { alert(g, s, name, "e:" + o.optString("id"), o) }.getOrDefault(0) == 0) {
@@ -728,6 +731,7 @@ object Tg {
             }
         }
         if (upTo > cur) s.tg.evAt = upTo
+        evSent.clear()
     }
 
     private val notifBusy = java.util.concurrent.atomic.AtomicBoolean(false)

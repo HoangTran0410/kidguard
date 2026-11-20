@@ -510,6 +510,12 @@ fun bedTonight(r: Rules, today: String): Pair<Int, Int>? {
     return s to e
 }
 
+/** Like [bedTonight] for the day after [today] (per-day bedtime only; null otherwise). A start just after midnight belongs to it. */
+fun bedTomorrow(r: Rules, today: String): Pair<Int, Int>? {
+    if (!r.bedtimeOn || r.bedByDay.size != 7) return null
+    return Rules.parseBedDay(r.bedByDay[Rules.isoDow(today) % 7])
+}
+
 /** Why the phone as a whole is limited right now ([why] "" = free), until when (ms, 0 = unknown) and the schedule [name]. Contract C2. */
 data class NowWhy(val why: String, val until: Long, val name: String = "") {
     fun toJson(): JSONObject = JSONObject().put("why", why).put("until", until).put("name", name)

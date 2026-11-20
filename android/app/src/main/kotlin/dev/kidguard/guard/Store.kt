@@ -810,7 +810,7 @@ class Store private constructor(private val app: Context) {
     }
     @Synchronized fun clearLastAnswer() { p.edit().putString("lastAns", "").apply() }
 
-    // ---- Command receipts (C4): the last 10 results, state `done: [{id, type, res, at}]` ----
+    // ---- Command receipts (C4): the last 30 results, state `done: [{id, type, res, at}]` ----
     @Synchronized fun done(): JSONArray = runCatching { JSONArray(p.getString("done", "[]")) }.getOrDefault(JSONArray())
     @Synchronized fun recordDone(id: String, type: String, res: String, now: Long = System.currentTimeMillis()) {
         if (id.isBlank()) return
@@ -894,6 +894,8 @@ class Store private constructor(private val app: Context) {
         if (kind == "suspended") dgBump("blocked")
         HistDb.addLog(app, System.currentTimeMillis(), kind, msg)   // the long history (90 days), written off this thread
     }
+    /** Release: the prefs copy of the log + events goes too (else a new kghist.db imports them again, see [HistDb]). */
+    @Synchronized fun clearHistory() { p.edit().remove("log").remove("events").apply() }
     @Synchronized fun logs(): JSONArray = runCatching { JSONArray(p.getString("log", "[]")) }.getOrDefault(JSONArray())
 
     // Events for the parent (Events.kt): newest last, 50, 7 days.
@@ -1013,7 +1015,9 @@ class Store private constructor(private val app: Context) {
 
     companion object {
         const val REMIND_MS = 5 * 60_000L
-        const val DONE_MAX = 10
+        const val DONE_MAX = 30
+        /** Background relay pulls (file / photo / notification / chat pages): no receipt, the page does not track them. */
+        val NO_RECEIPT = setOf("fileUp", "shotUp", "notifPull", "smsPull", "chatPull", "snapList", "snapUp")
         @Volatile private var inst: Store? = null
         fun of(ctx: Context): Store = inst ?: synchronized(this) { inst ?: Store(ctx.applicationContext).also { inst = it } }
 

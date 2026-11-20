@@ -83,6 +83,7 @@ object Sms {
      * Guard tick: keyword alerts for new incoming messages. The first run only remembers "now" (old messages never alert).
      * Basic mode with no permission asks our own adb for it at most every 10 minutes.
      */
+    @Volatile private var emptySince = 0L
     fun tick(g: Context) {
         if (Flavor.HOME || !on(g)) return
         val sp = g.getSharedPreferences("kg_sms", Context.MODE_PRIVATE)
@@ -97,7 +98,9 @@ object Sms {
         val words = Store.of(g).baseRules.watch.words
         val last = sp.getLong("last", 0L)
         if (last == 0L) { sp.edit().putLong("last", now).apply(); return }
-        if (words.isEmpty()) { sp.edit().putLong("last", now).apply(); return }
+        // no keywords: write nothing (a pref write every tick wakes the flash); remember in memory that old SMS must not be scanned later
+        if (words.isEmpty()) { emptySince = now; return }
+        if (emptySince > 0L) { sp.edit().putLong("last", emptySince).apply(); emptySince = 0L; return }
         val rows = query(g, 0, 20).filter { it.t > last }
         if (rows.isEmpty()) return
         SmsLogic.hits(rows, last, words).forEach { (r, w) -> NotifSync.alert(g, g.getString(R.string.sms_app), "sms", w, r.text) }

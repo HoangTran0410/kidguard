@@ -16,10 +16,20 @@ object WindDown {
         if (!r.bedtimeOn || !r.windGray) return false
         if (r.bedByDay.size == 7 && today.isNotEmpty()) {
             if (bedEndNow(r, minute, today) != null) return true
-            val (s, e) = bedTonight(r, today) ?: return false
-            if (s == e) return false
-            val from = ((s - r.windMin) % 1440 + 1440) % 1440
-            return from <= s && minute in from until s || (from > s && (minute >= from || minute < s))
+            // today's night: only the part before its start (a wrapped lead's late part belongs to tomorrow's night)
+            bedTonight(r, today)?.let { (s, e) ->
+                if (s != e) {
+                    val from = ((s - r.windMin) % 1440 + 1440) % 1440
+                    if (if (from <= s) minute in from until s else minute < s) return true
+                }
+            }
+            bedTomorrow(r, today)?.let { (s, e) ->
+                if (s != e) {
+                    val from = ((s - r.windMin) % 1440 + 1440) % 1440
+                    if (from > s && minute >= from) return true
+                }
+            }
+            return false
         }
         val s = Rules.parseHm(r.bedStart) ?: return false
         val e = Rules.parseHm(r.bedEnd) ?: return false

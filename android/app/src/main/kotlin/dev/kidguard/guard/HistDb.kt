@@ -62,10 +62,10 @@ object HistDb {
         d.execSQL("DELETE FROM h WHERE id <= (SELECT id FROM h ORDER BY id DESC LIMIT 1 OFFSET ${HistLogic.MAX_ROWS})")
     }
 
-    /** The newest event row id (0 = none): Telegram's event cursor starts there. Disk read: not on the main thread. */
+    /** The newest event row id (0 = none, -1 = the read failed: skip, not a wipe): Telegram's event cursor starts there. Disk read: not on the main thread. */
     fun lastEventId(ctx: Context): Long = runCatching {
         db(ctx).rawQuery("SELECT MAX(id) FROM h WHERE s = 1", null).use { c -> if (c.moveToFirst()) c.getLong(0) else 0L }
-    }.getOrElse { Log.w("KidGuard", "hist last", it); 0L }
+    }.getOrElse { Log.w("KidGuard", "hist last", it); -1L }
 
     /** Event rows after row [after], oldest first, shaped like the state's `events` (`{id, t, kind, text, zone?}`), with their row id. */
     fun eventsAfter(ctx: Context, after: Long, n: Int): List<Pair<Long, JSONObject>> = runCatching {

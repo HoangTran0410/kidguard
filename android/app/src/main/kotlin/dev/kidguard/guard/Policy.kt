@@ -774,6 +774,7 @@ object Policy {
         s.suspendedByUs = emptySet()
         restoreDnsWss(ctx, s)   // Private DNS we wrote with WRITE_SECURE_SETTINGS goes back to what the phone had
         removeAccEntry(ctx); AccPause.clear(ctx); VpnPause.clear(ctx); DevOpts.clearPause(ctx)   // a bank-app pause must not outlive us
+        runCatching { Update.forget(ctx) }   // a downloaded update.apk / update.part
         NotifDots.setOn(ctx, false)
         runCatching { LauncherSafe.off(ctx, goHome = true) }   // only owner mode can turn it on, but never leave it behind
         runCatching { Acc.running?.disableSelf() }

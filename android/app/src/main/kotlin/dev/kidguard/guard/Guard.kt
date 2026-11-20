@@ -755,7 +755,7 @@ class Guard : Service() {
         // a failed run (e.g. release: "failed: N apps still hidden") may be re-sent with the same id and must run again, not answer "ok"
         if (id.isNotBlank() && res.startsWith("failed")) store.unmarkCmd(id)
         // C4: the last 10 results, so the page can say "ran at HH:mm" / why it was refused instead of "sent"
-        if (id.isNotBlank()) runCatching { store.recordDone(id, t, res) }
+        if (id.isNotBlank() && t !in Store.NO_RECEIPT) runCatching { store.recordDone(id, t, res) }   // background pulls the page never tracks must not push real receipts out
         // a done `setting` writes its own log line (log_setting_*)
         if (t != "relay" && t != "release" && !(t == "setting" && res == "ok")) runCatching { c.optString("by").take(24).let { by -> if (by.isBlank()) store.log(R.string.log_cmd, t, res) else store.log(R.string.log_cmd_by, t, res, by) } }
         kick()
@@ -915,7 +915,7 @@ class Guard : Service() {
             else {
                 // forget FIRST (INCIDENT 2026-11-20: a throwing wipe before it left the relay thinking the phone was just offline)
                 runCatching { Relay.forgetRetry(creds.first, creds.second, creds.third) }.onFailure { Log.w("KidGuard", "relay forget", it) }
-                store.log(R.string.log_released); runCatching { Files.wipeOutbox(this) }; runCatching { HistDb.wipe(this) }; runCatching { store.clearChat() }
+                store.log(R.string.log_released); runCatching { Files.wipeOutbox(this) }; runCatching { HistDb.wipe(this) }; runCatching { store.clearHistory() }; runCatching { store.clearChat() }
             }   // the worker deletes this kid's data   // received files stay in Download
             // finished after the caller gave up ("failed" was answered): still go away, we are released
             if (!state.compareAndSet(0, 1) && r == "ok") Handler(mainLooper).postDelayed({ stopSelf() }, 2_000)
