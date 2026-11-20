@@ -805,7 +805,7 @@ L.vi = {
   "jn.needName": "Nhập tên của bạn.",
   "ul.h": "Cần PIN gia đình",
   "ul.p": "Nhập mã PIN gia đình để mở KidGuard trên trình duyệt này.",
-  "rev.pvRefused": "Có người dùng link relay của máy con để đổi PIN gia đình. Đã chặn.", "rev.pvNew": "Máy con đã đặt PIN gia đình trên relay.",
+  "rev.pvRefused": "Có người dùng link relay của máy con để đổi PIN gia đình. Đã chặn.", "rev.pvNew": "Máy con đã đặt PIN gia đình trên relay.", "rev.rekeyRefused": "Có người dùng link relay của máy con để tách máy khỏi relay. Đã chặn.",
   "ul.go": "Mở",
   "iv.h": "KidGuard",
   "iv.h2": "Vào {0} với tư cách phụ huynh",

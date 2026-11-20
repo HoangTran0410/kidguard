@@ -388,7 +388,7 @@ const parLocked = (p, now) => !!p.lk || (p.k === "web" && !(p.ul > now));
 const KM_PENDING = 3;
 // secAlert texts (English: older pages show `text`; newer ones translate `rk`, i18n "rev.<rk>")
 const PV_PREV = 3, SEC_THROTTLE = 10 * 60_000;   // old PIN hashes kept as proof; one security alert per kind per 10 min
-const REV_TEXT = { pvRefused: "Relay: a PIN change without the old PIN was refused", pvNew: "Relay: the phone set a family PIN" };   // phone-minted tokens still waiting for their PIN: the oldest goes (a looping phone never fills MAX_PARENTS)
+const REV_TEXT = { pvRefused: "Relay: a PIN change without the old PIN was refused", pvNew: "Relay: the phone set a family PIN", rekeyRefused: "Relay: a new phone token without the PIN was refused" };   // phone-minted tokens still waiting for their PIN: the oldest goes (a looping phone never fills MAX_PARENTS)
 const cleanName = v => String(v || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 24);
 const hexRand = n => [...crypto.getRandomValues(new Uint8Array(n))].map(x => x.toString(16).padStart(2, "0")).join("");
 const HEXC = new TextEncoder().encode("0123456789abcdef");
@@ -1080,7 +1080,7 @@ export class Kid {
     if (!token) { await this.s.put("par", par); return json({ error: "too many parents" }, 409); }
     return json({ token, id: (await sha256(token)).slice(0, 12) });
   }
-  /** POST rekey {token, drop?: [id]} (kid token): the phone's new token on the same id (a LAN device was removed; it may
+  /** POST rekey {token, drop?: [id], pvo?} (kid token; pvo = the PIN hash proof when the relay has a PIN): the phone's new token on the same id (a LAN device was removed; it may
    * hold the old one). Parents keep their own tokens; `drop` = phone-minted rows of the removed devices. */
   async rekey(b, now) {
     const t = String(b.token || "");
@@ -1088,6 +1088,9 @@ export class Kid {
     const nh = await sha256(t), par = await this.parents();
     if (nh === (await this.s.get("tokenHash"))) return json({ ok: true });   // asked again with the new token (the first reply was lost)
     if (par[nh]) return json({ error: "bad token" }, 400);
+    // a family PIN on the relay: prove it like a pv change (`pvo`), else the QR link alone could take the id from the phone (review 2026-11-21)
+    const [pv, prev] = await Promise.all([this.s.get("pv"), this.s.get("pvPrev")]), pvo = String(b.pvo || "");
+    if (pv && pv.h && !(/^[0-9a-f]{64}$/.test(pvo) && (pvo === pv.h || [].concat(prev || []).includes(pvo)))) { await this.secAlert("rekeyRefused", now); return json({ error: "proof needed" }, 403); }
     for (const id of Array.isArray(b.drop) ? b.drop.slice(0, MAX_PARENTS) : []) {
       const k = Object.keys(par).find(x => x.slice(0, 12) === id && par[x].km);
       if (k) await this.dropParent(k);

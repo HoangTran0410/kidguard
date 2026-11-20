@@ -738,7 +738,8 @@ for(let i=0;i<4;i++)await Q("mint",Tq,{name:"P"+i});
 ck("mint: at most 3 never-opened ones (oldest go)",(await (await Q("parents",A)).json()).parents.filter(p=>p.lk).length==3);
 // rekey: a LAN device was removed: new kid token, same id; parents keep theirs
 const Tn=hx(24);r=await Q("rekey",A,{token:Tn});ck("rekey: a parent token can't",r.status==403);
-r=await Q("rekey",Tq,{token:Tn,drop:[(await sha(L2)).slice(0,12)]});ck("rekey: ok",r.status==200);
+r=await Q("rekey",Tq,{token:Tn});ck("rekey: no PIN proof (the QR link alone) -> 403, the phone keeps its token",r.status==403&&(await r.json()).error=="proof needed"&&(await Q("sync",Tq,{})).status==200);
+r=await Q("rekey",Tq,{token:Tn,pvo:hp("2468",salt),drop:[(await sha(L2)).slice(0,12)]});ck("rekey: ok with the proof",r.status==200);
 ck("rekey: the old kid token is dead",(await Q("sync",Tq,{})).status==401);
 ck("rekey: the new one syncs, parents keep working, dropped minted one gone",(await Q("sync",Tn,{})).status==200&&(await Q("state",A)).status==200&&(await Q("state",L2)).status==401);
 ck("rekey: asked again with the new token (lost reply) = ok",(await Q("rekey",Tn,{token:Tn})).status==200);

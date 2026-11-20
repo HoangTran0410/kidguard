@@ -149,6 +149,7 @@ class Relay(private val g: Guard) {
         // kept before asking: a reply lost after the worker switched must not leave this phone with a dead token
         val t = store.relayNext.ifBlank { Store.randomHex(24).also { store.relayNext = it } }
         val body = JSONObject().put("token", t).put("drop", JSONArray(store.relayDrop()))
+        RelayPv.proof(store.relayPvOk, rid)?.let { body.put("pvo", it) }   // the relay has a PIN: proves this is the phone, not the QR link
         val res = post(base, rid, token, "rekey", body)?.takeIf { it.optBoolean("ok") }
             ?: post(base, rid, t, "rekey", body)   // the worker took it last time (that reply was lost): the new token works
         if (res?.optBoolean("ok") != true) return token

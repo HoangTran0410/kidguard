@@ -503,13 +503,13 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
   renews the relay link (new id). `""` (PIN removed) needs the proof too.
 - Worker notices (`secEv`, last 5): `{id:"r<base36 ms>", t, kind:"tamper", rk, text}` appended to `state.events` on GET
   state (sorted by `t`) + FCM `{kind:"ev", ek:"tamper"}` + Telegram tamper line. `rk`: `pvRefused` (a pv without proof),
-  `pvNew` (a first PIN while parents exist). `text` is English; the page shows i18n `rev.<rk>` instead.
+  `pvNew` (a first PIN while parents exist), `rekeyRefused` (2026-11-21: a `rekey` without `pvo` while the relay has a PIN: 403 `proof needed`). `text` is English; the page shows i18n `rev.<rk>` instead.
 - `POST /c/<id>/mint {name, kind:"app"|"web", drop?: id}` (phone token only) -> `{token, id}`: a parent token for a LAN
   page (LAN command `relay {url, mint:true, kind}`, 2026-11-20). The row has `km` (phone-minted) + `lk` (locked: every
   route but `unlock` / `parents` answers 423 until one `unlock {pin}`; then `lk` goes and it is a normal app / web token).
   `drop` removes the row this phone minted for the same LAN device before (only `km` rows). At most 3 never-opened (`lk`)
   rows: the oldest goes. `GET parents` rows carry `locked: true` (423 now), `lk: true`, `lan: true` (`km`).
-- `POST /c/<id>/rekey {token: 48 hex, drop?: [id]}` (phone token only) -> `{ok:true}`: the kid token becomes `token` on the
+- `POST /c/<id>/rekey {token: 48 hex, drop?: [id], pvo?}` (phone token only; 2026-11-21: `pvo` = the PIN-hash proof as for sync `pv`, required once the relay has a PIN, else 403 `proof needed` + `rekeyRefused` alert) -> `{ok:true}`: the kid token becomes `token` on the
   same relay id (parents keep their tokens; the phone's socket is closed, it reconnects). Sent by the phone after a LAN
   device was removed (`relayShared`), with `drop` = the minted rows of removed devices (`Store.relayDrop`). The phone keeps
   the new token before asking (`relayNext`) and asks again WITH it when the reply was lost (same token = `ok`).
