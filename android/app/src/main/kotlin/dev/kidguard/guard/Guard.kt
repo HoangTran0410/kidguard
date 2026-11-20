@@ -238,6 +238,15 @@ class Guard : Service() {
      */
     fun relayNow() { relay?.wake() }
 
+    /**
+     * [NotifSync.nudge]: a new kid notification the parent app mirrors. Screen off (syncs every 1-3 min) or socket up (cheap):
+     * sync now. Screen on over HTTP: the 20 s tick carries it anyway. Skipped while the relay backs off ([Relay.kick]).
+     */
+    fun relayNudge() {
+        val r = relay ?: return
+        if (getSystemService(PowerManager::class.java)?.isInteractive != true || r.transport == "ws") r.kick()
+    }
+
     fun kick() { if (::work.isInitialized) work.post { if (!stopped) runCatching { tick(true) }.onFailure { Log.e("KidGuard", "kick", it) } } }
 
     /** Many pokes in a burst (accessibility events) become one tick 300 ms after the last. */

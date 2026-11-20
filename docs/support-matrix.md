@@ -107,6 +107,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 |---|---|---|---|
 | SOS, xin thêm giờ (hiện trên trang) | ✅ | ✅ | |
 | Đẩy thông báo tức thì (FCM) tới app bố mẹ | ❌ | ✅ | Cần secret `FCM_SA` trên worker |
+| Thông báo trên máy con hiện ở app bố mẹ (0.9.74, luật `watch.notif`, cài đặt app "Hiện thông báo trên máy của con", mặc định bật) | ⚠️ | ✅ | Relay: vài giây khi màn con tắt, ≤ 20 s khi bật (FCM `nf` không chứa chữ, app đọc `state?nf=`). LAN không relay: chỉ lần kiểm tra nền ~15 phút. Một thông báo im lặng mỗi con, 6 dòng mới nhất. Dòng có từ khoá không lặp lại (đã có cảnh báo `word`). Thông báo bị giữ (giờ tập trung) không được chuyển |
 | Widget màn hình chính của app bố mẹ (còn bao lâu / Khoá / Tạm tắt / Giờ ngủ, thấy lần cuối, nút Khoá và +15 phút; tối đa 3 con) | ✅ | ✅ | Số liệu lấy từ lần kiểm tra nền ~15 phút (và app mở, đẩy tin), nên có thể cũ vài phút. Nút gửi lệnh `lock` / sửa luật `bonus`, giống nút thông báo; con LAN đi relay khi bố mẹ ở xa. Chỉ app bố mẹ, không có ở trang web |
 | Bot Telegram trên máy con (xem, điều khiển, báo) | ✅ | ✅ | Không phụ thuộc LAN/relay: máy con tự nối Telegram. Trang chỉ dùng để dán token + lấy mã liên kết. (Legacy: báo qua bot của worker, `TG_BOT`, trang không dùng nữa: cách cũ, trang không còn dùng) |
 | Báo mất kết nối | ⚠️ | ✅ | App bố mẹ kiểm tra định kỳ. Chữ "offline từ HH:mm", tự gỡ khi máy về, bỏ qua giờ ngủ của con |

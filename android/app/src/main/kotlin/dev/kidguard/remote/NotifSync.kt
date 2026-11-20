@@ -66,6 +66,23 @@ object NotifSync {
 
     private fun hitOf(w: WatchRule, e: NotifEntry) = KeywordLogic.hit(w.words, listOf(e.title, e.text, e.subText, e.bigText) + e.msgs.map { it.text } + e.lines)
 
+    // ---- parent-app mirror: a new row the feed sends -> a relay sync soon, so the worker can nudge the parent app (FCM "nf") ----
+    private val gate = NudgeGate(NudgeGate.GAP)
+    private val main by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
+
+    /**
+     * Called by [NotifLog.record] (io thread) after a row was added or updated. Rows with a keyword hit are left out: their `word`
+     * event syncs and pushes on its own. Coalesced to one relay kick per 30 s, the last of a burst on the trailing edge.
+     */
+    fun nudge(g: Context, e: NotifEntry) {
+        val w = runCatching { Store.of(g).baseRules.watch }.getOrNull() ?: return
+        val hit = hitOf(w, e)
+        if (hit != null || !NotifFeedLogic.send(w.notif, null, e.pkg)) return
+        val wait = gate.ask(System.currentTimeMillis())
+        if (wait == 0L) Guard.running?.relayNudge()
+        else if (wait > 0) main.postDelayed({ gate.fired(System.currentTimeMillis()); Guard.running?.relayNudge() }, wait)
+    }
+
     private val throttle = WordThrottle()
 
     /** A keyword hit = an event with the app and a short piece of the text (every event is pushed to the parent app; never the whole message). */
@@ -153,6 +170,26 @@ object NotifSync {
         }, "notif-push").start()
         return "ok"
     }
+}
+
+/**
+ * Pure (unit-tested): at most one fire per [gap] ms, leading + trailing edge. [ask] = 0 fire now, > 0 schedule one trailing
+ * fire in that many ms (then call [fired]), -1 = a trailing fire is already scheduled (it covers this one too).
+ */
+class NudgeGate(private val gap: Long) {
+    private var last = Long.MIN_VALUE / 2
+    private var pending = false
+
+    @Synchronized fun ask(now: Long): Long {
+        if (pending) return -1
+        if (now - last >= gap || now < last) { last = now; return 0 }   // now < last: the clock went back
+        pending = true
+        return last + gap - now
+    }
+
+    @Synchronized fun fired(now: Long) { pending = false; last = now }
+
+    companion object { const val GAP = 30_000L }
 }
 
 /** Pure part of the automatic feed (unit-tested): which notification goes to the parent, the ring of new ones. */

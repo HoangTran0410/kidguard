@@ -822,6 +822,26 @@ secure page (the parent app's `127.0.0.1`, or the relay's https page). Listen on
   tokens): one Telegram line (`TGM.quiet`) + to each parent token `{"kind": "ev", "kid", "eid": "q:<heard ms>", "t", "ek": "quiet"}`
   (the parent app runs its check now and shows its own "offline since" notice). Once per spell (`qa` = the `heard` alerted).
   The next sync after it: Telegram `TGM.back`, `qa` deleted. Stored `kid` = the relay id (the alarm has no request).
+- **Kid notifications mirrored to the parent app (0.9.74, rule `watch.notif`):**
+  - `/push` body may carry `"nf": true|false` (parent app 0.9.74+ always sends it when registering): true = this token
+    also wants the nudge below (DO list `pushNf`, only tokens still in `push`), false = not any more; absent (older app) =
+    unchanged. `off: true` removes it from both lists.
+  - On every `sync` with a state: the newest `state.notifs.n[]` row id without `hit` (keyword rows push as their `word`
+    event) greater than the stored `nfPushed` (its own key, not the `pushed` list) -> to every `pushNf` token one data-only
+    message `{"kind": "nf", "kid": "<relay id>"}` (no text), `android.priority: HIGH`, ttl 600 s, `collapse_key: "nf-<relay id>"`;
+    at most one per 15 s (`NF_GAP_MS` var, tests 1000; a skipped one waits for the next sync). First sight (no `nfPushed`)
+    and a kid clock that moved back (`nfPushed`/1000 > `state.t` + 60 s) only store the id. Nobody reached (network /
+    429 / 5xx) = `nfPushed` goes back (next sync retries); 404 drops the token from `push` and `pushNf`.
+  - `GET /c/<id>/state?nf=<cursor>` (parent role) -> `{"n": [rows of state.notifs with id > cursor, oldest first], "more": bool,
+    "t": <state.t>}` instead of the whole state (2-5 KB). `more` = the state left older rows out and every row it has is new.
+  - Kid: `NotifLog.record` -> `NotifSync.nudge` after a row is added / updated that the feed sends (no `hit`): a relay
+    `kick()` at most once per 30 s, leading + trailing edge (`NudgeGate`), only while the screen is off or the socket is up
+    (screen on over HTTP syncs every 20 s anyway); none while the relay backs off.
+  - Parent app: `nf` push -> `GET state?nf=<cursor>` -> `Logic.nfPlan` -> one quiet notification per kid (channel
+    `kg_kidnotif`, IMPORTANCE_LOW, InboxStyle, newest 6 lines, "+N more", tap opens the kid). Per-kid cursor = the newest
+    feed id looked at; the first look only records it; a kid clock moved back (cursor > state.t + 60 s) starts over.
+    The ~15 min check does the same from the whole state's `notifs` (LAN-only kids, missed pushes; `onDeletedMessages`
+    runs it at once). Setting "Show my kid's notifications" (`KGApp.getKidNotif` / `setKidNotif`), on by default.
 
 ## Telegram bot on the child phone (v0.9.x, Tg.kt)
 - The family makes its own bot at @BotFather; the token goes to the phone with command `tgSet {token, lang: "vi"|"en", name}`

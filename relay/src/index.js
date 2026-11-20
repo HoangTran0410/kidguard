@@ -138,6 +138,13 @@ async function route(req, env) {
   return stub.fetch(new Request(req, { body }));
 }
 
+/** GET state?nf=<cursor>: `{n: rows of state.notifs with id > cursor (oldest first), more, t}`. more = rows past the cursor
+ * may be missing (all the state's rows are new and it left older ones out); t = the phone's clock when it built that state. */
+export function nfRead(st, cursor) {
+  const nf = st && st.notifs, all = nf && Array.isArray(nf.n) ? nf.n.filter(r => r && typeof r === "object") : [];
+  const n = all.filter(r => +r.id > cursor);
+  return { n, more: !!(nf && nf.more) && n.length > 0 && n.length === all.length, t: +(st && st.t) || 0 };
+}
 /** GET state?watch=1 (docs/protocol.md "Watch connect"): what a watch shows, small enough for Garmin (~8-16 KB).
  * Scalars of the state as they are, the few lists a watch reads cut short, `apps` = the 15 most used; rules whole
  * (minus the phone's copy inside state) because watches edit them with a full-replace PUT. */
@@ -749,6 +756,8 @@ export class Kid {
     // relayOk = last time the relay heard the phone (the phone no longer re-sends it each sync: that alone made every tick a sync)
     if (st && st.relayOk !== undefined) st.relayOk = Math.max(+st.relayOk || 0, this.seenNow(seen));
     if (st) st.iconV = iconV || 1;   // GET /icons?v= (one request for every icon)
+    // GET state?nf=<cursor> (parent app, after an FCM "nf"): only the kid-notification rows newer than its cursor (2-5 KB, not the whole state)
+    if (role === "parent" && url.searchParams.has("nf")) return json(nfRead(st, +url.searchParams.get("nf") || 0));
     if (role === "parent" && url.searchParams.get("watch") === "1") return json({ ...watchState(st, rules ? stripPin(rules) : null), seen: this.seenNow(seen), pending: (cmds || []).length,
       queue: (cmds || []).filter(c => live(c, Date.now())).slice(-10).map(c => ({ id: c.id, type: c.type, at: c.at, ...(c.by ? { by: c.by } : {}) })),
       expired: ((await this.s.get("expired")) || []).slice(-10), tileKey: await sha256("tile:" + token) });
@@ -790,13 +799,19 @@ export class Kid {
     return json(stripPin(rules));
   }
 
-  // parent app: {fcm: token} registers, {fcm, off: true} removes
+  // parent app: {fcm: token} registers, {fcm, off: true} removes; nf: true / false = also wants / no longer wants the
+  // kid-notification nudge (FCM kind "nf", own list `pushNf`); nf absent (older app) leaves that list alone
   async rPush({ req, url, body, now, role, who, token, id }) {
     const t = typeof body.fcm === "string" ? body.fcm : "";
     if (!FCM_TOKEN.test(t)) return json({ error: "bad token" }, 400);
     const list = ((await this.s.get("push")) || []).filter(x => x !== t);
     if (!body.off) { list.push(t); while (list.length > MAX_PUSH) list.shift(); }
     await this.s.put("push", list);
+    if (body.off || typeof body.nf === "boolean") {
+      const nf = ((await this.s.get("pushNf")) || []).filter(x => x !== t && list.includes(x));
+      if (!body.off && body.nf) nf.push(t);
+      await this.s.put("pushNf", nf);
+    }
     return json({ ok: true, enabled: !!this.env.FCM_SA, devices: list.length });
   }
 
@@ -1410,18 +1425,53 @@ export class Kid {
     }
   }
 
+  /**
+   * Kid notifications (rule watch.notif, docs/protocol.md "Push"): the newest row of state.notifs (rows with a keyword `hit`
+   * left out: their `word` event pushes already) newer than the last one pushed (`nfPushed`, its own key: the shared `pushed`
+   * list is for events) -> one FCM `{kind: "nf", kid}` with no text to the parent apps that asked for it (`pushNf`). Collapsed
+   * per kid, 10 min ttl, at most one per NF_GAP (no longer: a skipped nudge waits for the next sync). The app then reads
+   * `state?nf=<its cursor>`.
+   */
+  async nfNew(state, id) {
+    const nf = state && state.notifs, rows = nf && Array.isArray(nf.n) ? nf.n : [];
+    let top = 0;
+    for (const r of rows) if (r && !r.hit && Number.isSafeInteger(+r.id) && +r.id > top) top = +r.id;
+    if (!top || !this.env.FCM_SA) return;
+    const [was, at, toks] = await Promise.all(["nfPushed", "nfAt", "pushNf"].map(k => this.s.get(k)));
+    const tokens = toks || [];
+    if (!tokens.length) return;
+    // first sight: nothing is new yet. The kid's clock went back (pushed id ahead of the state's own time): start again from here
+    if (was === undefined || +was / 1000 > (+state.t || Date.now()) + 60e3) { await this.s.put("nfPushed", top); return; }
+    const now = Date.now();
+    if (top <= +was || now - (+at || 0) < +(this.env.NF_GAP_MS || NF_GAP)) return;
+    await this.s.put({ nfPushed: top, nfAt: now });   // before sending: a retry must not double-notify
+    const dead = new Set(); let retry = 0;
+    for (const t of tokens) {
+      const st = await fcmSend(this.env, t, { kind: "nf", kid: id }, "600s", "nf-" + id);
+      if (st >= 300) console.log("fcm nf", st);
+      if (st === 404) dead.add(t);
+      else if (st === 0 || st === 429 || st >= 500) retry++;
+    }
+    if (dead.size) {
+      await this.s.put("pushNf", tokens.filter(t => !dead.has(t)));
+      await this.s.put("push", ((await this.s.get("push")) || []).filter(t => !dead.has(t)));
+    }
+    if (retry && retry + dead.size === tokens.length) await this.s.put("nfPushed", was);   // nobody got it: the next sync tries again
+  }
+
   /** New SOS / more-time requests in the phone's state -> FCM data message to every registered parent app. */
   async pushNew(state, id) {
+    const nf = this.nfNew(state, id).catch(e => console.log("nf", String(e)));   // beside the events: never holds an SOS push
     const now = Date.now(), ev = [];
     for (const s of Array.isArray(state.sos) ? state.sos : []) if (s && now - +s.t < 6 * 3600e3) ev.push({ kind: "sos", eid: "s:" + s.id, t: +s.t });
     for (const r of Array.isArray(state.requests) ? state.requests : []) if (r && now - +r.t < 3600e3) ev.push({ kind: "req", eid: "r:" + r.id, t: +r.t, min: +r.min || 0, app: r.kind === "app" });
     for (const e of Array.isArray(state.events) ? state.events : []) if (e && now - +e.t < 3600e3 && /^[\w-]{1,24}$/.test(String(e.id)) && e.kind !== "tsDown" && e.kind !== "tsUp")   // Tailscale drop / return: log only, no push
       ev.push({ kind: "ev", eid: "e:" + e.id, t: +e.t, ek: String(e.kind || "").slice(0, 12) });   // no text / zone name to Google
-    if (!ev.length) return;
+    if (!ev.length) return nf;
     // Telegram beside FCM, not before it: a slow Telegram API must not hold the SOS push (review 2026-11-18)
     const tg = this.tgNew(ev).catch(e => console.log("tg", String(e)));
     await this.fcmNew(ev, id).catch(e => console.log("fcm", String(e)));
-    await tg;
+    await tg; await nf;
   }
 
   async fcmNew(ev, id) {
@@ -1498,7 +1548,7 @@ export function mergeState(old, part) {
 }
 
 // ---- FCM HTTP v1 (optional; secret FCM_SA = the Firebase service-account JSON) ----
-const FCM_TOKEN = /^[\w:.-]{20,400}$/, MAX_PUSH = 5;
+const FCM_TOKEN = /^[\w:.-]{20,400}$/, MAX_PUSH = 5, NF_GAP = 15e3;   // NF_GAP: least time between two kid-notification nudges
 let fcmAuth = null;   // {key, at, exp} per isolate
 const b64u = (b) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const b64uStr = (s) => b64u(new TextEncoder().encode(s));
@@ -1521,15 +1571,16 @@ async function fcmToken(sa) {
 }
 
 /** Returns the HTTP status of the send. Data-only + high priority: the parent app builds the notification itself. */
-async function fcmSend(env, token, data, ttl = "21600s") {
-  try { return await fcmSend1(env, token, data, ttl); } catch (e) { console.log("fcm send", String(e)); return 0; }   // 0 = retry later
+// [collapse]: a newer message with the same key replaces one still waiting (kid-notification nudges)
+async function fcmSend(env, token, data, ttl = "21600s", collapse = "") {
+  try { return await fcmSend1(env, token, data, ttl, collapse); } catch (e) { console.log("fcm send", String(e)); return 0; }   // 0 = retry later
 }
-async function fcmSend1(env, token, data, ttl) {
+async function fcmSend1(env, token, data, ttl, collapse) {
   const sa = JSON.parse(env.FCM_SA);
   const at = await fcmToken(sa);
   const url = (env.FCM_URL || "https://fcm.googleapis.com") + `/v1/projects/${sa.project_id}/messages:send`;
   const r = await fetch(url, { method: "POST", headers: { authorization: "Bearer " + at, "content-type": "application/json" },
-    body: JSON.stringify({ message: { token, data, android: { priority: "HIGH", ttl } } }) });
+    body: JSON.stringify({ message: { token, data, android: { priority: "HIGH", ttl, ...(collapse ? { collapse_key: collapse } : {}) } } }) });
   if (r.status === 401) fcmAuth = null;
   return r.status;
 }

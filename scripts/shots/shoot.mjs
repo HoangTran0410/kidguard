@@ -214,7 +214,7 @@ async function shootLang(lang) {
         window.__puts = []; const F = window.fetch; window.fetch = (u, o) => { try { if (o && o.method === "PUT" && String(u).includes("/rules")) window.__puts.push(o.body); } catch {} return F(u, o); }; }
       if (${FAKE_APP}) {
         // the app's bridge (MainActivity JS interface): settings stubs + the kid list in localStorage
-        const P = { notifOn: "true", getNotify: "true", appVersion: "0.9.44", takeOpen: "null", takeSettings: "false", getLock: "", getDigest: "", getHistoryDays: "30", canNotify: "true",
+        const P = { notifOn: "true", getNotify: "true", appVersion: "0.9.44", takeOpen: "null", takeSettings: "false", getLock: "", getDigest: "", getKidNotif: "true", getHistoryDays: "30", canNotify: "true",
           getKids: () => localStorage.getItem("kg.kids"), setKids: s => localStorage.setItem("kg.kids", s), getLang: () => localStorage.getItem("kg.lang") || "",
           notifHealth: () => JSON.stringify({ lastCheck: Date.now() - 240e3, push: "part", pushBad: "Nam", pushAt: Date.now() - 600e3, battery: true, enabled: true, perm: true }) };
         window.KGApp = new Proxy({}, { get: (o, m) => typeof P[m] === "function" ? P[m] : () => m in P ? P[m] : "" });
