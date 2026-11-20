@@ -12,6 +12,8 @@ async function vcStart() {
   if (vc || !k) return;
   if (!vcOk(k)) return ask(t("call.noRelay"), t("call.ok"), false, "", "", null, t("call.h"));
   if (!RTC.can()) return ask(t("call.secure"), t("call.ok"), false, "", "", null, t("call.h"));
+  if (!(await onlineNow.gate("call"))) return;
+  if (vc) return;
   vc = { k, id: vcId(), st: "prep", t0: 0, max: VC_MAX, mic: true, cam: true, kidCam: true, net: null };
   vcShow();
   try {

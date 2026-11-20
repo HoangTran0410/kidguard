@@ -145,6 +145,7 @@ function screenCtl() {
 // Start: a confirm that says the kid sees a notice (Android 8-10 always: the system requires it); Stop: back to the Start card
 scr.go = async () => {
   if (!cur) return;
+  if (!(await onlineNow.gate("scr"))) return;
   const r = (edit || (st && st.rules) || {}), quiet = r.showWatching === false;
   if (!(await ask(t(quiet ? "scr.askQ" : "scr.ask"), t("scr.start")))) return;
   scr.on = cur; scr.idle = false; actAt = Date.now(); screenCtl(); screenStart();

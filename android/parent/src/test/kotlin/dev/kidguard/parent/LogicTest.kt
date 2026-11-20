@@ -390,4 +390,13 @@ class LogicTest {
         assertEquals("Location at 17/11 09:05", Logic.locNote(Logic.Loc(1.0, 2.0, java.time.ZonedDateTime.of(2026, 11, 17, 9, 5, 0, 0, z).toInstant().toEpochMilli()), 0, TestTr.EN, at, z))
         assertEquals("", Logic.locNote(Logic.Loc(1.0, 2.0, 0), at, TestTr.VI, at, z))
     }
+
+    @Test fun releasedQuietly() {
+        val ev = listOf("released" to 1_000_000L)
+        assertTrue(Logic.releasedQuietly(ev, 1_000_000L + 5_000, 1_000_000L + 600_000))
+        assertFalse("still syncing", Logic.releasedQuietly(ev, 1_000_000L + 590_000, 1_000_000L + 600_000))
+        assertFalse("too soon", Logic.releasedQuietly(ev, 1_000_000L, 1_000_000L + 60_000))
+        assertFalse("release failed", Logic.releasedQuietly(ev + ("releaseFail" to 1_001_000L), 1_000_000L, 1_000_000L + 600_000))
+        assertFalse("no event", Logic.releasedQuietly(emptyList(), 0, 1_000_000L))
+    }
 }

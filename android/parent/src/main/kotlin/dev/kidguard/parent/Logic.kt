@@ -199,6 +199,16 @@ object Logic {
     }
 
     /** What one check saw for a kid. activityT = state.t (LAN) or relay `seen` (ms of the child's last sync), 0 = unknown. */
+    /**
+     * INCIDENT 2026-11-20: a released phone could not always tell the relay to forget it. Its last sync carries a "released" event
+     * (kind, t); no later "releaseFail", the phone synced no later than 2 min after it and is quiet for 3 min since = released.
+     */
+    fun releasedQuietly(events: List<Pair<String, Long>>, seen: Long, now: Long): Boolean {
+        val rel = events.filter { it.first == "released" }.maxOfOrNull { it.second } ?: return false
+        if (events.any { it.first == "releaseFail" && it.second >= rel }) return false
+        return seen <= rel + 120_000L && now - rel > 180_000L && now - seen > 180_000L
+    }
+
     class Ev(val id: String, val text: String, val t: Long, val kind: String = "", val loc: Loc? = null,   // one state.events entry (v0.6); loc: v0.9.7 check-in
              val key: String = "")   // 0.9.25: a tamper condition (accoff / usageoff / home), gone from Seen.tamperOn = notification hidden
     class Loc(val lat: Double, val lng: Double, val t: Long)   // state.location (last fix)

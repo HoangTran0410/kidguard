@@ -516,6 +516,13 @@ async function boot() {
 const kidRow = (k, i) => `<div class="card row"><span class="sp" style="min-width:0"><b>${ic("user")} ${esc(k.name)}</b><span class="mute kb" data-kb="${i}" style="display:block">${APP ? (k.via === "lan" ? t("via.lan") : "relay") : "&nbsp;"}</span></span><button class="ghost kx" data-x="${i}" hidden aria-label="${esc(t("forget.rowAria", k.name))}">${ic("trash-2")}</button><button class="pri" data-i="${i}">${ic("folder-open")} ${t("open")}</button></div>`;
 // a saved kid that can't come back by itself: paired with the killed relay, released (relay says "released"), or the relay no longer knows us
 const deadKid = (k, raw) => (k.via === "relay" && k.target === OLD_RELAY) || raw === "released" || raw === "not paired";
+// INCIDENT 2026-11-20: the released phone could not tell the relay to forget it. Its last state has a "released" event and it went quiet
+// right after (no later releaseFail, last sync <= 2 min after it, silent 3 min since): returns the event time, else 0. Same rule as the parent app (Logic.releasedQuietly).
+deadKid.rel = (s, seen) => {
+  const ev = (s && s.events) || [], rel = Math.max(0, ...ev.filter(e => e.kind === "released").map(e => +e.t || 0)), now = Date.now();
+  if (!rel || ev.some(e => e.kind === "releaseFail" && +e.t >= rel)) return 0;
+  return (+seen || 0) <= rel + 12e4 && now - rel > 18e4 && now - (+seen || 0) > 18e4 ? rel : 0;
+};
 // remove a kid from this device (settings "Xoá máy này khỏi app" and the list's bin button for a dead / 1-day-offline kid)
 async function dropKid(k, dead) {
   if (!(await ask(t(k.via === "relay" && !dead ? "forget.askRelay" : APP ? "forget.askApp" : "forget.askWeb", k.name), APP ? t("delete") : t("forget"), true, k.via === "relay" && !dead ? t("forget.word") : ""))) return false;
@@ -533,6 +540,7 @@ async function kidBrief(list) {
       const j = await call(k, "/state"), s = j.state !== undefined ? j.state : j;
       if (!s) { if (deadKid(k)) return el() && (el().innerHTML = `${dot("bad")} ${t("kb.oldRelay")}`); return el() && (el().innerHTML = `${dot("")} ${t("kb.never")}`); }
       const seen = j.state !== undefined ? +j.seen || 0 : s.t, on = k.via === "lan" ? Date.now() - s.t < 30000 : seen && Date.now() - seen < 120000;
+      if (k.via === "relay" && deadKid.rel(s, seen)) { if (el()) el().innerHTML = `${dot("bad")} ${t("kb.released")}`; return bin(true); }
       if (el()) el().innerHTML = deadKid(k) ? `${dot("bad")} ${t("kb.oldRelay")}` : `${dot(on ? "on" : "bad")} ${on ? t("ov.online") : t("ov.offline", ago(seen || s.t))} · ${ic("battery-full")} ${+s.battery}%${s.charging ? ic("zap") : ""}`;
       if (!on && Date.now() - (seen || s.t || 0) > 864e5) bin(deadKid(k));
     } catch (e) {
