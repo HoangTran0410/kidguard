@@ -142,7 +142,7 @@ function seenTab(b) {
   $("#f-ws").onchange = e => { seenSet(x => { x.sms = e.target.checked; }); smsX.done = false; smsX.rows = []; seenTab(b); };   // confirm: CONFIRM["f-ws"] (kid.js)
   smsDraw();
   $("#f-wc").onchange = e => { seenSet(x => { x.cam = e.target.checked; }); seenTab(b); };   // confirm: CONFIRM["f-wc"] (kid.js)
-  if ($("#snapGo")) $("#snapGo").onclick = snapGo;
+  seenCamWire(b);
   if ($("#snapHistGo")) $("#snapHistGo").onclick = () => { if (!snapH.done || snapH.k !== cur) snapLoad(false); const h = $("#snapHist"); if (h) h.scrollIntoView({ behavior: "smooth", block: "start" }); };
   seenAppsDraw(); seenWordsDraw(); seenDraw(); histWire();
 }
@@ -151,17 +151,26 @@ function seenTab(b) {
 const SNAP_KEY = "kg.snap";
 function snapOpts() {
   let o = {}; try { o = JSON.parse(localStorage.getItem(SNAP_KEY) || "{}"); } catch (e) {}
-  return { cam: o.cam === "back" ? "back" : "front", flash: ["on", "auto"].includes(o.flash) ? o.flash : "off", size: o.size === "medium" ? "medium" : "small", delay: Math.max(0, Math.min(5, o.delay | 0)) };
+  return { cam: o.cam === "back" ? "back" : "front", flash: ["on", "auto"].includes(o.flash) ? o.flash : "off", size: o.size === "medium" ? "medium" : "small", delay: Math.max(0, Math.min(5, o.delay | 0)), snd: !!o.snd };
+}
+// Seen tab + Now sheet: Take photo, and Watch live (call.js CAM) with the same camera choice ("with sound" remembered with it)
+function seenCamWire(root) {
+  const g = root.querySelector("#snapGo"); if (g) g.onclick = snapGo;
+  const c = root.querySelector("#camGo"); if (c) c.onclick = () => { snapSave(); const o = snapOpts(); CAM.start({ cam: o.cam, snd: o.snd }); };
 }
 function snapSel(id, v, opts) { return `<label class="row"><span class="sp">${t("seen.c." + id)}</span><select id="snap-${id}" onchange="snapSave()">${opts.map(o => `<option value="${o}" ${String(v) === String(o) ? "selected" : ""}>${t("seen.c." + id + "." + o)}</option>`).join("")}</select></label>`; }
 function seenCamForm() {
   const o = snapOpts();
   return `<div style="margin-top:10px">${snapSel("cam", o.cam, ["front", "back"])}${snapSel("flash", o.flash, ["off", "on", "auto"])}${snapSel("size", o.size, ["small", "medium"])}${snapSel("delay", o.delay, [0, 1, 2, 3, 5])}
-    <button class="btn" id="snapGo" style="margin-top:10px"${snapGo.now.busy && snapGo.now.k === cur ? " disabled" : ""}>${ic("camera")} ${t("seen.cgo")}</button> <button class="sp" id="snapHistGo" style="margin-top:10px">${ic("history")} ${t("snap.hist")}</button><div id="snapBox" class="mute" role="status" style="margin-top:8px">${snapGo.now.k === cur ? snapGo.now.html : ""}</div><div id="snapHist"></div></div>`;
+    <button class="btn" id="snapGo" style="margin-top:10px"${snapGo.now.busy && snapGo.now.k === cur ? " disabled" : ""}>${ic("camera")} ${t("seen.cgo")}</button> <button class="sp" id="snapHistGo" style="margin-top:10px">${ic("history")} ${t("snap.hist")}</button>
+    <div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px 12px"><button class="btn" id="camGo">${ic("video")} ${t("cam.go")}</button>
+    <label class="row" style="margin:0"><input type="checkbox" id="cam-snd" ${o.snd ? "checked" : ""} onchange="snapSave()"><span>${t("cam.snd")}</span></label></div>
+    <p class="mute" style="margin:4px 0 0">${t(vcOk(cur) ? "cam.hint" : "cam.noRelay")}</p><div id="snapBox" class="mute" role="status" style="margin-top:8px">${snapGo.now.k === cur ? snapGo.now.html : ""}</div><div id="snapHist"></div></div>`;
 }
 function snapSave() {
   const v = id => $("#snap-" + id).value;
-  try { localStorage.setItem(SNAP_KEY, JSON.stringify({ cam: v("cam"), flash: v("flash"), size: v("size"), delay: +v("delay") })); } catch (e) {}
+  const s = $("#cam-snd");
+  try { localStorage.setItem(SNAP_KEY, JSON.stringify({ cam: v("cam"), flash: v("flash"), size: v("size"), delay: +v("delay"), snd: s ? s.checked : snapOpts().snd })); } catch (e) {}
 }
 async function snapFetch(k, fid, relay) {
   const end = Date.now() + 60e3;

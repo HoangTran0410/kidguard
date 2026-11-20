@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<!-- "Live camera" over the relay, child phone side: a headless WebView (CamCall.kt, no activity on screen while it runs) loads
+     https://appassets.androidplatform.net/cam.html. It answers the parent's offer with one camera (+ the mic when the parent
+     asked for sound) and receives nothing. The child is told by CamCall.kt (ongoing notification + log; Android shows its
+     camera dot). Not served by the LAN server or the relay. WebRTC in assets/rtc.js (shared with the call). Bridge: window.KG. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'">
+<title>KidGuard</title></head><body>
+<script src="/assets/rtc.js"></script>
+<script>
+"use strict";
+const O = JSON.parse(KG.offer() || "null");
+let c = null, over = false;
+// why "" = nothing to tell the relay (it ended it, or the parent said bye)
+function end(why, tell) {
+  if (over) return; over = true;
+  if (c) c.close();
+  if (tell) try { KG.signal("end", "", why); } catch (e) {}
+  setTimeout(() => KG.close(why), 300);   // let the DataChannel "bye" leave first
+}
+window.kgEnd = (why) => end(why || "hangup", false);   // the relay / rule off / release / the 10-minute cap
+(async () => {
+  if (!O) return end("", false);
+  const cam = { back: O.face === "back", snd: !!O.snd };
+  try {
+    c = await RTC.open({ ice: O.ice, offer: O.sdp, cam,
+      onState: (s) => { if (s === "failed") end("failed", true); },
+      onMsg: async (m) => {
+        if (m.t === "bye") end("hangup", false);
+        // the parent's "switch camera": the answer tells which one is on now
+        else if (m.t === "flip" && c) { const ok = await c.flip(!cam.back); KG.face(cam.back ? "back" : "front"); c.send({ t: "face", back: cam.back, ok }); }
+      } });
+    if (over) return c.close();
+    const r = JSON.parse(KG.signal("answer", c.sdp, "") || "{}");
+    if (r.error) end("failed", false);
+  } catch (e) {
+    const n = String(e && (e.name || e.message));
+    end(/NotAllowed|Permission|Security/i.test(n) ? "no camera permission" : "cam failed", true);
+  }
+})();
+</script>
+</body></html>

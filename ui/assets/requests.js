@@ -167,7 +167,7 @@ function moreSheet() {
     <div class="grid mo2">${(() => {
       // video call first (the main thing here); with an odd count the first button takes the whole row, restart always its own row (no half-row labels on two lines)
       const b = [viewDay ? "" : `<button type="button" id="vcGo">${ic("video")} ${t("call.go")}</button>`, !viewDay ? `<button type="button" id="ear1" class="act"></button>` : "",
-        viewDay ? "" : `<button type="button" id="snapNow">${ic("camera")} ${t("more.snap")}</button>`, `<button type="button" id="scrGo"${navOk("screen") ? "" : " disabled"}>${ic("smartphone")} ${t("more.scr")}</button>`, `<button type="button" id="wake" class="act"></button>`].filter(Boolean);
+        viewDay ? "" : `<button type="button" id="snapNow">${ic("camera")} ${t("more.snap")}</button>`, viewDay ? "" : `<button type="button" id="camNow">${ic("video")} ${t("cam.more")}</button>`, `<button type="button" id="scrGo"${navOk("screen") ? "" : " disabled"}>${ic("smartphone")} ${t("more.scr")}</button>`, `<button type="button" id="wake" class="act"></button>`].filter(Boolean);
       if (b.length % 2) b[0] = b[0].replace("<button ", '<button style="grid-column:1/-1" ');
       return b.join("") + (isBasic() ? "" : `<button type="button" id="reboot" class="bad" style="grid-column:1/-1">${ic("refresh-cw")} ${t("reboot")}</button>`);
     })()}</div>
@@ -175,6 +175,7 @@ function moreSheet() {
     (pop, done) => {
       pop.querySelector("#scrGo").onclick = () => { done(false); goTab("screen"); };
       const sn = pop.querySelector("#snapNow"); if (sn) sn.onclick = () => { done(false); snapOpen(); };
+      const cn = pop.querySelector("#camNow"); if (cn) cn.onclick = () => { done(false); snapOpen(true); };   // Live camera: the same form, titled for it
       const vg = pop.querySelector("#vcGo"); if (vg) vg.onclick = () => { done(false); vcStart(); };
       pop.querySelector("#wake").onclick = () => act("wake", () => cmd({ type: "wake" }, t("wake.done"), false));
       const e1 = pop.querySelector("#ear1"); if (e1) e1.onclick = () => earOn() ? micStop() : ringOn() ? toast("warn|" + t("act.noEar")) : earStart();
@@ -183,9 +184,9 @@ function moreSheet() {
     });
 }
 // "Take photo" from the Now sheet: the same form + flow as Seen > Photo on request (tab-seen.js). Rule watch.cam off: jump to its switch there.
-function snapOpen() {
+function snapOpen(live) {
   if (!(edit && edit.watch && edit.watch.cam)) { toast("warn|" + t("more.snapOff")); qsGo({ tab: "seen", sec: "#seenCam" }); return; }
-  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead("camera", t("seen.ch"))}${seenCamForm()}</div>`, pop => { pop.querySelector("#snapGo").onclick = snapGo; });
+  sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead(live ? "video" : "camera", t(live ? "cam.h" : "seen.ch"))}${seenCamForm()}</div>`, pop => seenCamWire(pop));
 }
 // Family chat (docs/flows/remote.md 2.15): the thread = st.chat (the phone keeps the last 100, state carries 30) + our own sends
 // the phone has not echoed yet (chatPend). The kid's unread count = kid messages newer than the last time this sheet was open.

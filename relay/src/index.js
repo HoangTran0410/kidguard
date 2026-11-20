@@ -22,6 +22,10 @@ const CALL_WHY = ["hangup", "decline", "busy", "timeout", "failed", "noperm", "n
 // "listen around" over the relay = the same call slot with kind "listen": the phone sends its mic only, nobody taps Answer,
 // the child gets the beep + notification (Listen.kt). Capped at 10 min like the LAN stream.
 const LISTEN_MAX = 10 * 60e3 + 15e3;
+// "live camera" = the same slot with kind "cam" (+ face front|back, snd): one camera (+ mic) one way, no tap, 10 min like listen.
+// A kid app older than CAM_KID would take the offer for a video call and ring: refused here (409 old).
+const CAM_KID = "0.9.71", CAM_WHY = ["off", "no camera permission", "no such camera", "screen off", "cam blocked", "cam failed"];
+const vOlder = (a, b) => { const x = String(a).split(".").map(n => parseInt(n, 10) || 0), y = String(b).split(".").map(n => parseInt(n, 10) || 0); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); return false; };
 // <img> can't send headers: only the icon GET may carry the token in ?k=
 const wsToken = req => { const m = /(?:^|,)\s*kg\.([0-9a-f]{48})\s*(?:,|$)/.exec(req.headers.get("sec-websocket-protocol") || ""); return m ? m[1] : ""; };
 const tokenOf = (req, url) => req.headers.get("x-kg-token") || (req.method === "GET" && url.pathname.endsWith("/icon") ? url.searchParams.get("k") || "" : "")
@@ -1165,7 +1169,7 @@ export class Kid {
     if (files) out.files = files;   // the phone then fetches them from /file
     if (this.deviceWant && now - this.deviceWant < 120e3) out.device = true;
     const call = await this.callNow(now);
-    if (call) out.call = { id: call.id, st: call.st, by: call.by, ...(call.kind ? { kind: call.kind } : {}), ...(call.st === "ring" ? { sdp: call.offer, ice: await this.iceServers(now) } : {}) };
+    if (call) out.call = { id: call.id, st: call.st, by: call.by, ...(call.kind ? { kind: call.kind } : {}), ...(call.kind === "cam" ? { face: call.face, snd: !!call.snd } : {}), ...(call.st === "ring" ? { sdp: call.offer, ice: await this.iceServers(now) } : {}) };
     for (const [d, at] of this.lgdWant) { if (now - at < 120e3) { out.logday = d; break; } this.lgdWant.delete(d); }   // one day per sync
     const known = state || (await this.getK("state"));   // the phone omits state when unchanged
     const have = known && known.rules ? +known.rules.rev || 0 : 0;
@@ -1177,7 +1181,7 @@ export class Kid {
   async callNow(now) {
     if (this.call === undefined) this.call = (await this.s.get("call")) || null;
     const c = this.call;
-    if (c && ((c.st === "ring" && now - c.at > CALL_RING) || (c.st === "on" && now - c.on > (c.kind === "listen" ? LISTEN_MAX : CALL_MAX)) || (c.st === "end" && now - c.endAt > CALL_KEEP))) {
+    if (c && ((c.st === "ring" && now - c.at > CALL_RING) || (c.st === "on" && now - c.on > (c.kind ? LISTEN_MAX : CALL_MAX)) || (c.st === "end" && now - c.endAt > CALL_KEEP))) {
       if (c.st === "end") { this.call = null; await this.s.delete("call"); return null; }
       return this.callSet({ ...c, st: "end", why: c.st === "ring" ? "missed" : "timeout", endAt: now });
     }
@@ -1193,7 +1197,7 @@ export class Kid {
   async callRoute(req, url, phone, who, now) {
     let c = await this.callNow(now);
     // ring: the parent's offer (the phone takes it); on: the phone's answer (the parent takes it). An old shared token is both sides.
-    const view = (c) => c && { id: c.id, st: c.st, by: c.by, at: c.at, ...(c.kind ? { kind: c.kind } : {}), ...(c.st === "ring" ? { sdp: c.offer } : c.st === "on" ? { sdp: c.answer } : {}), ...(c.why ? { why: c.why } : {}) };
+    const view = (c) => c && { id: c.id, st: c.st, by: c.by, at: c.at, ...(c.kind ? { kind: c.kind } : {}), ...(c.kind === "cam" ? { face: c.face, snd: !!c.snd } : {}), ...(c.st === "ring" ? { sdp: c.offer } : c.st === "on" ? { sdp: c.answer } : {}), ...(c.why ? { why: c.why } : {}) };
     if (req.method === "GET") {
       const q = url.searchParams, id = q.get("id");
       if (id && c && c.id === id && c.st === (q.get("st") || "")) {
@@ -1212,7 +1216,13 @@ export class Kid {
       // the phone's own token (an old shared link) starts nothing once parents have tokens or the PIN is known
       if (phone && (Object.keys(await this.parents()).length || ((await this.s.get("pv")) || {}).h)) return json({ error: "join" }, 403);
       if (c && c.st !== "end" && c.id !== id) return json({ error: "busy", by: c.by }, 409);
-      c = await this.callSet({ id, st: "ring", by: who || "", at: now, offer: sdp, ...(b.kind === "listen" ? { kind: "listen" } : {}) });
+      if (b.kind === "cam") {
+        const ks = await this.getK("state");
+        if (ks && ks.version && /^\d/.test(ks.version) && vOlder(ks.version, CAM_KID)) return json({ error: "old", need: CAM_KID }, 409);
+      }
+      const kind = b.kind === "listen" || b.kind === "cam" ? b.kind : "";
+      c = await this.callSet({ id, st: "ring", by: who || "", at: now, offer: sdp, ...(kind ? { kind } : {}),
+        ...(kind === "cam" ? { face: b.face === "back" ? "back" : "front", snd: b.snd === true } : {}) });
       this.kickPhone(now);
       if (!this.phoneWs().length) this.ctx.waitUntil(this.wakeKid(now, this.seenNow(await this.s.get("seen")), "parent").catch(() => {}));
       return json({ call: view(c) });
@@ -1224,7 +1234,7 @@ export class Kid {
     }
     if (op === "end") {
       if (c.st === "end") return json({ call: view(c) });
-      const why = CALL_WHY.includes(b.why) ? b.why : "hangup";
+      const why = CALL_WHY.includes(b.why) || CAM_WHY.includes(b.why) ? b.why : "hangup";
       c = await this.callSet({ ...c, st: "end", why, endAt: now, endBy: phone ? "kid" : "parent" });
       if (!phone) this.kickPhone(now);
       return json({ call: view(c) });

@@ -218,6 +218,7 @@ function earBar() {
 }
 async function earStart() {
   if (!cur || earRtc) return;
+  if (CAM.on() || vc) return toast("warn|" + t("cam.busyHere"));
   if (cur.via !== "lan" && !(vcOk(cur) && RTC.canListen())) return toast("warn|" + t("ear.lanOnly"));
   if (ringOn()) return toast("warn|" + t("act.noEar"));
   if (!(await onlineNow.gate("ear"))) return;
