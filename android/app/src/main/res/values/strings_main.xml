@@ -40,6 +40,10 @@
     <string name="dg_reopen_d">KidGuard lacks "display over other apps", so a bank app may not reopen by itself. Tap the app again.</string>
     <string name="log_dg_reopen">%1$s: no "display over other apps", the app may not reopen after the pause</string>
     <string name="dev_paused_toast">Turning off USB debugging to open %1$s…</string>
+    <string name="log_acc_self_off">Accessibility turned itself off for %1$s (no permission to turn it back on): waiting for the kid to turn it on</string>
+    <string name="self_on_t">Turn protection back on</string>
+    <string name="self_on_d">Tap the button, then turn on KidGuard in Accessibility.</string>
+    <string name="self_on_btn">Open Accessibility</string>
     <string name="log_acc_paused">Accessibility paused: %1$s needs it off</string>
     <string name="log_acc_resumed">Accessibility back on (app closed)</string>
     <string name="log_acc_resumed_blocked">Accessibility back on early: the child opened %1$s (blocked) while it was paused</string>
@@ -48,6 +52,7 @@
     <string name="pa_title">Open %1$s?</string>
     <string name="pa_body">Opening it turns off:</string>
     <string name="pa_acc_t">KidGuard accessibility</string>
+    <string name="pa_acc_self">Can\'t come back by itself on this phone. When done, tap the \"Turn protection back on\" notification and turn KidGuard on. Still off after 5 min: parents are told.</string>
     <string name="pa_acc_b">Comes back by itself 10 min after you leave the app.</string>
     <string name="pa_dev_t">USB debugging</string>
     <string name="pa_dev_b">Comes back by itself when you leave the app.</string>

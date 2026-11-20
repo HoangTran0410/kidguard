@@ -32,6 +32,18 @@ object AccPauseLogic {
         // later (emulator 2026-11-17: false "accoff" the second the pause ended); a clock jump still can't hide it for long
         enforcing && everPaired && !accOn && !paused && !(resumedAt > 0L && now - resumedAt in -SETTLE_MS until SETTLE_MS)
 
+    /** No WRITE_SECURE_SETTINGS: the service can only turn itself off ([AccPause.selfOff]); the kid is asked this long after leaving the bank... */
+    const val SELF_ASK_MS = 15_000L
+    /** ...and when it is still off this long after the bank left, the normal "accessibility off" alarm goes to the parent. */
+    const val SELF_DEADLINE_MS = 5 * 60_000L
+    /** [leftAt] new "left at" (0 = a listed app is in front), [ask] show "turn protection back on", [expired] stop excusing it. */
+    data class SelfStep(val leftAt: Long, val ask: Boolean, val expired: Boolean)
+    fun selfStep(current: String?, list: Set<String>, leftAt: Long, now: Long): SelfStep = when {
+        current != null && current in list -> SelfStep(0L, false, false)
+        leftAt <= 0L || leftAt > now -> SelfStep(now, false, false)
+        else -> SelfStep(leftAt, now - leftAt >= SELF_ASK_MS, now - leftAt >= SELF_DEADLINE_MS)
+    }
+
     /** Vietnamese banks / wallets (package names from their Play Store pages; parents edit the list on the page). */
     val DEFAULT: Set<String> = setOf(
         "com.VCB",                          // Vietcombank
@@ -88,9 +100,9 @@ object AccPause {
     @Synchronized fun pause(ctx: Context, pkg: String, stopSelf: Boolean = true): Boolean {
         val s = Store.of(ctx)
         if (pkg !in s.rules.accPause) return false
-        if (!able(ctx)) { DevOpts.cantPause(ctx, pkg); return false }
         // a blocked app never pauses the blocker, whatever list it is on (the list also comes from the website: BankList)
         if (BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) != null) return false
+        if (!able(ctx)) return selfOff(ctx, pkg, stopSelf)
         val had = s.accPaused
         s.accPaused = had + pkg; s.accLeftAt = 0L
         runCatching { NavGest.sync(ctx, pkg) }   // the 3-button bar comes back before the bank opens
@@ -114,6 +126,78 @@ object AccPause {
         watchStart(ctx)
         notice(ctx)
         return had.isEmpty()
+    }
+
+    // ---- no WRITE_SECURE_SETTINGS (basic mode, e.g. Xiaomi: the adb grant needs SIM + Mi account): the service can still
+    // turn ITSELF off (disableSelf needs no permission) but only the kid can turn it back on (Settings). So: off for the
+    // bank, [Store.accSelf] marks it as expected (accPaused is non-empty: state, status line and the tamper alarm all
+    // treat it as "paused for <app>"), once the bank has been left [SELF_ASK_MS] a notification offers "turn protection
+    // back on" (button = accessibility settings), and [SELF_DEADLINE_MS] after leaving, still off = the normal alarm.
+    private const val NOTIF_SELF = 7351
+    private var selfShown = ""
+
+    /** [pkg] is opening and we cannot turn back on by ourselves: turn the service off for it. True = went off just now. */
+    @Synchronized fun selfOff(ctx: Context, pkg: String, stopSelf: Boolean = true): Boolean {
+        val svc = Acc.running ?: return false   // already off: nothing to do, the bank just runs
+        val s = Store.of(ctx)
+        val had = s.accPaused
+        s.accSelf = true; s.accPaused = had + pkg; s.accLeftAt = 0L
+        runCatching { NavGest.sync(ctx, pkg) }
+        runCatching { VpnPause.pause(ctx, pkg) }
+        if (had.isEmpty()) {
+            runCatching { s.log(R.string.log_acc_self_off, label(ctx, pkg)) }
+            runCatching { Toasts.show(ctx.applicationContext, ctx.getString(R.string.acc_paused_toast), true) }
+        }
+        if (stopSelf) runCatching { svc.disableSelf() }
+        notice(ctx)
+        return had.isEmpty()
+    }
+
+    /** Guard tick while [Store.accSelf]: back on (kid turned it on) / ask / give up excusing. */
+    private fun selfTick(ctx: Context, s: Store, current: String?, now: Long) {
+        val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
+        if (Acc.isOn(ctx)) { selfClear(ctx, s, nm, resumed = true); return }
+        val st = AccPauseLogic.selfStep(current, s.rules.accPause + s.accPaused, s.accLeftAt, now)
+        if (st.leftAt != s.accLeftAt) s.accLeftAt = st.leftAt
+        if (st.expired) { selfClear(ctx, s, nm, resumed = false); return }   // the Guard alarm sees "accessibility off" right after
+        if (!st.ask) return
+        val key = s.accPaused.sorted().joinToString() + "|" + (now - st.leftAt) / 120_000L   // re-ask every 2 min
+        if (key == selfShown) return
+        selfShown = key
+        runCatching {
+            val ch = Chan.open(nm, "degraded", ctx.getString(R.string.ch_degraded), android.app.NotificationManager.IMPORTANCE_HIGH)
+            val i = android.content.Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            // some Settings apps scroll to / highlight this service
+            val me = "${ctx.packageName}/${Acc::class.java.name}"
+            i.putExtra(":settings:fragment_args_key", me).putExtra(":settings:show_fragment_args", android.os.Bundle().apply { putString(":settings:fragment_args_key", me) })
+            val pi = android.app.PendingIntent.getActivity(ctx, 8, i, android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT)
+            nm.notify(NOTIF_SELF, android.app.Notification.Builder(ctx, ch).setSmallIcon(android.R.drawable.ic_lock_idle_lock)
+                .setContentTitle(ctx.getString(R.string.self_on_t)).setContentText(ctx.getString(R.string.self_on_d))
+                .setStyle(android.app.Notification.BigTextStyle().bigText(ctx.getString(R.string.self_on_d))).setAutoCancel(true)
+                .addAction(android.app.Notification.Action.Builder(null, ctx.getString(R.string.self_on_btn), pi).build()).build())
+        }
+    }
+
+    private fun selfClear(ctx: Context, s: Store, nm: android.app.NotificationManager?, resumed: Boolean) {
+        s.accPaused = emptySet(); s.accLeftAt = 0L; s.accSelf = false; selfShown = ""
+        if (resumed) { resumedAt = System.currentTimeMillis(); runCatching { s.log(R.string.log_acc_resumed) } }
+        runCatching { nm?.cancel(NOTIF_SELF) }
+        notice(ctx)
+    }
+
+    /** No permission, service bound: bank apps opened without our launcher (see [pauseLate]): Home, off, reopen fresh. */
+    private fun selfOffLate(svc: android.accessibilityservice.AccessibilityService, pkg: String): Boolean {
+        if (BasicLogic.bounceReason(pkg, svc.packageName, Acc.blocked, Acc.prot) != null) return false
+        val ks = runCatching { PauseAsk.kinds(svc, pkg) }.getOrDefault(emptyList())
+        runCatching { svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) }
+        val fresh = selfOff(svc, pkg, stopSelf = false)
+        val dev = runCatching { DevOpts.pause(svc, pkg) }.getOrDefault(false)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ runCatching { svc.disableSelf() } }, 150)
+        if (fresh || dev) {
+            runCatching { PauseNotice.show(svc, pkg, label(svc, pkg), ks) }
+            relaunch(svc, pkg)
+        }
+        return true
     }
 
     // ---- basic mode: the service IS the app blocker, so while it is off a blocked app could run freely (open the bank,
@@ -162,7 +246,8 @@ object AccPause {
      * never turn itself back on (basic mode would stop blocking for good), and a blocked app is bounced, not restarted.
      */
     fun pauseLate(svc: android.accessibilityservice.AccessibilityService, pkg: String): Boolean {
-        if (pkg !in Store.of(svc).rules.accPause) return false
+        if (!able(svc) && !Flavor.HOME && pkg in Store.of(svc).rules.accPause) return selfOffLate(svc, pkg)   // no permission: off by ourselves
+        if (!able(svc) || pkg !in Store.of(svc).rules.accPause) return false
         if (BasicLogic.bounceReason(pkg, svc.packageName, Acc.blocked, Acc.prot) != null) return false
         if (!able(svc)) {   // no WRITE_SECURE_SETTINGS: the bank will refuse; say so (it used to be silent)
             if (!Flavor.HOME) {
@@ -228,6 +313,11 @@ object AccPause {
         val s = Store.of(ctx)
         val paused = s.accPaused
         if (paused.isEmpty()) return
+        if (s.accSelf) {
+            if (!able(ctx)) { selfTick(ctx, s, current, now); return }
+            if (Acc.isOn(ctx)) { selfClear(ctx, s, null, resumed = true); return }   // got the permission meanwhile: the normal path below
+            s.accSelf = false
+        }
         if (!able(ctx)) { resume(ctx, s, paused, kill = false); return }   // lost owner / permission: never stay off
         watchStart(ctx)   // after a process restart while paused
         val wait = if (Policy.isOwner(ctx)) AccPauseLogic.RESUME_MS else AccPauseLogic.RESUME_BASIC_MS
@@ -239,7 +329,7 @@ object AccPause {
         if (kill) ctx.getSystemService(android.app.ActivityManager::class.java)?.let { am ->
             paused.forEach { p -> runCatching { am.killBackgroundProcesses(p) } }
         }
-        s.accPaused = emptySet(); s.accLeftAt = 0L; resumedAt = System.currentTimeMillis()
+        s.accPaused = emptySet(); s.accLeftAt = 0L; s.accSelf = false; resumedAt = System.currentTimeMillis()
         watchStop()
         runCatching { s.log(R.string.log_acc_resumed) }
         notice(ctx)
@@ -250,7 +340,7 @@ object AccPause {
     @Synchronized fun endNow(ctx: Context) { val s = Store.of(ctx); val p = s.accPaused; if (p.isNotEmpty()) resume(ctx, s, p, kill = true) }
 
     /** Release: forget the pause (Acc's own release takes the service out anyway). */
-    fun clear(ctx: Context) { val s = Store.of(ctx); s.accPaused = emptySet(); s.accLeftAt = 0L }
+    fun clear(ctx: Context) { val s = Store.of(ctx); s.accPaused = emptySet(); s.accLeftAt = 0L; s.accSelf = false; runCatching { ctx.getSystemService(android.app.NotificationManager::class.java)?.cancel(NOTIF_SELF) } }
 
     // ---- status notification while paused: says WHEN it comes back (a countdown once the app is left) and offers
     // "turn on now" then. Not while the paused app is in front: turning back on closes it (lost transaction).
@@ -263,7 +353,7 @@ object AccPause {
     @Synchronized fun notice(ctx: Context) = runCatching {
         val s = Store.of(ctx)
         val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
-        val acc = s.accPaused; val dev = s.devApps
+        val acc = if (s.accSelf) emptySet() else s.accPaused; val dev = s.devApps
         val what = buildList {
             if (acc.isNotEmpty()) add(ctx.getString(R.string.pause_what_acc))
             if (dev.isNotEmpty() && s.devPaused != 0) add(ctx.getString(R.string.pause_what_dev))

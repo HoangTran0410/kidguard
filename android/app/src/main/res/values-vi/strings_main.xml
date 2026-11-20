@@ -40,6 +40,10 @@
     <string name="dg_reopen_d">KidGuard thiếu quyền \"hiện trên app khác\", nên app ngân hàng có thể không tự mở lại. Chạm app lần nữa.</string>
     <string name="log_dg_reopen">%1$s: thiếu quyền \"hiện trên app khác\", app có thể không tự mở lại sau khi tạm tắt</string>
     <string name="dev_paused_toast">Đang tắt gỡ lỗi USB để mở %1$s…</string>
+    <string name="log_acc_self_off">Trợ năng tự tắt cho %1$s (không có quyền tự bật lại): chờ con bật lại</string>
+    <string name="self_on_t">Bật lại bảo vệ</string>
+    <string name="self_on_d">Bấm nút dưới đây, rồi bật KidGuard trong Trợ năng.</string>
+    <string name="self_on_btn">Mở Trợ năng</string>
     <string name="log_acc_paused">Trợ năng tạm tắt: %1$s cần tắt Trợ năng</string>
     <string name="log_acc_resumed">Đã bật lại Trợ năng (đã rời app)</string>
     <string name="log_acc_resumed_blocked">Trợ năng bật lại sớm: con mở %1$s (đang bị chặn) lúc Trợ năng tạm tắt</string>
@@ -48,6 +52,7 @@
     <string name="pa_title">Mở %1$s?</string>
     <string name="pa_body">Mở app này sẽ tạm tắt:</string>
     <string name="pa_acc_t">Trợ năng KidGuard</string>
+    <string name="pa_acc_self">Không tự bật lại được trên máy này. Xong app, bấm thông báo \"Bật lại bảo vệ\" rồi bật KidGuard. Sau 5 phút chưa bật, bố mẹ nhận báo.</string>
     <string name="pa_acc_b">Tự bật lại 10 phút sau khi rời app.</string>
     <string name="pa_dev_t">Gỡ lỗi USB</string>
     <string name="pa_dev_b">Tự bật lại khi rời app.</string>

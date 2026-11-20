@@ -18,7 +18,7 @@ internal object PauseAsk {
         val caps = runCatching { FeatureCaps.of(ctx) }.getOrDefault(Caps())
         return kinds.map { k ->
             val (t, back) = when (k) {
-                Kind.ACC -> R.string.pa_acc_t to R.string.pa_acc_b
+                Kind.ACC -> R.string.pa_acc_t to (if (runCatching { AccPause.able(ctx) }.getOrDefault(true)) R.string.pa_acc_b else R.string.pa_acc_self)
                 Kind.DEV -> R.string.pa_dev_t to R.string.pa_dev_b
                 Kind.TCP -> R.string.pa_tcp_t to R.string.pa_tcp_b
                 Kind.VPN -> R.string.pa_vpn_t to R.string.pa_vpn_b
@@ -44,7 +44,7 @@ internal object PauseAsk {
         if (pkg !in r.accPause && pkg !in r.devPause && pkg !in r.tcpPause && pkg !in r.vpnPause) return emptyList()
         if (runCatching { BasicLogic.bounceReason(pkg, ctx.packageName, Acc.blocked, Acc.prot) }.getOrNull() != null) return emptyList()
         val out = ArrayList<Kind>()
-        runCatching { if (pkg in r.accPause && AccPause.able(ctx) && s.accPaused.isEmpty() && Acc.isOn(ctx)) out += Kind.ACC }
+        runCatching { if (pkg in r.accPause && s.accPaused.isEmpty() && Acc.isOn(ctx)) out += Kind.ACC }   // no permission: it turns itself off (AccPause.selfOff)
         val canDev = runCatching { DevOpts.canOff(ctx) }.getOrDefault(false)
         runCatching { if (canDev && pkg in r.devPause && DevOpts.debugNow(ctx)) out += Kind.DEV }
         runCatching { if (canDev && pkg in r.tcpPause && DevOpts.tcpNow(ctx)) out += Kind.TCP }
