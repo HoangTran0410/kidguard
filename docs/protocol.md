@@ -828,8 +828,10 @@ secure page (the parent app's `127.0.0.1`, or the relay's https page). Listen on
 - Worker secret `FCM_SA` = the Firebase service-account JSON (`project_id`, `client_email`, `private_key`, `token_uri`).
   Not set = push off; everything else works. `FCM_URL` (var, tests only) overrides `https://fcm.googleapis.com`.
 - `POST /c/<id>/push` (kid token header) `{"fcm": "<FCM registration token>"}` registers, `{"fcm": "...", "off": true}`
-  removes -> `{"ok": true, "enabled": <FCM_SA set>, "devices": n}`. Max 5 tokens per kid (oldest dropped); token
-  `^[\w:.-]{20,400}$` else 400.
+  removes -> `{"ok": true, "enabled": <FCM_SA set>, "devices": n}` (n = this parent token's devices). Each FCM token
+  belongs to the parent token that sent it (DO `pushBy`, 2026-11-20): max 3 per parent, 20 per kid (oldest dropped);
+  revoking that parent (`parents {revoke}`, `rekey`/`mint` drop) removes its FCM tokens from `push` + `pushNf` and closes
+  its `scr` sockets. Tokens from before (no owner) stay until FCM says they are dead. Token `^[\w:.-]{20,400}$` else 400.
 - On every `sync` with a state: each `sos` younger than 6 h and each `requests` entry younger than 1 h whose event id
   (`s:<id>` / `r:<id>`) is not in the last 50 pushed is sent once to every token, as an FCM HTTP v1 **data-only**
   message, `android.priority: HIGH`, ttl 6 h: `{"kind": "sos"|"req", "kid": "<relay id>", "eid": "s:a1b2c3", "t": "<ms>", "min": "30"|""}`.

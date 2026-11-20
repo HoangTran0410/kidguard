@@ -704,7 +704,13 @@ ck("parents: a made-up invite 403",(await Q("join",null,{inv:hx(16),name:"Kid"})
 ck("parents: invited browser opens (unlocked 12 h)",(await Q("state",M)).status==200);
 r=await Q("parents",M);j=await r.json();ck("parents: list has both, me marked, pinKnown",j.parents.length==2&&j.parents.find(p=>p.me).name=="Mẹ"&&j.pinKnown===true);
 const C=(await (await Q("join",null,{inv:(await (await Q("invite",A,{})).json()).inv,name:"Cô",kind:"app"})).json()).token,cid=(await (await Q("parents",A)).json()).parents.find(p=>p.name=="Cô").id;
+// audit 2026-11-20 LOW: push tokens belong to the parent that registered them; MAX_PUSH (3) per parent
+for(let i=0;i<4;i++)j=await (await Q("push",A,{fcm:"atok"+i+"_"+"a".repeat(30)})).json();ck("push: at most 3 devices per parent",j.devices==3);
+j=await (await Q("push",C,{fcm:"ctok_"+"c".repeat(30),nf:true})).json();ck("push: another parent has its own count",j.devices==1);
 ck("parents: revoke one",(await Q("parents",A,{revoke:cid})).status==200&&(await Q("state",C)).status==401);
+if(process.env.MOCK){const t0=Date.now();await Q("sync",Tq,{state:{t:3,sos:[{id:"rv1",t:t0}]}});await sleep(800);
+const sent=(await (await fetch(`http://127.0.0.1:${process.env.MOCK}/_sent`)).json()).filter(m=>m.data.kid==idq&&m.data.eid=="s:rv1");
+ck("push: a removed parent's phone gets nothing, the others do",sent.length==3&&!sent.some(m=>m.token.startsWith("ctok"))&&!sent.some(m=>m.token.startsWith("atok0")));}
 ck("parents: rename self",(await (await Q("parents",M,{name:"Mẹ Na"})).json()).parents.some(p=>p.me&&p.name=="Mẹ Na"));
 r=await Q("unlock",M,{pin:"0000"});ck("parents: browser unlock with a wrong PIN 403",r.status==403);
 r=await Q("unlock",M,{pin:"2468"});j=await r.json();ck("parents: browser unlock with the PIN -> until +12 h",r.status==200&&j.until-Date.now()>11*3600e3);

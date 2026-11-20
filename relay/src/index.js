@@ -642,7 +642,7 @@ export class Kid {
       if ((req.headers.get("upgrade") || "").toLowerCase() !== "websocket") return json({ error: "websocket only" }, 426);
       const [client, server] = Object.values(new WebSocketPair());
       this.ctx.acceptWebSocket(server, ["parent"]);
-      server.serializeAttachment({ par: 1, at: now });
+      server.serializeAttachment({ par: 1, at: now, h });   // h: closed when this parent is removed (dropParent)
       this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
       this.phoneSay({ t: "live", live: true });   // a phone already streaming keeps going (isLive counts this socket)
       this.kickPhone(now);                        // else its sync reply says live -> it starts
@@ -842,18 +842,27 @@ export class Kid {
 
   // parent app: {fcm: token} registers, {fcm, off: true} removes; nf: true / false = also wants / no longer wants the
   // kid-notification nudge (FCM kind "nf", own list `pushNf`); nf absent (older app) leaves that list alone
+  // Each FCM token belongs to the parent token that registered it (`pushBy` {fcm: sha256 of that token}, 2026-11-20):
+  // removing that parent drops its devices; MAX_PUSH per parent, MAX_PUSH_ALL per kid (one FCM call each per alert).
   async rPush({ req, url, body, now, role, who, token, id }) {
     const t = typeof body.fcm === "string" ? body.fcm : "";
     if (!FCM_TOKEN.test(t)) return json({ error: "bad token" }, 400);
-    const list = ((await this.s.get("push")) || []).filter(x => x !== t);
-    if (!body.off) { list.push(t); while (list.length > MAX_PUSH) list.shift(); }
-    await this.s.put("push", list);
-    if (body.off || typeof body.nf === "boolean") {
-      const nf = ((await this.s.get("pushNf")) || []).filter(x => x !== t && list.includes(x));
-      if (!body.off && body.nf) nf.push(t);
-      await this.s.put("pushNf", nf);
+    const me = await sha256(token);
+    const [l0, b0, n0] = await Promise.all(["push", "pushBy", "pushNf"].map(k => this.s.get(k)));
+    const by = isObj(b0) ? b0 : {};
+    const list = (l0 || []).filter(x => x !== t);
+    delete by[t];
+    if (!body.off) {
+      const mine = list.filter(x => by[x] === me);
+      while (mine.length >= MAX_PUSH) { const o = mine.shift(); list.splice(list.indexOf(o), 1); delete by[o]; }
+      list.push(t); by[t] = me;
+      while (list.length > MAX_PUSH_ALL) delete by[list.shift()];
     }
-    return json({ ok: true, enabled: !!this.env.FCM_SA, devices: list.length });
+    for (const x of Object.keys(by)) if (!list.includes(x)) delete by[x];   // dead tokens pruned by a send
+    let nf = (n0 || []).filter(x => list.includes(x));
+    if (body.off || typeof body.nf === "boolean") { nf = nf.filter(x => x !== t); if (!body.off && body.nf) nf.push(t); }
+    await this.s.put({ push: list, pushBy: by, pushNf: nf });
+    return json({ ok: true, enabled: !!this.env.FCM_SA, devices: list.filter(x => by[x] === me).length });
   }
 
   // Telegram alerts: GET status; POST {name, lang} -> one-time link; POST {off: true} unlinks
@@ -1017,7 +1026,7 @@ export class Kid {
       if (typeof b.revoke === "string") {
         const k = Object.keys(par).find(x => x.slice(0, 12) === b.revoke);
         if (!k) return json({ error: "no such parent" }, 404);
-        delete par[k];
+        await this.dropParent(k);
       } else if (typeof b.rename === "string") {   // a watch can't name itself: any parent renames it (people rename themselves)
         const k = Object.keys(par).find(x => x.slice(0, 12) === b.rename);
         if (!k) return json({ error: "no such parent" }, 404);
@@ -1035,6 +1044,17 @@ export class Kid {
   async dropParent(k) {
     const par = await this.parents();
     delete par[k];
+    // its phones stop getting pushes (incl. the nf nudge) and its open screen view closes (audit 2026-11-20 LOW)
+    const [l0, b0, n0] = await Promise.all(["push", "pushBy", "pushNf"].map(x => this.s.get(x)));
+    const by = isObj(b0) ? b0 : {}, gone = new Set(Object.keys(by).filter(t => by[t] === k));
+    if (gone.size) {
+      for (const t of gone) delete by[t];
+      await this.s.put({ push: (l0 || []).filter(t => !gone.has(t)), pushNf: (n0 || []).filter(t => !gone.has(t)), pushBy: by });
+    }
+    for (const w of this.ctx.getWebSockets("parent")) {
+      let a = null; try { a = w.deserializeAttachment(); } catch {}
+      if (a && a.h === k) try { w.close(1000, "removed"); } catch {}
+    }
   }
   /** POST mint {name, kind, drop?} (kid token): a parent token for a LAN page that asked the phone (`relay {mint:true}`).
    * It is LOCKED (`lk`, 423) until a family PIN unlock: the kid token alone never becomes a parent. `drop` = the id this
@@ -1660,7 +1680,7 @@ export function mergeState(old, part) {
 }
 
 // ---- FCM HTTP v1 (optional; secret FCM_SA = the Firebase service-account JSON) ----
-const FCM_TOKEN = /^[\w:.-]{20,400}$/, MAX_PUSH = 5, NF_GAP = 15e3;   // NF_GAP: least time between two kid-notification nudges
+const FCM_TOKEN = /^[\w:.-]{20,400}$/, MAX_PUSH = 3, MAX_PUSH_ALL = 20, NF_GAP = 15e3;   // NF_GAP: least time between two kid-notification nudges
 let fcmAuth = null;   // {key, at, exp} per isolate
 const b64u = (b) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const b64uStr = (s) => b64u(new TextEncoder().encode(s));
