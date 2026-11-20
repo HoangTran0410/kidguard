@@ -346,7 +346,7 @@ const sh = async (cmd) => {
 // adb shell often exits 0 on failure, so look at the text
 const BAD = /Error|Exception|denied|Failure/i;
 // ColorOS blocks adb from granting permissions until "Disable permission monitoring" is on
-const PERM_MON = /UPDATE_APP_OPS_STATS|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS/;
+const PERM_MON = /UPDATE_APP_OPS_STATS|MANAGE_APP_OPS_MODES|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS/;
 const must = async (cmd) => { const out = await sh(cmd); if (BAD.test(out)) { const e = new Error(out.trim()); e.perm = PERM_MON.test(out); throw e; } return out; };
 // The parent sees a short sentence; the raw adb text stays in the details (log).
 function friendly(e) {

@@ -125,7 +125,7 @@ function Chk {
     if ($o -match "Error|Exception|denied|Failure") {
         Write-Host "LỖI: $o"
         # ColorOS blocks adb from granting permissions until "Disable permission monitoring" is on
-        if ($o -match "UPDATE_APP_OPS_STATS|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS") { Write-Host '→ Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật "Tắt giám sát quyền" (Disable permission monitoring), rồi chạy lại.' }
+        if ($o -match "UPDATE_APP_OPS_STATS|MANAGE_APP_OPS_MODES|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS") { Write-Host '→ Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật "Tắt giám sát quyền" (Disable permission monitoring), rồi chạy lại.' }
         Fail
     }
 }

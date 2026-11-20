@@ -240,6 +240,12 @@ object SelfSetup {
         else -> SelfSetupLogic.firstLine(out).ifBlank { app.getString(R.string.ss_cmd_fail) }
     }
     @Volatile var running = false
+    /** ColorOS: the run waits for "Disable permission monitoring" ([PermMon]); [permMonOk] = the adb probe passed. */
+    @Volatile var permMonWait = false
+    @Volatile var permMonOk = false
+    private val wake = Object()
+    /** SelfSetupActivity came back (maybe from Developer options): probe again now instead of in up to 3 s. */
+    fun recheck() { synchronized(wake) { wake.notifyAll() } }
     @Volatile var done = false
     @Volatile var turnOffWifi = true
     @Volatile var wifiOff: Boolean? = null  // result of the optional last step
@@ -266,7 +272,7 @@ object SelfSetup {
     /** Starts the job on a background thread: pair with [code], connect, run every step. Port 0 = use the discovered one. */
     fun start(ctx: Context, code: String, pairPort: Int = 0, connPort: Int = 0, pairOnly: Boolean = false) {
         val app = ctx.applicationContext
-        synchronized(this) { if (running || resuming) return; running = true; done = false; message = ""; wifiOff = null; basic = wantBasic; state.fill(STEP_TODO) }
+        synchronized(this) { if (running || resuming) return; running = true; done = false; message = ""; wifiOff = null; permMonWait = false; basic = wantBasic; state.fill(STEP_TODO) }
         if (wantBasic) basicWhy = app.getString(R.string.ss_basic_chosen)
         startDiscovery(app)
         Thread({ runCatching { job(app, code.trim(), pairPort, connPort, pairOnly) }.onFailure { Log.w(AdbPortFinder.TAG, "job", it); fail(app, it.message ?: it.toString()) }; this.pairOnly = false; wantBasic = false; running = false }, "selfsetup").start()
@@ -276,6 +282,7 @@ object SelfSetup {
 
     private fun fail(app: Context, msg: String) {
         Log.w(AdbPortFinder.TAG, "failed: $msg")
+        permMonWait = false
         val i = state.indexOf(STEP_RUN); if (i >= 0) state[i] = STEP_ERR
         message = msg; notifyFinal(app, app.getString(R.string.ss_failed, msg))
         SelfAdb.drop()   // a half-open link would make the next run's connect() fail with no reason
@@ -335,6 +342,31 @@ object SelfSetup {
                 if (keepGoing) { if (message !in soft) soft += message; return false }
                 notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return false }   // every failed step lets the adb link go
             state[i] = STEP_OK; return true
+        }
+
+        // ColorOS: "Disable permission monitoring" off = every grant below fails (owner 2026-11-20, new Oppo: stopped at usage
+        // access). Probe with the usage-access grant itself (step 3 does it again); blocked -> open the page and wait here
+        // with the link up (no re-pairing) until it passes: polled every 3 s, at once when SelfSetupActivity comes back.
+        val colorOs = runCatching { sh("getprop ro.build.version.opporom; getprop ro.build.version.oplusrom") }.getOrDefault("").isNotBlank() || PermMon.colorOs()
+        if (colorOs) {
+            var probe = PermMonLogic.probe(sh("appops set $PKG GET_USAGE_STATS allow"))
+            Log.i(AdbPortFinder.TAG, "permission monitoring probe -> $probe (hint ${PermMon.hintOn()})")
+            if (probe == PermMonLogic.Probe.BLOCKED) {
+                permMonWait = true; message = app.getString(R.string.ssa_pm_wait); notifyProgress(app, message)
+                android.os.Handler(android.os.Looper.getMainLooper()).post { runCatching { PermMon.open(app) } }
+                val end = System.currentTimeMillis() + 10 * 60_000L
+                while (probe == PermMonLogic.Probe.BLOCKED && System.currentTimeMillis() < end) {
+                    synchronized(wake) { wake.wait(3000) }
+                    probe = PermMonLogic.probe(sh("appops set $PKG GET_USAGE_STATS allow"))
+                }
+                permMonWait = false
+                if (probe == PermMonLogic.Probe.BLOCKED) {
+                    message = app.getString(R.string.ss_perm_mon)
+                    notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return
+                }
+                message = ""
+            }
+            if (probe == PermMonLogic.Probe.OK) permMonOk = true
         }
 
         // 2) accounts: app accounts (Zalo, Facebook...) are kept: their apps are turned off, the phone restarts once (Android
@@ -399,8 +431,7 @@ object SelfSetup {
             message = soft.joinToString("\n"); stopDiscovery()
             notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; Guard.start(app); return
         }
-        // ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off): lock-card hint (read while the link is up)
-        val colorOs = runCatching { sh("getprop ro.build.version.opporom; getprop ro.build.version.oplusrom") }.getOrDefault("").isNotBlank()
+        // ColorOS: a Recents swipe is a real force-stop (alarms gone, Accessibility turned off): lock-card hint ([colorOs] read above)
         // optional: Wireless debugging off. The link drops with it, so no reading afterwards.
         if (turnOffWifi) { runCatching { sh("settings put global adb_wifi_enabled 0") }; wifiOff = true }
         runCatching { m.disconnect() }; SelfAdb.invalidate()

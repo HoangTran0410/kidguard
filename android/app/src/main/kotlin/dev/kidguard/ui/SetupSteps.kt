@@ -116,6 +116,14 @@ class SetupSteps(private val act: Activity, private val ui: Ui) {
         // restricted settings FIRST: an APK installed from a file gets neither device admin nor accessibility until it is
         // allowed (2026-11-19, Xiaomi: the admin step was refused, "App was denied access", and this step came after it)
         if (Build.VERSION.SDK_INT >= 33) out += Step(s(R.string.acc_restricted), s(R.string.acc_restricted_d), !Acc.restricted(c)) { SelfGate.run(act, ui) { runCatching { c.startActivity(Acc.appInfo(c)) } } }
+        // ColorOS, Android 11+: the Wi-Fi setup's adb grants fail until "Disable permission monitoring" is on (owner 2026-11-20,
+        // new Oppo). Not readable: done once the run's probe passed, the child says so, or what it grants is there anyway.
+        if (!owner && !Flavor.HOME && Build.VERSION.SDK_INT >= 30 && colorOs) {
+            val pm = SelfSetup.permMonOk || prefs().getBoolean("permMon", false) || (Usage.granted(c) && Acc.isOn(c))
+            out += Step(c.getString(R.string.oem_op_perm), c.getString(R.string.oem_op_perm_d), pm, { prefs().edit().putBoolean("permMon", true).apply() }) {
+                SelfGate.run(act, ui) { PermMon.open(act) }   // Developer options, scrolled to the row and outlined when Acc runs
+            }
+        }
         if (!owner) out += Step(s(R.string.basic_admin), s(R.string.basic_admin_d), Basic.adminActive(c)) {
             Intents.startFirst(c, *Intents.forCap(c, "admin").toTypedArray())
         }

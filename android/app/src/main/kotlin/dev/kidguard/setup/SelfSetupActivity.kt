@@ -60,14 +60,14 @@ class SelfSetupActivity : Activity() {
         col.addView(body(getString(if (pairMode) R.string.ssa_pair_intro else if (basicMode) R.string.ssa_basic_intro else R.string.ssa_intro)))
 
         /** One numbered step card: badge + title, explanation, its button. */
-        fun step(n: Int, title: Int, desc: Int, btn: Int, icon: Int, f: () -> Unit) = u.cardBox().apply {
+        fun step(kind: Int, n: Int, title: Int, desc: Int, btn: Int, icon: Int, f: () -> Unit) = u.cardBox().apply {
             val badge = TextView(context).apply {
                 text = "$n"; gravity = Gravity.CENTER; textSize = 15f; setTypeface(typeface, Typeface.BOLD)
                 setTextColor(u.accent); background = u.shape(u.tint, 999)
             }
             val note = u.label("", 14f, u.sub, true).apply { setPadding(0, dp(8), 0, 0); visibility = View.GONE }
             val button = u.button(getString(btn), icon, false, f)
-            marks.add(StepMark(n, badge, note, button))
+            marks.add(StepMark(kind, n, badge, note, button))
             addView(LinearLayout(this@SelfSetupActivity).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
                 addView(badge, LinearLayout.LayoutParams(dp(30), dp(30)))
@@ -78,14 +78,16 @@ class SelfSetupActivity : Activity() {
             addView(note)
             addView(button)
         }
-        col.addView(step(1, R.string.ssa_s1, R.string.ssa_s1_d, R.string.ssa_s1_btn, R.drawable.li_smartphone) { open(Settings.ACTION_DEVICE_INFO_SETTINGS) })
-        // owner 2026-11-18: a separate "turn on Wireless debugging" step was redundant, step 2's button opens the same page
-        val s3 = step(2, R.string.ssa_s3, R.string.ssa_s3_d, R.string.ssa_s3_btn, R.drawable.li_bell) { askNotification() }
+        col.addView(step(K_DEV, 1, R.string.ssa_s1, R.string.ssa_s1_d, R.string.ssa_s1_btn, R.drawable.li_smartphone) { open(Settings.ACTION_DEVICE_INFO_SETTINGS) })
+        // ColorOS (Oppo / Realme / OnePlus): appops / pm grant fail until "Disable permission monitoring" is on (2026-11-20 owner,
+        // new Oppo): its own step before pairing; the run also checks it over adb and waits here if it is still off
+        colorOs = !pairMode && PermMon.colorOs()   // pair-only runs grant nothing
+        if (colorOs) col.addView(step(K_PERM, 2, R.string.ssa_pm, R.string.ssa_pm_d, R.string.ssa_pm_btn, R.drawable.li_shield) { PermMon.open(this) })
+        // owner 2026-11-18: a separate "turn on Wireless debugging" step was redundant, the pairing step's button opens the same page
+        val s3 = step(K_PAIR, if (colorOs) 3 else 2, R.string.ssa_s3, R.string.ssa_s3_d, R.string.ssa_s3_btn, R.drawable.li_bell) { askNotification() }
         // Xiaomi / Redmi / POCO: adb may not grant anything until "USB debugging (Security settings)" is on (2026-11-19 owner:
         // dpm set-active-admin -> "Calling identity is not authorized"); say it before the run, not after it fails
         if (NavGestLogic.xiaomi(android.os.Build.MANUFACTURER)) s3.addView(body(getString(R.string.ssa_xiaomi), u.text))
-        // ColorOS (Oppo / Realme / OnePlus): appops / pm grant fail until "Disable permission monitoring" is on (2026-11-20 owner, new Oppo): say it before the run
-        if (android.os.Build.MANUFACTURER.lowercase().let { it == "oppo" || it == "realme" || it == "oneplus" }) s3.addView(body(getString(R.string.ss_perm_mon), u.text))
         portInfo = body("").apply { textSize = 13f }
         s3.addView(portInfo)
         s3.addView(u.label(getString(R.string.ssa_or_here), 14f, u.text, true).apply { setPadding(0, dp(16), 0, 0) })
@@ -133,7 +135,7 @@ class SelfSetupActivity : Activity() {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
     }
 
-    override fun onResume() { super.onResume(); if (Build.VERSION.SDK_INT >= 30) { SelfSetup.startDiscovery(this); tick() } }
+    override fun onResume() { super.onResume(); if (Build.VERSION.SDK_INT >= 30) { SelfSetup.startDiscovery(this); SelfSetup.recheck(); tick() } }
     override fun onPause() { super.onPause(); ui.removeCallbacksAndMessages(null) }
 
     override fun onDestroy() {
@@ -172,15 +174,17 @@ class SelfSetupActivity : Activity() {
 
     private var pairMode = false
     private var basicMode = false
+    private var colorOs = false
 
     companion object {
         /** true: only pair KidGuard's own adb (FeaturesSheet "adb trên máy"), none of the Device Owner steps. */
         const val EXTRA_PAIR = "pair"
         /** Basic mode chosen on the first-run screen: keep every account, skip Device Owner. */
         const val EXTRA_BASIC = "basic"
+        private const val K_DEV = 0; private const val K_PERM = 1; private const val K_PAIR = 2
     }
 
-    private class StepMark(val n: Int, val badge: TextView, val note: TextView, val button: View)
+    private class StepMark(val kind: Int, val n: Int, val badge: TextView, val note: TextView, val button: View)
     private val marks = ArrayList<StepMark>()
 
     /**
@@ -191,8 +195,15 @@ class SelfSetupActivity : Activity() {
         val g = { k: String -> runCatching { Settings.Global.getInt(contentResolver, k, 0) == 1 }.getOrDefault(false) }
         val wifi = SelfAdb.onWifi(this)   // all networks: with a VPN (Tailscale) the active one is not Wi-Fi
         for (m in marks) {
-            val (done, note) = when (m.n) {
-                1 -> g(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED).let { it to if (it) getString(R.string.ssa_s1_ok) else null }
+            val (done, note) = when (m.kind) {
+                K_DEV -> g(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED).let { it to if (it) getString(R.string.ssa_s1_ok) else null }
+                // done only once the adb probe passed; the system prop is a hint (meaning unverified), the run waits here if it is off
+                K_PERM -> when {
+                    SelfSetup.permMonWait -> false to getString(R.string.ssa_pm_wait)
+                    SelfSetup.permMonOk -> true to getString(R.string.ssa_pm_ok)
+                    PermMon.hintOn() == false -> false to getString(R.string.ssa_pm_maybe)
+                    else -> false to null
+                }
                 // not paired yet: say what blocks it (no Wi-Fi), or that Wireless debugging is on already
                 else -> SelfAdb.hasKey(this).let { k -> k to when { k -> getString(R.string.ssa_s3_ok); !wifi -> getString(R.string.ssa_need_wifi)
                     g("adb_wifi_enabled") -> getString(R.string.ssa_s2_ok); else -> null } }
@@ -201,8 +212,8 @@ class SelfSetupActivity : Activity() {
             m.badge.setTextColor(if (done) u.bg else u.accent)
             m.badge.background = u.shape(if (done) u.tone(Ic.OK) else u.tint, 999)
             m.note.visibility = if (note != null) View.VISIBLE else View.GONE
-            m.note.text = note ?: ""; m.note.setTextColor(if (done) u.tone(Ic.OK) else if (note == getString(R.string.ssa_s2_ok)) u.sub else u.danger)
-            if (m.n != 2) m.button.visibility = if (done) View.GONE else View.VISIBLE   // step 2 (pairing) button re-pairs: keep it
+            m.note.text = note ?: ""; m.note.setTextColor(if (done) u.tone(Ic.OK) else if (note == getString(R.string.ssa_s2_ok) || note == getString(R.string.ssa_pm_maybe)) u.sub else u.danger)
+            if (m.kind != K_PAIR) m.button.visibility = if (done) View.GONE else View.VISIBLE   // step 2 (pairing) button re-pairs: keep it
         }
     }
 

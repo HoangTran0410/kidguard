@@ -56,6 +56,7 @@ class Acc : AccessibilityService() {
         if (e == null) return
         SuspendHint.onEvent(this, e)
         RefuseHint.onEvent(this, e)
+        PermMon.onEvent(this, e)   // setup: outline "Disable permission monitoring" in Developer options (ColorOS)
         if (LauncherSafe.shadeBlocked && (e.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED || e.packageName?.toString() in SHADE_PKGS)) {
             main.removeCallbacks(shadeCheck); main.post(shadeCheck)
         }
