@@ -381,14 +381,19 @@ function relayGate(cred, b, what, o) {
 // so ask the relay who we are; no row with me:true = we hold the shared token -> offer the join screen (dismissed: asked again next load).
 async function relayMigrate(k) {
   const cred = k.via === "relay" ? k : k.relay;
-  if (!cred || cred.migTry || LOCAL || cred.own) return;
+  if (!cred || cred.migTry || LOCAL) return;
+  if (cred.own && k.via === "relay") return;
   cred.migTry = 1;
   const b = k.via === "relay" ? base(k) : (APP ? "/k/" + b64u(cred.url) : cred.url) + "/c/" + encodeURIComponent(cred.id);
   try {
     const r = await fetch(b + "/parents", { headers: { "X-KG-Token": cred.token, "X-KG-Name": KG_NAME }, signal: quick(10000) });
     if (!r.ok) return;   // 401 / 404 / older relay: nothing to do (403 join and 423 are handled by the normal calls)
     const j = await r.json().catch(() => null);
-    if (!j || !Array.isArray(j.parents) || j.parents.some(p => p.me)) return;
+    if (!j || !Array.isArray(j.parents)) return;
+    const me = j.parents.find(p => p.me);
+    // a relay token the phone minted for this LAN page: opens once with the family PIN (then like a joined one)
+    if (me) { if (me.lk && await relayGate(cred, b, "unlock", {})) { lastSig = ""; if (k === cur) refresh(); } return; }
+    if (cred.own) return;
     if (await relayGate(cred, b, "join", { pinOptional: j.pinKnown === false })) { lastSig = ""; if (k === cur) refresh(); }
   } catch {}
 }
@@ -471,9 +476,19 @@ function learnAddrs(k, s) {
   // credentials sent push + the relay fallback to a dead id (owner 2026-11-16: alerts ~20 min late)
   if (url && !k.relayTry) {
     k.relayTry = 1;   // the same url again: the phone keeps its relay id/token and just returns them (not logged)
-    call1(k, "/cmd", "POST", { type: "relay", url }).then(r => {
-      if (r && /^[0-9a-f]+$/.test(r.id || "") && /^[0-9a-f]{48}$/.test(r.token || "")) {
-        const nr = { url: new URL(url).origin, id: r.id, token: r.token }, o = k.relay || {};
+    call1(k, "/cmd", "POST", { type: "relay", url }).then(async r => {
+      if (!r || !/^[0-9a-f]+$/.test(r.id || "")) return;
+      const org = new URL(url).origin, o = k.relay || {};
+      // a newer phone (`mint`) never hands out its own relay token (audit 2026-11-20): it asks the relay for a parent token of
+      // ours, locked until the family PIN opens it once (relayMigrate). Only when we have none for this relay id yet.
+      if (r.mint) {
+        if (o.own && o.url === org && o.id === r.id) return;
+        const m = await call1(k, "/cmd", "POST", { type: "relay", url, mint: true, kind: APP ? "app" : "web" }).catch(() => null);
+        if (m && m.own && /^[0-9a-f]{48}$/.test(m.token || "")) { k.relay = { url: org, id: r.id, token: m.token, own: 1 }; save(kids); if (k === cur) relayMigrate(k); }
+        return;
+      }
+      if (/^[0-9a-f]{48}$/.test(r.token || "")) {   // an older phone: its shared token (joined with the PIN on first use)
+        const nr = { url: org, id: r.id, token: r.token };
         if (o.url !== nr.url || o.id !== nr.id || (o.token !== nr.token && !o.own)) { k.relay = nr; save(kids); }   // an own parent token is kept: the phone only knows the shared one
       }
     }).catch(() => {});

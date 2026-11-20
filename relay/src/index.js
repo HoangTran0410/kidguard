@@ -118,7 +118,7 @@ async function route(req, env) {
   if (th) return tgHook(req, env, th[1]);
   if (url.pathname === "/w/new" || /^\/w\/\d{6}$/.test(url.pathname)) return watchRoute(req, env, url);
   if (/^\/p\/(new|inv|\d{6}|[0-9a-f]{16})(\/(join|reply|result))?$/.test(url.pathname)) return pairRoute(req, env, url);
-  const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile|join|unlock|invite|parents|call|scr)$/);
+  const m = url.pathname.match(/^\/c\/([0-9a-f]{16})\/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|logday|file|tg|where|ws|forget|watch|tile|join|unlock|invite|parents|call|scr|mint|rekey)$/);
   if (!m) return json({ error: "not found" }, 404);
   if (env.RL) {
     const { success } = await env.RL.limit({ key: req.headers.get("cf-connecting-ip") || "?" });
@@ -362,7 +362,13 @@ export function netKey(ip) {
 const MAX_PARENTS = 12, INV_TTL = 10 * 60e3, MAX_INVS = 5, UNLOCK_MS = 12 * 3600e3, PIN_TRIES = 5, PIN_LOCK = 15 * 60e3, PAR_KINDS = ["app", "web", "watch"];
 // the shared (phone) token once a parent has a token of its own: the phone's routes only
 const phoneRoute = (action, m) => action === "sync" || action === "ws" || action === "file" || action === "forget" || action === "join" || action === "call"
+  || ((action === "mint" || action === "rekey") && m === "POST")
   || (action === "icons" && m === "POST") || (action === "frame" && m === "POST") || ((action === "device" || action === "logday") && m === "PUT");
+/** A parent row that must open with the family PIN first: a browser past its 12 h, or a token the phone minted (lk). */
+const parLocked = (p, now) => !!p.lk || (p.k === "web" && !(p.ul > now));
+const KM_PENDING = 3;
+// secAlert texts (English: older pages show `text`; newer ones translate `rk`, i18n "rev.<rk>")
+const REV_TEXT = { pvRefused: "Relay: a PIN change without the old PIN was refused", pvNew: "Relay: the phone set a family PIN" };   // phone-minted tokens still waiting for their PIN: the oldest goes (a looping phone never fills MAX_PARENTS)
 const cleanName = v => String(v || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 24);
 const hexRand = n => [...crypto.getRandomValues(new Uint8Array(n))].map(x => x.toString(16).padStart(2, "0")).join("");
 const HEXC = new TextEncoder().encode("0123456789abcdef");
@@ -517,8 +523,9 @@ export class Kid {
         // watch list so two watches of one parent can be told apart
         const dv = me.k === "watch" ? (req.headers.get("x-kg-name") || "").replace(/[\u0000-\u001f]/g, "").slice(0, 40) : "";
         if (now0 - (me.seen || 0) > PAR_SEEN_EVERY || (dv && me.d !== dv)) { me.seen = now0; if (dv) me.d = dv; await this.s.put("par", par); }
-        if (me.k === "web" && !(me.ul > now0) && action !== "unlock" && action !== "parents")
-          return json({ error: "locked", name: me.n }, 423);   // a browser opens with the family PIN (12 h)
+        // a browser opens with the family PIN (12 h); a token the phone minted for a LAN page (`lk`) opens once with it
+        if (parLocked(me, now0) && action !== "unlock" && action !== "parents")
+          return json({ error: "locked", name: me.n }, 423);
       } else {
         const ai = await this.s.get("aiHash");
         if (!ai || h !== ai) return json({ error: "not paired" }, 401);
@@ -541,6 +548,15 @@ export class Kid {
       await this.s.put("gone", { at: Date.now(), p: gp });
       this.seen = 0; this.stateAt = 0; this.stateMem = null; this.stateCore = null; this.stateDirty = false; this.ikSeen = null; this.kfcm = undefined; this.call = undefined; this.wk = null; this.par = null; this.vk = null;
       return json({ result: "forgotten" });
+    }
+    // the phone's own parent-token work (kid token only, docs/protocol.md "Parents"): mint = a LOCKED token for a LAN page
+    // (opens with the family PIN, like a join), rekey = a new kid token on the same id (a LAN device was removed)
+    if (action === "mint" || action === "rekey") {
+      if (h !== bound) return json({ error: "phone only" }, 403);
+      if (req.method !== "POST") return json({ error: "method" }, 405);
+      const b = await req.json().catch(() => null);
+      if (!isObj(b)) return json({ error: "bad json" }, 400);
+      return action === "mint" ? this.kidMint(b, now0) : this.rekey(b, now0);
     }
     if (action === "watch") {   // a Zepp watch shows a 6-digit code; the parent page sends it here, authenticated like any parent call
       if (req.method !== "POST") return json({ error: "method" }, 405);
@@ -756,6 +772,8 @@ export class Kid {
     // relayOk = last time the relay heard the phone (the phone no longer re-sends it each sync: that alone made every tick a sync)
     if (st && st.relayOk !== undefined) st.relayOk = Math.max(+st.relayOk || 0, this.seenNow(seen));
     if (st) st.iconV = iconV || 1;   // GET /icons?v= (one request for every icon)
+    const rev = await this.s.get("secEv");   // the worker's own security notices (secAlert), shown with the phone's events
+    if (st && rev && rev.length) st.events = [...(Array.isArray(st.events) ? st.events : []), ...rev].sort((a, b) => (+a.t || 0) - (+b.t || 0));
     // GET state?nf=<cursor> (parent app, after an FCM "nf"): only the kid-notification rows newer than its cursor (2-5 KB, not the whole state)
     if (role === "parent" && url.searchParams.has("nf")) return json(nfRead(st, +url.searchParams.get("nf") || 0));
     if (role === "parent" && url.searchParams.get("watch") === "1") return json({ ...watchState(st, rules ? stripPin(rules) : null), seen: this.seenNow(seen), pending: (cmds || []).length,
@@ -781,7 +799,9 @@ export class Kid {
     // pinAt: when the hash last changed, so the phone takes it once and a newer PIN set on LAN is not reverted
     if (pin.length >= 4) { rules.pinHash = await sha256("kg:" + pin); rules.pinAt = rev;
       // checks joins at once; "pvWeb" when the phone never sent pv (old phone), so a PIN set from the shared link does not lock that link
-      await this.s.put((await this.s.get("pv")) ? "pv" : "pvWeb", { h: rules.pinHash, s: "" }); }
+      const pv0 = await this.s.get("pv");
+      if (pv0 && pv0.h) await this.s.put({ pv: { h: rules.pinHash, s: "" }, pvPrev: pv0.h });   // the phone proves its next pv with the old one
+      else await this.s.put("pvWeb", { h: rules.pinHash, s: "" }); }
     else if (typeof rules.pinHash === "string" && /^[0-9a-f]{64}$/.test(rules.pinHash)) rules.pinAt = rev;
     else if (old && old.pinHash) { rules.pinHash = old.pinHash; rules.pinAt = old.pinAt || 1; }
     else if (old && old.pinSet) { rules.pinAt = old.pinAt || 1; }   // hash already taken by the phone and dropped here
@@ -894,11 +914,11 @@ export class Kid {
     return this.vk[k];
   }
   /** A new parent token, or null when MAX_PARENTS have one. */
-  async mint(name, kind, now) {
+  async mint(name, kind, now, extra = null) {
     const par = await this.parents();
     if (Object.keys(par).length >= MAX_PARENTS) return null;
     const token = hexRand(24);
-    par[await sha256(token)] = { n: cleanName(name) || "?", k: kind, at: now, seen: now, ...(kind === "web" ? { ul: now + UNLOCK_MS } : {}) };
+    par[await sha256(token)] = { n: cleanName(name) || "?", k: kind, at: now, seen: now, ...(kind === "web" && !extra ? { ul: now + UNLOCK_MS } : {}), ...(extra || {}) };
     await this.s.put("par", par);
     return token;
   }
@@ -953,7 +973,7 @@ export class Kid {
       const c = await this.pinCheck(b.pin, now);
       if (c.r === "locked") return json({ error: "pin locked", retryAt: c.retryAt }, 429);
       if (c.r === "bad") return json({ error: "bad pin", left: c.left }, 403);
-      me.ul = now + UNLOCK_MS; me.seen = now; await this.s.put("par", this.par);
+      me.ul = now + UNLOCK_MS; me.seen = now; delete me.lk; await this.s.put("par", this.par);
       return json({ until: me.ul, pin: c.r });
     }
     if (action === "invite") {
@@ -979,8 +999,44 @@ export class Kid {
       else return json({ error: "bad json" }, 400);
       await this.s.put("par", par);
     } else if (req.method !== "GET") return json({ error: "method" }, 405);
-    return json({ parents: Object.entries(par).map(([k, p]) => ({ id: k.slice(0, 12), name: p.n, kind: p.k, at: p.at, seen: p.seen, me: k === h, ...(p.d ? { dev: p.d } : {}) })),
+    return json({ parents: Object.entries(par).map(([k, p]) => ({ id: k.slice(0, 12), name: p.n, kind: p.k, at: p.at, seen: p.seen, me: k === h, ...(parLocked(p, now) ? { locked: true } : {}), ...(p.lk ? { lk: true } : {}), ...(p.km ? { lan: true } : {}), ...(p.d ? { dev: p.d } : {}) })),
       pinKnown: !!(await this.pinVerifier()) });
+  }
+  /** Drops one parent row (revoke, rekey `drop`, a phone-minted token replaced). */
+  async dropParent(k) {
+    const par = await this.parents();
+    delete par[k];
+  }
+  /** POST mint {name, kind, drop?} (kid token): a parent token for a LAN page that asked the phone (`relay {mint:true}`).
+   * It is LOCKED (`lk`, 423) until a family PIN unlock: the kid token alone never becomes a parent. `drop` = the id this
+   * phone minted for the same LAN device before (only phone-minted rows can be dropped this way). */
+  async kidMint(b, now) {
+    const par = await this.parents();
+    if (typeof b.drop === "string" && /^[0-9a-f]{12}$/.test(b.drop)) {
+      const k = Object.keys(par).find(x => x.slice(0, 12) === b.drop && par[x].km);
+      if (k) await this.dropParent(k);
+    }
+    const pend = Object.keys(par).filter(k => par[k].km && par[k].lk).sort((a, c) => par[a].at - par[c].at);
+    while (pend.length >= KM_PENDING) await this.dropParent(pend.shift());
+    const token = await this.mint(b.name || "LAN", b.kind === "app" ? "app" : "web", now, { km: 1, lk: 1 });
+    if (!token) { await this.s.put("par", par); return json({ error: "too many parents" }, 409); }
+    return json({ token, id: (await sha256(token)).slice(0, 12) });
+  }
+  /** POST rekey {token, drop?: [id]} (kid token): the phone's new token on the same id (a LAN device was removed; it may
+   * hold the old one). Parents keep their own tokens; `drop` = phone-minted rows of the removed devices. */
+  async rekey(b, now) {
+    const t = String(b.token || "");
+    if (!/^[0-9a-f]{48}$/.test(t)) return json({ error: "bad token" }, 400);
+    const nh = await sha256(t), par = await this.parents();
+    if (nh === (await this.s.get("tokenHash"))) return json({ ok: true });   // asked again with the new token (the first reply was lost)
+    if (par[nh]) return json({ error: "bad token" }, 400);
+    for (const id of Array.isArray(b.drop) ? b.drop.slice(0, MAX_PARENTS) : []) {
+      const k = Object.keys(par).find(x => x.slice(0, 12) === id && par[x].km);
+      if (k) await this.dropParent(k);
+    }
+    await this.s.put({ tokenHash: nh, par });
+    for (const w of this.phoneWs()) { try { w.close(1000, "rekeyed"); } catch {} }   // the old token's socket; the phone reconnects with the new one
+    return json({ ok: true });
   }
   /** Remote pairing done (pairRoute /result): the phone's token proves it; the page gets a parent token named as typed. */
   async pairMint(b) {
@@ -1125,8 +1181,7 @@ export class Kid {
     if (state && new TextEncoder().encode(JSON.stringify(state)).length > 120e3) return { error: "state too big", status: 413 };   // DO storage value limit is 128 KiB
     const acks = new Set(Array.isArray(body.acks) ? body.acks.map(String) : []);
     // the family PIN hash (Rules.pinHash/pinSalt), sent when it changes: joins and browser unlocks are checked here. "" = no PIN
-    if (body.pv === "") await this.s.delete(["pv", "pvWeb"]);
-    else if (isObj(body.pv) && /^[0-9a-f]{64}$/.test(String(body.pv.h)) && /^[0-9a-f]{0,32}$/.test(String(body.pv.s || ""))) await this.s.put("pv", { h: body.pv.h, s: String(body.pv.s || "") });
+    const pvRes = body.pv !== undefined ? await this.pvSet(body.pv, body.pvo, now) : "";
     if (typeof body.fcm === "string" && FCM_TOKEN.test(body.fcm)) {   // the kid app's own token: push wake (wakeKid / alarm)
       if (this.kfcm === undefined) this.kfcm = (await this.s.get("kfcm")) || "";
       if (body.fcm !== this.kfcm) {
@@ -1178,6 +1233,7 @@ export class Kid {
     if (Object.keys(puts).length) await this.s.put(puts);
     if (state) this.ctx.waitUntil(this.pushNew(state, id).catch(e => console.log("push", String(e))));
     const out = { cmds, merge: 1 };   // merge: this worker takes partial states (the phone sends whole ones until it sees it)
+    if (pvRes) out.pv = pvRes;
     if (needWhole) out.full = true;
     if (this.isLive(now)) { out.live = true; out.lws = 1; }   // lws: frames may come as binary socket messages (0.9.61)
     const files = (await this.fileGc(now)).filter(f => f.to === "kid" && f.got.length === f.n).length;
@@ -1190,6 +1246,33 @@ export class Kid {
     const have = known && known.rules ? +known.rules.rev || 0 : 0;
     if (rules && rules.rev > have) out.rules = rules;
     return out;
+  }
+
+  /**
+   * sync `pv` (audit 2026-11-20 HIGH: the kid token set its own PIN here, then joined with it = a parent token).
+   * Taken when none is stored, when it is the stored one, or with `pvo` = the hash this worker had (the phone keeps the
+   * one the worker last said "ok" to; the kid token alone never learns it). Else refused + every parent told.
+   * -> "ok" | "refused" | "" (bad shape).
+   */
+  async pvSet(pv, pvo, now) {
+    const nv = pv === "" ? null : isObj(pv) && /^[0-9a-f]{64}$/.test(String(pv.h)) && /^[0-9a-f]{0,32}$/.test(String(pv.s || "")) ? { h: pv.h, s: String(pv.s || "") } : undefined;
+    if (nv === undefined) return "";
+    const [old, prev] = await Promise.all([this.s.get("pv"), this.s.get("pvPrev")]);
+    if (old && old.h && nv && nv.h === old.h) return "ok";
+    const proof = typeof pvo === "string" && /^[0-9a-f]{64}$/.test(pvo) && (pvo === (old && old.h) || pvo === prev);
+    if (old && old.h && !proof) { await this.secAlert("pvRefused", now); return "refused"; }
+    if (nv) await this.s.put("pv", nv); else await this.s.delete("pv");
+    await this.s.delete(["pvWeb", "pvPrev"]);
+    // a first PIN while parents already exist (no PIN before: the link alone was enough) is worth a look too
+    if (!(old && old.h) && nv && Object.keys(await this.parents()).length) await this.secAlert("pvNew", now);
+    return "ok";
+  }
+  /** A security notice from the worker itself: kept in `secEv` (merged into state.events on GET state) + FCM / Telegram "tamper". */
+  async secAlert(rk, now) {
+    const e = { id: "r" + now.toString(36), t: now, kind: "tamper", rk, text: REV_TEXT[rk] || rk };
+    await this.s.put("secEv", [...((await this.s.get("secEv")) || []), e].slice(-5));
+    const id = this.kidId || (await this.s.get("kid")) || "", ev = [{ kind: "ev", eid: "e:" + e.id, t: now, ek: "tamper" }];
+    this.ctx.waitUntil(Promise.all([this.fcmNew(ev, id), this.tgNew(ev)]).catch(e2 => console.log("secAlert", String(e2))));
   }
 
   /** The call in progress (memory, else storage), or null once it is over: a ring nobody took, a call past CALL_MAX, an end kept CALL_KEEP. */

@@ -804,6 +804,7 @@ L.en = {
   "jn.needName": "Type your name.",
   "ul.h": "Family PIN needed",
   "ul.p": "Enter the family PIN to open KidGuard in this browser.",
+  "rev.pvRefused": "Someone with the phone's relay link tried to change the family PIN. Refused.", "rev.pvNew": "The phone set a family PIN on the relay.",
   "ul.go": "Open",
   "iv.h": "KidGuard",
   "iv.h2": "Join {0} as a parent",

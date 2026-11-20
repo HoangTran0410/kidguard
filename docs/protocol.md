@@ -233,7 +233,9 @@ of the on-device admin (5 free tries, then 5, 10, 20, 30 min, then 30 min per tr
 `relay {url}` with the URL the phone already has is not gated (the page re-reads the relay link with it); `renew:true` always is. No PIN and no
 Authenticator set = nothing to check. Results: `failed: pin needed` (no `pin`, not counted), `failed: pin` (wrong, a
 `tamper` event names the command), `failed: pin locked`; `failed…` frees the id, so the same id may be re-sent with the
-right PIN. LAN `relay` returns `id/token/url` only when the result is `ok`. The worker only checks the shape
+right PIN. LAN `relay` returns `id/url` only when the result is `ok`; a phone since 0.9.75 adds `mint: 1` and never the
+kid token: the page sends `relay {url, mint:true, kind}` when it has no own token for that id, and gets `token` (its own,
+from the worker's `mint`, locked until the family PIN) + `own: 1`. Older phones return their shared `token` (the page joins with it). The worker only checks the shape
 (`pin` 0–8 digits, `new` 4–8 digits). Phones before 0.9.13 ignore `pin`; the page asks for it only when
 `state.pinResetAt` exists.
 - `pinSet {pin, new}` (gated): the ONLY way to replace a set PIN. Rules PUTs (LAN, relay `pinHash`, Telegram) may set the
@@ -280,7 +282,9 @@ The first capture / first input of a session is logged in the phone log.
 - **LAN address heal** (page, `core.js` `relocate` / `learnAddrs`, no phone change): after each LAN `state` the page keeps
   the phone's other addresses on the saved kid (`alt`, up to 4: `state.lan`, `http://<state.ts.ip>:8770`) and, when
   `state.relay` is set, sends the `relay` command once per page load with that same url: the phone keeps its relay id/token
-  and returns them, saved as `kid.relay = {url (origin), id, token}`. When a LAN call fails (or the parent app answers
+  and returns the id (+ `mint: 1`; older phones: the shared token); without an own token for that id the page asks again
+  with `mint: true` and saves `kid.relay = {url (origin), id, token, own: 1}` (see "Parents": locked until one PIN unlock,
+  `relayMigrate` offers it when `GET parents` shows `me.lk`). When a LAN call fails (or the parent app answers
   with a cached snapshot): probe `alt` then the `lan` / `ts.ip` of the relay state with `GET /api/hello` (4 s, `id` must
   match), switch `target` and retry ("đã tự kết nối lại" toast). Nothing found: `GET /state`, `POST /cmd`, `PUT /rules`
   go to the relay for 60 s at a time (toast "đang đi qua relay"; relay reply shapes, commands `queued`), other routes
@@ -469,7 +473,7 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 - Each parent (page, parent app, watch) holds its OWN relay token (48 hex) with a name; the worker keeps
   `par = {sha256(token): {n name, k "app"|"web"|"watch", at, seen, ul}}` (<= 12). The phone's token (the one in the old
   `/go` link / QR) opens the parent routes only while `par` is empty AND the phone has not sent `pv` (phones before 0.9.27; a PIN set by the page alone does not lock it, or an old page would lock itself out); else it is phone-only
-  (`sync ws file forget join`, `POST icons|frame`, `PUT device|logday`), anything else `403 {"error":"join"}`.
+  (`sync ws file forget join`, `POST icons|frame|mint|rekey`, `PUT device|logday`), anything else `403 {"error":"join"}`.
 - `POST /c/<id>/join {name, kind:"app"|"web", pin}` with the phone's token -> `{token, name, kind, pin:"ok"|"none"}`.
   The PIN is the family PIN, checked by the worker against `pv` (below) or a PIN the page set in a rules PUT.
   `403 {"error":"bad pin","left":n}`; 5 wrong (join + unlock together, per kid) = `429 {"error":"pin locked","retryAt"}` for 15 min.
@@ -487,6 +491,28 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 - Phone sync `pv`: `{h: pinHash, s: pinSalt}` (Rules.hashPin: "" salt = sha256("kg:"+pin), else 10 000 rounds; the worker
   checks with node:crypto, ~9 ms) sent when it changes, `""` = no PIN. Old phones send none: a PIN the page set via a
   rules PUT counts (`pv` = its legacy hash); else `pinKnown:false` and joins work by the link alone until a parent exists.
+- PIN-hash changes need proof (2026-11-20, security audit HIGH: the kid token set its own `pv` and joined with it): sync
+  `pv` is taken when the worker has none, when it is the stored hash, or with `pvo` = the hash the worker had (or, after a
+  page PIN set over the relay, the one before it, `pvPrev`). The phone keeps the hash the worker last answered `"pv":"ok"`
+  to (`Store.relayPvOk`, "<relay id> <hash>"; `RelayPv`) and sends it as `pvo` with every new `pv`. Without proof: sync
+  reply `"pv":"refused"`, the stored hash stays, and a worker notice goes to every parent (below). A phone that lost its proof
+  renews the relay link (new id). `""` (PIN removed) needs the proof too.
+- Worker notices (`secEv`, last 5): `{id:"r<base36 ms>", t, kind:"tamper", rk, text}` appended to `state.events` on GET
+  state (sorted by `t`) + FCM `{kind:"ev", ek:"tamper"}` + Telegram tamper line. `rk`: `pvRefused` (a pv without proof),
+  `pvNew` (a first PIN while parents exist). `text` is English; the page shows i18n `rev.<rk>` instead.
+- `POST /c/<id>/mint {name, kind:"app"|"web", drop?: id}` (phone token only) -> `{token, id}`: a parent token for a LAN
+  page (LAN command `relay {url, mint:true, kind}`, 2026-11-20). The row has `km` (phone-minted) + `lk` (locked: every
+  route but `unlock` / `parents` answers 423 until one `unlock {pin}`; then `lk` goes and it is a normal app / web token).
+  `drop` removes the row this phone minted for the same LAN device before (only `km` rows). At most 3 never-opened (`lk`)
+  rows: the oldest goes. `GET parents` rows carry `locked: true` (423 now), `lk: true`, `lan: true` (`km`).
+- `POST /c/<id>/rekey {token: 48 hex, drop?: [id]}` (phone token only) -> `{ok:true}`: the kid token becomes `token` on the
+  same relay id (parents keep their tokens; the phone's socket is closed, it reconnects). Sent by the phone after a LAN
+  device was removed (`relayShared`), with `drop` = the minted rows of removed devices (`Store.relayDrop`). The phone keeps
+  the new token before asking (`relayNext`) and asks again WITH it when the reply was lost (same token = `ok`).
+  An older worker (404): `relayShared` stays and the page still offers `relay {renew:true}` (new id).
+- Queued commands with a secret (`pin`, `new`, `secret`, `token`) reach the phone token in clear once, on the first
+  hand-out (the phone checks the PIN itself); what stays queued has them stripped. After `mint` the phone token is the
+  phone's only (pages no longer get it), so this is the phone reading its own commands.
 - `by`: a command or rules PUT from a parent token carries `by: <name>` (AI token: "AI"); the phone logs it
   (`log_cmd_by`, rules diff line ` · <name>`); state `queue` items carry `by`. `POST forget` is the phone's token only.
 - Icon / tile keys: one per parent token (`iconKeys` / `tileKeys`, plus the older single `iconKey` / `tileKey`).

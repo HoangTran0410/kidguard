@@ -666,7 +666,7 @@ await P("sync",JSON.stringify({ai:""}));}
 // ---- parents: own tokens, family PIN, invites, `by` (docs/protocol.md "Parents") ----
 await sleep(10500);   // a fresh per-IP rate-limit window (150 / 10 s): this block is a burst and flaked with 429s
 {const {createHash,randomBytes}=await import("node:crypto");
-const hx=n=>randomBytes(n).toString("hex"),idq=hx(8),Tq=hx(24),salt="0011223344556677";
+const hx=n=>randomBytes(n).toString("hex"),idq=hx(8),salt="0011223344556677";let Tq=hx(24);const sha=async x=>createHash("sha256").update(x).digest("hex");
 const hp=(pin,s)=>{if(!s)return createHash("sha256").update("kg:"+pin).digest("hex");const sb=Buffer.from(s),buf=Buffer.alloc(64+sb.length);sb.copy(buf,64);let h=createHash("sha256").update(s+":"+pin).digest();
  for(let r=0;r<9999;r++){Buffer.from(h.toString("hex")).copy(buf,0);h=createHash("sha256").update(buf).digest();}return h.toString("hex");};
 const Q=(p,t,b,m)=>fetch(`${B}/c/${idq}/${p}`,{method:m||(b===undefined?"GET":"POST"),headers:{"content-type":"application/json",...(t?{"x-kg-token":t}:{})},body:b===undefined?undefined:JSON.stringify(b)});
@@ -694,7 +694,32 @@ ck("parents: rename self",(await (await Q("parents",M,{name:"Mẹ Na"})).json())
 r=await Q("unlock",M,{pin:"0000"});ck("parents: browser unlock with a wrong PIN 403",r.status==403);
 r=await Q("unlock",M,{pin:"2468"});j=await r.json();ck("parents: browser unlock with the PIN -> until +12 h",r.status==200&&j.until-Date.now()>11*3600e3);
 ck("parents: forget is the phone's only",(await Q("forget",A,{})).status==403);
-await Q("sync",Tq,{pv:""});r=await Q("join",Tq,{name:"X",pin:"2468"});ck("parents: PIN gone on the phone + parents exist -> invite needed",r.status==403&&(await r.json()).error=="invite needed");
+// audit 2026-11-20 HIGH: the kid token must not set its own PIN and join with it
+r=await Q("sync",Tq,{pv:{h:hp("1357",""),s:""}});j=await r.json();ck("pv: a new PIN hash without the old one is refused",j.pv==="refused");
+r=await Q("join",Tq,{name:"Thief",pin:"1357"});ck("pv: ...so joining with it fails",r.status==403);
+r=await Q("state",A);j=await r.json();ck("pv: parents see a tamper event (rk pvRefused)",(j.state.events||[]).some(e=>e.kind=="tamper"&&e.rk=="pvRefused"));
+r=await Q("sync",Tq,{pv:""});ck("pv: removing it without the old one is refused too",(await r.json()).pv==="refused");
+r=await Q("sync",Tq,{pv:{h:hp("1357",""),s:""},pvo:hp("2468",salt)});ck("pv: with the old hash (pvo) it is taken",(await r.json()).pv==="ok");
+r=await Q("sync",Tq,{pv:{h:hp("2468",salt),s:salt},pvo:hp("1357","")});ck("pv: and back",(await r.json()).pv==="ok"&&(await Q("join",Tq,{name:"X",pin:"1357"})).status==403);
+r=await Q("sync",Tq,{pv:{h:hp("2468",salt),s:salt}});ck("pv: the same hash again needs no proof",(await r.json()).pv==="ok");
+// mint: a LAN page's own relay token, asked for by the phone; locked until the family PIN
+r=await Q("mint",A,{name:"Laptop"});ck("mint: a parent token can't",r.status==403);
+r=await Q("mint",Tq,{name:"Laptop",kind:"web"});j=await r.json();const L1=j.token,L1id=j.id;ck("mint: the phone gets a token + id",r.status==200&&/^[0-9a-f]{48}$/.test(L1)&&/^[0-9a-f]{12}$/.test(L1id));
+r=await Q("state",L1);ck("mint: locked (423) until the PIN",r.status==423);
+r=await Q("parents",L1);j=await r.json();ck("mint: GET parents works locked, me row lk + lan",r.status==200&&j.parents.some(p=>p.me&&p.lk&&p.lan&&p.locked));
+r=await Q("unlock",L1,{pin:"2468"});ck("mint: unlock with the family PIN",r.status==200&&(await Q("state",L1)).status==200);
+r=await Q("mint",Tq,{name:"Laptop",kind:"app",drop:L1id});j=await r.json();const L2=j.token;ck("mint: drop = the old one for the same LAN device goes",(await Q("state",L1)).status==401&&(await Q("unlock",L2,{pin:"2468"})).status==200&&(await Q("state",L2)).status==200);
+ck("mint: drop never removes a joined parent",(await Q("mint",Tq,{name:"Z",drop:(await (await Q("parents",A)).json()).parents.find(p=>p.me).id})).status==200&&(await Q("state",A)).status==200);
+for(let i=0;i<4;i++)await Q("mint",Tq,{name:"P"+i});
+ck("mint: at most 3 never-opened ones (oldest go)",(await (await Q("parents",A)).json()).parents.filter(p=>p.lk).length==3);
+// rekey: a LAN device was removed: new kid token, same id; parents keep theirs
+const Tn=hx(24);r=await Q("rekey",A,{token:Tn});ck("rekey: a parent token can't",r.status==403);
+r=await Q("rekey",Tq,{token:Tn,drop:[(await sha(L2)).slice(0,12)]});ck("rekey: ok",r.status==200);
+ck("rekey: the old kid token is dead",(await Q("sync",Tq,{})).status==401);
+ck("rekey: the new one syncs, parents keep working, dropped minted one gone",(await Q("sync",Tn,{})).status==200&&(await Q("state",A)).status==200&&(await Q("state",L2)).status==401);
+ck("rekey: asked again with the new token (lost reply) = ok",(await Q("rekey",Tn,{token:Tn})).status==200);
+Tq=Tn;
+await Q("sync",Tq,{pv:"",pvo:hp("2468",salt)});r=await Q("join",Tq,{name:"X",pin:"2468"});ck("parents: PIN gone on the phone + parents exist -> invite needed",r.status==403&&(await r.json()).error=="invite needed");
 await Q("sync",Tq,{pv:{h:hp("2468",""),s:""}});
 for(let i=0;i<4;i++)await Q("join",Tq,{name:"X",pin:"9999"});
 r=await Q("join",Tq,{name:"X",pin:"9999"});ck("parents: 5th wrong PIN locks 15 min (429)",r.status==429&&(await r.json()).retryAt>Date.now()+14*60e3);
