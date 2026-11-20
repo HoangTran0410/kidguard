@@ -182,7 +182,11 @@ async function call1(k, path, method, body, again) {
   let r; const t0 = Date.now();
   const rel = k.via !== "lan", out = rel ? wireOut(path, body) : body;
   try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: out ? JSON.stringify(out) : undefined, signal: direct(k) ? quick(15000) : undefined }); }
-  catch (e) { const x = errOf("net", APP ? t("e.lost") : null); x.late = Date.now() - t0 > 3000; throw x; }   // late = it may have arrived
+  catch (e) {
+    // a browser on a network that filters one name of the shared relay: the other name, once (a fast failure only for a write)
+    if (!APP && rel && !again && relayOf.swap(relayOf(k)) !== relayOf(k) && (method === "GET" || Date.now() - t0 < 3000)) { relayOf.alt = !relayOf.alt; return call1(k, path, method, body, 1); }
+    const x = errOf("net", APP ? t("e.lost") : null); x.late = Date.now() - t0 > 3000; throw x;   // late = it may have arrived
+  }
   if (!again && k.via !== "lan" && (r.status === 403 || r.status === 423) && await relayFix(r, await r.clone().json().catch(() => ({})), k, base(k))) return call1(k, path, method, body, 1);
   const cached = APP && method === "GET" && path === "/state" ? +r.headers.get("X-KG-Cached") || 0 : 0;
   // app: a cached snapshot = the phone did not answer; a LAN kid that can heal treats it as a network failure
@@ -230,7 +234,9 @@ const OLD_RELAY = "https://kidguard.99-hoangtran.workers.dev";   // killed 2026-
 try { RELAY = httpsOrigin(localStorage.getItem("kg.relay") || "") || RELAY; if (RELAY === OLD_RELAY) RELAY = DEFAULT_RELAY; } catch {}
 const setRelay = r => { r = httpsOrigin(r || ""); if (!r) return; RELAY = r; try { localStorage.setItem("kg.relay", r); } catch {} };
 /** A browser relay kid's relay: its own (target), else this page's. */
-const relayOf = k => { const t = k && k.target; return t === OLD_RELAY ? DEFAULT_RELAY : t || RELAY; };
+const relayOf = k => { const t = k && k.target, u = t === OLD_RELAY ? DEFAULT_RELAY : t || RELAY; return relayOf.alt ? relayOf.swap(u) : u; };
+// the shared relay also answers on our own domain (2026-11-20): a network filtering *.workers.dev gets the other name (call1)
+relayOf.swap = u => u === DEFAULT_RELAY ? "https://relay.kidguard.asia" : u === "https://relay.kidguard.asia" ? DEFAULT_RELAY : u;
 /** The relay a pasted / scanned link names: #r=, else (a link to the website) the page's relay, else the link's own origin (an old relay link). */
 const relayOfLink = (u, h) => httpsOrigin(h.get("r") || "") || (u.origin === SITE || u.origin === OLD_SITE || u.origin === location.origin ? RELAY : u.origin);
 /** The link that always opens: the website's /go page (core.js goBoot); r= only for a relay other than the author's. */
@@ -309,7 +315,7 @@ const addrsOf = s => { if (!s) return [];
   const ip = s.ts && s.ts.ip; if (typeof ip === "string" && /^100\.[\d.]+$/.test(ip)) out.push(`http://${ip}:${LAN_PORT}`);
   return out; };
 async function viaRelay(k, path, method, body, again) {
-  const rl = k.relay, b = (APP ? "/k/" + b64u(rl.url) : rl.url) + "/c/" + encodeURIComponent(rl.id);
+  const rl = k.relay, b = (APP ? "/k/" + b64u(rl.url) : relayOf.alt ? relayOf.swap(rl.url) : rl.url) + "/c/" + encodeURIComponent(rl.id);
   let r;
   try { r = await fetch(b + path, { method, headers: { "X-KG-Token": rl.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: body ? JSON.stringify(wireOut(path, body)) : undefined, signal: quick(15000) }); }
   catch (e) { throw errOf("net", APP ? t("e.lost") : null); }

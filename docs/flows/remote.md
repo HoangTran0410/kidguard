@@ -18,6 +18,7 @@ Protocol headings below are `##`/`###` titles in `docs/protocol.md` (line number
 | On-device parent page | `ParentSession` cookie instead of a token (`Api.kt:62`); `LOCAL` flag in `UI/core.js:41` |
 
 URL shapes (`UI/core.js:129`): LAN = `<origin|target>/api/<x>`; relay = `<origin>/c/<id>/<x>`; app = `/k/<b64u(target)>` + either.
+Two names (0.9.62): the shared relay also answers on `relay.kidguard.asia`; `Relay.base` (phone), `Proxy.forward` (parent app), `relayOf.swap` + `call1` (browser) switch on network failure.
 Same page, same `call()`; the phone routes under `/api/*`, the worker under `/c/<id>/(sync|state|rules|cmd|live|frame|input|icons|icon|push|device|file)` (regex `index.js:96`).
 Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `?k=`; `index.js:50`, `Api.kt:61`).
 

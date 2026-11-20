@@ -71,6 +71,9 @@ object Logic {
     const val DEFAULT_RELAY = "https://kg-relay.99-hoangtran.workers.dev"
     /** The relay killed 2026-11-17 (docs/decisions/remote.md): a kid saved with it can't be reached (its parent tokens died with it). */
     const val OLD_RELAY = "https://kidguard.99-hoangtran.workers.dev"
+    /** The same worker on our own domain (2026-11-20; some networks filter *.workers.dev). Proxy falls back to it, never stored. */
+    const val ALT_RELAY = "https://relay.kidguard.asia"
+    fun otherRelay(target: String): String? = when (target) { DEFAULT_RELAY -> ALT_RELAY; ALT_RELAY -> DEFAULT_RELAY; else -> null }
     private val PAIR_PATH = Regex("^/p/(inv|\\d{6}/join|(\\d{6}|[0-9a-f]{16})/result)$")
     fun isPairPath(method: String, rest: String): Boolean = PAIR_PATH.matches(rest.substringBefore("?")) && (method == "POST") == !rest.endsWith("/result")
 

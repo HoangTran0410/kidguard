@@ -115,10 +115,14 @@ class Proxy(private val ctx: Context, val port: Int) {
         Res(200, a.second, hub.file(a.first))
     } catch (e: java.io.IOException) { Res.text("not found", 404) }
 
+    @Volatile private var altRelay = false
+
     private fun forward(r: Req): Res {
         val (target, rest) = Logic.parseKidPath(r.path) ?: return Res.json("{\"error\":\"bad target\"}", 400)
         if (!Logic.allowedRequest(Store.kids(ctx), target, r.method, rest)) return Res.json("{\"error\":\"unknown target\"}", 403)
-        val url = target + rest + (if (r.rawQuery.isNotEmpty()) "?" + r.rawQuery else "")
+        val q = if (r.rawQuery.isNotEmpty()) "?" + r.rawQuery else ""
+        val other = Logic.otherRelay(target)
+        val url = (if (altRelay && other != null) other else target) + rest + q
         val fwd = HashMap<String, String>()
         for (h in listOf("X-KG-Token", "X-KG-Ticket", "X-KG-W", "X-KG-H", "X-KG-Name", "Content-Type")) r.header(h)?.let { fwd[h] = it }
         if (Logic.isFilesPath(rest)) return filesForward(r, url, fwd)
@@ -126,7 +130,14 @@ class Proxy(private val ctx: Context, val port: Int) {
         val cacheable = Logic.isStatePath(r.method, rest)
         // state answers in < 1 s; a hung phone or half-dead Wi-Fi accepts the TCP connect and then stalls,
         // so don't wait the long-poll timeout (40 s, for screen frames) before falling back to the snapshot
-        val res = Net.call(r.method, url, fwd, r.body, if (cacheable) 8_000 else 40_000)
+        val t0 = System.currentTimeMillis()
+        var res = Net.call(r.method, url, fwd, r.body, if (cacheable) 8_000 else 40_000)
+        // the shared relay has 2 names: one filtered (company Wi-Fi, DNS) -> the other, and stay there. A POST only when it
+        // failed fast (no connection = never sent), so a command is not run twice.
+        if (res.status == null && other != null && (r.method == "GET" || System.currentTimeMillis() - t0 < 3_000)) {
+            altRelay = !altRelay
+            res = Net.call(r.method, (if (altRelay) other else target) + rest + q, fwd, r.body, if (cacheable) 8_000 else 40_000)
+        }
         val key = Store.sha(target + rest)
         if (cacheable && res.status == 200 && isJson(res.body)) store(key, target, rest, res.body)
         if (cacheable && Logic.useCache(res.status, res.status == null)) {

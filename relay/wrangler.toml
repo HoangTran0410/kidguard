@@ -3,6 +3,8 @@ main = "src/index.js"
 compatibility_date = "2025-09-01"
 compatibility_flags = ["nodejs_compat"]   # node:crypto createHash for the PIN check (hashPin)
 workers_dev = true
+# the same worker on our own domain (2026-11-20): some networks filter *.workers.dev; phone + page fall back to it
+routes = [{ pattern = "relay.kidguard.asia", custom_domain = true }]
 
 # ui/*.html (one page for the APK and the relay) and its ui/assets/*.js|css (incl. the QR library, shared with qr.html) are bundled as text
 minify = true   # JSON relay only: no page text in the bundle; comments out of the uploaded script

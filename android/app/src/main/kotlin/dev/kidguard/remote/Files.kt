@@ -365,7 +365,7 @@ object Files {
 
     private fun relay(c: Context): Triple<String, String, String>? {
         val s = Store.of(c)
-        val url = s.relayUrl.trim().trimEnd('/')
+        val url = Relay.base(s.relayUrl)
         if (!url.startsWith("https://", true) || s.relayId.isBlank() || s.relayToken.isBlank()) return null
         return Triple("$url/c/${s.relayId}/file", s.relayToken, s.relayId)
     }

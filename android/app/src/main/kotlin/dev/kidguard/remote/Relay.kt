@@ -80,7 +80,7 @@ class Relay(private val g: Guard) {
         val l = java.util.concurrent.CountDownLatch(1)
         h.post {
             try {
-                val url = store.relayUrl.trim().trimEnd('/'); val token = store.relayToken; val rid = store.relayId
+                val url = base(store.relayUrl); val token = store.relayToken; val rid = store.relayId
                 if (url.startsWith("https://", ignoreCase = true) && token.isNotBlank() && rid.isNotBlank()) {
                     forceSend = true; lastHash = 0; lastFull = 0
                     runCatching { sync(url, rid, token) }.onFailure { Log.w("KidGuard", "final sync", it) }
@@ -89,6 +89,8 @@ class Relay(private val g: Guard) {
         }
         l.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
     }
+
+    private var netFails = 0
 
     private fun schedule(ms: Long) { h.removeCallbacks(loopRun); h.postDelayed(loopRun, ms) }
 
@@ -99,14 +101,19 @@ class Relay(private val g: Guard) {
 
     private fun loopAwake() {
         inSync = true
-        val url = store.relayUrl.trim().trimEnd('/'); val token = store.relayToken; val rid = store.relayId
+        val url = base(store.relayUrl); val token = store.relayToken; val rid = store.relayId
         var busy = false
         var delay = 0L
         if (url.isNotBlank() && token.isNotBlank() && rid.isNotBlank()) {
             if (!url.startsWith("https://", ignoreCase = true)) {
                 lastError = "relay needs https://"; delay = 60_000
-            } else runCatching { ensureWs(url, rid, token); busy = sync(url, rid, token); fails = 0; runCatching { uploadIcons(url, rid, token) } }.onFailure {
+            } else runCatching { ensureWs(url, rid, token); busy = sync(url, rid, token); fails = 0; netFails = 0; runCatching { uploadIcons(url, rid, token) } }.onFailure {
                 lastError = it.message ?: it.javaClass.simpleName; Log.w("KidGuard", "relay", it)
+                // the shared relay has 2 names (workers.dev + relay.kidguard.asia, same worker): a network blocking one
+                // (company Wi-Fi filters, DNS) is tried on the other after 2 network failures in a row
+                if (it is java.io.IOException && other(store.relayUrl.trim().trimEnd('/')) != null && ++netFails >= 2) {
+                    netFails = 0; useAlt = !useAlt; ws.close(); Log.i("KidGuard", "relay: trying ${base(store.relayUrl)}")
+                }
                 if (RelayTrim.isTooBig(lastError)) bigUntil = System.currentTimeMillis() + BIG_RETRY_MS
                 fails++
                 // 401 / 409 / 5xx / network: exponential backoff up to 5 min; the next success resets it
@@ -403,6 +410,13 @@ class Relay(private val g: Guard) {
         const val DEFAULT_URL = "https://kg-relay.99-hoangtran.workers.dev"
         /** the killed worker (docs/decisions/remote.md 2026-11-17): Store.defaultRelay moves a phone off it, same id/token */
         const val OLD_URL = "https://kidguard.99-hoangtran.workers.dev"
+        /** The same worker on our own domain (2026-11-20): some networks filter *.workers.dev. Never stored: [base] swaps to it. */
+        const val ALT_URL = "https://relay.kidguard.asia"
+        /** True = the other name of the shared relay answers, this one did not (set by the sync loop, read by Files etc.). */
+        @Volatile var useAlt = false
+        fun other(u: String): String? = when (u.trim().trimEnd('/')) { DEFAULT_URL -> ALT_URL; ALT_URL -> DEFAULT_URL; else -> null }
+        /** The address to call for a stored relay url: the other name of the shared relay while [useAlt]. */
+        fun base(stored: String): String { val u = stored.trim().trimEnd('/'); return if (useAlt) other(u) ?: u else u }
     }
 }
 

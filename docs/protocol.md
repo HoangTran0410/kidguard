@@ -398,6 +398,10 @@ relay (`relay`, `tailscale`) have no code. A new relay command = a new row here,
 | `tsInstall` | `ti` |
 
 ### Relay (worker), token header `X-KG-Token`, id = 16 hex
+The shared relay has two names for the same worker (0.9.62): `https://kg-relay.99-hoangtran.workers.dev` (stored in phones
+and links) and `https://relay.kidguard.asia` (custom domain, never stored). Some networks filter `*.workers.dev`: the phone
+(`Relay.base`, after 2 network failures in a row), the parent app proxy and the browser page (`relayOf.swap`) switch to the
+other name. A self-hosted relay has one name.
 JSON only since plan B (2026-11-18): no page, `/ui`, `/install`, `/qr` or APK (all `404 {"error":"not found"}`; the website
 serves them: `scripts/site-app.mjs`). Every reply carries CORS `*` (the page runs on another origin; tokens are headers, never
 cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
