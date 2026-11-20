@@ -165,6 +165,8 @@ const secLazy = {};
 const gateOf = id => FEAT_SEC[id] ? gateNote(FEAT_SEC[id]) : "";
 const gBody = (id, body) => { const g = gateOf(id); return g ? g + `<div class="gated">${body}</div>` : body; };
 function secRow(id, icn, title, desc, chip, inner, gate, lazy) {
+  const gd = { "s-ts": "tailscale", "s-relay": "relay", "s-tg": "telegram", "s-watch": "watch", "s-danger": "remove" }[id];
+  if (gd) inner = `<p class="glp">${gLink(gd)}</p>` + inner;
   return `<section class="cl${gate ? " gate" : ""}" data-sec="${id}"${lazy ? " data-lazy" : ""}><h2><button type="button" class="clh" id="sh-${id}" aria-controls="sb-${id}">
     <svg class="si bk" aria-hidden="true"><use href="#i-chevron-left"/></svg><span class="cli">${ic(icn)}</span><span class="clt"><b>${title}</b>${desc ? `<span>${desc}</span>` : ""}</span>${chipHtml(chip)}<svg class="si chev" aria-hidden="true"><use href="#i-chevron-right"/></svg></button></h2>
     <div class="clb" id="sb-${id}" role="region" aria-labelledby="sh-${id}"><div><div><div class="clbh" aria-hidden="true">${ic(icn)}<b>${title}</b></div><div class="clbc">${inner}</div></div></div></div></section>`;

@@ -227,7 +227,9 @@ const DEFAULT_RELAY = "https://kg-relay.99-hoangtran.workers.dev";
 // Plan B (docs/decisions/remote.md 2026-11-18): the relay is JSON only; a browser gets this page from the website (SITE /app/, /go)
 // and calls the relay cross-origin. RELAY = the relay of the link that opened it (#r=<https origin>), else the last one, else the author's.
 const SITE = "https://kidguard.asia";
-const OLD_SITE = "https://kid-guard.pages.dev";   // links shared before 2026-11-19 (same site)
+const OLD_SITE = "https://kid-guard.pages.dev";
+// a link to one part of the website guide, in a new tab (owner 2026-11-20: every step that needs the guide links to it)
+const gLink = (id, k = "gd.open") => `<a class="glink" href="${SITE}${lang === "en" ? "/en" : ""}/guide${id ? "#" + id : ""}" target="_blank" rel="noopener">${ic("book-open")} ${t(k)}${ic("external-link")}</a>`;   // links shared before 2026-11-19 (same site)
 const httpsOrigin = v => { try { const u = new URL(v); return u.protocol === "https:" ? u.origin : ""; } catch { return ""; } };
 let RELAY = DEFAULT_RELAY;
 const OLD_RELAY = "https://kidguard.99-hoangtran.workers.dev";   // killed 2026-11-17 (docs/decisions/remote.md): read as DEFAULT_RELAY
@@ -587,7 +589,7 @@ const anyCard = () => `<div class="card"><h2>${ic("globe")} ${t("any.h")}</h2><p
   <div class="pairf"><input id="ap1" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("any.pin1"))}" aria-label="${esc(t("any.pin1"))}">
   <input id="ap2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin2"))}" aria-label="${esc(t("pair.pin2"))}">
 </div>
-  <details class="ownr"${!APP && RELAY !== DEFAULT_RELAY ? " open" : ""}><summary>${ic("link")} <span class="sp">${t("any.own")}</span>${ic("chevron-down")}</summary><p class="mute">${t("any.ownP")}</p>
+  <details class="ownr"${!APP && RELAY !== DEFAULT_RELAY ? " open" : ""}><summary>${ic("link")} <span class="sp">${t("any.own")}</span>${ic("chevron-down")}</summary><p class="mute">${t("any.ownP")} ${gLink("relay", "gd.relay")}</p>
   <input id="aR" type="url" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://kidguard.….workers.dev" aria-label="${esc(t("any.own"))}" value="${!APP && RELAY !== DEFAULT_RELAY ? esc(RELAY) : ""}"></details>
   <button class="pri" id="aGo" style="width:100%;margin-top:12px">${ic("globe")} ${t("pair.go")}</button><p class="err" id="eA"></p></div>`;
 function anyWire() {
@@ -744,7 +746,7 @@ window.kgScan = o => {
 // plain screens (list / add / pair): one centred column (#app.solo); render() and the overview clear it
 // back: a sub-screen (app settings) shows a back arrow instead of the logo, and no settings gear
 // on kidguard.asia/app/ (owner 2026-11-20: no way back to the site): a house button to the home page
-const head = (title, back) => { $("#app").className = "solo"; return `<div class="row" style="margin-bottom:14px">${back ? `<button type="button" class="rb" id="appSetBack" aria-label="${esc(t("back"))}" title="${esc(t("back"))}">${ic("arrow-left")}</button>` : `<span class="badge">${ic("shield")}</span>`}<h1 class="sp" style="margin:0">${title}</h1>${!back && !APP && [SITE, OLD_SITE].includes(location.origin) ? `<a class="rb" href="/" aria-label="${esc(t("st.home"))}" title="${esc(t("st.home"))}">${ic("house")}</a>` : ""}${back ? "" : APP ? `<button type="button" class="rb" id="appSetBtn" aria-label="${esc(t("au.h"))}" title="${esc(t("au.h"))}">${ic("settings")}</button>` : `<button type="button" class="rb" data-view-set aria-label="${esc(t("vs.h"))}" title="${esc(t("vs.h"))}">${ic("settings")}</button>`}</div>`; };
+const head = (title, back) => { $("#app").className = "solo"; return `<div class="row" style="margin-bottom:14px">${back ? `<button type="button" class="rb" id="appSetBack" aria-label="${esc(t("back"))}" title="${esc(t("back"))}">${ic("arrow-left")}</button>` : `<span class="badge">${ic("shield")}</span>`}<h1 class="sp" style="margin:0">${title}</h1>${!back && !APP && [SITE, OLD_SITE].includes(location.origin) ? `<a class="rb btn" href="/" aria-label="${esc(t("st.home"))}" title="${esc(t("st.home"))}">${ic("house")}</a>` : ""}${back ? "" : APP ? `<button type="button" class="rb" id="appSetBtn" aria-label="${esc(t("au.h"))}" title="${esc(t("au.h"))}">${ic("settings")}</button>` : `<button type="button" class="rb" data-view-set aria-label="${esc(t("vs.h"))}" title="${esc(t("vs.h"))}">${ic("settings")}</button>`}</div>`; };
 document.addEventListener("click", e => { if (APP && e.target.closest && e.target.closest("#appSetBtn")) appSettings(); });
 async function lanHello(target, code = "") {
   const e = $("#e1"); if (e) e.textContent = t("connecting");
@@ -824,12 +826,13 @@ function pairScreen(hello, target, prefill = "") {
 // The relay's front door (owner 2026-11-11: "/" was a dead end with no phone yet): every way in from one page, as rows
 // (install on the kid's phone, Device Owner QR, how to pair, the guide). Full card when no phone yet, a short one after.
 function startCard(full) {
+  const gUrl = id => SITE + (lang === "en" ? "/en" : "") + "/guide" + (id ? "#" + id : "");
   const row = (href, icn, k, ext) => `<a class="go" href="${href}"${ext ? ' target="_blank" rel="noopener"' : ""}><span class="gi">${ic(icn)}</span>`
     + `<span class="gtx"><b>${t("st." + k)}</b>${full ? `<small>${t("st." + k + "D")}</small>` : ""}</span>${ic(ext ? "external-link" : "chevron-right")}</a>`;
   return `<div class="card start"><h2>${ic("sparkles")} ${t(full ? "st.title" : "st.more")}</h2>${full ? `<p class="sub">${t("st.none")}</p>` : ""}`
     + row("/install", "download", "install") + row("/qr", "shield", "qr")
-    + (full ? `<div class="go nolink"><span class="gi">${ic("link")}</span><span class="gtx"><b>${t("st.pair")}</b><small>${t("st.pairD")}</small></span></div>` : "")
-    + row(SITE + "/guide", "book-open", "guide", true) + `</div>`;
+    + (full ? row(gUrl("pair"), "link", "pair", true) : "")
+    + row(gUrl(""), "book-open", "guide", true) + `</div>`;
 }
 
 function listScreen(list) {

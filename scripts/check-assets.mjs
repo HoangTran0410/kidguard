@@ -19,7 +19,7 @@ for (const f of files) {
 }
 for (const m of html.matchAll(/(?:src|href)="\/ui\/([^"]+)"/g)) if (!files.includes(m[1])) errs.push(`ui/index.html loads /ui/${m[1]}: no such file`);
 
-const MAX_GLOBALS = 860, MAX_LETS = 70;
+const MAX_GLOBALS = 861, MAX_LETS = 70;
 let lets = 0, globals = 0;
 // one top-level name per page: the scripts share globals, and a 2nd `function x` silently replaces the 1st
 // (INCIDENT 2026-11-17: chat's pendHtml(job) replaced shell.js's pendHtml(id, html): "NaN MB" under the bank list)
