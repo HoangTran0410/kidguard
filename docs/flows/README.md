@@ -14,6 +14,7 @@ One file per area; section numbers (§1.6, §4.3, ...) are kept across files. Re
 | 3 | `launcher.md` | Kid launcher: where is X, render, app list, drag, edit, folders, drawer, Today, widgets, dots, customization, `launcher.*` rules, flavors |
 | 4 | `setup-build.md` | Setup flows (4 ways), build, release steps (§4.3) |
 | 5 | `checklists.md` | Add a command / rule field / state field / worker route |
+| - | `device-test.md` | Checklist to run on every new phone / brand (3 install modes, preflight, block, limits, bank pause, reboot, update, 24 h, release, uninstall) |
 | - | `../../mcp/README.md` | MCP server for AI assistants: tools, safety allow-list, config |
 
 Path shorthands: `K/` = `android/app/src/main/kotlin/dev/kidguard/`, `L/` = `K/launcher/`, `UI/` = `ui/assets/`,
