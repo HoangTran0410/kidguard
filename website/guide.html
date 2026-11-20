@@ -238,7 +238,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
         <tr><th scope="row">Cài đặt</th><td>~2 phút: tạo bot, dán token</td><td>~5 phút, một lần: app Tailscale trên máy bố mẹ, dán 1 khóa</td><td>Không cần (relay chung bật sẵn). Relay riêng: ~3 phút trên máy tính</td></tr>
         <tr><th scope="row">Dùng bằng</th><td>App Telegram, nút bấm</td><td>Trang phụ huynh (app Tailscale bật)</td><td>Trang phụ huynh, trình duyệt bất kỳ</td></tr>
         <tr><th scope="row">Tốc độ</th><td><span class="yes">~1 giây</span></td><td><span class="yes">Tức thì</span></td><td>Thường vài giây (khi mất kết nối nhanh: ~20 giây, tắt màn hình ~60 giây)</td></tr>
-        <tr><th scope="row">Màn hình / nghe</th><td>Chụp màn hình, ảnh camera, video 5–30 giây, ghi âm 10–60 giây</td><td><span class="yes">Xem trực tiếp màn hình và camera, nghe trực tiếp</span></td><td>Xem trực tiếp màn hình và camera, nghe trực tiếp</td></tr>
+        <tr><th scope="row">Màn hình / nghe</th><td>Chụp màn hình, ảnh camera, video 5–30 giây, ghi âm 5–60 giây</td><td><span class="yes">Xem trực tiếp màn hình và camera, nghe trực tiếp</span></td><td>Xem trực tiếp màn hình và camera, nghe trực tiếp</td></tr>
         <tr><th scope="row">Báo SOS, xin giờ</th><td><span class="yes">Tới ngay trong Telegram</span></td><td>Trong trang / app bố mẹ</td><td>Trong trang / app bố mẹ</td></tr>
         <tr><th scope="row">Dữ liệu đi qua</th><td>Máy chủ Telegram</td><td>Không ai (mã hóa đầu cuối)</td><td>Relay chung: Cloudflare của tác giả. Relay riêng: chỉ tài khoản của bạn</td></tr>
         <tr><th scope="row">Cần</th><td>Máy con có internet. Mỗi bé 1 bot</td><td>Device Owner (không có ở chế độ cơ bản)</td><td>Không</td></tr>
@@ -380,7 +380,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
       <h3>Nhìn lại</h3>
       <dl>
         <div><dt>Thông báo, SMS, từ khoá</dt><dd>Bật từng mục ở <b>Xem được gì</b>: đọc thông báo của con, tin nhắn SMS, và nhận cảnh báo khi có từ khoá của bạn. Mục nào cũng tắt cho đến khi bạn bật. Con luôn được báo.</dd></div>
-        <div><dt>Camera theo yêu cầu</dt><dd>Bật ở <b>Xem được gì</b>. Bấm <b>Chụp</b> để chụp ảnh, hoặc <b>Xem trực tiếp</b> để xem camera tối đa 10 phút (một chiều, có thể kèm tiếng). Chưa bật mà bấm: trang hỏi, bấm <b>Bật camera</b>. Con thấy thông báo suốt lúc xem. Ảnh đã mở xem lại được cả khi máy con mất mạng.</dd></div>
+        <div><dt>Camera theo yêu cầu</dt><dd>Bật ở <b>Xem được gì</b>. Bấm <b>Chụp</b> để chụp ảnh, hoặc <b>Xem trực tiếp</b> để xem camera tối đa 10 phút (một chiều, có thể kèm tiếng). Chưa bật mà bấm: trang hỏi, bấm <b>Bật và tiếp tục</b> (khi chụp) hoặc <b>Bật camera</b> (khi xem trực tiếp). Con thấy thông báo suốt lúc xem. Ảnh đã mở xem lại được cả khi máy con mất mạng.</dd></div>
         <div><dt>Lịch sử</dt><dd>Thời gian dùng 7 ngày, top app mỗi ngày, báo cáo tuần cho từng con.</dd></div>
         <div><dt>Nhiều con</dt><dd><b>Tổng quan</b>: mỗi con một thẻ, vị trí mọi con trên một bản đồ, 7 ngày đặt cạnh nhau.</dd></div>
         <div><dt>Luật của con</dt><dd>Con xem được luật của mình và nhật ký bố mẹ đã đổi gì.</dd></div>

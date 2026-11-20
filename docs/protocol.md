@@ -488,7 +488,7 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 - `GET /c/<id>/parents` -> `{parents:[{id (12 hex), name, kind, at, seen, me, dev?}], pinKnown}` (`dev` = a watch's last `X-KG-Name`, e.g. "Zepp - Amazfit Bip Max", "Wear OS - Pixel Watch 2"; 2026-11-19); `POST parents {revoke:id}`
   (any parent, the token stops at once) | `{name}` (rename self) | `{rename:id, name}` (2026-11-19: rename a watch, kind "watch" only, else 403).
 - Browser tokens (`kind:"web"`) open for 12 h after a join / `POST /c/<id>/unlock {pin}` -> `{until}`; else every route
-  but `unlock` / `GET parents` answers `423 {"error":"locked","name"}` (2026-11-20: no `POST parents` / `invite` while locked). App tokens (the parent app has its own biometric lock)
+  but `unlock` / `GET parents` answers `423 {"error":"locked","name"}` (2026-11-20: no `POST parents` / `invite` while locked). 2026-11-21: with no PIN known on the relay and another parent already unlocked, a phone-minted token's `unlock` = `403 {"error":"invite needed"}` (like `join`). App tokens (the parent app has its own biometric lock)
   and watch tokens never lock. `kind` is the page's own claim: the PIN or an invite was needed to get any token.
 - Remote pairing (`/p/<key>/result`, "Pair over relay") and watch connect (`POST /c/<id>/watch`) hand out a NEW parent
   token (named as typed, `?kind=app` on the result from the parent app), never the phone's token.
@@ -1730,6 +1730,8 @@ Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone 
 
 - A watch token (kind `"watch"`, 2026-11-20) gets this view for a plain `GET state` too (Zepp, Wear OS, Apple ask `/state`), no `?nf=` rows,
   and may call only `GET state|tile|icon|icons`, `PUT rules`, `POST cmd`; anything else `403 {"error":"watch token: not allowed"}`.
+  2026-11-21: like the AI token, `PUT rules` keeps the stored `AI_LOCKED` keys (PIN, protections) and `POST cmd` takes only `AI_CMDS`
+  (lk lc ms rg rs sa an = the watch apps' `CODE`), else 403.
 
 ## Calls (2026-11-15, `guard/Calls.kt`, `CallsLogic.kt`)
 - **Rule** `calls`: `{"block": "off" | "unknown" | "hidden", "allow": ["+84912345678", ...]}` (max 30, 3-15 digits each; full replace like every rule; not overridable by a timed mode).

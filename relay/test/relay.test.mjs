@@ -550,6 +550,9 @@ ck("watch token: chat kept, the app in use listed even when not top 15",wj.state
 ck("watch token: ?nf= gives no notification rows",!/SECRET/.test(await (await WS("state?nf=0")).text()));
 for(const [m,p] of [["GET","parents"],["POST","invite"],["POST","push"],["GET","file"],["GET","frame?after=0"],["POST","live"],["GET","where"]])ck(`watch token: ${m} ${p} 403`,(await WS(p,{method:m,body:m=="GET"?undefined:"{}"})).status==403);
 ck("watch token: cmd still works",(await WS("cmd",{method:"POST",body:JSON.stringify({type:"lk"})})).status==200);
+{const pr=await WS("rules",{method:"PUT",body:JSON.stringify({limits:{},pinHash:"evil",pinSalt:"x",noDebug:false})});const sj=await (await fetch(`${B}/c/${idw}/sync`,{method:"POST",headers:{"x-kg-token":Tw,"content-type":"application/json"},body:"{}"})).json();
+ck("watch token: rules PUT can't set the PIN",pr.status==200&&!(sj.rules&&sj.rules.pinHash=="evil"));}
+for(const t of ["ai","sn","ls"])ck(`watch token: cmd ${t} 403 (only the 7 watch commands)`,(await WS("cmd",{method:"POST",body:JSON.stringify({type:t})})).status==403);
 ck("watch token: a parent's plain GET state still has everything",/nfSECRET/.test(await (await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":Tpw}})).text()));}
 {const P=(o)=>fetch(`${B}/c/${idw}/parents`,{method:"POST",headers:{"x-kg-token":Tpw,"content-type":"application/json"},body:JSON.stringify(o)});
 const rr=await P({rename:w4&&w4.id,name:"Bip của mẹ"});ck("watch: a parent renames the watch",rr.status==200&&(await rr.json()).parents.some(p=>p.kind=="watch"&&p.name=="Bip của mẹ"));
@@ -741,6 +744,7 @@ ck("rekey: the new one syncs, parents keep working, dropped minted one gone",(aw
 ck("rekey: asked again with the new token (lost reply) = ok",(await Q("rekey",Tn,{token:Tn})).status==200);
 Tq=Tn;
 await Q("sync",Tq,{pv:"",pvo:hp("2468",salt)});r=await Q("join",Tq,{name:"X",pin:"2468"});ck("parents: PIN gone on the phone + parents exist -> invite needed",r.status==403&&(await r.json()).error=="invite needed");
+r=await Q("mint",Tq,{name:"Leak"});j=await r.json();r=await Q("unlock",j.token,{pin:"0000"});ck("mint: no PIN on the phone + parents exist -> a minted token can't unlock",r.status==403&&(await r.json()).error=="invite needed");
 await Q("sync",Tq,{pv:{h:hp("2468",""),s:""}});
 for(let i=0;i<4;i++)await Q("join",Tq,{name:"X",pin:"9999"});
 r=await Q("join",Tq,{name:"X",pin:"9999"});ck("parents: 5th wrong PIN locks 15 min (429)",r.status==429&&(await r.json()).retryAt>Date.now()+14*60e3);

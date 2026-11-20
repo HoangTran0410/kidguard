@@ -806,10 +806,10 @@ export class Kid {
       queue: (cmds || []).filter(c => live(c, Date.now())).slice(-20).map(c => ({ id: c.id, type: c.type, at: c.at, ...(c.by ? { by: c.by } : {}) })), expired: (await this.s.get("expired")) || [] });
   }
 
-  async rRules({ req, url, body, now, role, who, token, id }) {
+  async rRules({ req, url, body, now, role, who, token, id, watch }) {
     const [state, old] = await Promise.all([this.getK("state"), this.s.get("rules")]);
     const rev = Math.max(Date.now(), (old && old.rev || 0) + 1, (state && state.rules && state.rules.rev || 0) + 1);
-    if (role === "ai") {   // never the PIN or a protection switch: those keep the stored value (the newer of the queued rules and the phone's)
+    if (role === "ai" || watch) {   // AI / watch token (no browser PIN; review 2026-11-21): never the PIN or a protection switch: those keep the stored value (the newer of the queued rules and the phone's)
       const cur = (old && state && state.rules ? ((old.rev || 0) >= (state.rules.rev || 0) ? old : state.rules) : old || (state && state.rules)) || {};
       for (const k of AI_LOCKED) { delete body[k]; if (!/^pin/.test(k) && k in cur) body[k] = cur[k]; }
     }
@@ -886,9 +886,10 @@ export class Kid {
     return json({ enabled: true, linked: !!(tg && tg.chat), link: `https://t.me/${bot}?start=${code}` });
   }
 
-  async rCmd({ req, url, body, now, role, who, token, id }) {
+  async rCmd({ req, url, body, now, role, who, token, id, watch }) {
     const type = String(body.type || ""); let cut = null;
     if (role === "ai" && !AI_CMDS.includes(type)) return json({ error: "ai token: not allowed" }, 403);
+    if (watch && !AI_CMDS.includes(type)) return json({ error: "watch token: not allowed" }, 403);   // the 7 the watch apps send (watch/README.md)
     if (!CMDS.includes(type)) return json({ error: "bad command" }, 400);
     if (type === "ai") {   // the page makes the token; here only the shape, and a revoke takes effect at once (the phone follows)
       if (!(body.op === "revoke" || (body.op === "set" && /^[0-9a-f]{64}$/.test(String(body.hash || ""))))) return json({ error: "bad command" }, 400);
@@ -1017,6 +1018,8 @@ export class Kid {
       const c = await this.pinCheck(b.pin, now, me.km ? "km" : h.slice(0, 12));
       if (c.r === "locked") return json({ error: "pin locked", retryAt: c.retryAt }, 429);
       if (c.r === "bad") return json({ error: "bad pin", left: c.left }, 403);
+      // no PIN known: a phone-minted token (kid token holder) opens only when no other parent is unlocked, like `join` (review 2026-11-21)
+      if (c.r === "none" && me.lk && Object.keys(this.par).some(k => k !== h && !this.par[k].lk)) return json({ error: "invite needed" }, 403);
       me.ul = now + UNLOCK_MS; me.seen = now; delete me.lk; await this.s.put("par", this.par);
       return json({ until: me.ul, pin: c.r });
     }

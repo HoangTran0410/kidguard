@@ -16,4 +16,9 @@ class RelayPvTest {
         assertNull(RelayPv.proof("", "0123456789abcdef"))
         assertNull(RelayPv.proof("0123456789abcdef ", "0123456789abcdef"))   // "no PIN" was ok'd: nothing to prove with
     }
+    @Test fun refusedPvBacksOff() {
+        assertEquals(10 * 60_000L, RelayPv.retryMs(0))
+        assertTrue(RelayPv.retryMs(1) > RelayPv.retryMs(0) && RelayPv.retryMs(2) > RelayPv.retryMs(1))
+        assertEquals(24 * 3600_000L, RelayPv.retryMs(9))
+    }
 }

@@ -751,6 +751,10 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var degraded: Set<String>
         get() = p.getStringSet("degraded", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("degraded", v).apply() }
+    /** Degraded keys the kid / parent were told about (once per state change); `degraded` itself always shows every key. */
+    @get:Synchronized @set:Synchronized var degradedTold: Set<String>
+        get() = p.getStringSet("degradedTold", emptySet())!!.toSet()
+        set(v) { p.edit().putStringSet("degradedTold", v).apply() }
     @get:Synchronized @set:Synchronized var vpnStuck: Boolean
         get() = p.getBoolean("vpnStuck", false)
         set(v) { p.edit().putBoolean("vpnStuck", v).apply() }

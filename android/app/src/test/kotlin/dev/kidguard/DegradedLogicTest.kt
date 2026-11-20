@@ -39,7 +39,7 @@ class DegradedLogicTest {
             stored += k; last[k] = now; return true
         }
         assertTrue(report("loc", 0)); stored -= "loc"        // told, then cleared
-        assertFalse(report("loc", 60_000))                   // flap within the gap: quiet, not stored
+        assertFalse(report("loc", 60_000))                   // flap within the gap: quiet, not marked told
         assertFalse("loc" in stored)
         assertTrue(report("loc", DegradedLogic.GAP_MS + 1))  // still broken after the gap: told
     }

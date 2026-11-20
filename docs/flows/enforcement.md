@@ -134,7 +134,7 @@ Trigger: command `release` (relay: deliver-once; LAN: `POST /api/cmd`). `Guard.c
 ### 1.9 PIN / admin unlock / Authenticator code (Store.kt)
 
 - PIN: hash in rules (`pinHash`,`pinSalt`); `Rules.hashPin` (Rules.kt) salted = 10 000 x sha256; legacy `sha256("kg:"+pin)`. Compare constant-time.
-- Lockout: `Store.checkParentPin` pref `pinFails/pinLock`; `Safety.pinLockMs` 5 free, then 5 min doubling (cap 64x).
+- Lockout: `Store.checkParentPin` pref `pinFails/pinLock`; `Safety.pinLockMs` 5 free, then 5 min doubling, capped at `PIN_LOCK_MAX_MS` = 30 min.
 - Pairing: `tryPair` (Store.kt): code (6 digits, open 10 min or while never paired) -> PIN check/set (`PairPin.decide`) -> token pending 10 min (`PendingPairs`) -> `commitPair` on first authenticated request: store token hash, `everPaired`, new PIN into rules, one `commit()`. 3rd wrong guess => new code + 30 s doubling block (`Safety.pairBlockMs`).
 - Child "Bố mẹ quản lý trên máy này": `ui/MainActivity.kt` -> `Store.checkAdmin`: TOTP first (6 digits), else PIN; wrong => `tamper` event; returns 1/0/-1; then `ui/AdminActivity` session.
 - Child unlock code (Authenticator): `tryUnlock` `Totp.check` (+-1 step, step > `totpLast`); ok => `unlockUntil = max(now, old) + unlockMin` (stacks), `unlock` event; 5 free tries then 5 min doubling (`unlockFails/unlockLock`), 5th wrong => `tamper`. Effect = decide() step 6.

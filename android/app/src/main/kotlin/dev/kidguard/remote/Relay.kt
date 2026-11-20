@@ -42,6 +42,7 @@ class Relay(private val g: Guard) {
     private var apps: JSONArray? = null
     private var fcmSent = ""
     @Volatile private var pvSent = ""   // "<relay> <pinHash> <pinSalt>" the worker has (sync `pv`)
+    @Volatile private var pvRetryAt = 0L; @Volatile private var pvFails = 0; @Volatile private var pvRefused = ""   // refused pv: same key retried 10 min, 1 h, 6 h, then daily (each retry = a parent alert); a new PIN goes at once
     private var lastCoarse = 0
     private var lastSent = 0L
     private val diff = StateDiff()      // partial states once the worker says `merge` (bandwidth)
@@ -237,7 +238,7 @@ class Relay(private val g: Guard) {
         if (fcm.isNotEmpty() && "$base/$rid $fcm" != fcmSent) req.put("fcm", fcm)
         // the family PIN hash (docs/protocol.md "Parents"): the worker checks a new parent's PIN / a browser unlock with it. Sent when it changes
         val pr = store.rules; val pvKey = "$base/$rid ${pr.pinHash} ${pr.pinSalt}"
-        if (pvKey != pvSent) {
+        if (pvKey != pvSent && (pvKey != pvRefused || now >= pvRetryAt)) {
             req.put("pv", if (pr.pinHash.isBlank()) "" else JSONObject().put("h", pr.pinHash).put("s", pr.pinSalt))
             // pvo: the hash the worker last said "ok" to = the proof that this is the phone (the kid token alone can't change it)
             RelayPv.proof(store.relayPvOk, rid)?.let { req.put("pvo", it) }
@@ -256,8 +257,12 @@ class Relay(private val g: Guard) {
         if (req.has("pv")) {
             pvSent = pvKey
             when (res.optString("pv")) {
-                "ok" -> store.relayPvOk = RelayPv.stamp(rid, pr.pinHash)
-                "refused" -> { pvSent = ""; Log.w("KidGuard", "relay refused the PIN hash (no proof): sent again next sync (the worker throttles the alert)") }
+                "ok" -> { store.relayPvOk = RelayPv.stamp(rid, pr.pinHash); pvFails = 0; pvRefused = "" }
+                "refused" -> {
+                    if (pvRefused != pvKey) pvFails = 0
+                    pvSent = ""; pvRefused = pvKey; pvRetryAt = now + RelayPv.retryMs(pvFails++)
+                    Log.w("KidGuard", "relay refused the PIN hash (no proof): retry in ${RelayPv.retryMs(pvFails - 1) / 60_000} min")
+                }
             }
         }
         run {
@@ -525,6 +530,8 @@ object RelayTrim {
 /** Pure: the `pvo` proof of a PIN-hash change (docs/protocol.md "Parents"). [ok] = "<relay id> <hash>" the worker said ok to. */
 object RelayPv {
     fun stamp(rid: String, hash: String) = "$rid $hash"
+    /** Wait before re-sending a refused pv (each try alerts every parent; the worker also throttles to 10 min). */
+    fun retryMs(fails: Int): Long = when (fails) { 0 -> 10 * 60_000L; 1 -> 3600_000L; 2 -> 6 * 3600_000L; else -> 24 * 3600_000L }
     /** The hash to prove with, or null when the worker never said ok on this relay id (a first pv needs none). */
     fun proof(ok: String, rid: String): String? = ok.split(' ').takeIf { it.size == 2 && it[0] == rid && it[1].length == 64 }?.get(1)
 }

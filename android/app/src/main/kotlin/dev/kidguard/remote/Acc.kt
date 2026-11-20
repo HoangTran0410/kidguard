@@ -357,7 +357,7 @@ class Acc : AccessibilityService() {
                 if (a != null && dev.kidguard.BlockCard.show(a, label, pkg, code)) return   // B14: overlay card with reason + Ask
                 val nm = ctx.getSystemService(NotificationManager::class.java)
                 nm.createNotificationChannel(NotificationChannel("kg_block", ctx.getString(R.string.ch_block), NotificationManager.IMPORTANCE_HIGH))
-                nm.notify(7400 + (pkg.hashCode() and 0xff), Notification.Builder(ctx, "kg_block").setSmallIcon(android.R.drawable.ic_lock_lock)
+                nm.notify(8100 + (pkg.hashCode() and 0xff), Notification.Builder(ctx, "kg_block").setSmallIcon(android.R.drawable.ic_lock_lock)
                     .setContentTitle(ctx.getString(R.string.notif_blocked, label, BasicLogic.reasonText(code, ResTr(ctx))))
                     // v0.9.7: the parent's note, else the friendly default
                     .setContentText(Notes.clean(Store.of(ctx).rules.blockNote, Notes.NOTE_MAX).let { n -> if (n.isEmpty()) ctx.getString(R.string.policy_support) else ctx.getString(R.string.policy_note, n) }).setAutoCancel(true).setOnlyAlertOnce(true)   // a bounce loop (app relaunching itself) re-posts every 10 s: one sound

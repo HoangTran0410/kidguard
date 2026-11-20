@@ -11,7 +11,7 @@ object DegradedLogic {
     const val GAP_MS = 30 * 60_000L
     fun due(last: Long?, now: Long, gap: Long = GAP_MS): Boolean = last == null || now - last >= gap || now < last
     /**
-     * Notify + log now? Only when the key is NEW in `Store.degraded` (persisted: a process restart or a condition that
+     * Notify + log now? Only when the key is not in `Store.degradedTold` (persisted: a process restart or a condition that
      * stays true for days, e.g. location permission denied, says nothing more) and not within [GAP_MS] of the last time
      * (a key that flaps clear / report). It used to re-alert every 30 min while stuck (heads-up + sound, and a log line).
      */
@@ -34,11 +34,13 @@ object Degraded {
         if (Flavor.HOME) return
         val app = ctx.applicationContext
         val s = Store.of(app)
-        val known = key in s.degraded
+        // the state always lists the key (the parent sees it at once); only the notice + log line wait for [DegradedLogic.tell]
+        if (key !in s.degraded) s.degraded = s.degraded + key
+        val known = key in s.degradedTold
         val now = System.currentTimeMillis()
-        // stored only when told: a flapped key skipped by the throttle must stay "unknown" so the next report tells it
+        // told only once per state change; a flapped key skipped by the throttle stays untold, so a later report tells it
         if (!DegradedLogic.tell(known, last[key], now)) return
-        if (!known) s.degraded = s.degraded + key
+        s.degradedTold = s.degradedTold + key
         last[key] = now
         runCatching {
             val nm = app.getSystemService(NotificationManager::class.java)
@@ -60,6 +62,7 @@ object Degraded {
         val app = ctx.applicationContext
         val s = Store.of(app)
         // `last` is kept: a key that flaps (works, fails again) stays quiet for GAP_MS
+        if (key in s.degradedTold) s.degradedTold = s.degradedTold - key
         if (key !in s.degraded) return
         s.degraded = s.degraded - key
         runCatching { app.getSystemService(NotificationManager::class.java).cancel(DegradedLogic.notifId(key)) }
