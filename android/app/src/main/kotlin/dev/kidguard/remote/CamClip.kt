@@ -147,7 +147,7 @@ object CamClip {
         return Notification.Builder(c, CamCall.CH).setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentTitle(c.getString(R.string.clip_notice_title)).setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
-            .setOngoing(true).setContentIntent(Monitoring.openIntent(c)).build()
+            .setOngoing(true).setOnlyAlertOnce(true).setContentIntent(Monitoring.openIntent(c)).build()
     }
 
     /** Camera2 -> MediaRecorder for [n] s into [f]. "" = ok, else the reason. Stops early when the rule goes off. */

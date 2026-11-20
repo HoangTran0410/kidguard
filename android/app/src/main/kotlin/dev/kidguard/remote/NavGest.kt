@@ -111,14 +111,20 @@ object NavGest {
     private const val CH = "nav"
     private const val NOTIF = 7400
 
+    /** Last state posted: [restoreLocked] runs every Guard tick, so post / cancel only on a change (a re-post every tick
+     *  sounded + popped up again on some OEMs, same bug as the usage-access notice, owner 2026-11-20). null = unknown (process start). */
+    @Volatile private var stuckUp: Boolean? = null
+
     private fun stuckNotice(ctx: Context, on: Boolean) = runCatching {
+        if (stuckUp == on) return@runCatching
+        stuckUp = on
         val nm = ctx.getSystemService(android.app.NotificationManager::class.java)
         if (!on) { nm.cancel(NOTIF); return@runCatching }
         val ch = Chan.open(nm, CH, ctx.getString(R.string.ch_nav), android.app.NotificationManager.IMPORTANCE_HIGH)
         val pi = fixIntent(ctx)
         nm.notify(NOTIF, android.app.Notification.Builder(ctx, ch).setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(ctx.getString(R.string.nav_stuck_t)).setContentText(ctx.getString(R.string.nav_stuck_b))
-            .setContentIntent(pi).setOngoing(true)
+            .setContentIntent(pi).setOngoing(true).setOnlyAlertOnce(true)
             .addAction(android.app.Notification.Action.Builder(null, ctx.getString(R.string.nav_stuck_btn), pi).build()).build())
     }
 

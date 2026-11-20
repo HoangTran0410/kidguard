@@ -75,6 +75,18 @@ object RefuseLogic {
         when (it) { "acc" -> pkg !in r.accPause; "dev" -> pkg !in r.devPause && pkg !in r.tcpPause; else -> pkg !in r.vpnPause }
     }
 
+    /** When [kind] was last stored for [pkg] (0 = never): the in-memory throttle is lost on every process restart
+     *  (OEM killers), which re-sent the same notification + parent event; the stored list survives it. */
+    fun lastAt(list: JSONArray, pkg: String, kind: String): Long {
+        for (i in 0 until list.length()) {
+            val o = list.optJSONObject(i) ?: continue
+            if (o.optString("pkg") != pkg) continue
+            val k = o.optJSONArray("kinds") ?: return 0L
+            return if ((0 until k.length()).any { k.optString(it) == kind }) o.optLong("at") else 0L
+        }
+        return 0L
+    }
+
     /** Stored list after a new hit: one entry per app (kinds merged), newest first, at most [KEEP], none older than [KEEP_MS]. */
     fun add(list: JSONArray, pkg: String, label: String, kinds: Set<String>, now: Long): JSONArray {
         val out = JSONArray()
@@ -151,7 +163,8 @@ object RefuseHint {
         if ("vpn" in hit && isVpnApp(svc, pkg)) hit = hit - "vpn"   // a VPN app talking about VPNs
         if (hit.isEmpty()) return
         if (runCatching { svc.packageManager.getLaunchIntentForPackage(pkg) }.getOrNull() == null) return   // services / system parts
-        if (hit.all { now - (shown["$pkg|$it"] ?: 0L) < RefuseLogic.AGAIN_MS }) return
+        val stored = s.refusedRaw()
+        if (hit.all { now - maxOf(shown["$pkg|$it"] ?: 0L, RefuseLogic.lastAt(stored, pkg, it)) < RefuseLogic.AGAIN_MS }) return
         hit.forEach { shown["$pkg|$it"] = now }
         val pm = svc.packageManager
         val label = runCatching { pm.getApplicationInfo(pkg, 0).loadLabel(pm).toString() }.getOrDefault(pkg)

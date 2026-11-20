@@ -485,7 +485,8 @@ class Guard : Service() {
         // no Device Owner: open the adb window (SelfAdb.ensure) only when something really has to change
         if (!owner && Debloat.diff(r.hidden - store.refusedHide, had, never).let { it.hide.isEmpty() && it.show.isEmpty() }) return
         if (!owner && !SelfAdb.ensure(this)) {   // no shell (or no window to open): changes wait (disabled apps stay disabled)
-            hideKey = ""
+            // hideKey stays: the next try is in 10 min. Resetting it re-opened the adb window (Developer options + Wireless
+            // debugging flipping on/off, the tick blocked ~10 s) every tick while adbd never answered (no Wi-Fi, pairing lost)
             if (!shellOffLogged && Debloat.diff(r.hidden, had, Policy.neverHide(this, prot)).let { it.hide.isNotEmpty() || it.show.isNotEmpty() }) { shellOffLogged = true
                 Degraded.report(this, "debloat", getString(R.string.dg_hide_t), getString(R.string.app_shell_off),
                     Intent(android.provider.Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS), getString(R.string.app_shell_off)) }
@@ -1133,7 +1134,7 @@ class Guard : Service() {
         val seen = runCatching { Monitoring.line(this, store.baseRules.watch) }.getOrDefault("")
         fgLabel = t + "\n" + x + nav + seen
         val b = Notification.Builder(this, "guard").setSmallIcon(android.R.drawable.ic_lock_lock)
-            .setContentTitle(t).setContentText(if (seen.isEmpty()) x else seen).setOngoing(true)
+            .setContentTitle(t).setContentText(if (seen.isEmpty()) x else seen).setOngoing(true).setOnlyAlertOnce(true)
             .setContentIntent(if (seen.isEmpty()) open else Monitoring.openIntent(this))
         if (seen.isNotEmpty()) b.setStyle(Notification.BigTextStyle().bigText(seen + "\n" + x))
         // own gestures on: a way back to the 3 buttons is ALWAYS one pull of the shade away, whatever the stuck check missed

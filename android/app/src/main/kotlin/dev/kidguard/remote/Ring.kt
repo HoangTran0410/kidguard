@@ -100,7 +100,7 @@ object Ring {
         val stop = PendingIntent.getBroadcast(c, 0, Intent(c, RingStopReceiver::class.java), PendingIntent.FLAG_IMMUTABLE)
         nm.notify(NID, Notification.Builder(c, CH).setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(res.getString(R.string.notif_ring_title)).setContentText(res.getString(R.string.notif_ring_text))
-            .setCategory(Notification.CATEGORY_ALARM).setOngoing(true).setContentIntent(stop).setDeleteIntent(stop)
+            .setCategory(Notification.CATEGORY_ALARM).setOngoing(true).setOnlyAlertOnce(true).setContentIntent(stop).setDeleteIntent(stop)
             .addAction(Notification.Action.Builder(null, res.getString(R.string.ring_stop), stop).build()).build())
     }
 }

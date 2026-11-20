@@ -91,7 +91,7 @@ object Call {
             val pi = PendingIntent.getActivity(g, NID, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             nm.notify(NID, Notification.Builder(g, CH).setSmallIcon(android.R.drawable.sym_call_incoming)
                 .setContentTitle(g.getString(R.string.call_from, who(g))).setContentText(g.getString(R.string.call_tap))
-                .setCategory(Notification.CATEGORY_CALL).setOngoing(true).setContentIntent(pi).setFullScreenIntent(pi, true).build())
+                .setCategory(Notification.CATEGORY_CALL).setOngoing(true).setOnlyAlertOnce(true).setContentIntent(pi).setFullScreenIntent(pi, true).build())
         }
     }
 

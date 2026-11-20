@@ -359,7 +359,7 @@ class Acc : AccessibilityService() {
                 nm.notify(7400 + (pkg.hashCode() and 0xff), Notification.Builder(ctx, "kg_block").setSmallIcon(android.R.drawable.ic_lock_lock)
                     .setContentTitle(ctx.getString(R.string.notif_blocked, label, BasicLogic.reasonText(code, ResTr(ctx))))
                     // v0.9.7: the parent's note, else the friendly default
-                    .setContentText(Notes.clean(Store.of(ctx).rules.blockNote, Notes.NOTE_MAX).let { n -> if (n.isEmpty()) ctx.getString(R.string.policy_support) else ctx.getString(R.string.policy_note, n) }).setAutoCancel(true)
+                    .setContentText(Notes.clean(Store.of(ctx).rules.blockNote, Notes.NOTE_MAX).let { n -> if (n.isEmpty()) ctx.getString(R.string.policy_support) else ctx.getString(R.string.policy_note, n) }).setAutoCancel(true).setOnlyAlertOnce(true)   // a bounce loop (app relaunching itself) re-posts every 10 s: one sound
                     .setCategory(Notification.CATEGORY_STATUS).build())
             }
         }
@@ -380,6 +380,7 @@ class Acc : AccessibilityService() {
         private var viewing = false
         private var controlled = false
         private var lastReEnableLog = 0L
+        private var lastRebindLog = 0L
         private var misses = 0
         private var rebind = false
         private val hide = Runnable { hideNotice() }
@@ -418,7 +419,9 @@ class Acc : AccessibilityService() {
                     if (++misses > 2) {
                         misses = 0; rebind = true
                         Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, without(cur, me))
-                        Store.of(ctx).log(R.string.log_acc_rebind)
+                        // a bind the OEM refuses repeats this every ~30 s: one log line an hour, not a flooded log
+                        val now = System.currentTimeMillis()
+                        if (now - lastRebindLog > 3_600_000) { lastRebindLog = now; Store.of(ctx).log(R.string.log_acc_rebind) }
                     }
                 } else {
                     Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, if (cur.isEmpty()) me else "$cur:$me")

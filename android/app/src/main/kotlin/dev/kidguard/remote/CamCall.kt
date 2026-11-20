@@ -182,7 +182,7 @@ object CamCall {
         return Notification.Builder(c, CH).setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentTitle(c.getString(R.string.cam_notice_title)).setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
-            .setOngoing(true).setContentIntent(Monitoring.openIntent(c)).build()
+            .setOngoing(true).setOnlyAlertOnce(true).setContentIntent(Monitoring.openIntent(c)).build()
     }
 
     @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")

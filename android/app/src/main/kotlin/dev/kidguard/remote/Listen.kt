@@ -214,6 +214,6 @@ object Listen {
         nm.notify(NID, Notification.Builder(g, CH).setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentTitle(g.getString(R.string.notif_listen_title))
             .setContentText(g.getString(R.string.notif_listen_text))
-            .setOngoing(true).setContentIntent(open).build())
+            .setOngoing(true).setOnlyAlertOnce(true).setContentIntent(open).build())
     }
 }
