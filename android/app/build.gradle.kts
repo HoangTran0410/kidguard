@@ -57,8 +57,9 @@ android {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (keystore.exists()) signingConfig = signingConfigs.getByName("release")
-            // self-setup ships a native lib (conscrypt, spake2): real phones are ARM; x86_64 (-2.5 MB) only for debug on an x86 emulator
-            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+            // self-setup ships a native lib (conscrypt, spake2). x86_64 too (+2.5 MB): without it Waydroid / Android-x86 /
+            // x86 tablets refuse the whole APK as "app not compatible" (user, 2026-11-20, LineageOS 13 vanilla)
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
         }
         debug {
             if (keystore.exists()) signingConfig = signingConfigs.getByName("release")

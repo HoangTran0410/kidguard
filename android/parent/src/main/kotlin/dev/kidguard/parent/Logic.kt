@@ -65,7 +65,7 @@ object Logic {
     /** Pairing needs a not-yet-saved LAN target: only its hello probe and the pair call, nothing else. */
     fun allowedRequest(kidsJson: String, target: String, method: String, rest: String) =
         allowedTarget(kidsJson, target) || (target.startsWith("http://") && ((method == "GET" && rest == "/api/hello") || (method == "POST" && rest == "/api/pair")))
-            || (target == DEFAULT_RELAY && isPairPath(method, rest))
+            || (target.startsWith("https://") && isPairPath(method, rest))   // own relay too (2026-11-20): only the /p/ pairing calls
 
     /** "Pair from anywhere" (before the kid is saved): only the default relay's `/p/...` calls (docs/protocol.md "Pair over relay"). */
     const val DEFAULT_RELAY = "https://kg-relay.99-hoangtran.workers.dev"

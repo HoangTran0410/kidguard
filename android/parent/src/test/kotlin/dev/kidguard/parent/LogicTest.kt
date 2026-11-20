@@ -263,7 +263,10 @@ class LogicTest {
         assertFalse(Logic.allowedRequest("[]", Logic.DEFAULT_RELAY, "POST", "/p/123456/reply"))
         assertFalse(Logic.allowedRequest("[]", Logic.DEFAULT_RELAY, "POST", "/p/123456/result"))
         assertFalse(Logic.allowedRequest("[]", Logic.DEFAULT_RELAY, "GET", "/c/0123456789abcdef/state"))
-        assertFalse(Logic.allowedRequest("[]", "https://evil.example", "POST", "/p/inv"))
+        // own relay (2026-11-20): any https relay's /p/ pairing calls, nothing else; never over http
+        assertTrue(Logic.allowedRequest("[]", "https://kidguard.me.workers.dev", "POST", "/p/123456/join"))
+        assertFalse(Logic.allowedRequest("[]", "https://kidguard.me.workers.dev", "GET", "/c/0123456789abcdef/state"))
+        assertFalse(Logic.allowedRequest("[]", "http://evil.example", "POST", "/p/inv"))
     }
 
     @Test fun lanKidRelayFallbackAllowed() {

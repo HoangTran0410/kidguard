@@ -415,8 +415,8 @@ a.lnkbtn.pri{background:var(--primary);color:#fff;border-color:var(--primary);fo
 a.go:hover{background:var(--chip)}
 a.go:active{transform:scale(.99)}
 .go .gi{flex:none;width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--tint);color:var(--accent)}
-.go .gt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.go .gt small{color:var(--sub);font-size:13px;line-height:1.4}
+.go .gtx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.go .gtx small{color:var(--sub);font-size:13px;line-height:1.4}
 .go>.si:last-child{color:var(--sub);flex:none}
 /* long help text folded to one sentence + ⓘ (app-set.js tipScan) */
 p.tipc{cursor:pointer}span.tipc{display:block}.bkhow{margin:6px 0 0;padding-left:18px;color:var(--sub);font-size:13px;line-height:1.5}.bkhow li+li{margin-top:6px}.bkn small.bkrf{display:block;color:var(--warn);font-size:11px;font-weight:600}.tipe{white-space:nowrap}
@@ -558,3 +558,5 @@ input[type=range]:disabled{opacity:.45;cursor:default}
 .selmode .cfile[data-sid]{padding-left:34px}.selmode .cfile[data-sid]::after{top:50%;margin-top:-11px;left:4px}
 .selpg{bottom:calc(88px + env(safe-area-inset-bottom))}@media(min-width:960px){.selpg{bottom:12px}}
 .selrow select{flex:1 1 140px}
+
+.ownr{margin-top:10px}.ownr summary{cursor:pointer;color:var(--sub);font-size:14px;display:flex;align-items:center;gap:6px}.ownr input{width:100%;margin-top:6px}

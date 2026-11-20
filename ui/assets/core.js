@@ -575,7 +575,8 @@ function appOpenKid() {
 window.kgAppOpen = appOpenKid;
 // Pair from anywhere (docs/protocol.md "Pair over relay"): the code on the kid's screen also works through the relay, no shared Wi-Fi.
 // The page talks to the relay it was served from (a browser) or the default relay (the app, via its proxy). A paired phone offers it too (0.9.58) while it is on the default relay: then the PIN fields carry its PIN.
-const anyBase = () => APP ? "/k/" + b64u(DEFAULT_RELAY) : RELAY;
+// own relay (owner 2026-11-20: the web / app had no place to type it): the "Own relay" field, else this page's relay
+const anyBase = () => { const o = httpsOrigin(($("#aR") || {}).value || "").replace(/\/$/, ""); return APP ? "/k/" + b64u(o || DEFAULT_RELAY) : o || RELAY; };
 const anyOk = () => APP || (location.protocol === "https:" && isRelayOrigin && !!(window.crypto && crypto.subtle));
 const anyHex = n => [...crypto.getRandomValues(new Uint8Array(n))].map(b => b.toString(16).padStart(2, "0")).join("");
 const anySha = async x => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(x)))].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -585,7 +586,9 @@ const anyCard = () => `<div class="card"><h2>${ic("globe")} ${t("any.h")}</h2><p
   <p style="margin:12px 0 2px">${ic("key-round")} <b>${t("any.pin")}</b></p><p class="mute" style="margin:0 0 6px">${t("any.pinP")}</p>
   <div class="pairf"><input id="ap1" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("any.pin1"))}" aria-label="${esc(t("any.pin1"))}">
   <input id="ap2" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" placeholder="${esc(t("pair.pin2"))}" aria-label="${esc(t("pair.pin2"))}">
-  <button class="pri" id="aGo">${ic("globe")} ${t("pair.go")}</button></div><p class="err" id="eA"></p></div>`;
+  <button class="pri" id="aGo">${ic("globe")} ${t("pair.go")}</button></div><p class="err" id="eA"></p>
+  <details class="ownr"${!APP && RELAY !== DEFAULT_RELAY ? " open" : ""}><summary>${ic("link")} ${t("any.own")}</summary><p class="mute">${t("any.ownP")}</p>
+  <input id="aR" type="url" inputmode="url" autocapitalize="off" spellcheck="false" placeholder="https://kidguard.….workers.dev" aria-label="${esc(t("any.own"))}" value="${!APP && RELAY !== DEFAULT_RELAY ? esc(RELAY) : ""}"></details></div>`;
 function anyWire() {
   const go = $("#aGo"); if (!go) return;
   const idle = go.innerHTML, say = m => { $("#eA").textContent = m; };
@@ -598,6 +601,8 @@ function anyWire() {
     if (!/^\d{6}$/.test(code)) return say(t("pe.wrong code"));
     if (!/^\d{4,8}$/.test(a)) return say(t("pe.bad pin"));
     if (a !== $("#ap2").value) return say(t("pe.mismatch"));
+    const ownR = ($("#aR") || {}).value || "";
+    if (ownR.trim() && !httpsOrigin(ownR.trim())) return say(t("any.ownBad"));
     const fail = j => say(hasT("pe." + (j && j.error)) ? t("pe." + j.error, Math.ceil(((j && j.wait) || 60000) / 60000)) : t("pe.fail", String((j && j.error) || "?").slice(0, 40)));
     busy(true, t("any.busy"));
     try {
@@ -617,6 +622,7 @@ function anyWire() {
 }
 // same result as a relay link (addRelayLink): a kid via the relay, opened at once
 function anyDone(j, name) {
+  if (!APP && j.url) setRelay(j.url);   // this browser's relay from now on (a new tab / the next kid)
   const k = { id: j.id, token: j.token, name, via: "relay", target: j.url, own: 1 };
   kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); save(kids); open(k);
 }
@@ -817,10 +823,10 @@ function pairScreen(hello, target, prefill = "") {
 // (install on the kid's phone, Device Owner QR, how to pair, the guide). Full card when no phone yet, a short one after.
 function startCard(full) {
   const row = (href, icn, k, ext) => `<a class="go" href="${href}"${ext ? ' target="_blank" rel="noopener"' : ""}><span class="gi">${ic(icn)}</span>`
-    + `<span class="gt"><b>${t("st." + k)}</b>${full ? `<small>${t("st." + k + "D")}</small>` : ""}</span>${ic(ext ? "external-link" : "chevron-right")}</a>`;
+    + `<span class="gtx"><b>${t("st." + k)}</b>${full ? `<small>${t("st." + k + "D")}</small>` : ""}</span>${ic(ext ? "external-link" : "chevron-right")}</a>`;
   return `<div class="card start"><h2>${ic("sparkles")} ${t(full ? "st.title" : "st.more")}</h2>${full ? `<p class="sub">${t("st.none")}</p>` : ""}`
     + row("/install", "download", "install") + row("/qr", "shield", "qr")
-    + (full ? `<div class="go nolink"><span class="gi">${ic("link")}</span><span class="gt"><b>${t("st.pair")}</b><small>${t("st.pairD")}</small></span></div>` : "")
+    + (full ? `<div class="go nolink"><span class="gi">${ic("link")}</span><span class="gtx"><b>${t("st.pair")}</b><small>${t("st.pairD")}</small></span></div>` : "")
     + row(SITE + "/guide", "book-open", "guide", true) + `</div>`;
 }
 
