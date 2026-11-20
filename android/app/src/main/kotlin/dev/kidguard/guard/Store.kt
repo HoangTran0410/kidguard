@@ -682,6 +682,9 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized @set:Synchronized var devLeftAt: Long
         get() = p.getLong("devLeftAt", 0L)
         set(v) { p.edit().putLong("devLeftAt", v).apply() }
+    @get:Synchronized @set:Synchronized var tcpSeen: Set<String>?
+        get() = if (p.contains("tcpSeen")) p.getStringSet("tcpSeen", emptySet())!!.toSet() else null
+        set(v) { p.edit().putStringSet("tcpSeen", v ?: emptySet()).apply() }
     @get:Synchronized @set:Synchronized var devSeen: Set<String>?
         get() = if (p.contains("devSeen")) p.getStringSet("devSeen", emptySet())!!.toSet() else null
         set(v) { p.edit().putStringSet("devSeen", v ?: emptySet()).apply() }

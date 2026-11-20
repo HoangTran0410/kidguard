@@ -16,9 +16,10 @@ import org.json.JSONObject
 object DevPauseLogic {
     val DEFAULT: Set<String> = setOf(
         "vms.com.vn.mymobifone",            // My MobiFone (INKA AppSealing, error 50052; owner 2026-11-11)
+        "com.mservice.momotransfer",        // MoMo (owner 2026-11-20: debugging + adb port ticked by default)
     )
     /** Also refuse adb over the network (the port property, not just debugging): owner 2026-11-13, split so others keep the port. */
-    val TCP_DEFAULT: Set<String> = setOf("vms.com.vn.mymobifone")
+    val TCP_DEFAULT: Set<String> = setOf("vms.com.vn.mymobifone", "com.mservice.momotransfer")
 }
 
 object DevOpts {

@@ -58,4 +58,14 @@ class BankListLogicTest {
         val l = BankListLogic.parse("""{"apps":[{"pkg":"a.b","dev":true,"acc":false},{"pkg":"c.d"}]}""")!!
         assertEquals(setOf("a.b"), l.dev); assertEquals(setOf("c.d"), l.acc)
     }
+
+    @Test fun tcpColumn() {
+        val l = BankListLogic.parse("""{"v":1,"apps":[{"pkg":"com.mservice.momotransfer","acc":true,"dev":true,"tcp":true},{"pkg":"com.VCB"}]}""")!!
+        assertEquals(setOf("com.mservice.momotransfer"), l.tcp)
+        assertEquals(setOf("com.mservice.momotransfer"), l.dev)
+        // an old phone (no tcpSeen) that has My MobiFone: MoMo is added once, a parent taking it off later keeps it off
+        val (list, seen) = BankListLogic.merge(setOf("vms.com.vn.mymobifone"), DevPauseLogic.TCP_DEFAULT - "com.mservice.momotransfer", l.tcp, emptySet())
+        assertTrue("com.mservice.momotransfer" in list)
+        assertEquals(setOf("vms.com.vn.mymobifone"), BankListLogic.merge(setOf("vms.com.vn.mymobifone"), seen, l.tcp, emptySet()).first)
+    }
 }

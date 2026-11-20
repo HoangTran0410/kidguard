@@ -456,7 +456,7 @@ function bankBox(r) {
   const how = [t("bank.hAcc"), Array.isArray(r.devPause) ? t("bank.hDev") : "", Array.isArray(r.tcpPause) ? t("bank.tcpP") : "", Array.isArray(r.vpnPause) ? t("bank.vpnP") : "", t("bank.hBack")].filter(Boolean);
   // the table is the section (no inner fold: folded, it was one line), the column notes go under "What each column does"
   return `${noWss}<p class="mute" style="margin:0 0 8px">${t("bank.p")}</p>${stuck}
-    <input id="bk-q" type="search" placeholder="${esc(t("bank.find"))}" aria-label="${esc(t("bank.find"))}">
+    <input id="bk-q" type="search" value="${esc(bankBox.q || "")}" placeholder="${esc(t("bank.find"))}" aria-label="${esc(t("bank.find"))}">
     <div class="bkt" role="table" aria-label="${esc(t("bank.t"))}" style="margin-top:6px"><div class="bkh" role="row" style="${gt}"><span role="columnheader" id="bk-n"></span>${cols.map(c => `<span role="columnheader">${esc(c.h)}</span>`).join("")}</div>
     <div id="bk-list" role="rowgroup"></div></div>
     <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="bk-pkg" class="sp" placeholder="${esc(t("bank.pkg"))}" aria-label="${esc(t("bank.pkg"))}" autocapitalize="off" spellcheck="false" style="min-width:0">
@@ -465,6 +465,7 @@ function bankBox(r) {
     <details style="margin-top:10px"><summary>${t("bank.how")}</summary><ul class="bkhow">${how.map(x => `<li>${x}</li>`).join("")}</ul></details>
     ${st.bankList ? `<p class="mute keep">${pendHtml("bklist", bankListHtml)}</p>` : ""}`;
 }
+bankBox.q = ""; bankBox.pk = new Set();   // search text + names showing their package: survive the redraw on every state
 function bankBind(r) {
   const list = $("#bk-list"); if (!list) return;
   const cols = bankCols(r), gt = `grid-template-columns:minmax(var(--bkn),1fr) repeat(${cols.length},var(--bkw));min-width:calc(var(--bkn) + ${cols.length} * (var(--bkw) + 4px) + 16px)`;
@@ -481,8 +482,11 @@ function bankBind(r) {
     count();
     // a table: the column names once in the sticky header, a bare checkbox per cell (owner 2026-11-11)
     list.innerHTML = rows.map((a, i) => `${a.gone && (i === 0 || !rows[i - 1].gone) ? `<div class="bksub" role="row"><span role="cell">${t("bank.goneH", gone)}</span></div>` : ""}<div class="bkr${a.gone ? " gone" : ""}" role="row" style="${gt}" data-q="${esc((a.label + " " + a.pkg).toLowerCase())}">
-      <span class="bka" role="cell" title="${esc(a.pkg + (a.gone ? " · " + t("bank.notInst") : ""))}">${icon(a)}<span class="bkn">${esc(a.label)}${rf.has(a.pkg) ? `<small class="bkrf">${t("bank.rfTag")}</small>` : ""}</span></span>
+      <span class="bka" role="cell" title="${esc(a.pkg + (a.gone ? " · " + t("bank.notInst") : ""))}"${a.gone ? "" : ` data-pk="${esc(a.pkg)}" style="cursor:pointer"`}>${icon(a)}<span class="bkn">${esc(a.label)}${rf.has(a.pkg) ? `<small class="bkrf">${t("bank.rfTag")}</small>` : ""}${a.gone ? "" : `<small class="mute" style="display:block;word-break:break-all;user-select:all"${bankBox.pk.has(a.pkg) ? "" : " hidden"}>${esc(a.pkg)}</small>`}</span></span>
       ${cols.map((c, i) => `<span role="cell"><input type="checkbox" data-bank="${esc(a.pkg)}" data-k="${c.k}" ${sets[i].has(a.pkg) ? "checked" : ""} aria-label="${esc(c.h + ": " + a.label)}"></span>`).join("")}</div>`).join("");
+    // tap an app name: its package name under it (hidden by default so the list stays easy to read; owner 2026-11-20)
+    list.querySelectorAll("[data-pk]").forEach(n => n.onclick = () => { const p = n.dataset.pk, s = n.querySelector("small.mute");
+      bankBox.pk.has(p) ? bankBox.pk.delete(p) : bankBox.pk.add(p); if (s) s.hidden = !bankBox.pk.has(p); });
     list.querySelectorAll("[data-bank]").forEach(c => c.onchange = () => {
       const key = c.dataset.k;
       const s = new Set(r[key]); c.checked ? s.add(c.dataset.bank) : s.delete(c.dataset.bank);
@@ -493,7 +497,7 @@ function bankBind(r) {
   const fold = v => String(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase();   // "ngan hang" finds "Ngân hàng"
   const filt = () => { const q = fold(($("#bk-q").value || "").trim()); list.querySelectorAll("[data-q]").forEach(l => l.hidden = !!q && !fold(l.dataset.q).includes(q));
     const h = list.querySelector(".bksub"); if (h) h.hidden = !list.querySelector(".bkr.gone:not([hidden])"); };
-  $("#bk-q").oninput = filt;
+  $("#bk-q").oninput = () => { bankBox.q = $("#bk-q").value; filt(); };   // kept across re-renders (each relay state redraws the tab)
   $("#bk-add").onclick = () => {
     const v = $("#bk-pkg").value.trim(), ok = /^[A-Za-z][\w]*(\.[A-Za-z_][\w]*)+$/.test(v) && v.length <= 200;
     $("#bk-err").hidden = ok; if (!ok) return;

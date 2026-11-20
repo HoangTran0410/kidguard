@@ -25,7 +25,7 @@ object BankList {
     fun maybe(g: Guard, now: Long) {
         if (Flavor.HOME) return
         val s = Store.of(g)
-        if (!bundledDone) { bundledDone = true; apply(g, s, BankListLogic.Parsed(AccPauseLogic.DEFAULT, VpnPauseLogic.DEFAULT, emptySet(), DevPauseLogic.DEFAULT)) }
+        if (!bundledDone) { bundledDone = true; apply(g, s, BankListLogic.Parsed(AccPauseLogic.DEFAULT, VpnPauseLogic.DEFAULT, emptySet(), DevPauseLogic.DEFAULT, DevPauseLogic.TCP_DEFAULT)) }
         if (now - s.bankListAt < BankListLogic.DAY_MS || now - triedAt < RETRY_MS) return
         triedAt = now; lastErr = ""
         Thread({
@@ -35,7 +35,7 @@ object BankList {
                 if (runCatching { c.responseCode }.isFailure) { c.disconnect(); c = URL(URLS[1]).openConnection() as HttpURLConnection; c.connectTimeout = 15_000; c.readTimeout = 15_000 }
                 val body = try { if (c.responseCode == 200) c.inputStream.use { it.readBytes().take(64_000).toByteArray().toString(Charsets.UTF_8) } else { lastErr = "http ${c.responseCode}"; null } } finally { c.disconnect() }
                 val l = body?.let { BankListLogic.parse(it) } ?: run { if (lastErr.isEmpty()) lastErr = "bad list"; return@runCatching }
-                apply(g, s, BankListLogic.Parsed(AccPauseLogic.DEFAULT + l.acc, VpnPauseLogic.DEFAULT + l.vpn, l.drop, DevPauseLogic.DEFAULT + l.dev))
+                apply(g, s, BankListLogic.Parsed(AccPauseLogic.DEFAULT + l.acc, VpnPauseLogic.DEFAULT + l.vpn, l.drop, DevPauseLogic.DEFAULT + l.dev, DevPauseLogic.TCP_DEFAULT + l.tcp))
                 s.bankListAt = System.currentTimeMillis(); lastErr = ""
             }.onFailure { lastErr = it.javaClass.simpleName.take(40); Log.w("KidGuard", "bank list", it) }
         }, "bankList").start()
@@ -47,11 +47,13 @@ object BankList {
         val (vpn, vpnSeen) = BankListLogic.merge(r.vpnPause, s.vpnSeen ?: emptySet(), l.vpn, l.drop)
         // debugging list (split from accessibility 2026-11-11): bundled + website `dev`, same add-once rule
         val (dev, devSeen) = BankListLogic.merge(r.devPause, s.devSeen ?: emptySet(), l.dev, l.drop)
-        s.bankSeen = accSeen; s.vpnSeen = vpnSeen; s.devSeen = devSeen
-        if (acc == r.accPause && vpn == r.vpnPause && dev == r.devPause) return
-        g.setRules(r.copy(accPause = acc, vpnPause = vpn, devPause = dev, rev = maxOf(r.rev + 1, System.currentTimeMillis())))
-        runCatching { s.log(R.string.log_bank_list, (acc - r.accPause).size + (vpn - r.vpnPause).size + (dev - r.devPause).size,
-            (r.accPause - acc).size + (r.vpnPause - vpn).size + (r.devPause - dev).size) }
+        // adb-port list (2026-11-20, MoMo): same add-once rule; phones before it start from the bundled default as seen
+        val (tcp, tcpSeen) = BankListLogic.merge(r.tcpPause, s.tcpSeen ?: DevPauseLogic.TCP_DEFAULT, l.tcp, l.drop)
+        s.bankSeen = accSeen; s.vpnSeen = vpnSeen; s.devSeen = devSeen; s.tcpSeen = tcpSeen
+        if (acc == r.accPause && vpn == r.vpnPause && dev == r.devPause && tcp == r.tcpPause) return
+        g.setRules(r.copy(accPause = acc, vpnPause = vpn, devPause = dev, tcpPause = tcp, rev = maxOf(r.rev + 1, System.currentTimeMillis())))
+        runCatching { s.log(R.string.log_bank_list, (acc - r.accPause).size + (vpn - r.vpnPause).size + (dev - r.devPause).size + (tcp - r.tcpPause).size,
+            (r.accPause - acc).size + (r.vpnPause - vpn).size + (r.devPause - dev).size + (r.tcpPause - tcp).size) }
     }
 }
 
@@ -64,7 +66,7 @@ object BankListLogic {
     /** What phones before the website list were offered (the bundled list up to 0.9.12): the rest counts as new. */
     val LEGACY: Set<String> = AccPauseLogic.DEFAULT - setOf("xyz.be.cake", "vms.com.vn.mymobifone")
 
-    class Parsed(val acc: Set<String>, val vpn: Set<String>, val drop: Set<String>, val dev: Set<String> = emptySet())
+    class Parsed(val acc: Set<String>, val vpn: Set<String>, val drop: Set<String>, val dev: Set<String> = emptySet(), val tcp: Set<String> = emptySet())
 
     /**
      * {"v":1,"apps":[{"pkg":..,"name":..,"acc":true,"vpn":false,"dev":false}],"drop":[..]}; `acc` defaults to true (the
@@ -73,16 +75,17 @@ object BankListLogic {
     fun parse(json: String): Parsed? = runCatching {
         val o = JSONObject(json)
         val a = o.getJSONArray("apps")
-        val acc = HashSet<String>(); val vpn = HashSet<String>(); val dev = HashSet<String>()
+        val acc = HashSet<String>(); val vpn = HashSet<String>(); val dev = HashSet<String>(); val tcp = HashSet<String>()
         for (i in 0 until minOf(a.length(), MAX)) {
             val e = a.optJSONObject(i) ?: continue; val p = e.optString("pkg").takeIf(::ok) ?: continue
             if (e.optBoolean("acc", true)) acc += p
             if (e.optBoolean("vpn", false)) vpn += p
             if (e.optBoolean("dev", false)) dev += p
+            if (e.optBoolean("tcp", false)) tcp += p   // refuses adb over the network too ("Cổng adb", rules.tcpPause)
         }
         val d = o.optJSONArray("drop")
         val drop = if (d == null) emptySet() else (0 until minOf(d.length(), MAX)).mapNotNull { d.optString(it).takeIf(::ok) }.toSet()
-        if (acc.isEmpty() && vpn.isEmpty() && dev.isEmpty()) null else Parsed(acc, vpn, drop, dev)
+        if (acc.isEmpty() && vpn.isEmpty() && dev.isEmpty() && tcp.isEmpty()) null else Parsed(acc, vpn, drop, dev, tcp)
     }.getOrNull()
 
     fun ok(p: String) = p.length <= 200 && PKG.matches(p)
