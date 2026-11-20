@@ -764,6 +764,13 @@ await sleep(10500);{let st=0,n=0;for(;n<200&&st!=429;n++)st=(await fetch(`${B}/c
 ck(`RL: junk paths hit the limit too (429 after ${n})`,st==429&&n>100);
 ck("RL: the relay root still answers",(await fetch(`${B}/`)).status==200);}
 await sleep(10500);
+// pvPrev keeps 3: two web PIN changes while the phone is offline, then the phone proves with its hash from before both (own kid, so the PINs above stay untouched)
+{const {createHash}=await import("node:crypto"),salt="0011223344556677",hp=(pin,s)=>{if(!s)return createHash("sha256").update("kg:"+pin).digest("hex");const sb=Buffer.from(s),buf=Buffer.alloc(64+sb.length);sb.copy(buf,64);let h=createHash("sha256").update(s+":"+pin).digest();for(let r=0;r<9999;r++){Buffer.from(h.toString("hex")).copy(buf,0);h=createHash("sha256").update(buf).digest();}return h.toString("hex");};const hx=n=>Array.from({length:n*2},()=>"0123456789abcdef"[Math.random()*16|0]).join(""),idr=hx(8),Tr=hx(24),R=(p,t,b,m)=>fetch(`${B}/c/${idr}/${p}`,{method:m||(b===undefined?"GET":"POST"),headers:{"content-type":"application/json",...(t?{"x-kg-token":t}:{})},body:b===undefined?undefined:JSON.stringify(b)});
+await R("sync",Tr,{state:{t:1}});await R("sync",Tr,{pv:{h:hp("2468",salt),s:salt}});
+const jr=await (await R("join",Tr,{name:"P",kind:"app",pin:"2468"})).json();
+await R("rules",jr.token,{pin:"3131"},"PUT");await R("rules",jr.token,{pin:"4242"},"PUT");
+let rr=await R("sync",Tr,{pv:{h:hp("5353",""),s:""},pvo:hp("2468",salt)});ck("pv: proof 2 web PIN changes back is taken (pvPrev keeps 3)",(await rr.json()).pv==="ok");
+rr=await R("sync",Tr,{pv:{h:hp("7777",""),s:""},pvo:hp("1111","")});ck("pv: an unknown proof is still refused",(await rr.json()).pv==="refused");}
 // ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;
 for(let i=0;i<90&&!blocked;i++){const idn=rh(16),r=await fetch(`${B}/c/${idn}/sync`,{method:"POST",headers:{"x-kg-token":rh(48),"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});
@@ -808,11 +815,4 @@ ck("a listen while the camera is on 409 busy",(await C("POST",{op:"offer",id:"a3
 x=await (await C("POST",{op:"end",id:"a2".repeat(8),why:"screen off"})).json();ck("cam end keeps the camera why",x.call&&x.call.st==="end"&&x.call.why==="screen off");
 x=await (await C("POST",{op:"offer",id:"a4".repeat(8),sdp:"v=0",kind:"cam",face:"sideways"})).json();ck("cam face clamped to front, snd false",x.call&&x.call.face==="front"&&x.call.snd===false);
 await C("POST",{op:"end",id:"a4".repeat(8)});}
-// pvPrev keeps 3: two web PIN changes while the phone is offline, then the phone proves with its hash from before both (own kid, so the PINs above stay untouched)
-{const idr=hx(8),Tr=hx(24),R=(p,t,b,m)=>fetch(`${B}/c/${idr}/${p}`,{method:m||(b===undefined?"GET":"POST"),headers:{"content-type":"application/json",...(t?{"x-kg-token":t}:{})},body:b===undefined?undefined:JSON.stringify(b)});
-await R("sync",Tr,{state:{t:1}});await R("sync",Tr,{pv:{h:hp("2468",salt),s:salt}});
-const jr=await (await R("join",Tr,{name:"P",kind:"app",pin:"2468"})).json();
-await R("rules",jr.token,{pin:"3131"},"PUT");await R("rules",jr.token,{pin:"4242"},"PUT");
-let rr=await R("sync",Tr,{pv:{h:hp("5353",""),s:""},pvo:hp("2468",salt)});ck("pv: proof 2 web PIN changes back is taken (pvPrev keeps 3)",(await rr.json()).pv==="ok");
-rr=await R("sync",Tr,{pv:{h:hp("7777",""),s:""},pvo:hp("1111","")});ck("pv: an unknown proof is still refused",(await rr.json()).pv==="refused");}
 console.log(pass,"pass",fail,"fail");process.exit(fail?1:0);
