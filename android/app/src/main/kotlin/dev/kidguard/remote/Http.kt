@@ -40,7 +40,7 @@ class Http(private val tag: Any, private val handler: (Req) -> Res) {
     private val pool = ThreadPoolExecutor(16, 16, 20L, TimeUnit.SECONDS, ArrayBlockingQueue(32)).apply { allowCoreThreadTimeOut(true) }
     private val longSlots = java.util.concurrent.Semaphore(LONG_SLOTS)
     private fun isLong(r: Req) = r.input != null || r.path == "/api/listen" || r.path == "/api/screen" ||
-        (r.method == "GET" && r.path.startsWith("/api/files/"))
+        (r.method == "GET" && r.path.startsWith("/api/files/")) || (r.method == "GET" && r.path == "/api/call" && r.query["id"] != null)
 
     constructor(g: Guard, api: Api) : this(g, api::handle)
 

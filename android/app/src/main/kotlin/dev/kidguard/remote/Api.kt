@@ -150,6 +150,13 @@ class Api(private val g: Guard) {
                 if (s == null) Res.json(JSONObject().put("error", Listen.lastError).toString(), if (Listen.lastError == "busy") 409 else 503)
                 else Res(200, "audio/aac", ByteArray(0), stream = s::pump)
             }
+            // WebRTC signaling without the relay (LanCall, docs/protocol.md "Call over LAN"): video call, listen, live camera
+            p == "/call" && r.method == "GET" -> Res.json(LanCall.get(g, r.query).toString())
+            p == "/call" && r.method == "POST" -> {
+                val b = runCatching { JSONObject(r.text) }.getOrNull() ?: return Res.json("""{"error":"bad json"}""", 400)
+                val (code, body) = LanCall.post(g, b, "")
+                Res.json(body, code)
+            }
             else -> Res.text("not found", 404)
         }
     }

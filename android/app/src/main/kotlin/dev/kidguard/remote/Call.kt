@@ -57,7 +57,7 @@ object Call {
 
     fun state(): JSONObject = JSONObject().put("on", since > 0).put("since", since)
 
-    /** From Relay.sync: the relay's view of the call. */
+    /** From Relay.sync (the relay's view of the call), or from [LanCall] with an empty base (a call over the LAN). */
     fun fromRelay(g: Guard, c: JSONObject, base: String, rid: String, token: String) {
         if (c.optString("kind") == "listen") { ListenCall.fromRelay(g, c, base, rid, token); return }   // listen around: no ring, no screen
         if (c.optString("kind") == "cam") { CamCall.fromRelay(g, c, base, rid, token); return }   // live camera: no ring, no screen
@@ -65,7 +65,7 @@ object Call {
         when (c.optString("st")) {
             "ring" -> {
                 if (id == cur?.optString("id") || done.split(' ').contains(id)) return
-                relay = Triple(base, rid, token)
+                if (base.isNotEmpty()) relay = Triple(base, rid, token)   // "" = a LAN call (LanCall): its answer / end stay on the phone
                 // another call is on (a second parent): busy, never two screens
                 if (cur != null || ListenCall.active || CamCall.active) { post(g, "end", id, "", "busy"); return }
                 if (Flavor.HOME) return
@@ -120,8 +120,13 @@ object Call {
 
     fun answered() { since = System.currentTimeMillis(); main.post { ringStop() }; activity?.let { ctx -> ctx.getSystemService(NotificationManager::class.java)?.cancel(NID) }; Guard.running?.kick() }
 
-    /** POST /c/<id>/call {op, id, sdp?, why?} with the phone's token. Blocks (bridge thread). Returns the relay's JSON or {"error":…}. */
+    /**
+     * The signal channel for every kind (call, listen, cam): a call that came over the LAN ([LanCall], docs/flows/remote.md 2.17)
+     * answers / ends in the phone's own slot; else POST /c/<id>/call {op, id, sdp?, why?} with the phone's token.
+     * Blocks (bridge thread). Returns the slot's JSON or {"error":…}.
+     */
     fun post(ctx: Context, op: String, id: String, sdp: String, why: String): String {
+        if (LanCall.ours(id)) return LanCall.phone(op, id, sdp, why)
         val (base, rid, token) = relay ?: return """{"error":"no relay"}"""
         return runCatching {
             val c = (URL("$base/c/$rid/call").openConnection() as HttpURLConnection).apply {

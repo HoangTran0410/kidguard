@@ -278,7 +278,7 @@ function earStop(msg) {
   const me = earRtc; earRtc = null;   // relay session: close WebRTC, tell the relay (the phone then stops its mic and clears the notice)
   if (me) {
     if (me.c) me.c.close();
-    if (me.tell !== false && me.st !== "prep") vcApi(me.k, "/call", "POST", { op: "end", id: me.id, why: me.why || "hangup" }).catch(() => {});
+    if (me.tell !== false && me.st !== "prep") vcApi(me, "/call", "POST", { op: "end", id: me.id, why: me.why || "hangup" }).catch(() => {});
     const a = $("#earAudio"); if (a) { a.pause(); a.srcObject = null; }
   }
   if (earPlay.ctl) { earPlay.ctl.abort(); earPlay.ctl = null; }

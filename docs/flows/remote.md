@@ -163,7 +163,7 @@ Auth everywhere: header `X-KG-Token` (icon GET + LAN `/listen` + files may use `
 - Gotchas: relay URL before any kid = `DEFAULT_RELAY` (or settingsStorage `relay`, settings page). The code is only a rendezvous: whoever has the kid token can attach it, whoever has the secret can fetch it. `/w/new` is capped per network (Gate `wip:`, 30/day). Expired codes: lazy check + alarm.
 - Wire: protocol "Watch connect".
 
-### 2.15 Video call (after 0.9.27, relay)
+### 2.15 Video call (after 0.9.27, relay; LAN 0.9.72+, see 2.17)
 Page `UI/call.js` `vcStart` (More sheet -> "Video call"; needs a relay link and a secure page) -> `GET /call?ice=1` ->
 `RTC.open` (`UI/rtc.js`: camera+mic, offer with the low-bandwidth profile, waits for ICE gathering up to 5 s) -> `POST /call
 {op:offer}` -> long-poll `GET /call?id&st=ring` (`vcWait`). Worker `Kid.callRoute` stores `this.call`, kicks the phone
@@ -194,6 +194,19 @@ while the session runs) answers via the `KG` bridge. Stop: `CamCall.stop(why)` =
 notification gone, log. Callers: sync `end`, cap timer, rule off (`Guard.setRules`), `release`, Guard `onDestroy`.
 Photo on request is refused (`busy`) while it runs. Gotchas: Android 11+ blocks the camera for a service started from the
 background (hence the visible moment); OEM battery savers may still kill it; unverified on a real phone.
+
+### 2.17 Call / listen / camera without the relay (kid 0.9.72+; protocol "Call over LAN")
+One signal channel for all three WebRTC kinds; media was always P2P, only the two SDPs went through the relay.
+Page `UI/call.js`: `vcOk.via(k)` picks per session (`me.via`) -> `"lan"` when the kid is reached straight (`via:"lan"`, own page,
+`direct(k)` or the parent app's proxy) and its `state.version` >= 0.9.72, else `"relay"` (relay kid, or LAN kid with an older app and a
+relay link), else "" (`call.noRelay` / `cam.noRelay`). `vcApi(me, ...)` sends every signal of that session the same way (`call()` to
+`/api/call`, or `viaRelay`). Phone: `K/remote/Api.kt` `/call` -> `LanCall` (one slot, pure rules in `LanCallLogic`, long-poll on a lock,
+deadline timer on the main looper). A parent offer / end -> `Call.fromRelay(g, view, "", "", "")` on a thread (empty base = don't touch
+`Call.relay`) -> CallActivity / `ListenCall` / `CamCall` as from a sync. Their answer / end -> `Call.post` -> `LanCall.ours(id)` ?
+`LanCall.phone` : relay POST. `ice: []` (host candidates). Gotchas: a LAN http page still can't call (no getUserMedia on http:
+`call.secure`), camera works there (receive only); listen on a LAN kid stays the HTTP stream (`earStart`), WebRTC listen is relay
+only; the long-poll takes one of the 6 LAN long slots (`Http.isLong`); a ring timeout ends the slot on the phone, not only the page.
+Unverified on a real phone (Tailscale: needs the kid WebView to offer its tailnet address as a host candidate).
 
 ### 2.14 Parent page components (use these, never hand-write the markup)
 One helper per UI shape; ids, `data-*` attributes and class names stay the same (`shoot.mjs`, `check-search.mjs` and the click handlers rely on them).

@@ -723,7 +723,7 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
 - Parent-app proxy: `GET /k/<t>/api/listen` is passed through as a stream (never cached).
 - Over the relay (after 0.9.27) the same state / notice / log / `listenStop` apply; the audio is not this stream, see "Video call".
 
-## Video call (after 0.9.27, relay only, parent -> kid)
+## Video call (after 0.9.27, relay; LAN from 0.9.72, parent -> kid)
 Signaling goes through the relay; picture and sound go straight between the two devices (WebRTC P2P; a TURN server only
 when no direct path works). Flow: `docs/flows/remote.md` §2.15.
 - `GET /c/<id>/call[?ice=1]` (parent or phone token) -> `{call, ice?}`; `call` = `null` or `{id, st, by, at, sdp?, why?}`:
@@ -774,7 +774,21 @@ DataChannel `kg`: page -> phone `{t:"flip"}`; phone -> page `{t:"face", back, ok
 open, the old one stays), `{t:"bye"}`. End `why` (phone, besides the call list): `off` (rule off / turned off during),
 `no camera permission`, `no mic permission`, `no such camera`, `notice blocked`, `screen off` (basic mode, screen dark),
 `cam blocked` (Android refused the camera foreground service), `cam failed` (WebView could not open it). Ends: parent Stop,
-10 min cap (page, phone, relay), page hidden 60 s, rule `watch.cam` off, `release`, the service killed. Relay only.
+10 min cap (page, phone, relay), page hidden 60 s, rule `watch.cam` off, `release`, the service killed. Relay, or LAN (next).
+
+### Call over LAN (kid 0.9.72+): the same slot on the phone
+`GET /api/call[?ice=1][&id=&st=]` and `POST /api/call {op, id, sdp?, why?, kind?, face?, snd?}` on the phone's LAN server
+(`X-KG-Token` like every `/api` route; not for an `ai` token) = the relay's `/c/<id>/call`, same JSON, same states, codes and
+limits (`K/remote/LanCallLogic.kt`): ring 45 s -> `missed`, `on` 1 h (listen / cam 10 min + 15 s) -> `timeout`, an `end` kept
+60 s, one slot (409 `busy`, also while the phone runs any call / listen / camera session over the relay or the LAN `/api/listen`
+stream). Differences: `ice` is always `[]` (host candidates: same Wi-Fi or Tailscale), `by` is `""` (the child sees
+"Parent"), only the page offers and only the phone answers (400 `bad op`), no `old` / `join` checks. The long-poll holds a
+LAN long slot (503 `busy` past 6). The phone takes a LAN offer through the same entry as a relay sync `call` (so video call,
+listen and camera run unchanged) and its answer / end come back to this slot, never the relay (`Call.post` picks by call id).
+The page uses it when it reaches the kid on LAN / Tailscale (`via: "lan"`) and the kid's `state.version` >= `0.9.72`; else
+the relay as before (a LAN kid with an older app and a relay link), else "needs the relay". The channel is fixed per session.
+A plain-http LAN page can watch the camera (receive only); a video call needs the parent's camera + mic, so it still needs a
+secure page (the parent app's `127.0.0.1`, or the relay's https page). Listen on a LAN kid keeps `GET /api/listen`.
 
 ## Instant push via FCM (v0.5, optional, relay kids only)
 - "Relay kid" = saved with `via: "relay"`, or a LAN / Tailscale kid saved with `relay {url, id, token}` (the parent app

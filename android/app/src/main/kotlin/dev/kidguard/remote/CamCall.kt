@@ -67,7 +67,7 @@ object CamCall {
         when (c.optString("st")) {
             "ring" -> {
                 if (id == cur || done.split(' ').contains(id)) return
-                Call.relay = Triple(base, rid, token)
+                if (base.isNotEmpty()) Call.relay = Triple(base, rid, token)   // "" = a LAN call (LanCall): its answer / end stay on the phone
                 if (Flavor.HOME) return
                 if (cur.isNotEmpty() || Call.cur != null || ListenCall.active || Listen.active) { mark(id); Thread({ Call.post(g, "end", id, "", "busy") }, "cam-busy").start(); return }
                 cur = id; offer = c; app = g.applicationContext   // claimed now: a second sync must not start it again

@@ -1,10 +1,16 @@
-// ---- Video call, parent side (docs/flows/call.md). Signaling through the relay (/call), media straight to the kid's phone.
-// Needs a secure page (relay https, or the parent app's 127.0.0.1): a LAN http page cannot open the camera.
+// ---- Video call, parent side (docs/flows/call.md). Signaling through /call (the relay's, or the phone's own over LAN), media
+// straight to the kid's phone. Needs a secure page (relay https, or the parent app's 127.0.0.1): a LAN http page cannot open the camera.
 const VC_MAX = 15 * 60e3, VC_HIDDEN = 60e3;
-let vc = null;   // the call on screen: { k, id, c (RTC call), st, t0, max, ... }
+let vc = null;   // the call on screen: { k, via, id, c (RTC call), st, t0, max, ... }
 
-const vcOk = (k) => !!(k && (k.via === "relay" || k.relay));
-const vcApi = (k, path, method = "GET", body) => k.via === "relay" ? call(k, path, method, body) : viaRelay(k, path, method, body);
+// Signal channel for call / listen / cam (docs/flows/remote.md 2.17), fixed per session (me.via): "lan" = the phone's own /api/call
+// when this page reaches it straight (LAN, Tailscale) and its app has it (0.9.72): no relay needed, no round trip through the internet;
+// else "relay" (kid reached through the relay, or a LAN kid with an older app that has a relay); "" = neither.
+const vcOk = (k) => !!vcOk.via(k);
+vcOk.via = (k) => !k ? "" : k.via === "lan" && k === cur && st && /^\d/.test(st.version || "") && !vLess(st.version, "0.9.72") ? "lan"
+  : k.via === "relay" || k.relay ? "relay" : "";
+// me = the session { k, via } (vc, earRtc, camRtc): every signal of one session goes the same way, even if the page's link changes
+const vcApi = (me, path, method = "GET", body) => me.via === "lan" || me.k.via === "relay" ? call(me.k, path, method, body) : viaRelay(me.k, path, method, body);
 const vcId = () => [...crypto.getRandomValues(new Uint8Array(8))].map(x => x.toString(16).padStart(2, "0")).join("");
 
 async function vcStart() {
@@ -15,17 +21,17 @@ async function vcStart() {
   if (!RTC.can()) return ask(t("call.secure"), t("call.ok"), false, "", "", null, t("call.h"));
   if (!(await onlineNow.gate("call"))) return;
   if (vc) return;
-  vc = { k, id: vcId(), st: "prep", t0: 0, max: VC_MAX, mic: true, cam: true, kidCam: true, net: null };
+  vc = { k, via: vcOk.via(k), id: vcId(), st: "prep", t0: 0, max: VC_MAX, mic: true, cam: true, kidCam: true, net: null };
   vcShow();
   try {
-    const me = vc, j = await vcApi(k, "/call?ice=1");
+    const me = vc, j = await vcApi(me, "/call?ice=1");
     if (vc !== me) return;
     const c = await RTC.open({ ice: j.ice || [], video: true, local: $("#vcLocal"), remote: $("#vcRemote"),
       onState: vcState, onMsg: vcMsg, onNet: n => { if (vc === me) { me.net = n; vcPaint(); } } });
     if (vc !== me) return c.close();   // hung up while the camera was opening: release camera + mic
     vc.c = c;
     vc.cam = vc.c.hasVideo;
-    const r = await vcApi(k, "/call", "POST", { op: "offer", id: vc.id, sdp: vc.c.sdp });
+    const r = await vcApi(me, "/call", "POST", { op: "offer", id: vc.id, sdp: vc.c.sdp });
     vc.st = "ring"; vcPaint();
     vcWait(vc, r.call);
   } catch (e) {
@@ -39,7 +45,7 @@ async function vcWait(me, c) {
   while (vc === me && me.st === "ring") {
     if (c && c.id === me.id && c.st === "on" && c.sdp) { me.st = "conn"; vcPaint(); try { await me.c.accept(c.sdp); } catch { return vcEnd("fail", true); } return; }
     if (c && c.id === me.id && c.st === "end") return vcEnd(c.why || "hangup", false);
-    try { c = (await vcApi(me.k, `/call?id=${me.id}&st=ring`)).call; fails = 0; }
+    try { c = (await vcApi(me, `/call?id=${me.id}&st=ring`)).call; fails = 0; }
     catch { if (++fails > 3) return vcEnd("fail", true); await new Promise(s => setTimeout(s, 2000)); }
   }
 }
@@ -60,7 +66,7 @@ function vcEnd(why, tell) {
   vc = null;
   if (me.c) me.c.close();
   clearInterval(me.tick);
-  if (tell && me.st !== "prep") vcApi(me.k, "/call", "POST", { op: "end", id: me.id, why: ["lost", "fail", "perm", "hidden"].includes(why) ? "failed" : why === "timeout" ? "timeout" : "hangup" }).catch(() => {});
+  if (tell && me.st !== "prep") vcApi(me, "/call", "POST", { op: "end", id: me.id, why: ["lost", "fail", "perm", "hidden"].includes(why) ? "failed" : why === "timeout" ? "timeout" : "hangup" }).catch(() => {});
   const el = $("#vcUi"); if (!el) return;
   const mins = me.t0 ? Math.max(1, Math.round((Date.now() - me.t0) / 60e3)) : 0, n = me.net;
   const line = why === "hangup" || why === "kidEnd" || why === "timeout" ? (mins ? t("call.done", mins) + (n && n.mb ? " · " + t("call.mb", n.mb) : "") : t("call.ended")) : t("call.e." + why);
@@ -121,7 +127,7 @@ let earRtc = null;   // { k, id, c (RTC call), st: prep | ring | on, tell?, why?
 async function earStartRtc() {
   const k = cur;
   if (earRtc || vc || CAM.on() || !k) return;
-  const e = earBar(), au = $("#earAudio"), me = earRtc = { k, id: vcId(), c: null, st: "prep", t0: 0 };
+  const e = earBar(), au = $("#earAudio"), me = earRtc = { k, via: vcOk.via(k), id: vcId(), c: null, st: "prep", t0: 0 };
   earT = 0; e.style.display = "flex"; $("#earTxt").textContent = t("connecting");
   clearInterval(earStart.i);
   earStart.i = setInterval(() => {
@@ -131,13 +137,13 @@ async function earStartRtc() {
   }, 1000);
   actPaint();
   try {
-    const j = await vcApi(k, "/call?ice=1");
+    const j = await vcApi(me, "/call?ice=1");
     if (earRtc !== me) return;
     me.c = await RTC.open({ listen: true, ice: j.ice || [], remote: au,
       onState: s => { if (earRtc !== me) return; if (s === "connected") { me.t0 = me.t0 || Date.now(); earT = earT || Date.now(); actSt.ear1 = { s: "done", t: Date.now() }; actPaint(); } else if (s === "failed") earRtcEnd(me, "failed", true); },
       onMsg: m => { if (m && m.t === "bye") earRtcEnd(me, "kidEnd", false); } });
     if (earRtc !== me) return me.c.close();
-    const r = await vcApi(k, "/call", "POST", { op: "offer", id: me.id, kind: "listen", sdp: me.c.sdp });
+    const r = await vcApi(me, "/call", "POST", { op: "offer", id: me.id, kind: "listen", sdp: me.c.sdp });
     me.st = "ring";
     earRtcWait(me, r.call);
   } catch (err) { earRtcEnd(me, /busy/.test(String(err && (err.message || err))) ? "busy" : "failed", false); }
@@ -149,7 +155,7 @@ async function earRtcWait(me, c) {
     if (!c || c.id !== me.id) return earRtcEnd(me, "hangup", false);   // gone (ended long ago)
     if (c.st === "end") return earRtcEnd(me, c.why || "hangup", false);
     if (c.st === "on" && c.sdp && me.st === "ring") { me.st = "on"; try { await me.c.accept(c.sdp); } catch { return earRtcEnd(me, "failed", true); } }
-    try { c = (await vcApi(me.k, `/call?id=${me.id}&st=${me.st}`)).call; fails = 0; }
+    try { c = (await vcApi(me, `/call?id=${me.id}&st=${me.st}`)).call; fails = 0; }
     catch { if (++fails > 3) return earRtcEnd(me, "failed", true); await new Promise(s => setTimeout(s, 2000)); }
   }
 }
@@ -181,15 +187,15 @@ const CAM = (() => {   // one global: CAM.start(o), CAM.on() (call / listen refu
     if (!(await onlineNow.gate("cam"))) return;
     if (!(await ask(t(o.snd ? "cam.askSnd" : "cam.ask"), t("cam.on")))) return;
     if (camRtc || cur !== k) return;
-    const me = camRtc = { k, id: vcId(), c: null, st: "prep", t0: 0, back: o.cam === "back", snd: !!o.snd, mute: false, flip: false };
+    const me = camRtc = { k, via: vcOk.via(k), id: vcId(), c: null, st: "prep", t0: 0, back: o.cam === "back", snd: !!o.snd, mute: false, flip: false };
     camShow(me);
     try {
-      const j = await vcApi(k, "/call?ice=1");
+      const j = await vcApi(me, "/call?ice=1");
       if (camRtc !== me) return;
       me.c = await RTC.open({ cam: { back: me.back, snd: me.snd }, ice: j.ice || [], remote: $("#camVideo"),
         onState: s => camState(me, s), onMsg: m => camMsg(me, m) });
       if (camRtc !== me) return me.c.close();
-      const r = await vcApi(k, "/call", "POST", { op: "offer", id: me.id, kind: "cam", face: me.back ? "back" : "front", snd: me.snd, sdp: me.c.sdp });
+      const r = await vcApi(me, "/call", "POST", { op: "offer", id: me.id, kind: "cam", face: me.back ? "back" : "front", snd: me.snd, sdp: me.c.sdp });
       me.st = "ring"; camPaint();
       camWait(me, r.call);
     } catch (err) {
@@ -204,7 +210,7 @@ const CAM = (() => {   // one global: CAM.start(o), CAM.on() (call / listen refu
       if (!c || c.id !== me.id) return camEnd(me, "hangup", false);
       if (c.st === "end") return camEnd(me, c.why || "hangup", false);
       if (c.st === "on" && c.sdp && me.st === "ring") { me.st = "conn"; camPaint(); try { await me.c.accept(c.sdp); } catch { return camEnd(me, "failed", true); } }
-      try { c = (await vcApi(me.k, `/call?id=${me.id}&st=${me.st === "ring" ? "ring" : "on"}`)).call; fails = 0; }
+      try { c = (await vcApi(me, `/call?id=${me.id}&st=${me.st === "ring" ? "ring" : "on"}`)).call; fails = 0; }
       catch { if (++fails > 3) return camEnd(me, "failed", true); await new Promise(s => setTimeout(s, 2000)); }
     }
   }
@@ -226,7 +232,7 @@ const CAM = (() => {   // one global: CAM.start(o), CAM.on() (call / listen refu
     camRtc = null;
     if (me.c) me.c.close();
     clearInterval(me.tick); clearTimeout(me.hid);
-    if (tell && me.st !== "prep") vcApi(me.k, "/call", "POST", { op: "end", id: me.id, why: ["lost", "failed", "hidden"].includes(why) ? "failed" : why === "timeout" ? "timeout" : "hangup" }).catch(() => {});
+    if (tell && me.st !== "prep") vcApi(me, "/call", "POST", { op: "end", id: me.id, why: ["lost", "failed", "hidden"].includes(why) ? "failed" : why === "timeout" ? "timeout" : "hangup" }).catch(() => {});
     const el = $("#camUi");
     if (why === "old") { if (el) el.remove(); needAsk(needOf("ui", "camGo") || CAM_KID); return; }
     if (!el) return;
