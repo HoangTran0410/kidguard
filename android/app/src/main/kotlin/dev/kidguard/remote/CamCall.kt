@@ -69,7 +69,7 @@ object CamCall {
                 if (id == cur || done.split(' ').contains(id)) return
                 if (base.isNotEmpty()) Call.relay = Triple(base, rid, token)   // "" = a LAN call (LanCall): its answer / end stay on the phone
                 if (Flavor.HOME) return
-                if (cur.isNotEmpty() || Call.cur != null || ListenCall.active || Listen.active || CamClip.active) { mark(id); Thread({ Call.post(g, "end", id, "", "busy") }, "cam-busy").start(); return }
+                if (cur.isNotEmpty() || MediaBusy.busy("cam")) { mark(id); Thread({ Call.post(g, "end", id, "", "busy") }, "cam-busy").start(); return }
                 cur = id; offer = c; app = g.applicationContext   // claimed now: a second sync must not start it again
                 snd = c.optBoolean("snd"); back = c.optString("face") == "back"
                 Thread({

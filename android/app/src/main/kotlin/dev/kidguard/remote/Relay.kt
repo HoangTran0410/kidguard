@@ -257,7 +257,7 @@ class Relay(private val g: Guard) {
             pvSent = pvKey
             when (res.optString("pv")) {
                 "ok" -> store.relayPvOk = RelayPv.stamp(rid, pr.pinHash)
-                "refused" -> Log.w("KidGuard", "relay refused the PIN hash (no proof): joins keep the old PIN until a renew")
+                "refused" -> { pvSent = ""; Log.w("KidGuard", "relay refused the PIN hash (no proof): sent again next sync (the worker throttles the alert)") }
             }
         }
         run {

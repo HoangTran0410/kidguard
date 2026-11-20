@@ -66,7 +66,7 @@ object CamClip {
         if (Flavor.HOME) return Result(null, "unsupported", false)
         if (!RemoteSnap.on(g)) return Result(null, "off", false)
         if (CamCall.active) return Result(null, "cam live", false)
-        if (Call.cur != null || ListenCall.active || Listen.active || RemoteSnap.busy || Ring.active) return Result(null, "busy", false)
+        if (MediaBusy.busy("clip") || RemoteSnap.busy || Ring.active) return Result(null, "busy", false)
         if (!busy.compareAndSet(false, true)) return Result(null, "busy", false)
         back = back0; secs = n
         var t0 = 0L; var done = false

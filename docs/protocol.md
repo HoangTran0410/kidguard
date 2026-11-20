@@ -497,7 +497,7 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
   rules PUT counts (`pv` = its legacy hash); else `pinKnown:false` and joins work by the link alone until a parent exists.
 - PIN-hash changes need proof (2026-11-20, security audit HIGH: the kid token set its own `pv` and joined with it): sync
   `pv` is taken when the worker has none, when it is the stored hash, or with `pvo` = the hash the worker had (or, after a
-  page PIN set over the relay, the one before it, `pvPrev`). The phone keeps the hash the worker last answered `"pv":"ok"`
+  page PIN set over the relay, one of the last 3 before it, `pvPrev`). The phone keeps the hash the worker last answered `"pv":"ok"`
   to (`Store.relayPvOk`, "<relay id> <hash>"; `RelayPv`) and sends it as `pvo` with every new `pv`. Without proof: sync
   reply `"pv":"refused"`, the stored hash stays, and a worker notice goes to every parent (below). A phone that lost its proof
   renews the relay link (new id). `""` (PIN removed) needs the proof too.

@@ -35,9 +35,10 @@ object Degraded {
         val app = ctx.applicationContext
         val s = Store.of(app)
         val known = key in s.degraded
-        if (!known) s.degraded = s.degraded + key
         val now = System.currentTimeMillis()
+        // stored only when told: a flapped key skipped by the throttle must stay "unknown" so the next report tells it
         if (!DegradedLogic.tell(known, last[key], now)) return
+        if (!known) s.degraded = s.degraded + key
         last[key] = now
         runCatching {
             val nm = app.getSystemService(NotificationManager::class.java)

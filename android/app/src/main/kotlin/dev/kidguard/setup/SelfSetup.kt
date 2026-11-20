@@ -130,6 +130,9 @@ object SelfSetupLogic {
     /** ColorOS (Oppo/Realme/OnePlus) refuses adb permission grants until "Disable permission monitoring" is on. */
     fun permMonitoring(out: String) = Regex("UPDATE_APP_OPS_STATS|MANAGE_APP_OPS_MODES|GRANT_RUNTIME_PERMISSIONS|WRITE_SECURE_SETTINGS").containsMatchIn(out)
 
+    /** Show the ColorOS "Disable permission monitoring" text only on ColorOS: MIUI prints GRANT_RUNTIME_PERMISSIONS / WRITE_SECURE_SETTINGS too (USB debugging (Security settings) off) and keeps its own hint. */
+    fun permMonMessage(out: String, colorOs: Boolean) = colorOs && permMonitoring(out)
+
     /** The phone refuses shell commands it normally allows: "Calling identity is not authorized" (seen on `dpm
      *  set-active-admin`, 2026-11-19 owner report). Xiaomi / Redmi / POCO do this until "USB debugging (Security settings)" is on. */
     fun secBlocked(out: String) = "not authorized" in out.lowercase()
@@ -338,7 +341,7 @@ object SelfSetup {
             if (!good) { state[i] = STEP_ERR; message = failText(app, out)
                 // `dpm set-device-owner` refusals come with a raw Java exception: say what to do instead (the raw text stays in logcat)
                 if (i == 2) SelfSetupLogic.ownerFail(out)?.let { message = app.getString(it) }
-                if (SelfSetupLogic.permMonitoring(out)) message = app.getString(R.string.ss_perm_mon)
+                if (SelfSetupLogic.permMonMessage(out, PermMon.colorOs())) message = app.getString(R.string.ss_perm_mon)
                 if (keepGoing) { if (message !in soft) soft += message; return false }
                 notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return false }   // every failed step lets the adb link go
             state[i] = STEP_OK; return true
@@ -394,7 +397,7 @@ object SelfSetup {
                 val why = SelfSetupLogic.ownerFail(out)
                 if (why == null || !SelfSetupLogic.basicFallback(why)) {
                     state[2] = STEP_ERR; message = why?.let { app.getString(it) } ?: failText(app, out)
-                    if (SelfSetupLogic.permMonitoring(out)) message = app.getString(R.string.ss_perm_mon)
+                    if (SelfSetupLogic.permMonMessage(out, PermMon.colorOs())) message = app.getString(R.string.ss_perm_mon)
                     notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return
                 }
                 basic = true; basicWhy = app.getString(why)
@@ -420,7 +423,7 @@ object SelfSetup {
         mark(app, 5, STEP_RUN)
         val accErr = enableAccessibility(::sh)
         if (accErr != null) {
-            state[5] = STEP_ERR; val why = if (SelfSetupLogic.permMonitoring(accErr)) app.getString(R.string.ss_perm_mon) else accErr.ifBlank { app.getString(R.string.ss_cmd_fail) }
+            state[5] = STEP_ERR; val why = if (SelfSetupLogic.permMonMessage(accErr, PermMon.colorOs())) app.getString(R.string.ss_perm_mon) else accErr.ifBlank { app.getString(R.string.ss_cmd_fail) }
             if (why !in soft) soft += why
         } else state[5] = STEP_OK
         step(6, "dumpsys deviceidle whitelist +$PKG", { !it.contains("Unknown", true) && !it.contains("Exception", true) }, keepGoing = true)
@@ -476,7 +479,7 @@ object SelfSetup {
         if (!SelfSetupLogic.ok(grant)) {
             // ColorOS without "Disable permission monitoring" fails here first on a phone with app accounts: same hint as step 4
             state[1] = STEP_ERR; message = failText(app, grant)
-            if (SelfSetupLogic.permMonitoring(grant)) message = app.getString(R.string.ss_perm_mon)
+            if (SelfSetupLogic.permMonMessage(grant, PermMon.colorOs())) message = app.getString(R.string.ss_perm_mon)
             notifyFinal(app, app.getString(R.string.ss_failed, message)); return
         }
         store.ownerPending = SelfSetupLogic.encodePending(SelfSetupLogic.Pending(System.currentTimeMillis(), turnOffWifi, pkgs))   // before the first disable: a crash in between still turns them on

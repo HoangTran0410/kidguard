@@ -113,5 +113,9 @@ User UserInfo{0:Owner:4c13}:
         assertTrue(SelfSetupLogic.permMonitoring("Operation not allowed: java.lang.SecurityException: grantRuntimePermission: Neither user 2000 nor current process has android.permission.GRANT_RUNTIME_PERMISSIONS."))
         assertTrue(SelfSetupLogic.permMonitoring("Exception occurred while executing 'set': java.lang.SecurityException: uid 2000 does not have android.permission.MANAGE_APP_OPS_MODES."))
         assertTrue(!SelfSetupLogic.permMonitoring("Error: Unknown package: dev.kidguard"))
+        // MIUI prints the same permission names when "USB debugging (Security settings)" is off: keep its own hint
+        val miui = "java.lang.SecurityException: Neither user 2000 nor current process has android.permission.GRANT_RUNTIME_PERMISSIONS."
+        assertTrue(SelfSetupLogic.permMonMessage(miui, colorOs = true))
+        assertTrue(!SelfSetupLogic.permMonMessage(miui, colorOs = false))
     }
 }

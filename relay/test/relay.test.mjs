@@ -808,4 +808,11 @@ ck("a listen while the camera is on 409 busy",(await C("POST",{op:"offer",id:"a3
 x=await (await C("POST",{op:"end",id:"a2".repeat(8),why:"screen off"})).json();ck("cam end keeps the camera why",x.call&&x.call.st==="end"&&x.call.why==="screen off");
 x=await (await C("POST",{op:"offer",id:"a4".repeat(8),sdp:"v=0",kind:"cam",face:"sideways"})).json();ck("cam face clamped to front, snd false",x.call&&x.call.face==="front"&&x.call.snd===false);
 await C("POST",{op:"end",id:"a4".repeat(8)});}
+// pvPrev keeps 3: two web PIN changes while the phone is offline, then the phone proves with its hash from before both (own kid, so the PINs above stay untouched)
+{const idr=hx(8),Tr=hx(24),R=(p,t,b,m)=>fetch(`${B}/c/${idr}/${p}`,{method:m||(b===undefined?"GET":"POST"),headers:{"content-type":"application/json",...(t?{"x-kg-token":t}:{})},body:b===undefined?undefined:JSON.stringify(b)});
+await R("sync",Tr,{state:{t:1}});await R("sync",Tr,{pv:{h:hp("2468",salt),s:salt}});
+const jr=await (await R("join",Tr,{name:"P",kind:"app",pin:"2468"})).json();
+await R("rules",jr.token,{pin:"3131"},"PUT");await R("rules",jr.token,{pin:"4242"},"PUT");
+let rr=await R("sync",Tr,{pv:{h:hp("5353",""),s:""},pvo:hp("2468",salt)});ck("pv: proof 2 web PIN changes back is taken (pvPrev keeps 3)",(await rr.json()).pv==="ok");
+rr=await R("sync",Tr,{pv:{h:hp("7777",""),s:""},pvo:hp("1111","")});ck("pv: an unknown proof is still refused",(await rr.json()).pv==="refused");}
 console.log(pass,"pass",fail,"fail");process.exit(fail?1:0);

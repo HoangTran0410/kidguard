@@ -67,7 +67,7 @@ object Call {
                 if (id == cur?.optString("id") || done.split(' ').contains(id)) return
                 if (base.isNotEmpty()) relay = Triple(base, rid, token)   // "" = a LAN call (LanCall): its answer / end stay on the phone
                 // another call is on (a second parent): busy, never two screens
-                if (cur != null || ListenCall.active || CamCall.active) { post(g, "end", id, "", "busy"); return }
+                if (MediaBusy.busy("call")) { post(g, "end", id, "", "busy"); return }
                 if (Flavor.HOME) return
                 cur = c
                 Store.of(g).log(R.string.log_call_in, c.optString("by").ifBlank { g.getString(R.string.call_parent) })

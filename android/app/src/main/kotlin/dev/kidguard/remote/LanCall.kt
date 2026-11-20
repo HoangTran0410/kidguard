@@ -23,7 +23,7 @@ object LanCall {
     /** This call id came over the LAN: its answer / end stay here. */
     fun ours(id: String) = id.isNotEmpty() && synchronized(lock) { mine.split(' ').contains(id) }
 
-    private fun busy() = Call.cur != null || ListenCall.active || CamCall.active || Listen.active
+    private fun busy() = MediaBusy.busy("lancall")
 
     /** GET /api/call[?ice=1][&id=&st=]: the slot; with id + st, waits up to 12 s for it to change (the page's fetch gives up at 15 s). */
     fun get(g: Guard, q: Map<String, String>): JSONObject {

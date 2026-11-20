@@ -387,6 +387,8 @@ async function relayMigrate(k) {
   const b = k.via === "relay" ? base(k) : (APP ? "/k/" + b64u(cred.url) : cred.url) + "/c/" + encodeURIComponent(cred.id);
   try {
     const r = await fetch(b + "/parents", { headers: { "X-KG-Token": cred.token, "X-KG-Name": KG_NAME }, signal: quick(10000) });
+    // our own minted token was evicted by the worker (KM_PENDING): drop it, the next page load mints a new one (relayTry is per load: no loop if mint itself 401s)
+    if (r.status === 401 && cred.own && k.via !== "relay" && k.relay === cred) { delete k.relay; save(kids); return; }
     if (!r.ok) return;   // 401 / 404 / older relay: nothing to do (403 join and 423 are handled by the normal calls)
     const j = await r.json().catch(() => null);
     if (!j || !Array.isArray(j.parents)) return;

@@ -41,7 +41,7 @@ object ListenCall {
                 if (id == cur || done.split(' ').contains(id)) return
                 if (base.isNotEmpty()) Call.relay = Triple(base, rid, token)   // "" = a LAN call (LanCall): its answer / end stay on the phone
                 if (Flavor.HOME) return
-                if (cur.isNotEmpty() || Call.cur != null || CamCall.active) { Call.post(g, "end", id, "", "busy"); return }
+                if (cur.isNotEmpty() || MediaBusy.busy("listencall")) { Call.post(g, "end", id, "", "busy"); return }
                 cur = id; offer = c; app = g.applicationContext   // claimed now: a second sync must not start it again
                 Thread({
                     // same refusals as the LAN stream; the parent's page shows the reason ("ear.<reason>")

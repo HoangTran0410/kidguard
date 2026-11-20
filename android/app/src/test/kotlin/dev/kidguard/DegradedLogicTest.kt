@@ -29,4 +29,18 @@ class DegradedLogicTest {
         assertFalse(DegradedLogic.tell(known = false, last = 1000, now = 1000 + 60_000))
         assertTrue(DegradedLogic.tell(known = false, last = 1000, now = 1000 + DegradedLogic.GAP_MS))
     }
+
+    /** Flapped key: skipped by the throttle, so it is NOT stored (known stays false) and the next report after the gap tells it. */
+    @Test fun flappedKeyIsToldLater() {
+        val stored = HashSet<String>(); val last = HashMap<String, Long>()
+        fun report(k: String, now: Long): Boolean {
+            val known = k in stored
+            if (!DegradedLogic.tell(known, last[k], now)) return false
+            stored += k; last[k] = now; return true
+        }
+        assertTrue(report("loc", 0)); stored -= "loc"        // told, then cleared
+        assertFalse(report("loc", 60_000))                   // flap within the gap: quiet, not stored
+        assertFalse("loc" in stored)
+        assertTrue(report("loc", DegradedLogic.GAP_MS + 1))  // still broken after the gap: told
+    }
 }

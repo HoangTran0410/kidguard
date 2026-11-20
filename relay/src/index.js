@@ -387,6 +387,7 @@ const phoneRoute = (action, m) => action === "sync" || action === "ws" || action
 const parLocked = (p, now) => !!p.lk || (p.k === "web" && !(p.ul > now));
 const KM_PENDING = 3;
 // secAlert texts (English: older pages show `text`; newer ones translate `rk`, i18n "rev.<rk>")
+const PV_PREV = 3, SEC_THROTTLE = 10 * 60_000;   // old PIN hashes kept as proof; one security alert per kind per 10 min
 const REV_TEXT = { pvRefused: "Relay: a PIN change without the old PIN was refused", pvNew: "Relay: the phone set a family PIN" };   // phone-minted tokens still waiting for their PIN: the oldest goes (a looping phone never fills MAX_PARENTS)
 const cleanName = v => String(v || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 24);
 const hexRand = n => [...crypto.getRandomValues(new Uint8Array(n))].map(x => x.toString(16).padStart(2, "0")).join("");
@@ -823,7 +824,9 @@ export class Kid {
     if (pin.length >= 4) { const ps = hexRand(8); rules.pinHash = hashPin(pin, ps); rules.pinSalt = ps; rules.pinAt = rev;
       // checks joins at once; "pvWeb" when the phone never sent pv (old phone), so a PIN set from the shared link does not lock that link
       const pv0 = await this.s.get("pv");
-      if (pv0 && pv0.h) await this.s.put({ pv: { h: rules.pinHash, s: ps }, pvPrev: pv0.h });   // the phone proves its next pv with the old one
+      if (pv0 && pv0.h) {   // the phone proves its next pv with an old one: keep the last PV_PREV (2 web PIN changes while the phone is offline must not look like tamper)
+        const prevL = [pv0.h, ...[].concat((await this.s.get("pvPrev")) || [])].filter((h, i, a) => a.indexOf(h) === i).slice(0, PV_PREV);
+        await this.s.put({ pv: { h: rules.pinHash, s: ps }, pvPrev: prevL }); }
       else await this.s.put("pvWeb", { h: rules.pinHash, s: ps }); }
     else if (typeof rules.pinHash === "string" && /^[0-9a-f]{64}$/.test(rules.pinHash)) { rules.pinAt = rev; if (!/^[0-9a-f]{16}$/.test(String(rules.pinSalt || ""))) delete rules.pinSalt; }
     else if (old && old.pinHash) { rules.pinHash = old.pinHash; rules.pinAt = old.pinAt || 1; if (old.pinSalt) rules.pinSalt = old.pinSalt; else delete rules.pinSalt; }
@@ -1311,7 +1314,7 @@ export class Kid {
     if (nv === undefined) return "";
     const [old, prev] = await Promise.all([this.s.get("pv"), this.s.get("pvPrev")]);
     if (old && old.h && nv && nv.h === old.h) return "ok";
-    const proof = typeof pvo === "string" && /^[0-9a-f]{64}$/.test(pvo) && (pvo === (old && old.h) || pvo === prev);
+    const proof = typeof pvo === "string" && /^[0-9a-f]{64}$/.test(pvo) && (pvo === (old && old.h) || [].concat(prev || []).includes(pvo));
     if (old && old.h && !proof) { await this.secAlert("pvRefused", now); return "refused"; }
     if (nv) await this.s.put("pv", nv); else await this.s.delete("pv");
     await this.s.delete(["pvWeb", "pvPrev"]);
@@ -1321,8 +1324,10 @@ export class Kid {
   }
   /** A security notice from the worker itself: kept in `secEv` (merged into state.events on GET state) + FCM / Telegram "tamper". */
   async secAlert(rk, now) {
+    const evs = (await this.s.get("secEv")) || [];
+    if (evs.some(x => x.rk === rk && now - x.t < SEC_THROTTLE)) return;   // a phone retrying a refused pv must not spam FCM + Telegram
     const e = { id: "r" + now.toString(36), t: now, kind: "tamper", rk, text: REV_TEXT[rk] || rk };
-    await this.s.put("secEv", [...((await this.s.get("secEv")) || []), e].slice(-5));
+    await this.s.put("secEv", [...evs, e].slice(-5));
     const id = this.kidId || (await this.s.get("kid")) || "", ev = [{ kind: "ev", eid: "e:" + e.id, t: now, ek: "tamper" }];
     this.ctx.waitUntil(Promise.all([this.fcmNew(ev, id), this.tgNew(ev)]).catch(e2 => console.log("secAlert", String(e2))));
   }
