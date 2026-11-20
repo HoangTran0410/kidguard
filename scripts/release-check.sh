@@ -7,13 +7,25 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 V=$(sed -n 's/^kg.version=//p' android/gradle.properties)
-TAG=${1:-v$V}; N=${TAG#v}
+TAG=${1:-v$V}; [ "$TAG" = --legacy ] && TAG=v$V; N=${TAG#v}
 REPO=$(git remote get-url origin 2>/dev/null | sed -E 's#^git@github.com:#https://github.com/#; s#\.git$##')
 case "$REPO" in https://github.com/*) ;; *) REPO=https://github.com/HoangTran0410/kidguard ;; esac
 miss=0
 for f in kidguard.apk kidguard-parent.apk kidguard-home.apk kidguard-wear.apk version.json; do
   code=$(curl -s -o /dev/null -L -I -w '%{http_code}' "$REPO/releases/download/$TAG/$f" || echo 000)
   if [ "$code" = 200 ]; then echo "ok       $f"; else echo "MISSING  $f ($code)"; miss=1; fi
+done
+# legacy names for apps <= 0.9.48 (their updaters fetch kidguard-parent-<v>.apk + *.apk.sha256; without them the parent
+# app shows "Couldn't download"): keep uploading until no such app is left. Fix: scripts/release-check.sh --legacy
+if [ "${2:-}" = "--legacy" ] || [ "${1:-}" = "--legacy" ]; then
+  [ "${1:-}" = "--legacy" ] && TAG=v$V && N=$V
+  D=$(mktemp -d); cp build/kidguard-parent.apk "$D/kidguard-parent-$N.apk"
+  (cd build && for f in kidguard-parent.apk kidguard.apk kidguard-home.apk; do shasum -a 256 $f > "$D/$f.sha256"; done)
+  gh release upload "$TAG" "$D"/* --clobber; rm -rf "$D"
+fi
+for f in "kidguard-parent-$N.apk" kidguard-parent.apk.sha256 kidguard.apk.sha256 kidguard-home.apk.sha256; do
+  code=$(curl -s -o /dev/null -L -I -w '%{http_code}' "$REPO/releases/download/$TAG/$f" || echo 000)
+  if [ "$code" = 200 ]; then echo "ok       $f (legacy)"; else echo "MISSING  $f (legacy, run: scripts/release-check.sh --legacy)"; miss=1; fi
 done
 # the tag must also be the "latest" release (updater, QR and site use /releases/latest/download/)
 LATEST=$(curl -s -o /dev/null -L -w '%{url_effective}' "$REPO/releases/latest" || true)
