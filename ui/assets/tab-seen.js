@@ -157,7 +157,7 @@ function snapSel(id, v, opts) { return `<label class="row"><span class="sp">${t(
 function seenCamForm() {
   const o = snapOpts();
   return `<div style="margin-top:10px">${snapSel("cam", o.cam, ["front", "back"])}${snapSel("flash", o.flash, ["off", "on", "auto"])}${snapSel("size", o.size, ["small", "medium"])}${snapSel("delay", o.delay, [0, 1, 2, 3, 5])}
-    <button class="btn" id="snapGo" style="margin-top:10px">${ic("camera")} ${t("seen.cgo")}</button> <button class="sp" id="snapHistGo" style="margin-top:10px">${ic("history")} ${t("snap.hist")}</button><div id="snapBox" class="mute" role="status" style="margin-top:8px"></div><div id="snapHist"></div></div>`;
+    <button class="btn" id="snapGo" style="margin-top:10px"${snapGo.now.busy && snapGo.now.k === cur ? " disabled" : ""}>${ic("camera")} ${t("seen.cgo")}</button> <button class="sp" id="snapHistGo" style="margin-top:10px">${ic("history")} ${t("snap.hist")}</button><div id="snapBox" class="mute" role="status" style="margin-top:8px">${snapGo.now.k === cur ? snapGo.now.html : ""}</div><div id="snapHist"></div></div>`;
 }
 function snapSave() {
   const v = id => $("#snap-" + id).value;
@@ -185,20 +185,28 @@ async function snapFetch(k, fid, relay) {
     return URL.createObjectURL(new Blob([buf], { type: "image/jpeg" }));
   }
 }
+// the result lives here, not in the box: the snap event redraws the tab while we wait (kid.js refresh), which
+// replaced #snapBox and the photo landed in a detached node (owner 2026-11-20: "phải bấm Tải lại mới thấy")
 async function snapGo() {
-  const k = cur, box = $("#snapBox"), btn = $("#snapGo"); if (!k || !box || btn.disabled) return;
-  snapSave(); btn.disabled = true;
+  const k = cur, n = snapGo.now; if (!k || (n.busy && n.k === k)) return;
+  const show = (html, busy) => {
+    Object.assign(n, { k, html, busy });
+    document.querySelectorAll("#snapBox").forEach(b => { b.innerHTML = cur === k ? html : ""; });
+    document.querySelectorAll("#snapGo").forEach(b => { b.disabled = busy && cur === k; });
+  };
+  snapSave();
   const o = snapOpts(), fid = seenFid(), relay = fxRelay(k);
-  box.textContent = t(relay ? "seen.cwaitR" : "seen.cwait");
+  if (n.url) { URL.revokeObjectURL(n.url); n.url = ""; }
+  show(esc(t(relay ? "seen.cwaitR" : "seen.cwait")), true);
   try {
     const r = await call(k, "/cmd", "POST", Object.assign({ type: "snap", fid, relay }, o));
     if (r && r.result && !["ok", "queued"].includes(r.result)) throw errOf("snap:" + r.result);
-    const u = await snapFetch(k, fid, relay);
-    box.innerHTML = `<img src="${u}" alt="${esc(t("seen.ch"))}" style="max-width:100%;max-height:60vh;border-radius:12px">`;
-    if (snapH.done && snapH.k === k) snapLoad(false);   // the history list gets the new photo
-  } catch (e) { box.textContent = /^snap:/.test(e.raw || "") ? tc("seen.cerr.", e.raw.slice(5).replace(/ /g, "_"), "") || t("seen.cerr.failed") : e.message || t("fx.e.failed"); }
-  btn.disabled = false;
+    const u = n.url = await snapFetch(k, fid, relay);
+    show(`<img src="${u}" alt="${esc(t("seen.ch"))}" style="max-width:100%;max-height:60vh;border-radius:12px">`, false);
+    if (snapH.k === k) snapLoad(false);   // the history list gets the new photo
+  } catch (e) { show(esc(/^snap:/.test(e.raw || "") ? tc("seen.cerr.", e.raw.slice(5).replace(/ /g, "_"), "") || t("seen.cerr.failed") : e.message || t("fx.e.failed")), false); }
 }
+snapGo.now = { k: null, html: "", busy: false, url: "" };
 
 // ---- Text messages (rule watch.sms): on demand, newest first, 30 a page (LAN GET /sms or relay smsPull + file channel) ----
 const smsX = { k: null, busy: false, err: "", done: false, access: true, more: false, rows: [] };

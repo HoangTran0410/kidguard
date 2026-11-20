@@ -82,7 +82,7 @@ function snapDraw() {
   box.classList.toggle("selmode", S.on);
   const days = selDays(S.get());
   const tile = r => `<button type="button" class="gt${selCls(S, r.id)}${r.ok ? "" : " snapbad"}" data-sid="${esc(r.id)}" data-snap="${esc(r.id)}"${r.ok ? ` data-sth="${esc(r.id)}"` : ""} aria-label="${esc(hhmm(r.at))}"><span class="cthi">${r.ok ? (snapTh[snapKey(cur, r.id)] ? `<img src="${snapTh[snapKey(cur, r.id)]}" alt="" decoding="async">` : ic("image")) : `<span class="snapw">${ic("camera")}<span>${esc(snapWhy(r.err))}</span></span>`}</span><i>${snapLbl(r)}</i></button>`;
-  box.innerHTML = `<h3 class="mute" style="margin:16px 0 4px">${ic("image")} ${t("snap.h")}${sn ? ` <span class="mute">· ${t("snap.count", sn.n, fxSize((sn.mb || 0) * 1048576))}</span>` : ""}</h3>
+  box.innerHTML = `<h3 class="mute" style="margin:16px 0 4px">${ic("image")} ${t("snap.h")}${sn ? ` <span class="mute">· ${t("snap.count", sn.n, fxSize(sn.b != null ? +sn.b : mine && s.done && !s.more ? rows.reduce((n, r) => n + (r.size || 0), 0) : (sn.mb || 0) * 1048576))}</span>` : ""}</h3>
     ${typeof f === "number" && f >= 0 && f < 1024 ? alertBox("warn", "hard-drive", esc(t("chat.low", Math.round(f))), "margin:0 0 8px") : ""}
     <div class="row">${mine && s.done && rows.length && !S.on ? selBtn(S) : ""}<button type="button" id="snapLoad" class="sp"${s.busy ? " disabled" : ""}>${ic("refresh-cw")} ${t(s.busy ? "seen.wait" : s.done ? "snap.reload" : "snap.load")}</button></div>
     ${s.busy && fxRelay() ? `<p class="mute">${t("seen.waitRelay")}</p>` : ""}${s.err ? alertBox("bad", "triangle-alert", esc(s.err)) : ""}

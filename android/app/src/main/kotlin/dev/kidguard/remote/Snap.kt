@@ -115,7 +115,7 @@ object RemoteSnap {
     /** State: how many entries / MB the history holds (the page shows it and warns on low space with state.freeMb). */
     fun stateJson(c: Context): JSONObject {
         val m = metas(c)
-        return JSONObject().put("n", m.size).put("mb", m.sumOf { it.size } / 1048576)
+        return m.sumOf { it.size }.let { b -> JSONObject().put("n", m.size).put("mb", b / 1048576).put("b", b) }   // "b" bytes: "mb" rounds a few photos down to 0
     }
     /** Bulk delete (`snapDel {ids}`): the photos, their metas and thumbnails go. Returns how many entries were removed. */
     fun delete(c: Context, ids: List<String>): Int = ids.count { id ->
