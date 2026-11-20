@@ -96,6 +96,7 @@ leftMs apps rules location lan relay log`), plus:
   "vpnPaused": [],                 // NEW: packages the VPN is off for right now (rules.vpnPause)
   "refused": [{"pkg": "vn.com.lpbank", "label": "LPBank", "kinds": ["acc", "vpn"], "at": 1763364000000}],   // 0.9.28: apps seen saying they won't run while accessibility (acc) / debugging (dev) / VPN (vpn) is on, kinds the rules don't cover yet; newest first, <= 6, 7 days (RefuseHint). Page: band + "Add to the list" (acc -> accPause, dev -> devPause, vpn -> vpnPause; a full rules PUT). Missing = older phone. Each hit is also an event `refused` (parent app push via FCM like any event; not sent on Telegram)
   "devPaused": [],                 // NEW: packages debugging is off for right now (rules.devPause)
+  "degraded": [],                  // 0.9.68: protections skipped for lack of a privilege right now (Degraded.kt), keys "area" or "area.detail": bank.<pkg> (debugging not switched off), bankacc.<pkg> (bank opened from Recents, no WRITE_SECURE_SETTINGS), vpn, loc, uninstall, debloat, reopen. The kid got a notification and the log a line (once per key per 30 min); a key leaves the list when the protection works again. Page: one warn band. Missing = older phone
   "vpnStuck": false,               // NEW: a VPN stayed up after the pause (another VPN app, or always-on set in Settings in basic mode)
   "accReEnable": true,             // NEW: the app holds WRITE_SECURE_SETTINGS (can re-enable acc itself)
   "locationOn": true,              // NEW: system location switch

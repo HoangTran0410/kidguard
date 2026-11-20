@@ -162,8 +162,17 @@ object AccPause {
      * never turn itself back on (basic mode would stop blocking for good), and a blocked app is bounced, not restarted.
      */
     fun pauseLate(svc: android.accessibilityservice.AccessibilityService, pkg: String): Boolean {
-        if (!able(svc) || pkg !in Store.of(svc).rules.accPause) return false
+        if (pkg !in Store.of(svc).rules.accPause) return false
         if (BasicLogic.bounceReason(pkg, svc.packageName, Acc.blocked, Acc.prot) != null) return false
+        if (!able(svc)) {   // no WRITE_SECURE_SETTINGS: the bank will refuse; say so (it used to be silent)
+            if (!Flavor.HOME) {
+                val l = label(svc, pkg)
+                Degraded.report(svc, "bankacc.$pkg", svc.getString(R.string.bank_cant_t, l), svc.getString(R.string.dg_acc_d),
+                    android.content.Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS), svc.getString(R.string.log_dg_acc, l))
+            }
+            return false
+        }
+        Degraded.clear(svc, "bankacc.$pkg")
         val ks = runCatching { PauseAsk.kinds(svc, pkg) }.getOrDefault(emptyList())   // what is on NOW (before it goes off)
         runCatching { svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME) }   // before the service goes
         val fresh = pause(svc, pkg, stopSelf = false)
@@ -171,6 +180,11 @@ object AccPause {
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ runCatching { svc.disableSelf() } }, 150)
         if (fresh || dev) {
             runCatching { PauseNotice.show(svc, pkg, label(svc, pkg), ks) }   // tells afterwards what went off (no time to ask)
+            if (canReopen(svc)) Degraded.clear(svc, "reopen") else {   // basic mode without "display over other apps": the reopen may be blocked
+                val l = label(svc, pkg)
+                Degraded.report(svc, "reopen", svc.getString(R.string.dg_reopen_t), svc.getString(R.string.dg_reopen_d),
+                    android.content.Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + svc.packageName)), svc.getString(R.string.log_dg_reopen, l))
+            }
             relaunch(svc, pkg)
         }
         return true
