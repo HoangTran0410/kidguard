@@ -69,7 +69,7 @@ object CamCall {
                 if (id == cur || done.split(' ').contains(id)) return
                 if (base.isNotEmpty()) Call.relay = Triple(base, rid, token)   // "" = a LAN call (LanCall): its answer / end stay on the phone
                 if (Flavor.HOME) return
-                if (cur.isNotEmpty() || Call.cur != null || ListenCall.active || Listen.active) { mark(id); Thread({ Call.post(g, "end", id, "", "busy") }, "cam-busy").start(); return }
+                if (cur.isNotEmpty() || Call.cur != null || ListenCall.active || Listen.active || CamClip.active) { mark(id); Thread({ Call.post(g, "end", id, "", "busy") }, "cam-busy").start(); return }
                 cur = id; offer = c; app = g.applicationContext   // claimed now: a second sync must not start it again
                 snd = c.optBoolean("snd"); back = c.optString("face") == "back"
                 Thread({
@@ -109,7 +109,7 @@ object CamCall {
         else runCatching { AutoGrant.camNow(c) }
     }
 
-    private fun noticeVisible(c: Context): Boolean {
+    fun noticeVisible(c: Context): Boolean {
         val nm = c.getSystemService(NotificationManager::class.java) ?: return false
         nm.createNotificationChannel(NotificationChannel(CH, c.getString(R.string.ch_watch), NotificationManager.IMPORTANCE_HIGH))
         if (!nm.areNotificationsEnabled()) return false
@@ -245,10 +245,11 @@ object CamCall {
     }
 }
 
-/** Holds the camera (+ mic) "while-in-use" for a live camera session; its notification is the child's notice. */
+/** Holds the camera (+ mic) "while-in-use" for a live camera session or a Telegram clip (extra `clip`, [CamClip]); its notification is the child's notice. */
 class CamService : Service() {
     override fun onBind(i: Intent?): IBinder? = null
     override fun onStartCommand(i: Intent?, flags: Int, startId: Int): Int {
+        if (i?.getBooleanExtra("clip", false) == true) return clip()
         val ok = runCatching {
             val n = CamCall.notice(this)
             if (Build.VERSION.SDK_INT >= 29) startForeground(CamCall.NID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA or (if (CamCall.snd) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0))
@@ -263,6 +264,18 @@ class CamService : Service() {
         CamCall.serviceUp()
         return START_NOT_STICKY
     }
+    private fun clip(): Int {
+        val ok = runCatching {
+            val n = CamClip.notice(this)
+            if (Build.VERSION.SDK_INT >= 29) startForeground(CamClip.NID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA or (if (CamClip.snd) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0))
+            else startForeground(CamClip.NID, n)
+        }.onFailure { Log.w("KidGuard", "clip foreground", it) }.isSuccess
+        // same rule as above: never stop a startForegroundService service before startForeground
+        if (!ok) runCatching { if (Build.VERSION.SDK_INT >= 34) startForeground(CamClip.NID, CamClip.notice(this), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE) else startForeground(CamClip.NID, CamClip.notice(this)) }
+        if (!ok || !CamClip.waiting()) { CamClip.serviceUp(false); stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return START_NOT_STICKY }
+        CamClip.serviceUp(true)
+        return START_NOT_STICKY
+    }
     override fun onDestroy() { if (CamCall.active) CamCall.stop("hangup"); super.onDestroy() }
 }
 
@@ -272,16 +285,18 @@ class CamService : Service() {
  */
 class CamActivity : Activity() {
     private val h = Handler(Looper.getMainLooper())
+    private var clip = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (!CamCall.wants(intent.getStringExtra("id").orEmpty())) { finish(); return }   // a stale intent
+        clip = intent.getBooleanExtra("clip", false)
+        if (if (clip) !CamClip.wants() else !CamCall.wants(intent.getStringExtra("id").orEmpty())) { finish(); return }   // a stale intent
         window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
         if (Build.VERSION.SDK_INT >= 27) setShowWhenLocked(true)
         h.postDelayed({ finish() }, 2000)
     }
     override fun onResume() {
         super.onResume()
-        CamCall.startService(this)
+        if (clip) CamClip.startService(this) else CamCall.startService(this)
         h.post { finish() }
     }
     override fun onStop() { super.onStop(); finish() }

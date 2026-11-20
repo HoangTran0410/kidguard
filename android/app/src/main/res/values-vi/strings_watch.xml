@@ -23,8 +23,14 @@
     <string name="watch_words_sees">Một cảnh báo có tên app và đoạn ngắn của tin nhắn quanh từ khoá.</string>
     <string name="ev_word">%1$s, từ khoá "%3$s": %2$s</string>
     <string name="watch_cam_title">camera theo yêu cầu</string>
-    <string name="watch_cam_kid">Bố mẹ có thể chụp ảnh hoặc xem trực tiếp bằng camera máy bạn, trước hoặc sau. Mỗi lần bạn đều nhận thông báo, và màn hình có thể sáng trắng khi chụp.</string>
-    <string name="watch_cam_sees">Một ảnh mỗi lần họ yêu cầu. Hoặc video trực tiếp tối đa 10 phút, có thông báo suốt lúc xem; máy này không ghi lại.</string>
+    <string name="watch_cam_kid">Bố mẹ có thể chụp ảnh, quay video ngắn hoặc xem trực tiếp bằng camera máy bạn, trước hoặc sau. Mỗi lần bạn đều nhận thông báo, và màn hình có thể sáng trắng khi chụp.</string>
+    <string name="watch_cam_sees">Một ảnh mỗi lần họ yêu cầu. Video có tiếng tối đa 30 giây, gửi tới Telegram của họ. Hoặc video trực tiếp tối đa 10 phút. Thông báo hiện suốt lúc đó; máy này chỉ giữ lại ảnh.</string>
+    <string name="clip_notice_title">Bố mẹ đang quay video</string>
+    <string name="clip_notice_front">Camera trước, %1$d giây.</string>
+    <string name="clip_notice_back">Camera sau, %1$d giây.</string>
+    <string name="log_clip_start">Bố mẹ bắt đầu quay video %1$d giây bằng camera của bạn</string>
+    <string name="log_clip_done">Bố mẹ đã quay video bằng camera của bạn lúc %1$s</string>
+    <string name="log_clip_err">Quay video dừng: %1$s</string>
     <string name="cam_notice_title">Bố mẹ đang xem camera của bạn</string>
     <string name="cam_notice_front">Camera trước, trực tiếp. Tự tắt sau tối đa 10 phút.</string>
     <string name="cam_notice_back">Camera sau, trực tiếp. Tự tắt sau tối đa 10 phút.</string>

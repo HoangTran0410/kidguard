@@ -28,6 +28,23 @@ object TgLogic {
     }
     const val POLL_S = 50                       // getUpdates long-poll seconds (one open request, ~1.5 KB / min idle)
     const val REC_DEF = 20; const val REC_MAX = 60
+    const val CLIP_DEF = 15; const val CLIP_MIN = 5; const val CLIP_MAX = 30
+    const val CLIP_VBPS = 400_000                       // H.264 ~480p: 15 s ~= 0.75 MB + sound
+    const val CLIP_ABPS = 48_000                        // AAC mono
+    const val CLIP_MAX_BYTES = 20L * 1024 * 1024        // MediaRecorder hard stop, far under Telegram's 50 MB
+    const val CLIP_SIDE = 864                           // long side of the video (864x480 / 720x480 / 640x480)
+
+    /** `/snap [front|back]` (also "trước" / "sau"): true = back camera; anything else = front. */
+    fun camBack(args: List<String>) = args.any { it.lowercase() in setOf("back", "sau", "rear") }
+    /** `/clip [secs] [front|back]` in any order: seconds (default [CLIP_DEF], clamped [CLIP_MIN]..[CLIP_MAX]) and back camera. */
+    fun clipArgs(args: List<String>): Pair<Int, Boolean> {
+        val n = args.firstNotNullOfOrNull { it.lowercase().removeSuffix("s").toIntOrNull() } ?: CLIP_DEF
+        return n.coerceIn(CLIP_MIN, CLIP_MAX) to camBack(args)
+    }
+    /** Video size for the clip: the biggest with the long side <= [CLIP_SIDE] and the short side <= 480, else the smallest. */
+    fun clipSize(sizes: List<Pair<Int, Int>>): Pair<Int, Int>? =
+        sizes.filter { maxOf(it.first, it.second) <= CLIP_SIDE && minOf(it.first, it.second) <= 480 }.maxByOrNull { it.first * it.second }
+            ?: sizes.minByOrNull { it.first * it.second }
     const val TG_FILE_MAX = 20L * 1024 * 1024   // Bot API download limit (parent -> kid documents)
     const val TG_SEND_MAX = 50L * 1024 * 1024   // Bot API upload limit (kid -> parent)
 
@@ -95,7 +112,7 @@ object TgLogic {
             "⏱ THỜI GIAN\n/requests – lời xin đang chờ (bấm nút để trả lời)\n/code – mã mở khoá 6 số (đọc cho con, hoặc mở phần bố mẹ trên máy con)\n/bonus 30 – cho thêm 30 phút (qua cả giờ ngủ / lịch / cấm)\n/pause 60 – cấm dùng 60 phút\n/resume – gỡ cấm dùng\n/limit 120 – giới hạn mỗi ngày (0 = bỏ; giới hạn khác nhau theo thứ thì hỏi trước)\n/bed – bật/tắt giờ ngủ\n\n" +
             "📱 APP\n/block – chọn app để chặn\n/unblock – bỏ chặn app\n\n" +
             "🎛 ĐIỀU KHIỂN\n/lock – khoá màn hình\n/ring – đổ chuông (tìm máy)\n/msg – hiện lời nhắn trên máy con\n/lost – chế độ thất lạc (bật cần xác nhận; /lost off để tắt)\n\n" +
-            "📸 TỪ XA\n/screen – chụp màn hình\n/rec – ghi âm xung quanh (máy con có thông báo)\n/files – file của con · gửi file vào đây = chuyển sang máy con\n\n" +
+            "📸 TỪ XA\n/screen – chụp màn hình\n/rec – ghi âm xung quanh (máy con có thông báo)\n/snap – chụp ảnh bằng camera (/snap back = camera sau; máy con có thông báo)\n/clip – quay video 15 giây có tiếng (/clip 30 back; 5–30 giây; máy con có thông báo)\n/files – file của con · gửi file vào đây = chuyển sang máy con\n\n" +
             "⚙️ /menu – bảng nút bấm\n/quiet – mức báo của chat này: mọi cảnh báo · quan trọng · chỉ SOS\n/digest – tóm tắt mỗi tối (bật · tắt · giờ)\n/notif – nhận thông báo của con ở chat này (bật · tắt)\n/lang – đổi ngôn ngữ (English)\n/unlink – ngừng nhận ở chat này\n\n" +
             "Số phút viết kiểu 30, 90, 2h, 1h30.",
         "linkAsk" to "👋 Đây là bot KidGuard riêng của nhà bạn. Gửi mã 6 số đang hiện trong KidGuard (Cài đặt > Telegram) để liên kết chat này.",
@@ -135,6 +152,13 @@ object TgLogic {
         "ringing" to "Đang đổ chuông.",
         "locked" to "Đã khoá màn hình.",
         "shotWait" to "Đang chụp màn hình…",
+        "snapWait" to "Đang chụp ảnh bằng camera %1\$s (máy con hiện thông báo)…",
+        "snapCap" to "Ảnh camera %1\$s lúc %2\$s",
+        "clipWait" to "Đang quay %1\$d giây bằng camera %2\$s (máy con hiện thông báo)…",
+        "clipCap" to "Video %1\$d giây, camera %2\$s, lúc %3\$s",
+        "clipNoSnd" to " · không có tiếng (máy con chưa có quyền micro)",
+        "camFront" to "trước", "camBack" to "sau",
+        "subClip" to "🎥 Quay video bao lâu? Máy con sẽ hiện thông báo suốt lúc quay.",
         "recWait" to "Đang ghi âm %1\$d giây (máy con hiện thông báo)…",
         "recCap" to "Ghi âm %1\$d giây lúc %2\$s",
         "files" to "File của con (bấm để tải):",
@@ -149,7 +173,7 @@ object TgLogic {
         "b.status" to "📊 Tình hình", "b.locate" to "📍 Vị trí", "b.bonus" to "➕ Thêm giờ", "b.pause" to "⏸ Tạm cấm",
         "b.lock" to "🔒 Khoá màn hình", "b.ring" to "🔔 Đổ chuông", "b.msg" to "💬 Nhắn cho con", "b.screen" to "📸 Xem màn hình",
         "b.block" to "⛔ Chặn app", "b.unblock" to "✅ Bỏ chặn app", "b.limit" to "⏱ Giới hạn/ngày", "b.bed" to "🌙 Giờ ngủ",
-        "b.apps" to "📱 App hôm nay", "b.events" to "⚠️ Cảnh báo", "b.rec" to "🎙 Ghi âm", "b.files" to "📁 File",
+        "b.apps" to "📱 App hôm nay", "b.events" to "⚠️ Cảnh báo", "b.rec" to "🎙 Ghi âm", "b.snap" to "📷 Chụp ảnh", "b.clip" to "🎥 Quay video", "b.clipBack" to "🎥 Camera sau %1\$d giây", "b.files" to "📁 File",
         "b.help" to "❓ Hướng dẫn", "b.menu" to "📋 Menu", "b.back" to "« Menu", "b.refresh" to "🔄 Làm mới",
         "b.resume" to "▶️ Gỡ cấm", "b.noLimit" to "Bỏ giới hạn", "b.bedOn" to "🌙 Bật", "b.bedOff" to "☀️ Tắt",
         "b.plus" to "+%1\$s", "b.sec" to "%1\$d giây",
@@ -183,6 +207,9 @@ object TgLogic {
         "e.capture failed" to "chụp màn hình không được, thử lại", "e.need consent" to "máy con chưa cho phép chia sẻ màn hình (hộp xin phép hiện trên máy con)",
         "e.denied" to "máy con đã từ chối chia sẻ màn hình", "e.listening" to "đang nghe xung quanh, dừng lại rồi thử lại", "e.ringing" to "máy con đang đổ chuông, chờ xong rồi thử lại",
         "e.mic blocked" to "micro bị chặn (đang có cuộc gọi / app khác dùng micro)", "e.mic failed" to "không mở được micro",
+        "e.cam off" to "bố mẹ chưa bật camera theo yêu cầu (trang KidGuard > Xem được gì)", "e.cam live" to "đang xem camera trực tiếp, dừng lại rồi thử lại",
+        "e.no camera permission" to "chưa có quyền camera", "e.no such camera" to "máy con không có camera này", "e.camera" to "camera không chụp / quay được, thử lại",
+        "e.cam blocked" to "Android không cho mở camera lúc này (mở màn hình máy con rồi thử lại)", "e.unsupported" to "bản KidGuard này không có tính năng đó",
         "b.requests" to "🙋 Lời xin", "b.quiet" to "🔕 Mức báo", "b.lost" to "📵 Thất lạc", "b.sosAck" to "✅ Đã nhận", "b.undo" to "↩️ Hoàn tác",
         "b.allow" to "✅ Cho dùng", "b.deny" to "⛔ Chặn", "b.all" to "Mọi ngày", "b.today" to "Chỉ hôm nay", "b.cancel" to "Huỷ",
         "b.lostGo" to "📵 Bật chế độ thất lạc", "b.lostOff" to "✅ Tắt chế độ thất lạc",
@@ -227,7 +254,7 @@ object TgLogic {
             "⏱ TIME\n/requests – open requests (tap a button to answer)\n/code – 6-digit unlock code (read it to your kid, or open the parent page on the phone)\n/bonus 30 – 30 more minutes (also through bedtime / schedule / pause)\n/pause 60 – no phone for 60 min\n/resume – end the pause\n/limit 120 – daily limit (0 = none; asks first when the limit differs by weekday)\n/bed – bedtime on/off\n\n" +
             "📱 APPS\n/block – pick an app to block\n/unblock – unblock an app\n\n" +
             "🎛 CONTROL\n/lock – lock the screen\n/ring – ring (find the phone)\n/msg – show a message on the phone\n/lost – lost mode (needs a confirm; /lost off to end)\n\n" +
-            "📸 REMOTE\n/screen – screenshot\n/rec – record the sound around (the phone shows a notice)\n/files – the child's files · send a file here = to the phone\n\n" +
+            "📸 REMOTE\n/screen – screenshot\n/rec – record the sound around (the phone shows a notice)\n/snap – take a photo with the camera (/snap back = back camera; the phone shows a notice)\n/clip – record a 15 s video with sound (/clip 30 back; 5–30 s; the phone shows a notice)\n/files – the child's files · send a file here = to the phone\n\n" +
             "⚙️ /menu – the button panel\n/quiet – this chat's alert level: all · important · SOS only\n/digest – evening summary (on · off · time)\n/notif – get the child's notifications in this chat (on · off)\n/lang – language (Tiếng Việt)\n/unlink – stop this chat\n\n" +
             "Minutes: 30, 90, 2h, 1h30.",
         "linkAsk" to "👋 This is your family's own KidGuard bot. Send the 6-digit code shown in KidGuard (Settings > Telegram) to link this chat.",
@@ -267,6 +294,13 @@ object TgLogic {
         "ringing" to "Ringing.",
         "locked" to "Screen locked.",
         "shotWait" to "Taking a screenshot…",
+        "snapWait" to "Taking a photo with the %1\$s camera (the phone shows a notice)…",
+        "snapCap" to "Photo, %1\$s camera, at %2\$s",
+        "clipWait" to "Recording %1\$d s with the %2\$s camera (the phone shows a notice)…",
+        "clipCap" to "%1\$d s video, %2\$s camera, at %3\$s",
+        "clipNoSnd" to " · no sound (no microphone permission on the phone)",
+        "camFront" to "front", "camBack" to "back",
+        "subClip" to "🎥 Record for how long? The phone shows a notice the whole time.",
         "recWait" to "Recording %1\$d s (the phone shows a notice)…",
         "recCap" to "%1\$d s recorded at %2\$s",
         "files" to "The child's files (tap to download):",
@@ -280,7 +314,7 @@ object TgLogic {
         "b.status" to "📊 Status", "b.locate" to "📍 Location", "b.bonus" to "➕ More time", "b.pause" to "⏸ Pause",
         "b.lock" to "🔒 Lock screen", "b.ring" to "🔔 Ring", "b.msg" to "💬 Message", "b.screen" to "📸 See screen",
         "b.block" to "⛔ Block app", "b.unblock" to "✅ Unblock app", "b.limit" to "⏱ Daily limit", "b.bed" to "🌙 Bedtime",
-        "b.apps" to "📱 Apps today", "b.events" to "⚠️ Alerts", "b.rec" to "🎙 Record", "b.files" to "📁 Files",
+        "b.apps" to "📱 Apps today", "b.events" to "⚠️ Alerts", "b.rec" to "🎙 Record", "b.snap" to "📷 Take photo", "b.clip" to "🎥 Video clip", "b.clipBack" to "🎥 Back camera %1\$d s", "b.files" to "📁 Files",
         "b.help" to "❓ Help", "b.menu" to "📋 Menu", "b.back" to "« Menu", "b.refresh" to "🔄 Refresh",
         "b.resume" to "▶️ End pause", "b.noLimit" to "No limit", "b.bedOn" to "🌙 On", "b.bedOff" to "☀️ Off",
         "b.plus" to "+%1\$s", "b.sec" to "%1\$d s",
@@ -313,6 +347,9 @@ object TgLogic {
         "e.capture failed" to "couldn't capture the screen, try again", "e.need consent" to "screen sharing isn't allowed on the phone yet (a prompt shows on the phone)",
         "e.denied" to "screen sharing was refused on the phone", "e.listening" to "listening around is on, stop it and try again", "e.ringing" to "the phone is ringing, wait until it stops",
         "e.mic blocked" to "the microphone is blocked (a call / another app uses it)", "e.mic failed" to "couldn't open the microphone",
+        "e.cam off" to "camera on request is off (KidGuard page > What you can see)", "e.cam live" to "someone is watching the camera live, stop it and try again",
+        "e.no camera permission" to "no camera permission", "e.no such camera" to "the phone has no such camera", "e.camera" to "the camera couldn't take it, try again",
+        "e.cam blocked" to "Android didn't allow the camera right now (turn the phone's screen on and try again)", "e.unsupported" to "this KidGuard build doesn't have that",
         "b.requests" to "🙋 Requests", "b.quiet" to "🔕 Alert level", "b.lost" to "📵 Lost", "b.sosAck" to "✅ Got it", "b.undo" to "↩️ Undo",
         "b.allow" to "✅ Allow", "b.deny" to "⛔ Block", "b.all" to "Every day", "b.today" to "Today only", "b.cancel" to "Cancel",
         "b.lostGo" to "📵 Turn on lost mode", "b.lostOff" to "✅ Turn off lost mode",
@@ -365,7 +402,7 @@ object TgLogic {
     const val MAX_AGE_OTHER_MS = 60 * 60_000L    // every other typed action (owner 2026-11-15: friction without protection)
     /** Typed commands that stay 10 min: time-critical (lock, ring, wake) and destructive (release, reboot, clearData, unpair, unlink, lost, pin*). */
     val URGENT = setOf("lock", "ring", "wake", "release", "reboot", "cleardata", "unpair", "unlink", "lost",
-        "rec", "screen", "locate", "msg")   // moment-bound / privacy: a mic or screen grab an hour late is not what the parent asked
+        "rec", "screen", "locate", "msg", "snap", "clip")   // moment-bound / privacy: a mic or screen grab an hour late is not what the parent asked
     fun isUrgent(name: String) = name in URGENT || name.startsWith("pin")
 
     /** `/code`: the current Authenticator code, seconds it has left, and the next one; null = no valid secret. */
@@ -434,12 +471,13 @@ object TgLogic {
             listOf(b("limit", "n:limit"), b("bed", "n:bed")),
             listOf(b("apps", "c:apps"), b("events", "c:events")),
             listOf(b("rec", "n:rec"), b("files", "c:files")),
+            listOf(b("snap", "c:snap"), b("clip", "n:clip")),
             listOf(b("requests", "c:requests"), b("lost", "c:lost")),
             listOf(b("quiet", "c:quiet"), b("code", "c:code")),
             listOf(b("help", "c:help"), b("lang", "c:lang " + other(lang)))))
     }
 
-    /** A sub-panel (bonus / pause / limit / bed / rec) with a way back; null = no such panel. */
+    /** A sub-panel (bonus / pause / limit / bed / rec / clip) with a way back; null = no such panel. */
     fun sub(lang: String, name: String): JSONObject? {
         val back = listOf(s(lang, "b.back") to "n:main")
         fun mins(cmd: String, l: List<Int>) = l.map { s(lang, "b.plus", fmt(it * 60_000L, lang)).removePrefix(if (cmd == "bonus") "" else "+") to "c:$cmd $it" }
@@ -449,6 +487,7 @@ object TgLogic {
             "limit" -> listOf(mins("limit", listOf(60, 90)), mins("limit", listOf(120, 180)), listOf(s(lang, "b.noLimit") to "c:limit 0"))
             "bed" -> listOf(listOf(s(lang, "b.bedOn") to "c:bed on", s(lang, "b.bedOff") to "c:bed off"))
             "rec" -> listOf(listOf(10, 20).map { s(lang, "b.sec", it) to "c:rec $it" }, listOf(30, 60).map { s(lang, "b.sec", it) to "c:rec $it" })
+            "clip" -> listOf(listOf(10, 15, 30).map { s(lang, "b.sec", it) to "c:clip $it" }, listOf(s(lang, "b.clipBack", CLIP_DEF) to "c:clip $CLIP_DEF back"))
             else -> return null
         }
         return keyboard(rows + listOf(back))

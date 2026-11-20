@@ -319,4 +319,23 @@ class TgLogicTest {
         assertEquals(12L, TgLogic.evPlan(listOf(9L to ev("tamper", now - 11_000), 12L to ev("battery", now)), now).second)
         assertEquals(emptyList<Long>() to 0L, TgLogic.evPlan(emptyList(), now).let { it.first.map { p -> p.first } to it.second })
     }
+
+    @Test fun snapClipArgs() {
+        assertFalse(TgLogic.camBack(emptyList()))
+        assertTrue(TgLogic.camBack(listOf("back")))
+        assertTrue(TgLogic.camBack(listOf("SAU")))
+        assertFalse(TgLogic.camBack(listOf("front")))
+        assertEquals(15 to false, TgLogic.clipArgs(emptyList()))
+        assertEquals(30 to true, TgLogic.clipArgs(listOf("back", "30")))
+        assertEquals(20 to false, TgLogic.clipArgs(listOf("20s", "front")))
+        assertEquals(5 to false, TgLogic.clipArgs(listOf("1")))
+        assertEquals(30 to false, TgLogic.clipArgs(listOf("600")))
+        assertEquals(15 to true, TgLogic.clipArgs(TgLogic.parse("/clip back")!!.args))
+        assertEquals(864 to 480, TgLogic.clipSize(listOf(1920 to 1080, 1280 to 720, 864 to 480, 640 to 480, 320 to 240)))
+        assertEquals(640 to 480, TgLogic.clipSize(listOf(1920 to 1080, 640 to 480, 176 to 144)))
+        assertEquals(1280 to 720, TgLogic.clipSize(listOf(1920 to 1080, 1280 to 720)))
+        assertNull(TgLogic.clipSize(emptyList()))
+        assertTrue(TgLogic.isUrgent("snap") && TgLogic.isUrgent("clip") && TgLogic.isAction("clip"))
+        assertTrue(TgLogic.s("vi", "help", "X").contains("/clip") && TgLogic.s("en", "help", "X").contains("/snap"))
+    }
 }

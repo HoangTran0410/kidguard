@@ -109,6 +109,7 @@ object Listen {
      */
     @Synchronized fun open(g: Guard): Session? {
         ActionLogic.conflict("listen", ringing = Ring.active, listening = active)?.let { lastError = it; return null }
+        if (CamClip.active) { lastError = "busy"; return null }   // a Telegram video clip holds the mic
         current?.close(""); ListenCall.stop("")
         if (!prepare(g)) return null
         val pipe = ParcelFileDescriptor.createPipe()
@@ -153,6 +154,7 @@ object Listen {
     /** Same checks and the same notice as [open]; true = the caller may start the WebRTC session. */
     @Synchronized fun openRtc(g: Guard): Boolean {
         ActionLogic.conflict("listen", ringing = Ring.active, listening = active)?.let { lastError = it; return false }
+        if (CamClip.active) { lastError = "busy"; return false }
         current?.close(""); if (rtc) closeRtc(g, "")
         if (!prepare(g)) return false
         rtcWl = runCatching {

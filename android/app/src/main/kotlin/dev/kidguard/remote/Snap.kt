@@ -93,6 +93,8 @@ object RemoteSnap {
     private val job = AtomicReference<Job?>(null)
 
     fun on(g: Context) = Store.of(g).baseRules.watch.cam
+    /** A photo job is running (the Telegram clip waits for it). */
+    val busy get() = job.get() != null
     private fun dir(c: Context) = File(c.filesDir, "snaps").apply { mkdirs() }
     fun file(c: Context, fid: String): File? = if (FilesLogic.isId(fid)) File(dir(c), "$fid.jpg").takeIf { it.isFile } else null
     /** Why the last job with [fid] failed (LAN poll), or null. */
@@ -183,7 +185,7 @@ object RemoteSnap {
         if (!Shot.canUse(g, o.back)) return "no such camera"
         if (g.getSystemService(PowerManager::class.java)?.isInteractive != true) return "screen off"   // nobody looks at a dark phone; the parent can wake it first
         val j = Job(fid, o, c.optBoolean("relay", false))
-        if (CamCall.active || !job.compareAndSet(null, j)) return "busy"   // the live camera holds the camera
+        if (CamCall.active || CamClip.active || !job.compareAndSet(null, j)) return "busy"   // the live camera holds the camera
         File(dir(g), "$fid.err").delete()
         tell(g, o)
         runCatching { Store.of(g).log(R.string.log_watch_snap) }

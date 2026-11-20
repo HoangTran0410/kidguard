@@ -23,8 +23,14 @@
     <string name="watch_words_sees">An alert with the app and a short piece of the message around the word.</string>
     <string name="ev_word">%1$s, word "%3$s": %2$s</string>
     <string name="watch_cam_title">camera on request</string>
-    <string name="watch_cam_kid">Your parent can take a photo or watch live with your phone\'s camera, front or back. You get a notice each time, and the screen may flash white for a photo.</string>
-    <string name="watch_cam_sees">One photo each time they ask. Or live video for up to 10 minutes, with a notice the whole time; it is not recorded on this phone.</string>
+    <string name="watch_cam_kid">Your parent can take a photo, record a short video or watch live with your phone\'s camera, front or back. You get a notice each time, and the screen may flash white for a photo.</string>
+    <string name="watch_cam_sees">One photo each time they ask. A video clip with sound of up to 30 seconds, sent to their Telegram. Or live video for up to 10 minutes. A notice shows the whole time; nothing is kept on this phone except the photos.</string>
+    <string name="clip_notice_title">Your parent is recording a video</string>
+    <string name="clip_notice_front">Front camera, %1$d seconds.</string>
+    <string name="clip_notice_back">Back camera, %1$d seconds.</string>
+    <string name="log_clip_start">Your parent started a %1$d-second video with your camera</string>
+    <string name="log_clip_done">Your parent recorded a video with your camera at %1$s</string>
+    <string name="log_clip_err">Video stopped: %1$s</string>
     <string name="cam_notice_title">Your parent is watching your camera</string>
     <string name="cam_notice_front">Front camera, live. It turns off by itself within 10 minutes.</string>
     <string name="cam_notice_back">Back camera, live. It turns off by itself within 10 minutes.</string>

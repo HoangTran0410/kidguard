@@ -840,17 +840,24 @@ secure page (the parent app's `127.0.0.1`, or the relay's https page). Listen on
 - Commands in the chat (TgLogic, vi/en texts): /status /apps /locate (last fix + a fresh one within ~30 s, sendLocation) /events
   /code (current Authenticator code + seconds left + next code, read-only; "off" text when no secret) /bonus N (bonus today += N, 1-600) /pause N (pausedUntil = now+N min) /resume /lock /ring /msg <text>
   /block, /unblock (app buttons `b:<pkg>` / `u:<pkg>`) /limit N (dailyMin, or 7 x N when dailyByDay is set; 0 = none) /bed on|off
-  /screen (Acc.capture 1280 px -> sendPhoto) /rec N (5-60 s mic, same notice as "listen", AAC document) /files (buttons `f:<id>` ->
+  /screen (Acc.capture 1280 px -> sendPhoto) /rec N (5-60 s mic, same notice as "listen", AAC document)
+  /snap [front|back] (0.9.73: the page's photo on request = `RemoteSnap.command` with `cam`, flash off, size medium: rule `watch.cam`,
+  same notice + log + kept in the photo history ("Ảnh đã chụp"); the page's camera choice lives in the browser, so default front -> sendPhoto)
+  /clip [5-30] [front|back] (0.9.73, CamClip.kt: video with sound, default 15 s, H.264 ~480p 400 kbps + AAC 48 kbps MP4 in cacheDir/tgclip,
+  sendVideo then deleted; rule `watch.cam`; CamService started like the live camera (Device Owner direct, else CamActivity; basic mode
+  with the screen off = "screen off"), ongoing notice for the whole recording + log lines; no mic permission = video without sound and the
+  caption says so). Both refuse while a live camera runs (`cam live`), /clip also while a call / listen / photo / ring runs (`busy`); rule off
+  mid-clip = nothing sent. /files (buttons `f:<id>` ->
   sendDocument, <= 50 MB) ; a document sent to the bot (<= 20 MB) is saved like a LAN upload (Download/KidGuard) /help /unlink.
   Rule edits go through `Guard.setRules` with `rev = max(now, rev + 1)`, so the page sees them as a newer rules object.
 - Buttons (TgLogic.menu/sub/statusKb/replyKb): /menu = inline panel of every command; callback data `c:<command line>` runs it,
-  `n:<panel>` (main, bonus, pause, limit, bed, rec) swaps the panel in place (editMessageText), `r:status` refreshes /status in place.
+  `n:<panel>` (main, bonus, pause, limit, bed, rec, clip) swaps the panel in place (editMessageText), `r:status` refreshes /status in place.
   A persistent reply keyboard (Status, Location, More time, Lock, Menu) is sent on /start, /help and link; its labels (vi or en) map back
   to commands. /bonus /pause /limit /bed /rec without a number show their panel; /msg without text asks with force_reply and takes
   the next plain text (10 min). Any other plain text = the menu. tgSet also sets setMyCommands (menu first), setMyDescription,
   setMyShortDescription. Pickers (block / unblock / files) and panels opened from a button replace that message and end with « Menu;
   a picked app turns the picker into the answer (+ "another one"). Every tapped button is acked at once on its own thread
-  (answerCallbackQuery, "working…" toast) and commands send sendChatAction (typing / find_location / upload_photo / record_voice).
+  (answerCallbackQuery, "working…" toast) and commands send sendChatAction (typing / find_location / upload_photo / record_voice / record_video + upload_video).
   setMyShortDescription. The page shows `https://t.me/<bot>?start=<code>` (+ QR): Telegram sends `/start <code>`, which links.
 - 0.9.16 (Tg): every "more time" tap (request buttons, /bonus, panel +N) goes through `Grant.apply` with `now.why` (pass during
   bedtime / schedule / pause, today's bonus otherwise). Request alert buttons are N/2, N, 2N (rounded to 5) `ry:<req>:<min>` + `rn:<req>`;
@@ -875,7 +882,7 @@ secure page (the parent app's `127.0.0.1`, or the relay's https page). Listen on
   The voice carries a "Download" button (callback `a:<16 hex>`): the same M4A as a document, kept 7 days in files/tgrec (max 100 MB, pruned early under 500 MB free; deleted on release).
 - Reliability: an alert counts as seen only once at least one chat got it (else retried every 30 s, dropped after 24 h);
   alerts have their own sender thread; one /locate and one /rec at a time ("busy" otherwise); 429 waits retry_after once.
-  Link codes: max 3 wrong tries per not-linked chat, then that chat is ignored for 15 min (in memory) and may try again (plus 5 per code). Typed action commands older than 10 min (lock, ring, wake, release, reboot, clearData, unpair, unlink, lost, pin*) or 60 min (all others) are refused; a new link is announced to the other chats.
+  Link codes: max 3 wrong tries per not-linked chat, then that chat is ignored for 15 min (in memory) and may try again (plus 5 per code). Typed action commands older than 10 min (lock, ring, wake, release, reboot, clearData, unpair, unlink, lost, pin*, rec, screen, locate, msg, snap, clip) or 60 min (all others) are refused; a new link is announced to the other chats.
   `unpairAll` also unlinks every Telegram chat (the bot token stays). A photo sent to the bot is saved like a file.
 - Language per chat (`chats[].lang`): set at link from the Telegram user's `language_code` (vi* -> vi, else en; none -> the bot
   language from tgSet), changed with /lang [vi|en] or the 🌐 menu button; alerts and answers use it. setMyCommands /

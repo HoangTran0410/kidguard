@@ -265,7 +265,7 @@ object Tg {
     private fun setCommands(tok: String, lang: String) { for (l in listOf<String?>(null, "vi", "en")) setCommandsFor(tok, l ?: lang, l) }
     private fun setCommandsFor(tok: String, lang: String, code: String?) {
         fun body() = JSONObject().apply { if (code != null) put("language_code", code) }
-        val names = listOf("menu", "status", "apps", "locate", "events", "bonus", "pause", "resume", "lock", "ring", "msg", "block", "unblock", "limit", "bed", "screen", "rec", "files", "code", "requests", "quiet", "digest", "notif", "lost", "help", "lang", "unlink")
+        val names = listOf("menu", "status", "apps", "locate", "events", "bonus", "pause", "resume", "lock", "ring", "msg", "block", "unblock", "limit", "bed", "screen", "rec", "snap", "clip", "files", "code", "requests", "quiet", "digest", "notif", "lost", "help", "lang", "unlink")
         val help = TgLogic.s(lang, "help", "").lines().drop(1)
         val desc = names.associateWith { n -> help.firstOrNull { Regex("(^|\\s)/$n(\\s|$)").containsMatchIn(it) && it.contains(" – ") }?.substringAfter("– ")?.substringBefore(" · ")?.take(60) ?: n }
         call(tok, "setMyCommands", body().put("commands", JSONArray().apply { names.forEach { put(JSONObject().put("command", it).put("description", desc[it])) } }))
@@ -346,7 +346,7 @@ object Tg {
     private fun runCmd(g: Guard, s: Store, chat: Long, c: TgLogic.Cmd, panel: Long = 0) {
         val lang = s.tg.chatLang(chat); val now = System.currentTimeMillis()
         // "bot is typing / sending a photo / ..." in the chat header while it works
-        chatAction(s, chat, when (c.name) { "locate" -> "find_location"; "screen" -> "upload_photo"; "rec" -> "record_voice"; "files" -> "upload_document"; else -> "typing" })
+        chatAction(s, chat, when (c.name) { "locate" -> "find_location"; "screen", "snap" -> "upload_photo"; "rec" -> "record_voice"; "clip" -> "record_video"; "files" -> "upload_document"; else -> "typing" })
         fun show(text: String, kb: JSONObject?) { if (panel > 0) nav(s, chat, panel, text, kb) else send(s, chat, text, kb) }
         fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
         fun res(r: String, okKey: String, vararg a: Any?) { if (r == "ok") say(okKey, *a) else say("fail", TgLogic.err(lang, r)) }
@@ -444,7 +444,7 @@ object Tg {
     }
 
     private fun subTitle(s: Store, name: String, lang: String) = when (name) {
-        "bonus" -> TgLogic.s(lang, "subBonus"); "pause" -> TgLogic.s(lang, "subPause"); "rec" -> TgLogic.s(lang, "subRec")
+        "bonus" -> TgLogic.s(lang, "subBonus"); "pause" -> TgLogic.s(lang, "subPause"); "rec" -> TgLogic.s(lang, "subRec"); "clip" -> TgLogic.s(lang, "subClip")
         "limit" -> TgLogic.s(lang, "subLimit", s.rules.let { r -> val m = if (r.dailyByDay.size == 7) r.dailyByDay[(java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK) + 5) % 7] else r.dailyMin; if (m > 0) TgLogic.fmt(m * 60_000L, lang) else TgLogic.s(lang, "none") })
         else -> TgLogic.s(lang, "subBed", TgLogic.s(lang, if (s.rules.bedtimeOn) "on" else "off"))
     }
@@ -506,6 +506,8 @@ object Tg {
                 if (!recBusy.compareAndSet(false, true)) return say("busyOne")
                 try { rec(g, s, chat, c, lang, now) } finally { recBusy.set(false) }
             }
+            "snap" -> snap(g, s, chat, c, lang, now)
+            "clip" -> clip(g, s, chat, c, lang, now)
             "files" -> {
                 val l = Files.all(g).filter { it.size <= TgLogic.TG_SEND_MAX }.sortedByDescending { it.at }.take(20)
                 if (l.isEmpty()) return show(TgLogic.s(lang, "noFiles"), TgLogic.keyboard(listOf(back)))
@@ -537,6 +539,44 @@ object Tg {
         if (m4a == null || !sendFile(s, chat, "sendVoice", "voice", "$name.m4a", "audio/mp4", m4a.first, cap,
                 mapOf("duration" to (m4a.second / 1000).toString()) + (kb?.let { mapOf("reply_markup" to it) } ?: emptyMap())))
             if (!sendFile(s, chat, "sendDocument", "document", "$name.aac", "audio/aac", raw, cap)) say("fail", TgLogic.err(lang, "upload"))
+    }
+
+    /** `/snap [front|back]`: the page's photo on request (RemoteSnap: rule watch.cam, notice + log, kept in the photo history), sent with sendPhoto. */
+    private fun snap(g: Guard, s: Store, chat: Long, c: TgLogic.Cmd, lang: String, now: Long) {
+        fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
+        fun fail(why: String) = say("fail", TgLogic.err(lang, if (why == "off") "cam off" else why))
+        if (CamCall.active) return fail("cam live")
+        val back = TgLogic.camBack(c.args); val side = TgLogic.s(lang, if (back) "camBack" else "camFront")
+        val fid = Store.randomHex(8)
+        // the page's camera / flash / size choice lives in the parent's browser, not on the phone: front (or back), no flash, medium
+        val r = RemoteSnap.command(g, JSONObject().put("fid", fid).put("cam", if (back) "back" else "front").put("flash", "off").put("size", "medium"))
+        if (r != "ok") return fail(r)
+        say("snapWait", side)
+        val end = System.currentTimeMillis() + SnapLogic.TOTAL_MS + 5_000
+        while (System.currentTimeMillis() < end) {
+            Thread.sleep(500)
+            RemoteSnap.file(g, fid)?.let { f ->
+                if (!sendStream(s, chat, "sendPhoto", "photo", "kidguard-snap.jpg", "image/jpeg", f.inputStream(), f.length(), TgLogic.s(lang, "snapCap", side, hm(now)))) say("fail", TgLogic.err(lang, "upload"))
+                return
+            }
+            RemoteSnap.error(g, fid)?.let { return fail(it) }
+        }
+        fail("timeout")
+    }
+
+    /** `/clip [secs] [front|back]`: a short video with sound (CamClip: rule watch.cam, ongoing notice + log), sent with sendVideo, then deleted. */
+    private fun clip(g: Guard, s: Store, chat: Long, c: TgLogic.Cmd, lang: String, now: Long) {
+        fun say(k: String, vararg a: Any?) { send(s, chat, TgLogic.s(lang, k, *a)) }
+        val (n, back) = TgLogic.clipArgs(c.args); val side = TgLogic.s(lang, if (back) "camBack" else "camFront")
+        val r = CamClip.record(g, n, back) { say("clipWait", n, side); chatAction(s, chat, "record_video") }
+        val f = r.file ?: return say("fail", TgLogic.err(lang, if (r.err == "off") "cam off" else r.err))
+        try {
+            chatAction(s, chat, "upload_video")
+            val cap = TgLogic.s(lang, "clipCap", n, side, hm(now)) + (if (!r.snd) TgLogic.s(lang, "clipNoSnd") else "")
+            val name = "kidguard-${SimpleDateFormat("HHmm", Locale.US).format(Date(now))}.mp4"
+            if (!sendStream(s, chat, "sendVideo", "video", name, "video/mp4", f.inputStream(), f.length(), cap, mapOf("duration" to n.toString(), "supports_streaming" to "true")))
+                say("fail", TgLogic.err(lang, "upload"))
+        } finally { f.delete() }
     }
 
     /**
