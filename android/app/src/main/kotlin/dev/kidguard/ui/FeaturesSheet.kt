@@ -74,7 +74,7 @@ object FeaturesSheet {
      * "Chống lách": what a child can still do against basic mode, what Device Owner closes, and what upgrading costs
      * (accounts) BEFORE the parent starts it. Upgrade = the on-phone setup (Android 11+), else the guide.
      */
-    private val GATED = setOf("admin", "acc", "usage", "location", "battery", "home", "adb")
+    private val GATED = setOf("admin", "acc", "usage", "location", "battery", "home", "adb", "wss")
 
     fun tamper(act: Activity, u: Ui) {
         val onPhone = Build.VERSION.SDK_INT >= 30
@@ -113,7 +113,11 @@ object FeaturesSheet {
             "adb" -> if (Build.VERSION.SDK_INT >= 30) {
                 runCatching { act.startActivity(Intent(act, SelfSetupActivity::class.java).putExtra(SelfSetupActivity.EXTRA_PAIR, true)) }
             } else guide(act, u, R.string.feat_cap_adb, R.string.feat_adb_body)
-            "wss" -> guide(act, u, R.string.feat_cap_wss, R.string.feat_wss_body)
+            // Android 11+: the same self-setup screen (pairing Wireless debugging grants it, AutoGrant); no Settings page can
+            // grant WRITE_SECURE_SETTINGS. Older phones: a computer once. (owner 2026-11-20: the button only opened the web guide)
+            "wss" -> if (Build.VERSION.SDK_INT >= 30) {
+                runCatching { act.startActivity(Intent(act, SelfSetupActivity::class.java).putExtra(SelfSetupActivity.EXTRA_PAIR, true)) }
+            } else guide(act, u, R.string.feat_cap_wss, R.string.feat_wss_body)
             "paired" -> pair()
             // the port opens through our own paired adb ([Shell.tcp] also sets the rule, so the Guard tick reopens it after a reboot)
             "adbNet" -> {

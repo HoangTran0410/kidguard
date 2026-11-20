@@ -45,7 +45,7 @@
     <string name="ft_dns">Lọc web (DNS)</string>
     <string name="ft_dns_d">Chặn trang web xấu cho cả máy.</string>
     <string name="feat_cap_wss">quyền cài đặt bảo mật</string>
-    <string name="feat_wss_body">Cấp quyền một lần từ máy tính (scripts/setup.sh, \"pm grant\"). Quyền vẫn còn khi tắt Tùy chọn nhà phát triển.</string>
+    <string name="feat_wss_body">Android chỉ cho quyền này qua adb: không có trang Cài đặt nào bật được. Máy này (Android 10 trở xuống) cần cắm máy tính một lần (scripts/setup.sh, \"pm grant\"). Quyền vẫn còn khi tắt Tùy chọn nhà phát triển.</string>
     <string name="ft_lockLocation">Giữ vị trí luôn bật</string>
     <string name="ft_lockLocation_d">Không cho con tắt vị trí.</string>
     <string name="ms_pin_lock_sub">Thêm vào màn hình chính</string>
@@ -55,6 +55,15 @@
     <string name="st_rc_ts_doze">Tailscale có thể rớt khi tắt màn hình. Sửa: Cài đặt → Ứng dụng → Tailscale → Pin → Không hạn chế</string>
     <string name="st_rc_relay">Relay (qua Internet): đã kết nối</string>
     <string name="st_rc_relay_wait">Relay (qua Internet): đang kết nối lại…</string>
+    <string name="st_rc_relay_lost">Relay (qua Internet): mất kết nối từ %1$s.</string>
+    <string name="st_rc_why_dns">Mạng này không tìm thấy máy chủ: có thể mạng đang chặn, hoặc không có Internet. Thử dùng 4G.</string>
+    <string name="st_rc_why_net">Không kết nối được: mất Internet, sóng yếu, hoặc mạng này đang chặn. Thử dùng 4G.</string>
+    <string name="st_rc_why_tls">Mạng này chặn kết nối bảo mật (Wi-Fi trường, công ty). Thử dùng 4G.</string>
+    <string name="st_rc_why_auth">Relay từ chối máy này: ghép lại từ trang của bố mẹ.</string>
+    <plurals name="st_rc_tries">
+        <item quantity="one">Đã thử %1$d lần từ %2$s.</item>
+        <item quantity="other">Đã thử %1$d lần từ %2$s.</item>
+    </plurals>
     <string name="st_rc_relay_down">Máy chủ relay đang lỗi (%1$s). Không phải do máy này: bố mẹ vẫn kết nối được khi chung Wi-Fi.</string>
     <plurals name="st_rc_tg">
         <item quantity="other">Telegram: %d phụ huynh đã liên kết</item>

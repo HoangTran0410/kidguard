@@ -22,6 +22,9 @@ class Relay(private val g: Guard) {
     private var acks = JSONArray()
     @Volatile var lastOk = 0L; private set
     @Volatile var lastError = ""; private set
+    /** Failed tries in a row and when the first of them was (0 = working): the kid's status line shows both. */
+    @Volatile var failN = 0; private set
+    @Volatile var failSince = 0L; private set
 
     // everything below is touched only on the relay thread
     private var fails = 0
@@ -115,7 +118,7 @@ class Relay(private val g: Guard) {
                     netFails = 0; useAlt = !useAlt; ws.close(); Log.i("KidGuard", "relay: trying ${base(store.relayUrl)}")
                 }
                 if (RelayTrim.isTooBig(lastError)) bigUntil = System.currentTimeMillis() + BIG_RETRY_MS
-                fails++
+                fails++; if (failN++ == 0) failSince = System.currentTimeMillis()
                 // 401 / 409 / 5xx / network: exponential backoff up to 5 min; the next success resets it
                 delay = minOf(300_000L, 20_000L shl minOf(fails - 1, 4))
             }
@@ -253,7 +256,8 @@ class Relay(private val g: Guard) {
                 acks.put(cmd.optString("id"))
             }
             if (res.optInt("files") > 0) Files.pull(g)   // parent -> kid files waiting on the relay (own thread)
-            lastOk = System.currentTimeMillis(); lastError = ""
+            lastOk = System.currentTimeMillis(); lastError = ""; failN = 0; failSince = 0L
+            if (lastOk - store.relayOkAt > 60_000) store.relayOkAt = lastOk
             if (res.optBoolean("live")) { liveWs = res.optInt("lws") == 1; startLive(base, rid, token) }
             if (res.optBoolean("device")) runCatching { DeviceInfo.upload(g, base, rid, token) }.onFailure { Log.w("KidGuard", "device", it) }
             res.optJSONObject("call")?.let { c -> runCatching { Call.fromRelay(g, c, base, rid, token) }.onFailure { Log.w("KidGuard", "call", it) } }
@@ -417,6 +421,22 @@ class Relay(private val g: Guard) {
         fun other(u: String): String? = when (u.trim().trimEnd('/')) { DEFAULT_URL -> ALT_URL; ALT_URL -> DEFAULT_URL; else -> null }
         /** The address to call for a stored relay url: the other name of the shared relay while [useAlt]. */
         fun base(stored: String): String { val u = stored.trim().trimEnd('/'); return if (useAlt) other(u) ?: u else u }
+    }
+}
+
+/** Pure: why the relay can't be reached, from [Relay.lastError], for the kid's status line (owner 2026-11-20). */
+object RelayWhy {
+    /** dns / net / tls / auth / "" (unknown: the raw error is shown). */
+    fun kind(err: String): String {
+        val e = err.lowercase()
+        return when {
+            "resolve host" in e || "no address associated" in e || "unknownhost" in e -> "dns"
+            "ssl" in e || "certificate" in e || "handshake" in e || "trust anchor" in e -> "tls"
+            Regex("http 40[13]|not paired|bad token|relay: (forbidden|unauthorized)").containsMatchIn(e) -> "auth"
+            "timeout" in e || "timed out" in e || "failed to connect" in e || "unreachable" in e || "refused" in e ||
+                "connection reset" in e || "econn" in e || "enetunreach" in e || "socket" in e -> "net"
+            else -> ""
+        }
     }
 }
 

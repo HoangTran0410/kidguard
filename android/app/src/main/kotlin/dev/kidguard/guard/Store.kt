@@ -504,6 +504,10 @@ class Store private constructor(private val app: Context) {
         get() = p.getBoolean("oemBgOk", false)
         set(v) { p.edit().putBoolean("oemBgOk", v).apply() }
     /** When the watchdog last found KidGuard's process gone (killed by the phone maker's battery manager or Recents). */
+    /** Last good relay sync, kept across restarts (written at most once a minute): the kid's status says "lost since". */
+    @get:Synchronized @set:Synchronized var relayOkAt: Long
+        get() = p.getLong("relayOkAt", 0L)
+        set(v) { p.edit().putLong("relayOkAt", v).apply() }
     @get:Synchronized @set:Synchronized var killSeen: Long
         get() = p.getLong("killSeen", 0L)
         set(v) { p.edit().putLong("killSeen", v).apply() }

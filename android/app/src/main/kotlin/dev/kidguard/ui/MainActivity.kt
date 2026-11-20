@@ -922,7 +922,21 @@ class MainActivity : Activity() {
             // the server itself failed (5xx / Cloudflare error page): say so, not "waiting" (INCIDENT 2026-11-17)
             val err = Guard.running?.relayErr.orEmpty()
             if (!up && err.startsWith("HTTP 5")) line(R.drawable.li_cloud, Ic.WARN, getString(R.string.st_rc_relay_down, err))
-            else line(R.drawable.li_cloud, if (up) Ic.OK else Ic.WARN, getString(if (up) R.string.st_rc_relay else R.string.st_rc_relay_wait))
+            else if (up) line(R.drawable.li_cloud, Ic.OK, getString(R.string.st_rc_relay))
+            else {
+                // since when + why (company Wi-Fi blocking, no Internet, unpaired): the parent sees "offline" with no hint
+                val okAt = (Guard.running?.relayOkAt ?: 0L).takeIf { it > 0 } ?: s.relayOkAt   // kept across restarts
+                val why = when (RelayWhy.kind(err)) {
+                    "dns" -> getString(R.string.st_rc_why_dns); "net" -> getString(R.string.st_rc_why_net)
+                    "tls" -> getString(R.string.st_rc_why_tls); "auth" -> getString(R.string.st_rc_why_auth)
+                    else -> err.take(80)
+                }
+                val hm = { t: Long -> java.text.SimpleDateFormat(if (System.currentTimeMillis() - t > 20 * 3600_000L) "HH:mm dd/MM" else "HH:mm", java.util.Locale.ROOT).format(java.util.Date(t)) }
+                val head = if (okAt > 0) getString(R.string.st_rc_relay_lost, hm(okAt)) else getString(R.string.st_rc_relay_wait)
+                val (n, since) = Guard.running?.relayFails ?: (0 to 0L)
+                val tries = if (n > 0 && since > 0) " " + resources.getQuantityString(R.plurals.st_rc_tries, n, n, hm(since)) else ""
+                line(R.drawable.li_cloud, Ic.WARN, head + tries + if (why.isBlank()) "" else " $why")
+            }
         }
         if (s.tg.token.isNotBlank()) {
             n++; val k = s.tg.chats().length()

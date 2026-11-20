@@ -71,6 +71,8 @@ class Guard : Service() {
     val relayOkAt: Long get() = relay?.lastOk ?: 0L
     /** The relay's last failure ("HTTP 500 · Cloudflare 1101"), "" while it works. */
     val relayErr: String get() = relay?.lastError.orEmpty()
+    /** Failed relay tries in a row + when they started (0 = working). */
+    val relayFails: Pair<Int, Long> get() = (relay?.failN ?: 0) to (relay?.failSince ?: 0L)
     @Volatile private var lastState: JSONObject = JSONObject()
     /** The newest tick's state, not built yet: most ticks have no reader (the relay reads every 20 s, LAN only with a page open). */
     private val stateTodo = java.util.concurrent.atomic.AtomicReference<(() -> JSONObject)?>(null)
