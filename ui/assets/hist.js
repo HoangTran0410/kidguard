@@ -40,20 +40,21 @@ async function snapBlob(k, id, thumb) {
   return new Blob(parts, { type: "image/jpeg" });
 }
 async function snapLoad(more) {
-  const k = cur; if (!k || snapH.busy) return;
-  if (snapH.k !== k) Object.assign(snapH, { k, rows: [], more: false, err: "", done: false, cached: 0 });
+  const k = cur; if (!k) return;
+  if (snapH.k !== k) Object.assign(snapH, { k, rows: [], more: false, err: "", done: false, cached: 0, busy: false });
+  if (snapH.busy) return;
   snapH.busy = true; snapH.err = ""; snapDraw();
   // owner 2026-11-20: the list (and photos opened before) stay viewable offline: list cached per kid in IndexedDB "kgchat"
   if (!snapH.rows.length) { const c = await thGet("snapl/" + k.id + "/"); if (c && snapH.k === k && !snapH.rows.length) { snapH.rows = c.rows || []; snapH.cached = c.at || 0; snapDraw(); } }
   try {
     const before = more && snapH.rows.length ? snapH.rows[snapH.rows.length - 1].at : 0;
     const j = await pullPage(k, "/snaps", "snapList", before);
-    if (snapH.k !== k) return;
+    if (snapH.k !== k) return;   // finally below leaves busy alone: it belongs to the other kid now
     const have = new Set(snapH.rows.map(r => r.id)), add = (j.snaps || []).filter(r => !have.has(r.id));
     snapH.rows = more ? snapH.rows.concat(add) : add; snapH.more = !!j.more; snapH.done = true; snapH.cached = 0;
     thPut("snapl/" + k.id + "/", { rows: snapH.rows, at: Date.now() });
-  } catch (e) { snapH.err = e.message || String(e.raw || e); }
-  snapH.busy = false; snapDraw();
+  } catch (e) { if (snapH.k === k) snapH.err = e.message || String(e.raw || e); }
+  finally { if (snapH.k === k) snapH.busy = false; snapDraw(); }
 }
 // thumbs: only when the tile is visible, 2 (relay) / 4 (LAN) at a time, memory + IndexedDB
 const snapQ = []; let snapRun = 0, snapIO = null;

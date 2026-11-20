@@ -239,9 +239,10 @@ async function pickDay(d) {
     if (!r.ok) throw 0;
     const j = (await r.json()).body; if (!j) throw 0;
     if (cur !== k) return;
+    const s = j.state !== undefined ? j.state : j;
+    if (!s || !s.apps || !s.rules) throw 0;   // validate before touching any live global: a bad file must leave polling and `st` alone
     clearInterval(timer); screenStop();
-    st = j.state !== undefined ? j.state : j; pendingRules = null; seenAt = 0; cachedAt = 0; lastErr = "";
-    if (!st.apps || !st.rules) throw 0;
+    st = s; pendingRules = null; seenAt = 0; cachedAt = 0; lastErr = "";
     edit = norm(structuredClone(st.rules)); viewDay = d; tab = "home"; trk = []; trkLoaded = 0; render(); try { if (!(history.state && history.state.day)) history.pushState({ kg: navLvl() + 1, day: 1 }, ""); } catch {}
   } catch { toast("err|" + t("hist.fail", dm(d))); }
 }
