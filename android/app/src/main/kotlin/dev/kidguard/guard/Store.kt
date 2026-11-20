@@ -65,7 +65,7 @@ class Store private constructor(private val app: Context) {
     @get:Synchronized val aiHash: String get() = p.getString("aiHash", "")!!
     @Synchronized fun aiOk(t: String?): Boolean = !t.isNullOrBlank() && aiHash.isNotEmpty() && sha256(t) == aiHash
     @Synchronized fun setAiHash(h: String): Boolean { if (h.isNotEmpty() && !Regex("^[0-9a-f]{64}$").matches(h)) return false; p.edit().putString("aiHash", h).apply(); return true }
-    @Synchronized fun clearTokens() { pending.clear(); p.edit().remove("aiHash").remove("tokens").remove("relayToken").remove("relayId").remove("relayShared").remove("devs").apply() }
+    @Synchronized fun clearTokens() { pending.clear(); p.edit().remove("aiHash").remove("tokens").remove("relayToken").remove("relayId").remove("relayShared").remove("relayPar").remove("relayDrop").remove("relayNext").remove("devs").apply() }
 
     /** Name / first seen / last seen of each paired token (keyed by its sha256), see [Paired]. */
     @Synchronized private fun devMeta(): Map<String, Paired.Dev> {
@@ -96,7 +96,12 @@ class Store private constructor(private val app: Context) {
         val hs = tokenHashes(); val h = Paired.find(hs, id) ?: return false
         val e = p.edit().putStringSet("tokens", hs - h)
         if (relayToken.isNotBlank() && sha256(relayToken) == h) e.remove("relayToken").remove("relayId").remove("relayShared")
-        else if (relayToken.isNotBlank()) e.putBoolean("relayShared", true)   // the removed device may still hold the shared relay link (H3)
+        else if (relayToken.isNotBlank()) e.putBoolean("relayShared", true)   // the removed device may still hold the shared relay link (H3): Relay rekeys it
+        // its own relay parent token (minted for it, `relay {mint}`) goes with it on the next rekey
+        relayPar().optString(h).takeIf { it.isNotEmpty() }?.let { id ->
+            e.putString("relayPar", relayPar().apply { remove(h) }.toString())
+            e.putString("relayDrop", (relayDrop() + id).takeLast(12).joinToString(","))
+        }
         e.commit()
         putDevMeta(Paired.prune(devMeta(), hs - h))
         return true
@@ -112,12 +117,36 @@ class Store private constructor(private val app: Context) {
     @Synchronized fun rotateRelay() {
         val old = relayToken
         val keep = tokenHashes() - (if (old.isNotBlank()) sha256(old) else "")
-        p.edit().putStringSet("tokens", keep).remove("relayShared").commit()
+        p.edit().putStringSet("tokens", keep).remove("relayShared").remove("relayPar").remove("relayDrop").remove("relayNext").commit()   // a new id = a new worker object: its parent rows start empty
         putDevMeta(Paired.prune(devMeta(), keep))
         val t = addToken()
         p.edit().putString("relayToken", t).putString("relayId", randomHex(8)).commit()
         touchDevice(t, "relay")
     }
+    /** LAN device (sha256 of its token) -> the relay parent id (12 hex) the phone minted for it (`relay {mint:true}`). */
+    @Synchronized fun relayPar(): JSONObject = runCatching { JSONObject(p.getString("relayPar", "{}")!!) }.getOrDefault(JSONObject())
+    @Synchronized fun setRelayPar(lanToken: String, id: String) { p.edit().putString("relayPar", relayPar().put(sha256(lanToken), id).toString()).apply() }
+    /** Relay parent ids of removed LAN devices, dropped on the worker with the next rekey. */
+    @Synchronized fun relayDrop(): List<String> = p.getString("relayDrop", "")!!.split(',').filter { it.length == 12 }
+    /**
+     * The worker took [t] as the new kid token on the same relay id (`POST rekey`): the old token stops (relay and LAN),
+     * parents keep their own relay tokens, [relayShared] and the drop list clear.
+     */
+    @Synchronized fun rekeyRelay(t: String) {
+        val old = relayToken
+        val keep = tokenHashes() - (if (old.isNotBlank()) sha256(old) else "") + sha256(t)
+        p.edit().putStringSet("tokens", keep).putString("relayToken", t).remove("relayShared").remove("relayDrop").remove("relayNext").commit()
+        putDevMeta(Paired.prune(devMeta(), keep))
+        touchDevice(t, "relay")
+    }
+    /** The kid token asked for in a rekey not confirmed yet (see Relay.rekey). */
+    @get:Synchronized @set:Synchronized var relayNext: String
+        get() = p.getString("relayNext", "")!!
+        set(v) { p.edit().putString("relayNext", v).commit() }
+    /** "<relay id> <pinHash>" the worker last answered `pv: "ok"` to: the proof (`pvo`) for the next PIN change. */
+    @get:Synchronized @set:Synchronized var relayPvOk: String
+        get() = p.getString("relayPvOk", "")!!
+        set(v) { p.edit().putString("relayPvOk", v).apply() }
     /** The relay's name for this phone; new with each relay token, so a revoked link can't come back. */
     @get:Synchronized @set:Synchronized var relayId: String
         get() = p.getString("relayId", "")!!

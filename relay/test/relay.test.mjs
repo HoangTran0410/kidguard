@@ -89,7 +89,7 @@ const pinAt0=j.rev;
 ck("PUT rules: pinSet, no pinHash/pin",j.pinSet===true&&!("pinHash" in j)&&!("pin" in j)&&j.dailyMin==60);
 r=await P2("rules",JSON.stringify({dailyMin:90}),T,{},"PUT");j=await r.json();ck("PUT without pin keeps pinSet",j.pinSet===true&&j.dailyMin==90);
 j=await (await P2("state",null,T,{},"GET")).json();ck("GET state: no pinHash",j.rules.pinSet===true&&!JSON.stringify(j).includes("pinHash"));
-j=await S({state:{rules:{rev:1}}});ck("phone gets pinHash (sha256 kg:1234)",j.rules&&j.rules.pinHash==="d371349c9ee42104a430ccbe28c7b26b6eea4541d3f42cb314fe208a325e3afd");
+j=await S({state:{rules:{rev:1}}});ck("phone gets a SALTED pinHash + pinSalt (audit 2026-11-20: never plain sha256 kg:1234)",j.rules&&/^[0-9a-f]{64}$/.test(j.rules.pinHash)&&j.rules.pinHash!=="d371349c9ee42104a430ccbe28c7b26b6eea4541d3f42cb314fe208a325e3afd"&&/^[0-9a-f]{16}$/.test(j.rules.pinSalt));
 ck("pinAt = rev of the PUT that set the PIN, kept by later PUTs",j.rules.pinAt===pinAt0&&j.rules.rev>pinAt0);
 j=await S({state:{rules:{rev:1,pinHash:"x".repeat(64)}}});ck("state with phone's rules never leaks pinHash to parent",!JSON.stringify(await (await P2("state",null,T,{},"GET")).json()).includes("xxxx"));
 j=await S();ck("state omitted: rules not resent when phone up to date",true);
@@ -540,6 +540,17 @@ const pl=(await (await fetch(`${B}/c/${idw}/parents`,{headers:{"x-kg-token":Tpw}
 ck("watch: wname is the watch's name in the parents list",r.status==200&&!!w4);
 ck("watch: its token works",(await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":t4,"x-kg-name":"Zepp - Bip Max"}})).status==200);
 ck("watch: the list shows its X-KG-Name as dev",((await (await fetch(`${B}/c/${idw}/parents`,{headers:{"x-kg-token":Tpw}})).json()).parents||[]).some(p=>p.kind=="watch"&&p.dev=="Zepp - Bip Max"));
+// audit 2026-11-20 MED: a watch token reads the watch view only and calls only what watches call
+{const WS=(p,o={})=>fetch(`${B}/c/${idw}/${p}`,{...o,headers:{"x-kg-token":t4,"content-type":"application/json"}});
+const apps=Array.from({length:18},(_,i)=>({pkg:"p"+i,label:"App "+i,ms:1000+i}));apps.push({pkg:"z.app",label:"Zed",ms:1});
+await fetch(`${B}/c/${idw}/sync`,{method:"POST",headers:{"x-kg-token":Tw,"content-type":"application/json"},body:JSON.stringify({state:{t:5,battery:41,current:"z.app",apps,notifs:{n:[{id:1,text:"nfSECRET"}]},calls:[{n:"callSECRET"}],track:[[1,2,3,4]],files:[{n:"fileSECRET"}],chat:[{f:"k",text:"hi bố"}],events:[{t:1,kind:"word",text:"wordSECRET"},{t:2,kind:"battery",text:"low"}]}})});
+const wt=await (await WS("state")).text(),wj=JSON.parse(wt);
+ck("watch token: plain GET state = the watch view (no notifs, calls, route, files; keyword text gone)",wj.state&&wj.state.battery==41&&!/SECRET/.test(wt)&&!("track" in wj.state)&&wj.state.events.some(e=>e.kind=="word"&&e.text===""));
+ck("watch token: chat kept, the app in use listed even when not top 15",wj.state.chat.some(c=>c.text=="hi bố")&&wj.state.apps.some(a=>a.pkg=="z.app")&&wj.state.currentLabel=="Zed");
+ck("watch token: ?nf= gives no notification rows",!/SECRET/.test(await (await WS("state?nf=0")).text()));
+for(const [m,p] of [["GET","parents"],["POST","invite"],["POST","push"],["GET","file"],["GET","frame?after=0"],["POST","live"],["GET","where"]])ck(`watch token: ${m} ${p} 403`,(await WS(p,{method:m,body:m=="GET"?undefined:"{}"})).status==403);
+ck("watch token: cmd still works",(await WS("cmd",{method:"POST",body:JSON.stringify({type:"lk"})})).status==200);
+ck("watch token: a parent's plain GET state still has everything",/nfSECRET/.test(await (await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":Tpw}})).text()));}
 {const P=(o)=>fetch(`${B}/c/${idw}/parents`,{method:"POST",headers:{"x-kg-token":Tpw,"content-type":"application/json"},body:JSON.stringify(o)});
 const rr=await P({rename:w4&&w4.id,name:"Bip của mẹ"});ck("watch: a parent renames the watch",rr.status==200&&(await rr.json()).parents.some(p=>p.kind=="watch"&&p.name=="Bip của mẹ"));
 const me4=pl.find(p=>p.me);ck("watch: rename of a non-watch parent 403",(await P({rename:me4&&me4.id,name:"x"})).status==403);}
@@ -554,7 +565,7 @@ ck("watch: credentials of an expired code are not handed out",(await GET(c3)).st
 // state?watch=1: small view for watches + tile-only key (Garmin image requests carry no headers)
 {const apps=Array.from({length:150},(_,i)=>({pkg:"p"+i,label:"App "+i+" "+"x".repeat(40),ms:i*1000,icon:"y".repeat(200)}));
 await fetch(`${B}/c/${idw}/sync`,{method:"POST",headers:{"x-kg-token":Tw,"content-type":"application/json"},body:JSON.stringify({state:{t:2,leftMs:60000,battery:50,current:"p149",now:{why:"daily",until:0},location:{lat:10.7,lng:106.7,acc:12,t:1},apps,events:Array.from({length:40},(_,i)=>({t:i,kind:"k",text:"e"+i})),requests:[{id:"r1",at:1,kind:"time",min:15}],done:[]}})});
-const full=await (await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":Tww}})).text();
+const full=await (await fetch(`${B}/c/${idw}/state`,{headers:{"x-kg-token":Tpw}})).text();
 const wr=await fetch(`${B}/c/${idw}/state?watch=1`,{headers:{"x-kg-token":Tww}}),wt=await wr.text(),wj=JSON.parse(wt);
 ck(`watch=1: much smaller than the full state (${wt.length} vs ${full.length} B)`,wr.status==200&&wt.length<full.length/4&&wt.length<16000);
 ck("watch=1: keeps scalars, now, location, requests; top 15 apps without icons; current label",wj.state.leftMs===60000&&wj.state.battery===50&&wj.state.now.why=="daily"&&wj.state.location.lat==10.7&&wj.state.requests.length==1&&wj.state.apps.length==15&&wj.state.apps[0].pkg=="p149"&&!wj.state.apps[0].icon&&wj.state.currentLabel.startsWith("App 149")&&wj.state.events.length==10);
@@ -644,6 +655,10 @@ const A=(m,p,b)=>fetch(`${B}/c/${id}/${p}`,{method:m,headers:H(AIT),body:b===und
 ck("ai: unknown token 401 before the phone told the hash",(await A("GET","state")).status==401);
 await P("sync",JSON.stringify({ai:ah}));
 ck("ai: state readable",(await A("GET","state")).status==200);
+// audit 2026-11-20 MED: no messages, calls, notifications, route for the AI token
+await P("sync",JSON.stringify({state:{t:9,battery:52,notifs:{n:[{id:1,text:"nfSECRET"}]},chat:[{text:"chatSECRET"}],calls:[{n:"callSECRET"}],track:[[1,2,3,4]],events:[{t:1,kind:"word",text:"wordSECRET"},{t:2,kind:"battery",text:"low"}]}}));
+{const at=await (await A("GET","state")).text(),aj=JSON.parse(at);ck("ai: state without notifs/chat/calls/track, keyword text gone, rest kept",aj.state.battery==52&&!/SECRET/.test(at)&&aj.state.events.some(e=>e.kind=="battery"&&e.text=="low"));
+ck("ai: ?nf= gives no rows",!/SECRET/.test(await (await A("GET","state?nf=0")).text()));}
 ck("ai: lock queued",(await (await A("POST","cmd",{type:"lk"})).json()).result=="queued");
 for(const t of ["rl","rb","ab","ua","ai","ps","listen"]){const x=await A("POST","cmd",{type:t});ck("ai: cmd "+t+" 403",x.status==403&&(await x.json()).error=="ai token: not allowed");}
 for(const [m,p] of [["GET","frame?after=0"],["POST","live"],["POST","input"],["POST","sync"],["GET","file"],["POST","forget"],["POST","watch"],["GET","tile"],["GET","ws"]]){const x=await A(m,p,m=="GET"?undefined:{});ck("ai: "+m+" "+p+" 403"+(x.status==403?"":" (got "+x.status+" "+(await x.text()).slice(0,80)+")"),x.status==403);}
@@ -666,7 +681,7 @@ await P("sync",JSON.stringify({ai:""}));}
 // ---- parents: own tokens, family PIN, invites, `by` (docs/protocol.md "Parents") ----
 await sleep(10500);   // a fresh per-IP rate-limit window (150 / 10 s): this block is a burst and flaked with 429s
 {const {createHash,randomBytes}=await import("node:crypto");
-const hx=n=>randomBytes(n).toString("hex"),idq=hx(8),Tq=hx(24),salt="0011223344556677";
+const hx=n=>randomBytes(n).toString("hex"),idq=hx(8),salt="0011223344556677";let Tq=hx(24);const sha=async x=>createHash("sha256").update(x).digest("hex");
 const hp=(pin,s)=>{if(!s)return createHash("sha256").update("kg:"+pin).digest("hex");const sb=Buffer.from(s),buf=Buffer.alloc(64+sb.length);sb.copy(buf,64);let h=createHash("sha256").update(s+":"+pin).digest();
  for(let r=0;r<9999;r++){Buffer.from(h.toString("hex")).copy(buf,0);h=createHash("sha256").update(buf).digest();}return h.toString("hex");};
 const Q=(p,t,b,m)=>fetch(`${B}/c/${idq}/${p}`,{method:m||(b===undefined?"GET":"POST"),headers:{"content-type":"application/json",...(t?{"x-kg-token":t}:{})},body:b===undefined?undefined:JSON.stringify(b)});
@@ -689,17 +704,66 @@ ck("parents: a made-up invite 403",(await Q("join",null,{inv:hx(16),name:"Kid"})
 ck("parents: invited browser opens (unlocked 12 h)",(await Q("state",M)).status==200);
 r=await Q("parents",M);j=await r.json();ck("parents: list has both, me marked, pinKnown",j.parents.length==2&&j.parents.find(p=>p.me).name=="Mẹ"&&j.pinKnown===true);
 const C=(await (await Q("join",null,{inv:(await (await Q("invite",A,{})).json()).inv,name:"Cô",kind:"app"})).json()).token,cid=(await (await Q("parents",A)).json()).parents.find(p=>p.name=="Cô").id;
+// audit 2026-11-20 LOW: push tokens belong to the parent that registered them; MAX_PUSH (3) per parent
+for(let i=0;i<4;i++)j=await (await Q("push",A,{fcm:"atok"+i+"_"+"a".repeat(30)})).json();ck("push: at most 3 devices per parent",j.devices==3);
+j=await (await Q("push",C,{fcm:"ctok_"+"c".repeat(30),nf:true})).json();ck("push: another parent has its own count",j.devices==1);
 ck("parents: revoke one",(await Q("parents",A,{revoke:cid})).status==200&&(await Q("state",C)).status==401);
+if(process.env.MOCK){const t0=Date.now();await Q("sync",Tq,{state:{t:3,sos:[{id:"rv1",t:t0}]}});await sleep(800);
+const sent=(await (await fetch(`http://127.0.0.1:${process.env.MOCK}/_sent`)).json()).filter(m=>m.data.kid==idq&&m.data.eid=="s:rv1");
+ck("push: a removed parent's phone gets nothing, the others do",sent.length==3&&!sent.some(m=>m.token.startsWith("ctok"))&&!sent.some(m=>m.token.startsWith("atok0")));}
 ck("parents: rename self",(await (await Q("parents",M,{name:"Mẹ Na"})).json()).parents.some(p=>p.me&&p.name=="Mẹ Na"));
 r=await Q("unlock",M,{pin:"0000"});ck("parents: browser unlock with a wrong PIN 403",r.status==403);
 r=await Q("unlock",M,{pin:"2468"});j=await r.json();ck("parents: browser unlock with the PIN -> until +12 h",r.status==200&&j.until-Date.now()>11*3600e3);
 ck("parents: forget is the phone's only",(await Q("forget",A,{})).status==403);
-await Q("sync",Tq,{pv:""});r=await Q("join",Tq,{name:"X",pin:"2468"});ck("parents: PIN gone on the phone + parents exist -> invite needed",r.status==403&&(await r.json()).error=="invite needed");
+// audit 2026-11-20 HIGH: the kid token must not set its own PIN and join with it
+r=await Q("sync",Tq,{pv:{h:hp("1357",""),s:""}});j=await r.json();ck("pv: a new PIN hash without the old one is refused",j.pv==="refused");
+r=await Q("join",Tq,{name:"Thief",pin:"1357"});ck("pv: ...so joining with it fails",r.status==403);
+r=await Q("state",A);j=await r.json();ck("pv: parents see a tamper event (rk pvRefused)",(j.state.events||[]).some(e=>e.kind=="tamper"&&e.rk=="pvRefused"));
+r=await Q("sync",Tq,{pv:""});ck("pv: removing it without the old one is refused too",(await r.json()).pv==="refused");
+r=await Q("sync",Tq,{pv:{h:hp("1357",""),s:""},pvo:hp("2468",salt)});ck("pv: with the old hash (pvo) it is taken",(await r.json()).pv==="ok");
+r=await Q("sync",Tq,{pv:{h:hp("2468",salt),s:salt},pvo:hp("1357","")});ck("pv: and back",(await r.json()).pv==="ok"&&(await Q("join",Tq,{name:"X",pin:"1357"})).status==403);
+r=await Q("sync",Tq,{pv:{h:hp("2468",salt),s:salt}});ck("pv: the same hash again needs no proof",(await r.json()).pv==="ok");
+// mint: a LAN page's own relay token, asked for by the phone; locked until the family PIN
+r=await Q("mint",A,{name:"Laptop"});ck("mint: a parent token can't",r.status==403);
+r=await Q("mint",Tq,{name:"Laptop",kind:"web"});j=await r.json();const L1=j.token,L1id=j.id;ck("mint: the phone gets a token + id",r.status==200&&/^[0-9a-f]{48}$/.test(L1)&&/^[0-9a-f]{12}$/.test(L1id));
+r=await Q("state",L1);ck("mint: locked (423) until the PIN",r.status==423);
+r=await Q("parents",L1);j=await r.json();ck("mint: GET parents works locked, me row lk + lan",r.status==200&&j.parents.some(p=>p.me&&p.lk&&p.lan&&p.locked));
+r=await Q("unlock",L1,{pin:"2468"});ck("mint: unlock with the family PIN",r.status==200&&(await Q("state",L1)).status==200);
+r=await Q("mint",Tq,{name:"Laptop",kind:"app",drop:L1id});j=await r.json();const L2=j.token;ck("mint: drop = the old one for the same LAN device goes",(await Q("state",L1)).status==401&&(await Q("unlock",L2,{pin:"2468"})).status==200&&(await Q("state",L2)).status==200);
+ck("mint: drop never removes a joined parent",(await Q("mint",Tq,{name:"Z",drop:(await (await Q("parents",A)).json()).parents.find(p=>p.me).id})).status==200&&(await Q("state",A)).status==200);
+for(let i=0;i<4;i++)await Q("mint",Tq,{name:"P"+i});
+ck("mint: at most 3 never-opened ones (oldest go)",(await (await Q("parents",A)).json()).parents.filter(p=>p.lk).length==3);
+// rekey: a LAN device was removed: new kid token, same id; parents keep theirs
+const Tn=hx(24);r=await Q("rekey",A,{token:Tn});ck("rekey: a parent token can't",r.status==403);
+r=await Q("rekey",Tq,{token:Tn,drop:[(await sha(L2)).slice(0,12)]});ck("rekey: ok",r.status==200);
+ck("rekey: the old kid token is dead",(await Q("sync",Tq,{})).status==401);
+ck("rekey: the new one syncs, parents keep working, dropped minted one gone",(await Q("sync",Tn,{})).status==200&&(await Q("state",A)).status==200&&(await Q("state",L2)).status==401);
+ck("rekey: asked again with the new token (lost reply) = ok",(await Q("rekey",Tn,{token:Tn})).status==200);
+Tq=Tn;
+await Q("sync",Tq,{pv:"",pvo:hp("2468",salt)});r=await Q("join",Tq,{name:"X",pin:"2468"});ck("parents: PIN gone on the phone + parents exist -> invite needed",r.status==403&&(await r.json()).error=="invite needed");
 await Q("sync",Tq,{pv:{h:hp("2468",""),s:""}});
 for(let i=0;i<4;i++)await Q("join",Tq,{name:"X",pin:"9999"});
 r=await Q("join",Tq,{name:"X",pin:"9999"});ck("parents: 5th wrong PIN locks 15 min (429)",r.status==429&&(await r.json()).retryAt>Date.now()+14*60e3);
 ck("parents: locked even with the right PIN",(await Q("join",Tq,{name:"X",pin:"2468"})).status==429);
-ck("parents: a parent token is not locked out",(await Q("state",A)).status==200);}
+ck("parents: a parent token is not locked out",(await Q("state",A)).status==200);
+// audit 2026-11-20 MED: misses count per browser token (the link's join lock does not lock a parent's browser)
+r=await Q("unlock",M,{pin:"0000"});j=await r.json();ck("lockout: a browser has its own tries while join is locked",r.status==403&&j.left==4);
+ck("lockout: ...and unlocks with the PIN",(await Q("unlock",M,{pin:"2468"})).status==200);
+{const K1=(await (await Q("mint",Tq,{name:"K1"})).json()).token,K2=(await (await Q("mint",Tq,{name:"K2"})).json()).token;
+for(let i=0;i<3;i++)await Q("unlock",K1,{pin:"0000"});
+await Q("unlock",K2,{pin:"0000"});r=await Q("unlock",K2,{pin:"0000"});ck("lockout: phone-minted tokens share one counter (5 misses over two = locked)",r.status==429);
+ck("locked: GET parents ok",(await Q("parents",K1)).status==200);
+ck("locked: POST parents (rename / revoke) 423",(await Q("parents",K1,{name:"Me"})).status==423&&(await Q("parents",K1,{revoke:"000000000000"})).status==423);
+ck("locked: invite 423",(await Q("invite",K1,{})).status==423);}
+// a PIN set from the page is salted (Rules.hashPin) and checked as such
+r=await Q("rules",A,{dailyMin:60,pin:"4321"},"PUT");ck("page PIN: PUT ok, no hash or salt back",r.status==200&&!/pinHash|pinSalt/.test(await r.text()));
+j=await (await Q("sync",Tq,{})).json();ck("page PIN: the phone gets hashPin(pin, 16-hex salt)",j.rules&&/^[0-9a-f]{16}$/.test(j.rules.pinSalt)&&j.rules.pinHash===hp("4321",j.rules.pinSalt));
+ck("page PIN: browser unlock checks the salted one",(await Q("unlock",M,{pin:"4321"})).status==200&&!JSON.stringify(await (await Q("state",A)).json()).includes("pinSalt"));}
+// audit 2026-11-20: junk paths count against the per-IP limit too (150 / 10 s)
+await sleep(10500);{let st=0,n=0;for(;n<200&&st!=429;n++)st=(await fetch(`${B}/c/junk/path${n}`)).status;
+ck(`RL: junk paths hit the limit too (429 after ${n})`,st==429&&n>100);
+ck("RL: the relay root still answers",(await fetch(`${B}/`)).status==200);}
+await sleep(10500);
 // ---- audit H4: first binds per network per day are capped (BIND_PER_DAY=60 in run.mjs); keep this LAST: it uses the budget up ----
 {const rh=n=>Array.from({length:n},()=>"0123456789abcdef"[Math.random()*16|0]).join("");let ok=0,blocked=0,real=null;
 for(let i=0;i<90&&!blocked;i++){const idn=rh(16),r=await fetch(`${B}/c/${idn}/sync`,{method:"POST",headers:{"x-kg-token":rh(48),"content-type":"application/json"},body:JSON.stringify({state:{t:1}})});

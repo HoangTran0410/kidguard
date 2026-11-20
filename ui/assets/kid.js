@@ -36,6 +36,8 @@ async function refresh1() {
     if (k !== cur || viewDay) return;
     // LAN: the state itself; relay: {state, rules (sent, not yet taken), seen}
     st = j.state !== undefined ? j.state : j;
+    // the relay's own security notices (`rk`, worker secAlert) come in English: say them in the page's language
+    if (st && Array.isArray(st.events)) for (const e of st.events) if (e && e.rk && hasT("rev." + e.rk)) e.text = t("rev." + e.rk);
     try { lgMerge(); } catch {}   // keep what the phone's capped log / events showed (Nhật ký day view)
     noState = j.state === null;
     pendingRules = j.state !== undefined ? j.rules : null;

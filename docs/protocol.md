@@ -233,7 +233,9 @@ of the on-device admin (5 free tries, then 5, 10, 20, 30 min, then 30 min per tr
 `relay {url}` with the URL the phone already has is not gated (the page re-reads the relay link with it); `renew:true` always is. No PIN and no
 Authenticator set = nothing to check. Results: `failed: pin needed` (no `pin`, not counted), `failed: pin` (wrong, a
 `tamper` event names the command), `failed: pin locked`; `failed…` frees the id, so the same id may be re-sent with the
-right PIN. LAN `relay` returns `id/token/url` only when the result is `ok`. The worker only checks the shape
+right PIN. LAN `relay` returns `id/url` only when the result is `ok`; a phone since 0.9.75 adds `mint: 1` and never the
+kid token: the page sends `relay {url, mint:true, kind}` when it has no own token for that id, and gets `token` (its own,
+from the worker's `mint`, locked until the family PIN) + `own: 1`. Older phones return their shared `token` (the page joins with it). The worker only checks the shape
 (`pin` 0–8 digits, `new` 4–8 digits). Phones before 0.9.13 ignore `pin`; the page asks for it only when
 `state.pinResetAt` exists.
 - `pinSet {pin, new}` (gated): the ONLY way to replace a set PIN. Rules PUTs (LAN, relay `pinHash`, Telegram) may set the
@@ -280,7 +282,9 @@ The first capture / first input of a session is logged in the phone log.
 - **LAN address heal** (page, `core.js` `relocate` / `learnAddrs`, no phone change): after each LAN `state` the page keeps
   the phone's other addresses on the saved kid (`alt`, up to 4: `state.lan`, `http://<state.ts.ip>:8770`) and, when
   `state.relay` is set, sends the `relay` command once per page load with that same url: the phone keeps its relay id/token
-  and returns them, saved as `kid.relay = {url (origin), id, token}`. When a LAN call fails (or the parent app answers
+  and returns the id (+ `mint: 1`; older phones: the shared token); without an own token for that id the page asks again
+  with `mint: true` and saves `kid.relay = {url (origin), id, token, own: 1}` (see "Parents": locked until one PIN unlock,
+  `relayMigrate` offers it when `GET parents` shows `me.lk`). When a LAN call fails (or the parent app answers
   with a cached snapshot): probe `alt` then the `lan` / `ts.ip` of the relay state with `GET /api/hello` (4 s, `id` must
   match), switch `target` and retry ("đã tự kết nối lại" toast). Nothing found: `GET /state`, `POST /cmd`, `PUT /rules`
   go to the relay for 60 s at a time (toast "đang đi qua relay"; relay reply shapes, commands `queued`), other routes
@@ -321,6 +325,8 @@ parent link cannot mint one; the token itself never reaches the phone or the rel
 - Phone: stored hash `Store.aiHash`; `X-KG-Token` matching it = role `ai` (not in `state.devices`). Dropped by `unpairAll` / release.
 - Relay: every phone sync body carries `ai` (the hash, `""` = none); the worker keeps it (`aiHash`) and gives a request with that token role `ai`.
   A parent `aiToken` (revoke or set) through the worker deletes the old hash at once; a new hash works there after the phone syncs it. One code per phone: set replaces.
+- Role `ai` reads a trimmed state (2026-11-20, phone `AiScope.state`, worker `aiState`): no `notifs chat calls sms track log files
+  listen snaps notes tg lan ts relay devices webOther`; events of kind `word chat sms call nf` keep kind + time, `text: ""`. No `?nf=` rows.
 - Role `ai` may: `GET state` (and `icon`; no `?watch=1`), `PUT rules`, `POST cmd` with `lock locate message ring ringStop sosAck answer` (relay: their codes, "Command codes").
   `PUT rules`: `pin pinHash pinSalt pinAt pinSet noInstall noDebug pinShot lockLocation noAirplane frpIds safeDns safeDnsPauseUntil noVpn tsKeep
   vpnPause accPause devPause tcpPause autoUpdate showWatching unlockMin hidden approved mode` keep the stored value whatever is sent (a key the phone
@@ -469,10 +475,12 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 - Each parent (page, parent app, watch) holds its OWN relay token (48 hex) with a name; the worker keeps
   `par = {sha256(token): {n name, k "app"|"web"|"watch", at, seen, ul}}` (<= 12). The phone's token (the one in the old
   `/go` link / QR) opens the parent routes only while `par` is empty AND the phone has not sent `pv` (phones before 0.9.27; a PIN set by the page alone does not lock it, or an old page would lock itself out); else it is phone-only
-  (`sync ws file forget join`, `POST icons|frame`, `PUT device|logday`), anything else `403 {"error":"join"}`.
+  (`sync ws file forget join`, `POST icons|frame|mint|rekey`, `PUT device|logday`), anything else `403 {"error":"join"}`.
 - `POST /c/<id>/join {name, kind:"app"|"web", pin}` with the phone's token -> `{token, name, kind, pin:"ok"|"none"}`.
   The PIN is the family PIN, checked by the worker against `pv` (below) or a PIN the page set in a rules PUT.
-  `403 {"error":"bad pin","left":n}`; 5 wrong (join + unlock together, per kid) = `429 {"error":"pin locked","retryAt"}` for 15 min.
+  `403 {"error":"bad pin","left":n}`; 5 wrong = `429 {"error":"pin locked","retryAt"}` for 15 min, then 30, 60, ... (24 h max;
+  a right PIN resets it). Counted per who tries (2026-11-20): `join` by the link = one counter, each browser token its own,
+  all phone-minted (`km`) tokens one shared counter; so guessing with the link never locks a parent's browser out.
   No PIN known: only the FIRST parent may join (`pin:"none"`), later ones `403 {"error":"invite needed"}`.
 - `POST /c/<id>/invite {}` (a parent token) -> `{inv: 32 hex, exp}`: one use, 10 min, <= 5 open. `POST /c/<id>/join
   {name, kind, inv}` with NO `X-KG-Token` -> same reply with `pin:"inv"`; used / expired / unknown `403`. Two parents
@@ -480,13 +488,37 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
 - `GET /c/<id>/parents` -> `{parents:[{id (12 hex), name, kind, at, seen, me, dev?}], pinKnown}` (`dev` = a watch's last `X-KG-Name`, e.g. "Zepp - Amazfit Bip Max", "Wear OS - Pixel Watch 2"; 2026-11-19); `POST parents {revoke:id}`
   (any parent, the token stops at once) | `{name}` (rename self) | `{rename:id, name}` (2026-11-19: rename a watch, kind "watch" only, else 403).
 - Browser tokens (`kind:"web"`) open for 12 h after a join / `POST /c/<id>/unlock {pin}` -> `{until}`; else every route
-  but `unlock` / `parents` answers `423 {"error":"locked","name"}`. App tokens (the parent app has its own biometric lock)
+  but `unlock` / `GET parents` answers `423 {"error":"locked","name"}` (2026-11-20: no `POST parents` / `invite` while locked). App tokens (the parent app has its own biometric lock)
   and watch tokens never lock. `kind` is the page's own claim: the PIN or an invite was needed to get any token.
 - Remote pairing (`/p/<key>/result`, "Pair over relay") and watch connect (`POST /c/<id>/watch`) hand out a NEW parent
   token (named as typed, `?kind=app` on the result from the parent app), never the phone's token.
 - Phone sync `pv`: `{h: pinHash, s: pinSalt}` (Rules.hashPin: "" salt = sha256("kg:"+pin), else 10 000 rounds; the worker
   checks with node:crypto, ~9 ms) sent when it changes, `""` = no PIN. Old phones send none: a PIN the page set via a
   rules PUT counts (`pv` = its legacy hash); else `pinKnown:false` and joins work by the link alone until a parent exists.
+- PIN-hash changes need proof (2026-11-20, security audit HIGH: the kid token set its own `pv` and joined with it): sync
+  `pv` is taken when the worker has none, when it is the stored hash, or with `pvo` = the hash the worker had (or, after a
+  page PIN set over the relay, the one before it, `pvPrev`). The phone keeps the hash the worker last answered `"pv":"ok"`
+  to (`Store.relayPvOk`, "<relay id> <hash>"; `RelayPv`) and sends it as `pvo` with every new `pv`. Without proof: sync
+  reply `"pv":"refused"`, the stored hash stays, and a worker notice goes to every parent (below). A phone that lost its proof
+  renews the relay link (new id). `""` (PIN removed) needs the proof too.
+- Worker notices (`secEv`, last 5): `{id:"r<base36 ms>", t, kind:"tamper", rk, text}` appended to `state.events` on GET
+  state (sorted by `t`) + FCM `{kind:"ev", ek:"tamper"}` + Telegram tamper line. `rk`: `pvRefused` (a pv without proof),
+  `pvNew` (a first PIN while parents exist). `text` is English; the page shows i18n `rev.<rk>` instead.
+- `POST /c/<id>/mint {name, kind:"app"|"web", drop?: id}` (phone token only) -> `{token, id}`: a parent token for a LAN
+  page (LAN command `relay {url, mint:true, kind}`, 2026-11-20). The row has `km` (phone-minted) + `lk` (locked: every
+  route but `unlock` / `parents` answers 423 until one `unlock {pin}`; then `lk` goes and it is a normal app / web token).
+  `drop` removes the row this phone minted for the same LAN device before (only `km` rows). At most 3 never-opened (`lk`)
+  rows: the oldest goes. `GET parents` rows carry `locked: true` (423 now), `lk: true`, `lan: true` (`km`).
+- `POST /c/<id>/rekey {token: 48 hex, drop?: [id]}` (phone token only) -> `{ok:true}`: the kid token becomes `token` on the
+  same relay id (parents keep their tokens; the phone's socket is closed, it reconnects). Sent by the phone after a LAN
+  device was removed (`relayShared`), with `drop` = the minted rows of removed devices (`Store.relayDrop`). The phone keeps
+  the new token before asking (`relayNext`) and asks again WITH it when the reply was lost (same token = `ok`).
+  An older worker (404): `relayShared` stays and the page still offers `relay {renew:true}` (new id).
+- Queued commands with a secret (`pin`, `new`, `secret`, `token`) reach the phone token in clear once, on the first
+  hand-out (the phone checks the PIN itself); what stays queued has them stripped. After `mint` the phone token is the
+  phone's only (pages no longer get it), so this is the phone reading its own commands.
+- A PIN set by a rules PUT (`pin`) is stored salted like the phone's (2026-11-20): `pinHash = hashPin(pin, pinSalt)`,
+  `pinSalt` = 16 random hex; the phone takes both from the sync reply (`Rules.fromJson`). Parents never see either.
 - `by`: a command or rules PUT from a parent token carries `by: <name>` (AI token: "AI"); the phone logs it
   (`log_cmd_by`, rules diff line ` · <name>`); state `queue` items carry `by`. `POST forget` is the phone's token only.
 - Icon / tile keys: one per parent token (`iconKeys` / `tileKeys`, plus the older single `iconKey` / `tileKey`).
@@ -796,8 +828,10 @@ secure page (the parent app's `127.0.0.1`, or the relay's https page). Listen on
 - Worker secret `FCM_SA` = the Firebase service-account JSON (`project_id`, `client_email`, `private_key`, `token_uri`).
   Not set = push off; everything else works. `FCM_URL` (var, tests only) overrides `https://fcm.googleapis.com`.
 - `POST /c/<id>/push` (kid token header) `{"fcm": "<FCM registration token>"}` registers, `{"fcm": "...", "off": true}`
-  removes -> `{"ok": true, "enabled": <FCM_SA set>, "devices": n}`. Max 5 tokens per kid (oldest dropped); token
-  `^[\w:.-]{20,400}$` else 400.
+  removes -> `{"ok": true, "enabled": <FCM_SA set>, "devices": n}` (n = this parent token's devices). Each FCM token
+  belongs to the parent token that sent it (DO `pushBy`, 2026-11-20): max 3 per parent, 20 per kid (oldest dropped);
+  revoking that parent (`parents {revoke}`, `rekey`/`mint` drop) removes its FCM tokens from `push` + `pushNf` and closes
+  its `scr` sockets. Tokens from before (no owner) stay until FCM says they are dead. Token `^[\w:.-]{20,400}$` else 400.
 - On every `sync` with a state: each `sos` younger than 6 h and each `requests` entry younger than 1 h whose event id
   (`s:<id>` / `r:<id>`) is not in the last 50 pushed is sent once to every token, as an FCM HTTP v1 **data-only**
   message, `android.priority: HIGH`, ttl 6 h: `{"kind": "sos"|"req", "kid": "<relay id>", "eid": "s:a1b2c3", "t": "<ms>", "min": "30"|""}`.
@@ -955,7 +989,7 @@ secure page (the parent app's `127.0.0.1`, or the relay's https page). Listen on
 - First bind cap (audit H4): a first sync that would create an id counts against the client network (`netKey`: IPv4 or
   IPv6 /64) in a `Gate` Durable Object, `BIND_PER_DAY` = 30 a day (env var overrides, tests use 60); beyond it
   `429 {"error":"too many new pairings from this network, try tomorrow", "retryAt": <ms epoch, next UTC midnight>}`. Every daily-cap 429 (bind, `PAIR_PER_DAY`, `INVITE_PER_DAY`, watch 30/day) carries `retryAt`; the page appends "Try again at <time>" (`e.retryAt`). Already bound ids are never affected.
-- Rules `pinHash` on the worker (unsalted `sha256("kg:"+pin)`, handed to the phone once): dropped as soon as the phone's
+- Rules `pinHash` on the worker + `pinSalt` (salted `hashPin`, since 2026-11-20; handed to the phone once): dropped as soon as the phone's
   state shows `rules.pinSet: true` and `rules.rev` >= the stored one; the stored rules then carry `pinSet: true` only.
 - Sync state over 120 KB: `413 state too big`. The phone then sends a trimmed state (no `events`, `track`; apps reduced to
   `pkg label ms blocked suspended protected new`) with **`relayBig: true`** for 30 min, then tries the whole one again.
@@ -1692,7 +1726,10 @@ Pairs a watch with a kid by a 6-digit code. Worker routes (relay only, no phone 
 - Parent page: Settings > "Đồng hồ" / "Watch" (`s-watch`): 6-digit input + Connect; shown only when the kid has a relay (relay kid, or LAN kid with `relay` on).
 - `GET /c/<id>/tile?z=&x=&y=` (watch map, after 0.9.21): one OpenStreetMap tile (PNG) fetched by the worker and edge-cached 7 days. Auth like every parent route (`X-KG-Token`); `z` 13-18, `x`/`y` inside the zoom (else 400 `bad tile`); 502 `tile <status>` when OSM fails. Why: some networks block `tile.openstreetmap.org` (DNS -> 127.0.0.1) while the relay works; the watch side service falls back to OSM directly.
   Also accepted without `X-KG-Token` when `k=<tileKey>` is in the query (`tileKey = sha256hex("tile:" + token)`, given by `state?watch=1`): for watches whose image request cannot send headers (Garmin `makeImageRequest`). The key only fetches OSM tiles; wrong / other kid's key = 401.
-- `GET /c/<id>/state?watch=1` (after 0.9.21): the same auth and keys as `/state` but small (~2-6 KB, Garmin's reply limit): `state` = every scalar field of the phone state as is, plus `now`, `location`, `lost` objects, `requests` (last 3), `done` (last 10), `sos` (last 3), `events` (last 10, `{t,kind,text<=80}`), `apps` = 15 most used `{pkg,label<=24,ms}` (no icons), `currentLabel`; `rules` whole (watches edit them with the full-replace PUT); `seen`, `pending`, `queue` (last 10), `expired` (last 10), `tileKey`.
+- `GET /c/<id>/state?watch=1` (after 0.9.21): the same auth and keys as `/state` but small (~2-6 KB, Garmin's reply limit): `state` = every scalar field of the phone state as is, plus `now`, `location`, `lost` objects, `requests` (last 5), `done` (last 20), `sos` (last 3), `events` (last 10, `{t,kind,text<=80}`, private kinds as for AI: text ""), `chat` (last 12, text <= 160), `apps` = 15 most used `{pkg,label<=24,ms}` + the app in use (no icons), `currentLabel`; `rules` whole (watches edit them with the full-replace PUT); `seen`, `pending`, `queue` (last 10), `expired` (last 10), `tileKey`.
+
+- A watch token (kind `"watch"`, 2026-11-20) gets this view for a plain `GET state` too (Zepp, Wear OS, Apple ask `/state`), no `?nf=` rows,
+  and may call only `GET state|tile|icon|icons`, `PUT rules`, `POST cmd`; anything else `403 {"error":"watch token: not allowed"}`.
 
 ## Calls (2026-11-15, `guard/Calls.kt`, `CallsLogic.kt`)
 - **Rule** `calls`: `{"block": "off" | "unknown" | "hidden", "allow": ["+84912345678", ...]}` (max 30, 3-15 digits each; full replace like every rule; not overridable by a timed mode).

@@ -110,7 +110,10 @@ class Relay(private val g: Guard) {
         if (url.isNotBlank() && token.isNotBlank() && rid.isNotBlank()) {
             if (!url.startsWith("https://", ignoreCase = true)) {
                 lastError = "relay needs https://"; delay = 60_000
-            } else runCatching { ensureWs(url, rid, token); busy = sync(url, rid, token); fails = 0; netFails = 0; runCatching { uploadIcons(url, rid, token) } }.onFailure {
+            } else runCatching {
+                // a LAN device was removed (relayShared): it may hold the kid token, so the token changes, the relay id stays
+                val tk = if (store.relayShared) rekey(url, rid, token) else token
+                ensureWs(url, rid, tk); busy = sync(url, rid, tk); fails = 0; netFails = 0; runCatching { uploadIcons(url, rid, tk) } }.onFailure {
                 lastError = it.message ?: it.javaClass.simpleName; Log.w("KidGuard", "relay", it)
                 // the shared relay has 2 names (workers.dev + relay.kidguard.asia, same worker): a network blocking one
                 // (company Wi-Fi filters, DNS) is tried on the other after 2 network failures in a row
@@ -134,6 +137,23 @@ class Relay(private val g: Guard) {
         }
         if (kickAgain) { kickAgain = false; delay = 0 }
         schedule(delay)
+    }
+
+    /** POST rekey with a new kid token; returns the token to use now (the old one when the worker can't: an older worker = 404, the page still offers renew). */
+    private var rekeyAt = 0L
+    private fun rekey(base: String, rid: String, token: String): String {
+        val now = System.currentTimeMillis()
+        if (now - rekeyAt < 30 * 60_000L) return token   // an older worker answers 404 every time: don't add a request to each sync
+        rekeyAt = now
+        // kept before asking: a reply lost after the worker switched must not leave this phone with a dead token
+        val t = store.relayNext.ifBlank { Store.randomHex(24).also { store.relayNext = it } }
+        val body = JSONObject().put("token", t).put("drop", JSONArray(store.relayDrop()))
+        val res = post(base, rid, token, "rekey", body)?.takeIf { it.optBoolean("ok") }
+            ?: post(base, rid, t, "rekey", body)   // the worker took it last time (that reply was lost): the new token works
+        if (res?.optBoolean("ok") != true) return token
+        rekeyAt = 0L; store.rekeyRelay(t); ws.close(); store.log(R.string.log_relay_rotated)
+        Log.i("KidGuard", "relay token changed (a device was removed)")
+        return t
     }
 
     private fun open(url: String, token: String, timeout: Int = 15_000) =
@@ -217,7 +237,11 @@ class Relay(private val g: Guard) {
         if (fcm.isNotEmpty() && "$base/$rid $fcm" != fcmSent) req.put("fcm", fcm)
         // the family PIN hash (docs/protocol.md "Parents"): the worker checks a new parent's PIN / a browser unlock with it. Sent when it changes
         val pr = store.rules; val pvKey = "$base/$rid ${pr.pinHash} ${pr.pinSalt}"
-        if (pvKey != pvSent) req.put("pv", if (pr.pinHash.isBlank()) "" else JSONObject().put("h", pr.pinHash).put("s", pr.pinSalt))
+        if (pvKey != pvSent) {
+            req.put("pv", if (pr.pinHash.isBlank()) "" else JSONObject().put("h", pr.pinHash).put("s", pr.pinSalt))
+            // pvo: the hash the worker last said "ok" to = the proof that this is the phone (the kid token alone can't change it)
+            RelayPv.proof(store.relayPvOk, rid)?.let { req.put("pvo", it) }
+        }
         if ("$base/$rid" != diffFor) { diffFor = "$base/$rid"; diff.reset(); canMerge = false }
         // a whole state until the worker can merge, and every 6 h anyway (a hash clash must not hide a change for long)
         val whole = !canMerge || big || now - lastWhole >= WHOLE_MS
@@ -229,7 +253,13 @@ class Relay(private val g: Guard) {
         res.optString("error").takeIf { it.isNotEmpty() }?.let { throw RuntimeException("relay: $it") }   // socket reply = HTTP error body
         lastSent = now
         if (req.has("fcm")) fcmSent = "$base/$rid $fcm"
-        if (req.has("pv")) pvSent = pvKey
+        if (req.has("pv")) {
+            pvSent = pvKey
+            when (res.optString("pv")) {
+                "ok" -> store.relayPvOk = RelayPv.stamp(rid, pr.pinHash)
+                "refused" -> Log.w("KidGuard", "relay refused the PIN hash (no proof): joins keep the old PIN until a renew")
+            }
+        }
         run {
             if (full) { lastHash = hash; lastFull = now }
             canMerge = res.optInt("merge") == 1
@@ -413,6 +443,28 @@ class Relay(private val g: Guard) {
             return forget(base, rid, token)
         }
 
+        /** POST /c/<rid>/<action> with the kid token; the JSON reply on 2xx, null otherwise. Blocking, short timeouts. */
+        fun post(base: String, rid: String, token: String, action: String, body: JSONObject): JSONObject? = runCatching {
+            val b = base.trim().trimEnd('/')
+            if (!b.startsWith("https://", ignoreCase = true) || rid.isBlank() || token.isBlank()) return null
+            val c = (URL("$b/c/$rid/$action").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"; connectTimeout = 6_000; readTimeout = 8_000; doOutput = true; instanceFollowRedirects = false
+                setRequestProperty("X-KG-Token", token); setRequestProperty("Content-Type", "application/json")
+            }
+            try {
+                c.outputStream.use { it.write(body.toString().toByteArray()) }
+                if (c.responseCode !in 200..299) null else JSONObject(c.inputStream.use { it.readBytes().toString(Charsets.UTF_8).take(4096) })
+            } finally { c.disconnect() }
+        }.getOrNull()
+
+        /** A relay parent token of its own for a LAN page (`relay {mint:true}`, docs/protocol.md "Parents"): locked on the worker
+         * until the family PIN opens it. [drop] = the id minted for the same LAN device before. -> (token, id) or null. */
+        fun mint(base: String, rid: String, token: String, name: String, kind: String, drop: String): Pair<String, String>? {
+            val j = post(base, rid, token, "mint", JSONObject().put("name", name.take(24)).put("kind", kind).apply { if (drop.isNotEmpty()) put("drop", drop) }) ?: return null
+            val t = j.optString("token"); val id = j.optString("id")
+            return if (Regex("^[0-9a-f]{48}$").matches(t) && Regex("^[0-9a-f]{12}$").matches(id)) t to id else null
+        }
+
         private const val MAX_REPLY = 256 * 1024
         /** Socket up and nothing changed: a state anyway this often (usage minutes, battery). */
         private const val WHOLE_MS = 6 * 3600_000L
@@ -468,4 +520,11 @@ object RelayTrim {
         }
         return o.put("relayBig", true)
     }
+}
+
+/** Pure: the `pvo` proof of a PIN-hash change (docs/protocol.md "Parents"). [ok] = "<relay id> <hash>" the worker said ok to. */
+object RelayPv {
+    fun stamp(rid: String, hash: String) = "$rid $hash"
+    /** The hash to prove with, or null when the worker never said ok on this relay id (a first pv needs none). */
+    fun proof(ok: String, rid: String): String? = ok.split(' ').takeIf { it.size == 2 && it[0] == rid && it[1].length == 64 }?.get(1)
 }

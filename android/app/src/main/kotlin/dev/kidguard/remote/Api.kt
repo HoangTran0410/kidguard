@@ -82,7 +82,7 @@ class Api(private val g: Guard) {
         if (token != null && !ai && !ParentSession.valid(session)) store.touchDevice(token, r.header("x-kg-name"))
         return when {
             // devices: the cached list, with the caller's own row marked self (a paired token only; the on-device session has none)
-            p == "/state" -> Res.json(g.currentState().let { st -> if (token == null || ParentSession.valid(session)) st else JSONObject(st.toString()).put("devices", store.devices(token)) }.toString())
+            p == "/state" -> Res.json(g.currentState().let { st -> if (ai) AiScope.state(st) else if (token == null || ParentSession.valid(session)) st else JSONObject(st.toString()).put("devices", store.devices(token)) }.toString())
             p == "/unpair" && r.method == "POST" -> {
                 val o = runCatching { JSONObject(r.text) }.getOrDefault(JSONObject())
                 val id = o.optString("id")
@@ -123,7 +123,17 @@ class Api(private val g: Guard) {
                 if (c.optString("type") == "relay") {
                     val res = g.command(c)
                     // the relay link only after the command ran (a wrong / missing PIN must not hand it out)
-                    Res.json(JSONObject().put("result", res).apply { if (res == "ok") put("id", store.relayId).put("token", store.relayToken).put("url", store.relayUrl) }.toString())
+                    // never the kid token (audit 2026-11-20): `mint: 1` says this phone gives a page its own relay token; the page
+                    // asks for it with `mint: true` (only when it has none for this id): locked on the worker until the family PIN
+                    Res.json(JSONObject().put("result", res).apply {
+                        if (res != "ok") return@apply
+                        put("id", store.relayId).put("url", store.relayUrl).put("mint", 1)
+                        if (c.optBoolean("mint") && token != null && store.relayToken.isNotBlank()) {
+                            val lan = Store.sha256(token)
+                            val m = Relay.mint(Relay.base(store.relayUrl), store.relayId, store.relayToken, r.header("x-kg-name") ?: "", c.optString("kind"), store.relayPar().optString(lan))
+                            if (m != null) { store.setRelayPar(token, m.second); put("token", m.first).put("own", 1) }
+                        }
+                    }.toString())
                 } else {
                     val t0 = android.os.SystemClock.elapsedRealtime()
                     val res = g.command(c)
